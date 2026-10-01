@@ -43,7 +43,7 @@
 <body>
 <div id="hud">
   <div class="title">Prisma</div>
-  <div class="sub" id="hud-sub">Phase 1 · Look</div>
+  <div class="sub" id="hud-sub">Phase 2 · Strahllogik · Tasten 1–3 drehen</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
@@ -93,6 +93,190 @@ const LOOK = {
 
 // Hex-Farben als sRGB interpretieren und korrekt nach linear wandeln.
 THREE.ColorManagement.legacyMode = false;
+
+/* LOGIC:BEGIN ==========================================================
+   SPIELLOGIK — reine 2D-Rasterlogik ohne Three.js.
+   Wird von tests/logic.test.mjs direkt aus dieser Datei geladen.
+
+   Koordinaten: x = Spalte (nach rechts), z = Zeile (zum Betrachter hin).
+   Richtungen in 45°-Schritten, Winkel von +x Richtung +z gemessen:
+     0 = Ost, 1 = Südost, 2 = Süd, 3 = Südwest, 4 = West, 5 = Nordwest, 6 = Nord, 7 = Nordost
+   Farben als RGB-Bitmaske: Rot = 1, Grün = 2, Blau = 4 (Weiss = 7), damit
+   Filtern (AND) und additives Mischen (OR) trivial werden.
+   ===================================================================== */
+
+const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const COLORS = { red: 1, green: 2, yellow: 3, blue: 4, magenta: 5, cyan: 6, white: 7 };
+const COLOR_NAMES = ['none', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+const MAX_BOUNCES = 50;   // Schutz gegen Endlosschleifen pro Strahl
+const MAX_SEGMENTS = 256; // harte Obergrenze für das ganze Feld
+const ELEMENT_TYPES = ['source', 'mirror', 'target'];
+
+const mod8 = (n) => ((n % 8) + 8) % 8;
+
+/**
+ * Spiegel: Linie im Winkel rot·45°, beidseitig verspiegelt.
+ * Reflexion eines Winkels φ an einer Linie α: φ' = 2α − φ.
+ * Verläuft der Strahl parallel zur Spiegelfläche, gleitet er unbeeinflusst vorbei.
+ */
+function reflectOnMirror(dir, rot) {
+  return mod8(2 * rot - dir);
+}
+
+/**
+ * Rasterrichtung → Drehung um die Y-Achse in three.js.
+ * Rasterwinkel laufen von +x nach +z; eine positive rotation.y dreht +x aber nach −z.
+ */
+function dirToRotationY(dir) {
+  return -dir * Math.PI / 4;
+}
+
+/** Erzeugt den Spielzustand aus einer Level-Definition (siehe LEVELS). */
+function createBoard(level) {
+  const size = level.size || 7;
+  const elements = level.elements.map((e, i) => {
+    if (!ELEMENT_TYPES.includes(e.type)) throw new Error(`Level "${level.name}": unbekannter Typ "${e.type}"`);
+    if (e.color && !COLORS[e.color]) throw new Error(`Level "${level.name}": unbekannte Farbe "${e.color}"`);
+    return {
+      id: i,
+      type: e.type,
+      x: e.x,
+      z: e.z,
+      rot: mod8(e.rot || 0),
+      dir: mod8(e.dir || 0),
+      color: COLORS[e.color || 'white'],
+      fixed: !!e.fixed,
+    };
+  });
+  const cells = new Map();
+  for (const el of elements) {
+    const key = el.x + ',' + el.z;
+    if (cells.has(key)) throw new Error(`Level "${level.name}": Zelle ${key} doppelt belegt`);
+    if (el.x < 0 || el.z < 0 || el.x >= size || el.z >= size) throw new Error(`Level "${level.name}": ${key} ausserhalb`);
+    cells.set(key, el);
+  }
+  return { size, elements, cells, name: level.name };
+}
+
+function isRotatable(el) {
+  return !el.fixed && (el.type === 'mirror');
+}
+
+/**
+ * Verfolgt alle Strahlen auf dem Feld.
+ * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }.
+ * Rückgabe:
+ *   segments:  [{ x0, z0, x1, z1, color, dist0, length }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
+ *   events:    [{ x, z, color, kind, dist, target? }]  kind ∈ reflect | hit | absorb | edge
+ *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
+ *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
+ *   solved:    alle Ziele erfüllt
+ *   truncated: Obergrenze erreicht oder Schleife abgebrochen
+ */
+function traceBeams(board, extraRays = []) {
+  const segments = [];
+  const events = [];
+  const hits = new Map();
+  const seen = new Set(); // (Zelle, Richtung, Farbe) — erkennt geschlossene Schleifen
+  const queue = [];
+  let truncated = false;
+
+  // Einziger Weg, einen Strahl abzuschicken: hier greifen Schleifen- und Abprallschutz für alle Elemente.
+  const pushRay = (ray) => {
+    if (ray.color === 0) return; // kein Licht mehr übrig
+    const key = `${ray.x},${ray.z},${ray.dir},${ray.color}`;
+    if (seen.has(key) || ray.bounces > MAX_BOUNCES) { truncated = true; return; }
+    seen.add(key);
+    queue.push(ray);
+  };
+
+  for (const el of board.elements) {
+    if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0 });
+  }
+  for (const r of extraRays) pushRay({ dist: 0, bounces: 0, ...r, dir: mod8(r.dir) });
+
+  while (queue.length) {
+    if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
+    const ray = queue.shift();
+    const [dx, dz] = DIRS[ray.dir];
+    const stepLen = Math.hypot(dx, dz);
+    let cx = ray.x, cz = ray.z;
+
+    const emit = (x1, z1) => {
+      const length = Math.hypot(x1 - ray.x, z1 - ray.z);
+      if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length });
+      return ray.dist + length;
+    };
+
+    for (;;) {
+      const nx = cx + dx, nz = cz + dz;
+      if (nx < 0 || nz < 0 || nx >= board.size || nz >= board.size) {
+        // bis zur Feldkante weiterlaufen lassen
+        const d = emit(cx + dx * 0.5, cz + dz * 0.5);
+        events.push({ x: cx + dx * 0.5, z: cz + dz * 0.5, color: ray.color, kind: 'edge', dist: d });
+        break;
+      }
+      cx = nx; cz = nz;
+      const el = board.cells.get(cx + ',' + cz);
+      if (!el) continue;
+
+      if (el.type === 'mirror') {
+        const nd = reflectOnMirror(ray.dir, el.rot);
+        if (nd === ray.dir) continue; // parallel zur Fläche: gleitet vorbei
+        const d = emit(cx, cz);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d });
+        pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1 });
+        break;
+      }
+
+      if (el.type === 'target') {
+        const d = emit(cx, cz);
+        hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
+        break;
+      }
+
+      // Quelle (und später Blocker) schlucken das Licht an ihrer Vorderseite.
+      const back = 0.32;
+      const d = emit(cx - dx / stepLen * back, cz - dz / stepLen * back);
+      events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d });
+      break;
+    }
+  }
+
+  // Zielregel: Alle eintreffenden Strahlen mischen sich additiv; erfüllt ist ein Ziel nur,
+  // wenn die Mischung exakt seiner Farbe entspricht (ein zusätzlicher falscher Strahl stört).
+  const targets = board.elements.filter(e => e.type === 'target');
+  const satisfied = new Set(targets.filter(t => hits.get(t.id) === t.color).map(t => t.id));
+  const solved = targets.length > 0 && targets.every(t => satisfied.has(t.id));
+  return { segments, events, hits, satisfied, solved, truncated };
+}
+
+/**
+ * Level-Definitionen. Format:
+ *   { name, size?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }] }
+ *   source: dir = Abstrahlrichtung · mirror: rot = Winkel der Spiegelfläche · target: color = benötigte Farbe
+ */
+const LEVELS = [
+  {
+    // Demo-Feld für Phase 2/3 (wird in Phase 6 durch die 10 echten Level ersetzt).
+    // Lösung (= Startzustand):
+    //   Quelle A (0,5) → Ost → Spiegel (3,5) rot 3 → Nord → Spiegel (3,2) rot 3 → Ost → Ziel (6,2)
+    //   Quelle B (6,6) → Nordwest (kreuzt A bei (3,3)) → Spiegel (1,1) rot 0 → Südwest → Ziel (0,2)
+    name: 'Demo',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 3 },
+      { type: 'mirror', x: 3, z: 2, rot: 3 },
+      { type: 'target', x: 6, z: 2, color: 'white' },
+      { type: 'source', x: 6, z: 6, dir: 5 },
+      { type: 'mirror', x: 1, z: 1, rot: 0 },
+      { type: 'target', x: 0, z: 2, color: 'white' },
+    ],
+  },
+];
+
+/* LOGIC:END ============================================================ */
 
 /* =====================================================================
    RENDERER
@@ -691,42 +875,336 @@ function glassReflectionProxy(glass) {
 }
 
 /* =====================================================================
-   LOOK-TEST (nur Phase 1): ein Kristall und ein Leuchtkörper,
-   um Glas, Metall und Bloom beurteilen zu können.
+   SPIELELEMENTE — 3D-Modelle für Quelle, Spiegel und Ziel
    ===================================================================== */
 
-const brushedTex = createBrushedTexture(256);
-const lookTest = new THREE.Group();
-{
-  const gem = new THREE.Mesh(
-    new THREE.OctahedronGeometry(0.42, 0),
-    new THREE.MeshPhysicalMaterial({
-      color: 0xbfd4ff, transmission: 1, thickness: 0.6, ior: 1.7, roughness: 0.04,
-      clearcoat: 1, clearcoatRoughness: 0.03, attenuationColor: new THREE.Color(0x6688ff), attenuationDistance: 1.2,
-      flatShading: true, envMapIntensity: 1.4,
-    })
-  );
-  gem.position.set(-1.2, 0.55, 0);
-  gem.castShadow = true;
-  gem.userData.reflectionMaterial = glassReflectionProxy(gem.material);
-  lookTest.add(gem);
+const BEAM_Y = 0.42; // Höhe, auf der die Strahlen über der Platte laufen
+const HALF_GRID = (GRID - 1) / 2;
 
-  const orb = new THREE.Mesh(
-    new THREE.SphereGeometry(0.12, 24, 16),
-    new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff).multiplyScalar(3.5) })
-  );
-  orb.position.set(1.2, 0.45, 0);
-  lookTest.add(orb);
-
-  const metal = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.35, 0.4, 0.12, 48),
-    new THREE.MeshStandardMaterial({ color: 0x9a9aa4, metalness: 1, roughness: 0.35, roughnessMap: brushedTex, envMapIntensity: 1.2 })
-  );
-  metal.position.set(1.2, 0.06, 0);
-  metal.castShadow = metal.receiveShadow = true;
-  lookTest.add(metal);
+/** Rasterkoordinate → Weltposition (Zellmitte auf der Platte). */
+function gridToWorld(x, z, y = 0, target = new THREE.Vector3()) {
+  return target.set((x - HALF_GRID) * CELL, y, (z - HALF_GRID) * CELL);
 }
-scene.add(lookTest);
+
+const COLOR_RGB = {
+  1: new THREE.Color(1.0, 0.16, 0.12),  // Rot
+  2: new THREE.Color(0.2, 1.0, 0.32),   // Grün
+  3: new THREE.Color(1.0, 0.78, 0.18),  // Gelb
+  4: new THREE.Color(0.18, 0.36, 1.0),  // Blau
+  5: new THREE.Color(1.0, 0.22, 0.85),  // Magenta
+  6: new THREE.Color(0.2, 0.92, 1.0),   // Cyan
+  7: new THREE.Color(1.0, 0.97, 0.92),  // Weiss (minimal warm)
+};
+
+const brushedTex = createBrushedTexture(256);
+brushedTex.repeat.set(2, 2);
+
+const MAT = {
+  metalDark: new THREE.MeshStandardMaterial({
+    color: 0x2c2c33, metalness: 1, roughness: 0.42, roughnessMap: brushedTex, envMapIntensity: 1.1,
+  }),
+  metalBright: new THREE.MeshStandardMaterial({
+    color: 0xb9bac4, metalness: 1, roughness: 0.3, roughnessMap: brushedTex, envMapIntensity: 1.25,
+  }),
+  mirror: new THREE.MeshStandardMaterial({
+    color: 0xf2f4ff, metalness: 1, roughness: 0.03, envMapIntensity: 1.7,
+  }),
+  stone: new THREE.MeshStandardMaterial({
+    color: 0x111117, metalness: 0, roughness: 0.38, envMapIntensity: 0.7,
+  }),
+  lens: new THREE.MeshBasicMaterial({ color: new THREE.Color(1, 0.97, 0.92).multiplyScalar(5.5) }),
+};
+
+function shadowed(mesh) {
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  return mesh;
+}
+
+/** Runder Metallsockel, auf dem jedes Element steht. */
+function makePedestal(radius = 0.34) {
+  const g = new THREE.Group();
+  const disk = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(radius, radius + 0.02, 0.06, 48), MAT.metalDark));
+  disk.position.y = 0.03;
+  const rim = shadowed(new THREE.Mesh(new THREE.TorusGeometry(radius - 0.03, 0.008, 8, 64), MAT.metalBright));
+  rim.rotation.x = Math.PI / 2;
+  rim.position.y = 0.062;
+  g.add(disk, rim);
+  return g;
+}
+
+/** Lichtquelle: schlanker Scheinwerfer auf einer Säule, Linse strahlt in +x. */
+function makeSource(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.36));
+
+  const head = new THREE.Group();
+  head.rotation.y = dirToRotationY(el.dir);
+  root.add(head);
+
+  const column = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, BEAM_Y - 0.05, 24), MAT.metalBright));
+  column.position.y = 0.06 + (BEAM_Y - 0.05) / 2 - 0.02;
+  head.add(column);
+
+  const housing = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.15, 0.5, 40), MAT.metalDark));
+  housing.rotation.z = Math.PI / 2;
+  housing.position.set(-0.04, BEAM_Y, 0);
+  head.add(housing);
+
+  // Kühlrippen
+  for (let i = 0; i < 4; i++) {
+    const fin = shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.012, 8, 40), MAT.metalBright));
+    fin.rotation.y = Math.PI / 2;
+    fin.position.set(-0.24 + i * 0.07, BEAM_Y, 0);
+    head.add(fin);
+  }
+
+  const bezel = shadowed(new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 12, 48), MAT.metalBright));
+  bezel.rotation.y = Math.PI / 2;
+  bezel.position.set(0.21, BEAM_Y, 0);
+  head.add(bezel);
+
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.11, 40), MAT.lens.clone());
+  lens.rotation.y = Math.PI / 2;
+  lens.position.set(0.212, BEAM_Y, 0);
+  head.add(lens);
+
+  root.userData.lens = lens;
+  return root;
+}
+
+/** Spiegel: gebürsteter Rahmen, hochglänzende Fläche, auf Drehteller mit 45°-Markierungen. */
+function makeMirror(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.4));
+
+  // Gravierte 45°-Marken auf dem Teller
+  for (let i = 0; i < 8; i++) {
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.004, 0.012), MAT.metalBright);
+    const a = i * Math.PI / 4;
+    tick.position.set(Math.cos(a) * 0.32, 0.063, Math.sin(a) * 0.32);
+    tick.rotation.y = -a;
+    root.add(tick);
+  }
+
+  const pivot = new THREE.Group();
+  pivot.rotation.y = dirToRotationY(el.rot);
+  root.add(pivot);
+
+  const W = 0.92, H = 0.6, T = 0.05, P = 0.032; // Breite, Höhe, Rahmentiefe, Profil
+  const bottom = BEAM_Y - H / 2;
+
+  const frame = new THREE.Group();
+  const bar = (w, h, x, y) => {
+    const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, T), MAT.metalBright));
+    m.position.set(x, y, 0);
+    frame.add(m);
+  };
+  bar(W, P, 0, bottom + P / 2);
+  bar(W, P, 0, bottom + H - P / 2);
+  bar(P, H, -W / 2 + P / 2, bottom + H / 2);
+  bar(P, H, W / 2 - P / 2, bottom + H / 2);
+  pivot.add(frame);
+
+  const glass = shadowed(new THREE.Mesh(new THREE.BoxGeometry(W - P * 1.4, H - P * 1.4, 0.012), MAT.mirror));
+  glass.position.y = bottom + H / 2;
+  pivot.add(glass);
+
+  // Zwei schlanke Stützen zum Teller
+  for (const sx of [-0.22, 0.22]) {
+    const leg = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, bottom - 0.06, 12), MAT.metalBright));
+    leg.position.set(sx, 0.06 + (bottom - 0.06) / 2, 0);
+    pivot.add(leg);
+  }
+
+  root.userData.pivot = pivot;
+  return root;
+}
+
+/** Brillantschliff als Lathe-Profil (unten Spitze, oben Tafel), facettiert durch flatShading. */
+function makeGemGeometry(radius) {
+  const pts = [
+    new THREE.Vector2(0.0, -0.95),
+    new THREE.Vector2(0.62, -0.28),
+    new THREE.Vector2(1.0, 0.0),
+    new THREE.Vector2(1.0, 0.08),
+    new THREE.Vector2(0.62, 0.42),
+    new THREE.Vector2(0.0, 0.42),
+  ].map(p => p.multiplyScalar(radius));
+  const geo = new THREE.LatheGeometry(pts, 8);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Ziel: schwebender Edelstein in seiner Zielfarbe, mit Leuchtkern und glimmendem Ring. */
+function makeTarget(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.32));
+  const col = COLOR_RGB[el.color];
+
+  const ringMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.6), toneMapped: false });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.01, 8, 64), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.066;
+  root.add(ring);
+
+  const gemMat = new THREE.MeshPhysicalMaterial({
+    color: col.clone().lerp(new THREE.Color(1, 1, 1), 0.55),
+    transmission: 1, thickness: 0.45, ior: 2.0, roughness: 0.02,
+    clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1,
+    attenuationColor: col.clone(), attenuationDistance: 0.35,
+    emissive: col.clone(), emissiveIntensity: 0.12,
+    flatShading: true, envMapIntensity: 1.6,
+  });
+  const gem = shadowed(new THREE.Mesh(makeGemGeometry(0.26), gemMat));
+  gem.position.y = BEAM_Y;
+  gem.userData.reflectionMaterial = glassReflectionProxy(gemMat);
+  root.add(gem);
+
+  // Opaker Leuchtkern: erscheint durch die Transmission gebrochen im Stein.
+  const coreMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.8) });
+  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), coreMat);
+  gem.add(core);
+
+  root.userData.gem = gem;
+  root.userData.core = core;
+  root.userData.ring = ring;
+  root.userData.color = col;
+  root.userData.hit = 0;        // animierter Zustand 0..1
+  root.userData.hitGoal = 0;
+  root.userData.phase = Math.random() * Math.PI * 2;
+  return root;
+}
+
+/** Ziel-Zustand weich nachführen (Glimmen ↔ hell leuchtend). */
+function updateTarget(obj, t, dt) {
+  const u = obj.userData;
+  u.hit += (u.hitGoal - u.hit) * (1 - Math.pow(0.0005, dt));
+  const h = u.hit;
+  u.gem.rotation.y = t * (0.25 + h * 0.6) + u.phase;
+  u.gem.position.y = BEAM_Y + Math.sin(t * 1.1 + u.phase) * 0.018;
+  const flicker = 1 + Math.sin(t * 13.0 + u.phase) * 0.03 * h;
+  u.core.material.color.copy(u.color).multiplyScalar((0.8 + h * 7.0) * flicker);
+  u.gem.material.emissiveIntensity = 0.12 + h * 1.4;
+  u.ring.material.color.copy(u.color).multiplyScalar(0.6 + h * 3.0);
+}
+
+const ELEMENT_FACTORIES = {
+  source: makeSource,
+  mirror: makeMirror,
+  target: makeTarget,
+};
+
+/* =====================================================================
+   BOARD — verbindet Spiellogik und 3D-Darstellung
+   ===================================================================== */
+
+const boardGroup = new THREE.Group();
+scene.add(boardGroup);
+
+const game = {
+  levelIndex: 0,
+  board: null,
+  objects: new Map(), // element.id → Object3D
+  result: null,
+};
+
+const SHARED_MATERIALS = new Set(Object.values(MAT));
+
+/** Gibt Geometrien und elementeigene Materialien eines entfernten Modells frei. */
+function disposeTree(root) {
+  root.traverse((o) => {
+    if (o.geometry) o.geometry.dispose();
+    const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+    if (o.userData.reflectionMaterial) mats.push(o.userData.reflectionMaterial);
+    for (const m of mats) if (!SHARED_MATERIALS.has(m)) m.dispose();
+  });
+}
+
+function loadLevel(index) {
+  game.levelIndex = index;
+  game.board = createBoard(LEVELS[index]);
+  for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
+  game.objects.clear();
+  for (const el of game.board.elements) {
+    const factory = ELEMENT_FACTORIES[el.type];
+    if (!factory) continue;
+    const obj = factory(el);
+    gridToWorld(el.x, el.z, 0, obj.position);
+    obj.userData.element = el;
+    boardGroup.add(obj);
+    game.objects.set(el.id, obj);
+  }
+  recomputeBeams();
+}
+
+function recomputeBeams() {
+  game.result = traceBeams(game.board);
+  for (const el of game.board.elements) {
+    if (el.type === 'target') game.objects.get(el.id).userData.hitGoal = game.result.satisfied.has(el.id) ? 1 : 0;
+  }
+  beamView.update(game.result);
+}
+
+/** Dreht ein Element logisch um ±45° und richtet das Modell aus (Animation folgt in Phase 5). */
+function rotateElement(el, delta) {
+  if (!isRotatable(el)) return;
+  el.rot = ((el.rot + delta) % 8 + 8) % 8;
+  const obj = game.objects.get(el.id);
+  obj.userData.pivot.rotation.y = dirToRotationY(el.rot);
+  recomputeBeams();
+}
+
+/* =====================================================================
+   STRAHLEN (Phase 2: einfache Linien – wird in Phase 3 ersetzt)
+   ===================================================================== */
+
+const beamView = {
+  lines: null,
+  material: new THREE.LineBasicMaterial({ vertexColors: true }),
+  update(result) {
+    if (this.lines) { boardGroup.remove(this.lines); this.lines.geometry.dispose(); }
+    const pos = [], col = [];
+    const a = new THREE.Vector3(), b = new THREE.Vector3();
+    for (const s of result.segments) {
+      gridToWorld(s.x0, s.z0, BEAM_Y, a);
+      gridToWorld(s.x1, s.z1, BEAM_Y, b);
+      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      const c = COLOR_RGB[s.color];
+      for (let i = 0; i < 2; i++) col.push(c.r * 4, c.g * 4, c.b * 4);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    this.lines = new THREE.LineSegments(geo, this.material);
+    boardGroup.add(this.lines);
+  },
+  tick() {},
+};
+
+/* =====================================================================
+   DEBUG-STEUERUNG (bis Phase 5 die echte Interaktion kommt)
+   Tasten 1–9: drehbares Element n um +45° (Shift: −45°) · C: Farbe der Quellen wechseln
+   ===================================================================== */
+
+window.addEventListener('keydown', (e) => {
+  const n = parseInt(e.code.replace('Digit', ''), 10);
+  if (n >= 1 && n <= 9) {
+    const rotatables = game.board.elements.filter(isRotatable);
+    const el = rotatables[n - 1];
+    if (el) rotateElement(el, e.shiftKey ? -1 : 1);
+  } else if (e.code === 'KeyC') {
+    const cycle = [7, 1, 2, 4, 3, 5, 6];
+    for (const el of game.board.elements) {
+      if (el.type !== 'source') continue;
+      el.color = cycle[(cycle.indexOf(el.color) + 1) % cycle.length];
+      game.objects.get(el.id).userData.lens.material.color.copy(COLOR_RGB[el.color]).multiplyScalar(5.5);
+    }
+    recomputeBeams();
+  }
+});
+
+loadLevel(0);
 
 /* =====================================================================
    RESIZE & LOOP
@@ -783,7 +1261,10 @@ function frame() {
   background.material.uniforms.uTime.value = t;
   finalPass.uniforms.uTime.value = t;
 
-  lookTest.children[0].rotation.y = t * 0.4;
+  for (const obj of game.objects.values()) {
+    if (obj.userData.element.type === 'target') updateTarget(obj, t, dt);
+  }
+  beamView.tick(t, dt);
 
   renderReflection();
   composer.render(dt);
@@ -792,9 +1273,9 @@ function frame() {
   requestAnimationFrame(frame);
 }
 
-window.__prisma = { frames: 0, ready: true };
+window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, rimLight, keyLight, hemi };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, rimLight, keyLight, hemi, game, rotateElement };
 requestAnimationFrame(frame);
 </script>
 </body>
