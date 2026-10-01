@@ -38,9 +38,16 @@
   }
   #hud .title { font-size: 13px; }
   #hud .sub { margin-top: 8px; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.3em; }
+  #perf {
+    position: fixed; left: 12px; bottom: 12px; z-index: 5;
+    font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
+    color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
+    padding: 8px 10px; border-radius: 4px; white-space: pre; pointer-events: none;
+  }
 </style>
 </head>
 <body>
+<div id="perf" hidden></div>
 <div id="hud">
   <div class="title">Prisma</div>
   <div class="sub" id="hud-sub">Phase 3 · Strahlen · Tasten 1–3 drehen · C Farbe</div>
@@ -64,12 +71,21 @@
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
+// Qualitätsstufen, umschaltbar mit Taste Q (siehe applyQualityPreset).
+// maxPixelRatio ist die Obergrenze; die tatsächliche Auflösung regelt adaptiveResolution.
+const QUALITY_PRESETS = [
+  { name: 'Hoch',    msaa: 4, reflectionScale: 0.5, maxPixelRatio: 1.5 },
+  { name: 'Mittel',  msaa: 2, reflectionScale: 0.4, maxPixelRatio: 1.25 },
+  { name: 'Niedrig', msaa: 0, reflectionScale: 0.3, maxPixelRatio: 1.0 },
+];
+const START_PRESET = IS_MOBILE ? 2 : 0;
+
 const QUALITY = {
-  // Obergrenze; die tatsächliche Auflösung regelt adaptiveResolution nach der gemessenen Frame-Zeit.
-  pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
-  msaa: IS_MOBILE ? 0 : 4,
+  preset: START_PRESET,
+  pixelRatio: Math.min(window.devicePixelRatio || 1, QUALITY_PRESETS[START_PRESET].maxPixelRatio),
+  msaa: QUALITY_PRESETS[START_PRESET].msaa,
+  reflectionScale: QUALITY_PRESETS[START_PRESET].reflectionScale,
   shadowSize: IS_MOBILE ? 1024 : 2048,
-  reflectionScale: IS_MOBILE ? 0.35 : 0.5,
   textureSize: IS_MOBILE ? 512 : 1024,
   reflections: true,
 };
@@ -87,7 +103,7 @@ const LOOK = {
   bloomThreshold: 1.0,     // HDR: nur Werte > 1 blühen (Strahlen, Leuchtkörper)
   vignette: 0.55,
   aberration: 0.0035,
-  grain: 0.028,
+  grain: 0.012,
   fogColor: 0x05040b,
   fogDensity: 0.016,
 };
@@ -302,6 +318,7 @@ const LEVELS = [
 
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
+renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
 renderer.setSize(window.innerWidth, window.innerHeight);
 // Tone Mapping (ACES Filmic) und sRGB-Wandlung passieren im finalen Post-Pass,
 // damit Bloom auf echten HDR-Werten arbeitet.
@@ -520,9 +537,9 @@ function buildEnvironment() {
     envScene.add(m);
   };
   panel(14, 7, new THREE.Vector3(0, 16, 2), 0xfff4ea, 3.2);     // grosse Deckensoftbox
-  panel(2.2, 16, new THREE.Vector3(-15, 5, -3), 0xb8c6ff, 0.9);  // kühler Streifen links
-  panel(2.2, 16, new THREE.Vector3(15, 5, -5), 0xc8b8ff, 0.8);   // violetter Streifen rechts
-  panel(10, 2.5, new THREE.Vector3(0, 4, -16), 0x7a6aff, 0.9);   // Hinterkante
+  panel(2.2, 16, new THREE.Vector3(-15, 5, -3), 0xdfe4ff, 0.55);  // kühler Streifen links
+  panel(2.2, 16, new THREE.Vector3(15, 5, -5), 0xe4dcff, 0.45);   // violetter Streifen rechts
+  panel(10, 2.5, new THREE.Vector3(0, 4, -16), 0x9a90e0, 0.5);   // Hinterkante
   panel(6, 2, new THREE.Vector3(4, 2, 15), 0xffe2c8, 0.6);       // warmes Fülllicht vorne
 
   const pmrem = new THREE.PMREMGenerator(renderer);
@@ -598,13 +615,13 @@ const floorMaterial = new THREE.MeshStandardMaterial({
   roughnessMap: stoneTex.roughnessMap,
   metalness: 0.0,
   normalMap: stoneTex.normalMap,
-  normalScale: new THREE.Vector2(0.3, 0.3),
+  normalScale: new THREE.Vector2(0.12, 0.12), // nur ein Hauch Relief – sonst wirken Spiegelungen ölig-wellig
   envMapIntensity: 0.22,
 });
 
 // Analytische Details des Bodens (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
 const FLOOR_DETAIL_GLSL = `
-  float floorGroove = 0.0, floorInlay = 0.0, floorGrain = 0.5, floorBevel = 0.0;
+  float floorGroove = 0.0, floorInlay = 0.0, floorBevel = 0.0;
   {
     vec2 pp = (vUv - 0.5) * ${PLATE.toFixed(4)};
     float halfBoard = ${(BOARD / 2).toFixed(4)};
@@ -619,27 +636,17 @@ const FLOOR_DETAIL_GLSL = `
     vec2 inside = 1.0 - smoothstep(vec2(halfBoard), vec2(halfBoard) + apw, abs(pp));
     floorGroove = max(line.x, line.y) * inside.x * inside.y;
 
-    // Silber-Intarsie: eine feine Linie knapp ausserhalb des Spielfelds
+    // Helle, matte Einlegelinie knapp ausserhalb des Spielfelds. Bewusst nicht metallisch:
+    // eine dünne Glanzlinie auf leicht unebenem Grund glitzert pixelweise (wirkt gestrichelt).
     float box = max(abs(pp.x), abs(pp.y));
     float bw = max(fwidth(box), 1e-5);
     float r1 = abs(box - (halfBoard + 0.16));
-    floorInlay = (1.0 - smoothstep(0.009 - bw * 0.5, 0.009 + bw * 0.5, r1)) * clamp(0.018 / bw, 0.3, 1.0);
+    float iw = 0.011;
+    floorInlay = (1.0 - smoothstep(iw - bw, iw + bw, r1)) * clamp(iw * 2.0 / bw, 0.2, 1.0);
 
     // Polierte Fase an der Plattenkante: fängt das Licht und zeichnet die Silhouette
     float edgeDist = ${(PLATE / 2).toFixed(4)} - box;
-    floorBevel = 1.0 - smoothstep(0.0, 0.045, edgeDist);
-
-    // Mikrokörnung; blendet aus, sobald sie kleiner als ein Pixel wird
-    vec2 g = pp * 55.0;
-    vec2 gi = floor(g), gf = fract(g);
-    gf = gf * gf * (3.0 - 2.0 * gf);
-    float h00 = fract(sin(dot(gi, vec2(127.1, 311.7))) * 43758.5453);
-    float h10 = fract(sin(dot(gi + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
-    float h01 = fract(sin(dot(gi + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
-    float h11 = fract(sin(dot(gi + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
-    float grain = mix(mix(h00, h10, gf.x), mix(h01, h11, gf.x), gf.y);
-    float grainFade = 1.0 - smoothstep(0.35, 1.0, max(fwidth(g.x), fwidth(g.y)));
-    floorGrain = mix(0.5, grain, grainFade);
+    floorBevel = (1.0 - smoothstep(0.0, 0.06, edgeDist)) * 0.7;
   }
 `;
 
@@ -654,17 +661,13 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;')
     .replace('#include <map_fragment>', `#include <map_fragment>
       ${FLOOR_DETAIL_GLSL}
-      diffuseColor.rgb *= 1.0 + (floorGrain - 0.5) * 0.14;
       diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
-      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.56, 0.62), floorInlay);
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.16, 0.18), floorInlay);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 2.2 + 0.012, floorBevel);`)
     .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-      roughnessFactor += (floorGrain - 0.5) * 0.1;
       roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
-      roughnessFactor = mix(roughnessFactor, 0.2, floorInlay);
+      roughnessFactor = mix(roughnessFactor, 0.55, floorInlay);
       roughnessFactor = mix(roughnessFactor, 0.12, floorBevel);`)
-    .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
-      metalnessFactor = mix(metalnessFactor, 1.0, floorInlay);`)
     .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
@@ -721,7 +724,7 @@ plinth.position.y = -PLATE_THICK - 0.8;
 scene.add(plinth);
 
 /* =====================================================================
-   BELEUCHTUNG — Museumsspot als Hauptlicht, kühles Gegenlicht
+   BELEUCHTUNG — Museumsspot als Hauptlicht
    ===================================================================== */
 
 const hemi = new THREE.HemisphereLight(0x2a2d50, 0x050308, 0.08);
@@ -738,9 +741,8 @@ keyLight.shadow.bias = -0.0002;
 keyLight.shadow.normalBias = 0.02;
 scene.add(keyLight, keyLight.target);
 
-const rimLight = new THREE.DirectionalLight(0x8c8cff, 0.06);
-rimLight.position.set(-4, 5, -10);
-scene.add(rimLight);
+// Kein zusätzliches Gegenlicht: es glänzte bei flachem Blick als blauer Fleck auf dem polierten Stein.
+// Lichtkanten an den Objekten liefern die Softboxen der Environment-Map.
 
 /* =====================================================================
    POST-PROCESSING
@@ -895,7 +897,7 @@ function updateCamera(t, dt) {
     cameraRig.goalTheta *= Math.pow(0.35, dt);
     cameraRig.goalPhi *= Math.pow(0.35, dt);
   }
-  const k = 1 - Math.pow(0.002, dt);
+  const k = 1 - Math.pow(0.00002, dt); // Zeitkonstante ≈ 0.09 s: weich, aber nicht träge
   cameraRig.userTheta += (cameraRig.goalTheta - cameraRig.userTheta) * k;
   cameraRig.userPhi += (cameraRig.goalPhi - cameraRig.userPhi) * k;
 
@@ -926,7 +928,11 @@ window.addEventListener('pointermove', (e) => {
   cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp, cameraRig.limitsPhiDown);
   cameraRig.lastInput = clock.elapsedTime;
 });
-window.addEventListener('pointerup', (e) => { if (e.pointerId === drag.id) drag.active = false; });
+window.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== drag.id) return;
+  drag.active = false;
+  if (typeof adaptiveResolution === 'object') adaptiveResolution.hold(1);
+});
 window.addEventListener('pointercancel', (e) => { if (e.pointerId === drag.id) drag.active = false; });
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -1316,6 +1322,7 @@ const BEAM_FRAGMENT_COMMON = `
     return mix(hash1(i), hash1(i + 1.0), f * f * (3.0 - 2.0 * f));
   }
   // Abstand zur Kapsel, Weglänge am nächsten Punkt und Sichtbarkeit (Front + Ausblenden)
+  float cutDist; // Abstand zur nächsten Schnittebene (Spiegelfläche, Strahlende)
   void beamDistance(out float d, out float pathDist, out float visible) {
     float along = clamp(vLocal.x, 0.0, vDist.y);
     d = length(vec2(vLocal.x - along, vLocal.y));
@@ -1327,6 +1334,7 @@ const BEAM_FRAGMENT_COMMON = `
     // Schnitt an Anfang und Ende: hinter Spiegelfläche bzw. jenseits des Endpunkts kein Leuchten
     float k0 = dot(vWorld.xz - vEnds.xy, vCaps.xy);
     float k1 = dot(vWorld.xz - vEnds.zw, vCaps.zw);
+    cutDist = min(k0, k1);
     visible *= smoothstep(uCapSoft.x, uCapSoft.y, k0) * smoothstep(uCapSoft.x, uCapSoft.y, k1);
     if (dying) {
       float f = clamp(1.0 - (uTime - vLife.z) / uFadeOut, 0.0, 1.0);
@@ -1395,8 +1403,11 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float gw = uGlow * (0.92 + 0.16 * noise1(pathDist * 3.0 - uTime * 2.0));
 
     float core = exp(-(d * d) / (uCore * uCore));
-    float glow = exp(-(d * d) / (gw * gw));
-    float halo = exp(-d / (gw * 1.8)) * 0.05;
+    // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
+    // über die ganze Glasplatte bzw. den Edelstein und wirkt, als schiene Licht hindurch.
+    float nearCut = smoothstep(0.0, min(0.2, vDist.y * 0.3), cutDist);
+    float glow = exp(-(d * d) / (gw * gw)) * mix(0.35, 1.0, nearCut);
+    float halo = exp(-d / (gw * 1.8)) * 0.05 * nearCut;
 
     vec3 hot = mix(vColor, vec3(1.0), 0.6);
     vec3 col = vColor * (glow * 0.75 + halo) * flow
@@ -1519,7 +1530,7 @@ function createFlareTexture(size) {
 
 const flareTexture = createFlareTexture(256);
 const FLARE_STYLE = {
-  reflect: { scale: 0.62, intensity: 2.6 },
+  reflect: { scale: 0.42, intensity: 2.4 },
   hit:     { scale: 0.95, intensity: 3.2 },
   absorb:  { scale: 0.32, intensity: 1.0 },
   edge:    { scale: 0.0,  intensity: 0.0 },
@@ -1880,13 +1891,15 @@ const adaptiveResolution = {
     if (ms > 100) return; // Tab war im Hintergrund
     const sec = ms / 1000;
     if (this.cooldown > 0) { this.cooldown -= sec; return; }
+    // Während die Kamera gezogen wird nie umbauen (jeder Umbau ist ein kurzer Hänger)
+    if (drag.active) { this.window = this.slow = this.frames = 0; return; }
 
     this.window += sec; this.frames++;
     if (ms > 20) this.slow++;
     this.calm = ms < 18 ? this.calm + sec : 0;
     // Nach 30 s ruhigem Betrieb darf die Obergrenze wieder steigen
     if (this.calm > 30 && this.ceiling < 1) { this.ceiling = Math.min(1, this.ceiling + 0.05); this.calm = 0; }
-    if (this.window < 1) return;
+    if (this.window < 2) return; // zwei Sekunden messen, bevor etwas umgebaut wird
 
     const overload = this.slow / this.frames; // Anteil Frames über Budget in der letzten Sekunde
     this.window = this.slow = this.frames = 0;
@@ -1901,7 +1914,7 @@ const adaptiveResolution = {
       this.ceiling = Math.max(this.min, this.scale - 0.05);
       this.probe = { from: this.scale, overload };
       this.set(this.scale - 0.12);
-    } else if (overload < 0.05 && this.calm > 5 && this.scale < this.ceiling) {
+    } else if (overload < 0.05 && this.calm > 8 && !drag.active && this.scale < this.ceiling) {
       this.set(Math.min(this.ceiling, this.scale + 0.08));
     }
   },
@@ -1909,6 +1922,7 @@ const adaptiveResolution = {
   set(scale) {
     this.scale = Math.max(this.min, Math.min(1, scale));
     const pr = QUALITY.pixelRatio * this.scale;
+    this.changes = (this.changes || 0) + 1;
     renderer.setPixelRatio(pr);
     composer._pixelRatio = pr; // nicht setPixelRatio(): das baut alle Puffer neu, onResize gleich nochmal
     onResize();
@@ -1924,13 +1938,85 @@ function renderReflection() {
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
   floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
+  background.visible = false; // gespiegelt nur ein bläulicher Fleck; ein dunkler Raum spiegelt sich schwarz
   reflector.onBeforeRender(renderer, scene, camera);
+  background.visible = true;
   floorTop.visible = true;
 }
 
-function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
-  const t = clock.elapsedTime;
+/* ---------- Leistungsanzeige (Taste F) und Qualitätsstufen (Taste Q) ---------- */
+
+const perfHud = {
+  el: document.getElementById('perf'),
+  visible: new URLSearchParams(location.search).has('perf'),
+  samples: [], acc: 0, last: performance.now(),
+  gpu: (() => {
+    const gl = renderer.getContext();
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+  })(),
+  tick() {
+    const now = performance.now();
+    const ms = now - this.last;
+    this.last = now;
+    if (!this.visible) return;
+    if (ms < 250) this.samples.push(ms);
+    this.acc += ms;
+    if (this.acc < 500) return;
+    this.acc = 0;
+    const sorted = this.samples.slice().sort((a, b) => a - b);
+    const avg = sorted.reduce((a, b) => a + b, 0) / Math.max(1, sorted.length);
+    const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
+    const max = sorted[sorted.length - 1] || 0;
+    this.samples.length = 0;
+    const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+    const preset = QUALITY_PRESETS[QUALITY.preset];
+    this.el.textContent =
+      `${Math.round(1000 / avg)} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
+      `Qualität ${preset.name} (Q)   MSAA ${composer.renderTarget1.samples}×   Spiegelung ${preset.reflectionScale}\n` +
+      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
+      `Draw-Calls ${renderer.info.render.calls}   Dreiecke ${renderer.info.render.triangles}\n` +
+      `GPU ${this.gpu}`;
+  },
+  toggle() {
+    this.visible = !this.visible;
+    this.el.hidden = !this.visible;
+    this.samples.length = 0;
+    this.acc = 0;
+  },
+};
+perfHud.el.hidden = !perfHud.visible;
+
+function applyQualityPreset(index) {
+  QUALITY.preset = index;
+  const p = QUALITY_PRESETS[index];
+  QUALITY.msaa = p.msaa;
+  QUALITY.reflectionScale = p.reflectionScale;
+  QUALITY.pixelRatio = Math.min(window.devicePixelRatio || 1, p.maxPixelRatio);
+  if (renderer.capabilities.isWebGL2) {
+    composer.renderTarget1.samples = p.msaa;
+    composer.renderTarget2.samples = p.msaa;
+    composer.renderTarget1.dispose();
+    composer.renderTarget2.dispose();
+  }
+  adaptiveResolution.locked = false;
+  adaptiveResolution.probe = null;
+  adaptiveResolution.ceiling = 1;
+  adaptiveResolution.set(1);
+}
+
+window.addEventListener('keydown', (e) => {
+  if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.code === 'KeyF') perfHud.toggle();
+  else if (e.code === 'KeyQ') applyQualityPreset((QUALITY.preset + 1) % QUALITY_PRESETS.length);
+});
+
+let lastFrameTs = null;
+function frame(ts) {
+  // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
+  const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.05);
+  lastFrameTs = ts;
+  const t = clock.getElapsedTime();
 
   updateCamera(t, dt);
   background.position.copy(camera.position); // Hintergrundkugel immer um die Kamera
@@ -1947,6 +2033,8 @@ function frame() {
   composer.render(dt);
 
   adaptiveResolution.tick();
+  perfHud.tick();
+  renderer.info.reset();
   window.__prisma.frames++;
   requestAnimationFrame(frame);
 }
@@ -1954,7 +2042,7 @@ function frame() {
 window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved,
   fps: () => Math.round(1000 / adaptiveResolution.avg), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, rimLight, keyLight, hemi, game, rotateElement };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement };
 requestAnimationFrame(frame);
 </script>
 </body>
