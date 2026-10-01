@@ -191,20 +191,24 @@ function primariesOf(color) {
   return [1, 2, 4].filter(c => color & c);
 }
 
+/** Grösste Ablenkung, die ein Prisma schafft (in 45°-Schritten): bis 90°. */
+const PRISM_MAX_BEND = 2;
+
 /**
- * Prisma: die Spitze zeigt in Richtung rot·45°. Trifft das Licht längs der Prismenachse
- * (k = 0 oder 4), geht es unverändert durch. Sonst wird jede Grundfarbe gebrochen:
- * Grün läuft gerade weiter, Rot und Blau weichen um je 45° zu beiden Seiten ab –
- * auf welcher Seite Rot liegt, hängt davon ab, auf welcher Seite die Spitze steht.
- * Weiss wird so in drei Strahlen gespalten, eine Grundfarbe nur gebrochen.
- * Rückgabe: [{ dir, color }]
+ * Prisma: Die Austrittsfläche zeigt in Richtung rot·45° – dorthin zielt der Farbfächer.
+ * Grün läuft genau in Prismarichtung, Rot 45° links davon (rot − 1), Blau 45° rechts (rot + 1).
+ * Jede Stellung bewirkt so etwas anderes: Fächer geradeaus, um 45° oder um 90° abgelenkt.
+ * Zeigt die Austrittsfläche nach hinten (Ablenkung 135° oder 180°), tritt kein Licht aus.
+ * Eine Grundfarbe läuft nur auf ihrer eigenen Bahn (gebrochen, nicht gespalten);
+ * eine Mischfarbe zerfällt in ihre Anteile.
+ * Rückgabe: [{ dir, color }] – leer, wenn das Licht nicht austreten kann.
  */
 function refractInPrism(dir, color, rot) {
-  const k = mod8(rot - dir);
-  if (k === 0 || k === 4) return [{ dir, color }];
-  const s = k < 4 ? 1 : -1;
-  const bend = { 1: -s, 2: 0, 4: s };
-  return primariesOf(color).map(c => ({ dir: mod8(dir + bend[c]), color: c }));
+  const b = mod8(rot - dir);
+  const bend = b > 4 ? b - 8 : b; // −3 … 4
+  if (Math.abs(bend) > PRISM_MAX_BEND) return [];
+  const offset = { 1: -1, 2: 0, 4: 1 };
+  return primariesOf(color).map(c => ({ dir: mod8(rot + offset[c]), color: c }));
 }
 
 /**
@@ -323,8 +327,9 @@ function tracePass(board, extraRays, emitting) {
 
       if (el.type === 'prism') {
         const d = emit(cx, cz);
-        events.push({ x: cx, z: cz, color: ray.color, kind: 'refract', dist: d, element: el.id });
-        for (const out of refractInPrism(ray.dir, ray.color, el.rot)) next(out.dir, out.color, d);
+        const outs = refractInPrism(ray.dir, ray.color, el.rot);
+        events.push({ x: cx, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });
+        for (const out of outs) next(out.dir, out.color, d);
         break;
       }
 
@@ -371,7 +376,7 @@ function tracePass(board, extraRays, emitting) {
  *   { name, size?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }] }
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
  *   mirror:   rot = Winkel der Spiegelfläche (drehbar)
- *   prism:    rot = Richtung der Prismenspitze (drehbar)
+ *   prism:    rot = Richtung der Austrittsfläche = Richtung des Farbfächers (drehbar)
  *   filter:   color = durchgelassene Farbe(n)
  *   combiner: dir = Ausgangsrichtung (drehbar)
  *   blocker:  schluckt Licht
@@ -381,14 +386,14 @@ const LEVELS = [
   {
     // Demo-Feld für Phase 4 (wird in Phase 6 durch die 10 echten Level ersetzt).
     // Lösung (= Startzustand):
-    //   Quelle (0,3) → Ost → Prisma (2,3) rot 2: Rot nach Nordost → Ziel Rot (5,0),
+    //   Quelle (0,3) → Ost → Prisma (2,3) rot 0 (Fächer geradeaus): Rot nach Nordost → Ziel Rot (5,0),
     //   Grün nach Ost → Kombinator (6,3), Blau nach Südost → Spiegel (4,5) rot 0 → Nordost → Kombinator (6,3)
     //   Kombinator (6,3) mischt Grün + Blau = Cyan → Nord → Ziel Cyan (6,0)
     //   Quelle (0,0) → Ost → Filter Magenta (2,0) → Ziel Magenta (4,0)
     name: 'Spektrum-Demo',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'prism', x: 2, z: 3, rot: 2 },
+      { type: 'prism', x: 2, z: 3, rot: 0 },
       { type: 'target', x: 5, z: 0, color: 'red' },
       { type: 'mirror', x: 4, z: 5, rot: 0 },
       { type: 'combiner', x: 6, z: 3, dir: 6 },
@@ -1272,7 +1277,7 @@ function glassEdges(geometry, opacity = 0.28) {
   return lines;
 }
 
-/** Weicher Regenbogenverlauf (für das Innenleben des Prismas). */
+/** Weicher Regenbogenverlauf (für das Spektralfenster des Prismas). */
 function createSpectrumTexture() {
   const c = document.createElement('canvas');
   c.width = 256; c.height = 32;
@@ -1303,7 +1308,7 @@ function easeToward(current, goal, dt, speed = 0.0005) {
   return current + (goal - current) * (1 - Math.pow(speed, dt));
 }
 
-/** Prisma: dreiseitiges Glasprisma zwischen zwei Metallplatten, Spitze in Richtung rot·45°. */
+/** Prisma: dreiseitiges Glasprisma zwischen zwei Metallplatten, Austrittsfläche (lokal −z) in Richtung rot·45°. */
 function makePrism(el) {
   const root = new THREE.Group();
   root.add(makePedestal(0.38));
@@ -1311,7 +1316,8 @@ function makePrism(el) {
   root.add(pivot);
 
   const H = 0.5;
-  const geo = new THREE.CylinderGeometry(0.33, 0.33, H, 3, 1); // erste Ecke zeigt lokal nach +z = Spitze
+  const R = 0.33;
+  const geo = new THREE.CylinderGeometry(R, R, H, 3, 1); // Ecke lokal bei +z, gegenüber die Fläche bei −z
   const glass = new THREE.Mesh(geo, makeGlassMaterial(new THREE.Color(0.86, 0.9, 1.0), { iridescence: 1.0 }));
   glass.position.y = BEAM_Y;
   glass.renderOrder = 5;
@@ -1329,13 +1335,14 @@ function makePrism(el) {
   post.position.y = 0.06 + (BEAM_Y - H / 2 - 0.07) / 2;
   pivot.add(post);
 
-  // Innenleben: zarter Spektralschleier, leuchtet auf, wenn Licht hindurchgeht
+  // Spektralfenster auf der Austrittsfläche: zeigt die Fächerrichtung und leuchtet, wenn Licht austritt.
+  // (Bei Blick von aussen liegt Rot auf der Seite, zu der der rote Strahl abgelenkt wird.)
   const veilMat = new THREE.MeshBasicMaterial({
     map: spectrumTexture, transparent: true, blending: THREE.AdditiveBlending,
     depthWrite: false, side: THREE.DoubleSide, fog: false, opacity: 1,
   });
-  const veil = new THREE.Mesh(new THREE.PlaneGeometry(0.32, H * 0.8), veilMat);
-  veil.position.set(0, BEAM_Y, 0.02);
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(R * Math.sqrt(3) * 0.8, H * 0.82), veilMat);
+  veil.position.set(0, BEAM_Y, -(R * 0.5 + 0.004));
   veil.raycast = () => {};
   pivot.add(veil);
 
@@ -1343,12 +1350,12 @@ function makePrism(el) {
   u.pivot = pivot;
   u.veil = veil;
   u.glow = 0;
-  // Spitze lokal +z → Rasterrichtung (cos a, sin a): rotation.y = π/2 − a
-  u.orient = (e) => { pivot.rotation.y = Math.PI / 2 - e.rot * Math.PI / 4; };
+  // Austrittsfläche lokal −z → Rasterrichtung (cos a, sin a): rotation.y = −π/2 − a
+  u.orient = (e) => { pivot.rotation.y = -Math.PI / 2 - e.rot * Math.PI / 4; };
   u.orient(el);
   u.update = (t, dt) => {
     u.glow = easeToward(u.glow, activeColorOf(u) ? 1 : 0, dt);
-    veilMat.color.setScalar(0.06 + u.glow * 0.9);
+    veilMat.color.setScalar(0.08 + u.glow * 1.1);
   };
   return root;
 }
@@ -1558,6 +1565,7 @@ function recomputeBeams(instant = false, delay = 0) {
   for (const el of game.board.elements) {
     if (el.type !== 'prism' && el.type !== 'filter' && el.type !== 'combiner') continue;
     const u = game.objects.get(el.id).userData;
+    // nur Ereignisse, bei denen Licht weitergeht (ein Prisma ohne Austritt bleibt dunkel)
     u.events = beamView.eventRecords.filter(r => r.ev.element === el.id && r.ev.kind !== 'absorb');
     if (el.type === 'combiner') u.mix = game.result.mixes.get(el.id) || 0;
   }
@@ -1579,7 +1587,7 @@ const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
 /**
  * Dreht ein Element um ±45°: die Logik sofort, das Modell weich (Easing). Mehrere schnelle
  * Klicks addieren sich zum Zielwinkel, ohne Sprung. Alle drei drehbaren Typen drehen bei +1
- * ihren Pivot um −π/4 (siehe orient: Spiegel/Kombinator −a, Prisma π/2 − a).
+ * ihren Pivot um −π/4 (siehe orient: Spiegel/Kombinator −a, Prisma −π/2 − a).
  */
 function rotateElement(el, delta) {
   if (!el || !isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels

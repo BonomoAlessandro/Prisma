@@ -200,26 +200,41 @@ test('Segmente tragen Schnittnormalen (Spiegel: Fläche, sonst senkrecht)', () =
 
 console.log('Prisma, Filter, Kombinator, Blocker');
 const colorsAt = (r, kind) => r.events.filter(e => e.kind === kind).map(e => e.color).sort();
-test('Prisma spaltet Weiss in drei Strahlen (Grün gerade, Rot/Blau ±45°)', () => {
-  const out = L.refractInPrism(0, 7, 2);
-  assert.deepEqual(out, [{ dir: 7, color: 1 }, { dir: 0, color: 2 }, { dir: 1, color: 4 }]);
+test('Prisma: jede Stellung nach vorn bewirkt etwas anderes', () => {
+  // Licht von Westen (dir 0); rot = Fächerrichtung, Rot links (−1), Blau rechts (+1)
+  assert.deepEqual(L.refractInPrism(0, 7, 0), [{ dir: 7, color: 1 }, { dir: 0, color: 2 }, { dir: 1, color: 4 }]);
+  assert.deepEqual(L.refractInPrism(0, 7, 1), [{ dir: 0, color: 1 }, { dir: 1, color: 2 }, { dir: 2, color: 4 }]);
+  assert.deepEqual(L.refractInPrism(0, 7, 2), [{ dir: 1, color: 1 }, { dir: 2, color: 2 }, { dir: 3, color: 4 }]);
+  assert.deepEqual(L.refractInPrism(0, 7, 7), [{ dir: 6, color: 1 }, { dir: 7, color: 2 }, { dir: 0, color: 4 }]);
+  assert.deepEqual(L.refractInPrism(0, 7, 6), [{ dir: 5, color: 1 }, { dir: 6, color: 2 }, { dir: 7, color: 4 }]);
+  const all = [0, 1, 2, 6, 7].map(r => JSON.stringify(L.refractInPrism(0, 7, r)));
+  assert.equal(new Set(all).size, 5);
 });
-test('Spitze auf der anderen Seite vertauscht Rot und Blau', () => {
-  const out = L.refractInPrism(0, 7, 6);
-  assert.deepEqual(out, [{ dir: 1, color: 1 }, { dir: 0, color: 2 }, { dir: 7, color: 4 }]);
+test('Prisma bei schrägem Einfall', () => {
+  // Licht nach Südost (dir 1)
+  assert.deepEqual(L.refractInPrism(1, 7, 3), [{ dir: 2, color: 1 }, { dir: 3, color: 2 }, { dir: 4, color: 4 }]); // +90°
+  assert.deepEqual(L.refractInPrism(1, 7, 7), [{ dir: 6, color: 1 }, { dir: 7, color: 2 }, { dir: 0, color: 4 }]); // −90°
+  assert.deepEqual(L.refractInPrism(1, 7, 5), []); // nach hinten
 });
-test('Licht längs der Prismenachse geht ungebrochen durch', () => {
-  assert.deepEqual(L.refractInPrism(0, 7, 0), [{ dir: 0, color: 7 }]);
-  assert.deepEqual(L.refractInPrism(0, 7, 4), [{ dir: 0, color: 7 }]);
+test('Prisma nach hinten gedreht: kein Austritt', () => {
+  for (const r of [3, 4, 5]) assert.deepEqual(L.refractInPrism(0, 7, r), []);
 });
-test('Grundfarbe wird nur gebrochen, Mischfarbe in Anteile zerlegt', () => {
-  assert.deepEqual(L.refractInPrism(0, 1, 2), [{ dir: 7, color: 1 }]);
-  assert.deepEqual(L.refractInPrism(0, 3, 2), [{ dir: 7, color: 1 }, { dir: 0, color: 2 }]);
+test('Grundfarbe läuft auf ihrer Fächerbahn, Mischfarbe zerfällt', () => {
+  assert.deepEqual(L.refractInPrism(0, 1, 1), [{ dir: 0, color: 1 }]);
+  assert.deepEqual(L.refractInPrism(0, 3, 0), [{ dir: 7, color: 1 }, { dir: 0, color: 2 }]);
+});
+test('Prisma ohne Austritt schluckt das Licht im Feld', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'prism', x: 2, z: 3, rot: 4 },
+  ]));
+  assert.equal(r.segments.length, 1);
+  assert.equal(r.events.at(-1).kind, 'absorb');
 });
 test('Prisma im Feld: drei farbige Ziele', () => {
   const r = L.traceBeams(level([
     { type: 'source', x: 0, z: 3, dir: 0 },
-    { type: 'prism', x: 2, z: 3, rot: 2 },
+    { type: 'prism', x: 2, z: 3, rot: 0 },
     { type: 'target', x: 5, z: 0, color: 'red' },
     { type: 'target', x: 6, z: 3, color: 'green' },
     { type: 'target', x: 5, z: 6, color: 'blue' },
@@ -324,14 +339,11 @@ test('Filter: Weiss → Magenta, Cyan durch Gelb → Grün', () => {
   const b = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0, color: 'cyan' }, { type: 'filter', x: 2, z: 3, color: 'yellow' }]));
   assert.equal(b.segments.at(-1).color, 2);
 });
-test('Prisma: Mischfarbe längs der Achse bleibt ganz', () => {
-  assert.deepEqual(L.refractInPrism(2, 6, 6), [{ dir: 2, color: 6 }]);
-});
 test('Prisma-Ausgänge: Feldkante, zweites Prisma, Blocker', () => {
   const r = L.traceBeams(level([
     { type: 'source', x: 0, z: 1, dir: 0 },
-    { type: 'prism', x: 1, z: 1, rot: 2 },      // Rot NO → Kante, Grün O, Blau SO
-    { type: 'prism', x: 4, z: 1, rot: 0 },      // Grün längs der Achse → unverändert
+    { type: 'prism', x: 1, z: 1, rot: 0 },      // Fächer geradeaus: Rot NO → Kante, Grün O, Blau SO
+    { type: 'prism', x: 4, z: 1, rot: 0 },      // Grün läuft in Fächerrichtung weiter
     { type: 'blocker', x: 3, z: 3 },            // Blau SO über (2,2) auf (3,3)
   ]));
   assert.ok(r.events.some(e => e.kind === 'edge'));
