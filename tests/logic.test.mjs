@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -196,6 +196,171 @@ test('Segmente tragen Schnittnormalen (Spiegel: Fläche, sonst senkrecht)', () =
   assert.deepEqual(b.n0, a.n1);
   assert.deepEqual(b.n1.map(v => +v.toFixed(3) + 0), [0, -1]);  // Ziel: senkrecht zum Strahl
   assert.deepEqual(r.events[0].normal, a.n1);
+});
+
+console.log('Prisma, Filter, Kombinator, Blocker');
+const colorsAt = (r, kind) => r.events.filter(e => e.kind === kind).map(e => e.color).sort();
+test('Prisma spaltet Weiss in drei Strahlen (Grün gerade, Rot/Blau ±45°)', () => {
+  const out = L.refractInPrism(0, 7, 2);
+  assert.deepEqual(out, [{ dir: 7, color: 1 }, { dir: 0, color: 2 }, { dir: 1, color: 4 }]);
+});
+test('Spitze auf der anderen Seite vertauscht Rot und Blau', () => {
+  const out = L.refractInPrism(0, 7, 6);
+  assert.deepEqual(out, [{ dir: 1, color: 1 }, { dir: 0, color: 2 }, { dir: 7, color: 4 }]);
+});
+test('Licht längs der Prismenachse geht ungebrochen durch', () => {
+  assert.deepEqual(L.refractInPrism(0, 7, 0), [{ dir: 0, color: 7 }]);
+  assert.deepEqual(L.refractInPrism(0, 7, 4), [{ dir: 0, color: 7 }]);
+});
+test('Grundfarbe wird nur gebrochen, Mischfarbe in Anteile zerlegt', () => {
+  assert.deepEqual(L.refractInPrism(0, 1, 2), [{ dir: 7, color: 1 }]);
+  assert.deepEqual(L.refractInPrism(0, 3, 2), [{ dir: 7, color: 1 }, { dir: 0, color: 2 }]);
+});
+test('Prisma im Feld: drei farbige Ziele', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'prism', x: 2, z: 3, rot: 2 },
+    { type: 'target', x: 5, z: 0, color: 'red' },
+    { type: 'target', x: 6, z: 3, color: 'green' },
+    { type: 'target', x: 5, z: 6, color: 'blue' },
+  ]));
+  assert.equal(r.solved, true, pathOf(r));
+  assert.equal(r.events.filter(e => e.kind === 'refract').length, 1);
+});
+test('Filter lässt nur seine Farbe durch', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'filter', x: 2, z: 3, color: 'yellow' },
+    { type: 'target', x: 5, z: 3, color: 'yellow' },
+  ]));
+  assert.equal(r.solved, true);
+  assert.equal(r.segments.at(-1).color, 3);
+});
+test('Filter ohne passende Farbe schluckt das Licht', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
+    { type: 'filter', x: 2, z: 3, color: 'blue' },
+    { type: 'target', x: 5, z: 3, color: 'red' },
+  ]));
+  assert.equal(r.solved, false);
+  assert.equal(r.segments.length, 1);
+  assert.equal(r.events.at(-1).kind, 'absorb');
+});
+test('Kombinator mischt additiv und strahlt in seine Richtung ab', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
+    { type: 'source', x: 3, z: 6, dir: 6, color: 'blue' },
+    { type: 'combiner', x: 3, z: 3, dir: 6 },
+    { type: 'target', x: 3, z: 0, color: 'magenta' },
+  ]));
+  assert.equal(r.solved, true, pathOf(r));
+  assert.equal(r.mixes.get(2), 5);
+  // Ausgang setzt die Weglänge des spätesten Eingangs fort
+  const out = r.segments.find(s => s.x0 === 3 && s.z0 === 3);
+  assert.equal(out.dist0, 3);
+});
+test('Kombinator-Kette: zweiter Kombinator bekommt die Mischung des ersten', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
+    { type: 'source', x: 2, z: 6, dir: 6, color: 'green' },
+    { type: 'combiner', x: 2, z: 1, dir: 2 },  // Rot (+ später Grün von unten?) → Süd
+    { type: 'combiner', x: 2, z: 4, dir: 0 },  // erhält Grün von unten und die Ausgabe des ersten
+    { type: 'source', x: 6, z: 1, dir: 4, color: 'blue' },
+    { type: 'target', x: 6, z: 4, color: 'white' },
+  ]));
+  // Kombinator 1: Rot + Blau = Magenta → Süd → Kombinator 2: + Grün = Weiss → Ost → Ziel
+  assert.equal(r.mixes.get(2), 5);
+  assert.equal(r.mixes.get(3), 7);
+  assert.equal(r.solved, true, pathOf(r));
+});
+test('Rückkopplung über Spiegel endet im Fixpunkt', () => {
+  // Ausgabe des Kombinators läuft über zwei Spiegel in ihn zurück
+  const r = L.traceBeams(level([
+    { type: 'source', x: 3, z: 6, dir: 6, color: 'red' },
+    { type: 'combiner', x: 3, z: 3, dir: 6 },
+    { type: 'mirror', x: 3, z: 1, rot: 1 },   // Nord → West
+    { type: 'mirror', x: 1, z: 1, rot: 3 },   // West → Süd
+    { type: 'mirror', x: 1, z: 3, rot: 1 },   // Süd → Ost → zurück in den Kombinator
+  ]));
+  assert.equal(r.mixes.get(1), 1);
+  assert.ok(r.segments.length < 20);
+});
+test('Zwei Kombinatoren speisen sich gegenseitig ohne Quelle: kein Licht', () => {
+  const r = L.traceBeams(level([
+    { type: 'combiner', x: 1, z: 3, dir: 0 },
+    { type: 'combiner', x: 5, z: 3, dir: 4 },
+  ]));
+  assert.equal(r.mixes.size, 0);
+  assert.equal(r.segments.length, 0);
+});
+test('Lange Kombinator-Kette (> 8) wird vollständig durchgerechnet', () => {
+  const els = [{ type: 'source', x: 0, z: 0, dir: 0, color: 'red' }];
+  // Schlangenlinie durch das Feld: 12 Kombinatoren
+  const path = [[1, 0, 2], [1, 1, 0], [2, 1, 0], [3, 1, 0], [4, 1, 2], [4, 2, 4], [3, 2, 4], [2, 2, 4], [1, 2, 2], [1, 3, 0], [2, 3, 0], [3, 3, 0]];
+  for (const [x, z, dir] of path) els.push({ type: 'combiner', x, z, dir });
+  els.push({ type: 'target', x: 6, z: 3, color: 'red' });
+  const r = L.traceBeams(level(els));
+  assert.equal(r.solved, true, pathOf(r));
+  assert.equal(r.truncated, false);
+  assert.equal(r.mixes.size, 12);
+});
+test('Rückkopplung verzögert den Kombinator-Ausgang nicht', () => {
+  // Rot und Blau kommen bei 3 an; die Ausgabe läuft über drei Spiegel zurück in den Kombinator
+  const r = L.traceBeams(level([
+    { type: 'source', x: 6, z: 3, dir: 4, color: 'red' },
+    { type: 'source', x: 3, z: 6, dir: 6, color: 'blue' },
+    { type: 'combiner', x: 3, z: 3, dir: 6 },
+    { type: 'mirror', x: 3, z: 1, rot: 1 },   // Nord → West
+    { type: 'mirror', x: 1, z: 1, rot: 3 },   // West → Süd
+    { type: 'mirror', x: 1, z: 3, rot: 1 },   // Süd → Ost → zurück
+  ]));
+  assert.equal(r.mixes.get(2), 5, pathOf(r));
+  const out = r.segments.find(s => s.x0 === 3 && s.z0 === 3);
+  assert.equal(out.dist0, 3);
+});
+test('Filter: Weiss → Magenta, Cyan durch Gelb → Grün', () => {
+  const a = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0 }, { type: 'filter', x: 2, z: 3, color: 'magenta' }]));
+  assert.equal(a.segments.at(-1).color, 5);
+  const b = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0, color: 'cyan' }, { type: 'filter', x: 2, z: 3, color: 'yellow' }]));
+  assert.equal(b.segments.at(-1).color, 2);
+});
+test('Prisma: Mischfarbe längs der Achse bleibt ganz', () => {
+  assert.deepEqual(L.refractInPrism(2, 6, 6), [{ dir: 2, color: 6 }]);
+});
+test('Prisma-Ausgänge: Feldkante, zweites Prisma, Blocker', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 1, dir: 0 },
+    { type: 'prism', x: 1, z: 1, rot: 2 },      // Rot NO → Kante, Grün O, Blau SO
+    { type: 'prism', x: 4, z: 1, rot: 0 },      // Grün längs der Achse → unverändert
+    { type: 'blocker', x: 3, z: 3 },            // Blau SO über (2,2) auf (3,3)
+  ]));
+  assert.ok(r.events.some(e => e.kind === 'edge'));
+  assert.equal(r.events.filter(e => e.kind === 'refract').length, 2);
+  assert.ok(r.events.some(e => e.kind === 'absorb' && e.color === 4), pathOf(r));
+});
+test('Kombinator-Ausgang zurück zur Quelle wird dort geschluckt', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0, color: 'green' },
+    { type: 'combiner', x: 4, z: 3, dir: 4 },
+  ]));
+  assert.equal(r.mixes.get(1), 2);
+  assert.equal(r.events.at(-1).kind, 'absorb');
+});
+test('Blocker schluckt das Licht', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'blocker', x: 3, z: 3 },
+    { type: 'target', x: 6, z: 3 },
+  ]));
+  assert.equal(r.solved, false);
+  assert.equal(r.events.at(-1).kind, 'absorb');
+});
+test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
+  const b = level([
+    { type: 'prism', x: 0, z: 0 }, { type: 'combiner', x: 1, z: 0 },
+    { type: 'filter', x: 2, z: 0, color: 'red' }, { type: 'blocker', x: 3, z: 0 },
+  ]);
+  assert.deepEqual(b.elements.map(L.isRotatable), [true, true, false, false]);
 });
 
 console.log('Level');

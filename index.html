@@ -50,7 +50,7 @@
 <div id="perf" hidden></div>
 <div id="hud">
   <div class="title">Prisma</div>
-  <div class="sub" id="hud-sub">Phase 3 · Strahlen · Tasten 1–3 drehen · C Farbe</div>
+  <div class="sub" id="hud-sub">Phase 4 · Tasten 1–9 drehen · L Level · C Farbe</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
@@ -120,7 +120,7 @@ const COLORS = { red: 1, green: 2, yellow: 3, blue: 4, magenta: 5, cyan: 6, whit
 const COLOR_NAMES = ['none', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
 const MAX_BOUNCES = 50;   // Schutz gegen Endlosschleifen pro Strahl
 const MAX_SEGMENTS = 256; // harte Obergrenze für das ganze Feld
-const ELEMENT_TYPES = ['source', 'mirror', 'target'];
+const ELEMENT_TYPES = ['source', 'mirror', 'prism', 'filter', 'combiner', 'blocker', 'target'];
 
 const mod8 = (n) => ((n % 8) + 8) % 8;
 const unitDir = (dir) => { const [dx, dz] = DIRS[mod8(dir)]; const l = Math.hypot(dx, dz); return [dx / l, dz / l]; };
@@ -182,26 +182,84 @@ function mirrorFrontNormal(rot, dir) {
 }
 
 function isRotatable(el) {
-  return !el.fixed && (el.type === 'mirror');
+  return !el.fixed && (el.type === 'mirror' || el.type === 'prism' || el.type === 'combiner');
+}
+
+/** Zerlegt eine Farbmaske in ihre Grundfarben (Rot, Grün, Blau). */
+function primariesOf(color) {
+  return [1, 2, 4].filter(c => color & c);
+}
+
+/**
+ * Prisma: die Spitze zeigt in Richtung rot·45°. Trifft das Licht längs der Prismenachse
+ * (k = 0 oder 4), geht es unverändert durch. Sonst wird jede Grundfarbe gebrochen:
+ * Grün läuft gerade weiter, Rot und Blau weichen um je 45° zu beiden Seiten ab –
+ * auf welcher Seite Rot liegt, hängt davon ab, auf welcher Seite die Spitze steht.
+ * Weiss wird so in drei Strahlen gespalten, eine Grundfarbe nur gebrochen.
+ * Rückgabe: [{ dir, color }]
+ */
+function refractInPrism(dir, color, rot) {
+  const k = mod8(rot - dir);
+  if (k === 0 || k === 4) return [{ dir, color }];
+  const s = k < 4 ? 1 : -1;
+  const bend = { 1: -s, 2: 0, 4: s };
+  return primariesOf(color).map(c => ({ dir: mod8(dir + bend[c]), color: c }));
 }
 
 /**
  * Verfolgt alle Strahlen auf dem Feld.
  * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }.
+ *
+ * Kombinatoren geben die additive Mischung ALLER eintreffenden Strahlen ab – auch solcher,
+ * die erst über ihren eigenen oder einen anderen Kombinator ankommen. Deshalb wird
+ * iteriert, bis sich die Eingangsfarben nicht mehr ändern (Fixpunkt; die Masken können
+ * nur wachsen und haben 3 Bit, nach wenigen Durchläufen ist Schluss).
+ *
  * Rückgabe:
  *   segments:  [{ x0, z0, x1, z1, color, dist0, length, n0, n1 }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
  *              n0/n1: Schnittnormalen [nx, nz] an Anfang/Ende – sichtbar ist nur, was auf ihrer Seite liegt
  *              (Spiegel: Spiegelfläche, sonst senkrecht zum Strahl), damit kein Leuchten durch Objekte dringt
- *   events:    [{ x, z, color, kind, dist, target?, normal? }]  kind ∈ reflect | hit | absorb | edge
+ *   events:    [{ x, z, color, kind, dist, target?, element?, normal? }]
+ *              kind ∈ reflect | refract | filter | merge | hit | absorb | edge
  *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
+ *   mixes:     Map(combinerId → abgegebene Mischfarbe)
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
  *   solved:    alle Ziele erfüllt
  *   truncated: Obergrenze erreicht oder Schleife abgebrochen
  */
 function traceBeams(board, extraRays = []) {
+  let emitting = new Map(); // combinerId → { color, dist } aus dem vorigen Durchlauf
+  let result = null;
+  // Jeder Durchlauf trägt Licht einen Kombinator weiter; jede Mischung kann höchstens 3-mal wachsen.
+  const combiners = board.elements.filter(e => e.type === 'combiner').length;
+  const maxPasses = 3 * combiners + 2;
+  let stable = false;
+  for (let pass = 0; pass < maxPasses && !stable; pass++) {
+    result = tracePass(board, extraRays, emitting);
+    const next = result.combinerInputs;
+    stable = next.size === emitting.size &&
+      [...next].every(([id, v]) => emitting.has(id) && emitting.get(id).color === v.color);
+    emitting = next;
+  }
+  if (!stable) result.truncated = true;
+  const mixes = new Map([...emitting].map(([id, v]) => [id, v.color]));
+  const targets = board.elements.filter(e => e.type === 'target');
+  // Zielregel: Alle eintreffenden Strahlen mischen sich additiv; erfüllt ist ein Ziel nur,
+  // wenn die Mischung exakt seiner Farbe entspricht (ein zusätzlicher falscher Strahl stört).
+  const satisfied = new Set(targets.filter(t => result.hits.get(t.id) === t.color).map(t => t.id));
+  const solved = targets.length > 0 && targets.every(t => satisfied.has(t.id));
+  return {
+    segments: result.segments, events: result.events, hits: result.hits, mixes,
+    satisfied, solved, truncated: result.truncated,
+  };
+}
+
+/** Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben. */
+function tracePass(board, extraRays, emitting) {
   const segments = [];
   const events = [];
   const hits = new Map();
+  const combinerInputs = new Map();
   const seen = new Set(); // (Zelle, Richtung, Farbe) — erkennt geschlossene Schleifen
   const queue = [];
   let truncated = false;
@@ -217,6 +275,10 @@ function traceBeams(board, extraRays = []) {
 
   for (const el of board.elements) {
     if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
+    if (el.type === 'combiner' && emitting.has(el.id)) {
+      const e = emitting.get(el.id);
+      pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
+    }
   }
   for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
 
@@ -233,6 +295,8 @@ function traceBeams(board, extraRays = []) {
       if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 });
       return ray.dist + length;
     };
+    const next = (dir, color, d) =>
+      pushRay({ x: cx, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: unitDir(dir) });
 
     for (;;) {
       const nx = cx + dx, nz = cz + dz;
@@ -256,6 +320,34 @@ function traceBeams(board, extraRays = []) {
         break;
       }
 
+      if (el.type === 'prism') {
+        const d = emit(cx, cz);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'refract', dist: d, element: el.id });
+        for (const out of refractInPrism(ray.dir, ray.color, el.rot)) next(out.dir, out.color, d);
+        break;
+      }
+
+      if (el.type === 'filter') {
+        const d = emit(cx, cz);
+        const passed = ray.color & el.color;
+        events.push({ x: cx, z: cz, color: passed || ray.color, kind: passed ? 'filter' : 'absorb', dist: d, element: el.id });
+        next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
+        break;
+      }
+
+      if (el.type === 'combiner') {
+        const d = emit(cx, cz);
+        // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
+        // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
+        const inp = combinerInputs.get(el.id) || { color: 0, dist: 0, first: {} };
+        for (const c of primariesOf(ray.color)) inp.first[c] = Math.min(inp.first[c] ?? Infinity, d);
+        inp.color |= ray.color;
+        inp.dist = Math.max(...Object.values(inp.first));
+        combinerInputs.set(el.id, inp);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
+        break;
+      }
+
       if (el.type === 'target') {
         const d = emit(cx, cz);
         hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
@@ -263,34 +355,55 @@ function traceBeams(board, extraRays = []) {
         break;
       }
 
-      // Quelle (und später Blocker) schlucken das Licht an ihrer Vorderseite.
+      // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
       const back = 0.32;
       const d = emit(cx - dx / stepLen * back, cz - dz / stepLen * back);
-      events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d });
+      events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
       break;
     }
   }
-
-  // Zielregel: Alle eintreffenden Strahlen mischen sich additiv; erfüllt ist ein Ziel nur,
-  // wenn die Mischung exakt seiner Farbe entspricht (ein zusätzlicher falscher Strahl stört).
-  const targets = board.elements.filter(e => e.type === 'target');
-  const satisfied = new Set(targets.filter(t => hits.get(t.id) === t.color).map(t => t.id));
-  const solved = targets.length > 0 && targets.every(t => satisfied.has(t.id));
-  return { segments, events, hits, satisfied, solved, truncated };
+  return { segments, events, hits, combinerInputs, truncated };
 }
 
 /**
  * Level-Definitionen. Format:
  *   { name, size?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }] }
- *   source: dir = Abstrahlrichtung · mirror: rot = Winkel der Spiegelfläche · target: color = benötigte Farbe
+ *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
+ *   mirror:   rot = Winkel der Spiegelfläche (drehbar)
+ *   prism:    rot = Richtung der Prismenspitze (drehbar)
+ *   filter:   color = durchgelassene Farbe(n)
+ *   combiner: dir = Ausgangsrichtung (drehbar)
+ *   blocker:  schluckt Licht
+ *   target:   color = benötigte Farbe
  */
 const LEVELS = [
   {
-    // Demo-Feld für Phase 2/3 (wird in Phase 6 durch die 10 echten Level ersetzt).
+    // Demo-Feld für Phase 4 (wird in Phase 6 durch die 10 echten Level ersetzt).
     // Lösung (= Startzustand):
+    //   Quelle (0,3) → Ost → Prisma (2,3) rot 2: Rot nach Nordost → Ziel Rot (5,0),
+    //   Grün nach Ost → Kombinator (6,3), Blau nach Südost → Spiegel (4,5) rot 0 → Nordost → Kombinator (6,3)
+    //   Kombinator (6,3) mischt Grün + Blau = Cyan → Nord → Ziel Cyan (6,0)
+    //   Quelle (0,0) → Ost → Filter Magenta (2,0) → Ziel Magenta (4,0)
+    name: 'Spektrum-Demo',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'prism', x: 2, z: 3, rot: 2 },
+      { type: 'target', x: 5, z: 0, color: 'red' },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'combiner', x: 6, z: 3, dir: 6 },
+      { type: 'target', x: 6, z: 0, color: 'cyan' },
+      { type: 'source', x: 0, z: 0, dir: 0 },
+      { type: 'filter', x: 2, z: 0, color: 'magenta' },
+      { type: 'target', x: 4, z: 0, color: 'magenta' },
+      { type: 'blocker', x: 4, z: 2 },
+      { type: 'blocker', x: 1, z: 5 },
+    ],
+  },
+  {
+    // Demo-Feld aus Phase 2/3. Lösung (= Startzustand):
     //   Quelle A (0,5) → Ost → Spiegel (3,5) rot 3 → Nord → Spiegel (3,2) rot 3 → Ost → Ziel (6,2)
     //   Quelle B (6,6) → Nordwest (kreuzt A bei (3,3)) → Spiegel (1,1) rot 0 → Südwest → Ziel (0,2)
-    name: 'Demo',
+    name: 'Spiegel-Demo',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 3 },
@@ -1076,6 +1189,7 @@ function makeMirror(el) {
   }
 
   root.userData.pivot = pivot;
+  root.userData.orient = (e) => { pivot.rotation.y = dirToRotationY(e.rot); };
   return root;
 }
 
@@ -1135,6 +1249,7 @@ function makeTarget(el) {
   root.userData.hit = 0;        // animierter Zustand 0..1
   root.userData.hitGoal = 0;
   root.userData.phase = Math.random() * Math.PI * 2;
+  root.userData.update = (t, dt) => updateTarget(root, t, dt);
   return root;
 }
 
@@ -1151,9 +1266,247 @@ function updateTarget(obj, t, dt) {
   u.ring.material.color.copy(u.color).multiplyScalar(0.6 + h * 3.0);
 }
 
+/* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
+
+/** Geschliffenes Glas ohne Transmission (zu teuer, siehe Edelstein); tiefen-neutral, damit Strahlen im Glas sichtbar bleiben. */
+function makeGlassMaterial(color, opts = {}) {
+  return new THREE.MeshPhysicalMaterial(Object.assign({
+    color, metalness: 0, roughness: 0.03, ior: 1.5, specularIntensity: 1,
+    transparent: true, opacity: 0.42, depthWrite: false,
+    clearcoat: 1, clearcoatRoughness: 0.02,
+    iridescence: 0.7, iridescenceIOR: 1.35, iridescenceThicknessRange: [120, 700],
+    flatShading: true, envMapIntensity: 2.2,
+  }, opts));
+}
+
+/** Feine, helle Glaskanten: lassen den Schliff auch vor dunklem Grund erkennen. */
+function glassEdges(geometry, opacity = 0.28) {
+  const lines = new THREE.LineSegments(
+    new THREE.EdgesGeometry(geometry, 20),
+    new THREE.LineBasicMaterial({ color: 0xdfe6ff, transparent: true, opacity, depthWrite: false })
+  );
+  lines.renderOrder = 6; // nach dem Glas (renderOrder 5), sonst deckt es die Kanten ab
+  lines.raycast = () => {};
+  return lines;
+}
+
+/** Weicher Regenbogenverlauf (für das Innenleben des Prismas). */
+function createSpectrumTexture() {
+  const c = document.createElement('canvas');
+  c.width = 256; c.height = 32;
+  const ctx = c.getContext('2d');
+  const g = ctx.createLinearGradient(0, 0, 256, 0);
+  ['#ff2a1e', '#ffb21e', '#f4ff3a', '#30ff6a', '#2ad8ff', '#3a5bff', '#a43aff'].forEach((col, i, a) => g.addColorStop(i / (a.length - 1), col));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 32);
+  // vertikal weich ausblenden
+  const v = ctx.createLinearGradient(0, 0, 0, 32);
+  v.addColorStop(0, 'rgba(0,0,0,1)'); v.addColorStop(0.5, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,1)');
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = v;
+  ctx.fillRect(0, 0, 256, 32);
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+const spectrumTexture = createSpectrumTexture();
+
+/** Leuchtzustand eines Elements weich nachführen: aktiv, sobald die Strahlfront es erreicht. */
+function activeColorOf(u) {
+  let color = 0;
+  for (const r of u.events || []) if (beamView.revealed(r, r.worldDist)) color |= r.ev.color;
+  return color;
+}
+function easeToward(current, goal, dt, speed = 0.0005) {
+  return current + (goal - current) * (1 - Math.pow(speed, dt));
+}
+
+/** Prisma: dreiseitiges Glasprisma zwischen zwei Metallplatten, Spitze in Richtung rot·45°. */
+function makePrism(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.38));
+  const pivot = new THREE.Group();
+  root.add(pivot);
+
+  const H = 0.5;
+  const geo = new THREE.CylinderGeometry(0.33, 0.33, H, 3, 1); // erste Ecke zeigt lokal nach +z = Spitze
+  const glass = new THREE.Mesh(geo, makeGlassMaterial(new THREE.Color(0.86, 0.9, 1.0), { iridescence: 1.0 }));
+  glass.position.y = BEAM_Y;
+  glass.renderOrder = 5;
+  pivot.add(glass);
+  const edges = glassEdges(geo, 0.32);
+  edges.position.y = BEAM_Y;
+  pivot.add(edges);
+
+  for (const y of [BEAM_Y - H / 2 - 0.012, BEAM_Y + H / 2 + 0.012]) {
+    const cap = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.024, 3), MAT.metalBright));
+    cap.position.y = y;
+    pivot.add(cap);
+  }
+  const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, BEAM_Y - H / 2 - 0.07, 12), MAT.metalBright));
+  post.position.y = 0.06 + (BEAM_Y - H / 2 - 0.07) / 2;
+  pivot.add(post);
+
+  // Innenleben: zarter Spektralschleier, leuchtet auf, wenn Licht hindurchgeht
+  const veilMat = new THREE.MeshBasicMaterial({
+    map: spectrumTexture, transparent: true, blending: THREE.AdditiveBlending,
+    depthWrite: false, side: THREE.DoubleSide, fog: false, opacity: 1,
+  });
+  const veil = new THREE.Mesh(new THREE.PlaneGeometry(0.32, H * 0.8), veilMat);
+  veil.position.set(0, BEAM_Y, 0.02);
+  veil.raycast = () => {};
+  pivot.add(veil);
+
+  const u = root.userData;
+  u.pivot = pivot;
+  u.veil = veil;
+  u.glow = 0;
+  // Spitze lokal +z → Rasterrichtung (cos a, sin a): rotation.y = π/2 − a
+  u.orient = (e) => { pivot.rotation.y = Math.PI / 2 - e.rot * Math.PI / 4; };
+  u.orient(el);
+  u.update = (t, dt) => {
+    u.glow = easeToward(u.glow, activeColorOf(u) ? 1 : 0, dt);
+    veilMat.color.setScalar(0.06 + u.glow * 0.9);
+  };
+  return root;
+}
+
+/** Farbfilter: schwebender, sechseckig geschliffener Kristall in seiner Durchlassfarbe. */
+function makeFilter(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.3));
+  const col = COLOR_RGB[el.color];
+
+  const pts = [[0, -0.34], [0.16, -0.2], [0.18, 0.16], [0, 0.34]].map(([x, y]) => new THREE.Vector2(x, y));
+  const geo = new THREE.LatheGeometry(pts, 6);
+  const crystal = new THREE.Mesh(geo, makeGlassMaterial(col.clone().lerp(new THREE.Color(1, 1, 1), 0.25), {
+    opacity: 0.62, emissive: col.clone(), emissiveIntensity: 0.18, iridescence: 0.3,
+  }));
+  crystal.position.y = BEAM_Y;
+  crystal.renderOrder = 5;
+  root.add(crystal);
+  const edges = glassEdges(geo, 0.22);
+  crystal.add(edges);
+
+  const coreMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.5) });
+  const core = new THREE.Mesh(new THREE.OctahedronGeometry(0.05, 0), coreMat);
+  crystal.add(core);
+
+  const ringMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.5) });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.008, 8, 48), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = 0.066;
+  root.add(ring);
+
+  const u = root.userData;
+  u.glow = 0;
+  u.phase = Math.random() * Math.PI * 2;
+  u.update = (t, dt) => {
+    u.glow = easeToward(u.glow, activeColorOf(u) ? 1 : 0, dt);
+    crystal.rotation.y = t * 0.3 + u.phase;
+    crystal.position.y = BEAM_Y + Math.sin(t * 0.9 + u.phase) * 0.012;
+    coreMat.color.copy(col).multiplyScalar(0.5 + u.glow * 4.5);
+    ringMat.color.copy(col).multiplyScalar(0.5 + u.glow * 2.0);
+    crystal.material.emissiveIntensity = 0.18 + u.glow * 0.8;
+  };
+  return root;
+}
+
+/** Kombinator: Glaskugel in einer kardanischen Fassung, Austrittsdüse zeigt in Richtung dir. */
+function makeCombiner(el) {
+  const root = new THREE.Group();
+  root.add(makePedestal(0.38));
+  const pivot = new THREE.Group();
+  root.add(pivot);
+
+  const orbGeo = new THREE.IcosahedronGeometry(0.2, 1);
+  const orb = new THREE.Mesh(orbGeo, makeGlassMaterial(new THREE.Color(0.9, 0.92, 1.0), { opacity: 0.38 }));
+  orb.position.y = BEAM_Y;
+  orb.renderOrder = 5;
+  pivot.add(orb);
+  orb.add(glassEdges(orbGeo, 0.18));
+
+  const coreMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.15, 0.15, 0.17) });
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.065, 20, 14), coreMat);
+  core.position.y = BEAM_Y;
+  pivot.add(core);
+
+  // Kardanische Ringe
+  const gimbal = new THREE.Group();
+  gimbal.position.y = BEAM_Y;
+  pivot.add(gimbal);
+  for (const [rx, ry] of [[Math.PI / 2, 0], [0, 0]]) {
+    // kein Schattenwurf: die Ringe drehen sich, die Shadow-Map wird nur bei Änderungen erneuert
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.26, 0.01, 8, 64), MAT.metalBright);
+    ring.rotation.set(rx, ry, 0);
+    gimbal.add(ring);
+  }
+
+  // Austrittsdüse (lokal +x) mit Linse in der Mischfarbe
+  const nozzle = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.12, 24), MAT.metalDark));
+  nozzle.rotation.z = Math.PI / 2;
+  nozzle.position.set(0.3, BEAM_Y, 0);
+  pivot.add(nozzle);
+  const lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.1, 0.12) });
+  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.05, 24), lensMat);
+  lens.rotation.y = Math.PI / 2;
+  lens.position.set(0.362, BEAM_Y, 0);
+  pivot.add(lens);
+
+  const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, BEAM_Y - 0.33, 12), MAT.metalBright));
+  post.position.y = 0.06 + (BEAM_Y - 0.33) / 2;
+  pivot.add(post);
+
+  const u = root.userData;
+  u.pivot = pivot;
+  u.glow = 0;
+  u.mix = 0;
+  u.orient = (e) => { pivot.rotation.y = dirToRotationY(e.dir); };
+  u.orient(el);
+  const tmp = new THREE.Color();
+  let shown = 7;
+  u.update = (t, dt) => {
+    const arrived = activeColorOf(u); // nur Farben, deren Strahl schon sichtbar angekommen ist
+    if (arrived) shown = arrived;
+    u.glow = easeToward(u.glow, arrived ? 1 : 0, dt);
+    gimbal.rotation.y = t * 0.35;
+    gimbal.rotation.x = Math.sin(t * 0.4) * 0.25;
+    tmp.copy(COLOR_RGB[shown]).multiplyScalar(2.6);
+    coreMat.color.setRGB(0.15, 0.15, 0.17).lerp(tmp, u.glow);
+    tmp.copy(COLOR_RGB[shown]).multiplyScalar(4.0);
+    lensMat.color.setRGB(0.1, 0.1, 0.12).lerp(tmp, u.glow);
+  };
+  return root;
+}
+
+/** Blocker: schwere, dunkle Steinsäule mit Metallband. */
+function makeBlocker() {
+  const root = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: 0x0c0c10, roughness: 0.62, metalness: 0, envMapIntensity: 0.6, flatShading: true,
+  });
+  const column = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.33, 0.92, 6), stoneMat));
+  column.position.y = 0.46;
+  column.rotation.y = Math.PI / 6;
+  root.add(column);
+  const top = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.27, 0.06, 6), stoneMat));
+  top.position.y = 0.95;
+  top.rotation.y = Math.PI / 6;
+  root.add(top);
+  const band = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.335, 0.34, 0.035, 6), MAT.metalDark));
+  band.position.y = 0.1;
+  band.rotation.y = Math.PI / 6;
+  root.add(band);
+  return root;
+}
+
 const ELEMENT_FACTORIES = {
   source: makeSource,
   mirror: makeMirror,
+  prism: makePrism,
+  filter: makeFilter,
+  combiner: makeCombiner,
+  blocker: makeBlocker,
   target: makeTarget,
 };
 
@@ -1199,6 +1552,7 @@ function loadLevel(index) {
   markShadowsDirty();
   // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
   requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
+  beamView.reset(); // Strahlen des alten Felds nicht über dem neuen ausblenden
   recomputeBeams();
 }
 
@@ -1212,6 +1566,13 @@ function recomputeBeams(instant = false) {
     u.satisfied = game.result.satisfied.has(el.id);
     u.arrivals = beamView.eventRecords.filter(r => r.ev.kind === 'hit' && r.ev.target === el.id);
   }
+  // Prisma, Filter, Kombinator: welche Strahlen kommen an (für ihr Aufleuchten)
+  for (const el of game.board.elements) {
+    if (el.type !== 'prism' && el.type !== 'filter' && el.type !== 'combiner') continue;
+    const u = game.objects.get(el.id).userData;
+    u.events = beamView.eventRecords.filter(r => r.ev.element === el.id && r.ev.kind !== 'absorb');
+    if (el.type === 'combiner') u.mix = game.result.mixes.get(el.id) || 0;
+  }
 }
 
 function updateTargetGoals() {
@@ -1224,9 +1585,10 @@ function updateTargetGoals() {
 /** Dreht ein Element logisch um ±45° und richtet das Modell aus (Animation folgt in Phase 5). */
 function rotateElement(el, delta) {
   if (!isRotatable(el)) return;
-  el.rot = ((el.rot + delta) % 8 + 8) % 8;
-  const obj = game.objects.get(el.id);
-  obj.userData.pivot.rotation.y = dirToRotationY(el.rot);
+  // Der Kombinator dreht seine Ausgangsrichtung, Spiegel und Prisma ihren Winkel
+  if (el.type === 'combiner') el.dir = mod8(el.dir + delta);
+  else el.rot = mod8(el.rot + delta);
+  game.objects.get(el.id).userData.orient(el);
   markShadowsDirty();
   recomputeBeams();
 }
@@ -1406,8 +1768,10 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float glow = exp(-(d * d) / (gw * gw)) * mix(0.8, 1.0, nearCut);
     float halo = exp(-d / (gw * 1.8)) * 0.05 * nearCut;
 
-    vec3 hot = mix(vColor, vec3(1.0), 0.6);
-    vec3 col = vColor * (glow * 0.75 + halo) * flow
+    // Kern fast weiss nur bei weissem Licht; farbige Strahlen behalten einen satten Kern
+    float whiteness = min(min(vColor.r, vColor.g), vColor.b);
+    vec3 hot = mix(vColor, vec3(1.0), mix(0.32, 0.6, whiteness));
+    vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow
              + hot * core * (3.0 + packet * 3.0);
     col *= (1.0 + packet) * uIntensity * visible;
     gl_FragColor = vec4(col, 1.0);
@@ -1552,6 +1916,9 @@ const _spotTarget = new THREE.Vector3();
 const spotGeometry = new THREE.PlaneGeometry(SPOT_SIZE, SPOT_SIZE);
 const FLARE_STYLE = {
   reflect: { scale: 0.3, intensity: 2.2 },
+  refract: { scale: 0.42, intensity: 2.4 },
+  filter:  { scale: 0.3,  intensity: 1.8 },
+  merge:   { scale: 0.45, intensity: 2.2 },
   hit:     { scale: 0.95, intensity: 3.2 },
   absorb:  { scale: 0.32, intensity: 1.0 },
   edge:    { scale: 0.0,  intensity: 0.0 },
@@ -1735,6 +2102,12 @@ const beamView = {
     this._syncFlares();
   },
 
+  /** Alles vergessen (Levelwechsel): neue Strahlen wachsen danach frisch von den Quellen aus. */
+  reset() {
+    this.segRecords = []; this.dyingSegs = [];
+    this.eventRecords = []; this.dyingEvents = [];
+  },
+
   /** Ist ein Datensatz (Abschnittsende oder Ereignis) von seiner Front schon erreicht? */
   revealed(rec, dist) {
     return frontAt(rec, this.time) >= dist;
@@ -1887,6 +2260,8 @@ window.addEventListener('keydown', (e) => {
     const rotatables = game.board.elements.filter(isRotatable);
     const el = rotatables[n - 1];
     if (el) rotateElement(el, e.shiftKey ? -1 : 1);
+  } else if (e.code === 'KeyL') {
+    loadLevel((game.levelIndex + 1) % LEVELS.length);
   } else if (e.code === 'KeyC') {
     const cycle = [7, 1, 2, 4, 3, 5, 6];
     for (const el of game.board.elements) {
@@ -2089,9 +2464,7 @@ function frame(ts) {
   background.material.uniforms.uTime.value = t;
   finalPass.uniforms.uTime.value = t;
 
-  for (const obj of game.objects.values()) {
-    if (obj.userData.element.type === 'target') updateTarget(obj, t, dt);
-  }
+  for (const obj of game.objects.values()) if (obj.userData.update) obj.userData.update(t, dt);
   beamView.tick(t, dt);
   updateTargetGoals();
 
