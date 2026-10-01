@@ -1405,8 +1405,9 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float core = exp(-(d * d) / (uCore * uCore));
     // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
     // über die ganze Glasplatte bzw. den Edelstein und wirkt, als schiene Licht hindurch.
+    // (den Lichtfleck auf der Glasfläche zeichnet beamView als eigenes, flaches Objekt)
     float nearCut = smoothstep(0.0, min(0.2, vDist.y * 0.3), cutDist);
-    float glow = exp(-(d * d) / (gw * gw)) * mix(0.35, 1.0, nearCut);
+    float glow = exp(-(d * d) / (gw * gw)) * mix(0.8, 1.0, nearCut);
     float halo = exp(-d / (gw * 1.8)) * 0.05 * nearCut;
 
     vec3 hot = mix(vColor, vec3(1.0), 0.6);
@@ -1529,8 +1530,32 @@ function createFlareTexture(size) {
 }
 
 const flareTexture = createFlareTexture(256);
+
+/** Weicher, runder Lichtfleck für den Auftreffpunkt auf einer Spiegelfläche. */
+function createSpotTexture(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const h = size / 2;
+  const g = ctx.createRadialGradient(h, h, 0, h, h, h);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.12, 'rgba(255,255,255,0.75)');
+  g.addColorStop(0.35, 'rgba(255,255,255,0.2)');
+  g.addColorStop(0.7, 'rgba(255,255,255,0.03)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  const tex = new THREE.CanvasTexture(c);
+  tex.encoding = THREE.sRGBEncoding;
+  return tex;
+}
+const spotTexture = createSpotTexture(128);
+const SPOT_SIZE = 0.34;      // liegt sicher innerhalb der Glasfläche (0.87 × 0.55)
+const SPOT_OFFSET = 0.009;   // knapp vor der Glasoberfläche (Glas: ±0.006)
+const _spotTarget = new THREE.Vector3();
+const spotGeometry = new THREE.PlaneGeometry(SPOT_SIZE, SPOT_SIZE);
 const FLARE_STYLE = {
-  reflect: { scale: 0.42, intensity: 2.4 },
+  reflect: { scale: 0.3, intensity: 2.2 },
   hit:     { scale: 0.95, intensity: 3.2 },
   absorb:  { scale: 0.32, intensity: 1.0 },
   edge:    { scale: 0.0,  intensity: 0.0 },
@@ -1635,6 +1660,7 @@ const beamView = {
   eventRecords: [],   // lebende Ereignisse
   dyingEvents: [],
   flares: [],
+  spots: [],          // Lichtflecken auf Spiegelflächen
   dust: createDust(BEAM.dustCount),
   time: 0,
   _toCam: new THREE.Vector3(),
@@ -1742,6 +1768,37 @@ const beamView = {
       // Gleicher Blitz an gleicher Stelle behält seinen Zustand, sonst neu aufblühen
       if (rec && prevKey !== rec.key) s.userData.pop = this.revealed(rec, rec.worldDist) && rec.birth < this.time ? 1 : 0;
     });
+
+    // Auftreffpunkte: flach auf der getroffenen Seite der Spiegelfläche, nur von vorn sichtbar
+    // und tiefengetestet – so wirkt das Glas angestrahlt, ohne dass Licht hindurchscheint.
+    // Nur lebende Treffer: ein ausblendender Spot behielte nach einer Drehung die alte Ausrichtung
+    const hits = this.eventRecords.filter(r => r.ev.kind === 'reflect');
+    while (this.spots.length < hits.length) {
+      const m = new THREE.Mesh(
+        spotGeometry,
+        new THREE.MeshBasicMaterial({
+          map: spotTexture, blending: THREE.AdditiveBlending, transparent: true,
+          depthWrite: false, fog: false, side: THREE.FrontSide,
+        })
+      );
+      m.renderOrder = 11;
+      m.raycast = () => {};
+      m.layers.set(LAYER_NO_REFLECT); // gespiegelt wäre der Fleck heller als die weichen Spiegelstrahlen
+      m.userData.pop = 0;
+      this.group.add(m);
+      this.spots.push(m);
+    }
+    this.spots.forEach((m, i) => {
+      const rec = hits[i];
+      const prevKey = m.userData.rec && m.userData.rec.key;
+      m.visible = !!rec;
+      m.userData.rec = rec || null;
+      if (!rec) return;
+      if (prevKey !== rec.key) m.userData.pop = this.revealed(rec, rec.worldDist) && rec.birth < this.time ? 1 : 0;
+      const [nx, nz] = rec.ev.normal;
+      m.position.copy(rec.pos).add(_spotTarget.set(nx * SPOT_OFFSET, 0, nz * SPOT_OFFSET));
+      m.lookAt(_spotTarget.set(m.position.x + nx, m.position.y, m.position.z + nz));
+    });
   },
 
   tick(t, dt) {
@@ -1784,6 +1841,15 @@ const beamView = {
       s.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.35).multiplyScalar(style.intensity * flicker * fade);
       // Richtung Kamera versetzt, damit Spiegelfläche/Edelstein den Blitz nicht halbiert
       s.position.copy(rec.pos).addScaledVector(toCam, 0.06);
+    }
+
+    for (const m of this.spots) {
+      if (!m.visible) continue;
+      const rec = m.userData.rec;
+      m.userData.pop = this.revealed(rec, rec.worldDist) ? Math.min(1, m.userData.pop + dt * 6) : 0;
+      const flicker = 0.92 + 0.08 * Math.sin(t * 7.3 + rec.worldDist * 3.0);
+      m.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.25)
+        .multiplyScalar(1.6 * m.userData.pop * flicker);
     }
 
     this._updateDust(t);
@@ -1939,7 +2005,13 @@ function renderReflection() {
 
   floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
   background.visible = false; // gespiegelt nur ein bläulicher Fleck; ein dunkler Raum spiegelt sich schwarz
+  // Gespiegelte Strahlen weich und ohne dünnen Kern: der würde in der niedrig aufgelösten
+  // Spiegelung zur Treppenlinie – und auf poliertem Stein ist ein Spiegelbild ohnehin weich.
+  const bu = beamMaterial.uniforms;
+  const core = bu.uCore.value, glow = bu.uGlow.value, intensity = bu.uIntensity.value;
+  bu.uCore.value = 0.045; bu.uGlow.value = 0.09; bu.uIntensity.value = 0.45;
   reflector.onBeforeRender(renderer, scene, camera);
+  bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity;
   background.visible = true;
   floorTop.visible = true;
 }
