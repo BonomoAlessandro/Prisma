@@ -71,20 +71,13 @@
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
-// Qualitätsstufen, umschaltbar mit Taste Q (siehe applyQualityPreset).
-// maxPixelRatio ist die Obergrenze; die tatsächliche Auflösung regelt adaptiveResolution.
-const QUALITY_PRESETS = [
-  { name: 'Hoch',    msaa: 4, reflectionScale: 0.5, maxPixelRatio: 1.5 },
-  { name: 'Mittel',  msaa: 2, reflectionScale: 0.4, maxPixelRatio: 1.25 },
-  { name: 'Niedrig', msaa: 0, reflectionScale: 0.3, maxPixelRatio: 1.0 },
-];
-const START_PRESET = IS_MOBILE ? 2 : 0;
-
+// Feste Qualität (früher Stufe "Niedrig"): höhere Stufen kosteten auf Laptops sehr viele FPS,
+// ohne sichtbar besser auszusehen. pixelRatio ist die Obergrenze; adaptiveResolution regelt darunter.
 const QUALITY = {
-  preset: START_PRESET,
-  pixelRatio: Math.min(window.devicePixelRatio || 1, QUALITY_PRESETS[START_PRESET].maxPixelRatio),
-  msaa: QUALITY_PRESETS[START_PRESET].msaa,
-  reflectionScale: QUALITY_PRESETS[START_PRESET].reflectionScale,
+  pixelRatio: Math.min(window.devicePixelRatio || 1, 1.0),
+  msaa: 0,                // Hauptbild ohne MSAA
+  reflectionMsaa: 4,      // Spiegeltextur ist winzig – dort ist Kantenglättung fast gratis
+  reflectionScale: 0.3,
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: IS_MOBILE ? 512 : 1024,
   reflections: true,
@@ -598,10 +591,13 @@ const reflector = new THREE.Reflector(new THREE.PlaneGeometry(PLATE, PLATE), {
   textureWidth: 256,
   textureHeight: 256,
   clipBias: 0.002,
-  multisample: 0, // Weichzeichnung im Boden: MSAA lohnt sich nicht
+  multisample: 0, // MSAA wird unten über samples gesetzt (WebGL2)
 });
 // Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() vom Boden übernommen.
 reflector.getRenderTarget().stencilBuffer = true; // 24 statt 16 Bit Tiefe (vor dem ersten Rendern setzen)
+// Kantenglättung in der Spiegelung: sonst bekommen Strahlen und Kristalle in der kleinen Textur
+// Treppenkanten. three.js löst MSAA vor dem Erzeugen der Mipmaps auf – beides lässt sich kombinieren.
+if (renderer.capabilities.isWebGL2) reflector.getRenderTarget().samples = QUALITY.reflectionMsaa;
 // Mipmaps: Unschärfe je nach Rauheit mit einer einzigen Abtastung (versetzte Abtastungen erzeugten Geisterbilder)
 if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Texturen
   reflector.getRenderTarget().texture.generateMipmaps = true;
@@ -671,7 +667,7 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
-        vec3 refl = texture2D(tReflect, ruv, 0.8 + roughnessFactor * 4.0).rgb;
+        vec3 refl = texture2D(tReflect, ruv, 1.2 + roughnessFactor * 4.0).rgb;
         float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
@@ -1997,6 +1993,8 @@ const adaptiveResolution = {
   },
 };
 
+const REFLECT_GLOW_DIM = 0.3; // Leuchtkörper erscheinen in der Spiegelung gedämpft (wie die Strahlen)
+
 function renderReflection() {
   if (!QUALITY.reflections) return;
   camera.updateMatrixWorld();
@@ -2010,13 +2008,29 @@ function renderReflection() {
   const bu = beamMaterial.uniforms;
   const core = bu.uCore.value, glow = bu.uGlow.value, intensity = bu.uIntensity.value;
   bu.uCore.value = 0.045; bu.uGlow.value = 0.09; bu.uIntensity.value = 0.45;
+  // Leuchtende Edelsteine ebenso gedämpft spiegeln: ihr HDR-Kern würde sonst als harte, weisse Kontur erscheinen
+  // (Werte sichern und exakt wiederherstellen – kein Teilen, damit sich nichts aufschaukeln kann)
+  const dimmed = [];
+  for (const obj of game.objects.values()) {
+    const u = obj.userData;
+    if (u.element.type !== 'target') continue;
+    dimmed.push([u, u.core.material.color.clone(), u.ring.material.color.clone(), u.gem.material.emissiveIntensity]);
+    u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
+    u.ring.material.color.multiplyScalar(REFLECT_GLOW_DIM);
+    u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
+  }
   reflector.onBeforeRender(renderer, scene, camera);
+  for (const [u, core, ring, emissive] of dimmed) {
+    u.core.material.color.copy(core);
+    u.ring.material.color.copy(ring);
+    u.gem.material.emissiveIntensity = emissive;
+  }
   bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity;
   background.visible = true;
   floorTop.visible = true;
 }
 
-/* ---------- Leistungsanzeige (Taste F) und Qualitätsstufen (Taste Q) ---------- */
+/* ---------- Leistungsanzeige (Taste F oder ?perf) ---------- */
 
 const perfHud = {
   el: document.getElementById('perf'),
@@ -2042,10 +2056,9 @@ const perfHud = {
     const max = sorted[sorted.length - 1] || 0;
     this.samples.length = 0;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    const preset = QUALITY_PRESETS[QUALITY.preset];
     this.el.textContent =
       `${Math.round(1000 / avg)} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
-      `Qualität ${preset.name} (Q)   MSAA ${composer.renderTarget1.samples}×   Spiegelung ${preset.reflectionScale}\n` +
+      `MSAA ${composer.renderTarget1.samples}×   Spiegelung ${QUALITY.reflectionScale} (MSAA ${reflector.getRenderTarget().samples}×)\n` +
       `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
       `Draw-Calls ${renderer.info.render.calls}   Dreiecke ${renderer.info.render.triangles}\n` +
       `GPU ${this.gpu}`;
@@ -2059,28 +2072,9 @@ const perfHud = {
 };
 perfHud.el.hidden = !perfHud.visible;
 
-function applyQualityPreset(index) {
-  QUALITY.preset = index;
-  const p = QUALITY_PRESETS[index];
-  QUALITY.msaa = p.msaa;
-  QUALITY.reflectionScale = p.reflectionScale;
-  QUALITY.pixelRatio = Math.min(window.devicePixelRatio || 1, p.maxPixelRatio);
-  if (renderer.capabilities.isWebGL2) {
-    composer.renderTarget1.samples = p.msaa;
-    composer.renderTarget2.samples = p.msaa;
-    composer.renderTarget1.dispose();
-    composer.renderTarget2.dispose();
-  }
-  adaptiveResolution.locked = false;
-  adaptiveResolution.probe = null;
-  adaptiveResolution.ceiling = 1;
-  adaptiveResolution.set(1);
-}
-
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.code === 'KeyF') perfHud.toggle();
-  else if (e.code === 'KeyQ') applyQualityPreset((QUALITY.preset + 1) % QUALITY_PRESETS.length);
 });
 
 let lastFrameTs = null;
