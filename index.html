@@ -1,0 +1,801 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>PRISMA</title>
+<style>
+  :root {
+    --ink: #e8e6f0;
+    --ink-dim: rgba(232, 230, 240, 0.45);
+    --bg: #030308;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+    font-weight: 300;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  canvas {
+    display: block;
+    touch-action: none;
+  }
+  #hud {
+    position: fixed;
+    top: max(24px, env(safe-area-inset-top));
+    left: 0;
+    right: 0;
+    text-align: center;
+    pointer-events: none;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+  }
+  #hud .title { font-size: 13px; }
+  #hud .sub { margin-top: 8px; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.3em; }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="title">Prisma</div>
+  <div class="sub" id="hud-sub">Phase 1 · Look</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/objects/Reflector.js"></script>
+
+<script>
+'use strict';
+
+/* =====================================================================
+   KONFIGURATION
+   ===================================================================== */
+
+const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+const QUALITY = {
+  pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.5 : 2),
+  msaa: IS_MOBILE ? 0 : 4,
+  shadowSize: IS_MOBILE ? 1024 : 2048,
+  reflectionScale: IS_MOBILE ? 0.35 : 0.5,
+  textureSize: IS_MOBILE ? 512 : 1024,
+  reflections: true,
+};
+
+const GRID = 7;            // Spielfeld 7×7
+const CELL = 1.2;          // Weltgrösse einer Zelle
+const BOARD = GRID * CELL; // Kantenlänge des Spielfelds
+const PLATE = BOARD + 1.4; // Steinplatte inkl. Rand
+const PLATE_THICK = 0.38;
+
+const LOOK = {
+  exposure: 1.0,
+  bloomStrength: 0.85,
+  bloomRadius: 0.55,
+  bloomThreshold: 1.0,     // HDR: nur Werte > 1 blühen (Strahlen, Leuchtkörper)
+  vignette: 0.55,
+  aberration: 0.012,
+  grain: 0.028,
+  fogColor: 0x05040b,
+  fogDensity: 0.022,
+};
+
+// Hex-Farben als sRGB interpretieren und korrekt nach linear wandeln.
+THREE.ColorManagement.legacyMode = false;
+
+/* =====================================================================
+   RENDERER
+   ===================================================================== */
+
+const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(QUALITY.pixelRatio);
+renderer.setSize(window.innerWidth, window.innerHeight);
+// Tone Mapping (ACES Filmic) und sRGB-Wandlung passieren im finalen Post-Pass,
+// damit Bloom auf echten HDR-Werten arbeitet.
+renderer.toneMapping = THREE.NoToneMapping;
+renderer.outputEncoding = THREE.LinearEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// In HalfFloat rendern braucht explizit eine color_buffer-Extension (WebGL1 und WebGL2).
+const HDR_SUPPORTED = renderer.capabilities.isWebGL2
+  ? (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'))
+  : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
+const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
+if (!HDR_SUPPORTED) {
+  // Fallback ohne HDR: Bloom-Schwelle unter 1 (sonst blüht nichts), Spiegelung aus
+  // (der Reflector rendert intern immer in HalfFloat).
+  LOOK.bloomThreshold = 0.8;
+  QUALITY.reflections = false;
+}
+
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  document.getElementById('hud-sub').textContent = 'Grafikkontext verloren – bitte neu laden';
+});
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(LOOK.fogColor, LOOK.fogDensity);
+
+const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 120);
+
+/* =====================================================================
+   PROZEDURALE TEXTUREN
+   ===================================================================== */
+
+// Deterministischer Zufall, damit die Steinplatte bei jedem Laden gleich aussieht.
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+function makeNoise2D(seed) {
+  const rand = mulberry32(seed);
+  const perm = new Uint8Array(512);
+  const grad = new Float32Array(256);
+  for (let i = 0; i < 256; i++) { perm[i] = i; grad[i] = rand(); }
+  for (let i = 255; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    const t = perm[i]; perm[i] = perm[j]; perm[j] = t;
+  }
+  for (let i = 0; i < 256; i++) perm[i + 256] = perm[i];
+  const fade = t => t * t * (3 - 2 * t);
+  // Value-Noise im Bereich [0,1]
+  return function (x, y) {
+    const xi = Math.floor(x), yi = Math.floor(y);
+    const xf = x - xi, yf = y - yi;
+    const X = xi & 255, Y = yi & 255;
+    const a = grad[perm[perm[X] + Y]], b = grad[perm[perm[X + 1] + Y]];
+    const c = grad[perm[perm[X] + Y + 1]], d = grad[perm[perm[X + 1] + Y + 1]];
+    const u = fade(xf), v = fade(yf);
+    return (a + (b - a) * u) + ((c + (d - c) * u) - (a + (b - a) * u)) * v;
+  };
+}
+
+/**
+ * Erzeugt Farb-, Rauheits-, Metall- und Normal-Map der Steinplatte:
+ * dunkler, fein geäderter Schiefer mit gravierten Rasterlinien und
+ * einer dünnen Silber-Intarsie um das Spielfeld.
+ */
+function createStoneTextures(size) {
+  const noise = makeNoise2D(7);
+  const fbm = (x, y, oct) => {
+    let s = 0, a = 0.5, f = 1;
+    for (let i = 0; i < oct; i++) { s += a * noise(x * f, y * f); f *= 2.03; a *= 0.5; }
+    return s;
+  };
+
+  const n = size * size;
+  const height = new Float32Array(n);
+  const color = new Uint8ClampedArray(n * 4);
+  // Rauheit (G) und Metallanteil (B) in einer Textur – so liest three.js die beiden Maps.
+  const roughMetal = new Uint8ClampedArray(n * 4);
+
+  const pxPerUnit = size / PLATE;
+  const boardStart = (PLATE - BOARD) / 2 * pxPerUnit;
+  const cellPx = CELL * pxPerUnit;
+  const lineW = Math.max(1, size / 900);         // gravierte Rasterlinie
+  const inlayOff = 0.16 * pxPerUnit;             // Abstand Intarsie zum Feld
+  const inlayW = Math.max(1.5, size / 520);
+
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      const u = x / size * 6, v = y / size * 6;
+
+      // Grundstruktur + Marmoradern
+      const base = fbm(u, v, 5);
+      const warp = fbm(u * 0.6 + 11.3, v * 0.6 + 4.1, 4);
+      const vein = Math.pow(1 - Math.abs(Math.sin((u * 0.9 + v * 0.35) * 2.2 + warp * 7.0)), 18);
+      const fine = noise(u * 40, v * 40);
+
+      // Rasterlinien (nur innerhalb des Spielfelds)
+      const bx = x - boardStart, by = y - boardStart;
+      const inBoard = bx >= -lineW && by >= -lineW && bx <= BOARD * pxPerUnit + lineW && by <= BOARD * pxPerUnit + lineW;
+      let groove = 0;
+      if (inBoard) {
+        const gx = Math.abs(((bx + cellPx / 2) % cellPx) - cellPx / 2);
+        const gy = Math.abs(((by + cellPx / 2) % cellPx) - cellPx / 2);
+        groove = Math.max(1 - smooth01(gx / lineW), 1 - smooth01(gy / lineW));
+      }
+
+      // Silber-Intarsie: Rechteck knapp ausserhalb des Spielfelds
+      const ix = Math.min(Math.abs(bx + inlayOff), Math.abs(bx - BOARD * pxPerUnit - inlayOff));
+      const iy = Math.min(Math.abs(by + inlayOff), Math.abs(by - BOARD * pxPerUnit - inlayOff));
+      const withinX = bx > -inlayOff - inlayW && bx < BOARD * pxPerUnit + inlayOff + inlayW;
+      const withinY = by > -inlayOff - inlayW && by < BOARD * pxPerUnit + inlayOff + inlayW;
+      let inlay = 0;
+      if (withinY) inlay = Math.max(inlay, 1 - smooth01(ix / inlayW));
+      if (withinX) inlay = Math.max(inlay, 1 - smooth01(iy / inlayW));
+
+      height[i] = base * 0.5 + fine * 0.05 - groove * 0.22 + inlay * 0.06;
+
+      // Farbe (sRGB): tiefes Schiefer mit leichtem Blaustich
+      let r = 13 + base * 12 + fine * 3;
+      let g = 13 + base * 12 + fine * 3;
+      let b = 17 + base * 15 + fine * 3;
+      r += vein * 34; g += vein * 33; b += vein * 42;
+      r *= 1 - groove * 0.55; g *= 1 - groove * 0.55; b *= 1 - groove * 0.5;
+      r = r * (1 - inlay) + 178 * inlay;
+      g = g * (1 - inlay) + 180 * inlay;
+      b = b * (1 - inlay) + 190 * inlay;
+      color[i * 4] = r; color[i * 4 + 1] = g; color[i * 4 + 2] = b; color[i * 4 + 3] = 255;
+
+      // Rauheit: poliert, Adern noch etwas glatter, Gravur matt
+      let ro = 0.30 + (base - 0.5) * 0.25 + fine * 0.06 - vein * 0.12;
+      ro = ro * (1 - groove) + 0.75 * groove;
+      ro = ro * (1 - inlay) + 0.22 * inlay;
+      const rv = Math.max(0, Math.min(1, ro)) * 255;
+      roughMetal[i * 4] = 255; roughMetal[i * 4 + 1] = rv; roughMetal[i * 4 + 3] = 255;
+
+      const mv = inlay * 255;
+      roughMetal[i * 4 + 2] = mv;
+    }
+  }
+
+  // Normal-Map aus der Höhenkarte (Sobel)
+  const normal = new Uint8ClampedArray(n * 4);
+  const strength = 2.2;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const xm = Math.max(0, x - 1), xp = Math.min(size - 1, x + 1);
+      const ym = Math.max(0, y - 1), yp = Math.min(size - 1, y + 1);
+      const dx = (height[y * size + xp] - height[y * size + xm]) * strength;
+      const dy = (height[yp * size + x] - height[ym * size + x]) * strength;
+      const len = Math.hypot(dx, dy, 1);
+      const i = (y * size + x) * 4;
+      normal[i] = (-dx / len * 0.5 + 0.5) * 255;
+      normal[i + 1] = (dy / len * 0.5 + 0.5) * 255;
+      normal[i + 2] = (1 / len * 0.5 + 0.5) * 255;
+      normal[i + 3] = 255;
+    }
+  }
+
+  const toTex = (data, srgb) => {
+    const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+    tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    tex.flipY = false;
+    tex.needsUpdate = true;
+    return tex;
+  };
+
+  return {
+    map: toTex(color, true),
+    roughMetalMap: toTex(roughMetal, false),
+    normalMap: toTex(normal, false),
+  };
+}
+
+function smooth01(t) {
+  t = Math.max(0, Math.min(1, t));
+  return t * t * (3 - 2 * t);
+}
+
+/** Gebürstetes Metall: feine horizontale Riefen als Rauheits-Map. */
+function createBrushedTexture(size) {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d');
+  const rand = mulberry32(3);
+  ctx.fillStyle = 'rgb(110,110,110)';
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < size * 3; i++) {
+    const y = rand() * size;
+    const v = 80 + rand() * 90;
+    ctx.fillStyle = `rgba(${v},${v},${v},0.35)`;
+    ctx.fillRect(0, y, size, rand() * 1.2 + 0.3);
+  }
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  return tex;
+}
+
+/* =====================================================================
+   ENVIRONMENT (PMREM) — ein dunkler Raum mit wenigen Softboxen,
+   damit Glas und Metall edle, ruhige Lichtkanten bekommen.
+   ===================================================================== */
+
+function buildEnvironment() {
+  const envScene = new THREE.Scene();
+
+  const room = new THREE.Mesh(
+    new THREE.SphereGeometry(30, 32, 16),
+    new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      vertexShader: `varying vec3 vDir; void main(){ vDir = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+      fragmentShader: `varying vec3 vDir; void main(){
+        float h = vDir.y;
+        vec3 col = mix(vec3(0.010,0.009,0.020), vec3(0.030,0.028,0.060), smoothstep(-0.2, 0.9, h));
+        col = mix(col, vec3(0.002), smoothstep(0.0, -0.6, h));
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+    })
+  );
+  envScene.add(room);
+
+  const panel = (w, h, pos, color, intensity) => {
+    const m = new THREE.Mesh(
+      new THREE.PlaneGeometry(w, h),
+      new THREE.MeshBasicMaterial({ color: new THREE.Color(color).multiplyScalar(intensity), side: THREE.DoubleSide })
+    );
+    m.position.copy(pos);
+    m.lookAt(0, 0, 0);
+    envScene.add(m);
+  };
+  panel(14, 7, new THREE.Vector3(0, 16, 2), 0xfff4ea, 3.2);     // grosse Deckensoftbox
+  panel(2.2, 16, new THREE.Vector3(-15, 5, -3), 0xb8c6ff, 0.9);  // kühler Streifen links
+  panel(2.2, 16, new THREE.Vector3(15, 5, -5), 0xc8b8ff, 0.8);   // violetter Streifen rechts
+  panel(10, 2.5, new THREE.Vector3(0, 4, -16), 0x7a6aff, 0.9);   // Hinterkante
+  panel(6, 2, new THREE.Vector3(4, 2, 15), 0xffe2c8, 0.6);       // warmes Fülllicht vorne
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const envRT = pmrem.fromScene(envScene, 0.035);
+  pmrem.dispose();
+  return envRT.texture;
+}
+
+scene.environment = buildEnvironment();
+
+/* =====================================================================
+   HINTERGRUND — fast schwarz, sanfter blau-violetter Verlauf
+   ===================================================================== */
+
+const background = new THREE.Mesh(
+  new THREE.SphereGeometry(80, 48, 24),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: { uTime: { value: 0 } },
+    // Richtung von der Kamera aus, damit der Verlauf aus jeder Position (auch in der Spiegelung) stimmt.
+    vertexShader: `varying vec3 vDir; void main(){
+      vec4 wp = modelMatrix * vec4(position, 1.0);
+      vDir = normalize(wp.xyz - cameraPosition);
+      gl_Position = projectionMatrix * viewMatrix * wp;
+    }`,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec3 vDir;
+      void main(){
+        float h = vDir.y;
+        vec3 deep    = vec3(0.0016, 0.0014, 0.0035);
+        vec3 horizon = vec3(0.0060, 0.0050, 0.0150);
+        vec3 col = mix(horizon, deep, smoothstep(-0.05, 0.75, h));
+        col = mix(col, vec3(0.0010, 0.0009, 0.0020), smoothstep(-0.1, -0.7, h));
+        // weiches violettes Leuchten hinter dem Spielfeld
+        float g = pow(max(dot(vDir, normalize(vec3(0.0, -0.15, -1.0))), 0.0), 5.0);
+        col += vec3(0.010, 0.006, 0.022) * g * (0.92 + 0.08 * sin(uTime * 0.2));
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  })
+);
+background.renderOrder = -100;
+scene.add(background);
+
+/* =====================================================================
+   STEINPLATTE mit planarer Spiegelung
+   ===================================================================== */
+
+const stoneTex = createStoneTextures(QUALITY.textureSize);
+
+// Spiegelungs-Kamera: rendert die Szene gespiegelt in eine Textur,
+// die vom Bodenmaterial (je nach Rauheit leicht weichgezeichnet) gelesen wird.
+const reflector = new THREE.Reflector(new THREE.PlaneGeometry(PLATE, PLATE), {
+  textureWidth: 256,
+  textureHeight: 256,
+  clipBias: 0.002,
+  multisample: 0, // halbe Auflösung + Weichzeichnung im Boden: MSAA lohnt sich nicht
+});
+// Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() vom Boden übernommen.
+
+const floorMaterial = new THREE.MeshPhysicalMaterial({
+  color: 0xffffff,
+  map: stoneTex.map,
+  roughness: 1.0,
+  roughnessMap: stoneTex.roughMetalMap,
+  metalness: 1.0,
+  metalnessMap: stoneTex.roughMetalMap,
+  normalMap: stoneTex.normalMap,
+  normalScale: new THREE.Vector2(0.35, 0.35),
+  clearcoat: 0.35,
+  clearcoatRoughness: 0.1,
+  envMapIntensity: 0.18,
+});
+floorMaterial.onBeforeCompile = (shader) => {
+  shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
+  shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
+  shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
+    .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;')
+    .replace('#include <tonemapping_fragment>', `
+      {
+        vec2 ruv = vReflUv.xy / vReflUv.w;
+        ruv += normal.xy * 0.006;                     // leichte Verzerrung durch Steinrelief
+        float blur = 0.002 + roughnessFactor * 0.012;
+        vec3 refl = texture2D(tReflect, ruv).rgb * 0.36;
+        refl += texture2D(tReflect, ruv + vec2( blur,  blur)).rgb * 0.16;
+        refl += texture2D(tReflect, ruv + vec2(-blur,  blur)).rgb * 0.16;
+        refl += texture2D(tReflect, ruv + vec2( blur, -blur)).rgb * 0.16;
+        refl += texture2D(tReflect, ruv + vec2(-blur, -blur)).rgb * 0.16;
+        float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
+        float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
+        float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
+        gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * 0.8;
+      }
+      #include <tonemapping_fragment>`);
+  floorMaterial.userData.shader = shader;
+};
+
+const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+floorTop.rotation.x = -Math.PI / 2;
+floorTop.receiveShadow = true;
+scene.add(floorTop);
+
+// Seitenkanten der Platte (ohne Spiegelung)
+const plateSideMaterial = new THREE.MeshStandardMaterial({
+  color: 0x0d0d12,
+  roughness: 0.45,
+  metalness: 0.0,
+  envMapIntensity: 0.6,
+});
+const plateSides = new THREE.Mesh(new THREE.BoxGeometry(PLATE, PLATE_THICK, PLATE), plateSideMaterial);
+plateSides.position.y = -PLATE_THICK / 2 - 0.002;
+plateSides.receiveShadow = true;
+scene.add(plateSides);
+
+// Schmaler, zurückversetzter Sockel unter der Platte – lässt die Platte schweben.
+const plinth = new THREE.Mesh(
+  new THREE.BoxGeometry(PLATE - 0.8, 1.6, PLATE - 0.8),
+  new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.8, metalness: 0.0, envMapIntensity: 0.3 })
+);
+plinth.position.y = -PLATE_THICK - 0.8;
+scene.add(plinth);
+
+/* =====================================================================
+   BELEUCHTUNG — Museumsspot als Hauptlicht, kühles Gegenlicht
+   ===================================================================== */
+
+const hemi = new THREE.HemisphereLight(0x2a2d50, 0x050308, 0.08);
+scene.add(hemi);
+
+const keyLight = new THREE.SpotLight(0xfff1e2, 1.5, 0, 0.44, 1.0, 1);
+keyLight.position.set(2.5, 15, 6);
+keyLight.target.position.set(0, 0, 0);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(QUALITY.shadowSize, QUALITY.shadowSize);
+keyLight.shadow.camera.near = 8;
+keyLight.shadow.camera.far = 26;
+keyLight.shadow.bias = -0.0002;
+keyLight.shadow.normalBias = 0.02;
+scene.add(keyLight, keyLight.target);
+
+const rimLight = new THREE.DirectionalLight(0x8c8cff, 0.06);
+rimLight.position.set(-4, 5, -10);
+scene.add(rimLight);
+
+/* =====================================================================
+   POST-PROCESSING
+   ===================================================================== */
+
+const FinalShader = {
+  uniforms: {
+    tDiffuse: { value: null },
+    uResolution: { value: new THREE.Vector2(1, 1) },
+    uTime: { value: 0 },
+    uExposure: { value: LOOK.exposure },
+    uVignette: { value: LOOK.vignette },
+    uAberration: { value: LOOK.aberration },
+    uGrain: { value: LOOK.grain },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
+  fragmentShader: `
+    uniform sampler2D tDiffuse;
+    uniform vec2 uResolution;
+    uniform float uTime, uExposure, uVignette, uAberration, uGrain;
+    varying vec2 vUv;
+
+    // ACES Filmic (identisch zu three.js ACESFilmicToneMapping)
+    vec3 RRTAndODTFit(vec3 v) {
+      vec3 a = v * (v + 0.0245786) - 0.000090537;
+      vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+      return a / b;
+    }
+    vec3 acesFilmic(vec3 color) {
+      const mat3 inM = mat3(vec3(0.59719, 0.07600, 0.02840), vec3(0.35458, 0.90834, 0.13383), vec3(0.04823, 0.01566, 0.83777));
+      const mat3 outM = mat3(vec3(1.60475, -0.10208, -0.00327), vec3(-0.53108, 1.10813, -0.07276), vec3(-0.07367, -0.00605, 1.07602));
+      color *= uExposure / 0.6;
+      color = inM * color;
+      color = RRTAndODTFit(color);
+      color = outM * color;
+      return clamp(color, 0.0, 1.0);
+    }
+    vec3 linearToSRGB(vec3 c) {
+      return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+    }
+    float hash(vec2 p) {
+      p = fract(p * vec2(443.897, 441.423));
+      p += dot(p, p.yx + 19.19);
+      return fract((p.x + p.y) * p.x);
+    }
+
+    void main() {
+      vec2 c = vUv - 0.5;
+      float aspect = uResolution.x / uResolution.y;
+      vec2 ca = c * vec2(aspect, 1.0);
+      float r2 = dot(ca, ca);
+
+      // Chromatische Aberration: nur zum Rand hin spürbar
+      vec2 off = c * r2 * uAberration;
+      vec3 col;
+      col.r = texture2D(tDiffuse, vUv - off).r;
+      col.g = texture2D(tDiffuse, vUv).g;
+      col.b = texture2D(tDiffuse, vUv + off).b;
+
+      // Vignette
+      float vig = smoothstep(1.05, 0.25, length(ca));
+      col *= mix(1.0 - uVignette, 1.0, vig);
+
+      col = acesFilmic(col);
+      col = linearToSRGB(col);
+
+      // Filmkorn (in den Mitteltönen am stärksten) + gleichzeitig Dithering gegen Banding
+      float lum = dot(col, vec3(0.299, 0.587, 0.114));
+      float n = hash(vUv * uResolution + fract(uTime * 7.31) * vec2(97.3, 61.7)) - 0.5;
+      col += n * uGrain * (0.45 + 0.55 * (1.0 - abs(lum - 0.4) * 1.6));
+
+      gl_FragColor = vec4(col, 1.0);
+    }`,
+};
+
+function createComposer() {
+  const size = renderer.getDrawingBufferSize(new THREE.Vector2());
+  const rt = new THREE.WebGLRenderTarget(size.x, size.y, {
+    type: HDR_TYPE,
+    samples: renderer.capabilities.isWebGL2 ? QUALITY.msaa : 0,
+  });
+  const comp = new THREE.EffectComposer(renderer, rt);
+  comp.addPass(new THREE.RenderPass(scene, camera));
+
+  const bloom = new THREE.UnrealBloomPass(
+    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    LOOK.bloomStrength, LOOK.bloomRadius, LOOK.bloomThreshold
+  );
+  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten.
+  [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]
+    .forEach(t => { t.texture.type = HDR_TYPE; });
+  // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos.
+  bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace(
+    'gl_FragColor = mix( outputColor, texel, alpha );',
+    'vec3 excess = texel.rgb * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4));\n' +
+    'gl_FragColor = vec4(min(excess, vec3(2.5)) * alpha, 1.0);'
+  );
+  bloom.highPassUniforms.smoothWidth.value = 0.6;
+  // Original-Gauss endet bei 1 Sigma -> sichtbare eckige Halos. Engeres Sigma = runde Halos.
+  bloom.separableBlurMaterials.forEach(m => {
+    m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
+    m.needsUpdate = true;
+  });
+  comp.addPass(bloom);
+
+  const finalPass = new THREE.ShaderPass(FinalShader);
+  // Rendert direkt auf den Bildschirm: ohne Swap wird der zweite Composer-Puffer nie gebunden
+  // und belegt daher keinen Grafikspeicher.
+  finalPass.needsSwap = false;
+  comp.addPass(finalPass);
+  return { comp, bloom, finalPass };
+}
+
+const { comp: composer, bloom: bloomPass, finalPass } = createComposer();
+// Mit eigenem RenderTarget setzt der Composer sein Pixelverhältnis auf 1 – für HiDPI korrigieren.
+composer.setPixelRatio(renderer.getPixelRatio());
+
+/* =====================================================================
+   KAMERA — schräg von oben, schwebt sanft, begrenzt drehbar
+   ===================================================================== */
+
+const cameraRig = {
+  target: new THREE.Vector3(0, 0, 0.35),
+  baseTheta: 0,           // Azimut
+  basePhi: 0.86,          // Winkel von der Senkrechten
+  userTheta: 0, userPhi: 0,
+  goalTheta: 0, goalPhi: 0,
+  limitsTheta: 0.55, limitsPhiUp: 0.22, limitsPhiDown: 0.16,
+  radius: 18,
+  lastInput: 0,
+};
+
+function fitCameraDistance() {
+  // Spielfeld soll in Breite und Höhe sicher ins Bild passen
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const tanV = Math.tan(vfov / 2);
+  const tanH = tanV * camera.aspect;
+  const halfW = PLATE * 0.56;
+  const halfH = PLATE * 0.42;
+  cameraRig.radius = Math.max(halfW / tanH, halfH / tanV, 14);
+  // Im Hochformat steiler von oben, damit das Feld die Bildhöhe besser nutzt.
+  cameraRig.basePhi = THREE.MathUtils.lerp(0.62, 0.86, THREE.MathUtils.clamp((camera.aspect - 0.5) / 0.8, 0, 1));
+}
+
+function updateCamera(t, dt) {
+  // Nach einer Weile ohne Eingabe gleitet die Kamera zur Ausgangsposition zurück.
+  if (t - cameraRig.lastInput > 4) {
+    cameraRig.goalTheta *= Math.pow(0.35, dt);
+    cameraRig.goalPhi *= Math.pow(0.35, dt);
+  }
+  const k = 1 - Math.pow(0.002, dt);
+  cameraRig.userTheta += (cameraRig.goalTheta - cameraRig.userTheta) * k;
+  cameraRig.userPhi += (cameraRig.goalPhi - cameraRig.userPhi) * k;
+
+  const theta = cameraRig.baseTheta + cameraRig.userTheta + Math.sin(t * 0.13) * 0.035;
+  const phi = cameraRig.basePhi + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
+  const r = cameraRig.radius * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
+
+  camera.position.set(
+    cameraRig.target.x + r * Math.sin(phi) * Math.sin(theta),
+    cameraRig.target.y + r * Math.cos(phi),
+    cameraRig.target.z + r * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(cameraRig.target);
+}
+
+// Ziehen auf der Fläche dreht die Kamera (begrenzt).
+const drag = { active: false, id: -1, x: 0, y: 0 };
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  if (e.button !== 0) return;
+  drag.active = true; drag.id = e.pointerId; drag.x = e.clientX; drag.y = e.clientY;
+});
+window.addEventListener('pointermove', (e) => {
+  if (!drag.active || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  drag.x = e.clientX; drag.y = e.clientY;
+  const s = 2.4 / Math.max(window.innerWidth, 600);
+  cameraRig.goalTheta = THREE.MathUtils.clamp(cameraRig.goalTheta - dx * s, -cameraRig.limitsTheta, cameraRig.limitsTheta);
+  cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp, cameraRig.limitsPhiDown);
+  cameraRig.lastInput = clock.elapsedTime;
+});
+window.addEventListener('pointerup', (e) => { if (e.pointerId === drag.id) drag.active = false; });
+window.addEventListener('pointercancel', (e) => { if (e.pointerId === drag.id) drag.active = false; });
+renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/** Günstiger Ersatz für Glas im Spiegel-Pass: transparent statt echter Transmission. */
+function glassReflectionProxy(glass) {
+  return new THREE.MeshStandardMaterial({
+    color: glass.attenuationColor ? glass.attenuationColor.clone().lerp(glass.color, 0.5) : glass.color,
+    emissive: glass.emissive, emissiveIntensity: glass.emissiveIntensity,
+    roughness: glass.roughness, metalness: 0.0, transparent: true, opacity: 0.6,
+    flatShading: glass.flatShading, envMapIntensity: glass.envMapIntensity,
+  });
+}
+
+/* =====================================================================
+   LOOK-TEST (nur Phase 1): ein Kristall und ein Leuchtkörper,
+   um Glas, Metall und Bloom beurteilen zu können.
+   ===================================================================== */
+
+const brushedTex = createBrushedTexture(256);
+const lookTest = new THREE.Group();
+{
+  const gem = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.42, 0),
+    new THREE.MeshPhysicalMaterial({
+      color: 0xbfd4ff, transmission: 1, thickness: 0.6, ior: 1.7, roughness: 0.04,
+      clearcoat: 1, clearcoatRoughness: 0.03, attenuationColor: new THREE.Color(0x6688ff), attenuationDistance: 1.2,
+      flatShading: true, envMapIntensity: 1.4,
+    })
+  );
+  gem.position.set(-1.2, 0.55, 0);
+  gem.castShadow = true;
+  gem.userData.reflectionMaterial = glassReflectionProxy(gem.material);
+  lookTest.add(gem);
+
+  const orb = new THREE.Mesh(
+    new THREE.SphereGeometry(0.12, 24, 16),
+    new THREE.MeshBasicMaterial({ color: new THREE.Color(0xffffff).multiplyScalar(3.5) })
+  );
+  orb.position.set(1.2, 0.45, 0);
+  lookTest.add(orb);
+
+  const metal = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.35, 0.4, 0.12, 48),
+    new THREE.MeshStandardMaterial({ color: 0x9a9aa4, metalness: 1, roughness: 0.35, roughnessMap: brushedTex, envMapIntensity: 1.2 })
+  );
+  metal.position.set(1.2, 0.06, 0);
+  metal.castShadow = metal.receiveShadow = true;
+  lookTest.add(metal);
+}
+scene.add(lookTest);
+
+/* =====================================================================
+   RESIZE & LOOP
+   ===================================================================== */
+
+function onResize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.fov = camera.aspect < 1 ? 44 : 32; // Hochformat: weiteres Sichtfeld statt riesiger Distanz
+  camera.updateProjectionMatrix();
+  fitCameraDistance();
+  renderer.setSize(w, h);
+  composer.setSize(w, h);
+  const pr = renderer.getPixelRatio();
+  reflector.getRenderTarget().setSize(
+    Math.round(w * pr * QUALITY.reflectionScale),
+    Math.round(h * pr * QUALITY.reflectionScale)
+  );
+  finalPass.uniforms.uResolution.value.set(w * pr, h * pr);
+}
+window.addEventListener('resize', onResize);
+onResize();
+
+const clock = new THREE.Clock();
+
+// Objekte mit userData.reflectionMaterial bekommen im Spiegel-Pass ein günstiges Ersatzmaterial
+// (z. B. Glas ohne Transmission – sonst kostet jeder Kristall einen zusätzlichen Szenen-Pass).
+const reflectionSwaps = [];
+function renderReflection() {
+  if (!QUALITY.reflections) return;
+  camera.updateMatrixWorld();
+  floorTop.updateMatrixWorld();
+  reflector.matrixWorld.copy(floorTop.matrixWorld);
+
+  reflectionSwaps.length = 0;
+  scene.traverseVisible((o) => {
+    if (o.userData.reflectionMaterial) {
+      reflectionSwaps.push(o, o.material);
+      o.material = o.userData.reflectionMaterial;
+    }
+  });
+  floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
+  reflector.onBeforeRender(renderer, scene, camera);
+  floorTop.visible = true;
+  for (let i = 0; i < reflectionSwaps.length; i += 2) reflectionSwaps[i].material = reflectionSwaps[i + 1];
+}
+
+function frame() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  const t = clock.elapsedTime;
+
+  updateCamera(t, dt);
+  background.position.copy(camera.position); // Hintergrundkugel immer um die Kamera
+  background.material.uniforms.uTime.value = t;
+  finalPass.uniforms.uTime.value = t;
+
+  lookTest.children[0].rotation.y = t * 0.4;
+
+  renderReflection();
+  composer.render(dt);
+
+  window.__prisma.frames++;
+  requestAnimationFrame(frame);
+}
+
+window.__prisma = { frames: 0, ready: true };
+// Zugriff für Debugging/Tests (nicht serialisieren)
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, rimLight, keyLight, hemi };
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
