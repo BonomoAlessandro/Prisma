@@ -65,10 +65,11 @@
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
 const QUALITY = {
-  pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.5 : 2),
+  // Obergrenze; die tatsächliche Auflösung regelt adaptiveResolution nach der gemessenen Frame-Zeit.
+  pixelRatio: Math.min(window.devicePixelRatio || 1, 1.5),
   msaa: IS_MOBILE ? 0 : 4,
   shadowSize: IS_MOBILE ? 1024 : 2048,
-  reflectionScale: IS_MOBILE ? 0.45 : 0.6,
+  reflectionScale: IS_MOBILE ? 0.35 : 0.5,
   textureSize: IS_MOBILE ? 512 : 1024,
   reflections: true,
 };
@@ -85,7 +86,7 @@ const LOOK = {
   bloomRadius: 0.55,
   bloomThreshold: 1.0,     // HDR: nur Werte > 1 blühen (Strahlen, Leuchtkörper)
   vignette: 0.55,
-  aberration: 0.012,
+  aberration: 0.0035,
   grain: 0.028,
   fogColor: 0x05040b,
   fogDensity: 0.016,
@@ -308,6 +309,10 @@ renderer.toneMapping = THREE.NoToneMapping;
 renderer.outputEncoding = THREE.LinearEncoding;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Schatten werden nur neu berechnet, wenn sich etwas Schattenwerfendes bewegt (markShadowsDirty).
+renderer.shadowMap.autoUpdate = false;
+renderer.shadowMap.needsUpdate = true;
+function markShadowsDirty() { renderer.shadowMap.needsUpdate = true; }
 document.body.appendChild(renderer.domElement);
 
 // In HalfFloat rendern braucht explizit eine color_buffer-Extension (WebGL1 und WebGL2).
@@ -379,9 +384,17 @@ function makeNoise2D(seed) {
  */
 function createStoneTextures(size) {
   const noise = makeNoise2D(7);
+  // Jede Oktave gedreht (~37°) und versetzt, damit sich Strukturen nicht in mehreren Grössen wiederholen
+  const ROT_C = Math.cos(0.65), ROT_S = Math.sin(0.65);
   const fbm = (x, y, oct) => {
-    let s = 0, a = 0.5, f = 1;
-    for (let i = 0; i < oct; i++) { s += a * noise(x * f, y * f); f *= 2.03; a *= 0.5; }
+    let s = 0, a = 0.5;
+    for (let i = 0; i < oct; i++) {
+      s += a * noise(x, y);
+      const nx = (x * ROT_C - y * ROT_S) * 2.03 + 17.1;
+      y = (x * ROT_S + y * ROT_C) * 2.03 + 5.3;
+      x = nx;
+      a *= 0.5;
+    }
     return s;
   };
 
@@ -397,7 +410,9 @@ function createStoneTextures(size) {
 
       const base = fbm(u, v, 5);
       const warp = fbm(u * 0.6 + 11.3, v * 0.6 + 4.1, 4);
-      const vein = Math.pow(1 - Math.abs(Math.sin((u * 0.9 + v * 0.35) * 2.2 + warp * 7.0)), 12);
+      // Adern als Höhenlinie eines verzerrten Rauschfelds: organisches, nicht periodisches Netz
+      const rn = fbm(u * 0.7 + warp * 2.2 + 3.1, v * 0.7 - warp * 1.7 + 8.4, 4);
+      const vein = Math.pow(Math.max(0, 1 - Math.abs(rn * 2 - 1) * 9), 2.2);
       const cloud = fbm(u * 0.35 + 3.7, v * 0.35 + 9.2, 3);
 
       height[i] = base * 0.5 + vein * 0.08;
@@ -570,8 +585,13 @@ const reflector = new THREE.Reflector(new THREE.PlaneGeometry(PLATE, PLATE), {
 });
 // Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() vom Boden übernommen.
 reflector.getRenderTarget().stencilBuffer = true; // 24 statt 16 Bit Tiefe (vor dem ersten Rendern setzen)
+// Mipmaps: Unschärfe je nach Rauheit mit einer einzigen Abtastung (versetzte Abtastungen erzeugten Geisterbilder)
+if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Texturen
+  reflector.getRenderTarget().texture.generateMipmaps = true;
+  reflector.getRenderTarget().texture.minFilter = THREE.LinearMipmapLinearFilter;
+}
 
-const floorMaterial = new THREE.MeshPhysicalMaterial({
+const floorMaterial = new THREE.MeshStandardMaterial({
   color: 0xffffff,
   map: stoneTex.map,
   roughness: 1.0,
@@ -579,9 +599,7 @@ const floorMaterial = new THREE.MeshPhysicalMaterial({
   metalness: 0.0,
   normalMap: stoneTex.normalMap,
   normalScale: new THREE.Vector2(0.3, 0.3),
-  clearcoat: 0.35,
-  clearcoatRoughness: 0.1,
-  envMapIntensity: 0.18,
+  envMapIntensity: 0.22,
 });
 
 // Analytische Details des Bodens (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
@@ -601,13 +619,11 @@ const FLOOR_DETAIL_GLSL = `
     vec2 inside = 1.0 - smoothstep(vec2(halfBoard), vec2(halfBoard) + apw, abs(pp));
     floorGroove = max(line.x, line.y) * inside.x * inside.y;
 
-    // Silber-Intarsie: Doppellinie knapp ausserhalb des Spielfelds
+    // Silber-Intarsie: eine feine Linie knapp ausserhalb des Spielfelds
     float box = max(abs(pp.x), abs(pp.y));
     float bw = max(fwidth(box), 1e-5);
     float r1 = abs(box - (halfBoard + 0.16));
-    float r2 = abs(box - (halfBoard + 0.215));
-    floorInlay = max(1.0 - smoothstep(0.011 - bw * 0.5, 0.011 + bw * 0.5, r1),
-                     (1.0 - smoothstep(0.004 - bw * 0.5, 0.004 + bw * 0.5, r2)) * clamp(0.008 / bw, 0.3, 1.0));
+    floorInlay = (1.0 - smoothstep(0.009 - bw * 0.5, 0.009 + bw * 0.5, r1)) * clamp(0.018 / bw, 0.3, 1.0);
 
     // Polierte Fase an der Plattenkante: fängt das Licht und zeichnet die Silhouette
     float edgeDist = ${(PLATE / 2).toFixed(4)} - box;
@@ -652,16 +668,7 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
-        float blur = 0.002 + roughnessFactor * 0.013;
-        vec3 refl = texture2D(tReflect, ruv).rgb * 0.28;
-        refl += texture2D(tReflect, ruv + vec2( blur, 0.0)).rgb * 0.12;
-        refl += texture2D(tReflect, ruv + vec2(-blur, 0.0)).rgb * 0.12;
-        refl += texture2D(tReflect, ruv + vec2(0.0,  blur)).rgb * 0.12;
-        refl += texture2D(tReflect, ruv + vec2(0.0, -blur)).rgb * 0.12;
-        refl += texture2D(tReflect, ruv + vec2( blur,  blur) * 0.7).rgb * 0.06;
-        refl += texture2D(tReflect, ruv + vec2(-blur,  blur) * 0.7).rgb * 0.06;
-        refl += texture2D(tReflect, ruv + vec2( blur, -blur) * 0.7).rgb * 0.06;
-        refl += texture2D(tReflect, ruv + vec2(-blur, -blur) * 0.7).rgb * 0.06;
+        vec3 refl = texture2D(tReflect, ruv, 0.8 + roughnessFactor * 4.0).rgb;
         float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
@@ -786,8 +793,8 @@ const FinalShader = {
       vec2 ca = c * vec2(aspect, 1.0);
       float r2 = dot(ca, ca);
 
-      // Chromatische Aberration: nur zum Rand hin spürbar
-      vec2 off = c * r2 * uAberration;
+      // Chromatische Aberration: sehr dezent und erst im äusseren Bildbereich
+      vec2 off = c * smoothstep(0.45, 0.95, r2) * uAberration;
       vec3 col;
       col.r = texture2D(tDiffuse, vUv - off).r;
       col.g = texture2D(tDiffuse, vUv).g;
@@ -922,16 +929,6 @@ window.addEventListener('pointermove', (e) => {
 window.addEventListener('pointerup', (e) => { if (e.pointerId === drag.id) drag.active = false; });
 window.addEventListener('pointercancel', (e) => { if (e.pointerId === drag.id) drag.active = false; });
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
-
-/** Günstiger Ersatz für Glas im Spiegel-Pass: transparent statt echter Transmission. */
-function glassReflectionProxy(glass) {
-  return new THREE.MeshStandardMaterial({
-    color: glass.attenuationColor ? glass.attenuationColor.clone().lerp(glass.color, 0.5) : glass.color,
-    emissive: glass.emissive, emissiveIntensity: glass.emissiveIntensity,
-    roughness: glass.roughness, metalness: 0.0, transparent: true, opacity: 0.6,
-    flatShading: glass.flatShading, envMapIntensity: glass.envMapIntensity,
-  });
-}
 
 /* =====================================================================
    SPIELELEMENTE — 3D-Modelle für Quelle, Spiegel und Ziel
@@ -1107,20 +1104,24 @@ function makeTarget(el) {
   ring.position.y = 0.066;
   root.add(ring);
 
+  // Bewusst ohne echte Transmission: die würde jedes Frame die ganze Szene ein zweites Mal rendern
+  // (≈ ein Drittel der Frame-Zeit). Transparenz + Clearcoat + Iridescence + Leuchtkern wirken fast gleich.
   const gemMat = new THREE.MeshPhysicalMaterial({
-    color: col.clone().lerp(new THREE.Color(1, 1, 1), 0.55),
-    transmission: 1, thickness: 0.45, ior: 2.0, roughness: 0.02,
-    clearcoat: 1, clearcoatRoughness: 0.02, specularIntensity: 1,
-    attenuationColor: col.clone(), attenuationDistance: 0.35,
+    color: col.clone().lerp(new THREE.Color(1, 1, 1), 0.35),
+    metalness: 0, roughness: 0.04, ior: 2.0, specularIntensity: 1,
+    transparent: true, opacity: 0.8,
+    clearcoat: 1, clearcoatRoughness: 0.02,
+    iridescence: 0.5, iridescenceIOR: 1.8,
     emissive: col.clone(), emissiveIntensity: 0.12,
-    flatShading: true, envMapIntensity: 1.6,
+    flatShading: true, envMapIntensity: 2.2,
   });
-  const gem = shadowed(new THREE.Mesh(makeGemGeometry(0.26), gemMat));
+  // Kein Schattenwurf: der Stein dreht und schwebt, die Shadow-Map wird aber nur bei Änderungen
+  // neu berechnet – und Transparenz kennt die Shadow-Map nicht (voll dunkler Schatten).
+  const gem = new THREE.Mesh(makeGemGeometry(0.26), gemMat);
   gem.position.y = BEAM_Y;
-  gem.userData.reflectionMaterial = glassReflectionProxy(gemMat);
   root.add(gem);
 
-  // Opaker Leuchtkern: erscheint durch die Transmission gebrochen im Stein.
+  // Opaker Leuchtkern: scheint durch den transparenten Stein.
   const coreMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.8) });
   const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), coreMat);
   gem.add(core);
@@ -1175,7 +1176,6 @@ function disposeTree(root) {
   root.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
     const mats = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
-    if (o.userData.reflectionMaterial) mats.push(o.userData.reflectionMaterial);
     for (const m of mats) if (!SHARED_MATERIALS.has(m)) m.dispose();
   });
 }
@@ -1194,6 +1194,9 @@ function loadLevel(index) {
     boardGroup.add(obj);
     game.objects.set(el.id, obj);
   }
+  markShadowsDirty();
+  // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
+  requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
   recomputeBeams();
 }
 
@@ -1222,6 +1225,7 @@ function rotateElement(el, delta) {
   el.rot = ((el.rot + delta) % 8 + 8) % 8;
   const obj = game.objects.get(el.id);
   obj.userData.pivot.rotation.y = dirToRotationY(el.rot);
+  markShadowsDirty();
   recomputeBeams();
 }
 
@@ -1711,6 +1715,9 @@ const beamView = {
       }));
       s.renderOrder = 11;
       s.raycast = () => {};
+      // Nicht in der Bodenspiegelung: Versatz und Sichtseite gelten für die Hauptkamera,
+      // gespiegelt lägen die Blitze auf der falschen Seite des Spiegels.
+      s.layers.set(LAYER_NO_REFLECT);
       s.userData.phase = Math.random() * 10;
       s.userData.pop = 0;
       this.group.add(s);
@@ -1756,14 +1763,16 @@ const beamView = {
       // Spiegel-Blitz nur von der getroffenen Seite sichtbar (nicht durch das Objekt hindurch)
       toCam.copy(camera.position).sub(rec.pos).normalize();
       const n = rec.ev.normal;
-      const side = n ? THREE.MathUtils.smoothstep(toCam.x * n[0] + toCam.z * n[1], 0.02, 0.2) : 1;
+      // Ab einem deutlich frontalen Blick sichtbar; bei streifendem Blick würde der Blitz über
+      // Rahmen und Stützen hinausragen (und beim Schweben der Kamera ein- und ausblenden).
+      const side = n ? THREE.MathUtils.smoothstep(toCam.x * n[0] + toCam.z * n[1], 0.3, 0.55) : 1;
       const fade = fadeAt(rec, t) * side;
-      const scale = style.scale * p * burst * flicker * (0.4 + 0.6 * fade);
+      const scale = style.scale * p * burst * flicker * (0.4 + 0.6 * fadeAt(rec, t)) * (0.55 + 0.45 * side);
       s.scale.set(scale, scale, 1);
       s.material.rotation = Math.sin(t * 0.3 + ph) * 0.15;
       s.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.35).multiplyScalar(style.intensity * flicker * fade);
       // Richtung Kamera versetzt, damit Spiegelfläche/Edelstein den Blitz nicht halbiert
-      s.position.copy(rec.pos).addScaledVector(toCam, 0.16);
+      s.position.copy(rec.pos).addScaledVector(toCam, 0.06);
     }
 
     this._updateDust(t);
@@ -1842,26 +1851,81 @@ onResize();
 
 const clock = new THREE.Clock();
 
-// Objekte mit userData.reflectionMaterial bekommen im Spiegel-Pass ein günstiges Ersatzmaterial
-// (z. B. Glas ohne Transmission – sonst kostet jeder Kristall einen zusätzlichen Szenen-Pass).
-const reflectionSwaps = [];
+/**
+ * Adaptive Auflösung: misst die echte Frame-Zeit und senkt die Renderauflösung, sobald 60 FPS
+ * nicht gehalten werden; steigt vorsichtig wieder, wenn Luft ist. Gescheiterte Stufen werden
+ * gemerkt, damit die Auflösung nicht hin und her pendelt.
+ */
+const adaptiveResolution = {
+  scale: 1,
+  minPixelRatio: 0.8,   // nie unter 0.8 echte Pixel pro CSS-Pixel – sonst wird es zu unscharf
+  ceiling: 1,           // höchste Stufe, die zuletzt flüssig lief
+  window: 0, slow: 0, frames: 0, // Messfenster (Sekunden), Frames über Budget, Frames gesamt
+  calm: 0, cooldown: 1.5, last: performance.now(),
+  probe: null,          // läuft gerade eine Absenkung zur Probe?
+  locked: false,        // Absenken bringt nichts (z. B. 30-Hz-Sparmodus, CPU-Engpass)
+  // ?noadapt: feste Auflösung (für Screenshot-Tests im langsamen Software-Rendering)
+  disabled: new URLSearchParams(location.search).has('noadapt'),
+
+  get min() { return Math.min(1, this.minPixelRatio / QUALITY.pixelRatio); },
+
+  /** Kurze Schonfrist, z. B. nach Levelstart (Shader-Kompilierung erzeugt einzelne lange Frames). */
+  hold(seconds = 1.5) { this.cooldown = Math.max(this.cooldown, seconds); this.window = this.slow = this.frames = 0; },
+
+  tick() {
+    if (this.disabled) return;
+    const now = performance.now();
+    const ms = now - this.last;
+    this.last = now;
+    if (ms > 100) return; // Tab war im Hintergrund
+    const sec = ms / 1000;
+    if (this.cooldown > 0) { this.cooldown -= sec; return; }
+
+    this.window += sec; this.frames++;
+    if (ms > 20) this.slow++;
+    this.calm = ms < 18 ? this.calm + sec : 0;
+    // Nach 30 s ruhigem Betrieb darf die Obergrenze wieder steigen
+    if (this.calm > 30 && this.ceiling < 1) { this.ceiling = Math.min(1, this.ceiling + 0.05); this.calm = 0; }
+    if (this.window < 1) return;
+
+    const overload = this.slow / this.frames; // Anteil Frames über Budget in der letzten Sekunde
+    this.window = this.slow = this.frames = 0;
+
+    if (this.probe) {
+      // Hat die letzte Absenkung geholfen? Sonst zurück und Absenken sperren.
+      if (overload > this.probe.overload * 0.8) { this.locked = true; this.set(this.probe.from); }
+      this.probe = null;
+      return;
+    }
+    if (overload > 0.3 && !this.locked && this.scale > this.min + 1e-3) {
+      this.ceiling = Math.max(this.min, this.scale - 0.05);
+      this.probe = { from: this.scale, overload };
+      this.set(this.scale - 0.12);
+    } else if (overload < 0.05 && this.calm > 5 && this.scale < this.ceiling) {
+      this.set(Math.min(this.ceiling, this.scale + 0.08));
+    }
+  },
+
+  set(scale) {
+    this.scale = Math.max(this.min, Math.min(1, scale));
+    const pr = QUALITY.pixelRatio * this.scale;
+    renderer.setPixelRatio(pr);
+    composer._pixelRatio = pr; // nicht setPixelRatio(): das baut alle Puffer neu, onResize gleich nochmal
+    onResize();
+    this.hold(0.6);
+    this.calm = 0;
+  },
+};
+
 function renderReflection() {
   if (!QUALITY.reflections) return;
   camera.updateMatrixWorld();
   floorTop.updateMatrixWorld();
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
-  reflectionSwaps.length = 0;
-  scene.traverseVisible((o) => {
-    if (o.userData.reflectionMaterial) {
-      reflectionSwaps.push(o, o.material);
-      o.material = o.userData.reflectionMaterial;
-    }
-  });
   floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
   reflector.onBeforeRender(renderer, scene, camera);
   floorTop.visible = true;
-  for (let i = 0; i < reflectionSwaps.length; i += 2) reflectionSwaps[i].material = reflectionSwaps[i + 1];
 }
 
 function frame() {
@@ -1882,11 +1946,13 @@ function frame() {
   renderReflection();
   composer.render(dt);
 
+  adaptiveResolution.tick();
   window.__prisma.frames++;
   requestAnimationFrame(frame);
 }
 
-window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved };
+window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved,
+  fps: () => Math.round(1000 / adaptiveResolution.avg), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
 window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, rimLight, keyLight, hemi, game, rotateElement };
 requestAnimationFrame(frame);

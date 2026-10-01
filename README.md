@@ -7,4 +7,5 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Three.js r147 wird per CDN geladen, daher ist eine Internetverbindung nötig.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik,
-  `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
+  `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
+  `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.

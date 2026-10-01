@@ -80,7 +80,7 @@ await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', {
   width: +width, height: +height, deviceScaleFactor: +(process.env.DPR || 1), mobile: +width < 800,
 });
-await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href });
+await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt' });
 
 // Warten bis die Szene läuft
 let state = null;
