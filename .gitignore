@@ -1,0 +1,15 @@
+# Abhängigkeiten / Tooling
+node_modules/
+
+# Test- und Screenshot-Ausgaben
+tests/output/
+*.log
+
+# Editor / Betriebssystem
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Lokale Claude-Einstellungen
+.claude/settings.local.json
