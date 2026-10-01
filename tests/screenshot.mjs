@@ -93,6 +93,7 @@ for (let i = 0; i < 100; i++) {
 if (script) {
   const r = await send('Runtime.evaluate', { expression: script, awaitPromise: true, returnByValue: true });
   if (r.result?.exceptionDetails) logs.push('[script-exception] ' + r.result.exceptionDetails.exception?.description);
+  else if (r.result?.result?.value !== undefined) console.log('Skript:', r.result.result.value);
 }
 await sleep(+waitMs);
 const r2 = await send('Runtime.evaluate', { expression: 'JSON.stringify(window.__prisma || null)', returnByValue: true });
