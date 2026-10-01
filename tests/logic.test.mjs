@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -170,6 +170,32 @@ test('Ziel mit falscher Farbe zählt nicht', () => {
   const r = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0, color: 'red' }, { type: 'target', x: 5, z: 3, color: 'blue' }]));
   assert.equal(r.solved, false);
   assert.equal(r.hits.get(1), L.COLORS.red);
+});
+
+console.log('Schnittnormalen');
+test('Spiegelnormale zeigt zum einfallenden Strahl', () => {
+  for (let r = 0; r < 8; r++) for (let d = 0; d < 8; d++) {
+    if (L.reflectOnMirror(d, r) === d) continue; // parallel: kein Treffer
+    const [nx, nz] = L.mirrorFrontNormal(r, d);
+    const [dx, dz] = L.DIRS[d];
+    assert.ok(nx * dx + nz * dz < 0, `rot ${r}, dir ${d}`);
+    // reflektierter Strahl verlässt auf derselben Seite
+    const [ox, oz] = L.DIRS[L.reflectOnMirror(d, r)];
+    assert.ok(nx * ox + nz * oz > 0, `ausgang rot ${r}, dir ${d}`);
+  }
+});
+test('Segmente tragen Schnittnormalen (Spiegel: Fläche, sonst senkrecht)', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'mirror', x: 3, z: 3, rot: 1 },
+    { type: 'target', x: 3, z: 6 },
+  ]));
+  const [a, b] = r.segments;
+  assert.deepEqual(a.n0, [1, 0]);                       // Quelle: nach vorn
+  assert.deepEqual(a.n1.map(v => +v.toFixed(3)), [-0.707, 0.707]); // Spiegelfläche, Einfallsseite
+  assert.deepEqual(b.n0, a.n1);
+  assert.deepEqual(b.n1.map(v => +v.toFixed(3) + 0), [0, -1]);  // Ziel: senkrecht zum Strahl
+  assert.deepEqual(r.events[0].normal, a.n1);
 });
 
 console.log('Level');

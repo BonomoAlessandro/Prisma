@@ -68,7 +68,7 @@ const QUALITY = {
   pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.5 : 2),
   msaa: IS_MOBILE ? 0 : 4,
   shadowSize: IS_MOBILE ? 1024 : 2048,
-  reflectionScale: IS_MOBILE ? 0.35 : 0.5,
+  reflectionScale: IS_MOBILE ? 0.45 : 0.6,
   textureSize: IS_MOBILE ? 512 : 1024,
   reflections: true,
 };
@@ -88,7 +88,7 @@ const LOOK = {
   aberration: 0.012,
   grain: 0.028,
   fogColor: 0x05040b,
-  fogDensity: 0.022,
+  fogDensity: 0.016,
 };
 
 // Hex-Farben als sRGB interpretieren und korrekt nach linear wandeln.
@@ -113,6 +113,7 @@ const MAX_SEGMENTS = 256; // harte Obergrenze für das ganze Feld
 const ELEMENT_TYPES = ['source', 'mirror', 'target'];
 
 const mod8 = (n) => ((n % 8) + 8) % 8;
+const unitDir = (dir) => { const [dx, dz] = DIRS[mod8(dir)]; const l = Math.hypot(dx, dz); return [dx / l, dz / l]; };
 
 /**
  * Spiegel: Linie im Winkel rot·45°, beidseitig verspiegelt.
@@ -158,6 +159,18 @@ function createBoard(level) {
   return { size, elements, cells, name: level.name };
 }
 
+/**
+ * Normale der Spiegelfläche, die zur Seite des einfallenden Strahls zeigt.
+ * Der reflektierte Strahl verlässt den Spiegel auf derselben Seite.
+ */
+function mirrorFrontNormal(rot, dir) {
+  const a = rot * Math.PI / 4;
+  let nx = -Math.sin(a), nz = Math.cos(a);
+  const [dx, dz] = DIRS[dir];
+  if (nx * dx + nz * dz > 0) { nx = -nx; nz = -nz; }
+  return [nx, nz];
+}
+
 function isRotatable(el) {
   return !el.fixed && (el.type === 'mirror');
 }
@@ -166,8 +179,10 @@ function isRotatable(el) {
  * Verfolgt alle Strahlen auf dem Feld.
  * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }.
  * Rückgabe:
- *   segments:  [{ x0, z0, x1, z1, color, dist0, length }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
- *   events:    [{ x, z, color, kind, dist, target? }]  kind ∈ reflect | hit | absorb | edge
+ *   segments:  [{ x0, z0, x1, z1, color, dist0, length, n0, n1 }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
+ *              n0/n1: Schnittnormalen [nx, nz] an Anfang/Ende – sichtbar ist nur, was auf ihrer Seite liegt
+ *              (Spiegel: Spiegelfläche, sonst senkrecht zum Strahl), damit kein Leuchten durch Objekte dringt
+ *   events:    [{ x, z, color, kind, dist, target?, normal? }]  kind ∈ reflect | hit | absorb | edge
  *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
  *   solved:    alle Ziele erfüllt
@@ -191,9 +206,9 @@ function traceBeams(board, extraRays = []) {
   };
 
   for (const el of board.elements) {
-    if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0 });
+    if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
   }
-  for (const r of extraRays) pushRay({ dist: 0, bounces: 0, ...r, dir: mod8(r.dir) });
+  for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
 
   while (queue.length) {
     if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
@@ -202,9 +217,10 @@ function traceBeams(board, extraRays = []) {
     const stepLen = Math.hypot(dx, dz);
     let cx = ray.x, cz = ray.z;
 
-    const emit = (x1, z1) => {
+    const ahead = unitDir(ray.dir);
+    const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]]) => {
       const length = Math.hypot(x1 - ray.x, z1 - ray.z);
-      if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length });
+      if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 });
       return ray.dist + length;
     };
 
@@ -223,9 +239,10 @@ function traceBeams(board, extraRays = []) {
       if (el.type === 'mirror') {
         const nd = reflectOnMirror(ray.dir, el.rot);
         if (nd === ray.dir) continue; // parallel zur Fläche: gleitet vorbei
-        const d = emit(cx, cz);
-        events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d });
-        pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1 });
+        const normal = mirrorFrontNormal(el.rot, ray.dir);
+        const d = emit(cx, cz, normal);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
+        pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
         break;
       }
 
@@ -313,7 +330,9 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => {
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(LOOK.fogColor, LOOK.fogDensity);
 
-const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 0.1, 120);
+// Near-Plane bewusst nicht zu klein: die Kamera ist nie näher als ~8 Einheiten, und eine grosse
+// Near-Plane verbessert die Tiefenauflösung erheblich (verhindert Z-Fighting am Boden).
+const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.0, 120);
 
 /* =====================================================================
    PROZEDURALE TEXTUREN
@@ -353,9 +372,10 @@ function makeNoise2D(seed) {
 }
 
 /**
- * Erzeugt Farb-, Rauheits-, Metall- und Normal-Map der Steinplatte:
- * dunkler, fein geäderter Schiefer mit gravierten Rasterlinien und
- * einer dünnen Silber-Intarsie um das Spielfeld.
+ * Erzeugt Farb-, Rauheits- und Normal-Map der Steinplatte: dunkler, fein
+ * geäderter Schiefer. Nur die weichen, grossflächigen Strukturen stecken in
+ * der Textur – scharfe Details (Rasterlinien, Intarsie, Mikrokörnung) rechnet
+ * der Boden-Shader analytisch, damit sie in jeder Auflösung scharf bleiben.
  */
 function createStoneTextures(size) {
   const noise = makeNoise2D(7);
@@ -368,74 +388,36 @@ function createStoneTextures(size) {
   const n = size * size;
   const height = new Float32Array(n);
   const color = new Uint8ClampedArray(n * 4);
-  // Rauheit (G) und Metallanteil (B) in einer Textur – so liest three.js die beiden Maps.
-  const roughMetal = new Uint8ClampedArray(n * 4);
-
-  const pxPerUnit = size / PLATE;
-  const boardStart = (PLATE - BOARD) / 2 * pxPerUnit;
-  const cellPx = CELL * pxPerUnit;
-  const lineW = Math.max(1, size / 900);         // gravierte Rasterlinie
-  const inlayOff = 0.16 * pxPerUnit;             // Abstand Intarsie zum Feld
-  const inlayW = Math.max(1.5, size / 520);
+  const rough = new Uint8ClampedArray(n * 4); // three.js liest die Rauheit aus dem G-Kanal
 
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const i = y * size + x;
       const u = x / size * 6, v = y / size * 6;
 
-      // Grundstruktur + Marmoradern
       const base = fbm(u, v, 5);
       const warp = fbm(u * 0.6 + 11.3, v * 0.6 + 4.1, 4);
-      const vein = Math.pow(1 - Math.abs(Math.sin((u * 0.9 + v * 0.35) * 2.2 + warp * 7.0)), 18);
-      const fine = noise(u * 40, v * 40);
+      const vein = Math.pow(1 - Math.abs(Math.sin((u * 0.9 + v * 0.35) * 2.2 + warp * 7.0)), 12);
+      const cloud = fbm(u * 0.35 + 3.7, v * 0.35 + 9.2, 3);
 
-      // Rasterlinien (nur innerhalb des Spielfelds)
-      const bx = x - boardStart, by = y - boardStart;
-      const inBoard = bx >= -lineW && by >= -lineW && bx <= BOARD * pxPerUnit + lineW && by <= BOARD * pxPerUnit + lineW;
-      let groove = 0;
-      if (inBoard) {
-        const gx = Math.abs(((bx + cellPx / 2) % cellPx) - cellPx / 2);
-        const gy = Math.abs(((by + cellPx / 2) % cellPx) - cellPx / 2);
-        groove = Math.max(1 - smooth01(gx / lineW), 1 - smooth01(gy / lineW));
-      }
+      height[i] = base * 0.5 + vein * 0.08;
 
-      // Silber-Intarsie: Rechteck knapp ausserhalb des Spielfelds
-      const ix = Math.min(Math.abs(bx + inlayOff), Math.abs(bx - BOARD * pxPerUnit - inlayOff));
-      const iy = Math.min(Math.abs(by + inlayOff), Math.abs(by - BOARD * pxPerUnit - inlayOff));
-      const withinX = bx > -inlayOff - inlayW && bx < BOARD * pxPerUnit + inlayOff + inlayW;
-      const withinY = by > -inlayOff - inlayW && by < BOARD * pxPerUnit + inlayOff + inlayW;
-      let inlay = 0;
-      if (withinY) inlay = Math.max(inlay, 1 - smooth01(ix / inlayW));
-      if (withinX) inlay = Math.max(inlay, 1 - smooth01(iy / inlayW));
+      // Farbe (sRGB): tiefes Schiefer mit leichtem Blaustich und grossen, ruhigen Wolken
+      const tone = 0.85 + cloud * 0.3;
+      color[i * 4] = (13 + base * 11 + vein * 15) * tone;
+      color[i * 4 + 1] = (13 + base * 11 + vein * 15) * tone;
+      color[i * 4 + 2] = (17 + base * 14 + vein * 20) * tone;
+      color[i * 4 + 3] = 255;
 
-      height[i] = base * 0.5 + fine * 0.05 - groove * 0.22 + inlay * 0.06;
-
-      // Farbe (sRGB): tiefes Schiefer mit leichtem Blaustich
-      let r = 13 + base * 12 + fine * 3;
-      let g = 13 + base * 12 + fine * 3;
-      let b = 17 + base * 15 + fine * 3;
-      r += vein * 34; g += vein * 33; b += vein * 42;
-      r *= 1 - groove * 0.55; g *= 1 - groove * 0.55; b *= 1 - groove * 0.5;
-      r = r * (1 - inlay) + 178 * inlay;
-      g = g * (1 - inlay) + 180 * inlay;
-      b = b * (1 - inlay) + 190 * inlay;
-      color[i * 4] = r; color[i * 4 + 1] = g; color[i * 4 + 2] = b; color[i * 4 + 3] = 255;
-
-      // Rauheit: poliert, Adern noch etwas glatter, Gravur matt
-      let ro = 0.30 + (base - 0.5) * 0.25 + fine * 0.06 - vein * 0.12;
-      ro = ro * (1 - groove) + 0.75 * groove;
-      ro = ro * (1 - inlay) + 0.22 * inlay;
-      const rv = Math.max(0, Math.min(1, ro)) * 255;
-      roughMetal[i * 4] = 255; roughMetal[i * 4 + 1] = rv; roughMetal[i * 4 + 3] = 255;
-
-      const mv = inlay * 255;
-      roughMetal[i * 4 + 2] = mv;
+      // Rauheit: poliert, Adern noch etwas glatter
+      const ro = Math.max(0, Math.min(1, 0.30 + (base - 0.5) * 0.25 - vein * 0.12));
+      rough[i * 4] = 255; rough[i * 4 + 1] = ro * 255; rough[i * 4 + 2] = 255; rough[i * 4 + 3] = 255;
     }
   }
 
-  // Normal-Map aus der Höhenkarte (Sobel)
+  // Normal-Map aus der Höhenkarte (Sobel) – bewusst sanft
   const normal = new Uint8ClampedArray(n * 4);
-  const strength = 2.2;
+  const strength = 1.4;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const xm = Math.max(0, x - 1), xp = Math.min(size - 1, x + 1);
@@ -465,15 +447,11 @@ function createStoneTextures(size) {
 
   return {
     map: toTex(color, true),
-    roughMetalMap: toTex(roughMetal, false),
+    roughnessMap: toTex(rough, false),
     normalMap: toTex(normal, false),
   };
 }
 
-function smooth01(t) {
-  t = Math.max(0, Math.min(1, t));
-  return t * t * (3 - 2 * t);
-}
 
 /** Gebürstetes Metall: feine horizontale Riefen als Rauheits-Map. */
 function createBrushedTexture(size) {
@@ -588,23 +566,67 @@ const reflector = new THREE.Reflector(new THREE.PlaneGeometry(PLATE, PLATE), {
   textureWidth: 256,
   textureHeight: 256,
   clipBias: 0.002,
-  multisample: 0, // halbe Auflösung + Weichzeichnung im Boden: MSAA lohnt sich nicht
+  multisample: 0, // Weichzeichnung im Boden: MSAA lohnt sich nicht
 });
 // Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() vom Boden übernommen.
+reflector.getRenderTarget().stencilBuffer = true; // 24 statt 16 Bit Tiefe (vor dem ersten Rendern setzen)
 
 const floorMaterial = new THREE.MeshPhysicalMaterial({
   color: 0xffffff,
   map: stoneTex.map,
   roughness: 1.0,
-  roughnessMap: stoneTex.roughMetalMap,
-  metalness: 1.0,
-  metalnessMap: stoneTex.roughMetalMap,
+  roughnessMap: stoneTex.roughnessMap,
+  metalness: 0.0,
   normalMap: stoneTex.normalMap,
-  normalScale: new THREE.Vector2(0.35, 0.35),
+  normalScale: new THREE.Vector2(0.3, 0.3),
   clearcoat: 0.35,
   clearcoatRoughness: 0.1,
   envMapIntensity: 0.18,
 });
+
+// Analytische Details des Bodens (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
+const FLOOR_DETAIL_GLSL = `
+  float floorGroove = 0.0, floorInlay = 0.0, floorGrain = 0.5, floorBevel = 0.0;
+  {
+    vec2 pp = (vUv - 0.5) * ${PLATE.toFixed(4)};
+    float halfBoard = ${(BOARD / 2).toFixed(4)};
+
+    // Gravierte Rasterlinien; Kontrast sinkt, wenn die Linie schmaler als ein Pixel wird
+    vec2 q = (pp + halfBoard) / ${CELL.toFixed(4)};
+    vec2 fw = max(fwidth(q), vec2(1e-5));
+    vec2 gq = abs(fract(q + 0.5) - 0.5);
+    float lw = ${(0.0055 / CELL).toFixed(5)};
+    vec2 line = (1.0 - smoothstep(vec2(lw) - fw * 0.5, vec2(lw) + fw * 0.5, gq)) * clamp(lw * 2.0 / fw, 0.25, 1.0);
+    vec2 apw = fwidth(pp);
+    vec2 inside = 1.0 - smoothstep(vec2(halfBoard), vec2(halfBoard) + apw, abs(pp));
+    floorGroove = max(line.x, line.y) * inside.x * inside.y;
+
+    // Silber-Intarsie: Doppellinie knapp ausserhalb des Spielfelds
+    float box = max(abs(pp.x), abs(pp.y));
+    float bw = max(fwidth(box), 1e-5);
+    float r1 = abs(box - (halfBoard + 0.16));
+    float r2 = abs(box - (halfBoard + 0.215));
+    floorInlay = max(1.0 - smoothstep(0.011 - bw * 0.5, 0.011 + bw * 0.5, r1),
+                     (1.0 - smoothstep(0.004 - bw * 0.5, 0.004 + bw * 0.5, r2)) * clamp(0.008 / bw, 0.3, 1.0));
+
+    // Polierte Fase an der Plattenkante: fängt das Licht und zeichnet die Silhouette
+    float edgeDist = ${(PLATE / 2).toFixed(4)} - box;
+    floorBevel = 1.0 - smoothstep(0.0, 0.045, edgeDist);
+
+    // Mikrokörnung; blendet aus, sobald sie kleiner als ein Pixel wird
+    vec2 g = pp * 55.0;
+    vec2 gi = floor(g), gf = fract(g);
+    gf = gf * gf * (3.0 - 2.0 * gf);
+    float h00 = fract(sin(dot(gi, vec2(127.1, 311.7))) * 43758.5453);
+    float h10 = fract(sin(dot(gi + vec2(1.0, 0.0), vec2(127.1, 311.7))) * 43758.5453);
+    float h01 = fract(sin(dot(gi + vec2(0.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+    float h11 = fract(sin(dot(gi + vec2(1.0, 1.0), vec2(127.1, 311.7))) * 43758.5453);
+    float grain = mix(mix(h00, h10, gf.x), mix(h01, h11, gf.x), gf.y);
+    float grainFade = 1.0 - smoothstep(0.35, 1.0, max(fwidth(g.x), fwidth(g.y)));
+    floorGrain = mix(0.5, grain, grainFade);
+  }
+`;
+
 floorMaterial.onBeforeCompile = (shader) => {
   shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
   shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
@@ -614,20 +636,36 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;')
+    .replace('#include <map_fragment>', `#include <map_fragment>
+      ${FLOOR_DETAIL_GLSL}
+      diffuseColor.rgb *= 1.0 + (floorGrain - 0.5) * 0.14;
+      diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.56, 0.62), floorInlay);
+      diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 2.2 + 0.012, floorBevel);`)
+    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      roughnessFactor += (floorGrain - 0.5) * 0.1;
+      roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
+      roughnessFactor = mix(roughnessFactor, 0.2, floorInlay);
+      roughnessFactor = mix(roughnessFactor, 0.12, floorBevel);`)
+    .replace('#include <metalnessmap_fragment>', `#include <metalnessmap_fragment>
+      metalnessFactor = mix(metalnessFactor, 1.0, floorInlay);`)
     .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
-        ruv += normal.xy * 0.006;                     // leichte Verzerrung durch Steinrelief
-        float blur = 0.002 + roughnessFactor * 0.012;
-        vec3 refl = texture2D(tReflect, ruv).rgb * 0.36;
-        refl += texture2D(tReflect, ruv + vec2( blur,  blur)).rgb * 0.16;
-        refl += texture2D(tReflect, ruv + vec2(-blur,  blur)).rgb * 0.16;
-        refl += texture2D(tReflect, ruv + vec2( blur, -blur)).rgb * 0.16;
-        refl += texture2D(tReflect, ruv + vec2(-blur, -blur)).rgb * 0.16;
+        float blur = 0.002 + roughnessFactor * 0.013;
+        vec3 refl = texture2D(tReflect, ruv).rgb * 0.28;
+        refl += texture2D(tReflect, ruv + vec2( blur, 0.0)).rgb * 0.12;
+        refl += texture2D(tReflect, ruv + vec2(-blur, 0.0)).rgb * 0.12;
+        refl += texture2D(tReflect, ruv + vec2(0.0,  blur)).rgb * 0.12;
+        refl += texture2D(tReflect, ruv + vec2(0.0, -blur)).rgb * 0.12;
+        refl += texture2D(tReflect, ruv + vec2( blur,  blur) * 0.7).rgb * 0.06;
+        refl += texture2D(tReflect, ruv + vec2(-blur,  blur) * 0.7).rgb * 0.06;
+        refl += texture2D(tReflect, ruv + vec2( blur, -blur) * 0.7).rgb * 0.06;
+        refl += texture2D(tReflect, ruv + vec2(-blur, -blur) * 0.7).rgb * 0.06;
         float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
-        gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * 0.8;
+        gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * 0.42;
       }
       #include <tonemapping_fragment>`);
   floorMaterial.userData.shader = shader;
@@ -638,17 +676,34 @@ floorTop.rotation.x = -Math.PI / 2;
 floorTop.receiveShadow = true;
 scene.add(floorTop);
 
-// Seitenkanten der Platte (ohne Spiegelung)
+// Seitenkanten der Platte: poliert, damit sie Softbox-Licht fangen und sich vom Hintergrund lösen
 const plateSideMaterial = new THREE.MeshStandardMaterial({
-  color: 0x0d0d12,
-  roughness: 0.45,
+  color: 0x14141b,
+  roughness: 0.22,
   metalness: 0.0,
-  envMapIntensity: 0.6,
+  envMapIntensity: 1.4,
 });
 const plateSides = new THREE.Mesh(new THREE.BoxGeometry(PLATE, PLATE_THICK, PLATE), plateSideMaterial);
-plateSides.position.y = -PLATE_THICK / 2 - 0.002;
+plateSides.position.y = -PLATE_THICK / 2 - 0.03; // Deckfläche deutlich unter dem Boden
 plateSides.receiveShadow = true;
 scene.add(plateSides);
+
+// Schmale Metallkante rund um die Platte (ausserhalb ihrer Fläche, minimal erhaben)
+// – klare Silhouette aus jedem Blickwinkel, ohne mit dem Boden zu überlappen.
+const plateTrim = new THREE.Group();
+{
+  const trimMat = new THREE.MeshStandardMaterial({ color: 0x8d8e98, metalness: 1.0, roughness: 0.28, envMapIntensity: 1.3 });
+  const T = 0.024, H = 0.056, y = 0.003 - H / 2;
+  for (const sgn of [-1, 1]) {
+    const bx = new THREE.Mesh(new THREE.BoxGeometry(PLATE + 2 * T, H, T), trimMat);
+    bx.position.set(0, y, sgn * (PLATE / 2 + T / 2));
+    const bz = new THREE.Mesh(new THREE.BoxGeometry(T, H, PLATE), trimMat);
+    bz.position.set(sgn * (PLATE / 2 + T / 2), y, 0);
+    bx.receiveShadow = bz.receiveShadow = true;
+    plateTrim.add(bx, bz);
+  }
+}
+scene.add(plateTrim);
 
 // Schmaler, zurückversetzter Sockel unter der Platte – lässt die Platte schweben.
 const plinth = new THREE.Mesh(
@@ -759,6 +814,10 @@ function createComposer() {
   const rt = new THREE.WebGLRenderTarget(size.x, size.y, {
     type: HDR_TYPE,
     samples: renderer.capabilities.isWebGL2 ? QUALITY.msaa : 0,
+    // Mit Stencil legt three.js einen kombinierten Tiefen-/Stencil-Puffer an (WebGL2: DEPTH24_STENCIL8,
+    // WebGL1 faktisch 24 Bit) – ohne nur DEPTH_COMPONENT16, was bei flachem Blickwinkel zu
+    // Streifen (Z-Fighting) auf der Platte führt.
+    stencilBuffer: true,
   });
   const comp = new THREE.EffectComposer(renderer, rt);
   comp.addPass(new THREE.RenderPass(scene, camera));
@@ -1216,21 +1275,36 @@ const BEAM_VERTEX_COMMON = `
   attribute vec3 aColor;
   attribute vec2 aDist;     // x: Weglänge ab Quelle am Anfang · y: Länge
   attribute vec3 aLife;     // x: Startweg der Front · y: Geburtszeit · z: Sterbezeit (−1 = lebt)
+  attribute vec4 aCaps;     // Schnittnormalen (xz) an Anfang (xy) und Ende (zw)
   uniform float uHalfWidth;
   varying vec2 vLocal;      // x: entlang (Welt, 0..Länge, ausserhalb = Kappe) · y: quer
   varying vec3 vColor;
   varying vec2 vDist;
   varying vec3 vLife;
+  varying vec3 vWorld;
+  varying vec4 vEnds;       // Anfang (xy) und Ende (zw) in Welt-xz
+  varying vec4 vCaps;
+  void passCaps(vec3 s, vec3 e, vec3 p) {
+    vWorld = p;
+    vEnds = vec4(s.xz, e.xz);
+    vec3 c0 = mat3(modelMatrix) * vec3(aCaps.x, 0.0, aCaps.y);
+    vec3 c1 = mat3(modelMatrix) * vec3(aCaps.z, 0.0, aCaps.w);
+    vCaps = vec4(c0.xz, c1.xz);
+  }
 `;
 
 const BEAM_FRAGMENT_COMMON = `
   uniform float uTime;
   uniform float uSpeed;
   uniform float uFadeOut;
+  uniform vec2 uCapSoft;    // Übergangsbreite des Schnitts an den Enden
   varying vec2 vLocal;
   varying vec3 vColor;
   varying vec2 vDist;
   varying vec3 vLife;
+  varying vec3 vWorld;
+  varying vec4 vEnds;
+  varying vec4 vCaps;
 
   float hash1(float n) { return fract(sin(n) * 43758.5453123); }
   float noise1(float x) {
@@ -1246,6 +1320,10 @@ const BEAM_FRAGMENT_COMMON = `
     float t = dying ? min(uTime, vLife.z) : uTime;
     float front = vLife.x + uSpeed * (t - vLife.y);
     visible = 1.0 - smoothstep(front - 0.25, front, pathDist);
+    // Schnitt an Anfang und Ende: hinter Spiegelfläche bzw. jenseits des Endpunkts kein Leuchten
+    float k0 = dot(vWorld.xz - vEnds.xy, vCaps.xy);
+    float k1 = dot(vWorld.xz - vEnds.zw, vCaps.zw);
+    visible *= smoothstep(uCapSoft.x, uCapSoft.y, k0) * smoothstep(uCapSoft.x, uCapSoft.y, k1);
     if (dying) {
       float f = clamp(1.0 - (uTime - vLife.z) / uFadeOut, 0.0, 1.0);
       visible *= f * f;
@@ -1259,6 +1337,7 @@ const beamMaterialParams = (extraUniforms, vertexMain, fragment) => ({
     uSpeed: { value: BEAM.revealSpeed },
     uFadeOut: { value: BEAM.fadeOut },
     uHalfWidth: { value: BEAM.quadWidth },
+    uCapSoft: { value: new THREE.Vector2(-0.006, 0.01) },
   }, extraUniforms),
   vertexShader: BEAM_VERTEX_COMMON + vertexMain,
   fragmentShader: fragment,
@@ -1291,6 +1370,7 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     vColor = aColor;
     vDist = aDist;
     vLife = aLife;
+    passCaps(s, e, p);
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
   }`,
   BEAM_FRAGMENT_COMMON + `
@@ -1324,7 +1404,8 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
 
 // Bodenschein: flache Kapsel auf der Platte – das Licht "streift" den Stein.
 const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
-  { uFloorWidth: { value: BEAM.floorWidth } },
+  // breiter Schein → weicherer Schnitt, sonst harte Kante quer zum Strahl
+  { uFloorWidth: { value: BEAM.floorWidth }, uCapSoft: { value: new THREE.Vector2(-0.05, 0.15) } },
   `
   uniform float uFloorWidth;
   void main() {
@@ -1341,6 +1422,7 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     vColor = aColor;
     vDist = aDist;
     vLife = aLife;
+    passCaps(s, e, p);
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
   }`,
   BEAM_FRAGMENT_COMMON + `
@@ -1348,6 +1430,9 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float d, pathDist, visible;
     beamDistance(d, pathDist, visible);
     if (visible <= 0.001) discard;
+    // nie über die Plattenkante hinaus
+    float edge = ${(PLATE / 2).toFixed(4)} - max(abs(vWorld.x), abs(vWorld.z));
+    visible *= smoothstep(0.0, 0.3, edge);
     float spill = exp(-(d * d) / 0.03) * 0.045 + exp(-d / 0.3) * 0.01;
     gl_FragColor = vec4(vColor * spill * visible, 1.0);
   }`
@@ -1359,6 +1444,7 @@ function buildBeamGeometry(records) {
   const start = new Float32Array(n * 12), end = new Float32Array(n * 12);
   const corner = new Float32Array(n * 8), color = new Float32Array(n * 12);
   const dist = new Float32Array(n * 8), life = new Float32Array(n * 12);
+  const caps = new Float32Array(n * 16);
   const index = new Uint16Array(n * 6); // max. 256 Abschnitte × 4 Ecken < 65536
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   records.forEach((r, i) => {
@@ -1371,6 +1457,7 @@ function buildBeamGeometry(records) {
       color[v * 3] = c.r; color[v * 3 + 1] = c.g; color[v * 3 + 2] = c.b;
       dist[v * 2] = s.dist0 * CELL; dist[v * 2 + 1] = s.length * CELL;
       life[v * 3] = r.start; life[v * 3 + 1] = r.birth; life[v * 3 + 2] = r.death;
+      caps[v * 4] = s.n0[0]; caps[v * 4 + 1] = s.n0[1]; caps[v * 4 + 2] = s.n1[0]; caps[v * 4 + 3] = s.n1[1];
     }
     index.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
   });
@@ -1383,6 +1470,7 @@ function buildBeamGeometry(records) {
   geo.setAttribute('aColor', new THREE.BufferAttribute(color, 3));
   geo.setAttribute('aDist', new THREE.BufferAttribute(dist, 2));
   geo.setAttribute('aLife', new THREE.BufferAttribute(life, 3));
+  geo.setAttribute('aCaps', new THREE.BufferAttribute(caps, 4));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
 }
@@ -1665,14 +1753,17 @@ const beamView = {
       const burst = p < 1 ? 1 + Math.sin(p * Math.PI) * 0.8 : 1; // kurzer Überschwinger
       const ph = s.userData.phase;
       const flicker = 0.88 + 0.08 * Math.sin(t * 9.1 + ph) + 0.04 * Math.sin(t * 23.7 + ph * 2.0);
-      const fade = fadeAt(rec, t);
+      // Spiegel-Blitz nur von der getroffenen Seite sichtbar (nicht durch das Objekt hindurch)
+      toCam.copy(camera.position).sub(rec.pos).normalize();
+      const n = rec.ev.normal;
+      const side = n ? THREE.MathUtils.smoothstep(toCam.x * n[0] + toCam.z * n[1], 0.02, 0.2) : 1;
+      const fade = fadeAt(rec, t) * side;
       const scale = style.scale * p * burst * flicker * (0.4 + 0.6 * fade);
       s.scale.set(scale, scale, 1);
       s.material.rotation = Math.sin(t * 0.3 + ph) * 0.15;
       s.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.35).multiplyScalar(style.intensity * flicker * fade);
       // Richtung Kamera versetzt, damit Spiegelfläche/Edelstein den Blitz nicht halbiert
-      toCam.copy(camera.position).sub(rec.pos).normalize().multiplyScalar(0.16);
-      s.position.copy(rec.pos).add(toCam);
+      s.position.copy(rec.pos).addScaledVector(toCam, 0.16);
     }
 
     this._updateDust(t);
