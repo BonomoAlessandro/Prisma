@@ -4,11 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>PRISMA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
 <style>
   :root {
     --ink: #e8e6f0;
-    --ink-dim: rgba(232, 230, 240, 0.45);
+    --ink-dim: rgba(232, 230, 240, 0.58); /* ≥ 4.5:1 auf --bg */
+    --ink-faint: rgba(232, 230, 240, 0.14);
     --bg: #030308;
+    --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
   }
   html, body {
     margin: 0;
@@ -16,7 +21,7 @@
     overflow: hidden;
     background: var(--bg);
     color: var(--ink);
-    font-family: "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+    font-family: var(--font);
     font-weight: 300;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -27,6 +32,19 @@
     touch-action: none;
     -webkit-touch-callout: none;
   }
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button:focus-visible { outline: 1px solid var(--ink-dim); outline-offset: 4px; }
+  .hidden { opacity: 0 !important; pointer-events: none !important; }
+
+  /* ---------- Kopfzeile ---------- */
   #hud {
     position: fixed;
     top: max(24px, env(safe-area-inset-top));
@@ -36,11 +54,155 @@
     pointer-events: none;
     letter-spacing: 0.42em;
     text-transform: uppercase;
+    padding: 0 16px;
     transition: opacity 0.6s ease;
   }
-  #hud.hidden { opacity: 0; transition-duration: 0.3s; }
-  #hud .title { font-size: 13px; }
-  #hud .sub { margin-top: 8px; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.3em; }
+  #hud.hidden { transition-duration: 0.3s; }
+  #hud .title { font-size: 13px; font-weight: 300; }
+  #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
+
+  /* ---------- Kleine Schaltflächen ---------- */
+  #controls {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 6px;
+    z-index: 4;
+    transition: opacity 0.6s ease;
+  }
+  #controls button {
+    width: 44px; height: 44px; /* empfohlene Mindestgrösse für Touch */
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--ink-dim);
+    transition: color 0.25s ease, background-color 0.25s ease;
+  }
+  #controls button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+  #controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  #btn-sound .off { display: none; }
+  #btn-sound.muted .on { display: none; }
+  #btn-sound.muted .off { display: inline; }
+
+  /* ---------- Level gelöst ---------- */
+  #solved {
+    position: fixed;
+    left: 0; right: 0;
+    bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
+    display: flex; flex-direction: column; align-items: center; gap: 18px;
+    z-index: 4;
+    transition: opacity 0.9s ease;
+  }
+  #solved .msg { font-size: 12px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); letter-spacing: 0.6em; text-transform: uppercase; padding-left: 0.6em; }
+  #solved button, #levels .close {
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    padding: 12px 26px 12px calc(26px + 0.4em);
+    border: 1px solid rgba(232, 230, 240, 0.3);
+    border-radius: 999px;
+    color: var(--ink);
+    background: rgba(3, 3, 8, 0.55); /* bleibt über hellen Strahlen lesbar */
+    transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+  }
+  #solved button:hover, #levels .close:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+
+  /* ---------- Levelauswahl ---------- */
+  #levels {
+    position: fixed; inset: 0;
+    display: grid; place-items: center;
+    background: rgba(3, 3, 8, 0.78);
+    z-index: 6;
+    transition: opacity 0.4s ease;
+  }
+  #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
+  #levels h2 { margin: 0 0 28px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
+  #levels .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
+  #levels .tile {
+    aspect-ratio: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    border: 1px solid var(--ink-faint);
+    border-radius: 6px;
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  #levels .tile:hover { border-color: var(--ink-dim); background: rgba(255, 255, 255, 0.04); }
+  #levels .tile.current { border-color: var(--ink); }
+  #levels .num { font-size: 15px; letter-spacing: 0.15em; }
+  #levels .name { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px; }
+  #levels .dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
+  #levels .tile.done .dot { background: var(--ink); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  @media (max-width: 520px) {
+    #levels .grid { grid-template-columns: repeat(5, 1fr); gap: 8px; } /* 2 Reihen, nur Ziffern */
+    #levels .name { display: none; }
+  }
+
+  /* ---------- Startbildschirm: der Titel entsteht aus einem Lichtstrahl ---------- */
+  #intro {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 55%, rgba(14, 12, 30, 0.55), rgba(3, 3, 8, 0.96) 70%);
+    z-index: 8;
+    cursor: pointer;
+    transition: opacity 1.1s ease;
+  }
+  #intro .stage { position: relative; width: min(720px, 92vw); height: 120px; display: grid; place-items: center; }
+  #intro .beam {
+    position: absolute; left: 0; top: 50%;
+    height: 2px; width: 100%;
+    transform-origin: left center;
+    transform: scaleX(0);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.9) 35%, #fff 50%, rgba(255, 255, 255, 0.9) 65%, rgba(255, 255, 255, 0) 100%);
+    box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.55), 0 0 40px 6px rgba(170, 180, 255, 0.25);
+    animation: intro-beam 2.6s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
+  }
+  #intro .word { position: relative; font-size: clamp(38px, 9vw, 76px); }
+  #intro .title {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 200;
+    letter-spacing: 0.5em;
+    padding-left: 0.5em; /* gleicht die Laufweite nach dem letzten Buchstaben aus */
+    color: #fff;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35);
+    clip-path: inset(0 100% 0 0);
+    animation: intro-reveal 1.5s cubic-bezier(0.6, 0, 0.2, 1) 0.45s forwards;
+  }
+  /* Farbfächer tritt hinter dem letzten Buchstaben aus (Laufweite danach abgezogen) */
+  #intro .spectrum { position: absolute; left: calc(100% - 0.42em); top: 50%; width: min(2.4em, 14vw); height: 0; }
+  #intro .spectrum i {
+    position: absolute; left: 0; top: 0; height: 1px; width: 100%;
+    transform-origin: left center;
+    opacity: 0;
+    animation: intro-fan 1.4s ease-out 1.75s forwards;
+  }
+  #intro .spectrum i:nth-child(1) { background: linear-gradient(90deg, rgba(255, 90, 80, 0.9), rgba(255, 90, 80, 0)); --a: -7deg; }
+  #intro .spectrum i:nth-child(2) { background: linear-gradient(90deg, rgba(110, 255, 140, 0.9), rgba(110, 255, 140, 0)); --a: 0deg; }
+  #intro .spectrum i:nth-child(3) { background: linear-gradient(90deg, rgba(110, 150, 255, 0.9), rgba(110, 150, 255, 0)); --a: 7deg; }
+  #intro .sub, #intro .start {
+    opacity: 0;
+    font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase;
+    padding-left: 0.5em;
+    color: var(--ink-dim);
+    animation: intro-fade 1.2s ease 2.3s forwards;
+  }
+  #intro .sub { margin-top: 8px; }
+  #intro .start { margin-top: 64px; animation-delay: 2.9s; }
+  #intro:not(.go) * { animation-play-state: paused !important; }
+  #intro .start span { animation: intro-pulse 2.4s ease-in-out 4s infinite; }
+  @keyframes intro-beam {
+    0% { transform: scaleX(0); opacity: 1; }
+    55% { transform: scaleX(1); opacity: 1; }
+    100% { transform: scaleX(1); opacity: 0.12; }
+  }
+  @keyframes intro-reveal { to { clip-path: inset(0 0 0 0); } }
+  @keyframes intro-fan {
+    0% { opacity: 0; transform: rotate(0deg) scaleX(0.2); }
+    100% { opacity: 1; transform: rotate(var(--a)) scaleX(1); }
+  }
+  @keyframes intro-fade { to { opacity: 1; } }
+  @keyframes intro-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  @media (prefers-reduced-motion: reduce) {
+    #intro .beam, #intro .title, #intro .spectrum i, #intro .sub, #intro .start { animation-duration: 0.01s; animation-delay: 0s; }
+  }
+
   #perf {
     position: fixed; left: 12px; bottom: 12px; z-index: 5;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
@@ -51,9 +213,46 @@
 </head>
 <body>
 <div id="perf" hidden></div>
-<div id="hud">
+<div id="hud" class="hidden">
   <div class="title" id="hud-title">Prisma</div>
-  <div class="sub" id="hud-sub">Klick dreht · Rechtsklick / lang drücken zurück</div>
+  <div class="sub" id="hud-sub"></div>
+</div>
+
+<nav id="controls" class="hidden" inert aria-label="Steuerung">
+  <button id="btn-restart" title="Level neu starten (R)" aria-label="Level neu starten">
+    <svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/></svg>
+  </button>
+  <button id="btn-sound" title="Ton an/aus (M)" aria-label="Ton aus" aria-pressed="false">
+    <svg viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13l-4.5-4H4z"/><path class="on" d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
+  </button>
+  <button id="btn-levels" title="Levelauswahl (L)" aria-label="Levelauswahl">
+    <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="14" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="4.5" y="14" width="5.5" height="5.5" rx="1"/><rect x="14" y="14" width="5.5" height="5.5" rx="1"/></svg>
+  </button>
+</nav>
+
+<div id="solved" class="hidden" inert aria-live="polite">
+  <div class="msg" id="solved-msg">Level gelöst</div>
+  <button id="btn-next">Weiter</button>
+</div>
+
+<div id="levels" class="hidden" inert role="dialog" aria-modal="true" aria-label="Levelauswahl">
+  <div class="inner">
+    <h2>Levelauswahl</h2>
+    <div class="grid" id="level-grid"></div>
+    <button class="close" id="btn-levels-close">Schliessen</button>
+  </div>
+</div>
+
+<div id="intro">
+  <div class="stage">
+    <div class="beam"></div>
+    <div class="word">
+      <h1 class="title">PRISMA</h1>
+      <div class="spectrum"><i></i><i></i><i></i></div>
+    </div>
+  </div>
+  <div class="sub">Ein Licht-Puzzle</div>
+  <button class="start"><span>Tippen zum Starten</span></button>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
@@ -912,7 +1111,14 @@ const FLOOR_DETAIL_GLSL = `
   }
 `;
 
+// Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt)
+const shockUniforms = {
+  uShock: { value: new THREE.Vector3(0, 0, 0.4) },
+  uShockColor: { value: new THREE.Color(1, 1, 1) },
+};
+
 floorMaterial.onBeforeCompile = (shader) => {
+  Object.assign(shader.uniforms, shockUniforms);
   shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
   shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
   shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
@@ -920,7 +1126,7 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
     .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;')
+    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
     .replace('#include <map_fragment>', `#include <map_fragment>
       ${FLOOR_DETAIL_GLSL}
       diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
@@ -938,6 +1144,13 @@ floorMaterial.onBeforeCompile = (shader) => {
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
         gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * 0.42;
+      }
+      if (uShock.y > 0.0) {
+        // Ring um die Feldmitte, dahinter ein schwacher Nachschein
+        float sd = length((vUv - 0.5) * ${PLATE.toFixed(4)});
+        float ring = exp(-pow((sd - uShock.x) / uShock.z, 2.0));
+        float trail = (1.0 - smoothstep(0.0, max(uShock.x, 1e-3), sd)) * 0.04;
+        gl_FragColor.rgb += uShockColor * (ring + trail) * uShock.y;
       }
       #include <tonemapping_fragment>`);
   floorMaterial.userData.shader = shader;
@@ -1399,6 +1612,7 @@ function makeTarget(el) {
   root.userData.glowBoost = THREE.MathUtils.clamp(0.35 / Math.max(lum, 0.01), 1, 1.2);
   root.userData.hit = 0;        // animierter Zustand 0..1
   root.userData.hitGoal = 0;
+  root.userData.flash = 0;      // kurzes Aufblitzen im Lösungsmoment (1 → 0)
   root.userData.phase = Math.random() * Math.PI * 2;
   root.userData.update = (t, dt) => updateTarget(root, t, dt);
   return root;
@@ -1413,15 +1627,18 @@ function updateTarget(obj, t, dt) {
   const u = obj.userData;
   u.hit += (u.hitGoal - u.hit) * (1 - Math.pow(0.0005, dt));
   const h = u.hit;
+  u.flash *= Math.pow(0.04, dt);
+  const f = u.flash;
+  u.gem.scale.setScalar(1 + f * 0.28);
   u.gem.rotation.y = t * (0.25 + h * 0.6) + u.phase;
   u.gem.position.y = BEAM_Y + Math.sin(t * 1.1 + u.phase) * 0.018;
   const flicker = 1 + Math.sin(t * 13.0 + u.phase) * 0.03 * h;
   // Wartend atmet das Ziel langsam in seiner Farbe – es "fragt" nach Licht.
   const breathe = (1 - h) * (0.5 + 0.5 * Math.sin(t * 1.8 + u.phase));
-  u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + h * 6.9) * flicker);
+  u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + h * 6.9 + f * 14) * flicker);
   u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3;
-  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + h * 2.9);
-  u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + h * 0.6);
+  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + h * 2.9 + f * 5);
+  u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + h * 0.6 + f * 1.4);
 }
 
 /* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
@@ -1748,7 +1965,10 @@ function recomputeBeams(instant = false, delay = 0) {
 function updateTargetGoals() {
   for (const obj of game.objects.values()) {
     const u = obj.userData;
-    if (u.element.type === 'target') u.hitGoal = u.satisfied && u.arrivals.every(r => beamView.revealed(r, r.worldDist)) ? 1 : 0;
+    if (u.element.type !== 'target') continue;
+    const goal = u.satisfied && u.arrivals.every(r => beamView.revealed(r, r.worldDist)) ? 1 : 0;
+    if (goal && !u.hitGoal) audio.hit(u.element.color); // Ton, sobald das Licht sichtbar ankommt
+    u.hitGoal = goal;
   }
 }
 
@@ -1766,6 +1986,7 @@ const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
 function rotateElement(el, delta) {
   if (!el || !isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels
   if (flow.state !== 'play') return; // während eines Levelwechsels nicht drehen
+  audio.rotate();
   // Der Kombinator dreht seine Ausgangsrichtung, Spiegel und Prisma ihren Winkel
   if (el.type === 'combiner') el.dir = mod8(el.dir + delta);
   else el.rot = mod8(el.rot + delta);
@@ -2678,17 +2899,370 @@ canvasEl.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDef
 canvasEl.addEventListener('pointerleave', (e) => { if (!input.pointer && e.pointerType === 'mouse') setHovered(null); });
 
 /* =====================================================================
-   LEVELFLUSS — Übergänge zwischen den Leveln und Weiterschalten nach dem Lösen.
+   AUDIO — alles mit der Web Audio API erzeugt, keine Dateien.
+   Ein leiser Drone, glasige Klicks beim Drehen, ein Ton je Zielfarbe
+   (Rot tief … Blau hoch) und ein Akkord beim Lösen. Alle Töne liegen in
+   A-Dur (A, C#, E, F#, G#, B), damit jede Kombination harmonisch klingt.
+   Der AudioContext entsteht erst bei der ersten Geste (Autoplay-Regeln).
+   ===================================================================== */
+
+// Frequenz je Farbmaske – vom tiefen Rot über das Spektrum zum hohen Blau
+const TONE_HZ = {
+  1: 220.0,   // Rot      A3
+  3: 277.18,  // Gelb     C#4
+  2: 329.63,  // Grün     E4
+  6: 415.30,  // Cyan     G#4
+  4: 493.88,  // Blau     B4
+  5: 369.99,  // Magenta  F#4
+  7: 554.37,  // Weiss    C#5
+};
+const GLASS_HZ = [1760, 1975.5, 2217.5, 2637.0, 2960.0]; // A6 … F#7 (Pentatonik)
+
+const audio = {
+  ctx: null,
+  master: null,  // Gesamtlautstärke (Ton an/aus)
+  dry: null,     // direkter Weg
+  wet: null,     // Hall
+  muted: false,
+  storageKey: 'prisma.muted',
+
+  /** Beim ersten Klick/Tastendruck: Kontext anlegen und Drone starten. */
+  unlock() {
+    // Ohne echte Nutzergeste verweigert der Browser den Ton (und warnt) – dann später erneut
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+    if (this.ctx) { this._sync(); return; }
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ctx = this.ctx = new AC();
+    const comp = ctx.createDynamicsCompressor(); // fängt Spitzen ab, wenn viele Töne zusammenkommen
+    comp.threshold.value = -14; comp.ratio.value = 3;
+    comp.connect(ctx.destination);
+    this.master = ctx.createGain();
+    this.master.gain.value = this.muted ? 0 : 0.9;
+    this.master.connect(comp);
+    this.dry = ctx.createGain();
+    this.dry.connect(this.master);
+    const reverb = ctx.createConvolver();
+    reverb.buffer = this._impulse(3.2);
+    this.wet = ctx.createGain();
+    this.wet.gain.value = 0.55;
+    this.wet.connect(reverb);
+    reverb.connect(this.master);
+    this._startDrone();
+  },
+
+  /** Nachhall: Rauschen mit exponentiellem Abklingen, links/rechts verschieden. */
+  _impulse(seconds) {
+    const rate = this.ctx.sampleRate, len = Math.floor(rate * seconds);
+    const buf = this.ctx.createBuffer(2, len, rate);
+    const rand = mulberry32(5);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = buf.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    return buf;
+  },
+
+  /** Atmosphärischer Grundton: leicht verstimmte Quinten, langsam atmender Tiefpass. */
+  _startDrone() {
+    const ctx = this.ctx, t = ctx.currentTime;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0, t);
+    out.gain.linearRampToValueAtTime(0.045, t + 6); // langsam einblenden
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.6;
+    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
+    lfo.frequency.value = 0.045; lfoGain.gain.value = 180;
+    lfo.connect(lfoGain).connect(lp.frequency);
+    lfo.start();
+    for (const [hz, type, g, detune] of [[55, 'sawtooth', 0.35, -4], [110, 'triangle', 0.5, 3], [164.81, 'sine', 0.35, -2], [220, 'sine', 0.12, 5]]) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.type = type; o.frequency.value = hz; o.detune.value = detune;
+      og.gain.value = g;
+      o.connect(og).connect(lp);
+      o.start();
+    }
+    lp.connect(out);
+    out.connect(this.dry);
+    out.connect(this.wet);
+  },
+
+  setMuted(m) {
+    this.muted = m;
+    try { localStorage.setItem(this.storageKey, m ? '1' : '0'); } catch { /* egal */ }
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.08);
+    this._sync();
+  },
+
+  /**
+   * Kontext laufen lassen oder anhalten: stumm oder Tab im Hintergrund → suspend (spart CPU,
+   * der Drone läuft nicht unhörbar weiter). Weckt auch iOS' "interrupted" (Anruf, App-Wechsel).
+   */
+  _sync() {
+    if (!this.ctx) return;
+    const run = !this.muted && !document.hidden;
+    clearTimeout(this._suspendTimer);
+    if (run && this.ctx.state !== 'running') this.ctx.resume();
+    // erst nach dem Ausblenden anhalten, sonst knackt es
+    if (!run && this.ctx.state === 'running') this._suspendTimer = setTimeout(() => this.ctx.suspend(), 300);
+  },
+
+  /** Eigener Ausgang für eine Tonfolge, die sich als Ganzes abbrechen lässt (Lösungsmoment). */
+  bus() {
+    if (!this.ctx) return null;
+    const dry = this.ctx.createGain(), wet = this.ctx.createGain();
+    dry.connect(this.dry); wet.connect(this.wet);
+    return {
+      dry, wet,
+      fadeOut: () => {
+        const t = this.ctx.currentTime;
+        dry.gain.setTargetAtTime(0, t, 0.05); wet.gain.setTargetAtTime(0, t, 0.05);
+        setTimeout(() => { dry.disconnect(); wet.disconnect(); }, 600); // Knoten freigeben
+      },
+    };
+  },
+
+  /**
+   * Glockenartiger Ton aus wenigen Teiltönen.
+   * partials: [[Verhältnis, Lautstärke], …] · decay: Abklingzeit (s) · wet: Hallanteil
+   */
+  _bell(hz, { when = 0, gain = 0.1, attack = 0.005, decay = 1.8, partials = [[1, 1]], wet = 0.5, out = null } = {}) {
+    if (!this.ctx || this.muted) return;
+    const ctx = this.ctx, t = ctx.currentTime + when;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0, t);
+    env.gain.linearRampToValueAtTime(gain, t + attack);
+    env.gain.exponentialRampToValueAtTime(1e-4, t + attack + decay);
+    const send = ctx.createGain();
+    send.gain.value = wet;
+    env.connect(out ? out.dry : this.dry);
+    env.connect(send).connect(out ? out.wet : this.wet);
+    for (const [ratio, g] of partials) {
+      const o = ctx.createOscillator(), og = ctx.createGain();
+      o.frequency.value = hz * ratio;
+      og.gain.value = g;
+      o.connect(og).connect(env);
+      o.start(t);
+      o.stop(t + attack + decay + 0.05);
+    }
+  },
+
+  /** Drehen: kurzer, glasiger Klang (unharmonische Teiltöne wie bei angeschlagenem Glas). */
+  rotate() {
+    const hz = GLASS_HZ[Math.floor(Math.random() * GLASS_HZ.length)];
+    this._bell(hz, { gain: 0.035, decay: 0.45, partials: [[1, 1], [2.76, 0.3], [5.4, 0.1]], wet: 0.8 });
+  },
+
+  /** Ziel getroffen: Ton passend zur Farbe. */
+  hit(color, when = 0, { octave = 1, gain = 0.07, out = null } = {}) {
+    const hz = TONE_HZ[color];
+    if (hz) this._bell(hz * octave, { when, gain, out, decay: 2.2, partials: [[1, 1], [2, 0.22], [3.01, 0.06]] });
+  },
+
+  /** Level gelöst: Akkord aus allen getroffenen Tönen, getragen von einem tiefen A. */
+  chord(colors, when = 0, out = null) {
+    const tones = [...new Set(colors.map(c => TONE_HZ[c]).filter(Boolean))];
+    const g = 0.09 / Math.sqrt(tones.length + 1);
+    for (const hz of tones) {
+      this._bell(hz, { when, out, gain: g, attack: 0.06, decay: 4.5, partials: [[1, 1], [2, 0.3], [0.5, 0.25]], wet: 0.7 });
+      this._bell(hz * 2, { when: when + 0.04, out, gain: g * 0.35, attack: 0.03, decay: 3.0, wet: 0.9 });
+    }
+    this._bell(110, { when, out, gain: g * 1.2, attack: 0.1, decay: 5, partials: [[1, 1], [2, 0.4]], wet: 0.6 });
+  },
+};
+try { audio.muted = localStorage.getItem(audio.storageKey) === '1'; } catch { /* Standard: Ton an */ }
+document.addEventListener('visibilitychange', () => audio._sync());
+
+/* =====================================================================
+   LÖSUNGSMOMENT — die Ziele leuchten nacheinander auf (mit ihren Tönen),
+   dann erklingt der Akkord: Bloom pulsiert, eine Lichtwelle läuft über die
+   Platte und es regnet Funken in den Zielfarben. Danach "Level gelöst".
+   ===================================================================== */
+
+const CELEBRATE = {
+  step: 0.2,          // Sekunden zwischen dem Aufleuchten zweier Ziele
+  chordPause: 0.12,   // nach dem letzten Ziel bis zum Akkord
+  panelDelay: 1.2,    // nach dem Akkord bis "Level gelöst"
+  bloomBoost: 1.1,    // Bloom-Stärke steigt kurz um diesen Faktor
+  shockSpeed: 6.5,    // Welteinheiten pro Sekunde
+  shockWidth: 0.16,
+  shockReach: PLATE * 0.72, // läuft bis über die Plattenecken
+  particles: 300,
+};
+
+/** Funkenregen: CPU-animierte Punkte, additiv; nur aktiv, solange Funken leben. */
+function createSparkRain(count) {
+  const pos = new Float32Array(count * 3), col = new Float32Array(count * 3), alpha = new Float32Array(count);
+  const size = new Float32Array(count);
+  const rand = mulberry32(23);
+  for (let i = 0; i < count; i++) size[i] = 0.6 + rand() * 1.0;
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('aAlpha', new THREE.BufferAttribute(alpha, 1));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(size, 1));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uPixelRatio: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute vec3 aColor;
+      attribute float aAlpha;
+      attribute float aSize;
+      uniform float uPixelRatio;
+      varying vec3 vColor;
+      void main() {
+        vColor = aColor * aAlpha;
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = aAlpha <= 0.0 ? 0.0 : aSize * 2.6 * uPixelRatio * (20.0 / -mv.z);
+      }`,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        vec2 c = gl_PointCoord - 0.5;
+        float a = smoothstep(0.5, 0.0, length(c));
+        gl_FragColor = vec4(vColor * a * a, 1.0);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  points.visible = false;
+  points.layers.set(LAYER_NO_REFLECT);
+  points.raycast = () => {};
+  scene.add(points);
+  const sparks = Array.from({ length: count }, () => ({ life: 0, max: 1, vx: 0, vy: 0, vz: 0 }));
+  return {
+    points, sparks, alive: 0, rand,
+    /** Funken über dem Feld verteilen; sie starten gestaffelt (delay) und fallen sanft. */
+    burst(colors) {
+      const p = geo.attributes.position.array, cl = geo.attributes.aColor.array;
+      for (let i = 0; i < count; i++) {
+        const s = sparks[i], c = COLOR_RGB[colors[i % colors.length]];
+        p[i * 3] = (rand() - 0.5) * BOARD * 1.05;
+        p[i * 3 + 1] = 0.9 + rand() * 2.0; // knapp über dem Feld – höher wirkt es wie ein Sternenhimmel
+        p[i * 3 + 2] = (rand() - 0.5) * BOARD * 1.05;
+        s.vx = (rand() - 0.5) * 0.25; s.vz = (rand() - 0.5) * 0.25; s.vy = -(0.25 + rand() * 0.5);
+        s.max = 2.0 + rand() * 1.6;
+        s.life = -rand() * 0.9; // negativ = wartet noch
+        const hot = 1.0 + rand() * 1.2; // HDR: die hellsten Funken blühen
+        cl[i * 3] = c.r * hot; cl[i * 3 + 1] = c.g * hot; cl[i * 3 + 2] = c.b * hot;
+      }
+      geo.attributes.aColor.needsUpdate = true;
+      this.alive = count;
+      points.visible = true;
+    },
+    update(dt, t) {
+      if (!this.alive) return;
+      const p = geo.attributes.position.array, a = geo.attributes.aAlpha.array;
+      let alive = 0;
+      for (let i = 0; i < count; i++) {
+        const s = sparks[i];
+        if (s.life >= s.max) { a[i] = 0; continue; }
+        s.life += dt;
+        alive++;
+        if (s.life < 0) { a[i] = 0; continue; }
+        s.vy -= 0.35 * dt; // leichte Schwerkraft, die Luft bremst
+        p[i * 3] += (s.vx + Math.sin(t * 1.3 + i) * 0.08) * dt;
+        p[i * 3 + 1] += s.vy * dt;
+        p[i * 3 + 2] += s.vz * dt;
+        if (p[i * 3 + 1] < 0.03) { p[i * 3 + 1] = 0.03; s.vy = 0; s.vx *= 0.5; s.vz *= 0.5; } // am Boden verglühen
+        const k = s.life / s.max;
+        const twinkle = 0.75 + 0.25 * Math.sin(t * 17 + i * 3.1);
+        a[i] = Math.min(1, s.life * 6) * (1 - k * k) * twinkle;
+      }
+      this.alive = alive;
+      points.visible = alive > 0;
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.aAlpha.needsUpdate = true;
+      mat.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+    },
+    stop() { for (const s of sparks) if (s.life < 0) s.life = s.max; }, // wartende Funken verwerfen
+  };
+}
+
+const celebration = {
+  active: false,
+  t: 0,
+  chordAt: 0,
+  steps: [],          // [{ obj, at, done }]
+  chordDone: false,
+  panelShown: false,
+  colors: [],
+  rain: createSparkRain(CELEBRATE.particles),
+
+  start(targets) {
+    // Reihenfolge: von links hinten nach rechts vorn – eine Welle wie beim Levelwechsel
+    const order = [...targets].sort((a, b) => waveDelay(a.userData.element) - waveDelay(b.userData.element));
+    this.steps = order.map((obj, i) => ({ obj, at: i * CELEBRATE.step, done: false }));
+    this.chordAt = (order.length - 1) * CELEBRATE.step + CELEBRATE.chordPause;
+    this.colors = order.map(o => o.userData.element.color);
+    this.t = 0;
+    this.active = true;
+    this.chordDone = this.panelShown = false;
+    // Hell, etwas höher als beim Treffer: die Ziele "antworten" nacheinander
+    // Eigener Ausgang: beim Abbrechen verstummen auch die schon geplanten Töne und der Akkord
+    if (this.sound) this.sound.fadeOut();
+    const out = this.sound = audio.bus();
+    this.steps.forEach((s) => audio.hit(s.obj.userData.element.color, s.at, { octave: 2, gain: 0.04, out }));
+    audio.chord(this.colors, this.chordAt, out);
+    adaptiveResolution.hold(this.chordAt + 3); // Funken und Bloom-Puls nicht als Leistungsproblem werten
+  },
+
+  cancel() {
+    if (this.active && this.sound) { this.sound.fadeOut(); this.sound = null; }
+    this.active = false;
+    this.rain.stop();
+    shockUniforms.uShock.value.y = 0;
+    bloomPass.strength = LOOK.bloomStrength;
+  },
+
+  update(dt, t) {
+    this.rain.update(dt, t);
+    if (!this.active) return;
+    this.t += dt;
+    for (const s of this.steps) if (!s.done && this.t >= s.at) { s.done = true; s.obj.userData.flash = 1; }
+    if (!this.chordDone && this.t >= this.chordAt) {
+      this.chordDone = true;
+      this.rain.burst(this.colors);
+      // Wellenfarbe: Mischung der Zielfarben, hell genug zum Blühen
+      const c = shockUniforms.uShockColor.value.setRGB(0, 0, 0);
+      for (const k of this.colors) c.add(COLOR_RGB[k]);
+      c.multiplyScalar(1 / this.colors.length).lerp(WHITE, 0.25).multiplyScalar(0.5);
+    }
+    const tc = this.t - this.chordAt;
+    if (tc >= 0) {
+      // Bloom: schneller Anstieg, weiches Abklingen
+      const env = tc < 0.12 ? tc / 0.12 : Math.exp(-(tc - 0.12) * 2.0);
+      bloomPass.strength = LOOK.bloomStrength * (1 + CELEBRATE.bloomBoost * env);
+      const r = tc * CELEBRATE.shockSpeed;
+      const fade = Math.max(0, 1 - r / CELEBRATE.shockReach);
+      shockUniforms.uShock.value.set(r, fade * fade, CELEBRATE.shockWidth * (1 + r * 0.12));
+      if (!this.panelShown && tc >= CELEBRATE.panelDelay) {
+        this.panelShown = true;
+        ui.showSolved(game.levelIndex === LEVELS.length - 1, progress.solved.size === LEVELS.length);
+      }
+      if (fade <= 0 && env < 0.01 && this.panelShown) {
+        this.active = false;
+        shockUniforms.uShock.value.y = 0;
+        bloomPass.strength = LOOK.bloomStrength;
+      }
+    }
+  },
+};
+
+/* =====================================================================
+   LEVELFLUSS — Übergänge zwischen den Leveln.
    Beim Wechsel versinken die Elemente als Welle (diagonal über das Feld) im
    Stein, das neue Feld wächst in derselben Welle heraus, dann wachsen die Strahlen.
    ===================================================================== */
 
 const FLOW = {
-  solvedHold: 2.2,   // Sekunden, die das gelöste Feld leuchtet, bevor das nächste Level kommt
   outDuration: 0.4,  // Versinken eines Elements
   inDuration: 0.6,   // Herauswachsen eines Elements
   wave: 0.035,       // Versatz je Diagonalschritt (x + z) der Welle
   storageKey: 'prisma.level',
+  solvedKey: 'prisma.solved',
 };
 const easeInCubic = (x) => x * x * x;
 const easeOutBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
@@ -2697,46 +3271,48 @@ const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles b
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
 
 const flow = {
-  state: 'play', // play | out | in
-  t: 0,          // Zeit seit Beginn des aktuellen Übergangs
-  next: 0,       // Ziel-Level beim Versinken
-  solvedFor: 0,  // wie lange das Feld schon gelöst leuchtet
+  state: 'intro', // intro | play | out | in
+  t: 0,           // Zeit seit Beginn des aktuellen Übergangs
+  next: 0,        // Ziel-Level beim Versinken
+  solved: false,  // Lösungsmoment für das aktuelle Feld schon ausgelöst
 };
 const waveDelay = (el) => (el.x + el.z) * FLOW.wave;
 const waveLength = (size = game.board.size) => 2 * (size - 1) * FLOW.wave;
 
-const hud = {
-  root: document.getElementById('hud'),
-  title: document.getElementById('hud-title'),
-  sub: document.getElementById('hud-sub'),
-  show(index) {
-    this.title.textContent = `${ROMAN[index] || index + 1} – ${LEVELS[index].name}`;
-    this.sub.textContent = `Level ${index + 1} / ${LEVELS.length} · Klick dreht · Rechtsklick / lang drücken zurück`;
-    this.root.classList.remove('hidden');
+const progress = {
+  solved: new Set(),
+  load() {
+    try {
+      const i = parseInt(localStorage.getItem(FLOW.storageKey), 10);
+      const list = JSON.parse(localStorage.getItem(FLOW.solvedKey) || '[]');
+      if (Array.isArray(list)) this.solved = new Set(list.filter(n => Number.isInteger(n) && n >= 0 && n < LEVELS.length));
+      return Number.isInteger(i) && i >= 0 && i < LEVELS.length ? i : 0;
+    } catch { return 0; }
   },
-  hide() { this.root.classList.add('hidden'); },
-  solved() { this.sub.textContent = 'Gelöst'; },
+  save(index) {
+    try {
+      localStorage.setItem(FLOW.storageKey, String(index));
+      localStorage.setItem(FLOW.solvedKey, JSON.stringify([...this.solved]));
+    } catch { /* privates Fenster o. Ä. */ }
+  },
 };
-
-function savedLevel() {
-  try {
-    const i = parseInt(localStorage.getItem(FLOW.storageKey), 10);
-    return Number.isInteger(i) && i >= 0 && i < LEVELS.length ? i : 0;
-  } catch { return 0; }
-}
 
 /** Level wechseln: altes Feld versinkt, danach wächst das neue heraus (index wird umgebrochen). */
 function changeLevel(index) {
+  if (flow.state === 'intro') return;
   flow.next = wrap(index, LEVELS.length);
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   flow.state = 'out';
   flow.t = 0;
+  flow.solved = false;
+  celebration.cancel();
+  ui.hideSolved();
+  ui.hideHud();
   // Elemente versinken aus ihrer aktuellen Höhe (auch mitten im Herauswachsen)
   for (const obj of game.objects.values()) obj.userData.appearFrom = obj.scale.x;
   setHovered(null);
   clearTimeout(input.longPressTimer);
   if (input.pointer) input.pointer.el = null;
-  hud.hide();
   beamView.update(NO_LIGHT); // alle Strahlen blenden aus
   // Leuchtkörper erlöschen mit ihren Strahlen (sie hängen an den alten Ereignis-Datensätzen)
   for (const obj of game.objects.values()) {
@@ -2754,23 +3330,30 @@ function stepLevel(delta) {
 
 /** Neues Level aufbauen und als Welle herauswachsen lassen. */
 function enterLevel(index) {
-  try { localStorage.setItem(FLOW.storageKey, String(index)); } catch { /* privates Fenster o. Ä. */ }
+  progress.save(index);
   flow.state = 'in';
   flow.t = 0;
-  flow.solvedFor = 0;
+  flow.solved = false;
   loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index].size || 7)); // erst wenn alles steht
   for (const obj of game.objects.values()) obj.scale.setScalar(1e-3);
-  hud.show(index);
+  ui.showHud(index);
 }
 
-/** Pro Frame: Übergänge animieren und ein gelöstes Feld nach kurzer Pause weiterschalten. */
+/** Pro Frame: Übergänge animieren und den Lösungsmoment auslösen bzw. zurücknehmen. */
 function updateFlow(dt) {
+  if (flow.state === 'intro') return;
   if (flow.state === 'play') {
     const lit = game.result.solved && game.targets.every(o => o.userData.hit > 0.85);
-    if (lit && flow.solvedFor === 0) hud.solved();
-    if (!lit && flow.solvedFor > 0) hud.show(game.levelIndex); // wieder verdreht
-    flow.solvedFor = lit ? flow.solvedFor + dt : 0;
-    if (flow.solvedFor >= FLOW.solvedHold) stepLevel(1);
+    if (lit && !flow.solved) {
+      flow.solved = true;
+      progress.solved.add(game.levelIndex);
+      progress.save(game.levelIndex);
+      celebration.start(game.targets);
+    } else if (!game.result.solved && flow.solved) { // wieder verdreht
+      flow.solved = false;
+      celebration.cancel();
+      ui.hideSolved();
+    }
     return;
   }
   flow.t += dt;
@@ -2788,13 +3371,139 @@ function updateFlow(dt) {
   }
 }
 
+/* =====================================================================
+   UI — Kopfzeile, kleine Schaltflächen, "Level gelöst", Levelauswahl,
+   Startbildschirm. Alles DOM über der Szene; Klicks darauf erreichen den
+   Canvas nicht und drehen daher nichts.
+   ===================================================================== */
+
+const $ = (id) => document.getElementById(id);
+const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
+
+/** Bereich ein-/ausblenden; versteckt ist er auch für Tastatur und Screenreader weg (inert). */
+function setShown(el, shown) {
+  el.classList.toggle('hidden', !shown);
+  el.inert = !shown;
+  if (!shown && el.contains(document.activeElement)) document.activeElement.blur();
+}
+
+const ui = {
+  hud: $('hud'), title: $('hud-title'), sub: $('hud-sub'),
+  controls: $('controls'), sound: $('btn-sound'),
+  solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
+  levels: $('levels'), grid: $('level-grid'),
+  intro: $('intro'),
+  lastLevel: false,
+
+  init() {
+    $('btn-restart').addEventListener('click', () => { this.closeLevels(); stepLevel(0); });
+    this.sound.addEventListener('click', () => this.toggleSound());
+    $('btn-levels').addEventListener('click', () => this.openLevels());
+    $('btn-levels-close').addEventListener('click', () => this.closeLevels());
+    this.levels.addEventListener('click', (e) => { if (e.target === this.levels) this.closeLevels(); });
+    this.next.addEventListener('click', () => this.advance());
+    this.intro.addEventListener('click', () => this.start());
+    this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
+    LEVELS.forEach((lvl, i) => {
+      const b = document.createElement('button');
+      b.className = 'tile';
+      b.innerHTML = `<span class="num">${ROMAN[i] || i + 1}</span><span class="name"></span><span class="dot"></span>`;
+      b.querySelector('.name').textContent = lvl.name;
+      b.addEventListener('click', () => { this.closeLevels(); if (i !== game.levelIndex || flow.state !== 'play') changeLevel(i); });
+      this.grid.appendChild(b);
+    });
+    this.updateSound();
+    // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s)
+    const go = () => this.intro.classList.add('go');
+    if (document.fonts && document.fonts.ready) { document.fonts.ready.then(go); setTimeout(go, 800); } else go();
+    // Ton freischalten, sobald der Spieler irgendwo interagiert (Autoplay-Regeln der Browser)
+    const unlock = (e) => { if (e.isTrusted) audio.unlock(); }; // synthetische Ereignisse (Tests) zählen nicht als Geste
+    window.addEventListener('pointerdown', unlock, { passive: true });
+    window.addEventListener('keydown', unlock);
+  },
+
+  showHud(index) {
+    this.title.textContent = `${ROMAN[index] || index + 1} – ${LEVELS[index].name}`;
+    this.sub.textContent = `Level ${index + 1} / ${LEVELS.length} · ` +
+      (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
+    this.hud.classList.remove('hidden');
+  },
+  hideHud() { this.hud.classList.add('hidden'); },
+
+  /** last: letztes Level (Weiter → von vorn) · all: wirklich alle Level gelöst */
+  showSolved(last, all) {
+    this.lastLevel = last;
+    this.solvedMsg.textContent = all ? 'Alle Level gelöst' : 'Level gelöst';
+    this.next.textContent = last ? 'Von vorn' : 'Weiter';
+    setShown(this.solved, true);
+  },
+  hideSolved() { setShown(this.solved, false); },
+  solvedVisible() { return !this.solved.classList.contains('hidden'); },
+  advance() {
+    if (flow.state !== 'play' || !this.solvedVisible()) return; // z. B. zweites Auslösen (Taste + Klick)
+    if (this.lastLevel) changeLevel(0); else stepLevel(1);
+  },
+
+  toggleSound() {
+    audio.unlock();
+    audio.setMuted(!audio.muted);
+    this.updateSound();
+  },
+  updateSound() {
+    this.sound.classList.toggle('muted', audio.muted);
+    this.sound.setAttribute('aria-pressed', String(audio.muted));
+    this.sound.setAttribute('aria-label', audio.muted ? 'Ton an' : 'Ton aus');
+  },
+
+  openLevels() {
+    if (flow.state === 'intro') return;
+    [...this.grid.children].forEach((b, i) => {
+      b.classList.toggle('current', i === game.levelIndex);
+      b.classList.toggle('done', progress.solved.has(i));
+    });
+    setShown(this.levels, true);
+    this.grid.children[game.levelIndex]?.focus();
+  },
+  closeLevels() {
+    if (!this.levelsOpen()) return;
+    setShown(this.levels, false);
+    if (!this.controls.inert) $('btn-levels').focus({ preventScroll: true });
+  },
+  levelsOpen() { return !this.levels.classList.contains('hidden'); },
+
+  /** Startbildschirm verlassen: Ton freischalten, erstes Level herauswachsen lassen. */
+  start(gesture = true) {
+    if (flow.state !== 'intro') return;
+    if (gesture) audio.unlock(); // ohne Geste verweigert der Browser den Ton – dann beim ersten Klick
+    setShown(this.intro, false);
+    setShown(this.controls, true);
+    // nach dem Ausblenden ganz entfernen (die Puls-Animation liefe sonst endlos weiter)
+    setTimeout(() => { this.intro.style.display = 'none'; }, 1200);
+    enterLevel(progress.load());
+  },
+};
+ui.init();
+
 /* ---------- Tasten ----------
-   N / →: nächstes Level · P / ←: voriges Level · R: Level neu starten
+   N / →: nächstes Level · P / ←: voriges Level · R: neu starten · M: Ton · L: Levelauswahl
+   Enter: weiter (nach dem Lösen) bzw. Start · Esc: Levelauswahl schliessen
    C (Debug): Farbe der Quellen wechseln */
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.code === 'KeyN' || e.code === 'ArrowRight') {
+  // Enter/Leertaste auf einer Schaltfläche löst deren Klick aus – nicht zusätzlich hier
+  if ((e.code === 'Enter' || e.code === 'Space') && e.target.closest?.('button')) return;
+  if (flow.state === 'intro') {
+    if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); ui.start(); }
+    return;
+  }
+  if (e.code === 'Escape') ui.closeLevels();
+  else if (e.code === 'KeyL') { if (ui.levelsOpen()) ui.closeLevels(); else ui.openLevels(); }
+  else if (e.code === 'KeyM') ui.toggleSound();
+  if (ui.levelsOpen()) return; // Auswahl offen: das Feld darunter nicht bedienen
+  if (e.code === 'Enter' && ui.solvedVisible()) {
+    ui.advance();
+  } else if (e.code === 'KeyN' || e.code === 'ArrowRight') {
     stepLevel(1);
   } else if (e.code === 'KeyP' || e.code === 'ArrowLeft') {
     stepLevel(-1);
@@ -2812,7 +3521,9 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-enterLevel(savedLevel());
+// ?nointro: direkt ins Spiel (Screenshot-Tests)
+if (new URLSearchParams(location.search).has('nointro')) ui.start(false);
+
 
 /* =====================================================================
    RESIZE & LOOP
@@ -3004,6 +3715,7 @@ function frame(ts) {
   finalPass.uniforms.uTime.value = t;
 
   updateFlow(dt);
+  celebration.update(dt, t);
   animateRotations(dt);
   for (const obj of game.objects.values()) {
     if (obj.userData.update) obj.userData.update(t, dt);
@@ -3022,12 +3734,12 @@ function frame(ts) {
   requestAnimationFrame(frame);
 }
 
-window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved,
+window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
-  holdSolved: ((hold) => (on) => { FLOW.solvedHold = on ? Infinity : hold; })(FLOW.solvedHold), // für Tests
+  start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => Math.round(1000 / adaptiveResolution.avg), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui };
 requestAnimationFrame(frame);
 </script>
 </body>

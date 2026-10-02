@@ -3,7 +3,6 @@
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   while (!window.__prisma.playing()) await wait(50); // Level-Übergang abwarten
-  window.__prisma.holdSolved(true); // ein gelöstes Feld nicht mitten in der Probe weiterschalten
   const canvas = document.querySelector('canvas');
   const el = game.board.elements.find(isRotatable);
   const obj = game.objects.get(el.id);
