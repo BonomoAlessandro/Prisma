@@ -166,16 +166,21 @@
     animation: intro-reveal 1.5s cubic-bezier(0.6, 0, 0.2, 1) 0.45s forwards;
   }
   /* Farbfächer tritt hinter dem letzten Buchstaben aus (Laufweite danach abgezogen) */
-  #intro .spectrum { position: absolute; left: calc(100% - 0.42em); top: 50%; width: min(2.4em, 14vw); height: 0; }
-  #intro .spectrum i {
-    position: absolute; left: 0; top: 0; height: 1px; width: 100%;
-    transform-origin: left center;
+  /* Geglättete SVG-Linien: gedrehte 1-px-Elemente würden treppig wirken */
+  #intro .spectrum {
+    position: absolute; left: calc(100% - 0.42em); top: 50%;
+    width: min(2.4em, 14vw); height: auto;
+    transform: translateY(-50%);
+    overflow: visible;
+  }
+  #intro .spectrum line {
+    stroke-width: 1.3;
+    stroke-linecap: round;
+    stroke-dasharray: 245;
+    stroke-dashoffset: 245;
     opacity: 0;
     animation: intro-fan 1.4s ease-out 1.75s forwards;
   }
-  #intro .spectrum i:nth-child(1) { background: linear-gradient(90deg, rgba(255, 90, 80, 0.9), rgba(255, 90, 80, 0)); --a: -7deg; }
-  #intro .spectrum i:nth-child(2) { background: linear-gradient(90deg, rgba(110, 255, 140, 0.9), rgba(110, 255, 140, 0)); --a: 0deg; }
-  #intro .spectrum i:nth-child(3) { background: linear-gradient(90deg, rgba(110, 150, 255, 0.9), rgba(110, 150, 255, 0)); --a: 7deg; }
   #intro .sub, #intro .start {
     opacity: 0;
     font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase;
@@ -194,13 +199,14 @@
   }
   @keyframes intro-reveal { to { clip-path: inset(0 0 0 0); } }
   @keyframes intro-fan {
-    0% { opacity: 0; transform: rotate(0deg) scaleX(0.2); }
-    100% { opacity: 1; transform: rotate(var(--a)) scaleX(1); }
+    0% { opacity: 0; stroke-dashoffset: 245; }
+    30% { opacity: 1; }
+    100% { opacity: 1; stroke-dashoffset: 0; }
   }
   @keyframes intro-fade { to { opacity: 1; } }
   @keyframes intro-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
   @media (prefers-reduced-motion: reduce) {
-    #intro .beam, #intro .title, #intro .spectrum i, #intro .sub, #intro .start { animation-duration: 0.01s; animation-delay: 0s; }
+    #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro .start { animation-duration: 0.01s; animation-delay: 0s; }
   }
 
   #perf {
@@ -248,7 +254,22 @@
     <div class="beam"></div>
     <div class="word">
       <h1 class="title">PRISMA</h1>
-      <div class="spectrum"><i></i><i></i><i></i></div>
+      <svg class="spectrum" viewBox="0 -32 240 64" aria-hidden="true">
+        <defs>
+          <linearGradient id="fan-r" gradientUnits="userSpaceOnUse" x1="0" x2="240"><stop offset="0" stop-color="#ff5a50" stop-opacity="0.95"/><stop offset="1" stop-color="#ff5a50" stop-opacity="0"/></linearGradient>
+          <linearGradient id="fan-g" gradientUnits="userSpaceOnUse" x1="0" x2="240"><stop offset="0" stop-color="#6eff8c" stop-opacity="0.95"/><stop offset="1" stop-color="#6eff8c" stop-opacity="0"/></linearGradient>
+          <linearGradient id="fan-b" gradientUnits="userSpaceOnUse" x1="0" x2="240"><stop offset="0" stop-color="#6e96ff" stop-opacity="0.95"/><stop offset="1" stop-color="#6e96ff" stop-opacity="0"/></linearGradient>
+          <filter id="fan-glow" x="-10%" y="-200%" width="120%" height="500%">
+            <feGaussianBlur stdDeviation="1.6" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g filter="url(#fan-glow)">
+          <line x1="0" y1="0" x2="240" y2="-29.5" stroke="url(#fan-r)"/>
+          <line x1="0" y1="0" x2="240" y2="0" stroke="url(#fan-g)"/>
+          <line x1="0" y1="0" x2="240" y2="29.5" stroke="url(#fan-b)"/>
+        </g>
+      </svg>
     </div>
   </div>
   <div class="sub">Ein Licht-Puzzle</div>
@@ -2900,7 +2921,7 @@ canvasEl.addEventListener('pointerleave', (e) => { if (!input.pointer && e.point
 
 /* =====================================================================
    AUDIO — alles mit der Web Audio API erzeugt, keine Dateien.
-   Ein leiser Drone, glasige Klicks beim Drehen, ein Ton je Zielfarbe
+   Leises Glitzern im Hintergrund, glasige Klicks beim Drehen, ein Ton je Zielfarbe
    (Rot tief … Blau hoch) und ein Akkord beim Lösen. Alle Töne liegen in
    A-Dur (A, C#, E, F#, G#, B), damit jede Kombination harmonisch klingt.
    Der AudioContext entsteht erst bei der ersten Geste (Autoplay-Regeln).
@@ -2917,6 +2938,7 @@ const TONE_HZ = {
   7: 554.37,  // Weiss    C#5
 };
 const GLASS_HZ = [1760, 1975.5, 2217.5, 2637.0, 2960.0]; // A6 … F#7 (Pentatonik)
+const SHIMMER_HZ = [1318.5, 1480.0, 1760, 1975.5, 2217.5]; // E6 … C#7: Hintergrund-Glitzern, etwas tiefer und weicher
 
 const audio = {
   ctx: null,
@@ -2926,7 +2948,7 @@ const audio = {
   muted: false,
   storageKey: 'prisma.muted',
 
-  /** Beim ersten Klick/Tastendruck: Kontext anlegen und Drone starten. */
+  /** Beim ersten Klick/Tastendruck: Kontext anlegen und das Hintergrund-Glitzern starten. */
   unlock() {
     // Ohne echte Nutzergeste verweigert der Browser den Ton (und warnt) – dann später erneut
     if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
@@ -2948,7 +2970,7 @@ const audio = {
     this.wet.gain.value = 0.55;
     this.wet.connect(reverb);
     reverb.connect(this.master);
-    this._startDrone();
+    this._startShimmer();
   },
 
   /** Nachhall: Rauschen mit exponentiellem Abklingen, links/rechts verschieden. */
@@ -2963,28 +2985,23 @@ const audio = {
     return buf;
   },
 
-  /** Atmosphärischer Grundton: leicht verstimmte Quinten, langsam atmender Tiefpass. */
-  _startDrone() {
-    const ctx = this.ctx, t = ctx.currentTime;
-    const out = ctx.createGain();
-    out.gain.setValueAtTime(0, t);
-    out.gain.linearRampToValueAtTime(0.045, t + 6); // langsam einblenden
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 420; lp.Q.value = 0.6;
-    const lfo = ctx.createOscillator(), lfoGain = ctx.createGain();
-    lfo.frequency.value = 0.045; lfoGain.gain.value = 180;
-    lfo.connect(lfoGain).connect(lp.frequency);
-    lfo.start();
-    for (const [hz, type, g, detune] of [[55, 'sawtooth', 0.35, -4], [110, 'triangle', 0.5, 3], [164.81, 'sine', 0.35, -2], [220, 'sine', 0.12, 5]]) {
-      const o = ctx.createOscillator(), og = ctx.createGain();
-      o.type = type; o.frequency.value = hz; o.detune.value = detune;
-      og.gain.value = g;
-      o.connect(og).connect(lp);
-      o.start();
-    }
-    lp.connect(out);
-    out.connect(this.dry);
-    out.connect(this.wet);
+  /**
+   * Hintergrund: kein Dauerton, sondern vereinzelte, leise Glastöne mit langem Hall –
+   * wie Lichtreflexe im Raum. Alle paar Sekunden ein Ton, manchmal ein zweiter dazu.
+   */
+  _startShimmer() {
+    const tick = () => {
+      // im Hintergrund-Tab oder stumm nichts planen (der Kontext steht dann ohnehin)
+      if (!this.muted && !document.hidden && this.ctx.state === 'running') {
+        const pick = () => SHIMMER_HZ[Math.floor(Math.random() * SHIMMER_HZ.length)];
+        const opts = { gain: 0.012 + Math.random() * 0.01, attack: 0.02, decay: 3.5 + Math.random() * 1.5,
+          partials: [[1, 1], [2.76, 0.12]], wet: 1.2 };
+        this._bell(pick(), opts);
+        if (Math.random() < 0.35) this._bell(pick(), { ...opts, when: 0.25 + Math.random() * 0.5, gain: opts.gain * 0.7 });
+      }
+      setTimeout(tick, 2500 + Math.random() * 4000);
+    };
+    setTimeout(tick, 2000);
   },
 
   setMuted(m) {
@@ -2996,8 +3013,8 @@ const audio = {
   },
 
   /**
-   * Kontext laufen lassen oder anhalten: stumm oder Tab im Hintergrund → suspend (spart CPU,
-   * der Drone läuft nicht unhörbar weiter). Weckt auch iOS' "interrupted" (Anruf, App-Wechsel).
+   * Kontext laufen lassen oder anhalten: stumm oder Tab im Hintergrund → suspend (spart CPU).
+   * Weckt auch iOS' "interrupted" (Anruf, App-Wechsel).
    */
   _sync() {
     if (!this.ctx) return;
