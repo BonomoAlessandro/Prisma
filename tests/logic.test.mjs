@@ -397,10 +397,42 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
 });
 
 console.log('Level');
+// Drehbare Elemente: Spiegel haben 4 wirksame Stellungen (rot und rot + 4 wirken gleich), Prisma und Kombinator 8.
+const period = (el) => (el.type === 'mirror' ? 4 : 8);
+const getRot = (el) => (el.type === 'combiner' ? el.dir : el.rot);
+const setRot = (el, v) => { if (el.type === 'combiner') el.dir = v; else el.rot = v; };
+/** Probiert alle Stellungen der drehbaren Elemente durch und liefert die lösenden. */
+function allSolutions(lvl) {
+  const b = L.createBoard(lvl);
+  const rot = b.elements.filter(L.isRotatable);
+  let total = 1;
+  for (const el of rot) total *= period(el);
+  const found = [];
+  for (let i = 0; i < total; i++) {
+    let k = i;
+    for (const el of rot) { setRot(el, k % period(el)); k = Math.floor(k / period(el)); }
+    if (L.traceBeams(b).solved) found.push(Object.fromEntries(rot.map(el => [el.x + ',' + el.z, getRot(el)])));
+  }
+  return found;
+}
+test('Es gibt 10 Level', () => assert.equal(L.LEVELS.length, 10));
 L.LEVELS.forEach((lvl, i) => {
-  test(`Level ${i + 1} "${lvl.name}" ist im notierten Lösungszustand gelöst`, () => {
-    const r = L.traceBeams(L.createBoard(lvl));
+  const tag = `Level ${i + 1} "${lvl.name}"`;
+  test(`${tag}: Startstellung ist nicht gelöst`, () => {
+    assert.equal(L.traceBeams(L.createBoard(lvl)).solved, false);
+  });
+  test(`${tag}: notierte Lösung löst das Level`, () => {
+    const b = L.createBoard(lvl);
+    const rot = b.elements.filter(L.isRotatable);
+    assert.deepEqual(rot.map(el => el.x + ',' + el.z).sort(), Object.keys(lvl.solution).sort(), 'Lösung nennt nicht genau die drehbaren Elemente');
+    for (const el of rot) setRot(el, lvl.solution[el.x + ',' + el.z]);
+    const r = L.traceBeams(b);
     assert.equal(r.solved, true, pathOf(r));
+  });
+  test(`${tag}: Lösung ist eindeutig`, () => {
+    const norm = (sol) => Object.fromEntries(L.createBoard(lvl).elements.filter(L.isRotatable)
+      .map(el => { const k = el.x + ',' + el.z; return [k, sol[k] % period(el)]; }));
+    assert.deepEqual(allSolutions(lvl), [norm(lvl.solution)]);
   });
 });
 

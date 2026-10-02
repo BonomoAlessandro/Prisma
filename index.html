@@ -36,7 +36,9 @@
     pointer-events: none;
     letter-spacing: 0.42em;
     text-transform: uppercase;
+    transition: opacity 0.6s ease;
   }
+  #hud.hidden { opacity: 0; transition-duration: 0.3s; }
   #hud .title { font-size: 13px; }
   #hud .sub { margin-top: 8px; font-size: 10px; color: var(--ink-dim); letter-spacing: 0.3em; }
   #perf {
@@ -50,8 +52,8 @@
 <body>
 <div id="perf" hidden></div>
 <div id="hud">
-  <div class="title">Prisma</div>
-  <div class="sub" id="hud-sub">Phase 5 · Klick dreht · Rechtsklick / lang drücken zurück · L Level</div>
+  <div class="title" id="hud-title">Prisma</div>
+  <div class="sub" id="hud-sub">Klick dreht · Rechtsklick / lang drücken zurück</div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
@@ -390,52 +392,180 @@ function tracePass(board, extraRays, emitting) {
 
 /**
  * Level-Definitionen. Format:
- *   { name, size?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }] }
+ *   { name, size?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
- *   mirror:   rot = Winkel der Spiegelfläche (drehbar)
+ *   mirror:   rot = Winkel der Spiegelfläche (drehbar; rot und rot + 4 wirken gleich)
  *   prism:    rot = Richtung der Austrittsfläche = Richtung des Farbfächers (drehbar)
  *   filter:   color = durchgelassene Farbe(n)
  *   combiner: dir = Ausgangsrichtung (drehbar)
  *   blocker:  schluckt Licht
  *   target:   color = benötigte Farbe
+ *   fixed:    Element ist nicht drehbar
+ *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
+ *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
+ * Lernkurve: I–III nur Spiegel, IV–V Prisma, VI–VII Filter, VIII Kombinator, IX–X alles.
+ * Die Tests probieren alle Stellungen durch: Jede notierte Lösung stimmt und ist eindeutig.
  */
 const LEVELS = [
   {
-    // Demo-Feld für Phase 4 (wird in Phase 6 durch die 10 echten Level ersetzt).
-    // Lösung (= Startzustand):
-    //   Quelle (0,3) → Ost → Prisma (2,3) rot 0 (Fächer geradeaus): Rot nach Nordost → Ziel Rot (5,0),
-    //   Grün nach Ost → Kombinator (6,3), Blau nach Südost → Spiegel (4,5) rot 0 → Nordost → Kombinator (6,3)
-    //   Kombinator (6,3) mischt Grün + Blau = Cyan → Nord → Ziel Cyan (6,0)
-    //   Quelle (0,0) → Ost → Filter Magenta (2,0) → Ziel Magenta (4,0)
-    name: 'Spektrum-Demo',
+    // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
+    name: 'Erstes Licht',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'prism', x: 2, z: 3, rot: 0 },
-      { type: 'target', x: 5, z: 0, color: 'red' },
-      { type: 'mirror', x: 4, z: 5, rot: 0 },
-      { type: 'combiner', x: 6, z: 3, dir: 6 },
-      { type: 'target', x: 6, z: 0, color: 'cyan' },
-      { type: 'source', x: 0, z: 0, dir: 0 },
-      { type: 'filter', x: 2, z: 0, color: 'magenta' },
-      { type: 'target', x: 4, z: 0, color: 'magenta' },
-      { type: 'blocker', x: 4, z: 2 },
-      { type: 'blocker', x: 1, z: 5 },
+      { type: 'mirror', x: 4, z: 3, rot: 2 },
+      { type: 'target', x: 4, z: 0, color: 'white' },
     ],
+    solution: { '4,3': 3 },
   },
   {
-    // Demo-Feld aus Phase 2/3. Lösung (= Startzustand):
-    //   Quelle A (0,5) → Ost → Spiegel (3,5) rot 3 → Nord → Spiegel (3,2) rot 3 → Ost → Ziel (6,2)
-    //   Quelle B (6,6) → Nordwest (kreuzt A bei (3,3)) → Spiegel (1,1) rot 0 → Südwest → Ziel (0,2)
-    name: 'Spiegel-Demo',
+    // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; Spiegel (3,1) rot 3 – Nord → Ost → Ziel (6,1).
+    name: 'Umweg',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 3 },
-      { type: 'mirror', x: 3, z: 2, rot: 3 },
-      { type: 'target', x: 6, z: 2, color: 'white' },
-      { type: 'source', x: 6, z: 6, dir: 5 },
-      { type: 'mirror', x: 1, z: 1, rot: 0 },
-      { type: 'target', x: 0, z: 2, color: 'white' },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 1, rot: 1 },
+      { type: 'blocker', x: 1, z: 1 },
+      { type: 'target', x: 6, z: 1, color: 'white' },
     ],
+    solution: { '3,5': 3, '3,1': 3 },
+  },
+  {
+    // Lösung: Quelle (0,6) → Nordost → Spiegel (3,3) rot 2 → Nordwest → Ziel (1,1).
+    //   Quelle (6,0) → Süd → Spiegel (6,5) rot 3 → West → Spiegel (4,5) rot 1 → Nord → Ziel (4,2).
+    name: 'Diagonale',
+    elements: [
+      { type: 'source', x: 0, z: 6, dir: 7 },
+      { type: 'mirror', x: 3, z: 3, rot: 3 },
+      { type: 'target', x: 1, z: 1, color: 'white' },
+      { type: 'source', x: 6, z: 0, dir: 2 },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, z: 5, rot: 2 },
+      { type: 'target', x: 4, z: 2, color: 'white' },
+    ],
+    solution: { '3,3': 2, '6,5': 3, '4,5': 1 },
+  },
+  {
+    // Lösung: Prisma (2,3) rot 0 – Fächer nach Ost: Rot → Nordost → Ziel (5,0),
+    //   Grün → Ost → Ziel (6,3), Blau → Südost → Ziel (5,6).
+    name: 'Brechung',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'prism', x: 2, z: 3, rot: 6 },
+      { type: 'target', x: 5, z: 0, color: 'red' },
+      { type: 'target', x: 6, z: 3, color: 'green' },
+      { type: 'target', x: 5, z: 6, color: 'blue' },
+    ],
+    solution: { '2,3': 0 },
+  },
+  {
+    // Lösung: Prisma (3,4) rot 6 – Fächer nach Nord.
+    //   Rot → Nordwest → Spiegel (1,2) rot 0 → Südwest → Ziel (0,3)
+    //   Grün → Nord → Spiegel (3,1) rot 3 → Ost → Ziel (6,1)
+    //   Blau → Nordost → Spiegel (5,2) rot 0 → Südost → Ziel (6,3)
+    name: 'Spektrum',
+    elements: [
+      { type: 'source', x: 3, z: 6, dir: 6 },
+      { type: 'prism', x: 3, z: 4, rot: 4 },
+      { type: 'mirror', x: 1, z: 2, rot: 1 },
+      { type: 'mirror', x: 5, z: 2, rot: 2 },
+      { type: 'mirror', x: 3, z: 1, rot: 2 },
+      { type: 'target', x: 0, z: 3, color: 'red' },
+      { type: 'target', x: 6, z: 3, color: 'blue' },
+      { type: 'target', x: 6, z: 1, color: 'green' },
+    ],
+    solution: { '3,4': 6, '1,2': 0, '5,2': 0, '3,1': 3 },
+  },
+  {
+    // Lösung: Spiegel (3,3) rot 3 lenkt das rote Licht von links nach Nord, das blaue von rechts nach Süd.
+    //   Rot → Spiegel (3,0) rot 1 → West → Ziel (0,0); Blau → Spiegel (3,6) rot 1 → Ost → Ziel (6,6).
+    name: 'Filter',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'filter', x: 1, z: 3, color: 'red' },
+      { type: 'source', x: 6, z: 3, dir: 4 },
+      { type: 'filter', x: 5, z: 3, color: 'blue' },
+      { type: 'mirror', x: 3, z: 3, rot: 0 },
+      { type: 'mirror', x: 3, z: 0, rot: 3 },
+      { type: 'mirror', x: 3, z: 6, rot: 3 },
+      { type: 'target', x: 0, z: 0, color: 'red' },
+      { type: 'target', x: 6, z: 6, color: 'blue' },
+    ],
+    solution: { '3,3': 3, '3,0': 1, '3,6': 1 },
+  },
+  {
+    // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,4) rot 7 – Fächer nach Nordost:
+    //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (5,2) rot 0 → Südost → Ziel (6,3).
+    name: 'Farbenlehre',
+    elements: [
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'filter', x: 1, z: 4, color: 'yellow' },
+      { type: 'prism', x: 3, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, z: 2, rot: 1 },
+      { type: 'target', x: 3, z: 0, color: 'red' },
+      { type: 'target', x: 6, z: 3, color: 'green' },
+    ],
+    solution: { '3,4': 7, '5,2': 0 },
+  },
+  {
+    // Lösung: Prisma (2,3) rot 0 – Grün → Ost → Ziel (4,3).
+    //   Rot → Nordost → Spiegel (4,1) rot 0 → Südost, Blau → Südost → Spiegel (4,5) rot 0 → Nordost
+    //   → beide in den Kombinator (6,3): Magenta → dir 6 (Nord) → Ziel (6,0).
+    name: 'Mischung',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'prism', x: 2, z: 3, rot: 6 },
+      { type: 'mirror', x: 4, z: 1, rot: 3 },
+      { type: 'mirror', x: 4, z: 5, rot: 1 },
+      { type: 'target', x: 4, z: 3, color: 'green' },
+      { type: 'combiner', x: 6, z: 3, dir: 4 },
+      { type: 'target', x: 6, z: 0, color: 'magenta' },
+    ],
+    solution: { '2,3': 0, '4,1': 0, '4,5': 0, '6,3': 6 },
+  },
+  {
+    // Lösung: Prisma (2,3) rot 0.
+    //   Rot → Nordost → Spiegel (3,2) rot 0 → Südost und Grün → Ost treffen sich im Kombinator (4,3):
+    //   Gelb → dir 6 (Nord) → Ziel (4,0). Blau → Südost → Spiegel (4,5) rot 0 → Nordost → Ziel (6,3).
+    //   Quelle (6,6) → West → Cyanfilter → Spiegel (1,6) rot 1 → Nord (kreuzt den weissen Strahl) → Ziel (1,1).
+    name: 'Kreuzungen',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'prism', x: 2, z: 3, rot: 2 },
+      { type: 'mirror', x: 3, z: 2, rot: 1 },
+      { type: 'combiner', x: 4, z: 3, dir: 0 },
+      { type: 'target', x: 4, z: 0, color: 'yellow' },
+      { type: 'mirror', x: 4, z: 5, rot: 1 },
+      { type: 'target', x: 6, z: 3, color: 'blue' },
+      { type: 'source', x: 6, z: 6, dir: 4 },
+      { type: 'filter', x: 5, z: 6, color: 'cyan' },
+      { type: 'mirror', x: 1, z: 6, rot: 0 },
+      { type: 'target', x: 1, z: 1, color: 'cyan' },
+      { type: 'blocker', x: 6, z: 1 },
+    ],
+    solution: { '2,3': 0, '3,2': 0, '4,3': 6, '4,5': 0, '1,6': 1 },
+  },
+  {
+    // Lösung: Weiss zerlegen und wieder zusammensetzen. Prisma (2,3) rot 0:
+    //   Rot → Spiegel (4,1) rot 0 → Südost, Grün → Ost, Blau → Spiegel (4,5) rot 0 → Nordost
+    //   → Kombinator (6,3): Weiss → dir 2 (Süd) → fester Spiegel (6,6) → West → Ziel (1,6).
+    //   Quelle (0,0) → Magentafilter → Prisma (3,0) rot 1 – Fächer nach Südost:
+    //   Rot → Ost → Ziel (6,0); Blau → Süd (kreuzt drei Strahlen) → Ziel (3,5).
+    name: 'Weisses Licht',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'prism', x: 2, z: 3, rot: 6 },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 4, z: 5, rot: 2 },
+      { type: 'combiner', x: 6, z: 3, dir: 6 },
+      { type: 'mirror', x: 6, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 1, z: 6, color: 'white' },
+      { type: 'source', x: 0, z: 0, dir: 0 },
+      { type: 'filter', x: 1, z: 0, color: 'magenta' },
+      { type: 'prism', x: 3, z: 0, rot: 6 },
+      { type: 'target', x: 6, z: 0, color: 'red' },
+      { type: 'target', x: 3, z: 5, color: 'blue' },
+    ],
+    solution: { '2,3': 0, '4,1': 0, '4,5': 0, '6,3': 2, '3,0': 1 },
   },
 ];
 
@@ -1153,8 +1283,8 @@ function makeMirror(el) {
   const root = new THREE.Group();
   root.add(makePedestal(0.4));
 
-  // Gravierte 45°-Marken auf dem Teller
-  for (let i = 0; i < 8; i++) {
+  // Gravierte 45°-Marken auf dem Teller (nur drehbare Spiegel – feste haben einen glatten Teller)
+  for (let i = 0; i < 8 && !el.fixed; i++) {
     const tick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.004, 0.012), MAT.metalBright);
     const a = i * Math.PI / 4;
     tick.position.set(Math.cos(a) * 0.32, 0.063, Math.sin(a) * 0.32);
@@ -1528,6 +1658,7 @@ const game = {
   board: null,
   objects: new Map(), // element.id → Object3D
   hitProxies: [],     // unsichtbare Trefferzylinder der drehbaren Elemente
+  targets: [],        // Modelle der Ziele
   result: null,
 };
 
@@ -1542,7 +1673,8 @@ function disposeTree(root) {
   });
 }
 
-function loadLevel(index) {
+/** Baut ein Level auf; beamDelay = Sekunden, bis die Strahlen von den Quellen aus loswachsen. */
+function loadLevel(index, beamDelay = 0) {
   game.levelIndex = index;
   game.board = createBoard(LEVELS[index]);
   for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
@@ -1561,11 +1693,12 @@ function loadLevel(index) {
     game.objects.set(el.id, obj);
     if (isRotatable(el)) makeInteractive(obj);
   }
+  game.targets = [...game.objects.values()].filter(o => o.userData.element.type === 'target');
   markShadowsDirty();
   // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
   requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
   beamView.reset(); // Strahlen des alten Felds nicht über dem neuen ausblenden
-  recomputeBeams();
+  recomputeBeams(false, beamDelay);
 }
 
 function recomputeBeams(instant = false, delay = 0) {
@@ -1608,6 +1741,7 @@ const easeOutCubic = (x) => 1 - Math.pow(1 - x, 3);
  */
 function rotateElement(el, delta) {
   if (!el || !isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels
+  if (flow.state !== 'play') return; // während eines Levelwechsels nicht drehen
   // Der Kombinator dreht seine Ausgangsrichtung, Spiegel und Prisma ihren Winkel
   if (el.type === 'combiner') el.dir = mod8(el.dir + delta);
   else el.rot = mod8(el.rot + delta);
@@ -2321,6 +2455,7 @@ const input = { pointer: null, hovered: null, longPressTimer: 0 };
 
 /** Element unter einem Bildschirmpunkt (nur drehbare, über ihre Trefferzylinder). */
 function pickElement(clientX, clientY) {
+  if (flow.state !== 'play') return null; // während eines Levelwechsels nichts anwählen
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointerNdc, camera);
@@ -2519,15 +2654,130 @@ canvasEl.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDef
 canvasEl.addEventListener('pointerleave', (e) => { if (!input.pointer && e.pointerType === 'mouse') setHovered(null); });
 
 /* =====================================================================
-   DEBUG-TASTEN (bis Phase 6/7 Levelauswahl und UI kommen)
-   L: nächstes Level · C: Farbe der Quellen wechseln
+   LEVELFLUSS — Übergänge zwischen den Leveln und Weiterschalten nach dem Lösen.
+   Beim Wechsel versinken die Elemente als Welle (diagonal über das Feld) im
+   Stein, das neue Feld wächst in derselben Welle heraus, dann wachsen die Strahlen.
    ===================================================================== */
+
+const FLOW = {
+  solvedHold: 2.2,   // Sekunden, die das gelöste Feld leuchtet, bevor das nächste Level kommt
+  outDuration: 0.4,  // Versinken eines Elements
+  inDuration: 0.6,   // Herauswachsen eines Elements
+  wave: 0.035,       // Versatz je Diagonalschritt (x + z) der Welle
+  storageKey: 'prisma.level',
+};
+const easeInCubic = (x) => x * x * x;
+const easeOutBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const wrap = (n, m) => ((n % m) + m) % m;
+const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles blendet aus
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
+
+const flow = {
+  state: 'play', // play | out | in
+  t: 0,          // Zeit seit Beginn des aktuellen Übergangs
+  next: 0,       // Ziel-Level beim Versinken
+  solvedFor: 0,  // wie lange das Feld schon gelöst leuchtet
+};
+const waveDelay = (el) => (el.x + el.z) * FLOW.wave;
+const waveLength = (size = game.board.size) => 2 * (size - 1) * FLOW.wave;
+
+const hud = {
+  root: document.getElementById('hud'),
+  title: document.getElementById('hud-title'),
+  sub: document.getElementById('hud-sub'),
+  show(index) {
+    this.title.textContent = `${ROMAN[index] || index + 1} – ${LEVELS[index].name}`;
+    this.sub.textContent = `Level ${index + 1} / ${LEVELS.length} · Klick dreht · Rechtsklick / lang drücken zurück`;
+    this.root.classList.remove('hidden');
+  },
+  hide() { this.root.classList.add('hidden'); },
+  solved() { this.sub.textContent = 'Gelöst'; },
+};
+
+function savedLevel() {
+  try {
+    const i = parseInt(localStorage.getItem(FLOW.storageKey), 10);
+    return Number.isInteger(i) && i >= 0 && i < LEVELS.length ? i : 0;
+  } catch { return 0; }
+}
+
+/** Level wechseln: altes Feld versinkt, danach wächst das neue heraus (index wird umgebrochen). */
+function changeLevel(index) {
+  flow.next = wrap(index, LEVELS.length);
+  if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
+  flow.state = 'out';
+  flow.t = 0;
+  // Elemente versinken aus ihrer aktuellen Höhe (auch mitten im Herauswachsen)
+  for (const obj of game.objects.values()) obj.userData.appearFrom = obj.scale.x;
+  setHovered(null);
+  clearTimeout(input.longPressTimer);
+  if (input.pointer) input.pointer.el = null;
+  hud.hide();
+  beamView.update(NO_LIGHT); // alle Strahlen blenden aus
+  // Leuchtkörper erlöschen mit ihren Strahlen (sie hängen an den alten Ereignis-Datensätzen)
+  for (const obj of game.objects.values()) {
+    const u = obj.userData;
+    if (u.element.type === 'target') { u.satisfied = false; u.arrivals = []; }
+    if (u.events) u.events = [];
+  }
+  adaptiveResolution.hold(FLOW.outDuration + waveLength() + 0.2); // Schatten-Updates jeden Frame
+}
+
+/** Relativ blättern; während des Versinkens zählt das bereits gewählte Ziel-Level. */
+function stepLevel(delta) {
+  changeLevel((flow.state === 'out' ? flow.next : game.levelIndex) + delta);
+}
+
+/** Neues Level aufbauen und als Welle herauswachsen lassen. */
+function enterLevel(index) {
+  try { localStorage.setItem(FLOW.storageKey, String(index)); } catch { /* privates Fenster o. Ä. */ }
+  flow.state = 'in';
+  flow.t = 0;
+  flow.solvedFor = 0;
+  loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index].size || 7)); // erst wenn alles steht
+  for (const obj of game.objects.values()) obj.scale.setScalar(1e-3);
+  hud.show(index);
+}
+
+/** Pro Frame: Übergänge animieren und ein gelöstes Feld nach kurzer Pause weiterschalten. */
+function updateFlow(dt) {
+  if (flow.state === 'play') {
+    const lit = game.result.solved && game.targets.every(o => o.userData.hit > 0.85);
+    if (lit && flow.solvedFor === 0) hud.solved();
+    if (!lit && flow.solvedFor > 0) hud.show(game.levelIndex); // wieder verdreht
+    flow.solvedFor = lit ? flow.solvedFor + dt : 0;
+    if (flow.solvedFor >= FLOW.solvedHold) stepLevel(1);
+    return;
+  }
+  flow.t += dt;
+  const out = flow.state === 'out';
+  const dur = out ? FLOW.outDuration : FLOW.inDuration;
+  for (const obj of game.objects.values()) {
+    const k = Math.min(1, Math.max(0, (flow.t - waveDelay(obj.userData.element)) / dur));
+    const s = out ? obj.userData.appearFrom * (1 - easeInCubic(k)) : easeOutBack(k);
+    obj.scale.setScalar(Math.max(s, 1e-3)); // nie ganz 0: sonst entartete Normalenmatrix
+  }
+  markShadowsDirty();
+  if (flow.t >= dur + waveLength()) {
+    if (out) enterLevel(flow.next);
+    else flow.state = 'play';
+  }
+}
+
+/* ---------- Tasten ----------
+   N / →: nächstes Level · P / ←: voriges Level · R: Level neu starten
+   C (Debug): Farbe der Quellen wechseln */
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.code === 'KeyL') {
-    loadLevel((game.levelIndex + 1) % LEVELS.length);
+  if (e.code === 'KeyN' || e.code === 'ArrowRight') {
+    stepLevel(1);
+  } else if (e.code === 'KeyP' || e.code === 'ArrowLeft') {
+    stepLevel(-1);
+  } else if (e.code === 'KeyR') {
+    stepLevel(0);
   } else if (e.code === 'KeyC') {
+    if (flow.state !== 'play') return;
     const cycle = [7, 1, 2, 4, 3, 5, 6];
     for (const el of game.board.elements) {
       if (el.type !== 'source') continue;
@@ -2538,7 +2788,7 @@ window.addEventListener('keydown', (e) => {
   }
 });
 
-loadLevel(0);
+enterLevel(savedLevel());
 
 /* =====================================================================
    RESIZE & LOOP
@@ -2729,6 +2979,7 @@ function frame(ts) {
   background.material.uniforms.uTime.value = t;
   finalPass.uniforms.uTime.value = t;
 
+  updateFlow(dt);
   animateRotations(dt);
   for (const obj of game.objects.values()) {
     if (obj.userData.update) obj.userData.update(t, dt);
@@ -2748,9 +2999,11 @@ function frame(ts) {
 }
 
 window.__prisma = { frames: 0, ready: true, level: () => game.board.name, solved: () => game.result.solved,
+  levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
+  holdSolved: ((hold) => (on) => { FLOW.solvedHold = on ? Infinity : hold; })(FLOW.solvedHold), // für Tests
   fps: () => Math.round(1000 / adaptiveResolution.avg), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel };
 requestAnimationFrame(frame);
 </script>
 </body>

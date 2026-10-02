@@ -10,4 +10,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
-- **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera. F: Leistungsanzeige.
+- **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera.
+  N / → nächstes Level, P / ← voriges Level, R Level neu starten, F Leistungsanzeige.
+- **Levels:** 10 Levels in `LEVELS` (index.html), jede Lösung steht als Kommentar und im Feld `solution`.
+  Ein gelöstes Level schaltet nach kurzer Pause weiter; das zuletzt gespielte Level bleibt im Browser gespeichert.
+  Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
