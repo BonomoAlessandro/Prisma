@@ -90,7 +90,7 @@ test('Quelle schluckt auftreffendes Licht', () => {
   assert.equal(r.events.at(-1).kind, 'absorb');
   assert.ok(r.segments.length <= 3);
 });
-test('Endlosschleife zwischen Spiegeln wird abgebrochen', () => {
+test('Geschlossene Schleife zwischen Spiegeln endet ohne Abbruch', () => {
   // Vier Spiegel bilden ein geschlossenes Rechteck. Mit Quellen allein ist so eine Schleife
   // nicht erreichbar (Spiegelabbildung ist umkehrbar, Quellen schlucken) – daher Strahl direkt einsetzen.
   const board = level([
@@ -100,7 +100,8 @@ test('Endlosschleife zwischen Spiegeln wird abgebrochen', () => {
     { type: 'mirror', x: 1, z: 5, rot: 1 }, // West → Nord
   ]);
   const r = L.traceBeams(board, [{ x: 3, z: 1, dir: 0, color: 7 }]);
-  assert.equal(r.truncated, true);
+  // Ein Strahl, der schon unterwegs ist, wird nicht ein zweites Mal verfolgt – die Schleife ist exakt
+  assert.equal(r.truncated, false);
   assert.ok(r.segments.length >= 4 && r.segments.length <= 6, 'Segmente: ' + r.segments.length);
   assert.ok(r.events.every(e => e.kind === 'reflect'), 'Strahl hat die Schleife verlassen: ' + pathOf(r));
 });
@@ -397,25 +398,80 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
 });
 
 console.log('Level');
-// Drehbare Elemente: Spiegel haben 4 wirksame Stellungen (rot und rot + 4 wirken gleich), Prisma und Kombinator 8.
-const period = (el) => (el.type === 'mirror' ? 4 : 8);
-const getRot = (el) => (el.type === 'combiner' ? el.dir : el.rot);
-const setRot = (el, v) => { if (el.type === 'combiner') el.dir = v; else el.rot = v; };
-/** Probiert alle Stellungen der drehbaren Elemente durch und liefert die lösenden. */
-function allSolutions(lvl) {
-  const b = L.createBoard(lvl);
-  const rot = b.elements.filter(L.isRotatable);
-  let total = 1;
-  for (const el of rot) total *= period(el);
-  const found = [];
-  for (let i = 0; i < total; i++) {
-    let k = i;
-    for (const el of rot) { setRot(el, k % period(el)); k = Math.floor(k / period(el)); }
-    if (L.traceBeams(b).solved) found.push(Object.fromEntries(rot.map(el => [el.x + ',' + el.z, getRot(el)])));
+// Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
+const S = await import('../tools/solver.mjs');
+test('Löser stimmt mit stumpfem Durchprobieren überein (Lösungen und Fast-Lösungen)', () => {
+  for (const lvl of L.LEVELS) {
+    const b = L.createBoard(lvl);
+    const space = b.elements.filter(L.isRotatable).reduce((n, el) => n * S.period(el), 1);
+    if (space > 1 << 14) continue; // grosse Level nur mit dem schlauen Löser
+    const bf = S.bruteForce(lvl), full = S.solve(lvl, { prune: false }), cut = S.solve(lvl);
+    assert.equal(full.count, bf.count, lvl.name);
+    assert.equal(full.near, bf.near, lvl.name);
+    assert.equal(cut.count, bf.count, lvl.name + ' (mit Abschneiden)');
   }
-  return found;
-}
-test('Es gibt 10 Level', () => assert.equal(L.LEVELS.length, 10));
+});
+test('Löser stimmt auf 300 zufälligen kleinen Feldern mit dem Durchprobieren überein', () => {
+  // Fester Seed: reproduzierbar. Alle Elementtypen, auch drehbare Kombinatoren (Rückkopplung).
+  let seed = 12345;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+  const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+  const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+  let checked = 0;
+  for (let n = 0; n < 300; n++) {
+    const size = int(4, 6), used = new Set(), els = [];
+    const free = () => { for (;;) { const x = int(0, size - 1), z = int(0, size - 1); if (!used.has(x + ',' + z)) { used.add(x + ',' + z); return [x, z]; } } };
+    const add = (e) => { const [x, z] = free(); els.push({ ...e, x, z }); };
+    for (let i = int(1, 2); i > 0; i--) add({ type: 'source', dir: int(0, 7), color: rnd() < 0.7 ? 'white' : colors[int(0, 6)] });
+    for (let i = int(1, 4); i > 0; i--) add({ type: 'mirror', rot: int(0, 3), fixed: rnd() < 0.2 });
+    if (rnd() < 0.5) add({ type: 'prism', rot: int(0, 7) });
+    if (rnd() < 0.4) add({ type: 'filter', color: colors[int(0, 5)] });
+    if (rnd() < 0.4) add({ type: 'combiner', dir: int(0, 7) });
+    if (rnd() < 0.3) add({ type: 'blocker' });
+    for (let i = int(1, 2); i > 0; i--) add({ type: 'target', color: colors[int(0, 6)] });
+    const lvl = { name: 'zufall ' + n, size, elements: els };
+    const space = L.createBoard(lvl).elements.filter(L.isRotatable).reduce((m, el) => m * S.period(el), 1);
+    if (space > 4096) continue;
+    const bf = S.bruteForce(lvl);
+    assert.equal(S.solve(lvl).count, bf.count, lvl.name + ' (mit Abschneiden)');
+    const full = S.solve(lvl, { prune: false });
+    assert.equal(full.count, bf.count, lvl.name);
+    assert.equal(full.near, bf.near, lvl.name + ' (Fast-Lösungen)');
+    checked++;
+  }
+  assert.ok(checked > 200, 'zu wenige Felder geprüft: ' + checked);
+});
+test('Zusammenlaufende Strahlen sind kein Abbruch', () => {
+  // Zwei Strahlen treffen dasselbe Prisma aus verschiedenen Richtungen; ihre Farbanteile verlassen es
+  // in denselben Richtungen. Der zweite wird nicht doppelt verfolgt – kein Abbruch, das Ergebnis ist exakt.
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 3, dir: 0 },  // nach Ost
+    { type: 'source', x: 3, z: 0, dir: 2 },  // nach Süd
+    { type: 'prism', x: 3, z: 3, rot: 0 },   // Fächer nach Ost – für beide Einfallsrichtungen gleich
+    { type: 'target', x: 6, z: 3, color: 'green' },
+  ]));
+  assert.ok(r.events.filter(e => e.kind === 'refract').length === 2, 'beide Strahlen treffen das Prisma');
+  assert.equal(r.truncated, false);
+  assert.equal(r.solved, true, pathOf(r));
+});
+test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
+  const lvl = { name: 'frei', elements: [
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'target', x: 6, z: 3, color: 'white' },
+    { type: 'mirror', x: 3, z: 0, rot: 1 }, // liegt abseits des Strahls
+  ] };
+  const r = S.solve(lvl);
+  assert.equal(r.count, 4);
+  assert.equal(r.solutions[0].free, 1);
+});
+test('Mindestens die 10 handgebauten Level sind vorhanden', () => assert.ok(L.LEVELS.length >= 10));
+test('Schwierigkeitswertung passt zur Reihenfolge der handgebauten Level (Rangkorrelation ≥ 0.8)', () => {
+  const scores = L.LEVELS.slice(0, 10).map(l => S.metrics(l).score);
+  const rank = (a) => { const r = []; a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]).forEach(([, i], k) => { r[i] = k; }); return r; };
+  const ra = rank(scores), n = scores.length;
+  const rho = 1 - 6 * ra.reduce((s, r, i) => s + (r - i) ** 2, 0) / (n * (n * n - 1));
+  assert.ok(rho >= 0.8, 'Spearman ' + rho.toFixed(2) + ' · Wertungen ' + scores.join(', '));
+});
 L.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;
   test(`${tag}: Startstellung ist nicht gelöst`, () => {
@@ -425,14 +481,19 @@ L.LEVELS.forEach((lvl, i) => {
     const b = L.createBoard(lvl);
     const rot = b.elements.filter(L.isRotatable);
     assert.deepEqual(rot.map(el => el.x + ',' + el.z).sort(), Object.keys(lvl.solution).sort(), 'Lösung nennt nicht genau die drehbaren Elemente');
-    for (const el of rot) setRot(el, lvl.solution[el.x + ',' + el.z]);
+    for (const el of rot) S.setRot(el, lvl.solution[el.x + ',' + el.z]);
     const r = L.traceBeams(b);
     assert.equal(r.solved, true, pathOf(r));
   });
   test(`${tag}: Lösung ist eindeutig`, () => {
-    const norm = (sol) => Object.fromEntries(L.createBoard(lvl).elements.filter(L.isRotatable)
-      .map(el => { const k = el.x + ',' + el.z; return [k, sol[k] % period(el)]; }));
-    assert.deepEqual(allSolutions(lvl), [norm(lvl.solution)]);
+    const r = S.solve(lvl);
+    assert.equal(r.aborted, false, 'Suche abgebrochen');
+    assert.equal(r.count, 1, `${r.count} Lösungen`);
+    const norm = (sol) => Object.fromEntries(Object.entries(sol).map(([k, v]) => {
+      const el = L.createBoard(lvl).elements.find(e => e.x + ',' + e.z === k);
+      return [k, v % S.period(el)];
+    }));
+    assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
   });
 });
 

@@ -20,6 +20,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die Platte und es regnen Funken;
   danach "Level gelöst" mit Weiter-Button. Ton komplett per Web Audio erzeugt.
   `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn).
+- **Level-Werkzeuge** (`tools/`, nur für die Entwicklung):
+  `solver.mjs` folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen (schneidet ab, sobald ein Ziel
+  falsches Licht erhält) und misst die Schwierigkeit (`metrics`: Suchknoten, erreichbare Stellungen, Rateschritte,
+  berührte Elemente, Ziele – zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab);
+  `generate.mjs <kapitel> <anzahl> [seed] [maxseeds] [--jobs N]` erzeugt eindeutig lösbare Level nach den Vorgaben in
+  `chapters.mjs` (mit `--jobs` parallel auf N Prozessen);
+  `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs VI 3 | node tools/show.mjs`).
 - **Levels:** 10 Levels in `LEVELS` (index.html), jede Lösung steht als Kommentar und im Feld `solution`.
   Das zuletzt gespielte Level und die gelösten Level bleiben im Browser gespeichert.
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
