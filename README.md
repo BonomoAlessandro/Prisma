@@ -6,6 +6,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Starten:** `index.html` direkt im Browser öffnen (keine Installation, kein Build-Step).
   Three.js r147 wird per CDN geladen, daher ist eine Internetverbindung nötig.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
+- **Icon:** `favicon.svg` (Prisma mit Farbfächer), PNG-Varianten in `icons/` (iOS 180 px, Android 192/512 px),
+  `manifest.webmanifest` für den Startbildschirm – wird nur über http(s) eingebunden, über file:// blockiert es der Browser.
 - **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik,
   `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
