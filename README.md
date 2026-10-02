@@ -26,6 +26,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   berührte Elemente, Ziele – zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab);
   `generate.mjs <kapitel> <anzahl> [seed] [maxseeds] [--jobs N]` erzeugt eindeutig lösbare Level nach den Vorgaben in
   `chapters.mjs` (mit `--jobs` parallel auf N Prozessen);
+  `quality.mjs` prüft, ob ein Level das Feld nutzt (Fläche, Quadranten, Rand), ob mehrere Quellen gekoppelt sind
+  und ob es Zusammenspiel gibt (Kreuzungen, Mehrfachtreffer, geteilte Spiegel, Lockvögel, die beim Probieren Licht
+  bekommen) – Generator und Kuratierung verwerfen Level, die das nicht erfüllen;
   `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs VI 3 | node tools/show.mjs`);
   `curate.mjs <kapitel> [pool] [--jobs N] [--seed S] [--save datei] [--pool datei] [--dry]` wählt aus einem Pool
   10 Level im Wertungsfenster des Kapitels (aufsteigend, möglichst verschieden) und schreibt sie zwischen die

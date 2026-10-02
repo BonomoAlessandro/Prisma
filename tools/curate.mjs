@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { CHAPTERS } from './chapters.mjs';
 import { draw } from './show.mjs';
+import { quality, passes, symOverlap } from './quality.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const indexPath = join(here, '..', 'index.html');
@@ -65,8 +66,16 @@ if (poolPath) {
 // ---- Auswahl: 10 Zielwerte gleichmässig über die Kandidaten im Fenster (von der leichtesten bis zur
 //      schwersten vorhandenen), je der nächstgelegene, ausreichend andere Kandidat
 const [lo, hi] = spec.window;
-const inWindow = pool.filter(g => g.metrics.score >= lo && g.metrics.score <= hi);
-console.error(`${inWindow.length} von ${pool.length} Kandidaten im Wertungsfenster ${lo}–${hi}`);
+// Qualität (auch für ältere Pools ohne gespeicherte Kennzahlen neu berechnen)
+const rejected = new Map();
+for (const g of pool) {
+  g.quality = quality(g.level);
+  for (const w of passes(g.quality)) rejected.set(w, (rejected.get(w) || 0) + 1);
+}
+const good = pool.filter(g => !passes(g.quality).length);
+if (rejected.size) console.error(`${good.length} von ${pool.length} bestehen die Qualitätskriterien · ` + [...rejected].map(([k, v]) => `${k} ${v}`).join(', '));
+const inWindow = good.filter(g => g.metrics.score >= lo && g.metrics.score <= hi);
+console.error(`${inWindow.length} davon im Wertungsfenster ${lo}–${hi}`);
 if (inWindow.length < PER_CHAPTER) {
   console.error('Wertungen im Pool: ' + pool.map(g => g.metrics.score).sort((a, b) => a - b).join(' '));
   die('Zu wenige Kandidaten im Fenster – grösseren Pool wählen oder die Vorgaben in chapters.mjs anpassen.', 2);
@@ -74,8 +83,8 @@ if (inWindow.length < PER_CHAPTER) {
 const scores = inWindow.map(g => g.metrics.score);
 const sLo = Math.min(...scores), sHi = Math.max(...scores);
 const step = (sHi - sLo) / (PER_CHAPTER - 1);
-const cells = (g) => new Set(g.level.elements.map(e => e.x + ',' + e.z));
-const overlap = (a, b) => { const A = cells(a), B = cells(b); let n = 0; for (const k of A) if (B.has(k)) n++; return n / Math.min(A.size, B.size); };
+// Verschiedenheit: Überlappung gleicher Elemente auch unter Spiegelung/Drehung des Felds (gleiches Grundmuster)
+const overlap = (a, b) => symOverlap(a.level, b.level);
 const LIMITS = [0.5, 0.65, 0.8, 1.01]; // erst streng verschieden, dann lockerer (1.01: alles erlaubt)
 const chosen = [];
 for (let k = 0; k < PER_CHAPTER; k++) {
@@ -129,7 +138,9 @@ function levelCode(g, name) {
 
 chosen.forEach((g, i) => {
   const m = g.metrics;
+  const q = g.quality;
   console.log(`\n=== ${i + 1}. ${spec.names[i]}  Wertung ${m.score} · drehbar ${m.rotatable} · ${plural(m.targets, 'Ziel', 'Ziele')} · Klicks ${m.clicks} · Rateschritte ${m.guesses} · Seed ${g.seed}`);
+  console.log(`    Fläche ${q.area} · Quadranten ${q.quadrants} · Kreuzungen ${q.crossings} · Mehrfachtreffer ${q.multiHit} · geteilt ${q.shared} · Lockvögel ${q.decoysRead}`);
   const a = draw(g.level).split('\n'), b = draw(g.level, g.level.solution).split('\n');
   a.forEach((row, k) => console.log('   ' + row.padEnd(22) + '   ' + (b[k] || '')));
 });

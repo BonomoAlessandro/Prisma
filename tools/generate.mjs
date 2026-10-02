@@ -7,6 +7,7 @@
 // Aufruf: node tools/generate.mjs <kapitel> <anzahl> [startseed] [maxseeds]
 //         → JSON-Zeilen { level, metrics, seed } auf stdout, Zusammenfassung auf stderr
 import { L, solve, metrics, litCells, keyOf } from './solver.mjs';
+import { quality, passes } from './quality.mjs';
 import { CHAPTERS } from './chapters.mjs';
 
 const SIZE = 7;
@@ -179,16 +180,21 @@ export function generateOne(spec, seed) {
   }
   if (!traceEls(els).solved) return fail('Konstruktion nicht gelöst');
 
-  // ---- Lösung festhalten; Lockvögel abseits des Lösungswegs
+  // ---- Lösung festhalten; Lockvögel auf Zellen, über die falsche Stellungen das Licht oft schicken
+  //      (abseits des Lösungswegs) – so kommen sie beim Probieren tatsächlich ins Spiel
   const solution = Object.fromEntries(els.filter(rotatable).map(e => [key(e.x, e.z), rotOf(e)]));
   const solCells = pathCells(traceEls(els));
-  for (let i = R.int(...(spec.decoys || [0, 0])); i > 0; i--) {
-    for (let tries = 0; tries < 30; tries++) {
-      const x = R.int(0, SIZE - 1), z = R.int(0, SIZE - 1);
-      if (occupied.has(key(x, z)) || solCells.has(key(x, z))) continue;
-      put(R.chance(0.5) ? { type: 'blocker', x, z } : { type: 'mirror', x, z, rot: R.int(0, 3), fixed: true });
-      break;
-    }
+  const wrongHits = new Map();
+  solve(asLevel(els), { prune: false, maxNodes: 1e5, collect: 0, onLeaf: (res) => {
+    if (res.solved) return;
+    for (const k of pathCells(res)) if (!occupied.has(k) && !solCells.has(k)) wrongHits.set(k, (wrongHits.get(k) || 0) + 1);
+  } });
+  const hot = [...wrongHits].sort((a, b) => b[1] - a[1]).slice(0, 8).map(([k]) => k);
+  for (let i = R.int(...(spec.decoys || [0, 0])); i > 0 && hot.length; i--) {
+    const k = hot.splice(R.int(0, Math.min(3, hot.length - 1)), 1)[0];
+    if (occupied.has(k)) continue;
+    const [x, z] = k.split(',').map(Number);
+    put(R.chance(0.5) ? { type: 'blocker', x, z } : { type: 'mirror', x, z, rot: R.int(0, 3), fixed: true });
   }
 
   // ---- Eindeutigkeit: abweichende Strahlbilder auf einer nur dort genutzten Zelle blockieren
@@ -273,7 +279,11 @@ export function generateOne(spec, seed) {
   if (m.rotatable < spec.rotatable[0] || m.rotatable > spec.rotatable[1]) return fail('Anzahl drehbarer Elemente');
   if (spec.requireKinds && !spec.requireKinds.every(k => m.kinds.includes(k))) return fail('Elementtyp fehlt');
   if (m.clicks < (spec.minClicks || 1)) return fail('zu wenige Klicks');
-  return { level, metrics: m, seed };
+  // Qualität: Feld genutzt, Quellen gekoppelt, Zusammenspiel (siehe quality.mjs)
+  const q = quality(level);
+  const why = passes(q);
+  if (why.length) return fail(why[0]);
+  return { level, metrics: m, quality: q, seed };
 }
 
 // ---- Kommandozeile

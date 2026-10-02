@@ -13,3 +13,6 @@ Thumbs.db
 
 # Lokale Claude-Einstellungen
 .claude/settings.local.json
+
+# Kandidaten-Pools des Level-Generators (tools/curate.mjs --save)
+tools/pools/

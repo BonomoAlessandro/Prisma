@@ -21,9 +21,9 @@ export const CHAPTERS = [
   {
     id: 'II', title: 'Spiegelwege',
     sources: [1, 2], diagonalSources: 0.15,
-    place: { mirror: [3, 5] }, fixedOnPath: [0, 1], decoys: [1, 2],
-    targets: [1, 2], rotatable: [3, 5], requireKinds: ['mirror'], minClicks: 3, repairs: true, maxBlockers: 4,
-    window: [9.5, 17],
+    place: { mirror: [3, 6] }, fixedOnPath: [0, 1], decoys: [1, 2],
+    targets: [1, 2], rotatable: [3, 6], requireKinds: ['mirror'], minClicks: 3, repairs: true, maxBlockers: 4,
+    window: [10.5, 18],
     names: ['Zickzack', 'Umlenkung', 'Schleuse', 'Winkelzug', 'Gegenlicht', 'Spiegelgasse', 'Kehre', 'Rundgang', 'Lichtfalle', 'Labyrinth'],
   },
   {
