@@ -41,6 +41,7 @@
     cursor: pointer;
     -webkit-tap-highlight-color: transparent;
   }
+  html { touch-action: manipulation; } /* kein Doppeltipp-Zoom (Canvas: touch-action none) */
   button:focus-visible { outline: 1px solid var(--ink-dim); outline-offset: 4px; }
   .hidden { opacity: 0 !important; pointer-events: none !important; }
 
@@ -59,6 +60,11 @@
   }
   #hud.hidden { transition-duration: 0.3s; }
   #hud .title { font-size: 13px; font-weight: 300; }
+  #hud .title, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
+  @media (max-height: 500px) { /* Handy quer: alles an die Ränder, damit nichts das Feld verdeckt */
+    #hud { top: max(8px, env(safe-area-inset-top)); }
+    #hud .sub { display: none; }
+  }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
 
   /* ---------- Kleine Schaltflächen ---------- */
@@ -86,6 +92,7 @@
 
   /* ---------- Level gelöst ---------- */
   #solved {
+    pointer-events: none; /* nur der Button fängt Klicks – darunter darf weiter gedreht werden */
     position: fixed;
     left: 0; right: 0;
     bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
@@ -94,6 +101,7 @@
     transition: opacity 0.9s ease;
   }
   #solved .msg { font-size: 12px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); letter-spacing: 0.6em; text-transform: uppercase; padding-left: 0.6em; }
+  #solved button { pointer-events: auto; }
   #solved button, #levels .close {
     font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
     padding: 12px 26px 12px calc(26px + 0.4em);
@@ -104,6 +112,15 @@
     transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
   }
   #solved button:hover, #levels .close:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+
+  @media (max-height: 500px) { /* Handy quer: Schaltflächen und Meldung an den Rand (nach den Grundregeln) */
+    #controls { flex-direction: column; bottom: auto; top: 50%; transform: translateY(-50%); }
+    /* Meldung ersetzt oben die Kopfzeile, in einer Zeile – dort ist der Platz ohnehin frei */
+    #solved { top: max(4px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; justify-content: center; gap: 18px; }
+    #solved .msg { font-size: 11px; letter-spacing: 0.35em; padding-left: 0.35em; }
+    #solved button { padding: 8px 16px 8px calc(16px + 0.4em); }
+    body.is-solved #hud { opacity: 0; }
+  }
 
   /* ---------- Levelauswahl ---------- */
   #levels {
@@ -1346,6 +1363,11 @@ function createComposer() {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
+  // Bloom in halber Auflösung: optisch kaum ein Unterschied (das Ergebnis ist ohnehin weich),
+  // spart aber rund 70 % seiner Kosten – auf Mobilgeräten vor allem Speicherbandbreite.
+  const bloomSetSize = bloom.setSize.bind(bloom);
+  bloom.setSize = (w, h) => bloomSetSize(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)));
+  bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
   const finalPass = new THREE.ShaderPass(FinalShader);
@@ -1380,11 +1402,17 @@ function fitCameraDistance() {
   const vfov = THREE.MathUtils.degToRad(camera.fov);
   const tanV = Math.tan(vfov / 2);
   const tanH = tanV * camera.aspect;
-  const halfW = PLATE * 0.56;
+  // Hochformat: steiler von oben – das Feld nutzt die Höhe besser, und die Vorderkante wird
+  // perspektivisch weniger breit, sodass weniger Rand nötig ist (grössere Zellen zum Tippen).
+  const wide = THREE.MathUtils.clamp((camera.aspect - 0.5) / 0.8, 0, 1);
+  const halfW = PLATE * THREE.MathUtils.lerp(0.52, 0.56, wide);
   const halfH = PLATE * 0.42;
   cameraRig.radius = Math.max(halfW / tanH, halfH / tanV, 14);
-  // Im Hochformat steiler von oben, damit das Feld die Bildhöhe besser nutzt.
-  cameraRig.basePhi = THREE.MathUtils.lerp(0.62, 0.86, THREE.MathUtils.clamp((camera.aspect - 0.5) / 0.8, 0, 1));
+  cameraRig.basePhi = THREE.MathUtils.lerp(0.46, 0.86, wide);
+  // Von steil oben wirkt Drehen um die Hochachse wie Drehen des Bildes: die Ecken schwenken hinaus.
+  // Im Hoch- und Tabletformat daher enger begrenzen.
+  cameraRig.limitsTheta = THREE.MathUtils.lerp(0.22, 0.55, wide * wide);
+  cameraRig.goalTheta = THREE.MathUtils.clamp(cameraRig.goalTheta, -cameraRig.limitsTheta, cameraRig.limitsTheta);
 }
 
 function updateCamera(t, dt) {
@@ -1423,6 +1451,15 @@ const HALF_GRID = (GRID - 1) / 2;
 /** Rasterkoordinate → Weltposition (Zellmitte auf der Platte). */
 function gridToWorld(x, z, y = 0, target = new THREE.Vector3()) {
   return target.set((x - HALF_GRID) * CELL, y, (z - HALF_GRID) * CELL);
+}
+
+/**
+ * 0 … 1: wie stark eine Farbe gedämpft werden soll, weil sie hell ist. Helle Farben (Weiss, Gelb,
+ * Cyan, Grün) überschreiten die Bloom-Schwelle viel stärker als Rot, Blau oder Magenta.
+ */
+function brightTame(c) {
+  const lum = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+  return THREE.MathUtils.smoothstep(lum, 0.35, 0.95);
 }
 
 const COLOR_RGB = {
@@ -1630,6 +1667,11 @@ function makeTarget(el) {
   root.userData.color = col;
   // Dunkle Farben (v. a. Blau) gehen sonst in den hellen Glanzlichtern unter: stärker selbst leuchten lassen.
   const lum = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
+  // Helle Farben überschreiten die Bloom-Schwelle viel stärker: getroffen gedämpfter leuchten,
+  // sonst wird der ganze Edelstein (v. a. Weiss) zum facettenlosen Fleck
+  const bt = brightTame(col);
+  root.userData.litTame = 1 - 0.4 * bt;
+  root.userData.emissiveTame = 1 - 0.65 * bt;
   root.userData.glowBoost = THREE.MathUtils.clamp(0.35 / Math.max(lum, 0.01), 1, 1.2);
   root.userData.hit = 0;        // animierter Zustand 0..1
   root.userData.hitGoal = 0;
@@ -1647,7 +1689,7 @@ const TARGET_IDLE = { core: 0.8, emissive: 0.15, ring: 0.7, halo: 0.12 };
 function updateTarget(obj, t, dt) {
   const u = obj.userData;
   u.hit += (u.hitGoal - u.hit) * (1 - Math.pow(0.0005, dt));
-  const h = u.hit;
+  const h = u.hit, hl = h * u.litTame;
   u.flash *= Math.pow(0.04, dt);
   const f = u.flash;
   u.gem.scale.setScalar(1 + f * 0.28);
@@ -1656,10 +1698,10 @@ function updateTarget(obj, t, dt) {
   const flicker = 1 + Math.sin(t * 13.0 + u.phase) * 0.03 * h;
   // Wartend atmet das Ziel langsam in seiner Farbe – es "fragt" nach Licht.
   const breathe = (1 - h) * (0.5 + 0.5 * Math.sin(t * 1.8 + u.phase));
-  u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + h * 6.9 + f * 14) * flicker);
-  u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3;
-  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + h * 2.9 + f * 5);
-  u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + h * 0.6 + f * 1.4);
+  u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + hl * 6.9 + f * 14 * u.litTame) * flicker);
+  u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3 * u.emissiveTame;
+  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + hl * 2.9 + f * 5);
+  u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + hl * 0.6 + f * 1.4);
 }
 
 /* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
@@ -1869,9 +1911,10 @@ function makeCombiner(el) {
     u.glow = easeToward(u.glow, arrived ? 1 : 0, dt);
     gimbal.rotation.y = t * 0.35;
     gimbal.rotation.x = Math.sin(t * 0.4) * 0.25;
-    tmp.copy(COLOR_RGB[shown]).multiplyScalar(2.6);
+    const tame = 1 - 0.45 * brightTame(COLOR_RGB[shown]); // weisse Mischung sonst eine weisse Scheibe
+    tmp.copy(COLOR_RGB[shown]).multiplyScalar(2.6 * tame);
     coreMat.color.setRGB(0.15, 0.15, 0.17).lerp(tmp, u.glow);
-    tmp.copy(COLOR_RGB[shown]).multiplyScalar(4.0);
+    tmp.copy(COLOR_RGB[shown]).multiplyScalar(4.0 * tame);
     lensMat.color.setRGB(0.1, 0.1, 0.12).lerp(tmp, u.glow);
   };
   return root;
@@ -2218,8 +2261,11 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // Kern fast weiss nur bei weissem Licht; farbige Strahlen behalten einen satten Kern
     float whiteness = min(min(vColor.r, vColor.g), vColor.b);
     vec3 hot = mix(vColor, vec3(1.0), mix(0.32, 0.6, whiteness));
-    vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow
-             + hot * core * (3.0 + packet * 3.0);
+    // Helle Farben (Weiss, Gelb, Cyan, Grün) überschreiten die Bloom-Schwelle viel stärker als
+    // Rot oder Blau – gedämpft, damit alle Strahlen gleich kräftig wirken.
+    float bright = smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)));
+    vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow * mix(1.0, 0.72, bright)
+             + hot * core * (3.0 + packet * 3.0) * mix(1.0, 0.8, bright);
     col *= (1.0 + packet) * uIntensity * visible;
     gl_FragColor = vec4(col, 1.0);
   }`
@@ -2257,6 +2303,7 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float edge = ${(PLATE / 2).toFixed(4)} - max(abs(vWorld.x), abs(vWorld.z));
     visible *= smoothstep(0.0, 0.3, edge);
     float spill = exp(-(d * d) / 0.03) * 0.045 + exp(-d / 0.3) * 0.01;
+    spill *= mix(1.0, 0.75, smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)))); // wie beim Strahl
     gl_FragColor = vec4(vColor * spill * visible, 1.0);
   }`
 ));
@@ -2583,8 +2630,11 @@ const beamView = {
       this.group.add(s);
       this.flares.push(s);
     }
+    const perPlace = new Map(); // Blitze am selben Ort (z. B. drei Farben in einen Kombinator)
+    for (const r of all) { const k = r.ev.x + ',' + r.ev.z + ',' + r.ev.kind; perPlace.set(k, (perPlace.get(k) || 0) + 1); }
     this.flares.forEach((s, i) => {
       const rec = all[i];
+      if (rec) s.userData.share = 1 / Math.sqrt(perPlace.get(rec.ev.x + ',' + rec.ev.z + ',' + rec.ev.kind));
       const prevKey = s.userData.rec && s.userData.rec.key;
       s.visible = !!rec;
       s.userData.rec = rec || null;
@@ -2661,7 +2711,7 @@ const beamView = {
       const scale = style.scale * p * burst * flicker * (0.4 + 0.6 * fadeAt(rec, t)) * (0.55 + 0.45 * side);
       s.scale.set(scale, scale, 1);
       s.material.rotation = Math.sin(t * 0.3 + ph) * 0.15;
-      s.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.35).multiplyScalar(style.intensity * flicker * fade);
+      s.material.color.copy(COLOR_RGB[rec.ev.color]).lerp(WHITE, 0.35).multiplyScalar(style.intensity * flicker * fade * s.userData.share);
       // Richtung Kamera versetzt, damit Spiegelfläche/Edelstein den Blitz nicht halbiert
       s.position.copy(rec.pos).addScaledVector(toCam, 0.06);
     }
@@ -2712,6 +2762,7 @@ const INPUT = {
   dragThresholdMouse: 5,    // px, ab hier ist es ein Ziehen statt eines Klicks
   dragThresholdTouch: 10,
   longPressMs: 450,
+  touchSlop: 26,            // px: so weit daneben darf ein Finger tippen und trifft trotzdem
   hoverFade: 0.0008,        // Glättung des Hover-Leuchtens (pro Sekunde verbleibender Anteil)
 };
 
@@ -2720,13 +2771,26 @@ const pointerNdc = new THREE.Vector2();
 const input = { pointer: null, hovered: null, longPressTimer: 0 };
 
 /** Element unter einem Bildschirmpunkt (nur drehbare, über ihre Trefferzylinder). */
-function pickElement(clientX, clientY) {
+const _pickPos = new THREE.Vector3();
+/**
+ * Drehbares Element unter einem Bildschirmpunkt. slop (px): verfehlt der Strahl alle Trefferzylinder,
+ * zählt das nächstgelegene Element, dessen Mitte höchstens so weit entfernt liegt (Finger sind ungenau).
+ */
+function pickElement(clientX, clientY, slop = 0) {
   if (flow.state !== 'play') return null; // während eines Levelwechsels nichts anwählen
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointerNdc, camera);
   const hits = raycaster.intersectObjects(game.hitProxies, false);
-  return hits.length ? hits[0].object.userData.element : null;
+  if (hits.length) return hits[0].object.userData.element;
+  let best = null, bestD = slop;
+  for (const proxy of game.hitProxies) {
+    proxy.getWorldPosition(_pickPos).project(camera);
+    const d = Math.hypot((_pickPos.x + 1) / 2 * rect.width + rect.left - clientX,
+      (1 - _pickPos.y) / 2 * rect.height + rect.top - clientY);
+    if (d < bestD) { bestD = d; best = proxy.userData.element; }
+  }
+  return best;
 }
 
 function setHovered(el) {
@@ -2838,6 +2902,7 @@ function makeInteractive(obj) {
     ring.visible = on;
     ringMat.color.setRGB(0.55, 0.62, 0.85).multiplyScalar(u.hover * 1.3);
   };
+  u.warmup = (on) => { for (const o of overlays) o.visible = on; ring.visible = on; }; // siehe warmupShaders
 }
 
 /* ---------- Zeiger-Ereignisse ---------- */
@@ -2861,11 +2926,14 @@ function endPointer() {
 
 const canvasEl = renderer.domElement;
 
+// iOS Safari ignoriert user-scalable=no: Pinch-Zoom der Seite (statt des Spiels) explizit unterbinden
+document.addEventListener('gesturestart', (e) => e.preventDefault());
+
 canvasEl.addEventListener('pointerdown', (e) => {
   // Eine Maus kann nicht zweimal drücken, ohne loszulassen: verlorenes pointerup aufräumen
   if (input.pointer && e.pointerType === 'mouse') endPointer();
   if (input.pointer || e.button === 1) return; // ein Zeiger zur Zeit; Mittelklick ignorieren
-  const el = pickElement(e.clientX, e.clientY);
+  const el = pickElement(e.clientX, e.clientY, e.pointerType === 'mouse' ? 0 : INPUT.touchSlop);
   input.pointer = {
     id: e.pointerId, type: e.pointerType, button: e.button,
     x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
@@ -3356,6 +3424,22 @@ function enterLevel(index) {
   ui.showHud(index);
 }
 
+/**
+ * Einmalig: Shader, die erst später gebraucht werden (Hover-Lichtrand, Funkenregen), jetzt kompilieren.
+ * Sonst stockt genau der erste Tipp bzw. der erste Lösungsmoment (auf Mobil-GPUs 10–50 ms).
+ */
+let shadersWarm = false;
+function warmupShaders() {
+  if (shadersWarm) return;
+  shadersWarm = true;
+  const obj = [...game.objects.values()].find(o => o.userData.warmup);
+  obj?.userData.warmup(true);
+  celebration.rain.points.visible = true;
+  renderer.compile(scene, camera); // compile() durchläuft nur sichtbare Objekte
+  obj?.userData.warmup(false);
+  celebration.rain.points.visible = celebration.rain.alive > 0;
+}
+
 /** Pro Frame: Übergänge animieren und den Lösungsmoment auslösen bzw. zurücknehmen. */
 function updateFlow(dt) {
   if (flow.state === 'intro') return;
@@ -3384,7 +3468,7 @@ function updateFlow(dt) {
   markShadowsDirty();
   if (flow.t >= dur + waveLength()) {
     if (out) enterLevel(flow.next);
-    else flow.state = 'play';
+    else { flow.state = 'play'; warmupShaders(); }
   }
 }
 
@@ -3453,8 +3537,9 @@ const ui = {
     this.solvedMsg.textContent = all ? 'Alle Level gelöst' : 'Level gelöst';
     this.next.textContent = last ? 'Von vorn' : 'Weiter';
     setShown(this.solved, true);
+    document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
   },
-  hideSolved() { setShown(this.solved, false); },
+  hideSolved() { setShown(this.solved, false); document.body.classList.remove('is-solved'); },
   solvedVisible() { return !this.solved.classList.contains('hidden'); },
   advance() {
     if (flow.state !== 'play' || !this.solvedVisible()) return; // z. B. zweites Auslösen (Taste + Klick)
@@ -3687,6 +3772,7 @@ const perfHud = {
     const now = performance.now();
     const ms = now - this.last;
     this.last = now;
+    if (ms < 250) this.avgMs = this.avgMs ? this.avgMs * 0.95 + ms * 0.05 : ms; // für __prisma.fps()
     if (!this.visible) return;
     if (ms < 250) this.samples.push(ms);
     this.acc += ms;
@@ -3754,7 +3840,7 @@ function frame(ts) {
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
-  fps: () => Math.round(1000 / adaptiveResolution.avg), resolution: () => adaptiveResolution.scale };
+  fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
 window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui };
 requestAnimationFrame(frame);
