@@ -1347,23 +1347,36 @@ function makeTarget(el) {
   const root = new THREE.Group();
   root.add(makePedestal(0.32));
   const col = COLOR_RGB[el.color];
+  // Etwas sattere Variante der Strahlfarbe für den Stein (die Strahlfarben sind bewusst hell, z. B. Himmelblau)
+  const deep = new THREE.Color(col.r * col.r, col.g * col.g, col.b * col.b).lerp(col, 0.85);
 
-  const ringMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.6), toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.01, 8, 64), ringMat);
+  const ringMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(TARGET_IDLE.ring), toneMapped: false });
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 8, 64), ringMat);
   ring.rotation.x = Math.PI / 2;
   ring.position.y = 0.066;
   root.add(ring);
 
+  // Farbiger Lichthof auf dem Teller: zeigt schon vor dem Treffer, welche Farbe das Ziel erwartet.
+  const haloMat = new THREE.MeshBasicMaterial({
+    map: spotTexture, color: col.clone().multiplyScalar(TARGET_IDLE.halo), transparent: true,
+    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+  });
+  const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), haloMat);
+  halo.rotation.x = -Math.PI / 2;
+  halo.position.y = 0.068;
+  halo.raycast = () => {};
+  root.add(halo);
+
   // Bewusst ohne echte Transmission: die würde jedes Frame die ganze Szene ein zweites Mal rendern
   // (≈ ein Drittel der Frame-Zeit). Transparenz + Clearcoat + Iridescence + Leuchtkern wirken fast gleich.
   const gemMat = new THREE.MeshPhysicalMaterial({
-    color: col.clone().lerp(new THREE.Color(1, 1, 1), 0.35),
+    color: deep.clone().lerp(new THREE.Color(1, 1, 1), 0.3), // getönt, aber noch Glas
     metalness: 0, roughness: 0.04, ior: 2.0, specularIntensity: 1,
-    transparent: true, opacity: 0.8,
+    transparent: true, opacity: 0.84,
     clearcoat: 1, clearcoatRoughness: 0.02,
-    iridescence: 0.5, iridescenceIOR: 1.8,
-    emissive: col.clone(), emissiveIntensity: 0.12,
-    flatShading: true, envMapIntensity: 2.2,
+    iridescence: 0.45, iridescenceIOR: 1.8,
+    emissive: deep.clone(), emissiveIntensity: TARGET_IDLE.emissive,
+    flatShading: true, envMapIntensity: 1.8,
   });
   // Kein Schattenwurf: der Stein dreht und schwebt, die Shadow-Map wird aber nur bei Änderungen
   // neu berechnet – und Transparenz kennt die Shadow-Map nicht (voll dunkler Schatten).
@@ -1372,20 +1385,28 @@ function makeTarget(el) {
   root.add(gem);
 
   // Opaker Leuchtkern: scheint durch den transparenten Stein.
-  const coreMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(0.8) });
+  const coreMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(TARGET_IDLE.core) });
   const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.075, 0), coreMat);
   gem.add(core);
 
   root.userData.gem = gem;
   root.userData.core = core;
   root.userData.ring = ring;
+  root.userData.halo = halo;
   root.userData.color = col;
+  // Dunkle Farben (v. a. Blau) gehen sonst in den hellen Glanzlichtern unter: stärker selbst leuchten lassen.
+  const lum = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
+  root.userData.glowBoost = THREE.MathUtils.clamp(0.35 / Math.max(lum, 0.01), 1, 1.2);
   root.userData.hit = 0;        // animierter Zustand 0..1
   root.userData.hitGoal = 0;
   root.userData.phase = Math.random() * Math.PI * 2;
   root.userData.update = (t, dt) => updateTarget(root, t, dt);
   return root;
 }
+
+/** Leuchtstärken eines noch nicht getroffenen Ziels (getroffen kommt jeweils hit × … dazu). */
+// Unter der Bloom-Schwelle bleiben, sonst kippt die Farbe im Tone Mapping ins Weisse.
+const TARGET_IDLE = { core: 0.8, emissive: 0.15, ring: 0.7, halo: 0.12 };
 
 /** Ziel-Zustand weich nachführen (Glimmen ↔ hell leuchtend). */
 function updateTarget(obj, t, dt) {
@@ -1395,9 +1416,12 @@ function updateTarget(obj, t, dt) {
   u.gem.rotation.y = t * (0.25 + h * 0.6) + u.phase;
   u.gem.position.y = BEAM_Y + Math.sin(t * 1.1 + u.phase) * 0.018;
   const flicker = 1 + Math.sin(t * 13.0 + u.phase) * 0.03 * h;
-  u.core.material.color.copy(u.color).multiplyScalar((0.8 + h * 7.0) * flicker);
-  u.gem.material.emissiveIntensity = 0.12 + h * 1.4;
-  u.ring.material.color.copy(u.color).multiplyScalar(0.6 + h * 3.0);
+  // Wartend atmet das Ziel langsam in seiner Farbe – es "fragt" nach Licht.
+  const breathe = (1 - h) * (0.5 + 0.5 * Math.sin(t * 1.8 + u.phase));
+  u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + h * 6.9) * flicker);
+  u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3;
+  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + h * 2.9);
+  u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + h * 0.6);
 }
 
 /* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
