@@ -129,11 +129,19 @@ const unitDir = (dir) => { const [dx, dz] = DIRS[mod8(dir)]; const l = Math.hypo
 /**
  * Spiegel: Linie im Winkel rot·45°, beidseitig verspiegelt.
  * Reflexion eines Winkels φ an einer Linie α: φ' = 2α − φ.
- * Verläuft der Strahl parallel zur Spiegelfläche, gleitet er unbeeinflusst vorbei.
+ * Verläuft der Strahl parallel zur Spiegelfläche, trifft er die Rahmenkante und wird geschluckt
+ * (reflectOnMirror liefert dann die unveränderte Richtung).
  */
 function reflectOnMirror(dir, rot) {
   return mod8(2 * rot - dir);
 }
+
+/** Strecke (in Zellen), die ein Strahl nach der Feldkante noch ausläuft, bevor er ganz verblasst. */
+const EDGE_RUN = 3;
+
+/** Halbe Spiegelbreite in Rasterzellen (Modell: 0.46 Welt bei CELL = 1.2, siehe makeMirror).
+ *  Dort endet ein parallel einfallender Strahl. */
+const MIRROR_HALF_WIDTH = 0.46 / 1.2;
 
 /**
  * Rasterrichtung → Drehung um die Y-Achse in three.js.
@@ -224,6 +232,7 @@ function refractInPrism(dir, color, rot) {
  *   segments:  [{ x0, z0, x1, z1, color, dist0, length, n0, n1 }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
  *              n0/n1: Schnittnormalen [nx, nz] an Anfang/Ende – sichtbar ist nur, was auf ihrer Seite liegt
  *              (Spiegel: Spiegelfläche, sonst senkrecht zum Strahl), damit kein Leuchten durch Objekte dringt
+ *              fade (optional): Auslaufstrecke vor dem Ende, über die der Strahl verblasst (Feldkante)
  *   events:    [{ x, z, color, kind, dist, target?, element?, normal? }]
  *              kind ∈ reflect | refract | filter | merge | hit | absorb | edge
  *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
@@ -295,9 +304,9 @@ function tracePass(board, extraRays, emitting) {
     let cx = ray.x, cz = ray.z;
 
     const ahead = unitDir(ray.dir);
-    const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]]) => {
+    const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]], fade) => {
       const length = Math.hypot(x1 - ray.x, z1 - ray.z);
-      if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 });
+      if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1, ...(fade && { fade }) });
       return ray.dist + length;
     };
     const next = (dir, color, d) =>
@@ -306,9 +315,10 @@ function tracePass(board, extraRays, emitting) {
     for (;;) {
       const nx = cx + dx, nz = cz + dz;
       if (nx < 0 || nz < 0 || nx >= board.size || nz >= board.size) {
-        // bis zur Feldkante weiterlaufen lassen
-        const d = emit(cx + dx * 0.5, cz + dz * 0.5);
-        events.push({ x: cx + dx * 0.5, z: cz + dz * 0.5, color: ray.color, kind: 'edge', dist: d });
+        // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
+        const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ez = cz + dz * 0.5 + ahead[1] * EDGE_RUN;
+        const d = emit(ex, ez, undefined, EDGE_RUN);
+        events.push({ x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
         break;
       }
       cx = nx; cz = nz;
@@ -317,7 +327,13 @@ function tracePass(board, extraRays, emitting) {
 
       if (el.type === 'mirror') {
         const nd = reflectOnMirror(ray.dir, el.rot);
-        if (nd === ray.dir) continue; // parallel zur Fläche: gleitet vorbei
+        if (nd === ray.dir) {
+          // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
+          const back = MIRROR_HALF_WIDTH;
+          const d = emit(cx - dx / stepLen * back, cz - dz / stepLen * back);
+          events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
+          break;
+        }
         const normal = mirrorFrontNormal(el.rot, ray.dir);
         const d = emit(cx, cz, normal);
         events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
@@ -1149,7 +1165,7 @@ function makeMirror(el) {
   pivot.rotation.y = dirToRotationY(el.rot);
   root.add(pivot);
 
-  const W = 0.92, H = 0.6, T = 0.05, P = 0.032; // Breite, Höhe, Rahmentiefe, Profil
+  const W = MIRROR_HALF_WIDTH * 2 * CELL, H = 0.6, T = 0.05, P = 0.032; // Breite, Höhe, Rahmentiefe, Profil
   const bottom = BEAM_Y - H / 2;
 
   const frame = new THREE.Group();
@@ -1665,6 +1681,7 @@ const BEAM_VERTEX_COMMON = `
   attribute vec2 aDist;     // x: Weglänge ab Quelle am Anfang · y: Länge
   attribute vec3 aLife;     // x: Startweg der Front · y: Geburtszeit · z: Sterbezeit (−1 = lebt)
   attribute vec4 aCaps;     // Schnittnormalen (xz) an Anfang (xy) und Ende (zw)
+  attribute float aFade;    // Auslaufstrecke vor dem Ende (Welt, 0 = hartes Ende)
   uniform float uHalfWidth;
   varying vec2 vLocal;      // x: entlang (Welt, 0..Länge, ausserhalb = Kappe) · y: quer
   varying vec3 vColor;
@@ -1673,8 +1690,10 @@ const BEAM_VERTEX_COMMON = `
   varying vec3 vWorld;
   varying vec4 vEnds;       // Anfang (xy) und Ende (zw) in Welt-xz
   varying vec4 vCaps;
+  varying float vFade;
   void passCaps(vec3 s, vec3 e, vec3 p) {
     vWorld = p;
+    vFade = aFade;
     vEnds = vec4(s.xz, e.xz);
     vec3 c0 = mat3(modelMatrix) * vec3(aCaps.x, 0.0, aCaps.y);
     vec3 c1 = mat3(modelMatrix) * vec3(aCaps.z, 0.0, aCaps.w);
@@ -1694,6 +1713,7 @@ const BEAM_FRAGMENT_COMMON = `
   varying vec3 vWorld;
   varying vec4 vEnds;
   varying vec4 vCaps;
+  varying float vFade;
 
   float hash1(float n) { return fract(sin(n) * 43758.5453123); }
   float noise1(float x) {
@@ -1715,6 +1735,11 @@ const BEAM_FRAGMENT_COMMON = `
     float k1 = dot(vWorld.xz - vEnds.zw, vCaps.zw);
     cutDist = min(k0, k1);
     visible *= smoothstep(uCapSoft.x, uCapSoft.y, k0) * smoothstep(uCapSoft.x, uCapSoft.y, k1);
+    // Auslaufen in die Ferne: über die letzte Strecke weich auf null
+    if (vFade > 0.0) {
+      float f = smoothstep(0.0, vFade, vDist.y - along);
+      visible *= f * f;
+    }
     if (dying) {
       float f = clamp(1.0 - (uTime - vLife.z) / uFadeOut, 0.0, 1.0);
       visible *= f * f;
@@ -1841,7 +1866,7 @@ function buildBeamGeometry(records) {
   const start = new Float32Array(n * 12), end = new Float32Array(n * 12);
   const corner = new Float32Array(n * 8), color = new Float32Array(n * 12);
   const dist = new Float32Array(n * 8), life = new Float32Array(n * 12);
-  const caps = new Float32Array(n * 16);
+  const caps = new Float32Array(n * 16), fade = new Float32Array(n * 4);
   const index = new Uint16Array(n * 6); // max. 256 Abschnitte × 4 Ecken < 65536
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   records.forEach((r, i) => {
@@ -1854,6 +1879,7 @@ function buildBeamGeometry(records) {
       color[v * 3] = c.r; color[v * 3 + 1] = c.g; color[v * 3 + 2] = c.b;
       dist[v * 2] = s.dist0 * CELL; dist[v * 2 + 1] = s.length * CELL;
       life[v * 3] = r.start; life[v * 3 + 1] = r.birth; life[v * 3 + 2] = r.death;
+      fade[v] = (s.fade || 0) * CELL;
       caps[v * 4] = s.n0[0]; caps[v * 4 + 1] = s.n0[1]; caps[v * 4 + 2] = s.n1[0]; caps[v * 4 + 3] = s.n1[1];
     }
     index.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
@@ -1868,6 +1894,7 @@ function buildBeamGeometry(records) {
   geo.setAttribute('aDist', new THREE.BufferAttribute(dist, 2));
   geo.setAttribute('aLife', new THREE.BufferAttribute(life, 3));
   geo.setAttribute('aCaps', new THREE.BufferAttribute(caps, 4));
+  geo.setAttribute('aFade', new THREE.BufferAttribute(fade, 1));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
 }

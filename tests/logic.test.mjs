@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -38,9 +38,9 @@ test('Gerader Strahl trifft Ziel', () => {
   assert.equal(r.solved, true);
   assert.deepEqual([r.segments[0].x1, r.segments[0].z1], [5, 3]);
 });
-test('Strahl ohne Hindernis endet an der Feldkante', () => {
+test('Strahl ohne Hindernis läuft hinter der Feldkante aus', () => {
   const r = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0 }, { type: 'target', x: 0, z: 0 }]));
-  assert.equal(r.segments[0].x1, 6.5);
+  assert.equal(r.segments[0].x1, 6.5 + L.EDGE_RUN);
   assert.equal(r.events.at(-1).kind, 'edge');
   assert.equal(r.solved, false);
 });
@@ -55,13 +55,32 @@ test('Spiegel lenkt um 90° auf das Ziel', () => {
   assert.equal(r.events[0].kind, 'reflect');
   assert.equal(r.segments[1].dist0, 3);
 });
-test('Parallel stehender Spiegel wird durchquert', () => {
+test('Parallel stehender Spiegel schluckt das Licht an der Kante', () => {
   const r = L.traceBeams(level([
     { type: 'source', x: 0, z: 3, dir: 0 },
     { type: 'mirror', x: 3, z: 3, rot: 0 },
     { type: 'target', x: 6, z: 3 },
   ]));
-  assert.equal(r.solved, true, pathOf(r));
+  assert.equal(r.solved, false, pathOf(r));
+  assert.equal(r.events.at(-1).kind, 'absorb');
+  assert.ok(Math.abs(r.segments.at(-1).x1 - (3 - L.MIRROR_HALF_WIDTH)) < 1e-9, pathOf(r));
+});
+test('Diagonaler Strahl parallel zum Diagonalspiegel endet an der Rahmenkante', () => {
+  const r = L.traceBeams(level([
+    { type: 'source', x: 0, z: 0, dir: 1 },
+    { type: 'mirror', x: 3, z: 3, rot: 1 },
+  ]));
+  const last = r.events.at(-1), seg = r.segments.at(-1);
+  assert.equal(last.kind, 'absorb', pathOf(r));
+  assert.equal(last.element, 1);
+  const end = 3 - L.MIRROR_HALF_WIDTH / Math.SQRT2;
+  assert.ok(Math.abs(seg.x1 - end) < 1e-9 && Math.abs(seg.z1 - end) < 1e-9, pathOf(r));
+  assert.equal(seg.fade, undefined);
+});
+test('Nur Strahlen über die Feldkante laufen aus', () => {
+  const r = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 0 }, { type: 'target', x: 5, z: 3 }]));
+  assert.equal(r.solved, true);
+  assert.ok(r.segments.every(s => s.fade === undefined));
 });
 test('Quelle schluckt auftreffendes Licht', () => {
   const r = L.traceBeams(level([
@@ -85,14 +104,16 @@ test('Endlosschleife zwischen Spiegeln wird abgebrochen', () => {
   assert.ok(r.segments.length >= 4 && r.segments.length <= 6, 'Segmente: ' + r.segments.length);
   assert.ok(r.events.every(e => e.kind === 'reflect'), 'Strahl hat die Schleife verlassen: ' + pathOf(r));
 });
-test('Diagonaler Strahl endet in der Feldecke', () => {
+test('Diagonaler Strahl läuft über die Feldecke hinaus aus', () => {
   const r = L.traceBeams(level([{ type: 'source', x: 0, z: 0, dir: 1 }]));
-  assert.deepEqual([r.segments[0].x1, r.segments[0].z1], [6.5, 6.5]);
+  const run = 6.5 + L.EDGE_RUN / Math.SQRT2;
+  assert.ok(Math.abs(r.segments[0].x1 - run) < 1e-9 && Math.abs(r.segments[0].z1 - run) < 1e-9);
 });
 test('Quelle am Rand, die nach aussen zeigt', () => {
   const r = L.traceBeams(level([{ type: 'source', x: 0, z: 3, dir: 4 }]));
   assert.equal(r.segments.length, 1);
-  assert.equal(r.segments[0].x1, -0.5);
+  assert.equal(r.segments[0].x1, -0.5 - L.EDGE_RUN); // läuft über die Kante hinaus aus
+  assert.equal(r.segments[0].fade, L.EDGE_RUN);
 });
 test('Diagonaler Treffer auf ein Ziel', () => {
   const r = L.traceBeams(level([{ type: 'source', x: 0, z: 6, dir: 7 }, { type: 'target', x: 4, z: 2 }]));
