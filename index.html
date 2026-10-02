@@ -667,11 +667,33 @@ function tracePass(board, extraRays, emitting) {
  *   blocker:  schluckt Licht
  *   target:   color = benötigte Farbe
  *   fixed:    Element ist nicht drehbar
+ *   chapter:  Kapitel-ID (ab Kapitel II; fehlt bei den handgebauten Leveln von Kapitel I)
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
- * Lernkurve: I–III nur Spiegel, IV–V Prisma, VI–VII Filter, VIII Kombinator, IX–X alles.
- * Die Tests probieren alle Stellungen durch: Jede notierte Lösung stimmt und ist eindeutig.
+ * Lernkurve in Kapitel I (Level 1–10): 1–3 nur Spiegel, 4–5 Prisma, 6–7 Filter, 8 Kombinator, 9–10 alles.
+ * Die Tests prüfen mit dem Löser (tools/solver.mjs), dass jede notierte Lösung stimmt und eindeutig ist.
  */
+/**
+ * Kapitel: je 10 Level. Kapitel I ist die Lernkurve (führt alle Elemente ein und endet daher schon
+ * recht schwer); ab Kapitel II steigt die Schwierigkeit von Kapitel zu Kapitel, wobei jedes Kapitel etwas
+ * leichter beginnt, als das vorige endete ("Sägezahn"). Kapitel I sind die handgebauten
+ * Lern-Level (ohne Feld chapter); ab Kapitel II trägt jedes Level sein Kapitel (chapter: 'II' …).
+ * Kapitel ohne Level gelten als "bald verfügbar".
+ */
+const CHAPTERS = [
+  { id: 'I', title: 'Grundlagen' },
+  { id: 'II', title: 'Spiegelwege' },
+  { id: 'III', title: 'Doppelte Wege' },
+  { id: 'IV', title: 'Prismen' },
+  { id: 'V', title: 'Filterfolgen' },
+  { id: 'VI', title: 'Mischpult' },
+  { id: 'VII', title: 'Verflechtungen' },
+  { id: 'VIII', title: 'Feste Bahnen' },
+  { id: 'IX', title: 'Meister' },
+  { id: 'X', title: 'Finale' },
+];
+const chapterOf = (lvl) => lvl.chapter || 'I';
+
 const LEVELS = [
   {
     // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
@@ -833,6 +855,25 @@ const LEVELS = [
     ],
     solution: { '2,3': 0, '4,1': 0, '4,5': 0, '6,3': 2, '3,0': 1 },
   },
+  // Ab Kapitel II generiert und kuratiert (tools/curate.mjs schreibt zwischen die Markierungen).
+  /* KAPITEL:II:BEGIN */
+  /* KAPITEL:II:END */
+  /* KAPITEL:III:BEGIN */
+  /* KAPITEL:III:END */
+  /* KAPITEL:IV:BEGIN */
+  /* KAPITEL:IV:END */
+  /* KAPITEL:V:BEGIN */
+  /* KAPITEL:V:END */
+  /* KAPITEL:VI:BEGIN */
+  /* KAPITEL:VI:END */
+  /* KAPITEL:VII:BEGIN */
+  /* KAPITEL:VII:END */
+  /* KAPITEL:VIII:BEGIN */
+  /* KAPITEL:VIII:END */
+  /* KAPITEL:IX:BEGIN */
+  /* KAPITEL:IX:END */
+  /* KAPITEL:X:BEGIN */
+  /* KAPITEL:X:END */
 ];
 
 /* LOGIC:END ============================================================ */

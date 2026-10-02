@@ -15,7 +15,7 @@ const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'i
 const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END'));
 export const L = new Function(code + `
   return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
-    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, mod8 };`)();
+    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, CHAPTERS, chapterOf, mod8 };`)();
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);

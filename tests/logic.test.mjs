@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, CHAPTERS, chapterOf };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -465,6 +465,41 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.solutions[0].free, 1);
 });
 test('Mindestens die 10 handgebauten Level sind vorhanden', () => assert.ok(L.LEVELS.length >= 10));
+const SPECS = (await import('../tools/chapters.mjs')).CHAPTERS;
+test('Kapitel: im Spiel und in den Werkzeug-Vorgaben gleich (Reihenfolge, Titel)', () => {
+  assert.deepEqual(L.CHAPTERS.map(c => [c.id, c.title]), SPECS.map(c => [c.id, c.title]));
+});
+test('Kapitel: Level liegen zusammenhängend und in Kapitelreihenfolge, Kapitel I hat 10, keines mehr als 10', () => {
+  const ids = L.CHAPTERS.map(c => c.id);
+  const seq = L.LEVELS.map(L.chapterOf);
+  seq.forEach((c, i) => assert.ok(ids.includes(c), `Level ${i + 1}: unbekanntes Kapitel "${c}"`));
+  for (let i = 1; i < seq.length; i++) assert.ok(ids.indexOf(seq[i]) >= ids.indexOf(seq[i - 1]), 'Reihenfolge bei Level ' + (i + 1));
+  const count = (id) => seq.filter(c => c === id).length;
+  assert.equal(count('I'), 10);
+  for (const id of ids) assert.ok(count(id) <= 10, 'Kapitel ' + id);
+  // keine Lücke: ein Kapitel hat nur Level, wenn alle vorigen voll sind
+  const filled = ids.map(count);
+  for (let i = 1; i < filled.length; i++) if (filled[i]) assert.equal(filled[i - 1], 10, 'Kapitel vor ' + ids[i] + ' unvollständig');
+});
+test('Namen: alle Level, vorgesehenen Levelnamen und Kapiteltitel sind eindeutig', () => {
+  const planned = SPECS.filter(c => !c.handmade).flatMap(c => c.names);
+  for (const c of SPECS.filter(c => !c.handmade)) assert.equal(new Set(c.names).size, 10, 'Kapitel ' + c.id + ' braucht 10 verschiedene Namen');
+  const all = [...L.LEVELS.slice(0, 10).map(l => l.name), ...planned];
+  const dup = all.filter((n, i) => all.indexOf(n) !== i);
+  assert.deepEqual(dup, [], 'doppelte Levelnamen');
+  const used = new Set(L.LEVELS.map(l => l.name));
+  assert.equal(used.size, L.LEVELS.length, 'doppelte Namen in LEVELS');
+  const titleClash = L.CHAPTERS.map(c => c.title).filter(t => all.includes(t));
+  assert.deepEqual(titleClash, [], 'Kapiteltitel gleich einem Levelnamen');
+});
+test('Kapitel: generierte Level im Wertungsfenster und innerhalb des Kapitels aufsteigend', () => {
+  for (const spec of SPECS.filter(c => !c.handmade)) {
+    const levels = L.LEVELS.filter(l => L.chapterOf(l) === spec.id);
+    const scores = levels.map(l => S.metrics(l).score);
+    scores.forEach((sc, i) => assert.ok(sc >= spec.window[0] && sc <= spec.window[1], `${spec.id} "${levels[i].name}": Wertung ${sc}`));
+    for (let i = 1; i < scores.length; i++) assert.ok(scores[i] >= scores[i - 1], `${spec.id}: Wertung fällt bei "${levels[i].name}"`);
+  }
+});
 test('Schwierigkeitswertung passt zur Reihenfolge der handgebauten Level (Rangkorrelation ≥ 0.8)', () => {
   const scores = L.LEVELS.slice(0, 10).map(l => S.metrics(l).score);
   const rank = (a) => { const r = []; a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]).forEach(([, i], k) => { r[i] = k; }); return r; };

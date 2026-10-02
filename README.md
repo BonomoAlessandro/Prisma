@@ -26,7 +26,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   berührte Elemente, Ziele – zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab);
   `generate.mjs <kapitel> <anzahl> [seed] [maxseeds] [--jobs N]` erzeugt eindeutig lösbare Level nach den Vorgaben in
   `chapters.mjs` (mit `--jobs` parallel auf N Prozessen);
-  `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs VI 3 | node tools/show.mjs`).
-- **Levels:** 10 Levels in `LEVELS` (index.html), jede Lösung steht als Kommentar und im Feld `solution`.
+  `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs VI 3 | node tools/show.mjs`);
+  `curate.mjs <kapitel> [pool] [--jobs N] [--seed S] [--save datei] [--pool datei] [--dry]` wählt aus einem Pool
+  10 Level im Wertungsfenster des Kapitels (aufsteigend, möglichst verschieden) und schreibt sie zwischen die
+  Markierungen `KAPITEL:<id>` in index.html. Empfohlen: erst `--dry --save pool.jsonl` ansehen, dann mit
+  `--pool pool.jsonl` schreiben (gleiche Auswahl). Rückgabewert 2: zu wenige Kandidaten im Fenster.
+  Kapitel X ist langsam – Pool 35–40 und viel Zeit einplanen.
+- **Levels:** bis zu 10 Kapitel à 10 Levels in `LEVELS` (index.html; Kapitel in `CHAPTERS`, Kapitel I handgebaut),
+  jede Lösung steht als Kommentar und im Feld `solution`.
   Das zuletzt gespielte Level und die gelösten Level bleiben im Browser gespeichert.
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
