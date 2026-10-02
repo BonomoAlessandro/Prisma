@@ -88,6 +88,7 @@ const GRID = 7;            // Spielfeld 7×7
 const CELL = 1.2;          // Weltgrösse einer Zelle
 const BOARD = GRID * CELL; // Kantenlänge des Spielfelds
 const PLATE = BOARD + 1.4; // Steinplatte inkl. Rand
+const PLATE_RIM = (PLATE - BOARD) / 2; // Plattenrand ausserhalb des Spielfelds
 const PLATE_THICK = 0.38;
 
 const LOOK = {
@@ -1681,7 +1682,7 @@ const BEAM_VERTEX_COMMON = `
   attribute vec2 aDist;     // x: Weglänge ab Quelle am Anfang · y: Länge
   attribute vec3 aLife;     // x: Startweg der Front · y: Geburtszeit · z: Sterbezeit (−1 = lebt)
   attribute vec4 aCaps;     // Schnittnormalen (xz) an Anfang (xy) und Ende (zw)
-  attribute float aFade;    // Auslaufstrecke vor dem Ende (Welt, 0 = hartes Ende)
+  attribute float aFade;    // Ausblendstrecke vor dem Ende (Welt, ab Plattenkante; 0 = hartes Ende)
   uniform float uHalfWidth;
   varying vec2 vLocal;      // x: entlang (Welt, 0..Länge, ausserhalb = Kappe) · y: quer
   varying vec3 vColor;
@@ -1871,6 +1872,9 @@ function buildBeamGeometry(records) {
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   records.forEach((r, i) => {
     const s = r.seg, c = COLOR_RGB[s.color];
+    // Erst jenseits der Platte ausblenden: Weg bis zur Plattenkante entlang des Strahls (diagonal länger)
+    const axis = Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)) / s.length;
+    const fadeLen = s.fade ? s.fade * CELL - PLATE_RIM / axis : 0;
     for (let k = 0; k < 4; k++) {
       const v = i * 4 + k;
       start[v * 3] = r.a.x; start[v * 3 + 1] = r.a.y; start[v * 3 + 2] = r.a.z;
@@ -1879,7 +1883,7 @@ function buildBeamGeometry(records) {
       color[v * 3] = c.r; color[v * 3 + 1] = c.g; color[v * 3 + 2] = c.b;
       dist[v * 2] = s.dist0 * CELL; dist[v * 2 + 1] = s.length * CELL;
       life[v * 3] = r.start; life[v * 3 + 1] = r.birth; life[v * 3 + 2] = r.death;
-      fade[v] = (s.fade || 0) * CELL;
+      fade[v] = fadeLen;
       caps[v * 4] = s.n0[0]; caps[v * 4 + 1] = s.n0[1]; caps[v * 4 + 2] = s.n1[0]; caps[v * 4 + 3] = s.n1[1];
     }
     index.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
