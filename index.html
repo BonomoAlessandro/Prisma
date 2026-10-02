@@ -67,6 +67,7 @@
     transition: opacity 0.6s ease;
   }
   #hud.hidden { transition-duration: 0.3s; }
+  body.levels-open #hud { opacity: 0; }
   #hud .title { font-size: 13px; font-weight: 300; }
   #hud .title, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
   @media (max-height: 500px) { /* Handy quer: alles an die Ränder, damit nichts das Feld verdeckt */
@@ -139,8 +140,34 @@
     transition: opacity 0.4s ease;
   }
   #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
-  #levels h2 { margin: 0 0 28px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
+  #levels h2 { margin: 0 0 22px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
+  #levels .chapters { display: grid; grid-template-columns: repeat(10, 1fr); gap: 6px; margin-bottom: 18px; }
+  #levels .chapter {
+    padding: 8px 0 6px;
+    border: 1px solid var(--ink-faint); border-radius: 6px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: border-color 0.25s ease, background-color 0.25s ease, opacity 0.25s ease;
+  }
+  #levels .chapter:hover { border-color: var(--ink-dim); }
+  #levels .chapter[aria-pressed="true"] { border-color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+  #levels .chapter .cid { font-size: 12px; letter-spacing: 0.1em; }
+  #levels .chapter .cprog { font-size: 9px; letter-spacing: 0.1em; color: var(--ink-dim); }
+  #levels .chapter.soon { opacity: 0.55; }
+  #levels .chapter.complete .cprog { color: var(--ink); }
+  #levels .chapter-title { font-size: 10px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 14px; padding-left: 0.45em; }
+  /* gleich hoch wie das Kachelgitter, damit "Schliessen" beim Kapitelwechsel nicht springt */
+  #levels .soon-msg { font-size: 11px; letter-spacing: 0.2em; color: var(--ink-dim); min-height: 232px; margin-bottom: 28px;
+    display: flex; align-items: center; justify-content: center; }
+  #levels .lock-hint { font-size: 9px; letter-spacing: 0.15em; color: var(--ink-dim); margin: -16px 0 22px; }
+  #levels .lock-hint[hidden] { display: none; }
+  #levels .soon-msg[hidden] { display: none; }
   #levels .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
+  #levels .grid[hidden] { display: none; }
+  #levels .tile:disabled { opacity: 0.45; cursor: default; }
+  #levels .tile:disabled:hover { border-color: var(--ink-faint); background: none; }
+  #levels .tile .lock { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.6; display: none; }
+  #levels .tile:disabled .lock { display: block; }
+  #levels .tile:disabled .dot { display: none; }
   #levels .tile {
     aspect-ratio: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -156,7 +183,19 @@
   #levels .tile.done .dot { background: var(--ink); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
   @media (max-width: 520px) {
     #levels .grid { grid-template-columns: repeat(5, 1fr); gap: 8px; } /* 2 Reihen, nur Ziffern */
+    #levels .chapters { grid-template-columns: repeat(5, 1fr); } /* Kapitel in 2 Reihen */
+    #levels .soon-msg { min-height: 130px; }
     #levels .name { display: none; }
+  }
+  @media (max-height: 500px) { /* Handy quer: kompakt und notfalls scrollbar */
+    #levels { overflow-y: auto; place-items: start center; padding: 10px 0; }
+    #levels h2 { display: none; }
+    #levels .chapter { padding: 4px 0; }
+    #levels .tile { aspect-ratio: auto; height: 46px; }
+    #levels .name { display: none; }
+    #levels .grid { margin-bottom: 14px; }
+    #levels .chapter-title { margin-bottom: 10px; }
+    #levels .soon-msg { min-height: 100px; margin-bottom: 14px; }
   }
 
   /* ---------- Startbildschirm: der Titel entsteht aus einem Lichtstrahl ---------- */
@@ -269,7 +308,11 @@
 <div id="levels" class="hidden" inert role="dialog" aria-modal="true" aria-label="Levelauswahl">
   <div class="inner">
     <h2>Levelauswahl</h2>
+    <div class="chapters" id="chapter-tabs" role="group" aria-label="Kapitel"></div>
+    <div class="chapter-title" id="chapter-title"></div>
     <div class="grid" id="level-grid"></div>
+    <div class="soon-msg" id="chapter-soon" hidden>Dieses Kapitel folgt bald.</div>
+    <div class="lock-hint" id="lock-hint" hidden>Gesperrte Level öffnen sich, sobald eines der beiden vorigen gelöst ist.</div>
     <button class="close" id="btn-levels-close">Schliessen</button>
   </div>
 </div>
@@ -3395,7 +3438,7 @@ const celebration = {
       shockUniforms.uShock.value.set(r, fade * fade, CELEBRATE.shockWidth * (1 + r * 0.12));
       if (!this.panelShown && tc >= CELEBRATE.panelDelay) {
         this.panelShown = true;
-        ui.showSolved(game.levelIndex === LEVELS.length - 1, progress.solved.size === LEVELS.length);
+        ui.showSolved(game.levelIndex, flow.firstSolve);
       }
       if (fade <= 0 && env < 0.01 && this.panelShown) {
         this.active = false;
@@ -3416,14 +3459,21 @@ const FLOW = {
   outDuration: 0.4,  // Versinken eines Elements
   inDuration: 0.6,   // Herauswachsen eines Elements
   wave: 0.035,       // Versatz je Diagonalschritt (x + z) der Welle
-  storageKey: 'prisma.level',
-  solvedKey: 'prisma.solved',
+  storageKey: 'prisma.current',       // aktuelles Level als "Kapitel:Name"
+  solvedKey: 'prisma.solvedLevels',   // gelöste Level als ["Kapitel:Name", …]
+  legacyLevelKey: 'prisma.level',     // ältere Version: Index
+  legacySolvedKey: 'prisma.solved',   // ältere Version: Indizes
 };
 const easeInCubic = (x) => x * x * x;
 const easeOutBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
-const wrap = (n, m) => ((n % m) + m) % m;
 const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles blendet aus
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII', 'XIV', 'XV'];
+/** Kapitel eines Levels und seine Nummer darin (1 … 10). */
+function levelPlace(i) {
+  const id = chapterOf(LEVELS[i]);
+  const chapter = CHAPTERS.find(c => c.id === id);
+  const n = LEVELS.slice(0, i + 1).filter(l => chapterOf(l) === id).length;
+  return { id, chapter, n, count: progress.chapterStats(id).indices.length };
+}
 
 const flow = {
   state: 'intro', // intro | play | out | in
@@ -3434,28 +3484,56 @@ const flow = {
 const waveDelay = (el) => (el.x + el.z) * FLOW.wave;
 const waveLength = (size = game.board.size) => 2 * (size - 1) * FLOW.wave;
 
+/**
+ * Fortschritt im Browser. Gelöste Level werden nach Kapitel und Name gespeichert ("II:Schleuse"), nicht
+ * nach Position – so bleibt der Fortschritt erhalten, wenn Kapitel nachgeliefert oder neu kuratiert werden.
+ * Freischalten: ein Level ist spielbar, wenn eines der beiden vorigen gelöst ist (eins darf man überspringen).
+ */
 const progress = {
-  solved: new Set(),
+  solved: new Set(), // "Kapitel:Name"
+  keyOf: (i) => `${chapterOf(LEVELS[i])}:${LEVELS[i].name}`,
+  isSolved(i) { return i >= 0 && i < LEVELS.length && this.solved.has(this.keyOf(i)); },
+  markSolved(i) { this.solved.add(this.keyOf(i)); },
+  all: new URLSearchParams(location.search).has('unlockall'), // Entwicklung/Tests: alles offen
+  unlocked(i) { return i >= 0 && i < LEVELS.length && (this.all || i === 0 || this.isSolved(i) || this.isSolved(i - 1) || this.isSolved(i - 2)); },
+  /** Spielbares Level, das dem gewünschten am nächsten liegt (rückwärts gesucht). */
+  nearestUnlocked(i) { for (let k = Math.min(i, LEVELS.length - 1); k > 0; k--) if (this.unlocked(k)) return k; return 0; },
   load() {
-    try {
-      const i = parseInt(localStorage.getItem(FLOW.storageKey), 10);
-      const list = JSON.parse(localStorage.getItem(FLOW.solvedKey) || '[]');
-      if (Array.isArray(list)) this.solved = new Set(list.filter(n => Number.isInteger(n) && n >= 0 && n < LEVELS.length));
-      return Number.isInteger(i) && i >= 0 && i < LEVELS.length ? i : 0;
-    } catch { return 0; }
+    const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+    const json = (key) => { try { return JSON.parse(read(key) || 'null'); } catch { return null; } };
+    const keys = json(FLOW.solvedKey);
+    if (Array.isArray(keys)) this.solved = new Set(keys.filter(k => typeof k === 'string'));
+    else {
+      // ältere Version: gelöste Level als Indizes. Damals gab es nur Kapitel I – dessen 10 Level stehen
+      // weiterhin in derselben Reihenfolge am Anfang von LEVELS.
+      const old = json(FLOW.legacySolvedKey);
+      if (Array.isArray(old)) this.solved = new Set(old.filter(n => Number.isInteger(n) && n >= 0 && n < 10 && n < LEVELS.length).map(n => this.keyOf(n)));
+    }
+    const cur = read(FLOW.storageKey);
+    let i = cur === null ? -1 : LEVELS.findIndex((_, k) => this.keyOf(k) === cur);
+    if (cur === null) { const n = parseInt(read(FLOW.legacyLevelKey), 10); if (Number.isInteger(n) && n >= 0 && n < 10) i = n; }
+    if (i >= 0 && this.unlocked(i)) return i;
+    // unbekannt (z. B. umbenannt) oder gesperrt: erstes offenes, noch ungelöstes Level, sonst das letzte offene
+    const fresh = LEVELS.findIndex((_, k) => this.unlocked(k) && !this.isSolved(k));
+    return fresh >= 0 ? fresh : this.nearestUnlocked(LEVELS.length - 1);
   },
   save(index) {
     try {
-      localStorage.setItem(FLOW.storageKey, String(index));
+      localStorage.setItem(FLOW.storageKey, this.keyOf(index));
       localStorage.setItem(FLOW.solvedKey, JSON.stringify([...this.solved]));
     } catch { /* privates Fenster o. Ä. */ }
   },
+  /** Gelöste und vorhandene Level eines Kapitels. */
+  chapterStats(id) {
+    const idx = LEVELS.map((_, i) => i).filter(i => chapterOf(LEVELS[i]) === id);
+    return { indices: idx, solved: idx.filter(i => this.isSolved(i)).length };
+  },
 };
 
-/** Level wechseln: altes Feld versinkt, danach wächst das neue heraus (index wird umgebrochen). */
+/** Level wechseln: altes Feld versinkt, danach wächst das neue heraus. Gesperrte Level bleiben zu. */
 function changeLevel(index) {
-  if (flow.state === 'intro') return;
-  flow.next = wrap(index, LEVELS.length);
+  if (flow.state === 'intro' || !progress.unlocked(index)) return;
+  flow.next = index;
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   flow.state = 'out';
   flow.t = 0;
@@ -3480,7 +3558,9 @@ function changeLevel(index) {
 
 /** Relativ blättern; während des Versinkens zählt das bereits gewählte Ziel-Level. */
 function stepLevel(delta) {
-  changeLevel((flow.state === 'out' ? flow.next : game.levelIndex) + delta);
+  const target = (flow.state === 'out' ? flow.next : game.levelIndex) + delta;
+  if (flow.state === 'play' && delta > 0 && target < LEVELS.length && !progress.unlocked(target)) ui.flashHint('Noch gesperrt – erst dieses Level lösen');
+  changeLevel(target);
 }
 
 /** Neues Level aufbauen und als Welle herauswachsen lassen. */
@@ -3517,7 +3597,8 @@ function updateFlow(dt) {
     const lit = game.result.solved && game.targets.every(o => o.userData.hit > 0.85);
     if (lit && !flow.solved) {
       flow.solved = true;
-      progress.solved.add(game.levelIndex);
+      flow.firstSolve = !progress.isSolved(game.levelIndex); // für die Meldung "Kapitel geschafft"
+      progress.markSolved(game.levelIndex);
       progress.save(game.levelIndex);
       celebration.start(game.targets);
     } else if (!game.result.solved && flow.solved) { // wieder verdreht
@@ -3562,7 +3643,9 @@ const ui = {
   hud: $('hud'), title: $('hud-title'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
-  levels: $('levels'), grid: $('level-grid'),
+  levels: $('levels'), grid: $('level-grid'), tabs: $('chapter-tabs'), chapterTitle: $('chapter-title'), soon: $('chapter-soon'),
+  lockHint: $('lock-hint'),
+  shownChapter: 'I',
   intro: $('intro'),
   lastLevel: false,
 
@@ -3575,14 +3658,16 @@ const ui = {
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
-    LEVELS.forEach((lvl, i) => {
-      const b = document.createElement('button');
-      b.className = 'tile';
-      b.innerHTML = `<span class="num">${ROMAN[i] || i + 1}</span><span class="name"></span><span class="dot"></span>`;
-      b.querySelector('.name').textContent = lvl.name;
-      b.addEventListener('click', () => { this.closeLevels(); if (i !== game.levelIndex || flow.state !== 'play') changeLevel(i); });
-      this.grid.appendChild(b);
-    });
+    for (const c of CHAPTERS) {
+      const t = document.createElement('button');
+      t.className = 'chapter';
+      t.dataset.id = c.id;
+      t.innerHTML = '<span class="cid"></span><span class="cprog"></span>';
+      t.querySelector('.cid').textContent = c.id;
+      t.title = c.title;
+      t.addEventListener('click', () => this.showChapter(c.id));
+      this.tabs.appendChild(t);
+    }
     this.updateSound();
     // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s)
     const go = () => this.intro.classList.add('go');
@@ -3594,18 +3679,33 @@ const ui = {
   },
 
   showHud(index) {
-    this.title.textContent = `${ROMAN[index] || index + 1} – ${LEVELS[index].name}`;
-    this.sub.textContent = `Level ${index + 1} / ${LEVELS.length} · ` +
+    if (this._hintTimer !== undefined) { clearTimeout(this._hintTimer); this._hintTimer = undefined; }
+    const p = levelPlace(index);
+    this.title.textContent = `${p.id}.${p.n} – ${LEVELS[index].name}`;
+    this.sub.textContent = `${p.chapter.title} · Level ${p.n} / ${p.count} · ` +
       (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
     this.hud.classList.remove('hidden');
   },
   hideHud() { this.hud.classList.add('hidden'); },
+  /** Kurzer Hinweis in der Unterzeile, danach wieder der normale Text. */
+  flashHint(text) {
+    if (this._hintTimer === undefined) this._hintText = this.sub.textContent;
+    clearTimeout(this._hintTimer);
+    this.sub.textContent = text;
+    this._hintTimer = setTimeout(() => { this.sub.textContent = this._hintText; this._hintTimer = undefined; }, 1800);
+  },
 
-  /** last: letztes Level (Weiter → von vorn) · all: wirklich alle Level gelöst */
-  showSolved(last, all) {
-    this.lastLevel = last;
-    this.solvedMsg.textContent = all ? 'Alle Level gelöst' : 'Level gelöst';
-    this.next.textContent = last ? 'Von vorn' : 'Weiter';
+  /**
+   * Meldung nach dem Lösen: beim ersten Lösen ggf. "Kapitel geschafft" bzw. "Alle Level gelöst".
+   * Gibt es ein nächstes Level, geht es dorthin, sonst zur Levelauswahl.
+   */
+  showSolved(index, first) {
+    const p = levelPlace(index), st = progress.chapterStats(p.id);
+    const all = LEVELS.every((_, i) => progress.isSolved(i));
+    this.lastLevel = index === LEVELS.length - 1;
+    this.solvedMsg.textContent = first && all ? 'Alle Level gelöst'
+      : first && st.solved === st.indices.length ? `Kapitel ${p.id} geschafft` : 'Level gelöst';
+    this.next.textContent = this.lastLevel ? 'Levelauswahl' : 'Weiter';
     setShown(this.solved, true);
     document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
   },
@@ -3613,7 +3713,7 @@ const ui = {
   solvedVisible() { return !this.solved.classList.contains('hidden'); },
   advance() {
     if (flow.state !== 'play' || !this.solvedVisible()) return; // z. B. zweites Auslösen (Taste + Klick)
-    if (this.lastLevel) changeLevel(0); else stepLevel(1);
+    if (this.lastLevel) this.openLevels(); else stepLevel(1);
   },
 
   toggleSound() {
@@ -3629,16 +3729,53 @@ const ui = {
 
   openLevels() {
     if (flow.state === 'intro') return;
-    [...this.grid.children].forEach((b, i) => {
-      b.classList.toggle('current', i === game.levelIndex);
-      b.classList.toggle('done', progress.solved.has(i));
-    });
     setShown(this.levels, true);
-    this.grid.children[game.levelIndex]?.focus();
+    for (const el of [this.controls, this.solved, this.hud]) { el.dataset.inertBefore = String(el.inert); el.inert = true; }
+    document.body.classList.add('levels-open'); // Kopfzeile ausblenden – sonst scheint sie hinter den Reitern durch
+    this.showChapter(chapterOf(LEVELS[game.levelIndex]));
+    (this.grid.querySelector('.current') || this.tabs.querySelector('[aria-pressed="true"]'))?.focus();
+  },
+  /** Kapitelreiter und die 10 Kacheln des gewählten Kapitels aufbauen. */
+  showChapter(id) {
+    this.shownChapter = id;
+    for (const t of this.tabs.children) {
+      const st = progress.chapterStats(t.dataset.id);
+      t.setAttribute('aria-pressed', String(t.dataset.id === id));
+      t.setAttribute('aria-label', `Kapitel ${t.dataset.id}, ${CHAPTERS.find(c => c.id === t.dataset.id).title}, ` +
+        (st.indices.length ? `${st.solved} von ${st.indices.length} gelöst` : 'folgt bald'));
+      t.classList.toggle('soon', !st.indices.length);
+      t.classList.toggle('complete', st.indices.length > 0 && st.solved === st.indices.length);
+      t.querySelector('.cprog').textContent = st.indices.length ? `${st.solved}/${st.indices.length}` : 'bald';
+    }
+    const chapter = CHAPTERS.find(c => c.id === id);
+    this.chapterTitle.textContent = `Kapitel ${id} · ${chapter.title}`;
+    const st = progress.chapterStats(id);
+    this.grid.replaceChildren();
+    this.grid.hidden = !st.indices.length;
+    this.soon.hidden = st.indices.length > 0;
+    st.indices.forEach((i, k) => {
+      const b = document.createElement('button');
+      b.className = 'tile';
+      b.innerHTML = `<span class="num">${k + 1}</span><span class="name"></span><span class="dot"></span>` +
+        '<svg class="lock" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="4.5" width="7" height="5" rx="1"/><path d="M3 4.5V3a2 2 0 0 1 4 0v1.5"/></svg>';
+      b.querySelector('.name').textContent = LEVELS[i].name;
+      const open = progress.unlocked(i), done = progress.isSolved(i);
+      b.disabled = !open;
+      b.setAttribute('aria-label', `${k + 1} ${LEVELS[i].name}${done ? ', gelöst' : ''}${open ? '' : ', gesperrt'}`);
+      if (i === game.levelIndex) b.setAttribute('aria-current', 'true');
+      b.classList.toggle('current', i === game.levelIndex);
+      b.classList.toggle('done', done);
+      b.addEventListener('click', () => { this.closeLevels(); if (i !== game.levelIndex || flow.state !== 'play') changeLevel(i); });
+      this.grid.appendChild(b);
+    });
+    this.lockHint.hidden = !st.indices.some(i => !progress.unlocked(i));
   },
   closeLevels() {
     if (!this.levelsOpen()) return;
     setShown(this.levels, false);
+    // Sperren aufheben – wer vorher versteckt war (inert), bleibt es
+    for (const el of [this.controls, this.solved, this.hud]) { el.inert = el.dataset.inertBefore === 'true'; delete el.dataset.inertBefore; }
+    document.body.classList.remove('levels-open');
     if (!this.controls.inert) $('btn-levels').focus({ preventScroll: true });
   },
   levelsOpen() { return !this.levels.classList.contains('hidden'); },
@@ -3657,7 +3794,7 @@ const ui = {
 ui.init();
 
 /* ---------- Tasten ----------
-   N / →: nächstes Level · P / ←: voriges Level · R: neu starten · M: Ton · L: Levelauswahl
+   N / →: nächstes Level · P / ←: voriges Level (nur freigeschaltete, kein Umbruch) · R: neu starten · M: Ton · L: Levelauswahl
    Enter: weiter (nach dem Lösen) bzw. Start · Esc: Levelauswahl schliessen
    C (Debug): Farbe der Quellen wechseln */
 
@@ -3674,6 +3811,7 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyM') ui.toggleSound();
   if (ui.levelsOpen()) return; // Auswahl offen: das Feld darunter nicht bedienen
   if (e.code === 'Enter' && ui.solvedVisible()) {
+    e.preventDefault(); // sonst aktiviert der Browser danach die Kachel, auf der advance() den Fokus setzt
     ui.advance();
   } else if (e.code === 'KeyN' || e.code === 'ArrowRight') {
     stepLevel(1);
@@ -3910,9 +4048,10 @@ function frame(ts) {
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
+  unlockAll: () => { progress.all = true; }, // für Tests: gesperrte Level anspringbar
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress };
 requestAnimationFrame(frame);
 </script>
 </body>

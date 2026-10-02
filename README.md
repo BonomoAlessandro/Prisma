@@ -14,7 +14,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Levelauswahl.
-  Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, L Levelauswahl,
+  Tasten: N / → nächstes Level, P / ← voriges Level (nur freigeschaltete), R neu starten, M Ton, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann Level I. Beim Lösen leuchten die
   Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die Platte und es regnen Funken;
@@ -34,5 +34,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Kapitel X ist langsam – Pool 35–40 und viel Zeit einplanen.
 - **Levels:** bis zu 10 Kapitel à 10 Levels in `LEVELS` (index.html; Kapitel in `CHAPTERS`, Kapitel I handgebaut),
   jede Lösung steht als Kommentar und im Feld `solution`.
-  Das zuletzt gespielte Level und die gelösten Level bleiben im Browser gespeichert.
+  Levelauswahl mit Kapitelreitern; ein Level ist spielbar, sobald eines der beiden vorigen gelöst ist (eins darf man
+  überspringen). Fortschritt und aktuelles Level bleiben im Browser gespeichert (nach Kapitel und Name).
+  `?unlockall` bzw. `__prisma.unlockAll()` schaltet für Tests alles frei.
+  Wichtig: Kapitel-ID und Levelname sind der Speicherschlüssel des Fortschritts. Namen in `tools/chapters.mjs`
+  nach dem Veröffentlichen nicht mehr umbenennen; ein neu kuratiertes Kapitel übernimmt die Namen der Position nach.
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
