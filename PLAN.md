@@ -36,10 +36,19 @@ Zuletzt aktualisiert: 3. Oktober 2026
   farbige Quellen, Kombinator, bunt). Farbige Quellen im Generator. Pools mit `tools/pools.mjs`.
 - [x] **2.3 Kuratierung** (`tools/curate.mjs`): alle Pools + handgebaute Level, 50 gleichmässig über die Wertung,
   verschiedene Grundmuster, abwechselnde und ausgewogene Mischungen; Review der Auswahl und der Reihenfolge.
+- [x] **2.3b Zweites Review** mit zwei unabhängigen Testern (Spielersicht ohne Kennzahlen, analytisches
+  Spielermodell), abgeglichen in zwei Runden: Reihenfolge neu (Rangkorrelation der Tester 0.91 → Abstand im Mittel
+  unter 2 Plätzen), 4 Level ersetzt (Kopie eines Tutorial-Levels, Dopplung, zwei wirkungslose Filter). Tutorial:
+  „Farbenlehre“ umgebaut (Filter jetzt nötig), „Mischung“ mit festen Spiegeln entschärft, Hinweise zu Mischen auf
+  dem Ziel und Prisma auf einfarbigem Licht. Berichte in `tools/pools/review2/` (nicht versioniert).
 - [ ] **2.4 Feedback des Nutzers:** Alle 50 Level anspielen: Steigt die Schwierigkeit spürbar? Langweilige oder
   unfaire Level? Passt der Übergang vom Tutorial?
 - [ ] **2.5 Oberes Ende:** Über Wertung ~40 gibt es nur wenige Kandidaten (Stufe 5 ist langsam, Filter-Profil ohne
   Ausbeute). Bei Bedarf Stufe 5 länger laufen lassen und die letzten Level ersetzen.
+- [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
+  Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
+- [ ] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
+  auf Distanz schwer zu erkennen; „Weiss + Rot im Kombinator = Weiss“ wird nirgends gezeigt.
 - [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
   Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 

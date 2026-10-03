@@ -38,7 +38,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `candidates.jsonl` (handgebaute Level, früheres Kapitel II) zusammen, wählt 50 Level gleichmässig über die
   Wertung (verschiedene Grundmuster, abwechselnde Mischungen), sortiert sie nach Wertung und schreibt sie zwischen
   die Markierungen `LEVELS:BEGIN/END` in index.html. Mit `--order` wird eine von Hand korrigierte Reihenfolge
-  übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`.
+  übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`. Ihre
+  Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
+  unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat: Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige Quellen,

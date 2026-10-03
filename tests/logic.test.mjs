@@ -500,13 +500,19 @@ test('Namen: alle Level eindeutig', () => {
   const names = L.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
 });
-test('Die 50 Level werden schwerer: Wertung steigt (höchstens 1.5 unter dem bisherigen Höchstwert)', () => {
-  // Kleine Rückschritte sind erlaubt, wenn das Review die Reihenfolge von Hand korrigiert hat –
-  // die Wertung ist nur eine Schätzung der Schwierigkeit.
+test('Die 50 Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Zehnergruppe', () => {
+  // Die genaue Reihenfolge stammt aus dem Review (zwei Tester, abgeglichen): Die Wertung überschätzt Level,
+  // die in unabhängige Teilrätsel zerfallen, und unterschätzt Farblogik – einzelne Rückschritte sind gewollt.
   const scores = MAIN.map(l => S.metrics(l).score);
-  let max = -Infinity;
-  scores.forEach((sc, i) => { assert.ok(sc >= max - 1.5, `"${MAIN[i].name}": Wertung ${sc} nach ${max}`); max = Math.max(max, sc); });
-  assert.ok(scores.at(-1) - scores[0] >= 20, 'zu wenig Spannweite: ' + scores[0] + '–' + scores.at(-1));
+  const means = [0, 1, 2, 3, 4].map(b => scores.slice(b * 10, b * 10 + 10).reduce((s, v) => s + v, 0) / 10);
+  for (let b = 1; b < 5; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
+  assert.ok(means[4] - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
+});
+test('Die 50 Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleiche Reihenfolge)', () => {
+  const sel = readFileSync(new URL('../tools/selection.jsonl', import.meta.url), 'utf8').trim().split(/\r?\n/).map(l => JSON.parse(l));
+  assert.equal(sel.length, MAIN.length);
+  const sig = (els) => els.map(e => JSON.stringify([e.type, e.x, e.z, e.dir, e.rot, e.color === 'white' && e.type === 'source' ? undefined : e.color, !!e.fixed])).sort().join('|');
+  MAIN.forEach((l, i) => assert.equal(sig(l.elements), sig(sel[i].level.elements), `Level ${i + 1} "${l.name}"`));
 });
 L.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;
