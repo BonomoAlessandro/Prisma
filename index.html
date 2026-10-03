@@ -2486,10 +2486,14 @@ function createComposer() {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
-  // Bloom in halber Auflösung: optisch kaum ein Unterschied (das Ergebnis ist ohnehin weich),
-  // spart aber rund 70 % seiner Kosten – auf Mobilgeräten vor allem Speicherbandbreite.
+  // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
+  // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
+  // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
+  // stellenweise erfasst – das Leuchten zerfiel in Perlen und Wellen. Mit Pixeldichte 2 entspricht die
+  // halbe Auflösung dort genau einem Bloom-Pixel pro CSS-Pixel.
   const bloomSetSize = bloom.setSize.bind(bloom);
-  bloom.setSize = (w, h) => bloomSetSize(Math.max(1, Math.round(w / 2)), Math.max(1, Math.round(h / 2)));
+  const bloomDiv = IS_MOBILE ? 1 : 2;
+  bloom.setSize = (w, h) => bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
   bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
