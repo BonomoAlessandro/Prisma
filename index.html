@@ -363,7 +363,7 @@ const QUALITY = {
   pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1),
   msaa: 0,                // Hauptbild ohne MSAA
   reflectionMsaa: 4,      // Spiegeltextur ist winzig – dort ist Kantenglättung fast gratis
-  reflectionScale: 0.3,
+  reflectionScale: IS_MOBILE ? 0.45 : 0.3, // Handy: kleiner Schirm, nah am Auge – Spiegelung sonst fleckig
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: 1024,
   reflections: true,
@@ -2297,7 +2297,10 @@ floorMaterial.onBeforeCompile = (shader) => {
     .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
-        vec3 refl = texture2D(tReflect, ruv, 1.2 + roughnessFactor * 4.0).rgb;
+        // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
+        // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
+        // Die Strahlen werden für die Spiegelung ohnehin breit und weich gezeichnet (renderReflection).
+        vec3 refl = texture2D(tReflect, ruv, min(1.0 + roughnessFactor * 2.0, 2.2)).rgb;
         float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
@@ -3368,8 +3371,10 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
       + 0.12 * noise1(pathDist * 7.0 - uTime * 5.5)
       + 0.08 * noise1(pathDist * 19.0 + uTime * 3.1);
     float packet = pow(max(0.0, sin(pathDist * 1.6 - uTime * 4.2)), 24.0) * 0.55;
-    // leichtes Atmen der Glow-Breite
-    float gw = uGlow * (0.92 + 0.16 * noise1(pathDist * 3.0 - uTime * 2.0));
+    // Glow-Breite fest: Das frühere "Atmen" (Breite ±8 % entlang des Strahls, wandernd) wirkte auf scharfen
+    // Bildschirmen wie Wellen – vor allem bei Strahlen quer zur Blickrichtung. Leicht schmaler als uGlow,
+    // damit es im Mittel wie vorher aussieht.
+    float gw = uGlow * 0.95;
 
     // Kern nie schmaler als etwa ein Bildpunkt: Auf kleinen Schirmen (Handy) war er dünner als ein Pixel und
     // zerfiel je nach Winkel in Treppen und Lücken, die der Bloom noch verstärkte. Breiter heisst hier
