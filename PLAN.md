@@ -11,8 +11,8 @@ Zuletzt aktualisiert: 3. Oktober 2026
 
 ## Ziel
 
-- **Tutorial + 50 Level:** Zuerst ein kurzes Tutorial (5 Level), das die Mechaniken zeigt: Spiegel, feste Spiegel
-  und Blöcke, Prisma, Filter, Kombinator, je mit einem Hinweis in der Kopfzeile. Danach 50 Level, **allein nach
+- **Tutorial + 50 Level:** Zuerst ein kurzes Tutorial (6 Level), das die Mechaniken zeigt: Spiegel, feste Spiegel
+  und Blöcke, Prisma, Filter, farbige Quellen, Kombinator, je mit einem Hinweis in der Kopfzeile. Danach 50 Level, **allein nach
   Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten.
 - **Leitlinien für alle Level:**
   1. Elemente und Farben mischen sich frei: Spiegel, Prismen, Filter, Kombinatoren, Blöcke, farbige Quellen.
@@ -26,8 +26,7 @@ Zuletzt aktualisiert: 3. Oktober 2026
 
 - [ ] **E3 · Tutorial überspringen?** Zurzeit öffnet sich Level 1, sobald Tutorial 4 oder 5 gelöst ist (wie überall:
   eins darf man überspringen). Erfahrene Spieler können das Tutorial nicht ganz überspringen. Gewünscht?
-- [ ] **E4 · Farbige Quellen im Tutorial:** Sie kommen in den 50 Leveln vor, das Tutorial erwähnt sie nicht
-  (der Strahl ist sichtbar farbig). Eigenes Tutorial-Level oder ein Satz im Filter-Hinweis?
+- [x] **E4 · Farbige Quellen im Tutorial:** eigenes Tutorial-Level „Farbiges Licht“ vor dem Kombinator.
 
 ## 2. Tutorial + 50 Level (aktuelle Arbeit)
 

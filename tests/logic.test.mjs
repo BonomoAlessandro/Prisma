@@ -474,6 +474,7 @@ test('Tutorial: steht am Anfang, 3–8 Level, jedes mit Hinweis', () => {
 test('Tutorial: führt alle Elementarten ein', () => {
   const kinds = new Set(L.LEVELS.slice(0, L.TUTORIAL_COUNT).flatMap(l => l.elements.map(e => e.type + (e.fixed ? ':fest' : ''))));
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
+  assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
 test('Nach dem Tutorial folgen genau 50 Level mit den vorgesehenen Namen', () => {
   assert.equal(MAIN.length, NAMES.length);

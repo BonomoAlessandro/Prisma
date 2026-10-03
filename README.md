@@ -41,7 +41,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
-  Kopfzeile, auch im Handy-Querformat), danach 50 Level, allein nach Schwierigkeit sortiert. Jede Lösung steht als Kommentar und im Feld
+  Kopfzeile, auch im Handy-Querformat: Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige Quellen,
+  Kombinator), danach 50 Level, allein nach Schwierigkeit sortiert. Jede Lösung steht als Kommentar und im Feld
   `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 …) – reine Seiten, keine Themen.
   Ein Level ist spielbar, sobald eines der beiden vorigen gelöst ist (eins darf man überspringen). Fortschritt und
   aktuelles Level bleiben im Browser gespeichert (nach Levelname).

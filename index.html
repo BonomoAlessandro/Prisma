@@ -707,7 +707,8 @@ function tracePass(board, extraRays, emitting) {
  *             werden je nach Gerät ersetzt)
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
- * Zuerst das Tutorial: je Level eine Mechanik (Spiegel, feste Spiegel und Blöcke, Prisma, Filter, Kombinator).
+ * Zuerst das Tutorial: je Level eine Mechanik (Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige
+ * Quellen, Kombinator).
  * Danach die 50 Level, allein nach Schwierigkeit (Wertung aus tools/solver.mjs) aufsteigend sortiert –
  * Elemente und Farben mischen sich frei. tools/curate.mjs schreibt sie zwischen die Markierungen.
  * Die Tests prüfen mit dem Löser (tools/solver.mjs), dass jede notierte Lösung stimmt und eindeutig ist.
@@ -766,6 +767,21 @@ const LEVELS = [
       { type: 'target', x: 6, z: 3, color: 'green' },
     ],
     solution: { '3,4': 7, '5,2': 0 },
+  },
+  {
+    // Lösung: Spiegel (3,3) rot 1 – Rot von West → Süd, Blau von Ost → Nord → Ziel (3,0);
+    //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
+    name: 'Farbiges Licht', tutorial: true,
+    hint: 'Farbige Quellen senden nur ihre Farbe. Ein Ziel leuchtet nur in genau seiner Farbe.',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
+      { type: 'source', x: 6, z: 3, dir: 4, color: 'blue' },
+      { type: 'mirror', x: 3, z: 3, rot: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'target', x: 3, z: 0, color: 'blue' },
+      { type: 'target', x: 6, z: 5, color: 'red' },
+    ],
+    solution: { '3,3': 1, '3,5': 1 },
   },
   {
     // Lösung: Prisma (2,3) rot 0 – Grün → Ost → Ziel (4,3).
