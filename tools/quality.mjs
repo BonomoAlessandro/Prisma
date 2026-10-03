@@ -98,7 +98,29 @@ export function quality(level) {
     decoysRead = [...hits.values()].filter(n => n >= 0.1 * Math.max(1, leaves)).length;
   }
   return { area, quadrants: quads.size, edgeShare: +edgeShare.toFixed(2), crossings, multiHit, shared, coupled, decoysRead,
-    interaction: crossings + multiHit + shared };
+    interaction: crossings + multiHit + shared, oddFilters: oddFilters(level).length };
+}
+
+/**
+ * Filter, die in der Lösung eine "fremde" Farbe abgeben – weder ihre eigene noch die eintreffende,
+ * z. B. Cyan durch einen Gelbfilter → Grün. Physikalisch richtig, wirkt im Spiel aber falsch.
+ * Die eintreffende Farbe: gleiche Stellung, der Filter durchlässig (weiss).
+ */
+export function oddFilters(level) {
+  const trace = (open) => {
+    const els = level.elements.map(e => (e === open ? { ...e, color: 'white' } : { ...e }));
+    return L.traceBeams(solvedBoard({ ...level, elements: els }));
+  };
+  const out = [];
+  for (const f of level.elements.filter(e => e.type === 'filter')) {
+    const at = (r) => r.events.filter(e => e.kind === 'filter' && Math.round(e.x) === f.x && Math.round(e.z) === f.z).map(e => e.color);
+    const fc = L.COLORS[f.color];
+    for (const c of at(trace(f))) {
+      const p = c & fc;
+      if (p && p !== fc && p !== c) out.push(`${f.color}-Filter (${f.x},${f.z}): ${L.COLOR_NAMES[c]} → ${L.COLOR_NAMES[p]}`);
+    }
+  }
+  return out;
 }
 
 /** Vorgaben für alle generierten Level (am Pool des früheren Kapitels II geprüft). */
@@ -112,6 +134,7 @@ export function passes(q, rules = QUALITY_RULES) {
   // randlastig ist nur bei kleinen Leveln ein Problem (dann klebt alles an einer Seite)
   if (q.edgeShare > rules.maxEdgeShare && q.area < rules.edgeRuleBelowArea) why.push('zu viel am Rand');
   if (!q.coupled) why.push('Quellen unabhängig');
+  if (q.oddFilters) why.push('Filter gibt fremde Farbe ab');
   if (q.interaction + q.decoysRead < rules.minInteractionOrDecoy) why.push('kein Zusammenspiel');
   return why;
 }

@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { NAMES } from './profiles.mjs';
 import { draw } from './show.mjs';
-import { quality, passes, symOverlap } from './quality.mjs';
+import { quality, passes, symOverlap, oddFilters } from './quality.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const indexPath = join(here, '..', 'index.html');
@@ -62,7 +62,10 @@ if (orderPath) {
   if (existsSync(extra)) files.push(extra);
   const pool = files.flatMap(f => readLines(f).map(g => ({ ...g, from: f.replace(/^.*[\\/]/, '') })));
   if (!pool.length) die('Keine Kandidaten – zuerst node tools/pools.mjs ausführen');
-  for (const g of pool) g.quality = g.quality || quality(g.level);
+  for (const g of pool) {
+    g.quality = g.quality || quality(g.level);
+    if (g.quality.oddFilters === undefined) g.quality.oddFilters = oddFilters(g.level).length; // ältere Pools
+  }
   // handgebaute Level sind von Hand geprüft und dürfen die Qualitätsregeln verfehlen
   const good = pool.filter(g => g.handmade || !passes(g.quality).length);
   console.error(`${pool.length} Kandidaten aus ${files.length} Dateien, ${good.length} bestehen die Qualitätskriterien`);

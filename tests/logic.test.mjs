@@ -400,6 +400,7 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
 console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
 const S = await import('../tools/solver.mjs');
+const Q = await import('../tools/quality.mjs');
 test('Löser stimmt mit stumpfem Durchprobieren überein (Lösungen und Fast-Lösungen)', () => {
   for (const lvl of L.LEVELS) {
     const b = L.createBoard(lvl);
@@ -507,6 +508,10 @@ test('Die 50 Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe z
   const means = [0, 1, 2, 3, 4].map(b => scores.slice(b * 10, b * 10 + 10).reduce((s, v) => s + v, 0) / 10);
   for (let b = 1; b < 5; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
   assert.ok(means[4] - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
+});
+test('Kein Filter gibt in der Lösung eine fremde Farbe ab (z. B. Cyan durch Gelbfilter → Grün)', () => {
+  const odd = L.LEVELS.flatMap(l => Q.oddFilters(l).map(t => `${l.name}: ${t}`));
+  assert.deepEqual(odd, []);
 });
 test('Die 50 Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleiche Reihenfolge)', () => {
   const sel = readFileSync(new URL('../tools/selection.jsonl', import.meta.url), 'utf8').trim().split(/\r?\n/).map(l => JSON.parse(l));
