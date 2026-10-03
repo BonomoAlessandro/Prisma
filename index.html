@@ -3374,7 +3374,10 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // Kern nie schmaler als etwa ein Bildpunkt: Auf kleinen Schirmen (Handy) war er dünner als ein Pixel und
     // zerfiel je nach Winkel in Treppen und Lücken, die der Bloom noch verstärkte. Breiter heisst hier
     // gleich hell im Ganzen – die Spitze wird im selben Verhältnis gedämpft.
-    float px = fwidth(d);
+    // Pixelgrösse aus der Querkoordinate vLocal.y (linear, ohne Knick) und als echte Gradientenlänge:
+    // fwidth(d) sprang an der Mittellinie (d = |y|) je 2×2-Pixelblock um bis zu das Doppelte – der Kern
+    // pulsierte entlang schräger Strahlen und wirkte wellenförmig.
+    float px = length(vec2(dFdx(vLocal.y), dFdy(vLocal.y)));
     float cw = max(uCore, px * 1.5);
     float core = exp(-(d * d) / (cw * cw)) * (uCore / cw);
     // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
