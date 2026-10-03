@@ -3326,6 +3326,7 @@ const beamMaterialParams = (extraUniforms, vertexMain, fragment) => ({
   blending: THREE.AdditiveBlending,
   side: THREE.DoubleSide, // Wicklung der Billboards hängt von Strahl- und Blickrichtung ab
   fog: false,
+  extensions: { derivatives: true }, // fwidth() für die Kantenglättung des Kerns (WebGL1; WebGL2 hat es immer)
 });
 
 const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
@@ -3370,7 +3371,12 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // leichtes Atmen der Glow-Breite
     float gw = uGlow * (0.92 + 0.16 * noise1(pathDist * 3.0 - uTime * 2.0));
 
-    float core = exp(-(d * d) / (uCore * uCore));
+    // Kern nie schmaler als etwa ein Bildpunkt: Auf kleinen Schirmen (Handy) war er dünner als ein Pixel und
+    // zerfiel je nach Winkel in Treppen und Lücken, die der Bloom noch verstärkte. Breiter heisst hier
+    // gleich hell im Ganzen – die Spitze wird im selben Verhältnis gedämpft.
+    float px = fwidth(d);
+    float cw = max(uCore, px * 1.5);
+    float core = exp(-(d * d) / (cw * cw)) * (uCore / cw);
     // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
     // über die ganze Glasplatte bzw. den Edelstein und wirkt, als schiene Licht hindurch.
     // (den Lichtfleck auf der Glasfläche zeichnet beamView als eigenes, flaches Objekt)
