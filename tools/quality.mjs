@@ -101,7 +101,7 @@ export function quality(level) {
     interaction: crossings + multiHit + shared };
 }
 
-/** Vorgaben für alle generierten Kapitel (am Pool von Kapitel II geprüft, siehe Review). */
+/** Vorgaben für alle generierten Level (am Pool des früheren Kapitels II geprüft). */
 export const QUALITY_RULES = {
   minArea: 25, minQuadrants: 3, maxEdgeShare: 0.6, edgeRuleBelowArea: 36, minInteractionOrDecoy: 1,
 };

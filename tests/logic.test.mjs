@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, CHAPTERS, chapterOf };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -464,48 +464,48 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.count, 4);
   assert.equal(r.solutions[0].free, 1);
 });
-test('Mindestens die 10 handgebauten Level sind vorhanden', () => assert.ok(L.LEVELS.length >= 10));
-const SPECS = (await import('../tools/chapters.mjs')).CHAPTERS;
-test('Kapitel: im Spiel und in den Werkzeug-Vorgaben gleich (Reihenfolge, Titel)', () => {
-  assert.deepEqual(L.CHAPTERS.map(c => [c.id, c.title]), SPECS.map(c => [c.id, c.title]));
+const NAMES = (await import('../tools/profiles.mjs')).NAMES;
+const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
+test('Tutorial: steht am Anfang, 3–8 Level, jedes mit Hinweis', () => {
+  assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 8, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
+  L.LEVELS.forEach((l, i) => assert.equal(!!l.tutorial, i < L.TUTORIAL_COUNT, `Level ${i + 1} "${l.name}"`));
+  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.ok(typeof l.hint === 'string' && l.hint.length > 10, l.name + ': Hinweis fehlt');
 });
-test('Kapitel: Level liegen zusammenhängend und in Kapitelreihenfolge, Kapitel I hat 10, keines mehr als 10', () => {
-  const ids = L.CHAPTERS.map(c => c.id);
-  const seq = L.LEVELS.map(L.chapterOf);
-  seq.forEach((c, i) => assert.ok(ids.includes(c), `Level ${i + 1}: unbekanntes Kapitel "${c}"`));
-  for (let i = 1; i < seq.length; i++) assert.ok(ids.indexOf(seq[i]) >= ids.indexOf(seq[i - 1]), 'Reihenfolge bei Level ' + (i + 1));
-  const count = (id) => seq.filter(c => c === id).length;
-  assert.equal(count('I'), 10);
-  for (const id of ids) assert.ok(count(id) <= 10, 'Kapitel ' + id);
-  // keine Lücke: ein Kapitel hat nur Level, wenn alle vorigen voll sind
-  const filled = ids.map(count);
-  for (let i = 1; i < filled.length; i++) if (filled[i]) assert.equal(filled[i - 1], 10, 'Kapitel vor ' + ids[i] + ' unvollständig');
+test('Tutorial: führt alle Elementarten ein', () => {
+  const kinds = new Set(L.LEVELS.slice(0, L.TUTORIAL_COUNT).flatMap(l => l.elements.map(e => e.type + (e.fixed ? ':fest' : ''))));
+  for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
 });
-test('Namen: alle Level, vorgesehenen Levelnamen und Kapiteltitel sind eindeutig', () => {
-  const planned = SPECS.filter(c => !c.handmade).flatMap(c => c.names);
-  for (const c of SPECS.filter(c => !c.handmade)) assert.equal(new Set(c.names).size, 10, 'Kapitel ' + c.id + ' braucht 10 verschiedene Namen');
-  const all = [...L.LEVELS.slice(0, 10).map(l => l.name), ...planned];
-  const dup = all.filter((n, i) => all.indexOf(n) !== i);
-  assert.deepEqual(dup, [], 'doppelte Levelnamen');
-  const used = new Set(L.LEVELS.map(l => l.name));
-  assert.equal(used.size, L.LEVELS.length, 'doppelte Namen in LEVELS');
-  const titleClash = L.CHAPTERS.map(c => c.title).filter(t => all.includes(t));
-  assert.deepEqual(titleClash, [], 'Kapiteltitel gleich einem Levelnamen');
+test('Nach dem Tutorial folgen genau 50 Level mit den vorgesehenen Namen', () => {
+  assert.equal(MAIN.length, NAMES.length);
+  assert.deepEqual(MAIN.map(l => l.name), NAMES);
 });
-test('Kapitel: generierte Level im Wertungsfenster und innerhalb des Kapitels aufsteigend', () => {
-  for (const spec of SPECS.filter(c => !c.handmade)) {
-    const levels = L.LEVELS.filter(l => L.chapterOf(l) === spec.id);
-    const scores = levels.map(l => S.metrics(l).score);
-    scores.forEach((sc, i) => assert.ok(sc >= spec.window[0] && sc <= spec.window[1], `${spec.id} "${levels[i].name}": Wertung ${sc}`));
-    for (let i = 1; i < scores.length; i++) assert.ok(scores[i] >= scores[i - 1], `${spec.id}: Wertung fällt bei "${levels[i].name}"`);
-  }
+test('Namen: die 50 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
+  assert.equal(NAMES.length, 50);
+  assert.equal(new Set(NAMES).size, 50, 'doppelte Namen in NAMES');
+  const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
+  assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');
+  // die Migration alter Spielstände entfernt ein Präfix "II:" o. Ä. – ein Name darf so nicht beginnen
+  assert.deepEqual(NAMES.filter(n => /^[IVX]+:/.test(n)), []);
 });
-test('Schwierigkeitswertung passt zur Reihenfolge der handgebauten Level (Rangkorrelation ≥ 0.8)', () => {
-  const scores = L.LEVELS.slice(0, 10).map(l => S.metrics(l).score);
-  const rank = (a) => { const r = []; a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]).forEach(([, i], k) => { r[i] = k; }); return r; };
-  const ra = rank(scores), n = scores.length;
-  const rho = 1 - 6 * ra.reduce((s, r, i) => s + (r - i) ** 2, 0) / (n * (n * n - 1));
-  assert.ok(rho >= 0.8, 'Spearman ' + rho.toFixed(2) + ' · Wertungen ' + scores.join(', '));
+test('Tutorial-Hinweise: nur bekannte Platzhalter', () => {
+  for (const l of L.LEVELS.filter(q => q.tutorial)) assert.deepEqual(l.hint.replace(/\{(Klick|Rechtsklick)\}/g, '').match(/[{}]/g), null, l.name);
+});
+const { PROFILES } = await import('../tools/profiles.mjs');
+test('Profile: eindeutige IDs der Form <stufe>-<mischung>', () => {
+  assert.equal(new Set(PROFILES.map(p => p.id)).size, PROFILES.length);
+  for (const p of PROFILES) assert.match(p.id, /^[1-9]-[a-z]+$/);
+});
+test('Namen: alle Level eindeutig', () => {
+  const names = L.LEVELS.map(l => l.name);
+  assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
+});
+test('Die 50 Level werden schwerer: Wertung steigt (höchstens 1.5 unter dem bisherigen Höchstwert)', () => {
+  // Kleine Rückschritte sind erlaubt, wenn das Review die Reihenfolge von Hand korrigiert hat –
+  // die Wertung ist nur eine Schätzung der Schwierigkeit.
+  const scores = MAIN.map(l => S.metrics(l).score);
+  let max = -Infinity;
+  scores.forEach((sc, i) => { assert.ok(sc >= max - 1.5, `"${MAIN[i].name}": Wertung ${sc} nach ${max}`); max = Math.max(max, sc); });
+  assert.ok(scores.at(-1) - scores[0] >= 20, 'zu wenig Spannweite: ' + scores[0] + '–' + scores.at(-1));
 });
 L.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;

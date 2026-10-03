@@ -4,13 +4,14 @@
 // Ausgangsstellung eine Lösung. Danach werden zusätzliche Lösungen mit Blockern auf ihren Wegen
 // ausgeschlossen, funktionslose Teile entfernt und die Startstellung verdreht.
 //
-// Aufruf: node tools/generate.mjs <kapitel> <anzahl> [startseed] [maxseeds]
+// Aufruf: node tools/generate.mjs <profil> <anzahl> [startseed] [maxseeds]   (Profile: tools/profiles.mjs)
 //         → JSON-Zeilen { level, metrics, seed } auf stdout, Zusammenfassung auf stderr
 import { L, solve, metrics, litCells, keyOf } from './solver.mjs';
 import { quality, passes } from './quality.mjs';
-import { CHAPTERS } from './chapters.mjs';
+import { PROFILES } from './profiles.mjs';
 
 const SIZE = 7;
+const SOURCE_COLORS = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta'];
 
 /** Deterministischer Zufall (mulberry32) – gleicher Seed, gleiches Level. */
 export function rng(seed) {
@@ -69,8 +70,8 @@ function chooseRotation(type, dir, R) {
 }
 
 /**
- * Ein Level nach Kapitel-Vorgabe erzeugen. Liefert { level, metrics, seed } oder { fail: Grund }.
- * spec: siehe chapters.mjs
+ * Ein Level nach Profil erzeugen. Liefert { level, metrics, seed } oder { fail: Grund }.
+ * spec: siehe profiles.mjs
  */
 export function generateOne(spec, seed) {
   const R = rng(seed);
@@ -93,7 +94,8 @@ export function generateOne(spec, seed) {
       let cx = x + dx, cz = z + dz, blocked = false;
       while (inBoard(cx, cz)) { if (occupied.has(key(cx, cz))) { blocked = true; break; } cx += dx; cz += dz; }
       if (blocked) continue; // Quelle würde direkt in eine andere Quelle strahlen
-      put({ type: 'source', x, z, dir, ...(spec.sourceColor ? { color: spec.sourceColor } : {}) });
+      const color = spec.colorSources && R.chance(spec.colorSources) ? R.pick(SOURCE_COLORS) : null;
+      put({ type: 'source', x, z, dir, ...(color ? { color } : {}) });
       break;
     }
   }
@@ -287,7 +289,8 @@ export function generateOne(spec, seed) {
 }
 
 // ---- Kommandozeile
-// node tools/generate.mjs <kapitel> <anzahl> [startseed] [maxseeds] [--jobs N]
+// node tools/generate.mjs <profil> <anzahl> [startseed] [maxseeds] [--jobs N] [--time Sekunden]
+// --time: nach so vielen Sekunden mit den bis dahin gefundenen Leveln aufhören.
 // Mit --jobs laufen N Prozesse parallel (Seeds verzahnt: startseed + i, Schrittweite N). Welche Seeds
 // zuerst fertig werden, hängt vom Zeitablauf ab – die Auswahl ist daher nicht reproduzierbar, jedes
 // einzelne Level aber schon (gleicher Seed, gleiches Level). Ausgabe nach Seed sortiert.
@@ -296,15 +299,19 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
   const jobsAt = args.indexOf('--jobs');
   const jobs = jobsAt >= 0 ? Number(args.splice(jobsAt, 2)[1]) : 1;
   if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs braucht eine ganze Zahl ≥ 1'); process.exit(1); }
-  const [chapterId, count = '20', startSeed = '1', maxSeeds = '20000'] = args;
+  const timeAt = args.indexOf('--time');
+  const seconds = timeAt >= 0 ? Number(args.splice(timeAt, 2)[1]) : Infinity;
+  if (!(seconds > 0)) { console.error('--time braucht eine Zahl > 0'); process.exit(1); }
+  const deadline = Date.now() + seconds * 1000;
+  const [profileId, count = '20', startSeed = '1', maxSeeds = '20000'] = args;
   const stride = +(process.env.GEN_STRIDE || 1);
-  const spec = CHAPTERS.find(c => c.id === chapterId && !c.handmade);
+  const spec = PROFILES.find(p => p.id === profileId);
   if (!spec) {
-    console.error('Kapitel unbekannt:', chapterId, '– verfügbar:', CHAPTERS.filter(c => !c.handmade).map(c => c.id).join(', '));
+    console.error('Profil unbekannt:', profileId, '– verfügbar:', PROFILES.map(p => p.id).join(', '));
     process.exit(1);
   }
   process.stdout.on('error', () => process.exit(0)); // z. B. "| head" schliesst die Pipe
-  const summary = (found, tried, reasons) => `Kapitel ${chapterId}: ${found} Level aus ${tried} Seeds` +
+  const summary = (found, tried, reasons) => `Profil ${profileId}: ${found} Level aus ${tried} Seeds` +
     (reasons.size ? ' · verworfen: ' + [...reasons].sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', ') : '');
 
   if (jobs > 1) {
@@ -327,9 +334,10 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
       // Zählerstände kommen alle 10 Seeds – nach dem Abbruch der Kinder daher "mindestens"
       console.error(summary(Math.min(results.length, +count), tried, reasons).replace(' aus ', ' aus mindestens ') + ` (${jobs} Prozesse)`);
     };
+    if (Number.isFinite(seconds)) setTimeout(finish, seconds * 1000).unref();
     let alive = jobs;
     for (let i = 0; i < jobs; i++) {
-      const k = spawn(process.execPath, [process.argv[1], chapterId, count, String(+startSeed + i), String(Math.ceil(+maxSeeds / jobs))],
+      const k = spawn(process.execPath, [process.argv[1], profileId, count, String(+startSeed + i), String(Math.ceil(+maxSeeds / jobs))],
         { env: { ...process.env, GEN_STRIDE: String(jobs), GEN_CHILD: '1' }, stdio: ['ignore', 'pipe', 'ignore'] });
       let buf = '';
       k.stdout.on('data', (d) => {
@@ -352,7 +360,7 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
     const reasons = new Map();
     const child = !!process.env.GEN_CHILD;
     const report = () => console.log(JSON.stringify({ stats: { tried, reasons: Object.fromEntries(reasons) } }));
-    for (let seed = +startSeed; found < +count && tried < +maxSeeds; seed += stride, tried++) {
+    for (let seed = +startSeed; found < +count && tried < +maxSeeds && Date.now() < deadline; seed += stride, tried++) {
       const g = generateOne(spec, seed);
       if (child && (tried + 1) % 10 === 0) console.log(JSON.stringify({ stats: { tried: tried + 1, reasons: Object.fromEntries(reasons) } }));
       if (g.fail) { reasons.set(g.fail, (reasons.get(g.fail) || 0) + 1); continue; }
