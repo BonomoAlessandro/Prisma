@@ -1,5 +1,6 @@
 // Rendert index.html in Headless-Chrome, sammelt Konsolenfehler und speichert Screenshots.
 // Aufruf: node tests/screenshot.mjs [name] [breite] [höhe] [wartezeit-ms] [js-vor-screenshot]
+// Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen)
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -80,6 +81,12 @@ await send('Page.enable');
 await send('Emulation.setDeviceMetricsOverride', {
   width: +width, height: +height, deviceScaleFactor: +(process.env.DPR || 1), mobile: +width < 800,
 });
+// MOBILE=1: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt
+if (process.env.MOBILE) {
+  await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
+  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  await send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' });
+}
 await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + (process.env.INTRO ? '?noadapt' : '?noadapt&nointro') });
 
 // Warten bis die Szene läuft

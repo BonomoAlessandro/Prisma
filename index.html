@@ -357,13 +357,15 @@ const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhon
 
 // Feste Qualität (früher Stufe "Niedrig"): höhere Stufen kosteten auf Laptops sehr viele FPS,
 // ohne sichtbar besser auszusehen. pixelRatio ist die Obergrenze; adaptiveResolution regelt darunter.
+// Smartphones haben 2–3 Bildpunkte pro CSS-Pixel und kleine Schirme: mit nur 1 wirkte dort alles verpixelt.
+// Bis 2 rendern (3 kostete mehr als das Doppelte, ohne sichtbar besser zu sein); auf dem Desktop bleibt es bei 1.
 const QUALITY = {
-  pixelRatio: Math.min(window.devicePixelRatio || 1, 1.0),
+  pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1),
   msaa: 0,                // Hauptbild ohne MSAA
   reflectionMsaa: 4,      // Spiegeltextur ist winzig – dort ist Kantenglättung fast gratis
   reflectionScale: 0.3,
   shadowSize: IS_MOBILE ? 1024 : 2048,
-  textureSize: IS_MOBILE ? 512 : 1024,
+  textureSize: 1024,
   reflections: true,
 };
 
@@ -4887,7 +4889,7 @@ const clock = new THREE.Clock();
  */
 const adaptiveResolution = {
   scale: 1,
-  minPixelRatio: 0.8,   // nie unter 0.8 echte Pixel pro CSS-Pixel – sonst wird es zu unscharf
+  minPixelRatio: IS_MOBILE ? 1 : 0.8, // nie darunter (echte Pixel pro CSS-Pixel) – sonst wird es zu unscharf
   ceiling: 1,           // höchste Stufe, die zuletzt flüssig lief
   window: 0, slow: 0, frames: 0, // Messfenster (Sekunden), Frames über Budget, Frames gesamt
   calm: 0, cooldown: 1.5, last: performance.now(),
