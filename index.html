@@ -362,8 +362,8 @@ const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhon
 const QUALITY = {
   pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1),
   msaa: 0,                // Hauptbild ohne MSAA
-  reflectionMsaa: 4,      // Spiegeltextur ist winzig – dort ist Kantenglättung fast gratis
-  reflectionScale: IS_MOBILE ? 0.45 : 0.3, // Handy: kleiner Schirm, nah am Auge – Spiegelung sonst fleckig
+  reflectionMsaa: IS_MOBILE ? 2 : 4, // Desktop: Spiegeltextur klein, Kantenglättung fast gratis; Handy: grössere Textur
+  reflectionScale: IS_MOBILE ? 0.35 : 0.3, // Anteil am Drawing-Buffer (Handy mit Pixeldichte 2 ≈ 0,7 CSS-Auflösung)
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: 1024,
   reflections: true,
@@ -730,7 +730,7 @@ const LEVELS = [
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
     name: 'Umweg', tutorial: true,
-    hint: 'Spiegel ohne Drehmarken stehen fest, Blöcke schlucken Licht. {Rechtsklick} dreht zurück.',
+    hint: 'Drehbar ist, was auf einem Teller mit gestricheltem Leuchtring steht. Eckige Sockel stehen fest, Blöcke schlucken Licht. {Rechtsklick} dreht zurück.',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 0 },
@@ -2275,16 +2275,20 @@ const shockUniforms = {
   uShockColor: { value: new THREE.Color(1, 1, 1) },
 };
 
+// Verschiebung der Mipmap-Stufe (Bias): Die automatische Stufe berücksichtigt die Texturgrösse schon; damit die
+// Unschärfe in CSS-Pixeln gleich bleibt, muss der Bias nur die Pixeldichte ausgleichen.
+const reflLodShift = { value: 0 };
 floorMaterial.onBeforeCompile = (shader) => {
   Object.assign(shader.uniforms, shockUniforms);
   shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
   shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
   shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+  shader.uniforms.uReflLodShift = reflLodShift;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
     .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
   shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
+    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nuniform float uReflLodShift;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
     .replace('#include <map_fragment>', `#include <map_fragment>
       ${FLOOR_DETAIL_GLSL}
       diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
@@ -2300,7 +2304,8 @@ floorMaterial.onBeforeCompile = (shader) => {
         // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
         // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
         // Die Strahlen werden für die Spiegelung ohnehin breit und weich gezeichnet (renderReflection).
-        vec3 refl = texture2D(tReflect, ruv, min(1.0 + roughnessFactor * 2.0, 2.2)).rgb;
+        // uReflLodShift: höhere Pixeldichte (Handy) → entsprechend tiefere Stufe, gleiche Unschärfe wie am Desktop
+        vec3 refl = texture2D(tReflect, ruv, min(1.0 + roughnessFactor * 2.0, 2.2) + uReflLodShift).rgb;
         float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
         float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
         float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
@@ -2636,6 +2641,36 @@ function makePedestal(radius = 0.34) {
   return g;
 }
 
+/**
+ * Fester Sockel: eckiger, dunkler Steinblock mit vier Bolzen – kein Drehteller. Formensprache:
+ * rund mit Leuchtring = drehbar, eckig = fest (auf dem Handy waren die feinen Drehmarken unsichtbar).
+ */
+const FIXED_EDGE_MAT = new THREE.MeshStandardMaterial({ color: 0x9a9caa, metalness: 0, roughness: 0.55, emissive: 0x16161c });
+function makeFixedBase(size = 0.66) {
+  const g = new THREE.Group();
+  const block = shadowed(new THREE.Mesh(new THREE.BoxGeometry(size, 0.07, size), MAT.stone));
+  block.position.y = 0.035;
+  const frame = shadowed(new THREE.Mesh(new THREE.BoxGeometry(size + 0.02, 0.02, size + 0.02), MAT.metalDark));
+  frame.position.y = 0.01;
+  g.add(block, frame);
+  // heller, eckiger Rand oben: macht die Form "eckig = fest" auch auf dem dunklen Boden lesbar.
+  // Matt statt poliert: poliertes Metall spiegelte aus Spielerperspektive die dunkle Umgebung.
+  const edge = (w, d, x, z) => {
+    const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, 0.022, d), FIXED_EDGE_MAT));
+    m.position.set(x, 0.08, z);
+    g.add(m);
+  };
+  const e = size / 2 - 0.025, t = 0.05;
+  edge(size, t, 0, -e); edge(size, t, 0, e); edge(t, size, -e, 0); edge(t, size, e, 0);
+  const bolt = new THREE.CylinderGeometry(0.028, 0.028, 0.016, 12);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    const b = shadowed(new THREE.Mesh(bolt, MAT.metalBright));
+    b.position.set(sx * (size / 2 - 0.09), 0.076, sz * (size / 2 - 0.09)); // innerhalb der Randleiste
+    g.add(b);
+  }
+  return g;
+}
+
 /** Lichtquelle: schlanker Scheinwerfer auf einer Säule, Linse strahlt in +x. */
 function makeSource(el) {
   const root = new THREE.Group();
@@ -2676,10 +2711,10 @@ function makeSource(el) {
   return root;
 }
 
-/** Spiegel: gebürsteter Rahmen, hochglänzende Fläche, auf Drehteller mit 45°-Markierungen. */
+/** Spiegel: gebürsteter Rahmen, hochglänzende Fläche, auf Drehteller mit 45°-Markierungen (fest: Steinblock). */
 function makeMirror(el) {
   const root = new THREE.Group();
-  root.add(makePedestal(0.4));
+  root.add(el.fixed ? makeFixedBase() : makePedestal(0.4));
 
   // Gravierte 45°-Marken auf dem Teller (nur drehbare Spiegel – feste haben einen glatten Teller)
   for (let i = 0; i < 8 && !el.fixed; i++) {
@@ -3094,7 +3129,7 @@ const game = {
   result: null,
 };
 
-const SHARED_MATERIALS = new Set(Object.values(MAT));
+const SHARED_MATERIALS = new Set([...Object.values(MAT), FIXED_EDGE_MAT]);
 
 /** Gibt Geometrien und elementeigene Materialien eines entfernten Modells frei. */
 function disposeTree(root) {
@@ -3366,6 +3401,8 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
   uniform float uGlow;
   uniform float uIntensity;
   void main() {
+    // Pixelgrösse vor discard bestimmen (Ableitungen nur in einheitlichem Kontrollfluss verlässlich)
+    float px = length(vec2(dFdx(vLocal.y), dFdy(vLocal.y)));
     float d, pathDist, visible;
     beamDistance(d, pathDist, visible);
     if (visible <= 0.001) discard;
@@ -3383,10 +3420,9 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // Kern nie schmaler als etwa ein Bildpunkt: Auf kleinen Schirmen (Handy) war er dünner als ein Pixel und
     // zerfiel je nach Winkel in Treppen und Lücken, die der Bloom noch verstärkte. Breiter heisst hier
     // gleich hell im Ganzen – die Spitze wird im selben Verhältnis gedämpft.
-    // Pixelgrösse aus der Querkoordinate vLocal.y (linear, ohne Knick) und als echte Gradientenlänge:
+    // px (oben): Pixelgrösse aus der Querkoordinate vLocal.y (linear, ohne Knick) als echte Gradientenlänge.
     // fwidth(d) sprang an der Mittellinie (d = |y|) je 2×2-Pixelblock um bis zu das Doppelte – der Kern
     // pulsierte entlang schräger Strahlen und wirkte wellenförmig.
-    float px = length(vec2(dFdx(vLocal.y), dFdy(vLocal.y)));
     float cw = max(uCore, px * 1.5);
     float core = exp(-(d * d) / (cw * cw)) * (uCore / cw);
     // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
@@ -3897,6 +3933,7 @@ beamView.init();
    ===================================================================== */
 
 const INPUT = {
+  pulseDuration: 1.1, // Sekunden: Aufleuchten der drehbaren Elemente zu Levelbeginn
   dragThresholdMouse: 5,    // px, ab hier ist es ein Ziehen statt eines Klicks
   dragThresholdTouch: 10,
   longPressMs: 450,
@@ -3982,6 +4019,31 @@ const hitProxyMaterial = new THREE.MeshBasicMaterial({ visible: false });
 const SHARED_GEOMETRIES = new Set([hoverRingGeometry, hitProxyGeometry]);
 
 /** Rüstet ein drehbares Element mit Trefferzylinder, Lichtrand und Boden-Lichtkreis aus. */
+/** Gestrichelter Ring (Torus-Bögen) als eine Geometrie: count Striche, gap = Anteil der Lücke. */
+function dashedRingGeometry(radius, count, gap, tube) {
+  const step = Math.PI * 2 / count;
+  const parts = [];
+  for (let i = 0; i < count; i++) {
+    const g = new THREE.TorusGeometry(radius, tube, 6, 10, step * (1 - gap));
+    g.rotateZ(i * step);
+    parts.push(g);
+  }
+  const pos = [], nor = [], idx = [];
+  let offset = 0;
+  for (const g of parts) {
+    pos.push(...g.attributes.position.array);
+    nor.push(...g.attributes.normal.array);
+    for (const k of g.index.array) idx.push(k + offset);
+    offset += g.attributes.position.count;
+    g.dispose();
+  }
+  const out = new THREE.BufferGeometry();
+  out.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  out.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  out.setIndex(idx);
+  return out;
+}
+
 function makeInteractive(obj) {
   const u = obj.userData;
 
@@ -4029,16 +4091,40 @@ function makeInteractive(obj) {
   ring.layers.set(LAYER_NO_REFLECT);
   obj.add(ring);
 
+  // Leuchtring auf dem Drehteller: dauerhaftes Zeichen "drehbar" (feste Elemente haben einen eckigen Sockel).
+  // Grundhelligkeit unter der Bloom-Schwelle, damit er ruhig bleibt; zu Levelbeginn pulsiert er einmal.
+  const pedestalDisk = obj.children[0]?.children[0];
+  const turnR = (pedestalDisk?.geometry?.parameters?.radiusTop ?? 0.38) - 0.03;
+  const turnMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  // gestrichelt (6 grobe Striche, halbe Lücken): Quellen und Ziele haben durchgehende Ringe – so ist
+  // "drehbar" eine eigene Form. Alle Striche in einer Geometrie (ein Draw-Call je Element).
+  const turnRing = new THREE.Mesh(dashedRingGeometry(turnR, 6, 0.5, 0.017), turnMat);
+  turnRing.rotation.x = Math.PI / 2;
+  turnRing.position.y = 0.064;
+  turnRing.raycast = () => {};
+  turnRing.layers.set(LAYER_NO_REFLECT);
+  obj.add(turnRing);
+
   u.hover = 0;
+  u.pulseT = -1000; // Zeit seit Beginn des Pulses (negativ: Verzögerung; -1000: kein Puls)
+  u.startPulse = (delay = 0) => { u.pulseT = -delay; };
   u.updateHover = (dt) => {
     const goal = input.hovered === u.element ? 1 : 0;
     u.hover += (goal - u.hover) * (1 - Math.pow(INPUT.hoverFade, dt));
     if (u.hover < 0.002 && goal === 0) u.hover = 0;
-    const on = u.hover > 0;
-    rimMat.uniforms.uIntensity.value = u.hover * 0.6;
+    let pulse = 0;
+    if (u.pulseT > -100) {
+      u.pulseT += dt;
+      if (u.pulseT >= INPUT.pulseDuration) u.pulseT = -1000; // fertig
+      else if (u.pulseT > 0) pulse = Math.sin(Math.PI * u.pulseT / INPUT.pulseDuration);
+    }
+    const lit = Math.max(u.hover, pulse * 0.8);
+    const on = lit > 0;
+    rimMat.uniforms.uIntensity.value = lit * 0.6;
     for (const o of overlays) o.visible = on;
-    ring.visible = on;
+    ring.visible = u.hover > 0;
     ringMat.color.setRGB(0.55, 0.62, 0.85).multiplyScalar(u.hover * 1.3);
+    turnMat.color.setRGB(0.4, 0.68, 1.0).multiplyScalar(0.85 + u.hover * 0.4 + pulse * 2.2);
   };
   u.warmup = (on) => { for (const o of overlays) o.visible = on; ring.visible = on; }; // siehe warmupShaders
 }
@@ -4649,7 +4735,12 @@ function updateFlow(dt) {
   markShadowsDirty();
   if (flow.t >= dur + waveLength()) {
     if (out) enterLevel(flow.next);
-    else { flow.state = 'play'; warmupShaders(); }
+    else {
+      flow.state = 'play';
+      warmupShaders();
+      // drehbare Elemente leuchten einmal kurz auf – als Welle wie beim Herauswachsen
+      for (const obj of game.objects.values()) obj.userData.startPulse?.(waveDelay(obj.userData.element) * 1.5);
+    }
   }
 }
 
@@ -4894,6 +4985,7 @@ function onResize() {
     Math.round(h * pr * QUALITY.reflectionScale)
   );
   finalPass.uniforms.uResolution.value.set(w * pr, h * pr);
+  reflLodShift.value = Math.max(0, Math.log2(pr));
 }
 window.addEventListener('resize', onResize);
 onResize();
@@ -4951,7 +5043,7 @@ const adaptiveResolution = {
     if (overload > 0.3 && !this.locked && this.scale > this.min + 1e-3) {
       this.ceiling = Math.max(this.min, this.scale - 0.05);
       this.probe = { from: this.scale, overload };
-      this.set(this.scale - 0.12);
+      this.set(this.scale - (IS_MOBILE ? 0.25 : 0.12)); // Handy: schneller herunter, sonst ruckelt es lange
     } else if (overload < 0.05 && this.calm > 8 && !drag.active && this.scale < this.ceiling) {
       this.set(Math.min(this.ceiling, this.scale + 0.08));
     }
