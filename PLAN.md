@@ -109,7 +109,11 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 
 ## 4. Später (nächste Version, nicht jetzt)
 
-- [ ] Neue Mechaniken, z. B. verschiebbare Elemente, Strahlteiler (halbdurchlässiger Spiegel), Portale.
+- [ ] Neue Mechaniken, z. B. verschiebbare Elemente, Strahlteiler (halbdurchlässiger Spiegel), Portale, Schalter:
+  - **Schalter (Lichtsensor):** Trifft Licht den Schalter, bewegt sich automatisch ein anderes Element (verschieben,
+    evtl. auch drehen oder Blocker öffnen). Eröffnet neue Levelideen: Reihenfolge der Schritte zählt, ein Strahl bahnt
+    einem anderen den Weg. Offen: dauerhaft auslösen oder nur solange Licht darauf fällt; Darstellung der Verbindung
+    Schalter → Element; Löser und Generator müssen Zustände mit Schaltern durchspielen.
 - [ ] Grösseres Spielfeld als 7×7 (Platte, Kamera, Handy-Layout anpassen).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] Mehr als 70 Level, wenn die ersten 70 überzeugen.
