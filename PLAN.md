@@ -11,9 +11,10 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 
 ## Ziel
 
-- **Tutorial + 70 Level:** Zuerst ein kurzes Tutorial (6 Level), das die Mechaniken zeigt: Spiegel, feste Spiegel
-  und Blöcke, Prisma, Filter, farbige Quellen, Kombinator, je mit einem Hinweis in der Kopfzeile. Danach 70 Level, **allein nach
-  Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–70
+- **Tutorial + 70 Level:** Zuerst ein kurzes Tutorial (9 Level, je ein Gedanke): Ziel und Spiegel, drehbar/fest,
+  Block, Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator – je mit einem
+  Hinweis in der Kopfzeile. Danach 80 Level, **allein nach
+  Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–80
   sind alle schwerer als Level 50.
 - **Leitlinien für alle Level:**
   1. Elemente und Farben mischen sich frei: Spiegel, Prismen, Filter, Kombinatoren, Blöcke, farbige Quellen.
@@ -51,7 +52,7 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 - [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
   Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
 - [ ] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
-  auf Distanz schwer zu erkennen; „Weiss + Rot im Kombinator = Weiss“ wird nirgends gezeigt.
+  auf Distanz schwer zu erkennen. („Weiss + Rot im Kombinator = Weiss“ steht jetzt im Hinweis zum Kombinator.)
 - [x] **2.9 Level 51–70 (schwerer als Level 50):** `tools/harden.mjs` macht erzeugte Level schrittweise schwerer
   (lokale Suche; Quellen müssen gekoppelt sein, Feld kaum dichter als bei den 50 – auch nach dem Abschluss geprüft,
   `curate.mjs` und ein Test prüfen dasselbe). Pools harden-1 bis -6: 121 Kandidaten (Wertung 44–56.6; harden-6 lieferte
@@ -75,9 +76,13 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   Ausserdem: Screenshot der Levelauswahl (9 Seiten, 2 Reihen). Tutorial: Blau/Rot können im Prisma um 135° abknicken.
   Vorsieb verbessern: mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang, Zerlegen und Wiedervereinen) erkennen;
   Basen „misch“ und „bunt“ liefern die guten Level.
-- [ ] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): Ein Prisma schluckt Licht, dessen Austrittsfläche mehr
-  als 90° abgewandt ist; ein parallel getroffener Spiegel schluckt es auch. Mehrere Level ab 51 setzen das voraus
-  (z. B. Licht in den Rücken eines Prismas), das Tutorial sagt es nicht. Vorschlag: ein Satz im Prisma-Hinweis.
+- [x] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): eigenes Tutorial-Level „Schatten“ (Spiegel längs,
+  Prisma von hinten – beides nacheinander sichtbar).
+- [x] **2.12 Tutorial klarer, alle Elemente erklärt:** Ziel im ersten Hinweis („Jeder Kristall muss in seiner Farbe
+  leuchten“), Zähler „Ziele x / y“ in der Kopfzeile (alle Level), falsches Licht am Ziel als flackernder äusserer Ring
+  in der ankommenden Farbe. Tutorial von 6 auf 9 Level: neu „Sperre“ (Block), „Schatten“ (verschwindendes Licht),
+  „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“ ergänzt.
+- [ ] **2.13 Elementübersicht** („?“-Knopf): Tafel mit allen Elementen (Bild + ein Satz) und den Farbregeln.
 - [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
   Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 

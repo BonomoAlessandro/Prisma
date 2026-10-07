@@ -15,9 +15,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Levelauswahl.
-  Tasten: N / → nächstes Level, P / ← voriges Level (nur freigeschaltete), R neu starten, M Ton, L Levelauswahl,
+  Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
-- **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Beim Lösen leuchten die
+- **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
+  Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Kommt an einem Ziel die falsche Farbe an, flackert ein
+  äusserer Ring in dieser Farbe (der innere zeigt die gesuchte). Beim Lösen leuchten die
   Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die Platte und es regnen Funken;
   danach "Level gelöst" mit Weiter-Button. Ton komplett per Web Audio erzeugt.
   `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn).
@@ -54,8 +56,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
-  Kopfzeile, auch im Handy-Querformat: Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige Quellen,
-  Kombinator), danach 80 Level, allein nach Schwierigkeit sortiert; die Level 51–80 (aus `harden.mjs`) sind alle
+  Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
+  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 80 Level, allein nach Schwierigkeit sortiert; die Level 51–80 (aus `harden.mjs`) sind alle
   schwerer als die ersten 50, 71–80 mindestens so schwer wie 51–70. Jede Lösung steht als Kommentar und im Feld
   `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 … 71–80; ab 9 Seiten in zwei Reihen) –
   reine Seiten, keine Themen.

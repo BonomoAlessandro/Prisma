@@ -69,10 +69,13 @@
   #hud.hidden { transition-duration: 0.3s; }
   body.levels-open #hud { opacity: 0; }
   #hud .title { font-size: 13px; font-weight: 300; }
-  #hud .title, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
+  #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
+  #hud .goal.done { color: var(--ink); }
+  #hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
   @media (max-height: 500px) { /* Handy quer: alles an die Ränder, damit nichts das Feld verdeckt */
     #hud { top: max(8px, env(safe-area-inset-top)); }
     #hud .sub { display: none; }
+    #hud .goal { margin-top: 2px; font-size: 9px; }
     #hud.tutorial .sub { display: block; margin-top: 4px; font-size: 9px; letter-spacing: 0.2em; } /* Tutorial: Hinweis bleibt */
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
@@ -272,6 +275,7 @@
 <div id="perf" hidden></div>
 <div id="hud" class="hidden">
   <div class="title" id="hud-title">Prisma</div>
+  <div class="goal" id="hud-goal"></div>
   <div class="sub" id="hud-sub"></div>
 </div>
 
@@ -703,8 +707,8 @@ function tracePass(board, extraRays, emitting) {
  *             werden je nach Gerät ersetzt)
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
- * Zuerst das Tutorial: je Level eine Mechanik (Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige
- * Quellen, Kombinator).
+ * Zuerst das Tutorial: je Level ein Gedanke (Ziel und Spiegel, drehbar/fest, Block, Prisma, verschwindendes Licht,
+ * Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator).
  * Danach die 80 Level nach Schwierigkeit (Wertung aus tools/solver.mjs, Reihenfolge im Review korrigiert) –
  * Elemente und Farben mischen sich frei. Die Level 51–80 sind alle schwerer als die ersten 50 (tools/harden.mjs).
  * tools/curate.mjs schreibt sie zwischen die Markierungen.
@@ -714,7 +718,7 @@ const LEVELS = [
   {
     // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
     name: 'Erstes Licht', tutorial: true,
-    hint: '{Klick} dreht den Spiegel. Lenke das Licht ins Ziel.',
+    hint: 'Ziel: Jeder Kristall muss in seiner Farbe leuchten. {Klick} dreht den Spiegel.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'mirror', x: 4, z: 3, rot: 2 },
@@ -725,22 +729,37 @@ const LEVELS = [
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
     name: 'Umweg', tutorial: true,
-    hint: 'Drehbar ist, was auf einem runden Teller mit weissem Leuchtring steht. Eckige Sockel mit rotem Rand stehen fest, Blöcke schlucken Licht. {Rechtsklick} dreht zurück.',
+    hint: 'Runder Teller mit weissem Ring: drehbar. Eckiger Sockel mit rotem Rand: fest. {Rechtsklick} dreht zurück.',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 1 },
       { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
       { type: 'mirror', x: 5, z: 1, rot: 0 },
-      { type: 'blocker', x: 3, z: 6 },
       { type: 'target', x: 5, z: 4, color: 'white' },
     ],
     solution: { '3,5': 3, '5,1': 1 },
   },
   {
+    // Lösung: Spiegel (3,2) rot 3 – Ost → Nord; Spiegel (3,0) rot 3 – Nord → Ost; Spiegel (5,0) rot 1 – Ost → Süd
+    //   → Ziel (5,5). Der kurze Weg nach Süden über den festen Spiegel (3,5) endet am Block (3,4) – zu Beginn sichtbar.
+    name: 'Sperre', tutorial: true,
+    hint: 'Blöcke schlucken Licht. Führe es auf einem Umweg ans Ziel.',
+    elements: [
+      { type: 'source', x: 0, z: 2, dir: 0 },
+      { type: 'mirror', x: 3, z: 2, rot: 1 },
+      { type: 'blocker', x: 3, z: 4 },
+      { type: 'mirror', x: 3, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 5, z: 0, rot: 0 },
+      { type: 'target', x: 5, z: 5, color: 'white' },
+    ],
+    solution: { '3,2': 3, '3,0': 3, '5,0': 1 },
+  },
+  {
     // Lösung: Prisma (2,3) rot 0 – Fächer nach Ost: Rot → Nordost → Ziel (5,0),
     //   Grün → Ost → Ziel (6,3), Blau → Südost → Ziel (5,6).
     name: 'Brechung', tutorial: true,
-    hint: 'Das Prisma fächert Licht in seine Farben auf, Weiss in Rot, Grün und Blau. Einfarbiges Licht lenkt es nur um.',
+    hint: 'Das Prisma fächert weisses Licht in Rot, Grün und Blau auf. Einfarbiges Licht lenkt es nur um.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'prism', x: 2, z: 3, rot: 6 },
@@ -751,11 +770,28 @@ const LEVELS = [
     solution: { '2,3': 0 },
   },
   {
+    // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; Prisma (3,2) rot 6 – Fächer nach Nord: Rot → Nordwest → Ziel (1,0),
+    //   Grün → Nord → Ziel (3,0), Blau → Nordost → Ziel (5,0).
+    //   Das Licht verschwindet nacheinander: zuerst am Spiegel, der längs zum Strahl steht; ist er gedreht, am Prisma,
+    //   das dem Licht den Rücken zeigt.
+    name: 'Schatten', tutorial: true,
+    hint: 'Licht verschwindet, wenn es genau längs auf einen Spiegel fällt oder ein Prisma von hinten trifft.',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'prism', x: 3, z: 2, rot: 2 },
+      { type: 'target', x: 1, z: 0, color: 'red' },
+      { type: 'target', x: 3, z: 0, color: 'green' },
+      { type: 'target', x: 5, z: 0, color: 'blue' },
+    ],
+    solution: { '3,5': 3, '3,2': 6 },
+  },
+  {
     // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
     //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
     //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
     name: 'Farbenlehre', tutorial: true,
-    hint: 'Filter lassen nur ihre Farbe durch. Gelb besteht aus Rot und Grün.',
+    hint: 'Filter lassen nur ihre Farbe durch. Gelb = Rot + Grün, Cyan = Grün + Blau, Magenta = Rot + Blau.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'filter', x: 1, z: 3, color: 'yellow' },
@@ -770,7 +806,7 @@ const LEVELS = [
     // Lösung: Spiegel (3,3) rot 1 – Rot von West → Süd, Blau von Ost → Nord → Ziel (3,0);
     //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
     name: 'Farbiges Licht', tutorial: true,
-    hint: 'Farbige Quellen senden nur ihre Farbe. Ein Ziel leuchtet nur in genau seiner Farbe.',
+    hint: 'Farbige Quellen senden nur ihre Farbe. Kommt die falsche Farbe an, flackert ein Ring um das Ziel in ihr.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
       { type: 'source', x: 6, z: 3, dir: 4, color: 'blue' },
@@ -782,11 +818,25 @@ const LEVELS = [
     solution: { '3,3': 1, '3,5': 1 },
   },
   {
+    // Lösung: Spiegel (3,1) rot 1 – Rot von West → Süd; Spiegel (6,4) rot 1 – Blau von Süd → West;
+    //   beide treffen das Ziel (3,4) und mischen sich dort zu Magenta.
+    name: 'Treffpunkt', tutorial: true,
+    hint: 'Treffen sich Strahlen auf einem Ziel, mischen sie sich: Rot + Blau = Magenta.',
+    elements: [
+      { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
+      { type: 'source', x: 6, z: 6, dir: 6, color: 'blue' },
+      { type: 'mirror', x: 3, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 4, rot: 0 },
+      { type: 'target', x: 3, z: 4, color: 'magenta' },
+    ],
+    solution: { '3,1': 1, '6,4': 1 },
+  },
+  {
     // Lösung: Prisma (2,3) rot 0 – Grün → Ost → Ziel (4,3).
     //   Rot → Nordost → fester Spiegel (4,1) → Südost, Blau → Südost → fester Spiegel (4,5) → Nordost
     //   → beide in den Kombinator (6,3): Magenta → dir 6 (Nord) → Ziel (6,0).
     name: 'Mischung', tutorial: true,
-    hint: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie in eine Richtung. Auch auf einem Ziel mischen sich Strahlen.',
+    hint: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie in eine Richtung. Weiss + Rot bleibt Weiss.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'prism', x: 2, z: 3, rot: 6 },
@@ -3682,6 +3732,17 @@ function makeTarget(el) {
   halo.raycast = () => {};
   root.add(halo);
 
+  // Äusserer Ring, nur bei falschem Licht: flackert in der Farbe, die ankommt (der innere zeigt die gesuchte)
+  const wrongRing = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.011, 8, 64), new THREE.MeshBasicMaterial({
+    color: new THREE.Color(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false,
+  }));
+  wrongRing.rotation.x = Math.PI / 2;
+  wrongRing.position.y = FIXED_BASE_TOP + 0.006;
+  wrongRing.raycast = () => {};
+  wrongRing.layers.set(LAYER_NO_REFLECT);
+  wrongRing.visible = false;
+  root.add(wrongRing);
+
   // Bewusst ohne echte Transmission: die würde jedes Frame die ganze Szene ein zweites Mal rendern
   // (≈ ein Drittel der Frame-Zeit). Transparenz + Clearcoat + Iridescence + Leuchtkern wirken fast gleich.
   const gemMat = new THREE.MeshPhysicalMaterial({
@@ -3708,6 +3769,7 @@ function makeTarget(el) {
   root.userData.core = core;
   root.userData.ring = ring;
   root.userData.halo = halo;
+  root.userData.wrongRing = wrongRing;
   root.userData.color = col;
   // Dunkle Farben (v. a. Blau) gehen sonst in den hellen Glanzlichtern unter: stärker selbst leuchten lassen.
   const lum = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
@@ -3719,6 +3781,10 @@ function makeTarget(el) {
   root.userData.glowBoost = THREE.MathUtils.clamp(0.35 / Math.max(lum, 0.01), 1, 1.2);
   root.userData.hit = 0;        // animierter Zustand 0..1
   root.userData.hitGoal = 0;
+  root.userData.wrong = 0;      // falsches Licht kommt an: animiert 0..1
+  root.userData.wrongGoal = 0;
+  root.userData.wrongMix = 0;
+  root.userData.wrongColor = new THREE.Color();
   root.userData.flash = 0;      // kurzes Aufblitzen im Lösungsmoment (1 → 0)
   root.userData.phase = Math.random() * Math.PI * 2;
   root.userData.update = (t, dt) => updateTarget(root, t, dt);
@@ -3733,6 +3799,7 @@ const TARGET_IDLE = { core: 0.8, emissive: 0.15, ring: 0.7, halo: 0.12 };
 function updateTarget(obj, t, dt) {
   const u = obj.userData;
   u.hit += (u.hitGoal - u.hit) * (1 - Math.pow(0.0005, dt));
+  u.wrong += (u.wrongGoal - u.wrong) * (1 - Math.pow(0.002, dt));
   const h = u.hit, hl = h * u.litTame;
   u.flash *= Math.pow(0.04, dt);
   const f = u.flash;
@@ -3746,7 +3813,18 @@ function updateTarget(obj, t, dt) {
   u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3 * u.emissiveTame;
   u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + hl * 2.9 + f * 5);
   u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + hl * 0.6 + f * 1.4);
+  // Falsche Farbe: Äusserer Ring und Lichtfleck flackern unruhig in der Farbe, die ankommt; innerer Ring und
+  // Stein zeigen weiter, welche Farbe gebraucht wird. So sieht man z. B. "hier kommt Cyan an, gesucht ist Grün".
+  u.wrongRing.visible = u.wrong > 0.002;
+  if (u.wrongRing.visible) {
+    const unrest = 0.65 + 0.35 * Math.sin(t * 7.0 + u.phase) * Math.sin(t * 2.3);
+    u.wrongRing.material.color.copy(u.wrongColor).multiplyScalar(TARGET_WRONG.ring * unrest * u.wrong);
+    u.halo.material.color.lerp(_wrongTint.copy(u.wrongColor).multiplyScalar(TARGET_WRONG.halo * unrest), u.wrong);
+  }
 }
+/** Ziel mit Licht der falschen Farbe: äusserer Ring und Lichtfleck (unter der Bloom-Schwelle). */
+const TARGET_WRONG = { ring: 0.7, halo: 0.6 };
+const _wrongTint = new THREE.Color();
 
 /* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
 
@@ -4059,6 +4137,10 @@ function recomputeBeams(instant = false, delay = 0) {
     const u = game.objects.get(el.id).userData;
     u.satisfied = game.result.satisfied.has(el.id);
     u.arrivals = beamView.eventRecords.filter(r => r.ev.kind === 'hit' && r.ev.target === el.id);
+    // falsches Licht: eine Farbe, die das Ziel nicht enthält (0 = nichts Falsches). Eine erst halb fertige Mischung
+    // (z. B. nur Rot auf Magenta) ist der richtige Weg und zählt nicht.
+    const mix = game.result.hits.get(el.id) || 0;
+    u.wrongMix = mix & ~el.color ? mix : 0;
   }
   // Prisma, Filter, Kombinator: welche Strahlen kommen an (für ihr Aufleuchten)
   for (const el of game.board.elements) {
@@ -4071,13 +4153,20 @@ function recomputeBeams(instant = false, delay = 0) {
 }
 
 function updateTargetGoals() {
+  let lit = 0, total = 0;
   for (const obj of game.objects.values()) {
     const u = obj.userData;
     if (u.element.type !== 'target') continue;
-    const goal = u.satisfied && u.arrivals.every(r => beamView.revealed(r, r.worldDist)) ? 1 : 0;
+    const arrived = u.arrivals.length > 0 && u.arrivals.every(r => beamView.revealed(r, r.worldDist));
+    const goal = u.satisfied && arrived ? 1 : 0;
     if (goal && !u.hitGoal) audio.hit(u.element.color); // Ton, sobald das Licht sichtbar ankommt
     u.hitGoal = goal;
+    u.wrongGoal = u.wrongMix && arrived ? 1 : 0;
+    if (u.wrongGoal) u.wrongColor.copy(COLOR_RGB[u.wrongMix]); // erst wenn das Licht sichtbar ankommt
+    total++;
+    lit += goal;
   }
+  if (flow.state === 'play' || flow.state === 'in') ui.showGoal(lit, total);
 }
 
 const ROTATE = {
@@ -5646,7 +5735,7 @@ function setShown(el, shown) {
 }
 
 const ui = {
-  hud: $('hud'), title: $('hud-title'), sub: $('hud-sub'),
+  hud: $('hud'), title: $('hud-title'), goal: $('hud-goal'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
@@ -5698,7 +5787,14 @@ const ui = {
       this.sub.textContent = `Level ${n} / ${MAIN_COUNT} · ` +
         (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
     }
+    this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
     this.hud.classList.remove('hidden');
+  },
+  /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
+  showGoal(lit, total) {
+    const text = `Ziele ${lit} / ${total}`;
+    if (this.goal.textContent !== text) this.goal.textContent = text;
+    this.goal.classList.toggle('done', lit === total);
   },
   hideHud() { this.hud.classList.add('hidden'); },
   /** Kurzer Hinweis in der Unterzeile, danach wieder der normale Text. */

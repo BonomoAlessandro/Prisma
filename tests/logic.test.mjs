@@ -467,8 +467,8 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
 });
 const { NAMES, PROFILE_LEVELS } = await import('../tools/profiles.mjs');
 const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
-test('Tutorial: steht am Anfang, 3–8 Level, jedes mit Hinweis', () => {
-  assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 8, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
+test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Hinweis', () => {
+  assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 10, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
   L.LEVELS.forEach((l, i) => assert.equal(!!l.tutorial, i < L.TUTORIAL_COUNT, `Level ${i + 1} "${l.name}"`));
   for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.ok(typeof l.hint === 'string' && l.hint.length > 10, l.name + ': Hinweis fehlt');
 });
