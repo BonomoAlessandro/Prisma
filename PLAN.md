@@ -25,9 +25,11 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 
 ## 1. Entscheidungen (offen)
 
-- [ ] **E3 · Tutorial überspringen?** Zurzeit öffnet sich Level 1, sobald Tutorial 4 oder 5 gelöst ist (wie überall:
-  eins darf man überspringen). Erfahrene Spieler können das Tutorial nicht ganz überspringen. Gewünscht?
+- [x] **E3 · Tutorial überspringen?** Erledigt durch E5: Alle Level sind jederzeit spielbar.
 - [x] **E4 · Farbige Quellen im Tutorial:** eigenes Tutorial-Level „Farbiges Licht“ vor dem Kombinator.
+- [x] **E5 · Kein Freischalten:** Alle Level (auch Tutorial) sind jederzeit spielbar; gelöste Level bleiben markiert.
+- [x] **E6 · Level 74 und 79 bleiben** vorerst drin: Die Kandidaten S19/S40 (`tools/pools/review6/`) liegen auf dem
+  anderen Rechner. Der Austausch kann dort nachgeholt werden (siehe 2.11).
 
 ## 2. Tutorial + 70 Level (aktuelle Arbeit)
 
@@ -142,4 +144,3 @@ node tools/show.mjs --level 15                               # ein Level als Tex
 ```
 
 - Pools liegen in `tools/pools/` (nicht versioniert).
-- Im Browser `index.html?unlockall` öffnen, um alle Level ohne Freischalten zu spielen.

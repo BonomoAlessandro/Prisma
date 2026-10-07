@@ -155,15 +155,8 @@
   #levels .page .pprog { font-size: 9px; letter-spacing: 0.1em; color: var(--ink-dim); }
   #levels .page.complete .pprog { color: var(--ink); }
   #levels .page-title { font-size: 10px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 14px; padding-left: 0.45em; }
-  #levels .lock-hint { font-size: 9px; letter-spacing: 0.15em; color: var(--ink-dim); margin: -16px 0 22px; }
-  #levels .lock-hint[hidden] { display: none; }
   #levels .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
   #levels .tile.ghost { visibility: hidden; }
-  #levels .tile:disabled { opacity: 0.45; cursor: default; }
-  #levels .tile:disabled:hover { border-color: var(--ink-faint); background: none; }
-  #levels .tile .lock { width: 10px; height: 10px; fill: none; stroke: currentColor; stroke-width: 1.6; display: none; }
-  #levels .tile:disabled .lock { display: block; }
-  #levels .tile:disabled .dot { display: none; }
   #levels .tile {
     aspect-ratio: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
@@ -305,7 +298,6 @@
     <div class="pages" id="page-tabs" role="group" aria-label="Seiten"></div>
     <div class="page-title" id="page-title"></div>
     <div class="grid" id="level-grid"></div>
-    <div class="lock-hint" id="lock-hint" hidden>Gesperrte Level öffnen sich, sobald eines der beiden vorigen gelöst ist.</div>
     <button class="close" id="btn-levels-close">Schliessen</button>
   </div>
 </div>
@@ -5519,17 +5511,13 @@ const waveLength = (size = game.board.size) => 2 * (size - 1) * FLOW.wave;
 /**
  * Fortschritt im Browser. Gelöste Level werden nach Namen gespeichert, nicht nach Position – so bleibt
  * der Fortschritt erhalten, wenn Level neu kuratiert werden und dabei ihren Platz wechseln.
- * Freischalten: ein Level ist spielbar, wenn eines der beiden vorigen gelöst ist (eins darf man überspringen).
+ * Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden.
  */
 const progress = {
   solved: new Set(), // Levelnamen
   keyOf: (i) => LEVELS[i].name,
   isSolved(i) { return i >= 0 && i < LEVELS.length && this.solved.has(this.keyOf(i)); },
   markSolved(i) { this.solved.add(this.keyOf(i)); },
-  all: new URLSearchParams(location.search).has('unlockall'), // Entwicklung/Tests: alles offen
-  unlocked(i) { return i >= 0 && i < LEVELS.length && (this.all || i === 0 || this.isSolved(i) || this.isSolved(i - 1) || this.isSolved(i - 2)); },
-  /** Spielbares Level, das dem gewünschten am nächsten liegt (rückwärts gesucht). */
-  nearestUnlocked(i) { for (let k = Math.min(i, LEVELS.length - 1); k > 0; k--) if (this.unlocked(k)) return k; return 0; },
   load() {
     const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
     const json = (key) => { try { return JSON.parse(read(key) || 'null'); } catch { return null; } };
@@ -5541,10 +5529,10 @@ const progress = {
     if (Array.isArray(keys)) this.solved = new Set(keys.filter(k => typeof k === 'string').map(strip).filter(k => known.has(k)));
     const cur = read(FLOW.storageKey);
     const i = cur === null ? -1 : LEVELS.findIndex((_, k) => this.keyOf(k) === strip(cur));
-    if (i >= 0 && this.unlocked(i)) return i;
-    // unbekannt (z. B. umbenannt) oder gesperrt: erstes offenes, noch ungelöstes Level, sonst das letzte offene
-    const fresh = LEVELS.findIndex((_, k) => this.unlocked(k) && !this.isSolved(k));
-    return fresh >= 0 ? fresh : this.nearestUnlocked(LEVELS.length - 1);
+    if (i >= 0) return i;
+    // unbekannt (z. B. umbenannt): erstes noch ungelöstes Level, sonst das letzte
+    const fresh = LEVELS.findIndex((_, k) => !this.isSolved(k));
+    return fresh >= 0 ? fresh : LEVELS.length - 1;
   },
   save(index) {
     try {
@@ -5556,9 +5544,9 @@ const progress = {
   solvedCount(indices) { return indices.filter(i => this.isSolved(i)).length; },
 };
 
-/** Level wechseln: altes Feld versinkt, danach wächst das neue heraus. Gesperrte Level bleiben zu. */
+/** Level wechseln: altes Feld versinkt, danach wächst das neue heraus. */
 function changeLevel(index) {
-  if (flow.state === 'intro' || !progress.unlocked(index)) return;
+  if (flow.state === 'intro' || index < 0 || index >= LEVELS.length) return;
   flow.next = index;
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   flow.state = 'out';
@@ -5585,7 +5573,6 @@ function changeLevel(index) {
 /** Relativ blättern; während des Versinkens zählt das bereits gewählte Ziel-Level. */
 function stepLevel(delta) {
   const target = (flow.state === 'out' ? flow.next : game.levelIndex) + delta;
-  if (flow.state === 'play' && delta > 0 && target < LEVELS.length && !progress.unlocked(target)) ui.flashHint('Noch gesperrt – erst dieses Level lösen');
   changeLevel(target);
 }
 
@@ -5675,7 +5662,6 @@ const ui = {
   controls: $('controls'), sound: $('btn-sound'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
-  lockHint: $('lock-hint'),
   shownPage: 'T',
   intro: $('intro'),
   lastLevel: false,
@@ -5792,12 +5778,10 @@ const ui = {
       const k = levelNumber(i) - 1;
       const b = document.createElement('button');
       b.className = 'tile';
-      b.innerHTML = `<span class="num">${k + 1}</span><span class="name"></span><span class="dot"></span>` +
-        '<svg class="lock" viewBox="0 0 10 10" aria-hidden="true"><rect x="1.5" y="4.5" width="7" height="5" rx="1"/><path d="M3 4.5V3a2 2 0 0 1 4 0v1.5"/></svg>';
+      b.innerHTML = `<span class="num">${k + 1}</span><span class="name"></span><span class="dot"></span>`;
       b.querySelector('.name').textContent = LEVELS[i].name;
-      const open = progress.unlocked(i), done = progress.isSolved(i);
-      b.disabled = !open;
-      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : 'Level '}${k + 1} ${LEVELS[i].name}${done ? ', gelöst' : ''}${open ? '' : ', gesperrt'}`);
+      const done = progress.isSolved(i);
+      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : 'Level '}${k + 1} ${LEVELS[i].name}${done ? ', gelöst' : ''}`);
       if (i === game.levelIndex) b.setAttribute('aria-current', 'true');
       b.classList.toggle('current', i === game.levelIndex);
       b.classList.toggle('done', done);
@@ -5811,7 +5795,6 @@ const ui = {
       ghost.setAttribute('aria-hidden', 'true');
       this.grid.appendChild(ghost);
     }
-    this.lockHint.hidden = !page.indices.some(i => !progress.unlocked(i));
   },
   closeLevels() {
     if (!this.levelsOpen()) return;
@@ -6092,7 +6075,6 @@ function frame(ts) {
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
-  unlockAll: () => { progress.all = true; }, // für Tests: gesperrte Level anspringbar
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
 window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress };

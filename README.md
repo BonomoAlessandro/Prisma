@@ -59,9 +59,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   schwerer als die ersten 50, 71–80 mindestens so schwer wie 51–70. Jede Lösung steht als Kommentar und im Feld
   `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 … 71–80; ab 9 Seiten in zwei Reihen) –
   reine Seiten, keine Themen.
-  Ein Level ist spielbar, sobald eines der beiden vorigen gelöst ist (eins darf man überspringen). Fortschritt und
-  aktuelles Level bleiben im Browser gespeichert (nach Levelname).
-  `?unlockall` bzw. `__prisma.unlockAll()` schaltet für Tests alles frei.
+  Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
+  im Browser gespeichert (nach Levelname).
   Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts. Die Namen in `tools/profiles.mjs` werden der
   Position nach vergeben – nach dem Veröffentlichen nicht mehr umbenennen.
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
