@@ -119,7 +119,6 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
     evtl. auch drehen oder Blocker öffnen). Eröffnet neue Levelideen: Reihenfolge der Schritte zählt, ein Strahl bahnt
     einem anderen den Weg. Offen: dauerhaft auslösen oder nur solange Licht darauf fällt; Darstellung der Verbindung
     Schalter → Element; Löser und Generator müssen Zustände mit Schaltern durchspielen.
-- [ ] Grösseres Spielfeld als 7×7 (Platte, Kamera, Handy-Layout anpassen).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] Mehr als 70 Level, wenn die ersten 70 überzeugen.
 
