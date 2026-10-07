@@ -1,12 +1,14 @@
-// Kuratiert die 50 Level: liest alle Pools (tools/pools/*.jsonl, erzeugt mit tools/pools.mjs) und die
-// gespeicherten Kandidaten (tools/candidates.jsonl: handgebaute Level und das frühere Kapitel II),
-// wählt 50 Level gleichmässig über die Schwierigkeit (Wertung aus solver.mjs), möglichst verschieden,
-// sortiert sie allein nach der Wertung, vergibt Namen (profiles.mjs) und Lösungskommentare und schreibt
-// sie in index.html zwischen die Markierungen /* LEVELS:BEGIN */ … /* LEVELS:END */.
+// Kuratiert die Level (so viele wie NAMES in profiles.mjs): liest alle Pools (tools/pools/*.jsonl, erzeugt mit
+// tools/pools.mjs bzw. tools/harden.mjs) und die gespeicherten Kandidaten (tools/candidates.jsonl: handgebaute
+// Level und das frühere Kapitel II), wählt die Level gleichmässig über die Schwierigkeit (Wertung aus
+// solver.mjs), möglichst verschieden, sortiert sie allein nach der Wertung, vergibt Namen (profiles.mjs) und
+// Lösungskommentare und schreibt sie in index.html zwischen die Markierungen /* LEVELS:BEGIN */ … /* LEVELS:END */.
 //
-// Aufruf: node tools/curate.mjs [--dry] [--from W] [--to W] [--save datei] [--order datei]
+// Aufruf: node tools/curate.mjs [--dry] [--keep N] [--from W] [--to W] [--save datei] [--order datei]
 //   --dry    nur anzeigen (Textfelder und Kennzahlen), index.html nicht ändern
-//   --from   niedrigste Zielwertung (Standard: leichtester Kandidat ≥ 9)
+//   --keep   die ersten N Level aus tools/selection.jsonl unverändert übernehmen und nur die übrigen wählen –
+//            alle schwerer als das schwerste übernommene (so kamen die Level 51–70 dazu: --keep 50)
+//   --from   niedrigste Zielwertung (Standard: leichtester Kandidat ≥ 9, mit --keep knapp über dem schwersten)
 //   --to     höchste Zielwertung (Standard: schwerster Kandidat)
 //   --save   Auswahl als JSON-Zeilen speichern (z. B. für ein Review)
 //   --order  Auswahl und Reihenfolge aus einer Datei übernehmen (JSON-Zeilen wie bei --save, in der
@@ -20,10 +22,12 @@ import { fileURLToPath } from 'node:url';
 import { NAMES } from './profiles.mjs';
 import { draw } from './show.mjs';
 import { quality, passes, symOverlap, oddFilters } from './quality.mjs';
+import { accepted } from './harden.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const indexPath = join(here, '..', 'index.html');
-const COUNT = NAMES.length; // 50
+const COUNT = NAMES.length;
+const selectionPath = join(here, 'selection.jsonl');
 const die = (msg, code = 1) => { console.error(msg); process.exit(code); };
 
 const args = process.argv.slice(2);
@@ -38,6 +42,9 @@ const flag = (name, def) => {
 const dry = args.includes('--dry') ? (args.splice(args.indexOf('--dry'), 1), true) : false;
 const fromArg = flag('--from', null), toArg = flag('--to', null);
 const savePath = flag('--save', null), orderPath = flag('--order', null);
+const keep = Number(flag('--keep', 0));
+if (!Number.isInteger(keep) || keep < 0 || keep >= COUNT) die(`--keep braucht eine ganze Zahl von 0 bis ${COUNT - 1}`);
+if (keep && orderPath) die('--keep und --order schliessen sich aus (--order übernimmt alle Level aus der Datei)');
 if (args.length) die('Unbekannte Argumente: ' + args.join(' '));
 const readLines = (file) => readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map(l => JSON.parse(l));
 
@@ -66,17 +73,26 @@ if (orderPath) {
     g.quality = g.quality || quality(g.level);
     if (g.quality.oddFilters === undefined) g.quality.oddFilters = oddFilters(g.level).length; // ältere Pools
   }
-  // handgebaute Level sind von Hand geprüft und dürfen die Qualitätsregeln verfehlen
-  const good = pool.filter(g => g.handmade || !passes(g.quality).length);
+  // handgebaute Level sind von Hand geprüft und dürfen die Qualitätsregeln verfehlen. Gehärtete Level (harden.mjs,
+  // erkennbar an base) bestehen zudem dessen Abnahme – ältere Pools prüften sie nur vor dem Abschluss.
+  const good = pool.filter(g => (g.handmade || !passes(g.quality).length) && (!g.base || accepted(g.level)));
   console.error(`${pool.length} Kandidaten aus ${files.length} Dateien, ${good.length} bestehen die Qualitätskriterien`);
 
+  // ---- übernommene Level (--keep): die neuen müssen alle schwerer sein
+  const kept = keep ? readLines(selectionPath).slice(0, keep) : [];
+  if (kept.length < keep) die(`--keep: tools/selection.jsonl hat nur ${kept.length} Level`);
+  const keptMax = Math.max(-Infinity, ...kept.map(g => g.metrics.score));
+  const need = COUNT - kept.length;
+  if (keep) console.error(`${keep} Level übernommen (schwerstes: Wertung ${keptMax}), ${need} neue gesucht`);
+
   // ---- Zielwerte: gleichmässig von leicht bis schwer
-  const scores = good.map(g => g.metrics.score).sort((a, b) => a - b);
-  const lo = fromArg !== null ? Number(fromArg) : Math.max(9, scores[0]);
+  const scores = good.filter(g => g.metrics.score > keptMax).map(g => g.metrics.score).sort((a, b) => a - b);
+  if (!scores.length) die('Keine Kandidaten schwerer als die übernommenen Level', 2);
+  const lo = fromArg !== null ? Number(fromArg) : keep ? scores[0] : Math.max(9, scores[0]);
   const hi = toArg !== null ? Number(toArg) : scores.at(-1);
-  const inRange = good.filter(g => g.metrics.score >= lo - 0.5 && g.metrics.score <= hi + 0.5);
-  if (inRange.length < COUNT) die(`Nur ${inRange.length} Kandidaten zwischen ${lo} und ${hi}`, 2);
-  const step = (hi - lo) / (COUNT - 1);
+  const inRange = good.filter(g => g.metrics.score > keptMax && g.metrics.score >= lo - 0.5 && g.metrics.score <= hi + 0.5);
+  if (inRange.length < need) die(`Nur ${inRange.length} Kandidaten zwischen ${lo} und ${hi}`, 2);
+  const step = (hi - lo) / Math.max(1, need - 1);
   console.error(`Zielwertungen ${lo}–${hi} (Schritt ${step.toFixed(2)}), ${inRange.length} Kandidaten`);
 
   // ---- Auswahl: je Zielwert der passendste Kandidat. Kosten: Abstand zum Zielwert, gleiche Mischung wie
@@ -85,9 +101,10 @@ if (orderPath) {
   //      Gleiches Grundmuster (Überlappung auch unter Drehung/Spiegelung) ist ausgeschlossen.
   const LIMITS = [0.5, 0.65, 0.8, 1.01];
   chosen = [];
-  for (let k = 0; k < COUNT; k++) {
+  for (let k = 0; k < need; k++) {
     const goal = lo + step * k;
-    const prev = chosen.slice(-2).map(c => flavour(c.level));
+    const all = [...kept, ...chosen];
+    const prev = all.slice(-2).map(c => flavour(c.level));
     const used = new Map();
     for (const c of chosen) used.set(flavour(c.level), (used.get(flavour(c.level)) || 0) + 1);
     const cost = (g) => {
@@ -99,12 +116,13 @@ if (orderPath) {
     };
     const ranked = inRange.filter(g => !chosen.includes(g)).sort((a, b) => cost(a) - cost(b));
     let pick, limit;
-    for (limit of LIMITS) { pick = ranked.find(g => chosen.every(c => symOverlap(g.level, c.level) < limit)); if (pick) break; }
-    if (limit > LIMITS[0]) console.error(`Hinweis: Level ${k + 1} nur mit gelockerter Verschiedenheit (Überlappung < ${limit})`);
-    if (Math.abs(pick.metrics.score - goal) > 2 * step) console.error(`Hinweis: Level ${k + 1} liegt weit vom Zielwert ${goal.toFixed(1)} (Wertung ${pick.metrics.score})`);
+    for (limit of LIMITS) { pick = ranked.find(g => all.every(c => symOverlap(g.level, c.level) < limit)); if (pick) break; }
+    if (limit > LIMITS[0]) console.error(`Hinweis: Level ${keep + k + 1} nur mit gelockerter Verschiedenheit (Überlappung < ${limit})`);
+    if (Math.abs(pick.metrics.score - goal) > 2 * step) console.error(`Hinweis: Level ${keep + k + 1} liegt weit vom Zielwert ${goal.toFixed(1)} (Wertung ${pick.metrics.score})`);
     chosen.push(pick);
   }
   chosen.sort((a, b) => a.metrics.score - b.metrics.score);
+  chosen = [...kept, ...chosen];
 }
 
 // ---- Ausgabe als Level-Code
@@ -131,7 +149,8 @@ function levelCode(g, name) {
   let cur = '// Lösung:';
   for (const part of sol) { if ((cur + ' ' + part).length > 100) { lines.push(cur); cur = '//  '; } cur += ' ' + part + ' ·'; }
   lines.push(cur.replace(/ ·$/, ''));
-  const origin = typeof g.seed === 'number' ? `Profil ${g.from?.replace('.jsonl', '') ?? '?'}, Seed ${g.seed}` : g.seed;
+  const origin = g.base ? `gehärtet aus Profil ${g.base}, Seed ${g.seed}`
+    : typeof g.seed === 'number' ? `Profil ${g.from?.replace('.jsonl', '') ?? '?'}, Seed ${g.seed}` : g.seed;
   lines.push(`// Wertung ${m.score} · ${m.rotatable} drehbar · ${plural(m.targets, 'Ziel', 'Ziele')} · Rateschritte ${m.guesses} · ${origin}`);
   const sorted = [...els].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type) || a.z - b.z || a.x - b.x);
   return [

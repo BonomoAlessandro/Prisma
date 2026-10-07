@@ -11,7 +11,7 @@ import { quality, passes } from './quality.mjs';
 import { PROFILES } from './profiles.mjs';
 
 const SIZE = 7;
-const SOURCE_COLORS = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta'];
+export const SOURCE_COLORS = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta'];
 
 /** Deterministischer Zufall (mulberry32) – gleicher Seed, gleiches Level. */
 export function rng(seed) {
@@ -38,15 +38,15 @@ export function rng(seed) {
 
 const inBoard = (x, z) => x >= 0 && z >= 0 && x < SIZE && z < SIZE;
 const key = (x, z) => x + ',' + z;
-const asLevel = (elements, name = '') => ({ name, elements: elements.map(e => ({ ...e })) });
-const traceEls = (elements) => L.traceBeams(L.createBoard(asLevel(elements)));
+export const asLevel = (elements, name = '') => ({ name, elements: elements.map(e => ({ ...e })) });
+export const traceEls = (elements) => L.traceBeams(L.createBoard(asLevel(elements)));
 const rotatable = (e) => L.isRotatable({ ...e, fixed: !!e.fixed });
 const rotOf = (e) => (e.type === 'combiner' ? e.dir : e.rot);
 const withRot = (e, v) => (e.type === 'combiner' ? { ...e, dir: v } : { ...e, rot: v });
 const per = (e) => (e.type === 'mirror' ? 4 : 8);
 
 /** Zellen, durch die ein Abschnitt läuft (ohne Start- und Endzelle), mit Richtung und Farbe. */
-function segmentCells(s) {
+export function segmentCells(s) {
   const dx = Math.sign(Math.round((s.x1 - s.x0) * 1000)), dz = Math.sign(Math.round((s.z1 - s.z0) * 1000));
   const dir = L.DIRS.findIndex(([a, b]) => a === dx && b === dz);
   const cells = [];
@@ -60,7 +60,7 @@ function segmentCells(s) {
 const pathCells = (r) => new Set(r.segments.flatMap(segmentCells).map(c => key(c.x, c.z)));
 
 /** Sinnvolle Stellung für ein Element, das ein Strahl in Richtung dir erreicht. */
-function chooseRotation(type, dir, R) {
+export function chooseRotation(type, dir, R) {
   if (type === 'mirror') {
     // ablenken – nicht parallel (schluckt) und nicht senkrecht (wirft zurück)
     return R.pick([0, 1, 2, 3].filter(r => { const nd = L.reflectOnMirror(dir, r); return nd !== dir && nd !== (dir + 4) % 8; }));
@@ -199,21 +199,34 @@ export function generateOne(spec, seed) {
     put(R.chance(0.5) ? { type: 'blocker', x, z } : { type: 'mirror', x, z, rot: R.int(0, 3), fixed: true });
   }
 
-  // ---- Eindeutigkeit: abweichende Strahlbilder auf einer nur dort genutzten Zelle blockieren
+  const unique = makeUnique(els, solution, R, spec);
+  if (unique.fail) return unique;
+  return finish(els, solution, spec, R, seed);
+}
+
+/**
+ * Eindeutigkeit herstellen: abweichende Strahlbilder auf einer nur dort genutzten Zelle blockieren.
+ * els steht in Lösungsstellung; els und solution werden angepasst.
+ * Liefert { res } (Suche im nun eindeutigen Level, mit nodes und guesses) oder { fail: Grund }.
+ * spec.maxSearch begrenzt die Suche (Standard 4e5 Knoten), spec.maxRepairs die Reparaturen (Standard 12).
+ */
+export function makeUnique(els, solution, R, spec) {
+  const fail = (why) => ({ fail: why });
   for (let rep = 0; ; rep++) {
-    const res = solve(asLevel(els), { collect: 6, maxNodes: 4e5 });
+    const res = solve(asLevel(els), { collect: 6, maxNodes: spec.maxSearch || 4e5 });
     if (res.aborted) return fail('Suche zu gross');
-    if (res.count === 1) break;
-    if (rep >= 12 || !spec.repairs) return fail('nicht eindeutig');
+    if (res.count === 1) return { res };
+    if (rep >= (spec.maxRepairs ?? 12) || !spec.repairs) return fail('nicht eindeutig');
     const alt = res.solutions.find(s => s.free || Object.entries(s.set).some(([k, v]) => k in solution && v !== solution[k]));
     if (!alt) return fail('keine Alternative greifbar');
     const altEls = els.map(e => (rotatable(e) && key(e.x, e.z) in alt.set ? withRot(e, alt.set[key(e.x, e.z)]) : e));
     const altCells = pathCells(traceEls(altEls));
     const cur = pathCells(traceEls(els));
+    const occupied = new Set(els.map(e => key(e.x, e.z)));
     const spots = [...altCells].filter(k => !cur.has(k) && !occupied.has(k));
     if (spots.length) {
       const [x, z] = R.pick(spots).split(',').map(Number);
-      put({ type: 'blocker', x, z });
+      els.push({ type: 'blocker', x, z });
       continue;
     }
     // Kein freies Feld auf dem anderen Weg: einen Spiegel, der sich zwischen den Lösungen unterscheidet,
@@ -225,13 +238,24 @@ export function generateOne(spec, seed) {
     els[els.indexOf(e)] = { ...e, fixed: true };
     delete solution[key(e.x, e.z)];
   }
+}
+
+/**
+ * Abschluss eines eindeutigen Levels (els in Lösungsstellung, siehe makeUnique): funktionslose Teile und
+ * unnötige Blocker entfernen, überflüssige Quellen verwerfen, Startstellung verdrehen, alles prüfen.
+ * Liefert { level, metrics, quality, seed } oder { fail: Grund }.
+ * spec.maxFull begrenzt die Vollsuche über alle Stellungen (Standard 3e5 Knoten).
+ */
+export function finish(els, solution, spec, R, seed) {
+  const fail = (why) => ({ fail: why });
+  const remove = (e) => els.splice(els.indexOf(e), 1);
 
   // ---- funktionslose Teile: feste Elemente/Blocker, die in keiner Stellung Licht bekommen, entfernen;
   //      Ziele, die in jeder Stellung erfüllt sind, machen das Level wertlos
   const everLit = new Set();
   const targetsAlways = new Map(); // "x,z" → in allen Blättern erfüllt
   const full = solve(asLevel(els), {
-    prune: false, maxNodes: 3e5, collect: 0,
+    prune: false, maxNodes: spec.maxFull || 3e5, collect: 0,
     onLeaf: (res, board) => {
       for (const k of litCells(res, board)) everLit.add(k);
       for (const t of board.elements.filter(e => e.type === 'target')) {
@@ -247,7 +271,7 @@ export function generateOne(spec, seed) {
   // ---- Blocker, die nichts einschränken: probeweise entfernen; bleibt die Lösung eindeutig, wegbleiben lassen
   for (const blk of els.filter(e => e.type === 'blocker')) {
     const without = els.filter(e => e !== blk);
-    const res = solve(asLevel(without), { collect: 1, maxNodes: 4e5 });
+    const res = solve(asLevel(without), { collect: 1, maxNodes: spec.maxSearch || 4e5 });
     if (!res.aborted && res.count === 1) remove(blk);
   }
   if (els.filter(e => e.type === 'blocker').length > (spec.maxBlockers ?? 4)) return fail('zu viele Blocker');
@@ -320,7 +344,7 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
     const results = [], stats = new Map();
     const kids = [];
     let done = false;
-    const finish = () => {
+    const finishAll = () => {
       if (done) return;
       done = true;
       kids.forEach(k => k.kill());
@@ -334,12 +358,13 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
       // Zählerstände kommen alle 10 Seeds – nach dem Abbruch der Kinder daher "mindestens"
       console.error(summary(Math.min(results.length, +count), tried, reasons).replace(' aus ', ' aus mindestens ') + ` (${jobs} Prozesse)`);
     };
-    if (Number.isFinite(seconds)) setTimeout(finish, seconds * 1000).unref();
+    if (Number.isFinite(seconds)) setTimeout(finishAll, seconds * 1000).unref();
     let alive = jobs;
     for (let i = 0; i < jobs; i++) {
       const k = spawn(process.execPath, [process.argv[1], profileId, count, String(+startSeed + i), String(Math.ceil(+maxSeeds / jobs))],
         { env: { ...process.env, GEN_STRIDE: String(jobs), GEN_CHILD: '1' }, stdio: ['ignore', 'pipe', 'ignore'] });
       let buf = '';
+      k.stdout.setEncoding('utf8'); // Umlaute nicht an Blockgrenzen zerreissen
       k.stdout.on('data', (d) => {
         buf += d;
         let nl;
@@ -349,10 +374,10 @@ if (process.argv[1] && process.argv[1].endsWith('generate.mjs')) {
           const msg = JSON.parse(line);
           if (msg.stats) stats.set(i, msg.stats);
           else results.push(msg);
-          if (results.length >= +count) finish();
+          if (results.length >= +count) finishAll();
         }
       });
-      k.on('exit', () => { if (--alive === 0) finish(); });
+      k.on('exit', () => { if (--alive === 0) finishAll(); });
       kids.push(k);
     }
   } else {

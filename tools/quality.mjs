@@ -49,26 +49,9 @@ export function quality(level) {
   // Quellen stehen immer am Rand (Generator) – sie zählen hier nicht mit
   const inner = els.filter(e => e.type !== 'source');
   const edgeShare = inner.filter(e => e.x === 0 || e.z === 0 || e.x === SIZE - 1 || e.z === SIZE - 1).length / Math.max(1, inner.length);
-
-  // Lösung: Kreuzungen und Mehrfachtreffer
-  const b = solvedBoard(level);
-  const r = L.traceBeams(b);
-  const dirsAt = new Map();
-  for (const s of r.segments) for (const c of passCells(s)) { if (!dirsAt.has(c.k)) dirsAt.set(c.k, new Set()); dirsAt.get(c.k).add(c.dir); }
-  const occupied = new Set(els.map(e => e.x + ',' + e.z));
-  const crossings = [...dirsAt].filter(([k, d]) => !occupied.has(k) && new Set([...d].map(v => Math.abs(v))).size >= 2).length;
-  const reflectCount = new Map();
-  for (const e of r.events) if (e.kind === 'reflect') { const k = Math.round(e.x) + ',' + Math.round(e.z); reflectCount.set(k, (reflectCount.get(k) || 0) + 1); }
-  const multiHit = [...reflectCount.values()].filter(n => n >= 2).length;
-
-  // Quellen einzeln: welche drehbaren Elemente erreicht jede in der Lösung bzw. in irgendeiner Stellung?
+  const { crossings, multiHit, shared, r, b } = interplay(level);
   const sources = els.filter(e => e.type === 'source');
   const rotKeys = new Set(els.filter(e => L.isRotatable({ ...e, fixed: !!e.fixed })).map(e => e.x + ',' + e.z));
-  const litBySource = sources.map(src => {
-    const bs = solvedBoard(level, src);
-    return new Set([...litCells(L.traceBeams(bs), bs)].filter(k => rotKeys.has(k)));
-  });
-  const shared = [...rotKeys].filter(k => litBySource.filter(set => set.has(k)).length >= 2).length;
   let coupled = true;
   if (sources.length > 1) {
     const reach = sources.map(src => {
@@ -99,6 +82,53 @@ export function quality(level) {
   }
   return { area, quadrants: quads.size, edgeShare: +edgeShare.toFixed(2), crossings, multiHit, shared, coupled, decoysRead,
     interaction: crossings + multiHit + shared, oddFilters: oddFilters(level).length };
+}
+
+/**
+ * Zusammenspiel in der Lösung – nur Strahlverfolgung, daher billig (tools/harden.mjs ruft es bei jedem Schritt):
+ * Kreuzungen, Mehrfachtreffer und geteilte Elemente (siehe quality), dazu das gelöste Strahlbild r auf dem Board b.
+ */
+export function interplay(level) {
+  const els = level.elements;
+  // Lösung: Kreuzungen und Mehrfachtreffer
+  const b = solvedBoard(level);
+  const r = L.traceBeams(b);
+  const dirsAt = new Map();
+  for (const s of r.segments) for (const c of passCells(s)) { if (!dirsAt.has(c.k)) dirsAt.set(c.k, new Set()); dirsAt.get(c.k).add(c.dir); }
+  const occupied = new Set(els.map(e => e.x + ',' + e.z));
+  const crossings = [...dirsAt].filter(([k, d]) => !occupied.has(k) && new Set([...d].map(v => Math.abs(v))).size >= 2).length;
+  const reflectCount = new Map();
+  for (const e of r.events) if (e.kind === 'reflect') { const k = Math.round(e.x) + ',' + Math.round(e.z); reflectCount.set(k, (reflectCount.get(k) || 0) + 1); }
+  const multiHit = [...reflectCount.values()].filter(n => n >= 2).length;
+
+  // Quellen einzeln: welche drehbaren Elemente erreicht jede in der Lösung?
+  const rotKeys = new Set(els.filter(e => L.isRotatable({ ...e, fixed: !!e.fixed })).map(e => e.x + ',' + e.z));
+  const litBySource = els.filter(e => e.type === 'source').map(src => {
+    const bs = solvedBoard(level, src);
+    return new Set([...litCells(L.traceBeams(bs), bs)].filter(k => rotKeys.has(k)));
+  });
+  const shared = [...rotKeys].filter(k => litBySource.filter(set => set.has(k)).length >= 2).length;
+  // Gruppen von Quellen, die über gemeinsam beleuchtete drehbare Elemente zusammenhängen (1 = alle gekoppelt)
+  const group = litBySource.map((_, i) => i);
+  const root = (i) => (group[i] === i ? i : (group[i] = root(group[i])));
+  litBySource.forEach((a, i) => litBySource.forEach((c, j) => { if (j > i && [...a].some(k => c.has(k))) group[root(j)] = root(i); }));
+  const groups = new Set(group.map((_, i) => root(i))).size;
+  return { crossings, multiHit, shared, groups, r, b };
+}
+
+/**
+ * Dichte in der Lösung: adjacent = Paare benachbarter drehbarer Elemente (auch diagonal) je drehbarem Element,
+ * short = Anteil der Strahlabschnitte im Feld, die nur ein Feld weit laufen. Die 50 Level liegen bei höchstens
+ * 1.29 bzw. 0.9 (90 % bei höchstens 1.0 bzw. 0.67) – dichter wirkt das Feld wie ein Knäuel.
+ */
+export function density(level) {
+  const rot = level.elements.filter(e => L.isRotatable({ ...e, fixed: !!e.fixed }));
+  let adj = 0;
+  for (let i = 0; i < rot.length; i++) for (let j = i + 1; j < rot.length; j++) {
+    if (Math.max(Math.abs(rot[i].x - rot[j].x), Math.abs(rot[i].z - rot[j].z)) === 1) adj++;
+  }
+  const len = L.traceBeams(solvedBoard(level)).segments.filter(s => !s.fade).map(s => Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)));
+  return { adjacent: +(adj / Math.max(1, rot.length)).toFixed(2), short: +(len.filter(l => l <= 1.01).length / Math.max(1, len.length)).toFixed(2) };
 }
 
 /**

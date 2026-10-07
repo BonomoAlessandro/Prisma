@@ -1,4 +1,4 @@
-// Generator-Profile für die 50 Level (tools/generate.mjs, tools/curate.mjs).
+// Generator-Profile für die Level 1–50 (tools/generate.mjs, tools/curate.mjs) und Namen aller Level.
 // Die Level sind nicht nach Elementen gruppiert: Jede Grössenstufe gibt es in mehreren Mischungen,
 // curate.mjs wirft alle Pools zusammen und sortiert allein nach der Wertung (Schwierigkeit).
 //
@@ -50,11 +50,18 @@ for (const [tier, t] of Object.entries(TIERS)) {
   }
 }
 
-/** Namen der 50 Level in aufsteigender Schwierigkeit (Speicherschlüssel des Fortschritts). */
+/**
+ * Namen der Level in aufsteigender Schwierigkeit (Speicherschlüssel des Fortschritts). Die ersten 50 stammen aus
+ * den Profilen oben, die Level 51–70 aus tools/harden.mjs (alle schwerer als Level 50).
+ */
 export const NAMES = [
   'Zickzack', 'Umlenkung', 'Schleuse', 'Winkelzug', 'Gegenlicht', 'Farbsieb', 'Fächer', 'Kehre', 'Tönung', 'Rundgang',
   'Spiegelgasse', 'Lichtfalle', 'Regenbogen', 'Zwillinge', 'Begegnung', 'Weichen', 'Auslese', 'Gabelung', 'Farbspiel', 'Labyrinth',
   'Zusammenfluss', 'Doppelpass', 'Brechpunkt', 'Glasfenster', 'Kreuzweg', 'Einklang', 'Knotenpunkt', 'Schnittstelle', 'Geflecht', 'Farbschleuse',
   'Kreuzfeuer', 'Legierung', 'Verästelung', 'Spektralband', 'Weichensteller', 'Mosaik', 'Glasbläser', 'Uhrwerk', 'Lichtorgel', 'Kaleidoskop',
   'Rangierbahnhof', 'Sternwarte', 'Polarlicht', 'Kathedrale', 'Sonnenwende', 'Gordischer Knoten', 'Lichtjahr', 'Supernova', 'Meisterstück', 'Unendlichkeit',
+  'Irrlicht', 'Zwielicht', 'Spiegelsaal', 'Brennglas', 'Halo', 'Rosette', 'Fata Morgana', 'Interferenz', 'Leuchtturm', 'Sonnenfinsternis',
+  'Korona', 'Glasperlenspiel', 'Sternbild', 'Kristallpalast', 'Pulsar', 'Quasar', 'Ereignishorizont', 'Lichtgeschwindigkeit', 'Singularität', 'Urknall',
 ];
+/** So viele Level stammen aus den Generator-Profilen; die übrigen sind gehärtet (tools/harden.mjs). */
+export const PROFILE_LEVELS = 50;

@@ -465,7 +465,7 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.count, 4);
   assert.equal(r.solutions[0].free, 1);
 });
-const NAMES = (await import('../tools/profiles.mjs')).NAMES;
+const { NAMES, PROFILE_LEVELS } = await import('../tools/profiles.mjs');
 const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
 test('Tutorial: steht am Anfang, 3–8 Level, jedes mit Hinweis', () => {
   assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 8, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
@@ -477,13 +477,13 @@ test('Tutorial: führt alle Elementarten ein', () => {
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Nach dem Tutorial folgen genau 50 Level mit den vorgesehenen Namen', () => {
+test('Nach dem Tutorial folgen genau die Level mit den vorgesehenen Namen', () => {
   assert.equal(MAIN.length, NAMES.length);
   assert.deepEqual(MAIN.map(l => l.name), NAMES);
 });
-test('Namen: die 50 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
-  assert.equal(NAMES.length, 50);
-  assert.equal(new Set(NAMES).size, 50, 'doppelte Namen in NAMES');
+test('Namen: die 70 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
+  assert.equal(NAMES.length, 70);
+  assert.equal(new Set(NAMES).size, NAMES.length, 'doppelte Namen in NAMES');
   const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
   assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');
   // die Migration alter Spielstände entfernt ein Präfix "II:" o. Ä. – ein Name darf so nicht beginnen
@@ -501,19 +501,30 @@ test('Namen: alle Level eindeutig', () => {
   const names = L.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
 });
-test('Die 50 Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Zehnergruppe', () => {
+const SCORES = MAIN.map(l => S.metrics(l).score);
+test('Die Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Zehnergruppe', () => {
   // Die genaue Reihenfolge stammt aus dem Review (zwei Tester, abgeglichen): Die Wertung überschätzt Level,
   // die in unabhängige Teilrätsel zerfallen, und unterschätzt Farblogik – einzelne Rückschritte sind gewollt.
-  const scores = MAIN.map(l => S.metrics(l).score);
-  const means = [0, 1, 2, 3, 4].map(b => scores.slice(b * 10, b * 10 + 10).reduce((s, v) => s + v, 0) / 10);
-  for (let b = 1; b < 5; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
-  assert.ok(means[4] - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
+  const means = [];
+  for (let a = 0; a < SCORES.length; a += 10) means.push(SCORES.slice(a, a + 10).reduce((s, v) => s + v, 0) / SCORES.slice(a, a + 10).length);
+  for (let b = 1; b < means.length; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
+  assert.ok(means.at(-1) - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
+});
+test('Die Level ab 51 (tools/harden.mjs) sind alle schwerer als jedes der ersten 50', () => {
+  const max = Math.max(...SCORES.slice(0, PROFILE_LEVELS));
+  const easier = SCORES.map((v, i) => [MAIN[i].name, v]).slice(PROFILE_LEVELS).filter(([, v]) => v <= max);
+  assert.deepEqual(easier, [], 'schwerstes der ersten 50: Wertung ' + max);
+});
+const { accepted } = await import('../tools/harden.mjs');
+test('Die Level ab 51 bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
+  const failed = MAIN.slice(PROFILE_LEVELS).filter(l => !accepted(l)).map(l => `${l.name} ${JSON.stringify(Q.density(l))}`);
+  assert.deepEqual(failed, []);
 });
 test('Kein Filter gibt in der Lösung eine fremde Farbe ab (z. B. Cyan durch Gelbfilter → Grün)', () => {
   const odd = L.LEVELS.flatMap(l => Q.oddFilters(l).map(t => `${l.name}: ${t}`));
   assert.deepEqual(odd, []);
 });
-test('Die 50 Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleiche Reihenfolge)', () => {
+test('Die Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleiche Reihenfolge)', () => {
   const sel = readFileSync(new URL('../tools/selection.jsonl', import.meta.url), 'utf8').trim().split(/\r?\n/).map(l => JSON.parse(l));
   assert.equal(sel.length, MAIN.length);
   const sig = (els) => els.map(e => JSON.stringify([e.type, e.x, e.z, e.dir, e.rot, e.color === 'white' && e.type === 'source' ? undefined : e.color, !!e.fixed])).sort().join('|');

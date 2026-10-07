@@ -5,20 +5,21 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 3. Oktober 2026
+Zuletzt aktualisiert: 7. Oktober 2026
 
 ---
 
 ## Ziel
 
-- **Tutorial + 50 Level:** Zuerst ein kurzes Tutorial (6 Level), das die Mechaniken zeigt: Spiegel, feste Spiegel
-  und Blöcke, Prisma, Filter, farbige Quellen, Kombinator, je mit einem Hinweis in der Kopfzeile. Danach 50 Level, **allein nach
-  Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten.
+- **Tutorial + 70 Level:** Zuerst ein kurzes Tutorial (6 Level), das die Mechaniken zeigt: Spiegel, feste Spiegel
+  und Blöcke, Prisma, Filter, farbige Quellen, Kombinator, je mit einem Hinweis in der Kopfzeile. Danach 70 Level, **allein nach
+  Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–70
+  sind alle schwerer als Level 50.
 - **Leitlinien für alle Level:**
   1. Elemente und Farben mischen sich frei: Spiegel, Prismen, Filter, Kombinatoren, Blöcke, farbige Quellen.
   2. Die Level sollen Spass machen, teilweise zum Grübeln anregen und qualitativ stark sein.
   3. Je weiter man kommt, desto schwerer.
-- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 41–50). Die Seiten sind keine Kapitel und haben kein Thema.
+- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 61–70). Die Seiten sind keine Kapitel und haben kein Thema.
 
 ---
 
@@ -28,7 +29,7 @@ Zuletzt aktualisiert: 3. Oktober 2026
   eins darf man überspringen). Erfahrene Spieler können das Tutorial nicht ganz überspringen. Gewünscht?
 - [x] **E4 · Farbige Quellen im Tutorial:** eigenes Tutorial-Level „Farbiges Licht“ vor dem Kombinator.
 
-## 2. Tutorial + 50 Level (aktuelle Arbeit)
+## 2. Tutorial + 70 Level (aktuelle Arbeit)
 
 - [x] **2.1 Struktur:** Kapitel entfernt; Tutorial mit Hinweisen, 50 Level nach Wertung, Levelauswahl mit Seiten,
   Fortschritt nach Levelname (alte Schlüssel „II:Name“ werden übernommen).
@@ -41,14 +42,28 @@ Zuletzt aktualisiert: 3. Oktober 2026
   unter 2 Plätzen), 4 Level ersetzt (Kopie eines Tutorial-Levels, Dopplung, zwei wirkungslose Filter). Tutorial:
   „Farbenlehre“ umgebaut (Filter jetzt nötig), „Mischung“ mit festen Spiegeln entschärft, Hinweise zu Mischen auf
   dem Ziel und Prisma auf einfarbigem Licht. Berichte in `tools/pools/review2/` (nicht versioniert).
-- [ ] **2.4 Feedback des Nutzers:** Alle 50 Level anspielen: Steigt die Schwierigkeit spürbar? Langweilige oder
-  unfaire Level? Passt der Übergang vom Tutorial?
+- [ ] **2.4 Feedback des Nutzers:** Alle 70 Level anspielen: Steigt die Schwierigkeit spürbar? Langweilige oder
+  unfaire Level? Passt der Übergang vom Tutorial und von Level 50 zu 51?
 - [ ] **2.5 Oberes Ende:** Über Wertung ~40 gibt es nur wenige Kandidaten (Stufe 5 ist langsam, Filter-Profil ohne
   Ausbeute). Bei Bedarf Stufe 5 länger laufen lassen und die letzten Level ersetzen.
 - [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
   Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
 - [ ] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
   auf Distanz schwer zu erkennen; „Weiss + Rot im Kombinator = Weiss“ wird nirgends gezeigt.
+- [x] **2.9 Level 51–70 (schwerer als Level 50):** `tools/harden.mjs` macht erzeugte Level schrittweise schwerer
+  (lokale Suche; Quellen müssen gekoppelt sein, Feld kaum dichter als bei den 50 – auch nach dem Abschluss geprüft,
+  `curate.mjs` und ein Test prüfen dasselbe). Pools harden-1 bis -6: 121 Kandidaten (Wertung 44–56.6; harden-6 lieferte
+  mit 18 Prozessen 73 Level in einer Stunde). Strahlverfolgung 2,2× schneller (gleiche Ergebnisse, im Code-Review an
+  22 800 Strahlbildern nachgeprüft). Code-Review, Befunde behoben.
+  **Review** (`tools/pools/review4/`, nicht versioniert): 20 per `curate.mjs --keep 50` gewählte + 12 Reserven,
+  gemischt und anonym, an zwei Tester (Spielersicht: alle 32 ohne Löser gelöst; Analyst: Spielermodell
+  `player.mjs`, Holzwege `traps.mjs`). 7 gewählte ersetzt (zu erzwungen/Fleiss: Spiegeltreppen, Prismenreihe,
+  Zerlegen-und-Vereinen; R09 als ermüdendes Knäuel), 7 Reserven aufgenommen. Reihenfolge aus beiden Rangfolgen
+  nach zwei Runden (Rangkorrelation 0.06 → 0.50; einig bei Anfang und den schwersten drei). Die Wertung trifft die
+  menschliche Schwierigkeit in diesem Band kaum (ρ ≈ 0.26) – siehe 3.5. Testlauf dauert gut 2 Minuten (vorher 7 s).
+- [ ] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): Ein Prisma schluckt Licht, dessen Austrittsfläche mehr
+  als 90° abgewandt ist; ein parallel getroffener Spiegel schluckt es auch. Mehrere Level ab 51 setzen das voraus
+  (z. B. Licht in den Rücken eines Prismas), das Tutorial sagt es nicht. Vorschlag: ein Satz im Prisma-Hinweis.
 - [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
   Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 
@@ -66,13 +81,24 @@ Zuletzt aktualisiert: 3. Oktober 2026
   vorhandenen Quelle führen.
 - [ ] **3.4 Lockvögel häufiger:** Bisher hat nur ein Teil der Level einen Lockvogel, der beim Probieren Licht bekommt.
   Ziel: in den meisten Leveln mindestens einer.
+- [ ] **3.5 `harden.mjs` verbessern** (Review 4, Bericht `tools/pools/review4/tester-analyst.md`, Abschnitt 4):
+  - Wertung belohnt Grösse statt Denken: 16 von 32 Kandidaten sind bei vollem Überblick ohne Fallunterscheidung
+    lösbar. Spielermodell (`player.mjs`) als Abnahme, z. B. mindestens ein Stillstand bei Horizont 2, aber höchstens
+    zwei Fallunterscheidungen mit kurzer Kette bei vollem Überblick. Das Modell dafür versionieren.
+  - Scheinmischung: Kombinator mit nur einer Eingangsfarbe (blosser Umlenker) oder Mischung, die ein Prisma sofort
+    wieder zerlegt, verwerfen; Prismen, die in der Lösung nur eine Grundfarbe führen, bestrafen.
+  - Füllteile (Quelle → 1–3 Spiegel → Ziel) bestrafen; ein weisses Ziel direkt aus einer weissen Quelle zählt in
+    der Wertung fälschlich als Mischziel (betrifft auch `solver.mjs`).
+  - Mischziele aus zwei verschiedenen Quellen verlangen oder stark gewichten (8 von 32 Kandidaten hatten keins).
+  - Geschlucktes Licht an drehbaren Elementen und Tausende weiter Fast-Lösungen (Probieren statt Denken) begrenzen;
+    Dichtegrenzen eher senken (`maxAdjacent` ~1.2, `maxShort` ~0.75).
 
 ## 4. Später (nächste Version, nicht jetzt)
 
 - [ ] Neue Mechaniken, z. B. verschiebbare Elemente, Strahlteiler (halbdurchlässiger Spiegel), Portale.
 - [ ] Grösseres Spielfeld als 7×7 (Platte, Kamera, Handy-Layout anpassen).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
-- [ ] Mehr als 50 Level, wenn die ersten 50 überzeugen.
+- [ ] Mehr als 70 Level, wenn die ersten 70 überzeugen.
 
 ## 5. Erledigt (Überblick)
 
