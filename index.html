@@ -4670,6 +4670,7 @@ const beamView = {
   spots: [],          // Lichtflecken auf Spiegelflächen
   dust: createDust(BEAM.dustCount),
   time: 0,
+  settleAt: 0,        // Zeit, ab der keine Strahlen mehr wachsen oder ausblenden
   _toCam: new THREE.Vector3(),
 
   init() {
@@ -4744,6 +4745,9 @@ const beamView = {
     this.segRecords = nextSegs;
     this.eventRecords = nextEvents;
     this.maxEnd = Math.max(0, ...nextSegs.map(r => r.end));
+    // bis hierhin wachsen Strahlen oder blenden aus (für die Bildrate, siehe frameRate)
+    const grow = instant ? 0 : Math.max(0, this.maxEnd - Math.min(freshStart, this.maxEnd)) / BEAM.revealSpeed;
+    this.settleAt = Math.max(this.settleAt, now + delay + grow + BEAM.fadeOut);
     this._rebuild();
     this._syncFlares();
   },
@@ -5991,7 +5995,8 @@ const adaptiveResolution = {
   /** Kurze Schonfrist, z. B. nach Levelstart (Shader-Kompilierung erzeugt einzelne lange Frames). */
   hold(seconds = 1.5) { this.cooldown = Math.max(this.cooldown, seconds); this.window = this.slow = this.frames = 0; },
 
-  tick() {
+  /** gap: angestrebter Abstand zweier Bilder in ms (frameRate) – bei 30 Bildern/s ist ein Bild nach 33 ms nicht zu langsam. */
+  tick(gap = 1000 / 60) {
     if (this.disabled) return;
     const now = performance.now();
     const ms = now - this.last;
@@ -6003,8 +6008,8 @@ const adaptiveResolution = {
     if (drag.active) { this.window = this.slow = this.frames = 0; return; }
 
     this.window += sec; this.frames++;
-    if (ms > 20) this.slow++;
-    this.calm = ms < 18 ? this.calm + sec : 0;
+    if (ms > Math.max(20, gap * 1.25)) this.slow++;
+    this.calm = ms < Math.max(18, gap * 1.1) ? this.calm + sec : 0;
     // Nach 30 s ruhigem Betrieb darf die Obergrenze wieder steigen
     if (this.calm > 30 && this.ceiling < 1) { this.ceiling = Math.min(1, this.ceiling + 0.05); this.calm = 0; }
     if (this.window < 2) return; // zwei Sekunden messen, bevor etwas umgebaut wird
@@ -6124,8 +6129,71 @@ window.addEventListener('keydown', (e) => {
   if (e.code === 'KeyF') perfHud.toggle();
 });
 
+/**
+ * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
+ * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
+ * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
+ * der Kamera) oder die Levelauswahl das Feld verdeckt.
+ */
+const frameRate = {
+  activeFps: 60,
+  idleFps: 30,
+  activeUntil: 0,     // performance.now(), bis wann eine Eingabe als "aktiv" gilt
+  vsync: 1000 / 60,   // Bildschirmtakt: kürzester rAF-Abstand im letzten Messfenster (übersprungene Bilder sind billig
+                      // und kommen genau im Takt; gerenderte können länger dauern)
+  windowMin: Infinity, windowCount: 0,
+  prevTs: null,
+  skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
+  gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
+  /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
+  poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
+  busy(ts) {
+    if (ui.levelsOpen()) return false; // Feld liegt abgedunkelt hinter der Auswahl
+    if (flow.state !== 'play' || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
+    if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
+    // Kamera folgt noch dem Ziehen oder gleitet zurück (steht sie nur verschoben still, reichen 30 Bilder/s)
+    const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi);
+    const away = Math.abs(cameraRig.userTheta) + Math.abs(cameraRig.userPhi);
+    if (cam > 1e-3 || (away > 0.002 && clock.elapsedTime - cameraRig.lastInput > 4)) return true;
+    for (const obj of game.objects.values()) {
+      const u = obj.userData;
+      if (u.rotation || u.pulseT > -100) return true; // Drehung, Puls nach dem Einblenden
+    }
+    return false;
+  },
+  /**
+   * true = dieses rAF-Ereignis rendern. Gerendert wird jedes k-te Bildschirmbild – so bleibt der Takt gleichmässig
+   * (kein Wechsel 14/21 ms). k nach Bildschirmtakt: 60 Hz → aktiv 60, ruhig 30; 75/90 Hz → aktiv alle Bilder;
+   * 120/144 Hz → aktiv 60/72; 165 Hz → 55. Schafft die Grafik den Takt nicht, kommen die rAF-Aufrufe ohnehin seltener.
+   */
+  due(ts) {
+    if (this.prevTs !== null) {
+      const d = ts - this.prevTs;
+      if (d > 2 && d < 100) this.windowMin = Math.min(this.windowMin, d);
+      if (++this.windowCount >= 90) {
+        if (this.windowMin < Infinity) this.vsync = this.windowMin;
+        this.windowMin = Infinity; this.windowCount = 0;
+      }
+    }
+    this.prevTs = ts;
+    const fps = this.busy(ts) ? this.activeFps : this.idleFps;
+    const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
+    // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
+    // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
+    this.gap = k > 1 ? k * this.vsync : 1000 / fps;
+    if (++this.skipped < k) return false;
+    this.skipped = 0;
+    return true;
+  },
+};
+for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
+  window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
+}
+window.addEventListener('resize', () => frameRate.poke(500));
+
 let lastFrameTs = null;
 function frame(ts) {
+  if (!frameRate.due(ts)) { requestAnimationFrame(frame); return; }
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
   const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.05);
   lastFrameTs = ts;
@@ -6149,7 +6217,7 @@ function frame(ts) {
   renderReflection();
   composer.render(dt);
 
-  adaptiveResolution.tick();
+  adaptiveResolution.tick(frameRate.gap);
   perfHud.tick();
   renderer.info.reset();
   window.__prisma.frames++;

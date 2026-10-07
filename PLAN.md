@@ -170,6 +170,8 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Kein Freischalten: alle Level jederzeit spielbar (`101a37b`)
 - [x] Fester Sockel: feine, gedämpft rote Randlinie statt hellem Rand und Eckleuchten (`06905d8`, `60a6ca8`)
 - [x] Tutorial mit 9 Leveln, Zähler „Ziele x / y“, Ring bei falscher Farbe am Ziel (`1cf64b9`)
+- [x] Bildrate nach Bedarf: höchstens 60 Bilder/s bei Bewegung, 30 in Ruhe und bei offener Levelauswahl – auf
+  schnellen Bildschirmen und im Ruhezustand ein Bruchteil der bisherigen Grafiklast
 
 ---
 
