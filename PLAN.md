@@ -110,6 +110,9 @@ Zuletzt aktualisiert: 7. Oktober 2026
 - [x] Levelauswahl mit Kapitelreitern, Freischalten (eins überspringbar), Fortschritt nach „Kapitel:Name“ (`f5931c1`)
 - [x] Kapitel II „Spiegelwege“ (10 Level, rein weiss, Wertung 10.8–17.9) und Qualitätskriterien (`d32e15f`)
 - [x] Umbau auf Tutorial + 50 Level nach Schwierigkeit (Kapitel aufgelöst)
+- [x] Level 51–70, alle schwerer als Level 50 (`6e988e0`)
+- [x] Drehbar und fest auf einen Blick: runder Teller mit weissem Leuchtring = drehbar, eckiger Sockel mit roten
+  Eckleuchten = fest – auch Quelle, Ziel und Filter (`343096c`, `9a58a00`)
 
 ---
 
