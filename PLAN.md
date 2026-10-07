@@ -123,7 +123,36 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] Mehr als 70 Level, wenn die ersten 70 überzeugen.
 
-## 5. Erledigt (Überblick)
+## 5. Google Play Store
+
+Weg: Prisma bleibt eine Web-App und wird als Trusted Web Activity (TWA) in eine Android-Hülle verpackt (Bubblewrap oder
+PWABuilder) – das Spiel selbst wird nicht umgeschrieben. Reihenfolge: zuerst 5.1–5.4 (lohnt sich auch ohne Store),
+dann 5.5–5.7, parallel 5.8–5.10, zuletzt der Test 5.11. Die Regeln (Testerzahl, verlangte Android-Version) vor dem
+Start in der aktuellen Play-Console-Hilfe nachsehen.
+
+**Im Projekt**
+- [ ] **5.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
+- [ ] **5.2 Offline-Fähigkeit:** Service Worker, der Spiel, Icons und Bibliotheken zwischenspeichert.
+- [ ] **5.3 Abhängigkeiten lokal ausliefern:** Three.js samt Zusatzmodulen (heute cdnjs/jsdelivr) und die Schrift
+  „Jost“ (heute Google Fonts) ins Projekt holen – für Offline-Betrieb und Datenschutz.
+- [ ] **5.4 Manifest ergänzen:** Icon mit `"purpose": "maskable"`, `id`, `scope`; eindeutiger Anzeigename im Store
+  (z. B. „Prisma – Licht-Puzzle“), Speicherschlüssel des Fortschritts unverändert lassen.
+- [ ] **5.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
+  Browser-Adressleiste.
+- [ ] **5.6 Android App Bundle (.aab) bauen und signieren** (Bubblewrap). Signaturschlüssel sicher aufbewahren – ohne
+  ihn keine Updates.
+- [ ] **5.7 Test auf echten Android-Geräten:** Leistung auf schwächeren Handys, Zurück-Taste, Hoch-/Querformat, Ton.
+
+**Konto und Store-Eintrag**
+- [ ] **5.8 Google-Play-Entwicklerkonto:** einmalig 25 USD, Identitätsprüfung.
+- [ ] **5.9 Pflichtangaben:** Datenschutzerklärung als Webseite (Fortschritt nur lokal; Abrufe bei Fremdservern
+  erwähnen, solange es sie gibt), Formular „Datensicherheit“, Altersfreigabe-Fragebogen, Zielgruppe.
+- [ ] **5.10 Store-Material:** Icon 512 × 512 (vorhanden), Titelgrafik 1024 × 500, mindestens 2 Screenshots,
+  Kurzbeschreibung (80 Zeichen), lange Beschreibung.
+- [ ] **5.11 Geschlossener Test:** Neue private Konten brauchen mindestens 12 Tester über 14 Tage, bevor die App
+  öffentlich erscheinen darf – zeitlich der längste Schritt.
+
+## 6. Erledigt (Überblick)
 
 - [x] Phasen 1–8 der Spezifikation (Szene, Logik, Strahlen, Elemente, Interaktion, Level-System, Lösungsmoment,
   Audio, UI, Startbildschirm, Feinschliff)
