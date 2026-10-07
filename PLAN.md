@@ -65,8 +65,12 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   Spielermodell (`tools/pools/review5/screen.mjs`: Denkaufwand, Raten, Holzwege, Scheinkombinatoren; geeicht an Review 4),
   59 bestanden, 30 + 10 Reserven an zwei Tester (`tools/pools/review6/`). Der Analyst empfahl nur 10 (echtes Mischziel
   aus zwei Quellen, kein Fleissteil, keine Scheinmischung) – diese 10 sind eingebaut (Reihenfolge des Analysten).
-  **Noch offen:** Bericht des Spieler-Testers (`review6/tester-spieler.md`) abgleichen, Reihenfolge prüfen, evtl.
-  weitere Level aus den Reserven (S19, S23, S26, S04, S40, S06) bis 16; Screenshot der Levelauswahl (9 Seiten, 2 Reihen).
+  **Spieler-Tester** (nach dem Commit, `review6/tester-spieler.md`): empfiehlt 20. Einig mit dem Analysten bei 8 der
+  10 eingebauten; **strittig: Level 74 „Spiegelkabinett“ (S36, Spiegeltreppe) und 79 „Nebelfeld“ (S07, Kombinator nur
+  Umlenker)** – der Spieler würde sie streichen. Beide Tester wählen S19 und S40 (beim Analysten Reserve).
+  **E · Vorschlag:** S36 und S07 durch S19 und S40 ersetzen (dann 10 Level mit Zustimmung beider), Reihenfolge
+  neu abgleichen. Für 20 bräuchte es Level, die der Analyst als zu leicht oder Scheinmischung streicht – eher nicht.
+  Ausserdem: Screenshot der Levelauswahl (9 Seiten, 2 Reihen). Tutorial: Blau/Rot können im Prisma um 135° abknicken.
   Vorsieb verbessern: mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang, Zerlegen und Wiedervereinen) erkennen;
   Basen „misch“ und „bunt“ liefern die guten Level.
 - [ ] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): Ein Prisma schluckt Licht, dessen Austrittsfläche mehr
