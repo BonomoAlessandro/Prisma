@@ -481,8 +481,8 @@ test('Nach dem Tutorial folgen genau die Level mit den vorgesehenen Namen', () =
   assert.equal(MAIN.length, NAMES.length);
   assert.deepEqual(MAIN.map(l => l.name), NAMES);
 });
-test('Namen: die 70 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
-  assert.equal(NAMES.length, 70);
+test('Namen: die 80 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
+  assert.equal(NAMES.length, 80);
   assert.equal(new Set(NAMES).size, NAMES.length, 'doppelte Namen in NAMES');
   const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
   assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');

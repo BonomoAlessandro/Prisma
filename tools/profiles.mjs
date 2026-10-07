@@ -52,7 +52,8 @@ for (const [tier, t] of Object.entries(TIERS)) {
 
 /**
  * Namen der Level in aufsteigender Schwierigkeit (Speicherschlüssel des Fortschritts). Die ersten 50 stammen aus
- * den Profilen oben, die Level 51–70 aus tools/harden.mjs (alle schwerer als Level 50).
+ * den Profilen oben, die Level 51–80 aus tools/harden.mjs (alle schwerer als Level 50; 71–80 vorab mit einem
+ * Spielermodell auf Denkaufwand gesiebt).
  */
 export const NAMES = [
   'Zickzack', 'Umlenkung', 'Schleuse', 'Winkelzug', 'Gegenlicht', 'Farbsieb', 'Fächer', 'Kehre', 'Tönung', 'Rundgang',
@@ -62,6 +63,7 @@ export const NAMES = [
   'Rangierbahnhof', 'Sternwarte', 'Polarlicht', 'Kathedrale', 'Sonnenwende', 'Gordischer Knoten', 'Lichtjahr', 'Supernova', 'Meisterstück', 'Unendlichkeit',
   'Irrlicht', 'Zwielicht', 'Spiegelsaal', 'Brennglas', 'Halo', 'Rosette', 'Fata Morgana', 'Interferenz', 'Leuchtturm', 'Sonnenfinsternis',
   'Korona', 'Glasperlenspiel', 'Sternbild', 'Kristallpalast', 'Pulsar', 'Quasar', 'Ereignishorizont', 'Lichtgeschwindigkeit', 'Singularität', 'Urknall',
+  'Morgenröte', 'Abendstern', 'Prismenhof', 'Spiegelkabinett', 'Lichtbrücke', 'Farbenrausch', 'Sternenstaub', 'Zenit', 'Nebelfeld', 'Lichtkegel',
 ];
 /** So viele Level stammen aus den Generator-Profilen; die übrigen sind gehärtet (tools/harden.mjs). */
 export const PROFILE_LEVELS = 50;

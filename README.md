@@ -34,28 +34,31 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und ob es Zusammenspiel gibt (Kreuzungen, Mehrfachtreffer, geteilte Spiegel, Lockvögel, die beim Probieren Licht
   bekommen) – Generator und Kuratierung verwerfen Level, die das nicht erfüllen;
   `harden.mjs [anzahl] [seed] [--min W] [--max W] [--steps K] [--jobs N] [--time S]` macht Level schwerer, als
-  der Generator sie in einem Zug findet (Level 51–70): Es startet bei einem erzeugten Level der Stufe 3–4 und
+  der Generator sie in einem Zug findet (Level 51–80): Es startet bei einem erzeugten Level der Stufe 3–4 und
   verändert es Schritt für Schritt (Element auf einen Strahl setzen, festen Spiegel drehbar machen, Ziel
   verschieben, Lockvogel, Quelle …), stellt nach jedem Schritt die Eindeutigkeit her und behält, was die Wertung
   plus Zusammenspiel erhöht (Simulated Annealing). Verworfen wird, was in unabhängige Teilrätsel zerfällt oder
   zum Knäuel wird (Feld kaum dichter als bei den ersten 50 Level, auch nach dem Abschluss geprüft); am Ende gelten
   dieselben Prüfungen wie beim Generator (Ausgabe wie `generate.mjs`, z. B. nach `tools/pools/harden.jsonl`);
   `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs 2-prisma 3 | node tools/show.mjs`);
-  `curate.mjs [--dry] [--keep N] [--from W] [--to W] [--save datei] [--order datei]` wirft alle Pools und
+  `curate.mjs [--dry] [--keep N] [--from W] [--to W] [--pools ordner] [--save datei] [--order datei]` wirft alle Pools und
   `candidates.jsonl` (handgebaute Level, früheres Kapitel II) zusammen, wählt so viele Level, wie `NAMES` in
   `profiles.mjs` hat, gleichmässig über die Wertung (verschiedene Grundmuster, abwechselnde Mischungen), sortiert
   sie nach Wertung und schreibt sie zwischen die Markierungen `LEVELS:BEGIN/END` in index.html. `--keep 50` übernimmt
   die ersten 50 Level aus `tools/selection.jsonl` unverändert und wählt nur die übrigen, alle schwerer als das
-  schwerste übernommene. Mit `--order` wird eine von Hand korrigierte Reihenfolge
+  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen 71–80 dazu: `--keep 70 --from 48`);
+  `--pools` liest die Kandidaten aus einem anderen Ordner, z. B. einem vorab gesiebten. Mit `--order` wird eine von
+  Hand korrigierte Reihenfolge
   übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`. Ihre
   Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat: Spiegel, feste Spiegel und Blöcke, Prisma, Filter, farbige Quellen,
-  Kombinator), danach 70 Level, allein nach Schwierigkeit sortiert; die Level 51–70 (aus `harden.mjs`) sind alle
-  schwerer als die ersten 50. Jede Lösung steht als Kommentar und im Feld
-  `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 … 61–70) – reine Seiten, keine Themen.
+  Kombinator), danach 80 Level, allein nach Schwierigkeit sortiert; die Level 51–80 (aus `harden.mjs`) sind alle
+  schwerer als die ersten 50, 71–80 mindestens so schwer wie 51–70. Jede Lösung steht als Kommentar und im Feld
+  `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 … 71–80; ab 9 Seiten in zwei Reihen) –
+  reine Seiten, keine Themen.
   Ein Level ist spielbar, sobald eines der beiden vorigen gelöst ist (eins darf man überspringen). Fortschritt und
   aktuelles Level bleiben im Browser gespeichert (nach Levelname).
   `?unlockall` bzw. `__prisma.unlockAll()` schaltet für Tests alles frei.

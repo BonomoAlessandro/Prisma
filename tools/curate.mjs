@@ -4,12 +4,14 @@
 // solver.mjs), möglichst verschieden, sortiert sie allein nach der Wertung, vergibt Namen (profiles.mjs) und
 // Lösungskommentare und schreibt sie in index.html zwischen die Markierungen /* LEVELS:BEGIN */ … /* LEVELS:END */.
 //
-// Aufruf: node tools/curate.mjs [--dry] [--keep N] [--from W] [--to W] [--save datei] [--order datei]
+// Aufruf: node tools/curate.mjs [--dry] [--keep N] [--from W] [--to W] [--pools ordner] [--save datei] [--order datei]
 //   --dry    nur anzeigen (Textfelder und Kennzahlen), index.html nicht ändern
 //   --keep   die ersten N Level aus tools/selection.jsonl unverändert übernehmen und nur die übrigen wählen –
-//            alle schwerer als das schwerste übernommene (so kamen die Level 51–70 dazu: --keep 50)
+//            alle schwerer als das schwerste übernommene (so kamen die Level 51–70 dazu: --keep 50); mit --from
+//            gilt stattdessen diese Untergrenze (Level 71–80: --keep 70 --from 48, ähnlich schwer wie 51–70)
 //   --from   niedrigste Zielwertung (Standard: leichtester Kandidat ≥ 9, mit --keep knapp über dem schwersten)
 //   --to     höchste Zielwertung (Standard: schwerster Kandidat)
+//   --pools  Kandidaten aus diesem Ordner lesen (Standard tools/pools/, z. B. ein vorab gesiebter Teil)
 //   --save   Auswahl als JSON-Zeilen speichern (z. B. für ein Review)
 //   --order  Auswahl und Reihenfolge aus einer Datei übernehmen (JSON-Zeilen wie bei --save, in der
 //            gewünschten Reihenfolge) – so lässt sich eine von Hand bzw. im Review korrigierte Reihenfolge schreiben
@@ -41,7 +43,7 @@ const flag = (name, def) => {
 };
 const dry = args.includes('--dry') ? (args.splice(args.indexOf('--dry'), 1), true) : false;
 const fromArg = flag('--from', null), toArg = flag('--to', null);
-const savePath = flag('--save', null), orderPath = flag('--order', null);
+const savePath = flag('--save', null), orderPath = flag('--order', null), poolsArg = flag('--pools', null);
 const keep = Number(flag('--keep', 0));
 if (!Number.isInteger(keep) || keep < 0 || keep >= COUNT) die(`--keep braucht eine ganze Zahl von 0 bis ${COUNT - 1}`);
 if (keep && orderPath) die('--keep und --order schliessen sich aus (--order übernimmt alle Level aus der Datei)');
@@ -63,7 +65,7 @@ if (orderPath) {
   console.error(`Reihenfolge aus ${orderPath} übernommen`);
 } else {
   // ---- Kandidaten: alle Pools und die gespeicherten Kandidaten
-  const poolDir = join(here, 'pools');
+  const poolDir = poolsArg ?? join(here, 'pools');
   const files = existsSync(poolDir) ? readdirSync(poolDir).filter(f => f.endsWith('.jsonl')).map(f => join(poolDir, f)) : [];
   const extra = join(here, 'candidates.jsonl');
   if (existsSync(extra)) files.push(extra);
@@ -78,19 +80,23 @@ if (orderPath) {
   const good = pool.filter(g => (g.handmade || !passes(g.quality).length) && (!g.base || accepted(g.level)));
   console.error(`${pool.length} Kandidaten aus ${files.length} Dateien, ${good.length} bestehen die Qualitätskriterien`);
 
-  // ---- übernommene Level (--keep): die neuen müssen alle schwerer sein
+  // ---- übernommene Level (--keep): die neuen müssen alle schwerer sein (oder mindestens --from)
   const kept = keep ? readLines(selectionPath).slice(0, keep) : [];
   if (kept.length < keep) die(`--keep: tools/selection.jsonl hat nur ${kept.length} Level`);
   const keptMax = Math.max(-Infinity, ...kept.map(g => g.metrics.score));
+  const floor = fromArg !== null ? -Infinity : keptMax; // --from ersetzt die Untergrenze
+  const keyOf = (g) => JSON.stringify(g.level.elements);
+  const keptKeys = new Set(kept.map(keyOf)); // übernommene Level nicht ein zweites Mal wählen
   const need = COUNT - kept.length;
   if (keep) console.error(`${keep} Level übernommen (schwerstes: Wertung ${keptMax}), ${need} neue gesucht`);
 
   // ---- Zielwerte: gleichmässig von leicht bis schwer
-  const scores = good.filter(g => g.metrics.score > keptMax).map(g => g.metrics.score).sort((a, b) => a - b);
+  const fresh = good.filter(g => g.metrics.score > floor && !keptKeys.has(keyOf(g)));
+  const scores = fresh.map(g => g.metrics.score).sort((a, b) => a - b);
   if (!scores.length) die('Keine Kandidaten schwerer als die übernommenen Level', 2);
   const lo = fromArg !== null ? Number(fromArg) : keep ? scores[0] : Math.max(9, scores[0]);
   const hi = toArg !== null ? Number(toArg) : scores.at(-1);
-  const inRange = good.filter(g => g.metrics.score > keptMax && g.metrics.score >= lo - 0.5 && g.metrics.score <= hi + 0.5);
+  const inRange = fresh.filter(g => g.metrics.score >= lo - 0.5 && g.metrics.score <= hi + 0.5);
   if (inRange.length < need) die(`Nur ${inRange.length} Kandidaten zwischen ${lo} und ${hi}`, 2);
   const step = (hi - lo) / Math.max(1, need - 1);
   console.error(`Zielwertungen ${lo}–${hi} (Schritt ${step.toFixed(2)}), ${inRange.length} Kandidaten`);

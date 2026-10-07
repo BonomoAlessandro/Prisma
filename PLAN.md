@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 7. Oktober 2026
+Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 
 ---
 
@@ -61,6 +61,14 @@ Zuletzt aktualisiert: 7. Oktober 2026
   Zerlegen-und-Vereinen; R09 als ermüdendes Knäuel), 7 Reserven aufgenommen. Reihenfolge aus beiden Rangfolgen
   nach zwei Runden (Rangkorrelation 0.06 → 0.50; einig bei Anfang und den schwersten drei). Die Wertung trifft die
   menschliche Schwierigkeit in diesem Band kaum (ρ ≈ 0.26) – siehe 3.5. Testlauf dauert gut 2 Minuten (vorher 7 s).
+- [~] **2.11 Level 71–80 (mindestens so schwer wie 51–70):** Zwei Läufe harden-7/-8 (73 Kandidaten), Vorsieb mit dem
+  Spielermodell (`tools/pools/review5/screen.mjs`: Denkaufwand, Raten, Holzwege, Scheinkombinatoren; geeicht an Review 4),
+  59 bestanden, 30 + 10 Reserven an zwei Tester (`tools/pools/review6/`). Der Analyst empfahl nur 10 (echtes Mischziel
+  aus zwei Quellen, kein Fleissteil, keine Scheinmischung) – diese 10 sind eingebaut (Reihenfolge des Analysten).
+  **Noch offen:** Bericht des Spieler-Testers (`review6/tester-spieler.md`) abgleichen, Reihenfolge prüfen, evtl.
+  weitere Level aus den Reserven (S19, S23, S26, S04, S40, S06) bis 16; Screenshot der Levelauswahl (9 Seiten, 2 Reihen).
+  Vorsieb verbessern: mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang, Zerlegen und Wiedervereinen) erkennen;
+  Basen „misch“ und „bunt“ liefern die guten Level.
 - [ ] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): Ein Prisma schluckt Licht, dessen Austrittsfläche mehr
   als 90° abgewandt ist; ein parallel getroffener Spiegel schluckt es auch. Mehrere Level ab 51 setzen das voraus
   (z. B. Licht in den Rücken eines Prismas), das Tutorial sagt es nicht. Vorschlag: ein Satz im Prisma-Hinweis.
