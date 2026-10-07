@@ -127,6 +127,7 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 - [x] Level 51–70, alle schwerer als Level 50 (`6e988e0`)
 - [x] Drehbar und fest auf einen Blick: runder Teller mit weissem Leuchtring = drehbar, eckiger Sockel mit roten
   Eckleuchten = fest – auch Quelle, Ziel und Filter (`343096c`, `9a58a00`)
+- [x] Fester Sockel: schmaler rot leuchtender Rand (so breit wie der Leuchtring der drehbaren) statt hellem Rand und Eckleuchten
 
 ---
 

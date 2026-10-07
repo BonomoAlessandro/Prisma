@@ -725,7 +725,7 @@ const LEVELS = [
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
     name: 'Umweg', tutorial: true,
-    hint: 'Drehbar ist, was auf einem runden Teller mit weissem Leuchtring steht. Eckige Sockel mit roten Lichtern stehen fest, Blöcke schlucken Licht. {Rechtsklick} dreht zurück.',
+    hint: 'Drehbar ist, was auf einem runden Teller mit weissem Leuchtring steht. Eckige Sockel mit rotem Rand stehen fest, Blöcke schlucken Licht. {Rechtsklick} dreht zurück.',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 0 },
@@ -3513,55 +3513,42 @@ function makePedestal(radius = 0.34) {
 
 /**
  * Fester Sockel für alles, was sich nicht drehen lässt (Quelle, Ziel, Filter, fester Spiegel; auch ein festes Prisma
- * oder ein fester Kombinator): eckiger, dunkler Steinblock mit hellem Rand und vier roten Eckleuchten – kein
- * Drehteller. Formensprache: rund mit weissem Leuchtring = drehbar, eckig mit roten Lichtern = fest (auf dem Handy
- * waren die feinen Drehmarken unsichtbar).
+ * oder ein fester Kombinator): eckiger, dunkler Steinblock mit schmalem rot leuchtendem Rand – kein Drehteller.
+ * Formensprache: rund mit weissem Leuchtring = drehbar, eckig mit rotem Rand = fest (auf dem Handy waren die feinen
+ * Drehmarken unsichtbar).
  */
-const FIXED_EDGE_MAT = new THREE.MeshStandardMaterial({ color: 0x9a9caa, metalness: 0, roughness: 0.55, emissive: 0x16161c });
 const FIXED_BASE_SIZE = 0.66;
 const FIXED_BASE_TOP = 0.07;  // Oberkante des Steinblocks (Teller: 0.06) – Ringe und Lichthöfe liegen knapp darüber
-const FIXED_EDGE = { width: 0.05, height: 0.022 }; // Randleiste: von knapp unter FIXED_BASE_TOP bis 0.091
-// Rot unter der Bloom-Schwelle (wie der Leuchtring): ruhige Signallampen. Ohne Grün- und Blauanteil – das ACES im
-// finalPass zieht helles Rot sonst ins Orange. Der Lichthof (additiv) macht sie auch auf dem Handy erkennbar.
-const FIXED_LIGHT = { color: new THREE.Color(1, 0, 0), led: 0.95, glow: 0.8, radius: 0.045, glowSize: 0.26 };
-let fixedBaseParts = null; // Geometrien und Lichtmaterialien, geteilt von allen festen Sockeln (beim ersten Gebrauch gebaut)
+// Randleiste so schmal wie der Leuchtring der drehbaren Elemente (Röhre 0.017 → 0.034 breit), knapp über dem Block.
+// Rot unter der Bloom-Schwelle (wie der Leuchtring): ruhig, ohne Atmen. Ohne Grün- und Blauanteil – das ACES im
+// finalPass zieht helles Rot sonst ins Orange.
+const FIXED_EDGE = { width: 0.034, height: 0.016, inset: 0.012, color: new THREE.Color(1, 0, 0).multiplyScalar(0.95) };
+let fixedBaseParts = null; // Geometrien und Material, geteilt von allen festen Sockeln (beim ersten Gebrauch gebaut)
 function fixedBase() {
   if (fixedBaseParts) return fixedBaseParts;
-  const size = FIXED_BASE_SIZE, { width: t, height: h } = FIXED_EDGE;
+  const size = FIXED_BASE_SIZE, { width: t, height: h, inset } = FIXED_EDGE;
   const blockGeo = new THREE.BoxGeometry(size, FIXED_BASE_TOP, size).translate(0, FIXED_BASE_TOP / 2, 0);
   const frameGeo = new THREE.BoxGeometry(size + 0.02, 0.02, size + 0.02).translate(0, 0.01, 0);
-  // heller, eckiger Rand oben: macht die Form "eckig = fest" auch auf dem dunklen Boden lesbar.
-  // Matt statt poliert: poliertes Metall spiegelte aus Spielerperspektive die dunkle Umgebung.
-  const e = size / 2 - t / 2, y = FIXED_BASE_TOP - 0.001 + h / 2;
-  const edgeGeo = mergeGeometries([[size, t, 0, -e], [size, t, 0, e], [t, size, -e, 0], [t, size, e, 0]]
+  // eckiger Rand oben, knapp innerhalb der Blockkante: macht die Form "eckig = fest" auch auf dem dunklen Boden lesbar
+  const outer = size - 2 * inset, e = outer / 2 - t / 2, y = FIXED_BASE_TOP - 0.001 + h / 2;
+  const edgeGeo = mergeGeometries([[outer, t, 0, -e], [outer, t, 0, e], [t, outer - 2 * t, -e, 0], [t, outer - 2 * t, e, 0]]
     .map(([w, d, x, z]) => new THREE.BoxGeometry(w, h, d).translate(x, y, z)));
-  // Eckleuchten innerhalb der Randleiste; der Lichthof liegt über ihr und färbt sie in den Ecken leicht rot
-  const at = size / 2 - t - FIXED_LIGHT.radius - 0.01;
-  const corners = [[-1, -1], [-1, 1], [1, -1], [1, 1]].map(([sx, sz]) => [sx * at, sz * at]);
-  const ledGeo = mergeGeometries(corners.map(([x, z]) => new THREE.CylinderGeometry(FIXED_LIGHT.radius, FIXED_LIGHT.radius, 0.014, 16).translate(x, FIXED_BASE_TOP + 0.007, z)));
-  const glowGeo = mergeGeometries(corners.map(([x, z]) => new THREE.PlaneGeometry(FIXED_LIGHT.glowSize, FIXED_LIGHT.glowSize).rotateX(-Math.PI / 2).translate(x, y + h / 2 + 0.003, z)));
-  const ledMat = new THREE.MeshBasicMaterial({ color: FIXED_LIGHT.color.clone().multiplyScalar(FIXED_LIGHT.led) });
-  const glowMat = new THREE.MeshBasicMaterial({
-    map: spotTexture, color: FIXED_LIGHT.color.clone().multiplyScalar(FIXED_LIGHT.glow), transparent: true,
-    blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false,
-  });
-  for (const geo of [blockGeo, frameGeo, edgeGeo, ledGeo, glowGeo]) SHARED_GEOMETRIES.add(geo);
-  for (const mat of [ledMat, glowMat]) SHARED_MATERIALS.add(mat);
-  fixedBaseParts = { blockGeo, frameGeo, edgeGeo, ledGeo, glowGeo, ledMat, glowMat };
+  const edgeMat = new THREE.MeshBasicMaterial({ color: FIXED_EDGE.color, fog: false });
+  for (const geo of [blockGeo, frameGeo, edgeGeo]) SHARED_GEOMETRIES.add(geo);
+  SHARED_MATERIALS.add(edgeMat);
+  fixedBaseParts = { blockGeo, frameGeo, edgeGeo, edgeMat };
   return fixedBaseParts;
 }
-/** Fünf Draw-Calls: Block, Rahmen, Randleiste, Eckleuchten, Lichthöfe (alle Geometrien geteilt). */
+/** Drei Draw-Calls: Block, Rahmen, Randleiste (alle Geometrien geteilt). */
 function makeFixedBase() {
-  const { blockGeo, frameGeo, edgeGeo, ledGeo, glowGeo, ledMat, glowMat } = fixedBase();
+  const { blockGeo, frameGeo, edgeGeo, edgeMat } = fixedBase();
   const g = new THREE.Group();
-  g.add(shadowed(new THREE.Mesh(blockGeo, MAT.stone)), shadowed(new THREE.Mesh(frameGeo, MAT.metalDark)),
-    shadowed(new THREE.Mesh(edgeGeo, FIXED_EDGE_MAT)));
-  // Lichter nicht in der Bodenspiegelung (wie der Leuchtring der drehbaren Elemente)
-  for (const m of [new THREE.Mesh(ledGeo, ledMat), new THREE.Mesh(glowGeo, glowMat)]) {
-    m.raycast = () => {};
-    m.layers.set(LAYER_NO_REFLECT);
-    g.add(m);
-  }
+  g.add(shadowed(new THREE.Mesh(blockGeo, MAT.stone)), shadowed(new THREE.Mesh(frameGeo, MAT.metalDark)));
+  // Leuchtrand nicht in der Bodenspiegelung (wie der Leuchtring der drehbaren Elemente)
+  const edge = new THREE.Mesh(edgeGeo, edgeMat);
+  edge.raycast = () => {};
+  edge.layers.set(LAYER_NO_REFLECT);
+  g.add(edge);
   return g;
 }
 
@@ -4023,7 +4010,7 @@ const game = {
   result: null,
 };
 
-const SHARED_MATERIALS = new Set([...Object.values(MAT), FIXED_EDGE_MAT]);
+const SHARED_MATERIALS = new Set(Object.values(MAT));
 
 /** Gibt Geometrien und elementeigene Materialien eines entfernten Modells frei. */
 function disposeTree(root) {
@@ -4993,7 +4980,7 @@ function makeInteractive(obj) {
   obj.add(ring);
 
   // Leuchtring auf dem Drehteller: dauerhaftes Zeichen "drehbar" (alles Feste steht auf einem eckigen Sockel
-  // mit roten Eckleuchten, siehe makeFixedBase).
+  // mit rotem Leuchtrand, siehe makeFixedBase).
   // Grundhelligkeit unter der Bloom-Schwelle, damit er ruhig bleibt; zu Levelbeginn pulsiert er einmal.
   const pedestalDisk = obj.children[0]?.children[0];
   const turnR = (pedestalDisk?.geometry?.parameters?.radiusTop ?? 0.38) - 0.03;
