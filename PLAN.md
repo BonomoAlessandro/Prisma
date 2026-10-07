@@ -11,20 +11,20 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 
 ## Ziel
 
-- **Tutorial + 70 Level:** Zuerst ein kurzes Tutorial (9 Level, je ein Gedanke): Ziel und Spiegel, drehbar/fest,
+- **Tutorial + 80 Level:** Zuerst ein kurzes Tutorial (9 Level, je ein Gedanke): Ziel und Spiegel, drehbar/fest,
   Block, Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator – je mit einem
-  Hinweis in der Kopfzeile. Danach 80 Level, **allein nach
-  Schwierigkeit sortiert** (leicht → schwer), ohne Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–80
-  sind alle schwerer als Level 50.
+  Hinweis in der Kopfzeile. Danach 80 Level, **allein nach Schwierigkeit sortiert** (leicht → schwer), ohne
+  Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–80 sind alle schwerer als Level 50.
 - **Leitlinien für alle Level:**
   1. Elemente und Farben mischen sich frei: Spiegel, Prismen, Filter, Kombinatoren, Blöcke, farbige Quellen.
   2. Die Level sollen Spass machen, teilweise zum Grübeln anregen und qualitativ stark sein.
   3. Je weiter man kommt, desto schwerer.
-- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 61–70). Die Seiten sind keine Kapitel und haben kein Thema.
+- Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden.
+- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 71–80). Die Seiten sind keine Kapitel und haben kein Thema.
 
 ---
 
-## 1. Entscheidungen (offen)
+## 1. Entscheidungen
 
 - [x] **E3 · Tutorial überspringen?** Erledigt durch E5: Alle Level sind jederzeit spielbar.
 - [x] **E4 · Farbige Quellen im Tutorial:** eigenes Tutorial-Level „Farbiges Licht“ vor dem Kombinator.
@@ -32,7 +32,7 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 - [x] **E6 · Level 74 und 79 bleiben** vorerst drin: Die Kandidaten S19/S40 (`tools/pools/review6/`) liegen auf dem
   anderen Rechner. Der Austausch kann dort nachgeholt werden (siehe 2.11).
 
-## 2. Tutorial + 70 Level (aktuelle Arbeit)
+## 2. Tutorial + 80 Level (aktuelle Arbeit)
 
 - [x] **2.1 Struktur:** Kapitel entfernt; Tutorial mit Hinweisen, 50 Level nach Wertung, Levelauswahl mit Seiten,
   Fortschritt nach Levelname (alte Schlüssel „II:Name“ werden übernommen).
@@ -45,10 +45,12 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   unter 2 Plätzen), 4 Level ersetzt (Kopie eines Tutorial-Levels, Dopplung, zwei wirkungslose Filter). Tutorial:
   „Farbenlehre“ umgebaut (Filter jetzt nötig), „Mischung“ mit festen Spiegeln entschärft, Hinweise zu Mischen auf
   dem Ziel und Prisma auf einfarbigem Licht. Berichte in `tools/pools/review2/` (nicht versioniert).
-- [ ] **2.4 Feedback des Nutzers:** Alle 70 Level anspielen: Steigt die Schwierigkeit spürbar? Langweilige oder
-  unfaire Level? Passt der Übergang vom Tutorial und von Level 50 zu 51?
+- [ ] **2.4 Feedback des Nutzers:** Tutorial und alle 80 Level anspielen: Steigt die Schwierigkeit spürbar?
+  Langweilige oder unfaire Level? Passen die Übergänge vom Tutorial zu Level 1, von 50 zu 51 und von 70 zu 71?
 - [ ] **2.5 Oberes Ende:** Über Wertung ~40 gibt es nur wenige Kandidaten (Stufe 5 ist langsam, Filter-Profil ohne
   Ausbeute). Bei Bedarf Stufe 5 länger laufen lassen und die letzten Level ersetzen.
+- [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
+  Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 - [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
   Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
 - [ ] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
@@ -64,6 +66,8 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   Zerlegen-und-Vereinen; R09 als ermüdendes Knäuel), 7 Reserven aufgenommen. Reihenfolge aus beiden Rangfolgen
   nach zwei Runden (Rangkorrelation 0.06 → 0.50; einig bei Anfang und den schwersten drei). Die Wertung trifft die
   menschliche Schwierigkeit in diesem Band kaum (ρ ≈ 0.26) – siehe 3.5. Testlauf dauert gut 2 Minuten (vorher 7 s).
+- [x] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): eigenes Tutorial-Level „Schatten“ (Spiegel längs,
+  Prisma von hinten – beides nacheinander sichtbar).
 - [~] **2.11 Level 71–80 (mindestens so schwer wie 51–70):** Zwei Läufe harden-7/-8 (73 Kandidaten), Vorsieb mit dem
   Spielermodell (`tools/pools/review5/screen.mjs`: Denkaufwand, Raten, Holzwege, Scheinkombinatoren; geeicht an Review 4),
   59 bestanden, 30 + 10 Reserven an zwei Tester (`tools/pools/review6/`). Der Analyst empfahl nur 10 (echtes Mischziel
@@ -71,20 +75,18 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   **Spieler-Tester** (nach dem Commit, `review6/tester-spieler.md`): empfiehlt 20. Einig mit dem Analysten bei 8 der
   10 eingebauten; **strittig: Level 74 „Spiegelkabinett“ (S36, Spiegeltreppe) und 79 „Nebelfeld“ (S07, Kombinator nur
   Umlenker)** – der Spieler würde sie streichen. Beide Tester wählen S19 und S40 (beim Analysten Reserve).
-  **E · Vorschlag:** S36 und S07 durch S19 und S40 ersetzen (dann 10 Level mit Zustimmung beider), Reihenfolge
-  neu abgleichen. Für 20 bräuchte es Level, die der Analyst als zu leicht oder Scheinmischung streicht – eher nicht.
-  Ausserdem: Screenshot der Levelauswahl (9 Seiten, 2 Reihen). Tutorial: Blau/Rot können im Prisma um 135° abknicken.
+  **Entschieden:** S36 und S07 durch S19 und S40 ersetzen (dann 10 Level mit Zustimmung beider), Reihenfolge neu
+  abgleichen – **offen, auf dem anderen Rechner nachholen** (dort liegt `review6/`, siehe E6). Mehr als 10 eher
+  nicht: Dafür bräuchte es Level, die der Analyst als zu leicht oder Scheinmischung streicht.
+  Ausserdem offen: Tutorial – Blau/Rot können im Prisma um 135° abknicken.
   Vorsieb verbessern: mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang, Zerlegen und Wiedervereinen) erkennen;
   Basen „misch“ und „bunt“ liefern die guten Level.
-- [x] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): eigenes Tutorial-Level „Schatten“ (Spiegel längs,
-  Prisma von hinten – beides nacheinander sichtbar).
 - [x] **2.12 Tutorial klarer, alle Elemente erklärt:** Ziel im ersten Hinweis („Jeder Kristall muss in seiner Farbe
   leuchten“), Zähler „Ziele x / y“ in der Kopfzeile (alle Level), falsches Licht am Ziel als flackernder äusserer Ring
   in der ankommenden Farbe. Tutorial von 6 auf 9 Level: neu „Sperre“ (Block), „Schatten“ (verschwindendes Licht),
-  „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“ ergänzt.
+  „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“
+  ergänzt (`1cf64b9`).
 - [ ] **2.13 Elementübersicht** („?“-Knopf): Tafel mit allen Elementen (Bild + ein Satz) und den Farbregeln.
-- [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
-  Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
@@ -120,7 +122,7 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
     einem anderen den Weg. Offen: dauerhaft auslösen oder nur solange Licht darauf fällt; Darstellung der Verbindung
     Schalter → Element; Löser und Generator müssen Zustände mit Schaltern durchspielen.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
-- [ ] Mehr als 70 Level, wenn die ersten 70 überzeugen.
+- [ ] Mehr als 80 Level, wenn die ersten 80 überzeugen.
 
 ## 5. Google Play Store
 
@@ -164,7 +166,10 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Level 51–70, alle schwerer als Level 50 (`6e988e0`)
 - [x] Drehbar und fest auf einen Blick: runder Teller mit weissem Leuchtring = drehbar, eckiger Sockel mit roten
   Eckleuchten = fest – auch Quelle, Ziel und Filter (`343096c`, `9a58a00`)
-- [x] Fester Sockel: schmaler rot leuchtender Rand (so breit wie der Leuchtring der drehbaren) statt hellem Rand und Eckleuchten
+- [x] Level 71–80, mindestens so schwer wie 51–70 (`088c81e`)
+- [x] Kein Freischalten: alle Level jederzeit spielbar (`101a37b`)
+- [x] Fester Sockel: feine, gedämpft rote Randlinie statt hellem Rand und Eckleuchten (`06905d8`, `60a6ca8`)
+- [x] Tutorial mit 9 Leveln, Zähler „Ziele x / y“, Ring bei falscher Farbe am Ziel (`1cf64b9`)
 
 ---
 
@@ -179,6 +184,7 @@ node tools/pools.mjs --jobs 13                              # Pools je Profil er
 node tools/curate.mjs --dry --save tools/pools/draft.jsonl   # Auswahl ansehen und speichern
 node tools/curate.mjs --order tools/selection.jsonl          # genau diese Auswahl/Reihenfolge ins Spiel schreiben
 node tools/show.mjs --level 15                               # ein Level als Textfeld (Start und Lösung)
+node tests/screenshot.mjs name 1440 900                      # Screenshot nach tests/output/ (MOBILE=1 DPR=3: Handy)
 ```
 
 - Pools liegen in `tools/pools/` (nicht versioniert).
