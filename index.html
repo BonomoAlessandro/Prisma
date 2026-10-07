@@ -3519,10 +3519,11 @@ function makePedestal(radius = 0.34) {
  */
 const FIXED_BASE_SIZE = 0.66;
 const FIXED_BASE_TOP = 0.07;  // Oberkante des Steinblocks (Teller: 0.06) – Ringe und Lichthöfe liegen knapp darüber
-// Randleiste so schmal wie der Leuchtring der drehbaren Elemente (Röhre 0.017 → 0.034 breit), knapp über dem Block.
-// Rot unter der Bloom-Schwelle (wie der Leuchtring): ruhig, ohne Atmen. Ohne Grün- und Blauanteil – das ACES im
+// Randleiste: feine Linie (halb so breit wie der Leuchtring der drehbaren Elemente), flach knapp über dem Block;
+// Oberkante 0.079 – knapp über dem Lichthof des Ziels (FIXED_BASE_TOP + 0.008), sonst flimmert sein Rand.
+// Gedämpftes Rot weit unter der Bloom-Schwelle: ruhig und unaufdringlich. Wenig Grün- und Blauanteil – das ACES im
 // finalPass zieht helles Rot sonst ins Orange.
-const FIXED_EDGE = { width: 0.034, height: 0.016, inset: 0.012, color: new THREE.Color(1, 0, 0).multiplyScalar(0.95) };
+const FIXED_EDGE = { width: 0.017, height: 0.010, inset: 0.012, color: new THREE.Color(0.42, 0.06, 0.07) };
 let fixedBaseParts = null; // Geometrien und Material, geteilt von allen festen Sockeln (beim ersten Gebrauch gebaut)
 function fixedBase() {
   if (fixedBaseParts) return fixedBaseParts;
