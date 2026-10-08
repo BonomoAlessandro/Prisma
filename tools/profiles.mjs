@@ -63,7 +63,7 @@ export const NAMES = [
   'Rangierbahnhof', 'Sternwarte', 'Polarlicht', 'Kathedrale', 'Sonnenwende', 'Gordischer Knoten', 'Lichtjahr', 'Supernova', 'Meisterstück', 'Unendlichkeit',
   'Irrlicht', 'Zwielicht', 'Spiegelsaal', 'Brennglas', 'Halo', 'Rosette', 'Fata Morgana', 'Interferenz', 'Leuchtturm', 'Sonnenfinsternis',
   'Korona', 'Glasperlenspiel', 'Sternbild', 'Kristallpalast', 'Pulsar', 'Quasar', 'Ereignishorizont', 'Lichtgeschwindigkeit', 'Singularität', 'Urknall',
-  'Morgenröte', 'Abendstern', 'Prismenhof', 'Spiegelkabinett', 'Lichtbrücke', 'Farbenrausch', 'Sternenstaub', 'Zenit', 'Nebelfeld', 'Lichtkegel',
+  'Morgenröte', 'Abendstern', 'Prismenhof', 'Spiegelkabinett', 'Lichtbrücke', 'Farbenrausch', 'Farbmühle', 'Sternenstaub', 'Zenit', 'Lichtkegel',
 ];
 /** So viele Level stammen aus den Generator-Profilen; die übrigen sind gehärtet (tools/harden.mjs). */
 export const PROFILE_LEVELS = 50;

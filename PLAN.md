@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 7. Oktober 2026 (abends)
+Zuletzt aktualisiert: 8. Oktober 2026
 
 ---
 
@@ -29,8 +29,8 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
 - [x] **E3 · Tutorial überspringen?** Erledigt durch E5: Alle Level sind jederzeit spielbar.
 - [x] **E4 · Farbige Quellen im Tutorial:** eigenes Tutorial-Level „Farbiges Licht“ vor dem Kombinator.
 - [x] **E5 · Kein Freischalten:** Alle Level (auch Tutorial) sind jederzeit spielbar; gelöste Level bleiben markiert.
-- [x] **E6 · Level 74 und 79 bleiben** vorerst drin: Die Kandidaten S19/S40 (`tools/pools/review6/`) liegen auf dem
-  anderen Rechner. Der Austausch kann dort nachgeholt werden (siehe 2.11).
+- [x] **E6 · Level 74 und 79:** Nur „Nebelfeld“ (S07, Platz 79) wird ersetzt, durch S19 „Farbmühle“ auf Platz 77;
+  „Spiegelkabinett“ (S36, Platz 74) bleibt, weil S40 dieselbe Schwäche stärker hätte (siehe 2.11).
 
 ## 2. Tutorial + 80 Level (aktuelle Arbeit)
 
@@ -68,25 +68,32 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
   menschliche Schwierigkeit in diesem Band kaum (ρ ≈ 0.26) – siehe 3.5. Testlauf dauert gut 2 Minuten (vorher 7 s).
 - [x] **2.10 Tutorial: verschwindendes Licht** (aus Review 4): eigenes Tutorial-Level „Schatten“ (Spiegel längs,
   Prisma von hinten – beides nacheinander sichtbar).
-- [~] **2.11 Level 71–80 (mindestens so schwer wie 51–70):** Zwei Läufe harden-7/-8 (73 Kandidaten), Vorsieb mit dem
+- [x] **2.11 Level 71–80 (mindestens so schwer wie 51–70):** Zwei Läufe harden-7/-8 (73 Kandidaten), Vorsieb mit dem
   Spielermodell (`tools/pools/review5/screen.mjs`: Denkaufwand, Raten, Holzwege, Scheinkombinatoren; geeicht an Review 4),
   59 bestanden, 30 + 10 Reserven an zwei Tester (`tools/pools/review6/`). Der Analyst empfahl nur 10 (echtes Mischziel
   aus zwei Quellen, kein Fleissteil, keine Scheinmischung) – diese 10 sind eingebaut (Reihenfolge des Analysten).
   **Spieler-Tester** (nach dem Commit, `review6/tester-spieler.md`): empfiehlt 20. Einig mit dem Analysten bei 8 der
   10 eingebauten; **strittig: Level 74 „Spiegelkabinett“ (S36, Spiegeltreppe) und 79 „Nebelfeld“ (S07, Kombinator nur
-  Umlenker)** – der Spieler würde sie streichen. Beide Tester wählen S19 und S40 (beim Analysten Reserve).
-  **Entschieden:** S36 und S07 durch S19 und S40 ersetzen (dann 10 Level mit Zustimmung beider), Reihenfolge neu
-  abgleichen – **offen, auf dem anderen Rechner nachholen** (dort liegt `review6/`, siehe E6). Mehr als 10 eher
-  nicht: Dafür bräuchte es Level, die der Analyst als zu leicht oder Scheinmischung streicht.
-  Ausserdem offen: Tutorial – Blau/Rot können im Prisma um 135° abknicken.
-  Vorsieb verbessern: mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang, Zerlegen und Wiedervereinen) erkennen;
-  Basen „misch“ und „bunt“ liefern die guten Level.
+  Umlenker)** – der Spieler würde sie streichen. Der Spieler wählt dafür S19 und S40, beim Analysten sind sie nur
+  Reserve (S19 Nr. 1, S40 Nr. 5 von 6).
+  **Nachprüfung (8. Oktober):** **„Nebelfeld“ (S07) → S19 „Farbmühle“.** Beide haben eine Scheinmischung im
+  Kombinator (S07: Weiss + Rot = Weiss; S19: Rot + Grün aus zwei Quellen, ein Prisma zerlegt das Gelb sofort wieder)
+  und beide Cyan aus zwei Quellen am Ziel. Den Ausschlag gibt der Spieler: S07 gestrichen (Spass 3.5, triviales
+  Weissziel), S19 gewählt (Spass 4); beim Analysten ist S19 die beste Reserve („sonst stark“, Schw. 7 statt 8 bei S07).
+  Minus: obere zwei Reihen leer. Platz 77 statt 79: So steht S19 mindestens 2 Plätze von „Zenit“ (S12, ebenfalls
+  Kombinator → Prisma) und von „Lichtbrücke“/„Lichtkegel“ (Gelb aus zwei Quellen im Kombinator) entfernt; im Mittel
+  beider Tester Schw. 6.5, die Nachbarn liegen bei 7.
+  **„Spiegelkabinett“ (S36) bleibt:** S40 hätte statt einer Schlange über 5 Spiegel eine über 7–8, dazu wirkungslose
+  Filter, und ist laut Analyst leichter. Sonst steht nur S04 bei beiden auf der Reserveliste (Blauschlange, Füllteil).
+  Mehr als 10 eher nicht.
 - [x] **2.12 Tutorial klarer, alle Elemente erklärt:** Ziel im ersten Hinweis („Jeder Kristall muss in seiner Farbe
   leuchten“), Zähler „Ziele x / y“ in der Kopfzeile (alle Level), falsches Licht am Ziel als flackernder äusserer Ring
   in der ankommenden Farbe. Tutorial von 6 auf 9 Level: neu „Sperre“ (Block), „Schatten“ (verschwindendes Licht),
   „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“
   ergänzt (`1cf64b9`).
 - [ ] **2.13 Elementübersicht** („?“-Knopf): Tafel mit allen Elementen (Bild + ein Satz) und den Farbregeln.
+- [ ] **2.14 Tutorial: 135°-Knick im Prisma** (aus Review 6): Rot und Blau können im Prisma um 135° abknicken
+  (z. B. Level „Prismenhof“). Das überrascht; im Tutorial zeigen oder im Hinweis zum Prisma erwähnen.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
@@ -107,12 +114,17 @@ Zuletzt aktualisiert: 7. Oktober 2026 (abends)
     lösbar. Spielermodell (`player.mjs`) als Abnahme, z. B. mindestens ein Stillstand bei Horizont 2, aber höchstens
     zwei Fallunterscheidungen mit kurzer Kette bei vollem Überblick. Das Modell dafür versionieren.
   - Scheinmischung: Kombinator mit nur einer Eingangsfarbe (blosser Umlenker) oder Mischung, die ein Prisma sofort
-    wieder zerlegt, verwerfen; Prismen, die in der Lösung nur eine Grundfarbe führen, bestrafen.
+    wieder zerlegt, verwerfen (ausser das Prisma sammelt und verteilt, siehe Vorsieb unten); Prismen, die in der
+    Lösung nur eine Grundfarbe führen, bestrafen.
   - Füllteile (Quelle → 1–3 Spiegel → Ziel) bestrafen; ein weisses Ziel direkt aus einer weissen Quelle zählt in
     der Wertung fälschlich als Mischziel (betrifft auch `solver.mjs`).
   - Mischziele aus zwei verschiedenen Quellen verlangen oder stark gewichten (8 von 32 Kandidaten hatten keins).
   - Geschlucktes Licht an drehbaren Elementen und Tausende weiter Fast-Lösungen (Probieren statt Denken) begrenzen;
     Dichtegrenzen eher senken (`maxAdjacent` ~1.2, `maxShort` ~0.75).
+  - Vorsieb (`review5/screen.mjs`, aus Review 6): mix2 ≥ 1 verlangen, Scheinkombinatoren (Ausgabe = Eingang,
+    Zerlegen und Wiedervereinen, Kombinator → Prisma) erkennen. Kombinator → Prisma nur zulassen, wenn das Prisma
+    wirklich sammelt und verteilt (wie „Zenit“); „Farbmühle“ ist ein Grenzfall. Die Basen „misch“ und „bunt“
+    liefern die guten Level.
 
 ## 4. Später (nächste Version, nicht jetzt)
 
@@ -166,7 +178,8 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Level 51–70, alle schwerer als Level 50 (`6e988e0`)
 - [x] Drehbar und fest auf einen Blick: runder Teller mit weissem Leuchtring = drehbar, eckiger Sockel mit roten
   Eckleuchten = fest – auch Quelle, Ziel und Filter (`343096c`, `9a58a00`)
-- [x] Level 71–80, mindestens so schwer wie 51–70 (`088c81e`)
+- [x] Level 71–80, mindestens so schwer wie 51–70 (`088c81e`); „Nebelfeld“ nach Nachprüfung durch „Farbmühle“
+  (Platz 77) ersetzt
 - [x] Kein Freischalten: alle Level jederzeit spielbar (`101a37b`)
 - [x] Fester Sockel: feine, gedämpft rote Randlinie statt hellem Rand und Eckleuchten (`06905d8`, `60a6ca8`)
 - [x] Tutorial mit 9 Leveln, Zähler „Ziele x / y“, Ring bei falscher Farbe am Ziel (`1cf64b9`)
