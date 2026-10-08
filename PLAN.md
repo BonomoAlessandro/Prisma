@@ -103,15 +103,13 @@ Zuletzt aktualisiert: 8. Oktober 2026
 - [x] **2.15 Filter satter** (aus 2.8): Der Blaufilter wirkte blasslila wie früher die blauen Ziele. Gleich
   behandelt: dunkle Farben mit weniger Weiss und Schillern, etwas deckender und mit mehr Eigenleuchten. Fällt
   weisses Licht hinein, wirkt der Filter weiterhin hell (der Strahl scheint durch das Glas).
-- [ ] **2.16 Hintergrund: Skybox** (Wunsch des Nutzers, 8. Oktober): Statt des fast schwarzen Verlaufs (Kugel mit
-  Shader, schwaches violettes Leuchten hinter dem Feld) eine Art Skybox. Vor allem auf dem Handy im Hochformat ist
-  über und unter dem Feld viel leere, dunkle Fläche.
-  - **E · Stil:** z. B. Sternenhimmel/Nebel, abstrakte Farbschleier, ein Raum; ruhig oder langsam bewegt.
-  - Umsetzung: im Shader erzeugt (klein, offline kein Thema) oder als Bild/Cubemap (Grösse, Zwischenspeichern für 5.2).
-  - Lesbarkeit: dunkel und ruhig genug, dass Strahlen und Ziele klar vorne bleiben; nichts über der Bloom-Schwelle.
-  - Prüfen: Spiegelung im Glas und in den Kristallen (heute eigene Umgebung „dunkler Raum mit Softboxen“), die
-    Bodenspiegelung (blendet den Hintergrund heute aus), Leistung auf schwachen Handys, Startbildschirm und
-    Levelauswahl.
+- [x] **2.16 Hintergrund: Sternenhimmel mit Milchstrasse** (Wunsch des Nutzers, 8. Oktober): statt des fast schwarzen
+  Verlaufs. Ganz berechnet, ohne Bilddatei: 15 000 feste Sterne als runde Punkte (Farben bläulich bis warm, helle
+  funkeln leicht, am Band dichter) und die Milchstrasse im Shader (wolkig, dunkle Staubstreifen, warmer Kern). Lage
+  je Bildformat: im Hochformat diagonal über und unter dem Feld, im Breitformat flach über dem Feld mit dem Kern rechts
+  oben, dazwischen übergeblendet (`SKY`, `updateSky`). Dunkel und unter der Bloom-Schwelle, nicht in der
+  Bodenspiegelung. Der Himmel ist im Bildpuffer mit Alpha 0 markiert: Die Farbverschiebung am Bildrand lässt ihn aus
+  (sonst bekamen die Sterne einen Rot-Blau-Saum). Offen: Leistung auf echten schwachen Handys prüfen (5.7).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
@@ -214,6 +212,7 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Kein Freischalten: alle Level jederzeit spielbar (`101a37b`)
 - [x] Fester Sockel: feine, gedämpft rote Randlinie statt hellem Rand und Eckleuchten (`06905d8`, `60a6ca8`)
 - [x] Tutorial mit 9 Leveln, Zähler „Ziele x / y“, Ring bei falscher Farbe am Ziel (`1cf64b9`)
+- [x] Sternenhimmel mit Milchstrasse als Hintergrund, je nach Bildformat ausgerichtet
 - [x] Lesbarkeit: sattere Zielkristalle, Farbring mit festem Platz je Grundfarbe (zeigt auch falsches Licht),
   gut sichtbare Düse am Kombinator
 - [x] Bildrate nach Bedarf: höchstens 60 Bilder/s bei Bewegung, 30 in Ruhe und bei offener Levelauswahl – auf

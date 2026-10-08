@@ -2903,6 +2903,8 @@ scene.fog = new THREE.FogExp2(LOOK.fogColor, LOOK.fogDensity);
 // Near-Plane bewusst nicht zu klein: die Kamera ist nie näher als ~8 Einheiten, und eine grosse
 // Near-Plane verbessert die Tiefenauflösung erheblich (verhindert Z-Fighting am Boden).
 const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.0, 120);
+const LAYER_NO_REFLECT = 1; // Objekte auf dieser Ebene erscheinen nicht in der Bodenspiegelung
+camera.layers.enable(LAYER_NO_REFLECT);
 
 /* =====================================================================
    PROZEDURALE TEXTUREN
@@ -3099,8 +3101,40 @@ function buildEnvironment() {
 scene.environment = buildEnvironment();
 
 /* =====================================================================
-   HINTERGRUND — fast schwarz, sanfter blau-violetter Verlauf
+   HINTERGRUND — Sternenhimmel mit Milchstrasse
+   Die Kamera blickt schräg von oben (im Hochformat steiler): Zu sehen sind vor allem Richtungen nach vorne unten,
+   rund um das schwebende Feld. Die Milchstrasse läuft deshalb als Band diagonal hinter dem Feld durch, ihr heller
+   Kern liegt über dem Feld. Alles bleibt dunkel und unter der Bloom-Schwelle, nur die hellsten Sterne glimmen beim
+   Funkeln knapp darüber – Strahlen und Ziele bleiben vorne.
    ===================================================================== */
+
+const SKY = {
+  glow: 0.05,       // Helligkeit der Milchstrasse (linear)
+  stars: 15000,     // Sterne rund um die Bandmitte (Kappe bis capDeg)
+  capDeg: 80,
+  bandStars: 0.5,   // Anteil der Sterne dicht am Band
+  // Lage der Milchstrasse je Bildformat: Blickwinkel phi (von der Senkrechten, wie cameraRig.basePhi), Bandmitte so
+  // viele Grad über der Blickrichtung, Neigung des Bands gegen die Waagrechte des Bildes, Kern entlang des Bands.
+  // Hochformat: diagonal hinter dem Feld durch. Breitformat: Das Feld deckt die Mitte ab – das Band läuft flach
+  // durch den Streifen über dem Feld, der Kern steht rechts oben. Dazwischen wird übergeblendet (updateSky).
+  tall: { phi: 0.46, up: 11.5, tilt: 62, core: 9 },
+  wide: { phi: 0.86, up: 13, tilt: 8, core: 20 },
+};
+/**
+ * Lage des Himmels für ein Bildformat als Drehung vom Himmels- ins Weltsystem. Himmelsachsen: x entlang des Bands,
+ * y Normale der Band-Ebene (galaktische Breite), z Bandmitte.
+ */
+function skyFrame({ phi, up, tilt }) {
+  const rad = THREE.MathUtils.degToRad;
+  const view = new THREE.Vector3(0, -Math.cos(phi), -Math.sin(phi));
+  const screenUp = new THREE.Vector3(0, Math.sin(phi), -Math.cos(phi)); // im Bild oben, senkrecht zur Blickrichtung
+  const center = view.clone().multiplyScalar(Math.cos(rad(up))).addScaledVector(screenUp, Math.sin(rad(up)));
+  const centerUp = screenUp.clone().multiplyScalar(Math.cos(rad(up))).addScaledVector(view, -Math.sin(rad(up)));
+  const along = new THREE.Vector3(Math.cos(rad(tilt)), 0, 0).addScaledVector(centerUp, Math.sin(rad(tilt)));
+  const normal = new THREE.Vector3().crossVectors(center, along);
+  return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(along, normal, center));
+}
+const skyTall = skyFrame(SKY.tall), skyWide = skyFrame(SKY.wide);
 
 const background = new THREE.Mesh(
   new THREE.SphereGeometry(80, 48, 24),
@@ -3108,31 +3142,147 @@ const background = new THREE.Mesh(
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
-    uniforms: { uTime: { value: 0 } },
-    // Richtung von der Kamera aus, damit der Verlauf aus jeder Position (auch in der Spiegelung) stimmt.
+    uniforms: {
+      uSkyRot: { value: new THREE.Matrix3() }, // Welt → Himmel (updateSky)
+      // Himmel → Welt im Hochformat: Die Wolken liegen fest am Band und sehen im Hochformat aus wie entworfen
+      uCloudRot: { value: new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(skyTall)) },
+      uCore: { value: new THREE.Vector3(0, 0, 1) }, // Richtung des Kerns im Himmelssystem (updateSky)
+      uGlow: { value: SKY.glow },
+    },
+    // Richtung von der Kamera aus, damit der Himmel aus jeder Position gleich aussieht (unendlich weit weg).
     vertexShader: `varying vec3 vDir; void main(){
       vec4 wp = modelMatrix * vec4(position, 1.0);
       vDir = normalize(wp.xyz - cameraPosition);
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
     fragmentShader: `
-      uniform float uTime;
+      uniform float uGlow;
+      uniform mat3 uSkyRot, uCloudRot;
+      uniform vec3 uCore;
       varying vec3 vDir;
+      float hash(vec3 p) {
+        p = fract(p * 0.3183099 + 0.1);
+        p *= 17.0;
+        return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+      }
+      float noise(vec3 x) {
+        vec3 i = floor(x), f = fract(x);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y),
+                   mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+      }
+      float fbm(vec3 p) {
+        float v = 0.0, a = 0.5;
+        for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 1.7; a *= 0.5; }
+        return v;
+      }
       void main(){
-        float h = vDir.y;
-        vec3 deep    = vec3(0.0016, 0.0014, 0.0035);
-        vec3 horizon = vec3(0.0060, 0.0050, 0.0150);
-        vec3 col = mix(horizon, deep, smoothstep(-0.05, 0.75, h));
-        col = mix(col, vec3(0.0010, 0.0009, 0.0020), smoothstep(-0.1, -0.7, h));
-        // weiches violettes Leuchten hinter dem Spielfeld
-        float g = pow(max(dot(vDir, normalize(vec3(0.0, -0.15, -1.0))), 0.0), 5.0);
-        col += vec3(0.010, 0.006, 0.022) * g * (0.92 + 0.08 * sin(uTime * 0.2));
-        gl_FragColor = vec4(col, 1.0);
+        vec3 d = normalize(vDir);
+        // tiefer Raum: fast schwarz, ein Hauch Blau-Violett
+        vec3 col = vec3(0.0012, 0.0011, 0.0028) + vec3(0.0016, 0.0012, 0.0038) * (0.5 + 0.5 * d.y);
+        // Milchstrasse: Band um die Ebene y = 0 des Himmelssystems, wolkig, mit dunklen Staubstreifen und warmem Kern
+        vec3 s = uSkyRot * d;
+        float lat = s.y;
+        float core = pow(max(dot(s, uCore), 0.0), 18.0);
+        float width = 0.11 + 0.09 * core;
+        float band = exp(-lat * lat / (width * width));
+        if (band > 0.003) {
+          vec3 q = (uCloudRot * s) * 4.5; // Wolken fest am Band (im Hochformat genau die Weltrichtung)
+          float clouds = fbm(q);
+          float dust = fbm(q * 2.4 + vec3(5.2, 1.3, 8.4));
+          float glow = band * (0.25 + 1.1 * clouds * clouds) + band * core * 1.1;
+          float l = (lat - 0.25 * width * (clouds - 0.5)) / (0.45 * width); // kein pow(): Basis kann negativ sein
+          float lane = exp(-l * l);
+          glow *= 1.0 - 0.85 * lane * smoothstep(0.42, 0.68, dust);
+          vec3 tint = mix(vec3(0.58, 0.64, 1.0), vec3(0.95, 0.88, 0.80), clamp(core * 1.2, 0.0, 1.0));
+          col += tint * glow * uGlow;
+        }
+        // Alpha 0 = Himmel: Der letzte Bildschritt lässt hier die Farbverschiebung am Bildrand weg (Sterne!)
+        gl_FragColor = vec4(col, 0.0);
       }`,
   })
 );
-background.renderOrder = -100;
+// Nach den undurchsichtigen Objekten zeichnen (bleibt vor allen transparenten): Wo Platte oder Elemente schon stehen,
+// verwirft der Tiefentest die Pixel, bevor der teure Milchstrassen-Shader läuft.
+background.renderOrder = 1000;
 scene.add(background);
+
+/**
+ * Sterne: feste Punkte im Himmelssystem (immer gleich angeordnet), rund und kantengeglättet, am Band dichter; helle
+ * funkeln leicht. Die Drehung ins Weltsystem setzt updateSky.
+ */
+function createStars() {
+  const rand = mulberry32(31);
+  const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
+  const n = SKY.stars;
+  const capCos = Math.cos(THREE.MathUtils.degToRad(SKY.capDeg));
+  const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), info = new Float32Array(n * 4);
+  // Sternfarben von bläulich über weiss bis warm, mit Häufigkeit
+  const TINTS = [[0.70, 0.80, 1.0, 0.2], [0.86, 0.91, 1.0, 0.3], [1.0, 1.0, 1.0, 0.25], [1.0, 0.91, 0.78, 0.17], [1.0, 0.76, 0.6, 0.08]];
+  const d = new THREE.Vector3();
+  for (let i = 0; i < n; i++) {
+    if (rand() < SKY.bandStars) {
+      const s = (rand() * 2 - 1) * 1.4, lat = gauss() * 0.055; // entlang des Bands, Breite normalverteilt
+      d.set(Math.sin(s) * Math.cos(lat), Math.sin(lat), Math.cos(s) * Math.cos(lat));
+    } else {
+      do d.set(gauss(), gauss(), gauss()).normalize(); while (d.z < capCos);
+    }
+    d.toArray(pos, i * 3);
+    const b = 0.05 + 0.85 * Math.pow(rand(), 8);          // die meisten schwach, wenige hell
+    let r = rand(), t = 0;
+    while (t < TINTS.length - 1 && r > TINTS[t][3]) r -= TINTS[t++][3];
+    col.set(TINTS[t].slice(0, 3), i * 3);
+    info.set([b, 1.1 + b * 2.6, rand(), b > 0.25 ? 1 : 0.25], i * 4); // Helligkeit, Grösse (px), Phase, Funkeln
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
+  geo.setAttribute('aStar', new THREE.BufferAttribute(info, 4));
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() } },
+    vertexShader: `
+      attribute vec3 aColor;
+      attribute vec4 aStar;
+      uniform float uTime, uPixelRatio;
+      varying vec3 vColor;
+      void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 70.0, 1.0);
+        float twinkle = 1.0 + aStar.w * 0.22 * sin(uTime * (0.6 + aStar.z * 1.4) + aStar.z * 40.0);
+        vColor = aColor * aStar.x * twinkle;
+        gl_PointSize = aStar.y * uPixelRatio;
+      }`,
+    fragmentShader: `
+      varying vec3 vColor;
+      void main() {
+        float a = smoothstep(0.5, 0.1, length(gl_PointCoord - 0.5));
+        gl_FragColor = vec4(vColor * a, 0.0);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    // additiv, aber Alpha unverändert lassen: Alpha 0 markiert den Himmel (siehe Hintergrund)
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    fog: false,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  points.renderOrder = -99;
+  points.layers.set(LAYER_NO_REFLECT);
+  points.raycast = () => {};
+  return points;
+}
+const stars = createStars();
+scene.add(stars);
+
+/** Himmel aufs Bildformat ausrichten (0 = Hochformat, 1 = Breitformat; aus fitCameraDistance). */
+function updateSky(wide) {
+  stars.quaternion.slerpQuaternions(skyTall, skyWide, wide);
+  const u = background.material.uniforms;
+  u.uSkyRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(stars.quaternion)).transpose();
+  const core = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(SKY.tall.core, SKY.wide.core, wide));
+  u.uCore.value.set(Math.sin(core), 0, Math.cos(core));
+}
 
 /* =====================================================================
    STEINPLATTE mit planarer Spiegelung
@@ -3368,11 +3518,13 @@ const FinalShader = {
       vec2 ca = c * vec2(aspect, 1.0);
       float r2 = dot(ca, ca);
 
-      // Chromatische Aberration: sehr dezent und erst im äusseren Bildbereich
-      vec2 off = c * smoothstep(0.45, 0.95, r2) * uAberration;
+      // Chromatische Aberration: sehr dezent und erst im äusseren Bildbereich – nicht am Himmel (Alpha 0), sonst
+      // bekämen die Sterne einen Rot-Blau-Saum. Additives Licht kann Alpha über 1 heben: begrenzen.
+      vec4 base = texture2D(tDiffuse, vUv);
+      vec2 off = c * smoothstep(0.45, 0.95, r2) * uAberration * clamp(base.a, 0.0, 1.0);
       vec3 col;
       col.r = texture2D(tDiffuse, vUv - off).r;
-      col.g = texture2D(tDiffuse, vUv).g;
+      col.g = base.g;
       col.b = texture2D(tDiffuse, vUv + off).b;
 
       // Vignette
@@ -3418,6 +3570,11 @@ function createComposer() {
     'gl_FragColor = vec4(min(excess, vec3(2.5)) * alpha, 1.0);'
   );
   bloom.highPassUniforms.smoothWidth.value = 0.6;
+  // Leuchten additiv aufs Bild legen wie bisher, aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
+  Object.assign(bloom.materialCopy, {
+    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+  });
   // Original-Gauss endet bei 1 Sigma -> sichtbare eckige Halos. Engeres Sigma = runde Halos.
   bloom.separableBlurMaterials.forEach(m => {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
@@ -3477,6 +3634,7 @@ function fitCameraDistance() {
   // Im Hoch- und Tabletformat daher enger begrenzen.
   cameraRig.limitsTheta = THREE.MathUtils.lerp(0.22, 0.55, wide * wide);
   cameraRig.goalTheta = THREE.MathUtils.clamp(cameraRig.goalTheta, -cameraRig.limitsTheta, cameraRig.limitsTheta);
+  updateSky(wide);
 }
 
 function updateCamera(t, dt) {
@@ -4277,9 +4435,6 @@ function animateRotations(dt) {
    Annahme: Die Gruppen der Strahlen bleiben unbewegt oder werden über
    modelMatrix korrekt mitgeführt.
    ===================================================================== */
-
-const LAYER_NO_REFLECT = 1; // Objekte auf dieser Ebene erscheinen nicht in der Bodenspiegelung
-camera.layers.enable(LAYER_NO_REFLECT);
 
 const BEAM = {
   revealSpeed: 30,     // Welteinheiten pro Sekunde
@@ -6259,7 +6414,9 @@ function frame(ts) {
 
   updateCamera(t, dt);
   background.position.copy(camera.position); // Hintergrundkugel immer um die Kamera
-  background.material.uniforms.uTime.value = t;
+  stars.position.copy(camera.position); // Sterne ebenso: unendlich weit weg, keine Parallaxe
+  stars.material.uniforms.uTime.value = t;
+  stars.material.uniforms.uPixelRatio.value = renderer.getPixelRatio();
   finalPass.uniforms.uTime.value = t;
 
   updateFlow(dt);
