@@ -103,6 +103,15 @@ Zuletzt aktualisiert: 8. Oktober 2026
 - [x] **2.15 Filter satter** (aus 2.8): Der Blaufilter wirkte blasslila wie früher die blauen Ziele. Gleich
   behandelt: dunkle Farben mit weniger Weiss und Schillern, etwas deckender und mit mehr Eigenleuchten. Fällt
   weisses Licht hinein, wirkt der Filter weiterhin hell (der Strahl scheint durch das Glas).
+- [ ] **2.16 Hintergrund: Skybox** (Wunsch des Nutzers, 8. Oktober): Statt des fast schwarzen Verlaufs (Kugel mit
+  Shader, schwaches violettes Leuchten hinter dem Feld) eine Art Skybox. Vor allem auf dem Handy im Hochformat ist
+  über und unter dem Feld viel leere, dunkle Fläche.
+  - **E · Stil:** z. B. Sternenhimmel/Nebel, abstrakte Farbschleier, ein Raum; ruhig oder langsam bewegt.
+  - Umsetzung: im Shader erzeugt (klein, offline kein Thema) oder als Bild/Cubemap (Grösse, Zwischenspeichern für 5.2).
+  - Lesbarkeit: dunkel und ruhig genug, dass Strahlen und Ziele klar vorne bleiben; nichts über der Bloom-Schwelle.
+  - Prüfen: Spiegelung im Glas und in den Kristallen (heute eigene Umgebung „dunkler Raum mit Softboxen“), die
+    Bodenspiegelung (blendet den Hintergrund heute aus), Leistung auf schwachen Handys, Startbildschirm und
+    Levelauswahl.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
