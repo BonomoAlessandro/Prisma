@@ -12,7 +12,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
 - **Icon:** `favicon.svg` (Prisma mit Farbfächer), PNG-Varianten in `icons/` (iOS 180 px, Android 192/512 px),
-  `manifest.webmanifest` für den Startbildschirm – wird nur über http(s) eingebunden, über file:// blockiert es der Browser.
+  dazu `icon-maskable-*.png` für Android, das Icons selbst rund oder eckig zuschneidet (`node tools/icons.mjs` erzeugt
+  sie aus `favicon.svg`: ohne Ecke, Inhalt verkleinert in die Schutzzone).
+- **Name und Manifest:** Im Store und beim Installieren heisst das Spiel „Prisma – Licht-Puzzle“, auf dem
+  Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
+  eingebunden, über file:// blockiert es der Browser.
 - **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik, `node tests/offline.mjs` den Offline-Betrieb (`--redirect`: Server leitet index.html weiter),
   `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,

@@ -14,6 +14,8 @@ const FILES = [
   'icons/icon-192.png',
   'icons/icon-512.png',
   'icons/apple-touch-icon.png',
+  'icons/icon-maskable-192.png',
+  'icons/icon-maskable-512.png',
   'vendor/jost/jost-latin.woff2',
   'vendor/three-0.147.0/three.min.js',
   'vendor/three-0.147.0/CopyShader.js',

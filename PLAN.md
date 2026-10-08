@@ -163,6 +163,9 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 **Im Projekt**
 - [ ] **5.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
+  Vor dem geschlossenen Test (5.11) endgültig entscheiden: Spielfortschritt (localStorage), Manifest-`id` und Asset
+  Links hängen an der Adresse, ein späterer Wechsel kostet die Spieler ihren Fortschritt. Bei GitHub Pages als
+  Projektseite (`…github.io/Prisma/`) muss `assetlinks.json` (5.5) im Repo `BonomoAlessandro.github.io` liegen.
 - [x] **5.2 Offline-Fähigkeit:** Service Worker (`sw.js`), der Spiel, Icons, Bibliotheken und Schrift
   zwischenspeichert. Online kommt die Seite frisch vom Server (nach 3 s Wartezeit aus dem Speicher), offline aus
   dem Speicher; `vendor/` direkt aus dem Speicher; alle anderen Anfragen gehen vorbei. Nur über http(s) (über
@@ -172,8 +175,12 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
   npm-Paket, Prüfsumme der Registry geprüft, byte-gleich mit den bisherigen CDN-Dateien), die Schrift „Jost“ in
   `vendor/jost/` (nur der lateinische Zeichensatz, variable Schrift für alle Stärken). Lizenzen liegen bei
   (MIT, SIL OFL). Kein Abruf bei fremden Servern mehr.
-- [ ] **5.4 Manifest ergänzen:** Icon mit `"purpose": "maskable"`, `id`, `scope`; eindeutiger Anzeigename im Store
-  (z. B. „Prisma – Licht-Puzzle“), Speicherschlüssel des Fortschritts unverändert lassen.
+- [x] **5.4 Manifest ergänzen:** Name „Prisma – Licht-Puzzle“ (Startbildschirm „Prisma“; „Prisma“ allein ist im Store
+  durch eine Foto-App besetzt), feste `id` „prisma“ (nicht mehr ändern, sonst gilt die installierte Web-App als neue;
+  die Play-App erkennt man an Paketname und Signaturschlüssel), `scope`, Sprache,
+  Beschreibung, Kategorie. Android-Icons mit Schutzrand (`icons/icon-maskable-192/512.png`, erzeugt mit
+  `tools/icons.mjs`: ohne Ecke, Prisma auf 85 % verkleinert, Strahl und Spektrum bis zum Rand). Seitentitel
+  angepasst. Speicherschlüssel des Fortschritts unverändert. Chrome meldet keine Manifest-Fehler, installierbar.
 - [ ] **5.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
   Browser-Adressleiste.
 - [ ] **5.6 Android App Bundle (.aab) bauen und signieren** (Bubblewrap). Signaturschlüssel sicher aufbewahren – ohne
