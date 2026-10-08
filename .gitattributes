@@ -1,0 +1,2 @@
+# Fremde Bibliotheken und Schriften unverändert lassen (keine Zeilenende-Umwandlung)
+vendor/** -text

@@ -8,14 +8,24 @@
 <link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script>
-  // Manifest (Icon für den Android-Startbildschirm) nur über http(s): über file:// blockiert es der Browser mit Fehler
-  if (/^https?:/.test(location.protocol)) document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
+  // Manifest (Icon für den Android-Startbildschirm) und Service Worker (offline spielbar, siehe sw.js) nur über
+  // http(s): über file:// blockiert der Browser das Manifest mit Fehler und kennt keine Service Worker
+  if (/^https?:/.test(location.protocol)) {
+    document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
+    if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+  }
 </script>
 <meta name="theme-color" content="#030308">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Jost:wght@200;300;400&display=swap" rel="stylesheet">
 <style>
+  /* Jost (SIL Open Font License, vendor/jost/OFL.txt): variable Schrift, ein Schnitt für alle Stärken,
+     nur der lateinische Zeichensatz (mehr braucht das Spiel nicht) – lokal, damit es offline läuft */
+  @font-face {
+    font-family: "Jost";
+    font-style: normal;
+    font-weight: 200 400;
+    font-display: swap;
+    src: url(vendor/jost/jost-latin.woff2) format("woff2");
+  }
   :root {
     --ink: #e8e6f0;
     --ink-dim: rgba(232, 230, 240, 0.58); /* ≥ 4.5:1 auf --bg */
@@ -333,14 +343,14 @@
   <button class="start"><span>Tippen zum Starten</span></button>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.147.0/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/CopyShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/EffectComposer.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/RenderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/ShaderPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.147.0/examples/js/objects/Reflector.js"></script>
+<script src="vendor/three-0.147.0/three.min.js"></script>
+<script src="vendor/three-0.147.0/CopyShader.js"></script>
+<script src="vendor/three-0.147.0/LuminosityHighPassShader.js"></script>
+<script src="vendor/three-0.147.0/EffectComposer.js"></script>
+<script src="vendor/three-0.147.0/RenderPass.js"></script>
+<script src="vendor/three-0.147.0/ShaderPass.js"></script>
+<script src="vendor/three-0.147.0/UnrealBloomPass.js"></script>
+<script src="vendor/three-0.147.0/Reflector.js"></script>
 
 <script>
 'use strict';

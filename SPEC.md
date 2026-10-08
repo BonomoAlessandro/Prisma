@@ -7,8 +7,9 @@ und farbige Ziele zu treffen. Die Grafik hat oberste Priorität: Das Spiel soll 
 ruhig und hochwertig wirken, wie ein Ausstellungsstück in einem dunklen Museum.
 
 ## Technik
-- Eine einzige, selbstständige HTML-Datei (HTML, CSS, JS inline).
-- Three.js (feste Version, z. B. r128 via cdnjs) plus EffectComposer, RenderPass,
+- Eine einzige HTML-Datei mit dem ganzen Spiel (HTML, CSS, JS inline); dazu nur die Bibliotheken und die Schrift
+  unter `vendor/` und der Service Worker `sw.js`, der das Spiel offline spielbar macht.
+- Three.js (feste Version, heute r147, lokal unter `vendor/`) plus EffectComposer, RenderPass,
   UnrealBloomPass und ShaderPass für Post-Processing.
 - Kein Build-Step, keine externen Bilder; Texturen prozedural oder per Canvas erzeugen.
 - Ziel: stabile 60 FPS auf einem normalen Laptop, auf Mobile spielbar.

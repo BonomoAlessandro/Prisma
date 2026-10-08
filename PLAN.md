@@ -163,9 +163,15 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 **Im Projekt**
 - [ ] **5.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
-- [ ] **5.2 Offline-Fähigkeit:** Service Worker, der Spiel, Icons und Bibliotheken zwischenspeichert.
-- [ ] **5.3 Abhängigkeiten lokal ausliefern:** Three.js samt Zusatzmodulen (heute cdnjs/jsdelivr) und die Schrift
-  „Jost“ (heute Google Fonts) ins Projekt holen – für Offline-Betrieb und Datenschutz.
+- [x] **5.2 Offline-Fähigkeit:** Service Worker (`sw.js`), der Spiel, Icons, Bibliotheken und Schrift
+  zwischenspeichert. Online kommt die Seite frisch vom Server (nach 3 s Wartezeit aus dem Speicher), offline aus
+  dem Speicher; `vendor/` direkt aus dem Speicher; alle anderen Anfragen gehen vorbei. Nur über http(s) (über
+  file:// gibt es keine Service Worker).
+  `tests/logic.test.mjs` prüft die Dateiliste, `tests/offline.mjs` lädt das Spiel, stoppt den Server und lädt neu.
+- [x] **5.3 Abhängigkeiten lokal ausliefern:** Three.js r147 samt 7 Zusatzmodulen in `vendor/three-0.147.0/` (aus dem
+  npm-Paket, Prüfsumme der Registry geprüft, byte-gleich mit den bisherigen CDN-Dateien), die Schrift „Jost“ in
+  `vendor/jost/` (nur der lateinische Zeichensatz, variable Schrift für alle Stärken). Lizenzen liegen bei
+  (MIT, SIL OFL). Kein Abruf bei fremden Servern mehr.
 - [ ] **5.4 Manifest ergänzen:** Icon mit `"purpose": "maskable"`, `id`, `scope`; eindeutiger Anzeigename im Store
   (z. B. „Prisma – Licht-Puzzle“), Speicherschlüssel des Fortschritts unverändert lassen.
 - [ ] **5.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
@@ -176,8 +182,8 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 **Konto und Store-Eintrag**
 - [ ] **5.8 Google-Play-Entwicklerkonto:** einmalig 25 USD, Identitätsprüfung.
-- [ ] **5.9 Pflichtangaben:** Datenschutzerklärung als Webseite (Fortschritt nur lokal; Abrufe bei Fremdservern
-  erwähnen, solange es sie gibt), Formular „Datensicherheit“, Altersfreigabe-Fragebogen, Zielgruppe.
+- [ ] **5.9 Pflichtangaben:** Datenschutzerklärung als Webseite (Fortschritt nur lokal; seit 5.3 keine Abrufe bei
+  fremden Servern mehr), Formular „Datensicherheit“, Altersfreigabe-Fragebogen, Zielgruppe.
 - [ ] **5.10 Store-Material:** Icon 512 × 512 (vorhanden), Titelgrafik 1024 × 500, mindestens 2 Screenshots,
   Kurzbeschreibung (80 Zeichen), lange Beschreibung.
 - [ ] **5.11 Geschlossener Test:** Neue private Konten brauchen mindestens 12 Tester über 14 Tage, bevor die App
@@ -215,6 +221,7 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 ```bash
 node tests/logic.test.mjs                                   # alle Tests (Eindeutigkeit jedes Levels)
+node tests/offline.mjs                                      # Offline-Betrieb im Browser (Service Worker)
 node tools/pools.mjs --jobs 13                              # Pools je Profil erzeugen (bis 2,5 h; vorhandene bleiben)
 node tools/curate.mjs --dry --save tools/pools/draft.jsonl   # Auswahl ansehen und speichern
 node tools/curate.mjs --order tools/selection.jsonl          # genau diese Auswahl/Reihenfolge ins Spiel schreiben

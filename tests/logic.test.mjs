@@ -1,6 +1,6 @@
 // Testet die reine Spiellogik aus index.html (Bereich zwischen LOGIC:BEGIN und LOGIC:END).
 // Aufruf: node tests/logic.test.mjs
-import { readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -554,5 +554,36 @@ L.LEVELS.forEach((lvl, i) => {
     assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
   });
 });
+
+console.log('Offline');
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const swCode = readFileSync(join(root, 'sw.js'), 'utf8');
+  const swList = swCode.match(/const FILES = \[([\s\S]*?)\];/);
+  const swFiles = swList ? [...swList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
+  // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
+  // dazu die Icons aus dem Manifest
+  const refs = new Set([
+    ...[...html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
+    ...[...html.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
+    ...JSON.parse(readFileSync(join(root, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
+  ]);
+  // existiert genau so geschrieben? (Windows ignoriert Gross-/Kleinschreibung, der Webserver nicht)
+  const existsExactly = (path) => path.split('/').every((part, i, parts) => {
+    const dir = join(root, ...parts.slice(0, i));
+    return existsSync(dir) && readdirSync(dir).includes(part);
+  });
+  test('Offline: index.html lädt nichts von fremden Servern (keine http(s)-Adresse, auch nicht per Skript)', () => {
+    assert.deepEqual(html.match(/https?:\/\/\S*/g) ?? [], []);
+  });
+  test('Offline: sw.js speichert alles, was index.html und das Manifest laden', () => {
+    assert.ok(swFiles.length > 0, 'Liste FILES in sw.js nicht gefunden');
+    assert.deepEqual([...refs].filter(r => !swFiles.includes(r)), []);
+  });
+  test('Offline: jede Datei aus sw.js existiert genau so geschrieben, keine doppelt', () => {
+    assert.deepEqual(swFiles.filter(f => !existsExactly(f)), []);
+    assert.deepEqual(swFiles.filter((f, i) => swFiles.indexOf(f) !== i), []);
+  });
+}
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ', es gibt Fehler' : ''}.`);

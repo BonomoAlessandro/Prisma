@@ -3,13 +3,17 @@
 Ein 3D-Licht-Puzzle im Browser: Spiegel und Kristalle drehen, Licht lenken,
 mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 
-- **Starten:** `index.html` direkt im Browser öffnen (keine Installation, kein Build-Step).
-  Three.js r147 wird per CDN geladen, daher ist eine Internetverbindung nötig.
+- **Starten:** `index.html` direkt im Browser öffnen (keine Installation, kein Build-Step, kein Internet nötig).
+  Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
+- **Offline:** Über http(s) ausgeliefert, speichert der Service Worker `sw.js` alle Dateien; danach läuft das Spiel
+  auch ohne Verbindung. Neue Dateien in die Liste `FILES` in `sw.js` eintragen (ein Test prüft das).
+  Beim Entwickeln über `localhost` bleibt der Service Worker für diese Adresse registriert (er liefert das Spiel auch
+  bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder „Bypass for network“.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
 - **Icon:** `favicon.svg` (Prisma mit Farbfächer), PNG-Varianten in `icons/` (iOS 180 px, Android 192/512 px),
   `manifest.webmanifest` für den Startbildschirm – wird nur über http(s) eingebunden, über file:// blockiert es der Browser.
-- **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik,
+- **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik, `node tests/offline.mjs` den Offline-Betrieb (`--redirect`: Server leitet index.html weiter),
   `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
