@@ -806,7 +806,7 @@ const LEVELS = [
     // Lösung: Spiegel (3,3) rot 1 – Rot von West → Süd, Blau von Ost → Nord → Ziel (3,0);
     //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
     name: 'Farbiges Licht', tutorial: true,
-    hint: 'Farbige Quellen senden nur ihre Farbe. Kommt die falsche Farbe an, flackert ein Ring um das Ziel in ihr.',
+    hint: 'Farbige Quellen senden nur ihre Farbe. Der Ring am Ziel zeigt die nötigen Grundfarben; falsche flackern darin.',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
       { type: 'source', x: 6, z: 3, dir: 4, color: 'blue' },
@@ -3712,14 +3712,36 @@ function makeTarget(el) {
   const root = new THREE.Group();
   root.add(makeFixedBase());
   const col = COLOR_RGB[el.color];
+  const mask = el.color; // Farbmaske: Rot 1, Grün 2, Blau 4
   // Etwas sattere Variante der Strahlfarbe für den Stein (die Strahlfarben sind bewusst hell, z. B. Himmelblau)
   const deep = new THREE.Color(col.r * col.r, col.g * col.g, col.b * col.b).lerp(col, 0.85);
+  // Dunkle Farben (Blau, Rot) verwässern schnell: Mit viel Weiss und Schillern im Glas liest sich Blau neben
+  // Weiss nur als „Weiss mit Blaustich“. Helle Farben vertragen mehr (und werden getroffen gedämpft, siehe litTame).
+  const bt = brightTame(col);
 
-  const ringMat = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(TARGET_IDLE.ring), toneMapped: false });
-  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 8, 64), ringMat);
-  ring.rotation.x = Math.PI / 2;
-  ring.position.y = FIXED_BASE_TOP + 0.006;
-  root.add(ring);
+  // Ring aus drei Bögen, ein fester Platz je Grundfarbe (Rot links, Grün rechts, Blau vorne; hinten offen, dort
+  // verdeckt ihn der Stein). Es leuchten die Grundfarben, aus denen die Zielfarbe besteht: Blau ein Bogen, Cyan
+  // zwei, Weiss drei. So ist die Farbe auch ohne Farbunterscheidung lesbar, und man sieht, woraus sie gemischt
+  // wird. Kommt Licht an, zeigt jeder Bogen seine Grundfarbe: gebraucht und da = heller, fehlt = ruhig,
+  // nicht gebraucht und da = flackert im leeren Platz (falsches Licht).
+  const ringSegs = [];
+  for (const p of [1, 2, 4]) {
+    const on = (mask & p) !== 0;
+    const seg = new THREE.Mesh(targetArcGeometry(), new THREE.MeshBasicMaterial({
+      color: on ? COLOR_RGB[p].clone().multiplyScalar(TARGET_IDLE.ring) : TARGET_RING.offColor, toneMapped: false,
+    }));
+    // Bogen in der xy-Ebene drehen, dann flach legen: Winkel 90° zeigt zur Kamera (+z)
+    seg.rotation.set(Math.PI / 2, 0, THREE.MathUtils.degToRad(TARGET_RING.slots[p] - TARGET_RING.arc / 2));
+    seg.position.y = FIXED_BASE_TOP + 0.006;
+    // In der Bodenspiegelung verdeckt ihn ohnehin das Spiegelbild des Sockels: dort nicht zeichnen
+    seg.layers.set(LAYER_NO_REFLECT);
+    root.add(seg);
+    // arrive: Grundfarbe kommt sichtbar an (animiert 0..1). partial: Zusatzhelligkeit, wenn sie ankommt –
+    // bei hellen Farben (Grün) gedämpft, sonst überstrahlt der Bogen schon vor dem Treffer.
+    const partial = TARGET_RING.partial * (1 - 0.6 * brightTame(COLOR_RGB[p]));
+    Object.assign(seg.userData, { primary: p, on, color: COLOR_RGB[p], partial, arrive: 0, arriveGoal: 0 });
+    ringSegs.push(seg);
+  }
 
   // Farbiger Lichthof auf dem Sockel: zeigt schon vor dem Treffer, welche Farbe das Ziel erwartet.
   const haloMat = new THREE.MeshBasicMaterial({
@@ -3732,25 +3754,14 @@ function makeTarget(el) {
   halo.raycast = () => {};
   root.add(halo);
 
-  // Äusserer Ring, nur bei falschem Licht: flackert in der Farbe, die ankommt (der innere zeigt die gesuchte)
-  const wrongRing = new THREE.Mesh(new THREE.TorusGeometry(0.255, 0.011, 8, 64), new THREE.MeshBasicMaterial({
-    color: new THREE.Color(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, fog: false,
-  }));
-  wrongRing.rotation.x = Math.PI / 2;
-  wrongRing.position.y = FIXED_BASE_TOP + 0.006;
-  wrongRing.raycast = () => {};
-  wrongRing.layers.set(LAYER_NO_REFLECT);
-  wrongRing.visible = false;
-  root.add(wrongRing);
-
   // Bewusst ohne echte Transmission: die würde jedes Frame die ganze Szene ein zweites Mal rendern
   // (≈ ein Drittel der Frame-Zeit). Transparenz + Clearcoat + Iridescence + Leuchtkern wirken fast gleich.
   const gemMat = new THREE.MeshPhysicalMaterial({
-    color: deep.clone().lerp(new THREE.Color(1, 1, 1), 0.3), // getönt, aber noch Glas
+    color: deep.clone().lerp(new THREE.Color(1, 1, 1), THREE.MathUtils.lerp(0.06, 0.3, bt)), // getönt, aber noch Glas
     metalness: 0, roughness: 0.04, ior: 2.0, specularIntensity: 1,
     transparent: true, opacity: 0.84,
     clearcoat: 1, clearcoatRoughness: 0.02,
-    iridescence: 0.45, iridescenceIOR: 1.8,
+    iridescence: THREE.MathUtils.lerp(0.15, 0.45, bt), iridescenceIOR: 1.8, // Schillern hellt dunkle Farben auf
     emissive: deep.clone(), emissiveIntensity: TARGET_IDLE.emissive,
     flatShading: true, envMapIntensity: 1.8,
   });
@@ -3767,15 +3778,13 @@ function makeTarget(el) {
 
   root.userData.gem = gem;
   root.userData.core = core;
-  root.userData.ring = ring;
+  root.userData.ringSegs = ringSegs;
   root.userData.halo = halo;
-  root.userData.wrongRing = wrongRing;
   root.userData.color = col;
   // Dunkle Farben (v. a. Blau) gehen sonst in den hellen Glanzlichtern unter: stärker selbst leuchten lassen.
   const lum = 0.2126 * col.r + 0.7152 * col.g + 0.0722 * col.b;
   // Helle Farben überschreiten die Bloom-Schwelle viel stärker: getroffen gedämpfter leuchten,
   // sonst wird der ganze Edelstein (v. a. Weiss) zum facettenlosen Fleck
-  const bt = brightTame(col);
   root.userData.litTame = 1 - 0.4 * bt;
   root.userData.emissiveTame = 1 - 0.65 * bt;
   root.userData.glowBoost = THREE.MathUtils.clamp(0.35 / Math.max(lum, 0.01), 1, 1.2);
@@ -3794,6 +3803,25 @@ function makeTarget(el) {
 /** Leuchtstärken eines noch nicht getroffenen Ziels (getroffen kommt jeweils hit × … dazu). */
 // Unter der Bloom-Schwelle bleiben, sonst kippt die Farbe im Tone Mapping ins Weisse.
 const TARGET_IDLE = { core: 0.8, emissive: 0.15, ring: 0.7, halo: 0.12 };
+/**
+ * Farbring der Ziele: Radius (ausserhalb des Steins, Radius 0.26 – er schwebt höher und verdeckt von oben sonst die
+ * Bögen; innerhalb des roten Sockelrands bei 0.30), Bogenmitte je Grundfarbe in Grad (0 = +x, 90 = zur Kamera; Rot
+ * und Grün leicht nach vorne, damit sie auch im Hochformat neben dem Stein sichtbar bleiben), Bogenlänge, Dicke,
+ * Farbe leerer Plätze und Zusatzhelligkeit eines gebrauchten Bogens, dessen Farbe schon ankommt.
+ */
+const TARGET_RING = {
+  radius: 0.27, slots: { 1: 190, 2: 350, 4: 90 }, arc: 90, tube: 0.017,
+  offColor: new THREE.Color(0.05, 0.05, 0.06), partial: 1.0,
+};
+let targetArcGeo = null;
+/** Ein Bogen des Farbrings (geteilt von allen Zielen). */
+function targetArcGeometry() {
+  if (!targetArcGeo) {
+    targetArcGeo = new THREE.TorusGeometry(TARGET_RING.radius, TARGET_RING.tube, 8, 32, THREE.MathUtils.degToRad(TARGET_RING.arc));
+    SHARED_GEOMETRIES.add(targetArcGeo);
+  }
+  return targetArcGeo;
+}
 
 /** Ziel-Zustand weich nachführen (Glimmen ↔ hell leuchtend). */
 function updateTarget(obj, t, dt) {
@@ -3811,19 +3839,23 @@ function updateTarget(obj, t, dt) {
   const breathe = (1 - h) * (0.5 + 0.5 * Math.sin(t * 1.8 + u.phase));
   u.core.material.color.copy(u.color).multiplyScalar((TARGET_IDLE.core + breathe * 0.15 + hl * 6.9 + f * 14 * u.litTame) * flicker);
   u.gem.material.emissiveIntensity = (TARGET_IDLE.emissive + breathe * 0.05) * u.glowBoost + h * 1.3 * u.emissiveTame;
-  u.ring.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.ring + breathe * 0.1 + hl * 2.9 + f * 5);
   u.halo.material.color.copy(u.color).multiplyScalar(TARGET_IDLE.halo + breathe * 0.05 + hl * 0.6 + f * 1.4);
-  // Falsche Farbe: Äusserer Ring und Lichtfleck flackern unruhig in der Farbe, die ankommt; innerer Ring und
-  // Stein zeigen weiter, welche Farbe gebraucht wird. So sieht man z. B. "hier kommt Cyan an, gesucht ist Grün".
-  u.wrongRing.visible = u.wrong > 0.002;
-  if (u.wrongRing.visible) {
-    const unrest = 0.65 + 0.35 * Math.sin(t * 7.0 + u.phase) * Math.sin(t * 2.3);
-    u.wrongRing.material.color.copy(u.wrongColor).multiplyScalar(TARGET_WRONG.ring * unrest * u.wrong);
-    u.halo.material.color.lerp(_wrongTint.copy(u.wrongColor).multiplyScalar(TARGET_WRONG.halo * unrest), u.wrong);
+  // Farbring: je Grundfarbe ein Bogen. Gebraucht: leuchtet, heller sobald seine Farbe ankommt (danach trägt hit).
+  // Nicht gebraucht, kommt aber an: flackert unruhig im leeren Platz – z. B. "hier kommt zu viel Blau an".
+  const ringLevel = TARGET_IDLE.ring + breathe * 0.1 + hl * 2.9 + f * 5;
+  const unrest = 0.65 + 0.35 * Math.sin(t * 7.0 + u.phase) * Math.sin(t * 2.3);
+  for (const seg of u.ringSegs) {
+    const s = seg.userData;
+    s.arrive += (s.arriveGoal - s.arrive) * (1 - Math.pow(0.002, dt));
+    if (s.on) seg.material.color.copy(s.color).multiplyScalar(ringLevel + s.arrive * (1 - h) * s.partial);
+    else seg.material.color.copy(TARGET_RING.offColor).lerp(_wrongTint.copy(s.color).multiplyScalar(TARGET_WRONG.ring * unrest), s.arrive);
   }
+  // Falsche Farbe: Der Lichtfleck flackert zusätzlich in der Mischung, die ankommt; Stein und gebrauchte Bögen
+  // zeigen weiter, welche Farbe gesucht ist.
+  if (u.wrong > 0.002) u.halo.material.color.lerp(_wrongTint.copy(u.wrongColor).multiplyScalar(TARGET_WRONG.halo * unrest), u.wrong);
 }
-/** Ziel mit Licht der falschen Farbe: äusserer Ring und Lichtfleck (unter der Bloom-Schwelle). */
-const TARGET_WRONG = { ring: 0.7, halo: 0.6 };
+/** Ziel mit Licht der falschen Farbe: leerer Platz im Farbring und Lichtfleck (unter der Bloom-Schwelle). */
+const TARGET_WRONG = { ring: 0.9, halo: 0.6 };
 const _wrongTint = new THREE.Color();
 
 /* ---------- Phase 4: Prisma, Farbfilter, Kombinator, Blocker ---------- */
@@ -4004,15 +4036,17 @@ function makeCombiner(el) {
     gimbal.add(ring);
   }
 
-  // Austrittsdüse (lokal +x) mit Linse in der Mischfarbe
-  const nozzle = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.075, 0.12, 24), MAT.metalDark));
+  // Austrittsdüse (lokal +x) mit Linse in der Mischfarbe. Hell und mit schwach leuchtender Linse, damit die
+  // Richtung auch ohne Licht und auf dem Handy erkennbar ist; die Linse ist eine flache Scheibe statt einer
+  // Kreisfläche, damit sie auch von oben als Streifen zu sehen ist.
+  const nozzle = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.085, 0.14, 24), MAT.metalBright));
   nozzle.rotation.z = Math.PI / 2;
-  nozzle.position.set(0.3, BEAM_Y, 0);
+  nozzle.position.set(0.31, BEAM_Y, 0);
   pivot.add(nozzle);
-  const lensMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.1, 0.12) });
-  const lens = new THREE.Mesh(new THREE.CircleGeometry(0.05, 24), lensMat);
-  lens.rotation.y = Math.PI / 2;
-  lens.position.set(0.362, BEAM_Y, 0);
+  const lensMat = new THREE.MeshBasicMaterial({ color: COMBINER_LENS_IDLE.clone() });
+  const lens = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.02, 24), lensMat);
+  lens.rotation.z = Math.PI / 2;
+  lens.position.set(0.39, BEAM_Y, 0);
   pivot.add(lens);
 
   const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, BEAM_Y - 0.33, 12), MAT.metalBright));
@@ -4037,10 +4071,12 @@ function makeCombiner(el) {
     tmp.copy(COLOR_RGB[shown]).multiplyScalar(2.6 * tame);
     coreMat.color.setRGB(0.15, 0.15, 0.17).lerp(tmp, u.glow);
     tmp.copy(COLOR_RGB[shown]).multiplyScalar(4.0 * tame);
-    lensMat.color.setRGB(0.1, 0.1, 0.12).lerp(tmp, u.glow);
+    lensMat.color.copy(COMBINER_LENS_IDLE).lerp(tmp, u.glow);
   };
   return root;
 }
+/** Linse des Kombinators ohne Licht: schwach leuchtend (unter der Bloom-Schwelle), zeigt die Austrittsrichtung. */
+const COMBINER_LENS_IDLE = new THREE.Color(0.55, 0.57, 0.66);
 
 /** Blocker: schwere, dunkle Steinsäule mit Metallband. */
 function makeBlocker() {
@@ -4163,6 +4199,11 @@ function updateTargetGoals() {
     u.hitGoal = goal;
     u.wrongGoal = u.wrongMix && arrived ? 1 : 0;
     if (u.wrongGoal) u.wrongColor.copy(COLOR_RGB[u.wrongMix]); // erst wenn das Licht sichtbar ankommt
+    // Farbring: je Strahl, sobald er sichtbar ankommt (ein schon liegender Bogen blendet nicht ab, während ein
+    // weiterer Strahl noch wächst)
+    let seen = 0;
+    for (const r of u.arrivals) if (beamView.revealed(r, r.worldDist)) seen |= r.ev.color;
+    for (const seg of u.ringSegs) seg.userData.arriveGoal = seen & seg.userData.primary ? 1 : 0;
     total++;
     lit += goal;
   }
@@ -5079,8 +5120,9 @@ function makeInteractive(obj) {
   const pedestalDisk = obj.children[0]?.children[0];
   const turnR = (pedestalDisk?.geometry?.parameters?.radiusTop ?? 0.38) - 0.03;
   const turnMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
-  // gestrichelt (6 grobe Striche, halbe Lücken): Ziele und Filter haben durchgehende Ringe in ihrer Farbe – so
-  // ist "drehbar" eine eigene Form. Alle Striche in einer Geometrie (ein Draw-Call je Element).
+  // gestrichelt (6 grobe Striche, halbe Lücken): Filter haben einen durchgehenden Ring in ihrer Farbe, Ziele drei
+  // farbige Bögen auf eckigem Sockel – so ist "drehbar" eine eigene Form. Alle Striche in einer Geometrie
+  // (ein Draw-Call je Element).
   const turnRing = new THREE.Mesh(dashedRingGeometry(turnR, 6, 0.5, 0.017), turnMat);
   turnRing.rotation.x = Math.PI / 2;
   turnRing.position.y = 0.064;
@@ -6065,15 +6107,13 @@ function renderReflection() {
   for (const obj of game.objects.values()) {
     const u = obj.userData;
     if (u.element.type !== 'target') continue;
-    dimmed.push([u, u.core.material.color.clone(), u.ring.material.color.clone(), u.gem.material.emissiveIntensity]);
+    dimmed.push([u, u.core.material.color.clone(), u.gem.material.emissiveIntensity]);
     u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
-    u.ring.material.color.multiplyScalar(REFLECT_GLOW_DIM);
     u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
   }
   reflector.onBeforeRender(renderer, scene, camera);
-  for (const [u, core, ring, emissive] of dimmed) {
+  for (const [u, core, emissive] of dimmed) {
     u.core.material.color.copy(core);
-    u.ring.material.color.copy(ring);
     u.gem.material.emissiveIntensity = emissive;
   }
   bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity;

@@ -18,10 +18,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
-  Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Kommt an einem Ziel die falsche Farbe an, flackert ein
-  äusserer Ring in dieser Farbe (der innere zeigt die gesuchte). Beim Lösen leuchten die
-  Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die Platte und es regnen Funken;
-  danach "Level gelöst" mit Weiter-Button. Ton komplett per Web Audio erzeugt.
+  Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
+  (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
+  Grundfarbe an, wird ihr Bogen heller; kommt eine an, die das Ziel nicht braucht, flackert sie in ihrem leeren
+  Platz. Beim Lösen leuchten die Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die
+  Platte und es regnen Funken; danach "Level gelöst" mit Weiter-Button. Ton komplett per Web Audio erzeugt.
   `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn).
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens

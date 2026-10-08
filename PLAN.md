@@ -53,8 +53,14 @@ Zuletzt aktualisiert: 8. Oktober 2026
   Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
 - [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
   Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
-- [ ] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
+- [x] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
   auf Distanz schwer zu erkennen. („Weiss + Rot im Kombinator = Weiss“ steht jetzt im Hinweis zum Kombinator.)
+  **Umgesetzt (8. Oktober):** Zielkristalle satter (dunkle Farben mit weniger Weiss und Schillern). Der Ring am Ziel
+  hat einen festen Platz je Grundfarbe (Rot links, Grün rechts, Blau vorne; grösser, damit der Stein ihn auf dem
+  Handy nicht verdeckt) und zeigt, woraus die Zielfarbe besteht – auch ohne Farbunterscheidung lesbar. Er ersetzt
+  den äusseren Ring für falsches Licht: Kommt eine gebrauchte Grundfarbe an, wird ihr Bogen heller; eine nicht
+  gebrauchte flackert in ihrem leeren Platz. Tutorial-Hinweis „Farbiges Licht“ angepasst. Kombinator: hellere,
+  grössere Düse mit schwach leuchtender Linse. Offen: Filter (v. a. Blau) wirken noch blass, siehe 2.15.
 - [x] **2.9 Level 51–70 (schwerer als Level 50):** `tools/harden.mjs` macht erzeugte Level schrittweise schwerer
   (lokale Suche; Quellen müssen gekoppelt sein, Feld kaum dichter als bei den 50 – auch nach dem Abschluss geprüft,
   `curate.mjs` und ein Test prüfen dasselbe). Pools harden-1 bis -6: 121 Kandidaten (Wertung 44–56.6; harden-6 lieferte
@@ -95,6 +101,8 @@ Zuletzt aktualisiert: 8. Oktober 2026
 - [x] **2.14 Tutorial: 135°-Knick im Prisma** (aus Review 6): Rot und Blau können im Prisma um 135° abknicken
   (z. B. Level „Prismenhof“; in der Lösungsstellung von 17 der 80 Level). **Entschieden (8. Oktober): keine
   Änderung** – die Regel ist klar genug, Hinweis und Tutorial bleiben.
+- [ ] **2.15 Filter satter** (aus 2.8): Der Blaufilter wirkt blasslila wie früher die blauen Ziele. Bei Bedarf
+  gleich behandeln (weniger Weiss und Schillern bei dunklen Farben).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
@@ -184,6 +192,8 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Kein Freischalten: alle Level jederzeit spielbar (`101a37b`)
 - [x] Fester Sockel: feine, gedämpft rote Randlinie statt hellem Rand und Eckleuchten (`06905d8`, `60a6ca8`)
 - [x] Tutorial mit 9 Leveln, Zähler „Ziele x / y“, Ring bei falscher Farbe am Ziel (`1cf64b9`)
+- [x] Lesbarkeit: sattere Zielkristalle, Farbring mit festem Platz je Grundfarbe (zeigt auch falsches Licht),
+  gut sichtbare Düse am Kombinator
 - [x] Bildrate nach Bedarf: höchstens 60 Bilder/s bei Bewegung, 30 in Ruhe und bei offener Levelauswahl – auf
   schnellen Bildschirmen und im Ruhezustand ein Bruchteil der bisherigen Grafiklast
 
