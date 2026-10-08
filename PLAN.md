@@ -92,8 +92,9 @@ Zuletzt aktualisiert: 8. Oktober 2026
   „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“
   ergänzt (`1cf64b9`).
 - [ ] **2.13 Elementübersicht** („?“-Knopf): Tafel mit allen Elementen (Bild + ein Satz) und den Farbregeln.
-- [ ] **2.14 Tutorial: 135°-Knick im Prisma** (aus Review 6): Rot und Blau können im Prisma um 135° abknicken
-  (z. B. Level „Prismenhof“). Das überrascht; im Tutorial zeigen oder im Hinweis zum Prisma erwähnen.
+- [x] **2.14 Tutorial: 135°-Knick im Prisma** (aus Review 6): Rot und Blau können im Prisma um 135° abknicken
+  (z. B. Level „Prismenhof“; in der Lösungsstellung von 17 der 80 Level). **Entschieden (8. Oktober): keine
+  Änderung** – die Regel ist klar genug, Hinweis und Tutorial bleiben.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
