@@ -110,6 +110,10 @@ Zuletzt aktualisiert: 8. Oktober 2026
   oben, dazwischen übergeblendet (`SKY`, `updateSky`). Dunkel und unter der Bloom-Schwelle, nicht in der
   Bodenspiegelung. Der Himmel ist im Bildpuffer mit Alpha 0 markiert: Die Farbverschiebung am Bildrand lässt ihn aus
   (sonst bekamen die Sterne einen Rot-Blau-Saum). Offen: Leistung auf echten schwachen Handys prüfen (5.7).
+- [x] **2.17 Spiegel auf dem Handy sichtbar** (Wunsch des Nutzers, 8. Oktober): Steil von oben spiegelte das Glas nur
+  den fast schwarzen Boden der Lichtumgebung und war dunkler als das Brett. Auf Handy und Tablet (`IS_MOBILE`) bekommt
+  das Spiegelglas eine eigene, silbrige Umgebung (`ENV_ROOM.mirror`); am Computer bleibt es wie bisher. Ein helleres
+  Brett wurde verglichen und verworfen: Es nimmt den Strahlen Kontrast und macht die Marmoradern unruhig.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
