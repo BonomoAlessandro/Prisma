@@ -3973,8 +3973,14 @@ function makeFilter(el) {
 
   const pts = [[0, -0.34], [0.16, -0.2], [0.18, 0.16], [0, 0.34]].map(([x, y]) => new THREE.Vector2(x, y));
   const geo = new THREE.LatheGeometry(pts, 6);
-  const crystal = new THREE.Mesh(geo, makeGlassMaterial(col.clone().lerp(new THREE.Color(1, 1, 1), 0.25), {
-    opacity: 0.62, emissive: col.clone(), emissiveIntensity: 0.18, iridescence: 0.3,
+  // Wie beim Zielkristall: Dunkle Farben (Blau, Rot) mit weniger Weiss und Schillern, etwas deckender und mit mehr
+  // Eigenleuchten – sonst wirkt ein Blaufilter blasslila.
+  const bt = brightTame(col);
+  const idleGlow = THREE.MathUtils.lerp(0.3, 0.18, bt);
+  const tint = col.clone().lerp(new THREE.Color(1, 1, 1), THREE.MathUtils.lerp(0.05, 0.25, bt));
+  const crystal = new THREE.Mesh(geo, makeGlassMaterial(tint, {
+    opacity: THREE.MathUtils.lerp(0.72, 0.62, bt), emissive: col.clone(), emissiveIntensity: idleGlow,
+    iridescence: THREE.MathUtils.lerp(0.1, 0.3, bt),
   }));
   crystal.position.y = BEAM_Y;
   crystal.renderOrder = 5;
@@ -4001,7 +4007,7 @@ function makeFilter(el) {
     crystal.position.y = BEAM_Y + Math.sin(t * 0.9 + u.phase) * 0.012;
     coreMat.color.copy(col).multiplyScalar(0.5 + u.glow * 4.5);
     ringMat.color.copy(col).multiplyScalar(0.5 + u.glow * 2.0);
-    crystal.material.emissiveIntensity = 0.18 + u.glow * 0.8;
+    crystal.material.emissiveIntensity = idleGlow + u.glow * 0.8;
   };
   return root;
 }

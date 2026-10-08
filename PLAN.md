@@ -60,7 +60,7 @@ Zuletzt aktualisiert: 8. Oktober 2026
   Handy nicht verdeckt) und zeigt, woraus die Zielfarbe besteht – auch ohne Farbunterscheidung lesbar. Er ersetzt
   den äusseren Ring für falsches Licht: Kommt eine gebrauchte Grundfarbe an, wird ihr Bogen heller; eine nicht
   gebrauchte flackert in ihrem leeren Platz. Tutorial-Hinweis „Farbiges Licht“ angepasst. Kombinator: hellere,
-  grössere Düse mit schwach leuchtender Linse. Offen: Filter (v. a. Blau) wirken noch blass, siehe 2.15.
+  grössere Düse mit schwach leuchtender Linse. Filter gleich behandelt, siehe 2.15.
 - [x] **2.9 Level 51–70 (schwerer als Level 50):** `tools/harden.mjs` macht erzeugte Level schrittweise schwerer
   (lokale Suche; Quellen müssen gekoppelt sein, Feld kaum dichter als bei den 50 – auch nach dem Abschluss geprüft,
   `curate.mjs` und ein Test prüfen dasselbe). Pools harden-1 bis -6: 121 Kandidaten (Wertung 44–56.6; harden-6 lieferte
@@ -97,12 +97,12 @@ Zuletzt aktualisiert: 8. Oktober 2026
   in der ankommenden Farbe. Tutorial von 6 auf 9 Level: neu „Sperre“ (Block), „Schatten“ (verschwindendes Licht),
   „Treffpunkt“ (Mischen auf dem Ziel); „Umweg“ ohne Block; Hinweise gekürzt, Mischfilter und „Weiss + Rot = Weiss“
   ergänzt (`1cf64b9`).
-- [ ] **2.13 Elementübersicht** („?“-Knopf): Tafel mit allen Elementen (Bild + ein Satz) und den Farbregeln.
 - [x] **2.14 Tutorial: 135°-Knick im Prisma** (aus Review 6): Rot und Blau können im Prisma um 135° abknicken
   (z. B. Level „Prismenhof“; in der Lösungsstellung von 17 der 80 Level). **Entschieden (8. Oktober): keine
   Änderung** – die Regel ist klar genug, Hinweis und Tutorial bleiben.
-- [ ] **2.15 Filter satter** (aus 2.8): Der Blaufilter wirkt blasslila wie früher die blauen Ziele. Bei Bedarf
-  gleich behandeln (weniger Weiss und Schillern bei dunklen Farben).
+- [x] **2.15 Filter satter** (aus 2.8): Der Blaufilter wirkte blasslila wie früher die blauen Ziele. Gleich
+  behandelt: dunkle Farben mit weniger Weiss und Schillern, etwas deckender und mit mehr Eigenleuchten. Fällt
+  weisses Licht hinein, wirkt der Filter weiterhin hell (der Strahl scheint durch das Glas).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
