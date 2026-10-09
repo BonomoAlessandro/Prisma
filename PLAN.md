@@ -161,6 +161,12 @@ Zuletzt aktualisiert: 9. Oktober 2026
     evtl. auch drehen oder Blocker öffnen). Eröffnet neue Levelideen: Reihenfolge der Schritte zählt, ein Strahl bahnt
     einem anderen den Weg. Offen: dauerhaft auslösen oder nur solange Licht darauf fällt; Darstellung der Verbindung
     Schalter → Element; Löser und Generator müssen Zustände mit Schaltern durchspielen.
+  - **Linsen, konvex und konkav** (Idee des Nutzers, 9. Oktober): Die Sammellinse bündelt Strahlen, die
+    Zerstreuungslinse fächert einen Strahl auf. Offen ist, wie das im Raster wirkt: Durch eine Linse in einer
+    einzelnen Zelle läuft der Strahl immer mittig und würde nicht abgelenkt. Denkbar: Die Linse ist drei Zellen breit.
+    Die Sammellinse lenkt dann die Strahlen in den äusseren Zellen um 45° zur Mitte, und im Brennpunkt mischen sich
+    ihre Farben. Die Zerstreuungslinse macht aus einem Strahl drei (geradeaus und ±45°), in der gleichen Farbe.
+    Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] Mehr als 80 Level, wenn die ersten 80 überzeugen.
 
