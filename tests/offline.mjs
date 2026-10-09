@@ -17,9 +17,11 @@ const TYPES = {
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redirect = process.argv.includes('--redirect');
 
-// Statischer Server für das Projektverzeichnis
+// Statischer Server für das Projektverzeichnis; merkt sich die Parameter der Seitenaufrufe
+const pageQueries = [];
 const server = createServer((req, res) => {
   const reqUrl = new URL(req.url, 'http://x');
+  if (reqUrl.pathname === '/' || reqUrl.pathname === '/index.html') pageQueries.push(reqUrl.search);
   if (redirect && reqUrl.pathname === '/index.html') { res.writeHead(301, { Location: '/' + reqUrl.search }); res.end(); return; }
   let path = decodeURIComponent(reqUrl.pathname);
   if (path.endsWith('/')) path += 'index.html';
@@ -102,6 +104,13 @@ try {
   check(true, 'online: Szene läuft, Service Worker aktiv');
   check(await evaluate(fontReady), 'online: Schrift Jost geladen');
   check(relevantErrors().length === 0, 'online: Konsole ohne Fehler' + (relevantErrors().length ? '\n        ' + relevantErrors().join('\n        ') : ''));
+
+  // Die Parameter müssen auch durch den Service Worker beim Server ankommen: Der eingebaute Server von IntelliJ
+  // antwortet ohne sein Zugangszeichen _ijt mit 404
+  pageQueries.length = 0;
+  await send('Page.navigate', { url: base + 'index.html?noadapt&nointro&_ijt=probe' });
+  await waitFor(sceneRuns, 'Szene online mit Service Worker');
+  check(pageQueries.some(q => q.includes('_ijt=probe')), 'online mit Service Worker: Parameter der Seite kommen beim Server an');
 
   // Server weg: ab jetzt antwortet nur noch der Zwischenspeicher
   stopServer();

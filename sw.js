@@ -90,8 +90,10 @@ async function fromCache(event, key) {
 }
 
 async function fromNetwork(event, key) {
+  // Mit den Parametern der Anfrage holen, gespeichert wird ohne: Manche Server brauchen sie (der eingebaute Server
+  // von IntelliJ antwortet ohne sein Zugangszeichen _ijt mit 404).
   // no-cache: beim Server nachfragen (günstig dank ETag), nicht blind dem HTTP-Cache des Browsers glauben
-  const network = fetch(key, { cache: 'no-cache' }).then(clean).then((response) => { store(event, key, response); return response; });
+  const network = fetch(event.request.url, { cache: 'no-cache' }).then(clean).then((response) => { store(event, key, response); return response; });
   event.waitUntil(network.catch(() => {})); // den Speicher auch dann nachführen, wenn er schon geantwortet hat
   const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_WAIT));
   try {
