@@ -142,6 +142,35 @@ Zuletzt aktualisiert: 9. Oktober 2026
   - Dahinter nur Sterne (Wunsch des Nutzers): Milchstrasse, Nebel und Magellansche Wolken blenden aus.
   - Kostet beim Rendern nicht mehr als die Milchstrasse (deren Shader entfällt). Beim Umschalten hält die adaptive
     Auflösung kurz still: Das erste Mal werden Shader übersetzt, die einzelnen langen Bilder sind kein Grund zum Absenken.
+- [x] **2.21 Dritter Hintergrund: nächtlicher Nadelwald** (Wunsch des Nutzers, 9. Oktober, Stimmung „Nacht mit
+  Mondlicht“). Der Knopf schaltet jetzt der Reihe nach: Milchstrasse → Sonnensystem → Wald (`skyTheme.order`).
+  - Das Brett schwebt über einer bewaldeten Kuppe; von dort fällt das Gelände in Kämme und Täler ab (`terrainHeight`,
+    gratiges Wertrauschen), ein Nebelmeer füllt die Täler, alles verblasst mit der Entfernung (Luftperspektive). Der
+    Blick geht über die nahen Wipfel einen Hang hinunter in den Dunst.
+  - Bäume als geschlossene Silhouetten aus Etagen: schlanke Spitze, darunter immer breitere, hängende Etagen mit
+    unregelmässigem Rand; gut dreimal so hoch wie breit. Im Shader Nadelbüschel um den Stamm, helle Zweigspitzen,
+    dunkel unter der nächsten Etage und unten im dichten Wald; die Krone wird wie ein Volumen beleuchtet (Normale
+    halb vom Stamm weg und nach oben), Wipfel wiegen sich leicht. Mond seitlich (`FOREST_MOON`), der Nebel leuchtet zum
+    Mond hin heller (`forestMist`, gemeinsam für Himmel, Bäume, Gelände und Nebelmeer).
+  - Abwechslung: vier Arten (`KINDS`: Fichte, schlanke Fichte, Tanne, abgebrochen mit Stammstumpf), je Baum eigene
+    Zweiglängen, schlank bis stämmig, etwas Schräglage, Farbe von Fichtengrün über bläulich bis olivfarben; Bestände
+    mit höheren und niedrigeren Bäumen und kleine Lichtungen. Bäume ganz im Nebelmeer werden nicht gesetzt.
+  - Verteilung (Rückmeldung des Nutzers: „zu nah aufeinander“, „eckig angehäuft, rundherum nur Nebel“): Standorte
+    zufällig mit Mindestabstand (Poisson-Disk) statt in Ringen, Abstand schwankend, in Gruppen mit lichten Stellen,
+    dazwischen sieht man den Waldboden. Das Gelände entsteht aus gedrehtem Wertrauschen (`smoothNoise`): Auf dem
+    Gitter des Rauschens bildeten Kämme und Nebelmeer achsparallele, eckige Formen, nur ein Viereck um das Brett
+    ragte aus dem Nebel. Gelände flacher abfallend, Nebelmeer tiefer: Der Wald reicht rundum weit hinaus.
+  - Alle Bäume unter der Brettebene (`FOREST.tipMax`): Sie kommen nie zwischen Kamera und Spielfeld. Glühwürmchen
+    über den Wipfeln. Bis 78 Einheiten verläuft alles ganz in den Dunst, sonst überdeckte die Himmelskugel (Radius 80)
+    die Objekte mit harten Kanten. Die Sterne blenden im Wald aus.
+  - Verworfen, aus der Reihe der Versuche: Stämme auf flachem Boden (von oben fast nur kahle Stämme), Bäume auf flacher
+    Ebene (wirkt wie ein Muster), ausgestanzte Astflächen mit Canvas-Nadeltextur (ohne Kantenglättung pixelig und
+    unruhig, dazu doppelt so teuer). Recherche dazu: Realismus kommt bei nebligen Wäldern von oben vor allem von
+    Gelände, Nebel in den Tälern und Luftperspektive; für noch realistischere Bäume wären Impostors aus einem
+    detaillierten Modell der nächste Schritt (Bibliothek für three.js vorhanden, Vorlage z. B. aus EZ-Tree).
+  - Kostet beim Rendern etwas mehr als die Milchstrasse (Software-Rendering ~15–20 %).
+  - Wechsel jetzt durch Dunkel: erst aus-, dann einblenden (je 0,45 s). Gleichzeitig lagen die undurchsichtigen Teile
+    des Waldes, die aus Schwarz einblenden, als schwarze Flächen über dem Sonnensystem.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

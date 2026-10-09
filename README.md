@@ -22,7 +22,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
-  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse oder Sonnensystem), Levelauswahl.
+  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem oder Wald, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die

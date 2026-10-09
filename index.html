@@ -3163,7 +3163,7 @@ function skyFrame({ phi, up, tilt }) {
 }
 const skyTall = skyFrame(SKY.tall), skyWide = skyFrame(SKY.wide);
 
-// Wertrauschen und fBm für die Shader von Himmel, Sonne und Planeten
+// Wertrauschen und fBm für die Shader von Himmel, Sonne, Planeten und Wald
 const GLSL_NOISE = `
   float hash(vec3 p) {
     p = fract(p * 0.3183099 + 0.1);
@@ -3180,6 +3180,21 @@ const GLSL_NOISE = `
     float v = 0.0, a = 0.5;
     for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 1.7; a *= 0.5; }
     return v;
+  }
+  float fbm3(vec3 p) { // grob und günstiger, für grossflächige Muster
+    return 0.5 * noise(p) + 0.25 * noise(p * 2.03 + 1.7) + 0.125 * noise(p * 4.12 + 5.1);
+  }`;
+
+// Nächtlicher Wald: Nebel (linear) und Richtung zum Mond. Der Nebel leuchtet zum Mond hin heller (Vorwärtsstreuung) –
+// gemeinsam für Himmel, Bäume und Nebelboden, damit alles in der Ferne nahtlos in denselben Dunst übergeht.
+const FOREST_MIST_RGB = [0.019, 0.029, 0.042];
+const FOREST_MOON = new THREE.Vector3(-0.8, 0.5, 0.25).normalize(); // seitlich: die Bäume bekommen Licht und Schatten
+const FOREST_GLSL = `
+  const vec3 FOREST_MIST = vec3(${FOREST_MIST_RGB.join(', ')});
+  const vec3 FOREST_MOON = vec3(${FOREST_MOON.toArray().map((v) => v.toFixed(4)).join(', ')});
+  vec3 forestMist(vec3 viewDir) {
+    vec2 h = normalize(viewDir.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
+    return FOREST_MIST * (0.9 + 1.0 * pow(max(dot(h, m), 0.0), 3.0));
   }`;
 
 const background = new THREE.Mesh(
@@ -3194,6 +3209,7 @@ const background = new THREE.Mesh(
       uCloudRot: { value: new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(skyTall)) },
       uCore: { value: new THREE.Vector3(0, 0, 1) }, // Richtung des Kerns im Himmelssystem (updateSky)
       uGlow: { value: SKY.glow },
+      uForest: { value: 0 }, // 0 … 1: Nebel des nächtlichen Waldes statt Weltraum (skyTheme)
       // Magellansche Wolken: Welt → Tangentialebene um die Mitte, in Halbachsen (updateSky)
       uLmc: { value: new THREE.Matrix3() },
       uSmc: { value: new THREE.Matrix3() },
@@ -3205,14 +3221,12 @@ const background = new THREE.Mesh(
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
     fragmentShader: `
-      uniform float uGlow;
+      uniform float uGlow, uForest;
       uniform mat3 uSkyRot, uCloudRot, uLmc, uSmc;
       uniform vec3 uCore;
       varying vec3 vDir;
       ${GLSL_NOISE}
-      float fbm3(vec3 p) { // grob, für die Lage der Gasnebel
-        return 0.5 * noise(p) + 0.25 * noise(p * 2.03 + 1.7) + 0.125 * noise(p * 4.12 + 5.1);
-      }
+      ${FOREST_GLSL}
       // Magellansche Wolke: fleckig ausfransender Nebel aus Sternenlicht um die Mitte von m (siehe uLmc)
       vec3 satellite(mat3 m, vec3 d, vec3 seed, float pink) {
         vec3 l = m * d;
@@ -3258,6 +3272,11 @@ const background = new THREE.Mesh(
           col += neb * plane * wisps * shade * 2.4 * uGlow;
         }
         if (uGlow > 0.0) col += (satellite(uLmc, d, vec3(3.0, 9.0, 1.0), 1.0) + 0.8 * satellite(uSmc, d, vec3(7.0, 2.0, 5.0), 0.0)) * 1.8 * uGlow;
+        // Wald: Nebel; Bäume und Nebelboden verlaufen bis 78 Einheiten ganz in ihn (forest, mistify)
+        if (uForest > 0.0) {
+          vec3 mist = forestMist(d) * (0.9 + 0.2 * noise(d * 3.0)); // wie der Nebel in der Ferne (mistify)
+          col = mix(col, mist, uForest);
+        }
         // Alpha 0 = Himmel: Der letzte Bildschritt lässt hier die Farbverschiebung am Bildrand weg (Sterne!)
         gl_FragColor = vec4(col, 0.0);
       }`,
@@ -3308,16 +3327,16 @@ function createStars() {
   geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('aStar', new THREE.BufferAttribute(info, 4));
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() } },
+    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 } },
     vertexShader: `
       attribute vec3 aColor;
       attribute vec4 aStar;
-      uniform float uTime, uPixelRatio;
+      uniform float uTime, uPixelRatio, uFade;
       varying vec3 vColor;
       void main() {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 70.0, 1.0);
         float twinkle = 1.0 + aStar.w * 0.22 * sin(uTime * (0.6 + aStar.z * 1.4) + aStar.z * 40.0);
-        vColor = aColor * aStar.x * twinkle;
+        vColor = aColor * aStar.x * twinkle * uFade; // im Wald ausgeblendet (skyTheme)
         gl_PointSize = aStar.y * uPixelRatio;
       }`,
     fragmentShader: `
@@ -3612,44 +3631,369 @@ const solar = (() => {
 })();
 scene.add(solar.group);
 
+/* =====================================================================
+   WALD — dritter Hintergrund: nächtliche Berglandschaft mit Nadelwald (umschaltbar, siehe skyTheme)
+   Das Brett schwebt über einer bewaldeten Kuppe; von dort fällt das Gelände in Kämme und Täler ab. Ein Nebelmeer
+   füllt die Täler, die Kämme ragen heraus, und jede Schicht dahinter verblasst im Dunst (Luftperspektive) – so sehen
+   neblige Nadelwälder von oben auf Fotos aus. Auf flacher Ebene wirkte der Wald wie ein Muster, egal wie gut der
+   einzelne Baum war. Bäume als geschlossene Silhouetten: Ausgestanzte Astflächen mit Nadeltextur wurden ohne
+   Kantenglättung (MSAA) pixelig und unruhig.
+   Bäume und Gelände bleiben in der Nähe unter der Brettebene; weiter draussen als die Kamera fährt, könnten sie
+   ohnehin nicht zwischen Kamera und Spielfeld kommen. Alles berechnet, ohne Bilddateien; nicht in der Bodenspiegelung.
+   ===================================================================== */
+
+const FOREST = {
+  top: -10,             // Höhe der Kuppe unter dem Brett
+  fall: 0.32,           // so stark sinkt das Gelände nach aussen: der Blick geht über die nahen Wipfel in die Tiefe
+  relief: 20,           // Höhe der Kämme gegenüber den Tälern
+  fogY: -25,            // Oberfläche des Nebelmeers in den Tälern
+  size: [4.2, 7.2],     // Baumhöhe
+  tipMax: -1.5,         // höchste Baumspitze (unter der Brettebene)
+  inner: 4.5, outer: 80, // Bereich der Bäume (unter der Platte sieht man sie ohnehin nicht)
+  spacing: (r) => 2.3 + 0.03 * r, // Abstand der Bäume, nach aussen lichter (dort deckt der Dunst)
+  fireflies: 60,
+};
+
+const forestUniforms = {
+  uFade: { value: 0 },
+  uTime: { value: 0 },
+};
+
+const forest = (() => {
+  const group = new THREE.Group();
+  group.visible = false;
+  const rand = mulberry32(77);
+  const noPick = (o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; o.frustumCulled = false; return o; };
+
+  // Gelände: Kuppe unter dem Brett, nach aussen abfallend, mit Kämmen und Tälern. Wertrauschen liegt auf einem
+  // Gitter und bildet achsparallele, eckige Formen; darum jede Stufe gedreht (gleich für Bestände und Lichtungen).
+  const valueNoise = (x, z) => {
+    const xi = Math.floor(x), zi = Math.floor(z), u = x - xi, v = z - zi;
+    const h = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
+    const su = u * u * u * (u * (u * 6 - 15) + 10), sv = v * v * v * (v * (v * 6 - 15) + 10);
+    return (h(xi, zi) * (1 - su) + h(xi + 1, zi) * su) * (1 - sv) + (h(xi, zi + 1) * (1 - su) + h(xi + 1, zi + 1) * su) * sv;
+  };
+  const smoothNoise = (x, z, octaves = 4) => { // 0 … 1, ohne Vorzugsrichtung
+    let s = 0, a = 0.5, f = 1, norm = 0;
+    for (let i = 0; i < octaves; i++) {
+      const c = Math.cos(0.7 + i * 1.1), sn = Math.sin(0.7 + i * 1.1);
+      s += a * valueNoise((x * c - z * sn) * f + i * 17.3, (x * sn + z * c) * f - i * 9.1);
+      norm += a; a *= 0.5; f *= 2.03;
+    }
+    return s / norm;
+  };
+  const terrainHeight = (x, z) => {
+    const r = Math.hypot(x, z);
+    const relief = THREE.MathUtils.smoothstep(r, 9, 24);
+    return FOREST.top - FOREST.fall * Math.max(r - 9, 0) + relief * (smoothNoise(x * 0.03 + 3.1, z * 0.03 + 7.7) - 0.5) * FOREST.relief * 1.6;
+  };
+
+  // Dunst nach Entfernung (Luftperspektive) und Nebelmeer: knapp darüber geht alles ganz in ihm auf – sonst zeichnete
+  // sich der Rand ab. Ganz im Dunst, bevor die Himmelskugel (Radius 80) die Objekte überdeckt – sonst harte Kanten.
+  const MIST_GLSL = `
+    float mistAmount(vec3 pos, float dist) {
+      float far = max(1.0 - exp(-dist * 0.018), smoothstep(52.0, 78.0, dist));
+      float low = smoothstep(${(FOREST.fogY + 3.5).toFixed(1)}, ${FOREST.fogY.toFixed(1)}, pos.y);
+      return clamp(far + low, 0.0, 1.0);
+    }`;
+
+  const terrain = (() => {
+    const geo = new THREE.PlaneGeometry(184, 184, 150, 150).rotateX(-Math.PI / 2);
+    const p = geo.attributes.position;
+    for (let i = 0; i < p.count; i++) p.setY(i, terrainHeight(p.getX(i), p.getZ(i)));
+    geo.computeVertexNormals();
+    const mesh = noPick(new THREE.Mesh(geo, new THREE.ShaderMaterial({
+      uniforms: forestUniforms, fog: false,
+      vertexShader: `varying vec3 vPos, vN;
+        void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vPos = wp.xyz; vN = normal; gl_Position = projectionMatrix * viewMatrix * wp; }`,
+      fragmentShader: `uniform float uFade;
+        varying vec3 vPos, vN;
+        ${GLSL_NOISE}
+        ${FOREST_GLSL}
+        ${MIST_GLSL}
+        void main() {
+          vec3 toCam = cameraPosition - vPos;
+          float dist = length(toCam);
+          // Waldboden zwischen den Bäumen: Nadelstreu und Moos, dunkel; Hänge zum Mond etwas heller
+          vec3 col = mix(vec3(0.008, 0.012, 0.009), vec3(0.018, 0.020, 0.013), noise(vPos * 0.9));
+          col *= 0.45 + 2.0 * max(dot(normalize(vN), FOREST_MOON), 0.0);
+          gl_FragColor = vec4(mix(col, forestMist(-toCam / dist), mistAmount(vPos, dist)) * uFade, 1.0);
+        }`,
+    })));
+    mesh.renderOrder = 1; // nach Brett und Platte: was darunter liegt, verwirft der Tiefentest früh
+    return mesh;
+  })();
+  group.add(terrain);
+
+  // Nebelmeer in den Tälern: leuchtender Dunst, zieht langsam
+  const fogSea = noPick(new THREE.Mesh(new THREE.CircleGeometry(95, 64), new THREE.ShaderMaterial({
+    uniforms: forestUniforms, fog: false,
+    vertexShader: `varying vec3 vPos;
+      void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vPos = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`,
+    fragmentShader: `uniform float uFade, uTime;
+      varying vec3 vPos;
+      ${GLSL_NOISE}
+      ${FOREST_GLSL}
+      void main() {
+        float n = fbm3(vec3(vPos.xz * 0.05 + vec2(uTime * 0.010, -uTime * 0.007), uTime * 0.01));
+        gl_FragColor = vec4(forestMist(normalize(vPos - cameraPosition)) * (0.85 + 0.3 * n) * uFade, 1.0);
+      }`,
+  })));
+  fogSea.rotation.x = -Math.PI / 2;
+  fogSea.position.y = FOREST.fogY;
+  fogSea.renderOrder = 2; // zuletzt: über den Kämmen bleibt wenig zu zeichnen
+  group.add(fogSea);
+
+  // Baumarten (Höhe 1, Spitze oben): Etagen als flache Kegel; oben eine schlanke Spitze, darunter immer breitere,
+  // hängende Etagen mit unregelmässigem Rand (lange und kurze Zweige, verschieden tief). Jede Art ist ein eigenes
+  // InstancedMesh; im Shader bekommt zudem jeder Baum eigene Zweiglängen, Wuchs und Farbe.
+  //   tiers: Etagen, width: Breite, jag: Länge der kurzen gegenüber den langen Zweigen, droop: Hängen der Spitzen,
+  //   skip: oberste Etagen fehlen (abgebrochen), dead: kahl und grau
+  const KINDS = [
+    { name: 'Fichte', share: 0.45, tiers: 8, width: 1.0, jag: 0.62, droop: 0.04 },
+    { name: 'schlanke Fichte', share: 0.25, tiers: 10, width: 0.75, jag: 0.55, droop: 0.035 },
+    { name: 'Tanne', share: 0.22, tiers: 7, width: 1.2, jag: 0.78, droop: 0.07 },
+    { name: 'abgebrochen', share: 0.08, tiers: 6, width: 0.8, jag: 0.4, droop: 0.05, skip: 2, dead: 1 },
+  ];
+  function treeGeometry({ tiers, width, jag, droop, skip = 0, dead = 0 }, seed) {
+    const SEG = 16, pos = [], tip = [], index = [];
+    const r = mulberry32(seed);
+    if (dead) { // abgebrochener Stamm, ragt über die Zweige hinaus
+      pos.push(0, 1, 0); tip.push(0);
+      for (let k = 0; k < 6; k++) { const a = k / 6 * 2 * Math.PI; pos.push(Math.cos(a) * 0.025, 0.55, Math.sin(a) * 0.025); tip.push(0); }
+      for (let k = 0; k < 6; k++) index.push(0, 1 + (k + 1) % 6, 1 + k);
+    }
+    for (let i = skip; i < tiers; i++) {
+      const f = i / (tiers - 1); // 0 oben … 1 unten
+      const apexY = i === 0 ? 1 : 0.93 - 0.68 * f;
+      const rimY = Math.max(0, apexY - (i === 0 ? 0.2 : (0.15 + 0.12 * f) * Math.sqrt(8 / tiers)));
+      const radius = (0.035 + 0.19 * f) * width * (dead ? 0.75 + r() * 0.5 : 1);
+      const apex = pos.length / 3;
+      pos.push(0, apexY, 0); tip.push(i === skip ? 0.25 : 1); // die oberste Etage ist nicht überdeckt
+      for (let k = 0; k < SEG; k++) {
+        const a = (k + (r() - 0.5) * 0.5) / SEG * 2 * Math.PI, long = k % 2 === 0;
+        const rr = radius * (long ? 1 : jag) * (0.78 + r() * 0.44);
+        pos.push(Math.cos(a) * rr, rimY - droop * (long ? 0.6 + r() * 0.8 : 0.15), Math.sin(a) * rr); tip.push(0);
+      }
+      for (let k = 0; k < SEG; k++) index.push(apex, apex + 1 + (k + 1) % SEG, apex + 1 + k);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    geo.setAttribute('aTip', new THREE.Float32BufferAttribute(tip, 1)); // 1 am Stamm, 0 an den Zweigspitzen
+    geo.setAttribute('aDead', new THREE.Float32BufferAttribute(new Array(tip.length).fill(dead), 1));
+    geo.setIndex(index);
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // Standorte zufällig mit Mindestabstand zum Nachbarn (Poisson-Disk; in Ringen gesetzt standen die Bäume in Reihen),
+  // nach aussen lichter. Der Abstand schwankt, und der Wald steht mal dichter, mal lichter in Gruppen – voll aufgefüllt
+  // wirkte er wie ein Gitter. Bestände mit höheren und niedrigeren Bäumen und kleine Lichtungen; Bäume ganz im
+  // Nebelmeer werden gar nicht erst gesetzt.
+  const stand = (x, z) => smoothNoise(x * 0.08 + 40, z * 0.08 - 13, 2);
+  const gap = (x, z) => smoothNoise(x * 0.12 - 21, z * 0.12 + 55, 2);
+  const clumps = (x, z) => smoothNoise(x * 0.18 + 7, z * 0.18 - 31, 2);
+  const spots = [], CELL = 2, cells = new Map();
+  const cellKey = (i, j) => i * 4096 + j;
+  for (let tries = 0; tries < 14000; tries++) {
+    const r = Math.sqrt(FOREST.inner ** 2 + rand() * (FOREST.outer ** 2 - FOREST.inner ** 2)), a = rand() * 2 * Math.PI;
+    const x = Math.cos(a) * r, z = Math.sin(a) * r, min = FOREST.spacing(r) * (0.55 + 0.45 * rand());
+    if (rand() > THREE.MathUtils.smoothstep(clumps(x, z), 0.2, 0.62)) continue; // Gruppen und lichte Stellen
+    const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL), reach = Math.ceil(min / CELL);
+    let free = true;
+    for (let i = ci - reach; i <= ci + reach && free; i++) {
+      for (let j = cj - reach; j <= cj + reach && free; j++) {
+        for (const [px, pz] of cells.get(cellKey(i, j)) || []) if ((px - x) ** 2 + (pz - z) ** 2 < min * min) { free = false; break; }
+      }
+    }
+    if (!free || (gap(x, z) < 0.3 && rand() < 0.85)) continue; // zu nah oder Lichtung
+    const ground = terrainHeight(x, z);
+    if (ground + FOREST.size[1] < FOREST.fogY + 1) continue; // ganz im Nebel
+    spots.push([x, z, ground]);
+    const k = cellKey(ci, cj);
+    if (!cells.has(k)) cells.set(k, []);
+    cells.get(k).push([x, z]);
+  }
+
+  const treeMaterial = new THREE.ShaderMaterial({
+    uniforms: forestUniforms, fog: false,
+    vertexShader: `attribute float aTip, aDead;
+      uniform float uTime;
+      varying vec3 vPos, vN, vLocal, vRad;
+      varying float vTip, vSeed, vDead;
+      void main() {
+        mat4 m = modelMatrix * instanceMatrix;
+        vSeed = fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
+        vec3 p = position;
+        // jeder Baum mit eigenen Zweiglängen
+        if (aTip < 0.5) p.xz *= 1.0 + 0.3 * (fract(sin(dot(p.xz, vec2(13.1, 7.7)) + p.y * 5.3 + vSeed * 91.3) * 43758.5453) - 0.5);
+        vec4 wp = m * vec4(p, 1.0);
+        // Wind: Wipfel wiegen sich kaum merklich
+        wp.xz += vec2(sin(uTime * 0.6 + vSeed * 40.0), cos(uTime * 0.47 + vSeed * 23.0)) * 0.06 * position.y * position.y;
+        vPos = wp.xyz;
+        // Normale bei ungleicher Skalierung (schlank/stämmig): durch das Quadrat der Skalierung teilen
+        vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+        vN = normalize(mat3(m) * (normal / (sc * sc)));
+        vRad = normalize(mat3(m) * vec3(p.x, 0.0, p.z) + vec3(0.0, 1e-3, 0.0)); // vom Stamm weg
+        vTip = aTip;
+        vDead = aDead;
+        vLocal = p;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }`,
+    fragmentShader: `uniform float uFade;
+      varying vec3 vPos, vN, vLocal, vRad;
+      varying float vTip, vSeed, vDead;
+      ${GLSL_NOISE}
+      ${FOREST_GLSL}
+      ${MIST_GLSL}
+      void main() {
+        vec3 toCam = cameraPosition - vPos;
+        float dist = length(toCam);
+        vec3 V = toCam / dist, mist = forestMist(-V);
+        // Krone wie ein Volumen beleuchten (Normale halb vom Stamm weg und nach oben): weich statt facettiert
+        vec3 N = normalize(mix(normalize(vN), normalize(vRad + vec3(0.0, 0.55, 0.0)), 0.45));
+        // Zweige: Nadelbüschel strahlenförmig um den Stamm, dazwischen dunkle Lücken; feine Zweige darin
+        float ang = atan(vLocal.z, vLocal.x), rad = length(vLocal.xz);
+        float clump = noise(vec3(ang * 4.0 + vSeed * 13.0, rad * 26.0, vLocal.y * 9.0));
+        float twigs = 0.5 + 0.5 * sin(ang * 31.0 + rad * 90.0 + vSeed * 20.0);
+        float needles = 0.25 + 1.0 * smoothstep(0.3, 0.8, clump) * (0.65 + 0.6 * twigs);
+        // Farbe je Baum: Fichtengrün, manche bläulich (Blaufichte), manche olivfarben; abgebrochene grau und lichter
+        float s2 = fract(vSeed * 7.31);
+        vec3 green = mix(vec3(0.012, 0.024, 0.016), vec3(0.020, 0.030, 0.019), vSeed);
+        green = mix(green, vec3(0.012, 0.024, 0.030), smoothstep(0.72, 1.0, s2));
+        green = mix(green, vec3(0.024, 0.027, 0.013), smoothstep(0.78, 1.0, 1.0 - s2));
+        green = mix(green, vec3(0.040, 0.038, 0.036), vDead);
+        needles *= 1.0 - 0.5 * vDead * smoothstep(0.45, 0.6, clump);
+        float moon = dot(N, FOREST_MOON) * 0.5 + 0.5; moon *= moon; // weich wie Laub (halbe Lambert-Beleuchtung)
+        float skyLight = 0.5 + 0.5 * N.y;
+        float inner = mix(1.0, 0.12, pow(vTip, 0.6)); // Zweigspitzen hell, innen unter der nächsten Etage dunkel
+        float low = 0.55 + 0.45 * smoothstep(0.0, 0.6, vLocal.y); // unten im dichten Wald dunkler
+        vec3 col = green * needles * inner * low * (0.35 * skyLight + 5.0 * moon * vec3(0.72, 0.86, 1.15));
+        col += mist * 1.1 * pow(1.0 - max(dot(N, V), 0.0), 3.0) * (1.0 - vTip) * needles; // Gegenlicht im Dunst
+        gl_FragColor = vec4(mix(col, mist, mistAmount(vPos, dist)) * uFade, 1.0);
+      }`,
+  });
+
+  // Bäume auf die Arten verteilen; Grösse folgt dem Bestand, dazu Zufall. Die Spitze bleibt unter der Brettebene.
+  const perKind = KINDS.map(() => []);
+  for (const spot of spots) {
+    let pick = rand(), k = 0;
+    while (k < KINDS.length - 1 && pick > KINDS[k].share) pick -= KINDS[k++].share;
+    perKind[k].push(spot);
+  }
+  const trees = KINDS.map((kind, k) => {
+    const mesh = noPick(new THREE.InstancedMesh(treeGeometry(kind, 5 + k * 17), treeMaterial, perKind[k].length));
+    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3();
+    perKind[k].forEach(([x, z, ground], i) => {
+      let size = THREE.MathUtils.lerp(FOREST.size[0], FOREST.size[1], 0.5 * stand(x, z) + 0.5 * rand()) * (kind.skip ? 0.85 : 1);
+      size = Math.min(size, FOREST.tipMax - ground + 0.3); // +0.3: Fuss steckt etwas im Boden
+      const girth = 0.82 + rand() * 0.4; // schlank bis stämmig
+      e.set((rand() - 0.5) * 0.1, rand() * 6.3, (rand() - 0.5) * 0.1);
+      m.compose(new THREE.Vector3(x, ground - 0.3, z), q.setFromEuler(e), sc.set(size * girth, size, size * girth));
+      mesh.setMatrixAt(i, m);
+    });
+    mesh.renderOrder = 1;
+    group.add(mesh);
+    return mesh;
+  });
+
+  // Glühwürmchen zwischen den Wipfeln, unter der Brettebene, ausserhalb der Platte; blinken unregelmässig
+  const n = FOREST.fireflies, pos = new Float32Array(n * 3), seed = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const r = 6.5 + rand() * 18, a = rand() * 2 * Math.PI;
+    pos.set([Math.cos(a) * r, -4.5 + rand() * 3, Math.sin(a) * r], i * 3);
+    seed[i] = rand();
+  }
+  const flyGeo = new THREE.BufferGeometry();
+  flyGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  flyGeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  const flies = noPick(new THREE.Points(flyGeo, new THREE.ShaderMaterial({
+    uniforms: { ...forestUniforms, uPixelRatio: { value: renderer.getPixelRatio() } },
+    transparent: true, depthWrite: false, fog: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute float aSeed;
+      uniform float uTime, uFade, uPixelRatio;
+      varying float vGlow;
+      void main() {
+        float t = uTime * (0.25 + 0.2 * aSeed) + aSeed * 60.0;
+        vec3 p = position + vec3(sin(t) * 1.4 + sin(t * 0.37) * 0.8, sin(t * 0.7 + 1.0) * 0.5, cos(t * 0.83) * 1.4);
+        p.y = min(p.y, -1.0); // nie über die Brettebene
+        vec4 mv = modelViewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        float blink = smoothstep(0.55, 0.9, sin(uTime * (0.8 + aSeed) + aSeed * 31.0));
+        vGlow = blink * uFade;
+        gl_PointSize = (2.0 + 3.0 * blink) * uPixelRatio * 50.0 / -mv.z;
+      }`,
+    fragmentShader: `varying float vGlow;
+      void main() {
+        float r = length(gl_PointCoord - 0.5) * 2.0;
+        gl_FragColor = vec4(vec3(1.0, 0.92, 0.45) * vGlow * 3.0 * smoothstep(1.0, 0.0, r), 0.0);
+      }`,
+  })));
+  flies.renderOrder = 6;
+  group.add(flies);
+
+  return {
+    group, trees,
+    update(t) {
+      forestUniforms.uTime.value = t;
+      flies.material.uniforms.uPixelRatio.value = renderer.getPixelRatio();
+    },
+  };
+})();
+scene.add(forest.group);
+
 /**
- * Hintergrund umschalten: Milchstrasse oder Sonnensystem (Knopf unten rechts, Taste H). Die Wahl bleibt gespeichert;
- * beim Wechsel blendet der eine Hintergrund aus und der andere ein.
+ * Hintergrund umschalten: Milchstrasse, Sonnensystem oder Wald (Knopf unten rechts, Taste H; der Reihe nach). Die
+ * Wahl bleibt gespeichert. Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurch-
+ * sichtige Teile (Waldboden, Stämme, Planeten) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten.
  */
 const skyTheme = {
   storageKey: 'prisma.sky',
-  names: { milky: 'Milchstrasse', solar: 'Sonnensystem' },
+  order: ['milky', 'solar', 'forest'],
+  names: { milky: 'Milchstrasse', solar: 'Sonnensystem', forest: 'Wald' },
   current: 'milky',
-  mix: 0,          // 0 = Milchstrasse, 1 = Sonnensystem
-  fadeTime: 0.9,   // s
-  get goal() { return this.current === 'solar' ? 1 : 0; },
-  get fading() { return this.mix !== this.goal; },
+  weight: { milky: 1, solar: 0, forest: 0 }, // Anteil jedes Hintergrunds, 0 … 1
+  fadeTime: 0.9,   // s für Aus- und Einblenden zusammen
+  goal(name) { return name === this.current ? 1 : 0; },
+  get fading() { return this.order.some((n) => this.weight[n] !== this.goal(n)); },
   set(name, animate = true) {
     this.current = name;
-    if (!animate) this.mix = this.goal;
+    if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     try { localStorage.setItem(this.storageKey, name); } catch { /* egal */ }
     this.apply();
   },
-  toggle() { this.set(this.current === 'solar' ? 'milky' : 'solar'); },
+  next() { this.set(this.order[(this.order.indexOf(this.current) + 1) % this.order.length]); },
   update(dt, t) {
     if (this.fading) {
-      const step = dt / this.fadeTime;
-      this.mix = this.goal > this.mix ? Math.min(this.goal, this.mix + step) : Math.max(this.goal, this.mix - step);
+      const step = 2 * dt / this.fadeTime;
+      const others = this.order.filter((n) => n !== this.current);
+      for (const n of others) this.weight[n] = Math.max(0, this.weight[n] - step);
+      if (others.every((n) => this.weight[n] === 0)) this.weight[this.current] = Math.min(1, this.weight[this.current] + step);
       this.apply();
     }
-    if (this.mix > 0) solar.update(t);
+    if (this.weight.solar > 0) solar.update(t);
+    if (this.weight.forest > 0) forest.update(t);
   },
   apply() {
-    const e = this.mix * this.mix * (3 - 2 * this.mix);
-    background.material.uniforms.uGlow.value = SKY.glow * (1 - e);
-    solarUniforms.uFade.value = e;
-    solar.lineMat.opacity = 0.12 * e;
-    solar.group.visible = this.mix > 0;
+    const e = (n) => { const w = this.weight[n]; return w * w * (3 - 2 * w); };
+    background.material.uniforms.uGlow.value = SKY.glow * e('milky');
+    background.material.uniforms.uForest.value = e('forest');
+    stars.material.uniforms.uFade.value = 1 - e('forest'); // im Wald verdeckt das Blätterdach den Himmel
+    stars.visible = this.weight.forest < 1;
+    solarUniforms.uFade.value = e('solar');
+    solar.lineMat.opacity = 0.12 * e('solar');
+    solar.group.visible = this.weight.solar > 0;
+    forestUniforms.uFade.value = e('forest');
+    forest.group.visible = this.weight.forest > 0;
   },
 };
-try { if (localStorage.getItem(skyTheme.storageKey) === 'solar') skyTheme.current = 'solar'; } catch { /* Standard */ }
-skyTheme.mix = skyTheme.goal;
-skyTheme.apply();
+try {
+  const stored = localStorage.getItem(skyTheme.storageKey);
+  if (skyTheme.order.includes(stored)) skyTheme.current = stored;
+} catch { /* Standard */ }
+skyTheme.set(skyTheme.current, false);
 
 /* =====================================================================
    STEINPLATTE mit planarer Spiegelung
@@ -6449,14 +6793,13 @@ const ui = {
     this.updateSound();
   },
   toggleSky() {
-    skyTheme.toggle();
+    skyTheme.next();
     adaptiveResolution.hold(); // das erste Umschalten übersetzt Shader: einzelne lange Bilder, kein Grund zum Absenken
     this.updateSkyButton();
     this.flashHint(`Hintergrund: ${skyTheme.names[skyTheme.current]}`);
   },
   updateSkyButton() {
     this.sky.setAttribute('aria-label', `Hintergrund: ${skyTheme.names[skyTheme.current]}`);
-    this.sky.setAttribute('aria-pressed', String(skyTheme.current === 'solar'));
   },
   updateSound() {
     this.sound.classList.toggle('muted', audio.muted);
