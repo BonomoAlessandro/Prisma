@@ -129,6 +129,19 @@ Zuletzt aktualisiert: 9. Oktober 2026
   - Magellansche Wolken (`SKY.lmc`, `SKY.smc`): zwei fleckige Nebel aus Sternenlicht, 40–56° neben dem Band, die
     man erst beim Drehen entdeckt (um gut 200°). Im Hochformat unter der Platte, im Breitformat im Streifen darüber;
     die grosse mit Balken und einem rosa Gasnebel am Rand.
+- [x] **2.20 Zweiter Hintergrund: Sonnensystem** (Wunsch des Nutzers, 9. Oktober), umschaltbar über einen vierten Knopf
+  unten rechts (Saturn) oder die Taste H; die Wahl bleibt gespeichert (`prisma.sky`), der Wechsel blendet in 0,9 s über
+  (`skyTheme`). Das Brett schwebt über der Sonne; ihre Korona scheint rund um die Platte hervor (Billboard hinter die
+  Platte geschoben, sonst lag das Leuchten auf deren hinterem Teil). Die acht Planeten kreisen um beide (`SOLAR`):
+  - Grössen und Abstände gestaucht, Umlaufzeiten nach der Wurzel der echten (Merkur 60 s, Neptun gut 26 min).
+  - Die äusseren Bahnen liegen tiefer: So ziehen alle auf der fernen Seite durch den Streifen über der Platte, im
+    Hoch- wie im Breitformat (seitlich verlassen sie das Bild).
+  - Oberflächen berechnet (Wolkenbänder, Grosser Roter Fleck, Kontinente mit ziehenden Wolken, Polkappen), von der
+    Sonne beleuchtet mit Tag- und Nachtseite, Atmosphären am Rand; Saturn mit Ring, Cassini-Teilung und dem
+    Schatten des Planeten auf dem Ring; die Erde mit Mond; feine Bahnlinien.
+  - Dahinter nur Sterne (Wunsch des Nutzers): Milchstrasse, Nebel und Magellansche Wolken blenden aus.
+  - Kostet beim Rendern nicht mehr als die Milchstrasse (deren Shader entfällt). Beim Umschalten hält die adaptive
+    Auflösung kurz still: Das erste Mal werden Shader übersetzt, die einzelnen langen Bilder sind kein Grund zum Absenken.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

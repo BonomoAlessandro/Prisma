@@ -42,7 +42,8 @@ Regeln:
 
 ## Grafik (wichtigster Teil)
 Szene & Licht:
-- Fast schwarzer Hintergrund mit leichtem blau-violettem Farbverlauf und Fog.
+- Fast schwarzer Hintergrund mit leichtem blau-violettem Farbverlauf und Fog; darauf wahlweise ein Sternenhimmel
+  mit Milchstrasse oder ein Sonnensystem, in dem das Brett über der Sonne schwebt (umschaltbar, Wahl gespeichert).
 - Spielfeld als dunkle, leicht spiegelnde Steinplatte (geringe Roughness),
   damit sich Strahlen und Kristalle darin spiegeln.
 - Environment-Map über PMREMGenerator für realistische Reflexionen.
