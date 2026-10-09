@@ -3118,16 +3118,18 @@ const mirrorEnvironment = IS_MOBILE ? buildEnvironment(ENV_ROOM.mirror) : null; 
 
 /* =====================================================================
    HINTERGRUND — Sternenhimmel mit Milchstrasse
-   Die Kamera blickt schräg von oben (im Hochformat steiler): Zu sehen sind vor allem Richtungen nach vorne unten,
-   rund um das schwebende Feld. Die Milchstrasse läuft deshalb als Band diagonal hinter dem Feld durch, ihr heller
-   Kern liegt über dem Feld. Alles bleibt dunkel und unter der Bloom-Schwelle, nur die hellsten Sterne glimmen beim
-   Funkeln knapp darüber – Strahlen und Ziele bleiben vorne.
+   Die Kamera blickt schräg von oben (im Hochformat steiler): Zu sehen sind vor allem Richtungen nach unten, rund um
+   das schwebende Feld. In der Ausgangsansicht läuft die Milchstrasse deshalb als Band diagonal hinter dem Feld durch,
+   ihr heller Kern liegt über dem Feld. Die Kamera kreist frei ums Feld – Sterne und Band gehen daher ganz herum.
+   Alles bleibt dunkel und unter der Bloom-Schwelle, nur die hellsten Sterne glimmen beim Funkeln knapp darüber –
+   Strahlen und Ziele bleiben vorne.
    ===================================================================== */
 
 const SKY = {
   glow: 0.05,       // Helligkeit der Milchstrasse (linear)
-  stars: 15000,     // Sterne rund um die Bandmitte (Kappe bis capDeg)
+  stars: 15000,     // Sterne rund um die Bandmitte (Kappe bis capDeg); der übrige Himmel kommt gleich dicht dazu
   capDeg: 80,
+  bandArc: 1.4,     // Bogen des Bands in der Kappe (rad, je Seite der Mitte)
   bandStars: 0.5,   // Anteil der Sterne dicht am Band
   // Lage der Milchstrasse je Bildformat: Blickwinkel phi (von der Senkrechten, wie cameraRig.basePhi), Bandmitte so
   // viele Grad über der Blickrichtung, Neigung des Bands gegen die Waagrechte des Bildes, Kern entlang des Bands.
@@ -3230,18 +3232,26 @@ scene.add(background);
 function createStars() {
   const rand = mulberry32(31);
   const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
-  const n = SKY.stars;
+  // Zuerst die Kappe um die Bandmitte, wie für die Ausgangsansicht entworfen; danach der übrige Himmel (Band und
+  // Rest) gleich dicht – die Kamera kreist frei ums Feld. Die Kappe zieht dieselben Zufallszahlen wie zuvor allein.
   const capCos = Math.cos(THREE.MathUtils.degToRad(SKY.capDeg));
+  const cap = SKY.stars;
+  const band = Math.round(cap * SKY.bandStars * (Math.PI / SKY.bandArc - 1));
+  const n = cap + band + Math.round(cap * (1 - SKY.bandStars) * (1 + capCos) / (1 - capCos));
   const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), info = new Float32Array(n * 4);
   // Sternfarben von bläulich über weiss bis warm, mit Häufigkeit
   const TINTS = [[0.70, 0.80, 1.0, 0.2], [0.86, 0.91, 1.0, 0.3], [1.0, 1.0, 1.0, 0.25], [1.0, 0.91, 0.78, 0.17], [1.0, 0.76, 0.6, 0.08]];
   const d = new THREE.Vector3();
   for (let i = 0; i < n; i++) {
-    if (rand() < SKY.bandStars) {
-      const s = (rand() * 2 - 1) * 1.4, lat = gauss() * 0.055; // entlang des Bands, Breite normalverteilt
+    const inCap = i < cap;
+    if (inCap ? rand() < SKY.bandStars : i < cap + band) {
+      // entlang des Bands (in der Kappe bis ±bandArc, sonst der Rest des Kreises), Breite normalverteilt
+      const u = rand() * 2 - 1;
+      const s = inCap ? u * SKY.bandArc : Math.sign(u) * (SKY.bandArc + Math.abs(u) * (Math.PI - SKY.bandArc));
+      const lat = gauss() * 0.055;
       d.set(Math.sin(s) * Math.cos(lat), Math.sin(lat), Math.cos(s) * Math.cos(lat));
     } else {
-      do d.set(gauss(), gauss(), gauss()).normalize(); while (d.z < capCos);
+      do d.set(gauss(), gauss(), gauss()).normalize(); while (inCap ? d.z < capCos : d.z >= capCos);
     }
     d.toArray(pos, i * 3);
     const b = 0.05 + 0.85 * Math.pow(rand(), 8);          // die meisten schwach, wenige hell
@@ -3620,18 +3630,19 @@ const { comp: composer, bloom: bloomPass, finalPass } = createComposer();
 composer.setPixelRatio(renderer.getPixelRatio());
 
 /* =====================================================================
-   KAMERA — schräg von oben, schwebt sanft, begrenzt drehbar
+   KAMERA — schräg von oben, schwebt sanft, frei ums Feld drehbar (Neigung begrenzt)
    ===================================================================== */
 
 const cameraRig = {
-  target: new THREE.Vector3(0, 0, 0.35),
+  lead: 0.35,             // Blickpunkt so weit vor der Feldmitte (zur Kamera hin)
+  target: new THREE.Vector3(),
   baseTheta: 0,           // Azimut
   basePhi: 0.86,          // Winkel von der Senkrechten
   userTheta: 0, userPhi: 0,
-  goalTheta: 0, goalPhi: 0,
-  limitsTheta: 0.55, limitsPhiUp: 0.22, limitsPhiDown: 0.16,
-  radius: 18,
-  lastInput: 0,
+  goalTheta: 0, goalPhi: 0, // goalTheta bleibt in −π … π (dragCamera)
+  limitsPhiUp: 0.22, limitsPhiDown: 0.16,
+  radius: 18,             // Abstand der Ausgangsansicht; gedreht bleibt er gleich (ein Zoom pumpte, siehe PLAN 2.18)
+  homing: null,           // Rückflug zur Ausgangsansicht beim Levelwechsel (cameraGoHome)
 };
 
 function fitCameraDistance() {
@@ -3646,18 +3657,38 @@ function fitCameraDistance() {
   const halfH = PLATE * 0.42;
   cameraRig.radius = Math.max(halfW / tanH, halfH / tanV, 14);
   cameraRig.basePhi = THREE.MathUtils.lerp(0.46, 0.86, wide);
-  // Von steil oben wirkt Drehen um die Hochachse wie Drehen des Bildes: die Ecken schwenken hinaus.
-  // Im Hoch- und Tabletformat daher enger begrenzen.
-  cameraRig.limitsTheta = THREE.MathUtils.lerp(0.22, 0.55, wide * wide);
-  cameraRig.goalTheta = THREE.MathUtils.clamp(cameraRig.goalTheta, -cameraRig.limitsTheta, cameraRig.limitsTheta);
   updateSky(wide);
 }
 
+/**
+ * Das Hauptlicht kreist mit der Kamera (ohne ihr Schweben): So sieht das Feld von jeder Seite aus wie entworfen.
+ * Ein festes Licht stünde von hinten gesehen gegenüber und spiegelte sich grell im polierten Stein.
+ */
+const keyLightHome = keyLight.position.clone();
+const Y_AXIS = new THREE.Vector3(0, 1, 0);
+let keyLightTheta = 0;
+function orbitKeyLight(theta) {
+  if (Math.abs(theta - keyLightTheta) < 1e-4) return; // Schatten nur neu berechnen, wenn das Licht wandert
+  keyLightTheta = theta;
+  keyLight.position.copy(keyLightHome).applyAxisAngle(Y_AXIS, theta);
+  markShadowsDirty();
+}
+
+/** Beim Levelwechsel: in einem Bogen auf kürzestem Weg zurück zur Ausgangsansicht. */
+function cameraGoHome() {
+  const theta = cameraRig.goalTheta, phi = cameraRig.goalPhi;
+  if (Math.abs(theta) + Math.abs(phi) < 1e-3) return;
+  cameraRig.homing = { theta, phi, t: 0, duration: 0.8 + 0.25 * Math.abs(theta) };
+}
+
 function updateCamera(t, dt) {
-  // Nach einer Weile ohne Eingabe gleitet die Kamera zur Ausgangsposition zurück.
-  if (t - cameraRig.lastInput > 4) {
-    cameraRig.goalTheta *= Math.pow(0.35, dt);
-    cameraRig.goalPhi *= Math.pow(0.35, dt);
+  const h = cameraRig.homing;
+  if (h) {
+    h.t = Math.min(1, h.t + dt / h.duration);
+    const e = h.t < 0.5 ? 4 * h.t ** 3 : 1 - (2 - 2 * h.t) ** 3 / 2; // ease-in-out
+    cameraRig.goalTheta = h.theta * (1 - e);
+    cameraRig.goalPhi = h.phi * (1 - e);
+    if (h.t >= 1) cameraRig.homing = null;
   }
   const k = 1 - Math.pow(0.00002, dt); // Zeitkonstante ≈ 0.09 s: weich, aber nicht träge
   cameraRig.userTheta += (cameraRig.goalTheta - cameraRig.userTheta) * k;
@@ -3667,15 +3698,17 @@ function updateCamera(t, dt) {
   const phi = cameraRig.basePhi + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
   const r = cameraRig.radius * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
 
+  cameraRig.target.set(cameraRig.lead * Math.sin(theta), 0, cameraRig.lead * Math.cos(theta));
   camera.position.set(
     cameraRig.target.x + r * Math.sin(phi) * Math.sin(theta),
     cameraRig.target.y + r * Math.cos(phi),
     cameraRig.target.z + r * Math.sin(phi) * Math.cos(theta)
   );
   camera.lookAt(cameraRig.target);
+  orbitKeyLight(cameraRig.baseTheta + cameraRig.userTheta);
 }
 
-// Ziehen dreht die Kamera (begrenzt); ausgewertet im Eingabemodul (INTERAKTION).
+// Ziehen dreht die Kamera; ausgewertet im Eingabemodul (INTERAKTION).
 const drag = { active: false };
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -5347,9 +5380,14 @@ function makeInteractive(obj) {
 
 function dragCamera(dx, dy) {
   const s = 2.4 / Math.max(window.innerWidth, 600);
-  cameraRig.goalTheta = THREE.MathUtils.clamp(cameraRig.goalTheta - dx * s, -cameraRig.limitsTheta, cameraRig.limitsTheta);
+  cameraRig.homing = null;
+  cameraRig.goalTheta -= dx * s;
+  // Nach einer ganzen Runde beide Winkel um 2π zurücknehmen (gleiches Bild): Der Rückflug beim Levelwechsel
+  // nimmt so den kürzesten Weg, statt alle Runden zurückzudrehen.
+  const wrap = Math.round(cameraRig.goalTheta / (2 * Math.PI)) * 2 * Math.PI;
+  cameraRig.goalTheta -= wrap;
+  cameraRig.userTheta -= wrap;
   cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp, cameraRig.limitsPhiDown);
-  cameraRig.lastInput = clock.elapsedTime;
 }
 
 function endPointer() {
@@ -5864,6 +5902,7 @@ function changeLevel(index) {
   flow.state = 'out';
   flow.t = 0;
   flow.solved = false;
+  cameraGoHome(); // das neue Feld erscheint wieder aus der Ausgangsansicht
   celebration.cancel();
   ui.hideSolved();
   ui.hideHud();
@@ -6380,10 +6419,9 @@ const frameRate = {
     if (ui.levelsOpen()) return false; // Feld liegt abgedunkelt hinter der Auswahl
     if (flow.state !== 'play' || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
     if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
-    // Kamera folgt noch dem Ziehen oder gleitet zurück (steht sie nur verschoben still, reichen 30 Bilder/s)
+    // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
     const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi);
-    const away = Math.abs(cameraRig.userTheta) + Math.abs(cameraRig.userPhi);
-    if (cam > 1e-3 || (away > 0.002 && clock.elapsedTime - cameraRig.lastInput > 4)) return true;
+    if (cam > 1e-3 || cameraRig.homing) return true;
     for (const obj of game.objects.values()) {
       const u = obj.userData;
       if (u.rotation || u.pulseT > -100) return true; // Drehung, Puls nach dem Einblenden

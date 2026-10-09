@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 8. Oktober 2026
+Zuletzt aktualisiert: 9. Oktober 2026
 
 ---
 
@@ -114,6 +114,14 @@ Zuletzt aktualisiert: 8. Oktober 2026
   den fast schwarzen Boden der Lichtumgebung und war dunkler als das Brett. Auf Handy und Tablet (`IS_MOBILE`) bekommt
   das Spiegelglas eine eigene, silbrige Umgebung (`ENV_ROOM.mirror`); am Computer bleibt es wie bisher. Ein helleres
   Brett wurde verglichen und verworfen: Es nimmt den Strahlen Kontrast und macht die Marmoradern unruhig.
+- [x] **2.18 Kamera frei ums Feld drehbar** (Wunsch des Nutzers, 8. Oktober): Ziehen dreht beliebig rund ums Feld,
+  nur die Neigung bleibt begrenzt. Der Abstand bleibt rundum der der Ausgangsansicht (9. Oktober, Wunsch des
+  Nutzers); über der Diagonale ragen dafür Ecken der Platte und des Spielfelds etwas aus dem Bild. Verworfen: Abstand
+  nach dem Winkel (über der Diagonale √2, damit die ganze Platte passt) pumpte bei jeder Vierteldrehung; einmal
+  herauszoomen (1.25 in den ersten 30°) wirkte wie Wegfahren, sobald man dreht. Das Hauptlicht kreist mit, sonst
+  spiegelte es sich von hinten grell im Stein. Die Kamera bleibt stehen, wo man sie lässt, und fliegt erst beim
+  Levelwechsel auf kürzestem Weg zurück (früher nach 4 s). Sterne jetzt am ganzen Himmel (gut 35 000 statt 15 000,
+  gleiche Dichte; die Ausgangsansicht sieht unverändert aus).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

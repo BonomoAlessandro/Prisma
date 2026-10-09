@@ -72,7 +72,7 @@ Post-Processing:
 Animation & Kamera:
 - Drehungen weich animiert (Easing, ~250 ms), nie sprunghaft.
 - Kamera schräg von oben, schwebt leicht (sanfte Sinus-Bewegung); der Spieler kann
-  sie begrenzt drehen, aber nicht verlieren.
+  sie frei rund ums Feld drehen (Neigung begrenzt), aber nicht verlieren.
 - Level-Übergänge: Feld versinkt in Dunkelheit, neues Feld baut sich Element für
   Element auf.
 
