@@ -3121,7 +3121,8 @@ const mirrorEnvironment = IS_MOBILE ? buildEnvironment(ENV_ROOM.mirror) : null; 
    Die Kamera blickt schräg von oben (im Hochformat steiler): Zu sehen sind vor allem Richtungen nach unten, rund um
    das schwebende Feld. In der Ausgangsansicht läuft die Milchstrasse deshalb als Band diagonal hinter dem Feld durch,
    ihr heller Kern liegt über dem Feld. Die Kamera kreist frei ums Feld – Sterne und Band gehen daher ganz herum.
-   Alles bleibt dunkel und unter der Bloom-Schwelle, nur die hellsten Sterne glimmen beim Funkeln knapp darüber –
+   Im Band liegen Sternwolken, Staub und einzelne farbige Gasnebel; abseits davon die beiden Magellanschen Wolken,
+   die man erst beim Drehen entdeckt. Alles bleibt dunkel und unter der Bloom-Schwelle, nur die hellsten Sterne glimmen beim Funkeln knapp darüber –
    Strahlen und Ziele bleiben vorne.
    ===================================================================== */
 
@@ -3137,6 +3138,11 @@ const SKY = {
   // durch den Streifen über dem Feld, der Kern steht rechts oben. Dazwischen wird übergeblendet (updateSky).
   tall: { phi: 0.46, up: 11.5, tilt: 62, core: 9 },
   wide: { phi: 0.86, up: 13, tilt: 8, core: 20 },
+  // Magellansche Wolken: Dreht man die Kamera um turn (°), stehen sie, wo in der Ausgangsansicht die Bandmitte steht,
+  // nur up ° höher (Hochformat, Breitformat) – dort in jedem Bildformat 40–56° neben dem Band. Im Hochformat unter
+  // der Platte (dort ist viel Himmel frei), im Breitformat im Streifen darüber. Halbachsen in rad, lange Achse in °.
+  lmc: { turn: 205, up: [-24, -1], axes: [0.075, 0.05], angle: 25 },
+  smc: { turn: 222, up: [-29, -5], axes: [0.04, 0.025], angle: -10 },
 };
 /**
  * Lage des Himmels für ein Bildformat als Drehung vom Himmels- ins Weltsystem. Himmelsachsen: x entlang des Bands,
@@ -3166,6 +3172,9 @@ const background = new THREE.Mesh(
       uCloudRot: { value: new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(skyTall)) },
       uCore: { value: new THREE.Vector3(0, 0, 1) }, // Richtung des Kerns im Himmelssystem (updateSky)
       uGlow: { value: SKY.glow },
+      // Magellansche Wolken: Welt → Tangentialebene um die Mitte, in Halbachsen (updateSky)
+      uLmc: { value: new THREE.Matrix3() },
+      uSmc: { value: new THREE.Matrix3() },
     },
     // Richtung von der Kamera aus, damit der Himmel aus jeder Position gleich aussieht (unendlich weit weg).
     vertexShader: `varying vec3 vDir; void main(){
@@ -3175,7 +3184,7 @@ const background = new THREE.Mesh(
     }`,
     fragmentShader: `
       uniform float uGlow;
-      uniform mat3 uSkyRot, uCloudRot;
+      uniform mat3 uSkyRot, uCloudRot, uLmc, uSmc;
       uniform vec3 uCore;
       varying vec3 vDir;
       float hash(vec3 p) {
@@ -3194,6 +3203,23 @@ const background = new THREE.Mesh(
         for (int i = 0; i < 5; i++) { v += a * noise(p); p = p * 2.03 + 1.7; a *= 0.5; }
         return v;
       }
+      float fbm3(vec3 p) { // grob, für die Lage der Gasnebel
+        return 0.5 * noise(p) + 0.25 * noise(p * 2.03 + 1.7) + 0.125 * noise(p * 4.12 + 5.1);
+      }
+      // Magellansche Wolke: fleckig ausfransender Nebel aus Sternenlicht um die Mitte von m (siehe uLmc)
+      vec3 satellite(mat3 m, vec3 d, vec3 seed, float pink) {
+        vec3 l = m * d;
+        if (l.z <= 0.0) return vec3(0.0);
+        vec2 p = l.xy / l.z; // in Halbachsen
+        float r2 = dot(p, p);
+        if (r2 > 6.0) return vec3(0.0);
+        float n = fbm(d * 38.0 + seed);
+        float body = exp(-r2 * (1.9 - 1.6 * n)) * (0.3 + 1.4 * n * n);
+        float bar = exp(-p.x * p.x * 1.6 - p.y * p.y * 14.0) * 0.5; // heller Balken längs der langen Achse
+        vec2 k = p - vec2(0.45, 0.35);
+        float knot = pink * exp(-dot(k, k) * 30.0) * (0.5 + n); // rosa Gasnebel am Rand (Tarantelnebel)
+        return vec3(0.72, 0.78, 1.0) * (body + bar) + vec3(1.0, 0.36, 0.52) * knot;
+      }
       void main(){
         vec3 d = normalize(vDir);
         // tiefer Raum: fast schwarz, ein Hauch Blau-Violett
@@ -3208,13 +3234,23 @@ const background = new THREE.Mesh(
           vec3 q = (uCloudRot * s) * 4.5; // Wolken fest am Band (im Hochformat genau die Weltrichtung)
           float clouds = fbm(q);
           float dust = fbm(q * 2.4 + vec3(5.2, 1.3, 8.4));
-          float glow = band * (0.25 + 1.1 * clouds * clouds) + band * core * 1.1;
+          // Sternwolken: helle Klumpen heben sich ab
+          float glow = band * (0.22 + 1.1 * clouds * clouds + 0.9 * smoothstep(0.5, 0.72, clouds)) + band * core * 1.1;
           float l = (lat - 0.25 * width * (clouds - 0.5)) / (0.45 * width); // kein pow(): Basis kann negativ sein
           float lane = exp(-l * l);
-          glow *= 1.0 - 0.85 * lane * smoothstep(0.42, 0.68, dust);
+          // Staub: der lange Streifen in der Mitte, daneben einzelne dunkle Wolken
+          float shade = 1.0 - 0.85 * lane * smoothstep(0.42, 0.68, dust) - 0.5 * (1.0 - lane) * smoothstep(0.56, 0.7, dust);
+          glow *= shade;
           vec3 tint = mix(vec3(0.58, 0.64, 1.0), vec3(0.95, 0.88, 0.80), clamp(core * 1.2, 0.0, 1.0));
           col += tint * glow * uGlow;
+          // Gasnebel nahe der Bandebene, selten und fädig: rosa leuchtender Wasserstoff, bläulich angestrahlter Staub
+          float place = fbm3(q * 0.45 + vec3(11.3, 4.1, 7.9));
+          float plane = exp(-lat * lat / (0.6 * width * width));
+          float wisps = 0.3 + 2.2 * clouds * dust;
+          vec3 neb = vec3(1.0, 0.32, 0.46) * smoothstep(0.56, 0.68, place) + vec3(0.36, 0.56, 1.0) * 0.6 * smoothstep(0.34, 0.26, place);
+          col += neb * plane * wisps * shade * 2.4 * uGlow;
         }
+        col += (satellite(uLmc, d, vec3(3.0, 9.0, 1.0), 1.0) + 0.8 * satellite(uSmc, d, vec3(7.0, 2.0, 5.0), 0.0)) * 1.8 * uGlow;
         // Alpha 0 = Himmel: Der letzte Bildschritt lässt hier die Farbverschiebung am Bildrand weg (Sterne!)
         gl_FragColor = vec4(col, 0.0);
       }`,
@@ -3308,6 +3344,23 @@ function updateSky(wide) {
   u.uSkyRot.value.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(stars.quaternion)).transpose();
   const core = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(SKY.tall.core, SKY.wide.core, wide));
   u.uCore.value.set(Math.sin(core), 0, Math.cos(core));
+  const center = new THREE.Vector3(0, 0, 1).applyQuaternion(stars.quaternion); // Bandmitte in der Welt
+  satelliteFrame(u.uLmc.value, center, SKY.lmc, wide);
+  satelliteFrame(u.uSmc.value, center, SKY.smc, wide);
+}
+
+/** Matrix für satellite() im Shader: Welt → (lange Achse, kurze Achse) in Halbachsen und Abstand zur Mitte. */
+function satelliteFrame(m, center, { turn, up, axes, angle }, wide) {
+  const rad = THREE.MathUtils.degToRad, Y = new THREE.Vector3(0, 1, 0);
+  const c = center.clone().applyAxisAngle(Y, rad(turn));
+  let east = new THREE.Vector3().crossVectors(Y, c).normalize();
+  const lift = rad(THREE.MathUtils.lerp(up[0], up[1], wide));
+  c.multiplyScalar(Math.cos(lift)).addScaledVector(new THREE.Vector3().crossVectors(c, east), Math.sin(lift));
+  east = new THREE.Vector3().crossVectors(Y, c).normalize();
+  const north = new THREE.Vector3().crossVectors(c, east);
+  const a = east.clone().multiplyScalar(Math.cos(rad(angle))).addScaledVector(north, Math.sin(rad(angle)));
+  const b = new THREE.Vector3().crossVectors(c, a);
+  m.set(a.x / axes[0], a.y / axes[0], a.z / axes[0], b.x / axes[1], b.y / axes[1], b.z / axes[1], c.x, c.y, c.z);
 }
 
 /* =====================================================================

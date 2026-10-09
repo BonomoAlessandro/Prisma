@@ -122,6 +122,13 @@ Zuletzt aktualisiert: 9. Oktober 2026
   spiegelte es sich von hinten grell im Stein. Die Kamera bleibt stehen, wo man sie lässt, und fliegt erst beim
   Levelwechsel auf kürzestem Weg zurück (früher nach 4 s). Sterne jetzt am ganzen Himmel (gut 35 000 statt 15 000,
   gleiche Dichte; die Ausgangsansicht sieht unverändert aus).
+- [x] **2.19 Galaktische Wolken in der Milchstrasse** (Wunsch des Nutzers, 9. Oktober), alles im Himmels-Shader:
+  - Sternwolken: hellere Klumpen im Band, neben dem Staubstreifen einzelne dunkle Staubwolken.
+  - Gasnebel: selten, nahe der Bandebene und fädig: rosa leuchtender Wasserstoff, bläulich angestrahlter Staub; der
+    Staub schneidet auch durch die Nebel. Im Breitformat steht einer links oben über dem Feld.
+  - Magellansche Wolken (`SKY.lmc`, `SKY.smc`): zwei fleckige Nebel aus Sternenlicht, 40–56° neben dem Band, die
+    man erst beim Drehen entdeckt (um gut 200°). Im Hochformat unter der Platte, im Breitformat im Streifen darüber;
+    die grosse mit Balken und einem rosa Gasnebel am Rand.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
