@@ -1,4 +1,5 @@
-// Macht Level schwerer – für die Level jenseits der Generator-Stufen (ab Level 71; bis zum Einfügen der 20 mittelschweren Level ab 51).
+// Macht Level schwerer – für die Level jenseits der Generator-Stufen (heute ab Level 121; vor dem Einfügen der
+// mittelschweren Level ab 51 bzw. 71).
 // Der Generator (generate.mjs) baut ein Level in einem Zug; ab etwa 9 drehbaren Elementen findet er kaum noch
 // eindeutig lösbare. Dieses Werkzeug startet daher bei einem frisch erzeugten, mittelgrossen Level (Stufe 3–4,
 // alle Mischungen) und verändert es in kleinen Schritten (lokale Suche, Simulated Annealing):
@@ -233,8 +234,8 @@ function rate(els, res) {
   return { score, obj, groups: ip.groups, ...d };
 }
 /**
- * Abnahme: alle Quellen gekoppelt, Feld kaum dichter als bei den ersten 50 Leveln (Grenzen 1.35 bzw. 0.85; die 50 liegen
- * bei höchstens 1.29 bzw. 0.9, siehe density in quality.mjs).
+ * Abnahme: alle Quellen gekoppelt, Feld kaum dichter als bei den ursprünglichen 50 Leveln (Grenzen 1.35 bzw. 0.85;
+ * die 50 liegen bei höchstens 1.29 bzw. 0.9, siehe density in quality.mjs).
  */
 const accept = (c) => c.groups === 1 && c.adjacent <= HARD.maxAdjacent && c.short <= HARD.maxShort;
 /** Dieselbe Abnahme für ein fertiges Level (mit Lösung) – finish entfernt Blocker, das ändert die Strahlwege. */

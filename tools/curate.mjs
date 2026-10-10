@@ -21,8 +21,8 @@
 // Ein Feld difficulty ('schwer' bzw. 'sehr schwer') in einer Zeile wird als Markierung ins Level übernommen, ein
 // Feld edit (von Hand geändert) in den Herkunftskommentar. Mit --keep frisch gewählte Level haben keine Markierung –
 // die Tests verlangen sie für alle gehärteten Level, also danach in der gespeicherten Auswahl nachtragen.
-// Die Levelnummern oben (51–70, 71–80) gelten für den Stand vor dem Einfügen der 20 mittelschweren Level
-// (heute 71–90 bzw. 91–100).
+// Die Levelnummern oben (51–70, 71–80) gelten für den Stand vor dem Einfügen der mittelschweren Level
+// (zuerst 20, dann 50; heute 121–140 bzw. 141–150).
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

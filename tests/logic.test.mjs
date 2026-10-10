@@ -481,8 +481,8 @@ test('Nach dem Tutorial folgen genau die Level mit den vorgesehenen Namen', () =
   assert.equal(MAIN.length, NAMES.length);
   assert.deepEqual(MAIN.map(l => l.name), NAMES);
 });
-test('Namen: die 100 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
-  assert.equal(NAMES.length, 100);
+test('Namen: die 150 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
+  assert.equal(NAMES.length, 150);
   assert.equal(new Set(NAMES).size, NAMES.length, 'doppelte Namen in NAMES');
   const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
   assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');
@@ -521,13 +521,13 @@ test('Schwierigkeitsmarkierung: nur „schwer“ und „sehr schwer“, steigt n
   assert.ok(marks.slice(0, PROFILE_LEVELS - 1).every(d => !d), 'Markierung vor dem schwersten Generator-Level');
   for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.equal(l.difficulty, undefined, l.name);
 });
-test('Die Level ab 71 (tools/harden.mjs) sind alle schwerer als jedes der ersten 70', () => {
+test('Die gehärteten Level (tools/harden.mjs, ab 121) sind alle schwerer als jedes der ersten 120', () => {
   const max = Math.max(...SCORES.slice(0, PROFILE_LEVELS));
   const easier = SCORES.map((v, i) => [MAIN[i].name, v]).slice(PROFILE_LEVELS).filter(([, v]) => v <= max);
   assert.deepEqual(easier, [], 'schwerstes der ersten ' + PROFILE_LEVELS + ': Wertung ' + max);
 });
 const { accepted } = await import('../tools/harden.mjs');
-test('Die Level ab 71 bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
+test('Die gehärteten Level (ab 121) bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
   const failed = MAIN.slice(PROFILE_LEVELS).filter(l => !accepted(l)).map(l => `${l.name} ${JSON.stringify(Q.density(l))}`);
   assert.deepEqual(failed, []);
 });

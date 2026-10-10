@@ -50,20 +50,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und ob es Zusammenspiel gibt (Kreuzungen, Mehrfachtreffer, geteilte Spiegel, Lockvögel, die beim Probieren Licht
   bekommen) – Generator und Kuratierung verwerfen Level, die das nicht erfüllen;
   `harden.mjs [anzahl] [seed] [--min W] [--max W] [--steps K] [--jobs N] [--time S]` macht Level schwerer, als
-  der Generator sie in einem Zug findet (Level 71–100): Es startet bei einem erzeugten Level der Stufe 3–4 und
+  der Generator sie in einem Zug findet (heute Level 121–150): Es startet bei einem erzeugten Level der Stufe 3–4 und
   verändert es Schritt für Schritt (Element auf einen Strahl setzen, festen Spiegel drehbar machen, Ziel
   verschieben, Lockvogel, Quelle …), stellt nach jedem Schritt die Eindeutigkeit her und behält, was die Wertung
   plus Zusammenspiel erhöht (Simulated Annealing). Verworfen wird, was in unabhängige Teilrätsel zerfällt oder
-  zum Knäuel wird (Feld kaum dichter als bei den ersten 50 Level, auch nach dem Abschluss geprüft); am Ende gelten
-  dieselben Prüfungen wie beim Generator (Ausgabe wie `generate.mjs`, z. B. nach `tools/pools/harden.jsonl`);
+  zum Knäuel wird (Feld kaum dichter als bei den ursprünglichen 50 Leveln, auch nach dem Abschluss geprüft); am Ende
+  gelten dieselben Prüfungen wie beim Generator (Ausgabe wie `generate.mjs`, z. B. nach `tools/pools/harden.jsonl`);
   `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs 2-prisma 3 | node tools/show.mjs`);
   `curate.mjs [--dry] [--keep N] [--from W] [--to W] [--pools ordner] [--save datei] [--order datei]` wirft alle Pools und
   `candidates.jsonl` (handgebaute Level, früheres Kapitel II) zusammen, wählt so viele Level, wie `NAMES` in
   `profiles.mjs` hat, gleichmässig über die Wertung (verschiedene Grundmuster, abwechselnde Mischungen), sortiert
   sie nach Wertung und schreibt sie zwischen die Markierungen `LEVELS:BEGIN/END` in index.html. `--keep 50` übernimmt
   die ersten 50 Level aus `tools/selection.jsonl` unverändert und wählt nur die übrigen, alle schwerer als das
-  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen die heutigen 91–100 dazu: `--keep 70 --from 48`;
-  die Zahlen gelten für den Stand vor dem Einfügen der 20 mittelschweren Level);
+  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen die heutigen 141–150 dazu: `--keep 70 --from 48`;
+  die Zahlen 50 und 70 gelten für den Stand vor dem Einfügen der mittelschweren Level);
   `--pools` liest die Kandidaten aus einem anderen Ordner, z. B. einem vorab gesiebten. Mit `--order` wird eine von
   Hand korrigierte Reihenfolge
   übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`. Ihre
@@ -73,14 +73,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Markierung ins Level geschrieben.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
-  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 100 Level, allein nach Schwierigkeit sortiert; die Level 71–100 (aus `harden.mjs`) sind alle
-  schwerer als die ersten 70, 91–100 mindestens so schwer wie 71–90. 20 der ersten 70 sind mittelschwere Level, die
-  nachträglich zwischen die Level 16 und 68 einsortiert wurden (Review zweier Tester in `tools/pools/mittel/review/`,
-  nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar
-  und im Feld `solution`. Schwere Level tragen `difficulty: 'schwer'` (Level 70–90) bzw. `'sehr schwer'` (91–100):
+  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, allein nach Schwierigkeit sortiert; die Level 121–150 (aus `harden.mjs`) sind alle
+  schwerer als die ersten 120, 141–150 mindestens so schwer wie 121–140. 70 der ersten 120 sind mittelschwere Level,
+  nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier Tester in
+  `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (heute 40–119; Review von drei
+  Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides nicht versioniert); die
+  Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar
+  und im Feld `solution`. Schwere Level tragen `difficulty: 'schwer'` (Level 120–140) bzw. `'sehr schwer'` (141–150):
   Kopfzeile mit Rauten (◆ bzw. ◆◆) und Text hinter dem Namen (auf dem Handy nur die Rauten), Rauten oben rechts auf
   der Kachel in der Levelauswahl und im Seitentitel, wenn die ganze Seite gleich markiert ist. Die Levelauswahl
-  blättert in Seiten (Tutorial, 1–10, 11–20 … 91–100; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
+  blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
   Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
   im Browser gespeichert (nach Levelname).
   Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts. Die Namen in `tools/profiles.mjs` werden der

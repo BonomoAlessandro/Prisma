@@ -1,4 +1,4 @@
-// Generator-Profile für die Level 1–70 (tools/generate.mjs, tools/curate.mjs) und Namen aller Level.
+// Generator-Profile für die Level 1–120 (tools/generate.mjs, tools/curate.mjs) und Namen aller Level.
 // Die Level sind nicht nach Elementen gruppiert: Jede Grössenstufe gibt es in mehreren Mischungen,
 // curate.mjs wirft alle Pools zusammen und sortiert allein nach der Wertung (Schwierigkeit).
 //
@@ -51,9 +51,10 @@ for (const [tier, t] of Object.entries(TIERS)) {
 }
 
 /**
- * Namen der Level in aufsteigender Schwierigkeit (Speicherschlüssel des Fortschritts). Die ersten 70 stammen aus
- * den Profilen oben (darunter 20 mittelschwere, nachträglich zwischen die Level 16–68 einsortiert), die Level 71–100
- * aus tools/harden.mjs (alle schwerer als Level 70; 91–100 vorab mit einem Spielermodell auf Denkaufwand gesiebt).
+ * Namen der Level in aufsteigender Schwierigkeit (Speicherschlüssel des Fortschritts). Die ersten 120 stammen aus
+ * den Profilen oben (darunter 70 mittelschwere, nachträglich einsortiert: 20 zwischen die damaligen Level 16–68,
+ * 50 zwischen die damaligen Level 40–69), die Level 121–150 aus tools/harden.mjs (alle schwerer als Level 120;
+ * 141–150 vorab mit einem Spielermodell auf Denkaufwand gesiebt).
  * Ein Name gehört zu seinem Level: Beim Einfügen wandern die Namen mit, umbenannt wird nichts.
  */
 export const NAMES = [
@@ -61,12 +62,17 @@ export const NAMES = [
   'Spiegelgasse', 'Lichtfalle', 'Regenbogen', 'Zwillinge', 'Begegnung', 'Lichtspur', 'Weichen', 'Glanzpunkt', 'Seitenlicht', 'Auslese',
   'Querschläger', 'Facette', 'Gabelung', 'Farbkreis', 'Farbspiel', 'Labyrinth', 'Spiegelbild', 'Zusammenfluss', 'Doppelpass', 'Brechpunkt',
   'Lichtbündel', 'Streulicht', 'Glasfenster', 'Funkenflug', 'Kreuzweg', 'Einklang', 'Knotenpunkt', 'Schnittstelle', 'Lichtschacht', 'Geflecht',
-  'Glasmurmel', 'Farbschleuse', 'Kreuzfeuer', 'Legierung', 'Verästelung', 'Spektralband', 'Sonnenstrahl', 'Weichensteller', 'Schattenspiel', 'Lichtnetz',
-  'Mosaik', 'Blendwerk', 'Glasbläser', 'Laterne', 'Uhrwerk', 'Lichtorgel', 'Kaleidoskop', 'Rangierbahnhof', 'Opal', 'Sternwarte',
-  'Polarlicht', 'Kathedrale', 'Sonnenwende', 'Bernstein', 'Gordischer Knoten', 'Lichtjahr', 'Supernova', 'Lichthof', 'Meisterstück', 'Unendlichkeit',
+  'Schliff', 'Lichtharfe', 'Glasmurmel', 'Turmalin', 'Spiegelachse', 'Drehscheibe', 'Farbschleuse', 'Lichtfaden', 'Pinselstrich', 'Schimmer',
+  'Kreuzfeuer', 'Lichtpfad', 'Perlmutt', 'Legierung', 'Farbwechsel', 'Strahlenkranz', 'Fadenkreuz', 'Verästelung', 'Paravent', 'Feuerwerk',
+  'Spektralband', 'Glasbaustein', 'Glitzer', 'Sonnenstrahl', 'Tagesanbruch', 'Glühwürmchen', 'Weichensteller', 'Blaue Stunde', 'Lichtschranke', 'Schattenspiel',
+  'Farbtupfer', 'Rubin', 'Rochade', 'Lichtnetz', 'Bumerang', 'Doppelspiegel', 'Mosaik', 'Lichtkreuz', 'Saphir', 'Blendwerk',
+  'Farbnebel', 'Traumfänger', 'Glasbläser', 'Spiegeltreppe', 'Prismenreigen', 'Laterne', 'Mondlicht', 'Sternschnuppe', 'Uhrwerk', 'Wabe',
+  'Glasfaser', 'Lichtorgel', 'Schachbrett', 'Farbverlauf', 'Kaleidoskop', 'Lichtbogen', 'Libelle', 'Rangierbahnhof', 'Widerschein', 'Chamäleon',
+  'Opal', 'Smaragd', 'Silberstreif', 'Sternwarte', 'Oase', 'Polarlicht', 'Kathedrale', 'Pendel', 'Sonnenwende', 'Farbknoten',
+  'Lichtschleife', 'Bernstein', 'Wetterleuchten', 'Gordischer Knoten', 'Lichtjahr', 'Komet', 'Supernova', 'Lichthof', 'Meisterstück', 'Unendlichkeit',
   'Irrlicht', 'Zwielicht', 'Spiegelsaal', 'Brennglas', 'Halo', 'Rosette', 'Fata Morgana', 'Interferenz', 'Leuchtturm', 'Sonnenfinsternis',
   'Korona', 'Glasperlenspiel', 'Sternbild', 'Kristallpalast', 'Pulsar', 'Quasar', 'Ereignishorizont', 'Lichtgeschwindigkeit', 'Singularität', 'Urknall',
   'Morgenröte', 'Abendstern', 'Prismenhof', 'Spiegelkabinett', 'Lichtbrücke', 'Farbenrausch', 'Farbmühle', 'Sternenstaub', 'Zenit', 'Lichtkegel',
 ];
 /** So viele Level stammen aus den Generator-Profilen; die übrigen sind gehärtet (tools/harden.mjs). */
-export const PROFILE_LEVELS = 70;
+export const PROFILE_LEVELS = 120;
