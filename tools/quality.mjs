@@ -118,7 +118,7 @@ export function interplay(level) {
 
 /**
  * Dichte in der Lösung: adjacent = Paare benachbarter drehbarer Elemente (auch diagonal) je drehbarem Element,
- * short = Anteil der Strahlabschnitte im Feld, die nur ein Feld weit laufen. Die 50 Level liegen bei höchstens
+ * short = Anteil der Strahlabschnitte im Feld, die nur ein Feld weit laufen. Die ursprünglichen 50 Level liegen bei höchstens
  * 1.29 bzw. 0.9 (90 % bei höchstens 1.0 bzw. 0.67) – dichter wirkt das Feld wie ein Knäuel.
  */
 export function density(level) {

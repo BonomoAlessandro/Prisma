@@ -32,6 +32,8 @@
     --ink: #e8e6f0;
     --ink-dim: rgba(232, 230, 240, 0.58); /* ≥ 4.5:1 auf --bg */
     --ink-faint: rgba(232, 230, 240, 0.14);
+    --hard: #f2b56b;      /* Markierung "schwer" */
+    --very-hard: #f2836f; /* Markierung "sehr schwer" */
     --bg: #030308;
     --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
   }
@@ -81,6 +83,17 @@
   #hud.hidden { transition-duration: 0.3s; }
   body.levels-open #hud { opacity: 0; }
   #hud .title { font-size: 13px; font-weight: 300; }
+  /* Schwierigkeit schwerer Level: in der Kopfzeile hinter dem Namen, in der Levelauswahl oben rechts auf der Kachel */
+  .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; }
+  .tier[data-tier="schwer"] { color: var(--hard); }
+  .tier[data-tier="sehr schwer"] { color: var(--very-hard); }
+  #hud .tier { margin-left: 1.2em; vertical-align: 1px; }
+  .tier .pips { letter-spacing: 0.15em; }
+  #hud .tier .pips { margin-right: 0.6em; }
+  @media (max-width: 520px), (max-height: 500px) { /* Handy: nur die Rauten, der Text bleibt für Screenreader */
+    #hud .tier .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    #hud .tier .pips { margin-right: 0; }
+  }
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
   #hud .goal.done { color: var(--ink); }
   #hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
@@ -173,6 +186,7 @@
   #levels .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
   #levels .tile.ghost { visibility: hidden; }
   #levels .tile {
+    position: relative;
     aspect-ratio: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
     border: 1px solid var(--ink-faint);
@@ -181,6 +195,8 @@
   }
   #levels .tile:hover { border-color: var(--ink-dim); background: rgba(255, 255, 255, 0.04); }
   #levels .tile.current { border-color: var(--ink); }
+  #levels .tile .tier { position: absolute; top: 5px; right: 6px; font-size: 8px; line-height: 1; }
+  #levels .tile .tier .label { display: none; }
   #levels .num { font-size: 15px; letter-spacing: 0.15em; }
   #levels .name { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px; }
   #levels .dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
@@ -286,7 +302,7 @@
 <body>
 <div id="perf" hidden></div>
 <div id="hud" class="hidden">
-  <div class="title" id="hud-title">Prisma</div>
+  <div class="title"><span id="hud-title">Prisma</span><span class="tier" id="hud-tier" hidden></span></div>
   <div class="goal" id="hud-goal"></div>
   <div class="sub" id="hud-sub"></div>
 </div>
@@ -709,7 +725,8 @@ function tracePass(board, extraRays, emitting) {
 
 /**
  * Level-Definitionen. Format:
- *   { name, size?, tutorial?, hint?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
+ *   { name, difficulty?, size?, tutorial?, hint?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
+ *   difficulty: 'schwer' oder 'sehr schwer' – Markierung in Kopfzeile und Levelauswahl (DIFFICULTY)
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
  *   mirror:   rot = Winkel der Spiegelfläche (drehbar; rot und rot + 4 wirken gleich)
  *   prism:    rot = Richtung der Austrittsfläche = Richtung des Farbfächers (drehbar)
@@ -724,8 +741,8 @@ function tracePass(board, extraRays, emitting) {
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
  * Zuerst das Tutorial: je Level ein Gedanke (Ziel und Spiegel, drehbar/fest, Block, Prisma, verschwindendes Licht,
  * Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator).
- * Danach die 80 Level nach Schwierigkeit (Wertung aus tools/solver.mjs, Reihenfolge im Review korrigiert) –
- * Elemente und Farben mischen sich frei. Die Level 51–80 sind alle schwerer als die ersten 50 (tools/harden.mjs).
+ * Danach die 100 Level nach Schwierigkeit (Wertung aus tools/solver.mjs, Reihenfolge im Review korrigiert) –
+ * Elemente und Farben mischen sich frei. Die Level 71–100 sind alle schwerer als die ersten 70 (tools/harden.mjs).
  * tools/curate.mjs schreibt sie zwischen die Markierungen.
  * Die Tests prüfen mit dem Löser (tools/solver.mjs), dass jede notierte Lösung stimmt und eindeutig ist.
  */
@@ -1124,6 +1141,28 @@ const LEVELS = [
     solution: { '3,2': 2, '4,2': 3, '4,4': 3, '3,4': 2 },
   },
   {
+    // Lösung: Spiegel (6,1) rot 1 · Spiegel (2,2) rot 3 · Spiegel (6,3) rot 3 · Spiegel (2,1) rot 1 ·
+    //   Spiegel (5,3) rot 3
+    // Wertung 23.3 · 5 drehbar · 3 Ziele · Rateschritte 60 · Profil 3-filter, Seed 5044
+    name: 'Lichtspur',
+    elements: [
+      { type: 'source', x: 2, z: 0, dir: 2 },
+      { type: 'source', x: 5, z: 0, dir: 2 },
+      { type: 'source', x: 0, z: 1, dir: 0 },
+      { type: 'mirror', x: 2, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 1, rot: 3 },
+      { type: 'mirror', x: 2, z: 2, rot: 0 },
+      { type: 'mirror', x: 5, z: 3, rot: 1 },
+      { type: 'mirror', x: 6, z: 3, rot: 2 },
+      { type: 'mirror', x: 6, z: 4, rot: 3, fixed: true },
+      { type: 'filter', x: 3, z: 1, color: 'green' },
+      { type: 'target', x: 0, z: 2, color: 'white' },
+      { type: 'target', x: 2, z: 3, color: 'white' },
+      { type: 'target', x: 5, z: 5, color: 'green' },
+    ],
+    solution: { '6,1': 1, '2,2': 3, '6,3': 3, '2,1': 1, '5,3': 3 },
+  },
+  {
     // Lösung: Spiegel (4,4) rot 1 · Spiegel (6,2) rot 3 · Spiegel (5,2) rot 3 · Spiegel (4,5) rot 3 ·
     //   Spiegel (5,4) rot 3 · Spiegel (2,5) rot 1 · Prisma (2,1) rot 7
     // Wertung 23.5 · 7 drehbar · 4 Ziele · Rateschritte 42 · Profil 4-filter, Seed 120577
@@ -1151,6 +1190,49 @@ const LEVELS = [
     solution: { '4,4': 1, '6,2': 3, '5,2': 3, '4,5': 3, '5,4': 3, '2,5': 1, '2,1': 7 },
   },
   {
+    // Lösung: Spiegel (6,5) rot 1 · Spiegel (5,2) rot 1 · Spiegel (2,2) rot 1 · Spiegel (5,4) rot 3 ·
+    //   Spiegel (4,5) rot 1
+    // Wertung 24.1 · 5 drehbar · 3 Ziele · Rateschritte 62 · Profil mittel/3-spiegel, Seed 2003045
+    name: 'Glanzpunkt',
+    elements: [
+      { type: 'source', x: 6, z: 2, dir: 4 },
+      { type: 'source', x: 5, z: 6, dir: 6 },
+      { type: 'source', x: 6, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 2, rot: 3 },
+      { type: 'mirror', x: 5, z: 2, rot: 2 },
+      { type: 'mirror', x: 4, z: 4, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 4, rot: 1 },
+      { type: 'mirror', x: 2, z: 5, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 5, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'target', x: 5, z: 0, color: 'white' },
+      { type: 'target', x: 2, z: 1, color: 'white' },
+      { type: 'target', x: 6, z: 4, color: 'white' },
+    ],
+    solution: { '6,5': 1, '5,2': 1, '2,2': 1, '5,4': 3, '4,5': 1 },
+  },
+  {
+    // Lösung: Spiegel (6,1) rot 3 · Spiegel (4,1) rot 3 · Prisma (4,2) rot 3 · Spiegel (2,2) rot 3 ·
+    //   Kombinator (3,5) dir 6
+    // Wertung 23 · 5 drehbar · 2 Ziele · Rateschritte 51 · Profil 3-misch, Seed 92
+    name: 'Seitenlicht',
+    elements: [
+      { type: 'source', x: 6, z: 0, dir: 2 },
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 2, z: 2, rot: 1 },
+      { type: 'mirror', x: 6, z: 4, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 5, rot: 3, fixed: true },
+      { type: 'prism', x: 4, z: 2, rot: 7 },
+      { type: 'combiner', x: 3, z: 5, dir: 1 },
+      { type: 'target', x: 3, z: 1, color: 'white' },
+      { type: 'target', x: 2, z: 4, color: 'cyan' },
+    ],
+    solution: { '6,1': 3, '4,1': 3, '4,2': 3, '2,2': 3, '3,5': 6 },
+  },
+  {
     // Lösung: Spiegel (5,3) rot 1 · Spiegel (0,2) rot 1 · Prisma (5,2) rot 6 · Spiegel (4,3) rot 1 ·
     //   Spiegel (5,0) rot 1 · Kombinator (4,1) dir 4
     // Wertung 25.9 · 6 drehbar · 3 Ziele · Rateschritte 99 · Profil 3-bunt, Seed 2117
@@ -1173,6 +1255,48 @@ const LEVELS = [
     solution: { '5,3': 1, '0,2': 1, '5,2': 6, '4,3': 1, '5,0': 1, '4,1': 4 },
   },
   {
+    // Lösung: Spiegel (2,2) rot 3 · Prisma (0,1) rot 5 · Spiegel (2,0) rot 3 · Spiegel (3,1) rot 3 ·
+    //   Spiegel (3,6) rot 3 · Spiegel (3,0) rot 1
+    // Wertung 20.5 · 6 drehbar · 2 Ziele · Rateschritte 36 · Profil mittel/3-prisma, Seed 2001256
+    name: 'Querschläger',
+    elements: [
+      { type: 'source', x: 6, z: 1, dir: 4 },
+      { type: 'source', x: 0, z: 2, dir: 0 },
+      { type: 'mirror', x: 2, z: 0, rot: 2 },
+      { type: 'mirror', x: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 3, z: 1, rot: 1 },
+      { type: 'mirror', x: 2, z: 2, rot: 2 },
+      { type: 'mirror', x: 3, z: 6, rot: 1 },
+      { type: 'mirror', x: 6, z: 6, rot: 3, fixed: true },
+      { type: 'prism', x: 0, z: 1, rot: 2 },
+      { type: 'target', x: 0, z: 0, color: 'blue' },
+      { type: 'target', x: 0, z: 6, color: 'white' },
+    ],
+    solution: { '2,2': 3, '0,1': 5, '2,0': 3, '3,1': 3, '3,6': 3, '3,0': 1 },
+  },
+  {
+    // Lösung: Spiegel (3,5) rot 3 · Spiegel (3,1) rot 1 · Spiegel (6,5) rot 3 · Spiegel (3,4) rot 1 ·
+    //   Prisma (6,1) rot 4 · Spiegel (4,3) rot 0
+    // Wertung 20.9 · 6 drehbar · 3 Ziele · Rateschritte 34 · Profil mittel/3-filter, Seed 2002452
+    name: 'Facette',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'source', x: 3, z: 6, dir: 6 },
+      { type: 'mirror', x: 6, z: 0, rot: 1, fixed: true },
+      { type: 'mirror', x: 3, z: 1, rot: 0 },
+      { type: 'mirror', x: 4, z: 3, rot: 3 },
+      { type: 'mirror', x: 3, z: 4, rot: 2 },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'prism', x: 6, z: 1, rot: 6 },
+      { type: 'filter', x: 1, z: 4, color: 'green' },
+      { type: 'target', x: 3, z: 0, color: 'green' },
+      { type: 'target', x: 2, z: 1, color: 'red' },
+      { type: 'target', x: 0, z: 4, color: 'green' },
+    ],
+    solution: { '3,5': 3, '3,1': 1, '6,5': 3, '3,4': 1, '6,1': 4, '4,3': 0 },
+  },
+  {
     // Lösung: Spiegel (1,0) rot 1 · Spiegel (4,3) rot 1 · Spiegel (5,3) rot 1 · Spiegel (1,3) rot 3 ·
     //   Spiegel (0,3) rot 1
     // Wertung 24.4 · 5 drehbar · 3 Ziele · Rateschritte 72 · Profil 3-bunt, Seed 2840
@@ -1193,6 +1317,28 @@ const LEVELS = [
       { type: 'target', x: 5, z: 5, color: 'white' },
     ],
     solution: { '1,0': 1, '4,3': 1, '5,3': 1, '1,3': 3, '0,3': 1 },
+  },
+  {
+    // Lösung: Prisma (3,2) rot 0 · Spiegel (2,4) rot 3 · Spiegel (3,4) rot 1 · Spiegel (4,2) rot 1 ·
+    //   Spiegel (2,0) rot 1
+    // Wertung 27.4 · 5 drehbar · 4 Ziele · Rateschritte 127 · Profil 3-bunt, Seed 855 (ohne die wirkungslosen Filter (1,2) und (4,4))
+    name: 'Farbkreis',
+    elements: [
+      { type: 'source', x: 0, z: 2, dir: 0 },
+      { type: 'source', x: 0, z: 4, dir: 0, color: 'cyan' },
+      { type: 'source', x: 3, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, z: 2, rot: 3 },
+      { type: 'mirror', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 3, z: 4, rot: 0 },
+      { type: 'mirror', x: 5, z: 4, rot: 3, fixed: true },
+      { type: 'prism', x: 3, z: 2, rot: 3 },
+      { type: 'target', x: 0, z: 0, color: 'cyan' },
+      { type: 'target', x: 5, z: 0, color: 'red' },
+      { type: 'target', x: 4, z: 5, color: 'green' },
+      { type: 'target', x: 2, z: 6, color: 'white' },
+    ],
+    solution: { '3,2': 0, '2,4': 3, '3,4': 1, '4,2': 1, '2,0': 1 },
   },
   {
     // Lösung: Prisma (2,3) rot 0 · Spiegel (3,2) rot 0 · Kombinator (4,3) dir 6 · Spiegel (4,5) rot 0 ·
@@ -1234,6 +1380,29 @@ const LEVELS = [
       { type: 'target', x: 6, z: 3, color: 'blue' },
     ],
     solution: { '1,4': 6, '3,2': 0, '5,4': 0, '0,3': 2, '1,2': 5 },
+  },
+  {
+    // Lösung: Spiegel (1,2) rot 1 · Prisma (0,2) rot 3 · Prisma (3,5) rot 0 · Spiegel (5,5) rot 1 ·
+    //   Kombinator (5,3) dir 6
+    // Wertung 29.5 · 5 drehbar · 4 Ziele · Rateschritte 177 · Profil 3-bunt, Seed 1023
+    name: 'Spiegelbild',
+    elements: [
+      { type: 'source', x: 6, z: 5, dir: 4, color: 'cyan' },
+      { type: 'source', x: 1, z: 6, dir: 6 },
+      { type: 'source', x: 3, z: 6, dir: 6 },
+      { type: 'mirror', x: 1, z: 2, rot: 3 },
+      { type: 'mirror', x: 3, z: 2, rot: 1, fixed: true },
+      { type: 'mirror', x: 2, z: 4, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 5, rot: 0 },
+      { type: 'prism', x: 0, z: 2, rot: 6 },
+      { type: 'prism', x: 3, z: 5, rot: 5 },
+      { type: 'combiner', x: 5, z: 3, dir: 4 },
+      { type: 'target', x: 5, z: 0, color: 'white' },
+      { type: 'target', x: 0, z: 6, color: 'red' },
+      { type: 'target', x: 4, z: 6, color: 'blue' },
+      { type: 'target', x: 5, z: 6, color: 'green' },
+    ],
+    solution: { '1,2': 1, '0,2': 3, '3,5': 0, '5,5': 1, '5,3': 6 },
   },
   {
     // Lösung: Spiegel (4,5) rot 1 · Spiegel (4,4) rot 1 · Spiegel (4,0) rot 1 · Spiegel (1,0) rot 3 ·
@@ -1296,6 +1465,51 @@ const LEVELS = [
     solution: { '2,5': 3, '2,6': 1, '0,5': 2, '2,2': 3, '3,6': 3 },
   },
   {
+    // Lösung: Spiegel (2,3) rot 1 · Spiegel (1,3) rot 3 · Spiegel (5,5) rot 1 · Spiegel (4,5) rot 3 ·
+    //   Spiegel (4,6) rot 3 · Prisma (1,5) rot 0 · Kombinator (2,4) dir 6
+    // Wertung 25.2 · 7 drehbar · 2 Ziele · Rateschritte 98 · Profil mittel/3-misch, Seed 2000621
+    name: 'Lichtbündel',
+    elements: [
+      { type: 'source', x: 2, z: 6, dir: 6 },
+      { type: 'source', x: 5, z: 6, dir: 6 },
+      { type: 'mirror', x: 1, z: 3, rot: 0 },
+      { type: 'mirror', x: 2, z: 3, rot: 3 },
+      { type: 'mirror', x: 4, z: 5, rot: 1 },
+      { type: 'mirror', x: 5, z: 5, rot: 3 },
+      { type: 'mirror', x: 4, z: 6, rot: 2 },
+      { type: 'prism', x: 1, z: 5, rot: 4 },
+      { type: 'combiner', x: 2, z: 4, dir: 1 },
+      { type: 'target', x: 4, z: 0, color: 'green' },
+      { type: 'target', x: 3, z: 6, color: 'white' },
+    ],
+    solution: { '2,3': 1, '1,3': 3, '5,5': 1, '4,5': 3, '4,6': 3, '1,5': 0, '2,4': 6 },
+  },
+  {
+    // Lösung: Spiegel (6,1) rot 3 · Spiegel (1,5) rot 1 · Spiegel (1,1) rot 1 · Spiegel (5,5) rot 3 ·
+    //   Spiegel (5,6) rot 3 · Spiegel (5,1) rot 3 · Prisma (2,5) rot 3
+    // Wertung 22.4 · 7 drehbar · 3 Ziele · Rateschritte 39 · Profil 4-bunt, Seed 22268
+    name: 'Streulicht',
+    elements: [
+      { type: 'source', x: 6, z: 0, dir: 2 },
+      { type: 'source', x: 6, z: 5, dir: 4 },
+      { type: 'mirror', x: 1, z: 1, rot: 0 },
+      { type: 'mirror', x: 2, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 0, z: 3, rot: 2, fixed: true },
+      { type: 'mirror', x: 1, z: 5, rot: 3 },
+      { type: 'mirror', x: 5, z: 5, rot: 1 },
+      { type: 'mirror', x: 2, z: 6, rot: 1, fixed: true },
+      { type: 'mirror', x: 3, z: 6, rot: 1, fixed: true },
+      { type: 'mirror', x: 5, z: 6, rot: 0 },
+      { type: 'prism', x: 2, z: 5, rot: 4 },
+      { type: 'target', x: 0, z: 1, color: 'blue' },
+      { type: 'target', x: 3, z: 1, color: 'white' },
+      { type: 'target', x: 1, z: 6, color: 'green' },
+    ],
+    solution: { '6,1': 3, '1,5': 1, '1,1': 1, '5,5': 3, '5,6': 3, '5,1': 3, '2,5': 3 },
+  },
+  {
     // Lösung: Spiegel (2,6) rot 3 · Spiegel (2,2) rot 1 · Spiegel (2,4) rot 3 · Prisma (4,2) rot 2 ·
     //   Prisma (2,3) rot 7
     // Wertung 25.2 · 5 drehbar · 3 Ziele · Rateschritte 81 · Profil 3-prisma, Seed 578
@@ -1315,6 +1529,30 @@ const LEVELS = [
       { type: 'target', x: 4, z: 6, color: 'green' },
     ],
     solution: { '2,6': 3, '2,2': 1, '2,4': 3, '4,2': 2, '2,3': 7 },
+  },
+  {
+    // Lösung: Spiegel (5,0) rot 3 · Spiegel (6,2) rot 1 · Spiegel (4,5) rot 1 · Spiegel (6,4) rot 3 ·
+    //   Spiegel (3,5) rot 3 · Spiegel (5,4) rot 1 · Spiegel (3,2) rot 3
+    // Wertung 28 · 7 drehbar · 3 Ziele · Rateschritte 181 · Profil mittel/4-farbe, Seed 2016009
+    name: 'Funkenflug',
+    elements: [
+      { type: 'source', x: 6, z: 0, dir: 4, color: 'cyan' },
+      { type: 'source', x: 0, z: 2, dir: 0, color: 'yellow' },
+      { type: 'source', x: 4, z: 6, dir: 6, color: 'blue' },
+      { type: 'mirror', x: 5, z: 0, rot: 2 },
+      { type: 'mirror', x: 3, z: 2, rot: 1 },
+      { type: 'mirror', x: 6, z: 2, rot: 2 },
+      { type: 'mirror', x: 5, z: 4, rot: 3 },
+      { type: 'mirror', x: 6, z: 4, rot: 1 },
+      { type: 'mirror', x: 0, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 3, z: 5, rot: 2 },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'filter', x: 1, z: 2, color: 'green' },
+      { type: 'target', x: 3, z: 0, color: 'green' },
+      { type: 'target', x: 0, z: 3, color: 'cyan' },
+      { type: 'target', x: 3, z: 6, color: 'blue' },
+    ],
+    solution: { '5,0': 3, '6,2': 1, '4,5': 1, '6,4': 3, '3,5': 3, '5,4': 1, '3,2': 3 },
   },
   {
     // Lösung: Spiegel (1,4) rot 3 · Spiegel (4,4) rot 3 · Prisma (4,5) rot 3 · Spiegel (4,6) rot 3 ·
@@ -1411,6 +1649,30 @@ const LEVELS = [
     solution: { '3,2': 3, '4,3': 1, '4,2': 3, '3,3': 1, '2,3': 1, '3,5': 5, '1,3': 5 },
   },
   {
+    // Lösung: Spiegel (4,3) rot 3 · Spiegel (4,4) rot 3 · Spiegel (4,5) rot 3 · Spiegel (5,5) rot 1 ·
+    //   Spiegel (2,4) rot 3 · Spiegel (5,6) rot 1 · Prisma (5,3) rot 3
+    // Wertung 31.3 · 7 drehbar · 4 Ziele · Rateschritte 325 · Profil 4-prisma, Seed 3128
+    name: 'Lichtschacht',
+    elements: [
+      { type: 'source', x: 6, z: 0, dir: 4 },
+      { type: 'source', x: 6, z: 3, dir: 4 },
+      { type: 'source', x: 4, z: 6, dir: 6 },
+      { type: 'mirror', x: 4, z: 0, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 3, rot: 1 },
+      { type: 'mirror', x: 2, z: 4, rot: 1 },
+      { type: 'mirror', x: 4, z: 4, rot: 2 },
+      { type: 'mirror', x: 4, z: 5, rot: 1 },
+      { type: 'mirror', x: 5, z: 5, rot: 3 },
+      { type: 'mirror', x: 5, z: 6, rot: 0 },
+      { type: 'prism', x: 5, z: 3, rot: 4 },
+      { type: 'target', x: 2, z: 3, color: 'white' },
+      { type: 'target', x: 2, z: 5, color: 'blue' },
+      { type: 'target', x: 6, z: 5, color: 'red' },
+      { type: 'target', x: 6, z: 6, color: 'white' },
+    ],
+    solution: { '4,3': 3, '4,4': 3, '4,5': 3, '5,5': 1, '2,4': 3, '5,6': 1, '5,3': 3 },
+  },
+  {
     // Lösung: Prisma (3,4) rot 6 · Spiegel (2,5) rot 1 · Spiegel (6,2) rot 1 · Spiegel (6,1) rot 2 ·
     //   Spiegel (4,2) rot 1 · Spiegel (1,2) rot 0 · Spiegel (4,0) rot 1
     // Wertung 35.7 · 7 drehbar · 4 Ziele · Rateschritte 981 · Profil 4-prisma, Seed 9405
@@ -1436,6 +1698,31 @@ const LEVELS = [
       { type: 'target', x: 1, z: 5, color: 'white' },
     ],
     solution: { '3,4': 6, '2,5': 1, '6,2': 1, '6,1': 2, '4,2': 1, '1,2': 0, '4,0': 1 },
+  },
+  {
+    // Lösung: Spiegel (5,1) rot 1 · Prisma (4,3) rot 7 · Spiegel (4,1) rot 1 · Prisma (3,4) rot 7 ·
+    //   Spiegel (0,1) rot 1 · Spiegel (6,1) rot 1 · Spiegel (6,3) rot 3
+    // Wertung 36.6 · 7 drehbar · 4 Ziele · Rateschritte 1190 · Profil mittel/4-bunt, Seed 2001964
+    name: 'Glasmurmel',
+    elements: [
+      { type: 'source', x: 0, z: 0, dir: 2 },
+      { type: 'source', x: 5, z: 0, dir: 2 },
+      { type: 'source', x: 1, z: 6, dir: 7 },
+      { type: 'mirror', x: 0, z: 1, rot: 3 },
+      { type: 'mirror', x: 4, z: 1, rot: 3 },
+      { type: 'mirror', x: 5, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 1, z: 2, rot: 3, fixed: true },
+      { type: 'mirror', x: 6, z: 3, rot: 2 },
+      { type: 'mirror', x: 6, z: 4, rot: 3, fixed: true },
+      { type: 'prism', x: 4, z: 3, rot: 2 },
+      { type: 'prism', x: 3, z: 4, rot: 4 },
+      { type: 'target', x: 3, z: 0, color: 'red' },
+      { type: 'target', x: 4, z: 2, color: 'white' },
+      { type: 'target', x: 5, z: 2, color: 'green' },
+      { type: 'target', x: 5, z: 3, color: 'white' },
+    ],
+    solution: { '5,1': 1, '4,3': 7, '4,1': 1, '3,4': 7, '0,1': 1, '6,1': 1, '6,3': 3 },
   },
   {
     // Lösung: Spiegel (3,1) rot 3 · Spiegel (4,5) rot 1 · Spiegel (2,5) rot 1 · Prisma (3,5) rot 5 ·
@@ -1566,6 +1853,31 @@ const LEVELS = [
     solution: { '5,1': 3, '2,0': 1, '2,4': 3, '1,4': 3, '1,0': 0, '2,2': 1, '5,4': 0 },
   },
   {
+    // Lösung: Spiegel (0,4) rot 1 · Spiegel (3,2) rot 1 · Spiegel (2,2) rot 3 · Spiegel (2,3) rot 1 ·
+    //   Prisma (0,2) rot 7 · Prisma (5,4) rot 3 · Spiegel (0,5) rot 3
+    // Wertung 32.1 · 7 drehbar · 3 Ziele · Rateschritte 449 · Profil mittel/4-prisma, Seed 2004454
+    name: 'Sonnenstrahl',
+    elements: [
+      { type: 'source', x: 6, z: 4, dir: 4 },
+      { type: 'source', x: 0, z: 6, dir: 6 },
+      { type: 'source', x: 3, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 2, rot: 1 },
+      { type: 'mirror', x: 3, z: 2, rot: 3 },
+      { type: 'mirror', x: 1, z: 3, rot: 0, fixed: true },
+      { type: 'mirror', x: 2, z: 3, rot: 0 },
+      { type: 'mirror', x: 0, z: 4, rot: 2 },
+      { type: 'mirror', x: 0, z: 5, rot: 0 },
+      { type: 'mirror', x: 5, z: 5, rot: 3, fixed: true },
+      { type: 'prism', x: 0, z: 2, rot: 2 },
+      { type: 'prism', x: 5, z: 4, rot: 0 },
+      { type: 'blocker', x: 1, z: 1 },
+      { type: 'target', x: 2, z: 0, color: 'blue' },
+      { type: 'target', x: 4, z: 3, color: 'white' },
+      { type: 'target', x: 4, z: 5, color: 'white' },
+    ],
+    solution: { '0,4': 1, '3,2': 1, '2,2': 3, '2,3': 1, '0,2': 7, '5,4': 3, '0,5': 3 },
+  },
+  {
     // Lösung: Spiegel (3,5) rot 1 · Spiegel (5,5) rot 3 · Spiegel (2,5) rot 1 · Prisma (4,5) rot 5 ·
     //   Spiegel (4,2) rot 1 · Spiegel (2,2) rot 1 · Spiegel (3,2) rot 3 · Kombinator (4,4) dir 6
     // Wertung 35 · 8 drehbar · 5 Ziele · Rateschritte 480 · Profil 4-bunt, Seed 10003
@@ -1590,6 +1902,50 @@ const LEVELS = [
       { type: 'target', x: 5, z: 6, color: 'white' },
     ],
     solution: { '3,5': 1, '5,5': 3, '2,5': 1, '4,5': 5, '4,2': 1, '2,2': 1, '3,2': 3, '4,4': 6 },
+  },
+  {
+    // Lösung: Prisma (2,4) rot 6 · Spiegel (2,1) rot 3 · Spiegel (2,5) rot 3 · Spiegel (4,5) rot 3 ·
+    //   Spiegel (4,1) rot 3
+    // Wertung 26.7 · 5 drehbar · 3 Ziele · Rateschritte 125 · Profil mittel/3-filter, Seed 2000121
+    name: 'Schattenspiel',
+    elements: [
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'source', x: 2, z: 6, dir: 6 },
+      { type: 'source', x: 4, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 1, rot: 2 },
+      { type: 'mirror', x: 4, z: 1, rot: 1 },
+      { type: 'mirror', x: 1, z: 3, rot: 0, fixed: true },
+      { type: 'mirror', x: 6, z: 4, rot: 0, fixed: true },
+      { type: 'mirror', x: 2, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'prism', x: 2, z: 4, rot: 3 },
+      { type: 'filter', x: 5, z: 5, color: 'cyan' },
+      { type: 'target', x: 4, z: 0, color: 'green' },
+      { type: 'target', x: 5, z: 1, color: 'white' },
+      { type: 'target', x: 6, z: 5, color: 'cyan' },
+    ],
+    solution: { '2,4': 6, '2,1': 3, '2,5': 3, '4,5': 3, '4,1': 3 },
+  },
+  {
+    // Lösung: Spiegel (0,2) rot 3 · Prisma (5,2) rot 5 · Spiegel (4,4) rot 3 · Spiegel (4,6) rot 1 ·
+    //   Spiegel (0,4) rot 1 · Kombinator (4,1) dir 6
+    // Wertung 28.7 · 6 drehbar · 2 Ziele · Rateschritte 223 · Profil 3-misch, Seed 1157
+    name: 'Lichtnetz',
+    elements: [
+      { type: 'source', x: 6, z: 2, dir: 4 },
+      { type: 'source', x: 6, z: 4, dir: 4 },
+      { type: 'mirror', x: 0, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 0, z: 2, rot: 1 },
+      { type: 'mirror', x: 0, z: 4, rot: 3 },
+      { type: 'mirror', x: 4, z: 4, rot: 0 },
+      { type: 'mirror', x: 4, z: 6, rot: 2 },
+      { type: 'prism', x: 5, z: 2, rot: 3 },
+      { type: 'combiner', x: 4, z: 1, dir: 5 },
+      { type: 'blocker', x: 2, z: 1 },
+      { type: 'target', x: 4, z: 0, color: 'yellow' },
+      { type: 'target', x: 6, z: 6, color: 'white' },
+    ],
+    solution: { '0,2': 3, '5,2': 5, '4,4': 3, '4,6': 1, '0,4': 1, '4,1': 6 },
   },
   {
     // Lösung: Spiegel (4,6) rot 1 · Spiegel (2,5) rot 3 · Spiegel (4,1) rot 3 · Spiegel (4,4) rot 1 ·
@@ -1619,6 +1975,32 @@ const LEVELS = [
     solution: { '4,6': 1, '2,5': 3, '4,1': 3, '4,4': 1, '5,3': 3, '5,1': 3, '2,4': 4 },
   },
   {
+    // Lösung: Spiegel (3,2) rot 1 · Spiegel (0,1) rot 1 · Prisma (3,1) rot 1 · Spiegel (5,2) rot 1 ·
+    //   Spiegel (4,1) rot 3 · Spiegel (5,5) rot 3 · Prisma (1,1) rot 6
+    // Wertung 34.8 · 7 drehbar · 4 Ziele · Rateschritte 680 · Profil mittel/4-bunt, Seed 2000034
+    name: 'Blendwerk',
+    elements: [
+      { type: 'source', x: 0, z: 0, dir: 2 },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'source', x: 6, z: 4, dir: 4, color: 'magenta' },
+      { type: 'mirror', x: 0, z: 1, rot: 2 },
+      { type: 'mirror', x: 2, z: 1, rot: 2, fixed: true },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 3, z: 2, rot: 0 },
+      { type: 'mirror', x: 5, z: 2, rot: 0 },
+      { type: 'mirror', x: 5, z: 4, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 5, z: 5, rot: 2 },
+      { type: 'prism', x: 1, z: 1, rot: 0 },
+      { type: 'prism', x: 3, z: 1, rot: 7 },
+      { type: 'target', x: 2, z: 0, color: 'blue' },
+      { type: 'target', x: 4, z: 0, color: 'red' },
+      { type: 'target', x: 5, z: 1, color: 'magenta' },
+      { type: 'target', x: 5, z: 3, color: 'cyan' },
+    ],
+    solution: { '3,2': 1, '0,1': 1, '3,1': 1, '5,2': 1, '4,1': 3, '5,5': 3, '1,1': 6 },
+  },
+  {
     // Lösung: Spiegel (5,1) rot 3 · Spiegel (5,0) rot 1 · Spiegel (1,1) rot 1 · Spiegel (3,0) rot 3 ·
     //   Prisma (2,1) rot 2 · Spiegel (3,2) rot 3 · Spiegel (1,2) rot 1
     // Wertung 26.5 · 7 drehbar · 3 Ziele · Rateschritte 112 · Profil 4-filter, Seed 8317
@@ -1642,6 +2024,31 @@ const LEVELS = [
       { type: 'target', x: 1, z: 5, color: 'green' },
     ],
     solution: { '5,1': 3, '5,0': 1, '1,1': 1, '3,0': 3, '2,1': 2, '3,2': 3, '1,2': 1 },
+  },
+  {
+    // Lösung: Spiegel (5,1) rot 3 · Prisma (5,5) rot 6 · Spiegel (3,2) rot 3 · Spiegel (0,2) rot 1 ·
+    //   Spiegel (1,2) rot 1 · Spiegel (0,1) rot 3 · Kombinator (2,2) dir 6
+    // Wertung 34.7 · 7 drehbar · 3 Ziele · Rateschritte 730 · Profil mittel/4-misch, Seed 2011129
+    name: 'Laterne',
+    elements: [
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'source', x: 1, z: 6, dir: 6 },
+      { type: 'source', x: 5, z: 6, dir: 6 },
+      { type: 'mirror', x: 0, z: 1, rot: 2 },
+      { type: 'mirror', x: 2, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 1, rot: 1 },
+      { type: 'mirror', x: 0, z: 2, rot: 2 },
+      { type: 'mirror', x: 1, z: 2, rot: 3 },
+      { type: 'mirror', x: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 6, z: 2, rot: 0, fixed: true },
+      { type: 'mirror', x: 4, z: 5, rot: 1, fixed: true },
+      { type: 'prism', x: 5, z: 5, rot: 4 },
+      { type: 'combiner', x: 2, z: 2, dir: 4 },
+      { type: 'target', x: 2, z: 0, color: 'white' },
+      { type: 'target', x: 5, z: 0, color: 'white' },
+      { type: 'target', x: 6, z: 1, color: 'green' },
+    ],
+    solution: { '5,1': 3, '5,5': 6, '3,2': 3, '0,2': 1, '1,2': 1, '0,1': 3, '2,2': 6 },
   },
   {
     // Lösung: Spiegel (3,5) rot 1 · Spiegel (5,6) rot 3 · Spiegel (2,5) rot 1 · Spiegel (5,5) rot 3 ·
@@ -1748,6 +2155,32 @@ const LEVELS = [
     solution: { '4,4': 5, '2,5': 3, '4,1': 1, '3,1': 1, '4,3': 3, '2,4': 3, '1,5': 1, '4,5': 1, '1,1': 4 },
   },
   {
+    // Lösung: Spiegel (1,5) rot 1 · Spiegel (1,0) rot 1 · Spiegel (3,5) rot 3 · Spiegel (0,1) rot 1 ·
+    //   Prisma (4,1) rot 4 · Prisma (4,5) rot 5 · Kombinator (2,3) dir 4
+    // Wertung 33 · 7 drehbar · 4 Ziele · Rateschritte 380 · Profil mittel/4-bunt, Seed 2004206
+    name: 'Opal',
+    elements: [
+      { type: 'source', x: 6, z: 1, dir: 4 },
+      { type: 'source', x: 6, z: 5, dir: 4 },
+      { type: 'mirror', x: 0, z: 0, rot: 3, fixed: true },
+      { type: 'mirror', x: 1, z: 0, rot: 3 },
+      { type: 'mirror', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 4, z: 2, rot: 3, fixed: true },
+      { type: 'mirror', x: 6, z: 3, rot: 1, fixed: true },
+      { type: 'mirror', x: 1, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 1 },
+      { type: 'prism', x: 4, z: 1, rot: 5 },
+      { type: 'prism', x: 4, z: 5, rot: 1 },
+      { type: 'combiner', x: 2, z: 3, dir: 2 },
+      { type: 'blocker', x: 0, z: 2 },
+      { type: 'target', x: 3, z: 0, color: 'blue' },
+      { type: 'target', x: 3, z: 2, color: 'yellow' },
+      { type: 'target', x: 5, z: 2, color: 'blue' },
+      { type: 'target', x: 0, z: 3, color: 'green' },
+    ],
+    solution: { '1,5': 1, '1,0': 1, '3,5': 3, '0,1': 1, '4,1': 4, '4,5': 5, '2,3': 4 },
+  },
+  {
     // Lösung: Spiegel (1,3) rot 1 · Spiegel (1,5) rot 1 · Spiegel (5,5) rot 3 · Spiegel (3,0) rot 3 ·
     //   Prisma (3,2) rot 7 · Spiegel (4,0) rot 1 · Spiegel (3,5) rot 3 · Kombinator (4,1) dir 2
     // Wertung 34.6 · 8 drehbar · 3 Ziele · Rateschritte 689 · Profil 4-misch, Seed 771
@@ -1848,6 +2281,32 @@ const LEVELS = [
     solution: { '6,3': 1, '5,2': 3, '3,3': 1, '5,5': 1, '6,5': 5, '5,4': 3, '6,4': 6 },
   },
   {
+    // Lösung: Spiegel (2,4) rot 3 · Prisma (5,1) rot 4 · Spiegel (1,4) rot 1 · Prisma (2,2) rot 1 ·
+    //   Spiegel (0,1) rot 1 · Spiegel (4,2) rot 2 · Spiegel (1,1) rot 1
+    // Wertung 32.5 · 7 drehbar · 5 Ziele · Rateschritte 384 · Profil mittel/4-prisma, Seed 2022264
+    name: 'Bernstein',
+    elements: [
+      { type: 'source', x: 2, z: 0, dir: 2 },
+      { type: 'source', x: 5, z: 0, dir: 2 },
+      { type: 'mirror', x: 0, z: 0, rot: 3, fixed: true },
+      { type: 'mirror', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 1, z: 1, rot: 3 },
+      { type: 'mirror', x: 4, z: 2, rot: 3 },
+      { type: 'mirror', x: 0, z: 4, rot: 3, fixed: true },
+      { type: 'mirror', x: 1, z: 4, rot: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, z: 6, rot: 0, fixed: true },
+      { type: 'prism', x: 5, z: 1, rot: 7 },
+      { type: 'prism', x: 2, z: 2, rot: 2 },
+      { type: 'target', x: 1, z: 0, color: 'cyan' },
+      { type: 'target', x: 4, z: 0, color: 'blue' },
+      { type: 'target', x: 3, z: 2, color: 'red' },
+      { type: 'target', x: 6, z: 4, color: 'red' },
+      { type: 'target', x: 6, z: 6, color: 'green' },
+    ],
+    solution: { '2,4': 3, '5,1': 4, '1,4': 1, '2,2': 1, '0,1': 1, '4,2': 2, '1,1': 1 },
+  },
+  {
     // Lösung: Spiegel (1,1) rot 3 · Spiegel (3,4) rot 2 · Prisma (2,1) rot 7 · Spiegel (4,1) rot 1 ·
     //   Prisma (4,3) rot 6 · Spiegel (4,2) rot 3 · Kombinator (5,2) dir 2
     // Wertung 34.8 · 7 drehbar · 3 Ziele · Rateschritte 762 · Profil 4-bunt, Seed 781
@@ -1926,6 +2385,33 @@ const LEVELS = [
     solution: { '3,0': 3, '3,2': 1, '3,3': 3, '3,1': 3, '5,2': 1, '5,1': 3, '2,2': 0 },
   },
   {
+    // Lösung: Spiegel (3,5) rot 1 · Spiegel (6,5) rot 1 · Spiegel (6,1) rot 3 · Prisma (2,1) rot 5 ·
+    //   Spiegel (3,1) rot 1 · Spiegel (3,0) rot 3 · Prisma (2,5) rot 1 · Kombinator (3,6) dir 0
+    // Wertung 36.4 · 8 drehbar · 4 Ziele · Rateschritte 916 · Profil mittel/4-bunt, Seed 2005074
+    name: 'Lichthof',
+    elements: [
+      { type: 'source', x: 6, z: 0, dir: 2 },
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 3, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, z: 1, rot: 1 },
+      { type: 'mirror', x: 2, z: 3, rot: 1, fixed: true },
+      { type: 'mirror', x: 4, z: 3, rot: 0, fixed: true },
+      { type: 'mirror', x: 3, z: 5, rot: 3 },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'mirror', x: 6, z: 6, rot: 3, fixed: true },
+      { type: 'prism', x: 2, z: 1, rot: 2 },
+      { type: 'prism', x: 2, z: 5, rot: 6 },
+      { type: 'filter', x: 4, z: 1, color: 'cyan' },
+      { type: 'combiner', x: 3, z: 6, dir: 1 },
+      { type: 'target', x: 1, z: 0, color: 'green' },
+      { type: 'target', x: 4, z: 0, color: 'cyan' },
+      { type: 'target', x: 0, z: 1, color: 'red' },
+      { type: 'target', x: 2, z: 6, color: 'blue' },
+    ],
+    solution: { '3,5': 1, '6,5': 1, '6,1': 3, '2,1': 5, '3,1': 1, '3,0': 3, '2,5': 1, '3,6': 0 },
+  },
+  {
     // Lösung: Spiegel (5,4) rot 3 · Spiegel (2,2) rot 1 · Spiegel (5,1) rot 1 · Spiegel (1,2) rot 3 ·
     //   Spiegel (2,5) rot 3 · Prisma (1,4) rot 7 · Spiegel (3,1) rot 1 · Spiegel (1,5) rot 3 ·
     //   Kombinator (2,3) dir 2
@@ -1957,7 +2443,7 @@ const LEVELS = [
     //   Spiegel (3,2) rot 3 · Spiegel (5,4) rot 3 · Spiegel (4,2) rot 1 · Prisma (5,2) rot 2 ·
     //   Kombinator (4,4) dir 0
     // Wertung 42.7 · 9 drehbar · 4 Ziele · Rateschritte 3858 · Profil 5-misch, Seed 9470
-    name: 'Unendlichkeit',
+    name: 'Unendlichkeit', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 1, z: 0, dir: 2 },
       { type: 'source', x: 5, z: 0, dir: 2 },
@@ -1986,7 +2472,7 @@ const LEVELS = [
     //   Spiegel (6,0) rot 1 · Kombinator (6,5) dir 2 · Prisma (4,2) rot 3 · Prisma (5,2) rot 5 ·
     //   Kombinator (6,1) dir 3 · Spiegel (2,4) rot 2
     // Wertung 49.7 · 10 drehbar · 3 Ziele · Rateschritte 31263 · gehärtet aus Profil 4-misch, Seed 6154
-    name: 'Irrlicht',
+    name: 'Irrlicht', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 4, z: 0, dir: 2 },
       { type: 'source', x: 0, z: 1, dir: 0 },
@@ -2011,7 +2497,7 @@ const LEVELS = [
     //   Spiegel (5,4) rot 3 · Prisma (3,1) rot 2 · Prisma (2,1) rot 3 · Prisma (5,5) rot 6 ·
     //   Spiegel (1,2) rot 0 · Kombinator (4,2) dir 0
     // Wertung 53.5 · 10 drehbar · 4 Ziele · Rateschritte 70841 · gehärtet aus Profil 3-spiegel, Seed 6012
-    name: 'Zwielicht',
+    name: 'Zwielicht', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 2, z: 0, dir: 2 },
       { type: 'source', x: 3, z: 0, dir: 2 },
@@ -2038,7 +2524,7 @@ const LEVELS = [
     //   Spiegel (4,2) rot 3 · Spiegel (1,4) rot 1 · Spiegel (5,2) rot 3 · Prisma (4,5) rot 6 ·
     //   Prisma (5,4) rot 4 · Kombinator (3,4) dir 4 · Spiegel (3,2) rot 3
     // Wertung 52.4 · 11 drehbar · 3 Ziele · Rateschritte 65481 · gehärtet aus Profil 4-filter, Seed 6008
-    name: 'Spiegelsaal',
+    name: 'Spiegelsaal', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 6, z: 4, dir: 4 },
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -2068,7 +2554,7 @@ const LEVELS = [
     //   Prisma (3,1) rot 4 · Spiegel (1,1) rot 3 · Prisma (4,1) rot 4 · Prisma (5,1) rot 4 ·
     //   Spiegel (2,4) rot 0
     // Wertung 46.5 · 9 drehbar · 3 Ziele · Rateschritte 16164 · gehärtet aus Profil 3-bunt, Seed 6065
-    name: 'Brennglas',
+    name: 'Brennglas', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 6, z: 1, dir: 4, color: 'yellow' },
       { type: 'source', x: 0, z: 3, dir: 0 },
@@ -2096,7 +2582,7 @@ const LEVELS = [
     //   Prisma (3,2) rot 7 · Prisma (4,3) rot 3 · Prisma (3,5) rot 6 · Spiegel (1,3) rot 0 ·
     //   Spiegel (5,1) rot 1 · Prisma (5,4) rot 7
     // Wertung 53.6 · 10 drehbar · 4 Ziele · Rateschritte 76094 · gehärtet aus Profil 3-spiegel, Seed 6024
-    name: 'Halo',
+    name: 'Halo', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 6, z: 3, dir: 4 },
       { type: 'source', x: 6, z: 5, dir: 4 },
@@ -2125,7 +2611,7 @@ const LEVELS = [
     //   Spiegel (1,2) rot 3 · Spiegel (1,1) rot 3 · Prisma (2,1) rot 0 · Prisma (1,4) rot 3 ·
     //   Kombinator (3,2) dir 1 · Prisma (1,6) rot 0
     // Wertung 47.8 · 10 drehbar · 4 Ziele · Rateschritte 16396 · gehärtet aus Profil 4-farbe, Seed 3057
-    name: 'Rosette',
+    name: 'Rosette', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 4, z: 0, dir: 2, color: 'red' },
       { type: 'source', x: 0, z: 2, dir: 0 },
@@ -2153,7 +2639,7 @@ const LEVELS = [
     //   Spiegel (2,1) rot 1 · Spiegel (1,3) rot 1 · Spiegel (1,2) rot 3 · Prisma (3,1) rot 3 ·
     //   Prisma (4,5) rot 4 · Spiegel (3,5) rot 3
     // Wertung 44.3 · 10 drehbar · 4 Ziele · Rateschritte 8031 · gehärtet aus Profil 4-prisma, Seed 3007
-    name: 'Fata Morgana',
+    name: 'Fata Morgana', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 3, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 6, dir: 4 },
@@ -2179,7 +2665,7 @@ const LEVELS = [
     //   Spiegel (1,6) rot 0 · Prisma (5,3) rot 3 · Kombinator (2,4) dir 4 · Spiegel (5,4) rot 1 ·
     //   Kombinator (3,4) dir 3
     // Wertung 49.9 · 9 drehbar · 4 Ziele · Rateschritte 27188 · gehärtet aus Profil 3-bunt, Seed 6101
-    name: 'Interferenz',
+    name: 'Interferenz', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'source', x: 6, z: 3, dir: 4 },
@@ -2205,7 +2691,7 @@ const LEVELS = [
     //   Kombinator (3,1) dir 0 · Spiegel (2,3) rot 3 · Prisma (4,3) rot 7 · Prisma (1,1) rot 3 ·
     //   Spiegel (3,3) rot 3 · Prisma (4,1) rot 1 · Spiegel (6,1) rot 3
     // Wertung 44.8 · 11 drehbar · 4 Ziele · Rateschritte 6862 · gehärtet aus Profil 3-bunt, Seed 6017
-    name: 'Leuchtturm',
+    name: 'Leuchtturm', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 1, z: 0, dir: 2 },
       { type: 'source', x: 0, z: 4, dir: 0 },
@@ -2234,7 +2720,7 @@ const LEVELS = [
     //   Spiegel (4,4) rot 3 · Spiegel (5,4) rot 3 · Spiegel (5,3) rot 1 · Prisma (5,0) rot 2 ·
     //   Spiegel (2,1) rot 1 · Prisma (1,0) rot 7 · Prisma (4,3) rot 4
     // Wertung 47.8 · 11 drehbar · 4 Ziele · Rateschritte 17574 · gehärtet aus Profil 4-filter, Seed 1052
-    name: 'Sonnenfinsternis',
+    name: 'Sonnenfinsternis', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 0, dir: 0 },
       { type: 'source', x: 6, z: 2, dir: 4 },
@@ -2262,7 +2748,7 @@ const LEVELS = [
     //   Prisma (3,1) rot 2 · Kombinator (1,3) dir 2 · Spiegel (2,1) rot 3 · Prisma (5,4) rot 5 ·
     //   Prisma (5,5) rot 5 · Spiegel (5,3) rot 1 · Prisma (1,4) rot 2 · Kombinator (4,4) dir 6
     // Wertung 52.9 · 12 drehbar · 3 Ziele · Rateschritte 53718 · gehärtet aus Profil 4-farbe, Seed 6057
-    name: 'Korona',
+    name: 'Korona', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 6, z: 0, dir: 4, color: 'yellow' },
       { type: 'source', x: 0, z: 2, dir: 0, color: 'yellow' },
@@ -2294,7 +2780,7 @@ const LEVELS = [
     //   Prisma (4,4) rot 0 · Kombinator (3,5) dir 1 · Prisma (4,2) rot 4 · Spiegel (5,4) rot 1 ·
     //   Prisma (0,5) rot 7 · Kombinator (2,3) dir 2
     // Wertung 48.7 · 10 drehbar · 3 Ziele · Rateschritte 21018 · gehärtet aus Profil 3-spiegel, Seed 6084
-    name: 'Glasperlenspiel',
+    name: 'Glasperlenspiel', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 2, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 2, dir: 4 },
@@ -2323,7 +2809,7 @@ const LEVELS = [
     //   Spiegel (5,3) rot 1 · Prisma (4,3) rot 1 · Prisma (5,4) rot 6 · Prisma (3,1) rot 1 ·
     //   Prisma (1,3) rot 7 · Prisma (5,5) rot 5 · Spiegel (4,4) rot 3
     // Wertung 51 · 11 drehbar · 3 Ziele · Rateschritte 39723 · gehärtet aus Profil 3-farbe, Seed 6183
-    name: 'Sternbild',
+    name: 'Sternbild', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 0, dir: 0 },
       { type: 'source', x: 0, z: 4, dir: 0, color: 'magenta' },
@@ -2353,7 +2839,7 @@ const LEVELS = [
     //   Prisma (3,3) rot 7 · Prisma (2,4) rot 6 · Prisma (0,5) rot 6 · Spiegel (5,3) rot 3 ·
     //   Spiegel (2,1) rot 1 · Prisma (3,5) rot 7
     // Wertung 46.2 · 10 drehbar · 3 Ziele · Rateschritte 18389 · gehärtet aus Profil 4-spiegel, Seed 6162
-    name: 'Kristallpalast',
+    name: 'Kristallpalast', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 6, dir: 6 },
       { type: 'source', x: 3, z: 6, dir: 6 },
@@ -2379,7 +2865,7 @@ const LEVELS = [
     //   Spiegel (3,4) rot 3 · Prisma (6,2) rot 5 · Prisma (5,5) rot 7 · Spiegel (3,3) rot 1 ·
     //   Prisma (2,5) rot 5 · Spiegel (1,4) rot 1
     // Wertung 52.7 · 10 drehbar · 3 Ziele · Rateschritte 74084 · gehärtet aus Profil 3-spiegel, Seed 6144
-    name: 'Pulsar',
+    name: 'Pulsar', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 2, z: 6, dir: 6 },
       { type: 'source', x: 5, z: 6, dir: 6 },
@@ -2411,7 +2897,7 @@ const LEVELS = [
     //   Spiegel (4,2) rot 2 · Kombinator (3,3) dir 2 · Spiegel (5,3) rot 3 · Spiegel (5,4) rot 1 ·
     //   Spiegel (3,5) rot 1
     // Wertung 54.7 · 13 drehbar · 3 Ziele · Rateschritte 112662 · gehärtet aus Profil 3-prisma, Seed 6049
-    name: 'Quasar',
+    name: 'Quasar', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 1, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 0, dir: 2 },
@@ -2440,7 +2926,7 @@ const LEVELS = [
     //   Spiegel (6,5) rot 2 · Kombinator (1,0) dir 0 · Prisma (1,5) rot 4 · Prisma (2,4) rot 2 ·
     //   Kombinator (3,0) dir 1 · Prisma (2,0) rot 0 · Spiegel (5,3) rot 0
     // Wertung 52.4 · 11 drehbar · 4 Ziele · Rateschritte 37710 · gehärtet aus Profil 4-misch, Seed 6010
-    name: 'Ereignishorizont',
+    name: 'Ereignishorizont', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 2, dir: 0 },
       { type: 'source', x: 3, z: 6, dir: 6 },
@@ -2471,7 +2957,7 @@ const LEVELS = [
     //   Prisma (2,5) rot 3 · Prisma (2,2) rot 0 · Spiegel (3,1) rot 0 · Kombinator (4,2) dir 3 ·
     //   Spiegel (5,3) rot 3 · Spiegel (1,4) rot 1 · Spiegel (5,1) rot 1
     // Wertung 46.4 · 11 drehbar · 3 Ziele · Rateschritte 13081 · gehärtet aus Profil 3-misch, Seed 3028
-    name: 'Lichtgeschwindigkeit',
+    name: 'Lichtgeschwindigkeit', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 2, z: 0, dir: 3 },
       { type: 'source', x: 1, z: 6, dir: 6 },
@@ -2500,7 +2986,7 @@ const LEVELS = [
     //   Spiegel (6,1) rot 1 · Spiegel (6,4) rot 3 · Spiegel (0,3) rot 3 · Prisma (4,2) rot 5 ·
     //   Kombinator (2,3) dir 1 · Prisma (4,5) rot 1
     // Wertung 45 · 10 drehbar · 3 Ziele · Rateschritte 9373 · gehärtet aus Profil 4-prisma, Seed 6019
-    name: 'Singularität',
+    name: 'Singularität', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 5, z: 0, dir: 2 },
       { type: 'source', x: 0, z: 1, dir: 0 },
@@ -2527,7 +3013,7 @@ const LEVELS = [
     //   Spiegel (2,0) rot 0 · Spiegel (3,3) rot 1 · Kombinator (1,1) dir 5 · Prisma (2,3) rot 3 ·
     //   Spiegel (2,4) rot 1 · Prisma (5,4) rot 6 · Kombinator (1,4) dir 4 · Prisma (2,5) rot 0
     // Wertung 56.6 · 12 drehbar · 3 Ziele · Rateschritte 207158 · gehärtet aus Profil 4-misch, Seed 6070
-    name: 'Urknall',
+    name: 'Urknall', difficulty: 'schwer',
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
       { type: 'source', x: 1, z: 6, dir: 6 },
@@ -2556,7 +3042,7 @@ const LEVELS = [
     //   Spiegel (0,4) rot 3 · Spiegel (5,1) rot 3 · Prisma (3,4) rot 5 · Prisma (4,4) rot 5 ·
     //   Prisma (5,3) rot 2 · Spiegel (1,1) rot 2 · Kombinator (4,2) dir 6
     // Wertung 54.5 · 11 drehbar · 4 Ziele · Rateschritte 80714 · gehärtet aus Profil 4-bunt, Seed 8051
-    name: 'Morgenröte',
+    name: 'Morgenröte', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 3, dir: 4 },
       { type: 'source', x: 2, z: 6, dir: 6, color: 'green' },
@@ -2587,7 +3073,7 @@ const LEVELS = [
     //   Spiegel (1,4) rot 0 · Prisma (5,2) rot 3 · Spiegel (6,4) rot 1 · Spiegel (3,2) rot 3 ·
     //   Spiegel (5,5) rot 1 · Spiegel (3,3) rot 1 · Spiegel (4,1) rot 3 · Spiegel (5,4) rot 1
     // Wertung 50.3 · 12 drehbar · 4 Ziele · Rateschritte 30719 · gehärtet aus Profil 3-bunt, Seed 3065
-    name: 'Abendstern',
+    name: 'Abendstern', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 2, dir: 4 },
       { type: 'source', x: 3, z: 6, dir: 6 },
@@ -2619,7 +3105,7 @@ const LEVELS = [
     //   Prisma (5,5) rot 7 · Prisma (3,2) rot 3 · Spiegel (5,3) rot 3 · Kombinator (5,2) dir 1 ·
     //   Prisma (2,1) rot 1 · Kombinator (2,3) dir 0 · Spiegel (3,4) rot 3
     // Wertung 53.3 · 11 drehbar · 3 Ziele · Rateschritte 67116 · gehärtet aus Profil 3-misch, Seed 6004
-    name: 'Prismenhof',
+    name: 'Prismenhof', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 1, z: 0, dir: 2 },
       { type: 'source', x: 3, z: 0, dir: 2 },
@@ -2650,7 +3136,7 @@ const LEVELS = [
     //   Spiegel (4,1) rot 3 · Spiegel (6,3) rot 3 · Spiegel (6,2) rot 1 · Kombinator (2,6) dir 0 ·
     //   Kombinator (4,3) dir 0 · Spiegel (3,6) rot 3
     // Wertung 56.7 · 14 drehbar · 3 Ziele · Rateschritte 202599 · gehärtet aus Profil 4-filter, Seed 7076
-    name: 'Spiegelkabinett',
+    name: 'Spiegelkabinett', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 4, dir: 4 },
       { type: 'source', x: 0, z: 6, dir: 6 },
@@ -2680,7 +3166,7 @@ const LEVELS = [
     //   Prisma (5,3) rot 3 · Spiegel (4,3) rot 3 · Spiegel (3,3) rot 1 · Spiegel (3,1) rot 1 ·
     //   Spiegel (5,1) rot 3 · Prisma (5,2) rot 3 · Spiegel (5,4) rot 3
     // Wertung 54.6 · 11 drehbar · 3 Ziele · Rateschritte 106093 · gehärtet aus Profil 3-misch, Seed 8008
-    name: 'Lichtbrücke',
+    name: 'Lichtbrücke', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 5, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 1, dir: 4 },
@@ -2710,7 +3196,7 @@ const LEVELS = [
     //   Prisma (2,2) rot 1 · Spiegel (5,4) rot 1 · Spiegel (3,4) rot 1 · Kombinator (3,5) dir 2 ·
     //   Spiegel (5,5) rot 3
     // Wertung 52.9 · 13 drehbar · 3 Ziele · Rateschritte 57204 · gehärtet aus Profil 4-farbe, Seed 7089
-    name: 'Farbenrausch',
+    name: 'Farbenrausch', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 3, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 4, dir: 4, color: 'cyan' },
@@ -2743,7 +3229,7 @@ const LEVELS = [
     //   Kombinator (4,4) dir 6 · Prisma (4,3) rot 0 · Spiegel (6,3) rot 3 · Prisma (1,4) rot 0 ·
     //   Prisma (2,5) rot 1 · Prisma (1,5) rot 1 · Spiegel (2,3) rot 2
     // Wertung 52.2 · 11 drehbar · 4 Ziele · Rateschritte 47846 · gehärtet aus Profil 3-prisma, Seed 8041
-    name: 'Farbmühle',
+    name: 'Farbmühle', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 4, dir: 0 },
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -2773,7 +3259,7 @@ const LEVELS = [
     //   Prisma (3,2) rot 3 · Spiegel (2,2) rot 3 · Prisma (1,5) rot 0 · Prisma (4,5) rot 5 ·
     //   Spiegel (4,4) rot 1
     // Wertung 53.4 · 9 drehbar · 4 Ziele · Rateschritte 84811 · gehärtet aus Profil 3-bunt, Seed 7013
-    name: 'Sternenstaub',
+    name: 'Sternenstaub', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 3, z: 0, dir: 2 },
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -2800,7 +3286,7 @@ const LEVELS = [
     //   Spiegel (4,5) rot 1 · Prisma (2,2) rot 3 · Prisma (1,3) rot 7 · Prisma (4,2) rot 4 ·
     //   Kombinator (3,3) dir 2 · Prisma (3,4) rot 3 · Spiegel (1,1) rot 3
     // Wertung 54.7 · 11 drehbar · 5 Ziele · Rateschritte 82364 · gehärtet aus Profil 3-spiegel, Seed 7044
-    name: 'Zenit',
+    name: 'Zenit', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 3, z: 0, dir: 2 },
       { type: 'source', x: 6, z: 2, dir: 4 },
@@ -2830,7 +3316,7 @@ const LEVELS = [
     //   Spiegel (1,3) rot 1 · Spiegel (4,5) rot 3 · Prisma (4,4) rot 5 · Spiegel (4,3) rot 3 ·
     //   Spiegel (2,4) rot 3 · Kombinator (2,5) dir 2
     // Wertung 52.2 · 10 drehbar · 3 Ziele · Rateschritte 49178 · gehärtet aus Profil 3-misch, Seed 8068
-    name: 'Lichtkegel',
+    name: 'Lichtkegel', difficulty: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 0, dir: 0 },
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -6517,6 +7003,19 @@ const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles b
 const MAIN_COUNT = LEVELS.length - TUTORIAL_COUNT;
 /** Nummer eines Levels: im Tutorial 1 … TUTORIAL_COUNT, danach 1 … MAIN_COUNT. */
 const levelNumber = (i) => (i < TUTORIAL_COUNT ? i + 1 : i - TUTORIAL_COUNT + 1);
+/** Markierung schwerer Level (Feld difficulty in LEVELS): Text und Rauten in Kopfzeile und Levelauswahl. */
+const DIFFICULTY = {
+  'schwer': { label: 'Schwer', pips: '◆' },
+  'sehr schwer': { label: 'Sehr schwer', pips: '◆◆' },
+};
+/** Füllt ein .tier-Element für ein Level; ohne Markierung bleibt es leer und versteckt. */
+function fillTier(el, lvl) {
+  const d = DIFFICULTY[lvl.difficulty];
+  el.hidden = !d;
+  if (d) el.dataset.tier = lvl.difficulty; else delete el.dataset.tier;
+  el.innerHTML = d ? '<span class="pips" aria-hidden="true"></span><span class="label"></span>' : '';
+  if (d) { el.querySelector('.pips').textContent = d.pips; el.querySelector('.label').textContent = d.label; }
+}
 /**
  * Seiten der Levelauswahl: das Tutorial, danach die Level in Zehnergruppen. Die Seiten dienen nur dem
  * Blättern – die Level sind allein nach Schwierigkeit sortiert, nicht nach Themen.
@@ -6528,7 +7027,10 @@ const PAGES = (() => {
   for (let a = TUTORIAL_COUNT; a < LEVELS.length; a += PAGE_SIZE) {
     const indices = all.slice(a, a + PAGE_SIZE);
     const from = levelNumber(a), to = levelNumber(indices.at(-1));
-    pages.push({ id: String(from), label: `${from}–${to}`, title: `Level ${from} – ${to}`, indices });
+    // ist die ganze Seite gleich schwer markiert, steht das im Seitentitel
+    const tier = indices.every(i => LEVELS[i].difficulty === LEVELS[a].difficulty) ? LEVELS[a].difficulty : undefined;
+    const title = `Level ${from} – ${to}` + (tier ? ` · ${DIFFICULTY[tier].label}` : '');
+    pages.push({ id: String(from), label: `${from}–${to}`, title, indices });
   }
   return pages;
 })();
@@ -6694,7 +7196,7 @@ function setShown(el, shown) {
 }
 
 const ui = {
-  hud: $('hud'), title: $('hud-title'), goal: $('hud-goal'), sub: $('hud-sub'),
+  hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
@@ -6739,6 +7241,7 @@ const ui = {
     if (this._hintTimer !== undefined) { clearTimeout(this._hintTimer); this._hintTimer = undefined; }
     const lvl = LEVELS[index], n = levelNumber(index);
     this.hud.classList.toggle('tutorial', !!lvl.tutorial);
+    fillTier(this.tier, lvl);
     if (lvl.tutorial) {
       this.title.textContent = `Tutorial ${n} / ${TUTORIAL_COUNT} – ${lvl.name}`;
       this.sub.textContent = lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
@@ -6834,8 +7337,18 @@ const ui = {
       b.className = 'tile';
       b.innerHTML = `<span class="num">${k + 1}</span><span class="name"></span><span class="dot"></span>`;
       b.querySelector('.name').textContent = LEVELS[i].name;
+      const tier = DIFFICULTY[LEVELS[i].difficulty];
+      if (tier) {
+        const t = document.createElement('span');
+        t.className = 'tier';
+        t.setAttribute('aria-hidden', 'true');
+        fillTier(t, LEVELS[i]);
+        b.appendChild(t);
+        b.title = tier.label;
+      }
       const done = progress.isSolved(i);
-      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : 'Level '}${k + 1} ${LEVELS[i].name}${done ? ', gelöst' : ''}`);
+      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : 'Level '}${k + 1} ${LEVELS[i].name}` +
+        `${tier ? ', ' + tier.label.toLowerCase() : ''}${done ? ', gelöst' : ''}`);
       if (i === game.levelIndex) b.setAttribute('aria-current', 'true');
       b.classList.toggle('current', i === game.levelIndex);
       b.classList.toggle('done', done);

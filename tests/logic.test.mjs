@@ -481,8 +481,8 @@ test('Nach dem Tutorial folgen genau die Level mit den vorgesehenen Namen', () =
   assert.equal(MAIN.length, NAMES.length);
   assert.deepEqual(MAIN.map(l => l.name), NAMES);
 });
-test('Namen: die 80 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
-  assert.equal(NAMES.length, 80);
+test('Namen: die 100 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
+  assert.equal(NAMES.length, 100);
   assert.equal(new Set(NAMES).size, NAMES.length, 'doppelte Namen in NAMES');
   const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
   assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');
@@ -510,13 +510,24 @@ test('Die Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Z
   for (let b = 1; b < means.length; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
   assert.ok(means.at(-1) - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
 });
-test('Die Level ab 51 (tools/harden.mjs) sind alle schwerer als jedes der ersten 50', () => {
+test('Schwierigkeitsmarkierung: nur „schwer“ und „sehr schwer“, steigt nie ab, alle gehärteten Level markiert', () => {
+  const RANK = { 'schwer': 1, 'sehr schwer': 2 };
+  const rank = (d) => (d === undefined ? 0 : RANK[d]);
+  const marks = MAIN.map(l => l.difficulty);
+  assert.deepEqual(marks.filter(d => d !== undefined && !Object.hasOwn(RANK, d)), [], 'unbekannte Markierung');
+  const back = MAIN.map((l, i) => [i + 1, l.name, l.difficulty]).filter((_, i) => i > 0 && rank(marks[i]) < rank(marks[i - 1]));
+  assert.deepEqual(back, [], 'Markierung fällt ab');
+  assert.deepEqual(MAIN.slice(PROFILE_LEVELS).filter(l => !l.difficulty).map(l => l.name), [], 'gehärtete Level ohne Markierung');
+  assert.ok(marks.slice(0, PROFILE_LEVELS - 1).every(d => !d), 'Markierung vor dem schwersten Generator-Level');
+  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.equal(l.difficulty, undefined, l.name);
+});
+test('Die Level ab 71 (tools/harden.mjs) sind alle schwerer als jedes der ersten 70', () => {
   const max = Math.max(...SCORES.slice(0, PROFILE_LEVELS));
   const easier = SCORES.map((v, i) => [MAIN[i].name, v]).slice(PROFILE_LEVELS).filter(([, v]) => v <= max);
-  assert.deepEqual(easier, [], 'schwerstes der ersten 50: Wertung ' + max);
+  assert.deepEqual(easier, [], 'schwerstes der ersten ' + PROFILE_LEVELS + ': Wertung ' + max);
 });
 const { accepted } = await import('../tools/harden.mjs');
-test('Die Level ab 51 bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
+test('Die Level ab 71 bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
   const failed = MAIN.slice(PROFILE_LEVELS).filter(l => !accepted(l)).map(l => `${l.name} ${JSON.stringify(Q.density(l))}`);
   assert.deepEqual(failed, []);
 });
@@ -529,6 +540,7 @@ test('Die Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleic
   assert.equal(sel.length, MAIN.length);
   const sig = (els) => els.map(e => JSON.stringify([e.type, e.x, e.z, e.dir, e.rot, e.color === 'white' && e.type === 'source' ? undefined : e.color, !!e.fixed])).sort().join('|');
   MAIN.forEach((l, i) => assert.equal(sig(l.elements), sig(sel[i].level.elements), `Level ${i + 1} "${l.name}"`));
+  MAIN.forEach((l, i) => assert.equal(l.difficulty, sel[i].difficulty, `Markierung Level ${i + 1} "${l.name}"`));
 });
 L.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;

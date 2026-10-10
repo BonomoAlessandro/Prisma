@@ -50,7 +50,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und ob es Zusammenspiel gibt (Kreuzungen, Mehrfachtreffer, geteilte Spiegel, Lockvögel, die beim Probieren Licht
   bekommen) – Generator und Kuratierung verwerfen Level, die das nicht erfüllen;
   `harden.mjs [anzahl] [seed] [--min W] [--max W] [--steps K] [--jobs N] [--time S]` macht Level schwerer, als
-  der Generator sie in einem Zug findet (Level 51–80): Es startet bei einem erzeugten Level der Stufe 3–4 und
+  der Generator sie in einem Zug findet (Level 71–100): Es startet bei einem erzeugten Level der Stufe 3–4 und
   verändert es Schritt für Schritt (Element auf einen Strahl setzen, festen Spiegel drehbar machen, Ziel
   verschieben, Lockvogel, Quelle …), stellt nach jedem Schritt die Eindeutigkeit her und behält, was die Wertung
   plus Zusammenspiel erhöht (Simulated Annealing). Verworfen wird, was in unabhängige Teilrätsel zerfällt oder
@@ -62,19 +62,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `profiles.mjs` hat, gleichmässig über die Wertung (verschiedene Grundmuster, abwechselnde Mischungen), sortiert
   sie nach Wertung und schreibt sie zwischen die Markierungen `LEVELS:BEGIN/END` in index.html. `--keep 50` übernimmt
   die ersten 50 Level aus `tools/selection.jsonl` unverändert und wählt nur die übrigen, alle schwerer als das
-  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen 71–80 dazu: `--keep 70 --from 48`);
+  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen die heutigen 91–100 dazu: `--keep 70 --from 48`;
+  die Zahlen gelten für den Stand vor dem Einfügen der 20 mittelschweren Level);
   `--pools` liest die Kandidaten aus einem anderen Ordner, z. B. einem vorab gesiebten. Mit `--order` wird eine von
   Hand korrigierte Reihenfolge
   übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`. Ihre
   Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
-  Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
+  Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich. Ein Feld `difficulty` in `selection.jsonl` wird als
+  Markierung ins Level geschrieben.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
-  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 80 Level, allein nach Schwierigkeit sortiert; die Level 51–80 (aus `harden.mjs`) sind alle
-  schwerer als die ersten 50, 71–80 mindestens so schwer wie 51–70. Jede Lösung steht als Kommentar und im Feld
-  `solution`. Die Levelauswahl blättert in Seiten (Tutorial, 1–10, 11–20 … 71–80; ab 9 Seiten in zwei Reihen) –
-  reine Seiten, keine Themen.
+  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 100 Level, allein nach Schwierigkeit sortiert; die Level 71–100 (aus `harden.mjs`) sind alle
+  schwerer als die ersten 70, 91–100 mindestens so schwer wie 71–90. 20 der ersten 70 sind mittelschwere Level, die
+  nachträglich zwischen die Level 16 und 68 einsortiert wurden (Review zweier Tester in `tools/pools/mittel/review/`,
+  nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar
+  und im Feld `solution`. Schwere Level tragen `difficulty: 'schwer'` (Level 70–90) bzw. `'sehr schwer'` (91–100):
+  Kopfzeile mit Rauten (◆ bzw. ◆◆) und Text hinter dem Namen (auf dem Handy nur die Rauten), Rauten oben rechts auf
+  der Kachel in der Levelauswahl und im Seitentitel, wenn die ganze Seite gleich markiert ist. Die Levelauswahl
+  blättert in Seiten (Tutorial, 1–10, 11–20 … 91–100; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
   Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
   im Browser gespeichert (nach Levelname).
   Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts. Die Namen in `tools/profiles.mjs` werden der

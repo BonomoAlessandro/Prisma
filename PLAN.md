@@ -5,22 +5,23 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 9. Oktober 2026
+Zuletzt aktualisiert: 10. Oktober 2026
 
 ---
 
 ## Ziel
 
-- **Tutorial + 80 Level:** Zuerst ein kurzes Tutorial (9 Level, je ein Gedanke): Ziel und Spiegel, drehbar/fest,
+- **Tutorial + 100 Level:** Zuerst ein kurzes Tutorial (9 Level, je ein Gedanke): Ziel und Spiegel, drehbar/fest,
   Block, Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator – je mit einem
-  Hinweis in der Kopfzeile. Danach 80 Level, **allein nach Schwierigkeit sortiert** (leicht → schwer), ohne
-  Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 51–80 sind alle schwerer als Level 50.
+  Hinweis in der Kopfzeile. Danach 100 Level, **allein nach Schwierigkeit sortiert** (leicht → schwer), ohne
+  Gruppierung nach Elementen oder Anzahl Komponenten. Die Level 71–100 sind alle schwerer als die ersten 70. Die Level
+  70–90 sind als „schwer“ markiert, 91–100 als „sehr schwer“.
 - **Leitlinien für alle Level:**
   1. Elemente und Farben mischen sich frei: Spiegel, Prismen, Filter, Kombinatoren, Blöcke, farbige Quellen.
   2. Die Level sollen Spass machen, teilweise zum Grübeln anregen und qualitativ stark sein.
   3. Je weiter man kommt, desto schwerer.
 - Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden.
-- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 71–80). Die Seiten sind keine Kapitel und haben kein Thema.
+- Die Levelauswahl blättert in Seiten (Tutorial, 1–10, …, 91–100). Die Seiten sind keine Kapitel und haben kein Thema.
 
 ---
 
@@ -32,7 +33,7 @@ Zuletzt aktualisiert: 9. Oktober 2026
 - [x] **E6 · Level 74 und 79:** Nur „Nebelfeld“ (S07, Platz 79) wird ersetzt, durch S19 „Farbmühle“ auf Platz 77;
   „Spiegelkabinett“ (S36, Platz 74) bleibt, weil S40 dieselbe Schwäche stärker hätte (siehe 2.11).
 
-## 2. Tutorial + 80 Level (aktuelle Arbeit)
+## 2. Tutorial + 100 Level (aktuelle Arbeit)
 
 - [x] **2.1 Struktur:** Kapitel entfernt; Tutorial mit Hinweisen, 50 Level nach Wertung, Levelauswahl mit Seiten,
   Fortschritt nach Levelname (alte Schlüssel „II:Name“ werden übernommen).
@@ -45,8 +46,8 @@ Zuletzt aktualisiert: 9. Oktober 2026
   unter 2 Plätzen), 4 Level ersetzt (Kopie eines Tutorial-Levels, Dopplung, zwei wirkungslose Filter). Tutorial:
   „Farbenlehre“ umgebaut (Filter jetzt nötig), „Mischung“ mit festen Spiegeln entschärft, Hinweise zu Mischen auf
   dem Ziel und Prisma auf einfarbigem Licht. Berichte in `tools/pools/review2/` (nicht versioniert).
-- [ ] **2.4 Feedback des Nutzers:** Tutorial und alle 80 Level anspielen: Steigt die Schwierigkeit spürbar?
-  Langweilige oder unfaire Level? Passen die Übergänge vom Tutorial zu Level 1, von 50 zu 51 und von 70 zu 71?
+- [ ] **2.4 Feedback des Nutzers:** Tutorial und alle 100 Level anspielen: Steigt die Schwierigkeit spürbar?
+  Langweilige oder unfaire Level? Passen die Übergänge vom Tutorial zu Level 1, von 70 zu 71 und von 90 zu 91?
 - [ ] **2.5 Oberes Ende:** Über Wertung ~40 gibt es nur wenige Kandidaten (Stufe 5 ist langsam, Filter-Profil ohne
   Ausbeute). Bei Bedarf Stufe 5 länger laufen lassen und die letzten Level ersetzen.
 - [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
@@ -171,6 +172,24 @@ Zuletzt aktualisiert: 9. Oktober 2026
   - Kostet beim Rendern etwas mehr als die Milchstrasse (Software-Rendering ~15–20 %).
   - Wechsel jetzt durch Dunkel: erst aus-, dann einblenden (je 0,45 s). Gleichzeitig lagen die undurchsichtigen Teile
     des Waldes, die aus Schwarz einblenden, als schwarze Flächen über dem Sonnensystem.
+- [x] **2.22 20 mittelschwere Level** (Wunsch des Nutzers, 10. Oktober: Schwierigkeit etwa wie Level 20–40).
+  Zusätzliche Pools der Stufen 3 und 4 (`tools/pools/mittel/`, 360 Level ab Seed 2 000 000) und die bisherigen Pools
+  (7 der 20 stammen daraus), Vorauswahl von 32 Kandidaten
+  (Wertung 20–37, Qualitätsregeln, symOverlap < 0.5 gegen alle 80 und früher verworfene Level ausgeschlossen). Review
+  durch zwei Tester (`tools/pools/mittel/review/`, nicht versioniert): Spielersicht (A) und Spielermodell aus Review 2
+  (B, Rangkorrelation 0.95 mit der heutigen Reihenfolge L15–L50). Einig bei 13; dazu 7 mit gutem Urteil von A
+  (K02, K03, K07, K08 eher am unteren Rand, K23, K28, K30 oben). Verworfen: zerfallende Level, wirkungslose Filter, zu dicht,
+  Kombinator nur als Umlenker. K13 („Farbkreis“) ohne seine zwei wirkungslosen Filter. Einsortiert nach dem Modellwert
+  von B zwischen die Level 16 und 68, je höchstens 2 Plätze verschoben, damit die Mittelwerte je 10 Level steigen und
+  nie mehr als 2 neue hintereinander stehen. Die bisherigen Level behalten ihre Namen (Speicherschlüssel); neue Namen
+  für die 20. `PROFILE_LEVELS` jetzt 70.
+- [x] **2.23 Schwere Level markiert** (Wunsch des Nutzers, 10. Oktober): Feld `difficulty` – „schwer“ für die
+  bisherigen Level 50–70 (jetzt 70–90), „sehr schwer“ für die bisherigen 71–80 (jetzt 91–100, vom Spielermodell auf
+  Denkaufwand gesiebt). Kopfzeile: Rauten und Text hinter dem Namen (◆ Schwer, ◆◆ Sehr schwer; auf dem Handy nur
+  die Rauten), Levelauswahl: Rauten oben rechts auf der Kachel, Seitentitel „Level 91 – 100 · Sehr schwer“, wenn die
+  ganze Seite gleich markiert ist. Farben `--hard` (bernstein) und `--very-hard` (rötlich). Gespeichert in
+  `tools/selection.jsonl`, von `curate.mjs` übernommen; Tests prüfen, dass die Markierung nie abfällt und alle
+  gehärteten Level trägt.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
@@ -217,7 +236,7 @@ Zuletzt aktualisiert: 9. Oktober 2026
     ihre Farben. Die Zerstreuungslinse macht aus einem Strahl drei (geradeaus und ±45°), in der gleichen Farbe.
     Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
-- [ ] Mehr als 80 Level, wenn die ersten 80 überzeugen.
+- [ ] Mehr als 100 Level, wenn die ersten 100 überzeugen.
 
 ## 5. Google Play Store
 
@@ -282,6 +301,7 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] Sternenhimmel mit Milchstrasse als Hintergrund, je nach Bildformat ausgerichtet
 - [x] Lesbarkeit: sattere Zielkristalle, Farbring mit festem Platz je Grundfarbe (zeigt auch falsches Licht),
   gut sichtbare Düse am Kombinator
+- [x] 20 mittelschwere Level zwischen 16 und 68 eingefügt (jetzt 100), schwere Level markiert
 - [x] Bildrate nach Bedarf: höchstens 60 Bilder/s bei Bewegung, 30 in Ruhe und bei offener Levelauswahl – auf
   schnellen Bildschirmen und im Ruhezustand ein Bruchteil der bisherigen Grafiklast
 

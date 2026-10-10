@@ -18,6 +18,11 @@
 // Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich.
 // Die endgültige Auswahl liegt versioniert in tools/selection.jsonl (tools/pools/ ist nicht versioniert):
 //   node tools/curate.mjs --order tools/selection.jsonl   stellt die Level in index.html wieder her.
+// Ein Feld difficulty ('schwer' bzw. 'sehr schwer') in einer Zeile wird als Markierung ins Level übernommen, ein
+// Feld edit (von Hand geändert) in den Herkunftskommentar. Mit --keep frisch gewählte Level haben keine Markierung –
+// die Tests verlangen sie für alle gehärteten Level, also danach in der gespeicherten Auswahl nachtragen.
+// Die Levelnummern oben (51–70, 71–80) gelten für den Stand vor dem Einfügen der 20 mittelschweren Level
+// (heute 71–90 bzw. 91–100).
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -155,14 +160,15 @@ function levelCode(g, name) {
   let cur = '// Lösung:';
   for (const part of sol) { if ((cur + ' ' + part).length > 100) { lines.push(cur); cur = '//  '; } cur += ' ' + part + ' ·'; }
   lines.push(cur.replace(/ ·$/, ''));
-  const origin = g.base ? `gehärtet aus Profil ${g.base}, Seed ${g.seed}`
+  let origin = g.base ? `gehärtet aus Profil ${g.base}, Seed ${g.seed}`
     : typeof g.seed === 'number' ? `Profil ${g.from?.replace('.jsonl', '') ?? '?'}, Seed ${g.seed}` : g.seed;
+  if (g.edit) origin += ` (${g.edit})`; // von Hand geändert, z. B. wirkungslose Teile gestrichen
   lines.push(`// Wertung ${m.score} · ${m.rotatable} drehbar · ${plural(m.targets, 'Ziel', 'Ziele')} · Rateschritte ${m.guesses} · ${origin}`);
   const sorted = [...els].sort((a, b) => ORDER.indexOf(a.type) - ORDER.indexOf(b.type) || a.z - b.z || a.x - b.x);
   return [
     '  {',
     ...lines.map(l => '    ' + l),
-    `    name: ${str(name)},`,
+    `    name: ${str(name)},` + (g.difficulty ? ` difficulty: ${str(g.difficulty)},` : ''),
     '    elements: [',
     ...sorted.map(e => `      ${elementCode(e)},`),
     '    ],',
