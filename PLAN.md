@@ -297,6 +297,69 @@ Zuletzt aktualisiert: 11. Oktober 2026
     mehr als die Milchstrasse, zuletzt ~30 %). Bodentexturen, Kaustik und Schaum nur im Flachen. Dreiecke: Kronen ~200 000, Felsen
     ~45 000, Palmen ~75 000, Gelände ~160 000 – auf schwachen Handys zu prüfen.
   - Die Spiegelung der Platte stellt den Hintergrund danach wieder her, wie er war (beim Strand ausgeblendet).
+- [x] **2.26 Wald: Nebelmeer bei Mondnacht** (Wunsch des Nutzers, 11. Oktober: den Wald nach Bildern und Videos so
+  realistisch und hochwertig wie möglich machen). Recherche mit drei Agenten: Technik (Impostors, Crysis-Vegetation,
+  Purkinje-Verschiebung nach Ghost of Tsushima, Höhennebel nach Quilez), Luftbilder nebliger Fichtenwälder von
+  Wikimedia Commons im Vergleich mit unseren Bildern, Farben bei Mondlicht und Nebel gemessen. Leitbild: ein
+  mondbeschienenes Nebelmeer, aus dem dunkle Fichtenkämme ragen (Commons „Dance of the Fog“, Schwarzwald-Drohnenbilder).
+  - Werte umgekehrt: Vorher waren Himmel, Dunst und Bäume gleich dunkel, nichts hob sich ab. Jetzt ist der Nebel die
+    hellste grosse Fläche (vom Mond von oben beschienen, zum Mond hin dazu Vorwärtsstreuung), der Dunst wird mit der
+    Entfernung heller (Luftperspektive), die Bäume sind fast schwarz und kaum noch grün, ihre dem Mond zugewandten
+    Seiten silbrig. Dunst nach der Entfernung vom Brett, nicht von der Kamera – im Hochformat steht sie weiter weg, und
+    alles lag im Dunst.
+  - Nebelmeer höher (`FOREST.fogY`): füllt die Täler schon nahe am Brett. Oberfläche mit langsam ziehenden Schlieren
+    und Wogen, vom Mond schräg beschienen; darüber Schwaden, in denen die tieferen Wipfel halb verschwinden. Gelände
+    und Bäume knapp darüber gehen in die Farbe des Nebels an derselben Stelle über (samt Schatten), ohne Rand.
+  - Schattenkarte des Mondes (gemeinsamer Baustein mit dem Strand: `bakeShadowMap`, `shadowGLSL`): Bäume und Kämme
+    werfen lange Schatten auf die Nachbarn, den Boden und das Nebelmeer (dort weich, `objectShadowSoft` – der Nebel
+    streut das Licht, hart wirkten die Schatten treppig).
+  - Fichten schlanker (gut dreimal so hoch wie breit) mit Leittrieb, Etagen gedreht, mit eigenem Radius und vielen
+    ungleich langen Zweigspitzen (gleichmässige Etagen wirkten wie Weihnachtsbäume); kleiner und dichter, 15 % junge
+    Bäume, weniger abgebrochene; je Art zwei Formen; draussen eine einfache Form. Gegenlicht am Kronenrand, wenn der
+    Mond hinter dem Baum steht.
+  - Himmel: oben tiefblau, zum Horizont der Dunst, um den Mond ein Hof (vom Rand an alle 1,5 Radien halb so hell, wie auf Fotos);
+    einige Sterne bleiben (nur über dem Horizont). Glühwürmchen gelbgrün, klein mit weichem Schein, kurz an und lange aus, zwischen den Wipfeln.
+  - Erst bei der ersten Wahl gebaut (`forest.prepare`, ~0,5 s im Software-Rendering); vorher beim Start. Kosten beim
+    Rendern etwa wie die Milchstrasse (Software-Rendering, Messung streute).
+- [x] **2.27 Wald: Impostor-Fichten und volumetrischer Nebel** (Rückmeldung des Nutzers: „Die Idee ist cool, aber die
+  Grafik könnte besser sein“; er wählte beides, Fichten zuerst).
+  - Fichten als Impostors (`IMPOSTOR`, `createSpruceGeometry`, `bakeImpostor`): beim Bauen eine detaillierte Fichte
+    (Stamm, 20 Astquirle mit 5–7 Ästen in zwei Lagen, je Ast 18 hängende Zweige, Leittrieb; Verdeckung in den Farben)
+    aus 64 Blickwinkeln (16 rundum × 4 Höhen, 10–70°) in zwei Tafeln gerendert: Farbe mit Deckung, Normale und Tiefe
+    (8 × 8 Ansichten zu 256 Pixeln, auf dem Handy 128). Jeder Baum ist eine zur Kamera gedrehte Fläche, nur so breit
+    wie die Krone, die die vier nächsten Ansichten überblendet; Licht aus den Normalen, Schatten und Dunst am Punkt aus
+    der Tiefe, die Tiefe auch ins Bild geschrieben (`gl_FragDepthEXT`) – sonst schnitten sich benachbarte Flächen in
+    geraden Linien. In der Schattenkarte zum Mond gedrehte Flächen. Abwechslung über Drehung, Grösse, Wuchs und Farbe.
+    Die Etagen-Kegel und die Baumarten sind weg (auch die abgebrochenen Bäume).
+  - Volumetrischer Nebel (`createVolumetricFog`, Prototyp von einem Agenten): Sichtstrahl durch ein Nebelband um
+    `FOREST.fogY` in halber (Handy: Viertel-)Auflösung, 16 (10) Schritte mit Versatz, Dichte aus Schlieren und Wogen
+    (3D-Rauschen aus einer 2D-Textur), Mondlicht mit Vorwärtsstreuung, Schattenkarte je Schritt (Schattenbahnen),
+    Selbstschatten; danach geglättet und im letzten Bildschritt tiefengewichtet hochskaliert und gemischt. Braucht die
+    Szenentiefe (Tiefentextur am Composer-Puffer, ohne Mehrspeicher). Ohne Tiefentexturen bleibt das flache Nebelmeer.
+    Bäume jetzt bis 2 Einheiten unter der Nebelobergrenze gesetzt (der Nebel sinkt zwischen den Bänken tiefer).
+  - Kosten: Software-Rendering etwa doppelt so viel wie die Milchstrasse (Messung streute stark); auf echten Handys zu
+    prüfen (`?perf`). Speicher: Tafeln 2 × 21 MB mit Mipmaps und 2 × 8 MB Tiefenpuffer vom Backen (Handy
+    ~14 MB zusammen); Nebelpuffer bei 1080p 8 MB, bei 1440p ~15 MB (Handy 2,5 MB). Nach verlorenem Grafikkontext neu
+    gebacken. In der Ferne tiefere Schwelle der Deckung (sonst dünnten die Bäume in den kleinen Mipmaps aus).
+- [x] **2.28 Wald: Flackern behoben, Bäume detaillierter, Hügel** (Rückmeldung des Nutzers: „gewisse Bäume flackern
+  (wahrscheinlich weil sie halb im Nebel sind)“, Bäume und Hügel detaillierter).
+  - Flackern gemessen statt geraten: zwei Bilder mit eingefrorener Zeit, die Kamera um Bruchteile eines Pixels
+    verschoben (eine grössere Verschiebung bewegt detailreiche Ränder ohnehin), Pixel mit grossem Sprung gezählt.
+    Ursache war ein Rundungsfehler: Die Nummer der Ansicht in der Bildtafel kam interpoliert als 14,99999 statt 15 an,
+    eine winzige Bewegung genügte, und ganze Bäume zeigten eine falsche Ansicht – vor hellem Nebel am auffälligsten.
+    Jetzt gerundet (`impostorUV`); im Wald springen statt Tausenden noch etwa 20 Pixel.
+  - Dazu stabilisiert: alle Abrufe der Bildtafel vor jeder Verzweigung (in verzweigtem Programmfluss ist die Wahl der
+    Mipmap-Stufe nicht definiert), Ränder weich (Bäume gemischt, von hinten nach vorn sortiert, wenn sich die Kamera
+    merklich bewegt hat), Deckung, Normale und Tiefe aus einer leicht weicheren Stufe, der Nebel je Texel bis zur
+    nächsten und zur fernsten Tiefe gerechnet (`VOLFOG_ZRANGE_FRAGMENT`; jedes Pixel mischt nach seiner Tiefe –
+    Lücken zwischen Nadeln bekommen den Nebel dahinter, die Nadeln ihren eigenen).
+  - Bäume: Ansichten eng um die Krone gerahmt (doppelte waagrechte Auflösung bei gleichem Speicher), 26 Astquirle,
+    je Ast 13 Zweige als Nadelbüschel mit Seitentrieben.
+  - Hügel: Kuppen, Mulden und Felsrippen im Gelände, feineres Netz; Waldboden aus Nadelstreu und Moos mit feiner
+    Unebenheit, an steilen Stellen Fels mit Rissen (dort keine Bäume), Kontaktschatten der Kronen am Boden
+    (Dichtekarte beim Bauen); moosbewachsene Granitblöcke an Hängen und in Lichtungen, mit Mondschatten.
+  - Kosten (Software-Rendering, streuend): etwa doppelt so viel wie die Milchstrasse; der Nebel wird zweimal gerechnet
+    (nah und fern), in niedriger Auflösung. Umschalten ~0,65 s.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
