@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 10. Oktober 2026
+Zuletzt aktualisiert: 11. Oktober 2026
 
 ---
 
@@ -206,6 +206,97 @@ Zuletzt aktualisiert: 10. Oktober 2026
   als Umlenker (K69, K84, K85 – für L60–L69 fehlte anderes Material), fünf Prismen mit nur einer Grundfarbe, vier
   Level mit in der Lösung getrennten Quellwegen. Neue Namen für die 50, `PROFILE_LEVELS` jetzt 120. Levelauswahl:
   Seitenreiter schon unter 640 px in Reihen zu 4 (16 Seiten).
+- [x] **2.25 Vierter Hintergrund: Meer und Küste bei Sonnenuntergang** (Wunsch des Nutzers, 11. Oktober: Meer/Strand,
+  Sonnenuntergang, sehr hochwertig; das Brett schwebt vor der Küste, beim Drehen soll man Meer und Küste sehen).
+  Der Knopf schaltet jetzt Milchstrasse → Sonnensystem → Wald → Strand (`skyTheme.order`).
+  - Aufbau: Das Brett schwebt über einer flachen, türkisen Lagune; in der Ausgangsansicht liegt der Strand dahinter,
+    links eine felsige Landzunge, nach vorn eine Kante ins tiefe Blau. Hinter dem Strand eine niedrige Düne, dann
+    Bewuchs. Die Sonne steht gut 12° hoch über dem Meer rechts (`BEACH.sun`): Streiflicht auf dem Strand, und zur
+    Sonne hin glitzert das Wasser.
+  - Die Kamera blickt nie über den Horizont – den Himmel sieht man nur gespiegelt. Das Meer ist kein Netz mit Wellen,
+    sondern wird pro Pixel gerechnet (`BEACH_GLSL`); aus dieser Höhe bringt verschobene Geometrie wenig, Form und Licht
+    der Wellen viel. Feine Wellen aus einer kachelbaren Normal-Map (`createWaveTexture`, beim Bauen gerechnet),
+    Fresnel-Spiegelung des Himmels und Glitzern der Sonne (Beckmann). Die Streuung der Steigungen kommt aus den Mipmaps
+    der Normal-Map (Länge der gemittelten Normalen): In der Ferne wird das Glitzern zu einem breiten Schimmer.
+  - Dünung und Brandung (Rückmeldung des Nutzers: „Wellen und wie das Wasser auf den Strand fällt sehen schwach aus“):
+    `swellHeight` gibt den Wasserstand je Tiefe – draussen eine runde Welle, im Flachen höher und steiler (Shoaling),
+    nie höher, als das Wasser tief ist; sie bricht und läuft als Walze (`bore`: vorn steil, hinten flach) ans Ufer.
+    Wellengruppen (`swellSet`):
+    mal höhere, mal niedrigere, entlang der Küste versetzt. Im Flachen drehen die Fronten parallel zum Ufer
+    (Refraktion, `shorePhase`/`swellDir` mit Abstand und Gefälle zur Wasserlinie je Ecke, `aDir`; dazu ein Ausgleich je
+    Ecke, der beide Masse in der Mitte des Übergangs gleichsetzt – ohne ihn liefen die Wellen entlang der Küste
+    stellenweise gestaucht, gedehnt oder gar seewärts, gefunden im Review). Die Normale kommt
+    aus dem Gefälle von `swellHeight` – die steile Front der Walze spiegelt sichtbar anders.
+  - Wo Wasser steht, entscheidet der Wasserstand pro Pixel (nicht das Gitter): Das Gelände zeichnet darüber Meer,
+    Walze oder Film – unter Wasser über den Blick bis zur Oberfläche (an der getroffenen Stelle nachgebessert); Rot wird
+    zuerst geschluckt (`ABSORB`), der Sand schimmert türkis durch, Lichtnetz (Kaustik) im Flachen. Draussen rechnet die
+    Himmelskugel den Strahl bis zur Wasserfläche mit denselben Funktionen, daher ohne sichtbaren Rand. Alles verläuft
+    bis 77 Einheiten in den Dunst.
+  - Schaum (siehe auch den Abgleich mit Referenzen): ein schmaler dichter Kern am brechenden Kamm, dahinter ein
+    Schaumfeld mit runden Löchern, das seewärts zu Fäden ausdünnt, in Strömungsrichtung gestreckt; auf dem Film nur
+    eine Schaumrolle am dünnen Rand; ein Saum um die Felsen. Durch die steile Front und die Kämme scheint türkises
+    Licht.
+  - Auflaufen (Rückmeldung: „die auf den Sand treffenden Wellen massiv verbessern“): Erreicht eine Walze die
+    Wasserlinie, schiesst sie als dünner Film den Strand hinauf, wird langsamer, bleibt stehen und fliesst
+    beschleunigt zurück – wie ein geworfener Ball (`swashLevel`, Parabel im Takt der Walzen an der Wasserlinie).
+    Jede Welle läuft verschieden weit, entlang des Strands versetzt (`swashReach`). Beim Hinauflaufen trägt der
+    Film vorn eine Schaumrolle; beim Zurückfliessen wird er glatt und durchsichtig. Am höchsten Punkt bleibt ein
+    Schaumsaum liegen und zerfällt, darüber dünne Spülmarken früherer Wellen (Höhe nach der Wellengruppe beim
+    Eintreffen der jeweiligen Welle, `waveEnv` – sonst wanderten sie mit der Zeit); der Sand glänzt, solange er eben überspült war
+    (`swashLeaves`: wann das Wasser die Stelle freigab), und bleibt dunkel bis über die höchsten Wellen, darüber
+    ein Spülsaum. Strandsicheln (Beach Cusps): Die Wasserlinie bildet regelmässige Bögen.
+  - Licht: Das Gelände wirft weiche Schatten (beim Bauen je Ecke zur Sonne hin abgetastet, Höhengitter). Kronen,
+    Palmen und Felsen werfen scharfe, lange Abendschatten über eine Schattenkarte aus Sonnenrichtung (2048², einmal
+    beim Bauen gerendert, `objectShadow`): auf Sand, Wasser und aufeinander. Mikrorelief und Windrippel im Sand
+    werfen im Streiflicht kleine Schatten, in der Ferne ausgeblendet.
+  - Bäume und Palmen (Rückmeldung: „Strand, Bäume und Felsen sehen schwach aus“): Laubkronen als Kugeln, in grossen
+    und kleinen Ballen verbeult (wie Blumenkohl, Normale aus Nachbarpunkten), Blattbüschel mit dunklen Lücken,
+    Gegenlicht am Rand (`treeAt`, je Zelle höchstens ein Baum). Davor Palmen am Dünenrand, in Gruppen, zum Meer
+    geneigt (`createPalmGeometry`): gebogener Stamm mit Ringen, 13 Wedel aus schmalen, hängenden Blättchen, die
+    unteren dürr; gegen die Sonne scheinen sie durch, sie wiegen sich leicht.
+  - Felsen: Blöcke (`createRockGeometry`, mit Grat-Rauschen kantig verbeult) auf einem niedrigen Sockel im Gelände
+    (der Sockel gibt den Schaum im Wasser). Schichten, Spalten, oben Flechten, um die Wasserlinie Algen und Nässe,
+    unter Wasser in der Wasserfarbe mit der Spiegelung darüber, Gischt im Takt der Wellen. Der Wasserstand am Fels
+    folgt Phase, Brandung und Auflaufen des Wassers daneben (je Block Abstand zur Wasserlinie und Ausgleich der Phase).
+  - Schattenkarte: nur dort abgefragt, wo man den Boden sieht (nicht unter tiefem Wasser); nach einem verlorenen
+    Grafikkontext neu gezeichnet (sonst läge der Strand im Schatten). Palmen nur bis 9,5 vor der Wasserlinie (sonst
+    ragten sie in die Kronen).
+  - Abgleich mit Referenzen (Wunsch des Nutzers: im Internet nach Bildern und Videos suchen und genau analysieren):
+    freie Luftbilder und Videostandbilder von Wikimedia Commons (Brandung von oben, Swash-Linien, Strände bei tiefer
+    Sonne), dazu Recherche zu Brandungsphysik und Spieletechnik (Horizon Forbidden West, Sea of Thieves, Lagarde zu
+    nassen Oberflächen). Daraus: Schaum als Flächentextur mit Auflösung (`createFoamTexture`, `foamDissolve`: frisch
+    geschlossen, dann gehen runde Löcher auf, dann Fäden – ein Netz aus Zellwänden wirkte wie gesprungene Farbe);
+    an der brechenden Front ein schmaler dichter Kern, dahinter ein Schaumfeld, das seewärts ausdünnt, Lücken entlang
+    der Front (nicht jede Welle bricht überall), ein dunkler Streifen vor der Front; Trübung in der Brandungszone
+    (aufgewirbelter Sand, khaki); Auflaufen asymmetrisch (Umkehr nach etwa 40 % des Zyklus), lappige Front, Schaum nur
+    als Rolle am dünnen Rand, der Film sonst durchsichtig, ohne Lichtnetz; Spülmarken früherer Wellen, bis eine höhere
+    sie wegspült; ein immer glänzendes, wassergesättigtes Band; Sand ohne Vorzugsrichtung (wirkte wie Sackleinen);
+    Himmel und Spiegelung entsättigt (gegen die Sonne golden-grau statt kupfern, sonst schiefergrau statt violett),
+    feine Rippel statt marmorierter grosser Wellen, Sonnenreflex breiter.
+  - Unschönheiten aus Bildern des Nutzers (11. Oktober): (1) gegen die Sonne eine gerade Naht im Wellenmuster – der
+    Ausgleich der Phase hing vom kleinräumigen Rauschen der Uferlinie ab, über den Hebel bis zur Mitte des Übergangs
+    wurde daraus ein Sprung entlang einer Dreieckskante; jetzt nach dem grossräumigen Küstenverlauf (über ±4 geglättet),
+    das Rauschen je Ecke abgezogen, der Hebel begrenzt (sonst liefen die Wellen an der Flanke der Landzunge seitwärts).
+    Dazu: Wo eine Welle laut den Lücken nicht bricht, bleibt sie rund (vorher steile Front ohne Schaum – spiegelte als
+    lange Linie). (2) Ganz untergetauchte Felsblöcke wirkten wie dunkle Klumpen: Blöcke nur, wo sie aus dem Wasser
+    ragen; Schaum über dem Felssockel lockerer.
+    (3) Die Sandbank in der Lagune (dort brach jede Welle ein zweites Mal) lief als gleichförmiger Wulst mit
+    Brandungsstreifen die ganze Küste entlang: entfernt (Entscheid des Nutzers); der Grund fällt gleichmässig ab, die
+    Wellen brechen nur am Ufer.
+  - Verworfen, aus der Reihe der Versuche: Kronen als Buckel im Gelände (auf dem Gitter spitze Pyramiden),
+    Grasbüschel aus der Rauschtextur (sichtbare Kachelung, Flecken), ein breiter Sandstreifen bis zum Wald (wirkte
+    wie Wüste, der Wald lag im Dunst), Felsen aus Graten (Pyramiden), Schaumgeflecht überall (Netz über der Lagune),
+    flaches Meer mit Wellen nur in den Normalen und Auflaufen als Färbung des Sandes (wirkte schwach), glatte
+    Kugelkronen (Moosbälle), Palmenblättchen als breite Dreiecke (wirkten wie Farn), ein Rissnetz auf den Felsen
+    (wie ein Schildkrötenpanzer), Felsen nur als Höhenfeld (glatte Pyramiden).
+  - Gebaut erst bei der ersten Wahl (`beach.prepare`, mit Übersetzen der Shader und der Schattenkarte, vor dem
+    Ausblenden; dazu die Schaumtextur): ~0,8 s im
+    Software-Rendering, die meiste Zeit das Höhengitter für den Schatten (Fels-Rauschen nur, wo Fels sein kann). Ist
+    der Strand gespeichert, verzögert das den Start entsprechend (auf dem Handy wohl um eine Sekunde).
+    Kosten beim Rendern nicht verlässlich gemessen (die Messungen im Software-Rendering streuten stark; grob 25–30 %
+    mehr als die Milchstrasse, zuletzt ~30 %). Bodentexturen, Kaustik und Schaum nur im Flachen. Dreiecke: Kronen ~200 000, Felsen
+    ~45 000, Palmen ~75 000, Gelände ~160 000 – auf schwachen Handys zu prüfen.
+  - Die Spiegelung der Platte stellt den Hintergrund danach wieder her, wie er war (beim Strand ausgeblendet).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

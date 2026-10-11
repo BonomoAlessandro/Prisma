@@ -43,8 +43,9 @@ Regeln:
 ## Grafik (wichtigster Teil)
 Szene & Licht:
 - Fast schwarzer Hintergrund mit leichtem blau-violettem Farbverlauf und Fog; darauf wahlweise ein Sternenhimmel
-  mit Milchstrasse, ein Sonnensystem, in dem das Brett über der Sonne schwebt, oder ein nächtlicher Nadelwald, über dessen
-  bewaldeter Kuppe es schwebt (umschaltbar, Wahl gespeichert).
+  mit Milchstrasse, ein Sonnensystem, in dem das Brett über der Sonne schwebt, ein nächtlicher Nadelwald, über dessen
+  bewaldeter Kuppe es schwebt, oder Meer und Küste bei Sonnenuntergang, vor der es über einer Lagune schwebt
+  (umschaltbar, Wahl gespeichert).
 - Spielfeld als dunkle, leicht spiegelnde Steinplatte (geringe Roughness),
   damit sich Strahlen und Kristalle darin spiegeln.
 - Environment-Map über PMREMGenerator für realistische Reflexionen.
