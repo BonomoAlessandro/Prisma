@@ -1,0 +1,117 @@
+# Würfel-Level in 3D – Prototyp
+
+Stand: 11. Oktober 2026 · Branch `feature/3d-wuerfel` · Zweck: prüfen, ob Rätsel in einem Würfel Potenzial haben.
+Alle bisherigen Level (Tutorial + 150) bleiben genau so, wie sie sind.
+
+## Auftrag
+
+1. Zuerst abklären, was der Schritt von 2D zu 3D bedeuten würde (Analyse mit zwei Agents: Logik/Level/Werkzeuge
+   und Darstellung/Bedienung). Ergebnis: Logik gut machbar, das Hauptrisiko ist die Lesbarkeit im Würfel;
+   7×7×7 voll besetzt wäre auf dem Handy kaum bedienbar, daher klein anfangen.
+2. Danach umsetzen: 5×5×5-Würfel, zwei Beispiel-Level, eigener Branch, Teilschritte einzeln committen.
+
+## Vorgehen (Commits auf dem Branch)
+
+| Commit | Inhalt |
+|---|---|
+| `test: Golden-Regressionstest für alle 2D-Level` | **Zuerst** ein Sicherheitsnetz: `tests/golden.mjs` hält für jedes 2D-Level die Strahlbilder in Start- und Lösungsstellung (Segmente, Ereignisse, Treffer …) sowie Löser und Wertung (Tutorial + jedes 10. Level) fest. `tests/golden.json` wurde aus dem Stand **vor** dem Umbau (main) erzeugt. |
+| `feat(3d): Strahllogik für Würfel-Level und zwei Beispiel-Level` | Eigener Logikpfad für `dim: 3`, zwei Level, Löser und Tests erweitert. |
+| `feat(3d): Darstellung und Bedienung der Würfel-Level` | Elemente im Raum, Strahl-Shader in 3D, Ebenenwahl, Kamera, Levelauswahl. |
+| `docs: …` | Diese Datei, Probe-Skripte für Screenshots und Klicks im Würfel. |
+
+Jeder Schritt wurde vor dem Commit von einem Review-Agent geprüft; die Befunde sind eingearbeitet (siehe unten).
+
+## Das Modell (Entscheidung)
+
+**Jedes Element dreht um eine feste Achse** (`axis: 'x' | 'y' | 'z'`, Standard `'y'`) und wirkt in der Ebene
+senkrecht dazu genau wie ein 2D-Element: `rot` bzw. `dir` zählen dort in 45°-Schritten wie `DIRS`.
+
+- Achse `y` ist die 2D-Ebene. Ein Spiegel mit waagrechter Achse (`x` oder `z`) lenkt Licht zwischen die Ebenen
+  („Aufzug“) – dafür braucht es keinen neuen Elementtyp.
+- Richtungen sind ganzzahlige Vektoren aus −1/0/1 **ohne Raumdiagonalen**: 6 Achsen + 12 Flächendiagonalen.
+  Spiegelungen führen nie aus dieser Menge heraus (Länge bleibt erhalten; Test prüft das).
+- Spiegel: Fläche durch Achse und Ebenenrichtung `rot`, Normale `planeDir(axis, rot + 2)`;
+  Reflexion `d' = d − 2(d·n)/(n·n)·n` bleibt ganzzahlig. Parallel zur Fläche → Licht endet an der Rahmenkante.
+- Prisma: fächert in seiner Ebene wie in 2D; Licht schräg zur Ebene tritt nicht aus.
+- Pro Element gleich viele Stellungen wie in 2D (Spiegel 4, Prisma/Kombinator 8) → der Löser bleibt schnell.
+- Verworfen: „freie“ 3D-Drehungen (6–26 Stellungen je Element, unanschaulich, Suchraum explodiert).
+- Ebenenbasis `AXES` (u, a, v) ist rechtshändig. Die Darstellung dreht die vorhandenen 2D-Modelle mit
+  `makeBasis(u, a, v)` in ihre Ebene (lokal y = Drehachse) – es gibt **keine neuen 3D-Modelle**.
+
+Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
+
+```js
+{ name, dim: 3, size: 5, hint,
+  elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],   // y = Ebene, 0 = unten
+  solution: { "x,y,z": rot bzw. dir } }
+```
+
+## Wo was im Code steht (index.html)
+
+- **Logik (LOGIC-Block):** `AXES`, `planeDir`, `planeIndex`, `reflect3`, `mirrorFrontNormal3`, `refractInPrism3`,
+  `createBoard3`, `tracePass3`. `createBoard` und `traceBeams` verzweigen nur bei `dim === 3`; der 2D-Pfad
+  (`tracePass`) ist unverändert. Segmente/Ereignisse im Würfel haben zusätzlich `y0/y1` bzw. `y`, Normalen sind
+  `[nx, ny, nz]`.
+- **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, `tools/curate.mjs`).
+  Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 159).
+  Eigene Seite „Würfel“ in der Levelauswahl; „Weiter“ nach Level 150 führt nicht in den Würfel.
+- **Darstellung:** `cubeToWorld`, `beamPointToWorld`, `normalToWorld`, `placeInCube`. Strahl-Shader:
+  Schnittnormalen als `aCap0/aCap1` (vec3), Abstand zu den Schnittebenen wird im Vertex-Shader als `vCut`
+  berechnet (linear in p, daher exakt interpoliert). Bodenschein wird mit der Höhe schwächer (`vLift`).
+- **`cubeView`:** Würfelrahmen, Zellpunkte, Ebenenwahl. Gewählte Ebene ist als einzige anklickbar; die übrigen
+  werden durchscheinend (Material-Kopien, die in `tick()` mit den Originalen abgeglichen werden, damit Ziele und
+  Prismen weiter aufleuchten). Drehringe fremder Ebenen werden gedimmt.
+- **Kamera:** `cameraRig.cube/lift/zoom/tilt/turn` – im Würfel Blick auf die Würfelmitte, flacher, schräger,
+  weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der engen 2D-Grenzen.
+- **Bedienung:** Knöpfe `#layers` (rechts, Handy hochkant unten links), Tasten ↑/↓ Ebene, A alle Ebenen.
+- **Werkzeuge:** `tools/solver.mjs` – `keyOf` liefert im Würfel "x,y,z", Exporte der 3D-Funktionen.
+
+## Die zwei Level
+
+- **Aufzug** (3 drehbar, Wertung 12.3): Spiegel (Achse z) hebt den Strahl, Prisma (Achse x) fächert ihn senkrecht
+  auf drei Ziele in der obersten Ebene, ein Spiegel lenkt Grün zur Seite.
+- **Kern** (5 drehbar, Wertung 21.6): Rot von unten vorne und Blau (aus einem Prisma oben hinten) müssen sich als
+  Magenta in der Würfelmitte treffen; Grün kreuzt dabei den Blauschacht in einer leeren Zelle.
+
+Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar über den Leveln.
+
+## Tests und Befehle
+
+```bash
+node tests/logic.test.mjs      # 558 Tests, inkl. Block "Würfel (dim: 3)" (~2 min)
+node tests/golden.mjs          # alle 2D-Level unverändert? (~35 s) – --write nur, wenn 2D bewusst geändert wird
+node tests/offline.mjs
+node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
+node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel
+node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; window.CUBE_LAYER=0; $(cat tests/cube-probe.js)"
+```
+
+Headless-Chrome ohne Grafikkarte rendert nur 2–3 Bilder/s: Bei Screenshots 20–40 s warten.
+Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Leveln.
+
+## Review-Befunde (eingearbeitet)
+
+- Logik: Strahlende bei Diagonale in der Spiegelfläche (jetzt erste Rahmenkante), Kommentare, fehlendes `y`
+  meldet eigenen Fehler, zusätzliche Tests (Normalen aller Achsen, senkrechter Prismafächer).
+- Darstellung: Ablauf der 2D-Level unverändert (letztes Level, „Alle Level gelöst“, Startlevel), Reiterleiste
+  ohne Würfel-Reiter gerechnet; abgeblendete Ziele/Prismen leuchten weiter (Abgleich Kopie ↔ Original, je Kopie
+  einmal pro Bild); Bodenschein-Schnitt vor dem Absenken; Rahmen steht auf der Platte; abgeblendete Elemente
+  werfen keinen Schatten; Neustart (R) behält die gewählte Ebene; Screenreader-Text „Würfel“.
+
+## Bekannt / offen
+
+- N bzw. → auf Level 150 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort). Bewusst so
+  gelassen – entscheiden, ob 2D und Würfel auch beim Blättern getrennt sein sollen.
+- Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
+- Generator, `tools/quality.mjs` (Fläche, Quadranten, Rand) und Wertung kennen nur 2D; die Würfel-Level sind
+  handgebaut und nur mit dem Löser geprüft.
+- Nur in Headless-Chrome getestet (Screenshots, simulierte Klicks) – noch nicht von Hand gespielt, nicht auf
+  einem echten Handy, Leistung nicht gemessen.
+- Lesbarkeit ist das Hauptrisiko: Tiefe und Drehachse eines Elements sind schräg von oben nicht immer klar.
+  Ideen: Lote/Schatten deutlicher, Achse am Element sichtbarer, Explosionsansicht der Ebenen.
+
+## Nächste Schritte (Vorschlag)
+
+1. Beide Level von Hand spielen (Desktop und Handy) und entscheiden, ob es sich lohnt (**E** in PLAN.md, Abschnitt 4).
+2. Wenn ja: kleines Würfel-Tutorial (Achse, Ebenenwahl, Aufzug), 5–10 weitere handgebaute Level.
+3. Danach Generator/Qualität für den Würfel, grössere Würfel erst nach Spieltests.
