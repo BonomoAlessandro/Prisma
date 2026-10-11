@@ -405,6 +405,11 @@ Zuletzt aktualisiert: 11. Oktober 2026
     Die Sammellinse lenkt dann die Strahlen in den äusseren Zellen um 45° zur Mitte, und im Brennpunkt mischen sich
     ihre Farben. Die Zerstreuungslinse macht aus einem Strahl drei (geradeaus und ±45°), in der gleichen Farbe.
     Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
+- [~] **Würfel-Level in 3D** (Wunsch des Nutzers, 11. Oktober; Branch `feature/3d-wuerfel`): Prototyp mit zwei
+  handgebauten Leveln im 5×5×5-Würfel, um das Potenzial zu prüfen. Modell: feste Drehachse je Element, gleich viele
+  Stellungen wie in 2D (Löser bleibt schnell). Ebenenwahl, abgeblendete fremde Ebenen, freiere Kamera.
+  **E** nach dem Ausprobieren: weiterverfolgen? Dann offen: Tutorial für die Achsen, Generator und Wertung für den
+  Würfel (`tools/quality.mjs` kennt nur 2D), grössere Würfel (7×7×7) erst nach Spieltests, Leistung auf dem Handy.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] Mehr als 150 Level, wenn die ersten 150 überzeugen.
 

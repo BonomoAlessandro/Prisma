@@ -81,7 +81,7 @@
     transition: opacity 0.6s ease;
   }
   #hud.hidden { transition-duration: 0.3s; }
-  body.levels-open #hud { opacity: 0; }
+  body.levels-open #hud, body.levels-open #layers { opacity: 0; }
   #hud .title { font-size: 13px; font-weight: 300; }
   /* Schwierigkeit schwerer Level: in der Kopfzeile hinter dem Namen, in der Levelauswahl oben rechts auf der Kachel */
   .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; }
@@ -127,6 +127,40 @@
   #btn-sound .off { display: none; }
   #btn-sound.muted .on { display: none; }
   #btn-sound.muted .off { display: inline; }
+
+  /* ---------- Ebenenwahl (nur Würfel-Level) ---------- */
+  #layers {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    top: 50%; transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    z-index: 4;
+    transition: opacity 0.6s ease;
+  }
+  #layers button {
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--ink-dim);
+    transition: color 0.25s ease, background-color 0.25s ease;
+  }
+  #layers button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+  #layers svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  #layers .label {
+    width: auto; height: auto; min-width: 44px; padding: 6px 0;
+    border-radius: 8px;
+    font-size: 10px; letter-spacing: 0.25em; text-indent: 0.25em; /* Sperrung mittig */
+    text-transform: uppercase; line-height: 1.6; color: var(--ink);
+    text-shadow: 0 0 10px rgba(3, 3, 8, 0.95);
+  }
+  #layers .label small { display: block; font-size: 8px; color: var(--ink-dim); }
+  @media (max-width: 520px) { /* Handy hochkant: unten links in einer Reihe, nicht über dem Würfel */
+    #layers {
+      top: auto; transform: none; right: auto;
+      left: max(16px, env(safe-area-inset-left)); bottom: max(16px, env(safe-area-inset-bottom));
+      flex-direction: row-reverse;
+    }
+  }
 
   /* ---------- Level gelöst ---------- */
   #solved {
@@ -321,6 +355,16 @@
   </button>
   <button id="btn-levels" title="Levelauswahl (L)" aria-label="Levelauswahl">
     <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="14" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="4.5" y="14" width="5.5" height="5.5" rx="1"/><rect x="14" y="14" width="5.5" height="5.5" rx="1"/></svg>
+  </button>
+</nav>
+
+<nav id="layers" class="hidden" inert aria-label="Ebenen">
+  <button id="btn-layer-up" title="Ebene höher (↑)" aria-label="Ebene höher">
+    <svg viewBox="0 0 24 24"><path d="M6.5 14.5L12 9l5.5 5.5"/></svg>
+  </button>
+  <button class="label" id="btn-layer-all" title="Alle Ebenen (A)" aria-label="Alle Ebenen zeigen"></button>
+  <button id="btn-layer-down" title="Ebene tiefer (↓)" aria-label="Ebene tiefer">
+    <svg viewBox="0 0 24 24"><path d="M6.5 9.5L12 15l5.5-5.5"/></svg>
   </button>
 </nav>
 
@@ -8266,6 +8310,12 @@ const cameraRig = {
   limitsPhiUp: 0.22, limitsPhiDown: 0.16,
   radius: 18,             // Abstand der Ausgangsansicht; gedreht bleibt er gleich (ein Zoom pumpte, siehe PLAN 2.18)
   homing: null,           // Rückflug zur Ausgangsansicht beim Levelwechsel (cameraGoHome)
+  cube: 0,                // Kantenlänge des Würfels im Würfel-Level, sonst 0 (loadLevel)
+  lift: 0,                // Höhe des Blickpunkts (Würfel: seine Mitte)
+  zoom: 1,                // Abstandsfaktor (Würfel: CUBE.cameraZoom)
+  tilt: 0,                // zusätzliche Neigung (Würfel: CUBE.cameraTilt, flacher – die Höhe wird lesbar)
+  turn: 0,                // zusätzlicher Azimut (Würfel: CUBE.cameraTurn, schräg auf eine Kante)
+  wide: 1,                // 0 = Hochformat … 1 = Querformat (fitCameraDistance)
 };
 
 function fitCameraDistance() {
@@ -8276,6 +8326,7 @@ function fitCameraDistance() {
   // Hochformat: steiler von oben – das Feld nutzt die Höhe besser, und die Vorderkante wird
   // perspektivisch weniger breit, sodass weniger Rand nötig ist (grössere Zellen zum Tippen).
   const wide = THREE.MathUtils.clamp((camera.aspect - 0.5) / 0.8, 0, 1);
+  cameraRig.wide = wide;
   const halfW = PLATE * THREE.MathUtils.lerp(0.52, 0.56, wide);
   const halfH = PLATE * 0.42;
   cameraRig.radius = Math.max(halfW / tanH, halfH / tanV, 14);
@@ -8317,11 +8368,20 @@ function updateCamera(t, dt) {
   cameraRig.userTheta += (cameraRig.goalTheta - cameraRig.userTheta) * k;
   cameraRig.userPhi += (cameraRig.goalPhi - cameraRig.userPhi) * k;
 
-  const theta = cameraRig.baseTheta + cameraRig.userTheta + Math.sin(t * 0.13) * 0.035;
-  const phi = cameraRig.basePhi + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
-  const r = cameraRig.radius * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
+  // Würfel-Level: Blick auf die Würfelmitte, etwas weiter weg (weich übergeblendet, auch beim Levelwechsel)
+  const cube = cameraRig.cube;
+  cameraRig.lift += ((cube ? BEAM_Y + (cube - 1) / 2 * CELL : 0) - cameraRig.lift) * k;
+  // Hochformat: Das 2D-Feld füllt die Breite, der schmalere Würfel darf näher heran
+  const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) : 1;
+  cameraRig.zoom += (zoom - cameraRig.zoom) * k;
+  cameraRig.tilt += ((cube ? CUBE.cameraTilt : 0) - cameraRig.tilt) * k;
+  cameraRig.turn += ((cube ? CUBE.cameraTurn : 0) - cameraRig.turn) * k;
 
-  cameraRig.target.set(cameraRig.lead * Math.sin(theta), 0, cameraRig.lead * Math.cos(theta));
+  const theta = cameraRig.baseTheta + cameraRig.turn + cameraRig.userTheta + Math.sin(t * 0.13) * 0.035;
+  const phi = cameraRig.basePhi + cameraRig.tilt + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
+  const r = cameraRig.radius * cameraRig.zoom * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
+
+  cameraRig.target.set(cameraRig.lead * Math.sin(theta), cameraRig.lift, cameraRig.lead * Math.cos(theta));
   camera.position.set(
     cameraRig.target.x + r * Math.sin(phi) * Math.sin(theta),
     cameraRig.target.y + r * Math.cos(phi),
@@ -8345,6 +8405,36 @@ const HALF_GRID = (GRID - 1) / 2;
 /** Rasterkoordinate → Weltposition (Zellmitte auf der Platte). */
 function gridToWorld(x, z, y = 0, target = new THREE.Vector3()) {
   return target.set((x - HALF_GRID) * CELL, y, (z - HALF_GRID) * CELL);
+}
+
+/**
+ * Würfel-Level: Rasterpunkt (auch Zwischenpunkte von Strahlen) → Welt. Die unterste Ebene liegt auf Strahlhöhe
+ * über der Platte, jede weitere eine Zelle höher; waagrecht mittig wie das 2D-Feld.
+ */
+function cubeToWorld(x, y, z, size, target = new THREE.Vector3()) {
+  const half = (size - 1) / 2;
+  return target.set((x - half) * CELL, BEAM_Y + y * CELL, (z - half) * CELL);
+}
+
+/** Strahlpunkt eines Abschnitts oder Ereignisses in Weltkoordinaten (2D: auf Strahlhöhe). */
+function beamPointToWorld(x, y, z, target) {
+  return y === undefined ? gridToWorld(x, z, BEAM_Y, target) : cubeToWorld(x, y, z, game.board.size, target);
+}
+
+/** Normale aus der Logik als Weltvektor (2D: [nx, nz], Würfel: [nx, ny, nz]). */
+const normalToWorld = (n, target = new THREE.Vector3()) => (n.length === 3 ? target.fromArray(n) : target.set(n[0], 0, n[1]));
+
+/**
+ * Würfel-Level: Lage eines Elementmodells. Die Modelle sind für die 2D-Platte gebaut (Sockel unten, Optik auf
+ * Strahlhöhe, Drehung um ihr lokales y). Die Basis (u, a, v) der Drehachse (AXES) dreht lokales x, y, z in die
+ * Drehebene; der Ursprung liegt so, dass die Optik in der Zellmitte sitzt.
+ */
+const _axisBasis = new THREE.Matrix4();
+function placeInCube(obj, el, size) {
+  const { u, a, v } = AXES[el.axis];
+  _axisBasis.makeBasis(new THREE.Vector3(...u), new THREE.Vector3(...a), new THREE.Vector3(...v));
+  obj.quaternion.setFromRotationMatrix(_axisBasis);
+  cubeToWorld(el.x, el.y, el.z, size, obj.position).addScaledVector(new THREE.Vector3(...a), -BEAM_Y);
 }
 
 /**
@@ -8984,10 +9074,150 @@ function disposeTree(root) {
   });
 }
 
+/* =====================================================================
+   WÜRFEL — Hilfen für die Würfel-Level (Prototyp): Rahmen und Zellpunkte zeigen die
+   Tiefe, die Ebenenwahl macht eine Ebene voll sichtbar und als einzige anklickbar
+   und blendet die übrigen ab (sonst verdecken vordere Elemente die hinteren).
+   ===================================================================== */
+
+const CUBE = {
+  dimOpacity: 0.16,                                 // Deckkraft der Elemente fremder Ebenen
+  frameColor: new THREE.Color(0.3, 0.34, 0.5),
+  layerColor: new THREE.Color(0.5, 0.58, 0.95),
+  cameraZoom: 1.3,                                  // Abstand im Vergleich zum 2D-Feld (der Würfel ist höher)
+  cameraZoomNarrow: 0.95,                           // … im Hochformat (dort begrenzt die Breite, der Würfel ist schmaler)
+  cameraTilt: 0.3,                                  // flacher als beim 2D-Feld: die Ebenen liegen sichtbar übereinander
+  cameraTurn: 0.5,                                  // schräg: Strahlen zur Kamera hin liegen nicht hintereinander
+  phiMin: 0.22, phiMax: 1.42,                       // Neigung: fast senkrecht von oben bis knapp über die Platte
+};
+
+const cubeView = {
+  group: new THREE.Group(),
+  layerGroup: null,  // Rahmen, Fläche und Punkte der gewählten Ebene (wandert mit ihr)
+  layer: -1,         // gewählte Ebene, −1 = alle
+  size: 0,           // Kantenlänge des aktuellen Würfels, 0 = 2D-Level
+  dimmed: [],        // [{ mesh, original }] – abgeblendete Meshes und ihr eigentliches Material
+  copies: new Map(), // Material → abgeblendete Kopie
+
+  /** Neues Level: Hilfen auf- bzw. abbauen (vor dem Abbau der alten Modelle restore() aufrufen). */
+  build(board) {
+    this.restore();
+    for (const m of this.copies.values()) m.dispose();
+    this.copies.clear();
+    this.group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
+    this.group.clear();
+    this.layerGroup = null;
+    this.layer = -1;
+    this.size = board.dim === 3 ? board.size : 0;
+    if (!this.size) return;
+    const n = this.size, ext = n * CELL, mid = (n - 1) / 2;
+    const quiet = (o) => { o.raycast = () => {}; o.layers.set(LAYER_NO_REFLECT); return o; };
+    const lineMat = (color, opacity) => new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, fog: false });
+    const dotMat = (color, opacity, size) => new THREE.PointsMaterial({ color, size, transparent: true, opacity, depthWrite: false, fog: false });
+
+    const box = new THREE.BoxGeometry(ext, ext, ext);
+    const frame = quiet(new THREE.LineSegments(new THREE.EdgesGeometry(box), lineMat(CUBE.frameColor, 0.5)));
+    box.dispose();
+    // auf der Platte stehend (die unterste Zellmitte liegt auf Strahlhöhe, nicht eine halbe Zelle darüber)
+    cubeToWorld(mid, 0, mid, n, frame.position).y = ext / 2 + 0.002;
+
+    const cells = (layers) => {
+      const p = [];
+      for (const y of layers) for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) p.push(...cubeToWorld(x, y, z, n).toArray());
+      return new THREE.Float32BufferAttribute(p, 3);
+    };
+    const all = new THREE.BufferGeometry().setAttribute('position', cells([...Array(n).keys()]));
+    const dots = quiet(new THREE.Points(all, dotMat(CUBE.frameColor, 0.7, 0.045)));
+
+    // Ebene 0; setLayer schiebt die Gruppe nach oben
+    const layerGroup = this.layerGroup = new THREE.Group();
+    const square = new THREE.BufferGeometry().setFromPoints([[-1, -1], [1, -1], [1, 1], [-1, 1]]
+      .map(([sx, sz]) => cubeToWorld(mid + sx * n / 2, 0, mid + sz * n / 2, n)));
+    const outline = quiet(new THREE.LineLoop(square, lineMat(CUBE.layerColor, 0.8)));
+    const fill = quiet(new THREE.Mesh(new THREE.PlaneGeometry(ext, ext), new THREE.MeshBasicMaterial({
+      color: CUBE.layerColor, transparent: true, opacity: 0.035, side: THREE.DoubleSide, depthWrite: false, fog: false,
+    })));
+    fill.rotation.x = -Math.PI / 2;
+    cubeToWorld(mid, 0, mid, n, fill.position);
+    const layerDots = quiet(new THREE.Points(new THREE.BufferGeometry().setAttribute('position', cells([0])),
+      dotMat(CUBE.layerColor, 0.9, 0.07)));
+    layerGroup.add(outline, fill, layerDots);
+    layerGroup.visible = false;
+    this.group.add(frame, dots, layerGroup);
+  },
+
+  /** −1 = alle Ebenen. */
+  setLayer(layer) {
+    if (!this.size) return;
+    this.layer = layer;
+    this.layerGroup.visible = layer >= 0;
+    this.layerGroup.position.y = Math.max(layer, 0) * CELL;
+    this.restore();
+    if (layer >= 0) for (const obj of game.objects.values()) if (obj.userData.element.y !== layer) this.dim(obj);
+    if (input.hovered && !this.pickable(input.hovered)) setHovered(null);
+    ui.showLayer();
+    markShadowsDirty();
+  },
+  /** Eine Ebene höher bzw. tiefer; über die oberste bzw. unterste hinaus wieder alle Ebenen. */
+  stepLayer(delta) {
+    if (!this.size) return;
+    const next = this.layer < 0 ? (delta > 0 ? 0 : this.size - 1) : this.layer + delta;
+    this.setLayer(next < 0 || next >= this.size ? -1 : next);
+  },
+  pickable(el) { return this.layer < 0 || el.y === this.layer; },
+
+  /**
+   * Undurchsichtige Materialien eines Elements gegen durchscheinende Kopien tauschen (Leuchtschichten bleiben).
+   * Die Kopie teilt die Farbobjekte mit dem Original; Zahlen gleicht tick() in beide Richtungen ab, denn die
+   * Animationen der Elemente schreiben teils über das Mesh (also in die Kopie), teils über eine gemerkte Referenz.
+   */
+  dim(obj) {
+    obj.traverse((m) => {
+      const mat = m.material;
+      if (!m.isMesh || !mat || Array.isArray(mat) || !mat.visible || mat.isShaderMaterial || mat.blending === THREE.AdditiveBlending) return;
+      let copy = this.copies.get(mat);
+      if (!copy) {
+        copy = mat.clone();
+        for (const key of ['color', 'emissive']) if (mat[key]) copy[key] = mat[key];
+        copy.transparent = true;
+        copy.depthWrite = false;
+        this.copies.set(mat, copy);
+      }
+      this.dimmed.push({ mesh: m, original: mat, castShadow: m.castShadow });
+      m.material = copy;
+      m.castShadow = false; // eine durchscheinende Ebene wirft keinen vollen Schatten
+    });
+  },
+  restore() {
+    for (const { mesh, original, castShadow } of this.dimmed) { mesh.material = original; mesh.castShadow = castShadow; }
+    this.dimmed = [];
+  },
+  /** Pro Bild: Kopie und Original abgleichen (Glimmen der Ziele, Aufleuchten der Prismen) und Kopie abblenden. */
+  tick() {
+    const done = new Set(); // eine Kopie kann mehreren Meshes gehören (geteilte Materialien): je Bild nur einmal
+    for (const rec of this.dimmed) {
+      const c = rec.mesh.material, o = rec.original;
+      if (done.has(c)) continue;
+      done.add(c);
+      const seen = c.userData.dimSeen || (c.userData.dimSeen = {});
+      // Hat eine Animation seit dem letzten Bild in die Kopie geschrieben, gilt ihr Wert, sonst der des Originals.
+      if (o.emissive) {
+        if (seen.emissive !== undefined && c.emissiveIntensity !== seen.emissive) o.emissiveIntensity = c.emissiveIntensity;
+        seen.emissive = c.emissiveIntensity = o.emissiveIntensity;
+      }
+      if (seen.opacity !== undefined && c.opacity !== seen.opacity) o.opacity = c.opacity;
+      seen.opacity = c.opacity = o.opacity * CUBE.dimOpacity;
+    }
+  },
+};
+boardGroup.add(cubeView.group);
+
 /** Baut ein Level auf; beamDelay = Sekunden, bis die Strahlen von den Quellen aus loswachsen. */
 function loadLevel(index, beamDelay = 0) {
+  const keepLayer = game.board?.name === LEVELS[index].name ? cubeView.layer : -1; // neu starten: Ebene bleibt
   game.levelIndex = index;
   game.board = createBoard(LEVELS[index]);
+  cubeView.restore(); // eigene Materialien zurück, bevor die alten Modelle freigegeben werden
   for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
   game.objects.clear();
   game.hitProxies = [];
@@ -8998,13 +9228,19 @@ function loadLevel(index, beamDelay = 0) {
     const factory = ELEMENT_FACTORIES[el.type];
     if (!factory) continue;
     const obj = factory(el);
-    gridToWorld(el.x, el.z, 0, obj.position);
+    if (game.board.dim === 3) placeInCube(obj, el, game.board.size);
+    else gridToWorld(el.x, el.z, 0, obj.position);
     obj.userData.element = el;
     boardGroup.add(obj);
     game.objects.set(el.id, obj);
     if (isRotatable(el)) makeInteractive(obj);
   }
   game.targets = [...game.objects.values()].filter(o => o.userData.element.type === 'target');
+  cubeView.build(game.board);
+  if (keepLayer >= 0) cubeView.setLayer(keepLayer);
+  cameraRig.cube = game.board.dim === 3 ? game.board.size : 0;
+  // Staub im ganzen Würfel, nicht nur knapp über der Platte (Teilchen liegen zwischen 0.12 und 0.84)
+  beamView.dust.scale.y = cameraRig.cube ? (BEAM_Y + cameraRig.cube * CELL) / 0.84 : 1;
   markShadowsDirty();
   // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
   requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
@@ -9121,8 +9357,9 @@ const BEAM = {
 };
 
 // Weglänge gehört zum Schlüssel: derselbe Abschnitt über einen neuen Weg ist ein neuer Abschnitt.
-const segmentKey = (s) => `${s.x0},${s.z0},${s.x1},${s.z1},${s.color},${s.dist0.toFixed(3)}`;
-const eventKey = (e) => `${e.kind},${e.x},${e.z},${e.color},${e.dist.toFixed(3)}`;
+// Würfel-Level: mit Ebene y (im 2D-Feld undefined und damit gleich für alle)
+const segmentKey = (s) => `${s.x0},${s.y0},${s.z0},${s.x1},${s.y1},${s.z1},${s.color},${s.dist0.toFixed(3)}`;
+const eventKey = (e) => `${e.kind},${e.x},${e.y},${e.z},${e.color},${e.dist.toFixed(3)}`;
 
 /** Position der Wachstumsfront eines Datensatzes zur Zeit t (Welteinheiten Weglänge). */
 function frontAt(rec, t) {
@@ -9143,7 +9380,8 @@ const BEAM_VERTEX_COMMON = `
   attribute vec3 aColor;
   attribute vec2 aDist;     // x: Weglänge ab Quelle am Anfang · y: Länge
   attribute vec3 aLife;     // x: Startweg der Front · y: Geburtszeit · z: Sterbezeit (−1 = lebt)
-  attribute vec4 aCaps;     // Schnittnormalen (xz) an Anfang (xy) und Ende (zw)
+  attribute vec3 aCap0;     // Schnittnormale am Anfang (im 2D-Feld waagrecht, im Würfel beliebig)
+  attribute vec3 aCap1;     // … und am Ende
   attribute float aFade;    // Ausblendstrecke vor dem Ende (Welt, ab Plattenkante; 0 = hartes Ende)
   uniform float uHalfWidth;
   varying vec2 vLocal;      // x: entlang (Welt, 0..Länge, ausserhalb = Kappe) · y: quer
@@ -9151,16 +9389,13 @@ const BEAM_VERTEX_COMMON = `
   varying vec2 vDist;
   varying vec3 vLife;
   varying vec3 vWorld;
-  varying vec4 vEnds;       // Anfang (xy) und Ende (zw) in Welt-xz
-  varying vec4 vCaps;
+  varying vec2 vCut;        // Abstand vor den Schnittebenen an Anfang (x) und Ende (y)
   varying float vFade;
   void passCaps(vec3 s, vec3 e, vec3 p) {
     vWorld = p;
     vFade = aFade;
-    vEnds = vec4(s.xz, e.xz);
-    vec3 c0 = mat3(modelMatrix) * vec3(aCaps.x, 0.0, aCaps.y);
-    vec3 c1 = mat3(modelMatrix) * vec3(aCaps.z, 0.0, aCaps.w);
-    vCaps = vec4(c0.xz, c1.xz);
+    // Der Abstand zu einer Ebene ist linear in p – über die flache Kapsel interpoliert bleibt er exakt.
+    vCut = vec2(dot(p - s, mat3(modelMatrix) * aCap0), dot(p - e, mat3(modelMatrix) * aCap1));
   }
 `;
 
@@ -9174,8 +9409,7 @@ const BEAM_FRAGMENT_COMMON = `
   varying vec2 vDist;
   varying vec3 vLife;
   varying vec3 vWorld;
-  varying vec4 vEnds;
-  varying vec4 vCaps;
+  varying vec2 vCut;
   varying float vFade;
 
   float hash1(float n) { return fract(sin(n) * 43758.5453123); }
@@ -9194,8 +9428,8 @@ const BEAM_FRAGMENT_COMMON = `
     float front = vLife.x + uSpeed * (t - vLife.y);
     visible = 1.0 - smoothstep(front - 0.25, front, pathDist);
     // Schnitt an Anfang und Ende: hinter Spiegelfläche bzw. jenseits des Endpunkts kein Leuchten
-    float k0 = dot(vWorld.xz - vEnds.xy, vCaps.xy);
-    float k1 = dot(vWorld.xz - vEnds.zw, vCaps.zw);
+    float k0 = vCut.x;
+    float k1 = vCut.y;
     cutDist = min(k0, k1);
     visible *= smoothstep(uCapSoft.x, uCapSoft.y, k0) * smoothstep(uCapSoft.x, uCapSoft.y, k1);
     // Auslaufen in die Ferne: über die letzte Strecke weich auf null
@@ -9308,31 +9542,37 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
   { uFloorWidth: { value: BEAM.floorWidth }, uCapSoft: { value: new THREE.Vector2(-0.05, 0.15) } },
   `
   uniform float uFloorWidth;
+  varying float vLift;
   void main() {
+    // Würfel: Strahlen höherer Ebenen werfen schwächeren Schein (Tiefenhinweis); im 2D-Feld genau 0
+    vLift = (aCorner.x < 0.0 ? aStart.y : aEnd.y) - ${BEAM_Y.toFixed(4)};
     vec3 s = (modelMatrix * vec4(aStart, 1.0)).xyz;
     vec3 e = (modelMatrix * vec4(aEnd, 1.0)).xyz;
     vec3 axis = e - s;
     float len = max(length(axis), 1e-4);
     vec3 dir = axis / len;
-    vec3 side = normalize(cross(dir, vec3(0.0, 1.0, 0.0)));
+    vec3 side = cross(dir, vec3(0.0, 1.0, 0.0));
+    // senkrechter Strahl (Würfel): keine Querrichtung – die Kapsel fällt auf dem Boden zur Linie zusammen, kein Schein
+    side = dot(side, side) < 1e-6 ? vec3(1.0, 0.0, 0.0) : normalize(side);
     vec3 base = aCorner.x < 0.0 ? s : e;
     vec3 p = base + dir * aCorner.x * uFloorWidth + side * aCorner.y * uFloorWidth;
-    p.y = 0.004;
     vLocal = vec2(aCorner.x < 0.0 ? -uFloorWidth : len + uFloorWidth, aCorner.y * uFloorWidth);
     vColor = aColor;
     vDist = aDist;
     vLife = aLife;
-    passCaps(s, e, p);
+    passCaps(s, e, p); // Schnitt am Strahl selbst, vor dem Absenken (Würfel: Normalen mit Höhenanteil)
+    p.y = 0.004;
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
   }`,
   BEAM_FRAGMENT_COMMON + `
+  varying float vLift;
   void main() {
     float d, pathDist, visible;
     beamDistance(d, pathDist, visible);
     if (visible <= 0.001) discard;
     // nie über die Plattenkante hinaus
     float edge = ${(PLATE / 2).toFixed(4)} - max(abs(vWorld.x), abs(vWorld.z));
-    visible *= smoothstep(0.0, 0.3, edge);
+    visible *= smoothstep(0.0, 0.3, edge) * exp(-max(vLift, 0.0) * 0.45);
     float spill = exp(-(d * d) / 0.03) * 0.045 + exp(-d / 0.3) * 0.01;
     spill *= mix(1.0, 0.75, smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)))); // wie beim Strahl
     gl_FragColor = vec4(vColor * spill * visible, 1.0);
@@ -9345,14 +9585,18 @@ function buildBeamGeometry(records) {
   const start = new Float32Array(n * 12), end = new Float32Array(n * 12);
   const corner = new Float32Array(n * 8), color = new Float32Array(n * 12);
   const dist = new Float32Array(n * 8), life = new Float32Array(n * 12);
-  const caps = new Float32Array(n * 16), fade = new Float32Array(n * 4);
+  const cap0 = new Float32Array(n * 12), cap1 = new Float32Array(n * 12), fade = new Float32Array(n * 4);
+  const c0 = new THREE.Vector3(), c1 = new THREE.Vector3();
   const index = new Uint16Array(n * 6); // max. 256 Abschnitte × 4 Ecken < 65536
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   records.forEach((r, i) => {
     const s = r.seg, c = COLOR_RGB[s.color];
     // Erst jenseits der Platte ausblenden: Weg bis zur Plattenkante entlang des Strahls (diagonal länger)
     const axis = Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)) / s.length;
-    const fadeLen = s.fade ? s.fade * CELL - PLATE_RIM / axis : 0;
+    // Würfel: kein Plattenrand ringsum (Strahlen verlassen ihn auch nach oben) – ab der Würfelkante ausblenden
+    const fadeLen = !s.fade ? 0 : s.y0 === undefined ? s.fade * CELL - PLATE_RIM / axis : s.fade * CELL;
+    normalToWorld(s.n0, c0);
+    normalToWorld(s.n1, c1);
     for (let k = 0; k < 4; k++) {
       const v = i * 4 + k;
       start[v * 3] = r.a.x; start[v * 3 + 1] = r.a.y; start[v * 3 + 2] = r.a.z;
@@ -9362,7 +9606,8 @@ function buildBeamGeometry(records) {
       dist[v * 2] = s.dist0 * CELL; dist[v * 2 + 1] = s.length * CELL;
       life[v * 3] = r.start; life[v * 3 + 1] = r.birth; life[v * 3 + 2] = r.death;
       fade[v] = fadeLen;
-      caps[v * 4] = s.n0[0]; caps[v * 4 + 1] = s.n0[1]; caps[v * 4 + 2] = s.n1[0]; caps[v * 4 + 3] = s.n1[1];
+      c0.toArray(cap0, v * 3);
+      c1.toArray(cap1, v * 3);
     }
     index.set([i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3], i * 6);
   });
@@ -9375,7 +9620,8 @@ function buildBeamGeometry(records) {
   geo.setAttribute('aColor', new THREE.BufferAttribute(color, 3));
   geo.setAttribute('aDist', new THREE.BufferAttribute(dist, 2));
   geo.setAttribute('aLife', new THREE.BufferAttribute(life, 3));
-  geo.setAttribute('aCaps', new THREE.BufferAttribute(caps, 4));
+  geo.setAttribute('aCap0', new THREE.BufferAttribute(cap0, 3));
+  geo.setAttribute('aCap1', new THREE.BufferAttribute(cap1, 3));
   geo.setAttribute('aFade', new THREE.BufferAttribute(fade, 1));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
@@ -9442,7 +9688,7 @@ function createSpotTexture(size) {
 const spotTexture = createSpotTexture(128);
 const SPOT_SIZE = 0.34;      // liegt sicher innerhalb der Glasfläche (0.87 × 0.55)
 const SPOT_OFFSET = 0.009;   // knapp vor der Glasoberfläche (Glas: ±0.006)
-const _spotTarget = new THREE.Vector3();
+const _spotTarget = new THREE.Vector3(), _spotNormal = new THREE.Vector3();
 const spotGeometry = new THREE.PlaneGeometry(SPOT_SIZE, SPOT_SIZE);
 const FLARE_STYLE = {
   reflect: { scale: 0.3, intensity: 2.2 },
@@ -9609,14 +9855,14 @@ const beamView = {
       const life = carry(prevSegs, key);
       return {
         seg: s, key, start: life.start, birth: life.birth, death: -1,
-        a: gridToWorld(s.x0, s.z0, BEAM_Y), b: gridToWorld(s.x1, s.z1, BEAM_Y),
+        a: beamPointToWorld(s.x0, s.y0, s.z0), b: beamPointToWorld(s.x1, s.y1, s.z1),
         end: (s.dist0 + s.length) * CELL,
       };
     });
     const nextEvents = result.events.map((e) => {
       const key = eventKey(e);
       const life = carry(prevEvents, key);
-      return { ev: e, key, start: life.start, birth: life.birth, death: -1, worldDist: e.dist * CELL, pos: gridToWorld(e.x, e.z, BEAM_Y) };
+      return { ev: e, key, start: life.start, birth: life.birth, death: -1, worldDist: e.dist * CELL, pos: beamPointToWorld(e.x, e.y, e.z) };
     });
 
     // Entfallene Datensätze sterben jetzt und blenden aus (bereits ausblendende laufen weiter).
@@ -9666,10 +9912,11 @@ const beamView = {
       this.flares.push(s);
     }
     const perPlace = new Map(); // Blitze am selben Ort (z. B. drei Farben in einen Kombinator)
-    for (const r of all) { const k = r.ev.x + ',' + r.ev.z + ',' + r.ev.kind; perPlace.set(k, (perPlace.get(k) || 0) + 1); }
+    const placeKey = (ev) => ev.x + ',' + ev.y + ',' + ev.z + ',' + ev.kind;
+    for (const r of all) { const k = placeKey(r.ev); perPlace.set(k, (perPlace.get(k) || 0) + 1); }
     this.flares.forEach((s, i) => {
       const rec = all[i];
-      if (rec) s.userData.share = 1 / Math.sqrt(perPlace.get(rec.ev.x + ',' + rec.ev.z + ',' + rec.ev.kind));
+      if (rec) s.userData.share = 1 / Math.sqrt(perPlace.get(placeKey(rec.ev)));
       const prevKey = s.userData.rec && s.userData.rec.key;
       s.visible = !!rec;
       s.userData.rec = rec || null;
@@ -9703,9 +9950,11 @@ const beamView = {
       m.userData.rec = rec || null;
       if (!rec) return;
       if (prevKey !== rec.key) m.userData.pop = this.revealed(rec, rec.worldDist) && rec.birth < this.time ? 1 : 0;
-      const [nx, nz] = rec.ev.normal;
-      m.position.copy(rec.pos).add(_spotTarget.set(nx * SPOT_OFFSET, 0, nz * SPOT_OFFSET));
-      m.lookAt(_spotTarget.set(m.position.x + nx, m.position.y, m.position.z + nz));
+      const n = normalToWorld(rec.ev.normal, _spotNormal);
+      m.position.copy(rec.pos).addScaledVector(n, SPOT_OFFSET);
+      // Blickt der Fleck senkrecht nach oben oder unten (Würfel), braucht lookAt ein anderes "oben"
+      m.up.set(0, Math.abs(n.y) > 0.99 ? 0 : 1, Math.abs(n.y) > 0.99 ? 1 : 0);
+      m.lookAt(_spotTarget.copy(m.position).add(n));
     });
   },
 
@@ -9741,7 +9990,7 @@ const beamView = {
       const n = rec.ev.normal;
       // Ab einem deutlich frontalen Blick sichtbar; bei streifendem Blick würde der Blitz über
       // Rahmen und Stützen hinausragen (und beim Schweben der Kamera ein- und ausblenden).
-      const side = n ? THREE.MathUtils.smoothstep(toCam.x * n[0] + toCam.z * n[1], 0.3, 0.55) : 1;
+      const side = n ? THREE.MathUtils.smoothstep(toCam.dot(normalToWorld(n, _spotNormal)), 0.3, 0.55) : 1;
       const fade = fadeAt(rec, t) * side;
       const scale = style.scale * p * burst * flicker * (0.4 + 0.6 * fadeAt(rec, t)) * (0.55 + 0.45 * side);
       s.scale.set(scale, scale, 1);
@@ -9817,10 +10066,12 @@ function pickElement(clientX, clientY, slop = 0) {
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointerNdc, camera);
-  const hits = raycaster.intersectObjects(game.hitProxies, false);
+  // Würfel: nur die gewählte Ebene ist anklickbar – Klicks gehen durch die abgeblendeten Ebenen hindurch
+  const proxies = cubeView.layer < 0 ? game.hitProxies : game.hitProxies.filter(p => cubeView.pickable(p.userData.element));
+  const hits = raycaster.intersectObjects(proxies, false);
   if (hits.length) return hits[0].object.userData.element;
   let best = null, bestD = slop;
-  for (const proxy of game.hitProxies) {
+  for (const proxy of proxies) {
     proxy.getWorldPosition(_pickPos).project(camera);
     const d = Math.hypot((_pickPos.x + 1) / 2 * rect.width + rect.left - clientX,
       (1 - _pickPos.y) / 2 * rect.height + rect.top - clientY);
@@ -9995,6 +10246,7 @@ function makeInteractive(obj) {
     ring.visible = u.hover > 0;
     ringMat.color.setRGB(0.55, 0.62, 0.85).multiplyScalar(u.hover * 1.3);
     turnMat.color.setRGB(0.66, 0.7, 0.8).multiplyScalar(0.85 + u.hover * 0.4 + pulse * 2.2); // kühles Weiss, so hell wie zuvor das Eisblau
+    if (!cubeView.pickable(u.element)) turnMat.color.multiplyScalar(CUBE.dimOpacity); // Würfel: fremde Ebene – nicht anklickbar
   };
   u.warmup = (on) => { for (const o of overlays) o.visible = on; ring.visible = on; }; // siehe warmupShaders
 }
@@ -10010,7 +10262,11 @@ function dragCamera(dx, dy) {
   const wrap = Math.round(cameraRig.goalTheta / (2 * Math.PI)) * 2 * Math.PI;
   cameraRig.goalTheta -= wrap;
   cameraRig.userTheta -= wrap;
-  cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp, cameraRig.limitsPhiDown);
+  // Würfel: deutlich freiere Neigung – von oben in die Schächte, von der Seite auf die Ebenen
+  const base = cameraRig.basePhi + CUBE.cameraTilt;
+  const up = cameraRig.cube ? base - CUBE.phiMin : cameraRig.limitsPhiUp;
+  const down = cameraRig.cube ? CUBE.phiMax - base : cameraRig.limitsPhiDown;
+  cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -up, down);
 }
 
 function endPointer() {
@@ -10451,10 +10707,16 @@ const FLOW = {
 const easeInCubic = (x) => x * x * x;
 const easeOutBack = (x) => { const c = 1.6; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles blendet aus
-/** Anzahl der eigentlichen Level nach dem Tutorial. */
-const MAIN_COUNT = LEVELS.length - TUTORIAL_COUNT;
-/** Nummer eines Levels: im Tutorial 1 … TUTORIAL_COUNT, danach 1 … MAIN_COUNT. */
-const levelNumber = (i) => (i < TUTORIAL_COUNT ? i + 1 : i - TUTORIAL_COUNT + 1);
+/**
+ * Die Würfel-Level (Prototyp) hängen im Spiel hinter den 2D-Leveln. Im LOGIC-Block bleibt LEVELS ohne sie –
+ * Tests, Golden-Test und Kuratierung sehen nur die 2D-Level.
+ */
+const CUBE_START = LEVELS.length;
+LEVELS.push(...LEVELS_3D);
+/** Anzahl der eigentlichen Level nach dem Tutorial (ohne Würfel). */
+const MAIN_COUNT = CUBE_START - TUTORIAL_COUNT;
+/** Nummer eines Levels: im Tutorial 1 … TUTORIAL_COUNT, danach 1 … MAIN_COUNT, im Würfel wieder ab 1. */
+const levelNumber = (i) => (i < TUTORIAL_COUNT ? i + 1 : i < CUBE_START ? i - TUTORIAL_COUNT + 1 : i - CUBE_START + 1);
 /** Markierung schwerer Level (Feld difficulty in LEVELS): Text und Rauten in Kopfzeile und Levelauswahl. */
 const DIFFICULTY = {
   'schwer': { label: 'Schwer', pips: '◆' },
@@ -10476,14 +10738,15 @@ const PAGE_SIZE = 10;
 const PAGES = (() => {
   const all = LEVELS.map((_, i) => i);
   const pages = [{ id: 'T', label: 'Tutorial', title: 'Tutorial · die Mechaniken', indices: all.slice(0, TUTORIAL_COUNT) }];
-  for (let a = TUTORIAL_COUNT; a < LEVELS.length; a += PAGE_SIZE) {
-    const indices = all.slice(a, a + PAGE_SIZE);
+  for (let a = TUTORIAL_COUNT; a < CUBE_START; a += PAGE_SIZE) {
+    const indices = all.slice(a, Math.min(a + PAGE_SIZE, CUBE_START));
     const from = levelNumber(a), to = levelNumber(indices.at(-1));
     // ist die ganze Seite gleich schwer markiert, steht das im Seitentitel
     const tier = indices.every(i => LEVELS[i].difficulty === LEVELS[a].difficulty) ? LEVELS[a].difficulty : undefined;
     const title = `Level ${from} – ${to}` + (tier ? ` · ${DIFFICULTY[tier].label}` : '');
     pages.push({ id: String(from), label: `${from}–${to}`, title, indices });
   }
+  if (CUBE_START < LEVELS.length) pages.push({ id: 'W', label: 'Würfel', title: 'Würfel · Prototyp in 3D', indices: all.slice(CUBE_START) });
   return pages;
 })();
 const pageOf = (i) => PAGES.find(p => p.indices.includes(i));
@@ -10494,8 +10757,9 @@ const flow = {
   next: 0,        // Ziel-Level beim Versinken
   solved: false,  // Lösungsmoment für das aktuelle Feld schon ausgelöst
 };
-const waveDelay = (el) => (el.x + el.z) * FLOW.wave;
-const waveLength = (size = game.board.size) => 2 * (size - 1) * FLOW.wave;
+const waveDelay = (el) => (el.x + el.z + (el.y || 0)) * FLOW.wave; // Würfel: die Welle steigt auch nach oben
+/** Dauer der Welle über ein Feld (Level oder Board; Würfel: drei Achsen). */
+const waveLength = (b = game.board) => (b.dim === 3 ? 3 : 2) * ((b.size || 7) - 1) * FLOW.wave;
 
 /**
  * Fortschritt im Browser. Gelöste Level werden nach Namen gespeichert, nicht nach Position – so bleibt
@@ -10520,8 +10784,8 @@ const progress = {
     const i = cur === null ? -1 : LEVELS.findIndex((_, k) => this.keyOf(k) === strip(cur));
     if (i >= 0) return i;
     // unbekannt (z. B. umbenannt): erstes noch ungelöstes Level, sonst das letzte
-    const fresh = LEVELS.findIndex((_, k) => !this.isSolved(k));
-    return fresh >= 0 ? fresh : LEVELS.length - 1;
+    const fresh = LEVELS.findIndex((_, k) => k < CUBE_START && !this.isSolved(k)); // Würfel-Level nur auf Wunsch
+    return fresh >= 0 ? fresh : CUBE_START - 1;
   },
   save(index) {
     try {
@@ -10572,7 +10836,7 @@ function enterLevel(index) {
   flow.state = 'in';
   flow.t = 0;
   flow.solved = false;
-  loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index].size || 7)); // erst wenn alles steht
+  loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index])); // erst wenn alles steht
   for (const obj of game.objects.values()) obj.scale.setScalar(1e-3);
   ui.showHud(index);
 }
@@ -10649,7 +10913,7 @@ function setShown(el, shown) {
 
 const ui = {
   hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
-  controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
+  controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'), layers: $('layers'), layerLabel: $('btn-layer-all'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
   shownPage: 'T',
@@ -10661,13 +10925,18 @@ const ui = {
     this.sound.addEventListener('click', () => this.toggleSound());
     this.sky.addEventListener('click', () => this.toggleSky());
     $('btn-levels').addEventListener('click', () => this.openLevels());
+    $('btn-layer-up').addEventListener('click', () => cubeView.stepLayer(1));
+    $('btn-layer-down').addEventListener('click', () => cubeView.stepLayer(-1));
+    this.layerLabel.addEventListener('click', () => cubeView.setLayer(-1));
     $('btn-levels-close').addEventListener('click', () => this.closeLevels());
     this.levels.addEventListener('click', (e) => { if (e.target === this.levels) this.closeLevels(); });
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
     // Seitenreiter in einer Reihe; ab 9 Seiten in zwei Reihen (sonst zu schmal für "Tutorial")
-    this.tabs.style.setProperty('--pages', PAGES.length > 8 ? Math.ceil(PAGES.length / 2) : PAGES.length);
+    // Würfel-Reiter (Prototyp) zählt nicht mit – er steht allein in einer dritten Reihe
+    const flatPages = PAGES.filter(p => p.id !== 'W').length;
+    this.tabs.style.setProperty('--pages', flatPages > 8 ? Math.ceil(flatPages / 2) : flatPages);
     for (const pg of PAGES) {
       const t = document.createElement('button');
       t.className = 'page';
@@ -10692,9 +10961,14 @@ const ui = {
   showHud(index) {
     if (this._hintTimer !== undefined) { clearTimeout(this._hintTimer); this._hintTimer = undefined; }
     const lvl = LEVELS[index], n = levelNumber(index);
-    this.hud.classList.toggle('tutorial', !!lvl.tutorial);
+    this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
     fillTier(this.tier, lvl);
-    if (lvl.tutorial) {
+    setShown(this.layers, lvl.dim === 3);
+    this.showLayer();
+    if (lvl.dim === 3) {
+      this.title.textContent = `Würfel ${n} / ${LEVELS.length - CUBE_START} – ${lvl.name}`;
+      this.sub.textContent = lvl.hint;
+    } else if (lvl.tutorial) {
       this.title.textContent = `Tutorial ${n} / ${TUTORIAL_COUNT} – ${lvl.name}`;
       this.sub.textContent = lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
         .replaceAll('{Rechtsklick}', IS_TOUCH ? 'Lang drücken' : 'Rechtsklick');
@@ -10712,7 +10986,14 @@ const ui = {
     if (this.goal.textContent !== text) this.goal.textContent = text;
     this.goal.classList.toggle('done', lit === total);
   },
-  hideHud() { this.hud.classList.add('hidden'); },
+  hideHud() { this.hud.classList.add('hidden'); setShown(this.layers, false); },
+  /** Ebenenwahl der Würfel-Level: gewählte Ebene (von unten gezählt) oder "Alle". */
+  showLayer() {
+    const all = cubeView.layer < 0;
+    this.layerLabel.replaceChildren(all ? 'Alle' : String(cubeView.layer + 1), Object.assign(document.createElement('small'),
+      { textContent: all ? 'Ebenen' : `von ${cubeView.size}` }));
+    this.layerLabel.setAttribute('aria-label', all ? 'Alle Ebenen sichtbar' : `Ebene ${cubeView.layer + 1} von ${cubeView.size} – alle Ebenen zeigen`);
+  },
   /** Kurzer Hinweis in der Unterzeile, danach wieder der normale Text. */
   flashHint(text) {
     if (this._hintTimer === undefined) this._hintText = this.sub.textContent;
@@ -10727,9 +11008,12 @@ const ui = {
    */
   showSolved(index, first) {
     const tutorial = PAGES[0].indices;
-    const all = LEVELS.every((_, i) => progress.isSolved(i));
-    this.lastLevel = index === LEVELS.length - 1;
-    this.solvedMsg.textContent = first && all ? 'Alle Level gelöst'
+    // 2D-Level und Würfel-Level (Prototyp) je für sich: Level 150 führt nicht in den Würfel
+    const range = index < CUBE_START ? LEVELS.slice(0, CUBE_START) : LEVELS.slice(CUBE_START);
+    const offset = index < CUBE_START ? 0 : CUBE_START;
+    const all = range.every((_, i) => progress.isSolved(offset + i));
+    this.lastLevel = index === offset + range.length - 1;
+    this.solvedMsg.textContent = first && all ? (offset ? 'Alle Würfel gelöst' : 'Alle Level gelöst')
       : first && LEVELS[index].tutorial && progress.solvedCount(tutorial) === tutorial.length ? 'Tutorial geschafft' : 'Level gelöst';
     this.next.textContent = this.lastLevel ? 'Levelauswahl' : 'Weiter';
     setShown(this.solved, true);
@@ -10765,7 +11049,7 @@ const ui = {
   openLevels() {
     if (flow.state === 'intro') return;
     setShown(this.levels, true);
-    for (const el of [this.controls, this.solved, this.hud]) { el.dataset.inertBefore = String(el.inert); el.inert = true; }
+    for (const el of [this.controls, this.layers, this.solved, this.hud]) { el.dataset.inertBefore = String(el.inert); el.inert = true; }
     document.body.classList.add('levels-open'); // Kopfzeile ausblenden – sonst scheint sie hinter den Reitern durch
     this.showPage(pageOf(game.levelIndex).id);
     (this.grid.querySelector('.current') || this.tabs.querySelector('[aria-pressed="true"]'))?.focus();
@@ -10799,7 +11083,7 @@ const ui = {
         b.title = tier.label;
       }
       const done = progress.isSolved(i);
-      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : 'Level '}${k + 1} ${LEVELS[i].name}` +
+      b.setAttribute('aria-label', `${LEVELS[i].tutorial ? 'Tutorial ' : LEVELS[i].dim === 3 ? 'Würfel ' : 'Level '}${k + 1} ${LEVELS[i].name}` +
         `${tier ? ', ' + tier.label.toLowerCase() : ''}${done ? ', gelöst' : ''}`);
       if (i === game.levelIndex) b.setAttribute('aria-current', 'true');
       b.classList.toggle('current', i === game.levelIndex);
@@ -10819,7 +11103,7 @@ const ui = {
     if (!this.levelsOpen()) return;
     setShown(this.levels, false);
     // Sperren aufheben – wer vorher versteckt war (inert), bleibt es
-    for (const el of [this.controls, this.solved, this.hud]) { el.inert = el.dataset.inertBefore === 'true'; delete el.dataset.inertBefore; }
+    for (const el of [this.controls, this.layers, this.solved, this.hud]) { el.inert = el.dataset.inertBefore === 'true'; delete el.dataset.inertBefore; }
     document.body.classList.remove('levels-open');
     if (!this.controls.inert) $('btn-levels').focus({ preventScroll: true });
   },
@@ -10840,6 +11124,7 @@ ui.init();
 
 /* ---------- Tasten ----------
    N / →: nächstes Level · P / ←: voriges Level (nur freigeschaltete, kein Umbruch) · R: neu starten · M: Ton · L: Levelauswahl
+   ↑ / ↓: Ebene im Würfel-Level · A: alle Ebenen
    Enter: weiter (nach dem Lösen) bzw. Start · Esc: Levelauswahl schliessen
    C (Debug): Farbe der Quellen wechseln */
 
@@ -10865,6 +11150,11 @@ window.addEventListener('keydown', (e) => {
     stepLevel(-1);
   } else if (e.code === 'KeyR') {
     stepLevel(0);
+  } else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+    e.preventDefault();
+    cubeView.stepLayer(e.code === 'ArrowUp' ? 1 : -1);
+  } else if (e.code === 'KeyA') {
+    cubeView.setLayer(-1);
   } else if (e.code === 'KeyC') {
     if (flow.state !== 'play') return;
     const cycle = [7, 1, 2, 4, 3, 5, 6];
@@ -11145,6 +11435,7 @@ function frame(ts) {
     if (obj.userData.updateHover) obj.userData.updateHover(dt);
   }
   beamView.tick(t, dt);
+  cubeView.tick();
   updateTargetGoals();
 
   renderReflection();
@@ -11162,7 +11453,7 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale };
 // Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig };
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView };
 requestAnimationFrame(frame);
 </script>
 </body>

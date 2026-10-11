@@ -27,6 +27,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
+- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 5×5×5-Würfel (`LEVELS_3D`, `dim: 3`),
+  in der Levelauswahl auf der Seite „Würfel“. Jedes Element dreht um eine feste Achse (der Drehteller zeigt sie) und
+  wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
+  Eigener Logikpfad (`createBoard3`, `tracePass3`), die 2D-Level bleiben bitgleich (`tests/golden.mjs`).
+  Ebenenwahl rechts (Handy: unten links) bzw. ↑ / ↓, A alle Ebenen: Die gewählte Ebene ist als einzige anklickbar,
+  die übrigen werden durchscheinend. Die Kamera lässt sich im Würfel viel stärker neigen.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
