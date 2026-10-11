@@ -18,6 +18,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
   eingebunden, über file:// blockiert es der Browser.
 - **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik, `node tests/offline.mjs` den Offline-Betrieb (`--redirect`: Server leitet index.html weiter),
+  `node tests/golden.mjs` vergleicht die Strahlbilder aller Level (Start- und Lösungsstellung, dazu Löser und Wertung
+  für Tutorial und jedes 10. Level) Zahl für Zahl mit `tests/golden.json` (`--write` schreibt die Datei neu, etwa 40 s),
   `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
   `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
   `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
