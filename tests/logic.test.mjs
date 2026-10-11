@@ -10,7 +10,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3 };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -566,6 +566,88 @@ L.LEVELS.forEach((lvl, i) => {
     assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
   });
 });
+
+console.log('Würfel (dim: 3)');
+{
+  const cube = (elements, size = 5) => L.createBoard({ name: 'test3', dim: 3, size, elements });
+  const vec = (d) => JSON.stringify(d);
+  test('Achse y verhält sich wie die 2D-Ebene (Spiegel und Prisma)', () => {
+    for (let rot = 0; rot < 8; rot++) for (let dir = 0; dir < 8; dir++) {
+      const nd = L.reflectOnMirror(dir, rot);
+      assert.equal(vec(L.reflect3(L.planeDir('y', dir), 'y', rot)), vec(nd === dir ? null : L.planeDir('y', nd)));
+      const outs = L.refractInPrism3(L.planeDir('y', dir), 7, 'y', rot).map(o => vec(o.d));
+      assert.deepEqual(outs, L.refractInPrism(dir, 7, rot).map(o => vec(L.planeDir('y', o.dir))));
+    }
+  });
+  test('Spiegelungen bleiben in den 18 Richtungen (keine Raumdiagonalen)', () => {
+    const all = [];
+    for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+      const n = dx * dx + dy * dy + dz * dz;
+      if (n === 1 || n === 2) all.push([dx, dy, dz]);
+    }
+    assert.equal(all.length, 18);
+    const ok = new Set(all.map(vec));
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) for (const d of all) {
+      const r = L.reflect3(d, axis, rot);
+      if (r) assert.ok(ok.has(vec(r)), `${axis} ${rot} ${vec(d)} → ${vec(r)}`);
+    }
+  });
+  test('Spiegel mit Achse z lenkt Ost nach oben', () => assert.equal(vec(L.reflect3([1, 0, 0], 'z', 3)), vec([0, 1, 0])));
+  test('Strahl längs der Drehachse endet am Spiegelrand', () => {
+    const r = L.traceBeams(cube([{ type: 'source', x: 2, y: 0, z: 2, axis: 'z', dir: 6 }, { type: 'mirror', x: 2, y: 3, z: 2, rot: 1 }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+    assert.ok(Math.abs(r.segments[0].y1 - (3 - L.MIRROR_HALF_HEIGHT)) < 1e-9);
+  });
+  test('Diagonale in der Spiegelfläche endet an der ersten Rahmenkante', () => {
+    // Achse z, rot 0: Fläche x-z; Strahl (1, 0, 1) läuft in ihr und erreicht zuerst die Ober-/Unterkante (in z)
+    const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 0, dir: 1 }, { type: 'mirror', x: 2, y: 2, z: 2, axis: 'z', rot: 0 }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+    const s = r.segments[0];
+    assert.ok(Math.abs(Math.hypot(2 - s.x1, 2 - s.z1) - L.MIRROR_HALF_HEIGHT * Math.SQRT2) < 1e-9);
+  });
+  test('Spiegelnormale zeigt zum einfallenden Strahl und steht senkrecht zur Achse (alle Achsen)', () => {
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) for (let k = 0; k < 8; k++) {
+      const d = L.planeDir(axis, k), n = L.mirrorFrontNormal3(axis, rot, d);
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      assert.ok(Math.abs(dot(n, L.AXES[axis].a)) < 1e-12);
+      assert.ok(dot(n, d) <= 1e-12, `${axis} ${rot} ${k}`);
+    }
+  });
+  test('Prisma mit Achse z fächert senkrecht (Ebene x-y): Rot schräg hinauf, Blau schräg hinab', () => {
+    const outs = L.refractInPrism3([1, 0, 0], 7, 'z', 0).map(o => [o.color, vec(o.d)]);
+    assert.deepEqual(outs, [[1, vec([1, 1, 0])], [2, vec([1, 0, 0])], [4, vec([1, -1, 0])]]);
+  });
+  test('Prisma: Licht schräg zur Drehebene tritt nicht aus', () => {
+    const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 2, dir: 0 }, { type: 'prism', x: 2, y: 2, z: 2, axis: 'x' }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+  });
+  test('Würfel: Zelle ausserhalb und doppelt belegt werden gemeldet', () => {
+    assert.throws(() => cube([{ type: 'target', x: 0, y: 5, z: 0 }]), /ausserhalb/);
+    assert.throws(() => cube([{ type: 'target', x: 1, y: 1, z: 1 }, { type: 'blocker', x: 1, y: 1, z: 1 }]), /doppelt/);
+    assert.throws(() => cube([{ type: 'mirror', x: 1, y: 1, z: 1, axis: 'w' }]), /Achse/);
+  });
+  L.LEVELS_3D.forEach((lvl) => {
+    const tag = `Würfel "${lvl.name}"`;
+    test(`${tag}: Start ungelöst, notierte Lösung löst, Lösung eindeutig`, () => {
+      assert.equal(L.traceBeams(L.createBoard(lvl)).solved, false);
+      const b = L.createBoard(lvl);
+      const rot = b.elements.filter(L.isRotatable);
+      assert.deepEqual(rot.map(S.keyOf).sort(), Object.keys(lvl.solution).sort(), 'Lösung nennt nicht genau die drehbaren Elemente');
+      for (const el of rot) S.setRot(el, lvl.solution[S.keyOf(el)]);
+      assert.equal(L.traceBeams(b).solved, true);
+      const r = S.solve(lvl);
+      assert.equal(r.aborted, false, 'Suche abgebrochen');
+      assert.equal(r.count, 1, `${r.count} Lösungen`);
+      const period = Object.fromEntries(rot.map(el => [S.keyOf(el), S.period(el)]));
+      const norm = (sol) => Object.fromEntries(Object.entries(sol).map(([k, v]) => [k, v % period[k]]));
+      assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
+    });
+  });
+  test('Würfel-Level haben eigene Namen (Fortschritt wird nach Namen gespeichert)', () => {
+    const names = L.LEVELS.concat(L.LEVELS_3D).map(l => l.name);
+    assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), []);
+  });
+}
 
 console.log('Offline');
 {
