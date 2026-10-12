@@ -9124,12 +9124,14 @@ const CUBE = {
 
 const cubeView = {
   group: new THREE.Group(),
-  size: 0, // Kantenlänge des aktuellen Würfels, 0 = 2D-Level
+  size: 0,         // Kantenlänge des aktuellen Würfels, 0 = 2D-Level
+  frameMat: null,  // Linien des Rahmens (leuchten beim Lösen auf, siehe glow)
 
   /** Neues Level: Hilfen auf- bzw. abbauen. */
   build(board) {
     this.group.traverse((o) => { if (o.geometry) o.geometry.dispose(); if (o.material) o.material.dispose(); });
     this.group.clear();
+    this.frameMat = null;
     this.size = board.dim === 3 ? board.size : 0;
     if (!this.size) return;
     const n = this.size, ext = n * CELL, mid = (n - 1) / 2;
@@ -9138,7 +9140,7 @@ const cubeView = {
     const dotMat = (color, opacity, size) => new THREE.PointsMaterial({ color, size, transparent: true, opacity, depthWrite: false, fog: false });
 
     const box = new THREE.BoxGeometry(ext, ext, ext);
-    const frame = quiet(new THREE.LineSegments(new THREE.EdgesGeometry(box), lineMat(CUBE.frameColor, 0.5)));
+    const frame = quiet(new THREE.LineSegments(new THREE.EdgesGeometry(box), this.frameMat = lineMat(CUBE.frameColor.clone(), 0.5)));
     box.dispose();
     // auf der Platte stehend, die Zellen mittig darin (siehe cubeToWorld)
     cubeToWorld(mid, 0, mid, n, frame.position).y = ext / 2 + 0.002;
@@ -9148,6 +9150,12 @@ const cubeView = {
     const cells = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
     const dots = quiet(new THREE.Points(cells, dotMat(CUBE.frameColor, 0.7, 0.045)));
     this.group.add(frame, dots);
+  },
+  /** Rahmen in der Farbe der Lichtwelle aufleuchten lassen (k = 0 … 1). */
+  glow(k) {
+    if (!this.frameMat) return;
+    this.frameMat.color.copy(CUBE.frameColor).lerp(shockUniforms.uShockColor.value, k).multiplyScalar(1 + k * 5);
+    this.frameMat.opacity = 0.5 + k * 0.5;
   },
 };
 boardGroup.add(cubeView.group);
@@ -10453,6 +10461,8 @@ document.addEventListener('visibilitychange', () => audio._sync());
    LÖSUNGSMOMENT — die Ziele leuchten nacheinander auf (mit ihren Tönen),
    dann erklingt der Akkord: Bloom pulsiert, eine Lichtwelle läuft über die
    Platte und es regnet Funken in den Zielfarben. Danach "Level gelöst".
+   Im Würfel ist die Welle eine Kugelschale aus der Würfelmitte (der Rahmen
+   leuchtet auf, wenn sie ihn durchquert) und die Funken sprühen aus den Zielen.
    ===================================================================== */
 
 const CELEBRATE = {
@@ -10463,6 +10473,7 @@ const CELEBRATE = {
   shockSpeed: 6.5,    // Welteinheiten pro Sekunde
   shockWidth: 0.16,
   shockReach: PLATE * 0.72, // läuft bis über die Plattenecken
+  shellReach: 1.1,    // Würfel: Kugelschale bis 1.1 × Kantenlänge (über die Ecken bei 0.87)
   particles: 300,
 };
 
@@ -10509,8 +10520,10 @@ function createSparkRain(count) {
   const sparks = Array.from({ length: count }, () => ({ life: 0, max: 1, vx: 0, vy: 0, vz: 0 }));
   return {
     points, sparks, alive: 0, rand,
+    drag: 0, // Luftwiderstand (1/s): nur beim Feuerwerk im Würfel
     /** Funken über dem Feld verteilen; sie starten gestaffelt (delay) und fallen sanft. */
     burst(colors) {
+      this.drag = 0;
       const p = geo.attributes.position.array, cl = geo.attributes.aColor.array;
       for (let i = 0; i < count; i++) {
         const s = sparks[i], c = COLOR_RGB[colors[i % colors.length]];
@@ -10527,6 +10540,27 @@ function createSparkRain(count) {
       this.alive = count;
       points.visible = true;
     },
+    /**
+     * Würfel: Feuerwerk – aus jedem Ziel (origins, Weltpositionen) sprühen Funken seiner Farbe in alle Richtungen,
+     * werden von der Luft gebremst und sinken dann ab.
+     */
+    burstFrom(origins, colors) {
+      this.drag = 1.8;
+      const p = geo.attributes.position.array, cl = geo.attributes.aColor.array;
+      for (let i = 0; i < count; i++) {
+        const s = sparks[i], k = i % origins.length, o = origins[k], c = COLOR_RGB[colors[k]];
+        const u = rand() * 2 - 1, phi = rand() * 2 * Math.PI, ring = Math.sqrt(1 - u * u), v = 2.5 + rand() * 3.0;
+        s.vx = ring * Math.cos(phi) * v; s.vy = u * v + 0.5; s.vz = ring * Math.sin(phi) * v;
+        p[i * 3] = o.x; p[i * 3 + 1] = o.y; p[i * 3 + 2] = o.z;
+        s.max = 1.6 + rand() * 1.4;
+        s.life = -rand() * 0.12;
+        const hot = 1.0 + rand() * 1.2;
+        cl[i * 3] = c.r * hot; cl[i * 3 + 1] = c.g * hot; cl[i * 3 + 2] = c.b * hot;
+      }
+      geo.attributes.aColor.needsUpdate = true;
+      this.alive = count;
+      points.visible = true;
+    },
     update(dt, t) {
       if (!this.alive) return;
       const p = geo.attributes.position.array, a = geo.attributes.aAlpha.array;
@@ -10537,6 +10571,7 @@ function createSparkRain(count) {
         s.life += dt;
         alive++;
         if (s.life < 0) { a[i] = 0; continue; }
+        if (this.drag) { const f = Math.exp(-this.drag * dt); s.vx *= f; s.vy *= f; s.vz *= f; }
         s.vy -= 0.35 * dt; // leichte Schwerkraft, die Luft bremst
         p[i * 3] += (s.vx + Math.sin(t * 1.3 + i) * 0.08) * dt;
         p[i * 3 + 1] += s.vy * dt;
@@ -10556,6 +10591,42 @@ function createSparkRain(count) {
   };
 }
 
+/**
+ * Würfel: Lichtwelle als Kugelschale aus der Würfelmitte. Leuchtet am Rand (Fresnel), innen kaum – so bleibt der
+ * Würfel durch sie hindurch sichtbar. Wo sie die Platte schneidet, läuft der Bodenring der 2D-Welle mit.
+ */
+function createShockShell() {
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { uColor: { value: new THREE.Color() }, uStrength: { value: 0 } },
+    vertexShader: `
+      varying vec3 vN;
+      varying vec3 vV;
+      void main() {
+        vec4 wp = modelMatrix * vec4(position, 1.0);
+        vN = normalize(mat3(modelMatrix) * normal);
+        vV = cameraPosition - wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }`,
+    fragmentShader: `
+      uniform vec3 uColor;
+      uniform float uStrength;
+      varying vec3 vN;
+      varying vec3 vV;
+      void main() {
+        float rim = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+        gl_FragColor = vec4(uColor * pow(rim, 5.0) * 2.4 * uStrength, 1.0);
+      }`,
+    transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+  });
+  const shell = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 32), mat);
+  shell.visible = false;
+  shell.frustumCulled = false;
+  shell.raycast = () => {};
+  shell.layers.set(LAYER_NO_REFLECT);
+  boardGroup.add(shell);
+  return shell;
+}
+
 const celebration = {
   active: false,
   t: 0,
@@ -10565,6 +10636,7 @@ const celebration = {
   panelShown: false,
   colors: [],
   rain: createSparkRain(CELEBRATE.particles),
+  shell: createShockShell(),
 
   start(targets) {
     // Reihenfolge: von links hinten nach rechts vorn – eine Welle wie beim Levelwechsel
@@ -10588,8 +10660,14 @@ const celebration = {
     if (this.active && this.sound) { this.sound.fadeOut(); this.sound = null; }
     this.active = false;
     this.rain.stop();
-    shockUniforms.uShock.value.y = 0;
+    this.endWave();
     bloomPass.strength = LOOK.bloomStrength;
+  },
+  /** Lichtwelle aus: Bodenring, Kugelschale und Leuchten des Würfelrahmens. */
+  endWave() {
+    shockUniforms.uShock.value.y = 0;
+    this.shell.visible = false;
+    cubeView.glow(0);
   },
 
   update(dt, t) {
@@ -10599,7 +10677,8 @@ const celebration = {
     for (const s of this.steps) if (!s.done && this.t >= s.at) { s.done = true; s.obj.userData.flash = 1; }
     if (!this.chordDone && this.t >= this.chordAt) {
       this.chordDone = true;
-      this.rain.burst(this.colors);
+      if (cubeView.size) this.rain.burstFrom(this.steps.map(s => s.obj.userData.gem.getWorldPosition(new THREE.Vector3())), this.colors);
+      else this.rain.burst(this.colors);
       // Wellenfarbe: Mischung der Zielfarben, hell genug zum Blühen
       const c = shockUniforms.uShockColor.value.setRGB(0, 0, 0);
       for (const k of this.colors) c.add(COLOR_RGB[k]);
@@ -10611,15 +10690,31 @@ const celebration = {
       const env = tc < 0.12 ? tc / 0.12 : Math.exp(-(tc - 0.12) * 2.0);
       bloomPass.strength = LOOK.bloomStrength * (1 + CELEBRATE.bloomBoost * env);
       const r = tc * CELEBRATE.shockSpeed;
-      const fade = Math.max(0, 1 - r / CELEBRATE.shockReach);
-      shockUniforms.uShock.value.set(r, fade * fade, CELEBRATE.shockWidth * (1 + r * 0.12));
+      let fade;
+      if (cubeView.size) {
+        // Würfel: Kugelschale aus der Mitte bis über die Ecken; am Boden ihr Schnittkreis, der Rahmen leuchtet auf,
+        // während sie ihn durchquert (Flächenmitten bei ext/2, Ecken bei ext·√3/2)
+        const ext = cubeView.size * CELL, h = ext / 2;
+        fade = Math.max(0, 1 - r / (ext * CELEBRATE.shellReach));
+        this.shell.visible = fade > 0;
+        this.shell.position.set(0, h, 0);
+        this.shell.scale.setScalar(Math.max(r, 0.01));
+        this.shell.material.uniforms.uColor.value.copy(shockUniforms.uShockColor.value);
+        this.shell.material.uniforms.uStrength.value = fade * fade;
+        const foot = r > h ? Math.sqrt(r * r - h * h) : 0;
+        shockUniforms.uShock.value.set(foot, r > h ? fade * fade : 0, CELEBRATE.shockWidth * (1 + foot * 0.12));
+        cubeView.glow(THREE.MathUtils.smoothstep(r, ext * 0.4, ext * 0.5) * (1 - THREE.MathUtils.smoothstep(r, ext * 0.6, ext * 0.95)));
+      } else {
+        fade = Math.max(0, 1 - r / CELEBRATE.shockReach);
+        shockUniforms.uShock.value.set(r, fade * fade, CELEBRATE.shockWidth * (1 + r * 0.12));
+      }
       if (!this.panelShown && tc >= CELEBRATE.panelDelay) {
         this.panelShown = true;
         ui.showSolved(game.levelIndex, flow.firstSolve);
       }
       if (fade <= 0 && env < 0.01 && this.panelShown) {
         this.active = false;
-        shockUniforms.uShock.value.y = 0;
+        this.endWave();
         bloomPass.strength = LOOK.bloomStrength;
       }
     }

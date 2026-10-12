@@ -58,12 +58,14 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 - **Darstellung:** `cubeToWorld`, `beamPointToWorld`, `normalToWorld`, `placeInCube`. Strahl-Shader:
   Schnittnormalen als `aCap0/aCap1` (vec3), Abstand zu den Schnittebenen wird im Vertex-Shader als `vCut`
   berechnet (linear in p, daher exakt interpoliert). Bodenschein wird mit der Höhe schwächer (`vLift`).
-- **`cubeView`:** Würfelrahmen, Zellpunkte, Ebenenwahl. Gewählte Ebene ist als einzige anklickbar; die übrigen
-  werden durchscheinend (Material-Kopien, die in `tick()` mit den Originalen abgeglichen werden, damit Ziele und
-  Prismen weiter aufleuchten). Drehringe fremder Ebenen werden gedimmt.
+- **`cubeView`:** Würfelrahmen und Zellpunkte; alle Elemente sind direkt anklickbar (die Ebenenwahl ist entfernt).
+  `cubeView.glow(k)` lässt den Rahmen beim Lösen in der Wellenfarbe aufleuchten.
+- **Siegesanimation:** wie in 2D (Ziele nacheinander, Akkord, Bloom-Puls), aber die Lichtwelle ist eine
+  Kugelschale aus der Würfelmitte (`createShockShell`, Fresnel-Rand, additiv). Wo sie die Platte schneidet, läuft
+  der 2D-Bodenring mit; durchquert sie den Rahmen, leuchtet er auf. Statt Funkenregen ein Feuerwerk aus jedem Ziel
+  (`rain.burstFrom`, mit Luftwiderstand). `celebration.endWave()` setzt Ring, Schale und Rahmen zurück.
 - **Kamera:** `cameraRig.cube/lift/zoom/tilt/turn` – im Würfel Blick auf die Würfelmitte, flacher, schräger,
   weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der engen 2D-Grenzen.
-- **Bedienung:** Knöpfe `#layers` (rechts, Handy hochkant unten links), Tasten ↑/↓ Ebene, A alle Ebenen.
 - **Werkzeuge:** `tools/solver.mjs` – `keyOf` liefert im Würfel "x,y,z", Exporte der 3D-Funktionen.
 
 ## Die zwei Level
@@ -83,7 +85,7 @@ node tests/golden.mjs          # alle 2D-Level unverändert? (~35 s) – --write
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
 node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel
-node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; window.CUBE_LAYER=0; $(cat tests/cube-probe.js)"
+node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; $(cat tests/cube-probe.js)"
 ```
 
 Headless-Chrome ohne Grafikkarte rendert nur 2–3 Bilder/s: Bei Screenshots 20–40 s warten.
