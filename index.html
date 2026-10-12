@@ -4855,7 +4855,7 @@ const LEVELS_3D = [
     //   Rot → oben/Süd → Ziel (2,4,4), Grün → hinauf → Spiegel (2,4,2) Achse z rot 1 → West → Ziel (0,4,2),
     //   Blau → oben/Nord → Ziel (2,4,0).
     name: 'Aufzug', dim: 3, size: 5,
-    hint: 'Jedes Element dreht um seine Achse – der Drehteller zeigt sie. ▲ ▼ wählt eine Ebene.',
+    hint: 'Jedes Element dreht in seinem Ring – die Zapfen zeigen die Achse. ▲ ▼ wählt eine Ebene.',
     elements: [
       { type: 'source', x: 0, y: 0, z: 2, dir: 0 },
       { type: 'mirror', x: 2, y: 0, z: 2, axis: 'z', rot: 1 },
@@ -8481,8 +8481,60 @@ function shadowed(mesh) {
   return mesh;
 }
 
+/**
+ * Würfel-Level (Prototyp): Die Elemente schweben, Sockel passen dort nicht. Statt des Drehtellers liegt ein Ring in
+ * der Drehebene um das Element (mit 45°-Marken), zwei Achszapfen zeigen die Drehachse auch dann, wenn man den Ring
+ * von der Kante sieht. Feste Elemente haben statt des eckigen Sockels einen eckigen Rahmen mit rotem Rand.
+ * Alles in lokalen Koordinaten des 2D-Modells (lokal y = Drehachse, Optik auf BEAM_Y).
+ */
+const CUBE_MOUNT = { ring: 0.52, tube: 0.011, tick: 0.06, pin: [0.27, 0.44], frame: 0.98, bar: 0.03 };
+const inCube = () => game.board?.dim === 3;
+
+function makeCubeRing() {
+  const g = new THREE.Group();
+  const R = CUBE_MOUNT.ring;
+  const ring = shadowed(new THREE.Mesh(new THREE.TorusGeometry(R, CUBE_MOUNT.tube, 8, 96), MAT.metalBright));
+  ring.rotation.x = Math.PI / 2;
+  ring.position.y = BEAM_Y;
+  g.add(ring);
+  for (let i = 0; i < 8; i++) { // 45°-Marken, nach aussen
+    const a = i * Math.PI / 4;
+    const tick = new THREE.Mesh(new THREE.BoxGeometry(CUBE_MOUNT.tick, 0.014, 0.014), MAT.metalBright);
+    tick.position.set(Math.cos(a) * (R + CUBE_MOUNT.tick / 2), BEAM_Y, Math.sin(a) * (R + CUBE_MOUNT.tick / 2));
+    tick.rotation.y = -a;
+    g.add(tick);
+  }
+  const [p0, p1] = CUBE_MOUNT.pin;
+  for (const s of [-1, 1]) { // Achszapfen über und unter dem Element
+    const pin = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.016, p1 - p0, 12), MAT.metalBright));
+    pin.position.y = BEAM_Y + s * (p0 + p1) / 2;
+    const knob = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 10), MAT.metalBright));
+    knob.position.y = BEAM_Y + s * p1;
+    g.add(pin, knob);
+  }
+  return g;
+}
+
+function makeCubeFrame() {
+  const g = new THREE.Group();
+  const s = CUBE_MOUNT.frame, t = CUBE_MOUNT.bar, e = s / 2 - t / 2, w = FIXED_EDGE.width;
+  const { edgeMat } = fixedBase();
+  for (const [bw, bd, x, z, along] of [[s, t, 0, -e, 'x'], [s, t, 0, e, 'x'], [t, s - 2 * t, -e, 0, 'z'], [t, s - 2 * t, e, 0, 'z']]) {
+    const bar = shadowed(new THREE.Mesh(new THREE.BoxGeometry(bw, t, bd), MAT.metalDark));
+    bar.position.set(x, BEAM_Y, z);
+    // roter Rand: schmaler Streifen mitten im Profil, schaut oben und unten knapp heraus
+    const edge = new THREE.Mesh(along === 'x' ? new THREE.BoxGeometry(bw, t + 0.006, w) : new THREE.BoxGeometry(w, t + 0.006, bd), edgeMat);
+    edge.position.copy(bar.position);
+    edge.raycast = () => {};
+    edge.layers.set(LAYER_NO_REFLECT);
+    g.add(bar, edge);
+  }
+  return g;
+}
+
 /** Runder Metallsockel (Drehteller), auf dem jedes drehbare Element steht. */
 function makePedestal(radius = 0.34) {
+  if (inCube()) return makeCubeRing();
   const g = new THREE.Group();
   const disk = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(radius, radius + 0.02, 0.06, 48), MAT.metalDark));
   disk.position.y = 0.03;
@@ -8524,6 +8576,7 @@ function fixedBase() {
 }
 /** Drei Draw-Calls: Block, Rahmen, Randleiste (alle Geometrien geteilt). */
 function makeFixedBase() {
+  if (inCube()) return makeCubeFrame();
   const { blockGeo, frameGeo, edgeGeo, edgeMat } = fixedBase();
   const g = new THREE.Group();
   g.add(shadowed(new THREE.Mesh(blockGeo, MAT.stone)), shadowed(new THREE.Mesh(frameGeo, MAT.metalDark)));
@@ -8546,7 +8599,7 @@ function makeSource(el) {
 
   const column = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, BEAM_Y - 0.05, 24), MAT.metalBright));
   column.position.y = 0.06 + (BEAM_Y - 0.05) / 2 - 0.02;
-  head.add(column);
+  if (!inCube()) head.add(column);
 
   const housing = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.135, 0.15, 0.5, 40), MAT.metalDark));
   housing.rotation.z = Math.PI / 2;
@@ -8581,7 +8634,7 @@ function makeMirror(el) {
   root.add(el.fixed ? makeFixedBase() : makePedestal(0.4));
 
   // Gravierte 45°-Marken auf dem Teller (nur drehbare Spiegel – feste stehen auf dem eckigen Sockel)
-  for (let i = 0; i < 8 && !el.fixed; i++) {
+  for (let i = 0; i < 8 && !el.fixed && !inCube(); i++) {
     const tick = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.004, 0.012), MAT.metalBright);
     const a = i * Math.PI / 4;
     tick.position.set(Math.cos(a) * 0.32, 0.063, Math.sin(a) * 0.32);
@@ -8613,7 +8666,7 @@ function makeMirror(el) {
   pivot.add(glass);
 
   // Zwei schlanke Stützen zum Teller
-  for (const sx of [-0.22, 0.22]) {
+  for (const sx of inCube() ? [] : [-0.22, 0.22]) {
     const leg = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, bottom - 0.06, 12), MAT.metalBright));
     leg.position.set(sx, 0.06 + (bottom - 0.06) / 2, 0);
     pivot.add(leg);
@@ -8665,6 +8718,7 @@ function makeTarget(el) {
     // Bogen in der xy-Ebene drehen, dann flach legen: Winkel 90° zeigt zur Kamera (+z)
     seg.rotation.set(Math.PI / 2, 0, THREE.MathUtils.degToRad(TARGET_RING.slots[p] - TARGET_RING.arc / 2));
     seg.position.y = FIXED_BASE_TOP + 0.006;
+    if (inCube()) { seg.position.y = BEAM_Y; seg.scale.setScalar(1.4); } // Würfel: um den Stein statt auf dem Sockel
     // In der Bodenspiegelung verdeckt ihn ohnehin das Spiegelbild des Sockels: dort nicht zeichnen
     seg.layers.set(LAYER_NO_REFLECT);
     root.add(seg);
@@ -8682,7 +8736,7 @@ function makeTarget(el) {
   });
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.62), haloMat);
   halo.rotation.x = -Math.PI / 2;
-  halo.position.y = FIXED_BASE_TOP + 0.008;
+  halo.position.y = inCube() ? BEAM_Y : FIXED_BASE_TOP + 0.008;
   halo.raycast = () => {};
   root.add(halo);
 
@@ -8870,7 +8924,7 @@ function makePrism(el) {
   }
   const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, BEAM_Y - H / 2 - 0.07, 12), MAT.metalBright));
   post.position.y = 0.06 + (BEAM_Y - H / 2 - 0.07) / 2;
-  pivot.add(post);
+  if (!inCube()) pivot.add(post);
 
   // Spektralfenster auf der Austrittsfläche: zeigt die Fächerrichtung und leuchtet, wenn Licht austritt.
   // (Bei Blick von aussen liegt Rot auf der Seite, zu der der rote Strahl abgelenkt wird.)
@@ -8928,6 +8982,7 @@ function makeFilter(el) {
   const ring = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.008, 8, 48), ringMat);
   ring.rotation.x = Math.PI / 2;
   ring.position.y = FIXED_BASE_TOP + 0.006;
+  if (inCube()) { ring.position.y = BEAM_Y; ring.scale.setScalar(1.5); }
   root.add(ring);
 
   const u = root.userData;
@@ -8989,7 +9044,7 @@ function makeCombiner(el) {
 
   const post = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.04, BEAM_Y - 0.33, 12), MAT.metalBright));
   post.position.y = 0.06 + (BEAM_Y - 0.33) / 2;
-  pivot.add(post);
+  if (!inCube()) pivot.add(post);
 
   const u = root.userData;
   u.pivot = pivot;
@@ -10167,7 +10222,8 @@ function makeInteractive(obj) {
   const u = obj.userData;
 
   const proxy = new THREE.Mesh(hitProxyGeometry, hitProxyMaterial);
-  proxy.position.y = 0.375;
+  proxy.position.y = inCube() ? BEAM_Y : 0.375;
+  if (inCube()) proxy.scale.set(1.2, 1.35, 1.2); // Würfel: Ring mit Marken (0.58) und Achszapfen (±0.475) einschliessen
   proxy.userData.element = u.element;
   obj.add(proxy);
   game.hitProxies.push(proxy);
@@ -10204,7 +10260,7 @@ function makeInteractive(obj) {
   });
   const ring = new THREE.Mesh(hoverRingGeometry, ringMat);
   ring.rotation.x = -Math.PI / 2;
-  ring.position.y = 0.006;
+  ring.position.y = inCube() ? BEAM_Y : 0.006;
   ring.raycast = () => {};
   ring.visible = false;
   ring.layers.set(LAYER_NO_REFLECT);
@@ -10214,14 +10270,14 @@ function makeInteractive(obj) {
   // mit rotem Leuchtrand, siehe makeFixedBase).
   // Grundhelligkeit unter der Bloom-Schwelle, damit er ruhig bleibt; zu Levelbeginn pulsiert er einmal.
   const pedestalDisk = obj.children[0]?.children[0];
-  const turnR = (pedestalDisk?.geometry?.parameters?.radiusTop ?? 0.38) - 0.03;
+  const turnR = inCube() ? CUBE_MOUNT.ring : (pedestalDisk?.geometry?.parameters?.radiusTop ?? 0.38) - 0.03;
   const turnMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
   // gestrichelt (6 grobe Striche, halbe Lücken): Filter haben einen durchgehenden Ring in ihrer Farbe, Ziele drei
   // farbige Bögen auf eckigem Sockel – so ist "drehbar" eine eigene Form. Alle Striche in einer Geometrie
   // (ein Draw-Call je Element).
   const turnRing = new THREE.Mesh(dashedRingGeometry(turnR, 6, 0.5, 0.017), turnMat);
   turnRing.rotation.x = Math.PI / 2;
-  turnRing.position.y = 0.064;
+  turnRing.position.y = inCube() ? BEAM_Y : 0.064;
   turnRing.raycast = () => {};
   turnRing.layers.set(LAYER_NO_REFLECT);
   obj.add(turnRing);
