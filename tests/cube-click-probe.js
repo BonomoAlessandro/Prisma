@@ -1,6 +1,6 @@
 // Aufruf: node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"
-// Klickt im Würfel-Level "Kern" jedes drehbare Element an – einmal mit allen Ebenen, einmal mit seiner Ebene
-// gewählt – und meldet, welches Element sich gedreht hat (erwartet: jeweils genau das angeklickte).
+// Klickt im Würfel-Level "Kern" jedes drehbare Element in seiner Mitte an und meldet, welches Element sich gedreht
+// hat (erwartet: jeweils genau das angeklickte – sonst verdeckt ein vorderes Element das hintere).
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const index = LEVELS.findIndex(l => l.name === 'Kern');
@@ -12,21 +12,18 @@
   const rotOf = (el) => (el.type === 'combiner' ? el.dir : el.rot);
   const out = [];
   for (const el of game.board.elements.filter(isRotatable)) {
-    for (const layer of [-1, el.y]) {
-      cubeView.setLayer(layer);
-      const p = cubeToWorld(el.x, el.y, el.z, game.board.size);
-      camera.updateMatrixWorld();
-      p.project(camera);
-      const x = rect.left + (p.x + 1) / 2 * rect.width, y = rect.top + (1 - p.y) / 2 * rect.height;
-      const before = game.board.elements.map(rotOf);
-      const ev = (type, o) => canvas.dispatchEvent(new PointerEvent(type, Object.assign({
-        clientX: x, clientY: y, pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1, bubbles: true, isPrimary: true,
-      }, o)));
-      ev('pointerdown'); ev('pointerup', { buttons: 0 });
-      const changed = game.board.elements.filter((e, i) => rotOf(e) !== before[i]);
-      out.push(`${el.x},${el.y},${el.z} Ebene ${layer}: ${changed.map(e => `${e.x},${e.y},${e.z}`).join(' ') || '–'}`);
-      await wait(400);
-    }
+    const p = cubeToWorld(el.x, el.y, el.z, game.board.size);
+    camera.updateMatrixWorld();
+    p.project(camera);
+    const x = rect.left + (p.x + 1) / 2 * rect.width, y = rect.top + (1 - p.y) / 2 * rect.height;
+    const before = game.board.elements.map(rotOf);
+    const ev = (type, o) => canvas.dispatchEvent(new PointerEvent(type, Object.assign({
+      clientX: x, clientY: y, pointerId: 7, pointerType: 'mouse', button: 0, buttons: 1, bubbles: true, isPrimary: true,
+    }, o)));
+    ev('pointerdown'); ev('pointerup', { buttons: 0 });
+    const changed = game.board.elements.filter((e, i) => rotOf(e) !== before[i]);
+    out.push(`${el.x},${el.y},${el.z}: ${changed.map(e => `${e.x},${e.y},${e.z}`).join(' ') || '–'}`);
+    await wait(400);
   }
   return out.join(' | ');
 })()
