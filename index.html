@@ -8370,7 +8370,7 @@ function updateCamera(t, dt) {
 
   // Würfel-Level: Blick auf die Würfelmitte, etwas weiter weg (weich übergeblendet, auch beim Levelwechsel)
   const cube = cameraRig.cube;
-  cameraRig.lift += ((cube ? BEAM_Y + (cube - 1) / 2 * CELL : 0) - cameraRig.lift) * k;
+  cameraRig.lift += ((cube ? cube * CELL / 2 : 0) - cameraRig.lift) * k;
   // Hochformat: Das 2D-Feld füllt die Breite, der schmalere Würfel darf näher heran
   const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) : 1;
   cameraRig.zoom += (zoom - cameraRig.zoom) * k;
@@ -8408,12 +8408,15 @@ function gridToWorld(x, z, y = 0, target = new THREE.Vector3()) {
 }
 
 /**
- * Würfel-Level: Rasterpunkt (auch Zwischenpunkte von Strahlen) → Welt. Die unterste Ebene liegt auf Strahlhöhe
- * über der Platte, jede weitere eine Zelle höher; waagrecht mittig wie das 2D-Feld.
+ * Würfel-Level: Rasterpunkt (auch Zwischenpunkte von Strahlen) → Welt. Die Zellen liegen mittig im Würfel, der auf
+ * der Platte steht: die unterste Zellmitte eine halbe Zelle über der Platte (CUBE_FLOOR), jede weitere eine Zelle
+ * höher – so passen auch senkrechte Ringe der untersten Ebene (Radius mit Marken 0.58) über die Platte.
+ * Waagrecht mittig wie das 2D-Feld.
  */
+const CUBE_FLOOR = CELL / 2;
 function cubeToWorld(x, y, z, size, target = new THREE.Vector3()) {
   const half = (size - 1) / 2;
-  return target.set((x - half) * CELL, BEAM_Y + y * CELL, (z - half) * CELL);
+  return target.set((x - half) * CELL, CUBE_FLOOR + y * CELL, (z - half) * CELL);
 }
 
 /** Strahlpunkt eines Abschnitts oder Ereignisses in Weltkoordinaten (2D: auf Strahlhöhe). */
@@ -9173,7 +9176,7 @@ const cubeView = {
     const box = new THREE.BoxGeometry(ext, ext, ext);
     const frame = quiet(new THREE.LineSegments(new THREE.EdgesGeometry(box), lineMat(CUBE.frameColor, 0.5)));
     box.dispose();
-    // auf der Platte stehend (die unterste Zellmitte liegt auf Strahlhöhe, nicht eine halbe Zelle darüber)
+    // auf der Platte stehend, die Zellen mittig darin (siehe cubeToWorld)
     cubeToWorld(mid, 0, mid, n, frame.position).y = ext / 2 + 0.002;
 
     const cells = (layers) => {
@@ -9295,7 +9298,7 @@ function loadLevel(index, beamDelay = 0) {
   if (keepLayer >= 0) cubeView.setLayer(keepLayer);
   cameraRig.cube = game.board.dim === 3 ? game.board.size : 0;
   // Staub im ganzen Würfel, nicht nur knapp über der Platte (Teilchen liegen zwischen 0.12 und 0.84)
-  beamView.dust.scale.y = cameraRig.cube ? (BEAM_Y + cameraRig.cube * CELL) / 0.84 : 1;
+  beamView.dust.scale.y = cameraRig.cube ? cameraRig.cube * CELL / 0.84 : 1;
   markShadowsDirty();
   // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
   requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
@@ -9599,8 +9602,8 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
   uniform float uFloorWidth;
   varying float vLift;
   void main() {
-    // Würfel: Strahlen höherer Ebenen werfen schwächeren Schein (Tiefenhinweis); im 2D-Feld genau 0
-    vLift = (aCorner.x < 0.0 ? aStart.y : aEnd.y) - ${BEAM_Y.toFixed(4)};
+    // Würfel: Strahlen höherer Ebenen werfen schwächeren Schein (Tiefenhinweis); im 2D-Feld negativ, wirkt nicht
+    vLift = (aCorner.x < 0.0 ? aStart.y : aEnd.y) - ${CUBE_FLOOR.toFixed(4)}; // unterste Würfelebene: 0, 2D: < 0
     vec3 s = (modelMatrix * vec4(aStart, 1.0)).xyz;
     vec3 e = (modelMatrix * vec4(aEnd, 1.0)).xyz;
     vec3 axis = e - s;
