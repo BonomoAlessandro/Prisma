@@ -204,7 +204,25 @@
   }
   #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
   #levels h2 { margin: 0 0 22px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
+  /* Spielart: zwei grosse Schalter in einem Rahmen, deutlich abgesetzt von den Seitenreitern darunter */
+  #levels .modes {
+    display: grid; grid-template-columns: 1fr 1fr; max-width: 380px; margin: 0 auto 26px;
+    border: 1px solid var(--ink-faint); border-radius: 10px; overflow: hidden;
+  }
+  #levels .modes[hidden] { display: none; }
+  #levels .mode {
+    padding: 12px 0 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    color: var(--ink-dim);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+  #levels .mode + .mode { border-left: 1px solid var(--ink-faint); }
+  #levels .mode:hover { color: var(--ink); background: rgba(255, 255, 255, 0.03); }
+  #levels .mode[aria-pressed="true"] { color: var(--ink); background: rgba(255, 255, 255, 0.09); }
+  #levels .mode .mlabel { font-size: 13px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; }
+  #levels .mode .mprog { font-size: 9px; letter-spacing: 0.15em; color: var(--ink-dim); }
   #levels .pages { display: grid; grid-template-columns: repeat(var(--pages, 6), 1fr); gap: 6px; margin-bottom: 18px; }
+  #levels .page[hidden] { display: none; }
   #levels .page {
     padding: 8px 0 6px;
     border: 1px solid var(--ink-faint); border-radius: 6px;
@@ -246,6 +264,8 @@
     #levels { overflow-y: auto; place-items: start center; padding: 10px 0; }
     #levels h2 { display: none; }
     #levels .page { padding: 4px 0; }
+    #levels .modes { margin-bottom: 12px; }
+    #levels .mode { padding: 6px 0 5px; gap: 3px; }
     #levels .tile { aspect-ratio: auto; height: 46px; }
     #levels .name { display: none; }
     #levels .grid { margin-bottom: 14px; }
@@ -376,6 +396,7 @@
 <div id="levels" class="hidden" inert role="dialog" aria-modal="true" aria-label="Levelauswahl">
   <div class="inner">
     <h2>Levelauswahl</h2>
+    <div class="modes" id="mode-tabs" role="group" aria-label="Spielart"></div>
     <div class="pages" id="page-tabs" role="group" aria-label="Seiten"></div>
     <div class="page-title" id="page-title"></div>
     <div class="grid" id="level-grid"></div>
@@ -10796,19 +10817,22 @@ function fillTier(el, lvl) {
 const PAGE_SIZE = 10;
 const PAGES = (() => {
   const all = LEVELS.map((_, i) => i);
-  const pages = [{ id: 'T', label: 'Tutorial', title: 'Tutorial · die Mechaniken', indices: all.slice(0, TUTORIAL_COUNT) }];
+  const pages = [{ id: 'T', mode: '2d', label: 'Tutorial', title: 'Tutorial · die Mechaniken', indices: all.slice(0, TUTORIAL_COUNT) }];
   for (let a = TUTORIAL_COUNT; a < CUBE_START; a += PAGE_SIZE) {
     const indices = all.slice(a, Math.min(a + PAGE_SIZE, CUBE_START));
     const from = levelNumber(a), to = levelNumber(indices.at(-1));
     // ist die ganze Seite gleich schwer markiert, steht das im Seitentitel
     const tier = indices.every(i => LEVELS[i].difficulty === LEVELS[a].difficulty) ? LEVELS[a].difficulty : undefined;
     const title = `Level ${from} – ${to}` + (tier ? ` · ${DIFFICULTY[tier].label}` : '');
-    pages.push({ id: String(from), label: `${from}–${to}`, title, indices });
+    pages.push({ id: String(from), mode: '2d', label: `${from}–${to}`, title, indices });
   }
-  if (CUBE_START < LEVELS.length) pages.push({ id: 'W', label: 'Würfel', title: 'Würfel · Prototyp in 3D', indices: all.slice(CUBE_START) });
+  if (CUBE_START < LEVELS.length) pages.push({ id: 'W', mode: '3d', label: 'Würfel', title: 'Würfel · Prototyp in 3D', indices: all.slice(CUBE_START) });
   return pages;
 })();
 const pageOf = (i) => PAGES.find(p => p.indices.includes(i));
+/** Spielarten der Levelauswahl (Umschalter über den Seitenreitern): die Fläche (Tutorial + Level) und der Würfel. */
+const MODES = [{ id: '2d', label: 'Fläche', tag: '2D' }, { id: '3d', label: 'Würfel', tag: '3D' }]
+  .filter(m => PAGES.some(p => p.mode === m.id));
 
 const flow = {
   state: 'intro', // intro | play | out | in
@@ -10974,7 +10998,7 @@ const ui = {
   hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'), layers: $('layers'), layerLabel: $('btn-layer-all'),
   solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
-  levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
+  levels: $('levels'), grid: $('level-grid'), modes: $('mode-tabs'), tabs: $('page-tabs'), pageTitle: $('page-title'),
   shownPage: 'T',
   intro: $('intro'),
   lastLevel: false,
@@ -10992,9 +11016,20 @@ const ui = {
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
-    // Seitenreiter in einer Reihe; ab 9 Seiten in zwei Reihen (sonst zu schmal für "Tutorial")
-    // Würfel-Reiter (Prototyp) zählt nicht mit – er steht allein in einer dritten Reihe
-    const flatPages = PAGES.filter(p => p.id !== 'W').length;
+    // Spielart (Fläche / Würfel) ganz oben; ohne Würfel-Level kein Umschalter
+    this.modes.hidden = MODES.length < 2;
+    for (const md of MODES) {
+      const m = document.createElement('button');
+      m.className = 'mode';
+      m.dataset.id = md.id;
+      m.innerHTML = '<span class="mlabel"></span><span class="mprog"></span>';
+      m.querySelector('.mlabel').textContent = md.label;
+      m.addEventListener('click', () => this.showMode(md.id));
+      this.modes.appendChild(m);
+    }
+    // Seitenreiter in einer Reihe; ab 9 Seiten in zwei Reihen (sonst zu schmal für "Tutorial") – gezählt werden die
+    // Seiten der Fläche, der Würfel hat nur eine
+    const flatPages = PAGES.filter(p => p.mode === '2d').length;
     this.tabs.style.setProperty('--pages', flatPages > 8 ? Math.ceil(flatPages / 2) : flatPages);
     for (const pg of PAGES) {
       const t = document.createElement('button');
@@ -11113,17 +11148,36 @@ const ui = {
     this.showPage(pageOf(game.levelIndex).id);
     (this.grid.querySelector('.current') || this.tabs.querySelector('[aria-pressed="true"]'))?.focus();
   },
-  /** Seitenreiter und die Kacheln der gewählten Seite aufbauen. */
+  /** Spielart wechseln: Seite des laufenden Levels, sonst die erste mit ungelösten Leveln, sonst die erste. */
+  showMode(mode) {
+    const own = PAGES.filter(p => p.mode === mode);
+    const page = own.find(p => p.indices.includes(game.levelIndex))
+      || own.find(p => progress.solvedCount(p.indices) < p.indices.length) || own[0];
+    this.showPage(page.id);
+  },
+  /** Spielart-Umschalter, Seitenreiter und die Kacheln der gewählten Seite aufbauen. */
   showPage(id) {
     this.shownPage = id;
+    const page = PAGES.find(q => q.id === id);
+    for (const m of this.modes.children) {
+      const md = MODES.find(q => q.id === m.dataset.id), indices = PAGES.filter(p => p.mode === md.id).flatMap(p => p.indices);
+      const solved = progress.solvedCount(indices);
+      m.setAttribute('aria-pressed', String(md.id === page.mode));
+      m.setAttribute('aria-label', `${md.label} ${md.tag}, ${solved} von ${indices.length} gelöst`);
+      m.querySelector('.mprog').textContent = `${md.tag} · ${solved}/${indices.length}`;
+    }
+    // nur die Seiten der gewählten Spielart; hat sie nur eine (Würfel), braucht es keine Reiter – ihr Platz bleibt
+    // dann frei (unsichtbare Flächen-Reiter), damit der Umschalter beim Wechsel nicht springt
+    const single = PAGES.filter(p => p.mode === page.mode).length < 2;
+    this.tabs.style.visibility = single ? 'hidden' : '';
     for (const t of this.tabs.children) {
       const pg = PAGES.find(q => q.id === t.dataset.id), solved = progress.solvedCount(pg.indices);
+      t.hidden = pg.mode !== (single ? '2d' : page.mode);
       t.setAttribute('aria-pressed', String(pg.id === id));
       t.setAttribute('aria-label', `${pg.title}, ${solved} von ${pg.indices.length} gelöst`);
       t.classList.toggle('complete', solved === pg.indices.length);
       t.querySelector('.pprog').textContent = `${solved}/${pg.indices.length}`;
     }
-    const page = PAGES.find(q => q.id === id);
     this.pageTitle.textContent = page.title;
     this.grid.replaceChildren();
     page.indices.forEach((i) => {
