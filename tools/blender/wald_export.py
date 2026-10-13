@@ -1,10 +1,12 @@
 # Rendert die Wald-Skybox für das Spiel. Erst rendern (lineare EXR nach out/), dann kodieren (nach sky/), dann
-# packen (node tools/blender/pack.mjs -> backgrounds/). Aufrufe (aus tools/blender/, wald.blend von wald_scene.py):
+# packen (node tools/blender/pack.mjs <id> -> backgrounds/). Aufrufe (aus tools/blender/, wald.blend von wald_scene.py):
 #   blender -b wald.blend --python wald_export.py -- full  <breite> <samples>          ganzes Equirect (4096 64)
 #   blender -b wald.blend --python wald_export.py -- band  <i> <n> <breite> <samples>  Streifen i von n (… 3 4096 48)
 #   blender -b wald.blend --python wald_export.py -- depth <breite>                    Tiefe (2048)
 #   blender -b --python wald_export.py -- encode <n> <jpeg-qualität> <tiefe-breite>     (3 90 1024)
 #   blender -b --python wald_export.py -- depthcode <tiefe-breite>                      nur die Tiefe kodieren (anime)
+# sky.json (für pack.mjs): Mittelpunkt, Tiefenbereich, Streifen, Richtung zum Hauptlicht (beim Rendern der Tiefe aus
+# der Szene, light.json), hellster Wert und Farbringe (gemessen in den fertigen Bildern, measure_sky).
 #   blender -b wald.blend --python wald_export.py -- mask <name> full <breite> | mask <name> band <i> <n> <breite>
 #     Himmelsmaske (1 = Gelände, Bäume; 0 = Himmel), für anime.py
 # In der offenen Szene über den Blender-MCP: wald_mcp.start([('wald_export.py', 'full', 4096, 64), …]) – danach ist die
@@ -139,9 +141,46 @@ def encode_depth(width, center):
     save_image(np.stack([(q >> 8) / 255.0, (q & 255) / 255.0, np.zeros(q.shape)], -1), os.path.join(SKY, 'depth.png'))
 
 
-def depth_center():
-    with open(os.path.join(OUT, 'depth_center.json')) as fh:
+def depth_center(out=OUT):
+    with open(os.path.join(out, 'depth_center.json')) as fh:
         return np.array(json.load(fh))
+
+
+def scene_light():
+    """Richtung zum Hauptlicht (Mond, Sonne) in Spielkoordinaten: das Licht mit der Eigenschaft „hauptlicht“, sonst die
+    Lampe „Mond“. Sonnenlampen leuchten entlang ihrer lokalen −Z, zum Licht hin zeigt also +Z."""
+    lights = [o for o in bpy.data.objects if o.type == 'LIGHT' and o.get('hauptlicht')] or [bpy.data.objects['Mond']]
+    z = lights[0].matrix_world.to_3x3().col[2].normalized()
+    return [z.x + 0.0, z.z + 0.0, 0.0 - z.y]   # Blender (x, y, z) -> Spiel (x, z, −y)
+
+
+def light_dir(out=OUT):
+    """Hauptlicht, wie beim Rendern der Tiefe gespeichert (light.json: passt zu den Bildern), sonst aus der offenen Szene"""
+    path = os.path.join(out, 'light.json')
+    if os.path.exists(path):
+        with open(path) as fh:
+            return json.load(fh)['dir']
+    return scene_light()
+
+
+def measure_sky(sky, full, bands):
+    """Aus den fertigen Bildern (so wie das Spiel sie als Szenenwerte liest): hellster Wert (muss unter der Bloom-Schwelle
+    bleiben) und mittlere Farbe in 9 Ringen nach Höhe (−90°, −67,5° … 90°), Platzhalter des Spiels beim Laden"""
+    def lin(name):
+        c = np.clip(load_exr(os.path.join(sky, name))[..., :3].astype(np.float64), 0, 1)
+        return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    img = lin(full)
+    peak = float(img.max())
+    for b in bands:
+        peak = max(peak, float(lin(b).max()))
+    h = img.shape[0]
+    lat = 90.0 - (np.arange(h) + 0.5) / h * 180.0
+    rows = img.mean(1)
+    rings = []
+    for k in range(9):
+        wgt = np.maximum(0, 1 - np.abs(lat - (-90.0 + 22.5 * k)) / 22.5) * np.cos(np.radians(lat))
+        rings.append([round(float(v), 5) for v in (rows * wgt[:, None]).sum(0) / max(wgt.sum(), 1e-9)])
+    return {'peak': round(peak, 4), 'rings': rings}
 
 
 def main(argv):
@@ -170,6 +209,8 @@ def main(argv):
             render('depth', w, w // 2)
             with open(os.path.join(OUT, 'depth_center.json'), 'w') as fh:
                 json.dump(list(sc.camera.location), fh)
+            with open(os.path.join(OUT, 'light.json'), 'w') as fh:
+                json.dump({'dir': scene_light()}, fh)
         elif what == 'mask':
             c = setup_cycles()
             temp = flat((1, 1, 1, 1))
@@ -195,7 +236,9 @@ def main(argv):
             vt = (90.0 - LAT_TOP) / 180.0
             data = {'center': [center[0] + 0.0, center[2] + 0.0, 0.0 - center[1]],   # Blender (x, y, z) -> Spiel (x, z, −y)
                     'full': 'full.jpg', 'depth': 'depth.png', 'depthLog': list(DEPTH_LOG),
-                    'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)]}
+                    'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)],
+                    'light': {'dir': light_dir()}}
+            data.update(measure_sky(SKY, data['full'], [b['file'] for b in data['bands']]))
             with open(os.path.join(SKY, 'sky.json'), 'w', encoding='utf-8') as fh:
                 json.dump(data, fh, indent=2)
             print('KODIERT', sorted(os.listdir(SKY)))

@@ -1,28 +1,93 @@
-// Packt die kodierte Wald-Skybox (tools/blender/sky/, von wald_export.py) als Skripte mit Data-URLs nach backgrounds/:
-// Chrome lässt Bilder aus file:// nicht in WebGL-Texturen, Data-URLs aus einem Skript schon.
-//   backgrounds/forest.js     ganzes Panorama und Tiefe, dazu die Fichten nahe am Brett (lädt jedes Gerät)
-//   backgrounds/forest-hd.js  hoch aufgelöste Streifen für den Blick nach unten (nur Desktop)
-// Aufruf: node tools/blender/pack.mjs [stil]   (stil: Unterordner von sky/, z. B. anime; ohne: realistisch)
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+// Packt eine Skybox aus Blender fürs Spiel: Bilder als Skripte mit Data-URLs (Chrome lässt Bilder aus file:// nicht in
+// WebGL-Texturen, Data-URLs aus einem Skript schon) und ihr Eintrag im Register backgrounds/skies.js.
+//   backgrounds/<id>/base.<rev>.js   ganzes Panorama, Tiefe, Daten der Ebenen (jedes Gerät, vorab gespeichert)
+//   backgrounds/<id>/hd.<rev>.js     hoch aufgelöste Streifen für den Blick nach unten (nur Desktop, beim ersten Gebrauch)
+// rev (Stand) steht im Dateinamen: Der Service Worker speichert ohne Query-Parameter, ein neuer Stand braucht neue Namen.
+// Aufruf: node tools/blender/pack.mjs <id>
+// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Ebenen) und aus dessen Ordner
+// `daten` die Ausgabe der Pipeline: sky.json (Mittelpunkt, Tiefe, Streifen, Hauptlicht, Spitze, Farbringe von
+// wald_export.py bzw. anime.py json), die Bilder und trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene).
+// Im Register ersetzt es nur den Eintrag dieser Skybox: Die Rohdaten der anderen liegen nicht im Repo.
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
+import { SKY_FORMAT, loadSkies, checkSkies, layerTypes, codeSkies } from '../sky-schema.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const sky = join(here, 'sky', process.argv[2] ?? '');
-const out = join(here, '..', '..', 'backgrounds');
-mkdirSync(out, { recursive: true });
-const cfg = JSON.parse(readFileSync(join(sky, 'sky.json'), 'utf8'));
+const root = join(here, '..', '..');
+const id = process.argv[2];
+if (!id) throw new Error('Aufruf: node tools/blender/pack.mjs <id>');
+const author = JSON.parse(readFileSync(join(here, 'szenen', id, 'skybox.json'), 'utf8'));
+if (author.id !== id) throw new Error(`skybox.json: id ${author.id} statt ${id}`);
+const src = join(here, author.daten);
+const cfg = JSON.parse(readFileSync(join(src, 'sky.json'), 'utf8'));
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg' };
-const url = (file) => `data:${MIME[extname(file)]};base64,${readFileSync(join(sky, file)).toString('base64')}`;
+const url = (file) => `data:${MIME[extname(file)]};base64,${readFileSync(join(src, file)).toString('base64')}`;
 
-function write(name, data) {
-  const js = `// Wald-Hintergrund aus Blender – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n` +
-    `window.PRISMA_FOREST = Object.assign(window.PRISMA_FOREST || {}, ${JSON.stringify(data)});\n`;
-  writeFileSync(join(out, name), js);
-  console.log(`backgrounds/${name}: ${(js.length / 1e6).toFixed(2)} MB`);
+/** Breite und Höhe eines JPEG (SOF-Marke) oder PNG (IHDR) */
+function size(file) {
+  const b = readFileSync(join(src, file));
+  if (b[0] === 0x89) return [b.readUInt32BE(16), b.readUInt32BE(20)];
+  for (let p = 2; p < b.length;) {
+    const m = b[p + 1], len = b.readUInt16BE(p + 2);
+    if (m >= 0xc0 && m <= 0xc3) return [b.readUInt16BE(p + 7), b.readUInt16BE(p + 5)];
+    p += 2 + len;
+  }
+  throw new Error(`${file}: Grösse nicht gefunden`);
 }
+/** Grafikspeicher einer Textur mit Mipmaps (RGBA 8 Bit) */
+const gpuMB = (files) => Math.ceil(files.reduce((s, f) => { const [w, h] = size(f); return s + w * h * 4 * 4 / 3; }, 0) / 2 ** 20);
 
-// trees.json (wald_spielbaum.py): Modelle und Standorte der Fichten, die das Spiel selbst zeichnet (fehlt: keine)
-const trees = existsSync(join(sky, 'trees.json')) ? JSON.parse(readFileSync(join(sky, 'trees.json'), 'utf8')) : undefined;
-write('forest.js', { center: cfg.center, depthLog: cfg.depthLog, full: url(cfg.full), depth: url(cfg.depth), trees });
-write('forest-hd.js', { bands: cfg.bands.map((b) => ({ url: url(b.file), u: b.u, v: b.v })) });
+// Nahe Objekte (trees.json): Modelle und Instanzen; der Nebel der Szene gehört ins Register (mehrere Ebenen lesen ihn)
+const treesFile = join(src, 'trees.json');
+const trees = existsSync(treesFile) ? JSON.parse(readFileSync(treesFile, 'utf8')) : null;
+const data = trees ? { trees: { models: trees.models, instances: trees.trees } } : {};
+
+const base = { full: url(cfg.full), depth: url(cfg.depth), data };
+const hd = { bands: cfg.bands.map((b) => url(b.file)) };
+const rev = createHash('sha256').update(JSON.stringify([base, hd])).digest('hex').slice(0, 8);
+const partJs = (role, body) => `// Skybox ${id} (${role}) – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n` +
+  `(globalThis.PRISMA_SKY_PARTS ||= {})[${JSON.stringify(`${id}/${role}`)}] = ${JSON.stringify({ rev, ...body })};\n`;
+const files = [
+  { role: 'base', file: `${id}/base.${rev}.js`, device: 'all', precache: true, js: partJs('base', base), gpuMB: gpuMB([cfg.full]) },
+  { role: 'bands', file: `${id}/hd.${rev}.js`, device: 'desktop', precache: false, js: partJs('bands', hd), gpuMB: gpuMB(cfg.bands.map((b) => b.file)) },
+];
+
+const entry = {
+  format: SKY_FORMAT, id, name: author.name, order: author.order, rev,
+  parts: files.map(({ role, file, device, precache, js, gpuMB: g }) => ({ role, file, device, precache, bytes: Buffer.byteLength(js), gpuMB: g })),
+  panorama: { center: cfg.center, depth: { log: cfg.depthLog }, bands: cfg.bands.map(({ u, v }) => ({ u, v })), peak: cfg.peak },
+  light: cfg.light,
+  ...(trees?.fog ? { fog: trees.fog } : {}),
+  ...(author.air ? { air: author.air } : {}),
+  sky: { ...author.sky, rings: cfg.rings },
+  layers: author.layers ?? [],
+};
+
+// Erst alles prüfen (neue Teile noch im Speicher), dann schreiben: Ein fehlerhafter Eintrag landet nie im Register
+const skies = loadSkies(root).filter((s) => s.id !== id).concat(entry).sort((a, b) => a.order - b.order);
+const html = readFileSync(join(root, 'index.html'), 'utf8');
+const errors = checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html), pending: Object.fromEntries(files.map((f) => [f.file, f.js])) });
+if (errors.length) {
+  console.error('Nicht gepackt, Register fehlerhaft:\n  ' + errors.join('\n  '));
+  process.exit(1);
+}
+const out = join(root, 'backgrounds');
+mkdirSync(join(out, id), { recursive: true });
+for (const f of files) writeFileSync(join(out, f.file), f.js);
+const registry = '// Register der Skyboxen aus Blender – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n' +
+  '(globalThis.PRISMA_SKIES ||= []).push(\n' + skies.map((s) => '  ' + JSON.stringify(s)).join(',\n') + ',\n);\n';
+writeFileSync(join(out, 'skies.js'), registry);
+for (const f of readdirSync(join(out, id))) {
+  if (!files.some((x) => x.file === `${id}/${f}`)) rmSync(join(out, id, f));   // alte Stände dieser Skybox
+}
+// Stand des Registers in sw.js: Ein geänderter Service Worker löst in jedem Browser ein Update aus (ob ein nur per
+// importScripts geändertes Register das auch tut, hängt vom Browser ab)
+const swFile = join(root, 'sw.js');
+const sw = readFileSync(swFile, 'utf8');
+const skiesRev = createHash('sha256').update(registry).digest('hex').slice(0, 8);
+if (!/^const SKIES = '[0-9a-f]*';/m.test(sw)) throw new Error("sw.js: Zeile const SKIES = '…'; fehlt");
+writeFileSync(swFile, sw.replace(/^const SKIES = '[0-9a-f]*';/m, `const SKIES = '${skiesRev}';`));
+for (const f of files) console.log(`backgrounds/${f.file}: ${(Buffer.byteLength(f.js) / 1e6).toFixed(2)} MB, ${f.gpuMB} MB Grafikspeicher`);
+console.log(`backgrounds/skies.js: ${skies.map((s) => s.id).join(', ')} (Stand ${id}: ${rev}, Register ${skiesRev} in sw.js)`);

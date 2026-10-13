@@ -1,8 +1,9 @@
 // Rendert index.html in Headless-Chrome, sammelt Konsolenfehler und speichert Screenshots.
 // Aufruf: node tests/screenshot.mjs [name] [breite] [höhe] [wartezeit-ms] [js-vor-screenshot]
-// Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen)
+// Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen),
+// QUERY='sky=forest&t=12' (weitere Parameter der Seite). Gewartet wird, bis der Hintergrund ganz eingeblendet ist.
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -25,10 +26,11 @@ const chrome = chromeCandidates.find(p => existsSync(p));
 if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
 const port = 9300 + Math.floor(Math.random() * 500);
+const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-')); // jedes Mal frisch: kein gespeicherter Fortschritt
 const proc = spawn(chrome, [
   '--headless=new',
   `--remote-debugging-port=${port}`,
-  `--user-data-dir=${join(tmpdir(), 'prisma-chrome-' + port)}`,
+  `--user-data-dir=${profile}`,
   '--use-angle=swiftshader',
   '--enable-unsafe-swiftshader',
   '--ignore-gpu-blocklist',
@@ -87,7 +89,8 @@ if (process.env.MOBILE) {
   await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
   await send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' });
 }
-await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + (process.env.INTRO ? '?noadapt' : '?noadapt&nointro') });
+const query = ['noadapt', process.env.INTRO ? '' : 'nointro', process.env.QUERY ?? ''].filter(Boolean).join('&');
+await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?' + query });
 
 // Warten bis die Szene läuft
 let state = null;
@@ -96,6 +99,12 @@ for (let i = 0; i < 100; i++) {
   state = JSON.parse(r.result?.result?.value ?? 'null');
   if (state && state.frames > 2) break;
   await sleep(200);
+}
+// Hintergrund fertig geladen und eingeblendet (der Wald lädt seine Bilder erst bei der Wahl)
+for (let i = 0; i < 240; i++) {
+  const r = await send('Runtime.evaluate', { expression: 'window.__prisma?.skyReady?.() ?? true', returnByValue: true });
+  if (r.result?.result?.value) break;
+  await sleep(250);
 }
 if (script) {
   const r = await send('Runtime.evaluate', { expression: script, awaitPromise: true, returnByValue: true });
@@ -117,6 +126,8 @@ console.log(relevant.length ? 'Konsole:\n  ' + relevant.join('\n  ') : 'Konsole:
 
 ws.close();
 proc.kill();
+if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => proc.once('exit', r));
+try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien: bleibt im Temp-Ordner */ }
 // Fehlschlag melden: Exceptions, Shader-Fehler oder keine laufende Render-Schleife
 const failed = relevant.some(l => /\[exception\]|\[script-exception\]|\[error\]|THREE\.WebGLProgram/.test(l)) || !state || state.frames < 3;
 if (failed) console.error('FEHLGESCHLAGEN');

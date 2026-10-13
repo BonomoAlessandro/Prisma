@@ -38,19 +38,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, offene
   Levelauswahl). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz → 72 bzw. 29).
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
-- **Wald-Hintergrund** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Der Wald ist eine in
-  Blender gerenderte Skybox. `wald_scene.py` baut die Szene (Gelände, Fichten, Nebel, Mond) als `wald.blend`,
+- **Skyboxen aus Blender** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Hintergründe, die
+  in Blender als Panorama entstehen; im Spiel zeichnet sie ein allgemeines Modul (`createPanoramaSky`, Abschnitt SKYBOX
+  in `index.html`) aus ihrem Manifest. Register `backgrounds/skies.js`, Daten in `backgrounds/<id>/` (Stand im
+  Dateinamen); beides schreibt `node tools/blender/pack.mjs <id>` aus `tools/blender/szenen/<id>/skybox.json` (Name,
+  Reihenfolge, Sterne, Farben, Ebenen) und der Ausgabe der Pipeline. `tools/sky-schema.mjs` prüft das Register (beim
+  Packen und in den Tests), `sw.js` liest seine Listen daraus. Was das Spiel zu einem Panorama selbst zeichnet (nahe
+  Objekte, Nebellagen, Leuchtpunkte), sind Ebenentypen mit Parametern (`SKY_LAYERS`). `backgrounds/` muss samt
+  Unterordnern mit ausgeliefert werden. Konzept und weitere Schritte: PLAN 2.32.
+- **Wald** (`forest`, erste Skybox): `wald_scene.py` baut die Szene (Gelände, Fichten, Nebel, Mond) als `wald.blend`,
   `wald_render.py` rendert Vorschauen aus Sicht der Spielkamera, `wald_export.py` das Panorama, die Streifen und die
-  Tiefe und kodiert sie, `node tools/blender/pack.mjs` schreibt sie nach `backgrounds/` (Reihenfolge und Aufrufe im
-  Kopf von `wald_export.py`). `backgrounds/` muss mit ausgeliefert werden. Anime-Fassung: dieselben Skripte mit
-  `WALD_STIL=anime`, danach malt `anime.py` die Renderings (Aufrufe in seinem Kopf); `pack.mjs anime` baut sie ein,
-  `pack.mjs` ohne Argument die realistische. Die Fichten nahe am Brett zeichnet das Spiel selbst (im Panorama lägen sie
-  schräg): Modelle und Standorte erzeugt `wald_spielbaum.py` (`sky/<stil>/trees.json`, packt `pack.mjs` mit ein).
+  Tiefe (Aufrufe in seinem Kopf). Eingebaut ist die Anime-Fassung: dieselben Skripte mit `WALD_STIL=anime`, danach
+  malt `anime.py` die Renderings (Aufrufe in seinem Kopf) und schreibt `sky/anime/sky.json` (mit Hauptlicht, hellstem
+  Wert und Farbringen für den Platzhalter beim Laden). Die Fichten nahe am Brett zeichnet das Spiel selbst (im
+  Panorama lägen sie schräg): Modelle und Standorte erzeugt `wald_spielbaum.py` (`sky/<stil>/trees.json`).
   Gearbeitet wird über den Blender-MCP in der offenen Szene: `wald_mcp.py` führt die Skripte dort aus, lange Schritte
   (Rendern, Malen) nach dem Aufruf mit Protokoll in `out/<stil>/mcp.log`. Szene, Renderings und Zwischenbilder
   (`*.blend`, `out/`, `sky/`) sind nicht im Repo, die Skripte erzeugen sie neu: `wald_mcp.neu('anime')` baut
   `wald_anime.blend` (rund 20 s, gleich wie die Szene der eingecheckten Bilder), `wald_mcp.skybox()` rendert und malt
-  alles (rund 30 min mit einer RTX A2000), danach `node tools/blender/pack.mjs anime`. Einrichten auf einem neuen
+  alles (rund 30 min mit einer RTX A2000), danach `node tools/blender/pack.mjs forest`. Einrichten auf einem neuen
   Rechner: Blender 5.2 mit dem MCP von Blender Lab (projects.blender.org/lab/blender_mcp, Releases): `mcp-<version>.zip`
   in Blender als Erweiterung installieren und Blender mit `--online-mode` starten (die Brücke startet nur mit
   Online-Zugriff), `blender-<version>.mcpb` (ein Zip) entpacken und in Claude Code eintragen:

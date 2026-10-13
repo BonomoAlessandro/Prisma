@@ -11,10 +11,11 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <script>
   // Manifest (Icon für den Android-Startbildschirm) und Service Worker (offline spielbar, siehe sw.js) nur über
-  // http(s): über file:// blockiert der Browser das Manifest mit Fehler und kennt keine Service Worker
+  // http(s): über file:// blockiert der Browser das Manifest mit Fehler und kennt keine Service Worker. updateViaCache:
+  // sw.js und das Register der Skyboxen (importScripts) bei jedem Besuch beim Server prüfen
   if (/^https?:/.test(location.protocol)) {
     document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
-    if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
   }
 </script>
 <meta name="theme-color" content="#030308">
@@ -374,6 +375,7 @@
 <script src="vendor/three-0.147.0/ShaderPass.js"></script>
 <script src="vendor/three-0.147.0/UnrealBloomPass.js"></script>
 <script src="vendor/three-0.147.0/Reflector.js"></script>
+<script src="backgrounds/skies.js"></script>
 
 <script>
 'use strict';
@@ -383,6 +385,14 @@
    ===================================================================== */
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+// ?t=12: Zeit der Animationen anhalten, Zufall fest (Vergleichsbilder: zwei Aufnahmen fallen gleich aus). Überblenden
+// und Einblenden laufen weiter, sie zählen dt.
+const FIXED_TIME = (() => {
+  const v = new URLSearchParams(location.search).get('t');
+  return v !== null && Number.isFinite(+v) ? +v : null;
+})();
+if (FIXED_TIME !== null) Math.random = mulberry32(1);
 
 // Feste Qualität (früher Stufe "Niedrig"): höhere Stufen kosteten auf Laptops sehr viele FPS,
 // ohne sichtbar besser auszusehen. pixelRatio ist die Obergrenze; adaptiveResolution regelt darunter.
@@ -4954,31 +4964,6 @@ function bakeShadowMap(casters, box, dir, size, uniforms) {
   uniforms.uShadowMat.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 }
 
-// Nächtlicher Wald: Mond, Dunst und Himmel der Himmelskugel. Davor liegt das Panorama aus Blender (WALD); die Kugel
-// sieht man in der Spiegelung der Platte und solange das Panorama lädt. Der Mond steht wie in der Blender-Szene
-// (tools/blender). Der Dunst ist zum Mond hin gut doppelt so hell (Vorwärtsstreuung), oben tiefblau, um den Mond ein Hof.
-const FOREST_MOON = new THREE.Vector3(-0.8, 0.5, 0.25).normalize(); // seitlich, gut 30° hoch: lange Schatten
-const FOREST_GLSL = `
-  const vec3 FOREST_MOON = vec3(${FOREST_MOON.toArray().map((v) => v.toFixed(4)).join(', ')});
-  // Dunst in Blickrichtung (nur waagrecht gewertet, sonst wäre er beim Blick nach unten überall gleich): zum Mond hin
-  // hell und neutral, sonst schiefergrau-blau
-  vec3 forestMist(vec3 viewDir) {
-    vec2 h = normalize(viewDir.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
-    float toMoon = max(dot(h, m), 0.0);
-    return vec3(0.07, 0.083, 0.112) + vec3(0.16, 0.16, 0.155) * pow(toMoon, 4.0) + vec3(0.025, 0.027, 0.03) * toMoon;
-  }
-  // Himmel: am Horizont der Dunst, oben tiefblau; der Mond als kleine Scheibe mit Hof (vom Rand der Scheibe an alle
-  // 1,5 Radien halb so hell, ein schwacher Schein reicht weit)
-  vec3 forestSky(vec3 d) {
-    float y = max(d.y, 0.0);
-    vec3 col = mix(forestMist(d), vec3(0.005, 0.009, 0.022), smoothstep(0.0, 0.55, y));
-    const float R = 0.012; // Radius der Mondscheibe (rad)
-    float r = acos(clamp(dot(d, FOREST_MOON), -1.0, 1.0));
-    col += vec3(0.16, 0.17, 0.19) * exp2(-max(r - R, 0.0) / (1.5 * R)) + vec3(0.035, 0.04, 0.05) * exp(-r / 0.22);
-    col = mix(col, vec3(2.6, 2.5, 2.3), smoothstep(R * 1.08, R * 0.92, r));
-    return col;
-  }`;
-
 const background = new THREE.Mesh(
   new THREE.SphereGeometry(80, 48, 24),
   new THREE.ShaderMaterial({
@@ -4991,7 +4976,8 @@ const background = new THREE.Mesh(
       uCloudRot: { value: new THREE.Matrix3().setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(skyTall)) },
       uCore: { value: new THREE.Vector3(0, 0, 1) }, // Richtung des Kerns im Himmelssystem (updateSky)
       uGlow: { value: SKY.glow },
-      uForest: { value: 0 }, // 0 … 1: Nebel des nächtlichen Waldes statt Weltraum (skyTheme)
+      uPano: { value: 0 }, // 0 … 1: Platzhalter einer Skybox aus Blender statt Weltraum (skyTheme)
+      uRings: { value: Array.from({ length: 9 }, () => new THREE.Vector3()) }, // dazu: Farbe nach Höhe (sky.rings)
       // Magellansche Wolken: Welt → Tangentialebene um die Mitte, in Halbachsen (updateSky)
       uLmc: { value: new THREE.Matrix3() },
       uSmc: { value: new THREE.Matrix3() },
@@ -5003,12 +4989,19 @@ const background = new THREE.Mesh(
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
     fragmentShader: `
-      uniform float uGlow, uForest;
+      uniform float uGlow, uPano;
       uniform mat3 uSkyRot, uCloudRot, uLmc, uSmc;
-      uniform vec3 uCore;
+      uniform vec3 uCore, uRings[9];
       varying vec3 vDir;
       ${GLSL_NOISE}
-      ${FOREST_GLSL}
+      // Platzhalter einer Skybox aus Blender: Farbverlauf nach Höhe, im Panorama gemessen (9 Ringe von −90° bis 90°). Man
+      // sieht ihn nur, solange das Panorama lädt oder überblendet; danach liegt das Panorama davor (SKYBOX).
+      vec3 panoSky(vec3 d) {
+        float x = (asin(clamp(d.y, -1.0, 1.0)) / 3.141592653589793 + 0.5) * 8.0;
+        vec3 col = vec3(0.0);
+        for (int k = 0; k < 9; k++) col += uRings[k] * max(0.0, 1.0 - abs(x - float(k)));
+        return col;
+      }
       // Magellansche Wolke: fleckig ausfransender Nebel aus Sternenlicht um die Mitte von m (siehe uLmc)
       vec3 satellite(mat3 m, vec3 d, vec3 seed, float pink) {
         vec3 l = m * d;
@@ -5054,8 +5047,8 @@ const background = new THREE.Mesh(
           col += neb * plane * wisps * shade * 2.4 * uGlow;
         }
         if (uGlow > 0.0) col += (satellite(uLmc, d, vec3(3.0, 9.0, 1.0), 1.0) + 0.8 * satellite(uSmc, d, vec3(7.0, 2.0, 5.0), 0.0)) * 1.8 * uGlow;
-        // Wald: Dunst und Mond (davor das Panorama aus Blender, siehe WALD)
-        if (uForest > 0.0) col = mix(col, forestSky(d), uForest);
+        // Skybox aus Blender: Platzhalter (davor das Panorama, siehe SKYBOX)
+        if (uPano > 0.0) col = mix(col, panoSky(d), uPano);
         // Alpha 0 = Himmel: Der letzte Bildschritt lässt hier die Farbverschiebung am Bildrand weg (Sterne!)
         gl_FragColor = vec4(col, 0.0);
       }`,
@@ -5106,17 +5099,17 @@ function createStars() {
   geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('aStar', new THREE.BufferAttribute(info, 4));
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 }, uForest: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 }, uHorizon: { value: 0 } },
     vertexShader: `
       attribute vec3 aColor;
       attribute vec4 aStar;
-      uniform float uTime, uPixelRatio, uFade, uForest;
+      uniform float uTime, uPixelRatio, uFade, uHorizon;
       varying vec3 vColor;
       void main() {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 70.0, 1.0);
         float twinkle = 1.0 + aStar.w * 0.22 * sin(uTime * (0.6 + aStar.z * 1.4) + aStar.z * 40.0);
-        // im Wald schwächer (der Mond überstrahlt sie) und nur über dem Horizont – darunter liegen Dunst und Nebel
-        float above = mix(1.0, smoothstep(0.0, 0.12, normalize(mat3(modelMatrix) * position).y), uForest);
+        // nur über dem Horizont, wo eine Skybox es verlangt (sky.starsAboveHorizon: darunter liegen Gelände und Nebel)
+        float above = mix(1.0, smoothstep(0.0, 0.12, normalize(mat3(modelMatrix) * position).y), uHorizon);
         vColor = aColor * aStar.x * twinkle * uFade * above;
         gl_PointSize = aStar.y * uPixelRatio;
       }`,
@@ -5391,6 +5384,11 @@ const solar = (() => {
 
   return {
     group, corona, planets, lineMat,
+    setFade(k) {
+      solarUniforms.uFade.value = k;
+      lineMat.opacity = 0.12 * k;
+      group.visible = k > 0;
+    },
     update(t) {
       solarUniforms.uTime.value = t;
       // Korona hinter die Platte schieben und im selben Mass vergrössern (gleich gross im Bild): Durch die
@@ -5431,163 +5429,166 @@ function smoothNoise(x, z, octaves = 4) { // 0 … 1, ohne Vorzugsrichtung
 }
 
 /* =====================================================================
-   WALD — dritter Hintergrund: Mondnacht über einem Nebelmeer, in Blender gerendert (umschaltbar, siehe skyTheme)
-   Das Brett schwebt über einem bewaldeten Grat; Fichtenhänge fallen in ein mondhelles Nebelmeer, aus dem weitere Kämme
-   ragen, dahinter Dunst und ferne Berge, der Mond seitlich (FOREST_MOON) mit Hof. Die Szene entsteht in Blender
-   (Cycles, tools/blender/) und liegt als Panorama in backgrounds/: forest.js (ganzes Equirect und Tiefe, jedes Gerät)
-   und forest-hd.js (hoch aufgelöste Streifen für den Blick nach unten, nur Desktop). Als Skripte mit Data-URLs, weil
-   Chrome Bilder aus file:// nicht in WebGL-Texturen lässt; erst bei der ersten Wahl geladen.
+   SKYBOX AUS BLENDER — Hintergründe, die in Blender (Cycles) als Panorama entstehen (tools/blender/, umschaltbar, siehe
+   skyTheme). Jede steht mit einem Manifest im Register backgrounds/skies.js (erzeugt von tools/blender/pack.mjs, Felder
+   in tools/sky-schema.mjs). Ihre Bilder liegen als Skripte mit Data-URLs in backgrounds/<id>/, weil Chrome Bilder aus
+   file:// nicht in WebGL-Texturen lässt, und laden erst bei der Wahl: base (ganzes Equirect, Tiefe, Daten der Ebenen,
+   jedes Gerät) und auf dem Desktop bands (hoch aufgelöste Streifen für den Blick nach unten).
    Parallaxe: Das Panorama ist von einem Punkt über dem Brett aus gerendert (center). Es liegt nicht auf einer Kugel um
    die Kamera, sondern auf einem Netz um diesen Punkt, jede Ecke so weit draussen wie die Szene in Blender (Tiefe im
-   Log-Raum geglättet, sonst rissen Baumkanten auf). Der Shader rechnet die Richtung vom Mittelpunkt zum Punkt auf dem
-   Netz und tastet damit einen Streifen oder das ganze Bild ab. Grenze des Verfahrens: Bäume nahe am Brett sähe die
-   Kamera aus einem anderen Winkel als der Mittelpunkt, sie stünden schräg. Darum fehlen sie im Panorama (nur ihre
-   Schatten sind drin), und das Spiel zeichnet sie selbst als 3D-Fichten (buildTrees, Daten in forest.js). Bewegung
-   bringen ein ziehender Nebelschleier über dem Nebelmeer (buildMist) und Glühwürmchen zwischen den Fichten.
-   Farben: lineare Szenenwerte, sRGB-kodiert; ACES, Vignette und Korn macht der letzte Bildschritt wie bei allem.
+   Log-Raum geglättet, sonst rissen Kanten auf). Der Shader rechnet die Richtung vom Mittelpunkt zum Punkt auf dem Netz
+   und tastet damit einen Streifen oder das ganze Bild ab. Das Netz schreibt Tiefe, so verdecken Kämme, was dahinter
+   liegt (etwa Nebellagen). Grenze des Verfahrens: Dinge nahe am Brett sähe die Kamera aus einem anderen Winkel als der
+   Mittelpunkt, sie stünden schräg. Darum fehlen sie im Panorama (nur ihre Schatten sind drin), und das Spiel zeichnet
+   sie selbst (Ebenen, SKY_LAYERS).
+   Farben: lineare Szenenwerte, sRGB-kodiert, unter der Bloom-Schwelle (panorama.peak); ACES, Vignette und Korn macht der
+   letzte Bildschritt wie bei allem. Ausgeblendet und nicht gewählt, gibt eine Skybox ihren Grafikspeicher frei
+   (skyTheme.keep).
+   Wald (forest): Mondnacht über einem Nebelmeer, nahe Fichten als 3D-Modelle (toonInstances), ein ziehender
+   Nebelschleier (mistSheets) und Glühwürmchen (glowParticles).
    ===================================================================== */
 
-const forestUniforms = {
-  uFade: { value: 0 }, // Anteil des Walds 0 … 1 (skyTheme)
+const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
+const PANO = {
+  dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera ~25 entfernt) vor camera.far
+  blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad)
+  segU: 512, segV: 256,
+  appear: 0.6,       // s: Einblenden, wenn die Daten erst nach der Wahl ankommen
+  // Streifen nur auf dem Desktop: zusammen mit dem ganzen Bild rund 260 MB Grafikspeicher (ohne: rund 45 MB)
+  hd: !IS_MOBILE && renderer.capabilities.maxTextureSize >= 4096,
 };
 
-const forest = (() => {
-  const P = {
-    dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera ~25 entfernt) vor camera.far
-    blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad)
-    segU: 512, segV: 256,
-    appear: 0.6,       // s: Einblenden, wenn die Daten erst nach der Wahl ankommen
-    // Streifen nur auf dem Desktop: zusammen mit dem ganzen Bild rund 270 MB Grafikspeicher (ohne: rund 45 MB)
-    hd: !IS_MOBILE && renderer.capabilities.maxTextureSize >= 4096,
-  };
-  const group = new THREE.Group();
-  group.visible = false;
-  const uniforms = { uFade: forestUniforms.uFade, uReady: { value: 0 }, uTime: { value: 0 } };
-  const flyUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
-  let loading = null, mesh = null, readyAt = null;
+/** Zahl als GLSL-Fliesskommazahl (1 -> 1.0), Liste als vec2/vec3 */
+const glf = (v) => { const s = String(v); return /[.e]/.test(s) ? s : `${s}.0`; };
+const glv = (a) => `vec${a.length}(${a.map(glf).join(', ')})`;
 
-  const loadScript = (src) => new Promise((resolve, reject) => {
+function loadSkyScript(src) {
+  return new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = src;
-    s.onload = resolve;
-    s.onerror = () => reject(new Error(`${src} nicht geladen`));
+    s.onload = () => { s.remove(); resolve(); };
+    s.onerror = () => { s.remove(); reject(new Error(`${src} nicht geladen`)); };
     document.head.appendChild(s);
   });
-  const loadImage = (url) => new Promise((resolve, reject) => {
+}
+function loadSkyImage(url) {
+  return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Bild nicht lesbar'));
     img.src = url;
   });
+}
 
-  function texture(img, wrapU) {
-    const t = new THREE.Texture(img);
-    t.encoding = THREE.sRGBEncoding;
-    t.wrapS = wrapU ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
-    t.wrapT = THREE.ClampToEdgeWrapping;
-    t.minFilter = THREE.LinearMipmapLinearFilter;
-    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    t.needsUpdate = true;
-    return t;
-  }
+function skyTexture(img, wrapU) {
+  const t = new THREE.Texture(img);
+  t.encoding = THREE.sRGBEncoding;
+  t.wrapS = wrapU ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+  t.wrapT = THREE.ClampToEdgeWrapping;
+  t.minFilter = THREE.LinearMipmapLinearFilter;
+  t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+  t.needsUpdate = true;
+  return t;
+}
 
-  /** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand, Ferne auf dMax begrenzt */
-  function logDepth(img, depthLog) {
-    const w = img.width, h = img.height;
-    const canvas = document.createElement('canvas');
-    canvas.width = w; canvas.height = h;
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    ctx.drawImage(img, 0, 0);
-    const px = ctx.getImageData(0, 0, w, h).data;
-    const la = Math.log(depthLog[0]), lb = Math.log(depthLog[1]), lmin = Math.log(P.dMin), lmax = Math.log(P.dMax);
-    let src = new Float32Array(w * h);
-    for (let x = 0; x < w; x++) {
-      let last = lmax;
-      for (let y = 0; y < h; y++) {
-        const i = y * w + x, code = px[i * 4] * 256 + px[i * 4 + 1];
-        // ohne Treffer: über dem Horizont Himmel, darunter das Loch im Gelände unter dem Brett – dort den letzten Wert
-        // darüber nehmen, sonst zöge die Glättung den Boden an den Brettkanten in die Ferne
-        if (code === 65535) src[i] = y < h / 2 ? lmax : last;
-        else src[i] = last = Math.min(lmax, Math.max(lmin, la + code / 65535 * (lb - la)));
-      }
+/** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand, Ferne auf dMax begrenzt */
+function skyLogDepth(img, depthLog) {
+  const w = img.width, h = img.height;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const px = ctx.getImageData(0, 0, w, h).data;
+  const la = Math.log(depthLog[0]), lb = Math.log(depthLog[1]), lmin = Math.log(PANO.dMin), lmax = Math.log(PANO.dMax);
+  let src = new Float32Array(w * h);
+  for (let x = 0; x < w; x++) {
+    let last = lmax;
+    for (let y = 0; y < h; y++) {
+      const i = y * w + x, code = px[i * 4] * 256 + px[i * 4 + 1];
+      // ohne Treffer: über dem Horizont Himmel, darunter das Loch im Gelände unter dem Brett – dort den letzten Wert
+      // darüber nehmen, sonst zöge die Glättung den Boden an den Brettkanten in die Ferne
+      if (code === 65535) src[i] = y < h / 2 ? lmax : last;
+      else src[i] = last = Math.min(lmax, Math.max(lmin, la + code / 65535 * (lb - la)));
     }
-    // Gauss, getrennt: waagrecht über die Naht hinweg, senkrecht am Rand festgehalten
-    const sigma = P.blurDeg * w / 360, r = Math.ceil(sigma * 3), k = [];
-    for (let i = -r; i <= r; i++) k.push(Math.exp(-i * i / (2 * sigma * sigma)));
-    const ks = k.reduce((s, v) => s + v, 0);
-    const pass = (from, horizontal) => {
-      const to = new Float32Array(w * h);
-      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        let s = 0;
-        for (let i = -r; i <= r; i++) {
-          const xx = horizontal ? (x + i + w) % w : x, yy = horizontal ? y : Math.min(h - 1, Math.max(0, y + i));
-          s += from[yy * w + xx] * k[i + r];
-        }
-        to[y * w + x] = s / ks;
-      }
-      return to;
-    };
-    return { w, h, data: pass(pass(src, true), false) };
   }
-
-  /** Kugelnetz um den Mittelpunkt, Ecken im Abstand der Szene (bilinear aus der Tiefe) */
-  function proxyGeometry(depth, center) {
-    const pos = new Float32Array((P.segU + 1) * (P.segV + 1) * 3);
-    const sample = (u, v) => {
-      const { w, h, data } = depth;
-      const x = u * w - 0.5, y = Math.min(h - 1, Math.max(0, v * h - 0.5));
-      const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
-      const X0 = (x0 % w + w) % w, X1 = (X0 + 1) % w, Y1 = Math.min(h - 1, y0 + 1);
-      return (data[y0 * w + X0] * (1 - fx) + data[y0 * w + X1] * fx) * (1 - fy) + (data[Y1 * w + X0] * (1 - fx) + data[Y1 * w + X1] * fx) * fy;
-    };
-    let p = 0;
-    for (let i = 0; i <= P.segV; i++) {
-      const v = i / P.segV, th = v * Math.PI;
-      for (let j = 0; j <= P.segU; j++) {
-        const u = j / P.segU, ph = (u - 0.5) * 2 * Math.PI;
-        // Richtung in Blender (bx, by, bz) -> Spiel (bx, bz, −by)
-        const bx = Math.sin(th) * Math.sin(ph), by = Math.sin(th) * Math.cos(ph), bz = Math.cos(th);
-        const d = Math.exp(sample(u, v));
-        pos[p++] = center.x + bx * d; pos[p++] = center.y + bz * d; pos[p++] = center.z - by * d;
+  // Gauss, getrennt: waagrecht über die Naht hinweg, senkrecht am Rand festgehalten
+  const sigma = PANO.blurDeg * w / 360, r = Math.ceil(sigma * 3), k = [];
+  for (let i = -r; i <= r; i++) k.push(Math.exp(-i * i / (2 * sigma * sigma)));
+  const ks = k.reduce((s, v) => s + v, 0);
+  const pass = (from, horizontal) => {
+    const to = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let s = 0;
+      for (let i = -r; i <= r; i++) {
+        const xx = horizontal ? (x + i + w) % w : x, yy = horizontal ? y : Math.min(h - 1, Math.max(0, y + i));
+        s += from[yy * w + xx] * k[i + r];
       }
+      to[y * w + x] = s / ks;
     }
-    const index = [];
-    for (let i = 0; i < P.segV; i++) for (let j = 0; j < P.segU; j++) {
-      const a = i * (P.segU + 1) + j, b = a + 1, c = a + P.segU + 1, d = c + 1;
-      index.push(a, c, b, b, c, d);
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setIndex(index);
-    return geo;
-  }
+    return to;
+  };
+  return { w, h, data: pass(pass(src, true), false) };
+}
 
-  function material(center, full, bands) {
-    const u = { ...uniforms, uFull: { value: full }, uCenter: { value: center } };
-    bands.forEach((b, i) => {
-      u[`uBand${i}`] = { value: b.tex };
-      u[`uRect${i}`] = { value: new THREE.Vector4(b.u[0], b.u[1], b.v[0], b.v[1]) };
-    });
-    const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i};`).join('\n');
-    // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v)
-    const pick = bands.map((_, i) => `
+/** Kugelnetz um den Mittelpunkt, Ecken im Abstand der Szene (bilinear aus der Tiefe) */
+function skyProxyGeometry(depth, center) {
+  const { segU, segV } = PANO;
+  const pos = new Float32Array((segU + 1) * (segV + 1) * 3);
+  const sample = (u, v) => {
+    const { w, h, data } = depth;
+    const x = u * w - 0.5, y = Math.min(h - 1, Math.max(0, v * h - 0.5));
+    const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+    const X0 = (x0 % w + w) % w, X1 = (X0 + 1) % w, Y1 = Math.min(h - 1, y0 + 1);
+    return (data[y0 * w + X0] * (1 - fx) + data[y0 * w + X1] * fx) * (1 - fy) + (data[Y1 * w + X0] * (1 - fx) + data[Y1 * w + X1] * fx) * fy;
+  };
+  let p = 0;
+  for (let i = 0; i <= segV; i++) {
+    const v = i / segV, th = v * Math.PI;
+    for (let j = 0; j <= segU; j++) {
+      const u = j / segU, ph = (u - 0.5) * 2 * Math.PI;
+      // Richtung in Blender (bx, by, bz) -> Spiel (bx, bz, −by)
+      const bx = Math.sin(th) * Math.sin(ph), by = Math.sin(th) * Math.cos(ph), bz = Math.cos(th);
+      const d = Math.exp(sample(u, v));
+      pos[p++] = center.x + bx * d; pos[p++] = center.y + bz * d; pos[p++] = center.z - by * d;
+    }
+  }
+  const index = [];
+  for (let i = 0; i < segV; i++) for (let j = 0; j < segU; j++) {
+    const a = i * (segU + 1) + j, b = a + 1, c = a + segU + 1, d = c + 1;
+    index.push(a, c, b, b, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(index);
+  return geo;
+}
+
+function skyPanoramaMaterial(uniforms, center, full, bands) {
+  const u = { ...uniforms, uFull: { value: full }, uCenter: { value: center } };
+  bands.forEach((b, i) => {
+    u[`uBand${i}`] = { value: b.tex };
+    u[`uRect${i}`] = { value: new THREE.Vector4(b.u[0], b.u[1], b.v[0], b.v[1]) };
+  });
+  const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i};`).join('\n');
+  // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v)
+  const pick = bands.map((_, i) => `
         if (!hit && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
           vec2 s = 1.0 / vec2(uRect${i}.y - uRect${i}.x, uRect${i}.w - uRect${i}.z);
           col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y), gx * s, gy * s);
           hit = true;
         }`).join('');
-    return new THREE.ShaderMaterial({
-      uniforms: u,
-      side: THREE.DoubleSide,
-      extensions: { derivatives: true, shaderTextureLOD: true },
-      vertexShader: `
+  return new THREE.ShaderMaterial({
+    uniforms: u,
+    side: THREE.DoubleSide,
+    extensions: { derivatives: true, shaderTextureLOD: true },
+    vertexShader: `
         varying vec3 vWorld;
         void main() {
           vec4 wp = modelMatrix * vec4(position, 1.0);
           vWorld = wp.xyz;
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
-      fragmentShader: `
+    fragmentShader: `
         #if __VERSION__ >= 300
           #define SAMPLE(t, p, gx, gy) textureGrad(t, p, gx, gy).rgb
         #elif defined(GL_EXT_shader_texture_lod)
@@ -5617,26 +5618,36 @@ const forest = (() => {
           if (!hit) col = SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy);
           gl_FragColor = vec4(col, uFade * uReady);
         }`,
-    });
-  }
+  });
+}
 
-  /**
-   * Fichten nahe am Brett (waagrecht bis trees.rNear): Das Panorama zeigt sie nicht, aus seinem Mittelpunkt gesehen
-   * lägen sie schräg. Modelle und Standorte kommen aus Blender (tools/blender/wald_spielbaum.py), die Farben von den
-   * gemalten Bäumen im Panorama: zwei harte Stufen im Mondlicht (Toon), heller Rand an den Kanten zum Mond, unten in der
-   * Krone dunkler, etwas Dunst mit dem Abstand. Wie viel Mondlicht eine Krone unten und oben trifft (Schatten von Kämmen
-   * und Nachbarbäumen), hat Blender je Baum ausgerechnet; ihre Schatten auf dem Boden stecken im Panorama.
-   * Nebel wie in der Szene (trees.fog): Die Dichte hängt nur von der Höhe über der Oberkante am Baum ab (weicher Saum,
-   * darunter der Kern, je eine Rampe). Entlang des Blicks bis zur Kamera (über dem Nebel) zählt also nur ihr Integral
-   * von der Höhe des Punkts aufwärts, mal Weg je Höhe – so versinken Bäume am Rand des Nebelmeers darin wie im Panorama.
-   * Eintrag je Baum: x, y, z des Fusses, Höhe, Breite, Drehung, Modell, Mondlicht unten, oben, Helligkeit, Nebel-Oberkante.
-   */
-  function buildTrees(trees) {
-    const fogRamp = ([a, b, d]) => `${d.toFixed(4)} * ramp(dz, ${a.toFixed(2)}, ${b.toFixed(2)})`;
-    const material = new THREE.ShaderMaterial({
-      uniforms,
-      vertexShader: `
-        attribute vec4 aInfo; // Mondlicht unten, oben; Helligkeit; Oberkante des Nebels
+/**
+ * Ebenen: was das Spiel zu einem Panorama selbst zeichnet, je Typ mit Parametern aus dem Manifest (layers). Jeder Typ
+ * ist eine Funktion (ctx, opt) -> Object3D; ctx = { uniforms (uFade, uReady, uTime), pointUniforms (dazu uPixelRatio),
+ * data (Daten aus base), light (Richtung zum Hauptlicht), lightGLSL (const vec3 SKY_LIGHT), fog, air }. Neues kommt als
+ * weiterer Typ dazu; tools/sky-schema.mjs liest die Namen aus der Zeile `const SKY_LAYERS = { … }`.
+ */
+
+/**
+ * Nahe Objekte (Daten: models {pos, nrm, idx} in Spielkoordinaten, Fuss im Ursprung, Höhe und Breite 1; instances
+ * [x, y, z, Höhe, Breite, Drehung um die Hochachse, Modell, Licht unten, Licht oben, Helligkeit, Nebel-Oberkante]):
+ * Das Panorama zeigt sie nicht, aus seinem Mittelpunkt gesehen lägen sie schräg. Farben (palette) wie die gemalten
+ * Objekte im Panorama: zwei harte Stufen im Hauptlicht (Toon), heller Rand an den Kanten zum Licht, unten dunkler, etwas
+ * Dunst mit dem Abstand (air). Wie viel Licht ein Objekt unten und oben trifft (Schatten von Kämmen und Nachbarn), hat
+ * Blender je Instanz ausgerechnet; ihre Schatten auf dem Boden stecken im Panorama (Wald: wald_spielbaum.py).
+ * Nebel wie in der Szene (fog): Die Dichte hängt nur von der Höhe über der Nebel-Oberkante an der Instanz ab (weicher
+ * Saum, darunter der Kern, je eine Rampe). Entlang des Blicks bis zur Kamera (über dem Nebel) zählt also nur ihr
+ * Integral von der Höhe des Punkts aufwärts, mal Weg je Höhe – so versinken Objekte am Rand des Nebelmeers darin wie
+ * im Panorama. Ohne fog oder ohne Oberkante je Instanz: kein Nebel.
+ */
+function toonInstances(ctx, opt) {
+  const set = ctx.data[opt.data], pal = opt.palette, air = ctx.air;
+  const fog = ctx.fog && set.instances.every((t) => t.length > 10) ? ctx.fog : null;
+  const fogRamp = ([a, b, d]) => `${d.toFixed(4)} * ramp(dz, ${a.toFixed(2)}, ${b.toFixed(2)})`;
+  const material = new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
+    vertexShader: `
+        attribute vec4 aInfo; // Licht unten, oben; Helligkeit; Oberkante des Nebels
         varying vec4 vInfo;
         varying vec3 vN, vPos;
         varying float vH;
@@ -5650,16 +5661,16 @@ const forest = (() => {
           vH = position.y;
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
-      fragmentShader: `
+    fragmentShader: `
         uniform float uFade, uReady;
         varying vec4 vInfo;
         varying vec3 vN, vPos;
         varying float vH;
-        ${FOREST_GLSL}
-        // Farben der gemalten Bäume und des Nebels (Anzeige), zurückgerechnet auf Szenenwerte vor ACES
-        const vec3 SHADOW = vec3(0.0114, 0.0225, 0.0266), MID = vec3(0.0198, 0.044, 0.0542);
-        const vec3 LIT = vec3(0.037, 0.0913, 0.1124), RIM = vec3(0.07, 0.165, 0.22), HAZE = vec3(0.087, 0.195, 0.40);
-        const vec3 FOG_LIT = vec3(0.214, 0.365, 0.72);
+        ${ctx.lightGLSL}
+        // Farben der gemalten Objekte und des Nebels (Anzeige), zurückgerechnet auf Szenenwerte vor ACES
+        const vec3 SHADOW = ${glv(pal.shadow)}, MID = ${glv(pal.mid)};
+        const vec3 LIT = ${glv(pal.lit)}, RIM = ${glv(pal.rim)}, HAZE = ${glv(air.haze)};
+        const vec3 FOG_LIT = ${glv(air.lit)};
         // Integral einer Rampe (0 bei Höhe a, 1 ab Höhe b < a) von dz aufwärts
         float ramp(float dz, float a, float b) {
           float w = a - b;
@@ -5672,161 +5683,192 @@ const forest = (() => {
           if (!gl_FrontFacing) N = -N;
           vec3 toCam = cameraPosition - vPos;
           float dist = length(toCam);
-          float l = dot(N, FOREST_MOON);
+          float l = dot(N, SKY_LIGHT);
           float moon = mix(vInfo.x, vInfo.y, smoothstep(0.2, 0.8, vH));
           vec3 col = mix(SHADOW, MID, smoothstep(-0.5, -0.3, l));
           col = mix(col, LIT, smoothstep(0.0, 0.12, l) * moon);
           col *= mix(0.6, 1.0, smoothstep(0.0, 0.45, vH));
           float rim = pow(1.0 - max(dot(N, toCam / dist), 0.0), 3.0) * smoothstep(-0.1, 0.4, l) * moon;
           col = mix(col, RIM, rim * 0.6) * vInfo.z;
-          col = mix(col, HAZE, 1.0 - exp(-dist * 0.0015));
-          // Nebel: Integral der Dichte über dem Punkt mal Weg je Höhe; zum Mond hin heller (Vorwärtsstreuung)
+          col = mix(col, HAZE, 1.0 - exp(-dist * ${glf(air.density)}));${fog ? `
+          // Nebel: Integral der Dichte über dem Punkt mal Weg je Höhe; zum Licht hin heller (Vorwärtsstreuung)
           float dz = vPos.y - vInfo.w;
-          float tau = (${fogRamp(trees.fog.soft)} + ${fogRamp(trees.fog.core)}) * min(dist / max(cameraPosition.y - vPos.y, 0.1), 8.0);
-          vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
-          col = mix(mix(HAZE, FOG_LIT, pow(max(dot(h, m), 0.0), 2.0)), col, exp(-tau));
+          float tau = (${fogRamp(fog.soft)} + ${fogRamp(fog.core)}) * min(dist / max(cameraPosition.y - vPos.y, 0.1), 8.0);
+          vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(SKY_LIGHT.xz);
+          col = mix(mix(HAZE, FOG_LIT, pow(max(dot(h, m), 0.0), 2.0)), col, exp(-tau));` : ''}
           gl_FragColor = vec4(col * uFade * uReady, 1.0);
         }`,
-    });
-    const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-    trees.models.forEach((model, k) => {
-      const list = trees.trees.filter((t) => t[6] === k);
-      const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
-      geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
-      geo.setIndex(model.idx);
-      const info = new Float32Array(list.length * 4);
-      const mesh = new THREE.InstancedMesh(geo, material, list.length);
-      list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, fog], i) => {
-        mtx.compose(new THREE.Vector3(x, y, z), q.setFromAxisAngle(up, turn), new THREE.Vector3(w, h, w));
-        mesh.setMatrixAt(i, mtx);
-        info.set([lo, hi, shade, fog], i * 4);
-      });
-      geo.setAttribute('aInfo', new THREE.InstancedBufferAttribute(info, 4));
-      mesh.frustumCulled = false;          // die Hülle gilt nur für ein Modell, nicht für alle Standorte
-      mesh.layers.set(LAYER_NO_REFLECT);
-      mesh.raycast = () => {};
-      out.add(mesh);
-    });
-    return out;
-  }
-
-  /**
-   * Glühwürmchen zwischen den nahen Fichten (über dem Nebel, unter der Brettebene, ausserhalb der Platte): klein und
-   * gelbgrün mit weichem Schein, sie leuchten unregelmässig auf (etwa eine halbe Sekunde, dann eine Weile dunkel) –
-   * die einzigen warmen Lichter in der Mondnacht.
-   */
-  function buildFireflies(trees, n = 50) {
-    const rand = mulberry32(17);
-    const spots = trees.trees.filter(([x, y, z, , , , , , , , fog]) => Math.hypot(x, z) > 7 && Math.hypot(x, z) < 28 && y > fog + 1);
-    const pos = new Float32Array(n * 3), seed = new Float32Array(n);
-    for (let i = 0; i < n && spots.length; i++) {
-      const [x, y, z] = spots[Math.floor(rand() * spots.length)];
-      pos.set([x + (rand() - 0.5) * 3, Math.min(y + 0.6 + rand() * 2.5, -1.2), z + (rand() - 0.5) * 3], i * 3);
-      seed[i] = rand();
-    }
+  });
+  const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  set.models.forEach((model, k) => {
+    const list = set.instances.filter((t) => t[6] === k);
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
-    const flies = new THREE.Points(geo, new THREE.ShaderMaterial({
-      uniforms: flyUniforms,
-      transparent: true, depthWrite: false,
-      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
-      blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-      vertexShader: `attribute float aSeed;
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
+    geo.setIndex(model.idx);
+    const info = new Float32Array(list.length * 4);
+    const mesh = new THREE.InstancedMesh(geo, material, list.length);
+    list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, top = 0], i) => {
+      mtx.compose(new THREE.Vector3(x, y, z), q.setFromAxisAngle(up, turn), new THREE.Vector3(w, h, w));
+      mesh.setMatrixAt(i, mtx);
+      info.set([lo, hi, shade, top], i * 4);
+    });
+    geo.setAttribute('aInfo', new THREE.InstancedBufferAttribute(info, 4));
+    mesh.frustumCulled = false;          // die Hülle gilt nur für ein Modell, nicht für alle Standorte
+    out.add(mesh);
+  });
+  return out;
+}
+
+/**
+ * Leuchtpunkte zwischen nahen Objekten (Daten wie toonInstances; Wald: Glühwürmchen): im Ring um das Brett, über dem
+ * Nebel, unter der Brettebene; klein, mit weichem Schein, sie leuchten unregelmässig auf (etwa eine halbe Sekunde, dann
+ * eine Weile dunkel).
+ */
+function glowParticles(ctx, opt) {
+  const rand = mulberry32(opt.seed);
+  const [r0, r1] = opt.ring;
+  const spots = ctx.data[opt.data].instances.filter(([x, y, z, , , , , , , , top = -Infinity]) =>
+    Math.hypot(x, z) > r0 && Math.hypot(x, z) < r1 && y > top + opt.aboveFog);
+  const n = opt.count, pos = new Float32Array(n * 3), seed = new Float32Array(n);
+  for (let i = 0; i < n && spots.length; i++) {
+    const [x, y, z] = spots[Math.floor(rand() * spots.length)];
+    pos.set([x + (rand() - 0.5) * opt.spread, Math.min(y + opt.lift[0] + rand() * opt.lift[1], opt.yMax), z + (rand() - 0.5) * opt.spread], i * 3);
+    seed[i] = rand();
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+  const points = new THREE.Points(geo, new THREE.ShaderMaterial({
+    uniforms: ctx.pointUniforms,
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute float aSeed;
         uniform float uTime, uFade, uReady, uPixelRatio;
         varying float vGlow;
         void main() {
           float t = uTime * (0.2 + 0.15 * aSeed) + aSeed * 60.0;
           vec3 p = position + vec3(sin(t) * 1.2 + sin(t * 0.37) * 0.7, sin(t * 0.7 + 1.0) * 0.4, cos(t * 0.83) * 1.2);
-          p.y = min(p.y, -1.0); // nie über die Brettebene
+          p.y = min(p.y, ${glf(opt.ceiling)}); // nie über die Brettebene
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
           float ph = fract(uTime * (0.25 + 0.2 * aSeed) + aSeed * 7.0);
           float blink = smoothstep(0.0, 0.08, ph) * smoothstep(0.3, 0.12, ph); // kurz an, lange aus
           vGlow = blink * uFade * uReady;
-          gl_PointSize = 9.0 * uPixelRatio * 40.0 / -mv.z;
+          gl_PointSize = ${glf(opt.size)} * uPixelRatio * 40.0 / -mv.z;
         }`,
-      fragmentShader: `varying float vGlow;
+    fragmentShader: `varying float vGlow;
         void main() {
           float r = length(gl_PointCoord - 0.5) * 2.0;
           float core = smoothstep(0.3, 0.0, r), halo = exp(-r * r * 6.0) * 0.35;
-          gl_FragColor = vec4((vec3(0.85, 1.0, 0.35) * core * 2.2 + vec3(0.35, 0.6, 0.15) * halo) * vGlow, 0.0);
+          gl_FragColor = vec4((${glv(opt.color)} * core * 2.2 + ${glv(opt.halo)} * halo) * vGlow, 0.0);
         }`,
-    }));
-    flies.frustumCulled = false;
-    flies.layers.set(LAYER_NO_REFLECT);
-    flies.raycast = () => {};
-    flies.renderOrder = 6;
-    return flies;
-  }
+  }));
+  points.frustumCulled = false;
+  points.renderOrder = 6;
+  return points;
+}
 
-  /**
-   * Ziehender Nebelschleier: zwei durchscheinende Lagen knapp über der Oberkante des Nebelmeers (fog.top), deren Schwaden
-   * langsam mit dem Wind treiben (Richtung wie die Schlieren in Blender) und sich dabei verändern. Wo Kämme höher liegen,
-   * verdeckt sie das Panorama (Tiefentest): Der Schleier bleibt in den Tälern. Farbe wie der gemalte Nebel, zum Mond
-   * hin heller; zum Rand der Sicht blendet er aus.
-   */
-  function buildMist(fog) {
-    const out = new THREE.Group();
-    [[1.2, 0.22, 0.0], [3.5, 0.14, 0.5]].forEach(([dy, alpha, off]) => {
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(130, 64).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
-        uniforms: { ...uniforms, uAlpha: { value: alpha }, uOff: { value: off } },
-        transparent: true, depthWrite: false,
-        vertexShader: `varying vec3 vPos;
+/**
+ * Ziehender Nebelschleier: durchscheinende Lagen knapp über der Oberkante des Nebelmeers (fog.top; sheets: Höhe darüber,
+ * Deckkraft, Versatz des Musters), deren Schwaden langsam mit dem Wind treiben und sich dabei verändern. Wo Kämme
+ * höher liegen, verdeckt sie das Panorama (Tiefentest): Der Schleier bleibt in den Tälern. Farbe wie der gemalte Nebel
+ * (air), zum Licht hin heller; zum Rand der Sicht (fade) blendet er aus.
+ */
+function mistSheets(ctx, opt) {
+  const out = new THREE.Group(), air = ctx.air;
+  opt.sheets.forEach(([dy, alpha, off]) => {
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(opt.radius, 64).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+      uniforms: { ...ctx.uniforms, uAlpha: { value: alpha }, uOff: { value: off } },
+      transparent: true, depthWrite: false,
+      vertexShader: `varying vec3 vPos;
           void main() {
             vec4 wp = modelMatrix * vec4(position, 1.0);
             vPos = wp.xyz;
             gl_Position = projectionMatrix * viewMatrix * wp;
           }`,
-        fragmentShader: `uniform float uTime, uFade, uReady, uAlpha, uOff;
+      fragmentShader: `uniform float uTime, uFade, uReady, uAlpha, uOff;
           varying vec3 vPos;
           ${GLSL_NOISE}
-          ${FOREST_GLSL}
-          const vec3 HAZE = vec3(0.087, 0.195, 0.40), FOG_LIT = vec3(0.214, 0.365, 0.72);
+          ${ctx.lightGLSL}
+          const vec3 HAZE = ${glv(air.haze)}, FOG_LIT = ${glv(air.lit)};
           void main() {
-            vec2 wind = vec2(0.94, -0.34); // Blender (0.94, 0.34) -> Spiel (x, −y)
-            vec2 p = vPos.xz - wind * uTime * 0.7;
+            vec2 wind = ${glv(opt.wind)};
+            vec2 p = vPos.xz - wind * uTime * ${glf(opt.speed)};
             // in Windrichtung gestreckte Schwaden, die sich langsam verändern
-            vec2 q = vec2(dot(p, wind), dot(p, vec2(-wind.y, wind.x)) * 2.2) / 26.0;
+            vec2 q = vec2(dot(p, wind), dot(p, vec2(-wind.y, wind.x)) * ${glf(opt.stretch)}) / ${glf(opt.scale)};
             float n = fbm3(vec3(q, uTime * 0.02 + uOff * 7.0));
-            float a = smoothstep(0.42, 0.72, n) * uAlpha;
+            float a = smoothstep(${glf(opt.cover[0])}, ${glf(opt.cover[1])}, n) * uAlpha;
             vec3 toCam = cameraPosition - vPos;
             float dist = length(toCam);
-            a *= smoothstep(112.0, 80.0, dist);
-            vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
+            a *= smoothstep(${glf(opt.fade[1])}, ${glf(opt.fade[0])}, dist);
+            vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(SKY_LIGHT.xz);
             vec3 col = mix(HAZE, FOG_LIT, pow(max(dot(h, m), 0.0), 2.0));
             float k = uFade * uReady;
             gl_FragColor = vec4(col * k, a * k);
           }`,
-      }));
-      disc.position.y = fog.top + dy;
-      disc.frustumCulled = false;
-      disc.layers.set(LAYER_NO_REFLECT);
-      disc.raycast = () => {};
-      disc.renderOrder = 5;
-      out.add(disc);
-    });
-    return out;
+    }));
+    disc.position.y = ctx.fog.top + dy;
+    disc.frustumCulled = false;
+    disc.renderOrder = 5;
+    out.add(disc);
+  });
+  return out;
+}
+
+const SKY_LAYERS = { toonInstances, glowParticles, mistSheets };
+
+/**
+ * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):
+ * prepare() lädt, setFade(k) blendet ein (0 … 1), update(t, dt) jedes Bild solange sichtbar, ready = ganz eingeblendet,
+ * release() gibt den Grafikspeicher frei (ausgeblendet und nicht gewählt; prepare() lädt danach neu).
+ */
+function createPanoramaSky(m) {
+  const group = new THREE.Group();
+  group.visible = false;
+  const uniforms = { uFade: { value: 0 }, uReady: { value: 0 }, uTime: { value: 0 } };
+  const pointUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
+  const light = new THREE.Vector3().fromArray(m.light.dir).normalize();
+  const lightGLSL = `const vec3 SKY_LIGHT = vec3(${light.toArray().map((v) => v.toFixed(4)).join(', ')});`;
+  let loading = null, mesh = null, age = null, token = 0;
+
+  /** Teil laden (Skript mit Data-URLs); es muss zum Stand des Registers passen */
+  async function loadPart(role) {
+    const part = m.parts.find((p) => p.role === role);
+    await loadSkyScript(`backgrounds/${part.file}`);
+    const key = `${m.id}/${role}`, got = window.PRISMA_SKY_PARTS?.[key];
+    delete window.PRISMA_SKY_PARTS?.[key]; // die Bilder stecken gleich in den Texturen
+    if (!got || got.rev !== m.rev) throw new Error(`${part.file}: anderer Stand als im Register`);
+    return got;
   }
 
-  async function build() {
-    await loadScript('backgrounds/forest.js');
-    if (P.hd) await loadScript('backgrounds/forest-hd.js').catch((e) => console.warn(`Wald: ${e.message}, ohne Streifen`));
-    const data = window.PRISMA_FOREST;
-    const bands = P.hd ? data.bands ?? [] : [];
-    const [fullImg, depthImg, ...bandImgs] = await Promise.all([data.full, data.depth, ...bands.map((b) => b.url)].map(loadImage));
-    const center = new THREE.Vector3().fromArray(data.center);
-    mesh = new THREE.Mesh(proxyGeometry(logDepth(depthImg, data.depthLog), center),
-      material(center, texture(fullImg, true), bands.map((b, i) => ({ ...b, tex: texture(bandImgs[i], false) }))));
+  async function build(my) {
+    const base = await loadPart('base');
+    const hd = PANO.hd && m.parts.some((p) => p.role === 'bands')
+      ? await loadPart('bands').catch((e) => { console.warn(`${m.name}: ${e.message}, ohne Streifen`); return null; }) : null;
+    const rects = hd ? m.panorama.bands : [];
+    const [fullImg, depthImg, ...bandImgs] = await Promise.all([base.full, base.depth, ...(hd?.bands ?? [])].map(loadSkyImage));
+    if (my !== token) return; // inzwischen wieder freigegeben
+    const center = new THREE.Vector3().fromArray(m.panorama.center);
+    mesh = new THREE.Mesh(skyProxyGeometry(skyLogDepth(depthImg, m.panorama.depth.log), center),
+      skyPanoramaMaterial(uniforms, center, skyTexture(fullImg, true), rects.map((b, i) => ({ ...b, tex: skyTexture(bandImgs[i], false) }))));
     mesh.renderOrder = -1000;          // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
     mesh.frustumCulled = false;
-    mesh.layers.set(LAYER_NO_REFLECT); // nicht in der Bodenspiegelung (dort spiegelt sich die Himmelskugel)
-    mesh.raycast = () => {};
-    group.add(mesh);
-    if (data.trees) group.add(buildTrees(data.trees), buildFireflies(data.trees), buildMist(data.trees.fog));
+    const parts = [mesh];
+    const ctx = { uniforms, pointUniforms, data: base.data ?? {}, light, lightGLSL, fog: m.fog, air: m.air };
+    for (const layer of m.layers ?? []) {
+      try {
+        if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
+        parts.push(SKY_LAYERS[layer.type](ctx, layer));
+      } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
+    }
+    // Nicht in der Bodenspiegelung (dort wird auch die Himmelskugel ausgeblendet), nicht anklickbar
+    for (const p of parts) {
+      p.traverse((o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; });
+      group.add(p);
+    }
     renderer.compile(scene, camera);   // schon jetzt übersetzen, nicht im ersten Bild des Einblendens (falls sichtbar)
-    delete window.PRISMA_FOREST;       // die Bilder stecken jetzt in den Texturen
   }
 
   /** Während des Überblendens und Einblendens durchsichtig über der Himmelskugel, sonst undurchsichtig und zuerst. */
@@ -5841,30 +5883,43 @@ const forest = (() => {
 
   return {
     group,
-    /** Erst laden, wenn der Wald gewählt wird (rund 1,5 MB, auf dem Desktop dazu 6 MB Streifen). */
+    panorama: true,
+    get ready() { return uniforms.uReady.value >= 1; },
+    /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
     prepare() {
-      loading ??= build().catch((e) => console.error(`Wald: ${e.message}`));
+      loading ??= build(token).catch((e) => console.error(`${m.name}: ${e.message}`));
     },
-    show(visible) {
-      if (visible) this.prepare();
-      group.visible = visible;
-      // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz und deckte weiter draussen
-      // liegende Teile zu. Mit 116 (vor camera.far = 120) liegt sie überall dahinter; sie rechnet nur mit der Richtung,
-      // sieht also gleich aus. Nur solange der Wald zu sehen ist (die anderen Hintergründe sind dann ausgeblendet).
-      background.scale.setScalar(visible ? 116 / 80 : 1);
+    setFade(k) {
+      uniforms.uFade.value = k;
+      if (k > 0) this.prepare();
+      group.visible = k > 0;
       applyFade();
     },
-    update(t) {
+    update(t, dt) {
       if (!mesh) return;
-      readyAt ??= t;
-      uniforms.uReady.value = Math.min(1, (t - readyAt) / P.appear);
+      age = age === null ? 0 : age + dt; // in dt, nicht in t: läuft auch bei angehaltener Zeit (?t=)
+      uniforms.uReady.value = Math.min(1, age / PANO.appear);
       uniforms.uTime.value = t;
-      flyUniforms.uPixelRatio.value = renderer.getPixelRatio();
+      pointUniforms.uPixelRatio.value = renderer.getPixelRatio();
       applyFade();
+    },
+    release() {
+      if (!loading) return;
+      token++;
+      loading = null; mesh = null; age = null;
+      uniforms.uReady.value = 0;
+      group.traverse((o) => {
+        if (o.isInstancedMesh) o.dispose(); // Puffer der Instanzen (Geometrie und Material bleiben, siehe unten)
+        o.geometry?.dispose();
+        for (const mat of [o.material ?? []].flat()) {
+          for (const u of Object.values(mat.uniforms ?? {})) if (u.value?.isTexture) u.value.dispose();
+          mat.dispose();
+        }
+      });
+      group.clear();
     },
   };
-})();
-scene.add(forest.group);
+}
 
 /* =====================================================================
    STRAND — vierter Hintergrund: Meer und Küste bei Sonnenuntergang (umschaltbar, siehe skyTheme)
@@ -6910,9 +6965,11 @@ const beach = (() => {
       renderer.compile(scene, camera);
       group.visible = visible;
     },
-    show(visible) {
-      if (visible) this.prepare();
-      group.visible = visible;
+    get ready() { return !!parts; },
+    setFade(k) {
+      beachUniforms.uFade.value = k;
+      if (k > 0) this.prepare();
+      group.visible = k > 0;
     },
     update(t) {
       beachUniforms.uTime.value = t;
@@ -6923,25 +6980,69 @@ const beach = (() => {
 scene.add(beach.group);
 
 /**
- * Hintergrund umschalten: Milchstrasse, Sonnensystem, Wald oder Strand (Knopf unten rechts, Taste H; der Reihe nach). Die
- * Wahl bleibt gespeichert. Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurch-
- * sichtige Teile (Planeten, Gelände des Strands) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten.
+ * Hintergrund umschalten (Knopf unten rechts, Taste H; der Reihe nach, order): Milchstrasse, Sonnensystem und Strand
+ * aus dem Code, dazu jede Skybox aus Blender im Register (backgrounds/skies.js, SKYBOX). Die Wahl bleibt gespeichert.
+ * Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurchsichtige Teile (Planeten,
+ * Gelände des Strands) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten. Darum ist immer
+ * höchstens einer eingeblendet, und Himmelskugel und Sterne mischen nur zwischen ihm und dem Neutralzustand (dunkler
+ * Raum mit Sternen). sky: milkyWay (Anteil der Milchstrasse), stars (Helligkeit der Sterne), starsAboveHorizon (Sterne
+ * nur über dem Horizont), covers (eigene undurchsichtige Himmelskugel: Kugel und Sterne aus, sobald ganz eingeblendet),
+ * rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module: prepare, setFade, update, ready,
+ * release (siehe createPanoramaSky).
  */
+const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, covers: false, rings: null };
+const SKY_ENTRIES = (() => {
+  const code = [
+    { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 } },
+    { id: 'solar', name: 'Sonnensystem', order: 20, module: solar },
+    { id: 'beach', name: 'Strand', order: 40, module: beach, sky: { stars: 0, covers: true } },
+  ];
+  // Ein unbrauchbarer Eintrag (unbekannte Fassung, id doppelt, Fehler beim Anlegen) fällt mit einer Warnung weg; das Spiel
+  // läuft mit den übrigen Hintergründen weiter
+  const ids = new Set(code.map((e) => e.id));
+  const blender = [];
+  for (const m of window.PRISMA_SKIES ?? []) {
+    try {
+      if (m.format !== SKY_FORMAT) throw new Error(`Fassung ${m.format} unbekannt`);
+      if (ids.has(m.id)) throw new Error('id doppelt');
+      const rings = m.sky?.rings;
+      if (!Array.isArray(rings) || rings.length !== 9 || !rings.every((c) => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))) {
+        throw new Error('sky.rings: 9 Farben');
+      }
+      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, module: createPanoramaSky(m) });
+      ids.add(m.id);
+    } catch (e) { console.warn(`Skybox ${m?.id}: übersprungen (${e.message})`); }
+  }
+  delete window.PRISMA_SKIES;
+  return [...code, ...blender].map((e) => ({ ...e, sky: { ...SKY_NEUTRAL, ...e.sky } })).sort((a, b) => a.order - b.order);
+})();
+for (const e of SKY_ENTRIES) if (e.module?.panorama) scene.add(e.module.group);
+
 const skyTheme = {
   storageKey: 'prisma.sky',
-  order: ['milky', 'solar', 'forest', 'beach'],
-  names: { milky: 'Milchstrasse', solar: 'Sonnensystem', forest: 'Wald', beach: 'Strand' },
+  entries: SKY_ENTRIES,
+  byId: new Map(SKY_ENTRIES.map((e) => [e.id, e])),
+  order: SKY_ENTRIES.map((e) => e.id),
+  names: Object.fromEntries(SKY_ENTRIES.map((e) => [e.id, e.name])),
   current: 'milky',
-  weight: { milky: 1, solar: 0, forest: 0, beach: 0 }, // Anteil jedes Hintergrunds, 0 … 1
+  weight: Object.fromEntries(SKY_ENTRIES.map((e) => [e.id, e.id === 'milky' ? 1 : 0])), // Anteil, 0 … 1
   fadeTime: 0.9,   // s für Aus- und Einblenden zusammen
-  goal(name) { return name === this.current ? 1 : 0; },
-  get fading() { return this.order.some((n) => this.weight[n] !== this.goal(n)); },
-  set(name, animate = true) {
-    this.current = name;
-    if (name === 'beach') beach.prepare(); // vor dem Ausblenden: sonst stockte die Überblendung
-    if (name === 'forest') forest.prepare();
+  // Eine ausgeblendete Skybox aus Blender gibt ihren Grafikspeicher frei: auf dem Handy sofort, sonst nach keep s
+  // (wer mit H durchschaltet, kommt bald wieder vorbei, und Neuladen kostet einen Ruckler) – und immer, sobald eine
+  // andere gewählt ist: nie zwei Panoramen zugleich im Grafikspeicher.
+  keep: IS_MOBILE ? 0 : 30,
+  hidden: {},      // s ausgeblendet, je Hintergrund
+  goal(id) { return id === this.current ? 1 : 0; },
+  get fading() { return this.order.some((id) => this.weight[id] !== this.goal(id)); },
+  /** Gewählter Hintergrund ganz eingeblendet (Tests) */
+  get ready() { return !this.fading && (this.byId.get(this.current).module?.ready ?? true); },
+  /** remember: als Wahl speichern (nicht bei ?sky=, ein geteilter Link soll die Wahl des Spielers nicht ändern) */
+  set(id, animate = true, remember = true) {
+    this.current = id;
+    this.hidden[id] = 0;                   // gewählt: die Frist fürs Freigeben beginnt erst beim Wegschalten
+    this.byId.get(id).module?.prepare?.(); // vor dem Ausblenden: sonst stockte die Überblendung
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
-    try { localStorage.setItem(this.storageKey, name); } catch { /* egal */ }
+    if (remember) try { localStorage.setItem(this.storageKey, id); } catch { /* egal */ }
     this.apply();
   },
   next() { this.set(this.order[(this.order.indexOf(this.current) + 1) % this.order.length]); },
@@ -6953,33 +7054,43 @@ const skyTheme = {
       if (others.every((n) => this.weight[n] === 0)) this.weight[this.current] = Math.min(1, this.weight[this.current] + step);
       this.apply();
     }
-    if (this.weight.solar > 0) solar.update(t);
-    if (this.weight.forest > 0) forest.update(t);
-    if (this.weight.beach > 0) beach.update(t);
+    const otherPanorama = this.byId.get(this.current).module?.panorama;
+    for (const e of this.entries) {
+      if (this.weight[e.id] > 0) { e.module?.update(t, dt); this.hidden[e.id] = 0; continue; }
+      if (e.id === this.current || !e.module?.release) continue;
+      this.hidden[e.id] = (this.hidden[e.id] ?? 0) + dt;
+      if (otherPanorama || this.hidden[e.id] >= this.keep) e.module.release();
+    }
   },
   apply() {
-    const e = (n) => { const w = this.weight[n]; return w * w * (3 - 2 * w); };
-    background.material.uniforms.uGlow.value = SKY.glow * e('milky');
-    background.material.uniforms.uForest.value = e('forest');
-    // Im Wald überstrahlt der Mond die meisten Sterne, am Strand ist es noch hell
-    stars.material.uniforms.uFade.value = 1 - 0.7 * e('forest') - e('beach');
-    stars.material.uniforms.uForest.value = e('forest');
-    stars.visible = this.weight.beach < 1;
-    background.visible = this.weight.beach < 1; // dann ganz von der Himmelskugel des Strands überdeckt
-    solarUniforms.uFade.value = e('solar');
-    solar.lineMat.opacity = 0.12 * e('solar');
-    solar.group.visible = this.weight.solar > 0;
-    forestUniforms.uFade.value = e('forest');
-    forest.show(this.weight.forest > 0);
-    beachUniforms.uFade.value = e('beach');
-    beach.show(this.weight.beach > 0);
+    const a = this.entries.find((e) => this.weight[e.id] > 0); // höchstens einer (siehe oben)
+    const w = a ? this.weight[a.id] : 0, k = w * w * (3 - 2 * w), s = a?.sky ?? SKY_NEUTRAL;
+    const mix = (key) => SKY_NEUTRAL[key] + k * (s[key] - SKY_NEUTRAL[key]);
+    const bg = background.material.uniforms;
+    bg.uGlow.value = SKY.glow * mix('milkyWay');
+    bg.uPano.value = s.rings ? k : 0;
+    if (s.rings) s.rings.forEach((c, i) => bg.uRings.value[i].fromArray(c));
+    stars.material.uniforms.uFade.value = mix('stars');
+    stars.material.uniforms.uHorizon.value = s.starsAboveHorizon ? k : 0;
+    const covered = s.covers && w >= 1;
+    stars.visible = !covered;
+    background.visible = !covered;
+    // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz eines Panoramas und deckte weiter
+    // draussen liegende Teile zu. Mit 116 (vor camera.far = 120) liegt sie überall dahinter; sie rechnet nur mit der
+    // Richtung, sieht also gleich aus.
+    background.scale.setScalar(a?.module?.panorama ? 116 / 80 : 1);
+    for (const e of this.entries) e.module?.setFade(e === a ? k : 0);
   },
 };
 try {
   const stored = localStorage.getItem(skyTheme.storageKey);
   if (skyTheme.order.includes(stored)) skyTheme.current = stored;
 } catch { /* Standard */ }
-skyTheme.set(skyTheme.current, false);
+// ?sky=forest: diesen Hintergrund zeigen, ohne ihn als Wahl zu speichern (Tests, Links)
+const urlSky = new URLSearchParams(location.search).get('sky');
+const fromUrl = skyTheme.order.includes(urlSky);
+if (fromUrl) skyTheme.current = urlSky;
+skyTheme.set(skyTheme.current, false, !fromUrl);
 
 /* =====================================================================
    STEINPLATTE mit planarer Spiegelung
@@ -10175,7 +10286,7 @@ function frame(ts) {
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
   const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.05);
   lastFrameTs = ts;
-  const t = clock.getElapsedTime();
+  const t = FIXED_TIME ?? clock.getElapsedTime();
 
   updateCamera(t, dt);
   skyTheme.update(dt, t);
@@ -10208,7 +10319,8 @@ function frame(ts) {
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
-  fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale };
+  fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
+  skyReady: () => skyTheme.ready };
 // Zugriff für Debugging/Tests (nicht serialisieren)
 window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig };
 requestAnimationFrame(frame);

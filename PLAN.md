@@ -377,7 +377,8 @@ Zuletzt aktualisiert: 13. Oktober 2026
     Abstand der geglätteten Tiefe: So stimmt die Parallaxe beim Kreisen der Kamera. Service Worker: `forest.js` vorab,
     `forest-hd.js` erst beim ersten Gebrauch (`LAZY`).
   - Entfernt: Gelände, Impostor-Fichten, Glühwürmchen und volumetrischer Nebel des bisherigen Walds (2.21, 2.26–2.28;
-    im Verlauf von git). Die Himmelskugel behält Mond und Dunst für die Spiegelung und solange das Panorama lädt.
+    im Verlauf von git). Die Himmelskugel zeigt Mond und Dunst, solange das Panorama lädt (in der Spiegelung wird sie
+    ausgeblendet; seit 2.32 A zeigt sie stattdessen einen im Panorama gemessenen Farbverlauf).
   - Grenzen: Die nahen Bäume an den Brettkanten stehen schräg, weil die Kamera sie aus einem anderen Winkel sieht als
     der Mittelpunkt des Panoramas; im Hochformat fächern sie wie ein Strahlenkranz. Alles steht still. Grafikspeicher
     rund 270 MB auf dem Desktop, rund 45 MB auf dem Handy. Auf Render muss der Build Command `backgrounds/` kopieren.
@@ -405,7 +406,8 @@ Zuletzt aktualisiert: 13. Oktober 2026
   - 13. Oktober: Der hellste Nebel war heller als Weiss gespeichert (GAIN 2) und brachte den Bloom des Spiels zum
     Leuchten: ein milchiger Schleier über dem Brett, wenn die Kamera Richtung Nebel gedreht ist. Jetzt drückt eine weiche
     Schulter am hellsten Kanal alles unter den Szenenwert 0,95 (`PEAK`), der Nebel bleibt hellblau; `uGain` ist weg.
-  - Eingebaut ist die Anime-Fassung (`node tools/blender/pack.mjs anime`), zurück mit `node tools/blender/pack.mjs`.
+  - Eingebaut ist die Anime-Fassung (seit 2.32: `node tools/blender/pack.mjs forest`; die realistische Fassung bräuchte
+    ein eigenes `tools/blender/szenen/<id>/skybox.json`, siehe 2.32 D).
     Download 6,2 MB auf dem Desktop (realistisch 7,3 MB), 1,5 MB auf dem Handy.
   - Grenzen wie 2.29. In beiden Fassungen ist die Kopfzeile vor hellem Nebel schwer lesbar (Idee: feiner dunkler
     Schatten unter der Schrift).
@@ -420,6 +422,51 @@ Zuletzt aktualisiert: 13. Oktober 2026
     ferner Wald in Beständen und nur unter der Baumgrenze. Unterholz (`Unterholz`, rund 11 000): junge Fichten und
     breite, niedrige Nadelbüsche aus den einfachen Fichten, Felsbrocken mit Moos (an Hängen mehr). Erste Büsche als
     glatte Klumpen sahen gemalt wie Kiesel aus.
+- [~] **2.32 Skybox-Baukasten** (Wunsch des Nutzers, 13. Oktober: „so aufbauen, dass auch in Zukunft möglichst einfach
+  neue Skyboxen aus Blender hinzugefügt werden können“). Konzept zusammen mit einem Architektur-Agenten, gegenseitig
+  geprüft: https://claude.ai/artifact/CLbC5mjKdYPih7dNoHWtCJ. Ziel: Eine neue Skybox ist ein Ordner
+  `tools/blender/szenen/<id>/` (`skybox.json`, `szene.py`) und ein paar Befehle (bauen, rendern, packen, prüfen), ohne
+  Änderung an `index.html`, `sw.js` oder den Tests, solange die vorhandenen Ebenentypen reichen.
+  - Vertrag: je Skybox ein Manifest im Register `backgrounds/skies.js` (von `pack.mjs` erzeugt; ersetzt nur den Eintrag
+    der gepackten Skybox, weil die Rohdaten der anderen nicht im Repo liegen), Daten in `backgrounds/<id>/` mit
+    Versionskennung im Dateinamen (`base.<rev>.js`, `hd.<rev>.js`; `sw.js` wirft Query-Parameter beim Cache-Schlüssel
+    weg, `?v=` brächte gemischte Stände). Spielkonstanten, die Blender braucht, in einem `CONTRACT`-Block in
+    `index.html` (Phase B).
+  - [x] **A Spiel und Packen** (13. Oktober): `?sky=<id>` wählt den Hintergrund, `?t=<s>` hält die Zeit an und macht den
+    Zufall fest (zwei Aufnahmen fallen gleich aus; `tests/screenshot.mjs` mit `QUERY=…`, frischem Profil und Warten auf
+    `__prisma.skyReady()`). Register mit einer Mischregel gegen einen Neutralzustand statt Sonderfällen in `skyTheme`
+    (es ist immer höchstens ein Hintergrund eingeblendet); Milchstrasse, Sonnensystem und Strand als Einträge aus dem
+    Code. `createPanoramaSky(manifest)` und die Ebenentypen `toonInstances`, `glowParticles`, `mistSheets` aus dem
+    Waldcode, die Werte (Palette, Dunst, Wind, Glühwürmchen) jetzt in `tools/blender/szenen/forest/skybox.json`; die
+    Mondrichtung kommt aus der Blender-Szene. Platzhalter beim Laden: 9 Farbringe nach Höhe, gemessen im fertigen
+    Panorama (der handgemachte Waldhimmel ist weg, der Mond erscheint erst mit dem Panorama). `anime.py json` schreibt
+    `sky.json` jetzt selbst (vorher las es Mittelpunkt und Tiefenbereich aus der realistischen Fassung), mit Hauptlicht,
+    hellstem Wert (0,92) und Farbringen. `pack.mjs <id>` schreibt `backgrounds/<id>/base.<rev>.js`, `hd.<rev>.js` und
+    den Eintrag im Register, löscht alte Stände und prüft alles mit `tools/sky-schema.mjs`. `sw.js` liest seine Listen
+    aus dem Register (`importScripts`) und räumt beim Aktivieren alte Stände weg; registriert mit
+    `updateViaCache: 'none'`; `SKIES` in `sw.js` (Stand des Registers, von `pack.mjs` nachgeführt) sorgt dafür, dass
+    jeder Browser ein neues Register holt. Grafikspeicher: Eine ausgeblendete Skybox gibt ihn frei, auf dem Handy
+    sofort, sonst nach 30 s (`skyTheme.keep`; wer mit H durchschaltet, kommt bald wieder vorbei), und immer sofort, wenn
+    eine andere Skybox aus Blender gewählt ist (nie zwei Panoramen zugleich; gemessen: Texturen und Geometrien weg, beim
+    Zurückwechseln wieder da). `?sky=` ändert die gespeicherte Wahl nicht. Tests: Register gültig (auch die Parameter
+    der Ebenen), Stand in `sw.js`, jeder Teil in `sw.js`, nichts Verwaistes, `index.html` lädt Hintergründe nur über das
+    Register; der Offline-Test zeigt den Wald auch offline (mit Streifen). Vergleich vorher/nachher (altes `index.html`
+    mit denselben URL-Parametern, Kamera fest gesetzt): alle vier Hintergründe auf Desktop und Handy und der gedrehte
+    Wald im Hintergrund pixelgleich; abweichend nur der Leuchtring des drehbaren Spiegels, dessen Animation
+    unabhängig von der angehaltenen Zeit läuft.
+    Review: `pack.mjs` prüft jetzt vor dem Schreiben (vorher konnte ein fehlerhafter Eintrag ins Register gelangen und
+    das Spiel schwarz lassen), das Spiel überspringt einen unbrauchbaren Eintrag mit Warnung, eine fehlerhafte Ebene
+    ebenso; `backgrounds/** -text` in `.gitattributes` (sonst stimmen nach einem Checkout unter Windows die Grössen im
+    Register nicht mehr); fehlt `skies.js` auf dem Server, installiert sich der Service Worker trotzdem.
+  - [ ] **B Blender-Kern:** `kern/` und `szenen/forest/`; Sammlungen `Spiel`, `Spielmodelle`, `Volumen` und ein Licht
+    mit Eigenschaft `hauptlicht` statt Objektnamen; `CONTRACT`-Block; nahe Objekte allgemein aus `Spiel`;
+    Palette und Dunstfarben im gemalten Bild gemessen; Prüfungen (Spitze, Parallaxe, Tiefe); Vorlage; Vorschauen auch
+    in den Extremlagen der Kamera.
+  - [ ] **C Qualität:** `tests/skies.mjs` (Aufnahme je Skybox auf Desktop und Handy, Budget, Speicherfreigabe);
+    Abdunklung hinter der Kopfzeile je Skybox; Panorama 2048 fürs Handy; Begrenzung der Helligkeit ohne HDR (dort gilt
+    die Bloom-Schwelle 0,8, der Anime-Nebel reicht bis 0,95).
+  - [ ] **D Probe:** zweite Skybox ohne Codeänderung, etwa der realistische Wald als `forest-real`.
+  - **E** offen: Kopiert der Render-Build `backgrounds/` samt Unterordnern (nötig ab Phase A)?
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

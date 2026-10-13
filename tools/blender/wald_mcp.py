@@ -64,7 +64,7 @@ def start(steps, stil='anime'):
 
 
 # Ganze Anime-Skybox aus der offenen Szene (rund 30 min mit einer RTX A2000): Tiefe, Himmelsmasken, Panorama und
-# Streifen rendern und malen; skybox() hängt noch trees.json an. Danach: node tools/blender/pack.mjs anime
+# Streifen rendern und malen; skybox() hängt noch trees.json an. Danach: node tools/blender/pack.mjs forest
 ANIME = ([('wald_export.py', 'depth', 2048), ('wald_export.py', 'depthcode', 1024),
           ('wald_export.py', 'mask', 'mask_full', 'full', 4096)]
          + [('wald_export.py', 'mask', 'mask_band_%d' % i, 'band', i, 3, 4096) for i in range(3)]

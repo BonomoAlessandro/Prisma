@@ -330,19 +330,24 @@ if __name__ == '__main__':
             save_image(to_texture(disp), os.path.join(SKY, dst + '.jpg'), 'JPEG', 90)
         print('ANIME', src)
     elif argv[0] == 'json':
-        # Beschreibung für pack.mjs (Mittelpunkt und Tiefenbereich wie in der realistischen Fassung)
+        # Beschreibung für pack.mjs: Mittelpunkt und Hauptlicht vom Rendern der Tiefe (WALD_STIL=anime wald_export.py
+        # depth), Streifen, hellster Wert und Farbringe aus den fertigen Bildern
         import json
-        n = int(argv[1]); vt = (90.0 - 10.0) / 180.0
-        with open(os.path.join(HERE, 'sky', 'sky.json'), encoding='utf-8') as fh:
-            base = json.load(fh)
-        base.update({'full': 'full.jpg',
-                     'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)]})
+        from wald_export import DEPTH_LOG, LAT_TOP, depth_center, light_dir, measure_sky
+        n = int(argv[1]); vt = (90.0 - LAT_TOP) / 180.0
+        c = depth_center(OUT)
+        data = {'center': [c[0] + 0.0, c[2] + 0.0, 0.0 - c[1]],   # Blender (x, y, z) -> Spiel (x, z, −y)
+                'full': 'full.jpg', 'depth': 'depth.png', 'depthLog': list(DEPTH_LOG),
+                'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)],
+                'light': {'dir': light_dir(OUT)}}
+        data.update(measure_sky(SKY, data['full'], [b['file'] for b in data['bands']]))
         with open(os.path.join(SKY, 'sky.json'), 'w', encoding='utf-8') as fh:
-            json.dump(base, fh, indent=2)
-        print('ANIME json')
+            json.dump(data, fh, indent=2)
+        print('ANIME json', 'Spitze', data['peak'])
     elif argv[0] == 'bands':
         # Streifen band_0 … band_{n-1} zusammen (rundum nahtlos) -> sky/band_i.jpg
-        n = int(argv[1]); vt = (90.0 - 10.0) / 180.0
+        from wald_export import LAT_TOP
+        n = int(argv[1]); vt = (90.0 - LAT_TOP) / 180.0
         tiles = [load_exr(os.path.join(OUT, 'band_%d.exr' % i))[..., :3].astype(np.float32) for i in range(n)]
         lin = np.concatenate(tiles, 1).astype(np.float64) * EXPOSURE
         del tiles

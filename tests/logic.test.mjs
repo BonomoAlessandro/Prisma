@@ -4,6 +4,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { createHash } from 'node:crypto';
+import { loadSkies, checkSkies, layerTypes, codeSkies, orphans } from '../tools/sky-schema.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -570,11 +573,13 @@ L.LEVELS.forEach((lvl, i) => {
 console.log('Offline');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const swCode = readFileSync(join(root, 'sw.js'), 'utf8');
-  const swList = swCode.match(/const FILES = \[([\s\S]*?)\];/);
-  const swFiles = swList ? [...swList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
-  const lazyList = swCode.match(/const LAZY = \[([\s\S]*?)\];/);
-  const swLazy = lazyList ? [...lazyList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
+  // sw.js so ausführen, wie der Browser es tut (mit dem Register der Skyboxen per importScripts), dann die Listen lesen
+  const sw = vm.createContext({ URL, location: new URL('http://prisma.test/sw.js'), addEventListener() {} });
+  sw.self = sw;
+  sw.importScripts = (...files) => files.forEach((f) => vm.runInContext(readFileSync(join(root, f), 'utf8'), sw));
+  vm.runInContext(readFileSync(join(root, 'sw.js'), 'utf8'), sw);
+  const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
+  const skies = loadSkies(root);
   // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
   // dazu die Icons aus dem Manifest
   const refs = new Set([
@@ -599,10 +604,26 @@ console.log('Offline');
     assert.deepEqual(all.filter(f => !existsExactly(f)), []);
     assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
   });
-  test('Offline: sw.js kennt alle Hintergründe, die index.html nachlädt (backgrounds/)', () => {
-    const loaded = [...html.matchAll(/'(backgrounds\/[^']+)'/g)].map(m => m[1]);
-    assert.ok(loaded.length > 0, 'keine Datei aus backgrounds/ in index.html gefunden');
-    assert.deepEqual(loaded.filter(f => !swFiles.includes(f) && !swLazy.includes(f)), []);
+  test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
+    assert.ok(skies.length > 0, 'keine Skybox im Register');
+    assert.ok(codeSkies(html).length >= 3, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
+    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
+  });
+  test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
+    const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));
+    assert.equal(vm.runInContext('SKIES', sw), createHash('sha256').update(registry).digest('hex').slice(0, 8));
+  });
+  test('Skyboxen: sw.js speichert jeden Teil (vorab oder beim ersten Gebrauch)', () => {
+    for (const s of skies) for (const p of s.parts) {
+      assert.ok((p.precache ? swFiles : swLazy).includes(`backgrounds/${p.file}`), `${p.file} fehlt in sw.js`);
+    }
+  });
+  test('Skyboxen: nichts Verwaistes in backgrounds/ (alte Stände räumt pack.mjs weg)', () => {
+    assert.deepEqual(orphans(root, skies), []);
+  });
+  test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
+    const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
+    assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);
   });
 }
 
