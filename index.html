@@ -4597,9 +4597,6 @@ const HDR_SUPPORTED = renderer.capabilities.isWebGL2
   ? (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'))
   : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
 const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
-// Volumetrischer Nebel im Wald (VOLUMETRISCHER NEBEL) braucht Tiefentexturen; sonst bleibt das flache Nebelmeer
-const VOLFOG_ON = renderer.capabilities.isWebGL2 || renderer.extensions.has('WEBGL_depth_texture');
-let volFog = null; // nach createComposer() angelegt (braucht finalPass.uniforms)
 if (!HDR_SUPPORTED) {
   // Fallback ohne HDR: Bloom-Schwelle unter 1 (sonst blüht nichts), Spiegelung aus
   // (der Reflector rendert intern immer in HalfFloat).
@@ -4875,7 +4872,7 @@ function skyFrame({ phi, up, tilt }) {
 }
 const skyTall = skyFrame(SKY.tall), skyWide = skyFrame(SKY.wide);
 
-// Wertrauschen und fBm für die Shader von Himmel, Sonne, Planeten und Wald
+// Wertrauschen und fBm für die Shader von Himmel, Sonne und Planeten
 const GLSL_NOISE = `
   float hash(vec3 p) {
     p = fract(p * 0.3183099 + 0.1);
@@ -4897,7 +4894,7 @@ const GLSL_NOISE = `
     return 0.5 * noise(p) + 0.25 * noise(p * 2.03 + 1.7) + 0.125 * noise(p * 4.12 + 5.1);
   }`;
 
-/* Schattenkarte für Hintergründe, deren Schattenwerfer stillstehen (Strand, Wald): einmal beim Bauen aus der Richtung
+/* Schattenkarte für Hintergründe, deren Schattenwerfer stillstehen (Strand): einmal beim Bauen aus der Richtung
    des Lichts gerendert, die Tiefe in RGBA verpackt (geht auch ohne Tiefentexturen). Die Shader fragen sie mit
    objectShadow ab (shadowGLSL; Uniforms uShadow, uShadowMat). */
 const SHADOW_DEPTH_FRAGMENT = `#include <packing>
@@ -4957,9 +4954,9 @@ function bakeShadowMap(casters, box, dir, size, uniforms) {
   uniforms.uShadowMat.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
 }
 
-// Nächtlicher Wald: Mond, Dunst und Himmel – gemeinsam für Himmel, Gelände, Bäume und Nebel, damit alles in der Ferne
-// nahtlos in denselben Dunst übergeht. Werte nach Fotos mondheller Nebelnächte: Der Nebel ist die hellste grosse
-// Fläche, zum Mond hin gut doppelt so hell (Vorwärtsstreuung); der Himmel oben dunkler, um den Mond ein Hof.
+// Nächtlicher Wald: Mond, Dunst und Himmel der Himmelskugel. Davor liegt das Panorama aus Blender (WALD); die Kugel
+// sieht man in der Spiegelung der Platte und solange das Panorama lädt. Der Mond steht wie in der Blender-Szene
+// (tools/blender). Der Dunst ist zum Mond hin gut doppelt so hell (Vorwärtsstreuung), oben tiefblau, um den Mond ein Hof.
 const FOREST_MOON = new THREE.Vector3(-0.8, 0.5, 0.25).normalize(); // seitlich, gut 30° hoch: lange Schatten
 const FOREST_GLSL = `
   const vec3 FOREST_MOON = vec3(${FOREST_MOON.toArray().map((v) => v.toFixed(4)).join(', ')});
@@ -5057,7 +5054,7 @@ const background = new THREE.Mesh(
           col += neb * plane * wisps * shade * 2.4 * uGlow;
         }
         if (uGlow > 0.0) col += (satellite(uLmc, d, vec3(3.0, 9.0, 1.0), 1.0) + 0.8 * satellite(uSmc, d, vec3(7.0, 2.0, 5.0), 0.0)) * 1.8 * uGlow;
-        // Wald: Dunst und Mond; Bäume, Gelände und Nebelmeer verlaufen bis 78 Einheiten ganz in den Dunst (mistify)
+        // Wald: Dunst und Mond (davor das Panorama aus Blender, siehe WALD)
         if (uForest > 0.0) col = mix(col, forestSky(d), uForest);
         // Alpha 0 = Himmel: Der letzte Bildschritt lässt hier die Farbverschiebung am Bildrand weg (Sterne!)
         gl_FragColor = vec4(col, 0.0);
@@ -5415,19 +5412,8 @@ const solar = (() => {
 })();
 scene.add(solar.group);
 
-/* =====================================================================
-   WALD — dritter Hintergrund: nächtliche Berglandschaft mit Nadelwald (umschaltbar, siehe skyTheme)
-   Das Brett schwebt über einer bewaldeten Kuppe; von dort fällt das Gelände in Kämme und Täler ab. Ein Nebelmeer
-   füllt die Täler, die Kämme ragen heraus, und jede Schicht dahinter verblasst im Dunst (Luftperspektive) – so sehen
-   neblige Nadelwälder von oben auf Fotos aus. Auf flacher Ebene wirkte der Wald wie ein Muster, egal wie gut der
-   einzelne Baum war. Bäume als geschlossene Silhouetten: Ausgestanzte Astflächen mit Nadeltextur wurden ohne
-   Kantenglättung (MSAA) pixelig und unruhig.
-   Bäume und Gelände bleiben in der Nähe unter der Brettebene; weiter draussen als die Kamera fährt, könnten sie
-   ohnehin nicht zwischen Kamera und Spielfeld kommen. Alles berechnet, ohne Bilddateien; nicht in der Bodenspiegelung.
-   ===================================================================== */
-
-// Gelände von Wald und Strand: Wertrauschen liegt auf einem Gitter und bildet achsparallele, eckige Formen; darum
-// jede Stufe gedreht.
+// Gelände des Strands: Wertrauschen liegt auf einem Gitter und bildet achsparallele, eckige Formen; darum jede Stufe
+// gedreht.
 function valueNoise(x, z) {
   const xi = Math.floor(x), zi = Math.floor(z), u = x - xi, v = z - zi;
   const h = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -5445,646 +5431,310 @@ function smoothNoise(x, z, octaves = 4) { // 0 … 1, ohne Vorzugsrichtung
 }
 
 /* =====================================================================
-   IMPOSTOR-FICHTE — für den Wald: eine detaillierte Fichte (Stamm, Astquirle, Zweige mit Nadelbüscheln) wird beim
-   Bauen einmal aus 64 Blickwinkeln in eine Bildtafel gerendert (Farbe; Normale und Tiefe). Jeder Baum ist dann nur
-   eine zur Kamera gedrehte Fläche, die die vier nächsten Ansichten überblendet und wie ein Körper beleuchtet wird
-   (Normalen, Tiefe für Schatten und Überschneidungen). So machen es Spiele für grosse Wälder; tausende Bäume aus
-   Geometrie wären zu teuer, aus einfachen Kegeln zu grob (die Etagen wirkten wie Weihnachtsbäume).
+   WALD — dritter Hintergrund: Mondnacht über einem Nebelmeer, in Blender gerendert (umschaltbar, siehe skyTheme)
+   Das Brett schwebt über einem bewaldeten Grat; Fichtenhänge fallen in ein mondhelles Nebelmeer, aus dem weitere Kämme
+   ragen, dahinter Dunst und ferne Berge, der Mond seitlich (FOREST_MOON) mit Hof. Die Szene entsteht in Blender
+   (Cycles, tools/blender/) und liegt als Panorama in backgrounds/: forest.js (ganzes Equirect und Tiefe, jedes Gerät)
+   und forest-hd.js (hoch aufgelöste Streifen für den Blick nach unten, nur Desktop). Als Skripte mit Data-URLs, weil
+   Chrome Bilder aus file:// nicht in WebGL-Texturen lässt; erst bei der ersten Wahl geladen.
+   Parallaxe: Das Panorama ist von einem Punkt über dem Brett aus gerendert (center). Es liegt nicht auf einer Kugel um
+   die Kamera, sondern auf einem Netz um diesen Punkt, jede Ecke so weit draussen wie die Szene in Blender (Tiefe im
+   Log-Raum geglättet, sonst rissen Baumkanten auf). Der Shader rechnet die Richtung vom Mittelpunkt zum Punkt auf dem
+   Netz und tastet damit einen Streifen oder das ganze Bild ab. Grenze des Verfahrens: Bäume nahe am Brett sähe die
+   Kamera aus einem anderen Winkel als der Mittelpunkt, sie stünden schräg. Darum fehlen sie im Panorama (nur ihre
+   Schatten sind drin), und das Spiel zeichnet sie selbst als 3D-Fichten (buildTrees, Daten in forest.js). Bewegung
+   bringen ein ziehender Nebelschleier über dem Nebelmeer (buildMist) und Glühwürmchen zwischen den Fichten.
+   Farben: lineare Szenenwerte, sRGB-kodiert; ACES, Vignette und Korn macht der letzte Bildschritt wie bei allem.
    ===================================================================== */
 
-const IMPOSTOR = {
-  yaw: 16, elev: 4,          // Blickwinkel: 16 Richtungen rundum × 4 Höhen
-  elevMin: 10, elevMax: 70,  // Höhen der Ansichten (Grad über dem Horizont): so steil, wie die Kamera schaut
-  cols: 8,                   // Tafel 8 × 8 Ansichten
-  frame: IS_MOBILE ? 128 : 256, // Pixel je Ansicht
-  half: 0.56,                // halbe Kantenlänge einer Ansicht (Baumhöhe 1, Mitte auf halber Höhe)
-  halfWidth: 0.3,            // halbe Breite der Fläche: so weit reichen Krone und Zweige seitlich
-};
-
-/**
- * Fichte, Höhe 1, Fuss im Ursprung: Stamm, 26 Astquirle mit 5–7 Ästen, jeder Ast mit beidseits schräg nach vorn und
- * unten hängenden Zweigen (Nadelbüschel als schmale Dreiecke), unten hängend, oben aufstrebend; ein Leittrieb. Normalen
- * wie bei einem Volumen (halb vom Stamm weg, halb nach oben): Die Krone wird weich beleuchtet statt facettiert. In den
- * Farben steckt die Verdeckung: innen am Stamm und unten dunkel, an den Zweigspitzen heller (junge Triebe).
- */
-function createSpruceGeometry(seed) {
-  const rand = mulberry32(seed);
-  const pos = [], nor = [], col = [];
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const crown = (y) => (y < 0.12 ? 0.02 : 0.2 * Math.pow(Math.max(1 - y, 0), 0.9)); // Radius der Krone auf Höhe y
-  const foliage = (p, tip, tint) => {
-    const rad = Math.hypot(p.x, p.z), q = Math.min(rad / Math.max(crown(p.y), 0.02), 1);
-    const n = rad > 1e-4 ? V(p.x / rad, 0.55, p.z / rad).normalize() : V(0, 1, 0);
-    const ao = (0.22 + 0.78 * Math.pow(q, 0.8)) * (0.65 + 0.35 * Math.min(p.y / 0.55, 1));
-    const c = [0.066 + 0.012 * tint, 0.08 + 0.016 * tint, 0.074 + 0.01 * tint].map((v) => v * ao * (1 + 0.45 * tip));
-    return [n, c];
-  };
-  const tri = (a, b, c, ta, tb, tc, tint) => {
-    for (const [p, t] of [[a, ta], [b, tb], [c, tc]]) {
-      const [n, cl] = foliage(p, t, tint);
-      pos.push(p.x, p.y, p.z); nor.push(n.x, n.y, n.z); col.push(...cl);
-    }
-  };
-  // Stamm: unten sichtbar zwischen den hängenden Ästen
-  for (let k = 0; k < 6; k++) {
-    const a0 = k / 6 * 2 * Math.PI, a1 = (k + 1) / 6 * 2 * Math.PI;
-    const ring = (a, y) => V(Math.cos(a) * 0.02 * (1 - 0.8 * y), y, Math.sin(a) * 0.02 * (1 - 0.8 * y));
-    const quad = [ring(a0, 0), ring(a1, 0), ring(a1, 0.95), ring(a0, 0), ring(a1, 0.95), ring(a0, 0.95)];
-    for (const p of quad) {
-      const n = V(p.x, 0, p.z).normalize();
-      pos.push(p.x, p.y, p.z); nor.push(n.x, n.y, n.z); col.push(0.05, 0.042, 0.036);
-    }
-  }
-  // Leittrieb
-  for (let k = 0; k < 5; k++) {
-    const a0 = k / 5 * 2 * Math.PI, a1 = (k + 1) / 5 * 2 * Math.PI;
-    tri(V(0, 1, 0), V(Math.cos(a0) * 0.018, 0.9, Math.sin(a0) * 0.018), V(Math.cos(a1) * 0.018, 0.9, Math.sin(a1) * 0.018), 1, 0.5, 0.5, 0.5);
-  }
-  // Astquirle
-  const W = 26;
-  for (let w = 0; w < W; w++) {
-    const t = w / (W - 1), y = 0.13 + 0.8 * t + (rand() - 0.5) * 0.012; // t: 0 unten … 1 oben
-    const nb = 5 + Math.floor(rand() * 3), az0 = rand() * 2 * Math.PI;
-    for (let b = 0; b < nb; b++) {
-      for (let layer = 0; layer < 2; layer++) { // zweite Lage etwas tiefer und kürzer: Masse auch von der Seite
-        const az = az0 + (b + (rand() - 0.5) * 0.5 + layer * 0.5) / nb * 2 * Math.PI;
-        const L = (crown(y) * (0.8 + 0.35 * rand()) + 0.012) * (layer ? 0.8 : 1);
-        const pitch = THREE.MathUtils.lerp(-0.25, 0.45, t) + (rand() - 0.5) * 0.2 - layer * 0.15;
-        const droop = THREE.MathUtils.lerp(0.55, 0.1, t);
-        const dir = V(Math.cos(az), 0, Math.sin(az)), side = V(-Math.sin(az), 0, Math.cos(az));
-        const spine = (u) => dir.clone().multiplyScalar(L * u * Math.cos(pitch)).add(V(0, y - layer * 0.012 + L * u * Math.sin(pitch) - droop * L * u * u, 0));
-        const tint = rand();
-        const K = 13;
-        for (let k = 1; k <= K; k++) {
-          const u = k / (K + 0.5), p0 = spine(u), tan = spine(u + 0.04).sub(p0).normalize();
-          for (const s of [-1, 1]) {
-            const tl = L * 0.36 * (1 - 0.65 * u) * (0.65 + 0.7 * rand());
-            const td = tan.clone().multiplyScalar(0.65).addScaledVector(side, s * 0.8).add(V(0, -0.3 - 0.3 * rand(), 0)).normalize();
-            const p1 = p0.clone().addScaledVector(td, tl), pm = p0.clone().addScaledVector(td, tl * 0.5);
-            // Büschel: schmal, in der Mitte am breitesten
-            tri(p0.clone().addScaledVector(tan, -0.03 * L), pm.clone().addScaledVector(tan, 0.05 * L), p1, 0.2, 0.6, 1, tint);
-            tri(p0.clone().addScaledVector(tan, -0.03 * L), pm.clone().addScaledVector(tan, -0.045 * L), p1, 0.2, 0.6, 1, tint);
-            // Seitentrieb nach vorn
-            if (rand() < 0.6) {
-              const q = pm.clone().addScaledVector(tan, tl * 0.35).add(V(0, -0.15 * tl, 0));
-              tri(pm, pm.clone().addScaledVector(td, tl * 0.15), q, 0.5, 0.6, 1, tint);
-            }
-          }
-        }
-      }
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-  return geo;
-}
-
-/** Rendert die Fichte aus allen Blickwinkeln in zwei Tafeln: Farbe (Wurzel, für mehr Genauigkeit im Dunkeln) mit
- *  Deckung; Normale (Baumsystem) und Tiefe entlang der Blickrichtung. */
-function bakeImpostor(geo) {
-  const { yaw, elev, cols, frame, half, halfWidth } = IMPOSTOR, size = cols * frame;
-  // waagrecht nur so breit wie die Krone gerahmt: doppelte Auflösung, wo die Zweige sind
-  const scene = new THREE.Scene(), cam = new THREE.OrthographicCamera(-halfWidth, halfWidth, half, -half, 0.01, 10);
-  const mesh = new THREE.Mesh(geo);
-  scene.add(mesh);
-  const uFwd = { value: new THREE.Vector3() };
-  const vertexShader = `varying vec3 vN, vC, vP;
-    void main() { vN = normal; vC = color; vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-  const passes = [
-    `varying vec3 vN, vC, vP; void main() { gl_FragColor = vec4(sqrt(vC), 1.0); }`,
-    `uniform vec3 uFwd; varying vec3 vN, vC, vP;
-      void main() { gl_FragColor = vec4(normalize(vN) * 0.5 + 0.5, dot(vP - vec3(0.0, 0.5, 0.0), uFwd) / ${(2 * half).toFixed(3)} + 0.5); }`,
-  ].map((fragmentShader) => new THREE.ShaderMaterial({ vertexShader, fragmentShader, vertexColors: true, side: THREE.DoubleSide, uniforms: { uFwd } }));
-  const targets = passes.map(() => {
-    const t = new THREE.WebGLRenderTarget(size, size, { minFilter: THREE.LinearMipmapLinearFilter, magFilter: THREE.LinearFilter });
-    t.texture.generateMipmaps = false; // erst beim letzten Bild (sonst nach jeder Ansicht neu)
-    return t;
-  });
-  const center = new THREE.Vector3(0, 0.5, 0);
-  const bake = () => {
-  const clearColor = renderer.getClearColor(new THREE.Color()), clearAlpha = renderer.getClearAlpha(), autoClear = renderer.autoClear;
-  renderer.autoClear = false;
-  renderer.setClearColor(0x000000, 0);
-  passes.forEach((material, pi) => {
-    const target = targets[pi];
-    mesh.material = material;
-    target.viewport.set(0, 0, size, size); target.scissor.set(0, 0, size, size); target.scissorTest = false;
-    renderer.setRenderTarget(target);
-    renderer.clear();
-    target.scissorTest = true;
-    for (let j = 0; j < elev; j++) {
-      const e = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(IMPOSTOR.elevMin, IMPOSTOR.elevMax, j / (elev - 1)));
-      for (let i = 0; i < yaw; i++) {
-        const a = i / yaw * 2 * Math.PI, k = j * yaw + i;
-        uFwd.value.set(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e));
-        cam.position.copy(center).addScaledVector(uFwd.value, 3);
-        cam.lookAt(center);
-        const x = (k % cols) * frame, y = Math.floor(k / cols) * frame;
-        target.viewport.set(x, y, frame, frame); target.scissor.set(x, y, frame, frame);
-        if (k === yaw * elev - 1) target.texture.generateMipmaps = true;
-        renderer.setRenderTarget(target);
-        renderer.render(scene, cam);
-      }
-    }
-    target.scissorTest = false;
-    target.viewport.set(0, 0, size, size);
-  });
-  renderer.setRenderTarget(null);
-  renderer.autoClear = autoClear;
-  renderer.setClearColor(clearColor, clearAlpha);
-  };
-  bake();
-  // Nach einem verlorenen Grafikkontext sind die Tafeln leer – alle Bäume verschwänden. Neu backen (vor der
-  // Schattenkarte, die danach neu gezeichnet wird: die Listener laufen in der Reihenfolge der Anmeldung)
-  renderer.domElement.addEventListener('webglcontextrestored', () => {
-    targets.forEach((t) => { t.texture.generateMipmaps = false; });
-    bake();
-  });
-  return { albedo: targets[0].texture, normal: targets[1].texture };
-}
-
-// Fläche eines Baums (PlaneGeometry 1×1, Instanz: Fuss, Drehung um die Hochachse, Grösse): zum Betrachter gedreht
-// (Kamera oder Mond); wählt die vier nächsten Ansichten und reicht sie an den Fragment-Shader weiter.
-const IMPOSTOR_VERTEX = `
-  varying vec4 vObj;    // Punkt auf der Fläche im Baumsystem (relativ zur Mitte), w: Höhe des Baums
-  varying vec4 vWorld;  // Punkt in der Welt, w: Zufall je Baum
-  varying vec4 vYawW;   // cos, sin der Drehung; Gewichte zwischen den Ansichten
-  varying vec4 vA, vE;  // cos, sin der beiden Richtungen und der beiden Höhen
-  varying vec4 vCell;   // Nummern der vier Ansichten
-  vec4 impostorPlace(vec3 toViewer, bool isDirection) {
-    vec3 foot = instanceMatrix[3].xyz;
-    float sx = length(instanceMatrix[0].xyz), sy = length(instanceMatrix[1].xyz);
-    float c = instanceMatrix[0].x / sx, s = -instanceMatrix[0].z / sx;
-    vec3 scale = vec3(sx, sy, sx), center = foot + vec3(0.0, 0.5 * sy, 0.0);
-    vec3 d = isDirection ? toViewer : normalize(toViewer - center);
-    vec3 dl = vec3(c * d.x - s * d.z, d.y, s * d.x + c * d.z);         // ins Baumsystem drehen …
-    dl = normalize(dl / scale);                                      // … und entzerren
-    vec3 right = normalize(vec3(dl.z, 0.0, -dl.x)), up = cross(dl, right);
-    // (seitlich nur so breit wie die Krone: die leeren Ränder kosteten trotzdem Texturzugriffe)
-    vec3 p = right * position.x * ${(2 * IMPOSTOR.halfWidth).toFixed(3)} + up * position.y * ${(2 * IMPOSTOR.half).toFixed(3)};
-    vec3 q = p * scale;
-    vec3 wp = center + vec3(c * q.x + s * q.z, q.y, -s * q.x + c * q.z);
-    // Ansichten: Richtung rundum und Höhe; die vier nächsten mit Gewichten
-    float fi = mod(atan(dl.x, dl.z) / 6.28319 * ${IMPOSTOR.yaw.toFixed(1)} + ${IMPOSTOR.yaw.toFixed(1)}, ${IMPOSTOR.yaw.toFixed(1)});
-    float el = degrees(asin(clamp(dl.y, -1.0, 1.0)));
-    float fj = clamp((el - ${IMPOSTOR.elevMin.toFixed(1)}) / ${((IMPOSTOR.elevMax - IMPOSTOR.elevMin) / (IMPOSTOR.elev - 1)).toFixed(3)}, 0.0, ${(IMPOSTOR.elev - 1).toFixed(1)});
-    float i0 = floor(fi), i1 = mod(i0 + 1.0, ${IMPOSTOR.yaw.toFixed(1)}), j0 = min(floor(fj), ${(IMPOSTOR.elev - 2).toFixed(1)}), j1 = j0 + 1.0;
-    vYawW = vec4(c, s, fi - i0, fj - j0);
-    float a0 = i0 / ${IMPOSTOR.yaw.toFixed(1)} * 6.28319, a1 = i1 / ${IMPOSTOR.yaw.toFixed(1)} * 6.28319;
-    float e0 = radians(${IMPOSTOR.elevMin.toFixed(1)} + j0 * ${((IMPOSTOR.elevMax - IMPOSTOR.elevMin) / (IMPOSTOR.elev - 1)).toFixed(3)});
-    float e1 = radians(${IMPOSTOR.elevMin.toFixed(1)} + j1 * ${((IMPOSTOR.elevMax - IMPOSTOR.elevMin) / (IMPOSTOR.elev - 1)).toFixed(3)});
-    vA = vec4(cos(a0), sin(a0), cos(a1), sin(a1));
-    vE = vec4(cos(e0), sin(e0), cos(e1), sin(e1));
-    vCell = vec4(j0 * ${IMPOSTOR.yaw.toFixed(1)} + i0, j0 * ${IMPOSTOR.yaw.toFixed(1)} + i1, j1 * ${IMPOSTOR.yaw.toFixed(1)} + i0, j1 * ${IMPOSTOR.yaw.toFixed(1)} + i1);
-    vObj = vec4(p, sy);
-    vWorld = vec4(wp, fract(sin(dot(foot.xz, vec2(12.9898, 78.233))) * 43758.5453));
-    return vec4(wp, 1.0);
-  }`;
-
-// Ansichten abtasten und überblenden: Deckung, Farbe (zurück aus der Wurzel), Normale (Baumsystem), Tiefe
-const IMPOSTOR_FRAGMENT = `
-  uniform sampler2D uImpAlbedo, uImpNormal;
-  varying vec4 vObj, vWorld, vYawW, vA, vE, vCell;
-  vec2 impostorUV(float cell, vec2 a, vec2 e) {
-    // Nummer der Ansicht runden: Interpoliert kam statt 15 manchmal 14,99999 an – eine kleine Bewegung der Kamera
-    // genügte, und der Baum zeigte eine falsche Ansicht (ganze Bäume flackerten)
-    cell = floor(cell + 0.5);
-    vec3 right = vec3(a.x, 0.0, -a.y), up = vec3(-a.y * e.y, e.x, -a.x * e.y);
-    vec2 uv = vec2(dot(vObj.xyz, right) / ${(2 * IMPOSTOR.halfWidth).toFixed(3)}, dot(vObj.xyz, up) / ${(2 * IMPOSTOR.half).toFixed(3)}) + 0.5;
-    uv = clamp(uv, 0.002, 0.998);
-    return (vec2(mod(cell, ${IMPOSTOR.cols.toFixed(1)}), floor(cell / ${IMPOSTOR.cols.toFixed(1)})) + uv) / ${IMPOSTOR.cols.toFixed(1)};
-  }
-  // Schwelle der Deckung: in der Ferne tiefer (dort ist sie in den kleinen Mipmaps gemittelt, die Bäume dünnten aus)
-  float impostorCut(float dist) { return mix(0.5, 0.32, smoothstep(25.0, 65.0, dist)); }
-  // Deckung (Rückgabe) und, wenn full, Farbe, Normale und Tiefe
-  float impostorSample(bool full, out vec3 albedo, out vec3 normal, out float depth) {
-    // Alle Abrufe vor jeder Verzweigung: Innerhalb verzweigten Programmflusses ist die Wahl der Mipmap-Stufe nicht
-    // definiert – Normale und Tiefe sprangen dann von Pixel zu Pixel, Licht, Schatten und Nebel der Bäume flackerten
-    vec2 uv0 = impostorUV(vCell.x, vA.xy, vE.xy), uv1 = impostorUV(vCell.y, vA.zw, vE.xy);
-    vec2 uv2 = impostorUV(vCell.z, vA.xy, vE.zw), uv3 = impostorUV(vCell.w, vA.zw, vE.zw);
-    vec4 w = vec4((1.0 - vYawW.z) * (1.0 - vYawW.w), vYawW.z * (1.0 - vYawW.w), (1.0 - vYawW.z) * vYawW.w, vYawW.z * vYawW.w);
-    vec4 c = texture2D(uImpAlbedo, uv0) * w.x + texture2D(uImpAlbedo, uv1) * w.y + texture2D(uImpAlbedo, uv2) * w.z + texture2D(uImpAlbedo, uv3) * w.w;
-    albedo = vec3(0.0); normal = vec3(0.0, 1.0, 0.0); depth = 0.0;
-    if (!full) return c.a;
-    // Deckung fürs Bild eine Stufe weicher (Mipmap-Bias): pixelfeine Lücken zwischen den Zweigen schalteten sonst bei
-    // jeder kleinen Bewegung der Kamera zwischen Zweig und hellem Nebel dahinter
-    vec4 b = texture2D(uImpAlbedo, uv0, 0.3) * w.x + texture2D(uImpAlbedo, uv1, 0.3) * w.y + texture2D(uImpAlbedo, uv2, 0.3) * w.z + texture2D(uImpAlbedo, uv3, 0.3) * w.w;
-    vec4 nd = texture2D(uImpNormal, uv0, 0.3) * w.x + texture2D(uImpNormal, uv1, 0.3) * w.y + texture2D(uImpNormal, uv2, 0.3) * w.z + texture2D(uImpNormal, uv3, 0.3) * w.w;
-    if (b.a < 0.01) return b.a;
-    // Farbe scharf, wo die scharfe Deckung reicht, am Rand eines Lochs aus der weichen Stufe. Normale und Tiefe aus der
-    // weichen Stufe (wie Farbe und Deckung vormultipliziert): ruhiger, für Licht, Schatten und Nebel genügt das
-    vec3 rgb = c.a > 0.05 ? c.rgb / c.a : b.rgb / b.a;
-    albedo = rgb * rgb;
-    nd /= b.a;
-    vec3 n = nd.xyz * 2.0 - 1.0;
-    normal = normalize(vec3(vYawW.x * n.x + vYawW.y * n.z, n.y, -vYawW.y * n.x + vYawW.x * n.z));
-    depth = (nd.w - 0.5) * ${(2 * IMPOSTOR.half).toFixed(3)} * vObj.w; // zum Betrachter hin positiv, in Welteinheiten
-    return b.a;
-  }`;
-
-const FOREST = {
-  top: -10,             // Höhe der Kuppe unter dem Brett
-  fall: 0.32,           // so stark sinkt das Gelände nach aussen: der Blick geht über die nahen Wipfel in die Tiefe
-  relief: 20,           // Höhe der Kämme gegenüber den Tälern
-  fogY: -15.5,          // Oberfläche des Nebelmeers: füllt die Täler schon nahe am Brett, die Kämme ragen heraus
-  size: [2.6, 4.6],     // Baumhöhe (junge Bäume kleiner, siehe Standorte)
-  tipMax: -1.5,         // höchste Baumspitze (unter der Brettebene)
-  inner: 4.5, outer: 82, // Bereich der Bäume (unter der Platte sieht man sie ohnehin nicht)
-  spacing: (r) => 1.3 + 0.02 * r, // Abstand der Bäume, nach aussen etwas lichter (dort deckt der Dunst)
-  fireflies: 45,
-  shadowSize: 2048,     // Schattenkarte des Mondes (Pixel je Seite)
-};
-
 const forestUniforms = {
-  uFade: { value: 0 },
-  uTime: { value: 0 },
-  uNoise: { value: null },  // kachelbares Rauschen (createWaveTexture, Kanal A), beim Bauen
-  uShadow: { value: null }, // Schattenkarte des Mondes (beim Bauen)
-  uShadowMat: { value: new THREE.Matrix4() },
+  uFade: { value: 0 }, // Anteil des Walds 0 … 1 (skyTheme)
 };
-
-// Für Gelände, Bäume und Nebel: Nebelmeer und Dunst. Wo etwas knapp über dem Nebelmeer steht, geht es in dessen Farbe
-// an derselben Stelle über (mit seinem Schatten) – sonst zeichnete sich der Rand ab. Ganz im Dunst, bevor die
-// Himmelskugel (Radius 80) die Objekte überdeckt.
-const FOREST_SCENE_GLSL = `
-  uniform float uTime;
-  uniform sampler2D uNoise;
-  ${shadowGLSL(FOREST.shadowSize)}
-  const float FOG_Y = ${FOREST.fogY.toFixed(2)};
-  const vec3 MOON_COL = vec3(0.34, 0.37, 0.44); // Mondlicht, für das Auge in der Nacht bläulich
-  const vec3 NIGHT_AMB = vec3(0.006, 0.009, 0.016); // Licht des Himmels
-  // Oberfläche des Nebelmeers an xz: lange Schlieren, die langsam ziehen, und Wogen, vom Mond schräg beschienen;
-  // im Schatten der Bäume und Kämme dunkler (shadow), aber nie schwarz – der Nebel leuchtet auch von innen
-  vec3 fogSea(vec2 xz, vec3 viewDir, float shadow) {
-    const vec2 F = vec2(0.94, 0.34); // Richtung, in der der Nebel zieht
-    vec2 q = vec2(dot(xz, F), dot(xz, vec2(-F.y, F.x)));
-    float streak = texture2D(uNoise, vec2(q.x * 0.010 - uTime * 0.0025, q.y * 0.045)).a;
-    vec2 w = xz * 0.03 + vec2(uTime * 0.002, -uTime * 0.0013);
-    float billow = texture2D(uNoise, w).a;
-    float slope = billow - texture2D(uNoise, w - normalize(FOREST_MOON.xz) * 0.03).a; // zum Mond geneigt: heller
-    float lit = 0.8 + 0.45 * (streak - 0.5) + 0.3 * (billow - 0.5) + 2.5 * slope;
-    // Grundhelligkeit: der Mond beleuchtet die Oberfläche von oben (heller als der Dunst in der Luft); dazu, zum Mond
-    // hin, die Vorwärtsstreuung wie im Dunst
-    vec3 base = vec3(0.15, 0.163, 0.19) + (forestMist(viewDir) - forestMist(-vec3(FOREST_MOON.x, 0.0, FOREST_MOON.z))) * 1.1;
-    return base * clamp(lit, 0.45, 1.3) * mix(0.62, 1.0, shadow);
-  }
-  // Anteil des Dunsts: nach der Entfernung vom Brett (die Kamera steht im Hochformat weiter weg – sonst läge dort alles
-  // im Dunst), vor der Himmelskugel um die Kamera (Radius 80) ganz
-  float forestHaze(vec3 pos, float dist) {
-    return max(1.0 - exp(-max(length(pos.xz) - 14.0, 0.0) * 0.022), smoothstep(50.0, 78.0, dist));
-  }
-  // Dunst und Nebelmeer über einen Farbwert legen (pos: Weltpunkt, V: zur Kamera, dist: Abstand)
-  vec3 mistify(vec3 col, vec3 pos, vec3 V, float dist) {
-    ${VOLFOG_ON ? '' : `float low = smoothstep(FOG_Y + 2.6, FOG_Y - 0.2, pos.y);
-    col = mix(col, fogSea(pos.xz, -V, objectShadowSoft(vec3(pos.x, max(pos.y, FOG_Y + 0.15), pos.z), 0.002, 4.0)), low); // (ohne Verzweigung: Mipmaps)`}
-    return mix(col, forestMist(-V), forestHaze(pos, dist));
-  }`;
 
 const forest = (() => {
+  const P = {
+    dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera ~25 entfernt) vor camera.far
+    blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad)
+    segU: 512, segV: 256,
+    appear: 0.6,       // s: Einblenden, wenn die Daten erst nach der Wahl ankommen
+    // Streifen nur auf dem Desktop: zusammen mit dem ganzen Bild rund 270 MB Grafikspeicher (ohne: rund 45 MB)
+    hd: !IS_MOBILE && renderer.capabilities.maxTextureSize >= 4096,
+  };
   const group = new THREE.Group();
   group.visible = false;
-  const noPick = (o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; o.frustumCulled = false; return o; };
-  const ss = THREE.MathUtils.smoothstep;
+  const uniforms = { uFade: forestUniforms.uFade, uReady: { value: 0 }, uTime: { value: 0 } };
+  const flyUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
+  let loading = null, mesh = null, readyAt = null;
 
-  // Gelände: Kuppe unter dem Brett, nach aussen abfallend, mit Kämmen und Tälern (smoothNoise).
-  const terrainHeight = (x, z) => {
-    const r = Math.hypot(x, z);
-    const relief = ss(r, 9, 24);
-    const base = FOREST.top - FOREST.fall * Math.max(r - 9, 0) + relief * (smoothNoise(x * 0.03 + 3.1, z * 0.03 + 7.7) - 0.5) * FOREST.relief * 1.6;
-    // kleinere Formen: Kuppen und Mulden, dazu Felsrippen (Grate des Rauschens) – auf der Kuppe unter dem Brett flacher
-    const knolls = (smoothNoise(x * 0.11 + 13, z * 0.11 - 5, 3) - 0.5) * 2.2;
-    const ribs = Math.pow(1 - Math.abs(2 * smoothNoise(x * 0.07 - 21, z * 0.07 + 9, 3) - 1), 3) * 1.6;
-    return base + (knolls + ribs) * (0.35 + 0.65 * ss(r, 6, 16));
-  };
-  /** Steilheit des Geländes (0 flach … 1 senkrecht): dort tritt Fels hervor, dort stehen keine Bäume */
-  const terrainSlope = (x, z) => {
-    const dx = terrainHeight(x + 0.4, z) - terrainHeight(x - 0.4, z), dz = terrainHeight(x, z + 0.4) - terrainHeight(x, z - 0.4);
-    return 1 - 0.8 / Math.hypot(dx, 0.8, dz);
-  };
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error(`${src} nicht geladen`));
+    document.head.appendChild(s);
+  });
+  const loadImage = (url) => new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Bild nicht lesbar'));
+    img.src = url;
+  });
 
-  function build() {
-    forestUniforms.uNoise.value = createWaveTexture(256);
-    const rand = mulberry32(77);
+  function texture(img, wrapU) {
+    const t = new THREE.Texture(img);
+    t.encoding = THREE.sRGBEncoding;
+    t.wrapS = wrapU ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping;
+    t.wrapT = THREE.ClampToEdgeWrapping;
+    t.minFilter = THREE.LinearMipmapLinearFilter;
+    t.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    t.needsUpdate = true;
+    return t;
+  }
 
-    const terrainUniforms = { ...forestUniforms, uGroundAO: { value: null } };
-    const terrain = (() => {
-      const geo = new THREE.PlaneGeometry(184, 184, 230, 230).rotateX(-Math.PI / 2);
-      const p = geo.attributes.position;
-      for (let i = 0; i < p.count; i++) p.setY(i, terrainHeight(p.getX(i), p.getZ(i)));
-      geo.computeVertexNormals();
-      const mesh = noPick(new THREE.Mesh(geo, new THREE.ShaderMaterial({
-        uniforms: terrainUniforms, fog: false,
-        vertexShader: `varying vec3 vPos, vN;
-          void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vPos = wp.xyz; vN = normal; gl_Position = projectionMatrix * viewMatrix * wp; }`,
-        fragmentShader: `uniform float uFade;
-          uniform sampler2D uGroundAO;
-          varying vec3 vPos, vN;
-          ${FOREST_GLSL}
-          ${FOREST_SCENE_GLSL}
-          void main() {
-            vec3 toCam = cameraPosition - vPos;
-            float dist = length(toCam);
-            vec3 Ng = normalize(vN);
-            float slope = 1.0 - Ng.y;
-            // feine Unebenheit (Wurzeln, Steine, Bodenwellen) aus der Wellentextur: im Streiflicht des Mondes sichtbar
-            vec3 bump = texture2D(uNoise, vPos.xz * 0.45).rgb - 0.5, bump2 = texture2D(uNoise, vPos.xz * 1.7 + 0.3).rgb - 0.5;
-            vec3 N = normalize(Ng + vec3(bump.x + 0.5 * bump2.x, 0.0, bump.y + 0.5 * bump2.y) * 0.9);
-            // Waldboden: Nadelstreu (graubraun) mit Moosflecken; an steilen Stellen und auf Graten heller Fels mit Rissen
-            float n = texture2D(uNoise, vPos.xz * 0.35).a, moss = texture2D(uNoise, vPos.xz * 0.06 + 0.4).a;
-            vec3 alb = mix(vec3(0.06, 0.055, 0.048), vec3(0.09, 0.08, 0.065), n);
-            alb = mix(alb, vec3(0.05, 0.075, 0.045) * (0.8 + 0.4 * n), smoothstep(0.45, 0.65, moss));
-            float rock = smoothstep(0.3, 0.5, slope + 0.25 * (moss - 0.5));
-            float crack = smoothstep(0.03, 0.0, abs(texture2D(uNoise, vPos.xz * vec2(0.6, 1.4) + 0.7).a - 0.5));
-            alb = mix(alb, vec3(0.2, 0.2, 0.19) * (0.75 + 0.5 * n) * (1.0 - 0.6 * crack), rock);
-            // Kontaktschatten: unter und zwischen den Bäumen dunkler (Dichte der Kronen, beim Bauen gerechnet)
-            float ao = 1.0 - 0.75 * texture2D(uGroundAO, vPos.xz / 184.0 + 0.5).r;
-            float moon = max(dot(N, FOREST_MOON), 0.0) * objectShadow(vPos + Ng * 0.25, 0.002);
-            vec3 col = alb * (MOON_COL * moon * 1.3 * mix(1.0, ao, 0.5) + NIGHT_AMB * 3.0 * (0.4 + 0.6 * N.y) * ao);
-            gl_FragColor = vec4(mistify(col, vPos, toCam / dist, dist) * uFade, 1.0);
-          }`,
-      })));
-      mesh.renderOrder = 1; // nach Brett und Platte: was darunter liegt, verwirft der Tiefentest früh
-      return mesh;
-    })();
-    group.add(terrain);
-
-    // Ohne Tiefentexturen (kein volumetrischer Nebel) das flache Nebelmeer mit Schwaden
-    if (!VOLFOG_ON) {
-      // Nebelmeer: hell, wo der Mond es bescheint; Bäume und Kämme werfen Schatten darauf
-      const fogMaterial = (lift, wisps) => new THREE.ShaderMaterial({
-        uniforms: forestUniforms, fog: false, transparent: wisps, depthWrite: !wisps,
-        vertexShader: `varying vec3 vPos;
-          void main() { vec4 wp = modelMatrix * vec4(position, 1.0); vPos = wp.xyz; gl_Position = projectionMatrix * viewMatrix * wp; }`,
-        fragmentShader: `uniform float uFade;
-          varying vec3 vPos;
-          ${FOREST_GLSL}
-          ${FOREST_SCENE_GLSL}
-          void main() {
-            vec3 toCam = cameraPosition - vPos;
-            float dist = length(toCam);
-            vec3 V = toCam / dist;
-            float shadow = objectShadowSoft(vPos, 0.002, 4.0); // im Nebel weich: er streut das Licht
-            vec3 col = fogSea(vPos.xz, -V, shadow) * ${(1 + lift).toFixed(2)};
-            float far = forestHaze(vPos, dist);
-            col = mix(col, forestMist(-V), far);
-            ${wisps ? `// Schwaden knapp über dem Nebelmeer: ziehen über die tieferen Wipfel, die halb darin verschwinden
-            vec2 q = vec2(dot(vPos.xz, vec2(0.94, 0.34)), dot(vPos.xz, vec2(-0.34, 0.94)));
-            float a = texture2D(uNoise, vec2(q.x * 0.016 - uTime * 0.004, q.y * 0.045 + 0.3)).a;
-            a = smoothstep(0.5, 0.78, a) * 0.6 * (1.0 - far);
-            gl_FragColor = vec4(col, a * uFade); // (Farbe nicht auch noch mit uFade: sonst doppelt ausgeblendet)` : `gl_FragColor = vec4(col * uFade, 1.0);`}
-          }`,
-      });
-      const fogSea = noPick(new THREE.Mesh(new THREE.CircleGeometry(100, 64), fogMaterial(0, false)));
-      fogSea.rotation.x = -Math.PI / 2;
-      fogSea.position.y = FOREST.fogY;
-      fogSea.renderOrder = 2; // zuletzt: über den Kämmen bleibt wenig zu zeichnen
-      group.add(fogSea);
-      const wisps = noPick(new THREE.Mesh(new THREE.CircleGeometry(100, 64), fogMaterial(0.1, true)));
-      wisps.rotation.x = -Math.PI / 2;
-      wisps.position.y = FOREST.fogY + 1.6;
-      wisps.renderOrder = 4;
-      group.add(wisps);
-    }
-
-    // Standorte zufällig mit Mindestabstand zum Nachbarn (Poisson-Disk; in Ringen standen die Bäume in Reihen), nach
-    // aussen lichter. Der Wald steht mal dichter, mal lichter in Gruppen, mit kleinen Lichtungen; die Kronen berühren
-    // sich meist. Bäume ganz im Nebelmeer werden gar nicht erst gesetzt.
-    const stand = (x, z) => smoothNoise(x * 0.08 + 40, z * 0.08 - 13, 2);
-    const gap = (x, z) => smoothNoise(x * 0.12 - 21, z * 0.12 + 55, 2);
-    const clumps = (x, z) => smoothNoise(x * 0.18 + 7, z * 0.18 - 31, 2);
-    const spots = [], CELL = 2, cells = new Map();
-    const cellKey = (i, j) => i * 4096 + j;
-    for (let tries = 0; tries < 60000; tries++) {
-      const r = Math.sqrt(FOREST.inner ** 2 + rand() * (FOREST.outer ** 2 - FOREST.inner ** 2)), a = rand() * 2 * Math.PI;
-      const x = Math.cos(a) * r, z = Math.sin(a) * r, min = FOREST.spacing(r) * (0.6 + 0.4 * rand());
-      if (rand() > ss(clumps(x, z), 0.15, 0.55)) continue; // Gruppen und lichte Stellen
-      const ground = terrainHeight(x, z);
-      if (ground + FOREST.size[1] < FOREST.fogY - (VOLFOG_ON ? 2 : 0.3)) continue; // ganz im Nebel (der volumetrische sinkt zwischen den Bänken tiefer)
-      const ci = Math.floor(x / CELL), cj = Math.floor(z / CELL), reach = Math.ceil(min / CELL);
-      let free = true;
-      for (let i = ci - reach; i <= ci + reach && free; i++) {
-        for (let j = cj - reach; j <= cj + reach && free; j++) {
-          for (const [px, pz] of cells.get(cellKey(i, j)) || []) if ((px - x) ** 2 + (pz - z) ** 2 < min * min) { free = false; break; }
-        }
+  /** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand, Ferne auf dMax begrenzt */
+  function logDepth(img, depthLog) {
+    const w = img.width, h = img.height;
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, w, h).data;
+    const la = Math.log(depthLog[0]), lb = Math.log(depthLog[1]), lmin = Math.log(P.dMin), lmax = Math.log(P.dMax);
+    let src = new Float32Array(w * h);
+    for (let x = 0; x < w; x++) {
+      let last = lmax;
+      for (let y = 0; y < h; y++) {
+        const i = y * w + x, code = px[i * 4] * 256 + px[i * 4 + 1];
+        // ohne Treffer: über dem Horizont Himmel, darunter das Loch im Gelände unter dem Brett – dort den letzten Wert
+        // darüber nehmen, sonst zöge die Glättung den Boden an den Brettkanten in die Ferne
+        if (code === 65535) src[i] = y < h / 2 ? lmax : last;
+        else src[i] = last = Math.min(lmax, Math.max(lmin, la + code / 65535 * (lb - la)));
       }
-      if (!free || (gap(x, z) < 0.3 && rand() < 0.85)) continue; // zu nah oder Lichtung
-      if (terrainSlope(x, z) > 0.42) continue; // Fels: keine Bäume
-      spots.push([x, z, ground, r]);
-      const k = cellKey(ci, cj);
-      if (!cells.has(k)) cells.set(k, []);
-      cells.get(k).push([x, z]);
     }
-
-    // Bäume als Impostors (siehe IMPOSTOR): eine Fichte, aus allen Blickwinkeln vorgerendert. Abwechslung durch
-    // Drehung, Grösse, schlank bis stämmig und Farbe je Baum. Die Tiefe aus der Tafel ergibt den Punkt auf dem Baum: für
-    // Schatten und Dunst und als Tiefe im Bild – sonst schnitten sich die Flächen benachbarter Bäume in geraden Linien.
-    const impostor = bakeImpostor(createSpruceGeometry(7));
-    const treeUniforms = { ...forestUniforms, uImpAlbedo: { value: impostor.albedo }, uImpNormal: { value: impostor.normal } };
-    const FRAG_DEPTH = renderer.capabilities.isWebGL2 || renderer.extensions.has('EXT_frag_depth');
-    const treeMaterial = new THREE.ShaderMaterial({
-      uniforms: treeUniforms, fog: false,
-      extensions: { fragDepth: FRAG_DEPTH, derivatives: true },
-      // Ränder weich (etwa ein Pixel, wie Kantenglättung): harte Ränder sprangen bei jeder kleinen Kamerabewegung –
-      // die Bäume flackerten, im hellen Nebel besonders. Dafür wird gemischt und von hinten nach vorn gezeichnet (sortTrees).
-      transparent: true,
-      defines: FRAG_DEPTH ? { FRAG_DEPTH: '' } : {},
-      vertexShader: `uniform float uTime;
-        ${IMPOSTOR_VERTEX}
-        void main() {
-          vec4 wp = impostorPlace(cameraPosition, false);
-          // Wind: Wipfel wiegen sich kaum merklich
-          wp.xz += vec2(sin(uTime * 0.6 + vWorld.w * 40.0), cos(uTime * 0.47 + vWorld.w * 23.0)) * 0.025 * max(vObj.y + 0.5, 0.0) * vObj.w;
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `uniform float uFade;
-        uniform mat4 projectionMatrix; // (im Fragment-Shader nicht vorgegeben)
-        ${FOREST_GLSL}
-        ${FOREST_SCENE_GLSL}
-        ${IMPOSTOR_FRAGMENT}
-        void main() {
-          vec3 albedo, N; float depth;
-          float cover = impostorSample(true, albedo, N, depth);
-          // weich durchscheinend statt hart gestanzt: Lücken zwischen den Zweigen wanderten bei jeder kleinen Bewegung um
-          // Bruchteile eines Pixels und schalteten zwischen dunklem Zweig und hellem Nebel dahinter – sie flackerten
-          float cut = impostorCut(length(cameraPosition - vWorld.xyz));
-          float edge = smoothstep(cut - 0.12, cut + 0.1, cover + 0.5 * fwidth(cover));
-          if (edge < 0.02 || cover < 0.3) discard;
-          vec3 toCam0 = cameraPosition - vWorld.xyz;
-          vec3 pos = vWorld.xyz + normalize(toCam0) * depth; // Punkt auf dem Baum
-          vec3 toCam = cameraPosition - pos;
-          float dist = length(toCam);
-          vec3 V = toCam / dist;
-          // Farbe je Baum: graugrün bis blaugrau
-          albedo *= mix(vec3(0.92, 1.0, 0.95), vec3(1.0, 0.98, 1.12), vWorld.w) * (0.85 + 0.3 * fract(vWorld.w * 7.31));
-          // Mond: weich wie Laub (halbe Lambert-Beleuchtung), im Schatten der Nachbarn und der eigenen Äste
-          float shadow = objectShadow(pos + N * 0.08, 0.0015);
-          float moon = clamp(dot(N, FOREST_MOON) * 0.6 + 0.4, 0.0, 1.0); moon *= moon * shadow;
-          vec3 col = albedo * (MOON_COL * 2.1 * moon + NIGHT_AMB * (0.5 + 0.5 * N.y) * 4.0);
-          // Gegenlicht: Steht der Mond hinter dem Baum, leuchten die Ränder der Krone
-          float back = pow(max(dot(-V, FOREST_MOON), 0.0), 3.0) * pow(1.0 - abs(dot(N, V)), 2.0);
-          col += MOON_COL * 0.15 * back * shadow;
-          gl_FragColor = vec4(mistify(col, pos, V, dist) * uFade, edge);
-          #ifdef FRAG_DEPTH
-          vec4 clip = projectionMatrix * viewMatrix * vec4(pos, 1.0);
-          gl_FragDepthEXT = clip.z / clip.w * 0.5 + 0.5;
-          #endif
-        }`,
-    });
-
-    // Grösse folgt dem Bestand, dazu Zufall, ein Teil jung und klein. Die Spitze bleibt unter der Brettebene.
-    const trees = noPick(new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), treeMaterial, spots.length));
-    const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), sc = new THREE.Vector3();
-    spots.forEach(([x, z, ground], i) => {
-      const young = rand() < 0.15 ? 0.4 + 0.25 * rand() : 1;
-      let size = THREE.MathUtils.lerp(FOREST.size[0], FOREST.size[1], 0.5 * stand(x, z) + 0.5 * rand()) * young;
-      size = Math.min(size, FOREST.tipMax - ground + 0.2); // +0.2: Fuss steckt etwas im Boden
-      const girth = 0.8 + rand() * 0.4; // schlank bis stämmig
-      e.set(0, rand() * 6.3, 0);
-      m.compose(new THREE.Vector3(x, ground - 0.2, z), q.setFromEuler(e), sc.set(size * girth, size, size * girth));
-      trees.setMatrixAt(i, m);
-    });
-    // Gemischt (weiche Ränder) liegen sie bei den durchsichtigen Objekten: vor den Effekten des Spiels (Höfe, Ringe,
-    // Funken mit renderOrder 0) zeichnen, sonst malten Bäume über sie; nach Sternen und Korona
-    trees.renderOrder = -50;
-    // Von hinten nach vorn sortieren (für die weichen Ränder), wenn sich die Kamera merklich bewegt hat
-    const order = spots.map((_, i) => i), key = new Float32Array(spots.length), matrices = Float32Array.from(trees.instanceMatrix.array), lastCam = new THREE.Vector3(1e9, 0, 0);
-    const sortTrees = () => {
-      if (camera.position.distanceToSquared(lastCam) < 1) return;
-      lastCam.copy(camera.position);
-      const { x, z } = camera.position;
-      for (let i = 0; i < key.length; i++) key[i] = (matrices[i * 16 + 12] - x) ** 2 + (matrices[i * 16 + 14] - z) ** 2;
-      order.sort((a, b) => key[b] - key[a]);
-      const arr = trees.instanceMatrix.array;
-      order.forEach((src, dst) => arr.set(matrices.subarray(src * 16, src * 16 + 16), dst * 16));
-      trees.instanceMatrix.needsUpdate = true;
+    // Gauss, getrennt: waagrecht über die Naht hinweg, senkrecht am Rand festgehalten
+    const sigma = P.blurDeg * w / 360, r = Math.ceil(sigma * 3), k = [];
+    for (let i = -r; i <= r; i++) k.push(Math.exp(-i * i / (2 * sigma * sigma)));
+    const ks = k.reduce((s, v) => s + v, 0);
+    const pass = (from, horizontal) => {
+      const to = new Float32Array(w * h);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let s = 0;
+        for (let i = -r; i <= r; i++) {
+          const xx = horizontal ? (x + i + w) % w : x, yy = horizontal ? y : Math.min(h - 1, Math.max(0, y + i));
+          s += from[yy * w + xx] * k[i + r];
+        }
+        to[y * w + x] = s / ks;
+      }
+      return to;
     };
-    group.add(trees);
+    return { w, h, data: pass(pass(src, true), false) };
+  }
 
-    // Kontaktschatten am Boden: Dichte der Kronen um jeden Baum (weiche Scheibe, etwas grösser als die Krone)
-    {
-      const N = 256, cell = 184 / N, ao = new Float32Array(N * N);
-      for (const [x, z] of spots) {
-        const ci = (x + 92) / cell, cj = (z + 92) / cell, R = 1.5 / cell;
-        for (let j = Math.max(0, Math.floor(cj - R)); j <= Math.min(N - 1, Math.ceil(cj + R)); j++) {
-          for (let i = Math.max(0, Math.floor(ci - R)); i <= Math.min(N - 1, Math.ceil(ci + R)); i++) {
-            const d2 = ((i - ci) ** 2 + (j - cj) ** 2) / (R * R);
-            if (d2 < 1) ao[j * N + i] += (1 - d2) * (1 - d2) * 0.7;
-          }
-        }
+  /** Kugelnetz um den Mittelpunkt, Ecken im Abstand der Szene (bilinear aus der Tiefe) */
+  function proxyGeometry(depth, center) {
+    const pos = new Float32Array((P.segU + 1) * (P.segV + 1) * 3);
+    const sample = (u, v) => {
+      const { w, h, data } = depth;
+      const x = u * w - 0.5, y = Math.min(h - 1, Math.max(0, v * h - 0.5));
+      const x0 = Math.floor(x), y0 = Math.floor(y), fx = x - x0, fy = y - y0;
+      const X0 = (x0 % w + w) % w, X1 = (X0 + 1) % w, Y1 = Math.min(h - 1, y0 + 1);
+      return (data[y0 * w + X0] * (1 - fx) + data[y0 * w + X1] * fx) * (1 - fy) + (data[Y1 * w + X0] * (1 - fx) + data[Y1 * w + X1] * fx) * fy;
+    };
+    let p = 0;
+    for (let i = 0; i <= P.segV; i++) {
+      const v = i / P.segV, th = v * Math.PI;
+      for (let j = 0; j <= P.segU; j++) {
+        const u = j / P.segU, ph = (u - 0.5) * 2 * Math.PI;
+        // Richtung in Blender (bx, by, bz) -> Spiel (bx, bz, −by)
+        const bx = Math.sin(th) * Math.sin(ph), by = Math.sin(th) * Math.cos(ph), bz = Math.cos(th);
+        const d = Math.exp(sample(u, v));
+        pos[p++] = center.x + bx * d; pos[p++] = center.y + bz * d; pos[p++] = center.z - by * d;
       }
-      const data = new Uint8Array(N * N * 4);
-      for (let k = 0; k < N * N; k++) { data[k * 4] = Math.min(ao[k], 1) * 255; data[k * 4 + 3] = 255; }
-      const tex = new THREE.DataTexture(data, N, N, THREE.RGBAFormat);
-      tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearFilter; tex.needsUpdate = true;
-      terrainUniforms.uGroundAO.value = tex;
     }
+    const index = [];
+    for (let i = 0; i < P.segV; i++) for (let j = 0; j < P.segU; j++) {
+      const a = i * (P.segU + 1) + j, b = a + 1, c = a + P.segU + 1, d = c + 1;
+      index.push(a, c, b, b, c, d);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setIndex(index);
+    return geo;
+  }
 
-    // Felsbrocken: an steilen Hängen und auf Graten, einzelne in Lichtungen; Granit, oben bemoost, halb im Boden
-    const rockSpots = [], rr = mulberry32(606);
-    for (let tries = 0; tries < 9000 && rockSpots.length < 110; tries++) {
-      const r = 6 + rr() * 60, a = rr() * 2 * Math.PI, x = Math.cos(a) * r, z = Math.sin(a) * r;
-      const ground = terrainHeight(x, z), slope = terrainSlope(x, z);
-      if (ground < FOREST.fogY - 1 || ground > FOREST.tipMax - 1.5) continue;
-      if (rr() > 0.08 + 1.4 * Math.max(slope - 0.2, 0) + 0.3 * (gap(x, z) < 0.3)) continue;
-      const size = 0.35 + 1.1 * rr() ** 2;
-      if (rockSpots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < (p.size + size) ** 2)) continue;
-      rockSpots.push({ x, z, y: ground, size });
-    }
-    const rockMaterial = new THREE.ShaderMaterial({
-      uniforms: forestUniforms, fog: false,
-      vertexShader: `varying vec3 vPos, vN, vLocal;
+  function material(center, full, bands) {
+    const u = { ...uniforms, uFull: { value: full }, uCenter: { value: center } };
+    bands.forEach((b, i) => {
+      u[`uBand${i}`] = { value: b.tex };
+      u[`uRect${i}`] = { value: new THREE.Vector4(b.u[0], b.u[1], b.v[0], b.v[1]) };
+    });
+    const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i};`).join('\n');
+    // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v)
+    const pick = bands.map((_, i) => `
+        if (!hit && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
+          vec2 s = 1.0 / vec2(uRect${i}.y - uRect${i}.x, uRect${i}.w - uRect${i}.z);
+          col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y), gx * s, gy * s);
+          hit = true;
+        }`).join('');
+    return new THREE.ShaderMaterial({
+      uniforms: u,
+      side: THREE.DoubleSide,
+      extensions: { derivatives: true, shaderTextureLOD: true },
+      vertexShader: `
+        varying vec3 vWorld;
         void main() {
-          vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
-          vPos = wp.xyz; vLocal = position;
-          vN = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vWorld = wp.xyz;
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vPos, vN, vLocal;
-        ${FOREST_GLSL}
-        ${FOREST_SCENE_GLSL}
+      fragmentShader: `
+        #if __VERSION__ >= 300
+          #define SAMPLE(t, p, gx, gy) textureGrad(t, p, gx, gy).rgb
+        #elif defined(GL_EXT_shader_texture_lod)
+          #define SAMPLE(t, p, gx, gy) texture2DGradEXT(t, p, gx, gy).rgb
+        #else
+          #define SAMPLE(t, p, gx, gy) texture2D(t, p).rgb
+        #endif
+        uniform sampler2D uFull;
+        uniform vec3 uCenter;
+        uniform float uFade, uReady;
+        ${decl}
+        varying vec3 vWorld;
+        const float PI = 3.141592653589793;
         void main() {
+          vec3 g = normalize(vWorld - uCenter);
+          vec3 b = vec3(g.x, -g.z, g.y); // Spiel -> Blender
+          float u = 0.5 + atan(b.x, b.y) / (2.0 * PI);
+          float v = acos(clamp(b.z, -1.0, 1.0)) / PI;
+          // Ableitungen vor jeder Verzweigung; an der Naht (u springt 1 -> 0) den Sprung herausnehmen, sonst wählte die
+          // Grafikkarte dort die kleinste Mipmap-Stufe (eine Linie aus Mittelwerten)
+          vec2 dx = dFdx(vec2(u, v)), dy = dFdy(vec2(u, v));
+          dx.x -= floor(dx.x + 0.5); dy.x -= floor(dy.x + 0.5);
+          vec2 gx = vec2(dx.x, -dx.y), gy = vec2(dy.x, -dy.y);
+          vec3 col = vec3(0.0);
+          bool hit = false;
+          ${pick}
+          if (!hit) col = SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy);
+          gl_FragColor = vec4(col, uFade * uReady);
+        }`,
+    });
+  }
+
+  /**
+   * Fichten nahe am Brett (waagrecht bis trees.rNear): Das Panorama zeigt sie nicht, aus seinem Mittelpunkt gesehen
+   * lägen sie schräg. Modelle und Standorte kommen aus Blender (tools/blender/wald_spielbaum.py), die Farben von den
+   * gemalten Bäumen im Panorama: zwei harte Stufen im Mondlicht (Toon), heller Rand an den Kanten zum Mond, unten in der
+   * Krone dunkler, etwas Dunst mit dem Abstand. Wie viel Mondlicht eine Krone unten und oben trifft (Schatten von Kämmen
+   * und Nachbarbäumen), hat Blender je Baum ausgerechnet; ihre Schatten auf dem Boden stecken im Panorama.
+   * Nebel wie in der Szene (trees.fog): Die Dichte hängt nur von der Höhe über der Oberkante am Baum ab (weicher Saum,
+   * darunter der Kern, je eine Rampe). Entlang des Blicks bis zur Kamera (über dem Nebel) zählt also nur ihr Integral
+   * von der Höhe des Punkts aufwärts, mal Weg je Höhe – so versinken Bäume am Rand des Nebelmeers darin wie im Panorama.
+   * Eintrag je Baum: x, y, z des Fusses, Höhe, Breite, Drehung, Modell, Mondlicht unten, oben, Helligkeit, Nebel-Oberkante.
+   */
+  function buildTrees(trees) {
+    const fogRamp = ([a, b, d]) => `${d.toFixed(4)} * ramp(dz, ${a.toFixed(2)}, ${b.toFixed(2)})`;
+    const material = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader: `
+        attribute vec4 aInfo; // Mondlicht unten, oben; Helligkeit; Oberkante des Nebels
+        varying vec4 vInfo;
+        varying vec3 vN, vPos;
+        varying float vH;
+        void main() {
+          mat4 m = modelMatrix * instanceMatrix;
+          vec4 wp = m * vec4(position, 1.0);
+          vec3 sc = vec3(length(m[0].xyz), length(m[1].xyz), length(m[2].xyz));
+          vN = normalize(mat3(m) * (normal / (sc * sc)));
+          vPos = wp.xyz;
+          vInfo = aInfo;
+          vH = position.y;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      fragmentShader: `
+        uniform float uFade, uReady;
+        varying vec4 vInfo;
+        varying vec3 vN, vPos;
+        varying float vH;
+        ${FOREST_GLSL}
+        // Farben der gemalten Bäume und des Nebels (Anzeige), zurückgerechnet auf Szenenwerte vor ACES
+        const vec3 SHADOW = vec3(0.0114, 0.0225, 0.0266), MID = vec3(0.0198, 0.044, 0.0542);
+        const vec3 LIT = vec3(0.037, 0.0913, 0.1124), RIM = vec3(0.07, 0.165, 0.22), HAZE = vec3(0.087, 0.195, 0.40);
+        const vec3 FOG_LIT = vec3(0.214, 0.365, 0.72);
+        // Integral einer Rampe (0 bei Höhe a, 1 ab Höhe b < a) von dz aufwärts
+        float ramp(float dz, float a, float b) {
+          float w = a - b;
+          if (dz >= a) return 0.0;
+          if (dz > b) return (a - dz) * (a - dz) / (2.0 * w);
+          return 0.5 * w + (b - dz);
+        }
+        void main() {
+          vec3 N = normalize(vN);
+          if (!gl_FrontFacing) N = -N;
           vec3 toCam = cameraPosition - vPos;
           float dist = length(toCam);
-          vec3 b = texture2D(uNoise, vPos.xz * 0.9 + vPos.y * 0.3).rgb - 0.5;
-          vec3 N = normalize(normalize(vN) + vec3(b.x, b.z * 0.5, b.y) * 0.8);
-          float n = texture2D(uNoise, vLocal.xz * 0.8 + vLocal.y * 0.5).a;
-          vec3 alb = vec3(0.22, 0.22, 0.21) * (0.7 + 0.5 * n);                                  // Granit
-          alb = mix(alb, vec3(0.05, 0.08, 0.045), smoothstep(0.55, 0.85, N.y + 0.3 * (n - 0.5))); // Moos oben
-          alb *= 0.55 + 0.45 * smoothstep(-0.4, 0.4, vLocal.y);                                  // unten verdeckt
-          float moon = max(dot(N, FOREST_MOON), 0.0) * objectShadow(vPos + normalize(vN) * 0.12, 0.0015);
-          vec3 col = alb * (MOON_COL * 1.4 * moon + NIGHT_AMB * 3.0 * (0.5 + 0.5 * N.y));
-          gl_FragColor = vec4(mistify(col, vPos, toCam / dist, dist) * uFade, 1.0);
+          float l = dot(N, FOREST_MOON);
+          float moon = mix(vInfo.x, vInfo.y, smoothstep(0.2, 0.8, vH));
+          vec3 col = mix(SHADOW, MID, smoothstep(-0.5, -0.3, l));
+          col = mix(col, LIT, smoothstep(0.0, 0.12, l) * moon);
+          col *= mix(0.6, 1.0, smoothstep(0.0, 0.45, vH));
+          float rim = pow(1.0 - max(dot(N, toCam / dist), 0.0), 3.0) * smoothstep(-0.1, 0.4, l) * moon;
+          col = mix(col, RIM, rim * 0.6) * vInfo.z;
+          col = mix(col, HAZE, 1.0 - exp(-dist * 0.0015));
+          // Nebel: Integral der Dichte über dem Punkt mal Weg je Höhe; zum Mond hin heller (Vorwärtsstreuung)
+          float dz = vPos.y - vInfo.w;
+          float tau = (${fogRamp(trees.fog.soft)} + ${fogRamp(trees.fog.core)}) * min(dist / max(cameraPosition.y - vPos.y, 0.1), 8.0);
+          vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
+          col = mix(mix(HAZE, FOG_LIT, pow(max(dot(h, m), 0.0), 2.0)), col, exp(-tau));
+          gl_FragColor = vec4(col * uFade * uReady, 1.0);
         }`,
     });
-    const rocks = [0, 1].map((v) => {
-      const list = rockSpots.filter((_, k) => k % 2 === v);
-      const mesh = noPick(new THREE.InstancedMesh(createRockGeometry(11 + v), rockMaterial, list.length));
-      const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-      list.forEach((p, k) => {
-        e.set((rr() - 0.5) * 0.4, rr() * 6.3, (rr() - 0.5) * 0.4);
-        m.compose(new THREE.Vector3(p.x, p.y - 0.25 * p.size, p.z), q.setFromEuler(e), new THREE.Vector3(p.size, p.size * (0.6 + 0.4 * rr()), p.size * (0.8 + 0.4 * rr())));
-        mesh.setMatrixAt(k, m);
+    const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+    trees.models.forEach((model, k) => {
+      const list = trees.trees.filter((t) => t[6] === k);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
+      geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
+      geo.setIndex(model.idx);
+      const info = new Float32Array(list.length * 4);
+      const mesh = new THREE.InstancedMesh(geo, material, list.length);
+      list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, fog], i) => {
+        mtx.compose(new THREE.Vector3(x, y, z), q.setFromAxisAngle(up, turn), new THREE.Vector3(w, h, w));
+        mesh.setMatrixAt(i, mtx);
+        info.set([lo, hi, shade, fog], i * 4);
       });
-      mesh.renderOrder = 1;
-      group.add(mesh);
-      return mesh;
+      geo.setAttribute('aInfo', new THREE.InstancedBufferAttribute(info, 4));
+      mesh.frustumCulled = false;          // die Hülle gilt nur für ein Modell, nicht für alle Standorte
+      mesh.layers.set(LAYER_NO_REFLECT);
+      mesh.raycast = () => {};
+      out.add(mesh);
     });
+    return out;
+  }
 
-    // Schattenkarte des Mondes: Bäume (Flächen zum Mond gedreht) und Gelände (die Kämme beschatten Täler und Nebel)
-    const casters = new THREE.Scene();
-    const treeCaster = new THREE.InstancedMesh(trees.geometry, new THREE.ShaderMaterial({
-      uniforms: treeUniforms,
-      vertexShader: `${FOREST_GLSL}
-        ${IMPOSTOR_VERTEX}
-        void main() { gl_Position = projectionMatrix * viewMatrix * impostorPlace(FOREST_MOON, true); }`,
-      fragmentShader: `${IMPOSTOR_FRAGMENT}
-        #include <packing>
-        void main() {
-          vec3 a, n; float d;
-          if (impostorSample(false, a, n, d) < 0.5) discard;
-          gl_FragColor = packDepthToRGBA(gl_FragCoord.z);
-        }`,
-    }), trees.count);
-    treeCaster.instanceMatrix = trees.instanceMatrix;
-    treeCaster.frustumCulled = false;
-    casters.add(treeCaster);
-    for (const mesh of rocks) {
-      const proxy = new THREE.InstancedMesh(mesh.geometry, new THREE.ShaderMaterial({
-        fragmentShader: SHADOW_DEPTH_FRAGMENT,
-        vertexShader: 'void main() { gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0); }',
-      }), mesh.count);
-      proxy.instanceMatrix = mesh.instanceMatrix;
-      proxy.frustumCulled = false;
-      casters.add(proxy);
-    }
-    casters.add(new THREE.Mesh(terrain.geometry, new THREE.ShaderMaterial({
-      fragmentShader: SHADOW_DEPTH_FRAGMENT,
-      vertexShader: 'void main() { gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0); }',
-    })));
-    bakeShadowMap(casters, new THREE.Box3(new THREE.Vector3(-92, FOREST.fogY - 1, -92), new THREE.Vector3(92, 0, 92)),
-      FOREST_MOON, FOREST.shadowSize, forestUniforms);
-
-    // Glühwürmchen zwischen den Wipfeln, unter der Brettebene, ausserhalb der Platte: klein und gelbgrün, mit weichem
-    // Schein, leuchten unregelmässig auf (etwa eine halbe Sekunde, dann eine Weile dunkel)
-    const n = FOREST.fireflies, pos = new Float32Array(n * 3), seed = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      const r = 6.5 + rand() * 16, a = rand() * 2 * Math.PI, x = Math.cos(a) * r, z = Math.sin(a) * r;
-      pos.set([x, Math.min(terrainHeight(x, z) + 1.5 + rand() * 2.5, -1.2), z], i * 3);
+  /**
+   * Glühwürmchen zwischen den nahen Fichten (über dem Nebel, unter der Brettebene, ausserhalb der Platte): klein und
+   * gelbgrün mit weichem Schein, sie leuchten unregelmässig auf (etwa eine halbe Sekunde, dann eine Weile dunkel) –
+   * die einzigen warmen Lichter in der Mondnacht.
+   */
+  function buildFireflies(trees, n = 50) {
+    const rand = mulberry32(17);
+    const spots = trees.trees.filter(([x, y, z, , , , , , , , fog]) => Math.hypot(x, z) > 7 && Math.hypot(x, z) < 28 && y > fog + 1);
+    const pos = new Float32Array(n * 3), seed = new Float32Array(n);
+    for (let i = 0; i < n && spots.length; i++) {
+      const [x, y, z] = spots[Math.floor(rand() * spots.length)];
+      pos.set([x + (rand() - 0.5) * 3, Math.min(y + 0.6 + rand() * 2.5, -1.2), z + (rand() - 0.5) * 3], i * 3);
       seed[i] = rand();
     }
-    const flyGeo = new THREE.BufferGeometry();
-    flyGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    flyGeo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
-    const flies = noPick(new THREE.Points(flyGeo, new THREE.ShaderMaterial({
-      uniforms: { ...forestUniforms, uPixelRatio: { value: renderer.getPixelRatio() } },
-      transparent: true, depthWrite: false, fog: false,
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
+    const flies = new THREE.Points(geo, new THREE.ShaderMaterial({
+      uniforms: flyUniforms,
+      transparent: true, depthWrite: false,
       blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
       blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
       vertexShader: `attribute float aSeed;
-        uniform float uTime, uFade, uPixelRatio;
+        uniform float uTime, uFade, uReady, uPixelRatio;
         varying float vGlow;
         void main() {
           float t = uTime * (0.2 + 0.15 * aSeed) + aSeed * 60.0;
@@ -6094,7 +5744,7 @@ const forest = (() => {
           gl_Position = projectionMatrix * mv;
           float ph = fract(uTime * (0.25 + 0.2 * aSeed) + aSeed * 7.0);
           float blink = smoothstep(0.0, 0.08, ph) * smoothstep(0.3, 0.12, ph); // kurz an, lange aus
-          vGlow = blink * uFade;
+          vGlow = blink * uFade * uReady;
           gl_PointSize = 9.0 * uPixelRatio * 40.0 / -mv.z;
         }`,
       fragmentShader: `varying float vGlow;
@@ -6103,422 +5753,118 @@ const forest = (() => {
           float core = smoothstep(0.3, 0.0, r), halo = exp(-r * r * 6.0) * 0.35;
           gl_FragColor = vec4((vec3(0.85, 1.0, 0.35) * core * 2.2 + vec3(0.35, 0.6, 0.15) * halo) * vGlow, 0.0);
         }`,
-    })));
+    }));
+    flies.frustumCulled = false;
+    flies.layers.set(LAYER_NO_REFLECT);
+    flies.raycast = () => {};
     flies.renderOrder = 6;
-    group.add(flies);
-    return { flies, sortTrees };
+    return flies;
   }
 
-  let parts = null;
+  /**
+   * Ziehender Nebelschleier: zwei durchscheinende Lagen knapp über der Oberkante des Nebelmeers (fog.top), deren Schwaden
+   * langsam mit dem Wind treiben (Richtung wie die Schlieren in Blender) und sich dabei verändern. Wo Kämme höher liegen,
+   * verdeckt sie das Panorama (Tiefentest): Der Schleier bleibt in den Tälern. Farbe wie der gemalte Nebel, zum Mond
+   * hin heller; zum Rand der Sicht blendet er aus.
+   */
+  function buildMist(fog) {
+    const out = new THREE.Group();
+    [[1.2, 0.22, 0.0], [3.5, 0.14, 0.5]].forEach(([dy, alpha, off]) => {
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(130, 64).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+        uniforms: { ...uniforms, uAlpha: { value: alpha }, uOff: { value: off } },
+        transparent: true, depthWrite: false,
+        vertexShader: `varying vec3 vPos;
+          void main() {
+            vec4 wp = modelMatrix * vec4(position, 1.0);
+            vPos = wp.xyz;
+            gl_Position = projectionMatrix * viewMatrix * wp;
+          }`,
+        fragmentShader: `uniform float uTime, uFade, uReady, uAlpha, uOff;
+          varying vec3 vPos;
+          ${GLSL_NOISE}
+          ${FOREST_GLSL}
+          const vec3 HAZE = vec3(0.087, 0.195, 0.40), FOG_LIT = vec3(0.214, 0.365, 0.72);
+          void main() {
+            vec2 wind = vec2(0.94, -0.34); // Blender (0.94, 0.34) -> Spiel (x, −y)
+            vec2 p = vPos.xz - wind * uTime * 0.7;
+            // in Windrichtung gestreckte Schwaden, die sich langsam verändern
+            vec2 q = vec2(dot(p, wind), dot(p, vec2(-wind.y, wind.x)) * 2.2) / 26.0;
+            float n = fbm3(vec3(q, uTime * 0.02 + uOff * 7.0));
+            float a = smoothstep(0.42, 0.72, n) * uAlpha;
+            vec3 toCam = cameraPosition - vPos;
+            float dist = length(toCam);
+            a *= smoothstep(112.0, 80.0, dist);
+            vec2 h = normalize(-toCam.xz + vec2(1e-4)), m = normalize(FOREST_MOON.xz);
+            vec3 col = mix(HAZE, FOG_LIT, pow(max(dot(h, m), 0.0), 2.0));
+            float k = uFade * uReady;
+            gl_FragColor = vec4(col * k, a * k);
+          }`,
+      }));
+      disc.position.y = fog.top + dy;
+      disc.frustumCulled = false;
+      disc.layers.set(LAYER_NO_REFLECT);
+      disc.raycast = () => {};
+      disc.renderOrder = 5;
+      out.add(disc);
+    });
+    return out;
+  }
+
+  async function build() {
+    await loadScript('backgrounds/forest.js');
+    if (P.hd) await loadScript('backgrounds/forest-hd.js').catch((e) => console.warn(`Wald: ${e.message}, ohne Streifen`));
+    const data = window.PRISMA_FOREST;
+    const bands = P.hd ? data.bands ?? [] : [];
+    const [fullImg, depthImg, ...bandImgs] = await Promise.all([data.full, data.depth, ...bands.map((b) => b.url)].map(loadImage));
+    const center = new THREE.Vector3().fromArray(data.center);
+    mesh = new THREE.Mesh(proxyGeometry(logDepth(depthImg, data.depthLog), center),
+      material(center, texture(fullImg, true), bands.map((b, i) => ({ ...b, tex: texture(bandImgs[i], false) }))));
+    mesh.renderOrder = -1000;          // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
+    mesh.frustumCulled = false;
+    mesh.layers.set(LAYER_NO_REFLECT); // nicht in der Bodenspiegelung (dort spiegelt sich die Himmelskugel)
+    mesh.raycast = () => {};
+    group.add(mesh);
+    if (data.trees) group.add(buildTrees(data.trees), buildFireflies(data.trees), buildMist(data.trees.fog));
+    renderer.compile(scene, camera);   // schon jetzt übersetzen, nicht im ersten Bild des Einblendens (falls sichtbar)
+    delete window.PRISMA_FOREST;       // die Bilder stecken jetzt in den Texturen
+  }
+
+  /** Während des Überblendens und Einblendens durchsichtig über der Himmelskugel, sonst undurchsichtig und zuerst. */
+  function applyFade() {
+    if (!mesh) return;
+    const transparent = uniforms.uFade.value * uniforms.uReady.value < 0.999;
+    if (mesh.material.transparent !== transparent) {
+      mesh.material.transparent = transparent;
+      mesh.material.needsUpdate = true;
+    }
+  }
+
   return {
     group,
-    /** Erst bauen, wenn der Wald gewählt wird (kostet einen Moment Rechenzeit). */
+    /** Erst laden, wenn der Wald gewählt wird (rund 1,5 MB, auf dem Desktop dazu 6 MB Streifen). */
     prepare() {
-      if (parts) return;
-      parts = build();
-      // Shader gleich übersetzen, nicht erst im ersten Bild nach dem Einblenden
-      const visible = group.visible;
-      group.visible = true;
-      renderer.compile(scene, camera);
-      group.visible = visible;
-      if (volFog) volFog.precompile();
+      loading ??= build().catch((e) => console.error(`Wald: ${e.message}`));
     },
     show(visible) {
       if (visible) this.prepare();
       group.visible = visible;
+      // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz und deckte weiter draussen
+      // liegende Teile zu. Mit 116 (vor camera.far = 120) liegt sie überall dahinter; sie rechnet nur mit der Richtung,
+      // sieht also gleich aus. Nur solange der Wald zu sehen ist (die anderen Hintergründe sind dann ausgeblendet).
+      background.scale.setScalar(visible ? 116 / 80 : 1);
+      applyFade();
     },
     update(t) {
-      forestUniforms.uTime.value = t;
-      parts.flies.material.uniforms.uPixelRatio.value = renderer.getPixelRatio();
-      parts.sortTrees();
+      if (!mesh) return;
+      readyAt ??= t;
+      uniforms.uReady.value = Math.min(1, (t - readyAt) / P.appear);
+      uniforms.uTime.value = t;
+      flyUniforms.uPixelRatio.value = renderer.getPixelRatio();
+      applyFade();
     },
   };
 })();
 scene.add(forest.group);
-
-/* =====================================================================
-   VOLUMETRISCHER NEBEL (Wald) — ersetzt das flache Nebelmeer (fogSea) und die Schwaden (wisps)
-   ---------------------------------------------------------------------
-   Nur wenn Tiefentexturen gehen (VOLFOG_ON); sonst bleiben Nebelmeer und Schwaden (fogSea, wisps im WALD-Abschnitt).
-   Abhängigkeiten: THREE r147 inkl. EffectComposer.js (THREE.Pass, THREE.FullScreenQuad). Keine globalen Variablen
-   ausser THREE – alles Weitere kommt über createVolumetricFog(opts).
-
-   Ablauf je Bild (nur wenn der Wald sichtbar ist, sonst nichts ausser einem Uniform):
-     1. RenderPass zeichnet die Szene wie bisher in composer.readBuffer – der hat jetzt eine DepthTexture
-        (DepthStencilFormat / UnsignedInt248Type: dieselben 24 Bit Tiefe + 8 Bit Stencil wie bisher).
-     2. VolumetricFogPass (needsSwap = false, zeichnet nicht in die Composer-Puffer):
-        a) "range" (1/2 bzw. 1/4 Auflösung): nächste und fernste Szenentiefe je Texel (VOLFOG_ZRANGE_FRAGMENT).
-        b) "march" zweimal, bis zur nächsten und bis zur fernsten Tiefe: je Texel der Sichtstrahl durch das
-           Nebelband [fogY − 8, fogY + 4]; 10–16 Schritte mit Versatz (interleaved gradient noise), Abbruch bei
-           Transmission < 0,02. Ausgabe vormultipliziert: rgb = gestreutes Licht, a = 1 − Transmission.
-        c) "denoise" je Ergebnis: 5er-Kreuz, tiefengewichtet – glättet das Rauschen des Versatzes, ohne über Kanten
-           zu verwischen.
-     3. FinalShader (Bild auf den Schirm): je Pixel aus den 4 nächsten Nebeltexeln, zwischen nah und fern nach der
-        eigenen Tiefe gemischt, gewichtet nach dem Abstand zum Tiefenbereich des Texels; mischt rgb·(1 − a) + Nebel.
-        Kein Feedback-Loop: der letzte Pass zeichnet auf den Schirm, die Tiefentextur hängt an keinem gebundenen
-        Puffer. Kein zusätzlicher Vollbild-Puffer, kein zusätzlicher Vollbild-Pass.
-   Hinweis Bloom: der Nebel kommt nach dem Bloom ins Bild; Nebelwerte < 1 blühen ohnehin nicht. Leuchtsäume von
-   Strahlen reichen praktisch nie bis über das Nebelband (die Kuppe unter dem Brett liegt darüber).
-   ===================================================================== */
-
-/** Qualitätsstufen. div: Teiler der Auflösung, steps: Schritte je Strahl, lightSample: 1 Lichtprobe zum Mond je
- *  Schritt (2 Abrufe mehr), denoise: Entrauschen. */
-const VOLFOG_TIERS = {
-  high: { div: 2, steps: 16, lightSample: 1, denoise: 1 }, // Desktop
-  low: { div: 4, steps: 10, lightSample: 0, denoise: 1 },  // Handy
-};
-
-const VOLFOG = {
-  top: 4, bottom: 8,   // Nebelband relativ zu FOREST.fogY (oben / unten)
-  relief: 5,           // Höhenunterschied der Oberfläche zwischen Bänken und Gassen
-  lane: 0.25,          // Dichte in den Gassen gegenüber den Bänken (dort scheint der Wald durch)
-  sigma: 0.9,          // Extinktion im dichten Nebel (1/Einheit): ~1,1 Einheiten bis 1/e – Bäume versinken weich
-  haze: 0.05,          // dünner Dunst über der Oberfläche (macht Lichtbahnen und Schattengassen sichtbar)
-  direct: 1.0,         // direktes Mondlicht (mit Phase, Schatten, Selbstschatten), × MOON_COL
-  multi: 0.3,          // Mehrfachstreuung: der Nebel leuchtet auch im Schatten von innen, × MOON_COL
-  amb: 3.0,            // Himmelslicht, × NIGHT_AMB
-  g: 0.6,              // Henyey-Greenstein: Vorwärtsstreuung zum Mond hin
-  gMix: 0.3,           // Anteil HG gegenüber isotrop
-};
-
-/** DepthTexture für das Composer-Ziel (vor `new THREE.EffectComposer(renderer, rt)` setzen; der Klon teilt sie, siehe createComposer). */
-function volfogDepthTexture() {
-  const tex = new THREE.DepthTexture(1, 1);
-  tex.format = THREE.DepthStencilFormat; // wie bisher stencilBuffer: true → 24 Bit Tiefe
-  tex.type = THREE.UnsignedInt248Type;
-  return tex;
-}
-
-/**
- * 3D-Rauschen in einer 2D-Textur (WebGL1 kennt keine 3D-Texturen): R = kachelbares Rauschen, G = dasselbe um
- * (37, 17) verschoben. Eine bilineare Abfrage liefert so zwei benachbarte z-Schichten, im Shader nach z gemischt
- * (Trick nach Íñigo Quilez). 128² RGBA8 = 64 kB.
- */
-function createVolfogNoise(size = 128) {
-  let seed = 4711;
-  const rand = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
-  const white = Float32Array.from({ length: size * size }, rand);
-  const at = (x, y) => white[((y % size + size) % size) * size + ((x % size + size) % size)];
-  // leicht weichzeichnen (3×3, kachelbar): weniger rautenförmige Treppen der bilinearen Filterung
-  const soft = new Float32Array(size * size);
-  let lo = Infinity, hi = -Infinity;
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const v = (4 * at(x, y) + 2 * (at(x - 1, y) + at(x + 1, y) + at(x, y - 1) + at(x, y + 1)) +
-        at(x - 1, y - 1) + at(x + 1, y - 1) + at(x - 1, y + 1) + at(x + 1, y + 1)) / 16;
-      soft[y * size + x] = v; lo = Math.min(lo, v); hi = Math.max(hi, v);
-    }
-  }
-  const norm = (v) => (v - lo) / (hi - lo); // auf 0 … 1 strecken
-  const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      data[i] = norm(soft[y * size + x]) * 255;
-      data[i + 1] = norm(soft[((y + 17) % size) * size + (x + 37) % size]) * 255;
-      data[i + 2] = 0; data[i + 3] = 255;
-    }
-  }
-  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.minFilter = tex.magFilter = THREE.LinearFilter; // keine Mipmaps: die Abfragen springen je Schicht
-  tex.generateMipmaps = false;
-  tex.needsUpdate = true;
-  return tex;
-}
-
-const VOLFOG_VERTEX = `varying vec2 vUv;
-  void main() { vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
-
-/** Raymarch-Shader. sceneGLSL = FOREST_GLSL + FOREST_SCENE_GLSL (FOG_Y, MOON_COL, NIGHT_AMB, forestMist, forestHaze,
- *  uShadow/uShadowMat, unpackRGBAToDepth, uTime). */
-const volfogMarchFragment = (sceneGLSL, tier) => `
-  #define VF_STEPS ${tier.steps}
-  #define VF_LIGHT_SAMPLE ${tier.lightSample}
-  ${sceneGLSL}
-  uniform sampler2D tDepth, tVolNoise; // tDepth: nächste und fernste Tiefe je Texel (VOLFOG_ZRANGE_FRAGMENT)
-  uniform float uFar; // 1: Nebel bis zur fernsten Tiefe, 0: bis zur nächsten
-  ${VOLFOG_DEPTH_GLSL}
-  uniform mat4 uInvProj, uCamWorld;
-  uniform vec3 uCamPos;
-  uniform float uTop, uBottom, uRelief, uLane, uSigma, uHaze, uDirect, uMulti, uAmb, uG, uGMix;
-  varying vec2 vUv;
-
-  const vec2 FLOW = vec2(0.94, 0.34);     // Zugrichtung wie bisher im Nebelmeer
-
-  float noise3(vec3 p) {
-    float iz = floor(p.z), f = p.z - iz;
-    vec2 rg = texture2D(tVolNoise, (p.xy + vec2(37.0, 17.0) * iz + 0.5) / 128.0).rg;
-    return mix(rg.r, rg.g, f * f * (3.0 - 2.0 * f));
-  }
-  // Dichte an p (x) und Tiefe unter der Oberfläche (y, negativ darüber). Oberfläche: lange Schlieren in Zugrichtung
-  // (gestreckt ~4:1) plus kleinere Wogen; beide ziehen langsam und wandeln sich (Zeit auch in der 3. Achse).
-  vec2 fogDensity(vec3 p) {
-    vec2 q = vec2(dot(p.xz, FLOW), dot(p.xz, vec2(-FLOW.y, FLOW.x)));
-    float streak = noise3(vec3(q.x * 0.045 - uTime * 0.035, q.y * 0.19, p.y * 0.12 + uTime * 0.008));
-    float billow = noise3(vec3(q.x * 0.21 - uTime * 0.08, q.y * 0.21 + 31.0, p.y * 0.3 - uTime * 0.02));
-    streak = smoothstep(0.15, 0.85, streak); // mehr Kontrast: deutliche Bänke und Gassen
-    float surface = FOG_Y + uRelief * (streak - 0.5) + 2.0 * (billow - 0.5);
-    float below = surface - p.y;
-    // Sigmoid-Oberkante (weich über ~1,6 Einheiten), darunter dicht; in den Gassen zwischen den Bänken dünner
-    float d = uSigma * smoothstep(-0.8, 0.8, below) * (uLane + (1.0 - uLane) * streak);
-    d += uHaze * exp(-max(p.y - FOG_Y, 0.0) * 0.3); // dünner Dunst über dem Meer: Lichtbahnen
-    return vec2(d, below);
-  }
-  // Mondschatten mit einer einzigen Abfrage (Versatz der Schritte und Entrauschen machen ihn weich)
-  float moonLit1(vec3 p) {
-    vec3 c = (uShadowMat * vec4(p, 1.0)).xyz * 0.5 + 0.5;
-    if (c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0) return 1.0;
-    return step(c.z - 0.003, unpackRGBAToDepth(texture2D(uShadow, c.xy)));
-  }
-  float henyeyGreenstein(float c, float g) { // normiert auf isotrop = 1
-    float g2 = g * g;
-    return (1.0 - g2) / pow(1.0 + g2 - 2.0 * g * c, 1.5);
-  }
-
-  void main() {
-    // Szenentiefe: die nächste oder die fernste im Texel (zwischen beiden mischt das Hochskalieren im FinalShader)
-    vec4 zr = texture2D(tDepth, vUv);
-    float z = volfogUnpack16(uFar > 0.5 ? zr.ba : zr.rg);
-    vec4 v = uInvProj * vec4(vUv * 2.0 - 1.0, z * 2.0 - 1.0, 1.0);
-    v.xyz /= v.w;
-    vec3 rd = normalize(mat3(uCamWorld) * v.xyz);
-    float tScene = min(length(v.xyz), 80.0); // Himmelskugel (Radius 80) schreibt keine Tiefe
-    if (rd.y > -1e-3) { gl_FragColor = vec4(0.0); return; }
-    float tTop = (FOG_Y + uTop - uCamPos.y) / rd.y, tBot = (FOG_Y - uBottom - uCamPos.y) / rd.y;
-    float t0 = max(tTop, 0.0), t1 = min(tBot, tScene);
-    if (t1 <= t0) { gl_FragColor = vec4(0.0); return; } // Strahl endet über dem Band (Brett, Kuppe, Wipfel)
-
-    float dt = (t1 - t0) / float(VF_STEPS);
-    float jitter = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
-    float t = t0 + dt * jitter;
-    float phase = mix(1.0, henyeyGreenstein(dot(rd, FOREST_MOON), uG), uGMix);
-    vec3 mist = forestMist(rd);
-    vec3 ambient = MOON_COL * uMulti + NIGHT_AMB * uAmb;
-    float T = 1.0;
-    vec3 L = vec3(0.0), S = ambient;
-    for (int i = 0; i < VF_STEPS; i++) {
-      vec3 p = uCamPos + rd * t;
-      vec2 d = fogDensity(p);
-      // Selbstschatten. Mit Lichtprobe: Dichte ein Stück zum Mond hin (Wogen auf der Mondseite hell, im Lee
-      // dunkel). Ohne: Tiefe unter der Oberfläche / sin(Mondhöhe) (keine Abfrage)
-      #if VF_LIGHT_SAMPLE
-        float self = exp(-(0.5 * d.x + fogDensity(p + FOREST_MOON * 1.4).x) * 1.26);
-      #else
-        float self = exp(-max(d.y, 0.0) * uSigma * 0.7 / FOREST_MOON.y);
-      #endif
-      // unten im Nebel dunkler (auch die Mehrfachstreuung nimmt ab)
-      float deep = exp(-max(d.y, 0.0) * 0.25);
-      S = MOON_COL * (uDirect * phase * moonLit1(p) * self) + ambient * (0.4 + 0.6 * deep);
-      S = mix(S, mist, forestHaze(p, t)); // in der Ferne derselbe Dunst wie Gelände und Himmel
-      float a = exp(-d.x * dt);
-      L += T * S * (1.0 - a);
-      T *= a;
-      if (T < 0.02) break;
-      t += dt;
-    }
-    if (tBot < tScene) { L += T * S; T = 0.0; } // unter dem Band: undurchsichtig
-    gl_FragColor = vec4(L, 1.0 - T);
-  }`;
-
-// Tiefe → Abstand entlang der Blickachse (positiv); für Gewichte reicht das
-const VOLFOG_DEPTH_GLSL = `
-  uniform vec2 uFogNearFar;
-  float volfogViewZ(float z) { return uFogNearFar.x * uFogNearFar.y / (uFogNearFar.y - z * (uFogNearFar.y - uFogNearFar.x)); }
-  // Tiefe (0 … 1) in zwei Bytes und zurück: die nächste und die fernste je Nebeltexel in einem RGBA8-Ziel
-  vec2 volfogPack16(float z) { float v = floor(clamp(z, 0.0, 1.0) * 65535.0 + 0.5), hi = floor(v / 256.0); return vec2(hi, v - hi * 256.0) / 255.0; }
-  float volfogUnpack16(vec2 c) { c = floor(c * 255.0 + 0.5); return (c.x * 256.0 + c.y) / 65535.0; }`;
-
-/** Nächste und fernste Tiefe je Nebeltexel aus 5 Proben über seine Fläche (rg: nächste, ba: fernste). In einer
- *  Fichtenkrone liegen Nadeln und, in den Lücken, der Boden weit dahinter im Nebel nebeneinander: Mit einer einzigen
- *  Probe an der Texelmitte bekam der Baum mal dessen dichten Nebel ab, mal nicht – er flackerte bei jeder Bewegung.
- *  Darum rechnet der Marsch den Nebel bis zu beiden Tiefen, und jedes Pixel mischt nach seiner eigenen. */
-const VOLFOG_ZRANGE_FRAGMENT = `
-  uniform sampler2D tDepth;
-  uniform vec2 uTexel; // Grösse eines Nebeltexels in uv
-  varying vec2 vUv;
-  ${VOLFOG_DEPTH_GLSL}
-  void main() {
-    float a = texture2D(tDepth, vUv).x;
-    float b = texture2D(tDepth, vUv + uTexel * vec2(-0.3, -0.3)).x, c = texture2D(tDepth, vUv + uTexel * vec2(0.3, -0.3)).x;
-    float d = texture2D(tDepth, vUv + uTexel * vec2(-0.3, 0.3)).x, e = texture2D(tDepth, vUv + uTexel * vec2(0.3, 0.3)).x;
-    float lo = min(min(a, b), min(min(c, d), e)), hi = max(max(a, b), max(max(c, d), e));
-    gl_FragColor = vec4(volfogPack16(lo), volfogPack16(hi));
-  }`;
-
-/** Entrauschen in niedriger Auflösung: Kreuz aus 5 Texeln, Gewicht nach Tiefenähnlichkeit (uFar: an der fernsten
- *  statt an der nächsten Tiefe). */
-const VOLFOG_DENOISE_FRAGMENT = `
-  uniform sampler2D tFog, tRange;
-  uniform vec2 uTexel;
-  uniform float uFar;
-  varying vec2 vUv;
-  ${VOLFOG_DEPTH_GLSL}
-  float rangeZ(vec2 uv) { vec4 r = texture2D(tRange, uv); return volfogViewZ(volfogUnpack16(uFar > 0.5 ? r.ba : r.rg)); }
-  void main() {
-    float zc = rangeZ(vUv);
-    vec4 sum = texture2D(tFog, vUv) * 2.0;
-    float wsum = 2.0;
-    for (int k = 0; k < 4; k++) {
-      vec2 o = k == 0 ? vec2(uTexel.x, 0.0) : k == 1 ? vec2(-uTexel.x, 0.0) : k == 2 ? vec2(0.0, uTexel.y) : vec2(0.0, -uTexel.y);
-      float dz = (rangeZ(vUv + o) - zc) / zc;
-      float w = 1.0 / (1.0 + dz * dz * 400.0); // 5 % Tiefenunterschied → halbes Gewicht
-      sum += texture2D(tFog, vUv + o) * w;
-      wsum += w;
-    }
-    gl_FragColor = sum / wsum;
-  }`;
-
-/**
- * Für den FinalShader: Uniforms und Funktion volfog(uv) → vormultiplizierter Nebel (rgb, a = Deckung). Je Nebeltexel
- * gibt es den Nebel bis zur nächsten und bis zur fernsten Tiefe; das Pixel mischt nach seiner eigenen Tiefe zwischen
- * beiden (stetig – nichts springt, wenn sich die Kamera ein wenig bewegt). Die 4 Texel um uv werden bilinear gewichtet,
- * dazu nach dem Abstand der Pixeltiefe von ihrem Tiefenbereich (Silhouetten von Kämmen und Wipfeln bleiben scharf).
- */
-const VOLFOG_FINAL_GLSL = () => `
-  uniform sampler2D tFog, tFogFar, tFogDepth, tFogRange;
-  uniform vec2 uFogSize;
-  uniform float uFogOn;   // 0: kein Nebel (anderer Hintergrund), sonst Einblendung (uFade des Waldes)
-  ${VOLFOG_DEPTH_GLSL}
-  vec4 volfogTexel(vec2 c, float zc, out float w) {
-    vec4 r = texture2D(tFogRange, c);
-    float lo = volfogViewZ(volfogUnpack16(r.rg)), hi = volfogViewZ(volfogUnpack16(r.ba));
-    float k = clamp((zc - lo) / max(hi - lo, 1e-3), 0.0, 1.0);
-    float off = (max(lo - zc, 0.0) + max(zc - hi, 0.0)) / zc; // ausserhalb des Bereichs: passt schlechter
-    w = 1.0 / (1e-3 + off * off);
-    return mix(texture2D(tFog, c), texture2D(tFogFar, c), k);
-  }
-  vec4 volfog(vec2 uv) {
-    if (uFogOn <= 0.0) return vec4(0.0);
-    if (texture2D(tFogFar, uv).a < 0.002) return vec4(0.0); // ohne Nebel ringsum (Brett, Kuppe): 1 Abruf
-    float zc = volfogViewZ(texture2D(tFogDepth, uv).x);
-    vec2 st = uv * uFogSize - 0.5, i = floor(st), f = st - i;
-    vec4 acc = vec4(0.0);
-    float wsum = 0.0;
-    for (int k = 0; k < 4; k++) {
-      vec2 o = vec2(k == 1 || k == 3 ? 1.0 : 0.0, k >= 2 ? 1.0 : 0.0);
-      float wd;
-      vec4 fog = volfogTexel((i + o + 0.5) / uFogSize, zc, wd);
-      float w = (mix(1.0 - f.x, f.x, o.x) * mix(1.0 - f.y, f.y, o.y) + 1e-3) * wd;
-      acc += fog * w;
-      wsum += w;
-    }
-    return acc / wsum * uFogOn;
-  }`;
-
-/** Uniforms des Nebels im FinalShader (VOLFOG_FINAL_GLSL). */
-function volfogFinalUniforms() {
-  return {
-    tFog: { value: null }, tFogFar: { value: null }, tFogDepth: { value: null }, tFogRange: { value: null },
-    uFogSize: { value: new THREE.Vector2(1, 1) }, uFogNearFar: { value: new THREE.Vector2(1, 120) }, uFogOn: { value: 0 },
-  };
-}
-
-/**
- * Erzeugt den Pass. opts:
- *   renderer, camera, uniforms (forestUniforms), sceneGLSL (FOREST_GLSL + FOREST_SCENE_GLSL), tier (VOLFOG_TIERS.*),
- *   isActive() → bool (Wald sichtbar), halfFloat (bool: Nebelziele in HalfFloat), finalUniforms (uniforms des
- *   finalPass, siehe volfogFinalUniforms)
- */
-function createVolumetricFog({ renderer, camera, uniforms, sceneGLSL, tier, isActive, halfFloat, finalUniforms }) {
-  const target = () => new THREE.WebGLRenderTarget(1, 1, {
-    type: halfFloat ? THREE.HalfFloatType : THREE.UnsignedByteType,
-    minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, generateMipmaps: false,
-    depthBuffer: false, stencilBuffer: false,
-  });
-  // Nebel bis zur nächsten (near) und zur fernsten Tiefe (far) je Texel; roh und entrauscht
-  const near = [target(), tier.denoise ? target() : null], far = [target(), tier.denoise ? target() : null];
-  const range = new THREE.WebGLRenderTarget(1, 1, {
-    minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false, depthBuffer: false, stencilBuffer: false,
-  });
-  const nearFar = { value: new THREE.Vector2(1, 120) };
-  const rangeMaterial = new THREE.ShaderMaterial({
-    uniforms: { tDepth: { value: null }, uTexel: { value: new THREE.Vector2() }, uFogNearFar: nearFar },
-    vertexShader: VOLFOG_VERTEX, fragmentShader: VOLFOG_ZRANGE_FRAGMENT, depthTest: false, depthWrite: false,
-  });
-  const P = VOLFOG;
-  const march = new THREE.ShaderMaterial({
-    uniforms: {
-      ...uniforms, // gemeinsame Objekte: uTime, uShadow, uShadowMat, uNoise, uFade
-      tDepth: { value: range.texture },
-      uFar: { value: 0 },
-      tVolNoise: { value: createVolfogNoise(128) },
-      uInvProj: { value: new THREE.Matrix4() },
-      uCamWorld: { value: new THREE.Matrix4() },
-      uCamPos: { value: new THREE.Vector3() },
-      uFogNearFar: nearFar,
-      uTop: { value: P.top }, uBottom: { value: P.bottom }, uRelief: { value: P.relief }, uLane: { value: P.lane },
-      uSigma: { value: P.sigma }, uHaze: { value: P.haze }, uDirect: { value: P.direct }, uMulti: { value: P.multi },
-      uAmb: { value: P.amb }, uG: { value: P.g }, uGMix: { value: P.gMix },
-    },
-    vertexShader: VOLFOG_VERTEX,
-    fragmentShader: volfogMarchFragment(sceneGLSL, tier),
-    depthTest: false, depthWrite: false,
-  });
-  const denoise = tier.denoise && new THREE.ShaderMaterial({
-    uniforms: { tFog: { value: null }, tRange: { value: range.texture }, uTexel: { value: new THREE.Vector2() }, uFar: { value: 0 }, uFogNearFar: nearFar },
-    vertexShader: VOLFOG_VERTEX, fragmentShader: VOLFOG_DENOISE_FRAGMENT, depthTest: false, depthWrite: false,
-  });
-  const quad = new THREE.FullScreenQuad(march);
-  finalUniforms.tFog.value = (near[1] || near[0]).texture;
-  finalUniforms.tFogFar.value = (far[1] || far[0]).texture;
-  finalUniforms.tFogRange.value = range.texture;
-  const draw = (target, material) => { renderer.setRenderTarget(target); quad.material = material; quad.render(renderer); };
-
-  class VolumetricFogPass extends THREE.Pass {
-    constructor() { super(); this.needsSwap = false; }
-    render(renderer, writeBuffer, readBuffer) {
-      const on = isActive() && readBuffer.depthTexture ? uniforms.uFade.value : 0;
-      finalUniforms.uFogOn.value = on;
-      if (on <= 0) return;
-      const w = readBuffer.width, h = readBuffer.height;
-      const fw = Math.max(1, Math.ceil(w / tier.div)), fh = Math.max(1, Math.ceil(h / tier.div));
-      if (range.width !== fw || range.height !== fh) {
-        for (const t of [...near, ...far, range]) if (t) t.setSize(fw, fh);
-      }
-      const u = march.uniforms;
-      u.uInvProj.value.copy(camera.projectionMatrixInverse);
-      u.uCamWorld.value.copy(camera.matrixWorld);
-      u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
-      nearFar.value.set(camera.near, camera.far);
-      finalUniforms.uFogNearFar.value.set(camera.near, camera.far);
-      finalUniforms.tFogDepth.value = readBuffer.depthTexture;
-      finalUniforms.uFogSize.value.set(fw, fh);
-
-      const autoClear = renderer.autoClear;
-      renderer.autoClear = false;
-      rangeMaterial.uniforms.tDepth.value = readBuffer.depthTexture;
-      rangeMaterial.uniforms.uTexel.value.set(1 / fw, 1 / fh);
-      draw(range, rangeMaterial);
-      for (const [i, pair] of [near, far].entries()) {
-        u.uFar.value = i;
-        draw(pair[0], march);
-        if (denoise) {
-          denoise.uniforms.tFog.value = pair[0].texture;
-          denoise.uniforms.uFar.value = i;
-          denoise.uniforms.uTexel.value.set(1 / fw, 1 / fh);
-          draw(pair[1], denoise);
-        }
-      }
-      renderer.autoClear = autoClear;
-    }
-    dispose() {
-      for (const t of [...near, ...far, range]) if (t) t.dispose();
-      march.dispose(); rangeMaterial.dispose(); if (denoise) denoise.dispose();
-    }
-  }
-
-  const compileCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
-  return {
-    pass: new VolumetricFogPass(), march, params: P,
-    /** Shader vorab übersetzen (forest.prepare), nicht erst im ersten Bild des Einblendens. */
-    precompile() {
-      for (const m of [rangeMaterial, march, denoise]) if (m) { quad.material = m; renderer.compile(quad._mesh, compileCam); }
-    },
-  };
-}
-
-const VOLFOG_TIER = IS_MOBILE ? VOLFOG_TIERS.low : VOLFOG_TIERS.high;
 
 /* =====================================================================
    STRAND — vierter Hintergrund: Meer und Küste bei Sonnenuntergang (umschaltbar, siehe skyTheme)
@@ -7579,7 +6925,7 @@ scene.add(beach.group);
 /**
  * Hintergrund umschalten: Milchstrasse, Sonnensystem, Wald oder Strand (Knopf unten rechts, Taste H; der Reihe nach). Die
  * Wahl bleibt gespeichert. Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurch-
- * sichtige Teile (Waldboden, Stämme, Planeten) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten.
+ * sichtige Teile (Planeten, Gelände des Strands) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten.
  */
 const skyTheme = {
   storageKey: 'prisma.sky',
@@ -7823,9 +7169,7 @@ scene.add(keyLight, keyLight.target);
    ===================================================================== */
 
 const FinalShader = {
-  defines: { VOLFOG: VOLFOG_ON ? 1 : 0 },
   uniforms: {
-    ...volfogFinalUniforms(),
     tDiffuse: { value: null },
     uResolution: { value: new THREE.Vector2(1, 1) },
     uTime: { value: 0 },
@@ -7839,9 +7183,6 @@ const FinalShader = {
     uniform sampler2D tDiffuse;
     uniform vec2 uResolution;
     uniform float uTime, uExposure, uVignette, uAberration, uGrain;
-    #if VOLFOG
-    ${VOLFOG_FINAL_GLSL()}
-    #endif
     varying vec2 vUv;
 
     // ACES Filmic (identisch zu three.js ACESFilmicToneMapping)
@@ -7882,10 +7223,6 @@ const FinalShader = {
       col.r = texture2D(tDiffuse, vUv - off).r;
       col.g = base.g;
       col.b = texture2D(tDiffuse, vUv + off).b;
-      #if VOLFOG
-      vec4 fog = volfog(vUv); // Nebel im Wald (vormultipliziert; bei den anderen Hintergründen 0)
-      col = col * (1.0 - fog.a) + fog.rgb;
-      #endif
 
       // Vignette
       float vig = smoothstep(1.05, 0.25, length(ca));
@@ -7913,9 +7250,6 @@ function createComposer() {
     // Streifen (Z-Fighting) auf der Platte führt.
     stencilBuffer: true,
   });
-  // Szenentiefe für den Nebel im Wald. Achtung: Der Composer klont den Puffer, beide teilen dieselbe Tiefentextur –
-  // geht nur, solange kein Pass die Puffer tauscht (alle needsSwap = false); sonst überschriebe er die Szenentiefe.
-  if (VOLFOG_ON) rt.depthTexture = volfogDepthTexture();
   const comp = new THREE.EffectComposer(renderer, rt);
   comp.addPass(new THREE.RenderPass(scene, camera));
 
@@ -7963,16 +7297,6 @@ function createComposer() {
 }
 
 const { comp: composer, bloom: bloomPass, finalPass } = createComposer();
-if (VOLFOG_ON) {
-  volFog = createVolumetricFog({
-    renderer, camera, uniforms: forestUniforms, sceneGLSL: FOREST_GLSL + FOREST_SCENE_GLSL, tier: VOLFOG_TIER,
-    isActive: () => forest.group.visible,
-    halfFloat: HDR_SUPPORTED && (renderer.capabilities.isWebGL2 || renderer.extensions.has('OES_texture_half_float_linear')),
-    finalUniforms: finalPass.uniforms,
-  });
-  composer.insertPass(volFog.pass, 1); // direkt nach dem RenderPass, vor dem Bloom
-  if (forest.group.visible) volFog.precompile();
-}
 // Mit eigenem RenderTarget setzt der Composer sein Pixelverhältnis auf 1 – für HiDPI korrigieren.
 composer.setPixelRatio(renderer.getPixelRatio());
 

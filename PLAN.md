@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 11. Oktober 2026
+Zuletzt aktualisiert: 13. Oktober 2026
 
 ---
 
@@ -360,6 +360,66 @@ Zuletzt aktualisiert: 11. Oktober 2026
     (Dichtekarte beim Bauen); moosbewachsene Granitblöcke an Hängen und in Lichtungen, mit Mondschatten.
   - Kosten (Software-Rendering, streuend): etwa doppelt so viel wie die Milchstrasse; der Nebel wird zweimal gerechnet
     (nah und fern), in niedriger Auflösung. Umschalten ~0,65 s.
+
+- [x] **2.29 Wald als Skybox aus Blender** (Wunsch des Nutzers, 12. Oktober: die Wald-Skybox in Blender bauen, gleiches
+  Setting, „qualitativ massiv hochwertiger“; nach dem ersten Versuch: „die aktuelle Wald-Skybox durch die neue ersetzen“).
+  - Szene in Blender 5.2 mit Cycles (`tools/blender/`; die Skripte bauen sie reproduzierbar, die .blend ist nicht
+    versioniert): ein Grat von West nach Ost (zum Mond hin) unter dem Brett, Täler mit Nebelmeer, Kämme ragen heraus,
+    fern höhere Berge. Rund 245 000 Fichten aus 7 detaillierten Modellen (Quirle, hängende Zweige, Seitentriebe; fern 3
+    einfache), Volumennebel mit weichem Saum und Schwaden, Dunst in zwei Schichten, Mond als Sonnenlampe in der
+    Richtung von `FOREST_MOON`, Himmel mit Hof und Sternen.
+  - Ausgabe: ganzes Equirect 4096 × 2048, drei Streifen je 4096 × 3413 für den Blick nach unten (Breite +10° … −90°,
+    rund 34 px/°), Tiefe 1024 × 512. Farben linear mal Belichtung, sRGB-kodiert; ACES macht das Spiel wie bei allem.
+    Rendern rund 33 Minuten (RTX A2000).
+  - Im Spiel (Abschnitt WALD): `backgrounds/forest.js` (1,5 MB: ganzes Bild und Tiefe) und `backgrounds/forest-hd.js`
+    (5,8 MB: Streifen, nur Desktop) als Data-URLs, weil Chrome Bilder aus file:// nicht in WebGL-Texturen lässt; erst
+    bei der Wahl geladen und dann eingeblendet. Das Panorama liegt auf einem Netz um seinen Mittelpunkt, jede Ecke im
+    Abstand der geglätteten Tiefe: So stimmt die Parallaxe beim Kreisen der Kamera. Service Worker: `forest.js` vorab,
+    `forest-hd.js` erst beim ersten Gebrauch (`LAZY`).
+  - Entfernt: Gelände, Impostor-Fichten, Glühwürmchen und volumetrischer Nebel des bisherigen Walds (2.21, 2.26–2.28;
+    im Verlauf von git). Die Himmelskugel behält Mond und Dunst für die Spiegelung und solange das Panorama lädt.
+  - Grenzen: Die nahen Bäume an den Brettkanten stehen schräg, weil die Kamera sie aus einem anderen Winkel sieht als
+    der Mittelpunkt des Panoramas; im Hochformat fächern sie wie ein Strahlenkranz. Alles steht still. Grafikspeicher
+    rund 270 MB auf dem Desktop, rund 45 MB auf dem Handy. Auf Render muss der Build Command `backgrounds/` kopieren.
+- [~] **2.30 Wald: nahe Bäume und Bewegung** (13. Oktober, Nutzer: „einige Bäume wirken verzerrt oder verbogen, je nach
+  Blickwinkel“; Mischform gewählt, Empfehlung A).
+  - [x] Mischform: Die Fichten näher als 60 m am Brett (`R_NEAR`, rund 1460) fehlen im Panorama; in Blender stehen sie
+    im eigenen Objekt „Baeume nah“, für die Kamera ausgeblendet, ihre Schatten fallen aber auf den Boden. Das Spiel
+    zeichnet sie als 3D-Fichten (`buildTrees`): einfache Stufen-Fichten aus Blender (`tools/blender/wald_spielbaum.py`,
+    4 Modelle mit je rund 500 Dreiecken, gezackte, hängende Astkränze im Umriss der Blender-Fichten), Toon-Licht in den
+    Farben der gemalten Bäume, Mondlicht je Baum unten und oben (Schatten von Kämmen und Nachbarbäumen, in Blender
+    gerechnet). Damit ist auch der Strahlenkranz im Hochformat weg (das waren diese Bäume).
+  - [x] Nebel auf den 3D-Fichten (13. Oktober, Nutzer: „Bäume an der Nebelgrenze wirken, als würden sie schweben, kein
+    sauberer Übergang“): Blender liefert je Baum die Oberkante des Nebels; der Shader summiert die Dichte der Szene
+    (weicher Saum und Kern, je eine Rampe) entlang des Blicks auf. Bäume am Rand des Nebelmeers versinken darin wie im
+    Panorama.
+  - [x] Ein leicht ziehender Nebelschleier: zwei durchscheinende Lagen knapp über der Nebeloberkante, Schwaden treiben
+    mit dem Wind und verändern sich; Kämme verdecken sie (Tiefentest), so bleiben sie in den Tälern.
+  - [x] Glühwürmchen zwischen den nahen Fichten (wie im früheren Wald, 2.21): die einzigen warmen Lichter.
+- [~] **2.31 Wald im Anime-Stil** (Wunsch des Nutzers, 12. Oktober: Comic-Stil 11 „Anime-Hintergrund/Ghibli“, nur der
+  Hintergrund, das Brett bleibt wie es ist). **E:** Anime, realistisch oder beide als eigene Hintergründe?
+  - Gleiche Szene mit `WALD_STIL=anime` (hellere Nadeln mit Toon-Licht, Wolken; Renderings in `out/anime/`), gemalt in
+    `tools/blender/anime.py`: Farbverlauf Indigo → blaugrün → hellblau, Pinselstriche (Kuwahara des Kompositors, in
+    Stücken), Leuchten um Nebel und Mond, gemalter Himmel mit Mond, Wolken und Sternen über der Himmelsmaske, Gamut-
+    Abbildung vor der Rückrechnung durch ACES. Malen rund 6 Minuten, ohne neues Rendern. Streifen mit 24 Samples.
+  - 13. Oktober: Der hellste Nebel war heller als Weiss gespeichert (GAIN 2) und brachte den Bloom des Spiels zum
+    Leuchten: ein milchiger Schleier über dem Brett, wenn die Kamera Richtung Nebel gedreht ist. Jetzt drückt eine weiche
+    Schulter am hellsten Kanal alles unter den Szenenwert 0,95 (`PEAK`), der Nebel bleibt hellblau; `uGain` ist weg.
+  - Eingebaut ist die Anime-Fassung (`node tools/blender/pack.mjs anime`), zurück mit `node tools/blender/pack.mjs`.
+    Download 6,2 MB auf dem Desktop (realistisch 7,3 MB), 1,5 MB auf dem Handy.
+  - Grenzen wie 2.29. In beiden Fassungen ist die Kopfzeile vor hellem Nebel schwer lesbar (Idee: feiner dunkler
+    Schatten unter der Schrift).
+  - 13. Oktober, Nutzer: „weniger Nebel, die Bäume nicht so dicht aufeinander, aktuell eher ein grosser grüner Brei“.
+    Nebelmeer 5 m tiefer (`FOG_DROP`) und dünner (`FOG_CORE` 0,3 statt 0,5), Dunst halb so dicht; Bäume im Raster 2,1 m
+    statt 1,08 m (fern 2,6 statt 1,45), Lichtungen dünnen nur aus (`STAND`): rund 90 000 statt 245 000 Fichten. Der
+    Boden ist im Anime-Stil heller und grüner (Wiese), damit sich die Bäume abheben. Gearbeitet über den Blender-MCP
+    (`tools/blender/wald_mcp.py`); die realistische Fassung ist mit diesen Werten nicht neu gerendert.
+  - 13. Oktober, Nutzer: „Untergrund und Berge überarbeiten, die Kulisse wirkt leblos und karg“. Gebirge am Horizont
+    (ab gut 1 km schroffe, breite Massive bis gut 400 m, Schnee über rund 230 m; nah ändert sich am Gelände nichts),
+    Boden mit Flecken aus Heide und Moos, im Anime-Stil dunkler und grüner (vorher gemalt wie Schnee), Fels dunkel,
+    ferner Wald in Beständen und nur unter der Baumgrenze. Unterholz (`Unterholz`, rund 11 000): junge Fichten und
+    breite, niedrige Nadelbüsche aus den einfachen Fichten, Felsbrocken mit Moos (an Hängen mehr). Erste Büsche als
+    glatte Klumpen sahen gemalt wie Kiesel aus.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

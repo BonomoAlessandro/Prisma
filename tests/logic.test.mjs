@@ -573,6 +573,8 @@ console.log('Offline');
   const swCode = readFileSync(join(root, 'sw.js'), 'utf8');
   const swList = swCode.match(/const FILES = \[([\s\S]*?)\];/);
   const swFiles = swList ? [...swList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
+  const lazyList = swCode.match(/const LAZY = \[([\s\S]*?)\];/);
+  const swLazy = lazyList ? [...lazyList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
   // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
   // dazu die Icons aus dem Manifest
   const refs = new Set([
@@ -593,8 +595,14 @@ console.log('Offline');
     assert.deepEqual([...refs].filter(r => !swFiles.includes(r)), []);
   });
   test('Offline: jede Datei aus sw.js existiert genau so geschrieben, keine doppelt', () => {
-    assert.deepEqual(swFiles.filter(f => !existsExactly(f)), []);
-    assert.deepEqual(swFiles.filter((f, i) => swFiles.indexOf(f) !== i), []);
+    const all = [...swFiles, ...swLazy];
+    assert.deepEqual(all.filter(f => !existsExactly(f)), []);
+    assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
+  });
+  test('Offline: sw.js kennt alle Hintergründe, die index.html nachlädt (backgrounds/)', () => {
+    const loaded = [...html.matchAll(/'(backgrounds\/[^']+)'/g)].map(m => m[1]);
+    assert.ok(loaded.length > 0, 'keine Datei aus backgrounds/ in index.html gefunden');
+    assert.deepEqual(loaded.filter(f => !swFiles.includes(f) && !swLazy.includes(f)), []);
   });
 }
 

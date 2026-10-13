@@ -3,7 +3,8 @@
 // der Speicher wird nachgeführt; braucht das Netz länger als NETWORK_WAIT, antwortet der Speicher. Offline antwortet
 // immer der Speicher. Die Bibliotheken unter vendor/ ändern sich nie (Version im Ordnernamen) und kommen direkt
 // aus dem Speicher. Alle anderen Anfragen gehen am Service Worker vorbei.
-// Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht).
+// Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht). Grosse
+// Dateien, die nicht jedes Gerät braucht, in LAZY: gespeichert erst beim ersten Gebrauch.
 // CACHE hochzählen, wenn Dateien wegfallen oder vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
 
 const CACHE = 'prisma-v1';
@@ -25,13 +26,18 @@ const FILES = [
   'vendor/three-0.147.0/ShaderPass.js',
   'vendor/three-0.147.0/UnrealBloomPass.js',
   'vendor/three-0.147.0/Reflector.js',
+  'backgrounds/forest.js',
+];
+// Streifen des Walds in hoher Auflösung (6 MB): lädt nur der Desktop, und erst wenn der Wald gewählt wird
+const LAZY = [
+  'backgrounds/forest-hd.js',
 ];
 const NETWORK_WAIT = 3000; // ms
 
 const PAGE = new URL('index.html', self.location).href;
 const ROOT = new URL('./', self.location).href;
 const VENDOR = new URL('vendor/', self.location).href;
-const KNOWN = new Set(FILES.map((f) => new URL(f, self.location).href));
+const KNOWN = new Set([...FILES, ...LAZY].map((f) => new URL(f, self.location).href));
 
 /**
  * Speicherschlüssel einer Anfrage: die Datei ohne Parameter; ./ und index.html?… sind alle die Seite selbst.
