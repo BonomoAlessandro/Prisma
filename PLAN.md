@@ -50,10 +50,14 @@ Zuletzt aktualisiert: 14. Oktober 2026
   Langweilige oder unfaire Level? Passen die Übergänge vom Tutorial zu Level 1, von 120 zu 121 und von 140 zu 141?
 - [ ] **2.5 Oberes Ende:** Über Wertung ~40 gibt es nur wenige Kandidaten (Stufe 5 ist langsam, Filter-Profil ohne
   Ausbeute). Bei Bedarf Stufe 5 länger laufen lassen und die letzten Level ersetzen.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`, Tickets 20, 25 und 26.
 - [ ] **2.6 Mischziele gezielt erzeugen:** Zwei verschiedenfarbige Strahlen auf dasselbe Ziel (z. B. Magenta aus
   Rot und Blau), mit Qualitätskriterium „Mischziel vorhanden“.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`, Tickets 06, 10 und 18.
 - [ ] **2.7 Generator: wirkungslose Filter verwerfen** (Strahl hat schon die Filterfarbe – bei rund 1/3 der
   Filter-Level im Pool). Ebenso feste Spiegel, die nie für die Lösung zählen und kaum als Lockvogel wirken.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`: Der neue Generator setzt keine wirkungslosen Elemente
+  (Ticket 18).
 - [x] **2.8 Lesbarkeit im Spiel** (aus dem Review): Blaue Ziele wirken fast weiss; die Richtung des Kombinators ist
   auf Distanz schwer zu erkennen. („Weiss + Rot im Kombinator = Weiss“ steht jetzt im Hinweis zum Kombinator.)
   **Umgesetzt (8. Oktober):** Zielkristalle satter (dunkle Farben mit weniger Weiss und Schillern). Der Ring am Ziel
@@ -660,14 +664,23 @@ Zuletzt aktualisiert: 14. Oktober 2026
   - Nur echte Verzweigungen als Rateschritte zählen.
   - Der frühere Test „Rangkorrelation mit Kapitel I“ entfällt (Kapitel I gibt es nicht mehr); stattdessen
     prüft das Review die Reihenfolge, der Test verlangt eine steigende Wertung (Toleranz 1.5).
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md` (Schwierigkeit und Spielwert getrennt), Tickets 12 und 13.
 - [ ] **3.2 Vielfalt der Grundmuster:** Bei einer Quelle dominiert „Schleife durch festen Spiegel“. Mustermarken
   vergeben (Schleife, diagonal, Selbstkreuzung, geteilter Spiegel, Mischziel …), höchstens 2 gleiche je 10 Level.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md` (Haupt-Kernidee höchstens zweimal je 10 Level),
+  Tickets 11 und 15.
 - [ ] **3.3 Ausbeute des Generators verbessern:** Häufigste Verwerfungsgründe sind „Quelle überflüssig“,
   „Anzahl drehbarer Elemente“ und „zu wenige Ziele“. Weitere Quellen gezielt durch einen drehbaren Spiegel einer
   vorhandenen Quelle führen.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`, Tickets 02 und 18–20.
 - [ ] **3.4 Lockvögel häufiger:** Bisher hat nur ein Teil der Level einen Lockvogel, der beim Probieren Licht bekommt.
   Ziel: in den meisten Leveln mindestens einer.
+  → Teilweise in der Spec `.scratch/levelgenerator/spec.md`: Der Lockvogel ist eine Kernidee (Tickets 11 und 19). Ein
+  Ziel „in den meisten Leveln“ ist dort nicht festgelegt.
 - [ ] **3.5 `harden.mjs` verbessern** (Review 4, Bericht `tools/pools/review4/tester-analyst.md`, Abschnitt 4):
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`: Das Härten entfällt (Tickets 20 und 21), die Punkte
+  unten gehen in die Beurteilung ein (Tickets 07–09, 12 und 13). Abweichend gilt: Kombinator → Prisma wie bei „Zenit“
+  ist eine Scheinmischung.
   - Wertung belohnt Grösse statt Denken: 16 von 32 Kandidaten sind bei vollem Überblick ohne Fallunterscheidung
     lösbar. Spielermodell (`player.mjs`) als Abnahme, z. B. mindestens ein Stillstand bei Horizont 2, aber höchstens
     zwei Fallunterscheidungen mit kurzer Kette bei vollem Überblick. Das Modell dafür versionieren.
