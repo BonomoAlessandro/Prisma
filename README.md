@@ -18,10 +18,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Name und Manifest:** Im Store und beim Installieren heisst das Spiel „Prisma – Licht-Puzzle“, auf dem
   Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
   eingebunden, über file:// blockiert es der Browser.
-- **Tests:** `node tests/logic.test.mjs` prüft die Strahllogik, `node tests/offline.mjs` den Offline-Betrieb (`--redirect`: Server leitet index.html weiter),
-  `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`,
-  `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen,
-  `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick, Rechtsklick, Ziehen und Hover.
+- **Tests:**
+  - `node tests/logic.test.mjs` prüft die Strahllogik.
+  - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
+    `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level: das Verhalten
+    exakt, Kommazahlen auf 1e-9 genau (etwa 30 s). `--voll` vergleicht den Löser für alle 159 Level (etwa 2 min),
+    vor und nach Änderungen am Löser. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
+    Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
+  - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter).
+  - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
+  - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
+  - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
+    Rechtsklick, Ziehen und Hover.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
