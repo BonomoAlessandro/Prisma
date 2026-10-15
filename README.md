@@ -44,8 +44,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Dateinamen); beides schreibt `node tools/blender/pack.mjs <id>` aus `tools/blender/szenen/<id>/skybox.json` (Name,
   Reihenfolge, Sterne, Farben, Ebenen) und der Ausgabe der Pipeline. `tools/sky-schema.mjs` prüft das Register (beim
   Packen und in den Tests), `sw.js` liest seine Listen daraus. Was das Spiel zu einem Panorama selbst zeichnet (nahe
-  Objekte, Nebellagen, Leuchtpunkte), sind Ebenentypen mit Parametern (`SKY_LAYERS`). `backgrounds/` muss samt
-  Unterordnern mit ausgeliefert werden. Konzept und weitere Schritte: PLAN 2.32.
+  Objekte, Nebellagen, Leuchtpunkte, bewegtes Wasser), sind Ebenentypen mit Parametern (`SKY_LAYERS`). `backgrounds/`
+  muss samt Unterordnern mit ausgeliefert werden. Konzept und weitere Schritte: PLAN 2.32. Belichtung und Malstil je
+  Szene stehen in `tools/blender/stile.py` (Name = `WALD_STIL` = Ordner `out/<stil>`, `sky/<stil>`).
 - **Wald** (`forest`, erste Skybox): `wald_scene.py` baut die Szene (Gelände, Fichten, Nebel, Mond) als `wald.blend`,
   `wald_render.py` rendert Vorschauen aus Sicht der Spielkamera, `wald_export.py` das Panorama, die Streifen und die
   Tiefe (Aufrufe in seinem Kopf). Eingebaut ist die Anime-Fassung: dieselben Skripte mit `WALD_STIL=anime`, danach
@@ -61,6 +62,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   in Blender als Erweiterung installieren und Blender mit `--online-mode` starten (die Brücke startet nur mit
   Online-Zugriff), `blender-<version>.mcpb` (ein Zip) entpacken und in Claude Code eintragen:
   `claude mcp add -s user blender -- uv run --directory <entpackter Ordner> blender-mcp`.
+- **Strand** (`beach`, PLAN 2.33): Szene in `tools/blender/szenen/beach/szene.py`; über den MCP
+  `wald_mcp.neu('beach')` (baut `beach.blend`, rund 5 s), `wald_mcp.skybox('beach')` (rendert, malt und exportiert
+  Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung):
   `solver.mjs` folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen (schneidet ab, sobald ein Ziel
   falsches Licht erhält) und misst die Schwierigkeit (`metrics`: Suchknoten, erreichbare Stellungen, Rateschritte,

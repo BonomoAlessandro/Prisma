@@ -53,10 +53,25 @@ const LAYER_PARAMS = {
   toonInstances: {
     data: (v) => typeof v === 'string',
     palette: (v) => ['shadow', 'mid', 'lit', 'rim'].every((k) => isColor(v?.[k])),
+    soft: (v) => v === undefined || (isNum(v) && v >= 0 && v <= 1),
   },
   glowParticles: {
     data: (v) => typeof v === 'string', count: isInt, seed: isNum, ring: (v) => isVec(v, 2), aboveFog: isNum,
     spread: isNum, lift: (v) => isVec(v, 2), yMax: isNum, ceiling: isNum, size: isNum, color: isColor, halo: isColor,
+  },
+  waterSurface: {
+    data: (v) => typeof v === 'string', wave: (v) => isVec(v, 2), height: isNum, reach: isNum, lift: isNum,
+    sun: isColor, foam: isColor, sediment: isColor, lip: isColor, crest: isColor,
+  },
+  fishSchools: {
+    // Halbachsen von area, length, speed, depth > 0: createFishSim teilt durch sie oder rechnet mit ihnen weiter (ein
+    // fehlender Wert machte den Schwarm still unsichtbar, NaN)
+    data: (v) => typeof v === 'string', seed: isNum, area: (v) => isVec(v, 4) && v[2] > 0 && v[3] > 0, minDepth: isNum,
+    shadow: isNum,
+    schools: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isInt(s.count) && isNum(s.length) && s.length > 0
+      && isVec(s.shape, 2) && isNum(s.speed) && s.speed > 0 && isNum(s.depth) && s.depth > 0
+      && ['tang', 'bands', 'plain'].includes(s.pattern) && Array.isArray(s.colors) && s.colors.length === 3
+      && s.colors.every(isColor)),
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
@@ -141,6 +156,9 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
       if (l.data && baseData && !(l.data in baseData)) err(`Ebene ${l.type}: Daten ${l.data} fehlen in base`);
       if ((l.type === 'toonInstances' || l.type === 'mistSheets') && !s.air) err(`Ebene ${l.type}: braucht air`);
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
+      if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
+        err('Ebene fishSchools: braucht davor waterSurface');
+      }
     }
   }
   if (precache > BUDGET.precacheBytes) errors.push(`vorab gespeichert ${precache} Bytes > ${BUDGET.precacheBytes}`);

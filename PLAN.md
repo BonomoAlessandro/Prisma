@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 13. Oktober 2026
+Zuletzt aktualisiert: 14. Oktober 2026
 
 ---
 
@@ -466,7 +466,192 @@ Zuletzt aktualisiert: 13. Oktober 2026
     Abdunklung hinter der Kopfzeile je Skybox; Panorama 2048 fürs Handy; Begrenzung der Helligkeit ohne HDR (dort gilt
     die Bloom-Schwelle 0,8, der Anime-Nebel reicht bis 0,95).
   - [ ] **D Probe:** zweite Skybox ohne Codeänderung, etwa der realistische Wald als `forest-real`.
-  - **E** offen: Kopiert der Render-Build `backgrounds/` samt Unterordnern (nötig ab Phase A)?
+  - Render (13. Oktober): Der Build-Befehl kopierte `backgrounds/` nicht. Neu, vor dem Push von Phase A einzutragen:
+    `mkdir -p dist && cp -r index.html sw.js manifest.webmanifest favicon.svg icons vendor backgrounds dist/`
+    (`cp -r` nimmt die Unterordner mit, neue Skyboxen brauchen keine Änderung mehr). Der Nutzer hat ihn eingetragen,
+    das Deployment lief.
+- [~] **2.33 Strand als Skybox aus Blender im Anime-Stil** (Wunsch des Nutzers, 13. Oktober: „die Strand-Skybox
+  überarbeiten, Stil wie beim Wald, also Anime/Ghibli“). Ersetzt den prozeduralen Strand (2.25, rund 1100 Zeilen in
+  `index.html`, im Verlauf von git); die id `beach` bleibt (gespeicherte Wahl).
+  - Szene `tools/blender/szenen/beach/szene.py` (`wald_mcp.neu('beach')`, rund 5 s): Bildaufbau wie 2.25 (Lagune ums
+    Brett, Strand dahinter, Landzunge links, Sonne gut 12° hoch über dem Meer rechts), dahinter Dünen mit Gras,
+    Palmen, Buschwald, grüne Hügel und Berge; Haufenwolken aus Metaball-Ballen (Volumen), Dunst; Himmel aus dem
+    physikalischen Himmel von Blender, zum Horizont und zur Sonne hin wärmer. Unter Wasser färbt der Grund das Wasser
+    nach Tiefe (Rot zuerst geschluckt), dazu Seegrasflecken und Sandrippel; die Wasserfläche ist durchsichtig und
+    spiegelt nach Fresnel. Schatten nie schwarz: Boden und Pflanzen haben ein bläuliches Grundlicht, der Himmel leuchtet
+    als Licht stärker, als die Kamera ihn sieht.
+  - Was näher als 45 m am Brett steht (Palmen, Bäume, Büsche, Sammlung `Spiel`), zeichnet das Spiel als 3D-Modelle mit
+    Farbe je Ecke (`toonInstances`, Palette als Faktoren); Sonnenlicht je Pflanze unten und oben in Blender gerechnet.
+    Das Wasser ums Brett bewegt sich (`waterSurface`, neuer Ebenentyp): Kämme laufen parallel zum Ufer heran und
+    brechen im Flachen zu Schaum, ein Saum läuft an der Wasserlinie hinauf und zurück, Gischt um die Felsen, Glitzern
+    zur Sonne; dazu eine Karte aus Blender (Tiefe, Abstand zur Wasserlinie, Fels).
+  - Für die zweite Szene allgemein gemacht (Teil von 2.32 B): Malstil und Belichtung je Szene in
+    `tools/blender/stile.py` (der Wald bleibt bildgleich, geprüft), Sammlungen `Spiel` und `Volumen` statt Objektnamen
+    in `wald_export.py`, `wald_mcp.neu/scene/skybox(stil)` für Szenen unter `szenen/<stil>/`, `pack.mjs` nimmt
+    `ebenen.json` mit (Texte `file:…` werden Data-URLs). `wald_mcp.run` lädt die Hilfsmodule frisch (sonst galten
+    geänderte Stile erst nach einem Neustart von Blender).
+  - Unterwegs: Die tiefe Sonne wirft lange Schatten der nahen Pflanzen; der Wald dahinter lag darin schwarz (dicht und
+    ohne Himmelslicht) – darum das Grundlicht. Ein Lichtnetz (Kaustik) aus Voronoi-Kanten wirkte wie Fliesen, verworfen.
+    Warme, satte Töne (Sonne, ihr Spiegelbild) bräuchten zurückgerechnet in einzelnen Kanälen mehr als `PEAK`: Die
+    Textur ist jetzt bei 0,91 gekappt (`TEX_MAX`, mit Spielraum fürs Überschwingen des JPEG), die Spitze wird über 3 × 3
+    Pixel gemessen (einzelne JPEG-Ausreisser an Kanten zählen nicht). Die Wasserebene zeichnete am flachen Ufer über den
+    Sand (das geglättete Netz des Panoramas verdeckte sie dort nicht): jetzt nur, wo die Karte Wasser meldet.
+  - Übersichtsseite mit beiden Panoramen zum Drehen und Aufnahmen aus dem Spiel:
+    https://claude.ai/artifact/2AASs7CcWz76rJtpLZq6V6
+  - Erste Überarbeitung (14. Oktober, Vormittag): Sonne 7° statt gut 12° (`SUN_ELEV`), Himmelsfarbe als Knotengruppe
+    `Himmelsfarbe` (rundum warmer Horizont, zur Sonne orange, gegenüber rosa, oben leicht violett, Hof um die Sonne),
+    Luftperspektive je Material statt Dunst als Volumen (das rauschte, der Himmel war fleckig; Gruppe `Luft`),
+    Malrauschen je Szene (`stile.py` `rauschen`), Felsen in Schichten mit Absätzen und Rissen (dunkler Basalt). Der
+    Nutzer verwarf das Gesamtbild („sieht nicht gut aus“), lobte aber die Felsen.
+  - Zweite Überarbeitung (14. Oktober, Nachmittag; Rückmeldung: „Strand an einer kleinen Insel, der wegen der Krümmung
+    irgendwann nicht mehr sichtbar ist, ein oder zwei kleine Berge teilweise bewaldet, der Blick aufs Meer soll in den
+    Horizont auslaufen statt abrupt zu enden, Strand viel zu wenig detailliert, Wald schlecht und unnatürlich – lieber
+    weniger dicht mit teilweise Palmen, Bäume schöner und realistischer, Wasser lieblos und leblos – detaillierter und
+    wie bei der alten Version Wellen mit leichtem Schaum, Wolken natürlicher; die Steine links sehen super aus“):
+    - Insel (`coast`, `ground` mit `Ground`): längliche Ellipse (380 × 200 m) um (0, 210) mit Buchten und Kaps an den
+      Seiten, vor dem Brett die bisherige Uferlinie; der Strand verschwindet gut 100 m seitlich hinter Felskaps. Zwei
+      Hügel (82 und 50 m, `HILLS`), unten und in Mulden bewaldet, Kuppen offen. Lagune ringsum (am Brett gut 2 m tief,
+      weiter draussen bis 4 m, Korallenköpfe, Seegras), Riff gut 140 m vor dem Strand mit Brandung (Schaum auf der
+      Wasserfläche), dahinter der Abfall auf höchstens 34 m (`SEA_FLOOR`). Vorher wurde der Grund nach aussen immer
+      tiefer: Flache Blicke trafen ihn nie und gingen am Rand der Szene in den Himmel – das Meer endete 5° unter dem
+      Horizont in einer harten Linie. Gelände und Wasser reichen jetzt 30 km weit (`EXTENT`), unter dem Horizont gibt
+      die Himmelsfarbe die Farbe knapp darüber.
+    - Pflanzen neu (`szenen/beach/pflanzen.py`): Kokospalme (gebogener Stamm, Wedel aus einzelnen Fiedern in V-Form,
+      ältere hängend, einzelne dürr, Kokosnüsse), Laubbaum (Äste mit Unterästen, an den Zweigen Büschel einzelner
+      Blätter als Sechsecke; dazu eine Etagenform), Busch, Strandgras, Strandwinde, Treibholz, Kokosnuss – alles als
+      Geometrie mit Farbton je Ecke, ohne Texturen. Verteilung: Palmenhaine am Strandwall (zum Meer geneigt), einzelne
+      Palmen am Strand, lockerer Wald aus Palmen und Laubbäumen mit Lichtungen, an den Hügeln dichter Laubwald,
+      Buschgürtel am Rand, Unterholz, Strandgras.
+    - Strand: nasser, glänzender Saum (Film spiegelt den Himmel), Spülrillen, Spülsaum mit Tang, Muschelstückchen,
+      Windrippel im trockenen Sand (Relief im Streiflicht), Wiese und Waldboden in Flecken.
+    - Wolken als Volumen (Mesh to Volume der Ballenform, Volume Displace mit farbigem Wolkenrauschen: ausfransende
+      Ränder); Streuungen im Volumen je Szene (`stile.py` `volumen`, am Strand 4, sonst blieben dichte Wolken innen
+      grau); ferne Wolken im Dunst (Eigenschaft `dunst` je Objekt).
+    - Wasser in Blender rauer (Spiegelbilder verschwimmen), Wellenfelder in der Ferne, Spiegelung etwas schwächer als
+      nach Fresnel, Lagune leuchtet stärker. Ums Brett (bis 70 m, Übergang bis 95 m: `WATER_GAME`) malt Blender nur
+      den Grund, die Oberfläche zeichnet das Spiel.
+    - Wasser im Spiel (`waterSurface` neu, Physik aus dem früheren Strand 2.25): Dünung parallel zum Ufer, im Flachen
+      Brecher (Walze) mit Schaum, der zu Zellen und Fäden zerfällt (Schaumtextur), Lücken entlang der Front, Auflaufen
+      und Zurückfliessen auf dem Sand, glänzender nasser Sand, Spülmarken, Gischt an den Felsen, Glitzern (Beckmann);
+      Brechung und Spiegelung lesen das Panorama (`ctx.pano`: Grund unter der Stelle, Himmel und Insel in Richtung des
+      gespiegelten Strahls). Karten mit 16 Bit (Tiefe, Abstand zur Wasserlinie: mit 8 Bit hatte die Wasserlinie des
+      Auflaufens Stufen von 60 cm), Gitter folgt der Höhe des Sands, für den Tiefentest etwas zur Kamera hin (`lift`).
+    - Nahe Pflanzen im Spiel: nur 4 Palmen, 3 Bäume, 1 Etagenbaum, 2 Büsche als Modelle, mit weniger Fiedern und
+      Blättern (`GAME_DETAIL`); nahe am Brett stehen nur diese Vorlagen (Schatten im Panorama passen). Kompakt als
+      Base64 (`pack_model`, im Spiel `unpackModel`); weichere Stufen (`soft`). Zusammen rund 180 000 Dreiecke.
+    - Vorschau mit Rundumblick (Insel, erste Runde, 13. Oktober), Bildfolge der Wellen und Vergleichen:
+      https://claude.ai/artifact/2AASs7CcWz76rJtpLZq6V6
+    - Tests: Logik 551 bestanden, offline bestanden; Basis der Skybox 1,32 MB (vorab gespeichert zusammen unter 3 MB:
+      dafür Wasserkarten mit 0,75-m-Zellen und Pflanzenmodelle ohne Normalen).
+  - Dritte Runde (14. Oktober, Abend; Nutzer: „sieht bereits sehr gut aus“, dazu Wunsch nach etwas besserer
+    Wellenbildung und kleinen farbigen Fischen ums Brett; erst Fische, dann Wellen):
+    - Fische (`fishSchools`, neuer Ebenentyp): acht kleine Schwärme auf Ringen ums Brett (`area`), die sich weiten und
+      zusammenziehen, im und gegen den Uhrzeigersinn; Doktorfische, gelbe Doktorfische, Fahnenbarsche, blaue
+      Schwalbenschwänzchen, Clownfische (Muster `tang`, `plain`, `bands`), etwa doppelt so gross wie echte (sonst vom
+      Brett aus kaum zu sehen). Körper aus einem Netz (`createFishGeometry`), Bewegung ganz im Vertex-Shader
+      (Schwanzschlag, Lage im Schwarm), nie ins Flache (Wasserkarte). Unter Wasser: Rot zuerst geschluckt, Wasserlicht
+      aus dem Panorama, Spiegelung nach Fresnel; Schatten auf dem Grund, von der gebrochenen Sonne versetzt. Erste
+      Bahnen lagen vor dem Brett und waren von ihm verdeckt; türkise Schwalbenschwänzchen verschwanden im Wasser.
+    - Wellen: Dünung im tieferen Wasser sichtbar (Kamm hell durchscheinend, `crest`; Tal dunkler; Höhe 0,19), zweiter
+      schräger Wellenzug (Windsee) in den Normalen, Schaum hinter der Front zerfällt langsamer, Teppich in der
+      Brandung, Schaumstreifen im zurückfliessenden Film (Schaum stärker in Strömungsrichtung gestreckt).
+    - Rohre der Pflanzen (Stämme, Äste): Jeder Ring war um 90° gegen den vorigen gedreht – die Stämme sahen gewunden
+      aus wie Kordeln, im Panorama und im Spiel. Jetzt wird die Querachse mitgeführt; die Ringe am Palmstamm folgen
+      dem Stamm (Ton = Lage entlang des Stamms) und sind kaum sichtbar.
+    - Vorschau mit Bildfolgen der Brandung und der Fische (gleicher Link). Tests: Logik 551 bestanden, offline
+      bestanden; Basis der Skybox 1,33 MB.
+  - Vierte Runde (14. Oktober, später Nachmittag; Nutzer: zurückfliessendes Wasser wirkt unnatürlich; Fische „super
+    schön“, zwei Schwärme mehr und etwa doppelter Umkreis, aber weiter nicht zu nah ans Ufer; Felsen realistischer oder
+    kantiger, vor allem die im Wasser, Übergang Wasser–Fels natürlicher):
+    - Rückstrom (`waterSurface`): Der Film war beim Zurückfliessen ein deckendes, dunkles Band, sein Rand wanderte als
+      harte helle Linie zurück. Jetzt dünn und klar (Sand darunter nur etwas dunkler und kühler), er glänzt; hangab
+      Rinnen und zerrissene Schaumreste, in Fliessrichtung gezogen und beschleunigt; der Rand versickert fleckig; die
+      helle Kante nur, solange das Wasser hinaufläuft; nur im Flachen (nicht bis in die Lagune). Bildfolgen nah am
+      Ufer (`rueckstrom.sh`).
+    - Fische: zehn Schwärme (dazu Sergeant-Majors und Papageifische), Umkreis etwa doppelt (`area`), nie ins Wasser
+      unter 2 m (`minDepth`): Wo eine Bahn zu flach käme, schiebt sie das Gefälle der Tiefe hinaus.
+    - Felsen: Bruchflächen im Gelände (`facets`: Zellen mit je einer schrägen Ebene, scharfe Grate; am stärksten, wo der
+      Fels ins Wasser geht), Blöcke mit 14 Schnitten und scharfen Kanten (`set_sharp_from_angle`; weich schattiert
+      wirkten sie wie Kissen), dazu Blöcke halb im Wasser und Geröll am Fuss. Eigenes Material der Blöcke (`mat_rock`)
+      und für Blöcke wie Gelände die Zonen einer Felsküste (`shore_zones`, nach Biotop-Beschreibungen: Algen,
+      Seepocken, darüber die schwarze Zone aus Flechten und Blaualgen im Spritzwasser), oben gelbe Flechten, nass
+      glänzend. Ein Netz aus Rissen wirkte wie ein Schildkrötenpanzer: nur noch einzelne Risse.
+    - Übergang Wasser–Fels: Die Blöcke fehlten in der Wasserkarte, das Wasser lief als flache Schaumfläche in sie
+      hinein. Jetzt stehen sie in der Karte (`rock_tops`, Strahlen von oben auf die Blöcke, 3 × 3 je Zelle; Ring Fels
+      darum für den Schaum). Am Fels bleibt die Wasserfläche auf Wasserhöhe, und ob sie sichtbar ist, entscheidet die
+      Tiefe des Panoramas (`ctx.pano.depth`, ungeglättet als Textur): Sieht der Mittelpunkt vor der Stelle schon Fels,
+      liegt sie in ihm. Die Tiefe hat dort die Wasserfläche von Blender, die Grenze ist so genau die gemalte
+      Wasserlinie. Damit das geglättete Netz des Panoramas das Wasser um die Felsen nicht verdeckt, liegt es dort 1 m
+      weiter zur Kamera hin (`ROCK_LIFT`). Schaum am Fuss nur, wo 0,6 m weiter hinten Fels ist, unterbrochen und mit
+      den Wellen aufschäumend; über flachem Fels weniger Brandungsschaum (vorher ein Teppich).
+    - Vorschau mit Bildfolgen (Rückstrom, Felsen, Brandung, Fische) und Vergleich mit der dritten Runde (gleicher Link).
+  - Fünfte Runde (15. Oktober; Nutzer: „eigentlich muss nur noch das Verhalten der Fische verbessert werden“ – nah am
+    Strand wirken sie, als flögen sie; ein Schwarm schwamm bis in den Strand; sie zittern und stocken):
+    - Ursachen: Die Ringbahnen um (0, 3) reichten hinten bis 8 m auf den Strand (Ufer bei z ≈ −10, 2-m-Linie bei
+      z ≈ −3); ein Wegschieben entlang des Gefälles der Tiefe holte sie nur teilweise zurück, sprang von Zelle zu Zelle
+      (Zittern) und galt auf flachem Land in keine Richtung. Das Tempo auf dem Ring konnte kurz negativ werden (Umkehr,
+      Stocken). Gezeichnet wurden die Fische über der fertigen Wasserfläche, also über Schaum, Glitzern und Auflaufen.
+    - Neu: Schwarmsimulation auf der CPU (`createFishSim`, ohne three.js): je Schwarm ein unsichtbarer Leitfisch, der in
+      eigenem Abstand ums Brett patrouilliert, mit Fühlern vor Flachem, Fels, Brett und Rand ausweicht und am Ende
+      umkehrt; die Fische folgen auf wandernden Plätzen, halten Abstand, schwimmen nur vorwärts, Drehrate stetig
+      (höchstens 2 rad/s, Änderung höchstens 8 rad/s²), Körper biegt sich in Kurven, Schwanzschlag nach Tempo. Feld
+      `fishField`: Abstand zum Wasser unter `minDepth` und zum Fels (Chamfer), die Wasserkarte einmal als Bild gelesen.
+      Feste Schritte (1/30 s), Ergebnis hängt nur von t ab (`?t=` bleibt pixelgleich).
+    - Unter der Oberfläche: `waterSurface` zeichnet `ctx.under.scene` (Fische, Schatten) kurz vor sich in ein eigenes
+      Bild und legt es als Grund unter die Oberfläche, von den Wellen verschoben; Spiegelung, Schaum, Glitzern liegen
+      darüber, an Land und am Fels sieht man keine Fische mehr. Fische tiefer (0,8–1,6 m statt 0,35–0,8), Schatten
+      weicher, je höher über dem Grund. `ctx.offscreen`, `userData.update/dispose` für Ebenen; `lift` der Fische weg;
+      sky-schema prüft, dass vor `fishSchools` ein `waterSurface` steht.
+    - Prüfung in Node (`tools/blender/out/arbeit/fischtest.mjs`, 600 s): nie flacher als 2,09 m, nie unter dem Brett,
+      Bahnen auf der Karte (`karte.mjs`). Tests: Logik 551 bestanden. Bildfolgen: `folge.sh` (gitignored).
+    - Nutzer (15. Oktober): „sieht sehr gut und gelungen aus“; die uneinheitliche Ausrichtung im Schwarm stört ihn
+      nicht (bleibt so). Offen: Handy-Ansicht und Leistung (zusätzliches Bild, auf dem Handy halbe Grösse) prüfen,
+      dann Review (16. Oktober, gemeinsam mit dem Nutzer) und Commit, wenn es gut aussieht; Vorschauseite nachführen
+      nur bei Bedarf.
+    - Fische bei flachem Blick (Wunsch des Nutzers: flach über das Brett sieht man sie kaum oder gar nicht, steiler
+      wieder). Gemessen (15. Oktober; Aufnahmen mit und ohne Fische bei gleicher Zeit, Unterschied je Pixel; dazu die
+      Simulation in Node, `fischsicht.mjs`, gitignored): Vor allem Geometrie. In der Ausgangsansicht blickt die Kamera
+      über das Brett zum Strand; dort ist die Lagune nur 1,2–2 m tief (erste Brecher), direkt hinter dem Brett bleibt
+      kaum ein Streifen tiefer als 2 m. Die Schwärme ziehen darum im Bogen vor und neben dem Brett, die Kamera sieht nur
+      dessen hintere Enden: im Mittel 8 % der Fische steil, 5 % in der Ausgangsneigung, 3 % flach (vom Strand aus
+      aufs Meer 21–36 %). Die Spiegelung nach Fresnel ist bei diesen Winkeln klein (unter 0,1). Erwogen: Schwimmgebiet
+      zur Strandseite (Ausgangsansicht etwa doppelt so viele, Bahnen aber als zwei Gruppen neben dem Brett), ein
+      Schwarm in der flachen Lagune hinter dem Brett; der Nutzer wählte nur die Optik. Korrigiert: Der Weg durchs Wasser
+      im Fischshader folgt dem gebrochenen Strahl (höchstens 1,5-mal die Tiefe; gerade gerechnet bei flachem Blick fast
+      doppelt so lang) – Kontrast der Fische flach +7 %, steil +3 %, die Farben satter.
+    - Handy und Leistung (15. Oktober, Software-Rendering, nur Verhältnisse; `perf-fische.js`, gitignored): Das Bild
+      unter der Oberfläche samt Fischen kostet am Desktop gut 1 % der Bildzeit, als Handy (780 × 1688 Pixel, Bild halb
+      so gross) knapp 3 %; die Wasseroberfläche selbst 26 % bzw. 34 %. Die Spiegelung des Bodens zeichnet die Ebenen
+      des Hintergrunds nicht (kein zweites Fischbild). Handy-Ansicht: Fische vor dem Brett gut sichtbar (steilere
+      Kamera). Offen bleibt ein echtes Handy.
+    - Review (15. Oktober, Agent; Urteil: commitbereit, keine Fehler in Shadern, Freigeben, Reihenfolge des Ladens).
+      Behoben auf Wunsch des Nutzers: Die Fischsimulation rechnete beim ersten Bild ab Sekunde 0 nach (bis zu 3600
+      Schritte in einem Bild, ein Ruck beim Wählen des Strands, auf dem Handy bei jeder Wahl) – jetzt Neubeginn 5 s vor
+      t (`WARM`), weiter nur von t abhängig. Härtungen: sky-schema prüft bei `fishSchools` Halbachsen von `area`,
+      `length`, `speed`, `depth` (> 0; ein fehlender Wert machte den Schwarm still unsichtbar), pack.mjs bricht bei
+      unbekannten Endungen ab (statt `data:undefined`), `pack_model` bei mehr als 65 536 Ecken. Neue Tests in
+      `tests/logic.test.mjs` mit der echten Wasserkarte: zwei Minuten nie flacher als `minDepth` und nie unter dem
+      Brett, Ergebnis nur von t abhängig, erstes Bild gleich teuer, egal wann gewählt (554 bestanden). Nicht
+      committet: Der Nutzer prüft den Stand erst selbst.
+    - Zerrissene Fische (Nutzer, 15. Oktober, Bild `bilder/AbgeschnitteneFische.png`: je nach Blickwinkel fehlen Teile
+      von Fischen, kleine Fische nur noch Fetzen). Gemessen (Prüfbilder auf der Grafikkarte, `GPU=1` in
+      `tests/screenshot.mjs`; Hilfen `wasserdeckung.js`, `fische-debug.sh`, gitignored): Die Wasserfläche deckt in
+      16 Blickwinkeln lückenlos. Ursache war der Versatz des Bilds unter der Oberfläche: Er folgte der ganzen Normalen
+      samt Kräuselwellen und änderte sich auf Zentimetern um bis über 0,1 m – Nachbarpixel eines Fischs lasen an weit
+      auseinanderliegenden Stellen, die Fische zerrissen (von oben ist ein Clownfisch nur gut 0,1 m breit). Jetzt
+      verschieben nur die langen Wellen (Dünung, Wellenzüge ab 4,5 m; `low` aus `waterNormal`): Die Fische schwanken,
+      bleiben aber ganz; Glitzern und Spiegelung behalten die Kräuselwellen. Dazu: Neubeginn der Simulation mit
+      Startplätzen je nach Startzeit (mit 5 s Vorlauf begann sonst jede Wahl und jedes `?t=` fast gleich).
+    - Abgeschnittene Fische, eigentliche Ursache (Nutzer: neues Bild, Fische scharfkantig abgeschnitten, oft nur der
+      Kopf): Der Tiefenpuffer des Bilds unter der Oberfläche wurde nicht geleert. `renderer.clear()` löscht nur, was
+      gerade beschrieben werden darf, und zuletzt war meist ein Material ohne `depthWrite` an der Reihe (three.js
+      #18897; Reflector.js setzt darum die Maske vorher). Die Tiefe der Fische aus früheren Bildern blieb stehen und
+      verdeckte die bewegten Fische – nur was gerade in freies Gebiet schwamm (der Kopf), blieb sichtbar. Mit
+      angehaltener Zeit (`?t=`) bewegt sich nichts, darum zeigten die Prüfbilder es nicht; nachgestellt mit laufender
+      Zeit auf der Grafikkarte. Jetzt vor dem Leeren `state.buffers.depth/color.setMask(true)`. Lehre: Was von Bild zu
+      Bild Zustand behält, auch mit laufender Zeit prüfen.
+  - Offen: Urteil des Nutzers zur Insel, danach Review und Commit; Leistung auf einem echten Handy (das Wasser rechnet
+    mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel).
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

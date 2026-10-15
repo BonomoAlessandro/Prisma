@@ -6,7 +6,8 @@
 // Aufruf: node tools/blender/pack.mjs <id>
 // Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Ebenen) und aus dessen Ordner
 // `daten` die Ausgabe der Pipeline: sky.json (Mittelpunkt, Tiefe, Streifen, Hauptlicht, Spitze, Farbringe von
-// wald_export.py bzw. anime.py json), die Bilder und trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene).
+// wald_export.py bzw. anime.py json), die Bilder, trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene) und
+// ebenen.json (export() der Szene: weitere Daten für die Ebenen).
 // Im Register ersetzt es nur den Eintrag dieser Skybox: Die Rohdaten der anderen liegen nicht im Repo.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
@@ -22,8 +23,12 @@ const author = JSON.parse(readFileSync(join(here, 'szenen', id, 'skybox.json'), 
 if (author.id !== id) throw new Error(`skybox.json: id ${author.id} statt ${id}`);
 const src = join(here, author.daten);
 const cfg = JSON.parse(readFileSync(join(src, 'sky.json'), 'utf8'));
-const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg' };
-const url = (file) => `data:${MIME[extname(file)]};base64,${readFileSync(join(src, file)).toString('base64')}`;
+const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
+const url = (file) => {
+  const mime = MIME[extname(file).toLowerCase()];
+  if (!mime) throw new Error(`${file}: unbekannte Endung (bekannt: ${Object.keys(MIME).join(', ')})`);
+  return `data:${mime};base64,${readFileSync(join(src, file)).toString('base64')}`;
+};
 
 /** Breite und Höhe eines JPEG (SOF-Marke) oder PNG (IHDR) */
 function size(file) {
@@ -43,6 +48,15 @@ const gpuMB = (files) => Math.ceil(files.reduce((s, f) => { const [w, h] = size(
 const treesFile = join(src, 'trees.json');
 const trees = existsSync(treesFile) ? JSON.parse(readFileSync(treesFile, 'utf8')) : null;
 const data = trees ? { trees: { models: trees.models, instances: trees.trees } } : {};
+// Weitere Daten für die Ebenen (ebenen.json, vom Export der Szene, z. B. Pflanzen und Wasserkarte am Strand):
+// Texte "file:<name>" werden zu Data-URLs der Datei daneben
+const layersFile = join(src, 'ebenen.json');
+if (existsSync(layersFile)) {
+  const inline = (v) => (typeof v === 'string' && v.startsWith('file:') ? url(v.slice(5))
+    : Array.isArray(v) ? v.map(inline)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, inline(x)])) : v);
+  Object.assign(data, inline(JSON.parse(readFileSync(layersFile, 'utf8'))));
+}
 
 const base = { full: url(cfg.full), depth: url(cfg.depth), data };
 const hd = { bands: cfg.bands.map((b) => url(b.file)) };

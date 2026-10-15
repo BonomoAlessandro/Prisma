@@ -31,7 +31,8 @@ c.max_bounces = 8
 c.diffuse_bounces = 2
 c.glossy_bounces = 2
 c.transmission_bounces = 2
-c.volume_bounces = 2
+from stile import stil
+c.volume_bounces = stil(os.environ.get('WALD_STIL', '')).get('volumen', 2)   # dichte Wolken brauchen mehr
 c.transparent_max_bounces = 4
 c.sample_clamp_indirect = 4.0
 c.use_light_tree = True

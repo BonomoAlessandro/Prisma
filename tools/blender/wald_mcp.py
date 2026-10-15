@@ -12,7 +12,7 @@
 # danach wieder). Fortschritt in out/<stil>/mcp.log (START/FERTIG/FEHLER je Schritt, am Ende ALLES FERTIG).
 # stil: wie WALD_STIL ('anime' oder '' für die realistische Fassung). wald_scene.py selbst nie mit run() ausführen: Es
 # setzt Blender zurück (und damit auch das MCP-Add-on); dafür gibt es neu().
-import os, sys, time, importlib, runpy, contextlib, traceback
+import os, sys, time, importlib, importlib.util, runpy, contextlib, traceback
 import bpy
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -25,6 +25,10 @@ def run(script, *args, stil='anime'):
     if script == 'wald_scene.py':
         raise ValueError('wald_scene.py setzt Blender zurück – neu() oder scene().replace_…() verwenden')
     os.environ['WALD_STIL'] = stil
+    # Hilfsmodule frisch laden: Blender behält sie sonst mit dem Stand (und der Szene, WALD_STIL) des ersten Imports
+    for name in ('wald_lib', 'wald_io', 'stile', 'wald_export'):
+        if name in sys.modules:
+            importlib.reload(sys.modules[name])
     old = sys.argv
     sys.argv = [bpy.app.binary_path, '--', *map(str, args)]
     try:
@@ -73,20 +77,27 @@ ANIME = ([('wald_export.py', 'depth', 2048), ('wald_export.py', 'depthcode', 102
          + [('anime.py', 'bands', 3), ('anime.py', 'json', 3)])
 
 
-def skybox():
-    """Alles für backgrounds/ (Anime-Fassung): ANIME, dann die Fichten fürs Spiel (sky/anime/trees.json)"""
-    def trees():
-        import wald_spielbaum
-        print(wald_spielbaum.export('anime'), flush=True)
+def skybox(stil='anime'):
+    """Alles für backgrounds/ aus der offenen Szene: ANIME, dann die Daten der Ebenen (Wald: die Fichten,
+    sky/anime/trees.json; andere: export() der Szene, sky/<stil>/ebenen.json)"""
+    def layers():
+        if stil == 'anime':
+            import wald_spielbaum
+            print(wald_spielbaum.export('anime'), flush=True)
+        else:
+            print(scene(stil).export(stil), flush=True)
 
-    steps = [(' '.join(map(str, s)), lambda s=s: run(*s, stil='anime')) for s in ANIME]
-    return _later('anime', steps + [('wald_spielbaum.export anime', trees)])
+    from stile import stil as style
+    todo = [s for s in ANIME if s[1] != 'mask' or style(stil).get('himmel') == 'mondnacht']   # Masken nur für den gemalten Himmel
+    steps = [(' '.join(map(str, s)), lambda s=s: run(*s, stil=stil)) for s in todo]
+    return _later(stil, steps + [('export ' + stil, layers)])
 
 
 def neu(stil='anime', path=None):
-    """Szene mit wald_scene.py ganz neu bauen und speichern (wie blender -b --factory-startup --python wald_scene.py,
-    aber ohne Blender zurückzusetzen). Ersetzt die offene Datei: vorher speichern, was bleiben soll."""
-    path = path or os.path.join(HERE, 'wald_anime.blend' if stil == 'anime' else 'wald.blend')
+    """Szene ganz neu bauen und speichern (Wald: wie blender -b --factory-startup --python wald_scene.py, aber ohne
+    Blender zurückzusetzen; andere: szenen/<stil>/szene.py -> <stil>.blend). Ersetzt die offene Datei: vorher
+    speichern, was bleiben soll."""
+    path = path or os.path.join(HERE, {'anime': 'wald_anime.blend', '': 'wald.blend'}.get(stil, stil + '.blend'))
 
     def make():
         bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True, load_ui=False)
@@ -97,9 +108,17 @@ def neu(stil='anime', path=None):
 
 
 def scene(stil='anime'):
-    """wald_scene.py frisch geladen (ohne Aufbau), für replace_trees(), replace_volumes() usw."""
+    """Baumodul der Szene frisch geladen (ohne Aufbau), für replace_…(): der Wald wald_scene.py, andere
+    szenen/<stil>/szene.py"""
     os.environ['WALD_STIL'] = stil
     import wald_lib, wald_spielbaum, wald_scene
     importlib.reload(wald_lib)
     importlib.reload(wald_spielbaum)
-    return importlib.reload(wald_scene)
+    ws = importlib.reload(wald_scene)
+    if stil in ('', 'anime'):
+        return ws
+    spec = importlib.util.spec_from_file_location('szene_' + stil, os.path.join(HERE, 'szenen', stil, 'szene.py'))
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
+    spec.loader.exec_module(mod)
+    return mod

@@ -6,7 +6,8 @@ import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
-import { loadSkies, checkSkies, layerTypes, codeSkies, orphans } from '../tools/sky-schema.mjs';
+import { inflateSync } from 'node:zlib';
+import { loadSkies, checkSkies, layerTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -606,7 +607,7 @@ console.log('Offline');
   });
   test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
     assert.ok(skies.length > 0, 'keine Skybox im Register');
-    assert.ok(codeSkies(html).length >= 3, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
+    assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
     assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
   });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
@@ -625,6 +626,85 @@ console.log('Offline');
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
     assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);
   });
+}
+
+console.log('Fische');
+{
+  // Schwarmsimulation aus index.html (ohne three.js) mit der echten Wasserkarte jeder Skybox, die Fische hat
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const fn = (name) => html.match(new RegExp(`^function ${name}\\([\\s\\S]*?^\\}`, 'm'))[0];
+  const { fishField, createFishSim } = new Function(['mulberry32', 'fishField', 'createFishSim'].map(fn).join('\n')
+    + '\nreturn { fishField, createFishSim };')();
+  const { PLATE } = new Function(['GRID', 'CELL', 'BOARD', 'PLATE'].map((k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0])
+    .join('\n') + '\nreturn { PLATE };')();
+  // PNG (8 Bit, ohne Interlace) zu Bytes je Pixel – wie das Spiel die Karte über ein Canvas liest
+  const readPng = (buf) => {
+    let p = 8, w, h, ch, idat = [];
+    while (p < buf.length) {
+      const len = buf.readUInt32BE(p), type = buf.toString('latin1', p + 4, p + 8), d = buf.subarray(p + 8, p + 8 + len);
+      if (type === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ch = { 0: 1, 2: 3, 4: 2, 6: 4 }[d[9]]; assert.ok(d[8] === 8 && !d[12], 'nur 8 Bit ohne Interlace'); }
+      if (type === 'IDAT') idat.push(d);
+      p += 12 + len;
+    }
+    const raw = inflateSync(Buffer.concat(idat)), st = w * ch, out = new Uint8Array(w * h * ch);
+    for (let y = 0; y < h; y++) {
+      const f = raw[y * (st + 1)];
+      for (let x = 0; x < st; x++) {
+        const a = x >= ch ? out[y * st + x - ch] : 0, b = y ? out[(y - 1) * st + x] : 0, c = x >= ch && y ? out[(y - 1) * st + x - ch] : 0;
+        let v = raw[y * (st + 1) + 1 + x];
+        if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+        else if (f === 4) { const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+        out[y * st + x] = v & 255;
+      }
+    }
+    return { w, h, ch, px: out };
+  };
+  for (const sky of loadSkies(root)) for (const layer of (sky.layers ?? []).filter((l) => l.type === 'fishSchools')) {
+    const base = sky.parts.find((p) => p.role === 'base');
+    const w = runCode(readFileSync(join(root, 'backgrounds', base.file), 'utf8'), base.file).PRISMA_SKY_PARTS[`${sky.id}/base`].data[layer.data];
+    const img = readPng(Buffer.from(w.map.split(',')[1], 'base64')), m = img.w * img.h, [d0, d1] = w.depthRange;
+    const depth = new Float32Array(m), rock = new Float32Array(m);
+    for (let i = 0; i < m; i++) {
+      depth[i] = d0 + ((d1 - d0) * (img.px[i * img.ch] * 256 + img.px[i * img.ch + 1])) / 65535;
+      rock[i] = img.px[i * img.ch + 2] / 255;
+    }
+    const field = fishField(depth, rock, img.w, w.extent, layer.minDepth);
+    // wie fishSchools in index.html
+    const newSim = (f = field) => { const s = createFishSim({ ...layer, keepOut: PLATE / 2 + 0.3 }); s.setField(f); return s; };
+    const all = (sim, t) => {
+      const a = sim.advance(t), o = new Float64Array(10);
+      return Array.from({ length: sim.count }, (_, k) => [...sim.sample(k, a, o)]);
+    };
+    test(`Fische (${sky.id}): zwei Minuten nie flacher als minDepth, nie unter dem Brett`, () => {
+      const sim = newSim();
+      let shallowest = Infinity, under = 0;
+      for (let t = 0; t <= 120; t += 1 / 15) {
+        for (const [x, z] of all(sim, t)) {
+          shallowest = Math.min(shallowest, field.depth(x, z));
+          if (Math.abs(x) < PLATE / 2 && Math.abs(z) < PLATE / 2) under++;
+        }
+      }
+      // Toleranz: depth liest bilinear, das Abstandsfeld je Zelle
+      assert.ok(shallowest >= layer.minDepth - 0.05, `flachste Stelle ${shallowest.toFixed(2)} m`);
+      assert.equal(under, 0, 'Fische unter dem Brett');
+    });
+    test(`Fische (${sky.id}): Ergebnis hängt nur von t ab (?t= bleibt pixelgleich)`, () => {
+      const a = newSim(), b = newSim(), fresh = all(a, 47.3);
+      assert.deepEqual(all(b, 47.3), fresh);
+      all(b, 10); // Zeit zurück: neu begonnen
+      assert.deepEqual(all(b, 47.3), fresh);
+    });
+    test(`Fische (${sky.id}): erstes Bild rechnet gleich viel, egal wie spät der Strand gewählt wird`, () => {
+      // vorher wurde ab Sekunde 0 nachgerechnet: nach 2 Minuten 3600 Schritte in einem Bild
+      const cost = (t) => {
+        let n = 0;
+        const counted = { sdf: (x, z) => { n++; return field.sdf(x, z); }, depth: field.depth };
+        newSim(counted).advance(t);
+        return n;
+      };
+      assert.ok(cost(119) <= 1.5 * cost(6), `${cost(119)} statt etwa ${cost(6)} Abfragen`);
+    });
+  }
 }
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ', es gibt Fehler' : ''}.`);

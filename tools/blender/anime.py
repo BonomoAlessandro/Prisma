@@ -17,13 +17,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from wald_lib import aces_game, srgb_encode
 from wald_io import save_image, load_exr
+from stile import stil
 
-OUT = os.path.join(HERE, 'out', 'anime')
-SKY = os.path.join(HERE, 'sky', 'anime')
+STIL = os.environ.get('WALD_STIL') or 'anime'   # Szene (stile.py): Wald 'anime', Strand 'beach'
+S = stil(STIL)
+OUT = os.path.join(HERE, 'out', STIL)
+SKY = os.path.join(HERE, 'sky', STIL)
 os.makedirs(OUT, exist_ok=True)
 os.makedirs(SKY, exist_ok=True)
-EXPOSURE = 5.5
-PEAK = 0.95  # hellster Szenenwert: Werte über 1 erfasst der Bloom des Spiels, ein Schleier läge über dem Brett
+EXPOSURE = S['belichtung']
+# hellster Szenenwert: Werte über 1 erfasst der Bloom des Spiels, ein Schleier läge über dem Brett. Szenen mit satten,
+# warmen Lichtern setzen ihn unter TEX_MAX (stile.py spitze), sonst kappte TEX_MAX das Ende der Schulter hart
+PEAK = S.get('spitze', 0.95)
+# Obergrenze in der Textur: Satte, warme Töne (Sonne, ihr Spiegelbild) bräuchten zurückgerechnet in einzelnen Kanälen
+# mehr als PEAK; dazu Spielraum für das Überschwingen des JPEG an Kanten (sonst 255, also 1.0)
+TEX_MAX = 0.91
 YMAX = float(aces_game(np.full(3, PEAK))[0])   # dieselbe Spitze als Anzeige-Wert (linear, vor sRGB)
 
 _IN_M = np.array([[0.59719, 0.35458, 0.04823], [0.07600, 0.90834, 0.01566], [0.02840, 0.13383, 0.83777]])
@@ -61,10 +69,11 @@ def gamut(disp, ymax=YMAX):
     return srgb_encode(lum + best[..., None] * (np.minimum(lin, 1) - lum))
 
 
-def shoulder(disp, knee=0.6):
+def shoulder(disp, knee=None):
     """Helles weich unter die Spitze drücken, nach dem hellsten Kanal (wie gamut() ihn prüft): Der helle Nebel wird
     dunkler, bleibt aber hellblau – sonst entsättigte gamut() ihn zu Grauweiss. knee: Anteil der Spitze, ab dem die
-    Kurve einsetzt."""
+    Kurve einsetzt (Szene: stile.py knie, sonst 0.6)."""
+    knee = S.get('knie', 0.6) if knee is None else knee
     lin = srgb_decode(disp)
     m = np.max(lin @ np.linalg.inv(_OUT_M).T, -1)
     k, top = knee * YMAX, 0.97 * YMAX
@@ -223,20 +232,6 @@ def gradient_map(t, stops):
     return np.stack([np.interp(t, ts, cs[:, i]) for i in range(3)], -1)
 
 
-# Farbstimmung: Mondnacht wie in einem gemalten Anime-Hintergrund – tiefes Indigo in den Schatten, Wald blaugrün,
-# Nebel und Dunst leuchtend hellblau bis türkis, die hellsten Stellen fast weiss mit einem Hauch Cyan
-STOPS = [
-    (0.00, (0.012, 0.025, 0.040)),
-    (0.12, (0.025, 0.068, 0.082)),
-    (0.25, (0.058, 0.135, 0.145)),
-    (0.40, (0.140, 0.275, 0.355)),
-    (0.55, (0.340, 0.480, 0.620)),
-    (0.72, (0.610, 0.715, 0.835)),
-    (0.88, (0.810, 0.855, 0.925)),
-    (1.00, (0.935, 0.950, 0.980)),
-]
-
-
 def paint_field(seed=5, w=2048, h=1024):
     """Unregelmässige Farbschwankung wie bei Gouache: Rauschen auf dem ganzen Equirect (rundum nahtlos), Mittel 0."""
     rng = np.random.default_rng(seed)
@@ -260,10 +255,17 @@ def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
     wrap: Bild reicht rundum (360°), die Ränder gehen ineinander über."""
     disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
     lum = disp @ np.array([0.2126, 0.7152, 0.0722])
-    t = np.clip(lum / 0.78, 0, 1) ** 0.62                   # Dunkles gespreizt: Anime-Nächte bleiben lesbar
-    pal = gradient_map(t, STOPS)
-    # eigene Farbe der Szene behalten (grünliche Bäume, Mondhof), verstärkt
-    col = pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
+    if S.get('stops'):
+        t = np.clip(lum / 0.78, 0, 1) ** 0.62                   # Dunkles gespreizt: Anime-Nächte bleiben lesbar
+        pal = gradient_map(t, S['stops'])
+        # eigene Farbe der Szene behalten (grünliche Bäume, Mondhof), verstärkt
+        col = pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
+    else:
+        # Farben der Szene, satter; in die Schatten mischt sich eine Farbe (gemalte Schatten sind nie schwarz)
+        col = lum[..., None] + (disp - lum[..., None]) * S['saettigung']
+        col = col + (1 - smoothstep_np(0.0, 0.45, lum))[..., None] * np.array(S['schatten'])
+        if 'licht' in S:   # Abendlicht: helle Töne wärmer
+            col = col * (1 + smoothstep_np(0.35, 0.85, lum)[..., None] * (np.array(S['licht']) - 1))
     # Pinselstriche (rundum: mit Rand aus der Gegenseite, sonst entstünde an der Naht eine Kante)
     size = max(2, int(round(px_per_deg * 0.28)))
     m = 4 * size if wrap else 0
@@ -271,13 +273,13 @@ def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
     col = kuwahara(np.clip(padded, 0, 1), size=size)
     if m:
         col = col[:, m:-m]
-    # gemalte Flächen sind nie ganz gleichmässig
-    col = col * (1 + 0.02 * noise[..., None])
+    # gemalte Flächen sind nie ganz gleichmässig (Stärke je Szene: stile.py rauschen; im gerenderten Himmel fleckig)
+    col = col * (1 + S.get('rauschen', 0.02) * noise[..., None])
     # Leuchten: Nebel und Mond strahlen weich in die Umgebung
     l2 = col @ np.array([0.2126, 0.7152, 0.0722])
     bright = np.clip((l2 - 0.62) / 0.3, 0, 1)[..., None] * col
     glow = blur(bright, px_per_deg * 1.2) * 0.35 + blur(bright, px_per_deg * 4.0) * 0.2
-    col = 1 - (1 - col) * (1 - glow * np.array([0.85, 0.95, 1.0]))  # „Screen“
+    col = 1 - (1 - col) * (1 - glow * np.array(S['glut']))  # „Screen“
     if stars is not None:
         col = col + stars[..., None] * (1 - col) * np.array([0.92, 0.96, 1.0])
     return gamut(shoulder(np.clip(col, 0, 1)))
@@ -292,12 +294,12 @@ def sky_mask():
 
 def to_texture(disp):
     """Anzeige-Bild -> was die Textur speichert: Szenenwert vor ACES, sRGB-kodiert"""
-    return srgb_encode(np.clip(aces_inverse(srgb_decode(disp)), 0, 1))
+    return srgb_encode(np.clip(aces_inverse(srgb_decode(disp)), 0, TEX_MAX))
 
 
 def in_game(disp):
     """Anzeige-Bild -> wie es aus der Textur im Spiel erscheint (Prüfbild)"""
-    return srgb_encode(aces_game(np.minimum(aces_inverse(srgb_decode(disp)), 1)))
+    return srgb_encode(aces_game(np.clip(aces_inverse(srgb_decode(disp)), 0, TEX_MAX)))
 
 
 if __name__ == '__main__':
@@ -321,10 +323,11 @@ if __name__ == '__main__':
         h, w = lin.shape[:2]
         v, u = np.mgrid[0:h, 0:w]
         uu, vv = (u + 0.5) / w, (v + 0.5) / h
-        stars = star_layer(uu, vv, w / 360.0, 1.0)
         disp = stylize(lin, w / 360.0, sample(field, uu, vv), wrap=True)
-        mask = load_exr(os.path.join(OUT, argv[3] + '.exr'))[..., 0] if len(argv) > 3 else 1 - sample(sky_mask(), uu, vv)
-        disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
+        if S['himmel'] == 'mondnacht':
+            stars = star_layer(uu, vv, w / 360.0, 1.0)
+            mask = load_exr(os.path.join(OUT, argv[3] + '.exr'))[..., 0] if len(argv) > 3 else 1 - sample(sky_mask(), uu, vv)
+            disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
         save_image(in_game(disp), os.path.join(OUT, src + '_anime.png'))
         if dst:
             save_image(to_texture(disp), os.path.join(SKY, dst + '.jpg'), 'JPEG', 90)
@@ -354,10 +357,11 @@ if __name__ == '__main__':
         h, w = lin.shape[:2]
         v, u = np.mgrid[0:h, 0:w]
         uu, vv = (u + 0.5) / w, vt + (v + 0.5) / h * (1 - vt)
-        stars = star_layer(uu, vv, w / 360.0, 1.0)
         disp = stylize(lin, w / 360.0, sample(field, uu, vv), wrap=True)
-        mask = np.concatenate([load_exr(os.path.join(OUT, 'mask_band_%d.exr' % i))[..., 0] for i in range(n)], 1)
-        disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
+        if S['himmel'] == 'mondnacht':
+            stars = star_layer(uu, vv, w / 360.0, 1.0)
+            mask = np.concatenate([load_exr(os.path.join(OUT, 'mask_band_%d.exr' % i))[..., 0] for i in range(n)], 1)
+            disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
         del lin
         tw = w // n
         for i in range(n):

@@ -4904,66 +4904,6 @@ const GLSL_NOISE = `
     return 0.5 * noise(p) + 0.25 * noise(p * 2.03 + 1.7) + 0.125 * noise(p * 4.12 + 5.1);
   }`;
 
-/* Schattenkarte für Hintergründe, deren Schattenwerfer stillstehen (Strand): einmal beim Bauen aus der Richtung
-   des Lichts gerendert, die Tiefe in RGBA verpackt (geht auch ohne Tiefentexturen). Die Shader fragen sie mit
-   objectShadow ab (shadowGLSL; Uniforms uShadow, uShadowMat). */
-const SHADOW_DEPTH_FRAGMENT = `#include <packing>
-  void main() { gl_FragColor = packDepthToRGBA(gl_FragCoord.z); }`;
-const shadowGLSL = (size) => `
-  uniform sampler2D uShadow;
-  uniform mat4 uShadowMat;
-  #include <packing>
-  // Licht an p (1) oder im Schatten (0), 5 Proben im Umkreis von soft Pixeln für weiche Ränder; ausserhalb der Karte
-  // im Licht
-  float objectShadowSoft(vec3 p, float bias, float soft) {
-    vec3 c = (uShadowMat * vec4(p, 1.0)).xyz * 0.5 + 0.5;
-    if (c.x < 0.0 || c.x > 1.0 || c.y < 0.0 || c.y > 1.0) return 1.0;
-    float O = soft / ${size.toFixed(1)}; // Proben gedreht verteilt: weniger Treppen am Rand
-    float lit = step(c.z - bias, unpackRGBAToDepth(texture2D(uShadow, c.xy)));
-    lit += step(c.z - bias, unpackRGBAToDepth(texture2D(uShadow, c.xy + vec2(-0.6, -1.5) * O)));
-    lit += step(c.z - bias, unpackRGBAToDepth(texture2D(uShadow, c.xy + vec2(1.5, -0.6) * O)));
-    lit += step(c.z - bias, unpackRGBAToDepth(texture2D(uShadow, c.xy + vec2(-1.5, 0.6) * O)));
-    lit += step(c.z - bias, unpackRGBAToDepth(texture2D(uShadow, c.xy + vec2(0.6, 1.5) * O)));
-    return lit * 0.2;
-  }
-  float objectShadow(vec3 p, float bias) { return objectShadowSoft(p, bias, 1.0); }`;
-/**
- * Rendert die Schattenwerfer in casters (Materialien mit SHADOW_DEPTH_FRAGMENT) aus Richtung dir, orthografisch um den
- * Quader box. Setzt uniforms.uShadow und uShadowMat; nach einem verlorenen Grafikkontext wird neu gezeichnet (sonst
- * wäre die Karte leer und alles läge im Schatten).
- */
-function bakeShadowMap(casters, box, dir, size, uniforms) {
-  const cam = new THREE.OrthographicCamera();
-  const center = box.getCenter(new THREE.Vector3());
-  cam.position.copy(center).addScaledVector(dir, 300);
-  cam.lookAt(center);
-  cam.updateMatrixWorld();
-  const lo = new THREE.Vector3(Infinity, Infinity, Infinity), hi = new THREE.Vector3(-Infinity, -Infinity, -Infinity);
-  for (let k = 0; k < 8; k++) {
-    const v = new THREE.Vector3(k & 1 ? box.max.x : box.min.x, k & 2 ? box.max.y : box.min.y, k & 4 ? box.max.z : box.min.z);
-    v.applyMatrix4(cam.matrixWorldInverse);
-    lo.min(v); hi.max(v);
-  }
-  Object.assign(cam, { left: lo.x - 1, right: hi.x + 1, bottom: lo.y - 1, top: hi.y + 1, near: -hi.z - 1, far: -lo.z + 1 });
-  cam.updateProjectionMatrix();
-  const target = new THREE.WebGLRenderTarget(size, size, {
-    minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false,
-  });
-  const render = () => {
-    const clearColor = renderer.getClearColor(new THREE.Color()), clearAlpha = renderer.getClearAlpha();
-    renderer.setRenderTarget(target);
-    renderer.setClearColor(0xffffff, 1); // ganz hinten: nichts wirft Schatten
-    renderer.clear();
-    renderer.render(casters, cam);
-    renderer.setRenderTarget(null);
-    renderer.setClearColor(clearColor, clearAlpha);
-  };
-  render();
-  renderer.domElement.addEventListener('webglcontextrestored', render);
-  uniforms.uShadow.value = target.texture;
-  uniforms.uShadowMat.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
-}
-
 const background = new THREE.Mesh(
   new THREE.SphereGeometry(80, 48, 24),
   new THREE.ShaderMaterial({
@@ -5410,24 +5350,6 @@ const solar = (() => {
 })();
 scene.add(solar.group);
 
-// Gelände des Strands: Wertrauschen liegt auf einem Gitter und bildet achsparallele, eckige Formen; darum jede Stufe
-// gedreht.
-function valueNoise(x, z) {
-  const xi = Math.floor(x), zi = Math.floor(z), u = x - xi, v = z - zi;
-  const h = (a, b) => { const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return s - Math.floor(s); };
-  const su = u * u * u * (u * (u * 6 - 15) + 10), sv = v * v * v * (v * (v * 6 - 15) + 10);
-  return (h(xi, zi) * (1 - su) + h(xi + 1, zi) * su) * (1 - sv) + (h(xi, zi + 1) * (1 - su) + h(xi + 1, zi + 1) * su) * sv;
-}
-function smoothNoise(x, z, octaves = 4) { // 0 … 1, ohne Vorzugsrichtung
-  let s = 0, a = 0.5, f = 1, norm = 0;
-  for (let i = 0; i < octaves; i++) {
-    const c = Math.cos(0.7 + i * 1.1), sn = Math.sin(0.7 + i * 1.1);
-    s += a * valueNoise((x * c - z * sn) * f + i * 17.3, (x * sn + z * c) * f - i * 9.1);
-    norm += a; a *= 0.5; f *= 2.03;
-  }
-  return s / norm;
-}
-
 /* =====================================================================
    SKYBOX AUS BLENDER — Hintergründe, die in Blender (Cycles) als Panorama entstehen (tools/blender/, umschaltbar, siehe
    skyTheme). Jede steht mit einem Manifest im Register backgrounds/skies.js (erzeugt von tools/blender/pack.mjs, Felder
@@ -5446,6 +5368,8 @@ function smoothNoise(x, z, octaves = 4) { // 0 … 1, ohne Vorzugsrichtung
    (skyTheme.keep).
    Wald (forest): Mondnacht über einem Nebelmeer, nahe Fichten als 3D-Modelle (toonInstances), ein ziehender
    Nebelschleier (mistSheets) und Glühwürmchen (glowParticles).
+   Strand (beach): Abend am Meer, das Brett über einer türkisen Lagune vor dem Strand; nahe Palmen, Bäume und Büsche
+   als 3D-Modelle mit eigenen Farben (toonInstances), Wellen, Schaum und Glitzern ums Brett (waterSurface).
    ===================================================================== */
 
 const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
@@ -5624,17 +5548,34 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
 /**
  * Ebenen: was das Spiel zu einem Panorama selbst zeichnet, je Typ mit Parametern aus dem Manifest (layers). Jeder Typ
  * ist eine Funktion (ctx, opt) -> Object3D; ctx = { uniforms (uFade, uReady, uTime), pointUniforms (dazu uPixelRatio),
- * data (Daten aus base), light (Richtung zum Hauptlicht), lightGLSL (const vec3 SKY_LIGHT), fog, air }. Neues kommt als
+ * data (Daten aus base), light (Richtung zum Hauptlicht), lightGLSL (const vec3 SKY_LIGHT), fog, air, pano (full:
+ * Textur des ganzen Panoramas, center: sein Mittelpunkt), offscreen (Szenen, die eine Ebene selbst zeichnet: werden
+ * mit übersetzt und freigegeben), under (von waterSurface: Szene unter der Wasseroberfläche) }. Am Object3D optional
+ * userData.update(t, dt) (jedes Bild, solange sichtbar) und userData.dispose() (beim Freigeben). Neues kommt als
  * weiterer Typ dazu; tools/sky-schema.mjs liest die Namen aus der Zeile `const SKY_LAYERS = { … }`.
  */
 
+/** Modell als Felder: unverändert (pos, nrm, col, idx) oder kompakt aus Base64 (pos16: Int16 / 8192, col8: Uint8,
+ *  Wurzel der Farbe; idx16: Uint16; ohne Normalen), wie es der Export des Strands schreibt */
+function unpackModel(m) {
+  if (!m.pos16) return m;
+  const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer;
+  return {
+    pos: Float32Array.from(new Int16Array(bytes(m.pos16)), (v) => v / 8192),
+    col: Float32Array.from(new Uint8Array(bytes(m.col8)), (v) => (v / 255) ** 2),
+    idx: new Uint16Array(bytes(m.idx16)),
+  };
+}
+
 /**
- * Nahe Objekte (Daten: models {pos, nrm, idx} in Spielkoordinaten, Fuss im Ursprung, Höhe und Breite 1; instances
- * [x, y, z, Höhe, Breite, Drehung um die Hochachse, Modell, Licht unten, Licht oben, Helligkeit, Nebel-Oberkante]):
+ * Nahe Objekte (Daten: models {pos, nrm, idx} in Spielkoordinaten oder kompakt, siehe unpackModel; Fuss im Ursprung,
+ * Höhe und Breite 1; instances [x, y, z, Höhe, Breite, Drehung um die Hochachse, Modell, Licht unten, Licht oben,
+ * Helligkeit, Nebel-Oberkante]):
  * Das Panorama zeigt sie nicht, aus seinem Mittelpunkt gesehen lägen sie schräg. Farben (palette) wie die gemalten
- * Objekte im Panorama: zwei harte Stufen im Hauptlicht (Toon), heller Rand an den Kanten zum Licht, unten dunkler, etwas
- * Dunst mit dem Abstand (air). Wie viel Licht ein Objekt unten und oben trifft (Schatten von Kämmen und Nachbarn), hat
- * Blender je Instanz ausgerechnet; ihre Schatten auf dem Boden stecken im Panorama (Wald: wald_spielbaum.py).
+ * Objekte im Panorama: zwei Stufen im Hauptlicht (Toon; soft 0 … 1 macht sie weich), heller Rand an den Kanten zum
+ * Licht, unten dunkler, etwas Dunst mit dem Abstand (air). Wie viel Licht ein Objekt unten und oben trifft (Schatten von
+ * Kämmen und Nachbarn), hat Blender je Instanz ausgerechnet; ihre Schatten auf dem Boden stecken im Panorama (Wald:
+ * wald_spielbaum.py).
  * Nebel wie in der Szene (fog): Die Dichte hängt nur von der Höhe über der Nebel-Oberkante an der Instanz ab (weicher
  * Saum, darunter der Kern, je eine Rampe). Entlang des Blicks bis zur Kamera (über dem Nebel) zählt also nur ihr
  * Integral von der Höhe des Punkts aufwärts, mal Weg je Höhe – so versinken Objekte am Rand des Nebelmeers darin wie
@@ -5644,14 +5585,25 @@ function toonInstances(ctx, opt) {
   const set = ctx.data[opt.data], pal = opt.palette, air = ctx.air;
   const fog = ctx.fog && set.instances.every((t) => t.length > 10) ? ctx.fog : null;
   const fogRamp = ([a, b, d]) => `${d.toFixed(4)} * ramp(dz, ${a.toFixed(2)}, ${b.toFixed(2)})`;
+  // Modelle mit Farbe je Ecke (col): Die Palette gibt dann Faktoren auf diese Farbe (Stamm braun, Laub grün)
+  const colored = set.models.every((m) => m.col || m.col8);
   const material = new THREE.ShaderMaterial({
     uniforms: ctx.uniforms,
+    defines: colored ? { USE_COL: '' } : {},
+    side: colored ? THREE.DoubleSide : THREE.FrontSide, // offene Flächen (Palmwedel) von beiden Seiten
     vertexShader: `
         attribute vec4 aInfo; // Licht unten, oben; Helligkeit; Oberkante des Nebels
         varying vec4 vInfo;
         varying vec3 vN, vPos;
         varying float vH;
+        #ifdef USE_COL
+          attribute vec3 aCol;
+          varying vec3 vCol;
+        #endif
         void main() {
+          #ifdef USE_COL
+            vCol = aCol;
+          #endif
           mat4 m = modelMatrix * instanceMatrix;
           vec4 wp = m * vec4(position, 1.0);
           vec3 sc = vec3(length(m[0].xyz), length(m[1].xyz), length(m[2].xyz));
@@ -5671,6 +5623,13 @@ function toonInstances(ctx, opt) {
         const vec3 SHADOW = ${glv(pal.shadow)}, MID = ${glv(pal.mid)};
         const vec3 LIT = ${glv(pal.lit)}, RIM = ${glv(pal.rim)}, HAZE = ${glv(air.haze)};
         const vec3 FOG_LIT = ${glv(air.lit)};
+        const float SOFT = ${glf(opt.soft ?? 0)};
+        #ifdef USE_COL
+          varying vec3 vCol;
+          #define BASE(c) (c * vCol)
+        #else
+          #define BASE(c) (c)
+        #endif
         // Integral einer Rampe (0 bei Höhe a, 1 ab Höhe b < a) von dz aufwärts
         float ramp(float dz, float a, float b) {
           float w = a - b;
@@ -5685,11 +5644,12 @@ function toonInstances(ctx, opt) {
           float dist = length(toCam);
           float l = dot(N, SKY_LIGHT);
           float moon = mix(vInfo.x, vInfo.y, smoothstep(0.2, 0.8, vH));
-          vec3 col = mix(SHADOW, MID, smoothstep(-0.5, -0.3, l));
-          col = mix(col, LIT, smoothstep(0.0, 0.12, l) * moon);
+          // Stufen: hart wie gemalt (soft 0) bis weich verlaufend (soft 1, natürlicher für Laub)
+          vec3 col = mix(BASE(SHADOW), BASE(MID), smoothstep(-0.5 - 0.4 * SOFT, -0.3 + 0.2 * SOFT, l));
+          col = mix(col, BASE(LIT), smoothstep(-0.05 * SOFT, 0.12 + 0.45 * SOFT, l) * moon);
           col *= mix(0.6, 1.0, smoothstep(0.0, 0.45, vH));
           float rim = pow(1.0 - max(dot(N, toCam / dist), 0.0), 3.0) * smoothstep(-0.1, 0.4, l) * moon;
-          col = mix(col, RIM, rim * 0.6) * vInfo.z;
+          col = mix(col, BASE(RIM), rim * 0.6) * vInfo.z;
           col = mix(col, HAZE, 1.0 - exp(-dist * ${glf(air.density)}));${fog ? `
           // Nebel: Integral der Dichte über dem Punkt mal Weg je Höhe; zum Licht hin heller (Vorwärtsstreuung)
           float dz = vPos.y - vInfo.w;
@@ -5700,12 +5660,15 @@ function toonInstances(ctx, opt) {
         }`,
   });
   const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-  set.models.forEach((model, k) => {
+  set.models.forEach((packed, k) => {
+    const model = unpackModel(packed);
     const list = set.instances.filter((t) => t[6] === k);
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
-    geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
-    geo.setIndex(model.idx);
+    if (colored) geo.setAttribute('aCol', new THREE.Float32BufferAttribute(model.col, 3));
+    geo.setIndex(ArrayBuffer.isView(model.idx) ? new THREE.BufferAttribute(model.idx, 1) : model.idx);
+    if (model.nrm) geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
+    else geo.computeVertexNormals();
     const info = new Float32Array(list.length * 4);
     const mesh = new THREE.InstancedMesh(geo, material, list.length);
     list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, top = 0], i) => {
@@ -5817,135 +5780,9 @@ function mistSheets(ctx, opt) {
   return out;
 }
 
-const SKY_LAYERS = { toonInstances, glowParticles, mistSheets };
-
 /**
- * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):
- * prepare() lädt, setFade(k) blendet ein (0 … 1), update(t, dt) jedes Bild solange sichtbar, ready = ganz eingeblendet,
- * release() gibt den Grafikspeicher frei (ausgeblendet und nicht gewählt; prepare() lädt danach neu).
- */
-function createPanoramaSky(m) {
-  const group = new THREE.Group();
-  group.visible = false;
-  const uniforms = { uFade: { value: 0 }, uReady: { value: 0 }, uTime: { value: 0 } };
-  const pointUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
-  const light = new THREE.Vector3().fromArray(m.light.dir).normalize();
-  const lightGLSL = `const vec3 SKY_LIGHT = vec3(${light.toArray().map((v) => v.toFixed(4)).join(', ')});`;
-  let loading = null, mesh = null, age = null, token = 0;
-
-  /** Teil laden (Skript mit Data-URLs); es muss zum Stand des Registers passen */
-  async function loadPart(role) {
-    const part = m.parts.find((p) => p.role === role);
-    await loadSkyScript(`backgrounds/${part.file}`);
-    const key = `${m.id}/${role}`, got = window.PRISMA_SKY_PARTS?.[key];
-    delete window.PRISMA_SKY_PARTS?.[key]; // die Bilder stecken gleich in den Texturen
-    if (!got || got.rev !== m.rev) throw new Error(`${part.file}: anderer Stand als im Register`);
-    return got;
-  }
-
-  async function build(my) {
-    const base = await loadPart('base');
-    const hd = PANO.hd && m.parts.some((p) => p.role === 'bands')
-      ? await loadPart('bands').catch((e) => { console.warn(`${m.name}: ${e.message}, ohne Streifen`); return null; }) : null;
-    const rects = hd ? m.panorama.bands : [];
-    const [fullImg, depthImg, ...bandImgs] = await Promise.all([base.full, base.depth, ...(hd?.bands ?? [])].map(loadSkyImage));
-    if (my !== token) return; // inzwischen wieder freigegeben
-    const center = new THREE.Vector3().fromArray(m.panorama.center);
-    mesh = new THREE.Mesh(skyProxyGeometry(skyLogDepth(depthImg, m.panorama.depth.log), center),
-      skyPanoramaMaterial(uniforms, center, skyTexture(fullImg, true), rects.map((b, i) => ({ ...b, tex: skyTexture(bandImgs[i], false) }))));
-    mesh.renderOrder = -1000;          // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
-    mesh.frustumCulled = false;
-    const parts = [mesh];
-    const ctx = { uniforms, pointUniforms, data: base.data ?? {}, light, lightGLSL, fog: m.fog, air: m.air };
-    for (const layer of m.layers ?? []) {
-      try {
-        if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
-        parts.push(SKY_LAYERS[layer.type](ctx, layer));
-      } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
-    }
-    // Nicht in der Bodenspiegelung (dort wird auch die Himmelskugel ausgeblendet), nicht anklickbar
-    for (const p of parts) {
-      p.traverse((o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; });
-      group.add(p);
-    }
-    renderer.compile(scene, camera);   // schon jetzt übersetzen, nicht im ersten Bild des Einblendens (falls sichtbar)
-  }
-
-  /** Während des Überblendens und Einblendens durchsichtig über der Himmelskugel, sonst undurchsichtig und zuerst. */
-  function applyFade() {
-    if (!mesh) return;
-    const transparent = uniforms.uFade.value * uniforms.uReady.value < 0.999;
-    if (mesh.material.transparent !== transparent) {
-      mesh.material.transparent = transparent;
-      mesh.material.needsUpdate = true;
-    }
-  }
-
-  return {
-    group,
-    panorama: true,
-    get ready() { return uniforms.uReady.value >= 1; },
-    /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
-    prepare() {
-      loading ??= build(token).catch((e) => console.error(`${m.name}: ${e.message}`));
-    },
-    setFade(k) {
-      uniforms.uFade.value = k;
-      if (k > 0) this.prepare();
-      group.visible = k > 0;
-      applyFade();
-    },
-    update(t, dt) {
-      if (!mesh) return;
-      age = age === null ? 0 : age + dt; // in dt, nicht in t: läuft auch bei angehaltener Zeit (?t=)
-      uniforms.uReady.value = Math.min(1, age / PANO.appear);
-      uniforms.uTime.value = t;
-      pointUniforms.uPixelRatio.value = renderer.getPixelRatio();
-      applyFade();
-    },
-    release() {
-      if (!loading) return;
-      token++;
-      loading = null; mesh = null; age = null;
-      uniforms.uReady.value = 0;
-      group.traverse((o) => {
-        if (o.isInstancedMesh) o.dispose(); // Puffer der Instanzen (Geometrie und Material bleiben, siehe unten)
-        o.geometry?.dispose();
-        for (const mat of [o.material ?? []].flat()) {
-          for (const u of Object.values(mat.uniforms ?? {})) if (u.value?.isTexture) u.value.dispose();
-          mat.dispose();
-        }
-      });
-      group.clear();
-    },
-  };
-}
-
-/* =====================================================================
-   STRAND — vierter Hintergrund: Meer und Küste bei Sonnenuntergang (umschaltbar, siehe skyTheme)
-   Das Brett schwebt über einer flachen Lagune vor einem Sandstrand. In der Ausgangsansicht liegt die Küste hinter dem
-   Brett, links ragt eine felsige Landzunge ins Meer; nach vorn fällt der Grund über eine Kante ins Tiefe ab (türkis →
-   tiefblau). Die Sonne steht tief über dem Meer rechts: Sie streift den Strand von der Seite (lange Schatten der Dünen
-   und Felsen), und dreht man die Kamera zu ihr hin, glitzert das Wasser.
-   Die Kamera blickt immer von oben – den Himmel sieht man nur gespiegelt (Wasser, polierte Platte). Darum ist das Meer
-   kein Netz mit Wellen, sondern wird pro Pixel gerechnet: Dünung analytisch, feine Wellen aus einer kachelbaren
-   Normal-Map, deren Mipmaps zugleich das Glitzern in der Ferne glätten. Unter Wasser zeichnet das Gelände selbst das
-   Wasser darüber (es kennt die Tiefe), weiter draussen die Himmelskugel (Strahl bis zur Wasserfläche) – beide mit
-   derselben Funktion, damit kein Rand sichtbar wird. Alles berechnet, ohne Bilddateien; erst bei der ersten Wahl gebaut.
-   ===================================================================== */
-
-const BEACH = {
-  waterY: -3,
-  sun: new THREE.Vector3(0.92, 0.21, 0.33).normalize(), // gut 12° über dem Horizont
-  reach: 104, // Gelände so weit um die Mitte: Die Kamera kreist bis ~25 hinaus, die Himmelskugel deckt ab 79 ab
-  swell: [0.16, -0.987], // Laufrichtung der Dünung (aufs Ufer zu)
-  shadowSize: 2048, // Schattenkarte der Bäume, Palmen und Felsen (Pixel je Seite)
-  veg: [7, 11],  // Bewuchs setzt hinter dem Strand ein: Abstand zur Wasserlinie, ab dem er beginnt und ganz ist
-};
-
-/**
- * Kachelbare Wellen für das Meer: RGB = Normale feiner Wellen (Summe von Sinuswellen mit ganzzahligen Wellenzahlen,
- * vorwiegend in einer Richtung), A = kachelbares Rauschen für Schaum, Sandkörnung und Wolken.
+ * Kachelbare Wellen fürs Wasser (waterSurface): RGB = Normale feiner Wellen (Summe von Sinuswellen mit ganzzahligen
+ * Wellenzahlen, vorwiegend in einer Richtung), A = kachelbares Rauschen (Lücken der Brecher).
  */
 function createWaveTexture(size) {
   const rand = mulberry32(91);
@@ -6002,9 +5839,9 @@ function createWaveTexture(size) {
 
 /**
  * Schaum, kachelbar: R = Schwelle, wie lange ein Punkt Schaum bleibt – je weiter von den Mitten runder Löcher in drei
- * Grössen, desto länger. Wie viel Schaum zu sehen ist, entscheidet
- * im Shader die Dichte: frisch ist alles weiss, dann reisst er zu Zellen, dann zu Fäden auf und verschwindet
- * (foamDissolve). So sehen Schaumfelder in der Brandung von oben aus.
+ * Grössen, desto länger. Wie viel Schaum zu sehen ist, entscheidet im Shader die Dichte: frisch ist alles weiss, dann
+ * reisst er zu Zellen, dann zu Fäden auf und verschwindet (foamDissolve). So sehen Schaumfelder in der Brandung von oben
+ * aus.
  */
 function createFoamTexture(size) {
   const rand = mulberry32(17);
@@ -6052,950 +5889,959 @@ function createFoamTexture(size) {
   return tex;
 }
 
-/**
- * Palme (Höhe 1, Fuss im Ursprung, lehnt in +x): gebogener Stamm, oben dünner, und ein Schopf Wedel – jeder ein
- * gebogener Stiel mit gefiederten Blättchen, die beidseits nach unten hängen (von oben die typische Sternform). Die
- * oberen Wedel stehen schräg nach oben, die unteren hängen und sind dürr. aPalm: Teil (0 Stamm, 1 Wedel), Lage entlang
- * (0 … 1), Zufall je Wedel (dürr, Farbe, Wind).
- */
-function createPalmGeometry(seed) {
-  const r = mulberry32(seed);
-  const pos = [], nor = [], info = [];
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
-  const BEND = 0.22, center = (t) => V(BEND * t * t, t, 0);
-  const radius = (t) => 0.028 * (1 - 0.4 * t) + 0.02 * Math.max(0, 1 - t * 12); // unten ausgestellt
-  const RINGS = 10, SIDES = 6;
-  for (let i = 0; i < RINGS; i++) {
-    for (let k = 0; k < SIDES; k++) {
-      const corner = (ii, kk) => {
-        const t = ii / RINGS, a = kk / SIDES * 2 * Math.PI;
-        const n = V(Math.cos(a), 0, Math.sin(a));
-        return [center(t).addScaledVector(n, radius(t)), n, t];
-      };
-      const c = [corner(i, k), corner(i, k + 1), corner(i + 1, k + 1), corner(i + 1, k)];
-      for (const j of [0, 1, 2, 0, 2, 3]) { pos.push(...c[j][0].toArray()); nor.push(...c[j][1].toArray()); info.push(0, c[j][2], 0); }
-    }
-  }
-  const top = center(1), up = V(0, 1, 0), FRONDS = 13, STEPS = 20;
-  for (let f = 0; f < FRONDS; f++) {
-    const az = (f / FRONDS) * 2 * Math.PI + (r() - 0.5) * 0.4, low = r(), seedF = r();
-    const elev = 0.75 - 0.95 * low + (r() - 0.5) * 0.2, L = 0.34 + 0.1 * r(), droop = 0.45 + 0.55 * low;
-    const d0 = V(Math.cos(elev) * Math.cos(az), Math.sin(elev), Math.cos(elev) * Math.sin(az));
-    const at = (u) => top.clone().addScaledVector(d0, L * u).add(V(0, -droop * L * u * u, 0));
-    for (let i = 0; i < STEPS; i++) {
-      const u0 = i / STEPS, u1 = (i + 1) / STEPS, p0 = at(u0), p1 = at(u1);
-      const tan = p1.clone().sub(p0).normalize(), side = new THREE.Vector3().crossVectors(tan, up).normalize();
-      // Blättchen: lang und schmal, zur Spitze des Wedels gestrichen, mit Lücken dazwischen
-      const l = L * 0.32 * Math.pow(Math.sin(Math.PI * Math.min(1, u0 * 0.9 + 0.08)), 0.7);
-      const base = p0.clone().lerp(p1, 0.45);
-      for (const s of [-1, 1]) {
-        const tip = p0.clone().addScaledVector(side, s * l * 0.8).add(V(0, -l * (0.35 + 0.3 * low), 0)).addScaledVector(tan, l * 0.45);
-        const n = new THREE.Vector3().crossVectors(base.clone().sub(p0), tip.clone().sub(p0)).normalize();
-        if (n.y < 0) n.negate();
-        for (const [p, u] of [[p0, u0], [base, u0], [tip, u0]]) { pos.push(...p.toArray()); nor.push(...n.toArray()); info.push(1, u, seedF + low * 0.001); }
-      }
-      // Stiel
-      const w = side.clone().multiplyScalar(0.004);
-      for (const p of [p0.clone().sub(w), p1.clone().sub(w), p1.clone().add(w), p0.clone().sub(w), p1.clone().add(w), p0.clone().add(w)]) {
-        pos.push(...p.toArray()); nor.push(0, 1, 0); info.push(1, u0, seedF + low * 0.001);
-      }
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
-  geo.setAttribute('aPalm', new THREE.Float32BufferAttribute(info, 3));
-  return geo;
+/** Karte aus einer Data-URL (Wasser): ohne Mipmaps, linear gefiltert */
+function mapTexture(url, what) {
+  const img = new Image(), tex = new THREE.Texture(img);
+  tex.minFilter = THREE.LinearFilter;
+  tex.generateMipmaps = false;
+  img.onload = () => { tex.needsUpdate = true; };
+  img.onerror = () => console.warn(`Wasser: ${what} nicht lesbar`);
+  img.src = url;
+  return tex;
 }
 
 /**
- * Felsblock (etwa Radius 1): Kugel, mit Grat-Rauschen kantig verbeult, flacher als hoch, unten abgeschnitten (er sitzt
- * im Sand). Normalen über gleiche Ecken gemittelt: Kanten bleiben, aber keine einzelnen Dreiecke.
+ * Wasser ums Brett, wie es sich bewegt. Daten aus Blender: map – R/G Wassertiefe mit 16 Bit (an Land negativ: Höhe des
+ * Sands), B Fels –, shore – R/G Abstand zur Wasserlinie mit 16 Bit (> 0 an Land) –, Zeile 0 am hinteren Rand bei
+ * z = −extent; dazu size, extent, level, die Bereiche depthRange und shoreRange und fade: bis wohin diese Ebene das
+ * Wasser allein zeichnet und ab wo das Panorama. Blender malt hier nur den Grund (mit der Farbe des Wassers nach Tiefe), die Oberfläche kommt von
+ * dieser Ebene: Dünung, die parallel zum Ufer heranläuft, im Flachen steiler wird und als Walze bricht – Schaum, der zu
+ * Zellen und Fäden zerfällt, nicht jede Welle überall –, das Auflaufen den Strand hinauf und zurück, nasser glänzender
+ * Sand, Spülmarken, Gischt an den Felsen, Glitzern zur Sonne. Brechung und Spiegelung lesen das Panorama: den Grund
+ * unter der Stelle, von den Wellen verschoben, und in Richtung des gespiegelten Strahls Himmel und Insel (wie vom
+ * Mittelpunkt aus gesehen). Wellenphysik wie im früheren gerechneten Strand (2.25). wave: Wellenlänge, Kreisfrequenz;
+ * sun, foam, sediment, lip, crest: Farben (Szenenwerte; crest: Licht im Kamm der Dünung, die noch nicht bricht).
+ * Das Gitter folgt, wo das Wasser aufläuft, der Höhe des Sands. Für den Tiefentest liegt es etwas zur Kamera hin (lift):
+ * Das geglättete Netz des Panoramas verdeckt es so nicht, höhere Felsen schon. Was unter der Oberfläche schwimmt
+ * (ctx.under.scene, etwa fishSchools), zeichnet es vorher in ein eigenes Bild und legt es über den Grund, von den Wellen
+ * verschoben wie dieser; Spiegelung, Schaum und Glitzern liegen darüber.
  */
-function createRockGeometry(seed) {
-  const h = (x, y, z) => { const v = Math.sin(x * 127.1 + y * 311.7 + z * 74.7 + seed * 17.3) * 43758.5453; return v - Math.floor(v); };
-  const noise3 = (x, y, z) => {
-    const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
-    const fx = x - xi, fy = y - yi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy), w = fz * fz * (3 - 2 * fz);
-    const L = (a, b, t) => a + (b - a) * t;
-    const plane = (zz) => L(L(h(xi, yi, zz), h(xi + 1, yi, zz), u), L(h(xi, yi + 1, zz), h(xi + 1, yi + 1, zz), u), v);
-    return L(plane(zi), plane(zi + 1), w);
-  };
-  const geo = new THREE.IcosahedronGeometry(1, 2);
-  const p = geo.attributes.position, d = new THREE.Vector3();
-  for (let i = 0; i < p.count; i++) {
-    d.fromBufferAttribute(p, i).normalize();
-    const ridge = 1 - Math.abs(2 * noise3(d.x * 2.6 + 3, d.y * 2.6, d.z * 2.6) - 1);
-    const ridge2 = 1 - Math.abs(2 * noise3(d.x * 5.5 - 4, d.y * 5.5 + 2, d.z * 5.5) - 1);
-    const r = 0.72 + 0.34 * noise3(d.x * 1.2, d.y * 1.2 + 7, d.z * 1.2) + 0.3 * ridge * ridge + 0.08 * ridge2 * ridge2;
-    d.multiplyScalar(r);
-    d.y = Math.max(d.y * 0.72, -0.25);
-    p.setXYZ(i, d.x, d.y, d.z);
-  }
-  geo.computeVertexNormals();
-  // Normalen gleicher Ecken mitteln (die Geometrie hat je Dreieck eigene Ecken)
-  const n = geo.attributes.normal, sums = new Map(), key = (i) => `${p.getX(i).toFixed(4)},${p.getY(i).toFixed(4)},${p.getZ(i).toFixed(4)}`;
-  for (let i = 0; i < p.count; i++) {
-    const k = key(i), s = sums.get(k) || [0, 0, 0];
-    s[0] += n.getX(i); s[1] += n.getY(i); s[2] += n.getZ(i);
-    sums.set(k, s);
-  }
-  for (let i = 0; i < p.count; i++) {
-    const s = sums.get(key(i)), l = Math.hypot(...s) || 1;
-    n.setXYZ(i, s[0] / l, s[1] / l, s[2] / l);
-  }
-  return geo;
-}
-
-// Lage der Baumkronen und Palmen in der Welt – gleich für das Bild und die Schattenkarte (beide Shader)
-const BEACH_CASTER_GLSL = `
-  uniform float uTime;
-  float instanceSeed() { return fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453); }
-  // Krone: Laub in Ballen, grosse und kleine Beulen (wie Blumenkohl)
-  vec3 crownShape(vec3 p, float seed) {
-    vec3 d = normalize(p);
-    return d * (0.78 + 0.3 * noise(d * 1.7 + seed * 23.0) + 0.14 * noise(d * 4.3 + seed * 7.0));
-  }
-  // Palme: Wedel wiegen sich im Wind, zur Spitze hin mehr; der Stamm oben kaum
-  vec3 palmShape(vec3 p, vec3 info, float seed) {
-    float w = info.x * info.y * info.y * 0.035 + (1.0 - info.x) * p.y * p.y * 0.006;
-    return p + vec3(sin(uTime * 1.3 + seed * 20.0 + info.z * 6.0), 0.4 * sin(uTime * 1.7 + info.z * 9.0), cos(uTime * 1.1 + info.z * 4.0)) * w;
-  }`;
-
-// Gemeinsam für Himmel, Meer und Gelände: Licht, Himmel, Wellen und das Wasser an einem Punkt der Oberfläche.
-const BEACH_GLSL = `
-  uniform float uTime;
-  uniform sampler2D uWaves;
-  uniform sampler2D uFoam;
-  ${shadowGLSL(BEACH.shadowSize)}
-  // Schaum mit Dichte dens an p: dicht ganz weiss, dann reisst er zu Zellen, dann zu Fäden auf und verschwindet
-  // (createFoamTexture). In Strömungsrichtung dir gestreckt und mit dem Wasser um drift verschoben.
-  float foamDissolve(vec2 p, float dens, vec2 dir, float drift) {
-    vec2 q = vec2(dot(p, vec2(-dir.y, dir.x)), dot(p, dir) * 0.65 - drift);
-    float t = texture2D(uFoam, q * 0.2).r * 0.7 + texture2D(uFoam, q * 0.53 + 0.37).r * 0.3;
-    return smoothstep(1.0 - dens, 1.15 - dens, t);
-  }
-  const float WATER_Y = ${BEACH.waterY.toFixed(2)};
-  const vec3 SUN = vec3(${BEACH.sun.toArray().map((v) => v.toFixed(4)).join(', ')});
-  const vec3 SUN_COL = vec3(2.1, 1.25, 0.62);     // tiefe Sonne: warm, schon schwächer
-  const vec3 SKY_AMB = vec3(0.055, 0.06, 0.115);  // Himmelslicht im Schatten: kühl
-  const vec3 DEEP = vec3(0.0035, 0.018, 0.026);   // tiefes Wasser (Streulicht)
-  const vec3 ABSORB = vec3(1.1, 0.27, 0.19);      // Schwächung je Einheit Weg im Wasser: Rot zuerst → türkis
-  const vec2 SWELL = vec2(${BEACH.swell.join(", ")}); // Laufrichtung der Dünung, aufs Ufer zu
-
-  vec3 horizonSky(vec2 xz) {
-    float toSun = 0.5 + 0.5 * dot(normalize(xz + vec2(1e-5)), normalize(SUN.xz));
-    return mix(vec3(0.075, 0.068, 0.1), vec3(0.5, 0.29, 0.16), pow(toSun, 6.0));
-  }
-  // Himmel: am Horizont glühend zur Sonne hin, gegenüber violett, oben tiefblau; Wolkenschleier von unten angestrahlt
-  vec3 beachSky(vec3 d, float clouds) {
-    float y = max(d.y, 0.0);
-    vec3 upper = mix(vec3(0.034, 0.036, 0.07), vec3(0.008, 0.014, 0.042), smoothstep(0.12, 0.65, y)); // schiefergrau, oben tiefblau
-    vec3 col = mix(horizonSky(d.xz), upper, pow(smoothstep(0.0, 0.3, y), 0.6));
-    float sd = max(dot(d, SUN), 0.0);
-    col += vec3(1.0, 0.42, 0.13) * (0.32 * pow(sd, 6.0) + 0.6 * pow(sd, 48.0)) + vec3(40.0, 22.0, 9.0) * smoothstep(1.5e-4, 0.8e-4, 1.0 - sd);
-    if (clouds > 0.0) {
-      vec2 cp = d.xz / (y + 0.1) * 0.05;
-      float c = texture2D(uWaves, cp * vec2(0.5, 2.2) + vec2(uTime * 0.0004, 0.0)).a;
-      c = smoothstep(0.52, 0.78, c) * smoothstep(0.0, 0.05, y) * smoothstep(0.6, 0.12, y);
-      float toSun = 0.5 + 0.5 * dot(normalize(d.xz + vec2(1e-5)), normalize(SUN.xz));
-      col = mix(col, mix(vec3(0.05, 0.03, 0.06), vec3(1.1, 0.42, 0.17), toSun * toSun * toSun), c * 0.8 * clouds);
-    }
-    return col;
-  }
-  // Dunst über dem Meer: in der Ferne geht alles in den Horizont über, vor der Himmelskugel (79) ganz
-  vec3 beachHaze(vec3 col, vec3 d, float dist) {
-    float a = max(1.0 - exp(-dist * 0.009), smoothstep(52.0, 77.0, dist));
-    return mix(col, beachSky(normalize(vec3(d.x, 0.0, d.z) + vec3(1e-4, 0.0, 0.0)), 0.0) * 0.8, a);
-  }
-
-  // Dünung: Phase (Kamm bei 0), Wellenzahl und Kreisfrequenz. Im Flachen drehen die Wellenfronten parallel zum Ufer
-  // (Refraktion): Dort zählt der Abstand zur Wasserlinie (shore, < 0 im Wasser; Gefälle shoreDir) statt der Richtung
-  // der Dünung. off gleicht beide Masse in der Mitte des Übergangs an (je Ecke, siehe build): Sonst wichen sie entlang
-  // der Küste verschieden weit ab, und die Wellen liefen dort gestaucht, gedehnt oder gar seewärts.
-  const float SWELL_K = 0.8, SWELL_W = 1.1;
-  float refraction(float shore) { return smoothstep(-24.0, -6.0, shore); }
-  float swellPhase(vec2 p) { return dot(p, SWELL) * SWELL_K - uTime * SWELL_W; }
-  float shorePhase(vec2 p, float shore, float off) { return mix(dot(p, SWELL), shore + off, refraction(shore)) * SWELL_K - uTime * SWELL_W; }
-  vec2 swellDir(vec2 shoreDir, float shore) { return normalize(mix(SWELL, shoreDir, refraction(shore))); }
-  float wrapPhase(float ph) { return mod(ph + 3.14159, 6.28319) - 3.14159; }
-  // Wellengruppen: mal höhere, mal niedrigere Wellen, entlang der Küste versetzt
-  float swellSetAt(vec2 p, float t) { return 0.75 + 0.25 * sin(t * 0.19 + p.x * 0.05) * sin(t * 0.083 + p.x * 0.031 + 1.7); }
-  float swellSet(vec2 p) { return swellSetAt(p, uTime); }
-  // ... für Welle Nummer m, als sie die Wasserlinie erreichte (off: Ausgleich der Phase, siehe shorePhase)
-  float waveEnv(vec2 p, float m, float off) { return swellSetAt(p, (m * 6.28319 + off * SWELL_K) / SWELL_W); }
-  // Profil einer gebrochenen Welle (Walze): Kamm bei 0, vorn (landwärts, x > 0) steil abfallend, hinten flach
-  float bore(float x, float sharp) { return x > 0.0 ? exp(-x * sharp) : (x + 3.14159) * (x + 3.14159) * 0.10132; }
-  // Höhe der Dünung über dem Meeresspiegel an Phase x; d: Wassertiefe (an Land negativ), env: Wellengruppe. Im
-  // Flachen wird die Welle höher und steiler (Shoaling), bricht und läuft als Walze ans Ufer – nie höher, als das
-  // Wasser tief ist. brk: ob diese Welle hier bricht (breakGaps) – wo nicht, bleibt sie rund; um das Wellental herum
-  // gilt das nicht, sonst sprünge die Höhe dort, wo die nächste Welle beginnt.
-  float swellHeight(float x, float d, float env, float sharp, float brk) {
-    float b = smoothstep(1.8, 0.9, d) * mix(1.0, brk, smoothstep(3.0, 2.2, abs(x)));
-    float shape = mix(cos(x), bore(x, sharp) - 0.19, b); // 0.19: Mittel der Walze
-    return min(0.15 * env * (1.0 + 0.9 * smoothstep(5.0, 1.2, d)), 0.4 * max(d, 0.0) + 0.03) * shape;
-  }
-  // Auflaufen (Swash): Hat die Walze die Wasserlinie erreicht, schiesst sie als dünner Film den Strand hinauf, wird
-  // langsamer und bleibt stehen, dann fliesst sie beschleunigt zurück – wie ein geworfener Ball, bis unter das Mittel.
-  // Das Zurückfliessen dauert länger als das Hinauflaufen (gemessen: Umkehr nach etwa 40 % des Zyklus).
-  // u: Zeit seit dem Eintreffen der Walze (Anteil der Wellenperiode); reach: Höhe, die diese Welle erreicht.
-  const float SWASH_UP = 0.24, SWASH_DOWN = 0.4, SWASH_LOW = -0.1;
-  float swashLevel(float u, float reach) {
-    float r = reach - SWASH_LOW;
-    if (u < SWASH_UP) { float t = 1.0 - u / SWASH_UP; return SWASH_LOW + r * (1.0 - t * t); }
-    float t = min((u - SWASH_UP) / SWASH_DOWN, 1.0);
-    return reach - r * t * t;
-  }
-  // Wann (u) das zurückfliessende Wasser die Höhe a freigibt
-  float swashLeaves(float a, float reach) { return SWASH_UP + SWASH_DOWN * sqrt(clamp((reach - a) / (reach - SWASH_LOW), 0.0, 1.0)); }
-  // Höhe, die Welle Nummer n erreicht: von Welle zu Welle und entlang des Strands verschieden
-  float swashHash(float n, float i) { return fract(sin(mod(n, 256.0) * 12.9898 + i * 78.233) * 43758.5453); } // mod: sin bleibt genau
-  float swashReach(float n, float along) {
-    float a = along / 7.0, i = floor(a), f = smoothstep(0.0, 1.0, fract(a));
-    float b = along / 2.3, j = floor(b), g = smoothstep(0.0, 1.0, fract(b)); // Zungen der Front
-    return 0.15 + 0.2 * mix(swashHash(n, i), swashHash(n, i + 1.0), f) + 0.05 * (mix(swashHash(n + 0.5, j), swashHash(n + 0.5, j + 1.0), g) - 0.5);
-  }
-  // Nicht jede Welle bricht überall: Lücken entlang der Front, von Welle zu Welle anders (ph: ungefaltete Phase,
-  // along: Lage entlang des Strands); nahe am Ufer bricht jede
-  float breakGaps(float ph, float d, float along) {
-    float waveNo = floor((ph - wrapPhase(ph)) / 6.28319 + 0.5);
-    return mix(smoothstep(0.32, 0.5, texture2D(uWaves, vec2(along * 0.012, waveNo * 0.137)).a), 1.0, smoothstep(1.0, 0.6, d));
-  }
-  // Anteil des Auflaufens am Wasserstand: draussen nur die Dünung, am Ufer nur das Auflaufen
-  float swashShare(float d) { return smoothstep(0.7, 0.05, d); }
-
-  // Normale der Wasserfläche: die Dünung (Gefälle aus swellHeight, Richtung dir) und kurze Wellen – zwei Züge
-  // analytisch, drei Lagen aus der Normal-Map; im dünnen Wasser am Strand glatt. var: Streuung der Steigungen, die das
-  // Bild nicht mehr auflöst (aus der Länge der gemittelten Normalen in den Mipmaps) – in der Ferne wird das Glitzern so
-  // zu einem breiten Schimmer, statt zu flimmern.
-  vec3 waterNormal(vec2 p, float dist, float x, vec2 dir, float d, float env, float sharp, float brk, out float var) {
-    vec2 d2 = vec2(-0.34, -0.94), d3 = vec2(0.53, -0.848);
-    float calm = smoothstep(0.0, 0.8, d);
-    vec2 s = dir * SWELL_K * (swellHeight(x + 0.03, d, env, sharp, brk) - swellHeight(x - 0.03, d, env, sharp, brk)) / 0.06 * (1.0 - swashShare(d));
-    s += d2 * 0.05 * calm * sin(dot(p, d2) * 0.95 - uTime * 1.05 + 1.3);
-    s += d3 * 0.035 * calm * sin(dot(p, d3) * 1.4 - uTime * 1.25 + 4.1);
-    const mat2 ROT = mat2(0.8, 0.6, -0.6, 0.8);
-    vec3 a = texture2D(uWaves, p * 0.09 + vec2(0.004, -0.013) * uTime).rgb * 2.0 - 1.0;
-    vec3 b = texture2D(uWaves, (ROT * p) * 0.27 + vec2(-0.011, -0.02) * uTime).rgb * 2.0 - 1.0;
-    float ripple = 0.25 + 0.75 * calm;
-    vec3 c = texture2D(uWaves, p * 0.83 + vec2(0.031, -0.027) * uTime).rgb * 2.0 - 1.0;
-    s -= a.xy / max(a.z, 0.3) * 0.3 * ripple;
-    s -= (b.xy / max(b.z, 0.3)) * ROT * 0.32 * ripple; // zurückgedreht (Gradient: transponiert)
-    s -= c.xy / max(c.z, 0.3) * 0.22 * ripple;
-    var = 0.004 + (0.1 * max(1.0 - length(a), 0.0) + 0.1 * max(1.0 - length(b), 0.0) + 0.06 * max(1.0 - length(c), 0.0)) * ripple + dist * 0.00004; // gerundete Texel: Länge über 1
-    return normalize(vec3(-s.x, 1.0, -s.y));
-  }
-
-  // Spiegelung der Sonne auf einer rauen Fläche (Beckmann-Verteilung mit Streuung var der Steigungen)
-  float sunGlint(vec3 N, vec3 V, float var) {
-    vec3 H = normalize(SUN + V);
-    float nh = max(dot(N, H), 0.05), nh2 = nh * nh;
-    float D = exp(-(1.0 - nh2) / (nh2 * 2.0 * var)) / (6.2832 * var * nh2 * nh2);
-    float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
-    return min(D * F / (4.0 * max(dot(N, V), 0.15)) * 0.05, 12.0);
-  }
-
-  // Wasser mit Normale N, von der Kamera aus Richtung V gesehen; below: Licht von unten (Grund, Tiefe)
-  vec3 waterColor(vec3 N, float var, vec3 V, vec3 below) {
-    float F = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
-    vec3 R = reflect(-V, N);
-    vec3 col = mix(below, beachSky(vec3(R.x, abs(R.y), R.z), 0.0), F);
-    return col + SUN_COL * sunGlint(N, V, var);
-  }`;
-
-const beachUniforms = {
-  uFade: { value: 0 },
-  uTime: { value: 0 },
-  uWaves: { value: null }, // createWaveTexture, beim Bauen
-  uFoam: { value: null }, // createFoamTexture, beim Bauen
-  uShadow: { value: null }, // Schattenkarte der Bäume, Palmen und Felsen (beim Bauen)
-  uShadowMat: { value: new THREE.Matrix4() }, // Welt → Schattenkarte
-};
-
-const beach = (() => {
-  const group = new THREE.Group();
-  group.visible = false;
-  const noPick = (o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; o.frustumCulled = false; return o; };
-  const ss = THREE.MathUtils.smoothstep;
-  const W = BEACH.waterY;
-
-  // Uferlinie: Land liegt hinter dem Brett (−z), links eine Landzunge, die bis neben das Brett reicht
-  const shoreZ = (x) => 10.5 + 0.12 * x + 1.8 * Math.sin(0.085 * x + 0.6) - 8 * Math.exp(-(((x + 22) / 7) ** 2));
-  /** Richtung aufs Ufer zu, nach dem grossräumigen Verlauf der Küste (ohne das kleine Rauschen der Uferlinie: über den
-   *  Hebel bis zur Mitte des Übergangs wurde aus jeder kleinen Drehung ein Sprung in der Phase, sichtbar als Naht). */
-  const shoreDir = (x) => { const gx = -(shoreZ(x + 4) - shoreZ(x - 4)) / 8, l = Math.hypot(gx, 1); return [gx / l, -1 / l]; };
-  /** Ausgleich der Phase (shorePhase) für einen Punkt mit Abstand s zur Wasserlinie: Richtung der Dünung dort, wo die
-   *  Senkrechte zum Ufer die Mitte des Übergangs (Abstand −15) trifft, minus jener Abstand. Gerechnet mit dem Abstand
-   *  zur grossräumigen Küste; das kleine Rauschen der Uferlinie (s minus dieser Abstand) wird abgezogen – so folgt die
-   *  Phase einem glatten Feld, und das Gitter hinterlässt keine Knicke (Haarlinien im Glitzern). */
-  const phaseOffset = (x, z, s) => {
-    // Hebel begrenzt: An der stark gekrümmten Landzunge verstärkte er jede Drehung der Küste – die Wellen liefen an
-    // ihrer Flanke seitwärts, dicht gedrängt und fast stehend
-    const [gx, gz] = shoreDir(x), [sx, sz] = BEACH.swell, smooth = -z - shoreZ(x), lever = Math.min(smooth + 15, 5);
-    return (x - gx * lever) * sx + (z - gz * lever) * sz + 15 + smooth - s;
-  };
-  /** Geländehöhe, Fels (0 … 1), Bewuchs (0 … 1) und Abstand zur Wasserlinie (> 0 an Land) an (x, z); out = [Höhe, Fels, Bewuchs, Abstand, 0] (out[4]: groundWithTrees). */
-  function ground(x, z, out) {
-    const wob = (smoothNoise(x * 0.05 + 3.3, z * 0.05 - 8.1, 3) - 0.5) * 4;
-    const s = -z - shoreZ(x) + wob; // > 0: an Land, Abstand zur Wasserlinie
-    let h;
-    if (s < 0) {
-      // Grund: am Ufer rasch tiefer, dann eine flache Lagune, weiter draussen eine Kante ins Tiefe. (Eine Sandbank in der
-      // Lagune liess die Wellen ein zweites Mal brechen, lief aber als gleichförmiger Wulst die ganze Küste entlang.)
-      const d = -s;
-      h = -1.6 * (1 - Math.exp(-d / 4)) - 0.09 * d - 7 * ss(d, 18, 30);
-    } else {
-      // Strand, dahinter Dünen und flaches, bewachsenes Hinterland
-      const dune = smoothNoise(x * 0.09 + 31, z * 0.09 + 20, 3);
-      h = 0.1 * Math.min(s, 5) + 1.5 * ss(s, 4.5, 9) * (0.4 + dune) + 0.05 * Math.max(s - 12, 0) * dune;
-    }
-    h += (smoothNoise(x * 0.3 + 9, z * 0.3 - 4, 2) - 0.5) * 0.18; // sanfte Mulden
-    // Strandsicheln: Die Brandung formt die Wasserlinie zu regelmässigen Bögen – Spitzen ragen ins Meer, dazwischen Buchten
-    h += 0.09 * Math.sin((x + 0.25 * z) * 0.9) * ss(s, -2.5, 0) * (1 - ss(s, 3, 5.5));
-    // Fels: Landzunge und einzelne Blöcke in der Brandung
-    // (Rauschen nur, wo Fels sein kann – das Gelände wird beim Bauen oft abgefragt)
-    const point = Math.exp(-(((x + 22) / 6) ** 2)) * ss(s, -5, 2);
-    const band = s > -6 && s < 5 ? ss(s, -6, -3) * (1 - ss(s, 2, 5)) * ss(Math.hypot(x, z), 17, 24) : 0; // nicht neben dem Brett
-    let rock = 0;
-    if (point > 1e-3 || band > 0) {
-      const crag = smoothNoise(x * 0.32 - 7, z * 0.32 + 13, 3), rough = smoothNoise(x * 0.9 - 2, z * 0.9 + 4, 2);
-      const blocks = band > 0 ? Math.sqrt(ss(smoothNoise(x * 0.42 + 50, z * 0.42 - 30, 2), 0.68, 0.8)) * band : 0; // Kuppeln
-      rock = point * (0.25 + 1.1 * ss(crag, 0.3, 0.72) + 0.35 * rough) + blocks * (0.3 + 0.8 * crag + 0.3 * rough); // Sockel; darauf Felsblöcke
-    }
-    // Bewuchs hinter den Dünen: dichtes Buschwerk und niedrige Bäume, von oben ein Teppich aus Kronen (Buckel), die
-    // sich im Streiflicht gegenseitig beschatten
-    const veg = ss(s, ...BEACH.veg) * (1 - ss(rock, 0.1, 0.35) * (1 - ss(s, 6, 12))); // Fels zum Meer hin, oben bewachsen
-    out[0] = W + h + rock;
-    out[1] = ss(rock, 0.1, 0.35);
-    out[2] = veg;
-    out[3] = s;
-    out[4] = 0; // Höhe einer Baumkrone darüber (withTrees)
-    return out;
-  }
-  /** Wie ground(), dazu die Baumkronen: out[4] Höhe der Krone über dem Boden, out[2] Bewuchs mal Helligkeit (darunter dunkel). */
-  function groundWithTrees(x, z, out) {
-    ground(x, z, out);
-    if (out[2] > 0) {
-      const top = canopy(x, z);
-      out[4] = top;
-      out[2] *= top > 0 ? 0.35 : 0.75;
-    }
-    return out;
-  }
-
-  // Bäume: je Zelle eines Gitters höchstens einer, an zufälliger Stelle (nur wo Bewuchs ist); Kronen als Ellipsoide,
-  // in Beständen höher und niedriger
-  const TREE_CELL = 2.3;
-  const hash = (i, j, k) => { const v = Math.sin(i * 127.1 + j * 311.7 + k * 74.7) * 43758.5453; return v - Math.floor(v); };
-  const trees = new Map(), probe = [0, 0, 0, 0, 0];
-  function treeAt(i, j) {
-    const key = i * 8192 + j;
-    if (trees.has(key)) return trees.get(key);
-    const x = (i + 0.15 + 0.7 * hash(i, j, 1)) * TREE_CELL, z = (j + 0.15 + 0.7 * hash(i, j, 2)) * TREE_CELL;
-    ground(x, z, probe);
-    let tree = null;
-    if (probe[2] > 0.35 && hash(i, j, 5) < 0.93) {
-      const tall = 0.55 + 0.45 * ss(smoothNoise(x * 0.12 - 3, z * 0.12 + 7, 3), 0.25, 0.55);
-      tree = { x, z, y: probe[0], r: 1.0 + 0.8 * hash(i, j, 3), h: (1.6 + 1.6 * hash(i, j, 4)) * tall * probe[2] };
-    }
-    trees.set(key, tree);
-    return tree;
-  }
-  /** Höhe der höchsten Krone über (x, z), gemessen vom Fuss des Baums (0: keine) */
-  function canopy(x, z) {
-    const ci = Math.floor(x / TREE_CELL), cj = Math.floor(z / TREE_CELL);
-    let best = 0;
-    for (let i = ci - 1; i <= ci + 1; i++) {
-      for (let j = cj - 1; j <= cj + 1; j++) {
-        const t = treeAt(i, j);
-        if (!t) continue;
-        const q = 1 - ((x - t.x) ** 2 + (z - t.z) ** 2) / (t.r * t.r);
-        if (q > 0) best = Math.max(best, t.h * (0.2 + 0.8 * Math.sqrt(q)));
-      }
-    }
-    return best;
-  }
-
-  function build() {
-    beachUniforms.uWaves.value = createWaveTexture(256);
-    beachUniforms.uFoam.value = createFoamTexture(512);
-    const tmp = [0, 0, 0, 0, 0];
-
-    // Höhen für den Schattenwurf des Geländes (Bäume und Palmen: Schattenkarte, siehe unten): gleichmässiges Gitter
-    const SG = 0.9, gx0 = -BEACH.reach, gz0 = -BEACH.reach, GW = Math.ceil(2 * BEACH.reach / SG) + 1, GH = Math.ceil((BEACH.reach + 12) / SG) + 1;
-    const grid = new Float32Array(GW * GH);
-    for (let j = 0; j < GH; j++) for (let i = 0; i < GW; i++) grid[j * GW + i] = ground(gx0 + i * SG, gz0 + j * SG, tmp)[0];
-    const heightAt = (x, z) => {
-      const fx = (x - gx0) / SG, fz = (z - gz0) / SG, i = Math.floor(fx), j = Math.floor(fz);
-      if (i < 0 || j < 0 || i >= GW - 1 || j >= GH - 1) return -Infinity;
-      const u = fx - i, v = fz - j, k = j * GW + i;
-      return (grid[k] * (1 - u) + grid[k + 1] * u) * (1 - v) + (grid[k + GW] * (1 - u) + grid[k + GW + 1] * u) * v;
-    };
-    // Weicher Schatten der tiefen Sonne: zur Sonne hin abtasten, wie knapp das Gelände den Strahl verfehlt
-    const sunH = Math.hypot(BEACH.sun.x, BEACH.sun.z), dx = BEACH.sun.x / sunH, dz = BEACH.sun.z / sunH, rise = BEACH.sun.y / sunH;
-    const sunlight = (x, z, h) => {
-      let lit = 1;
-      for (let d = 0.5; d < 40; d += 0.5 + d * 0.04) {
-        const t = heightAt(x + dx * d, z + dz * d);
-        if (t === -Infinity) break;
-        lit = Math.min(lit, 6 * (h + rise * d - t) / d + 0.15);
-        if (lit <= 0) return 0;
-      }
-      return Math.min(lit, 1);
-    };
-
-    // Gelände: in der Mitte fein, nach aussen gröber (dort liegt es im Dunst)
-    const N = 280, R = BEACH.reach, warp = (u) => R * (0.4 * u + 0.6 * u * u * u);
-    const count = (N + 1) * (N + 1);
-    const pos = new Float32Array(count * 3), mat = new Float32Array(count * 4);
-    for (let j = 0; j <= N; j++) {
-      for (let i = 0; i <= N; i++) {
-        const k = j * (N + 1) + i, x = warp(i / N * 2 - 1), z = warp(j / N * 2 - 1);
-        const [h, rock, veg, s] = groundWithTrees(x, z, tmp);
-        pos.set([x, h, z], k * 3);
-        mat.set([h > W - 2.5 ? sunlight(x, z, h) : 1, rock, veg, s], k * 4);
-      }
-    }
-    // Richtung aufs Ufer zu (dorthin laufen die Wellen im Flachen) und Ausgleich der Phase, je Ecke
-    const dir = new Float32Array(count * 3);
-    for (let k = 0; k < count; k++) {
-      const x = pos[k * 3], z = pos[k * 3 + 2];
-      dir.set([...shoreDir(x), phaseOffset(x, z, mat[k * 4 + 3])], k * 3);
-    }
-    const index = [];
-    for (let j = 0; j < N; j++) {
-      for (let i = 0; i < N; i++) {
-        const a = j * (N + 1) + i, b = a + N + 1;
-        index.push(a, b, a + 1, b, b + 1, a + 1);
-      }
-    }
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    geo.setAttribute('aMat', new THREE.BufferAttribute(mat, 4));
-    geo.setAttribute('aDir', new THREE.BufferAttribute(dir, 3));
-    geo.setIndex(index);
-    geo.computeVertexNormals();
-
-    // Gelände, und darüber pro Pixel das Wasser: Der Wasserstand (swellHeight) entscheidet genau, wo Meer, brechende
-    // Walze, auflaufender Film oder nasser Sand ist – unabhängig vom Gitter. Unter Wasser zeichnet das Gelände die
-    // Oberfläche darüber (es kennt die Tiefe), draussen die Himmelskugel mit denselben Funktionen.
-    const terrain = noPick(new THREE.Mesh(geo, new THREE.ShaderMaterial({
-      uniforms: beachUniforms, fog: false,
-      vertexShader: `attribute vec4 aMat;
-        attribute vec3 aDir;
-        varying vec3 vPos, vN;
-        varying vec4 vMat;
-        varying vec3 vDir; // Richtung aufs Ufer zu, Ausgleich der Phase (shorePhase)
-        void main() { vPos = position; vN = normal; vMat = aMat; vDir = aDir; gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vPos, vN;
-        varying vec4 vMat;
-        varying vec3 vDir; // Richtung aufs Ufer zu, Ausgleich der Phase (shorePhase)
-        ${BEACH_GLSL}
+function waterSurface(ctx, opt) {
+  const w = ctx.data[opt.data];
+  const ext = w.extent, N = Math.round(2 * ext);
+  const geo = new THREE.PlaneGeometry(2 * ext, 2 * ext, N, N).rotateX(-Math.PI / 2);
+  const under = { scene: new THREE.Scene(), target: null };
+  ctx.under = under;
+  ctx.offscreen.push(under.scene);
+  const decl = `
+        uniform sampler2D uMap, uShore;
+        const float EXT = ${glf(ext)}, LEVEL = ${glf(w.level)}, ROCK_LIFT = 1.0;
+        const vec2 DEPTH = ${glv(w.depthRange)}, SHORE = ${glv(w.shoreRange)};
+        vec2 mapUV(vec2 p) { return vec2((p.x + EXT) / (2.0 * EXT), 1.0 - (p.y + EXT) / (2.0 * EXT)); }
+        float bits16(vec2 hl) { return (hl.x * 65280.0 + hl.y * 255.0) / 65535.0; }
+        // Tiefe (an Land negativ) und Abstand zur Wasserlinie (> 0 an Land) an p (Spiel x, z)
+        vec2 at(vec2 p) {
+          vec2 uv = mapUV(p);
+          return vec2(mix(DEPTH.x, DEPTH.y, bits16(texture2D(uMap, uv).rg)), mix(SHORE.x, SHORE.y, bits16(texture2D(uShore, uv).rg)));
+        }`;
+  const material = new THREE.ShaderMaterial({
+    uniforms: {
+      ...ctx.uniforms,
+      uMap: { value: mapTexture(w.map, 'Karte') }, uShore: { value: mapTexture(w.shore, 'Abstand zum Ufer') },
+      uWaves: { value: createWaveTexture(256) }, uFoam: { value: createFoamTexture(512) },
+      uPano: { value: ctx.pano.full }, uCenter: { value: ctx.pano.center }, uDepth: { value: ctx.pano.depth.tex },
+      uUnder: { value: null }, uUnderOn: { value: 0 }, uUnderView: { value: new THREE.Matrix4() },
+    },
+    extensions: { shaderTextureLOD: true },
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: `${decl}
+        varying vec3 vPos;
         void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vec2 m = at(wp.xz);
+          float rock = texture2D(uMap, mapUV(wp.xz)).b;
+          // an Land auf dem Sand (dort läuft das Wasser auf); am Fels auf Höhe des Wassers: Was der Fels verdeckt,
+          // entscheidet dort die Tiefe des Panoramas (das geglättete Netz reicht um die Felsen herum vor das Wasser,
+          // darum dort weiter zur Kamera hin)
+          wp.y = LEVEL + max(-m.x, 0.0) * (1.0 - rock);
+          vPos = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * vec4(wp.xyz + normalize(cameraPosition - wp.xyz) * (${glf(opt.lift)} + ROCK_LIFT * rock), 1.0);
+        }`,
+    fragmentShader: `${decl}
+        #if __VERSION__ >= 300
+          #define LOD0(t, p) textureLod(t, p, 0.0)
+        #elif defined(GL_EXT_shader_texture_lod)
+          #define LOD0(t, p) texture2DLodEXT(t, p, 0.0)
+        #else
+          #define LOD0(t, p) texture2D(t, p)
+        #endif
+        uniform sampler2D uWaves, uFoam, uPano, uDepth, uUnder;
+        uniform vec3 uCenter;
+        uniform float uTime, uFade, uReady, uUnderOn;
+        uniform mat4 uUnderView;
+        varying vec3 vPos;
+        ${GLSL_NOISE}
+        ${ctx.lightGLSL}
+        const float CELL = ${glf(2 * ext / w.size)};
+        const vec2 FADE = ${glv(w.fade)};
+        const float SWELL_K = ${glf(2 * Math.PI / opt.wave[0])}, SWELL_W = ${glf(opt.wave[1])};
+        const vec3 SUN_COL = ${glv(opt.sun)}, FOAM = ${glv(opt.foam)}, SEDIMENT = ${glv(opt.sediment)}, LIP = ${glv(opt.lip)};
+        const vec3 CREST = ${glv(opt.crest)};
+        // Panorama in Richtung d (Spiel), wie vom Mittelpunkt gesehen; Grundstufe (ohne Ableitungen, die in den
+        // verzweigten Teilen nicht gelten; die Karte ist hier fein genug)
+        vec3 pano(vec3 d) {
+          vec3 b = normalize(vec3(d.x, -d.z, d.y));
+          return LOD0(uPano, vec2(0.5 + atan(b.x, b.y) / 6.2831853, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.1415927)).rgb;
+        }
+        // Abstand der Szene vom Mittelpunkt in Richtung d, aus der Tiefe des Panoramas (log, bilinear; ohne Treffer fern)
+        const vec2 DEPTH_SIZE = ${glv(ctx.pano.depth.size)}, DEPTH_LOG = ${glv(ctx.pano.depth.log.map(Math.log))};
+        float logDepth(vec2 ij) {
+          vec4 t = LOD0(uDepth, (ij + 0.5) / DEPTH_SIZE);
+          float c = (t.r * 65280.0 + t.g * 255.0) / 65535.0;
+          return c > 0.99999 ? DEPTH_LOG.y : mix(DEPTH_LOG.x, DEPTH_LOG.y, c);
+        }
+        float panoDist(vec3 d) {
+          vec3 b = normalize(vec3(d.x, -d.z, d.y));
+          vec2 uv = vec2(0.5 + atan(b.x, b.y) / 6.2831853, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.1415927) * DEPTH_SIZE - 0.5;
+          vec2 i = floor(uv), f = uv - i;
+          return exp(mix(mix(logDepth(i), logDepth(i + vec2(1.0, 0.0)), f.x), mix(logDepth(i + vec2(0.0, 1.0)), logDepth(i + 1.0), f.x), f.y));
+        }
+        // Schaum mit Dichte dens an p: dicht ganz weiss, dann reisst er zu Zellen, dann zu Fäden auf und verschwindet.
+        // In Strömungsrichtung dir gestreckt und mit dem Wasser um drift verschoben.
+        float foamDissolve(vec2 p, float dens, vec2 dir, float drift) {
+          vec2 q = vec2(dot(p, vec2(-dir.y, dir.x)), dot(p, dir) * 0.45 - drift);
+          float t = texture2D(uFoam, q * 0.2).r * 0.7 + texture2D(uFoam, q * 0.53 + 0.37).r * 0.3;
+          return smoothstep(1.0 - dens, 1.15 - dens, t);
+        }
+        float wrapPhase(float ph) { return mod(ph + 3.14159, 6.28319) - 3.14159; }
+        // Wellengruppen: mal höhere, mal niedrigere Wellen, entlang der Küste versetzt
+        float swellSetAt(vec2 p, float t) { return 0.75 + 0.25 * sin(t * 0.19 + p.x * 0.05) * sin(t * 0.083 + p.x * 0.031 + 1.7); }
+        // ... für Welle Nummer m, als sie die Wasserlinie erreichte (off: Versatz der Phase hier)
+        float waveEnv(vec2 p, float m, float off) { return swellSetAt(p, (m * 6.28319 + off * SWELL_K) / SWELL_W); }
+        // Profil einer gebrochenen Welle (Walze): Kamm bei 0, vorn (landwärts, x > 0) steil abfallend, hinten flach
+        float bore(float x, float sharp) { return x > 0.0 ? exp(-x * sharp) : (x + 3.14159) * (x + 3.14159) * 0.10132; }
+        // Höhe der Dünung über dem Meeresspiegel an Phase x; d: Wassertiefe (an Land negativ), env: Wellengruppe. Im
+        // Flachen wird die Welle höher und steiler, bricht und läuft als Walze ans Ufer – nie höher, als das Wasser tief
+        // ist. brk: ob diese Welle hier bricht – wo nicht, bleibt sie rund (ausser um das Tal: sonst spränge die Höhe)
+        float swellHeight(float x, float d, float env, float sharp, float brk) {
+          float b = smoothstep(1.8, 0.9, d) * mix(1.0, brk, smoothstep(3.0, 2.2, abs(x)));
+          float shape = mix(cos(x), bore(x, sharp) - 0.19, b);
+          return min(${glf(opt.height)} * env * (1.0 + 0.9 * smoothstep(5.0, 1.2, d)), 0.4 * max(d, 0.0) + 0.03) * shape;
+        }
+        // Auflaufen: Hat die Walze die Wasserlinie erreicht, schiesst sie als dünner Film den Strand hinauf, wird
+        // langsamer und bleibt stehen, dann fliesst sie beschleunigt zurück (Umkehr nach etwa 40 % des Zyklus).
+        // u: Zeit seit dem Eintreffen der Walze (Anteil der Periode); reach: Höhe, die diese Welle erreicht
+        const float SWASH_UP = 0.24, SWASH_DOWN = 0.4, SWASH_LOW = -0.1;
+        float swashLevel(float u, float reach) {
+          float r = reach - SWASH_LOW;
+          if (u < SWASH_UP) { float t = 1.0 - u / SWASH_UP; return SWASH_LOW + r * (1.0 - t * t); }
+          float t = min((u - SWASH_UP) / SWASH_DOWN, 1.0);
+          return reach - r * t * t;
+        }
+        float swashLeaves(float a, float reach) { return SWASH_UP + SWASH_DOWN * sqrt(clamp((reach - a) / (reach - SWASH_LOW), 0.0, 1.0)); }
+        float swashHash(float n, float i) { return fract(sin(mod(n, 256.0) * 12.9898 + i * 78.233) * 43758.5453); }
+        // Höhe, die Welle Nummer n erreicht: von Welle zu Welle und entlang des Strands verschieden, mit Zungen
+        float swashReach(float n, float along) {
+          float a = along / 7.0, i = floor(a), f = smoothstep(0.0, 1.0, fract(a));
+          float b = along / 2.3, j = floor(b), g = smoothstep(0.0, 1.0, fract(b));
+          return ${glf(opt.reach)} * (0.15 + 0.2 * mix(swashHash(n, i), swashHash(n, i + 1.0), f) + 0.05 * (mix(swashHash(n + 0.5, j), swashHash(n + 0.5, j + 1.0), g) - 0.5));
+        }
+        // Nicht jede Welle bricht überall: Lücken entlang der Front, von Welle zu Welle anders; nahe am Ufer jede
+        float breakGaps(float ph, float d, float along) {
+          float waveNo = floor((ph - wrapPhase(ph)) / 6.28319 + 0.5);
+          return mix(smoothstep(0.32, 0.5, texture2D(uWaves, vec2(along * 0.012, waveNo * 0.137)).a), 1.0, smoothstep(1.0, 0.6, d));
+        }
+        float swashShare(float d) { return smoothstep(0.7, 0.05, d); }
+        // Normale der Wasserfläche: Dünung (Gefälle aus swellHeight, Richtung dir) und kurze Wellen – zwei Züge
+        // analytisch, drei Lagen aus der Normal-Map; im dünnen Wasser am Strand glatt. var: Streuung der Steigungen, die
+        // das Bild nicht mehr auflöst (Länge der gemittelten Normalen in den Mipmaps): In der Ferne wird das Glitzern so
+        // zu einem Schimmer, statt zu flimmern.
+        // low: nur die langen Wellen (Dünung, Wellenzüge ab 4,5 m) – damit verschiebt das Wasser, was darunter schwimmt.
+        // Mit den Kräuselwellen änderte sich der Versatz auf Zentimetern um bis über 0,1 m: Die Fische zerrissen.
+        vec3 waterNormal(vec2 p, float dist, float x, vec2 dir, float d, float env, float sharp, float brk, out float var, out vec2 low) {
+          vec2 d2 = vec2(-0.34, -0.94), d3 = vec2(0.53, -0.848);
+          float calm = smoothstep(0.0, 0.8, d);
+          vec2 s = dir * SWELL_K * (swellHeight(x + 0.03, d, env, sharp, brk) - swellHeight(x - 0.03, d, env, sharp, brk)) / 0.06 * (1.0 - swashShare(d));
+          s += d2 * 0.05 * calm * sin(dot(p, d2) * 0.95 - uTime * 1.05 + 1.3);
+          s += d3 * 0.035 * calm * sin(dot(p, d3) * 1.4 - uTime * 1.25 + 4.1);
+          vec2 d4 = vec2(0.81, -0.59); // Windsee schräg zur Dünung, länger
+          s += d4 * 0.07 * calm * sin(dot(p, d4) * 0.52 - uTime * 0.83 + 0.7) * (0.6 + 0.4 * sin(dot(p, vec2(0.6, 0.8)) * 0.07 + uTime * 0.05));
+          low = -s;
+          const mat2 ROT = mat2(0.8, 0.6, -0.6, 0.8);
+          vec3 a = texture2D(uWaves, p * 0.09 + vec2(0.004, -0.013) * uTime).rgb * 2.0 - 1.0;
+          vec3 b = texture2D(uWaves, (ROT * p) * 0.27 + vec2(-0.011, -0.02) * uTime).rgb * 2.0 - 1.0;
+          vec3 c = texture2D(uWaves, p * 0.83 + vec2(0.031, -0.027) * uTime).rgb * 2.0 - 1.0;
+          float ripple = 0.25 + 0.75 * calm;
+          s -= a.xy / max(a.z, 0.3) * 0.3 * ripple;
+          s -= (b.xy / max(b.z, 0.3)) * ROT * 0.32 * ripple;
+          s -= c.xy / max(c.z, 0.3) * 0.22 * ripple;
+          var = 0.004 + (0.1 * max(1.0 - length(a), 0.0) + 0.1 * max(1.0 - length(b), 0.0) + 0.06 * max(1.0 - length(c), 0.0)) * ripple + dist * 0.00004;
+          return normalize(vec3(-s.x, 1.0, -s.y));
+        }
+        // Spiegelung der Sonne auf einer rauen Fläche (Beckmann-Verteilung mit Streuung var der Steigungen)
+        float sunGlint(vec3 N, vec3 V, float var) {
+          vec3 H = normalize(SKY_LIGHT + V);
+          float nh = max(dot(N, H), 0.05), nh2 = nh * nh;
+          float D = exp(-(1.0 - nh2) / (nh2 * 2.0 * var)) / (6.2832 * var * nh2 * nh2);
+          float F = 0.02 + 0.98 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
+          return min(D * F / (4.0 * max(dot(N, V), 0.15)) * 0.05, 12.0);
+        }
+        void main() {
+          vec2 p = vPos.xz;
+          vec2 m = at(p);
+          float bedD = m.x, shore = m.y;
+          float k = uFade * uReady * (1.0 - smoothstep(FADE.x, FADE.y, length(p)));
+          if (bedD < -0.7 || k <= 0.0) discard; // Land über dem Auflaufen; draussen zeichnet das Panorama
+          float rock = texture2D(uMap, mapUV(p)).b;
+          // Am Fels: Sieht der Mittelpunkt des Panoramas vor dieser Stelle schon Fels (näher als sie), liegt sie in
+          // ihm oder dahinter – dort kein Wasser. Die Tiefe hat dort auch die Wasserfläche von Blender, die Grenze ist
+          // so genau die Wasserlinie am gemalten Fels (die Karte mit 0,75 m wäre zu grob). Fürs Wasser selbst ist der
+          // Grund dort tief genug, dass es nicht aufläuft.
+          float open = 1.0, bed0 = bedD, hug = 0.0;
+          if (rock > 0.01) {
+            vec3 rel = vPos - uCenter;
+            float dc = length(rel), rk = smoothstep(0.0, 0.25, rock);
+            open = 1.0 - smoothstep(0.02 + 0.002 * dc, 0.08 + 0.006 * dc, dc - panoDist(rel)) * rk;
+            if (open <= 0.0) discard;
+            // dicht vor dem Fels (von der Kamera aus): 0,6 m weiter hinten wäre schon Fels – dort der Schaum am Fuss
+            vec2 away = normalize(vPos.xz - cameraPosition.xz) * 0.6;
+            vec3 rel2 = rel + vec3(away.x, 0.0, away.y);
+            hug = smoothstep(0.0, 0.6, length(rel2) - panoDist(rel2)) * rk;
+            bedD = mix(bedD, max(bedD, 0.25), smoothstep(0.3, 0.7, rock));
+          }
           vec3 toCam = cameraPosition - vPos;
           float dist = length(toCam);
           vec3 V = toCam / dist;
-          float bedD = WATER_Y - vPos.y; // Tiefe unter dem Meeresspiegel, an Land negativ
-          float sun = vMat.x * (bedD < 2.5 && dist < 75.0 ? objectShadow(vPos + vec3(0.0, 0.05, 0.0), 0.001) : 1.0);
-          float rock = vMat.y, shore = vMat.w;
-          // Bewuchs: Anteil wie in ground(); vMat.z ist er mal der Helligkeit unter den Kronen (Umgebungsverdeckung)
-          float veg = smoothstep(${BEACH.veg[0].toFixed(1)}, ${BEACH.veg[1].toFixed(1)}, shore) * (1.0 - rock * (1.0 - smoothstep(6.0, 12.0, shore)));
-          float ao = veg > 0.01 ? clamp(vMat.z / veg, 0.0, 1.0) : 1.0;
-          // Boden: Sand mit Rippeln (die feinen Wellen der Normal-Map, klein), Fels, Bewuchs. Durch tieferes Wasser sieht
-          // man davon kaum etwas: dort geht er in die mittlere Farbe über (spart die Texturen auf einem Grossteil des Bildes)
-          vec3 N = vec3(0.0, 1.0, 0.0), alb = vec3(0.8, 0.68, 0.53);
-          if (bedD < 4.0) {
-            vec4 fine = texture2D(uWaves, vPos.xz * 1.1);
-            float grain = fine.a;
-            // Windrippel: im Streiflicht der tiefen Sonne leuchten ihre Sonnenseiten, die anderen liegen im Schatten
-            vec3 ripple = texture2D(uWaves, vPos.xz * vec2(0.16, 0.3) + 0.5).rgb - 0.5;
-            N = normalize(normalize(vN) + vec3(fine.r - 0.5, 0.0, fine.g - 0.5) * mix(mix(0.12, 0.9, rock), 1.4, veg)
-              + vec3(ripple.x, 0.0, ripple.y) * 0.2 * (1.0 - smoothstep(20.0, 50.0, dist)) * (1.0 - rock) * (1.0 - veg) * smoothstep(-0.3, -0.6, bedD));
-            float tone = 0.6 * texture2D(uWaves, vPos.xz * 0.045 + 0.3).a + 0.4 * texture2D(uWaves, vPos.xz * 0.13 + 0.6).a; // grosse weiche Flecken
-            alb = mix(vec3(0.66, 0.53, 0.37), vec3(0.76, 0.62, 0.45), tone) * (0.95 + 0.1 * grain);
-            // Spülsaum: angeschwemmter Tang knapp über der höchsten Auflauflinie, ein lückenhaftes dunkles Band
-            float wrack = smoothstep(0.05, 0.0, abs(-bedD - 0.36 - 0.08 * (tone - 0.5))) * smoothstep(0.45, 0.6, texture2D(uWaves, vPos.xz * 0.4).a);
-            alb *= 1.0 - 0.35 * wrack * (1.0 - rock);
-            alb = mix(alb, mix(vec3(0.035, 0.032, 0.03), vec3(0.10, 0.085, 0.07), grain), rock);
-            // Boden unter dem Bewuchs: Laubstreu und Kraut in verschiedenen Grüntönen
-            float crown = texture2D(uWaves, vPos.xz * 0.07 + 0.7).a;
-            alb = mix(alb, mix(vec3(0.035, 0.07, 0.02), vec3(0.09, 0.15, 0.04), crown) * (0.8 + 0.4 * grain), veg);
-            float plain = smoothstep(2.5, 4.0, bedD);
-            alb = mix(alb, vec3(0.8, 0.68, 0.53), plain);
-            N = normalize(mix(N, vec3(0.0, 1.0, 0.0), plain));
-          }
-
-          // Wasserstand hier: Dünung und Brandung mit Laufrichtung und Phase der Wellen an dieser Stelle; am Ufer das
-          // Auflaufen im Takt der Walzen, die hier die Wasserlinie erreichen
-          float env = swellSet(vPos.xz);
-          float sharp = mix(7.0, 3.0, smoothstep(15.0, 50.0, dist)); // Front der Walze in der Ferne weicher: kein Flimmern
-          float along = vPos.x + 0.25 * vPos.z; // entlang des Strands
-          float ph = shorePhase(vPos.xz, shore, vDir.z), x = wrapPhase(ph), brk = breakGaps(ph, bedD, along);
-          float cyc = (uTime * SWELL_W - vDir.z * SWELL_K) / 6.28319; // so viele Walzen haben die Wasserlinie erreicht
+          // aufs Ufer zu: Gefälle des Abstands, nach vorn genommen (zwei Abfragen statt vier: fürs Handy)
+          vec2 dir = normalize(vec2(at(p + vec2(CELL, 0.0)).y - shore, at(p + vec2(0.0, CELL)).y - shore) + vec2(1e-6));
+          // Wellen: Fronten parallel zum Ufer, entlang des Ufers leicht versetzt (wob), in Gruppen höher und niedriger
+          float wob = (noise(vec3(p * 0.045, 0.0)) - 0.5) * 6.0;
+          float env = swellSetAt(p, uTime);
+          float sharp = mix(7.0, 3.0, smoothstep(15.0, 50.0, dist)); // Front der Walze in der Ferne weicher
+          float along = p.x;
+          float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = breakGaps(ph, bedD, along);
+          float cyc = (uTime * SWELL_W - wob * SWELL_K) / 6.28319; // so viele Walzen haben die Wasserlinie erreicht
           float u = fract(cyc), n = floor(cyc);
-          float reach = swashReach(n, along) * waveEnv(vPos.xz, n, vDir.z), reachPrev = swashReach(n - 1.0, along) * waveEnv(vPos.xz, n - 1.0, vDir.z);
+          float reach = swashReach(n, along) * waveEnv(p, n, wob), reachPrev = swashReach(n - 1.0, along) * waveEnv(p, n - 1.0, wob);
           float swash = swashLevel(u, reach), share = swashShare(bedD);
           float thick = mix(swellHeight(x, bedD, env, sharp, brk), swash, share) + bedD; // Wasser über dem Grund
-          // Trockenfallen: Wie lange ist es her, dass das Wasser hier abgeflossen ist? Frisch glänzt der Sand, dann
-          // versickert der Film; dunkel bleibt er bis über die höchsten Wellen. Am höchsten Punkt jeder Welle bleibt ein
-          // Schaumsaum liegen und zerfällt.
-          float a = -bedD, since = 9.0, residue = 0.0;
-          if (thick <= 0.0 && a > -0.3 && a < 0.6) {
-            if (a < reach && u > swashLeaves(a, reach)) since = u - swashLeaves(a, reach);
-            else if (a < reachPrev) since = u + 1.0 - swashLeaves(a, reachPrev);
-            residue = smoothstep(0.03, 0.0, abs(a - reach)) * step(SWASH_UP, u) * exp(-(u - SWASH_UP) * 2.5)
-              + smoothstep(0.03, 0.0, abs(a - reachPrev)) * exp(-(u + 1.0 - SWASH_UP) * 2.5);
-          }
-          float shine = exp(-since * 4.0);
-          float damp = 1.0 - smoothstep(0.34, 0.5, a);
-          float wetness = max(damp, shine) * (1.0 - veg);
-          alb = mix(alb, alb * alb * 1.9, 0.35 * wetness) * (1.0 - 0.35 * wetness); // nass: dunkler, satter
-          vec3 col = alb * (SUN_COL * max(dot(N, SUN), 0.0) * sun * mix(1.0, ao, 0.5 * veg) + SKY_AMB * (0.55 + 0.45 * N.y) * mix(1.0, ao, veg));
-          vec3 foamCol = vec3(0.95) * (SUN_COL * (0.16 + 0.24 * sun) + SKY_AMB * 2.2);
-          float hazeDist = dist;
-          if (thick > 0.0) {
-            // Blick bis zur Wasseroberfläche: erst auf der Höhe des Wassers hier, dann an der getroffenen Stelle
-            // nachgebessert (dort Phase und Höhe neu; Abstand zur Wasserlinie über ihr Gefälle fortgesetzt)
-            float k = (cameraPosition.y - vPos.y - thick) / max(cameraPosition.y - vPos.y, 1e-3);
-            vec2 sxz = cameraPosition.xz - toCam.xz * k;
-            float shoreS = shore + dot(sxz - vPos.xz, vDir.xy);
-            float phS = shorePhase(sxz, shoreS, vDir.z), xs = wrapPhase(phS), brkS = breakGaps(phS, bedD, along);
-            float sy = WATER_Y + mix(swellHeight(xs, bedD, env, sharp, brkS), swash, share);
-            // (die Oberfläche dort kann knapp unter dem Grund hier liegen: an der steilen Front)
-            k = min((cameraPosition.y - sy) / max(cameraPosition.y - vPos.y, 1e-3), 1.0);
-            vec3 sp = cameraPosition - toCam * k;
-            float path = dist * (1.0 - k), depth = max(sy - vPos.y, 0.0);
-            hazeDist = dist * k;
-            float var;
-            vec2 dirS = swellDir(vDir.xy, shoreS);
-            vec3 Nw = waterNormal(sp.xz, hazeDist, xs, dirS, bedD, env, sharp, brkS, var);
-            // Lichtnetz der Wellen auf dem Grund (Kaustik), schwach und nur im klaren Flachen – nicht im Auflauffilm
-            float caustic = 0.0;
-            if (depth < 2.5 && share < 0.99) {
-              float c1 = texture2D(uWaves, vPos.xz * 0.21 + vec2(0.02, -0.03) * uTime).a;
-              float c2 = texture2D(uWaves, vPos.xz * 0.17 - vec2(0.025, 0.015) * uTime).a;
-              caustic = pow(1.0 - abs(c1 - c2), 12.0) * 0.35 * exp(-depth * 1.5) * (1.0 - share);
-            }
-            // Licht am Grund: gebrochene Sonne (unter Wasser steiler) und das Licht des ganzen Himmels – bläulich,
-            // sonst wird der Sand durch das türkise Wasser olivgrün
-            vec3 bedLight = (SUN_COL * 0.35 * sun * (0.7 + caustic) + vec3(0.12, 0.16, 0.22)) * exp(-ABSORB * depth);
-            vec3 trans = exp(-ABSORB * path);
-            vec3 below = alb * bedLight * trans + DEEP * (1.0 - trans);
-            // Trübung: In der Brandung wirbeln die Walzen Sand auf – das Wasser wird milchig sandfarben bis khaki, gleich
-            // hinter einer Walze am stärksten; draussen und im dünnen Film klar
-            float breaking = smoothstep(1.8, 0.9, bedD) * mix(1.0, brkS, smoothstep(3.0, 2.2, abs(xs)));
-            float stirred = smoothstep(2.4, 0.6, bedD) * (0.4 + 0.6 * exp(min(xs, 0.0) * 0.6) * smoothstep(0.15, 0.0, xs) * smoothstep(-3.14, -2.4, xs));
-            vec3 sediment = vec3(0.62, 0.56, 0.4) * (SUN_COL * 0.3 * sun + SKY_AMB * 1.6) * 0.5;
-            below = mix(below, sediment, stirred * 0.6 * (1.0 - exp(-path * 1.5)) * (1.0 - 0.7 * share));
-            col = waterColor(Nw, var, V, below);
-            // Vor der brechenden Front liegt ihre steile, beschattete Seite: ein dunkler Streifen; scheint die Sonne
-            // durch die dünne Lippe, leuchtet sie türkis (draussen ebenso die Kämme)
-            col *= 1.0 - 0.25 * breaking * smoothstep(0.0, 0.06, xs) * smoothstep(0.4, 0.12, xs) * (1.0 - share);
-            float face = breaking * smoothstep(0.8, 0.0, xs) * smoothstep(-0.15, 0.0, xs) + 0.3 * (1.0 - breaking) * smoothstep(0.6, 1.0, cos(xs));
-            col += vec3(0.03, 0.17, 0.13) * SUN_COL * 0.14 * face * env * (0.4 + 0.6 * sun) * (1.0 - share) * smoothstep(0.0, 0.3, depth);
-            // Schaum (foamDissolve): an der brechenden Front ein schmaler, dichter weisser Kern, dahinter ein Feld aus
-            // Zellen und Fäden, das seewärts ausdünnt; in der ganzen Brandungszone ein Rest. Nicht jede Welle bricht
-            // überall (Lücken entlang der Front, von Welle zu Welle anders). Auf dem Auflauffilm Schaum, solange er
-            // hinaufläuft, vorn eine helle Kante; ein Saum um die Felsen.
-            if (bedD < 2.4) {
-              float fn = texture2D(uWaves, sp.xz * vec2(0.35, 0.5) + vec2(0.0, uTime * 0.03)).a;
-              float xf = xs + (fn - 0.5) * 0.3; // ausgefranster Kamm
-              float core = smoothstep(0.08, -0.02, xf) * smoothstep(-0.75, -0.15, xf);
-              float field = exp(min(xf, 0.0) * 0.75) * smoothstep(0.12, 0.04, xf) * smoothstep(-3.14, -2.4, xf) * 0.85;
-              float dens = (breaking * max(core * 1.15 * (1.0 - 0.5 * rock), field) + 0.16 * smoothstep(2.2, 0.8, bedD)) * (1.0 - share);
-              float rising = max(1.0 - smoothstep(SWASH_UP * 0.7, SWASH_UP * 1.3, u), smoothstep(0.9, 1.0, u)); // ohne Sprung zur nächsten Welle
-              dens = max(dens, share * (0.12 + 0.6 * rising * smoothstep(0.12, 0.01, depth))); // Schaumrolle vorn am dünnen Rand
-              float foam = foamDissolve(sp.xz, dens, dirS, share * swash * 8.0 + uTime * 0.05);
-              foam = max(foam, smoothstep(0.03, 0.004, depth) * share * (0.5 + 0.5 * rising) * (0.6 + 0.4 * fn)); // Kante vorn
-              if (rock > 0.01) foam = max(foam, rock * smoothstep(0.6, 0.0, depth) * foamDissolve(sp.xz * 1.3, 0.75, dirS, uTime * 0.06));
-              col = mix(col, foamCol * (0.92 + 0.16 * fn), clamp(foam, 0.0, 1.0) * 0.95);
-            }
-          } else {
-            // Wassergesättigter Sand knapp über dem Meeresspiegel glänzt immer; eben trockengefallener Sand trägt
-            // einen dünnen Film, der Himmel und Sonne spiegelt und versickert
-            shine = max(shine, 0.5 * smoothstep(0.1, 0.02, a));
-            if (shine > 0.01) {
-              vec3 Nf = normalize(mix(N, vec3(0.0, 1.0, 0.0), 0.75));
-              float F = 0.02 + 0.98 * pow(1.0 - max(dot(Nf, V), 0.0), 5.0);
-              vec3 R = reflect(-V, Nf);
-              vec3 film = mix(col * 0.88, beachSky(vec3(R.x, abs(R.y), R.z), 0.0), F) + SUN_COL * sunGlint(Nf, V, 0.005);
-              col = mix(col, film, shine * (1.0 - 0.6 * rock));
-            }
-            // Spülmarken: An der höchsten Linie jeder Welle bleibt ein dünner Saum aus Sand und Tang, bis eine höhere
-            // Welle ihn wegspült; an der letzten zerfällt noch ein Rest Schaum
-            // (die Marke der laufenden Welle erst, wenn sie oben angekommen ist; das Gewicht nimmt mit dem Alter stetig ab)
-            if (a > 0.0 && a < 0.6 && rock + veg < 0.99) {
-              float later = u < SWASH_UP ? swashLevel(u, reach) : -1.0, marks = 0.0;
-              for (int k = 0; k <= 5; k++) {
-                float m = n - float(k), rk = swashReach(m, along) * waveEnv(vPos.xz, m, vDir.z);
-                float w = (1.0 - (float(k) + u) * 0.16) * (k == 0 ? smoothstep(SWASH_UP, SWASH_UP + 0.05, u) : 1.0);
-                if (rk > later) marks = max(marks, smoothstep(0.012, 0.0, abs(a - rk)) * w);
+          float var;
+          vec2 lowN; // Neigung der langen Wellen (wie N.xz, ohne Kräuselwellen)
+          vec3 N = waterNormal(p, dist, x, dir, bedD, env, sharp, brk, var, lowN);
+          float fn = texture2D(uWaves, p * vec2(0.35, 0.5) + vec2(0.0, uTime * 0.03)).a;
+          vec3 rgb;
+          float a;
+          if (thick <= 0.0) {
+            // Sand frei: Wie lange ist es her, dass das Wasser hier abgeflossen ist? Frisch glänzt der Film, dann
+            // versickert er. Am höchsten Punkt jeder Welle bleibt ein Schaumsaum liegen und zerfällt; ältere Spülmarken
+            // als dünne dunkle Linien, bis eine höhere Welle sie wegspült.
+            float h = -bedD, since = 9.0, residue = 0.0, marks = 0.0;
+            if (h > -0.3 && h < 0.6) {
+              if (h < reach && u > swashLeaves(h, reach)) since = u - swashLeaves(h, reach);
+              else if (h < reachPrev) since = u + 1.0 - swashLeaves(h, reachPrev);
+              residue = smoothstep(0.03, 0.0, abs(h - reach)) * step(SWASH_UP, u) * exp(-(u - SWASH_UP) * 2.5)
+                + smoothstep(0.03, 0.0, abs(h - reachPrev)) * exp(-(u + 1.0 - SWASH_UP) * 2.5);
+              float later = u < SWASH_UP ? swashLevel(u, reach) : -1.0;
+              for (int i = 0; i <= 5; i++) {
+                float mi = n - float(i), rk = swashReach(mi, along) * waveEnv(p, mi, wob);
+                float wt = (1.0 - (float(i) + u) * 0.16) * (i == 0 ? smoothstep(SWASH_UP, SWASH_UP + 0.05, u) : 1.0);
+                if (rk > later) marks = max(marks, smoothstep(0.012, 0.0, abs(h - rk)) * wt);
                 later = max(later, rk);
               }
-              col *= 1.0 - 0.3 * marks * (1.0 - rock) * (1.0 - veg);
-              if (residue > 0.0) col = mix(col, foamCol, foamDissolve(vPos.xz, residue * 0.7, vDir.xy, 0.0) * 0.85 * (1.0 - rock));
             }
-          }
-          gl_FragColor = vec4(beachHaze(col, -V, hazeDist) * uFade, 1.0);
-        }`,
-    })));
-    terrain.renderOrder = 1; // nach Brett und Platte: was darunter liegt, verwirft der Tiefentest früh
-    group.add(terrain);
-
-    // Baumkronen (die Bäume aus treeAt, soweit man sie vor dem Dunst sieht): Laub in grossen und kleinen Ballen. Licht
-    // je Baum unten und am Wipfel aus dem Schattenwurf des Geländes, dazu die Schattenkarte: die vorderen Reihen
-    // verschatten die hinteren, die Wipfel ragen ins Licht.
-    const list = [];
-    const C = Math.ceil(80 / TREE_CELL);
-    for (let i = -C; i <= C; i++) {
-      for (let j = -C; j <= C; j++) {
-        const t = treeAt(i, j);
-        if (t && Math.hypot(t.x, t.z) < 80) list.push(t);
-      }
-    }
-    const crownVertex = `${GLSL_NOISE}
-      ${BEACH_CASTER_GLSL}
-      vec4 crownWorld(out vec3 n) {
-        float seed = instanceSeed();
-        vec3 p = crownShape(position, seed);
-        // Normale der verbeulten Kugel: aus zwei Nachbarpunkten auf der Oberfläche
-        vec3 t1 = normalize(cross(position, abs(position.y) < 0.9 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-        vec3 t2 = cross(normalize(position), t1);
-        vec3 a = crownShape(position + t1 * 0.08, seed) - p, b = crownShape(position + t2 * 0.08, seed) - p;
-        vec3 sc = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
-        n = normalize(mat3(modelMatrix * instanceMatrix) * (normalize(cross(a, b)) / (sc * sc)));
-        return modelMatrix * instanceMatrix * vec4(p, 1.0);
-      }`;
-    const crowns = noPick(new THREE.InstancedMesh(new THREE.SphereGeometry(1, 12, 9), new THREE.ShaderMaterial({
-      uniforms: beachUniforms, fog: false,
-      vertexShader: `attribute vec2 aSun;
-        varying vec3 vPos, vN, vLocal;
-        varying vec2 vSun;
-        varying float vSeed;
-        ${crownVertex}
-        void main() {
-          vec4 wp = crownWorld(vN);
-          if (dot(vN, normalize(mat3(modelMatrix * instanceMatrix) * position)) < 0.0) vN = -vN;
-          vPos = wp.xyz;
-          vLocal = position;
-          vSun = aSun;
-          vSeed = instanceSeed();
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vPos, vN, vLocal;
-        varying vec2 vSun;
-        varying float vSeed;
-        ${BEACH_GLSL}
-        ${GLSL_NOISE}
-        void main() {
-          vec3 toCam = cameraPosition - vPos;
-          float dist = length(toCam);
-          // Blattbüschel in drei Grössen: zwischen ihnen tiefe, dunkle Lücken, ihre Spitzen hell; die Normale folgt den Büscheln
-          float c1 = noise(vPos * 2.4 + vSeed * 9.0), c2 = noise(vPos * 6.0 - vSeed * 5.0), c3 = noise(vPos * 15.0);
-          float clump = c1 * 0.5 + c2 * 0.35 + c3 * 0.15;
-          float leaf = smoothstep(0.28, 0.68, clump);
-          vec3 N = normalize(vN + 0.6 * (vec3(noise(vPos * 6.0 + 2.0), noise(vPos * 6.0 + 7.0), noise(vPos * 6.0 + 4.0)) - 0.5));
-          vec3 alb = mix(vec3(0.035, 0.075, 0.02), vec3(0.09, 0.135, 0.035), vSeed) * (0.25 + 0.95 * leaf) * (0.85 + 0.3 * c3);
-          float up = vLocal.y * 0.5 + 0.5;
-          float sun = mix(vSun.x, vSun.y, smoothstep(0.2, 0.95, up)) * objectShadow(vPos + vN * 0.3, 0.0015);
-          float wrap = max(dot(N, SUN) * 0.7 + 0.3, 0.0);                    // Laub lässt etwas Licht durch
-          float occl = (0.3 + 0.7 * smoothstep(-0.3, 0.9, vLocal.y)) * (0.4 + 0.6 * leaf); // unten und in den Lücken dunkel
-          vec3 col = alb * (SUN_COL * wrap * sun * (0.55 + 0.45 * occl) + SKY_AMB * (0.6 + 0.6 * N.y) * occl);
-          // Gegenlicht: am Rand der Krone scheint die Sonne durch die Blätter
-          col += alb * SUN_COL * 0.5 * sun * pow(max(dot(-toCam / dist, SUN), 0.0), 4.0) * pow(1.0 - abs(dot(N, toCam / dist)), 2.0);
-          gl_FragColor = vec4(beachHaze(col, -toCam / dist, dist) * uFade, 1.0);
-        }`,
-    }), list.length));
-    const sunAttr = new Float32Array(list.length * 2), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
-    list.forEach((t, k) => {
-      e.set(0, hash(t.x, t.z, 6) * 6.3, 0);
-      mtx.compose(new THREE.Vector3(t.x, t.y + t.h * 0.45, t.z), q.setFromEuler(e), new THREE.Vector3(t.r, t.h * 0.55, t.r * (0.85 + 0.3 * hash(t.x, t.z, 7))));
-      crowns.setMatrixAt(k, mtx);
-      // Licht vom Gelände her unten an der Krone und am Wipfel (knapp ausserhalb der eigenen Krone gemessen)
-      sunAttr[k * 2] = sunlight(t.x + dx * t.r * 1.05, t.z + dz * t.r * 1.05, t.y + t.h * 0.35);
-      sunAttr[k * 2 + 1] = sunlight(t.x + dx * t.r * 0.5, t.z + dz * t.r * 0.5, t.y + t.h * 1.02);
-    });
-    crowns.geometry.setAttribute('aSun', new THREE.InstancedBufferAttribute(sunAttr, 2));
-    crowns.renderOrder = 1;
-    group.add(crowns);
-
-    // Palmen am Dünenrand, in Gruppen, zum Meer geneigt (dorthin, wo der Abstand zur Wasserlinie abnimmt); zwei
-    // Formen, je Palme eigene Höhe und Drehung. Bei der tiefen Sonne werfen sie lange Schatten über den Strand.
-    const palmSpots = [], pr = mulberry32(404), probe2 = [0, 0, 0, 0, 0];
-    for (let tries = 0; tries < 5000 && palmSpots.length < 64; tries++) {
-      const x = (pr() - 0.5) * 150, z = 2 - pr() * 75;
-      ground(x, z, probe2);
-      const s = probe2[3], y = probe2[0];
-      if (s < 4.5 || s > 9.5 || probe2[1] > 0.2 || Math.hypot(x, z) > 72) continue;
-      if (pr() > ss(smoothNoise(x * 0.07 + 5, z * 0.07 - 3, 2), 0.35, 0.6)) continue; // Gruppen
-      if (palmSpots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 6)) continue;
-      const gx = ground(x + 0.5, z, probe2)[3] - ground(x - 0.5, z, probe2)[3], gz = ground(x, z + 0.5, probe2)[3] - ground(x, z - 0.5, probe2)[3];
-      palmSpots.push({ x, z, y, h: 4.2 + 2.2 * pr(), turn: Math.atan2(gz, -gx) + (pr() - 0.5) * 1.2 });
-    }
-    const palmVertex = `${GLSL_NOISE}
-      ${BEACH_CASTER_GLSL}
-      attribute vec3 aPalm;
-      vec4 palmWorld() { return modelMatrix * instanceMatrix * vec4(palmShape(position, aPalm, instanceSeed()), 1.0); }`;
-    const palmMaterial = new THREE.ShaderMaterial({
-      uniforms: beachUniforms, fog: false, side: THREE.DoubleSide,
-      vertexShader: `attribute float aSunP;
-        varying vec3 vPos, vN, vInfo;
-        varying float vSun, vSeed;
-        ${palmVertex}
-        void main() {
-          vec4 wp = palmWorld();
-          vPos = wp.xyz;
-          vN = normalize(mat3(modelMatrix * instanceMatrix) * normal);
-          vInfo = aPalm;
-          vSun = aSunP;
-          vSeed = instanceSeed();
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vPos, vN, vInfo;
-        varying float vSun, vSeed;
-        ${BEACH_GLSL}
-        void main() {
-          vec3 toCam = cameraPosition - vPos;
-          float dist = length(toCam);
-          vec3 V = toCam / dist, N = normalize(vN);
-          if (dot(N, V) < 0.0) N = -N; // Wedel von beiden Seiten
-          float sun = vSun * objectShadow(vPos + N * 0.06, 0.002);
-          vec3 col;
-          if (vInfo.x < 0.5) {
-            // Stamm: graubraun mit Ringen
-            vec3 alb = vec3(0.15, 0.12, 0.09) * (0.7 + 0.3 * smoothstep(-0.3, 0.6, sin(vInfo.y * 150.0)));
-            col = alb * (SUN_COL * max(dot(N, SUN), 0.0) * sun + SKY_AMB * (0.6 + 0.4 * N.y));
+            float shine = exp(-since * 4.0) * (1.0 - rock);
+            vec3 Nf = normalize(mix(N, vec3(0.0, 1.0, 0.0), 0.8));
+            float F = 0.02 + 0.98 * pow(1.0 - max(dot(Nf, V), 0.0), 5.0);
+            vec3 R = reflect(-V, Nf);
+            float foam = foamDissolve(p, residue * 0.7, dir, 0.0) * 0.85 * (1.0 - rock);
+            // vormultipliziert: nasser Sand dunkler (a), der Film spiegelt Himmel und Sonne (dazu), Schaum deckt
+            a = clamp(0.12 * shine + 0.12 * marks * (1.0 - rock) + foam, 0.0, 1.0);
+            rgb = (pano(vec3(R.x, abs(R.y), R.z)) * max(F, 0.1) + SUN_COL * sunGlint(Nf, V, 0.005)) * shine + FOAM * foam;
+            if (a < 0.004 && dot(rgb, rgb) < 1e-5) discard;
           } else {
-            // Wedel: grün bis gelbgrün, die unteren dürr und braun; durchscheinend, wenn die Sonne dahinter steht
-            float dry = smoothstep(0.55, 0.95, fract(vInfo.z * 7.3)) * 0.9;
-            vec3 alb = mix(mix(vec3(0.05, 0.09, 0.025), vec3(0.12, 0.15, 0.045), fract(vInfo.z * 3.1 + vSeed)), vec3(0.2, 0.14, 0.07), dry);
-            alb *= 0.75 + 0.35 * smoothstep(0.0, 0.3, vInfo.y); // zum Stamm hin dunkler
-            float transl = max(dot(-N, SUN), 0.0) * (1.0 - dry * 0.6);
-            col = alb * (SUN_COL * (max(dot(N, SUN), 0.0) + transl * vec3(1.0, 1.25, 0.6)) * sun + SKY_AMB * (0.7 + 0.3 * N.y));
+            // Grund durch die Oberfläche: im Panorama an der Stelle unter dem Wasser, von den Wellen verschoben
+            float depth = thick;
+            vec2 off = N.xz * min(depth, 1.5) * 0.2;
+            vec3 below = pano(vec3(p.x + off.x, LEVEL - bedD, p.y + off.y) - uCenter);
+            // was darin schwimmt (Bild der Szene unter der Oberfläche, vormultipliziert), von den langen Wellen verschoben
+            // wie der Grund in gut 1 m Tiefe: Die Fische schwanken, bleiben aber ganz
+            if (uUnderOn > 0.5) {
+              vec4 c = uUnderView * vec4(vPos + vec3(lowN.x, 0.0, lowN.y) * 0.25, 1.0);
+              vec4 f = LOD0(uUnder, c.xy / c.w * 0.5 + 0.5);
+              below = below * (1.0 - f.a) + f.rgb;
+            }
+            // Auflauffilm über dem Sand: dünn und klar – der Sand darunter nur etwas dunkler und kühler (nass); ein
+            // deckendes, dunkles Band wirkte wie Schlamm
+            below *= mix(vec3(1.0), vec3(0.9, 0.91, 0.95), share);
+            float rising = max(1.0 - smoothstep(SWASH_UP * 0.7, SWASH_UP * 1.3, u), smoothstep(0.9, 1.0, u));
+            float back = (1.0 - rising) * share * smoothstep(0.3, 0.0, bedD); // Rückstrom: Film fliesst den Strand hinab
+            // Trübung: In der Brandung wirbeln die Walzen Sand auf – milchig, gleich hinter einer Walze am stärksten
+            float breaking = smoothstep(1.8, 0.9, bedD) * mix(1.0, brk, smoothstep(3.0, 2.2, abs(x)));
+            float stirred = smoothstep(2.4, 0.6, bedD) * (0.4 + 0.6 * exp(min(x, 0.0) * 0.6) * smoothstep(0.15, 0.0, x) * smoothstep(-3.14, -2.4, x));
+            below = mix(below, SEDIMENT, stirred * 0.5 * (1.0 - exp(-depth * 1.5)) * (1.0 - 0.7 * share));
+            float F = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
+            vec3 R = reflect(-V, N);
+            vec3 refl = pano(vec3(R.x, abs(R.y), R.z));
+            vec3 col = mix(below, refl, max(F, 0.1 * share)) + SUN_COL * sunGlint(N, V, var); // der Film glänzt
+            // Rückstrom: Das Wasser läuft beschleunigt hangab und sammelt sich in flachen Rinnen – helle und dunkle
+            // Streifen in Fliessrichtung, die mit ihm seewärts gleiten
+            float down = max(u - SWASH_UP, 0.0);
+            vec2 rq = vec2(dot(p, vec2(-dir.y, dir.x)), dot(p, dir) + down * down * 6.0);
+            float rill = texture2D(uWaves, rq * vec2(1.3, 0.38)).a * 0.6 + texture2D(uWaves, rq * vec2(3.1, 0.9) + 0.4).a * 0.4;
+            float thin = smoothstep(0.12, 0.01, depth);   // im dünnen Film deutlicher
+            col *= 1.0 - 0.08 * back * thin * smoothstep(0.5, 0.72, rill);
+            col += refl * 0.08 * back * thin * smoothstep(0.55, 0.78, 1.0 - rill);
+            // Vor der brechenden Front ihre steile, beschattete Seite: ein dunkler Streifen; die dünne Lippe leuchtet
+            // türkis im Gegenlicht (draussen ebenso die Kämme)
+            col *= 1.0 - 0.25 * breaking * smoothstep(0.0, 0.06, x) * smoothstep(0.4, 0.12, x) * (1.0 - share);
+            float face = breaking * smoothstep(0.8, 0.0, x) * smoothstep(-0.15, 0.0, x);
+            col += LIP * face * env * (1.0 - share) * smoothstep(0.0, 0.3, depth);
+            // Dünung, die noch nicht bricht: Der Kamm leuchtet, wo das Licht durch seine dünne Spitze fällt, das Tal
+            // davor liegt etwas dunkler – so sieht man von oben die Wellen heranrollen
+            float swell = (1.0 - breaking) * (1.0 - share) * smoothstep(0.5, 1.6, bedD) * env;
+            col *= 1.0 - 0.12 * swell * smoothstep(0.1, 0.9, -cos(x));
+            col += CREST * swell * smoothstep(0.45, 1.0, cos(x)) * smoothstep(-0.2, 0.6, sin(x + 0.6));
+            // Schaum: an der brechenden Front ein schmaler, dichter Kern, dahinter ein Feld aus Zellen und Fäden, das
+            // seewärts ausdünnt; in der Brandungszone ein Rest. Auf dem Auflauffilm Schaum, solange er hinaufläuft,
+            // vorn eine helle Kante; Gischt an den Felsen.
+            float xf = x + (fn - 0.5) * 0.3;
+            float core = smoothstep(0.08, -0.02, xf) * smoothstep(-0.75, -0.15, xf);
+            float field = exp(min(xf, 0.0) * 0.65) * smoothstep(0.12, 0.04, xf) * smoothstep(-3.14, -2.3, xf) * 0.62;
+            float dens = (breaking * max(core * 1.15 * (1.0 - 0.5 * rock), field) + 0.17 * smoothstep(2.2, 0.8, bedD)) * (1.0 - share);
+            dens *= 1.0 - 0.55 * smoothstep(0.3, 0.8, rock); // über flachem Fels kein Teppich
+            // auf dem Film: hinauf eine Schaumrolle vorn; hinab zerrissene Schaumreste, in Fliessrichtung gezogen
+            dens = max(dens, share * (0.1 + 0.6 * rising * smoothstep(0.12, 0.01, depth)) + back * 0.22 * smoothstep(0.2, 0.03, depth));
+            float foam = foamDissolve(p, dens, dir, share * swash * 8.0 + uTime * 0.05 - back * down * 2.0);
+            foam = max(foam, smoothstep(0.03, 0.004, depth) * share * rising * (0.6 + 0.4 * fn)); // helle Kante nur hinauf
+            // an den Felsen: Brandung im Takt der Wellen – kommt eine an, schäumt es am Fels auf, dann zerfällt der
+            // Schaum zu Fäden und läuft ab; dicht am Fels (flach) immer etwas Schaum
+            float surge = smoothstep(-0.5, 0.6, cos(x + 0.4)) * env, d0 = depth - bedD + bed0;
+            // am Fuss ein Saum, mal breiter, mal unterbrochen; kommt eine Welle an, schäumt es auf
+            float gaps = texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r;
+            float lace = max(hug * mix(smoothstep(0.25, 0.7, gaps), 1.0, surge), 0.5 * surge * smoothstep(0.4, 0.9, rock) * smoothstep(0.9, 0.2, d0));
+            foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
+            col = mix(col, FOAM * (0.86 + 0.16 * fn), clamp(foam, 0.0, 1.0) * mix(0.75, 0.95, smoothstep(0.4, 0.9, dens)));
+            // Rand des Films: hinauf eine klare Kante, hinab versickert das Wasser fleckig (die Stellen, wo der Sand
+            // schon frei liegt, wandern nicht als Linie zurück)
+            float seep = back * 0.03 * texture2D(uFoam, p * 0.35).r;
+            a = smoothstep(0.0, 0.012 + 0.02 * back, depth - seep) * open;
+            rgb = col * a;
           }
-          gl_FragColor = vec4(beachHaze(col, -V, dist) * uFade, 1.0);
+          gl_FragColor = vec4(rgb * k, a * k);
         }`,
-    });
-    const palms = [0, 1].map((variant) => {
-      const spots = palmSpots.filter((_, k) => k % 2 === variant);
-      const mesh = noPick(new THREE.InstancedMesh(createPalmGeometry(11 + variant * 7), palmMaterial, spots.length));
-      const sunP = new Float32Array(spots.length);
-      spots.forEach((p, k) => {
-        e.set(0, p.turn, 0);
-        mtx.compose(new THREE.Vector3(p.x, p.y - 0.05, p.z), q.setFromEuler(e), new THREE.Vector3(p.h, p.h, p.h));
-        mesh.setMatrixAt(k, mtx);
-        sunP[k] = sunlight(p.x, p.z, p.y + p.h * 0.85); // Schatten der Dünen auf der Krone
+  });
+  const plane = new THREE.Mesh(geo, material);
+  plane.frustumCulled = false;
+  plane.renderOrder = 4;
+  // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
+  // gerade gezeichnet wird (auf dem Handy halb so gross; Fische sind klein, das Bild darf weich sein)
+  const clearColor = new THREE.Color(), size = new THREE.Vector2();
+  plane.onBeforeRender = (r, scene, cam) => {
+    const on = under.scene.children.some((o) => o.visible);
+    material.uniforms.uUnderOn.value = on ? 1 : 0;
+    if (!on) return;
+    const into = r.getRenderTarget();
+    if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
+    size.multiplyScalar(IS_MOBILE ? 0.5 : 1).round().max(new THREE.Vector2(1, 1));
+    if (!under.target) {
+      under.target = new THREE.WebGLRenderTarget(size.x, size.y, {
+        type: HDR_TYPE, samples: r.capabilities.isWebGL2 && !IS_MOBILE ? (into?.samples ?? 0) : 0,
       });
-      mesh.geometry.setAttribute('aSunP', new THREE.InstancedBufferAttribute(sunP, 1));
-      mesh.renderOrder = 1;
-      group.add(mesh);
-      return { mesh, spots };
-    });
-
-    // Felsblöcke auf der Landzunge und in der Brandung (wo das Gelände Fels ist), halb im Sand versenkt; drei Formen.
-    // Im Wasser zeigen sie die Wasserfarbe, an der Wasserlinie schäumt es, darüber sind sie nass und mit Algen
-    // bewachsen, oben trocken mit Flechten.
-    const rockSpots = [], rr = mulberry32(505);
-    for (let tries = 0; tries < 8000 && rockSpots.length < 140; tries++) {
-      const x = -40 + rr() * 80, z = -40 + rr() * 52;
-      ground(x, z, probe2);
-      if (probe2[1] < 0.5 || Math.hypot(x, z) > 72) continue;
-      const size = 0.45 + 2.0 * rr() ** 2;
-      if (probe2[0] + 0.35 * size < W + 0.15) continue; // ragt nicht deutlich aus dem Wasser
-      if (rockSpots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < (p.size + size) ** 2 * 0.5)) continue;
-      rockSpots.push({ x, z, y: probe2[0], size, turn: rr() * 6.3, tilt: (rr() - 0.5) * 0.5 });
-    }
-    const rockMaterial = new THREE.ShaderMaterial({
-      uniforms: beachUniforms, fog: false,
-      vertexShader: `attribute vec2 aSunR;
-        attribute vec4 aWaterR;
-        varying vec3 vPos, vN, vLocal;
-        varying vec4 vWater;
-        varying vec2 vCenter;
-        varying float vSun, vSeed, vBed;
-        float instanceSeed() { return fract(sin(dot(instanceMatrix[3].xz, vec2(12.9898, 78.233))) * 43758.5453); }
-        void main() {
-          vec4 wp = modelMatrix * instanceMatrix * vec4(position, 1.0);
-          vPos = wp.xyz;
-          vN = normalize(mat3(modelMatrix * instanceMatrix) * normal);
-          vLocal = position;
-          vSun = aSunR.x;
-          vBed = aSunR.y;
-          vWater = aWaterR;
-          vCenter = (modelMatrix * instanceMatrix[3]).xz;
-          vSeed = instanceSeed();
-          gl_Position = projectionMatrix * viewMatrix * wp;
-        }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vPos, vN, vLocal;
-        varying vec4 vWater;
-        varying vec2 vCenter;
-        varying float vSun, vSeed, vBed;
-        ${BEACH_GLSL}
-        ${GLSL_NOISE}
-        void main() {
-          vec3 toCam = cameraPosition - vPos;
-          float dist = length(toCam);
-          vec3 V = toCam / dist;
-          // Gestein: Schichten und Risse, Körnung; die Normale folgt den Unebenheiten
-          vec3 q = vLocal * 3.0 + vSeed * 11.0;
-          float grain = noise(vPos * 9.0), crevice = smoothstep(0.32, 0.18, noise(q * 1.7)) * smoothstep(0.4, 0.25, noise(q * 3.9 + 2.0));
-          float strata = 0.5 + 0.5 * sin(vPos.y * 7.0 + noise(q) * 6.0);
-          vec3 N = normalize(vN + 0.5 * (vec3(noise(q * 2.1), noise(q * 2.1 + 5.0), noise(q * 2.1 + 9.0)) - 0.5));
-          vec3 alb = mix(vec3(0.075, 0.065, 0.055), vec3(0.15, 0.13, 0.105), noise(q * 0.7)) * (0.75 + 0.35 * grain) * (0.8 + 0.25 * strata);
-          alb *= 1.0 - 0.6 * crevice; // Spalten
-          // Wasserstand an der Stelle, wie ihn das Gelände daneben zeichnet (Phase mit Refraktion, Brandung, Auflaufen;
-          // Abstand zur Wasserlinie über ihr Gefälle von der Mitte des Blocks fortgesetzt), und die Zonen am Fels
-          float env = swellSet(vPos.xz);
-          float ph = shorePhase(vPos.xz, vWater.x + dot(vPos.xz - vCenter, vWater.zw), vWater.y), x = wrapPhase(ph);
-          float cyc = (uTime * SWELL_W - vWater.y * SWELL_K) / 6.28319;
-          float reach = swashReach(floor(cyc), vPos.x + 0.25 * vPos.z) * waveEnv(vPos.xz, floor(cyc), vWater.y);
-          float level = WATER_Y + mix(swellHeight(x, vBed, env, 3.0, breakGaps(ph, vBed, vPos.x + 0.25 * vPos.z)), swashLevel(fract(cyc), reach), swashShare(vBed)) + 0.03;
-          float h = vPos.y - level;
-          float wet = 1.0 - smoothstep(0.1, 0.55, h);                        // Spritzwasser: nass und dunkel
-          alb = mix(alb, vec3(0.03, 0.045, 0.025), smoothstep(0.35, 0.0, abs(h - 0.05)) * 0.8 * step(0.4, noise(q * 1.3))); // Algen
-          alb = mix(alb, vec3(0.22, 0.17, 0.07), smoothstep(0.75, 0.95, N.y) * smoothstep(0.6, 1.0, h) * smoothstep(0.55, 0.7, noise(q * 1.1 + 3.0))); // Flechten
-          alb *= 1.0 - 0.5 * wet;
-          float sun = vSun * objectShadow(vPos + vN * 0.15, 0.0015);
-          float occl = 0.55 + 0.45 * smoothstep(-0.3, 0.6, vLocal.y);
-          vec3 col = alb * (SUN_COL * max(dot(N, SUN), 0.0) * sun + SKY_AMB * (0.5 + 0.5 * N.y) * occl);
-          // nass glänzend
-          vec3 R = reflect(-V, N);
-          col += wet * (beachSky(vec3(R.x, abs(R.y), R.z), 0.0) * 0.05 + SUN_COL * sunGlint(N, V, 0.03) * sun * 0.12);
-          // unter Wasser: durch das Wasser gesehen, je tiefer, desto blauer
-          // (mit der Spiegelung der Wasserfläche darüber)
-          if (h < 0.0) {
-            vec3 trans = exp(-ABSORB * (-h) * 2.5);
-            col = waterColor(vec3(0.0, 1.0, 0.0), 0.004, V, col * trans + DEEP * (1.0 - trans));
-          }
-          // Schaum, wo die Wellen auf den Fels schlagen
-          float fn = texture2D(uWaves, vPos.xz * 0.5 + vec2(vPos.y * 0.3, uTime * 0.05)).a;
-          float wash = smoothstep(0.8, 0.0, abs(x));   // Gischt, wenn eine Welle anläuft
-          float foam = foamDissolve(vPos.xz + vec2(vPos.y * 0.7, 0.0), smoothstep(0.07 + 0.08 * wash, 0.0, abs(h - 0.03)) * (0.4 + 0.4 * wash) + 0.08 * fn, vec2(0.0, 1.0), uTime * 0.04);
-          col = mix(col, vec3(0.95) * (SUN_COL * (0.16 + 0.24 * sun) + SKY_AMB * 2.2), foam * 0.9);
-          gl_FragColor = vec4(beachHaze(col, -V, dist) * uFade, 1.0);
-        }`,
-    });
-    const rocks = [0, 1, 2].map((variant) => {
-      const spots = rockSpots.filter((_, k) => k % 3 === variant);
-      const mesh = noPick(new THREE.InstancedMesh(createRockGeometry(variant + 1), rockMaterial, spots.length));
-      const sunR = new Float32Array(spots.length * 2), waterR = new Float32Array(spots.length * 4);
-      spots.forEach((p, k) => {
-        // Wasser an der Mitte des Blocks: Abstand zur Wasserlinie, Ausgleich der Phase und Richtung aufs Ufer (wie aDir)
-        const sc = ground(p.x, p.z, probe2)[3];
-        waterR.set([sc, phaseOffset(p.x, p.z, sc), ...shoreDir(p.x)], k * 4);
-        e.set(p.tilt, p.turn, p.tilt * 0.6);
-        mtx.compose(new THREE.Vector3(p.x, p.y - 0.15 * p.size, p.z), q.setFromEuler(e), new THREE.Vector3(p.size, p.size * (0.8 + 0.4 * hash(p.x, p.z, 8)), p.size));
-        mesh.setMatrixAt(k, mtx);
-        sunR.set([sunlight(p.x, p.z, p.y + p.size * 0.6), W - p.y], k * 2);
-      });
-      mesh.geometry.setAttribute('aSunR', new THREE.InstancedBufferAttribute(sunR, 2));
-      mesh.geometry.setAttribute('aWaterR', new THREE.InstancedBufferAttribute(waterR, 4));
-      mesh.renderOrder = 1;
-      group.add(mesh);
-      return mesh;
-    });
-
-    // Schattenkarte: Kronen, Palmen und Felsen aus Sonnenrichtung, einmal beim Bauen (sie stehen still; das Wiegen im Wind ist
-    // zu klein, um zu zählen). Gelände und Wasser, Kronen, Palmen und Felsen fragen sie ab: lange, scharfe Abendschatten.
-    const casters = new THREE.Scene(), box = new THREE.Box3();
-    const proxy = (source, vertexShader, side) => {
-      const m = new THREE.InstancedMesh(source.geometry, new THREE.ShaderMaterial({
-        uniforms: beachUniforms, vertexShader, fragmentShader: SHADOW_DEPTH_FRAGMENT, side,
-      }), source.count);
-      m.instanceMatrix = source.instanceMatrix;
-      m.frustumCulled = false;
-      casters.add(m);
-    };
-    proxy(crowns, `${crownVertex}
-      void main() { vec3 n; gl_Position = projectionMatrix * viewMatrix * crownWorld(n); }`, THREE.FrontSide);
-    for (const { mesh } of palms) proxy(mesh, `${palmVertex}
-      void main() { gl_Position = projectionMatrix * viewMatrix * palmWorld(); }`, THREE.DoubleSide);
-    for (const mesh of rocks) proxy(mesh, `void main() { gl_Position = projectionMatrix * viewMatrix * modelMatrix * instanceMatrix * vec4(position, 1.0); }`, THREE.FrontSide);
-    for (const p of rockSpots) box.expandByPoint(new THREE.Vector3(p.x - 2 * p.size, p.y - p.size, p.z - 2 * p.size)).expandByPoint(new THREE.Vector3(p.x + 2 * p.size, p.y + 1.5 * p.size, p.z + 2 * p.size));
-    for (const t of list) box.expandByPoint(new THREE.Vector3(t.x - t.r, t.y, t.z - t.r)).expandByPoint(new THREE.Vector3(t.x + t.r, t.y + t.h, t.z + t.r));
-    for (const p of palmSpots) box.expandByPoint(new THREE.Vector3(p.x - 0.8 * p.h, p.y, p.z - 0.8 * p.h)).expandByPoint(new THREE.Vector3(p.x + 0.8 * p.h, p.y + p.h * 1.2, p.z + 0.8 * p.h));
-    bakeShadowMap(casters, box, BEACH.sun, BEACH.shadowSize, beachUniforms);
-
-    // Himmelskugel: Himmel und, wo kein Gelände ist, das tiefe Meer bis zum Horizont. Nicht in der Spiegelung der
-    // Platte (wie der Hintergrund).
-    const sky = noPick(new THREE.Mesh(new THREE.SphereGeometry(79, 48, 24), new THREE.ShaderMaterial({
-      side: THREE.BackSide, depthWrite: false, fog: false,
-      uniforms: beachUniforms,
-      vertexShader: `varying vec3 vDir; void main(){
-        vec4 wp = modelMatrix * vec4(position, 1.0);
-        vDir = wp.xyz - cameraPosition;
-        gl_Position = projectionMatrix * viewMatrix * wp;
-      }`,
-      fragmentShader: `uniform float uFade;
-        varying vec3 vDir;
-        ${BEACH_GLSL}
-        void main() {
-          vec3 d = normalize(vDir), col;
-          if (d.y < 0.0 && cameraPosition.y > WATER_Y) {
-            float t = min((cameraPosition.y - WATER_Y) / -d.y, 1e4);
-            vec2 p = cameraPosition.xz + d.xz * t;
-            float var;
-            vec3 N = waterNormal(p, t, wrapPhase(swellPhase(p)), SWELL, 100.0, swellSet(p), 3.0, 1.0, var);
-            col = beachHaze(waterColor(N, var, -d, DEEP), d, t);
-          } else {
-            col = beachSky(d, 1.0);
-          }
-          gl_FragColor = vec4(col * uFade, 0.0); // Alpha 0 = Himmel (siehe Hintergrund)
-        }`,
-    })));
-    sky.renderOrder = 1001; // nach dem Hintergrund, den sie überdeckt
-    group.add(sky);
-    return { sky };
-  }
-
-  let parts = null;
-  return {
-    group,
-    /** Erst bauen, wenn der Strand gewählt wird (kostet einen Moment Rechenzeit; die meisten wählen ihn nie). */
-    prepare() {
-      if (parts) return;
-      parts = build();
-      // Shader gleich übersetzen, nicht erst im ersten Bild nach dem Einblenden
-      const visible = group.visible;
-      group.visible = true;
-      renderer.compile(scene, camera);
-      group.visible = visible;
-    },
-    get ready() { return !!parts; },
-    setFade(k) {
-      beachUniforms.uFade.value = k;
-      if (k > 0) this.prepare();
-      group.visible = k > 0;
-    },
-    update(t) {
-      beachUniforms.uTime.value = t;
-      parts.sky.position.copy(camera.position);
-    },
+    } else if (under.target.width !== size.x || under.target.height !== size.y) under.target.setSize(size.x, size.y);
+    r.getClearColor(clearColor);
+    const clearAlpha = r.getClearAlpha();
+    r.setRenderTarget(under.target);
+    r.setClearColor(0x000000, 0);
+    // clear() löscht nur, was gerade beschrieben werden darf; zuletzt war oft ein Material ohne depthWrite dran (auch
+    // das Wasser selbst). Blieb die Tiefe der Fische vom vorigen Bild stehen, schnitt sie die bewegten Fische ab.
+    r.state.buffers.depth.setMask(true);
+    r.state.buffers.color.setMask(true);
+    r.clear();
+    r.render(under.scene, cam);
+    r.setRenderTarget(into);
+    r.setClearColor(clearColor, clearAlpha);
+    material.uniforms.uUnder.value = under.target.texture;
+    material.uniforms.uUnderView.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   };
-})();
-scene.add(beach.group);
+  plane.userData.dispose = () => under.target?.dispose();
+  return plane;
+}
 
 /**
- * Hintergrund umschalten (Knopf unten rechts, Taste H; der Reihe nach, order): Milchstrasse, Sonnensystem und Strand
- * aus dem Code, dazu jede Skybox aus Blender im Register (backgrounds/skies.js, SKYBOX). Die Wahl bleibt gespeichert.
- * Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurchsichtige Teile (Planeten,
- * Gelände des Strands) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten. Darum ist immer
+ * Fischkörper (Länge 1 entlang +x, Kopf bei 0, Schwanzwurzel bei 1, dann die gegabelte Schwanzflosse bis 1.3; seitlich
+ * flach): aUV = (Lage entlang 0 … 1.3, Höhe −1 … 1, Seite −1 … 1). Höhe und Breite gibt die Instanz.
+ */
+function createFishGeometry() {
+  const along = 10, around = 8, pos = [], uv = [], idx = [];
+  const prof = (u) => Math.sin(Math.PI * (0.06 + 0.94 * u)) ** 0.75 * (1 - 0.55 * u * u); // Umriss von der Seite
+  for (let i = 0; i <= along; i++) {
+    const u = i / along, h = 0.5 * prof(u), w = 0.22 * prof(u) * (1 - 0.4 * u);
+    for (let j = 0; j < around; j++) {
+      const a = (j / around) * 2 * Math.PI, c = Math.cos(a), s = Math.sin(a);
+      pos.push(u, h * s, w * c);
+      uv.push(u, s, c);
+    }
+  }
+  for (let i = 0; i < along; i++) {
+    for (let j = 0; j < around; j++) {
+      const a = i * around + j, b = i * around + (j + 1) % around;
+      idx.push(a, a + around, b, b, a + around, b + around);
+    }
+  }
+  // Schwanzflosse (gegabelt) und Rückenflosse: flache Dreiecke, beidseitig
+  const fin = (pts, uvs) => { const o = pos.length / 3; pts.forEach((p, k) => { pos.push(...p); uv.push(...uvs[k]); }); idx.push(o, o + 1, o + 2); };
+  fin([[0.97, 0, 0], [1.3, 0.36, 0], [1.18, 0, 0]], [[1.0, 0, 0], [1.3, 1, 0], [1.2, 0, 0]]);
+  fin([[0.97, 0, 0], [1.18, 0, 0], [1.3, -0.36, 0]], [[1.0, 0, 0], [1.2, 0, 0], [1.3, -1, 0]]);
+  fin([[0.3, 0.38, 0], [0.62, 0.52, 0], [0.82, 0.3, 0]], [[0.3, 1.1, 0], [0.62, 1.3, 0], [0.82, 1.1, 0]]);
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  geo.setAttribute('aUV', new THREE.Float32BufferAttribute(uv, 3));
+  geo.setIndex(idx);
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/**
+ * Wo Fische schwimmen dürfen, als Abstandsfeld (m): positiv im offenen Wasser – mindestens minDepth tief, kein Fels –
+ * mit dem Abstand zur nächsten Stelle, die das nicht ist, dort negativ. Karte: Tiefe und Fels je Zelle (Zeile 0 bei
+ * z = −extent). Abstand nach Chamfer (Schritte 1 und √2 in zwei Durchläufen, auf etwa 8 % genau); sdf und depth lesen
+ * bilinear an (x, z) (Spiel). Ohne three.js (tools/blender/out/arbeit/fischtest.mjs prüft es in Node).
+ */
+function fishField(depth, rock, size, extent, minDepth) {
+  const cell = (2 * extent) / size, n = size * size;
+  const dist = (inside) => {
+    const d = new Float32Array(n);
+    for (let i = 0; i < n; i++) d[i] = inside(i) ? 1e9 : 0;
+    const relax = (i, j, w) => { if (d[j] + w < d[i]) d[i] = d[j] + w; };
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      if (x > 0) relax(i, i - 1, 1);
+      if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, Math.SQRT2); if (x < size - 1) relax(i, i - size + 1, Math.SQRT2); }
+    }
+    for (let y = size - 1; y >= 0; y--) for (let x = size - 1; x >= 0; x--) {
+      const i = y * size + x;
+      if (x < size - 1) relax(i, i + 1, 1);
+      if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, Math.SQRT2); if (x > 0) relax(i, i + size - 1, Math.SQRT2); }
+    }
+    return d;
+  };
+  const open = (i) => depth[i] >= minDepth && rock[i] < 0.01;
+  const toShallow = dist(open), toOpen = dist((i) => !open(i));
+  const sdf = new Float32Array(n);
+  for (let i = 0; i < n; i++) sdf[i] = (open(i) ? toShallow[i] - 0.5 : 0.5 - toOpen[i]) * cell;
+  const bilinear = (f, x, z) => {
+    const u = Math.min(Math.max((x + extent) / cell - 0.5, 0), size - 1.001), v = Math.min(Math.max((z + extent) / cell - 0.5, 0), size - 1.001);
+    const i = Math.floor(u), j = Math.floor(v), a = u - i, b = v - j, k = j * size + i;
+    return (f[k] * (1 - a) + f[k + 1] * a) * (1 - b) + (f[k + size] * (1 - a) + f[k + size + 1] * a) * b;
+  };
+  return { sdf: (x, z) => bilinear(sdf, x, z), depth: (x, z) => bilinear(depth, x, z) };
+}
+
+/**
+ * Schwarmverhalten (ohne three.js). Jeder Schwarm hat einen unsichtbaren Leitfisch, der um das Brett patrouilliert –
+ * Fische sammeln sich an Bauten im Wasser –, je Schwarm in eigenem Abstand zur Kante (meist nahe), mal näher, mal
+ * weiter, mit leichtem Schlängeln. Vor flachem Wasser, Fels, Brett und dem Rand der Reichweite weicht er mit Fühlern aus
+ * (voraus, schräg links und rechts; die Seite bleibt, bis es frei ist); stösst er an, kehrt die Patrouille um. Andere
+ * Schwärme meidet er. Die Fische folgen ihm auf eigenen Plätzen im Schwarm, die langsam wandern, halten Abstand
+ * voneinander und schwimmen immer in Blickrichtung: Die Drehrate ändert sich stetig (sprang sie, zitterten die Fische),
+ * der Körper biegt sich in der Kurve, das Tempo folgt mit begrenzter Beschleunigung. Der Schwanzschlag folgt dem Tempo
+ * (schneller = häufiger), die Stärke dem Schub; die Tiefe folgt sanft der gewünschten, nie näher als 0,4 m am Grund.
+ * Nie ins Flache: Wer doch zu nahe kommt, wird zurückgeschoben.
+ * opt: seed, area (Mitte x, z, Halbachsen: Reichweite), keepOut (halbe Kante des Bretts samt Abstand), schools (count,
+ * length, speed, depth). setField(fishField) – vorher steht alles still (advance gibt null). advance(t) rechnet in
+ * festen Schritten bis t und gibt den Anteil des nächsten Schritts; neu begonnen (erstes Bild, Zeit zurück, Lücke über
+ * WARM s) wird WARM s vor t, das Ergebnis hängt so nur von t ab (Vergleichsbilder mit angehaltener Zeit, ?t=).
+ * sample(k, alpha, out): Fisch k,
+ * zwischen den letzten zwei Schritten gemischt – x, z, Richtung (Winkel, von +x nach +z), Tempo, Tiefe unter der
+ * Oberfläche, Biegung (Krümmung × Länge), Phase und Stärke des Schwanzschlags, Neigung, Drehrate.
+ */
+function createFishSim(opt) {
+  // WARM: Vorlauf nach einem Neubeginn (s). Vorher wurde ab Sekunde 0 nachgerechnet – bis zu 3600 Schritte in einem
+  // Bild, ein Ruck beim Wählen des Hintergrunds; 5 s sind 150 Schritte, die Schwärme sind dann schon unterwegs
+  const H = 1 / 30, TAU = Math.PI * 2, F = 10, WARM = 5;
+  const [cx, cz, rx, rz] = opt.area, B = opt.keepOut;
+  const wrap = (a) => a - TAU * Math.floor((a + Math.PI) / TAU);
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  let field = null;
+  // Abstand zur Kante des Bretts (Quadrat mit halber Kante B), zum Rand der Reichweite (Ellipse, genähert), zu allem
+  const board = (x, z) => {
+    const dx = Math.abs(x) - B, dz = Math.abs(z) - B;
+    return Math.hypot(Math.max(dx, 0), Math.max(dz, 0)) + Math.min(Math.max(dx, dz), 0);
+  };
+  const reach = (x, z) => (1 - Math.hypot((x - cx) / rx, (z - cz) / rz)) * Math.min(rx, rz);
+  const clear = (x, z) => Math.min(field.sdf(x, z), board(x, z), reach(x, z));
+  const grad = (f, x, z) => {
+    const e = 0.4, gx = f(x + e, z) - f(x - e, z), gz = f(x, z + e) - f(x, z - e), l = Math.hypot(gx, gz) || 1;
+    return [gx / l, gz / l];
+  };
+
+  // Schwärme und Fische (fest): Plätze im Schwarm (vorn, seitlich, Tiefe; × Radius), wie die Plätze wandern
+  const rand0 = mulberry32(opt.seed);
+  const schools = opt.schools.map((s, k) => ({
+    s, cruise: s.speed, radius: 0.5 + 0.55 * s.length * Math.sqrt(s.count),
+    wander: [0.13 + 0.12 * rand0(), 0.37 + 0.25 * rand0(), rand0() * TAU, rand0() * TAU, 0.05 + 0.06 * rand0(), rand0() * TAU],
+    pref: 0.6 + 6 * ((k + rand0()) / opt.schools.length) ** 1.6,
+  }));
+  const fish = [];
+  schools.forEach((sc, k) => {
+    for (let i = 0; i < sc.s.count; i++) {
+      const a = rand0() * TAU, r = Math.sqrt(rand0());
+      fish.push({
+        school: k, len: sc.s.length * (0.85 + 0.3 * rand0()),
+        slot: [Math.cos(a) * r * 1.2 - 0.35, Math.sin(a) * r * 0.85, (rand0() - 0.5) * 0.4],
+        drift: [rand0() * TAU, rand0() * TAU, 0.11 + 0.1 * rand0(), 0.07 + 0.08 * rand0()],
+      });
+    }
+  });
+  const N = fish.length;
+  let cur = new Float64Array(N * F), prev = new Float64Array(N * F), simT = null;
+  const lead = schools.map(() => ({ x: 0, z: 0, a: 0, w: 0, v: 0, dir: 1, avoid: 0, against: 0 }));
+
+  // Neubeginn zur Zeit start: Startplätze je nach start verschieden (sonst begänne jede Wahl gleich), aber nur von ihm
+  // abhängig
+  function reset(start) {
+    const rand = mulberry32(opt.seed + 101 + Math.floor(start));
+    lead.forEach((L, k) => {
+      const sc = schools[k];
+      // Start: frei genug, nahe am Brett, möglichst weit weg von den übrigen Schwärmen; entlang der Kante
+      let best = [0, B + 3], bestScore = -Infinity;
+      for (let tries = 0; tries < 300; tries++) {
+        const a = rand() * TAU, r = B + 1 + rand() * 9, x = Math.cos(a) * r, z = Math.sin(a) * r;
+        if (clear(x, z) < sc.radius + 1) continue;
+        let score = 0;
+        for (let j = 0; j < k; j++) score = Math.min(score, Math.hypot(x - lead[j].x, z - lead[j].z) - 8);
+        if (score > bestScore) { bestScore = score; best = [x, z]; }
+      }
+      [L.x, L.z] = best;
+      L.dir = k % 2 ? 1 : -1;
+      const [gx, gz] = grad(board, L.x, L.z);
+      Object.assign(L, { a: Math.atan2(gx * L.dir, -gz * L.dir), w: 0, v: sc.cruise, avoid: 0, against: 0 });
+    });
+    fish.forEach((f, i) => {
+      const L = lead[f.school], sc = schools[f.school], o = i * F;
+      const c = Math.cos(L.a), s = Math.sin(L.a), fx = f.slot[0] * sc.radius, fz = f.slot[1] * sc.radius;
+      cur.set([L.x + c * fx - s * fz, L.z + s * fx + c * fz, L.a, sc.cruise, sc.s.depth + f.slot[2], 0, rand() * TAU, 0.6, 0, 0], o);
+    });
+    prev.set(cur);
+  }
+
+  function stepLead(L, sc, k, t) {
+    const w = sc.wander;
+    // gewünschte Richtung: entlang der Kante (Patrouille), zum bevorzugten Abstand hin, dazu Schlängeln
+    const [gx, gz] = grad(board, L.x, L.z);
+    const off = clamp((board(L.x, L.z) - sc.pref - 2 * Math.sin(t * w[4] + w[5])) / 3, -1, 1);
+    const wig = 0.45 * (Math.sin(t * w[0] + w[2]) + 0.6 * Math.sin(t * w[1] + w[3]));
+    let want = wrap(Math.atan2(gx * L.dir - gz * off * 0.7, -gz * L.dir - gx * off * 0.7) + wig - L.a) * 0.6;
+    // Fühler
+    const look = 1.5 + 1.5 * L.v, need = 0.5 * sc.radius + 0.4;
+    const probe = (da, f) => clear(L.x + Math.cos(L.a + da) * look * f, L.z + Math.sin(L.a + da) * look * f);
+    const cL = probe(0.6, 0.8), cR = probe(-0.6, 0.8), worst = Math.min(probe(0, 1), cL, cR, clear(L.x, L.z) + 0.5);
+    if (worst < need) {
+      if (!L.avoid) L.avoid = cL > cR ? 1 : -1;
+      want = L.avoid * (1.4 * (need - worst) / need + 0.25);
+    } else if (worst > need * 1.3) L.avoid = 0;
+    // andere Schwärme meiden (vor allem voraus)
+    lead.forEach((o, j) => {
+      if (o === L) return;
+      const ex = o.x - L.x, ez = o.z - L.z, d = Math.hypot(ex, ez), near = 2.5 * (sc.radius + schools[j].radius);
+      if (d >= near) return;
+      const ahead = (ex * Math.cos(L.a) + ez * Math.sin(L.a)) / d, side = Math.cos(L.a) * ez - Math.sin(L.a) * ex;
+      want -= Math.sign(side || 1) * 0.6 * (near - d) / near * (0.4 + 0.6 * Math.max(ahead, 0));
+    });
+    // stösst er an (schwimmt er länger gegen die Patrouille), kehrt sie um
+    L.against = (Math.cos(L.a) * -gz + Math.sin(L.a) * gx) * L.dir < -0.3 ? L.against + H : 0;
+    if (L.against > 1.5) { L.dir = -L.dir; L.against = 0; }
+    L.w += clamp(clamp(want, -0.9, 0.9) - L.w, -1.5 * H, 1.5 * H);
+    L.a = wrap(L.a + L.w * H);
+    L.v += clamp(sc.cruise * (1 + 0.2 * Math.sin(t * 0.21 + k * 1.7) + 0.1 * Math.sin(t * 0.53 + k)) - L.v, -0.5, 0.5) * H;
+    L.x += Math.cos(L.a) * L.v * H; L.z += Math.sin(L.a) * L.v * H;
+    const c = clear(L.x, L.z), m = sc.radius * 0.5;
+    if (c < m) { const [px, pz] = grad(clear, L.x, L.z); L.x += px * (m - c); L.z += pz * (m - c); }
+  }
+
+  function step(t) {
+    lead.forEach((L, k) => stepLead(L, schools[k], k, t));
+    [prev, cur] = [cur, prev];
+    for (let i = 0; i < N; i++) {
+      const f = fish[i], sc = schools[f.school], L = lead[f.school], o = i * F, d = f.drift, R = sc.radius;
+      let x = prev[o], z = prev[o + 1], a = prev[o + 2], v = prev[o + 3];
+      // zum eigenen Platz im Schwarm (wandert langsam) und mit dem Leitfisch mit
+      const sx = (f.slot[0] + 0.25 * Math.sin(t * d[2] + d[0])) * R, sz = (f.slot[1] + 0.25 * Math.sin(t * d[3] + d[1])) * R;
+      const c = Math.cos(L.a), s = Math.sin(L.a);
+      let vx = c * L.v + (L.x + c * sx - s * sz - x) * 0.7, vz = s * L.v + (L.z + s * sx + c * sz - z) * 0.7;
+      // Abstand zu den Nachbarn im Schwarm
+      const sep = 1.1 * f.len + 0.25;
+      for (let j = 0; j < N; j++) {
+        if (j === i || fish[j].school !== f.school) continue;
+        const ex = x - prev[j * F], ez = z - prev[j * F + 1], e = Math.hypot(ex, ez);
+        if (e < sep && e > 1e-4) { const k = ((sep - e) / sep) * sc.cruise * 1.2 / e; vx += ex * k; vz += ez * k; }
+      }
+      // selbst nicht ins Flache (Fühler voraus)
+      const worst = Math.min(clear(x + Math.cos(a) * (0.6 + 0.8 * v), z + Math.sin(a) * (0.6 + 0.8 * v)), clear(x, z) + 0.3);
+      if (worst < 0.35) { const [gx, gz] = grad(clear, x, z); vx += gx * (0.35 - worst) * 2.5; vz += gz * (0.35 - worst) * 2.5; }
+      // drehen (Drehrate stetig, höchstens 2 rad/s) und vorwärts schwimmen, nie seitwärts
+      const da = wrap(Math.atan2(vz, vx) - a);
+      const turn = prev[o + 9] + clamp(clamp(da / 0.4, -2, 2) - prev[o + 9], -8 * H, 8 * H);
+      a = wrap(a + turn * H);
+      const vt = clamp(Math.hypot(vx, vz) * Math.max(Math.cos(da), 0.3), 0.25 * sc.cruise, 1.9 * sc.cruise);
+      const acc = clamp((vt - v) / 0.3, -2 * sc.cruise, 1.4 * sc.cruise);
+      v += acc * H;
+      x += Math.cos(a) * v * H; z += Math.sin(a) * v * H;
+      const c2 = clear(x, z);
+      if (c2 < 0.15) { const [gx, gz] = grad(clear, x, z); x += gx * (0.15 - c2); z += gz * (0.15 - c2); }
+      // Tiefe sanft zur gewünschten; Neigung aus dem Steigen und Sinken
+      const y0 = prev[o + 4];
+      const yt = clamp(sc.s.depth + f.slot[2] * R * 0.3 + 0.08 * Math.sin(t * 0.4 + d[0]), 0.3, Math.max(field.depth(x, z) - 0.4, 0.3));
+      const y = y0 + (yt - y0) * (1 - Math.exp(-H / 1.2));
+      const pitch = prev[o + 8] + (clamp((y0 - y) / H / Math.max(v, 0.1), -0.35, 0.35) - prev[o + 8]) * 0.1;
+      // Biegung in der Kurve; Schwanzschlag: Takt nach Tempo je Länge, Stärke nach Schub
+      const bend = prev[o + 5] + (clamp((turn / Math.max(v, 0.15)) * f.len, -0.8, 0.8) - prev[o + 5]) * 0.2;
+      const hz = clamp(0.7 + (0.8 * v) / f.len, 0.8, 2.6);
+      const amp = prev[o + 7] + (clamp(0.45 + (0.6 * acc) / sc.cruise + 0.3 * (v / sc.cruise - 0.6), 0.3, 1) - prev[o + 7]) * 0.1;
+      cur.set([x, z, a, v, y, bend, (prev[o + 6] + TAU * hz * H) % (TAU * 64), amp, pitch, turn], o);
+    }
+  }
+
+  return {
+    count: N, fish,
+    setField(f) { field = f; simT = null; },
+    advance(t) {
+      if (!field) return null;
+      if (simT === null || t < simT - 1e-6 || t - simT > WARM) { simT = Math.max(0, t - WARM); reset(simT); }
+      while (simT + H <= t + 1e-9) { step(simT); simT += H; }
+      return clamp((t - simT) / H, 0, 1);
+    },
+    sample(k, alpha, out) {
+      const o = k * F;
+      for (let j = 0; j < F; j++) out[j] = prev[o + j] + (cur[o + j] - prev[o + j]) * alpha;
+      out[2] = prev[o + 2] + wrap(cur[o + 2] - prev[o + 2]) * alpha;
+      if (cur[o + 6] < prev[o + 6]) out[6] = prev[o + 6] + (cur[o + 6] + TAU * 64 - prev[o + 6]) * alpha; // Phase lief über
+      return out;
+    },
+  };
+}
+
+/**
+ * Bunte Fische, die in kleinen Schwärmen ums Brett ziehen (Daten: die Wasserkarte von waterSurface, für Tiefe, Fels und
+ * Grund). Wie sie schwimmen, rechnet createFishSim (in der Lagune, nie flacher als minDepth, in der Reichweite area);
+ * die Wasserkarte liest es einmal als Bild. Schwärme (schools): Anzahl, Länge (m), Form (Höhe, Breite je Länge), Tempo
+ * (m/s), Tiefe (m), Muster ('tang': Rücken dunkel, Schwanz farbig; 'bands': helle Bänder mit dunklem Rand; 'plain':
+ * Bauch heller) und drei Farben (Szenenwerte). Sie liegen unter dem Wasser: Rot wird mit dem Weg durchs Wasser zuerst
+ * geschluckt, das Licht des Wassers (Grund aus dem Panorama) legt sich darüber. Auf dem Grund ein weicher Schatten
+ * (shadow: Deckkraft), von der gebrochenen Sonne versetzt, je höher über dem Grund, desto weicher. Gezeichnet wird in die
+ * Szene unter der Oberfläche (ctx.under, von waterSurface): Das Wasser legt sie als Grund unter seine Oberfläche, mit
+ * Brechung, Spiegelung, Schaum und Glitzern darüber – über allem gezeichnet sahen die Fische aus, als flögen sie.
+ */
+function fishSchools(ctx, opt) {
+  const w = ctx.data[opt.data], under = ctx.under;
+  if (!under) throw new Error('braucht waterSurface davor');
+  const sim = createFishSim({ ...opt, keepOut: PLATE / 2 + 0.3 });
+  loadSkyImage(w.map).then((img) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width; canvas.height = img.height;
+    const g = canvas.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    const px = g.getImageData(0, 0, img.width, img.height).data, m = img.width * img.height;
+    const depth = new Float32Array(m), rock = new Float32Array(m), [d0, d1] = w.depthRange;
+    for (let i = 0; i < m; i++) {
+      depth[i] = d0 + ((d1 - d0) * (px[4 * i] * 256 + px[4 * i + 1])) / 65535;
+      rock[i] = px[4 * i + 2] / 255;
+    }
+    sim.setField(fishField(depth, rock, img.width, w.extent, opt.minDepth));
+  }).catch((e) => console.warn(`Fische: Wasserkarte nicht lesbar (${e.message})`));
+
+  const PAT = { tang: 0, bands: 1, plain: 2 };
+  const n = sim.count;
+  const attr = (size, get) => new THREE.InstancedBufferAttribute(Float32Array.from(sim.fish.flatMap(get)), size);
+  const school = (f) => opt.schools[f.school];
+  // je Bild aus der Simulation: Ort (x, Tiefe, z, Neigung) und Bewegung (Richtung, Biegung, Phase, Stärke)
+  const aPos = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  const aMove = new THREE.InstancedBufferAttribute(new Float32Array(n * 4), 4).setUsage(THREE.DynamicDrawUsage);
+  const aShape = attr(4, (f) => [f.len, school(f).shape[0], school(f).shape[1], PAT[school(f).pattern]]);
+  const decl = `
+        attribute vec4 aPos, aMove, aShape;
+        const float LEVEL = ${glf(w.level)};
+        // Mitte des Fischs und die Achsen seiner Form: x nach hinten (Kopf vorn), z zur Seite
+        vec3 fishAt() { return vec3(aPos.x, LEVEL - aPos.y, aPos.z); }
+        vec2 fishBack() { return -vec2(cos(aMove.x), sin(aMove.x)); }`;
+  const common = { ...ctx.uniforms, uPano: { value: ctx.pano.full }, uCenter: { value: ctx.pano.center } };
+
+  // Fische
+  const body = new THREE.InstancedBufferGeometry().copy(createFishGeometry());
+  body.instanceCount = n;
+  body.setAttribute('aPos', aPos);
+  body.setAttribute('aMove', aMove);
+  body.setAttribute('aShape', aShape);
+  body.setAttribute('aC1', attr(3, (f) => school(f).colors[0]));
+  body.setAttribute('aC2', attr(3, (f) => school(f).colors[1]));
+  body.setAttribute('aC3', attr(3, (f) => school(f).colors[2]));
+  const fishMat = new THREE.ShaderMaterial({
+    uniforms: common,
+    extensions: { shaderTextureLOD: true },
+    side: THREE.DoubleSide,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: `${decl}
+        attribute vec3 aUV, aC1, aC2, aC3;
+        varying vec3 vPos, vN, vUV, vC1, vC2, vC3;
+        varying float vPat;
+        void main() {
+          // Körper: Länge, Höhe, Breite. Schwanzschlag als Welle zum Schwanz hin, hinten stärker (Phase und Stärke aus der
+          // Simulation); in der Kurve gebogen, Kopf und Schwanz zur Innenseite (aMove.y: Krümmung × Länge); beim Steigen
+          // und Sinken geneigt
+          float u = position.x;
+          float side = sin(aMove.z - u * 4.0) * 0.16 * aMove.w * u * u - 0.5 * aMove.y * (u - 0.4) * (u - 0.4);
+          // Umriss ±0,5 hoch, ±0,22 breit: auf Höhe aShape.y und Breite aShape.z je Länge
+          vec3 q = vec3(u - 0.5, position.y * aShape.y, position.z / 0.44 * aShape.z + side) * aShape.x;
+          q.y -= q.x * aPos.w;
+          vec3 n = vec3(normal.x, normal.y / aShape.y, normal.z * 0.44 / aShape.z);
+          vec2 xd = fishBack(), zd = vec2(-xd.y, xd.x);
+          vec3 wp = fishAt() + vec3(xd.x * q.x + zd.x * q.z, q.y, xd.y * q.x + zd.y * q.z);
+          vN = normalize(vec3(xd.x * n.x + zd.x * n.z, n.y, xd.y * n.x + zd.y * n.z));
+          vPos = wp; vUV = aUV; vC1 = aC1; vC2 = aC2; vC3 = aC3; vPat = aShape.w;
+          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+        }`,
+    fragmentShader: `
+        #if __VERSION__ >= 300
+          #define LOD0(t, p) textureLod(t, p, 0.0)
+        #elif defined(GL_EXT_shader_texture_lod)
+          #define LOD0(t, p) texture2DLodEXT(t, p, 0.0)
+        #else
+          #define LOD0(t, p) texture2D(t, p)
+        #endif
+        uniform sampler2D uPano;
+        uniform vec3 uCenter;
+        uniform float uTime;
+        varying vec3 vPos, vN, vUV, vC1, vC2, vC3;
+        varying float vPat;
+        const float LEVEL = ${glf(w.level)};
+        const vec3 ABSORB = vec3(0.4, 0.1, 0.07); // Schwächung je m Weg im Wasser (Rot zuerst; klar in der Lagune)
+        vec3 pano(vec3 d) {
+          vec3 b = normalize(vec3(d.x, -d.z, d.y));
+          return LOD0(uPano, vec2(0.5 + atan(b.x, b.y) / 6.2831853, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.1415927)).rgb;
+        }
+        void main() {
+          float u = vUV.x, v = vUV.y;
+          // Muster
+          vec3 col = vC1;
+          if (vPat < 0.5) {        // Doktorfisch: dunkle Zeichnung auf dem Rücken, Schwanz farbig
+            col = mix(col, vC2, smoothstep(0.15, 0.3, v) * smoothstep(0.12, 0.25, u) * smoothstep(0.85, 0.7, u)
+              * smoothstep(0.3, 0.6, abs(vUV.z)));   // nur seitlich: von oben sieht man den blauen Rücken
+            col = mix(col, vC3, step(0.98, u));
+          } else if (vPat < 1.5) { // Clownfisch: drei helle Bänder mit dunklem Rand
+            float b = min(min(abs(u - 0.22), abs(u - 0.55)), abs(u - 0.9));
+            col = mix(vC2, col, smoothstep(0.05, 0.07, b));
+            col = mix(col, vC3, smoothstep(0.065, 0.075, b) * smoothstep(0.095, 0.085, b));
+            col = mix(col, vC3, step(1.12, u) * 0.8);
+          } else {                 // schlicht: Bauch heller, Flossen eigene Farbe
+            col = mix(col, vC2, smoothstep(-0.1, -0.6, v));
+            col = mix(col, vC3, step(0.98, u) + step(1.05, v));
+          }
+          // Auge
+          col *= 1.0 - 0.85 * smoothstep(0.045, 0.03, length(vec2(u - 0.1, (v - 0.25) * 0.5)) ) * step(0.3, abs(vUV.z));
+          // Licht von oben (Sonne und Himmel durchs Wasser), unten dunkler, flimmernde Lichtnetze
+          vec3 N = normalize(vN);
+          float shimmer = 0.85 + 0.3 * sin(vPos.x * 3.1 + uTime * 2.3) * sin(vPos.z * 2.7 - uTime * 1.9);
+          col *= (0.5 + 0.5 * clamp(N.y * 0.5 + 0.5, 0.0, 1.0)) * shimmer * 1.5;
+          // Weg durchs Wasser bis zur Oberfläche: Rot zuerst geschluckt, das Licht des Wassers darüber (Spiegelung und
+          // Brechung an der Oberfläche macht das Wasser). Unter Wasser läuft der Strahl gebrochen steiler (Brechzahl
+          // 1,33): höchstens 1,5-mal die Tiefe – gerade gerechnet wurde er bei flachem Blick doppelt so lang, und die
+          // Fische verschwanden im Wasserlicht
+          vec3 V = normalize(cameraPosition - vPos);
+          float depth = max(LEVEL - vPos.y, 0.0), path = depth / sqrt(1.0 - (1.0 - V.y * V.y) / 1.769);
+          vec3 water = pano(vec3(vPos.x, LEVEL - depth - 0.6, vPos.z) - uCenter);
+          col = col * exp(-ABSORB * path) + water * (1.0 - exp(-0.45 * path));
+          float a = smoothstep(48.0, 30.0, length(vPos.xz));
+          gl_FragColor = vec4(col * a, a);
+        }`,
+  });
+  const fishMesh = new THREE.Mesh(body, fishMat);
+  fishMesh.frustumCulled = false;
+
+  // Schatten auf dem Grund: weiche dunkle Flecken, von der (gebrochenen) Sonne versetzt
+  const quad = new THREE.InstancedBufferGeometry();
+  quad.setAttribute('position', new THREE.Float32BufferAttribute([-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1], 3));
+  quad.setIndex([0, 2, 1, 0, 3, 2]);
+  quad.instanceCount = n;
+  for (const name of ['aPos', 'aMove', 'aShape']) quad.setAttribute(name, body.getAttribute(name));
+  const shadowMat = new THREE.ShaderMaterial({
+    uniforms: { uMap: { value: mapTexture(w.map, 'Karte') } },
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    vertexShader: `${decl}
+        ${ctx.lightGLSL}
+        uniform sampler2D uMap;
+        const float EXT = ${glf(w.extent)};
+        const vec2 DEPTH = ${glv(w.depthRange)};
+        varying vec2 vQ;
+        varying float vA;
+        void main() {
+          vec3 p = fishAt();
+          vec2 hl = texture2D(uMap, vec2((p.x + EXT) / (2.0 * EXT), 1.0 - (p.z + EXT) / (2.0 * EXT))).rg;
+          float bed = LEVEL - max(mix(DEPTH.x, DEPTH.y, (hl.x * 65280.0 + hl.y * 255.0) / 65535.0), 0.0);
+          // im Wasser steiler gebrochen (Brechzahl 1,33)
+          vec3 L = normalize(vec3(SKY_LIGHT.x / 1.33, sqrt(max(1.0 - dot(SKY_LIGHT.xz, SKY_LIGHT.xz) / 1.769, 0.05)), SKY_LIGHT.z / 1.33));
+          vec3 s = p - L * (p.y - bed) / L.y;
+          // je höher über dem Grund, desto weicher und blasser (die Wellen streuen das Licht)
+          float h = p.y - bed, blur = 1.0 + 0.3 * h;
+          vec2 xd = fishBack(), zd = vec2(-xd.y, xd.x);
+          vec2 q = position.xz * vec2(0.75, 0.35) * aShape.x * blur;
+          vec3 wp = vec3(s.x + xd.x * q.x + zd.x * q.y, bed + 0.02, s.z + xd.y * q.x + zd.y * q.y);
+          vQ = position.xz;
+          vA = smoothstep(4.5, 0.3, h) / blur;
+          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
+        }`,
+    fragmentShader: `
+        varying vec2 vQ;
+        varying float vA;
+        void main() {
+          float a = ${glf(opt.shadow)} * vA * smoothstep(1.0, 0.2, length(vQ));
+          gl_FragColor = vec4(0.0, 0.0, 0.0, a);
+        }`,
+  });
+  const shadowMesh = new THREE.Mesh(quad, shadowMat);
+  shadowMesh.frustumCulled = false;
+  fishMesh.visible = shadowMesh.visible = false; // bis die Wasserkarte gelesen ist
+  under.scene.add(shadowMesh, fishMesh);
+
+  const holder = new THREE.Group();
+  const s = new Float64Array(10);
+  holder.userData.update = (t) => {
+    const alpha = sim.advance(t);
+    if (alpha === null) return; // Wasserkarte noch nicht gelesen
+    for (let k = 0; k < n; k++) {
+      sim.sample(k, alpha, s);
+      aPos.setXYZW(k, s[0], s[4], s[1], s[8]);
+      aMove.setXYZW(k, s[2], s[5], s[6], s[7]);
+    }
+    aPos.needsUpdate = aMove.needsUpdate = true;
+    fishMesh.visible = shadowMesh.visible = true;
+  };
+  return holder;
+}
+
+const SKY_LAYERS = { toonInstances, glowParticles, mistSheets, waterSurface, fishSchools };
+
+/**
+ * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):
+ * prepare() lädt, setFade(k) blendet ein (0 … 1), update(t, dt) jedes Bild solange sichtbar, ready = ganz eingeblendet,
+ * release() gibt den Grafikspeicher frei (ausgeblendet und nicht gewählt; prepare() lädt danach neu).
+ */
+function createPanoramaSky(m) {
+  const group = new THREE.Group();
+  group.visible = false;
+  const uniforms = { uFade: { value: 0 }, uReady: { value: 0 }, uTime: { value: 0 } };
+  const pointUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
+  const light = new THREE.Vector3().fromArray(m.light.dir).normalize();
+  const lightGLSL = `const vec3 SKY_LIGHT = vec3(${light.toArray().map((v) => v.toFixed(4)).join(', ')});`;
+  let loading = null, mesh = null, age = null, token = 0, offscreen = [];
+
+  /** Teil laden (Skript mit Data-URLs); es muss zum Stand des Registers passen */
+  async function loadPart(role) {
+    const part = m.parts.find((p) => p.role === role);
+    await loadSkyScript(`backgrounds/${part.file}`);
+    const key = `${m.id}/${role}`, got = window.PRISMA_SKY_PARTS?.[key];
+    delete window.PRISMA_SKY_PARTS?.[key]; // die Bilder stecken gleich in den Texturen
+    if (!got || got.rev !== m.rev) throw new Error(`${part.file}: anderer Stand als im Register`);
+    return got;
+  }
+
+  async function build(my) {
+    const base = await loadPart('base');
+    const hd = PANO.hd && m.parts.some((p) => p.role === 'bands')
+      ? await loadPart('bands').catch((e) => { console.warn(`${m.name}: ${e.message}, ohne Streifen`); return null; }) : null;
+    const rects = hd ? m.panorama.bands : [];
+    const [fullImg, depthImg, ...bandImgs] = await Promise.all([base.full, base.depth, ...(hd?.bands ?? [])].map(loadSkyImage));
+    if (my !== token) return; // inzwischen wieder freigegeben
+    const center = new THREE.Vector3().fromArray(m.panorama.center);
+    const full = skyTexture(fullImg, true);
+    mesh = new THREE.Mesh(skyProxyGeometry(skyLogDepth(depthImg, m.panorama.depth.log), center),
+      skyPanoramaMaterial(uniforms, center, full, rects.map((b, i) => ({ ...b, tex: skyTexture(bandImgs[i], false) }))));
+    mesh.renderOrder = -1000;          // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
+    mesh.frustumCulled = false;
+    const parts = [mesh];
+    // Tiefe ungeglättet (16 Bit in Rot und Grün: nächste Nachbarn, das Wasser mischt selbst im Log)
+    const depth = new THREE.Texture(depthImg);
+    depth.minFilter = depth.magFilter = THREE.NearestFilter;
+    depth.generateMipmaps = false;
+    depth.wrapS = THREE.RepeatWrapping;
+    depth.needsUpdate = true;
+    const pano = { full, center, depth: { tex: depth, size: [depthImg.width, depthImg.height], log: m.panorama.depth.log } };
+    const ctx = { uniforms, pointUniforms, data: base.data ?? {}, light, lightGLSL, fog: m.fog, air: m.air, pano, offscreen: [] };
+    for (const layer of m.layers ?? []) {
+      try {
+        if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
+        parts.push(SKY_LAYERS[layer.type](ctx, layer));
+      } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
+    }
+    // Nicht in der Bodenspiegelung (dort wird auch die Himmelskugel ausgeblendet), nicht anklickbar
+    for (const p of parts) {
+      p.traverse((o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; });
+      group.add(p);
+    }
+    offscreen = ctx.offscreen;
+    // schon jetzt übersetzen, nicht im ersten Bild des Einblendens (falls sichtbar)
+    for (const s of [scene, ...offscreen]) renderer.compile(s, camera);
+  }
+
+  /** Während des Überblendens und Einblendens durchsichtig über der Himmelskugel, sonst undurchsichtig und zuerst. */
+  function applyFade() {
+    if (!mesh) return;
+    const transparent = uniforms.uFade.value * uniforms.uReady.value < 0.999;
+    if (mesh.material.transparent !== transparent) {
+      mesh.material.transparent = transparent;
+      mesh.material.needsUpdate = true;
+    }
+  }
+
+  return {
+    group,
+    panorama: true,
+    get ready() { return uniforms.uReady.value >= 1; },
+    /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
+    prepare() {
+      loading ??= build(token).catch((e) => console.error(`${m.name}: ${e.message}`));
+    },
+    setFade(k) {
+      uniforms.uFade.value = k;
+      if (k > 0) this.prepare();
+      group.visible = k > 0;
+      applyFade();
+    },
+    update(t, dt) {
+      if (!mesh) return;
+      age = age === null ? 0 : age + dt; // in dt, nicht in t: läuft auch bei angehaltener Zeit (?t=)
+      uniforms.uReady.value = Math.min(1, age / PANO.appear);
+      uniforms.uTime.value = t;
+      pointUniforms.uPixelRatio.value = renderer.getPixelRatio();
+      for (const p of group.children) p.userData.update?.(t, dt);
+      applyFade();
+    },
+    release() {
+      if (!loading) return;
+      token++;
+      loading = null; mesh = null; age = null;
+      uniforms.uReady.value = 0;
+      for (const root of [group, ...offscreen]) root.traverse((o) => {
+        o.userData.dispose?.();
+        if (o.isInstancedMesh) o.dispose(); // Puffer der Instanzen (Geometrie und Material bleiben, siehe unten)
+        o.geometry?.dispose();
+        for (const mat of [o.material ?? []].flat()) {
+          for (const u of Object.values(mat.uniforms ?? {})) if (u.value?.isTexture) u.value.dispose();
+          mat.dispose();
+        }
+      });
+      group.clear();
+      offscreen = [];
+    },
+  };
+}
+
+/**
+ * Hintergrund umschalten (Knopf unten rechts, Taste H; der Reihe nach, order): Milchstrasse und Sonnensystem aus dem
+ * Code, dazu jede Skybox aus Blender im Register (backgrounds/skies.js, SKYBOX: Wald, Strand). Die Wahl bleibt
+ * gespeichert. Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurchsichtige Teile
+ * (Planeten, nahe 3D-Objekte einer Skybox) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten. Darum ist immer
  * höchstens einer eingeblendet, und Himmelskugel und Sterne mischen nur zwischen ihm und dem Neutralzustand (dunkler
  * Raum mit Sternen). sky: milkyWay (Anteil der Milchstrasse), stars (Helligkeit der Sterne), starsAboveHorizon (Sterne
- * nur über dem Horizont), covers (eigene undurchsichtige Himmelskugel: Kugel und Sterne aus, sobald ganz eingeblendet),
- * rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module: prepare, setFade, update, ready,
+ * nur über dem Horizont), rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module: prepare, setFade, update, ready,
  * release (siehe createPanoramaSky).
  */
-const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, covers: false, rings: null };
+const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, rings: null };
 const SKY_ENTRIES = (() => {
   const code = [
     { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 } },
     { id: 'solar', name: 'Sonnensystem', order: 20, module: solar },
-    { id: 'beach', name: 'Strand', order: 40, module: beach, sky: { stars: 0, covers: true } },
   ];
   // Ein unbrauchbarer Eintrag (unbekannte Fassung, id doppelt, Fehler beim Anlegen) fällt mit einer Warnung weg; das Spiel
   // läuft mit den übrigen Hintergründen weiter
@@ -7072,9 +6918,6 @@ const skyTheme = {
     if (s.rings) s.rings.forEach((c, i) => bg.uRings.value[i].fromArray(c));
     stars.material.uniforms.uFade.value = mix('stars');
     stars.material.uniforms.uHorizon.value = s.starsAboveHorizon ? k : 0;
-    const covered = s.covers && w >= 1;
-    stars.visible = !covered;
-    background.visible = !covered;
     // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz eines Panoramas und deckte weiter
     // draussen liegende Teile zu. Mit 116 (vor camera.far = 120) liegt sie überall dahinter; sie rechnet nur mit der
     // Richtung, sieht also gleich aus.
@@ -7088,9 +6931,8 @@ try {
 } catch { /* Standard */ }
 // ?sky=forest: diesen Hintergrund zeigen, ohne ihn als Wahl zu speichern (Tests, Links)
 const urlSky = new URLSearchParams(location.search).get('sky');
-const fromUrl = skyTheme.order.includes(urlSky);
-if (fromUrl) skyTheme.current = urlSky;
-skyTheme.set(skyTheme.current, false, !fromUrl);
+if (skyTheme.order.includes(urlSky)) skyTheme.current = urlSky;
+skyTheme.set(skyTheme.current, false, false); // nichts speichern: fehlt die gespeicherte Skybox gerade, bleibt die Wahl
 
 /* =====================================================================
    STEINPLATTE mit planarer Spiegelung
@@ -10144,7 +9986,7 @@ function renderReflection() {
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
   floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
-  const backgroundVisible = background.visible; // beim Strand ausgeblendet (skyTheme)
+  const backgroundVisible = background.visible;
   background.visible = false; // gespiegelt nur ein bläulicher Fleck; ein dunkler Raum spiegelt sich schwarz
   // Gespiegelte Strahlen weich und ohne dünnen Kern: der würde in der niedrig aufgelösten
   // Spiegelung zur Treppenlinie – und auf poliertem Stein ist ein Spiegelbild ohnehin weich.

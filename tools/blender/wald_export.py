@@ -13,9 +13,11 @@
 # Szene wieder wie vorher (Materialien, Welt, Kamera, Sichtbarkeit).
 # Streifen: Breite +10° … −90° (der Blick der Spielkamera geht immer nach unten), Kachel i deckt u ∈ [i/n, (i+1)/n] des
 # ganzen Bilds ab. Equirect wie Cycles: Mitte = Blender +Y (Spiel −Z), u = 0.5 + atan2(x, y)/2π, v = acos(z)/π.
-# Die Bäume näher als R_NEAR („Baeume nah“) zeichnet das Spiel selbst: Für die Kamera sind sie ausgeblendet, Schatten
-# werfen sie aber.
-# Farben: lineare Szenenwerte × EXPOSURE, sRGB-kodiert (das Spiel macht ACES wie bei allem anderen).
+# Was das Spiel selbst zeichnet (Sammlung „Spiel“; im Wald das Objekt „Baeume nah“), ist für die Kamera ausgeblendet,
+# Schatten wirft es aber. Nebel, Dunst und Wolken (Sammlung „Volumen“; im Wald die Objekte „Nebel“, „Dunst …“) fehlen in
+# Tiefe und Himmelsmaske.
+# Farben: lineare Szenenwerte × EXPOSURE (Belichtung der Szene, stile.py), sRGB-kodiert (das Spiel macht ACES wie bei
+# allem anderen).
 # Blender beendet sich auch nach einem Fehler im Skript mit 0 – darum die Ausgabe auf «Error» prüfen.
 import bpy, math, sys, os, time, json
 import numpy as np
@@ -23,11 +25,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from wald_lib import aces_game, srgb_encode
 from wald_io import save_image, load_exr
+from stile import stil
 
-EXPOSURE = 5.5
 LAT_TOP = 10.0
 DEPTH_LOG = (0.5, 6000.0)
-STIL = os.environ.get('WALD_STIL', '')   # anime: Renderings nach out/anime (gemalt wird danach in anime.py)
+STIL = os.environ.get('WALD_STIL', '')   # anime, beach: Renderings nach out/<stil> (gemalt wird danach in anime.py)
+EXPOSURE = stil(STIL)['belichtung']
 OUT = os.path.join(HERE, 'out', STIL)
 SKY = os.path.join(HERE, 'sky', STIL)
 os.makedirs(OUT, exist_ok=True)
@@ -58,7 +61,7 @@ def setup_cycles():
     for attr, value in (('device', 'CPU' if os.environ.get('WALD_CPU') else 'GPU'), ('use_adaptive_sampling', True),
                         ('adaptive_threshold', 0.012), ('use_denoising', True), ('denoiser', 'OPENIMAGEDENOISE'),
                         ('denoising_use_gpu', True), ('max_bounces', 8), ('diffuse_bounces', 2), ('glossy_bounces', 2),
-                        ('transmission_bounces', 2), ('volume_bounces', 2), ('transparent_max_bounces', 4),
+                        ('transmission_bounces', 2), ('volume_bounces', stil(STIL).get('volumen', 2)), ('transparent_max_bounces', 4),
                         ('sample_clamp_indirect', 4.0), ('samples', c.samples), ('pixel_filter_type', c.pixel_filter_type),
                         ('filter_width', c.filter_width)):
         setv(c, attr, value)
@@ -78,10 +81,17 @@ def setup_cycles():
     # Ausschnitt danach selbst
     cd.longitude_min, cd.longitude_max = -math.pi, math.pi
     cd.latitude_min, cd.latitude_max = -math.pi / 2, math.pi / 2
-    near = bpy.data.objects.get('Baeume nah')
-    if near:
-        setv(near, 'visible_camera', False)
+    for ob in collected('Spiel', ('Baeume nah',)):
+        setv(ob, 'visible_camera', False)
     return c
+
+
+def collected(coll, names=()):
+    """Objekte der Sammlung coll (auch in Untersammlungen), sonst die mit diesen Namen (ältere Szenen)"""
+    c = bpy.data.collections.get(coll)
+    if c:
+        return list(c.all_objects)
+    return [bpy.data.objects[n] for n in names if n in bpy.data.objects]
 
 
 def render(name, w, h):
@@ -94,8 +104,8 @@ def render(name, w, h):
 
 def flat(color=None):
     """Nur Flächen ohne Nebel und Dunst, alle mit einem leuchtenden Ersatzmaterial (Position oder Weiss) vor Schwarz"""
-    for name in ('Nebel', 'Dunst unten', 'Dunst oben'):
-        setv(bpy.data.objects[name], 'hide_render', True)
+    for ob in collected('Volumen', ('Nebel', 'Dunst unten', 'Dunst oben')):
+        setv(ob, 'hide_render', True)
     m = bpy.data.materials.new('Position' if color is None else 'Weiss'); m.use_nodes = True
     nt = m.node_tree; nt.nodes.clear()
     em = nt.nodes.new('ShaderNodeEmission')
@@ -169,10 +179,16 @@ def measure_sky(sky, full, bands):
     def lin(name):
         c = np.clip(load_exr(os.path.join(sky, name))[..., :3].astype(np.float64), 0, 1)
         return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+    def brightest(a):
+        """hellster Kanal, über 3 × 3 Pixel gemittelt: Der Bloom wirkt über Flächen, einzelne Ausreisser des JPEG an
+        scharfen Kanten zählen nicht"""
+        m = np.pad(a.max(-1), 1, mode='edge')
+        h, w = m.shape[0] - 2, m.shape[1] - 2
+        return float(sum(m[i:i + h, j:j + w] for i in range(3) for j in range(3)).max() / 9)
     img = lin(full)
-    peak = float(img.max())
+    peak = brightest(img)
     for b in bands:
-        peak = max(peak, float(lin(b).max()))
+        peak = max(peak, brightest(lin(b)))
     h = img.shape[0]
     lat = 90.0 - (np.arange(h) + 0.5) / h * 180.0
     rows = img.mean(1)

@@ -1,7 +1,8 @@
 // Rendert index.html in Headless-Chrome, sammelt Konsolenfehler und speichert Screenshots.
 // Aufruf: node tests/screenshot.mjs [name] [breite] [höhe] [wartezeit-ms] [js-vor-screenshot]
 // Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen),
-// QUERY='sky=forest&t=12' (weitere Parameter der Seite). Gewartet wird, bis der Hintergrund ganz eingeblendet ist.
+// QUERY='sky=forest&t=12' (weitere Parameter der Seite), GPU=1 (auf der Grafikkarte statt SwiftShader: wie im echten
+// Browser, Fehler nur der Grafikkarte zeigen sich so). Gewartet wird, bis der Hintergrund ganz eingeblendet ist.
 import { spawn } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -31,8 +32,7 @@ const proc = spawn(chrome, [
   '--headless=new',
   `--remote-debugging-port=${port}`,
   `--user-data-dir=${profile}`,
-  '--use-angle=swiftshader',
-  '--enable-unsafe-swiftshader',
+  ...(process.env.GPU ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
   '--ignore-gpu-blocklist',
   '--no-first-run',
   '--no-default-browser-check',
