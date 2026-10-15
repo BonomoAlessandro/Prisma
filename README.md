@@ -126,8 +126,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
-  `LEISE_CPU=50 sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
-  `leise.sh` mit 20 %.
+  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
+  `leise.sh` mit 20 %;
+  `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
+  Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
+  der ganzen Maschine, der Generator darf `LEISE_CPU=50`. Alle schweren Läufe (Tests, Messungen, Screenshots,
+  Generator) laufen darüber, nie mehrere gleichzeitig.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, allein nach Schwierigkeit sortiert; die Level 121–150 (aus `harden.mjs`) sind alle

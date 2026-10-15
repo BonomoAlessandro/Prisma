@@ -143,8 +143,8 @@ Desktop 1440 × 900, Handy 390 × 844 mit `MOBILE=1 DPR=2`, angehaltene Zeit `?t
 
   ```sh
   JS="__prismaDebug.progress.save(149); setTimeout(() => location.reload(), 50); 'neu laden'"
-  QUERY='t=12' sh tools/blender/out/arbeit/leise.sh node tests/screenshot.mjs t03-nachher2-desktop 1440 900 150000 "$JS"
-  QUERY='t=12' MOBILE=1 DPR=2 sh tools/blender/out/arbeit/leise.sh node tests/screenshot.mjs t03-nachher2-handy 390 844 150000 "$JS"
+  QUERY='t=12' sh tools/leise.sh node tests/screenshot.mjs t03-nachher2-desktop 1440 900 150000 "$JS"
+  QUERY='t=12' MOBILE=1 DPR=2 sh tools/leise.sh node tests/screenshot.mjs t03-nachher2-handy 390 844 150000 "$JS"
   ```
 
   Das Neuladen ist nötig: Nach einem Levelwechsel wachsen die Strahlen bei angehaltener Zeit nie, weil

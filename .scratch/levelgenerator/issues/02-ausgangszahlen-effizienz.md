@@ -135,9 +135,8 @@ die Prüfsumme der Strahlregel war in zwei Läufen gleich.
   CPU-Minuten. Die Notiz dazu steht in Ticket 20.
 - Gemessen ist nur mit der Abnahme des alten Generators. Die Aufteilung nach Grad ist vorbereitet, über die Gruppen oder
   den Grad aus der Abnahme. Prüfen lässt sie sich erst mit der Beurteilung.
-- `tools/blender/out/arbeit/leise.sh` ist nicht versioniert (`tools/blender/out/` steht in `.gitignore`), aber
-  `bench.mjs` setzt es voraus: Ohne die tiefste Priorität, die es setzt, bricht das Skript ab. Ob `leise.sh` ins Repo
-  kommt, ist offen.
+- `leise.sh` lag damals unversioniert in `tools/blender/out/arbeit/`, obwohl `bench.mjs` es voraussetzt. Erledigt nach
+  Ticket 04: `leise.sh` und `leise.ps1` liegen versioniert unter `tools/`.
 
 **Weitergegeben** als Notiz in die Tickets 04 (Modus für die Eindeutigkeit, nur die Summe der Knoten verglichen),
 18 (Vergleich über einen Generatorwechsel, `grades` und `total`) und 20 (Ausgangszahl für „härten“).

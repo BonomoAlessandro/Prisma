@@ -27,8 +27,8 @@
 //                            Verlässlich nur, wenn vorher und nachher in derselben Sitzung gemessen werden.
 // Nur über die gedeckelte Umgebung und nie mehrere Läufe nebeneinander. Ohne tiefste Priorität oder mit LEISE_CPU über
 // 50 (mit generator) bzw. 20 (nur trace, solver) bricht das Skript ab:
-//   LEISE_CPU=50 sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
-//   sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs trace solver --save tools/bench-baseline.json
+//   LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
+//   sh tools/leise.sh node tools/bench.mjs trace solver --save tools/bench-baseline.json
 import { createHash } from 'node:crypto';
 import { execSync, fork } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -356,8 +356,8 @@ async function main() {
   if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cap <= limit)) {
     fail(`Nur über die gedeckelte Umgebung starten: tiefste Priorität und LEISE_CPU höchstens ${limit} ` +
       `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}; generator bis 50, sonst bis 20), z. B.\n` +
-      '  LEISE_CPU=50 sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs generator …\n' +
-      '  sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs trace solver …');
+      '  LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator …\n' +
+      '  sh tools/leise.sh node tools/bench.mjs trace solver …');
   }
   const gen = parts.includes('generator') ? await GENERATORS[generator]() : null;
   for (const g of groups) if (![...gen.groups, ...(gen.more || [])].includes(g)) fail('Gruppe unbekannt: ' + g);
