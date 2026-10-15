@@ -106,7 +106,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich. Ein Feld `difficulty` in `selection.jsonl` wird als
-  Markierung ins Level geschrieben.
+  Markierung ins Level geschrieben;
+  `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--save datei] [--compare datei]` misst die
+  Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level je
+  CPU-Stunde je Profil mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen aller
+  Level und die Zeit des Lösers über alle Level. Generator und Abnahme sind austauschbar (`--generator`, `--accept`),
+  damit später der neue Generator je Schwierigkeitsgrad und die Beurteilung als Abnahme dazukommen. Die
+  Ausgangszahlen stehen in `tools/bench-baseline.json`. `--save` fügt einzeln gemessene Profile dort hinzu, wenn
+  Generator, Abnahme, Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn und meldet andere
+  angenommene Level (Fingerabdruck), eine andere Knotenzahl des Lösers und andere Strahlbilder. Deren Prüfsumme
+  erfasst Art, Farbe und Element der Ereignisse, Treffer, Mischungen, „gelöst“ und die auf 1e-6 gerundeten Endpunkte,
+  aber keine Normalen und Längen; das Verhalten sichert weiterhin der Golden-Test. Die CPU-Zeit hängt von der Zahl
+  der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
+  gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
+  Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
+  `LEISE_CPU=50 sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
+  `leise.sh` mit 20 %.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, allein nach Schwierigkeit sortiert; die Level 121–150 (aus `harden.mjs`) sind alle

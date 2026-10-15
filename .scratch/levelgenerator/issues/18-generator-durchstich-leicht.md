@@ -29,3 +29,10 @@ Mischziel aus zwei Quellen (ADR 0004). Die Lehren aus der Messung der Effizienz 
 - [ ] Tests der Nahtstelle Generator prüfen Determinismus, Eindeutigkeit und die bestandene Beurteilung.
 - [ ] Das Messskript aus Ticket 02 misst die angenommenen Level je CPU-Stunde für „leicht“ und vergleicht mit dem
       heutigen Generator, beide mit der Beurteilung als Abnahme. Das Ergebnis steht unter `## Comments`.
+
+## Comments
+
+**Hinweis aus Ticket 02 (Messskript):** `--compare` in `tools/bench.mjs` vergleicht nur Gruppen gleichen Namens.
+Über einen Generatorwechsel, also den alten Generator nach Profilen gegen den neuen nach Graden, vergleicht es noch
+nicht, und `grades` und `total` vergleicht es gar nicht. Das in diesem Ticket nachrüsten, zusammen mit dem neuen
+Generator in `GENERATORS` und der Beurteilung in `ACCEPTANCES`.
