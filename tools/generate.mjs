@@ -201,7 +201,7 @@ export function generateOne(spec, seed) {
 
   const unique = makeUnique(els, solution, R, spec);
   if (unique.fail) return unique;
-  return finish(els, solution, spec, R, seed);
+  return finish(els, solution, spec, R, seed, unique.res);
 }
 
 /**
@@ -209,11 +209,13 @@ export function generateOne(spec, seed) {
  * els steht in Lösungsstellung; els und solution werden angepasst.
  * Liefert { res } (Suche im nun eindeutigen Level, mit nodes und guesses) oder { fail: Grund }.
  * spec.maxSearch begrenzt die Suche (Standard 4e5 Knoten), spec.maxRepairs die Reparaturen (Standard 12).
+ * Die Suche hält bei der zweiten Lösung an (Modus unique); die erste Lösung neben der gesuchten ist dann schon
+ * gefunden. Zu gross ist ein Level deshalb nur, wenn die Suche bis dahin mehr als spec.maxSearch Knoten braucht.
  */
 export function makeUnique(els, solution, R, spec) {
   const fail = (why) => ({ fail: why });
   for (let rep = 0; ; rep++) {
-    const res = solve(asLevel(els), { collect: 6, maxNodes: spec.maxSearch || 4e5 });
+    const res = solve(asLevel(els), { collect: 6, maxNodes: spec.maxSearch || 4e5, unique: true });
     if (res.aborted) return fail('Suche zu gross');
     if (res.count === 1) return { res };
     if (rep >= (spec.maxRepairs ?? 12) || !spec.repairs) return fail('nicht eindeutig');
@@ -245,10 +247,13 @@ export function makeUnique(els, solution, R, spec) {
  * unnötige Blocker entfernen, überflüssige Quellen verwerfen, Startstellung verdrehen, alles prüfen.
  * Liefert { level, metrics, quality, seed } oder { fail: Grund }.
  * spec.maxFull begrenzt die Vollsuche über alle Stellungen (Standard 3e5 Knoten).
+ * sol (optional): die Suche aus makeUnique in els; metrics rechnet sie nicht noch einmal, solange els gleich bleibt.
  */
-export function finish(els, solution, spec, R, seed) {
+export function finish(els, solution, spec, R, seed, sol = null) {
   const fail = (why) => ({ fail: why });
-  const remove = (e) => els.splice(els.indexOf(e), 1);
+  // Suchen in els, die metrics am Ende übernimmt; jede Änderung an els verwirft sie
+  let known = { sol };
+  const remove = (e) => { els.splice(els.indexOf(e), 1); known = {}; };
 
   // ---- funktionslose Teile: feste Elemente/Blocker, die in keiner Stellung Licht bekommen, entfernen;
   //      Ziele, die in jeder Stellung erfüllt sind, machen das Level wertlos
@@ -266,13 +271,17 @@ export function finish(els, solution, spec, R, seed) {
   });
   if (full.aborted) return fail('Vollsuche zu gross'); // sonst liefen die Prüfungen unten nur über einen Teil
   if ([...targetsAlways.values()].some(Boolean)) return fail('Ziel immer erfüllt');
+  known.full = full;
   for (const e of els.filter(q => (q.type === 'blocker' || q.fixed || q.type === 'filter') && !everLit.has(key(q.x, q.z)))) remove(e);
 
   // ---- Blocker, die nichts einschränken: probeweise entfernen; bleibt die Lösung eindeutig, wegbleiben lassen
   for (const blk of els.filter(e => e.type === 'blocker')) {
     const without = els.filter(e => e !== blk);
-    const res = solve(asLevel(without), { collect: 1, maxNodes: spec.maxSearch || 4e5 });
-    if (!res.aborted && res.count === 1) remove(blk);
+    const res = solve(asLevel(without), { collect: 1, maxNodes: spec.maxSearch || 4e5, unique: true });
+    if (!res.aborted && res.count === 1) {
+      remove(blk);
+      known = { sol: res }; // die Probe ist die Suche im neuen els
+    }
   }
   if (els.filter(e => e.type === 'blocker').length > (spec.maxBlockers ?? 4)) return fail('zu viele Blocker');
 
@@ -297,8 +306,8 @@ export function finish(els, solution, spec, R, seed) {
     if (!s0.solved && s0.satisfied.size <= (nTargets > 1 ? 1 : 0)) break;
   }
 
-  const level = { name: '', elements: els.map(e => ({ ...e })), solution };
-  const m = metrics(level);
+  const level = { name: '', elements: els.map(e => ({ ...e })), solution }; // Startstellung ändert die Suchen nicht
+  const m = metrics(level, known);
   if (!m.unique) return fail('am Ende nicht eindeutig');
   const norm = (sol) => JSON.stringify(Object.entries(sol).map(([k, v]) => [k, v % per(els.find(e => key(e.x, e.z) === k))]).sort());
   if (norm(m.solution) !== norm(solution)) return fail('Lösung weicht ab');

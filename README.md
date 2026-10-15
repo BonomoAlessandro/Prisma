@@ -22,7 +22,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/logic.test.mjs` prüft die Strahllogik.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level: das Verhalten
-    exakt, Kommazahlen auf 1e-9 genau (etwa 12 s). `--voll` vergleicht den Löser für alle 159 Level (knapp 1 min),
+    exakt, Kommazahlen auf 1e-9 genau (etwa 5 s). `--voll` vergleicht den Löser für alle 159 Level (etwa 20 s),
     vor und nach Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser und alte Wertung
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
@@ -77,8 +77,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung):
   `solver.mjs` folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen (schneidet ab, sobald ein Ziel
-  falsches Licht erhält) und misst die Schwierigkeit (`metrics`: Suchknoten, erreichbare Stellungen, Rateschritte,
-  berührte Elemente, Ziele – zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab);
+  falsches Licht erhält; die Verfolgung macht nach jeder gesetzten Stellung dort weiter, wo sie angehalten hat), und
+  misst die Schwierigkeit (`metrics`: Suchknoten, erreichbare Stellungen, Rateschritte, berührte Elemente, Ziele –
+  zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab). Ist nur die Eindeutigkeit gefragt,
+  hält `solve(level, { unique: true })` bei der zweiten Lösung an;
   `generate.mjs <profil> <anzahl> [seed] [maxseeds] [--jobs N] [--time S]` erzeugt eindeutig lösbare Level nach
   einem Profil aus `profiles.mjs` (Grössenstufe 1–5 × Mischung: nur Spiegel, Prisma, Filter, farbige Quellen,
   Kombinator, bunt gemischt);
@@ -109,10 +111,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich. Ein Feld `difficulty` in `selection.jsonl` wird als
   Markierung ins Level geschrieben;
-  `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--save datei] [--compare datei]` misst die
-  Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level je
-  CPU-Stunde je Profil mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen aller
-  Level und die Zeit des Lösers über alle Level. Generator und Abnahme sind austauschbar (`--generator`, `--accept`),
+  `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
+  misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
+  je CPU-Stunde je Profil mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
+  aller Level und die Zeit des Lösers über alle Level, dazu über die Level mit Blockern ohne diese (sie haben dann
+  mehrere Lösungen). `--unique` misst den Löser im Modus unique: Auf den eindeutigen Leveln sucht er gleich weit, ohne
+  Blocker hält er bei der zweiten Lösung an. Generator und Abnahme sind austauschbar (`--generator`, `--accept`),
   damit später der neue Generator je Schwierigkeitsgrad und die Beurteilung als Abnahme dazukommen. Die
   Ausgangszahlen stehen in `tools/bench-baseline.json`. `--save` fügt einzeln gemessene Profile dort hinzu, wenn
   Generator, Abnahme, Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn und meldet andere

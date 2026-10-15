@@ -36,3 +36,20 @@ Mischziel aus zwei Quellen (ADR 0004). Die Lehren aus der Messung der Effizienz 
 Über einen Generatorwechsel, also den alten Generator nach Profilen gegen den neuen nach Graden, vergleicht es noch
 nicht, und `grades` und `total` vergleicht es gar nicht. Das in diesem Ticket nachrüsten, zusammen mit dem neuen
 Generator in `GENERATORS` und der Beurteilung in `ACCEPTANCES`.
+
+**Hinweis aus Ticket 04 (Löser schneller):**
+- **Eindeutigkeit** mit `solve(level, { unique: true })` prüfen. Er hält bei der zweiten Lösung an. Bei höchstens einer
+  Lösung liefert er genau dasselbe wie ohne den Modus, also auch Knoten und Rateschritte für die Beurteilung.
+  `maxNodes` zählt nur bis zum Anhalten: „zu gross“ heisst dann „bis zur zweiten Lösung zu gross“.
+- **Doppelte Suchen vermeiden:** `metrics(level, { sol, full })` übernimmt Suchen, die der Aufrufer schon hat; `finish`
+  in `tools/generate.mjs` zeigt, wann sie noch gelten (solange das Feld gleich bleibt). Die Beurteilung sollte Suchen
+  ebenso annehmen.
+- **Teuer ist im alten Generator jetzt die Lockvogel-Suche** in `generateOne`: 47 % der Zeit, davon gut die Hälfte in
+  den Rückrufen je Blatt (`pathCells`, `segmentCells`), nicht im Löser. Danach kommen die Vollsuche in `finish` (16 %)
+  und `makeUnique` (15 %). Statistiken über alle Blätter günstiger sammeln (z. B. aus `events` statt aus Abschnitten)
+  oder nur eine Vollsuche mit allen Rückrufen machen.
+  - Gemessen ist das mit `node --cpu-prof` über `generateOne` für die Seeds 1–4000 je Profil in 3-misch, 3-bunt,
+    4-prisma und 3-prisma, in einem Prozess.
+  - Angegeben ist die Zeit in `solve` samt Rückrufen, nach Aufrufer, als Anteil an der ganzen Zeit.
+- **Löser über das Messskript:** `bench.mjs solver --unique` misst den Modus; die Level ohne Blocker zeigen, was der
+  Abbruch bei der zweiten Lösung bringt (× 2,8–2,9 gegen den Standard).

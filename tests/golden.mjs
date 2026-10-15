@@ -13,14 +13,15 @@
 //                  (sortiert), solved, truncated.
 //   solver:        solve(level) → count, nodes, leaves, near, guesses, aborted, rotatable, Lösungen
 //   score:         alte Wertung (`score`) aus metrics(level), nur für die Tutorial-Level und jedes 10. Hauptlevel
-//                  (1, 11, …, 141), weil sie den Löser ein zweites Mal rechnet
+//                  (1, 11, …, 141), weil sie zusätzlich die Suche ohne Abschneiden rechnet (die Suche des Lösers
+//                  bekommt sie mit)
 // Verglichen wird Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um
 // höchstens 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine
 // Gegenprobe prüft den Vergleich selbst.
-// Laufzeit (gemessen über leise.sh, Stand nach Ticket 03): Strahlbilder aller Level wenige ms, Löser für alle 159 Level
-// etwa 35 s (fast alles in den Leveln 121–150), alte Wertung (`score`) für die 24 Level etwa 10 s. Der normale Lauf
-// rechnet den Löser deshalb nur für dieselben 24 Level (etwa 12 s); --voll und --write rechnen ihn für alle (knapp
-// 1 min).
+// Laufzeit (gemessen über leise.sh, Stand nach Ticket 04): Strahlbilder aller Level wenige ms, Löser für alle 159 Level
+// etwa 15 s (fast alles in den Leveln 121–150), alte Wertung (`score`) für die 24 Level etwa 1,5 s. Der normale Lauf
+// rechnet den Löser deshalb nur für dieselben 24 Level (etwa 5 s); --voll und --write rechnen ihn für alle (etwa
+// 20 s).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -64,7 +65,7 @@ function record(level, index) {
     count: s.count, nodes: s.nodes, leaves: s.leaves, near: s.near, guesses: s.guesses,
     aborted: s.aborted, rotatable: s.rotatable, solutions: s.solutions,
   };
-  if (withScore(index)) entry.score = metrics(level).score;
+  if (withScore(index)) entry.score = metrics(level, { sol: s }).score;
   return entry;
 }
 

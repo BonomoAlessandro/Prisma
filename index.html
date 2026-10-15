@@ -524,7 +524,7 @@ function mirrorFrontNormal(rot, dir) {
 
 /**
  * Stellung, die der Löser (tools/solver.mjs) noch nicht festgelegt hat. Liest die Verfolgung sie, hält sie an und
- * liefert { open: Element, hits: bis dahin sichere Treffer }. Im Spiel kommt sie nie vor.
+ * liefert { open: Element, hits: bis dahin sichere Treffer, resume: Stand zum Weitermachen }. Im Spiel kommt sie nie vor.
  */
 const OPEN = -1;
 
@@ -560,6 +560,9 @@ function refractInPrism(dir, color, rot) {
 /**
  * Verfolgt alle Strahlen auf dem Feld.
  * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }.
+ * from (optional, nur für den Löser): resume einer Verfolgung, die an einem Element auf OPEN angehalten hat. Die
+ * Verfolgung macht dort weiter, statt von vorn zu beginnen, mit demselben Ergebnis – vorausgesetzt, seither wurde nur
+ * die Stellung dieses Elements gesetzt (gleiches Feld, gleiche extraRays). Bis zum Anhalten hat sie es nie gelesen.
  *
  * Kombinatoren geben die additive Mischung ALLER eintreffenden Strahlen ab – auch solcher,
  * die erst über ihren eigenen oder einen anderen Kombinator ankommen. Deshalb wird
@@ -578,22 +581,30 @@ function refractInPrism(dir, color, rot) {
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
  *   solved:    alle Ziele erfüllt
  *   truncated: Obergrenze erreicht (Abpraller, Abschnitte, Kombinator-Fixpunkt) – dann nie gelöst
- * Steht ein Element, das Licht bekommt, auf OPEN, ist die Rückgabe nur { open: Element, hits } (für den Löser).
+ * Steht ein Element, das Licht bekommt, auf OPEN, ist die Rückgabe nur { open: Element, hits, resume } (für den Löser).
+ * Ohne früheren Durchlauf ist hits dieselbe Map wie im Stand resume; ein Aufrufer darf sie nicht verändern.
  */
-function traceBeams(board, extraRays = []) {
-  let emitting = new Map(); // combinerId → { color, dist } aus dem vorigen Durchlauf
-  let result = null;
+function traceBeams(board, extraRays = [], from = null) {
+  let emitting = from ? from.emitting : new Map(); // combinerId → { color, dist } aus dem vorigen Durchlauf
+  let result = from ? from.result : null;
+  let paused = from ? from.paused : null; // angehaltener Durchlauf, in dem es weitergeht
   // Jeder Durchlauf trägt Licht einen Kombinator weiter; jede Mischung kann höchstens 3-mal wachsen.
   let combiners = 0;
   for (const el of board.elements) if (el.type === 'combiner') combiners++;
   const maxPasses = 3 * combiners + 2;
   let stable = false;
-  for (let pass = 0; pass < maxPasses && !stable; pass++) {
-    const r = tracePass(board, extraRays, emitting);
+  for (let pass = from ? from.pass : 0; pass < maxPasses && !stable; pass++) {
+    const r = tracePass(board, extraRays, emitting, paused);
+    paused = null;
     if (r.open) {
-      // Für den Löser: Die Treffer des vorigen Passes sind ebenfalls sicher (die Pässe wachsen nur)
-      if (result) for (const [id, c] of result.hits) r.hits.set(id, (r.hits.get(id) || 0) | c);
-      return r;
+      // Für den Löser: Die Treffer des vorigen Passes sind ebenfalls sicher (die Pässe wachsen nur). Der angehaltene
+      // Durchlauf behält seine eigenen.
+      let hits = r.paused.hits;
+      if (result) {
+        hits = new Map(hits);
+        for (const [id, c] of result.hits) hits.set(id, (hits.get(id) || 0) | c);
+      }
+      return { open: r.open, hits, resume: { pass, emitting, result, paused: r.paused } };
     }
     result = r;
     const next = result.combinerInputs;
@@ -623,18 +634,24 @@ function traceBeams(board, extraRays = []) {
 
 /**
  * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben. Trifft er auf ein Element mit offener Stellung
- * (OPEN, nur beim Löser), bricht er ab und gibt { open, hits } zurück.
+ * (OPEN, nur beim Löser), hält er an und gibt { open, paused } zurück: paused ist sein Zustand an dieser Stelle. Mit
+ * from = paused macht ein späterer Durchlauf dort weiter, auf einer Kopie (der Löser setzt von dort aus jede Stellung).
  */
-function tracePass(board, extraRays, emitting) {
-  const segments = [];
-  const events = [];
-  const hits = new Map();
+function tracePass(board, extraRays, emitting, from) {
+  const segments = from ? from.segments.slice() : [];
+  const events = from ? from.events.slice() : [];
+  const hits = from ? new Map(from.hits) : new Map();
   const combinerInputs = new Map();
+  if (from) for (const [id, v] of from.combinerInputs) combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
   // (Zelle, Richtung, Farbe): derselbe Strahl läuft nur einmal. Ein Feld ist bei so wenigen Strahlen schneller als ein
   // Set; MAX_SEGMENTS begrenzt seine Länge.
-  const seen = [];
-  const queue = [];
-  let truncated = false;
+  const seen = from ? from.seen.slice() : [];
+  const queue = from ? from.queue.slice() : [];
+  let truncated = from ? from.truncated : false;
+  // Anhalten am offenen Element: beim Abschicken der Startstrahlen (start: Index des Elements, head -1) oder im Strahl
+  // queue[head] in der Zelle (cx, cz) des Elements
+  const pause = (open, start, head, cx, cz) =>
+    ({ open, paused: { segments, events, hits, combinerInputs, seen, queue, truncated, start, head, cx, cz } });
 
   // Einziger Weg, einen Strahl abzuschicken: hier greifen Schleifen- und Abprallschutz für alle Elemente.
   const pushRay = (ray) => {
@@ -648,23 +665,29 @@ function tracePass(board, extraRays, emitting) {
     queue.push(ray);
   };
 
-  for (const el of board.elements) {
-    if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
-    if (el.type === 'combiner' && emitting.has(el.id)) {
-      if (el.dir === OPEN) return { open: el, hits };
-      const e = emitting.get(el.id);
-      pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
+  if (!from || from.head < 0) {
+    const els = board.elements;
+    for (let i = from ? from.start : 0; i < els.length; i++) {
+      const el = els[i];
+      if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
+      if (el.type === 'combiner' && emitting.has(el.id)) {
+        if (el.dir === OPEN) return pause(el, i, -1);
+        const e = emitting.get(el.id);
+        pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
+      }
     }
+    for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
   }
-  for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
 
   // Die Schleife läuft beim Lösen millionenfach: bewusst ohne Destrukturierung, Objekt-Spread und Math.hypot, die hier
   // messbar langsamer sind.
-  for (let head = 0; head < queue.length; head++) {
+  for (let head = from && from.head >= 0 ? from.head : 0; head < queue.length; head++) {
     if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
     const ray = queue[head];
     const step = DIRS[ray.dir], dx = step[0], dz = step[1];
     let cx = ray.x, cz = ray.z;
+    // Weitermachen am angehaltenen Element: eine Zelle davor beginnen, der erste Schritt trifft es (dazwischen ist leer)
+    if (from && head === from.head) { cx = from.cx - dx; cz = from.cz - dz; }
 
     const ahead = unitDir(ray.dir);
     const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]], fade) => {
@@ -694,7 +717,7 @@ function tracePass(board, extraRays, emitting) {
       if (!el) continue;
 
       if (el.type === 'mirror') {
-        if (el.rot === OPEN) return { open: el, hits };
+        if (el.rot === OPEN) return pause(el, 0, head, cx, cz);
         const nd = reflectOnMirror(ray.dir, el.rot);
         if (nd === ray.dir) {
           // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
@@ -711,7 +734,7 @@ function tracePass(board, extraRays, emitting) {
       }
 
       if (el.type === 'prism') {
-        if (el.rot === OPEN) return { open: el, hits };
+        if (el.rot === OPEN) return pause(el, 0, head, cx, cz);
         const d = emit(cx, cz);
         const outs = refractInPrism(ray.dir, ray.color, el.rot);
         events.push({ x: cx, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });

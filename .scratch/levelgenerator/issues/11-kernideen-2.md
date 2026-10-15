@@ -20,3 +20,13 @@ Die Prüfung „nötig“ kommt aus Ticket 10.
       grössten Beitrag zum Schliessen.
 - [ ] Mini-Level gibt es je Kernidee, einmal nötig und einmal dekorativ.
 - [ ] Die Zahlen je Kernidee, die Verteilung der Haupt-Kernideen und die Grade auf den 150 stehen unter `## Comments`.
+
+## Comments
+
+**Hinweis aus Ticket 04 (Löser schneller):** `solve` übergibt `onLeaf` nur noch `(r, board)`; das dritte Argument
+`value` (Map Element-Id → Stellung) ist weggefallen.
+- Die unversionierten Skripte zu den Fallen in den Review-Ordnern der Pools benutzen es und brechen jetzt ab:
+  `tools/pools/review4/traps.mjs`, `review4/trapshow.mjs`, `review6/traps.mjs` und `review6/trapshow.mjs`. Dazu
+  kommen `review5/screen.mjs` und `review6/features.mjs` (Ticket 09).
+- Beim Übernehmen der Holzwege anpassen: Entschieden ist ein Element, wenn `getRot(el) !== L.OPEN`, und seine
+  Stellung ist `getRot(el)`. Beides kommt aus `tools/solver.mjs`.

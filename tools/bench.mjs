@@ -15,9 +15,11 @@
 //              einem eigenen, nicht gemessenen Durchgang über dieselben Stellungen (siehe picture). Sie zeigt, dass
 //              dieselben Strahlbilder entstehen, ersetzt aber nicht den Golden-Test: Normalen, Längen, Abstände und
 //              die Lage der Ereignisse fehlen, und ein Rundungsrest genau an einer Rundungsgrenze kann sie kippen.
-//   solver     CPU-Zeit von solve(level) mit den Standardoptionen über alle Level, ein Durchgang (rund 100 s)
+//   solver     CPU-Zeit von solve(level) über alle Level, ein Durchgang (rund 15 s), dazu über die Level mit Blockern
+//              ohne diese (heute 17, dann fast alle mit mehreren Lösungen; rund 3 s). Mit --unique im Modus unique (nur
+//              die Eindeutigkeit, hält bei der zweiten Lösung an): auf den Leveln gleich weit, ohne Blocker kürzer.
 // Optionen: --seeds N (Standard 60000) --start S (1) --jobs N --generator alt --accept alt
-//           --positions N (Standard 20000) --seed S (1)
+//           --positions N (Standard 20000) --seed S (1) --unique
 //           --save datei     Ergebnisse in eine JSON-Datei schreiben; andere Teile darin bleiben stehen. Gruppen des
 //                            Generators kommen zu den vorhandenen dazu (gesamt neu gerechnet), wenn Generator,
 //                            Abnahme, Seeds, --jobs und Rechner gleich sind; sonst bricht das Skript ab.
@@ -227,17 +229,29 @@ function benchTrace({ positions, seed }) {
   };
 }
 
-/** CPU-Zeit von solve(level) über alle Level; die Summe der Knoten zeigt, dass dieselbe Suche lief. */
-function benchSolver() {
-  const runs = L.LEVELS.map(level => {
-    const t = cpuNow();
-    const s = solve(level);
-    return { name: level.name, cpu: cpuNow() - t, nodes: s.nodes };
-  });
-  const cpu = runs.reduce((s, r) => s + r.cpu, 0), seconds = (us) => +(us / 1e6).toFixed(1);
+/**
+ * CPU-Zeit von solve(level) über alle Level; die Summe der Knoten zeigt, dass dieselbe Suche lief. unique: im Modus
+ * unique (nur die Eindeutigkeit). Alle Level sind eindeutig, der Modus sucht dort also gleich weit. Deshalb kommen die
+ * Level mit Blockern ohne ihre Blocker dazu (withoutBlockers): Sie haben dann fast alle mehrere Lösungen, wie die
+ * Kandidaten des Generators vor dem Blockieren, und dort hält der Modus bei der zweiten an.
+ */
+function benchSolver({ unique }) {
+  const seconds = (us, digits = 1) => +(us / 1e6).toFixed(digits);
+  const run = (levels) => {
+    const runs = levels.map(level => {
+      const t = cpuNow();
+      const s = solve(level, { unique });
+      return { name: level.name, cpu: cpuNow() - t, nodes: s.nodes };
+    });
+    return { levels: runs.length, cpu: runs.reduce((s, r) => s + r.cpu, 0), nodes: runs.reduce((s, r) => s + r.nodes, 0), runs };
+  };
+  const all = run(L.LEVELS);
+  const unblocked = run(L.LEVELS.filter(l => l.elements.some(e => e.type === 'blocker'))
+    .map(l => ({ ...l, elements: l.elements.filter(e => e.type !== 'blocker') })));
   return {
-    levels: runs.length, cpuSeconds: seconds(cpu), nodes: runs.reduce((s, r) => s + r.nodes, 0),
-    slowest: [...runs].sort((a, b) => b.cpu - a.cpu).slice(0, 5).map(r => ({ name: r.name, cpuSeconds: seconds(r.cpu) })),
+    unique, levels: all.levels, cpuSeconds: seconds(all.cpu), nodes: all.nodes,
+    slowest: [...all.runs].sort((a, b) => b.cpu - a.cpu).slice(0, 5).map(r => ({ name: r.name, cpuSeconds: seconds(r.cpu) })),
+    withoutBlockers: { levels: unblocked.levels, cpuSeconds: seconds(unblocked.cpu, 2), nodes: unblocked.nodes },
   };
 }
 
@@ -281,8 +295,17 @@ function compare(old, cur) {
   }
   if (old.solver && cur.solver) {
     const o = old.solver, c = cur.solver, note = o.nodes !== c.nodes ? '  ≠ andere Knotenzahl' : '';
+    const mode = (s) => (s.unique ? 'Modus unique' : 'Standard');
+    const modes = !o.unique === !c.unique ? '' : ` (${mode(o)} → ${mode(c)})`; // alle Level eindeutig: Knoten gleich
     lines.push(o.levels !== c.levels ? `Löser nicht vergleichbar: ${o.levels} → ${c.levels} Level`
-      : `Löser: ${o.cpuSeconds} → ${c.cpuSeconds} CPU-s${factor(c.cpuSeconds, o.cpuSeconds)}${note}`);
+      : `Löser: ${o.cpuSeconds} → ${c.cpuSeconds} CPU-s${factor(c.cpuSeconds, o.cpuSeconds)}${modes}${note}`);
+    const ob = o.withoutBlockers, cb = c.withoutBlockers;
+    if (ob && cb) {
+      // mehrere Lösungen: Im Modus unique sind weniger Knoten richtig
+      const other = !modes && ob.nodes !== cb.nodes ? '  ≠ andere Knotenzahl' : '';
+      lines.push(ob.levels !== cb.levels ? `Löser ohne Blocker nicht vergleichbar: ${ob.levels} → ${cb.levels} Level`
+        : `Löser, Level ohne Blocker: ${ob.cpuSeconds} → ${cb.cpuSeconds} CPU-s${factor(cb.cpuSeconds, ob.cpuSeconds)}${modes}${other}`);
+    }
   }
   return lines;
 }
@@ -313,12 +336,14 @@ async function main() {
   const cpus = os.cpus();
   const generator = flag('--generator', 'alt'), accept = flag('--accept', 'alt');
   const save = flag('--save', null), against = flag('--compare', null);
+  const unique = args.includes('--unique');
+  if (unique) args.splice(args.indexOf('--unique'), 1);
   const num = { seeds: flag('--seeds', 60000), start: flag('--start', 1), jobs: flag('--jobs', Math.max(1, cpus.length >> 1)),
     positions: flag('--positions', 20000), seed: flag('--seed', 1) };
   const parts = ['generator', 'trace', 'solver'].filter(p => args.includes(p));
   const groups = args.filter(a => !parts.includes(a));
   const usage = 'Aufruf: node tools/bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--start S] [--jobs N] ' +
-    '[--generator alt] [--accept alt] [--positions N] [--seed S] [--save datei] [--compare datei]';
+    '[--generator alt] [--accept alt] [--positions N] [--seed S] [--unique] [--save datei] [--compare datei]';
   for (const [k, v] of Object.entries(num)) {
     num[k] = Number(v);
     if (!Number.isInteger(num[k]) || num[k] < 1) fail(`--${k} braucht eine ganze Zahl ≥ 1\n${usage}`);
@@ -326,6 +351,7 @@ async function main() {
   if (!parts.length) fail(usage);
   if (!GENERATORS[generator] || !ACCEPTANCES[accept]) fail(`Unbekannt: --generator ${generator} oder --accept ${accept}`);
   if (groups.length && !parts.includes('generator')) fail(`Gruppen gibt es nur beim Teil generator: ${groups.join(' ')}`);
+  if (unique && !parts.includes('solver')) fail('--unique gibt es nur beim Teil solver');
   const cap = Number(process.env.LEISE_CPU || 20), limit = parts.includes('generator') ? 50 : 20;
   if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cap <= limit)) {
     fail(`Nur über die gedeckelte Umgebung starten: tiefste Priorität und LEISE_CPU höchstens ${limit} ` +
@@ -363,10 +389,11 @@ async function main() {
       `${t.levels} Level × ${t.positions} Stellungen, Seed ${t.seed}, ${t.cpuSeconds} CPU-s; Prüfsumme ${t.checksum})`);
   }
   if (parts.includes('solver')) {
-    results.solver = { measured, ...benchSolver() };
-    const s = results.solver;
-    console.log(`Löser: ${s.cpuSeconds} CPU-s für ${s.levels} Level (${s.nodes} Knoten; am längsten ` +
-      `${s.slowest.map(r => `${r.name} ${r.cpuSeconds} s`).join(', ')})`);
+    results.solver = { measured, ...benchSolver({ unique }) };
+    const s = results.solver, w = s.withoutBlockers;
+    console.log(`Löser${unique ? ' im Modus unique' : ''}: ${s.cpuSeconds} CPU-s für ${s.levels} Level (${s.nodes} Knoten; ` +
+      `am längsten ${s.slowest.map(r => `${r.name} ${r.cpuSeconds} s`).join(', ')}); ${w.cpuSeconds} CPU-s für die ` +
+      `${w.levels} Level mit Blockern ohne diese (${w.nodes} Knoten)`);
   }
   if (against) compare(JSON.parse(readFileSync(against, 'utf8')), results).forEach(l => console.log(l));
   if (save) {

@@ -27,3 +27,21 @@ Etwa mit `LEISE_CPU=50 sh tools/blender/out/arbeit/leise.sh node tools/bench.mjs
 --save datei`. Achtung: `--save` führt nur bei gleichen Seeds und gleichem `--jobs` mit einer
 vorhandenen Messung zusammen. Die Ausgangszahlen haben 60 000 Seeds je Profil, das ist für „härten“ zu teuer. Also
 entweder eine eigene Datei nehmen oder das Zusammenführen für Gruppen mit eigener Seed-Zahl erweitern.
+
+**Hinweis aus Ticket 04 (Löser schneller):**
+- **Härten ist schneller geworden:** Ein Lauf von `climb` mit 300 Schritten (Seed 5, Zielwertung 44–54) brauchte 3,7
+  statt 17,0 CPU-s. Die Ausgangszahl für „härten“ hängt also davon ab, ob sie vor oder nach Ticket 04 gemessen wird.
+  Für den Vergleich mit dem neuen Generator den Stand nach Ticket 04 nehmen.
+- **`makeUnique` sucht im Modus unique.** Eine Suche mit mehreren Lösungen, die erst nach der zweiten über
+  `maxSearch` (beim Härten 1,5e6) käme, gilt nicht mehr als „zu gross“; das Level wird repariert. In sechs Proben
+  verlief `climb` gleich wie vorher, in Einzelfällen kann ein Lauf aber anders verlaufen.
+- **Beim Verfeinern** stellt jeder Schritt die Eindeutigkeit her. Dafür den Modus unique nehmen; seine Knoten und
+  Rateschritte gelten bei einer Lösung unverändert für die Beurteilung (siehe Ticket 18).
+- **Doppelte Suchen, die in den alten Werkzeugen bleiben** (Ticket 04 hat sie nicht mehr umgebaut; das Verfeinern
+  ersetzt das Härten). Der neue Generator sollte sie vermeiden:
+  - `harden.mjs`, Zeile 330: `climb` ruft `finish` ohne `sol` auf. Dann wiederholt `metrics` die Suche von `makeUnique`
+    aus `evaluate`, bis 1,5e6 Knoten. Abhilfe: Das Ergebnis von `makeUnique` in `evaluate` aufheben und als `sol`
+    mitgeben.
+  - Die Vollsuchen in `finish` und `metrics` wiederholen in manchen Fällen die Lockvogel-Suche von `generateOne`
+    (zusammen knapp 1 % der Knoten), die Lockvogel-Suche in `quality` wiederholt die Vollsuche (1,4 %). Alle drei
+    brauchen eigene Rückrufe je Blatt. Besser ist eine Vollsuche, die alle Rückrufe auf einmal bedient.

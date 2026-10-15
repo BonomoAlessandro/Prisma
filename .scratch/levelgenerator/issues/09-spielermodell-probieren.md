@@ -21,3 +21,13 @@ Beurteilung den Ausschlussgrund Probieren, in allen Graden.
       - Das heutige Maximum von 55,5 ‰ (74 Lichtnetz) wird nachgerechnet.
 - [ ] Die Laufzeit der Beurteilung je Level ist gemessen und steht unter `## Comments`. Sie ist wichtig für den
       Generator.
+
+## Comments
+
+**Hinweis aus Ticket 04 (Löser schneller):** `solve` übergibt `onLeaf` nur noch `(r, board)`; das dritte Argument
+`value` (Map Element-Id → Stellung) ist weggefallen.
+- Die unversionierten Skripte in den Review-Ordnern der Pools benutzen es und brechen jetzt ab:
+  `tools/pools/review4/traps.mjs`, `review4/trapshow.mjs`, `review5/screen.mjs`, `review6/features.mjs`,
+  `review6/traps.mjs` und `review6/trapshow.mjs`.
+- Beim Übernehmen von Spielermodell, Holzwegen und Vorsieb anpassen: Entschieden ist ein Element, wenn
+  `getRot(el) !== L.OPEN`, und seine Stellung ist `getRot(el)`. Beides kommt aus `tools/solver.mjs`.
