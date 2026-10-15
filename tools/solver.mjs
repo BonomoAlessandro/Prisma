@@ -15,16 +15,13 @@ const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'i
 const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END'));
 export const L = new Function(code + `
   return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
-    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, mod8 };`)();
+    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, mod8, OPEN };`)();
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);
 export const getRot = (el) => (el.type === 'combiner' ? el.dir : el.rot);
 export const setRot = (el, v) => { if (el.type === 'combiner') el.dir = v; else el.rot = v; };
 export const keyOf = (el) => el.x + ',' + el.z;
-
-/** Wird geworfen, wenn die Verfolgung die Stellung eines noch offenen Elements liest. */
-class Need { constructor(el) { this.el = el; } }
 
 /**
  * Durchsucht die Stellungen der drehbaren Elemente, die das Licht erreicht.
@@ -42,14 +39,7 @@ export function solve(level, { maxNodes = 2e6, collect = 50, prune = true, onLea
   const rot = board.elements.filter(L.isRotatable);
   const targets = board.elements.filter(e => e.type === 'target');
   const value = new Map(); // el.id → Stellung (nur bereits entschiedene)
-  for (const el of rot) {
-    const prop = el.type === 'combiner' ? 'dir' : 'rot';
-    Object.defineProperty(el, prop, {
-      get() { if (!value.has(el.id)) throw new Need(el); return value.get(el.id); },
-      set(v) { value.set(el.id, L.mod8(v)); },
-      configurable: true,
-    });
-  }
+  for (const el of rot) setRot(el, L.OPEN); // offen: die Verfolgung hält dort an (traceBeams liefert open)
   const out = { count: 0, solutions: [], nodes: 0, leaves: 0, near: 0, guesses: 0, aborted: false, rotatable: rot.length };
   const wrongLight = (hits) => targets.some(t => (hits.get(t.id) || 0) & ~t.color);
 
@@ -58,21 +48,21 @@ export function solve(level, { maxNodes = 2e6, collect = 50, prune = true, onLea
   const visit = () => {
     if (out.nodes >= maxNodes) { out.aborted = true; return 0; }
     out.nodes++;
-    let r;
-    try {
-      r = L.traceBeams(board);
-    } catch (e) {
-      if (!(e instanceof Need)) throw e;
-      if (prune && e.partialHits && wrongLight(e.partialHits)) return 0;
+    const r = L.traceBeams(board);
+    if (r.open) {
+      const el = r.open;
+      if (prune && wrongLight(r.hits)) return 0;
       let leaves = 0, alive = 0;
-      for (let v = 0; v < period(e.el) && !out.aborted; v++) {
-        value.set(e.el.id, v);
+      for (let v = 0; v < period(el) && !out.aborted; v++) {
+        value.set(el.id, v);
+        setRot(el, v);
         const n = visit();
         leaves += n;
         if (n) alive++;
       }
       if (alive >= 2) out.guesses++;
-      value.delete(e.el.id);
+      value.delete(el.id);
+      setRot(el, L.OPEN);
       return leaves;
     }
     out.leaves++;

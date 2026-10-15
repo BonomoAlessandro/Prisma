@@ -26,3 +26,16 @@ Standardoptionen über alle Level. Den neuen Modus für die Eindeutigkeit dort w
 ist. `--compare` vergleicht nur die Summe der Knoten; die Ergebnisse je Level sichert `node tests/golden.mjs --voll`.
 Die Ausgangszahl ist 103,8 CPU-s bei 9 831 779 Knoten (`tools/bench-baseline.json`). Sie streut mit der Last auf dem
 Rechner um 20 % und mehr, deshalb vorher und nachher in derselben Sitzung messen.
+
+**Hinweis aus Ticket 03 (Strahlregel schneller):** `Need` und die werfenden Getter in `tools/solver.mjs` sind schon
+weg. `solve` setzt die drehbaren Elemente auf `L.OPEN` (-1). Liest die Verfolgung eine solche Stellung, liefert
+`traceBeams` nur `{ open: Element, hits }`. `visit` setzt die Stellung mit `setRot` und beim Zurückgehen wieder
+`L.OPEN`. Nach Ticket 03 braucht der Löser über alle Level 32–35 CPU-s statt 88–90 (gemessen in derselben Sitzung),
+bei unveränderten 9 831 779 Knoten. Das ist der neue Vergleich für dieses Ticket.
+
+**Hinweis aus dem Review von Ticket 03:**
+- Die Spec nennt als heisse Stelle auch: Bei jedem Knoten der Suche werden alle Strahlen neu verfolgt. Das gehört
+  hierher, etwa als Zwischenspeicher oder als Verfolgung, die beim nächsten offenen Element weitermacht, statt von vorn
+  zu beginnen.
+- Im Löser kommen `value.set`/`setRot` und `value.delete`/`setRot(el, L.OPEN)` immer paarweise; `value.has(id)` ist
+  dasselbe wie `getRot(el) !== L.OPEN`. Den doppelten Zustand hier auflösen.

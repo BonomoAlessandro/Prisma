@@ -22,8 +22,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/logic.test.mjs` prüft die Strahllogik.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level: das Verhalten
-    exakt, Kommazahlen auf 1e-9 genau (etwa 30 s). `--voll` vergleicht den Löser für alle 159 Level (etwa 2 min),
-    vor und nach Änderungen am Löser. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
+    exakt, Kommazahlen auf 1e-9 genau (etwa 12 s). `--voll` vergleicht den Löser für alle 159 Level (knapp 1 min),
+    vor und nach Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser und alte Wertung
+    (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
+    ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.

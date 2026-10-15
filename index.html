@@ -505,17 +505,28 @@ function createBoard(level) {
   return { size, elements, grid, name: level.name };
 }
 
+/** Eine Normale der Spiegelfläche je Stellung (einmal berechnet statt Math.sin und Math.cos bei jedem Treffer). */
+const MIRROR_NORMALS = Array.from({ length: 8 }, (_, rot) => {
+  const a = rot * Math.PI / 4;
+  return [-Math.sin(a), Math.cos(a)];
+});
+
 /**
  * Normale der Spiegelfläche, die zur Seite des einfallenden Strahls zeigt.
  * Der reflektierte Strahl verlässt den Spiegel auf derselben Seite.
  */
 function mirrorFrontNormal(rot, dir) {
-  const a = rot * Math.PI / 4;
-  let nx = -Math.sin(a), nz = Math.cos(a);
-  const [dx, dz] = DIRS[dir];
-  if (nx * dx + nz * dz > 0) { nx = -nx; nz = -nz; }
+  const n = MIRROR_NORMALS[mod8(rot)], d = DIRS[dir];
+  let nx = n[0], nz = n[1];
+  if (nx * d[0] + nz * d[1] > 0) { nx = -nx; nz = -nz; }
   return [nx, nz];
 }
+
+/**
+ * Stellung, die der Löser (tools/solver.mjs) noch nicht festgelegt hat. Liest die Verfolgung sie, hält sie an und
+ * liefert { open: Element, hits: bis dahin sichere Treffer }. Im Spiel kommt sie nie vor.
+ */
+const OPEN = -1;
 
 function isRotatable(el) {
   return !el.fixed && (el.type === 'mirror' || el.type === 'prism' || el.type === 'combiner');
@@ -567,52 +578,61 @@ function refractInPrism(dir, color, rot) {
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
  *   solved:    alle Ziele erfüllt
  *   truncated: Obergrenze erreicht (Abpraller, Abschnitte, Kombinator-Fixpunkt) – dann nie gelöst
+ * Steht ein Element, das Licht bekommt, auf OPEN, ist die Rückgabe nur { open: Element, hits } (für den Löser).
  */
 function traceBeams(board, extraRays = []) {
   let emitting = new Map(); // combinerId → { color, dist } aus dem vorigen Durchlauf
   let result = null;
   // Jeder Durchlauf trägt Licht einen Kombinator weiter; jede Mischung kann höchstens 3-mal wachsen.
-  const combiners = board.elements.filter(e => e.type === 'combiner').length;
+  let combiners = 0;
+  for (const el of board.elements) if (el.type === 'combiner') combiners++;
   const maxPasses = 3 * combiners + 2;
   let stable = false;
   for (let pass = 0; pass < maxPasses && !stable; pass++) {
-    try {
-      result = tracePass(board, extraRays, emitting);
-    } catch (e) {
+    const r = tracePass(board, extraRays, emitting);
+    if (r.open) {
       // Für den Löser: Die Treffer des vorigen Passes sind ebenfalls sicher (die Pässe wachsen nur)
-      if (e && typeof e === 'object' && result) {
-        const hits = new Map(result.hits);
-        for (const [id, c] of e.partialHits || []) hits.set(id, (hits.get(id) || 0) | c);
-        e.partialHits = hits;
-      }
-      throw e;
+      if (result) for (const [id, c] of result.hits) r.hits.set(id, (r.hits.get(id) || 0) | c);
+      return r;
     }
+    result = r;
     const next = result.combinerInputs;
-    stable = next.size === emitting.size &&
-      [...next].every(([id, v]) => emitting.has(id) && emitting.get(id).color === v.color);
+    stable = next.size === emitting.size;
+    if (stable) for (const [id, v] of next) if (emitting.get(id)?.color !== v.color) { stable = false; break; }
     emitting = next;
   }
   if (!stable) result.truncated = true;
-  const mixes = new Map([...emitting].map(([id, v]) => [id, v.color]));
-  const targets = board.elements.filter(e => e.type === 'target');
+  const mixes = new Map();
+  for (const [id, v] of emitting) mixes.set(id, v.color);
   // Zielregel: Alle eintreffenden Strahlen mischen sich additiv; erfüllt ist ein Ziel nur,
   // wenn die Mischung exakt seiner Farbe entspricht (ein zusätzlicher falscher Strahl stört).
-  const satisfied = new Set(targets.filter(t => result.hits.get(t.id) === t.color).map(t => t.id));
+  const satisfied = new Set();
+  let targets = 0;
+  for (const t of board.elements) {
+    if (t.type !== 'target') continue;
+    targets++;
+    if (result.hits.get(t.id) === t.color) satisfied.add(t.id);
+  }
   // Abgebrochene Verfolgung (Obergrenzen) zählt nie als gelöst – dieselbe Regel gilt für den Löser
-  const solved = !result.truncated && targets.length > 0 && targets.every(t => satisfied.has(t.id));
+  const solved = !result.truncated && targets > 0 && satisfied.size === targets;
   return {
     segments: result.segments, events: result.events, hits: result.hits, mixes,
     satisfied, solved, truncated: result.truncated,
   };
 }
 
-/** Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben. */
+/**
+ * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben. Trifft er auf ein Element mit offener Stellung
+ * (OPEN, nur beim Löser), bricht er ab und gibt { open, hits } zurück.
+ */
 function tracePass(board, extraRays, emitting) {
   const segments = [];
   const events = [];
   const hits = new Map();
   const combinerInputs = new Map();
-  const seen = new Set(); // (Zelle, Richtung, Farbe) — derselbe Strahl läuft nur einmal
+  // (Zelle, Richtung, Farbe): derselbe Strahl läuft nur einmal. Ein Feld ist bei so wenigen Strahlen schneller als ein
+  // Set; MAX_SEGMENTS begrenzt seine Länge.
+  const seen = [];
   const queue = [];
   let truncated = false;
 
@@ -622,115 +642,122 @@ function tracePass(board, extraRays, emitting) {
     const key = ((ray.x * 64 + ray.z) * 8 + ray.dir) * 8 + ray.color; // Strahlen starten in Zellen (ganzzahlig, Feld ≤ 64)
     // Schon unterwegs: zwei Strahlen laufen zusammen oder eine Schleife schliesst sich. Die Fortsetzung
     // wäre identisch, es geht also nichts verloren – kein Abbruch, das Ergebnis bleibt exakt.
-    if (seen.has(key)) return;
+    if (seen.includes(key)) return;
     if (ray.bounces > MAX_BOUNCES) { truncated = true; return; }
-    seen.add(key);
+    seen.push(key);
     queue.push(ray);
   };
 
-  try {
-    for (const el of board.elements) {
-      if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
-      if (el.type === 'combiner' && emitting.has(el.id)) {
-        const e = emitting.get(el.id);
-        pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
-      }
+  for (const el of board.elements) {
+    if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
+    if (el.type === 'combiner' && emitting.has(el.id)) {
+      if (el.dir === OPEN) return { open: el, hits };
+      const e = emitting.get(el.id);
+      pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
     }
-    for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
+  }
+  for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
 
-    for (let head = 0; head < queue.length; head++) {
-      if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
-      const ray = queue[head];
-      const [dx, dz] = DIRS[ray.dir];
-      const stepLen = Math.hypot(dx, dz);
-      let cx = ray.x, cz = ray.z;
+  // Die Schleife läuft beim Lösen millionenfach: bewusst ohne Destrukturierung, Objekt-Spread und Math.hypot, die hier
+  // messbar langsamer sind.
+  for (let head = 0; head < queue.length; head++) {
+    if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
+    const ray = queue[head];
+    const step = DIRS[ray.dir], dx = step[0], dz = step[1];
+    let cx = ray.x, cz = ray.z;
 
-      const ahead = unitDir(ray.dir);
-      const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]], fade) => {
-        const length = Math.hypot(x1 - ray.x, z1 - ray.z);
-        if (length > 1e-6) segments.push({ x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1, ...(fade && { fade }) });
-        return ray.dist + length;
-      };
-      const next = (dir, color, d) =>
-        pushRay({ x: cx, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: unitDir(dir) });
+    const ahead = unitDir(ray.dir);
+    const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]], fade) => {
+      const lx = x1 - ray.x, lz = z1 - ray.z;
+      const length = Math.sqrt(lx * lx + lz * lz);
+      if (length > 1e-6) {
+        const seg = { x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 };
+        if (fade) seg.fade = fade;
+        segments.push(seg);
+      }
+      return ray.dist + length;
+    };
+    const next = (dir, color, d) =>
+      pushRay({ x: cx, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: unitDir(dir) });
 
-      for (;;) {
-        const nx = cx + dx, nz = cz + dz;
-        if (nx < 0 || nz < 0 || nx >= board.size || nz >= board.size) {
-          // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
-          const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ez = cz + dz * 0.5 + ahead[1] * EDGE_RUN;
-          const d = emit(ex, ez, undefined, EDGE_RUN);
-          events.push({ x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
-          break;
-        }
-        cx = nx; cz = nz;
-        const el = board.grid[cz * board.size + cx];
-        if (!el) continue;
-
-        if (el.type === 'mirror') {
-          const nd = reflectOnMirror(ray.dir, el.rot);
-          if (nd === ray.dir) {
-            // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
-            const back = MIRROR_HALF_WIDTH;
-            const d = emit(cx - dx / stepLen * back, cz - dz / stepLen * back);
-            events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
-            break;
-          }
-          const normal = mirrorFrontNormal(el.rot, ray.dir);
-          const d = emit(cx, cz, normal);
-          events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
-          pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
-          break;
-        }
-
-        if (el.type === 'prism') {
-          const d = emit(cx, cz);
-          const outs = refractInPrism(ray.dir, ray.color, el.rot);
-          events.push({ x: cx, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });
-          for (const out of outs) next(out.dir, out.color, d);
-          break;
-        }
-
-        if (el.type === 'filter') {
-          const d = emit(cx, cz);
-          const passed = ray.color & el.color;
-          events.push({ x: cx, z: cz, color: passed || ray.color, kind: passed ? 'filter' : 'absorb', dist: d, element: el.id });
-          next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
-          break;
-        }
-
-        if (el.type === 'combiner') {
-          const d = emit(cx, cz);
-          // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
-          // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
-          const inp = combinerInputs.get(el.id) || { color: 0, dist: 0, first: {} };
-          for (const c of primariesOf(ray.color)) inp.first[c] = Math.min(inp.first[c] ?? Infinity, d);
-          inp.color |= ray.color;
-          inp.dist = Math.max(...Object.values(inp.first));
-          combinerInputs.set(el.id, inp);
-          events.push({ x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
-          break;
-        }
-
-        if (el.type === 'target') {
-          const d = emit(cx, cz);
-          hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
-          events.push({ x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
-          break;
-        }
-
-        // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
-        const back = 0.32;
-        const d = emit(cx - dx / stepLen * back, cz - dz / stepLen * back);
-        events.push({ x: cx - dx / stepLen * back, z: cz - dz / stepLen * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
+    for (;;) {
+      const nx = cx + dx, nz = cz + dz;
+      if (nx < 0 || nz < 0 || nx >= board.size || nz >= board.size) {
+        // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
+        const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ez = cz + dz * 0.5 + ahead[1] * EDGE_RUN;
+        const d = emit(ex, ez, undefined, EDGE_RUN);
+        events.push({ x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
         break;
       }
+      cx = nx; cz = nz;
+      const el = board.grid[cz * board.size + cx];
+      if (!el) continue;
+
+      if (el.type === 'mirror') {
+        if (el.rot === OPEN) return { open: el, hits };
+        const nd = reflectOnMirror(ray.dir, el.rot);
+        if (nd === ray.dir) {
+          // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
+          const back = MIRROR_HALF_WIDTH;
+          const d = emit(cx - ahead[0] * back, cz - ahead[1] * back);
+          events.push({ x: cx - ahead[0] * back, z: cz - ahead[1] * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
+          break;
+        }
+        const normal = mirrorFrontNormal(el.rot, ray.dir);
+        const d = emit(cx, cz, normal);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
+        pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
+        break;
+      }
+
+      if (el.type === 'prism') {
+        if (el.rot === OPEN) return { open: el, hits };
+        const d = emit(cx, cz);
+        const outs = refractInPrism(ray.dir, ray.color, el.rot);
+        events.push({ x: cx, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });
+        for (const out of outs) next(out.dir, out.color, d);
+        break;
+      }
+
+      if (el.type === 'filter') {
+        const d = emit(cx, cz);
+        const passed = ray.color & el.color;
+        events.push({ x: cx, z: cz, color: passed || ray.color, kind: passed ? 'filter' : 'absorb', dist: d, element: el.id });
+        next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
+        break;
+      }
+
+      if (el.type === 'combiner') {
+        const d = emit(cx, cz);
+        // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
+        // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
+        // first[b]: früheste Ankunft der Grundfarbe 1 << b (Rot, Grün, Blau)
+        let inp = combinerInputs.get(el.id);
+        if (!inp) combinerInputs.set(el.id, inp = { color: 0, dist: 0, first: [Infinity, Infinity, Infinity] });
+        inp.color |= ray.color;
+        let dist = -Infinity;
+        for (let b = 0; b < 3; b++) {
+          if (ray.color >> b & 1 && d < inp.first[b]) inp.first[b] = d;
+          if (inp.color >> b & 1 && inp.first[b] > dist) dist = inp.first[b];
+        }
+        inp.dist = dist;
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
+        break;
+      }
+
+      if (el.type === 'target') {
+        const d = emit(cx, cz);
+        hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
+        events.push({ x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
+        break;
+      }
+
+      // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
+      const back = 0.32;
+      const d = emit(cx - ahead[0] * back, cz - ahead[1] * back);
+      events.push({ x: cx - ahead[0] * back, z: cz - ahead[1] * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
+      break;
     }
-  } catch (e) {
-    // Für den Löser (tools/solver.mjs): Er unterbricht die Verfolgung, sobald eine noch offene
-    // Stellung gelesen wird, und braucht dafür die bis dahin sicheren Treffer.
-    if (e && typeof e === 'object' && !e.partialHits) e.partialHits = hits;
-    throw e;
   }
   return { segments, events, hits, combinerInputs, truncated };
 }

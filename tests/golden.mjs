@@ -2,6 +2,9 @@
 // Ergebnis der Strahlverfolgung und des Lösers fest und meldet jede Abweichung.
 // Aufruf: node tests/golden.mjs            vergleicht mit tests/golden.json (Exit-Code 1 bei Abweichung)
 //         node tests/golden.mjs --voll     vergleicht zusätzlich den Löser aller Level (vor Änderungen am Löser)
+//         node tests/golden.mjs --schnell  vergleicht nur die Strahlbilder, ohne Löser und alte Wertung (etwa 1 s,
+//                                          für Zwischenschritte eines Umbaus; nach mehreren Schritten, am Schluss und
+//                                          immer, wenn der Löser berührt ist, ein Lauf ohne --schnell)
 //         node tests/golden.mjs --write    schreibt tests/golden.json neu (nur bei bewusster Änderung des Verhaltens)
 //
 // Je Level festgehalten (Logik aus index.html, Bereich LOGIC:BEGIN … LOGIC:END, geladen über tools/solver.mjs):
@@ -14,10 +17,10 @@
 // Verglichen wird Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um
 // höchstens 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine
 // Gegenprobe prüft den Vergleich selbst.
-// Laufzeit (gemessen über leise.sh): Strahlbilder aller Level wenige ms, Löser für alle 159 Level etwa 100 s (fast
-// alles in den Leveln 121–150, bis 13 s je Level), alte Wertung (`score`) für die 24 Level etwa 24 s. Der normale
-// Lauf rechnet den Löser deshalb nur für dieselben 24 Level (etwa 30 s); --voll und --write rechnen ihn für alle
-// (2 bis 2,5 min).
+// Laufzeit (gemessen über leise.sh, Stand nach Ticket 03): Strahlbilder aller Level wenige ms, Löser für alle 159 Level
+// etwa 35 s (fast alles in den Leveln 121–150), alte Wertung (`score`) für die 24 Level etwa 10 s. Der normale Lauf
+// rechnet den Löser deshalb nur für dieselben 24 Level (etwa 12 s); --voll und --write rechnen ihn für alle (knapp
+// 1 min).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,6 +29,8 @@ import { L, setRot, keyOf, solve, metrics } from '../tools/solver.mjs';
 const file = join(dirname(fileURLToPath(import.meta.url)), 'golden.json');
 const write = process.argv.includes('--write');
 const full = write || process.argv.includes('--voll');
+const quick = process.argv.includes('--schnell');
+if (quick && full) { console.error('--schnell lässt den Löser weg und passt nicht zu --voll oder --write'); process.exit(1); }
 
 const byKey = (m) => [...m.entries()].sort((a, b) => a[0] - b[0]);
 const snap = (r) => ({
@@ -53,7 +58,7 @@ function traces(logic, level) {
 
 function record(level, index) {
   const entry = { name: level.name, ...traces(L, level) };
-  if (!full && !withScore(index)) return entry;
+  if (quick || (!full && !withScore(index))) return entry;
   const s = solve(level);
   entry.solver = {
     count: s.count, nodes: s.nodes, leaves: s.leaves, near: s.near, guesses: s.guesses,
@@ -144,11 +149,14 @@ const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { conso
     : `Gegenprobe: es fallen auf: ${Object.keys(detect).join(', ')}`);
 }
 
-// Ohne --voll fehlen die Löserdaten der übrigen Level im aktuellen Lauf und werden nicht verglichen
-const expected = full ? golden : golden.map((g, i) => (withScore(i) ? g : { ...g, solver: undefined }));
+// Ohne --voll fehlen die Löserdaten der übrigen Level im aktuellen Lauf und werden nicht verglichen, mit --schnell
+// fehlen Löserdaten und alte Wertung aller Level
+const expected = full ? golden : golden.map((g, i) => (quick ? { ...g, solver: undefined, score: undefined }
+  : withScore(i) ? g : { ...g, solver: undefined }));
 const diffs = compare(expected, current);
 for (const d of diffs) console.error('  FAIL', d);
-const scope = full ? 'Löser für alle Level' : 'Löser für die Level mit alter Wertung (score), --voll für alle';
+const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser und alte Wertung'
+  : full ? 'Löser für alle Level' : 'Löser für die Level mit alter Wertung (score), --voll für alle';
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
 else console.log(`  ok   alle ${current.length} Level wie in golden.json, ${scope} (${ms} ms)`);
 if (failed || diffs.length) process.exit(1);
