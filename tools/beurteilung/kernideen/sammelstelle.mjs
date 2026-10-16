@@ -21,7 +21,8 @@ export const sammelstellen = (ctx) => ctx.merke(sammelstellen, () => {
   const funde = [];
   for (const p of brett.elements.filter(e => e.type === 'prism')) {
     const element = ctx.feldform.zelle(p);
-    const gebrochen = [...zulauf(ctx, strahlbild, element)].filter(([d, z]) => L.refractInPrism(d, z.farbe, p.rot).length);
+    const gebrochen = [...zulauf(ctx, strahlbild, element)]
+      .filter(([d, z]) => ctx.feldform.brechen(p, d, z.farbe).length);
     if (gebrochen.length < 2) continue;
     // Wächter (ADR 0003): Ohne Wegnahme gibt ohneZulauf die Lösung wieder, sonst bricht es anders als die Strahlregel
     if (ohneZulauf(ctx, element).join(' ') !== ungeloest.join(' ')) {

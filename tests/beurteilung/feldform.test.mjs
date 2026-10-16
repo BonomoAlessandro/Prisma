@@ -1,5 +1,5 @@
-// Tests der Feldform (Spec „Feldform“): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements,
-// Drehungen eines Levels.
+// Tests der Feldform (Spec „Feldform“): Zellen, Nachbarn, Richtungen, Drehachse, mögliche Stellungen und Wirkung eines
+// Elements, Drehungen eines Levels.
 // Auf main gibt es nur die flache Feldform. Die Tests kennen die Leveldaten (x, z), die Beurteilung nur die Feldform.
 // Aufruf: node tests/beurteilung/feldform.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
@@ -110,6 +110,76 @@ test('Jede Stellung einer Lösung ist eine mögliche Stellung ihres Elements (al
       if (s.length) assert.ok(s.includes(level.solution[f.zelle(e)] % s.length), `${level.name}: ${f.zelle(e)}`);
     }
   }
+});
+
+// Wirkung der Elemente: Licht kommt aus der Nachbarzelle in Gegenrichtung (ein Startstrahl der Feldform) in Richtung d
+// auf das Element in der Mitte. Ziele stehen in den Nachbarzellen, in die es laut Feldform weiterläuft; zeigt die
+// Wirkung zurück, steht das Ziel in der Zelle des Startstrahls. Die Strahlregel muss genau diese Ziele treffen.
+const mitte = f7.zelle({ x: 3, z: 3 });
+const gegen = (d) => f7.richtungen.find(g => f7.nachbar(f7.nachbar(mitte, d), g) === mitte);
+const xz = (zelle) => { const [x, z] = zelle.split(',').map(Number); return { x, z }; }; // Zelle wie in der Lösung
+function wirkung(element, ziele, d, farbe) {
+  const elements = [{ ...element, ...xz(mitte) }, ...ziele.map(z => ({ type: 'target', ...xz(z) }))];
+  const start = f7.startstrahl(f7.nachbar(mitte, gegen(d)), d, farbe);
+  return L.traceBeams(L.createBoard({ name: 'Wirkung', elements }), [start]);
+}
+
+test('Spiegeln wie die Strahlregel: Licht läuft in der Richtung weiter, die spiegeln nennt, oder endet am Rand', () => {
+  for (const s of range(8)) for (const d of f7.richtungen) {
+    const spiegel = { type: 'mirror', rot: s }, neu = f7.spiegeln(spiegel, d, s), tag = `Stellung ${s}, Richtung ${d}`;
+    const r = wirkung(spiegel, neu === null ? [] : [f7.nachbar(mitte, neu)], d, 7);
+    if (neu === null) assert.deepEqual([r.events.at(-1).kind, r.events.at(-1).element], ['absorb', 0], tag);
+    else assert.equal(r.hits.get(1), 7, `${tag} → ${neu}`);
+  }
+});
+
+test('Brechen wie die Strahlregel: Jede Grundfarbe läuft in der Richtung, die brechen nennt, sonst schluckt es', () => {
+  for (const s of range(8)) for (const d of f7.richtungen) {
+    const prisma = { type: 'prism', rot: s }, aus = f7.brechen(prisma, d, 7, s), tag = `Stellung ${s}, Richtung ${d}`;
+    const r = wirkung(prisma, aus.map(o => f7.nachbar(mitte, o.richtung)), d, 7);
+    if (!aus.length) assert.deepEqual([r.events.at(-1).kind, r.events.at(-1).element], ['absorb', 0], tag);
+    aus.forEach((o, i) => assert.equal(r.hits.get(i + 1), o.farbe, `${tag}: Farbe ${o.farbe} → ${o.richtung}`));
+    for (const farbe of [1, 2, 4]) {
+      assert.deepEqual(f7.brechen(prisma, d, farbe, s), aus.filter(o => o.farbe === farbe), tag);
+    }
+  }
+});
+
+test('Ausgang wie die Strahlregel: Kombinator und Quelle geben Licht in der Richtung ab, die ausgang nennt', () => {
+  for (const s of range(8)) {
+    const kombinator = { type: 'combiner', dir: s };
+    const r = wirkung(kombinator, [f7.nachbar(mitte, f7.ausgang(kombinator, s))], 0, 1);
+    assert.equal(r.hits.get(1), 1, `Kombinator, Stellung ${s}`);
+    const quelle = { type: 'source', dir: s, ...xz(mitte) }, ziel = xz(f7.nachbar(mitte, f7.ausgang(quelle)));
+    const q = L.traceBeams(L.createBoard({ name: 'Quelle', elements: [quelle, { type: 'target', ...ziel }] }));
+    assert.equal(q.solved, true, `Quelle, Richtung ${s}`);
+  }
+});
+
+test('Quelle statt eines Kombinators: leuchtet in seinen Ausgang, in der Farbe, die der Aufrufer setzt', () => {
+  for (const s of range(8)) {
+    const kombinator = { type: 'combiner', dir: 0, ...xz(mitte) };
+    const ziel = xz(f7.nachbar(mitte, f7.ausgang(kombinator, s)));
+    const elements = [{ ...f7.quelleStatt(kombinator, s), color: 'red' }, { type: 'target', color: 'red', ...ziel }];
+    assert.equal(L.traceBeams(L.createBoard({ name: 'Quelle statt', elements })).solved, true, `Stellung ${s}`);
+  }
+});
+
+test('Startstrahl: beginnt in seiner Zelle und läuft in seiner Richtung, in seiner Farbe', () => {
+  for (const d of f7.richtungen) {
+    const ziel = xz(f7.nachbar(f7.nachbar(mitte, d), d));
+    const brett = L.createBoard({ name: 'Startstrahl', elements: [{ type: 'target', color: 'cyan', ...ziel }] });
+    const r = L.traceBeams(brett, [f7.startstrahl(mitte, d, 6)]);
+    assert.equal(r.solved, true, 'Richtung ' + d);
+  }
+});
+
+test('Ohne Stellung wirkt ein Element in der Stellung, in der es steht', () => {
+  for (const s of range(8)) for (const d of f7.richtungen) {
+    assert.equal(f7.spiegeln({ type: 'mirror', rot: s }, d), f7.spiegeln({ type: 'mirror' }, d, s));
+    assert.deepEqual(f7.brechen({ type: 'prism', rot: s }, d, 7), f7.brechen({ type: 'prism' }, d, 7, s));
+  }
+  for (const s of range(8)) assert.equal(f7.ausgang({ type: 'combiner', dir: s }), f7.ausgang({ type: 'combiner' }, s));
 });
 
 test('Ein Level mit anderer Dimension (dim) hat auf main keine Feldform', () => {

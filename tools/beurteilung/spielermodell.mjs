@@ -13,9 +13,9 @@
 //
 // Übernommen aus dem Spielermodell der Reviews (Review 4, gemessen wie im Vorsieb aus Review 5). Bei gleicher
 // Reihenfolge der drehbaren Elemente ist das Ergebnis gleich; das Original ging sie in der Reihenfolge der Leveldaten
-// durch, dieses in der Reihenfolge der Zellen (siehe modell). Das Feld kennt es nur über die Feldform, die Wirkung der
-// Elemente kommt aus der Strahlregel. Eine Stellung ist eine kleine Zahl (Drehung eines Spiegels oder Prismas, Richtung
-// eines Kombinators) und dient als Bit einer Maske.
+// durch, dieses in der Reihenfolge der Zellen (siehe modell). Das Feld und die Wirkung der Elemente kennt es nur über
+// die Feldform (spiegeln, brechen, ausgang; sie kommen aus der Strahlregel). Eine Stellung ist eine kleine Zahl
+// (Drehung eines Spiegels oder Prismas, Ausgang eines Kombinators) und dient wie eine Richtung als Bit einer Maske.
 import { L, getRot } from '../solver.mjs';
 
 const PRIM = [1, 2, 4];
@@ -32,7 +32,6 @@ function modell(level, feldform) {
   const elemente = L.createBoard(level).elements;
   const { zellen, richtungen } = feldform;
   const R = Math.max(...richtungen) + 1; // Richtungen dienen als Index
-  const ALLE = richtungen.reduce((m, d) => m | (1 << d), 0);
   const nummer = new Map(zellen.map((z, c) => [z, c]));
   const zelleVon = elemente.map(e => nummer.get(feldform.zelle(e)));
   const at = new Array(zellen.length).fill(null);
@@ -67,15 +66,28 @@ function modell(level, feldform) {
   const quellen = elemente.filter(e => e.type === 'source');
   const ziele = elemente.filter(e => e.type === 'target');
 
-  // Prisma je Stellung v, Richtung d und Grundfarbe: Ausgangsrichtung (−1: kein Licht) und Eingänge zu einem Ausgang
+  // Wirkung je Spiegel, Prisma und Kombinator, Stellung v, Richtung d und Grundfarbe, aus der Feldform:
+  // aus[wirkung(el, v, d, pi)] ist die Ausgangsrichtung (−1: kein Licht), ein[wirkung(el, v, d, pi)] die Eingänge
+  // (Maske), aus denen Licht in Richtung d austritt. Ein Kombinator gibt Licht aus jeder Richtung weiter.
   const V = 32 - Math.clz32([...voll, ...fest].reduce((m, x) => m | x, 1));
-  const prismaAus = new Int32Array(V * R * 3).fill(-1), prismaEin = new Int32Array(V * R * 3);
-  for (let v = 0; v < V; v++) for (const d of richtungen) for (let pi = 0; pi < 3; pi++) {
-    const o = L.refractInPrism(d, PRIM[pi], v);
-    if (!o.length) continue;
-    prismaAus[(v * R + d) * 3 + pi] = o[0].dir;
-    prismaEin[(v * R + o[0].dir) * 3 + pi] |= 1 << d;
+  const wirkung = (el, v, d, pi) => ((el.id * V + v) * R + d) * 3 + pi;
+  const aus = new Int32Array(elemente.length * V * R * 3).fill(-1), ein = new Int32Array(elemente.length * V * R * 3);
+  for (const el of elemente) {
+    if (!['mirror', 'prism', 'combiner'].includes(el.type)) continue;
+    for (let r = index[el.id] < 0 ? fest[el.id] : voll[index[el.id]]; r; r &= r - 1) {
+      const v = lowBit(r);
+      for (const d of richtungen) for (let pi = 0; pi < 3; pi++) {
+        let o = -1;
+        if (el.type === 'mirror') o = feldform.spiegeln(el, d, v) ?? -1;
+        else if (el.type === 'prism') o = feldform.brechen(el, d, PRIM[pi], v)[0]?.richtung ?? -1;
+        else o = feldform.ausgang(el, v);
+        if (o < 0) continue;
+        aus[wirkung(el, v, d, pi)] = o;
+        ein[wirkung(el, v, o, pi)] |= 1 << d;
+      }
+    }
   }
+  const richtungVon = elemente.map(e => (e.type === 'source' ? feldform.ausgang(e) : -1)); // einer Quelle
 
   /** Vorwärts je Grundfarbe; unter: nur über entschiedene Elemente (sicheres Licht), sonst über alle Stellungen. */
   const seen = new Int32Array(zellen.length * R * 3), queue = [];
@@ -87,7 +99,9 @@ function modell(level, feldform) {
       const k = (c * R + d) * 3 + pi;
       if (seen[k] !== stamp) { seen[k] = stamp; queue.push(k); }
     };
-    for (const s of quellen) for (let pi = 0; pi < 3; pi++) if (s.color & PRIM[pi]) push(zelleVon[s.id], s.dir, pi);
+    for (const s of quellen) for (let pi = 0; pi < 3; pi++) {
+      if (s.color & PRIM[pi]) push(zelleVon[s.id], richtungVon[s.id], pi);
+    }
     while (queue.length) {
       const k = queue.pop(), pi = k % 3, d = ((k - pi) / 3) % R, c = ((k - pi) / 3 - d) / R;
       const el = vor[c * R + d];
@@ -95,12 +109,9 @@ function modell(level, feldform) {
       const m = maske(el, dom);
       if (unter && index[el.id] >= 0 && !single(m)) continue;
       const ce = zelleVon[el.id];
-      if (el.type === 'mirror') {
-        for (let r = m; r; r &= r - 1) { const nd = L.reflectOnMirror(d, lowBit(r)); if (nd !== d) push(ce, nd, pi); }
-      } else if (el.type === 'prism') {
-        for (let r = m; r; r &= r - 1) { const o = prismaAus[(lowBit(r) * R + d) * 3 + pi]; if (o >= 0) push(ce, o, pi); }
+      if (el.type === 'mirror' || el.type === 'prism' || el.type === 'combiner') {
+        for (let r = m; r; r &= r - 1) { const o = aus[wirkung(el, lowBit(r), d, pi)]; if (o >= 0) push(ce, o, pi); }
       } else if (el.type === 'filter') { if (el.color & PRIM[pi]) push(ce, d, pi); }
-      else if (el.type === 'combiner') { for (let r = m; r; r &= r - 1) push(ce, lowBit(r), pi); }
       else if (el.type === 'target') hits[el.id] |= PRIM[pi];
     }
   }
@@ -112,22 +123,19 @@ function modell(level, feldform) {
    */
   const aufPfad = new Uint8Array(elemente.length * R * 3);
   function kannAbgeben(el, d, pi, budget, dom) {
-    if (el.type === 'source') return el.dir === d && (el.color & PRIM[pi]) !== 0;
+    if (el.type === 'source') return richtungVon[el.id] === d && (el.color & PRIM[pi]) !== 0;
     if (el.type === 'target' || el.type === 'blocker') return false;
     const k = (el.id * R + d) * 3 + pi;
     if (aufPfad[k]) return false;
     const m = maske(el, dom), offen = index[el.id] >= 0 && !single(m);
-    let ein = 0; // mögliche Eingangsrichtungen
-    if (el.type === 'mirror') {
-      for (let r = m; r; r &= r - 1) { const din = L.reflectOnMirror(d, lowBit(r)); if (din !== d) ein |= 1 << din; }
-    } else if (el.type === 'prism') { for (let r = m; r; r &= r - 1) ein |= prismaEin[(lowBit(r) * R + d) * 3 + pi]; }
-    else if (el.type === 'filter') { if (el.color & PRIM[pi]) ein = 1 << d; }
-    else if (el.type === 'combiner') { if (m >> d & 1) ein = ALLE; }
-    if (!ein) return false;
+    let eingaenge = 0; // mögliche Eingangsrichtungen
+    if (el.type === 'filter') { if (el.color & PRIM[pi]) eingaenge = 1 << d; }
+    else for (let r = m; r; r &= r - 1) eingaenge |= ein[wirkung(el, lowBit(r), d, pi)];
+    if (!eingaenge) return false;
     if (offen && budget <= 0) return true;
     aufPfad[k] = 1;
     let ok = false;
-    for (let r = ein; r && !ok; r &= r - 1) {
+    for (let r = eingaenge; r && !ok; r &= r - 1) {
       const din = lowBit(r), src = hinter[zelleVon[el.id] * R + din];
       if (src && kannAbgeben(src, din, pi, offen ? budget - 1 : budget, dom)) ok = true;
     }

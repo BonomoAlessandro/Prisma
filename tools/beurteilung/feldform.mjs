@@ -1,13 +1,21 @@
 // Feldform (Spec „Feldform“): Beurteilung, Spielermodell und Generator kennen das Feld nur über sie. Sie liefert die
-// Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements und seine möglichen Stellungen, dazu die Drehungen
-// eines Levels um die Drehachse. Nur hier stehen Koordinaten und die acht Richtungen der flachen Level.
+// Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements, seine möglichen Stellungen und was es in einer
+// Stellung mit einem Strahl macht, dazu die Drehungen eines Levels. Nur hier stehen Koordinaten, die acht Richtungen
+// der flachen Level und die Wirkung der Elemente in diesen Richtungen; sie kommt aus der Strahlregel (ADR 0003).
 //
-// Eine Zelle ist ein Schlüssel wie in der Lösung eines Levels („x,z“ im flachen Feld). Ausserhalb der Feldform wird er
-// nie zerlegt, nur verglichen und in Begründungen genannt. Eine Richtung ist ein Wert aus richtungen.
+// - Zelle: ein Schlüssel wie in der Lösung eines Levels („x,z“ im flachen Feld). Ausserhalb der Feldform wird er nie
+//   zerlegt, nur verglichen und in Begründungen genannt.
+// - Richtung: ein Wert aus richtungen, die Zahlen 0 … n − 1 (n höchstens 32), damit sie als Index und als Bit einer
+//   Maske dienen kann. Was sie im Feld bedeutet, weiss nur die Feldform; ausserhalb wird sie nur verglichen, als Index
+//   genutzt und der Feldform zurückgegeben.
+// - Stellung: eine kleine Zahl wie in der Lösung (Drehung eines Spiegels oder Prismas, Ausgang eines Kombinators). Was
+//   sie bewirkt, sagen spiegeln, brechen und ausgang.
+// - Strahlbild: von der Strahlregel. Seine Ereignisse und Abschnitte liest nur die Feldform (zelleBei, abschnitt,
+//   durchlauf), mit so vielen Koordinaten, wie sie hat.
 //
-// Auf main gibt es nur die flache Feldform. Eine weitere Feldform (Würfel, Ticket 14) liefert dieselben Teile und kommt
-// in feldformVon dazu.
-import { L, period } from '../solver.mjs';
+// Auf main gibt es nur die flache Feldform. Eine weitere Feldform (Würfel, Ticket 14) liefert dieselben Teile, auch
+// eigene Drehungen, und kommt in feldformVon dazu.
+import { L, period, getRot } from '../solver.mjs';
 
 /** Die Feldform eines Levels. */
 export function feldformVon(level) {
@@ -26,11 +34,15 @@ export function flacheFeldform(groesse) {
   const zellen = [];
   for (let z = 0; z < groesse; z++) for (let x = 0; x < groesse; x++) zellen.push(key(x, z));
   const richtungen = L.DIRS.map((_, d) => d);
+  /** Gegenrichtung: zurück auf derselben Linie. */
+  const gegen = (richtung) => (richtung + richtungen.length / 2) % richtungen.length;
   /** Nachbarzelle in einer Richtung, null am Rand. */
   const nachbar = (zelle, richtung) => {
     const [x, z] = zelle.split(',').map(Number), [dx, dz] = L.DIRS[richtung];
     return inside(x + dx, z + dz) ? key(x + dx, z + dz) : null;
   };
+  /** Stellung, in der ein Element steht: Drehung eines Spiegels oder Prismas, Ausgang eines Kombinators oder Quelle. */
+  const stellungVon = (el) => (el.type === 'source' ? el.dir : getRot(el));
   /** Das Level um eine Vierteldrehung gedreht: Ost wird Süd, jede Richtung und Stellung zwei Schritte weiter. */
   const vierteldrehung = (level) => {
     const platz = (x, z) => [groesse - 1 - z, x], schritte = richtungen.length / 4;
@@ -53,7 +65,7 @@ export function flacheFeldform(groesse) {
     richtungen,
     /** Zelle eines Elements (aus den Leveldaten oder vom Brett der Strahlregel). */
     zelle: (el) => key(el.x, el.z),
-    /** Zelle eines Punkts im Strahlbild (Ereignis, Anfang oder Ende eines Abschnitts); null hinter der Feldkante. */
+    /** Zelle eines Ereignisses im Strahlbild (oder eines Punkts mit seinen Koordinaten); null hinter der Feldkante. */
     zelleBei: (p) => {
       const x = Math.round(p.x), z = Math.round(p.z);
       return inside(x, z) ? key(x, z) : null;
@@ -65,11 +77,13 @@ export function flacheFeldform(groesse) {
     },
     /**
      * Zellen, durch die ein Strahlabschnitt läuft, ohne die an seinem Anfang und Ende und ohne die hinter der Feldkante,
-     * je { zelle, achse }. Die Achse ist für beide Laufrichtungen gleich (Richtung modulo 4).
+     * je { zelle, achse }. Die Achse ist die Linie, auf der er läuft: für beide Laufrichtungen derselbe Wert, für
+     * verschiedene Linien verschiedene (hier die kleinere der beiden Richtungen).
      */
     durchlauf: (s) => {
       const dx = Math.sign(Math.round((s.x1 - s.x0) * 1000)), dz = Math.sign(Math.round((s.z1 - s.z0) * 1000));
-      const achse = L.DIRS.findIndex(([a, b]) => a === dx && b === dz) % 4;
+      const richtung = L.DIRS.findIndex(([a, b]) => a === dx && b === dz);
+      const achse = richtung < 0 ? richtung : Math.min(richtung, gegen(richtung));
       const schritte = Math.round(Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)));
       const out = [];
       for (let i = 1; i < schritte; i++) {
@@ -82,10 +96,40 @@ export function flacheFeldform(groesse) {
     nachbar,
     /** Alle Nachbarzellen, auch diagonal. */
     nachbarn: (zelle) => richtungen.map(d => nachbar(zelle, d)).filter(n => n !== null),
-    /** Drehachse eines Elements: immer y, senkrecht zum Feld. */
+    /** Drehachse des Elements el: im flachen Feld immer y, senkrecht zum Feld. */
     drehachse: () => 'y',
     /** Wirksame Stellungen eines drehbaren Elements (Spiegel 0–3, weil rot und rot + 4 gleich wirken), sonst keine. */
     stellungen: (el) => (L.isRotatable(el) ? [...Array(period(el)).keys()] : []),
+    /**
+     * Wohin ein Spiegel in stellung Licht lenkt, das in Richtung richtung auf ihn trifft: die neue Richtung, null, wenn
+     * es parallel zur Fläche läuft (die Rahmenkante schluckt es). Ohne stellung die, in der er steht.
+     */
+    spiegeln: (el, richtung, stellung = stellungVon(el)) => {
+      const neu = L.reflectOnMirror(richtung, stellung);
+      return neu === richtung ? null : neu;
+    },
+    /**
+     * Was ein Prisma in stellung aus Licht der Farbe farbe (Maske) macht, das in Richtung richtung auf es trifft:
+     * [{ richtung, farbe }] je austretende Grundfarbe, leer, wenn kein Licht austritt. Ohne stellung die, in der es
+     * steht.
+     */
+    brechen: (el, richtung, farbe, stellung = stellungVon(el)) =>
+      L.refractInPrism(richtung, farbe, stellung).map(o => ({ richtung: o.dir, farbe: o.color })),
+    /**
+     * Richtung, in die eine Quelle oder ein Kombinator in stellung Licht abgibt (eine Quelle hat nur ihre eigene). Ohne
+     * stellung die, in der es steht.
+     */
+    ausgang: (el, stellung = stellungVon(el)) => (el.type === 'source' ? el.dir : stellung),
+    /** Startstrahl für die Strahlregel (traceBeams, extraRays): Licht der Farbe farbe ab zelle in Richtung richtung. */
+    startstrahl: (zelle, richtung, farbe) => {
+      const [x, z] = zelle.split(',').map(Number);
+      return { x, z, dir: richtung, color: farbe };
+    },
+    /**
+     * Leveldaten einer Quelle an der Stelle des Elements el (Leveldaten), die in die Richtung leuchtet, in die el in
+     * stellung abgibt (ausgang); ihre Farbe setzt der Aufrufer.
+     */
+    quelleStatt: (el, stellung) => ({ ...el, type: 'source', dir: stellung }),
     /**
      * Das Level in jeder Drehung des Felds um die Drehachse, je eine Vierteldrehung weiter; die erste ist das Level
      * selbst. Gedreht ist es dasselbe Rätsel: Elemente, Richtungen, Stellungen und Lösung drehen mit, und viermal

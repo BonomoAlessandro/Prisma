@@ -111,9 +111,10 @@ export function zulauf(ctx, strahlbild, zelle) {
 /**
  * Gegenprobe ohne den Zulauf eines Prismas aus einer Richtung: Welche Ziele verlieren ihre Farbe, wenn das Licht fehlt,
  * das in der Lösung aus dieser Richtung in das Prisma fällt? An der Stelle des Prismas steht ein Blocker, und was dort aus
- * den übrigen Richtungen ankommt, bricht die Strahlregel (refractInPrism) wie das Prisma und schickt es als Startstrahlen
- * aus seiner Zelle weiter. Weil gebrochenes Licht über Spiegel zurückkommen kann, wiederholt sich das von leeren
- * Startstrahlen an, bis sie sich nicht mehr ändern (Licht wächst nur, also ist das kleinste Ergebnis das richtige).
+ * den übrigen Richtungen ankommt, bricht die Feldform (brechen, aus der Strahlregel) wie das Prisma und schickt es als
+ * Startstrahlen aus seiner Zelle weiter. Weil gebrochenes Licht über Spiegel zurückkommen kann, wiederholt sich das
+ * von leeren Startstrahlen an, bis sie sich nicht mehr ändern (Licht wächst nur, also ist das kleinste Ergebnis das
+ * richtige).
  * Die Verfolgung bleibt bei der Strahlregel (ADR 0003); nachgebildet ist nur der Schritt des Prismas, mit Weglänge und
  * Abprallern der Startstrahlen ab 0 (Treffer und Mischungen bleiben gleich). Ohne richtung nimmt sie nichts weg und gibt
  * die Lösung wieder; das prüft sammelstellen an jedem Prisma, damit der Schritt nicht unbemerkt von der Strahlregel
@@ -121,7 +122,8 @@ export function zulauf(ctx, strahlbild, zelle) {
  * prisma: Zelle; richtung: ein Schlüssel von zulauf. Rückgabe: Zellen der Ziele, wie bei gegenprobe.
  */
 export function ohneZulauf(ctx, prisma, richtung) {
-  const id = ctx.level.elements.findIndex(e => ctx.feldform.zelle(e) === prisma);
+  const { feldform } = ctx;
+  const id = ctx.level.elements.findIndex(e => feldform.zelle(e) === prisma);
   const p = loesung(ctx).brett.elements[id];
   const brett = brettInLoesung(ctx, ctx.level.elements.map((e, i) => (i === id ? { ...e, type: 'blocker' } : e)));
   let strahlen = [], bisher = '';
@@ -130,14 +132,15 @@ export function ohneZulauf(ctx, prisma, richtung) {
     const neu = [];
     for (const [d, { farbe }] of zulauf(ctx, strahlbild, prisma)) {
       if (d === richtung) continue;
-      for (const o of L.refractInPrism(d, farbe, p.rot)) neu.push({ x: p.x, z: p.z, dir: o.dir, color: o.color });
+      neu.push(...feldform.brechen(p, d, farbe));
     }
-    const schluessel = neu.map(s => `${s.dir}:${s.color}`).sort().join(' ');
+    const schluessel = neu.map(s => `${s.richtung}:${s.farbe}`).sort().join(' ');
     if (schluessel === bisher) {
-      return brett.elements.filter(t => t.type === 'target' && strahlbild.hits.get(t.id) !== t.color).map(ctx.feldform.zelle);
+      const verloren = brett.elements.filter(t => t.type === 'target' && strahlbild.hits.get(t.id) !== t.color);
+      return verloren.map(feldform.zelle);
     }
     bisher = schluessel;
-    strahlen = neu;
+    strahlen = neu.map(s => feldform.startstrahl(prisma, s.richtung, s.farbe));
   }
 }
 
