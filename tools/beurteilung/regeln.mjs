@@ -16,6 +16,9 @@ export { default as zerfall } from './ausschluesse/zerfall.mjs';
 export { default as schliessen } from './schliessen.mjs';
 export { default as probieren } from './ausschluesse/probieren.mjs';
 // Kernideen Mischziel aus zwei Quellen, Abschalten und Farben abzählen, je eine Datei in kernideen/ (Ticket 10)
+export { default as mischzielZweiQuellen } from './kernideen/mischziel-zwei-quellen.mjs';
+export { default as abschalten } from './kernideen/abschalten.mjs';
+export { default as farbenAbzaehlen } from './kernideen/farben-abzaehlen.mjs';
 // Kernideen Sammelstelle, Falle und Lockvogel, je eine Datei in kernideen/ (Ticket 11)
 // Schwierigkeit, in schwierigkeit.mjs (Ticket 12)
 // Spielwert, in spielwert.mjs (Ticket 13)

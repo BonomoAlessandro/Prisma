@@ -182,6 +182,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Fast-Lösungen der Suche ohne Abschneiden (mindestens 3 Elemente anders als in der Lösung). Probieren gilt in allen
     Graden: mehr als 60 ‰ weite Fast-Lösungen, oder Raten mit kInf > 6 oder Kette > 38. Beide Regeln sind teuer; die
     Suche braucht auf den 150 rund 25 s (140 Urknall bis 3,6 s), das Spielermodell gut 1 s.
+  - **Kernideen Mischziel aus zwei Quellen, Abschalten, Farben abzählen** (je eine Datei in `kernideen/`): Jede zählt nur,
+    wenn die Lösung von ihr abhängt. Die Prüfung „nötig“ in `noetig.mjs` (auch für Ticket 11) nimmt der Lösung den
+    Beitrag der Kernidee weg (`gegenprobe`, `wegZu`) und fragt mit einer Suche des Lösers je Quelle, was jede Quelle
+    allein in irgendeiner Stellung erreicht (`allein`). Jeder Fund nennt in der Begründung Ziel, Quellen und Licht. Die
+    drei Regeln brauchen auf den 150 zusammen rund 3–4 s, vor allem für die Suchen je Quelle und die Wege der
+    Zwischenstände.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.
