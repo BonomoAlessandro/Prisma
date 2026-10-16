@@ -448,3 +448,18 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
   - Zerfall mit zweiter Gruppe aus 2 Elementen: 36, 37, 43, 80, 101.
   - Scheinmischung (b) nicht direkt oder mit zerlegter Mischung über die Eingänge hinaus: 76, 100, 117, 118.
 - Spec und Tickets liegen in `.scratch/levelgenerator/`. PLAN.md bekommt bei 2.5–2.7 und 3.1–3.5 einen Verweis hierher.
+- **Auslegungen bei der Umsetzung, vom Nutzer am 16.10.2026 bestätigt** (vorläufig; beim Eichen in Phase 3 mit Zahlen
+  neu ansehen):
+  - Raten bei fester Zellenfolge: kInf > 6 oder Kette > 38 (Ticket 09, siehe Tabelle der Ausschlussgründe).
+  - Knäuel: Werte auf zwei Stellen gerundet wie in der Neuzählung, also wirksame Grenzen 1,305 und 0,855 (Ticket 07).
+  - Ohne vorgegebenen Grad gelten Füllteil und Zerfall wie ab „mittel“, ausser bei einem ausdrücklich leichten Level
+    (Ticket 08). Gilt, bis Ticket 15 die Grade festlegt.
+  - Zerfall: Ein gemeinsames Mischziel verbindet Gruppen wie in der Spec, auch wenn sich die Teile einzeln lösen lassen
+    (Ticket 08); in Phase 3 neu ansehen.
+  - Mischziel aus zwei Quellen: „keine einzelne Quelle liefert die Farbe“ gilt in der Lösung (Ticket 10).
+  - Abschalten zählt nur Licht in der Farbe des Ziels, also ein schon leuchtendes Ziel (Ticket 10).
+  - „Naheliegend“ heisst vorläufig: höchstens 3 drehbare Elemente (Ticket 10); später mit dem Spielermodell eichen.
+  - Farben abzählen ist nur nötig, wenn sich ein Verlust an keinem einzelnen Ziel zeigt; das braucht mindestens drei
+    Quellen (Ticket 10).
+  - Vor dem nächsten Lauf der KI-Tester das Glossar schärfen (neue Version des Ablaufs): bei Füllteil „… den ein anderer
+    Strahl an einem seiner Spiegel trifft“, bei Abschalten „Licht in der Farbe des Ziels“.
