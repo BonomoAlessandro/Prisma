@@ -7,6 +7,8 @@
 // Mischziele (Ticket 06)
 export { default as mischziele } from './mischziele.mjs';
 // Ausschlussgründe Scheinmischung und Knäuel, je eine Datei in ausschluesse/ (Ticket 07)
+export { default as scheinmischung } from './ausschluesse/scheinmischung.mjs';
+export { default as knaeuel } from './ausschluesse/knaeuel.mjs';
 // Ausschlussgründe Füllteil und Zerfall, je eine Datei in ausschluesse/ (Ticket 08)
 export { default as fuellteil } from './ausschluesse/fuellteil.mjs';
 export { default as zerfall } from './ausschluesse/zerfall.mjs';

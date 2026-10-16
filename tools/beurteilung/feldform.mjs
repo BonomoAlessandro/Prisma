@@ -42,6 +42,11 @@ export function flacheFeldform(groesse) {
       const x = Math.round(p.x), z = Math.round(p.z);
       return inside(x, z) ? key(x, z) : null;
     },
+    /** Zellen, in denen ein Strahlabschnitt beginnt und endet: { von, bis }; bis ist null hinter der Feldkante. */
+    abschnitt: (s) => {
+      const bei = (x, z) => (inside(Math.round(x), Math.round(z)) ? key(Math.round(x), Math.round(z)) : null);
+      return { von: bei(s.x0, s.z0), bis: bei(s.x1, s.z1) };
+    },
     nachbar,
     /** Alle Nachbarzellen, auch diagonal. */
     nachbarn: (zelle) => richtungen.map(d => nachbar(zelle, d)).filter(n => n !== null),

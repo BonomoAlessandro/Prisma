@@ -164,6 +164,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     zwei Quellen je allein Licht darauf bringen (die übrigen schlucken dabei als Blocker). Das ist noch nicht die
     Kernidee „Mischziel aus zwei Quellen“ (Ticket 10). Die alte Zählung `mixed` in `metrics` (Ziele mit Mischfarbe, 129
     statt 71 Level) bleibt bis Ticket 21 für den Golden-Test.
+  - **Scheinmischung und Knäuel** (`ausschluesse/`, alle Grade, in der Lösungsstellung): Scheinmischung je Kombinator
+    mit Licht in den Fällen a–c der Spec; wohin seine Mischung läuft, zeigt ein Strahlbild, in dem nur sie leuchtet.
+    Knäuel über die Nachbarn der Feldform: benachbarte drehbare Elemente und kurze Strahlabschnitte (`abschnitt`),
+    beide Werte auf zwei Stellen gerundet wie in der Neuzählung.
   - **Füllteil und Zerfall** (`ausschluesse/`, Ticket 08) gelten erst ab „mittel“; ohne vorgegebenen Grad wie ab
     „mittel“, und die Begründung sagt es. Ein Füllteil ist ein Strang über höchstens 3 Spiegel, bei dem keine Stellung
     seiner Spiegel das Licht fremder Strahlen auf anderen Zielen ändert. Für den Zerfall hängen Ziele über gemeinsame
