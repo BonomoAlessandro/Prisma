@@ -5,12 +5,21 @@
 import assert from 'node:assert/strict';
 import { L, setRot } from '../../tools/solver.mjs';
 import { feldformVon } from '../../tools/beurteilung/feldform.mjs';
-import { test } from './helfer.mjs';
+import { test, miniLevel } from './helfer.mjs';
 
 console.log('Feldform (flach)');
 
 const f7 = feldformVon({ name: 'leer', elements: [] });
 const range = (n) => [...Array(n).keys()];
+/** Ist das Level in seiner Lösung gelöst? Laut Strahlregel, mit den Stellungen aus level.solution. */
+const geloest = (level) => {
+  const brett = L.createBoard(level);
+  for (const el of brett.elements) {
+    const v = level.solution[el.x + ',' + el.z];
+    if (L.isRotatable(el) && v !== undefined) setRot(el, v);
+  }
+  return L.traceBeams(brett).solved;
+};
 
 test('Zellen: quadratisches Feld, 7 × 7 ohne Grössenangabe, sonst nach size', () => {
   assert.equal(f7.zellen.length, 49);
@@ -189,14 +198,6 @@ test('Ein Level mit anderem dim hat keine flache Feldform, auf dem Würfel-Branc
 });
 
 test('Drehungen um die Drehachse: vier, die erste ist das Level, viermal gedreht wieder das Level, jede gelöst (alle Level)', () => {
-  const geloest = (level) => {
-    const brett = L.createBoard(level);
-    for (const el of brett.elements) {
-      const v = level.solution[el.x + ',' + el.z];
-      if (L.isRotatable(el) && v !== undefined) setRot(el, v);
-    }
-    return L.traceBeams(brett).solved;
-  };
   for (const level of L.LEVELS) {
     const f = feldformVon(level), d = f.drehungen(level);
     assert.equal(d.length, 4, level.name);
@@ -207,4 +208,20 @@ test('Drehungen um die Drehachse: vier, die erste ist das Level, viermal gedreht
   // Ost wird Süd: Die Quelle auf 0,3 nach Osten steht gedreht auf 3,0 und leuchtet nach Süden
   const [, q] = f7.drehungen({ name: 'Quelle', elements: [{ type: 'source', x: 0, z: 3, dir: 0 }], solution: {} });
   assert.deepEqual(q.elements, [{ type: 'source', x: 3, z: 0, dir: 2 }]);
+});
+
+test('Drehungen: Quelle, Spiegel, Prisma und Kombinator ohne Richtung oder Stellung (Standard 0) drehen mit', () => {
+  // Weiss nach Osten ins Prisma: Grün geradeaus, Rot über den Spiegel, Blau über den Kombinator nach Osten
+  const level = miniLevel([
+    { type: 'source', x: 0, z: 3 },
+    { type: 'prism', x: 3, z: 3 },
+    { type: 'mirror', x: 4, z: 2 },
+    { type: 'combiner', x: 5, z: 5 },
+    { type: 'target', x: 6, z: 3, color: 'green' },
+    { type: 'target', x: 6, z: 4, color: 'red' },
+    { type: 'target', x: 6, z: 5, color: 'blue' },
+  ], 'ohne Angaben');
+  const d = f7.drehungen(level);
+  assert.equal(d.length, 4);
+  for (const [i, g] of d.entries()) assert.ok(geloest(g), `${i} Vierteldrehungen`);
 });
