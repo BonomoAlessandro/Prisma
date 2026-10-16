@@ -8,6 +8,8 @@
 export { default as mischziele } from './mischziele.mjs';
 // Ausschlussgründe Scheinmischung und Knäuel, je eine Datei in ausschluesse/ (Ticket 07)
 // Ausschlussgründe Füllteil und Zerfall, je eine Datei in ausschluesse/ (Ticket 08)
+export { default as fuellteil } from './ausschluesse/fuellteil.mjs';
+export { default as zerfall } from './ausschluesse/zerfall.mjs';
 // Ausschlussgrund Probieren, in ausschluesse/ (Ticket 09)
 // Kernideen Mischziel aus zwei Quellen, Abschalten und Farben abzählen, je eine Datei in kernideen/ (Ticket 10)
 // Kernideen Sammelstelle, Falle und Lockvogel, je eine Datei in kernideen/ (Ticket 11)
