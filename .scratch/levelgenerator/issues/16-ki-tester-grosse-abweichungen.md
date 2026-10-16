@@ -18,3 +18,10 @@ Verschoben wird nur, wenn sie zustimmen. Danach steht die Reihenfolge der 150 Le
 - [ ] Das Protokoll ist vollständig. Ein Test der Levelliste prüft, dass jede Abweichung vom Platz der Formel im
       Protokoll begründet ist.
 - [ ] Der Grad sinkt entlang der Reihenfolge weiterhin nie, und alle Tests sind grün.
+
+## Comments
+
+**Hinweis aus Ticket 13 (Spielwert):** Die Läufe `spielwert-1` bis `spielwert-4` (16.10.2026, Ablauf 1) dienen nur
+dem Eichen des Spielwerts. Ihre Verschiebungen und Ablehnungen beziehen sich auf die damalige Reihenfolge und gelten
+hier nicht als Korrektur, wie die Probeläufe. Vor dem Lauf dieses Tickets das Glossar schärfen und eine neue Version
+des Ablaufs mit Probelauf machen (siehe Spec, „Weitere Hinweise“).
