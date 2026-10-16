@@ -45,13 +45,16 @@ export function flacheFeldform(groesse) {
   };
   /** Stellung, in der ein Element steht: Drehung eines Spiegels oder Prismas, Ausgang eines Kombinators oder Quelle. */
   const stellungVon = (el) => (el.type === 'source' ? el.dir : getRot(el));
-  /** Das Level um eine Vierteldrehung gedreht: Ost wird Süd, jede Richtung und Stellung zwei Schritte weiter. */
+  /**
+   * Das Level um eine Vierteldrehung gedreht: Ost wird Süd, jede Richtung und Stellung zwei Schritte weiter. Fehlt sie
+   * in den Leveldaten, gilt 0 wie in der Strahlregel.
+   */
   const vierteldrehung = (level) => {
     const platz = (x, z) => [groesse - 1 - z, x], schritte = richtungen.length / 4;
     const elements = level.elements.map((e) => {
       const [x, z] = platz(e.x, e.z), neu = { ...e, x, z };
-      if (e.dir !== undefined) neu.dir = (e.dir + schritte) % richtungen.length;
-      if (e.rot !== undefined) neu.rot = (e.rot + schritte) % richtungen.length;
+      if (['source', 'combiner'].includes(e.type)) neu.dir = ((e.dir ?? 0) + schritte) % richtungen.length;
+      if (['mirror', 'prism'].includes(e.type)) neu.rot = ((e.rot ?? 0) + schritte) % richtungen.length;
       return neu;
     });
     const solution = {};
