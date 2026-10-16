@@ -39,3 +39,14 @@ Tests“, Nahtstelle 3.
       - Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Namen.
       - Jedes Level hat genau eine Lösung.
 - [ ] Der Fortschritt der Spieler bleibt erhalten, denn er ist nach Namen gespeichert.
+
+## Comments
+
+**Hinweise aus den Tickets 11 und 13:**
+- Ab „mittel“ haben 59 Level keine nötige Kernidee (Ticket 11), und 57 liegen unter dem Mindest-Spielwert 60, 53 davon
+  ohne nötige Kernidee (Ticket 13). Die Duldungsliste würde damit deutlich länger als 37: Das ist der Haltepunkt, der
+  Nutzer entscheidet.
+- Darunter sind Level, die die KI-Tester mögen, etwa 73 Rochade und 89 Uhrwerk. Die KI-Tester sehen Kernideen, wo die
+  Erkennung keine findet (39, 14, 51, 102, 73, 89; Ticket 13, „Hinweise“). Vor dem Festlegen der Liste prüfen, ob das
+  Glossar zu schärfen oder die Erkennung zu erweitern ist.
+- Der Mindest-Spielwert gilt erst ab „mittel“ (Auslegung vom 16.10.2026, Spec „Weitere Hinweise“).
