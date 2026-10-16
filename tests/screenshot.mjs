@@ -3,11 +3,10 @@
 // Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen),
 // QUERY='sky=forest&t=12' (weitere Parameter der Seite), GPU=1 (auf der Grafikkarte statt SwiftShader: wie im echten
 // Browser, Fehler nur der Grafikkarte zeigen sich so). Gewartet wird, bis der Hintergrund ganz eingeblendet ist.
-import { spawn } from 'node:child_process';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { tmpdir } from 'node:os';
+import { startChrome, emulate, sleep } from '../tools/chrome.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..');
@@ -16,79 +15,8 @@ mkdirSync(outDir, { recursive: true });
 
 const [name = 'shot', width = '1440', height = '900', waitMs = '4000', script = ''] = process.argv.slice(2);
 
-const chromeCandidates = [
-  process.env.CHROME_PATH,
-  'C:/Program Files/Google/Chrome/Application/chrome.exe',
-  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  '/usr/bin/google-chrome',
-  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-].filter(Boolean);
-const chrome = chromeCandidates.find(p => existsSync(p));
-if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
-
-const port = 9300 + Math.floor(Math.random() * 500);
-const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-')); // jedes Mal frisch: kein gespeicherter Fortschritt
-const proc = spawn(chrome, [
-  '--headless=new',
-  `--remote-debugging-port=${port}`,
-  `--user-data-dir=${profile}`,
-  ...(process.env.GPU ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
-  '--ignore-gpu-blocklist',
-  '--no-first-run',
-  '--no-default-browser-check',
-  `--window-size=${width},${height}`,
-  'about:blank',
-], { stdio: 'ignore' });
-
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-
-async function getTarget() {
-  for (let i = 0; i < 50; i++) {
-    try {
-      const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
-      const page = list.find(t => t.type === 'page');
-      if (page) return page.webSocketDebuggerUrl;
-    } catch { /* Chrome startet noch */ }
-    await sleep(200);
-  }
-  throw new Error('Chrome DevTools nicht erreichbar');
-}
-
-const ws = new WebSocket(await getTarget());
-await new Promise(r => ws.addEventListener('open', r, { once: true }));
-let msgId = 0;
-const pending = new Map();
-const logs = [];
-ws.addEventListener('message', (ev) => {
-  const msg = JSON.parse(ev.data);
-  if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
-  if (msg.method === 'Runtime.consoleAPICalled') {
-    logs.push(`[${msg.params.type}] ` + msg.params.args.map(a => a.value ?? a.description ?? '').join(' '));
-  } else if (msg.method === 'Runtime.exceptionThrown') {
-    const d = msg.params.exceptionDetails;
-    logs.push(`[exception] ${d.exception?.description ?? d.text} (Zeile ${d.lineNumber})`);
-  } else if (msg.method === 'Log.entryAdded') {
-    logs.push(`[log:${msg.params.entry.level}] ${msg.params.entry.text}`);
-  }
-});
-const send = (method, params = {}) => new Promise((res) => {
-  const id = ++msgId;
-  pending.set(id, res);
-  ws.send(JSON.stringify({ id, method, params }));
-});
-
-await send('Runtime.enable');
-await send('Log.enable');
-await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', {
-  width: +width, height: +height, deviceScaleFactor: +(process.env.DPR || 1), mobile: +width < 800,
-});
-// MOBILE=1: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt
-if (process.env.MOBILE) {
-  await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
-  await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  await send('Emulation.setEmitTouchEventsForMouse', { enabled: true, configuration: 'mobile' });
-}
+const { send, logs, close } = await startChrome({ width, height, gpu: !!process.env.GPU });
+await emulate(send, { width: +width, height: +height, dpr: +(process.env.DPR || 1), phone: !!process.env.MOBILE });
 const query = ['noadapt', process.env.INTRO ? '' : 'nointro', process.env.QUERY ?? ''].filter(Boolean).join('&');
 await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?' + query });
 
@@ -124,10 +52,7 @@ console.log('Status:', JSON.stringify(state));
 const relevant = logs.filter(l => !/GPU stall|swiftshader|WebGL-|Automatic fallback/i.test(l));
 console.log(relevant.length ? 'Konsole:\n  ' + relevant.join('\n  ') : 'Konsole: keine Meldungen');
 
-ws.close();
-proc.kill();
-if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => proc.once('exit', r));
-try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien: bleibt im Temp-Ordner */ }
+await close();
 // Fehlschlag melden: Exceptions, Shader-Fehler oder keine laufende Render-Schleife
 const failed = relevant.some(l => /\[exception\]|\[script-exception\]|\[error\]|THREE\.WebGLProgram/.test(l)) || !state || state.frames < 3;
 if (failed) console.error('FEHLGESCHLAGEN');

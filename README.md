@@ -27,6 +27,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
+  - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
+    (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
+    und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
+    verfälschten Kopien, die mit der erwarteten Meldung rot werden. Mit dem Pfad einer eigenen verfälschten Kopie wird
+    er rot.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
   - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
@@ -131,7 +136,62 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
   der ganzen Maschine, der Generator darf `LEISE_CPU=50`. Alle schweren Läufe (Tests, Messungen, Screenshots,
-  Generator) laufen darüber, nie mehrere gleichzeitig.
+  Generator) laufen darüber, nie mehrere gleichzeitig;
+  `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
+- **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
+  Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
+  zusammen; es ruft selbst keine KI auf.
+  - **Vorbereiten:** `sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]`.
+    Die Level heissen L1, L2 … (feste Mischung, der heutige Platz bleibt verborgen), die Anker A1–A8 (`anchors.json`,
+    je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf). Unter
+    `tests/output/ki-tester/<lauf>/` entstehen:
+    - `eingabe/`: das Feld als Text je Level (`field.mjs`: Raster, Elemente, Licht der Startstellung, ohne Lösung, Name
+      und Markierung), Screenshots der Startstellung auf Desktop und Handy (`shots.mjs`) und das Schema der Antwort;
+    - `antwort-A/` und `antwort-B/`: je KI-Tester ein eigener, leerer Ordner für seine `urteile.json`;
+    - `auftrag-A.md`, `auftrag-B.md` (aus `brief.md`) und `lauf.json` für `merge.mjs` (Namen, Plätze, Reihenfolgen,
+      Version, Fingerabdruck, Modell und Agent-Typ). Sie liegen ausserhalb der Ordner, die die KI-Tester lesen und
+      schreiben.
+  - **Beurteilen:** Der Koordinator startet je KI-Tester einen eigenen KI-Agenten mit frischem Kontext: Agent-Typ
+    `general-purpose`, Modell `claude-opus-5-5` (so in `lauf.json`), als Prompt nur der Inhalt von `auftrag-A.md`
+    bzw. `auftrag-B.md`. Keiner sieht Auftrag oder Antwort des anderen, und sie beurteilen in verschiedener Reihenfolge
+    (A gemischt, B umgekehrt). Ein KI-Tester liest nur `eingabe/` und schreibt nur seine `antwort-A/urteile.json` bzw.
+    `antwort-B/urteile.json`: eine Liste von Urteilen nach `answer.schema.json` (Aha-Moment, Lesbarkeit auf Desktop
+    und Handy, Gefühl 1–5, Einordnung zwischen den Ankern, Ablehnung als Liste von Begriffen aus „Was Spass verdirbt“,
+    Begründung).
+  - **Zusammenführen:** `node tools/ki-tester/merge.mjs <lauf> [--trocken]` prüft beide Antworten und hängt je Level
+    einen Eintrag an `protocol.jsonl` an: Datum, Version des Ablaufs, Modell und Agent-Typ, beide Einzelurteile samt
+    ihren Listen der Ablehnung, Ergebnis und Begründung. Danach `node tests/ki-tester.test.mjs`. Die Regeln stehen in
+    `protocol.mjs`:
+    - **Ablehnen:** Die KI-Tester nennen jeden zutreffenden Begriff, unabhängig vom Grad. Abgelehnt ist ein Level, wenn
+      beide mindestens einen Begriff nennen, der beim Grad der Referenz gilt (Füllteil und Zerfall erst ab „mittel“).
+      Ein abgelehntes Level wird nicht verschoben.
+    - **Bereich einer Einordnung:** zwischen zwei Ankern, beim Anker selbst und seinen Nachbarn, vor A1 oder nach A8.
+      Liegt der Platz des Levels ausserhalb, will der KI-Tester bis an den nächsten Rand des Bereichs.
+    - **Verschieben:** nur, wenn beide in dieselbe Richtung wollen: um den kleineren Wunsch, höchstens 5 Plätze und nie
+      über eine Gradgrenze.
+    - **Anker** sind eine feste Auswahl, keine festen Plätze (Spec, User Story 43: „je zwei feste Anker pro
+      Schwierigkeitsgrad“). Fest ist, welche Level die Anker sind, damit „schwerer als A3“ für beide KI-Tester und
+      in jedem Lauf dasselbe Level meint. Ein Anker wird durch sein eigenes Urteil nie verschoben. Andere Level dürfen an ihm vorbei; er rückt dann um einen Platz und bleibt in
+      seinem Grad. Feste Plätze hiessen, dass ein Level vor einem Anker bleiben muss, obwohl beide KI-Tester es
+      schwerer finden. Die Bereiche eines Laufs rechnen mit den Plätzen der Anker aus `lauf.json`.
+    - **Probeläufe** (`probelauf-…`) zeigen nur den Ablauf; ihre Korrekturen gelten in Ticket 15/16 nicht.
+  - **Referenz:** Heute ist es der Platz in der heutigen Reihenfolge mit den vorläufigen Graden (1–30, 31–100,
+    101–140, 141–150). Ab Ticket 15/16 wird es der Platz nach der Formel, und der Grad folgt den Schwellen der
+    Schwierigkeit. Dann kommt der alte Platz als zweites Feld in die Referenz (neue Version): Ein Level geht nur auf den
+    Platz der Formel, wenn für beide KI-Tester dieser Platz in ihrem Bereich liegt oder näher daran als der alte; sonst
+    bleibt es am alten Platz. Von dort aus gilt dieselbe Korrektur. Die Anker werden über den Namen gefunden und haben
+    nach dem Umsortieren ihre neuen Plätze; der Test prüft, dass jeder in seinem Grad am richtigen Ende bleibt.
+  - **Version und Fingerabdruck:** `VERSION` und `FINGERPRINT` in `protocol.mjs`; die Version steht in jedem Eintrag.
+    Der Fingerabdruck umfasst alles, was die KI-Tester sehen: die Aufträge aus `brief.md` samt den Zeilen der Listen,
+    `anchors.json`, das Schema, das Glossar und das Feld als Text der Anker samt ihren Leveldaten, nicht aber die
+    Bilder. Ändert sich davon etwas oder die Regel, kommt eine neue Version: Test, `prepare.mjs` und `merge.mjs` melden
+    einen anderen Fingerabdruck, und `merge.mjs` nimmt nur Läufe der aktuellen Version mit ihrem Fingerabdruck an.
+  - **Screenshots:** `shots.mjs` lädt je Level die Seite mit `?t=12` neu, spult Herauswachsen und Aufleuchten mit
+    `__prismaDebug.settle` vor (nur für Tests, das Spiel ruft es nie auf) und nimmt erst auf, wenn zwei Aufnahmen nach
+    weiterem Vorspulen byte-gleich sind. Das dauert 26,6 s je Aufnahme (ein Level auf einem Bildschirm) statt 150 s;
+    die Bilder sind byte-gleich mit denen nach 150 s Warten.
+    `sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …>` nimmt Level mit der Kopfzeile wie im
+    Spiel auf.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, allein nach Schwierigkeit sortiert; die Level 121–150 (aus `harden.mjs`) sind alle

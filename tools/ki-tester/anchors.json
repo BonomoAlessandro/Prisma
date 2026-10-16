@@ -1,0 +1,61 @@
+{
+  "hinweis": "Je zwei feste Anker pro vorläufigem Schwierigkeitsgrad (leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150), einer am unteren, einer am oberen Ende. Gewählt nach vier Regeln: (1) nicht auf der Duldungsliste und kein Grenzfall der Neuzählung (Spec, „Weitere Hinweise“), damit der Anker Phase 3 übersteht; (2) möglichst nah am Rand des Grads; (3) die alte Wertung (score aus tools/solver.mjs, als Rang unter den 150) liegt höchstens 7 Plätze vom heutigen Platz entfernt, damit der Anker unstrittig ist; (4) zusammen decken die Anker alle Elemente ab. Plätze und Ränge: Stand 15.10.2026. Wer einen Anker ändert, erhöht die Version des Ablaufs (tools/ki-tester/protocol.mjs).",
+  "anker": [
+    {
+      "id": "A1",
+      "name": "Schleuse",
+      "grad": "leicht",
+      "ende": "unten",
+      "begruendung": "Platz 3, Rang der alten Wertung 3. Nur Spiegel, eine weisse Quelle und ein Ziel, 4 drehbare Elemente: die einfachste Mechanik. Die Plätze 1 und 2 haben nur 2 drehbare Elemente und sind eher Einstieg als Rätsel."
+    },
+    {
+      "id": "A2",
+      "name": "Brechpunkt",
+      "grad": "leicht",
+      "ende": "oben",
+      "begruendung": "Platz 30, das letzte leichte Level, Rang 23. Zwei Prismen, vier Ziele, 5 drehbare Elemente. 29 Doppelpass und 26 Labyrinth stehen auf der Duldungsliste, 27 Spiegelbild weicht stark ab (Rang 63)."
+    },
+    {
+      "id": "A3",
+      "name": "Kreuzweg",
+      "grad": "mittel",
+      "ende": "unten",
+      "begruendung": "Platz 35, Rang 28. Kombinator und zwei farbige Quellen, 6 drehbare Elemente: Farblogik, wie sie ab „mittel“ üblich ist. 31 steht auf der Duldungsliste, 32 und 34 weichen um mehr als 10 Plätze ab, 33 Glasfenster wäre mit zwei Prismen dem Anker A2 zu ähnlich."
+    },
+    {
+      "id": "A4",
+      "name": "Farbverlauf",
+      "grad": "mittel",
+      "ende": "oben",
+      "begruendung": "Platz 94, Rang 95: die alte Wertung trifft den Platz. Prisma, Filter, drei Quellen und drei Mischziele, 7 drehbare Elemente. 97 und 98 stehen auf der Duldungsliste, 99 und 100 sind Grenzfälle, 95 und 96 weichen um 27 und 32 Plätze ab."
+    },
+    {
+      "id": "A5",
+      "name": "Silberstreif",
+      "grad": "schwer",
+      "ende": "unten",
+      "begruendung": "Platz 103, Rang 105. Zwei Prismen und ein Filter, 8 drehbare Elemente. 101 steht auf der Duldungsliste, 102 Smaragd weicht mehr ab (Rang 109)."
+    },
+    {
+      "id": "A6",
+      "name": "Pulsar",
+      "grad": "schwer",
+      "ende": "oben",
+      "begruendung": "Platz 135, Rang 138. Das letzte schwere Level, das nicht auf der Duldungsliste steht (136–140 stehen alle darauf). Vier Prismen, Filter und Block, 10 drehbare Elemente."
+    },
+    {
+      "id": "A7",
+      "name": "Morgenröte",
+      "grad": "sehr schwer",
+      "ende": "unten",
+      "begruendung": "Platz 141, das erste sehr schwere Level, Rang 145. Alle Arten von Elementen: Prismen, Filter, Kombinator und eine farbige Quelle, 11 drehbare Elemente. Zugleich das Level der Vergleichsbilder aus Ticket 03."
+    },
+    {
+      "id": "A8",
+      "name": "Sternenstaub",
+      "grad": "sehr schwer",
+      "ende": "oben",
+      "begruendung": "Platz 148, Rang 142. Das höchste sehr schwere Level, das weder auf der Duldungsliste steht (149 Zenit) noch ein Grenzfall ist (150 Lichtkegel liegt beim Knäuel genau auf der Schwelle). Fünf Prismen, vier Ziele, 9 drehbare Elemente."
+    }
+  ]
+}

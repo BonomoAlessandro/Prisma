@@ -10172,14 +10172,28 @@ for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown
 }
 window.addEventListener('resize', () => frameRate.poke(500));
 
+const MAX_DT = 0.05; // längster Zeitschritt je Bild: Animationen springen nach einem Ruckler nicht
+
 let lastFrameTs = null;
 function frame(ts) {
   if (!frameRate.due(ts)) { requestAnimationFrame(frame); return; }
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
-  const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, 0.05);
+  const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, MAX_DT);
   lastFrameTs = ts;
-  const t = FIXED_TIME ?? clock.getElapsedTime();
+  animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
 
+  renderReflection();
+  composer.render(dt);
+
+  adaptiveResolution.tick(frameRate.gap);
+  perfHud.tick();
+  renderer.info.reset();
+  window.__prisma.frames++;
+  requestAnimationFrame(frame);
+}
+
+/** Ein Zeitschritt aller Animationen, ohne zu rendern. */
+function animate(t, dt) {
   updateCamera(t, dt);
   skyTheme.update(dt, t);
   background.position.copy(camera.position); // Hintergrundkugel immer um die Kamera
@@ -10197,15 +10211,6 @@ function frame(ts) {
   }
   beamView.tick(t, dt);
   updateTargetGoals();
-
-  renderReflection();
-  composer.render(dt);
-
-  adaptiveResolution.tick(frameRate.gap);
-  perfHud.tick();
-  renderer.info.reset();
-  window.__prisma.frames++;
-  requestAnimationFrame(frame);
 }
 
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
@@ -10213,8 +10218,13 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
   skyReady: () => skyTheme.ready };
-// Zugriff für Debugging/Tests (nicht serialisieren)
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig };
+// Zugriff für Debugging/Tests (nicht serialisieren). settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und
+// Überblenden um s Sekunden vor, ohne zu rendern (Screenshots der KI-Tester); das Spiel ruft es nie auf.
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig,
+  settle(seconds) {
+    if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
+    for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
+  } };
 requestAnimationFrame(frame);
 </script>
 </body>
