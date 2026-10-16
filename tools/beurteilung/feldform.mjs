@@ -1,6 +1,6 @@
 // Feldform (Spec „Feldform“): Beurteilung, Spielermodell und Generator kennen das Feld nur über sie. Sie liefert die
-// Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements und seine möglichen Stellungen. Nur hier stehen
-// Koordinaten und die acht Richtungen der flachen Level.
+// Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements und seine möglichen Stellungen, dazu die Drehungen
+// eines Levels um die Drehachse. Nur hier stehen Koordinaten und die acht Richtungen der flachen Level.
 //
 // Eine Zelle ist ein Schlüssel wie in der Lösung eines Levels („x,z“ im flachen Feld). Ausserhalb der Feldform wird er
 // nie zerlegt, nur verglichen und in Begründungen genannt. Eine Richtung ist ein Wert aus richtungen.
@@ -30,6 +30,22 @@ export function flacheFeldform(groesse) {
   const nachbar = (zelle, richtung) => {
     const [x, z] = zelle.split(',').map(Number), [dx, dz] = L.DIRS[richtung];
     return inside(x + dx, z + dz) ? key(x + dx, z + dz) : null;
+  };
+  /** Das Level um eine Vierteldrehung gedreht: Ost wird Süd, jede Richtung und Stellung zwei Schritte weiter. */
+  const vierteldrehung = (level) => {
+    const platz = (x, z) => [groesse - 1 - z, x], schritte = richtungen.length / 4;
+    const elements = level.elements.map((e) => {
+      const [x, z] = platz(e.x, e.z), neu = { ...e, x, z };
+      if (e.dir !== undefined) neu.dir = (e.dir + schritte) % richtungen.length;
+      if (e.rot !== undefined) neu.rot = (e.rot + schritte) % richtungen.length;
+      return neu;
+    });
+    const solution = {};
+    for (const e of level.elements.filter(L.isRotatable)) {
+      const zelle = key(e.x, e.z);
+      if (zelle in level.solution) solution[key(...platz(e.x, e.z))] = (level.solution[zelle] + schritte) % period(e);
+    }
+    return { ...level, elements, solution };
   };
   return {
     art: 'flach',
@@ -70,5 +86,16 @@ export function flacheFeldform(groesse) {
     drehachse: () => 'y',
     /** Wirksame Stellungen eines drehbaren Elements (Spiegel 0–3, weil rot und rot + 4 gleich wirken), sonst keine. */
     stellungen: (el) => (L.isRotatable(el) ? [...Array(period(el)).keys()] : []),
+    /**
+     * Das Level in jeder Drehung des Felds um die Drehachse, je eine Vierteldrehung weiter; die erste ist das Level
+     * selbst. Gedreht ist es dasselbe Rätsel: Elemente, Richtungen, Stellungen und Lösung drehen mit, und viermal
+     * gedreht ist es wieder das Level. Für Werte, die nicht von der Reihenfolge der Zellen abhängen sollen (Ticket 12).
+     * Ein Spiegelbild wäre kein Ersatz: Ein Prisma bricht Rot und Blau zu verschiedenen Seiten.
+     */
+    drehungen: (level) => {
+      const out = [level];
+      while (out.length < 4) out.push(vierteldrehung(out.at(-1)));
+      return out;
+    },
   };
 }

@@ -266,3 +266,18 @@ export const spielermodell = (ctx) => ctx.merke(spielermodell, () => {
  * ohne weiter zu folgern.
  */
 export const aufDenErstenBlick = (ctx, stellung, k = 2) => modellVon(ctx).widerlegt(stellung, k);
+
+/**
+ * Das Spielermodell auf jeder Drehung des Levels um die Drehachse (feldform.drehungen), einmal je Beurteilung: je
+ * Drehung { k2, kInf } wie spielermodell(ctx), die erste ist das Level selbst. Gedreht ist es dasselbe Rätsel, aber das
+ * Modell geht die drehbaren Elemente in einer anderen Reihenfolge durch und zählt ihre Stellungen von anderswo; die
+ * Ketten und die Wahl unter gleich guten Fallunterscheidungen hängen davon ab (auf den 150 heutigen Leveln in 31
+ * Fällen). Das Mittel über die Drehungen hängt nicht mehr davon ab, wie das Level gedreht ist (Schwierigkeit,
+ * Ticket 12).
+ */
+export const spielermodellJeDrehung = (ctx) => ctx.merke(spielermodellJeDrehung, () => ctx.feldform.drehungen(ctx.level)
+  .map((level, i) => {
+    if (i === 0) return spielermodell(ctx);
+    const m = modell(level, ctx.feldform);
+    return { k2: m.spiele(2), kInf: m.spiele(Infinity) };
+  }));

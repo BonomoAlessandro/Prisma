@@ -85,9 +85,9 @@ heutigen Werkzeuge nicht:
 25. Als Entwickler will ich, dass die Grösse nur mit kleinem, begrenztem Anteil in die Schwierigkeit eingeht, damit
     grosse, aber einfache Level nicht nach hinten rutschen.
 26. Als Entwickler will ich, dass die Schwierigkeit die heutige Reihenfolge mit einer Rangkorrelation von mindestens
-    0,85 insgesamt und 0,5 je 30er-Bereich nachbildet, damit sie meinem Spielgefühl entspricht.
-27. Als Entwickler will ich, dass diese Werte an Leveln gemessen werden, an denen nicht geeicht wurde, damit die Formel
-    die Reihenfolge nicht auswendig lernt.
+    0,85 insgesamt und 0,3 je 30er-Bereich nachbildet, damit sie meinem Spielgefühl entspricht.
+27. Als Entwickler will ich, dass diese Werte an Leveln gemessen werden, an denen nicht geeicht wurde (jede Hälfte mit
+    den Gewichten aus der anderen), damit die Formel die Reihenfolge nicht auswendig lernt.
 28. Als Entwickler will ich, dass alle 150 Level beim Eichen gleich zählen.
 29. Als Entwickler will ich einen Spielwert getrennt von der Schwierigkeit, damit ein schweres, aber langweiliges Level
     nicht ins Spiel kommt.
@@ -239,9 +239,15 @@ Der Schwierigkeitsgrad folgt über feste Schwellen aus der Schwierigkeit.
 **Schwierigkeit**
 - Sie besteht vor allem aus Denkarbeit: dem Spielermodell (Horizonte, Ketten, Fallunterscheidungen), der Farblogik und
   den Kernideen. Die Grösse (drehbare Elemente) zählt nur mit kleinem, nach oben begrenztem Anteil.
-- **Eichung (ADR 0001):** Die Gewichte werden an jedem zweiten der 150 Level eingestellt und an den übrigen geprüft.
-  Abnahme: Rangkorrelation mit der heutigen Reihenfolge mindestens 0,85 über alle Level und mindestens 0,5 in jedem
-  30er-Bereich. Alle 150 zählen gleich.
+- Dazu kommen das Zusammenspiel (derselbe Teilwert wie im Spielwert) und die Weglänge (gerade Strahlabschnitte der
+  Lösung). Die Weglänge trägt im Mittel höchstens ein Viertel des Werts und bei keinem Level mehr als ein Drittel, die
+  Denkarbeit im Mittel mindestens die Hälfte (Entscheide des Nutzers, Ticket 12).
+- **Eichung (ADR 0001):** Die Gewichte werden an jedem zweiten der 150 Level eingestellt, den geraden Plätzen. Geprüft
+  wird gekreuzt: an den geraden eichen und die ungeraden vorhersagen, dann umgekehrt. Abnahme: Rangkorrelation dieser
+  Vorhersagen mit der heutigen Reihenfolge mindestens 0,85 über alle Level und mindestens 0,3 in jedem 30er-Bereich,
+  dort über alle 30 Level, beides auf zwei Stellen gerundet wie beim Knäuel. Alle 150 zählen gleich.
+  - Bis zum 16.10.2026 galt 0,5 je Bereich, gemessen nur an den 15 nicht geeichten Leveln eines Bereichs. Das erreichte
+    keine Formel; Begründung und Zahlen in ADR 0001 und Ticket 12.
 
 **Spielwert**
 - **Schliessen** misst das Spielermodell.
@@ -393,8 +399,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    - Kleine handgebaute Level, je eines für jeden Ausschlussgrund, jede Kernidee, das Mischziel (auch Weiss aus weisser
      Quelle) und jeden bekannten Grenzfall: Knäuel genau bei 1,30, Raten genau bei 6 und 38, Füllteil in einem leichten
      Level, Scheinmischung nach Strahlen gegen nach Quellen, Zerfall mit zweiter Gruppe aus 2 Elementen.
-   - **Eichprüfung an den 150:** Rangkorrelation an der nicht geeichten Hälfte mindestens 0,85 über alle Level und
-     mindestens 0,5 je 30er-Bereich.
+   - **Eichprüfung an den 150:** Rangkorrelation gekreuzt, jede Hälfte mit den Gewichten aus der anderen, auf zwei
+     Stellen gerundet mindestens 0,85 über alle Level und mindestens 0,3 je 30er-Bereich.
    - Das Spielermodell wird nur über die Beurteilung getestet.
 3. **Levelliste** (besteht: die Level im Spiel). Sie ersetzt die heutigen Tests zu Markierung, gehärteten Leveln,
    Härte-Abnahme und Auswahlliste:
@@ -483,3 +489,12 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
   - „Schliessen und eine nötige Kernidee tragen etwa zwei Drittel“ gilt für die Punkte eines Levels, nicht nur für die
     Gewichte: Volles Schliessen und eine nötige Kernidee ergeben ohne Bonus gut 60 Punkte, darum zählt die erste
     Kernidee 0,8, und der Mindest-Spielwert liegt bei 60 (Ticket 13).
+  - Schwierigkeit (Entscheide des Nutzers vom 16.10.2026, Ticket 12):
+    - Die Abnahme ist gekreuzt: an den geraden Plätzen eichen und die ungeraden vorhersagen, dann umgekehrt; über alle
+      mindestens 0,85, je 30er-Bereich über alle 30 Level mindestens 0,3. Vorher galt 0,5 je Bereich an den 15 nicht
+      geeichten Leveln; das erreichte keine Formel.
+    - Die Rangkorrelation wird auf zwei Stellen gerundet, wie beim Knäuel. 91–120 liegt bei 0,296, gerundet 0,30, und
+      ist damit erreicht; der Abstand zur Schwelle ist knapp.
+    - Dazu die Teilwerte Zusammenspiel (wie im Spielwert) und Weglänge. Die Weglänge trägt im Mittel höchstens ein
+      Viertel und bei keinem Level mehr als ein Drittel, die Denkarbeit (Spielermodell, Farblogik, Kernideen) im
+      Mittel mindestens die Hälfte; das hält die Eichung ein.

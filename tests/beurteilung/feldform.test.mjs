@@ -1,8 +1,9 @@
-// Tests der Feldform (Spec „Feldform“): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements.
+// Tests der Feldform (Spec „Feldform“): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements,
+// Drehungen eines Levels.
 // Auf main gibt es nur die flache Feldform. Die Tests kennen die Leveldaten (x, z), die Beurteilung nur die Feldform.
 // Aufruf: node tests/beurteilung/feldform.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
-import { L } from '../../tools/solver.mjs';
+import { L, setRot } from '../../tools/solver.mjs';
 import { feldformVon } from '../../tools/beurteilung/feldform.mjs';
 import { test } from './helfer.mjs';
 
@@ -114,4 +115,25 @@ test('Jede Stellung einer Lösung ist eine mögliche Stellung ihres Elements (al
 test('Ein Level mit anderer Dimension (dim) hat auf main keine Feldform', () => {
   assert.equal(feldformVon({ name: 'flach', dim: 2, elements: [] }).zellen.length, 49);
   assert.throws(() => feldformVon({ name: 'Würfel', dim: 3, size: 5, elements: [] }), /Feldform/);
+});
+
+test('Drehungen um die Drehachse: vier, die erste ist das Level, viermal gedreht wieder das Level, jede gelöst (alle Level)', () => {
+  const geloest = (level) => {
+    const brett = L.createBoard(level);
+    for (const el of brett.elements) {
+      const v = level.solution[el.x + ',' + el.z];
+      if (L.isRotatable(el) && v !== undefined) setRot(el, v);
+    }
+    return L.traceBeams(brett).solved;
+  };
+  for (const level of L.LEVELS) {
+    const f = feldformVon(level), d = f.drehungen(level);
+    assert.equal(d.length, 4, level.name);
+    assert.equal(d[0], level, level.name);
+    assert.deepEqual(f.drehungen(d[3])[1], level, level.name);
+    for (const [i, g] of d.entries()) assert.ok(geloest(g), `${level.name}, ${i} Vierteldrehungen`);
+  }
+  // Ost wird Süd: Die Quelle auf 0,3 nach Osten steht gedreht auf 3,0 und leuchtet nach Süden
+  const [, q] = f7.drehungen({ name: 'Quelle', elements: [{ type: 'source', x: 0, z: 3, dir: 0 }], solution: {} });
+  assert.deepEqual(q.elements, [{ type: 'source', x: 3, z: 0, dir: 2 }]);
 });

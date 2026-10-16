@@ -109,8 +109,11 @@ function farblogik(ctx) {
   return ziele.length ? mit.length / ziele.length : 0;
 }
 
-/** Zusammenspiel: Stellen des Zusammenspiels je drehbares Element, höchstens 1. */
-function zusammenspiel(ctx) {
+/**
+ * Die Stellen des Zusammenspiels in der Lösung, einmal je Beurteilung: { elemente: Elemente, die mehrere Strahlen
+ * nutzen, und gemeinsame Mischziele, kreuzungen, zahl: beide zusammen }. Auch die Schwierigkeit zählt sie (Ticket 12).
+ */
+export const zusammenspielStellen = (ctx) => ctx.merke(zusammenspielStellen, () => {
   const { feldform } = ctx;
   const stellen = new Set();
   for (const [zelle, n] of genutzt(ctx)) if (n >= 2) stellen.add(zelle);
@@ -125,9 +128,14 @@ function zusammenspiel(ctx) {
     }
   }
   const kreuzungen = [...achsen.values()].filter(a => a.size >= 2).length;
-  const drehbar = ctx.level.elements.filter(e => feldform.stellungen(e).length).length;
-  return Math.min(1, (stellen.size + kreuzungen) / Math.max(1, drehbar));
-}
+  return { elemente: stellen.size, kreuzungen, zahl: stellen.size + kreuzungen };
+});
+
+/** Zusammenspiel: Stellen des Zusammenspiels je drehbares Element, höchstens 1; auch ein Teilwert der Schwierigkeit. */
+export const zusammenspiel = (ctx) => ctx.merke(zusammenspiel, () => {
+  const drehbar = ctx.level.elements.filter(e => ctx.feldform.stellungen(e).length).length;
+  return Math.min(1, zusammenspielStellen(ctx).zahl / Math.max(1, drehbar));
+});
 
 /** Der Spielwert eines Levels, einmal je Beurteilung: { wert (0–100), teilwerte: { schliessen, kernidee, farblogik, zusammenspiel } (je 0–1) }. */
 export const spielwert = (ctx) => ctx.merke(spielwert, () => {

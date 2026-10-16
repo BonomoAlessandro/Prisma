@@ -27,8 +27,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
-  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 90 s, davon rund 25 s für die Suche ohne
-    Abschneiden auf den 150, 5 s für den Lockvogel und 45 s für die Kandidaten der Eichmenge des Spielwerts): den
+  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (90–130 s je nach Last, davon rund 25 s für die Suche ohne
+    Abschneiden auf den 150, 5 s für den Lockvogel, 45–65 s für die Kandidaten der Eichmenge des Spielwerts und gut
+    10 s für die Schwierigkeit): den
     Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft
     ohne Eintrag mit). Jede Regel wird an kleinen, von
     Hand gebauten Leveln geprüft und an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs`
@@ -156,9 +157,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `offen` nennt die Teile, die noch keine Regel berechnet. `grad` gibt den Schwierigkeitsgrad vor, bis die Beurteilung
   ihn selbst bestimmt (Tickets 12 und 15). `teuer: false` lässt die Regeln weg, die lange rechnen; sie stehen dann in
   `offen`.
-  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements. Nur
-    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt
-    es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
+  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements, dazu
+    die Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
+    Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt es nur die flache Feldform, eine
+    weitere (Würfel) kommt in `feldformVon` dazu.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von
@@ -212,6 +214,36 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       zwei Quellen; ohne nötige Kernidee ist `begriff` null. Begründung der Rangfolge im Kopf der Datei.
     - Falle, Lockvogel und Haupt-Kernidee sind teuer. Der Lockvogel braucht auf den 150 rund 5 s für die Suchen nach
       einer zweiten Lösung, die übrigen Regeln zusammen unter 0,1 s.
+  - **Schwierigkeit** (Ticket 12, `schwierigkeit.mjs`, ADR 0001): Der Wert ist die Summe von vier Teilwerten, je mit
+    seinem Anteil am Wert und den Messwerten (Gewicht mal Messwert).
+    - Denkarbeit, die Summe aus Spielermodell, Farblogik und Kernideen:
+      - Spielermodell: Rückschlüsse (drehbare Elemente, die es rückwärts vom Ziel her entscheidet), Fallunterscheidungen
+        (k2 + kInf), längste Kette und Stillstand (Horizont 2 steckt). Gemittelt über die vier Drehungen des Levels um
+        die Drehachse (`drehungen` der Feldform, `spielermodellJeDrehung`), denn die feste Reihenfolge der Zellen ist
+        willkürlich; gedreht ist es dasselbe Rätsel und hat dieselbe Schwierigkeit.
+      - Farblogik: die Farboperationen der Lösung, je Mischziel, nötigem Filter (an seiner Stelle ein weisser Filter)
+        und nötigem Prisma, das Licht aus mindestens zwei Grundfarben bricht.
+      - Kernideen: die Zahl der nötigen Kernideen.
+    - Zusammenspiel: derselbe Teilwert wie im Spielwert (`zusammenspiel` aus `spielwert.mjs`).
+    - Weglänge: die Zahl der geraden Strahlabschnitte in der Lösungsstellung, also der Schritte, die der Spieler
+      verfolgt.
+    - Grösse: höchstens 10 Punkte, voll ab 12 drehbaren Elementen.
+    - Grenzen (`GRENZEN`, beim Eichen eingehalten): Die Weglänge trägt im Mittel höchstens ein Viertel und bei keinem
+      Level mehr als ein Drittel, die Denkarbeit im Mittel mindestens die Hälfte. Auf den 150 tragen im Mittel die
+      Denkarbeit 56,9 %, das Zusammenspiel 7,0 %, die Weglänge 25,0 % und die Grösse 11,1 %.
+    - Die Gewichte stehen in `schwierigkeit-gewichte.json`.
+      `sh tools/leise.sh node tools/eiche-schwierigkeit.mjs [--bericht]` stellt sie an den Leveln der geraden Plätze
+      der heutigen Reihenfolge ein und schreibt die Datei neu: nichtnegative kleinste Quadrate; hielte sie die Grenzen
+      nicht ein, wird das Gewicht der Weglänge festgehalten und so gross gewählt, wie die Grenzen erlauben. Es zeigt die
+      Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen, die alte Wertung und die
+      Rangkorrelation mit dem Spielwert (etwa 1,5 min). Eichen und Prüfen stehen in `schwierigkeit-eichung.mjs`,
+      gemeinsam für Skript und Test.
+    - Abnahme (Spec, ADR 0001), gekreuzt: an den geraden Plätzen eichen und die ungeraden vorhersagen, dann umgekehrt;
+      Rangkorrelation über alle mindestens 0,85, je 30er-Bereich über alle 30 Level mindestens 0,3, auf zwei Stellen
+      gerundet wie beim Knäuel. Erreicht: über alle 0,93, je Bereich knapp in 91–120 (0,296, gerundet 0,30). Der Test
+      zeigt auch das bisherige Mass, die 15 nicht geeichten Level je Bereich.
+    - Teuer, weil sie alle Kernideen braucht; das Spielermodell auf den drei weiteren Drehungen kostet auf den 150
+      zusammen rund 3 s.
   - **Spielwert** (Ticket 13, `spielwert.mjs`): `{ wert, teilwerte }`, der Wert von 0 bis 100 aus vier Teilwerten von 0
     bis 1 mit den Gewichten Schliessen 34, Kernidee 33, Farblogik 17 und Zusammenspiel 16.
     - Schliessen: Anteil, den das Spielermodell mit Horizont 2 folgert, × (1 − kInf / 7) × (1 − weite Fast-Lösungen in
