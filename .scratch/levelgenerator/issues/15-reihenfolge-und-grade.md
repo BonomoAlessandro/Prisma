@@ -20,8 +20,8 @@ Tests“, Nahtstelle 3.
       schwer“ an.
 - [ ] Die Reihenfolge entsteht aus der Beurteilung und dem Protokoll der KI-Tester. Die von Hand gepflegte Auswahlliste
       wird für die Reihenfolge nicht mehr gebraucht.
-- [ ] Auf der Duldungsliste stehen alle Level, die einen Ausschlussgrund haben, ab „mittel“ keine nötige Kernidee haben
-      oder unter dem Mindest-Spielwert liegen.
+- [ ] Auf der Duldungsliste stehen alle Level, die einen Ausschlussgrund haben, und ab „mittel“ alle, die keine nötige
+      Kernidee haben oder unter dem Mindest-Spielwert liegen.
 - [ ] **Haltepunkt:** In zwei Fällen hält das Ticket an, und der Nutzer entscheidet:
       - Die Duldungsliste wird deutlich länger als die 37 Level der Neuzählung.
       - Die heutigen Level verletzen eine Regel, die sich nicht über die Duldungsliste abbilden lässt, etwa „Haupt-Kernidee
@@ -34,7 +34,7 @@ Tests“, Nahtstelle 3.
       - Ein Ausschluss kommt nur bei Leveln auf der Duldungsliste vor.
       - Auf die Duldungsliste kommt kein neues Level: Der Test vergleicht mit der ursprünglichen Liste.
       - Ab „mittel“ hat jedes Level eine nötige Kernidee.
-      - Jedes Level liegt über dem Mindest-Spielwert.
+      - Ab „mittel“ liegt jedes Level über dem Mindest-Spielwert.
       - Dieselbe Haupt-Kernidee kommt höchstens zweimal je 10 Level vor.
       - Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Namen.
       - Jedes Level hat genau eine Lösung.

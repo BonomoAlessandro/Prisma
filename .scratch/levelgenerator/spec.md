@@ -95,7 +95,7 @@ heutigen Werkzeuge nicht:
     die wichtigsten Spassquellen am meisten zählen.
 31. Als Entwickler will ich, dass Farblogik und Zusammenspiel einen kleineren Bonus geben, damit nicht alle Level gleich
     gebaut werden.
-32. Als Entwickler will ich einen Mindest-Spielwert, unter dem kein Level ins Spiel kommt.
+32. Als Entwickler will ich einen Mindest-Spielwert, unter dem ab „mittel“ kein Level ins Spiel kommt.
 33. Als Entwickler will ich, dass eine Kernidee nur zählt, wenn die Lösung von ihr abhängt, damit dekorative Muster
     keinen Spielwert vortäuschen.
 34. Als Entwickler will ich, dass ein Ausschlussgrund ein Level hart ausschliesst und mit Begriff und Begründung
@@ -246,9 +246,10 @@ Der Schwierigkeitsgrad folgt über feste Schwellen aus der Schwierigkeit.
 **Spielwert**
 - **Schliessen** misst das Spielermodell.
 - Eine **Kernidee** zählt nur, wenn die Lösung von ihr abhängt.
-- Schliessen und eine nötige Kernidee tragen zusammen etwa zwei Drittel.
+- Schliessen und eine nötige Kernidee tragen zusammen etwa zwei Drittel: Ein Level mit vollem Schliessen und einer
+  nötigen Kernidee erreicht ohne Bonus gut 60 Punkte.
 - **Farblogik** und **Zusammenspiel** geben einen kleineren Bonus.
-- Unter dem **Mindest-Spielwert** wird ein Level nicht aufgenommen.
+- Unter dem **Mindest-Spielwert** wird ein Level ab „mittel“ nicht aufgenommen.
 - Die Gewichte werden am Spass-Urteil der KI-Tester geeicht.
 
 **Spielermodell**
@@ -477,3 +478,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
   - Vor dem nächsten Lauf der KI-Tester das Glossar schärfen (neue Version des Ablaufs): bei Füllteil „… den ein anderer
     Strahl an einem seiner Spiegel trifft“, bei Abschalten „Licht in der Farbe des Ziels“, bei Falle und Abschalten die
     Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem Ziel weg.
+  - Der Mindest-Spielwert gilt erst ab „mittel“; leichte Level sind Einstieg und brauchen weder Kernidee noch
+    Mindest-Spielwert (Ticket 13). Bei 60 lägen sonst 25 der 30 leichten Level darunter.
+  - „Schliessen und eine nötige Kernidee tragen etwa zwei Drittel“ gilt für die Punkte eines Levels, nicht nur für die
+    Gewichte: Volles Schliessen und eine nötige Kernidee ergeben ohne Bonus gut 60 Punkte, darum zählt die erste
+    Kernidee 0,8, und der Mindest-Spielwert liegt bei 60 (Ticket 13).

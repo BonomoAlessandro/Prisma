@@ -68,6 +68,22 @@ test('Zelle eines Punkts im Strahlbild: Ereignisse an Elementen liegen in deren 
   for (const s of r.segments) assert.ok(['0,3', '3,3', '6,0', '0,1'].includes(f7.zelleBei({ x: s.x0, z: s.z0 })), JSON.stringify(s));
 });
 
+test('Durchlauf eines Strahlabschnitts: die Zellen zwischen Anfang und Ende samt Achse, gleich für beide Laufrichtungen, auch diagonal', () => {
+  const durchlaufen = (elements) => L.traceBeams(L.createBoard({ name: 'Durchlauf', elements })).segments
+    .flatMap(s => f7.durchlauf(s).map(({ zelle, achse }) => `${zelle} ${achse}`)).sort();
+  assert.deepEqual(durchlaufen([
+    { type: 'source', x: 0, z: 3, dir: 0 },
+    { type: 'mirror', x: 3, z: 3, rot: 1 },   // lenkt nach Süden auf den Blocker
+    { type: 'blocker', x: 3, z: 6 },
+    { type: 'source', x: 6, z: 5, dir: 4 },   // läuft nach Westen über die Feldkante aus und kreuzt in 3,5
+  ]), ['0,5 0', '1,3 0', '1,5 0', '2,3 0', '2,5 0', '3,4 2', '3,5 0', '3,5 2', '4,5 0', '5,5 0']);
+  // Nach Südosten und nach Nordwesten auf je einen Blocker: dieselbe Achse
+  assert.deepEqual(durchlaufen([
+    { type: 'source', x: 0, z: 0, dir: 1 }, { type: 'blocker', x: 3, z: 3 },
+    { type: 'source', x: 6, z: 6, dir: 5 }, { type: 'blocker', x: 4, z: 4 },
+  ]), ['1,1 1', '2,2 1', '5,5 1']);
+});
+
 test('Drehachse: in flachen Leveln immer senkrecht, die Achse y (alle Level)', () => {
   for (const level of L.LEVELS) {
     const f = feldformVon(level);

@@ -47,6 +47,22 @@ export function flacheFeldform(groesse) {
       const bei = (x, z) => (inside(Math.round(x), Math.round(z)) ? key(Math.round(x), Math.round(z)) : null);
       return { von: bei(s.x0, s.z0), bis: bei(s.x1, s.z1) };
     },
+    /**
+     * Zellen, durch die ein Strahlabschnitt läuft, ohne die an seinem Anfang und Ende und ohne die hinter der Feldkante,
+     * je { zelle, achse }. Die Achse ist für beide Laufrichtungen gleich (Richtung modulo 4).
+     */
+    durchlauf: (s) => {
+      const dx = Math.sign(Math.round((s.x1 - s.x0) * 1000)), dz = Math.sign(Math.round((s.z1 - s.z0) * 1000));
+      const achse = L.DIRS.findIndex(([a, b]) => a === dx && b === dz) % 4;
+      const schritte = Math.round(Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)));
+      const out = [];
+      for (let i = 1; i < schritte; i++) {
+        const x = Math.round(s.x0) + i * dx, z = Math.round(s.z0) + i * dz;
+        if (!inside(x, z)) break;
+        out.push({ zelle: key(x, z), achse });
+      }
+      return out;
+    },
     nachbar,
     /** Alle Nachbarzellen, auch diagonal. */
     nachbarn: (zelle) => richtungen.map(d => nachbar(zelle, d)).filter(n => n !== null),

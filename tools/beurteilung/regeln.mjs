@@ -26,3 +26,4 @@ export { default as lockvogel } from './kernideen/lockvogel.mjs';
 export { default as hauptKernidee } from './haupt-kernidee.mjs';
 // Schwierigkeit, in schwierigkeit.mjs (Ticket 12)
 // Spielwert, in spielwert.mjs (Ticket 13)
+export { default as spielwert } from './spielwert.mjs';

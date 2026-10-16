@@ -27,9 +27,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
-  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 45 s, davon rund 25 s für die Suche ohne
-    Abschneiden auf den 150 und 5 s für den Lockvogel): den Einstieg, die Feldform und je Regel eine Datei in
-    `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von
+  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 90 s, davon rund 25 s für die Suche ohne
+    Abschneiden auf den 150, 5 s für den Lockvogel und 45 s für die Kandidaten der Eichmenge des Spielwerts): den
+    Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft
+    ohne Eintrag mit). Jede Regel wird an kleinen, von
     Hand gebauten Leveln geprüft und an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs`
     baut die Mini-Level (Elemente in Lösungsstellung) und beurteilt die 150 einmal je Lauf, mit dem vorläufigen Grad
     nach dem heutigen Platz; mit den teuren Regeln nur, wenn eine Datei sie braucht (`heutigeLevel({ teuer: true })`).
@@ -211,6 +212,23 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       zwei Quellen; ohne nötige Kernidee ist `begriff` null. Begründung der Rangfolge im Kopf der Datei.
     - Falle, Lockvogel und Haupt-Kernidee sind teuer. Der Lockvogel braucht auf den 150 rund 5 s für die Suchen nach
       einer zweiten Lösung, die übrigen Regeln zusammen unter 0,1 s.
+  - **Spielwert** (Ticket 13, `spielwert.mjs`): `{ wert, teilwerte }`, der Wert von 0 bis 100 aus vier Teilwerten von 0
+    bis 1 mit den Gewichten Schliessen 34, Kernidee 33, Farblogik 17 und Zusammenspiel 16.
+    - Schliessen: Anteil, den das Spielermodell mit Horizont 2 folgert, × (1 − kInf / 7) × (1 − weite Fast-Lösungen in
+      ‰ / 60), beides an den Schwellen von Probieren gemessen.
+    - Kernidee: Die erste nötige Kernidee bringt 0,8, jede weitere 30 % des Rests.
+    - Farblogik: Anteil der Ziele, die ein Mischziel sind oder Licht einer Quelle bekommen, deren Farbe ein Filter oder
+      ein Prisma beschneiden muss.
+    - Zusammenspiel: Stellen je drehbares Element, höchstens 1. Stellen sind Elemente, die mehrere Strahlen nutzen,
+      gemeinsame Mischziele und Kreuzungen; dafür liefert die Feldform `durchlauf`.
+    - Unter `MINDEST_SPIELWERT` (60) kommt ein Level ab „mittel“ nicht ins Spiel. Schliessen mit einer nötigen
+      Kernidee ergibt ohne Bonus 60,4.
+    - **Eichung** an der Eichmenge (`spielwert-eichmenge.mjs`): Gefühl der KI-Tester aus dem Protokoll und der
+      Spieler-Tester aus den Reviews 4 und 6 (`spass-reviews.json`, samt Leveldaten aus den Pools übernommen).
+      `sh tools/leise.sh node tools/eiche-spielwert.mjs` (etwa 1,5 min) berichtet die Brücken, die
+      Rangkorrelation mit Kreuzprüfung, das Gefühl unter und über möglichen Schwellen und die Level der 150 unter dem
+      Mindest-Spielwert. Begründung der Werte in Ticket 13.
+    - Teuer, weil Schliessen und die Kernideen es sind.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.
