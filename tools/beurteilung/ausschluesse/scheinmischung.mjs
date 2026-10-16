@@ -31,7 +31,7 @@ const aufzaehlung = (farben) => farben.map(f => FARBEN[f]).join(', ').replace(/,
  */
 function weg(ctx, kombinator, farbe) {
   const elemente = ctx.level.elements.map((e, i) => {
-    if (i === kombinator.id) return { ...e, type: 'source', dir: getRot(kombinator), color: L.COLOR_NAMES[farbe] };
+    if (i === kombinator.id) return { ...ctx.feldform.quelleStatt(e, getRot(kombinator)), color: L.COLOR_NAMES[farbe] };
     return e.type === 'source' || e.type === 'combiner' ? { ...e, type: 'blocker' } : e;
   });
   const { events } = L.traceBeams(brettInLoesung(ctx, elemente));
