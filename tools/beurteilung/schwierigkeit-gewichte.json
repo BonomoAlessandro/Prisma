@@ -1,0 +1,18 @@
+{
+  "kommentar": "Gewichte der Schwierigkeit, eingestellt von tools/eiche-schwierigkeit.mjs; nicht von Hand ändern.",
+  "geeicht": {
+    "plaetze": "gerade",
+    "level": 75,
+    "verfahren": "nichtnegative kleinste Quadrate des heutigen Platzes, Anteile von Weglänge und Denkarbeit begrenzt"
+  },
+  "gewichte": {
+    "rueckschluesse": 3.122,
+    "fallunterscheidungen": 0.646,
+    "kette": 0.264,
+    "stillstand": 6.001,
+    "farblogik": 3.376,
+    "kernideen": 1.71,
+    "zusammenspiel": 6.56,
+    "weglaenge": 0.872
+  }
+}

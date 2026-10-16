@@ -1,0 +1,25 @@
+{
+  "format": 1,
+  "id": "forest",
+  "name": "Wald",
+  "order": 30,
+  "daten": "sky/anime",
+  "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "air": { "haze": [0.087, 0.195, 0.40], "lit": [0.214, 0.365, 0.72], "density": 0.0015 },
+  "layers": [
+    {
+      "type": "toonInstances", "data": "trees",
+      "palette": { "shadow": [0.0114, 0.0225, 0.0266], "mid": [0.0198, 0.044, 0.0542],
+                   "lit": [0.037, 0.0913, 0.1124], "rim": [0.07, 0.165, 0.22] }
+    },
+    {
+      "type": "glowParticles", "data": "trees", "count": 50, "seed": 17, "ring": [7, 28], "aboveFog": 1,
+      "spread": 3, "lift": [0.6, 2.5], "yMax": -1.2, "ceiling": -1.0, "size": 9,
+      "color": [0.85, 1.0, 0.35], "halo": [0.35, 0.6, 0.15]
+    },
+    {
+      "type": "mistSheets", "sheets": [[1.2, 0.22, 0.0], [3.5, 0.14, 0.5]], "radius": 130,
+      "wind": [0.94, -0.34], "speed": 0.7, "scale": 26, "stretch": 2.2, "cover": [0.42, 0.72], "fade": [80, 112]
+    }
+  ]
+}
