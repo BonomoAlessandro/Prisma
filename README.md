@@ -62,7 +62,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
   wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
   Eigener Logikpfad (`createBoard3`, `tracePass3`) mit denselben Regeln wie `tracePass`, auch beim Anhalten an
-  offenen Stellungen für den Löser; die 2D-Level bleiben bitgleich (`tests/golden.mjs`).
+  offenen Stellungen für den Löser; die flachen Level bleiben bitgleich (`tests/golden.mjs`).
   Die Kamera lässt sich im Würfel viel stärker neigen.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
@@ -172,10 +172,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `offen` nennt die Teile, die noch keine Regel berechnet. `grad` gibt den Schwierigkeitsgrad vor, bis die Beurteilung
   ihn selbst bestimmt (Tickets 12 und 15). `teuer: false` lässt die Regeln weg, die lange rechnen; sie stehen dann in
   `offen`.
-  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements, dazu
-    die Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
+  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
+    was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
+    Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
     Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt es nur die flache Feldform, eine
-    weitere (Würfel) kommt in `feldformVon` dazu.
+    weitere (Würfel) kommt in `feldformVon` dazu. Auf dem Würfel-Branch ist das die Würfel-Feldform
+    (`feldform-wuerfel.mjs`, Ticket 14) für Level mit `dim: 3`: Zellen „x,y,z“, 18 Richtungen, Drehachse je Element.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von

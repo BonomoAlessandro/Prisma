@@ -90,7 +90,7 @@ Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dor
 ```bash
 node tests/logic.test.mjs        # 574 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
 node tests/golden.mjs            # flache Level unverändert? (~3 s; --voll ~17 s) – --write nur bei bewusster Änderung
-node tests/beurteilung.test.mjs  # 194 Tests (~45 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
+node tests/beurteilung.test.mjs  # 196 Tests (~45 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
 node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel (~50 s)

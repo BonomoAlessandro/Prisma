@@ -913,7 +913,9 @@ function tracePass3(board, extraRays, emitting, from) {
   const hits = from ? new Map(from.hits) : new Map();
   const combinerInputs = new Map();
   if (from) {
-    for (const [id, v] of from.combinerInputs) combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
+    for (const [id, v] of from.combinerInputs) {
+      combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
+    }
   }
   const seen = from ? from.seen.slice() : [];
   const queue = from ? from.queue.slice() : [];
