@@ -232,7 +232,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.
-  - **Vorbereiten:** `sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]`.
+  - **Vorbereiten:**
+    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]`.
     Die Level heissen L1, L2 … (feste Mischung, der heutige Platz bleibt verborgen), die Anker A1–A8 (`anchors.json`,
     je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf). Unter
     `tests/output/ki-tester/<lauf>/` entstehen:
