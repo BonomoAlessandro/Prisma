@@ -27,12 +27,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
-  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 30 s, davon rund 25 s für die Suche ohne
-    Abschneiden auf den 150): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln
-    aufrufbar, eine neue Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und
-    an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs` baut die Mini-Level (Elemente in
-    Lösungsstellung) und beurteilt die 150 einmal je Lauf, mit dem vorläufigen Grad nach dem heutigen Platz; mit den
-    teuren Regeln nur, wenn eine Datei sie braucht (`heutigeLevel({ teuer: true })`).
+  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 45 s, davon rund 25 s für die Suche ohne
+    Abschneiden auf den 150 und 5 s für den Lockvogel): den Einstieg, die Feldform und je Regel eine Datei in
+    `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von
+    Hand gebauten Leveln geprüft und an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs`
+    baut die Mini-Level (Elemente in Lösungsstellung) und beurteilt die 150 einmal je Lauf, mit dem vorläufigen Grad
+    nach dem heutigen Platz; mit den teuren Regeln nur, wenn eine Datei sie braucht (`heutigeLevel({ teuer: true })`).
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
     und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
@@ -148,7 +148,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
   Modul mit einem Einstieg, `beurteile(level, { grad, teuer })` aus `index.mjs`. Es liefert Schwierigkeit, Spielwert,
-  die Teilwerte zum Schliessen, Kernideen, Mischziele und Ausschlussgründe (je mit Glossarbegriff und Begründung).
+  die Teilwerte zum Schliessen, Kernideen samt Haupt-Kernidee, Mischziele und Ausschlussgründe (je mit Glossarbegriff
+  und Begründung).
   `offen` nennt die Teile, die noch keine Regel berechnet. `grad` gibt den Schwierigkeitsgrad vor, bis die Beurteilung
   ihn selbst bestimmt (Tickets 12 und 15). `teuer: false` lässt die Regeln weg, die lange rechnen; sie stehen dann in
   `offen`.
@@ -188,6 +189,26 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     allein in irgendeiner Stellung erreicht (`allein`). Jeder Fund nennt in der Begründung Ziel, Quellen und Licht. Die
     drei Regeln brauchen auf den 150 zusammen rund 3–4 s, vor allem für die Suchen je Quelle und die Wege der
     Zwischenstände.
+  - **Kernideen Sammelstelle, Falle, Lockvogel und die Haupt-Kernidee** (Ticket 11; je eine Datei in `kernideen/`,
+    dazu `haupt-kernidee.mjs`), wieder nur, wenn die Lösung von ihnen abhängt:
+    - Sammelstelle: Aus mindestens zwei Richtungen fällt Licht in ein Prisma, und ohne den Zulauf aus einer davon
+      verliert ein Ziel seine Farbe, für mindestens zwei Richtungen. Die Wegnahme `ohneZulauf` in `noetig.mjs` setzt an
+      die Stelle des Prismas einen Blocker und bricht das Licht der übrigen Richtungen selbst weiter (`refractInPrism`).
+      Ohne Wegnahme muss sie die Lösung wiedergeben; das prüft die Regel an jedem Prisma (ADR 0003).
+    - Falle: ein naheliegender Zwischenstand wie beim Abschalten, bei dem ein Spiegel oder Prisma in der Lösung anders
+      steht. Bringt die Lösung dasselbe Licht derselben Quelle auf anderem Weg hin, ist es eine Falle, nimmt sie es dem
+      Ziel weg, Abschalten; beides zugleich gilt nie. Nötig ist sie, wenn eine weite Fast-Lösung sie enthält (Holzweg)
+      und das Spielermodell mit Horizont 2 sie nicht auf den ersten Blick widerlegt (`aufDenErstenBlick`).
+    - Lockvogel: ein festes Teil abseits der Lösung, das in mindestens 10 % der Strahlbilder der Suche ohne Abschneiden
+      Licht bekommt (wie bisher in `quality.mjs`, jetzt auch Filter). Nötig ist er, wenn er auch in die Irre führt (in
+      mindestens 10 % der Holzwege Licht, mindestens in einem) und das Level ohne ihn (ein weisser Filter an seiner
+      Stelle) eine zweite Lösung hätte. Ein Blocker, der nur eine zweite Lösung verhindert, zählt also nicht. Die Suche
+      zählt dafür das Licht auf den festen Teilen mit (`licht`, je Fast-Lösung `feste`).
+    - Haupt-Kernidee (Teil `hauptKernidee`, Begriff „Kernidee“): unter den nötigen die, die dem Schliessen am meisten
+      abverlangt, nach der festen Rangfolge Falle, Abschalten, Farben abzählen, Sammelstelle, Lockvogel, Mischziel aus
+      zwei Quellen; ohne nötige Kernidee ist `begriff` null. Begründung der Rangfolge im Kopf der Datei.
+    - Falle, Lockvogel und Haupt-Kernidee sind teuer. Der Lockvogel braucht auf den 150 rund 5 s für die Suchen nach
+      einer zweiten Lösung, die übrigen Regeln zusammen unter 0,1 s.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.

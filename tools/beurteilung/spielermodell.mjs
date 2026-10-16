@@ -233,8 +233,17 @@ function modell(level, feldform) {
     return ergebnis(dom);
   }
 
-  return { spiele };
+  /** Widerspruch, wenn nur die Elemente in stellung ({ Zelle: Stellung }) gesetzt sind, ohne Folgern (aufDenErstenBlick). */
+  function widerlegt(stellung, k) {
+    const dom = voll.map((m, i) => (zelle(i) in stellung ? 1 << (stellung[zelle(i)] % feldform.stellungen(drehbar[i]).length) : m));
+    return widerspruch(dom, k, true);
+  }
+
+  return { spiele, widerlegt };
 }
+
+/** Das Modell eines Levels, einmal je Beurteilung. */
+const modellVon = (ctx) => ctx.merke(modellVon, () => modell(ctx.level, ctx.feldform));
 
 /**
  * Das Spielermodell mit Horizont 2 und mit vollem Überblick, einmal je Beurteilung: { k2, kInf }, je
@@ -246,6 +255,14 @@ function modell(level, feldform) {
  *   widerspruch:          die Folgerungen widersprechen sich (ein Level ohne Lösung)
  */
 export const spielermodell = (ctx) => ctx.merke(spielermodell, () => {
-  const m = modell(ctx.level, ctx.feldform);
+  const m = modellVon(ctx);
   return { k2: m.spiele(2), kInf: m.spiele(Infinity) };
 });
+
+/**
+ * Widerlegt das Spielermodell mit Horizont k eine angenommene Stellung auf den ersten Blick (Ticket 11, Falle)? stellung:
+ * { Zelle: Stellung } einiger drehbarer Elemente; nur sie sind gesetzt, alle übrigen offen. Geprüft wird wie bei jedem
+ * Schritt des Folgerns, vorwärts (falsches Licht) und rückwärts (ein Ziel kann seine Farbe nicht mehr bekommen), aber
+ * ohne weiter zu folgern.
+ */
+export const aufDenErstenBlick = (ctx, stellung, k = 2) => modellVon(ctx).widerlegt(stellung, k);

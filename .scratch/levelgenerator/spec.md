@@ -461,5 +461,19 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
   - „Naheliegend“ heisst vorläufig: höchstens 3 drehbare Elemente (Ticket 10); später mit dem Spielermodell eichen.
   - Farben abzählen ist nur nötig, wenn sich ein Verlust an keinem einzelnen Ziel zeigt; das braucht mindestens drei
     Quellen (Ticket 10).
+  - Falle und Abschalten gehen vom selben naheliegenden Zwischenstand aus: Nimmt die Lösung dem Ziel dessen Licht weg,
+    ist es Abschalten; bringt sie dasselbe Licht derselben Quelle auf einem längeren Weg hin, ist es eine Falle. Für
+    einen Zwischenstand gilt nie beides (Ticket 11).
+  - Holzweg heisst weite Fast-Lösung: Alle Ziele bis auf eines leuchten, und mindestens 3 drehbare Elemente stehen
+    anders als in der Lösung (Ticket 11).
+  - Eine Falle ist nur nötig, wenn ein Holzweg sie enthält und das Spielermodell mit Horizont 2 sie nicht auf den ersten
+    Blick widerlegt (Ticket 11).
+  - Ein Lockvogel ist nur nötig, wenn das Level ohne ihn (ein weisser Filter an seiner Stelle) eine zweite Lösung hätte
+    und er in mindestens 10 % der Holzwege Licht bekommt, mindestens in einem. Ein Blocker, der nur eine zweite Lösung
+    verhindert, zählt nicht (Ticket 11).
+  - Haupt-Kernidee: unter den nötigen Kernideen die erste nach der festen Rangfolge Falle, Abschalten, Farben abzählen,
+    Sammelstelle, Lockvogel, Mischziel aus zwei Quellen; ohne nötige Kernidee keine. Gilt, bis Ticket 13 oder 16 sie
+    eicht (Ticket 11).
   - Vor dem nächsten Lauf der KI-Tester das Glossar schärfen (neue Version des Ablaufs): bei Füllteil „… den ein anderer
-    Strahl an einem seiner Spiegel trifft“, bei Abschalten „Licht in der Farbe des Ziels“.
+    Strahl an einem seiner Spiegel trifft“, bei Abschalten „Licht in der Farbe des Ziels“, bei Falle und Abschalten die
+    Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem Ziel weg.

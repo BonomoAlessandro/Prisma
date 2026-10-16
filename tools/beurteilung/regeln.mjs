@@ -19,6 +19,10 @@ export { default as probieren } from './ausschluesse/probieren.mjs';
 export { default as mischzielZweiQuellen } from './kernideen/mischziel-zwei-quellen.mjs';
 export { default as abschalten } from './kernideen/abschalten.mjs';
 export { default as farbenAbzaehlen } from './kernideen/farben-abzaehlen.mjs';
-// Kernideen Sammelstelle, Falle und Lockvogel, je eine Datei in kernideen/ (Ticket 11)
+// Kernideen Sammelstelle, Falle und Lockvogel, je eine Datei in kernideen/, und die Haupt-Kernidee (Ticket 11)
+export { default as sammelstelle } from './kernideen/sammelstelle.mjs';
+export { default as falle } from './kernideen/falle.mjs';
+export { default as lockvogel } from './kernideen/lockvogel.mjs';
+export { default as hauptKernidee } from './haupt-kernidee.mjs';
 // Schwierigkeit, in schwierigkeit.mjs (Ticket 12)
 // Spielwert, in spielwert.mjs (Ticket 13)

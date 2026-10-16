@@ -4,7 +4,8 @@
 //
 // Aufbau:
 // - Jede Regel liegt in einer eigenen Datei: mischziele.mjs, schliessen.mjs, je Ausschlussgrund eine in ausschluesse/, je
-//   Kernidee eine in kernideen/, dazu schwierigkeit.mjs und spielwert.mjs. regeln.mjs registriert sie, je Regel eine Zeile.
+//   Kernidee eine in kernideen/, haupt-kernidee.mjs, dazu schwierigkeit.mjs und spielwert.mjs. regeln.mjs registriert sie,
+//   je Regel eine Zeile.
 // - Eine Regel ist der Standard-Export ihrer Datei, { teil, begriff, beurteile(ctx) }:
 //   - teil: der Teil der Ausgabe, den sie liefert (ein Schlüssel von TEILE).
 //   - begriff: bei Ausschlussgründen und Kernideen ihr Glossarbegriff. beurteile gibt dann die Funde zurück, je
@@ -20,14 +21,15 @@ import * as registriert from './regeln.mjs';
 
 /**
  * Teile der Ausgabe mit ihren Glossarbegriffen, in der Reihenfolge der Spec; Schliessen steht als Grundlage von
- * Schwierigkeit und Spielwert dahinter. Ein Teil hat einen Wert (ein Begriff) oder Funde je Begriff (eine Liste,
- * Reihenfolge wie im Glossar).
+ * Schwierigkeit und Spielwert dahinter, die Haupt-Kernidee (eine der Kernideen) trägt den Begriff Kernidee. Ein Teil hat
+ * einen Wert (ein Begriff) oder Funde je Begriff (eine Liste, Reihenfolge wie im Glossar).
  */
 export const TEILE = {
   schwierigkeit: 'Schwierigkeit',
   spielwert: 'Spielwert',
   schliessen: 'Schliessen',
   kernideen: ['Mischziel aus zwei Quellen', 'Abschalten', 'Farben abzählen', 'Sammelstelle', 'Falle', 'Lockvogel'],
+  hauptKernidee: 'Kernidee',
   mischziele: 'Mischziel',
   ausschluesse: ['Probieren', 'Füllteil', 'Scheinmischung', 'Zerfall', 'Knäuel'],
 };
@@ -55,6 +57,7 @@ const offenBei = (regeln) => ORDER.filter(begriff => !regeln.some(r => nameOf(r)
  *   spielwert:     { wert, teilwerte } oder null
  *   schliessen:    Teilwerte des Spielermodells und die weiten Fast-Lösungen (siehe schliessen.mjs) oder null
  *   kernideen:     nötige Kernideen, je { begriff, begruendung, … }
+ *   hauptKernidee: { begriff (null ohne nötige Kernidee), fund, weitere, begruendung } (siehe haupt-kernidee.mjs) oder null
  *   mischziele:    [{ ziel, farbe, quellen, ausZweiQuellen }] (siehe mischziele.mjs) oder null
  *   ausschluesse:  Ausschlussgründe, je { begriff, begruendung, … }
  *   offen:         Glossarbegriffe der Teile, die noch keine Regel berechnet. Ein offener Teil ist null bzw. hat keine

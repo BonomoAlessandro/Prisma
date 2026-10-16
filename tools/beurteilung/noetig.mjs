@@ -7,9 +7,12 @@
 //   Elemente, ohne die sich das Licht eines Ziels ändert.
 // - allein: was jede Quelle für sich in irgendeiner Stellung erreicht (Suche des Lösers). Damit fragt eine Kernidee, ob
 //   eine andere Stellung ihren Beitrag ersetzen könnte oder wie ein Ziel sonst noch Licht bekäme.
+// - ohneZulauf (Ticket 11): die Gegenprobe ohne das Licht, das aus einer Richtung in ein Prisma fällt (zulauf). Ein
+//   Blocker davor schluckte oft auch fremde Strahlen, oder es ist kein Platz dafür; darum steht an der Stelle des
+//   Prismas ein Blocker, und nur das Licht der übrigen Richtungen geht gebrochen weiter.
 // Wie in loesungsstellung.mjs wird nur ersetzt, nie weggelassen: Die Ids der Elemente bleiben ihre Plätze im Level.
 import { L, solve, getRot } from '../solver.mjs';
-import { brettInLoesung } from './loesungsstellung.mjs';
+import { brettInLoesung, loesung } from './loesungsstellung.mjs';
 
 /** Zellen der Quellen, in der Reihenfolge des Levels. */
 export const quellen = (ctx) => ctx.level.elements.filter(e => e.type === 'source').map(ctx.feldform.zelle);
@@ -79,6 +82,64 @@ export const allein = (ctx) => ctx.merke(allein, () => new Map(quellen(ctx).map(
   } });
   return [quelle, { farben, verlierbar, belieferungen, abgebrochen: aborted }];
 })));
+
+/** Richtung von Zelle von nach Zelle bis, auf gerader Linie über die Nachbarn der Feldform; null, wenn keine hinführt. */
+function richtungZwischen(feldform, von, bis) {
+  for (const d of feldform.richtungen) {
+    for (let z = feldform.nachbar(von, d); z !== null; z = feldform.nachbar(z, d)) if (z === bis) return d;
+  }
+  return null;
+}
+
+/**
+ * Zulauf eines Elements in einem Strahlbild: das Licht, das in seiner Zelle ankommt, je Richtung, in der es läuft. Map
+ * Richtung → { von: Zelle, in der der letzte Abschnitt beginnt, farbe: Maske }, in der Reihenfolge der Zellen von.
+ */
+export function zulauf(ctx, strahlbild, zelle) {
+  const { feldform } = ctx, out = new Map();
+  for (const s of strahlbild.segments) {
+    const { von, bis } = feldform.abschnitt(s);
+    if (bis !== zelle || von === zelle) continue;
+    const d = richtungZwischen(feldform, von, bis);
+    if (!out.has(d)) out.set(d, { von, farbe: 0 });
+    out.get(d).farbe |= s.color;
+  }
+  const platz = (z) => feldform.zellen.indexOf(z);
+  return new Map([...out].sort((a, b) => platz(a[1].von) - platz(b[1].von)));
+}
+
+/**
+ * Gegenprobe ohne den Zulauf eines Prismas aus einer Richtung: Welche Ziele verlieren ihre Farbe, wenn das Licht fehlt,
+ * das in der Lösung aus dieser Richtung in das Prisma fällt? An der Stelle des Prismas steht ein Blocker, und was dort aus
+ * den übrigen Richtungen ankommt, bricht die Strahlregel (refractInPrism) wie das Prisma und schickt es als Startstrahlen
+ * aus seiner Zelle weiter. Weil gebrochenes Licht über Spiegel zurückkommen kann, wiederholt sich das von leeren
+ * Startstrahlen an, bis sie sich nicht mehr ändern (Licht wächst nur, also ist das kleinste Ergebnis das richtige).
+ * Die Verfolgung bleibt bei der Strahlregel (ADR 0003); nachgebildet ist nur der Schritt des Prismas, mit Weglänge und
+ * Abprallern der Startstrahlen ab 0 (Treffer und Mischungen bleiben gleich). Ohne richtung nimmt sie nichts weg und gibt
+ * die Lösung wieder; das prüft sammelstellen an jedem Prisma, damit der Schritt nicht unbemerkt von der Strahlregel
+ * abweicht.
+ * prisma: Zelle; richtung: ein Schlüssel von zulauf. Rückgabe: Zellen der Ziele, wie bei gegenprobe.
+ */
+export function ohneZulauf(ctx, prisma, richtung) {
+  const id = ctx.level.elements.findIndex(e => ctx.feldform.zelle(e) === prisma);
+  const p = loesung(ctx).brett.elements[id];
+  const brett = brettInLoesung(ctx, ctx.level.elements.map((e, i) => (i === id ? { ...e, type: 'blocker' } : e)));
+  let strahlen = [], bisher = '';
+  for (;;) {
+    const strahlbild = L.traceBeams(brett, strahlen);
+    const neu = [];
+    for (const [d, { farbe }] of zulauf(ctx, strahlbild, prisma)) {
+      if (d === richtung) continue;
+      for (const o of L.refractInPrism(d, farbe, p.rot)) neu.push({ x: p.x, z: p.z, dir: o.dir, color: o.color });
+    }
+    const schluessel = neu.map(s => `${s.dir}:${s.color}`).sort().join(' ');
+    if (schluessel === bisher) {
+      return brett.elements.filter(t => t.type === 'target' && strahlbild.hits.get(t.id) !== t.color).map(ctx.feldform.zelle);
+    }
+    bisher = schluessel;
+    strahlen = neu;
+  }
+}
 
 // Für die Begründungen der Kernideen
 /** Deutsche Namen der Farben (Masken 0–7). */
