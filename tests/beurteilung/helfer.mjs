@@ -22,15 +22,17 @@ export function miniLevel(elements, name = 'Mini-Level') {
   return { name, elements, solution };
 }
 
-let cache = null;
+const cache = new Map();
 /**
  * Die 150 Level nach dem Tutorial, je { platz, level, grad, beurteilung }. Beurteilt mit dem vorläufigen Grad nach dem
  * heutigen Platz (Spec: leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150), einmal je Lauf.
+ * Ohne teuer: true fehlen die teuren Regeln (sie stehen in offen): Die Suche ohne Abschneiden dauert auf den 150 rund
+ * 25 s, und nur die Tests ihrer Zahlen brauchen sie.
  */
-export function heutigeLevel() {
-  cache ??= L.LEVELS.slice(L.TUTORIAL_COUNT).map((level, i) => {
+export function heutigeLevel({ teuer = false } = {}) {
+  if (!cache.has(teuer)) cache.set(teuer, L.LEVELS.slice(L.TUTORIAL_COUNT).map((level, i) => {
     const grad = gradeOf(i + 1).name;
-    return { platz: i + 1, level, grad, beurteilung: beurteile(level, { grad }) };
-  });
-  return cache;
+    return { platz: i + 1, level, grad, beurteilung: beurteile(level, { grad, teuer }) };
+  }));
+  return cache.get(teuer);
 }

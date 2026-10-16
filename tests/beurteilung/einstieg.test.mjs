@@ -21,6 +21,8 @@ function begriffe(titel = null) {
   return [...text.matchAll(/^\*\*(.+?)\*\*:/gm)].map(m => m[1]);
 }
 const imGlossar = begriffe();
+/** Die Teile mit einem Wert statt mit Funden je Begriff. */
+const WERTE = Object.keys(TEILE).filter(teil => !Array.isArray(TEILE[teil]));
 
 const einfach = miniLevel([
   { type: 'source', x: 0, z: 3, dir: 0 },
@@ -39,13 +41,13 @@ test('Der Einstieg liefert alle Teile der Spec: Schwierigkeit, Spielwert, Kernid
 test('Die Teile tragen die Begriffe des Glossars: Ausschlussgründe aus „Was Spass verdirbt“, Kernideen aus „Kernideen“', () => {
   assert.deepEqual(TEILE.ausschluesse, begriffe('Was Spass verdirbt'));
   assert.deepEqual(TEILE.kernideen, begriffe('Kernideen'));
-  for (const teil of ['schwierigkeit', 'spielwert', 'mischziele']) assert.ok(imGlossar.includes(TEILE[teil]), teil);
+  for (const teil of WERTE) assert.ok(imGlossar.includes(TEILE[teil]), teil);
 });
 
 test('Noch nicht berechnete Teile stehen mit ihrem Glossarbegriff in offen: ein Wert ist dann null, ein Begriff ohne Funde', () => {
   for (const { name, b } of alle()) {
     assert.ok(b.offen.every(begriff => imGlossar.includes(begriff)), `${name}: ${b.offen}`);
-    for (const teil of ['schwierigkeit', 'spielwert', 'mischziele']) {
+    for (const teil of WERTE) {
       assert.equal(b[teil] === null, b.offen.includes(TEILE[teil]), `${name}: ${teil}`);
     }
     for (const f of [...b.kernideen, ...b.ausschluesse]) assert.ok(!b.offen.includes(f.begriff), `${name}: ${f.begriff} ist offen`);

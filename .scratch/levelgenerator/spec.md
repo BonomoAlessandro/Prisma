@@ -269,7 +269,7 @@ den Fehlern aus den Reviews schützen.
 
 | Grund | gilt | Regel |
 |---|---|---|
-| Probieren | alle Grade | Weite Fast-Lösungen machen mehr als 60 ‰ aller Strahlbilder der Suche ohne Abschneiden aus (heutiges Maximum 55,5 ‰). Oder Raten: Horizont kInf > 4 oder Kette > 28 (strikt grösser; die heutigen Grenzfälle mit genau 4 bzw. 28 bestehen). |
+| Probieren | alle Grade | Weite Fast-Lösungen machen mehr als 60 ‰ aller Strahlbilder der Suche ohne Abschneiden aus (heutiges Maximum 55,5 ‰). Oder Raten: Horizont kInf > 6 oder Kette > 38 (strikt grösser; die heutigen Höchstwerte mit genau 6 bzw. 38 bestehen, 144 und 135; 16.10.2026 angepasst: feste Zellenfolge, vorher 4/28). |
 | Füllteil | ab „mittel“ | Ein Strang mit einer Quelle, höchstens 3 Spiegeln und eigenem Ziel. Dreht man ausgehend von der Lösung irgendein drehbares Element des Strangs einzeln in eine andere Stellung, ändert sich das Licht, das fremde Strahlen an andere Ziele bringen, nie. |
 | Scheinmischung | alle Grade | (a) Ein Kombinator gibt einen Eingang unverändert aus oder hat nur einen beleuchteten Eingang. (b) Eine Mischung läuft direkt in ein Prisma, das genau die eingehenden Strahlen wieder trennt; gezählt wird nach Strahlen, nicht nach Quellen. (c) Eine Mischung läuft in einen Filter, der nur einen Eingang durchlässt. „Nur eine Quelle trägt die Mischung“ ist kein Ausschluss. |
 | Zerfall | ab „mittel“ | Mehr als eine Gruppe von Zielen, und die zweite Gruppe hat mindestens 3 drehbare Elemente. Ein gemeinsames Mischziel verbindet Gruppen. |
@@ -390,7 +390,7 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    - Die bestehenden Einzeltests der Strahlregel und der Vergleich des Lösers mit stumpfem Durchprobieren bleiben.
 2. **Beurteilung** (neu, ein Einstieg)
    - Kleine handgebaute Level, je eines für jeden Ausschlussgrund, jede Kernidee, das Mischziel (auch Weiss aus weisser
-     Quelle) und jeden bekannten Grenzfall: Knäuel genau bei 1,30, Raten genau bei 4 und 28, Füllteil in einem leichten
+     Quelle) und jeden bekannten Grenzfall: Knäuel genau bei 1,30, Raten genau bei 6 und 38, Füllteil in einem leichten
      Level, Scheinmischung nach Strahlen gegen nach Quellen, Zerfall mit zweiter Gruppe aus 2 Elementen.
    - **Eichprüfung an den 150:** Rangkorrelation an der nicht geeichten Hälfte mindestens 0,85 über alle Level und
      mindestens 0,5 je 30er-Bereich.

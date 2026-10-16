@@ -13,6 +13,8 @@ export { default as knaeuel } from './ausschluesse/knaeuel.mjs';
 export { default as fuellteil } from './ausschluesse/fuellteil.mjs';
 export { default as zerfall } from './ausschluesse/zerfall.mjs';
 // Ausschlussgrund Probieren, in ausschluesse/ (Ticket 09)
+export { default as schliessen } from './schliessen.mjs';
+export { default as probieren } from './ausschluesse/probieren.mjs';
 // Kernideen Mischziel aus zwei Quellen, Abschalten und Farben abzählen, je eine Datei in kernideen/ (Ticket 10)
 // Kernideen Sammelstelle, Falle und Lockvogel, je eine Datei in kernideen/ (Ticket 11)
 // Schwierigkeit, in schwierigkeit.mjs (Ticket 12)
