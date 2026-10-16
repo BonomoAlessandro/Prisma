@@ -138,7 +138,8 @@ export function litCells(r, board) {
  *   space:     log2 der Stellungen, die das Licht überhaupt erreicht (ohne Abschneiden, ggf. gedeckelt)
  *   guesses:   Verzweigungen mit mehreren nicht sofort widerlegten Möglichkeiten
  *   onPath:    Elemente, die das Licht in der Lösung berührt
- *   mixed:     Ziele mit Mischfarbe · targets, sources, rotatable, kinds, clicks (nur zur Info)
+ *   mixed:     Ziele mit Mischfarbe (alte Zählung, keine Mischziele nach dem Glossar: die liefert tools/beurteilung;
+ *              bleibt für den Golden-Test bis Ticket 21) · targets, sources, rotatable, kinds, clicks (nur zur Info)
  *   score:     Gesamtwertung, an der Reihenfolge der handgebauten Level geeicht (Test: Rangkorrelation ≥ 0.8)
  * Die beiden Suchen kann der Aufrufer mitgeben, wenn er sie im selben Feld schon hat (sonst liefen sie doppelt): sol
  * wie solve(level) mit den Standardoptionen (im Modus unique nur bei höchstens einer Lösung), full ohne Abschneiden.

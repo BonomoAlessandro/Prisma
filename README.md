@@ -27,6 +27,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
+  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (etwa 1 s): den Einstieg, die Feldform und je Regel eine
+    Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft ohne Eintrag mit). Jede Regel wird an
+    kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec.
+    `helfer.mjs` baut die Mini-Level (Elemente in Lösungsstellung) und beurteilt die 150 einmal je Lauf, mit dem
+    vorläufigen Grad nach dem heutigen Platz.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
     und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
@@ -138,6 +143,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der ganzen Maschine, der Generator darf `LEISE_CPU=50`. Alle schweren Läufe (Tests, Messungen, Screenshots,
   Generator) laufen darüber, nie mehrere gleichzeitig;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
+- **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
+  Modul mit einem Einstieg, `beurteile(level, { grad })` aus `index.mjs`. Es liefert Schwierigkeit, Spielwert,
+  Kernideen, Mischziele und Ausschlussgründe (je mit Glossarbegriff und Begründung). `offen` nennt die Teile, die noch
+  keine Regel berechnet; heute sind es alle ausser den Mischzielen. `grad` gibt den Schwierigkeitsgrad vor, bis die
+  Beurteilung ihn selbst bestimmt (Tickets 12 und 15).
+  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements. Nur
+    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt
+    es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
+  - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, je Ausschlussgrund eine in `ausschluesse/`, je
+    Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit einer Zeile in
+    `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von `index.mjs`. Was
+    mehrere Regeln brauchen (Strahlbilder der Lösungsstellung in `loesungsstellung.mjs`, später Suchen und
+    Spielermodell), rechnet `ctx.merke` einmal je Beurteilung.
+  - **Mischziele:** Gemessen in der Lösungsstellung. Ein Ziel mit Mischfarbe ist ein Mischziel, wenn es ohne die
+    mischenden Kombinatoren (dort Blocker, bis keiner mehr mischt) keinen Strahl bekommt, der seine Farbe schon hat; so
+    zählen Weiss aus einer weissen Quelle und Gelb aus einem Gelbfilter nicht. Es ist aus zwei Quellen, wenn mindestens
+    zwei Quellen je allein Licht darauf bringen (die übrigen schlucken dabei als Blocker). Das ist noch nicht die
+    Kernidee „Mischziel aus zwei Quellen“ (Ticket 10). Die alte Zählung `mixed` in `metrics` (Ziele mit Mischfarbe, 129
+    statt 71 Level) bleibt bis Ticket 21 für den Golden-Test.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.

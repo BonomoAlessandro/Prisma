@@ -23,3 +23,13 @@ kann.
 - [ ] Mini-Level gibt es je Kernidee zweimal, einmal mit nötiger und einmal mit bloss dekorativer Kernidee. Die
       dekorative zählt nicht.
 - [ ] Die Zahlen je Kernidee und Grad auf den 150 stehen unter `## Comments`.
+
+## Comments
+
+**Hinweis aus Ticket 06 (Mischziele):** `mischziele(ctx)` aus `tools/beurteilung/mischziele.mjs` liefert je Mischziel
+`ausZweiQuellen`. Das heisst nur: Mindestens zwei Quellen bringen je allein Licht darauf (die Zählung der Spec, 38 der
+150 Level). Die Kernidee verlangt mehr: Keine einzelne Quelle kann die Farbe liefern, und die Lösung hängt davon ab.
+- Schon mit „keine Quelle liefert allein die Farbe“ (Lösungsstellung, je Quelle allein) sind es 37 Level und 44 Ziele
+  statt 38 und 46.
+- Anders sind 114 Gordischer Knoten (Gelb auf 3,0) und 125 Halo (Gelb auf 0,4).
+- Das Kennzeichen taugt als Vorauswahl, nicht als Erkennung.
