@@ -8,20 +8,19 @@
 // - Ein Level mit Urteilen aus beiden Quellen (Brücke) bekommt das Mittel beider. An den Brücken passen die Skalen
 //   ohne Angleichung (Ticket 13).
 import { readFileSync } from 'node:fs';
-import { L } from '../solver.mjs';
-import { gradeOf } from '../ki-tester/protocol.mjs';
+import { inHeutigerReihenfolge } from './heutige-reihenfolge.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 
 /**
- * Die Eichmenge: [{ name, platz (1–150) und grad (vorläufig nach dem Platz) oder beide null bei Kandidaten ausserhalb
- * des Spiels, level, spass: Mittel der Quellen, urteile: { kiTester: Mittel aus A und B oder null, review: Spass oder
- * null }, review: Kennung im Review (etwa „R01“) oder null }]; zuerst die heutigen Level nach Platz, dann die
- * Kandidaten.
+ * Die Eichmenge: [{ name, platz (1–150, in der heutigen Reihenfolge) und grad (aus den Leveldaten) oder beide null bei
+ * Kandidaten ausserhalb des Spiels, level, spass: Mittel der Quellen, urteile: { kiTester: Mittel aus A und B oder
+ * null, review: Spass oder null }, review: Kennung im Review (etwa „R01“) oder null }]; zuerst die heutigen Level nach
+ * Platz, dann die Kandidaten.
  */
 export function eichmenge() {
-  const heute = L.LEVELS.slice(L.TUTORIAL_COUNT);
+  const heute = inHeutigerReihenfolge();
   const ki = new Map();
   for (const line of read('../ki-tester/protocol.jsonl').split('\n').filter(l => l.trim())) {
     const e = JSON.parse(line);
@@ -31,7 +30,7 @@ export function eichmenge() {
   const reviews = JSON.parse(read('./spass-reviews.json')).urteile;
   const eintrag = (name, platz, level, kiTester, r) => {
     const urteile = { kiTester, review: r ? r.spass : null };
-    return { name, platz, grad: platz ? gradeOf(platz).name : null, level, spass: mittel([kiTester, urteile.review].filter(v => v !== null)),
+    return { name, platz, grad: platz ? level.grad : null, level, spass: mittel([kiTester, urteile.review].filter(v => v !== null)),
       urteile, review: r ? r.id : null };
   };
   const out = [];

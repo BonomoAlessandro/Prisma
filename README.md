@@ -21,9 +21,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Tests:**
   - `node tests/logic.test.mjs` prüft die Strahllogik.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
-    `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level: das Verhalten
-    exakt, Kommazahlen auf 1e-9 genau (etwa 5 s). `--voll` vergleicht den Löser für alle 159 Level (etwa 20 s),
-    vor und nach Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser und alte Wertung
+    `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level der Reihenfolge
+    vor Ticket 15 (die Einträge mit `score` in `golden.json`): das Verhalten exakt, Kommazahlen auf 1e-9 genau (etwa
+    5 s). Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht; seit Ticket 15 meldet er, wie viele
+    Level an einem anderen Platz stehen als in der Referenz. `--voll` vergleicht den Löser für alle 159 Level (etwa
+    20 s), vor und nach Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser und alte Wertung
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
@@ -31,7 +33,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
     Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs` baut die Mini-Level (Elemente in Lösungsstellung)
-    und beurteilt einmal je Lauf die 150, mit dem vorläufigen Grad nach dem heutigen Platz, ohne und mit den teuren
+    und beurteilt einmal je Lauf die 150 in der heutigen Reihenfolge (die feste Namensliste aus Ticket 15, Massstab
+    der Eichung; `platz` ist der heutige Platz), mit dem Grad aus den Leveldaten, ohne und mit den teuren
     Regeln (`heutigeLevel({ teuer: true })`), und die 42 Kandidaten der Eichmenge des Spielwerts
     (`eichmengeBeurteilt()`). Das ist der grösste Teil der Arbeit, auf einem Thread rund 3 s, 32 s und 45 s. Der
     Einstieg beurteilt es darum vorab in einem Durchgang auf vier Threads (`await vorausBeurteilen()`, mit
@@ -40,6 +43,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `await vorausBeurteilen(['teuer'])`, über den Einstieg ohne Wirkung), die übrigen auf einem Thread. Scheitert der
     Vorab-Durchgang, ist das ein roter Testfall. Danach laufen die Testdateien auf einem Thread (rund 11 s, vor allem
     Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
+  - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
+    nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Reihenfolge ist die der Formel, die
+    Prüfliste stimmt; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee
+    höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee und zu tiefer Spielwert nur
+    bei Leveln auf der Duldungsliste, die nur kürzer wird; eindeutige Namen, keiner aus der Liste entfernter Namen;
+    genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
+    Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
     und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
@@ -128,7 +138,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
   unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
   Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich. Ein Feld `difficulty` in `selection.jsonl` wird als
-  Markierung ins Level geschrieben;
+  Markierung ins Level geschrieben. Seit Ticket 15 bestimmen `curate.mjs` und `selection.jsonl` die Reihenfolge nicht
+  mehr (das tut `ordne-level.mjs`); `--order tools/selection.jsonl` schriebe die alte Reihenfolge und Markierung zurück
+  (Abbau in Ticket 21);
+  `ordne-level.mjs [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die 150 Level nach der
+  Schwierigkeit der Beurteilung und legt ihren Grad fest (Ticket 15). Gerechnet wird von der heutigen Reihenfolge aus
+  (`beurteilung/heutige-reihenfolge.json`); Verschiebungen bis 10 Plätze werden übernommen, weiter wandernde Level
+  bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Der Bericht zeigt Prüfliste, Schwellen und ihre
+  Herleitung, die Duldungsliste nach Grund und Grad und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und
+  Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste und Prüfliste in `tools/levelliste.json`; die
+  ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind. Ein zweiter Lauf ändert nichts. Die Regeln
+  (Reihenfolge, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
+  für Skript und Test;
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
   je CPU-Stunde je Profil mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
@@ -239,17 +260,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       Denkarbeit 56,9 %, das Zusammenspiel 7,0 %, die Weglänge 25,0 % und die Grösse 11,1 %.
     - Die Gewichte stehen in `schwierigkeit-gewichte.json`.
       `sh tools/leise.sh node tools/eiche-schwierigkeit.mjs [--bericht]` stellt sie an den Leveln der geraden Plätze
-      der heutigen Reihenfolge ein und schreibt die Datei neu: nichtnegative kleinste Quadrate; hielte sie die Grenzen
-      nicht ein, wird das Gewicht der Weglänge festgehalten und so gross gewählt, wie die Grenzen erlauben. Es zeigt die
-      Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen, die alte Wertung und die
-      Rangkorrelation mit dem Spielwert (etwa 40 s, die alte Wertung auf einem Thread). Eichen und Prüfen stehen in
-      `schwierigkeit-eichung.mjs`, gemeinsam für Skript und Test.
+      der heutigen Reihenfolge ein (feste Namensliste `heutige-reihenfolge.json` seit Ticket 15, denn im Spiel stehen
+      die Level jetzt in der Reihenfolge der Formel) und schreibt die Datei neu: nichtnegative kleinste Quadrate;
+      hielte sie die Grenzen nicht ein, wird das Gewicht der Weglänge festgehalten und so gross gewählt, wie die
+      Grenzen erlauben. Es zeigt die Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen, die
+      alte Wertung und die Rangkorrelation mit dem Spielwert (etwa 40 s, die alte Wertung auf einem Thread). Eichen
+      und Prüfen stehen in `schwierigkeit-eichung.mjs`, gemeinsam für Skript und Test.
     - Abnahme (Spec, ADR 0001), gekreuzt: an den geraden Plätzen eichen und die ungeraden vorhersagen, dann umgekehrt;
       Rangkorrelation über alle mindestens 0,85, je 30er-Bereich über alle 30 Level mindestens 0,3, auf zwei Stellen
       gerundet wie beim Knäuel. Erreicht: über alle 0,93, je Bereich knapp in 91–120 (0,296, gerundet 0,30). Der Test
       zeigt auch das bisherige Mass, die 15 nicht geeichten Level je Bereich.
     - Teuer, weil sie alle Kernideen braucht; das Spielermodell auf den drei weiteren Drehungen kostet auf den 150
       zusammen rund 3 s.
+  - **Schwierigkeitsgrad** (Ticket 15, `grad.mjs`): `gradVon(wert)` nach festen Schwellen `SCHWELLEN` auf der
+    Schwierigkeit: mittel ab 43, schwer ab 58,5, sehr schwer ab 87. Je die Mitte der breitesten Lücke zwischen zwei
+    Leveln höchstens 5 Plätze von der vorläufigen Grenze (30 / 70 / 40 / 10), auf halbe Punkte gerundet. Kein Teil von
+    `beurteile`; wie der Grad entlang der Reihenfolge gilt, regelt `tools/levelliste.mjs`.
   - **Spielwert** (Ticket 13, `spielwert.mjs`): `{ wert, teilwerte }`, der Wert von 0 bis 100 aus vier Teilwerten von 0
     bis 1 mit den Gewichten Schliessen 34, Kernidee 33, Farblogik 17 und Zusammenspiel 16.
     - Schliessen: Anteil, den das Spielermodell mit Horizont 2 folgert, × (1 − kInf / 7) × (1 − weite Fast-Lösungen in
@@ -275,7 +301,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Genutzt vom Test der Beurteilung und von den Messskripten `eiche-spielwert.mjs` und `eiche-schwierigkeit.mjs`.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
-  zusammen; es ruft selbst keine KI auf.
+  zusammen; es ruft selbst keine KI auf. Ablauf 1 rechnet mit den Plätzen der heutigen Reihenfolge vor Ticket 15
+  (feste Namensliste `tools/beurteilung/heutige-reihenfolge.json`) und den vorläufigen Graden danach; ein Platz bei
+  `prepare.mjs` ist also ein heutiger Platz. Eine neue Version des Ablaufs (Ticket 16) wechselt auf die neue
+  Reihenfolge und die Grade der Leveldaten.
   - **Vorbereiten:**
     `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]`.
     Die Level heissen L1, L2 … (feste Mischung, der heutige Platz bleibt verborgen), die Anker A1–A8 (`anchors.json`,
@@ -326,22 +355,28 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `__prismaDebug.settle` vor (nur für Tests, das Spiel ruft es nie auf) und nimmt erst auf, wenn zwei Aufnahmen nach
     weiterem Vorspulen byte-gleich sind. Das dauert 26,6 s je Aufnahme (ein Level auf einem Bildschirm) statt 150 s;
     die Bilder sind byte-gleich mit denen nach 150 s Warten.
-    `sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …>` nimmt Level mit der Kopfzeile wie im
-    Spiel auf.
+    `sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …>` nimmt Level (Platz im Spiel) mit der
+    Kopfzeile wie im Spiel auf.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
-  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, allein nach Schwierigkeit sortiert; die Level 121–150 (aus `harden.mjs`) sind alle
-  schwerer als die ersten 120, 141–150 mindestens so schwer wie 121–140. 70 der ersten 120 sind mittelschwere Level,
-  nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier Tester in
-  `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (heute 40–119; Review von drei
-  Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides nicht versioniert); die
-  Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar
-  und im Feld `solution`. Schwere Level tragen `difficulty: 'schwer'` (Level 120–140) bzw. `'sehr schwer'` (141–150):
-  Kopfzeile mit Rauten (◆ bzw. ◆◆) und Text hinter dem Namen (auf dem Handy nur die Rauten), Rauten oben rechts auf
-  der Kachel in der Levelauswahl und im Seitentitel, wenn die ganze Seite gleich markiert ist. Die Levelauswahl
+  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, seit
+  Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Kein Level wanderte dabei mehr
+  als 10 Plätze. Die 51 Level, die nach der Formel weiter wandern würden, bleiben an ihrem Platz, bis die KI-Tester
+  sie prüfen (Ticket 16; Prüfliste in `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die Level
+  121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
+  mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
+  Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze
+  40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides
+  nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar und
+  im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–32, mittel 33–102,
+  schwer 103–137, sehr schwer 138–150). Bis Ticket 17 zeigt das Spiel nur „schwer“ und „sehr schwer“: Kopfzeile mit
+  Rauten (◆ bzw. ◆◆) und Text hinter dem Namen (auf dem Handy nur die Rauten), Rauten oben rechts auf der Kachel in
+  der Levelauswahl und im Seitentitel, wenn die ganze Seite denselben angezeigten Grad hat. Die Levelauswahl
   blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
   Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
   im Browser gespeichert (nach Levelname).
-  Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts. Die Namen in `tools/profiles.mjs` werden der
-  Position nach vergeben – nach dem Veröffentlichen nicht mehr umbenennen.
+  Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts; ein Umordnen ändert ihn nicht (geprüft in
+  `tests/levelliste.test.mjs`). Die Namen in `tools/profiles.mjs` wurden der Position nach vergeben – nach dem
+  Veröffentlichen nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie
+  wieder vergeben.
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.

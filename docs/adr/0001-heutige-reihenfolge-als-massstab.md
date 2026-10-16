@@ -29,3 +29,8 @@ kippen (Stand in Ticket 12).
   das Ergebnis auch gegenüber der festen Grösse, die nicht geeicht ist (Ticket 12).
 - Die Schwelle 0,3 verlangt, dass die Schwierigkeit der Reihenfolge in jedem Bereich spürbar folgt. Über alle Level
   bleibt es bei 0,85.
+
+**Ergänzt am 16.10.2026** (Ticket 15): Seit Ticket 15 stehen die Level im Spiel in der Reihenfolge der Formel. Die
+heutige Reihenfolge bleibt der Massstab, als feste Namensliste in `tools/beurteilung/heutige-reihenfolge.json`; an ihr
+wird weiter geeicht und gekreuzt geprüft, mit denselben Gewichten und Zahlen. Ohne sie eichte die Schwierigkeit an
+ihrer eigenen Reihenfolge.

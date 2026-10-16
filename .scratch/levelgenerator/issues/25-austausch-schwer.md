@@ -22,3 +22,14 @@ Verfeinern)
       Liste leer, und der Test verlangt ab jetzt eine leere Liste.
 - [ ] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
 - [ ] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
+
+## Comments
+
+**Hinweis aus Ticket 15 (16.10.2026, Review):** Die Duldungsliste steht jetzt nach Grund getrennt in
+`tools/levelliste.json`. In „schwer“ stehen 20 Level darauf: 14 mit Ausschlussgrund (Rangierbahnhof, Opal,
+Lichtschleife, Unendlichkeit, Komet, Interferenz, Irrlicht, Leuchtturm, Glasperlenspiel, Sternbild, Singularität,
+Urknall, Kristallpalast, Lichtgeschwindigkeit) und 6 nur wegen Kernidee oder Spielwert (Sternwarte, Kathedrale, Pendel,
+Sonnenwende, Lichthof, Lichtjahr). Korona, Quasar und Ereignishorizont sind jetzt „sehr schwer“, Polarlicht „mittel“.
+Über die 6 entscheidet der Nutzer nach Ticket 16 (Spec, Phase 6); davon hängt die Endbedingung „Liste leer“ ab.
+Vor dem ersten Entfernen: `inHeutigerReihenfolge()` wirft, sobald ein Level der heutigen Reihenfolge fehlt (Ticket 15,
+„Hinweise für Folgetickets“).

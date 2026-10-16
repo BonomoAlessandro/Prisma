@@ -70,10 +70,12 @@ test('Verteilung auf 64 Level: Mischziel aus zwei Quellen 20, Abschalten 17, Fal
   }
 });
 
-test('Ab „mittel“ bleiben 59 Level ohne nötige Kernidee, also ohne Haupt-Kernidee: mittel 50, schwer 9, sehr schwer 0', () => {
+test('Ab „mittel“ bleiben 57 Level ohne nötige Kernidee, also ohne Haupt-Kernidee: mittel 50, schwer 7, sehr schwer 0', () => {
   const ohne = heutigeLevel({ teuer: true }).filter(h => h.grad !== 'leicht' && !h.beurteilung.hauptKernidee.begriff);
   const jeGrad = Object.fromEntries(['mittel', 'schwer', 'sehr schwer'].map(g => [g, ohne.filter(h => h.grad === g).length]));
-  assert.deepEqual([ohne.length, jeGrad], [59, { mittel: 50, schwer: 9, 'sehr schwer': 0 }]);
+  // Grad aus den Leveldaten (Ticket 15): 31 Lichtbündel und 32 Streulicht sind leicht, 102 Smaragd, 103 Silberstreif
+  // und 106 Polarlicht mittel, 98 Rangierbahnhof schwer geworden
+  assert.deepEqual([ohne.length, jeGrad], [57, { mittel: 50, schwer: 7, 'sehr schwer': 0 }]);
 });
 
 test('Rangfolge: 141 Morgenröte Abschalten, 134 Kristallpalast Falle, 138 Lichtgeschwindigkeit Falle vor Sammelstelle und Lockvogel', () => {

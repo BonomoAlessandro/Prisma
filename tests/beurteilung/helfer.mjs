@@ -6,7 +6,7 @@ import { L, keyOf, getRot } from '../../tools/solver.mjs';
 import { beurteile } from '../../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../../tools/beurteilung/parallel.mjs';
 import { eichmenge } from '../../tools/beurteilung/spielwert-eichmenge.mjs';
-import { gradeOf } from '../../tools/ki-tester/protocol.mjs';
+import { inHeutigerReihenfolge } from '../../tools/beurteilung/heutige-reihenfolge.mjs';
 
 let passed = 0, failed = 0;
 export function test(name, fn) {
@@ -25,8 +25,10 @@ export function miniLevel(elements, name = 'Mini-Level') {
   return { name, elements, solution };
 }
 
-const heute = () => L.LEVELS.slice(L.TUTORIAL_COUNT);
-const grad = (i) => gradeOf(i + 1).name;
+// Die 150 in der heutigen Reihenfolge (Massstab der Eichung, ADR 0001; seit Ticket 15 eine feste Namensliste), je mit
+// dem Grad aus den Leveldaten
+const heute = () => inHeutigerReihenfolge();
+const grad = (i) => heute()[i].grad;
 let menge = null;
 const eichung = () => (menge ??= eichmenge());
 // Was die Tests teuer beurteilen, je Teil die Aufträge { level, opts } an beurteile: die Kandidaten der Eichmenge des
@@ -72,8 +74,8 @@ export async function vorausBeurteilen(teile = Object.keys(AUFTRAEGE)) {
 
 const cache = new Map();
 /**
- * Die 150 Level nach dem Tutorial, je { platz, level, grad, beurteilung }. Beurteilt mit dem vorläufigen Grad nach dem
- * heutigen Platz (Spec: leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150), einmal je Lauf.
+ * Die 150 Level nach dem Tutorial in der heutigen Reihenfolge, je { platz (heutiger Platz), level, grad, beurteilung }.
+ * Beurteilt mit dem Grad aus den Leveldaten (Ticket 15), einmal je Lauf.
  * Ohne teuer: true fehlen die teuren Regeln (sie stehen in offen): Die Suche ohne Abschneiden dauert auf den 150 rund
  * 25 s, und nur die Tests ihrer Zahlen brauchen sie.
  */

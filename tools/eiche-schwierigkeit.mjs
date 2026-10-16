@@ -13,13 +13,13 @@
 //   --bericht: dazu weitere Rangkorrelationen, die grössten Abweichungen, zum Vergleich die alte Wertung (score aus
 //              metrics in solver.mjs, rund 25 s mehr) und die Rangkorrelation mit dem Spielwert.
 import { writeFileSync } from 'node:fs';
-import { L, metrics } from './solver.mjs';
+import { metrics } from './solver.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { bewerte } from './beurteilung/schwierigkeit.mjs';
 import {
   NAMEN, anteile, eiche, gekreuzt, jeBereich, raenge, rangkorrelation, gerade, ungerade,
 } from './beurteilung/schwierigkeit-eichung.mjs';
-import { gradeOf } from './ki-tester/protocol.mjs';
+import { inHeutigerReihenfolge } from './beurteilung/heutige-reihenfolge.mjs';
 
 const DATEI = new URL('./beurteilung/schwierigkeit-gewichte.json', import.meta.url);
 const bericht = process.argv.includes('--bericht');
@@ -32,8 +32,9 @@ function korrelation(werte, auswahl) {
 }
 
 console.log('Beurteile die 150 Level …');
-const levels = L.LEVELS.slice(L.TUTORIAL_COUNT);
-const auftraege = levels.map((level, i) => ({ level, opts: { grad: gradeOf(i + 1).name, teuer: true } }));
+// Die heutige Reihenfolge ist der Massstab (ADR 0001), als feste Namensliste; die Level tragen seit Ticket 15 den Grad
+const levels = inHeutigerReihenfolge();
+const auftraege = levels.map(level => ({ level, opts: { grad: level.grad, teuer: true } }));
 const alle = (await beurteileAlle(auftraege)).map((b, i) => (
   { platz: i + 1, name: levels[i].name, teilwerte: b.schwierigkeit.teilwerte, spielwert: b.spielwert.wert }));
 const gewichte = eiche(alle, gerade);
@@ -81,11 +82,11 @@ if (bericht) {
   console.log('  ungerade Plätze:', korrelation(alt, ungerade));
   console.log('  alle 150 (ungeeicht, also auch gekreuzt):', korrelation(alt, () => true));
   // Spielwert und Schwierigkeit sollen getrennt messen (Spec): Wie stark hängen sie zusammen?
-  const jeGrad = [...new Set(alle.map(a => gradeOf(a.platz).name))].map((grad) => {
-    const i = alle.map((_, j) => j).filter(j => gradeOf(alle[j].platz).name === grad);
+  const jeGrad = [...new Set(levels.map(l => l.grad))].map((grad) => {
+    const i = alle.map((_, j) => j).filter(j => levels[j].grad === grad);
     return `${grad} ${zahl(rangkorrelation(i.map(j => alle[j].spielwert), i.map(j => werte[j])))}`;
   });
   const gesamt = rangkorrelation(alle.map(a => a.spielwert), werte);
   console.log(`Rangkorrelation Spielwert und Schwierigkeit: alle 150 ${zahl(gesamt)}; `
-    + `je Grad nach heutigem Platz: ${jeGrad.join(', ')}`);
+    + `je Grad: ${jeGrad.join(', ')}`);
 }

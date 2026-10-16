@@ -88,12 +88,13 @@ test('Ohne die teuren Regeln (teuer: false) steht Lockvogel in offen', () => {
 });
 
 console.log('Lockvogel auf den 150 heutigen Leveln');
-test('7 Level, alle mit einem Blocker; je Grad nach heutigem Platz: leicht 1, mittel 2, schwer 4, sehr schwer 0', () => {
+test('7 Level, alle mit einem Blocker; je Grad: leicht 1, mittel 2, schwer 3, sehr schwer 1', () => {
   const all = heutigeLevel({ teuer: true });
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.deepEqual(mit.map(h => h.platz), [26, 60, 74, 125, 132, 135, 138]);
   const jeGrad = Object.fromEntries(['leicht', 'mittel', 'schwer', 'sehr schwer'].map(g => [g, mit.filter(h => h.grad === g).length]));
-  assert.deepEqual(jeGrad, { leicht: 1, mittel: 2, schwer: 4, 'sehr schwer': 0 });
+  // Grad aus den Leveldaten (Ticket 15): 135 Pulsar ist sehr schwer geworden
+  assert.deepEqual(jeGrad, { leicht: 1, mittel: 2, schwer: 3, 'sehr schwer': 1 });
   const typ = (h, z) => h.level.elements.find(e => `${e.x},${e.z}` === z).type;
   for (const h of mit) for (const k of h.beurteilung.kernideen.filter(k => k.begriff === BEGRIFF)) assert.equal(typ(h, k.element), 'blocker', `${h.platz} ${k.element}`);
 });

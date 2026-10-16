@@ -21,3 +21,16 @@ Die alten Werkzeuge mit eigenen Formeln verschwinden.
       der Strahlregel bleibt unverändert.
 - [ ] README (Werkzeuge, Tests) und PLAN.md sind nachgeführt.
 - [ ] Alle Tests sind grün.
+
+## Comments
+
+**Hinweise aus Ticket 15 (16.10.2026):**
+- Reihenfolge und Grade entstehen jetzt mit `tools/ordne-level.mjs` aus der Beurteilung. `tools/selection.jsonl` und
+  `curate.mjs` bestimmen sie nicht mehr. Kein Test liest `selection.jsonl` oder `harden.mjs` noch.
+  `curate.mjs --order tools/selection.jsonl` schriebe die alte Reihenfolge mit dem Feld `difficulty` zurück und
+  brächte die Tests der Levelliste zum Scheitern; es gehört zu den Teilen, die hier entfallen.
+- `tests/logic.test.mjs` braucht `tools/profiles.mjs` noch für `NAMES` (die 150 Namen, als Menge verglichen) und die
+  IDs der Profile, und `tools/quality.mjs` für `oddFilters`.
+- Der Golden-Test vergleicht seit Ticket 15 nach Namen. Welche Level Löser und alte Wertung bekommen, steht in
+  `golden.json` selbst (die Einträge mit `score`). Beim Neuschreiben ohne alte Wertung braucht es dafür eine neue
+  Regel.

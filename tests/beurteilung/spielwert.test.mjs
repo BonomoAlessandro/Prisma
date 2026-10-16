@@ -185,11 +185,13 @@ test('Jedes der 150 Level hat einen Spielwert von 0 bis 100 mit Teilwerten von 0
   }
 });
 
-test('Unter dem Mindest-Spielwert liegen leicht 25, mittel 46, schwer 10, sehr schwer 1; ab „mittel“ fehlt 53 davon die Kernidee', () => {
+test('Unter dem Mindest-Spielwert liegen leicht 27, mittel 45, schwer 9, sehr schwer 1; ab „mittel“ fehlt 51 davon die Kernidee', () => {
   const unter = heutigeLevel({ teuer: true }).filter(h => h.beurteilung.spielwert.wert < MINDEST_SPIELWERT);
   const jeGrad = Object.fromEntries(['leicht', 'mittel', 'schwer', 'sehr schwer'].map(g => [g, unter.filter(h => h.grad === g).length]));
-  assert.deepEqual(jeGrad, { leicht: 25, mittel: 46, schwer: 10, 'sehr schwer': 1 });
-  assert.equal(unter.filter(h => h.grad !== 'leicht' && !h.beurteilung.kernideen.length).length, 53);
+  // Grad aus den Leveldaten (Ticket 15): 31 Lichtbündel und 32 Streulicht sind leicht geworden, 98 Rangierbahnhof
+  // schwer und 102 Smaragd und 106 Polarlicht mittel
+  assert.deepEqual(jeGrad, { leicht: 27, mittel: 45, schwer: 9, 'sehr schwer': 1 });
+  assert.equal(unter.filter(h => h.grad !== 'leicht' && !h.beurteilung.kernideen.length).length, 51);
 });
 
 /** Die Eichmenge mit dem Spielwert und den Ausschlussgründen je Level (beurteilt in helfer.mjs), einmal je Lauf. */

@@ -38,7 +38,8 @@ heutigen Werkzeuge nicht:
   entlang der Reihenfolge nie und erscheinen im Spiel als Punkte 1–4 und als Text.
 - **Ein einziger Generator für alle Grade** (ADR 0004) baut zuerst eine Kernidee gezielt ein und verfeinert dann.
 - **Strahlregel und Löser werden schneller bei gleichem Verhalten** (ADR 0003), abgesichert durch einen Golden-Test.
-- **Die 150 Level werden neu bewertet und umsortiert.** Die 37 Level auf der Duldungsliste ersetzt der neue Generator.
+- **Die 150 Level werden neu bewertet und umsortiert.** Die 37 Level mit Ausschlussgrund auf der Duldungsliste ersetzt
+  der neue Generator; über die übrigen Level der Liste wird je Grad entschieden (Ticket 15).
 - **Bewertung und Generator arbeiten über eine Feldform.** So kommen Würfel-Level später ohne Umbau dazu. Die
   Würfel-Logik selbst bleibt auf ihrem Branch.
 
@@ -192,8 +193,9 @@ heutigen Werkzeuge nicht:
 4. **Grade im Spiel:** Punkte, Kopfzeile, Seitentitel.
 5. **Neuer Generator** mit Kernideen. Er ersetzt den heutigen Generator, das Härten und die Profile. Danach wird main
    in den Würfel-Branch übernommen.
-6. **Austausch:** Ersatz für die Duldungsliste je Grad, mit neuen Namen und Prüfung durch die KI-Tester. Am Ende ist
-   die Duldungsliste leer.
+6. **Austausch:** Ersatz für die Duldungsliste je Grad, mit neuen Namen und Prüfung durch die KI-Tester. Zuerst kommen
+   die 37 Level mit Ausschlussgrund; über die 52, die nur wegen Kernidee oder Spielwert auf der Liste stehen, wird je
+   Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester (Entscheid des Nutzers vom 16.10.2026).
 
 Phase 3 braucht Phase 2. Phase 4 braucht die Grade aus Phase 3. Phase 5 braucht Phase 2, Phase 6 braucht die Phasen
 3 und 5. Phase 1 ist Voraussetzung für alle, weil der Golden-Test das Sicherheitsnetz ist.
@@ -286,10 +288,14 @@ Behobene Fehler aus der Analyse: Ein gemeinsames Mischziel verbindet bei Zerfall
 Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmischung wird vollständig erkannt.
 
 **Schwierigkeitsgrade**
-- Die Grade folgen festen Schwellen auf der Schwierigkeit. Festgelegt werden die Schwellen in Phase 3, sobald die neue
-  Schwierigkeit gerechnet ist.
-- Vorläufige Aufteilung nach heutiger Reihenfolge: leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150.
-- Entlang der Reihenfolge sinkt der Grad nie. Das Tutorial hat keinen Grad.
+- Die Grade folgen festen Schwellen auf der Schwierigkeit, festgelegt in Ticket 15 (`tools/beurteilung/grad.mjs`):
+  mittel ab 43, schwer ab 58,5, sehr schwer ab 87. Danach sind es 30 / 74 / 34 / 12 der 150 Level.
+- Ausgangspunkt war die vorläufige Aufteilung nach der heutigen Reihenfolge: leicht 1–30, mittel 31–100, schwer
+  101–140, sehr schwer 141–150. Je Grenze liegt die Schwelle in der breitesten Lücke zwischen zwei benachbarten Werten
+  höchstens 5 Plätze von der vorläufigen Grenze, in ihrer Mitte, auf halbe Punkte gerundet.
+- Entlang der Reihenfolge sinkt der Grad nie. Ein Level, das nicht auf dem Platz der Formel steht (Prüfliste), bekommt
+  den Grad seines Abschnitts der Reihenfolge (siehe „Levelliste, Reihenfolge und Austausch“). Das Tutorial hat keinen
+  Grad.
 
 ### KI-Tester (ADR 0002)
 
@@ -312,20 +318,29 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
 ### Levelliste, Reihenfolge und Austausch
 
 - Nach dem unveränderten Tutorial folgen 150 Level. Die Anzahl bleibt später änderbar.
-- Die Reihenfolge folgt der neuen Schwierigkeit, korrigiert durch das Protokoll der KI-Tester. Sie ersetzt die heute
-  von Hand gepflegte Auswahlliste.
-- Jedes Level nach dem Tutorial trägt in den Leveldaten seinen Schwierigkeitsgrad mit einem der vier Wörter. Das
-  heutige Feld für die Markierung hat nur „schwer“ und „sehr schwer“; es wird dafür erweitert und im Code nach dem
-  Glossar benannt (Grad, nicht Schwierigkeit).
-- **Duldungsliste** (Stand der Neuzählung, Grade vorläufig): Diese Level verletzen eine Ausschlussregel und bleiben bis
-  zu ihrem Ersatz in Phase 6 geduldet. Die Liste darf nur kürzer werden.
-  - leicht: 15 Begegnung, 19 Seitenlicht, 20 Auslese, 26 Labyrinth, 29 Doppelpass
-  - mittel: 31 Lichtbündel, 36 Einklang, 38 Schnittstelle, 40 Geflecht, 43 Glasmurmel, 67 Weichensteller, 77 Mosaik,
-    86 Laterne, 92 Lichtorgel, 97 Libelle, 98 Rangierbahnhof
-  - schwer: 101 Opal, 106 Polarlicht, 111 Lichtschleife, 116 Komet, 120 Unendlichkeit, 121 Irrlicht, 128 Interferenz,
-    129 Leuchtturm, 131 Korona, 132 Glasperlenspiel, 133 Sternbild, 134 Kristallpalast, 136 Quasar,
-    137 Ereignishorizont, 138 Lichtgeschwindigkeit, 139 Singularität, 140 Urknall
-  - sehr schwer: 143 Prismenhof, 146 Farbenrausch, 147 Farbmühle, 149 Zenit
+- Die Reihenfolge folgt der neuen Schwierigkeit, korrigiert durch das Protokoll der KI-Tester. Sie ersetzt die bis
+  Ticket 15 von Hand gepflegte Auswahlliste. `tools/ordne-level.mjs` rechnet sie und schreibt sie in die Leveldaten:
+  - Gerechnet wird von der heutigen Reihenfolge aus, einer festen Namensliste
+    (`tools/beurteilung/heutige-reihenfolge.json`). Sie bleibt der Massstab der Eichung (ADR 0001).
+  - Bei gleicher Schwierigkeit gilt die heutige Reihenfolge. Verschiebungen bis 10 Plätze werden übernommen.
+  - Ein Level, das nach der Formel weiter wandern würde, bleibt an seinem heutigen Platz und steht auf der Prüfliste
+    der KI-Tester (Ticket 16; heute 51 Level). Die übrigen füllen die freien Plätze nach der Schwierigkeit; wanderte
+    eines dabei weiter als 10 Plätze, bleibt es ebenso stehen (heute 56 Strahlenkranz).
+- Jedes Level nach dem Tutorial trägt in den Leveldaten seinen Schwierigkeitsgrad mit einem der vier Wörter, im Feld
+  `grad`. Es ersetzt die frühere Markierung `difficulty`, die nur „schwer“ und „sehr schwer“ kannte. Bis Ticket 17
+  zeigt das Spiel nur diese beiden an.
+- **Duldungsliste** (`tools/levelliste.json`, versioniert; Entscheid des Nutzers vom 16.10.2026): Diese Level
+  verletzen eine Regel der Levelliste und bleiben geduldet, bis sie ersetzt sind oder über sie entschieden ist. Sie ist
+  nach Grund getrennt, mit dem Grad der neuen Reihenfolge (Ticket 15):
+  - Ausschlussgrund: 37 Level, genau die der Neuzählung (leicht 6, mittel 10, schwer 14, sehr schwer 7);
+  - ab „mittel“ ohne nötige Kernidee: 57 Level (mittel 50, schwer 7);
+  - ab „mittel“ unter dem Mindest-Spielwert: 55 Level (mittel 45, schwer 9, sehr schwer 1);
+  - zusammen 89 Level, davon 52 ohne Ausschlussgrund.
+
+  Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
+  Prüfliste für Ticket 16 und die Namen entfernter Level. Phase 6 ersetzt zuerst die 37 Level mit Ausschlussgrund. Über
+  die 52, die nur wegen Kernidee oder Spielwert auf der Liste stehen, wird je Grad nach Ticket 16 entschieden, mit den
+  Urteilen der KI-Tester.
 - Der Austausch geschieht je Grad in einem Durchgang. Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester prüfen.
   Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt.
 - **Entfernte Level verschwinden für alle Spieler samt Namen.** Der Fortschritt ist nach Namen gespeichert, unbekannte
@@ -404,11 +419,14 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    - Das Spielermodell wird nur über die Beurteilung getestet.
 3. **Levelliste** (besteht: die Level im Spiel). Sie ersetzt die heutigen Tests zu Markierung, gehärteten Leveln,
    Härte-Abnahme und Auswahlliste:
-   - Jedes Level nach dem Tutorial hat einen Grad, und der Grad sinkt nie.
-   - Das Mittel der Schwierigkeit je 10 Level steigt, mit Toleranz.
+   - Jedes Level nach dem Tutorial hat einen Grad, und der Grad sinkt nie. Er folgt den Schwellen; ein Level am
+     heutigen Platz hat den Grad seines Abschnitts.
+   - Die Reihenfolge ist die der Formel, und die Prüfliste stimmt (bis Ticket 16 ohne Korrekturen der KI-Tester).
+   - Das Mittel der Schwierigkeit je 10 Level steigt; es darf um höchstens 1 Punkt fallen.
    - Kein Level hat einen Ausschlussgrund, ausser es steht auf der Duldungsliste. Die Liste wird nur kürzer.
-   - Ab „mittel“ hat jedes Level eine nötige Kernidee, und jedes liegt über dem Mindest-Spielwert.
-   - Dieselbe Haupt-Kernidee kommt höchstens zweimal je 10 Level vor.
+   - Ab „mittel“ hat jedes Level eine nötige Kernidee, und jedes liegt über dem Mindest-Spielwert, ausser es steht mit
+     diesem Grund auf der Duldungsliste.
+   - Dieselbe Haupt-Kernidee kommt höchstens zweimal je 10 Level vor, gezählt ohne die Level der Duldungsliste.
    - Die Namen sind eindeutig, und kein Name von der Liste entfernter Level kommt vor.
    - Jede Verschiebung durch die KI-Tester steht mit Begründung im Protokoll, ist höchstens 5 Plätze gross und
      überschreitet keine Gradgrenze.
@@ -450,7 +468,9 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
 - **Die vier Favoriten aus Review 6**, die auf der Duldungsliste stehen (143, 146, 147, 149), wurden bewusst nicht als
   Ausnahme behandelt. Bei 149 Zenit gilt die wörtliche Lesart von Scheinmischung (b). Das ersetzt den Hinweis in
   PLAN 3.5, Kombinator → Prisma sei wie bei Zenit zulässig.
-- **Grenzfälle der Neuzählung**, die in Phase 3 mit der fertigen Beurteilung neu zu prüfen sind:
+- **Grenzfälle der Neuzählung**, in Phase 3 mit der fertigen Beurteilung neu geprüft (Ticket 15: Beim Knäuel bestehen
+  122, 150, 85, 99 und 109, 38 fällt wegen Scheinmischung; wegen Zerfall fällt keines; bei Scheinmischung (b) bestehen
+  alle):
   - Knäuel: 122 und 150 genau bei 1,30, dazu 38, 85, 99 und 109 bei 1,29.
   - Zerfall mit zweiter Gruppe aus 2 Elementen: 36, 37, 43, 80, 101.
   - Scheinmischung (b) nicht direkt oder mit zerlegter Mischung über die Eingänge hinaus: 76, 100, 117, 118.
@@ -498,3 +518,21 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
     - Dazu die Teilwerte Zusammenspiel (wie im Spielwert) und Weglänge. Die Weglänge trägt im Mittel höchstens ein
       Viertel und bei keinem Level mehr als ein Drittel, die Denkarbeit (Spielermodell, Farblogik, Kernideen) im
       Mittel mindestens die Hälfte; das hält die Eichung ein.
+  - Levelliste, Reihenfolge und Grade (Entscheide des Nutzers vom 16.10.2026, Ticket 15):
+    - Die Duldungsliste hat 89 Level, nach Grund getrennt: Ausschlussgrund (37), ab „mittel“ ohne nötige Kernidee
+      (57), ab „mittel“ unter dem Mindest-Spielwert (55). Die Tests gelten sofort, die Erkennung der Kernideen bleibt
+      unverändert. Phase 6 ersetzt zuerst die 37 mit Ausschlussgrund; über die 52 übrigen wird je Grad nach Ticket 16
+      entschieden, mit den Urteilen der KI-Tester. Das Glossar wird wie geplant vor Ticket 16 geschärft.
+    - Eine erweiterte Erkennung (Abschalten mit jedem falschen Licht, Falle ohne erfülltes Ziel, Farben abzählen auch
+      bei einem Verlust, der sich Ziel für Ziel zeigt) verkürzte die Liste höchstens auf 56. Sie zählte, was das
+      Spielermodell auf den ersten Blick widerlegt, und kippte die Abnahme der Schwierigkeit (31–60) bzw. des
+      Spielwerts (Ticket 15, Stufe A).
+    - Schwellen der Grade: mittel ab 43, schwer ab 58,5, sehr schwer ab 87, je in der breitesten Lücke höchstens 5
+      Plätze von der vorläufigen Grenze. Ein Level am heutigen Platz bekommt den Grad seines Abschnitts.
+    - „Dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ zählt nur Level ausserhalb der Duldungsliste: Jede der
+      vier Verletzungen in der neuen Reihenfolge hat ein Level der Duldungsliste in ihrer Gruppe.
+    - Das Mittel der Schwierigkeit je 10 Level darf um höchstens 1 Punkt fallen. Ohne Toleranz fiele es einmal um
+      0,68 (von 41–50 nach 51–60), weil Level der Prüfliste an ihrem heutigen Platz bleiben.
+    - „Je 10 Level“ heisst je Seite der Levelauswahl, in festen Gruppen 1–10, 11–20 …
+    - Die heutige Reihenfolge bleibt als feste Namensliste der Massstab der Eichung. Ablauf 1 der KI-Tester rechnet
+      weiter mit ihren Plätzen und den vorläufigen Graden.

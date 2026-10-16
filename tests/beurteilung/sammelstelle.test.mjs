@@ -60,7 +60,7 @@ test('Licht, das an der Rückseite des Prismas verschwindet, sammelt es nicht', 
 });
 
 console.log('Sammelstelle auf den 150 heutigen Leveln');
-test('9 Level; je Grad nach heutigem Platz: leicht 0, mittel 0, schwer 4, sehr schwer 5; 148 Sternenstaub sammelt Rot und Blau', () => {
+test('9 Level; je Grad: leicht 0, mittel 0, schwer 4, sehr schwer 5; 148 Sternenstaub sammelt Rot und Blau', () => {
   const all = heutigeLevel();
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.deepEqual(mit.map(h => h.platz), [111, 124, 127, 138, 141, 142, 143, 147, 148]);

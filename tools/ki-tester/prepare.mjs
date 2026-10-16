@@ -71,7 +71,10 @@ for (const l of all) writeFileSync(join(input, `${l.id}.md`), fieldText(levelAt(
 copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
 let seconds = null;
 if (!flags.has('--ohne-bilder')) {
-  seconds = await takeShots(all.map(l => ({ index: L.TUTORIAL_COUNT + l.position - 1, label: l.id, file: join(input, 'bilder', l.id) })));
+  // Platz der heutigen Reihenfolge (levelAt), aufgenommen am Platz des Levels im Spiel
+  seconds = await takeShots(all.map(l => ({
+    index: L.LEVELS.indexOf(levelAt(l.position)), label: l.id, file: join(input, 'bilder', l.id),
+  })));
 }
 
 // Aufträge und lauf.json

@@ -218,13 +218,14 @@ test('Kein Anker auf der Duldungsliste oder ein Grenzfall der Neuzählung', () =
 });
 
 console.log('Feld als Text');
-test('Feld als Text kennt weder Lösung noch Name noch Markierung und nennt jedes Element', () => {
+test('Feld als Text kennt weder Lösung noch Name noch Grad und nennt jedes Element', () => {
   for (let i = L.TUTORIAL_COUNT; i < L.LEVELS.length; i++) {
     const lvl = L.LEVELS[i];
     const text = fieldText(lvl, 'L1');
     assert.equal(fieldText({ ...lvl, solution: undefined }, 'L1'), text, `${lvl.name}: hängt von der Lösung ab`);
-    assert.equal(fieldText({ ...lvl, name: 'Anders', difficulty: 'sehr schwer' }, 'L1'), text,
-      `${lvl.name}: hängt von Name oder Markierung ab`);
+    const anders = lvl.grad === 'leicht' ? 'sehr schwer' : 'leicht';
+    assert.equal(fieldText({ ...lvl, name: 'Anders', grad: anders }, 'L1'), text,
+      `${lvl.name}: hängt von Name oder Grad ab`);
     assert.ok(!text.includes(lvl.name), `${lvl.name}: Name verrät das Level`);
     for (const e of lvl.elements) assert.ok(text.includes(`(${e.x},${e.z})`), `${lvl.name}: (${e.x},${e.z}) fehlt`);
   }

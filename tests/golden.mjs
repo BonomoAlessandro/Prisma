@@ -13,11 +13,12 @@
 //                  (sortiert), solved, truncated.
 //   solver:        solve(level) → count, nodes, leaves, near, guesses, aborted, rotatable, Lösungen
 //   score:         alte Wertung (`score`) aus metrics(level), nur für die Tutorial-Level und jedes 10. Hauptlevel
-//                  (1, 11, …, 141), weil sie zusätzlich die Suche ohne Abschneiden rechnet (die Suche des Lösers
-//                  bekommt sie mit)
-// Verglichen wird Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um
-// höchstens 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine
-// Gegenprobe prüft den Vergleich selbst.
+//                  (1, 11, …, 141 in der Reihenfolge vor Ticket 15), weil sie zusätzlich die Suche ohne Abschneiden
+//                  rechnet (die Suche des Lösers bekommt sie mit)
+// Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht (seit Ticket 15 ordnet tools/ordne-level.mjs
+// die Level neu), Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um höchstens
+// 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine Gegenprobe prüft den
+// Vergleich selbst.
 // Laufzeit (gemessen über leise.sh, Stand nach Ticket 04): Strahlbilder aller Level wenige ms, Löser für alle 159 Level
 // etwa 15 s (fast alles in den Leveln 121–150), alte Wertung (`score`) für die 24 Level etwa 1,5 s. Der normale Lauf
 // rechnet den Löser deshalb nur für dieselben 24 Level (etwa 5 s); --voll und --write rechnen ihn für alle (etwa
@@ -44,7 +45,13 @@ const snap = (r) => ({
   truncated: r.truncated,
 });
 
-const withScore = (i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0;
+const golden = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
+// Löser und alte Wertung rechnet der normale Lauf für das Tutorial und jedes 10. Hauptlevel der Reihenfolge, in der
+// golden.json entstand (1, 11, …, 141 vor Ticket 15). Festgehalten nach Namen wie der ganze Vergleich: Ein neu
+// geordnetes Level hat dieselben Strahlbilder und Löserergebnisse (Ticket 15).
+const MIT_SCORE = new Set(golden ? golden.filter(g => 'score' in g).map(g => g.name)
+  : L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0).map(l => l.name));
+const withScore = (level) => MIT_SCORE.has(level.name);
 
 // Strahlbilder in Start- und Lösungsstellung, gerechnet mit `logic` (L oder die veränderte Logik der Gegenprobe)
 function traces(logic, level) {
@@ -57,15 +64,15 @@ function traces(logic, level) {
   return { start: snap(start), solved: snap(logic.traceBeams(b)) };
 }
 
-function record(level, index) {
+function record(level) {
   const entry = { name: level.name, ...traces(L, level) };
-  if (quick || (!full && !withScore(index))) return entry;
+  if (quick || (!full && !withScore(level))) return entry;
   const s = solve(level);
   entry.solver = {
     count: s.count, nodes: s.nodes, leaves: s.leaves, near: s.near, guesses: s.guesses,
     aborted: s.aborted, rotatable: s.rotatable, solutions: s.solutions,
   };
-  if (withScore(index)) entry.score = metrics(level, { sol: s }).score;
+  if (withScore(level)) entry.score = metrics(level, { sol: s }).score;
   return entry;
 }
 
@@ -90,14 +97,19 @@ function firstDiff(a, b, path, float = false) {
   return same ? null : `${path} erwartet ${short(JSON.stringify(a))}, jetzt ${short(JSON.stringify(b))}`;
 }
 
-/** Abweichungen der Level `current` von `golden`, je Level und Teil (name, start, solved, solver …) die erste. */
+/**
+ * Abweichungen der Level `current` von `golden`, je Level und Teil (start, solved, solver …) die erste. Verglichen wird
+ * nach Namen, nicht nach Platz: Wird die Reihenfolge geändert (Ticket 15), bleibt jedes Level nach Namen gleich.
+ */
 function compare(golden, current) {
   const diffs = [];
   if (golden.length !== current.length) diffs.push(`Anzahl Level: erwartet ${golden.length}, jetzt ${current.length}`);
-  for (let i = 0; i < Math.max(golden.length, current.length); i++) {
-    const g = golden[i], c = current[i];
-    const tag = `Level ${i + 1} "${(c || g).name}"`;
-    if (!g || !c) { diffs.push(`${tag}: ${g ? 'fehlt jetzt' : 'neu (nicht in golden.json)'}`); continue; }
+  const nachName = new Map(golden.map(g => [g.name, g]));
+  for (const g of golden) if (!current.some(c => c.name === g.name)) diffs.push(`Level "${g.name}": fehlt jetzt`);
+  for (const [i, c] of current.entries()) {
+    const g = nachName.get(c.name);
+    const tag = `Level ${i + 1} "${c.name}"`;
+    if (!g) { diffs.push(`${tag}: neu (nicht in golden.json)`); continue; }
     for (const key of new Set([...Object.keys(g), ...Object.keys(c)])) {
       const d = firstDiff(g[key], c[key], key);
       if (d) diffs.push(`${tag}: ${d}`);
@@ -118,8 +130,8 @@ if (write) {
   process.exit(0);
 }
 
-if (!existsSync(file)) { console.error('tests/golden.json fehlt – zuerst mit --write erzeugen'); process.exit(1); }
-const golden = JSON.parse(readFileSync(file, 'utf8'));
+if (!golden) { console.error('tests/golden.json fehlt – zuerst mit --write erzeugen'); process.exit(1); }
+const gold = (level) => golden.find(g => g.name === level.name);
 let failed = false;
 const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { console.error('  FAIL', text); failed = true; } };
 
@@ -132,8 +144,8 @@ const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { conso
     const reflect = reflectOnMirror;
     reflectOnMirror = (dir, rot) => { const d = reflect(dir, rot); return dir === 0 && d === 2 ? 6 : d; };
     return { createBoard, traceBeams, isRotatable };`)();
-  const caught = L.LEVELS.filter((level, i) => golden[i]
-    && compare([golden[i]], [{ ...golden[i], ...traces(bent, level) }]).length).length;
+  const caught = L.LEVELS.filter(level => gold(level)
+    && compare([gold(level)], [{ ...gold(level), ...traces(bent, level) }]).length).length;
   report(caught > 0, `Gegenprobe: ein Spiegel, der nach Norden statt nach Süden lenkt, fällt auf (in ${caught} Leveln)`);
   const sample = golden.find((g) => 'score' in g);
   const changed = (edit) => { const g = structuredClone(sample); edit(g); return compare([sample], [g]).length > 0; };
@@ -152,10 +164,14 @@ const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { conso
 
 // Ohne --voll fehlen die Löserdaten der übrigen Level im aktuellen Lauf und werden nicht verglichen, mit --schnell
 // fehlen Löserdaten und alte Wertung aller Level
-const expected = full ? golden : golden.map((g, i) => (quick ? { ...g, solver: undefined, score: undefined }
-  : withScore(i) ? g : { ...g, solver: undefined }));
+const expected = full ? golden : golden.map(g => (quick ? { ...g, solver: undefined, score: undefined }
+  : withScore(g) ? g : { ...g, solver: undefined }));
 const diffs = compare(expected, current);
 for (const d of diffs) console.error('  FAIL', d);
+const umgestellt = current.filter((c, i) => golden[i]?.name !== c.name).length;
+if (umgestellt) {
+  console.log(`  ok   ${umgestellt} Level stehen an einem anderen Platz als in golden.json, verglichen nach Namen`);
+}
 const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser und alte Wertung'
   : full ? 'Löser für alle Level' : 'Löser für die Level mit alter Wertung (score), --voll für alle';
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);

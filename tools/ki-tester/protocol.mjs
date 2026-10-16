@@ -24,6 +24,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { L } from '../solver.mjs';
 import { fieldText } from './field.mjs';
+import { heutigerPlatz, inHeutigerReihenfolge } from '../beurteilung/heutige-reihenfolge.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
 
@@ -37,7 +38,11 @@ export const FINGERPRINT = 'd91d5db7fe66811d';
 /** So startet der Koordinator die KI-Tester (README); steht in lauf.json und in jedem Eintrag. */
 export const AGENT = { modell: 'claude-opus-5-5', typ: 'general-purpose' };
 export const MAX_SHIFT = 5;
-/** Vorläufige Grade nach der heutigen Reihenfolge (Spec); ab Ticket 15 folgen sie den Schwellen der Schwierigkeit. */
+/**
+ * Vorläufige Grade nach der heutigen Reihenfolge (Spec). Ablauf 1 rechnet mit ihnen und mit den Plätzen der heutigen
+ * Reihenfolge (beurteilung/heutige-reihenfolge.mjs, Stand vor Ticket 15), auch nachdem Ticket 15 die Level im Spiel
+ * neu geordnet hat und jedes seinen Grad trägt; eine neue Version des Ablaufs (Ticket 16) wechselt auf beides.
+ */
 export const GRADES = [
   { name: 'leicht', from: 1, to: 30 },
   { name: 'mittel', from: 31, to: 100 },
@@ -50,8 +55,8 @@ export const reference = (position) => {
   const g = gradeOf(position);
   return { art: 'heutige Reihenfolge', position, grad: g.name, von: g.from, bis: g.to };
 };
-/** Das Level auf einem Platz der heutigen Reihenfolge (1–150, ohne Tutorial). */
-export const levelAt = (position) => L.LEVELS[L.TUTORIAL_COUNT + position - 1];
+/** Das Level auf einem Platz der heutigen Reihenfolge (1–150, ohne Tutorial), über die feste Namensliste. */
+export const levelAt = (position) => inHeutigerReihenfolge()[position - 1];
 export const TESTERS = ['A', 'B'];
 /** Antwortdatei eines KI-Testers, relativ zum Ordner des Laufs: jeder hat einen eigenen Ordner. */
 export const answerPath = (tester) => `antwort-${tester}/urteile.json`;
@@ -87,12 +92,12 @@ export function rejectionTerms() {
   return [...text.slice(text.indexOf(`## ${SPOILERS}`)).matchAll(/^\*\*(.+?)\*\*:/gm)].map(m => m[1]);
 }
 
-/** Die Anker aus anchors.json mit ihrem heutigen Platz (1–150, über den Namen in LEVELS). */
+/** Die Anker aus anchors.json mit ihrem heutigen Platz (1–150, über den Namen in der heutigen Reihenfolge). */
 export function loadAnchors() {
   return ANCHORS.map((a) => {
-    const i = L.LEVELS.findIndex(l => l.name === a.name);
-    if (i < L.TUTORIAL_COUNT) throw new Error(`Anker ${a.id}: kein Level „${a.name}“`);
-    return { ...a, position: i - L.TUTORIAL_COUNT + 1 };
+    const position = heutigerPlatz(a.name);
+    if (!position || !L.LEVELS.some(l => l.name === a.name)) throw new Error(`Anker ${a.id}: kein Level „${a.name}“`);
+    return { ...a, position };
   });
 }
 
@@ -139,7 +144,8 @@ export function fingerprint() {
   for (const file of ['./anchors.json', './answer.schema.json']) hash.update(read(file));
   hash.update(glossary());
   for (const a of anchors) {
-    const { name, difficulty, ...data } = levelAt(a.position); // Name und Markierung sehen die KI-Tester nicht
+    // Name und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des Grads difficulty)
+    const { name, difficulty, grad, ...data } = levelAt(a.position);
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);
