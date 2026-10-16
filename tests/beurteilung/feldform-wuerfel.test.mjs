@@ -241,6 +241,23 @@ test('Drehungen: Aufzug (Prisma mit Achse x) und Kern (Achse z) haben je zwei, m
   assert.ok(weniger > 10, 'zu wenige Würfel mit weniger Drehungen: ' + weniger);
 });
 
+test('Drehungen: Elemente ohne Achse, Richtung und Stellung (Standard y und 0) drehen mit, gleiches Strahlbild', () => {
+  // Weiss nach Osten ins Prisma: Grün geradeaus, Rot über den Spiegel, Blau über den Kombinator nach Osten
+  const level = cube([
+    { type: 'source', x: 0, y: 1, z: 3 },
+    { type: 'prism', x: 3, y: 1, z: 3 },
+    { type: 'mirror', x: 4, y: 1, z: 2 },
+    { type: 'combiner', x: 5, y: 1, z: 5 },
+    { type: 'target', x: 6, y: 1, z: 3, color: 'green' },
+    { type: 'target', x: 6, y: 1, z: 4, color: 'red' },
+    { type: 'target', x: 6, y: 1, z: 5, color: 'blue' },
+  ], 'ohne Angaben', 7);
+  const d = feldformVon(level).drehungen(level);
+  assert.equal(d.length, 4);
+  assert.equal(inStellung(level, true).solved, true);
+  for (const g of d.slice(1)) gleichGedreht(level, g, level.name);
+});
+
 test('Ein Prisma mit waagrechter Achse lässt sich nicht darstellen, wenn eine Drehung seine Achse umkehrt', () => {
   // Gesucht ist eine Achse und Stellung, die Licht aus jeder der 18 Richtungen so bricht wie das gedrehte Prisma. Es
   // gibt sie genau dann, wenn die gedrehte Achse in Richtung einer Achse der Strahlregel zeigt (AXES, rechtshändig).

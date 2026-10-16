@@ -150,6 +150,8 @@ Der Beurteilungstest braucht mit den Würfel-Tests rund 6 s mehr (vorher 36–37
   - Ein Element ohne Angabe (Standard 0) bliebe ungedreht; ein gedrehtes Level wäre dann nicht mehr dasselbe Rätsel.
   - Heute betrifft das kein Level. Ein Mini-Level oder ein Generator, der die 0 weglässt, wäre betroffen.
   - Die Würfel-Feldform nimmt fehlende Angaben als 0.
+  - Im Review behoben: Quellen und Kombinatoren drehen `dir`, Spiegel und Prismen `rot`; fehlt die Angabe, gilt 0.
+    Je ein Test mit einem Mini-Level ohne Angaben, flach und im Würfel. Die 342 Beurteilungen bleiben bitgleich.
 - **Ticket 22 (Würfel-Generator):** Grenze des Knäuels im Raum, Drehungen bei Prismen mit waagrechter Achse (siehe
   Entscheid oben).
 - **Ticket 27 (ein Pfad):** `tracePass3` ist weiter ein eigener Durchlauf, jetzt mit derselben Mechanik wie `tracePass`.
