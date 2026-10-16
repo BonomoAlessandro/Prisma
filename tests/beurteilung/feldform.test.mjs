@@ -182,9 +182,10 @@ test('Ohne Stellung wirkt ein Element in der Stellung, in der es steht', () => {
   for (const s of range(8)) assert.equal(f7.ausgang({ type: 'combiner', dir: s }), f7.ausgang({ type: 'combiner' }, s));
 });
 
-test('Ein Level mit anderer Dimension (dim) hat auf main keine Feldform', () => {
+test('Ein Level mit anderem dim hat keine flache Feldform, auf dem Würfel-Branch dim 3 die Würfel-Feldform', () => {
   assert.equal(feldformVon({ name: 'flach', dim: 2, elements: [] }).zellen.length, 49);
-  assert.throws(() => feldformVon({ name: 'Würfel', dim: 3, size: 5, elements: [] }), /Feldform/);
+  assert.equal(feldformVon({ name: 'Würfel', dim: 3, size: 5, elements: [] }).art, 'wuerfel');
+  assert.throws(() => feldformVon({ name: 'Hyperwürfel', dim: 4, size: 5, elements: [] }), /Feldform/);
 });
 
 test('Drehungen um die Drehachse: vier, die erste ist das Level, viermal gedreht wieder das Level, jede gelöst (alle Level)', () => {
