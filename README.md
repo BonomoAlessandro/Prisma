@@ -162,8 +162,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `offen` nennt die Teile, die noch keine Regel berechnet. `grad` gibt den Schwierigkeitsgrad vor, bis die Beurteilung
   ihn selbst bestimmt (Tickets 12 und 15). `teuer: false` lässt die Regeln weg, die lange rechnen; sie stehen dann in
   `offen`.
-  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements, dazu
-    die Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
+  - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
+    was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
+    Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
     Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt es nur die flache Feldform, eine
     weitere (Würfel) kommt in `feldformVon` dazu.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
