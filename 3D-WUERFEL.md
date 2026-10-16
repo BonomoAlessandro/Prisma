@@ -1,6 +1,7 @@
 # Würfel-Level in 3D – Prototyp
 
-Stand: 11. Oktober 2026 · Branch `feature/3d-wuerfel` · Zweck: prüfen, ob Rätsel in einem Würfel Potenzial haben.
+Stand: 11. Oktober 2026, Beurteilung und Tests nachgeführt am 16. Oktober (Ticket 14) · Branch `feature/3d-wuerfel` ·
+Zweck: prüfen, ob Rätsel in einem Würfel Potenzial haben.
 Alle bisherigen Level (Tutorial + 150) bleiben genau so, wie sie sind.
 
 ## Auftrag
@@ -67,6 +68,11 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 - **Kamera:** `cameraRig.cube/lift/zoom/tilt/turn` – im Würfel Blick auf die Würfelmitte, flacher, schräger,
   weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der engen 2D-Grenzen.
 - **Werkzeuge:** `tools/solver.mjs` – `keyOf` liefert im Würfel "x,y,z", Exporte der 3D-Funktionen.
+- **Beurteilung** (Ticket 14): `tools/beurteilung/feldform-wuerfel.mjs`, die Würfel-Feldform mit Zellen "x,y,z", den
+  18 Richtungen und der Drehachse je Element; `feldformVon` liefert sie bei `dim: 3`. Die Wirkung der Elemente kommt
+  aus `planeDir`, `reflect3` und `refractInPrism3`. Drehungen nur um die senkrechte Achse und nur, soweit darstellbar:
+  Ein Prisma mit waagrechter Achse, dessen Achse eine Drehung umkehrt, bräche Rot und Blau zu den vertauschten
+  Seiten (Aufzug und Kern haben darum je zwei Drehungen).
 
 ## Die zwei Level
 
@@ -79,13 +85,16 @@ Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar üb
 
 ## Tests und Befehle
 
+Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (16. Oktober).
+
 ```bash
-node tests/logic.test.mjs      # 558 Tests, inkl. Block "Würfel (dim: 3)" (~2 min)
-node tests/golden.mjs          # alle 2D-Level unverändert? (~35 s) – --write nur, wenn 2D bewusst geändert wird
+node tests/logic.test.mjs        # 574 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
+node tests/golden.mjs            # flache Level unverändert? (~3 s; --voll ~17 s) – --write nur bei bewusster Änderung
+node tests/beurteilung.test.mjs  # 194 Tests (~45 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
-node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel
-node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; $(cat tests/cube-probe.js)"
+node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel (~50 s)
+node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; $(cat tests/cube-probe.js)"   # (~70 s)
 ```
 
 Headless-Chrome ohne Grafikkarte rendert nur 2–3 Bilder/s: Bei Screenshots 20–40 s warten.
@@ -105,8 +114,9 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 - N bzw. → auf Level 150 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort). Bewusst so
   gelassen – entscheiden, ob 2D und Würfel auch beim Blättern getrennt sein sollen.
 - Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
-- Generator, `tools/quality.mjs` (Fläche, Quadranten, Rand) und Wertung kennen nur 2D; die Würfel-Level sind
-  handgebaut und nur mit dem Löser geprüft.
+- Generator, `tools/quality.mjs` (Fläche, Quadranten, Rand) und die alte Wertung kennen nur 2D; die Würfel-Level sind
+  handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und ohne Kernidee, Kern hat die
+  Kernidee „Mischziel aus zwei Quellen“.
 - Nur in Headless-Chrome getestet (Screenshots, simulierte Klicks) – noch nicht von Hand gespielt, nicht auf
   einem echten Handy, Leistung nicht gemessen.
 - Lesbarkeit ist das Hauptrisiko: Tiefe und Drehachse eines Elements sind schräg von oben nicht immer klar.
