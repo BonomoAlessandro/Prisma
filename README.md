@@ -141,7 +141,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leise.sh` mit 20 %;
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
-  der ganzen Maschine, der Generator darf `LEISE_CPU=50`. Alle schweren Läufe (Tests, Messungen, Screenshots,
+  der ganzen Maschine; der Generator und die Vorbereitung der KI-Tester (`prepare.mjs`, Screenshots) dürfen
+  `LEISE_CPU=50`, mehr nimmt `leise.sh` nicht an. Weil Läufe nur nacheinander laufen, bleibt die Arbeit an Tickets
+  insgesamt unter 70 % der Maschine (Vorgabe des Nutzers). Alle schweren Läufe (Tests, Messungen, Screenshots,
   Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`) lässt einen zweiten Lauf
   warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
