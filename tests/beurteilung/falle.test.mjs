@@ -9,9 +9,10 @@
 // Aufruf: node tests/beurteilung/falle.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { beurteile } from '../../tools/beurteilung/index.mjs';
-import { test, miniLevel, heutigeLevel } from './helfer.mjs';
+import { test, miniLevel, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 
 console.log('Beurteilung: Kernidee Falle');
+await vorausBeurteilen(['teuer']);
 
 const BEGRIFF = 'Falle';
 const funde = (level) => beurteile(level).kernideen.filter(k => k.begriff === BEGRIFF);

@@ -7,11 +7,12 @@
 import assert from 'node:assert/strict';
 import { beurteile, TEILE } from '../../tools/beurteilung/index.mjs';
 import { MINDEST_SPIELWERT } from '../../tools/beurteilung/spielwert.mjs';
-import { eichmenge, rangkorrelation } from '../../tools/beurteilung/spielwert-eichmenge.mjs';
-import { test, miniLevel, heutigeLevel } from './helfer.mjs';
+import { rangkorrelation } from '../../tools/beurteilung/spielwert-eichmenge.mjs';
+import { test, miniLevel, heutigeLevel, eichmengeBeurteilt, vorausBeurteilen } from './helfer.mjs';
 import { schliessbar, fastLoesungen, horizonte, siebenFallunterscheidungen } from './probieren-level.mjs';
 
 console.log('Beurteilung: Spielwert');
+await vorausBeurteilen(['kandidaten', 'teuer']);
 
 const spielwert = (level) => beurteile(level).spielwert;
 const TEILWERTE = ['farblogik', 'kernidee', 'schliessen', 'zusammenspiel'];
@@ -191,22 +192,20 @@ test('Unter dem Mindest-Spielwert liegen leicht 25, mittel 46, schwer 10, sehr s
   assert.equal(unter.filter(h => h.grad !== 'leicht' && !h.beurteilung.kernideen.length).length, 53);
 });
 
-/** Die Eichmenge mit dem Spielwert und den Ausschlussgründen je Level, einmal je Lauf (die Kandidaten kosten rund 45 s). */
+/** Die Eichmenge mit dem Spielwert und den Ausschlussgründen je Level (beurteilt in helfer.mjs), einmal je Lauf. */
 let geeicht = null;
-const eichmengeBeurteilt = () => (geeicht ??= eichmenge().map((e) => {
-  const b = e.platz ? heutigeLevel({ teuer: true })[e.platz - 1].beurteilung : beurteile(e.level);
-  return { ...e, wert: b.spielwert.wert, ausschluss: b.ausschluesse.length > 0 };
-}));
+const eichmengeBewertet = () => (geeicht ??= eichmengeBeurteilt().map(({ beurteilung: b, ...e }) => (
+  { ...e, wert: b.spielwert.wert, ausschluss: b.ausschluesse.length > 0 })));
 
 test('Die Eichmenge hat Urteile der KI-Tester zu mindestens 40 Leveln aus allen vier Graden, dazu die Reviews 4 und 6', () => {
-  const ki = eichmengeBeurteilt().filter(e => e.urteile.kiTester !== null);
+  const ki = eichmengeBewertet().filter(e => e.urteile.kiTester !== null);
   assert.ok(ki.length >= 40, `${ki.length}`);
   assert.deepEqual([...new Set(ki.map(e => e.grad))].sort(), ['leicht', 'mittel', 'schwer', 'sehr schwer']);
-  assert.equal(eichmengeBeurteilt().filter(e => e.urteile.review !== null).length, 72);
+  assert.equal(eichmengeBewertet().filter(e => e.urteile.review !== null).length, 72);
 });
 
 test('Der Spielwert folgt dem Spass der Eichmenge: Rangkorrelation mindestens 0,30 ohne Ausschlussgrund (63 Level), 0,27 über alle (109)', () => {
   const rho = (set) => Math.round(100 * rangkorrelation(set.map(e => e.wert), set.map(e => e.spass))) / 100;
-  const alle = eichmengeBeurteilt(), ohne = alle.filter(e => !e.ausschluss);
+  const alle = eichmengeBewertet(), ohne = alle.filter(e => !e.ausschluss);
   assert.ok(rho(ohne) >= 0.30 && rho(alle) >= 0.27, `${rho(ohne)} (${ohne.length}), ${rho(alle)} (${alle.length})`);
 });

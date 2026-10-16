@@ -2,7 +2,8 @@
 // nach tools/beurteilung/schwierigkeit-gewichte.json. Nur die Plätze der Level an den geraden Plätzen stellen die
 // Gewichte ein; tests/beurteilung/schwierigkeit.test.mjs prüft gekreuzt, jede Hälfte mit den Gewichten der anderen.
 // Jedes Level zählt gleich.
-// - Messwerte: aus der Beurteilung, schwierigkeit.teilwerte (sie hängen nicht von den Gewichten ab).
+// - Messwerte: aus der Beurteilung, schwierigkeit.teilwerte (sie hängen nicht von den Gewichten ab), auf mehreren
+//   Threads (beurteilung/parallel.mjs, BEURTEILUNG_THREADS).
 // - Verfahren und Prüfung: tools/beurteilung/schwierigkeit-eichung.mjs (nichtnegative kleinste Quadrate des heutigen
 //   Platzes, Anteile von Weglänge und Denkarbeit begrenzt). Die Grösse bekommt hier kein Gewicht: Sie ist fest begrenzt
 //   (GROESSE in schwierigkeit.mjs).
@@ -13,7 +14,7 @@
 //              metrics in solver.mjs, rund 25 s mehr) und die Rangkorrelation mit dem Spielwert.
 import { writeFileSync } from 'node:fs';
 import { L, metrics } from './solver.mjs';
-import { beurteile } from './beurteilung/index.mjs';
+import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { bewerte } from './beurteilung/schwierigkeit.mjs';
 import {
   NAMEN, anteile, eiche, gekreuzt, jeBereich, raenge, rangkorrelation, gerade, ungerade,
@@ -32,10 +33,9 @@ function korrelation(werte, auswahl) {
 
 console.log('Beurteile die 150 Level …');
 const levels = L.LEVELS.slice(L.TUTORIAL_COUNT);
-const alle = levels.map((level, i) => {
-  const b = beurteile(level, { grad: gradeOf(i + 1).name, teuer: true });
-  return { platz: i + 1, name: level.name, teilwerte: b.schwierigkeit.teilwerte, spielwert: b.spielwert.wert };
-});
+const auftraege = levels.map((level, i) => ({ level, opts: { grad: gradeOf(i + 1).name, teuer: true } }));
+const alle = (await beurteileAlle(auftraege)).map((b, i) => (
+  { platz: i + 1, name: levels[i].name, teilwerte: b.schwierigkeit.teilwerte, spielwert: b.spielwert.wert }));
 const gewichte = eiche(alle, gerade);
 writeFileSync(DATEI, JSON.stringify({
   kommentar: 'Gewichte der Schwierigkeit, eingestellt von tools/eiche-schwierigkeit.mjs; nicht von Hand ändern.',

@@ -8,11 +8,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { beurteile, TEILE } from '../../tools/beurteilung/index.mjs';
 import { eiche, gekreuzt, jeBereich, gerade, ungerade } from '../../tools/beurteilung/schwierigkeit-eichung.mjs';
-import { test, miniLevel, heutigeLevel } from './helfer.mjs';
+import { test, miniLevel, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 import { schliessbar, horizonte, siebenFallunterscheidungen as sieben } from './probieren-level.mjs';
 import { L } from '../../tools/solver.mjs';
 
 console.log('Beurteilung: Schwierigkeit');
+await vorausBeurteilen(['teuer']);
 
 const schwierigkeit = (level) => beurteile(level).schwierigkeit;
 const TEILWERTE = ['denkarbeit', 'zusammenspiel', 'weglaenge', 'groesse'];

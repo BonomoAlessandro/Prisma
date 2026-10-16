@@ -27,14 +27,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
     ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
     Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
-  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (90–130 s je nach Last, davon rund 25 s für die Suche ohne
-    Abschneiden auf den 150, 5 s für den Lockvogel, 45–65 s für die Kandidaten der Eichmenge des Spielwerts und gut
-    10 s für die Schwierigkeit): den
-    Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue Datei läuft
-    ohne Eintrag mit). Jede Regel wird an kleinen, von
-    Hand gebauten Leveln geprüft und an den 150 heutigen Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs`
-    baut die Mini-Level (Elemente in Lösungsstellung) und beurteilt die 150 einmal je Lauf, mit dem vorläufigen Grad
-    nach dem heutigen Platz; mit den teuren Regeln nur, wenn eine Datei sie braucht (`heutigeLevel({ teuer: true })`).
+  - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
+    nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
+    Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
+    Leveln mit den Zahlen der Neuzählung aus der Spec. `helfer.mjs` baut die Mini-Level (Elemente in Lösungsstellung)
+    und beurteilt einmal je Lauf die 150, mit dem vorläufigen Grad nach dem heutigen Platz, ohne und mit den teuren
+    Regeln (`heutigeLevel({ teuer: true })`), und die 42 Kandidaten der Eichmenge des Spielwerts
+    (`eichmengeBeurteilt()`). Das ist der grösste Teil der Arbeit, auf einem Thread rund 3 s, 32 s und 45 s. Der
+    Einstieg beurteilt es darum vorab in einem Durchgang auf vier Threads (`await vorausBeurteilen()`, mit
+    `tools/beurteilung/parallel.mjs`); die Testfälle bleiben synchron und finden es im Cache. `BEURTEILUNG_THREADS=1`
+    rechnet ohne Worker, mit denselben Ergebnissen. Eine teure Datei allein beurteilt ihre Teile ebenso vorab (etwa
+    `await vorausBeurteilen(['teuer'])`, über den Einstieg ohne Wirkung), die übrigen auf einem Thread. Scheitert der
+    Vorab-Durchgang, ist das ein roter Testfall. Danach laufen die Testdateien auf einem Thread (rund 11 s, vor allem
+    Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
     und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
@@ -236,8 +241,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       der heutigen Reihenfolge ein und schreibt die Datei neu: nichtnegative kleinste Quadrate; hielte sie die Grenzen
       nicht ein, wird das Gewicht der Weglänge festgehalten und so gross gewählt, wie die Grenzen erlauben. Es zeigt die
       Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen, die alte Wertung und die
-      Rangkorrelation mit dem Spielwert (etwa 1,5 min). Eichen und Prüfen stehen in `schwierigkeit-eichung.mjs`,
-      gemeinsam für Skript und Test.
+      Rangkorrelation mit dem Spielwert (etwa 40 s, die alte Wertung auf einem Thread). Eichen und Prüfen stehen in
+      `schwierigkeit-eichung.mjs`, gemeinsam für Skript und Test.
     - Abnahme (Spec, ADR 0001), gekreuzt: an den geraden Plätzen eichen und die ungeraden vorhersagen, dann umgekehrt;
       Rangkorrelation über alle mindestens 0,85, je 30er-Bereich über alle 30 Level mindestens 0,3, auf zwei Stellen
       gerundet wie beim Knäuel. Erreicht: über alle 0,93, je Bereich knapp in 91–120 (0,296, gerundet 0,30). Der Test
@@ -257,10 +262,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       Kernidee ergibt ohne Bonus 60,4.
     - **Eichung** an der Eichmenge (`spielwert-eichmenge.mjs`): Gefühl der KI-Tester aus dem Protokoll und der
       Spieler-Tester aus den Reviews 4 und 6 (`spass-reviews.json`, samt Leveldaten aus den Pools übernommen).
-      `sh tools/leise.sh node tools/eiche-spielwert.mjs` (etwa 1,5 min) berichtet die Brücken, die
+      `sh tools/leise.sh node tools/eiche-spielwert.mjs` (etwa 35 s) berichtet die Brücken, die
       Rangkorrelation mit Kreuzprüfung, das Gefühl unter und über möglichen Schwellen und die Level der 150 unter dem
       Mindest-Spielwert. Begründung der Werte in Ticket 13.
     - Teuer, weil Schliessen und die Kernideen es sind.
+  - **Auf mehreren Threads** (`parallel.mjs`): `await beurteileAlle([{ level, opts }, …])` beurteilt viele Level wie
+    `beurteile(level, opts)` auf `worker_threads` und gibt die Beurteilungen in der Reihenfolge der Aufträge zurück,
+    bitgleich zum Lauf auf einem Thread. Vorgabe 4 Threads, so viel lässt der Deckel von `leise.sh`;
+    `BEURTEILUNG_THREADS` übersteuert, 1 heisst ohne Worker. Jeder Thread holt sich das nächste Level, sobald er frei
+    ist. Level und Beurteilungen sind reine Daten und kommen per structured clone unverändert über die Thread-Grenze.
+    Genutzt vom Test der Beurteilung und von den Messskripten `eiche-spielwert.mjs` und `eiche-schwierigkeit.mjs`.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf.

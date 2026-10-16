@@ -10,9 +10,10 @@
 //   möglichen Mindest-Spielwerten, die Level der 150 unter dem MINDEST_SPIELWERT und den Zusammenhang mit Grad und
 //   Grösse, auch ohne die Grösse (Teilkorrelation der Ränge).
 // Geeicht wird an den Leveln ohne Ausschlussgrund, zum Vergleich auch an allen.
-// Aufruf: sh tools/leise.sh node tools/eiche-spielwert.mjs   (etwa 1,5 min)
+// Aufruf: sh tools/leise.sh node tools/eiche-spielwert.mjs   (etwa 35 s, die Beurteilung auf vier Threads)
 import { L } from './solver.mjs';
-import { beurteile, GRADE } from './beurteilung/index.mjs';
+import { GRADE } from './beurteilung/index.mjs';
+import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gradeOf } from './ki-tester/protocol.mjs';
 import { eichmenge, rangkorrelation as rho } from './beurteilung/spielwert-eichmenge.mjs';
@@ -21,17 +22,23 @@ import { GEWICHTE, KERNIDEE, MINDEST_SPIELWERT, kernideeTeil } from './beurteilu
 const zahl = (x, n = 2) => x.toFixed(n).replace('.', ',');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 
-function merkmale(level, grad) {
-  const b = beurteile(level, { grad });
+function merkmale(level, b) {
   const { begriff, weitere } = b.hauptKernidee, f = feldformVon(level);
   return { teilwerte: b.spielwert.teilwerte, wert: b.spielwert.wert, n: begriff ? 1 + weitere.length : 0,
     ausschluss: b.ausschluesse.length > 0, drehbar: level.elements.filter(e => f.stellungen(e).length).length };
 }
-const heute = L.LEVELS.slice(L.TUTORIAL_COUNT).map((level, i) => {
+// Beurteilt auf mehreren Threads (beurteilung/parallel.mjs), die Kandidaten als die teuersten zuerst
+const levels = L.LEVELS.slice(L.TUTORIAL_COUNT), eichung = eichmenge(), kandidaten = eichung.filter(e => !e.platz);
+const beurteilt = await beurteileAlle([
+  ...kandidaten.map(e => ({ level: e.level, opts: { grad: null } })),
+  ...levels.map((level, i) => ({ level, opts: { grad: gradeOf(i + 1).name } })),
+]);
+const heute = levels.map((level, i) => {
   const grad = gradeOf(i + 1).name;
-  return { platz: i + 1, name: level.name, grad, ...merkmale(level, grad) };
+  return { platz: i + 1, name: level.name, grad, ...merkmale(level, beurteilt[kandidaten.length + i]) };
 });
-const menge = eichmenge().map(e => ({ ...e, ...(e.platz ? heute[e.platz - 1] : merkmale(e.level, null)) }));
+let k = 0;
+const menge = eichung.map(e => ({ ...e, ...(e.platz ? heute[e.platz - 1] : merkmale(e.level, beurteilt[k++])) }));
 const ohne = menge.filter(x => !x.ausschluss);
 
 /** Spielwert mit anderen Werten p = { s, k, f, z, erste, weitere }. */

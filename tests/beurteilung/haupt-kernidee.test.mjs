@@ -4,9 +4,10 @@
 // Aufruf: node tests/beurteilung/haupt-kernidee.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { beurteile, TEILE } from '../../tools/beurteilung/index.mjs';
-import { test, miniLevel, heutigeLevel } from './helfer.mjs';
+import { test, miniLevel, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 
 console.log('Beurteilung: Haupt-Kernidee');
+await vorausBeurteilen(['teuer']);
 
 const haupt = (level) => beurteile(level).hauptKernidee;
 

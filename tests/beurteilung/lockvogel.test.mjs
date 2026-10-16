@@ -12,9 +12,10 @@
 // Aufruf: node tests/beurteilung/lockvogel.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { beurteile } from '../../tools/beurteilung/index.mjs';
-import { test, miniLevel, heutigeLevel } from './helfer.mjs';
+import { test, miniLevel, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 
 console.log('Beurteilung: Kernidee Lockvogel');
+await vorausBeurteilen(['teuer']);
 
 const BEGRIFF = 'Lockvogel';
 const funde = (level) => beurteile(level).kernideen.filter(k => k.begriff === BEGRIFF);

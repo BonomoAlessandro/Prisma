@@ -4,10 +4,11 @@
 // Aufruf: node tests/beurteilung/schliessen.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { beurteile, TEILE } from '../../tools/beurteilung/index.mjs';
-import { test, heutigeLevel } from './helfer.mjs';
+import { test, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 import { schliessbar, fastLoesungen, horizonte, siebenFallunterscheidungen as sieben } from './probieren-level.mjs';
 
 console.log('Beurteilung: Schliessen');
+await vorausBeurteilen(['teuer']);
 
 const schliessen = (level) => beurteile(level).schliessen;
 

@@ -5,10 +5,11 @@
 // Aufruf: node tests/beurteilung/probieren.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { beurteile, GRADE } from '../../tools/beurteilung/index.mjs';
-import { test, heutigeLevel } from './helfer.mjs';
+import { test, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 import { schliessbar, fastLoesungen, horizonte, siebenFallunterscheidungen, langeKette } from './probieren-level.mjs';
 
 console.log('Beurteilung: Probieren');
+await vorausBeurteilen(['teuer']);
 
 const nurProbieren = (ausschluesse) => ausschluesse.filter(f => f.begriff === 'Probieren');
 const probieren = (level, grad = null) => nurProbieren(beurteile(level, { grad }).ausschluesse);
