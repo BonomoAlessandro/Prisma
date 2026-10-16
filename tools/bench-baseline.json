@@ -1,0 +1,556 @@
+{
+  "generator": {
+    "measured": {
+      "date": "2026-10-15",
+      "machine": "12th Gen Intel(R) Core(TM) i7-12800H, 20 logische Kerne",
+      "node": "v22.12.0",
+      "commit": "a52407f",
+      "cap": 50
+    },
+    "generator": "alt",
+    "accept": "alt",
+    "start": 1,
+    "seeds": 60000,
+    "jobs": 10,
+    "groups": {
+      "1-spiegel": {
+        "seeds": 60000,
+        "accepted": 2655,
+        "cpuSeconds": 63.7,
+        "perCpuHour": 150047,
+        "fingerprint": "ed2ec54873d05395",
+        "reasons": {
+          "Ziel immer erfüllt": 13192,
+          "Quelle überflüssig": 13081,
+          "Anzahl drehbarer Elemente": 8377,
+          "zu wenige Ziele": 8080,
+          "zu klein": 5533,
+          "zu wenige Klicks": 5031,
+          "Quellen unabhängig": 2383,
+          "kein Zusammenspiel": 1144,
+          "zu viel am Rand": 455,
+          "zu wenige Quadranten": 69
+        }
+      },
+      "1-prisma": {
+        "seeds": 60000,
+        "accepted": 4769,
+        "cpuSeconds": 165.6,
+        "perCpuHour": 103674,
+        "fingerprint": "1fdbf47697c05fff",
+        "reasons": {
+          "Quelle überflüssig": 12652,
+          "Anzahl drehbarer Elemente": 9079,
+          "Alternative nicht blockierbar": 8646,
+          "Ziel immer erfüllt": 7636,
+          "zu klein": 5063,
+          "zu wenige Ziele": 4708,
+          "Elementtyp fehlt": 1885,
+          "zu wenige Klicks": 1796,
+          "kein Zusammenspiel": 1649,
+          "Quellen unabhängig": 1453,
+          "zu viel am Rand": 541,
+          "zu wenige Quadranten": 123
+        }
+      },
+      "1-filter": {
+        "seeds": 60000,
+        "accepted": 1483,
+        "cpuSeconds": 70.1,
+        "perCpuHour": 76160,
+        "fingerprint": "c66d132ecc37b3fa",
+        "reasons": {
+          "Quelle überflüssig": 13006,
+          "Ziel immer erfüllt": 12637,
+          "Anzahl drehbarer Elemente": 10646,
+          "zu wenige Ziele": 8643,
+          "Elementtyp fehlt": 5287,
+          "Alternative nicht blockierbar": 2385,
+          "zu wenige Klicks": 2016,
+          "zu klein": 1991,
+          "Quellen unabhängig": 1005,
+          "kein Zusammenspiel": 719,
+          "zu viel am Rand": 134,
+          "Filter gibt fremde Farbe ab": 34,
+          "zu wenige Quadranten": 14
+        }
+      },
+      "1-farbe": {
+        "seeds": 60000,
+        "accepted": 2913,
+        "cpuSeconds": 59.4,
+        "perCpuHour": 176545,
+        "fingerprint": "2266ce08951234ca",
+        "reasons": {
+          "Quelle überflüssig": 14261,
+          "Ziel immer erfüllt": 11045,
+          "zu wenige Ziele": 8689,
+          "Anzahl drehbarer Elemente": 8476,
+          "zu klein": 5471,
+          "zu wenige Klicks": 5175,
+          "Quellen unabhängig": 2298,
+          "kein Zusammenspiel": 1222,
+          "zu viel am Rand": 401,
+          "zu wenige Quadranten": 47,
+          "Filter gibt fremde Farbe ab": 2
+        }
+      },
+      "2-spiegel": {
+        "seeds": 60000,
+        "accepted": 717,
+        "cpuSeconds": 44.9,
+        "perCpuHour": 57488,
+        "fingerprint": "5b9b42c7cd895925",
+        "reasons": {
+          "zu wenige Ziele": 42694,
+          "Anzahl drehbarer Elemente": 8805,
+          "Ziel immer erfüllt": 6044,
+          "Quellen unabhängig": 1303,
+          "zu klein": 206,
+          "kein Zusammenspiel": 182,
+          "zu viel am Rand": 42,
+          "zu wenige Quadranten": 7
+        }
+      },
+      "2-prisma": {
+        "seeds": 60000,
+        "accepted": 2411,
+        "cpuSeconds": 208.2,
+        "perCpuHour": 41689,
+        "fingerprint": "3e8adebfcefc1b4e",
+        "reasons": {
+          "zu wenige Ziele": 23877,
+          "Anzahl drehbarer Elemente": 17881,
+          "Quelle überflüssig": 6122,
+          "Ziel immer erfüllt": 5766,
+          "Alternative nicht blockierbar": 1831,
+          "Quellen unabhängig": 746,
+          "kein Zusammenspiel": 597,
+          "zu klein": 554,
+          "Elementtyp fehlt": 124,
+          "zu viel am Rand": 88,
+          "zu wenige Quadranten": 3
+        }
+      },
+      "2-filter": {
+        "seeds": 60000,
+        "accepted": 547,
+        "cpuSeconds": 61.7,
+        "perCpuHour": 31916,
+        "fingerprint": "986f0a58f09f9e5a",
+        "reasons": {
+          "zu wenige Ziele": 37585,
+          "Anzahl drehbarer Elemente": 11585,
+          "Ziel immer erfüllt": 6105,
+          "Quelle überflüssig": 2662,
+          "Elementtyp fehlt": 886,
+          "Quellen unabhängig": 415,
+          "kein Zusammenspiel": 92,
+          "zu klein": 77,
+          "Alternative nicht blockierbar": 29,
+          "zu viel am Rand": 14,
+          "Filter gibt fremde Farbe ab": 2,
+          "zu wenige Quadranten": 1
+        }
+      },
+      "2-farbe": {
+        "seeds": 60000,
+        "accepted": 1057,
+        "cpuSeconds": 40.5,
+        "perCpuHour": 93956,
+        "fingerprint": "584e0920f216b2d0",
+        "reasons": {
+          "zu wenige Ziele": 43040,
+          "Anzahl drehbarer Elemente": 9246,
+          "Ziel immer erfüllt": 4924,
+          "Quellen unabhängig": 1259,
+          "zu klein": 254,
+          "kein Zusammenspiel": 175,
+          "zu viel am Rand": 41,
+          "Filter gibt fremde Farbe ab": 3,
+          "zu wenige Quadranten": 1
+        }
+      },
+      "2-misch": {
+        "seeds": 60000,
+        "accepted": 1745,
+        "cpuSeconds": 298.9,
+        "perCpuHour": 21017,
+        "fingerprint": "383fcb21e0957d39",
+        "reasons": {
+          "zu wenige Ziele": 31861,
+          "Anzahl drehbarer Elemente": 12703,
+          "Ziel immer erfüllt": 4038,
+          "Quelle überflüssig": 3696,
+          "Alternative nicht blockierbar": 3173,
+          "Elementtyp fehlt": 1713,
+          "kein Zusammenspiel": 355,
+          "zu klein": 344,
+          "Quellen unabhängig": 321,
+          "zu viel am Rand": 45,
+          "zu wenige Quadranten": 6
+        }
+      },
+      "2-bunt": {
+        "seeds": 60000,
+        "accepted": 1298,
+        "cpuSeconds": 141.8,
+        "perCpuHour": 32953,
+        "fingerprint": "dcc58674c6ebaa9e",
+        "reasons": {
+          "zu wenige Ziele": 37054,
+          "Anzahl drehbarer Elemente": 11286,
+          "Ziel immer erfüllt": 5159,
+          "Quelle überflüssig": 2458,
+          "Alternative nicht blockierbar": 1368,
+          "Quellen unabhängig": 625,
+          "kein Zusammenspiel": 360,
+          "zu klein": 341,
+          "zu viel am Rand": 42,
+          "zu wenige Quadranten": 6,
+          "Filter gibt fremde Farbe ab": 3
+        }
+      },
+      "3-spiegel": {
+        "seeds": 60000,
+        "accepted": 489,
+        "cpuSeconds": 155.5,
+        "perCpuHour": 11321,
+        "fingerprint": "1a1980de05aea13a",
+        "reasons": {
+          "zu wenige Ziele": 20248,
+          "Ziel immer erfüllt": 20045,
+          "Anzahl drehbarer Elemente": 11219,
+          "Quelle überflüssig": 6834,
+          "Quellen unabhängig": 827,
+          "zu wenige Klicks": 195,
+          "kein Zusammenspiel": 81,
+          "zu klein": 51,
+          "zu viel am Rand": 11
+        }
+      },
+      "3-prisma": {
+        "seeds": 60000,
+        "accepted": 938,
+        "cpuSeconds": 669.7,
+        "perCpuHour": 5042,
+        "fingerprint": "929982e61471f67c",
+        "reasons": {
+          "Ziel immer erfüllt": 17170,
+          "Quelle überflüssig": 13065,
+          "zu wenige Ziele": 12316,
+          "Anzahl drehbarer Elemente": 10102,
+          "Alternative nicht blockierbar": 5505,
+          "Quellen unabhängig": 636,
+          "kein Zusammenspiel": 85,
+          "Elementtyp fehlt": 69,
+          "zu wenige Klicks": 66,
+          "zu klein": 34,
+          "zu viel am Rand": 13,
+          "zu wenige Quadranten": 1
+        }
+      },
+      "3-filter": {
+        "seeds": 60000,
+        "accepted": 328,
+        "cpuSeconds": 258.8,
+        "perCpuHour": 4563,
+        "fingerprint": "be8b968d6b8bee17",
+        "reasons": {
+          "zu wenige Ziele": 18864,
+          "Ziel immer erfüllt": 18139,
+          "Anzahl drehbarer Elemente": 10747,
+          "Quelle überflüssig": 10020,
+          "Alternative nicht blockierbar": 1221,
+          "Quellen unabhängig": 316,
+          "Elementtyp fehlt": 269,
+          "zu wenige Klicks": 62,
+          "kein Zusammenspiel": 18,
+          "zu klein": 13,
+          "Filter gibt fremde Farbe ab": 2,
+          "zu viel am Rand": 1
+        }
+      },
+      "3-farbe": {
+        "seeds": 60000,
+        "accepted": 835,
+        "cpuSeconds": 188.6,
+        "perCpuHour": 15938,
+        "fingerprint": "87fb0e6c447c2160",
+        "reasons": {
+          "zu wenige Ziele": 20436,
+          "Ziel immer erfüllt": 15658,
+          "Anzahl drehbarer Elemente": 12859,
+          "Quelle überflüssig": 8761,
+          "Quellen unabhängig": 1047,
+          "zu wenige Klicks": 226,
+          "kein Zusammenspiel": 87,
+          "zu klein": 76,
+          "zu viel am Rand": 11,
+          "Filter gibt fremde Farbe ab": 4
+        }
+      },
+      "3-misch": {
+        "seeds": 60000,
+        "accepted": 809,
+        "cpuSeconds": 1170.4,
+        "perCpuHour": 2488,
+        "fingerprint": "cbaaf9bafd867f11",
+        "reasons": {
+          "zu wenige Ziele": 18869,
+          "Alternative nicht blockierbar": 11119,
+          "Ziel immer erfüllt": 10818,
+          "Quelle überflüssig": 9410,
+          "Anzahl drehbarer Elemente": 8087,
+          "Elementtyp fehlt": 443,
+          "Quellen unabhängig": 324,
+          "kein Zusammenspiel": 71,
+          "zu klein": 32,
+          "zu wenige Klicks": 16,
+          "zu viel am Rand": 2
+        }
+      },
+      "3-bunt": {
+        "seeds": 60000,
+        "accepted": 655,
+        "cpuSeconds": 721.3,
+        "perCpuHour": 3269,
+        "fingerprint": "7c47ea502048eb34",
+        "reasons": {
+          "zu wenige Ziele": 19619,
+          "Ziel immer erfüllt": 13863,
+          "Anzahl drehbarer Elemente": 10556,
+          "Quelle überflüssig": 9608,
+          "Alternative nicht blockierbar": 5020,
+          "Quellen unabhängig": 508,
+          "zu wenige Klicks": 74,
+          "kein Zusammenspiel": 58,
+          "zu klein": 32,
+          "Filter gibt fremde Farbe ab": 4,
+          "zu viel am Rand": 3
+        }
+      },
+      "4-spiegel": {
+        "seeds": 60000,
+        "accepted": 19,
+        "cpuSeconds": 104,
+        "perCpuHour": 658,
+        "fingerprint": "aac55ecf86ed3b83",
+        "reasons": {
+          "zu wenige Ziele": 50448,
+          "Ziel immer erfüllt": 6080,
+          "Anzahl drehbarer Elemente": 3421,
+          "Quellen unabhängig": 24,
+          "zu wenige Klicks": 8
+        }
+      },
+      "4-prisma": {
+        "seeds": 60000,
+        "accepted": 117,
+        "cpuSeconds": 699.3,
+        "perCpuHour": 602,
+        "fingerprint": "cafb091c57fb76a7",
+        "reasons": {
+          "zu wenige Ziele": 35568,
+          "Ziel immer erfüllt": 9846,
+          "Anzahl drehbarer Elemente": 8113,
+          "Quelle überflüssig": 5077,
+          "Alternative nicht blockierbar": 1217,
+          "Quellen unabhängig": 39,
+          "zu wenige Klicks": 20,
+          "kein Zusammenspiel": 3
+        }
+      },
+      "4-filter": {
+        "seeds": 60000,
+        "accepted": 11,
+        "cpuSeconds": 198.7,
+        "perCpuHour": 199,
+        "fingerprint": "733a77ebefe58a73",
+        "reasons": {
+          "zu wenige Ziele": 45950,
+          "Ziel immer erfüllt": 6913,
+          "Anzahl drehbarer Elemente": 4981,
+          "Quelle überflüssig": 2095,
+          "Alternative nicht blockierbar": 20,
+          "Elementtyp fehlt": 20,
+          "zu wenige Klicks": 6,
+          "Quellen unabhängig": 2,
+          "keine gute Startstellung": 1,
+          "kein Zusammenspiel": 1
+        }
+      },
+      "4-farbe": {
+        "seeds": 60000,
+        "accepted": 46,
+        "cpuSeconds": 108.2,
+        "perCpuHour": 1530,
+        "fingerprint": "beb696a302e99e91",
+        "reasons": {
+          "zu wenige Ziele": 50512,
+          "Ziel immer erfüllt": 4959,
+          "Anzahl drehbarer Elemente": 4428,
+          "Quellen unabhängig": 28,
+          "zu wenige Klicks": 24,
+          "Filter gibt fremde Farbe ab": 1,
+          "keine gute Startstellung": 1,
+          "zu klein": 1
+        }
+      },
+      "4-misch": {
+        "seeds": 60000,
+        "accepted": 111,
+        "cpuSeconds": 710.6,
+        "perCpuHour": 562,
+        "fingerprint": "2e87e395095beffc",
+        "reasons": {
+          "zu wenige Ziele": 44097,
+          "Ziel immer erfüllt": 5132,
+          "Anzahl drehbarer Elemente": 5030,
+          "Quelle überflüssig": 2834,
+          "Alternative nicht blockierbar": 2717,
+          "Quellen unabhängig": 39,
+          "Elementtyp fehlt": 26,
+          "zu wenige Klicks": 10,
+          "kein Zusammenspiel": 4
+        }
+      },
+      "4-bunt": {
+        "seeds": 60000,
+        "accepted": 76,
+        "cpuSeconds": 411.6,
+        "perCpuHour": 665,
+        "fingerprint": "c7eec6272b19ed4a",
+        "reasons": {
+          "zu wenige Ziele": 46325,
+          "Ziel immer erfüllt": 5510,
+          "Anzahl drehbarer Elemente": 5091,
+          "Quelle überflüssig": 1915,
+          "Alternative nicht blockierbar": 1044,
+          "Quellen unabhängig": 29,
+          "zu wenige Klicks": 9,
+          "kein Zusammenspiel": 1
+        }
+      },
+      "5-prisma": {
+        "seeds": 60000,
+        "accepted": 4,
+        "cpuSeconds": 2270.3,
+        "perCpuHour": 6,
+        "fingerprint": "6dc996938e2c726a",
+        "reasons": {
+          "zu wenige Ziele": 25347,
+          "Ziel immer erfüllt": 19007,
+          "Quelle überflüssig": 7977,
+          "Alternative nicht blockierbar": 3899,
+          "Anzahl drehbarer Elemente": 3765,
+          "Quellen unabhängig": 1
+        }
+      },
+      "5-filter": {
+        "seeds": 60000,
+        "accepted": 0,
+        "cpuSeconds": 649.2,
+        "perCpuHour": 0,
+        "fingerprint": "da39a3ee5e6b4b0d",
+        "reasons": {
+          "zu wenige Ziele": 32563,
+          "Ziel immer erfüllt": 17343,
+          "Quelle überflüssig": 5319,
+          "Anzahl drehbarer Elemente": 4057,
+          "Alternative nicht blockierbar": 718
+        }
+      },
+      "5-misch": {
+        "seeds": 60000,
+        "accepted": 9,
+        "cpuSeconds": 3333.5,
+        "perCpuHour": 10,
+        "fingerprint": "6b0b716470d62604",
+        "reasons": {
+          "zu wenige Ziele": 34361,
+          "Ziel immer erfüllt": 10010,
+          "Alternative nicht blockierbar": 8005,
+          "Quelle überflüssig": 4830,
+          "Anzahl drehbarer Elemente": 2784,
+          "Quellen unabhängig": 1
+        }
+      },
+      "5-bunt": {
+        "seeds": 60000,
+        "accepted": 3,
+        "cpuSeconds": 1937.8,
+        "perCpuHour": 6,
+        "fingerprint": "efb9a2e824bc6348",
+        "reasons": {
+          "zu wenige Ziele": 34488,
+          "Ziel immer erfüllt": 12098,
+          "Quelle überflüssig": 5489,
+          "Anzahl drehbarer Elemente": 4220,
+          "Alternative nicht blockierbar": 3699,
+          "keine gute Startstellung": 3
+        }
+      }
+    },
+    "total": {
+      "seeds": 1560000,
+      "accepted": 24045,
+      "cpuSeconds": 14742.3,
+      "perCpuHour": 5872
+    }
+  },
+  "trace": {
+    "measured": {
+      "date": "2026-10-15",
+      "machine": "12th Gen Intel(R) Core(TM) i7-12800H, 20 logische Kerne",
+      "node": "v22.12.0",
+      "commit": "a52407f",
+      "cap": 20
+    },
+    "seed": 1,
+    "positions": 20000,
+    "levels": 159,
+    "calls": 3180000,
+    "cpuSeconds": 7.01,
+    "microsPerCall": 2.211,
+    "roundsMicros": [
+      2.013,
+      2.453
+    ],
+    "checksum": "70adec2148791d44"
+  },
+  "solver": {
+    "measured": {
+      "date": "2026-10-15",
+      "machine": "12th Gen Intel(R) Core(TM) i7-12800H, 20 logische Kerne",
+      "node": "v22.12.0",
+      "commit": "a52407f",
+      "cap": 20
+    },
+    "levels": 159,
+    "cpuSeconds": 103.8,
+    "nodes": 9831779,
+    "slowest": [
+      {
+        "name": "Urknall",
+        "cpuSeconds": 15.6
+      },
+      {
+        "name": "Spiegelkabinett",
+        "cpuSeconds": 10.5
+      },
+      {
+        "name": "Quasar",
+        "cpuSeconds": 7.7
+      },
+      {
+        "name": "Lichtbrücke",
+        "cpuSeconds": 7.4
+      },
+      {
+        "name": "Zenit",
+        "cpuSeconds": 6.5
+      }
+    ]
+  }
+}

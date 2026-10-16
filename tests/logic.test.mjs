@@ -4,6 +4,10 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import { createHash } from 'node:crypto';
+import { inflateSync } from 'node:zlib';
+import { loadSkies, checkSkies, layerTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -401,25 +405,41 @@ console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
 const S = await import('../tools/solver.mjs');
 const Q = await import('../tools/quality.mjs');
-test('Löser stimmt mit stumpfem Durchprobieren überein (Lösungen und Fast-Lösungen)', () => {
+// Modus unique (nur die Eindeutigkeit gefragt): Bei höchstens einer Lösung liefert er dasselbe wie dieselbe Suche ohne
+// ihn (ref), sonst hält er bei der zweiten Lösung an: mit den ersten Lösungen von ref und höchstens so vielen Knoten.
+// Rückgabe: gesparte Knoten.
+function checkUnique(lvl, bf, ref, opts, name) {
+  const u = S.solve(lvl, { ...opts, unique: true });
+  if (bf.count <= 1) { assert.deepEqual(u, ref, name); return 0; }
+  assert.deepEqual(u.solutions, ref.solutions.slice(0, ref.solutions[0].free ? 1 : 2), name);
+  assert.ok(u.count >= 2 && u.count <= bf.count && u.nodes <= ref.nodes && !u.aborted, `${name}: ${u.count} Lösungen, ${u.nodes} Knoten`);
+  return ref.nodes - u.nodes;
+}
+// Der Löser lässt die Verfolgung am offenen Element weitermachen, statt von vorn zu beginnen. Jedes Blatt muss genau das
+// Strahlbild liefern, das eine Verfolgung von vorn auf derselben Stellung ergibt.
+const sameAsFresh = (name) => (r, board) => assert.deepStrictEqual(r, L.traceBeams(board), name + ' (Blatt wie von vorn)');
+/** Anzahl Gesamtstellungen der drehbaren Elemente. */
+const spaceOf = (lvl) => L.createBoard(lvl).elements.filter(L.isRotatable).reduce((m, el) => m * S.period(el), 1);
+test('Löser stimmt mit stumpfem Durchprobieren überein (Lösungen und Fast-Lösungen, auch im Modus unique)', () => {
   for (const lvl of L.LEVELS) {
-    const b = L.createBoard(lvl);
-    const space = b.elements.filter(L.isRotatable).reduce((n, el) => n * S.period(el), 1);
-    if (space > 1 << 14) continue; // grosse Level nur mit dem schlauen Löser
-    const bf = S.bruteForce(lvl), full = S.solve(lvl, { prune: false }), cut = S.solve(lvl);
+    if (spaceOf(lvl) > 1 << 14) continue; // grosse Level nur mit dem schlauen Löser
+    const bf = S.bruteForce(lvl), full = S.solve(lvl, { prune: false, onLeaf: sameAsFresh(lvl.name) }), cut = S.solve(lvl);
     assert.equal(full.count, bf.count, lvl.name);
     assert.equal(full.near, bf.near, lvl.name);
     assert.equal(cut.count, bf.count, lvl.name + ' (mit Abschneiden)');
+    checkUnique(lvl, bf, cut, {}, lvl.name + ' (Modus unique)');
+    checkUnique(lvl, bf, full, { prune: false }, lvl.name + ' (Modus unique ohne Abschneiden)');
   }
 });
-test('Löser stimmt auf 300 zufälligen kleinen Feldern mit dem Durchprobieren überein', () => {
-  // Fester Seed: reproduzierbar. Alle Elementtypen, auch drehbare Kombinatoren (Rückkopplung).
-  let seed = 12345;
+/**
+ * Zufällige kleine Felder mit allen Elementtypen, auch drehbaren Kombinatoren (Rückkopplung); fester Seed.
+ * combiners: [min, max] zusätzliche Kombinatoren, drehbar oder fest (mehrere Durchläufe der Verfolgung).
+ */
+function* randomFields(seed, count, combiners = null) {
   const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
   const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
   const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
-  let checked = 0;
-  for (let n = 0; n < 300; n++) {
+  for (let n = 0; n < count; n++) {
     const size = int(4, 6), used = new Set(), els = [];
     const free = () => { for (;;) { const x = int(0, size - 1), z = int(0, size - 1); if (!used.has(x + ',' + z)) { used.add(x + ',' + z); return [x, z]; } } };
     const add = (e) => { const [x, z] = free(); els.push({ ...e, x, z }); };
@@ -428,19 +448,85 @@ test('Löser stimmt auf 300 zufälligen kleinen Feldern mit dem Durchprobieren �
     if (rnd() < 0.5) add({ type: 'prism', rot: int(0, 7) });
     if (rnd() < 0.4) add({ type: 'filter', color: colors[int(0, 5)] });
     if (rnd() < 0.4) add({ type: 'combiner', dir: int(0, 7) });
+    for (let i = combiners ? int(...combiners) : 0; i > 0; i--) add({ type: 'combiner', dir: int(0, 7), fixed: rnd() < 0.5 });
     if (rnd() < 0.3) add({ type: 'blocker' });
     for (let i = int(1, 2); i > 0; i--) add({ type: 'target', color: colors[int(0, 6)] });
-    const lvl = { name: 'zufall ' + n, size, elements: els };
-    const space = L.createBoard(lvl).elements.filter(L.isRotatable).reduce((m, el) => m * S.period(el), 1);
-    if (space > 4096) continue;
-    const bf = S.bruteForce(lvl);
-    assert.equal(S.solve(lvl).count, bf.count, lvl.name + ' (mit Abschneiden)');
-    const full = S.solve(lvl, { prune: false });
-    assert.equal(full.count, bf.count, lvl.name);
-    assert.equal(full.near, bf.near, lvl.name + ' (Fast-Lösungen)');
+    yield { name: 'zufall ' + n, size, elements: els };
+  }
+}
+/** Löser (mit und ohne Abschneiden, auch im Modus unique) gegen das Durchprobieren; Rückgabe: Lösungen, gesparte Knoten. */
+function compareWithBruteForce(lvl) {
+  const bf = S.bruteForce(lvl);
+  const cut = S.solve(lvl);
+  assert.equal(cut.count, bf.count, lvl.name + ' (mit Abschneiden)');
+  const full = S.solve(lvl, { prune: false, onLeaf: sameAsFresh(lvl.name) });
+  assert.equal(full.count, bf.count, lvl.name);
+  assert.equal(full.near, bf.near, lvl.name + ' (Fast-Lösungen)');
+  const saved = checkUnique(lvl, bf, cut, {}, lvl.name + ' (Modus unique)')
+    + checkUnique(lvl, bf, full, { prune: false }, lvl.name + ' (Modus unique ohne Abschneiden)');
+  return { count: bf.count, saved };
+}
+test('Löser stimmt auf 300 zufälligen kleinen Feldern mit dem Durchprobieren überein (auch im Modus unique)', () => {
+  let checked = 0;
+  for (const lvl of randomFields(12345, 300)) {
+    if (spaceOf(lvl) > 4096) continue;
+    compareWithBruteForce(lvl);
     checked++;
   }
   assert.ok(checked > 200, 'zu wenige Felder geprüft: ' + checked);
+});
+test('Löser stimmt auf Zufallsfeldern mit mehreren Kombinatoren mit dem Durchprobieren überein, Blätter wie von vorn', () => {
+  // Mehrere Kombinatoren, drehbar und fest: Die Verfolgung hält auch beim Abschicken der Startstrahlen und in späteren
+  // Durchläufen an und macht dort weiter.
+  let checked = 0;
+  for (const lvl of randomFields(2468, 300, [2, 3])) {
+    if (spaceOf(lvl) > 4096) continue;
+    compareWithBruteForce(lvl);
+    checked++;
+  }
+  assert.ok(checked > 100, 'zu wenige Felder geprüft: ' + checked);
+});
+test('Löser: Weitermachen, wenn ein Kombinator vor und nach dem Anhalten Licht bekommt', () => {
+  // Rot erreicht den Kombinator, bevor Grün am offenen Spiegel (3,5) anhält; mit Stellung 1 lenkt der Spiegel Grün in
+  // denselben Kombinator. Die Geschwister mit Stellung 2 und 3 dürfen davon nichts sehen. Im zweiten Durchlauf hält die
+  // Verfolgung beim Abschicken am drehbaren Kombinator an. Nach Norden läuft sein Ausgang über drei feste Spiegel in ihn
+  // zurück: Eine verfälschte Mischung hielte sich dort, statt im nächsten Durchlauf zu verschwinden.
+  const lvl = { name: 'Kombinator vor und nach dem Anhalten', elements: [
+    { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
+    { type: 'source', x: 6, z: 5, dir: 4, color: 'green' },
+    { type: 'combiner', x: 3, z: 3, dir: 0 },
+    { type: 'mirror', x: 3, z: 5, rot: 0 },
+    { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
+    { type: 'mirror', x: 5, z: 1, rot: 1, fixed: true },
+    { type: 'mirror', x: 5, z: 3, rot: 3, fixed: true },
+  ] };
+  const r = S.solve(lvl, { prune: false, onLeaf: sameAsFresh(lvl.name) });
+  assert.equal(r.leaves, 32);
+});
+test('Löser stimmt auf zufälligen lösbaren Feldern mit dem Durchprobieren überein (auch im Modus unique)', () => {
+  // Fast alle Zufallsfelder oben sind unlösbar. Hier bekommen die Ziele die Farbe, die in der zufälligen Startstellung
+  // ankommt (Ziele ohne Licht fallen weg): Diese Stellung löst das Feld. Drehbare Elemente ohne Licht vervielfachen die
+  // Lösungen; ein Feld mit solchen wird auch ohne sie geprüft (dann meist nur eine Lösung).
+  let one = 0, several = 0, saved = 0;
+  for (const field of randomFields(54321, 300)) {
+    const b = L.createBoard(field), start = L.traceBeams(b), lit = S.litCells(start, b);
+    const dark = (e, i) => L.isRotatable(b.elements[i]) && !lit.has(e.x + ',' + e.z);
+    for (const withDark of field.elements.some(dark) ? [true, false] : [true]) {
+      const elements = [];
+      field.elements.forEach((e, i) => {
+        if (!withDark && dark(e, i)) return;
+        if (e.type !== 'target') elements.push(e);
+        else if (start.hits.get(i)) elements.push({ ...e, color: L.COLOR_NAMES[start.hits.get(i)] });
+      });
+      const lvl = { ...field, elements };
+      if (!elements.some(e => e.type === 'target') || spaceOf(lvl) > 4096) continue;
+      const r = compareWithBruteForce(lvl);
+      saved += r.saved;
+      if (r.count === 1) one++;
+      if (r.count > 1) several++;
+    }
+  }
+  assert.ok(one > 20 && several > 20 && saved > 0, `${one} Felder mit einer Lösung, ${several} mit mehreren, ${saved} Knoten gespart`);
 });
 test('Zusammenlaufende Strahlen sind kein Abbruch', () => {
   // Zwei Strahlen treffen dasselbe Prisma aus verschiedenen Richtungen; ihre Farbanteile verlassen es
@@ -501,7 +587,13 @@ test('Namen: alle Level eindeutig', () => {
   const names = L.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
 });
-const SCORES = MAIN.map(l => S.metrics(l).score);
+// Eine Suche je Level, für die alte Wertung und den Test der Eindeutigkeit
+const SOLVED = new Map();
+const solveOnce = (lvl) => { if (!SOLVED.has(lvl)) SOLVED.set(lvl, S.solve(lvl)); return SOLVED.get(lvl); };
+const SCORES = MAIN.map(l => S.metrics(l, { sol: solveOnce(l) }).score);
+test('Alte Wertung: Eine mitgegebene Suche ändert nichts (Tutorial; ohne sie sucht metrics selbst)', () => {
+  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.deepEqual(S.metrics(l, { sol: solveOnce(l) }), S.metrics(l), l.name);
+});
 test('Die Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Zehnergruppe', () => {
   // Die genaue Reihenfolge stammt aus dem Review (zwei Tester, abgeglichen): Die Wertung überschätzt Level,
   // die in unabhängige Teilrätsel zerfallen, und unterschätzt Farblogik – einzelne Rückschritte sind gewollt.
@@ -556,7 +648,7 @@ L.LEVELS.forEach((lvl, i) => {
     assert.equal(r.solved, true, pathOf(r));
   });
   test(`${tag}: Lösung ist eindeutig`, () => {
-    const r = S.solve(lvl);
+    const r = solveOnce(lvl);
     assert.equal(r.aborted, false, 'Suche abgebrochen');
     assert.equal(r.count, 1, `${r.count} Lösungen`);
     const norm = (sol) => Object.fromEntries(Object.entries(sol).map(([k, v]) => {
@@ -643,6 +735,90 @@ console.log('Würfel (dim: 3)');
       assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
     });
   });
+  test('Würfel-Level: Löser stimmt mit dem Durchprobieren überein, Blätter wie von vorn', () => {
+    for (const lvl of L.LEVELS_3D) compareWithBruteForce(lvl);
+  });
+  test('Löser auf zufälligen Würfeln mit Kombinatoren wie das Durchprobieren, Blätter wie von vorn', () => {
+    // Alle drei Achsen, drehbare und feste Kombinatoren: Die Verfolgung hält im Würfel wie im flachen Feld beim
+    // Abschicken der Startstrahlen und im Strahl an und macht dort weiter.
+    let seed = 1357, checked = 0;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+    const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+    for (let n = 0; n < 200; n++) {
+      const size = int(3, 4), used = new Set(), elements = [];
+      const add = (e) => {
+        for (;;) {
+          const x = int(0, size - 1), y = int(0, size - 1), z = int(0, size - 1), key = x + ',' + y + ',' + z;
+          if (!used.has(key)) { used.add(key); elements.push({ ...e, x, y, z, axis: 'xyz'[int(0, 2)] }); return; }
+        }
+      };
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'source', dir: int(0, 7), color: colors[int(0, 6)] });
+      for (let i = int(1, 3); i > 0; i--) add({ type: 'mirror', rot: int(0, 3), fixed: rnd() < 0.2 });
+      if (rnd() < 0.5) add({ type: 'prism', rot: int(0, 7) });
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'combiner', dir: int(0, 7), fixed: rnd() < 0.5 });
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'target', color: colors[int(0, 6)] });
+      const lvl = { name: 'würfel ' + n, dim: 3, size, elements };
+      if (spaceOf(lvl) > 4096) continue;
+      compareWithBruteForce(lvl);
+      checked++;
+    }
+    assert.ok(checked > 100, 'zu wenige Felder geprüft: ' + checked);
+  });
+  // Ein flaches Level als Würfel mit einer Ebene (y = 0, Drehachse überall y): Der Würfel-Pfad muss dieselbe
+  // Strahlregel rechnen wie tracePass (ADR 0003). Kommazahlen dürfen um Rundungsreste abweichen, alles andere nicht.
+  const asCube = (lvl) => ({
+    ...lvl, dim: 3, size: lvl.size || 7, elements: lvl.elements.map(e => ({ ...e, y: 0 })),
+    solution: Object.fromEntries(Object.entries(lvl.solution || {}).map(([k, v]) => [k.replace(',', ',0,'), v])),
+  });
+  // Würfel-Ergebnis flach lesen: y, y0 und y1 fallen weg, wenn sie 0 sind, Normalen [nx, 0, nz] werden [nx, nz]
+  const NORMALS = ['n0', 'n1', 'normal'];
+  const flatten = (v, key) => {
+    if (v instanceof Map || v instanceof Set) return [...v].map(x => flatten(x));
+    if (NORMALS.includes(key) && v.length === 3 && v[1] === 0) return [v[0], v[2]];
+    if (Array.isArray(v)) return v.map(x => flatten(x));
+    if (!v || typeof v !== 'object') return v;
+    const out = {};
+    for (const [k, x] of Object.entries(v)) if (!(['y', 'y0', 'y1'].includes(k) && x === 0)) out[k] = flatten(x, k);
+    return out;
+  };
+  const FLOAT = new Set(['x', 'z', 'x0', 'z0', 'x1', 'z1', 'n0', 'n1', 'normal', 'length', 'fade', 'dist', 'dist0']);
+  const near = (a, b, path, float = false) => {
+    if (float && typeof a === 'number' && typeof b === 'number') {
+      return assert.ok(Math.abs(a - b) <= 1e-9, `${path}: ${a} gegen ${b}`);
+    }
+    if (!a || !b || typeof a !== 'object') return assert.equal(b, a, path);
+    assert.deepEqual(Object.keys(b), Object.keys(a), path);
+    for (const k of Object.keys(a)) near(a[k], b[k], path + '.' + k, float || FLOAT.has(k));
+  };
+  test('Flaches Level als Würfel mit einer Ebene: gleiche Strahlbilder in Start- und Lösungsstellung', () => {
+    for (const lvl of L.LEVELS) {
+      const cube = asCube(lvl);
+      for (const solved of [false, true]) {
+        const b2 = L.createBoard(lvl), b3 = L.createBoard(cube);
+        if (solved) {
+          for (const el of b2.elements) if (S.keyOf(el) in lvl.solution) S.setRot(el, lvl.solution[S.keyOf(el)]);
+          for (const el of b3.elements) if (S.keyOf(el) in cube.solution) S.setRot(el, cube.solution[S.keyOf(el)]);
+        }
+        near(flatten(L.traceBeams(b2)), flatten(L.traceBeams(b3)), `${lvl.name}${solved ? ' (gelöst)' : ''}`);
+      }
+    }
+  });
+  test('Flaches Level als Würfel mit einer Ebene: gleicher Löser, Blätter wie von vorn', () => {
+    let checked = 0;
+    for (const lvl of L.LEVELS) {
+      if (spaceOf(lvl) > 1 << 14) continue;
+      const cube = asCube(lvl);
+      for (const opts of [{}, { prune: false }]) {
+        const r2 = S.solve(lvl, opts), r3 = S.solve(cube, { ...opts, onLeaf: sameAsFresh(cube.name) });
+        const flatKeys = (set) => Object.fromEntries(Object.entries(set).map(([k, v]) => [k.replace(',0,', ','), v]));
+        for (const sol of r3.solutions) sol.set = flatKeys(sol.set);
+        assert.deepEqual(r3, r2, lvl.name + ' ' + JSON.stringify(opts));
+      }
+      checked++;
+    }
+    assert.ok(checked > 50, 'zu wenige Level geprüft: ' + checked);
+  });
   test('Würfel-Level haben eigene Namen (Fortschritt wird nach Namen gespeichert)', () => {
     const names = L.LEVELS.concat(L.LEVELS_3D).map(l => l.name);
     assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), []);
@@ -652,9 +828,13 @@ console.log('Würfel (dim: 3)');
 console.log('Offline');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  const swCode = readFileSync(join(root, 'sw.js'), 'utf8');
-  const swList = swCode.match(/const FILES = \[([\s\S]*?)\];/);
-  const swFiles = swList ? [...swList[1].matchAll(/'([^']+)'/g)].map(m => m[1]) : [];
+  // sw.js so ausführen, wie der Browser es tut (mit dem Register der Skyboxen per importScripts), dann die Listen lesen
+  const sw = vm.createContext({ URL, location: new URL('http://prisma.test/sw.js'), addEventListener() {} });
+  sw.self = sw;
+  sw.importScripts = (...files) => files.forEach((f) => vm.runInContext(readFileSync(join(root, f), 'utf8'), sw));
+  vm.runInContext(readFileSync(join(root, 'sw.js'), 'utf8'), sw);
+  const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
+  const skies = loadSkies(root);
   // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
   // dazu die Icons aus dem Manifest
   const refs = new Set([
@@ -675,9 +855,110 @@ console.log('Offline');
     assert.deepEqual([...refs].filter(r => !swFiles.includes(r)), []);
   });
   test('Offline: jede Datei aus sw.js existiert genau so geschrieben, keine doppelt', () => {
-    assert.deepEqual(swFiles.filter(f => !existsExactly(f)), []);
-    assert.deepEqual(swFiles.filter((f, i) => swFiles.indexOf(f) !== i), []);
+    const all = [...swFiles, ...swLazy];
+    assert.deepEqual(all.filter(f => !existsExactly(f)), []);
+    assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
   });
+  test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
+    assert.ok(skies.length > 0, 'keine Skybox im Register');
+    assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
+    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
+  });
+  test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
+    const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));
+    assert.equal(vm.runInContext('SKIES', sw), createHash('sha256').update(registry).digest('hex').slice(0, 8));
+  });
+  test('Skyboxen: sw.js speichert jeden Teil (vorab oder beim ersten Gebrauch)', () => {
+    for (const s of skies) for (const p of s.parts) {
+      assert.ok((p.precache ? swFiles : swLazy).includes(`backgrounds/${p.file}`), `${p.file} fehlt in sw.js`);
+    }
+  });
+  test('Skyboxen: nichts Verwaistes in backgrounds/ (alte Stände räumt pack.mjs weg)', () => {
+    assert.deepEqual(orphans(root, skies), []);
+  });
+  test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
+    const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
+    assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);
+  });
+}
+
+console.log('Fische');
+{
+  // Schwarmsimulation aus index.html (ohne three.js) mit der echten Wasserkarte jeder Skybox, die Fische hat
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const fn = (name) => html.match(new RegExp(`^function ${name}\\([\\s\\S]*?^\\}`, 'm'))[0];
+  const { fishField, createFishSim } = new Function(['mulberry32', 'fishField', 'createFishSim'].map(fn).join('\n')
+    + '\nreturn { fishField, createFishSim };')();
+  const { PLATE } = new Function(['GRID', 'CELL', 'BOARD', 'PLATE'].map((k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0])
+    .join('\n') + '\nreturn { PLATE };')();
+  // PNG (8 Bit, ohne Interlace) zu Bytes je Pixel – wie das Spiel die Karte über ein Canvas liest
+  const readPng = (buf) => {
+    let p = 8, w, h, ch, idat = [];
+    while (p < buf.length) {
+      const len = buf.readUInt32BE(p), type = buf.toString('latin1', p + 4, p + 8), d = buf.subarray(p + 8, p + 8 + len);
+      if (type === 'IHDR') { w = d.readUInt32BE(0); h = d.readUInt32BE(4); ch = { 0: 1, 2: 3, 4: 2, 6: 4 }[d[9]]; assert.ok(d[8] === 8 && !d[12], 'nur 8 Bit ohne Interlace'); }
+      if (type === 'IDAT') idat.push(d);
+      p += 12 + len;
+    }
+    const raw = inflateSync(Buffer.concat(idat)), st = w * ch, out = new Uint8Array(w * h * ch);
+    for (let y = 0; y < h; y++) {
+      const f = raw[y * (st + 1)];
+      for (let x = 0; x < st; x++) {
+        const a = x >= ch ? out[y * st + x - ch] : 0, b = y ? out[(y - 1) * st + x] : 0, c = x >= ch && y ? out[(y - 1) * st + x - ch] : 0;
+        let v = raw[y * (st + 1) + 1 + x];
+        if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+        else if (f === 4) { const q = a + b - c, pa = Math.abs(q - a), pb = Math.abs(q - b), pc = Math.abs(q - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+        out[y * st + x] = v & 255;
+      }
+    }
+    return { w, h, ch, px: out };
+  };
+  for (const sky of loadSkies(root)) for (const layer of (sky.layers ?? []).filter((l) => l.type === 'fishSchools')) {
+    const base = sky.parts.find((p) => p.role === 'base');
+    const w = runCode(readFileSync(join(root, 'backgrounds', base.file), 'utf8'), base.file).PRISMA_SKY_PARTS[`${sky.id}/base`].data[layer.data];
+    const img = readPng(Buffer.from(w.map.split(',')[1], 'base64')), m = img.w * img.h, [d0, d1] = w.depthRange;
+    const depth = new Float32Array(m), rock = new Float32Array(m);
+    for (let i = 0; i < m; i++) {
+      depth[i] = d0 + ((d1 - d0) * (img.px[i * img.ch] * 256 + img.px[i * img.ch + 1])) / 65535;
+      rock[i] = img.px[i * img.ch + 2] / 255;
+    }
+    const field = fishField(depth, rock, img.w, w.extent, layer.minDepth);
+    // wie fishSchools in index.html
+    const newSim = (f = field) => { const s = createFishSim({ ...layer, keepOut: PLATE / 2 + 0.3 }); s.setField(f); return s; };
+    const all = (sim, t) => {
+      const a = sim.advance(t), o = new Float64Array(10);
+      return Array.from({ length: sim.count }, (_, k) => [...sim.sample(k, a, o)]);
+    };
+    test(`Fische (${sky.id}): zwei Minuten nie flacher als minDepth, nie unter dem Brett`, () => {
+      const sim = newSim();
+      let shallowest = Infinity, under = 0;
+      for (let t = 0; t <= 120; t += 1 / 15) {
+        for (const [x, z] of all(sim, t)) {
+          shallowest = Math.min(shallowest, field.depth(x, z));
+          if (Math.abs(x) < PLATE / 2 && Math.abs(z) < PLATE / 2) under++;
+        }
+      }
+      // Toleranz: depth liest bilinear, das Abstandsfeld je Zelle
+      assert.ok(shallowest >= layer.minDepth - 0.05, `flachste Stelle ${shallowest.toFixed(2)} m`);
+      assert.equal(under, 0, 'Fische unter dem Brett');
+    });
+    test(`Fische (${sky.id}): Ergebnis hängt nur von t ab (?t= bleibt pixelgleich)`, () => {
+      const a = newSim(), b = newSim(), fresh = all(a, 47.3);
+      assert.deepEqual(all(b, 47.3), fresh);
+      all(b, 10); // Zeit zurück: neu begonnen
+      assert.deepEqual(all(b, 47.3), fresh);
+    });
+    test(`Fische (${sky.id}): erstes Bild rechnet gleich viel, egal wie spät der Strand gewählt wird`, () => {
+      // vorher wurde ab Sekunde 0 nachgerechnet: nach 2 Minuten 3600 Schritte in einem Bild
+      const cost = (t) => {
+        let n = 0;
+        const counted = { sdf: (x, z) => { n++; return field.sdf(x, z); }, depth: field.depth };
+        newSim(counted).advance(t);
+        return n;
+      };
+      assert.ok(cost(119) <= 1.5 * cost(6), `${cost(119)} statt etwa ${cost(6)} Abfragen`);
+    });
+  }
 }
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ', es gibt Fehler' : ''}.`);

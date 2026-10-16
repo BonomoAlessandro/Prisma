@@ -3,10 +3,16 @@
 // der Speicher wird nachgeführt; braucht das Netz länger als NETWORK_WAIT, antwortet der Speicher. Offline antwortet
 // immer der Speicher. Die Bibliotheken unter vendor/ ändern sich nie (Version im Ordnernamen) und kommen direkt
 // aus dem Speicher. Alle anderen Anfragen gehen am Service Worker vorbei.
-// Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht).
-// CACHE hochzählen, wenn Dateien wegfallen oder vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
+// Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht). Grosse
+// Dateien, die nicht jedes Gerät braucht, in LAZY: gespeichert erst beim ersten Gebrauch.
+// Skyboxen aus Blender stehen nicht hier, sondern im Register backgrounds/skies.js (tools/blender/pack.mjs): Teile mit
+// precache kommen nach FILES, die übrigen nach LAZY. Ihr Stand steht im Dateinamen; beim Aktivieren verschwindet aus
+// dem Speicher, was keine der Listen mehr kennt (alte Stände). SKIES (Stand des Registers, von pack.mjs nachgeführt)
+// ändert diese Datei mit jedem neuen Register: So holt jeder Browser den neuen Stand.
+// CACHE hochzählen, wenn vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
 
 const CACHE = 'prisma-v1';
+const SKIES = 'ccac9f87';
 const FILES = [
   'index.html',
   'manifest.webmanifest',
@@ -26,12 +32,20 @@ const FILES = [
   'vendor/three-0.147.0/UnrealBloomPass.js',
   'vendor/three-0.147.0/Reflector.js',
 ];
+const LAZY = [];
+try {
+  importScripts('backgrounds/skies.js');
+  FILES.push('backgrounds/skies.js');
+  for (const sky of self.PRISMA_SKIES ?? []) {
+    for (const part of sky.parts ?? []) (part.precache ? FILES : LAZY).push(`backgrounds/${part.file}`);
+  }
+} catch { /* ohne Register (fehlt auf dem Server): nur die Hintergründe aus dem Code */ }
 const NETWORK_WAIT = 3000; // ms
 
 const PAGE = new URL('index.html', self.location).href;
 const ROOT = new URL('./', self.location).href;
 const VENDOR = new URL('vendor/', self.location).href;
-const KNOWN = new Set(FILES.map((f) => new URL(f, self.location).href));
+const KNOWN = new Set([...FILES, ...LAZY].map((f) => new URL(f, self.location).href));
 
 /**
  * Speicherschlüssel einer Anfrage: die Datei ohne Parameter; ./ und index.html?… sind alle die Seite selbst.
@@ -68,10 +82,15 @@ self.addEventListener('install', (event) => {
     .then(() => self.skipWaiting()));
 });
 
-// Alte Stände des Speichers aufräumen und die offenen Seiten sofort übernehmen
+// Alte Stände des Speichers aufräumen (andere Speicher, Dateien, die keine Liste mehr kennt) und die offenen Seiten
+// sofort übernehmen
 self.addEventListener('activate', (event) => {
   event.waitUntil(caches.keys()
     .then((keys) => Promise.all(keys.filter((k) => k.startsWith('prisma-') && k !== CACHE).map((k) => caches.delete(k))))
+    .then(() => caches.open(CACHE))
+    .then((cache) => cache.keys().then((requests) => Promise.all(requests
+      .filter((r) => !KNOWN.has(r.url) && !r.url.startsWith(VENDOR))
+      .map((r) => cache.delete(r)))))
     .then(() => self.clients.claim()));
 });
 
