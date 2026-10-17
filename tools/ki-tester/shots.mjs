@@ -23,10 +23,10 @@ export const VIEWS = [
 const SETTLE = 6;  // s vorspulen: Herauswachsen bis 1,1 s, Aufleuchten bis 2,8 s, Ziele und Kamera klingen danach ab
 const TRIES = 5;   // weitere Aufnahmen, bis zwei gleich sind
 
-/** Bricht ab, wenn der Prozess nicht über leise.sh mit höchstens 50 % läuft (so viel dürfen Screenshots, leise.sh). */
+/** Bricht ab, wenn der Prozess nicht über leise.sh mit höchstens 65 % läuft (so viel dürfen Screenshots, leise.sh). */
 export function requireQuiet() {
-  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(Number(process.env.LEISE_CPU || 20) <= 50)) {
-    throw new Error('Screenshots nur über die gedeckelte Umgebung: LEISE_CPU=50 sh tools/leise.sh node …');
+  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(Number(process.env.LEISE_CPU || 20) <= 65)) {
+    throw new Error('Screenshots nur über die gedeckelte Umgebung: LEISE_CPU=65 sh tools/leise.sh node …');
   }
 }
 

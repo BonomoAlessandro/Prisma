@@ -2,8 +2,8 @@
 // Seeds der Reihe nach, im flachen Feld 7 × 7. Jedes gelieferte Level geht als JSON-Zeile { seed, level, schwierigkeit,
 // spielwert, kernideen, hauptKernidee } auf stdout (level wie in LEVELS, ohne Namen), eine Zusammenfassung mit den
 // Gründen der Seeds ohne Level auf stderr. Ein Prozess; derselbe Aufruf liefert dieselben Level. Nur über die
-// gedeckelte Umgebung (Spec „Generator“, höchstens 50 % CPU):
-//   LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]
+// gedeckelte Umgebung (Spec „Generator“, höchstens 65 % CPU):
+//   LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]
 //   auftrag     wie „leicht“ oder „leicht-mischziel“; ohne Angabe nennt es die Aufträge, die der Generator kennt
 //   --anzahl N  so viele Level liefern (Standard 10)
 //   --seed S    erster Seed (Standard 1)
@@ -18,7 +18,7 @@ const anzahl = flag('--anzahl', 10), start = flag('--seed', 1), seeds = flag('--
 const auftraege = angebot();
 const auftrag = auftraege.find(a => a.name === args[0]);
 if (!auftrag || args.length !== 1 || ![anzahl, start, seeds].every(Number.isInteger)) {
-  console.error('Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] '
+  console.error('Aufruf: LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] '
     + `[--seeds M]\nAufträge: ${auftraege.map(a => a.name).join(', ')}`);
   process.exit(1);
 }

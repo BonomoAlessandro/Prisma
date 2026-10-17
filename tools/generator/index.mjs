@@ -58,14 +58,14 @@ export function angebot() {
 let gedeckelt = false;
 /**
  * Der Generator läuft nur über die gedeckelte Umgebung (Spec „Generator“): mit tiefster Priorität, wie tools/leise.sh
- * sie setzt, und mit LEISE_CPU höchstens 50. Geprüft einmal je Prozess; Tests laufen über leise.sh mit 20 %.
+ * sie setzt, und mit LEISE_CPU höchstens 65. Geprüft einmal je Prozess; Tests laufen über leise.sh mit 20 %.
  */
 function pruefeDeckel() {
   if (gedeckelt) return;
   const cpu = Number(process.env.LEISE_CPU || 20);
-  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cpu <= 50)) {
-    throw new Error('Generator: nur über die gedeckelte Umgebung, mit tiefster Priorität und LEISE_CPU höchstens 50 '
-      + `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}), z. B. LEISE_CPU=50 sh tools/leise.sh node `
+  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cpu <= 65)) {
+    throw new Error('Generator: nur über die gedeckelte Umgebung, mit tiefster Priorität und LEISE_CPU höchstens 65 '
+      + `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}), z. B. LEISE_CPU=65 sh tools/leise.sh node `
       + 'tools/generiere.mjs …');
   }
   gedeckelt = true;

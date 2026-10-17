@@ -6,9 +6,9 @@
 //   generator  angenommene Level je CPU-Stunde je Gruppe: beim alten Generator (--generator alt) ein Profil, beim neuen
 //              (--generator neu, tools/generator/) ein Auftrag aus Grad und Kernidee wie „leicht“ oder
 //              „leicht-mischziel“. Jede Gruppe bekommt dieselben Seeds start … start + seeds - 1; Blöcke zu höchstens
-//              50 Seeds gehen an --jobs Prozesse (Standard: halb so viele wie logische Kerne, passend zum Deckel von
-//              50 %). Welcher Prozess welchen Block rechnet, ändert die angenommenen Level nicht (Fingerabdruck je
-//              Gruppe). Die CPU-Zeit je Seed hängt aber von --jobs ab (Hyperthreading, E-Kerne, Turbo): nur gleiche
+//              50 Seeds gehen an --jobs Prozesse (Standard: halb so viele wie logische Kerne, unter dem Deckel von
+//              leise.sh). Welcher Prozess welchen Block rechnet, ändert die angenommenen Level nicht (Fingerabdruck
+//              je Gruppe). Die CPU-Zeit je Seed hängt aber von --jobs ab (Hyperthreading, E-Kerne, Turbo): nur gleiche
 //              vergleichen. Ohne Gruppe alle Gruppen des Generators (alle Profile: mit den Standardwerten rund 25 min);
 //              „härten“ (harden.mjs, ein Lauf je Seed, oft über 10 CPU-min) nur, wenn genannt. Mit der Abnahme
 //              beurteilung (--accept beurteilung) zählt die Messung zusätzlich je Grad und je Grad und nötiger Kernidee
@@ -33,8 +33,8 @@
 //                            nötigen Kernidee des alten, über alle seine Profile und mit dem besten Profil; dafür
 //                            brauchen beide dieselbe Abnahme mit Grad.
 // Nur über die gedeckelte Umgebung und nie mehrere Läufe nebeneinander. Ohne tiefste Priorität oder mit LEISE_CPU über
-// 50 (mit generator) bzw. 20 (nur trace, solver) bricht das Skript ab:
-//   LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
+// 65 (mit generator) bzw. 20 (nur trace, solver) bricht das Skript ab:
+//   LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
 //   sh tools/leise.sh node tools/bench.mjs trace solver --save tools/bench-baseline.json
 import { createHash } from 'node:crypto';
 import { execSync, fork } from 'node:child_process';
@@ -475,11 +475,11 @@ async function main() {
   if (!GENERATORS[generator] || !ACCEPTANCES[accept]) fail(`Unbekannt: --generator ${generator} oder --accept ${accept}`);
   if (groups.length && !parts.includes('generator')) fail(`Gruppen gibt es nur beim Teil generator: ${groups.join(' ')}`);
   if (unique && !parts.includes('solver')) fail('--unique gibt es nur beim Teil solver');
-  const cap = Number(process.env.LEISE_CPU || 20), limit = parts.includes('generator') ? 50 : 20;
+  const cap = Number(process.env.LEISE_CPU || 20), limit = parts.includes('generator') ? 65 : 20;
   if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cap <= limit)) {
     fail(`Nur über die gedeckelte Umgebung starten: tiefste Priorität und LEISE_CPU höchstens ${limit} ` +
-      `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}; generator bis 50, sonst bis 20), z. B.\n` +
-      '  LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator …\n' +
+      `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}; generator bis 65, sonst bis 20), z. B.\n` +
+      '  LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator …\n' +
       '  sh tools/leise.sh node tools/bench.mjs trace solver …');
   }
   const gen = parts.includes('generator') ? await GENERATORS[generator]() : null;

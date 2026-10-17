@@ -281,12 +281,12 @@ test('Unbekannte Aufträge weist er ab: unbekannter Grad, Kernidee ohne Baustein
   assert.throws(() => generiere({ ...auftrag, feldform: undefined }), /Feldform/);
 });
 
-test('Er läuft nur gedeckelt: Mit LEISE_CPU über 50 bricht er ab', () => {
+test('Er läuft nur gedeckelt: Mit LEISE_CPU über 65 bricht er ab', () => {
   const code = `import { generiere } from './tools/generator/index.mjs';
     import { feldformVon } from './tools/beurteilung/feldform.mjs';
     generiere({ grad: 'leicht', kernidee: null, seed: 1, feldform: feldformVon({}) });`;
   const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
-    cwd: new URL('..', import.meta.url), env: { ...process.env, LEISE_CPU: '60' }, encoding: 'utf8',
+    cwd: new URL('..', import.meta.url), env: { ...process.env, LEISE_CPU: '70' }, encoding: 'utf8',
   });
   assert.notEqual(r.status, 0);
   assert.match(r.stderr, /gedeckelte Umgebung/);
