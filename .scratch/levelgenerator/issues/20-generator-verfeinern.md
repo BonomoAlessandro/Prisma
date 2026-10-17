@@ -117,7 +117,7 @@ Reparaturen:
 | CPU-s `schwer-mischziel` | 25,0 | 23,3 | 22,6 | 23,9 |
 | CPU-s `schwer` | 26,0 | 33,3 | 33,8 | 34,0 |
 
-(CPU-s nachgetragen im Review, aus derselben Messung: ein Prozess, `LEISE_CPU=50`, je Lauf einmal gemessen, darum
+(CPU-s nach dem Review nachgetragen, aus derselben Messung: ein Prozess, `LEISE_CPU=50`, je Lauf einmal gemessen, darum
 etwa ±15 % unsicher.) Ab der dritten bringt jede höchstens ein Level auf 150 Seeds. Je CPU-Stunde liegen alle vier
 Varianten innerhalb der Streuung; bei `schwer` ist 1 Reparatur sogar am günstigsten (4 843 gegen 3 896 Level je
 CPU-Stunde mit 2). Es bleibt bei 2 wie in „leicht“ (Ticket 18), weil mehr nichts bringt und weniger die Messzahlen
@@ -352,3 +352,25 @@ Weitergegeben als Hinweise in die Tickets 21 und 23–26.
    - Schwere Level mit 12 drehbaren Elementen liefert der Generator damit nicht. Für den Austausch fehlt dadurch
      nichts: Er sucht Level nach Schwierigkeit, nicht nach Grösse. Bauten mit 12 Elementen deckt die Vorgabe „sehr
      schwer“ (9–14) ab.
+
+**Nachprüfung** (Reviewer, Stand `64bd63d`):
+- **Fund 1 behoben.** Alle Stellen lesen `LEISE_MAX_CPU` mit Standard 50, über `tools/deckel.mjs` bzw. `leise.sh`.
+  `git grep` findet keine fest verdrahtete 65 mehr; 65 steht nur noch als Beispiel im README und als Wert im Test.
+  - `leise.sh` bricht ab ohne Variable mit 55, mit `abc`, mit 65/70 und mit 65/65,5; mit 65/65 läuft es.
+  - Generator, Screenshots (`requireQuiet`) und `bench.mjs` (generator bis zur Grenze, trace bis 20) verhalten sich
+    gleich, auch mit `abc` und mit leerer Variable (dann gilt 50).
+- **Fund 2:** Als Hinweis in Ticket 21, einverstanden.
+- **Fund 3:** Der Test dauert 57 s. Eine Lücke blieb: Bei `schwer-mischziel` liefert keiner der Seeds 1–5 ein Level
+  (das erste kommt mit Seed 10), dort verglich der Test nur Gründe. Behoben: Ab „mittel“ wiederholt er auch den
+  ersten Seed mit Level, so ist in jedem Auftrag eines dabei (0,03 CPU-s mehr).
+- **Fund 4:** Nachvollziehbar, es bleibt bei 2. Bei `schwer` ist 1 Reparatur je CPU-Stunde 24 % günstiger, knapp
+  mehr als die genannte Streuung; das lohnt erst eine Wiederholung, wenn Ticket 21 ohnehin neu misst.
+- **Fund 5:** Bestätigt mit Messung.
+- **Weiter bitgleich:** Seeds 1–1500 ohne Kernidee und mit Mischziel, 3000 von 3000 Ergebnissen gleich mit `974c4f0`.
+- **Klein behoben** (dieser Commit):
+  - README: „mehr nimmt `leise.sh` nicht an“ gilt nur ohne `LEISE_MAX_CPU`.
+  - `leise.sh`: Die Meldung sagte bei `LEISE_MAX_CPU=abc` „20 ist über abc“; jetzt „muss eine ganze Zahl bis … sein“.
+  - Wortlaut oben: „nach dem Review nachgetragen“.
+- **Tests** über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, alle grün: golden, logic (553), generator (18,
+  57 s), ki-tester (62).
+- **Urteil:** bereit zum Mergen.

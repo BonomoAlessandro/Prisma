@@ -115,12 +115,14 @@ function festeSpiegelOhneWirkung(level) {
 }
 
 console.log('Ein Auftrag, ein Level oder nichts');
-// Ab „mittel“ wiederholt der Test nur die ersten WIEDERHOLEN Seeds je Auftrag: Jeder kostet dort bis über 1 CPU-s, und
-// alle zu wiederholen verdoppelte die Laufzeit (Review Ticket 20). „leicht“ wiederholt alle Seeds.
+// Ab „mittel“ wiederholt der Test nur die ersten WIEDERHOLEN Seeds je Auftrag und dazu den ersten mit Level (so ist in
+// jedem Auftrag ein Level dabei): Ein Seed kostet dort bis über 1 CPU-s, und alle zu wiederholen verdoppelte die
+// Laufzeit (Review Ticket 20). „leicht“ wiederholt alle Seeds.
 const WIEDERHOLEN = 5;
 test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach anderen Aufträgen (umgekehrt)', () => {
   for (const a of [...laeufe].reverse()) {
-    const teil = a.grad === 'leicht' ? a.ergebnisse : a.ergebnisse.slice(0, WIEDERHOLEN);
+    const erstes = a.ergebnisse.find(r => r.level);
+    const teil = a.grad === 'leicht' ? a.ergebnisse : a.ergebnisse.filter((r, i) => i < WIEDERHOLEN || r === erstes);
     for (const r of [...teil].reverse()) {
       const nochmal = generiere({ ...auftragVon(a), seed: r.seed, feldform });
       const vorher = { level: r.level, ...(r.level ? { beurteilung: r.beurteilung } : { grund: r.grund }) };

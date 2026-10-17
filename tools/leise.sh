@@ -12,7 +12,8 @@
 # und Screenshots (tools/deckel.mjs).
 MAX=${LEISE_MAX_CPU:-50}
 [ "${LEISE_CPU:-20}" -le "$MAX" ] 2>/dev/null || {
-  echo "leise: LEISE_CPU=$LEISE_CPU ist über $MAX (Obergrenze LEISE_MAX_CPU, Standard 50), Abbruch" >&2; exit 1; }
+  echo "leise: LEISE_CPU=${LEISE_CPU:-20} muss eine ganze Zahl bis $MAX sein (Obergrenze LEISE_MAX_CPU, Standard 50)," \
+    "Abbruch" >&2; exit 1; }
 SPERRE=/tmp/prisma-leise.lock
 WP=$(cat /proc/$$/winpid)
 # Halter einer Sperre aus „pid winpid“; lebt er noch? (MSYS-PIDs kommen wieder vor, darum auch die winpid)
