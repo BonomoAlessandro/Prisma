@@ -53,9 +53,10 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   Drehebene (`PLANE_K`, `PLANE_A`, `FROM_PLANE`), `planeDir`, `planeIndex`, `reflect3`, `mirrorFrontNormal3`,
   `refractInPrism3`, `createBoard3`. Flache Level und Würfel laufen durch denselben Durchlauf `tracePass` (ADR 0003,
   Ticket 27): Ein flaches Level ist ein Würfel mit einer Ebene (y = 0, Drehachse y). Spiegel und Prisma rechnen in
-  der Drehebene mit `reflectOnMirror` und `refractInPrism` wie in 2D. Nur `createBoard` verzweigt noch bei
-  `dim === 3`. Segmente/Ereignisse im Würfel haben zusätzlich `y0/y1` bzw. `y`, Normalen sind `[nx, ny, nz]`; die
-  flachen bleiben ohne y und bitgleich (`tests/golden.mjs`).
+  der Drehebene mit `reflectOnMirror` und `refractInPrism` wie in 2D. Eine eigene Fassung hat nur noch das Brett
+  (`createBoard` ruft bei `dim === 3` `createBoard3`); `tracePass` unterscheidet nur Drehachse und Ausgabe.
+  Segmente/Ereignisse im Würfel haben zusätzlich `y0/y1` bzw. `y`, Normalen sind `[nx, ny, nz]`; die flachen bleiben
+  ohne y und bitgleich (`tests/golden.mjs`).
 - **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, `tools/curate.mjs`).
   Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 159).
   Eigene Seite „Würfel“ in der Levelauswahl; „Weiter“ nach Level 150 führt nicht in den Würfel.
@@ -91,7 +92,7 @@ Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar üb
 Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (16. Oktober).
 
 ```bash
-node tests/logic.test.mjs        # 575 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
+node tests/logic.test.mjs        # 577 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
 node tests/golden.mjs            # flache Level unverändert? (~3 s; --voll ~17 s) – --write nur bei bewusster Änderung
 node tests/beurteilung.test.mjs  # 196 Tests (~45 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
 node tests/offline.mjs

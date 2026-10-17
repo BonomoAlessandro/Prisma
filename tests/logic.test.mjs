@@ -717,6 +717,32 @@ console.log('Würfel (dim: 3)');
       assert.ok(dot(n, d) <= 1e-12, `${axis} ${rot} ${k}`);
     }
   });
+  test('Verfolgung im Würfel: Spiegelnormale wie mirrorFrontNormal3, auch für Strahlen mit Anteil längs der Achse', () => {
+    let checked = 0;
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) {
+      for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+        const d = [dx, dy, dz], q = dx * dx + dy * dy + dz * dz, tag = `${axis} ${rot} ${vec(d)}`;
+        if (q !== 1 && q !== 2) continue;
+        const b = cube([{ type: 'mirror', x: 2, y: 2, z: 2, axis, rot }]);
+        const r = L.traceBeams(b, [{ x: 2 - dx, y: 2 - dy, z: 2 - dz, d, color: 7 }]);
+        if (L.reflect3(d, axis, rot) === null) { assert.equal(r.events[0].kind, 'absorb', tag); continue; }
+        assert.equal(r.events[0].kind, 'reflect', tag);
+        const n = L.mirrorFrontNormal3(axis, rot, d);
+        assert.deepEqual(r.events[0].normal, n, tag);
+        assert.deepEqual([r.segments[0].n1, r.segments[1].n0], [n, n], tag);
+        checked++;
+      }
+    }
+    assert.equal(checked, 288);
+  });
+  test('Würfel: Richtung ausserhalb der 18 (Raumdiagonale, Nullvektor) wird gemeldet', () => {
+    const b = cube([{ type: 'target', x: 4, y: 4, z: 4 }]);
+    for (const d of [[1, 1, 1], [0, 0, 0], [2, 0, 0]]) {
+      assert.throws(() => L.traceBeams(b, [{ x: 0, y: 0, z: 0, d, color: 7 }]), /Startstrahl mit ungültiger Richtung/);
+      assert.throws(() => L.reflect3(d, 'x', 1), /Spiegelung mit ungültiger Richtung/);
+      assert.throws(() => L.mirrorFrontNormal3('z', 1, d), /Spiegelnormale mit ungültiger Richtung/);
+    }
+  });
   test('Prisma mit Achse z fächert senkrecht (Ebene x-y): Rot schräg hinauf, Blau schräg hinab', () => {
     const outs = L.refractInPrism3([1, 0, 0], 7, 'z', 0).map(o => [o.color, vec(o.d)]);
     assert.deepEqual(outs, [[1, vec([1, 1, 0])], [2, vec([1, 0, 0])], [4, vec([1, -1, 0])]]);

@@ -671,7 +671,7 @@ const AXES = {
   x: { a: [1, 0, 0], u: [0, 0, 1], v: [0, 1, 0] },
   z: { a: [0, 0, 1], u: [1, 0, 0], v: [0, -1, 0] },
 };
-const MAX_SIZE_3D = 16; // Kantenlänge höchstens
+const MAX_SIZE_3D = 16; // Kantenlänge höchstens (die Schleifenerkennung in tracePass trüge bis 64)
 /** Halbe Spiegelhöhe in Rasterzellen (Rahmen 0.6 hoch, siehe makeMirror): dort endet ein Strahl längs der Drehachse. */
 const MIRROR_HALF_HEIGHT = 0.3 / 1.2;
 
@@ -688,6 +688,12 @@ const DIR_OF_CODE = new Array(27).fill(-1);
 DIRS3.forEach((d, i) => { DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1] = i; });
 /** Nummer der Richtung d, −1 für eine Raumdiagonale oder den Nullvektor. */
 const dirOf = (d) => DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1];
+/** Nummer der Richtung d; ist d keine der 18 Richtungen, ein Fehler (what: wessen Richtung). */
+function dirIndex(d, what) {
+  const i = dirOf(d);
+  if (!(i >= 0)) throw new Error(`${what} mit ungültiger Richtung ${JSON.stringify(d)}`);
+  return i;
+}
 /** Einheitsvektoren, eingefroren wie UNIT_DIRS; die acht der Ebene mit denselben Zahlen wie UNIT_DIRS. */
 const UNIT_DIRS3 = DIRS3.map((d, i) => Object.freeze(i < 8 ? [UNIT_DIRS[i][0], 0, UNIT_DIRS[i][1]] : unit3(d)));
 /** Schnittnormalen am Ende eines Abschnitts, der nicht an einem Spiegel endet: entgegen der Laufrichtung. */
@@ -701,9 +707,9 @@ const BACK_DIRS3 = UNIT_DIRS3.map(u => Object.freeze([-u[0], -u[1], -u[2]]));
  *   FROM_PLANE[(A · 3 + s + 1) · 8 + k]  Richtung aus k in der Ebene und Anteil s längs der Achse (−1: Raumdiagonale)
  * Für Achse y und die acht Richtungen der Ebene ist das die Gleichheit: Ein flaches Level rechnet so wie in 2D.
  */
-const AXIS_IDS = { y: 0, x: 1, z: 2 };
+const AXIS_NAMES = ['y', 'x', 'z'], AXIS_IDS = { y: 0, x: 1, z: 2 };
 const PLANE_K = [], PLANE_A = [], FROM_PLANE = [];
-for (const name of ['y', 'x', 'z']) {
+for (const name of AXIS_NAMES) {
   const { a, u, v } = AXES[name];
   for (const d of DIRS3) {
     const du = dot3(d, u), dv = dot3(d, v);
@@ -738,7 +744,7 @@ function planeIndex(axis, d) {
 
 /** Vektor in der Drehebene der Achse mit Nummer A aus den Anteilen nu, nv der Ebenenbasis (etwa einer 2D-Normalen). */
 function inPlane(A, nu, nv) {
-  const { u, v } = AXES[A === 0 ? 'y' : A === 1 ? 'x' : 'z'];
+  const { u, v } = AXES[AXIS_NAMES[A]];
   return [nu * u[0] + nv * v[0], nu * u[1] + nv * v[1], nu * u[2] + nv * v[2]];
 }
 
@@ -746,17 +752,17 @@ function inPlane(A, nu, nv) {
  * Spiegel im Würfel: Die Fläche enthält die Drehachse und die Ebenenrichtung rot. Der Anteil des Strahls in der
  * Drehebene wird wie in 2D gespiegelt (reflectOnMirror), der Anteil längs der Achse bleibt. Läuft der Strahl parallel
  * zur Fläche (Anteil in der Ebene parallel zur Spiegellinie oder null), trifft er die Rahmenkante: Rückgabe null.
- * Dieselbe Regel rechnet tracePass über die Nummern der Richtungen.
+ * Dieselbe Regel rechnet tracePass über die Nummern der Richtungen. d ist eine der 18 Richtungen (DIRS3).
  */
 function reflect3(d, axis, rot) {
-  const A = AXIS_IDS[axis], i = A * 18 + dirOf(d), k = PLANE_K[i];
+  const A = AXIS_IDS[axis], i = A * 18 + dirIndex(d, 'Spiegelung'), k = PLANE_K[i];
   const nk = k < 0 ? k : reflectOnMirror(k, rot);
   return nk === k ? null : DIRS3[FROM_PLANE[(A * 3 + PLANE_A[i] + 1) * 8 + nk]].slice();
 }
 
 /** Normale der Spiegelfläche (Einheitsvektor) auf der Seite des einfallenden Strahls: die 2D-Normale in der Drehebene. */
 function mirrorFrontNormal3(axis, rot, d) {
-  const A = AXIS_IDS[axis], k = PLANE_K[A * 18 + dirOf(d)];
+  const A = AXIS_IDS[axis], k = PLANE_K[A * 18 + dirIndex(d, 'Spiegelnormale')];
   // längs der Achse (k < 0) steht der Strahl senkrecht auf jeder Normalen der Fläche: dann die der Stellung
   const n = k < 0 ? MIRROR_NORMALS[mod8(rot)] : mirrorFrontNormal(rot, k);
   return inPlane(A, n[0], n[1]);
@@ -827,7 +833,7 @@ for (let A = 0; A < 3; A++) for (let r = 0; r < 8; r++) {
  * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben, für flache Level und Würfel. Ein flaches Brett
  * ist ein Würfel mit einer Ebene: y = 0, Drehachse y, Raster (z · size + x) wie die unterste Ebene des Würfels.
  * Segmente, Ereignisse und Normalen eines flachen Bretts haben kein y (siehe traceBeams). extraRays: flach
- * { x, z, dir, color }, im Würfel { x, y, z, d: [dx, dy, dz], color } mit einer der 18 Richtungen (nur für Tests).
+ * { x, z, dir, color }, im Würfel { x, y, z, d: [dx, dy, dz], color } mit einer der 18 Richtungen, sonst ein Fehler.
  * Trifft er auf ein Element mit offener Stellung (OPEN, nur beim Löser), hält er an und gibt { open, paused } zurück:
  * paused ist sein Zustand an dieser Stelle. Mit from = paused macht ein späterer Durchlauf dort weiter, auf einer
  * Kopie (der Löser setzt von dort aus jede Stellung).
@@ -881,8 +887,7 @@ function tracePass(board, extraRays, emitting, from) {
     }
     for (const r of extraRays) {
       if (!cube) { pushRay({ y: 0, dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) }); continue; }
-      const dir = dirOf(r.d);
-      if (!(dir >= 0)) throw new Error(`Startstrahl mit ungültiger Richtung ${JSON.stringify(r.d)}`);
+      const dir = dirIndex(r.d, 'Startstrahl');
       pushRay({ dist: 0, bounces: 0, n0: UNIT_DIRS3[dir], ...r, dir });
     }
   }
