@@ -55,14 +55,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
-    prüft den Deckel; etwa 1 min): feste Seeds für alle vier Grade ohne Kernidee und mit Mischziel aus zwei
-    Quellen (50 für „leicht“, 12–30 ab „mittel“), dazu „leicht“ mit den Ziel-Schwierigkeiten 33–43 und 20–30; ab
+    prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
+    dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
+    und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
-    seine Farbe hat, kein fester Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; eine Gegenprobe an
-    einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
+    seine Farbe hat, kein fester Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt;
+    eine Gegenprobe an einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
     keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab (mit `LEISE_MAX_CPU=65` erst über 65),
     und unbekannte Aufträge weist er ab.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
@@ -341,13 +342,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `BEURTEILUNG_THREADS` übersteuert, 1 heisst ohne Worker. Jeder Thread holt sich das nächste Level, sobald er frei
     ist. Level und Beurteilungen sind reine Daten und kommen per structured clone unverändert über die Thread-Grenze.
     Genutzt vom Test der Beurteilung und von den Messskripten `eiche-spielwert.mjs` und `eiche-schwierigkeit.mjs`.
-- **Generator** (`tools/generator/`, nur für die Entwicklung; ADR 0004, Spec „Generator“ und „Effizienz“; Tickets 18
-  und 20): ein Einstieg, `generiere({ grad, kernidee, seed, feldform, schwierigkeit })` aus `index.mjs`. Ein Auftrag
+- **Generator** (`tools/generator/`, nur für die Entwicklung; ADR 0004, Spec „Generator“ und „Effizienz“; Tickets
+  18–20): ein Einstieg, `generiere({ grad, kernidee, seed, feldform, schwierigkeit })` aus `index.mjs`. Ein Auftrag
   ergibt `{ level, beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer
-  Beurteilung, oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Er kennt alle vier Grade, ohne
-  Kernidee und mit der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft. `schwierigkeit`
-  ist wahlweise eine Ziel-Schwierigkeit `[von, bis]` (beide eingeschlossen), die den Grad überschneidet; wirksam ist
-  der Teil im Grad. Ohne sie gilt der ganze Grad.
+  Beurteilung, oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Er kennt alle vier Grade
+  (Ticket 20), je ohne Kernidee und mit jeder der sechs Kernideen (`angebot()`, Ticket 19); ein anderer Auftrag wirft.
+  `schwierigkeit` ist wahlweise eine Ziel-Schwierigkeit `[von, bis]` (beide eingeschlossen), die den Grad
+  überschneidet; wirksam ist der Teil im Grad. Ohne sie gilt der ganze Grad.
   - **Ablauf** (für alle Grade gleich): Der Baustein der Kernidee (`bausteine/`, je Kernidee einer) baut sie gezielt
     in ein leeres Feld (`bau.mjs`); das Ergänzen setzt Quellen, drehbare Elemente am Ende der Strahlen, Filter, feste
     Spiegel und Ziele an die Strahlenden bis zur Grösse, die die Vorgabe des Grads würfelt (`vorgaben.mjs`, ersetzt die
@@ -366,14 +367,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
     Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
     hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
-    anderes Licht, oder es gäbe eine zweite Lösung). Lockvögel setzt erst ihr Baustein (Ticket 19).
+    anderes Licht, oder es gäbe eine zweite Lösung). Ausgenommen sind die Lockvögel ihres Bausteins (feste Teile der
+    Kernidee ohne Licht in der Lösung): Sie prüft die volle Beurteilung mit dem Licht der Suche ohne Abschneiden.
+  - **Bausteine** (`bausteine/`, Ticket 19; gemeinsame Hilfen in `wege.mjs`): Mischziel (zwei Quellen auf ein Ziel),
+    Abschalten (ein Spiegel lenkt eine Quelle auf kurzem Weg aufs Ziel, die Lösung bringt dessen Farbe über zwei Spiegel
+    aus einer zweiten), Farben abzählen (Ring aus vier Spiegeln, zwei Quellen derselben Grundfarbe erreichen jeden
+    Ausgang, eine dritte von aussen), Sammelstelle (ein Prisma bricht zwei Zuläufe zu je einem eigenen Ziel), Falle
+    (ein Prisma bricht eine Grundfarbe direkt aufs Ziel, die Lösung bringt sie über einen Spiegel; eine übrige
+    Grundfarbe führt in der Falle über zwei Spiegel in den Holzweg) und Lockvogel (Ringtausch dreier Quellen, ein fester
+    Spiegel oder Blocker verstellt ihn).
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
     Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
     Quelltext nach Koordinaten und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
-    wie `leicht`, `mittel-mischziel` oder `"sehr schwer"`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
+    `<grad>` oder `<grad>-<kernidee>` für die Grade `leicht`, `mittel`, `schwer`, `"sehr schwer"` und die Kernideen
+    `mischziel`, `abschalten`, `abzaehlen`, `sammelstelle`, `falle`, `lockvogel`, etwa `mittel-abschalten`; ohne
+    Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level,
     schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
     `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
     --generator neu --accept beurteilung`.

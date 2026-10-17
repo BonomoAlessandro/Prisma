@@ -22,7 +22,7 @@
 // Levelliste aus levelliste.mjs: kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der
 // verlangte Grad (grad.mjs) und die verlangte Kernidee nötig. Derselbe Auftrag ergibt dasselbe Level: Aller Zufall
 // kommt aus dem Seed (zufall.mjs). Das Feld kennt der Generator nur über die Feldform des Auftrags (Spec „Feldform“).
-// Weitere Kernideen (Ticket 19) kommen als Baustein dazu; alle vier Grade haben eine Vorgabe (Ticket 20).
+// Jede der sechs Kernideen hat einen Baustein (Ticket 19), jeder der vier Grade eine Vorgabe (Ticket 20).
 import { gedeckelt, deckelText } from '../deckel.mjs';
 import { beurteile, GRADE, TEILE } from '../beurteilung/index.mjs';
 import { gradVon, SCHWELLEN } from '../beurteilung/grad.mjs';
@@ -140,9 +140,9 @@ function mangel(b, grad, kernidee, voll, ziel) {
 
 /**
  * Ein Level zum Auftrag { grad, kernidee, seed, feldform, schwierigkeit }:
- *   grad:     Schwierigkeitsgrad (leicht, mittel, schwer, sehr schwer), je mit einer Vorgabe
- *   kernidee: Glossarbegriff der Kernidee, die nötig sein soll, oder null (keine verlangt); heute „Mischziel aus zwei
- *             Quellen“
+ *   grad:     Schwierigkeitsgrad (leicht, mittel, schwer, sehr schwer), je mit einer Vorgabe (Ticket 20)
+ *   kernidee: Glossarbegriff der Kernidee, die nötig sein soll, oder null (keine verlangt); jede der sechs
+ *             Kernideen des Glossars hat einen Baustein (Ticket 19)
  *   seed:     ganze Zahl; derselbe Auftrag mit demselben Seed ergibt dasselbe Level
  *   feldform: die Feldform (beurteilung/feldform.mjs), etwa feldformVon({}) für das flache Feld 7 × 7
  *   schwierigkeit: wahlweise die Ziel-Schwierigkeit [von, bis], beide eingeschlossen (Ticket 20, etwa für den

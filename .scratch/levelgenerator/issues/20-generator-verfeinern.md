@@ -374,3 +374,42 @@ Weitergegeben als Hinweise in die Tickets 21 und 23–26.
 - **Tests** über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, alle grün: golden, logic (553), generator (18,
   57 s), ki-tester (62).
 - **Urteil:** bereit zum Mergen.
+
+**Nach dem Merge mit 19** (18.10.2026, `feature/levelgenerator` auf `18605ed` in diesen Branch):
+- **Konflikte:**
+  - In `index.mjs` (JSDoc von `generiere`) und im README stehen jetzt alle vier Grade, jede der sechs Kernideen und
+    `schwierigkeit`.
+  - Im Test gelten alle Prüfungen aus 19 und aus 20:
+    - aus 19: „leicht“ je Kernidee über 50 Seeds mit `ANTEIL_LEVEL`, der feste Seed je Kernidee (`FEST`, gesucht nur
+      unter „leicht“ ohne Ziel-Schwierigkeit) und die Blocker-Prüfung;
+    - aus 20: alle Grade, beide Ziel-Schwierigkeiten und der verkürzte Determinismus-Test.
+  - „Kernidee ohne Baustein“ entfällt, „unbekannte Kernidee“ bleibt.
+  - `schritte.mjs` mergte ohne Konflikt: `kreuzungszellen` und `ergaenze` (20) stehen neben der Ausnahme für Lockvögel
+    in `wirkungslos` (19).
+- **„leicht“ unverändert:** Alle sieben leichten Aufträge (ohne Kernidee und je Kernidee) sind über die Seeds
+  1–1000 bitgleich zu `18605ed` (7000 von 7000).
+- **Test:** 25 Tests, 355 Level aus 562 Aufträgen, 58 s (mit `LEISE_MAX_CPU=65 LEISE_CPU=65`).
+- **Probe ab „mittel“ mit den Bausteinen aus 19** (Seeds 1–100, ein Prozess). Die Aufträge gibt es für jede
+  Kernidee, etwa `mittel-abschalten`:
+
+  | Kernidee | mittel | schwer |
+  |---|---:|---:|
+  | Mischziel aus zwei Quellen | 55 | 39 |
+  | Sammelstelle | 43 | 36 |
+  | Falle | 13 | 8 |
+  | Abschalten | 3 | 4 |
+  | Farben abzählen | 0 | 4 |
+  | Lockvogel | 0 | 0 |
+
+- **Das passt noch nicht ganz zusammen:**
+  - Mischziel und Sammelstelle funktionieren mit „schwerer“ und dem Wachsen gut.
+  - Falle liefert wenig; meist ist das Level nicht eindeutig oder die Falle nicht eingebaut.
+  - Abschalten fällt meist an „Kernidee wirkungslos“ oder an einem Füllteil, auch nach „schwerer“.
+  - Farben abzählen fällt bei „mittel“ zu 77 % an einem Füllteil, bei dem „schwerer“ nichts mehr dazubringt.
+  - Lockvogel liefert nichts. Der Baustein braucht drei Quellen, und alle seine Strahlen enden an Zielen der
+    Kernidee. Bei „mittel“ (höchstens 3 Quellen) bleibt so keine Quelle und kein offenes Ende, und „schwerer“ öffnet
+    nur Ziele ausserhalb der Kernidee (73 von 100: zu klein und kein Zuwachs). Bei „schwer“ ist es ebenso, dazu kommt
+    ein Füllteil.
+  - Für die Austausch-Tickets 24–26 braucht es also Bausteine, die ab „mittel“ Platz und offene Strahlen lassen,
+    oder einen Schritt „schwerer“, der auch an Strängen der Kernidee wachsen darf, ohne sie zu zerstören. Bis dahin
+    taugen für mittel und schwer vor allem Mischziel und Sammelstelle, dazu etwas Falle.

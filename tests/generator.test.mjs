@@ -5,9 +5,10 @@
 // - Jedes gelieferte Level hat genau eine Lösung, besteht die Beurteilung (hier neu beurteilt), hat den verlangten Grad
 //   und die verlangte Kernidee nötig; die mitgegebene Beurteilung ist genau diese. Es hat Leveldaten wie in LEVELS und
 //   eine Startstellung, die nicht gelöst ist.
+// - Je Kernidee (Ticket 19) ein Auftrag in „leicht“ über 50 Seeds und ein fester Seed, der ein Level mit ihr liefert.
 // - Keine wirkungslosen Elemente (Spec „Generator“): kein Filter, dessen Strahl schon seine Farbe hat, kein fester
-//   Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten Leveln zeigt, dass
-//   die Prüfung solche Elemente findet.
+//   Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten
+//   Leveln zeigt, dass die Prüfung solche Elemente findet.
 // - Der Generator kennt das Feld nur über die Feldform (Suche im Quelltext), läuft nur gedeckelt und weist Aufträge ab,
 //   die er nicht kennt.
 // Aufruf: sh tools/leise.sh node tests/generator.test.mjs   (nur über leise.sh: Der Generator prüft den Deckel)
@@ -16,7 +17,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
 import { L, solve, period, setRot, clicksTo, litCells, keyOf } from '../tools/solver.mjs';
-import { beurteile } from '../tools/beurteilung/index.mjs';
+import { beurteile, TEILE } from '../tools/beurteilung/index.mjs';
 import { feldformVon } from '../tools/beurteilung/feldform.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { ANTEIL } from '../tools/beurteilung/kernideen/lockvogel.mjs';
@@ -36,14 +37,26 @@ const MISCHZIEL = 'Mischziel aus zwei Quellen';
 const LEICHT_33_43 = [33, 43]; // Ziel-Schwierigkeit wie die zu ersetzenden leichten Level (Ticket 23)
 const LEICHT_20_30 = [20, 30]; // Ziel mitten im Grad: auch „über dem Ziel“ macht er leichter (Review Ticket 20)
 /**
- * Aufträge aller Grade mit festen Seeds 1 … seeds und so vielen gelieferten Leveln mindestens (Ticket 20). Ab „mittel“
- * sind es weniger Seeds, weil jeder mehr kostet (sehr schwer rund 1 CPU-s), und die Ausbeute ist kleiner; ohne
- * Kernidee liefert der Generator ab „mittel“ nur, wenn eine Kernidee nebenbei nötig wird (die Bausteine bringt Ticket
- * 19).
+ * FEST: je Kernidee ein fester Seed, der in „leicht“ ein Level liefert (Ticket 19). ANTEIL_LEVEL: welcher Anteil der 50
+ * Seeds in „leicht“ ein Level liefern muss; „ohne“ (Schlüssel null) und Mischziel wie seit Ticket 18 mindestens zwei
+ * Drittel, die übrigen Kernideen mindestens die Hälfte (gemessen: Falle und Farben abzählen rund 60–65 %, die übrigen
+ * rund 80–85 %).
+ */
+const FEST = {
+  'Mischziel aus zwei Quellen': 3, Abschalten: 1, 'Farben abzählen': 1, Sammelstelle: 2, Falle: 1, Lockvogel: 1,
+};
+const ANTEIL_LEVEL = { null: 2 / 3, 'Mischziel aus zwei Quellen': 2 / 3 };
+/**
+ * Aufträge mit festen Seeds 1 … seeds und so vielen gelieferten Leveln mindestens:
+ * - „leicht“ ohne Kernidee und mit jeder Kernidee über 50 Seeds (Ticket 19), mindestens ANTEIL_LEVEL davon;
+ * - „leicht“ mit zwei Ziel-Schwierigkeiten und die Grade ab „mittel“ ohne Kernidee und mit Mischziel (Ticket 20). Ab
+ *   „mittel“ sind es weniger Seeds, weil jeder mehr kostet (sehr schwer rund 1 CPU-s), und die Ausbeute ist kleiner;
+ *   ohne Kernidee liefert der Generator ab „mittel“ nur, wenn eine Kernidee nebenbei nötig wird.
  */
 const AUFTRAEGE = [
-  { grad: 'leicht', kernidee: null, seeds: 50, mindestens: 34 },
-  { grad: 'leicht', kernidee: MISCHZIEL, seeds: 50, mindestens: 34 },
+  ...[null, ...TEILE.kernideen].map(kernidee => ({
+    grad: 'leicht', kernidee, seeds: 50, mindestens: Math.ceil((ANTEIL_LEVEL[kernidee] ?? 1 / 2) * 50),
+  })),
   { grad: 'leicht', kernidee: null, schwierigkeit: LEICHT_33_43, seeds: 30, mindestens: 5 },
   { grad: 'leicht', kernidee: null, schwierigkeit: LEICHT_20_30, seeds: 30, mindestens: 5 },
   { grad: 'mittel', kernidee: null, seeds: 30, mindestens: 1 },
@@ -94,14 +107,14 @@ function filterOhneWirkung(level) {
 }
 
 /**
- * Feste Spiegel, die weder für die Lösung zählen noch als Lockvogel wirken, als Zellen. Für die Lösung zählt einer,
- * wenn ohne ihn ein Ziel in der Lösung anderes Licht bekommt oder das Level eine zweite Lösung hätte. Als Lockvogel
- * wirkt einer, der in der Lösung kein Licht bekommt, aber in mindestens ANTEIL der Strahlbilder der Suche ohne
- * Abschneiden (wie der Lockvogel der Beurteilung).
+ * Feste Spiegel (oder mit art die Blocker), die weder für die Lösung zählen noch als Lockvogel wirken, als Zellen. Für
+ * die Lösung zählt einer, wenn ohne ihn ein Ziel in der Lösung anderes Licht bekommt oder das Level eine zweite Lösung
+ * hätte. Als Lockvogel wirkt einer, der in der Lösung kein Licht bekommt, aber in mindestens ANTEIL der Strahlbilder
+ * der Suche ohne Abschneiden (wie der Lockvogel der Beurteilung).
  */
-function festeSpiegelOhneWirkung(level) {
+function festeOhneWirkung(level, art = e => e.type === 'mirror' && e.fixed) {
   const brett = inLoesung(level), imLicht = litCells(L.traceBeams(brett), brett);
-  return level.elements.filter(e => e.type === 'mirror' && e.fixed).filter((m) => {
+  return level.elements.filter(art).filter((m) => {
     const ohne = level.elements.filter(e => e !== m);
     if (!isDeepStrictEqual(zielLicht(level, ohne), zielLicht(level))) return false;
     const r = solve({ ...level, elements: ohne }, { unique: true, collect: 0 });
@@ -131,7 +144,7 @@ test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach ander
   }
 });
 
-test('Er liefert Level in allen Graden, ohne Kernidee und mit Mischziel (für „leicht“ für die meisten Seeds)', () => {
+test('Er liefert Level in allen Graden, ohne Kernidee und mit Kernidee („leicht“ mit jeder, für viele Seeds)', () => {
   for (const a of laeufe) {
     const n = a.ergebnisse.filter(r => r.level).length;
     assert.ok(n >= a.mindestens, `${benenne(a)}: nur ${n} von ${a.seeds}, verlangt ${a.mindestens}`);
@@ -198,6 +211,18 @@ test('In jedem gelieferten Level ist die verlangte Kernidee laut Beurteilung nö
   for (const { name, kernidee, neu } of mit) assert.ok(neu.kernideen.some(k => k.begriff === kernidee), name);
 });
 
+console.log('Je Kernidee ein Level mit festem Seed (Ticket 19)');
+for (const kernidee of TEILE.kernideen) {
+  const seed = FEST[kernidee];
+  test(`${kernidee}: Seed ${seed} liefert ein leichtes Level, in dem die Beurteilung sie nötig findet`, () => {
+    const g = beurteilt.find(b => b.grad === 'leicht' && !b.schwierigkeit && b.kernidee === kernidee && b.seed === seed);
+    assert.ok(g, `Seed ${seed} liefert kein Level`);
+    const fund = g.neu.kernideen.find(k => k.begriff === kernidee);
+    assert.ok(fund && fund.begruendung, `${g.name}: ${kernidee} nicht nötig`);
+    assert.equal(gradVon(g.neu.schwierigkeit.wert), 'leicht', g.name);
+  });
+}
+
 test('Die mitgegebene Beurteilung ist genau die des gelieferten Levels mit dem verlangten Grad', () => {
   for (const { name, beurteilung, neu } of beurteilt) assert.ok(isDeepStrictEqual(beurteilung, neu), name);
 });
@@ -224,7 +249,7 @@ test('Startstellung: nicht gelöst, höchstens ein Ziel leuchtet (bei einem kein
 });
 
 console.log('Keine wirkungslosen Elemente');
-test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat, und feste Spiegel ohne Wirkung', () => {
+test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat, und feste Teile ohne Wirkung', () => {
   const level = {
     name: 'Gegenprobe', elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
@@ -239,13 +264,15 @@ test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat,
       { type: 'source', x: 6, z: 5, dir: 4, color: 'blue' },
       { type: 'mirror', x: 5, z: 5, rot: 3, fixed: true }, // im Licht, lenkt es nur aus dem Feld: ohne Wirkung
       { type: 'mirror', x: 6, z: 6, rot: 1, fixed: true }, // abseits, bekommt nie Licht: kein Lockvogel
+      { type: 'blocker', x: 6, z: 2 }, // ebenso
     ],
     solution: { '4,3': 1, '2,0': 3 },
   };
   assert.ok(L.traceBeams(inLoesung(level)).solved, 'das handgebaute Level ist in seiner Lösung gelöst');
   assert.equal(solve(level, { unique: true }).count, 1, 'das handgebaute Level ist eindeutig');
   assert.deepEqual(filterOhneWirkung(level), ['2,3']);
-  assert.deepEqual(festeSpiegelOhneWirkung(level), ['5,5', '6,6']);
+  assert.deepEqual(festeOhneWirkung(level), ['5,5', '6,6']);
+  assert.deepEqual(festeOhneWirkung(level, e => e.type === 'blocker'), ['6,2']);
 });
 
 test('Kein geliefertes Level hat einen Filter, dessen Strahl schon die Filterfarbe hat', () => {
@@ -257,7 +284,15 @@ test('Kein geliefertes Level hat einen Filter, dessen Strahl schon die Filterfar
 test('Kein geliefertes Level hat einen festen Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt', () => {
   const mit = geliefert.filter(g => g.level.elements.some(e => e.type === 'mirror' && e.fixed));
   assert.ok(mit.length >= 3, `nur ${mit.length} Level mit festem Spiegel geprüft`);
-  for (const { name, level } of geliefert) assert.deepEqual(festeSpiegelOhneWirkung(level), [], name);
+  for (const { name, level } of geliefert) assert.deepEqual(festeOhneWirkung(level), [], name);
+});
+
+test('Ebenso keinen Blocker ohne Wirkung (der Lockvogel-Baustein setzt auch Blocker, Ticket 19)', () => {
+  const blocker = e => e.type === 'blocker';
+  const mit = geliefert.filter(g => g.level.elements.some(blocker));
+  assert.ok(mit.length >= 3, `nur ${mit.length} Level mit Blocker geprüft`);
+  assert.ok(mit.some(g => g.kernidee === 'Lockvogel'), 'kein Lockvogel-Level mit Blocker geprüft');
+  for (const { name, level } of mit) assert.deepEqual(festeOhneWirkung(level, blocker), [], name);
 });
 
 console.log('Nahtstellen');
@@ -274,8 +309,8 @@ test('Der Generator kennt das Feld nur über die Feldform: keine Koordinaten und
   }
 });
 
-test('Unbekannte Aufträge weist er ab: unbekannter Grad, Kernidee ohne Baustein, ohne Seed oder Feldform, Ziel '
-  + 'ausserhalb des Grads', () => {
+test('Unbekannte Aufträge weist er ab: unbekannter Grad, unbekannte Kernidee, ohne Seed oder Feldform, Ziel '
+  + 'ausserhalb des Grads; jeder Grad hat eine Vorgabe', () => {
   const auftrag = { grad: 'leicht', kernidee: null, seed: 1, feldform };
   for (const grad of ['leicht', 'mittel', 'schwer', 'sehr schwer']) assert.ok(VORGABEN[grad], grad);
   // Die Ziel-Schwierigkeit muss den Grad überschneiden („leicht“ bis unter 43, „sehr schwer“ ab 87)
@@ -285,7 +320,6 @@ test('Unbekannte Aufträge weist er ab: unbekannter Grad, Kernidee ohne Baustein
   assert.throws(() => generiere({ ...auftrag, grad: 'sehr schwer', schwierigkeit: [60, 86.9] }), /Ziel-Schwierigkeit/);
   assert.doesNotThrow(() => generiere({ ...auftrag, schwierigkeit: [42, 50] }));
   assert.throws(() => generiere({ ...auftrag, grad: 'mittelschwer' }), /unbekannter Grad/);
-  assert.throws(() => generiere({ ...auftrag, kernidee: 'Falle' }), /Ticket 19/);
   assert.throws(() => generiere({ ...auftrag, kernidee: 'Muster' }), /unbekannte Kernidee/);
   assert.throws(() => generiere({ ...auftrag, seed: 1.5 }), /Seed/);
   assert.throws(() => generiere({ ...auftrag, feldform: undefined }), /Feldform/);
