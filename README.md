@@ -44,8 +44,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Vorab-Durchgang, ist das ein roter Testfall. Danach laufen die Testdateien auf einem Thread (rund 11 s, vor allem
     Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
   - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
-    nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Reihenfolge ist die der Formel, die
-    Prüfliste stimmt; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee
+    nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
+    Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
+    die Prüfliste stimmt; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee
     höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee und zu tiefer Spielwert nur
     bei Leveln auf der Duldungsliste, die nur kürzer wird; eindeutige Namen, keiner aus der Liste entfernter Namen;
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
@@ -369,9 +370,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides
   nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar und
   im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–32, mittel 33–102,
-  schwer 103–137, sehr schwer 138–150). Bis Ticket 17 zeigt das Spiel nur „schwer“ und „sehr schwer“: Kopfzeile mit
-  Rauten (◆ bzw. ◆◆) und Text hinter dem Namen (auf dem Handy nur die Rauten), Rauten oben rechts auf der Kachel in
-  der Levelauswahl und im Seitentitel, wenn die ganze Seite denselben angezeigten Grad hat. Die Levelauswahl
+  schwer 103–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
+  bis sehr schwer ●●●● oben rechts auf der Kachel der Levelauswahl, mit Punkten und Text in der Kopfzeile (hinter dem
+  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, wenn alle Level der Seite
+  denselben Grad haben. Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
+  Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den Grad als Text (in
+  der Kopfzeile und im Namen der Kachel). Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl
   blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
   Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
   im Browser gespeichert (nach Levelname).

@@ -33,8 +33,6 @@
     --ink: #e8e6f0;
     --ink-dim: rgba(232, 230, 240, 0.58); /* ≥ 4.5:1 auf --bg */
     --ink-faint: rgba(232, 230, 240, 0.14);
-    --hard: #f2b56b;      /* Grad "schwer" */
-    --very-hard: #f2836f; /* Grad "sehr schwer" */
     --bg: #030308;
     --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
   }
@@ -84,16 +82,18 @@
   #hud.hidden { transition-duration: 0.3s; }
   body.levels-open #hud { opacity: 0; }
   #hud .title { font-size: 13px; font-weight: 300; }
-  /* Schwierigkeit schwerer Level: in der Kopfzeile hinter dem Namen, in der Levelauswahl oben rechts auf der Kachel */
-  .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; }
-  .tier[data-tier="schwer"] { color: var(--hard); }
-  .tier[data-tier="sehr schwer"] { color: var(--very-hard); }
+  /* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile hinter dem Namen, nur die Punkte oben
+     rechts auf der Kachel der Levelauswahl. Ohne eigene Farben, weil Rot, Grün und Blau Lichtfarben sind: Den Grad
+     trägt die Zahl der vollen Punkte, volle und leere unterscheiden sich in der Form. */
+  .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; color: var(--ink-dim); }
+  .tier .pips { display: inline-flex; gap: 3px; vertical-align: 1px; }
+  .tier .pips i { width: 5px; height: 5px; box-sizing: border-box; border: 1px solid currentColor; border-radius: 50%; }
+  .tier .pips i.on { background: currentColor; border-color: transparent; } /* Rand und Fläche nicht doppelt deckend */
   #hud .tier { margin-left: 1.2em; vertical-align: 1px; }
-  .tier .pips { letter-spacing: 0.15em; }
-  #hud .tier .pips { margin-right: 0.6em; }
-  @media (max-width: 520px), (max-height: 500px) { /* Handy: nur die Rauten, der Text bleibt für Screenreader */
-    #hud .tier .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-    #hud .tier .pips { margin-right: 0; }
+  #hud .tier .pips { margin-right: 0.8em; }
+  #hud .tier[hidden] { display: none; }
+  @media (max-width: 520px) { /* Handy hochkant: Grad in eigener Zeile unter dem Namen, lange Namen füllen die Zeile */
+    #hud .tier { display: block; margin: 6px 0 0; padding-left: 0.3em; }
   }
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
   #hud .goal.done { color: var(--ink); }
@@ -196,7 +196,7 @@
   }
   #levels .tile:hover { border-color: var(--ink-dim); background: rgba(255, 255, 255, 0.04); }
   #levels .tile.current { border-color: var(--ink); }
-  #levels .tile .tier { position: absolute; top: 5px; right: 6px; font-size: 8px; line-height: 1; }
+  #levels .tile .tier { position: absolute; top: 6px; right: 6px; display: flex; }
   #levels .tile .tier .label { display: none; }
   #levels .num { font-size: 15px; letter-spacing: 0.15em; }
   #levels .name { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px; }
@@ -205,6 +205,7 @@
   @media (max-width: 520px) {
     #levels .grid { grid-template-columns: repeat(5, 1fr); gap: 8px; } /* 2 Reihen, nur Ziffern */
     #levels .name { display: none; }
+    #levels .num { margin-top: 8px; } /* Abstand zu den Punkten des Grads oben rechts auf der schmalen Kachel */
   }
   @media (max-width: 640px) { /* Reihen zu 4 Seiten: 8 Reiter je Reihe wären für „141–150“ zu schmal */
     #levels .pages { grid-template-columns: repeat(4, 1fr); }
@@ -215,6 +216,7 @@
     #levels .page { padding: 4px 0; }
     #levels .tile { aspect-ratio: auto; height: 46px; }
     #levels .name { display: none; }
+    #levels .num { margin-top: 8px; } /* wie hochkant: dreistellige Zahlen stiessen sonst an die Punkte des Grads */
     #levels .grid { margin-bottom: 14px; }
     #levels .page-title { margin-bottom: 10px; }
   }
@@ -789,7 +791,7 @@ function tracePass(board, extraRays, emitting, from) {
  * Level-Definitionen. Format:
  *   { name, grad?, size?, tutorial?, hint?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
  *   grad:     Schwierigkeitsgrad jedes Levels nach dem Tutorial: 'leicht', 'mittel', 'schwer' oder 'sehr schwer'
- *             (Kopfzeile und Levelauswahl zeigen bis Ticket 17 nur „schwer“ und „sehr schwer“, GRAD_ANZEIGE)
+ *             (Kopfzeile, Kachel und Seitentitel zeigen ihn, GRAD_ANZEIGE)
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
  *   mirror:   rot = Winkel der Spiegelfläche (drehbar; rot und rot + 4 wirken gleich)
  *   prism:    rot = Richtung der Austrittsfläche = Richtung des Farbfächers (drehbar)
@@ -9508,20 +9510,33 @@ const MAIN_COUNT = LEVELS.length - TUTORIAL_COUNT;
 /** Nummer eines Levels: im Tutorial 1 … TUTORIAL_COUNT, danach 1 … MAIN_COUNT. */
 const levelNumber = (i) => (i < TUTORIAL_COUNT ? i + 1 : i - TUTORIAL_COUNT + 1);
 /**
- * Angezeigte Grade (Feld grad in LEVELS): Text und Rauten in Kopfzeile und Levelauswahl. Bis Ticket 17 zeigt das Spiel
- * nur „schwer“ und „sehr schwer“; leichte und mittlere Level bleiben ohne Anzeige.
+ * Anzeige der Grade (Feld grad in LEVELS): volle Punkte von GRAD_PUNKTE (●○○○ … ●●●●) auf der Kachel, Punkte und Text
+ * in der Kopfzeile, der Text im Seitentitel und für Screenreader. Das Tutorial hat keinen Grad und keine Anzeige.
  */
+const GRAD_PUNKTE = 4;
 const GRAD_ANZEIGE = {
-  'schwer': { label: 'Schwer', pips: '◆' },
-  'sehr schwer': { label: 'Sehr schwer', pips: '◆◆' },
+  'leicht': { label: 'Leicht', punkte: 1 },
+  'mittel': { label: 'Mittel', punkte: 2 },
+  'schwer': { label: 'Schwer', punkte: 3 },
+  'sehr schwer': { label: 'Sehr schwer', punkte: 4 },
 };
-/** Füllt ein .tier-Element für ein Level; ohne angezeigten Grad bleibt es leer und versteckt. */
+/** Füllt ein .tier-Element für ein Level mit Punkten und Text; ohne Grad (Tutorial) bleibt es leer und versteckt. */
 function fillTier(el, lvl) {
   const d = GRAD_ANZEIGE[lvl.grad];
   el.hidden = !d;
-  if (d) el.dataset.tier = lvl.grad; else delete el.dataset.tier;
-  el.innerHTML = d ? '<span class="pips" aria-hidden="true"></span><span class="label"></span>' : '';
-  if (d) { el.querySelector('.pips').textContent = d.pips; el.querySelector('.label').textContent = d.label; }
+  el.replaceChildren();
+  if (!d) return;
+  const pips = document.createElement('span'), label = document.createElement('span');
+  pips.className = 'pips';
+  pips.setAttribute('aria-hidden', 'true');
+  for (let k = 0; k < GRAD_PUNKTE; k++) {
+    const punkt = document.createElement('i');
+    if (k < d.punkte) punkt.className = 'on';
+    pips.appendChild(punkt);
+  }
+  label.className = 'label';
+  label.textContent = d.label;
+  el.append(pips, label);
 }
 /**
  * Seiten der Levelauswahl: das Tutorial, danach die Level in Zehnergruppen. Die Seiten dienen nur dem
@@ -9534,7 +9549,7 @@ const PAGES = (() => {
   for (let a = TUTORIAL_COUNT; a < LEVELS.length; a += PAGE_SIZE) {
     const indices = all.slice(a, a + PAGE_SIZE);
     const from = levelNumber(a), to = levelNumber(indices.at(-1));
-    // hat die ganze Seite denselben angezeigten Grad, steht er im Seitentitel
+    // hat die ganze Seite denselben Grad, steht er im Seitentitel
     const grad = LEVELS[a].grad;
     const tier = GRAD_ANZEIGE[grad] && indices.every(i => LEVELS[i].grad === grad) ? grad : undefined;
     const title = `Level ${from} – ${to}` + (tier ? ` · ${GRAD_ANZEIGE[tier].label}` : '');

@@ -1,7 +1,8 @@
 // Tests der Levelliste (Spec „Entscheide zu den Tests“, Nahtstelle 3; Ticket 15): die 150 Level im Spiel, ihre
 // Reihenfolge, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie ersetzen die Tests zu Markierung,
 // gehärteten Leveln, Härte-Abnahme und Auswahlliste. Die Regeln stehen in tools/levelliste.mjs, gemeinsam mit
-// tools/ordne-level.mjs, das Reihenfolge, Grade, Duldungsliste und Prüfliste schreibt.
+// tools/ordne-level.mjs, das Reihenfolge, Grade, Duldungsliste und Prüfliste schreibt. Dazu die Daten der Anzeige der
+// Grade in index.html (Punkte, Text und Seitentitel; Ticket 17).
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
@@ -43,6 +44,40 @@ test('Jedes Level nach dem Tutorial trägt einen der vier Grade im Feld grad, da
 test('Entlang der Reihenfolge sinkt der Grad nie', () => {
   const sinkt = MAIN.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(MAIN[i - 1].grad));
   assert.deepEqual(sinkt.map(l => `${MAIN.indexOf(l) + 1} ${l.name}`), []);
+});
+// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE und die Seiten der Levelauswahl, Ticket 17); wie Kachel, Kopfzeile
+// und Seitentitel aussehen, prüfen die Screenshot-Proben
+const anzeige = (levels, tutorialCount) => {
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
+  const code = ['levelNumber', 'GRAD_PUNKTE', 'GRAD_ANZEIGE', 'PAGE_SIZE'].map(konstante).join('\n') + '\n' +
+    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES };';
+  return new Function('LEVELS', 'TUTORIAL_COUNT', code)(levels, tutorialCount);
+};
+test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das Tutorial ohne Grad', () => {
+  const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
+  assert.deepEqual(Object.keys(GRAD_ANZEIGE), GRADE);
+  const punkte = (d) => '●'.repeat(d.punkte) + '○'.repeat(GRAD_PUNKTE - d.punkte);
+  assert.deepEqual(GRADE.map(g => `${punkte(GRAD_ANZEIGE[g])} ${GRAD_ANZEIGE[g].label}`),
+    ['●○○○ Leicht', '●●○○ Mittel', '●●●○ Schwer', '●●●● Sehr schwer']);
+  assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => GRAD_ANZEIGE[l.grad]).map(l => l.name), []);
+});
+test('Der Seitentitel nennt den Grad, wenn alle Level der Seite ihn haben, das Tutorial keinen', () => {
+  // von Hand: 2 Tutorial-Level, eine leichte Seite, eine gemischte und eine angefangene sehr schwere
+  const reihe = (grad, n) => Array.from({ length: n }, (_, k) => ({ name: `${grad} ${k}`, grad }));
+  const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true },
+    ...reihe('leicht', 15), ...reihe('mittel', 5), ...reihe('sehr schwer', 3)];
+  assert.deepEqual(anzeige(hand, 2).PAGES.map(p => p.title),
+    ['Tutorial · die Mechaniken', 'Level 1 – 10 · Leicht', 'Level 11 – 20', 'Level 21 – 23 · Sehr schwer']);
+  // im Spiel: Jeder Titel nennt genau den Grad, den alle Level der Seite haben, sonst keinen
+  const { GRAD_ANZEIGE, PAGES } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
+  const falsch = PAGES.filter((p) => {
+    const grade = [...new Set(p.indices.map(i => L.LEVELS[i].grad))];
+    const soll = grade.length === 1 && GRAD_ANZEIGE[grade[0]] ? ` · ${GRAD_ANZEIGE[grade[0]].label}` : '';
+    const genannt = Object.values(GRAD_ANZEIGE).map(d => ` · ${d.label}`).filter(t => p.title.endsWith(t));
+    return genannt.join() !== soll;
+  });
+  assert.deepEqual(falsch.map(p => p.title), []);
 });
 
 console.log('Reihenfolge');
