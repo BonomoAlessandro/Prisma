@@ -45,3 +45,25 @@ entweder eine eigene Datei nehmen oder das Zusammenführen für Gruppen mit eige
   - Die Vollsuchen in `finish` und `metrics` wiederholen in manchen Fällen die Lockvogel-Suche von `generateOne`
     (zusammen knapp 1 % der Knoten), die Lockvogel-Suche in `quality` wiederholt die Vollsuche (1,4 %). Alle drei
     brauchen eigene Rückrufe je Blatt. Besser ist eine Vollsuche, die alle Rückrufe auf einmal bedient.
+
+**Hinweis aus Ticket 18 (Generator):**
+- **Grad:** Ein Grad ist eine Vorgabe in `tools/generator/vorgaben.mjs` (Grösse, Arten, Ziele, Klicks, Reparaturen,
+  `schritte`); `maengel` prüft, dass sie ihre Untergrenzen erreichen kann. Heute gibt es nur „leicht“.
+- **Verfeinern:** `verfeinern.mjs` hat den Schritt „leichter“ (ein drehbares Element ausserhalb der Kernidee fällt
+  weg), „schwerer“ fehlt. `mangel` in `index.mjs` liefert die Richtung aus dem Grad der vollen Beurteilung; bei
+  Ausschluss, fehlender Kernidee oder zu tiefem Spielwert liefert es keine (dann kein Level). Nach jedem Schritt
+  beurteilt der Ablauf neu, zuerst die Vorprüfung, dann voll.
+- **Reparaturen:** `vorgaben.reparaturen` (heute 2).
+- **Nutzen:** Bei „leicht“ bringt „leichter“ 4–5 % mehr Level. Ein Schritt kostet eine volle Beurteilung; bei grossen
+  Leveln ist deren Suche ohne Abschneiden teuer.
+- **Ziel-Schwierigkeit:** Im Auftrag fehlt sie noch; der Generator zielt auf den ganzen Grad.
+- **Kernidee ab „mittel“:** Heute muss die verlangte Kernidee unter den nötigen sein. Für „dieselbe Haupt-Kernidee
+  höchstens zweimal je 10 Level“ könnte der Austausch verlangen, dass sie die Haupt-Kernidee ist.
+- **Messung:** `bench.mjs generator --generator neu --accept beurteilung`; `--compare` mit einer Messung des alten
+  Generators (Profile, für „härten“ die Gruppe `härten`, beide mit `--accept beurteilung`) vergleicht je Auftrag mit
+  demselben Grad über alle Gruppen und in der besten.
+- **Zusammenspiel (Review von Ticket 18):** Das Ergänzen setzt drehbare Elemente nur ans offene Ende eines Strahls, auf
+  Zellen ohne fremden Strahl; es entstehen unabhängige Stränge. Mit den Regeln ab „mittel“ beurteilt, hätten 57 %
+  der leichten Level ohne Kernidee und 53 % der mit Mischziel einen Füllteil (Seeds 101–600). Für „mittel“ und
+  schwerer braucht es ein Ergänzen oder einen Schritt „schwerer“, der Stränge verbindet (Kreuzungen, gemeinsame
+  Ziele, Kombinatoren); die Vorprüfung findet den Füllteil günstig, es kostet also vor allem Ausbeute.

@@ -15,7 +15,8 @@
 // - ctx = { level, feldform, grad, merke(schluessel, rechne) }. merke rechnet einmal je Beurteilung, was mehrere Regeln
 //   brauchen; Schlüssel ist die rechnende Funktion selbst (siehe loesungsstellung.mjs). Braucht eine Regel das Ergebnis
 //   einer anderen, etwa Zerfall die Mischziele, ruft sie deren Funktion mit ctx auf; eine Regel, deren Ergebnis andere
-//   brauchen, rechnet darum selbst über merke (wie mischziele.mjs).
+//   brauchen, rechnet darum selbst über merke (wie mischziele.mjs). Was merke festhält, kann eine weitere Beurteilung
+//   desselben Levels mit demselben Grad übernehmen (zwischenstand); es wird also nie verändert.
 import { feldformVon } from './feldform.mjs';
 import * as registriert from './regeln.mjs';
 
@@ -52,6 +53,11 @@ const offenBei = (regeln) => ORDER.filter(begriff => !regeln.some(r => nameOf(r)
  * grad: Schwierigkeitsgrad von aussen (leicht, mittel, schwer, sehr schwer), bis die Beurteilung ihn selbst bestimmt
  *   (Tickets 12 und 15); Regeln, die erst ab „mittel“ gelten, lesen ihn aus ctx.grad (null: nicht vorgegeben).
  * teuer: false lässt die teuren Regeln weg; sie stehen dann in offen. Für Tests und Vorprüfungen, die sie nicht brauchen.
+ * zwischenstand: eine Map, in der ctx.merke festhält, was die Regeln einmal je Beurteilung rechnen (Strahlbilder,
+ *   Suchen des Lösers, Spielermodell …). Bekommt eine zweite Beurteilung desselben Levels (dasselbe Objekt,
+ *   unverändert) mit demselben Grad dieselbe Map, rechnet sie davon nichts nach: So kostet eine Vorprüfung mit
+ *   teuer: false die volle Beurteilung danach nichts (Generator, Ticket 18). Für ein anderes Level, ein seither
+ *   verändertes (verglichen als JSON) oder einen anderen Grad wirft sie. Ohne Angabe beginnt jede Beurteilung leer.
  * Rückgabe:
  *   schwierigkeit: { wert, teilwerte } oder null
  *   spielwert:     { wert, teilwerte } oder null
@@ -63,10 +69,17 @@ const offenBei = (regeln) => ORDER.filter(begriff => !regeln.some(r => nameOf(r)
  *   offen:         Glossarbegriffe der Teile, die noch keine Regel berechnet. Ein offener Teil ist null bzw. hat keine
  *                  Funde; ein leeres ausschluesse heisst also nur für die übrigen Gründe „kein Ausschluss“.
  */
-export function beurteile(level, { grad = null, teuer = true } = {}) {
+export function beurteile(level, { grad = null, teuer = true, zwischenstand = null } = {}) {
   if (!level.solution) throw new Error(`Level "${level.name}": ohne Lösung (solution) lässt es sich nicht beurteilen`);
   if (grad !== null && !GRADE.includes(grad)) throw new Error(`Level "${level.name}": unbekannter Grad „${grad}“ (${GRADE.join(', ')})`);
-  const store = new Map();
+  // Unter dem Schlüssel beurteile steht, zu welcher Beurteilung der Zwischenstand gehört: Level, sein Inhalt und Grad
+  const store = zwischenstand ?? new Map(), gehoert = store.get(beurteile);
+  const inhalt = zwischenstand && JSON.stringify(level);
+  if (gehoert && (gehoert.level !== level || gehoert.inhalt !== inhalt || gehoert.grad !== grad)) {
+    throw new Error(`Level "${level.name}": Der Zwischenstand gehört zur Beurteilung eines anderen Levels oder Grads, `
+      + 'oder das Level hat sich seither verändert');
+  }
+  store.set(beurteile, { level, inhalt, grad });
   const ctx = {
     level, feldform: feldformVon(level), grad,
     merke(schluessel, rechne) {

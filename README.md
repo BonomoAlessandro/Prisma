@@ -51,6 +51,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     bei Leveln auf der Duldungsliste, die nur kürzer wird; eindeutige Namen, keiner aus der Liste entfernter Namen;
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
+  - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
+    prüft den Deckel; etwa 1 s): je 50 feste Seeds für „leicht“ ohne Kernidee und mit Mischziel aus zwei Quellen.
+    Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
+    besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
+    Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
+    seine Farbe hat, kein fester Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; eine Gegenprobe an
+    einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
+    keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab, und unbekannte Aufträge weist er ab.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
     und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
@@ -153,17 +161,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   für Skript und Test;
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
-  je CPU-Stunde je Profil mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
+  je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
   aller Level und die Zeit des Lösers über alle Level, dazu über die Level mit Blockern ohne diese (sie haben dann
   mehrere Lösungen). `--unique` misst den Löser im Modus unique: Auf den eindeutigen Leveln sucht er gleich weit, ohne
-  Blocker hält er bei der zweiten Lösung an. Generator und Abnahme sind austauschbar (`--generator`, `--accept`),
-  damit später der neue Generator je Schwierigkeitsgrad und die Beurteilung als Abnahme dazukommen. Die
-  Ausgangszahlen stehen in `tools/bench-baseline.json`. `--save` fügt einzeln gemessene Profile dort hinzu, wenn
-  Generator, Abnahme, Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn und meldet andere
-  angenommene Level (Fingerabdruck), eine andere Knotenzahl des Lösers und andere Strahlbilder. Deren Prüfsumme
-  erfasst Art, Farbe und Element der Ereignisse, Treffer, Mischungen, „gelöst“ und die auf 1e-6 gerundeten Endpunkte,
-  aber keine Normalen und Längen; das Verhalten sichert weiterhin der Golden-Test. Die CPU-Zeit hängt von der Zahl
-  der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
+  Blocker hält er bei der zweiten Lösung an. Generator und Abnahme sind austauschbar: `--generator alt` (Gruppen sind
+  die Profile) oder `neu` (Gruppen sind die Aufträge des neuen Generators wie `leicht` und `leicht-mischziel`),
+  `--accept alt` oder `beurteilung` (genau eine Lösung und die Beurteilung bestanden, mit dem Grad nach der
+  Schwierigkeit; die Messung zählt dann auch je Grad und je Grad und nötiger Kernidee und nennt die Quartile der
+  Schwierigkeit). Der neue Generator gibt seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein
+  zweites Mal. Die Ausgangszahlen stehen in `tools/bench-baseline.json`. `--save` fügt einzeln gemessene Gruppen dort
+  hinzu, wenn Generator, Abnahme, Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn je Gruppe, je
+  Grad und gesamt und meldet andere angenommene Level (Fingerabdruck), eine andere Knotenzahl des Lösers und andere
+  Strahlbilder. Über einen Generatorwechsel vergleicht es je Auftrag des neuen Generators mit den Leveln desselben
+  Grads und derselben nötigen Kernidee des alten, über alle Profile und im besten Profil. Die Prüfsumme der
+  Strahlbilder erfasst Art, Farbe und Element der Ereignisse, Treffer, Mischungen, „gelöst“ und die auf 1e-6 gerundeten
+  Endpunkte, aber keine Normalen und Längen; das Verhalten sichert weiterhin der Golden-Test. Die CPU-Zeit hängt von
+  der Zahl der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
   `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
@@ -183,12 +196,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und Begründung).
   `offen` nennt die Teile, die noch keine Regel berechnet. `grad` gibt den Schwierigkeitsgrad vor, bis die Beurteilung
   ihn selbst bestimmt (Tickets 12 und 15). `teuer: false` lässt die Regeln weg, die lange rechnen; sie stehen dann in
-  `offen`.
+  `offen`. `zwischenstand` (eine Map) hält fest, was die Regeln einmal je Beurteilung rechnen; eine zweite Beurteilung
+  desselben Levels mit demselben Grad und derselben Map rechnet es nicht nach. So kostet eine Vorprüfung mit
+  `teuer: false` die volle Beurteilung danach nichts (Generator, Ticket 18). Für ein anderes oder inzwischen
+  verändertes Level oder einen anderen Grad wirft sie.
   - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
     was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
-    Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Nur sie kennt Koordinaten und die acht
-    Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Auf main gibt es nur die flache Feldform, eine
-    weitere (Würfel) kommt in `feldformVon` dazu.
+    Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Für den Generator (Ticket 18) liefert sie die
+    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine). Nur
+    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Die Nachbarn
+    stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
+    (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
+    zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von
@@ -300,6 +319,41 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `BEURTEILUNG_THREADS` übersteuert, 1 heisst ohne Worker. Jeder Thread holt sich das nächste Level, sobald er frei
     ist. Level und Beurteilungen sind reine Daten und kommen per structured clone unverändert über die Thread-Grenze.
     Genutzt vom Test der Beurteilung und von den Messskripten `eiche-spielwert.mjs` und `eiche-schwierigkeit.mjs`.
+- **Generator** (`tools/generator/`, nur für die Entwicklung; ADR 0004, Spec „Generator“ und „Effizienz“; Ticket 18):
+  ein Einstieg, `generiere({ grad, kernidee, seed, feldform })` aus `index.mjs`. Ein Auftrag ergibt `{ level,
+  beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer Beurteilung,
+  oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Heute kennt er „leicht“, ohne Kernidee und mit
+  der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft.
+  - **Ablauf** (für alle Grade gleich): Der Baustein der Kernidee (`bausteine/`, je Kernidee einer) baut sie gezielt
+    in ein leeres Feld (`bau.mjs`); das Ergänzen setzt Quellen, drehbare Elemente am Ende der Strahlen, Filter, feste
+    Spiegel und Ziele an die Strahlenden bis zur Grösse, die die Vorgabe des Grads würfelt (`vorgaben.mjs`, ersetzt die
+    Profile); das Festigen (`schritte.mjs`) färbt die Ziele, nimmt Elemente ohne Licht weg, stellt die Eindeutigkeit mit
+    höchstens zwei Reparaturen her (Blocker oder fester Spiegel; die Suche im Modus unique) und nimmt wirkungslose
+    Elemente weg. Dann kommt eine Startstellung mit genug Klicks (sonst eine neue, statt zu verwerfen). Zuletzt die
+    Beurteilung, zuerst günstig ohne die teuren Regeln, dann voll, über denselben Zwischenstand. Stimmt der Grad nicht,
+    macht ein Schritt des Verfeinerns (`verfeinern.mjs`) das Level leichter, höchstens zweimal bei „leicht“, und es wird
+    neu beurteilt.
+  - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
+    kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
+    `grad.mjs` und die verlangte Kernidee nötig.
+  - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
+    Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
+    hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
+    anderes Licht, oder es gäbe eine zweite Lösung). Lockvögel setzt erst ihr Baustein (Ticket 19).
+  - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
+    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
+    Quelltext nach Koordinaten und Richtungen.
+  - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
+    liegt. Aufruf:
+    `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
+    `leicht`, `leicht-mischziel`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
+    schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
+    `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
+    --generator neu --accept beurteilung`.
+  - **Für Ticket 19 und 20:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in
+    `bausteine/index.mjs` (Glossarbegriff, was er mindestens setzt, `baue`); ein weiterer Grad ist eine Vorgabe in
+    `vorgaben.mjs` und, wo nötig, ein Schritt des Verfeinerns in `verfeinern.mjs` („schwerer“). Ob eine Kernidee nötig
+    ist, entscheidet immer die Beurteilung.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf. Ablauf 1 rechnet mit den Plätzen der heutigen Reihenfolge vor Ticket 15

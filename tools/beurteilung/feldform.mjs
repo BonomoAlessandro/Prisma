@@ -1,7 +1,8 @@
 // Feldform (Spec „Feldform“): Beurteilung, Spielermodell und Generator kennen das Feld nur über sie. Sie liefert die
 // Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements, seine möglichen Stellungen und was es in einer
-// Stellung mit einem Strahl macht, dazu die Drehungen eines Levels. Nur hier stehen Koordinaten, die acht Richtungen
-// der flachen Level und die Wirkung der Elemente in diesen Richtungen; sie kommt aus der Strahlregel (ADR 0003).
+// Stellung mit einem Strahl macht, dazu die Drehungen eines Levels und für den Generator die Leveldaten eines Elements
+// in einer Zelle (element) und des Felds (rahmen). Nur hier stehen Koordinaten, die acht Richtungen der flachen Level
+// und die Wirkung der Elemente in diesen Richtungen; sie kommt aus der Strahlregel (ADR 0003).
 //
 // - Zelle: ein Schlüssel wie in der Lösung eines Levels („x,z“ im flachen Feld). Ausserhalb der Feldform wird er nie
 //   zerlegt, nur verglichen und in Begründungen genannt.
@@ -17,10 +18,18 @@
 // eigene Drehungen, und kommt in feldformVon dazu.
 import { L, period, getRot } from '../solver.mjs';
 
+/**
+ * Flache Feldformen nach Grösse, einmal angelegt: Ihre Nachbartabelle kostet etwas. Alle Beurteilungen im Prozess
+ * teilen sich eine Feldform je Grösse; darum ist sie eingefroren (flacheFeldform), kein Aufrufer kann sie verändern.
+ */
+const FLACH = new Map();
+
 /** Die Feldform eines Levels. */
 export function feldformVon(level) {
   if (level.dim !== undefined && level.dim !== 2) throw new Error(`Level "${level.name}": keine Feldform für dim ${level.dim}`);
-  return flacheFeldform(level.size || 7);
+  const groesse = level.size || 7;
+  if (!FLACH.has(groesse)) FLACH.set(groesse, flacheFeldform(groesse));
+  return FLACH.get(groesse);
 }
 
 /**
@@ -36,10 +45,17 @@ export function flacheFeldform(groesse) {
   const richtungen = L.DIRS.map((_, d) => d);
   /** Gegenrichtung: zurück auf derselben Linie. */
   const gegen = (richtung) => (richtung + richtungen.length / 2) % richtungen.length;
-  /** Nachbarzelle in einer Richtung, null am Rand. */
-  const nachbar = (zelle, richtung) => {
+  const schritt = (zelle, richtung) => {
     const [x, z] = zelle.split(',').map(Number), [dx, dz] = L.DIRS[richtung];
     return inside(x + dx, z + dz) ? key(x + dx, z + dz) : null;
+  };
+  // Die Nachbarn je Zelle und Richtung einmal je Feldform: Das Spielermodell fragt sie in jeder Beurteilung
+  // zehntausendfach ab (Ticket 18; vorher war das 40 % der Zeit des Generators). Dieselben Ergebnisse wie schritt.
+  const tabelle = new Map(zellen.map(z => [z, richtungen.map(d => schritt(z, d))]));
+  /** Nachbarzelle in einer Richtung, null am Rand. */
+  const nachbar = (zelle, richtung) => {
+    const reihe = tabelle.get(zelle);
+    return reihe && richtung in reihe ? reihe[richtung] : schritt(zelle, richtung);
   };
   /** Stellung, in der ein Element steht: Drehung eines Spiegels oder Prismas, Ausgang eines Kombinators oder Quelle. */
   const stellungVon = (el) => (el.type === 'source' ? el.dir : getRot(el));
@@ -62,12 +78,27 @@ export function flacheFeldform(groesse) {
     }
     return { ...level, elements, solution };
   };
-  return {
+  // Eingefroren samt Zellen, Richtungen und Rahmen: feldformVon gibt dieselbe Feldform an alle Aufrufer
+  return Object.freeze({
     art: 'flach',
-    zellen,
-    richtungen,
+    zellen: Object.freeze(zellen),
+    richtungen: Object.freeze(richtungen),
+    /**
+     * Angaben der Leveldaten, die diese Feldform festlegen: feldformVon liest aus ihnen wieder dieselbe Feldform. Für
+     * den Generator (Ticket 18), der Leveldaten zu einer Feldform schreibt; im Feld 7 × 7 keine, wie in LEVELS.
+     */
+    rahmen: Object.freeze(groesse === 7 ? {} : { size: groesse }),
     /** Zelle eines Elements (aus den Leveldaten oder vom Brett der Strahlregel). */
     zelle: (el) => key(el.x, el.z),
+    /**
+     * Leveldaten eines Elements in zelle: angaben (type, color, fixed …) mit dem Platz der Zelle; zelle(element) ist
+     * wieder zelle. Die Stellung setzt der Aufrufer (setRot), eine Quelle entsteht mit quelleStatt. Für den Generator
+     * (Ticket 18), der Elemente nur über Zellen setzt.
+     */
+    element: (zelle, { type, ...angaben }) => {
+      const [x, z] = zelle.split(',').map(Number);
+      return { type, x, z, ...angaben };
+    },
     /** Zelle eines Ereignisses im Strahlbild (oder eines Punkts mit seinen Koordinaten); null hinter der Feldkante. */
     zelleBei: (p) => {
       const x = Math.round(p.x), z = Math.round(p.z);
@@ -144,5 +175,5 @@ export function flacheFeldform(groesse) {
       while (out.length < 4) out.push(vierteldrehung(out.at(-1)));
       return out;
     },
-  };
+  });
 }

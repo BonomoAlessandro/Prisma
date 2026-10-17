@@ -34,3 +34,14 @@ Die alten Werkzeuge mit eigenen Formeln verschwinden.
 - Der Golden-Test vergleicht seit Ticket 15 nach Namen. Welche Level Löser und alte Wertung bekommen, steht in
   `golden.json` selbst (die Einträge mit `score`). Beim Neuschreiben ohne alte Wertung braucht es dafür eine neue
   Regel.
+
+**Hinweis aus Ticket 18 (Generator):**
+- Der neue Generator (`tools/generator/`, `tools/generiere.mjs`) braucht keine alten Werkzeuge: den Zufall hat er in
+  `generator/zufall.mjs`, die Regeln der Levelliste aus `levelliste.mjs`.
+- In `tools/bench.mjs` entfallen mit dem alten Generator `GENERATORS.alt` samt „härten“ und `ACCEPTANCES.alt`; als
+  Standard bieten sich dann `--generator neu --accept beurteilung` an.
+- `tests/logic.test.mjs` prüft die fremde Filterfarbe mit `oddFilters` aus `quality.mjs`. Der Generator hat
+  dieselbe Regel in `wirkungslos` (`schritte.mjs`); für die Level im Spiel braucht es die Prüfung weiter, etwa in den
+  Tests der Levelliste.
+- `tools/show.mjs` zeigt die alte Wertung (`metrics`); für die JSON-Zeilen von `generiere.mjs` passt die
+  Beurteilung besser.
