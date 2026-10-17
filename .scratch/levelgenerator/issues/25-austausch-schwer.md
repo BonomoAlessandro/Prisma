@@ -40,3 +40,8 @@ Kernidee oder Spielwert (Sternwarte, Kathedrale, Pendel, Sonnenwende, Lichthof, 
 Level ohne Ausschlussgrund wird der Spielwert in „mittel“ angesehen (Entscheid des Nutzers, Hinweis in Ticket 24); die
 Übereinstimmung mit dem Gefühl der KI-Tester ist auch in „schwer“ schwach (Rangkorrelation 0,14 bei 15 Leveln ohne
 Ausschlussgrund).
+
+**Hinweis aus Ticket 20 (Generator):** `schwer-mischziel` liefert 693 von 2000 Seeds (Schwierigkeit 61,6 / 64,9 /
+70,0; rund 0,2 CPU-s je Seed), `schwer` ohne Kernidee 352 (0,5 CPU-s je Seed). Die neuen Level liegen eher im
+unteren Teil von „schwer“. Für Ersatz weit oben (die Level im Spiel reichen bis 87) hilft eine Ziel-Schwierigkeit
+`schwierigkeit: [von, bis]`; sie kostet Ausbeute. Haupt-Kernidee meist das Mischziel, siehe Ticket 24.

@@ -45,3 +45,13 @@ Die alten Werkzeuge mit eigenen Formeln verschwinden.
   Tests der Levelliste.
 - `tools/show.mjs` zeigt die alte Wertung (`metrics`); für die JSON-Zeilen von `generiere.mjs` passt die
   Beurteilung besser.
+
+**Hinweis aus Ticket 20 (Verfeinern):**
+- Die Ausgangszahl für „härten“ ist gemessen, mit der Beurteilung als Abnahme. Gemessen auf dem i7-9750H mit
+  `--jobs 4` und Seeds 1–160: 54 Level in 20 091 CPU-s, schwer 6,3 und sehr schwer 3,4 je CPU-Stunde. Der neue
+  Generator liefert 1 353 bzw. 160 (Zahlen in Ticket 20). `harden.mjs` wird für den Vergleich also nicht mehr
+  gebraucht.
+- Der neue Generator kennt alle vier Grade (`VORGABEN` in `generator/vorgaben.mjs`) und braucht vom alten nichts.
+  `bench.mjs` vergleicht über `--compare` weiter mit gespeicherten Messungen des alten. Die Dateien aus Ticket 20
+  liegen nicht im Repo.
+- Der Deckel ist seit `c173f0b` 65 % (`leise.sh`, Generator, `bench.mjs`, Screenshots). Die Spec nennt noch 50 %.

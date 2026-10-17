@@ -37,3 +37,10 @@ Level mit Ausschlussgrund (Scheinmischung) auf der Duldungsliste, keines nur weg
 gelten in „leicht“ nicht). 17 Weichen und 32 Streulicht sind nach „mittel“ gewechselt, 41 Schliff nach „leicht“. Über
 die 50 Level ohne Ausschlussgrund in den übrigen Graden entscheidet der Nutzer erst, nachdem der Spielwert in
 „mittel“ angesehen ist (Ticket 16, Hinweis in Ticket 24); davon hängt die Endbedingung „Liste leer“ ab.
+
+**Hinweis aus Ticket 20 (Generator):**
+- Der Auftrag nimmt eine Ziel-Schwierigkeit an: `generiere({ grad: 'leicht', kernidee, seed, feldform,
+  schwierigkeit: [33, 43] })`. Im Test liefert das ohne Kernidee 26 von 30 Seeds, alle in 33–43.
+- „leicht“ ist gegenüber Ticket 18 bitgleich.
+- Die Kommandozeile `tools/generiere.mjs` kennt die Ziel-Schwierigkeit noch nicht. Für den Austausch ein kleines
+  Skript oder eine Option `--schwierigkeit`.
