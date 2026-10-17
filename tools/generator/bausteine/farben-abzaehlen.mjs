@@ -85,11 +85,14 @@ export default {
       if (mitPlatz.length < 3) continue;
       const ziele = mitPlatz.slice(0, 3)
         .map(i => bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'target', color: farbe }), { kern: true }));
-      // Die dritte Quelle bringt einem Ziel von aussen Licht, über einen Spiegel
+      // Die dritte Quelle bringt einem Ziel von aussen Licht, über einen Spiegel. Sie und ihr Spiegel meiden auch die
+      // Ausgänge: Auf einem Ausgang zwischen Ecke und Ziel verstellten sie dem Ring dieses Ziel, und der Verlust einer
+      // Ringquelle zeigte sich doch an einem Ziel (Review Ticket 19: sonst 14 % „Kernidee nicht nötig“).
       const fuer = R.pick(ziele), zelle = feldform.zelle(fuer);
+      const meiden = new Set([...ringzellen, ...ausgaenge.flat()]);
       let dritte = null;
       for (const d of R.shuffle([...feldform.richtungen])) {
-        dritte = zufuehren(bau, zelle, d, { spiegel: 1, farbe, belegt: ringzellen });
+        dritte = zufuehren(bau, zelle, d, { spiegel: 1, farbe, belegt: meiden });
         if (dritte) break;
       }
       if (!dritte) continue;

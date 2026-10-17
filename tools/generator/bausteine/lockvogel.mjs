@@ -14,7 +14,7 @@
 // Zielen; das Ergänzen setzt darum kaum etwas dazu. Ob der Lockvogel nötig ist, entscheidet die volle Beurteilung
 // (teuer, wegen der Suche ohne Abschneiden).
 import { setRot } from '../../solver.mjs';
-import { FARBEN, strahl, auswege, einfall, bildMit, trifft, wegzellen, maske } from './wege.mjs';
+import { FARBEN, strahl, auswege, einfall, bildMit, trifft, wegzellen, maske, lichtzellen } from './wege.mjs';
 
 /** So oft versucht der Baustein höchstens, den Ringtausch einzubauen. */
 const VERSUCHE = 80;
@@ -127,7 +127,8 @@ function lockvogel(bau, spiegel, fund, tausch, farbe) {
  * Rückgabe: die Quelle oder null.
  */
 function quelleIrgendwohin(bau, farbe) {
-  const plaetze = bau.quellplaetze().filter(p => !bau.bei(p.zelle) && !bau.durchgaenge(bau.bild()).has(p.zelle)
+  const licht = lichtzellen(bau); // einmal, nicht je Quellplatz (Review Ticket 19)
+  const plaetze = bau.quellplaetze().filter(p => !bau.bei(p.zelle) && !licht.has(p.zelle)
     && strahl(bau, p.zelle, p.richtung).length >= 3);
   if (!plaetze.length) return null;
   const p = bau.R.pick(plaetze), q = bau.quelle(p.zelle, p.richtung, farbe);

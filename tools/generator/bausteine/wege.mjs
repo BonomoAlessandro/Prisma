@@ -7,9 +7,23 @@ import { L, setRot } from '../../solver.mjs';
 /** Farben der Quellen einer Kernidee: die sechs farbigen wie beim Ergänzen und Weiss. */
 export const FARBEN = ['red', 'green', 'blue', 'yellow', 'cyan', 'magenta', 'white'];
 
+/** Durchgänge je Strahlbild der Lösungsstellung (bau.durchgaenge), einmal gerechnet. */
+const DURCHGAENGE = new WeakMap();
+
+/**
+ * Zellen, durch die in der Lösungsstellung Licht läuft (Map Zelle → Zahl der Abschnitte, wie bau.durchgaenge). Einmal
+ * je Strahlbild: bau.bild() bleibt dasselbe Objekt bis zur nächsten Änderung (geaendert), und durchgaenge hängt nur von
+ * ihm ab. Vorher rechnete jeder Aufruf von frei sie neu (Review Ticket 19: 17 % der Zeit bei Falle, 24 % bei Lockvogel).
+ */
+export function lichtzellen(bau) {
+  const bild = bau.bild();
+  if (!DURCHGAENGE.has(bild)) DURCHGAENGE.set(bild, bau.durchgaenge(bild));
+  return DURCHGAENGE.get(bild);
+}
+
 /** Kann ein neues Element in zelle stehen, ohne fremdes Licht abzulenken? Frei, nicht reserviert, ohne Strahl. */
 export function frei(bau, zelle, belegt = new Set()) {
-  return !bau.bei(zelle) && !bau.reserviert.has(zelle) && !belegt.has(zelle) && !bau.durchgaenge(bau.bild()).has(zelle);
+  return !bau.bei(zelle) && !bau.reserviert.has(zelle) && !belegt.has(zelle) && !lichtzellen(bau).has(zelle);
 }
 
 /**

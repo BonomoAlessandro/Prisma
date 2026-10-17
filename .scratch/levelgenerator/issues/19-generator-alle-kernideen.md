@@ -62,7 +62,8 @@ die Beurteilung; die Bausteine prüfen mit der Strahlregel nur, dass ihr Aufbau 
   drei Ziele an Ausgängen, eines bekommt sein Licht in der Lösung von einer dritten Quelle über einen Spiegel von aussen.
   So ist die Grundfarbe knapp (3 Quellen, 3 Ziele), und ohne die dritte Quelle zeigt sich ihr Verlust an keinem Ziel.
   Der Baustein nimmt nur Ringe, die schon ohne Reparatur eindeutig sind (sonst machte das Festigen einen Eckspiegel
-  fest und nähme einer Quelle den Weg durch den Ring: 32 % „Kernidee wirkungslos“).
+  fest und nähme einer Quelle den Weg durch den Ring: 32 % „Kernidee wirkungslos“). Die dritte Quelle und ihr Spiegel
+  meiden die Ausgänge des Rings (seit dem Review, siehe dort).
 - **Sammelstelle** (`sammelstelle.mjs`): ein Prisma in einer Stellung, die Licht aus zwei Richtungen bricht, ohne dass
   beide Zuläufe dieselbe Grundfarbe in dieselbe Richtung schicken (sonst ersetzt der eine den anderen); je Zulauf eine
   Quelle mit null oder einem Spiegel und ein eigenes Ziel auf einem seiner gebrochenen Strahlen.
@@ -86,35 +87,51 @@ Test „kein fester Spiegel ohne Wirkung“ weiter. **Bitgleich:** Für `leicht`
 Generator für die Seeds 1–2000 dieselben Level und Gründe wie auf `974c4f0` (Level und Schwierigkeit als JSON
 verglichen, 4000 von 4000 gleich).
 
-**Ausbeute je Kernidee** (17.10.2026, i7-9750H, Node 22.12.0, `LEISE_CPU=50`, `--jobs 4`, Seeds 1–5000 je Gruppe,
-Abnahme `beurteilung`; gezählt sind Level, in denen die verlangte Kernidee nötig ist):
+**Ausbeute je Kernidee** (nachgemessen nach den Funden M1–M3 des Reviews, 17.10.2026, 23:22–23:27, i7-9750H,
+Node 22.12.0, `LEISE_CPU=50`, `--jobs 4`, Seeds 1–5000 je Gruppe, Abnahme `beurteilung`; gezählt sind Level, in denen
+die verlangte Kernidee nötig ist). Neu und alt liefen abwechselnd je zweimal in einem Lauf von `leise.sh` (neu, alt,
+neu, alt); je Zelle stehen beide Läufe, der Faktor ist die Spanne von kleinstem neu / grösstem alt bis grösstem neu /
+kleinstem alt:
 
-| Auftrag | Level aus 5000 Seeds | CPU-s | Level je CPU-Stunde | alt, bestes Profil | alt, Stufe 1–3 | Schwierigkeit Q1 / Median / Q3 |
+| Auftrag | Level aus 5000 Seeds | CPU-s | Level je CPU-Stunde | alt, bestes Profil | Faktor | Schwierigkeit Q1 / Median / Q3 |
 |---|---:|---:|---:|---:|---:|---|
-| `leicht` (ohne) | 4412 (88 %) | 22,4 | 709 071 | 335 571 (1-farbe) | 80 383 | 23,5 / 28,7 / 34,6 |
-| `leicht-mischziel` | 3876 (78 %) | 18,8 | 742 213 | 5 455 (2-bunt) | 605 | 28,4 / 31,2 / 35,4 |
-| `leicht-abschalten` | 4320 (86 %) | 21,4 | 726 729 | 13 846 (2-spiegel) | 978 | 22,3 / 28,5 / 33,8 |
-| `leicht-abzaehlen` | 3475 (70 %) | 51,2 | 244 336 | 379 (3-bunt) | 140 | 28,5 / 28,5 / 29,1 |
-| `leicht-sammelstelle` | 4033 (81 %) | 29,7 | 488 848 | 1 125 (3-filter) | 140 | 27,8 / 32,8 / 37,2 |
-| `leicht-falle` | 3164 (63 %) | 80,8 | 140 970 | 1 895 (2-prisma) | 326 | 26,1 / 27,0 / 34,0 |
-| `leicht-lockvogel` | 3898 (78 %) | 155,3 | 90 359 | 1 895 (2-prisma) | 233 | 18,8 / 21,0 / 23,2 |
+| `leicht` (ohne) | 4412 (88 %) | 20,3 / 19,6 | 782 424 / 810 367 | 461 250 (1-spiegel) / 408 522 (1-farbe) | × 1,7–2,0 | 23,5 / 28,7 / 34,6 |
+| `leicht-mischziel` | 3876 (78 %) | 14,7 / 14,9 | 949 224 / 936 483 | 6 923 / 5 806 (2-bunt) | × 135–163 | 28,4 / 31,2 / 35,4 |
+| `leicht-abschalten` | 4320 (86 %) | 17,3 / 16,6 | 898 960 / 936 867 | 18 000 / 18 000 (2-spiegel) | × 50–52 | 22,3 / 28,5 / 33,8 |
+| `leicht-abzaehlen` | 3977 (80 %) | 35,5 / 35,3 | 403 301 / 405 586 | 468 / 468 (3-bunt) | × 862–867 | 28,5 / 28,5 / 28,5 |
+| `leicht-sammelstelle` | 4033 (81 %) | 19,6 / 19,9 | 740 755 / 729 588 | 1 241 / 1 286 (3-filter) | × 567–597 | 27,8 / 32,8 / 37,2 |
+| `leicht-falle` | 3164 (63 %) | 47,5 / 46,4 | 239 798 / 245 483 | 2 769 / 2 571 (2-prisma) | × 87–95 | 26,1 / 27,0 / 34,0 |
+| `leicht-lockvogel` | 3898 (78 %) | 88,4 / 87,7 | 158 742 / 160 009 | 2 769 / 2 571 (2-prisma) | × 57–62 | 18,8 / 21,0 / 23,2 |
 
-- Der alte Generator lief in derselben Sitzung mit den 16 Profilen der Stufen 1–3, je 5000 Seeds (1741 Level, 77 CPU-s);
-  „alt, Stufe 1–3“ sind seine leichten Level mit dieser Kernidee über alle 16 Profile. Seine Zahlen je Kernidee beruhen
-  auf wenigen Leveln (je Profil 1–12), sind also grob. Faktor neu / alt gegen das beste Profil: ohne Kernidee × 2,1,
-  Mischziel × 136, Abschalten × 52, Farben abzählen × 645, Sammelstelle × 435, Falle × 74, Lockvogel × 48.
-- Ohne Kernidee kommen die übrigen Kernideen selten von selbst vor (je CPU-Stunde: Abschalten 14 786, Mischziel 13 339,
-  Falle 1 446, Sammelstelle 1 286, Lockvogel 482, Farben abzählen 161).
-- Teuer sind Lockvogel (31 ms je Seed: bis 80 Versuche zu je 20 Verteilungen der Spiegel, bis der Ringtausch passt) und
-  Falle (16 ms: bis 80 Versuche). Je angenommenes Level sind es 40 bzw. 26 ms, sonst 5–15 ms.
+- Der alte Generator lief mit den 16 Profilen der Stufen 1–3, je 5000 Seeds: 1741 Level in beiden Läufen, 61,7 und
+  64,6 CPU-s. Über alle 16 Profile kam er auf 100 707 / 96 186 leichte Level je CPU-Stunde, mit Kernidee nötig auf
+  Abschalten 1225 / 1170, Mischziel 759 / 724, Falle 408 / 390, Lockvogel 292 / 279, Farben abzählen und Sammelstelle
+  je 175 / 167. Seine Zahlen je Kernidee beruhen auf wenigen Leveln (je Profil 1–12), sind also grob; die Abstände sind
+  aber so gross, dass das nichts ändert.
+- **Ohne Kernidee** ist der Vorsprung klein und hängt an der Sitzung: hier × 1,7–2,0, in den beiden Läufen des Reviews
+  × 0,63 und × 1,22, in der ersten Messung dieses Tickets × 2,1. Die kleinen Profile rechnen je Lauf nur 1–3 CPU-s, und
+  `process.cpuUsage` zählt unter Windows in Schritten von 15,6 ms; je Profil schwankt der alte Generator darum bis
+  × 1,6 (1-spiegel 1,6 gegen 2,6 CPU-s für dieselben 205 Level). Dass der neue Generator ohne Kernidee schneller ist als
+  das beste alte Profil, ist auf diesem Rechner also nicht sicher belegt; gleich schnell bis doppelt so schnell.
+- **Warum zwei Läufe statt 20 000 Seeds:** Beide Läufe nehmen dieselben Level an (gleiche Zahlen je Profil und
+  Auftrag); was schwankt, ist die CPU-Zeit, nicht die Stichprobe. Mehr Seeds verkleinern diese Schwankung kaum, sie
+  hängt an Turbo, Wärme und der Last der parallel arbeitenden Agenten. Abwechselnd in einem Lauf von `leise.sh` stehen
+  beide Generatoren unter denselben Bedingungen, und die Spanne zeigt die Unsicherheit direkt.
+- Ohne Kernidee kommen die übrigen Kernideen selten von selbst vor (je CPU-Stunde, Lauf 1: Abschalten 16 315,
+  Mischziel 14 719, Falle 1 596, Sammelstelle 1 419, Lockvogel 532, Farben abzählen 177).
+- Am teuersten sind Lockvogel (17,6 ms je Seed, 22,6 ms je Level: bis 80 Versuche zu je 20 Verteilungen der Spiegel,
+  bis der Ringtausch passt) und Falle (9,4 bzw. 14,9 ms: bis 80 Versuche), sonst 4–9 ms je Level.
 - Gründe ohne Level (Proben mit je 500–1000 Seeds): Abschalten vor allem „Kernidee wirkungslos“ (rund 9 %: Quelle B
   kann über den Spiegel von A auch das zweite Ziel von A beliefern, das Festigen macht den Spiegel von A fest);
-  Farben abzählen „nicht eingebaut“ (18 %) und „Kernidee nicht nötig“ (14 %); Sammelstelle „Kernidee wirkungslos“
-  (8 %); Falle „nicht eingebaut“ (17 %), dazu „nicht eindeutig“, „nicht nötig“ und Probieren (je 3–5 %); Lockvogel
-  „nicht eingebaut“ (20 %).
-- Aufruf: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator --generator neu --accept beurteilung --seeds 5000
-  --jobs 4 --save neu.json`, der alte mit den Profilen 1-spiegel … 3-bunt als Gruppen und `--generator alt`.
-  `tools/bench-baseline.json` bleibt unverändert.
+  Farben abzählen nur noch „nicht eingebaut“ (203 von 1000 Seeds); Sammelstelle „Kernidee wirkungslos“ (8 %); Falle
+  „nicht eingebaut“ (17 %), dazu „nicht eindeutig“, „nicht nötig“ und Probieren (je 3–5 %); Lockvogel „nicht
+  eingebaut“ (20 %).
+- Die erste Messung (vor dem Review, in einer anderen Sitzung) ergab dieselben Level, ausser Farben abzählen (3475
+  statt 3977), und mehr CPU-Zeit: `leicht` 22,4 statt 20,3 CPU-s, Falle 80,8 und Lockvogel 155,3, die beiden noch ohne
+  M2.
+- Aufruf: `LEISE_CPU=50 sh tools/leise.sh sh serie.sh`; darin je Lauf `node tools/bench.mjs generator --generator neu
+  --accept beurteilung --seeds 5000 --jobs 4 --save neu.json` und dasselbe mit den Profilen 1-spiegel … 3-bunt als
+  Gruppen und `--generator alt`. `tools/bench-baseline.json` bleibt unverändert.
 
 **Beispiele** (`LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> --anzahl 1 | node tools/show.mjs`,
 je die Lösung):
@@ -123,15 +140,17 @@ je die Lösung):
 leicht-lockvogel, Seed 1    leicht-abzaehlen, Seed 1    leicht-falle, Seed 1
 Q1 Q2  .  .  .  .  .         .  .  . Q2  .  .  .         .  .  .  .  .  .  .
  .  m  .  .  .  .  .        TG  .  .  g  .  .  .        M3  b P3  m  m  m Q4
-TM M3  m  . TM  .  .        M1  g  g M3 TG  . Q3         b  .  r  .  .  .  .
- .  .  . M0  .  .  .         .  .  .  .  . M0  .        M1 m1  r  .  .  .  .
-M3  m  m  m  m  m Q4         .  .  .  .  .  .  .         .  b  r  .  .  .  .
- m m2  .  .  .  .  .        M3  g  g M1  .  .  .         . TB M1  r  r  r TR
-TM  .  .  .  .  .  .        Q6  .  . TG  .  .  .         .  .  .  .  .  .  .
+TM M3  m  . TM  .  .        M1  g  g M3 TG  .  .         b  .  r  .  .  .  .
+ .  .  . M0  .  .  .         .  .  .  .  .  g  .        M1 m1  r  .  .  .  .
+M3  m  m  m  m  m Q4         .  .  .  .  .  . M2         .  b  r  .  .  .  .
+ m m2  .  .  .  .  .        M3  g  g M1  .  g  .         . TB M1  r  r  r TR
+TM  .  .  .  .  .  .        Q6  .  . TG Q7  .  .         .  .  .  .  .  .  .
 ```
 
 Im Lockvogel-Level verstellt der feste Spiegel (1,5) den Ringtausch. Im Abzählen-Level erreichen die beiden Quellen
-oben und unten links über den Ring alle drei grünen Ziele; die rechte Quelle beliefert eines über den Spiegel (5,3).
+oben und unten links über den Ring alle drei grünen Ziele; die dritte Quelle unten (4,6) beliefert das Ziel (4,2)
+über den Spiegel (6,4), abseits der Ausgänge des Rings (seit dem Review ein anderes Level als vorher, weil die
+dritte Quelle andere Wege meidet und der Zufall danach anders weiterläuft).
 In der Falle zerlegt das Prisma das Magenta in Blau und Rot; in der naheliegenden Stellung bräche es das Rot direkt
 aufs Ziel rechts unten.
 
@@ -173,8 +192,9 @@ liefert. Verlangt sind mindestens zwei Drittel der 50 Seeds für „ohne“ und 
   Vorgabe mit weniger weist `maengel` ab. „leichter“ nimmt nur Elemente ausserhalb der Kernidee weg; bei Lockvogel und
   Farben abzählen gibt es keine. Beim Zusammenführen: Ticket 19 ändert in `schritte.mjs` nur `wirkungslos`.
 - **21 (alte Werkzeuge abbauen):** Für den Vergleich je Kernidee reichen die 16 Profile der Stufen 1–3 mit 5000 Seeds
-  (77 CPU-s); ist der alte Generator weg, sind die Zahlen oben die Ausgangszahlen.
-- **23–26 (Austausch):** Je Kernidee liefert der Generator für „leicht“ reichlich Level (90 000 bis 740 000 je
+  (62–77 CPU-s), aber zweimal und abwechselnd mit dem neuen gemessen (siehe „Ausbeute je Kernidee“); ist der alte
+  Generator weg, sind die Zahlen oben die Ausgangszahlen.
+- **23–26 (Austausch):** Je Kernidee liefert der Generator für „leicht“ reichlich Level (160 000 bis 950 000 je
   CPU-Stunde). Für die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ lässt sich gezielt je Kernidee
   bestellen (`leicht-abschalten` …). Die Haupt-Kernidee wählt die Beurteilung; sie ist nicht immer die verlangte, wer
   sie braucht, prüft `beurteilung.hauptKernidee`. Die Level aus Farben abzählen und Lockvogel sehen sich je
@@ -227,3 +247,17 @@ Glossar und Ticket 18; nachgemessen auf demselben Rechner (i7-9750H, Node 22.12.
   verlangen (wichtig für die Regel der Tickets 23–26)?
 - **Für Ticket 22 (Würfel):** Lockvogel (`s.wege.length === 2`) und Farben abzählen (ein Ausgang je Ecke) gehen davon
   aus, dass ein Spiegel Licht nur um 90° lenkt, also genau zwei Auswege hat. Das gilt in der flachen Feldform.
+
+**Umsetzung der Funde M1–M3 (17.10.2026, Entwickler; M4 kommt nach dem Zusammenführen mit Ticket 20):**
+- **M1 umgesetzt:** Die dritte Quelle von Farben abzählen und ihr Spiegel meiden jetzt auch die Ausgänge des Rings;
+  Seeds 1–1000 liefern 797 statt 683 Level, „Kernidee nicht nötig“ kommt nicht mehr vor (übrig nur „nicht eingebaut“,
+  203), aus 5000 Seeds 3977 statt 3475; der feste Seed 1 liefert weiter ein Level (ein anderes, Beispiel oben).
+- **M2 umgesetzt:** `lichtzellen` (`wege.mjs`) rechnet die Durchgänge einmal je Strahlbild (WeakMap auf `bau.bild()`),
+  `quelleIrgendwohin` einmal statt je Quellplatz; `bau.mjs` unverändert. Alle sieben Aufträge bitgleich zu `abcf258`
+  (Seeds 1–1000, mit M1 sechs gleich und Farben abzählen nur wegen M1 anders; M2 allein auch dort 1000 von 1000
+  gleich). In derselben Sitzung abwechselnd vor/nach gemessen: Falle 70,8 / 71,1 → 48,2 / 49,1 CPU-s (−31 %),
+  Lockvogel 121,5 / 118,5 → 90,8 / 88,8 CPU-s (−25 %).
+- **M3 umgesetzt:** Neu und alt abwechselnd je zweimal in einem Lauf von `leise.sh`, gleiche Seeds und `--jobs 4`; die
+  Tabelle oben nennt beide Läufe und die Faktoren als Spanne. Ohne Kernidee × 1,7–2,0 in dieser Sitzung, mit den
+  Läufen des Reviews × 0,63–2,0: Ein Vorsprung ohne Kernidee ist nicht sicher belegt; mit Kernidee × 50 bis × 867.
+- Tests danach grün: `generator.test.mjs` (23 Tests), `golden.mjs`, `logic.test.mjs` (553 Tests).
