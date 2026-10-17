@@ -115,9 +115,13 @@ function festeSpiegelOhneWirkung(level) {
 }
 
 console.log('Ein Auftrag, ein Level oder nichts');
+// Ab „mittel“ wiederholt der Test nur die ersten WIEDERHOLEN Seeds je Auftrag: Jeder kostet dort bis über 1 CPU-s, und
+// alle zu wiederholen verdoppelte die Laufzeit (Review Ticket 20). „leicht“ wiederholt alle Seeds.
+const WIEDERHOLEN = 5;
 test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach anderen Aufträgen (umgekehrt)', () => {
   for (const a of [...laeufe].reverse()) {
-    for (const r of [...a.ergebnisse].reverse()) {
+    const teil = a.grad === 'leicht' ? a.ergebnisse : a.ergebnisse.slice(0, WIEDERHOLEN);
+    for (const r of [...teil].reverse()) {
       const nochmal = generiere({ ...auftragVon(a), seed: r.seed, feldform });
       const vorher = { level: r.level, ...(r.level ? { beurteilung: r.beurteilung } : { grund: r.grund }) };
       assert.deepStrictEqual(nochmal, vorher, `${benenne(a)}, Seed ${r.seed}`);
@@ -285,13 +289,22 @@ test('Unbekannte Aufträge weist er ab: unbekannter Grad, Kernidee ohne Baustein
   assert.throws(() => generiere({ ...auftrag, feldform: undefined }), /Feldform/);
 });
 
-test('Er läuft nur gedeckelt: Mit LEISE_CPU über 65 bricht er ab', () => {
+test('Er läuft nur gedeckelt: über LEISE_CPU 50 bricht er ab, mit LEISE_MAX_CPU erst über dieser Grenze', () => {
   const code = `import { generiere } from './tools/generator/index.mjs';
     import { feldformVon } from './tools/beurteilung/feldform.mjs';
     generiere({ grad: 'leicht', kernidee: null, seed: 1, feldform: feldformVon({}) });`;
-  const r = spawnSync(process.execPath, ['--input-type=module', '-e', code], {
-    cwd: new URL('..', import.meta.url), env: { ...process.env, LEISE_CPU: '70' }, encoding: 'utf8',
-  });
-  assert.notEqual(r.status, 0);
-  assert.match(r.stderr, /gedeckelte Umgebung/);
+  const lauf = (werte) => {
+    const env = { ...process.env, ...werte };
+    for (const [k, v] of Object.entries(werte)) if (v === undefined) delete env[k];
+    return spawnSync(process.execPath, ['--input-type=module', '-e', code],
+      { cwd: new URL('..', import.meta.url), env, encoding: 'utf8' });
+  };
+  const ohne = lauf({ LEISE_MAX_CPU: undefined, LEISE_CPU: '55' }); // Standard 50, auch wenn der Rechner mehr erlaubt
+  assert.notEqual(ohne.status, 0);
+  assert.match(ohne.stderr, /gedeckelte Umgebung/);
+  const erlaubt = lauf({ LEISE_MAX_CPU: '65', LEISE_CPU: '65' });
+  assert.equal(erlaubt.status, 0, erlaubt.stderr);
+  const darueber = lauf({ LEISE_MAX_CPU: '65', LEISE_CPU: '70' });
+  assert.notEqual(darueber.status, 0);
+  assert.match(darueber.stderr, /gedeckelte Umgebung/);
 });

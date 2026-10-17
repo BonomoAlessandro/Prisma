@@ -55,7 +55,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
-    prüft den Deckel; etwa 1,5 min): feste Seeds für alle vier Grade ohne Kernidee und mit Mischziel aus zwei
+    prüft den Deckel; etwa 1 min): feste Seeds für alle vier Grade ohne Kernidee und mit Mischziel aus zwei
     Quellen (50 für „leicht“, 12–30 ab „mittel“), dazu „leicht“ mit den Ziel-Schwierigkeiten 33–43 und 20–30; ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
@@ -63,7 +63,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
     seine Farbe hat, kein fester Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; eine Gegenprobe an
     einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
-    keine Koordinaten und Richtungen, mit `LEISE_CPU` über 65 bricht er ab, und unbekannte Aufträge weist er ab.
+    keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab (mit `LEISE_MAX_CPU=65` erst über 65),
+    und unbekannte Aufträge weist er ab.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Referenz und Grade in
     der Reihenfolge im Spiel, Feld als Text, Auftrag und Fingerabdruck der Eingaben und das versionierte Protokoll
@@ -197,15 +198,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Zahl der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
-  `LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
+  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
   `leise.sh` mit 20 %;
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
   der ganzen Maschine; der Generator und die Vorbereitung der KI-Tester (`prepare.mjs`, Screenshots) dürfen
-  `LEISE_CPU=65`, mehr nimmt `leise.sh` nicht an. Weil Läufe nur nacheinander laufen, bleibt die Arbeit an Tickets
-  insgesamt unter 65 % der Maschine (Vorgabe des Nutzers seit 17.10.2026, vorher 50 % je Lauf). Alle schweren Läufe
-  (Tests, Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`) lässt einen zweiten Lauf
-  warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
+  `LEISE_CPU=50`, mehr nimmt `leise.sh` nicht an. Weil Läufe nur nacheinander laufen, bleibt die Arbeit an Tickets
+  insgesamt unter 70 % der Maschine (Vorgabe des Nutzers). Ein Rechner, auf dem mehr erlaubt ist, hebt die Obergrenze
+  lokal mit der Umgebungsvariablen `LEISE_MAX_CPU` an (Standard 50; nicht versioniert, etwa in
+  `.claude/settings.local.json` unter `env`, das gitignored ist), etwa `LEISE_MAX_CPU=65 LEISE_CPU=65 sh tools/leise.sh
+  …`. Dieselbe Grenze prüfen Generator, Messskript und Screenshots (`tools/deckel.mjs`). Alle schweren Läufe (Tests,
+  Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
+  lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
@@ -366,12 +370,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
     Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
     Quelltext nach Koordinaten und Richtungen.
-  - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 65
-    liegt. Aufruf:
-    `LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
+  - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
+    liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
+    `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
     wie `leicht`, `mittel-mischziel` oder `"sehr schwer"`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
     schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
-    `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator
+    `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
     --generator neu --accept beurteilung`.
   - **Für Ticket 19:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in
     `bausteine/index.mjs` (Glossarbegriff, was er mindestens setzt, `baue`). Ob eine Kernidee nötig ist, entscheidet
@@ -383,7 +387,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Plätzen der heutigen Reihenfolge vor Ticket 15 (feste Namensliste `tools/beurteilung/heutige-reihenfolge.json`) und
   den vorläufigen Graden.
   - **Vorbereiten:**
-    `LEISE_CPU=65 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
+    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
     [--ohne-zwischenspeicher]`. Die Level heissen L1, L2 … (feste Mischung, der Platz bleibt verborgen), die Anker
     A1–A8 (`anchors.json`, je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts

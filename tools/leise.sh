@@ -6,9 +6,13 @@
 # Läufe gleichzeitig starten; ein Aufruf innerhalb eines Laufs (LEISE_AKTIV) läuft direkt.
 # leise.sh <befehl> [argumente …]   (Grenze ändern: LEISE_CPU=10 leise.sh …)
 [ -n "$LEISE_AKTIV" ] && exec "$@"
-# Obergrenze je Lauf: 65 % (Generator, Screenshots der KI-Tester). Weil Läufe nur nacheinander laufen, bleibt die Arbeit
-# an Tickets so insgesamt unter der Grenze des Nutzers von 65 % (seit 17.10.2026).
-[ "${LEISE_CPU:-20}" -le 65 ] 2>/dev/null || { echo "leise: LEISE_CPU=$LEISE_CPU ist über 65, Abbruch" >&2; exit 1; }
+# Obergrenze je Lauf: 50 % (Generator, Screenshots der KI-Tester). Weil Läufe nur nacheinander laufen, bleibt die Arbeit
+# an Tickets so insgesamt unter der Grenze des Nutzers von 70 %. Ein Rechner hebt sie lokal mit LEISE_MAX_CPU an
+# (nicht versioniert, etwa in .claude/settings.local.json unter env); dieselbe Grenze prüfen Generator, Messskript
+# und Screenshots (tools/deckel.mjs).
+MAX=${LEISE_MAX_CPU:-50}
+[ "${LEISE_CPU:-20}" -le "$MAX" ] 2>/dev/null || {
+  echo "leise: LEISE_CPU=$LEISE_CPU ist über $MAX (Obergrenze LEISE_MAX_CPU, Standard 50), Abbruch" >&2; exit 1; }
 SPERRE=/tmp/prisma-leise.lock
 WP=$(cat /proc/$$/winpid)
 # Halter einer Sperre aus „pid winpid“; lebt er noch? (MSYS-PIDs kommen wieder vor, darum auch die winpid)

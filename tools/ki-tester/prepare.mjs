@@ -3,7 +3,7 @@
 // unter tests/output/ki-tester/<lauf>/ (nicht versioniert). Die KI-Tester lesen nur eingabe/ und schreiben je in ihren
 // eigenen Ordner antwort-A/ bzw. antwort-B/; lauf.json (Namen, Referenzen, Plätze der Anker, Reihenfolgen) und die
 // Aufträge liegen ausserhalb.
-// Aufruf: LEISE_CPU=65 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
+// Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
 //         [--ohne-zwischenspeicher]
 //   platz          Level zum Beurteilen, Platz in der Reihenfolge im Spiel (1–150, ohne Tutorial); ein Anker wird
 //                  dabei als Anker beurteilt
@@ -38,7 +38,7 @@ const [run, ...positions] = args.filter(a => !a.startsWith('--')).map(String);
 const MAIN = L.LEVELS.length - L.TUTORIAL_COUNT;
 const unknown = [...flags].filter(f => !['--anker', '--ohne-bilder', '--ohne-zwischenspeicher'].includes(f));
 if (!run || !/^[\w-]+$/.test(run) || unknown.length || positions.some(p => !(Number.isInteger(+p) && +p >= 1 && +p <= MAIN))) {
-  console.error('Aufruf: LEISE_CPU=65 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] '
+  console.error('Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] '
     + `[--ohne-bilder] [--ohne-zwischenspeicher]   (Platz 1–${MAIN})`);
   process.exit(1);
 }

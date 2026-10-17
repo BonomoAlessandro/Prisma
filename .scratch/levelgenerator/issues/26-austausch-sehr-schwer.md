@@ -44,7 +44,7 @@ Ablaufs.
   - `sehr schwer-mischziel` 139 von 2000 Seeds, 0,66 CPU-s je Seed;
   - `sehr schwer` 117, 1,3 CPU-s je Seed;
   - Schwierigkeit um 88–94.
-- Für 8 Ersatzlevel samt Kandidaten für die KI-Tester genügen ein paar hundert Seeds (mit `LEISE_CPU=65` und
-  `--jobs 7` wenige Minuten).
+- Für 8 Ersatzlevel samt Kandidaten für die KI-Tester genügen ein paar hundert Seeds. Mit `LEISE_CPU=50` sind das
+  wenige Minuten, auf einem Rechner mit `LEISE_MAX_CPU=65` auch mit `LEISE_CPU=65` und `--jobs 7`.
 - Die Level liegen meist knapp über der Schwelle 87 (Q1 88–89, Q3 93–94). Für Ersatz weiter oben braucht es eine
   Ziel-Schwierigkeit und mehr Seeds; die Grenze ist der Platz im Feld 7 × 7.

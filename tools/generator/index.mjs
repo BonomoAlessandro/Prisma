@@ -23,7 +23,7 @@
 // verlangte Grad (grad.mjs) und die verlangte Kernidee nötig. Derselbe Auftrag ergibt dasselbe Level: Aller Zufall
 // kommt aus dem Seed (zufall.mjs). Das Feld kennt der Generator nur über die Feldform des Auftrags (Spec „Feldform“).
 // Weitere Kernideen (Ticket 19) kommen als Baustein dazu; alle vier Grade haben eine Vorgabe (Ticket 20).
-import os from 'node:os';
+import { gedeckelt, deckelText } from '../deckel.mjs';
 import { beurteile, GRADE, TEILE } from '../beurteilung/index.mjs';
 import { gradVon, SCHWELLEN } from '../beurteilung/grad.mjs';
 import { GRUENDE } from '../levelliste.mjs';
@@ -55,20 +55,19 @@ export function angebot() {
     .map(kernidee => ({ name: kernidee ? `${grad}-${kurz[kernidee]}` : grad, grad, kernidee })));
 }
 
-let gedeckelt = false;
+let geprueft = false;
 /**
- * Der Generator läuft nur über die gedeckelte Umgebung (Spec „Generator“): mit tiefster Priorität, wie tools/leise.sh
- * sie setzt, und mit LEISE_CPU höchstens 65. Geprüft einmal je Prozess; Tests laufen über leise.sh mit 20 %.
+ * Der Generator läuft nur über die gedeckelte Umgebung (Spec „Generator“, tools/deckel.mjs): mit tiefster Priorität, wie
+ * tools/leise.sh sie setzt, und mit LEISE_CPU höchstens 50, auf einem Rechner mit LEISE_MAX_CPU bis zu diesem Wert.
+ * Geprüft einmal je Prozess; Tests laufen über leise.sh mit 20 %.
  */
 function pruefeDeckel() {
-  if (gedeckelt) return;
-  const cpu = Number(process.env.LEISE_CPU || 20);
-  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cpu <= 65)) {
-    throw new Error('Generator: nur über die gedeckelte Umgebung, mit tiefster Priorität und LEISE_CPU höchstens 65 '
-      + `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}), z. B. LEISE_CPU=65 sh tools/leise.sh node `
-      + 'tools/generiere.mjs …');
+  if (geprueft) return;
+  if (!gedeckelt()) {
+    throw new Error('Generator: nur über die gedeckelte Umgebung, mit tiefster Priorität und LEISE_CPU höchstens '
+      + `LEISE_MAX_CPU (jetzt ${deckelText()}), z. B. LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs …`);
   }
-  gedeckelt = true;
+  geprueft = true;
 }
 
 /** Vorgabe und Baustein eines Auftrags; wirft, wenn es sie nicht gibt oder die Vorgabe nicht taugt. */

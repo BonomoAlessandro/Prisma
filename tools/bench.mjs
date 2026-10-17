@@ -33,8 +33,8 @@
 //                            nötigen Kernidee des alten, über alle seine Profile und mit dem besten Profil; dafür
 //                            brauchen beide dieselbe Abnahme mit Grad.
 // Nur über die gedeckelte Umgebung und nie mehrere Läufe nebeneinander. Ohne tiefste Priorität oder mit LEISE_CPU über
-// 65 (mit generator) bzw. 20 (nur trace, solver) bricht das Skript ab:
-//   LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
+// 50 bzw. LEISE_MAX_CPU (mit generator, deckel.mjs) oder über 20 (nur trace, solver) bricht das Skript ab:
+//   LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator --save tools/bench-baseline.json
 //   sh tools/leise.sh node tools/bench.mjs trace solver --save tools/bench-baseline.json
 import { createHash } from 'node:crypto';
 import { execSync, fork } from 'node:child_process';
@@ -42,6 +42,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { L, solve, period, setRot } from './solver.mjs';
+import { maxCpu, gedeckelt, deckelText } from './deckel.mjs';
 
 /**
  * Generatoren, erst für den Teil generator geladen: { groups, more, auftrag, make }. make(gruppe, seed) liefert einen
@@ -475,11 +476,11 @@ async function main() {
   if (!GENERATORS[generator] || !ACCEPTANCES[accept]) fail(`Unbekannt: --generator ${generator} oder --accept ${accept}`);
   if (groups.length && !parts.includes('generator')) fail(`Gruppen gibt es nur beim Teil generator: ${groups.join(' ')}`);
   if (unique && !parts.includes('solver')) fail('--unique gibt es nur beim Teil solver');
-  const cap = Number(process.env.LEISE_CPU || 20), limit = parts.includes('generator') ? 65 : 20;
-  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(cap <= limit)) {
+  const cap = Number(process.env.LEISE_CPU || 20), limit = parts.includes('generator') ? maxCpu() : 20;
+  if (!gedeckelt(limit)) {
     fail(`Nur über die gedeckelte Umgebung starten: tiefste Priorität und LEISE_CPU höchstens ${limit} ` +
-      `(jetzt ${process.env.LEISE_CPU ?? 'nicht gesetzt'}; generator bis 65, sonst bis 20), z. B.\n` +
-      '  LEISE_CPU=65 sh tools/leise.sh node tools/bench.mjs generator …\n' +
+      `(jetzt ${deckelText()}; generator bis LEISE_MAX_CPU, sonst bis 20), z. B.\n` +
+      '  LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator …\n' +
       '  sh tools/leise.sh node tools/bench.mjs trace solver …');
   }
   const gen = parts.includes('generator') ? await GENERATORS[generator]() : null;

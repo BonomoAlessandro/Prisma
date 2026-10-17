@@ -54,4 +54,10 @@ Die alten Werkzeuge mit eigenen Formeln verschwinden.
 - Der neue Generator kennt alle vier Grade (`VORGABEN` in `generator/vorgaben.mjs`) und braucht vom alten nichts.
   `bench.mjs` vergleicht über `--compare` weiter mit gespeicherten Messungen des alten. Die Dateien aus Ticket 20
   liegen nicht im Repo.
-- Der Deckel ist seit `c173f0b` 65 % (`leise.sh`, Generator, `bench.mjs`, Screenshots). Die Spec nennt noch 50 %.
+- Der Deckel ist im Repo 50 % wie in der Spec. Ein Rechner hebt ihn lokal mit `LEISE_MAX_CPU` an (nicht
+  versioniert); `leise.sh` und `tools/deckel.mjs` (Generator, `bench.mjs`, Screenshots) lesen die Variable.
+- **Aus dem Review (Fund 2), noch offen:** Ist in einem Versuch von „schwerer“ vor dem Festigen kein drehbares Element
+  dazugekommen, kann er nicht gelingen (Festigen nimmt nur weg), und doch läuft die Eindeutigkeitssuche. Ein solcher
+  Versuch liesse sich vor `festige` überspringen. Das spart laut Reviewer 1–10 % der Zeit, je nach Grad: 3 % bei
+  `sehr schwer`, 10 % bei `schwer-mischziel`, 1 % bei `mittel`. Es ändert ab „mittel“ den Zufall und damit die Level
+  und alle Messzahlen. Darum ist es in Ticket 20 nicht eingebaut; beim Abbau nachholen und neu messen.
