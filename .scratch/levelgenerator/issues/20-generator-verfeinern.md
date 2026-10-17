@@ -413,3 +413,37 @@ Weitergegeben als Hinweise in die Tickets 21 und 23–26.
   - Für die Austausch-Tickets 24–26 braucht es also Bausteine, die ab „mittel“ Platz und offene Strahlen lassen,
     oder einen Schritt „schwerer“, der auch an Strängen der Kernidee wachsen darf, ohne sie zu zerstören. Bis dahin
     taugen für mittel und schwer vor allem Mischziel und Sammelstelle, dazu etwas Falle.
+
+**Nachprüfung Merge** (Reviewer, 18.10.2026, Stand `0f2bbb7`):
+- **Vollständig:** Jede Datei, die nur eine Seite geändert hat, ist im Merge genau wie auf ihrer Seite (Bausteine und
+  Ticket 19 wie `18605ed`, Deckel, `verfeinern.mjs`, `vorgaben.mjs`, Tickets 21 und 23–26 wie `6cae9e7`). In
+  `index.mjs`, `schritte.mjs`, README und Test stehen beide Seiten ohne Lücke und ohne Doppeltes:
+  - Test: aus 19 die sieben leichten Aufträge (`ANTEIL_LEVEL`, als `mindestens` gleichwertig gerundet), `FEST`,
+    `festeOhneWirkung` samt Blocker in der Gegenprobe und der Blocker-Test; aus 20 alle Grade, beide
+    Ziel-Schwierigkeiten, Randfälle, der verkürzte Determinismus-Test und der Deckel mit drei Läufen.
+  - Weggefallen sind nur die zwei überholten Prüfungen „Kernidee ohne Baustein“ (19) und „Grad ohne Vorgabe“ (18).
+- **M4 korrekt:** Alle Wege, die ein Element wegnehmen, laufen über `entferne` (auch in Falle, Lockvogel und
+  `wege.mjs`), `leere` leert `lockvoegel`, `merke`/`zurueck` tragen die Markierung mit. Kein Baustein ausser Lockvogel
+  setzt sie.
+- **Bitgleich** (eigene Seed-Bereiche, nicht die des Entwicklers):
+  - die sieben leichten Aufträge, Seeds 1001–1300, gegen `18605ed`: 2100 von 2100 gleich;
+  - die Aufträge von 20 ab „mittel“ (Seeds 1–100, „sehr schwer“ 1–20) gegen `6cae9e7`: 440 von 440. Die Messung von 20
+    gilt also weiter.
+  - vor und nach M4 (`0f67c08` gegen `0f2bbb7`), acht Aufträge mit Kernidee ab „mittel“, Seeds 101–200: 800 von 800.
+- **Lockvogel ab „mittel“:** Die Erklärung ist plausibel und deckt sich mit dem Hinweis aus Ticket 19 („braucht“ 3
+  Quellen, alle Strahlen enden an Zielen der Kernidee; „mittel“ erlaubt höchstens 3 Quellen). Nachgemessen mit
+  Seeds 101–200: `mittel-sammelstelle` 37, `mittel-falle` 18, `mittel-abschalten` 1, Farben abzählen und Lockvogel 0;
+  `schwer-falle` 10, `schwer-abzaehlen` 6. Bei „sehr schwer“ liefern Sammelstelle und Falle je nur 1 von 50 Seeds.
+- **Abnahme von 20 bleibt erfüllt:** Level mit Kernidee für „mittel“, „schwer“ und „sehr schwer“ liefert das Mischziel
+  (im Test 11, 6 und 2), und jedes Level ab „mittel“ hat eine nötige Kernidee. Alle sechs Kernideen je Grad verlangt
+  weder 20 noch 19.
+- **Klein behoben** (dieser Commit):
+  - README: „**Für Ticket 19:**“ ist nach 19 und 20 überholt und heisst jetzt „Erweitern“ (Kernidee als Baustein, Grad
+    als Vorgabe); zwei Zeilen neu umbrochen.
+  - Die Hinweise für 24–26 standen nur hier. Sie stehen jetzt kurz mit Zahlen in den Tickets 24, 25 und 26; in 26 mit
+    der Warnung, dass bei „sehr schwer“ praktisch nur das Mischziel liefert, und mit der Bitte, vor dem Austausch die
+    Verteilung der Haupt-Kernideen zu messen.
+- **Tests** über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, alle grün: golden, logic (553), generator (25,
+  60 s), ki-tester (62).
+- **Urteil:** Merge und M4 sind in Ordnung; `feature/levelgenerator` (`18605ed`) kann per Fast-Forward auf diesen
+  Stand.

@@ -48,3 +48,10 @@ Ablaufs.
   wenige Minuten, auf einem Rechner mit `LEISE_MAX_CPU=65` auch mit `LEISE_CPU=65` und `--jobs 7`.
 - Die Level liegen meist knapp über der Schwelle 87 (Q1 88–89, Q3 93–94). Für Ersatz weiter oben braucht es eine
   Ziel-Schwierigkeit und mehr Seeds; die Grenze ist der Platz im Feld 7 × 7.
+- **Nach dem Merge mit 19:** Schon bei „mittel“ und „schwer“ liefern Lockvogel, Farben abzählen und Abschalten kaum
+  Level (Probe in Ticket 20). Bei „sehr schwer“ liefern auch `sehr schwer-sammelstelle` und `sehr schwer-falle` je
+  nur 1 von 50 Seeds (Review, ein Prozess, 30 bzw. 23 CPU-s); es bleibt praktisch nur das Mischziel (139 von 2000).
+  Für 8 Ersatzlevel und „höchstens zweimal je 10 Level“ reicht das nur, wenn die Haupt-Kernideen der gelieferten
+  Level verschieden genug sind. Vor dem Austausch deshalb die Verteilung von `beurteilung.hauptKernidee` bei „sehr
+  schwer“ messen; reicht sie nicht, braucht es zuerst Bausteine, die ab „mittel“ Platz und offene Strahlen lassen
+  (Ticket 20, „Nach dem Merge mit 19“).

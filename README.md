@@ -63,9 +63,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
     seine Farbe hat, kein fester Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt;
-    eine Gegenprobe an einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
-    keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab (mit `LEISE_MAX_CPU=65` erst über 65),
-    und unbekannte Aufträge weist er ab.
+    eine Gegenprobe an einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext
+    des Generators kennt keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab (mit
+    `LEISE_MAX_CPU=65` erst über 65), und unbekannte Aufträge weist er ab.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
     (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Referenz und Grade in
     der Reihenfolge im Spiel, Feld als Text, Auftrag und Fingerabdruck der Eingaben und das versionierte Protokoll
@@ -384,13 +384,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
     `<grad>` oder `<grad>-<kernidee>` für die Grade `leicht`, `mittel`, `schwer`, `"sehr schwer"` und die Kernideen
     `mischziel`, `abschalten`, `abzaehlen`, `sammelstelle`, `falle`, `lockvogel`, etwa `mittel-abschalten`; ohne
-    Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level,
-    schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
-    `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
+    Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level, schwierigkeit, spielwert, kernideen,
+    hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit `| node tools/show.mjs` als
+    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
     --generator neu --accept beurteilung`.
-  - **Für Ticket 19:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in
-    `bausteine/index.mjs` (Glossarbegriff, was er mindestens setzt, `baue`). Ob eine Kernidee nötig ist, entscheidet
-    immer die Beurteilung.
+  - **Erweitern:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in `bausteine/index.mjs`
+    (Glossarbegriff, was er mindestens setzt, `baue`), ein weiterer Grad eine Vorgabe in `vorgaben.mjs`. Ob eine
+    Kernidee nötig ist, entscheidet immer die Beurteilung.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf. Ablauf 2 (Ticket 16) rechnet mit den Plätzen der Reihenfolge im Spiel und

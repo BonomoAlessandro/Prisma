@@ -55,3 +55,8 @@ darunter neu 17 Weichen und 32 Streulicht (Entscheid des Nutzers, Ticket 16).
 - Mit verlangtem Mischziel ist die Haupt-Kernidee fast immer das Mischziel. Für „höchstens zweimal je 10 Level“
   braucht es die Bausteine aus Ticket 19. Ein Ersatz für eine bestimmte Lücke kann `schwierigkeit: [von, bis]`
   verlangen.
+- **Nach dem Merge mit 19** (Probe in Ticket 20, Seeds 1–100 je Auftrag): `mittel-mischziel` 55 Level,
+  `mittel-sammelstelle` 43, `mittel-falle` 13, `mittel-abschalten` 3, Farben abzählen und Lockvogel 0. Für
+  „höchstens zweimal je 10 Level“ stehen ab „mittel“ also vor allem Mischziel und Sammelstelle bereit, dazu wenig
+  Falle. Liegen viele Ersatzlevel nah beieinander, kann das knapp werden. Die Haupt-Kernidee wählt die Beurteilung
+  (`beurteilung.hauptKernidee`), nicht der Auftrag.
