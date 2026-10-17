@@ -17,11 +17,35 @@
 //                   noch etwas)
 //   schritte        höchstens so viele Schritte beim Verfeinern (Spec „Generator“: bei „leicht“ wenige oder keine)
 //   maxSuche        so viele Knoten darf die Suche nach einer zweiten Lösung brauchen (wie im alten Generator)
-// Ticket 20 trägt die übrigen Grade ein.
+//   verbinden       ab „mittel“: Anteil der drehbaren Elemente, die das Ergänzen auf eine Kreuzung offener Strahlenden
+//                   setzt, wo es eine gibt (kreuzungszellen in schritte.mjs); das verbindet Stränge gegen Füllteil und
+//                   Zerfall. Ohne Angabe nie (so bleibt „leicht“ wie in Ticket 18).
+//   wachsen         ab „mittel“: so oft wächst ein Bau unter der Untergrenze mit dem Schritt „schwerer“, bevor er als
+//                   zu klein verworfen wird (ohne Angabe nie)
+// Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente im Median 7 / 9 / 11 (Bereich 5–8,
+// 7–12, 9–14), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren. Die Klicks steigen mit der Grösse. maxSuche
+// ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit 6e5 bzw. 8e5 Knoten nicht mehr Level als mit
+// 2e5, kosteten aber bis 1,8-mal so viel. Reparaturen bleiben bei 2: Mit 1, 2, 3 und 4 lieferten mittel-mischziel 168,
+// 168, 168, 168 (von 300 Seeds), schwer-mischziel 67, 68, 68, 67 und schwer 35, 36, 37, 38 (von 150).
 export const VORGABEN = {
   leicht: {
     quellen: [1, 3], farbigeQuellen: 0.4, drehbar: [3, 6], arten: { mirror: 7, prism: 2, combiner: 1 },
     filter: [0, 1], festeSpiegel: [0, 1], ziele: [1, 4], klicks: 3, reparaturen: 2, schritte: 2, maxSuche: 4e5,
+  },
+  mittel: {
+    quellen: [2, 3], farbigeQuellen: 0.4, drehbar: [5, 8], arten: { mirror: 6, prism: 2, combiner: 1 },
+    filter: [0, 1], festeSpiegel: [0, 2], ziele: [2, 5], klicks: 4, reparaturen: 2, schritte: 4, maxSuche: 4e5,
+    verbinden: 0.7, wachsen: 4,
+  },
+  schwer: {
+    quellen: [2, 4], farbigeQuellen: 0.4, drehbar: [7, 11], arten: { mirror: 5, prism: 3, combiner: 1 },
+    filter: [0, 1], festeSpiegel: [0, 2], ziele: [3, 5], klicks: 5, reparaturen: 2, schritte: 6, maxSuche: 2e5,
+    verbinden: 0.7, wachsen: 8,
+  },
+  'sehr schwer': {
+    quellen: [2, 4], farbigeQuellen: 0.4, drehbar: [9, 14], arten: { mirror: 5, prism: 4, combiner: 1 },
+    filter: [0, 1], festeSpiegel: [0, 2], ziele: [3, 5], klicks: 6, reparaturen: 2, schritte: 8, maxSuche: 2e5,
+    verbinden: 0.7, wachsen: 10,
   },
 };
 

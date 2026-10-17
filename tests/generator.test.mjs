@@ -1,5 +1,6 @@
 // Tests des Generators (Spec „Entscheide zu den Tests“, Nahtstelle 4; Ticket 18): ein Auftrag hinein, ein Level oder
 // nichts heraus. Geprüft wird nur, was herauskommt, mit festen Seeds:
+// - Aufträge aller vier Grade, ohne Kernidee und mit Mischziel, dazu eine Ziel-Schwierigkeit (Ticket 20).
 // - Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen.
 // - Jedes gelieferte Level hat genau eine Lösung, besteht die Beurteilung (hier neu beurteilt), hat den verlangten Grad
 //   und die verlangte Kernidee nötig; die mitgegebene Beurteilung ist genau diese. Es hat Leveldaten wie in LEVELS und
@@ -31,17 +32,39 @@ function test(name, fn) {
 process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
 const feldform = feldformVon({});
-const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 const MISCHZIEL = 'Mischziel aus zwei Quellen';
-const AUFTRAEGE = [{ grad: 'leicht', kernidee: null }, { grad: 'leicht', kernidee: MISCHZIEL }];
+const LEICHT_33_43 = [33, 43]; // Ziel-Schwierigkeit wie die zu ersetzenden leichten Level (Ticket 23)
+/**
+ * Aufträge aller Grade mit festen Seeds 1 … seeds und so vielen gelieferten Leveln mindestens (Ticket 20). Ab „mittel“
+ * sind es weniger Seeds, weil jeder mehr kostet (sehr schwer rund 1 CPU-s), und die Ausbeute ist kleiner; ohne
+ * Kernidee liefert der Generator ab „mittel“ nur, wenn eine Kernidee nebenbei nötig wird (die Bausteine bringt Ticket
+ * 19).
+ */
+const AUFTRAEGE = [
+  { grad: 'leicht', kernidee: null, seeds: 50, mindestens: 34 },
+  { grad: 'leicht', kernidee: MISCHZIEL, seeds: 50, mindestens: 34 },
+  { grad: 'leicht', kernidee: null, schwierigkeit: LEICHT_33_43, seeds: 30, mindestens: 5 },
+  { grad: 'mittel', kernidee: null, seeds: 30, mindestens: 1 },
+  { grad: 'mittel', kernidee: MISCHZIEL, seeds: 30, mindestens: 8 },
+  { grad: 'schwer', kernidee: null, seeds: 30, mindestens: 1 },
+  { grad: 'schwer', kernidee: MISCHZIEL, seeds: 30, mindestens: 3 },
+  { grad: 'sehr schwer', kernidee: null, seeds: 20, mindestens: 1 },
+  { grad: 'sehr schwer', kernidee: MISCHZIEL, seeds: 12, mindestens: 1 },
+];
+const auftragVon = ({ grad, kernidee, schwierigkeit }) => ({ grad, kernidee, ...(schwierigkeit ? { schwierigkeit } : {}) });
 const t0 = Date.now();
 const laeufe = AUFTRAEGE.map(a => ({
-  ...a, ergebnisse: SEEDS.map(seed => ({ seed, ...generiere({ ...a, seed, feldform }) })),
+  ...a, ergebnisse: Array.from({ length: a.seeds }, (_, i) => i + 1)
+    .map(seed => ({ seed, ...generiere({ ...auftragVon(a), seed, feldform }) })),
 }));
-const geliefert = laeufe.flatMap(({ grad, kernidee, ergebnisse }) => ergebnisse.filter(r => r.level)
-  .map(r => ({ grad, kernidee, ...r, name: `${grad}${kernidee ? ' mit ' + kernidee : ''}, Seed ${r.seed}` })));
-console.log(`Generator: ${geliefert.length} Level aus ${AUFTRAEGE.length * SEEDS.length} Aufträgen `
-  + `(${((Date.now() - t0) / 1000).toFixed(1)} s)`);
+const benenne = ({ grad, kernidee, schwierigkeit }) => `${grad}${kernidee ? ' mit ' + kernidee : ''}`
+  + `${schwierigkeit ? ` (${schwierigkeit.join('–')})` : ''}`;
+const geliefert = laeufe.flatMap(a => a.ergebnisse.filter(r => r.level)
+  .map(r => ({ grad: a.grad, kernidee: a.kernidee, schwierigkeit: a.schwierigkeit, ...r,
+    name: `${benenne(a)}, Seed ${r.seed}` })));
+console.log(`Generator: ${geliefert.length} Level aus ${AUFTRAEGE.reduce((s, a) => s + a.seeds, 0)} Aufträgen `
+  + `(${((Date.now() - t0) / 1000).toFixed(1)} s): `
+  + laeufe.map(a => `${benenne(a)} ${a.ergebnisse.filter(r => r.level).length}/${a.seeds}`).join(', '));
 
 /** Brett der Strahlregel in der Lösungsstellung, mit den Elementen elemente (Vorgabe: die des Levels). */
 function inLoesung(level, elemente = level.elements) {
@@ -91,19 +114,34 @@ function festeSpiegelOhneWirkung(level) {
 
 console.log('Ein Auftrag, ein Level oder nichts');
 test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach anderen Aufträgen (umgekehrt)', () => {
-  for (const { grad, kernidee, ergebnisse } of [...laeufe].reverse()) {
-    for (const r of [...ergebnisse].reverse()) {
-      const nochmal = generiere({ grad, kernidee, seed: r.seed, feldform });
+  for (const a of [...laeufe].reverse()) {
+    for (const r of [...a.ergebnisse].reverse()) {
+      const nochmal = generiere({ ...auftragVon(a), seed: r.seed, feldform });
       const vorher = { level: r.level, ...(r.level ? { beurteilung: r.beurteilung } : { grund: r.grund }) };
-      assert.deepStrictEqual(nochmal, vorher, `${grad} ${kernidee}, Seed ${r.seed}`);
+      assert.deepStrictEqual(nochmal, vorher, `${benenne(a)}, Seed ${r.seed}`);
     }
   }
 });
 
-test('Für „leicht“ liefert er für die meisten Seeds ein Level, ohne Kernidee und mit Mischziel', () => {
-  for (const { kernidee, ergebnisse } of laeufe) {
-    const n = ergebnisse.filter(r => r.level).length;
-    assert.ok(n >= (2 * SEEDS.length) / 3, `${kernidee ?? 'ohne Kernidee'}: nur ${n} von ${SEEDS.length}`);
+test('Er liefert Level in allen Graden, ohne Kernidee und mit Mischziel (für „leicht“ für die meisten Seeds)', () => {
+  for (const a of laeufe) {
+    const n = a.ergebnisse.filter(r => r.level).length;
+    assert.ok(n >= a.mindestens, `${benenne(a)}: nur ${n} von ${a.seeds}, verlangt ${a.mindestens}`);
+  }
+});
+
+test('Ab „mittel“ hat jedes gelieferte Level eine nötige Kernidee, auch ohne verlangte', () => {
+  const ab = geliefert.filter(g => g.grad !== 'leicht');
+  assert.ok(ab.length >= 15, `nur ${ab.length} Level ab „mittel“`);
+  for (const { name, beurteilung } of ab) assert.ok(beurteilung.hauptKernidee.begriff, name);
+});
+
+test('Mit Ziel-Schwierigkeit liegt jedes gelieferte Level darin', () => {
+  const mit = geliefert.filter(g => g.schwierigkeit);
+  assert.ok(mit.length > 0);
+  for (const { name, schwierigkeit: [von, bis], beurteilung } of mit) {
+    const w = beurteilung.schwierigkeit.wert;
+    assert.ok(w >= von && w <= bis, `${name}: Schwierigkeit ${w}`);
   }
 });
 
@@ -228,9 +266,14 @@ test('Der Generator kennt das Feld nur über die Feldform: keine Koordinaten und
   }
 });
 
-test('Unbekannte Aufträge weist er ab: Grad ohne Vorgabe, Kernidee ohne Baustein, ohne Seed oder Feldform', () => {
+test('Unbekannte Aufträge weist er ab: unbekannter Grad, Kernidee ohne Baustein, ohne Seed oder Feldform, Ziel '
+  + 'ausserhalb des Grads', () => {
   const auftrag = { grad: 'leicht', kernidee: null, seed: 1, feldform };
-  assert.throws(() => generiere({ ...auftrag, grad: 'mittel' }), /Ticket 20/);
+  for (const grad of ['leicht', 'mittel', 'schwer', 'sehr schwer']) assert.ok(VORGABEN[grad], grad);
+  for (const schwierigkeit of [[50, 60], [40, 30], [33], 'leicht']) {
+    assert.throws(() => generiere({ ...auftrag, schwierigkeit }), /Ziel-Schwierigkeit/);
+  }
+  assert.throws(() => generiere({ ...auftrag, grad: 'sehr schwer', schwierigkeit: [60, 80] }), /Ziel-Schwierigkeit/);
   assert.throws(() => generiere({ ...auftrag, grad: 'mittelschwer' }), /unbekannter Grad/);
   assert.throws(() => generiere({ ...auftrag, kernidee: 'Falle' }), /Ticket 19/);
   assert.throws(() => generiere({ ...auftrag, kernidee: 'Muster' }), /unbekannte Kernidee/);

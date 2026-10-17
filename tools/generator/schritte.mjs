@@ -81,11 +81,38 @@ function setzeFestenSpiegel(bau) {
 }
 
 /**
+ * Freie Zellen, in denen sich mindestens zwei Strahlen kreuzen, die beide offen enden oder auf einem Ziel ausserhalb
+ * der Kernidee (Ticket 20), je Durchgang { zelle, richtung, farbe } wie bei bau.strahlzellen. Ein drehbares Element
+ * dort nimmt beide Strahlen auf: Die Stränge teilen sich ein Element und hängen zusammen (gegen Füllteil und Zerfall ab
+ * „mittel“). Hinter der Kreuzung steht auf beiden Strahlen kein Element, also verliert keines sein Licht, höchstens ein
+ * Ziel; das nimmt das Aufräumen weg, und setzeZiele setzt neue an die neuen Enden.
+ */
+export function kreuzungszellen(bau, bild = bau.bild()) {
+  const { feldform } = bau, endet = bau.endet(bild), je = new Map();
+  const vorZiel = (s) => {
+    const el = bau.bei(feldform.abschnitt(s).bis);
+    return el?.type === 'target' && !bau.kern.has(el);
+  };
+  for (const s of bild.strahlbild.segments) {
+    const offen = endet(s) || vorZiel(s);
+    for (const { zelle } of feldform.durchlauf(s)) {
+      if (!je.has(zelle)) je.set(zelle, { n: 0, offen: true });
+      const z = je.get(zelle);
+      z.n++;
+      z.offen &&= offen;
+    }
+  }
+  return bau.strahlzellen(bild, { nurEnden: false })
+    .filter(c => je.get(c.zelle)?.n >= 2 && je.get(c.zelle).offen);
+}
+
+/**
  * Ergänzen bis zum Plan: Quellen bis plan.quellen, dann drehbare Elemente bis plan.drehbar (Arten nach den Gewichten
  * der Vorgabe), zuletzt Filter und feste Spiegel. Ein drehbares Element kommt ans Ende eines Strahls, der noch kein
  * Ziel hat: So behalten früher gesetzte Elemente und Ziele ihr Licht, die Stränge wachsen an ihrem Ende. Endet kein
  * Strahl mehr offen, kommt eine weitere Quelle dazu, solange die Vorgabe es erlaubt. Die Elemente der Kernidee bleiben,
- * wie sie sind (ihre Wege sind reserviert).
+ * wie sie sind (ihre Wege sind reserviert). Ab „mittel“ (vorgaben.verbinden, Ticket 20) kommt ein Element mit diesem
+ * Anteil auf eine Kreuzung zweier offener Strahlenden, wo es eine gibt: Dann teilen sich zwei Stränge ein Element.
  */
 export function ergaenze(bau, plan, vorgaben) {
   const { R } = bau;
@@ -93,7 +120,9 @@ export function ergaenze(bau, plan, vorgaben) {
     && setzeQuelle(bau, quellfarbe(R, vorgaben.farbigeQuellen));
   while (bau.art('source').length < plan.quellen && neueQuelle());
   for (let versuch = 0; bau.drehbare().length < plan.drehbar && versuch < 4 * plan.drehbar; versuch++) {
-    const zellen = bau.strahlzellen(bau.bild(), { nurEnden: true });
+    // Ab „mittel“ (vorgaben.verbinden): wo es geht, auf eine Kreuzung offener Strahlenden, das verbindet Stränge
+    const kreuzend = vorgaben.verbinden && R.chance(vorgaben.verbinden) ? kreuzungszellen(bau) : [];
+    const zellen = kreuzend.length ? kreuzend : bau.strahlzellen(bau.bild(), { nurEnden: true });
     if (zellen.length) setzeDrehbar(bau, R.gewichtet(vorgaben.arten), { zellen });
     else if (!neueQuelle()) break;
   }

@@ -55,7 +55,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
-    prüft den Deckel; etwa 1 s): je 50 feste Seeds für „leicht“ ohne Kernidee und mit Mischziel aus zwei Quellen.
+    prüft den Deckel; etwa 1,5 min): feste Seeds für alle vier Grade ohne Kernidee und mit Mischziel aus zwei
+    Quellen (50 für „leicht“, 12–30 ab „mittel“), dazu „leicht“ mit der Ziel-Schwierigkeit 33–43; ab „mittel“ hat
+    jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -335,20 +337,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `BEURTEILUNG_THREADS` übersteuert, 1 heisst ohne Worker. Jeder Thread holt sich das nächste Level, sobald er frei
     ist. Level und Beurteilungen sind reine Daten und kommen per structured clone unverändert über die Thread-Grenze.
     Genutzt vom Test der Beurteilung und von den Messskripten `eiche-spielwert.mjs` und `eiche-schwierigkeit.mjs`.
-- **Generator** (`tools/generator/`, nur für die Entwicklung; ADR 0004, Spec „Generator“ und „Effizienz“; Ticket 18):
-  ein Einstieg, `generiere({ grad, kernidee, seed, feldform })` aus `index.mjs`. Ein Auftrag ergibt `{ level,
-  beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer Beurteilung,
-  oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Heute kennt er „leicht“, ohne Kernidee und mit
-  der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft.
+- **Generator** (`tools/generator/`, nur für die Entwicklung; ADR 0004, Spec „Generator“ und „Effizienz“; Tickets 18
+  und 20): ein Einstieg, `generiere({ grad, kernidee, seed, feldform, schwierigkeit })` aus `index.mjs`. Ein Auftrag
+  ergibt `{ level, beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer
+  Beurteilung, oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Er kennt alle vier Grade, ohne
+  Kernidee und mit der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft. `schwierigkeit`
+  ist wahlweise eine Ziel-Schwierigkeit `[von, bis]` innerhalb des Grads, sonst gilt der ganze Grad.
   - **Ablauf** (für alle Grade gleich): Der Baustein der Kernidee (`bausteine/`, je Kernidee einer) baut sie gezielt
     in ein leeres Feld (`bau.mjs`); das Ergänzen setzt Quellen, drehbare Elemente am Ende der Strahlen, Filter, feste
     Spiegel und Ziele an die Strahlenden bis zur Grösse, die die Vorgabe des Grads würfelt (`vorgaben.mjs`, ersetzt die
     Profile); das Festigen (`schritte.mjs`) färbt die Ziele, nimmt Elemente ohne Licht weg, stellt die Eindeutigkeit mit
     höchstens zwei Reparaturen her (Blocker oder fester Spiegel; die Suche im Modus unique) und nimmt wirkungslose
     Elemente weg. Dann kommt eine Startstellung mit genug Klicks (sonst eine neue, statt zu verwerfen). Zuletzt die
-    Beurteilung, zuerst günstig ohne die teuren Regeln, dann voll, über denselben Zwischenstand. Stimmt der Grad nicht,
-    macht ein Schritt des Verfeinerns (`verfeinern.mjs`) das Level leichter, höchstens zweimal bei „leicht“, und es wird
-    neu beurteilt.
+    Beurteilung, zuerst günstig ohne die teuren Regeln, dann voll, über denselben Zwischenstand. Stimmen Grad oder
+    Ziel-Schwierigkeit nicht, oder findet die Vorprüfung Füllteil oder Zerfall, macht ein Schritt des Verfeinerns
+    (`verfeinern.mjs`) das Level leichter (ein drehbares Element weniger) oder schwerer (eines mehr, möglichst auf einer
+    Kreuzung zweier Strahlen, das verbindet Stränge), höchstens `schritte`-mal je Grad, und es wird neu beurteilt. Ab
+    „mittel“ setzt schon das Ergänzen einen Teil der Elemente auf solche Kreuzungen, und ein zu kleiner Bau wächst mit
+    „schwerer“, bevor er verworfen wird.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
     `grad.mjs` und die verlangte Kernidee nötig.
@@ -362,14 +368,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt. Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
-    `leicht`, `leicht-mischziel`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
+    wie `leicht`, `mittel-mischziel` oder `"sehr schwer"`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
     schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
     `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
     --generator neu --accept beurteilung`.
-  - **Für Ticket 19 und 20:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in
-    `bausteine/index.mjs` (Glossarbegriff, was er mindestens setzt, `baue`); ein weiterer Grad ist eine Vorgabe in
-    `vorgaben.mjs` und, wo nötig, ein Schritt des Verfeinerns in `verfeinern.mjs` („schwerer“). Ob eine Kernidee nötig
-    ist, entscheidet immer die Beurteilung.
+  - **Für Ticket 19:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in
+    `bausteine/index.mjs` (Glossarbegriff, was er mindestens setzt, `baue`). Ob eine Kernidee nötig ist, entscheidet
+    immer die Beurteilung.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
   zusammen; es ruft selbst keine KI auf. Ablauf 2 (Ticket 16) rechnet mit den Plätzen der Reihenfolge im Spiel und
