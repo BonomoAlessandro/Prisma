@@ -13,7 +13,8 @@ const DURCHGAENGE = new WeakMap();
 /**
  * Zellen, durch die in der Lösungsstellung Licht läuft (Map Zelle → Zahl der Abschnitte, wie bau.durchgaenge). Einmal
  * je Strahlbild: bau.bild() bleibt dasselbe Objekt bis zur nächsten Änderung (geaendert), und durchgaenge hängt nur von
- * ihm ab. Vorher rechnete jeder Aufruf von frei sie neu (Review Ticket 19: 17 % der Zeit bei Falle, 24 % bei Lockvogel).
+ * ihm ab. Vorher rechnete jeder Aufruf von frei sie neu (Review Ticket 19: 17 % der Zeit bei Falle, 24 % bei
+ * Lockvogel). Die Map teilen sich alle Aufrufer desselben Strahlbilds: nur lesen.
  */
 export function lichtzellen(bau) {
   const bild = bau.bild();

@@ -109,10 +109,11 @@ kleinstem alt:
   je 175 / 167. Seine Zahlen je Kernidee beruhen auf wenigen Leveln (je Profil 1–12), sind also grob; die Abstände sind
   aber so gross, dass das nichts ändert.
 - **Ohne Kernidee** ist der Vorsprung klein und hängt an der Sitzung: hier × 1,7–2,0, in den beiden Läufen des Reviews
-  × 0,63 und × 1,22, in der ersten Messung dieses Tickets × 2,1. Die kleinen Profile rechnen je Lauf nur 1–3 CPU-s, und
-  `process.cpuUsage` zählt unter Windows in Schritten von 15,6 ms; je Profil schwankt der alte Generator darum bis
-  × 1,6 (1-spiegel 1,6 gegen 2,6 CPU-s für dieselben 205 Level). Dass der neue Generator ohne Kernidee schneller ist als
-  das beste alte Profil, ist auf diesem Rechner also nicht sicher belegt; gleich schnell bis doppelt so schnell.
+  × 0,63 und × 1,22, in der ersten Messung dieses Tickets × 2,1. Die kleinen Profile rechnen je Lauf nur 1–3 CPU-s; je
+  Profil schwankt der alte Generator bis × 1,6 (1-spiegel 1,6 gegen 2,6 CPU-s für dieselben 205 Level), in den Läufen
+  des Reviews bis × 2,8 (0,8 gegen 2,2 CPU-s). An den Schritten von 15,6 ms liegt das kaum: Das Messskript zählt jede
+  Mikrosekunde eines Prozesses genau einmal. Dass der neue Generator ohne Kernidee schneller ist als das beste alte
+  Profil, ist auf diesem Rechner also nicht sicher belegt; er ist etwas langsamer bis doppelt so schnell.
 - **Warum zwei Läufe statt 20 000 Seeds:** Beide Läufe nehmen dieselben Level an (gleiche Zahlen je Profil und
   Auftrag); was schwankt, ist die CPU-Zeit, nicht die Stichprobe. Mehr Seeds verkleinern diese Schwankung kaum, sie
   hängt an Turbo, Wärme und der Last der parallel arbeitenden Agenten. Abwechselnd in einem Lauf von `leise.sh` stehen
@@ -253,11 +254,28 @@ Glossar und Ticket 18; nachgemessen auf demselben Rechner (i7-9750H, Node 22.12.
   Seeds 1–1000 liefern 797 statt 683 Level, „Kernidee nicht nötig“ kommt nicht mehr vor (übrig nur „nicht eingebaut“,
   203), aus 5000 Seeds 3977 statt 3475; der feste Seed 1 liefert weiter ein Level (ein anderes, Beispiel oben).
 - **M2 umgesetzt:** `lichtzellen` (`wege.mjs`) rechnet die Durchgänge einmal je Strahlbild (WeakMap auf `bau.bild()`),
-  `quelleIrgendwohin` einmal statt je Quellplatz; `bau.mjs` unverändert. Alle sieben Aufträge bitgleich zu `abcf258`
-  (Seeds 1–1000, mit M1 sechs gleich und Farben abzählen nur wegen M1 anders; M2 allein auch dort 1000 von 1000
-  gleich). In derselben Sitzung abwechselnd vor/nach gemessen: Falle 70,8 / 71,1 → 48,2 / 49,1 CPU-s (−31 %),
+  `quelleIrgendwohin` einmal statt je Quellplatz; `bau.mjs` unverändert. M2 allein lässt alle sieben Aufträge
+  bitgleich zu `abcf258` (Seeds 1–1000); mit M1 bleiben sechs gleich, Farben abzählen ändert sich nur wegen M1. In
+  derselben Sitzung abwechselnd vor/nach gemessen: Falle 70,8 / 71,1 → 48,2 / 49,1 CPU-s (−31 %),
   Lockvogel 121,5 / 118,5 → 90,8 / 88,8 CPU-s (−25 %).
 - **M3 umgesetzt:** Neu und alt abwechselnd je zweimal in einem Lauf von `leise.sh`, gleiche Seeds und `--jobs 4`; die
   Tabelle oben nennt beide Läufe und die Faktoren als Spanne. Ohne Kernidee × 1,7–2,0 in dieser Sitzung, mit den
   Läufen des Reviews × 0,63–2,0: Ein Vorsprung ohne Kernidee ist nicht sicher belegt; mit Kernidee × 50 bis × 867.
 - Tests danach grün: `generator.test.mjs` (23 Tests), `golden.mjs`, `logic.test.mjs` (553 Tests).
+
+**Nachprüfung 17.10.2026** (Reviewer, `c35cb99`): M1–M3 sind behoben.
+- **Bitgleich:** Seeds 1–1000 gegen `abcf258`: sechs Aufträge gleich. Farben abzählen ist 797 Level, genau wie die
+  Kopie des Reviews mit nur M1 (1000 von 1000 gleich); M2 ändert also kein Level.
+- **WeakMap:** In einer Kopie vergleicht `lichtzellen` bei jedem Aufruf mit einem frisch verfolgten Strahlbild:
+  0 veraltet in 915 781 Aufrufen (Seeds 1–300 je Baustein, Falle 1–100). Durchgesehen: Wo der Code Elemente des Baus
+  ändert (`setze`, `entferne`, `leere`, `setRot` in `loese`, Zielfarben in `aufraeumen`, `fixed` in `eindeutig`), folgt
+  `geaendert()`, bevor `bau.bild()` wieder gelesen wird. Veralten könnte die Map nur zusammen mit `bau.bild()` selbst;
+  ein neues Risiko kommt also nicht dazu. Im Kommentar steht jetzt, dass die geteilte Map nur gelesen wird.
+- **Laufzeit:** vor/nach abwechselnd, je 2000 Seeds, dieselben Level: Falle 28,6 / 30,7 → 20,0 / 18,9 CPU-s (−34 %),
+  Lockvogel 50,3 / 49,4 → 36,1 / 37,9 CPU-s (−26 %), ähnlich wie oben (−31 % / −25 %).
+- **Zahlen in Stichproben:** Die Level je CPU-Stunde und die Faktoren der Tabelle folgen aus Leveln und CPU-s; alle
+  sieben Zeilen nachgerechnet; Farben abzählen mit 5000 Seeds nachgemessen: 3977 Level, Quartile 28,5, 36,3 CPU-s.
+  Korrigiert: Die Schwankung des alten Generators liegt kaum an den Schritten von 15,6 ms (das Messskript zählt jede
+  Mikrosekunde genau einmal). Mit × 0,63 ist der neue ohne Kernidee „etwas langsamer bis doppelt so schnell“, nicht
+  „gleich schnell bis doppelt so schnell“. Bei M2 ist umformuliert, was bitgleich ist.
+- Tests danach grün: `golden.mjs`, `logic.test.mjs` (553 Tests), `generator.test.mjs` (23 Tests).
