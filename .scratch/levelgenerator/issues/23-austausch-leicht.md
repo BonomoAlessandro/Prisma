@@ -31,3 +31,9 @@ gelten erst ab „mittel“. Die Endbedingung „Liste leer“ hängt vom Entsch
 ab, die nur wegen Kernidee oder Spielwert auf der Liste stehen (Spec, Phase 6).
 Vor dem ersten Entfernen: `inHeutigerReihenfolge()` wirft, sobald ein Level der heutigen Reihenfolge fehlt (Ticket 15,
 „Hinweise für Folgetickets“).
+
+**Hinweis aus Ticket 16 (17.10.2026):** Nach den KI-Testern ist „leicht“ die Plätze 1–31; darauf stehen dieselben 6
+Level mit Ausschlussgrund (Scheinmischung) auf der Duldungsliste, keines nur wegen Kernidee oder Spielwert (die
+gelten in „leicht“ nicht). 17 Weichen und 32 Streulicht sind nach „mittel“ gewechselt, 41 Schliff nach „leicht“. Über
+die 50 Level ohne Ausschlussgrund in den übrigen Graden entscheidet der Nutzer erst, nachdem der Spielwert in
+„mittel“ angesehen ist (Ticket 16, Hinweis in Ticket 24); davon hängt die Endbedingung „Liste leer“ ab.

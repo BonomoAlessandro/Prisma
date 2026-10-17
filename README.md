@@ -46,9 +46,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
     Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
-    die Prüfliste stimmt; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee
-    höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee und zu tiefer Spielwert nur
-    bei Leveln auf der Duldungsliste, die nur kürzer wird; eindeutige Namen, keiner aus der Liste entfernter Namen;
+    und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
+    beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
+    Urteil; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
+    zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung
+    durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
+    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen;
     genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
@@ -60,8 +63,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     einem handgebauten Level zeigt, dass die Prüfung solche Elemente findet. Dazu: Der Quelltext des Generators kennt
     keine Koordinaten und Richtungen, mit `LEISE_CPU` über 50 bricht er ab, und unbekannte Aufträge weist er ab.
   - `node tests/ki-tester.test.mjs [protokoll]` prüft den Ablauf der KI-Tester: Schema der Antworten, Zusammenführen
-    (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Feld als Text, Auftrag
-    und Fingerabdruck der Eingaben und das versionierte Protokoll `tools/ki-tester/protocol.jsonl`, dazu Gegenproben mit
+    (Ablehnen nur gemeinsam, Korrektur höchstens 5 Plätze und nie über eine Gradgrenze, Anker), Referenz und Grade in
+    der Reihenfolge im Spiel, Feld als Text, Auftrag und Fingerabdruck der Eingaben und das versionierte Protokoll
+    `tools/ki-tester/protocol.jsonl` (jeder Eintrag nach der Referenz seiner Version), dazu Gegenproben mit
     verfälschten Kopien, die mit der erwarteten Meldung rot werden. Mit dem Pfad einer eigenen verfälschten Kopie wird
     er rot.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter).
@@ -153,12 +157,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `ordne-level.mjs [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die 150 Level nach der
   Schwierigkeit der Beurteilung und legt ihren Grad fest (Ticket 15). Gerechnet wird von der heutigen Reihenfolge aus
   (`beurteilung/heutige-reihenfolge.json`); Verschiebungen bis 10 Plätze werden übernommen, weiter wandernde Level
-  bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Der Bericht zeigt Prüfliste, Schwellen und ihre
-  Herleitung, die Duldungsliste nach Grund und Grad und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und
-  Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste und Prüfliste in `tools/levelliste.json`; die
-  ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind. Ein zweiter Lauf ändert nichts. Die Regeln
-  (Reihenfolge, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
-  für Skript und Test;
+  bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2,
+  Läufe `pruefung-…`; Ticket 16) kommt ein Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der
+  Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt
+  es. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze,
+  nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem
+  Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft
+  sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im
+  eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein anderes derselben oder einer
+  Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein
+  Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die Korrekturen der KI-Tester. Der Bericht
+  zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste
+  nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und Grad
+  in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste und `prueflisteErledigt` in
+  `tools/levelliste.json`; die ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind, nur einmal,
+  in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
+  ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf
+  ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe
+  der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test;
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
   je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
@@ -356,21 +372,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     ist, entscheidet immer die Beurteilung.
 - **KI-Tester** (`tools/ki-tester/`, nur für die Entwicklung; ADR 0002, Spec „KI-Tester“): Zwei KI-Tester beurteilen
   Level aus Spielersicht, jeder als eigener KI-Agent. Das Repo bereitet ihre Eingaben vor und führt ihre Antworten
-  zusammen; es ruft selbst keine KI auf. Ablauf 1 rechnet mit den Plätzen der heutigen Reihenfolge vor Ticket 15
-  (feste Namensliste `tools/beurteilung/heutige-reihenfolge.json`) und den vorläufigen Graden danach; ein Platz bei
-  `prepare.mjs` ist also ein heutiger Platz. Eine neue Version des Ablaufs (Ticket 16) wechselt auf die neue
-  Reihenfolge und die Grade der Leveldaten.
+  zusammen; es ruft selbst keine KI auf. Ablauf 2 (Ticket 16) rechnet mit den Plätzen der Reihenfolge im Spiel und
+  den Graden der Leveldaten; ein Platz bei `prepare.mjs` ist also ein Platz im Spiel. Ablauf 1 rechnete mit den
+  Plätzen der heutigen Reihenfolge vor Ticket 15 (feste Namensliste `tools/beurteilung/heutige-reihenfolge.json`) und
+  den vorläufigen Graden.
   - **Vorbereiten:**
-    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]`.
-    Die Level heissen L1, L2 … (feste Mischung, der heutige Platz bleibt verborgen), die Anker A1–A8 (`anchors.json`,
-    je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf). Unter
-    `tests/output/ki-tester/<lauf>/` entstehen:
+    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
+    [--ohne-zwischenspeicher]`. Die Level heissen L1, L2 … (feste Mischung, der Platz bleibt verborgen), die Anker
+    A1–A8 (`anchors.json`, je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf).
+    Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
+    geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `vendor/`, `backgrounds/`, `shots.mjs`,
+    `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher` nimmt sie neu
+    auf. Unter `tests/output/ki-tester/<lauf>/` entstehen:
     - `eingabe/`: das Feld als Text je Level (`field.mjs`: Raster, Elemente, Licht der Startstellung, ohne Lösung, Name
       und Markierung), Screenshots der Startstellung auf Desktop und Handy (`shots.mjs`) und das Schema der Antwort;
     - `antwort-A/` und `antwort-B/`: je KI-Tester ein eigener, leerer Ordner für seine `urteile.json`;
-    - `auftrag-A.md`, `auftrag-B.md` (aus `brief.md`) und `lauf.json` für `merge.mjs` (Namen, Plätze, Reihenfolgen,
-      Version, Fingerabdruck, Modell und Agent-Typ). Sie liegen ausserhalb der Ordner, die die KI-Tester lesen und
-      schreiben.
+    - `auftrag-A.md`, `auftrag-B.md` (aus `brief.md`) und `lauf.json` für `merge.mjs` (Namen, Referenz je Level,
+      Plätze der Anker, Reihenfolgen, Version, Fingerabdruck, Modell und Agent-Typ). Sie liegen ausserhalb der Ordner,
+      die die KI-Tester lesen und schreiben.
   - **Beurteilen:** Der Koordinator startet je KI-Tester einen eigenen KI-Agenten mit frischem Kontext: Agent-Typ
     `general-purpose`, Modell `claude-opus-5-5` (so in `lauf.json`), als Prompt nur der Inhalt von `auftrag-A.md`
     bzw. `auftrag-B.md`. Keiner sieht Auftrag oder Antwort des anderen, und sie beurteilen in verschiedener Reihenfolge
@@ -395,17 +414,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       seinem Grad. Feste Plätze hiessen, dass ein Level vor einem Anker bleiben muss, obwohl beide KI-Tester es
       schwerer finden. Die Bereiche eines Laufs rechnen mit den Plätzen der Anker aus `lauf.json`.
     - **Probeläufe** (`probelauf-…`) zeigen nur den Ablauf; ihre Korrekturen gelten in Ticket 15/16 nicht.
-  - **Referenz:** Heute ist es der Platz in der heutigen Reihenfolge mit den vorläufigen Graden (1–30, 31–100,
-    101–140, 141–150). Ab Ticket 15/16 wird es der Platz nach der Formel, und der Grad folgt den Schwellen der
-    Schwierigkeit. Dann kommt der alte Platz als zweites Feld in die Referenz (neue Version): Ein Level geht nur auf den
-    Platz der Formel, wenn für beide KI-Tester dieser Platz in ihrem Bereich liegt oder näher daran als der alte; sonst
-    bleibt es am alten Platz. Von dort aus gilt dieselbe Korrektur. Die Anker werden über den Namen gefunden und haben
-    nach dem Umsortieren ihre neuen Plätze; der Test prüft, dass jeder in seinem Grad am richtigen Ende bleibt.
-  - **Version und Fingerabdruck:** `VERSION` und `FINGERPRINT` in `protocol.mjs`; die Version steht in jedem Eintrag.
-    Der Fingerabdruck umfasst alles, was die KI-Tester sehen: die Aufträge aus `brief.md` samt den Zeilen der Listen,
-    `anchors.json`, das Schema, das Glossar und das Feld als Text der Anker samt ihren Leveldaten, nicht aber die
-    Bilder. Ändert sich davon etwas oder die Regel, kommt eine neue Version: Test, `prepare.mjs` und `merge.mjs` melden
-    einen anderen Fingerabdruck, und `merge.mjs` nimmt nur Läufe der aktuellen Version mit ihrem Fingerabdruck an.
+  - **Referenz** (Ablauf 2): der Platz in der Reihenfolge im Spiel und der Grad aus den Leveldaten (`grad`). Die
+    Grenzen eines Grads gibt die Reihenfolge vor (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr
+    schwer 138–150); sie verschieben sich mit jeder Verschiebung. `prepare.mjs` hält je Level die Referenz und die
+    Plätze der Anker in `lauf.json` fest, und `merge.mjs` rechnet mit ihnen. Für ein Level der Prüfliste ist das sein
+    alter Platz; ob es auf den Platz der Formel kommt, entscheidet `ordne-level.mjs` aus den zählenden Einträgen (Regel
+    in `levelliste.mjs`, siehe dort; nur Läufe `pruefung-…` zählen). Die Anker werden über den Namen gefunden; der Test
+    prüft, dass jeder in seinem Grad am richtigen Ende bleibt: im äussersten Drittel, oder zwischen ihm und dem Ende
+    taugt kein Level als Anker (kein Ausschlussgrund, nicht auf der Prüfliste).
+  - **Version und Fingerabdruck:** `VERSION`, `FINGERPRINT` und `VERSIONS` in `protocol.mjs`; die Version steht in
+    jedem Eintrag. Der Fingerabdruck umfasst alles, was die KI-Tester sehen: die Aufträge aus `brief.md` samt den Zeilen
+    der Listen, `anchors.json`, das Schema, das Glossar und das Feld als Text der Anker samt ihren Leveldaten, nicht
+    aber die Bilder. Ändert sich davon etwas oder die Regel, kommt eine neue Version: Test, `prepare.mjs` und
+    `merge.mjs` melden einen anderen Fingerabdruck, und `merge.mjs` nimmt nur Läufe der aktuellen Version mit ihrem
+    Fingerabdruck an. Einträge älterer Versionen bleiben gültig; der Test prüft jeden nach der Referenz seiner Version
+    (Ablauf 1: 43 Einträge, heutige Reihenfolge und vorläufige Grade).
   - **Screenshots:** `shots.mjs` lädt je Level die Seite mit `?t=12` neu, spult Herauswachsen und Aufleuchten mit
     `__prismaDebug.settle` vor (nur für Tests, das Spiel ruft es nie auf) und nimmt erst auf, wenn zwei Aufnahmen nach
     weiterem Vorspulen byte-gleich sind. Das dauert 26,6 s je Aufnahme (ein Level auf einem Bildschirm) statt 150 s;
@@ -415,16 +438,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, seit
-  Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Kein Level wanderte dabei mehr
-  als 10 Plätze. Die 51 Level, die nach der Formel weiter wandern würden, bleiben an ihrem Platz, bis die KI-Tester
-  sie prüfen (Ticket 16; Prüfliste in `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die Level
-  121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
+  Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
+  Level mehr als 10 Plätze. Über die 51 Level, die nach der Formel weiter wandern würden (Prüfliste in
+  `tools/levelliste.json`), haben in Ticket 16 die KI-Tester geurteilt: 28 stehen nach der Formel, die übrigen an
+  ihrem alten Platz, dazu ihre Korrekturen und zwei Züge der Häufungsregel. Die frühere Reihenfolge entstand so: Die
+  Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze
   40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides
   nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar und
-  im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–32, mittel 33–102,
-  schwer 103–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
+  im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–31, mittel 32–105,
+  schwer 106–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
   bis sehr schwer ●●●● oben rechts auf der Kachel der Levelauswahl, mit Punkten und Text in der Kopfzeile (hinter dem
   Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, wenn alle Level der Seite
   denselben Grad haben. Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau

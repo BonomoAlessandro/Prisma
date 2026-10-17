@@ -72,7 +72,8 @@ Strahlen kreuzen sich, ein Element wird mehrfach getroffen oder von mehreren Que
 Ein Ziel, dessen Farbe nur entsteht, wenn sich Strahlen aus zwei verschiedenen Quellen darauf treffen.
 
 **Abschalten**:
-Ein Ziel bekommt falsches Licht, und die Lösung verlangt, dieses Licht wegzunehmen.
+Ein Ziel bekommt Licht in der Farbe des Ziels und leuchtet schon, doch die Lösung verlangt, dieses Licht wegzunehmen.
+Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem Ziel weg.
 
 **Farben abzählen**:
 Aus den Zielfarben folgern, welche Grundfarbe von welcher Quelle wohin muss.
@@ -82,6 +83,7 @@ Ein Prisma, das Licht aus mehreren Richtungen sammelt und neu verteilt.
 
 **Falle**:
 Eine naheliegende Stellung eines Prismas oder Spiegels, die in die Irre führt.
+Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem Ziel weg.
 
 **Lockvogel**:
 Ein festes Teil abseits der Lösung, das beim Probieren Licht bekommt.
@@ -96,7 +98,8 @@ Lösen durch Drehen, bis es passt, weil es viele Fast-Lösungen gibt und Folgern
 **Füllteil**:
 Ein kurzer Strang (eine Quelle, höchstens drei Spiegel, eigenes Ziel), dessen Stellungen für keinen anderen Strahl
 eine Rolle spielen. Gilt erst ab „mittel“; ein leichtes Level darf aus solchen Strängen bestehen.
-_Vermeiden_: Füllteil für einen kurzen Strang, den ein anderer Strahl kreuzt (das ist ein Einstieg)
+_Vermeiden_: Füllteil für einen kurzen Strang, den ein anderer Strahl an einem seiner Spiegel trifft (das ist ein
+Einstieg)
 
 **Scheinmischung**:
 Eine Mischung, die nichts bewirkt: Ein Kombinator gibt einen seiner Eingänge unverändert weiter, eine Mischung läuft

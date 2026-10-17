@@ -301,7 +301,7 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
 
 - **Zwei Tester** urteilen unabhängig voneinander.
 - **Eingabe:** das Feld als Text und Screenshots der Startstellung auf Desktop und Handy, dazu je zwei feste Anker pro
-  Schwierigkeitsgrad aus der heutigen Reihenfolge.
+  Schwierigkeitsgrad aus der Reihenfolge im Spiel (Ablauf 1 der KI-Tester: aus der heutigen Reihenfolge).
 - **Ausgabe in festen JSON-Feldern:**
   - Aha-Moment ja oder nein, mit Beschreibung
   - Lesbarkeit
@@ -324,8 +324,12 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
     (`tools/beurteilung/heutige-reihenfolge.json`). Sie bleibt der Massstab der Eichung (ADR 0001).
   - Bei gleicher Schwierigkeit gilt die heutige Reihenfolge. Verschiebungen bis 10 Plätze werden übernommen.
   - Ein Level, das nach der Formel weiter wandern würde, bleibt an seinem heutigen Platz und steht auf der Prüfliste
-    der KI-Tester (Ticket 16; heute 51 Level). Die übrigen füllen die freien Plätze nach der Schwierigkeit; wanderte
-    eines dabei weiter als 10 Plätze, bleibt es ebenso stehen (heute 56 Strahlenkranz).
+    der KI-Tester (Ticket 16; 51 Level). Die übrigen füllen die freien Plätze nach der Schwierigkeit; wanderte
+    eines dabei weiter als 10 Plätze, bleibt es ebenso stehen (vor Ticket 16: 56 Strahlenkranz, danach 34 Funkenflug
+    und 40 Geflecht).
+  - Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide KI-Tester zustimmen; dazu kommen ihre eigenen
+    Korrekturen und die Häufungsregel (siehe „Weitere Hinweise“, Ticket 16). Nach Ticket 16 stehen 28 der 51 nach der
+    Formel.
 - Jedes Level nach dem Tutorial trägt in den Leveldaten seinen Schwierigkeitsgrad mit einem der vier Wörter, im Feld
   `grad`. Es ersetzt die frühere Markierung `difficulty`, die nur „schwer“ und „sehr schwer“ kannte. Bis Ticket 17
   zeigt das Spiel nur diese beiden an.
@@ -337,10 +341,19 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   - ab „mittel“ unter dem Mindest-Spielwert: 55 Level (mittel 45, schwer 9, sehr schwer 1);
   - zusammen 89 Level, davon 52 ohne Ausschlussgrund.
 
+  Nach Ticket 16 (neue Reihenfolge, Grund `abgelehnt`, Entscheide vom 17.10.2026):
+  - Ausschlussgrund: 37 Level (leicht 6, mittel 11, schwer 13, sehr schwer 7);
+  - ab „mittel“ ohne nötige Kernidee: 58 Level (mittel 51, schwer 7);
+  - ab „mittel“ unter dem Mindest-Spielwert: 56 Level (mittel 46, schwer 9, sehr schwer 1);
+  - von beiden KI-Testern abgelehnt: 7 Level (mittel 6, sehr schwer 1);
+  - zusammen 90 Level (leicht 6 von 31, mittel 57 von 74, schwer 19 von 32, sehr schwer 8 von 13), davon 50 ohne
+    Ausschlussgrund und ohne Ablehnung.
+
   Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
-  Prüfliste für Ticket 16 und die Namen entfernter Level. Phase 6 ersetzt zuerst die 37 Level mit Ausschlussgrund. Über
-  die 52, die nur wegen Kernidee oder Spielwert auf der Liste stehen, wird je Grad nach Ticket 16 entschieden, mit den
-  Urteilen der KI-Tester.
+  Prüfliste für Ticket 16 (erledigt) und die Namen entfernter Level. Einmal, in Ticket 16, wuchs die ursprüngliche
+  Liste um begründete Ergänzungen, die die Datei einzeln festhält. Phase 6 ersetzt zuerst die Level mit
+  Ausschlussgrund und die abgelehnten. Über die übrigen, die nur wegen Kernidee oder Spielwert auf der Liste stehen,
+  wird je Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester.
 - Der Austausch geschieht je Grad in einem Durchgang. Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester prüfen.
   Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt.
 - **Entfernte Level verschwinden für alle Spieler samt Namen.** Der Fortschritt ist nach Namen gespeichert, unbekannte
@@ -421,7 +434,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    Härte-Abnahme und Auswahlliste:
    - Jedes Level nach dem Tutorial hat einen Grad, und der Grad sinkt nie. Er folgt den Schwellen; ein Level am
      heutigen Platz hat den Grad seines Abschnitts.
-   - Die Reihenfolge ist die der Formel, und die Prüfliste stimmt (bis Ticket 16 ohne Korrekturen der KI-Tester).
+   - Die Reihenfolge ist die der Formel, und die Prüfliste stimmt (bis Ticket 16 ohne Korrekturen der KI-Tester; seit
+     Ticket 16 mit ihren Urteilen und der Häufungsregel, und jedes Level der Prüfliste hat ein zählendes Urteil).
    - Das Mittel der Schwierigkeit je 10 Level steigt; es darf um höchstens 1 Punkt fallen.
    - Kein Level hat einen Ausschlussgrund, ausser es steht auf der Duldungsliste. Die Liste wird nur kürzer.
    - Ab „mittel“ hat jedes Level eine nötige Kernidee, und jedes liegt über dem Mindest-Spielwert, ausser es steht mit
@@ -504,6 +518,7 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
   - Vor dem nächsten Lauf der KI-Tester das Glossar schärfen (neue Version des Ablaufs): bei Füllteil „… den ein anderer
     Strahl an einem seiner Spiegel trifft“, bei Abschalten „Licht in der Farbe des Ziels“, bei Falle und Abschalten die
     Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem Ziel weg.
+    Erledigt mit Ablauf 2 (Ticket 16).
   - Der Mindest-Spielwert gilt erst ab „mittel“; leichte Level sind Einstieg und brauchen weder Kernidee noch
     Mindest-Spielwert (Ticket 13). Bei 60 lägen sonst 25 der 30 leichten Level darunter.
   - „Schliessen und eine nötige Kernidee tragen etwa zwei Drittel“ gilt für die Punkte eines Levels, nicht nur für die
@@ -534,5 +549,42 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
     - Das Mittel der Schwierigkeit je 10 Level darf um höchstens 1 Punkt fallen. Ohne Toleranz fiele es einmal um
       0,68 (von 41–50 nach 51–60), weil Level der Prüfliste an ihrem heutigen Platz bleiben.
     - „Je 10 Level“ heisst je Seite der Levelauswahl, in festen Gruppen 1–10, 11–20 …
-    - Die heutige Reihenfolge bleibt als feste Namensliste der Massstab der Eichung. Ablauf 1 der KI-Tester rechnet
-      weiter mit ihren Plätzen und den vorläufigen Graden.
+    - Die heutige Reihenfolge bleibt als feste Namensliste der Massstab der Eichung. Ablauf 1 der KI-Tester rechnete
+      mit ihren Plätzen und den vorläufigen Graden; Ablauf 2 (Ticket 16, mit dem geschärften Glossar und neuen Ankern)
+      rechnet mit den Plätzen der Reihenfolge im Spiel und den Graden der Leveldaten.
+  - KI-Tester und Levelliste (Entscheide des Nutzers bzw. des Koordinators vom 17.10.2026, Ticket 16; Regeln in
+    `tools/levelliste.mjs`):
+    - Für die Levelliste zählen nur die Läufe `pruefung-…` von Ablauf 2, keine Probe- oder Eichläufe; jedes Level der
+      Prüfliste hat genau ein zählendes Urteil, damit ist die Prüfliste erledigt.
+    - Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide KI-Tester zustimmen: Der Platz der Formel
+      liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt es am alten
+      Platz. Liegt der neue Platz innerhalb des Bereichs zwischen zwei Ankern, gilt also die Formel; die Einordnung
+      bleibt bei zwei Ankern pro Grad.
+    - Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge`: am alten Platz das
+      Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort; höchstens 5 Plätze, nie über
+      eine Gradgrenze.
+    - Lehnen beide ab (beim Grad dort, wo das Level steht), wird es nicht korrigiert und kommt auf die Duldungsliste,
+      Grund „von beiden KI-Testern abgelehnt“.
+    - Kommt ein Level durch ein Urteil der KI-Tester in einen Grad, in dem es eine Regel verletzt, darf es jetzt auf
+      die Duldungsliste, als einmalige Ausnahme in Ticket 16, dem letzten Zeitpunkt, an dem die Liste wachsen darf
+      (17 Weichen und 32 Streulicht, „mittel“ ohne nötige Kernidee und unter dem Mindest-Spielwert). Über sie wird mit
+      den übrigen Leveln ohne Ausschlussgrund entschieden. Jede Ergänzung der ursprünglichen Liste ist im Test durch
+      das Protokoll begründet.
+    - Häufungsregel: Kommt dieselbe Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als zweimal vor, gezählt
+      ausserhalb der Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens 3 Plätze, so wenig wie nötig.
+      Wahl der Züge: (1) zuerst Züge der betroffenen Level; (2) lässt sich die Häufung so nicht auflösen, Züge anderer
+      Level derselben oder einer Nachbarseite, dabei ein Level der Duldungsliste vor einem anderen; (3) dann der
+      kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht die übrigen Regeln
+      (Grad, Mittel je 10 Level, Korrekturen der KI-Tester). In Ticket 16: 102 Chamäleon → 100 (die Häufung „Mischziel
+      aus zwei Quellen“ auf 91–100 liess sich mit den betroffenen Leveln nicht auflösen) und 131 Spiegelsaal → 130.
+    - Eine Abweichung vom Platz der Formel ist nur durch das Protokoll der KI-Tester oder durch die Häufungsregel
+      erlaubt.
+    - Übereinstimmung des Spielwerts mit dem Spass der Eichmenge (Entscheid des Nutzers vom 17.10.2026): mindestens
+      0,26 ohne Ausschlussgrund und 0,25 über alle, auf zwei Stellen gerundet; vorher 0,30 / 0,27 (Ticket 13). Mit den
+      51 Urteilen der Prüfläufe in der Eichmenge sind es gemessen 0,28 (98 Level) und 0,27 (149); innerhalb der Spec
+      (erste Kernidee 0,8) hebt auch eine neue Eichung von „weitere“ den Wert nicht über 0,28. Je Grad ohne
+      Ausschlussgrund: leicht 0,05, mittel 0,35, schwer 0,14, sehr schwer 0,70. Festgehaltene Schwäche: In „mittel“
+      übersieht der Spielwert Kernideen, die die KI-Tester sehen. Von 44 Leveln in „mittel“ mit Urteil und ohne
+      Ausschlussgrund haben 29 keine erkannte Kernidee; bei 27 davon sehen beide KI-Tester einen Aha-Moment, 19 haben
+      ein Gefühl von mindestens 4. Vor dem Entscheid über die Level ohne Ausschlussgrund auf der Duldungsliste wird
+      der Spielwert in „mittel“ angesehen, also die Erkennung der Kernideen oder das Modell.

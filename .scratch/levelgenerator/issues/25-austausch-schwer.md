@@ -33,3 +33,10 @@ Sonnenwende, Lichthof, Lichtjahr). Korona, Quasar und Ereignishorizont sind jetz
 Über die 6 entscheidet der Nutzer nach Ticket 16 (Spec, Phase 6); davon hängt die Endbedingung „Liste leer“ ab.
 Vor dem ersten Entfernen: `inHeutigerReihenfolge()` wirft, sobald ein Level der heutigen Reihenfolge fehlt (Ticket 15,
 „Hinweise für Folgetickets“).
+
+**Hinweis aus Ticket 16 (17.10.2026):** Nach den KI-Testern ist „schwer“ die Plätze 106–137; darauf stehen 19 von 32
+Level auf der Duldungsliste: 13 mit Ausschlussgrund (Lichtschleife ist jetzt „mittel“) und dieselben 6 nur wegen
+Kernidee oder Spielwert (Sternwarte, Kathedrale, Pendel, Sonnenwende, Lichthof, Lichtjahr). Vor dem Entscheid über die
+Level ohne Ausschlussgrund wird der Spielwert in „mittel“ angesehen (Entscheid des Nutzers, Hinweis in Ticket 24); die
+Übereinstimmung mit dem Gefühl der KI-Tester ist auch in „schwer“ schwach (Rangkorrelation 0,14 bei 15 Leveln ohne
+Ausschlussgrund).

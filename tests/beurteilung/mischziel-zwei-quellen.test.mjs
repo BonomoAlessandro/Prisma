@@ -63,15 +63,15 @@ test('Zwei Strahlen derselben Quelle auf einem Ziel sind kein Mischziel aus zwei
 });
 
 console.log('Mischziel aus zwei Quellen auf den 150 heutigen Leveln');
-test('37 Level mit 44 Zielen; je Grad: leicht 2, mittel 8, schwer 15, sehr schwer 12', () => {
+test('37 Level mit 44 Zielen; je Grad: leicht 2, mittel 10, schwer 13, sehr schwer 12', () => {
   const all = heutigeLevel();
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   const ziele = all.flatMap(h => h.beurteilung.kernideen.filter(k => k.begriff === BEGRIFF));
   assert.deepEqual([mit.length, ziele.length], [37, 44]);
   const jeGrad = Object.fromEntries(['leicht', 'mittel', 'schwer', 'sehr schwer'].map(g => [g, mit.filter(h => h.grad === g).length]));
   // Grad aus den Leveldaten (Ticket 15): 131 Korona, 136 Quasar und 137 Ereignishorizont sind sehr schwer geworden,
-  // 145 Lichtbrücke schwer
-  assert.deepEqual(jeGrad, { leicht: 2, mittel: 8, schwer: 15, 'sehr schwer': 12 });
+  // 145 Lichtbrücke schwer; Ticket 16: 110 Farbknoten und 112 Bernstein mittel
+  assert.deepEqual(jeGrad, { leicht: 2, mittel: 10, schwer: 13, 'sehr schwer': 12 });
 });
 
 test('Gegenüber der Vorauswahl fallen nur die Ziele weg, die eine Quelle allein erfüllt: 114 Gordischer Knoten (3,0) und 125 Halo (0,4)', () => {

@@ -5,6 +5,9 @@
 // - Reihenfolge: nach der Schwierigkeit, Verschiebungen bis MAX_WANDERN Plätze, weiter wandernde Level bleiben an ihrem
 //   heutigen Platz (Prüfliste für Ticket 16). Gerechnet wird immer von der heutigen Reihenfolge aus
 //   (beurteilung/heutige-reihenfolge.mjs), nicht von der in index.html; ein zweiter Lauf ändert darum nichts.
+// - Urteile der KI-Tester (Ticket 16): die zählenden Einträge des Protokolls (Ablauf 2, Läufe pruefung-…). Ein Level
+//   der Prüfliste kommt auf den Platz der Formel, wenn beide zustimmen, sonst bleibt es; dazu die eigenen Korrekturen
+//   und die Ablehnungen (reihenfolge in levelliste.mjs). Der Bericht zeigt je Level der Prüfliste den Entscheid.
 // - Grade: feste SCHWELLEN (beurteilung/grad.mjs); ein Level am heutigen Platz bekommt den Grad seines Abschnitts. Der
 //   Bericht zeigt die Herleitung der Schwellen aus der vorläufigen Aufteilung (VORLAEUFIG), die Level, deren Grad nicht
 //   der Schwelle folgt, und zum Vergleich zwei andere Regeln.
@@ -20,7 +23,8 @@
 //   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
 //                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
 //                Duldungsliste und die entfernten Namen bleiben, wie sie sind; fehlt die Datei, ist die ursprüngliche
-//                die heutige.
+//                die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um begründete Ergänzungen
+//                (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln festhält (ergaenzt).
 //   --json:      schreibt das Ergebnis je Level (heutiger und neuer Platz, Grad, Gründe) in die Datei.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { L, solve, period } from './solver.mjs';
@@ -29,8 +33,11 @@ import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { SCHWELLEN, gradVon } from './beurteilung/grad.mjs';
 import { inHeutigerReihenfolge } from './beurteilung/heutige-reihenfolge.mjs';
 import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
-import { gradeOf, loadAnchors } from './ki-tester/protocol.mjs';
-import { DATEI, GRUENDE, MAX_WANDERN, ladeLevelliste, ordne, gradeEntlang, zehner } from './levelliste.mjs';
+import { provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
+import {
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, ladeLevelliste, reihenfolge,
+  zaehlendeUrteile, zehner,
+} from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
 const VORLAEUFIG = [30, 70, 40, 10];
@@ -59,7 +66,9 @@ const schreiben = process.argv.includes('--schreiben');
 const jsonDatei = argument('--json');
 const start = Date.now();
 
-// Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit, die Beurteilung mit diesen Graden
+// Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit und den Urteilen der KI-Tester, die Beurteilung mit
+// diesen Graden
+const urteile = zaehlendeUrteile();
 let grad = levels.map(() => null), b, ohneGrad, ordnung, folge, runde = 0;
 for (let vorher = null; ; vorher = b) {
   if (++runde > 5) throw new Error('Kein Fixpunkt nach 5 Durchgängen: Die Schwierigkeit hängt vom Grad ab.');
@@ -68,14 +77,21 @@ for (let vorher = null; ; vorher = b) {
   ohneGrad ??= b;
   const text = (x) => JSON.stringify(x.schwierigkeit);
   const gleich = vorher && b.every((x, i) => text(x) === text(vorher[i]));
-  ordnung = ordne(b.map(x => x.schwierigkeit.wert));
-  folge = [...Array(n).keys()].sort((i, j) => ordnung.platz[i] - ordnung.platz[j]);
-  const neu = gradeEntlang(folge, b.map(x => x.schwierigkeit.wert), ordnung.bleibt);
+  const jetzt = b;
+  // Häufung der Haupt-Kernidee: gezählt ohne die Duldungsliste, mit den Graden der Reihenfolge
+  ordnung = reihenfolge(b.map(x => x.schwierigkeit.wert), levels.map(l => l.name), urteile, {
+    haupt: b.map(x => x.hauptKernidee.begriff),
+    geduldet: (i, g, u) => Object.values(GRUENDE).some(grund => grund.gilt(jetzt[i], g, u)),
+  });
+  folge = ordnung.folge;
+  const neu = ordnung.grad;
   if (gleich && neu.every((g, i) => g === grad[i])) break;
   grad = neu;
 }
 const werte = b.map(x => x.schwierigkeit.wert);
-const { formel, platz, bleibt } = ordnung;
+const { formel, bleibt, ki } = ordnung;
+const platz = new Array(n);
+folge.forEach((i, k) => { platz[i] = k + 1; });
 console.log(`Fixpunkt nach ${runde} Durchgängen: Schwierigkeit und Grade ändern sich mit den Graden nicht mehr`);
 
 // Reihenfolge
@@ -84,14 +100,25 @@ const wandert = [...Array(n).keys()].filter(i => !bleibt.has(i));
 const um = wandert.map(i => Math.abs(platz[i] - (i + 1)));
 console.log(`  ${wandert.length} Level nach der Formel, davon ${um.filter(x => x === 0).length} am heutigen Platz; `
   + `verschoben im Mittel um ${zahl(mittel(um))}, höchstens ${Math.max(...um)} Plätze`);
-const pruef = [...bleibt].filter(([, g]) => g === 'Formel').map(([i]) => i).sort((i, j) => i - j);
+const pruef = [...ordnung.pruefliste].sort((i, j) => i - j);
 const nachgezogen = [...bleibt].filter(([, g]) => g === 'Reihenfolge').map(([i]) => i);
 const vorn = pruef.filter(i => formel[i] < i + 1).length;
 console.log(`  Prüfliste für Ticket 16 (nach der Formel mehr als ${MAX_WANDERN} Plätze): ${pruef.length} Level, `
-  + `${vorn} nach vorn, ${pruef.length - vorn} nach hinten`);
+  + `${vorn} nach vorn, ${pruef.length - vorn} nach hinten; mit Urteil der KI-Tester ${ki.size}`);
+const vz = (k) => `${k > 0 ? '+' : '−'}${Math.abs(k)}`;
+/** Der Entscheid zu einem Level der Prüfliste (Ticket 16), oder dass es noch kein zählendes Urteil hat. */
+const entscheid = (i) => {
+  const u = ki.get(i);
+  if (!u) return 'noch kein Urteil, bleibt';
+  const je = Object.entries(u.je).map(([t, x]) => `${t} ${u.eintrag.urteile[t].einordnung} `
+    + `${x.stimmtZu ? 'stimmt zu' : 'nicht'} (Abstand Formel ${x.formel}, alt ${x.alt})`).join(', ');
+  const korrektur = u.verschiebung ? `, Korrektur ${vz(u.verschiebung)}` : '';
+  return `${u.eintrag.lauf}: ${u.zurFormel ? 'zur Formel' : 'bleibt'}${korrektur}`
+    + `${u.abgelehnt ? `, abgelehnt (${u.gruende.join(', ')})` : ''} → Platz ${platz[i]}; ${je}`;
+};
 for (const i of pruef) {
-  console.log(`    ${name(i)}: Formel ${formel[i]} (${formel[i] > i + 1 ? '+' : '−'}${Math.abs(formel[i] - i - 1)}), `
-    + `Schwierigkeit ${zahl(werte[i])}`);
+  console.log(`    ${name(i)}: Formel ${formel[i]} (${vz(formel[i] - i - 1)}), Schwierigkeit ${zahl(werte[i])}; `
+    + entscheid(i));
 }
 for (const i of nachgezogen) {
   console.log(`  bleibt ausserdem, weil es zwischen den Leveln der Prüfliste ${MAX_WANDERN} Plätze überschritte: `
@@ -141,17 +168,21 @@ for (const [text, r] of [['laufendes Maximum von vorn', maxVorn], ['laufendes Mi
   console.log(`  zum Vergleich ${text}: ${teile.join(', ')}; ${r.filter((x, k) => x !== nachSchwelle[k]).length} `
     + 'Level nicht nach der Schwelle');
 }
-const gewechselt = [...Array(n).keys()].filter(i => grad[i] !== gradeOf(i + 1).name);
+const gewechselt = [...Array(n).keys()].filter(i => grad[i] !== provisionalGradeOf(i + 1).name);
 console.log(`  Grad anders als vorläufig nach heutigem Platz: ${gewechselt.length} Level`);
 for (const g of GRADE) {
   const hin = gewechselt.filter(i => grad[i] === g);
-  if (hin.length) console.log(`    jetzt ${g}: ${hin.map(i => `${name(i)} (war ${gradeOf(i + 1).name})`).join(', ')}`);
+  const war = (i) => `${name(i)} (war ${provisionalGradeOf(i + 1).name})`;
+  if (hin.length) console.log(`    jetzt ${g}: ${hin.map(war).join(', ')}`);
 }
 
 // Duldungsliste
-const gilt = (grund, i) => GRUENDE[grund].gilt(b[i], grad[i]);
+const gilt = (grund, i) => GRUENDE[grund].gilt(b[i], grad[i], ki.get(i));
 const begriffe = (x) => [...new Set(x.ausschluesse.map(a => a.begriff))].join(', ');
-const WARUM = { ausschlussgrund: i => begriffe(b[i]), unterMindestSpielwert: i => zahl(b[i].spielwert.wert) };
+const WARUM = {
+  ausschlussgrund: i => begriffe(b[i]), unterMindestSpielwert: i => zahl(b[i].spielwert.wert),
+  abgelehnt: i => `${ki.get(i).gruende.join(', ')}, ${ki.get(i).eintrag.lauf}`,
+};
 console.log('\nDuldungsliste (Grad der Reihenfolge, Plätze heute)');
 const nachPlatz = (liste) => liste.sort((i, j) => i - j);
 const zeige = (liste, warum) => liste.map(i => `${name(i)}${warum ? ` (${warum(i)})` : ''}`).join(', ') || '–';
@@ -176,14 +207,14 @@ console.log('    entfallen mit dem Grad leicht (Füllteil und Zerfall gelten ers
 const duldung = nachPlatz([...Array(n).keys()].filter(i => Object.keys(GRUENDE).some(grund => gilt(grund, i))));
 console.log(`  Duldungsliste zusammen: ${duldung.length} Level (${GRADE.map(g => `${g} `
   + `${duldung.filter(i => grad[i] === g).length} von ${jeGrad(g, i => grad[i]).length}`).join(', ')})`);
-const nurKernidee = duldung.filter(i => !gilt('ausschlussgrund', i));
+const nurKernidee = duldung.filter(i => !gilt('ausschlussgrund', i) && !gilt('abgelehnt', i));
 const beide = nurKernidee.filter(i => gilt('ohneKernidee', i) && gilt('unterMindestSpielwert', i));
 const nurOhne = nurKernidee.filter(i => !gilt('unterMindestSpielwert', i));
 const nurUnter = nurKernidee.filter(i => !gilt('ohneKernidee', i));
 console.log(`    ohne Ausschlussgrund: ${nurKernidee.length}, davon ohne nötige Kernidee und unter dem `
   + `Mindest-Spielwert ${beide.length}; nur ohne Kernidee: ${zeige(nurOhne, WARUM.unterMindestSpielwert)}; `
   + `nur unter dem Mindest-Spielwert: ${zeige(nurUnter, WARUM.unterMindestSpielwert)}`);
-const geduldetGeprueft = duldung.filter(i => bleibt.get(i) === 'Formel');
+const geduldetGeprueft = duldung.filter(i => ordnung.pruefliste.includes(i));
 console.log(`    auch auf der Prüfliste: ${geduldetGeprueft.length}, davon mit Ausschlussgrund `
   + `${geduldetGeprueft.filter(i => gilt('ausschlussgrund', i)).length}; Prüfliste ohne Duldungsliste: `
   + `${zeige(pruef.filter(i => !duldung.includes(i)))}`);
@@ -248,11 +279,23 @@ const mehrdeutig = levels.map((level, i) => [i, level, solve(level, { unique: tr
   return r.aborted || r.count !== 1 || norm(r.solutions[0].set) !== norm(level.solution);
 });
 console.log(`  Genau eine Lösung: ${mehrdeutig.length ? `nicht bei ${zeige(mehrdeutig.map(([i]) => i))}` : 'alle'}`);
-console.log('  Verschiebungen durch die KI-Tester: noch keine (die Läufe bisher eichen nur, Tickets 13 und 16)');
+const kiText = (wer) => [...ki].filter(([, u]) => wer(u)).map(([i]) => name(i)).join(', ') || '–';
+console.log(`  Urteile der KI-Tester (Ticket 16, Ablauf 2, pruefung-…): ${ki.size} von ${pruef.length} Leveln der `
+  + `Prüfliste; zur Formel: ${kiText(u => u.zurFormel)}; eigene Korrektur: ${kiText(u => u.verschiebung)}; `
+  + `abgelehnt: ${kiText(u => u.abgelehnt)}`);
+const zug = ({ i, von, nach }) => `${name(i)} (${b[i].hauptKernidee.begriff ?? 'ohne Haupt-Kernidee'}`
+  + `${duldung.includes(i) ? ', Duldungsliste' : ''}) von Platz ${von + 1} auf ${nach + 1}`;
+console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10} je 10 Level ohne die Duldungsliste): `
+  + `${ordnung.zuege.length ? ordnung.zuege.map(zug).join('; ') : 'keine Züge'}`);
+const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `
+  + `${h.mit.length}-mal, ${h.mit.map(name).join(', ')}`).join('; ');
+if (offenText) console.log(`    nicht aufzulösen mit höchstens ${MAX_ENTZERREN} Plätzen: ${offenText}`);
 console.log('  Anker der KI-Tester (je zwei pro Grad, am unteren und oberen Ende):');
-for (const a of loadAnchors().map(x => ({ ...x, i: x.position - 1 }))) {
+// Die Anker stehen in anchors.json mit Namen; i ist ihr heutiger Platz (Index), wie bei den übrigen Zeilen hier
+for (const a of loadAnchors().map(x => ({ ...x, i: levels.findIndex(l => l.name === x.name) }))) {
   console.log(`    ${a.id} ${name(a.i)}: ${a.grad} ${a.ende} → Platz ${platz[a.i]}, ${grad[a.i]}`
-    + `${grad[a.i] === a.grad ? '' : ' (anderer Grad)'}${bleibt.has(a.i) ? ', auf der Prüfliste' : ''}`);
+    + `${grad[a.i] === a.grad ? '' : ' (anderer Grad)'}`
+    + `${ordnung.pruefliste.includes(a.i) ? ', auf der Prüfliste' : ''}`);
 }
 
 // Spielwert und Schwierigkeit (Hinweis aus Ticket 12)
@@ -265,27 +308,49 @@ console.log(`\nRangkorrelation von Spielwert und Schwierigkeit: ${korrelation.jo
 // Stand der Leveldaten und der Levelliste
 const reihe = L.LEVELS.slice(L.TUTORIAL_COUNT);
 const imSpielGleich = folge.every((i, k) => reihe[k]?.name === levels[i].name && reihe[k].grad === grad[i]);
+const bisher = existsSync(DATEI) ? ladeLevelliste() : null;
+// Die ursprüngliche Liste wuchs einmal, in Ticket 16, um begründete Ergänzungen (ergaenzungBegruendet): Level, die
+// beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen
+const bisherIn = (grund) => bisher?.urspruenglich?.[grund] ?? [];
+const neuAufListe = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
+  duldungJe[grund].filter(i => !bisherIn(grund).includes(levels[i].name))]));
+const ergaenzt = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund, [...new Set([
+  ...(bisher?.ergaenzt?.[grund] ?? []),
+  ...folgeNamen(neuAufListe[grund].filter(i => ergaenzungBegruendet(grund, ki.get(i), grad[i]))),
+])]]));
 const listen = {
   duldung: Object.fromEntries(Object.entries(duldungJe).map(([grund, alle]) => [grund, folgeNamen(alle)])),
   pruefliste: folgeNamen(pruef),
+  prueflisteErledigt: pruef.every(i => ki.has(i)),
 };
-const bisher = existsSync(DATEI) ? ladeLevelliste() : null;
-const listenGleich = bisher && JSON.stringify(bisher.duldung) === JSON.stringify(listen.duldung)
-  && JSON.stringify(bisher.pruefliste) === JSON.stringify(listen.pruefliste);
+for (const [grund, neu] of Object.entries(neuAufListe)) {
+  const ohne = neu.filter(i => !ergaenzt[grund].includes(levels[i].name));
+  if (neu.length) console.log(`  neu auf der Duldungsliste (${GRUENDE[grund].text}): ${zeige(neu)}`);
+  if (ohne.length) console.log(`    Achtung, nicht begründet (Ticket 16): ${zeige(ohne)}`);
+}
+const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
+  .every(k => JSON.stringify(bisher[k]) === JSON.stringify(listen[k]))
+  && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt);
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
-if (schreiben) {
+if (schreiben && ordnung.offen.length) {
+  console.log('  nicht geschrieben: Eine Häufung der Haupt-Kernidee lässt sich nach der Regel nicht auflösen (oben).');
+  process.exitCode = 1;
+} else if (schreiben) {
   if (!imSpielGleich) schreibeLevels();
-  writeFileSync(DATEI, levellisteText({
-    ...listen, urspruenglich: bisher?.urspruenglich ?? listen.duldung, entfernteNamen: bisher?.entfernteNamen ?? [],
-  }));
+  const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
+    bisher ? [...new Set([...bisherIn(grund), ...ergaenzt[grund]])] : listen.duldung[grund]]));
+  const entfernteNamen = bisher?.entfernteNamen ?? [];
+  writeFileSync(DATEI, levellisteText({ ...listen, urspruenglich, ergaenzt, entfernteNamen }));
   console.log(`  geschrieben: ${imSpielGleich ? '' : 'index.html und '}levelliste.json`);
 }
 
 if (jsonDatei) {
   writeFileSync(jsonDatei, JSON.stringify(folge.map(i => ({
     platz: platz[i], heute: i + 1, name: levels[i].name, schwierigkeit: werte[i], formel: formel[i], grad: grad[i],
-    gradNachSchwelle: gradVon(werte[i]), bleibt: bleibt.get(i) ?? null,
+    gradNachSchwelle: gradVon(werte[i]), bleibt: bleibt.get(i) ?? null, pruefliste: ordnung.pruefliste.includes(i),
+    kiTester: ki.has(i) ? { lauf: ki.get(i).eintrag.lauf, zurFormel: ki.get(i).zurFormel,
+      verschiebung: ki.get(i).verschiebung, abgelehnt: ki.get(i).abgelehnt } : null,
     duldung: Object.keys(GRUENDE).filter(grund => gilt(grund, i)), ausschluesse: begriffe(b[i]),
     hauptKernidee: b[i].hauptKernidee.begriff, spielwert: b[i].spielwert.wert,
   })), null, 1) + '\n');
@@ -333,7 +398,7 @@ function schreibeLevels() {
 }
 
 /** levelliste.json mit Namenslisten zu höchstens 120 Zeichen je Zeile. */
-function levellisteText({ duldung, urspruenglich, entfernteNamen, pruefliste }) {
+function levellisteText({ duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt }) {
   const liste = (namen, einzug) => {
     if (!namen.length) return '[]';
     const zeilen = [];
@@ -350,10 +415,13 @@ function levellisteText({ duldung, urspruenglich, entfernteNamen, pruefliste }) 
   const gruppe = (g) => `{\n${Object.keys(GRUENDE).map(k => `    "${k}": ${liste(g[k] ?? [], '    ')}`)
     .join(',\n')}\n  }`;
   return '{\n'
-    + '  "kommentar": "Duldungsliste nach Grund, ursprüngliche Liste, entfernte Namen, Prüfliste (levelliste.mjs).",\n'
+    + '  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste '
+    + '(levelliste.mjs).",\n'
     + `  "duldung": ${gruppe(duldung)},\n`
     + `  "urspruenglich": ${gruppe(urspruenglich)},\n`
+    + `  "ergaenzt": ${gruppe(ergaenzt)},\n`
     + `  "entfernteNamen": ${liste(entfernteNamen, '  ')},\n`
-    + `  "pruefliste": ${liste(pruefliste, '  ')}\n`
+    + `  "pruefliste": ${liste(pruefliste, '  ')},\n`
+    + `  "prueflisteErledigt": ${prueflisteErledigt}\n`
     + '}\n';
 }

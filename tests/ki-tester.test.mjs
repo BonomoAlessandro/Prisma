@@ -1,5 +1,6 @@
-// Testet den Ablauf der KI-Tester (tools/ki-tester/): Schema der Antworten, Zusammenführen der beiden Urteile, die
-// Anker, das Feld als Text, den Auftrag samt Fingerabdruck der Eingaben und das versionierte Protokoll.
+// Testet den Ablauf der KI-Tester (tools/ki-tester/): Schema der Antworten, Zusammenführen der beiden Urteile, Referenz
+// und Grade in der Reihenfolge im Spiel, die Anker, das Feld als Text, den Auftrag samt Fingerabdruck der Eingaben und
+// das versionierte Protokoll mit den Einträgen aller Versionen.
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync } from 'node:fs';
@@ -10,10 +11,11 @@ import assert from 'node:assert/strict';
 import { L } from '../tools/solver.mjs';
 import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
+import { ladeLevelliste } from '../tools/levelliste.mjs';
 
 const {
-  VERSION, FINGERPRINT, AGENT, fingerprint, GRADES, MAX_SHIFT, reference, loadAnchors, SCHEMA, glossary, rejectionTerms,
-  brief, answerErrors, merge, entry, protocolErrors,
+  VERSION, VERSIONS, FINGERPRINT, AGENT, fingerprint, GRADES, PROVISIONAL_GRADES, MAX_SHIFT, reference, levelAt,
+  loadAnchors, SCHEMA, glossary, rejectionTerms, brief, answerErrors, merge, entry, protocolErrors,
 } = protocol;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const protocolFile = process.argv[2] || join(root, 'tools', 'ki-tester', 'protocol.jsonl');
@@ -35,11 +37,17 @@ const answer = (over = {}) => ({
   begruendung: 'Klarer Aufbau, eine Idee.',
   ...over,
 });
+// Die Regeln prüfen feste Plätze, unabhängig von der Reihenfolge im Spiel: Anker und Grade wie in Ablauf 1, die
+// Referenz in der Form von Ablauf 2
 const ANCHORS = { A1: 3, A2: 30, A3: 35, A4: 94, A5: 103, A6: 135, A7: 141, A8: 148 };
+const fixedReference = (position, art = 'Reihenfolge im Spiel') => {
+  const g = PROVISIONAL_GRADES.find(x => position >= x.from && position <= x.to);
+  return { art, position, grad: g.name, von: g.from, bis: g.to };
+};
 const LEVEL = { id: 'L1', name: 'Testlevel', anker: null };
 const A3 = { id: 'A3', name: 'Kreuzweg', anker: 'A3' };
 const judge = (a, b, position = 60, level = LEVEL) =>
-  merge({ level, referenz: reference(position), anker: ANCHORS, urteile: { A: answer(a), B: answer(b) } });
+  merge({ level, referenz: fixedReference(position), anker: ANCHORS, urteile: { A: answer(a), B: answer(b) } });
 const decide = (...args) => judge(...args).ergebnis;
 const errorsOf = (a, level = LEVEL) => answerErrors(answer(a), level);
 
@@ -186,32 +194,56 @@ test('Begründung nennt beide Listen und die Verschiebung', () => {
   assert.match(r.begruendung, /−5/);
 });
 
+console.log('Referenz und Grade (Ablauf 2)');
+const MAIN = L.LEVELS.length - L.TUTORIAL_COUNT;
+test('Die Grade folgen der Reihenfolge im Spiel: je ein Abschnitt, zusammen lückenlos alle Plätze', () => {
+  let next = 1;
+  for (const g of GRADES) {
+    assert.equal(g.from, next, `${g.name} beginnt nicht bei ${next}`);
+    next = g.to + 1;
+  }
+  assert.equal(next, MAIN + 1);
+});
+test('Referenz: Platz in der Reihenfolge im Spiel, Grad aus den Leveldaten, Grenzen aus der Reihenfolge', () => {
+  for (let p = 1; p <= MAIN; p++) {
+    const r = reference(p), level = L.LEVELS[L.TUTORIAL_COUNT + p - 1];
+    assert.equal(levelAt(p), level, `Platz ${p}`);
+    assert.deepEqual([r.art, r.position, r.grad], ['Reihenfolge im Spiel', p, level.grad], `Platz ${p}`);
+    const inside = L.LEVELS.slice(L.TUTORIAL_COUNT).flatMap((l, k) => (l.grad === r.grad ? [k + 1] : []));
+    assert.deepEqual([r.von, r.bis], [inside[0], inside.at(-1)], `Platz ${p}`);
+  }
+});
+
 console.log('Anker');
-const DULDUNG = ['Begegnung', 'Seitenlicht', 'Auslese', 'Labyrinth', 'Doppelpass', 'Lichtbündel', 'Einklang',
-  'Schnittstelle', 'Geflecht', 'Glasmurmel', 'Weichensteller', 'Mosaik', 'Laterne', 'Lichtorgel', 'Libelle',
-  'Rangierbahnhof', 'Opal', 'Polarlicht', 'Lichtschleife', 'Komet', 'Unendlichkeit', 'Irrlicht', 'Interferenz',
-  'Leuchtturm', 'Korona', 'Glasperlenspiel', 'Sternbild', 'Kristallpalast', 'Quasar', 'Ereignishorizont',
-  'Lichtgeschwindigkeit', 'Singularität', 'Urknall', 'Prismenhof', 'Farbenrausch', 'Farbmühle', 'Zenit']; // Spec, Stand der Neuzählung
+// Duldungsliste (Grund Ausschlussgrund) und Prüfliste aus tools/levelliste.json
+const LEVELLISTE = ladeLevelliste();
+const AUSSCHLUSS = LEVELLISTE.duldung.ausschlussgrund;
 const GRENZFAELLE = ['Zwielicht', 'Lichtkegel', 'Schnittstelle', 'Prismenreigen', 'Widerschein', 'Sonnenwende',
   'Einklang', 'Knotenpunkt', 'Glasmurmel', 'Blendwerk', 'Opal', 'Doppelspiegel', 'Chamäleon', 'Supernova', 'Lichthof'];
-test('Je zwei Anker pro Grad, einer am unteren und einer am oberen Ende', () => {
+/** Taugt als Anker: kein Ausschlussgrund und nicht auf der Prüfliste (Regel des Nutzers, Ticket 16). */
+const usable = (level) => !AUSSCHLUSS.includes(level.name) && !LEVELLISTE.pruefliste.includes(level.name);
+test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und einer am oberen Ende', () => {
   const anchors = loadAnchors();
-  assert.equal(DULDUNG.length, 37);
   for (const g of GRADES) {
     const own = anchors.filter(a => a.grad === g.name);
     assert.deepEqual(own.map(a => a.ende), ['unten', 'oben'], g.name);
     const third = (g.to - g.from + 1) / 3;
     for (const a of own) {
       assert.ok(a.position >= g.from && a.position <= g.to, `${a.name} (${a.position}) nicht in ${g.name}`);
-      assert.ok(a.ende === 'unten' ? a.position < g.from + third : a.position > g.to - third, `${a.name} nicht am Ende`);
+      // Am Ende heisst: im äussersten Drittel des Grads, oder zwischen ihm und dem Ende taugt kein Level als Anker
+      const outer = a.ende === 'unten' ? a.position < g.from + third : a.position > g.to - third;
+      const [from, to] = a.ende === 'unten' ? [g.from, a.position - 1] : [a.position + 1, g.to];
+      const nearer = Array.from({ length: Math.max(0, to - from + 1) }, (_, k) => levelAt(from + k)).filter(usable);
+      assert.ok(outer || !nearer.length, `${a.name} nicht am Ende, näher daran: ${nearer.map(l => l.name).join(', ')}`);
     }
   }
   const positions = anchors.map(a => a.position);
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), 'Anker nach Platz geordnet');
 });
-test('Kein Anker auf der Duldungsliste oder ein Grenzfall der Neuzählung', () => {
+test('Kein Anker mit Ausschlussgrund, auf der Prüfliste oder ein Grenzfall der Neuzählung', () => {
+  assert.ok(AUSSCHLUSS.length > 0 && LEVELLISTE.pruefliste.length > 0, 'levelliste.json gelesen');
   for (const a of loadAnchors()) {
-    assert.ok(!DULDUNG.includes(a.name), a.name);
+    assert.ok(usable(a), `${a.name}: Ausschlussgrund oder Prüfliste`);
     assert.ok(!GRENZFAELLE.includes(a.name), a.name);
     assert.ok(a.begruendung.length > 40, `${a.name}: Begründung fehlt`);
   }
@@ -232,9 +264,15 @@ test('Feld als Text kennt weder Lösung noch Name noch Grad und nennt jedes Elem
 });
 
 console.log('Auftrag und Fingerabdruck');
-test('Glossar für die KI-Tester: mit der Vermeiden-Zeile bei Füllteil, ohne die Hinweise für Autoren', () => {
-  const text = glossary();
-  assert.ok(text.includes('_Vermeiden_: Füllteil für einen kurzen Strang, den ein anderer Strahl kreuzt (das ist ein Einstieg)'));
+test('Glossar für die KI-Tester: geschärft bei Füllteil, Abschalten und Falle, ohne die Hinweise für Autoren', () => {
+  const text = glossary(), flat = text.replace(/\s+/g, ' ');
+  assert.ok(flat.includes('_Vermeiden_: Füllteil für einen kurzen Strang, den ein anderer Strahl an einem seiner ' +
+    'Spiegel trifft (das ist ein Einstieg)'));
+  const term = (name) => flat.slice(flat.indexOf(`**${name}**:`)).split(' **')[0];
+  assert.match(term('Abschalten'), /Licht in der Farbe des Ziels/);
+  const ABGRENZUNG = 'Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das Abschalten nimmt es dem ' +
+    'Ziel weg.';
+  for (const name of ['Abschalten', 'Falle']) assert.ok(term(name).includes(ABGRENZUNG), `${name}: Abgrenzung fehlt`);
   assert.ok(!text.includes('_Vermeiden_: Muster'), 'Hinweis zur Benennung der Kernidee');
   assert.ok(!text.includes('## Beurteilung von Leveln'));
 });
@@ -258,7 +296,7 @@ test(`Version ${VERSION}: alles, was die KI-Tester sehen, ist unverändert (Fing
 
 console.log('Protokoll');
 const valid = () => entry({
-  datum: '2026-10-16', lauf: 'test', agent: AGENT, level: LEVEL, referenz: reference(60), anker: ANCHORS,
+  datum: '2026-10-16', lauf: 'test', agent: AGENT, level: LEVEL, referenz: fixedReference(60), anker: ANCHORS,
   urteile: { A: answer({ einordnung: 'A2-A3', ablehnung: ['Knäuel'] }), B: answer({ einordnung: 'A3' }) },
 });
 const line = (e) => JSON.stringify(e) + '\n';
@@ -273,28 +311,57 @@ test('Ein Eintrag aus dem Zusammenführen ist gültig und nennt Modell und Agent
 test(`Das versionierte Protokoll ist gültig (${protocolFile.replace(root, '.')})`, () => {
   const text = readFileSync(protocolFile, 'utf8');
   assert.deepEqual(protocolErrors(text), []);
-  console.log(`        ${text.split('\n').filter(l => l.trim()).length} Einträge`);
+  const entries = text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  const per = Object.keys(VERSIONS).map(v => `Ablauf ${v}: ${entries.filter(e => e.ablauf === v).length}`);
+  console.log(`        ${entries.length} Einträge (${per.join(', ')})`);
+});
+test('Versionen: die aktuelle mit ihrem Fingerabdruck, Ablauf 1 als Geschichte', () => {
+  assert.deepEqual(Object.keys(VERSIONS), ['1', '2']);
+  assert.equal(VERSIONS[VERSION].fingerabdruck, FINGERPRINT);
+  assert.deepEqual([VERSIONS[1].referenz, VERSIONS[2].referenz], ['heutige Reihenfolge', 'Reihenfolge im Spiel']);
+  assert.equal(valid().referenz.art, VERSIONS[VERSION].referenz);
+});
+test('Ablauf 1 bleibt gültig lesbar: 43 Einträge mit der heutigen Reihenfolge und den vorläufigen Graden', () => {
+  const old = readFileSync(protocolFile, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l))
+    .filter(e => e.ablauf === '1');
+  assert.equal(old.length, 43);
+  for (const e of old) {
+    const g = PROVISIONAL_GRADES.find(x => e.referenz.position >= x.from && e.referenz.position <= x.to);
+    assert.deepEqual([e.referenz.art, e.referenz.grad, e.referenz.von, e.referenz.bis],
+      ['heutige Reihenfolge', g.name, g.from, g.to], `${e.lauf} ${e.level.id}`);
+  }
+  assert.deepEqual(protocolErrors(old.map(line).join('')), []);
 });
 // Gegenproben: eine Kopie des Protokolls mit einem verfälschten Eintrag muss mit der erwarteten Meldung rot werden
 const both = (e, over) => { for (const t of ['A', 'B']) Object.assign(e.urteile[t], over); };
 const tampered = [
   ['Anker verschoben', (e) => {
-    e.level = A3; e.referenz = reference(35); both(e, { level: 'A3', einordnung: 'A3' });
+    e.level = A3; e.referenz = fixedReference(35); both(e, { level: 'A3', einordnung: 'A3' });
     e.ergebnis = { abgelehnt: false, gruende: [], verschiebung: 1, position: 36 };
   }, /Anker A3 verschoben/],
   ['unbekannte Version', (e) => { e.ablauf = '9'; }, /Version des Ablaufs fehlt oder unbekannt \(9\)/],
+  ['Ablauf 1 mit der Referenz von Ablauf 2', (e) => { e.ablauf = '1'; },
+    /Referenz nicht die von Ablauf 1 \(heutige Reihenfolge\)/],
+  ['Ablauf 2 mit der Referenz von Ablauf 1', (e) => { e.referenz.art = 'heutige Reihenfolge'; },
+    /Referenz nicht die von Ablauf 2 \(Reihenfolge im Spiel\)/],
+  ['Ablauf 1 mit anderen als den vorläufigen Graden', (e) => {
+    e.ablauf = '1'; e.referenz = { art: 'heutige Reihenfolge', position: 60, grad: 'mittel', von: 33, bis: 102 };
+  }, /Referenz nicht die von Ablauf 1 \(heutige Reihenfolge\)/],
+  ['Ablauf 2 mit einem Grad über das Spiel hinaus', (e) => { e.referenz.bis = 151; },
+    /Referenz nicht die von Ablauf 2/],
   ['Verschiebung 6', (e) => { e.ergebnis.verschiebung = -6; e.ergebnis.position = 54; }, /Verschiebung −6: mehr als 5 Plätze/],
   ['über die Gradgrenze 30/31', (e) => {
-    e.referenz = reference(33); e.ergebnis.verschiebung = -5; e.ergebnis.position = 28;
+    e.referenz = fixedReference(33); e.ergebnis.verschiebung = -5; e.ergebnis.position = 28;
   }, /Platz 28 ausserhalb von mittel \(31–100\)/],
   ['über die Gradgrenze 100/101, wo kein Anker steht', (e) => {
-    e.referenz = reference(98); both(e, { einordnung: 'A5-A6' }); e.ergebnis.verschiebung = 3; e.ergebnis.position = 101;
+    e.referenz = fixedReference(98); both(e, { einordnung: 'A5-A6' });
+    e.ergebnis.verschiebung = 3; e.ergebnis.position = 101;
   }, /Platz 101 ausserhalb von mittel \(31–100\)/],
   ['abgelehnt, obwohl nur einer ablehnt', (e) => {
     e.ergebnis = { abgelehnt: true, gruende: ['Knäuel'], verschiebung: 0, position: 60 };
   }, /abgelehnt, aber nicht beide nennen einen Begriff, der bei mittel gilt/],
   ['abgelehnt mit Füllteil in einem leichten Level', (e) => {
-    e.referenz = reference(12); both(e, { einordnung: 'A1-A2', ablehnung: ['Füllteil'] });
+    e.referenz = fixedReference(12); both(e, { einordnung: 'A1-A2', ablehnung: ['Füllteil'] });
     e.ergebnis = { abgelehnt: true, gruende: ['Füllteil'], verschiebung: 0, position: 12 };
   }, /abgelehnt, aber nicht beide nennen einen Begriff, der bei leicht gilt/],
   ['nicht abgelehnt, obwohl beide ablehnen', (e) => { e.urteile.B.ablehnung = ['Zerfall']; }, /gilt, aber nicht abgelehnt/],

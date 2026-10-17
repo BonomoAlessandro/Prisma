@@ -7,15 +7,18 @@ import { tmpdir } from 'node:os';
 
 export const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+/** Der Pfad des Chrome (oder Edge), den startChrome startet; null, wenn keiner da ist. */
+export const findChrome = () => [
+  process.env.CHROME_PATH,
+  'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
+  '/usr/bin/google-chrome',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+].filter(Boolean).find(p => existsSync(p)) ?? null;
+
 /** Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), logs (Konsole), close() }. */
 export async function startChrome({ width, height, gpu = false }) {
-  const chrome = [
-    process.env.CHROME_PATH,
-    'C:/Program Files/Google/Chrome/Application/chrome.exe',
-    'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-    '/usr/bin/google-chrome',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-  ].filter(Boolean).find(p => existsSync(p));
+  const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
   const port = 9300 + Math.floor(Math.random() * 500);
