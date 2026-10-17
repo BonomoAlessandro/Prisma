@@ -44,3 +44,9 @@ die 50 Level ohne Ausschlussgrund in den übrigen Graden entscheidet der Nutzer 
 - „leicht“ ist gegenüber Ticket 18 bitgleich.
 - Die Kommandozeile `tools/generiere.mjs` kennt die Ziel-Schwierigkeit noch nicht. Für den Austausch ein kleines
   Skript oder eine Option `--schwierigkeit`.
+
+**Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026, aus dem Review von Ticket 19):** Der Generator bleibt bei der
+Auslegung aus Ticket 18 und 19: Die verlangte Kernidee ist unter den nötigen, weitere dürfen dazukommen. Die strengere
+Regel „die verlangte Kernidee ist die Haupt-Kernidee“ kommt erst mit dem Austausch, als Wahl im Auftrag, wo die Regel
+„dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ sie braucht. Gemessen in Ticket 19: Die verlangte ist fast
+immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haupt-Kernidee Abschalten.

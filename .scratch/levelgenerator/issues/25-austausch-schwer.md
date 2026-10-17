@@ -49,3 +49,6 @@ unteren Teil von „schwer“. Für Ersatz weit oben (die Level im Spiel reichen
 **Nach dem Merge mit 19** (Probe in Ticket 20, Seeds 1–100 je Auftrag): `schwer-mischziel` 39 Level,
 `schwer-sammelstelle` 36, `schwer-falle` 8, Abschalten und Farben abzählen je 4, Lockvogel 0. Für „höchstens zweimal
 je 10 Level“ stehen also vor allem Mischziel und Sammelstelle bereit; siehe Ticket 24.
+
+**Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
+Wahl im Auftrag mit dem Austausch, siehe Ticket 23.

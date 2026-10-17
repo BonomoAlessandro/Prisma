@@ -60,3 +60,6 @@ darunter neu 17 Weichen und 32 Streulicht (Entscheid des Nutzers, Ticket 16).
   „höchstens zweimal je 10 Level“ stehen ab „mittel“ also vor allem Mischziel und Sammelstelle bereit, dazu wenig
   Falle. Liegen viele Ersatzlevel nah beieinander, kann das knapp werden. Die Haupt-Kernidee wählt die Beurteilung
   (`beurteilung.hauptKernidee`), nicht der Auftrag.
+
+**Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
+Wahl im Auftrag mit dem Austausch, siehe Ticket 23.

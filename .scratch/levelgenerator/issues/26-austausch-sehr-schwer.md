@@ -55,3 +55,6 @@ Ablaufs.
   Level verschieden genug sind. Vor dem Austausch deshalb die Verteilung von `beurteilung.hauptKernidee` bei „sehr
   schwer“ messen; reicht sie nicht, braucht es zuerst Bausteine, die ab „mittel“ Platz und offene Strahlen lassen
   (Ticket 20, „Nach dem Merge mit 19“).
+
+**Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
+Wahl im Auftrag mit dem Austausch, siehe Ticket 23.
