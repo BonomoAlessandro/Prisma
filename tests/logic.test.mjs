@@ -684,6 +684,18 @@ console.log('Würfel (dim: 3)');
       if (r) assert.ok(ok.has(vec(r)), `${axis} ${rot} ${vec(d)} → ${vec(r)}`);
     }
   });
+  test('Spiegel im Würfel: Regel der Drehebene (reflectOnMirror) gleich der Vektorformel d − 2 (d·n) / (n·n) · n', () => {
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) {
+      for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+        const d = [dx, dy, dz], q = dot(d, d);
+        if (q !== 1 && q !== 2) continue;
+        const n = L.planeDir(axis, rot + 2), k = dot(d, n), f = 2 * k / dot(n, n);
+        const expected = k === 0 ? null : d.map((c, i) => c - f * n[i]);
+        assert.equal(vec(L.reflect3(d, axis, rot)), vec(expected), `${axis} ${rot} ${vec(d)}`);
+      }
+    }
+  });
   test('Spiegel mit Achse z lenkt Ost nach oben', () => assert.equal(vec(L.reflect3([1, 0, 0], 'z', 3)), vec([0, 1, 0])));
   test('Strahl längs der Drehachse endet am Spiegelrand', () => {
     const r = L.traceBeams(cube([{ type: 'source', x: 2, y: 0, z: 2, axis: 'z', dir: 6 }, { type: 'mirror', x: 2, y: 3, z: 2, rot: 1 }]));
@@ -765,8 +777,9 @@ console.log('Würfel (dim: 3)');
     }
     assert.ok(checked > 100, 'zu wenige Felder geprüft: ' + checked);
   });
-  // Ein flaches Level als Würfel mit einer Ebene (y = 0, Drehachse überall y): Der Würfel-Pfad muss dieselbe
-  // Strahlregel rechnen wie tracePass (ADR 0003). Kommazahlen dürfen um Rundungsreste abweichen, alles andere nicht.
+  // Ein flaches Level als Würfel mit einer Ebene (y = 0, Drehachse überall y): Beide laufen durch denselben Durchlauf
+  // (tracePass, ADR 0003), der Würfel über die Tabellen der Drehebene und mit y in der Ausgabe. Kommazahlen dürfen um
+  // Rundungsreste abweichen, alles andere nicht.
   const asCube = (lvl) => ({
     ...lvl, dim: 3, size: lvl.size || 7, elements: lvl.elements.map(e => ({ ...e, y: 0 })),
     solution: Object.fromEntries(Object.entries(lvl.solution || {}).map(([k, v]) => [k.replace(',', ',0,'), v])),

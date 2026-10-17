@@ -61,8 +61,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 5×5×5-Würfel (`LEVELS_3D`, `dim: 3`),
   in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
   wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
-  Eigener Logikpfad (`createBoard3`, `tracePass3`) mit denselben Regeln wie `tracePass`, auch beim Anhalten an
-  offenen Stellungen für den Löser; die flachen Level bleiben bitgleich (`tests/golden.mjs`).
+  Derselbe Durchlauf der Strahlregel wie für die flachen Level (`tracePass`, ADR 0003): Ein flaches Level ist ein Würfel
+  mit einer Ebene. Nur das Brett hat eine eigene Fassung (`createBoard3`, mit y und Drehachse); die flachen Level
+  bleiben bitgleich (`tests/golden.mjs`).
   Die Kamera lässt sich im Würfel viel stärker neigen.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe

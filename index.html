@@ -452,7 +452,7 @@ const LOOK = {
 THREE.ColorManagement.legacyMode = false;
 
 /* LOGIC:BEGIN ==========================================================
-   SPIELLOGIK — reine Rasterlogik ohne Three.js: 2D-Feld, dazu die Würfel-Level (siehe tracePass3).
+   SPIELLOGIK — reine Rasterlogik ohne Three.js: 2D-Feld und Würfel-Level, ein Durchlauf für beide (tracePass).
    Wird von tests/logic.test.mjs direkt aus dieser Datei geladen.
 
    Koordinaten: x = Spalte (nach rechts), z = Zeile (zum Betrachter hin).
@@ -581,7 +581,8 @@ function refractInPrism(dir, color, rot) {
 
 /**
  * Verfolgt alle Strahlen auf dem Feld.
- * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }.
+ * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }, im Würfel
+ * { x, y, z, d: [dx, dy, dz], color }.
  * from (optional, nur für den Löser): resume einer Verfolgung, die an einem Element auf OPEN angehalten hat. Die
  * Verfolgung macht dort weiter, statt von vorn zu beginnen, mit demselben Ergebnis – vorausgesetzt, seither wurde nur
  * die Stellung dieses Elements gesetzt (gleiches Feld, gleiche extraRays). Bis zum Anhalten hat sie es nie gelesen.
@@ -603,7 +604,8 @@ function refractInPrism(dir, color, rot) {
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
  *   solved:    alle Ziele erfüllt
  *   truncated: Obergrenze erreicht (Abpraller, Abschnitte, Kombinator-Fixpunkt) – dann nie gelöst
- * Würfel-Level (board.dim 3): Koordinaten und Normalen mit y, siehe tracePass3.
+ * Würfel-Level (board.dim 3) laufen über denselben Durchlauf (tracePass): Ein flaches Level ist ein Würfel mit einer
+ * Ebene (y = 0, Drehachse y). Im Würfel haben Segmente zusätzlich y0/y1, Ereignisse y, Normalen sind [nx, ny, nz].
  * Steht ein Element, das Licht bekommt, auf OPEN, ist die Rückgabe nur { open: Element, hits, resume } (für den Löser).
  * Ohne früheren Durchlauf ist hits dieselbe Map wie im Stand resume; ein Aufrufer darf sie nicht verändern.
  */
@@ -616,9 +618,8 @@ function traceBeams(board, extraRays = [], from = null) {
   for (const el of board.elements) if (el.type === 'combiner') combiners++;
   const maxPasses = 3 * combiners + 2;
   let stable = false;
-  const cube = board.dim === 3; // Würfel-Level: eigener Durchlauf mit y (tracePass3), gleiche Regeln
   for (let pass = from ? from.pass : 0; pass < maxPasses && !stable; pass++) {
-    const r = cube ? tracePass3(board, extraRays, emitting, paused) : tracePass(board, extraRays, emitting, paused);
+    const r = tracePass(board, extraRays, emitting, paused);
     paused = null;
     if (r.open) {
       // Für den Löser: Die Treffer des vorigen Passes sind ebenfalls sicher (die Pässe wachsen nur). Der angehaltene
@@ -656,178 +657,70 @@ function traceBeams(board, extraRays = [], from = null) {
   };
 }
 
-/**
- * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben. Trifft er auf ein Element mit offener Stellung
- * (OPEN, nur beim Löser), hält er an und gibt { open, paused } zurück: paused ist sein Zustand an dieser Stelle. Mit
- * from = paused macht ein späterer Durchlauf dort weiter, auf einer Kopie (der Löser setzt von dort aus jede Stellung).
- */
-function tracePass(board, extraRays, emitting, from) {
-  const segments = from ? from.segments.slice() : [];
-  const events = from ? from.events.slice() : [];
-  const hits = from ? new Map(from.hits) : new Map();
-  const combinerInputs = new Map();
-  if (from) for (const [id, v] of from.combinerInputs) combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
-  // (Zelle, Richtung, Farbe): derselbe Strahl läuft nur einmal. Ein Feld ist bei so wenigen Strahlen schneller als ein
-  // Set; MAX_SEGMENTS begrenzt seine Länge.
-  const seen = from ? from.seen.slice() : [];
-  const queue = from ? from.queue.slice() : [];
-  let truncated = from ? from.truncated : false;
-  // Anhalten am offenen Element: beim Abschicken der Startstrahlen (start: Index des Elements, head -1) oder im Strahl
-  // queue[head] in der Zelle (cx, cz) des Elements
-  const pause = (open, start, head, cx, cz) =>
-    ({ open, paused: { segments, events, hits, combinerInputs, seen, queue, truncated, start, head, cx, cz } });
-
-  // Einziger Weg, einen Strahl abzuschicken: hier greifen Schleifen- und Abprallschutz für alle Elemente.
-  const pushRay = (ray) => {
-    if (ray.color === 0) return; // kein Licht mehr übrig
-    const key = ((ray.x * 64 + ray.z) * 8 + ray.dir) * 8 + ray.color; // Strahlen starten in Zellen (ganzzahlig, Feld ≤ 64)
-    // Schon unterwegs: zwei Strahlen laufen zusammen oder eine Schleife schliesst sich. Die Fortsetzung
-    // wäre identisch, es geht also nichts verloren – kein Abbruch, das Ergebnis bleibt exakt.
-    if (seen.includes(key)) return;
-    if (ray.bounces > MAX_BOUNCES) { truncated = true; return; }
-    seen.push(key);
-    queue.push(ray);
-  };
-
-  if (!from || from.head < 0) {
-    const els = board.elements;
-    for (let i = from ? from.start : 0; i < els.length; i++) {
-      const el = els[i];
-      if (el.type === 'source') pushRay({ x: el.x, z: el.z, dir: el.dir, color: el.color, dist: 0, bounces: 0, n0: unitDir(el.dir) });
-      if (el.type === 'combiner' && emitting.has(el.id)) {
-        if (el.dir === OPEN) return pause(el, i, -1);
-        const e = emitting.get(el.id);
-        pushRay({ x: el.x, z: el.z, dir: el.dir, color: e.color, dist: e.dist, bounces: 0, n0: unitDir(el.dir) });
-      }
-    }
-    for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) });
-  }
-
-  // Die Schleife läuft beim Lösen millionenfach: bewusst ohne Destrukturierung, Objekt-Spread und Math.hypot, die hier
-  // messbar langsamer sind.
-  for (let head = from && from.head >= 0 ? from.head : 0; head < queue.length; head++) {
-    if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
-    const ray = queue[head];
-    const step = DIRS[ray.dir], dx = step[0], dz = step[1];
-    let cx = ray.x, cz = ray.z;
-    // Weitermachen am angehaltenen Element: eine Zelle davor beginnen, der erste Schritt trifft es (dazwischen ist leer)
-    if (from && head === from.head) { cx = from.cx - dx; cz = from.cz - dz; }
-
-    const ahead = unitDir(ray.dir);
-    const emit = (x1, z1, n1 = [-ahead[0], -ahead[1]], fade) => {
-      const lx = x1 - ray.x, lz = z1 - ray.z;
-      const length = Math.sqrt(lx * lx + lz * lz);
-      if (length > 1e-6) {
-        const seg = { x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 };
-        if (fade) seg.fade = fade;
-        segments.push(seg);
-      }
-      return ray.dist + length;
-    };
-    const next = (dir, color, d) =>
-      pushRay({ x: cx, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: unitDir(dir) });
-
-    for (;;) {
-      const nx = cx + dx, nz = cz + dz;
-      if (nx < 0 || nz < 0 || nx >= board.size || nz >= board.size) {
-        // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
-        const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ez = cz + dz * 0.5 + ahead[1] * EDGE_RUN;
-        const d = emit(ex, ez, undefined, EDGE_RUN);
-        events.push({ x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
-        break;
-      }
-      cx = nx; cz = nz;
-      const el = board.grid[cz * board.size + cx];
-      if (!el) continue;
-
-      if (el.type === 'mirror') {
-        if (el.rot === OPEN) return pause(el, 0, head, cx, cz);
-        const nd = reflectOnMirror(ray.dir, el.rot);
-        if (nd === ray.dir) {
-          // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
-          const back = MIRROR_HALF_WIDTH;
-          const d = emit(cx - ahead[0] * back, cz - ahead[1] * back);
-          events.push({ x: cx - ahead[0] * back, z: cz - ahead[1] * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
-          break;
-        }
-        const normal = mirrorFrontNormal(el.rot, ray.dir);
-        const d = emit(cx, cz, normal);
-        events.push({ x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
-        pushRay({ x: cx, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
-        break;
-      }
-
-      if (el.type === 'prism') {
-        if (el.rot === OPEN) return pause(el, 0, head, cx, cz);
-        const d = emit(cx, cz);
-        const outs = refractInPrism(ray.dir, ray.color, el.rot);
-        events.push({ x: cx, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });
-        for (const out of outs) next(out.dir, out.color, d);
-        break;
-      }
-
-      if (el.type === 'filter') {
-        const d = emit(cx, cz);
-        const passed = ray.color & el.color;
-        events.push({ x: cx, z: cz, color: passed || ray.color, kind: passed ? 'filter' : 'absorb', dist: d, element: el.id });
-        next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
-        break;
-      }
-
-      if (el.type === 'combiner') {
-        const d = emit(cx, cz);
-        // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
-        // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
-        // first[b]: früheste Ankunft der Grundfarbe 1 << b (Rot, Grün, Blau)
-        let inp = combinerInputs.get(el.id);
-        if (!inp) combinerInputs.set(el.id, inp = { color: 0, dist: 0, first: [Infinity, Infinity, Infinity] });
-        inp.color |= ray.color;
-        let dist = -Infinity;
-        for (let b = 0; b < 3; b++) {
-          if (ray.color >> b & 1 && d < inp.first[b]) inp.first[b] = d;
-          if (inp.color >> b & 1 && inp.first[b] > dist) dist = inp.first[b];
-        }
-        inp.dist = dist;
-        events.push({ x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
-        break;
-      }
-
-      if (el.type === 'target') {
-        const d = emit(cx, cz);
-        hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
-        events.push({ x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
-        break;
-      }
-
-      // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
-      const back = 0.32;
-      const d = emit(cx - ahead[0] * back, cz - ahead[1] * back);
-      events.push({ x: cx - ahead[0] * back, z: cz - ahead[1] * back, color: ray.color, kind: 'absorb', dist: d, element: el.id });
-      break;
-    }
-  }
-  return { segments, events, hits, combinerInputs, truncated };
-}
-
-/* ---------- Würfel-Level (dim: 3) ----------
+/* ---------- Würfel (dim: 3) und Richtungen der Strahlregel ----------
    Koordinaten x, y (Ebene, nach oben), z. Richtungen sind ganzzahlige Vektoren [dx, dy, dz] mit Werten −1, 0, 1,
-   ohne Raumdiagonalen: 6 Achsen und 12 Flächendiagonalen. Spiegelungen führen nie aus dieser Menge heraus.
+   ohne Raumdiagonalen: 6 Achsen und 12 Flächendiagonalen (DIRS3). Spiegelungen führen nie aus dieser Menge heraus.
    Jedes Element dreht um eine feste Achse (axis 'x' | 'y' | 'z', Standard 'y') und wirkt in der Ebene senkrecht
    dazu genau wie ein 2D-Element: rot bzw. dir zählt dort in 45°-Schritten (DIRS) über die Ebenenbasis u, v.
    Achse y ist die 2D-Ebene (u = +x, v = +z). Ein Spiegel mit waagrechter Achse lenkt Licht zwischen die Ebenen.
    Die Basis (u, a, v) ist rechtshändig: Die Darstellung dreht die 2D-Modelle damit in ihre Ebene.
-   Ein eigener Verfolgungspfad, damit die 2D-Level bitgleich bleiben (tests/golden.mjs). */
+   Ein flaches Level ist ein Würfel mit einer Ebene (ADR 0003): y = 0, alle Achsen y, nur die ersten acht Richtungen.
+   Es läuft durch denselben Durchlauf (tracePass); nur die Ausgabe lässt y weg wie seit jeher. */
 const AXES = {
   y: { a: [0, 1, 0], u: [1, 0, 0], v: [0, 0, 1] },
   x: { a: [1, 0, 0], u: [0, 0, 1], v: [0, 1, 0] },
   z: { a: [0, 0, 1], u: [1, 0, 0], v: [0, -1, 0] },
 };
-const MAX_SIZE_3D = 16; // Kantenlänge höchstens (Schlüssel der Schleifenerkennung)
+const MAX_SIZE_3D = 16; // Kantenlänge höchstens
 /** Halbe Spiegelhöhe in Rasterzellen (Rahmen 0.6 hoch, siehe makeMirror): dort endet ein Strahl längs der Drehachse. */
 const MIRROR_HALF_HEIGHT = 0.3 / 1.2;
 
 const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const unit3 = (d) => { const l = Math.hypot(d[0], d[1], d[2]); return [d[0] / l, d[1] / l, d[2] / l]; };
+
+/** Die 18 Richtungen [dx, dy, dz]: zuerst die acht der Ebene in der Reihenfolge von DIRS (ein flaches Level kennt nur
+ *  sie, mit derselben Nummer), dann die zehn mit Anteil in y. Ein Strahl trägt die Nummer (ray.dir). */
+const DIRS3 = DIRS.map(([dx, dz]) => [dx, 0, dz]);
+for (const dy of [1, -1]) for (const dx of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+  if (dx * dx + dz * dz <= 1) DIRS3.push([dx, dy, dz]);
+}
+const DIR_OF_CODE = new Array(27).fill(-1);
+DIRS3.forEach((d, i) => { DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1] = i; });
+/** Nummer der Richtung d, −1 für eine Raumdiagonale oder den Nullvektor. */
+const dirOf = (d) => DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1];
+/** Einheitsvektoren, eingefroren wie UNIT_DIRS; die acht der Ebene mit denselben Zahlen wie UNIT_DIRS. */
+const UNIT_DIRS3 = DIRS3.map((d, i) => Object.freeze(i < 8 ? [UNIT_DIRS[i][0], 0, UNIT_DIRS[i][1]] : unit3(d)));
+/** Schnittnormalen am Ende eines Abschnitts, der nicht an einem Spiegel endet: entgegen der Laufrichtung. */
+const BACK_DIRS = UNIT_DIRS.map(u => Object.freeze([-u[0], -u[1]]));
+const BACK_DIRS3 = UNIT_DIRS3.map(u => Object.freeze([-u[0], -u[1], -u[2]]));
+
+/**
+ * Richtungen in der Drehebene eines Elements, als Tabellen je Achse A (AXIS_IDS) und Richtung i = A · 18 + dir:
+ *   PLANE_K[i]  Richtung k (0 … 7, wie DIRS) des Anteils in der Drehebene, −1 wenn dir längs der Achse läuft
+ *   PLANE_A[i]  Anteil längs der Achse (−1, 0, 1); 0 heisst: dir liegt in der Drehebene, dann ist PLANE_K die Richtung
+ *   FROM_PLANE[(A · 3 + s + 1) · 8 + k]  Richtung aus k in der Ebene und Anteil s längs der Achse (−1: Raumdiagonale)
+ * Für Achse y und die acht Richtungen der Ebene ist das die Gleichheit: Ein flaches Level rechnet so wie in 2D.
+ */
+const AXIS_IDS = { y: 0, x: 1, z: 2 };
+const PLANE_K = [], PLANE_A = [], FROM_PLANE = [];
+for (const name of ['y', 'x', 'z']) {
+  const { a, u, v } = AXES[name];
+  for (const d of DIRS3) {
+    const du = dot3(d, u), dv = dot3(d, v);
+    PLANE_K.push(DIRS.findIndex(([x, z]) => x === du && z === dv));
+    PLANE_A.push(dot3(d, a));
+  }
+  for (const s of [-1, 0, 1]) for (const [du, dv] of DIRS) {
+    FROM_PLANE.push(dirOf([0, 1, 2].map(c => du * u[c] + dv * v[c] + s * a[c])));
+  }
+}
+/**
+ * Läuft ein Strahl parallel zur Spiegelfläche, endet er an der ersten Rahmenkante, die er erreicht: in der Drehebene
+ * an der Seitenkante (MIRROR_HALF_WIDTH, wie in 2D), längs der Achse an der Ober- oder Unterkante; schräg dazu (Anteil
+ * in der Ebene und längs der Achse, je 1/√2) an der näheren der beiden. Rückversatz von der Zellmitte je Richtung i.
+ */
+const MIRROR_EDGE = PLANE_A.map((s, i) => (s === 0 ? MIRROR_HALF_WIDTH : PLANE_K[i] < 0 ? MIRROR_HALF_HEIGHT
+  : Math.min(MIRROR_HALF_WIDTH, MIRROR_HALF_HEIGHT) * Math.SQRT2));
 
 /** Richtung k (0 … 7, wie DIRS) in der Drehebene eines Elements mit Achse axis. */
 function planeDir(axis, k) {
@@ -843,22 +736,30 @@ function planeIndex(axis, d) {
   return DIRS.findIndex(([x, z]) => x === du && z === dv);
 }
 
-/**
- * Spiegel im Würfel: Fläche durch die Drehachse und die Ebenenrichtung rot, Normale n = planeDir(axis, rot + 2).
- * Reflexion d' = d − 2 (d·n) / (n·n) · n bleibt ganzzahlig (n·n ist 1 oder 2). Läuft der Strahl parallel zur
- * Fläche (d·n = 0), trifft er die Rahmenkante: Rückgabe null.
- */
-function reflect3(d, axis, rot) {
-  const n = planeDir(axis, rot + 2), k = dot3(d, n);
-  if (k === 0) return null;
-  const f = 2 * k / dot3(n, n);
-  return [d[0] - f * n[0], d[1] - f * n[1], d[2] - f * n[2]];
+/** Vektor in der Drehebene der Achse mit Nummer A aus den Anteilen nu, nv der Ebenenbasis (etwa einer 2D-Normalen). */
+function inPlane(A, nu, nv) {
+  const { u, v } = AXES[A === 0 ? 'y' : A === 1 ? 'x' : 'z'];
+  return [nu * u[0] + nv * v[0], nu * u[1] + nv * v[1], nu * u[2] + nv * v[2]];
 }
 
-/** Normale der Spiegelfläche (Einheitsvektor) auf der Seite des einfallenden Strahls. */
+/**
+ * Spiegel im Würfel: Die Fläche enthält die Drehachse und die Ebenenrichtung rot. Der Anteil des Strahls in der
+ * Drehebene wird wie in 2D gespiegelt (reflectOnMirror), der Anteil längs der Achse bleibt. Läuft der Strahl parallel
+ * zur Fläche (Anteil in der Ebene parallel zur Spiegellinie oder null), trifft er die Rahmenkante: Rückgabe null.
+ * Dieselbe Regel rechnet tracePass über die Nummern der Richtungen.
+ */
+function reflect3(d, axis, rot) {
+  const A = AXIS_IDS[axis], i = A * 18 + dirOf(d), k = PLANE_K[i];
+  const nk = k < 0 ? k : reflectOnMirror(k, rot);
+  return nk === k ? null : DIRS3[FROM_PLANE[(A * 3 + PLANE_A[i] + 1) * 8 + nk]].slice();
+}
+
+/** Normale der Spiegelfläche (Einheitsvektor) auf der Seite des einfallenden Strahls: die 2D-Normale in der Drehebene. */
 function mirrorFrontNormal3(axis, rot, d) {
-  const n = unit3(planeDir(axis, rot + 2));
-  return dot3(n, d) > 0 ? [-n[0], -n[1], -n[2]] : n;
+  const A = AXIS_IDS[axis], k = PLANE_K[A * 18 + dirOf(d)];
+  // längs der Achse (k < 0) steht der Strahl senkrecht auf jeder Normalen der Fläche: dann die der Stellung
+  const n = k < 0 ? MIRROR_NORMALS[mod8(rot)] : mirrorFrontNormal(rot, k);
+  return inPlane(A, n[0], n[1]);
 }
 
 /** Prisma im Würfel: fächert in seiner Drehebene wie in 2D; Licht, das schräg zur Ebene einfällt, tritt nicht aus. */
@@ -902,41 +803,69 @@ function createBoard3(level) {
 }
 
 /**
- * Ein Durchlauf der Strahlverfolgung im Würfel – gleiche Regeln und gleiche Rückgabe wie tracePass, aber mit
- * y-Koordinaten: segments { x0, y0, z0, x1, y1, z1, … }, events { x, y, z, … }; Normalen n0, n1, normal als
- * [nx, ny, nz]. extraRays: { x, y, z, d: [dx, dy, dz], color } – ganzzahlige Zelle und eine der 18 Richtungen
- * (ungeprüft, nur für Tests). Anhalten an OPEN und Weitermachen mit from wie in tracePass; paused hat dazu cy.
+ * Tabellen für tracePass, einmal aus denselben Regeln berechnet statt bei jedem Treffer (wie MIRROR_NORMALS), je
+ * Achse A, Stellung r (0 … 7) und Richtung dir; die Einträge sind eingefroren, weil Strahlen sie teilen:
+ *   MIRROR_FRONT[r · 8 + k]              mirrorFrontNormal(r, k) für k in der Ebene (flach)
+ *   MIRROR_FRONT3[(A · 8 + r) · 8 + k]   dieselbe Normale in der Drehebene der Achse A (Würfel, mirrorFrontNormal3)
+ *   PRISM_OUT[((A · 8 + r) · 18 + dir) · 8 + Farbe]  austretende Strahlen [{ dir, color }] aus refractInPrism in der
+ *                                       Drehebene; leer, wenn das Licht schräg zur Ebene einfällt (refractInPrism3)
+ * Die Spiegelung selbst rechnet tracePass bei jedem Treffer mit reflectOnMirror (die Gegenprobe des Golden-Tests
+ * verändert sie).
  */
-function tracePass3(board, extraRays, emitting, from) {
+const MIRROR_FRONT = [], MIRROR_FRONT3 = [], PRISM_OUT = [];
+for (let r = 0; r < 8; r++) for (let k = 0; k < 8; k++) MIRROR_FRONT.push(Object.freeze(mirrorFrontNormal(r, k)));
+for (let A = 0; A < 3; A++) for (let r = 0; r < 8; r++) {
+  for (let k = 0; k < 8; k++) { const n = MIRROR_FRONT[r * 8 + k]; MIRROR_FRONT3.push(Object.freeze(inPlane(A, n[0], n[1]))); }
+  for (let dir = 0; dir < 18; dir++) for (let color = 0; color < 8; color++) {
+    const i = A * 18 + dir;
+    const outs = PLANE_A[i] === 0 ? refractInPrism(PLANE_K[i], color, r) : [];
+    PRISM_OUT.push(Object.freeze(outs.map(o => Object.freeze({ dir: FROM_PLANE[(A * 3 + 1) * 8 + o.dir], color: o.color }))));
+  }
+}
+
+/**
+ * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben, für flache Level und Würfel. Ein flaches Brett
+ * ist ein Würfel mit einer Ebene: y = 0, Drehachse y, Raster (z · size + x) wie die unterste Ebene des Würfels.
+ * Segmente, Ereignisse und Normalen eines flachen Bretts haben kein y (siehe traceBeams). extraRays: flach
+ * { x, z, dir, color }, im Würfel { x, y, z, d: [dx, dy, dz], color } mit einer der 18 Richtungen (nur für Tests).
+ * Trifft er auf ein Element mit offener Stellung (OPEN, nur beim Löser), hält er an und gibt { open, paused } zurück:
+ * paused ist sein Zustand an dieser Stelle. Mit from = paused macht ein späterer Durchlauf dort weiter, auf einer
+ * Kopie (der Löser setzt von dort aus jede Stellung).
+ */
+function tracePass(board, extraRays, emitting, from) {
+  const cube = board.dim === 3, S = board.size;
+  const units = cube ? UNIT_DIRS3 : UNIT_DIRS, backs = cube ? BACK_DIRS3 : BACK_DIRS;
   const segments = from ? from.segments.slice() : [];
   const events = from ? from.events.slice() : [];
   const hits = from ? new Map(from.hits) : new Map();
   const combinerInputs = new Map();
-  if (from) {
-    for (const [id, v] of from.combinerInputs) {
-      combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
-    }
-  }
+  if (from) for (const [id, v] of from.combinerInputs) combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
+  // (Zelle, Richtung, Farbe): derselbe Strahl läuft nur einmal. Ein Feld ist bei so wenigen Strahlen schneller als ein
+  // Set; MAX_SEGMENTS begrenzt seine Länge.
   const seen = from ? from.seen.slice() : [];
   const queue = from ? from.queue.slice() : [];
-  const S = board.size;
   let truncated = from ? from.truncated : false;
+  // Anhalten am offenen Element: beim Abschicken der Startstrahlen (start: Index des Elements, head -1) oder im Strahl
+  // queue[head] in der Zelle (cx, cy, cz) des Elements
   const pause = (open, start, head, cx, cy, cz) =>
     ({ open, paused: { segments, events, hits, combinerInputs, seen, queue, truncated, start, head, cx, cy, cz } });
 
+  // Einziger Weg, einen Strahl abzuschicken: hier greifen Schleifen- und Abprallschutz für alle Elemente.
   const pushRay = (ray) => {
-    if (ray.color === 0) return;
-    const d = ray.d;
-    const code = (d[0] + 1) * 9 + (d[1] + 1) * 3 + (d[2] + 1);
-    const key = (((ray.x * MAX_SIZE_3D + ray.y) * MAX_SIZE_3D + ray.z) * 27 + code) * 8 + ray.color;
+    if (ray.color === 0) return; // kein Licht mehr übrig
+    // Strahlen starten in Zellen (ganzzahlig, Kantenlänge ≤ 64)
+    const key = (((ray.y * 64 + ray.x) * 64 + ray.z) * 18 + ray.dir) * 8 + ray.color;
+    // Schon unterwegs: zwei Strahlen laufen zusammen oder eine Schleife schliesst sich. Die Fortsetzung
+    // wäre identisch, es geht also nichts verloren – kein Abbruch, das Ergebnis bleibt exakt.
     if (seen.includes(key)) return;
     if (ray.bounces > MAX_BOUNCES) { truncated = true; return; }
     seen.push(key);
     queue.push(ray);
   };
+  // Startstrahl eines Elements (Quelle, Ausgang eines Kombinators): dir zählt in seiner Drehebene
   const emitter = (el, color, dist) => {
-    const d = planeDir(el.axis, el.dir);
-    pushRay({ x: el.x, y: el.y, z: el.z, d, color, dist, bounces: 0, n0: unit3(d) });
+    const dir = cube ? FROM_PLANE[(AXIS_IDS[el.axis] * 3 + 1) * 8 + el.dir] : el.dir;
+    pushRay({ x: el.x, y: cube ? el.y : 0, z: el.z, dir, color, dist, bounces: 0, n0: units[dir] });
   };
 
   if (!from || from.head < 0) {
@@ -950,46 +879,57 @@ function tracePass3(board, extraRays, emitting, from) {
         emitter(el, e.color, e.dist);
       }
     }
-    for (const r of extraRays) pushRay({ dist: 0, bounces: 0, n0: unit3(r.d), ...r });
+    for (const r of extraRays) {
+      if (!cube) { pushRay({ y: 0, dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) }); continue; }
+      const dir = dirOf(r.d);
+      if (!(dir >= 0)) throw new Error(`Startstrahl mit ungültiger Richtung ${JSON.stringify(r.d)}`);
+      pushRay({ dist: 0, bounces: 0, n0: UNIT_DIRS3[dir], ...r, dir });
+    }
   }
 
+  // Die Schleife läuft beim Lösen millionenfach: bewusst ohne Destrukturierung, Objekt-Spread und Math.hypot, die hier
+  // messbar langsamer sind.
   for (let head = from && from.head >= 0 ? from.head : 0; head < queue.length; head++) {
     if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
     const ray = queue[head];
-    const step = ray.d, dx = step[0], dy = step[1], dz = step[2];
-    const ahead = unit3(step);
+    const step = DIRS3[ray.dir], dx = step[0], dy = step[1], dz = step[2];
     let cx = ray.x, cy = ray.y, cz = ray.z;
-    // Weitermachen am angehaltenen Element: eine Zelle davor beginnen, der erste Schritt trifft es
+    // Weitermachen am angehaltenen Element: eine Zelle davor beginnen, der erste Schritt trifft es (dazwischen ist leer)
     if (from && head === from.head) { cx = from.cx - dx; cy = from.cy - dy; cz = from.cz - dz; }
 
-    const emit = (x1, y1, z1, n1 = [-ahead[0], -ahead[1], -ahead[2]], fade) => {
+    const ahead = UNIT_DIRS3[ray.dir];
+    // Abschnitt bis (x1, y1, z1); im flachen Feld ist y überall 0 und fehlt in der Ausgabe
+    const emit = (x1, y1, z1, n1 = backs[ray.dir], fade) => {
       const lx = x1 - ray.x, ly = y1 - ray.y, lz = z1 - ray.z;
       const length = Math.sqrt(lx * lx + ly * ly + lz * lz);
       if (length > 1e-6) {
-        const seg = {
-          x0: ray.x, y0: ray.y, z0: ray.z, x1, y1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1,
-        };
+        const seg = cube
+          ? { x0: ray.x, y0: ray.y, z0: ray.z, x1, y1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 }
+          : { x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 };
         if (fade) seg.fade = fade;
         segments.push(seg);
       }
       return ray.dist + length;
     };
-    const next = (d, color, dist) =>
-      pushRay({ x: cx, y: cy, z: cz, d, color, dist, bounces: ray.bounces + 1, n0: unit3(d) });
-    // Endpunkt vor der Zellmitte (Licht endet an der Vorderseite eines Körpers)
+    const next = (dir, color, d) =>
+      pushRay({ x: cx, y: cy, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: units[dir] });
+    // Licht endet an der Vorderseite eines Körpers, back vor der Zellmitte
     const absorbAt = (back, el) => {
       const x = cx - ahead[0] * back, y = cy - ahead[1] * back, z = cz - ahead[2] * back;
-      const dist = emit(x, y, z);
-      events.push({ x, y, z, color: ray.color, kind: 'absorb', dist, element: el.id });
+      const d = emit(x, y, z);
+      events.push(cube ? { x, y, z, color: ray.color, kind: 'absorb', dist: d, element: el.id }
+        : { x, z, color: ray.color, kind: 'absorb', dist: d, element: el.id });
     };
 
     for (;;) {
       const nx = cx + dx, ny = cy + dy, nz = cz + dz;
-      if (nx < 0 || ny < 0 || nz < 0 || nx >= S || ny >= S || nz >= S) {
+      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && (ny < 0 || ny >= S))) {
+        // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
         const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ey = cy + dy * 0.5 + ahead[1] * EDGE_RUN;
         const ez = cz + dz * 0.5 + ahead[2] * EDGE_RUN;
         const d = emit(ex, ey, ez, undefined, EDGE_RUN);
-        events.push({ x: ex, y: ey, z: ez, color: ray.color, kind: 'edge', dist: d });
+        events.push(cube ? { x: ex, y: ey, z: ez, color: ray.color, kind: 'edge', dist: d }
+          : { x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
         break;
       }
       cx = nx; cy = ny; cz = nz;
@@ -998,42 +938,50 @@ function tracePass3(board, extraRays, emitting, from) {
 
       if (el.type === 'mirror') {
         if (el.rot === OPEN) return pause(el, 0, head, cx, cy, cz);
-        const nd = reflect3(ray.d, el.axis, el.rot);
-        if (!nd) {
-          // Parallel zur Fläche: Das Licht endet an der ersten Rahmenkante, die es erreicht – Seitenkanten
-          // (längs der Spiegellinie) oder Ober-/Unterkante (längs der Drehachse).
-          const along = Math.abs(dot3(ahead, unit3(planeDir(el.axis, el.rot))));
-          const up = Math.abs(dot3(ahead, AXES[el.axis].a));
-          absorbAt(Math.min(along > 1e-9 ? MIRROR_HALF_WIDTH / along : Infinity, up > 1e-9 ? MIRROR_HALF_HEIGHT / up : Infinity), el);
+        // Der Anteil in der Drehebene spiegelt wie in 2D, der Anteil längs der Achse bleibt (reflect3)
+        const A = cube ? AXIS_IDS[el.axis] : 0, i = A * 18 + ray.dir, k = PLANE_K[i];
+        const nk = k < 0 ? k : reflectOnMirror(k, el.rot);
+        if (nk === k) {
+          // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
+          absorbAt(MIRROR_EDGE[i], el);
           break;
         }
-        const normal = mirrorFrontNormal3(el.axis, el.rot, ray.d);
+        const r = el.rot & 7, normal = cube ? MIRROR_FRONT3[(A * 8 + r) * 8 + k] : MIRROR_FRONT[r * 8 + k];
         const d = emit(cx, cy, cz, normal);
-        events.push({ x: cx, y: cy, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
-        pushRay({ x: cx, y: cy, z: cz, d: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'reflect', dist: d, normal }
+          : { x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
+        const nd = FROM_PLANE[(A * 3 + PLANE_A[i] + 1) * 8 + nk];
+        pushRay({ x: cx, y: cy, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
         break;
       }
 
       if (el.type === 'prism') {
         if (el.rot === OPEN) return pause(el, 0, head, cx, cy, cz);
         const d = emit(cx, cy, cz);
-        const outs = refractInPrism3(ray.d, ray.color, el.axis, el.rot);
-        events.push({ x: cx, y: cy, z: cz, color: ray.color, kind: outs.length ? 'refract' : 'absorb', dist: d, element: el.id });
-        for (const out of outs) next(out.d, out.color, d);
+        // fächert in seiner Drehebene wie in 2D; schräg zur Ebene tritt kein Licht aus (refractInPrism3)
+        const A = cube ? AXIS_IDS[el.axis] : 0;
+        const outs = PRISM_OUT[((A * 8 + (el.rot & 7)) * 18 + ray.dir) * 8 + ray.color];
+        const kind = outs.length ? 'refract' : 'absorb';
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind, dist: d, element: el.id }
+          : { x: cx, z: cz, color: ray.color, kind, dist: d, element: el.id });
+        for (let o = 0; o < outs.length; o++) next(outs[o].dir, outs[o].color, d);
         break;
       }
 
       if (el.type === 'filter') {
         const d = emit(cx, cy, cz);
-        const passed = ray.color & el.color;
-        events.push({ x: cx, y: cy, z: cz, color: passed || ray.color, kind: passed ? 'filter' : 'absorb', dist: d, element: el.id });
-        next(ray.d, passed, d);
+        const passed = ray.color & el.color, color = passed || ray.color, kind = passed ? 'filter' : 'absorb';
+        events.push(cube ? { x: cx, y: cy, z: cz, color, kind, dist: d, element: el.id }
+          : { x: cx, z: cz, color, kind, dist: d, element: el.id });
+        next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
         break;
       }
 
       if (el.type === 'combiner') {
         const d = emit(cx, cy, cz);
-        // Buchhaltung wie in tracePass: first[b] ist die früheste Ankunft der Grundfarbe 1 << b
+        // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
+        // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
+        // first[b]: früheste Ankunft der Grundfarbe 1 << b (Rot, Grün, Blau)
         let inp = combinerInputs.get(el.id);
         if (!inp) combinerInputs.set(el.id, inp = { color: 0, dist: 0, first: [Infinity, Infinity, Infinity] });
         inp.color |= ray.color;
@@ -1043,18 +991,20 @@ function tracePass3(board, extraRays, emitting, from) {
           if (inp.color >> b & 1 && inp.first[b] > dist) dist = inp.first[b];
         }
         inp.dist = dist;
-        events.push({ x: cx, y: cy, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id }
+          : { x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
         break;
       }
 
       if (el.type === 'target') {
         const d = emit(cx, cy, cz);
         hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
-        events.push({ x: cx, y: cy, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id }
+          : { x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
         break;
       }
 
-      absorbAt(0.32, el); // Quelle und Blocker
+      absorbAt(0.32, el); // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
       break;
     }
   }
