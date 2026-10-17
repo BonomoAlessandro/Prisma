@@ -23,7 +23,8 @@
 //   wachsen         ab „mittel“: so oft wächst ein Bau unter der Untergrenze mit dem Schritt „schwerer“, bevor er als
 //                   zu klein verworfen wird (ohne Angabe nie)
 // Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente dort im Median 7 / 9 / 11 (Bereich
-// 5–8, 7–12, 9–14; die Vorgabe für „schwer“ endet bei 11), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren.
+// 5–8, 7–12, 9–14), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren. Die Vorgabe für „schwer“ endet bei 11:
+// Mit 7–12 lieferte „schwer“ 48 statt 67 Level aus 300 Seeds bei mehr CPU-Zeit (Review Ticket 20).
 // Die Klicks steigen mit der Grösse. maxSuche ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit
 // 6e5 bzw. 8e5 Knoten nicht mehr Level als mit 2e5, kosteten aber bis 1,8-mal so viel. Reparaturen bleiben bei 2: Mit
 // 1, 2, 3 und 4 lieferten mittel-mischziel 168, 168, 168, 168 (von 300 Seeds), schwer-mischziel 67, 68, 68, 67 und

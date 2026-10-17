@@ -113,8 +113,15 @@ Reparaturen:
 | `mittel-mischziel`, Seeds 1–300 | 168 | 168 | 168 | 168 |
 | `schwer-mischziel`, Seeds 1–200 | 67 | 68 | 68 | 67 |
 | `schwer`, Seeds 1–150 | 35 | 36 | 37 | 38 |
+| CPU-s `mittel-mischziel` | 3,9 | 3,2 | 3,2 | 3,6 |
+| CPU-s `schwer-mischziel` | 25,0 | 23,3 | 22,6 | 23,9 |
+| CPU-s `schwer` | 26,0 | 33,3 | 33,8 | 34,0 |
 
-Ab der dritten bringt jede höchstens ein Level auf 150 Seeds. `maxSuche` ist ab „schwer“ 2e5 statt 6e5 bzw. 8e5:
+(CPU-s nachgetragen im Review, aus derselben Messung: ein Prozess, `LEISE_CPU=50`, je Lauf einmal gemessen, darum
+etwa ±15 % unsicher.) Ab der dritten bringt jede höchstens ein Level auf 150 Seeds. Je CPU-Stunde liegen alle vier
+Varianten innerhalb der Streuung; bei `schwer` ist 1 Reparatur sogar am günstigsten (4 843 gegen 3 896 Level je
+CPU-Stunde mit 2). Es bleibt bei 2 wie in „leicht“ (Ticket 18), weil mehr nichts bringt und weniger die Messzahlen
+änderte, ohne sicher zu helfen. `maxSuche` ist ab „schwer“ 2e5 statt 6e5 bzw. 8e5:
 Bei gleich vielen Leveln brauchte „schwer“ ohne Kernidee 21,6 statt 38,4 CPU-s (100 Seeds) und „sehr schwer“ 82,6
 statt 130,3.
 
@@ -125,7 +132,7 @@ nacheinander; Abnahme `beurteilung`):
 - „härten“: Seeds 1–160, eigene Datei, 20:52–22:25.
 
 Ausgangszahlen von Ticket 02 und 18 kommen vom i7-12800H und gelten hier nicht. Gemessen ist darum hier neu. Alle
-drei Messungen haben 4 Prozesse; mit 7 Prozessen (seit dem Deckel von 65 %) ist nichts davon gemessen. Gemischt ist
+drei Messungen haben 4 Prozesse; mit 7 Prozessen (mit 65 % auf diesem Rechner) ist nichts davon gemessen. Gemischt ist
 nur mit gleichem `--jobs`, denn die CPU-Zeit je Seed hängt laut Ticket 02 von der Zahl der Prozesse ab (mit 10 statt
 4 Prozessen 1,5- bis 2,3-mal so viel).
 
@@ -189,15 +196,15 @@ Neu je Auftrag:
   - `… generator --generator alt --accept beurteilung --seeds 60000 --jobs 4 --save alt.json --compare neu.json`
   - `… generator härten --generator alt --accept beurteilung --seeds 160 --jobs 4 --save haerten.json --compare
     neu.json`
-  - Künftig mit `LEISE_CPU=65` und `--jobs 7`.
+  - Auf diesem Rechner künftig mit `LEISE_MAX_CPU=65 LEISE_CPU=65` und `--jobs 7`.
 
 **Wo die Zeit hingeht** (CPU-Profil, „sehr schwer“ ohne Kernidee, 40 Seeds): 93 % im Löser, davon 76 % in der Suche im
 Modus unique beim Festigen, fast alles innerhalb von „schwerer“; die Beurteilung nur 7 %. Grosse Bauten wachsen Element
 um Element, und jeder Versuch prüft die Eindeutigkeit. Hier liesse sich weiter sparen, etwa mit grösseren Schritten
 oder einer Vorprüfung vor der Suche.
 
-**Beispiele** (`LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs <auftrag> --anzahl 1 | node tools/show.mjs`,
-Start und Lösung):
+**Beispiele** (`LEISE_MAX_CPU=65 LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs <auftrag> --anzahl 1 | node
+tools/show.mjs`, Start und Lösung):
 
 ```
 sehr schwer-mischziel, Seed 2: Schwierigkeit 88,0, Spielwert 90,7; nötig Mischziel aus zwei Quellen und Sammelstelle
@@ -248,13 +255,10 @@ Weitere: `mittel-mischziel` Seed 5 (Schwierigkeit 53,6, Spielwert 77,6, 8 drehba
 - **`schritte.mjs` und `index.mjs`** sind nur wenig geändert: `kreuzungszellen` dazu, ein Zweig in `ergaenze`; in
   `index.mjs` `mangel` (Füllteil, Zerfall, Ziel-Schwierigkeit), das Wachsen und die Ziel-Schwierigkeit im Auftrag.
   `bausteine/` ist unberührt.
-- **Deckel 65 %** (eigener Commit `c173f0b`, auf Wunsch des Nutzers während der Arbeit):
-  - `leise.sh`, der Generator, `bench.mjs` (Teil generator) und die Screenshots der KI-Tester nehmen jetzt bis
-    `LEISE_CPU=65` an; der Test des Deckels prüft mit 70.
-  - README, `generiere.mjs` und `prepare.mjs` nennen 65.
-  - Die Spec („Generator“, „Rechnerlast“: höchstens 50 %) und das erledigte Ticket 18 sind nicht angepasst; das
-    entscheidet der Nutzer.
-  - Die Messungen oben liefen noch mit 50 %.
+- **Deckel** (Commit `c173f0b`, nach dem Review ersetzt): Auf diesem Rechner erlaubt der Nutzer 65 %. `c173f0b`
+  schrieb das fest in den Code. Nach dem Review (Fund 1, Präzisierung des Nutzers: nur dieser Rechner) bleibt die
+  Obergrenze im Repo und in der Spec 50 %. Ein Rechner hebt sie lokal mit `LEISE_MAX_CPU` an (nicht versioniert),
+  siehe „Review“ unten. Die Messungen oben liefen mit 50 %.
 
 **Offen:**
 - Ausbeute und Kosten ab „schwer“: „schwerer“ ohne Zuwachs ist der häufigste Grund ohne Level, und die
@@ -324,3 +328,27 @@ Weitergegeben als Hinweise in die Tickets 21 und 23–26.
    davon ab, was sie kostet.
 5. **Vorgabe „schwer“ bis 11** (niedrig): Im Spiel reicht „schwer“ bis 12. Gewollt? Der Entwickler bestätigt oder
    ändert es mit neuer Messung.
+
+**Nach dem Review umgesetzt** (Entwickler, Commit „fix(werkzeuge): Deckel über LEISE_MAX_CPU …“):
+1. **Deckel:** Erledigt.
+   - Im Repo gilt wieder 50.
+   - Neu ist `tools/deckel.mjs` mit `maxCpu()` (liest `LEISE_MAX_CPU`, Standard 50) und `gedeckelt(grenze)`, geprüft
+     als `!(cpu <= grenze)`, also bricht auch ein NaN ab. Generator, `bench.mjs` (`limit = generator ? maxCpu() : 20`)
+     und `shots.mjs` nutzen die Hilfe. `leise.sh` prüft mit `MAX=${LEISE_MAX_CPU:-50}`.
+   - Aufrufbeispiele, README und die Tickets 20, 21 und 26 sind nachgeführt.
+   - Der Test prüft drei Fälle: ohne Variable mit 55 Abbruch, mit 65/65 Status 0, mit 65/70 Abbruch.
+   - `LEISE_CPU=65 sh tools/leise.sh node tools/generiere.mjs leicht --anzahl 1` bricht ohne `LEISE_MAX_CPU` ab und
+     läuft mit `LEISE_MAX_CPU=65`.
+2. **Aussichtslose Versuche:** Nicht eingebaut, weil es ab „mittel“ den Zufall und alle Messzahlen ändert. Als
+   Hinweis in Ticket 21 eingetragen.
+3. **Testdauer:** Der Test „Derselbe Auftrag …“ wiederholt ab „mittel“ nur noch die ersten 5 Seeds je Auftrag. Der
+   Generator-Test dauert damit 58 s statt 92 s (Erzeugen 41 s).
+4. **Reparaturen:** Die CPU-s aus derselben Messung sind oben nachgetragen. Je CPU-Stunde unterscheiden sich 1–4
+   Reparaturen nur innerhalb der Streuung; es bleibt bei 2.
+5. **„schwer“ bis 11:** Gewollt, bestätigt mit einer neuen Messung (Seeds 1–300, ein Prozess):
+   - mit 7–12 liefert `schwer` 48 statt 67 Level (2 570 statt 4 112 je CPU-Stunde) und `schwer-mischziel` 101 statt
+     105 (9 815 statt 12 515);
+   - grössere Bauten finden im Feld 7 × 7 seltener Platz und kosten mehr Eindeutigkeitssuche;
+   - Schwere Level mit 12 drehbaren Elementen liefert der Generator damit nicht. Für den Austausch fehlt dadurch
+     nichts: Er sucht Level nach Schwierigkeit, nicht nach Grösse. Bauten mit 12 Elementen deckt die Vorgabe „sehr
+     schwer“ (9–14) ab.
