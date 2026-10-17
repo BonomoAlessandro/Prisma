@@ -75,8 +75,9 @@ Messskript mit `LEISE_CPU=50`, Tests mit 20 %.
 
 **Entwurf** (`tools/generator/`, README „Generator“):
 - **Vorgaben** für „mittel“, „schwer“ und „sehr schwer“ in `vorgaben.mjs`, nach den Leveln im Spiel: drehbare
-  Elemente 5–8 / 7–12 / 9–14 (im Spiel Median 7 / 9 / 11), Quellen 2–3 / 2–4 / 2–4, Ziele 2–5 / 3–5 / 3–5, mehr
-  Prismen in den schweren, Klicks 4 / 5 / 6, Schritte 4 / 6 / 8. `maengel` nimmt alle an.
+  Elemente 5–8 / 7–11 / 9–14 (im Spiel 5–8 / 7–12 / 9–14, Median 7 / 9 / 11; im Review berichtigt), Quellen 2–3 /
+  2–4 / 2–4, Ziele 2–5 / 3–5 / 3–5, mehr Prismen in den schweren, Klicks 4 / 5 / 6, Schritte 4 / 6 / 8. `maengel`
+  nimmt alle an.
 - **Schritt „schwerer“** in `verfeinern.mjs`: ein drehbares Element mehr, möglichst eines, das Stränge verbindet.
   - Kreuzen sich zwei Strahlen, die beide offen oder auf einem Ziel ausserhalb der Kernidee enden, kommt es auf die
     Kreuzung (`kreuzungszellen` in `schritte.mjs`). Hinter der Kreuzung steht kein Element, also verliert keines sein
@@ -262,3 +263,64 @@ Weitere: `mittel-mischziel` Seed 5 (Schwierigkeit 53,6, Spielwert 77,6, 8 drehba
   Bausteinen aus Ticket 19 wird das seltener.
 
 Weitergegeben als Hinweise in die Tickets 21 und 23–26.
+
+**Review 17.10.2026** (Reviewer-Agent, im selben Worktree, Stand `6b7e49d`; Skripte nur im Scratchpad):
+- **Geprüft:** `git diff 974c4f0 HEAD`, also „schwerer“, `kreuzungszellen` und der neue Zweig in `ergaenze`, `mangel`
+  mit `VERBINDEN`, das Wachsen, `bereichVon`, `rezept`, die Ziel-Schwierigkeit und die Vorgaben, dazu der
+  Deckel-Commit.
+  - Keine Endlosschleife: Wachsen höchstens `wachsen`-mal, Verfeinern `schritte`-mal, „schwerer“ je Aufruf 8 Versuche,
+    Festigen 12 Runden, Aufräumen 20, Reparaturen 2, Ergänzen 4 · `plan.drehbar` Versuche.
+  - Ausschlüsse und Spielwert: Nach jedem Schritt des Verfeinerns laufen Vorprüfung und volle Beurteilung. Das Wachsen
+    läuft ohne Beurteilung, aber vor der ersten, solange der Bau unter der Untergrenze ist (wie das Nachlegen).
+  - Kernidee: `kreuzungszellen` zählt ihre Ziele nicht als offen (ein Treffer ist kein Schlucken), ihre Wege sind
+    reserviert. `VERBINDEN` passt zu den Funden: Füllteil mit `strang.ziel`, Zerfall mit den Gruppen nach Zahl der
+    drehbaren Elemente, beides als Zellen und erst ab „mittel“, in „leicht“ also nie.
+- **Bitgleich:** eigener Vergleich mit einer Kopie von `974c4f0`, Seeds 1–3000 ohne Kernidee und mit Mischziel: 6000
+  von 6000 Ergebnissen gleich (5010 Level).
+- **Nachgezählt** auf HEAD: `mittel-mischziel` 168 von 300 und 1125 von 2000, `mittel` 201 von 2000,
+  `schwer-mischziel` 68 von 200, `schwer` 36 von 150. Das sind die Zahlen oben, gemessen ist also dieser Code.
+- **Messung:** gleiche `--jobs` (4), gleiche Abnahme, gleicher Rechner, eine Sitzung; methodisch sauber.
+  - Das Ergebnis trägt trotz kleiner Zahlen. Mit der oberen 95-%-Grenze nach Poisson liefert das beste Profil bei
+    „schwer“ (4 Level) höchstens 444 Level je CPU-Stunde, neu (352 Level) mindestens 1215, also mindestens × 2,7.
+    Bei „sehr schwer“ liefert „härten“ (19 Level) höchstens 5,3, neu (117) mindestens 132, also mindestens × 25.
+    Auch eine um ein Mehrfaches falsche CPU-Zeit je Seed von „härten“ (Vorlauf 43, Messung 126 CPU-s) ändert das nicht.
+  - Die genauen Faktoren sind unsicher: × 7,8 heisst etwa × 3 bis × 30.
+  - Im Einzelprozess kostete ein Seed 1,3- bis 2,5-mal weniger CPU-Zeit als in der Messung (`schwer`, Seeds 1–150: 187
+    statt 468 ms). Die absoluten Zahlen gelten also nur für `--jobs 4` auf diesem Rechner.
+- **Tests:** Alle Prüfungen aus Ticket 18 laufen über die Level aller Aufträge, und jeder liefert welche (ab „mittel“ 2
+  bis 11, zusammen 26). Bei „sehr schwer“ sind es nur 2 + 2 Level, also eine dünne, aber feste Probe.
+- **Deckel:** Alle Stellen nennen 65, keine 50 ist übrig. „20 bis 50 %“ in `bench.mjs` und README meint die Last. Die
+  Spec nennt weiter 50 %, siehe Fund 1.
+
+**Im Review behoben** (dieser Commit):
+- `verfeinern.mjs`: Der Kopf nennt die Signatur `(bau, plan, vorgaben, mangel)`. Die Doku von „schwerer“ sagt jetzt,
+  was der Code tut: Er zielt auf zwei Elemente mehr, füllt Quellen, Filter und feste Spiegel auf, tauscht an der
+  Obergrenze, und „zu klein“ heisst gewachsen, aber noch zu klein.
+- `kreuzungszellen`: Auch ein Element, das den Strahl schluckt, kann sein Licht verlieren (das Aufräumen nimmt es weg).
+- Vorgabe „schwer“: Sie hat 7–11 drehbare Elemente. Hier stand 7–12, das ist der Bereich im Spiel; `vorgaben.mjs` und
+  der Entwurf oben sind berichtigt.
+- Ziel-Schwierigkeit: Der Code nimmt jeden Bereich an, der den Grad überschneidet (etwa [42, 50] bei „leicht“,
+  wirksam 42 bis unter 43). JSDoc, Fehlermeldung und README sagten „innerhalb“ und sind angeglichen.
+- Tests:
+  - Randfälle der Ziel-Schwierigkeit: [43, 50] bei „leicht“ und [60, 86,9] bei „sehr schwer“ abgewiesen, [42, 50]
+    angenommen.
+  - Neu der Auftrag „leicht“ mit 20–30 (23 von 30 Seeds, 0,5 CPU-s): Bei 33–43 fiel die Obergrenze auf die Gradgrenze,
+    der Zweig „über dem Ziel → leichter“ lief nie. Mit 20–30 liefern ihn 4 Seeds, „schwerer“ innerhalb von „leicht“ 3.
+
+**Offen:**
+1. **Deckel 65 % fest im Code** (mittel, Vorgabe des Nutzers): Die 65 % gelten nur für diesen Rechner, nach dem Merge
+   gälten sie überall. Im Repo bleibt 50; ein Rechner hebt die Grenze lokal mit `LEISE_MAX_CPU` an (nicht
+   versioniert, etwa `.claude/settings.local.json` unter `env`). Ausführlich im Bericht an den Entwickler; der
+   Test prüft ohne Variable 50, mit `LEISE_MAX_CPU=65` bis 65.
+2. **Aussichtslose Versuche von „schwerer“** (niedrig): Ist vor dem Festigen kein drehbares Element dazugekommen, kann
+   der Versuch nicht gelingen (Festigen nimmt nur weg), und doch läuft die Eindeutigkeitssuche. Gemessen: 4 % / 23 % /
+   3 % der Versuche bei `sehr schwer` / `schwer-mischziel` / `mittel`, 3 % / 10 % / 1 % der ganzen Zeit. Abkürzen
+   ändert den Zufall ab „mittel“, also die Level.
+3. **Laufzeit des Generator-Tests** (niedrig): 92 s, davon 44 s für das Erzeugen und etwa ebenso viel für die
+   Wiederholung im Test „Derselbe Auftrag …“. Halbieren liesse sie sich, wenn die Wiederholung ab „mittel“ nur einen
+   Teil der Seeds nimmt (Frage an den Nutzer).
+4. **Reparaturen** (niedrig): Die Tabelle belegt die Grenze nur mit der Zahl der Level, nicht mit der CPU-Zeit. Bei
+   `schwer` bringt jede weitere Reparatur noch 1 Level auf 150 Seeds (+3 %); ob das „kaum noch etwas“ ist, hängt
+   davon ab, was sie kostet.
+5. **Vorgabe „schwer“ bis 11** (niedrig): Im Spiel reicht „schwer“ bis 12. Gewollt? Der Entwickler bestätigt oder
+   ändert es mit neuer Messung.

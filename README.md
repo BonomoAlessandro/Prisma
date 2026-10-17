@@ -56,8 +56,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1,5 min): feste Seeds für alle vier Grade ohne Kernidee und mit Mischziel aus zwei
-    Quellen (50 für „leicht“, 12–30 ab „mittel“), dazu „leicht“ mit der Ziel-Schwierigkeit 33–43; ab „mittel“ hat
-    jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
+    Quellen (50 für „leicht“, 12–30 ab „mittel“), dazu „leicht“ mit den Ziel-Schwierigkeiten 33–43 und 20–30; ab
+    „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -342,7 +342,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   ergibt `{ level, beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer
   Beurteilung, oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Er kennt alle vier Grade, ohne
   Kernidee und mit der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft. `schwierigkeit`
-  ist wahlweise eine Ziel-Schwierigkeit `[von, bis]` innerhalb des Grads, sonst gilt der ganze Grad.
+  ist wahlweise eine Ziel-Schwierigkeit `[von, bis]` (beide eingeschlossen), die den Grad überschneidet; wirksam ist
+  der Teil im Grad. Ohne sie gilt der ganze Grad.
   - **Ablauf** (für alle Grade gleich): Der Baustein der Kernidee (`bausteine/`, je Kernidee einer) baut sie gezielt
     in ein leeres Feld (`bau.mjs`); das Ergänzen setzt Quellen, drehbare Elemente am Ende der Strahlen, Filter, feste
     Spiegel und Ziele an die Strahlenden bis zur Grösse, die die Vorgabe des Grads würfelt (`vorgaben.mjs`, ersetzt die

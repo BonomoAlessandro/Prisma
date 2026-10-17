@@ -84,8 +84,9 @@ function setzeFestenSpiegel(bau) {
  * Freie Zellen, in denen sich mindestens zwei Strahlen kreuzen, die beide offen enden oder auf einem Ziel ausserhalb
  * der Kernidee (Ticket 20), je Durchgang { zelle, richtung, farbe } wie bei bau.strahlzellen. Ein drehbares Element
  * dort nimmt beide Strahlen auf: Die Stränge teilen sich ein Element und hängen zusammen (gegen Füllteil und Zerfall ab
- * „mittel“). Hinter der Kreuzung steht auf beiden Strahlen kein Element, also verliert keines sein Licht, höchstens ein
- * Ziel; das nimmt das Aufräumen weg, und setzeZiele setzt neue an die neuen Enden.
+ * „mittel“). Hinter der Kreuzung steht auf beiden Strahlen kein Element, das Licht weitergibt, also verliert höchstens
+ * ein Ziel sein Licht (oder ein Element, das den Strahl schluckt); das nimmt das Aufräumen weg, und setzeZiele setzt
+ * neue Ziele an die neuen Enden.
  */
 export function kreuzungszellen(bau, bild = bau.bild()) {
   const { feldform } = bau, endet = bau.endet(bild), je = new Map();

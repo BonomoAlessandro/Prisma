@@ -1,8 +1,10 @@
 // Verfeinern (Spec „Generator“, ADR 0004): Schritte, die ein Level leichter oder schwerer machen, bis die Beurteilung
 // den verlangten Grad findet. Der Ablauf in index.mjs beurteilt nach jedem Schritt neu, Ausschlüsse und Spielwert
 // gelten also in jedem Schritt; wie viele Schritte ein Grad erlaubt, sagt seine Vorgabe (vorgaben.mjs, schritte). Ein
-// Schritt ist eine Funktion (bau, plan, vorgaben) → null oder der Grund, warum er nicht ging. Er ändert den Bau und
-// festigt ihn wieder (schritte.mjs): Ein Bau nach einem Schritt ist gelöst, eindeutig und ohne wirkungslose Elemente.
+// Schritt ist eine Funktion (bau, plan, vorgaben, mangel) → null oder der Grund, warum er nicht ging; mangel ist der
+// Befund aus index.mjs (bei Füllteil und Zerfall mit den Zellen der Ziele, die „schwerer“ öffnen soll). Er ändert den
+// Bau und festigt ihn wieder (schritte.mjs): Ein Bau nach einem Schritt ist gelöst, eindeutig und ohne wirkungslose
+// Elemente.
 // Ticket 18 brachte „leichter“, Ticket 20 „schwerer“; damit verfeinert der Ablauf in beide Richtungen bis zum Grad.
 import { festige, ergaenze, setzeZiele, setzeDrehbar, setzeQuelle, quellfarbe, kreuzungszellen } from './schritte.mjs';
 
@@ -29,9 +31,12 @@ function leichter(bau, plan, vorgaben) {
  *   (kreuzungszellen): Beide Strahlen laufen dann über dasselbe Element, das verbindet Stränge (Füllteil, Zerfall)
  *   und bringt Zusammenspiel, beides zählt für die Schwierigkeit. Die Ziele dahinter setzt setzeZiele neu.
  * - Sonst fällt ein Ziel ausserhalb der Kernidee weg, und das Ergänzen setzt ein Element ans offene Ende seines Strahls
- *   (oder, wenn kein Strahl offen endet, eine neue Quelle, soweit die Vorgabe sie erlaubt).
- * Danach Ziele an die Enden und festigen. Geht nicht bei der Obergrenze der drehbaren Elemente, und wenn der Bau danach
- * gleich ist wie vorher oder unter den Untergrenzen liegt.
+ *   (oder, wenn kein Strahl offen endet, eine neue Quelle, soweit die Vorgabe sie erlaubt). Es zielt auf zwei Elemente
+ *   mehr und füllt dabei auch Quellen, Filter und feste Spiegel bis zum Plan auf.
+ * Danach Ziele an die Enden und festigen. Gelungen ist der Schritt mit mindestens einem drehbaren Element mehr. An der
+ * Obergrenze geht er nur mit Zielen zum Öffnen (Füllteil, Zerfall) und tauscht dann ein Element. Rückgabe wie bei jedem
+ * Schritt; „zu klein“, wenn der Bau gewachsen ist, aber noch unter den Untergrenzen liegt (das Wachsen in index.mjs
+ * macht dann weiter).
  */
 function schwerer(bau, plan, vorgaben, { ziele: oeffnen = [] } = {}) {
   const { R, feldform } = bau;

@@ -22,11 +22,12 @@
 //                   Zerfall. Ohne Angabe nie (so bleibt „leicht“ wie in Ticket 18).
 //   wachsen         ab „mittel“: so oft wächst ein Bau unter der Untergrenze mit dem Schritt „schwerer“, bevor er als
 //                   zu klein verworfen wird (ohne Angabe nie)
-// Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente im Median 7 / 9 / 11 (Bereich 5–8,
-// 7–12, 9–14), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren. Die Klicks steigen mit der Grösse. maxSuche
-// ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit 6e5 bzw. 8e5 Knoten nicht mehr Level als mit
-// 2e5, kosteten aber bis 1,8-mal so viel. Reparaturen bleiben bei 2: Mit 1, 2, 3 und 4 lieferten mittel-mischziel 168,
-// 168, 168, 168 (von 300 Seeds), schwer-mischziel 67, 68, 68, 67 und schwer 35, 36, 37, 38 (von 150).
+// Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente dort im Median 7 / 9 / 11 (Bereich
+// 5–8, 7–12, 9–14; die Vorgabe für „schwer“ endet bei 11), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren.
+// Die Klicks steigen mit der Grösse. maxSuche ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit
+// 6e5 bzw. 8e5 Knoten nicht mehr Level als mit 2e5, kosteten aber bis 1,8-mal so viel. Reparaturen bleiben bei 2: Mit
+// 1, 2, 3 und 4 lieferten mittel-mischziel 168, 168, 168, 168 (von 300 Seeds), schwer-mischziel 67, 68, 68, 67 und
+// schwer 35, 36, 37, 38 (von 150).
 export const VORGABEN = {
   leicht: {
     quellen: [1, 3], farbigeQuellen: 0.4, drehbar: [3, 6], arten: { mirror: 7, prism: 2, combiner: 1 },

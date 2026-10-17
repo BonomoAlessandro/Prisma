@@ -88,8 +88,8 @@ function rezept({ grad, kernidee, seed, feldform, schwierigkeit }) {
     const [von, bis] = Array.isArray(schwierigkeit) ? schwierigkeit : [];
     const [unten, oben] = bereichVon(grad);
     if (!(Number.isFinite(von) && Number.isFinite(bis) && von <= bis && bis >= unten && von < oben)) {
-      throw new Error(`Generator: Die Ziel-Schwierigkeit muss ein Bereich [von, bis] im Grad „${grad}“ sein `
-        + `(${unten} bis unter ${oben}), nicht ${JSON.stringify(schwierigkeit)}`);
+      throw new Error(`Generator: Die Ziel-Schwierigkeit muss ein Bereich [von, bis] sein, der den Grad „${grad}“ `
+        + `(${unten} bis unter ${oben}) überschneidet, nicht ${JSON.stringify(schwierigkeit)}`);
     }
   }
   const fehlt = maengel(vorgaben, feldform, baustein.braucht);
@@ -146,8 +146,9 @@ function mangel(b, grad, kernidee, voll, ziel) {
  *             Quellen“
  *   seed:     ganze Zahl; derselbe Auftrag mit demselben Seed ergibt dasselbe Level
  *   feldform: die Feldform (beurteilung/feldform.mjs), etwa feldformVon({}) für das flache Feld 7 × 7
- *   schwierigkeit: wahlweise die Ziel-Schwierigkeit [von, bis] innerhalb des Grads (Ticket 20, etwa für den Austausch:
- *             Level wie die zu ersetzenden); ohne Angabe gilt der ganze Grad
+ *   schwierigkeit: wahlweise die Ziel-Schwierigkeit [von, bis], beide eingeschlossen (Ticket 20, etwa für den
+ *             Austausch: Level wie die zu ersetzenden); sie muss den Grad überschneiden, wirksam ist der Teil im Grad.
+ *             Ohne Angabe gilt der ganze Grad
  * Rückgabe: { level, beurteilung } mit den Leveldaten wie in LEVELS (name leer, grad, Startstellung, solution) und
  * ihrer Beurteilung mit dem Grad des Auftrags; oder { level: null, grund }, wenn der Seed kein Level ergibt. Wirft bei
  * einem Auftrag, den der Generator nicht kennt, und ausserhalb der gedeckelten Umgebung.
