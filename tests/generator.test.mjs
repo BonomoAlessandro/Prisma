@@ -4,6 +4,7 @@
 // - Jedes gelieferte Level hat genau eine Lösung, besteht die Beurteilung (hier neu beurteilt), hat den verlangten Grad
 //   und die verlangte Kernidee nötig; die mitgegebene Beurteilung ist genau diese. Es hat Leveldaten wie in LEVELS und
 //   eine Startstellung, die nicht gelöst ist.
+// - Je Kernidee (Ticket 19) ein Auftrag über dieselben Seeds und ein fester Seed, der ein Level mit ihr liefert.
 // - Keine wirkungslosen Elemente (Spec „Generator“): kein Filter, dessen Strahl schon seine Farbe hat, kein fester
 //   Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten Leveln zeigt, dass
 //   die Prüfung solche Elemente findet.
@@ -15,7 +16,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
 import { L, solve, period, setRot, clicksTo, litCells, keyOf } from '../tools/solver.mjs';
-import { beurteile } from '../tools/beurteilung/index.mjs';
+import { beurteile, TEILE } from '../tools/beurteilung/index.mjs';
 import { feldformVon } from '../tools/beurteilung/feldform.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { ANTEIL } from '../tools/beurteilung/kernideen/lockvogel.mjs';
@@ -32,8 +33,17 @@ process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
 const feldform = feldformVon({});
 const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
-const MISCHZIEL = 'Mischziel aus zwei Quellen';
-const AUFTRAEGE = [{ grad: 'leicht', kernidee: null }, { grad: 'leicht', kernidee: MISCHZIEL }];
+// Je Kernidee ein Auftrag (Ticket 19), dazu einer ohne Kernidee; alle Prüfungen gelten für jeden
+const AUFTRAEGE = [null, ...TEILE.kernideen].map(kernidee => ({ grad: 'leicht', kernidee }));
+/**
+ * Je Kernidee ein fester Seed, der ein Level liefert, und so viele der 50 Seeds liefern mindestens eines (Anteil). Der
+ * Mischziel-Baustein und „ohne“ liefern seit Ticket 18 für mindestens zwei Drittel, die übrigen für mindestens die Hälfte
+ * (gemessen: Falle und Farben abzählen rund 60–65 %, die übrigen rund 80–85 %).
+ */
+const FEST = {
+  'Mischziel aus zwei Quellen': 3, Abschalten: 1, 'Farben abzählen': 1, Sammelstelle: 2, Falle: 1, Lockvogel: 1,
+};
+const ANTEIL_LEVEL = { null: 2 / 3, 'Mischziel aus zwei Quellen': 2 / 3 };
 const t0 = Date.now();
 const laeufe = AUFTRAEGE.map(a => ({
   ...a, ergebnisse: SEEDS.map(seed => ({ seed, ...generiere({ ...a, seed, feldform }) })),
@@ -100,10 +110,10 @@ test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach ander
   }
 });
 
-test('Für „leicht“ liefert er für die meisten Seeds ein Level, ohne Kernidee und mit Mischziel', () => {
+test('Für „leicht“ liefert er für viele Seeds ein Level, ohne Kernidee und mit jeder Kernidee', () => {
   for (const { kernidee, ergebnisse } of laeufe) {
-    const n = ergebnisse.filter(r => r.level).length;
-    assert.ok(n >= (2 * SEEDS.length) / 3, `${kernidee ?? 'ohne Kernidee'}: nur ${n} von ${SEEDS.length}`);
+    const n = ergebnisse.filter(r => r.level).length, anteil = ANTEIL_LEVEL[kernidee] ?? 1 / 2;
+    assert.ok(n >= anteil * SEEDS.length, `${kernidee ?? 'ohne Kernidee'}: nur ${n} von ${SEEDS.length}`);
   }
 });
 
@@ -151,6 +161,17 @@ test('In jedem gelieferten Level ist die verlangte Kernidee laut Beurteilung nö
   assert.ok(mit.length > 0);
   for (const { name, kernidee, neu } of mit) assert.ok(neu.kernideen.some(k => k.begriff === kernidee), name);
 });
+
+console.log('Je Kernidee ein Level mit festem Seed (Ticket 19)');
+for (const kernidee of TEILE.kernideen) {
+  test(`${kernidee}: Seed ${FEST[kernidee]} liefert ein leichtes Level, in dem die Beurteilung sie nötig findet`, () => {
+    const g = beurteilt.find(b => b.kernidee === kernidee && b.seed === FEST[kernidee]);
+    assert.ok(g, `Seed ${FEST[kernidee]} liefert kein Level`);
+    const fund = g.neu.kernideen.find(k => k.begriff === kernidee);
+    assert.ok(fund && fund.begruendung, `${g.name}: ${kernidee} nicht nötig`);
+    assert.equal(gradVon(g.neu.schwierigkeit.wert), 'leicht', g.name);
+  });
+}
 
 test('Die mitgegebene Beurteilung ist genau die des gelieferten Levels mit dem verlangten Grad', () => {
   for (const { name, beurteilung, neu } of beurteilt) assert.ok(isDeepStrictEqual(beurteilung, neu), name);
@@ -228,11 +249,10 @@ test('Der Generator kennt das Feld nur über die Feldform: keine Koordinaten und
   }
 });
 
-test('Unbekannte Aufträge weist er ab: Grad ohne Vorgabe, Kernidee ohne Baustein, ohne Seed oder Feldform', () => {
+test('Unbekannte Aufträge weist er ab: Grad ohne Vorgabe, unbekannte Kernidee, ohne Seed oder Feldform', () => {
   const auftrag = { grad: 'leicht', kernidee: null, seed: 1, feldform };
   assert.throws(() => generiere({ ...auftrag, grad: 'mittel' }), /Ticket 20/);
   assert.throws(() => generiere({ ...auftrag, grad: 'mittelschwer' }), /unbekannter Grad/);
-  assert.throws(() => generiere({ ...auftrag, kernidee: 'Falle' }), /Ticket 19/);
   assert.throws(() => generiere({ ...auftrag, kernidee: 'Muster' }), /unbekannte Kernidee/);
   assert.throws(() => generiere({ ...auftrag, seed: 1.5 }), /Seed/);
   assert.throws(() => generiere({ ...auftrag, feldform: undefined }), /Feldform/);

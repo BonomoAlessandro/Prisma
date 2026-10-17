@@ -110,8 +110,8 @@ function mangel(b, grad, kernidee, voll) {
 /**
  * Ein Level zum Auftrag { grad, kernidee, seed, feldform }:
  *   grad:     Schwierigkeitsgrad (leicht, mittel, schwer, sehr schwer); heute gibt es eine Vorgabe für „leicht“
- *   kernidee: Glossarbegriff der Kernidee, die nötig sein soll, oder null (keine verlangt); heute „Mischziel aus zwei
- *             Quellen“
+ *   kernidee: Glossarbegriff der Kernidee, die nötig sein soll, oder null (keine verlangt); jede der sechs
+ *             Kernideen des Glossars hat einen Baustein (Ticket 19)
  *   seed:     ganze Zahl; derselbe Auftrag mit demselben Seed ergibt dasselbe Level
  *   feldform: die Feldform (beurteilung/feldform.mjs), etwa feldformVon({}) für das flache Feld 7 × 7
  * Rückgabe: { level, beurteilung } mit den Leveldaten wie in LEVELS (name leer, grad, Startstellung, solution) und

@@ -339,7 +339,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   ein Einstieg, `generiere({ grad, kernidee, seed, feldform })` aus `index.mjs`. Ein Auftrag ergibt `{ level,
   beurteilung }` mit Leveldaten wie in LEVELS (ohne Namen, mit `grad`, in der Startstellung) und ihrer Beurteilung,
   oder `{ level: null, grund }`. Derselbe Auftrag ergibt dasselbe Level. Heute kennt er „leicht“, ohne Kernidee und mit
-  der Kernidee Mischziel aus zwei Quellen (`angebot()`); ein anderer Auftrag wirft.
+  jeder der sechs Kernideen (`angebot()`, Ticket 19); ein anderer Auftrag wirft.
   - **Ablauf** (für alle Grade gleich): Der Baustein der Kernidee (`bausteine/`, je Kernidee einer) baut sie gezielt
     in ein leeres Feld (`bau.mjs`); das Ergänzen setzt Quellen, drehbare Elemente am Ende der Strahlen, Filter, feste
     Spiegel und Ziele an die Strahlenden bis zur Grösse, die die Vorgabe des Grads würfelt (`vorgaben.mjs`, ersetzt die
@@ -355,14 +355,23 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
     Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
     hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
-    anderes Licht, oder es gäbe eine zweite Lösung). Lockvögel setzt erst ihr Baustein (Ticket 19).
+    anderes Licht, oder es gäbe eine zweite Lösung). Ausgenommen sind die Lockvögel ihres Bausteins (feste Teile der
+    Kernidee ohne Licht in der Lösung): Sie prüft die volle Beurteilung mit dem Licht der Suche ohne Abschneiden.
+  - **Bausteine** (`bausteine/`, Ticket 19; gemeinsame Hilfen in `wege.mjs`): Mischziel (zwei Quellen auf ein Ziel),
+    Abschalten (ein Spiegel lenkt eine Quelle auf kurzem Weg aufs Ziel, die Lösung bringt dessen Farbe über zwei Spiegel
+    aus einer zweiten), Farben abzählen (Ring aus vier Spiegeln, zwei Quellen derselben Grundfarbe erreichen jeden
+    Ausgang, eine dritte von aussen), Sammelstelle (ein Prisma bricht zwei Zuläufe zu je einem eigenen Ziel), Falle
+    (ein Prisma bricht eine Grundfarbe direkt aufs Ziel, die Lösung bringt sie über einen Spiegel; eine übrige
+    Grundfarbe führt in der Falle über zwei Spiegel in den Holzweg) und Lockvogel (Ringtausch dreier Quellen, ein fester
+    Spiegel oder Blocker verstellt ihn).
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
     Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
     Quelltext nach Koordinaten und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt. Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
-    `leicht`, `leicht-mischziel`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
+    `leicht`, `leicht-mischziel`, `leicht-abschalten`, `leicht-abzaehlen`, `leicht-sammelstelle`, `leicht-falle`,
+    `leicht-lockvogel`; ohne Auftrag nennt es sie) schreibt je Level eine JSON-Zeile `{ seed, level,
     schwierigkeit, spielwert, kernideen, hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit
     `| node tools/show.mjs` als Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
     --generator neu --accept beurteilung`.

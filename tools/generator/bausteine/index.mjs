@@ -5,7 +5,8 @@
 //   baue(bau, plan, vorgaben): setzt die Kernidee in den leeren Bau (bau.mjs): ihre Elemente mit bau.setze(el,
 //     { kern: true }), die Zellen, die frei bleiben müssen, in bau.reserviert. Rückgabe null oder der Grund, warum es
 //     nicht ging. Er darf den Bau mit bau.leere() neu beginnen.
-// Ob die Kernidee nötig ist, prüft nicht der Baustein, sondern die Beurteilung (generiere in index.mjs).
+// Ob die Kernidee nötig ist, prüft nicht der Baustein, sondern die Beurteilung (generiere in index.mjs). Gemeinsame
+// Hilfen der Bausteine (Licht gezielt an eine Zelle bringen, Strahlen verfolgen) stehen in wege.mjs, kein Baustein.
 //
 // Je Baustein eine Zeile; jedes Ticket trägt seine Zeilen unter seiner eigenen Kommentarzeile ein (wie regeln.mjs der
 // Beurteilung).
@@ -13,3 +14,9 @@
 // Ohne Kernidee und Mischziel aus zwei Quellen (Ticket 18)
 export { default as ohne } from './ohne.mjs';
 export { default as mischzielZweiQuellen } from './mischziel-zwei-quellen.mjs';
+// Abschalten, Farben abzählen, Sammelstelle, Falle und Lockvogel (Ticket 19)
+export { default as abschalten } from './abschalten.mjs';
+export { default as farbenAbzaehlen } from './farben-abzaehlen.mjs';
+export { default as sammelstelle } from './sammelstelle.mjs';
+export { default as falle } from './falle.mjs';
+export { default as lockvogel } from './lockvogel.mjs';
