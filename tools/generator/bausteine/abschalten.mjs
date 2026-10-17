@@ -1,5 +1,5 @@
-// Baustein „Abschalten“ (Glossar, Ticket 19): Ein Ziel bekommt Licht in der Farbe des Ziels und leuchtet schon, doch die
-// Lösung verlangt, dieses Licht wegzunehmen. Gezielt eingebaut, in einen leeren Bau:
+// Baustein „Abschalten“ (Glossar, Ticket 19): Ein Ziel bekommt Licht in der Farbe des Ziels und leuchtet schon, doch
+// die Lösung verlangt, dieses Licht wegzunehmen. Gezielt eingebaut, in einen leeren Bau:
 // - Eine Quelle A mit einem drehbaren Spiegel auf ihrem Weg. In der Lösung lenkt er ihr Licht weiter (das Ergänzen
 //   setzt dort fort, am Ende kommt ein Ziel).
 // - Der Zwischenstand: In einer anderen Stellung lenkt derselbe Spiegel das Licht von A auf kurzem Weg auf ein Ziel in
@@ -11,7 +11,9 @@
 // entscheidet die Beurteilung (kernideen/abschalten.mjs), schon in der günstigen Vorprüfung.
 import { getRot } from '../../solver.mjs';
 import { setzeQuelle, setzeDrehbar } from '../schritte.mjs';
-import { FARBEN, strahl, auswege, einfall, zufuehren, reserviere, bildMit, trifft, wegzellen, frei, maske } from './wege.mjs';
+import {
+  FARBEN, strahl, auswege, einfall, zufuehren, reserviere, bildMit, trifft, wegzellen, frei, maske,
+} from './wege.mjs';
 
 /** So oft versucht der Baustein höchstens, die Kernidee einzubauen. */
 const VERSUCHE = 12;
@@ -32,8 +34,9 @@ export default {
       const zelle = feldform.zelle(m), ein = einfall(bau, bau.bildVon(a), zelle), loesung = getRot(m);
       const vorA = wegzellen(bau, bau.bildVon(a));
       // Die Abkürzung: eine andere Stellung, deren Strahl frei bis zu einer Zelle für das Ziel läuft
-      const plaetze = auswege(bau, m, ein).filter(w => w.stellung !== loesung).flatMap(w => strahl(bau, zelle, w.richtung)
-        .map((z, i, linie) => ({ ...w, ziel: z, abkuerzung: linie.slice(0, i) })))
+      const plaetze = auswege(bau, m, ein).filter(w => w.stellung !== loesung)
+        .flatMap(w => strahl(bau, zelle, w.richtung)
+          .map((z, i, linie) => ({ ...w, ziel: z, abkuerzung: linie.slice(0, i) })))
         .filter(p => !vorA.has(p.ziel) && frei(bau, p.ziel));
       if (!plaetze.length) continue;
       const p = R.pick(plaetze);
@@ -53,8 +56,8 @@ export default {
       const bisM = bau.bildVon(a).strahlbild.segments.filter(s => feldform.abschnitt(s).bis === zelle);
       for (const s of bisM) for (const { zelle: z } of feldform.durchlauf(s)) bau.reserviert.add(z);
       for (const z of p.abkuerzung) bau.reserviert.add(z);
-      // Wohin A in der Lösung leuchtet: Meist endet der Strahl offen, und das Ergänzen setzt dort fort. Sonst bekommt er
-      // gleich ein Ziel (keines der Kernidee): Ohne Ziel am Ende wäre A wirkungslos.
+      // Wohin A in der Lösung leuchtet: Halb so oft (GLEICH_ZIEL) bekommt der Strahl gleich ein Ziel (keines der
+      // Kernidee), sonst endet er offen, und das Ergänzen setzt dort fort. Ohne Ziel am Ende wäre A wirkungslos.
       const weiter = strahl(bau, zelle, feldform.spiegeln(m, ein));
       if (!weiter.length) continue;
       if (R.chance(GLEICH_ZIEL)) {

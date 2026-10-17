@@ -6,8 +6,8 @@
 //   eine Startstellung, die nicht gelöst ist.
 // - Je Kernidee (Ticket 19) ein Auftrag über dieselben Seeds und ein fester Seed, der ein Level mit ihr liefert.
 // - Keine wirkungslosen Elemente (Spec „Generator“): kein Filter, dessen Strahl schon seine Farbe hat, kein fester
-//   Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten Leveln zeigt, dass
-//   die Prüfung solche Elemente findet.
+//   Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten
+//   Leveln zeigt, dass die Prüfung solche Elemente findet.
 // - Der Generator kennt das Feld nur über die Feldform (Suche im Quelltext), läuft nur gedeckelt und weist Aufträge ab,
 //   die er nicht kennt.
 // Aufruf: sh tools/leise.sh node tests/generator.test.mjs   (nur über leise.sh: Der Generator prüft den Deckel)
@@ -36,9 +36,9 @@ const SEEDS = Array.from({ length: 50 }, (_, i) => i + 1);
 // Je Kernidee ein Auftrag (Ticket 19), dazu einer ohne Kernidee; alle Prüfungen gelten für jeden
 const AUFTRAEGE = [null, ...TEILE.kernideen].map(kernidee => ({ grad: 'leicht', kernidee }));
 /**
- * Je Kernidee ein fester Seed, der ein Level liefert, und so viele der 50 Seeds liefern mindestens eines (Anteil). Der
- * Mischziel-Baustein und „ohne“ liefern seit Ticket 18 für mindestens zwei Drittel, die übrigen für mindestens die Hälfte
- * (gemessen: Falle und Farben abzählen rund 60–65 %, die übrigen rund 80–85 %).
+ * FEST: je Kernidee ein fester Seed, der ein Level liefert. ANTEIL_LEVEL: welcher Anteil der 50 Seeds ein Level liefern
+ * muss; „ohne“ (Schlüssel null) und Mischziel wie seit Ticket 18 mindestens zwei Drittel, die übrigen Kernideen
+ * mindestens die Hälfte (gemessen: Falle und Farben abzählen rund 60–65 %, die übrigen rund 80–85 %).
  */
 const FEST = {
   'Mischziel aus zwei Quellen': 3, Abschalten: 1, 'Farben abzählen': 1, Sammelstelle: 2, Falle: 1, Lockvogel: 1,
@@ -79,14 +79,14 @@ function filterOhneWirkung(level) {
 }
 
 /**
- * Feste Spiegel, die weder für die Lösung zählen noch als Lockvogel wirken, als Zellen. Für die Lösung zählt einer,
- * wenn ohne ihn ein Ziel in der Lösung anderes Licht bekommt oder das Level eine zweite Lösung hätte. Als Lockvogel
- * wirkt einer, der in der Lösung kein Licht bekommt, aber in mindestens ANTEIL der Strahlbilder der Suche ohne
- * Abschneiden (wie der Lockvogel der Beurteilung).
+ * Feste Spiegel (oder mit art die Blocker), die weder für die Lösung zählen noch als Lockvogel wirken, als Zellen. Für
+ * die Lösung zählt einer, wenn ohne ihn ein Ziel in der Lösung anderes Licht bekommt oder das Level eine zweite Lösung
+ * hätte. Als Lockvogel wirkt einer, der in der Lösung kein Licht bekommt, aber in mindestens ANTEIL der Strahlbilder
+ * der Suche ohne Abschneiden (wie der Lockvogel der Beurteilung).
  */
-function festeSpiegelOhneWirkung(level) {
+function festeOhneWirkung(level, art = e => e.type === 'mirror' && e.fixed) {
   const brett = inLoesung(level), imLicht = litCells(L.traceBeams(brett), brett);
-  return level.elements.filter(e => e.type === 'mirror' && e.fixed).filter((m) => {
+  return level.elements.filter(art).filter((m) => {
     const ohne = level.elements.filter(e => e !== m);
     if (!isDeepStrictEqual(zielLicht(level, ohne), zielLicht(level))) return false;
     const r = solve({ ...level, elements: ohne }, { unique: true, collect: 0 });
@@ -164,9 +164,10 @@ test('In jedem gelieferten Level ist die verlangte Kernidee laut Beurteilung nö
 
 console.log('Je Kernidee ein Level mit festem Seed (Ticket 19)');
 for (const kernidee of TEILE.kernideen) {
-  test(`${kernidee}: Seed ${FEST[kernidee]} liefert ein leichtes Level, in dem die Beurteilung sie nötig findet`, () => {
-    const g = beurteilt.find(b => b.kernidee === kernidee && b.seed === FEST[kernidee]);
-    assert.ok(g, `Seed ${FEST[kernidee]} liefert kein Level`);
+  const seed = FEST[kernidee];
+  test(`${kernidee}: Seed ${seed} liefert ein leichtes Level, in dem die Beurteilung sie nötig findet`, () => {
+    const g = beurteilt.find(b => b.kernidee === kernidee && b.seed === seed);
+    assert.ok(g, `Seed ${seed} liefert kein Level`);
     const fund = g.neu.kernideen.find(k => k.begriff === kernidee);
     assert.ok(fund && fund.begruendung, `${g.name}: ${kernidee} nicht nötig`);
     assert.equal(gradVon(g.neu.schwierigkeit.wert), 'leicht', g.name);
@@ -199,7 +200,7 @@ test('Startstellung: nicht gelöst, höchstens ein Ziel leuchtet (bei einem kein
 });
 
 console.log('Keine wirkungslosen Elemente');
-test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat, und feste Spiegel ohne Wirkung', () => {
+test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat, und feste Teile ohne Wirkung', () => {
   const level = {
     name: 'Gegenprobe', elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
@@ -214,13 +215,15 @@ test('Gegenprobe: Die Prüfung findet Filter, deren Strahl schon ihre Farbe hat,
       { type: 'source', x: 6, z: 5, dir: 4, color: 'blue' },
       { type: 'mirror', x: 5, z: 5, rot: 3, fixed: true }, // im Licht, lenkt es nur aus dem Feld: ohne Wirkung
       { type: 'mirror', x: 6, z: 6, rot: 1, fixed: true }, // abseits, bekommt nie Licht: kein Lockvogel
+      { type: 'blocker', x: 6, z: 2 }, // ebenso
     ],
     solution: { '4,3': 1, '2,0': 3 },
   };
   assert.ok(L.traceBeams(inLoesung(level)).solved, 'das handgebaute Level ist in seiner Lösung gelöst');
   assert.equal(solve(level, { unique: true }).count, 1, 'das handgebaute Level ist eindeutig');
   assert.deepEqual(filterOhneWirkung(level), ['2,3']);
-  assert.deepEqual(festeSpiegelOhneWirkung(level), ['5,5', '6,6']);
+  assert.deepEqual(festeOhneWirkung(level), ['5,5', '6,6']);
+  assert.deepEqual(festeOhneWirkung(level, e => e.type === 'blocker'), ['6,2']);
 });
 
 test('Kein geliefertes Level hat einen Filter, dessen Strahl schon die Filterfarbe hat', () => {
@@ -232,7 +235,15 @@ test('Kein geliefertes Level hat einen Filter, dessen Strahl schon die Filterfar
 test('Kein geliefertes Level hat einen festen Spiegel, der weder für die Lösung zählt noch als Lockvogel wirkt', () => {
   const mit = geliefert.filter(g => g.level.elements.some(e => e.type === 'mirror' && e.fixed));
   assert.ok(mit.length >= 3, `nur ${mit.length} Level mit festem Spiegel geprüft`);
-  for (const { name, level } of geliefert) assert.deepEqual(festeSpiegelOhneWirkung(level), [], name);
+  for (const { name, level } of geliefert) assert.deepEqual(festeOhneWirkung(level), [], name);
+});
+
+test('Ebenso keinen Blocker ohne Wirkung (der Lockvogel-Baustein setzt auch Blocker, Ticket 19)', () => {
+  const blocker = e => e.type === 'blocker';
+  const mit = geliefert.filter(g => g.level.elements.some(blocker));
+  assert.ok(mit.length >= 3, `nur ${mit.length} Level mit Blocker geprüft`);
+  assert.ok(mit.some(g => g.kernidee === 'Lockvogel'), 'kein Lockvogel-Level mit Blocker geprüft');
+  for (const { name, level } of mit) assert.deepEqual(festeOhneWirkung(level, blocker), [], name);
 });
 
 console.log('Nahtstellen');

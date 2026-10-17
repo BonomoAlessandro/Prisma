@@ -25,7 +25,10 @@ export function strahl(bau, zelle, richtung, belegt = new Set()) {
   return out;
 }
 
-/** Richtungen, in die ein Spiegel Licht aus Richtung richtung sinnvoll lenkt (weder zurück noch geschluckt), je Stellung. */
+/**
+ * Richtungen, in die ein Spiegel Licht aus Richtung richtung sinnvoll lenkt (weder zurück noch geschluckt), je
+ * Stellung: [{ stellung, richtung }].
+ */
 export function auswege(bau, el, richtung) {
   return bau.feldform.stellungen(el).flatMap((stellung) => {
     const neu = bau.feldform.spiegeln(el, richtung, stellung);
@@ -42,7 +45,10 @@ export function einfall(bau, bild, zelle) {
   return s ? bau.laufrichtung(s) : null;
 }
 
-/** Zellen, durch die das Licht eines Bilds läuft (ohne Anfang und Ende der Abschnitte), und die Zellen, in denen es endet. */
+/**
+ * Zellen, durch die das Licht eines Bilds läuft, und die Zellen, in denen seine Abschnitte enden (dort steht das
+ * Element, das es lenkt oder schluckt); ohne die Zellen der Quellen.
+ */
 export function wegzellen(bau, bild) {
   const out = new Set();
   for (const s of bild.strahlbild.segments) {
@@ -75,9 +81,9 @@ export function bildMit(bau, q, stellung = new Map()) {
 
 /**
  * Rückwärts von zelle: Wo kann Licht herkommen, das in Richtung richtung in zelle ankommt, über genau spiegel drehbare
- * Spiegel aus einer neuen Quelle am Rand? Rückgabe: { teile: [{ zelle, richtung } der Quelle, dann je Spiegel { zelle,
- * stellung }], weg: Zellen, durch die das Licht läuft } oder null. Spiegel und Quelle kommen nur auf Zellen ohne fremdes
- * Licht; der Weg meidet belegt.
+ * Spiegel aus einer neuen Quelle am Rand? Rückgabe: { teile: [{ zelle, richtung } der Quelle, dann je Spiegel
+ * { zelle, stellung }], weg: Zellen, durch die das Licht läuft } oder null. Spiegel und Quelle kommen nur auf Zellen
+ * ohne fremdes Licht; der Weg meidet belegt.
  */
 function rueckwaerts(bau, zelle, richtung, spiegel, belegt) {
   const { feldform, R } = bau, zurueck = bau.gegen[richtung];

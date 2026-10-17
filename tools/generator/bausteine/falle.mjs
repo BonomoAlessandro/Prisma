@@ -23,9 +23,10 @@ const VERSUCHE = 80;
 const MISCHLICHT = ['yellow', 'cyan', 'magenta', 'white'];
 
 /**
- * Fallen am Prisma in zelle für Licht der Farbe farbe aus Richtung ein: je Lösung und Falle { loesung, falle: Stellungen,
- * farbe: Grundfarbe (Maske), ziel: Zelle, kurz: Zellen des Wegs der Falle, spiegel: { zelle, stellung }, lang: Zellen
- * des Wegs der Lösung }. Das Ziel liegt auf dem Strahl der Falle; den Strahl der Lösung lenkt ein Spiegel dorthin.
+ * Fallen am Prisma in zelle für Licht der Farbe farbe aus Richtung ein: je Lösung und Falle { loesung, falle:
+ * Stellungen, farbe: Grundfarbe (Maske), ziel: Zelle, kurz: Zellen des Wegs der Falle, spiegel: { zelle, stellung },
+ * lang: Zellen des Wegs der Lösung }. Das Ziel liegt auf dem Strahl der Falle; den Strahl der Lösung lenkt ein Spiegel
+ * dorthin.
  */
 function fallen(bau, zelle, ein, farbe) {
   const { feldform } = bau, prisma = feldform.element(zelle, { type: 'prism' }), out = [];
@@ -48,7 +49,8 @@ function fallen(bau, zelle, ein, farbe) {
               const k = kurzLinie.indexOf(ziel);
               if (k < 0 || !frei(bau, ziel)) continue;
               out.push({ loesung, falle, farbe: kurz.farbe, ziel, kurz: kurzLinie.slice(0, k),
-                spiegel: { zelle: m, stellung: aus.stellung }, lang: [...langLinie.slice(0, i), ...weiter.slice(0, j)] });
+                spiegel: { zelle: m, stellung: aus.stellung },
+                lang: [...langLinie.slice(0, i), ...weiter.slice(0, j)] });
             }
           }
         }
@@ -61,8 +63,8 @@ function fallen(bau, zelle, ein, farbe) {
 /**
  * Der Holzweg zur Falle: Eine übrige Grundfarbe läuft in der Lösung über zwei drehbare Spiegel weiter (das Ergänzen
  * setzt danach fort), und der zweite steht auf ihrem Strahl in der Falle. Wer bei der Falle bleibt, bringt diese
- * Grundfarbe so auf den zweiten Spiegel und von dort auf den ersten: drei Elemente anders als in der Lösung, und nur ihr
- * Ziel bleibt dunkel (eine weite Fast-Lösung, wie sie die Beurteilung der Falle verlangt). Rückgabe: true, wenn es
+ * Grundfarbe so auf den zweiten Spiegel und von dort auf den ersten: drei Elemente anders als in der Lösung, und nur
+ * ihr Ziel bleibt dunkel (eine weite Fast-Lösung, wie sie die Beurteilung der Falle verlangt). Rückgabe: true, wenn es
  * gelang (sonst ist nichts gesetzt).
  */
 function holzweg(bau, a, prisma, f) {
@@ -75,7 +77,7 @@ function holzweg(bau, a, prisma, f) {
     if (!t || t.richtung === o.richtung) continue;
     const fallLinie = strahl(bau, zelle, t.richtung);
     for (const m1 of strahl(bau, zelle, o.richtung)) {
-      // m1 steht auf dem Licht dieser Grundfarbe selbst (strahl: frei und nicht reserviert)
+      // m1 steht auf dem Licht dieser Grundfarbe selbst (strahl: leer und nicht reserviert)
       for (const g of auswege(bau, feldform.element(m1, { type: 'mirror' }), o.richtung)) {
         for (const m2 of strahl(bau, m1, g.richtung)) {
           if (!fallLinie.includes(m2) || !frei(bau, m2)) continue;

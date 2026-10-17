@@ -1,7 +1,7 @@
-// Baustein „Farben abzählen“ (Glossar, Ticket 19): aus den Zielfarben folgern, welche Grundfarbe von welcher Quelle wohin
-// muss. Die Beurteilung (kernideen/farben-abzaehlen.mjs) verlangt eine knappe Grundfarbe: genau so viele Quellen können
-// sie an ein Ziel bringen, wie Ziele sie brauchen (mindestens zwei), und bei einer Quelle zeigt sich ihr Verlust an
-// keinem einzelnen Ziel, weil die übrigen jedes Ziel noch erreichen könnten. Mit drei Quellen heisst das: Zwei davon
+// Baustein „Farben abzählen“ (Glossar, Ticket 19): aus den Zielfarben folgern, welche Grundfarbe von welcher Quelle
+// wohin muss. Die Beurteilung (kernideen/farben-abzaehlen.mjs) verlangt eine knappe Grundfarbe: genau so viele Quellen
+// können sie an ein Ziel bringen, wie Ziele sie brauchen (mindestens zwei), und bei einer Quelle zeigt sich ihr Verlust
+// an keinem einzelnen Ziel, weil die übrigen jedes Ziel noch erreichen könnten. Mit drei Quellen heisst das: Zwei davon
 // erreichen jedes der drei Ziele. Gezielt eingebaut als Ring, in einen leeren Bau:
 // - Vier drehbare Spiegel an den Ecken eines Rechtecks. Licht im Ring läuft von Ecke zu Ecke; an jeder Ecke biegt es
 //   weiter oder verlässt den Ring nach aussen.
@@ -72,7 +72,7 @@ export default {
         const belegt = new Set([...ringzellen, ...ausgaenge.flat()]);
         let q = null;
         for (const d of ein) {
-          q = zufuehren(bau, e.zelle, d, { spiegel: 0, farbe, belegt: new Set([...belegt].filter(z => z !== e.zelle)) });
+          q = zufuehren(bau, e.zelle, d, { spiegel: 0, farbe, belegt });
           if (q) break;
         }
         if (!q) break;
@@ -83,7 +83,8 @@ export default {
       const plaetze = ausgaenge.map(a => a.filter(z => frei(bau, z)));
       const mitPlatz = R.shuffle([0, 1, 2, 3].filter(i => plaetze[i].length));
       if (mitPlatz.length < 3) continue;
-      const ziele = mitPlatz.slice(0, 3).map(i => bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'target', color: farbe }), { kern: true }));
+      const ziele = mitPlatz.slice(0, 3)
+        .map(i => bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'target', color: farbe }), { kern: true }));
       // Die dritte Quelle bringt einem Ziel von aussen Licht, über einen Spiegel
       const fuer = R.pick(ziele), zelle = feldform.zelle(fuer);
       let dritte = null;
@@ -105,14 +106,17 @@ export default {
   },
 };
 
-/** Setzt die Ecken in die erste Belegung, die alle Ziele erfüllt und jede Ecke beleuchtet; false, wenn es keine gibt. */
+/**
+ * Setzt die Ecken in die erste Belegung, die alle Ziele erfüllt und jede Ecke beleuchtet; false, wenn es keine gibt.
+ */
 function loese(bau, spiegel, ziele, farbe) {
   const { feldform } = bau, n = feldform.stellungen(spiegel[0]).length;
   for (let k = 0; k < n ** spiegel.length; k++) {
     spiegel.forEach((m, i) => setRot(m, Math.floor(k / n ** i) % n));
     bau.geaendert();
     const bild = bau.bild(), licht = bau.licht(bild);
-    if (ziele.every(t => trifft(bau, bild, feldform.zelle(t)) === farbe) && spiegel.every(m => licht.has(feldform.zelle(m)))) return true;
+    const erfuellt = ziele.every(t => trifft(bau, bild, feldform.zelle(t)) === farbe);
+    if (erfuellt && spiegel.every(m => licht.has(feldform.zelle(m)))) return true;
   }
   return false;
 }

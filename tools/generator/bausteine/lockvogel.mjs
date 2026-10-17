@@ -5,14 +5,14 @@
 // - Drei Quellen derselben Farbe, je mit einem drehbaren Spiegel auf ihrem Weg, und drei Ziele in dieser Farbe. In der
 //   Lösung bringt Spiegel i sein Licht zu Ziel i, in der anderen Stellung zu Ziel i + 1 (im Kreis). So gibt es zwei
 //   Lösungen: die Lösung und den Ringtausch.
-// - Auf einem Weg des Ringtauschs steht der Lockvogel, ein fester Spiegel (oder ein Blocker), auf einer Zelle ohne Licht
-//   in der Lösung. Er verstellt den Ringtausch: Ohne ihn hätte das Level eine zweite Lösung. Beim Probieren bekommt er
-//   Licht, sobald sein Spiegel in die Stellung des Ringtauschs dreht (ein Viertel der Strahlbilder), und der Holzweg
-//   dahin (die beiden übrigen Spiegel im Ringtausch, er selbst schluckt das Licht des dritten) ist eine weite
+// - Auf einem Weg des Ringtauschs steht der Lockvogel, ein fester Spiegel (oder ein Blocker), auf einer Zelle ohne
+//   Licht in der Lösung. Er verstellt den Ringtausch: Ohne ihn hätte das Level eine zweite Lösung. Beim Probieren
+//   bekommt er Licht, sobald sein Spiegel in die Stellung des Ringtauschs dreht (ein Viertel der Strahlbilder), und der
+//   Holzweg dahin (die beiden übrigen Spiegel im Ringtausch, er selbst schluckt das Licht des dritten) ist eine weite
 //   Fast-Lösung: drei Spiegel anders als in der Lösung, alle Ziele bis auf eines leuchten.
-// Alles gehört zur Kernidee, die Wege der Lösung und des Ringtauschs sind reserviert. Die Strahlen enden alle an Zielen;
-// das Ergänzen setzt darum kaum etwas dazu. Ob der Lockvogel nötig ist, entscheidet die volle Beurteilung (teuer, wegen
-// der Suche ohne Abschneiden).
+// Alles gehört zur Kernidee, die Wege der Lösung und des Ringtauschs sind reserviert. Die Strahlen enden alle an
+// Zielen; das Ergänzen setzt darum kaum etwas dazu. Ob der Lockvogel nötig ist, entscheidet die volle Beurteilung
+// (teuer, wegen der Suche ohne Abschneiden).
 import { setRot } from '../../solver.mjs';
 import { FARBEN, strahl, auswege, einfall, bildMit, trifft, wegzellen, maske } from './wege.mjs';
 
@@ -44,7 +44,8 @@ export default {
       for (let wahl = 0; !fund && wahl < SPIEGELWAHL; wahl++) {
         for (const s of spiegel) { bau.kern.delete(s.m); bau.entferne(s.m); }
         spiegel = quellen.map((q, i) => ({
-          m: bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'mirror' }), { kern: true }), ein: feldform.ausgang(q),
+          m: bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'mirror' }), { kern: true }),
+          ein: feldform.ausgang(q),
         }));
         for (const s of spiegel) s.wege = auswege(bau, s.m, s.ein);
         if (spiegel.every(s => s.wege.length === 2)) fund = ringtausch(bau, spiegel, quellwege);
@@ -100,9 +101,8 @@ function lockvogel(bau, spiegel, fund, tausch, farbe) {
   const inLoesung = wegzellen(bau, bau.bild());
   for (const i of R.shuffle([0, 1, 2])) {
     const ziel = fund.ziele[(i + 1) % 3];
-    const linie = strahl(bau, feldform.zelle(spiegel[i].m), fund.tausch[i].richtung);
-    const bis = linie.indexOf(ziel);
-    const zellen = linie.slice(0, bis < 0 ? linie.length : bis).filter(z => !inLoesung.has(z));
+    // strahl hält vor dem ersten Element, also vor dem Ziel (oder vor einem anderen Ziel auf dem Tauschweg)
+    const zellen = strahl(bau, feldform.zelle(spiegel[i].m), fund.tausch[i].richtung).filter(z => !inLoesung.has(z));
     for (const z of R.shuffle(zellen)) {
       let el = feldform.element(z, { type: 'blocker' });
       if (R.chance(SPIEGEL)) {

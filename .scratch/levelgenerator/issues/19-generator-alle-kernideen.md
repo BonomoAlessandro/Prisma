@@ -179,3 +179,51 @@ liefert. Verlangt sind mindestens zwei Drittel der 50 Seeds für „ohne“ und 
   bestellen (`leicht-abschalten` …). Die Haupt-Kernidee wählt die Beurteilung; sie ist nicht immer die verlangte, wer
   sie braucht, prüft `beurteilung.hauptKernidee`. Die Level aus Farben abzählen und Lockvogel sehen sich je
   untereinander ähnlich (siehe Abweichungen).
+
+**Review 17.10.2026** (Reviewer, im selben Worktree; Korrekturen im Commit „fix(generator): … (Review Ticket 19)“).
+Geprüft: der Diff `974c4f0..abcf258` (fünf Bausteine, `wege.mjs`, `wirkungslos`, Test, README) gegen Spec „Generator“,
+Glossar und Ticket 18; nachgemessen auf demselben Rechner (i7-9750H, Node 22.12.0), alles über `leise.sh` mit
+`LEISE_CPU=50`, `--jobs 4`. Skripte im Scratchpad des Reviews (`review19/`).
+- **Bitgleich:** `leicht` und `leicht-mischziel`, Seeds 1–2000, Level samt Beurteilung bzw. Grund als Hash gegen
+  `974c4f0`: 4000 von 4000 gleich. Die Korrekturen dieses Reviews ändern kein Level: alle sieben Aufträge, Seeds
+  1–1000, 7000 von 7000 gleich gegen `abcf258`.
+- **`wirkungslos`:** In einer instrumentierten Kopie (1000 Seeds je Auftrag) greift die Ausnahme nur bei
+  `leicht-lockvogel`; in den übrigen sechs Aufträgen nie. In jedem der 786 gelieferten Lockvogel-Level ist das feste
+  Teil ohne Licht genau der Lockvogel der Beurteilung (567 feste Spiegel, 219 Blocker).
+- **Abnahme:** Die vier Punkte sind erfüllt. Die Tests mit festem Seed prüfen, was sie sagen (Level geliefert, Kernidee
+  laut neuer Beurteilung nötig, Grad leicht). Die Gründe ohne Level (1000 Seeds) decken sich mit den Proben oben.
+- **Ausbeute:** Level je Auftrag (5000 Seeds) und Quartile stimmen genau, die CPU-Zeit des neuen Generators auf ±20 %
+  (`leicht` 27,2, 21,8 und 22,6 CPU-s in drei Läufen, oben 22,4). Der alte Generator schwankt stark: 41,1 und
+  61,6 CPU-s für dieselben 1741 Level (oben 77), je Profil bis × 2,8 (1-spiegel 0,8 gegen 2,2 CPU-s). Die Faktoren
+  gegen das beste Profil sind darum nur grob: ohne Kernidee × 0,63 bzw. × 1,22 (oben × 2,1), Mischziel × 89 bzw.
+  × 127 (× 136), Abschalten × 28 bzw. × 62 (× 52). Für die Kernideen bleibt der Abstand gross. Dass der neue Generator
+  ohne Kernidee schneller ist als das beste alte Profil, ist auf diesem Rechner nicht belegt.
+- **Selbst behoben** (ohne Wirkung auf die Level, siehe oben):
+  - `lockvogel.mjs`: `linie.indexOf(ziel)` war immer −1, weil `strahl` vor dem Ziel hält (instrumentiert: in
+    1000 Seeds nie gefunden); die Rechnung mit `bis` fällt weg.
+  - `farben-abzaehlen.mjs`: Der Filter, der die Ecke aus `belegt` nahm, entfällt; `zufuehren` nimmt sie ohnehin dazu.
+  - Kommentare: `wegzellen`, `auswege` und `rueckwaerts` (`wege.mjs`), „halb so oft“ statt „meist“ bei `GLEICH_ZIEL`,
+    „leer“ statt „frei“ in `holzweg`, `FEST` und `ANTEIL_LEVEL` im Test. Zeilen über 120 Zeichen in den neuen Dateien
+    umbrochen, wie im Code aus Ticket 18.
+  - Test: Blocker ohne Wirkung werden geprüft wie feste Spiegel (`festeOhneWirkung`, mit Gegenprobe), weil der
+    Lockvogel-Baustein in 30 % einen Blocker setzt und `wirkungslos` ihn auslässt.
+- **Offen, mittel:** Farben abzählen verliert 14 % der Seeds an „Kernidee nicht nötig“, und alle diese Fälle haben die
+  dritte Quelle oder ihren Spiegel auf einem Ausgang des Rings (`farben-abzaehlen.mjs`, `zufuehren` der dritten Quelle
+  mit `belegt: ringzellen`). Steht ihr Spiegel zwischen Ecke und Ziel, erreicht der Ring das Ziel nicht mehr, und der
+  Verlust einer Ringquelle zeigt sich doch an einem Ziel. Mit `belegt: new Set([...ringzellen, ...ausgaenge.flat()])`
+  in einer Kopie: 797 statt 683 Level aus den Seeds 1–1000, 804 statt 706 aus 1001–2000, „nicht nötig“ 0.
+- **Offen, mittel:** `frei` (`wege.mjs`) rechnet `durchgaenge` bei jedem Aufruf neu, `quelleIrgendwohin`
+  (`lockvogel.mjs`) je Quellplatz. Im Profil (Seeds 1–400) sind das 17 % der Zeit bei Falle und 24 % bei Lockvogel,
+  den beiden teuersten Aufträgen. Einmal je Strahlbild rechnen ändert kein Level.
+- **Offen, mittel:** Die Faktoren gegen den alten Generator oben als Spanne aus mindestens zwei Läufen angeben (oder
+  die alten Profile mit 20 000 Seeds messen), vor allem „ohne Kernidee“.
+- **Offen, mittel (Design, nicht dringend):** Die Ausnahme in `wirkungslos` erkennt Lockvögel an „Kernidee und ohne
+  Licht“. Heute setzt nur der Lockvogel-Baustein solche Teile; ein späterer Baustein oder ein fest gewordener Spiegel
+  der Kernidee, der sein Licht verliert, fiele still durch. Eine ausdrückliche Markierung durch den Baustein wäre
+  sicherer.
+- **Frage an den Nutzer:** „genau diese Kernidee nötig“ ist umgesetzt als „die verlangte ist unter den nötigen“ (wie
+  in Ticket 18). Die Haupt-Kernidee der Beurteilung ist fast immer die verlangte; Ausnahme sind 11 von 807
+  Sammelstellen-Leveln mit Haupt-Kernidee Abschalten (1000 Seeds je Auftrag). Soll der Generator die Haupt-Kernidee
+  verlangen (wichtig für die Regel der Tickets 23–26)?
+- **Für Ticket 22 (Würfel):** Lockvogel (`s.wege.length === 2`) und Farben abzählen (ein Ausgang je Ecke) gehen davon
+  aus, dass ein Spiegel Licht nur um 90° lenkt, also genau zwei Auswege hat. Das gilt in der flachen Feldform.
