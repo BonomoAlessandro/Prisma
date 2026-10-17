@@ -4,7 +4,8 @@
 //   braucht:  { quellen, drehbar }, was er mindestens setzt; die Vorgabe eines Grads muss es erlauben (vorgaben.mjs)
 //   baue(bau, plan, vorgaben): setzt die Kernidee in den leeren Bau (bau.mjs): ihre Elemente mit bau.setze(el,
 //     { kern: true }), die Zellen, die frei bleiben müssen, in bau.reserviert. Rückgabe null oder der Grund, warum es
-//     nicht ging. Er darf den Bau mit bau.leere() neu beginnen.
+//     nicht ging. Er darf den Bau mit bau.leere() neu beginnen. Ein Lockvogel (festes Teil abseits der Lösung) kommt
+//     mit { kern: true, lockvogel: true }; nur so nimmt ihn die Regel gegen wirkungslose Elemente aus.
 // Ob die Kernidee nötig ist, prüft nicht der Baustein, sondern die Beurteilung (generiere in index.mjs). Gemeinsame
 // Hilfen der Bausteine (Licht gezielt an eine Zelle bringen, Strahlen verfolgen) stehen in wege.mjs, kein Baustein.
 //

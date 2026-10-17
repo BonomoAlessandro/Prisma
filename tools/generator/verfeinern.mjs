@@ -83,14 +83,18 @@ function schwerer(bau, plan, vorgaben, { ziele: oeffnen = [] } = {}) {
 /** So oft versucht „schwerer“ höchstens, vom selben Stand aus ein Element dazuzubringen; es kostet keine Beurteilung. */
 const VERSUCHE = 8;
 
-/** Stand des Baus, um nach einem misslungenen Versuch dorthin zurückzukehren: Elemente, Kernidee, reservierte Zellen. */
+/**
+ * Stand des Baus, um nach einem misslungenen Versuch dorthin zurückzukehren: Elemente, Kernidee, Lockvögel, reservierte
+ * Zellen.
+ */
 function merke(bau) {
   return { elemente: bau.elemente.map(e => ({ ...e })), kern: bau.elemente.map(e => bau.kern.has(e)),
-    reserviert: [...bau.reserviert], drehbar: bau.drehbare().length, ziele: bau.art('target').length };
+    lockvogel: bau.elemente.map(e => bau.lockvoegel.has(e)), reserviert: [...bau.reserviert],
+    drehbar: bau.drehbare().length, ziele: bau.art('target').length };
 }
-function zurueck(bau, { elemente, kern, reserviert }) {
+function zurueck(bau, { elemente, kern, lockvogel, reserviert }) {
   bau.leere();
-  elemente.forEach((e, i) => bau.setze({ ...e }, { kern: kern[i] }));
+  elemente.forEach((e, i) => bau.setze({ ...e }, { kern: kern[i], lockvogel: lockvogel[i] }));
   for (const z of reserviert) bau.reserviert.add(z);
 }
 

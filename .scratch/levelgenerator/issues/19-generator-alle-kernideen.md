@@ -262,6 +262,14 @@ Glossar und Ticket 18; nachgemessen auf demselben Rechner (i7-9750H, Node 22.12.
   Tabelle oben nennt beide Läufe und die Faktoren als Spanne. Ohne Kernidee × 1,7–2,0 in dieser Sitzung, mit den
   Läufen des Reviews × 0,63–2,0: Ein Vorsprung ohne Kernidee ist nicht sicher belegt; mit Kernidee × 50 bis × 867.
 - Tests danach grün: `generator.test.mjs` (23 Tests), `golden.mjs`, `logic.test.mjs` (553 Tests).
+- **M4 umgesetzt** (18.10.2026, nach dem Merge mit Ticket 20, im Branch von Ticket 20): Lockvögel sind ausdrücklich
+  markiert.
+  - `bau.lockvoegel` ist ein Set. `setze(el, { kern, lockvogel })` trägt ein, `entferne` und `leere` nehmen weg, und
+    das Zurücksetzen von „schwerer“ (`verfeinern.mjs`) stellt die Markierung wieder her.
+  - Der Lockvogel-Baustein setzt sie, `wirkungslos` nimmt nur markierte Lockvögel ohne Licht aus. Ein anderes festes
+    Teil der Kernidee fällt nicht mehr still durch.
+  - Bitgleich: alle sieben leichten Aufträge über Seeds 1–1000, dazu Seeds 1–100 aller mittleren Aufträge und
+    `schwer-lockvogel`. Der Generator-Test ist grün.
 
 **Nachprüfung 17.10.2026** (Reviewer, `c35cb99`): M1–M3 sind behoben.
 - **Bitgleich:** Seeds 1–1000 gegen `abcf258`: sechs Aufträge gleich. Farben abzählen ist 797 Level, genau wie die

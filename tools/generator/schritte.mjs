@@ -256,8 +256,9 @@ function sonstMehrdeutig(bau, el, wegnahme, vorgaben) {
  * - ein Ziel, dessen Licht von keinem drehbaren Element abhängt (es leuchtet geschenkt);
  * - ein fester Spiegel oder Blocker, der nicht für die Lösung zählt.
  * Für die Lösung zählt ein festes Teil, wenn ohne es ein Ziel anderes Licht bekommt oder das Level eine zweite Lösung
- * hätte. Ausgenommen sind feste Teile der Kernidee abseits der Lösung (ohne Licht in ihr): Lockvögel, die nur ihr
- * Baustein setzt (Ticket 19). Ob ein Lockvogel wirkt, prüft die volle Beurteilung mit dem Licht der Suche ohne
+ * hätte. Ausgenommen sind die Lockvögel abseits der Lösung (ohne Licht in ihr), die nur ihr Baustein setzt und
+ * ausdrücklich markiert (bau.lockvoegel; Ticket 19, Review M4): Ein anderes festes Teil der Kernidee ohne Licht fällt
+ * nicht still durch. Ob ein Lockvogel wirkt, prüft die volle Beurteilung mit dem Licht der Suche ohne
  * Abschneiden (kernideen/lockvogel.mjs); der Generator rechnet diese Suche nicht ein zweites Mal. Jeder Lockvogel, den
  * sie für nötig hält, zählt auch hier: Ohne ihn hätte das Level eine zweite Lösung. Ist ein Element der Kernidee
  * wirkungslos, kommt der Grund zurück.
@@ -285,7 +286,7 @@ export function wirkungslos(bau, vorgaben) {
     for (const [z, farbe] of zielLicht(bau, mitBlocker(bau, r))) if (farbe !== inLoesung.get(z)) abhaengig.add(z);
   }
   for (const t of bau.art('target')) if (!abhaengig.has(feldform.zelle(t))) funde.push(t);
-  const licht = bau.licht(), lockvogel = (el) => bau.kern.has(el) && !licht.has(feldform.zelle(el));
+  const licht = bau.licht(), lockvogel = (el) => bau.lockvoegel.has(el) && !licht.has(feldform.zelle(el));
   for (const el of bau.elemente) {
     if (funde.length) break;
     if (lockvogel(el)) continue; // prüft die Beurteilung mit dem Licht der Suche (Ticket 19)

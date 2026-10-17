@@ -24,6 +24,11 @@ export class Bau {
     this.elemente = [];
     /** Elemente der Kernidee: Aufräumen und Verfeinern nehmen sie nie weg (bausteine/). */
     this.kern = new Set();
+    /**
+     * Lockvögel: feste Teile der Kernidee abseits der Lösung, ausdrücklich markiert von ihrem Baustein (Review Ticket
+     * 19, M4). Die Regel gegen wirkungslose Elemente nimmt nur sie aus (schritte.mjs).
+     */
+    this.lockvoegel = new Set();
     /** Zellen, auf die nichts mehr kommt, etwa die Wege des Lichts einer Kernidee. */
     this.reserviert = new Set();
     this.platz = new Map(); // Zelle → Element
@@ -34,13 +39,14 @@ export class Bau {
   /** Das Element in einer Zelle oder undefined. */
   bei(zelle) { return this.platz.get(zelle); }
 
-  /** Element setzen; kern: gehört zur Kernidee. Rückgabe: das Element. */
-  setze(el, { kern = false } = {}) {
+  /** Element setzen; kern: gehört zur Kernidee; lockvogel: ist ein Lockvogel. Rückgabe: das Element. */
+  setze(el, { kern = false, lockvogel = false } = {}) {
     const zelle = this.feldform.zelle(el);
     if (this.platz.has(zelle)) throw new Error(`Bau: Zelle ${zelle} ist schon besetzt`);
     this.elemente.push(el);
     this.platz.set(zelle, el);
     if (kern) this.kern.add(el);
+    if (lockvogel) this.lockvoegel.add(el);
     this.geaendert();
     return el;
   }
@@ -50,6 +56,7 @@ export class Bau {
     if (this.kern.has(el)) throw new Error('Bau: ein Element der Kernidee wird nicht weggenommen');
     this.elemente.splice(this.elemente.indexOf(el), 1);
     this.platz.delete(this.feldform.zelle(el));
+    this.lockvoegel.delete(el);
     this.geaendert();
   }
 
@@ -58,6 +65,7 @@ export class Bau {
     this.elemente = [];
     this.platz.clear();
     this.kern.clear();
+    this.lockvoegel.clear();
     this.reserviert.clear();
     this.geaendert();
   }

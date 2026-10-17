@@ -110,7 +110,7 @@ function lockvogel(bau, spiegel, fund, tausch, farbe) {
         const wege = auswege(bau, { ...m, fixed: false }, fund.tausch[i].richtung);
         if (wege.length) { setRot(m, R.pick(wege).stellung); el = m; }
       }
-      bau.setze(el, { kern: true });
+      bau.setze(el, { kern: true, lockvogel: true });
       const dunkel = trifft(bau, bildMit(bau, null, tausch), ziel) !== maske(farbe);
       if (dunkel && !bau.licht().has(z) && einfall(bau, bau.bild(), z) === null) return true;
       bau.kern.delete(el);
