@@ -127,3 +127,117 @@ Tests und Proben mit 50 %.
   könnten auch allein vorab übernommen werden, wenn die Strahlregel dort schneller werden soll.
 
 Commit siehe git log.
+
+**Review (18.10.2026).** Unabhängiger Reviewer im selben Worktree, Korrekturen in `8f8d8f0`. Alle Läufe über
+`leise.sh` mit 50 %, nacheinander; die Skripte liegen im Scratchpad unter `review27\`.
+
+**Geprüft:**
+- **Ein Durchlauf** (`git diff cf636c6 HEAD`):
+  - Flach ist `A = 0`, `y = 0`, Richtungen 0–7. Die Tabellen der Drehebene sind dort die Gleichheit, und die Rechnung
+    ist dieselbe wie vorher, auch die Länge mit `ly = 0`. Darum sind die flachen Level bitgleich.
+  - Spiegel im Würfel: `nk` hat dieselbe Parität wie `k`; mit Anteil längs der Achse ist `k` gerade, es entsteht also
+    nie eine Raumdiagonale. Parallel heisst `k ≡ rot (mod 4)` oder längs der Achse, mit Rückversatz `MIRROR_EDGE` wie
+    bisher. Die Seite der Normalen hängt von `n · d` in der Ebene ab, und das ist dasselbe wie im Raum.
+  - Prisma: `PRISM_OUT` ist leer bei einem Anteil längs der Achse, Mischlicht zerfällt über `refractInPrism` je Farbe.
+  - Rand: y wird nur bei `dy ≠ 0` geprüft. Das ist gleichwertig, weil jeder Strahl in einer Zelle des Würfels startet.
+  - Raster `(y · S + z) · S + x`, Anhalten und Weitermachen mit `cy`.
+- **Schlüssel der Schleifenerkennung:** eindeutig für Kantenlänge unter 64, 18 Richtungen und 8 Farben. Der grösste
+  Wert ist 37 748 735, weit unter 2^53.
+- **Geteilte, eingefrorene Normalen:** Kein Aufrufer verändert sie.
+  - Die Seite liest sie nur über `normalToWorld` (`fromArray`, `set`), in `buildBeamGeometry` sowie bei Flecken und
+    Blitzen. Löser, Beurteilung und Werkzeuge lesen sie höchstens. `golden.mjs` ändert nur eine Kopie
+    (`structuredClone`).
+  - Das Skript der Seite läuft mit `'use strict'`, ein Schreibversuch würfe also.
+  - Stichprobe: Alle Normalen in 30 000 Würfel- und 159 flachen Strahlbildern sind eingefroren, ein zweiter Aufruf
+    ergibt dasselbe.
+- **Gültigkeitsbereich:** `node --check` auf das Hauptskript der Seite ist grün, vor und nach dem Review. Keiner der
+  neuen Namen kommt ausserhalb des Logikblocks vor, auch nicht in `backgrounds/skies.js` oder im Skript im Kopf. Das
+  gilt auch für `dirIndex` und `AXIS_NAMES` aus dem Review.
+- **Stichproben mit den Skripten des Entwicklers** (gegen `cf636c6`):
+  - **Kopien:** `vorher`, `nachher` und `lg` entsprechen `cf636c6`, `69ff89d` und `974c4f0`, bis auf die Zeilenenden.
+    `bench.mjs` ist überall das des Branches; die Teile `trace` und `solver` sind dieselben wie auf `974c4f0`.
+  - **`vergleich.mjs`:** 84 080 Strahlbilder gleich, flach 0 nicht bitgleich, im Würfel höchstens 2,2e-16, wie notiert.
+  - **`vergleich-loeser.mjs`:** gleich, aber dünn. Es sind 23 152 Knoten auf 15 006 Suchen. Meist verzweigt die Suche
+    nicht, weil das Licht in Zufallswürfeln selten ein drehbares Element trifft.
+- **Eigene Stichproben** mit anderen Seeds:
+  - **Strahlbilder:** 3000 Zufallswürfel mit Kante 2–8 und bis 25 Elementen, je 10 Stellungen. Die Hälfte davon
+    bekommt einen Startstrahl ab einer Randzelle in einer der 18 Richtungen. Alles gleich, Kommazahlen höchstens
+    4,4e-16 verschieden.
+  - **Randfälle darin:**
+    - 7 572 Abschnitte laufen über eine Würfelkante hinaus.
+    - Prismen: 1 407 mit Mischlicht, 2 941 ohne Austritt.
+    - Spiegel: 4 535 Treffer bei waagrechter Achse. Parallel liefen 320 Strahlen in der Ebene, 180 längs der Achse
+      und 1 091 schräg.
+  - **Löser:** 8 000 Würfel, deren Elemente auf dem Lichtweg liegen, in den Modi Standard, `prune: false` und
+    `unique`. Alles gleich, bei 190 992 Knoten.
+  - **Urteil zum Nachweis:** tragfähig. Dazu tragen auch `golden.mjs --voll` (derselbe Durchlauf, flach 9,8 Mio.
+    Knoten) und die Logiktests gegen das Durchprobieren bei.
+- **Messung:** methodisch sauber.
+  - Dasselbe `bench.mjs` für alle drei Stände, CPU-Zeit, gleicher Rechner und dieselbe Sitzung, Reihenfolge ABCCBA,
+    `LEISE_CPU=20` wie in Ticket 02.
+  - Getrennte Prozesse streuen mehr, als die Stände sich unterscheiden: vorher 1,498 und 1,623 µs. Darum zählt der
+    Vergleich in einem Prozess.
+  - Nachgemessen in einem Prozess mit 16 Blöcken zu 636 000 Aufrufen, den Löser in 2 Runden:
+
+| neu gegen `feature/levelgenerator` | Faktor |
+|---|---:|
+| Strahlregel, Median der Blöcke | × 0,94 |
+| Strahlregel, Summe | × 0,98 |
+| Strahlregel, je Block (kleinster bis grösster) | × 0,76–1,51 |
+| Löser, gleiche Knoten | × 0,935 |
+| früherer Würfel-Pfad (`tracePass3`), Median | × 1,80 |
+
+  - **„Nicht langsamer“ ist belegt.** Beim Löser zeigen drei Messungen denselben Gewinn (× 0,92–0,95). Bei der
+    Strahlregel liegt er innerhalb der Streuung; der Rechner war durch andere Läufe belastet.
+- **Abnahme:** Alle fünf Punkte sind erfüllt.
+
+**Behoben** (`8f8d8f0`):
+- **Ungültige Richtung:** `reflect3` und `mirrorFrontNormal3` rechnen seit dem Umbau über die Nummern der 18
+  Richtungen.
+  - Bei einer Raumdiagonale oder einem Nullvektor gaben sie bisher mit Achse x oder z still eine falsche Richtung
+    bzw. Normale zurück, mit Achse y warfen sie einen TypeError.
+  - Jetzt melden sie wie der Startstrahl „… mit ungültiger Richtung“ (`dirIndex`).
+  - Die Beurteilung ruft sie nur mit den 18 Richtungen auf.
+- **Neuer Logiktest für die Normalen:**
+  - Die Normale am Spiegel aus der Verfolgung gleicht `mirrorFrontNormal3`, für jede Achse, Stellung und Richtung
+    (288 Treffer). Das gilt auch mit Anteil längs der Achse. Die Abschnitte davor und danach tragen dieselbe Normale.
+  - Gegenprobe: Bei einer falschen Tabelle `MIRROR_FRONT3` (Achse y für alle) blieben die Logiktests bisher grün; nur
+    zwei Drehungstests der Beurteilung wurden rot.
+  - Der neue Test findet sie, ebenso eine Normale ohne Seitenwahl.
+- **Neuer Logiktest für die Meldung** bei ungültiger Richtung: Startstrahl, Spiegelung und Normale.
+- **Kleinigkeiten:**
+  - `AXIS_NAMES` statt der verschachtelten Bedingung in `inPlane`.
+  - Kommentar zu `MAX_SIZE_3D`: Der Schlüssel trägt bis 64.
+  - Kommentar zu `extraRays`: Auch die Beurteilung nutzt sie, nicht nur die Tests.
+  - `3D-WUERFEL.md` sagt genauer, dass nur noch das Brett getrennt ist, und nennt 577 Logiktests.
+
+**Offen:** keine mittleren oder grossen Funde. Hinweise (niedrig, kein Muss):
+- **Zweite Abbildung:** `refractInPrism3`, `planeDir` und `planeIndex` rechnen die Abbildung zwischen Raum und
+  Drehebene ein zweites Mal, neben `PLANE_K`, `FROM_PLANE` und `PRISM_OUT` in der Verfolgung.
+  - Dass beide gleich rechnen, belegt der Beurteilungstest „Brechen wie die Strahlregel“ für jede Achse, Stellung und
+    Richtung.
+  - Wer sie auf die Tabellen umstellt, achtet auf −0: `planeDir` liefert etwa bei Achse z `-0`, die Tabellen `+0`.
+- **Doppelte Ereignisse:** In `tracePass` steht jedes der acht Ereignisse zweimal da (`cube ? { x, y, z, … } :
+  { x, z, … }`).
+  - Das ist bewusst so, wegen der festen Objektform und ohne Spread.
+  - Ein Helfer, der die Felder nachträglich setzt, wäre kürzer, müsste aber neu gemessen werden.
+- **Bitmaske:** `el.rot & 7` steht als Index der Tabellen, sonst überall `mod8`. Gleichwertig, weil Stellungen ganze
+  Zahlen sind.
+
+**Tests nach dem Review** (Wanduhr, nacheinander über `leise.sh` mit 50 %, Node 22.12.0; der Rechner war durch andere
+Läufe belastet):
+
+| Lauf | Ergebnis | Dauer |
+|---|---|---:|
+| `node tests/golden.mjs` | grün, Gegenprobe in 100 Leveln | 4,7 s |
+| `node tests/golden.mjs --voll` | grün | 24,0 s |
+| `node tests/logic.test.mjs` | 577 grün (575 + 2 aus dem Review) | 43,9 s |
+| `node tests/beurteilung.test.mjs` | 196 grün | 83,7 s |
+| `node tests/ki-tester.test.mjs` | 54 grün | 0,3 s |
+| `node tests/offline.mjs` | grün | 72,1 s |
+| Interaktionsprobe auf einem flachen Level | Klick, Rechtsklick und Ziehen gehen; keine Konsolenmeldung | 36 s |
+
+Die Würfel-Proben im Browser habe ich nicht wiederholt. Das Review ändert nichts, was die Seite beim Spielen aufruft,
+ausser `inPlane` beim Laden; das ist dieselbe Rechnung und durch die Logiktests abgedeckt.
+
+**Urteil:** Ticket 27 ist fertig.
