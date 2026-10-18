@@ -132,3 +132,69 @@ Beurteilung, statt es zu liefern). Begründung:
 - Geändert (Commit `0fefff9`): `tools/generator/index.mjs` (Prüfung und Kopf), Kommentar in
   `tools/generator/vorgaben.mjs`, README („Vier Bedingungen“ und Generator-Test), `tests/generator.test.mjs`; dazu
   hier und in Ticket 24.
+
+**Review 18.10.2026** (Reviewer-Agent, im selben Worktree, Stand `931fa08`; Skripte im Scratchpad unter
+`review29\`). Alle Läufe über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, Messungen mit 7 Prozessen.
+- **Geprüft:** `git diff 10e3041 931fa08`, also die Prüfung und den Kopf in `index.mjs`, den Kommentar in
+  `vorgaben.mjs`, README, Test und den Hinweis in 24.
+  - Die Prüfung steht nur im Zweig `!fehlt`, nach der vollen Beurteilung, und ersetzt dort das Liefern. Jeder Seed, der
+    vorher nichts lieferte oder ein Level mit mindestens `quellen[0]` Quellen, rechnet also genau wie vorher; `bau.art`
+    ist ein Filter ohne Strahlverfolgung. Das Level stammt aus demselben Stand des Baus (`startstellung`), die Zahl der
+    Quellen ist dieselbe.
+  - Mit Ziel-Schwierigkeit läuft dieselbe Schleife, es gibt keinen eigenen Pfad. In „leicht“ ist die Untergrenze 1:
+    Ohne Quelle hat kein Ziel Licht, das Festigen endet mit „keine Ziele“; die Prüfung greift dort nie.
+  - Gründe: `bench.mjs` (die Abnahme gibt `c.fail` unverändert weiter) und `generiere.mjs` zählen sie als Text.
+    „zu wenige Quellen“ ist ein eigener Grund, kein „Abnahme: …“, und gleicht keinem anderen.
+- **Entscheid** tragfähig, mit Zahlen bestätigt. Instrumentierte Kopie von `931fa08` (`patche.mjs`, `instr.mjs`): je
+  Durchgang des Verfeinerns die Quellen im Bau, Strahlverfolgungen und CPU-Zeit. Gemessen die 21 Aufträge ab „mittel“
+  mit Seeds 1–100, `mittel-falle` und `mittel-falle` 43–50 mit Seeds 1–500, zusammen 3000 Seeds; je Seed gleich wie in
+  der Messung des Entwicklers (`t29\nachher-ab.json`).
+  - In 64 Fällen (Auftrag und Seed) liegt der Bau in einem Durchgang unter der Untergrenze, nur bei `mittel` (4) und
+    `mittel-falle` (27, mit 43–50 33). Davon liefern 13 am Ende doch ein Level mit 2 oder 3 Quellen, weil „schwerer“
+    eine Quelle nachsetzt. 3 ergeben „zu wenige Quellen“, die übrigen scheitern aus anderen Gründen. Eine frühere
+    Prüfung änderte also Seeds, deren Level die Grenze einhält.
+  - Sparen liesse sich ohnehin kaum etwas. Eine Prüfung ab dem ersten Durchgang unter der Grenze spart höchstens
+    0,18 % der Strahlverfolgungen (0,29 % der CPU-Zeit). Eine Prüfung vor der vollen Beurteilung im letzten erlaubten
+    Schritt spart nichts, der Fall kommt nicht vor. Die volle Beurteilung der verworfenen Seeds kostet 679 von 254 Mio.
+    Strahlverfolgungen. „Am Ende“ kostet also nichts Nennenswertes.
+  - „Quelle ergänzen“ und „nur Startwert“ sind sauber abgewogen. Eigene Zählung der Level im Spiel (Quellen 2 / 3 / 4):
+    mittel 34 / 40 / 0, schwer 11 / 20 / 1, sehr schwer 5 / 7 / 1, keines ab „mittel“ mit einer Quelle; leicht hat 5
+    mit einer.
+- **Bitgleich**, eigene Stichprobe gegen `10e3041` (eigene Kopie über `git archive`; je Seed Hash des ganzen
+  Ergebnisses und Strahlverfolgungen, `review29\arbeit.mjs`, `auswerten.mjs`):
+  - „leicht“: die sieben Aufträge und beide Ziel-Schwierigkeiten, Seeds 501–1000: 4500 von 4500 gleich.
+  - ab „mittel“: die 21 Aufträge mit Seeds 501–600, dazu `mittel-falle` 601–1500, `mittel-falle` 43–50 501–1000,
+    `mittel-mischziel` 50–58 und `schwer-falle` 60–75 je 501–600: 3696 von 3700 gleich. Anders sind genau
+    `mittel-falle`, Seeds 1123, 1179, 1422 und 1451: vorher ein Level mit einer Quelle, nachher „zu wenige Quellen“, mit
+    gleich vielen Strahlverfolgungen. Nachher hält jedes der 625 Level beide Grenzen ein.
+  - Die Basis des Entwicklers (`t29\basis`) hat `tools/` und `index.html` wie `10e3041`. Seine Auswertung ergibt die
+    Zahlen oben.
+- **Test:** Er prüft, was er soll. Gegenprobe: Der Generator-Test des Worktrees (mit den Änderungen unten) scheitert
+  auf `10e3041` genau an den beiden Tests der Quellen, die übrigen 28 laufen durch.
+- **Doku:** Kopf von `index.mjs`, `vorgaben.mjs`, README und der Hinweis in 24 stimmen. Lesbarkeit und Stil passen zum
+  umgebenden Code.
+- **Im Review behoben:**
+  - `7ed610d`: Die Gegenprobe verlangt jetzt genau `quellen[0]` Quellen (Seed 3 hat 2), zeigt also, dass ein Level an
+    der Grenze geliefert wird. Dazu der Randfall „leicht“: Level mit einer Quelle liefert er weiter. Kopf des Tests,
+    `ZU_WENIGE_QUELLEN` und README nachgeführt. In `vorgaben.mjs` ist das Festigen ein Weg unter die Untergrenze
+    („etwa“), nicht nachweislich der einzige.
+  - `ce9c0cf`: Im Hinweis in 24 stehen die Seeds aus 501–1500 (1123, 1179, 1422, 1451).
+- **Tests** über `leise.sh` (Wanduhr, nach `7ed610d`), alle grün:
+
+  | Lauf | Ergebnis | Dauer |
+  |---|---|---:|
+  | golden | ok | 2 s |
+  | logic | 548 Tests | 41 s |
+  | generator | 30 Tests (369 Level, Erzeugen 87,9 s) | 116 s |
+  | beurteilung | 177 Tests | 92 s |
+  | levelliste | 37 Tests | 61 s |
+  | ki-tester | 64 Tests | 1 s |
+  | offline | bestanden | 87 s |
+
+  Der Rechner war in diesem Lauf langsamer als beim Entwickler (logic 41 statt 28 s, offline 87 statt 70 s). Derselbe
+  Generator-Test auf `10e3041` direkt danach brauchte 95 s (Erzeugen 56,5 s), bei gleicher Arbeit. Das Ticket fügt dem
+  Test nur Seed 278 hinzu, der 2729 Strahlverfolgungen kostet. Die 116 s liegen also an der Last, nicht am Ticket; beim
+  Entwickler waren es 72 s.
+- **Offen:** nichts. Beim Merge mit 24 gibt es einen Konflikt am Ende von `24-austausch-mittel.md`, weil beide Branches
+  dort anhängen. Beide Teile bleiben stehen.
+- **Urteil:** Ticket 29 ist bereit zum Mergen.
