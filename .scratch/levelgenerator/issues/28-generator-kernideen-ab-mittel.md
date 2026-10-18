@@ -290,3 +290,92 @@ schwer-falle vor.
 - Ziel-Schwierigkeit (`schwierigkeit: [von, bis]`) funktioniert mit allen Aufträgen; sie kostet Ausbeute.
 - Seeds und Level ab „mittel“ sind für Abschalten, Farben abzählen und Lockvogel neu, für die übrigen Aufträge teils
   (Fund 2); Seeds aus früheren Proben gelten dort nicht mehr.
+
+**Review 18.10.2026** (Reviewer-Agent, im selben Worktree, Stand `9a34b5b`; Skripte nur im Scratchpad unter
+`review28\`). Alle Läufe über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, Messungen mit `--jobs 7`.
+- **Geprüft:** `git diff 43d93c4 HEAD`, also `andocken.mjs`, die drei Bausteine, „schwerer“ mit `merke`/`zurueck`,
+  `unberuehrt` in `bau.mjs` und `eindeutig`, `fremdfarbe`/`neueFarbe`, `mangel` mit `ANDOCKEN`, `plan.andocken`, die
+  Vorgaben, `bench.mjs`, Test, README und die Hinweise in 24–26.
+  - Andocken: Neue Spiegel und Quellen kommen nur auf freie, nicht reservierte Zellen ohne fremdes Licht (offene Enden:
+    genau ein Strahl), Quellen nur an den Rand mit der Kante dahinter; das neue Licht darf reservierte Zellen kreuzen.
+    Mischlicht vor einem Prisma nur aus Quellen mit einer Grundfarbe, die übrigen Farben brauchen eine freie Zelle.
+    Schleifen begrenzt die Strahlregel, Mehrdeutigkeit das Festigen. Misslingt ein Versuch, ist der Stand wieder der
+    alte (`probiere` nimmt seine Elemente und die Farbe zurück, „schwerer“ ruft `zurueck`). Nötig bleibt die Kernidee
+    nachweislich, weil jedes gelieferte Level voll beurteilt wird (`mangel`: verlangte Kernidee nötig).
+  - Nur Abschalten, Farben abzählen und Lockvogel haben `andocken`; Mischziel, Sammelstelle und Falle rechnen ausser
+    Fund 2 wie vorher (siehe unten, je Seed gleich).
+  - Fund 2: Festigen nimmt nur weg (Aufräumen und wirkungslose Elemente fallen weg, Reparaturen setzen Blocker oder
+    machen Spiegel fest), ein Versuch ohne drehbares Element mehr scheitert also so oder so. Anders werden höchstens
+    der Grund des letzten Versuchs und der Zufall, wenn das Festigen eine Reparatur gewürfelt hätte.
+- **Nachgemessen:** Seeds 1–200 der zwölf Aufträge mittel/schwer auf `9a34b5b`: Fingerabdruck und Gründe gleich wie
+  in der Messung oben (gemessen ist also der Code des Commits). Zweiter Bereich, Seeds 201–400 (Level / Haupt):
+
+  | Kernidee | mittel | schwer |
+  |---|---:|---:|
+  | Mischziel | 104 / 100 | 72 / 55 |
+  | Abschalten | 9 / 9 | 9 / 7 |
+  | Farben abzählen | 122 / 111 | 67 / 54 |
+  | Sammelstelle | 80 / 72 | 68 / 59 |
+  | Falle | 30 / 30 | 17 / 17 |
+  | Lockvogel | 99 / 82 | 52 / 26 |
+
+  „sehr schwer“, Seeds 501–1000 (Haupt): Mischziel 21, Farben abzählen 14, Sammelstelle 17, Falle 9, Abschalten 5,
+  also wieder fünf Kernideen mit je mindestens 3.
+- **„leicht“ bitgleich**, eigener Bereich: die sieben leichten Aufträge und beide Ziel-Schwierigkeiten, Seeds
+  1001–1400, gegen `43d93c4`: 3600 von 3600 Ergebnissen gleich (Hash des ganzen Ergebnisses), auch die Zahl der
+  Strahlverfolgungen (`L.traceBeams`) je Seed. Die Skripte des Entwicklers (`t28\bitgleich.mjs`, `vergleiche.mjs`)
+  hashen ebenso das ganze Ergebnis; ihre Basis hat denselben Generator wie `43d93c4`.
+- **Mischziel und Sammelstelle je CPU-Stunde:** Der Nachweis über gleiche Level ist tragfähig, mit einem
+  deterministischen Mass bestätigt: je Seed das ganze Ergebnis und die Zahl der Strahlverfolgungen, Seeds 1–200 gegen
+  `43d93c4`. `mittel-mischziel` 200 von 200 gleich, Strahlverfolgungen −17 %, `mittel-sammelstelle` 200 von 200,
+  −20 %, `mittel` 200 von 200, −1 %, `schwer` 200 von 200, −6 %; bei keinem Seed mehr. `schwer-mischziel` 199 von 200
+  (Seed 120 liefert jetzt ein Level), −29 %, ein Seed mehr. Die CPU-Zeit taugt bei „mittel“ dafür nicht: Dieselben
+  115 Level von `mittel-mischziel` kosteten 2,4, 7,7, 10,0, 12,1 und 12,2 CPU-s (Faktor 5, gleiches `--jobs`). Die
+  Kosten in den Hinweisen für 24–26 sind darum nur Grössenordnungen.
+- **Methodik:** Alle Messungen der Ausbeute und von Fund 2 mit `--jobs 7`, abwechselnd im selben Lauf von `leise.sh`;
+  die Tabelle stimmt mit den gespeicherten Messungen (`t28\M-…`, `S-…`, `F-…`) überein.
+- **Bedarf** unabhängig nachgerechnet (Reihenfolge und Grad aus `index.html`, Duldung aus `tools/levelliste.json`,
+  Haupt-Kernidee aus einem neuen Lauf von `ordne-level.mjs --json`): beide Tabellen gleich, Summen 13 / 13 / 8 und
+  57 / 19 / 8, Grade leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150.
+- **Erkennbar für Spieler:** Die festen Seeds des Tests (alle 17 liefern) und je drei weitere Level ab Seed 201 mit
+  `show.mjs` und der Begründung der Beurteilung angesehen. Abschalten: Die Quelle neben dem Ziel erreicht es mit einem
+  Spiegel, wird aber für andere Ziele gebraucht (etwa mittel, Seed 1: Gelb über ein Prisma zu Rot und Grün); Farben
+  abzählen: knappe Grundfarbe mit drei (bis vier) Quellen, die Leitfarbe legt eine Zuordnung fest; Lockvogel: Ring
+  mit Prismen vor den Spiegeln, der feste Spiegel oder Blocker bekommt im Tausch Licht. Das ist die Kernidee im Sinn
+  des Glossars, nicht nur gezählt.
+- **Wie oft angedockt wird** (instrumentierte Kopie, Seeds 1–60 bzw. 1–100):
+  - Abschalten: Im Baustein kommt A nur in 10 von 100 (mittel) bzw. 6 von 60 (schwer) Seeds über einen Spiegel von B
+    ans Ziel, sonst gleich (README angepasst). Von 39 Seeds, die bei mittel an einem Füllteil enden, ist es 17-mal der
+    Strang von A (A und ihr Spiegel unberührt, die übrigen Spiegel nicht Kernidee, also nichts andockbar) und 17-mal
+    der Strang von B (alles Kernidee).
+  - Lockvogel: nie (Ringspiegel unberührt, Quellen schon in Mischung); `andocken` wirkt dort nur über `fremdfarbe`.
+  - Farben abzählen: oft, auch mit neuer Quelle; bei mittel haben 24 von 34 Leveln vier Quellen.
+- **Tests** (nach den Änderungen unten), alle grün: golden (2 s), logic (548, 25 s), generator (28, 69 s, nach der
+  Umbenennung noch einmal 72 s), beurteilung (177, 73 s), levelliste (30, 51 s), ki-tester (62, 0 s).
+
+**Im Review behoben** (Commit `0b94467`):
+- `andocken.mjs`: Das vorgeschaltete Prisma nennt die Zelle seiner Quelle in `vor`; `quelle` ist nur noch eine neue
+  Quelle. Je Seed gleich wie vorher (mittel/schwer-abzaehlen und -abschalten, 230 Seeds, samt Strahlverfolgungen).
+- `lockvogel.mjs` und README: Am Ring findet „schwerer“ nichts zum Andocken. README: A bekommt nur, wo es geht, ihr
+  Ziel über einen Spiegel von B; die Quellen des Andockens teilen immer keine Grundfarbe mit den Zielen der Kernidee,
+  die des Ergänzens nur mit `fremdfarbe` (so auch `bausteine/index.mjs`). `vorgaben.mjs`: Das Andocken darf eine
+  Quelle über `quellen` setzen. `bench.mjs`: Der Kopf nennt die Zählung je Grad und Haupt-Kernidee.
+- Hier und in Ticket 25: Auf 131–140 haben Abschalten und Farben abzählen schon je 2, nicht Falle und Abschalten.
+
+**Offen:**
+1. **Abschalten knapp unter der Schwelle** (mittel; Abnahme, dritter Punkt): Aus Seeds 1–200 kommen 17 / 16 Level mit
+   Abschalten als Haupt-Kernidee, aus 201–400 nur 9 / 7 (mittel / schwer), im Mittel also etwa 13 / 11 je 200 Seeds.
+   Die Abnahme ist damit nur für die gemessenen Seeds erfüllt. Entweder die Ausbeute heben (Hebel: In „schwerer“
+   dürfen auch die drehbaren Spiegel ausserhalb der Kernidee eines genannten Füllteils andocken, A und ihr Spiegel
+   bleiben unberührt; das trifft den Strang von A, 17 von 39 Füllteilen; oder A im Baustein öfter über B führen) und
+   in mindestens zwei Bereichen zu 200 Seeds mindestens 10 zeigen, oder den dritten Punkt über seinen Nachsatz
+   abnehmen (warum es an der Kernidee liegt, Bedarf trotzdem gedeckt: Abschalten ist in keinem Fall unentbehrlich,
+   und bei „mittel“ kosten 100 Seeds rund 5 CPU-s). In beiden Fällen die Zahlen hier und in den Hinweisen in 24 und 25
+   (17 bzw. 16) mit der Spanne nachführen.
+2. **Vier Quellen in „mittel“** (niedrig): `plan.andocken.quellen` erlaubt bei Farben abzählen (und Lockvogel) eine
+   Quelle über der Vorgabe; bei `mittel-abzaehlen` haben 24 von 34 Leveln (Seeds 1–60) vier Quellen, im Spiel kein
+   einziges mittleres Level. Unter „Abweichungen und Entscheide“ begründen (oder auf `quellen[1]` begrenzen und neu
+   messen); für die KI-Tester in 24 ist das ein sichtbarer Unterschied.
+
+**Urteil:** Code, Bedarf, „leicht“ bitgleich, Fund 2 und die Messmethode sind in Ordnung. Bereit zum Mergen nach
+Punkt 1 (Ausbeute oder Begründung samt Zahlen) und Punkt 2 (Begründung).
