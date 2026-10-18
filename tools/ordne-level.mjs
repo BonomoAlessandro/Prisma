@@ -5,9 +5,10 @@
 // - Reihenfolge: nach der Schwierigkeit, Verschiebungen bis MAX_WANDERN Plätze, weiter wandernde Level bleiben an ihrem
 //   heutigen Platz (Prüfliste für Ticket 16). Gerechnet wird immer von der heutigen Reihenfolge aus
 //   (beurteilung/heutige-reihenfolge.mjs), nicht von der in index.html; ein zweiter Lauf ändert darum nichts.
-// - Urteile der KI-Tester (Ticket 16): die zählenden Einträge des Protokolls (Ablauf 2, Läufe pruefung-…). Ein Level
-//   der Prüfliste kommt auf den Platz der Formel, wenn beide zustimmen, sonst bleibt es; dazu die eigenen Korrekturen
-//   und die Ablehnungen (reihenfolge in levelliste.mjs). Der Bericht zeigt je Level der Prüfliste den Entscheid.
+// - Urteile der KI-Tester (Ticket 16): die zählenden Einträge des Protokolls (Ablauf 2, Läufe pruefung-…; zu neuen
+//   Leveln ersatz-…, siehe Austausch unten). Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide
+//   zustimmen, sonst bleibt es; dazu die eigenen Korrekturen und die Ablehnungen (reihenfolge in levelliste.mjs). Der
+//   Bericht zeigt je Level der Prüfliste den Entscheid.
 // - Grade: feste SCHWELLEN (beurteilung/grad.mjs); ein Level am heutigen Platz bekommt den Grad seines Abschnitts. Der
 //   Bericht zeigt die Herleitung der Schwellen aus der vorläufigen Aufteilung (VORLAEUFIG), die Level, deren Grad nicht
 //   der Schwelle folgt, und zum Vergleich zwei andere Regeln.
@@ -126,9 +127,9 @@ console.log(`  ${wandert.length} Level nach der Formel, davon ${um.filter(x => x
   + `verschoben im Mittel um ${zahl(mittel(um))}, höchstens ${Math.max(...um)} Plätze; dazu ${neue.length} neue`);
 const pruef = [...ordnung.pruefliste].sort((i, j) => i - j);
 const nachgezogen = [...bleibt].filter(([, g]) => g === 'Reihenfolge').map(([i]) => i);
-const vorn = pruef.filter(i => formel[i] < heute[i]).length;
+const vorn = pruef.filter(i => formel[i] < heute[i]).length, mitUrteil = pruef.filter(i => ki.has(i)).length;
 console.log(`  Prüfliste für Ticket 16 (nach der Formel mehr als ${MAX_WANDERN} Plätze): ${pruef.length} Level, `
-  + `${vorn} nach vorn, ${pruef.length - vorn} nach hinten; mit Urteil der KI-Tester ${ki.size}`);
+  + `${vorn} nach vorn, ${pruef.length - vorn} nach hinten; mit Urteil der KI-Tester ${mitUrteil}`);
 const vz = (k) => `${k > 0 ? '+' : '−'}${Math.abs(k)}`;
 /** Der Entscheid zu einem Level der Prüfliste (Ticket 16), oder dass es noch kein zählendes Urteil hat. */
 const entscheid = (i) => {
