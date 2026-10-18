@@ -399,3 +399,23 @@ der Vorprüfung unten):
 ohne Urteil und dazu 42 Kreuzweg, 78 Rochade, 91 Uhrwerk und 99 Silberstreif (Plätze im Spiel); Ablauf 2, ohne
 `--anker`, Bilder 31–33 s je Aufnahme, die der Anker aus dem Zwischenspeicher. Die vier kommen mit ihrem neuen Urteil
 auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
+
+**Stand am Abend des 18.10.2026** (Pause über Nacht; Branch `ticket/24-austausch-mittel`, nicht gepusht).
+- **Erledigt:** Bestand und Entscheidungsgrundlage zu Gruppe 2 (Entscheid des Nutzers: Variante b′); Gruppe 1:
+  Kandidaten und Ersatz für alle 13 Lücken, Läufe `ersatz-mittel-1` und `-2` zusammengeführt (Protokoll 144 Einträge,
+  `ki-tester.test.mjs` grün); Vorprüfung auf Zerfall (`t24\zerfall-check.mjs` im Scratchpad); Lauf `behalten-mittel-1`
+  mit 20 Leveln vorbereitet.
+- **Offene Läufe:** `behalten-mittel-1` (20 Level), Aufträge
+  `tests/output/ki-tester/behalten-mittel-1/auftrag-A.md` und `auftrag-B.md` im Worktree; die KI-Tester startet der
+  Koordinator. Sonst läuft nichts (kein `leise.sh`, kein Node, kein Chrome aus diesem Ticket).
+- **Als Nächstes:**
+  1. `merge.mjs behalten-mittel-1`, `ki-tester.test.mjs`, dann der Test des Spielwerts (Übereinstimmung; fällt sie
+     unter 0,26 / 0,25, gehen die Zahlen an den Koordinator).
+  2. Nach der Regel „stark“ (jedes Urteil, dazu mindestens eines aus Ablauf 2) bestimmen, welche der 44 Level der
+     Gruppe 2 behalten und welche ersetzt werden.
+  3. Ein gemeinsamer Lauf mit neuen Kandidaten für Lichtorgel (offen), für Glasmurmel, Laterne, Einklang und Mosaik
+     (heute nur ein Level mit Zerfall bei einem KI-Tester, bleibt Rückfall) und für die schwachen Level der Gruppe 2; nur
+     Kandidaten, die die Vorprüfung auf Zerfall mit einem Teil bestehen.
+  4. Grund „behalten nach Urteil der KI-Tester“ in `levelliste.json` und `levelliste.mjs` mit Test und Gegenprobe; Spec
+     und Hinweise in 25 und 26 nachführen.
+  5. Danach Namen (Haltepunkt), dann Phase C.
