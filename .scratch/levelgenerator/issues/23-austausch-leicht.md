@@ -293,3 +293,23 @@ Repos.
 - Neuer Test in `tests/levelliste.test.mjs`: Jedes neue Level hat diese Herkunftszeile mit der Ziel-Schwierigkeit.
 - Nachgeführt: README zu `--austausch`, Schritt 2 der Hinweise in den Tickets 24–26 und die Spalte „Herkunft“ der
   Tabelle von Stufe C.
+
+**Nachprüfung M1 (18.10.2026, Review).** Geprüft mit eigenen Skripten ausserhalb des Repos; M1 ist behoben.
+- **Nachbau:** Die Werte stammen aus den sechs Herkunftszeilen in index.html: Auftrag, Seed und Ziel.
+  `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1 --schwierigkeit VON,BIS` ergibt damit für alle sechs Level
+  denselben Abdruck wie im Spiel.
+- **Schreiben auf dem Stand von Stufe B:**
+  - Lauf: `ordne-level.mjs --austausch … --schreiben` mit den Werkzeugen von HEAD. Die Austausch-Datei ist
+    unabhängig gebaut: Leveldaten aus dem eigenen Nachbau, Ziel aus den Lücken von Stufe A.
+  - Ergebnis: genau index.html, levelliste.json und `entfernte-level.json` von HEAD.
+  - Der zweite Lauf mit `--schreiben` meldet „stimmen“ und ändert nichts.
+- **Leveldaten:** Gegenüber `d5a780a` sind alle 159 Level als JSON gleich; es ändern sich nur die sechs
+  Kommentarzeilen.
+- **Gegenprobe zum neuen Test:** Ohne das Ziel in der Herkunftszeile von Fackellauf wird nur dieser Test rot und
+  nennt Fackellauf; die übrigen 36 bleiben grün.
+- **Selbst behoben (klein):** Der Bericht „Neue Level“ zeigte das Ziel mit Punkt (29.5–32.9), jetzt steht es mit
+  Komma wie in der Herkunftszeile (`1feedfb`). Ein Lauf auf dem Stand von Stufe B ergibt danach weiter genau HEAD.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=65 LEISE_CPU=65`):
+  - Golden hat wie erwartet nur die 12 Namensabweichungen.
+  - Grün: logic 548, generator 25, beurteilung 177, levelliste 37, ki-tester 64 und offline.
+- **Urteil:** Ticket 23 ist bereit zum Mergen. Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
