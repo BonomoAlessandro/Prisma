@@ -54,17 +54,26 @@ export function setzeQuelle(bau, farbe, { kern = false } = {}) {
 
 /** Ein drehbares Element der Art type auf einen Strahl, in einer Stellung, die das Licht sinnvoll weitergibt. */
 export function setzeDrehbar(bau, type, { zellen = bau.strahlzellen(), kern = false } = {}) {
-  const { R, feldform } = bau;
+  const { R } = bau;
   // Ein Kombinator braucht eine Kreuzung zweier Strahlen, die beide enden (er schneidet beide ab). Ein Prisma auf Licht
   // einer Grundfarbe lenkt nur um wie ein Spiegel, darum nur auf Mischlicht (wie bisher).
   const frei = type === 'combiner' ? bau.kreuzungen(bau.bild(), { nurEnden: true }).map(zelle => ({ zelle }))
     : type === 'prism' ? zellen.filter(c => gemischt(c.farbe)) : zellen;
   if (!frei.length) return null;
-  const c = R.pick(frei), el = feldform.element(c.zelle, { type });
-  const moeglich = bau.stellungenFuer(el, c.richtung, c.farbe);
+  const c = R.pick(frei), moeglich = stellungenMit(bau, bau.varianten(c.zelle, { type }), c);
   if (!moeglich.length) return null;
-  setRot(el, R.pick(moeglich));
+  const { el, stellung } = R.pick(moeglich);
+  setRot(el, stellung);
   return bau.setze(el, { kern });
+}
+
+/**
+ * Die Stellungen, in denen eine der Varianten eines Elements (bau.varianten, je Drehachse) das Licht des Durchgangs c
+ * sinnvoll weitergibt (bau.stellungenFuer), je { el, stellung }: zuerst alle der ersten Drehachse, dann die der
+ * nächsten (Ticket 22). Im flachen Feld sind es dieselben wie bei bau.stellungenFuer, in derselben Reihenfolge.
+ */
+function stellungenMit(bau, varianten, c, wie = el => el) {
+  return varianten.flatMap(el => bau.stellungenFuer(wie(el), c.richtung, c.farbe).map(stellung => ({ el, stellung })));
 }
 
 /**
@@ -86,13 +95,15 @@ function setzeFilter(bau) {
 
 /** Ein fester Spiegel auf das Ende eines Strahls, der das Licht ablenkt; er gehört zur Lösung. */
 function setzeFestenSpiegel(bau) {
-  const { R, feldform } = bau;
+  const { R } = bau;
   const frei = bau.strahlzellen(bau.bild(), { nurEnden: true });
   if (!frei.length) return null;
-  const c = R.pick(frei), el = feldform.element(c.zelle, { type: 'mirror', fixed: true });
-  const moeglich = bau.stellungenFuer({ ...el, fixed: false }, c.richtung, c.farbe);
+  const c = R.pick(frei);
+  const moeglich = stellungenMit(bau, bau.varianten(c.zelle, { type: 'mirror', fixed: true }), c,
+    el => ({ ...el, fixed: false }));
   if (!moeglich.length) return null;
-  setRot(el, R.pick(moeglich));
+  const { el, stellung } = R.pick(moeglich);
+  setRot(el, stellung);
   return bau.setze(el);
 }
 
