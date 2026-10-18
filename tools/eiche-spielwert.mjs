@@ -11,11 +11,10 @@
 //   Grösse, auch ohne die Grösse (Teilkorrelation der Ränge).
 // Geeicht wird an den Leveln ohne Ausschlussgrund, zum Vergleich auch an allen.
 // Aufruf: sh tools/leise.sh node tools/eiche-spielwert.mjs   (etwa 35 s, die Beurteilung auf vier Threads)
-import { L } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
-import { gradeOf } from './ki-tester/protocol.mjs';
+import { inHeutigerReihenfolge } from './beurteilung/heutige-reihenfolge.mjs';
 import { eichmenge, rangkorrelation as rho } from './beurteilung/spielwert-eichmenge.mjs';
 import { GEWICHTE, KERNIDEE, MINDEST_SPIELWERT, kernideeTeil } from './beurteilung/spielwert.mjs';
 
@@ -28,14 +27,14 @@ function merkmale(level, b) {
     ausschluss: b.ausschluesse.length > 0, drehbar: level.elements.filter(e => f.stellungen(e).length).length };
 }
 // Beurteilt auf mehreren Threads (beurteilung/parallel.mjs), die Kandidaten als die teuersten zuerst
-const levels = L.LEVELS.slice(L.TUTORIAL_COUNT), eichung = eichmenge(), kandidaten = eichung.filter(e => !e.platz);
+// Die 150 in der heutigen Reihenfolge (Plätze wie in der Eichmenge), je mit dem Grad aus den Leveldaten
+const levels = inHeutigerReihenfolge(), eichung = eichmenge(), kandidaten = eichung.filter(e => !e.platz);
 const beurteilt = await beurteileAlle([
   ...kandidaten.map(e => ({ level: e.level, opts: { grad: null } })),
-  ...levels.map((level, i) => ({ level, opts: { grad: gradeOf(i + 1).name } })),
+  ...levels.map(level => ({ level, opts: { grad: level.grad } })),
 ]);
 const heute = levels.map((level, i) => {
-  const grad = gradeOf(i + 1).name;
-  return { platz: i + 1, name: level.name, grad, ...merkmale(level, beurteilt[kandidaten.length + i]) };
+  return { platz: i + 1, name: level.name, grad: level.grad, ...merkmale(level, beurteilt[kandidaten.length + i]) };
 });
 let k = 0;
 const menge = eichung.map(e => ({ ...e, ...(e.platz ? heute[e.platz - 1] : merkmale(e.level, beurteilt[k++])) }));

@@ -78,3 +78,27 @@ test('Ohne Lösung oder mit unbekanntem Grad meldet der Einstieg einen Fehler', 
   assert.throws(() => beurteile(einfach, { grad: 'Mittel' }), /Grad/);
   for (const grad of ['leicht', 'mittel', 'schwer', 'sehr schwer']) beurteile(einfach, { grad });
 });
+
+test('Zwischenstand: erst ohne die teuren Regeln, dann voll mit derselben Map ergibt dasselbe wie voll allein', () => {
+  // Die ersten 20 der heutigen Reihenfolge (klein, also schnell), verglichen mit ihrer vollen Beurteilung allein
+  for (const { level, grad } of heutigeLevel().slice(0, 20)) {
+    const beurteilung = beurteile(level, { grad });
+    const zwischenstand = new Map();
+    const vorab = beurteile(level, { grad, teuer: false, zwischenstand });
+    assert.deepEqual(vorab, beurteile(level, { grad, teuer: false }), level.name);
+    assert.deepEqual(beurteile(level, { grad, zwischenstand }), beurteilung, level.name);
+  }
+});
+
+test('Zwischenstand: Für ein anderes oder verändertes Level oder einen anderen Grad meldet er einen Fehler', () => {
+  const zwischenstand = new Map();
+  beurteile(einfach, { grad: 'leicht', teuer: false, zwischenstand });
+  assert.throws(() => beurteile(einfach, { grad: 'mittel', zwischenstand }), /Zwischenstand/);
+  assert.throws(() => beurteile(structuredClone(einfach), { grad: 'leicht', zwischenstand }), /Zwischenstand/);
+  beurteile(einfach, { grad: 'leicht', zwischenstand });
+  // Dasselbe Objekt, nach der Vorprüfung verändert: Der Spiegel steht in der Lösung anders
+  const level = structuredClone(einfach), veraendert = new Map();
+  beurteile(level, { grad: 'leicht', teuer: false, zwischenstand: veraendert });
+  level.solution['3,3'] = 3;
+  assert.throws(() => beurteile(level, { grad: 'leicht', zwischenstand: veraendert }), /verändert/);
+});

@@ -1,0 +1,25 @@
+{
+  "kommentar": "Heutige Reihenfolge der 150 Level vor Ticket 15 (16.10.2026), Massstab der Eichung (ADR 0001).",
+  "namen": [
+    "Zickzack", "Umlenkung", "Schleuse", "Winkelzug", "Gegenlicht", "Farbsieb", "Fächer", "Kehre", "Tönung",
+    "Rundgang", "Spiegelgasse", "Lichtfalle", "Regenbogen", "Zwillinge", "Begegnung", "Lichtspur", "Weichen",
+    "Glanzpunkt", "Seitenlicht", "Auslese", "Querschläger", "Facette", "Gabelung", "Farbkreis", "Farbspiel",
+    "Labyrinth", "Spiegelbild", "Zusammenfluss", "Doppelpass", "Brechpunkt", "Lichtbündel", "Streulicht",
+    "Glasfenster", "Funkenflug", "Kreuzweg", "Einklang", "Knotenpunkt", "Schnittstelle", "Lichtschacht", "Geflecht",
+    "Schliff", "Lichtharfe", "Glasmurmel", "Turmalin", "Spiegelachse", "Drehscheibe", "Farbschleuse", "Lichtfaden",
+    "Pinselstrich", "Schimmer", "Kreuzfeuer", "Lichtpfad", "Perlmutt", "Legierung", "Farbwechsel", "Strahlenkranz",
+    "Fadenkreuz", "Verästelung", "Paravent", "Feuerwerk", "Spektralband", "Glasbaustein", "Glitzer", "Sonnenstrahl",
+    "Tagesanbruch", "Glühwürmchen", "Weichensteller", "Blaue Stunde", "Lichtschranke", "Schattenspiel", "Farbtupfer",
+    "Rubin", "Rochade", "Lichtnetz", "Bumerang", "Doppelspiegel", "Mosaik", "Lichtkreuz", "Saphir", "Blendwerk",
+    "Farbnebel", "Traumfänger", "Glasbläser", "Spiegeltreppe", "Prismenreigen", "Laterne", "Mondlicht",
+    "Sternschnuppe", "Uhrwerk", "Wabe", "Glasfaser", "Lichtorgel", "Schachbrett", "Farbverlauf", "Kaleidoskop",
+    "Lichtbogen", "Libelle", "Rangierbahnhof", "Widerschein", "Chamäleon", "Opal", "Smaragd", "Silberstreif",
+    "Sternwarte", "Oase", "Polarlicht", "Kathedrale", "Pendel", "Sonnenwende", "Farbknoten", "Lichtschleife",
+    "Bernstein", "Wetterleuchten", "Gordischer Knoten", "Lichtjahr", "Komet", "Supernova", "Lichthof",
+    "Meisterstück", "Unendlichkeit", "Irrlicht", "Zwielicht", "Spiegelsaal", "Brennglas", "Halo", "Rosette",
+    "Fata Morgana", "Interferenz", "Leuchtturm", "Sonnenfinsternis", "Korona", "Glasperlenspiel", "Sternbild",
+    "Kristallpalast", "Pulsar", "Quasar", "Ereignishorizont", "Lichtgeschwindigkeit", "Singularität", "Urknall",
+    "Morgenröte", "Abendstern", "Prismenhof", "Spiegelkabinett", "Lichtbrücke", "Farbenrausch", "Farbmühle",
+    "Sternenstaub", "Zenit", "Lichtkegel"
+  ]
+}

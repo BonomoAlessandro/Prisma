@@ -225,3 +225,38 @@ test('Drehungen: Quelle, Spiegel, Prisma und Kombinator ohne Richtung oder Stell
   assert.equal(d.length, 4);
   for (const [i, g] of d.entries()) assert.ok(geloest(g), `${i} Vierteldrehungen`);
 });
+
+test('Nachbarn: dieselben wie der Schritt über die Koordinaten der Strahlregel, in jedem Feld bis 7 × 7', () => {
+  for (const size of [3, 5, 7]) {
+    const f = feldformVon({ name: 'leer', size, elements: [] });
+    for (const zelle of f.zellen) {
+      const [x, z] = zelle.split(',').map(Number);
+      for (const d of f.richtungen) {
+        const [dx, dz] = L.DIRS[d], nx = x + dx, nz = z + dz;
+        const inside = nx >= 0 && nz >= 0 && nx < size && nz < size;
+        assert.equal(f.nachbar(zelle, d), inside ? `${nx},${nz}` : null, `${size}: ${zelle} ${d}`);
+      }
+    }
+  }
+});
+
+test('Für den Generator: element setzt ein Element in eine Zelle, rahmen legt das Feld in den Leveldaten fest', () => {
+  for (const size of [5, 7]) {
+    const f = feldformVon({ name: 'leer', size, elements: [] });
+    assert.deepEqual(feldformVon({ name: 'neu', ...f.rahmen, elements: [] }).zellen, f.zellen);
+    for (const zelle of f.zellen) {
+      const el = f.element(zelle, { type: 'filter', color: 'red' });
+      assert.equal(f.zelle(el), zelle);
+      assert.deepEqual(Object.keys(el), ['type', 'x', 'z', 'color']);
+    }
+  }
+  assert.deepEqual(f7.rahmen, {}, 'im Feld 7 × 7 keine Angabe, wie in LEVELS');
+});
+
+test('Eine Feldform je Grösse, eingefroren: Kein Aufrufer verändert sie für die übrigen Beurteilungen', () => {
+  const f = feldformVon({ name: 'leer', size: 5, elements: [] });
+  assert.equal(feldformVon({ name: 'anderes', size: 5, elements: [] }), f);
+  for (const teil of [f, f.zellen, f.richtungen, f.rahmen]) assert.ok(Object.isFrozen(teil));
+  assert.throws(() => { f.zellen.reverse(); }, TypeError);
+  assert.throws(() => { f.rahmen.size = 7; }, TypeError);
+});

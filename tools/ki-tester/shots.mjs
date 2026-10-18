@@ -10,12 +10,14 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import os from 'node:os';
+import { gedeckelt, deckelText } from '../deckel.mjs';
 import { startChrome, emulate, evaluate, sleep } from '../chrome.mjs';
 import { L } from '../solver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro&t=12';
+/** Die Seite der Aufnahmen: index.html, oder eine Kopie mit weiteren Leveln (Kandidaten, prepare.mjs). */
+export const seitenUrl = (datei = join(root, 'index.html')) => pathToFileURL(datei).href + '?noadapt&nointro&t=12';
+const PAGE = seitenUrl();
 export const VIEWS = [
   { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false },
   { name: 'handy', width: 390, height: 844, dpr: 2, phone: true },
@@ -23,10 +25,14 @@ export const VIEWS = [
 const SETTLE = 6;  // s vorspulen: Herauswachsen bis 1,1 s, Aufleuchten bis 2,8 s, Ziele und Kamera klingen danach ab
 const TRIES = 5;   // weitere Aufnahmen, bis zwei gleich sind
 
-/** Bricht ab, wenn der Prozess nicht über leise.sh mit höchstens 20 % läuft. */
+/**
+ * Bricht ab, wenn der Prozess nicht über leise.sh mit höchstens 50 % läuft (so viel dürfen Screenshots; ein Rechner hebt
+ * die Grenze mit LEISE_MAX_CPU an, deckel.mjs).
+ */
 export function requireQuiet() {
-  if (os.getPriority() !== os.constants.priority.PRIORITY_LOW || !(Number(process.env.LEISE_CPU || 20) <= 20)) {
-    throw new Error('Screenshots nur über die gedeckelte Umgebung: sh tools/leise.sh node …');
+  if (!gedeckelt()) {
+    throw new Error(`Screenshots nur über die gedeckelte Umgebung (jetzt ${deckelText()}): LEISE_CPU=50 sh `
+      + 'tools/leise.sh node …');
   }
 }
 
@@ -47,17 +53,17 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
 
 /**
  * Nimmt die Level auf. shots: [{ index (in LEVELS), label (Kennung in der Kopfzeile, null = wie im Spiel), file (Pfad
- * ohne Endung) }]. Schreibt <file>-desktop.png und <file>-handy.png. log(text) meldet den Fortschritt.
- * Rückgabe: Sekunden je Bildschirm und Aufnahme.
+ * ohne Endung) }]. Schreibt <file>-desktop.png und <file>-handy.png. log(text) meldet den Fortschritt; page: die URL
+ * der Seite (seitenUrl), Vorgabe index.html. Rückgabe: Sekunden je Bildschirm und Aufnahme.
  */
-export async function takeShots(shots, log = console.log) {
+export async function takeShots(shots, log = console.log, page = PAGE) {
   requireQuiet();
   const seconds = {};
   for (const view of VIEWS) {
     const { send, logs, close } = await startChrome(view);
     try {
       await emulate(send, view);
-      await send('Page.navigate', { url: PAGE });
+      await send('Page.navigate', { url: page });
       await until(send, 'window.__prisma?.frames > 2', 'Spiel startet');
       seconds[view.name] = [];
       for (const shot of shots) {

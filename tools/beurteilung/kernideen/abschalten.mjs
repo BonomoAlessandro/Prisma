@@ -1,5 +1,6 @@
-// Kernidee „Abschalten“ (Glossar): Ein Ziel bekommt falsches Licht, und die Lösung verlangt, dieses Licht wegzunehmen.
-// Review 6 zu 141 Morgenröte: „Das erfüllte Ziel muss man zerstören.“
+// Kernidee „Abschalten“ (Glossar): Ein Ziel bekommt Licht in der Farbe des Ziels und leuchtet schon, doch die Lösung
+// verlangt, dieses Licht wegzunehmen. Abgrenzung: Die Falle bringt dasselbe Licht auf einem anderen Weg ans Ziel, das
+// Abschalten nimmt es dem Ziel weg. Review 6 zu 141 Morgenröte: „Das erfüllte Ziel muss man zerstören.“
 // - Zwischenstand: Eine Quelle erfüllt das Ziel allein (allein, noetig.mjs). Er besteht aus den drehbaren Elementen auf
 //   dem Weg ihres Lichts zum Ziel (wegZu); alle übrigen sind noch offen.
 // - Naheliegend ist er, wenn er ein kurzer Strang ist wie beim Füllteil (höchstens drei drehbare Elemente), weniger
@@ -7,8 +8,8 @@
 //   weder vom Zwischenstand noch von Licht, das ohnehin fliesst (die offenen Elemente schlucken dabei wie Blocker).
 //   Ohne die Grenze von drei zählten auch Zwischenstände mit bis zu sieben Elementen (34 statt 24 Level).
 // - Nötig (Gegenprobe mit nur dieser Quelle): In der Lösung erfüllt die Quelle das Ziel nicht mehr, ihr Licht muss also
-//   weg; es war falsches Licht. Führt die Lösung dasselbe Licht nur auf anderem Weg zum Ziel, ist der Zwischenstand bloss
-//   dekorativ (eher eine Falle, Ticket 11).
+//   weg, obwohl es die Farbe des Ziels hat. Führt die Lösung dasselbe Licht nur auf anderem Weg zum Ziel, ist der
+//   Zwischenstand bloss dekorativ (eher eine Falle, Ticket 11).
 // - Licht in einer falschen Farbe ist kein naheliegender Zwischenstand: Das Ziel zeigt es sofort, und die Startstellung,
 //   in der es oft vorkommt, ist zufällig verdreht.
 import { L } from '../../solver.mjs';

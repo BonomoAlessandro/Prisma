@@ -84,8 +84,7 @@ test('Fallunterscheidungen: Folgern allein löst das eine Level, das andere brau
 });
 
 test('Gedreht ist es dasselbe Rätsel: dieselbe Schwierigkeit, obwohl das Spielermodell die Zellen anders durchgeht', () => {
-  const querschlaeger = L.LEVELS[L.TUTORIAL_COUNT + 20];
-  assert.equal(querschlaeger.name, 'Querschläger');
+  const querschlaeger = L.LEVELS.find(l => l.name === 'Querschläger');
   for (const level of [querschlaeger, sieben]) {
     const b = beurteile(level), b1 = beurteile(gedreht(level)), b2 = beurteile(gedreht(gedreht(level)));
     assert.ok(b.schwierigkeit, level.name);

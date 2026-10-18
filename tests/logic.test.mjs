@@ -404,7 +404,6 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
 console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
 const S = await import('../tools/solver.mjs');
-const Q = await import('../tools/quality.mjs');
 // Modus unique (nur die Eindeutigkeit gefragt): Bei höchstens einer Lösung liefert er dasselbe wie dieselbe Suche ohne
 // ihn (ref), sonst hält er bei der zweiten Lösung an: mit den ersten Lösungen von ref und höchstens so vielen Knoten.
 // Rückgabe: gesparte Knoten.
@@ -551,8 +550,6 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.count, 4);
   assert.equal(r.solutions[0].free, 1);
 });
-const { NAMES, PROFILE_LEVELS } = await import('../tools/profiles.mjs');
-const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
 test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Hinweis', () => {
   assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 10, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
   L.LEVELS.forEach((l, i) => assert.equal(!!l.tutorial, i < L.TUTORIAL_COUNT, `Level ${i + 1} "${l.name}"`));
@@ -563,77 +560,17 @@ test('Tutorial: führt alle Elementarten ein', () => {
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Nach dem Tutorial folgen genau die Level mit den vorgesehenen Namen', () => {
-  assert.equal(MAIN.length, NAMES.length);
-  assert.deepEqual(MAIN.map(l => l.name), NAMES);
-});
-test('Namen: die 150 vorgesehenen Namen sind eindeutig und passen zum Speicherschlüssel', () => {
-  assert.equal(NAMES.length, 150);
-  assert.equal(new Set(NAMES).size, NAMES.length, 'doppelte Namen in NAMES');
-  const tutorial = L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(l => l.name);
-  assert.deepEqual(NAMES.filter(n => tutorial.includes(n)), [], 'gleich einem Tutorial-Namen');
-  // die Migration alter Spielstände entfernt ein Präfix "II:" o. Ä. – ein Name darf so nicht beginnen
-  assert.deepEqual(NAMES.filter(n => /^[IVX]+:/.test(n)), []);
-});
 test('Tutorial-Hinweise: nur bekannte Platzhalter', () => {
   for (const l of L.LEVELS.filter(q => q.tutorial)) assert.deepEqual(l.hint.replace(/\{(Klick|Rechtsklick)\}/g, '').match(/[{}]/g), null, l.name);
-});
-const { PROFILES } = await import('../tools/profiles.mjs');
-test('Profile: eindeutige IDs der Form <stufe>-<mischung>', () => {
-  assert.equal(new Set(PROFILES.map(p => p.id)).size, PROFILES.length);
-  for (const p of PROFILES) assert.match(p.id, /^[1-9]-[a-z]+$/);
 });
 test('Namen: alle Level eindeutig', () => {
   const names = L.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
 });
-// Eine Suche je Level, für die alte Wertung und den Test der Eindeutigkeit
-const SOLVED = new Map();
-const solveOnce = (lvl) => { if (!SOLVED.has(lvl)) SOLVED.set(lvl, S.solve(lvl)); return SOLVED.get(lvl); };
-const SCORES = MAIN.map(l => S.metrics(l, { sol: solveOnce(l) }).score);
-test('Alte Wertung: Eine mitgegebene Suche ändert nichts (Tutorial; ohne sie sucht metrics selbst)', () => {
-  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.deepEqual(S.metrics(l, { sol: solveOnce(l) }), S.metrics(l), l.name);
-});
-test('Die Level werden schwerer: Mittel der Wertung steigt von Zehnergruppe zu Zehnergruppe', () => {
-  // Die genaue Reihenfolge stammt aus dem Review (zwei Tester, abgeglichen): Die Wertung überschätzt Level,
-  // die in unabhängige Teilrätsel zerfallen, und unterschätzt Farblogik – einzelne Rückschritte sind gewollt.
-  const means = [];
-  for (let a = 0; a < SCORES.length; a += 10) means.push(SCORES.slice(a, a + 10).reduce((s, v) => s + v, 0) / SCORES.slice(a, a + 10).length);
-  for (let b = 1; b < means.length; b++) assert.ok(means[b] > means[b - 1], 'Mittelwerte ' + means.map(m => m.toFixed(1)).join(' '));
-  assert.ok(means.at(-1) - means[0] >= 15, 'zu wenig Spannweite: ' + means.map(m => m.toFixed(1)).join(' '));
-});
-test('Schwierigkeitsmarkierung: nur „schwer“ und „sehr schwer“, steigt nie ab, alle gehärteten Level markiert', () => {
-  const RANK = { 'schwer': 1, 'sehr schwer': 2 };
-  const rank = (d) => (d === undefined ? 0 : RANK[d]);
-  const marks = MAIN.map(l => l.difficulty);
-  assert.deepEqual(marks.filter(d => d !== undefined && !Object.hasOwn(RANK, d)), [], 'unbekannte Markierung');
-  const back = MAIN.map((l, i) => [i + 1, l.name, l.difficulty]).filter((_, i) => i > 0 && rank(marks[i]) < rank(marks[i - 1]));
-  assert.deepEqual(back, [], 'Markierung fällt ab');
-  assert.deepEqual(MAIN.slice(PROFILE_LEVELS).filter(l => !l.difficulty).map(l => l.name), [], 'gehärtete Level ohne Markierung');
-  assert.ok(marks.slice(0, PROFILE_LEVELS - 1).every(d => !d), 'Markierung vor dem schwersten Generator-Level');
-  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.equal(l.difficulty, undefined, l.name);
-});
-test('Die gehärteten Level (tools/harden.mjs, ab 121) sind alle schwerer als jedes der ersten 120', () => {
-  const max = Math.max(...SCORES.slice(0, PROFILE_LEVELS));
-  const easier = SCORES.map((v, i) => [MAIN[i].name, v]).slice(PROFILE_LEVELS).filter(([, v]) => v <= max);
-  assert.deepEqual(easier, [], 'schwerstes der ersten ' + PROFILE_LEVELS + ': Wertung ' + max);
-});
-const { accepted } = await import('../tools/harden.mjs');
-test('Die gehärteten Level (ab 121) bestehen die Abnahme von tools/harden.mjs (Quellen gekoppelt, Feld nicht zu dicht)', () => {
-  const failed = MAIN.slice(PROFILE_LEVELS).filter(l => !accepted(l)).map(l => `${l.name} ${JSON.stringify(Q.density(l))}`);
-  assert.deepEqual(failed, []);
-});
-test('Kein Filter gibt in der Lösung eine fremde Farbe ab (z. B. Cyan durch Gelbfilter → Grün)', () => {
-  const odd = L.LEVELS.flatMap(l => Q.oddFilters(l).map(t => `${l.name}: ${t}`));
-  assert.deepEqual(odd, []);
-});
-test('Die Level entsprechen der geprüften Auswahl (tools/selection.jsonl, gleiche Reihenfolge)', () => {
-  const sel = readFileSync(new URL('../tools/selection.jsonl', import.meta.url), 'utf8').trim().split(/\r?\n/).map(l => JSON.parse(l));
-  assert.equal(sel.length, MAIN.length);
-  const sig = (els) => els.map(e => JSON.stringify([e.type, e.x, e.z, e.dir, e.rot, e.color === 'white' && e.type === 'source' ? undefined : e.color, !!e.fixed])).sort().join('|');
-  MAIN.forEach((l, i) => assert.equal(sig(l.elements), sig(sel[i].level.elements), `Level ${i + 1} "${l.name}"`));
-  MAIN.forEach((l, i) => assert.equal(l.difficulty, sel[i].difficulty, `Markierung Level ${i + 1} "${l.name}"`));
-});
+// Lösung und Eindeutigkeit jedes Levels. Die Tests der Reihenfolge, der Grade, der Duldungsliste und der Namen
+// (Nahtstelle 3) stehen in tests/levelliste.test.mjs; sie ersetzen seit Ticket 15 die Tests zu Markierung, gehärteten
+// Leveln, Härte-Abnahme und Auswahlliste, seit Ticket 21 auch die Tests der vorgesehenen Namen (NAMES in profiles.mjs)
+// und der fremden Filterfarbe (oddFilters in quality.mjs).
 L.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;
   test(`${tag}: Startstellung ist nicht gelöst`, () => {
@@ -648,7 +585,7 @@ L.LEVELS.forEach((lvl, i) => {
     assert.equal(r.solved, true, pathOf(r));
   });
   test(`${tag}: Lösung ist eindeutig`, () => {
-    const r = solveOnce(lvl);
+    const r = S.solve(lvl);
     assert.equal(r.aborted, false, 'Suche abgebrochen');
     assert.equal(r.count, 1, `${r.count} Lösungen`);
     const norm = (sol) => Object.fromEntries(Object.entries(sol).map(([k, v]) => {

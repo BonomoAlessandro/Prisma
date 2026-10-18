@@ -75,7 +75,7 @@ test('Ohne die teuren Regeln (teuer: false) steht Falle in offen', () => {
 });
 
 console.log('Falle auf den 150 heutigen Leveln');
-test('10 Level; je Grad nach heutigem Platz: leicht 0, mittel 2, schwer 6, sehr schwer 2; nie mit Abschalten am selben Zwischenstand', () => {
+test('10 Level; je Grad: leicht 0, mittel 2, schwer 6, sehr schwer 2; nie mit Abschalten am selben Zwischenstand', () => {
   const all = heutigeLevel({ teuer: true });
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.deepEqual(mit.map(h => h.platz), [76, 79, 101, 114, 119, 124, 134, 138, 147, 150]);

@@ -1,7 +1,14 @@
-// Ablauf der KI-Tester (ADR 0002, Spec „KI-Tester“): Version und Fingerabdruck der Eingaben, vorläufige Grade, Anker,
-// der Auftrag aus brief.md, Prüfung der Antworten, Zusammenführen der beiden Urteile und Prüfung des versionierten
-// Protokolls (protocol.jsonl, eine JSON-Zeile je Level und Lauf). Genutzt von prepare.mjs, merge.mjs und
+// Ablauf der KI-Tester (ADR 0002, Spec „KI-Tester“): Versionen und Fingerabdruck der Eingaben, Referenz und Grade,
+// Anker, der Auftrag aus brief.md, Prüfung der Antworten, Zusammenführen der beiden Urteile und Prüfung des
+// versionierten Protokolls (protocol.jsonl, eine JSON-Zeile je Level und Lauf). Genutzt von prepare.mjs, merge.mjs und
 // tests/ki-tester.test.mjs.
+//
+// Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge im Spiel (1–150, ohne Tutorial) und sein Grad aus den
+// Leveldaten (grad). Die Grenzen eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
+// prepare.mjs hält die Referenz jedes Levels und die Plätze der Anker bei der Vorbereitung in lauf.json fest, und
+// merge.mjs rechnet mit diesen, auch wenn sich die Reihenfolge seither geändert hat. Ablauf 1 rechnete mit den Plätzen
+// der heutigen Reihenfolge (feste Namensliste, beurteilung/heutige-reihenfolge.mjs) und den vorläufigen Graden; seine
+// Einträge bleiben als Geschichte gültig (VERSIONS).
 //
 // Korrektur der Position: Jede Einordnung steht für einen Bereich von Plätzen in der Referenz: „A3-A4“ für die Plätze
 // zwischen den beiden Ankern, „A3“ (etwa so schwer) für den Anker und seine beiden Nachbarplätze, „<A1“ und „>A8“ für
@@ -12,10 +19,9 @@
 // Anker sind eine feste Auswahl, keine festen Plätze (Spec, User Story 43: „je zwei feste Anker pro
 // Schwierigkeitsgrad“). Fest ist, welche Level die Anker sind, damit „schwerer als A3“ für beide KI-Tester und in
 // jedem Lauf dasselbe Level meint. Ihr Platz folgt der Reihenfolge wie bei jedem anderen Level; die Bereiche eines
-// Laufs rechnen mit den Plätzen bei seiner Vorbereitung (lauf.json). Ein Anker
-// wird durch sein eigenes Urteil nie verschoben. Andere Level dürfen an ihm vorbei, er rückt dann um einen Platz und
-// bleibt in seinem Grad. Feste Plätze hiessen dagegen, dass ein Level vor einem Anker bleiben muss, obwohl beide
-// KI-Tester es schwerer finden.
+// Laufs rechnen mit den Plätzen bei seiner Vorbereitung (lauf.json). Ein Anker wird durch sein eigenes Urteil nie
+// verschoben. Andere Level dürfen an ihm vorbei, er rückt dann um einen Platz und bleibt in seinem Grad. Feste Plätze
+// hiessen dagegen, dass ein Level vor einem Anker bleiben muss, obwohl beide KI-Tester es schwerer finden.
 //
 // Ablehnen: Die KI-Tester nennen alle Begriffe aus „Was Spass verdirbt“, die zutreffen, unabhängig vom Grad. Abgelehnt
 // ist ein Level, wenn beide mindestens einen Begriff nennen, der beim Grad der Referenz gilt; Füllteil und Zerfall
@@ -32,26 +38,62 @@ const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8').repl
  * fingerprint). Ändert sich das oder die Regel, kommt eine neue Version; einen anderen Fingerabdruck melden der Test,
  * prepare.mjs und merge.mjs.
  */
-export const VERSION = '1';
-export const FINGERPRINT = 'd91d5db7fe66811d';
+export const VERSION = '2';
+export const FINGERPRINT = '066a880667331a43';
 /** So startet der Koordinator die KI-Tester (README); steht in lauf.json und in jedem Eintrag. */
 export const AGENT = { modell: 'claude-opus-5-5', typ: 'general-purpose' };
 export const MAX_SHIFT = 5;
-/** Vorläufige Grade nach der heutigen Reihenfolge (Spec); ab Ticket 15 folgen sie den Schwellen der Schwierigkeit. */
-export const GRADES = [
+/**
+ * Vorläufige Grade nach der heutigen Reihenfolge (Spec, Ticket 05): leicht 1–30, mittel 31–100, schwer 101–140, sehr
+ * schwer 141–150. Ablauf 1 rechnete mit ihnen und mit den Plätzen der heutigen Reihenfolge (Stand vor Ticket 15).
+ */
+export const PROVISIONAL_GRADES = [
   { name: 'leicht', from: 1, to: 30 },
   { name: 'mittel', from: 31, to: 100 },
   { name: 'schwer', from: 101, to: 140 },
   { name: 'sehr schwer', from: 141, to: 150 },
 ];
-export const gradeOf = (position) => GRADES.find(g => position >= g.from && position <= g.to);
-/** Referenz eines Levels: Platz in der heutigen Reihenfolge und sein Grad (ab Ticket 15/16 der Platz nach der Formel). */
+export const provisionalGradeOf = (position) => PROVISIONAL_GRADES.find(g => position >= g.from && position <= g.to);
+const GRADE_NAMES = PROVISIONAL_GRADES.map(g => g.name);
+const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
+/** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial). */
+export const levelAt = (position) => MAIN[position - 1];
+/**
+ * Die Grade in der Reihenfolge im Spiel, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der
+ * Reihenfolge (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150). Weil der Grad
+ * entlang der Reihenfolge nie sinkt (Test der Levelliste), ist jeder Grad ein Abschnitt.
+ */
+export const GRADES = GRADE_NAMES.map((name) => {
+  const at = MAIN.flatMap((l, k) => (l.grad === name ? [k + 1] : []));
+  return { name, from: at[0], to: at.at(-1) };
+});
+/** Der Grad eines Platzes im Spiel, nach dem Grad des Levels dort. */
+export const gradeOf = (position) => GRADES.find(g => g.name === levelAt(position)?.grad);
+/** Referenz eines Levels in Ablauf 2: Platz in der Reihenfolge im Spiel, sein Grad und dessen Grenzen. */
 export const reference = (position) => {
   const g = gradeOf(position);
-  return { art: 'heutige Reihenfolge', position, grad: g.name, von: g.from, bis: g.to };
+  return { art: 'Reihenfolge im Spiel', position, grad: g.name, von: g.from, bis: g.to };
 };
-/** Das Level auf einem Platz der heutigen Reihenfolge (1–150, ohne Tutorial). */
-export const levelAt = (position) => L.LEVELS[L.TUTORIAL_COUNT + position - 1];
+const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bis === g.to;
+/**
+ * Die Versionen des Ablaufs mit Fingerabdruck und Referenz. Einträge einer älteren Version bleiben als Geschichte
+ * gültig: Jeder wird nach der Referenz seiner Version geprüft (gilt). Schema der Antwort und Regel des Zusammenführens
+ * sind in beiden Versionen dieselben.
+ * - 1 (Ticket 05, 16.10.2026; Probelauf 2 und die Eichläufe spielwert-1 bis -4 aus Ticket 13): Platz in der heutigen
+ *   Reihenfolge, vorläufige Grade.
+ * - 2 (Ticket 16): Platz in der Reihenfolge im Spiel, Grad aus den Leveldaten, Grenzen aus der Reihenfolge, dazu das
+ *   geschärfte Glossar (Füllteil, Abschalten, Falle) und neue Anker.
+ */
+export const VERSIONS = {
+  1: {
+    fingerabdruck: 'd91d5db7fe66811d', referenz: 'heutige Reihenfolge',
+    gilt: (r) => r.art === 'heutige Reihenfolge' && sameGrade(r, provisionalGradeOf(r.position)),
+  },
+  2: {
+    fingerabdruck: FINGERPRINT, referenz: 'Reihenfolge im Spiel',
+    gilt: (r) => r.art === 'Reihenfolge im Spiel' && r.von >= 1 && r.bis <= MAIN.length,
+  },
+};
 export const TESTERS = ['A', 'B'];
 /** Antwortdatei eines KI-Testers, relativ zum Ordner des Laufs: jeder hat einen eigenen Ordner. */
 export const answerPath = (tester) => `antwort-${tester}/urteile.json`;
@@ -87,12 +129,12 @@ export function rejectionTerms() {
   return [...text.slice(text.indexOf(`## ${SPOILERS}`)).matchAll(/^\*\*(.+?)\*\*:/gm)].map(m => m[1]);
 }
 
-/** Die Anker aus anchors.json mit ihrem heutigen Platz (1–150, über den Namen in LEVELS). */
+/** Die Anker aus anchors.json mit ihrem Platz in der Reihenfolge im Spiel (1–150, über den Namen gefunden). */
 export function loadAnchors() {
   return ANCHORS.map((a) => {
-    const i = L.LEVELS.findIndex(l => l.name === a.name);
-    if (i < L.TUTORIAL_COUNT) throw new Error(`Anker ${a.id}: kein Level „${a.name}“`);
-    return { ...a, position: i - L.TUTORIAL_COUNT + 1 };
+    const position = MAIN.findIndex(l => l.name === a.name) + 1;
+    if (!position) throw new Error(`Anker ${a.id}: kein Level „${a.name}“`);
+    return { ...a, position };
   });
 }
 
@@ -139,7 +181,8 @@ export function fingerprint() {
   for (const file of ['./anchors.json', './answer.schema.json']) hash.update(read(file));
   hash.update(glossary());
   for (const a of anchors) {
-    const { name, difficulty, ...data } = levelAt(a.position); // Name und Markierung sehen die KI-Tester nicht
+    // Name und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des Grads difficulty)
+    const { name, difficulty, grad, ...data } = levelAt(a.position);
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);
@@ -264,15 +307,17 @@ const present = (v) => typeof v === 'string' && v.trim() !== '';
 function entryErrors(e) {
   const out = [];
   if (!/^\d{4}-\d{2}-\d{2}$/.test(e.datum ?? '')) out.push('Datum fehlt oder nicht JJJJ-MM-TT');
-  if (e.ablauf !== VERSION) out.push(`Version des Ablaufs fehlt oder unbekannt (${e.ablauf})`);
+  const version = typeof e.ablauf === 'string' && Object.hasOwn(VERSIONS, e.ablauf) ? VERSIONS[e.ablauf] : null;
+  if (!version) out.push(`Version des Ablaufs fehlt oder unbekannt (${e.ablauf})`);
   if (!present(e.lauf)) out.push('Lauf fehlt');
   if (!present(e.agent?.modell) || !present(e.agent?.typ)) out.push('Modell oder Agent-Typ der KI-Tester fehlt');
   if (!present(e.begruendung)) out.push('Begründung fehlt');
   const { level, referenz: r, anker, urteile, ergebnis: g } = e;
   if (typeof level?.id !== 'string' || typeof level.name !== 'string') return [...out, 'Level fehlt'];
-  if (!Number.isInteger(r?.position) || !GRADES.some(x => x.name === r.grad) || !(r.von <= r.position && r.position <= r.bis)) {
-    return [...out, 'Referenz unvollständig'];
-  }
+  const complete = Number.isInteger(r?.position) && GRADE_NAMES.includes(r.grad) && r.von <= r.position &&
+    r.position <= r.bis;
+  if (!complete) return [...out, 'Referenz unvollständig'];
+  if (version && !version.gilt(r)) out.push(`Referenz nicht die von Ablauf ${e.ablauf} (${version.referenz})`);
   const ids = ANCHORS.map(a => a.id);
   if (ids.some((id, k) => !Number.isInteger(anker?.[id]) || (k && anker[id] <= anker[ids[k - 1]]))) return [...out, 'Plätze der Anker fehlen'];
   if (level.anker && anker[level.anker] !== r.position) out.push(`Anker ${level.anker} steht nicht auf Platz ${r.position}`);
@@ -286,7 +331,7 @@ function entryErrors(e) {
   if (g.abgelehnt && g.verschiebung) out.push('abgelehnt und verschoben');
   if (Object.keys(urteile ?? {}).join() !== TESTERS.join()) return [...out, 'Urteile von A und B nötig'];
   const wrong = TESTERS.flatMap(t => answerErrors(urteile[t], level).map(m => `${t}: ${m}`));
-  if (wrong.length || e.ablauf !== VERSION) return [...out, ...wrong];
+  if (wrong.length || !version) return [...out, ...wrong];
   const both = TESTERS.every(t => termsAt(urteile[t], r.grad).length > 0);
   if (g.abgelehnt && !both) out.push(`abgelehnt, aber nicht beide nennen einen Begriff, der bei ${r.grad} gilt`);
   if (!g.abgelehnt && both) out.push(`beide nennen einen Begriff, der bei ${r.grad} gilt, aber nicht abgelehnt`);
@@ -298,8 +343,9 @@ function entryErrors(e) {
 }
 
 /**
- * Fehler im Protokoll (Text mit einer JSON-Zeile je Eintrag): Form, Einzelurteile nach Schema, Grenzen der Korrektur,
- * Ablehnen nur gemeinsam und das Ergebnis nach der Regel von merge. Jedes Level steht je Lauf höchstens einmal darin.
+ * Fehler im Protokoll (Text mit einer JSON-Zeile je Eintrag): Form, eine bekannte Version mit ihrer Referenz
+ * (VERSIONS), Einzelurteile nach Schema, Grenzen der Korrektur, Ablehnen nur gemeinsam und das Ergebnis nach der Regel
+ * von merge. Jedes Level steht je Lauf höchstens einmal darin.
  */
 export function protocolErrors(text) {
   const out = [], seen = new Set();

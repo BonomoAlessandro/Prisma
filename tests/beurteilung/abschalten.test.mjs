@@ -79,12 +79,13 @@ test('Kein Abschalten, wenn der Zwischenstand Licht einer anderen Quelle falsch 
 });
 
 console.log('Abschalten auf den 150 heutigen Leveln');
-test('24 Level; je Grad nach heutigem Platz: leicht 0, mittel 8, schwer 11, sehr schwer 5; dabei 141 Morgenröte mit 6,4', () => {
+test('24 Level; je Grad: leicht 0, mittel 8, schwer 9, sehr schwer 7; dabei 141 Morgenröte mit 6,4', () => {
   const all = heutigeLevel();
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.equal(mit.length, 24);
   const jeGrad = Object.fromEntries(['leicht', 'mittel', 'schwer', 'sehr schwer'].map(g => [g, mit.filter(h => h.grad === g).length]));
-  assert.deepEqual(jeGrad, { leicht: 0, mittel: 8, schwer: 11, 'sehr schwer': 5 });
+  // Grad aus den Leveldaten (Ticket 15): 135 Pulsar und 137 Ereignishorizont sind sehr schwer geworden
+  assert.deepEqual(jeGrad, { leicht: 0, mittel: 8, schwer: 9, 'sehr schwer': 7 });
   // Review 6 zu Morgenröte: „Das erfüllte Ziel muss man zerstören“
   const morgenroete = all[140].beurteilung.kernideen.filter(k => k.begriff === BEGRIFF);
   assert.deepEqual(morgenroete.map(k => [k.ziel, k.quelle, k.zwischenstand]), [['6,4', '5,6', { '5,4': 3 }]]);

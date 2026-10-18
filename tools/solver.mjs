@@ -1,4 +1,5 @@
-// Löser und Schwierigkeitsmessung für PRISMA-Level.
+// Löser für PRISMA-Level. Wie schwer ein Level ist, sagt allein die Beurteilung (tools/beurteilung/); die alte
+// Wertung (metrics mit score) gibt es seit Ticket 21 nicht mehr.
 // Lädt die reine Spiellogik aus index.html (Bereich LOGIC:BEGIN … LOGIC:END), genau wie die Tests.
 //
 // Idee: Statt alle Stellungen durchzuprobieren (bei 10 drehbaren Elementen bis zu 8^10), folgt der
@@ -33,7 +34,7 @@ export const keyOf = (el) => (el.y === undefined ? el.x + ',' + el.z : el.x + ',
  * Rückgabe:
  *   count:     Anzahl lösender Gesamtstellungen (Elemente ohne Licht vervielfachen)
  *   solutions: bis zu `collect` Lösungen als { set: { "x,z": Stellung }, free } (free = Elemente ohne Licht)
- *   nodes:     Anzahl Strahlverfolgungen – Suchaufwand, ein Mass für die Schwierigkeit
+ *   nodes:     Anzahl Strahlverfolgungen (Suchaufwand)
  *   leaves:    vollständig bestimmte Strahlbilder
  *   near:      Gesamtstellungen, in denen genau ein Ziel nicht stimmt ("fast gelöst"; nur ohne prune vollständig)
  *   aborted:   Suche wegen maxNodes abgebrochen
@@ -131,48 +132,4 @@ export function litCells(r, board) {
     else if (e.kind === 'reflect' || e.kind === 'hit') lit.add(keyOf({ x: round(e.x), y: round(e.y), z: round(e.z) }));
   }
   return lit;
-}
-
-/**
- * Schwierigkeitskennzahlen eines Levels. Bewusst nur Eigenschaften des Levels selbst – die
- * Klicks hängen von der zufälligen Startverdrehung ab und gehen nicht in die Wertung ein.
- *   unique:    genau eine lösende Gesamtstellung (gleiche Regel wie im Spiel)
- *   search:    log2 Suchknoten mit Abschneiden (wie viel man ausprobieren muss)
- *   space:     log2 der Stellungen, die das Licht überhaupt erreicht (ohne Abschneiden, ggf. gedeckelt)
- *   guesses:   Verzweigungen mit mehreren nicht sofort widerlegten Möglichkeiten
- *   onPath:    Elemente, die das Licht in der Lösung berührt
- *   mixed:     Ziele mit Mischfarbe (alte Zählung, keine Mischziele nach dem Glossar: die liefert tools/beurteilung;
- *              bleibt für den Golden-Test bis Ticket 21) · targets, sources, rotatable, kinds, clicks (nur zur Info)
- *   score:     Gesamtwertung, an der Reihenfolge der handgebauten Level geeicht (Test: Rangkorrelation ≥ 0.8)
- * Die beiden Suchen kann der Aufrufer mitgeben, wenn er sie im selben Feld schon hat (sonst liefen sie doppelt): sol
- * wie solve(level) mit den Standardoptionen (im Modus unique nur bei höchstens einer Lösung), full ohne Abschneiden.
- * metrics übernimmt eine Suche nur, wenn sie nicht abgebrochen ist und nicht mehr Knoten hat, als ihre eigene haben
- * dürfte (dann gleicht sie ihr auch mit anderem maxNodes); sonst rechnet es sie selbst.
- */
-export function metrics(level, { sol = null, full = null } = {}) {
-  const own = (s, opts) => (s && !s.aborted && s.nodes <= opts.maxNodes ? s : solve(level, opts));
-  sol = own(sol, { collect: 2, maxNodes: 2e6 });
-  full = own(full, { prune: false, maxNodes: 3e5, collect: 0 });
-  const b = L.createBoard(level);
-  const rot = b.elements.filter(L.isRotatable);
-  const targets = b.elements.filter(e => e.type === 'target');
-  const set = sol.solutions[0]?.set;
-  let onPath = 0;
-  if (set) {
-    const bb = L.createBoard(level);
-    for (const el of bb.elements.filter(L.isRotatable)) if (keyOf(el) in set) setRot(el, set[keyOf(el)]);
-    onPath = litCells(L.traceBeams(bb), bb).size;
-  }
-  const search = Math.log2(Math.max(1, sol.nodes));
-  const space = Math.log2(Math.max(1, full.leaves));
-  const mixed = targets.filter(t => ![1, 2, 4].includes(t.color)).length;
-  // Rateschritte wachsen mit dem Suchbaum exponentiell – daher logarithmisch
-  const score = search + 0.5 * space + 1.2 * Math.log2(1 + sol.guesses) + 0.5 * targets.length + 0.4 * mixed + 0.25 * onPath;
-  return {
-    unique: sol.count === 1 && !sol.aborted, count: sol.count, rotatable: rot.length,
-    search: +search.toFixed(1), space: +space.toFixed(1), spaceCapped: full.aborted, guesses: sol.guesses,
-    onPath, mixed, targets: targets.length, sources: b.elements.filter(e => e.type === 'source').length,
-    kinds: [...new Set(b.elements.map(e => e.type))].sort(),
-    clicks: set ? clicksTo(level, set) : NaN, score: +score.toFixed(1), solution: set,
-  };
 }

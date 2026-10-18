@@ -1,61 +1,61 @@
 {
-  "hinweis": "Je zwei feste Anker pro vorläufigem Schwierigkeitsgrad (leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150), einer am unteren, einer am oberen Ende. Gewählt nach vier Regeln: (1) nicht auf der Duldungsliste und kein Grenzfall der Neuzählung (Spec, „Weitere Hinweise“), damit der Anker Phase 3 übersteht; (2) möglichst nah am Rand des Grads; (3) die alte Wertung (score aus tools/solver.mjs, als Rang unter den 150) liegt höchstens 7 Plätze vom heutigen Platz entfernt, damit der Anker unstrittig ist; (4) zusammen decken die Anker alle Elemente ab. Plätze und Ränge: Stand 15.10.2026. Wer einen Anker ändert, erhöht die Version des Ablaufs (tools/ki-tester/protocol.mjs).",
+  "hinweis": "Ablauf 2 (Ticket 16, 17.10.2026): je zwei feste Anker pro Schwierigkeitsgrad in der Reihenfolge im Spiel (heute leicht 1–32, mittel 33–102, schwer 103–137, sehr schwer 138–150), einer am unteren, einer am oberen Ende. Gewählt nach den Regeln des Nutzers: (1) kein Ausschlussgrund und nicht auf der Prüfliste (tools/levelliste.json), weil sich deren Platz noch ändern kann; (2) auf der Duldungsliste nur wegen Kernidee oder Spielwert ist erlaubt, denn Anker zeigen die Schwierigkeit, nicht den Spass; wo möglich trotzdem ganz ohne Duldungsliste; (3) möglichst genau am Ende des Grads, sonst begründet. Dazu wie in Ablauf 1 kein Grenzfall der Neuzählung, und zusammen decken die Anker alle Elemente ab. Plätze und Schwierigkeit: Stand 17.10.2026. Die Anker von Ablauf 1 (Plätze der heutigen Reihenfolge) waren A1 Schleuse (3), A2 Brechpunkt (30), A3 Kreuzweg (35), A4 Farbverlauf (94), A5 Silberstreif (103), A6 Pulsar (135), A7 Morgenröte (141) und A8 Sternenstaub (148). Wer einen Anker ändert, erhöht die Version des Ablaufs (tools/ki-tester/protocol.mjs).",
   "anker": [
     {
       "id": "A1",
-      "name": "Schleuse",
+      "name": "Zickzack",
       "grad": "leicht",
       "ende": "unten",
-      "begruendung": "Platz 3, Rang der alten Wertung 3. Nur Spiegel, eine weisse Quelle und ein Ziel, 4 drehbare Elemente: die einfachste Mechanik. Die Plätze 1 und 2 haben nur 2 drehbare Elemente und sind eher Einstieg als Rätsel."
+      "begruendung": "Platz 1, das leichteste Level (Schwierigkeit 19,8; Platz 2 Winkelzug 21,5). Eine weisse Quelle, Spiegel und ein Prisma, zwei Ziele, 2 drehbare Elemente: die einfachste Mechanik. Nicht auf der Duldungsliste."
     },
     {
       "id": "A2",
-      "name": "Brechpunkt",
+      "name": "Zusammenfluss",
       "grad": "leicht",
       "ende": "oben",
-      "begruendung": "Platz 30, das letzte leichte Level, Rang 23. Zwei Prismen, vier Ziele, 5 drehbare Elemente. 29 Doppelpass und 26 Labyrinth stehen auf der Duldungsliste, 27 Spiegelbild weicht stark ab (Rang 63)."
+      "begruendung": "Platz 30, Schwierigkeit 42,3, knapp unter der Schwelle von mittel (43). Nicht genau am Ende: 31 Lichtbündel hat einen Ausschlussgrund (Scheinmischung), 32 Streulicht steht auf der Prüfliste. Nicht auf der Duldungsliste. Eine rote und eine grüne Quelle mischen sich auf dem gelben Ziel (Mischziel aus zwei Quellen), nur Spiegel, 6 drehbare Elemente."
     },
     {
       "id": "A3",
-      "name": "Kreuzweg",
+      "name": "Glasfenster",
       "grad": "mittel",
       "ende": "unten",
-      "begruendung": "Platz 35, Rang 28. Kombinator und zwei farbige Quellen, 6 drehbare Elemente: Farblogik, wie sie ab „mittel“ üblich ist. 31 steht auf der Duldungsliste, 32 und 34 weichen um mehr als 10 Plätze ab, 33 Glasfenster wäre mit zwei Prismen dem Anker A2 zu ähnlich."
+      "begruendung": "Platz 33, das erste mittlere Level, Schwierigkeit 43,7. Auf der Duldungsliste nur ab „mittel“ ohne nötige Kernidee; das ist für einen Anker erlaubt, und über dem Mindest-Spielwert liegt es (61,3). Ganz ohne Duldungsliste und nicht auf der Prüfliste ist in mittel erst 68 Feuerwerk, weit vom unteren Ende. Drei weisse Quellen, zwei Prismen, drei Ziele, 5 drehbare Elemente."
     },
     {
       "id": "A4",
-      "name": "Farbverlauf",
+      "name": "Lichtbogen",
       "grad": "mittel",
       "ende": "oben",
-      "begruendung": "Platz 94, Rang 95: die alte Wertung trifft den Platz. Prisma, Filter, drei Quellen und drei Mischziele, 7 drehbare Elemente. 97 und 98 stehen auf der Duldungsliste, 99 und 100 sind Grenzfälle, 95 und 96 weichen um 27 und 32 Plätze ab."
+      "begruendung": "Platz 97, Schwierigkeit 58,1, knapp unter der Schwelle von schwer (58,5). Nicht genau am Ende: 98 Polarlicht und 101 Libelle haben einen Ausschlussgrund (Scheinmischung), 99 Widerschein, 100 Chamäleon und 102 Smaragd stehen auf der Prüfliste. Nicht auf der Duldungsliste. Zwei weisse Quellen, zwei Prismen, vier Ziele mit einem Mischziel aus zwei Quellen, 7 drehbare Elemente."
     },
     {
       "id": "A5",
-      "name": "Silberstreif",
+      "name": "Oase",
       "grad": "schwer",
       "ende": "unten",
-      "begruendung": "Platz 103, Rang 105. Zwei Prismen und ein Filter, 8 drehbare Elemente. 101 steht auf der Duldungsliste, 102 Smaragd weicht mehr ab (Rang 109)."
+      "begruendung": "Platz 105, Schwierigkeit 59,3. Nicht genau am Ende: 103 Rangierbahnhof und 104 Opal haben einen Ausschlussgrund (Scheinmischung). Nicht auf der Duldungsliste. Zwei weisse Quellen, zwei Prismen, drei Ziele mit einem Mischziel aus zwei Quellen, 7 drehbare Elemente."
     },
     {
       "id": "A6",
-      "name": "Pulsar",
+      "name": "Lichtbrücke",
       "grad": "schwer",
       "ende": "oben",
-      "begruendung": "Platz 135, Rang 138. Das letzte schwere Level, das nicht auf der Duldungsliste steht (136–140 stehen alle darauf). Vier Prismen, Filter und Block, 10 drehbare Elemente."
+      "begruendung": "Platz 137, das letzte schwere Level, Schwierigkeit 86,0, knapp unter der Schwelle von sehr schwer (87). Nicht auf der Duldungsliste. Drei Prismen und ein Kombinator, Mischziel aus zwei Quellen und Farben abzählen, 11 drehbare Elemente."
     },
     {
       "id": "A7",
-      "name": "Morgenröte",
+      "name": "Sternenstaub",
       "grad": "sehr schwer",
       "ende": "unten",
-      "begruendung": "Platz 141, das erste sehr schwere Level, Rang 145. Alle Arten von Elementen: Prismen, Filter, Kombinator und eine farbige Quelle, 11 drehbare Elemente. Zugleich das Level der Vergleichsbilder aus Ticket 03."
+      "begruendung": "Platz 138, das erste sehr schwere Level, Schwierigkeit 87,9; in Ablauf 1 der Anker A8. Nicht auf der Duldungsliste. Eine magentafarbene und zwei weisse Quellen, fünf Prismen, vier Ziele, 9 drehbare Elemente."
     },
     {
       "id": "A8",
-      "name": "Sternenstaub",
+      "name": "Pulsar",
       "grad": "sehr schwer",
       "ende": "oben",
-      "begruendung": "Platz 148, Rang 142. Das höchste sehr schwere Level, das weder auf der Duldungsliste steht (149 Zenit) noch ein Grenzfall ist (150 Lichtkegel liegt beim Knäuel genau auf der Schwelle). Fünf Prismen, vier Ziele, 9 drehbare Elemente."
+      "begruendung": "Platz 145, Schwierigkeit 90,4, das schwerste Level ohne Ausschlussgrund; in Ablauf 1 der Anker A6. Nicht genau am Ende: 146–150 haben alle einen Ausschlussgrund (Scheinmischung oder Knäuel). Nicht auf der Duldungsliste. Vier Prismen, Filter und Block, Abschalten und Lockvogel, 10 drehbare Elemente."
     }
   ]
 }

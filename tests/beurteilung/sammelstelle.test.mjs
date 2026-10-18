@@ -60,12 +60,13 @@ test('Licht, das an der Rückseite des Prismas verschwindet, sammelt es nicht', 
 });
 
 console.log('Sammelstelle auf den 150 heutigen Leveln');
-test('9 Level; je Grad nach heutigem Platz: leicht 0, mittel 0, schwer 4, sehr schwer 5; 148 Sternenstaub sammelt Rot und Blau', () => {
+test('9 Level; je Grad: leicht 0, mittel 1, schwer 3, sehr schwer 5; 148 Sternenstaub sammelt Rot und Blau', () => {
   const all = heutigeLevel();
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.deepEqual(mit.map(h => h.platz), [111, 124, 127, 138, 141, 142, 143, 147, 148]);
   const jeGrad = Object.fromEntries(['leicht', 'mittel', 'schwer', 'sehr schwer'].map(g => [g, mit.filter(h => h.grad === g).length]));
-  assert.deepEqual(jeGrad, { leicht: 0, mittel: 0, schwer: 4, 'sehr schwer': 5 });
+  // Grad aus den Leveldaten; Ticket 16: 111 Lichtschleife mittel
+  assert.deepEqual(jeGrad, { leicht: 0, mittel: 1, schwer: 3, 'sehr schwer': 5 });
   // Review 6: „Ein Prisma sammelt R, G und B aus drei Richtungen und fächert sie neu auf. Das blaue Ziel ist nur so
   // erreichbar.“ Nötig sind Blau und Rot; das Grün von 2,5 bekäme sein Ziel auch so.
   const sternenstaub = all[147].beurteilung.kernideen.filter(k => k.begriff === BEGRIFF);

@@ -85,7 +85,7 @@ test('Nur ein möglicher Verlust zählt: Das Blau von 2,0 fällt direkt auf 2,1,
 });
 
 console.log('Farben abzählen auf den 150 heutigen Leveln');
-test('18 Level; je Grad nach heutigem Platz: leicht 0, mittel 3, schwer 9, sehr schwer 6; dabei 149 Zenit mit Blau', () => {
+test('18 Level; je Grad: leicht 0, mittel 3, schwer 9, sehr schwer 6; dabei 149 Zenit mit Blau', () => {
   const all = heutigeLevel();
   const mit = all.filter(h => h.beurteilung.kernideen.some(k => k.begriff === BEGRIFF));
   assert.equal(mit.length, 18);

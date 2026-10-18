@@ -1,5 +1,6 @@
 // Prüft die Antworten der beiden KI-Tester eines Laufs, führt sie je Level zusammen und hängt das Ergebnis ans
-// versionierte Protokoll an (protocol.jsonl; Regeln in protocol.mjs).
+// versionierte Protokoll an (protocol.jsonl; Regeln in protocol.mjs). Die Referenz jedes Levels und die Plätze der
+// Anker kommen aus lauf.json, also aus der Reihenfolge bei der Vorbereitung, mit der die KI-Tester geurteilt haben.
 // Aufruf: node tools/ki-tester/merge.mjs <lauf> [--trocken]
 //   liest tests/output/ki-tester/<lauf>/lauf.json und antwort-A/urteile.json, antwort-B/urteile.json (von prepare.mjs
 //   angelegt bzw. von den KI-Testern geschrieben)
@@ -9,7 +10,7 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  VERSION, FINGERPRINT, TESTERS, answerPath, fingerprint, reference, answerErrors, entry, protocolErrors, signed, today,
+  VERSION, FINGERPRINT, TESTERS, answerPath, fingerprint, answerErrors, entry, protocolErrors, signed, today,
 } from './protocol.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -50,7 +51,7 @@ const old = existsSync(protocolFile) ? readFileSync(protocolFile, 'utf8') : '';
 if (old.split('\n').some(line => line.trim() && JSON.parse(line).lauf === run)) fail(`Lauf ${run} steht schon im Protokoll.`);
 const datum = today();
 const entries = lauf.level.map(l => entry({
-  datum, lauf: run, agent: lauf.agent, level: l, referenz: reference(l.position), anker: lauf.anker,
+  datum, lauf: run, agent: lauf.agent, level: l, referenz: l.referenz, anker: lauf.anker,
   urteile: Object.fromEntries(TESTERS.map(t => [t, answers[t].get(l.id)])),
 }));
 const text = (old && !old.endsWith('\n') ? '\n' : '') + entries.map(e => JSON.stringify(e) + '\n').join('');
