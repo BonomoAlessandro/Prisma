@@ -50,3 +50,57 @@ Auslegung aus Ticket 18 und 19: Die verlangte Kernidee ist unter den nötigen, w
 Regel „die verlangte Kernidee ist die Haupt-Kernidee“ kommt erst mit dem Austausch, als Wahl im Auftrag, wo die Regel
 „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ sie braucht. Gemessen in Ticket 19: Die verlangte ist fast
 immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haupt-Kernidee Abschalten.
+
+**Stufe A (18.10.2026): Kandidaten und Lauf `ersatz-leicht-1` vorbereitet.**
+- **5 oder 6 Level:** Massgebend ist `tools/levelliste.json` nach den Tickets 15 und 16. Dort stehen in „leicht“
+  (Plätze 1–31) 6 Level, alle nur mit Ausschlussgrund (Scheinmischung): 12 Begegnung, 18 Auslese, 20 Labyrinth,
+  24 Doppelpass, 26 Seitenlicht, 29 Lichtbündel (Plätze im Spiel). Die Zahl 5 und die Plätze 15, 19, 20, 26, 29 im Kopf
+  des Tickets sind heutige Plätze der Neuzählung mit den vorläufigen Graden (leicht 1–30). Lichtbündel stand dort auf
+  dem heutigen Platz 31, also in „mittel“, und ist seit Ticket 15 „leicht“ (Formel 30). Ticket 24 nennt es darum noch
+  unter „mittel“ (31); dort entfällt es. Ersetzt werden hier alle 6.
+- **Lücken:** Jeder Ersatz bekommt als Ziel-Schwierigkeit die Lücke zwischen den Nachbarn des ersetzten Levels nach der
+  Schwierigkeit (Rang der Formel). So bekommt er denselben Platz der Formel, und kein anderes Level verschiebt sich:
+  Begegnung 29,5–32,9, Auslese 35,4–36,65, Labyrinth 36,7–37,5, Doppelpass 39,1–41,2, Seitenlicht 41,3–41,8,
+  Lichtbündel 42,4–42,95 (unter „mittel“ ab 43).
+- **Kandidaten:** `generiere.mjs` mit der neuen Option `--schwierigkeit`, je Lücke alle sieben Aufträge von „leicht“
+  (bis 40 Level aus 2000 Seeds; Lockvogel liefert in „leicht“ nichts, Farben abzählen nur in der ersten Lücke). Gewählt
+  je Lücke ein Kandidat und ein Ersatz mit anderer Haupt-Kernidee, nach Spielwert, Lesbarkeit des Felds und
+  Abwechslung. Die Haupt-Kernidee kommt aus der Beurteilung (`hauptKernidee`): „leicht“ verlangt keine Kernidee, eine
+  Wahl „verlangte = Haupt-Kernidee“ im Auftrag braucht es hier nicht. Auf 21–30 haben Zusammenfluss und Spiegelbild
+  schon zweimal Mischziel aus zwei Quellen, dort also keines; je Seite kann keine Wahl aus Kandidat und Ersatz eine
+  Haupt-Kernidee dreimal bringen.
+- **Platz nach der Formel** (`ordne-level.mjs --austausch`, je ein Lauf mit den Kandidaten und mit den Ersatzleveln):
+  Jeder kommt auf den Platz des ersetzten Levels, kein anderes Level ändert Platz, Formel oder Grad, die Prüfliste
+  bleibt. „leicht“ hat danach kein Level auf der Duldungsliste (84 statt 90), die Haupt-Kernidee ist ohne die
+  Duldungsliste je 10 Level eingehalten, das Mittel je 10 Level 25,1 34,5 41,2 … (mit den Ersatzleveln 34,2 41,1).
+- **Werkzeuge** (klein, mit Test):
+  - `tools/levelliste.mjs`: `imSpiel()` (heutige Level, dann die neuen ohne heutigen Platz), `ordne()` und
+    `reihenfolge()` mit `heute` und `kandidat`: ein neues Level wandert nicht und steht nach der Formel; Urteile aus
+    Läufen `ersatz-…` (`ERSATZ_LAEUFE`, zählen jetzt mit) gelten nur für neue Level, über den Namen „Kandidat
+    <Abdruck>“; die Korrektur wie am Platz der Formel; lehnen beide ab, kommt es nicht ins Spiel.
+  - `tools/leveldaten.mjs` (neu): `levelCode` (Block für LEVELS), `abdruck`/`kandidatName`, `seiteMitLeveln`.
+  - `tools/ordne-level.mjs`: `--austausch`, mit `--schreiben` Einsetzen und Entfernen (erst Stufe C).
+  - `tools/ki-tester/prepare.mjs --kandidaten`, `shots.mjs` mit wählbarer Seite: Die Bilder der Kandidaten kommen von
+    einer Kopie von index.html mit den Kandidaten am Ende von LEVELS (ausserhalb von `eingabe/`).
+  - Für Stufe C vorbereitet: `inHeutigerReihenfolge()` nimmt ein entferntes Level aus der festen Kopie
+    `tools/beurteilung/entfernte-level.json`; die Eichmenge des Spielwerts lässt die neuen Level aus.
+- **Kandidaten** (Kandidat / Ersatz; Auftrag, Seed, Schwierigkeit, Haupt-Kernidee; alle mit Spielplatz des ersetzten
+  Levels, Lichtbündel Formel 30, Platz 29; nachzubauen mit `generiere.mjs <auftrag> --seed S --anzahl 1
+  --schwierigkeit VON,BIS`):
+
+  | ersetzt | Kandidat | Ersatz |
+  |---|---|---|
+  | 12 Begegnung | 1b8f9d78: leicht, 89; 32,55; Mischziel aus zwei Quellen (Kombinator) | 6fc545fb: leicht-sammelstelle, 97; 30,49; Sammelstelle |
+  | 18 Auslese | a52f4787: leicht, 160; 35,96; Abschalten | fefccef3: leicht-sammelstelle, 33; 35,61; Sammelstelle |
+  | 20 Labyrinth | 58b938f2: leicht-falle, 113; 37,40; Falle | c06a4a7b: leicht-abschalten, 1435; 37,09; Abschalten |
+  | 24 Doppelpass | 2dabfc25: leicht-sammelstelle, 114; 39,82; Sammelstelle | 95c47469: leicht-falle, 464; 39,58; Falle |
+  | 26 Seitenlicht | ecc56896: leicht, 1710; 41,77; Abschalten | 67a28862: leicht-sammelstelle, 362; 41,77; Sammelstelle (Kombinator) |
+  | 29 Lichtbündel | 19c8ae2e: leicht-falle, 525; 42,88; Falle | 1a39b397: leicht-sammelstelle, 169; 42,72; Abschalten |
+
+- **Lauf `ersatz-leicht-1`** (Ablauf 2, Fingerabdruck unverändert `066a880667331a43`), alle 12 auf einmal, ohne
+  `--anker`: `prepare.mjs ersatz-leicht-1 --kandidaten <Ausgabe von ordne-level --json beider Läufe>`. Referenz je
+  Kandidat der Platz der Formel mit dem Grad dort (leicht 1–31). 40 Aufnahmen mit `LEISE_CPU=65`, 23,7 s je Aufnahme
+  (die Anker neu, weil sich `shots.mjs` geändert hat). Die KI-Tester startet der Koordinator.
+- **Tests** (über `leise.sh`): `levelliste.test.mjs` 33 (vorher 28), `ki-tester.test.mjs` 64 (vorher 62),
+  `beurteilung.test.mjs` 177, alle grün; `ordne-level.mjs` ohne Austausch gibt dieselbe Reihenfolge, dieselben Listen
+  und dieselbe Ausgabe je Level wie vorher.

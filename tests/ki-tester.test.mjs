@@ -3,15 +3,17 @@
 // das versionierte Protokoll mit den Einträgen aller Versionen.
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tmpdir } from 'node:os';
+import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { L } from '../tools/solver.mjs';
 import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
+import { kandidatName, seiteMitLeveln } from '../tools/leveldaten.mjs';
 
 const {
   VERSION, VERSIONS, FINGERPRINT, AGENT, fingerprint, GRADES, PROVISIONAL_GRADES, MAX_SHIFT, reference, levelAt,
@@ -395,5 +397,65 @@ for (const [name, spoil, expected] of tampered) {
     } finally { rmSync(dir, { recursive: true, force: true }); }
   });
 }
+
+console.log('Kandidaten ohne Platz im Spiel (Austausch, Tickets 23–26)');
+// Zwei erfundene Kandidaten: Leveldaten zweier leichter Level, ohne Namen und mit einer anderen Startstellung
+const kandidatAus = (l) => ({ name: '', grad: l.grad, solution: l.solution,
+  elements: l.elements.map(e => (e.type === 'combiner' && !e.fixed ? { ...e, dir: ((e.dir ?? 0) + 1) % 8 }
+    : ['mirror', 'prism'].includes(e.type) && !e.fixed ? { ...e, rot: ((e.rot ?? 0) + 1) % 8 } : e)) });
+const HAUPT = L.LEVELS.slice(L.TUTORIAL_COUNT), KANDIDATEN = [HAUPT[2], HAUPT[5]].map(kandidatAus);
+test('Seite mit Kandidaten: index.html mit <base> und den Kandidaten am Ende von LEVELS, sonst gleich', () => {
+  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
+  const seite = seiteMitLeveln(html, KANDIDATEN, basis);
+  const kopf = html.indexOf('<head>') + '<head>'.length;
+  assert.match(seite.slice(kopf), new RegExp(`^\\r?\\n<base href="${basis.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}">`));
+  const logik = (h) => new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
+    return LEVELS;`)();
+  const vorher = logik(html), nachher = logik(seite);
+  assert.equal(nachher.length, vorher.length + 2);
+  assert.deepEqual(nachher.slice(0, vorher.length), vorher);
+  assert.deepEqual(nachher.slice(-2), KANDIDATEN);
+  // Ausser <base> und den zwei Blöcken vor LEVELS:END ist die Seite index.html
+  const ohne = seite.replace(/\r?\n<base href="[^"]+">/, ''), ende = html.indexOf('  /* LEVELS:END */');
+  assert.ok(ohne.startsWith(html.slice(0, ende)) && ohne.endsWith(html.slice(ende)), 'sonst gleich');
+});
+test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz der Formel, Feld und Seite aus den Daten',
+  () => {
+    const lauf = `test-kandidaten-${process.pid}`, dir = join(root, 'tests', 'output', 'ki-tester', lauf);
+    const datei = join(mkdtempSync(join(tmpdir(), 'prisma-kandidaten-')), 'kandidaten.json');
+    const prepare = (liste) => {
+      writeFileSync(datei, JSON.stringify(liste));
+      return spawnSync(process.execPath, [join(root, 'tools', 'ki-tester', 'prepare.mjs'), lauf, '--kandidaten', datei,
+        '--ohne-bilder'], { encoding: 'utf8' });
+    };
+    try {
+      const p = prepare(KANDIDATEN.map((level, k) => ({ formel: 12 + k, level, name: 'egal' })));
+      assert.equal(p.status, 0, p.stderr);
+      const lj = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
+      assert.equal(lj.level.length, 2);
+      for (const [k, level] of KANDIDATEN.entries()) {
+        const l = lj.level.find(x => x.name === kandidatName(level));
+        assert.ok(l, `${kandidatName(level)} fehlt`);
+        assert.deepEqual([l.position, l.grad, l.anker, l.kandidat], [12 + k, 'leicht', null, true]);
+        assert.deepEqual(l.referenz, reference(12 + k));
+        assert.equal(readFileSync(join(dir, 'eingabe', `${l.id}.md`), 'utf8'), fieldText(level, l.id));
+      }
+      // Die Seite für die Bilder liegt ausserhalb von eingabe/ und hat die Kandidaten in der Reihenfolge der Kennungen
+      const ids = lj.level.map(x => x.id).sort();
+      const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
+      assert.equal(seite, seiteMitLeveln(readFileSync(join(root, 'index.html'), 'utf8'),
+        ids.map(id => KANDIDATEN.find(lv => kandidatName(lv) === lj.level.find(x => x.id === id).name)),
+        pathToFileURL(root).href + '/'));
+      assert.ok(!readFileSync(join(dir, 'auftrag-A.md'), 'utf8').includes('Kandidat'), 'Name im Auftrag');
+      // Ein Kandidat mit einem anderen Grad als dem seines Platzes wird abgewiesen
+      rmSync(dir, { recursive: true, force: true });
+      const falsch = prepare([{ formel: 100, level: KANDIDATEN[0] }]);
+      assert.notEqual(falsch.status, 0);
+      assert.match(falsch.stderr, /Grad leicht, auf Platz 100 gilt mittel/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(dirname(datei), { recursive: true, force: true });
+    }
+  });
 
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ', es gibt Fehler' : ''}`);

@@ -7,8 +7,11 @@
 //   ihren Namen, Kandidaten, die nicht ins Spiel kamen, mit ihren Leveldaten.
 // - Ein Level mit Urteilen aus beiden Quellen (Brücke) bekommt das Mittel beider. An den Brücken passen die Skalen
 //   ohne Angleichung (Ticket 13).
+// - Nicht darin sind die neuen Level aus dem Austausch (Tickets 23–26, Läufe ersatz-…): Sie haben keinen Platz in der
+//   heutigen Reihenfolge, dem Massstab der Eichung (ADR 0001), und ihre Urteile ändern die Eichmenge darum nicht.
 import { readFileSync } from 'node:fs';
 import { inHeutigerReihenfolge } from './heutige-reihenfolge.mjs';
+import { ERSATZ_LAEUFE } from '../levelliste.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
@@ -24,6 +27,7 @@ export function eichmenge() {
   const ki = new Map();
   for (const line of read('../ki-tester/protocol.jsonl').split('\n').filter(l => l.trim())) {
     const e = JSON.parse(line);
+    if (ERSATZ_LAEUFE.test(e.lauf) && !heute.some(l => l.name === e.level.name)) continue;
     if (!ki.has(e.level.name)) ki.set(e.level.name, []);
     ki.get(e.level.name).push((e.urteile.A.gefuehl + e.urteile.B.gefuehl) / 2);
   }
