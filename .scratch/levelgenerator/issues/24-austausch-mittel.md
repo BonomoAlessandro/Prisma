@@ -7,7 +7,7 @@ Duldungsliste nach den Tickets 15 und 16.
 **Spec:** ../spec.md, Abschnitt „Levelliste, Reihenfolge und Austausch“.
 
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
-Verfeinern)
+Verfeinern), 28 (Generator: Kernideen ab „mittel“)
 
 **Status:** ready-for-agent
 

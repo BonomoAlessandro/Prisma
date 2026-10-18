@@ -7,7 +7,7 @@ Durchgang. Laut Neuzählung sind es 17 Level: 101, 106, 111, 116, 120, 121, 128,
 **Spec:** ../spec.md, Abschnitt „Levelliste, Reihenfolge und Austausch“.
 
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
-Verfeinern)
+Verfeinern), 28 (Generator: Kernideen ab „mittel“)
 
 **Status:** ready-for-agent
 
