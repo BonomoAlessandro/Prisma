@@ -2,11 +2,11 @@
   "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste (levelliste.mjs).",
   "duldung": {
     "ausschlussgrund": [
-      "Begegnung", "Auslese", "Labyrinth", "Doppelpass", "Seitenlicht", "Lichtbündel", "Einklang", "Geflecht",
-      "Glasmurmel", "Schnittstelle", "Laterne", "Mosaik", "Lichtschleife", "Weichensteller", "Lichtorgel",
-      "Polarlicht", "Libelle", "Rangierbahnhof", "Opal", "Unendlichkeit", "Kristallpalast", "Komet", "Interferenz",
-      "Irrlicht", "Leuchtturm", "Glasperlenspiel", "Sternbild", "Singularität", "Urknall", "Lichtgeschwindigkeit",
-      "Korona", "Prismenhof", "Quasar", "Ereignishorizont", "Zenit", "Farbenrausch", "Farbmühle"
+      "Einklang", "Geflecht", "Glasmurmel", "Schnittstelle", "Laterne", "Mosaik", "Lichtschleife", "Weichensteller",
+      "Lichtorgel", "Polarlicht", "Libelle", "Rangierbahnhof", "Opal", "Unendlichkeit", "Kristallpalast", "Komet",
+      "Interferenz", "Irrlicht", "Leuchtturm", "Glasperlenspiel", "Sternbild", "Singularität", "Urknall",
+      "Lichtgeschwindigkeit", "Korona", "Prismenhof", "Quasar", "Ereignishorizont", "Zenit", "Farbenrausch",
+      "Farbmühle"
     ],
     "ohneKernidee": [
       "Farbwechsel", "Lichtpfad", "Funkenflug", "Glasfenster", "Tagesanbruch", "Einklang", "Verästelung", "Kreuzweg",
@@ -74,7 +74,9 @@
       "Einklang", "Sonnenstrahl", "Laterne", "Widerschein", "Lichtschleife", "Weichensteller", "Spiegelkabinett"
     ]
   },
-  "entfernteNamen": [],
+  "entfernteNamen": [
+    "Begegnung", "Auslese", "Doppelpass", "Labyrinth", "Seitenlicht", "Lichtbündel"
+  ],
   "pruefliste": [
     "Spiegelbild", "Schliff", "Farbwechsel", "Lichtpfad", "Tagesanbruch", "Lichtharfe", "Einklang", "Verästelung",
     "Lichtnetz", "Schattenspiel", "Spiegelachse", "Sonnenstrahl", "Streulicht", "Laterne", "Bumerang", "Mondlicht",

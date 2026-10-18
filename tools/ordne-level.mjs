@@ -494,10 +494,9 @@ function schreibeLevels() {
   }
   for (const x of ersetzt) bloecke.delete(x);
   for (const a of austausch) {
-    const i = levels.indexOf(a.level), wert = zahl(werte[i], 1);
+    // Herkunft im Kommentar (die alte Zeile „Wertung …“ der übrigen Level gibt es für neue nicht)
     const herkunft = a.auftrag ? `Generator ${a.auftrag}${a.seed !== null ? `, Seed ${a.seed}` : ''} · ` : '';
-    const kommentar = [`Schwierigkeit ${wert} · Haupt-Kernidee ${b[i].hauptKernidee.begriff ?? 'keine'} · `
-      + `${herkunft}Austausch ${grad[i]}: ersetzt ${a.ersetzt}`];
+    const kommentar = [`${herkunft}ersetzt ${a.ersetzt} (Austausch „${grad[levels.indexOf(a.level)]}“)`];
     bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
   }
   if (bloecke.size !== n) throw new Error(`index.html: ${bloecke.size} Level zwischen den Markierungen, erwartet ${n}`);

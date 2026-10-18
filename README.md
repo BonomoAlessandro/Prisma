@@ -469,7 +469,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
   Level mehr als 10 Plätze. Über die 51 Level, die nach der Formel weiter wandern würden (Prüfliste in
   `tools/levelliste.json`), haben in Ticket 16 die KI-Tester geurteilt: 28 stehen nach der Formel, die übrigen an
-  ihrem alten Platz, dazu ihre Korrekturen und zwei Züge der Häufungsregel. Die frühere Reihenfolge entstand so: Die
+  ihrem alten Platz, dazu ihre Korrekturen und zwei Züge der Häufungsregel. In Ticket 23 kamen für die 6 leichten
+  Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
+  Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
+  `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
+  `tools/beurteilung/entfernte-level.json`. Die frühere Reihenfolge entstand so: Die
   Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze

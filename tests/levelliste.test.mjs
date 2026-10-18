@@ -257,6 +257,12 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
     assert.equal(new Set(namen).size, namen.length, 'doppelt');
   }
 });
+// Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
+// Duldungsliste. Sind alle vier Grade ausgetauscht, ist die Liste leer (dann hier alle vier)
+const AUSGETAUSCHT = ['leicht'];
+test(`Nach dem Austausch steht kein Level aus ${AUSGETAUSCHT.join(', ')} auf der Duldungsliste`, () => {
+  assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad)), []);
+});
 
 console.log('Regel für die Prüfliste (Ticket 16), mit erfundenen Urteilen');
 // Erfundene Einträge wie aus merge.mjs, mit Referenz und Plätzen der Anker wie bei der Vorbereitung der Läufe der

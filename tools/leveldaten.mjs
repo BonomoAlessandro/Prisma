@@ -26,7 +26,10 @@ function elementCode(e) {
   return `{ ${parts.join(', ')} }`;
 }
 
-/** Die Lösung als Kommentar („// Lösung: Spiegel (5,3) rot 3 · …“), auf etwa 100 Zeichen umbrochen. */
+/**
+ * Die Lösung als Kommentar („// Lösung: Spiegel (5,3) rot 3 · …“), auf etwa 100 Zeichen umbrochen wie die übrigen
+ * Level: Eine umbrochene Zeile endet mit „·“, die nächste beginnt eingerückt.
+ */
 function loesungText(level) {
   const teile = Object.entries(level.solution).map(([k, v]) => {
     const e = level.elements.find(q => `${q.x},${q.z}` === k);
@@ -35,7 +38,7 @@ function loesungText(level) {
   const zeilen = [];
   let z = '// Lösung:';
   for (const t of teile) {
-    if (`${z} ${t}`.length > 100) { zeilen.push(z.replace(/ ·$/, '')); z = '//  '; }
+    if (`${z} ${t}`.length > 100) { zeilen.push(z); z = '//  '; }
     z += ` ${t} ·`;
   }
   zeilen.push(z.replace(/ ·$/, ''));

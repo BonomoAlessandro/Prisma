@@ -9,18 +9,18 @@ und 16.
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
 Verfeinern)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Für jedes leichte Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „leicht“.
-- [ ] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
+- [x] Für jedes leichte Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „leicht“.
+- [x] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
       neuer Kandidat.
-- [ ] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
+- [x] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
       Spiel kommen. Die Genehmigung steht unter `## Comments`.
-- [ ] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
-- [ ] Auf der Duldungsliste steht kein leichtes Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
+- [x] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
+- [x] Auf der Duldungsliste steht kein leichtes Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
       Liste leer, und der Test verlangt ab jetzt eine leere Liste.
-- [ ] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
-- [ ] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
+- [x] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
+- [x] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
 
 ## Comments
 
@@ -145,3 +145,59 @@ immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haup
   - 31, 19c8ae2e: **Blitz** (Rot im Zickzack über zwei senkrechte Spiegel in die Ecke), Blitzlicht, Slalom.
   Die Genehmigung des Nutzers folgt hier.
 
+
+**Genehmigung des Nutzers (18.10.2026, über den Koordinator):** Alle Favoriten gelten, auch die Wahl auf Platz 18
+(Ersatz fefccef3 statt a52f4787): Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht, Blitz.
+
+**Abschluss Stufe C (18.10.2026).**
+- **Eingesetzt** mit `ordne-level.mjs --austausch <genehmigte Datei> --schreiben` (je Eintrag `ersetzt`, `name`,
+  `auftrag`, `seed`, `level`); ein zweiter Lauf ohne `--austausch` meldet „Reihenfolge und Grade stimmen“ und
+  „Duldungsliste und Prüfliste stimmen“.
+
+  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft | KI-Tester (Gefühl, Einordnung) |
+  |---:|---|---|---:|---|---|---|
+  | 12 | Sammellinse | Begegnung | 30,5 | Sammelstelle | leicht-sammelstelle, Seed 97 | 4/4, A1-A2/A1-A2 |
+  | 18 | Strahlteiler | Auslese | 35,6 | Sammelstelle | leicht-sammelstelle, Seed 33 | 4/4, A1-A2/A2 |
+  | 23 | Amethyst | Doppelpass | 39,8 | Sammelstelle | leicht-sammelstelle, Seed 114 | 4/4, A1-A2/A2 |
+  | 25 | Fackellauf | Labyrinth | 37,1 | Abschalten | leicht-abschalten, Seed 1435 | 5/4, A2-A3/A3 (+5) |
+  | 27 | Fernlicht | Seitenlicht | 41,8 | Abschalten | leicht, Seed 1710 | 4/4, A2-A3/A2-A3 (+3) |
+  | 31 | Blitz | Lichtbündel | 42,9 | Falle | leicht-falle, Seed 525 | 4/4, A2-A3/A3 |
+
+  - Jeder Block in `index.html` hat den Lösungskommentar wie die übrigen und eine Zeile Herkunft („Generator …, Seed
+    … · ersetzt … (Austausch „leicht“)“); die alte Zeile „Wertung …“ gibt es für neue Level nicht.
+  - Die Abdrücke der Level im Spiel sind die der beurteilten Kandidaten; über sie findet die Levelliste die Urteile aus
+    `ersatz-leicht-1`.
+- **Entfernt:** Begegnung, Auslese, Doppelpass, Labyrinth, Seitenlicht und Lichtbündel. Ihre Namen stehen auf
+  `entfernteNamen` in `tools/levelliste.json`, ihre Leveldaten als feste Kopie in
+  `tools/beurteilung/entfernte-level.json`. Damit bleiben Eichung, Eichmenge und die Tests der Beurteilung an den 150
+  der heutigen Reihenfolge gleich (`beurteilung.test.mjs` unverändert grün).
+- **Duldungsliste:** 84 Level (vorher 90), Ausschlussgrund 31 (vorher 37); leicht 0 von 31. Neu im Test der
+  Levelliste: „Nach dem Austausch steht kein Level aus leicht auf der Duldungsliste“ (`AUSGETAUSCHT`, die Tickets
+  24–26 ergänzen ihren Grad). Nicht das letzte der Tickets 23–26, die Liste ist also nicht leer.
+- **Regeln:**
+  - Grad sinkt nie; leicht bleibt 1–31.
+  - Haupt-Kernidee ohne die Duldungsliste je 10 Level eingehalten: 11–20 Sammelstelle 2; 21–30 Abschalten 2,
+    Mischziel aus zwei Quellen 2, Sammelstelle 1. Häufungsregel nur mit den zwei Zügen aus Ticket 16.
+  - Mittel je 10 Level 25,1 34,2 41,0 45,5 …, kleinster Schritt −0,34 (wie vorher).
+  - Prüfliste unverändert (51, erledigt).
+  - Durch die Korrekturen der neuen Level rücken 7 heutige leichte Level um einen Platz nach vorn (Farbkreis,
+    Brechpunkt, Querschläger, Farbspiel, Facette, Spiegelbild, Schliff); ihre Formel und ihr Grad bleiben.
+- **Tests** (über `leise.sh`, `LEISE_CPU=65`):
+  - `levelliste.test.mjs` 36 grün, darunter: 6 neue Level mit Urteil aus `ersatz-leicht-1`, keines abgelehnt;
+    entfernte Level mit Namen und Kopie; kein umbenanntes Level; keine fremde Filterfarbe; kein leichtes Level auf
+    der Duldungsliste.
+  - `ki-tester.test.mjs` 64, `logic.test.mjs` 548, `beurteilung.test.mjs` 177, `generator.test.mjs` 25: alle grün.
+  - `golden.mjs`: wie erwartet 12 Abweichungen, nur die 6 entfernten und die 6 neuen Namen; alle übrigen 153 Level
+    sind wie in `golden.json`. Die Referenz schreibt der Koordinator nach dem Merge neu (`--write`), `golden.json` ist
+    hier nicht angefasst.
+- **Screenshots** (Stichproben, ohne Meldungen in der Konsole):
+  - Levelauswahl 11–20 und 21–30 (Desktop) mit den neuen Namen und „Leicht“ im Seitentitel; 31–40 (Handy) gemischt,
+    ohne Grad im Titel wie vorher.
+  - Alle sechs neuen Level auf Desktop und Handy mit Kopfzeile wie im Spiel (`tests/output/t23-level/`), etwa
+    25 Fackellauf und 31 Blitz: Name, ●○○○ Leicht, Ziele, Strahlen der Startstellung.
+- **Abweichungen:**
+  - 6 statt 5 Level (oben, Stufe A).
+  - Für Begegnung, Auslese und Labyrinth kamen Ersatzlevel statt der Kandidaten (Sammellinse, Strahlteiler,
+    Fackellauf); Begründung bei Stufe B.
+  - Eine Wahl „verlangte = Haupt-Kernidee“ im Auftrag war nicht nötig.
+  - Hinweise für 24–26 stehen dort unter `## Comments`.
