@@ -264,6 +264,19 @@ Offen, für den Entwickler:
     Exit 1 und der Liste der 28 Aufträge samt Aufruf; `--seeds` ist ohne Angabe 2000. Kopfkommentar, Aufrufbeispiel
     und README (`bench.mjs`, Generator) nennen das. Geprüft über `leise.sh` (65 %): `generator` ohne Gruppe bricht ab,
     `generator leicht --jobs 2` misst 2000 Seeds (1773 Level, 5,2 CPU-s, 11 s), `logic` 548 grün.
+  - **Nachprüfung (Reviewer, 18.10.2026, `5fd9708`):** behoben, das Kriterium ist erfüllt. Über `leise.sh` (65 %,
+    trace und solver 20 %):
+    - Ohne Gruppe endet `generator` sofort mit Exit 1 und den 28 Aufträgen samt Aufruf, auch zusammen mit `--save`
+      (keine Datei geschrieben), mit `--compare` und neben `trace`. Ungedeckelt meldet es zuerst den Deckel.
+    - `härten` heisst „Gruppe unbekannt“, eine Gruppe ohne `generator` wird wie bisher abgewiesen.
+    - Ohne `--seeds` misst es die Seeds 1–2000 (`leicht`: 1773 Level, wie in Ticket 20).
+    - `--compare tools/bench-baseline.json` vergleicht über den Generatorwechsel, trotz 60 000 Seeds in der Datei.
+      `--save` fügt eine zweite Gruppe hinzu, `--compare` gegen diese Datei läuft, `--save` mit anderen Seeds bricht
+      vor der Messung ab.
+    - `trace solver --compare tools/bench-baseline.json` und `solver --unique` laufen.
+
+    Sonst ist nichts kaputt: Kein Test liest `bench.mjs`. Im Review neu umbrochen ist nur eine kurze Zeile im
+    Kopfkommentar.
 
 Hinweis an die Koordination: Die Tickets 23 und 28 arbeiten parallel auf `6e98bb1`, wo `profiles.mjs` (`NAMES`),
 `curate.mjs` und die Einträge mit `score` noch bestehen. Ein neuer Name in `NAMES` oder eine dort neu geschriebene
