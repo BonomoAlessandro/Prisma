@@ -104,3 +104,44 @@ immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haup
 - **Tests** (über `leise.sh`): `levelliste.test.mjs` 33 (vorher 28), `ki-tester.test.mjs` 64 (vorher 62),
   `beurteilung.test.mjs` 177, alle grün; `ordne-level.mjs` ohne Austausch gibt dieselbe Reihenfolge, dieselben Listen
   und dieselbe Ausgabe je Level wie vorher.
+
+**Stufe B (18.10.2026): Urteile der KI-Tester, Wahl je Lücke, Namensvorschläge.**
+- Ticket 21 ist vorher hereingemergt (`43d93c4`; Konflikte nur in README und im Kopf von `tests/levelliste.test.mjs`).
+  Danach grün: `levelliste.test.mjs` 35, `ki-tester.test.mjs` 64, `logic.test.mjs` 548, `golden.mjs`.
+- **Auslegungen aus Stufe A** vom Koordinator bestätigt (18.10.2026): Name „Kandidat <Abdruck>“ im Protokoll,
+  Korrektur vom Platz der Formel aus, ein von beiden abgelehntes neues Level kommt nicht ins Spiel, die entfernten
+  Level bleiben als feste Kopie der Massstab der Eichung, neue Level kommen nicht in die Eichmenge.
+- **Lauf `ersatz-leicht-1`** zusammengeführt (`merge.mjs`, 12 Einträge, Ablauf 2; Protokoll jetzt 118 Einträge, Test
+  grün). Beide KI-Tester (`general-purpose`, `claude-opus-5-5`) nennen nur „Zerfall“, beide bei 5 Kandidaten (1b8f9d78,
+  58b938f2, 19c8ae2e, 95c47469, 1a39b397); Zerfall gilt erst ab „mittel“, also ist keiner abgelehnt. Einordnung
+  zwischen A1-A2 und A3, Gefühl 3–5.
+- **Wahl je Lücke** (Platz nach `ordne-level.mjs --austausch` mit den Urteilen; Gefühl, Einordnung und Aha je A/B):
+
+  | Lücke | gewählt | Platz | Schwierigkeit | Haupt-Kernidee | Gefühl | Einordnung | Aha | Begründung |
+  |---|---|---:|---:|---|---|---|---|---|
+  | Begegnung | 6fc545fb (Ersatz) | 12 | 30,49 | Sammelstelle | 4/4 | A1-A2/A1-A2 | ja/ja | Kandidat 1b8f9d78 nur 3/3, Aha ja/nein, beide Zerfall („zwei getrennte Teile, ohne Überraschung“) |
+  | Auslese | fefccef3 (Ersatz) | 18 | 35,61 | Sammelstelle | 4/4 | A1-A2/A2 | ja/ja | gleich gut wie a52f4787 (4/4, ja/ja), passt aber nach beiden auf den Platz; a52f4787 käme +5 und brächte auf 21–30 dreimal Abschalten |
+  | Labyrinth | c06a4a7b (Ersatz) | 25 (+5) | 37,09 | Abschalten | 5/4 | A2-A3/A3 | ja/ja | Kandidat 58b938f2 nur 4/3, beide Zerfall („geradlinig“); der Ersatz „schöne Kette aus Folgerungen“ |
+  | Doppelpass | 2dabfc25 | 23 | 39,82 | Sammelstelle | 4/4 | A1-A2/A2 | ja/ja | Kandidat |
+  | Seitenlicht | ecc56896 | 27 (+3) | 41,77 | Abschalten | 4/4 | A2-A3/A2-A3 | ja/ja | Kandidat |
+  | Lichtbündel | 19c8ae2e | 31 | 42,88 | Falle | 4/4 | A2-A3/A3 | ja/ja | Kandidat; beide nennen Zerfall (gilt nicht in „leicht“) |
+
+  Mit dieser Wahl: alle 31 leichten Level auf 1–31, kein leichtes Level auf der Duldungsliste (84), die Haupt-Kernidee
+  ohne die Duldungsliste je 10 Level eingehalten (11–20: Sammelstelle 2; 21–30: Abschalten 2, Mischziel aus zwei
+  Quellen 2, Sammelstelle 1), keine neuen Züge der Häufungsregel, das Mittel je 10 Level 25,1 34,2 41,0 45,5 …,
+  kleinster Schritt −0,34 wie vorher. Gegenprobe mit a52f4787 statt fefccef3: dreimal Abschalten auf 21–30, die
+  Häufungsregel zöge a52f4787 von 22 auf 20 zurück, gegen die Einordnung der KI-Tester.
+- **Namensvorschläge** (je 2–3, der erste bevorzugt; keiner im Spiel oder unter den entfernten Namen, geprüft):
+  - 12, 6fc545fb: **Sammellinse** (ein Prisma sammelt Gelb und Blau aus zwei Quellen, wie eine Linse Licht
+    sammelt), Farbtrichter, Eckenlicht (Rot läuft über zwei Spiegel um die Ecke).
+  - 18, fefccef3: **Strahlteiler** (das linke Prisma teilt Magenta und schickt Grün diagonal weiter; Begriff der
+    Optik), Dreiklang (drei Quellen, drei Ziele), Farbwaage (wer liefert Grün: das nahe oder das ferne Prisma).
+  - 23, 2dabfc25: **Amethyst** (violetter Stein für das Magenta-Ziel, wie Rubin, Saphir, Smaragd), Purpur,
+    Farbtreff (Blau und Rot aus zwei Quellen treffen sich).
+  - 25, c06a4a7b: **Fackellauf** (das gelbe Ziel gibt sein Licht ab, eine zweite Quelle übernimmt wie bei einer
+    Staffel), Ablösung, Gelbphase.
+  - 27, ecc56896: **Fernlicht** (das zweite Rot kommt von der fernen Quelle über die lange Diagonale), Schräglicht,
+    Weitblick.
+  - 31, 19c8ae2e: **Blitz** (Rot im Zickzack über zwei senkrechte Spiegel in die Ecke), Blitzlicht, Slalom.
+  Die Genehmigung des Nutzers folgt hier.
+
