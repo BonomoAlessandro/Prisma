@@ -2,16 +2,17 @@
 // Reihenfolge samt den Urteilen der KI-Tester, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie ersetzen
 // die Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste. Die Regeln stehen in
 // tools/levelliste.mjs, gemeinsam mit tools/ordne-level.mjs, das Reihenfolge, Grade, Duldungsliste und Prüfliste
-// schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17).
+// schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17) und seit
+// Ticket 21 die Namen gegenüber der heutigen Reihenfolge und die fremde Filterfarbe (vorher in tests/logic.test.mjs).
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { L, solve, period } from '../tools/solver.mjs';
+import { L, solve, period, setRot, keyOf } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
-import { inHeutigerReihenfolge } from '../tools/beurteilung/heutige-reihenfolge.mjs';
+import { HEUTIGE_REIHENFOLGE, inHeutigerReihenfolge } from '../tools/beurteilung/heutige-reihenfolge.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
 import {
@@ -315,6 +316,51 @@ test('Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Na
   assert.ok(Array.isArray(liste.entfernteNamen), 'Liste der entfernten Namen fehlt');
   assert.deepEqual(namen.filter(x => liste.entfernteNamen.includes(x)), []);
 });
+test('Kein Level wird umbenannt: Jeder Name der heutigen Reihenfolge steht im Spiel oder auf der Liste der entfernten '
+  + 'Namen; nach dem Tutorial folgen 150 Level', () => {
+  // Bis Ticket 21 verglich tests/logic.test.mjs die Namen mit NAMES in tools/profiles.mjs. Ein Ersatzlevel bringt einen
+  // neuen Namen, der des ersetzten kommt auf die Liste der entfernten Namen (Spec, „Levelliste, Reihenfolge und
+  // Austausch“). Die Anzahl bleibt änderbar (Spec); dann hier.
+  const namen = new Set(MAIN.map(l => l.name));
+  assert.deepEqual(HEUTIGE_REIHENFOLGE.filter(x => !namen.has(x) && !liste.entfernteNamen.includes(x)), []);
+  assert.equal(MAIN.length, 150);
+  // Die Migration alter Spielstände entfernt ein Präfix „II:“ o. Ä.; ein Name darf so nicht beginnen
+  assert.deepEqual(L.LEVELS.map(l => l.name).filter(x => /^[IVX]+:/.test(x)), [], 'wie ein alter Speicherschlüssel');
+});
+
+/**
+ * Filter, die in der Lösung eine fremde Farbe abgeben: weder ihre eigene noch die eintreffende, etwa Cyan durch einen
+ * Gelbfilter als Grün. Physikalisch richtig, wirkt im Spiel aber falsch. Die eintreffende Farbe zeigt dieselbe Stellung
+ * mit einem weissen Filter an seiner Stelle. Bis Ticket 21 oddFilters in tools/quality.mjs; der Generator setzt solche
+ * Filter nicht (wirkungslos in tools/generator/schritte.mjs).
+ */
+function fremdeFilterfarben(level) {
+  return level.elements.flatMap((f, id) => {
+    if (f.type !== 'filter') return [];
+    const weiss = level.elements.map(e => (e === f ? { ...e, color: 'white' } : e));
+    const brett = L.createBoard({ ...level, elements: weiss });
+    for (const el of brett.elements.filter(L.isRotatable)) {
+      if (keyOf(el) in level.solution) setRot(el, level.solution[keyOf(el)]);
+    }
+    const farbe = L.COLORS[f.color];
+    return L.traceBeams(brett).events.filter(e => e.kind === 'filter' && e.element === id).map(e => e.color)
+      .filter(c => (c & farbe) && (c & farbe) !== farbe && (c & farbe) !== c)
+      .map(c => `${f.color}-Filter (${keyOf(f)}): ${L.COLOR_NAMES[c]} → ${L.COLOR_NAMES[c & farbe]}`);
+  });
+}
+test('Kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün), mit Gegenprobe',
+  () => {
+    const gegenprobe = {
+      name: 'Gegenprobe', elements: [
+        { type: 'source', x: 0, z: 3, dir: 0 },
+        { type: 'filter', x: 2, z: 3, color: 'cyan' }, // Weiss → Cyan, seine eigene Farbe
+        { type: 'filter', x: 4, z: 3, color: 'yellow' }, // Cyan → Grün, fremd
+        { type: 'target', x: 6, z: 3, color: 'green' },
+      ], solution: {},
+    };
+    assert.deepEqual(fremdeFilterfarben(gegenprobe), ['yellow-Filter (4,3): cyan → green']);
+    assert.deepEqual(L.LEVELS.flatMap(l => fremdeFilterfarben(l).map(t => `${l.name}: ${t}`)), []);
+  });
 test('Jedes Level hat genau eine Lösung, die notierte', () => {
   const falsch = MAIN.filter((level) => {
     const r = solve(level, { unique: true });

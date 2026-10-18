@@ -21,14 +21,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Tests:**
   - `node tests/logic.test.mjs` prüft die Strahllogik.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
-    `tests/golden.json`, dazu Löser und alte Wertung (`score`) für das Tutorial und jedes 10. Level der Reihenfolge
-    vor Ticket 15 (die Einträge mit `score` in `golden.json`): das Verhalten exakt, Kommazahlen auf 1e-9 genau (etwa
-    5 s). Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht; seit Ticket 15 meldet er, wie viele
-    Level an einem anderen Platz stehen als in der Referenz. `--voll` vergleicht den Löser für alle 159 Level (etwa
-    20 s), vor und nach Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser und alte Wertung
-    (etwa 1 s), für Zwischenschritte eines Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt
-    ist, läuft er ohne `--schnell`. `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des
-    Verhaltens; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben.
+    `tests/golden.json`, dazu den Löser für eine Stichprobe, das Tutorial und jedes 10. Level der Reihenfolge im Spiel
+    (Platz 1, 11, …, 141): das Verhalten exakt, Kommazahlen auf 1e-9 genau (etwa 2 s). Die Referenz hält die
+    Löserdaten aller Level fest, die Stichprobe passt also auch nach einem Umordnen. Verglichen wird je Level nach
+    Namen, gleich auf welchem Platz es steht; er meldet, wie viele Level an einem anderen Platz stehen als in der
+    Referenz. `--voll` vergleicht den Löser für alle 159 Level (etwa 25 s), vor und nach Änderungen am Löser.
+    `--schnell` vergleicht nur die Strahlbilder, ohne Löser (etwa 1 s), für Zwischenschritte eines Umbaus. Nach
+    mehreren Schritten, am Schluss und immer, wenn der Löser berührt ist, läuft er ohne `--schnell`. `--write` schreibt
+    die Referenz neu, aber nur bei einer bewussten Änderung des Verhaltens oder wenn Level dazukommen oder wegfallen;
+    ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis Ticket 21 hielt die
+    Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die Stichprobe.
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -51,9 +53,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Urteil; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
     zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung
     durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
-    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen;
-    genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung, gehärteten
-    Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`.
+    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
+    der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts), 150 Level nach dem
+    Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün, mit
+    Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung,
+    gehärteten Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen
+    (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -120,44 +125,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Strand** (`beach`, PLAN 2.33): Szene in `tools/blender/szenen/beach/szene.py`; über den MCP
   `wald_mcp.neu('beach')` (baut `beach.blend`, rund 5 s), `wald_mcp.skybox('beach')` (rendert, malt und exportiert
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
-- **Level-Werkzeuge** (`tools/`, nur für die Entwicklung):
+- **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
+  Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
+  unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der
+  Generator nach Profilen (`generate.mjs`, `profiles.mjs`: Grössenstufe × Mischung), das Härten (`harden.mjs`), die
+  Pools (`pools.mjs`), das Kuratieren (`curate.mjs`) samt Auswahlliste (`selection.jsonl`) und handgebauten Kandidaten
+  (`candidates.jsonl`), der Ja/Nein-Filter (`quality.mjs`) und die alte Wertung (`metrics` mit `score` und der
+  Zählung `mixed`). Kandidaten liefert der Generator, Reihenfolge und Grade `ordne-level.mjs`.
   `solver.mjs` folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen (schneidet ab, sobald ein Ziel
   falsches Licht erhält; die Verfolgung macht nach jeder gesetzten Stellung dort weiter, wo sie angehalten hat), und
-  misst die Schwierigkeit (`metrics`: Suchknoten, erreichbare Stellungen, Rateschritte, berührte Elemente, Ziele –
-  zusammen `score`; Klicks nur zur Info, sie hängen von der Startverdrehung ab). Ist nur die Eindeutigkeit gefragt,
-  hält `solve(level, { unique: true })` bei der zweiten Lösung an;
-  `generate.mjs <profil> <anzahl> [seed] [maxseeds] [--jobs N] [--time S]` erzeugt eindeutig lösbare Level nach
-  einem Profil aus `profiles.mjs` (Grössenstufe 1–5 × Mischung: nur Spiegel, Prisma, Filter, farbige Quellen,
-  Kombinator, bunt gemischt);
-  `pools.mjs [profil …] [--count N] [--jobs N] [--minutes M]` erzeugt für jedes Profil einen Kandidaten-Pool in
-  `tools/pools/` (nicht versioniert; alle Profile dauern mit 13 Prozessen bis zu 2,5 Stunden);
-  `quality.mjs` prüft, ob ein Level das Feld nutzt (Fläche, Quadranten, Rand), ob mehrere Quellen gekoppelt sind
-  und ob es Zusammenspiel gibt (Kreuzungen, Mehrfachtreffer, geteilte Spiegel, Lockvögel, die beim Probieren Licht
-  bekommen) – Generator und Kuratierung verwerfen Level, die das nicht erfüllen;
-  `harden.mjs [anzahl] [seed] [--min W] [--max W] [--steps K] [--jobs N] [--time S]` macht Level schwerer, als
-  der Generator sie in einem Zug findet (heute Level 121–150): Es startet bei einem erzeugten Level der Stufe 3–4 und
-  verändert es Schritt für Schritt (Element auf einen Strahl setzen, festen Spiegel drehbar machen, Ziel
-  verschieben, Lockvogel, Quelle …), stellt nach jedem Schritt die Eindeutigkeit her und behält, was die Wertung
-  plus Zusammenspiel erhöht (Simulated Annealing). Verworfen wird, was in unabhängige Teilrätsel zerfällt oder
-  zum Knäuel wird (Feld kaum dichter als bei den ursprünglichen 50 Leveln, auch nach dem Abschluss geprüft); am Ende
-  gelten dieselben Prüfungen wie beim Generator (Ausgabe wie `generate.mjs`, z. B. nach `tools/pools/harden.jsonl`);
-  `show.mjs` zeigt Level als Textfeld (`node tools/generate.mjs 2-prisma 3 | node tools/show.mjs`);
-  `curate.mjs [--dry] [--keep N] [--from W] [--to W] [--pools ordner] [--save datei] [--order datei]` wirft alle Pools und
-  `candidates.jsonl` (handgebaute Level, früheres Kapitel II) zusammen, wählt so viele Level, wie `NAMES` in
-  `profiles.mjs` hat, gleichmässig über die Wertung (verschiedene Grundmuster, abwechselnde Mischungen), sortiert
-  sie nach Wertung und schreibt sie zwischen die Markierungen `LEVELS:BEGIN/END` in index.html. `--keep 50` übernimmt
-  die ersten 50 Level aus `tools/selection.jsonl` unverändert und wählt nur die übrigen, alle schwerer als das
-  schwerste übernommene (mit `--from` gilt diese Untergrenze, so kamen die heutigen 141–150 dazu: `--keep 70 --from 48`;
-  die Zahlen 50 und 70 gelten für den Stand vor dem Einfügen der mittelschweren Level);
-  `--pools` liest die Kandidaten aus einem anderen Ordner, z. B. einem vorab gesiebten. Mit `--order` wird eine von
-  Hand korrigierte Reihenfolge
-  übernommen (JSON-Zeilen wie bei `--save`); die endgültige Auswahl liegt in `tools/selection.jsonl`. Ihre
-  Reihenfolge stammt aus einem Review zweier Tester (Spielersicht und Spielermodell), weil die Wertung Level mit
-  unabhängigen Teilrätseln über- und Farblogik unterschätzt; die Tests verlangen steigende Mittelwerte je 10 Level.
-  Rückgabewert 2: zu wenige Kandidaten im Wertungsbereich. Ein Feld `difficulty` in `selection.jsonl` wird als
-  Markierung ins Level geschrieben. Seit Ticket 15 bestimmen `curate.mjs` und `selection.jsonl` die Reihenfolge nicht
-  mehr (das tut `ordne-level.mjs`); `--order tools/selection.jsonl` schriebe die alte Reihenfolge und Markierung zurück
-  (Abbau in Ticket 21);
+  zählt Lösungen, Suchknoten, Blätter, Fast-Lösungen und Rateschritte; `clicksTo` zählt die Klicks bis zu einer Lösung.
+  Ist nur die Eindeutigkeit gefragt, hält `solve(level, { unique: true })` bei der zweiten Lösung an;
+  `show.mjs` zeigt Level als Textfeld, Start und Lösung, mit Grad, drehbaren Elementen, Zielen und Klicks und, wo sie
+  vorliegt, der Beurteilung: die JSON-Zeilen von `generiere.mjs` mit Schwierigkeit, Spielwert und Kernideen
+  (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus index.html mit `--level <platz|name>`
+  (Platz in LEVELS ab 1, das Tutorial mitgezählt). `--beurteilen` beurteilt Level ohne mitgegebene Beurteilung (alle
+  Regeln, mit ihrem Grad; je Level bis einige Sekunden) und nennt dazu die Ausschlussgründe;
   `ordne-level.mjs [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die 150 Level nach der
   Schwierigkeit der Beurteilung und legt ihren Grad fest (Ticket 15). Gerechnet wird von der heutigen Reihenfolge aus
   (`beurteilung/heutige-reihenfolge.json`); Verschiebungen bis 10 Plätze werden übernommen, weiter wandernde Level
@@ -184,18 +167,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
   aller Level und die Zeit des Lösers über alle Level, dazu über die Level mit Blockern ohne diese (sie haben dann
   mehrere Lösungen). `--unique` misst den Löser im Modus unique: Auf den eindeutigen Leveln sucht er gleich weit, ohne
-  Blocker hält er bei der zweiten Lösung an. Generator und Abnahme sind austauschbar: `--generator alt` (Gruppen sind
-  die Profile) oder `neu` (Gruppen sind die Aufträge des neuen Generators wie `leicht` und `leicht-mischziel`),
-  `--accept alt` oder `beurteilung` (genau eine Lösung und die Beurteilung bestanden, mit dem Grad nach der
-  Schwierigkeit; die Messung zählt dann auch je Grad und je Grad und nötiger Kernidee und nennt die Quartile der
-  Schwierigkeit). Der neue Generator gibt seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein
-  zweites Mal. Die Ausgangszahlen stehen in `tools/bench-baseline.json`. `--save` fügt einzeln gemessene Gruppen dort
-  hinzu, wenn Generator, Abnahme, Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn je Gruppe, je
-  Grad und gesamt und meldet andere angenommene Level (Fingerabdruck), eine andere Knotenzahl des Lösers und andere
-  Strahlbilder. Über einen Generatorwechsel vergleicht es je Auftrag des neuen Generators mit den Leveln desselben
-  Grads und derselben nötigen Kernidee des alten, über alle Profile und im besten Profil. Die Prüfsumme der
-  Strahlbilder erfasst Art, Farbe und Element der Ereignisse, Treffer, Mischungen, „gelöst“ und die auf 1e-6 gerundeten
-  Endpunkte, aber keine Normalen und Längen; das Verhalten sichert weiterhin der Golden-Test. Die CPU-Zeit hängt von
+  Blocker hält er bei der zweiten Lösung an. Die Gruppen sind die Aufträge des Generators wie `leicht` und
+  `leicht-mischziel`, die Abnahme ist die Beurteilung (`--generator neu --accept beurteilung`, Standard und seit Ticket
+  21 einzige Wahl): genau eine Lösung und die Beurteilung bestanden, mit dem Grad nach der Schwierigkeit; die Messung
+  zählt auch je Grad und je Grad und nötiger Kernidee und nennt die Quartile der Schwierigkeit. Der Generator gibt
+  seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein zweites Mal. Ohne Gruppe misst es alle
+  Aufträge; ab „mittel“ ist das mit den Standardwerten teuer, also Gruppen und `--seeds` wählen. Die Ausgangszahlen
+  stehen in `tools/bench-baseline.json` (der alte Generator nach Profilen mit seiner eigenen Abnahme, bis Ticket 21
+  `--generator alt --accept alt`). `--save` fügt einzeln gemessene Gruppen einer Datei hinzu, wenn Generator, Abnahme,
+  Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn je Gruppe, je Grad und gesamt und meldet
+  andere angenommene Level (Fingerabdruck), eine andere Knotenzahl des Lösers und andere Strahlbilder. Über einen
+  Generatorwechsel (gegen eine gespeicherte Messung des alten Generators) vergleicht es je Auftrag mit den Leveln
+  desselben Grads und derselben nötigen Kernidee des alten, über alle Profile und im besten Profil; einen Faktor gibt
+  es nur bei derselben Abnahme mit Grad. Die Prüfsumme der Strahlbilder erfasst Art, Farbe und Element der Ereignisse,
+  Treffer, Mischungen, „gelöst“ und die auf 1e-6 gerundeten Endpunkte, aber keine Normalen und Längen; das Verhalten
+  sichert weiterhin der Golden-Test. Die CPU-Zeit hängt von
   der Zahl der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
@@ -242,7 +228,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     zählen Weiss aus einer weissen Quelle und Gelb aus einem Gelbfilter nicht. Es ist aus zwei Quellen, wenn mindestens
     zwei Quellen je allein Licht darauf bringen (die übrigen schlucken dabei als Blocker). Das ist noch nicht die
     Kernidee „Mischziel aus zwei Quellen“ (Ticket 10). Die alte Zählung `mixed` in `metrics` (Ziele mit Mischfarbe, 129
-    statt 71 Level) bleibt bis Ticket 21 für den Golden-Test.
+    statt 71 Level) ist mit der alten Wertung in Ticket 21 entfallen.
   - **Scheinmischung und Knäuel** (`ausschluesse/`, alle Grade, in der Lösungsstellung): Scheinmischung je Kombinator
     mit Licht in den Fällen a–c der Spec; wohin seine Mischung läuft, zeigt ein Strahlbild, in dem nur sie leuchtet.
     Knäuel über die Nachbarn der Feldform: benachbarte drehbare Elemente und kurze Strahlabschnitte (`abschnitt`),
@@ -275,7 +261,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       Ziel weg, Abschalten; beides zugleich gilt nie. Nötig ist sie, wenn eine weite Fast-Lösung sie enthält (Holzweg)
       und das Spielermodell mit Horizont 2 sie nicht auf den ersten Blick widerlegt (`aufDenErstenBlick`).
     - Lockvogel: ein festes Teil abseits der Lösung, das in mindestens 10 % der Strahlbilder der Suche ohne Abschneiden
-      Licht bekommt (wie bisher in `quality.mjs`, jetzt auch Filter). Nötig ist er, wenn er auch in die Irre führt (in
+      Licht bekommt (wie früher in `quality.mjs`, jetzt auch Filter). Nötig ist er, wenn er auch in die Irre führt (in
       mindestens 10 % der Holzwege Licht, mindestens in einem) und das Level ohne ihn (ein weisser Filter an seiner
       Stelle) eine zweite Lösung hätte. Ein Blocker, der nur eine zweite Lösung verhindert, zählt also nicht. Die Suche
       zählt dafür das Licht auf den festen Teilen mit (`licht`, je Fast-Lösung `feste`).
@@ -306,9 +292,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
       der heutigen Reihenfolge ein (feste Namensliste `heutige-reihenfolge.json` seit Ticket 15, denn im Spiel stehen
       die Level jetzt in der Reihenfolge der Formel) und schreibt die Datei neu: nichtnegative kleinste Quadrate;
       hielte sie die Grenzen nicht ein, wird das Gewicht der Weglänge festgehalten und so gross gewählt, wie die
-      Grenzen erlauben. Es zeigt die Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen, die
-      alte Wertung und die Rangkorrelation mit dem Spielwert (etwa 40 s, die alte Wertung auf einem Thread). Eichen
-      und Prüfen stehen in `schwierigkeit-eichung.mjs`, gemeinsam für Skript und Test.
+      Grenzen erlauben. Es zeigt die Anteile und beide Masse je Bereich; `--bericht` dazu grösste Abweichungen und die
+      Rangkorrelation mit dem Spielwert (den Vergleich mit der alten Wertung gibt es seit Ticket 21 nur noch in ADR
+      0001). Eichen und Prüfen stehen in `schwierigkeit-eichung.mjs`, gemeinsam für Skript und Test.
     - Abnahme (Spec, ADR 0001), gekreuzt: an den geraden Plätzen eichen und die ungeraden vorhersagen, dann umgekehrt;
       Rangkorrelation über alle mindestens 0,85, je 30er-Bereich über alle 30 Level mindestens 0,3, auf zwei Stellen
       gerundet wie beim Knäuel. Erreicht: über alle 0,93, je Bereich knapp in 91–120 (0,296, gerundet 0,30). Der Test
@@ -479,7 +465,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
   im Browser gespeichert (nach Levelname).
   Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts; ein Umordnen ändert ihn nicht (geprüft in
-  `tests/levelliste.test.mjs`). Die Namen in `tools/profiles.mjs` wurden der Position nach vergeben – nach dem
-  Veröffentlichen nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie
-  wieder vergeben.
+  `tests/levelliste.test.mjs`). Die Namen der 150 wurden einst der Position nach vergeben (bis Ticket 21 in
+  `tools/profiles.mjs`; als feste Liste in `tools/beurteilung/heutige-reihenfolge.json`) – nach dem Veröffentlichen
+  nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie wieder
+  vergeben; jeder Name der festen Liste steht im Spiel oder auf dieser Liste (geprüft in `tests/levelliste.test.mjs`).
   Die Tests probieren alle Stellungen durch und prüfen, dass jede Lösung stimmt und eindeutig ist.
