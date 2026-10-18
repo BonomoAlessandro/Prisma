@@ -1,4 +1,4 @@
-// Regeln der Levelliste (Tickets 15 und 16; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
+// Regeln der Levelliste (Tickets 15, 16 und 23; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
 // Tests“, Nahtstelle 3), gemeinsam für tools/ordne-level.mjs, das Reihenfolge und Grade schreibt, und den Test
 // tests/levelliste.test.mjs, der sie prüft:
 // - Reihenfolge (ordne): Die Level stehen nach ihrer Schwierigkeit, bei gleichem Wert in der heutigen Reihenfolge
@@ -8,11 +8,11 @@
 //   in der Reihenfolge der Schwierigkeit; wanderte eines dabei weiter, bleibt es ebenso stehen, bis keines mehr zu weit
 //   wandert (vor Ticket 16: 56 Strahlenkranz).
 // - Urteile der KI-Tester (reihenfolge, Ticket 16 nach dem Plan aus Ticket 05): Es zählen nur die Läufe der Prüfliste
-//   (pruefung-…) von Ablauf 2, keine Probe- oder Eichläufe (zaehlendeUrteile). Ein Level der Prüfliste kommt nur auf
-//   den Platz der Formel, wenn beide KI-Tester zustimmen: Der Platz der Formel liegt für beide in ihrem Bereich der
-//   Einordnung oder näher daran als der alte Platz (zustimmung). Sonst bleibt es am alten Platz. Von dort, wo es steht,
-//   gilt die eigene Korrektur der KI-Tester nach der Regel von merge (ki-tester/protocol.mjs): höchstens MAX_SHIFT
-//   Plätze und nie über eine Gradgrenze (korrigiere).
+//   (pruefung-…) und des Austauschs (ersatz-…, siehe unten) von Ablauf 2, keine Probe- oder Eichläufe
+//   (zaehlendeUrteile). Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide KI-Tester zustimmen: Der
+//   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz (zustimmung).
+//   Sonst bleibt es am alten Platz. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von
+//   merge (ki-tester/protocol.mjs): höchstens MAX_SHIFT Plätze und nie über eine Gradgrenze (korrigiere).
 //   Am alten Platz gilt das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort: gerechnet
 //   vom Platz der Formel (Rang nach der Schwierigkeit) aus, angewandt von dort, wo das Level nach ordne steht; wegen
 //   der Level am alten Platz liegen die beiden einige Plätze auseinander (Ticket 16: höchstens 6). Lehnen beide
@@ -39,10 +39,19 @@
 // - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
 //   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
 //   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
+// - Neue Level aus dem Austausch (Tickets 23–26; Spec: „Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester
+//   prüfen“): Sie haben keinen heutigen Platz (imSpiel), wandern also nicht und stehen nach der Formel wie die übrigen.
+//   Beurteilt werden sie in Läufen ersatz-… unter dem Namen aus ihren Leveldaten (kandidatName in leveldaten.mjs), bevor
+//   ihr Name genehmigt ist. Wie bei einem Level der Prüfliste am Platz der Formel gilt die eigene Korrektur der
+//   KI-Tester nach der Regel von merge, vom Platz der Formel aus und mit dem Grad dort; lehnen beide ein neues Level
+//   ab, kommt es nicht ins Spiel (ein neuer Kandidat statt Duldung). Die entfernten Level kommen mit ihrem Namen auf
+//   entfernteNamen; ihre Leveldaten bleiben als feste Kopie für die Eichung (beurteilung/heutige-reihenfolge.mjs).
 import { readFileSync } from 'node:fs';
+import { L } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
+import { HEUTIGE_REIHENFOLGE, heutigerPlatz } from './beurteilung/heutige-reihenfolge.mjs';
 import { MAX_SHIFT, TESTERS, merge, wish } from './ki-tester/protocol.mjs';
 
 /** Weiter wandert kein Level ohne die KI-Tester (Spec „KI-Tester“: Kleinere Abweichungen entscheidet die Formel). */
@@ -59,8 +68,13 @@ export const DATEI = new URL('./levelliste.json', import.meta.url);
 export const PROTOKOLL = new URL('./ki-tester/protocol.jsonl', import.meta.url);
 /** Versionen des Ablaufs der KI-Tester, deren Läufe für die Levelliste zählen (Ticket 16: Ablauf 2). */
 export const ZAEHLENDE_ABLAEUFE = ['2'];
-/** Läufe, deren Urteile für die Levelliste zählen (Ticket 16: die Läufe der Prüfliste; Probe- und Eichläufe nicht). */
-export const ZAEHLENDE_LAEUFE = /^pruefung-/;
+/** Läufe, in denen die KI-Tester die neuen Level des Austauschs beurteilen (Tickets 23–26). */
+export const ERSATZ_LAEUFE = /^ersatz-/;
+/**
+ * Läufe, deren Urteile für die Levelliste zählen: die der Prüfliste (pruefung-…, Ticket 16) und die des Austauschs
+ * (ersatz-…, Tickets 23–26); Probe- und Eichläufe nicht.
+ */
+export const ZAEHLENDE_LAEUFE = /^(pruefung|ersatz)-/;
 
 /**
  * Die Gründe der Duldungsliste, je { text, gilt(beurteilung, grad, ki) }: Verletzt ein Level mit dieser Beurteilung
@@ -97,7 +111,10 @@ export function ergaenzungBegruendet(grund, ki, grad) {
   return grund === 'abgelehnt' ? ki.abgelehnt : ki.zurFormel && ki.eintrag.referenz.grad !== grad;
 }
 
-/** Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…), kein Anker. */
+/**
+ * Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…) oder des
+ * Austauschs (ersatz-…), kein Anker.
+ */
 export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker;
 
 /** Die zählenden Einträge des Protokolls (Text mit einer JSON-Zeile je Eintrag, Vorgabe protocol.jsonl). */
@@ -106,24 +123,39 @@ export function zaehlendeUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
 }
 
 /**
- * Die Reihenfolge aus den Schwierigkeiten (werte[i]: Level auf dem heutigen Platz i + 1). zurFormel: Indizes von
- * Leveln der Prüfliste, denen beide KI-Tester zustimmen; sie stehen nach der Formel wie die übrigen, auch wenn sie
- * weiter als MAX_WANDERN Plätze wandern. Rückgabe je Index, Plätze ab 1: { formel: Platz nach der Formel, platz: neuer
- * Platz, bleibt: Map Index → 'Formel' (Prüfliste) oder 'Reihenfolge' (warum es am heutigen Platz bleibt), pruefliste:
- * Indizes, die nach der Formel weiter als MAX_WANDERN Plätze wandern würden }.
+ * Die Level im Spiel, wie die Regeln der Levelliste sie zählen (Tickets 15 und 23): zuerst die der heutigen
+ * Reihenfolge, die noch im Spiel stehen, in dieser Reihenfolge, dann die neuen aus dem Austausch in der Reihenfolge im
+ * Spiel. main: die Level nach dem Tutorial (Vorgabe aus LEVELS). Rückgabe { levels, heute: je Level sein heutiger
+ * Platz (1–150) oder null bei einem neuen }.
  */
-export function ordne(werte, zurFormel = new Set()) {
+export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT)) {
+  const alt = HEUTIGE_REIHENFOLGE.map(name => main.find(l => l.name === name)).filter(Boolean);
+  const neu = main.filter(l => heutigerPlatz(l.name) === null);
+  return { levels: [...alt, ...neu], heute: [...alt.map(l => heutigerPlatz(l.name)), ...neu.map(() => null)] };
+}
+
+/**
+ * Die Reihenfolge aus den Schwierigkeiten (werte[i]: Schwierigkeit des Levels i, heute[i]: sein heutiger Platz oder
+ * null bei einem neuen Level, Vorgabe i + 1; die Indizes in der heutigen Reihenfolge, die neuen danach). zurFormel:
+ * Indizes von Leveln der Prüfliste, denen beide KI-Tester zustimmen; sie stehen nach der Formel wie die übrigen, auch
+ * wenn sie weiter als MAX_WANDERN Plätze wandern. Ein neues Level wandert nicht, es steht immer nach der Formel.
+ * Rückgabe je Index, Plätze ab 1: { formel: Platz nach der Formel, platz: neuer Platz, bleibt: Map Index → 'Formel'
+ * (Prüfliste) oder 'Reihenfolge' (warum es am heutigen Platz bleibt), pruefliste: Indizes, die nach der Formel weiter
+ * als MAX_WANDERN Plätze wandern würden }.
+ */
+export function ordne(werte, zurFormel = new Set(), heute = werte.map((_, i) => i + 1)) {
   const n = werte.length, nachWert = werte.map((_, i) => i).sort((i, j) => werte[i] - werte[j] || i - j);
   const formel = new Array(n);
   nachWert.forEach((i, r) => { formel[i] = r + 1; });
-  const pruefliste = nachWert.filter(i => Math.abs(formel[i] - (i + 1)) > MAX_WANDERN);
+  const weit = (i, p) => heute[i] !== null && Math.abs(p - heute[i]) > MAX_WANDERN;
+  const pruefliste = nachWert.filter(i => weit(i, formel[i]));
   const bleibt = new Map(pruefliste.filter(i => !zurFormel.has(i)).map(i => [i, 'Formel']));
   for (;;) {
-    const frei = [...Array(n).keys()].filter(i => !bleibt.has(i)), platz = new Array(n);
-    for (const i of bleibt.keys()) platz[i] = i + 1;
-    nachWert.filter(i => !bleibt.has(i)).forEach((i, k) => { platz[i] = frei[k] + 1; });
-    const zuWeit = nachWert.filter(i => !bleibt.has(i) && !zurFormel.has(i)
-      && Math.abs(platz[i] - (i + 1)) > MAX_WANDERN);
+    const besetzt = new Set([...bleibt.keys()].map(i => heute[i]));
+    const frei = [...Array(n).keys()].map(k => k + 1).filter(p => !besetzt.has(p)), platz = new Array(n);
+    for (const i of bleibt.keys()) platz[i] = heute[i];
+    nachWert.filter(i => !bleibt.has(i)).forEach((i, k) => { platz[i] = frei[k]; });
+    const zuWeit = nachWert.filter(i => !bleibt.has(i) && !zurFormel.has(i) && weit(i, platz[i]));
     if (!zuWeit.length) return { formel, platz, bleibt, pruefliste };
     for (const i of zuWeit) bleibt.set(i, 'Reihenfolge');
   }
@@ -254,34 +286,47 @@ export function mittelSteigt(folge, werte) {
 }
 
 /**
- * Reihenfolge und Grade mit den Urteilen der KI-Tester (Ticket 16). werte[i], namen[i]: Schwierigkeit und Name des
- * Levels auf dem heutigen Platz i + 1; urteile: die zählenden Einträge des Protokolls. Urteile zu Leveln, die es nicht
- * mehr gibt, zählen nicht; ein Urteil zu einem Level ausserhalb der Prüfliste oder ein zweites zum selben Level ist ein
- * Fehler. Für die Häufung der Haupt-Kernidee: haupt[i] (Haupt-Kernidee oder null) und geduldet(i, grad, ki) (steht
- * das Level mit diesem Grad und Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel.
+ * Reihenfolge und Grade mit den Urteilen der KI-Tester (Tickets 16 und 23). werte[i], namen[i]: Schwierigkeit und Name
+ * des Levels i; heute[i]: sein heutiger Platz oder null bei einem neuen Level (Vorgabe i + 1, siehe imSpiel und
+ * ordne); kandidat[i]: bei einem neuen Level der Name, unter dem die KI-Tester es beurteilt haben (kandidatName in
+ * leveldaten.mjs). urteile: die zählenden Einträge des Protokolls. Urteile zu Leveln, die es nicht (mehr) gibt, zählen
+ * nicht; ein Fehler ist ein Urteil zu einem heutigen Level ausserhalb der Prüfliste, ein Lauf ersatz-… zu einem
+ * heutigen Level oder ein anderer Lauf zu einem neuen und ein zweites Urteil zum selben Level. Für die Häufung der
+ * Haupt-Kernidee: haupt[i] (Haupt-Kernidee oder null) und geduldet(i, grad, ki) (steht das Level mit diesem Grad und
+ * Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel.
  * Rückgabe: wie ordne, dazu basis (Folge vor den eigenen Korrekturen), korrigiert (nach ihnen), folge (nach der
  * Häufungsregel; Indizes nach Platz), zuege und offen (der Häufungsregel, siehe entzerre), grad (je Index), zurFormel
- * (Set) und ki: Map Index →
- * { eintrag, je, zurFormel, abgelehnt, gruende, verschiebung }.
+ * (Set der Level der Prüfliste, denen beide zustimmen) und ki: Map Index →
+ * { eintrag, neu, je, zurFormel, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
  */
-export function reihenfolge(werte, namen, urteile = [], { haupt = null, geduldet = () => false } = {}) {
-  const n = werte.length, { formel, pruefliste } = ordne(werte);
+export function reihenfolge(werte, namen, urteile = [], {
+  haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [],
+} = {}) {
+  const n = werte.length, { formel, pruefliste } = ordne(werte, new Set(), heute);
   const ki = new Map();
   for (const eintrag of urteile) {
-    const i = namen.indexOf(eintrag.level.name);
+    const name = eintrag.level.name;
+    const i = namen.includes(name) ? namen.indexOf(name) : kandidat.indexOf(name);
     if (i < 0) continue;
-    const wo = `Urteil zu ${eintrag.level.name} (${eintrag.lauf})`;
-    if (!pruefliste.includes(i)) throw new Error(`${wo}: das Level steht nicht auf der Prüfliste`);
+    const wo = `Urteil zu ${name} (${eintrag.lauf})`, neu = heute[i] === null;
+    if (neu !== ERSATZ_LAEUFE.test(eintrag.lauf)) {
+      throw new Error(`${wo}: ${neu ? 'ein neues Level zählt nur aus einem Lauf ersatz-…'
+        : 'ein Lauf ersatz-… beurteilt nur neue Level'}`);
+    }
+    if (!neu && !pruefliste.includes(i)) throw new Error(`${wo}: das Level steht nicht auf der Prüfliste`);
     if (ki.has(i)) throw new Error(`${wo}: schon beurteilt in ${ki.get(i).eintrag.lauf}`);
-    ki.set(i, { eintrag, ...zustimmung(eintrag, eintrag.referenz.position, formel[i]) });
+    ki.set(i, neu ? { eintrag, neu, je: null, zurFormel: false }
+      : { eintrag, neu, ...zustimmung(eintrag, eintrag.referenz.position, formel[i]) });
   }
   const zurFormel = new Set([...ki].filter(([, u]) => u.zurFormel).map(([i]) => i));
-  const ordnung = ordne(werte, zurFormel);
+  const ordnung = ordne(werte, zurFormel, heute);
   const basis = [...Array(n).keys()].sort((i, j) => ordnung.platz[i] - ordnung.platz[j]);
   const grad = gradeEntlang(basis, werte, ordnung.bleibt);
   for (const [i, u] of ki) {
     const { level, anker, urteile: je, ergebnis } = u.eintrag;
-    const r = !u.zurFormel ? ergebnis : merge({
+    // am alten Platz das Ergebnis aus dem Protokoll; am Platz der Formel (ein Level der Prüfliste mit Zustimmung oder
+    // ein neues Level) dieselbe Regel mit dem Grad dort
+    const r = !u.zurFormel && !u.neu ? ergebnis : merge({
       level: { ...level, anker: null }, anker, urteile: je,
       referenz: { art: 'Platz der Formel', position: formel[i], grad: grad[i], von: 1, bis: n },
     }).ergebnis;

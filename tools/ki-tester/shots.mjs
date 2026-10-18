@@ -15,7 +15,9 @@ import { startChrome, emulate, evaluate, sleep } from '../chrome.mjs';
 import { L } from '../solver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro&t=12';
+/** Die Seite der Aufnahmen: index.html, oder eine Kopie mit weiteren Leveln (Kandidaten, prepare.mjs). */
+export const seitenUrl = (datei = join(root, 'index.html')) => pathToFileURL(datei).href + '?noadapt&nointro&t=12';
+const PAGE = seitenUrl();
 export const VIEWS = [
   { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false },
   { name: 'handy', width: 390, height: 844, dpr: 2, phone: true },
@@ -51,17 +53,17 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
 
 /**
  * Nimmt die Level auf. shots: [{ index (in LEVELS), label (Kennung in der Kopfzeile, null = wie im Spiel), file (Pfad
- * ohne Endung) }]. Schreibt <file>-desktop.png und <file>-handy.png. log(text) meldet den Fortschritt.
- * Rückgabe: Sekunden je Bildschirm und Aufnahme.
+ * ohne Endung) }]. Schreibt <file>-desktop.png und <file>-handy.png. log(text) meldet den Fortschritt; page: die URL
+ * der Seite (seitenUrl), Vorgabe index.html. Rückgabe: Sekunden je Bildschirm und Aufnahme.
  */
-export async function takeShots(shots, log = console.log) {
+export async function takeShots(shots, log = console.log, page = PAGE) {
   requireQuiet();
   const seconds = {};
   for (const view of VIEWS) {
     const { send, logs, close } = await startChrome(view);
     try {
       await emulate(send, view);
-      await send('Page.navigate', { url: PAGE });
+      await send('Page.navigate', { url: page });
       await until(send, 'window.__prisma?.frames > 2', 'Spiel startet');
       seconds[view.name] = [];
       for (const shot of shots) {

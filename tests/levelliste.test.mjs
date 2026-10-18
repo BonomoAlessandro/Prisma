@@ -1,22 +1,26 @@
-// Tests der Levelliste (Spec „Entscheide zu den Tests“, Nahtstelle 3; Tickets 15–17): die 150 Level im Spiel, ihre
-// Reihenfolge samt den Urteilen der KI-Tester, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie ersetzen
-// die Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste. Die Regeln stehen in
+// Tests der Levelliste (Spec „Entscheide zu den Tests“, Nahtstelle 3; Tickets 15–17 und 23): die 150 Level im Spiel,
+// ihre Reihenfolge samt den Urteilen der KI-Tester, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie
+// ersetzen die Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste. Die Regeln stehen in
 // tools/levelliste.mjs, gemeinsam mit tools/ordne-level.mjs, das Reihenfolge, Grade, Duldungsliste und Prüfliste
-// schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17) und seit
-// Ticket 21 die Namen gegenüber der heutigen Reihenfolge und die fremde Filterfarbe (vorher in tests/logic.test.mjs).
+// schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17), seit
+// Ticket 21 die Namen gegenüber der heutigen Reihenfolge und die fremde Filterfarbe (vorher in tests/logic.test.mjs)
+// und der Austausch (Tickets 23–26): neue Level nach der Formel und mit Urteil der KI-Tester, entfernte Level samt
+// Namen und fester Kopie für die Eichung, die Leveldaten als Text (tools/leveldaten.mjs).
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { isDeepStrictEqual } from 'node:util';
 import { L, solve, period, setRot, keyOf } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
-import { HEUTIGE_REIHENFOLGE, inHeutigerReihenfolge } from '../tools/beurteilung/heutige-reihenfolge.mjs';
+import { HEUTIGE_REIHENFOLGE, entfernteLevel } from '../tools/beurteilung/heutige-reihenfolge.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
+import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, TOLERANZ_MITTEL, entzerre, ergaenzungBegruendet, haeufungen,
+  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, TOLERANZ_MITTEL, entzerre, ergaenzungBegruendet, haeufungen, imSpiel,
   korrigiere, ladeLevelliste, reihenfolge, zaehlendeUrteile, zaehlt, zehner, zustimmung,
 } from '../tools/levelliste.mjs';
 
@@ -36,16 +40,19 @@ console.log(`Levelliste: ${MAIN.length} Level beurteilt (${((Date.now() - t0) / 
 const nach = new Map(MAIN.map((level, i) => [level.name, { level, b: beurteilt[i] }]));
 const wert = (level) => nach.get(level.name).b.schwierigkeit.wert;
 // Die Formel rechnet von der heutigen Reihenfolge aus (beurteilung/heutige-reihenfolge.mjs), mit den zählenden
-// Urteilen der KI-Tester aus dem Protokoll (Ablauf 2, Läufe pruefung-…)
-const heute = inHeutigerReihenfolge();
+// Urteilen der KI-Tester aus dem Protokoll (Ablauf 2, Läufe pruefung-… und ersatz-…). heute: die Level im Spiel, zuerst
+// die der heutigen Reihenfolge, dann die neuen aus dem Austausch (imSpiel); platzHeute: ihr heutiger Platz oder null
+const { levels: heute, heute: platzHeute } = imSpiel(MAIN);
 const werteHeute = heute.map(wert);
 const namenHeute = heute.map(l => l.name);
+const kandidat = heute.map((l, i) => (platzHeute[i] === null ? kandidatName(l) : null));
 const urteile = zaehlendeUrteile();
 // Häufung der Haupt-Kernidee: gezählt ohne die Duldungsliste, mit den Beurteilungen beim Grad im Spiel
 const beiHeute = heute.map(l => nach.get(l.name).b);
 const r = reihenfolge(werteHeute, namenHeute, urteile, {
   haupt: beiHeute.map(b => b.hauptKernidee.begriff),
   geduldet: (i, grad, u) => Object.values(GRUENDE).some(g => g.gilt(beiHeute[i], grad, u)),
+  heute: platzHeute, kandidat,
 });
 const kiNach = new Map([...r.ki].map(([i, u]) => [heute[i].name, u]));
 const verletzt = (grund) => MAIN.filter(l => GRUENDE[grund].gilt(nach.get(l.name).b, l.grad, kiNach.get(l.name)))
@@ -105,10 +112,12 @@ test('Die Reihenfolge folgt der Schwierigkeit: bis 10 Plätze weit, weiter wande
   + 'ausser die KI-Tester stimmen der Formel zu; dazu ihre Korrekturen und die Häufungsregel', () => {
   assert.deepEqual(MAIN.map(l => l.name), r.folge.map(i => heute[i].name));
   // Dazu ohne ordne() nachgerechnet, vor den eigenen Korrekturen der KI-Tester (r.basis): Wer bleibt, steht am
-  // heutigen Platz, jedes andere Level höchstens 10 Plätze davon, ausser beide KI-Tester stimmen der Formel zu; und
-  // diese stehen untereinander nach der Schwierigkeit, bei gleichem Wert in der heutigen Reihenfolge
-  const weit = r.basis.filter((i, k) => (r.bleibt.has(i) ? i !== k : !r.zurFormel.has(i) && Math.abs(i - k) > 10));
-  assert.deepEqual(weit.map(i => `${i + 1} → ${r.basis.indexOf(i) + 1} ${heute[i].name}`), []);
+  // heutigen Platz, jedes andere Level höchstens 10 Plätze davon, ausser beide KI-Tester stimmen der Formel zu oder es
+  // ist neu (ohne heutigen Platz); und diese stehen untereinander nach der Schwierigkeit, bei gleichem Wert in der
+  // heutigen Reihenfolge, die neuen danach
+  const weit = r.basis.filter((i, k) => (r.bleibt.has(i) ? platzHeute[i] !== k + 1
+    : platzHeute[i] !== null && !r.zurFormel.has(i) && Math.abs(platzHeute[i] - k - 1) > 10));
+  assert.deepEqual(weit.map(i => `${platzHeute[i]} → ${r.basis.indexOf(i) + 1} ${heute[i].name}`), []);
   const frei = r.basis.filter(i => !r.bleibt.has(i));
   const ungeordnet = frei.filter((i, k) => k && (werteHeute[i] - werteHeute[frei[k - 1]] || i - frei[k - 1]) < 0);
   assert.deepEqual(ungeordnet.map(i => heute[i].name), [], 'nicht nach der Schwierigkeit');
@@ -116,9 +125,11 @@ test('Die Reihenfolge folgt der Schwierigkeit: bis 10 Plätze weit, weiter wande
 test('Die Prüfliste für Ticket 16 nennt genau die Level, die nach der Formel mehr als 10 Plätze wandern würden', () => {
   const pruef = r.folge.filter(i => r.pruefliste.includes(i)).map(i => heute[i].name);
   assert.deepEqual(liste.pruefliste, pruef);
-  // Dazu ohne ordne(): Der Platz nach der Formel ist der Rang nach der Schwierigkeit, bei gleichem Wert der heutige
+  // Dazu ohne ordne(): Der Platz nach der Formel ist der Rang nach der Schwierigkeit, bei gleichem Wert der heutige; ein
+  // neues Level hat keinen heutigen Platz und steht nie auf der Prüfliste
   const rang = heute.map((_, i) => i).sort((i, j) => werteHeute[i] - werteHeute[j] || i - j);
-  const weit = rang.filter((i, p) => Math.abs(p - i) > 10).map(i => heute[i].name);
+  const weit = rang.filter((i, p) => platzHeute[i] !== null && Math.abs(p + 1 - platzHeute[i]) > 10)
+    .map(i => heute[i].name);
   assert.deepEqual([...liste.pruefliste].sort(), weit.sort());
 });
 test('Der Grad folgt den Schwellen; ein Level am heutigen Platz hat den Grad seines Abschnitts', () => {
@@ -132,7 +143,8 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
   assert.equal(liste.prueflisteErledigt, true, 'levelliste.json: prueflisteErledigt');
   assert.deepEqual(r.pruefliste.filter(i => !r.ki.has(i)).map(i => heute[i].name), [], 'ohne zählendes Urteil');
   for (const e of urteile.filter(x => namenHeute.includes(x.level.name))) {
-    assert.equal(e.referenz.position, namenHeute.indexOf(e.level.name) + 1, `${e.lauf} ${e.level.name}: alter Platz`);
+    const i = namenHeute.indexOf(e.level.name);
+    assert.equal(e.referenz.position, platzHeute[i], `${e.lauf} ${e.level.name}: alter Platz`);
   }
   // Am heutigen Platz statt nach der Formel steht ein Level der Prüfliste, bis beide KI-Tester dem Platz der Formel
   // zustimmen, oder ein Level, das zwischen ihnen sonst zu weit wanderte (ordne)
@@ -159,6 +171,34 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
   const zug = (z) => `${heute[z.i].name} ${z.von + 1}→${z.nach + 1}`;
   console.log(`        ${r.ki.size} Level der Prüfliste mit Urteil, zur Formel ${r.zurFormel.size}, eigene Korrektur `
     + `${korrigiert.length}; Häufungsregel: ${r.zuege.map(zug).join(', ') || 'keine Züge'}`);
+});
+test('Neue Level (Austausch): jedes mit zählendem Urteil (ersatz-…), keines von beiden abgelehnt', () => {
+  // Ein neues Level steht nach der Formel (oben); die KI-Tester haben es unter seinem Namen als Kandidat beurteilt
+  const neu = heute.flatMap((l, i) => (platzHeute[i] === null ? [i] : []));
+  assert.deepEqual(neu.filter(i => !r.ki.has(i)).map(i => `${heute[i].name} (${kandidat[i]})`), [], 'ohne Urteil');
+  assert.deepEqual(neu.filter(i => r.ki.get(i)?.abgelehnt).map(i => heute[i].name), [], 'von beiden abgelehnt');
+  for (const i of neu) assert.ok(/^ersatz-/.test(r.ki.get(i).eintrag.lauf) && r.ki.get(i).neu, heute[i].name);
+  console.log(`        ${neu.length} neue Level: ${neu.map(i => `${heute[i].name} (${r.ki.get(i)?.eintrag.lauf})`)
+    .join(', ') || 'keine'}`);
+});
+test('Neue Level: Der Kommentar nennt Auftrag, Seed und Ziel-Schwierigkeit zum Nachbauen', () => {
+  // Ohne die Ziel-Schwierigkeit entsteht aus Auftrag und Seed ein anderes Level (Review Ticket 23, M1)
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const herkunft = (name) => new RegExp(`\\n {4}// Generator [a-z-]+, Seed \\d+, Ziel \\d+(,\\d+)?–\\d+(,\\d+)? · `
+    + `ersetzt [^\\n]+\\n {4}name: '${name}'`);
+  const neu = heute.filter((l, i) => platzHeute[i] === null);
+  assert.deepEqual(neu.filter(l => !herkunft(l.name).test(html)).map(l => l.name), []);
+});
+test('Entfernte Level: nicht im Spiel, Name auf der Liste, Leveldaten als feste Kopie für die Eichung', () => {
+  // Jedes Level der heutigen Reihenfolge steht im Spiel oder ist entfernt (sein Name auf entfernteNamen); seine
+  // Leveldaten bleiben in beurteilung/entfernte-level.json, damit die Eichung an den 150 heutigen Leveln bleibt
+  const kopie = entfernteLevel().map(l => l.name);
+  assert.deepEqual(HEUTIGE_REIHENFOLGE.filter(x => !nach.has(x) && !liste.entfernteNamen.includes(x)), [], 'fehlt');
+  assert.deepEqual(HEUTIGE_REIHENFOLGE.filter(x => !nach.has(x)).sort(), [...kopie].sort(), 'Kopie');
+  assert.deepEqual(kopie.filter(x => nach.has(x)), [], 'im Spiel und in der Kopie');
+  assert.equal(MAIN.length, 150);
+  // Je entferntes Level der heutigen Reihenfolge kam ein neues ins Spiel
+  assert.equal(platzHeute.filter(p => p === null).length, kopie.length, 'neue Level');
 });
 test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ_MITTEL} Punkt Rückschritt`, () => {
   const mittel = zehner(MAIN).map(z => z.reduce((s, l) => s + wert(l), 0) / z.length);
@@ -225,22 +265,30 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
     assert.equal(new Set(namen).size, namen.length, 'doppelt');
   }
 });
+// Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
+// Duldungsliste. Sind alle vier Grade ausgetauscht, ist die Liste leer (dann hier alle vier)
+const AUSGETAUSCHT = ['leicht'];
+test(`Nach dem Austausch steht kein Level aus ${AUSGETAUSCHT.join(', ')} auf der Duldungsliste`, () => {
+  assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad)), []);
+});
 
 console.log('Regel für die Prüfliste (Ticket 16), mit erfundenen Urteilen');
 // Erfundene Einträge wie aus merge.mjs, mit Referenz und Plätzen der Anker wie bei der Vorbereitung der Läufe der
 // Prüfliste (aus dem echten Eintrag des Levels; ohne einen am heutigen Platz in „leicht“)
-const erfunden = (name, A, B, ablehnung = []) => {
+const erfunden = (name, A, B, ablehnung = [], lauf = 'pruefung-test', position = null) => {
   const { referenz, anker } = urteile.find(e => e.level.name === name) ?? { anker: urteile[0].anker, referenz: {
-    art: 'Reihenfolge im Spiel', position: namenHeute.indexOf(name) + 1, grad: 'leicht', von: 1, bis: 32 } };
+    art: 'Reihenfolge im Spiel', position: position ?? platzHeute[namenHeute.indexOf(name)], grad: 'leicht', von: 1,
+    bis: 31 } };
   const urteil = (einordnung) => ({
     level: 'L1', aha: { ja: true, beschreibung: 'Erfunden.' }, lesbarkeit: { desktop: 4, handy: 4, beschreibung: 'x' },
     gefuehl: 3, einordnung, ablehnung, begruendung: 'Erfunden für den Test.',
   });
   return entry({
-    datum: '2026-10-17', lauf: 'pruefung-test', agent: AGENT, level: { id: 'L1', name, anker: null }, referenz, anker,
+    datum: '2026-10-17', lauf, agent: AGENT, level: { id: 'L1', name, anker: null }, referenz, anker,
     urteile: { A: urteil(A), B: urteil(B) },
   });
 };
+const imSpielHeute = { heute: platzHeute, kandidat };
 test('Zustimmung: Der Platz der Formel liegt im Bereich der Einordnung oder näher daran als der alte Platz', () => {
   const e = erfunden('Lichtnetz', 'A3', 'A2-A3'); // A3 heisst 32–34, A2-A3 heisst 31–32
   assert.deepEqual(zustimmung(e, 74, 35).je.A, { formel: 1, alt: 40, stimmtZu: true });
@@ -290,7 +338,7 @@ test('Ganze Regel an den heutigen Leveln: zur Formel, am alten Platz mit Korrekt
       erfunden('Weichen', 'A3-A4', 'A2'),
       // 27 Spiegelbild (Formel 46): beide stimmen zu und nennen Zerfall, der in mittel gilt, also abgelehnt
       erfunden('Spiegelbild', 'A3-A4', 'A3-A4', ['Zerfall']),
-    ]);
+    ], imSpielHeute);
     const u = (n) => x.ki.get(namenHeute.indexOf(n));
     assert.deepEqual([u('Lichtnetz').zurFormel, u('Lichtnetz').verschiebung], [true, -1]);
     assert.equal(platz(x, 'Lichtnetz'), x.basis.indexOf(namenHeute.indexOf('Lichtnetz')));
@@ -303,11 +351,61 @@ test('Ganze Regel an den heutigen Leveln: zur Formel, am alten Platz mit Korrekt
     const sinkt = x.folge.filter((i, k) => k && GRADE.indexOf(x.grad[i]) < GRADE.indexOf(x.grad[x.folge[k - 1]]));
     assert.deepEqual(sinkt.map(name), []);
     for (const i of x.zurFormel) assert.equal(x.grad[i], gradVon(werteHeute[i]), name(i));
-    assert.throws(() => reihenfolge(werteHeute, namenHeute, [erfunden('Zickzack', 'A1', 'A1')]),
+    assert.throws(() => reihenfolge(werteHeute, namenHeute, [erfunden('Zickzack', 'A1', 'A1')], imSpielHeute),
       /nicht auf der Prüfliste/);
     assert.throws(() => reihenfolge(werteHeute, namenHeute, [erfunden('Weichen', 'A1', 'A1'),
-      erfunden('Weichen', 'A2', 'A2')]), /schon beurteilt/);
+      erfunden('Weichen', 'A2', 'A2')], imSpielHeute), /schon beurteilt/);
   });
+test('Ganze Regel mit einem neuen Level (Austausch): nach der Formel, Korrektur von dort, Ablehnung, nur ersatz-…',
+  () => {
+    // 41 Schliff (Formel 27, auf der Prüfliste), als wäre es neu: ohne heutigen Platz, beurteilt als „Kandidat Test“
+    const i = namenHeute.indexOf('Schliff'), neuHeute = platzHeute.map((p, j) => (j === i ? null : p));
+    const neuKandidat = kandidat.map((k, j) => (j === i ? 'Kandidat Test' : k));
+    const mit = (eintraege) => reihenfolge(werteHeute, namenHeute, eintraege,
+      { heute: neuHeute, kandidat: neuKandidat });
+    const ohne = mit([]), formel = ohne.formel[i];
+    assert.ok(r.pruefliste.includes(i), 'mit heutigem Platz auf der Prüfliste');
+    assert.equal(ohne.bleibt.has(i) || ohne.pruefliste.includes(i), false, 'neu: wandert nie, nie auf der Prüfliste');
+    // nach der Formel: auf dem freien Platz, der seinem Rang unter den Leveln nach der Formel entspricht
+    const besetzt = new Set([...ohne.bleibt.keys()].map(j => neuHeute[j]));
+    const frei = [...Array(MAIN.length).keys()].map(k => k + 1).filter(p => !besetzt.has(p));
+    const nachWert = [...Array(MAIN.length).keys()].filter(j => !ohne.bleibt.has(j))
+      .sort((a, b) => werteHeute[a] - werteHeute[b] || a - b);
+    assert.equal(ohne.platz[i], frei[nachWert.indexOf(i)], 'nach der Formel');
+    // Beide sehen es bei A2 (in den Ankern des Eintrags hinter dem Platz der Formel), also weiter hinten: höchstens 5
+    const e = erfunden('Kandidat Test', 'A2', 'A2', [], 'ersatz-test', formel);
+    const x = mit([e]), u = x.ki.get(i);
+    assert.deepEqual([u.neu, u.zurFormel, u.abgelehnt], [true, false, false]);
+    assert.ok(u.verschiebung > 0 && u.verschiebung <= MAX_SHIFT, `Verschiebung ${u.verschiebung}`);
+    assert.equal(x.folge.indexOf(i), x.basis.indexOf(i) + u.verschiebung, 'Korrektur von dort');
+    assert.equal(x.grad[i], gradVon(werteHeute[i]), 'Grad nach der Schwelle');
+    // Lehnen beide ab (Probieren gilt in jedem Grad), wird es nicht verschoben; ins Spiel kommt es so nicht
+    const weg = mit([erfunden('Kandidat Test', 'A2', 'A2', ['Probieren'], 'ersatz-test', formel)]).ki.get(i);
+    assert.deepEqual([weg.abgelehnt, weg.verschiebung, weg.gruende], [true, 0, ['Probieren']]);
+    // Ein neues Level zählt nur aus einem Lauf ersatz-…, ein Lauf ersatz-… nur für neue Level
+    assert.throws(() => mit([erfunden('Kandidat Test', 'A2', 'A2', [], 'pruefung-test', formel)]), /ersatz-/);
+    assert.throws(() => mit([erfunden('Weichen', 'A2', 'A2', [], 'ersatz-test')]), /nur neue Level/);
+    assert.equal(zaehlt(e), true, 'ersatz-… zählt');
+  });
+
+console.log('Leveldaten als Text (Austausch, tools/leveldaten.mjs)');
+const ausCode = (code) => new Function(`return ${code.replace(/,\s*$/, '')};`)();
+test('levelCode ergibt jedes Level im Spiel wieder, mit Lösungskommentar und weiteren Kommentarzeilen', () => {
+  assert.deepEqual(MAIN.filter(l => !isDeepStrictEqual(ausCode(levelCode(l)), l)).map(l => l.name), []);
+  const code = levelCode(MAIN[0], ['Herkunft: Test']);
+  assert.match(code, /^ {2}\{\n {4}\/\/ Lösung: .+\n {4}\/\/ Herkunft: Test\n {4}name: 'Zickzack', grad: 'leicht',\n/);
+  assert.match(code, /\n {4}solution: \{ .+ \},\n {2}\},$/);
+});
+test('Abdruck: hängt nur an dem, was das Spiel aus den Daten macht, nicht an Name, Grad und Reihenfolge', () => {
+  const l = MAIN[0], k = kandidatName(l);
+  assert.match(k, /^Kandidat [0-9a-f]{8}$/);
+  const umgestellt = { grad: 'mittel', name: 'Anders', solution: l.solution,
+    elements: [...l.elements].reverse().map(e => Object.fromEntries(Object.entries(e).reverse())) };
+  assert.equal(kandidatName(umgestellt), k);
+  const gedreht = { ...l, elements: l.elements.map((e, j) => (j === 1 ? { ...e, rot: (e.rot ?? 0) + 1 } : e)) };
+  assert.notEqual(abdruck(gedreht), abdruck(l));
+  assert.equal(new Set(MAIN.map(abdruck)).size, MAIN.length, 'jedes Level im Spiel hat einen eigenen Abdruck');
+});
 
 console.log('Namen, Lösung und Fortschritt');
 test('Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Namen', () => {

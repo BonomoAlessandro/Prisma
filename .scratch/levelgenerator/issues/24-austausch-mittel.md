@@ -72,3 +72,31 @@ Abschalten 15 (je CPU-Stunde 2 900 bis 40 000, `--jobs 7`). In vier Bereichen zu
 Fall (nur Ausschlussgrund und abgelehnt) und für eine leere Liste: Tabellen in Ticket 28. Im sicheren Fall genügen je
 Seite zwei Kernideen; bei leerer Liste braucht 41–60 fünf der sechs, je 2-mal. Die Seeds ab „mittel“ sind seit Ticket
 28 teils andere als in früheren Proben.
+
+**Hinweis aus Ticket 23 (Austausch „leicht“, 18.10.2026):**
+- Ablauf mit den Werkzeugen aus Ticket 23 (README zu `ordne-level.mjs`, `prepare.mjs` und `generiere.mjs`):
+  1. Kandidaten mit `generiere.mjs <auftrag> --schwierigkeit VON,BIS`. Als Ziel-Schwierigkeit taugt die Lücke zwischen
+     den Nachbarn des ersetzten Levels nach der Schwierigkeit; dann bleibt der Platz der Formel aller anderen Level
+     gleich.
+  2. Eine Austausch-Datei (JSON-Liste `{ ersetzt, level, auftrag, seed, schwierigkeit }`, `schwierigkeit` die
+     Ziel-Schwierigkeit `[von, bis]` aus Schritt 1) und `ordne-level.mjs --austausch <datei> --json <ausgabe>` ohne
+     `--schreiben`: Platz, Grad, Haupt-Kernidee und Regeln, als wären die Kandidaten im Spiel. Auftrag, Seed und
+     Ziel-Schwierigkeit kommen beim Schreiben als Herkunft in den Kommentar; ohne die Ziel-Schwierigkeit baut
+     `generiere.mjs` das Level nicht nach (Review Ticket 23, M1).
+  3. `prepare.mjs ersatz-<grad>-1 --kandidaten <ausgabe>` nimmt die Einträge mit Leveldaten; Kandidat und Ersatz aus
+     zwei Läufen von Schritt 2 in eine Liste zusammenfügen.
+  4. Nach `merge.mjs` dieselbe Austausch-Datei mit dem genehmigten `name` je Eintrag und `--schreiben`. Ein zweiter
+     Lauf ohne `--austausch` meldet „stimmen“.
+- Die Korrekturen der KI-Tester verschieben ein neues Level um bis zu 5 Plätze, auf eine andere Seite. Das kann eine
+  Haupt-Kernidee häufen (in Ticket 23 ein Grund, auf Platz 18 den Ersatz zu nehmen). Vor dem Schreiben mit
+  `--austausch` prüfen.
+- Die Haupt-Kernidee kam in „leicht“ aus der Beurteilung (`hauptKernidee` in der Ausgabe von `generiere.mjs`); eine
+  Wahl „verlangte = Haupt-Kernidee“ im Auftrag war nicht nötig. Ab „mittel“ leistet ein Filter in der Auswahl
+  dasselbe; eine Wahl im Auftrag wäre eine Änderung in `tools/generator/` (Ticket 28).
+- `AUSGETAUSCHT` in `tests/levelliste.test.mjs` um den Grad ergänzen; nach dem letzten der Tickets 23–26 verlangt der
+  Test eine leere Duldungsliste.
+- Nach dem Austausch braucht `tests/golden.json` ein `--write` (neue Namen, die ersetzten fehlen); bei Ticket 23 hat
+  das der Koordinator nach dem Merge übernommen.
+- Die Zahl 11 im Kopf dieses Tickets zählt 31 Lichtbündel mit (Neuzählung, vorläufige Grade). Lichtbündel ist seit
+  Ticket 15 „leicht“ und in Ticket 23 ersetzt. Massgebend sind die 11 Level mit Ausschlussgrund in „mittel“ aus dem
+  Hinweis aus Ticket 16, dazu Sonnenstrahl und Widerschein (von beiden KI-Testern abgelehnt).

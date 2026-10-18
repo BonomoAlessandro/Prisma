@@ -56,9 +56,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
     der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts), 150 Level nach dem
     Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün, mit
-    Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Er ersetzt die früheren Tests zu Markierung,
-    gehärteten Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen
-    (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe (`oddFilters` in `quality.mjs`).
+    Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes neue Level
+    steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt; jedes
+    entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die Regel
+    für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
+    Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
+    `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
+    (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -78,7 +82,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     der Reihenfolge im Spiel, Feld als Text, Auftrag und Fingerabdruck der Eingaben und das versionierte Protokoll
     `tools/ki-tester/protocol.jsonl` (jeder Eintrag nach der Referenz seiner Version), dazu Gegenproben mit
     verfälschten Kopien, die mit der erwarteten Meldung rot werden. Mit dem Pfad einer eigenen verfälschten Kopie wird
-    er rot.
+    er rot. Dazu Kandidaten ohne Platz im Spiel: die Seite mit den Kandidaten für die Bilder und `prepare.mjs
+    --kandidaten` (Name, Referenz, Feld als Text, Abweisung bei falschem Grad; ohne Bilder).
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
@@ -164,7 +169,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
   ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf
   ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe
-  der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test;
+  der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
+  Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
+  die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
+  dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
+  `--austausch datei` (eine JSON-Liste `{ ersetzt, level, name, auftrag, seed, schwierigkeit }`, die Leveldaten etwa
+  von `generiere.mjs`, `schwierigkeit` die Ziel-Schwierigkeit `[von, bis]` des Auftrags) rechnet, als wären die
+  Kandidaten schon im Spiel und die ersetzten Level entfernt: Platz, Grad, Haupt-Kernidee und Regeln je Kandidat, mit
+  `--json` auch die Leveldaten für `prepare.mjs --kandidaten`. Mit `--schreiben` und genehmigten Namen setzt es die
+  neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung; im Kommentar die Herkunft aus Auftrag, Seed und
+  Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS` es nachbaut),
+  nimmt die ersetzten heraus, setzt ihre Namen auf `entfernteNamen` und legt ihre Leveldaten als feste Kopie für die
+  Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
   je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
@@ -388,7 +404,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `mischziel`, `abschalten`, `abzaehlen`, `sammelstelle`, `falle`, `lockvogel`, etwa `mittel-abschalten`; ohne
     Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level, schwierigkeit, spielwert, kernideen,
     hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit `| node tools/show.mjs` als
-    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <auftrag …> [--seeds N]` (etwa
+    Textfeld. `--schwierigkeit VON,BIS` gibt dem Auftrag eine Ziel-Schwierigkeit, etwa für eine Lücke beim Austausch
+    (Ticket 23). Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <auftrag …> [--seeds N]` (etwa
     `mittel mittel-mischziel`, ohne Angabe 2000 Seeds je Auftrag; ohne Auftrag nennt es alle).
   - **Erweitern:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in `bausteine/index.mjs`
     (Glossarbegriff, was er mindestens setzt, `baue`), ein weiterer Grad eine Vorgabe in `vorgaben.mjs`. Ob eine
@@ -400,9 +417,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Plätzen der heutigen Reihenfolge vor Ticket 15 (feste Namensliste `tools/beurteilung/heutige-reihenfolge.json`) und
   den vorläufigen Graden.
   - **Vorbereiten:**
-    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--anker] [--ohne-bilder]
-    [--ohne-zwischenspeicher]`. Die Level heissen L1, L2 … (feste Mischung, der Platz bleibt verborgen), die Anker
-    A1–A8 (`anchors.json`, je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker beurteilen (Probelauf).
+    `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--kandidaten datei] [--anker]
+    [--ohne-bilder] [--ohne-zwischenspeicher]`. Die Level heissen L1, L2 … (feste Mischung, der Platz bleibt
+    verborgen), die Anker A1–A8 (`anchors.json`, je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker
+    beurteilen (Probelauf). `--kandidaten` nimmt neue Level ohne Platz im Spiel auf (Austausch, Läufe `ersatz-…`): eine
+    JSON-Liste `{ formel, level }`, etwa die Ausgabe von `ordne-level.mjs --austausch … --json`; Referenz ist der Platz
+    nach der Formel mit dem Grad dort, im Protokoll heisst ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen
+    von einer Kopie von index.html mit den Kandidaten am Ende von `LEVELS` (`<lauf>/seite/`, ausserhalb von `eingabe/`).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
     geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `vendor/`, `backgrounds/`, `shots.mjs`,
     `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher` nimmt sie neu
@@ -464,7 +485,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
   Level mehr als 10 Plätze. Über die 51 Level, die nach der Formel weiter wandern würden (Prüfliste in
   `tools/levelliste.json`), haben in Ticket 16 die KI-Tester geurteilt: 28 stehen nach der Formel, die übrigen an
-  ihrem alten Platz, dazu ihre Korrekturen und zwei Züge der Häufungsregel. Die frühere Reihenfolge entstand so: Die
+  ihrem alten Platz, dazu ihre Korrekturen und zwei Züge der Häufungsregel. In Ticket 23 kamen für die 6 leichten
+  Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
+  Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
+  `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
+  `tools/beurteilung/entfernte-level.json`. Die frühere Reihenfolge entstand so: Die
   Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze

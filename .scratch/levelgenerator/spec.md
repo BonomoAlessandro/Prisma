@@ -349,13 +349,22 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   - zusammen 90 Level (leicht 6 von 31, mittel 57 von 74, schwer 19 von 32, sehr schwer 8 von 13), davon 50 ohne
     Ausschlussgrund und ohne Ablehnung.
 
+  Nach Ticket 23 (Austausch „leicht“, 18.10.2026): Ausschlussgrund 31 Level (leicht 0), zusammen 84 (leicht 0 von 31);
+  die übrigen Gründe unverändert.
+
   Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
   Prüfliste für Ticket 16 (erledigt) und die Namen entfernter Level. Einmal, in Ticket 16, wuchs die ursprüngliche
   Liste um begründete Ergänzungen, die die Datei einzeln festhält. Phase 6 ersetzt zuerst die Level mit
   Ausschlussgrund und die abgelehnten. Über die übrigen, die nur wegen Kernidee oder Spielwert auf der Liste stehen,
   wird je Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester.
 - Der Austausch geschieht je Grad in einem Durchgang. Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester prüfen.
-  Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt.
+  Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt. Umsetzung (Ticket 23, vom Koordinator
+  bestätigt am 18.10.2026): Ein neues Level hat keinen heutigen Platz und steht nach der Formel. Die KI-Tester
+  beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck seiner Leveldaten>“, bevor sein Name
+  genehmigt ist; über diesen Namen findet die Levelliste ihr Urteil. Ihre Korrektur rechnet wie am Platz der Formel,
+  höchstens 5 Plätze und nie über eine Gradgrenze. Lehnen beide ab, kommt das Level nicht ins Spiel, sondern ein neuer
+  Kandidat. Die entfernten Level bleiben mit ihren Leveldaten als feste Kopie Teil des Massstabs der Eichung (ADR
+  0001); neue Level kommen nicht in die Eichmenge des Spielwerts.
 - **Entfernte Level verschwinden für alle Spieler samt Namen.** Der Fortschritt ist nach Namen gespeichert, unbekannte
   Namen verwirft das Spiel beim Laden. Dafür ist kein Umbau nötig. Die Namen entfernter Level kommen auf eine Liste und
   werden nie wieder vergeben, sonst gälte ein neues Level bei alten Speicherständen als gelöst.
