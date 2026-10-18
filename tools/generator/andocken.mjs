@@ -154,7 +154,7 @@ function vorPrisma(bau, zq) {
         const aus = feldform.brechen(el, richtung, maske(mischung), stellung);
         if (!aus.some(o => o.farbe === farbe && o.richtung === richtung)) continue;
         if (aus.every(o => o.farbe === farbe || frei(zelle, o.richtung))) {
-          out.push({ art: 'prism', zelle, stellung, quelle: zq, mischung });
+          out.push({ art: 'prism', zelle, stellung, vor: zq, mischung });
         }
       }
     }
@@ -188,8 +188,8 @@ export function dockeAn(bau, zellen, { quellen, farbigeQuellen }) {
 function probiere(bau, moeglich, farbigeQuellen) {
   const { R, feldform } = bau, kern = kernBild(bau), platz = new Set(bau.strahlenden().flat());
   for (const wahl of R.shuffle(moeglich).slice(0, PROBEN)) {
-    // Vorgeschaltet: Mischlicht aus der Quelle, das Prisma gehört zur Kernidee
-    const q = wahl.art === 'prism' ? bau.bei(wahl.quelle) : null, alt = q?.color;
+    // Vorgeschaltet (vor: Zelle der Quelle): Mischlicht aus der Quelle, das Prisma gehört zur Kernidee
+    const q = wahl.art === 'prism' ? bau.bei(wahl.vor) : null, alt = q?.color;
     const vorher = wahl.art === 'prism' ? new Set() : quellenAuf(bau, wahl.zelle), neu = [];
     if (q) {
       if (wahl.mischung === 'white') delete q.color;
@@ -203,7 +203,7 @@ function probiere(bau, moeglich, farbigeQuellen) {
       setRot(el, wahl.spiegel.stellung);
       neu.push(bau.setze(el));
     }
-    if (wahl.quelle && !q) {
+    if (wahl.quelle) {
       neu.push(bau.setze(bau.quelle(wahl.quelle.zelle, wahl.quelle.richtung, fremdfarbe(bau, farbigeQuellen))));
     }
     const dock = { art: wahl.art, zelle: wahl.zelle, vorher, kern, neu };

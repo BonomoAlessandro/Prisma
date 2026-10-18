@@ -124,9 +124,9 @@ Fall B (Liste leer), dieselben Spalten:
 allen sechs Kernideen ist keine allein unentbehrlich. Daraus je Grad:
 - **mittel:** Im Fall A genügen je Seite zwei Kernideen (höchstens 4 Ersatzlevel, mindestens 8 frei). Im Fall B braucht
   es fünf der sechs, auf 41–60 jede je 2-mal (ohne Lockvogel alle fünf übrigen), zusammen je Kernidee etwa 7–14.
-- **schwer:** Falle und Abschalten haben auf 121–140 schon je 2. Auf 121–130 bleiben Fz 1, Sa 1, Lo 2, Mi 2, auf
-  131–140 Fa 2, Sa 1, Lo 2, Mi 2: Mischziel ist ohne Lockvogel auf beiden Seiten voll nötig, dazu Farben abzählen,
-  Sammelstelle und (131–140) Falle.
+- **schwer:** Falle und Abschalten haben auf 121–130 schon je 2, Abschalten und Farben abzählen auf 131–140. Auf
+  121–130 bleiben Fz 1, Sa 1, Lo 2, Mi 2, auf 131–140 Fa 2, Sa 1, Lo 2, Mi 2: Mischziel ist ohne Lockvogel auf beiden
+  Seiten voll nötig, dazu Farben abzählen, Sammelstelle und (131–140) Falle.
 - **sehr schwer:** Auf 141–150 hat Abschalten schon 2; die 7 Ersatzlevel brauchen mindestens vier von Fa (1), Fz, Sa,
   Lo, Mi (je 2). Ohne Lockvogel braucht es Falle 1, Farben abzählen 2, Sammelstelle 2 und Mischziel 2, also jede dieser
   vier voll; dazu Korona auf 140 (Fa, Lo, Mi, Sa frei). Je Haupt-Kernidee also höchstens 3 Ersatzlevel.

@@ -10,10 +10,10 @@
 //              Level nicht (Fingerabdruck je Gruppe). Die CPU-Zeit je Seed hängt aber von --jobs ab (Hyperthreading,
 //              E-Kerne, Turbo): nur gleiche vergleichen. Ohne Gruppe bricht es ab und nennt die Aufträge: Alle 28
 //              zusammen kosten ab „mittel“ viele CPU-Stunden („sehr schwer“ rund 1 CPU-s je Seed). Die Abnahme
-//              beurteilung zählt zusätzlich je Grad und je Grad und nötiger Kernidee und nennt die Schwierigkeit der
-//              angenommenen Level (Quartile). Bis Ticket 21 gab es auch den alten Generator nach Profilen samt Härten
-//              (--generator alt) und seine Abnahme (--accept alt); seine Ausgangszahlen in tools/bench-baseline.json
-//              bleiben für --compare.
+//              beurteilung zählt zusätzlich je Grad, je Grad und nötiger Kernidee und je Grad und Haupt-Kernidee
+//              (Ticket 28) und nennt die Schwierigkeit der angenommenen Level (Quartile). Bis Ticket 21 gab es auch
+//              den alten Generator nach Profilen samt Härten (--generator alt) und seine Abnahme (--accept alt);
+//              seine Ausgangszahlen in tools/bench-baseline.json bleiben für --compare.
 //   trace      mittlere CPU-Zeit je Aufruf von traceBeams auf zufälligen Stellungen aller Level (Tutorial und
 //              Hauptlevel, --positions je Level, Zufall aus --seed), Median aus 10 Runden. Dazu eine Prüfsumme aus
 //              einem eigenen, nicht gemessenen Durchgang über dieselben Stellungen (siehe picture). Sie zeigt, dass

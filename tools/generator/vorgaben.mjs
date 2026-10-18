@@ -24,7 +24,9 @@
 //                   zu klein verworfen wird (ohne Angabe nie)
 //   andocken        ab „mittel“ (Ticket 28): Die Bausteine bauen ihre Kernidee so, dass ihre Stränge verbunden sind
 //                   (Abschalten, Farben abzählen, Lockvogel), und „schwerer“ dockt Stränge der Kernidee an, wenn ihr
-//                   Baustein es will (baustein.andocken; andocken.mjs). Ohne Angabe nie (so bleibt „leicht“ bitgleich).
+//                   Baustein es will (baustein.andocken; andocken.mjs). Belegt der Baustein schon alle Quellen von
+//                   quellen, darf das Andocken eine mehr setzen (plan.andocken in index.mjs). Ohne Angabe nie (so
+//                   bleibt „leicht“ bitgleich).
 //   abkuerzen       ab „mittel“ (Ticket 28, Fund 2 aus dem Review von Ticket 20): Ein Versuch von „schwerer“ ohne ein
 //                   drehbares Element mehr endet vor dem Festigen. Ohne Angabe festigt er (so bleibt „leicht“ mit
 //                   Ziel-Schwierigkeit bitgleich).

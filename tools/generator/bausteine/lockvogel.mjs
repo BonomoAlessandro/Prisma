@@ -19,7 +19,9 @@
 // die Grundfarbe zum Spiegel und die übrigen zur Seite, wo das Ergänzen weitermacht. Fremdes Licht auf einem Spiegel
 // des Ringtauschs ginge nicht (bau.unberuehrt): Es fände im Tausch kein Ziel mehr, der Tausch wäre keine zweite Lösung,
 // und der Lockvogel wäre nicht nötig (in einer Probe mit leichten Lockvogel-Leveln 0 von 54). Ein Prisma vor einem
-// Spiegel liess den Lockvogel in 52 von 76 Proben nötig.
+// Spiegel liess den Lockvogel in 52 von 76 Proben nötig. Am Ring selbst findet „schwerer“ darum nichts zum Andocken
+// (die Ringspiegel sind unberührt, die Quellen leuchten schon in einer Mischung); andocken wirkt hier über fremdfarbe
+// beim Ergänzen (Review Ticket 28: in Proben kein Andocken am Ring).
 import { setRot } from '../../solver.mjs';
 import { FARBEN, strahl, auswege, einfall, bildMit, trifft, wegzellen, maske, lichtzellen } from './wege.mjs';
 
