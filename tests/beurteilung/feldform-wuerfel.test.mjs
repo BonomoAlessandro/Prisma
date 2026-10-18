@@ -275,3 +275,53 @@ test('Ein Level mit dim 3 hat auf dem Würfel-Branch die Würfel-Feldform', () =
   for (const level of L.LEVELS_3D) assert.equal(feldformVon(level).art, 'wuerfel', level.name);
   assert.equal(feldformVon(L.LEVELS[0]).art, 'flach');
 });
+
+// Für den Generator (Ticket 22): dieselben Teile wie in der flachen Feldform (element, rahmen, Nachbartabelle, eine
+// Feldform je Grösse), dazu die drei Drehachsen
+test('Für den Generator: element mit jeder Drehachse (y ohne axis), rahmen legt den Würfel fest', () => {
+  assert.deepEqual(f5.drehachsen, ['y', 'x', 'z']);
+  for (const size of [3, 4, 5]) {
+    const f = feldformVon({ name: 'leer', dim: 3, size, elements: [] });
+    assert.deepEqual(f.rahmen, { dim: 3, size });
+    assert.equal(feldformVon({ name: 'neu', ...f.rahmen, elements: [] }), f);
+    for (const zelle of f.zellen) for (const drehachse of f.drehachsen) {
+      const el = f.element(zelle, { type: 'mirror', drehachse, fixed: true });
+      assert.equal(f.zelle(el), zelle);
+      assert.equal(f.drehachse(el), drehachse);
+      assert.deepEqual(Object.keys(el), ['type', 'x', 'y', 'z', ...(drehachse === 'y' ? [] : ['axis']), 'fixed']);
+    }
+  }
+  assert.deepEqual(f5.element('1,2,3', { type: 'prism' }), { type: 'prism', x: 1, y: 2, z: 3 });
+  assert.throws(() => f5.element('1,2,3', { type: 'prism', drehachse: 'w' }), /Drehachse/);
+  // Mit element und quelleStatt entsteht eine Quelle in jeder der 18 Richtungen, mit einer passenden Drehachse
+  for (const d of f5.richtungen) {
+    const quellen = f5.drehachsen.flatMap((drehachse) => {
+      const k = f5.element(mitte, { type: 'combiner', drehachse });
+      return f5.stellungen(k).filter(v => f5.ausgang(k, v) === d).map(v => f5.quelleStatt(k, v));
+    });
+    assert.ok(quellen.length > 0, `Richtung ${d}`);
+    for (const q of quellen) assert.equal(f5.ausgang(q), d, `Richtung ${d}`);
+  }
+});
+
+test('Nachbarn aus der Tabelle: dieselben wie der Schritt über die Koordinaten der Strahlregel', () => {
+  for (const size of [3, 5]) {
+    const f = feldformVon({ name: 'leer', dim: 3, size, elements: [] });
+    for (const zelle of f.zellen) {
+      const a = xyz(zelle);
+      for (const d of f.richtungen) {
+        const [dx, dy, dz] = vektor(d), n = [a.x + dx, a.y + dy, a.z + dz];
+        const innen = n.every(c => c >= 0 && c < size);
+        assert.equal(f.nachbar(zelle, d), innen ? n.join(',') : null, `${size}: ${zelle} ${d}`);
+      }
+    }
+  }
+});
+
+test('Eine Würfel-Feldform je Grösse, eingefroren wie die flache', () => {
+  const f = feldformVon({ name: 'leer', dim: 3, size: 4, elements: [] });
+  assert.equal(feldformVon({ name: 'anderes', dim: 3, size: 4, elements: [] }), f);
+  for (const teil of [f, f.zellen, f.richtungen, f.drehachsen, f.rahmen]) assert.ok(Object.isFrozen(teil));
+  assert.throws(() => { f.zellen.reverse(); }, TypeError);
+  assert.throws(() => { f.rahmen.size = 5; }, TypeError);
+});

@@ -13,6 +13,8 @@
 //   Leveln zeigt, dass die Prüfung solche Elemente findet.
 // - Der Generator kennt das Feld nur über die Feldform (Suche im Quelltext), läuft nur gedeckelt und weist Aufträge ab,
 //   die er nicht kennt.
+// - Auf dem Würfel-Branch (Ticket 22): Alle Prüfungen gelten auch für Aufträge mit der Würfel-Feldform eines kleinen
+//   Würfels; dazu nutzen die Würfel-Level den Raum (Licht zwischen den Ebenen, waagrechte Drehachsen).
 // Aufruf: sh tools/leise.sh node tests/generator.test.mjs   (nur über leise.sh: Der Generator prüft den Deckel)
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
@@ -60,6 +62,22 @@ const FEST_AB_MITTEL = {
   'sehr schwer': { [MISCHZIEL]: 12, Abschalten: 22, 'Farben abzählen': 2, Sammelstelle: 53, Falle: 28 },
 };
 /**
+ * Würfel (Ticket 22, nur auf dem Branch feature/3d-wuerfel): Aufträge mit der Würfel-Feldform eines kleinen Würfels
+ * (4 × 4 × 4), für die alle Prüfungen gelten wie für die flachen. Die Mindestzahlen liegen bei rund zwei Dritteln der
+ * gemessenen Ausbeute (Seeds 1–100: leicht 90, Mischziel 53, Abschalten 97, Sammelstelle 81, mittel mit Mischziel 38).
+ * FEST_WUERFEL: ein fester Seed, der ohne Kernidee ein leichtes Würfel-Level liefert, in dem Licht zwischen den Ebenen
+ * läuft und drehbare Elemente eine waagrechte Drehachse haben. Würfel-Level kommen nicht ins Spiel.
+ */
+const WUERFEL = feldformVon({ dim: 3, size: 4 });
+const FEST_WUERFEL = 2;
+const WUERFEL_AUFTRAEGE = [
+  { grad: 'leicht', kernidee: null, feldform: WUERFEL, seeds: 30, mindestens: 18 },
+  { grad: 'leicht', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 30, mindestens: 10 },
+  { grad: 'leicht', kernidee: 'Abschalten', feldform: WUERFEL, seeds: 20, mindestens: 12 },
+  { grad: 'leicht', kernidee: 'Sammelstelle', feldform: WUERFEL, seeds: 20, mindestens: 10 },
+  { grad: 'mittel', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 20, mindestens: 4 },
+];
+/**
  * Aufträge mit festen Seeds (seeds: 1 … seeds oder eine Liste) und so vielen gelieferten Leveln mindestens:
  * - „leicht“ ohne Kernidee und mit jeder Kernidee über 50 Seeds (Ticket 19), mindestens ANTEIL_LEVEL davon;
  * - „leicht“ mit zwei Ziel-Schwierigkeiten und die Grade ab „mittel“ ohne Kernidee und mit Mischziel (Ticket 20). Ab
@@ -82,17 +100,19 @@ const AUFTRAEGE = [
   { grad: 'sehr schwer', kernidee: MISCHZIEL, seeds: 12, mindestens: 1 },
   ...Object.entries(FEST_AB_MITTEL).flatMap(([grad, fest]) => TEILE.kernideen.filter(k => k !== MISCHZIEL)
     .map(kernidee => ({ grad, kernidee, seeds: [fest[kernidee] ?? 1], mindestens: kernidee in fest ? 1 : 0 }))),
+  ...WUERFEL_AUFTRAEGE,
 ];
-const auftragVon = ({ grad, kernidee, schwierigkeit }) => ({ grad, kernidee, ...(schwierigkeit ? { schwierigkeit } : {}) });
+const auftragVon = ({ grad, kernidee, schwierigkeit, feldform: f = feldform }) => ({ grad, kernidee, feldform: f,
+  ...(schwierigkeit ? { schwierigkeit } : {}) });
 const seedsVon = (a) => (Array.isArray(a.seeds) ? a.seeds : Array.from({ length: a.seeds }, (_, i) => i + 1));
 const t0 = Date.now();
 const laeufe = AUFTRAEGE.map(a => ({
-  ...a, ergebnisse: seedsVon(a).map(seed => ({ seed, ...generiere({ ...auftragVon(a), seed, feldform }) })),
+  ...a, ergebnisse: seedsVon(a).map(seed => ({ seed, ...generiere({ ...auftragVon(a), seed }) })),
 }));
-const benenne = ({ grad, kernidee, schwierigkeit }) => `${grad}${kernidee ? ' mit ' + kernidee : ''}`
-  + `${schwierigkeit ? ` (${schwierigkeit.join('–')})` : ''}`;
+const benenne = ({ grad, kernidee, schwierigkeit, feldform: f }) => `${grad}${kernidee ? ' mit ' + kernidee : ''}`
+  + `${schwierigkeit ? ` (${schwierigkeit.join('–')})` : ''}${f ? ` im Würfel ${f.rahmen.size}` : ''}`;
 const geliefert = laeufe.flatMap(a => a.ergebnisse.filter(r => r.level)
-  .map(r => ({ grad: a.grad, kernidee: a.kernidee, schwierigkeit: a.schwierigkeit, ...r,
+  .map(r => ({ grad: a.grad, kernidee: a.kernidee, schwierigkeit: a.schwierigkeit, wuerfel: !!a.feldform, ...r,
     name: `${benenne(a)}, Seed ${r.seed}` })));
 console.log(`Generator: ${geliefert.length} Level aus ${laeufe.reduce((s, a) => s + a.ergebnisse.length, 0)} Aufträgen `
   + `(${((Date.now() - t0) / 1000).toFixed(1)} s): `
@@ -118,7 +138,8 @@ function filterOhneWirkung(level) {
     // Was ankommt: in der Lösung mit einem weissen Filter an seiner Stelle (er lässt alles durch)
     const offen = level.elements.map(e => (e === f ? { ...e, color: 'white' } : e));
     const ein = L.traceBeams(inLoesung(level, offen)).events
-      .filter(e => e.kind === 'filter' && Math.round(e.x) === f.x && Math.round(e.z) === f.z).map(e => e.color);
+      .filter(e => e.kind === 'filter' && Math.round(e.x) === f.x && Math.round(e.z) === f.z
+        && (f.y === undefined || Math.round(e.y) === f.y)).map(e => e.color); // y im Würfel
     return ein.every(c => (c & L.COLORS[f.color]) === c);
   }).map(keyOf);
 }
@@ -154,7 +175,7 @@ test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach ander
     const erstes = a.ergebnisse.find(r => r.level);
     const teil = a.grad === 'leicht' ? a.ergebnisse : a.ergebnisse.filter((r, i) => i < WIEDERHOLEN || r === erstes);
     for (const r of [...teil].reverse()) {
-      const nochmal = generiere({ ...auftragVon(a), seed: r.seed, feldform });
+      const nochmal = generiere({ ...auftragVon(a), seed: r.seed });
       const vorher = { level: r.level, ...(r.level ? { beurteilung: r.beurteilung } : { grund: r.grund }) };
       assert.deepStrictEqual(nochmal, vorher, `${benenne(a)}, Seed ${r.seed}`);
     }
@@ -232,7 +253,8 @@ console.log('Je Kernidee ein Level mit festem Seed (Ticket 19)');
 for (const kernidee of TEILE.kernideen) {
   const seed = FEST[kernidee];
   test(`${kernidee}: Seed ${seed} liefert ein leichtes Level, in dem die Beurteilung sie nötig findet`, () => {
-    const g = beurteilt.find(b => b.grad === 'leicht' && !b.schwierigkeit && b.kernidee === kernidee && b.seed === seed);
+    const g = beurteilt.find(b => b.grad === 'leicht' && !b.schwierigkeit && !b.wuerfel && b.kernidee === kernidee
+      && b.seed === seed);
     assert.ok(g, `Seed ${seed} liefert kein Level`);
     const fund = g.neu.kernideen.find(k => k.begriff === kernidee);
     assert.ok(fund && fund.begruendung, `${g.name}: ${kernidee} nicht nötig`);
@@ -245,7 +267,8 @@ for (const [grad, fest] of Object.entries(FEST_AB_MITTEL)) {
   test(`${grad}: der feste Seed je Kernidee liefert ein Level, in dem sie die Haupt-Kernidee ist`
     + ` (${Object.entries(fest).map(([k, s]) => `${k} ${s}`).join(', ')})`, () => {
     for (const [kernidee, seed] of Object.entries(fest)) {
-      const g = beurteilt.find(b => b.grad === grad && !b.schwierigkeit && b.kernidee === kernidee && b.seed === seed);
+      const g = beurteilt.find(b => b.grad === grad && !b.schwierigkeit && !b.wuerfel && b.kernidee === kernidee
+        && b.seed === seed);
       assert.ok(g, `${grad} mit ${kernidee}: Seed ${seed} liefert kein Level`);
       assert.equal(g.neu.hauptKernidee.begriff, kernidee, g.name);
       assert.equal(gradVon(g.neu.schwierigkeit.wert), grad, g.name);
@@ -259,9 +282,12 @@ test('Die mitgegebene Beurteilung ist genau die des gelieferten Levels mit dem v
 
 console.log('Leveldaten');
 test('Leveldaten wie in LEVELS: Name, Grad, Elemente im Feld, die Lösung nennt genau die drehbaren Elemente', () => {
-  for (const { name, level, grad } of geliefert) {
-    assert.deepEqual(Object.keys(level), ['name', 'grad', 'elements', 'solution'], name);
+  for (const { name, level, grad, wuerfel } of geliefert) {
+    // im Würfel wie in LEVELS_3D mit dim und size (der Rahmen der Würfel-Feldform)
+    const rahmen = wuerfel ? ['dim', 'size'] : [];
+    assert.deepEqual(Object.keys(level), ['name', 'grad', ...rahmen, 'elements', 'solution'], name);
     assert.deepEqual([level.name, level.grad], ['', grad], name);
+    if (wuerfel) assert.deepEqual([level.dim, level.size], [3, WUERFEL.rahmen.size], name);
     const brett = L.createBoard(level); // wirft bei Elementen ausserhalb, doppelt belegten Zellen, unbekannten Farben
     const drehbar = brett.elements.filter(L.isRotatable).map(keyOf).sort();
     assert.deepEqual(drehbar, Object.keys(level.solution).sort(), name);
@@ -323,6 +349,19 @@ test('Ebenso keinen Blocker ohne Wirkung (der Lockvogel-Baustein setzt auch Bloc
   assert.ok(mit.length >= 3, `nur ${mit.length} Level mit Blocker geprüft`);
   assert.ok(mit.some(g => g.kernidee === 'Lockvogel'), 'kein Lockvogel-Level mit Blocker geprüft');
   for (const { name, level } of mit) assert.deepEqual(festeOhneWirkung(level, blocker), [], name);
+});
+
+console.log('Würfel (Ticket 22)');
+test(`Im Würfel ${WUERFEL.rahmen.size} × ${WUERFEL.rahmen.size} × ${WUERFEL.rahmen.size} nutzt er den Raum: Licht `
+  + `zwischen den Ebenen, drehbare Elemente mit waagrechter Drehachse; Seed ${FEST_WUERFEL} liefert ein solches Level`,
+() => {
+  const zwischenEbenen = (level) => L.traceBeams(inLoesung(level)).segments.some(s => Math.abs(s.y1 - s.y0) > 1e-9);
+  const waagrecht = (level) => level.elements.some(e => L.isRotatable(e) && e.axis !== undefined && e.axis !== 'y');
+  const im = geliefert.filter(g => g.wuerfel), raum = im.filter(g => zwischenEbenen(g.level) && waagrecht(g.level));
+  assert.ok(raum.length >= im.length / 2, `nur ${raum.length} von ${im.length} Würfel-Leveln nutzen den Raum`);
+  const fest = im.find(g => !g.kernidee && g.seed === FEST_WUERFEL);
+  assert.ok(fest, `Seed ${FEST_WUERFEL} liefert kein Würfel-Level`);
+  assert.ok(zwischenEbenen(fest.level) && waagrecht(fest.level), `${fest.name}: Licht bleibt in einer Ebene`);
 });
 
 console.log('Nahtstellen');

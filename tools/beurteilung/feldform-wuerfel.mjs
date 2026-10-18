@@ -11,6 +11,8 @@
 //   Feld; seine Stellung zählt dort über die Ebenenbasis der Strahlregel (AXES).
 // - Drehungen: um die senkrechte Achse y wie im flachen Feld, aber nur die, die sich mit den Elementen der Strahlregel
 //   darstellen lassen (siehe drehungen).
+// - Für den Generator (Ticket 22): die Leveldaten eines Elements in einer Zelle mit einer der drei Drehachsen
+//   (element, drehachsen) und die Angaben des Würfels (rahmen).
 import { L, period, getRot } from '../solver.mjs';
 
 /** Die 18 Richtungen als Vektoren [dx, dy, dz]: zuerst die acht der Ebene in der Reihenfolge von DIRS. */
@@ -22,13 +24,27 @@ const schluessel = (v) => `${v[0]},${v[1]},${v[2]}`;
 const NUMMER = new Map(VEKTOREN.map((v, i) => [schluessel(v), i]));
 /** Richtung eines ganzzahligen Vektors aus der Strahlregel. */
 const richtungVon = (v) => NUMMER.get(schluessel(v));
+/** Die Drehachsen der Strahlregel (AXES), zuerst y, der Standard (ohne axis in den Leveldaten). */
+const DREHACHSEN = Object.freeze(['y', ...Object.keys(L.AXES).filter(a => a !== 'y')]);
 
 /** Vierteldrehung um die senkrechte Achse wie im flachen Feld: Ost wird Süd, Süd wird West. */
 const dreheVektor = ([dx, dy, dz]) => [-dz, dy, dx];
 const gleich = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
 
-/** Würfel-Feldform mit groesse × groesse × groesse Zellen. Teile und Bedeutung wie in flacheFeldform (feldform.mjs). */
+/**
+ * Würfel-Feldformen nach Grösse, einmal angelegt wie die flachen (feldformVon): Ihre Nachbartabelle kostet etwas, und
+ * der Generator merkt sich manches je Feldform. Darum eingefroren, kein Aufrufer kann sie verändern.
+ */
+const WUERFEL = new Map();
+
+/** Würfel-Feldform mit groesse × groesse × groesse Zellen, je Grösse dieselbe (siehe WUERFEL). */
 export function wuerfelFeldform(groesse) {
+  if (!WUERFEL.has(groesse)) WUERFEL.set(groesse, neueWuerfelFeldform(groesse));
+  return WUERFEL.get(groesse);
+}
+
+/** Würfel-Feldform mit groesse × groesse × groesse Zellen. Teile und Bedeutung wie in flacheFeldform (feldform.mjs). */
+function neueWuerfelFeldform(groesse) {
   const key = (x, y, z) => x + ',' + y + ',' + z;
   const inside = (x, y, z) => x >= 0 && y >= 0 && z >= 0 && x < groesse && y < groesse && z < groesse;
   const lies = (zelle) => zelle.split(',').map(Number);
@@ -38,9 +54,16 @@ export function wuerfelFeldform(groesse) {
   }
   const richtungen = VEKTOREN.map((_, d) => d);
   const gegen = (richtung) => richtungVon(VEKTOREN[richtung].map(c => -c));
-  const nachbar = (zelle, richtung) => {
+  const schritt = (zelle, richtung) => {
     const [x, y, z] = lies(zelle), [dx, dy, dz] = VEKTOREN[richtung];
     return inside(x + dx, y + dy, z + dz) ? key(x + dx, y + dy, z + dz) : null;
+  };
+  // Die Nachbarn je Zelle und Richtung einmal je Feldform, wie in der flachen (Ticket 18): Das Spielermodell fragt sie
+  // in jeder Beurteilung zehntausendfach ab. Dieselben Ergebnisse wie schritt.
+  const tabelle = new Map(zellen.map(z => [z, richtungen.map(d => schritt(z, d))]));
+  const nachbar = (zelle, richtung) => {
+    const reihe = tabelle.get(zelle);
+    return reihe && richtung in reihe ? reihe[richtung] : schritt(zelle, richtung);
   };
   const achseVon = (el) => el.axis || 'y';
   const stellungVon = (el) => (el.type === 'source' ? el.dir : getRot(el));
@@ -87,11 +110,25 @@ export function wuerfelFeldform(groesse) {
     return { ...level, elements, solution };
   };
 
-  return {
+  // Eingefroren samt Zellen, Richtungen, Drehachsen und Rahmen: wuerfelFeldform gibt dieselbe an alle Aufrufer
+  return Object.freeze({
     art: 'wuerfel',
-    zellen,
-    richtungen,
+    zellen: Object.freeze(zellen),
+    richtungen: Object.freeze(richtungen),
+    /** Angaben der Leveldaten, die diesen Würfel festlegen (wie in LEVELS_3D); feldformVon liest daraus dieselbe. */
+    rahmen: Object.freeze({ dim: 3, size: groesse }),
+    /** Die Drehachsen, die ein Element haben kann (Werte wie drehachse), zuerst y. */
+    drehachsen: DREHACHSEN,
     zelle: (el) => key(el.x, el.y, el.z),
+    /**
+     * Leveldaten eines Elements in zelle wie in der flachen Feldform; drehachse (Vorgabe y) wird zu axis, bei y ohne
+     * Angabe wie in LEVELS_3D.
+     */
+    element: (zelle, { type, drehachse = 'y', ...angaben }) => {
+      if (!DREHACHSEN.includes(drehachse)) throw new Error(`Würfel-Feldform: keine Drehachse ${drehachse}`);
+      const [x, y, z] = lies(zelle);
+      return { type, x, y, z, ...(drehachse === 'y' ? {} : { axis: drehachse }), ...angaben };
+    },
     zelleBei: (p) => bei(p.x, p.y, p.z),
     abschnitt: (s) => ({ von: bei(s.x0, s.y0, s.z0), bis: bei(s.x1, s.y1, s.z1) }),
     /** Wie in der flachen Feldform; die Achse ist die kleinere der beiden Richtungen der Linie. */
@@ -136,5 +173,5 @@ export function wuerfelFeldform(groesse) {
      * Vierteldrehungen); mit Prismen beider Achsen bleibt nur das Level selbst.
      */
     drehungen: (level) => [level, ...[1, 2, 3].map(n => drehe(level, n)).filter(Boolean)],
-  };
+  });
 }
