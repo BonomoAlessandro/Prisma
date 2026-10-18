@@ -56,8 +56,8 @@ const ANTEIL_LEVEL = { null: 2 / 3, 'Mischziel aus zwei Quellen': 2 / 3 };
  */
 const FEST_AB_MITTEL = {
   mittel: { [MISCHZIEL]: 6, Abschalten: 1, 'Farben abzählen': 3, Sammelstelle: 1, Falle: 3, Lockvogel: 4 },
-  schwer: { [MISCHZIEL]: 10, Abschalten: 2, 'Farben abzählen': 5, Sammelstelle: 12, Falle: 26, Lockvogel: 20 },
-  'sehr schwer': { [MISCHZIEL]: 12, Abschalten: 19, 'Farben abzählen': 2, Sammelstelle: 53, Falle: 28 },
+  schwer: { [MISCHZIEL]: 10, Abschalten: 3, 'Farben abzählen': 5, Sammelstelle: 12, Falle: 26, Lockvogel: 20 },
+  'sehr schwer': { [MISCHZIEL]: 12, Abschalten: 22, 'Farben abzählen': 2, Sammelstelle: 53, Falle: 28 },
 };
 /**
  * Aufträge mit festen Seeds (seeds: 1 … seeds oder eine Liste) und so vielen gelieferten Leveln mindestens:

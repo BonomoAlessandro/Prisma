@@ -358,8 +358,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     findet es am Ring nichts dazu): fremdes Licht auf einen Spiegel des Strangs oder ein Prisma vor seine Quelle, die
     übrigen Grundfarben gehen zur Seite. Neue Quellen
     des Andockens, bei Farben abzählen und Lockvogel auch die des Ergänzens, teilen keine Grundfarbe mit den Zielen der
-    Kernidee. Ein Versuch von „schwerer“ ohne ein drehbares Element mehr endet ab „mittel“ vor dem Festigen. „leicht“
-    bleibt bitgleich.
+    Kernidee; auch das Andocken setzt nicht mehr Quellen, als der Grad erlaubt. Ein Versuch von „schwerer“ ohne ein
+    drehbares Element mehr endet ab „mittel“ vor dem Festigen. „leicht“ bleibt bitgleich.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
     `grad.mjs` und die verlangte Kernidee nötig.
@@ -375,8 +375,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (ein Prisma bricht eine Grundfarbe direkt aufs Ziel, die Lösung bringt sie über einen Spiegel; eine übrige
     Grundfarbe führt in der Falle über zwei Spiegel in den Holzweg) und Lockvogel (Ringtausch dreier Quellen, ein fester
     Spiegel oder Blocker verstellt ihn). Ab „mittel“ (Ticket 28): Beim Abschalten bekommt A immer ein eigenes Ziel,
-    wo es geht über einen Spiegel von B; Farben abzählen ist ein Weichenring (drei Quellen an drei Ecken, eine in einer
-    Mischung mit der Grundfarbe); beim Lockvogel steht vor jedem Spiegel des Rings ein Prisma.
+    wo es geht über einen zweiten Spiegel, an den fremdes Licht andockt; Farben abzählen ist ein Weichenring (drei
+    Quellen an drei Ecken, eine in einer Mischung mit der Grundfarbe); beim Lockvogel steht vor jedem Spiegel des Rings
+    ein Prisma.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
     Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
     Quelltext nach Koordinaten und Richtungen.

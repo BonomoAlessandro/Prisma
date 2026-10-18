@@ -149,8 +149,9 @@ heil lässt, hängt an der Kernidee:
   Bausteine mit `andocken` (Abschalten, Farben abzählen, Lockvogel). Mischziel, Sammelstelle und Falle brauchen es
   nicht und bleiben unverändert (mit Andocken bei der Falle: 14 / 9 statt 13 / 8 Level aus 100 Seeds bei mittel /
   schwer, im Rauschen).
-- **Abschalten:** A bekommt immer ein eigenes Ziel X, möglichst über einen Spiegel von B (Andocken im Baustein), der
-  Weg dorthin ist reserviert; A und ihr Spiegel stehen in `bau.unberuehrt` (kein Andocken, nicht fest). Vorher
+- **Abschalten:** A bekommt immer ein eigenes Ziel X, wo es geht über einen zweiten drehbaren Spiegel der Kernidee auf
+  ihrem Strahl, an den gleich fremdes Licht andockt (nach dem Review, M1; vorher möglichst über einen Spiegel von B);
+  der Weg dorthin ist reserviert; A und ihr Spiegel stehen in `bau.unberuehrt` (kein Andocken, nicht fest). Vorher
   untersucht (Seeds 1–40): In jedem Fall von „Kernidee wirkungslos“ (zusammen 20 von 100 Seeds) war der Spiegel von A
   fest gemacht, weil der Zwischenstand bei fehlendem X eine zweite Lösung war; danach nahm ein Element auf einer
   Kreuzung (verbinden) X noch oft das Licht; ein Prisma vor A nahm dem Zwischenstand seinen kurzen Weg. Eine Weiche (B
@@ -178,28 +179,32 @@ Kernidee als Haupt-Kernidee; je CPU-Stunde gezählt sind diese Level; bei zwei R
 | Grad | Kernidee | vorher Level / Haupt | vorher CPU-s | vorher Haupt je CPU-h | nachher Level / Haupt | nachher CPU-s | nachher Haupt je CPU-h |
 |---|---|---:|---:|---:|---:|---:|---:|
 | mittel (200) | Mischziel | 115 / 111 | 2,4 / 12,2 | 166 500 / 32 754 | 115 / 111 | 10,0 / 12,1 | 39 960 / 33 025 |
-| | Abschalten | 4 / 4 | 4,9 | 2 939 | 17 / 17 | 11,3 | 5 416 |
-| | Farben abzählen | 0 / 0 | 6,2 | 0 | 116 / 106 | 12,9 | 29 581 |
+| | Abschalten | 4 / 4 | 4,9 | 2 939 | 16 / 15 ¹ | 18,5 ¹ | 2 919 ¹ |
+| | Farben abzählen | 0 / 0 | 6,2 | 0 | 48 / 43 ¹ | 16,1 ¹ | 9 615 ¹ |
 | | Sammelstelle | 80 / 64 | 4,6 / 15,5 | 50 087 / 14 865 | 80 / 64 | 8,4 / 13,8 | 27 429 / 16 696 |
 | | Falle | 31 / 31 | 7,6 | 14 684 | 31 / 31 | 15,6 | 7 154 |
 | | Lockvogel | 0 / 0 | 7,5 | 0 | 108 / 85 | 56,4 | 5 426 |
 | schwer (200) | Mischziel | 68 / 52 | 32,3 / 44,8 | 5 796 / 4 179 | 69 / 52 | 29,8 / 31,3 | 6 282 / 5 981 |
-| | Abschalten | 7 / 7 | 61,5 | 410 | 17 / 16 | 103,0 | 559 |
+| | Abschalten | 7 / 7 | 61,5 | 410 | 15 / 14 ¹ | 68,8 ¹ | 733 ¹ |
 | | Farben abzählen | 10 / 10 | 36,1 | 997 | 55 / 50 | 46,5 | 3 871 |
 | | Sammelstelle | 68 / 55 | 51,1 / 55,8 | 3 875 / 3 548 | 67 / 54 | 44,2 / 40,6 | 4 398 / 4 788 |
 | | Falle | 18 / 18 | 51,0 | 1 271 | 18 / 18 | 54,9 | 1 180 |
 | | Lockvogel | 0 / 0 | 17,4 | 0 | 48 / 24 | 131,0 | 660 |
 | sehr schwer (500) | Mischziel | 40 / 26 | 333,9 / 397,4 | 280 / 236 | 40 / 26 | 294,9 / 293,3 | 317 / 319 |
-| | Abschalten | 3 / 3 | 435,0 | 25 | 5 / 5 | 503,8 | 36 |
+| | Abschalten | 3 / 3 | 435,0 | 25 | 8 / 7 ¹ | 419,3 ¹ | 60 ¹ |
 | | Farben abzählen | 0 / 0 | 139,8 | 0 | 21 / 14 | 205,0 | 246 |
 | | Sammelstelle | 16 / 5 | 428,5 / 418,5 | 42 / 43 | 16 / 5 | 341,1 / 330,1 | 53 / 55 |
 | | Falle | 7 / 7 | 373,8 | 67 | 6 / 6 | 346,3 | 62 |
 | | Lockvogel | 0 / 0 | 48,3 | 0 | 0 / 0 | 532,1 | 0 |
 
-- **mittel und schwer:** Jede der sechs Kernideen liefert aus 200 Seeds mindestens 16 Level mit ihr als
-  Haupt-Kernidee (Abschalten 17 / 16 knapp über der Schwelle, die übrigen 18 bis 111).
-- **sehr schwer:** Fünf Kernideen liefern aus 500 Seeds je mindestens 5 (Mischziel 26, Farben abzählen 14, Falle 6,
-  Abschalten 5, Sammelstelle 5), der Bedarf verlangt je höchstens 3. Lockvogel liefert nichts: Der Ring entsteht (in
+¹ Nach dem Review neu gemessen (M1 und M2, siehe „Nach dem Review umgesetzt“): dieselben Seeds, `--jobs 7`, 16:56–17:01.
+Die übrigen Aufträge rechnen danach je Seed gleich wie hier gemessen.
+
+- **mittel und schwer:** Jede der sechs Kernideen liefert aus 200 Seeds mindestens 14 Level mit ihr als
+  Haupt-Kernidee (Abschalten 15 / 14, in vier Bereichen zu 200 Seeds 14–16 / 13–17; Farben abzählen bei „mittel“ 43,
+  in vier Bereichen 41–51; die übrigen 18 bis 111).
+- **sehr schwer:** Fünf Kernideen liefern aus 500 Seeds je mindestens 5 (Mischziel 26, Farben abzählen 14, Abschalten
+  7, Falle 6, Sammelstelle 5), der Bedarf verlangt je höchstens 3. Lockvogel liefert nichts: Der Ring entsteht (in
   66 % der Seeds), wächst aber nicht auf 9 bis 14 drehbare Elemente (meist zu klein, Zerfall oder Grad schwer mit
   „schwerer: nichts dazugekommen“); der Bedarf ist ohne ihn gedeckt (siehe oben), und das Kriterium verlangt fünf.
 - **Gleiche Level vorher und nachher** (gleicher Fingerabdruck): Mischziel, Sammelstelle und Falle bei „mittel“ (auch
@@ -240,17 +245,20 @@ schwer-falle vor.
 | Lauf | Dauer |
 |---|---:|
 | `node tests/golden.mjs` | 2 s |
-| `node tests/logic.test.mjs` (548 Tests) | 25 s |
-| `node tests/generator.test.mjs` (28 Tests, 577 Aufträge, 369 Level; Erzeugen 42,3 s) | 65 s |
-| `node tests/beurteilung.test.mjs` (177 Tests) | 72 s |
-| `node tests/levelliste.test.mjs` (30 Tests) | 46 s |
-| `node tests/ki-tester.test.mjs` (62 Tests) | 1 s |
+| `node tests/logic.test.mjs` (548 Tests) | 29 s |
+| `node tests/generator.test.mjs` (28 Tests, 577 Aufträge, 369 Level; Erzeugen 47,3 s) | 71 s |
+| `node tests/beurteilung.test.mjs` (177 Tests) | 84 s |
+| `node tests/levelliste.test.mjs` (30 Tests) | 52 s |
+| `node tests/ki-tester.test.mjs` (62 Tests) | 0 s |
+
+(Stand nach dem Review, M1 und M2; vorher 2, 25, 65, 72, 46 und 1 s.)
 
 - Neu im Generator-Test: je Grad ab „mittel“ und je Kernidee ein Auftrag (die Mischziele hatten schon einen), je mit
   einem festen Seed (`FEST_AB_MITTEL`), und je Grad ein Test, dass der feste Seed ein Level des Grads liefert, in dem
   die verlangte Kernidee die Haupt-Kernidee ist (neu beurteilt): mittel Mischziel 6, Abschalten 1, Farben abzählen 3,
-  Sammelstelle 1, Falle 3, Lockvogel 4; schwer 10, 2, 5, 12, 26, 20; sehr schwer 12, 19, 2, 53, 28. Für den Lockvogel
-  in „sehr schwer“ läuft Seed 1 ohne verlangtes Level mit (alle übrigen Prüfungen gelten für alle Level).
+  Sammelstelle 1, Falle 3, Lockvogel 4; schwer 10, 3, 5, 12, 26, 20; sehr schwer 12, 22, 2, 53, 28 (Abschalten bei
+  schwer und sehr schwer nach dem Review neu, vorher 2 und 19). Für den Lockvogel in „sehr schwer“ läuft Seed 1 ohne
+  verlangtes Level mit (alle übrigen Prüfungen gelten für alle Level).
 - `tests/generator.test.mjs` nimmt `seeds` jetzt auch als Liste.
 
 **Abweichungen und Entscheide:**
@@ -261,11 +269,17 @@ schwer-falle vor.
 - **Haupt-Kernidee** wird gezählt, nicht erzwungen (Entscheid des Nutzers, Ticket 23): Der Generator liefert weiter
   Level, in denen die verlangte Kernidee nötig ist. Bei Lockvogel ist sie in 85 von 108 (mittel) bzw. 24 von 48
   (schwer) Leveln auch die Haupt-Kernidee, sonst vor allem Abschalten oder Farben abzählen.
-- **Abschalten** ist die schwächste Kernidee ab „mittel“ (17 / 16 aus 200). Mehr brachten weitere Ansätze nicht: die
+- **Abschalten** ist die schwächste Kernidee ab „mittel“: vor dem Review 17 / 16 aus Seeds 1–200, aber 9 / 7 aus
+  201–400; nach dem Review (M1, siehe unten) 14–16 / 13–17 je 200 Seeds in vier Bereichen. Nichts brachten: die
   Weiche (geht nicht, siehe oben), eine Prüfung auf eindeutigen Kern im Baustein (keine Wirkung), Andocken ohne
   Rückfall auf das bisherige „schwerer“, wenn es nicht geht (0 statt 5 Level aus 100 Seeds), „schwerer“ ganz ohne
-  Andocken (2 / 6 statt 6 / 11 bei mittel / schwer). Abschalten als Haupt-Kernidee entsteht auch nebenbei, etwa bei
+  Andocken (2 / 6 statt 6 / 11 bei mittel / schwer), nach dem Review A öfter über B (weniger) und Andocken an Spiegel
+  ausserhalb der Kernidee (kaum Wirkung). Abschalten als Haupt-Kernidee entsteht auch nebenbei, etwa bei
   mittel-sammelstelle (8 von 100 Seeds) und mittel-lockvogel.
+- **Quellen beim Andocken** (nach dem Review, M2): Das Andocken setzt höchstens so viele Quellen, wie die Vorgabe des
+  Grads erlaubt (vorher bei Farben abzählen und Lockvogel eine mehr, bei „mittel“ also vier). Farben abzählen liefert
+  bei „mittel“ dann weniger (41–51 statt 106–113 Haupt-Level je 200 Seeds), aber weit über der Schwelle und dem
+  Bedarf, und alle Level haben drei Quellen wie die mittleren im Spiel.
 - **bench.mjs** zählt zusätzlich je Grad und Haupt-Kernidee (`haupt` in der gespeicherten Messung, eine Ausgabe
   „Haupt-Kernidee je Gruppe und Grad“); sonst unverändert.
 - **Gemeinsame Dateien:** `bau.mjs` (Set `unberuehrt`), `schritte.mjs` (`fremdfarbe`, `neueFarbe`; `eindeutig` macht
@@ -281,15 +295,16 @@ schwer-falle vor.
 - Der Bedarf je Seite steht oben (Fall A sicher, Fall B bei leerer Liste). Knapp sind „schwer“ 121–140 (ohne Lockvogel
   Mischziel voll) und „sehr schwer“ 141–150 (Falle 1, Farben abzählen 2, Sammelstelle 2, Mischziel 2 und Lockvogel
   nicht lieferbar). Die Häufungsregel (bis 3 Plätze im Grad, „sehr schwer“ ist 138–150) gibt etwas Luft.
-- Kosten bei `--jobs 7` je 100 Haupt-Level etwa: mittel höchstens 0,02 CPU-Stunden (Abschalten, Lockvogel; die übrigen
-  weniger),
-  schwer 0,02 (Mischziel) bis 0,18 (Abschalten), sehr schwer 0,3 (Mischziel) bis 2,8 (Abschalten). Für Kandidaten, die
+- Kosten bei `--jobs 7` je 100 Haupt-Level etwa (nur Grössenordnungen, die CPU-Zeit streut stark): mittel höchstens
+  0,03 CPU-Stunden (Abschalten; die übrigen weniger), schwer 0,02 (Mischziel) bis 0,15 (Abschalten, Lockvogel), sehr
+  schwer 0,3 (Mischziel) bis etwa 2 (Sammelstelle, Abschalten; Abschalten in Seeds 501–1000 3,5). Für Kandidaten, die
   die KI-Tester ablehnen dürfen, genügen bei „sehr schwer“ einige hundert Seeds je Kernidee (500 Seeds je Auftrag
-  kosteten 205 bis 504 CPU-s, mit `--jobs 7` rund eine Minute Wanduhr).
+  kosteten 205 bis 420 CPU-s, mit `--jobs 7` rund eine Minute Wanduhr).
 - `sehr schwer-lockvogel` nicht bestellen: 0 Level aus 500 Seeds bei 532 CPU-s.
 - Ziel-Schwierigkeit (`schwierigkeit: [von, bis]`) funktioniert mit allen Aufträgen; sie kostet Ausbeute.
 - Seeds und Level ab „mittel“ sind für Abschalten, Farben abzählen und Lockvogel neu, für die übrigen Aufträge teils
-  (Fund 2); Seeds aus früheren Proben gelten dort nicht mehr.
+  (Fund 2); Seeds aus früheren Proben gelten dort nicht mehr. Nach dem Review noch einmal neu: Abschalten ab „mittel“
+  und Farben abzählen bei „mittel“.
 
 **Review 18.10.2026** (Reviewer-Agent, im selben Worktree, Stand `9a34b5b`; Skripte nur im Scratchpad unter
 `review28\`). Alle Läufe über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, Messungen mit `--jobs 7`.
@@ -362,7 +377,7 @@ schwer-falle vor.
   Quelle über `quellen` setzen. `bench.mjs`: Der Kopf nennt die Zählung je Grad und Haupt-Kernidee.
 - Hier und in Ticket 25: Auf 131–140 haben Abschalten und Farben abzählen schon je 2, nicht Falle und Abschalten.
 
-**Offen:**
+**Offen** (beides nach dem Review umgesetzt, siehe unten):
 1. **Abschalten knapp unter der Schwelle** (mittel; Abnahme, dritter Punkt): Aus Seeds 1–200 kommen 17 / 16 Level mit
    Abschalten als Haupt-Kernidee, aus 201–400 nur 9 / 7 (mittel / schwer), im Mittel also etwa 13 / 11 je 200 Seeds.
    Die Abnahme ist damit nur für die gemessenen Seeds erfüllt. Entweder die Ausbeute heben (Hebel: In „schwerer“
@@ -379,3 +394,61 @@ schwer-falle vor.
 
 **Urteil:** Code, Bedarf, „leicht“ bitgleich, Fund 2 und die Messmethode sind in Ordnung. Bereit zum Mergen nach
 Punkt 1 (Ausbeute oder Begründung samt Zahlen) und Punkt 2 (Begründung).
+
+**Nach dem Review umgesetzt 18.10.2026** (Entwickler, selber Branch; Skripte im Scratchpad unter `t28\m1\`). Alle Läufe
+über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, `bench.mjs` mit `--jobs 7`; „vorher“ ist `3e205e2`.
+- **Punkt 1, Abschalten (M1): Ausbeute gehoben.**
+  - Ursache genauer (instrumentierte Kopie, mittel-abschalten, Seeds 1–600): Der Baustein brachte A nur in 45 von 600
+    Seeds über einen Spiegel von B. Sonst war der Strang von A (A, ihr Spiegel, X) schon bei der ersten Beurteilung ein
+    Füllteil (404 Seeds) und blieb es in 247 der 559 Seeds ohne Level bis zum Ende: A und ihr Spiegel sind unberührt,
+    der Weg zu X ist reserviert, „schwerer“ findet dort weder einen Spiegel zum Andocken noch Platz für einen.
+  - Die beiden Vorschläge gemessen (Haupt-Level mittel / schwer in Seeds 1–200, 201–400, 401–600; vorher 17 / 16,
+    9 / 7, 15 / 17): Andocken in „schwerer“ auch an die übrigen drehbaren Spiegel eines genannten Teils mit Elementen
+    der Kernidee 18 / 16, 9 / 6, 17 / 20 (kaum Wirkung); A öfter über B (die ersten 30 Versuche des Bausteins nur
+    damit) 5 / 2, 8 / 4, 7 / 4, denn dann tauschen A und B (gleiche Farbe) oft ihre Ziele („zweite Lösung nicht
+    blockierbar“ in 201–400 bei mittel 33 statt 9, bei schwer 72 statt 20).
+  - Gewählt: A kommt über einen zweiten drehbaren Spiegel der Kernidee (nicht unberührt) an X, und an ihn dockt der
+    Baustein gleich fremdes Licht an (neue Quelle in einer fremden Farbe); gelingt das nicht, kann „schwerer“ es später.
+    Nicht mehr über B. Danach ist der Strang von A in 164 statt 247 Seeds am Ende ein Füllteil; was bleibt, ist vor
+    allem der Strang von B, wenn die vier Schritte nicht reichen. Geprüfte Varianten: ohne Andocken im Baustein
+    15 / 15, 14 / 12, 14 / 14 und in 601–800 nur 6 / 8; zuerst weiter über B 12 / 10, 14 / 11, 10 / 14.
+  - Ergebnis (`node tools/bench.mjs generator mittel-abschalten schwer-abschalten --start S --seeds 200 --jobs 7`,
+    Level / Haupt):
+
+    | Seeds | mittel vorher | mittel nachher | schwer vorher | schwer nachher |
+    |---|---:|---:|---:|---:|
+    | 1–200 | 17 / 17 | 16 / 15 | 17 / 16 | 15 / 14 |
+    | 201–400 | 9 / 9 | 16 / 16 | 9 / 7 | 15 / 14 |
+    | 401–600 | 15 / 15 | 15 / 14 | 18 / 17 | 19 / 17 |
+    | 601–800 | 7 / 7 | 16 / 16 | 15 / 15 | 13 / 13 |
+
+    Je 200 Seeds also 14–16 (mittel) und 13–17 (schwer) statt 7–17; zusammen 61 statt 48 bzw. 58 statt 55.
+    „sehr schwer“ (500 Seeds): 1–500 8 / 7 statt 5 / 5, 501–1000 3 / 3 (vorher 5 Haupt-Level); in beiden Bereichen
+    liefern weiter fünf Kernideen je mindestens 3, und der Bedarf verlangt dort kein Abschalten (141–150 hat schon 2).
+  - Aufwand, deterministisch gezählt (Strahlverfolgungen je Seed): mittel 1–400 −13 % bei 31 statt 26 Haupt-Leveln,
+    schwer 1–400 −5 % bei 28 statt 23. Die CPU-Zeit taugt dafür nicht: Die ersten Läufe einer Serie sind schneller
+    (mittel-abschalten auf `3e205e2` kostete 5,9 bis 19,5 CPU-s je 200 Seeds).
+- **Punkt 2, vier Quellen (M2): begrenzt.** `plan.andocken.quellen` ist jetzt `quellen[1]` (`index.mjs`); sind alle
+  Quellen belegt, weicht beim Andocken eine Quelle ausserhalb der Kernidee. Wirkt nur bei „mittel“ für Farben abzählen
+  und Lockvogel (bei „schwer“ und „sehr schwer“ erlaubt die Vorgabe schon vier). mittel-abzaehlen je Seed (Level /
+  Haupt, in Klammern Level mit vier Quellen):
+
+  | Seeds | vorher | nachher |
+  |---|---:|---:|
+  | 1–200 | 116 / 106 (82) | 48 / 43 (0) |
+  | 201–400 | 122 / 111 (93) | 52 / 44 (0) |
+  | 401–600 | 120 / 113 (92) | 56 / 51 (0) |
+  | 601–800 | – | 48 / 41 (0) |
+
+  Strahlverfolgungen +13 %, −3 %, −11 %. Entscheid: begrenzen. Farben abzählen bleibt weit über der Schwelle und über
+  dem Bedarf (mittel, Fall B: je Kernidee etwa 7–14), und die Level haben wie die mittleren im Spiel höchstens drei
+  Quellen. mittel-lockvogel ist je Seed gleich (Seeds 1–600, samt Strahlverfolgungen): Er dockt nie an.
+- **Nichts schlechter:** „leicht“ bitgleich gegen `43d93c4` (die sieben leichten Aufträge und beide
+  Ziel-Schwierigkeiten, Seeds 1–1000: 9000 von 9000 gleich). Die übrigen Kernideen rechnen je Seed gleich wie
+  `3e205e2` (Hash des ganzen Ergebnisses und Strahlverfolgungen, Seeds 1–100, je 100 von 100): mittel-mischziel,
+  -sammelstelle, -falle, -lockvogel, schwer-mischziel, -sammelstelle, -falle, -lockvogel, -abzaehlen. Weniger liefert
+  nur Farben abzählen bei „mittel“ (M2, gewollt).
+- **Tests:** alle grün (Tabelle oben, generator 71 s); feste Seeds für Abschalten bei schwer 3 und sehr schwer 22.
+- **Geändert:** `bausteine/abschalten.mjs`, `index.mjs`, Kommentare in `andocken.mjs` und `vorgaben.mjs`, README
+  „Generator“, `tests/generator.test.mjs` (feste Seeds), hier Ausbeute, Abweichungen und Hinweise, dazu die Hinweise in
+  24, 25 und 26.

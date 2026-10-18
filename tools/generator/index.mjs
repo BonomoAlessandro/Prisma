@@ -176,10 +176,12 @@ export function generiere(auftrag) {
   const wuerfle = (name) => R.int(...vorgaben[name]);
   const plan = { quellen: wuerfle('quellen'), drehbar: wuerfle('drehbar'), filter: wuerfle('filter'),
     festeSpiegel: wuerfle('festeSpiegel') };
-  // Andocken (Ticket 28): ab „mittel“ (vorgaben.andocken) für die Bausteine, die es wollen (baustein.andocken). Belegt
-  // der Baustein alle Quellen der Vorgabe, darf es noch eine dazunehmen.
+  // Andocken (Ticket 28): ab „mittel“ (vorgaben.andocken) für die Bausteine, die es wollen (baustein.andocken). Es
+  // setzt höchstens so viele Quellen, wie die Vorgabe erlaubt; sind alle belegt, weicht eine Quelle ausserhalb der
+  // Kernidee. Mit einer Quelle mehr hatten bei mittel-abzaehlen 82 von 116 Leveln (Seeds 1–200) vier Quellen, im Spiel
+  // hat kein mittleres Level mehr als drei (Review Ticket 28).
   if (vorgaben.andocken && baustein.andocken) {
-    plan.andocken = { quellen: Math.max(vorgaben.quellen[1], baustein.braucht.quellen + 1),
+    plan.andocken = { quellen: vorgaben.quellen[1],
       farbigeQuellen: vorgaben.farbigeQuellen, fremdfarbe: !!baustein.andocken.fremdfarbe };
   }
   let grund = baustein.baue(bau, plan, vorgaben);

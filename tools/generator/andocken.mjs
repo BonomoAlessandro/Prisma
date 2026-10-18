@@ -18,8 +18,8 @@
 // der Strahlregel: Die Ziele der Kernidee bekommen dasselbe Licht wie vorher, die Lockvögel bleiben dunkel, das neue
 // Licht endet dort, wo ein Ziel hinkommen kann, und beim Andocken an einen Spiegel bekommt dieser Licht aus einer
 // Quelle, die ihn vorher nicht erreichte. Welche Elemente der Aufrufer anbietet, entscheidet er (verfeinern.mjs: nur
-// solche der Kernidee, die nicht in bau.unberuehrt stehen). Wie alles im Generator kennt das hier das Feld nur über die
-// Feldform.
+// solche der Kernidee, die nicht in bau.unberuehrt stehen; der Baustein Abschalten: den zweiten Spiegel von A). Wie
+// alles im Generator kennt das hier das Feld nur über die Feldform.
 import { setRot } from '../solver.mjs';
 import { gemischt, fremdfarbe } from './schritte.mjs';
 import { lichtzellen, FARBEN, maske } from './bausteine/wege.mjs';
