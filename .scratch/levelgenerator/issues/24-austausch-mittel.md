@@ -283,3 +283,100 @@ mit einem Skript, das nur ihre Vorstufen ausgibt (`t24\diag.mjs`).
 - **Empfehlung (b):** Die Urteile der KI-Tester sind das einzige Mass für Spass, das hier etwas weiss, und für 20 Level
   sind sie eindeutig gut; die 24 übrigen haben entweder schwache Urteile oder gar keine, und für sie spricht nur die
   Regel. (c) lohnt sich als eigenes Ticket erst, wenn der Nutzer das Glossar erweitern will.
+
+**Entscheid des Nutzers zu Gruppe 2 (18.10.2026, über den Koordinator): Variante (b′).**
+1. Die 16 Level ohne Urteil beurteilen zuerst die KI-Tester.
+2. Danach gilt für alle 44 dieselbe Regel: **Stark** ist ein Level, wenn beide KI-Tester in jedem Urteil einen
+   Aha-Moment sehen, das Gefühl im Mittel mindestens 4 ist und keiner einen Begriff der Ablehnung nennt. Starke Level
+   bleiben im Spiel, unter einem neuen Grund „behalten nach Urteil der KI-Tester“. Alle übrigen werden ersetzt.
+3. Die Endbedingung „Liste leer“ nach 23–26 gilt nicht mehr: Am Ende stehen nur noch Level mit dem Grund „behalten“
+   auf der Liste.
+
+**Lauf `behalten-mittel-1` vorbereitet (18.10.2026).**
+- Die 16 Level ohne Urteil mit ihren Plätzen im Spiel: 34 Funkenflug, 45 Knotenpunkt, 51 Drehscheibe,
+  52 Strahlenkranz, 53 Turmalin, 54 Legierung, 56 Farbschleuse, 57 Perlmutt, 58 Lichtfaden, 59 Paravent,
+  63 Glasbaustein, 64 Fadenkreuz, 65 Lichtschranke, 67 Blaue Stunde, 71 Farbtupfer, 73 Lichtkreuz;
+  `prepare.mjs behalten-mittel-1 <Plätze>`, Ablauf 2, ohne `--anker`; Bilder 30–32 s je Aufnahme, die der Anker aus
+  dem Zwischenspeicher. Die KI-Tester startet der Koordinator.
+- Der Name zählt nicht für die Levelliste (nur `pruefung-…` und `ersatz-…`); diese Level stehen nicht auf der
+  Prüfliste, und `reihenfolge()` würde bei einem zählenden Urteil zu ihnen werfen.
+- **Eichmenge des Spielwerts:** Die Eichmenge nimmt jedes Urteil zu einem Level der heutigen Reihenfolge, gleich aus
+  welchem Lauf (`spielwert-eichmenge.mjs`; ausgenommen sind nur Läufe `ersatz-…` zu neuen Leveln). Die 16 kommen also
+  neu hinein (heute ist keines darin, auch nicht über die Reviews), und zwar auch die, die danach ersetzt werden: Ihre
+  Leveldaten bleiben als feste Kopie Teil des Massstabs. Die Urteile gibt es noch nicht; mit angenommenem Gefühl
+  (Mittel aus A und B), gerechnet mit den Beurteilungen des Tests (`t24\eichmenge-sim.mjs`), heute 0,2822 / 0,2671
+  (gerundet 0,28 / 0,27, Schwelle 0,26 / 0,25):
+
+  | Gefühl der 16 | ohne Ausschlussgrund | über alle |
+  |---|---:|---:|
+  | alle 3 | 0,35 | 0,33 |
+  | alle 3,5 | 0,32 | 0,30 |
+  | alle 4 | **0,22** | **0,21** |
+  | alle 4,5 | **0,09** | **0,12** |
+  | zufällig aus den 34 mittleren Leveln mit Urteil ohne erkannte Kernidee (5000 Ziehungen): 5 %, Median, 95 % | 0,20 / 0,25 / 0,30 | 0,21 / 0,25 / 0,28 |
+  | gegen den Spielwert (bester Spass beim tiefsten Spielwert) | **0,17** | **0,20** |
+  | mit dem Spielwert | 0,32 | 0,28 |
+
+  In den Ziehungen fällt der Test in 53 % der Fälle unter die Schwelle. Grund: Die 16 haben einen tiefen Spielwert
+  (46,5–62,4); finden die KI-Tester sie so gut wie die übrigen mittleren Level ohne erkannte Kernidee (meist 4), sinkt
+  die Übereinstimmung. Werden sie schwach beurteilt (und dann ersetzt), steigt sie. Die Schwelle passe ich nicht an;
+  fällt der Test nach dem Zusammenführen, melde ich das.
+- **Anker A3 Glasfenster** ist formal stark: Sein einziges Urteil im Protokoll ist das als Anker im Probelauf
+  `probelauf-3` (Ablauf 2): Gefühl 4/4, Aha ja/ja, keine Ablehnung. Die Regel zählt dabei jedes Urteil im Protokoll,
+  auch Probeläufe, Eichläufe und Ablauf 1. Bei 4 der 20 starken Level stammen alle Urteile aus Ablauf 1 (Kreuzweg und
+  Silberstreif aus `probelauf-2`, Rochade aus `spielwert-2`, Uhrwerk aus `spielwert-4`); zählten nur Urteile aus
+  Ablauf 2, hätten sie keines.
+
+**Läufe `ersatz-mittel-1` und `-2` zusammengeführt (18.10.2026).** `merge.mjs` für beide (je 13 Einträge, Ablauf 2;
+Protokoll jetzt 144 Einträge), danach `tests/ki-tester.test.mjs` grün (64). Beide KI-Tester lehnen 7 Level ab, alle
+wegen Zerfall. Je Lücke (Gefühl A/B, Zerfall genannt von, Ergebnis von `merge.mjs` am Platz der Formel; „Teile“ aus
+der Vorprüfung unten):
+
+| Lücke | Kandidat | Ersatz | Stand |
+|---|---|---|---|
+| Glasmurmel | fcd4bfeb: 4/4, B; bleibt; 2 Teile | c26b02f0: 4/3, beide: abgelehnt | gefüllt (Kandidat) |
+| Schnittstelle | ba0e3031: 4/4, –; bleibt; 1 Teil | 8656eb5f: 4/5, –; bleibt; 1 Teil | gefüllt |
+| Sonnenstrahl | ac58204f: 3/3, beide: abgelehnt | c4ee29fd: 4/4, –; bleibt; 1 Teil | gefüllt (Ersatz) |
+| Geflecht | 0775747e: 4/5, –; bleibt; 1 Teil | 7c15642a: 4/5, A; bleibt; 2 Teile | gefüllt |
+| Laterne | 8ca9a613: 3/3, beide: abgelehnt | 9413f358: 3/4, A; bleibt; 3 Teile | gefüllt (Ersatz) |
+| Einklang | 51e721c1: 4/4, B; +5; 2 Teile | 5c0dc837: 3/4, beide: abgelehnt | gefüllt (Kandidat) |
+| Widerschein | a6e146e0: 4/4, –; bleibt; 1 Teil | 44342c17: 4/4, –; bleibt; 1 Teil | gefüllt |
+| Mosaik | a4621708: 3/4, A; bleibt; 3 Teile | 53522ec0: 3/3, beide: abgelehnt | gefüllt (Kandidat) |
+| Lichtschleife | be69a422: 5/4, –; bleibt; 1 Teil | 3774c0a4: 3/4, A; bleibt; 3 Teile | gefüllt |
+| Weichensteller | ae26b9cc: 4/4, –; +5; 1 Teil | 31dacb34: 4/3, –; bleibt; 1 Teil | gefüllt |
+| Lichtorgel | 0a36526d: 3/4, beide: abgelehnt | 5a608007: 3/3, beide: abgelehnt | **offen** |
+| Polarlicht | 8d478f46: 5/4, –; bleibt; 1 Teil | 64341929: 3/4, A; bleibt; 3 Teile | gefüllt |
+| Libelle | f03e3dee: 4/4, –; bleibt; 1 Teil | dd0fbbef: 3/4, A; −1; 3 Teile | gefüllt |
+
+- Offen ist nur Lichtorgel. Vier Lücken sind nur mit einem Level gefüllt, bei dem einer der beiden KI-Tester Zerfall
+  nennt und die Vorprüfung mehrere Teile findet (Glasmurmel, Laterne, Einklang, Mosaik); nach der Regel sind sie nicht
+  abgelehnt.
+- Neue Kandidaten für Lichtorgel kommen erst mit dem Urteil über die 16 Level ohne Urteil, in einem gemeinsamen Lauf mit
+  den Ersatzleveln für die schwachen Level der Gruppe 2 (Koordinator, 18.10.2026).
+
+**Zerfall: Regel der Beurteilung und Urteil der KI-Tester (18.10.2026).**
+- **Was die KI-Tester meinen** (ihre Begründungen): Die Lösung zerfällt in Stränge je Quelle, die kein Element und kein
+  Ziel teilen und kein Mischziel verbindet, etwa „drei Quellen, drei getrennte Stränge aus je einem Prisma und einem
+  Spiegel“ oder „der weisse Strang mit vier Elementen und das gelbe Mischziel aus zwei Quellen haben nichts
+  miteinander zu tun“. Die Grösse eines Teils spielt für sie keine Rolle.
+- **Die Regel der Beurteilung** (`ausschluesse/zerfall.mjs`) gruppiert Ziele über gemeinsame drehbare Elemente und
+  Mischziele und zählt erst, wenn die zweite Gruppe mindestens 3 drehbare Elemente hat. Die abgelehnten Kandidaten haben
+  zweite Teile mit 1–2 drehbaren Elementen; kurze Stränge mit einem Prisma sind auch kein Füllteil (der zählt nur
+  Spiegel). Der Generator liefert nur Level, die die Regel besteht, also keines der 26 mit Zerfall nach der Regel.
+- **Unterschied an den 26 Kandidaten:** Regel 0 von 26; KI-Tester beide 7, einer 8, keiner 11. Ab „mittel“ war Zerfall
+  im Spiel bisher selten: an den 58 Leveln ab „mittel“ mit Urteil aus Ablauf 2 nennen die KI-Tester ihn bei 5 (beide
+  bei 44 Glasmurmel und 70 Widerschein), die Regel findet ihn bei 2 (55 Laterne, 116 Kristallpalast).
+- **Vorprüfung** (nur im Scratchpad, `t24\zerfall-check.mjs`; die Beurteilung ist unverändert): In der Lösungsstellung
+  leuchtet je eine Quelle allein (die übrigen als Blocker, wie `jeQuelle`). Zwei Quellen gehören zu einem Teil, wenn ihr
+  Licht ein gemeinsames Ziel trifft oder beide ein gemeinsames Element brauchen (Spiegel, Prisma, Kombinator, Filter;
+  „brauchen“: an seiner Stelle ein Blocker, und ein Ziel bekommt von dieser Quelle anderes Licht). Streulicht, das nur
+  einen fremden Spiegel streift, verbindet nicht (so bei 53522ec0: Mit jedem berührten Element wäre es ein Teil, die
+  KI-Tester sehen zwei).
+  - An den 26: mehr als ein Teil bei 15, und das sind genau die 15, bei denen mindestens ein KI-Tester Zerfall nennt
+    (darunter alle 7 Ablehnungen); ein Teil bei 11, und bei keinem davon nennt einer Zerfall.
+  - An den Leveln im Spiel stimmt sie weniger genau: von den 58 ab „mittel“ mit Urteil aus Ablauf 2 hat sie bei 5 mehr
+    als einen Teil (Glasmurmel, Blendwerk und Kristallpalast mit Zerfall bei den KI-Testern; Einklang und Weichensteller
+    ohne, beide aber wegen Füllteil abgelehnt); Widerschein und Laterne (Zerfall bei den KI-Testern) haben nach ihr
+    einen Teil. In „leicht“ (Ticket 23) haben Fackellauf, Strahlteiler und Fernlicht zwei Teile, ohne dass die KI-Tester
+    Zerfall nennen.
+  - Für die nächsten Kandidaten verwerfe ich jeden mit mehr als einem Teil, bevor er zu den KI-Testern geht.
