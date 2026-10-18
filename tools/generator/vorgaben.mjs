@@ -36,7 +36,7 @@
 // Mit 7–12 lieferte „schwer“ 48 statt 67 Level aus 300 Seeds bei mehr CPU-Zeit (Review Ticket 20).
 // Die Quellen gelten auch für das fertige Level, denn im Spiel hat kein Level ab „mittel“ weniger als zwei und kein
 // mittleres mehr als drei. Die Obergrenze halten Ergänzen, „schwerer“ und Andocken ein (Review Ticket 28, M2). Unter
-// die Untergrenze kommt ein Level, wenn das Festigen eine Quelle als wirkungslos wegnimmt; dann verwirft es der
+// die Untergrenze kommt ein Level etwa, wenn das Festigen eine Quelle als wirkungslos wegnimmt; dann verwirft es der
 // Generator am Ende mit „zu wenige Quellen“ (Ticket 29: von den Aufträgen ab „mittel“ mit je 500 Seeds nur
 // mittel-falle, 2 von 76 Leveln).
 // Die Klicks steigen mit der Grösse. maxSuche ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit

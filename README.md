@@ -70,8 +70,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
     „sehr schwer“ ausser dem Lockvogel). Jedes Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt;
-    „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert
-    (Ticket 29).
+    „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert mit
+    genau zwei, „leicht“ weiter auch mit einer (Ticket 29).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
