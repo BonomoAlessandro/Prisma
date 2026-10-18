@@ -10,10 +10,10 @@
 // Aufruf: sh tools/leise.sh node tools/eiche-schwierigkeit.mjs [--bericht]
 //   Immer: die Gewichte, die Anteile der Teilwerte und die Rangkorrelation, bisher (ungerade Plätze) und gekreuzt über
 //   beide Hälften.
-//   --bericht: dazu weitere Rangkorrelationen, die grössten Abweichungen, zum Vergleich die alte Wertung (score aus
-//              metrics in solver.mjs, rund 25 s mehr) und die Rangkorrelation mit dem Spielwert.
+//   --bericht: dazu weitere Rangkorrelationen, die grössten Abweichungen und die Rangkorrelation mit dem Spielwert.
+//              Den Vergleich mit der alten Wertung (score aus metrics in solver.mjs) gibt es seit Ticket 21 nicht
+//              mehr; er steht in ADR 0001.
 import { writeFileSync } from 'node:fs';
-import { metrics } from './solver.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { bewerte } from './beurteilung/schwierigkeit.mjs';
 import {
@@ -77,10 +77,6 @@ if (bericht) {
     const haelfte = a.platz % 2 ? 'ungerade' : 'gerade';
     console.log(`  ${a.platz} ${a.name} → ${zahl(a.neu, a.neu % 1 ? 1 : 0)} (${haelfte}), ${zahl(a.wert, 1)}`);
   }
-  console.log('Alte Wertung (score aus metrics) …');
-  const alt = levels.map(level => metrics(level).score);
-  console.log('  ungerade Plätze:', korrelation(alt, ungerade));
-  console.log('  alle 150 (ungeeicht, also auch gekreuzt):', korrelation(alt, () => true));
   // Spielwert und Schwierigkeit sollen getrennt messen (Spec): Wie stark hängen sie zusammen?
   const jeGrad = [...new Set(levels.map(l => l.grad))].map((grad) => {
     const i = alle.map((_, j) => j).filter(j => levels[j].grad === grad);

@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 14. Oktober 2026
+Zuletzt aktualisiert: 18. Oktober 2026
 
 ---
 
@@ -38,9 +38,13 @@ Zuletzt aktualisiert: 14. Oktober 2026
 - [x] **2.1 Struktur:** Kapitel entfernt; Tutorial mit Hinweisen, 50 Level nach Wertung, Levelauswahl mit Seiten,
   Fortschritt nach Levelname (alte Schlüssel „II:Name“ werden übernommen).
 - [x] **2.2 Generator-Profile** (`tools/profiles.mjs`): Grössenstufe 1–5 × Mischung (Spiegel, Prisma, Filter,
-  farbige Quellen, Kombinator, bunt). Farbige Quellen im Generator. Pools mit `tools/pools.mjs`.
+  farbige Quellen, Kombinator, bunt). Farbige Quellen im Generator. Pools mit `tools/pools.mjs`. Profile, alter
+  Generator und Pools sind mit Ticket 21 entfernt; heute erzeugt der Generator in `tools/generator/` die Level (ADR
+  0004).
 - [x] **2.3 Kuratierung** (`tools/curate.mjs`): alle Pools + handgebaute Level, 50 gleichmässig über die Wertung,
-  verschiedene Grundmuster, abwechselnde und ausgewogene Mischungen; Review der Auswahl und der Reihenfolge.
+  verschiedene Grundmuster, abwechselnde und ausgewogene Mischungen; Review der Auswahl und der Reihenfolge. Mit Ticket
+  21 entfernt (samt `tools/selection.jsonl` und `tools/candidates.jsonl`): Reihenfolge und Grade rechnet
+  `tools/ordne-level.mjs` aus der Beurteilung.
 - [x] **2.3b Zweites Review** mit zwei unabhängigen Testern (Spielersicht ohne Kennzahlen, analytisches
   Spielermodell), abgeglichen in zwei Runden: Reihenfolge neu (Rangkorrelation der Tester 0.91 → Abstand im Mittel
   unter 2 Plätzen), 4 Level ersetzt (Kopie eines Tutorial-Levels, Dopplung, zwei wirkungslose Filter). Tutorial:
@@ -678,9 +682,9 @@ Zuletzt aktualisiert: 14. Oktober 2026
   → Teilweise in der Spec `.scratch/levelgenerator/spec.md`: Der Lockvogel ist eine Kernidee (Tickets 11 und 19). Ein
   Ziel „in den meisten Leveln“ ist dort nicht festgelegt.
 - [ ] **3.5 `harden.mjs` verbessern** (Review 4, Bericht `tools/pools/review4/tester-analyst.md`, Abschnitt 4):
-  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`: Das Härten entfällt (Tickets 20 und 21), die Punkte
-  unten gehen in die Beurteilung ein (Tickets 07–09, 12 und 13). Abweichend gilt: Kombinator → Prisma wie bei „Zenit“
-  ist eine Scheinmischung.
+  → Ersetzt durch die Spec `.scratch/levelgenerator/spec.md`: Das Härten entfällt (Tickets 20 und 21; `harden.mjs` ist
+  entfernt), die Punkte unten gehen in die Beurteilung ein (Tickets 07–09, 12 und 13). Abweichend gilt: Kombinator →
+  Prisma wie bei „Zenit“ ist eine Scheinmischung.
   - Wertung belohnt Grösse statt Denken: 16 von 32 Kandidaten sind bei vollem Überblick ohne Fallunterscheidung
     lösbar. Spielermodell (`player.mjs`) als Abnahme, z. B. mindestens ein Stillstand bei Horizont 2, aber höchstens
     zwei Fallunterscheidungen mit kurzer Kette bei vollem Überblick. Das Modell dafür versionieren.
@@ -780,6 +784,8 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - [x] 50 mittelschwere Level zwischen die damaligen Level 40 und 69 eingefügt (jetzt 150)
 - [x] Bildrate nach Bedarf: höchstens 60 Bilder/s bei Bewegung, 30 in Ruhe und bei offener Levelauswahl – auf
   schnellen Bildschirmen und im Ruhezustand ein Bruchteil der bisherigen Grafiklast
+- [x] Alte Level-Werkzeuge abgebaut (Ticket 21): alter Generator, Härten, Profile, Pools, Kuratieren, Auswahlliste,
+  Ja/Nein-Filter und alte Wertung; es beurteilen und erzeugen nur noch die Beurteilung und der neue Generator
 
 ---
 
@@ -789,13 +795,19 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - Grössere Level-Änderungen spielt der Nutzer an und gibt Feedback.
 
 ```bash
-node tests/logic.test.mjs                                   # alle Tests (Eindeutigkeit jedes Levels)
-node tests/offline.mjs                                      # Offline-Betrieb im Browser (Service Worker)
-node tools/pools.mjs --jobs 13                              # Pools je Profil erzeugen (bis 2,5 h; vorhandene bleiben)
-node tools/curate.mjs --dry --save tools/pools/draft.jsonl   # Auswahl ansehen und speichern
-node tools/curate.mjs --order tools/selection.jsonl          # genau diese Auswahl/Reihenfolge ins Spiel schreiben
-node tools/show.mjs --level 15                               # ein Level als Textfeld (Start und Lösung)
-node tests/screenshot.mjs name 1440 900                      # Screenshot nach tests/output/ (MOBILE=1 DPR=3: Handy)
+sh tools/leise.sh node tests/logic.test.mjs                 # Strahllogik, Löser, Lösung und Eindeutigkeit jedes Levels
+sh tools/leise.sh node tests/golden.mjs                     # Strahlbilder und Löser gegen tests/golden.json
+sh tools/leise.sh node tests/beurteilung.test.mjs           # Beurteilung
+sh tools/leise.sh node tests/levelliste.test.mjs            # Levelliste: Reihenfolge, Grade, Duldungsliste, Namen
+sh tools/leise.sh node tests/generator.test.mjs             # Generator
+node tests/ki-tester.test.mjs                               # Ablauf der KI-Tester
+sh tools/leise.sh node tests/offline.mjs [--redirect]       # Offline-Betrieb im Browser (Service Worker)
+LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs mittel-mischziel --anzahl 3 | node tools/show.mjs
+                                                            # Kandidaten aus dem Generator als Textfeld
+sh tools/leise.sh node tools/ordne-level.mjs                # Reihenfolge und Grade (--schreiben: ins Spiel)
+node tools/show.mjs --level 15 [--beurteilen]               # ein Level als Textfeld (Start und Lösung)
+sh tools/leise.sh node tests/screenshot.mjs name 1440 900   # Screenshot nach tests/output/ (MOBILE=1 DPR=3: Handy)
 ```
 
-- Pools liegen in `tools/pools/` (nicht versioniert).
+- Frühere Pools und Reviews liegen in `tools/pools/` (nicht versioniert); die Werkzeuge dazu sind seit Ticket 21
+  entfernt.

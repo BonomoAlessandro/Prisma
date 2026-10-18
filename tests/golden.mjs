@@ -2,31 +2,34 @@
 // Ergebnis der Strahlverfolgung und des Lösers fest und meldet jede Abweichung.
 // Aufruf: node tests/golden.mjs            vergleicht mit tests/golden.json (Exit-Code 1 bei Abweichung)
 //         node tests/golden.mjs --voll     vergleicht zusätzlich den Löser aller Level (vor Änderungen am Löser)
-//         node tests/golden.mjs --schnell  vergleicht nur die Strahlbilder, ohne Löser und alte Wertung (etwa 1 s,
-//                                          für Zwischenschritte eines Umbaus; nach mehreren Schritten, am Schluss und
-//                                          immer, wenn der Löser berührt ist, ein Lauf ohne --schnell)
-//         node tests/golden.mjs --write    schreibt tests/golden.json neu (nur bei bewusster Änderung des Verhaltens)
+//         node tests/golden.mjs --schnell  vergleicht nur die Strahlbilder, ohne Löser (etwa 1 s, für Zwischenschritte
+//                                          eines Umbaus; nach mehreren Schritten, am Schluss und immer, wenn der Löser
+//                                          berührt ist, ein Lauf ohne --schnell)
+//         node tests/golden.mjs --write    schreibt tests/golden.json neu (nur bei bewusster Änderung des Verhaltens
+//                                          oder wenn Level dazukommen oder wegfallen)
 //
 // Je Level festgehalten (Logik aus index.html, Bereich LOGIC:BEGIN … LOGIC:END, geladen über tools/solver.mjs):
 //   start, solved: traceBeams(createBoard(level)) in der Startstellung und mit level.solution angewendet –
 //                  segments, events, hits (Map → nach Id sortierte Einträge), mixes (ebenso), satisfied
 //                  (sortiert), solved, truncated.
-//   solver:        solve(level) → count, nodes, leaves, near, guesses, aborted, rotatable, Lösungen
-//   score:         alte Wertung (`score`) aus metrics(level), nur für die Tutorial-Level und jedes 10. Hauptlevel
-//                  (1, 11, …, 141 in der Reihenfolge vor Ticket 15), weil sie zusätzlich die Suche ohne Abschneiden
-//                  rechnet (die Suche des Lösers bekommt sie mit)
+//   solver:        solve(level) → count, nodes, leaves, near, guesses, aborted, rotatable, Lösungen; in der Referenz
+//                  für alle Level
+// Bis Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung fest (`score` aus metrics in solver.mjs), und
+// diese Einträge bestimmten, für welche Level der normale Lauf den Löser vergleicht. Beides entfällt mit der alten
+// Wertung. Jetzt vergleicht der normale Lauf den Löser für eine Stichprobe nach dem Platz im Spiel: das Tutorial und
+// jedes 10. Level danach (Platz 1, 11, …, 141). Die Referenz hat die Löserdaten aller Level, also passt jede
+// Stichprobe, auch nachdem tools/ordne-level.mjs die Level neu geordnet hat.
 // Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht (seit Ticket 15 ordnet tools/ordne-level.mjs
 // die Level neu), Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um höchstens
 // 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine Gegenprobe prüft den
 // Vergleich selbst.
-// Laufzeit (gemessen über leise.sh, Stand nach Ticket 04): Strahlbilder aller Level wenige ms, Löser für alle 159 Level
-// etwa 15 s (fast alles in den Leveln 121–150), alte Wertung (`score`) für die 24 Level etwa 1,5 s. Der normale Lauf
-// rechnet den Löser deshalb nur für dieselben 24 Level (etwa 5 s); --voll und --write rechnen ihn für alle (etwa
-// 20 s).
+// Laufzeit (über leise.sh, Stand Ticket 21): Strahlbilder aller Level wenige ms, Löser für alle 159 Level etwa 20–25 s
+// (fast alles in den 30 schwersten Leveln). Der normale Lauf rechnet den Löser deshalb nur für die Stichprobe (etwa
+// 2 s); --voll und --write rechnen ihn für alle.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { L, setRot, keyOf, solve, metrics } from '../tools/solver.mjs';
+import { L, setRot, keyOf, solve } from '../tools/solver.mjs';
 
 const file = join(dirname(fileURLToPath(import.meta.url)), 'golden.json');
 const write = process.argv.includes('--write');
@@ -46,12 +49,12 @@ const snap = (r) => ({
 });
 
 const golden = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
-// Löser und alte Wertung rechnet der normale Lauf für das Tutorial und jedes 10. Hauptlevel der Reihenfolge, in der
-// golden.json entstand (1, 11, …, 141 vor Ticket 15). Festgehalten nach Namen wie der ganze Vergleich: Ein neu
-// geordnetes Level hat dieselben Strahlbilder und Löserergebnisse (Ticket 15).
-const MIT_SCORE = new Set(golden ? golden.filter(g => 'score' in g).map(g => g.name)
-  : L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0).map(l => l.name));
-const withScore = (level) => MIT_SCORE.has(level.name);
+// Den Löser rechnet der normale Lauf für die Stichprobe: das Tutorial und jedes 10. Level danach im Spiel (Platz 1, 11,
+// …, 141). Verglichen wird auch sie nach Namen: Ein neu geordnetes Level hat dieselben Strahlbilder und
+// Löserergebnisse.
+const STICHPROBE = new Set(L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0)
+  .map(l => l.name));
+const inStichprobe = (level) => STICHPROBE.has(level.name);
 
 // Strahlbilder in Start- und Lösungsstellung, gerechnet mit `logic` (L oder die veränderte Logik der Gegenprobe)
 function traces(logic, level) {
@@ -66,19 +69,18 @@ function traces(logic, level) {
 
 function record(level) {
   const entry = { name: level.name, ...traces(L, level) };
-  if (quick || (!full && !withScore(level))) return entry;
+  if (quick || (!full && !inStichprobe(level))) return entry;
   const s = solve(level);
   entry.solver = {
     count: s.count, nodes: s.nodes, leaves: s.leaves, near: s.near, guesses: s.guesses,
     aborted: s.aborted, rotatable: s.rotatable, solutions: s.solutions,
   };
-  if (withScore(level)) entry.score = metrics(level, { sol: s }).score;
   return entry;
 }
 
 // Kommazahlen der Segmente und Ereignisse (Endpunkte, Normalen, Längen, Abstände) dürfen um TOLERANCE abweichen,
-// alles andere muss exakt stimmen: Treffer, Mischungen, „gelöst“, Art, Farbe, Element-Bezüge, Löser und alte Wertung
-// (`score`). Zellen und Richtungen stecken in den Koordinaten; eine falsche Zelle weicht um mindestens 0,0046 ab
+// alles andere muss exakt stimmen: Treffer, Mischungen, „gelöst“, Art, Farbe, Element-Bezüge und der Löser. Zellen
+// und Richtungen stecken in den Koordinaten; eine falsche Zelle weicht um mindestens 0,0046 ab
 // (Spiegelkante gegen schräges Auslaufen über die Feldecke), also weit über der Toleranz.
 const TOLERANCE = 1e-9;
 const FLOAT = new Set(['x', 'z', 'x0', 'z0', 'x1', 'z1', 'n0', 'n1', 'normal', 'length', 'fade', 'dist', 'dist0']);
@@ -135,6 +137,12 @@ const gold = (level) => golden.find(g => g.name === level.name);
 let failed = false;
 const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { console.error('  FAIL', text); failed = true; } };
 
+// Die Stichprobe richtet sich nach dem Platz im Spiel; dafür braucht die Referenz die Löserdaten jedes Levels
+const ohneLoeser = golden.filter(g => !g.solver).map(g => g.name);
+report(!ohneLoeser.length, ohneLoeser.length ? `Referenz ohne Löserdaten: ${ohneLoeser.join(', ')} (mit --write neu)`
+  : `Referenz: Löserdaten für alle ${golden.length} Level`);
+report(!golden.some(g => 'score' in g), 'Referenz ohne alte Wertung (score, bis Ticket 21)');
+
 // Gegenprobe des Vergleichs: Lenkt ein Spiegel einen Strahl, der nach Osten läuft, nach Norden statt nach Süden, muss
 // das auffallen (die Logik ruft dafür reflectOnMirror auf). Auf der Kopie eines Eintrags mit Löserdaten darf eine
 // Abweichung von 1e-12 in einer Normalen nicht auffallen; jede der Änderungen in `detect` dagegen schon.
@@ -147,13 +155,12 @@ const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { conso
   const caught = L.LEVELS.filter(level => gold(level)
     && compare([gold(level)], [{ ...gold(level), ...traces(bent, level) }]).length).length;
   report(caught > 0, `Gegenprobe: ein Spiegel, der nach Norden statt nach Süden lenkt, fällt auf (in ${caught} Leveln)`);
-  const sample = golden.find((g) => 'score' in g);
+  const sample = golden.find((g) => g.solver);
   const changed = (edit) => { const g = structuredClone(sample); edit(g); return compare([sample], [g]).length > 0; };
   report(!changed((g) => { g.start.segments[0].n1[0] += 1e-12; }), 'Gegenprobe: 1e-12 in einer Normalen fällt nicht auf');
   const detect = {
     '1e-6 in einer Normalen': (g) => { g.start.segments[0].n1[0] += 1e-6; },
     'solver.nodes + 1': (g) => { g.solver.nodes++; },
-    'alte Wertung (score) + 0,1': (g) => { g.score += 0.1; },
     '1e-12 in color': (g) => { g.start.segments[0].color += 1e-12; },
     '1e-12 in element': (g) => { g.start.events.find((e) => 'element' in e).element += 1e-12; },
   };
@@ -162,18 +169,18 @@ const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { conso
     : `Gegenprobe: es fallen auf: ${Object.keys(detect).join(', ')}`);
 }
 
-// Ohne --voll fehlen die Löserdaten der übrigen Level im aktuellen Lauf und werden nicht verglichen, mit --schnell
-// fehlen Löserdaten und alte Wertung aller Level
-const expected = full ? golden : golden.map(g => (quick ? { ...g, solver: undefined, score: undefined }
-  : withScore(g) ? g : { ...g, solver: undefined }));
+// Ohne --voll fehlen die Löserdaten der Level ausserhalb der Stichprobe im aktuellen Lauf und werden nicht verglichen,
+// mit --schnell die aller Level
+const expected = full ? golden : golden.map(g => (!quick && inStichprobe(g) ? g : { ...g, solver: undefined }));
 const diffs = compare(expected, current);
 for (const d of diffs) console.error('  FAIL', d);
 const umgestellt = current.filter((c, i) => golden[i]?.name !== c.name).length;
 if (umgestellt) {
   console.log(`  ok   ${umgestellt} Level stehen an einem anderen Platz als in golden.json, verglichen nach Namen`);
 }
-const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser und alte Wertung'
-  : full ? 'Löser für alle Level' : 'Löser für die Level mit alter Wertung (score), --voll für alle';
+const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser'
+  : full ? 'Löser für alle Level' : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Platz 1, 11, …), `
+    + '--voll für alle';
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
 else console.log(`  ok   alle ${current.length} Level wie in golden.json, ${scope} (${ms} ms)`);
 if (failed || diffs.length) process.exit(1);
