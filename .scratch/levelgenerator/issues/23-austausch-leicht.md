@@ -151,20 +151,21 @@ immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haup
 
 **Abschluss Stufe C (18.10.2026).**
 - **Eingesetzt** mit `ordne-level.mjs --austausch <genehmigte Datei> --schreiben` (je Eintrag `ersetzt`, `name`,
-  `auftrag`, `seed`, `level`); ein zweiter Lauf ohne `--austausch` meldet „Reihenfolge und Grade stimmen“ und
-  „Duldungsliste und Prüfliste stimmen“.
+  `auftrag`, `seed`, `schwierigkeit`, `level`); ein zweiter Lauf ohne `--austausch` meldet „Reihenfolge und Grade
+  stimmen“ und „Duldungsliste und Prüfliste stimmen“.
 
-  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft | KI-Tester (Gefühl, Einordnung) |
+  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft (Auftrag, Seed, Ziel) | KI-Tester (Gefühl, Einordnung) |
   |---:|---|---|---:|---|---|---|
-  | 12 | Sammellinse | Begegnung | 30,5 | Sammelstelle | leicht-sammelstelle, Seed 97 | 4/4, A1-A2/A1-A2 |
-  | 18 | Strahlteiler | Auslese | 35,6 | Sammelstelle | leicht-sammelstelle, Seed 33 | 4/4, A1-A2/A2 |
-  | 23 | Amethyst | Doppelpass | 39,8 | Sammelstelle | leicht-sammelstelle, Seed 114 | 4/4, A1-A2/A2 |
-  | 25 | Fackellauf | Labyrinth | 37,1 | Abschalten | leicht-abschalten, Seed 1435 | 5/4, A2-A3/A3 (+5) |
-  | 27 | Fernlicht | Seitenlicht | 41,8 | Abschalten | leicht, Seed 1710 | 4/4, A2-A3/A2-A3 (+3) |
-  | 31 | Blitz | Lichtbündel | 42,9 | Falle | leicht-falle, Seed 525 | 4/4, A2-A3/A3 |
+  | 12 | Sammellinse | Begegnung | 30,5 | Sammelstelle | leicht-sammelstelle, 97, 29,5–32,9 | 4/4, A1-A2/A1-A2 |
+  | 18 | Strahlteiler | Auslese | 35,6 | Sammelstelle | leicht-sammelstelle, 33, 35,4–36,65 | 4/4, A1-A2/A2 |
+  | 23 | Amethyst | Doppelpass | 39,8 | Sammelstelle | leicht-sammelstelle, 114, 39,1–41,2 | 4/4, A1-A2/A2 |
+  | 25 | Fackellauf | Labyrinth | 37,1 | Abschalten | leicht-abschalten, 1435, 36,7–37,5 | 5/4, A2-A3/A3 (+5) |
+  | 27 | Fernlicht | Seitenlicht | 41,8 | Abschalten | leicht, 1710, 41,3–41,8 | 4/4, A2-A3/A2-A3 (+3) |
+  | 31 | Blitz | Lichtbündel | 42,9 | Falle | leicht-falle, 525, 42,4–42,95 | 4/4, A2-A3/A3 |
 
-  - Jeder Block in `index.html` hat den Lösungskommentar wie die übrigen und eine Zeile Herkunft („Generator …, Seed
-    … · ersetzt … (Austausch „leicht“)“); die alte Zeile „Wertung …“ gibt es für neue Level nicht.
+  - Jeder Block in `index.html` hat den Lösungskommentar wie die übrigen und eine Zeile Herkunft („Generator
+    <Auftrag>, Seed S, Ziel VON–BIS · ersetzt … (Austausch „leicht“)“, seit M1 aus dem Review mit der
+    Ziel-Schwierigkeit); die alte Zeile „Wertung …“ gibt es für neue Level nicht.
   - Die Abdrücke der Level im Spiel sind die der beurteilten Kandidaten; über sie findet die Levelliste die Urteile aus
     `ersatz-leicht-1`.
 - **Entfernt:** Begegnung, Auslese, Doppelpass, Labyrinth, Seitenlicht und Lichtbündel. Ihre Namen stehen auf
@@ -277,3 +278,18 @@ Repos.
   generator 25, beurteilung 177, levelliste 36, ki-tester 64 und offline.
 - **Urteil:** Bereit zum Mergen, sobald M1 behoben ist. M1 betrifft nur Kommentare und das Format der Austausch-Datei;
   Leveldaten, Reihenfolge und Duldungsliste sind korrekt.
+
+**M1 behoben (18.10.2026).**
+- Ein Eintrag der Austausch-Datei hat jetzt wahlweise `schwierigkeit: [von, bis]`. `ladeAustausch` in
+  `tools/ordne-level.mjs` prüft und übernimmt es, und die Herkunftszeile nennt Auftrag, Seed und Ziel, etwa
+  „Generator leicht-abschalten, Seed 1435, Ziel 36,7–37,5 · ersetzt Labyrinth (Austausch „leicht“)“.
+- Die sechs Zeilen in index.html kommen aus dem Werkzeug, nicht von Hand: Auf dem Stand von Stufe B (index.html und
+  levelliste.json aus `6fb6d2c`) lief `ordne-level.mjs --austausch … --schreiben` mit der ergänzten Austausch-Datei.
+  - Gegenüber dem vorigen Stand ändern sich nur diese sechs Kommentarzeilen; levelliste.json und
+    `entfernte-level.json` sind gleich.
+  - Ein zweiter Lauf meldet „stimmen“.
+- Nachgebaut: Für alle sechs Level ergibt `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1 --schwierigkeit
+  VON,BIS` mit den Werten der Herkunftszeile denselben Abdruck wie das Level im Spiel (6 von 6).
+- Neuer Test in `tests/levelliste.test.mjs`: Jedes neue Level hat diese Herkunftszeile mit der Ziel-Schwierigkeit.
+- Nachgeführt: README zu `--austausch`, Schritt 2 der Hinweise in den Tickets 24–26 und die Spalte „Herkunft“ der
+  Tabelle von Stufe C.

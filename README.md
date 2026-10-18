@@ -171,10 +171,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
-  `--austausch datei` (eine JSON-Liste `{ ersetzt, level, name, auftrag, seed }`, die Leveldaten etwa von
-  `generiere.mjs`) rechnet, als wären die Kandidaten schon im Spiel und die ersetzten Level entfernt: Platz, Grad,
-  Haupt-Kernidee und Regeln je Kandidat, mit `--json` auch die Leveldaten für `prepare.mjs --kandidaten`. Mit
-  `--schreiben` und genehmigten Namen setzt es die neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung),
+  `--austausch datei` (eine JSON-Liste `{ ersetzt, level, name, auftrag, seed, schwierigkeit }`, die Leveldaten etwa
+  von `generiere.mjs`, `schwierigkeit` die Ziel-Schwierigkeit `[von, bis]` des Auftrags) rechnet, als wären die
+  Kandidaten schon im Spiel und die ersetzten Level entfernt: Platz, Grad, Haupt-Kernidee und Regeln je Kandidat, mit
+  `--json` auch die Leveldaten für `prepare.mjs --kandidaten`. Mit `--schreiben` und genehmigten Namen setzt es die
+  neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung; im Kommentar die Herkunft aus Auftrag, Seed und
+  Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS` es nachbaut),
   nimmt die ersetzten heraus, setzt ihre Namen auf `entfernteNamen` und legt ihre Leveldaten als feste Kopie für die
   Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`

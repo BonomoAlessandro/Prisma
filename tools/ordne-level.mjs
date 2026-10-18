@@ -26,10 +26,12 @@
 //   Regeln halten. So werden Kandidaten vor dem Lauf der KI-Tester geprüft, und mit --schreiben kommen sie ins Spiel.
 // Aufruf: sh tools/leise.sh node tools/ordne-level.mjs [--austausch <datei>] [--schreiben] [--json <datei>]
 //         (etwa 40 s, vier Threads)
-//   --austausch: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { ersetzt, level, name, auftrag, seed }: ersetzt ist
-//                der Name eines Levels im Spiel, level die Leveldaten des neuen (wie von tools/generiere.mjs), name
-//                der genehmigte Name; ohne name heisst es wie bei den KI-Testern „Kandidat <Abdruck>“ (kandidatName
-//                in leveldaten.mjs). auftrag und seed (wahlweise) stehen im Kommentar des Levels in index.html.
+//   --austausch: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { ersetzt, level, name, auftrag, seed,
+//                schwierigkeit }: ersetzt ist der Name eines Levels im Spiel, level die Leveldaten des neuen (wie von
+//                tools/generiere.mjs), name der genehmigte Name; ohne name heisst es wie bei den KI-Testern „Kandidat
+//                <Abdruck>“ (kandidatName in leveldaten.mjs). auftrag, seed und schwierigkeit (die Ziel-Schwierigkeit
+//                [von, bis] des Auftrags) sind wahlweise; sie stehen als Herkunft im Kommentar des Levels in
+//                index.html, damit generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS es nachbaut.
 //   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
 //                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
 //                Duldungsliste und die entfernten Namen bleiben, wie sie sind; fehlt die Datei, ist die ursprüngliche
@@ -156,7 +158,8 @@ for (const i of nachgezogen) {
 if (neue.length) console.log(`  Neue Level (ohne heutigen Platz, nach der Formel): ${neue.length}`);
 for (const i of [...neue].sort((x, y) => platz[x] - platz[y])) {
   const a = austausch.find(x => x.level === levels[i]);
-  const herkunft = a ? `ersetzt ${a.ersetzt}${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}` : ''}; ` : '';
+  const ziel = a?.schwierigkeit ? `, Ziel ${a.schwierigkeit.join('–')}` : '';
+  const herkunft = a ? `ersetzt ${a.ersetzt}${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
   console.log(`    ${levels[i].name}${levels[i].name === kandidat[i] ? '' : ` (${kandidat[i]})`}: ${herkunft}Platz `
     + `${platz[i]}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
     + `${b[i].hauptKernidee.begriff ?? '–'}, Spielwert ${zahl(b[i].spielwert.wert)}; ${entscheid(i)}`);
@@ -433,7 +436,8 @@ function folgeNamen(liste) {
 /**
  * Liest den Austausch (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag. Jeder Eintrag ersetzt ein anderes
  * Level im Spiel; das neue Level heisst wie genehmigt (name) oder „Kandidat <Abdruck>“. Rückgabe: je Eintrag
- * { ersetzt, auftrag, seed, level } mit den Leveldaten samt Name und Grad.
+ * { ersetzt, auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad; schwierigkeit ist die
+ * Ziel-Schwierigkeit [von, bis] des Auftrags oder null.
  */
 function ladeAustausch(datei) {
   const text = readFileSync(datei, 'utf8').trim();
@@ -447,8 +451,12 @@ function ladeAustausch(datei) {
     if (!Array.isArray(a.level?.elements) || !a.level.solution || !GRADE.includes(a.level.grad)) {
       throw new Error(`${wo}: Leveldaten mit elements, solution und grad nötig`);
     }
+    const ziel = a.schwierigkeit ?? null;
+    if (ziel && !(Array.isArray(ziel) && ziel.length === 2 && ziel.every(Number.isFinite) && ziel[0] <= ziel[1])) {
+      throw new Error(`${wo}: schwierigkeit muss [von, bis] sein, nicht ${JSON.stringify(ziel)}`);
+    }
     const { name: _, ...daten } = a.level;
-    return { ersetzt: a.ersetzt, auftrag: a.auftrag ?? null, seed: a.seed ?? null,
+    return { ersetzt: a.ersetzt, auftrag: a.auftrag ?? null, seed: a.seed ?? null, schwierigkeit: ziel,
       level: { name: a.name || kandidatName(daten), ...daten } };
   });
 }
@@ -494,9 +502,13 @@ function schreibeLevels() {
     }
   }
   for (const x of ersetzt) bloecke.delete(x);
+  const dezimal = (x) => String(x).replace('.', ',');
   for (const a of austausch) {
-    // Herkunft im Kommentar (die alte Zeile „Wertung …“ der übrigen Level gibt es für neue nicht)
-    const herkunft = a.auftrag ? `Generator ${a.auftrag}${a.seed !== null ? `, Seed ${a.seed}` : ''} · ` : '';
+    // Herkunft im Kommentar, so dass generiere.mjs das Level nachbaut: Auftrag, Seed und Ziel-Schwierigkeit (die alte
+    // Zeile „Wertung …“ der übrigen Level gibt es für neue nicht)
+    const teile = [a.seed !== null && `Seed ${a.seed}`,
+      a.schwierigkeit && `Ziel ${a.schwierigkeit.map(dezimal).join('–')}`];
+    const herkunft = a.auftrag ? `Generator ${[a.auftrag, ...teile.filter(Boolean)].join(', ')} · ` : '';
     const kommentar = [`${herkunft}ersetzt ${a.ersetzt} (Austausch „${grad[levels.indexOf(a.level)]}“)`];
     bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
   }

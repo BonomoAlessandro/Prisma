@@ -181,6 +181,14 @@ test('Neue Level (Austausch): jedes mit zählendem Urteil (ersatz-…), keines v
   console.log(`        ${neu.length} neue Level: ${neu.map(i => `${heute[i].name} (${r.ki.get(i)?.eintrag.lauf})`)
     .join(', ') || 'keine'}`);
 });
+test('Neue Level: Der Kommentar nennt Auftrag, Seed und Ziel-Schwierigkeit zum Nachbauen', () => {
+  // Ohne die Ziel-Schwierigkeit entsteht aus Auftrag und Seed ein anderes Level (Review Ticket 23, M1)
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const herkunft = (name) => new RegExp(`\\n {4}// Generator [a-z-]+, Seed \\d+, Ziel \\d+(,\\d+)?–\\d+(,\\d+)? · `
+    + `ersetzt [^\\n]+\\n {4}name: '${name}'`);
+  const neu = heute.filter((l, i) => platzHeute[i] === null);
+  assert.deepEqual(neu.filter(l => !herkunft(l.name).test(html)).map(l => l.name), []);
+});
 test('Entfernte Level: nicht im Spiel, Name auf der Liste, Leveldaten als feste Kopie für die Eichung', () => {
   // Jedes Level der heutigen Reihenfolge steht im Spiel oder ist entfernt (sein Name auf entfernteNamen); seine
   // Leveldaten bleiben in beurteilung/entfernte-level.json, damit die Eichung an den 150 heutigen Leveln bleibt
