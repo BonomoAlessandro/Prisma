@@ -234,17 +234,29 @@ export class Bau {
   }
 
   /**
+   * Leveldaten eines Elements in zelle (angaben wie bei feldform.element) mit jeder Drehachse der Feldform, je eine
+   * Variante, in der Reihenfolge von feldform.drehachsen (Ticket 22). Im flachen Feld ist es eine, im Würfel lenkt
+   * ein Element mit waagrechter Drehachse Licht zwischen die Ebenen.
+   */
+  varianten(zelle, angaben) {
+    return this.feldform.drehachsen.map(drehachse => this.feldform.element(zelle, { ...angaben, drehachse }));
+  }
+
+  /**
    * Leveldaten einer Quelle in zelle, die in Richtung richtung leuchtet, mit Farbe farbe (Name, Vorgabe Weiss), oder
    * null, wenn die Feldform dort keine solche Quelle kennt. Sie entsteht wie in der Beurteilung mit quelleStatt aus
-   * einem Element, das in diese Richtung abgibt.
+   * einem Element, das in diese Richtung abgibt, mit der ersten Drehachse, für die es eines gibt (varianten).
    */
   quelle(zelle, richtung, farbe = 'white') {
-    const { feldform } = this, k = feldform.element(zelle, { type: 'combiner' });
-    const stellung = feldform.stellungen(k).find(v => feldform.ausgang(k, v) === richtung);
-    if (stellung === undefined) return null;
-    const q = feldform.quelleStatt(k, stellung);
-    if (farbe !== 'white') q.color = farbe;
-    return q;
+    const { feldform } = this;
+    for (const k of this.varianten(zelle, { type: 'combiner' })) {
+      const stellung = feldform.stellungen(k).find(v => feldform.ausgang(k, v) === richtung);
+      if (stellung === undefined) continue;
+      const q = feldform.quelleStatt(k, stellung);
+      if (farbe !== 'white') q.color = farbe;
+      return q;
+    }
+    return null;
   }
 
   /**

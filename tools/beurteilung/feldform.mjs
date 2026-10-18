@@ -1,8 +1,9 @@
 // Feldform (Spec „Feldform“): Beurteilung, Spielermodell und Generator kennen das Feld nur über sie. Sie liefert die
 // Zellen, die Nachbarn, die Richtungen, die Drehachse eines Elements, seine möglichen Stellungen und was es in einer
 // Stellung mit einem Strahl macht, dazu die Drehungen eines Levels und für den Generator die Leveldaten eines Elements
-// in einer Zelle (element) und des Felds (rahmen). Nur hier stehen Koordinaten, die acht Richtungen der flachen Level
-// und die Wirkung der Elemente in diesen Richtungen; sie kommt aus der Strahlregel (ADR 0003).
+// in einer Zelle mit einer der möglichen Drehachsen (element, drehachsen) und des Felds (rahmen). Nur hier stehen
+// Koordinaten, die acht Richtungen der flachen Level und die Wirkung der Elemente in diesen Richtungen; sie kommt aus
+// der Strahlregel (ADR 0003).
 //
 // - Zelle: ein Schlüssel wie in der Lösung eines Levels („x,z“ im flachen Feld). Ausserhalb der Feldform wird er nie
 //   zerlegt, nur verglichen und in Begründungen genannt.
@@ -80,7 +81,7 @@ export function flacheFeldform(groesse) {
     }
     return { ...level, elements, solution };
   };
-  // Eingefroren samt Zellen, Richtungen und Rahmen: feldformVon gibt dieselbe Feldform an alle Aufrufer
+  // Eingefroren samt Zellen, Richtungen, Drehachsen und Rahmen: feldformVon gibt dieselbe Feldform an alle Aufrufer
   return Object.freeze({
     art: 'flach',
     zellen: Object.freeze(zellen),
@@ -95,12 +96,20 @@ export function flacheFeldform(groesse) {
     /**
      * Leveldaten eines Elements in zelle: angaben (type, color, fixed …) mit dem Platz der Zelle; zelle(element) ist
      * wieder zelle. Die Stellung setzt der Aufrufer (setRot), eine Quelle entsteht mit quelleStatt. Für den Generator
-     * (Ticket 18), der Elemente nur über Zellen setzt.
+     * (Ticket 18), der Elemente nur über Zellen setzt. drehachse ist eine aus drehachsen, Vorgabe die erste (Ticket
+     * 22); sie steht nicht in den Leveldaten, denn im flachen Feld gibt es nur y.
      */
-    element: (zelle, { type, ...angaben }) => {
+    element: (zelle, { type, drehachse = 'y', ...angaben }) => {
+      if (drehachse !== 'y') throw new Error(`Flache Feldform: keine Drehachse ${drehachse}`);
       const [x, z] = zelle.split(',').map(Number);
       return { type, x, z, ...angaben };
     },
+    /**
+     * Die Drehachsen, die ein Element hier haben kann (Werte wie drehachse), die erste ist die Vorgabe von element. Im
+     * flachen Feld nur y; im Würfel lenkt ein Element mit waagrechter Achse Licht zwischen die Ebenen. Der Generator
+     * setzt drehbare Elemente und Quellen mit jeder von ihnen (Ticket 22).
+     */
+    drehachsen: Object.freeze(['y']),
     /** Zelle eines Ereignisses im Strahlbild (oder eines Punkts mit seinen Koordinaten); null hinter der Feldkante. */
     zelleBei: (p) => {
       const x = Math.round(p.x), z = Math.round(p.z);

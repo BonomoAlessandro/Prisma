@@ -244,8 +244,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
     was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
     Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Für den Generator (Ticket 18) liefert sie die
-    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine). Nur
-    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Die Nachbarn
+    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine),
+    dazu die Drehachsen, die ein Element haben kann (`drehachsen`, im flachen Feld nur y; `element` nimmt eine davon
+    als `drehachse`, Ticket 22). Nur sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in
+    der Lösung („x,z“). Die Nachbarn
     stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
     (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
     zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
@@ -408,8 +410,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Quellen an drei Ecken, eine in einer Mischung mit der Grundfarbe); beim Lockvogel steht vor jedem Spiegel des Rings
     ein Prisma.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
-    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
-    Quelltext nach Koordinaten und Richtungen.
+    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Drehbare
+    Elemente und feste Spiegel des Ergänzens bekommen eine der Drehachsen der Feldform (`feldform.drehachsen`,
+    `bau.varianten`, Ticket 22): Gewählt wird unter allen Drehachsen und Stellungen, die das Licht sinnvoll
+    weitergeben. Eine Quelle bekommt die erste Drehachse, mit der sie in die verlangte Richtung leuchtet. Im flachen
+    Feld gibt es nur y, dort bleibt alles wie vorher; im Würfel lenkt ein Element mit waagrechter Achse Licht zwischen
+    die Ebenen. Die Bausteine der Kernideen setzen ihre Spiegel und Prismen mit der ersten Drehachse. Der Test sucht im
+    Quelltext nach Koordinaten (auch y), Drehachsen der Leveldaten (`axis`) und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
