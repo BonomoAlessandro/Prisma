@@ -74,6 +74,10 @@ const GRENZFAELLE = {
 const INDEX = new URL('../index.html', import.meta.url);
 
 const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
+/** Eine Zahl wie angegeben, mit Dezimalkomma (die Ziel-Schwierigkeit aus der Austausch-Datei, etwa 36,65). */
+const dezimal = (x) => String(x).replace('.', ',');
+/** Die Ziel-Schwierigkeit eines Eintrags im Austausch als Text, etwa „36,7–37,5“. */
+const zielText = (a) => a.schwierigkeit.map(dezimal).join('–');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 const rang = (grad) => GRADE.indexOf(grad);
 const argument = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
@@ -158,7 +162,7 @@ for (const i of nachgezogen) {
 if (neue.length) console.log(`  Neue Level (ohne heutigen Platz, nach der Formel): ${neue.length}`);
 for (const i of [...neue].sort((x, y) => platz[x] - platz[y])) {
   const a = austausch.find(x => x.level === levels[i]);
-  const ziel = a?.schwierigkeit ? `, Ziel ${a.schwierigkeit.join('–')}` : '';
+  const ziel = a?.schwierigkeit ? `, Ziel ${zielText(a)}` : '';
   const herkunft = a ? `ersetzt ${a.ersetzt}${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
   console.log(`    ${levels[i].name}${levels[i].name === kandidat[i] ? '' : ` (${kandidat[i]})`}: ${herkunft}Platz `
     + `${platz[i]}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
@@ -502,12 +506,11 @@ function schreibeLevels() {
     }
   }
   for (const x of ersetzt) bloecke.delete(x);
-  const dezimal = (x) => String(x).replace('.', ',');
   for (const a of austausch) {
     // Herkunft im Kommentar, so dass generiere.mjs das Level nachbaut: Auftrag, Seed und Ziel-Schwierigkeit (die alte
     // Zeile „Wertung …“ der übrigen Level gibt es für neue nicht)
     const teile = [a.seed !== null && `Seed ${a.seed}`,
-      a.schwierigkeit && `Ziel ${a.schwierigkeit.map(dezimal).join('–')}`];
+      a.schwierigkeit && `Ziel ${zielText(a)}`];
     const herkunft = a.auftrag ? `Generator ${[a.auftrag, ...teile.filter(Boolean)].join(', ')} · ` : '';
     const kommentar = [`${herkunft}ersetzt ${a.ersetzt} (Austausch „${grad[levels.indexOf(a.level)]}“)`];
     bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
