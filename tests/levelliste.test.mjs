@@ -316,13 +316,21 @@ test('Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Na
   assert.ok(Array.isArray(liste.entfernteNamen), 'Liste der entfernten Namen fehlt');
   assert.deepEqual(namen.filter(x => liste.entfernteNamen.includes(x)), []);
 });
+/** Namen der heutigen Reihenfolge, die weder unter namen noch auf der Liste entfernt stehen, also umbenannt sind. */
+const umbenannt = (namen, entfernt) => HEUTIGE_REIHENFOLGE.filter(x => !namen.includes(x) && !entfernt.includes(x));
 test('Kein Level wird umbenannt: Jeder Name der heutigen Reihenfolge steht im Spiel oder auf der Liste der entfernten '
-  + 'Namen; nach dem Tutorial folgen 150 Level', () => {
+  + 'Namen; nach dem Tutorial folgen 150 Level, mit Gegenprobe', () => {
   // Bis Ticket 21 verglich tests/logic.test.mjs die Namen mit NAMES in tools/profiles.mjs. Ein Ersatzlevel bringt einen
   // neuen Namen, der des ersetzten kommt auf die Liste der entfernten Namen (Spec, „Levelliste, Reihenfolge und
   // Austausch“). Die Anzahl bleibt änderbar (Spec); dann hier.
-  const namen = new Set(MAIN.map(l => l.name));
-  assert.deepEqual(HEUTIGE_REIHENFOLGE.filter(x => !namen.has(x) && !liste.entfernteNamen.includes(x)), []);
+  // Die feste Liste hat dieselben 150 Namen wie früher NAMES; mit weniger prüfte der Test weniger
+  assert.equal(new Set(HEUTIGE_REIHENFOLGE).size, 150, 'heutige Reihenfolge: 150 verschiedene Namen');
+  const namen = MAIN.map(l => l.name);
+  assert.deepEqual(umbenannt(namen, liste.entfernteNamen), []);
+  // Gegenprobe: Ein umbenanntes Level fällt auf, ein ersetztes mit seinem Namen auf der Liste nicht
+  const alt = HEUTIGE_REIHENFOLGE.find(x => namen.includes(x)), neu = namen.map(x => (x === alt ? `${x} II` : x));
+  assert.deepEqual(umbenannt(neu, liste.entfernteNamen), [alt], 'Gegenprobe: umbenannt');
+  assert.deepEqual(umbenannt(neu, [...liste.entfernteNamen, alt]), [], 'Gegenprobe: ersetzt');
   assert.equal(MAIN.length, 150);
   // Die Migration alter Spielstände entfernt ein Präfix „II:“ o. Ä.; ein Name darf so nicht beginnen
   assert.deepEqual(L.LEVELS.map(l => l.name).filter(x => /^[IVX]+:/.test(x)), [], 'wie ein alter Speicherschlüssel');

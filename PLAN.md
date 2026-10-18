@@ -795,18 +795,18 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 - Grössere Level-Änderungen spielt der Nutzer an und gibt Feedback.
 
 ```bash
-node tests/logic.test.mjs                                   # Strahllogik, Löser, Lösung und Eindeutigkeit jedes Levels
+sh tools/leise.sh node tests/logic.test.mjs                 # Strahllogik, Löser, Lösung und Eindeutigkeit jedes Levels
 sh tools/leise.sh node tests/golden.mjs                     # Strahlbilder und Löser gegen tests/golden.json
 sh tools/leise.sh node tests/beurteilung.test.mjs           # Beurteilung
 sh tools/leise.sh node tests/levelliste.test.mjs            # Levelliste: Reihenfolge, Grade, Duldungsliste, Namen
 sh tools/leise.sh node tests/generator.test.mjs             # Generator
 node tests/ki-tester.test.mjs                               # Ablauf der KI-Tester
-node tests/offline.mjs                                      # Offline-Betrieb im Browser (Service Worker)
+sh tools/leise.sh node tests/offline.mjs [--redirect]       # Offline-Betrieb im Browser (Service Worker)
 LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs mittel-mischziel --anzahl 3 | node tools/show.mjs
                                                             # Kandidaten aus dem Generator als Textfeld
 sh tools/leise.sh node tools/ordne-level.mjs                # Reihenfolge und Grade (--schreiben: ins Spiel)
-node tools/show.mjs --level 15 [--beurteilen]                # ein Level als Textfeld (Start und Lösung)
-node tests/screenshot.mjs name 1440 900                      # Screenshot nach tests/output/ (MOBILE=1 DPR=3: Handy)
+node tools/show.mjs --level 15 [--beurteilen]               # ein Level als Textfeld (Start und Lösung)
+sh tools/leise.sh node tests/screenshot.mjs name 1440 900   # Screenshot nach tests/output/ (MOBILE=1 DPR=3: Handy)
 ```
 
 - Frühere Pools und Reviews liegen in `tools/pools/` (nicht versioniert); die Werkzeuge dazu sind seit Ticket 21

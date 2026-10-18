@@ -77,7 +77,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tools/ki-tester/protocol.jsonl` (jeder Eintrag nach der Referenz seiner Version), dazu Gegenproben mit
     verfälschten Kopien, die mit der erwarteten Meldung rot werden. Mit dem Pfad einer eigenen verfälschten Kopie wird
     er rot.
-  - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter).
+  - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
+    Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
   - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
@@ -185,7 +186,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Zahl der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
-  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator`, Strahlregel und Löser über
+  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <gruppe …> --seeds N`, Strahlregel und Löser über
   `leise.sh` mit 20 %;
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
@@ -372,8 +373,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `mischziel`, `abschalten`, `abzaehlen`, `sammelstelle`, `falle`, `lockvogel`, etwa `mittel-abschalten`; ohne
     Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level, schwierigkeit, spielwert, kernideen,
     hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit `| node tools/show.mjs` als
-    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator
-    --generator neu --accept beurteilung`.
+    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <auftrag …> --seeds N` (etwa
+    `mittel mittel-mischziel --seeds 2000`; ohne Auftrag misst es alle, ab „mittel“ viele CPU-Stunden).
   - **Erweitern:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in `bausteine/index.mjs`
     (Glossarbegriff, was er mindestens setzt, `baue`), ein weiterer Grad eine Vorgabe in `vorgaben.mjs`. Ob eine
     Kernidee nötig ist, entscheidet immer die Beurteilung.
