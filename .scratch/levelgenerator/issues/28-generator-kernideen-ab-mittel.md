@@ -458,3 +458,64 @@ Punkt 1 (Ausbeute oder Begründung samt Zahlen) und Punkt 2 (Begründung).
   bleiben: „leicht“ gegen `43d93c4` 9000 von 9000 gleich, Stichprobe ab „mittel“ je Seed gleich wie vor dem Merge
   (mittel- und schwer-abschalten 1–200, mittel-abzaehlen, sehr schwer-abschalten, mittel-sammelstelle und
   schwer-mischziel je 1–100, samt Strahlverfolgungen).
+
+**Nachprüfung 18.10.2026** (Reviewer-Agent, Stand `b590326`; eigene Skripte unter `review28\`). Alle Läufe über
+`leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65`, `bench.mjs` mit `--jobs 7`.
+- **M1 behoben.** Nachgemessen (Level / Haupt): Seeds 201–400 mittel 16 / 16, schwer 15 / 14; Seeds 601–800 mittel
+  16 / 16, schwer 13 / 13; „sehr schwer“ 501–1000 3 / 3. Genau die Zahlen oben, also in jedem gemessenen Bereich
+  mindestens 13.
+  - Code: Der zweite Spiegel kommt auf eine freie Zelle des Strahls von A, gehört zur Kernidee, ist nicht unberührt;
+    der Weg dorthin und weiter bis X ist reserviert. Angedockt wird mit `quellen[1]` als Grenze: Die fremde Quelle hält
+    die Vorgabe ein (mittel-abschalten, Seeds 1–200: 16 Level mit 2 oder 3 Quellen).
+  - Angesehen (`show.mjs` und Begründung der Beurteilung): mittel Seed 1, 604, 638, 654, schwer 3, 638, 654, sehr
+    schwer 22. Abschalten ist überall die Haupt-Kernidee. A erreicht das Ziel mit einem Spiegel. Die Lösung braucht A
+    aber für ihr eigenes Ziel hinter dem zweiten Spiegel, und das Ziel bekommt seine Farbe über zwei bis drei Spiegel
+    aus der zweiten Quelle. Erkennbar und nötig.
+- **M2 behoben.** `plan.andocken.quellen` ist `quellen[1]`.
+  - Quellen je Level, alle sieben Aufträge bei „mittel“ (ohne, Abschalten, Farben abzählen: Seeds 1–200; Mischziel,
+    Sammelstelle, Falle, Lockvogel: Seeds 201–300): nie mehr als drei. Bei „schwer“ höchstens vier.
+  - Nebenbei: mittel-falle hat ein Level mit nur einer Quelle (Seeds 201–300). Die Untergrenze der Vorgabe hält das
+    Festigen nicht ein. Das ist schon vor Ticket 28 so und liegt ausserhalb dieses Tickets.
+  - **„Quelle weicht“** nimmt nur Quellen ausserhalb der Kernidee. Mit einer instrumentierten Kopie gezählt:
+
+    | Auftrag | Seeds | Quelle weicht | davon anderes Licht an einem Ziel der Kernidee |
+    |---|---|---:|---:|
+    | mittel-abschalten | 1–150 | 1216 | 7 |
+    | schwer-abschalten | 1–60 | 450 | 62 |
+    | schwer-abzaehlen | 1–60 | 336 | 56 |
+    | mittel-abzaehlen, mittel-lockvogel | | 0 | 0 |
+
+    Es ändert sich dann Licht, das die weichende Quelle einem Ziel der Kernidee brachte, etwa eine fremde Farbe aus dem
+    Ergänzen. `probiere` vergleicht erst nach dem Wegfall und bemerkt das nicht. Geschützt ist die Kernidee durch die
+    volle Beurteilung: Geliefert wird nur mit nötiger Kernidee.
+  - Gegenprobe mit dem Licht vor dem Wegfall: mittel-abschalten 31 → 31 Haupt-Level (Seeds 1–400), schwer-abschalten
+    14 → 14, schwer-abzaehlen 50 → 44 (Seeds 1–200). Der strengere Vergleich bringt also nichts. Darum habe ich nur die
+    Doku angepasst (`0f644d2`).
+- **„leicht“ bitgleich:** eigene Stichprobe, die sieben leichten Aufträge und beide Ziel-Schwierigkeiten, Seeds
+  1401–1800, gegen `43d93c4` (nach dem Merge): 3600 von 3600 gleich, auch die Strahlverfolgungen.
+- **Übrige Kernideen unverändert:** gegen `3e205e2`, Seeds 201–300 (andere als die des Entwicklers), samt
+  Strahlverfolgungen. Je 100 von 100 gleich bei mittel-mischziel, -sammelstelle, -falle, -lockvogel, schwer-mischziel,
+  -sammelstelle, -falle, -lockvogel und -abzaehlen.
+- **Merge:**
+  - Seit `c458ac3` sind nur Dateien von Ticket 28 geändert. `tests/golden.json`, `index.html`, `tools/generiere.mjs`,
+    `levelliste.json`/`.mjs`, `ordne-level.mjs`, `leveldaten.mjs` und die Tests der Levelliste und der KI-Tester sind
+    gleich wie dort.
+  - In 24–26 stehen beide Hinweise ohne Konfliktreste. Im README sind die Abschnitte aus 23 erhalten, dazu kommen nur
+    die Zeilen von 28.
+- **Ticket:** Die Ausbeutetabelle ist nachgeführt (mit ¹). In 24 stehen die Spannen (Abschalten 14–16, Farben abzählen
+  41–51), in 25 Abschalten 13–17, in 26 zusätzlich der Bereich 501–1000.
+- **Tests** über `leise.sh`, alle grün:
+
+  | Lauf | Ergebnis | Dauer |
+  |---|---|---:|
+  | golden | ok | 2 s |
+  | logic | 548 Tests | 27 s |
+  | generator | 28 Tests (nach `0f644d2` erneut: 62 s) | 67 s |
+  | beurteilung | 177 Tests | 79 s |
+  | levelliste | 37 Tests | 51 s |
+  | ki-tester | 64 Tests | 1 s |
+  | offline | bestanden | 70 s |
+
+- **Klein behoben** (`0f644d2`): In `andocken.mjs` steht jetzt, dass „vorher“ beim Weichen einer Quelle „nach ihrem
+  Wegfall“ heisst, samt der Gegenprobe. Der Absatz „Kernideen ab ‚mittel‘“ im README ist neu umbrochen.
+- **Urteil:** M1 und M2 sind behoben, der Merge mit Ticket 23 ist vollständig. Ticket 28 ist bereit zum Mergen.
