@@ -34,3 +34,8 @@ kippen (Stand in Ticket 12).
 heutige Reihenfolge bleibt der Massstab, als feste Namensliste in `tools/beurteilung/heutige-reihenfolge.json`; an ihr
 wird weiter geeicht und gekreuzt geprüft, mit denselben Gewichten und Zahlen. Ohne sie eichte die Schwierigkeit an
 ihrer eigenen Reihenfolge.
+
+**Ergänzt am 18.10.2026** (Ticket 23, vom Koordinator bestätigt): Ein beim Austausch entferntes Level bleibt Teil des
+Massstabs. Seine Leveldaten stehen, wie sie zuletzt im Spiel waren, als feste Kopie in
+`tools/beurteilung/entfernte-level.json`; geeicht und gekreuzt geprüft wird weiter an allen 150 Leveln der heutigen
+Reihenfolge. Neue Level haben dort keinen Platz und kommen weder in die Eichung noch in die Eichmenge des Spielwerts.
