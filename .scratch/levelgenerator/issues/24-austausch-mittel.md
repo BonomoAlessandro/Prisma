@@ -100,3 +100,10 @@ Seite zwei Kernideen; bei leerer Liste braucht 41–60 fünf der sechs, je 2-mal
 - Die Zahl 11 im Kopf dieses Tickets zählt 31 Lichtbündel mit (Neuzählung, vorläufige Grade). Lichtbündel ist seit
   Ticket 15 „leicht“ und in Ticket 23 ersetzt. Massgebend sind die 11 Level mit Ausschlussgrund in „mittel“ aus dem
   Hinweis aus Ticket 16, dazu Sonnenstrahl und Widerschein (von beiden KI-Testern abgelehnt).
+
+**Hinweis aus Ticket 29 (Untergrenze der Quellen, 18.10.2026):** Der Generator verwirft jetzt ein fertiges Level unter
+der Untergrenze der Quellen (`quellen[0]`, ab „mittel“ 2) mit dem Grund „zu wenige Quellen“; im Spiel hat kein Level
+ab „mittel“ nur eine Quelle. Betroffen sind in Seeds 1–500 aller Aufträge ab „mittel“ nur `mittel-falle`, Seeds 278
+und 412 (mit Ziel-Schwierigkeit 43–50 nur Seed 278): Sie liefern kein Level mehr. Jeder andere Seed ergibt dasselbe wie
+vorher (Hash des ganzen Ergebnisses und Strahlverfolgungen), Herkunftszeilen bleiben nachbaubar. Kandidaten unter der
+Untergrenze muss die Auswahl nicht mehr selbst aussortieren.
