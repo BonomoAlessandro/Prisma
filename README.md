@@ -63,7 +63,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
     und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
-    „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin.
+    „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
+    und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
+    „sehr schwer“ ausser dem Lockvogel).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -171,7 +173,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Blocker hält er bei der zweiten Lösung an. Die Gruppen sind die Aufträge des Generators wie `leicht` und
   `leicht-mischziel`, die Abnahme ist die Beurteilung (`--generator neu --accept beurteilung`, Standard und seit Ticket
   21 einzige Wahl): genau eine Lösung und die Beurteilung bestanden, mit dem Grad nach der Schwierigkeit; die Messung
-  zählt auch je Grad und je Grad und nötiger Kernidee und nennt die Quartile der Schwierigkeit. Der Generator gibt
+  zählt auch je Grad und je Grad und nötiger Kernidee, je Grad und Haupt-Kernidee (Ticket 28) und nennt die Quartile
+  der Schwierigkeit. Der Generator gibt
   seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein zweites Mal. Ohne Gruppe bricht es ab und
   nennt die Aufträge (alle 28 zusammen kosteten ab „mittel“ viele CPU-Stunden); `--seeds` ist ohne Angabe 2000, der
   Umfang der Messung in Ticket 20 (bis Ticket 21 60 000 je Profil). Die Ausgangszahlen
@@ -349,6 +352,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Kreuzung zweier Strahlen, das verbindet Stränge), höchstens `schritte`-mal je Grad, und es wird neu beurteilt. Ab
     „mittel“ setzt schon das Ergänzen einen Teil der Elemente auf solche Kreuzungen, und ein zu kleiner Bau wächst mit
     „schwerer“, bevor er verworfen wird.
+  - **Kernideen ab „mittel“** (Ticket 28): Ein Strang der Kernidee darf kein Füllteil und nicht abgetrennt sein, ihre
+    Ziele darf „schwerer“ aber nicht öffnen. Darum bauen Abschalten, Farben abzählen und Lockvogel ihre Stränge dort
+    verbunden (siehe Bausteine), und „schwerer“ dockt Stränge dieser Bausteine an (`andocken.mjs`): fremdes Licht auf
+    einen Spiegel des Strangs oder ein Prisma vor seine Quelle, die übrigen Grundfarben gehen zur Seite. Neue Quellen
+    teilen bei Farben abzählen und Lockvogel keine Grundfarbe mit den Zielen der Kernidee. Ein Versuch von „schwerer“
+    ohne ein drehbares Element mehr endet ab „mittel“ vor dem Festigen. „leicht“ bleibt bitgleich.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
     `grad.mjs` und die verlangte Kernidee nötig.
@@ -363,7 +372,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Ausgang, eine dritte von aussen), Sammelstelle (ein Prisma bricht zwei Zuläufe zu je einem eigenen Ziel), Falle
     (ein Prisma bricht eine Grundfarbe direkt aufs Ziel, die Lösung bringt sie über einen Spiegel; eine übrige
     Grundfarbe führt in der Falle über zwei Spiegel in den Holzweg) und Lockvogel (Ringtausch dreier Quellen, ein fester
-    Spiegel oder Blocker verstellt ihn).
+    Spiegel oder Blocker verstellt ihn). Ab „mittel“ (Ticket 28): Beim Abschalten bekommt A ihr Ziel über einen Spiegel
+    von B; Farben abzählen ist ein Weichenring (drei Quellen an drei Ecken, eine in einer Mischung mit der Grundfarbe);
+    beim Lockvogel steht vor jedem Spiegel des Rings ein Prisma.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
     Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
     Quelltext nach Koordinaten und Richtungen.

@@ -29,6 +29,12 @@ export class Bau {
      * 19, M4). Die Regel gegen wirkungslose Elemente nimmt nur sie aus (schritte.mjs).
      */
     this.lockvoegel = new Set();
+    /**
+     * Elemente der Kernidee, die das Andocken nicht verändert (Ticket 28, andocken.mjs): kein fremdes Licht darauf,
+     * kein Prisma davor; das Festigen macht sie auch nicht fest. Ihr Baustein trägt sie ein, etwa beim Abschalten die
+     * Quelle A und ihren Spiegel (ihr kurzer Weg zum Ziel ist der Zwischenstand).
+     */
+    this.unberuehrt = new Set();
     /** Zellen, auf die nichts mehr kommt, etwa die Wege des Lichts einer Kernidee. */
     this.reserviert = new Set();
     this.platz = new Map(); // Zelle → Element
@@ -57,6 +63,7 @@ export class Bau {
     this.elemente.splice(this.elemente.indexOf(el), 1);
     this.platz.delete(this.feldform.zelle(el));
     this.lockvoegel.delete(el);
+    this.unberuehrt.delete(el);
     this.geaendert();
   }
 
@@ -66,6 +73,7 @@ export class Bau {
     this.platz.clear();
     this.kern.clear();
     this.lockvoegel.clear();
+    this.unberuehrt.clear();
     this.reserviert.clear();
     this.geaendert();
   }

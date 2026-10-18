@@ -14,6 +14,7 @@
 //    Ziel-Schwierigkeit des Auftrags nicht, oder findet die Vorprüfung Füllteil oder Zerfall, macht ein Schritt des
 //    Verfeinerns (verfeinern.mjs) das Level leichter oder schwerer (verbindet Stränge), höchstens
 //    vorgaben.schritte-mal, und die Beurteilung beginnt von neuem: Ausschlüsse und Spielwert gelten in jedem Schritt.
+//    Ab „mittel“ dockt „schwerer“ Stränge der Kernidee an, deren Ziele es nicht öffnen darf (Ticket 28, andocken.mjs).
 // Die günstigen Prüfungen stehen vorn: Eindeutigkeit (eine Suche im Modus unique, bis zur zweiten Lösung) und die Regel
 // gegen wirkungslose Elemente brauchen nur die Strahlregel und kleine Suchen, die Vorprüfung rund ein Sechstel der
 // vollen Beurteilung, die Suche ohne Abschneiden kommt zuletzt.
@@ -106,11 +107,21 @@ const VERBINDEN = {
   'Füllteil': (fund) => [fund.strang.ziel],
   'Zerfall': (fund) => fund.gruppen.slice(1).flatMap(g => g.ziele),
 };
+/**
+ * Dazu je Fund die Zellen der Elemente, an denen „schwerer“ den Strang andocken kann, wenn sich die Ziele nicht öffnen
+ * lassen, weil sie zur Kernidee gehören (Ticket 28, andocken.mjs): Quelle und Spiegel des Füllteils bzw. die drehbaren
+ * Elemente der abgetrennten Gruppen.
+ */
+const ANDOCKEN = {
+  'Füllteil': (fund) => [fund.strang.quelle, ...fund.strang.spiegel],
+  'Zerfall': (fund) => fund.gruppen.slice(1).flatMap(g => g.elemente),
+};
 
 /**
- * Was an einer Beurteilung (mit dem Grad des Auftrags) nicht stimmt, oder null: { grund, richtung, ziele }. richtung
- * ist der Schritt des Verfeinerns, der helfen kann (leichter, schwerer), sonst null; ziele (bei Füllteil und Zerfall)
- * die Zellen der Ziele, die „schwerer“ öffnen soll. voll: mit den teuren Regeln; sonst prüft es nur, was die
+ * Was an einer Beurteilung (mit dem Grad des Auftrags) nicht stimmt, oder null: { grund, richtung, ziele, andocken }.
+ * richtung ist der Schritt des Verfeinerns, der helfen kann (leichter, schwerer), sonst null; ziele (bei Füllteil und
+ * Zerfall) die Zellen der Ziele, die „schwerer“ öffnen soll, andocken die Zellen, an denen es den Strang andocken kann
+ * (ANDOCKEN). voll: mit den teuren Regeln; sonst prüft es nur, was die
  * Vorprüfung schon weiss (Ausschlüsse und die Kernideen, die nicht teuer sind). ziel: die Ziel-Schwierigkeit des
  * Auftrags [von, bis] oder null (dann gilt der ganze Grad).
  */
@@ -118,8 +129,12 @@ function mangel(b, grad, kernidee, voll, ziel) {
   const begriffe = [...new Set(b.ausschluesse.map(a => a.begriff))];
   if (begriffe.length) {
     // Füllteil und Zerfall (ab „mittel“): „schwerer“ verbindet, über die Ziele der abgetrennten Stränge (Ticket 20)
-    const ziele = begriffe.every(x => x in VERBINDEN) ? b.ausschluesse.flatMap(a => VERBINDEN[a.begriff](a)) : [];
-    return { grund: `Ausschluss: ${begriffe.join(', ')}`, ...(ziele.length ? { richtung: 'schwerer', ziele } : {}) };
+    // oder, wenn diese zur Kernidee gehören, durch Andocken (Ticket 28)
+    const verbindbar = begriffe.every(x => x in VERBINDEN);
+    const ziele = verbindbar ? b.ausschluesse.flatMap(a => VERBINDEN[a.begriff](a)) : [];
+    const andocken = verbindbar ? b.ausschluesse.flatMap(a => ANDOCKEN[a.begriff](a)) : [];
+    return { grund: `Ausschluss: ${begriffe.join(', ')}`,
+      ...(ziele.length ? { richtung: 'schwerer', ziele, andocken } : {}) };
   }
   const offen = !voll && b.offen.includes(kernidee); // voll beurteilt muss die Kernidee entschieden sein
   if (kernidee && !offen && !b.kernideen.some(k => k.begriff === kernidee)) return { grund: 'Kernidee nicht nötig' };
@@ -161,6 +176,12 @@ export function generiere(auftrag) {
   const wuerfle = (name) => R.int(...vorgaben[name]);
   const plan = { quellen: wuerfle('quellen'), drehbar: wuerfle('drehbar'), filter: wuerfle('filter'),
     festeSpiegel: wuerfle('festeSpiegel') };
+  // Andocken (Ticket 28): ab „mittel“ (vorgaben.andocken) für die Bausteine, die es wollen (baustein.andocken). Belegt
+  // der Baustein alle Quellen der Vorgabe, darf es noch eine dazunehmen.
+  if (vorgaben.andocken && baustein.andocken) {
+    plan.andocken = { quellen: Math.max(vorgaben.quellen[1], baustein.braucht.quellen + 1),
+      farbigeQuellen: vorgaben.farbigeQuellen, fremdfarbe: !!baustein.andocken.fremdfarbe };
+  }
   let grund = baustein.baue(bau, plan, vorgaben);
   for (let runde = 0; !grund && runde < NACHLEGEN; runde++) {
     ergaenze(bau, plan, vorgaben);

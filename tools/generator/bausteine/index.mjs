@@ -6,6 +6,9 @@
 //     { kern: true }), die Zellen, die frei bleiben müssen, in bau.reserviert. Rückgabe null oder der Grund, warum es
 //     nicht ging. Er darf den Bau mit bau.leere() neu beginnen. Ein Lockvogel (festes Teil abseits der Lösung) kommt
 //     mit { kern: true, lockvogel: true }; nur so nimmt ihn die Regel gegen wirkungslose Elemente aus.
+//   andocken (wahlweise, Ticket 28): ab „mittel“ (vorgaben.andocken) darf „schwerer“ Stränge der Kernidee andocken
+//     (andocken.mjs); { fremdfarbe: true }: neue Quellen teilen keine Grundfarbe mit den Zielen der Kernidee. Elemente,
+//     die das Andocken nicht verändern soll, trägt baue in bau.unberuehrt ein.
 // Ob die Kernidee nötig ist, prüft nicht der Baustein, sondern die Beurteilung (generiere in index.mjs). Gemeinsame
 // Hilfen der Bausteine (Licht gezielt an eine Zelle bringen, Strahlen verfolgen) stehen in wege.mjs, kein Baustein.
 //

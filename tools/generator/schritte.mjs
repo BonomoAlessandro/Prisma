@@ -20,6 +20,22 @@ export const gemischt = (farbe) => (farbe & (farbe - 1)) !== 0;
 export const quellfarbe = (R, anteil) => (R.chance(anteil) ? R.pick(QUELLFARBEN) : 'white');
 
 /**
+ * Farbe einer neuen Quelle, die keine Grundfarbe mit den Zielen der Kernidee teilt (Ticket 28, mit Andocken): Ihr Licht
+ * kann diesen Zielen in keiner Stellung etwas bringen, die Kernidee bleibt, wie ihr Baustein sie gebaut hat (etwa die
+ * knappe Grundfarbe beim Abzählen: Eine weisse Quelle mehr könnte sie liefern, dann wäre sie nicht mehr knapp). Gibt
+ * es keine solche Farbe, eine wie bei quellfarbe.
+ */
+export function fremdfarbe(bau, anteil) {
+  const belegt = bau.art('target').filter(t => bau.kern.has(t)).reduce((m, t) => m | L.COLORS[t.color], 0);
+  const frei = [...QUELLFARBEN, 'white'].filter(f => !(L.COLORS[f] & belegt));
+  return frei.length ? bau.R.pick(frei) : quellfarbe(bau.R, anteil);
+}
+
+/** Farbe einer neuen Quelle beim Ergänzen: mit Andocken (plan.andocken) fremdfarbe, sonst quellfarbe. */
+export const neueFarbe = (bau, plan, vorgaben) => (plan.andocken?.fremdfarbe ? fremdfarbe(bau, vorgaben.farbigeQuellen)
+  : quellfarbe(bau.R, vorgaben.farbigeQuellen));
+
+/**
  * Eine Quelle auf einen freien Platz am Rand, deren Weg ins Feld frei von Elementen ist (sie strahlt in keine andere
  * Quelle); meist entlang des längsten Wegs durchs Feld. Rückgabe: die Quelle oder null.
  */
@@ -113,12 +129,13 @@ export function kreuzungszellen(bau, bild = bau.bild()) {
  * Ziel hat: So behalten früher gesetzte Elemente und Ziele ihr Licht, die Stränge wachsen an ihrem Ende. Endet kein
  * Strahl mehr offen, kommt eine weitere Quelle dazu, solange die Vorgabe es erlaubt. Die Elemente der Kernidee bleiben,
  * wie sie sind (ihre Wege sind reserviert). Ab „mittel“ (vorgaben.verbinden, Ticket 20) kommt ein Element mit diesem
- * Anteil auf eine Kreuzung zweier offener Strahlenden, wo es eine gibt: Dann teilen sich zwei Stränge ein Element.
+ * Anteil auf eine Kreuzung zweier offener Strahlenden, wo es eine gibt: Dann teilen sich zwei Stränge ein Element. Mit
+ * Andocken (plan.andocken, Ticket 28) teilt eine neue Quelle keine Grundfarbe mit den Zielen der Kernidee (fremdfarbe).
  */
 export function ergaenze(bau, plan, vorgaben) {
   const { R } = bau;
   const neueQuelle = () => bau.art('source').length < vorgaben.quellen[1]
-    && setzeQuelle(bau, quellfarbe(R, vorgaben.farbigeQuellen));
+    && setzeQuelle(bau, neueFarbe(bau, plan, vorgaben));
   while (bau.art('source').length < plan.quellen && neueQuelle());
   for (let versuch = 0; bau.drehbare().length < plan.drehbar && versuch < 4 * plan.drehbar; versuch++) {
     // Ab „mittel“ (vorgaben.verbinden): wo es geht, auf eine Kreuzung offener Strahlenden, das verbindet Stränge
@@ -214,7 +231,10 @@ export function eindeutig(bau, vorgaben) {
       continue;
     }
     const andersIn = new Set(anders(alt.set).map(([z]) => z));
-    const spiegel = bau.drehbare().filter(e => e.type === 'mirror' && andersIn.has(feldform.zelle(e)));
+    // Nicht die Elemente, die die Kernidee unverändert braucht (bau.unberuehrt, Ticket 28: beim Abschalten der Spiegel
+    // von A; fest gemacht gäbe es keinen Zwischenstand mehr)
+    const spiegel = bau.drehbare()
+      .filter(e => e.type === 'mirror' && andersIn.has(feldform.zelle(e)) && !bau.unberuehrt.has(e));
     if (!spiegel.length) return 'zweite Lösung nicht blockierbar';
     R.pick(spiegel).fixed = true;
     bau.geaendert();

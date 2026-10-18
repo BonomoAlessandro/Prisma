@@ -13,30 +13,43 @@
 // Alles gehört zur Kernidee, die Wege der Lösung und des Ringtauschs sind reserviert. Die Strahlen enden alle an
 // Zielen; das Ergänzen setzt darum kaum etwas dazu. Ob der Lockvogel nötig ist, entscheidet die volle Beurteilung
 // (teuer, wegen der Suche ohne Abschneiden).
+// Ab „mittel“ (vorgaben.andocken, Ticket 28) sind die drei Stränge des Rings sonst je ein Füllteil (ein Spiegel,
+// eigenes Ziel, kein fremdes Licht), und es ist kein Platz zum Wachsen. Darum hat der Ring dort eine Grundfarbe, und
+// vor jedem Spiegel steht ein drehbares Prisma (vorPrismen): Die Quellen leuchten in einer Mischung, das Prisma bricht
+// die Grundfarbe zum Spiegel und die übrigen zur Seite, wo das Ergänzen weitermacht. Fremdes Licht auf einem Spiegel
+// des Ringtauschs ginge nicht (bau.unberuehrt): Es fände im Tausch kein Ziel mehr, der Tausch wäre keine zweite Lösung,
+// und der Lockvogel wäre nicht nötig (in einer Probe mit leichten Lockvogel-Leveln 0 von 54). Ein Prisma vor einem
+// Spiegel liess den Lockvogel in 52 von 76 Proben nötig.
 import { setRot } from '../../solver.mjs';
 import { FARBEN, strahl, auswege, einfall, bildMit, trifft, wegzellen, maske, lichtzellen } from './wege.mjs';
 
 /** So oft versucht der Baustein höchstens, den Ringtausch einzubauen. */
 const VERSUCHE = 80;
+/** Ab „mittel“ mit Prismen gelingt ein Versuch seltener: so oft höchstens (Ticket 28). */
+const VERSUCHE_PRISMEN = 500;
 /** So oft werden je Versuch die drei Spiegel neu auf die Wege ihrer Quellen verteilt. */
 const SPIEGELWAHL = 20;
 /** So oft ist der Lockvogel ein fester Spiegel, sonst ein Blocker. */
 const SPIEGEL = 0.7;
+/** Grundfarben: Ab „mittel“ hat der Ring eine, damit ein Prisma sie aus Mischlicht brechen kann. */
+const GRUNDFARBEN = ['red', 'green', 'blue'];
 
 export default {
   kernidee: 'Lockvogel',
+  andocken: { fremdfarbe: true },
   braucht: { quellen: 3, drehbar: 3 },
-  baue(bau) {
-    const { R, feldform } = bau;
-    for (let versuch = 0; versuch < VERSUCHE; versuch++) {
+  baue(bau, plan, vorgaben) {
+    const { R, feldform } = bau, prismen = !!vorgaben?.andocken;
+    for (let versuch = 0; versuch < (prismen ? VERSUCHE_PRISMEN : VERSUCHE); versuch++) {
       bau.leere();
-      const farbe = R.pick(FARBEN);
+      const farbe = R.pick(prismen ? GRUNDFARBEN : FARBEN);
       const quellen = [0, 1, 2].map(() => quelleIrgendwohin(bau, farbe));
       if (!quellen.every(Boolean)) continue;
-      // Je Quelle ein Spiegel auf ihrem ersten Abschnitt, auf keinem Weg einer anderen Quelle
+      // Je Quelle ein Spiegel auf ihrem ersten Abschnitt, auf keinem Weg einer anderen Quelle; mit Prismen nicht gleich
+      // auf der ersten Zelle, dort ist Platz für das Prisma
       const wegVon = quellen.map(q => wegzellen(bau, bau.bildVon(q)));
       const plaetze = quellen.map((q, i) => strahl(bau, feldform.zelle(q), feldform.ausgang(q))
-        .filter(z => !wegVon.some((w, j) => j !== i && w.has(z))));
+        .filter(z => !wegVon.some((w, j) => j !== i && w.has(z))).slice(prismen ? 1 : 0));
       if (plaetze.some(p => !p.length)) continue;
       // Die Wege von den Quellen zu ihren Spiegeln bleiben frei
       const quellwege = new Set(quellen.flatMap(q => strahl(bau, feldform.zelle(q), feldform.ausgang(q))));
@@ -59,6 +72,22 @@ export default {
       if (!lockvogel(bau, spiegel, fund, tausch, farbe)) continue;
       for (const bild of [bau.bild(), bildMit(bau, null, tausch)]) {
         for (const z of wegzellen(bau, bild)) bau.reserviert.add(z);
+      }
+      if (prismen) {
+        // Nach jedem Prisma: Die Ziele bekommen in der Lösung und im Ringtausch ohne den Lockvogel (an seiner Stelle
+        // ein weisser Filter, wie in der Beurteilung) genau die Grundfarbe, der Lockvogel in der Lösung kein Licht
+        const ohneLockvogel = () => bau.verfolge(bau.elemente.map((e) => {
+          if (bau.lockvoegel.has(e)) return { ...e, type: 'filter', color: 'white' };
+          if (!tausch.has(e)) return e;
+          const k = { ...e };
+          setRot(k, tausch.get(e));
+          return k;
+        }));
+        const sauber = () => alleZiele(bau.bild()) && alleZiele(ohneLockvogel())
+          && ![...bau.lockvoegel].some(e => bau.licht().has(feldform.zelle(e)));
+        if (!vorPrismen(bau, quellen, farbe, fund.ziele, sauber)) continue;
+        // Fremdes Licht auf einem Spiegel des Ringtauschs nähme ihm die zweite Lösung (Ticket 28: in 54 von 54 Proben)
+        for (const s of spiegel) bau.unberuehrt.add(s.m);
       }
       bau.geaendert();
       return null;
@@ -118,6 +147,61 @@ function lockvogel(bau, spiegel, fund, tausch, farbe) {
     }
   }
   return false;
+}
+
+/**
+ * Ab „mittel“ (Ticket 28): vor jeder Quelle ein drehbares Prisma auf ihrem ersten Abschnitt. Die Quelle leuchtet in
+ * einer Mischung, die die Grundfarbe des Rings enthält; das Prisma bricht die Grundfarbe in die alte Richtung zum
+ * Spiegel, die übrigen Grundfarben zur Seite, wo das Ergänzen weitermacht. Licht über ein Prisma ist kein Strang, die
+ * drei Stränge des Rings sind so keine Füllteile mehr, und ihre Ziele hängen mit den neuen an den Prismen zusammen.
+ * Mischungen aus zwei Grundfarben gehen vor Weiss (ein Strahl zur Seite statt zwei). Kein Prisma, das in einer anderen
+ * Stellung die Grundfarbe geradewegs auf ein Ziel des Rings bräche: Dieser kurze Zwischenstand wäre ein Abschalten,
+ * und das ginge als Haupt-Kernidee dem Lockvogel vor (in einer Probe bei 20 von 45 Leveln von mittel-lockvogel).
+ * sauber(): ob der Bau danach noch passt (der Aufrufer prüft Ziele und Lockvogel); sonst kommt die nächste Zelle oder
+ * Mischung dran. ziele: Zellen der Ziele des Rings. Rückgabe: true, wenn es für alle drei ging.
+ */
+function vorPrismen(bau, quellen, farbe, ziele, sauber) {
+  const { R, feldform } = bau, c = maske(farbe);
+  const mischungen = FARBEN.filter(f => (maske(f) & c) && maske(f) !== c);
+  const prisma = (zelle) => feldform.element(zelle, { type: 'prism' });
+  // Trifft die Grundfarbe aus dem Prisma in zelle (in einer Stellung ausser der Lösung) als erstes ein Ziel des Rings?
+  const trifftZiel = (zelle, o) => {
+    let z = feldform.nachbar(zelle, o.richtung);
+    while (z !== null && !bau.bei(z)) z = feldform.nachbar(z, o.richtung);
+    return o.farbe === c && z !== null && ziele.includes(z);
+  };
+  const zielt = (zelle, richtung, mischung, loesung) => feldform.stellungen(prisma(zelle)).some(s => s !== loesung
+    && feldform.brechen(prisma(zelle), richtung, maske(mischung), s).some(o => trifftZiel(zelle, o)));
+  for (const q of quellen) {
+    const richtung = feldform.ausgang(q), alt = q.color, wahl = [[], []];
+    for (let z = feldform.nachbar(feldform.zelle(q), richtung); z !== null && !bau.bei(z);
+      z = feldform.nachbar(z, richtung)) {
+      for (const mischung of mischungen) {
+        for (const stellung of feldform.stellungen(prisma(z))) {
+          const aus = feldform.brechen(prisma(z), richtung, maske(mischung), stellung);
+          if (!aus.some(o => o.farbe === c && o.richtung === richtung)) continue;
+          if (zielt(z, richtung, mischung, stellung)) continue;
+          wahl[mischung === 'white' ? 1 : 0].push({ z, mischung, stellung });
+        }
+      }
+    }
+    let gesetzt = false;
+    for (const { z, mischung, stellung } of [...R.shuffle(wahl[0]), ...R.shuffle(wahl[1])]) {
+      const p = feldform.element(z, { type: 'prism' });
+      setRot(p, stellung);
+      bau.setze(p, { kern: true });
+      if (mischung === 'white') delete q.color;
+      else q.color = mischung;
+      bau.geaendert();
+      if (sauber()) { gesetzt = true; break; }
+      bau.kern.delete(p);
+      bau.entferne(p);
+      q.color = alt;
+      bau.geaendert();
+    }
+    if (!gesetzt) return false;
+  }
+  return true;
 }
 
 /**

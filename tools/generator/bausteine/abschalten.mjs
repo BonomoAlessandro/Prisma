@@ -9,8 +9,23 @@
 // Quellen, Ziel und die drei Spiegel gehören zur Kernidee; reserviert sind der Weg von A zum Spiegel, die Abkürzung und
 // der Weg von B, damit nichts den Zwischenstand oder die Lösung des Ziels verstellt. Ob die Kernidee nötig ist,
 // entscheidet die Beurteilung (kernideen/abschalten.mjs), schon in der günstigen Vorprüfung.
+// Ab „mittel“ (vorgaben.andocken, Ticket 28):
+// - Der Strahl von A bekommt in der Lösung immer ein eigenes Ziel. Endete er offen und fand das Ergänzen dort keinen
+//   Platz für ein Ziel, war der Zwischenstand eine zweite Lösung (A erfüllt das Ziel, B auch, sonst fehlte nichts):
+//   Das Festigen machte den Spiegel von A fest, und A wurde wirkungslos. So war es in jedem Fall von „Kernidee
+//   wirkungslos“ bei mittel-abschalten (Seeds 1–40), zusammen 20 von 100 Seeds.
+// - Dieses Ziel bekommt A möglichst über einen Spiegel von B: Ein neuer Spiegel auf dem Strahl von A lenkt ihn dorthin
+//   (andocken.mjs), dahinter setzt das Ergänzen fort. So teilen sich die Stränge von A und B einen Spiegel, und keiner
+//   ist ein Füllteil. Geht das nicht, kommt das Ziel gleich auf den Strahl von A. Der Weg dorthin ist reserviert: Ein
+//   Element auf einer Kreuzung dort (verbinden) nähme dem Ziel das Licht.
+// - A und ihr Spiegel bleiben, wie sie sind (bau.unberuehrt): kein Prisma davor, kein fremdes Licht darauf, nicht fest.
+//   Sonst gibt es keinen kurzen, sauberen Zwischenstand mehr („Kernidee nicht nötig“).
+// Eine Weiche, in der B über den Spiegel von A ans Ziel kommt, geht nicht: Von den vier Stellungen eines Spiegels
+// lenken nur zwei das Licht von A um, und sie stehen senkrecht zueinander. Im Zwischenstand tauschten A und B (gleiche
+// Farbe) ihre Ziele, und der Zwischenstand wäre wieder eine zweite Lösung (in einer Probe 100 von 100 Seeds verworfen).
 import { getRot } from '../../solver.mjs';
 import { setzeQuelle, setzeDrehbar } from '../schritte.mjs';
+import { dockeAn } from '../andocken.mjs';
 import {
   FARBEN, strahl, auswege, einfall, zufuehren, reserviere, bildMit, trifft, wegzellen, frei, maske,
 } from './wege.mjs';
@@ -22,9 +37,10 @@ const GLEICH_ZIEL = 0.5;
 
 export default {
   kernidee: 'Abschalten',
+  andocken: {},
   braucht: { quellen: 2, drehbar: 3 },
-  baue(bau) {
-    const { R, feldform } = bau;
+  baue(bau, plan, vorgaben) {
+    const { R, feldform } = bau, immerZiel = !!vorgaben?.andocken;
     for (let versuch = 0; versuch < VERSUCHE; versuch++) {
       bau.leere();
       const farbe = R.pick(FARBEN);
@@ -57,10 +73,31 @@ export default {
       for (const s of bisM) for (const { zelle: z } of feldform.durchlauf(s)) bau.reserviert.add(z);
       for (const z of p.abkuerzung) bau.reserviert.add(z);
       // Wohin A in der Lösung leuchtet: Halb so oft (GLEICH_ZIEL) bekommt der Strahl gleich ein Ziel (keines der
-      // Kernidee), sonst endet er offen, und das Ergänzen setzt dort fort. Ohne Ziel am Ende wäre A wirkungslos.
+      // Kernidee), sonst endet er offen, und das Ergänzen setzt dort fort. Ohne Ziel am Ende wäre A wirkungslos. Ab
+      // „mittel“ über einen Spiegel von B oder gleich (siehe oben).
       const weiter = strahl(bau, zelle, feldform.spiegeln(m, ein));
       if (!weiter.length) continue;
-      if (R.chance(GLEICH_ZIEL)) {
+      if (immerZiel) {
+        bau.unberuehrt.add(a);
+        bau.unberuehrt.add(m);
+        // Über einen neuen Spiegel auf einen Spiegel von B; der Weg von A bis dorthin ist reserviert, der neue Spiegel
+        // gehört zur Kernidee
+        const dock = dockeAn(bau, b.spiegel.map(feldform.zelle),
+          { quellen: 0, farbigeQuellen: vorgaben.farbigeQuellen });
+        if (dock) {
+          for (const el of dock.neu) bau.kern.add(el);
+          const halt = new Set([...dock.neu.map(feldform.zelle), dock.zelle]);
+          for (const s of bau.bildVon(a).strahlbild.segments) {
+            if (!halt.has(feldform.abschnitt(s).bis)) continue;
+            for (const { zelle: z } of feldform.durchlauf(s)) bau.reserviert.add(z);
+          }
+        } else {
+          // Sonst gleich ein eigenes Ziel, der Weg dorthin reserviert
+          const x = R.pick(weiter.slice(-3));
+          bau.setze(feldform.element(x, { type: 'target', color: farbe }));
+          for (const z of weiter.slice(0, weiter.indexOf(x))) bau.reserviert.add(z);
+        }
+      } else if (R.chance(GLEICH_ZIEL)) {
         bau.setze(feldform.element(R.pick(weiter.slice(-3)), { type: 'target', color: farbe }));
       }
       bau.geaendert();

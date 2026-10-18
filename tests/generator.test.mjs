@@ -6,6 +6,8 @@
 //   und die verlangte Kernidee nötig; die mitgegebene Beurteilung ist genau diese. Es hat Leveldaten wie in LEVELS und
 //   eine Startstellung, die nicht gelöst ist.
 // - Je Kernidee (Ticket 19) ein Auftrag in „leicht“ über 50 Seeds und ein fester Seed, der ein Level mit ihr liefert.
+// - Je Grad ab „mittel“ und je Kernidee ein Auftrag (Ticket 28), je mit einem festen Seed, der ein Level liefert, in
+//   dem sie die Haupt-Kernidee ist (bis auf den Lockvogel in „sehr schwer“, siehe FEST_AB_MITTEL).
 // - Keine wirkungslosen Elemente (Spec „Generator“): kein Filter, dessen Strahl schon seine Farbe hat, kein fester
 //   Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten
 //   Leveln zeigt, dass die Prüfung solche Elemente findet.
@@ -47,11 +49,24 @@ const FEST = {
 };
 const ANTEIL_LEVEL = { null: 2 / 3, 'Mischziel aus zwei Quellen': 2 / 3 };
 /**
- * Aufträge mit festen Seeds 1 … seeds und so vielen gelieferten Leveln mindestens:
+ * FEST_AB_MITTEL (Ticket 28): je Grad ab „mittel“ und Kernidee ein fester Seed, der ein Level liefert, in dem die
+ * verlangte Kernidee die Haupt-Kernidee ist (nach der Rangfolge der Beurteilung). Für „sehr schwer“ fehlt der
+ * Lockvogel: Er liefert dort nichts (Ticket 28, Ausbeute), der Bedarf für 24–26 ist ohne ihn gedeckt. Das Mischziel
+ * liegt in den Seeds seiner Aufträge unten.
+ */
+const FEST_AB_MITTEL = {
+  mittel: { [MISCHZIEL]: 6, Abschalten: 1, 'Farben abzählen': 3, Sammelstelle: 1, Falle: 3, Lockvogel: 4 },
+  schwer: { [MISCHZIEL]: 10, Abschalten: 2, 'Farben abzählen': 5, Sammelstelle: 12, Falle: 26, Lockvogel: 20 },
+  'sehr schwer': { [MISCHZIEL]: 12, Abschalten: 19, 'Farben abzählen': 2, Sammelstelle: 53, Falle: 28 },
+};
+/**
+ * Aufträge mit festen Seeds (seeds: 1 … seeds oder eine Liste) und so vielen gelieferten Leveln mindestens:
  * - „leicht“ ohne Kernidee und mit jeder Kernidee über 50 Seeds (Ticket 19), mindestens ANTEIL_LEVEL davon;
  * - „leicht“ mit zwei Ziel-Schwierigkeiten und die Grade ab „mittel“ ohne Kernidee und mit Mischziel (Ticket 20). Ab
  *   „mittel“ sind es weniger Seeds, weil jeder mehr kostet (sehr schwer rund 1 CPU-s), und die Ausbeute ist kleiner;
  *   ohne Kernidee liefert der Generator ab „mittel“ nur, wenn eine Kernidee nebenbei nötig wird.
+ * - ab „mittel“ jede übrige Kernidee mit ihrem festen Seed aus FEST_AB_MITTEL (Ticket 28); der Lockvogel in „sehr
+ *   schwer“ mit Seed 1 und ohne verlangtes Level.
  */
 const AUFTRAEGE = [
   ...[null, ...TEILE.kernideen].map(kernidee => ({
@@ -65,21 +80,23 @@ const AUFTRAEGE = [
   { grad: 'schwer', kernidee: MISCHZIEL, seeds: 30, mindestens: 3 },
   { grad: 'sehr schwer', kernidee: null, seeds: 20, mindestens: 1 },
   { grad: 'sehr schwer', kernidee: MISCHZIEL, seeds: 12, mindestens: 1 },
+  ...Object.entries(FEST_AB_MITTEL).flatMap(([grad, fest]) => TEILE.kernideen.filter(k => k !== MISCHZIEL)
+    .map(kernidee => ({ grad, kernidee, seeds: [fest[kernidee] ?? 1], mindestens: kernidee in fest ? 1 : 0 }))),
 ];
 const auftragVon = ({ grad, kernidee, schwierigkeit }) => ({ grad, kernidee, ...(schwierigkeit ? { schwierigkeit } : {}) });
+const seedsVon = (a) => (Array.isArray(a.seeds) ? a.seeds : Array.from({ length: a.seeds }, (_, i) => i + 1));
 const t0 = Date.now();
 const laeufe = AUFTRAEGE.map(a => ({
-  ...a, ergebnisse: Array.from({ length: a.seeds }, (_, i) => i + 1)
-    .map(seed => ({ seed, ...generiere({ ...auftragVon(a), seed, feldform }) })),
+  ...a, ergebnisse: seedsVon(a).map(seed => ({ seed, ...generiere({ ...auftragVon(a), seed, feldform }) })),
 }));
 const benenne = ({ grad, kernidee, schwierigkeit }) => `${grad}${kernidee ? ' mit ' + kernidee : ''}`
   + `${schwierigkeit ? ` (${schwierigkeit.join('–')})` : ''}`;
 const geliefert = laeufe.flatMap(a => a.ergebnisse.filter(r => r.level)
   .map(r => ({ grad: a.grad, kernidee: a.kernidee, schwierigkeit: a.schwierigkeit, ...r,
     name: `${benenne(a)}, Seed ${r.seed}` })));
-console.log(`Generator: ${geliefert.length} Level aus ${AUFTRAEGE.reduce((s, a) => s + a.seeds, 0)} Aufträgen `
+console.log(`Generator: ${geliefert.length} Level aus ${laeufe.reduce((s, a) => s + a.ergebnisse.length, 0)} Aufträgen `
   + `(${((Date.now() - t0) / 1000).toFixed(1)} s): `
-  + laeufe.map(a => `${benenne(a)} ${a.ergebnisse.filter(r => r.level).length}/${a.seeds}`).join(', '));
+  + laeufe.map(a => `${benenne(a)} ${a.ergebnisse.filter(r => r.level).length}/${a.ergebnisse.length}`).join(', '));
 
 /** Brett der Strahlregel in der Lösungsstellung, mit den Elementen elemente (Vorgabe: die des Levels). */
 function inLoesung(level, elemente = level.elements) {
@@ -147,7 +164,7 @@ test('Derselbe Auftrag mit demselben Seed ergibt dasselbe Level, auch nach ander
 test('Er liefert Level in allen Graden, ohne Kernidee und mit Kernidee („leicht“ mit jeder, für viele Seeds)', () => {
   for (const a of laeufe) {
     const n = a.ergebnisse.filter(r => r.level).length;
-    assert.ok(n >= a.mindestens, `${benenne(a)}: nur ${n} von ${a.seeds}, verlangt ${a.mindestens}`);
+    assert.ok(n >= a.mindestens, `${benenne(a)}: nur ${n} von ${a.ergebnisse.length}, verlangt ${a.mindestens}`);
   }
 });
 
@@ -220,6 +237,19 @@ for (const kernidee of TEILE.kernideen) {
     const fund = g.neu.kernideen.find(k => k.begriff === kernidee);
     assert.ok(fund && fund.begruendung, `${g.name}: ${kernidee} nicht nötig`);
     assert.equal(gradVon(g.neu.schwierigkeit.wert), 'leicht', g.name);
+  });
+}
+
+console.log('Ab „mittel“ je Grad und Kernidee ein Level mit ihr als Haupt-Kernidee (Ticket 28)');
+for (const [grad, fest] of Object.entries(FEST_AB_MITTEL)) {
+  test(`${grad}: der feste Seed je Kernidee liefert ein Level, in dem sie die Haupt-Kernidee ist`
+    + ` (${Object.entries(fest).map(([k, s]) => `${k} ${s}`).join(', ')})`, () => {
+    for (const [kernidee, seed] of Object.entries(fest)) {
+      const g = beurteilt.find(b => b.grad === grad && !b.schwierigkeit && b.kernidee === kernidee && b.seed === seed);
+      assert.ok(g, `${grad} mit ${kernidee}: Seed ${seed} liefert kein Level`);
+      assert.equal(g.neu.hauptKernidee.begriff, kernidee, g.name);
+      assert.equal(gradVon(g.neu.schwierigkeit.wert), grad, g.name);
+    }
   });
 }
 

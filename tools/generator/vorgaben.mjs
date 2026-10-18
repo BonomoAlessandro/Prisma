@@ -22,6 +22,12 @@
 //                   Zerfall. Ohne Angabe nie (so bleibt „leicht“ wie in Ticket 18).
 //   wachsen         ab „mittel“: so oft wächst ein Bau unter der Untergrenze mit dem Schritt „schwerer“, bevor er als
 //                   zu klein verworfen wird (ohne Angabe nie)
+//   andocken        ab „mittel“ (Ticket 28): Die Bausteine bauen ihre Kernidee so, dass ihre Stränge verbunden sind
+//                   (Abschalten, Farben abzählen, Lockvogel), und „schwerer“ dockt Stränge der Kernidee an, wenn ihr
+//                   Baustein es will (baustein.andocken; andocken.mjs). Ohne Angabe nie (so bleibt „leicht“ bitgleich).
+//   abkuerzen       ab „mittel“ (Ticket 28, Fund 2 aus dem Review von Ticket 20): Ein Versuch von „schwerer“ ohne ein
+//                   drehbares Element mehr endet vor dem Festigen. Ohne Angabe festigt er (so bleibt „leicht“ mit
+//                   Ziel-Schwierigkeit bitgleich).
 // Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente dort im Median 7 / 9 / 11 (Bereich
 // 5–8, 7–12, 9–14), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren. Die Vorgabe für „schwer“ endet bei 11:
 // Mit 7–12 lieferte „schwer“ 48 statt 67 Level aus 300 Seeds bei mehr CPU-Zeit (Review Ticket 20).
@@ -37,17 +43,17 @@ export const VORGABEN = {
   mittel: {
     quellen: [2, 3], farbigeQuellen: 0.4, drehbar: [5, 8], arten: { mirror: 6, prism: 2, combiner: 1 },
     filter: [0, 1], festeSpiegel: [0, 2], ziele: [2, 5], klicks: 4, reparaturen: 2, schritte: 4, maxSuche: 4e5,
-    verbinden: 0.7, wachsen: 4,
+    verbinden: 0.7, wachsen: 4, andocken: true, abkuerzen: true,
   },
   schwer: {
     quellen: [2, 4], farbigeQuellen: 0.4, drehbar: [7, 11], arten: { mirror: 5, prism: 3, combiner: 1 },
     filter: [0, 1], festeSpiegel: [0, 2], ziele: [3, 5], klicks: 5, reparaturen: 2, schritte: 6, maxSuche: 2e5,
-    verbinden: 0.7, wachsen: 8,
+    verbinden: 0.7, wachsen: 8, andocken: true, abkuerzen: true,
   },
   'sehr schwer': {
     quellen: [2, 4], farbigeQuellen: 0.4, drehbar: [9, 14], arten: { mirror: 5, prism: 4, combiner: 1 },
     filter: [0, 1], festeSpiegel: [0, 2], ziele: [3, 5], klicks: 6, reparaturen: 2, schritte: 8, maxSuche: 2e5,
-    verbinden: 0.7, wachsen: 10,
+    verbinden: 0.7, wachsen: 10, andocken: true, abkuerzen: true,
   },
 };
 

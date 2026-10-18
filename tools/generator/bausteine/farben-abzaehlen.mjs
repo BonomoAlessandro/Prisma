@@ -12,8 +12,15 @@
 // - Die Stellungen der Lösung: die erste Belegung der vier Ecken, die alle Ziele erfüllt und jede Ecke beleuchtet.
 // Alles gehört zur Kernidee, die Wege sind reserviert. Ob das Abzählen nötig ist, entscheidet die Beurteilung, schon in
 // der günstigen Vorprüfung.
+// Ab „mittel“ (vorgaben.andocken, Ticket 28) ein Weichenring: Drei Quellen leuchten an drei Ecken in den Ring, zwei in
+// der Grundfarbe, eine in einer Mischung, die sie enthält (die Leitfarbe); Ziele an drei Ausgängen. Eine Ecke mit
+// eigener Quelle ist eine Weiche: In der einen Stellung schickt sie das Licht aus dem Ring hinaus und lässt ihre Quelle
+// hinein, in der anderen lässt sie den Ring weiterlaufen und schickt ihre Quelle hinaus. So teilen sich die Stränge
+// Ecken, und keiner ist ein Füllteil; im alten Ring liefen die Stränge der beiden Quellen und der dritten von aussen
+// meist getrennt (bei mittel-abzaehlen bis zu 77 von 100 Seeds mit Füllteil). Drei Quellen derselben Farbe hätten
+// mehrere Lösungen (sie tauschen ihre Ziele); die Leitfarbe legt fest, welches Ziel die gemischte Quelle bekommt.
 import { setRot, solve } from '../../solver.mjs';
-import { strahl, auswege, zufuehren, trifft, wegzellen, frei, maske } from './wege.mjs';
+import { strahl, auswege, zufuehren, trifft, wegzellen, frei, maske, FARBEN } from './wege.mjs';
 
 /** So oft versucht der Baustein höchstens, den Ring einzubauen. */
 const VERSUCHE = 400;
@@ -45,38 +52,60 @@ function ring(bau, a, r1, r2, laenge1, laenge2) {
   return { ecken, zellen };
 }
 
+/**
+ * Beginnt einen Versuch: leert den Bau und setzt die vier Eckspiegel eines zufälligen Rings (Kernidee). Rückgabe: null
+ * oder { farbe: Grundfarbe, r: ring, spiegel, ringzellen, ausgaenge: je Ecke die Zellen ihres Ausgangs }.
+ */
+function rahmen(bau) {
+  const { R, feldform } = bau;
+  bau.leere();
+  const farbe = R.pick(GRUNDFARBEN);
+  const r1 = R.pick(feldform.richtungen), r2 = R.pick(feldform.richtungen);
+  const r = ring(bau, R.pick(feldform.zellen), r1, r2, R.int(2, 4), R.int(2, 4));
+  if (!r) return null;
+  const spiegel = r.ecken.map(e => bau.setze(feldform.element(e.zelle, { type: 'mirror' }), { kern: true }));
+  const ringzellen = new Set([...r.zellen, ...r.ecken.map(e => e.zelle)]);
+  // Ausgänge: je Ecke die andere Richtung, in die ein Spiegel das Licht aus dem Ring lenkt
+  const ausgaenge = r.ecken.map((e, i) => {
+    const w = auswege(bau, spiegel[i], e.ein).find(x => x.richtung !== e.aus);
+    return w ? strahl(bau, e.zelle, w.richtung, ringzellen) : [];
+  });
+  return { farbe, r, spiegel, ringzellen, ausgaenge };
+}
+
+/**
+ * Eine Quelle der Farbe farbe, deren Licht an Ecke i so einfällt, dass eine Stellung des Eckspiegels es in den Ring
+ * lenkt; ihr Weg meidet Ring und Ausgänge. Rückgabe: die Quelle oder null.
+ */
+function quelleAnEcke(bau, { r, spiegel, ringzellen, ausgaenge }, i, farbe) {
+  const { R, feldform } = bau, e = r.ecken[i];
+  const ein = R.shuffle(feldform.richtungen.filter(d => d !== e.ein && d !== bau.gegen[e.aus]
+    && auswege(bau, spiegel[i], d).some(w => w.richtung === e.aus)));
+  const belegt = new Set([...ringzellen, ...ausgaenge.flat()]);
+  for (const d of ein) {
+    const q = zufuehren(bau, e.zelle, d, { spiegel: 0, farbe, belegt });
+    if (q) return q.quelle;
+  }
+  return null;
+}
+
 export default {
   kernidee: 'Farben abzählen',
+  andocken: { fremdfarbe: true },
   braucht: { quellen: 3, drehbar: 5 },
-  baue(bau) {
+  baue(bau, plan, vorgaben) {
+    if (vorgaben?.andocken) return weichenring(bau);
     const { R, feldform } = bau;
     for (let versuch = 0; versuch < VERSUCHE; versuch++) {
-      bau.leere();
-      const farbe = R.pick(GRUNDFARBEN);
-      const r1 = R.pick(feldform.richtungen), r2 = R.pick(feldform.richtungen);
-      const r = ring(bau, R.pick(feldform.zellen), r1, r2, R.int(2, 4), R.int(2, 4));
-      if (!r) continue;
-      const spiegel = r.ecken.map(e => bau.setze(feldform.element(e.zelle, { type: 'mirror' }), { kern: true }));
-      const ringzellen = new Set([...r.zellen, ...r.ecken.map(e => e.zelle)]);
-      // Ausgänge: je Ecke die andere Richtung, in die ein Spiegel das Licht aus dem Ring lenkt
-      const ausgaenge = r.ecken.map((e, i) => {
-        const w = auswege(bau, spiegel[i], e.ein).find(x => x.richtung !== e.aus);
-        return w ? strahl(bau, e.zelle, w.richtung, ringzellen) : [];
-      });
+      const rr = rahmen(bau);
+      if (!rr) continue;
+      const { farbe, spiegel, ringzellen, ausgaenge } = rr;
       // Zwei Quellen an gegenüberliegenden Ecken: Ihr Licht fällt so ein, dass eine Stellung es in den Ring lenkt
       const start = R.int(0, 1), quellen = [];
       for (const i of [start, start + 2]) {
-        const e = r.ecken[i];
-        const ein = R.shuffle(feldform.richtungen.filter(d => d !== e.ein && d !== bau.gegen[e.aus]
-          && auswege(bau, spiegel[i], d).some(w => w.richtung === e.aus)));
-        const belegt = new Set([...ringzellen, ...ausgaenge.flat()]);
-        let q = null;
-        for (const d of ein) {
-          q = zufuehren(bau, e.zelle, d, { spiegel: 0, farbe, belegt });
-          if (q) break;
-        }
+        const q = quelleAnEcke(bau, rr, i, farbe);
         if (!q) break;
-        quellen.push(q.quelle);
+        quellen.push(q);
       }
       if (quellen.length < 2) continue;
       // Drei Ziele an Ausgängen, die noch frei sind
@@ -120,6 +149,68 @@ function loese(bau, spiegel, ziele, farbe) {
     const bild = bau.bild(), licht = bau.licht(bild);
     const erfuellt = ziele.every(t => trifft(bau, bild, feldform.zelle(t)) === farbe);
     if (erfuellt && spiegel.every(m => licht.has(feldform.zelle(m)))) return true;
+  }
+  return false;
+}
+
+/** Mischungen, die eine Grundfarbe enthalten (die Leitfarbe des Weichenrings). */
+const mischungenMit = (farbe) => FARBEN.filter(f => (maske(f) & maske(farbe)) && f !== farbe);
+
+/**
+ * Der Weichenring ab „mittel“ (Ticket 28): drei Quellen an drei Ecken, eine davon in der Leitfarbe, Ziele an drei
+ * Ausgängen; die Stellungen der Lösung sind die erste Belegung der Ecken, in der jedes Ziel das Licht genau einer
+ * Quelle bekommt, jede Quelle ein Ziel erreicht und jede Ecke Licht hat. Die Ziele bekommen die Farbe ihrer Quelle.
+ * Genommen wird er nur, wenn er schon so eindeutig ist (wie der Ring in „leicht“).
+ */
+function weichenring(bau) {
+  const { R, feldform } = bau;
+  for (let versuch = 0; versuch < VERSUCHE; versuch++) {
+    const rr = rahmen(bau);
+    if (!rr) continue;
+    const { farbe, spiegel, ringzellen, ausgaenge } = rr;
+    const ecken = R.shuffle([0, 1, 2, 3]).slice(0, 3), leit = R.pick(ecken), leitfarbe = R.pick(mischungenMit(farbe));
+    const quellen = [];
+    for (const i of ecken) {
+      const q = quelleAnEcke(bau, rr, i, i === leit ? leitfarbe : farbe);
+      if (!q) break;
+      quellen.push(q);
+    }
+    if (quellen.length < 3) continue;
+    const plaetze = ausgaenge.map(a => a.filter(z => frei(bau, z)));
+    const mitPlatz = R.shuffle([0, 1, 2, 3].filter(i => plaetze[i].length));
+    if (mitPlatz.length < 3) continue;
+    const ziele = mitPlatz.slice(0, 3)
+      .map(i => bau.setze(feldform.element(R.pick(plaetze[i]), { type: 'target', color: farbe }), { kern: true }));
+    if (!weichen(bau, spiegel, ziele, quellen)) continue;
+    if (solve(bau.level(), { unique: true, collect: 0 }).count !== 1) continue;
+    for (const z of wegzellen(bau, bau.bild())) bau.reserviert.add(z);
+    for (const z of ringzellen) bau.reserviert.add(z);
+    bau.geaendert();
+    return null;
+  }
+  return 'Farben abzählen nicht eingebaut';
+}
+
+/**
+ * Setzt die Ecken in die erste Belegung, in der jedes Ziel das Licht genau einer Quelle bekommt, jede Quelle ein Ziel
+ * erreicht und jede Ecke Licht hat, und färbt die Ziele mit der Farbe ihrer Quelle; false, wenn es keine gibt.
+ */
+function weichen(bau, spiegel, ziele, quellen) {
+  const { feldform } = bau, n = feldform.stellungen(spiegel[0]).length, zellen = ziele.map(feldform.zelle);
+  for (let k = 0; k < n ** spiegel.length; k++) {
+    spiegel.forEach((m, i) => setRot(m, Math.floor(k / n ** i) % n));
+    bau.geaendert();
+    const licht = bau.licht();
+    if (!spiegel.every(m => licht.has(feldform.zelle(m)))) continue;
+    // Je Quelle allein die Ziele, die sie trifft: genau eines, und jedes Ziel von einer
+    const je = quellen.map((q) => {
+      const bild = bau.bildVon(q);
+      return zellen.filter(z => trifft(bau, bild, z));
+    });
+    if (je.some(t => t.length !== 1) || new Set(je.flat()).size !== ziele.length) continue;
+    ziele.forEach((t, i) => { t.color = quellen[je.findIndex(x => x[0] === zellen[i])].color ?? 'white'; });
+    bau.geaendert();
+    return true;
   }
   return false;
 }

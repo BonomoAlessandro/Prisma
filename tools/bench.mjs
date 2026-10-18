@@ -68,9 +68,9 @@ const GENERATORS = {
 };
 /**
  * Abnahmen, erst im Prozess des Generators geladen: eine Funktion Kandidat → { reason } (verworfen) oder { grade,
- * ideas, difficulty } (angenommen; jedes Feld darf fehlen). Liefert eine Abnahme den Grad, zählt die Messung die
- * angenommenen Level zusätzlich nach Grad, mit ideas (nötige Kernideen) auch je Grad und Kernidee, mit difficulty
- * (Schwierigkeit) ihre Quartile.
+ * ideas, main, difficulty } (angenommen; jedes Feld darf fehlen). Liefert eine Abnahme den Grad, zählt die Messung die
+ * angenommenen Level zusätzlich nach Grad, mit ideas (nötige Kernideen) auch je Grad und Kernidee, mit main
+ * (Haupt-Kernidee, Ticket 28) auch je Grad und Haupt-Kernidee, mit difficulty (Schwierigkeit) ihre Quartile.
  * - beurteilung: genau eine Lösung (solve im Modus unique) und die Beurteilung bestanden, mit dem Grad nach ihrer
  *   Schwierigkeit (grad.mjs): keiner der Gründe der Levelliste (levelliste.mjs: kein Ausschlussgrund, ab „mittel“ eine
  *   nötige Kernidee und der Mindest-Spielwert). Bringt der Kandidat seine Beurteilung mit (der neue Generator beurteilt
@@ -93,7 +93,8 @@ const ACCEPTANCES = {
       if (ausschluss.length) return { reason: `Abnahme: ${ausschluss.join(', ')}` };
       const regel = Object.values(GRUENDE).find(r => r.gilt(b, grade));
       if (regel) return { reason: `Abnahme: ${regel.text}` };
-      return { grade, ideas: [...new Set(b.kernideen.map(k => k.begriff))], difficulty: b.schwierigkeit.wert };
+      return { grade, ideas: [...new Set(b.kernideen.map(k => k.begriff))], main: b.hauptKernidee.begriff,
+        difficulty: b.schwierigkeit.wert };
     };
   },
 };
@@ -122,7 +123,10 @@ if (process.env.BENCH_WORKER) {
       const c = gen.make(group, seed);
       const v = abnahme(c);
       if (v.reason) reasons[v.reason] = (reasons[v.reason] || 0) + 1;
-      else accepted.push([seed, hash(JSON.stringify(c.level)), v.grade ?? null, v.ideas ?? [], v.difficulty ?? null]);
+      else {
+        accepted.push([seed, hash(JSON.stringify(c.level)), v.grade ?? null, v.ideas ?? [], v.difficulty ?? null,
+          v.main ?? null]);
+      }
     }
     const now = cpuNow();
     process.send({ group, cpu: now - last, accepted, reasons });
@@ -169,9 +173,10 @@ async function benchGenerator({ generator, accept, groups, start, seeds, jobs, a
 }
 
 /**
- * Angenommene Level je CPU-Stunde; grades: { Grad: { accepted, kernideen: { Kernidee: Anzahl } } } aus einer Abnahme
- * mit Grad (kernideen: Level, in denen die Kernidee nötig ist). cpu in µs. Gerechnet wird mit den gespeicherten, auf
- * 0,1 s gerundeten Sekunden, damit die Summe nach --save dieselben Werte ergibt.
+ * Angenommene Level je CPU-Stunde; grades: { Grad: { accepted, kernideen: { Kernidee: Anzahl }, haupt: { Kernidee:
+ * Anzahl } } } aus einer Abnahme mit Grad (kernideen: Level, in denen die Kernidee nötig ist; haupt: Level, in denen
+ * sie die Haupt-Kernidee ist, Ticket 28). cpu in µs. Gerechnet wird mit den gespeicherten, auf 0,1 s gerundeten
+ * Sekunden, damit die Summe nach --save dieselben Werte ergibt.
  */
 function rates(accepted, grades, cpu) {
   const cpuSeconds = +(cpu / 1e6).toFixed(1), perHour = (n) => (cpuSeconds ? Math.round(n / (cpuSeconds / 3600)) : null);
@@ -182,16 +187,18 @@ function rates(accepted, grades, cpu) {
     r.grades = Object.fromEntries(Object.entries(grades).map(([k, g]) => [k, {
       accepted: g.accepted, perCpuHour: perHour(g.accepted),
       ...(Object.keys(g.kernideen).length ? { kernideen: je(g.kernideen) } : {}),
+      ...(Object.keys(g.haupt).length ? { haupt: je(g.haupt) } : {}),
     }]));
   }
   return r;
 }
 
-/** Zählt einen angenommenen Grad (mit nötigen Kernideen) in grades wie bei rates. */
-function zaehle(grades, grade, ideas, n = 1) {
-  grades[grade] ??= { accepted: 0, kernideen: {} };
+/** Zählt einen angenommenen Grad (mit nötigen Kernideen und Haupt-Kernideen) in grades wie bei rates. */
+function zaehle(grades, grade, ideas, n = 1, mains = []) {
+  grades[grade] ??= { accepted: 0, kernideen: {}, haupt: {} };
   grades[grade].accepted += n;
   for (const [k, m] of ideas) grades[grade].kernideen[k] = (grades[grade].kernideen[k] || 0) + m;
+  for (const [k, m] of mains) grades[grade].haupt[k] = (grades[grade].haupt[k] || 0) + m;
 }
 
 /** Quartile einer Liste von Zahlen, auf eine Stelle: { q25, median, q75 }, oder null ohne Zahlen. */
@@ -207,7 +214,9 @@ function quartile(werte) {
  */
 function summarize(a, seeds) {
   const grades = {};
-  for (const [, , grade, ideas] of a.accepted) if (grade !== null) zaehle(grades, grade, ideas.map(k => [k, 1]));
+  for (const [, , grade, ideas, , main] of a.accepted) {
+    if (grade !== null) zaehle(grades, grade, ideas.map(k => [k, 1]), 1, main ? [[main, 1]] : []);
+  }
   const difficulty = quartile(a.accepted.map(x => x[4]).filter(w => w !== null));
   return {
     seeds, ...rates(a.accepted.length, grades, a.cpu), ...(difficulty ? { difficulty } : {}),
@@ -221,7 +230,8 @@ function totalOf(groups) {
   const list = Object.values(groups), grades = {};
   for (const g of list) {
     for (const [k, v] of Object.entries(g.grades || {})) {
-      zaehle(grades, k, Object.entries(v.kernideen || {}).map(([i, w]) => [i, w.accepted]), v.accepted);
+      const n = (m) => Object.entries(m || {}).map(([i, w]) => [i, w.accepted]);
+      zaehle(grades, k, n(v.kernideen), v.accepted, n(v.haupt));
     }
   }
   const sum = (f) => list.reduce((s, g) => s + f(g), 0);
@@ -505,6 +515,15 @@ async function main() {
       const d = r.difficulty ? ` · ${r.difficulty.q25}/${r.difficulty.median}/${r.difficulty.q75}` : '';
       console.log(`${g.padEnd(16)} ${String(r.seeds).padStart(7)} ${String(r.accepted).padStart(11)} ` +
         `${r.cpuSeconds.toFixed(1).padStart(8)} ${String(r.perCpuHour).padStart(12)}${grades}${d}`);
+    }
+    // Haupt-Kernidee (Ticket 28): je Gruppe und Grad die Level, in denen sie es ist, und je CPU-Stunde
+    const haupt = (v) => Object.entries(v.haupt || {})
+      .map(([k, w]) => `${k} ${w.accepted} (${w.perCpuHour})`).join(', ');
+    const mitHaupt = Object.entries(run.groups).filter(([, r]) => Object.values(r.grades || {}).some(haupt));
+    if (mitHaupt.length) console.log('Haupt-Kernidee je Gruppe und Grad: Level (je CPU-Stunde)');
+    for (const [g, r] of mitHaupt) {
+      const je = Object.entries(r.grades).filter(([, v]) => haupt(v)).map(([k, v]) => `${k}: ${haupt(v)}`);
+      console.log(`  ${g}  ${je.join('; ')}`);
     }
   }
   if (parts.includes('trace')) {
