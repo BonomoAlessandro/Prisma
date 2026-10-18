@@ -53,3 +53,33 @@ Feldform an echten Würfeln geprüft. Würfel-Level kommen nicht ins Spiel.
   | `69ff89d` | `c83086e` | docs(3d): Ticket 27 erledigt |
   | `8f8d8f0` | `304564a` | fix(logik): Ungültige Richtung im Würfel meldet auch die Spiegelregel … (Review Ticket 27) |
   | `9c974d3` | `7524457` | docs(3d): Review Ticket 27, keine offenen Funde |
+
+**Stand am Abend des 18.10.2026** (Pause über Nacht auf Wunsch des Nutzers; Branch `ticket/22-wuerfel-generator` im
+Worktree `.claude/worktrees/agent-ae7764404a8e6fa32`, nicht gepusht). Es läuft nichts mehr.
+- **Erledigt:**
+  - Merge von `feature/levelgenerator` (`3a9d8d2`) in den Branch (`5a36b8d`). Konflikte in `index.html` (Würfel-Level
+    hinter `LEVELS` mit `CUBE_START`, dazu die Grade aus Ticket 17 statt `DIFFICULTY`), `feldform.mjs`,
+    `feldform.test.mjs` und README, je beide Seiten. Die Strahlregel ist die des Branches: Auf
+    `feature/levelgenerator` hat sich dort seit `2e05bae` nur ein Kommentar geändert. Der LEVELS-Block ist genau der von
+    `feature/levelgenerator`, `LEVELS_3D` genau der des Branches. `levelliste.test.mjs` gibt dem Code, den es aus
+    `index.html` liest, `CUBE_START` mit.
+  - Danach grün: golden und `--voll` (ohne `--write`), logic 567, beurteilung 201, generator 28, levelliste 37,
+    ki-tester 64, offline; Proben im Browser: Interaktion, Klicks im Würfel, Kern gelöst („Ziele 3 / 3“),
+    Levelauswahl, je ohne Konsolenmeldung.
+  - Der Feldform fehlte, ein Element mit einer anderen Drehachse als y zu setzen. Nachgezogen auf
+    `ticket/22-feldform` (von `feature/levelgenerator`, `8ca2c64`): `drehachsen` und `element` mit `drehachse`; der
+    Generator setzt drehbare Elemente, feste Spiegel und Quellen mit jeder Drehachse. Flache Level bitgleich: alle 28
+    Aufträge, 10 610 Seeds, Ergebnis und Strahlverfolgungen gleich wie `3a9d8d2`. Dort alle Tests grün. In den Branch
+    gemergt (`2f35f6e`).
+  - Würfel-Feldform mit `element`, `rahmen`, Drehachsen, Nachbartabelle, je Grösse eingefroren; Generator-Test mit fünf
+    Aufträgen im Würfel 4 × 4 × 4 (`696cee7`). Ein Auftrag „leicht“ im Würfel 4 × 4 × 4 liefert eindeutig lösbare
+    Level, die die Beurteilung bestehen, mit Licht zwischen den Ebenen (Seeds 1–100: 90 Level). Alle Tests grün:
+    generator 29, beurteilung 205, übrige wie oben.
+- **Rot oder offen:**
+  - Der Generator-Test brauchte mit den Würfel-Aufträgen 112,7 s statt 72 s, das Ziel sind etwa 90 s. Der Rechner war
+    dabei langsamer (beurteilung 107 statt 90 s); der Vergleich abwechselnd mit und ohne Würfel-Aufträge in einem Lauf
+    steht noch aus. Reicht es nicht, werden die Würfel-Aufträge kleiner.
+  - README und `3D-WUERFEL.md` sind nachgeführt (dieser Commit), die Notiz „Umgesetzt“ fehlt noch.
+- **Als Nächstes:** Laufzeit des Generator-Tests messen, Beispiel-Level für die Notiz, Notiz „Umgesetzt“ mit
+  Auslegungen (Knäuel im Raum, Drehungen bei Prismen mit waagrechter Achse, Bausteine in kleinen Feldern), Haken und
+  Status.

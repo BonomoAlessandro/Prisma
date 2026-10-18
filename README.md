@@ -70,7 +70,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
-    „sehr schwer“ ausser dem Lockvogel).
+    „sehr schwer“ ausser dem Lockvogel). Auf dem Würfel-Branch (Ticket 22) laufen dazu fünf Aufträge im Würfel
+    4 × 4 × 4 („leicht“ ohne Kernidee, mit Mischziel, Abschalten und Sammelstelle, „mittel“ mit Mischziel) durch alle
+    Prüfungen, und die Würfel-Level nutzen den Raum (Licht zwischen den Ebenen, drehbare Elemente mit waagrechter
+    Drehachse).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -104,7 +107,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Derselbe Durchlauf der Strahlregel wie für die flachen Level (`tracePass`, ADR 0003): Ein flaches Level ist ein Würfel
   mit einer Ebene. Nur das Brett hat eine eigene Fassung (`createBoard3`, mit y und Drehachse); die flachen Level
   bleiben bitgleich (`tests/golden.mjs`).
-  Die Kamera lässt sich im Würfel viel stärker neigen.
+  Die Kamera lässt sich im Würfel viel stärker neigen. Beurteilung (Ticket 14) und Generator (Ticket 22) kennen den
+  Würfel über die Würfel-Feldform (`tools/beurteilung/feldform-wuerfel.mjs`); Würfel-Level aus dem Generator kommen
+  nicht ins Spiel.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
@@ -252,7 +257,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
     zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
     Auf dem Würfel-Branch ist das die Würfel-Feldform (`feldform-wuerfel.mjs`, Ticket 14) für Level mit `dim: 3`:
-    Zellen „x,y,z“, 18 Richtungen, Drehachse je Element.
+    Zellen „x,y,z“, 18 Richtungen, Drehachse je Element; für den Generator (Ticket 22) auch `element` und `rahmen`
+    (`{ dim: 3, size }`), die drei Drehachsen und die Nachbarn aus einer Tabelle, je Grösse eine eingefrorene.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von

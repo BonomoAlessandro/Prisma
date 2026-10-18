@@ -1,6 +1,7 @@
 # Würfel-Level in 3D – Prototyp
 
-Stand: 11. Oktober 2026, Beurteilung und Tests nachgeführt am 16. Oktober (Ticket 14) · Branch `feature/3d-wuerfel` ·
+Stand: 11. Oktober 2026, Beurteilung und Tests nachgeführt am 16. Oktober (Ticket 14), Generator am 18. Oktober
+(Ticket 22) · Branch `feature/3d-wuerfel` ·
 Zweck: prüfen, ob Rätsel in einem Würfel Potenzial haben.
 Alle bisherigen Level (Tutorial + 150) bleiben genau so, wie sie sind.
 
@@ -57,7 +58,8 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   (`createBoard` ruft bei `dim === 3` `createBoard3`); `tracePass` unterscheidet nur Drehachse und Ausgabe.
   Segmente/Ereignisse im Würfel haben zusätzlich `y0/y1` bzw. `y`, Normalen sind `[nx, ny, nz]`; die flachen bleiben
   ohne y und bitgleich (`tests/golden.mjs`).
-- **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, `tools/curate.mjs`).
+- **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, Werkzeuge der Levelliste
+  wie `tools/ordne-level.mjs`).
   Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 159).
   Eigene Seite „Würfel“ in der Levelauswahl; „Weiter“ nach Level 150 führt nicht in den Würfel.
 - **Darstellung:** `cubeToWorld`, `beamPointToWorld`, `normalToWorld`, `placeInCube`. Strahl-Shader:
@@ -77,6 +79,14 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   aus `planeDir`, `reflect3` und `refractInPrism3`. Drehungen nur um die senkrechte Achse und nur, soweit darstellbar:
   Ein Prisma mit waagrechter Achse, dessen Achse eine Drehung umkehrt, bräche Rot und Blau zu den vertauschten
   Seiten (Aufzug und Kern haben darum je zwei Drehungen).
+- **Generator** (Ticket 22): Derselbe Generator (`tools/generator/`) erzeugt mit der Würfel-Feldform Würfel-Level,
+  etwa `generiere({ grad: 'leicht', kernidee: null, seed: 2, feldform: feldformVon({ dim: 3, size: 4 }) })`. Die
+  Würfel-Feldform liefert dafür wie die flache `element`, `rahmen` (`{ dim: 3, size }`), die Nachbarn aus einer
+  Tabelle und eine eingefrorene Feldform je Grösse, dazu die Drehachsen `drehachsen` (y, x, z): Drehbare Elemente und
+  feste Spiegel des Ergänzens bekommen eine davon, Quellen die erste, mit der sie in die verlangte Richtung leuchten
+  (auf `feature/levelgenerator` nachgezogen, dort nur y). Die Bausteine der Kernideen bauen mit Drehachse y; Licht
+  zwischen die Ebenen bringen ihre Quellen und das Ergänzen. Würfel-Level kommen nicht ins Spiel; `LEVELS_3D` bleibt
+  bei Aufzug und Kern.
 
 ## Die zwei Level
 
@@ -89,12 +99,14 @@ Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar üb
 
 ## Tests und Befehle
 
-Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (16. Oktober).
+Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (18. Oktober, Ticket 22).
 
 ```bash
-node tests/logic.test.mjs        # 577 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
-node tests/golden.mjs            # flache Level unverändert? (~3 s; --voll ~17 s) – --write nur bei bewusster Änderung
-node tests/beurteilung.test.mjs  # 196 Tests (~45 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
+node tests/logic.test.mjs        # 567 Tests, inkl. Block "Würfel (dim: 3)" (~30–40 s)
+node tests/golden.mjs            # flache Level unverändert? (~2 s; --voll ~25–30 s) – --write nur bei bewusster Änderung
+node tests/beurteilung.test.mjs  # 205 Tests (~90–110 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
+node tests/generator.test.mjs    # 29 Tests, dazu fünf Aufträge im Würfel 4 × 4 × 4 (nur über leise.sh)
+node tests/levelliste.test.mjs   # 37 Tests; liest Code der Anzeige aus index.html und gibt ihm CUBE_START mit
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
 node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel (~50 s)
@@ -118,9 +130,10 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 - N bzw. → auf Level 150 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort). Bewusst so
   gelassen – entscheiden, ob 2D und Würfel auch beim Blättern getrennt sein sollen.
 - Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
-- Generator, `tools/quality.mjs` (Fläche, Quadranten, Rand) und die alte Wertung kennen nur 2D; die Würfel-Level sind
-  handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und ohne Kernidee, Kern hat die
-  Kernidee „Mischziel aus zwei Quellen“.
+- Die Würfel-Level im Spiel sind handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und
+  ohne Kernidee, Kern hat die Kernidee „Mischziel aus zwei Quellen“. Der Generator liefert Würfel-Level (Ticket 22),
+  die aber nicht ins Spiel kommen. In kleinen Würfeln (4 × 4 × 4) liefern Farben abzählen, Falle und Lockvogel nichts,
+  wie im flachen Feld 4 × 4; im Würfel 3 × 3 × 3 ist der Knäuel der häufigste Grund ohne Level.
 - Nur in Headless-Chrome getestet (Screenshots, simulierte Klicks) – noch nicht von Hand gespielt, nicht auf
   einem echten Handy, Leistung nicht gemessen.
 - Lesbarkeit ist das Hauptrisiko: Tiefe und Drehachse eines Elements sind schräg von oben nicht immer klar.
@@ -130,4 +143,5 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 
 1. Beide Level von Hand spielen (Desktop und Handy) und entscheiden, ob es sich lohnt (**E** in PLAN.md, Abschnitt 4).
 2. Wenn ja: kleines Würfel-Tutorial (Achse, Ebenenwahl, Aufzug), 5–10 weitere handgebaute Level.
-3. Danach Generator/Qualität für den Würfel, grössere Würfel erst nach Spieltests.
+3. Danach Würfel-Level aus dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen, grössere Würfel erst nach
+   Spieltests.
