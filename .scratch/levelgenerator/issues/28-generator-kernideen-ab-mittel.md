@@ -452,3 +452,9 @@ Punkt 1 (Ausbeute oder Begründung samt Zahlen) und Punkt 2 (Begründung).
 - **Geändert:** `bausteine/abschalten.mjs`, `index.mjs`, Kommentare in `andocken.mjs` und `vorgaben.mjs`, README
   „Generator“, `tests/generator.test.mjs` (feste Seeds), hier Ausbeute, Abweichungen und Hinweise, dazu die Hinweise in
   24, 25 und 26.
+- **Merge mit Ticket 23** (`c458ac3`, Merge-Commit): Konflikte nur in den Hinweisen der Tickets 24–26, beide Hinweise
+  bleiben stehen. Danach alle Tests grün (golden 1 s, logic 548 in 24 s, generator 28 in 61 s, beurteilung 177 in
+  80 s, levelliste 37 in 50 s, ki-tester 64 in 1 s, offline 71 s); `tests/golden.json` wie in `c458ac3`. Die Zahlen
+  bleiben: „leicht“ gegen `43d93c4` 9000 von 9000 gleich, Stichprobe ab „mittel“ je Seed gleich wie vor dem Merge
+  (mittel- und schwer-abschalten 1–200, mittel-abzaehlen, sehr schwer-abschalten, mittel-sammelstelle und
+  schwer-mischziel je 1–100, samt Strahlverfolgungen).
