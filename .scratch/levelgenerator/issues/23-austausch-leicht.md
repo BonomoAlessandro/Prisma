@@ -201,3 +201,79 @@ immer auch die Haupt-Kernidee; Ausnahme 11 von 807 Sammelstellen-Leveln mit Haup
     Fackellauf); Begründung bei Stufe B.
   - Eine Wahl „verlangte = Haupt-Kernidee“ im Auftrag war nicht nötig.
   - Hinweise für 24–26 stehen dort unter `## Comments`.
+
+**Review (18.10.2026).** Geprüft wurde `git diff 43d93c4 HEAD` (Stufen A–C), nachgerechnet in Kopien ausserhalb des
+Repos.
+- **Austausch:** Die sechs neuen Level stehen mit den genehmigten Namen auf ihren Plätzen: 12 Sammellinse,
+  18 Strahlteiler, 23 Amethyst, 25 Fackellauf, 27 Fernlicht und 31 Blitz, alle „leicht“.
+  - Jedes ist bitgenau der beurteilte Kandidat: Elemente samt Reihenfolge und Lösung gleichen dem Kandidaten auf der
+    Seite des Laufs (`ersatz-leicht-1/seite/index.html`), und der Abdruck stimmt mit dem Protokoll überein.
+  - Haupt-Kernidee, Schwierigkeit und Platz entsprechen der Tabelle von Stufe C.
+  - Die sechs alten Level fehlen im Spiel, und ihre Namen stehen auf `entfernteNamen`. Ihre Kopie in
+    `entfernte-level.json` ist als JSON gleich den Leveldaten in `43d93c4`.
+  - Die übrigen 144 Level und das Tutorial sind unverändert, ebenso ihre Reihenfolge untereinander.
+- **Reihenfolge:**
+  - Auf dem Stand von Stufe B (index.html und levelliste.json aus `6fb6d2c`, ohne `entfernte-level.json`) lief
+    `ordne-level.mjs --austausch … --schreiben` mit den Werkzeugen von HEAD. Die Austausch-Datei ist mit
+    `generiere.mjs` neu gebaut. Das Ergebnis sind genau index.html, levelliste.json und `entfernte-level.json` von
+    HEAD; es braucht also keinen Handeingriff mehr.
+  - Ein zweiter Lauf mit `--schreiben` meldet „stimmen“ und ändert nichts.
+  - Die 7 heutigen leichten Level rücken wie berichtet einen Platz vor: Farbkreis, Brechpunkt, Querschläger,
+    Farbspiel, Facette, Spiegelbild und Schliff. Das folgt aus der Regel `korrigiere` mit den Korrekturen von
+    Fackellauf (+5) und Fernlicht (+3), die vor denen von Spiegelbild und Schliff angewandt werden.
+  - Die Haupt-Kernidee ist ohne die Duldungsliste eingehalten: auf 11–20 Sammelstelle 2, auf 21–30 Abschalten 2,
+    Mischziel aus zwei Quellen 2 und Sammelstelle 1.
+  - Das Mittel je 10 Level ist 25,1 34,2 41,0 45,5 …, der kleinste Schritt −0,34. Die Häufungsregel macht nur die
+    zwei Züge aus Ticket 16.
+- **Duldungsliste und Eichung:**
+  - Auf der Duldungsliste stehen 84 Level (leicht 0 von 31), davon 31 mit Ausschlussgrund.
+  - Die Eichung bleibt gleich: `inHeutigerReihenfolge()` und `eichmenge()` liefern auf HEAD dasselbe JSON wie auf
+    `43d93c4`.
+  - Gegenproben zum neuen Test „kein Level aus leicht auf der Duldungsliste“:
+    - Mit Zickzack auf der Duldungsliste wird er rot.
+    - Auf dem Stand von Stufe B wird nur er rot, mit den sechs alten Leveln; die übrigen 35 Tests bleiben grün.
+- **KI-Tester:** Die 12 Einträge von `ersatz-leicht-1` sind genau `entry()` aus `lauf.json` und den beiden Antworten,
+  wie `merge.mjs` sie erzeugt.
+  - Genannt wurde nur „Zerfall“, und das gilt in „leicht“ nicht. Kein Kandidat ist abgelehnt.
+  - Die Referenzen (Platz der Formel) sind dieselben wie im Spiel, also auch die Korrektur.
+- **Golden:** 12 Abweichungen, nur die sechs fehlenden und die sechs neuen Namen; die übrigen 153 Level sind gleich.
+  `golden.json` ist nicht angefasst.
+- **Werkzeuge:**
+  - `generiere.mjs --schwierigkeit` baut mit den Lücken aus Stufe A alle sechs Level nach, auch mit dem Generator von
+    Ticket 28 (`9a34b5b`).
+  - Geprüft sind auch `prepare.mjs --kandidaten`, die Seite mit den Kandidaten und `shots.mjs` mit wählbarer Seite: Das
+    Bild L4 des Laufs zeigt das spätere Strahlteiler.
+  - Es gibt keinen doppelten Code mit `tools/generator/` oder `tools/beurteilung/`, und kein Werkzeug rechnet
+    Schwierigkeit oder Wertung selbst.
+- **Screenshots:** Geprüft sind die Levelauswahl 21–30 (Desktop, mit „Leicht“ im Titel und den neuen Namen) und 31–40
+  (Handy), dazu 18 Strahlteiler und 25 Fackellauf (Desktop) sowie 31 Blitz (Handy). Kopfzeile, Grad und Ziele sind
+  wie im Spiel.
+- **Selbst behoben (klein):**
+  - `ordne-level.mjs`: Die Zeile „Prüfliste … mit Urteil der KI-Tester“ zählte die Urteile der neuen Level mit
+    (57 statt 51). Der Kopf nennt jetzt auch die Läufe `ersatz-…` (`4996e50`).
+  - ADR 0001 ist ergänzt: Entfernte Level bleiben als feste Kopie Teil des Massstabs (`5b4657a`).
+- **Offen, M1 (mittel): Die Herkunftszeile reicht nicht zum Nachbauen.**
+  - **Wo:** `tools/ordne-level.mjs`, in `schreibeLevels` (Zeile mit `herkunft`) und in `ladeAustausch`; die sechs
+    Zeilen „Generator … · ersetzt …“ in index.html (1134, 1255, 1357, 1396, 1437, 1524); README zu `--austausch`;
+    Schritt 2 der Hinweise in 24–26.
+  - **Fehler:** `generiere.mjs leicht-abschalten --seed 1435 --anzahl 1` liefert 6c49fce4 (Schwierigkeit 20,1) statt
+    Fackellauf. Ebenso entstehen für Amethyst (Seed 114) 3583a7a8 und für Blitz (Seed 525) 355659ec. Das Level im Spiel
+    entsteht nur mit der Ziel-Schwierigkeit der Lücke, und die steht nur in Stufe A dieses Tickets.
+  - **Erwartet:** Die Herkunft nennt Auftrag, Seed und Ziel-Schwierigkeit, etwa „Generator leicht-abschalten, Seed 1435,
+    Ziel 36,7–37,5 · ersetzt Labyrinth (Austausch „leicht“)“.
+  - **Vorschlag:** Den Eintrag der Austausch-Datei um ein wahlweises `schwierigkeit: [von, bis]` ergänzen,
+    `ladeAustausch` prüft es und übernimmt es, und die Herkunft gibt es aus. Die sechs Zeilen in index.html mit den
+    Lücken aus Stufe A angleichen (29,5–32,9 · 35,4–36,65 · 39,1–41,2 · 36,7–37,5 · 41,3–41,8 · 42,4–42,95, in der
+    Reihenfolge Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht, Blitz). README, die Hinweise in 24–26 und
+    die Spalte „Herkunft“ von Stufe C nachführen.
+  - **Behoben, wenn:**
+    - Für jedes der sechs Level ergibt `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1 --schwierigkeit VON,BIS`
+      mit den Werten der Herkunftszeile denselben Abdruck wie das Level im Spiel.
+    - `--austausch … --schreiben` ergibt auf dem Stand von Stufe B wieder genau HEAD, und ein zweiter Lauf meldet
+      „stimmen“.
+- **Hinweis, keine Änderung:** Die genehmigten Namen Strahlteiler und Sammellinse heissen wie Mechaniken, die die Spec
+  ausdrücklich nicht vorsieht („Nicht Teil dieser Spec“). Es sind nur Namen.
+- **Tests** (über `leise.sh`, `LEISE_CPU=65`): Golden hat wie erwartet 12 Abweichungen. Grün sind logic 548,
+  generator 25, beurteilung 177, levelliste 36, ki-tester 64 und offline.
+- **Urteil:** Bereit zum Mergen, sobald M1 behoben ist. M1 betrifft nur Kommentare und das Format der Austausch-Datei;
+  Leveldaten, Reihenfolge und Duldungsliste sind korrekt.
