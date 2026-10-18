@@ -414,8 +414,8 @@ auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
   2. Nach der Regel „stark“ (jedes Urteil, dazu mindestens eines aus Ablauf 2) bestimmen, welche der 44 Level der
      Gruppe 2 behalten und welche ersetzt werden.
   3. Ein gemeinsamer Lauf mit neuen Kandidaten für Lichtorgel (offen), für Glasmurmel, Laterne, Einklang und Mosaik
-     (heute nur ein Level mit Zerfall bei einem KI-Tester, bleibt Rückfall) und für die schwachen Level der Gruppe 2; nur
-     Kandidaten, die die Vorprüfung auf Zerfall mit einem Teil bestehen.
+     (heute nur ein Level mit Zerfall bei einem KI-Tester, bleibt Rückfall) und für die schwachen Level der Gruppe 2;
+     nur Kandidaten, die die Vorprüfung auf Zerfall mit einem Teil bestehen.
   4. Grund „behalten nach Urteil der KI-Tester“ in `levelliste.json` und `levelliste.mjs` mit Test und Gegenprobe; Spec
      und Hinweise in 25 und 26 nachführen.
   5. Danach Namen (Haltepunkt), dann Phase C.
