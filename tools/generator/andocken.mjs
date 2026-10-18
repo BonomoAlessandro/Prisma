@@ -17,9 +17,12 @@
 // Licht darf reservierte Zellen kreuzen (dort steht nur kein neues Element), denn Licht stört Licht nicht. Geprüft mit
 // der Strahlregel: Die Ziele der Kernidee bekommen dasselbe Licht wie vorher, die Lockvögel bleiben dunkel, das neue
 // Licht endet dort, wo ein Ziel hinkommen kann, und beim Andocken an einen Spiegel bekommt dieser Licht aus einer
-// Quelle, die ihn vorher nicht erreichte. Welche Elemente der Aufrufer anbietet, entscheidet er (verfeinern.mjs: nur
-// solche der Kernidee, die nicht in bau.unberuehrt stehen; der Baustein Abschalten: den zweiten Spiegel von A). Wie
-// alles im Generator kennt das hier das Feld nur über die Feldform.
+// Quelle, die ihn vorher nicht erreichte. Weicht dafür eine Quelle, heisst „vorher“ nach ihrem Wegfall: Brachte sie
+// einem Ziel der Kernidee Licht, ändert sich dessen Licht, und ob die Kernidee noch nötig ist, entscheidet die
+// Beurteilung (Review Ticket 28: Gegen das Licht vor dem Wegfall geprüft, lieferte schwer-abzaehlen 44 statt 50
+// Haupt-Level aus 200 Seeds, Abschalten gleich viele). Welche Elemente der Aufrufer anbietet, entscheidet er
+// (verfeinern.mjs: nur solche der Kernidee, die nicht in bau.unberuehrt stehen; der Baustein Abschalten: den zweiten
+// Spiegel von A). Wie alles im Generator kennt das hier das Feld nur über die Feldform.
 import { setRot } from '../solver.mjs';
 import { gemischt, fremdfarbe } from './schritte.mjs';
 import { lichtzellen, FARBEN, maske } from './bausteine/wege.mjs';
@@ -168,7 +171,7 @@ function vorPrisma(bau, zq) {
  * wegzunehmen; erst wenn das nicht geht, weicht eine Quelle ausserhalb der Kernidee. Rückgabe: null, wenn es nicht ging
  * (dann ist höchstens diese Quelle weggefallen), sonst { art, zelle, vorher, kern, neu } für angedockt: das drehbare
  * Element, an dem es hängt (Spiegel oder vorgeschaltetes Prisma), die Quellen, die es vorher erreichten, das Licht der
- * Kernidee und die neu gesetzten Elemente.
+ * Kernidee (nach dem Wegfall einer weichenden Quelle, siehe oben) und die neu gesetzten Elemente.
  */
 export function dockeAn(bau, zellen, { quellen, farbigeQuellen }) {
   const spiegel = zellen.filter(z => bau.bei(z)?.type === 'mirror');
