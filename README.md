@@ -172,8 +172,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leicht-mischziel`, die Abnahme ist die Beurteilung (`--generator neu --accept beurteilung`, Standard und seit Ticket
   21 einzige Wahl): genau eine Lösung und die Beurteilung bestanden, mit dem Grad nach der Schwierigkeit; die Messung
   zählt auch je Grad und je Grad und nötiger Kernidee und nennt die Quartile der Schwierigkeit. Der Generator gibt
-  seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein zweites Mal. Ohne Gruppe misst es alle
-  Aufträge; ab „mittel“ ist das mit den Standardwerten teuer, also Gruppen und `--seeds` wählen. Die Ausgangszahlen
+  seine Beurteilung mit, die Abnahme beurteilt seine Level darum nicht ein zweites Mal. Ohne Gruppe bricht es ab und
+  nennt die Aufträge (alle 28 zusammen kosteten ab „mittel“ viele CPU-Stunden); `--seeds` ist ohne Angabe 2000, der
+  Umfang der Messung in Ticket 20 (bis Ticket 21 60 000 je Profil). Die Ausgangszahlen
   stehen in `tools/bench-baseline.json` (der alte Generator nach Profilen mit seiner eigenen Abnahme, bis Ticket 21
   `--generator alt --accept alt`). `--save` fügt einzeln gemessene Gruppen einer Datei hinzu, wenn Generator, Abnahme,
   Seeds, `--jobs` und Rechner gleich sind. `--compare` zeigt den Gewinn je Gruppe, je Grad und gesamt und meldet
@@ -186,7 +187,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Zahl der Prozesse und von der übrigen Last auf dem Rechner ab (beobachtet 20 bis 50 %): Verglichen wird nur mit
   gleichem `--jobs`, am besten vorher und nachher in derselben Sitzung (alter Stand etwa in einem `git worktree`).
   Das Skript läuft nur mit tiefster Priorität und bricht bei einem höheren Deckel ab: den Generator mit
-  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <gruppe …> --seeds N`, Strahlregel und Löser über
+  `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <gruppe …> [--seeds N]`, Strahlregel und Löser über
   `leise.sh` mit 20 %;
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
@@ -373,8 +374,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `mischziel`, `abschalten`, `abzaehlen`, `sammelstelle`, `falle`, `lockvogel`, etwa `mittel-abschalten`; ohne
     Auftrag nennt es alle) schreibt je Level eine JSON-Zeile `{ seed, level, schwierigkeit, spielwert, kernideen,
     hauptKernidee }` auf stdout und die Gründe der Seeds ohne Level auf stderr; mit `| node tools/show.mjs` als
-    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <auftrag …> --seeds N` (etwa
-    `mittel mittel-mischziel --seeds 2000`; ohne Auftrag misst es alle, ab „mittel“ viele CPU-Stunden).
+    Textfeld. Messen: `LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator <auftrag …> [--seeds N]` (etwa
+    `mittel mittel-mischziel`, ohne Angabe 2000 Seeds je Auftrag; ohne Auftrag nennt es alle).
   - **Erweitern:** Eine weitere Kernidee ist ein Baustein in `bausteine/` mit einer Zeile in `bausteine/index.mjs`
     (Glossarbegriff, was er mindestens setzt, `baue`), ein weiterer Grad eine Vorgabe in `vorgaben.mjs`. Ob eine
     Kernidee nötig ist, entscheidet immer die Beurteilung.

@@ -191,8 +191,8 @@ Vorher heisst: dieselben Tests auf `6e98bb1` vor dem Umbau, in derselben Sitzung
   - Ein neues Level darf keinen Filter mit fremder Farbe haben (Test der Levelliste); der Generator setzt keinen.
 - **28 (Kernideen ab „mittel“):** Fund 2 aus dem Review von Ticket 20 gehört jetzt dorthin. `tools/generator/` und
   `tests/generator.test.mjs` sind hier unverändert. `bench.mjs` misst ohne Angabe mit `--generator neu --accept
-  beurteilung`; die ausdrücklichen Optionen gelten weiter. Ohne Gruppe misst es alle 28 Aufträge, mit den
-  Standardwerten (60 000 Seeds) ab „mittel“ viele CPU-Stunden; also Gruppen und `--seeds` angeben.
+  beurteilung`; die ausdrücklichen Optionen gelten weiter. Es verlangt seit dem Review (M1) eine Gruppe und misst
+  ohne `--seeds` 2000 Seeds je Auftrag.
 
 **Review 18.10.2026.** Geprüft im selben Worktree auf `ticket/21-alte-werkzeuge`, `git diff 6e98bb1 HEAD`. Alle Läufe
 über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65` (trace und solver von `bench.mjs` mit 20); Skripte im Scratchpad
@@ -260,6 +260,10 @@ Offen, für den Entwickler:
     `--save` ohnehin nicht, und `--compare` über den Generatorwechsel lässt verschiedene Seeds zu.
   - Behoben, wenn `node tools/bench.mjs generator` (gedeckelt) sofort mit der Liste der Aufträge endet und Kopf,
     Aufruf und README den neuen Standard nennen.
+  - **Umgesetzt (Entwickler, 18.10.2026):** wie vorgeschlagen. Ohne Gruppe endet `generator` gedeckelt sofort mit
+    Exit 1 und der Liste der 28 Aufträge samt Aufruf; `--seeds` ist ohne Angabe 2000. Kopfkommentar, Aufrufbeispiel
+    und README (`bench.mjs`, Generator) nennen das. Geprüft über `leise.sh` (65 %): `generator` ohne Gruppe bricht ab,
+    `generator leicht --jobs 2` misst 2000 Seeds (1773 Level, 5,2 CPU-s, 11 s), `logic` 548 grün.
 
 Hinweis an die Koordination: Die Tickets 23 und 28 arbeiten parallel auf `6e98bb1`, wo `profiles.mjs` (`NAMES`),
 `curate.mjs` und die Einträge mit `score` noch bestehen. Ein neuer Name in `NAMES` oder eine dort neu geschriebene

@@ -8,10 +8,10 @@
 //              seeds - 1; Blöcke zu höchstens 50 Seeds gehen an --jobs Prozesse (Standard: halb so viele wie logische
 //              Kerne, unter dem Deckel von leise.sh). Welcher Prozess welchen Block rechnet, ändert die angenommenen
 //              Level nicht (Fingerabdruck je Gruppe). Die CPU-Zeit je Seed hängt aber von --jobs ab (Hyperthreading,
-//              E-Kerne, Turbo): nur gleiche vergleichen. Ohne Gruppe alle Aufträge des Generators (ab „mittel“ mit
-//              den Standardwerten viele CPU-Stunden; „sehr schwer“ rund 1 CPU-s je Seed, also Gruppen und --seeds
-//              wählen). Die Abnahme beurteilung zählt zusätzlich je Grad und je Grad und nötiger Kernidee und nennt
-//              die Schwierigkeit der angenommenen Level (Quartile). Bis Ticket 21 gab es auch den alten Generator nach
+//              E-Kerne, Turbo): nur gleiche vergleichen. Ohne Gruppe bricht es ab und nennt die Aufträge: Alle 28
+//              zusammen kosten ab „mittel“ viele CPU-Stunden („sehr schwer“ rund 1 CPU-s je Seed). Die Abnahme
+//              beurteilung zählt zusätzlich je Grad und je Grad und nötiger Kernidee und nennt die Schwierigkeit der
+//              angenommenen Level (Quartile). Bis Ticket 21 gab es auch den alten Generator nach
 //              Profilen samt Härten (--generator alt) und seine Abnahme (--accept alt); seine Ausgangszahlen in
 //              tools/bench-baseline.json bleiben für --compare.
 //   trace      mittlere CPU-Zeit je Aufruf von traceBeams auf zufälligen Stellungen aller Level (Tutorial und
@@ -22,7 +22,8 @@
 //   solver     CPU-Zeit von solve(level) über alle Level, ein Durchgang (rund 15 s), dazu über die Level mit Blockern
 //              ohne diese (heute 17, dann fast alle mit mehreren Lösungen; rund 3 s). Mit --unique im Modus unique (nur
 //              die Eindeutigkeit, hält bei der zweiten Lösung an): auf den Leveln gleich weit, ohne Blocker kürzer.
-// Optionen: --seeds N (Standard 60000) --start S (1) --jobs N --generator neu (Standard, der einzige)
+// Optionen: --seeds N (Standard 2000, der Umfang der Messung in Ticket 20; bis Ticket 21 60000 je Profil)
+//           --start S (1) --jobs N --generator neu (Standard, der einzige)
 //           --accept beurteilung (Standard, die einzige) --positions N (Standard 20000) --seed S (1) --unique
 //           --save datei     Ergebnisse in eine JSON-Datei schreiben; andere Teile darin bleiben stehen. Gruppen des
 //                            Generators kommen zu den vorhandenen dazu (gesamt neu gerechnet), wenn Generator,
@@ -35,8 +36,7 @@
 //                            seine Profile und mit dem besten Profil; dafür brauchen beide dieselbe Abnahme mit Grad.
 // Nur über die gedeckelte Umgebung und nie mehrere Läufe nebeneinander. Ohne tiefste Priorität oder mit LEISE_CPU über
 // 50 bzw. LEISE_MAX_CPU (mit generator, deckel.mjs) oder über 20 (nur trace, solver) bricht das Skript ab:
-//   LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator leicht mittel-mischziel --seeds 2000 --jobs 4 \
-//     --save neu.json
+//   LEISE_CPU=50 sh tools/leise.sh node tools/bench.mjs generator leicht mittel-mischziel --jobs 4 --save neu.json
 //   sh tools/leise.sh node tools/bench.mjs trace solver --save tools/bench-baseline.json
 import { createHash } from 'node:crypto';
 import { execSync, fork } from 'node:child_process';
@@ -452,7 +452,7 @@ async function main() {
   const save = flag('--save', null), against = flag('--compare', null);
   const unique = args.includes('--unique');
   if (unique) args.splice(args.indexOf('--unique'), 1);
-  const num = { seeds: flag('--seeds', 60000), start: flag('--start', 1), jobs: flag('--jobs', Math.max(1, cpus.length >> 1)),
+  const num = { seeds: flag('--seeds', 2000), start: flag('--start', 1), jobs: flag('--jobs', Math.max(1, cpus.length >> 1)),
     positions: flag('--positions', 20000), seed: flag('--seed', 1) };
   const parts = ['generator', 'trace', 'solver'].filter(p => args.includes(p));
   const groups = args.filter(a => !parts.includes(a));
@@ -478,6 +478,10 @@ async function main() {
       '  sh tools/leise.sh node tools/bench.mjs trace solver …');
   }
   const gen = parts.includes('generator') ? await GENERATORS[generator]() : null;
+  // Ohne Gruppe kein Lauf über alle Aufträge (viele CPU-Stunden), sondern die Liste wie bei generiere.mjs
+  if (gen && !groups.length) {
+    fail(`generator braucht mindestens eine Gruppe, einen Auftrag des Generators:\n  ${gen.groups.join(', ')}\n${usage}`);
+  }
   for (const g of groups) if (!gen.groups.includes(g)) fail('Gruppe unbekannt: ' + g);
 
   let commit = '';
@@ -491,8 +495,7 @@ async function main() {
   if (gen) {
     console.error(`Generator ${generator}, Abnahme ${accept}: Seeds ${num.start}–${num.start + num.seeds - 1} je Gruppe, ` +
       `${num.jobs} Prozesse`);
-    const run = await benchGenerator({ generator, accept, groups: groups.length ? groups : gen.groups, ...num,
-      auftrag: gen.auftrag });
+    const run = await benchGenerator({ generator, accept, groups, ...num, auftrag: gen.auftrag });
     results.generator = { measured, ...run };
     console.log('Gruppe             Seeds  angenommen    CPU-s  Level/CPU-h  je Grad (Kernidee nötig) · Schwierigkeit');
     const ideen = (v) => Object.entries(v.kernideen || {}).map(([k, w]) => `${k} ${w.perCpuHour}`).join(', ');
