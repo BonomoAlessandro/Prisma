@@ -104,6 +104,7 @@ Seite zwei Kernideen; bei leerer Liste braucht 41–60 fünf der sechs, je 2-mal
 **Hinweis aus Ticket 29 (Untergrenze der Quellen, 18.10.2026):** Der Generator verwirft jetzt ein fertiges Level unter
 der Untergrenze der Quellen (`quellen[0]`, ab „mittel“ 2) mit dem Grund „zu wenige Quellen“; im Spiel hat kein Level
 ab „mittel“ nur eine Quelle. Betroffen sind in Seeds 1–500 aller Aufträge ab „mittel“ nur `mittel-falle`, Seeds 278
-und 412 (mit Ziel-Schwierigkeit 43–50 nur Seed 278): Sie liefern kein Level mehr. Jeder andere Seed ergibt dasselbe wie
+und 412 (mit Ziel-Schwierigkeit 43–50 nur Seed 278): Sie liefern kein Level mehr. In 501–1500 kommen bei
+`mittel-falle` die Seeds 1123, 1179, 1422 und 1451 dazu (Review Ticket 29). Jeder andere Seed ergibt dasselbe wie
 vorher (Hash des ganzen Ergebnisses und Strahlverfolgungen), Herkunftszeilen bleiben nachbaubar. Kandidaten unter der
 Untergrenze muss die Auswahl nicht mehr selbst aussortieren.
