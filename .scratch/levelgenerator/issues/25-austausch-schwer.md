@@ -52,3 +52,9 @@ je 10 Level“ stehen also vor allem Mischziel und Sammelstelle bereit; siehe Ti
 
 **Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
 Wahl im Auftrag mit dem Austausch, siehe Ticket 23.
+
+**Hinweis aus Ticket 28 (18.10.2026):** Bei „schwer“ liefert jetzt jede Kernidee genug Level mit ihr als
+Haupt-Kernidee, Seeds 1–200 je Auftrag: Sammelstelle 54, Mischziel 52, Farben abzählen 50, Lockvogel 24, Falle 18,
+Abschalten 16 (je CPU-Stunde 560 bis 6 300, `--jobs 7`). Knapp ist 121–140: Falle und Abschalten haben dort schon je
+2; auf 121–130 bleiben Farben abzählen 1, Sammelstelle 1, Lockvogel 2, Mischziel 2, auf 131–140 Falle 2,
+Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona aus „sehr schwer“). Tabellen in Ticket 28.

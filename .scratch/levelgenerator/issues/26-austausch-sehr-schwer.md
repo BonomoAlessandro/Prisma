@@ -58,3 +58,11 @@ Ablaufs.
 
 **Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
 Wahl im Auftrag mit dem Austausch, siehe Ticket 23.
+
+**Hinweis aus Ticket 28 (18.10.2026):** Die Verteilung der Haupt-Kernideen ist gemessen. Seeds 1–500 je Auftrag,
+Level mit der verlangten Kernidee als Haupt-Kernidee: Mischziel 26, Farben abzählen 14, Falle 6, Abschalten 5,
+Sammelstelle 5, Lockvogel 0 (je Auftrag 205 bis 504 CPU-s, mit `--jobs 7` rund eine Minute; `sehr schwer-lockvogel`
+nicht bestellen). Bedarf auf 141–150: Abschalten hat dort schon 2, die 7 Ersatzlevel brauchen ohne Lockvogel Falle 1,
+Farben abzählen 2, Sammelstelle 2 und Mischziel 2, also jede dieser vier voll; Korona auf 140 teilt die Seite mit vier
+schweren Ersatzleveln (frei: Falle 2, Sammelstelle 1, Lockvogel 2, Mischziel 2). Für Kandidaten, die die KI-Tester
+ablehnen dürfen, lohnen bei Falle und Sammelstelle einige hundert Seeds mehr. Tabellen in Ticket 28.

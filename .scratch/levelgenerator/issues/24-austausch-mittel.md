@@ -63,3 +63,11 @@ darunter neu 17 Weichen und 32 Streulicht (Entscheid des Nutzers, Ticket 16).
 
 **Entscheid des Nutzers zur Haupt-Kernidee (17.10.2026):** Die Regel „verlangte Kernidee = Haupt-Kernidee“ kommt als
 Wahl im Auftrag mit dem Austausch, siehe Ticket 23.
+
+**Hinweis aus Ticket 28 (18.10.2026):** Ab „mittel“ liefert jetzt jede Kernidee genug Level mit ihr als
+Haupt-Kernidee, Seeds 1–200 je Auftrag: Mischziel 111, Farben abzählen 106, Lockvogel 85, Sammelstelle 64, Falle 31,
+Abschalten 17 (je CPU-Stunde 5 400 bis 40 000, `--jobs 7`). Nach der Haupt-Kernidee filtern
+(`beurteilung.hauptKernidee`). Bedarf je Seite (verbleibende Haupt-Kernideen, was dazukommen darf) für den sicheren
+Fall (nur Ausschlussgrund und abgelehnt) und für eine leere Liste: Tabellen in Ticket 28. Im sicheren Fall genügen je
+Seite zwei Kernideen; bei leerer Liste braucht 41–60 fünf der sechs, je 2-mal. Die Seeds ab „mittel“ sind seit Ticket
+28 teils andere als in früheren Proben.
