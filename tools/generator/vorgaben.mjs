@@ -1,10 +1,11 @@
 // Vorgaben je Schwierigkeitsgrad für den Generator (Ticket 18): wie gross ein Level wird und welche Untergrenzen es
 // erreichen muss. Sie ersetzen die Profile des alten Generators (Grössenstufe × Mischung): Je Grad gibt es eine
 // Vorgabe, die Mischung der Elemente wählt der Zufall nach Gewichten. Ob der Grad stimmt, entscheidet am Ende allein
-// die Beurteilung (grad.mjs); die Vorgaben legen nur fest, wo der Generator anfängt.
+// die Beurteilung (grad.mjs); die Vorgaben legen nur fest, wo der Generator anfängt. Die Quellen aber hält jedes
+// gelieferte Level ein, beide Grenzen (siehe unten).
 //
 // Bereiche als [min, max]:
-//   quellen         Zahl der Quellen
+//   quellen         Zahl der Quellen, auch im fertigen Level
 //   farbigeQuellen  Anteil der farbigen Quellen (zufällig Rot, Grün, Blau, Gelb, Cyan oder Magenta), die übrigen weiss
 //   drehbar         drehbare Elemente im fertigen Level
 //   arten           Gewichte der drehbaren Arten beim Ergänzen (ein Prisma nur auf Mischlicht, ein Kombinator nur auf
@@ -33,6 +34,11 @@
 // Die Grade ab „mittel“ (Ticket 20) folgen den Leveln im Spiel: drehbare Elemente dort im Median 7 / 9 / 11 (Bereich
 // 5–8, 7–12, 9–14), Quellen 2–4, Ziele meist 3–5, mehr Prismen in den schweren. Die Vorgabe für „schwer“ endet bei 11:
 // Mit 7–12 lieferte „schwer“ 48 statt 67 Level aus 300 Seeds bei mehr CPU-Zeit (Review Ticket 20).
+// Die Quellen gelten auch für das fertige Level, denn im Spiel hat kein Level ab „mittel“ weniger als zwei und kein
+// mittleres mehr als drei. Die Obergrenze halten Ergänzen, „schwerer“ und Andocken ein (Review Ticket 28, M2). Unter
+// die Untergrenze kommt ein Level, wenn das Festigen eine Quelle als wirkungslos wegnimmt; dann verwirft es der
+// Generator am Ende mit „zu wenige Quellen“ (Ticket 29: von den Aufträgen ab „mittel“ mit je 500 Seeds nur
+// mittel-falle, 2 von 76 Leveln).
 // Die Klicks steigen mit der Grösse. maxSuche ist ab „schwer“ kleiner: Grosse Bauten mit zu grosser Suche brachten mit
 // 6e5 bzw. 8e5 Knoten nicht mehr Level als mit 2e5, kosteten aber bis 1,8-mal so viel. Reparaturen bleiben bei 2: Mit
 // 1, 2, 3 und 4 lieferten mittel-mischziel 168, 168, 168, 168 (von 300 Seeds), schwer-mischziel 67, 68, 68, 67 und

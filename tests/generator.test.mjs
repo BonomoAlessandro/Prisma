@@ -8,6 +8,8 @@
 // - Je Kernidee (Ticket 19) ein Auftrag in „leicht“ über 50 Seeds und ein fester Seed, der ein Level mit ihr liefert.
 // - Je Grad ab „mittel“ und je Kernidee ein Auftrag (Ticket 28), je mit einem festen Seed, der ein Level liefert, in
 //   dem sie die Haupt-Kernidee ist (bis auf den Lockvogel in „sehr schwer“, siehe FEST_AB_MITTEL).
+// - Jedes gelieferte Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt; darunter verwirft der Generator
+//   (Ticket 29, am Beispiel ZU_WENIGE_QUELLEN mit Gegenprobe).
 // - Keine wirkungslosen Elemente (Spec „Generator“): kein Filter, dessen Strahl schon seine Farbe hat, kein fester
 //   Spiegel und kein Blocker, der weder für die Lösung zählt noch als Lockvogel wirkt; die Gegenprobe an handgebauten
 //   Leveln zeigt, dass die Prüfung solche Elemente findet.
@@ -60,6 +62,13 @@ const FEST_AB_MITTEL = {
   'sehr schwer': { [MISCHZIEL]: 12, Abschalten: 22, 'Farben abzählen': 2, Sammelstelle: 53, Falle: 28 },
 };
 /**
+ * ZU_WENIGE_QUELLEN (Ticket 29): Bis Ticket 29 lieferte dieser Auftrag ein Level mit einer einzigen Quelle
+ * (Schwierigkeit 43,3, Haupt-Kernidee Falle; das Festigen nahm die zweite als wirkungslos weg). Unter der Untergrenze
+ * der Vorgabe (quellen[0]) verwirft der Generator jetzt das fertige Level. Gegenprobe: der feste Seed desselben
+ * Auftrags (FEST_AB_MITTEL) liefert weiter.
+ */
+const ZU_WENIGE_QUELLEN = { grad: 'mittel', kernidee: 'Falle', seed: 278 };
+/**
  * Aufträge mit festen Seeds (seeds: 1 … seeds oder eine Liste) und so vielen gelieferten Leveln mindestens:
  * - „leicht“ ohne Kernidee und mit jeder Kernidee über 50 Seeds (Ticket 19), mindestens ANTEIL_LEVEL davon;
  * - „leicht“ mit zwei Ziel-Schwierigkeiten und die Grade ab „mittel“ ohne Kernidee und mit Mischziel (Ticket 20). Ab
@@ -67,6 +76,7 @@ const FEST_AB_MITTEL = {
  *   ohne Kernidee liefert der Generator ab „mittel“ nur, wenn eine Kernidee nebenbei nötig wird.
  * - ab „mittel“ jede übrige Kernidee mit ihrem festen Seed aus FEST_AB_MITTEL (Ticket 28); der Lockvogel in „sehr
  *   schwer“ mit Seed 1 und ohne verlangtes Level.
+ * - der Seed unter der Untergrenze der Quellen, ZU_WENIGE_QUELLEN (Ticket 29), ohne verlangtes Level.
  */
 const AUFTRAEGE = [
   ...[null, ...TEILE.kernideen].map(kernidee => ({
@@ -82,6 +92,8 @@ const AUFTRAEGE = [
   { grad: 'sehr schwer', kernidee: MISCHZIEL, seeds: 12, mindestens: 1 },
   ...Object.entries(FEST_AB_MITTEL).flatMap(([grad, fest]) => TEILE.kernideen.filter(k => k !== MISCHZIEL)
     .map(kernidee => ({ grad, kernidee, seeds: [fest[kernidee] ?? 1], mindestens: kernidee in fest ? 1 : 0 }))),
+  { grad: ZU_WENIGE_QUELLEN.grad, kernidee: ZU_WENIGE_QUELLEN.kernidee, seeds: [ZU_WENIGE_QUELLEN.seed],
+    mindestens: 0 },
 ];
 const auftragVon = ({ grad, kernidee, schwierigkeit }) => ({ grad, kernidee, ...(schwierigkeit ? { schwierigkeit } : {}) });
 const seedsVon = (a) => (Array.isArray(a.seeds) ? a.seeds : Array.from({ length: a.seeds }, (_, i) => i + 1));
@@ -226,6 +238,29 @@ test('In jedem gelieferten Level ist die verlangte Kernidee laut Beurteilung nö
   const mit = beurteilt.filter(g => g.kernidee);
   assert.ok(mit.length > 0);
   for (const { name, kernidee, neu } of mit) assert.ok(neu.kernideen.some(k => k.begriff === kernidee), name);
+});
+
+console.log('Quellen nach der Vorgabe des Grads (Ticket 28 und 29)');
+const quellenVon = (level) => level.elements.filter(e => e.type === 'source').length;
+test('Jedes gelieferte Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt (beide Grenzen)', () => {
+  for (const { name, grad, level } of geliefert) {
+    const n = quellenVon(level), [min, max] = VORGABEN[grad].quellen;
+    assert.ok(n >= min && n <= max, `${name}: ${n} Quellen, Vorgabe ${min}–${max}`);
+  }
+});
+
+const { grad: zwGrad, kernidee: zwKernidee, seed: zwSeed } = ZU_WENIGE_QUELLEN;
+test(`Unter der Untergrenze verwirft er: ${zwGrad} mit ${zwKernidee}, Seed ${zwSeed} liefert kein Level, Grund `
+  + `„zu wenige Quellen“; Gegenprobe: Seed ${FEST_AB_MITTEL[zwGrad][zwKernidee]} desselben Auftrags liefert`, () => {
+  const lauf = laeufe.find(a => a.grad === zwGrad && a.kernidee === zwKernidee && !a.schwierigkeit
+    && seedsVon(a).includes(zwSeed));
+  const r = lauf.ergebnisse.find(e => e.seed === zwSeed);
+  assert.equal(r.level, null, `Seed ${zwSeed} liefert ein Level mit ${r.level && quellenVon(r.level)} Quellen`);
+  assert.equal(r.grund, 'zu wenige Quellen');
+  const fest = FEST_AB_MITTEL[zwGrad][zwKernidee];
+  const g = geliefert.find(b => b.grad === zwGrad && b.kernidee === zwKernidee && !b.schwierigkeit && b.seed === fest);
+  assert.ok(g, `Seed ${fest} liefert kein Level`);
+  assert.ok(quellenVon(g.level) >= VORGABEN[zwGrad].quellen[0], g.name);
 });
 
 console.log('Je Kernidee ein Level mit festem Seed (Ticket 19)');
