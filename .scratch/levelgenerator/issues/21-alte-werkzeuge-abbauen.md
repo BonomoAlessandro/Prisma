@@ -67,9 +67,9 @@ Die alten Werkzeuge mit eigenen Formeln verschwinden.
 
 **Umgesetzt 18.10.2026.** Gearbeitet im Worktree `.claude/worktrees/agent-a98d2986320fcc6ab` auf dem Branch
 `ticket/21-alte-werkzeuge` (von `feature/levelgenerator`, Stand `6e98bb1`). Alle schweren Läufe nacheinander über
-`leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65` (ausser einem Lauf von `offline.mjs`, siehe Tests); Rechner i7-9750H,
-Node 22.12.0. Zwei Commits: zuerst die Referenz
-des Golden-Tests (`c549679`, `test(golden)`), dann der Abbau (`bf8cce7`, `refactor(werkzeuge)`).
+`leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65` (ausser den zwei Läufen von `offline.mjs`, siehe Tests); Rechner
+i7-9750H, Node 22.12.0. Zwei Commits: zuerst die Referenz des Golden-Tests (`c549679`, `test(golden)`), dann der
+Abbau (`bf8cce7`, `refactor(werkzeuge)`).
 
 **Entfernt** (im Verlauf bis `6e98bb1` nachzulesen):
 - der alte Generator `tools/generate.mjs`, das Härten `tools/harden.mjs` und die Profile `tools/profiles.mjs`
@@ -193,3 +193,80 @@ Vorher heisst: dieselben Tests auf `6e98bb1` vor dem Umbau, in derselben Sitzung
   `tests/generator.test.mjs` sind hier unverändert. `bench.mjs` misst ohne Angabe mit `--generator neu --accept
   beurteilung`; die ausdrücklichen Optionen gelten weiter. Ohne Gruppe misst es alle 28 Aufträge, mit den
   Standardwerten (60 000 Seeds) ab „mittel“ viele CPU-Stunden; also Gruppen und `--seeds` angeben.
+
+**Review 18.10.2026.** Geprüft im selben Worktree auf `ticket/21-alte-werkzeuge`, `git diff 6e98bb1 HEAD`. Alle Läufe
+über `leise.sh` mit `LEISE_MAX_CPU=65 LEISE_CPU=65` (trace und solver von `bench.mjs` mit 20); Skripte im Scratchpad
+unter `review21/`.
+- **Abbau vollständig.** `git grep` nach den entfernten Dateien, `metrics`, `score`, `oddFilters`, `PROFILES`, `NAMES`,
+  `interplay`, `passes(`, `symOverlap`, `generateOne` und `climb(` in `tools`, `tests`, `index.html`, `sw.js`,
+  README, PLAN.md und `.gitignore` findet nur Herkunft und Geschichte (README zur Entstehung der Level, ADR 0004,
+  Kommentare in Tests der Beurteilung, im Generator und in `lockvogel.mjs`). Kein Import und kein Aufruf hängt an
+  den entfernten Dateien; `sw.js` nennt keine Werkzeuge, ein `package.json` gibt es nicht. In den offenen Tickets
+  22–26 und 28 steht nichts mehr zu den entfernten Werkzeugen. Was `solver.mjs` noch exportiert, brauchen Tests,
+  Beurteilung oder Generator.
+- **Beleg „keine eigene Formel“** bestätigt. Ausserhalb von `tools/beurteilung/` liest jeder Schwierigkeit und Grad
+  aus `beurteile`/`beurteileAlle` und `gradVon`. Der Generator baut nach den Budgets seiner Vorgaben (drehbare
+  Elemente, Ziele, Klicks, `maxSuche`), angenommen wird nur über die Beurteilung.
+- **Golden-Referenz.** `golden-alt.json` ist `golden.json` von `6e98bb1` (bis auf CRLF). Das Vergleichsskript lief
+  erneut mit demselben Ergebnis: 159 von 159 gleich bis auf `score`, 233 Kommazahlen weichen um höchstens
+  1,8e-15 ab. Dazu ist `golden.json` byte-gleich mit dem, was `--write` heute schreibt (ohne Zeilenenden). Die
+  Stichprobe nach dem Platz ist sinnvoll und hält das Umordnen aus. 14 Gegenproben an Kopien
+  (`gegenproben-golden.mjs`), alle wie erwartet:
+  - rot bei `nodes` + 1 auf Platz 11 und beim Tutorial;
+  - auf Platz 12 grün, mit `--voll` rot;
+  - nach dem Tausch von Platz 1 und 2 wandert die Stichprobe mit: rot beim Level, das jetzt auf Platz 1 steht, grün
+    beim anderen, ohne Änderung grün mit der Meldung „2 Level an einem anderen Platz“;
+  - rot bei einem Eintrag ohne Löserdaten oder mit `score` (auch `--schnell`), bei einem Löser mit `nodes` + 1 und
+    bei einem Filter, der alles durchlässt (`--schnell`).
+- **Ersatz für `NAMES` und `oddFilters`.** `heutige-reihenfolge.json` hat genau `NAMES` aus `profiles.mjs`, in
+  derselben Reihenfolge. `fremdeFilterfarben` folgt derselben Regel wie `oddFilters`, nur über die Id des Elements
+  statt über die gerundete Zelle; mit Gegenprobe. Beim Namenstest fehlten die Prüfung der Liste selbst (früher
+  `NAMES.length === 150` und eindeutig; mit einer kürzeren Liste prüfte der Test still weniger) und eine Gegenprobe.
+  Beides ist im Review ergänzt.
+- **Werkzeuge** laufen. `show.mjs`:
+  - `--level` nimmt Platz oder Name, auch das Tutorial;
+  - ein falscher Platz, ein unbekannter Name und ein fehlendes Argument ergeben eine klare Meldung;
+  - `generiere.mjs … | show.mjs` zeigt die Beurteilung des Generators, `--beurteilen` beurteilt dabei nicht erneut;
+  - beim Tutorial (ohne Grad) nennt `--beurteilen` den Füllteil, wie `beurteile` ohne Grad ihn wertet.
+
+  `bench.mjs` weist `--generator alt`, `--accept alt`, `härten` und Profile ab. Standard, `--save` und `--compare`
+  (auch gegen `bench-baseline.json`) laufen, ebenso trace und solver. `eiche-schwierigkeit.mjs --bericht` braucht
+  20 s, die Gewichte bleiben gleich (die Datei bekommt nur LF statt CRLF).
+- **`offline.mjs` ohne `leise.sh`.** Ein Fehler im Ablauf, sonst nichts. Über `leise.sh` läuft der Test grün (68 s,
+  mit `--redirect` 74 s). Laut README (Abschnitt `leise.sh`) gehört er dorthin, denn er startet Headless-Chrome
+  wie die Screenshots. Die Liste der Tests im README und der Befehlsblock in PLAN.md zeigten ihn aber ohne
+  `leise.sh`; das legte den Fehler nahe. Anders als `ki-tester/shots.mjs` prüft der Test den Deckel nicht selbst
+  (`deckel.mjs`), das war schon vor Ticket 21 so. Es waren zwei Läufe, nicht einer.
+
+Im Review behoben (`bf2fb3e`, `fix(werkzeuge)`):
+- `tests/levelliste.test.mjs`, „Kein Level wird umbenannt“: Die feste Liste hat 150 verschiedene Namen. Gegenprobe:
+  Ein umbenanntes Level fällt auf, ein ersetztes mit seinem Namen auf `entfernteNamen` nicht.
+- README: Die Beispiele `bench.mjs generator` nennen Gruppen und `--seeds`. Ohne Gruppe misst es seit Ticket 21
+  alle 28 Aufträge mit 60 000 Seeds statt wie früher die Profile in 25 min. `offline.mjs` steht jetzt unter
+  `leise.sh`.
+- PLAN.md, Befehlsblock: `logic.test.mjs`, `offline.mjs` und `screenshot.mjs` laufen über `leise.sh`, die
+  Kommentare sind ausgerichtet.
+- `tools/bench.mjs`: Kopfkommentar neu umbrochen (eine verwaiste Zeile „Die Abnahme“).
+- Notiz „Umgesetzt“: zwei Läufe von `offline.mjs` ohne `leise.sh`, nicht einer.
+
+Offen, für den Entwickler:
+- **M1 (niedrig): `bench.mjs generator` ohne Gruppe misst alle 28 Aufträge mit je 60 000 Seeds**
+  (`tools/bench.mjs`, `main`, Standard `--seeds` und `gen.groups`). Mit den Zeiten aus Ticket 20 brauchen allein
+  die 8 dort gemessenen Aufträge rund 45 CPU-Stunden (sehr schwer 1,3 CPU-s je Seed), alle 28 deutlich mehr. Bis
+  Ticket 21 lief derselbe Aufruf mit dem alten Generator etwa 25 min. Kopfkommentar und README warnen davor, ein
+  vergessenes Argument startet aber trotzdem einen Lauf über Tage.
+  - Vorschlag: Ohne Gruppe bricht der Teil `generator` ab und nennt die Aufträge, wie `generiere.mjs` ohne Auftrag.
+    Dazu `--seeds` als Standard 2000, der Umfang der Messung in Ticket 20. Mit verschiedenen Seeds verbindet
+    `--save` ohnehin nicht, und `--compare` über den Generatorwechsel lässt verschiedene Seeds zu.
+  - Behoben, wenn `node tools/bench.mjs generator` (gedeckelt) sofort mit der Liste der Aufträge endet und Kopf,
+    Aufruf und README den neuen Standard nennen.
+
+Hinweis an die Koordination: Die Tickets 23 und 28 arbeiten parallel auf `6e98bb1`, wo `profiles.mjs` (`NAMES`),
+`curate.mjs` und die Einträge mit `score` noch bestehen. Ein neuer Name in `NAMES` oder eine dort neu geschriebene
+`golden.json` stösst beim Zusammenführen auf diesen Branch (`profiles.mjs` ist gelöscht, die Referenz ohne `score`).
+Ticket 21 also vor 23 zusammenführen, oder 23 übernimmt es, bevor es Namen oder die Referenz anfasst (Hinweise oben
+unter „23–26“).
+
+Tests nach dem Review (über `leise.sh`, 65 %): alle grün. `golden.mjs --schnell` 0 s, normal 2 s, `--voll` 24 s;
+`logic` 548 (27 s), `ki-tester` 62 (0 s), `beurteilung` 177 (81 s), `levelliste` 30 (50 s), `generator` 25 (62 s),
+`offline.mjs` 68 s, mit `--redirect` 74 s.
