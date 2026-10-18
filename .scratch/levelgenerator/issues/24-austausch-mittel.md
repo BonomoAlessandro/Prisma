@@ -380,3 +380,22 @@ der Vorprüfung unten):
     einen Teil. In „leicht“ (Ticket 23) haben Fackellauf, Strahlteiler und Fernlicht zwei Teile, ohne dass die KI-Tester
     Zerfall nennen.
   - Für die nächsten Kandidaten verwerfe ich jeden mit mehr als einem Teil, bevor er zu den KI-Testern geht.
+
+**Entscheide des Koordinators (18.10.2026, innerhalb der Regeln und des Entscheids des Nutzers).**
+1. **Welche Urteile für „stark“ zählen:** jedes Urteil eines Levels im Protokoll, aus Ablauf 1 und 2, und jedes muss
+   die Regel erfüllen. Zusätzlich braucht jedes behaltene Level mindestens ein Urteil aus Ablauf 2. Darum kommen
+   Kreuzweg, Silberstreif, Rochade und Uhrwerk (bisher nur Urteile aus Ablauf 1) in den Lauf `behalten-mittel-1`.
+   A3 Glasfenster hat sein Urteil aus Ablauf 2 (`probelauf-3`, als Anker) und bleibt draussen; Anker werden in den
+   Läufen nicht beurteilt.
+2. **Spielwert-Test:** Der Lauf wird gemacht, an der Eichmenge und ihrer Auswahl ändert sich nichts. Fällt die
+   Übereinstimmung nach dem Zusammenführen unter 0,26 / 0,25, gehen die Zahlen an den Koordinator, und der Nutzer
+   entscheidet.
+3. **Lücken, deren gültiges Level Zerfall hat** (ein KI-Tester nennt ihn, die Vorprüfung findet mehrere Teile):
+   Glasmurmel, Laterne, Einklang und Mosaik bekommen im nächsten gemeinsamen Lauf neue Kandidaten, die die Vorprüfung
+   mit einem Teil bestehen; das heutige gültige Level bleibt Rückfall. Bei Geflecht, Lichtschleife, Polarlicht und
+   Libelle gilt der Kandidat ohne Zerfall (0775747e, be69a422, 8d478f46, f03e3dee), nicht der Ersatz.
+
+**Lauf `behalten-mittel-1` neu vorbereitet, mit 20 Leveln** (noch ohne Antworten, der alte Ordner ist gelöscht): die 16
+ohne Urteil und dazu 42 Kreuzweg, 78 Rochade, 91 Uhrwerk und 99 Silberstreif (Plätze im Spiel); Ablauf 2, ohne
+`--anker`, Bilder 31–33 s je Aufnahme, die der Anker aus dem Zwischenspeicher. Die vier kommen mit ihrem neuen Urteil
+auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
