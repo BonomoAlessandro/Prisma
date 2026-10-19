@@ -567,3 +567,24 @@ mit `LEISE_MAX_CPU=80 LEISE_CPU=80`. Die Kandidaten stammen aus der Runde vom 19
     (Blitz), und `prepare.mjs` verlangt dort den Grad des Levels. Ihre Referenz im Lauf ist darum Platz 32, der erste
     mittlere. Das ist nur die Referenz des Eintrags; die Korrektur rechnet `ordne-level.mjs` für ein neues Level ohnehin
     vom Platz der Formel aus, mit seinem Grad. Hinweis für 25 und 26: an einer Gradgrenze kann das wieder vorkommen.
+
+**Hinweis aus Ticket 29 (Untergrenze der Quellen, 18.10.2026):** Der Generator verwirft jetzt ein fertiges Level unter
+der Untergrenze der Quellen (`quellen[0]`, ab „mittel“ 2) mit dem Grund „zu wenige Quellen“; im Spiel hat kein Level
+ab „mittel“ nur eine Quelle. Betroffen sind in Seeds 1–500 aller Aufträge ab „mittel“ nur `mittel-falle`, Seeds 278
+und 412 (mit Ziel-Schwierigkeit 43–50 nur Seed 278): Sie liefern kein Level mehr. In 501–1500 kommen bei
+`mittel-falle` die Seeds 1123, 1179, 1422 und 1451 dazu (Review Ticket 29). Jeder andere Seed ergibt dasselbe wie
+vorher (Hash des ganzen Ergebnisses und Strahlverfolgungen), Herkunftszeilen bleiben nachbaubar. Kandidaten unter der
+Untergrenze muss die Auswahl nicht mehr selbst aussortieren.
+
+**Hinweis aus Ticket 26 (19.10.2026):** Neue Regel (Entscheid des Nutzers vom 19.10.2026): Die Entscheide aus Ticket 16
+zu den Leveln der Prüfliste bleiben fest, auch wenn ein Austausch die Formel verschiebt. `tools/levelliste.json` hält je
+Level mit Entscheid den Platz der Formel beim Entscheid fest (`prueflisteFormel`, gesetzt vor dem Austausch in
+Ticket 26; `reihenfolge` in `tools/levelliste.mjs` nimmt ihn als `formelEntscheid`). An ihm misst sich, ob das Level
+auf der Prüfliste steht (es bleibt darauf, auch wenn seine Formel bis auf 10 Plätze an den heutigen Platz rückt), und
+mit ihm rechnet die Zustimmung. Kommt ein Level erst durch einen Austausch weiter als 10 Plätze von seinem heutigen
+Platz weg, steht es neu auf der Prüfliste und braucht ein Urteil (ADR 0002); danach schreibt `ordne-level.mjs` seinen
+Platz der Formel dazu (`festePlaetze`, nach dem Review von Ticket 26, M1). Anlass: Wird ein Level ersetzt, das am
+heutigen Platz bleibt, aber in der Formel weit davon steht (in 26 Spiegelkabinett), verschiebt sich die Formel der Level
+dazwischen. Dasselbe kann bei den abgelehnten Leveln in „mittel“ geschehen; mit der Regel ändern sich dadurch weder
+Entscheid noch Zugehörigkeit zur Prüfliste. Knapp an der Grenze stehen ausserhalb der Duldungsliste etwa Feuerwerk,
+Brechpunkt, Halo und Lichtbrücke (je 3 Plätze); rückt eines darüber, braucht es einen Lauf `pruefung-…`.

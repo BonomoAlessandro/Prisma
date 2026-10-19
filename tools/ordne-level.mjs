@@ -34,9 +34,12 @@
 //                index.html, damit generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS es nachbaut.
 //   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
 //                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
-//                Duldungsliste und die entfernten Namen bleiben, wie sie sind; fehlt die Datei, ist die ursprüngliche
-//                die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um begründete Ergänzungen
-//                (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln festhält (ergaenzt).
+//                Duldungsliste, die entfernten Namen und die Plätze der Formel beim Entscheid über die Level der
+//                Prüfliste (prueflisteFormel, Ticket 26) bleiben, wie sie sind; ein Level der Prüfliste mit neuem
+//                Urteil kommt mit seinem Platz der Formel von heute dazu (festePlaetze); fehlt die Datei, ist die
+//                ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
+//                begründete Ergänzungen (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln
+//                festhält (ergaenzt).
 //                Mit --austausch setzt es dazu die neuen Level mit ihrem Namen ein und nimmt die ersetzten heraus:
 //                ihre Namen kommen auf entfernteNamen, ihre Leveldaten in die feste Kopie für die Eichung
 //                (beurteilung/entfernte-level.json). Das geht nur, wenn jedes neue Level einen genehmigten Namen und
@@ -54,8 +57,8 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, imSpiel, ladeLevelliste,
-  reihenfolge, zaehlendeUrteile, zehner,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, festePlaetze, imSpiel,
+  ladeLevelliste, reihenfolge, zaehlendeUrteile, zehner,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -97,8 +100,10 @@ const name = (i) => `${heute[i] ?? 'neu'} ${levels[i].name}`;
 const neue = [...Array(n).keys()].filter(i => heute[i] === null);
 
 // Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit und den Urteilen der KI-Tester, die Beurteilung mit
-// diesen Graden
+// diesen Graden. Die Zustimmung zu einem Level der Prüfliste rechnet mit dem Platz der Formel beim Entscheid
+// (prueflisteFormel in levelliste.json, Entscheid des Nutzers vom 19.10.2026, Ticket 26)
 const urteile = zaehlendeUrteile();
+const formelEntscheid = (existsSync(DATEI) ? ladeLevelliste().prueflisteFormel : null) ?? {};
 let grad = levels.map(() => null), b, ohneGrad, ordnung, folge, runde = 0;
 for (let vorher = null; ; vorher = b) {
   if (++runde > 5) throw new Error('Kein Fixpunkt nach 5 Durchgängen: Die Schwierigkeit hängt vom Grad ab.');
@@ -112,7 +117,7 @@ for (let vorher = null; ; vorher = b) {
   ordnung = reihenfolge(b.map(x => x.schwierigkeit.wert), levels.map(l => l.name), urteile, {
     haupt: b.map(x => x.hauptKernidee.begriff),
     geduldet: (i, g, u) => Object.values(GRUENDE).some(grund => grund.gilt(jetzt[i], g, u)),
-    heute, kandidat,
+    heute, kandidat, formelEntscheid,
   });
   folge = ordnung.folge;
   const neu = ordnung.grad;
@@ -151,8 +156,9 @@ const entscheid = (i) => {
   return `${u.eintrag.lauf}: ${u.zurFormel ? 'zur Formel' : 'bleibt'}${wohin}; ${je}`;
 };
 for (const i of pruef) {
-  console.log(`    ${name(i)}: Formel ${formel[i]} (${vz(formel[i] - heute[i])}), Schwierigkeit ${zahl(werte[i])}; `
-    + entscheid(i));
+  const fest = ki.get(i)?.formelEntscheid, beiEntscheid = fest && fest !== formel[i] ? `, beim Entscheid ${fest}` : '';
+  console.log(`    ${name(i)}: Formel ${formel[i]} (${vz(formel[i] - heute[i])}${beiEntscheid}), Schwierigkeit `
+    + `${zahl(werte[i])}; ${entscheid(i)}`);
 }
 for (const i of nachgezogen) {
   console.log(`  bleibt ausserdem, weil es zwischen den Leveln der Prüfliste ${MAX_WANDERN} Plätze überschritte: `
@@ -378,6 +384,9 @@ const listen = {
   pruefliste: folgeNamen(pruef),
   prueflisteErledigt: pruef.every(i => ki.has(i)),
 };
+// Der Platz der Formel beim Entscheid über die Level der Prüfliste bleibt fest (Ticket 26); ein Level mit neuem Urteil
+// kommt mit seinem Platz der Formel von heute dazu (festePlaetze)
+const prueflisteFormel = festePlaetze(bisher?.prueflisteFormel ?? null, ordnung, levels.map(l => l.name));
 for (const [grund, neu] of Object.entries(neuAufListe)) {
   const ohne = neu.filter(i => !ergaenzt[grund].includes(levels[i].name));
   if (neu.length) console.log(`  neu auf der Duldungsliste (${GRUENDE[grund].text}): ${zeige(neu)}`);
@@ -385,7 +394,8 @@ for (const [grund, neu] of Object.entries(neuAufListe)) {
 }
 const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   .every(k => JSON.stringify(bisher[k]) === JSON.stringify(listen[k]))
-  && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt);
+  && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt)
+  && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel);
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
 // Mit dem Austausch nur, wenn jedes neue Level seinen genehmigten Namen und ein zählendes Urteil hat, das es nicht
@@ -410,7 +420,7 @@ if (schreiben && ordnung.offen.length) {
   const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
     bisher ? [...new Set([...bisherIn(grund), ...ergaenzt[grund]])] : listen.duldung[grund]]));
   const entfernteNamen = [...new Set([...(bisher?.entfernteNamen ?? []), ...ersetzt])];
-  writeFileSync(DATEI, levellisteText({ ...listen, urspruenglich, ergaenzt, entfernteNamen }));
+  writeFileSync(DATEI, levellisteText({ ...listen, urspruenglich, ergaenzt, entfernteNamen, prueflisteFormel }));
   if (austausch.length) schreibeEntfernte();
   console.log(`  geschrieben: ${imSpielGleich ? '' : 'index.html und '}levelliste.json`
     + `${austausch.length ? ' und beurteilung/entfernte-level.json' : ''}`);
@@ -526,20 +536,25 @@ function schreibeLevels() {
 }
 
 /** levelliste.json mit Namenslisten zu höchstens 120 Zeichen je Zeile. */
-function levellisteText({ duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt }) {
-  const liste = (namen, einzug) => {
-    if (!namen.length) return '[]';
+function levellisteText({
+  duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt, prueflisteFormel,
+}) {
+  const zeilenweise = (teile, einzug, auf, zu) => {
+    if (!teile.length) return `${auf}${zu}`;
     const zeilen = [];
     let z = '';
-    for (const t of namen.map(x => JSON.stringify(x))) {
+    for (const t of teile) {
       if (z && einzug.length + 2 + z.length + 2 + t.length > 118) {
         zeilen.push(z + ',');
         z = t;
       } else z = z ? `${z}, ${t}` : t;
     }
     zeilen.push(z);
-    return `[\n${zeilen.map(x => `${einzug}  ${x}`).join('\n')}\n${einzug}]`;
+    return `${auf}\n${zeilen.map(x => `${einzug}  ${x}`).join('\n')}\n${einzug}${zu}`;
   };
+  const liste = (namen, einzug) => zeilenweise(namen.map(x => JSON.stringify(x)), einzug, '[', ']');
+  const plaetze = (je, einzug) => zeilenweise(Object.entries(je).map(([k, v]) => `${JSON.stringify(k)}: ${v}`),
+    einzug, '{', '}');
   const gruppe = (g) => `{\n${Object.keys(GRUENDE).map(k => `    "${k}": ${liste(g[k] ?? [], '    ')}`)
     .join(',\n')}\n  }`;
   return '{\n'
@@ -550,6 +565,7 @@ function levellisteText({ duldung, urspruenglich, ergaenzt, entfernteNamen, prue
     + `  "ergaenzt": ${gruppe(ergaenzt)},\n`
     + `  "entfernteNamen": ${liste(entfernteNamen, '  ')},\n`
     + `  "pruefliste": ${liste(pruefliste, '  ')},\n`
-    + `  "prueflisteErledigt": ${prueflisteErledigt}\n`
+    + `  "prueflisteErledigt": ${prueflisteErledigt},\n`
+    + `  "prueflisteFormel": ${plaetze(prueflisteFormel, '  ')}\n`
     + '}\n';
 }

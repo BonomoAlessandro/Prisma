@@ -50,16 +50,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
     beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
-    Urteil; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
-    zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung
-    durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
-    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
-    der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts), 150 Level nach dem
-    Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün, mit
-    Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes neue Level
-    steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt; jedes
-    entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die Regel
-    für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
+    Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
+    erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
+    Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
+    Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
+    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste
+    entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts),
+    150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter
+    als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
+    neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt;
+    jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die
+    Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
     Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
     `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
     (`oddFilters` in `quality.mjs`).
@@ -69,7 +70,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
-    „sehr schwer“ ausser dem Lockvogel).
+    „sehr schwer“ ausser dem Lockvogel). Jedes Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt;
+    „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert mit
+    genau zwei, „leicht“ weiter auch mit einer (Ticket 29).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -155,21 +158,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2,
   Läufe `pruefung-…`; Ticket 16) kommt ein Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der
   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt
-  es. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze,
-  nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem
-  Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft
-  sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im
-  eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein anderes derselben oder einer
-  Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein
-  Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die Korrekturen der KI-Tester. Der Bericht
-  zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste
-  nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und Grad
-  in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste und `prueflisteErledigt` in
-  `tools/levelliste.json`; die ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind, nur einmal,
-  in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
-  ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf
-  ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe
-  der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
+  es. Dieser Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt: An dem Platz der Formel beim
+  Entscheid, den `levelliste.json` festhält (`prueflisteFormel`, Ticket 26), misst sich, ob das Level auf der Prüfliste
+  steht, und mit ihm rechnet die Zustimmung; ein Level, das erst später darüber kommt, braucht ein Urteil, und sein
+  Platz der Formel kommt dazu (`festePlaetze`). Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der
+  Regel von `merge` (höchstens 5 Plätze, nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am
+  Platz der Formel dieselbe Regel mit dem Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die
+  Duldungsliste (Grund `abgelehnt`). Häuft sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne
+  die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
+  anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
+  spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
+  Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen
+  und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste.
+  `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
+  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen und
+  `prueflisteFormel` bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
+  Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in
+  dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester,
+  Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
+  für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
@@ -233,8 +240,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
     was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
     Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Für den Generator (Ticket 18) liefert sie die
-    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine). Nur
-    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Die Nachbarn
+    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine),
+    dazu die Drehachsen, die ein Element haben kann (`drehachsen`, im flachen Feld nur y; `element` nimmt eine davon
+    als `drehachse`, Ticket 22). Nur sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in
+    der Lösung („x,z“). Die Nachbarn
     stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
     (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
     zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
@@ -378,7 +387,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     „leicht“ bleibt bitgleich.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
-    `grad.mjs` und die verlangte Kernidee nötig.
+    `grad.mjs` und die verlangte Kernidee nötig. Dazu hält es die Quellen der Vorgabe seines Grads ein, wie die Level
+    im Spiel (ab „mittel“ 2–3 bzw. 2–4): Mehr setzt der Generator nicht (Ticket 28), und ein fertiges Level mit zu
+    wenigen verwirft er mit „zu wenige Quellen“ (Ticket 29; das Festigen kann eine Quelle als wirkungslos wegnehmen).
   - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
     Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
     hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
@@ -395,8 +406,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Quellen an drei Ecken, eine in einer Mischung mit der Grundfarbe); beim Lockvogel steht vor jedem Spiegel des Rings
     ein Prisma.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
-    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
-    Quelltext nach Koordinaten und Richtungen.
+    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Drehbare
+    Elemente und feste Spiegel des Ergänzens bekommen eine der Drehachsen der Feldform (`feldform.drehachsen`,
+    `bau.varianten`, Ticket 22): Gewählt wird unter allen Drehachsen und Stellungen, die das Licht sinnvoll
+    weitergeben. Eine Quelle bekommt die erste Drehachse, mit der sie in die verlangte Richtung leuchtet. Im flachen
+    Feld gibt es nur y, dort bleibt alles wie vorher; im Würfel lenkt ein Element mit waagrechter Achse Licht zwischen
+    die Ebenen. Die Bausteine der Kernideen setzen ihre Spiegel und Prismen mit der ersten Drehachse. Der Test sucht im
+    Quelltext nach Koordinaten (auch y), Drehachsen (`axis` der Leveldaten, Namen wie `'x'`) und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge

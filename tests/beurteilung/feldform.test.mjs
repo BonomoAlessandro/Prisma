@@ -252,10 +252,21 @@ test('Für den Generator: element setzt ein Element in eine Zelle, rahmen legt d
   assert.deepEqual(f7.rahmen, {}, 'im Feld 7 × 7 keine Angabe, wie in LEVELS');
 });
 
+test('Für den Generator: Drehachsen (flach nur y), element mit y wie ohne Angabe, mit einer anderen nicht', () => {
+  assert.deepEqual(f7.drehachsen, ['y']);
+  for (const zelle of f7.zellen) {
+    const el = f7.element(zelle, { type: 'mirror', fixed: true, drehachse: 'y' });
+    assert.deepEqual(el, f7.element(zelle, { type: 'mirror', fixed: true }));
+    assert.deepEqual(Object.keys(el), ['type', 'x', 'z', 'fixed'], 'die Drehachse steht nicht in den Leveldaten');
+    assert.equal(f7.drehachse(el), 'y');
+  }
+  assert.throws(() => f7.element('3,3', { type: 'mirror', drehachse: 'x' }), /Drehachse/);
+});
+
 test('Eine Feldform je Grösse, eingefroren: Kein Aufrufer verändert sie für die übrigen Beurteilungen', () => {
   const f = feldformVon({ name: 'leer', size: 5, elements: [] });
   assert.equal(feldformVon({ name: 'anderes', size: 5, elements: [] }), f);
-  for (const teil of [f, f.zellen, f.richtungen, f.rahmen]) assert.ok(Object.isFrozen(teil));
+  for (const teil of [f, f.zellen, f.richtungen, f.drehachsen, f.rahmen]) assert.ok(Object.isFrozen(teil));
   assert.throws(() => { f.zellen.reverse(); }, TypeError);
   assert.throws(() => { f.rahmen.size = 7; }, TypeError);
 });

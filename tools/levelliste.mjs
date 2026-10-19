@@ -1,4 +1,4 @@
-// Regeln der Levelliste (Tickets 15, 16 und 23; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
+// Regeln der Levelliste (Tickets 15, 16, 23 und 26; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
 // Tests“, Nahtstelle 3), gemeinsam für tools/ordne-level.mjs, das Reihenfolge und Grade schreibt, und den Test
 // tests/levelliste.test.mjs, der sie prüft:
 // - Reihenfolge (ordne): Die Level stehen nach ihrer Schwierigkeit, bei gleichem Wert in der heutigen Reihenfolge
@@ -17,6 +17,11 @@
 //   vom Platz der Formel (Rang nach der Schwierigkeit) aus, angewandt von dort, wo das Level nach ordne steht; wegen
 //   der Level am alten Platz liegen die beiden einige Plätze auseinander (Ticket 16: höchstens 6). Lehnen beide
 //   KI-Tester ein Level ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund abgelehnt).
+//   Die Entscheide aus Ticket 16 bleiben fest, auch wenn ein Austausch die Formel verschiebt (Entscheid des Nutzers vom
+//   19.10.2026, Ticket 26): Ein Level mit dem Platz der Formel beim Entscheid, den levelliste.json festhält
+//   (prueflisteFormel), bleibt auf der Prüfliste, und die Zustimmung rechnet mit diesem Platz; nur wohin ein Level mit
+//   Zustimmung kommt, folgt der Formel von heute. Kommt ein Level später auf die Prüfliste, braucht es ein Urteil, und
+//   sein Platz der Formel kommt dazu (festePlaetze).
 // - Grade entlang der Reihenfolge (gradeEntlang): nach den Schwellen (beurteilung/grad.mjs). Ein Level, das an seinem
 //   heutigen Platz bleibt, steht nicht nach seiner Schwierigkeit; es bekommt den Grad seines Abschnitts, also den des
 //   letzten Levels davor, das nach der Formel steht. Ein Abschnitt beginnt beim ersten Level nach der Formel, das die
@@ -35,7 +40,8 @@
 //   ergaenzungBegruendet): Level, die beide KI-Tester ablehnen, und Level, die durch ein Urteil der KI-Tester in einen
 //   Grad kommen, in dem sie eine Regel verletzen (Entscheid des Nutzers vom 17.10.2026). Dazu die Namen entfernter
 //   Level, die nie wieder vergeben werden (entfernteNamen), und die Prüfliste für Ticket 16 (pruefliste; erledigt,
-//   wenn jedes Level darauf ein zählendes Urteil hat: prueflisteErledigt).
+//   wenn jedes Level darauf ein zählendes Urteil hat: prueflisteErledigt), je Level darauf mit dem Platz der Formel
+//   beim Entscheid (prueflisteFormel, fest seit Ticket 26).
 // - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
 //   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
 //   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
@@ -96,7 +102,7 @@ export const GRUENDE = {
 
 /**
  * Die Daten der Levelliste aus levelliste.json: { duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste,
- * prueflisteErledigt }.
+ * prueflisteErledigt, prueflisteFormel }.
  */
 export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
 
@@ -139,16 +145,19 @@ export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT)) {
  * null bei einem neuen Level, Vorgabe i + 1; die Indizes in der heutigen Reihenfolge, die neuen danach). zurFormel:
  * Indizes von Leveln der Prüfliste, denen beide KI-Tester zustimmen; sie stehen nach der Formel wie die übrigen, auch
  * wenn sie weiter als MAX_WANDERN Plätze wandern. Ein neues Level wandert nicht, es steht immer nach der Formel.
+ * fest[i]: bei einem Level der Prüfliste mit Entscheid der Platz der Formel beim Entscheid (Ticket 26), sonst
+ * undefined; an ihm misst sich, ob es auf der Prüfliste steht, damit der Entscheid fest bleibt, auch wenn ein Austausch
+ * seine Formel näher an den heutigen Platz rückt.
  * Rückgabe je Index, Plätze ab 1: { formel: Platz nach der Formel, platz: neuer Platz, bleibt: Map Index → 'Formel'
- * (Prüfliste) oder 'Reihenfolge' (warum es am heutigen Platz bleibt), pruefliste: Indizes, die nach der Formel weiter
- * als MAX_WANDERN Plätze wandern würden }.
+ * (Prüfliste) oder 'Reihenfolge' (warum es am heutigen Platz bleibt), pruefliste: Indizes, die nach der Formel (bzw.
+ * dem festen Platz) weiter als MAX_WANDERN Plätze wandern würden }.
  */
-export function ordne(werte, zurFormel = new Set(), heute = werte.map((_, i) => i + 1)) {
+export function ordne(werte, zurFormel = new Set(), heute = werte.map((_, i) => i + 1), fest = []) {
   const n = werte.length, nachWert = werte.map((_, i) => i).sort((i, j) => werte[i] - werte[j] || i - j);
   const formel = new Array(n);
   nachWert.forEach((i, r) => { formel[i] = r + 1; });
   const weit = (i, p) => heute[i] !== null && Math.abs(p - heute[i]) > MAX_WANDERN;
-  const pruefliste = nachWert.filter(i => weit(i, formel[i]));
+  const pruefliste = nachWert.filter(i => weit(i, fest[i] ?? formel[i]));
   const bleibt = new Map(pruefliste.filter(i => !zurFormel.has(i)).map(i => [i, 'Formel']));
   for (;;) {
     const besetzt = new Set([...bleibt.keys()].map(i => heute[i]));
@@ -293,16 +302,22 @@ export function mittelSteigt(folge, werte) {
  * nicht; ein Fehler ist ein Urteil zu einem heutigen Level ausserhalb der Prüfliste, ein Lauf ersatz-… zu einem
  * heutigen Level oder ein anderer Lauf zu einem neuen und ein zweites Urteil zum selben Level. Für die Häufung der
  * Haupt-Kernidee: haupt[i] (Haupt-Kernidee oder null) und geduldet(i, grad, ki) (steht das Level mit diesem Grad und
- * Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel.
+ * Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel. formelEntscheid: je Name eines Levels der Prüfliste
+ * der Platz der Formel, mit dem über seine Zustimmung entschieden ist (levelliste.json, prueflisteFormel); siehe unten.
  * Rückgabe: wie ordne, dazu basis (Folge vor den eigenen Korrekturen), korrigiert (nach ihnen), folge (nach der
  * Häufungsregel; Indizes nach Platz), zuege und offen (der Häufungsregel, siehe entzerre), grad (je Index), zurFormel
  * (Set der Level der Prüfliste, denen beide zustimmen) und ki: Map Index →
- * { eintrag, neu, je, zurFormel, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
+ * { eintrag, neu, je, zurFormel, formelEntscheid, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
  */
 export function reihenfolge(werte, namen, urteile = [], {
-  haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [],
+  haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
 } = {}) {
-  const n = werte.length, { formel, pruefliste } = ordne(werte, new Set(), heute);
+  // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
+  // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
+  // Austausch die Formel verschiebt; ohne festen Platz gilt die Formel von heute
+  const fest = namen.map((x, i) => (heute[i] !== null && Object.hasOwn(formelEntscheid, x) ? formelEntscheid[x]
+    : undefined));
+  const n = werte.length, { formel, pruefliste } = ordne(werte, new Set(), heute, fest);
   const ki = new Map();
   for (const eintrag of urteile) {
     const name = eintrag.level.name;
@@ -315,11 +330,13 @@ export function reihenfolge(werte, namen, urteile = [], {
     }
     if (!neu && !pruefliste.includes(i)) throw new Error(`${wo}: das Level steht nicht auf der Prüfliste`);
     if (ki.has(i)) throw new Error(`${wo}: schon beurteilt in ${ki.get(i).eintrag.lauf}`);
-    ki.set(i, neu ? { eintrag, neu, je: null, zurFormel: false }
-      : { eintrag, neu, ...zustimmung(eintrag, eintrag.referenz.position, formel[i]) });
+    const beimEntscheid = fest[i] ?? formel[i];
+    ki.set(i, neu ? { eintrag, neu, je: null, zurFormel: false } : {
+      eintrag, neu, formelEntscheid: beimEntscheid, ...zustimmung(eintrag, eintrag.referenz.position, beimEntscheid),
+    });
   }
   const zurFormel = new Set([...ki].filter(([, u]) => u.zurFormel).map(([i]) => i));
-  const ordnung = ordne(werte, zurFormel, heute);
+  const ordnung = ordne(werte, zurFormel, heute, fest);
   const basis = [...Array(n).keys()].sort((i, j) => ordnung.platz[i] - ordnung.platz[j]);
   const grad = gradeEntlang(basis, werte, ordnung.bleibt);
   for (const [i, u] of ki) {
@@ -344,6 +361,20 @@ export function reihenfolge(werte, namen, urteile = [], {
   const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, basis, korrigiert, folge, zuege, offen, grad, zurFormel, ki };
+}
+
+/**
+ * Die Plätze der Formel beim Entscheid über die Level der Prüfliste (prueflisteFormel in levelliste.json, Ticket 26):
+ * Die bisherigen bleiben, wie sie sind, auch die von inzwischen entfernten Leveln; ein Level der Prüfliste mit einem
+ * Urteil, aber ohne festen Platz (es kam später auf die Prüfliste) kommt mit seinem Platz der Formel von heute dazu,
+ * in der Reihenfolge im Spiel wie die Prüfliste.
+ * bisher: { Name: Platz } oder null; r: das Ergebnis von reihenfolge; namen[i]: Name des Levels i. Rückgabe wie bisher.
+ */
+export function festePlaetze(bisher, r, namen) {
+  const alt = bisher ?? {};
+  const dazu = r.pruefliste.filter(i => r.ki.has(i) && !r.ki.get(i).neu && !Object.hasOwn(alt, namen[i]))
+    .sort((i, j) => r.folge.indexOf(i) - r.folge.indexOf(j));
+  return { ...alt, ...Object.fromEntries(dazu.map(i => [namen[i], r.formel[i]])) };
 }
 
 /** Je 10 Level, also je Seite der Levelauswahl (PAGE_SIZE in index.html). */
