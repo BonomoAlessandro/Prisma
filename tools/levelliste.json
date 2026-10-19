@@ -5,8 +5,7 @@
       "Einklang", "Geflecht", "Glasmurmel", "Schnittstelle", "Laterne", "Mosaik", "Lichtschleife", "Weichensteller",
       "Lichtorgel", "Polarlicht", "Libelle", "Rangierbahnhof", "Opal", "Unendlichkeit", "Kristallpalast", "Komet",
       "Interferenz", "Irrlicht", "Leuchtturm", "Glasperlenspiel", "Sternbild", "Singularität", "Urknall",
-      "Lichtgeschwindigkeit", "Korona", "Prismenhof", "Quasar", "Ereignishorizont", "Zenit", "Farbenrausch",
-      "Farbmühle"
+      "Lichtgeschwindigkeit"
     ],
     "ohneKernidee": [
       "Farbwechsel", "Lichtpfad", "Funkenflug", "Glasfenster", "Tagesanbruch", "Einklang", "Verästelung", "Kreuzweg",
@@ -25,10 +24,10 @@
       "Lichtfaden", "Paravent", "Bumerang", "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke",
       "Blaue Stunde", "Pinselstrich", "Widerschein", "Farbtupfer", "Rubin", "Glühwürmchen", "Spektralband", "Rochade",
       "Glasbläser", "Schimmer", "Kreuzfeuer", "Uhrwerk", "Smaragd", "Chamäleon", "Polarlicht", "Sonnenwende", "Pendel",
-      "Kathedrale", "Rangierbahnhof", "Sternwarte", "Lichthof", "Komet", "Lichtjahr", "Urknall", "Spiegelkabinett"
+      "Kathedrale", "Rangierbahnhof", "Sternwarte", "Lichthof", "Komet", "Lichtjahr", "Urknall"
     ],
     "abgelehnt": [
-      "Einklang", "Sonnenstrahl", "Laterne", "Widerschein", "Lichtschleife", "Weichensteller", "Spiegelkabinett"
+      "Einklang", "Sonnenstrahl", "Laterne", "Widerschein", "Lichtschleife", "Weichensteller"
     ]
   },
   "urspruenglich": {
@@ -75,7 +74,8 @@
     ]
   },
   "entfernteNamen": [
-    "Begegnung", "Auslese", "Doppelpass", "Labyrinth", "Seitenlicht", "Lichtbündel"
+    "Begegnung", "Auslese", "Doppelpass", "Labyrinth", "Seitenlicht", "Lichtbündel", "Korona", "Prismenhof",
+    "Spiegelkabinett", "Quasar", "Ereignishorizont", "Farbenrausch", "Zenit", "Farbmühle"
   ],
   "pruefliste": [
     "Spiegelbild", "Schliff", "Farbwechsel", "Lichtpfad", "Tagesanbruch", "Lichtharfe", "Einklang", "Verästelung",
@@ -84,7 +84,18 @@
     "Mosaik", "Saphir", "Blendwerk", "Traumfänger", "Glasbläser", "Lichtschleife", "Farbnebel", "Spiegeltreppe",
     "Schimmer", "Kreuzfeuer", "Weichensteller", "Bernstein", "Glasfaser", "Farbverlauf", "Schachbrett", "Farbknoten",
     "Smaragd", "Chamäleon", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel", "Kathedrale", "Supernova",
-    "Kristallpalast", "Zwielicht", "Spiegelkabinett"
+    "Kristallpalast", "Zwielicht"
   ],
-  "prueflisteErledigt": true
+  "prueflisteErledigt": true,
+  "prueflisteFormel": {
+    "Spiegelbild": 46, "Schliff": 27, "Farbwechsel": 32, "Lichtpfad": 31, "Tagesanbruch": 37, "Lichtharfe": 74,
+    "Einklang": 58, "Verästelung": 40, "Lichtnetz": 35, "Schattenspiel": 41, "Spiegelachse": 76, "Sonnenstrahl": 45,
+    "Streulicht": 47, "Laterne": 53, "Bumerang": 59, "Mondlicht": 60, "Weichen": 62, "Pinselstrich": 63,
+    "Kaleidoskop": 71, "Widerschein": 72, "Rubin": 36, "Glitzer": 79, "Glühwürmchen": 80, "Spektralband": 82,
+    "Mosaik": 109, "Saphir": 66, "Blendwerk": 99, "Traumfänger": 113, "Glasbläser": 97, "Lichtschleife": 87,
+    "Farbnebel": 116, "Spiegeltreppe": 69, "Schimmer": 85, "Kreuzfeuer": 91, "Weichensteller": 92, "Bernstein": 90,
+    "Glasfaser": 114, "Farbverlauf": 105, "Schachbrett": 73, "Farbknoten": 95, "Smaragd": 81, "Chamäleon": 61,
+    "Prismenreigen": 104, "Doppelspiegel": 101, "Sonnenwende": 77, "Pendel": 84, "Kathedrale": 86, "Supernova": 88,
+    "Kristallpalast": 121, "Zwielicht": 137, "Spiegelkabinett": 131
+  }
 }

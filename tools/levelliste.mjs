@@ -17,6 +17,9 @@
 //   vom Platz der Formel (Rang nach der Schwierigkeit) aus, angewandt von dort, wo das Level nach ordne steht; wegen
 //   der Level am alten Platz liegen die beiden einige Plätze auseinander (Ticket 16: höchstens 6). Lehnen beide
 //   KI-Tester ein Level ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund abgelehnt).
+//   Die Entscheide aus Ticket 16 bleiben fest, auch wenn ein Austausch die Formel verschiebt (Entscheid des Nutzers vom
+//   19.10.2026, Ticket 26): Die Zustimmung rechnet mit dem Platz der Formel beim Entscheid, den levelliste.json
+//   festhält (prueflisteFormel); nur wohin ein Level mit Zustimmung kommt, folgt der Formel von heute.
 // - Grade entlang der Reihenfolge (gradeEntlang): nach den Schwellen (beurteilung/grad.mjs). Ein Level, das an seinem
 //   heutigen Platz bleibt, steht nicht nach seiner Schwierigkeit; es bekommt den Grad seines Abschnitts, also den des
 //   letzten Levels davor, das nach der Formel steht. Ein Abschnitt beginnt beim ersten Level nach der Formel, das die
@@ -35,7 +38,8 @@
 //   ergaenzungBegruendet): Level, die beide KI-Tester ablehnen, und Level, die durch ein Urteil der KI-Tester in einen
 //   Grad kommen, in dem sie eine Regel verletzen (Entscheid des Nutzers vom 17.10.2026). Dazu die Namen entfernter
 //   Level, die nie wieder vergeben werden (entfernteNamen), und die Prüfliste für Ticket 16 (pruefliste; erledigt,
-//   wenn jedes Level darauf ein zählendes Urteil hat: prueflisteErledigt).
+//   wenn jedes Level darauf ein zählendes Urteil hat: prueflisteErledigt), je Level darauf mit dem Platz der Formel
+//   beim Entscheid (prueflisteFormel, fest seit Ticket 26).
 // - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
 //   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
 //   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
@@ -293,14 +297,15 @@ export function mittelSteigt(folge, werte) {
  * nicht; ein Fehler ist ein Urteil zu einem heutigen Level ausserhalb der Prüfliste, ein Lauf ersatz-… zu einem
  * heutigen Level oder ein anderer Lauf zu einem neuen und ein zweites Urteil zum selben Level. Für die Häufung der
  * Haupt-Kernidee: haupt[i] (Haupt-Kernidee oder null) und geduldet(i, grad, ki) (steht das Level mit diesem Grad und
- * Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel.
+ * Urteil auf der Duldungsliste?); ohne haupt keine Häufungsregel. formelEntscheid: je Name eines Levels der Prüfliste
+ * der Platz der Formel, mit dem über seine Zustimmung entschieden ist (levelliste.json, prueflisteFormel); siehe unten.
  * Rückgabe: wie ordne, dazu basis (Folge vor den eigenen Korrekturen), korrigiert (nach ihnen), folge (nach der
  * Häufungsregel; Indizes nach Platz), zuege und offen (der Häufungsregel, siehe entzerre), grad (je Index), zurFormel
  * (Set der Level der Prüfliste, denen beide zustimmen) und ki: Map Index →
- * { eintrag, neu, je, zurFormel, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
+ * { eintrag, neu, je, zurFormel, formelEntscheid, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
  */
 export function reihenfolge(werte, namen, urteile = [], {
-  haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [],
+  haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
 } = {}) {
   const n = werte.length, { formel, pruefliste } = ordne(werte, new Set(), heute);
   const ki = new Map();
@@ -315,8 +320,11 @@ export function reihenfolge(werte, namen, urteile = [], {
     }
     if (!neu && !pruefliste.includes(i)) throw new Error(`${wo}: das Level steht nicht auf der Prüfliste`);
     if (ki.has(i)) throw new Error(`${wo}: schon beurteilt in ${ki.get(i).eintrag.lauf}`);
+    // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Zugestimmt wird am
+    // Platz der Formel beim Entscheid, auch wenn ein Austausch die Formel verschiebt; ohne festen Platz der von heute
+    const fest = Object.hasOwn(formelEntscheid, name) ? formelEntscheid[name] : formel[i];
     ki.set(i, neu ? { eintrag, neu, je: null, zurFormel: false }
-      : { eintrag, neu, ...zustimmung(eintrag, eintrag.referenz.position, formel[i]) });
+      : { eintrag, neu, formelEntscheid: fest, ...zustimmung(eintrag, eintrag.referenz.position, fest) });
   }
   const zurFormel = new Set([...ki].filter(([, u]) => u.zurFormel).map(([i]) => i));
   const ordnung = ordne(werte, zurFormel, heute);

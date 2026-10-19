@@ -1,5 +1,5 @@
-// Tests der Levelliste (Spec „Entscheide zu den Tests“, Nahtstelle 3; Tickets 15–17 und 23): die 150 Level im Spiel,
-// ihre Reihenfolge samt den Urteilen der KI-Tester, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie
+// Tests der Levelliste (Spec „Entscheide zu den Tests“, Nahtstelle 3; Tickets 15–17, 23 und 26): die 150 Level im
+// Spiel, ihre Reihenfolge samt den Urteilen der KI-Tester, ihre Grade und die Duldungsliste (tools/levelliste.json). Sie
 // ersetzen die Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste. Die Regeln stehen in
 // tools/levelliste.mjs, gemeinsam mit tools/ordne-level.mjs, das Reihenfolge, Grade, Duldungsliste und Prüfliste
 // schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17), seit
@@ -52,7 +52,7 @@ const beiHeute = heute.map(l => nach.get(l.name).b);
 const r = reihenfolge(werteHeute, namenHeute, urteile, {
   haupt: beiHeute.map(b => b.hauptKernidee.begriff),
   geduldet: (i, grad, u) => Object.values(GRUENDE).some(g => g.gilt(beiHeute[i], grad, u)),
-  heute: platzHeute, kandidat,
+  heute: platzHeute, kandidat, formelEntscheid: liste.prueflisteFormel,
 });
 const kiNach = new Map([...r.ki].map(([i, u]) => [heute[i].name, u]));
 const verletzt = (grund) => MAIN.filter(l => GRUENDE[grund].gilt(nach.get(l.name).b, l.grad, kiNach.get(l.name)))
@@ -172,6 +172,27 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
   console.log(`        ${r.ki.size} Level der Prüfliste mit Urteil, zur Formel ${r.zurFormel.size}, eigene Korrektur `
     + `${korrigiert.length}; Häufungsregel: ${r.zuege.map(zug).join(', ') || 'keine Züge'}`);
 });
+test('Die Entscheide aus Ticket 16 zur Prüfliste bleiben fest, auch wenn ein Austausch die Formel verschiebt', () => {
+  // Entscheid des Nutzers vom 19.10.2026 (Ticket 26): Zugestimmt wird am Platz der Formel beim Entscheid, den
+  // levelliste.json festhält (prueflisteFormel); jedes Level der Prüfliste mit Urteil hat ihn, und nur solche (oder
+  // inzwischen entfernte)
+  const fest = liste.prueflisteFormel ?? {};
+  const mitUrteil = r.pruefliste.filter(i => r.ki.has(i)).map(i => heute[i].name);
+  assert.deepEqual(mitUrteil.filter(x => !Object.hasOwn(fest, x)), [], 'ohne festen Platz der Formel');
+  assert.deepEqual(Object.keys(fest).filter(x => !mitUrteil.includes(x) && !liste.entfernteNamen.includes(x)), [],
+    'fester Platz ohne Level der Prüfliste');
+  for (const [i, u] of r.ki) if (!u.neu) assert.equal(u.formelEntscheid, fest[heute[i].name], heute[i].name);
+  // Gegenprobe: Mit der Formel von heute fiele ein Entscheid nur dort anders aus, wo sich der Platz der Formel seit dem
+  // Entscheid verschoben hat; so käme Zwielicht (Formel 137 beim Entscheid, ohne Spiegelkabinett 136) von seinem
+  // heutigen Platz 122 auf den der Formel
+  const ohneFest = reihenfolge(werteHeute, namenHeute, urteile, { heute: platzHeute, kandidat });
+  const anders = [...r.ki].filter(([i, u]) => !u.neu && ohneFest.ki.get(i).zurFormel !== u.zurFormel).map(([i]) => i);
+  for (const i of anders) assert.notEqual(fest[heute[i].name], r.formel[i], `${heute[i].name}: Formel unverändert`);
+  assert.ok(anders.map(i => heute[i].name).includes('Zwielicht'), 'Gegenprobe: Zwielicht');
+  const zwielicht = namenHeute.indexOf('Zwielicht');
+  assert.deepEqual([r.zurFormel.has(zwielicht), MAIN.findIndex(l => l.name === 'Zwielicht') + 1], [false, 122]);
+  assert.equal(ohneFest.zurFormel.has(zwielicht), true);
+});
 test('Neue Level (Austausch): jedes mit zählendem Urteil (ersatz-…), keines von beiden abgelehnt', () => {
   // Ein neues Level steht nach der Formel (oben); die KI-Tester haben es unter seinem Namen als Kandidat beurteilt
   const neu = heute.flatMap((l, i) => (platzHeute[i] === null ? [i] : []));
@@ -182,9 +203,11 @@ test('Neue Level (Austausch): jedes mit zählendem Urteil (ersatz-…), keines v
     .join(', ') || 'keine'}`);
 });
 test('Neue Level: Der Kommentar nennt Auftrag, Seed und Ziel-Schwierigkeit zum Nachbauen', () => {
-  // Ohne die Ziel-Schwierigkeit entsteht aus Auftrag und Seed ein anderes Level (Review Ticket 23, M1)
+  // Ohne die Ziel-Schwierigkeit entsteht aus Auftrag und Seed ein anderes Level (Review Ticket 23, M1). Der Auftrag
+  // heisst <grad> oder <grad>-<kernidee>, auch „sehr schwer-…“ (Ticket 26)
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
-  const herkunft = (name) => new RegExp(`\\n {4}// Generator [a-z-]+, Seed \\d+, Ziel \\d+(,\\d+)?–\\d+(,\\d+)? · `
+  const herkunft = (name) => new RegExp('\\n {4}// Generator (?:sehr )?[a-z]+(?:-[a-z]+)?, Seed \\d+, '
+    + `Ziel \\d+(,\\d+)?–\\d+(,\\d+)? · `
     + `ersetzt [^\\n]+\\n {4}name: '${name}'`);
   const neu = heute.filter((l, i) => platzHeute[i] === null);
   assert.deepEqual(neu.filter(l => !herkunft(l.name).test(html)).map(l => l.name), []);
@@ -267,7 +290,7 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
 });
 // Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
 // Duldungsliste. Sind alle vier Grade ausgetauscht, ist die Liste leer (dann hier alle vier)
-const AUSGETAUSCHT = ['leicht'];
+const AUSGETAUSCHT = ['leicht', 'sehr schwer'];
 test(`Nach dem Austausch steht kein Level aus ${AUSGETAUSCHT.join(', ')} auf der Duldungsliste`, () => {
   assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad)), []);
 });
