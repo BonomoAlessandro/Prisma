@@ -1,4 +1,4 @@
-// Regeln der Levelliste (Tickets 15, 16 und 23; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
+// Regeln der Levelliste (Tickets 15, 16, 23 und 26; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu den
 // Tests“, Nahtstelle 3), gemeinsam für tools/ordne-level.mjs, das Reihenfolge und Grade schreibt, und den Test
 // tests/levelliste.test.mjs, der sie prüft:
 // - Reihenfolge (ordne): Die Level stehen nach ihrer Schwierigkeit, bei gleichem Wert in der heutigen Reihenfolge
@@ -100,7 +100,7 @@ export const GRUENDE = {
 
 /**
  * Die Daten der Levelliste aus levelliste.json: { duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste,
- * prueflisteErledigt }.
+ * prueflisteErledigt, prueflisteFormel }.
  */
 export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
 

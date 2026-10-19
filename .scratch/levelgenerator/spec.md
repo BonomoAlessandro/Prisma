@@ -578,8 +578,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
       vom 19.10.2026, Ticket 26): Die Zustimmung rechnet mit dem Platz der Formel beim Entscheid, den
       `tools/levelliste.json` festhält (`prueflisteFormel`); wohin ein Level mit Zustimmung kommt, folgt der Formel von
       heute. Anlass: Ohne Spiegelkabinett (Formel 131) rückte Zwielicht in der Formel von 137 auf 136, und KI-Tester A
-      hätte zugestimmt. Zwielicht wäre von 122 auf 136 gesprungen, 13 schwere Level wären einen Platz vorgerückt, und auf
-      131–140 hätte dreimal Farben abzählen gestanden, was die Häufungsregel mit einem Zug nicht auflöst. Zwielicht
+      hätte zugestimmt. Zwielicht wäre von 122 auf 136 gesprungen, 13 schwere Level wären einen Platz vorgerückt, und
+      auf 131–140 hätte dreimal Farben abzählen gestanden, was die Häufungsregel mit einem Zug nicht auflöst. Zwielicht
       bleibt auf 122.
     - Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge`: am alten Platz das
       Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort; höchstens 5 Plätze, nie über
