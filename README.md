@@ -70,10 +70,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
-    „sehr schwer“ ausser dem Lockvogel). Auf dem Würfel-Branch (Ticket 22) laufen dazu fünf Aufträge im Würfel
-    4 × 4 × 4 („leicht“ ohne Kernidee, mit Mischziel, Abschalten und Sammelstelle, „mittel“ mit Mischziel) durch alle
-    Prüfungen, und die Würfel-Level nutzen den Raum (Licht zwischen den Ebenen, drehbare Elemente mit waagrechter
-    Drehachse).
+    „sehr schwer“ ausser dem Lockvogel). Jedes Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt;
+    „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert mit
+    genau zwei, „leicht“ weiter auch mit einer (Ticket 29). Auf dem Würfel-Branch (Ticket 22) laufen dazu fünf
+    Aufträge im Würfel 4 × 4 × 4 („leicht“ ohne Kernidee, mit Mischziel, Abschalten und Sammelstelle, „mittel“ mit
+    Mischziel) durch alle Prüfungen, und die Würfel-Level nutzen den Raum (Licht zwischen den Ebenen, drehbare
+    Elemente mit waagrechter Drehachse).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -399,7 +401,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     „leicht“ bleibt bitgleich.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
-    `grad.mjs` und die verlangte Kernidee nötig.
+    `grad.mjs` und die verlangte Kernidee nötig. Dazu hält es die Quellen der Vorgabe seines Grads ein, wie die Level
+    im Spiel (ab „mittel“ 2–3 bzw. 2–4): Mehr setzt der Generator nicht (Ticket 28), und ein fertiges Level mit zu
+    wenigen verwirft er mit „zu wenige Quellen“ (Ticket 29; das Festigen kann eine Quelle als wirkungslos wegnehmen).
   - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
     Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
     hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
