@@ -407,7 +407,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     weitergeben. Eine Quelle bekommt die erste Drehachse, mit der sie in die verlangte Richtung leuchtet. Im flachen
     Feld gibt es nur y, dort bleibt alles wie vorher; im Würfel lenkt ein Element mit waagrechter Achse Licht zwischen
     die Ebenen. Die Bausteine der Kernideen setzen ihre Spiegel und Prismen mit der ersten Drehachse. Der Test sucht im
-    Quelltext nach Koordinaten (auch y), Drehachsen der Leveldaten (`axis`) und Richtungen.
+    Quelltext nach Koordinaten (auch y), Drehachsen (`axis` der Leveldaten, Namen wie `'x'`) und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge

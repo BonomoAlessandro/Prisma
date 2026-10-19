@@ -371,10 +371,10 @@ test('Der Generator kennt das Feld nur über die Feldform: keine Koordinaten und
   const dir = new URL('../tools/generator/', import.meta.url);
   const dateien = readdirSync(dir, { recursive: true }).filter(f => f.endsWith('.mjs'));
   assert.ok(dateien.length >= 5);
-  // Auch y (die Ebene im Würfel) und axis (seine Drehachse in den Leveldaten; Ticket 22): Drehachsen kommen aus der
-  // Feldform (drehachsen, element)
-  const verboten = [/\.[xyz]\b/, /\b[xyz]\s*:/, /\baxis\b/, /\bDIRS\b/, /reflectOnMirror|refractInPrism|unitDir/,
-    /split\(','\)/, /\.(rot|dir)\b/, /%\s*8\b/];
+  // Auch y (die Ebene im Würfel), axis (seine Drehachse in den Leveldaten) und die Namen der Drehachsen wie 'x'
+  // (Ticket 22): Drehachsen kommen aus der Feldform (drehachsen, element)
+  const verboten = [/\.[xyz]\b/, /\b[xyz]\s*:/, /\baxis\b/, /['"`][xyz]['"`]/, /\bDIRS\b/,
+    /reflectOnMirror|refractInPrism|unitDir/, /split\(','\)/, /\.(rot|dir)\b/, /%\s*8\b/];
   for (const f of dateien) {
     const quelltext = readFileSync(new URL(f.replace(/\\/g, '/'), dir), 'utf8');
     const code = quelltext.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, ''); // ohne Kommentare
