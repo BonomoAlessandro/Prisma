@@ -482,3 +482,29 @@ auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
     stark und 6 schwach.
   - A3 Glasfenster ist stark (einziges Urteil aus Ablauf 2 in `probelauf-3`, als Anker).
   - Zu ersetzen sind damit 30 mittlere Level: die 13 der Gruppe 1 und 17 der Gruppe 2.
+
+**Stand am 19.10.2026, pausiert** (der Nutzer setzt zuerst die Tickets 26 und 22 fort; Branch
+`ticket/24-austausch-mittel`, nicht gepusht; es läuft nichts aus diesem Ticket).
+- **Erledigt:** Lauf `behalten-mittel-1` zusammengeführt und die Regel „stark“ angewandt (oben): 27 Level der Gruppe 2
+  bleiben, 17 werden ersetzt; zu ersetzen sind also 30 mittlere Level (13 der Gruppe 1, 17 der Gruppe 2). Spielwert-Test
+  grün (0,29 / 0,27).
+- **Begonnen, nur im Scratchpad (`t24\`):**
+  - Zweite Runde Kandidaten (`gen2\`, `generiere.mjs` mit Ziel-Schwierigkeit, 12 Lücken nach dem Rang der Formel, je
+    sechs Kernideen, Seeds 1–400). Nach Haupt-Kernidee, mindestens 2 Quellen und der Vorprüfung auf Zerfall (ein Teil)
+    bleiben je Lücke 3 bis 24 Level; Lockvogel besteht die Vorprüfung nie.
+  - Gewählt sind Kandidaten für die 22 offenen Plätze (17 der Gruppe 2, Lichtorgel, und neue für Glasmurmel, Laterne,
+    Einklang, Mosaik) und dazu 21 Ersatzlevel (`auswahl-r2k.json`, `auswahl-r2e.json`). Mit den gültigen Leveln der
+    Gruppe 1 (Schnittstelle ba0e3031, Sonnenstrahl c4ee29fd, Geflecht 0775747e, Widerschein a6e146e0, Lichtschleife
+    be69a422, Weichensteller ae26b9cc, Polarlicht 8d478f46, Libelle f03e3dee) mit `ordne-level.mjs --austausch`
+    geprüft (`ordne-r2k.*`, `ordne-r2e.*`): alle „mittel“, Prüfliste 37 (die 51 ohne die 14 ersetzten), alle mit
+    Urteil; Entscheide und Korrekturen der übrigen Level der Prüfliste unverändert, also keine Sprünge wie bei
+    Zwielicht (Ticket 26); 19 Level rücken um 1–5 Plätze. Mit den Kandidaten ist die Haupt-Kernidee je 10 Level
+    eingehalten (Häufungsregel: Prismenreigen 100 → 101, Spiegelsaal 131 → 130); mit allen Ersatzleveln zugleich nicht
+    (31–40 und 41–50 je Mischziel zu oft), es zählt aber nur die spätere Wahl.
+  - Noch nicht vorbereitet ist der gemeinsame Lauf: die 22 Kandidaten und 20 Ersatzlevel (das Ersatzlevel für Legierung
+    fehlt, die Lücke hat nur drei taugliche Level) in drei Läufen `ersatz-mittel-3` bis `-5` zu je etwa 14 Leveln. Die
+    Listen für `--kandidaten` dürfen die schon beurteilten Level der Gruppe 1 nicht enthalten.
+- **Als Nächstes:** die Läufe `ersatz-mittel-3` bis `-5` vorbereiten (nach der Freigabe des Nutzers mit
+  `LEISE_MAX_CPU=80 LEISE_CPU=80`), KI-Tester, `merge.mjs`, Wahl je Lücke, erneut `--austausch`; dann der Grund
+  „behalten nach Urteil der KI-Tester“ (`levelliste.json`, `levelliste.mjs`, Test mit Gegenprobe), Spec und Hinweise in
+  25 und 26, die Regel aus Ticket 26 zur Prüfliste nach dem Merge, Namen (Haltepunkt), Phase C.
