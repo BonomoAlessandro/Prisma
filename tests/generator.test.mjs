@@ -75,17 +75,18 @@ const ZU_WENIGE_QUELLEN = { grad: 'mittel', kernidee: 'Falle', seed: 278 };
  * Würfel (Ticket 22, nur auf dem Branch feature/3d-wuerfel): Aufträge mit der Würfel-Feldform eines kleinen Würfels
  * (4 × 4 × 4), für die alle Prüfungen gelten wie für die flachen. Die Mindestzahlen liegen bei rund zwei Dritteln der
  * gemessenen Ausbeute (Seeds 1–100: leicht 90, Mischziel 53, Abschalten 97, Sammelstelle 81, mittel mit Mischziel 38).
- * FEST_WUERFEL: ein fester Seed, der ohne Kernidee ein leichtes Würfel-Level liefert, in dem Licht zwischen den Ebenen
- * läuft und drehbare Elemente eine waagrechte Drehachse haben. Würfel-Level kommen nicht ins Spiel.
+ * Klein gehalten: Sie kosten den Test rund 2 s (ohne sie 63–66 s, mit 50 und 65 %). FEST_WUERFEL: ein fester Seed, der
+ * ohne Kernidee ein leichtes Würfel-Level liefert, in dem Licht zwischen den Ebenen läuft und drehbare Elemente eine
+ * waagrechte Drehachse haben. Würfel-Level kommen nicht ins Spiel.
  */
 const WUERFEL = feldformVon({ dim: 3, size: 4 });
 const FEST_WUERFEL = 2;
 const WUERFEL_AUFTRAEGE = [
-  { grad: 'leicht', kernidee: null, feldform: WUERFEL, seeds: 30, mindestens: 18 },
-  { grad: 'leicht', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 30, mindestens: 10 },
-  { grad: 'leicht', kernidee: 'Abschalten', feldform: WUERFEL, seeds: 20, mindestens: 12 },
-  { grad: 'leicht', kernidee: 'Sammelstelle', feldform: WUERFEL, seeds: 20, mindestens: 10 },
-  { grad: 'mittel', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 20, mindestens: 4 },
+  { grad: 'leicht', kernidee: null, feldform: WUERFEL, seeds: 20, mindestens: 12 },
+  { grad: 'leicht', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 20, mindestens: 6 },
+  { grad: 'leicht', kernidee: 'Abschalten', feldform: WUERFEL, seeds: 10, mindestens: 6 },
+  { grad: 'leicht', kernidee: 'Sammelstelle', feldform: WUERFEL, seeds: 10, mindestens: 5 },
+  { grad: 'mittel', kernidee: MISCHZIEL, feldform: WUERFEL, seeds: 20, mindestens: 4 }, // Seeds 1–10 liefern keines
 ];
 /**
  * Aufträge mit festen Seeds (seeds: 1 … seeds oder eine Liste) und so vielen gelieferten Leveln mindestens:
