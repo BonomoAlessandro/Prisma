@@ -70,7 +70,9 @@ export function setzeDrehbar(bau, type, { zellen = bau.strahlzellen(), kern = fa
 /**
  * Die Stellungen, in denen eine der Varianten eines Elements (bau.varianten, je Drehachse) das Licht des Durchgangs c
  * sinnvoll weitergibt (bau.stellungenFuer), je { el, stellung }: zuerst alle der ersten Drehachse, dann die der
- * nächsten (Ticket 22). Im flachen Feld sind es dieselben wie bei bau.stellungenFuer, in derselben Reihenfolge.
+ * nächsten (Ticket 22). Im flachen Feld sind es dieselben wie bei bau.stellungenFuer, in derselben Reihenfolge. wie
+ * macht aus einer Variante das Element, für das stellungenFuer rechnet (Vorgabe: die Variante selbst; ein fester
+ * Spiegel rechnet als drehbarer).
  */
 function stellungenMit(bau, varianten, c, wie = el => el) {
   return varianten.flatMap(el => bau.stellungenFuer(wie(el), c.richtung, c.farbe).map(stellung => ({ el, stellung })));
