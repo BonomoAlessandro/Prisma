@@ -434,6 +434,12 @@ test(`Korrekturen schieben einander: höchstens ${MAX_SHIFT} Plätze vom Platz d
     const x = lauf(4, -5), folge = [...x.korrigiert];
     folge.splice(7, 0, ...folge.splice(9, 1));
     assert.deepEqual(zuWeitKorrigiert({ ...x, folge }), [{ i: 3, davor: 4, korrigiert: 9, ende: 10 }], 'am Ende');
+    // Nur nach den Korrekturen: Holt ein Zug danach 3 auf 5 Plätze zurück, bleibt es gemeldet (so Zitronenlicht mit
+    // b6965c5f für Lichtfaden, Ticket 24)
+    const y = lauf(5, -5), zurueckgeholt = [...y.korrigiert];
+    zurueckgeholt.splice(9, 0, ...zurueckgeholt.splice(8, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...y, folge: zurueckgeholt }), [{ i: 3, davor: 4, korrigiert: 10, ende: 9 }],
+      'nur nach den Korrekturen');
     // Gegenproben: rückt das Level an 3 vorbei nach hinten, ist 3 wieder 4 Plätze weit; ein Level ohne eigene
     // Korrektur zählt nicht, wie weit es auch rückt
     const zurueck = [...x.korrigiert];
