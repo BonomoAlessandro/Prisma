@@ -964,3 +964,25 @@ davor, weder nach den Korrekturen noch am Ende“ prüft jetzt eine gemeinsame F
 **Gleichauf (Hinweis des Reviewers, keine Änderung):** In sechs Lücken (Widerschein, Tagesanbruch, Lichtorgel,
 Spiegelachse, Rochade, Uhrwerk) lagen Kandidat und Ersatz bis zum Gefühl gleichauf; genommen wurde dort der Kandidat.
 Die Wahl bleibt, denn die Namen sind für genau diese Level genehmigt.
+
+**Nachprüfung M1 (19.10.2026, Review).** Geprüft wurde `3cc350a` mit eigenen Skripten (Scratchpad `review24\`). M1
+ist behoben.
+- **Kriterien** (Stand `924dc22` mit `levelliste.mjs` und `ordne-level.mjs` von `3cc350a`, je `--schreiben`):
+  - Beste Wahl je Lücke: gemeldet genau Farbfang, Schattenspiel, Lichtharfe und Zitronenlicht, dazu die offenen
+    Häufungen; nicht geschrieben (beide Gründe), Exit 1.
+  - Mit b6965c5f für Lichtfaden: gemeldet nur Zitronenlicht (58, 52, 53), keine Häufung offen; nicht geschrieben,
+    Exit 1, keine Datei geändert.
+  - Genehmigte Wahl: „eingehalten“, geschrieben, gleich HEAD (index.html, `levelliste.json`, `entfernte-level.json`);
+    ein zweiter Lauf meldet „stimmen“. Auf HEAD „eingehalten“, „stimmen“, Ergebnis je Level (`--json`) bytegleich mit
+    dem vor M1.
+- **Gegenproben** (Mutationen): Ohne die Sperre schreibt `ordne-level.mjs` mit b6965c5f (Exit 0). Prüft
+  `zuWeitKorrigiert` nur nach den Korrekturen, wird „am Ende“ rot; ab genau 5 Plätzen die Tests der Reihenfolge; für
+  jedes Level mit Urteil „ohne Korrektur“. Prüfte es nur am Ende, blieb der Test grün: selbst ergänzt (`4882cc6`, Fall
+  „nur nach den Korrekturen“, 3 steht nach den Korrekturen 6, am Ende 5 Plätze weit); mit ihm wird die Mutation rot.
+- **Häufungsregel mit `zulaessig`:** Die Prüfung ist dieselbe wie vorher. Die Nachrechnung der neun Varianten der Wahl
+  (beste, gewählte, je ein Tausch mehr oder weniger) ergibt mit dem neuen Code genau dieselben Züge, offenen Häufungen
+  und zu weiten Level wie mit dem alten.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): Golden genau 60 Abweichungen (30 fehlende, 30 neue
+  Namen). Grün sind logic 548, generator 30, beurteilung 178 (0,29 / 0,27), levelliste 42, ki-tester 64 und offline;
+  nach `4882cc6` levelliste erneut grün (42).
+- **Urteil:** Ticket 24 ist bereit zum Mergen. Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
