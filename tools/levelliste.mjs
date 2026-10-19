@@ -366,13 +366,14 @@ export function reihenfolge(werte, namen, urteile = [], {
 /**
  * Die Plätze der Formel beim Entscheid über die Level der Prüfliste (prueflisteFormel in levelliste.json, Ticket 26):
  * Die bisherigen bleiben, wie sie sind, auch die von inzwischen entfernten Leveln; ein Level der Prüfliste mit einem
- * Urteil, aber ohne festen Platz (es kam später auf die Prüfliste) kommt mit seinem Platz der Formel von heute dazu.
+ * Urteil, aber ohne festen Platz (es kam später auf die Prüfliste) kommt mit seinem Platz der Formel von heute dazu,
+ * in der Reihenfolge im Spiel wie die Prüfliste.
  * bisher: { Name: Platz } oder null; r: das Ergebnis von reihenfolge; namen[i]: Name des Levels i. Rückgabe wie bisher.
  */
 export function festePlaetze(bisher, r, namen) {
   const alt = bisher ?? {};
   const dazu = r.pruefliste.filter(i => r.ki.has(i) && !r.ki.get(i).neu && !Object.hasOwn(alt, namen[i]))
-    .sort((i, j) => r.platz[i] - r.platz[j]);
+    .sort((i, j) => r.folge.indexOf(i) - r.folge.indexOf(j));
   return { ...alt, ...Object.fromEntries(dazu.map(i => [namen[i], r.formel[i]])) };
 }
 
