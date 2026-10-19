@@ -644,4 +644,4 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
       (Tickets 10, 11 und 15), dazu Ideen ausserhalb des Glossars (Mischziel aus einer Quelle, ein Spiegel für zwei
       Strahlen); der Spielwert hängt fast ganz an der erkannten Kernidee. Entschieden ist darüber mit der Gruppe
       „behalten nach Urteil der KI-Tester“ (oben, „Duldungsliste“); mit den 20 Urteilen aus `behalten-mittel-1` ist
-      die Übereinstimmung 0,29 / 0,27.
+      die Übereinstimmung 0,29 / 0,27, mit den 2 aus `behalten-schwer-1` (Ticket 25) 0,30 (116 Level) / 0,27 (167).

@@ -51,7 +51,7 @@
 //   wegen Kernidee oder Spielwert auf der Duldungsliste stehen und nach der Regel stark gut beurteilt sind, bleiben im
 //   Spiel. Sie stehen weiter unter ihrem Grund auf der Duldungsliste (die Regel verletzen sie ja); nach dem Austausch
 //   eines Grads dürfen dort nur noch sie stehen. Die Gruppe wächst nie: ordne-level.mjs übernimmt sie, wie sie ist, und
-//   streicht nur Level, die es nicht mehr gibt.
+//   streicht nur Level, die es nicht mehr gibt. Dieselbe Regel gilt in „schwer“ (Entscheid vom 19.10.2026, Ticket 25).
 // - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
 //   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
 //   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).

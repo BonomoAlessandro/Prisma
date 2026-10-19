@@ -280,7 +280,7 @@ const behalten = ((existsSync(DATEI) ? ladeLevelliste().behalten : null) ?? [])
 const behaltenIdx = behalten.map(x => levels.findIndex(l => l.name === x));
 const protokoll = alleUrteile();
 const nichtStark = behalten.filter(x => !stark(x, protokoll).stark);
-console.log(`    behalten nach Urteil der KI-Tester (Ticket 24): ${behalten.length} Level `
+console.log(`    behalten nach Urteil der KI-Tester (Tickets 24 und 25): ${behalten.length} Level `
   + `(${GRADE.map(g => `${g} ${behaltenIdx.filter(i => grad[i] === g).length}`).join(', ')}); nicht stark: `
   + `${nichtStark.join(', ') || '–'}; auf der Duldungsliste ohne diesen Grund: `
   + `${duldung.filter(i => !behaltenIdx.includes(i)).length}`);
