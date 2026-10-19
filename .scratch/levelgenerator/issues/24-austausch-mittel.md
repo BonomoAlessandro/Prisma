@@ -508,3 +508,62 @@ auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
   `LEISE_MAX_CPU=80 LEISE_CPU=80`), KI-Tester, `merge.mjs`, Wahl je Lücke, erneut `--austausch`; dann der Grund
   „behalten nach Urteil der KI-Tester“ (`levelliste.json`, `levelliste.mjs`, Test mit Gegenprobe), Spec und Hinweise in
   25 und 26, die Regel aus Ticket 26 zur Prüfliste nach dem Merge, Namen (Haltepunkt), Phase C.
+
+**Zweite Runde: Läufe `ersatz-mittel-3` bis `-5` vorbereitet (19.10.2026).** Wieder freigegeben vom Nutzer; neue Läufe
+mit `LEISE_MAX_CPU=80 LEISE_CPU=80`. Die Kandidaten stammen aus der Runde vom 19.10.2026 (oben, „Stand am 19.10.2026“).
+- **Lücken** (Rang der Formel, wie in Stufe A; benachbarte ersetzte Level teilen eine Lücke, die neuen dürfen darin
+  in beliebiger Reihenfolge stehen): 43,01–43,73 (Lichtpfad, Farbwechsel; unten durch die Schwelle von „mittel“
+  begrenzt), 43,75–44,14 (Kreuzweg), 44,28–45,68 (Tagesanbruch, Glasmurmel, Knotenpunkt, Verästelung), 45,70–46,88
+  (Lichtschacht, Funkenflug; dazu Schnittstelle und Sonnenstrahl aus der ersten Runde), 46,96–47,88 (Drehscheibe; dazu
+  Geflecht), 47,90–48,51 (Legierung, Laterne), 48,53–49,45 (Lichtfaden, Paravent, Einklang), 49,65–50,32 (Chamäleon),
+  51,73–52,13 (Spiegelachse), 53,89–54,34 (Rochade, Mosaik; Mosaik wie in Stufe A in der Nähe seines Platzes),
+  55,55–56,10 (Uhrwerk, Lichtorgel; dazu Weichensteller), 56,20–57,26 (Glasbläser). Ohne Funkenflug fällt die
+  Bedingung aus Stufe A weg. Die Level, die am heutigen Platz stehen (Spiegelachse, Glasbläser, Chamäleon), räumen den
+  Platz; ihre Ersatzlevel stehen nach der Formel, dazwischen rücken die übrigen um einen Platz.
+- **Generator:** `generiere.mjs mittel-<kernidee> --schwierigkeit VON,BIS --anzahl 12 --seeds 400`, 12 Lücken, je sechs
+  Kernideen (Scratchpad `t24\gen2\`). Übrig nach Haupt-Kernidee, mindestens 2 Quellen und Vorprüfung auf Zerfall (ein
+  Teil): je Lücke 3 bis 24 Level; Lockvogel besteht die Vorprüfung nie, 47,90–48,51 hat nur 3 taugliche Level.
+- **Gewählt** (Kandidat und Ersatz mit anderer Haupt-Kernidee, nach Spielwert und den Haupt-Kernideen je Seite;
+  geprüft mit `ordne-level.mjs --austausch`, je ein Lauf mit allen Kandidaten und mit allen Ersatzleveln, zusammen mit
+  den gültigen Leveln der ersten Runde). Alle 60 Einträge beider Austausch-Dateien baut `generiere.mjs` aus Auftrag,
+  Seed und Ziel nach. Je Zelle Abdruck: Auftrag, Seed; Schwierigkeit; Haupt-Kernidee; Quellen; Platz (Formel); Lauf:
+
+  | ersetzt | Ziel | Kandidat | Ersatz |
+  |---|---|---|---|
+  | 33 Lichtpfad | 43,01–43,73 | 205ba7c0: mittel-abschalten, 201; 43,34; Abschalten; 3; 32 (31); Lauf 4 | 18bf77c1: mittel-mischziel, 100; 43,04; Mischziel; 3; 32 (31); Lauf 3 |
+  | 32 Farbwechsel | 43,01–43,73 | ae552f6d: mittel-sammelstelle, 66; 43,66; Sammelstelle; 2; 33 (32); Lauf 3 | f64f7e7a: mittel-falle, 243; 43,40; Falle; 2; 33 (32); Lauf 5 |
+  | 42 Kreuzweg | 43,75–44,14 | 22962f97: mittel-falle, 236; 43,97; Falle; 2; 38 (34); Lauf 5 | 2fd2364e: mittel-mischziel, 379; 43,75; Mischziel; 3; 38 (34); Lauf 4 |
+  | 36 Tagesanbruch | 44,28–45,68 | d56de435: mittel-abzaehlen, 218; 44,53; Farben abzählen; 3; 39 (37); Lauf 4 | 7464fc56: mittel-sammelstelle, 91; 44,79; Sammelstelle; 3; 40 (38); Lauf 5 |
+  | 44 Glasmurmel | 44,28–45,68 | 25045017: mittel-sammelstelle, 187; 44,82; Sammelstelle; 3; 40 (38); Lauf 3 | d46ce566: mittel-abzaehlen, 8; 44,31; Farben abzählen; 3; 39 (37); Lauf 3 |
+  | 45 Knotenpunkt | 44,28–45,68 | 888d1ca4: mittel-abschalten, 335; 45,18; Abschalten; 3; 41 (39); Lauf 5 | 783f4f87: mittel-falle, 226; 45,11; Falle; 2; 41 (39); Lauf 4 |
+  | 39 Verästelung | 44,28–45,68 | 39d10e93: mittel-mischziel, 15; 45,26; Mischziel; 3; 42 (40); Lauf 4 | 2b437167: mittel-sammelstelle, 42; 45,25; Sammelstelle; 3; 42 (40); Lauf 3 |
+  | 48 Lichtschacht | 45,7–46,88 | 4f894771: mittel-falle, 112; 45,94; Falle; 2; 44 (43); Lauf 5 | 8656eb5f: mittel-mischziel, 47; 45,94; Mischziel; 3; 44 (43); kein Lauf (schon beurteilt) |
+  | 34 Funkenflug | 45,7–46,88 | f94b7e9b: mittel-sammelstelle, 68; 46,32; Sammelstelle; 3; 45 (44); Lauf 4 | 9d673162: mittel-mischziel, 99; 46,13; Mischziel; 3; 45 (44); Lauf 3 |
+  | 51 Drehscheibe | 46,96–47,88 | de116bff: mittel-sammelstelle, 71; 47,72; Sammelstelle; 3; 50 (50); Lauf 3 | 000ac554: mittel-mischziel, 100; 47,63; Mischziel; 3; 50 (50); Lauf 5 |
+  | 54 Legierung | 47,9–48,51 | ea5724ea: mittel-abschalten, 235; 47,97; Abschalten; 3; 52 (52); Lauf 4 | – (keines) |
+  | 55 Laterne | 47,9–48,51 | 47c7364a: mittel-sammelstelle, 215; 48,30; Sammelstelle; 3; 53 (53); Lauf 3 | eec4ebbd: mittel-sammelstelle, 257; 48,01; Sammelstelle; 2; 53 (53); Lauf 5 |
+  | 58 Lichtfaden | 48,53–49,45 | b6965c5f: mittel-abschalten, 72; 48,73; Abschalten; 3; 56 (56); Lauf 5 | fbd3f89e: mittel-falle, 85; 48,83; Falle; 2; 57 (57); Lauf 3 |
+  | 59 Paravent | 48,53–49,45 | 89927919: mittel-abzaehlen, 253; 48,78; Farben abzählen; 3; 57 (57); Lauf 4 | b8b4ed38: mittel-sammelstelle, 56; 49,04; Sammelstelle; 3; 58 (58); Lauf 5 |
+  | 38 Einklang | 48,53–49,45 | b5b615c6: mittel-mischziel, 163; 49,00; Mischziel; 3; 58 (58); Lauf 3 | d3fb44a6: mittel-abzaehlen, 278; 48,73; Farben abzählen; 3; 56 (56); Lauf 4 |
+  | 100 Chamäleon | 49,65–50,32 | 08a91af9: mittel-falle, 80; 50,23; Falle; 2; 61 (61); Lauf 5 | 2d47656c: mittel-sammelstelle, 187; 49,87; Sammelstelle; 3; 61 (61); Lauf 4 |
+  | 46 Spiegelachse | 51,73–52,13 | c6f0421e: mittel-sammelstelle, 70; 51,80; Sammelstelle; 3; 73 (76); Lauf 4 | 138289ae: mittel-abzaehlen, 241; 52,04; Farben abzählen; 3; 73 (76); Lauf 3 |
+  | 78 Rochade | 53,89–54,34 | a22902ed: mittel-mischziel, 315; 54,05; Mischziel; 3; 78 (83); Lauf 3 | 43f18eb7: mittel-falle, 59; 53,95; Falle; 2; 78 (83); Lauf 5 |
+  | 77 Mosaik | 53,89–54,34 | 0c343f57: mittel-abzaehlen, 359; 54,05; Farben abzählen; 3; 82 (84); Lauf 5 | 2c9d52db: mittel-falle, 93; 54,00; Falle; 2; 82 (84); Lauf 4 |
+  | 91 Uhrwerk | 55,55–56,1 | 64564310: mittel-sammelstelle, 296; 55,72; Sammelstelle; 3; 91 (95); Lauf 3 | 6943b102: mittel-falle, 80; 55,83; Falle; 3; 90 (94); Lauf 4 |
+  | 92 Lichtorgel | 55,55–56,1 | 7e8a37cb: mittel-abzaehlen, 385; 55,63; Farben abzählen; 3; 89 (93); Lauf 3 | 61845709: mittel-abschalten, 390; 56,04; Abschalten; 3; 95 (95); Lauf 5 |
+  | 82 Glasbläser | 56,2–57,26 | 75e6f3bf: mittel-sammelstelle, 286; 56,92; Sammelstelle; 3; 99 (98); Lauf 5 | 635fc081: mittel-falle, 113; 57,11; Falle; 3; 99 (98); Lauf 4 |
+
+  - Das Ersatzlevel für Lichtschacht (8656eb5f) ist dasselbe Level wie das Ersatzlevel für Schnittstelle aus der ersten
+    Runde; es ist schon beurteilt (4/5, kein Begriff der Ablehnung) und kommt in keinen neuen Lauf. Für Legierung gibt
+    es kein Ersatzlevel.
+  - Mit allen Kandidaten: alle „mittel“, Prüfliste 37 (die 51 ohne die 14 ersetzten), alle mit Urteil, Entscheide und
+    Korrekturen der übrigen Level der Prüfliste unverändert; Haupt-Kernidee je 10 Level eingehalten (Häufungsregel:
+    Prismenreigen 100 → 101, Spiegelsaal 131 → 130); Mittel je 10 Level fällt nirgends. Mit allen Ersatzleveln
+    zugleich kommt Mischziel auf 31–40 und 41–50 zu oft vor; geprüft wird die spätere Wahl.
+- **Läufe** (Ablauf 2, ohne `--anker`, Agent `general-purpose`, Modell `claude-opus-5-5`): die 42 neuen Level (22
+  Kandidaten, 20 Ersatz) nach dem Platz der Formel reihum auf drei Läufe zu je 14 verteilt, damit jeder Lauf ganz
+  „mittel“ abdeckt. Die Listen für `--kandidaten` enthalten nur Level ohne Urteil im Protokoll.
+  - Die beiden Level für die Lücke von Lichtpfad haben im Austausch Formel 31; im heutigen Spiel ist Platz 31 „leicht“
+    (Blitz), und `prepare.mjs` verlangt dort den Grad des Levels. Ihre Referenz im Lauf ist darum Platz 32, der erste
+    mittlere. Das ist nur die Referenz des Eintrags; die Korrektur rechnet `ordne-level.mjs` für ein neues Level ohnehin
+    vom Platz der Formel aus, mit seinem Grad. Hinweis für 25 und 26: an einer Gradgrenze kann das wieder vorkommen.
