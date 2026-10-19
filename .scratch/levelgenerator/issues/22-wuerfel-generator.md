@@ -270,3 +270,95 @@ Die Leveldaten von Seed 2 (leicht): `{"name":"","grad":"leicht","dim":3,"size":4
   Kern), `tools/levelliste.json` gleich.
 
 Commits siehe git log.
+
+**Review 19.10.2026** (Reviewer-Agent, im selben Worktree, beide Branches durch Wechseln; Stand `14d969d` und
+`42edc52`; Skripte im Scratchpad unter `review22\`). Alle Läufe über `leise.sh` mit `LEISE_MAX_CPU=80 LEISE_CPU=80`,
+nacheinander, Messungen mit 9 Prozessen; Rechner i7-9750H, Node 22.12.0. Kopien der Stände über `git archive`.
+- **Merges** (`5a36b8d`, `ffa814f`):
+  - Dreiseitig nachgemischt (`git merge-file`, Basis `2e05bae`, Würfel-Branch `7524457`, `ticket/22-feldform`
+    `42edc52`) und mit `ffa814f` verglichen: 92 der 102 geänderten Dateien sind genau die automatische Mischung.
+    Anders sind nur die vier Dateien mit Konflikt (`index.html`, `feldform.mjs`, `feldform.test.mjs`, README) und die
+    sechs Dateien dieses Tickets.
+  - `index.html`: In den zwei Konflikten stehen `CUBE_START`, `MAIN_COUNT` und `levelNumber` des Würfels mit den
+    Graden aus Ticket 17 (`GRAD_PUNKTE`, `GRAD_ANZEIGE`, `fillTier`); die Seiten der Levelauswahl nennen den Grad im
+    Titel und behalten `mode`. Kein `DIFFICULTY` und kein `difficulty` bleibt. Sonst nur zwei Kommentare
+    (`ordne-level.mjs` statt `curate.mjs`). Kopfzeile, Kacheln, Fortschritt und „Alle Level gelöst“ trennen Fläche und
+    Würfel über `CUBE_START`.
+  - `feldform.mjs`, `feldform.test.mjs` und README: beide Seiten, dazu die Weiche `dim: 3` und die Erwartung des
+    Branches. In `ffa814f` stehen die Würfel-Aufträge neben `ZU_WENIGE_QUELLEN`; dessen Test und die festen Seeds
+    suchen nur unter den flachen Aufträgen.
+  - **Logikblock** ohne die Level gegen `7524457` (Ticket 27): Zeile für Zeile gleich bis auf die Kommentare aus
+    `feature/levelgenerator` (`grad` statt `difficulty`, Herkunft der 150). Mehr hat sich dort seit `2e05bae` nicht
+    geändert; es fehlt also nichts.
+  - `LEVELS` ist als Text gleich `bfd92a2`, `LEVELS_3D` gleich `7524457`. `tools/levelliste.json`, `golden.json` und
+    `heutige-reihenfolge.json` sind gleich `feature/levelgenerator`, `index.html` ist seit `5a36b8d` unverändert.
+  - `git diff origin/feature/levelgenerator`: Jeder Unterschied gehört zum Würfel (Logik und Darstellung, Würfel-Tests,
+    Würfel-Feldform, Exporte und `keyOf` im Löser, Doku, Ticket).
+  - **Namen:** `node --check` auf das Hauptskript der Seite und auf Kopfskript, `backgrounds/skies.js` und Hauptskript
+    zusammen: grün.
+- **`ticket/22-feldform`** (`8ca2c64`):
+  - `drehachsen` (flach `['y']`, eingefroren) und `element(zelle, { drehachse })`: y steht nicht in den Leveldaten,
+    eine andere Achse wirft. `bau.varianten` baut je Drehachse ein Element über `feldform.element`. `bau.quelle` nimmt
+    die erste Drehachse mit passender Stellung, ohne Zufall. `setzeDrehbar` und `setzeFestenSpiegel` ziehen wie vorher
+    erst die Zelle, dann einmal aus allen Paaren von Drehachse und Stellung; im flachen Feld ist die Liste dieselbe
+    wie vorher, `R.pick` zieht also gleich.
+  - Passt zur Spec: Der Generator kennt die Drehachsen nur als Werte aus der Feldform. Dass auch `bau.mjs` und
+    `schritte.mjs` nach `feature/levelgenerator` gehen, ist richtig: Es ist kein Würfel-Code, und ohne es liefe der
+    Generator auf den beiden Branches verschieden.
+  - **Bitgleich**, eigene Stichprobe gegen `bfd92a2` (je Seed Hash des ganzen Ergebnisses von `generiere` und Zahl der
+    Strahlverfolgungen; `review22\arbeit.mjs`, `vergleich.mjs`), mit anderen Seeds als der Entwickler: „leicht“ mit den
+    sieben Aufträgen und beiden Ziel-Schwierigkeiten, Seeds 1001–1800; ab „mittel“ alle 21 Aufträge, mittel 101–180,
+    schwer 101–150, sehr schwer 31–50. **8250 von 8250 Seeds gleich.** Derselbe Vergleich mit dem Würfel-Branch
+    (flache Level über den einen Durchlauf aus Ticket 27): ebenso 8250 von 8250 gleich.
+  - Quelltext-Test: Er fand `.y`, `y:` und `axis`, aber keine Drehachse als Text (`drehachse: 'x'`); siehe „Behoben“.
+- **Generator im Würfel** (`696cee7`, `1c16f57`):
+  - Würfel-Feldform: `element` (Achse x/z als `axis`, y ohne Angabe wie in `LEVELS_3D`), `drehachsen` y, x, z aus
+    `AXES`, `rahmen`, Nachbartabelle, eine eingefrorene Feldform je Grösse. Tests dazu passen.
+  - Unabhängig nachgeprüft (`review22\seed2.mjs`, eigener Code statt des Tests): Die 58 Würfel-Level der fünf
+    Aufträge des Tests haben genau eine Lösung, bestehen die neu gerechnete Beurteilung (gleich der mitgegebenen, keine
+    Gründe der Levelliste, Grad, Kernidee nötig), die Lösung löst und die Startstellung nicht. Alle 58 nutzen den Raum.
+  - **Seed 2** im Würfel 4 × 4 × 4 ergibt genau die Leveldaten der Notiz oben; die Tabelle passt dazu.
+  - Kennzahlen und Beispiele der Notiz nachgerechnet: leicht im Würfel 4, Seeds 1–100: 90 Level, drehbar 4,16 (davon
+    2,84 mit Achse x/z), 3,22 Ebenen, 89 mit Licht zwischen den Ebenen, 37 mit Prisma waagrechter Achse, Schwierigkeit
+    21,1 / 26,2 / 32,3. Mischziel Seed 3 (28,4 / 81,4) und Sammelstelle Seed 1 (22,7 / 65,7) wie notiert.
+- **Laufzeit** des Generator-Tests, abwechselnd ohne (Kopie `ticket/22-feldform`) und mit den Würfel-Aufträgen (Kopie
+  des Branches), in einem Lauf: 65,6 / 65,9 s gegen 68,2 / 67,1 s, also **1,2–2,6 s mehr**; das Erzeugen aller Aufträge
+  43,2 / 43,9 gegen 44,2 / 43,5 s. Die fünf Würfel-Aufträge allein erzeugen in 1,0 CPU-s. Die Angabe „rund 2 s“ stimmt.
+- **Abnahme:** Alle vier Punkte sind erfüllt. `ticket/22-feldform` muss dafür noch nach `feature/levelgenerator`.
+- **Hinweise des Entwicklers** geprüft (Würfel 4, Seeds 1–100):
+  - Knäuel: leicht 4 Seeds mit Grund „Knäuel“, mittel mit Mischziel 11 (dazu 3 mit Zerfall oder Füllteil), wie notiert.
+    Die Grenze 1,30 offen zu lassen bis zu Spieltests ist vertretbar.
+  - Bausteine in kleinen Feldern: Farben abzählen, Falle und Lockvogel liefern im Würfel 4 und flach 4 × 4 je 0 von
+    100, Grund „… nicht eingebaut“. Stimmt.
+  - Mischziel: „nicht eingebaut“ im Würfel 4 und 5 38 und 41 von 100. Das „flach 4“ der Notiz heisst flach 7 × 7 (4 von
+    100); flach 4 × 4 sind es 0.
+  - Prismen mit waagrechter Achse: 37 von 90, wie notiert.
+- **Im Review behoben:**
+  - `c81effa` (`ticket/22-feldform`) und `adfdc15` (hier): Der Quelltext-Test sucht auch die Namen der Drehachsen als
+    Zeichenkette (`'x'`, `'y'`, `'z'`). Im Generator kommt keine vor; das Muster schlägt bei `drehachse: 'x'` an.
+    README nennt es.
+  - `42b2c74` (`ticket/22-feldform`) und `2108a36` (hier): Kommentar zum Parameter `wie` von `stellungenMit`.
+  - `a401f19` (nur hier): PLAN nannte Generator und Wertung im Würfel noch als offen, mit `tools/quality.mjs`.
+- **Tests nach dem Review** (Wanduhr, über `leise.sh` mit 80 %), alle grün:
+
+  | Lauf | Würfel-Branch (`2108a36`) | `ticket/22-feldform` (`42b2c74`) |
+  |---|---|---|
+  | golden | grün, 1,4 s | grün, 1,4 s |
+  | golden `--voll` | grün, 21,5 s | |
+  | logic | 567, 26,9 s | 548, 25,6 s |
+  | beurteilung | 205, 72,9 s | 178, 71,5 s |
+  | generator | 31, 65,6 s (427 Level, Erzeugen 42,1 s) | 30, 63,7 s |
+  | levelliste | 37, 44,9 s | 37, 45,9 s |
+  | ki-tester | 64, 0,9 s | 64, 0,7 s |
+  | offline | grün, 59,4 s | grün, 60,9 s |
+
+  Die Browser-Proben habe ich nicht wiederholt: `index.html` und die Proben sind seit den Proben des Entwicklers
+  unverändert, das Review ändert nur Test, Kommentar und Doku.
+- **Offen:** keine mittleren oder grossen Funde. Hinweise (niedrig, kein Muss):
+  - README, Absatz „Feldform“: Nach dem Einschub aus `8ca2c64` steht „der Lösung („x,z“). Die Nachbarn“ allein auf
+    einer Zeile. Nicht umbrochen: Auf dem Branch folgen dort Zeilen nur des Würfels, ein Umbruch auf beiden Branches
+    gäbe beim nächsten Merge einen Konflikt. Beim nächsten Abgleich mitnehmen.
+  - PLAN (Eintrag „Würfel-Level in 3D“) und `3D-WUERFEL.md` (Nächste Schritte, Punkt 2) nennen noch die Ebenenwahl,
+    die seit `4ddd294` entfernt ist; älter als dieses Ticket.
+- **Urteil:** Ticket 22 ist bereit zum Mergen: `ticket/22-feldform` nach `feature/levelgenerator`, danach
+  `ticket/22-wuerfel-generator` nach `feature/3d-wuerfel`.
