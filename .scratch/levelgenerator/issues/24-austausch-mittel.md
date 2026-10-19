@@ -100,3 +100,11 @@ Seite zwei Kernideen; bei leerer Liste braucht 41–60 fünf der sechs, je 2-mal
 - Die Zahl 11 im Kopf dieses Tickets zählt 31 Lichtbündel mit (Neuzählung, vorläufige Grade). Lichtbündel ist seit
   Ticket 15 „leicht“ und in Ticket 23 ersetzt. Massgebend sind die 11 Level mit Ausschlussgrund in „mittel“ aus dem
   Hinweis aus Ticket 16, dazu Sonnenstrahl und Widerschein (von beiden KI-Testern abgelehnt).
+
+**Hinweis aus Ticket 26 (19.10.2026):** Neue Regel (Entscheid des Nutzers vom 19.10.2026): Die Entscheide aus Ticket 16
+zu den Leveln der Prüfliste bleiben fest, auch wenn ein Austausch die Formel verschiebt. Die Zustimmung rechnet mit dem
+Platz der Formel beim Entscheid, den `tools/levelliste.json` festhält (`prueflisteFormel`, gesetzt vor dem Austausch
+in Ticket 26; `reihenfolge` in `tools/levelliste.mjs` nimmt ihn als `formelEntscheid`). Anlass: Wird ein Level ersetzt,
+das am heutigen Platz bleibt, aber in der Formel weit davon steht (in 26 Spiegelkabinett), verschiebt sich die Formel
+der Level dazwischen. Dasselbe kann bei den abgelehnten Leveln in „mittel“ geschehen; mit der Regel ändert sich dadurch
+kein Entscheid mehr.

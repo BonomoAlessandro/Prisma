@@ -329,7 +329,8 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
     und 40 Geflecht).
   - Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide KI-Tester zustimmen; dazu kommen ihre eigenen
     Korrekturen und die Häufungsregel (siehe „Weitere Hinweise“, Ticket 16). Nach Ticket 16 stehen 28 der 51 nach der
-    Formel.
+    Formel. Diese Entscheide bleiben fest, auch wenn ein Austausch die Formel verschiebt (Entscheid des Nutzers vom
+    19.10.2026, Ticket 26).
 - Jedes Level nach dem Tutorial trägt in den Leveldaten seinen Schwierigkeitsgrad mit einem der vier Wörter, im Feld
   `grad`. Es ersetzt die frühere Markierung `difficulty`, die nur „schwer“ und „sehr schwer“ kannte. Bis Ticket 17
   zeigt das Spiel nur diese beiden an.
@@ -351,6 +352,10 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
 
   Nach Ticket 23 (Austausch „leicht“, 18.10.2026): Ausschlussgrund 31 Level (leicht 0), zusammen 84 (leicht 0 von 31);
   die übrigen Gründe unverändert.
+
+  Nach Ticket 26 (Austausch „sehr schwer“, 19.10.2026): Ausschlussgrund 24 Level (sehr schwer 0), unter dem
+  Mindest-Spielwert 55 (sehr schwer 0), von beiden KI-Testern abgelehnt 6 (sehr schwer 0), ohne nötige Kernidee
+  unverändert 58; zusammen 76 (leicht 0 von 31, mittel 57 von 74, schwer 19 von 32, sehr schwer 0 von 13).
 
   Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
   Prüfliste für Ticket 16 (erledigt) und die Namen entfernter Level. Einmal, in Ticket 16, wuchs die ursprüngliche
@@ -569,6 +574,13 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
       liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt es am alten
       Platz. Liegt der neue Platz innerhalb des Bereichs zwischen zwei Ankern, gilt also die Formel; die Einordnung
       bleibt bei zwei Ankern pro Grad.
+    - Die Entscheide aus Ticket 16 bleiben fest, auch wenn ein Austausch die Formel verschiebt (Entscheid des Nutzers
+      vom 19.10.2026, Ticket 26): Die Zustimmung rechnet mit dem Platz der Formel beim Entscheid, den
+      `tools/levelliste.json` festhält (`prueflisteFormel`); wohin ein Level mit Zustimmung kommt, folgt der Formel von
+      heute. Anlass: Ohne Spiegelkabinett (Formel 131) rückte Zwielicht in der Formel von 137 auf 136, und KI-Tester A
+      hätte zugestimmt. Zwielicht wäre von 122 auf 136 gesprungen, 13 schwere Level wären einen Platz vorgerückt, und auf
+      131–140 hätte dreimal Farben abzählen gestanden, was die Häufungsregel mit einem Zug nicht auflöst. Zwielicht
+      bleibt auf 122.
     - Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge`: am alten Platz das
       Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort; höchstens 5 Plätze, nie über
       eine Gradgrenze.

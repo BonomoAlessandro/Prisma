@@ -9,19 +9,19 @@ Massgebend ist die Duldungsliste nach den Tickets 15 und 16.
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
 Verfeinern), 28 (Generator: Kernideen ab „mittel“)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Für jedes sehr schwere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad
+- [x] Für jedes sehr schwere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad
       „sehr schwer“ und einer nötigen Kernidee.
-- [ ] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
+- [x] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
       neuer Kandidat.
-- [ ] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
+- [x] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
       Spiel kommen. Die Genehmigung steht unter `## Comments`.
-- [ ] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
-- [ ] Auf der Duldungsliste steht kein sehr schweres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist
+- [x] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
+- [x] Auf der Duldungsliste steht kein sehr schweres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist
       die Liste leer, und der Test verlangt ab jetzt eine leere Liste.
-- [ ] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
-- [ ] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
+- [x] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
+- [x] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
 
 ## Comments
 
@@ -231,3 +231,64 @@ Elemente / Ziele):
   - 148, bd19e7db: **Azur** (drei blaue Ziele, jede Quelle liefert genau ein Blau), Kobalt, Ultramarin.
   - 150, 2d5f0698: **Umlaufbahn** (das Blau läuft über neun Spiegel einmal ums Feld), Kometenbahn, Mondbahn.
   Die Genehmigung des Nutzers folgt hier.
+
+**Genehmigung des Nutzers (19.10.2026, über den Koordinator):** Alle Favoriten gelten: 140 Lichtfächer, 142 Abendrot,
+144 Leitstern, 145 Konjunktion, 146 Weissabgleich, 147 Dreigestirn, 148 Azur, 150 Umlaufbahn. Anker A8 Pulsar bleibt,
+kein neuer Anker und kein Ablauf 3. Dazu der Entscheid zu Zwielicht (Vorschlag a, siehe Stufe A).
+
+**Abschluss Stufe C (19.10.2026).**
+- **Neue Regel** (Entscheid des Nutzers vom 19.10.2026): Die Entscheide aus Ticket 16 zu den Leveln der Prüfliste
+  bleiben fest, auch wenn ein Austausch die Formel verschiebt.
+  - `tools/levelliste.json` hält je Level der Prüfliste mit Urteil den Platz der Formel beim Entscheid fest
+    (`prueflisteFormel`, 51 Level, darunter Zwielicht 137 und Spiegelkabinett 131). Gesetzt vor dem Austausch mit
+    `ordne-level.mjs --schreiben` auf dem Stand von Ticket 23 (dort sonst unverändert); danach bleibt er, wie er ist.
+  - `reihenfolge` in `tools/levelliste.mjs` nimmt ihn als `formelEntscheid` und rechnet damit die Zustimmung; wohin ein
+    Level mit Zustimmung kommt, folgt weiter der Formel von heute. `ordne-level.mjs` liest und schreibt ihn und nennt im
+    Bericht „beim Entscheid …“, wo er abweicht.
+  - Neuer Test „Die Entscheide aus Ticket 16 zur Prüfliste bleiben fest …“ mit Gegenprobe: Ohne die festen Plätze
+    fiele nur der Entscheid zu Zwielicht anders aus (Formel 136 statt 137), und Zwielicht käme zur Formel; mit ihnen
+    steht es auf 122.
+- **Eingesetzt** mit `ordne-level.mjs --austausch <t26\austausch-genehmigt.json> --schreiben`; ein zweiter Lauf ohne
+  `--austausch` meldet „Reihenfolge und Grade stimmen“ und „Duldungsliste und Prüfliste stimmen“.
+
+  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft (Auftrag, Seed, Ziel) | KI-Tester (Gefühl, Einordnung) |
+  |---:|---|---|---:|---|---|---|
+  | 140 | Lichtfächer | Korona | 88,5 | Mischziel | sehr schwer-mischziel, 366, 88,36–89,15 | 4/4, A7-A8/A5-A6 |
+  | 142 | Abendrot | Prismenhof | 90,0 | Mischziel | sehr schwer-mischziel, 312, 89,16–90,32 | 3/3, >A8/A7 |
+  | 144 | Leitstern | Quasar | 91,2 | Sammelstelle | sehr schwer-sammelstelle, 673, 90,42–91,28 | 5/4, A7-A8/A7 (−3) |
+  | 145 | Konjunktion | Farbmühle | 98,4 | Sammelstelle | sehr schwer-sammelstelle, 109, 96,52–110 | 4/5, A7-A8/A7-A8 (−5) |
+  | 146 | Weissabgleich | Spiegelkabinett | 90,4 | Mischziel | sehr schwer-mischziel, 357, 90,33–90,41 | 4/4, >A8/A7-A8 |
+  | 147 | Dreigestirn | Farbenrausch | 96,4 | Farben abzählen | sehr schwer-abzaehlen, 170, 96,18–99,16 | 4/4, A8/A7-A8 (−3) |
+  | 148 | Azur | Zenit | 94,6 | Falle | sehr schwer-falle, 534, 91,29–96,51 | 4/4, A8/A8 (−2) |
+  | 150 | Umlaufbahn | Ereignishorizont | 90,9 | Farben abzählen | sehr schwer-abzaehlen, 101, 90,55–96,17 | 4/4, A8/A8 |
+
+  - Nachgebaut: Für alle acht ergibt `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1 --schwierigkeit VON,BIS`
+    mit den Werten der Herkunftszeile denselben Abdruck wie das Level im Spiel (8 von 8).
+- **Entfernt:** Korona, Prismenhof, Spiegelkabinett, Quasar, Ereignishorizont, Zenit, Farbenrausch und Farbmühle;
+  ihre Namen stehen auf `entfernteNamen`, ihre Leveldaten in `tools/beurteilung/entfernte-level.json`.
+- **Duldungsliste:** 76 Level (vorher 84): Ausschlussgrund 24 (31), unter dem Mindest-Spielwert 55 (56), von beiden
+  KI-Testern abgelehnt 6 (7), ohne nötige Kernidee 58; sehr schwer 0 von 13. `AUSGETAUSCHT` ist um „sehr schwer“
+  ergänzt. Nicht das letzte der Tickets 23–26, die Liste ist also nicht leer.
+- **Regeln:**
+  - Grad sinkt nie; sehr schwer bleibt 138–150. Nur Pulsar ändert seinen Platz (145 → 149, durch die Korrekturen der
+    neuen Level, die die KI-Tester unter A8 einordnen); Zwielicht bleibt auf 122, in „schwer“ rückt kein Level.
+  - Haupt-Kernidee ohne die Duldungsliste eingehalten: auf 141–150 Falle, Mischziel, Abschalten, Sammelstelle und
+    Farben abzählen je 2; auf 131–140 Abschalten 2, Farben abzählen 2, Sammelstelle 1, Mischziel 1. Häufungsregel nur
+    mit den zwei Zügen aus Ticket 16.
+  - Mittel je 10 Level … 61,6 75,5 85,3 92,2, kleinster Schritt −0,34 (wie vorher).
+  - Prüfliste 50 (ohne Spiegelkabinett), erledigt.
+  - Anker: A8 Pulsar steht auf 149, im äussersten Drittel des Grads; der Test der Anker ist grün, Ablauf 2 bleibt.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): logic 548, generator 28, beurteilung 177,
+  levelliste 38, ki-tester 64 und offline grün. `golden.mjs`: wie erwartet 16 Abweichungen, nur die 8 entfernten und
+  die 8 neuen Namen; `tests/golden.json` ist nicht angefasst. Im Test der Herkunftszeile erlaubt das Muster jetzt
+  Aufträge wie „sehr schwer-mischziel“ (vorher nur ohne Leerzeichen).
+- **Screenshots** (Stichproben, ohne Meldungen in der Konsole): Levelauswahl 141–150 auf Desktop (Titel „Level
+  141 – 150 · Sehr schwer“, die neuen Namen, ●●●●) und Handy; 140 Lichtfächer und 150 Umlaufbahn auf Desktop und Handy
+  mit Kopfzeile wie im Spiel (`tests/output/t26-level/`).
+- **Abweichungen:**
+  - 8 statt 4 Level (Stufe A).
+  - Für Zenit und Farbmühle kamen die Ersatzkandidaten (Azur, Konjunktion), nach der Rangfolge aus Stufe B mit der
+    Vorprüfung auf Zerfall aus Ticket 24; ein Lauf 2 war nicht nötig.
+  - Der Anker bleibt (Stufe A ging von einem neuen A8 aus).
+  - Hinweise für 24 und 25 stehen dort unter `## Comments`, die neue Regel und die Duldungsliste nach Ticket 26 in der
+    Spec, die Regel auch im README.

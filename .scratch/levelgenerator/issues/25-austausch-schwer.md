@@ -84,3 +84,20 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
   Test eine leere Duldungsliste.
 - Nach dem Austausch braucht `tests/golden.json` ein `--write` (neue Namen, die ersetzten fehlen); bei Ticket 23 hat
   das der Koordinator nach dem Merge übernommen.
+
+**Hinweis aus Ticket 26 (Austausch „sehr schwer“, 19.10.2026):**
+- **Neue Regel** (Entscheid des Nutzers vom 19.10.2026): Die Entscheide aus Ticket 16 zu den Leveln der Prüfliste
+  bleiben fest, auch wenn ein Austausch die Formel verschiebt. Die Zustimmung rechnet mit dem Platz der Formel beim
+  Entscheid (`prueflisteFormel` in `tools/levelliste.json`, `formelEntscheid` in `reihenfolge`). Anlass war Zwielicht:
+  Ohne Spiegelkabinett (Formel 131) wäre es von 122 auf 136 gesprungen. Es bleibt auf 122, in „schwer“ verschiebt sich
+  durch Ticket 26 kein Level.
+- **Seite 131–140** nach Ticket 26: 131 Sternbild, 132 Singularität, 133 Urknall, 135 Lichtgeschwindigkeit (alle
+  Duldungsliste, hier zu ersetzen), 134 Halo (Farben abzählen), 136 Sonnenfinsternis (Abschalten), 137 Lichtbrücke
+  (Farben abzählen), 138 Sternenstaub (Abschalten), 139 Abendstern (Sammelstelle), 140 Lichtfächer (neu, Mischziel aus
+  zwei Quellen). Frei bleiben dort für die 4 Ersatzlevel: Falle 2, Sammelstelle 1, Lockvogel 2, Mischziel 1. Eine
+  Korrektur der KI-Tester darf ein Ersatzlevel nicht über 137/138 tragen (Gradgrenze).
+- **Anker:** A8 Pulsar steht jetzt auf 149 (die neuen Level auf 144–148 haben die KI-Tester unter A8 eingeordnet); der
+  Ablauf bleibt Version 2.
+- **Zerfall:** Die KI-Tester nannten in Ticket 26 keinen Zerfall, wohl aber in Ticket 24. Die Vorprüfung aus Ticket 24
+  (`zerfall-check.mjs` im Scratchpad unter `t24\`, Kopie unter `t26\`) trennte im Pool „sehr schwer“: Farben abzählen
+  28 von 28 mit einem Teil, Mischziel 10 von 47, Sammelstelle 8 von 22, Falle 5 von 15.

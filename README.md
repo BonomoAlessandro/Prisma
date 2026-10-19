@@ -50,7 +50,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
     beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
-    Urteil; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
+    Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenprobe
+    an Zwielicht); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
     zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung
     durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
     ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
@@ -155,7 +156,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2,
   Läufe `pruefung-…`; Ticket 16) kommt ein Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der
   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt
-  es. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze,
+  es. Dieser Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt: Die Zustimmung rechnet mit dem
+  Platz der Formel beim Entscheid, den `levelliste.json` festhält (`prueflisteFormel`, Ticket 26). Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze,
   nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem
   Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft
   sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im
@@ -165,8 +167,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste
   nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und Grad
   in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste und `prueflisteErledigt` in
-  `tools/levelliste.json`; die ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind, nur einmal,
-  in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
+  `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen und `prueflisteFormel` bleiben, wie
+  sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
   ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf
   ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe
   der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
