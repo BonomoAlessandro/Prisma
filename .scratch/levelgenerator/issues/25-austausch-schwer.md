@@ -563,3 +563,9 @@ nachgerechnet in Kopien ausserhalb des Repos (Scratchpad `review25\`).
 **Frage an den Nutzer (M1):** Soll die genehmigte Wahl bleiben, mit Tandem (3/3) für Opal? Oder sollen die Wahl ohne
 Einbusse gelten und zwei neue Namen für b93dc895 und 1e992573 vorgeschlagen werden? Dann fallen Tandem und Wegweiser
 weg.
+
+**Entscheid des Nutzers zu M1 (19.10.2026):** Die genehmigte Wahl bleibt, mit Tandem (dbba6247, 3/3) auf Opal und
+Wegweiser (7cdeab95) in der Gruppe Lichthof/Unendlichkeit/Sternwarte. Die Wahl ohne Einbusse an Gefühl (b93dc895 für
+Opal, 1e992573 statt Wegweiser) hätte alle Regeln gehalten, kostete aber zwei neue Namen und eine neue Stufe C. In
+Stufe B ist richtigzustellen: Verdrängt wurde b93dc895, nicht 6ce8e339 (das füllt Rangierbahnhof in jeder Wahl).
+Gemergt vom Koordinator; `tests/golden.json` ist danach neu geschrieben.
