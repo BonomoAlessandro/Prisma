@@ -221,3 +221,21 @@ unter `t25\`, die Läufe gehen über `leise.sh` mit `LEISE_MAX_CPU=80 LEISE_CPU=
     - Kristallpalast und Interferenz 66,03–70,98; Irrlicht 70,98–75,57; Leuchtturm, Glasperlenspiel und Sternbild
       75,76–81,58; Singularität und Urknall 81,58–83,60; Lichtgeschwindigkeit 83,60–85,91 (die Gradgrenze 137/138 liegt
       zwei Plätze darüber).
+
+**Entscheid des Nutzers zu Gruppe 2 (19.10.2026, über den Koordinator): Option (a).** Für Gruppe 2 in „schwer“ gilt
+dieselbe Regel stark wie in „mittel“, mit einem eigenen Lauf für die Level ohne Urteil.
+- Sonnenwende, Pendel und Kathedrale bleiben unter dem Grund „behalten nach Urteil der KI-Tester“, Lichthof wird
+  ersetzt, Sternwarte und Lichtjahr behalten oder ersetzen nach der Regel stark.
+- Fällt der Spielwert-Test nach dem Lauf unter 0,26 / 0,25, gehen die Zahlen an den Koordinator; Eichmenge und
+  Schwelle bleiben.
+- Erst nach dem Merge von Ticket 24: der Grund „behalten“ für „schwer“ und sein Test (eine eigene, nicht wachsende
+  Liste wie `BEHALTEN_TICKET_24`), dann Kandidaten nach dem Bedarf je Seite, mit Rangfolge und Vorprüfung auf Zerfall
+  wie in 24 und 26.
+
+**Lauf `behalten-schwer-1` vorbereitet (19.10.2026).** `prepare.mjs behalten-schwer-1 113 120` (Plätze im Spiel), ohne
+`--anker`, über `leise.sh` mit `LEISE_MAX_CPU=80 LEISE_CPU=80`: L1 120 Lichtjahr, L2 113 Sternwarte. Ablauf 2,
+Fingerabdruck `066a880667331a43`, Agent `general-purpose`, Modell `claude-opus-5-5` (`lauf.json`). Bilder 18–19 s je
+Aufnahme; die Anker sind neu aufgenommen (neuer Worktree). Aufträge unter
+`tests/output/ki-tester/behalten-schwer-1/auftrag-A.md` und `auftrag-B.md` im Worktree. Der Lauf zählt nicht für die
+Levelliste (wie `behalten-mittel-1`), geht aber in die Eichmenge des Spielwerts ein. Die KI-Tester startet der
+Koordinator, nach dem Merge von Ticket 24. Bis dahin ist dieses Ticket pausiert.
