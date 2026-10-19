@@ -23,7 +23,7 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import {
   GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
   ergaenzungBegruendet, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
-  zaehlendeUrteile, zaehlt, zehner, zustimmung,
+  zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -157,15 +157,13 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
     if (warum === 'Formel') assert.ok(!r.ki.get(i)?.zurFormel, heute[i].name);
     else assert.equal(warum, 'Reihenfolge', heute[i].name);
   }
-  // Eigene Korrekturen: nur mit Urteil, höchstens MAX_SHIFT Plätze, ohne Ablehnung; auch nach der Häufungsregel steht
-  // jedes korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz davor
+  // Eigene Korrekturen: nur mit Urteil, höchstens MAX_SHIFT Plätze, ohne Ablehnung; nach den Korrekturen und nach der
+  // Häufungsregel steht jedes korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz davor (zuWeitKorrigiert,
+  // dieselbe Prüfung wie in ordne-level.mjs)
   const korrigiert = [...r.ki].filter(([, u]) => u.verschiebung);
-  for (const [i, u] of korrigiert) {
-    assert.ok(Math.abs(u.verschiebung) <= MAX_SHIFT && !u.abgelehnt, heute[i].name);
-    for (const f of [r.korrigiert, r.folge]) {
-      assert.ok(Math.abs(f.indexOf(i) - r.basis.indexOf(i)) <= MAX_SHIFT, `${heute[i].name}: mehr als ${MAX_SHIFT}`);
-    }
-  }
+  for (const [i, u] of korrigiert) assert.ok(Math.abs(u.verschiebung) <= MAX_SHIFT && !u.abgelehnt, heute[i].name);
+  assert.deepEqual(zuWeitKorrigiert(r).map(v => `${heute[v.i].name} ${v.davor}→${v.korrigiert}→${v.ende}`), [],
+    `mehr als ${MAX_SHIFT} Plätze von seinem Platz davor`);
   // Häufungsregel: jeder Zug höchstens MAX_ENTZERREN Plätze im eigenen Grad, und danach ist keine Häufung offen
   assert.deepEqual(r.offen.map(h => `${10 * h.gruppe + 1}–${10 * h.gruppe + 10} ${h.begriff}`), [], 'offen');
   for (const z of r.zuege) {
@@ -419,6 +417,31 @@ test('Korrektur: höchstens 5 Plätze, nie aus dem Abschnitt des Grads, die Leve
   assert.deepEqual(korrigiere(folge, grad, new Map([[5, -4]])), [0, 1, 2, 5, 3, 4, 6, 7, 8, 9], 'bis zur Grenze');
   assert.deepEqual(korrigiere(folge, grad, new Map([[1, 2]])), [0, 2, 1, 3, 4, 5, 6, 7, 8, 9], 'leicht endet bei 2');
 });
+test(`Korrekturen schieben einander: höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am Ende`,
+  () => {
+    // 15 Level in einem Grad. 3 rückt 4 Plätze nach hinten, dann 9 fünf nach vorn, an 3 vorbei: 3 steht 5 Plätze
+    // weiter, 9 fünf Plätze weiter vorn; das ist die Grenze. Mit 5 statt 4 Plätzen für 3 sind es 6.
+    const grad = Array(15).fill('mittel'), basis = [...grad.keys()];
+    const ki = (k3, k9) => new Map([[3, { verschiebung: k3 }], [9, { verschiebung: k9 }]]);
+    const lauf = (k3, k9) => {
+      const korrigiert = korrigiere(basis, grad, new Map([[3, k3], [9, k9]]));
+      return { basis, korrigiert, folge: korrigiert, ki: ki(k3, k9) };
+    };
+    assert.deepEqual(lauf(4, -5).korrigiert.slice(0, 10), [0, 1, 2, 4, 9, 5, 6, 7, 3, 8]);
+    assert.deepEqual(zuWeitKorrigiert(lauf(4, -5)), [], 'genau 5 Plätze');
+    assert.deepEqual(zuWeitKorrigiert(lauf(5, -5)), [{ i: 3, davor: 4, korrigiert: 10, ende: 10 }], '6 Plätze');
+    // Am Ende: Rückt ein Level nach der Korrektur (Häufungsregel) an 3 vorbei, steht 3 dort 6 Plätze weiter
+    const x = lauf(4, -5), folge = [...x.korrigiert];
+    folge.splice(7, 0, ...folge.splice(9, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...x, folge }), [{ i: 3, davor: 4, korrigiert: 9, ende: 10 }], 'am Ende');
+    // Gegenproben: rückt das Level an 3 vorbei nach hinten, ist 3 wieder 4 Plätze weit; ein Level ohne eigene
+    // Korrektur zählt nicht, wie weit es auch rückt
+    const zurueck = [...x.korrigiert];
+    zurueck.splice(9, 0, ...zurueck.splice(7, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...x, folge: zurueck }), [], 'nach hinten');
+    const ohne = { ...lauf(5, -5), ki: new Map([[3, { verschiebung: 0 }]]) };
+    assert.deepEqual(zuWeitKorrigiert(ohne), [], 'ohne Korrektur');
+  });
 test(`Häufungsregel: höchstens ${MAX_ENTZERREN} Plätze, betroffene Level zuerst, dann die Duldungsliste`, () => {
   // 30 Level in einem Grad (drei Seiten); X ist die Haupt-Kernidee, die sich häuft
   const grad = Array(30).fill('mittel'), folge = [...grad.keys()];

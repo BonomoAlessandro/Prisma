@@ -33,6 +33,11 @@
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
 //   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder
 //   bricht die übrigen Regeln (Grad, Mittel je 10 Level, Korrekturen der KI-Tester).
+// - Korrekturen der KI-Tester (zuWeitKorrigiert, Ticket 24): Jede Korrektur führt höchstens MAX_SHIFT Plätze weit,
+//   doch rücken andere Level an einem korrigierten vorbei, verschiebt es das mit. Darum gilt auch für das Ergebnis:
+//   Kein korrigiertes Level steht mehr als MAX_SHIFT Plätze von seinem Platz davor, weder nach den Korrekturen noch am
+//   Ende (nach der Häufungsregel).
+//   ordne-level.mjs meldet einen Verstoss und schreibt dann nicht.
 // - Duldungsliste (levelliste.json, versioniert), nach Grund getrennt (GRUENDE): Level mit Ausschlussgrund, Level ab
 //   „mittel“ ohne nötige Kernidee, Level ab „mittel“ unter dem Mindest-Spielwert und Level, die beide KI-Tester
 //   ablehnen. Die Liste wird nur kürzer: Sie bleibt in jedem Grund eine Teilmenge der ursprünglichen Liste
@@ -391,12 +396,26 @@ export function reihenfolge(werte, namen, urteile = [], {
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
   // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und jedes von den KI-Testern korrigierte Level
   // bleibt höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (den Grad sichert entzerre)
-  const korrigierte = [...ki].filter(([, u]) => u.verschiebung).map(([i]) => i);
   const zulaessig = (probe) => mittelSteigt(probe, werte)
-    && korrigierte.every(i => Math.abs(probe.indexOf(i) - basis.indexOf(i)) <= MAX_SHIFT);
+    && !zuWeitKorrigiert({ basis, korrigiert: probe, folge: probe, ki }).length;
   const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, basis, korrigiert, folge, zuege, offen, grad, zurFormel, ki };
+}
+
+/**
+ * Korrekturen der KI-Tester, die zu weit führen (Ticket 24, Review M1): Ein korrigiertes Level steht nach den
+ * Korrekturen und am Ende (nach der Häufungsregel) höchstens MAX_SHIFT Plätze von seinem Platz davor (basis). Viele
+ * Korrekturen nahe beieinander schieben einander: Wer an einem korrigierten Level vorbeirückt, verschiebt es um einen
+ * Platz. r: das Ergebnis von reihenfolge ({ basis, korrigiert, folge, ki }). Rückgabe: die Verstösse, je { i, davor,
+ * korrigiert, ende } mit Plätzen ab 1, nach dem Platz davor.
+ */
+export function zuWeitKorrigiert({ basis, korrigiert, folge, ki }) {
+  const platz = (f, i) => f.indexOf(i) + 1;
+  return [...ki].filter(([, u]) => u.verschiebung).map(([i]) => i)
+    .filter(i => [korrigiert, folge].some(f => Math.abs(platz(f, i) - platz(basis, i)) > MAX_SHIFT))
+    .sort((i, j) => platz(basis, i) - platz(basis, j))
+    .map(i => ({ i, davor: platz(basis, i), korrigiert: platz(korrigiert, i), ende: platz(folge, i) }));
 }
 
 /**

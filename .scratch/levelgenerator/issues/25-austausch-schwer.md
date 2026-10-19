@@ -121,4 +121,6 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
 - Die KI-Tester sehen oft Zerfall, wo die Beurteilung keinen findet; die Vorprüfung `t24\zerfall-check.mjs` trifft ihre
   Nennungen an den 26 Kandidaten der ersten Runde genau. Viele Korrekturen der KI-Tester nahe beieinander können ein
   korrigiertes Level weiter als 5 Plätze schieben; dann macht die Häufungsregel keine Züge mehr (in 24 mit einer
-  anderen Wahl je Lücke gelöst, Skript `t24\suche.mjs`).
+  anderen Wahl je Lücke gelöst, Skript `t24\suche.mjs`). Seit dem Review von Ticket 24 (M1) meldet `ordne-level.mjs`
+  das selbst unter „Regeln der Levelliste“ (Platz davor, nach den Korrekturen, am Ende; `zuWeitKorrigiert` in
+  `levelliste.mjs`) und schreibt dann nicht, auch mit `--austausch`.

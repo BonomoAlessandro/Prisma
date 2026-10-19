@@ -929,3 +929,38 @@ nachgerechnet in Kopien ausserhalb des Repos (Scratchpad `review24\`).
 - **Urteil:** Ticket 24 ist bereit zum Mergen. Leveldaten, Namen, Reihenfolge, Duldungsliste und der Grund „behalten“
   sind korrekt und entsprechen den Entscheiden. M1 sollte vor dem Fortsetzen von Ticket 25 geschlossen werden (hier
   oder dort). Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
+
+**Review M1 behoben (19.10.2026).** Die Regel „Kein korrigiertes Level steht mehr als 5 Plätze von seinem Platz
+davor, weder nach den Korrekturen noch am Ende“ prüft jetzt eine gemeinsame Funktion, die Test und Werkzeug teilen.
+- **`tools/levelliste.mjs`:** `zuWeitKorrigiert(r)` aus `basis`, `korrigiert`, `folge` und `ki` von `reihenfolge`:
+  je Level mit eigener Korrektur der KI-Tester, das nach den Korrekturen oder am Ende mehr als `MAX_SHIFT` Plätze von
+  seinem Platz davor steht, die drei Plätze (ab 1). Dieselbe Funktion sperrt in `reihenfolge` die Züge der
+  Häufungsregel (`zulaessig`, Regel wie vorher). Im Kopf ein Absatz zur Regel.
+- **`tools/ordne-level.mjs`:** Unter „Regeln der Levelliste“ die Zeile „Korrekturen der KI-Tester höchstens 5 Plätze
+  vom Platz davor, nach den Korrekturen und am Ende: eingehalten“ oder „nicht bei … (Platz davor, nach den
+  Korrekturen, am Ende)“. `--schreiben` schreibt dann nicht, auch mit `--austausch` (Exit 1); bleibt dazu eine
+  Häufung offen, nennt es beide Gründe. Kopf und README beschreiben Regel und Sperre; der Hinweis in Ticket 25 nennt
+  die Meldung.
+- **Test:** „Jede Abweichung vom Platz der Formel …“ prüft mit `zuWeitKorrigiert` statt mit eigener Schleife. Neu
+  „Korrekturen schieben einander …“ an erfundenen Korrekturen in einem Grad: 3 rückt 4 Plätze nach hinten, 9 fünf nach
+  vorn an 3 vorbei, 3 steht genau 5 weit (nicht gemeldet); mit 5 statt 4 steht 3 sechs weit (gemeldet, 4 → 10 → 10);
+  ein Zug an 3 vorbei nach vorn macht es am Ende 6 (gemeldet, 4 → 9 → 10). Gegenproben: derselbe Zug nach hinten
+  (4 Plätze) und ein Level ohne eigene Korrektur (nicht gemeldet). `tests/levelliste.test.mjs` hat jetzt 42 Tests.
+- **Nachgeprüft** (Ausgaben in `t24\merge\m1-…`):
+  - Auf dem Stand von `924dc22` (index.html, `levelliste.json` und `entfernte-level.json` von dort, danach wieder
+    HEAD) mit der besten Wahl (`t24\austausch-wahl.json`, `--schreiben`): „nicht bei neu Kandidat f64f7e7a (Platz davor
+    33, nach den Korrekturen 39, am Ende 39); 70 Schattenspiel (41, 35, 35); 42 Lichtharfe (42, 36, 36); neu Kandidat
+    b8b4ed38 (58, 52, 52)“, dazu die vier offenen Häufungen; nicht geschrieben, beide Gründe, Exit 1, die Dateien
+    unverändert.
+  - Ebenda mit b6965c5f für Lichtfaden (sonst die genehmigte Wahl mit Namen, `t24\austausch-lichtfaden-b6965c5f.json`,
+    `--schreiben`): „nicht bei neu Zitronenlicht (Platz davor 58, nach den Korrekturen 52, am Ende 53)“, keine
+    Häufung offen; nicht geschrieben, Exit 1. Gegenprobe ebenda, die genehmigte Wahl: „eingehalten“.
+  - Auf HEAD: „eingehalten“; `--schreiben` ändert keine Datei, ein zweiter Lauf meldet „stimmen“, und das Ergebnis je
+    Level (`--json`) ist bytegleich dem nach Stufe C.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): Golden hat genau die 60 Abweichungen (30 fehlende, 30
+  neue Namen; Ausgabe bis auf die Laufzeit gleich wie nach Stufe C). Grün sind logic 548, generator 30, beurteilung
+  178, levelliste 42, ki-tester 64 und offline.
+
+**Gleichauf (Hinweis des Reviewers, keine Änderung):** In sechs Lücken (Widerschein, Tagesanbruch, Lichtorgel,
+Spiegelachse, Rochade, Uhrwerk) lagen Kandidat und Ersatz bis zum Gefühl gleichauf; genommen wurde dort der Kandidat.
+Die Wahl bleibt, denn die Namen sind für genau diese Level genehmigt.

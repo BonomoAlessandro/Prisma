@@ -49,7 +49,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
     Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
-    beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
+    beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
+    Platz davor, weder nach den Korrekturen noch am Ende (Ticket 24, mit Gegenproben an erfundenen Korrekturen, die
+    einander schieben); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
     Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
     erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
     Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
@@ -170,13 +172,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
   anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
   spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
-  Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen
-  und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste.
+  Korrekturen der KI-Tester: Kein korrigiertes Level steht mehr als 5 Plätze von seinem Platz davor, weder nach den
+  Korrekturen (die einander schieben, wenn sie nahe beieinander liegen) noch am Ende (`zuWeitKorrigiert`, Ticket 24).
+  Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die
+  Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste, darunter jedes korrigierte
+  Level, das zu weit steht (Platz davor, nach den Korrekturen, am Ende).
   `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
   und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
   `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
   sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide
-  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein
+  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Bleibt
+  eine Häufung offen oder steht ein korrigiertes Level zu weit, schreibt es nicht, auch mit `--austausch`. Ein
   zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der
   Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
