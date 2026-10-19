@@ -252,10 +252,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine),
     dazu die Drehachsen, die ein Element haben kann (`drehachsen`, im flachen Feld nur y; `element` nimmt eine davon
     als `drehachse`, Ticket 22). Nur sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in
-    der Lösung („x,z“). Die Nachbarn
-    stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
-    (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
-    zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
+    der Lösung („x,z“). Die Nachbarn stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je
+    Grösse nur einmal an (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder
+    Beurteilung zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in
+    `feldformVon` dazu.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von
