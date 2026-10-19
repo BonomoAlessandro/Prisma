@@ -316,3 +316,44 @@ Koordinator, nach dem Merge von Ticket 24. Bis dahin ist dieses Ticket pausiert.
   „schwer“). Bilder 22–24 s je Aufnahme; die Anker im ersten Lauf neu (index.html nach dem Merge), im zweiten aus dem
   Zwischenspeicher. Aufträge unter `tests/output/ki-tester/ersatz-schwer-1/` und `ersatz-schwer-2/` im Worktree; die
   KI-Tester startet der Koordinator.
+
+**Läufe `ersatz-schwer-1` und `-2` zusammengeführt, Wahl je Lücke, Namensvorschläge (19.10.2026).**
+- **Merge:** `merge.mjs` für beide Läufe (je 15 Einträge, Ablauf 2), `tests/ki-tester.test.mjs` grün (64). Beide
+  KI-Tester lehnen kein Level ab; einen Begriff nennt nur A bei e356c4e7 (Zerfall, Vorprüfung ein Teil). Ohne
+  Aha-Moment bei einem KI-Tester ist e42ac1c0 (A). Viele Korrekturen sind −5 oder +5.
+- **Wahl** nach der Rangfolge aus 26 und 24 (nicht abgelehnt, beide Aha, kein Begriff, ein Teil, Gefühl, bei
+  Gleichstand Spielwert; Kandidat und Ersatz gleichwertig, `t25\wahl.mjs`). Mit den besten Leveln bleiben drei
+  Häufungen offen (111–120 Sammelstelle, 121–130 Falle, 131–140 Farben abzählen), weil die Korrekturen die neuen Level
+  über die Seiten tragen. Eine Suche mit `reihenfolge()` (`t25\suche.mjs`; Lücken mit gemeinsamer Ziel-Schwierigkeit
+  dürfen ihre Level tauschen) findet eine Wahl ohne Fehler. Alle gewählten Level haben Aha bei beiden, keinen Begriff
+  und einen Teil; abweichend vom besten nach dem Gefühl sind Opal (dbba6247 3/3 statt 6ce8e339 4/4, das jetzt
+  Rangierbahnhof füllt) und die Verteilung innerhalb der gemeinsamen Lücken.
+- **`--austausch` mit der Wahl** (alle 15, ohne `--schreiben`): alle „schwer“ auf 108–137, „schwer“ bleibt 106–137;
+  keines auf der Duldungsliste (schwer 4, genau die behaltenen). Prüfliste 35, alle mit Urteil, Entscheide
+  unverändert. Haupt-Kernidee je 10 Level eingehalten (Häufungsregel: Lichtwaage 50 → 51, Doppelspiegel 102 → 100,
+  dbba6247 110 → 111, 84bdf14e 118 → 121, 292940a1 130 → 131). Korrekturen höchstens 5 Plätze vom Platz davor, nach den
+  Korrekturen und am Ende: eingehalten (keine Sperre). Keine Korrektur geht über 105/106 oder 137/138. Mittel je 10
+  Level steigt überall (kleinster Schritt +0,48). Anker: A5 Oase auf 114, A6 Lichtbrücke auf 136.
+- **Namensvorschläge** (je drei, der Favorit zuerst; keiner im Spiel oder unter den entfernten Namen, keiner mit
+  Licht-, Stern-, Weiss-, Gold-, Sonnen-, Brech- oder Brenn- und keiner nach einer Mechanik; kurz begründet nach den
+  Beschreibungen der KI-Tester):
+
+  | Platz | ersetzt | Abdruck | Haupt-Kernidee | Gefühl A/B | Namen (Favorit zuerst) |
+  |---:|---|---|---|---|---|
+  | 108 | Unendlichkeit | 7cdeab95 | Farben abzählen | 4/4 | **Wegweiser** (das einzige Grün steckt im Gelb, es zeigt den Weg zum weissen Ziel), Spurensuche, Grünfund |
+  | 110 | Rangierbahnhof | 6ce8e339 | Falle | 4/4 | **Passstrasse** (Rot im Zickzack um den Block), Bergpfad, Umgehung |
+  | 111 | Opal | dbba6247 | Farben abzählen | 3/3 | **Tandem** (zwei Spiegel tragen je zwei Strahlen), Weggefährten, Begleiter |
+  | 113 | Komet | 3a58a7d5 | Sammelstelle | 4/4 | **Marktplatz** (das Prisma nimmt Magenta und Grün und verteilt auf drei Wege), Umschlagplatz, Börse |
+  | 115 | Lichthof | f3eed0f8 | Abschalten | 4/4 | **Rollentausch** (das obere Grün gehört dem Cyan-Ziel, das grüne Ziel bekommt Grün von unten), Platzwechsel, Seitenwechsel |
+  | 116 | Sternwarte | e71667a6 | Abschalten | 5/4 | **Stabübergabe** (die zweite Magenta-Quelle übernimmt das schon leuchtende Ziel), Schichtwechsel, Nachfolge |
+  | 121 | Interferenz | 84bdf14e | Mischziel aus zwei Quellen | 4/4 | **Achterbahn** (Blau in einer Schleife über fünf Spiegel), Looping, Kreisverkehr |
+  | 122 | Kristallpalast | 2a7a744a | Mischziel aus zwei Quellen | 4/5 | **Mäander** (Weiss im Zickzack zum Prisma unten rechts), Flusslauf, Flussschleife |
+  | 125 | Irrlicht | da6b6dd9 | Falle | 4/4 | **Abkürzung** (der direkte Weg ins weisse Ziel ist die Falle), Sackgasse, Trugschluss |
+  | 129 | Singularität | d4ea96ec | Sammelstelle | 5/4 | **Nadelöhr** (Rot, Cyan und Weiss laufen durch ein Prisma auf drei Ziele), Engpass, Flaschenhals |
+  | 130 | Leuchtturm | 7df94a31 | Farben abzählen | 5/5 | **Odyssee** (Blau über zehn Spiegel, die fast alle schon gestellt sind), Irrfahrt, Weltreise |
+  | 131 | Sternbild | 292940a1 | Falle | 4/4 | **Seeschlange** (Rot in einer langen Schlange quer durchs Feld), Lindwurm, Natter |
+  | 132 | Glasperlenspiel | a88f32c8 | Falle | 4/4 | **Maskerade** (das Rot der Startstellung trifft, ist aber das falsche), Täuschung, Doppelgänger |
+  | 134 | Urknall | 307f6bfc | Sammelstelle | 5/4 | **Weltumsegelung** (Grün einmal ums Feld und durch den Gelbfilter), Ringbahn, Äquator |
+  | 137 | Lichtgeschwindigkeit | 6ec6e6d7 | Mischziel aus zwei Quellen | 4/4 | **Fehlstart** (die rote Quelle trifft am Start das falsche Ziel), Partnerwahl, Tanzpaar |
+
+  Die Genehmigung des Nutzers folgt hier.
