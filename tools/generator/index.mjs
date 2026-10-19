@@ -21,9 +21,12 @@
 //
 // Jedes gelieferte Level erfüllt vier Bedingungen: genau eine Lösung, die Beurteilung bestanden (kein Grund der
 // Levelliste aus levelliste.mjs: kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der
-// verlangte Grad (grad.mjs) und die verlangte Kernidee nötig. Derselbe Auftrag ergibt dasselbe Level: Aller Zufall
-// kommt aus dem Seed (zufall.mjs). Das Feld kennt der Generator nur über die Feldform des Auftrags (Spec „Feldform“).
-// Jede der sechs Kernideen hat einen Baustein (Ticket 19), jeder der vier Grade eine Vorgabe (Ticket 20).
+// verlangte Grad (grad.mjs) und die verlangte Kernidee nötig. Dazu hat es so viele Quellen, wie die Vorgabe seines
+// Grads verlangt (vorgaben.quellen): Die Obergrenze halten Ergänzen, „schwerer“ und Andocken ein (Ticket 28), unter der
+// Untergrenze verwirft er das fertige Level mit „zu wenige Quellen“ (Ticket 29; das kommt erst ab „mittel“ vor,
+// „leicht“ verlangt eine Quelle). Derselbe Auftrag ergibt dasselbe Level: Aller Zufall kommt aus dem Seed
+// (zufall.mjs). Das Feld kennt der Generator nur über die Feldform des Auftrags (Spec „Feldform“). Jede der sechs
+// Kernideen hat einen Baustein (Ticket 19), jeder der vier Grade eine Vorgabe (Ticket 20).
 import { gedeckelt, deckelText } from '../deckel.mjs';
 import { beurteile, GRADE, TEILE } from '../beurteilung/index.mjs';
 import { gradVon, SCHWELLEN } from '../beurteilung/grad.mjs';
@@ -209,6 +212,10 @@ export function generiere(auftrag) {
       beurteilung = beurteile(level, { grad, zwischenstand });
       fehlt = mangel(beurteilung, grad, kernidee, true, schwierigkeit);
     }
+    // Untergrenze der Quellen (Ticket 29): erst hier, am fertigen Level, denn bis dahin kann „schwerer“ noch Quellen
+    // setzen und das Festigen wirkungslose wegnehmen. So ändert sich nur das Ergebnis eines Seeds, dessen Level sie
+    // nicht einhält; alle übrigen rechnen wie vorher.
+    if (!fehlt && bau.art('source').length < vorgaben.quellen[0]) return nichts('zu wenige Quellen');
     if (!fehlt) return { level, beurteilung };
     if (!fehlt.richtung || schritt >= vorgaben.schritte || !SCHRITTE[fehlt.richtung]) return nichts(fehlt.grund);
     const nein = SCHRITTE[fehlt.richtung](bau, plan, vorgaben, fehlt);
