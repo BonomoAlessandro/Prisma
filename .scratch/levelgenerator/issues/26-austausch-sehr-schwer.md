@@ -292,3 +292,91 @@ kein neuer Anker und kein Ablauf 3. Dazu der Entscheid zu Zwielicht (Vorschlag a
   - Der Anker bleibt (Stufe A ging von einem neuen A8 aus).
   - Hinweise für 24 und 25 stehen dort unter `## Comments`, die neue Regel und die Duldungsliste nach Ticket 26 in der
     Spec, die Regel auch im README.
+
+**Review (19.10.2026).** Geprüft wurde `git diff 10e3041 HEAD` (Stufen A–C), nachgerechnet in Kopien ausserhalb des
+Repos (Scratchpad `review26\`).
+- **Austausch:** Die acht neuen Level stehen mit den genehmigten Namen auf ihren Plätzen, alle „sehr schwer“:
+  140 Lichtfächer, 142 Abendrot, 144 Leitstern, 145 Konjunktion, 146 Weissabgleich, 147 Dreigestirn, 148 Azur und
+  150 Umlaufbahn.
+  - Jedes ist bitgenau der beurteilte Kandidat: Elemente samt Reihenfolge und Lösung gleichen dem Kandidaten auf der
+    Seite des Laufs (`ersatz-sehr-schwer-1/seite/index.html`), der Abdruck dem Namen im Protokoll und der Wahl je
+    Lücke.
+  - Die acht alten Level fehlen im Spiel, ihre Namen stehen auf `entfernteNamen`, und ihre Kopie in
+    `entfernte-level.json` ist als JSON gleich den Leveldaten in `10e3041`; die sechs aus Ticket 23 sind unverändert.
+  - Die übrigen 142 Level und das Tutorial sind unverändert, ebenso ihre Reihenfolge untereinander. Nur Pulsar rückt,
+    von 145 auf 149.
+- **Wahl je Lücke:** Die 16 Einträge von `ersatz-sehr-schwer-1` sind genau `entry()` aus `lauf.json` und den beiden
+  Antworten, wie `merge.mjs` sie erzeugt. Die Rangfolge (nicht abgelehnt, beide Aha, kein Begriff, ein Teil, Gefühl)
+  ist richtig angewandt: Bei Korona und Prismenhof scheidet der Ersatz an „Füllteil“ (A) aus, bei Spiegelkabinett an
+  „kein Aha“ (A); Quasar und Farbmühle entscheidet die Vorprüfung (ein Teil), Zenit das Gefühl (4/4 gegen 4/3). Die
+  Teile der acht gewählten ergibt `zerfall-check.mjs` wie im Ticket.
+  - Hinweis: Bei Ereignishorizont und Farbenrausch sind beide bis zum Gefühl gleichauf; den Ausschlag gibt der
+    Spielwert (94,3/92,0 und 89,7/84,6, nachgebaut), eine Stufe, die die Rangfolge nicht nennt. Sie steht in der
+    Tabelle von Stufe B, und die Namen sind auf dieser Wahl genehmigt.
+- **Neue Regel:** Korrekt und nachvollziehbar. `prueflisteFormel` ist für alle 51 Level gleich dem Platz der Formel bei
+  Ticket 16 (`ordne-level.mjs --json` auf `974c4f0`) und auf `10e3041`; ob nach Ticket 16 oder 23 gesetzt, macht also
+  keinen Unterschied. Auf HEAD weicht nur Zwielicht ab (137 → 136), und nur dessen Entscheid hinge an der Regel.
+  - Alle bisherigen Entscheide bleiben: Zustimmung und Platz der 50 Level der Prüfliste sind auf HEAD wie auf
+    `10e3041`, die Häufungsregel macht wie bisher nur Chamäleon 102 → 100 und Spiegelsaal 131 → 130.
+  - Ohne die Regel (nachgerechnet): Zwielicht 122 → 136, 13 schwere Level einen Platz vor, auf 131–140 dreimal Farben
+    abzählen offen, wie in Spec und Ticket beschrieben.
+  - Die Gegenprobe ist echt: Rechnet `reihenfolge` die Zustimmung wieder mit der Formel von heute, oder fehlt
+    `prueflisteFormel` in `levelliste.json`, wird der neue Test rot (Zwielicht 136 ≠ 137 bzw. „ohne festen Platz der
+    Formel“), dazu die Tests der Reihenfolge und der Häufungsregel; die übrigen 35 bleiben grün.
+- **Reihenfolge:** Auf dem Stand von Stufe B (`fa32acc`, Werkzeuge von HEAD) setzt `ordne-level.mjs --schreiben` nur
+  `prueflisteFormel`; danach ergibt `--austausch … --schreiben` mit einer eigenen Austausch-Datei (Leveldaten aus dem
+  eigenen Nachbau, Ziel aus den Lücken von Stufe A) genau index.html, levelliste.json und `entfernte-level.json` von
+  HEAD. Ein zweiter Lauf meldet „stimmen“ und ändert nichts. Die Haupt-Kernidee ist ohne die Duldungsliste
+  eingehalten (141–150 fünf Kernideen je zweimal; 131–140 Abschalten 2, Farben abzählen 2, Sammelstelle 1, Mischziel
+  1), das Mittel je 10 Level ist … 61,6 75,5 85,3 92,2 mit kleinstem Schritt −0,34, der Test der Anker ist grün (A8
+  Pulsar auf 149).
+- **Herkunft:** Alle acht Herkunftszeilen bauen mit `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1
+  --schwierigkeit VON,BIS` das Level im Spiel nach: mit dem Generator des Branches, mit dem von `bfd92a2` (Ticket 29)
+  und mit dem von `75ab4e0` (Ticket 22, inzwischen auf `origin/feature/levelgenerator`). Der Nachbau gibt bei festen
+  Spiegeln `fixed` vor `rot` aus; als Daten ist er gleich, im Spiel schreibt `levelCode` die übliche Reihenfolge.
+- **Muster der Herkunftszeile im Test:** Es erlaubt jetzt genau den Vorsatz „sehr “ (`(?:sehr )?[a-z]+(?:-[a-z]+)?`),
+  keine beliebigen Leerzeichen, und prüft weiter Seed, Ziel und dass die Zeile direkt vor dem Namen des Levels steht.
+  Das genügt; ob die Werte das Level nachbauen, prüft der Test nicht (zu teuer), das bleibt Sache des Reviews.
+- **Merge-Probe** (temporärer Branch, wieder gelöscht): Mit `bfd92a2` gibt es nur einen Konflikt, am Ende von Ticket 24
+  (zwei neue Hinweise, aus 29 und aus 26); beide bleiben, der ältere zuerst. README und Tests mischen sich von selbst.
+  Auf dem gemischten Stand sind golden (16 Namensabweichungen), generator 30, levelliste 38 und ki-tester 64 grün.
+  Mit `75ab4e0` entsteht derselbe eine Konflikt (`git merge-tree`).
+- **Screenshots:** Geprüft sind die Levelauswahl 141–150 auf Desktop (Titel „Level 141 – 150 · Sehr schwer“, die
+  neuen Namen, ●●●●) und Handy sowie 140 Lichtfächer (Desktop) und 150 Umlaufbahn (Handy): Kopfzeile, Grad und Ziele
+  wie im Spiel.
+- **Selbst behoben (klein):** Drei Zeilen im README, eine in der Spec und eine im Kopf von `tests/levelliste.test.mjs`
+  waren länger als 120 Zeichen (umbrochen, Text unverändert); Kopf und `ladeLevelliste` in `tools/levelliste.mjs`
+  nennen jetzt Ticket 26 bzw. `prueflisteFormel` (`e53854e`).
+- **Offen, M1 (mittel, betrifft erst 24/25): Die Regel hält nur die Zustimmung fest, nicht die Zugehörigkeit zur
+  Prüfliste.**
+  - **Wo:** `tools/levelliste.mjs`, `reihenfolge` (die Prüfliste kommt aus `ordne` mit der Formel von heute; „das
+    Level steht nicht auf der Prüfliste“ wirft); `tools/ordne-level.mjs`, `prueflisteFormel = bisher?.prueflisteFormel
+    ?? …` (übernimmt alles oder nichts); Hinweis aus Ticket 26 in Ticket 24 („mit der Regel ändert sich dadurch kein
+    Entscheid mehr“).
+  - **Szenario:** Ein Austausch schiebt die Formel eines Levels der Prüfliste auf höchstens 10 Plätze an seinen
+    heutigen Platz: `reihenfolge` wirft „Urteil zu … (pruefung-…): das Level steht nicht auf der Prüfliste“, Skript und
+    Test brechen ab (mit den Werten von HEAD nachgestellt: Eine Schwierigkeit knapp über Farbverlauf für Feuerwerk oder
+    für Brechpunkt genügt). Umgekehrt kommt ein Level ohne Urteil neu auf die Prüfliste; ein späteres Urteil nimmt
+    `ordne-level.mjs` nicht in `prueflisteFormel` auf, der neue Test verlangt es aber. Knapp an der Grenze stehen
+    ausserhalb der Duldungsliste Sternenstaub (A7, heute 148, Formel 138) und Pulsar (A8, heute 135, Formel 145) mit
+    je einem Platz, Lichtkegel mit 2, Saphir (Prüfliste, bleibt), Feuerwerk, Halo, Brechpunkt und Lichtbrücke mit 3.
+    Mit Ersatz in der Lücke am Platz im Spiel (wie in 26) kippt nach meiner Abschätzung in 24/25 keines;
+    ausgeschlossen ist es nicht.
+  - **Erwartet:** Ein Entscheid aus Ticket 16 bleibt auch dann fest, wenn das Level durch die Verschiebung unter die
+    Grenze fällt; ein Level, das neu darüber kommt, braucht nach ADR 0002 ein Urteil, und dessen Platz der Formel kommt
+    wie die übrigen in `prueflisteFormel`.
+  - **Vorschlag:** Ein Level mit festem Platz beim Entscheid bleibt auf der Prüfliste (`ordne` misst die Zugehörigkeit
+    dieser Level mit `formelEntscheid`); `ordne-level.mjs` behält die bisherigen Einträge und ergänzt Level mit neuem
+    Urteil um ihren Platz der Formel von heute. Dazu ein Test mit erfundener Verschiebung (wie oben), und die Hinweise
+    in 24 und 25 nachführen.
+  - **Behoben, wenn:** Mit der erfundenen Verschiebung rechnet `reihenfolge` ohne Fehler, und das Level behält
+    Entscheid und Platz; ein erfundenes neues Urteil landet beim Schreiben in `prueflisteFormel`; auf HEAD ändert sich
+    nichts (ein zweiter Lauf meldet „stimmen“).
+- **Hinweis für 24/25, keine Änderung:** Die Gegenprobe im neuen Test hängt an Zwielicht. Rückt dessen Formel durch
+  einen späteren Austausch wieder auf 137, wird sie rot, obwohl die Regel hält; dann braucht es ein anderes Beispiel
+  oder eine erfundene Verschiebung.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): Golden hat wie erwartet nur die 16 Namensabweichungen.
+  Grün sind logic 548, generator 28, beurteilung 177, levelliste 38, ki-tester 64 und offline.
+- **Urteil:** Ticket 26 ist bereit zum Mergen. Leveldaten, Namen, Reihenfolge, Duldungsliste und die neue Regel sind
+  für den heutigen Stand korrekt. M1 sollte vor dem Fortsetzen von Ticket 24 geschlossen werden (hier oder dort). Nach
+  dem Merge schreibt der Koordinator `tests/golden.json` neu.
