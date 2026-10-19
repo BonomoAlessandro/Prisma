@@ -814,3 +814,118 @@ Urteil der KI-Tester“, 17 sind ersetzt. Die Endbedingung „Liste leer“ nach
   - Neu ausserhalb von Levels, Levelliste und Protokoll: `tools/levelliste.mjs` (Regel `stark`, `alleUrteile`),
     `tools/ordne-level.mjs` (Gruppe `behalten` übernehmen, schreiben, berichten), `tests/levelliste.test.mjs`, README,
     Spec, Ticket 25.
+
+**Review (19.10.2026).** Geprüft wurde `git diff a7f4337 HEAD` (`681ebe2`: Stufen A–C samt Merge `67d884f`),
+nachgerechnet in Kopien ausserhalb des Repos (Scratchpad `review24\`).
+- **Austausch:** Die 30 neuen Level stehen mit den genehmigten Namen auf den Plätzen der Tabelle (32 Zwillingsstrahl
+  bis 105 Doppelstern), alle „mittel“.
+  - Jedes ist bitgenau der beurteilte Kandidat: Elemente samt Reihenfolge und Lösung gleichen dem Kandidaten auf der
+    Seite seines Laufs (`ersatz-mittel-1` bis `-5`), der Abdruck dem Namen im Protokoll und der Tabelle; keines steht
+    in zwei Läufen. Name, ersetztes Level, Auftrag, Seed und Ziel in `t24\austausch-genehmigt.json` und in der
+    Herkunftszeile passen dazu.
+  - Die 30 alten Level fehlen im Spiel. Ihre Namen stehen auf `entfernteNamen` (44), ihre Kopie in
+    `entfernte-level.json` ist als JSON gleich den Leveldaten in `a7f4337`; die 14 aus 23 und 26 sind unverändert,
+    ebenso `urspruenglich`, `ergaenzt` und `prueflisteFormel`.
+  - Die übrigen 120 Level und das Tutorial sind als Daten unverändert. 25 rücken (etwa Lichtnetz 40 → 34, Schachbrett
+    95 → 92, Doppelspiegel 103 → 100), und fünf Gruppen ändern ihre Reihenfolge untereinander (Lichtnetz/Glasfenster,
+    Schattenspiel/Lichtharfe, Pinselstrich/Blaue Stunde, Schachbrett/Farbverlauf/Glasfaser,
+    Doppelspiegel/Prismenreigen/Lichtbogen); alles ergibt `ordne-level.mjs` (siehe Reihenfolge).
+- **Urteile:** Die 88 Einträge von `ersatz-mittel-1` bis `-5` und `behalten-mittel-1` sind genau `entry()` aus
+  `lauf.json` und beiden Antworten (Ablauf 2, kein Anker im Lauf). Die 134 Einträge aus `a7f4337` stehen unverändert
+  und in ihrer Reihenfolge darin.
+- **Wahl je Lücke** (eigenes Skript, Vorprüfung mit `t24\zerfall-check.mjs`): Jedes gewählte Level ist nicht
+  abgelehnt, beide sehen einen Aha-Moment, keiner nennt einen Begriff, und die Vorprüfung ergibt einen Teil (das gilt
+  für alle 42 Level der Läufe 3–5). 26 Lücken bekommen das erste Level der Rangfolge; in sechs davon (Widerschein,
+  Tagesanbruch, Lichtorgel, Spiegelachse, Rochade, Uhrwerk) sind Kandidat und Ersatz bis zum Gefühl gleichauf, und
+  gewählt ist der Kandidat. Die vier Abweichungen sind stichhaltig:
+  - 8656eb5f (4/5) ist für Schnittstelle und Lichtschacht das beste; an Lichtschacht kostet die Wahl 1 Punkt Gefühl,
+    umgekehrt 2.
+  - Mit dem besten Level je Lücke (nachgestellt mit `ordne-level.mjs --austausch` auf `924dc22` und mit
+    `reihenfolge()`, beide gleich) stehen Schattenspiel, Lichtharfe und der Ersatz für Paravent nach den Korrekturen
+    −6, der für Farbwechsel +6. Die Häufungsregel macht keinen Zug, vier Häufungen bleiben offen (31–40 Falle, 41–50
+    und 91–100 Mischziel, 131–140 Abschalten), und `--schreiben` schriebe nicht.
+  - Jeder der drei Tausche ist nötig: Ohne den für Farbwechsel steht f64f7e7a +7, ohne den für Verästelung stehen
+    Schattenspiel und Lichtharfe −6, je mit offenen Häufungen. Ohne den für Lichtfaden (b6965c5f) löst die
+    Häufungsregel alles auf, und am Ende steht jedes korrigierte Level höchstens 5 Plätze von seinem Platz davor; nur
+    nach den Korrekturen steht Zitronenlicht −6, und das verbietet der Test (nachgestellt: geschrieben, Test rot mit
+    „Zitronenlicht: mehr als 5“).
+  - Eine vollständige Suche über alle Optionen ohne Mangel (28 416 Wahlen bis zur Einbusse der gewählten) findet keine
+    regelkonforme Wahl mit weniger Einbusse an Gefühl. Die 32 mit gleicher Einbusse unterscheiden sich von der
+    gewählten nur in Lücken, in denen Kandidat und Ersatz gleichauf liegen.
+- **`behalten-mittel-1`** zählt nicht für die Levelliste (`zaehlt` bei allen 20 falsch), und `stark` nimmt ihn über
+  `alleUrteile` mit.
+- **Regel stark:** Unabhängig nachgerechnet für die 44 Level der Gruppe 2 (Duldungsliste in `a7f4337`, mittel, ohne
+  Ausschlussgrund und Ablehnung): 27 stark, genau die Gruppe `behalten` und die Tabelle vom 19.10.2026; die 17
+  übrigen sind die ersetzten. `stark` entspricht dem Entscheid (jedes Urteil, auch aus Ablauf 1 und als Anker; Mittel
+  über alle Urteile beider; mindestens eines aus Ablauf 2).
+- **Gruppe `behalten`:** `ordne-level.mjs` liest sie nur (ohne Level, die es nicht mehr gibt), schreibt sie unverändert
+  zurück und berichtet „nicht stark“; kein Codepfad fügt ein Level hinzu. Die Gegenproben sind echt (Mutationen, je
+  `tests/levelliste.test.mjs` mit 41 Tests, je 40 grün):
+  - Ohne Prüfung des Aha-Moments, der Ablehnung oder von Ablauf 2 wird nur die Regel stark rot, an genau der passenden
+    Gegenprobe. Mit `<=` statt `<` bei der Schwelle werden die Regel (Fall „gut“ mit 4,0) und die Gruppe rot, mit nur
+    dem ersten Urteil je Level der Fall „Gefühl im Mittel 3,75“ und die Gruppe (Lichtnetz, Kreuzfeuer, Farbverlauf).
+  - Mit Sonnenwende in der Gruppe: „nicht aus dem Entscheid in Ticket 24“; ohne Glasfenster: „nur noch ein behaltenes
+    Level“.
+  - Schreibt `ordne-level.mjs` die Gruppe nicht mit, wird „nur noch ein behaltenes Level“ rot (alle 27 mittleren);
+    nimmt es alle starken Level der Duldungsliste dazu, „nicht aus dem Entscheid“ (Kathedrale, Pendel, Sonnenwende).
+- **Regel aus Ticket 26:** Fügt sich sauber ein. `prueflisteFormel` bleibt mit 51 Einträgen (auch die der ersetzten
+  Level), die Prüfliste ist 36 (die 50 aus `a7f4337` ohne die 14 ersetzten), kein Level kommt neu darauf,
+  `festePlaetze` ergänzt nichts. Lauf, Entscheid (zur Formel oder bleibt) und Korrektur der 36 sind wie auf `a7f4337`.
+- **Reihenfolge:** Auf `924dc22` ergibt `ordne-level.mjs --austausch t24\austausch-genehmigt.json --schreiben` genau
+  index.html, `levelliste.json` und `entfernte-level.json` von HEAD; ein zweiter Lauf meldet „stimmen“ und ändert
+  nichts, ebenso auf HEAD.
+  - Grade 1–31, 32–105, 106–137, 138–150 (31 Blitz leicht, 32 Zwillingsstrahl mittel, 105 Doppelstern mittel,
+    106 Sonnenwende schwer); keine Korrektur geht über eine Grenze.
+  - Haupt-Kernidee ohne die Duldungsliste eingehalten, mit genau drei Zügen: Lichtwaage 50 → 51 (Mischziel auf
+    41–50), Doppelspiegel 102 → 100 (Mischziel auf 91–100, wie vorher Chamäleon) und Spiegelsaal 131 → 130.
+  - Mittel je 10 Level: kleinster Schritt +0,46 (91–110). Anker A3 Glasfenster auf 35, A4 Lichtbogen auf 102; der Test
+    der Anker ist grün.
+- **Nachbau:** Alle 44 Herkunftszeilen (30 aus 24) baut `generiere.mjs <auftrag> --seed S --anzahl 1 --seeds 1
+  --schwierigkeit VON,BIS` mit dem Generator des Branches nach, auch Meeresleuchten mit dem Ziel der zweiten Runde.
+- **Spielwert:** Test grün mit 0,29 ohne Ausschlussgrund (114 Level) und 0,27 über alle (165). Schwelle, Eichmenge
+  und ihre Auswahl sind unverändert; dazu kamen nur die 20 Urteile aus `behalten-mittel-1` über das Protokoll.
+- **Doku:** Spec (Phase 6, Duldungsliste nach Ticket 24, Entscheide zu den Tests, Weitere Hinweise), README und der
+  Hinweis in Ticket 25 stimmen, bis auf eine Stelle im README (unten).
+- **Screenshots:** Die Stichproben des Tickets (Levelauswahl 31–40 und 51–60, 32 Zwillingsstrahl, 85 Bogengang) und
+  eigene: Levelauswahl 101–110 (Desktop; gemischte Seite ohne Grad im Titel, 101–105 ●●○○, 106–110 ●●●○) und 41–50
+  (Handy, „Mittel“), 44 Meeresleuchten und 103 Türkis (Desktop und Handy) mit Kopfzeile wie im Spiel.
+- **Selbst behoben (klein, `4cafe92`):** Das README nannte die 27 behaltenen Level „ohne erkannte Kernidee“ (Lichtnetz
+  hat Lockvogel); dort jetzt auch Ticket 26 im Rückblick und zwei Absätze auf 120 Zeichen umbrochen.
+  `levelliste.mjs`: Ticket 24 im Kopf, `zaehlendeUrteile` über `alleUrteile` (Ergebnis je Level gleich). Test:
+  Die Gegenprobe Kreuzweg prüft `stark` direkt.
+- **Offen, M1 (mittel, Werkzeug, betrifft Ticket 25): `ordne-level.mjs` prüft die Regel „korrigiertes Level höchstens
+  5 Plätze von seinem Platz davor“ nicht, die der Test verlangt.**
+  - **Wo:** `tools/ordne-level.mjs`, Bericht „Regeln der Levelliste“ und die Sperren von `--schreiben` (nur offene
+    Häufungen und Mängel des Austauschs); dagegen `tests/levelliste.test.mjs`, „Jede Abweichung vom Platz der
+    Formel …“ (prüft `r.korrigiert` und `r.folge` gegen `r.basis`).
+  - **Szenario:** Mit b6965c5f für Lichtfaden meldet `ordne-level.mjs --austausch` keine Verletzung und schreibt mit
+    `--schreiben`; erst der Test wird rot („Zitronenlicht: mehr als 5“). Mit dem besten Level je Lücke nennt der
+    Bericht nur die vier offenen Häufungen, nicht ihre Ursache (vier korrigierte Level 6 Plätze weit). Ticket 24 fand
+    das nur mit dem eigenen Skript `t24\suche.mjs`; der Hinweis in Ticket 25 setzt dasselbe voraus.
+  - **Erwartet:** Was der Test verlangt, prüft schon das Werkzeug: Ein korrigiertes Level, das nach den Korrekturen
+    oder am Ende mehr als `MAX_SHIFT` Plätze von seinem Platz davor steht, nennt der Bericht (Platz davor, nach den
+    Korrekturen, am Ende), und `--schreiben` schreibt dann nicht, wie bei einer offenen Häufung.
+  - **Vorschlag:** Die Prüfung als Funktion in `levelliste.mjs` (aus `basis`, `korrigiert`, `folge` und `ki` von
+    `reihenfolge`), die Test und Werkzeug teilen; in `ordne-level.mjs` berichten und `--schreiben` sperren; README.
+  - **Behoben, wenn:** Auf `924dc22` meldet `ordne-level.mjs --austausch` mit der besten Wahl die vier Level und mit
+    b6965c5f für Lichtfaden Zitronenlicht und schreibt mit `--schreiben` nicht; auf HEAD ändert sich nichts
+    („stimmen“, Ergebnis je Level gleich), und `tests/levelliste.test.mjs` ist grün.
+- **Hinweise, keine Änderung:**
+  - Gleichauf entschied hier die Reihenfolge der Optionen (Kandidat zuerst), in Ticket 26 der Spielwert. Mit dem
+    Spielwert bekäme Tagesanbruch 7464fc56 (92,2 statt 79,6), was auch alle Regeln hielte; in den übrigen fünf Lücken
+    hat das gewählte Level den höheren Spielwert. Die Namen sind auf der heutigen Wahl genehmigt.
+  - Die dritte Abweichung (Lichtfaden, 4/4 statt 5/4) hängt allein daran, dass der Test auch die Folge nach den
+    Korrekturen prüft; die Folge im Spiel hielte die Regel.
+  - Viele Korrekturen nahe beieinander heben sich teils auf: Schachbrett (+3) steht auf 92, einen Platz vor seinem
+    heutigen, Bogengang (+5) einen hinter seinem Platz der Formel. Die Regel hält; für Ticket 25 gut zu wissen.
+  - In der Duldungsliste stehen ausserhalb der Gruppe nur Sonnenwende, Pendel und Kathedrale (schwer) als stark;
+    Sternwarte und Lichtjahr haben kein Urteil, Lichthof nur eines aus Ablauf 1 mit Scheinmischung (für Ticket 25).
+  - `levelliste.json`: Die Zeile `kommentar` hat 155 Zeichen (wie schon die in `entfernte-level.json`), und `behalten`
+    steht in der Reihenfolge beim Entscheid, nicht in der im Spiel (Pinselstrich/Blaue Stunde, Schachbrett/Farbverlauf).
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): Golden hat wie erwartet genau 60 Abweichungen (30
+  fehlende, 30 neue Namen). Grün sind logic 548, generator 30, beurteilung 178, levelliste 41, ki-tester 64 und
+  offline; nach `4cafe92` erneut levelliste 41 und ki-tester 64, und `ordne-level.mjs` meldet „stimmen“ mit gleichem
+  Ergebnis je Level.
+- **Urteil:** Ticket 24 ist bereit zum Mergen. Leveldaten, Namen, Reihenfolge, Duldungsliste und der Grund „behalten“
+  sind korrekt und entsprechen den Entscheiden. M1 sollte vor dem Fortsetzen von Ticket 25 geschlossen werden (hier
+  oder dort). Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
