@@ -413,3 +413,44 @@ Repos (Scratchpad `review26\`).
   generator 30, beurteilung 178, levelliste 39, ki-tester 64 und offline; golden mit genau den 16 Namensabweichungen.
   `ordne-level.mjs` meldet „stimmen“, und die acht Herkunftszeilen bauen auch mit dem gemergten Generator das Level im
   Spiel nach (8 von 8).
+
+**Nachprüfung M1 und Merge (19.10.2026, Review).** Geprüft wurde `git diff 310d422 6d140f7` mit eigenen Skripten
+ausserhalb des Repos (Scratchpad `review26\`). M1 ist behoben, der Merge ist sauber.
+- **Erfundene Verschiebung** (Werte von HEAD; das ersetzte Level fällt weg, ein neues ohne heutigen Platz und ohne
+  Urteil kommt mit einer Schwierigkeit knapp über ein anderes):
+  - Feuerwerk, Ersatz über Farbverlauf: Ohne die festen Plätze wirft `reihenfolge` („Urteil zu Farbverlauf
+    (pruefung-1): das Level steht nicht auf der Prüfliste“), mit ihnen nicht. Farbverlauf (heute 94, Formel 105 → 104)
+    bleibt auf der Prüfliste und am heutigen Platz. Kein Level der Prüfliste ändert Entscheid, Zugehörigkeit oder den
+    Platz vor den Korrekturen; Saphir rückt danach durch die Korrekturen anderer Level einen Platz (79 → 78), wie es
+    schon Ticket 23 beschreibt.
+  - Brechpunkt, Ersatz über Sternenstaub: ebenso. Dazu kommt Sternenstaub (A7, heute 148, Formel 138 → 137) neu auf die
+    Prüfliste, ohne Urteil, und bleibt am heutigen Platz. Das verlangt ADR 0002 (ein Lauf `pruefung-…`; ein Anker darf
+    nicht auf der Prüfliste stehen). In 24 und 25 bleibt jeder Ersatz in seinem Grad, die Formel um 138 und 145 rückt
+    dadurch nicht.
+- **Neues Urteil:** `festePlaetze` ergänzt es (Fall 3 im Test). Durchgehend geprüft: Fehlt der Eintrag Kristallpalast in
+  `prueflisteFormel`, meldet `ordne-level.mjs --schreiben` „weicht ab“ und schreibt ihn mit 121 dazu, die übrigen
+  bleiben; ein zweiter Lauf meldet „stimmen“.
+- **Auf HEAD:** `ordne-level.mjs --schreiben` meldet „stimmen“ und ändert nichts. Das Ergebnis je Level (`--json`) ist
+  gleich wie vor M1 und vor dem Merge (alle 150 Einträge).
+- **Stand von Stufe B** (`fa32acc` mit den Werkzeugen von HEAD, eigene Austausch-Datei): Nach dem Festsetzen ergab
+  `--austausch … --schreiben` zuerst ein `levelliste.json` mit denselben 51 Plätzen, aber anderer Reihenfolge der
+  Schlüssel, weil `festePlaetze` nach dem Platz vor den Korrekturen sortierte. Selbst behoben (`6ed24cd`): Es ergänzt
+  jetzt in der Reihenfolge im Spiel wie die Prüfliste. Danach sind index.html, `levelliste.json` und
+  `entfernte-level.json` genau die von HEAD, und ein zweiter Lauf meldet „stimmen“.
+- **Gegenproben** (Mutationen am Code, je `tests/levelliste.test.mjs` mit 39 Tests):
+  - Zugehörigkeit wieder nach der Formel von heute (`ordne`): nur der neue Test rot (Fall 1, Chamäleon wirft), 38 grün.
+  - Zustimmung wieder am Platz der Formel von heute: der neue Test rot (Fall 2, Farbwechsel), dazu Reihenfolge und
+    Häufungsregel (Zwielicht); 36 grün.
+  - `festePlaetze` ergänzt nichts: der neue Test rot (Fall 3), 38 grün.
+  - `festePlaetze` überschreibt alle mit der Formel von heute: „Die Entscheide aus Ticket 16 … bleiben fest“
+    (Zwielicht 136) und der neue Test rot, 37 grün.
+- **Merge** `c0a6665` (Eltern `10bc80b` und `75ab4e0`): Jede Datei, die nur die Tickets 22 und 29 ändern, ist gleich
+  `75ab4e0` (Generator, Feldform mit den Drehachsen, ihre Tests, die Tickets 22 und 29); jede, die nur Ticket 26
+  ändert, gleich `10bc80b`; das README gleich dem automatischen Merge. In Ticket 24 stehen beide Hinweise vollständig,
+  der aus 29 zuerst. Alle acht Herkunftszeilen bauen mit dem gemergten Generator das Level im Spiel nach (8 von 8, wie
+  vor dem Merge), und die Beurteilung der 150 Level ist unverändert.
+- **Selbst behoben (klein):** `5554232`: README (zwei Stellen) und Spec nach M1 wieder auf 120 Zeichen umbrochen, in
+  Ticket 24 „von seinem heutigen Platz weg“. `6ed24cd`: siehe Stand von Stufe B.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): Golden hat wie erwartet nur die 16 Namensabweichungen.
+  Grün sind logic 548, generator 30, beurteilung 178, levelliste 39, ki-tester 64 und offline.
+- **Urteil:** Ticket 26 ist bereit zum Mergen. Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
