@@ -19,7 +19,9 @@
 // - Duldungsliste nach Grund (GRUENDE), je Grad, verglichen mit den 37 Leveln der Neuzählung (Spec) und mit
 //   levelliste.json, dazu die Grenzfälle der Neuzählung.
 // - Die übrigen Regeln der Levelliste: Grad, Mittel der Schwierigkeit und Haupt-Kernidee je 10 Level, Namen,
-//   Eindeutigkeit der Lösung; dazu die Anker der KI-Tester und der Zusammenhang von Spielwert und Schwierigkeit.
+//   Eindeutigkeit der Lösung, Korrekturen der KI-Tester (höchstens MAX_SHIFT Plätze vom Platz davor, nach den
+//   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs); dazu die Anker der KI-Tester und der Zusammenhang
+//   von Spielwert und Schwierigkeit.
 // - Austausch (Tickets 23–26): Neue Level haben keinen heutigen Platz und stehen nach der Formel (imSpiel und reihenfolge
 //   in levelliste.mjs), dazu die Urteile der KI-Tester aus den Läufen ersatz-…. Mit --austausch rechnet das Skript, als
 //   wären die Kandidaten schon im Spiel und die ersetzten Level entfernt: wo jeder einordnet, mit welchem Grad, ob die
@@ -35,11 +37,14 @@
 //   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
 //                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
 //                Duldungsliste, die entfernten Namen und die Plätze der Formel beim Entscheid über die Level der
-//                Prüfliste (prueflisteFormel, Ticket 26) bleiben, wie sie sind; ein Level der Prüfliste mit neuem
-//                Urteil kommt mit seinem Platz der Formel von heute dazu (festePlaetze); fehlt die Datei, ist die
-//                ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
+//                Prüfliste (prueflisteFormel, Ticket 26) bleiben, wie sie sind, ebenso die Gruppe „behalten nach
+//                Urteil der KI-Tester“ (behalten, Ticket 24; ohne Level, die es nicht mehr gibt); ein Level der
+//                Prüfliste mit neuem Urteil kommt mit seinem Platz der Formel von heute dazu (festePlaetze); fehlt
+//                die Datei, ist die ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
 //                begründete Ergänzungen (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln
 //                festhält (ergaenzt).
+//                Es schreibt nicht, solange eine Häufung der Haupt-Kernidee offen bleibt oder ein von den KI-Testern
+//                korrigiertes Level mehr als MAX_SHIFT Plätze von seinem Platz davor steht, auch mit --austausch.
 //                Mit --austausch setzt es dazu die neuen Level mit ihrem Namen ein und nimmt die ersetzten heraus:
 //                ihre Namen kommen auf entfernteNamen, ihre Leveldaten in die feste Kopie für die Eichung
 //                (beurteilung/entfernte-level.json). Das geht nur, wenn jedes neue Level einen genehmigten Namen und
@@ -54,11 +59,11 @@ import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { SCHWELLEN, gradVon } from './beurteilung/grad.mjs';
 import { ENTFERNTE, HEUTIGE_REIHENFOLGE, entfernteLevel } from './beurteilung/heutige-reihenfolge.mjs';
 import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
-import { provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
+import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, festePlaetze, imSpiel,
-  ladeLevelliste, reihenfolge, zaehlendeUrteile, zehner,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, alleUrteile, ergaenzungBegruendet, festePlaetze,
+  imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -268,6 +273,17 @@ const nurUnter = nurKernidee.filter(i => !gilt('ohneKernidee', i));
 console.log(`    ohne Ausschlussgrund: ${nurKernidee.length}, davon ohne nötige Kernidee und unter dem `
   + `Mindest-Spielwert ${beide.length}; nur ohne Kernidee: ${zeige(nurOhne, WARUM.unterMindestSpielwert)}; `
   + `nur unter dem Mindest-Spielwert: ${zeige(nurUnter, WARUM.unterMindestSpielwert)}`);
+// Behalten nach Urteil der KI-Tester (Ticket 24): die Gruppe aus levelliste.json, wie sie ist, ohne Level, die es nicht
+// mehr gibt; sie wächst nie. Je Level die Regel stark (levelliste.mjs) am ganzen Protokoll
+const behalten = ((existsSync(DATEI) ? ladeLevelliste().behalten : null) ?? [])
+  .filter(x => levels.some(l => l.name === x));
+const behaltenIdx = behalten.map(x => levels.findIndex(l => l.name === x));
+const protokoll = alleUrteile();
+const nichtStark = behalten.filter(x => !stark(x, protokoll).stark);
+console.log(`    behalten nach Urteil der KI-Tester (Ticket 24): ${behalten.length} Level `
+  + `(${GRADE.map(g => `${g} ${behaltenIdx.filter(i => grad[i] === g).length}`).join(', ')}); nicht stark: `
+  + `${nichtStark.join(', ') || '–'}; auf der Duldungsliste ohne diesen Grund: `
+  + `${duldung.filter(i => !behaltenIdx.includes(i)).length}`);
 const geduldetGeprueft = duldung.filter(i => ordnung.pruefliste.includes(i));
 console.log(`    auch auf der Prüfliste: ${geduldetGeprueft.length}, davon mit Ausschlussgrund `
   + `${geduldetGeprueft.filter(i => gilt('ausschlussgrund', i)).length}; Prüfliste ohne Duldungsliste: `
@@ -351,6 +367,11 @@ console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10} j
 const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `
   + `${h.mit.length}-mal, ${h.mit.map(name).join(', ')}`).join('; ');
 if (offenText) console.log(`    nicht aufzulösen mit höchstens ${MAX_ENTZERREN} Plätzen: ${offenText}`);
+// Viele Korrekturen nahe beieinander schieben einander, ebenso die Züge der Häufungsregel (Ticket 24, Review M1)
+const zuWeit = zuWeitKorrigiert(ordnung);
+console.log(`  Korrekturen der KI-Tester höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am `
+  + `Ende: ${zuWeit.length ? `nicht bei ${zuWeit.map(v => `${name(v.i)} (Platz davor ${v.davor}, nach den `
+    + `Korrekturen ${v.korrigiert}, am Ende ${v.ende})`).join('; ')}` : 'eingehalten'}`);
 console.log('  Anker der KI-Tester (je zwei pro Grad, am unteren und oberen Ende):');
 // Die Anker stehen in anchors.json mit Namen; i ist ihr heutiger Platz (Index), wie bei den übrigen Zeilen hier
 for (const a of loadAnchors().map(x => ({ ...x, i: levels.findIndex(l => l.name === x.name) }))) {
@@ -395,7 +416,8 @@ for (const [grund, neu] of Object.entries(neuAufListe)) {
 const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   .every(k => JSON.stringify(bisher[k]) === JSON.stringify(listen[k]))
   && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt)
-  && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel);
+  && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel)
+  && JSON.stringify(bisher.behalten ?? []) === JSON.stringify(behalten);
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
 // Mit dem Austausch nur, wenn jedes neue Level seinen genehmigten Namen und ein zählendes Urteil hat, das es nicht
@@ -408,8 +430,15 @@ const austauschOffen = austausch.flatMap((a) => {
     ...(u?.abgelehnt ? [`${levels[i].name}: von beiden KI-Testern abgelehnt (${u.gruende.join(', ')})`] : []),
   ];
 });
-if (schreiben && ordnung.offen.length) {
-  console.log('  nicht geschrieben: Eine Häufung der Haupt-Kernidee lässt sich nach der Regel nicht auflösen (oben).');
+if (schreiben && (ordnung.offen.length || zuWeit.length)) {
+  if (ordnung.offen.length) {
+    console.log('  nicht geschrieben: Eine Häufung der Haupt-Kernidee lässt sich nach der Regel nicht auflösen '
+      + '(oben).');
+  }
+  if (zuWeit.length) {
+    console.log(`  nicht geschrieben: Ein von den KI-Testern korrigiertes Level steht mehr als ${MAX_SHIFT} Plätze von `
+      + `seinem Platz davor (oben): ${zuWeit.map(v => name(v.i)).join(', ')}`);
+  }
   process.exitCode = 1;
 } else if (schreiben && (austauschOffen.length || wiederVergeben.length)) {
   console.log(`  nicht geschrieben: ${[...austauschOffen, ...wiederVergeben.map(x => `${x}: entfernter Name`)]
@@ -420,7 +449,9 @@ if (schreiben && ordnung.offen.length) {
   const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
     bisher ? [...new Set([...bisherIn(grund), ...ergaenzt[grund]])] : listen.duldung[grund]]));
   const entfernteNamen = [...new Set([...(bisher?.entfernteNamen ?? []), ...ersetzt])];
-  writeFileSync(DATEI, levellisteText({ ...listen, urspruenglich, ergaenzt, entfernteNamen, prueflisteFormel }));
+  writeFileSync(DATEI, levellisteText({
+    ...listen, urspruenglich, ergaenzt, entfernteNamen, prueflisteFormel, behalten,
+  }));
   if (austausch.length) schreibeEntfernte();
   console.log(`  geschrieben: ${imSpielGleich ? '' : 'index.html und '}levelliste.json`
     + `${austausch.length ? ' und beurteilung/entfernte-level.json' : ''}`);
@@ -537,7 +568,7 @@ function schreibeLevels() {
 
 /** levelliste.json mit Namenslisten zu höchstens 120 Zeichen je Zeile. */
 function levellisteText({
-  duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt, prueflisteFormel,
+  duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt, prueflisteFormel, behalten = [],
 }) {
   const zeilenweise = (teile, einzug, auf, zu) => {
     if (!teile.length) return `${auf}${zu}`;
@@ -558,14 +589,15 @@ function levellisteText({
   const gruppe = (g) => `{\n${Object.keys(GRUENDE).map(k => `    "${k}": ${liste(g[k] ?? [], '    ')}`)
     .join(',\n')}\n  }`;
   return '{\n'
-    + '  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste '
-    + '(levelliste.mjs).",\n'
+    + '  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten '
+    + 'nach Urteil der KI-Tester (levelliste.mjs).",\n'
     + `  "duldung": ${gruppe(duldung)},\n`
     + `  "urspruenglich": ${gruppe(urspruenglich)},\n`
     + `  "ergaenzt": ${gruppe(ergaenzt)},\n`
     + `  "entfernteNamen": ${liste(entfernteNamen, '  ')},\n`
     + `  "pruefliste": ${liste(pruefliste, '  ')},\n`
     + `  "prueflisteErledigt": ${prueflisteErledigt},\n`
-    + `  "prueflisteFormel": ${plaetze(prueflisteFormel, '  ')}\n`
+    + `  "prueflisteFormel": ${plaetze(prueflisteFormel, '  ')},\n`
+    + `  "behalten": ${liste(behalten, '  ')}\n`
     + '}\n';
 }

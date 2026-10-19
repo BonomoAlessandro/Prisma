@@ -5,7 +5,8 @@
 // schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17), seit
 // Ticket 21 die Namen gegenüber der heutigen Reihenfolge und die fremde Filterfarbe (vorher in tests/logic.test.mjs)
 // und der Austausch (Tickets 23–26): neue Level nach der Formel und mit Urteil der KI-Tester, entfernte Level samt
-// Namen und fester Kopie für die Eichung, die Leveldaten als Text (tools/leveldaten.mjs).
+// Namen und fester Kopie für die Eichung, die Leveldaten als Text (tools/leveldaten.mjs); seit Ticket 24 die Gruppe
+// „behalten nach Urteil der KI-Tester“ mit der Regel stark.
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
@@ -20,8 +21,9 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, TOLERANZ_MITTEL, entzerre, ergaenzungBegruendet, haeufungen, imSpiel,
-  festePlaetze, korrigiere, ladeLevelliste, reihenfolge, zaehlendeUrteile, zaehlt, zehner, zustimmung,
+  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
+  ergaenzungBegruendet, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
+  zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -155,15 +157,13 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
     if (warum === 'Formel') assert.ok(!r.ki.get(i)?.zurFormel, heute[i].name);
     else assert.equal(warum, 'Reihenfolge', heute[i].name);
   }
-  // Eigene Korrekturen: nur mit Urteil, höchstens MAX_SHIFT Plätze, ohne Ablehnung; auch nach der Häufungsregel steht
-  // jedes korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz davor
+  // Eigene Korrekturen: nur mit Urteil, höchstens MAX_SHIFT Plätze, ohne Ablehnung; nach den Korrekturen und nach der
+  // Häufungsregel steht jedes korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz davor (zuWeitKorrigiert,
+  // dieselbe Prüfung wie in ordne-level.mjs)
   const korrigiert = [...r.ki].filter(([, u]) => u.verschiebung);
-  for (const [i, u] of korrigiert) {
-    assert.ok(Math.abs(u.verschiebung) <= MAX_SHIFT && !u.abgelehnt, heute[i].name);
-    for (const f of [r.korrigiert, r.folge]) {
-      assert.ok(Math.abs(f.indexOf(i) - r.basis.indexOf(i)) <= MAX_SHIFT, `${heute[i].name}: mehr als ${MAX_SHIFT}`);
-    }
-  }
+  for (const [i, u] of korrigiert) assert.ok(Math.abs(u.verschiebung) <= MAX_SHIFT && !u.abgelehnt, heute[i].name);
+  assert.deepEqual(zuWeitKorrigiert(r).map(v => `${heute[v.i].name} ${v.davor}→${v.korrigiert}→${v.ende}`), [],
+    `mehr als ${MAX_SHIFT} Plätze von seinem Platz davor`);
   // Häufungsregel: jeder Zug höchstens MAX_ENTZERREN Plätze im eigenen Grad, und danach ist keine Häufung offen
   assert.deepEqual(r.offen.map(h => `${10 * h.gruppe + 1}–${10 * h.gruppe + 10} ${h.begriff}`), [], 'offen');
   for (const z of r.zuege) {
@@ -285,10 +285,54 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
   }
 });
 // Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
-// Duldungsliste. Sind alle vier Grade ausgetauscht, ist die Liste leer (dann hier alle vier)
-const AUSGETAUSCHT = ['leicht', 'sehr schwer'];
-test(`Nach dem Austausch steht kein Level aus ${AUSGETAUSCHT.join(', ')} auf der Duldungsliste`, () => {
-  assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad)), []);
+// Duldungsliste, ausser es ist behalten nach Urteil der KI-Tester (Entscheid des Nutzers vom 18.10.2026, Ticket 24).
+// Sind alle vier Grade ausgetauscht, stehen nur noch behaltene Level auf der Liste (dann hier alle vier)
+const AUSGETAUSCHT = ['leicht', 'mittel', 'sehr schwer'];
+test(`Nach dem Austausch steht aus ${AUSGETAUSCHT.join(', ')} nur noch ein behaltenes Level auf der Duldungsliste`,
+  () => {
+    const behalten = liste.behalten ?? [];
+    assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad) && !behalten.includes(x)), []);
+  });
+
+console.log('Behalten nach Urteil der KI-Tester (Ticket 24)');
+// Entscheid des Nutzers vom 18.10.2026 (Ticket 24, Variante b′): Von den Leveln in „mittel“, die nur wegen Kernidee
+// oder Spielwert auf der Duldungsliste standen, bleiben die starken im Spiel. Die Gruppe wächst nie: höchstens diese
+const BEHALTEN_TICKET_24 = ['Glasfenster', 'Lichtnetz', 'Streulicht', 'Strahlenkranz', 'Turmalin', 'Farbschleuse',
+  'Perlmutt', 'Bumerang', 'Mondlicht', 'Weichen', 'Glasbaustein', 'Fadenkreuz', 'Lichtschranke', 'Blaue Stunde',
+  'Pinselstrich', 'Farbtupfer', 'Rubin', 'Lichtkreuz', 'Glühwürmchen', 'Spektralband', 'Traumfänger', 'Schimmer',
+  'Kreuzfeuer', 'Farbverlauf', 'Schachbrett', 'Smaragd', 'Silberstreif'];
+const protokoll = alleUrteile();
+test('Behalten: eine Gruppe, die nie wächst; jedes Level im Spiel, nur wegen Kernidee oder Spielwert geduldet, und '
+  + 'nach dem Protokoll stark', () => {
+  const behalten = liste.behalten ?? [];
+  assert.deepEqual(ohne(behalten, BEHALTEN_TICKET_24), [], 'nicht aus dem Entscheid in Ticket 24');
+  assert.equal(new Set(behalten).size, behalten.length, 'doppelt');
+  assert.deepEqual(behalten.filter(x => !nach.has(x)), [], 'nicht im Spiel');
+  const nurKernidee = [...liste.urspruenglich.ohneKernidee, ...liste.urspruenglich.unterMindestSpielwert];
+  assert.deepEqual(ohne(behalten, nurKernidee), [], 'nicht auf der ursprünglichen Liste wegen Kernidee oder Spielwert');
+  const mitAusschluss = [...liste.duldung.ausschlussgrund, ...liste.duldung.abgelehnt];
+  assert.deepEqual(behalten.filter(x => mitAusschluss.includes(x)), [], 'mit Ausschlussgrund oder abgelehnt');
+  assert.deepEqual(behalten.map(x => [x, stark(x, protokoll).maengel]).filter(([, m]) => m.length), [], 'nicht stark');
+});
+test(`Regel stark an erfundenen Urteilen: jedes Urteil mit Aha-Moment bei beiden, ohne Ablehnung, Gefühl im Mittel `
+  + `mindestens ${MIN_GEFUEHL_BEHALTEN}, eines aus Ablauf 2; mit Gegenproben`, () => {
+  const urteil = (gefuehl, aha = true, ablehnung = []) => ({ aha: { ja: aha, beschreibung: '' }, gefuehl, ablehnung });
+  const e = (A, B, ablauf = '2', lauf = 'behalten-test') => ({ ablauf, lauf, level: { name: 'X' }, urteile: { A, B } });
+  const gut = [e(urteil(4), urteil(4)), e(urteil(5), urteil(3), '1', 'spielwert-test')];
+  assert.equal(stark('X', gut).stark, true);
+  assert.equal(stark('X', gut).gefuehl, 4);
+  // Gegenproben: je ein Mangel
+  const faelle = {
+    'ohne Aha-Moment': [e(urteil(5), urteil(5, false))],
+    'Gefühl im Mittel 3,75': [e(urteil(4), urteil(4)), e(urteil(4), urteil(3), '1')],
+    'Begriff der Ablehnung': [e(urteil(5), urteil(5, true, ['Zerfall']))],
+    'nur Ablauf 1': [e(urteil(4), urteil(4), '1')],
+    'kein Urteil': [],
+  };
+  for (const [text, eintraege] of Object.entries(faelle)) assert.equal(stark('X', eintraege).stark, false, text);
+  // an echten Leveln: A3 Glasfenster mit seinem Urteil als Anker (Ablauf 2) stark; Kreuzweg im zweiten Urteil nicht
+  assert.equal(stark('Glasfenster', protokoll).stark, true, 'Glasfenster');
+  assert.equal(stark('Kreuzweg', protokoll).stark, false, 'Kreuzweg');
 });
 
 console.log('Regel für die Prüfliste (Ticket 16), mit erfundenen Urteilen');
@@ -373,6 +417,37 @@ test('Korrektur: höchstens 5 Plätze, nie aus dem Abschnitt des Grads, die Leve
   assert.deepEqual(korrigiere(folge, grad, new Map([[5, -4]])), [0, 1, 2, 5, 3, 4, 6, 7, 8, 9], 'bis zur Grenze');
   assert.deepEqual(korrigiere(folge, grad, new Map([[1, 2]])), [0, 2, 1, 3, 4, 5, 6, 7, 8, 9], 'leicht endet bei 2');
 });
+test(`Korrekturen schieben einander: höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am Ende`,
+  () => {
+    // 15 Level in einem Grad. 3 rückt 4 Plätze nach hinten, dann 9 fünf nach vorn, an 3 vorbei: 3 steht 5 Plätze
+    // weiter, 9 fünf Plätze weiter vorn; das ist die Grenze. Mit 5 statt 4 Plätzen für 3 sind es 6.
+    const grad = Array(15).fill('mittel'), basis = [...grad.keys()];
+    const ki = (k3, k9) => new Map([[3, { verschiebung: k3 }], [9, { verschiebung: k9 }]]);
+    const lauf = (k3, k9) => {
+      const korrigiert = korrigiere(basis, grad, new Map([[3, k3], [9, k9]]));
+      return { basis, korrigiert, folge: korrigiert, ki: ki(k3, k9) };
+    };
+    assert.deepEqual(lauf(4, -5).korrigiert.slice(0, 10), [0, 1, 2, 4, 9, 5, 6, 7, 3, 8]);
+    assert.deepEqual(zuWeitKorrigiert(lauf(4, -5)), [], 'genau 5 Plätze');
+    assert.deepEqual(zuWeitKorrigiert(lauf(5, -5)), [{ i: 3, davor: 4, korrigiert: 10, ende: 10 }], '6 Plätze');
+    // Am Ende: Rückt ein Level nach der Korrektur (Häufungsregel) an 3 vorbei, steht 3 dort 6 Plätze weiter
+    const x = lauf(4, -5), folge = [...x.korrigiert];
+    folge.splice(7, 0, ...folge.splice(9, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...x, folge }), [{ i: 3, davor: 4, korrigiert: 9, ende: 10 }], 'am Ende');
+    // Nur nach den Korrekturen: Holt ein Zug danach 3 auf 5 Plätze zurück, bleibt es gemeldet (so Zitronenlicht mit
+    // b6965c5f für Lichtfaden, Ticket 24)
+    const y = lauf(5, -5), zurueckgeholt = [...y.korrigiert];
+    zurueckgeholt.splice(9, 0, ...zurueckgeholt.splice(8, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...y, folge: zurueckgeholt }), [{ i: 3, davor: 4, korrigiert: 10, ende: 9 }],
+      'nur nach den Korrekturen');
+    // Gegenproben: rückt das Level an 3 vorbei nach hinten, ist 3 wieder 4 Plätze weit; ein Level ohne eigene
+    // Korrektur zählt nicht, wie weit es auch rückt
+    const zurueck = [...x.korrigiert];
+    zurueck.splice(9, 0, ...zurueck.splice(7, 1));
+    assert.deepEqual(zuWeitKorrigiert({ ...x, folge: zurueck }), [], 'nach hinten');
+    const ohne = { ...lauf(5, -5), ki: new Map([[3, { verschiebung: 0 }]]) };
+    assert.deepEqual(zuWeitKorrigiert(ohne), [], 'ohne Korrektur');
+  });
 test(`Häufungsregel: höchstens ${MAX_ENTZERREN} Plätze, betroffene Level zuerst, dann die Duldungsliste`, () => {
   // 30 Level in einem Grad (drei Seiten); X ist die Haupt-Kernidee, die sich häuft
   const grad = Array(30).fill('mittel'), folge = [...grad.keys()];

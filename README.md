@@ -49,21 +49,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
     Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
-    beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
+    beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
+    Platz davor, weder nach den Korrekturen noch am Ende (Ticket 24, mit Gegenproben an erfundenen Korrekturen, die
+    einander schieben); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
     Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
     erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
     Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
     Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
-    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste
-    entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts),
-    150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter
-    als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
-    neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt;
-    jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die
-    Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
-    Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
-    `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
-    (`oddFilters` in `quality.mjs`).
+    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); nach dem Austausch eines Grads stehen aus ihm
+    nur noch Level der Gruppe „behalten nach Urteil der KI-Tester“ darauf, die nie wächst und deren Level die Regel
+    `stark` im Protokoll erfüllen (Ticket 24, mit Gegenproben an erfundenen Urteilen); eindeutige Namen, keiner aus der
+    Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
+    nichts), 150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
+    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
+    23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
+    nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
+    Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
+    nur an den Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
+    Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
+    fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -168,15 +172,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
   anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
   spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
-  Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen
-  und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste.
+  Korrekturen der KI-Tester: Kein korrigiertes Level steht mehr als 5 Plätze von seinem Platz davor, weder nach den
+  Korrekturen (die einander schieben, wenn sie nahe beieinander liegen) noch am Ende (`zuWeitKorrigiert`, Ticket 24).
+  Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die
+  Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste, darunter jedes korrigierte
+  Level, das zu weit steht (Platz davor, nach den Korrekturen, am Ende).
   `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
-  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen und
-  `prueflisteFormel` bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
-  Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in
-  dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester,
-  Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
-  für Skript und Test.
+  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
+  `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
+  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide
+  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Bleibt
+  eine Häufung offen oder steht ein korrigiertes Level zu weit, schreibt es nicht, auch mit `--austausch`. Ein
+  zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der
+  Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
@@ -505,8 +513,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
   Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
   `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
-  `tools/beurteilung/entfernte-level.json`. Die frühere Reihenfolge entstand so: Die
-  Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
+  `tools/beurteilung/entfernte-level.json`. Ebenso kamen 8 neue sehr schwere Level in Ticket 26 (Lauf
+  `ersatz-sehr-schwer-1`) und 30 neue mittlere in Ticket 24 (Läufe `ersatz-mittel-1` bis `-5`): für die 13 mit
+  Ausschlussgrund oder Ablehnung und für 17 ohne erkannte Kernidee, die die KI-Tester schwach beurteilten. 27 mittlere
+  Level, die nur wegen Kernidee oder Spielwert auf der Duldungsliste stehen, bleiben nach ihrem Urteil (Gruppe
+  `behalten` in `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die Level 121–150 (aus `harden.mjs`)
+  waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze
   40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides
