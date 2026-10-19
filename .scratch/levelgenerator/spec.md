@@ -579,10 +579,10 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
       (`prueflisteFormel`), misst sich, ob das Level auf der Prüfliste steht, und mit ihm rechnet die Zustimmung; wohin
       ein Level mit Zustimmung kommt, folgt der Formel von heute. Ein Level, das erst durch einen Austausch weiter als
       10 Plätze wandern würde, kommt neu auf die Prüfliste und braucht ein Urteil; danach kommt sein Platz der Formel
-      dazu (nach dem Review von Ticket 26). Anlass: Ohne Spiegelkabinett (Formel 131) rückte Zwielicht in der Formel von 137 auf 136, und KI-Tester A
-      hätte zugestimmt. Zwielicht wäre von 122 auf 136 gesprungen, 13 schwere Level wären einen Platz vorgerückt, und
-      auf 131–140 hätte dreimal Farben abzählen gestanden, was die Häufungsregel mit einem Zug nicht auflöst. Zwielicht
-      bleibt auf 122.
+      dazu (nach dem Review von Ticket 26). Anlass: Ohne Spiegelkabinett (Formel 131) rückte Zwielicht in der Formel von
+      137 auf 136, und KI-Tester A hätte zugestimmt. Zwielicht wäre von 122 auf 136 gesprungen, 13 schwere Level wären
+      einen Platz vorgerückt, und auf 131–140 hätte dreimal Farben abzählen gestanden, was die Häufungsregel mit einem
+      Zug nicht auflöst. Zwielicht bleibt auf 122.
     - Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge`: am alten Platz das
       Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort; höchstens 5 Plätze, nie über
       eine Gradgrenze.

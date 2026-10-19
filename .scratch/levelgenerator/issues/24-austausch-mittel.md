@@ -114,10 +114,10 @@ zu den Leveln der Prüfliste bleiben fest, auch wenn ein Austausch die Formel ve
 Level mit Entscheid den Platz der Formel beim Entscheid fest (`prueflisteFormel`, gesetzt vor dem Austausch in
 Ticket 26; `reihenfolge` in `tools/levelliste.mjs` nimmt ihn als `formelEntscheid`). An ihm misst sich, ob das Level
 auf der Prüfliste steht (es bleibt darauf, auch wenn seine Formel bis auf 10 Plätze an den heutigen Platz rückt), und
-mit ihm rechnet die Zustimmung. Kommt ein Level erst durch einen Austausch weiter als 10 Plätze von seinem heutigen,
-steht es neu auf der Prüfliste und braucht ein Urteil (ADR 0002); danach schreibt `ordne-level.mjs` seinen Platz der
-Formel dazu (`festePlaetze`, nach dem Review von Ticket 26, M1). Anlass: Wird ein Level ersetzt, das am heutigen Platz
-bleibt, aber in der Formel weit davon steht (in 26 Spiegelkabinett), verschiebt sich die Formel der Level dazwischen.
-Dasselbe kann bei den abgelehnten Leveln in „mittel“ geschehen; mit der Regel ändern sich dadurch weder Entscheid noch
-Zugehörigkeit zur Prüfliste. Knapp an der Grenze stehen ausserhalb der Duldungsliste etwa Feuerwerk, Brechpunkt, Halo
-und Lichtbrücke (je 3 Plätze); rückt eines darüber, braucht es einen Lauf `pruefung-…`.
+mit ihm rechnet die Zustimmung. Kommt ein Level erst durch einen Austausch weiter als 10 Plätze von seinem heutigen
+Platz weg, steht es neu auf der Prüfliste und braucht ein Urteil (ADR 0002); danach schreibt `ordne-level.mjs` seinen
+Platz der Formel dazu (`festePlaetze`, nach dem Review von Ticket 26, M1). Anlass: Wird ein Level ersetzt, das am
+heutigen Platz bleibt, aber in der Formel weit davon steht (in 26 Spiegelkabinett), verschiebt sich die Formel der Level
+dazwischen. Dasselbe kann bei den abgelehnten Leveln in „mittel“ geschehen; mit der Regel ändern sich dadurch weder
+Entscheid noch Zugehörigkeit zur Prüfliste. Knapp an der Grenze stehen ausserhalb der Duldungsliste etwa Feuerwerk,
+Brechpunkt, Halo und Lichtbrücke (je 3 Plätze); rückt eines darüber, braucht es einen Lauf `pruefung-…`.

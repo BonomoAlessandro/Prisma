@@ -51,19 +51,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
     beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
     Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
-    erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
-    zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung durch
-    beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
-    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
-    der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts), 150 Level nach dem Tutorial;
-    kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün, mit Gegenprobe);
-    genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes neue Level steht nach der
-    Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt; jedes entfernte Level hat
-    seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die Regel für neue Level an
-    einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den Leveldaten. Er ersetzt
-    die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in `tests/logic.test.mjs`, seit
-    Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe (`oddFilters` in
-    `quality.mjs`).
+    erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
+    Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
+    Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
+    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste
+    entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts),
+    150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter
+    als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
+    neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt;
+    jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die
+    Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
+    Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
+    `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
+    (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -161,22 +161,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   es. Dieser Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt: An dem Platz der Formel beim
   Entscheid, den `levelliste.json` festhält (`prueflisteFormel`, Ticket 26), misst sich, ob das Level auf der Prüfliste
   steht, und mit ihm rechnet die Zustimmung; ein Level, das erst später darüber kommt, braucht ein Urteil, und sein
-  Platz der Formel kommt dazu (`festePlaetze`). Von dort, wo es steht, gilt
-  die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze, nie über eine Gradgrenze; am alten
-  Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort). Lehnen beide ab, wird es
-  nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft sich danach dieselbe Haupt-Kernidee auf
-  einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst
-  eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen;
-  dann der kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je
-  10 Level oder die Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der
-  Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die
-  Regeln der Levelliste. `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und
-  Duldungsliste, Prüfliste und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die
-  entfernten Namen und `prueflisteFormel` bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste
-  um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen
-  Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der
-  KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`,
-  gemeinsam für Skript und Test.
+  Platz der Formel kommt dazu (`festePlaetze`). Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der
+  Regel von `merge` (höchstens 5 Plätze, nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am
+  Platz der Formel dieselbe Regel mit dem Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die
+  Duldungsliste (Grund `abgelehnt`). Häuft sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne
+  die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
+  anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
+  spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
+  Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen
+  und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste.
+  `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
+  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen und
+  `prueflisteFormel` bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
+  Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in
+  dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester,
+  Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
+  für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
