@@ -432,3 +432,134 @@ Koordinator, nach dem Merge von Ticket 24. Bis dahin ist dieses Ticket pausiert.
   - Vorprüfung auf Zerfall vor den KI-Testern (wie in 24 und 26), die Beurteilung ist unverändert.
   - Neu ausserhalb von Levels, Levelliste und Protokoll: `tests/levelliste.test.mjs`, eine Zeile in
     `tests/ki-tester.test.mjs`, Spec und README.
+
+**Review (19.10.2026).** Geprüft wurde `git diff 1ed17a2 HEAD` (`f1e23a4`: Stufen A–C samt Merge `43b88cf`),
+nachgerechnet in Kopien ausserhalb des Repos (Scratchpad `review25\`).
+- **Austausch:** Die 15 neuen Level stehen mit den genehmigten Namen auf den Plätzen der Tabelle (108 Wegweiser bis
+  137 Fehlstart), alle „schwer“.
+  - Jedes ist bitgleich der beurteilte Kandidat: Elemente samt Reihenfolge und Lösung gleichen dem Kandidaten auf der
+    Seite seines Laufs, der Abdruck dem Namen im Protokoll; keines steht in zwei Läufen. Ersetztes Level, Auftrag, Seed
+    und Ziel in `t25\austausch-genehmigt.json` und in der Herkunftszeile passen dazu. Auch die übrigen 15 Optionen
+    aus `t25\austausch-k.json` und `-e.json` gleichen ihren Seiten.
+  - Die 15 alten Level fehlen im Spiel, ihre Namen stehen auf `entfernteNamen` (59). `entfernte-level.json`: Die 44
+    Einträge aus `1ed17a2` sind unverändert, die 15 neuen gleichen den Leveldaten in `1ed17a2` (Name, Grad, Elemente,
+    Lösung). `urspruenglich`, `ergaenzt` und `prueflisteFormel` sind unverändert, die Prüfliste ist die aus `1ed17a2`
+    ohne Kristallpalast.
+  - Die übrigen 135 Level und das Tutorial sind als Daten unverändert, kein Grad ändert sich. Es rücken nur Kathedrale
+    108 → 109, Oase 111 → 114, Lichtjahr 120 → 119, Meisterstück 121 → 120, Zwielicht 122 → 123, Spiegelsaal 130 → 128,
+    Halo 134 → 133, Sonnenfinsternis 136 → 135 und Lichtbrücke 137 → 136; alles ergibt `ordne-level.mjs` (unten).
+- **Urteile:** Die 32 neuen Einträge (`behalten-schwer-1`, `ersatz-schwer-1` und `-2`) sind genau `entry()` aus
+  `lauf.json` und beiden Antworten (Ablauf 2, kein Anker im Lauf). Die 222 Einträge aus `1ed17a2` stehen unverändert
+  davor.
+- **Wahl je Lücke** (eigene Skripte, Vorprüfung mit `zerfall-check.mjs` aus Ticket 24):
+  - Alle 30 Optionen haben einen Teil, keine ist abgelehnt. Einen Mangel haben nur e42ac1c0 (A ohne Aha) und e356c4e7
+    (A nennt Zerfall). Jedes gewählte Level ist ohne Mangel. Die Einbusse an Gefühl (A + B gegen die besten der
+    Gruppe) ist 2, allein bei Opal: dbba6247 (3/3) statt b93dc895 (4/4).
+  - Es gibt aber Wahlen ohne Einbusse, die alle Regeln halten (M1 unten). Der Tausch bei Opal ist also nicht nötig.
+    Die Begründung in Stufe B („dbba6247 3/3 statt 6ce8e339 4/4, das jetzt Rangierbahnhof füllt“) trifft so nicht zu:
+    6ce8e339 ist der Ersatz für Rangierbahnhof und füllt diese Lücke in jeder Wahl. Verdrängt ist b93dc895, der
+    Kandidat für Opal, und das nur, solange 7cdeab95 (Wegweiser) in der Gruppe Lichthof/Unendlichkeit/Sternwarte ist.
+- **Gruppe `behalten`:**
+  - Die Regel stark, unabhängig nachgerechnet: Sonnenwende (4,25), Pendel, Kathedrale und Lichtjahr (je 4,00) sind
+    stark. Sternwarte (3,50) und Lichthof (3,50, Scheinmischung, nur Ablauf 1) sind nicht stark.
+  - Die Gruppe hat jetzt 31 Level: die 27 aus `1ed17a2` unverändert in ihrer Reihenfolge, dazu die vier.
+    `BEHALTEN_TICKET_25` nennt genau diese vier, im Spiel „schwer“; die 27 aus Ticket 24 sind „mittel“.
+  - Die Endbedingung ist richtig, nach Spec (Phase 6, Duldungsliste) und den Entscheiden: Die Duldungsliste ist als
+    Menge gleich der Gruppe, je Grad 0/27/4/0, und `AUSGETAUSCHT` nennt alle Grade.
+  - Die Gegenproben sind echt. Alle Mutationen sind rot, die Kontrolle ist grün (43):
+    - behalten + Oase: rot an „nicht aus den Entscheiden“ und an der Endbedingung;
+    - behalten ohne Lichtjahr: rot an „nur noch ein behaltenes Level“ und an der Endbedingung;
+    - Lichtjahr nicht auf der Duldungsliste: rot an beiden Gründen und an der Endbedingung;
+    - Sternwarte, Oase oder Glasfenster in `BEHALTEN_TICKET_25`, oder Lichtjahr in `BEHALTEN_TICKET_24`: rot an der
+      Gruppe (Grad je Liste oder nicht ursprünglich);
+    - `AUSGETAUSCHT` ohne „schwer“: rot an der Endbedingung.
+  - Hinweis: Die Gegenprobe „Sternwarte“ prüft nur die festen Listen. Steht Sternwarte in `BEHALTEN_TICKET_25`, wird
+    der Test schon an „Ticket 25: nicht schwer“ rot.
+- **`tests/ki-tester.test.mjs`:** Die neue Prüfung reicht. Fehlt `duldung.ausschlussgrund`, werden beide Tests der
+  Anker rot. Mit Oase (A5) unter Ausschlussgrund wird „Kein Anker mit Ausschlussgrund“ rot. Mit der alten Prüfung
+  (`length > 0`) wäre der Test heute rot. Dass kein Level einen Ausschlussgrund hat, sichert `levelliste.test.mjs`:
+  Jedes Level, das die Regel verletzt, muss auf der Liste stehen. Auf diese Prüfung stützt sich der Test der Anker
+  jetzt.
+- **Reihenfolge:**
+  - Auf `a204adb` ergibt `ordne-level.mjs --austausch t25\austausch-genehmigt.json --schreiben` genau index.html und
+    `entfernte-level.json` von HEAD. `levelliste.json` ist gleich bis auf die vier in `behalten`. Diese hat der
+    Entwickler von Hand eingetragen, wie vorgesehen, denn kein Codepfad fügt der Gruppe etwas hinzu.
+  - Ein zweiter Lauf meldet „stimmen“. Auf HEAD meldet `ordne-level.mjs` „stimmen“ und „behalten … 31 Level; nicht
+    stark: –; auf der Duldungsliste ohne diesen Grund: 0“. Das Ergebnis je Level ist bytegleich dem des Entwicklers.
+  - Die Regeln halten:
+    - Grade 1–31, 32–105, 106–137, 138–150 (105 Doppelstern, 106 Sonnenwende, 137 Fehlstart, 138 Sternenstaub);
+    - höchstens zweimal je 10, mit den fünf Zügen der Tabelle;
+    - Mittel je 10 Level, kleinster Schritt +0,48;
+    - Korrekturen „eingehalten“;
+    - Prüfliste 35, alle mit Urteil;
+    - A5 Oase auf 114 und A6 Lichtbrücke auf 136, je im äussersten Drittel.
+  - Von den alten Leveln ändert sich nur die Formel von Farbverlauf (106 → 108). Sein Entscheid ist fest: bleibt,
+    Korrektur +2.
+- **Nachbau:** Alle 59 Herkunftszeilen (6 leicht, 30 mittel, 15 schwer, 8 sehr schwer) baut `generiere.mjs <auftrag>
+  --seed S --anzahl 1 --seeds 1 --schwierigkeit VON,BIS` mit dem Generator von HEAD nach, mit gleichem Abdruck.
+- **Spielwert:** Der Test ist grün mit 0,30 ohne Ausschlussgrund (116 Level) und 0,27 über alle (167). `eichmenge()`
+  ist auf HEAD gleich wie auf `a204adb`. Gegenüber `1ed17a2` kommen nur Sternwarte (3,5) und Lichtjahr (4) aus
+  `behalten-schwer-1` dazu. Code und Auswahl der Eichmenge sind unverändert.
+- **Doku:**
+  - Spec (Phase 6, Duldungsliste, Behalten, Entscheide zu den Tests) und README stimmen.
+  - Phase 6 ist sauber als abgeschlossen beschrieben: alle vier Grade ausgetauscht, 31 behaltene, alle Tickets 23–29
+    resolved.
+  - Es fehlte nur der Spielwert nach `behalten-schwer-1` in „Weitere Hinweise“ (behoben, unten).
+- **Screenshots:** Die Stichproben des Tickets und eigene sind geprüft, die Konsole ist ohne Meldungen:
+  - Levelauswahl 131–140: Seeschlange, Maskerade, Weltumsegelung und Fehlstart ●●●○, 138–140 ●●●●, Titel ohne Grad;
+  - Levelauswahl 101–110, Desktop: gemischte Seite, Wegweiser und Passstrasse ●●●○;
+  - Levelauswahl 121–130, Handy: „Level 121 – 130 · Schwer“;
+  - 130 Odyssee (Handy), dazu 122 Mäander und 137 Fehlstart (Desktop und Handy) mit Kopfzeile wie im Spiel:
+    `tests/output/review25-…`.
+- **Selbst behoben (klein, `6c49fef`):**
+  - `ordne-level.mjs` nennt im Bericht die Gruppe „(Tickets 24 und 25)“.
+  - `levelliste.mjs` nennt im Kopf die Regel in „schwer“.
+  - Die Spec hat in „Weitere Hinweise“ den Spielwert 0,30 / 0,27 nach `behalten-schwer-1`.
+- **Offen, M1 (mittel, Wahl je Lücke): Es gibt eine Wahl ohne Einbusse an Gefühl, die alle Regeln hält.**
+  - **Wo:** Stufe B, die Wahl über `t25\suche.mjs`. Diese Suche ist gierig, und ihre Kosten sind der Rang innerhalb
+    der Lücke, nicht die Einbusse. Davon hängen im Spiel 111 Tandem (dbba6247) und 108 Wegweiser (7cdeab95) ab.
+  - **Szenario:**
+    - Vollständige Suche über alle Wahlen ohne Mangel bis Einbusse 2: 17 520 Wahlen. Gruppen mit gemeinsamer
+      Ziel-Schwierigkeit gelten als k-Teilmengen ihrer Optionen. Bewertet ist mit `reihenfolge()` auf `a204adb`; die
+      gewählte Wahl ergibt dort genau die Folge im Spiel.
+    - Ergebnis: Mit Einbusse 0 halten 8 von 720 Wahlen alle Regeln, mit 1 sind es 85, mit 2 sind es 142 (darunter die
+      gewählte).
+    - Alle 8 nehmen für Opal b93dc895 (Abschalten, 4/4) und lassen 7cdeab95 weg. Mit 7cdeab95 hält keine der 288
+      Wahlen ohne Einbusse; es bleiben Häufungen offen, oder ein Level ist zu weit korrigiert.
+    - Die nächste Wahl zur gewählten tauscht nur zwei Level: dbba6247 → b93dc895 und 7cdeab95 → 1e992573
+      (Sammelstelle, 4/4, Spielwert 95,4 statt 85,1).
+    - `ordne-level.mjs --austausch` auf `a204adb` (`review25\alt-a.json`) bestätigt diese Wahl:
+      - Häufung eingehalten, mit 4 Zügen (ohne den von Tandem);
+      - Korrekturen eingehalten;
+      - Mittel steigt, kleinster Schritt +0,43;
+      - Grade unverändert, alle 15 „schwer“ auf 109–137;
+      - Duldungsliste 31, Prüfliste 35;
+      - A5 Oase auf 111, A6 auf 136.
+    - Mit dem Spielwert als letzter Stufe wäre die beste Wahl dieselbe mit 43554748 statt f3eed0f8 (Rollentausch):
+      Summe 1308,5 gegen 1303,6, die gewählte hat 1295,8. Auch diese Wahl hält alle Regeln (`alt-b.json`).
+  - **Vorschlag:** Der Nutzer entscheidet (Frage unten).
+    - (a) Es bleibt die genehmigte Wahl. Die Einbusse sind 2 Punkte Gefühl bei einem Level, und alle Level sind ohne
+      Mangel.
+    - (b) Die Wahl ohne Einbusse. Dafür braucht es zwei neue Namen für b93dc895 (Platz 109) und 1e992573 (Platz 114),
+      und der Nutzer genehmigt sie. Danach Stufe C neu von `a204adb` aus. Tandem und Wegweiser kamen nie in eine
+      Version des Spiels und bleiben frei.
+  - **Behoben, wenn:**
+    - bei (a) der Entscheid hier vermerkt ist;
+    - bei (b) gilt: Auf `a204adb` schreibt `--austausch --schreiben` mit der neuen Datei. Ein zweiter Lauf meldet
+      „stimmen“. Die vier behaltenen Level sind in `behalten`. Alle Tests sind grün, golden mit genau 30
+      Abweichungen. Dazu ein Review der neuen Stufe C.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`):
+  - Golden hat wie erwartet genau 30 Abweichungen (15 fehlende, 15 neue Namen).
+  - Grün sind logic 548, generator 30, beurteilung 178 (0,30 / 0,27), levelliste 43, ki-tester 64 und offline.
+  - Nach `6c49fef` sind levelliste 43 und ki-tester 64 erneut grün. `ordne-level.mjs` meldet „stimmen“, das Ergebnis
+    je Level ist gleich.
+- **Urteil:**
+  - Umsetzung, Leveldaten, Namen, Reihenfolge, Gruppe `behalten` und Endbedingung sind korrekt und entsprechen den
+    Entscheiden.
+  - Bereit zum Mergen, sobald der Nutzer über M1 entschieden hat: bei (a) sofort, bei (b) nach neuer Stufe C und
+    Review.
+  - Nach dem Merge schreibt der Koordinator `tests/golden.json` neu.
+
+**Frage an den Nutzer (M1):** Soll die genehmigte Wahl bleiben, mit Tandem (3/3) für Opal? Oder sollen die Wahl ohne
+Einbusse gelten und zwei neue Namen für b93dc895 und 1e992573 vorgeschlagen werden? Dann fallen Tandem und Wegweiser
+weg.
