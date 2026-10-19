@@ -588,3 +588,18 @@ heutigen Platz bleibt, aber in der Formel weit davon steht (in 26 Spiegelkabinet
 dazwischen. Dasselbe kann bei den abgelehnten Leveln in „mittel“ geschehen; mit der Regel ändern sich dadurch weder
 Entscheid noch Zugehörigkeit zur Prüfliste. Knapp an der Grenze stehen ausserhalb der Duldungsliste etwa Feuerwerk,
 Brechpunkt, Halo und Lichtbrücke (je 3 Plätze); rückt eines darüber, braucht es einen Lauf `pruefung-…`.
+
+**Merge von `origin/feature/levelgenerator` (`a7f4337`, mit den Tickets 22, 26 und 29; 19.10.2026).** Merge-Commit,
+Konflikte nur in diesem Ticket (beide Seiten behalten, die Hinweise aus 29 und 26 stehen oben am Ende) und im Protokoll
+(beide Seiten angehängt, nach Datum: `ersatz-mittel-1`, `-2`, `behalten-mittel-1`, `ersatz-sehr-schwer-1`; 180
+Einträge).
+- `ordne-level.mjs` ohne Austausch meldet „stimmen“ (Reihenfolge, Grade, Duldungsliste und Prüfliste).
+- `--austausch` neu gerechnet, mit der Regel aus 26 (`prueflisteFormel`): Kandidaten und Ersatz der zweiten Runde samt
+  den gültigen Leveln der ersten Runde stehen auf denselben Plätzen wie vor dem Merge (30 von 30 je Austausch-Datei).
+  Anders ist nur „sehr schwer“ (die Level aus 26) und die Formel von neun schweren und sehr schweren Leveln um einen
+  Platz (darunter Zwielicht 137 → 136; sein Entscheid bleibt fest). Prüfliste mit Austausch 36 (die 50 von heute ohne
+  die 14 ersetzten mittleren), alle mit Urteil.
+- Alle 86 Level beider Runden baut `generiere.mjs` mit dem gemergten Generator (Tickets 22 und 29) aus Auftrag, Seed
+  und Ziel nach.
+- Tests (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`), alle grün: golden (alle 159 Level wie in `golden.json`),
+  logic 548, generator 30, beurteilung 178 (Spielwert 0,29 / 0,27), levelliste 39, ki-tester 64, offline.
