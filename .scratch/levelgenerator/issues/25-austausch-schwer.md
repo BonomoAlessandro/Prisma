@@ -105,3 +105,119 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
 - **Zerfall:** Die KI-Tester nannten in Ticket 26 keinen Zerfall, wohl aber in Ticket 24. Die Vorprüfung aus Ticket 24
   (`zerfall-check.mjs` im Scratchpad unter `t24\`, Kopie unter `t26\`) trennte im Pool „sehr schwer“: Farben abzählen
   28 von 28 mit einem Teil, Mischziel 10 von 47, Sammelstelle 8 von 22, Falle 5 von 15.
+
+**Stufe A1 (19.10.2026): Bestand, Entscheidungsgrundlage zu Gruppe 2, Bedarf je Seite.** Noch keine Kandidaten.
+Branch `ticket/25-austausch-schwer` von `origin/feature/levelgenerator` (`a7f4337`). Den Stand nach Ticket 24 zeigt
+eine Kopie von `ticket/24-austausch-mittel` (`681ebe2`, nicht gemergt) im Scratchpad. Skripte und Zwischenstände liegen
+unter `t25\`, die Läufe gehen über `leise.sh` mit `LEISE_MAX_CPU=80 LEISE_CPU=80`.
+- **Bestand** (`ordne-level.mjs --json`, `tools/levelliste.json`; in „schwer“ auf beiden Ständen gleich): „schwer“
+  sind die Plätze 106–137 (32 Level), davon stehen 19 auf der Duldungsliste, wie im Hinweis aus Ticket 16.
+  - **Gruppe 1, 13 Level** (werden ersetzt), alle mit Ausschlussgrund; von beiden KI-Testern abgelehnt ist in „schwer“
+    keines. Plätze im Spiel:
+    - Scheinmischung: 109 Rangierbahnhof (dazu ohne Kernidee, unter 60), 110 Opal, 115 Unendlichkeit, 119 Komet
+      (dazu unter 60), 123 Interferenz, 125 Irrlicht, 128 Leuchtturm, 129 Glasperlenspiel, 135 Lichtgeschwindigkeit;
+    - Zerfall: 116 Kristallpalast (Prüfliste, zur Formel 121, Korrektur −5) und 131 Sternbild;
+    - mehrere Gründe: 132 Singularität (Scheinmischung, Zerfall), 133 Urknall (Scheinmischung, Knäuel, unter 60).
+  - **Gruppe 2, 6 Level**, nur wegen Kernidee oder Spielwert auf der Liste, alle ohne nötige Kernidee und unter 60:
+    106 Sonnenwende, 107 Pendel, 108 Kathedrale, 113 Sternwarte, 114 Lichthof, 120 Lichtjahr.
+  - Die 17 Plätze im Kopf des Tickets sind heutige Plätze der Neuzählung mit den vorläufigen Graden. Davon sind
+    Polarlicht und Lichtschleife seit Ticket 15 „mittel“ (ersetzt in 24), Korona, Quasar und Ereignishorizont „sehr
+    schwer“ (ersetzt in 26). Neu dazu kommt 98 Rangierbahnhof (heute „schwer“), also 13 mit Ausschlussgrund, dazu die
+    6 der Gruppe 2.
+- **Entscheidungsgrundlage zu Gruppe 2** (Regel `stark` aus `tools/levelliste.mjs` auf dem Stand von Ticket 24, an den
+  Urteilen im Protokoll; `t25\stark.mjs`):
+
+  | Platz | Name | Formel | Urteile (Lauf, Ablauf: Gefühl A/B, Aha A/B, Ablehnung A/B) | Gefühl im Mittel | Spielwert | Regel stark heute |
+  |---:|---|---:|---|---:|---:|---|
+  | 106 | Sonnenwende | 77 | spielwert-1 (1): 4/4, ja/ja, –/–; pruefung-1 (2): 5/4, ja/ja, –/– | 4,25 | 48,8 | stark |
+  | 107 | Pendel | 84 | pruefung-3 (2): 4/4, ja/ja, –/– | 4,00 | 50,5 | stark |
+  | 108 | Kathedrale | 86 | pruefung-7 (2): 4/4, ja/ja, –/– | 4,00 | 49,2 | stark |
+  | 113 | Sternwarte | 110 | – | – | 38,3 | ohne Urteil |
+  | 114 | Lichthof | 111 | spielwert-3 (1): 4/3, ja/ja, Scheinmischung/Scheinmischung | 3,50 | 56,2 | schwach |
+  | 120 | Lichtjahr | 119 | – | – | 54,3 | ohne Urteil |
+
+  - Erkannte Kernideen: bei keinem der sechs; alle stehen ohne nötige Kernidee und unter dem Mindest-Spielwert auf der
+    Liste. Die KI-Tester beschreiben als Aha-Moment:
+    - Sonnenwende und Pendel: ein Kombinator mischt Rot und Blau bzw. Rot und Grün desselben Prismas, und Spiegel der
+      weissen Stränge lenken den zweiten Strahl mit (ein Mischziel aus einer Quelle, ausserhalb des Glossars, wie in
+      „mittel“);
+    - Kathedrale: Farben abzählen im weiteren Sinn (der Filter nimmt zwei Quellen das Blau, also bedient die dritte
+      das weisse Ziel), danach Grün auf langem Weg über doppelt genutzte Spiegel;
+    - Lichthof: Gelb aus Rot und Grün läuft über mehrere Spiegel in ein Prisma, das es wieder trennt. Beide nennen das
+      Scheinmischung (b). Die Beurteilung zählt es nicht, weil die Mischung nicht direkt ins Prisma läuft (Grenzfall
+      der Neuzählung, Spec „Weitere Hinweise“).
+  - **Nach der Regel heute:**
+    - stark: Sonnenwende, Pendel und Kathedrale. Jedes hat ein Urteil aus Ablauf 2 (`pruefung-…`).
+    - schwach: Lichthof. Beide nennen Scheinmischung, das Gefühl ist 3,5, und es gibt nur ein Urteil aus Ablauf 1
+      (Eichlauf `spielwert-3`). Weil jedes Urteil zählt, bleibt es auch mit einem neuen Urteil schwach.
+    - ohne Urteil: Sternwarte (tiefster Spielwert in „schwer“) und Lichtjahr.
+    - nur mit Urteil aus Ablauf 1: Lichthof.
+  - Sonnenwende, Pendel und Kathedrale stehen als Level der Prüfliste am heutigen Platz. Nach der Formel lägen sie auf
+    77–86 (Schwierigkeit 52,1–54,6, nach der Schwelle „mittel“); „schwer“ sind sie nur durch ihren Platz. Beide
+    KI-Tester wollten sie früher haben (Korrektur −5, −5, −3), aber nicht so früh wie die Formel.
+- **Optionen:**
+  - **(a) Dieselbe Regel wie in „mittel“, mit einem Lauf** (meine Empfehlung). Der Lauf `behalten-schwer-1` beurteilt
+    Sternwarte und Lichtjahr; er zählt nicht für die Levelliste, geht aber in die Eichmenge des Spielwerts ein. Danach
+    gilt die Regel stark für alle 6.
+    - Sonnenwende, Pendel und Kathedrale bleiben unter dem Grund „behalten nach Urteil der KI-Tester“, Lichthof wird
+      ersetzt, Sternwarte und Lichtjahr je nach Urteil. Zu ersetzen sind also 14 bis 16 Level.
+    - Kosten: ein kleiner Lauf (2 Level), dazu Kandidat und Ersatz für 14–16 Lücken (zwei bis drei Läufe
+      `ersatz-schwer-…`).
+    - Die Gruppe `behalten` wächst um 3 bis 5 Level. Der Test lässt heute nur die 27 aus Ticket 24 zu
+      (`BEHALTEN_TICKET_24`) und braucht dann die Liste aus diesem Entscheid dazu.
+    - Folge: In „schwer“ bleiben 3–5 behaltene Level auf der Duldungsliste.
+    - Eichmenge des Spielwerts: Die Übereinstimmung ist heute 0,29 ohne Ausschlussgrund und 0,27 über alle (Stand
+      nach 24, Schwelle 0,26 / 0,25). Mit den zwei neuen Urteilen (angenommenes Gefühl als Mittel aus A und B,
+      `t24\eichmenge-sim.mjs`): beide 3 ergibt 0,31 / 0,28, beide 4 ergibt 0,28 / 0,26, beide 4,5 ergibt 0,26 / 0,24,
+      dann also unter der Schwelle über alle. Zieht man das Gefühl zufällig aus den 50 mittleren Leveln mit Urteil
+      ohne erkannte Kernidee, fällt es in 3,9 % der Fälle unter eine Schwelle. Der Grund ist Sternwarte mit dem
+      tiefsten Spielwert (38,3): Finden beide KI-Tester es sehr gut, sinkt die Übereinstimmung. Dann entscheidet wie
+      in Ticket 24 der Nutzer.
+  - **(a′) Dieselbe Regel, ohne Lauf:** Sternwarte und Lichtjahr gelten ohne Urteil als schwach und werden ersetzt
+    (16 Level). Das spart den Lauf, aber die Regel aus „mittel“ beurteilte zuerst.
+  - **(b) Alle 6 ersetzen** (19 Level). Die Duldungsliste ist in „schwer“ danach leer. Teuer ist das auf 101–110:
+    - Sonnenwende, Pendel und Kathedrale brauchen Ersatz mit dem Grad „schwer“ (ab 58,5) auf 106–108. Zusammen mit
+      Rangierbahnhof und Opal teilen sich fünf Level die Lücke 58,5–59,28.
+    - Ohne Lockvogel muss die Seite dann genau Falle 2, Abschalten 2 und Farben abzählen 1 bringen.
+    - Die Formel von 26 Leveln (alle „mittel“ ausser Supernova) rückt um bis zu 3 Plätze. Prüfliste und Entscheide
+      bleiben (feste Plätze), aber die Korrekturen von drei Leveln aus „mittel“ rechnen neu (Türkis +3 → +5,
+      Rundflug 0 → +1, Prismenreigen −5 → −4), und Wabe, Smaragd, Lichtbogen und Prismenreigen rücken um einen Platz.
+  - **(c) Alle 6 behalten:** nach der Regel stark nicht möglich (Lichthof hat Ablehnungen); das bräuchte eine andere
+    Regel.
+  - Begründung der Empfehlung: Sie ist dieselbe Regel wie in „mittel“. Die drei starken Level haben Urteile aus
+    Ablauf 2 mit Gefühl 4 bis 5. Ihr Ersatz wäre zudem der teuerste Teil von (b): enge Lücke, die Seite 101–110 voll
+    und Folgen für „mittel“. Der Lauf zu zwei Leveln kostet wenig.
+- **Bedarf je Seite** (Stand nach Ticket 24). Simuliert mit `reihenfolge` aus `tools/levelliste.mjs` samt
+  `prueflisteFormel` (`t25\sim.mjs`); je Ersatz eine angenommene Schwierigkeit in seiner Lücke, ohne Korrektur der
+  KI-Tester. Gezählt wird ohne die Duldungsliste, höchstens 2 je Haupt-Kernidee. Spalte „dürfen dazu“ in der
+  Reihenfolge Fa / Ab / Fz / Sa / Lo / Mi:
+
+  | Plätze | bleiben (Haupt-Kernidee) | neu: Gruppe 1 | dazu (a) | dazu (b) | dürfen dazu | ohne Lockvogel nötig |
+  |---|---|---|---|---|---|---|
+  | 101–110 | Mi 2 (Prismenreigen, Lichtbogen), Sa 2 (Türkis, Rundflug), Fz 1 (Doppelstern), alle „mittel“ aus 24 | 109, 110 | – | 106, 107, 108 | 2 / 2 / 1 / 0 / 2 / 0 | bei 5 neuen genau Fa 2, Ab 2, Fz 1 |
+  | 111–120 | Mi 2 (Oase, Wetterleuchten), Fz 1 (Supernova), Fa 2 (Gordischer Knoten, Meisterstück) | 115, 118 | 114, je nach Urteil 113 und 119 | 113, 114, 119 | 0 / 2 / 1 / 2 / 2 / 0 | bei 5 neuen genau Ab 2, Fz 1, Sa 2 |
+  | 121–130 | Fz 1 (Zwielicht), Sa 1 (Fata Morgana), Ab 2 (Rosette, Spiegelsaal), Fa 1 (Brennglas) | 121, 123, 125, 128, 129 | – | – | 1 / 0 / 1 / 1 / 2 / 2 | genau Fa 1, Fz 1, Sa 1, Mi 2 |
+  | 131–140 | Fz 2 (Halo, Lichtbrücke), Ab 2 (Sonnenfinsternis, Sternenstaub), Sa 1 (Abendstern), Mi 1 (Lichtfächer) | 131, 132, 133, 135 | – | – | 2 / 0 / 0 / 1 / 2 / 1 | genau Fa 2, Sa 1, Mi 1 |
+
+  - Jedes Ersatzlevel kommt auf den Platz des ersetzten Levels, ausser dem für Kristallpalast. Kristallpalast steht
+    heute durch seine Korrektur auf 116, sein Ersatz kommt nach der Formel auf 121. Dazwischen rücken Wetterleuchten,
+    Gordischer Knoten, Lichtjahr (falls es bleibt) und Komet (Ersatz) einen Platz vor, Meisterstück (Falle) von 121
+    auf 120. Damit hat 111–120 schon Falle 2 und Mischziel 2, 121–130 nur noch Falle 1.
+  - Sonst ändern sich in (a) weder Formel, Prüfliste, Entscheid noch Korrektur eines anderen Levels (in (b) siehe
+    oben). Die Häufungsregel macht nur die drei bisherigen Züge, das Mittel je 10 Level steigt, und kein Level kommt
+    neu auf die Prüfliste.
+  - **Knapp sind 121–130 und 131–140 in jedem Fall:** Ohne Lockvogel muss dort jede freie Kernidee voll kommen; in
+    Ticket 24 bestand kein Lockvogel die Vorprüfung auf Zerfall. Auf 101–110 genügt in (a) eine Kernidee. Auf 111–120
+    genügen bei 3 neuen Leveln zwei; werden Sternwarte und Lichtjahr ersetzt (5 neue), ist auch diese Seite knapp.
+  - Spielraum geben die Häufungsregel (bis 3 Plätze im Grad) und die Korrekturen der KI-Tester (bis 5 Plätze). Diese
+    können ein Ersatzlevel aber auch auf die Nachbarseite tragen: das für Kristallpalast (121) mit −1 bis −5 auf
+    111–120 (dort sind Falle und Mischziel voll), die auf 109 und 110 mit einer Korrektur nach oben ebenso.
+  - Ziel-Schwierigkeit (Lücke nach dem Rang der Formel, Stand nach 24):
+    - Rangierbahnhof und Opal: 59,13–59,28, nur 0,15 breit. Nach der Simulation taugt auch 58,5–59,28: Unter 59,13
+      ändert sich nur die Formel von Farbverlauf (Prüfliste, Platz 93), und sein Entscheid ist fest.
+    - Sternwarte, Lichthof und Unendlichkeit: 59,28–60,41 (bleiben Sternwarte und Lichthof, für Unendlichkeit
+      59,70–60,41).
+    - Komet und Lichtjahr: 62,40–66,03 (bleibt Lichtjahr, für Komet 62,40–64,20).
+    - Kristallpalast und Interferenz 66,03–70,98; Irrlicht 70,98–75,57; Leuchtturm, Glasperlenspiel und Sternbild
+      75,76–81,58; Singularität und Urknall 81,58–83,60; Lichtgeschwindigkeit 83,60–85,91 (die Gradgrenze 137/138 liegt
+      zwei Plätze darüber).
