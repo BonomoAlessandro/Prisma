@@ -166,3 +166,25 @@ Zwischenstände im Scratchpad unter `t26\` (Sitzung `0a88c4f4-…`); dort auch d
     `tools/levelliste.mjs` und `ordne-level.mjs`, mit Test und Gegenprobe, dazu Spec und Hinweise in 24 und 25.
   - Anker A8 (in Ticket 16 vorgesehen): ein neues Level am oberen Ende von „sehr schwer“, mit Urteil und ohne
     Ablehnung; danach Ablauf 3. Den Vorschlag bestätigt der Nutzer mit den Namen.
+
+**Vorprüfung auf Zerfall (19.10.2026, auf Bitte des Koordinators).** Das Skript `zerfall-check.mjs` aus Ticket 24 liegt
+als Kopie in `t26\`. Es teilt die Lösung in Teile, die weder ein Ziel noch ein nötiges Element teilen; die Beurteilung
+bleibt unverändert. Ergebnis je Kandidat des Laufs `ersatz-sehr-schwer-1` (Teile, Grösse je Teil als Quellen / drehbare
+Elemente / Ziele):
+
+| ersetzt | Kandidat | Ersatz |
+|---|---|---|
+| Korona | 7cdbf908: 2 (2/10/2 + 2/2/1) | 43ba1dd9: 2 (2/12/3 + 2/1/1) |
+| Prismenhof | fb490f7a: 3 (1/8/1 + 2/2/1 + 1/2/1) | ae5500c7: 2 (2/13/4 + 2/1/1) |
+| Spiegelkabinett | fe84c829: 2 (3/12/3 + 1/2/1) | e3300612: 2 (3/13/2 + 1/1/1) |
+| Quasar | **0e4262ab: 1** | c94a77bc: 2 (3/12/4 + 1/1/1) |
+| Ereignishorizont | **2d5f0698: 1** | **0c14e76f: 1** |
+| Zenit | d4f62e92: 4 (1/6/2 + 3 × 1/2/1) | bd19e7db: 2 (2/13/4 + 1/1/1) |
+| Farbenrausch | **a1e8102b: 1** | **2c01b273: 1** |
+| Farbmühle | 4f7893e6: 2 (3/12/4 + 1/1/1) | **7fea2e13: 1** |
+
+- Mit einem Teil bestehen 6 von 16. Für Korona, Prismenhof, Spiegelkabinett (alle Mischziel) und Zenit (Falle) besteht
+  keiner.
+- Im Pool (Seeds 1–1000 ohne Ziel, verlangte = Haupt-Kernidee) bestehen Farben abzählen 28 von 28, Mischziel 10 von 47,
+  Sammelstelle 8 von 22 und Falle 5 von 15. Bestehende Mischziele liegen fast nur unter 88 oder über 90,4.
+- In Stufe B gilt je Lücke bevorzugt ein Kandidat, der mit einem Teil besteht, sonst die Regel der KI-Tester.
