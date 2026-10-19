@@ -87,10 +87,14 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
 
 **Hinweis aus Ticket 26 (Austausch „sehr schwer“, 19.10.2026):**
 - **Neue Regel** (Entscheid des Nutzers vom 19.10.2026): Die Entscheide aus Ticket 16 zu den Leveln der Prüfliste
-  bleiben fest, auch wenn ein Austausch die Formel verschiebt. Die Zustimmung rechnet mit dem Platz der Formel beim
-  Entscheid (`prueflisteFormel` in `tools/levelliste.json`, `formelEntscheid` in `reihenfolge`). Anlass war Zwielicht:
-  Ohne Spiegelkabinett (Formel 131) wäre es von 122 auf 136 gesprungen. Es bleibt auf 122, in „schwer“ verschiebt sich
-  durch Ticket 26 kein Level.
+  bleiben fest, auch wenn ein Austausch die Formel verschiebt. An dem Platz der Formel beim Entscheid
+  (`prueflisteFormel` in `tools/levelliste.json`, `formelEntscheid` in `reihenfolge`) misst sich, ob ein Level auf der
+  Prüfliste steht, und mit ihm rechnet die Zustimmung. Ein Level, das erst durch einen Austausch weiter als 10 Plätze
+  wandern würde, steht neu auf der Prüfliste und braucht ein Urteil; danach kommt sein Platz der Formel dazu
+  (`festePlaetze`, nach dem Review von Ticket 26, M1). Anlass war Zwielicht: Ohne Spiegelkabinett (Formel 131) wäre es
+  von 122 auf 136 gesprungen. Es bleibt auf 122, in „schwer“ verschiebt sich durch Ticket 26 kein Level. Knapp an der
+  Grenze stehen Sternenstaub (A7) und Pulsar (A8) mit je 1 Platz, Lichtkegel mit 2 sowie Halo, Brechpunkt, Feuerwerk
+  und Lichtbrücke mit je 3.
 - **Seite 131–140** nach Ticket 26: 131 Sternbild, 132 Singularität, 133 Urknall, 135 Lichtgeschwindigkeit (alle
   Duldungsliste, hier zu ersetzen), 134 Halo (Farben abzählen), 136 Sonnenfinsternis (Abschalten), 137 Lichtbrücke
   (Farben abzählen), 138 Sternenstaub (Abschalten), 139 Abendstern (Sammelstelle), 140 Lichtfächer (neu, Mischziel aus

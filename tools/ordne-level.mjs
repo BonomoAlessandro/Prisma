@@ -35,8 +35,9 @@
 //   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
 //                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
 //                Duldungsliste, die entfernten Namen und die Plätze der Formel beim Entscheid über die Level der
-//                Prüfliste (prueflisteFormel, Ticket 26; fehlen sie, die von heute) bleiben, wie sie sind; fehlt die
-//                Datei, ist die ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
+//                Prüfliste (prueflisteFormel, Ticket 26) bleiben, wie sie sind; ein Level der Prüfliste mit neuem
+//                Urteil kommt mit seinem Platz der Formel von heute dazu (festePlaetze); fehlt die Datei, ist die
+//                ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
 //                begründete Ergänzungen (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln
 //                festhält (ergaenzt).
 //                Mit --austausch setzt es dazu die neuen Level mit ihrem Namen ein und nimmt die ersetzten heraus:
@@ -56,8 +57,8 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, imSpiel, ladeLevelliste,
-  reihenfolge, zaehlendeUrteile, zehner,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, ergaenzungBegruendet, festePlaetze, imSpiel,
+  ladeLevelliste, reihenfolge, zaehlendeUrteile, zehner,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -383,9 +384,9 @@ const listen = {
   pruefliste: folgeNamen(pruef),
   prueflisteErledigt: pruef.every(i => ki.has(i)),
 };
-// Der Platz der Formel beim Entscheid über die Level der Prüfliste bleibt fest (Ticket 26); fehlt er, der von heute
-const prueflisteFormel = bisher?.prueflisteFormel ?? Object.fromEntries(pruef.filter(i => ki.has(i))
-  .sort((i, j) => platz[i] - platz[j]).map(i => [levels[i].name, formel[i]]));
+// Der Platz der Formel beim Entscheid über die Level der Prüfliste bleibt fest (Ticket 26); ein Level mit neuem Urteil
+// kommt mit seinem Platz der Formel von heute dazu (festePlaetze)
+const prueflisteFormel = festePlaetze(bisher?.prueflisteFormel ?? null, ordnung, levels.map(l => l.name));
 for (const [grund, neu] of Object.entries(neuAufListe)) {
   const ohne = neu.filter(i => !ergaenzt[grund].includes(levels[i].name));
   if (neu.length) console.log(`  neu auf der Duldungsliste (${GRUENDE[grund].text}): ${zeige(neu)}`);
@@ -393,7 +394,8 @@ for (const [grund, neu] of Object.entries(neuAufListe)) {
 }
 const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   .every(k => JSON.stringify(bisher[k]) === JSON.stringify(listen[k]))
-  && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt) && !!bisher.prueflisteFormel;
+  && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt)
+  && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel);
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
 // Mit dem Austausch nur, wenn jedes neue Level seinen genehmigten Namen und ein zählendes Urteil hat, das es nicht

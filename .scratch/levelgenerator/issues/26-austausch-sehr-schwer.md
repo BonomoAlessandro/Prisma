@@ -380,3 +380,31 @@ Repos (Scratchpad `review26\`).
 - **Urteil:** Ticket 26 ist bereit zum Mergen. Leveldaten, Namen, Reihenfolge, Duldungsliste und die neue Regel sind
   für den heutigen Stand korrekt. M1 sollte vor dem Fortsetzen von Ticket 24 geschlossen werden (hier oder dort). Nach
   dem Merge schreibt der Koordinator `tests/golden.json` neu.
+
+**M1 behoben (19.10.2026).**
+- **Zugehörigkeit zur Prüfliste fest:** `ordne` in `tools/levelliste.mjs` nimmt je Level den festen Platz der Formel
+  beim Entscheid (`fest[i]`) und misst daran, ob ein Level mit Entscheid auf der Prüfliste steht; `reihenfolge` gibt
+  ihn aus `formelEntscheid` weiter, für die Prüfliste und für die Zustimmung. Ein Level mit Entscheid bleibt so auf der
+  Prüfliste, mit Entscheid und Platz, auch wenn ein Austausch seine Formel an den heutigen Platz rückt; `reihenfolge`
+  wirft dann nicht mehr.
+- **Neue Urteile:** `festePlaetze` in `tools/levelliste.mjs` (von `ordne-level.mjs` benutzt) behält die bisherigen
+  Einträge von `prueflisteFormel` und ergänzt ein Level der Prüfliste mit Urteil, aber ohne festen Platz, um seinen
+  Platz der Formel von heute. `ordne-level.mjs` vergleicht `prueflisteFormel` jetzt mit diesem Ergebnis („stimmen“
+  nur, wenn nichts dazukommt).
+- **Test** „Feste Entscheide der Prüfliste an erfundenen Verschiebungen der Formel, mit Gegenproben“, unabhängig von
+  Zwielicht (die Gegenprobe dort ist weg):
+  1. Die Formel eines Levels der Prüfliste, das am heutigen Platz bleibt, rückt auf diesen Platz: Mit den festen
+     Plätzen bleibt es auf der Prüfliste, mit Entscheid, festem Platz und heutigem Platz; ohne sie wirft
+     `reihenfolge` („steht nicht auf der Prüfliste“).
+  2. Ein Level, dem beide am festen Platz zustimmen, bleibt am heutigen Platz, wenn der feste Platz 11 Plätze auf der
+     anderen Seite läge; die Formel von heute ist dieselbe.
+  3. Ein Level rückt durch eine erfundene Verschiebung 15 Plätze in der Formel: Es steht neu auf der Prüfliste, ohne
+     Urteil kommt nichts zu `prueflisteFormel`, mit einem erfundenen Urteil sein Platz der Formel von heute, die
+     übrigen bleiben.
+  Dazu misst der Test der Prüfliste die Level mit Entscheid am festen Platz, und auf dem Stand im Spiel ergibt
+  `festePlaetze` genau `prueflisteFormel`.
+- **Auf HEAD unverändert:** `ordne-level.mjs` meldet „stimmen“; das Ergebnis je Level (`--json`) ist gleich wie vor M1,
+  index.html und `levelliste.json` sind unverändert.
+- **Nachgeführt:** Hinweise in 24 und 25, Spec („Weitere Hinweise“) und README.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): logic 548, generator 28, beurteilung 177,
+  levelliste 39, ki-tester 64 und offline grün; golden mit genau den 16 Namensabweichungen.
