@@ -58,7 +58,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
     Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); nach dem Austausch eines Grads stehen aus ihm
     nur noch Level der Gruppe „behalten nach Urteil der KI-Tester“ darauf, die nie wächst und deren Level die Regel
-    `stark` im Protokoll erfüllen (Ticket 24, mit Gegenproben an erfundenen Urteilen); eindeutige Namen, keiner aus der
+    `stark` im Protokoll erfüllen (Tickets 24 und 25, mit Gegenproben an erfundenen Urteilen; seit Ticket 25 nennt die
+    Liste genau diese Level, 27 in „mittel“ und 4 in „schwer“); eindeutige Namen, keiner aus der
     Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
     nichts), 150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
     Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
@@ -515,9 +516,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
   `tools/beurteilung/entfernte-level.json`. Ebenso kamen 8 neue sehr schwere Level in Ticket 26 (Lauf
   `ersatz-sehr-schwer-1`) und 30 neue mittlere in Ticket 24 (Läufe `ersatz-mittel-1` bis `-5`): für die 13 mit
-  Ausschlussgrund oder Ablehnung und für 17 ohne erkannte Kernidee, die die KI-Tester schwach beurteilten. 27 mittlere
-  Level, die nur wegen Kernidee oder Spielwert auf der Duldungsliste stehen, bleiben nach ihrem Urteil (Gruppe
-  `behalten` in `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die Level 121–150 (aus `harden.mjs`)
+  Ausschlussgrund oder Ablehnung und für 17 ohne erkannte Kernidee, die die KI-Tester schwach beurteilten, dazu 15 neue
+  schwere in Ticket 25 (Läufe `ersatz-schwer-1` und `-2`): für die 13 mit Ausschlussgrund, Lichthof und Sternwarte.
+  27 mittlere und 4 schwere Level, die nur wegen Kernidee oder Spielwert auf der Duldungsliste stehen, bleiben nach
+  ihrem Urteil (Gruppe `behalten` in `tools/levelliste.json`); seit Ticket 25 stehen nur noch sie auf der Liste, alle
+  vier Grade sind ausgetauscht. Die frühere Reihenfolge entstand so: Die Level 121–150 (aus `harden.mjs`)
   waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze

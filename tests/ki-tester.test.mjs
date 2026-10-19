@@ -243,7 +243,8 @@ test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und eine
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), 'Anker nach Platz geordnet');
 });
 test('Kein Anker mit Ausschlussgrund, auf der Prüfliste oder ein Grenzfall der Neuzählung', () => {
-  assert.ok(AUSSCHLUSS.length > 0 && LEVELLISTE.pruefliste.length > 0, 'levelliste.json gelesen');
+  // seit Ticket 25 ist die Liste mit Ausschlussgrund leer (alle vier Grade ausgetauscht); gelesen ist sie trotzdem
+  assert.ok(Array.isArray(AUSSCHLUSS) && LEVELLISTE.pruefliste.length > 0, 'levelliste.json gelesen');
   for (const a of loadAnchors()) {
     assert.ok(usable(a), `${a.name}: Ausschlussgrund oder Prüfliste`);
     assert.ok(!GRENZFAELLE.includes(a.name), a.name);

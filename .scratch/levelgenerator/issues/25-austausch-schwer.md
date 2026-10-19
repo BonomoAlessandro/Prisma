@@ -9,19 +9,23 @@ Durchgang. Laut Neuzählung sind es 17 Level: 101, 106, 111, 116, 120, 121, 128,
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
 Verfeinern), 28 (Generator: Kernideen ab „mittel“)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Für jedes schwere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „schwer“
-      und einer nötigen Kernidee.
-- [ ] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
+- [x] Für jedes schwere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „schwer“
+      und einer nötigen Kernidee. Nach dem Entscheid des Nutzers vom 19.10.2026 (Option a) gilt das für die 15 zu
+      ersetzenden (13 mit Ausschlussgrund, dazu Lichthof und Sternwarte, schwach beurteilt); 4 stark beurteilte bleiben
+      (Grund „behalten nach Urteil der KI-Tester“).
+- [x] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
       neuer Kandidat.
-- [ ] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
+- [x] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
       Spiel kommen. Die Genehmigung steht unter `## Comments`.
-- [ ] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
-- [ ] Auf der Duldungsliste steht kein schweres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
-      Liste leer, und der Test verlangt ab jetzt eine leere Liste.
-- [ ] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
-- [ ] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
+- [x] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
+- [x] Auf der Duldungsliste steht kein schweres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
+      Liste leer, und der Test verlangt ab jetzt eine leere Liste. Nach den Entscheiden des Nutzers (Tickets 24 und 25)
+      stehen nur noch die 4 behaltenen schweren Level darauf; mit diesem letzten der Tickets 23–26 nennt die Liste genau
+      die 31 behaltenen Level (mittel 27, schwer 4), und der Test verlangt das.
+- [x] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
+- [x] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
 
 ## Comments
 
@@ -357,3 +361,74 @@ Koordinator, nach dem Merge von Ticket 24. Bis dahin ist dieses Ticket pausiert.
   | 137 | Lichtgeschwindigkeit | 6ec6e6d7 | Mischziel aus zwei Quellen | 4/4 | **Fehlstart** (die rote Quelle trifft am Start das falsche Ziel), Partnerwahl, Tanzpaar |
 
   Die Genehmigung des Nutzers folgt hier.
+
+**Genehmigung des Nutzers (19.10.2026, über den Koordinator):** Alle 15 Favoriten gelten: 108 Wegweiser,
+110 Passstrasse, 111 Tandem, 113 Marktplatz, 115 Rollentausch, 116 Stabübergabe, 121 Achterbahn, 122 Mäander,
+125 Abkürzung, 129 Nadelöhr, 130 Odyssee, 131 Seeschlange, 132 Maskerade, 134 Weltumsegelung, 137 Fehlstart.
+
+**Abschluss Stufe C (19.10.2026).**
+- **Eingesetzt** mit `ordne-level.mjs --austausch <t25\austausch-genehmigt.json> --schreiben` (je Eintrag `ersetzt`,
+  `name`, `auftrag`, `seed`, `schwierigkeit`, `level`; die Wahl aus Stufe B); ein zweiter Lauf ohne `--austausch`
+  meldet „Reihenfolge und Grade stimmen“ und „Duldungsliste und Prüfliste stimmen“. Alle 150 Level stehen auf dem
+  Platz aus der Prüfung mit `--austausch`.
+
+  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft (Auftrag, Seed, Ziel) | KI-Tester (Gefühl, Lauf) |
+  |---:|---|---|---:|---|---|---|
+  | 108 | Wegweiser | Unendlichkeit | 59,7 | Farben abzählen | schwer-abzaehlen, 324, 59,45–60,41 | 4/4, ersatz-schwer-1 |
+  | 110 | Passstrasse | Rangierbahnhof | 58,8 | Falle | schwer-falle, 557, 58,5–59,28 | 4/4, ersatz-schwer-2 |
+  | 111 | Tandem | Opal | 58,9 | Farben abzählen | schwer-abzaehlen, 370, 58,5–59,28 | 3/3, ersatz-schwer-2 |
+  | 113 | Marktplatz | Komet | 64,1 | Sammelstelle | schwer-sammelstelle, 103, 62,4–64,2 | 4/4, ersatz-schwer-1 |
+  | 115 | Rollentausch | Lichthof | 59,6 | Abschalten | schwer-abschalten, 50, 59,45–60,41 | 4/4, ersatz-schwer-1 |
+  | 116 | Stabübergabe | Sternwarte | 59,8 | Abschalten | schwer-abschalten, 8, 59,45–60,41 | 5/4, ersatz-schwer-2 |
+  | 121 | Achterbahn | Interferenz | 67,8 | Mischziel aus zwei Quellen | schwer-mischziel, 17, 66,03–70,98 | 4/4, ersatz-schwer-1 |
+  | 122 | Mäander | Kristallpalast | 67,5 | Mischziel aus zwei Quellen | schwer-mischziel, 79, 66,03–70,98 | 4/5, ersatz-schwer-2 |
+  | 125 | Abkürzung | Irrlicht | 74,3 | Falle | schwer-falle, 559, 70,98–75,57 | 4/4, ersatz-schwer-2 |
+  | 129 | Nadelöhr | Singularität | 81,6 | Sammelstelle | schwer-sammelstelle, 458, 81,58–83,6 | 5/4, ersatz-schwer-1 |
+  | 130 | Odyssee | Leuchtturm | 77,9 | Farben abzählen | schwer-abzaehlen, 261, 75,76–81,58 | 5/5, ersatz-schwer-1 |
+  | 131 | Seeschlange | Sternbild | 77,2 | Falle | schwer-falle, 194, 75,76–81,58 | 4/4, ersatz-schwer-2 |
+  | 132 | Maskerade | Glasperlenspiel | 81,5 | Falle | schwer-falle, 409, 75,76–81,58 | 4/4, ersatz-schwer-1 |
+  | 134 | Weltumsegelung | Urknall | 82,0 | Sammelstelle | schwer-sammelstelle, 371, 81,58–83,6 | 5/4, ersatz-schwer-2 |
+  | 137 | Fehlstart | Lichtgeschwindigkeit | 85,7 | Mischziel aus zwei Quellen | schwer-mischziel, 568, 83,6–85,91 | 4/4, ersatz-schwer-2 |
+
+  - Jeder Block in `index.html` hat den Lösungskommentar und die Herkunftszeile („Generator <Auftrag>, Seed S, Ziel
+    VON–BIS · ersetzt … (Austausch „schwer“)“). Nachgebaut: Alle 59 Level mit Herkunftszeile (6 aus 23, 30 aus 24, 8
+    aus 26, 15 aus 25) ergibt `generiere()` aus Auftrag, Seed und Ziel mit demselben Abdruck wie im Spiel
+    (`t24\herkunft.mjs`).
+- **Entfernt:** die 15 ersetzten Level. Ihre Namen stehen auf `entfernteNamen` (jetzt 59), ihre Leveldaten als feste
+  Kopie in `tools/beurteilung/entfernte-level.json` (59 Level).
+- **Behalten:** Die Gruppe `behalten` in `tools/levelliste.json` hat jetzt 31 Level, dazu Sonnenwende, Pendel,
+  Kathedrale und Lichtjahr. `tests/levelliste.test.mjs`: eigene feste Liste `BEHALTEN_TICKET_25`, die nicht wächst (die
+  Gruppe darf nur Level aus den Entscheiden in 24 und 25 enthalten, die aus 24 in „mittel“, die aus 25 in „schwer“);
+  Gegenprobe: Sternwarte ist nach dem Protokoll nicht stark und fällt als zusätzliches Level auf.
+- **Duldungsliste:** 31 Level (leicht 0 von 31, mittel 27 von 74, schwer 4 von 32, sehr schwer 0 von 13), genau die
+  behaltenen. Ausschlussgrund 0, ohne nötige Kernidee 30, unter dem Mindest-Spielwert 25, abgelehnt 0. `AUSGETAUSCHT`
+  nennt jetzt alle vier Grade; ein neuer Test verlangt die Endbedingung: Die Duldungsliste nennt genau die behaltenen
+  Level, 27 in „mittel“ und 4 in „schwer“. Phase 6 ist damit abgeschlossen.
+- **Regeln:**
+  - Grade: leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150; der Grad sinkt nie.
+  - Prüfliste 35 (die 36 von vorher ohne Kristallpalast), erledigt; `prueflisteFormel` bleibt.
+  - Haupt-Kernidee höchstens zweimal je 10 Level ohne die Duldungsliste; Häufungsregel: Lichtwaage 50 → 51,
+    Doppelspiegel 102 → 100, Tandem 110 → 111, Achterbahn 118 → 121, Seeschlange 130 → 131.
+  - Mittel je 10 Level steigt überall (kleinster Schritt +0,48); kein korrigiertes Level mehr als 5 Plätze vom Platz
+    davor, nach den Korrekturen und am Ende.
+  - Anker: A5 Oase auf 114, A6 Lichtbrücke auf 136, je im äussersten Drittel von „schwer“.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`):
+  - logic 548, generator 30, beurteilung 178 (Spielwert 0,30 / 0,27), levelliste 43, ki-tester 64, offline: grün.
+  - `tests/ki-tester.test.mjs`: Der Test der Anker prüfte mit `AUSSCHLUSS.length > 0`, ob `levelliste.json` gelesen
+    ist; die Liste mit Ausschlussgrund ist jetzt leer. Er prüft jetzt, dass sie eine Liste ist.
+  - `golden.mjs`: wie erwartet 30 Abweichungen, genau die 15 fehlenden und die 15 neuen Namen; die übrigen 144 Level
+    sind wie in `golden.json`. Die Referenz schreibt der Koordinator nach dem Merge neu.
+- **Screenshots** (Stichproben, ohne Meldungen in der Konsole): Levelauswahl 111–120 (Desktop und Handy; Titel „Level
+  111 – 120 · Schwer“, Tandem, Marktplatz, Rollentausch, Stabübergabe, ●●●○) und 131–140 (Desktop und Handy; Titel
+  ohne Grad, weil die Seite gemischt ist, 131–137 ●●●○, 138–140 ●●●●); 113 Marktplatz und 130 Odyssee auf Desktop und
+  Handy mit Kopfzeile wie im Spiel (Name, ●●●○ Schwer, Ziele; `tests/output/t25-level/`).
+- **Abweichungen:**
+  - 15 statt 17 Level: die 13 mit Ausschlussgrund (die 17 im Kopf sind die Neuzählung) und nach dem Entscheid des
+    Nutzers Lichthof und Sternwarte; Sonnenwende, Pendel, Kathedrale und Lichtjahr bleiben.
+  - Zwei Läufe der KI-Tester für Kandidaten (`ersatz-schwer-1`, `-2`) und einer für Gruppe 2 (`behalten-schwer-1`).
+  - Ziel für Rangierbahnhof und Opal 58,5–59,28 statt der engen Lücke 59,13–59,28 (Stufe A1).
+  - Wahl je Lücke mit einer Suche statt nur nach der Rangfolge, wegen der Korrekturen der KI-Tester (Stufe B); Opal
+    bekommt ein Level mit 3/3.
+  - Vorprüfung auf Zerfall vor den KI-Testern (wie in 24 und 26), die Beurteilung ist unverändert.
+  - Neu ausserhalb von Levels, Levelliste und Protokoll: `tests/levelliste.test.mjs`, eine Zeile in
+    `tests/ki-tester.test.mjs`, Spec und README.

@@ -198,8 +198,9 @@ heutigen Werkzeuge nicht:
    Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester (Entscheid des Nutzers vom 16.10.2026). Für
    „mittel“ entschied der Nutzer am 18.10.2026 (Ticket 24): Die nach der Regel stark beurteilten Level bleiben unter
    dem Grund „behalten nach Urteil der KI-Tester“, die übrigen werden ersetzt. Am Ende von Phase 6 ist die
-   Duldungsliste darum nicht leer, sondern nennt nur noch behaltene Level; für „schwer“ entscheidet der Nutzer in
-   Ticket 25, ob dieselbe Regel gilt.
+   Duldungsliste darum nicht leer, sondern nennt nur noch behaltene Level. Für „schwer“ gilt dieselbe Regel
+   (Entscheid des Nutzers vom 19.10.2026, Ticket 25). Mit Ticket 25 ist Phase 6 abgeschlossen: Alle vier Grade sind
+   ausgetauscht, und auf der Duldungsliste stehen nur noch die 31 behaltenen Level (mittel 27, schwer 4).
 
 Phase 3 braucht Phase 2. Phase 4 braucht die Grade aus Phase 3. Phase 5 braucht Phase 2, Phase 6 braucht die Phasen
 3 und 5. Phase 1 ist Voraussetzung für alle, weil der Golden-Test das Sicherheitsnetz ist.
@@ -366,6 +367,10 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   (leicht 0 von 31, mittel 27 von 74, schwer 19 von 32, sehr schwer 0 von 13). Die 27 mittleren sind genau die
   behaltenen (unten).
 
+  Nach Ticket 25 (Austausch „schwer“, 19.10.2026): Ausschlussgrund 0, ohne nötige Kernidee 30 (mittel 26, schwer 4),
+  unter dem Mindest-Spielwert 25 (mittel 21, schwer 4), von beiden KI-Testern abgelehnt 0; zusammen 31 (leicht 0 von
+  31, mittel 27 von 74, schwer 4 von 32, sehr schwer 0 von 13), genau die behaltenen. Damit ist Phase 6 abgeschlossen.
+
   Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
   Prüfliste für Ticket 16 (erledigt) und die Namen entfernter Level. Einmal, in Ticket 16, wuchs die ursprüngliche
   Liste um begründete Ergänzungen, die die Datei einzeln festhält. Phase 6 ersetzt zuerst die Level mit
@@ -381,7 +386,8 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   als eigene Gruppe (`behalten`), die nie wächst; unter ihrem Grund bleiben sie auf der Duldungsliste, denn die Regel
   verletzen sie weiter. Nach dem Austausch eines Grads stehen aus ihm nur noch behaltene Level auf der Liste. In
   „mittel“ sind es 27 von 44 (die 16 Level ohne Urteil beurteilten die KI-Tester dafür im Lauf `behalten-mittel-1`,
-  der nicht für die Levelliste zählt).
+  der nicht für die Levelliste zählt). In „schwer“ sind es 4 von 6: Sonnenwende, Pendel, Kathedrale und Lichtjahr
+  (Entscheid des Nutzers vom 19.10.2026, Ticket 25; Sternwarte und Lichtjahr im Lauf `behalten-schwer-1`).
 - Der Austausch geschieht je Grad in einem Durchgang. Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester prüfen.
   Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt. Umsetzung (Ticket 23, vom Koordinator
   bestätigt am 18.10.2026): Ein neues Level hat keinen heutigen Platz und steht nach der Formel. Die KI-Tester
@@ -475,7 +481,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    - Ab „mittel“ hat jedes Level eine nötige Kernidee, und jedes liegt über dem Mindest-Spielwert, ausser es steht mit
      diesem Grund auf der Duldungsliste.
    - Nach dem Austausch eines Grads steht aus ihm nur noch ein behaltenes Level auf der Duldungsliste; jedes behaltene
-     Level erfüllt die Regel stark im Protokoll, und die Gruppe wächst nie (Ticket 24).
+     Level erfüllt die Regel stark im Protokoll, und die Gruppe wächst nie (Tickets 24 und 25). Seit Ticket 25 sind
+     alle vier Grade ausgetauscht: Die Duldungsliste nennt genau die behaltenen Level.
    - Dieselbe Haupt-Kernidee kommt höchstens zweimal je 10 Level vor, gezählt ohne die Level der Duldungsliste.
    - Die Namen sind eindeutig, und kein Name von der Liste entfernter Level kommt vor.
    - Jede Verschiebung durch die KI-Tester steht mit Begründung im Protokoll, ist höchstens 5 Plätze gross und
