@@ -408,3 +408,8 @@ Repos (Scratchpad `review26\`).
 - **Nachgeführt:** Hinweise in 24 und 25, Spec („Weitere Hinweise“) und README.
 - **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`): logic 548, generator 28, beurteilung 177,
   levelliste 39, ki-tester 64 und offline grün; golden mit genau den 16 Namensabweichungen.
+- **Merge mit `origin/feature/levelgenerator`** (`75ab4e0`, Tickets 29 und 22; Merge-Commit `c0a6665`): ein Konflikt
+  am Ende von Ticket 24, beide Hinweise bleiben (der aus 29 zuerst, dann der aus 26). Danach grün: logic 548,
+  generator 30, beurteilung 178, levelliste 39, ki-tester 64 und offline; golden mit genau den 16 Namensabweichungen.
+  `ordne-level.mjs` meldet „stimmen“, und die acht Herkunftszeilen bauen auch mit dem gemergten Generator das Level im
+  Spiel nach (8 von 8).
