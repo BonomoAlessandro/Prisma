@@ -151,3 +151,18 @@ Zwischenstände im Scratchpad unter `t26\` (Sitzung `0a88c4f4-…`); dort auch d
   `ordne-heute.json` (Stand vorher) und `kandidaten.json` (Eingabe für `prepare.mjs`). Skripte: `pool.mjs`,
   `nachbau.mjs`, `austausch.mjs`, `kandidaten.mjs`, `zeige.mjs`. Die Sätze B1 und B2 (Sammelstelle unter Pulsar)
   sind verworfen: Pulsar käme auf 146 und bliebe dann auf seinem heutigen Platz 135, in „schwer“.
+
+**Stufe A abgeschlossen (19.10.2026).**
+- Ticket 29 ist inzwischen in `feature/levelgenerator`. Es verwirft nur fertige Level unter der Untergrenze der Quellen,
+  und alle 16 Kandidaten haben 3 oder 4 Quellen; sie bleiben also gleich.
+- **Lauf `ersatz-sehr-schwer-1` vorbereitet** (Ablauf 2, Fingerabdruck `066a880667331a43`, Agent `general-purpose`,
+  Modell `claude-opus-5-5`): `prepare.mjs ersatz-sehr-schwer-1 --kandidaten <t26\kandidaten.json>`, die 16 Kandidaten
+  der Tabelle oben als L1–L16 ohne `--anker`. Die Referenz je Kandidat ist der Platz der Formel mit dem Grad dort
+  (138–150, Anker A7 auf 138, A8 auf 145). 48 Aufnahmen mit `LEISE_CPU=65`, 23,8 bzw. 22,1 s je Aufnahme. Die
+  KI-Tester startet der Koordinator.
+- **Entscheide für Stufe C** (über den Koordinator, 19.10.2026):
+  - Zwielicht, Entscheid des Nutzers (Vorschlag a): Die Entscheide aus Ticket 16 zu den Leveln der Prüfliste bleiben
+    fest, auch wenn ein Austausch die Formel verschiebt; Zwielicht bleibt auf 122. Kommt als Regel in
+    `tools/levelliste.mjs` und `ordne-level.mjs`, mit Test und Gegenprobe, dazu Spec und Hinweise in 24 und 25.
+  - Anker A8 (in Ticket 16 vorgesehen): ein neues Level am oberen Ende von „sehr schwer“, mit Urteil und ohne
+    Ablehnung; danach Ablauf 3. Den Vorschlag bestätigt der Nutzer mit den Namen.
