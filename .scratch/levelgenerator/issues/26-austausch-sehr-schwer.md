@@ -188,3 +188,46 @@ Elemente / Ziele):
 - Im Pool (Seeds 1–1000 ohne Ziel, verlangte = Haupt-Kernidee) bestehen Farben abzählen 28 von 28, Mischziel 10 von 47,
   Sammelstelle 8 von 22 und Falle 5 von 15. Bestehende Mischziele liegen fast nur unter 88 oder über 90,4.
 - In Stufe B gilt je Lücke bevorzugt ein Kandidat, der mit einem Teil besteht, sonst die Regel der KI-Tester.
+
+**Stufe B (19.10.2026): Urteile der KI-Tester, Wahl je Lücke, Namensvorschläge.**
+- **Lauf `ersatz-sehr-schwer-1`** zusammengeführt (`merge.mjs`, 16 Einträge, Ablauf 2; `ki-tester.test.mjs` 64 grün).
+  Abgelehnt ist keiner. B nennt keinen Begriff, A nennt Füllteil bei ae5500c7 und 43ba1dd9 (beide Ersatz). A sieht bei
+  e3300612 keinen Aha-Moment (Gefühl 2). Die meisten Kandidaten über Pulsar ordnen beide unter A8 ein (Korrektur −2 bis
+  −5).
+- **Wahl** nach der Rangfolge des Koordinators: nicht abgelehnt, beide sehen einen Aha-Moment, keiner nennt einen
+  Begriff, die Vorprüfung ergibt einen Teil, höheres mittleres Gefühl. Je Lücke besteht der beste Kandidat die zweite
+  und dritte Stufe; einen Lauf 2 braucht es nicht.
+
+  | Lücke | gewählt | Platz | Schwierigkeit | Haupt-Kernidee | Gefühl | Einordnung | Teile | Begründung |
+  |---|---|---:|---:|---|---|---|---:|---|
+  | Korona | 7cdbf908 | 140 | 88,47 | Mischziel | 4/4 | A7-A8 / A5-A6 | 2 | Ersatz: A nennt Füllteil |
+  | Prismenhof | fb490f7a | 142 | 90,02 | Mischziel | 3/3 | >A8 / A7 | 3 | Ersatz: A nennt Füllteil |
+  | Spiegelkabinett | fe84c829 | 146 | 90,41 | Mischziel | 4/4 | >A8 / A7-A8 | 2 | Ersatz: A ohne Aha |
+  | Quasar | 0e4262ab | 144 (−3) | 91,23 | Sammelstelle | 5/4 | A7-A8 / A7 | 1 | Vorprüfung |
+  | Ereignishorizont | 2d5f0698 | 150 | 90,86 | Farben abzählen | 4/4 | A8 / A8 | 1 | gleichauf mit 0c14e76f; höherer Spielwert (94,3 / 92,0) |
+  | Zenit | bd19e7db (Ersatz) | 148 (−2) | 94,61 | Falle | 4/4 | A8 / A8 | 2 | Kandidat: 4 Teile, Gefühl 4/3 |
+  | Farbenrausch | a1e8102b | 147 (−3) | 96,44 | Farben abzählen | 4/4 | A8 / A7-A8 | 1 | gleichauf mit 2c01b273; höherer Spielwert (89,7 / 84,6) |
+  | Farbmühle | 7fea2e13 (Ersatz) | 145 (−5) | 98,40 | Sammelstelle | 4/5 | A7-A8 / A7-A8 | 1 | Vorprüfung |
+
+- **Plätze** (`ordne-level.mjs --austausch`, ohne die neue Regel zu Zwielicht): 140 neu, 141 Lichtkegel, 142 neu,
+  143 Morgenröte, 144–148 neu, 149 Pulsar, 150 neu. Kein heutiges Level aus 138–148 ändert seinen Platz; Pulsar rückt
+  durch die Korrekturen der neuen Level von 145 auf 149. Keine Korrektur geht über die Grenze 140/141.
+- **Regeln:** Auf 141–150 je zweimal Falle, Mischziel, Abschalten, Sammelstelle und Farben abzählen. Auf 131–140 mit
+  Zwielicht auf 122 (Entscheid vom 19.10.2026) Abschalten 2, Farben abzählen 2, Sammelstelle 1, Mischziel 1; frei für
+  Ticket 25 bleiben dort Falle 2, Sammelstelle 1, Lockvogel 2 und Mischziel 1. Mittel 141–150: 92,2.
+- **Anker A8:** Mit diesen Korrekturen steht Pulsar auf 149, im äussersten Drittel von 138–150; der Test der Anker
+  bleibt damit auch ohne neuen Anker grün (anders als in Stufe A angenommen). Kommt trotzdem ein neuer A8, dann
+  2d5f0698 auf 150: beide KI-Tester „A8“, Aha ja/ja, kein Begriff, ein Teil, Lesbarkeit 4/3, Gefühl 4/4.
+- **Namensvorschläge** (je 2–3, der erste bevorzugt; keiner im Spiel oder unter den entfernten Namen, geprüft):
+  - 140, 7cdbf908: **Lichtfächer** (das Prisma fächert Weiss nach Nordosten, Rot und Blau treffen sich auf zwei
+    Wegen im Magenta-Ziel), Kreuzlicht, Doppelstern.
+  - 142, fb490f7a: **Abendrot** (Gelb wird im Rotfilter zu Rot; neben Abendstern und Morgenröte), Rotglas, Rückweg.
+  - 144, 0e4262ab: **Leitstern** (ein Prisma sammelt Gelb und Blau und versorgt drei Ziele), Polarstern.
+  - 145, 7fea2e13: **Konjunktion** (Rot von oben und Grün von unten treffen sich im Prisma, Gelb und Cyan je aus zwei
+    Quellen), Doppelstern.
+  - 146, fe84c829: **Weissabgleich** (Rot, Grün und Blau aus drei Quellen ergeben Weiss; die Farbbilanz knackt es),
+    Dreiklang, Tageslicht.
+  - 147, a1e8102b: **Dreigestirn** (drei Magenta-Quellen, eine geht ungeteilt ins Magenta-Ziel), Purpur, Fuchsie.
+  - 148, bd19e7db: **Azur** (drei blaue Ziele, jede Quelle liefert genau ein Blau), Kobalt, Ultramarin.
+  - 150, 2d5f0698: **Umlaufbahn** (das Blau läuft über neun Spiegel einmal ums Feld), Kometenbahn, Mondbahn.
+  Die Genehmigung des Nutzers folgt hier.
