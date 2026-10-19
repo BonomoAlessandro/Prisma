@@ -124,6 +124,7 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
   anderen Wahl je Lücke gelöst, Skript `t24\suche.mjs`). Seit dem Review von Ticket 24 (M1) meldet `ordne-level.mjs`
   das selbst unter „Regeln der Levelliste“ (Platz davor, nach den Korrekturen, am Ende; `zuWeitKorrigiert` in
   `levelliste.mjs`) und schreibt dann nicht, auch mit `--austausch`.
+
 **Stufe A1 (19.10.2026): Bestand, Entscheidungsgrundlage zu Gruppe 2, Bedarf je Seite.** Noch keine Kandidaten.
 Branch `ticket/25-austausch-schwer` von `origin/feature/levelgenerator` (`a7f4337`). Den Stand nach Ticket 24 zeigt
 eine Kopie von `ticket/24-austausch-mittel` (`681ebe2`, nicht gemergt) im Scratchpad. Skripte und Zwischenstände liegen
@@ -257,3 +258,61 @@ Aufnahme; die Anker sind neu aufgenommen (neuer Worktree). Aufträge unter
 `tests/output/ki-tester/behalten-schwer-1/auftrag-A.md` und `auftrag-B.md` im Worktree. Der Lauf zählt nicht für die
 Levelliste (wie `behalten-mittel-1`), geht aber in die Eichmenge des Spielwerts ein. Die KI-Tester startet der
 Koordinator, nach dem Merge von Ticket 24. Bis dahin ist dieses Ticket pausiert.
+
+**Merge mit Ticket 24, Lauf `behalten-schwer-1`, Kandidaten und Läufe `ersatz-schwer-1` und `-2` (19.10.2026).**
+- **Merge** von `origin/feature/levelgenerator` (`1ed17a2`, mit Ticket 24) als Merge-Commit. Ein Konflikt in diesem
+  Ticket; beide Seiten bleiben, der Hinweis aus 24 zuerst. Danach grün (über `leise.sh`, `LEISE_MAX_CPU=80
+  LEISE_CPU=80`): golden (alle 159 Level wie in `golden.json`), logic 548, generator 30, beurteilung 178,
+  levelliste 42, ki-tester 64, offline; `ordne-level.mjs` meldet „stimmen“. Das Ergebnis je Level (`--json`) ist
+  gleich wie in der Vorschau aus Stufe A1 (150 von 150), Lücken und Bedarf je Seite gelten also unverändert.
+- **`behalten-schwer-1` zusammengeführt** (`merge.mjs`, 2 Einträge, Ablauf 2): Lichtjahr 4/4, Aha ja/ja, keine
+  Ablehnung; Sternwarte 3/4, Aha ja/ja, keine Ablehnung. Die Korrekturen (−5, −1) gelten nicht, der Lauf zählt nicht
+  für die Levelliste. `ki-tester.test.mjs` grün (64); Spielwert jetzt 0,30 ohne Ausschlussgrund (116 Level) und 0,27
+  über alle (167), Schwelle 0,26 / 0,25.
+- **Regel stark** (`stark` in `tools/levelliste.mjs`): stark sind Sonnenwende, Pendel, Kathedrale und Lichtjahr (4,00),
+  schwach sind Sternwarte (Gefühl 3,50) und Lichthof. **Zu ersetzen sind 15 Level:** die 13 der Gruppe 1, Lichthof und
+  Sternwarte. Der Grund „behalten“ für die vier und sein Test kommen mit Stufe C.
+- **Generator:** `generiere.mjs schwer-<kernidee> --schwierigkeit VON,BIS --anzahl 12 --seeds 600`, je Lücke die
+  Kernideen, die auf ihrer Seite frei sind (35 Aufträge, 9 Prozesse, Scratchpad `t25\gen1\`). Gefiltert nach
+  Haupt-Kernidee = verlangte, mindestens 2 Quellen und Vorprüfung auf Zerfall (ein Teil, `t24\zerfall-check.mjs`).
+  Taugliche je Lücke: 58,5–59,28 12, 59,45–60,41 15, 62,4–64,2 21, 66,03–70,98 22, 70,98–75,57 19,
+  75,76–81,58 20, 81,58–83,6 5, 83,6–85,91 7. Lockvogel besteht die Vorprüfung fast nie (2 von 35), Mischziel
+  selten (5 von 40).
+- **Gewählt** je Lücke Kandidat und Ersatz nach Spielwert und den Haupt-Kernideen je Seite. Mit allen Kandidaten ist
+  jede Seite eingehalten; mit allen Ersatzleveln zugleich hat 121–130 Falle 3-mal (zählt erst bei der Wahl, wie in
+  24). Je Zelle: Abdruck, Auftrag `schwer-…`, Seed; Schwierigkeit; Haupt-Kernidee; Platz (Formel) nach
+  `ordne-level.mjs --austausch`:
+
+  | ersetzt | Ziel | Kandidat (`ersatz-schwer-1`) | Ersatz (`ersatz-schwer-2`) |
+  |---|---|---|---|
+  | Rangierbahnhof | 58,5–59,28 | e42ac1c0: abzaehlen, 77; 59,28; Fz; 110 (108) | 6ce8e339: falle, 557; 58,81; Fa; 109 (106) |
+  | Opal | 58,5–59,28 | b93dc895: abschalten, 570; 59,15; Ab; 109 (107) | dbba6247: abzaehlen, 370; 58,87; Fz; 110 (107) |
+  | Lichthof | 59,45–60,41 | f3eed0f8: abschalten, 50; 59,64; Ab; 113 (110) | e71667a6: abschalten, 8; 59,85; Ab; 113 (110) |
+  | Unendlichkeit | 59,45–60,41 | 7cdeab95: abzaehlen, 324; 59,67; Fz; 114 (111) | 43554748: abzaehlen, 57; 59,88; Fz; 115 (112) |
+  | Sternwarte | 59,45–60,41 | 1e992573: sammelstelle, 112; 60,00; Sa; 115 (112) | 43fb9e6d: sammelstelle, 275; 59,87; Sa; 114 (111) |
+  | Komet | 62,4–64,2 | 3a58a7d5: sammelstelle, 103; 64,11; Sa; 118 (118) | 2b2c360a: abschalten, 204; 63,50; Ab; 118 (118) |
+  | Kristallpalast | 66,03–70,98 | 84bdf14e: mischziel, 17; 67,84; Mi; 121 (121) | 2a7a744a: mischziel, 79; 67,52; Mi; 123 (122) |
+  | Interferenz | 66,03–70,98 | e6f1434d: falle, 44; 70,02; Fa; 123 (122) | 290c4eb8: sammelstelle, 73; 66,83; Sa; 121 (121) |
+  | Irrlicht | 70,98–75,57 | e356c4e7: mischziel, 66; 72,27; Mi; 125 (124) | da6b6dd9: falle, 559; 74,33; Fa; 125 (124) |
+  | Leuchtturm | 75,76–81,58 | cd12705b: sammelstelle, 89; 77,36; Sa; 128 (127) | 292940a1: falle, 194; 77,23; Fa; 128 (127) |
+  | Glasperlenspiel | 75,76–81,58 | 7df94a31: abzaehlen, 261; 77,86; Fz; 129 (128) | 364ab006: abzaehlen, 28; 79,02; Fz; 129 (128) |
+  | Sternbild | 75,76–81,58 | a88f32c8: falle, 409; 81,53; Fa; 131 (129) | 757ddcbd: falle, 387; 79,05; Fa; 131 (129) |
+  | Singularität | 81,58–83,6 | db7d29ef: lockvogel, 301; 81,69; Lo; 133 (132) | d0b808b9: falle, 16; 82,64; Fa; 133 (132) |
+  | Urknall | 81,58–83,6 | d4ea96ec: sammelstelle, 458; 81,61; Sa; 132 (131) | 307f6bfc: sammelstelle, 371; 82,01; Sa; 132 (131) |
+  | Lichtgeschwindigkeit | 83,6–85,91 | 3f1f9eaa: falle, 529; 84,00; Fa; 135 (134) | 6ec6e6d7: mischziel, 568; 85,67; Mi; 135 (134) |
+
+  - Benachbarte ersetzte Level teilen eine Lücke; welches neue Level welchen Platz bekommt, folgt der Schwierigkeit.
+  - Ziel für Rangierbahnhof und Opal 58,5–59,28 (Stufe A1); dabei ändert sich nur die Formel von Farbverlauf, sein
+    Entscheid ist fest.
+- **`--austausch`** (ohne `--schreiben`, je ein Lauf mit allen Kandidaten und mit allen Ersatzleveln): alle 30
+  „schwer“ auf 109–135, „schwer“ bleibt 106–137; keines auf der Duldungsliste. Prüfliste 35 (die 36 ohne
+  Kristallpalast), alle mit Urteil, Entscheide unverändert, keine Sperre wegen zu weit korrigierter Level. Mit den
+  Kandidaten ist die Haupt-Kernidee je 10 Level eingehalten (Häufungsregel: Lichtwaage 50 → 51, Doppelspiegel
+  102 → 100, a88f32c8 130 → 131 statt Spiegelsaal); das Mittel je 10 Level steigt überall (kleinster Schritt +0,47).
+  Duldungsliste danach 31 (schwer 4, genau die behaltenen).
+- **Läufe** (Ablauf 2, Fingerabdruck unverändert, ohne `--anker`, Agent `general-purpose`, Modell `claude-opus-5-5`):
+  `ersatz-schwer-1` mit den 15 Kandidaten, `ersatz-schwer-2` mit den 15 Ersatzleveln, je `prepare.mjs <lauf>
+  --kandidaten <Liste>` (nur Einträge „Kandidat …“ ohne Urteil). Referenz ist der Platz der Formel (106–134, alle
+  „schwer“). Bilder 22–24 s je Aufnahme; die Anker im ersten Lauf neu (index.html nach dem Merge), im zweiten aus dem
+  Zwischenspeicher. Aufträge unter `tests/output/ki-tester/ersatz-schwer-1/` und `ersatz-schwer-2/` im Worktree; die
+  KI-Tester startet der Koordinator.
