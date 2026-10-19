@@ -419,3 +419,66 @@ auch in der Eichmenge anders vor (Mittel über alle Urteile eines Levels).
   4. Grund „behalten nach Urteil der KI-Tester“ in `levelliste.json` und `levelliste.mjs` mit Test und Gegenprobe; Spec
      und Hinweise in 25 und 26 nachführen.
   5. Danach Namen (Haltepunkt), dann Phase C.
+
+**Lauf `behalten-mittel-1` zusammengeführt (19.10.2026).** `merge.mjs` (20 Einträge, Ablauf 2; Protokoll jetzt 164),
+`tests/ki-tester.test.mjs` grün (64), `tests/beurteilung.test.mjs` grün (177).
+- **Spielwert:** Übereinstimmung mit dem Spass der Eichmenge jetzt 0,29 ohne Ausschlussgrund (114 Level) und 0,27 über
+  alle (165), vorher 0,28 (98) und 0,27 (149); Schwelle 0,26 / 0,25. Die neuen Urteile sind gemischt (Gefühl 3–5), darum
+  stieg sie leicht. An der Eichmenge ist nichts geändert.
+- Die Korrekturen, die `merge.mjs` ausgibt, gelten nicht: Der Lauf zählt nicht für die Levelliste.
+- **Regel „stark“** (Entscheide vom 18.10.2026): jedes Urteil im Protokoll (Ablauf 1 und 2) mit Aha-Moment bei beiden,
+  Gefühl im Mittel über alle Urteile mindestens 4, kein Begriff der Ablehnung, dazu mindestens ein Urteil aus Ablauf 2.
+  Ergebnis für die 44 Level der Gruppe 2: **27 stark (behalten), 17 ersetzen** (`t24\stark.mjs`):
+
+  | Platz | Name | Urteile (Lauf: Gefühl A/B, Aha A/B, Ablehnung) | Gefühl im Mittel | Spielwert | Grund | Ergebnis |
+  |---:|---|---|---:|---:|---|---|
+  | 32 | Farbwechsel | pruefung-4: 4/3, ja/nein | 3,50 | 53,2 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,50 |
+  | 33 | Lichtpfad | spielwert-1: 3/4, ja/ja; pruefung-5: 4/4, ja/ja | 3,75 | 53,2 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,75 |
+  | 34 | Funkenflug | behalten-mittel-1: 3/3, ja/nein | 3,00 | 46,5 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,00 |
+  | 35 | Glasfenster | probelauf-3: 4/4, ja/ja | 4,00 | 61,3 | ohne Kernidee | stark: behalten |
+  | 36 | Tagesanbruch | pruefung-3: 3/3, ja/ja | 3,00 | 47,6 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,00 |
+  | 39 | Verästelung | pruefung-6: 3/3, ja/ja | 3,00 | 47,7 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,00 |
+  | 40 | Lichtnetz | spielwert-4: 4/4, ja/ja; pruefung-2: 4/4, ja/ja | 4,00 | 45,5 | unter 60 | stark: behalten |
+  | 42 | Kreuzweg | probelauf-2: 4/4, ja/ja; behalten-mittel-1: 2/4, nein/ja, Scheinmischung/– | 3,50 | 38,1 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,50; Ablehnung (A Scheinmischung) |
+  | 45 | Knotenpunkt | behalten-mittel-1: 3/4, ja/ja, Zerfall/– | 3,50 | 49,2 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,50; Ablehnung (A Zerfall) |
+  | 46 | Spiegelachse | pruefung-2: 3/4, ja/ja | 3,50 | 53,6 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,50 |
+  | 48 | Lichtschacht | spielwert-1: 4/4, ja/ja; probelauf-3: 4/3, ja/nein | 3,75 | 47,1 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,75 |
+  | 50 | Streulicht | pruefung-5: 4/4, ja/ja | 4,00 | 52,2 | ohne Kernidee, unter 60 | stark: behalten |
+  | 51 | Drehscheibe | behalten-mittel-1: 3/3, nein/nein | 3,00 | 46,5 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,00 |
+  | 52 | Strahlenkranz | behalten-mittel-1: 4/5, ja/ja | 4,50 | 52,2 | ohne Kernidee, unter 60 | stark: behalten |
+  | 53 | Turmalin | behalten-mittel-1: 5/4, ja/ja | 4,50 | 51,6 | ohne Kernidee, unter 60 | stark: behalten |
+  | 54 | Legierung | behalten-mittel-1: 3/4, nein/ja | 3,50 | 51,6 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,50 |
+  | 56 | Farbschleuse | behalten-mittel-1: 4/4, ja/ja | 4,00 | 55,6 | ohne Kernidee, unter 60 | stark: behalten |
+  | 57 | Perlmutt | behalten-mittel-1: 4/4, ja/ja | 4,00 | 49,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 58 | Lichtfaden | behalten-mittel-1: 3/3, nein/nein | 3,00 | 51,1 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,00 |
+  | 59 | Paravent | behalten-mittel-1: 3/3, nein/nein | 3,00 | 51,1 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden; Gefühl 3,00 |
+  | 60 | Bumerang | pruefung-1: 4/4, ja/ja | 4,00 | 52,2 | ohne Kernidee, unter 60 | stark: behalten |
+  | 61 | Mondlicht | pruefung-6: 4/4, ja/ja | 4,00 | 48,8 | ohne Kernidee, unter 60 | stark: behalten |
+  | 62 | Weichen | pruefung-3: 4/4, ja/ja | 4,00 | 57,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 63 | Glasbaustein | behalten-mittel-1: 4/4, ja/ja | 4,00 | 57,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 64 | Fadenkreuz | behalten-mittel-1: 4/4, ja/ja | 4,00 | 55,6 | ohne Kernidee, unter 60 | stark: behalten |
+  | 65 | Lichtschranke | behalten-mittel-1: 4/4, ja/ja | 4,00 | 57,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 67 | Blaue Stunde | behalten-mittel-1: 4/4, ja/ja | 4,00 | 54,4 | ohne Kernidee, unter 60 | stark: behalten |
+  | 68 | Pinselstrich | pruefung-2: 4/4, ja/ja | 4,00 | 52,2 | ohne Kernidee, unter 60 | stark: behalten |
+  | 71 | Farbtupfer | behalten-mittel-1: 5/4, ja/ja | 4,50 | 48,0 | ohne Kernidee, unter 60 | stark: behalten |
+  | 72 | Rubin | pruefung-7: 4/4, ja/ja | 4,00 | 51,3 | ohne Kernidee, unter 60 | stark: behalten |
+  | 73 | Lichtkreuz | behalten-mittel-1: 4/5, ja/ja | 4,50 | 62,4 | ohne Kernidee | stark: behalten |
+  | 75 | Glühwürmchen | pruefung-5: 4/4, ja/ja | 4,00 | 57,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 76 | Spektralband | pruefung-7: 4/5, ja/ja | 4,50 | 55,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 78 | Rochade | spielwert-2: 5/4, ja/ja; behalten-mittel-1: 3/4, nein/ja | 4,00 | 54,5 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden |
+  | 81 | Traumfänger | pruefung-6: 4/4, ja/ja | 4,00 | 60,1 | ohne Kernidee | stark: behalten |
+  | 82 | Glasbläser | probelauf-2: 3/3, ja/ja; pruefung-5: 4/3, ja/ja | 3,25 | 49,6 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,25 |
+  | 87 | Schimmer | pruefung-4: 5/4, ja/ja | 4,50 | 57,9 | ohne Kernidee, unter 60 | stark: behalten |
+  | 88 | Kreuzfeuer | spielwert-3: 4/4, ja/ja; pruefung-3: 4/4, ja/ja | 4,00 | 57,0 | ohne Kernidee, unter 60 | stark: behalten |
+  | 91 | Uhrwerk | spielwert-4: 5/5, ja/ja; behalten-mittel-1: 4/5, nein/ja | 4,75 | 59,0 | ohne Kernidee, unter 60 | ersetzen: nicht jedes Mal Aha bei beiden |
+  | 94 | Farbverlauf | probelauf-2: 4/4, ja/ja; pruefung-1: 4/5, ja/ja | 4,25 | 60,5 | ohne Kernidee | stark: behalten |
+  | 95 | Schachbrett | pruefung-3: 4/4, ja/ja | 4,00 | 60,1 | ohne Kernidee | stark: behalten |
+  | 98 | Smaragd | spielwert-2: 4/4, ja/ja; pruefung-6: 4/4, ja/ja | 4,00 | 50,7 | ohne Kernidee, unter 60 | stark: behalten |
+  | 99 | Silberstreif | probelauf-2: 4/4, ja/ja; behalten-mittel-1: 5/5, ja/ja | 4,50 | 63,0 | ohne Kernidee | stark: behalten |
+  | 100 | Chamäleon | pruefung-4: 3/4, ja/ja, Scheinmischung/– | 3,50 | 49,9 | ohne Kernidee, unter 60 | ersetzen: Gefühl 3,50; Ablehnung (A Scheinmischung) |
+
+  - Gegenüber Stufe A: Kreuzweg, Rochade und Uhrwerk sind jetzt schwach (im neuen Urteil sieht A keinen Aha-Moment,
+    bei Kreuzweg dazu Gefühl 2 und Scheinmischung), Silberstreif bleibt stark (5/5). Von den 16 ohne Urteil sind 10
+    stark und 6 schwach.
+  - A3 Glasfenster ist stark (einziges Urteil aus Ablauf 2 in `probelauf-3`, als Anker).
+  - Zu ersetzen sind damit 30 mittlere Level: die 13 der Gruppe 1 und 17 der Gruppe 2.
