@@ -175,11 +175,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
   und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
   `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
-  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
-  Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in
-  dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester,
-  Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam
-  für Skript und Test.
+  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide
+  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein
+  zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der
+  Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
@@ -508,11 +507,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
   Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
   `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
-  `tools/beurteilung/entfernte-level.json`. In Ticket 24 kamen ebenso 30 neue mittlere Level (Läufe `ersatz-mittel-1`
-  bis `-5`) für die 13 mit Ausschlussgrund oder Ablehnung und 17 ohne erkannte Kernidee, die die KI-Tester schwach
-  beurteilten; 27 mittlere Level ohne erkannte Kernidee bleiben nach ihrem Urteil (Gruppe `behalten` in
-  `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die
-  Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
+  `tools/beurteilung/entfernte-level.json`. Ebenso kamen 8 neue sehr schwere Level in Ticket 26 (Lauf
+  `ersatz-sehr-schwer-1`) und 30 neue mittlere in Ticket 24 (Läufe `ersatz-mittel-1` bis `-5`): für die 13 mit
+  Ausschlussgrund oder Ablehnung und für 17 ohne erkannte Kernidee, die die KI-Tester schwach beurteilten. 27 mittlere
+  Level, die nur wegen Kernidee oder Spielwert auf der Duldungsliste stehen, bleiben nach ihrem Urteil (Gruppe
+  `behalten` in `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die Level 121–150 (aus `harden.mjs`)
+  waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze
   40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides

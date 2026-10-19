@@ -334,7 +334,7 @@ test(`Regel stark an erfundenen Urteilen: jedes Urteil mit Aha-Moment bei beiden
   for (const [text, eintraege] of Object.entries(faelle)) assert.equal(stark('X', eintraege).stark, false, text);
   // an echten Leveln: A3 Glasfenster mit seinem Urteil als Anker (Ablauf 2) stark; Kreuzweg im zweiten Urteil nicht
   assert.equal(stark('Glasfenster', protokoll).stark, true, 'Glasfenster');
-  assert.deepEqual(stark('Kreuzweg', protokoll).maengel.length > 0, true, 'Kreuzweg');
+  assert.equal(stark('Kreuzweg', protokoll).stark, false, 'Kreuzweg');
 });
 
 console.log('Regel für die Prüfliste (Ticket 16), mit erfundenen Urteilen');
