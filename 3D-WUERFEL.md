@@ -99,13 +99,14 @@ Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar üb
 
 ## Tests und Befehle
 
-Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (18. Oktober, Ticket 22).
+Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dort (19. Oktober, Ticket 22, mit
+`LEISE_MAX_CPU=65 LEISE_CPU=65`).
 
 ```bash
-node tests/logic.test.mjs        # 567 Tests, inkl. Block "Würfel (dim: 3)" (~30–40 s)
-node tests/golden.mjs            # flache Level unverändert? (~2 s; --voll ~25–30 s) – --write nur bei bewusster Änderung
-node tests/beurteilung.test.mjs  # 205 Tests (~90–110 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
-node tests/generator.test.mjs    # 29 Tests, dazu fünf Aufträge im Würfel 4 × 4 × 4 (nur über leise.sh)
+node tests/logic.test.mjs        # 567 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
+node tests/golden.mjs            # flache Level unverändert? (~2 s; --voll ~25 s) – --write nur bei bewusster Änderung
+node tests/beurteilung.test.mjs  # 205 Tests (~75 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
+node tests/generator.test.mjs    # 31 Tests (~67 s mit 65 %), dazu fünf Aufträge im Würfel 4 × 4 × 4 (nur über leise.sh)
 node tests/levelliste.test.mjs   # 37 Tests; liest Code der Anzeige aus index.html und gibt ihm CUBE_START mit
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
