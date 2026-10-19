@@ -716,10 +716,10 @@ Zuletzt aktualisiert: 18. Oktober 2026
     Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
 - [~] **Würfel-Level in 3D** (Wunsch des Nutzers, 11. Oktober; Branch `feature/3d-wuerfel`): Prototyp mit zwei
   handgebauten Leveln im 5×5×5-Würfel, um das Potenzial zu prüfen. Modell: feste Drehachse je Element, gleich viele
-  Stellungen wie in 2D (Löser bleibt schnell). Ebenenwahl, abgeblendete fremde Ebenen, freiere Kamera.
-  **E** nach dem Ausprobieren: weiterverfolgen? Dann offen: Tutorial für die Achsen, Würfel-Level aus dem Generator
-  (Ticket 22) von Hand und mit den KI-Testern prüfen, grössere Würfel (7×7×7) erst nach Spieltests, Leistung auf dem
-  Handy.
+  Stellungen wie in 2D (Löser bleibt schnell). Alle Elemente direkt anklickbar (die Ebenenwahl ist wieder entfernt),
+  freiere Kamera. **E** nach dem Ausprobieren: weiterverfolgen? Dann offen: Tutorial für die Achsen, Würfel-Level aus
+  dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen, grössere Würfel (7×7×7) erst nach Spieltests,
+  Leistung auf dem Handy.
   → Beurteilung und Generator im Würfel, eine Strahlregel für beide: Spec `.scratch/levelgenerator/spec.md`,
   Tickets 14, 22 und 27.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.

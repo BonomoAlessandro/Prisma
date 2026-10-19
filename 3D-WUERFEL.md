@@ -124,7 +124,8 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 - Darstellung: Ablauf der 2D-Level unverändert (letztes Level, „Alle Level gelöst“, Startlevel), Reiterleiste
   ohne Würfel-Reiter gerechnet; abgeblendete Ziele/Prismen leuchten weiter (Abgleich Kopie ↔ Original, je Kopie
   einmal pro Bild); Bodenschein-Schnitt vor dem Absenken; Rahmen steht auf der Platte; abgeblendete Elemente
-  werfen keinen Schatten; Neustart (R) behält die gewählte Ebene; Screenreader-Text „Würfel“.
+  werfen keinen Schatten; Neustart (R) behält die gewählte Ebene; Screenreader-Text „Würfel“. Abblenden und gewählte
+  Ebene sind später mit der Ebenenwahl entfernt (`4ddd294`).
 
 ## Bekannt / offen
 
@@ -143,6 +144,6 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 ## Nächste Schritte (Vorschlag)
 
 1. Beide Level von Hand spielen (Desktop und Handy) und entscheiden, ob es sich lohnt (**E** in PLAN.md, Abschnitt 4).
-2. Wenn ja: kleines Würfel-Tutorial (Achse, Ebenenwahl, Aufzug), 5–10 weitere handgebaute Level.
+2. Wenn ja: kleines Würfel-Tutorial (Achse, Aufzug), 5–10 weitere handgebaute Level.
 3. Danach Würfel-Level aus dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen, grössere Würfel erst nach
    Spieltests.

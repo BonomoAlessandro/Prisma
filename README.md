@@ -254,10 +254,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine),
     dazu die Drehachsen, die ein Element haben kann (`drehachsen`, im flachen Feld nur y; `element` nimmt eine davon
     als `drehachse`, Ticket 22). Nur sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in
-    der Lösung („x,z“). Die Nachbarn
-    stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
-    (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
-    zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
+    der Lösung („x,z“). Die Nachbarn stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je
+    Grösse nur einmal an (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder
+    Beurteilung zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in
+    `feldformVon` dazu.
     Auf dem Würfel-Branch ist das die Würfel-Feldform (`feldform-wuerfel.mjs`, Ticket 14) für Level mit `dim: 3`:
     Zellen „x,y,z“, 18 Richtungen, Drehachse je Element; für den Generator (Ticket 22) auch `element` und `rahmen`
     (`{ dim: 3, size }`), die drei Drehachsen und die Nachbarn aus einer Tabelle, je Grösse eine eingefrorene.
