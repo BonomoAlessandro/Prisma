@@ -9,19 +9,24 @@ Duldungsliste nach den Tickets 15 und 16.
 **Blocked by:** 16 (KI-Tester prüfen die grossen Abweichungen), 19 (Generator: alle Kernideen), 20 (Generator:
 Verfeinern), 28 (Generator: Kernideen ab „mittel“)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Für jedes mittlere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „mittel“
-      und einer nötigen Kernidee.
-- [ ] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
+- [x] Für jedes mittlere Level der Duldungsliste gibt es ein Ersatzlevel aus dem neuen Generator, mit dem Grad „mittel“
+      und einer nötigen Kernidee. Nach dem Entscheid des Nutzers vom 18.10.2026 gilt das für die 30 zu ersetzenden
+      (13 mit Ausschlussgrund oder abgelehnt, 17 schwach beurteilt); 27 stark beurteilte bleiben (Grund „behalten nach
+      Urteil der KI-Tester“).
+- [x] Die Formel ordnet jedes Ersatzlevel ein, und beide KI-Tester prüfen es (Protokoll). Lehnen beide ab, kommt ein
       neuer Kandidat.
-- [ ] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
+- [x] **Haltepunkt:** Die Namen im bisherigen Stil werden vorgeschlagen, und der Nutzer genehmigt sie, bevor sie ins
       Spiel kommen. Die Genehmigung steht unter `## Comments`.
-- [ ] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
-- [ ] Auf der Duldungsliste steht kein mittleres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
-      Liste leer, und der Test verlangt ab jetzt eine leere Liste.
-- [ ] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
-- [ ] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
+- [x] Die ersetzten Level sind samt Namen entfernt, und die Namen stehen auf der Liste der entfernten Namen.
+- [x] Auf der Duldungsliste steht kein mittleres Level mehr. Ist dieses Ticket das letzte der Tickets 23–26, ist die
+      Liste leer, und der Test verlangt ab jetzt eine leere Liste. Nach dem Entscheid des Nutzers vom 18.10.2026 stehen
+      in „mittel“ nur noch die 27 behaltenen Level darauf; der Test verlangt für die ausgetauschten Grade (leicht,
+      mittel, sehr schwer), dass nur noch behaltene Level darauf stehen. Die Endbedingung „Liste leer“ gilt nicht mehr
+      (Spec, Phase 6); für „schwer“ entscheidet der Nutzer in Ticket 25.
+- [x] Die Regel „dieselbe Haupt-Kernidee höchstens zweimal je 10 Level“ bleibt erfüllt.
+- [x] Alle Tests sind grün. Stichproben der Screenshots sind geprüft.
 
 ## Comments
 
@@ -720,3 +725,92 @@ Einträge).
 
   Hinweis: Brennpunkt und Fokus sind Begriffe der Optik rund um Linsen, aber keine Mechanik; wer sie meiden will, nimmt
   den zweiten Vorschlag. Die Genehmigung des Nutzers folgt hier.
+
+**Genehmigung des Nutzers (19.10.2026, über den Koordinator):** Alle Favoriten gelten, mit drei Tauschen, damit keine
+Namen zu nah beieinanderliegen: 33 **Farbfang** statt Brennpunkt (zu nah an Brechpunkt und Brennglas), 51
+**Lichtwaage** statt Weisspunkt (zu nah an Weissabgleich und Weissglut), 53 **Zitronenlicht** statt Goldschmied (direkt
+davor steht Goldwechsel).
+
+**Entscheid zu Gruppe 2** (Nutzer, 18.10.2026, Variante b′; Ausführung oben): Die 16 Level ohne Urteil beurteilten die
+KI-Tester (`behalten-mittel-1`), dann galt für alle 44 die Regel stark. 27 bleiben unter dem Grund „behalten nach
+Urteil der KI-Tester“, 17 sind ersetzt. Die Endbedingung „Liste leer“ nach 23–26 gilt nicht mehr.
+
+**Abschluss Stufe C (19.10.2026).**
+- **Eingesetzt** mit `ordne-level.mjs --austausch <genehmigte Datei> --schreiben` (je Eintrag `ersetzt`, `name`,
+  `auftrag`, `seed`, `schwierigkeit`, `level`; die Wahl von oben); ein zweiter Lauf ohne `--austausch` meldet
+  „Reihenfolge und Grade stimmen“ und „Duldungsliste und Prüfliste stimmen“. Jedes neue Level steht auf dem Platz aus
+  der Prüfung mit `--austausch` (alle 150 Level gleich).
+
+  | Platz | neu | ersetzt | Schwierigkeit | Haupt-Kernidee | Herkunft (Auftrag, Seed, Ziel) | KI-Tester (Gefühl, Lauf) |
+  |---:|---|---|---:|---|---|---|
+  | 32 | Zwillingsstrahl | Lichtpfad | 43,3 | Abschalten | mittel-abschalten, 201, 43,01–43,73 | 4/3, ersatz-mittel-4 |
+  | 33 | Farbfang | Farbwechsel | 43,7 | Sammelstelle | mittel-sammelstelle, 66, 43,01–43,73 | 3/3, ersatz-mittel-3 |
+  | 38 | Farbbrücke | Verästelung | 45,3 | Mischziel | mittel-mischziel, 15, 44,28–45,68 | 4/4, ersatz-mittel-4 |
+  | 39 | Morgenblau | Tagesanbruch | 44,5 | Farben abzählen | mittel-abzaehlen, 218, 44,28–45,68 | 4/4, ersatz-mittel-4 |
+  | 40 | Serpentine | Kreuzweg | 44,0 | Falle | mittel-falle, 236, 43,75–44,14 | 4/4, ersatz-mittel-5 |
+  | 41 | Dreiklang | Glasmurmel | 44,8 | Sammelstelle | mittel-sammelstelle, 187, 44,28–45,68 | 4/5, ersatz-mittel-3 |
+  | 42 | Weissglut | Knotenpunkt | 45,2 | Abschalten | mittel-abschalten, 335, 44,28–45,68 | 4/5, ersatz-mittel-5 |
+  | 43 | Reflex | Schnittstelle | 45,7 | Farben abzählen | mittel-abzaehlen, 112, 45,7–46,01 | 4/4, ersatz-mittel-1 |
+  | 44 | Meeresleuchten | Lichtschacht | 45,9 | Mischziel | mittel-mischziel, 47, 45,7–46,88 | 4/5, ersatz-mittel-2 |
+  | 45 | Karussell | Funkenflug | 46,3 | Sammelstelle | mittel-sammelstelle, 68, 45,7–46,88 | 5/4, ersatz-mittel-4 |
+  | 46 | Sonnenglanz | Sonnenstrahl | 46,8 | Mischziel | mittel-mischziel, 84, 46,09–46,94 | 4/4, ersatz-mittel-2 |
+  | 49 | Diagonale | Geflecht | 47,4 | Farben abzählen | mittel-abzaehlen, 145, 46,96–47,88 | 4/5, ersatz-mittel-1 |
+  | 51 | Lichtwaage | Drehscheibe | 47,6 | Mischziel | mittel-mischziel, 100, 46,96–47,88 | 4/4, ersatz-mittel-5 |
+  | 52 | Goldwechsel | Legierung | 48,0 | Abschalten | mittel-abschalten, 235, 47,9–48,51 | 4/4, ersatz-mittel-4 |
+  | 53 | Zitronenlicht | Paravent | 49,0 | Sammelstelle | mittel-sammelstelle, 56, 48,53–49,45 | 4/4, ersatz-mittel-5 |
+  | 54 | Lichtzange | Laterne | 48,3 | Sammelstelle | mittel-sammelstelle, 215, 47,9–48,51 | 4/4, ersatz-mittel-3 |
+  | 57 | Ehrenrunde | Lichtfaden | 48,8 | Falle | mittel-falle, 85, 48,53–49,45 | 4/4, ersatz-mittel-3 |
+  | 58 | Komplement | Einklang | 49,0 | Mischziel | mittel-mischziel, 163, 48,53–49,45 | 4/4, ersatz-mittel-3 |
+  | 65 | Delta | Chamäleon | 49,9 | Sammelstelle | mittel-sammelstelle, 187, 49,65–50,32 | 5/4, ersatz-mittel-4 |
+  | 70 | Palette | Widerschein | 51,6 | Sammelstelle | mittel-sammelstelle, 374, 51,15–51,71 | 4/4, ersatz-mittel-1 |
+  | 73 | Purpur | Spiegelachse | 51,8 | Sammelstelle | mittel-sammelstelle, 70, 51,73–52,13 | 4/4, ersatz-mittel-4 |
+  | 78 | Rücklicht | Rochade | 54,0 | Mischziel | mittel-mischziel, 315, 53,89–54,34 | 4/4, ersatz-mittel-3 |
+  | 82 | Fokus | Lichtschleife | 54,7 | Sammelstelle | mittel-sammelstelle, 286, 54,36–54,78 | 5/4, ersatz-mittel-1 |
+  | 85 | Bogengang | Mosaik | 54,1 | Farben abzählen | mittel-abzaehlen, 359, 53,89–54,34 | 4/4, ersatz-mittel-5 |
+  | 89 | Farbchor | Lichtorgel | 55,6 | Farben abzählen | mittel-abzaehlen, 385, 55,55–56,1 | 4/4, ersatz-mittel-3 |
+  | 91 | Lichtkrone | Uhrwerk | 55,7 | Sammelstelle | mittel-sammelstelle, 296, 55,55–56,1 | 4/4, ersatz-mittel-3 |
+  | 95 | Kaskade | Weichensteller | 55,6 | Falle | mittel-falle, 218, 55,55–55,68 | 4/4, ersatz-mittel-1 |
+  | 103 | Türkis | Glasbläser | 56,9 | Sammelstelle | mittel-sammelstelle, 286, 56,2–57,26 | 4/5, ersatz-mittel-5 |
+  | 104 | Rundflug | Libelle | 58,2 | Sammelstelle | mittel-sammelstelle, 68, 57,28–58,31 | 4/4, ersatz-mittel-1 |
+  | 105 | Doppelstern | Polarlicht | 58,2 | Farben abzählen | mittel-abzaehlen, 385, 57,28–58,31 | 5/4, ersatz-mittel-1 |
+
+  - Jeder Block in `index.html` hat den Lösungskommentar und die Herkunftszeile („Generator <Auftrag>, Seed S, Ziel
+    VON–BIS · ersetzt … (Austausch „mittel“)“). Nachgebaut: Alle 44 Level mit Herkunftszeile (6 aus 23, 30 aus 24, 8
+    aus 26) ergibt `generiere()` aus Auftrag, Seed und Ziel mit demselben Abdruck wie im Spiel (`t24\herkunft.mjs`).
+- **Entfernt:** die 30 ersetzten Level. Ihre Namen stehen auf `entfernteNamen` (jetzt 44), ihre Leveldaten als feste
+  Kopie in `tools/beurteilung/entfernte-level.json` (44 Level).
+- **Duldungsliste:** 46 Level (leicht 0 von 31, mittel 27 von 74, schwer 19 von 32, sehr schwer 0 von 13); die 27
+  mittleren sind genau die behaltenen. Ausschlussgrund 13 (alle schwer), ohne nötige Kernidee 33, unter dem
+  Mindest-Spielwert 30, abgelehnt 0. `AUSGETAUSCHT` in `tests/levelliste.test.mjs` nennt jetzt leicht, mittel und sehr
+  schwer; der Test verlangt dort nur noch behaltene Level.
+- **Regeln:**
+  - Grade: leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150; der Grad sinkt nie.
+  - Prüfliste 36 (die 50 von vorher ohne die 14 ersetzten), erledigt; `prueflisteFormel` bleibt mit 51 Einträgen.
+  - Haupt-Kernidee höchstens zweimal je 10 Level ohne die Duldungsliste; Häufungsregel: Lichtwaage 50 → 51,
+    Doppelspiegel 102 → 100, Spiegelsaal 131 → 130.
+  - Mittel je 10 Level steigt überall (kleinster Schritt +0,46); kein korrigiertes Level mehr als 5 Plätze von seinem
+    Platz davor.
+  - Anker: A3 Glasfenster auf 35, A4 Lichtbogen auf 102, im äussersten Drittel von „mittel“.
+- **Tests** (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`):
+  - logic 548, generator 30, beurteilung 178 (Spielwert 0,29 / 0,27), levelliste 41, ki-tester 64, offline: grün.
+  - `golden.mjs`: wie erwartet 60 Abweichungen, genau die 30 fehlenden und die 30 neuen Namen; die übrigen 129 Level
+    sind wie in `golden.json`. Die Referenz schreibt der Koordinator nach dem Merge neu.
+  - Gegenproben: Ohne Glasfenster in der Gruppe `behalten` wird der Test „nur noch behaltene Level“ rot; mit Kreuzweg in
+    der Gruppe der Test der Gruppe.
+- **Screenshots** (Stichproben, ohne Meldungen in der Konsole): Levelauswahl 31–40 (Desktop und Handy; Blitz ●○○○, die
+  neuen Namen, Titel ohne Grad, weil die Seite gemischt ist) und 51–60 (Desktop und Handy; Titel „Level 51 – 60 ·
+  Mittel“, Lichtwaage, Goldwechsel, Zitronenlicht, Lichtzange, Ehrenrunde, Komplement); 32 Zwillingsstrahl und
+  85 Bogengang auf Desktop und Handy mit Kopfzeile wie im Spiel (Name, ●●○○ Mittel, Ziele;
+  `tests/output/t24-level/`).
+- **Abweichungen:**
+  - 30 statt 11 Level: die 13 der Gruppe 1 (die 11 im Kopf sind die Neuzählung) und nach dem Entscheid des Nutzers 17
+    schwache der Gruppe 2; 27 bleiben.
+  - Fünf Läufe der KI-Tester für Kandidaten (`ersatz-mittel-1` bis `-5`) und einer für die Urteile über Gruppe 2
+    (`behalten-mittel-1`).
+  - Ziel-Schwierigkeit: Lücke nach dem Rang der Formel; für Mosaik die Lücke um seinen Platz (Stufe A).
+  - Vier Lücken mit einem anderen als dem besten Level, ohne Mangel (Stufe B), wegen der Korrekturen der KI-Tester.
+  - Die zwei Level für die Lücke von Lichtpfad haben im Lauf die Referenz 32 statt Formel 31 (Stufe B).
+  - Vorprüfung auf Zerfall vor den KI-Testern (Entscheid des Koordinators), die Beurteilung ist unverändert.
+  - Neu ausserhalb von Levels, Levelliste und Protokoll: `tools/levelliste.mjs` (Regel `stark`, `alleUrteile`),
+    `tools/ordne-level.mjs` (Gruppe `behalten` übernehmen, schreiben, berichten), `tests/levelliste.test.mjs`, README,
+    Spec, Ticket 25.

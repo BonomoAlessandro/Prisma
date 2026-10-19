@@ -361,6 +361,11 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   Mindest-Spielwert 55 (sehr schwer 0), von beiden KI-Testern abgelehnt 6 (sehr schwer 0), ohne nötige Kernidee
   unverändert 58; zusammen 76 (leicht 0 von 31, mittel 57 von 74, schwer 19 von 32, sehr schwer 0 von 13).
 
+  Nach Ticket 24 (Austausch „mittel“, 19.10.2026): Ausschlussgrund 13 (mittel 0), ohne nötige Kernidee 33 (mittel 26,
+  schwer 7), unter dem Mindest-Spielwert 30 (mittel 21, schwer 9), von beiden KI-Testern abgelehnt 0; zusammen 46
+  (leicht 0 von 31, mittel 27 von 74, schwer 19 von 32, sehr schwer 0 von 13). Die 27 mittleren sind genau die
+  behaltenen (unten).
+
   Die Liste darf in jedem Grund nur kürzer werden; die Datei hält dafür auch die ursprüngliche Liste fest, dazu die
   Prüfliste für Ticket 16 (erledigt) und die Namen entfernter Level. Einmal, in Ticket 16, wuchs die ursprüngliche
   Liste um begründete Ergänzungen, die die Datei einzeln festhält. Phase 6 ersetzt zuerst die Level mit

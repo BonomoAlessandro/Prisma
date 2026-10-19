@@ -59,13 +59,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `stark` im Protokoll erfüllen (Ticket 24, mit Gegenproben an erfundenen Urteilen); eindeutige Namen, keiner aus der
     Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
     nichts), 150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
-    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
-    neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt;
-    jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die
-    Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
-    Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
-    `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
-    (`oddFilters` in `quality.mjs`).
+    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
+    23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
+    nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
+    Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
+    nur an den Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
+    Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
+    fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -508,7 +508,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
   Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
   `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
-  `tools/beurteilung/entfernte-level.json`. Die frühere Reihenfolge entstand so: Die
+  `tools/beurteilung/entfernte-level.json`. In Ticket 24 kamen ebenso 30 neue mittlere Level (Läufe `ersatz-mittel-1`
+  bis `-5`) für die 13 mit Ausschlussgrund oder Ablehnung und 17 ohne erkannte Kernidee, die die KI-Tester schwach
+  beurteilten; 27 mittlere Level ohne erkannte Kernidee bleiben nach ihrem Urteil (Gruppe `behalten` in
+  `tools/levelliste.json`). Die frühere Reihenfolge entstand so: Die
   Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze

@@ -289,7 +289,7 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
 // Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
 // Duldungsliste, ausser es ist behalten nach Urteil der KI-Tester (Entscheid des Nutzers vom 18.10.2026, Ticket 24).
 // Sind alle vier Grade ausgetauscht, stehen nur noch behaltene Level auf der Liste (dann hier alle vier)
-const AUSGETAUSCHT = ['leicht', 'sehr schwer'];
+const AUSGETAUSCHT = ['leicht', 'mittel', 'sehr schwer'];
 test(`Nach dem Austausch steht aus ${AUSGETAUSCHT.join(', ')} nur noch ein behaltenes Level auf der Duldungsliste`,
   () => {
     const behalten = liste.behalten ?? [];
