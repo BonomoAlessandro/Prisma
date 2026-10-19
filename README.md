@@ -70,7 +70,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und 20–30 und für die Grade ab „mittel“ ohne Kernidee und mit Mischziel aus zwei Quellen (12–30 Seeds); ab
     „mittel“ hat jedes Level eine nötige Kernidee, mit Ziel-Schwierigkeit liegt es darin. Ab „mittel“ gibt es je Grad
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
-    „sehr schwer“ ausser dem Lockvogel).
+    „sehr schwer“ ausser dem Lockvogel). Jedes Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt;
+    „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert mit
+    genau zwei, „leicht“ weiter auch mit einer (Ticket 29).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -238,8 +240,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - **Feldform** (`feldform.mjs`): Zellen, Nachbarn, Richtungen, Drehachse und mögliche Stellungen eines Elements und
     was es in einer Stellung mit einem Strahl macht (`spiegeln`, `brechen`, `ausgang`, aus der Strahlregel), dazu die
     Drehungen eines Levels um die Drehachse (`drehungen`, Ticket 12). Für den Generator (Ticket 18) liefert sie die
-    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine). Nur
-    sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in der Lösung („x,z“). Die Nachbarn
+    Leveldaten eines Elements in einer Zelle (`element`) und die Angaben des Felds (`rahmen`, im Feld 7 × 7 keine),
+    dazu die Drehachsen, die ein Element haben kann (`drehachsen`, im flachen Feld nur y; `element` nimmt eine davon
+    als `drehachse`, Ticket 22). Nur sie kennt Koordinaten und die acht Richtungen; eine Zelle ist ein Schlüssel wie in
+    der Lösung („x,z“). Die Nachbarn
     stehen je Feldform in einer Tabelle, und `feldformVon` legt die flache Feldform je Grösse nur einmal an
     (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder Beurteilung
     zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in `feldformVon` dazu.
@@ -383,7 +387,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     „leicht“ bleibt bitgleich.
   - **Vier Bedingungen** für jedes gelieferte Level: genau eine Lösung, kein Grund der Levelliste (`levelliste.mjs`:
     kein Ausschlussgrund, ab „mittel“ eine nötige Kernidee und der Mindest-Spielwert), der verlangte Grad nach
-    `grad.mjs` und die verlangte Kernidee nötig.
+    `grad.mjs` und die verlangte Kernidee nötig. Dazu hält es die Quellen der Vorgabe seines Grads ein, wie die Level
+    im Spiel (ab „mittel“ 2–3 bzw. 2–4): Mehr setzt der Generator nicht (Ticket 28), und ein fertiges Level mit zu
+    wenigen verwirft er mit „zu wenige Quellen“ (Ticket 29; das Festigen kann eine Quelle als wirkungslos wegnehmen).
   - **Keine wirkungslosen Elemente** (Regel des Generators, kein Ausschlussgrund): Jeder Filter nimmt einem Strahl der
     Lösung Farbe, gibt keine fremde Farbe ab und zählt für die Lösung; jede Quelle bringt einem Ziel Licht; jedes Ziel
     hängt von einem drehbaren Element ab; jeder feste Spiegel und Blocker zählt für die Lösung (ohne ihn bekäme ein Ziel
@@ -400,8 +406,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Quellen an drei Ecken, eine in einer Mischung mit der Grundfarbe); beim Lockvogel steht vor jedem Spiegel des Rings
     ein Prisma.
   - **Nur über die Feldform:** Zellen, Nachbarn, Richtungen, Stellungen und die Wirkung der Elemente kommen aus der
-    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Der Test sucht im
-    Quelltext nach Koordinaten und Richtungen.
+    Feldform des Auftrags, neue Elemente aus `feldform.element`, Quellen aus `feldform.quelleStatt`. Drehbare
+    Elemente und feste Spiegel des Ergänzens bekommen eine der Drehachsen der Feldform (`feldform.drehachsen`,
+    `bau.varianten`, Ticket 22): Gewählt wird unter allen Drehachsen und Stellungen, die das Licht sinnvoll
+    weitergeben. Eine Quelle bekommt die erste Drehachse, mit der sie in die verlangte Richtung leuchtet. Im flachen
+    Feld gibt es nur y, dort bleibt alles wie vorher; im Würfel lenkt ein Element mit waagrechter Achse Licht zwischen
+    die Ebenen. Die Bausteine der Kernideen setzen ihre Spiegel und Prismen mit der ersten Drehachse. Der Test sucht im
+    Quelltext nach Koordinaten (auch y), Drehachsen (`axis` der Leveldaten, Namen wie `'x'`) und Richtungen.
   - **Gedeckelt:** `generiere` bricht ab, wenn der Prozess nicht mit tiefster Priorität läuft oder `LEISE_CPU` über 50
     liegt (über `LEISE_MAX_CPU`, wo gesetzt). Aufruf:
     `LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs <auftrag> [--anzahl N] [--seed S] [--seeds M]` (Aufträge
