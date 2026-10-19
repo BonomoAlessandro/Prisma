@@ -54,10 +54,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
     Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
     Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
-    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste
-    entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts),
-    150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter
-    als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
+    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); nach dem Austausch eines Grads stehen aus ihm
+    nur noch Level der Gruppe „behalten nach Urteil der KI-Tester“ darauf, die nie wächst und deren Level die Regel
+    `stark` im Protokoll erfüllen (Ticket 24, mit Gegenproben an erfundenen Urteilen); eindeutige Namen, keiner aus der
+    Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
+    nichts), 150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
+    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes
     neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt;
     jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die
     Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
@@ -171,8 +173,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Korrekturen der KI-Tester. Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen
   und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste.
   `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
-  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen und
-  `prueflisteFormel` bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
+  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
+  `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
+  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete
   Ergänzungen (`ergaenzt`: Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in
   dem sie eine Regel verletzen). Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester,
   Häufungsregel, Grade entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam

@@ -5,7 +5,8 @@
 // schreibt. Dazu die Daten der Anzeige der Grade in index.html (Punkte, Text und Seitentitel; Ticket 17), seit
 // Ticket 21 die Namen gegenüber der heutigen Reihenfolge und die fremde Filterfarbe (vorher in tests/logic.test.mjs)
 // und der Austausch (Tickets 23–26): neue Level nach der Formel und mit Urteil der KI-Tester, entfernte Level samt
-// Namen und fester Kopie für die Eichung, die Leveldaten als Text (tools/leveldaten.mjs).
+// Namen und fester Kopie für die Eichung, die Leveldaten als Text (tools/leveldaten.mjs); seit Ticket 24 die Gruppe
+// „behalten nach Urteil der KI-Tester“ mit der Regel stark.
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
@@ -20,8 +21,9 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, TOLERANZ_MITTEL, entzerre, ergaenzungBegruendet, haeufungen, imSpiel,
-  festePlaetze, korrigiere, ladeLevelliste, reihenfolge, zaehlendeUrteile, zaehlt, zehner, zustimmung,
+  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
+  ergaenzungBegruendet, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
+  zaehlendeUrteile, zaehlt, zehner, zustimmung,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -285,10 +287,54 @@ test('Die Duldungsliste nennt nur Level im Spiel, je Grund jedes höchstens einm
   }
 });
 // Der Austausch geschieht je Grad in einem Durchgang (Tickets 23–26); danach steht aus dem Grad kein Level mehr auf der
-// Duldungsliste. Sind alle vier Grade ausgetauscht, ist die Liste leer (dann hier alle vier)
+// Duldungsliste, ausser es ist behalten nach Urteil der KI-Tester (Entscheid des Nutzers vom 18.10.2026, Ticket 24).
+// Sind alle vier Grade ausgetauscht, stehen nur noch behaltene Level auf der Liste (dann hier alle vier)
 const AUSGETAUSCHT = ['leicht', 'sehr schwer'];
-test(`Nach dem Austausch steht kein Level aus ${AUSGETAUSCHT.join(', ')} auf der Duldungsliste`, () => {
-  assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad)), []);
+test(`Nach dem Austausch steht aus ${AUSGETAUSCHT.join(', ')} nur noch ein behaltenes Level auf der Duldungsliste`,
+  () => {
+    const behalten = liste.behalten ?? [];
+    assert.deepEqual(duldung.filter(x => AUSGETAUSCHT.includes(nach.get(x)?.level.grad) && !behalten.includes(x)), []);
+  });
+
+console.log('Behalten nach Urteil der KI-Tester (Ticket 24)');
+// Entscheid des Nutzers vom 18.10.2026 (Ticket 24, Variante b′): Von den Leveln in „mittel“, die nur wegen Kernidee
+// oder Spielwert auf der Duldungsliste standen, bleiben die starken im Spiel. Die Gruppe wächst nie: höchstens diese
+const BEHALTEN_TICKET_24 = ['Glasfenster', 'Lichtnetz', 'Streulicht', 'Strahlenkranz', 'Turmalin', 'Farbschleuse',
+  'Perlmutt', 'Bumerang', 'Mondlicht', 'Weichen', 'Glasbaustein', 'Fadenkreuz', 'Lichtschranke', 'Blaue Stunde',
+  'Pinselstrich', 'Farbtupfer', 'Rubin', 'Lichtkreuz', 'Glühwürmchen', 'Spektralband', 'Traumfänger', 'Schimmer',
+  'Kreuzfeuer', 'Farbverlauf', 'Schachbrett', 'Smaragd', 'Silberstreif'];
+const protokoll = alleUrteile();
+test('Behalten: eine Gruppe, die nie wächst; jedes Level im Spiel, nur wegen Kernidee oder Spielwert geduldet, und '
+  + 'nach dem Protokoll stark', () => {
+  const behalten = liste.behalten ?? [];
+  assert.deepEqual(ohne(behalten, BEHALTEN_TICKET_24), [], 'nicht aus dem Entscheid in Ticket 24');
+  assert.equal(new Set(behalten).size, behalten.length, 'doppelt');
+  assert.deepEqual(behalten.filter(x => !nach.has(x)), [], 'nicht im Spiel');
+  const nurKernidee = [...liste.urspruenglich.ohneKernidee, ...liste.urspruenglich.unterMindestSpielwert];
+  assert.deepEqual(ohne(behalten, nurKernidee), [], 'nicht auf der ursprünglichen Liste wegen Kernidee oder Spielwert');
+  const mitAusschluss = [...liste.duldung.ausschlussgrund, ...liste.duldung.abgelehnt];
+  assert.deepEqual(behalten.filter(x => mitAusschluss.includes(x)), [], 'mit Ausschlussgrund oder abgelehnt');
+  assert.deepEqual(behalten.map(x => [x, stark(x, protokoll).maengel]).filter(([, m]) => m.length), [], 'nicht stark');
+});
+test(`Regel stark an erfundenen Urteilen: jedes Urteil mit Aha-Moment bei beiden, ohne Ablehnung, Gefühl im Mittel `
+  + `mindestens ${MIN_GEFUEHL_BEHALTEN}, eines aus Ablauf 2; mit Gegenproben`, () => {
+  const urteil = (gefuehl, aha = true, ablehnung = []) => ({ aha: { ja: aha, beschreibung: '' }, gefuehl, ablehnung });
+  const e = (A, B, ablauf = '2', lauf = 'behalten-test') => ({ ablauf, lauf, level: { name: 'X' }, urteile: { A, B } });
+  const gut = [e(urteil(4), urteil(4)), e(urteil(5), urteil(3), '1', 'spielwert-test')];
+  assert.equal(stark('X', gut).stark, true);
+  assert.equal(stark('X', gut).gefuehl, 4);
+  // Gegenproben: je ein Mangel
+  const faelle = {
+    'ohne Aha-Moment': [e(urteil(5), urteil(5, false))],
+    'Gefühl im Mittel 3,75': [e(urteil(4), urteil(4)), e(urteil(4), urteil(3), '1')],
+    'Begriff der Ablehnung': [e(urteil(5), urteil(5, true, ['Zerfall']))],
+    'nur Ablauf 1': [e(urteil(4), urteil(4), '1')],
+    'kein Urteil': [],
+  };
+  for (const [text, eintraege] of Object.entries(faelle)) assert.equal(stark('X', eintraege).stark, false, text);
+  // an echten Leveln: A3 Glasfenster mit seinem Urteil als Anker (Ablauf 2) stark; Kreuzweg im zweiten Urteil nicht
+  assert.equal(stark('Glasfenster', protokoll).stark, true, 'Glasfenster');
+  assert.deepEqual(stark('Kreuzweg', protokoll).maengel.length > 0, true, 'Kreuzweg');
 });
 
 console.log('Regel für die Prüfliste (Ticket 16), mit erfundenen Urteilen');

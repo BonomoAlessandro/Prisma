@@ -42,6 +42,11 @@
 //   Level, die nie wieder vergeben werden (entfernteNamen), und die Prüfliste für Ticket 16 (pruefliste; erledigt,
 //   wenn jedes Level darauf ein zählendes Urteil hat: prueflisteErledigt), je Level darauf mit dem Platz der Formel
 //   beim Entscheid (prueflisteFormel, fest seit Ticket 26).
+// - Behalten nach Urteil der KI-Tester (behalten, Entscheid des Nutzers vom 18.10.2026, Ticket 24): Level, die nur
+//   wegen Kernidee oder Spielwert auf der Duldungsliste stehen und nach der Regel stark gut beurteilt sind, bleiben im
+//   Spiel. Sie stehen weiter unter ihrem Grund auf der Duldungsliste (die Regel verletzen sie ja); nach dem Austausch
+//   eines Grads dürfen dort nur noch sie stehen. Die Gruppe wächst nie: ordne-level.mjs übernimmt sie, wie sie ist, und
+//   streicht nur Level, die es nicht mehr gibt.
 // - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
 //   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
 //   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
@@ -102,9 +107,40 @@ export const GRUENDE = {
 
 /**
  * Die Daten der Levelliste aus levelliste.json: { duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste,
- * prueflisteErledigt, prueflisteFormel }.
+ * prueflisteErledigt, prueflisteFormel, behalten }.
  */
 export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
+
+/** So viel Gefühl hat ein behaltenes Level im Mittel über alle Urteile mindestens (Regel stark, Ticket 24). */
+export const MIN_GEFUEHL_BEHALTEN = 4;
+
+/** Alle Einträge des Protokolls, nicht nur die zählenden (Text: eine JSON-Zeile je Eintrag; Vorgabe die Datei). */
+export function alleUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
+  return text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+}
+
+/**
+ * Regel stark (Entscheide des Nutzers und des Koordinators vom 18.10.2026, Ticket 24): Ein Level darf unter dem Grund
+ * „behalten nach Urteil der KI-Tester“ im Spiel bleiben, wenn jedes Urteil im Protokoll zu ihm (Ablauf 1 und 2, jeder
+ * Lauf, auch als Anker) bei beiden KI-Testern einen Aha-Moment und keinen Begriff der Ablehnung hat, das Gefühl im
+ * Mittel über alle Urteile beider KI-Tester mindestens MIN_GEFUEHL_BEHALTEN ist und mindestens ein Urteil aus Ablauf 2
+ * stammt. name: Name des Levels; eintraege: alle Einträge des Protokolls (alleUrteile).
+ * Rückgabe: { stark, maengel: Texte, gefuehl: Mittel oder null, urteile: Zahl der Urteile }.
+ */
+export function stark(name, eintraege) {
+  const u = eintraege.filter(e => e.level.name === name);
+  const je = u.flatMap(e => TESTERS.map(t => e.urteile[t]));
+  const gefuehl = je.length ? je.reduce((s, x) => s + x.gefuehl, 0) / je.length : null;
+  const maengel = [
+    ...(!u.length ? ['kein Urteil'] : []),
+    ...(u.length && !u.some(e => e.ablauf === '2') ? ['kein Urteil aus Ablauf 2'] : []),
+    ...u.flatMap(e => TESTERS.filter(t => !e.urteile[t].aha.ja).map(t => `${e.lauf}: ${t} ohne Aha-Moment`)),
+    ...u.flatMap(e => TESTERS.filter(t => e.urteile[t].ablehnung.length)
+      .map(t => `${e.lauf}: ${t} nennt ${e.urteile[t].ablehnung.join(', ')}`)),
+    ...(gefuehl !== null && gefuehl < MIN_GEFUEHL_BEHALTEN ? [`Gefühl im Mittel ${gefuehl}`] : []),
+  ];
+  return { stark: !maengel.length, maengel, gefuehl, urteile: u.length };
+}
 
 /**
  * Darf ein Level in diesem Grund auf die ursprüngliche Duldungsliste kommen (Ticket 16)? ki: sein Urteil aus

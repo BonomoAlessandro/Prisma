@@ -603,3 +603,120 @@ Einträge).
   und Ziel nach.
 - Tests (über `leise.sh`, `LEISE_MAX_CPU=80 LEISE_CPU=80`), alle grün: golden (alle 159 Level wie in `golden.json`),
   logic 548, generator 30, beurteilung 178 (Spielwert 0,29 / 0,27), levelliste 39, ki-tester 64, offline.
+
+**Läufe `ersatz-mittel-3` bis `-5` zusammengeführt, Wahl je Lücke, Grund „behalten“, Namensvorschläge (19.10.2026).**
+- **Merge:** `merge.mjs` für alle drei Läufe (je 14 Einträge; Protokoll jetzt 222), `tests/ki-tester.test.mjs` grün
+  (64). Beide KI-Tester lehnen zwei Level ab: 2fd2364e (Ersatz für Kreuzweg; Zerfall, Füllteil, Gefühl 2/2) und 635fc081
+  (Ersatz für Glasbläser; Füllteil). Sonst nennt keiner einen Begriff der Ablehnung, und jedes Level der zweiten Runde
+  hat in der Vorprüfung einen Teil.
+- **Wahl je Lücke** nach der Rangfolge aus Ticket 26 (nicht abgelehnt, beide sehen einen Aha-Moment, kein Begriff der
+  Ablehnung, ein Teil in der Vorprüfung, dann das Gefühl), Kandidat, Ersatz und Rückfall gleichwertig (`t24\wahl.mjs`).
+  Jede Lücke hat ein Level ohne Mangel auf den Stufen 2 und 3. Vier Abweichungen vom besten Level nach dem Gefühl,
+  alle ohne Mangel:
+  - Das schon beurteilte 8656eb5f (4/5) ist das beste Level für Schnittstelle und für Lichtschacht. Es geht an
+    Lichtschacht; Schnittstelle bekommt ba0e3031 (4/4) statt Lichtschacht 4f894771 (3/4).
+  - Mit den besten Leveln rücken die vielen Korrekturen der KI-Tester vier korrigierte Level weiter als 5 Plätze
+    (Schattenspiel und Lichtharfe −6, die Ersatzlevel für Paravent −6 und Farbwechsel +6); das verletzt die Regel der
+    Korrektur, und die Häufungsregel macht dann keinen Zug mehr (jeder Zug wäre unzulässig), vier Häufungen blieben
+    offen. Eine Suche über die Wahl je Lücke mit `reihenfolge()` (`t24\suche.mjs`) braucht dafür drei Tausche:
+    Farbwechsel ae552f6d (3/3) statt f64f7e7a (4/4, Korrektur +4, Falle; ohne ihn geht es nicht), Verästelung 39d10e93
+    (4/4) statt 2b437167 (5/4), Lichtfaden fbd3f89e (4/4) statt b6965c5f (5/4, Korrektur +5).
+- **`--austausch` mit der Wahl** (alle 30 auf einmal, mit der Regel aus Ticket 26):
+  - Alle 30 neuen Level sind „mittel“ und stehen auf 32–105; „mittel“ bleibt 32–105, „schwer“ beginnt bei 106.
+  - Prüfliste 36 (die 50 von heute ohne die 14 ersetzten), alle mit Urteil, Entscheide unverändert.
+  - Kein korrigiertes Level steht weiter als 5 Plätze von seinem Platz vor den Korrekturen.
+  - Haupt-Kernidee höchstens zweimal je 10 Level ohne die Duldungsliste, mit drei Zügen der Häufungsregel: das
+    Ersatzlevel für Drehscheibe 50 → 51, Doppelspiegel 102 → 100, Spiegelsaal 131 → 130.
+  - Mittel je 10 Level fällt nirgends (kleinster Schritt +0,46, Plätze 91–110).
+  - Gradgrenzen: Auf 32 steht das Ersatzlevel für Lichtpfad (erstes mittleres, ohne Korrektur), auf 31 Blitz
+    („leicht“). Oben stehen die Ersatzlevel für Glasbläser (Korrektur +3, auf 103), Libelle und Polarlicht auf 103–105;
+    keine Korrektur geht über eine Grenze.
+  - Duldungsliste danach 46 (mittel 27, genau die behaltenen; schwer 19).
+  - Anker: A3 Glasfenster auf 35, A4 Lichtbogen auf 102.
+- **Die 30 Level** (Platz nach `--austausch`):
+
+  | Platz | ersetzt | Abdruck | Haupt-Kernidee | Schwierigkeit | Gefühl A/B | Aha A/B | Lauf | Herkunft (Auftrag, Seed, Ziel) | Teile |
+  |---:|---|---|---|---:|---|---|---|---|---:|
+  | 32 | Lichtpfad | 205ba7c0 | Abschalten | 43,34 | 4/3 | ja/ja | ersatz-mittel-4 | mittel-abschalten, 201, 43,01–43,73 | 1 |
+  | 33 | Farbwechsel | ae552f6d | Sammelstelle | 43,66 | 3/3 | ja/ja | ersatz-mittel-3 | mittel-sammelstelle, 66, 43,01–43,73 | 1 |
+  | 38 | Verästelung | 39d10e93 | Mischziel | 45,26 | 4/4 | ja/ja | ersatz-mittel-4 | mittel-mischziel, 15, 44,28–45,68 | 1 |
+  | 39 | Tagesanbruch | d56de435 | Farben abzählen | 44,53 | 4/4 | ja/ja | ersatz-mittel-4 | mittel-abzaehlen, 218, 44,28–45,68 | 1 |
+  | 40 | Kreuzweg | 22962f97 | Falle | 43,97 | 4/4 | ja/ja | ersatz-mittel-5 | mittel-falle, 236, 43,75–44,14 | 1 |
+  | 41 | Glasmurmel | 25045017 | Sammelstelle | 44,82 | 4/5 | ja/ja | ersatz-mittel-3 | mittel-sammelstelle, 187, 44,28–45,68 | 1 |
+  | 42 | Knotenpunkt | 888d1ca4 | Abschalten | 45,18 | 4/5 | ja/ja | ersatz-mittel-5 | mittel-abschalten, 335, 44,28–45,68 | 1 |
+  | 43 | Schnittstelle | ba0e3031 | Farben abzählen | 45,72 | 4/4 | ja/ja | ersatz-mittel-1 | mittel-abzaehlen, 112, 45,7–46,01 | 1 |
+  | 44 | Lichtschacht | 8656eb5f | Mischziel | 45,94 | 4/5 | ja/ja | ersatz-mittel-2 | mittel-mischziel, 47, 45,7–46,88 | 1 |
+  | 45 | Funkenflug | f94b7e9b | Sammelstelle | 46,32 | 5/4 | ja/ja | ersatz-mittel-4 | mittel-sammelstelle, 68, 45,7–46,88 | 1 |
+  | 46 | Sonnenstrahl | c4ee29fd | Mischziel | 46,81 | 4/4 | ja/ja | ersatz-mittel-2 | mittel-mischziel, 84, 46,09–46,94 | 1 |
+  | 49 | Geflecht | 0775747e | Farben abzählen | 47,36 | 4/5 | ja/ja | ersatz-mittel-1 | mittel-abzaehlen, 145, 46,96–47,88 | 1 |
+  | 51 | Drehscheibe | 000ac554 | Mischziel | 47,63 | 4/4 | ja/ja | ersatz-mittel-5 | mittel-mischziel, 100, 46,96–47,88 | 1 |
+  | 52 | Legierung | ea5724ea | Abschalten | 47,97 | 4/4 | ja/ja | ersatz-mittel-4 | mittel-abschalten, 235, 47,9–48,51 | 1 |
+  | 53 | Paravent | b8b4ed38 | Sammelstelle | 49,04 | 4/4 | ja/ja | ersatz-mittel-5 | mittel-sammelstelle, 56, 48,53–49,45 | 1 |
+  | 54 | Laterne | 47c7364a | Sammelstelle | 48,30 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-sammelstelle, 215, 47,9–48,51 | 1 |
+  | 57 | Lichtfaden | fbd3f89e | Falle | 48,83 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-falle, 85, 48,53–49,45 | 1 |
+  | 58 | Einklang | b5b615c6 | Mischziel | 49,00 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-mischziel, 163, 48,53–49,45 | 1 |
+  | 65 | Chamäleon | 2d47656c | Sammelstelle | 49,87 | 5/4 | ja/ja | ersatz-mittel-4 | mittel-sammelstelle, 187, 49,65–50,32 | 1 |
+  | 70 | Widerschein | a6e146e0 | Sammelstelle | 51,61 | 4/4 | ja/ja | ersatz-mittel-1 | mittel-sammelstelle, 374, 51,15–51,71 | 1 |
+  | 73 | Spiegelachse | c6f0421e | Sammelstelle | 51,80 | 4/4 | ja/ja | ersatz-mittel-4 | mittel-sammelstelle, 70, 51,73–52,13 | 1 |
+  | 78 | Rochade | a22902ed | Mischziel | 54,05 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-mischziel, 315, 53,89–54,34 | 1 |
+  | 82 | Lichtschleife | be69a422 | Sammelstelle | 54,73 | 5/4 | ja/ja | ersatz-mittel-1 | mittel-sammelstelle, 286, 54,36–54,78 | 1 |
+  | 85 | Mosaik | 0c343f57 | Farben abzählen | 54,05 | 4/4 | ja/ja | ersatz-mittel-5 | mittel-abzaehlen, 359, 53,89–54,34 | 1 |
+  | 89 | Lichtorgel | 7e8a37cb | Farben abzählen | 55,63 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-abzaehlen, 385, 55,55–56,1 | 1 |
+  | 91 | Uhrwerk | 64564310 | Sammelstelle | 55,72 | 4/4 | ja/ja | ersatz-mittel-3 | mittel-sammelstelle, 296, 55,55–56,1 | 1 |
+  | 95 | Weichensteller | ae26b9cc | Falle | 55,64 | 4/4 | ja/ja | ersatz-mittel-1 | mittel-falle, 218, 55,55–55,68 | 1 |
+  | 103 | Glasbläser | 75e6f3bf | Sammelstelle | 56,92 | 4/5 | ja/ja | ersatz-mittel-5 | mittel-sammelstelle, 286, 56,2–57,26 | 1 |
+  | 104 | Libelle | f03e3dee | Sammelstelle | 58,18 | 4/4 | ja/ja | ersatz-mittel-1 | mittel-sammelstelle, 68, 57,28–58,31 | 1 |
+  | 105 | Polarlicht | 8d478f46 | Farben abzählen | 58,25 | 5/4 | ja/ja | ersatz-mittel-1 | mittel-abzaehlen, 385, 57,28–58,31 | 1 |
+
+- **Grund „behalten nach Urteil der KI-Tester“** (Entscheid des Nutzers vom 18.10.2026):
+  - `tools/levelliste.mjs`: Regel `stark(name, eintraege)` mit `MIN_GEFUEHL_BEHALTEN = 4` und `alleUrteile()`; im Kopf
+    beschrieben.
+  - `tools/levelliste.json`: eigene Gruppe `behalten` mit den 27 starken Leveln. `ordne-level.mjs` übernimmt sie, wie
+    sie ist (ohne Level, die es nicht mehr gibt), schreibt sie mit und berichtet sie (dazu, ob jedes noch stark ist).
+    Die Level bleiben unter ihrem Grund auf der Duldungsliste.
+  - `tests/levelliste.test.mjs`: Die Gruppe wächst nie (höchstens die 27 aus dem Entscheid, `BEHALTEN_TICKET_24`), jedes
+    Level ist im Spiel, stand auf der ursprünglichen Liste nur wegen Kernidee oder Spielwert, hat keinen Ausschlussgrund
+    und ist nach dem Protokoll stark; die Regel stark an erfundenen Urteilen mit Gegenproben (ohne Aha-Moment, Gefühl
+    3,75, Begriff der Ablehnung, nur Ablauf 1, kein Urteil) und an Glasfenster und Kreuzweg. Der Test zum Austausch
+    verlangt jetzt: Aus einem ausgetauschten Grad steht nur noch ein behaltenes Level auf der Duldungsliste.
+    Gegenprobe: Mit Kreuzweg in der Gruppe wird der Test rot („nicht aus dem Entscheid in Ticket 24“).
+  - Spec (Phase 6, Duldungsliste, Entscheide zu den Tests, Spielwert in „Weitere Hinweise“), README und ein Hinweis in
+    Ticket 25 sind nachgeführt.
+- **Namensvorschläge** (je drei, der erste bevorzugt; keiner im Spiel oder unter den entfernten Namen, geprüft; kurz
+  begründet nach den Beschreibungen der KI-Tester):
+
+  | Platz | ersetzt | Haupt-Kernidee | Gefühl A/B | Namen (Favorit zuerst) |
+  |---:|---|---|---|---|
+  | 32 | Lichtpfad | Abschalten | 4/3 | **Zwillingsstrahl** (zwei rote Quellen tauschen ihre Ziele), Rottausch, Querlicht (Blau quer durchs Feld) |
+  | 33 | Farbwechsel | Sammelstelle | 3/3 | **Brennpunkt** (das Prisma sammelt Grün und Magenta aus zwei Richtungen), Farbfang, Lichtsammler |
+  | 38 | Verästelung | Mischziel | 4/4 | **Farbbrücke** (Magenta und Cyan bauen zusammen das Weiss), Zweiklang, Lichtbund |
+  | 39 | Tagesanbruch | Farben abzählen | 4/4 | **Morgenblau** (zwei blaue Ziele, Rot direkt ist die Falle), Frühlicht, Blaupause |
+  | 40 | Kreuzweg | Falle | 4/4 | **Serpentine** (Blau im Zickzack über drei senkrechte Spiegel), Wendeltreppe, Blauzacke |
+  | 41 | Glasmurmel | Sammelstelle | 4/5 | **Dreiklang** (ein Prisma bedient Rot, Grün und Blau zugleich), Trikolore, Farbtrio |
+  | 42 | Knotenpunkt | Abschalten | 4/5 | **Weissglut** (drei weisse Quellen; das leuchtende weisse Ziel braucht neues Licht), Wachwechsel, Ablösung |
+  | 43 | Schnittstelle | Farben abzählen | 4/4 | **Reflex** (zwei Spiegel tragen Weiss hin und Rot zurück), Gegenverkehr, Doppelbahn |
+  | 44 | Lichtschacht | Mischziel | 4/5 | **Meeresleuchten** (Cyan und Gelb mischen sich zu Weiss), Küstenlicht, Strandlicht |
+  | 45 | Funkenflug | Sammelstelle | 5/4 | **Karussell** (Rot dreht über die festen Randspiegel seine Runde), Kreislauf, Rundlicht |
+  | 46 | Sonnenstrahl | Mischziel | 4/4 | **Sonnenglanz** (Gelb und Magenta treffen sich zu Weiss), Morgengold, Lichtpaar |
+  | 49 | Geflecht | Farben abzählen | 4/5 | **Diagonale** (alle Spiegel stehen schräg, jeder trägt zwei Strahlen), Lichtgitter, Kettenspiegel |
+  | 51 | Drehscheibe | Mischziel | 4/4 | **Weisspunkt** (Gelb und Cyan ergeben Weiss; Begriff der Farbmetrik), Lichtwaage, Gelbgrün |
+  | 52 | Legierung | Abschalten | 4/4 | **Goldwechsel** (zwei gelbe Quellen tauschen ihre Ziele), Schichtwechsel, Messing |
+  | 53 | Paravent | Sammelstelle | 4/4 | **Goldschmied** (Gelb entsteht neu aus Rot und Grün), Zitronenlicht, Umguss |
+  | 54 | Laterne | Sammelstelle | 4/4 | **Lichtzange** (Rot und Blau fassen das Prisma von zwei Seiten), Gegenpol, Zwiegespräch |
+  | 57 | Lichtfaden | Falle | 4/4 | **Ehrenrunde** (Rot läuft über sechs Spiegel einmal ums Feld), Rundreise, Spiegellauf |
+  | 58 | Einklang | Mischziel | 4/4 | **Komplement** (Cyan und Rot sind Gegenfarben und ergeben Weiss), Lichtakkord, Ergänzung |
+  | 65 | Chamäleon | Sammelstelle | 5/4 | **Delta** (Licht fliesst im Prisma zusammen und fächert neu auf), Mündung, Farbstrom |
+  | 70 | Widerschein | Sammelstelle | 4/4 | **Palette** (ein Prisma verteilt Blau und Gelb auf drei Ziele), Farbtafel, Neuordnung |
+  | 73 | Spiegelachse | Sammelstelle | 4/4 | **Purpur** (Magenta aus Rot und Blau zweier Quellen), Fliederlicht, Kammerlicht |
+  | 78 | Rochade | Mischziel | 4/4 | **Rücklicht** (Weiss läuft in einer Schleife zurück ins Prisma), Heimweg, Kehrtwende |
+  | 82 | Lichtschleife | Sammelstelle | 5/4 | **Fokus** (das Prisma sammelt Rot und Cyan), Sammelpunkt, Lichthaus |
+  | 85 | Mosaik | Farben abzählen | 4/4 | **Bogengang** (Rot im grossen Bogen über Spiegel, die schon Magenta und Blau tragen), Doppelspur, Gegenlauf |
+  | 89 | Lichtorgel | Farben abzählen | 4/4 | **Farbchor** (Weiss aus dem Grün der gelben und dem Blau der Magenta-Quelle), Weissklang, Kanon |
+  | 91 | Uhrwerk | Sammelstelle | 4/4 | **Lichtkrone** (das Prisma bedient drei Ziele auf einmal), Sternstunde, Tripel |
+  | 95 | Weichensteller | Falle | 4/4 | **Kaskade** (Blau fällt die Spiegeltreppe hinunter), Wasserfall, Abstieg |
+  | 103 | Glasbläser | Sammelstelle | 4/5 | **Türkis** (Cyan-Ziel; Edelstein wie Rubin, Saphir, Smaragd, Amethyst), Lagune, Eisblau |
+  | 104 | Libelle | Sammelstelle | 4/4 | **Rundflug** (Rot fliegt über drei feste Randspiegel eine grosse Schleife), Kreisflug, Schleifenflug |
+  | 105 | Polarlicht | Farben abzählen | 5/4 | **Doppelstern** (zwei Magenta-Quellen liefern je Rot und Blau), Zwillingsquelle, Magentapaar |
+
+  Hinweis: Brennpunkt und Fokus sind Begriffe der Optik rund um Linsen, aber keine Mechanik; wer sie meiden will, nimmt
+  den zweiten Vorschlag. Die Genehmigung des Nutzers folgt hier.

@@ -105,3 +105,20 @@ Sammelstelle 1, Lockvogel 2, Mischziel 2 (131–140 teilt sich das mit Korona au
 - **Zerfall:** Die KI-Tester nannten in Ticket 26 keinen Zerfall, wohl aber in Ticket 24. Die Vorprüfung aus Ticket 24
   (`zerfall-check.mjs` im Scratchpad unter `t24\`, Kopie unter `t26\`) trennte im Pool „sehr schwer“: Farben abzählen
   28 von 28 mit einem Teil, Mischziel 10 von 47, Sammelstelle 8 von 22, Falle 5 von 15.
+
+**Hinweis aus Ticket 24 (19.10.2026):**
+- **„Liste leer“ gilt so nicht mehr** (Entscheid des Nutzers vom 18.10.2026): In „mittel“ bleiben die Level, die nur
+  wegen Kernidee oder Spielwert auf der Duldungsliste standen und nach der Regel stark gut beurteilt sind, unter dem
+  Grund „behalten nach Urteil der KI-Tester“ (27 von 44). Regel `stark` in `tools/levelliste.mjs`: jedes Urteil im
+  Protokoll (Ablauf 1 und 2, auch Probe-, Eich- und Ankerläufe) mit Aha-Moment bei beiden und ohne Begriff der
+  Ablehnung, Gefühl im Mittel über alle Urteile mindestens 4, mindestens ein Urteil aus Ablauf 2. Die Gruppe steht in
+  `tools/levelliste.json` (`behalten`) und wächst nie; der Test verlangt nach dem Austausch eines Grads, dass aus ihm
+  nur noch behaltene Level auf der Duldungsliste stehen. Ob dieselbe Regel für die 6 schweren Level ohne
+  Ausschlussgrund gilt, entscheidet der Nutzer hier selbst; dann gehören sie in die Gruppe (der Test kennt heute nur
+  die Liste aus Ticket 24, `BEHALTEN_TICKET_24`).
+- Für die Level ohne Urteil: ein Lauf wie `behalten-mittel-1` (zählt nicht für die Levelliste, geht aber in die
+  Eichmenge des Spielwerts ein; vorher die Übereinstimmung prüfen).
+- Die KI-Tester sehen oft Zerfall, wo die Beurteilung keinen findet; die Vorprüfung `t24\zerfall-check.mjs` trifft ihre
+  Nennungen an den 26 Kandidaten der ersten Runde genau. Viele Korrekturen der KI-Tester nahe beieinander können ein
+  korrigiertes Level weiter als 5 Plätze schieben; dann macht die Häufungsregel keine Züge mehr (in 24 mit einer
+  anderen Wahl je Lücke gelöst, Skript `t24\suche.mjs`).

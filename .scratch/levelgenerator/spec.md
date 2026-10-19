@@ -195,7 +195,11 @@ heutigen Werkzeuge nicht:
    in den Würfel-Branch übernommen.
 6. **Austausch:** Ersatz für die Duldungsliste je Grad, mit neuen Namen und Prüfung durch die KI-Tester. Zuerst kommen
    die 37 Level mit Ausschlussgrund; über die 52, die nur wegen Kernidee oder Spielwert auf der Liste stehen, wird je
-   Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester (Entscheid des Nutzers vom 16.10.2026).
+   Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester (Entscheid des Nutzers vom 16.10.2026). Für
+   „mittel“ entschied der Nutzer am 18.10.2026 (Ticket 24): Die nach der Regel stark beurteilten Level bleiben unter
+   dem Grund „behalten nach Urteil der KI-Tester“, die übrigen werden ersetzt. Am Ende von Phase 6 ist die
+   Duldungsliste darum nicht leer, sondern nennt nur noch behaltene Level; für „schwer“ entscheidet der Nutzer in
+   Ticket 25, ob dieselbe Regel gilt.
 
 Phase 3 braucht Phase 2. Phase 4 braucht die Grade aus Phase 3. Phase 5 braucht Phase 2, Phase 6 braucht die Phasen
 3 und 5. Phase 1 ist Voraussetzung für alle, weil der Golden-Test das Sicherheitsnetz ist.
@@ -362,6 +366,17 @@ Quellen vergleicht alle Quellen und nicht nur die ersten beiden. Die Scheinmisch
   Liste um begründete Ergänzungen, die die Datei einzeln festhält. Phase 6 ersetzt zuerst die Level mit
   Ausschlussgrund und die abgelehnten. Über die übrigen, die nur wegen Kernidee oder Spielwert auf der Liste stehen,
   wird je Grad nach Ticket 16 entschieden, mit den Urteilen der KI-Tester.
+
+  **Behalten nach Urteil der KI-Tester** (Entscheid des Nutzers vom 18.10.2026, Ticket 24; Regel `stark` in
+  `tools/levelliste.mjs`): Ein Level, das nur wegen Kernidee oder Spielwert auf der Duldungsliste steht, bleibt im
+  Spiel, wenn jedes Urteil im Protokoll zu ihm bei beiden KI-Testern einen Aha-Moment und keinen Begriff der
+  Ablehnung hat und das Gefühl im Mittel über alle Urteile mindestens 4 ist. Es zählt jedes Urteil, aus Ablauf 1 und
+  2, auch aus Probe-, Eich- und Ankerläufen, und mindestens eines muss aus Ablauf 2 stammen (Entscheid des
+  Koordinators vom 18.10.2026). Die übrigen werden ersetzt. Die behaltenen Level stehen in `tools/levelliste.json`
+  als eigene Gruppe (`behalten`), die nie wächst; unter ihrem Grund bleiben sie auf der Duldungsliste, denn die Regel
+  verletzen sie weiter. Nach dem Austausch eines Grads stehen aus ihm nur noch behaltene Level auf der Liste. In
+  „mittel“ sind es 27 von 44 (die 16 Level ohne Urteil beurteilten die KI-Tester dafür im Lauf `behalten-mittel-1`,
+  der nicht für die Levelliste zählt).
 - Der Austausch geschieht je Grad in einem Durchgang. Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester prüfen.
   Die Namen im bisherigen Stil werden vorgeschlagen und vom Nutzer genehmigt. Umsetzung (Ticket 23, vom Koordinator
   bestätigt am 18.10.2026): Ein neues Level hat keinen heutigen Platz und steht nach der Formel. Die KI-Tester
@@ -454,6 +469,8 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
    - Kein Level hat einen Ausschlussgrund, ausser es steht auf der Duldungsliste. Die Liste wird nur kürzer.
    - Ab „mittel“ hat jedes Level eine nötige Kernidee, und jedes liegt über dem Mindest-Spielwert, ausser es steht mit
      diesem Grund auf der Duldungsliste.
+   - Nach dem Austausch eines Grads steht aus ihm nur noch ein behaltenes Level auf der Duldungsliste; jedes behaltene
+     Level erfüllt die Regel stark im Protokoll, und die Gruppe wächst nie (Ticket 24).
    - Dieselbe Haupt-Kernidee kommt höchstens zweimal je 10 Level vor, gezählt ohne die Level der Duldungsliste.
    - Die Namen sind eindeutig, und kein Name von der Liste entfernter Level kommt vor.
    - Jede Verschiebung durch die KI-Tester steht mit Begründung im Protokoll, ist höchstens 5 Plätze gross und
@@ -610,4 +627,9 @@ keine inneren Hilfsfunktionen, Gewichte oder Zwischenstände. Ein Umbau hinter d
       übersieht der Spielwert Kernideen, die die KI-Tester sehen. Von 44 Leveln in „mittel“ mit Urteil und ohne
       Ausschlussgrund haben 29 keine erkannte Kernidee; bei 27 davon sehen beide KI-Tester einen Aha-Moment, 19 haben
       ein Gefühl von mindestens 4. Vor dem Entscheid über die Level ohne Ausschlussgrund auf der Duldungsliste wird
-      der Spielwert in „mittel“ angesehen, also die Erkennung der Kernideen oder das Modell.
+      der Spielwert in „mittel“ angesehen, also die Erkennung der Kernideen oder das Modell. Angesehen in Ticket 24:
+      Die KI-Tester nennen Falle, Farben abzählen und Abschalten in einem weiteren Sinn als die bewusst engen Regeln
+      (Tickets 10, 11 und 15), dazu Ideen ausserhalb des Glossars (Mischziel aus einer Quelle, ein Spiegel für zwei
+      Strahlen); der Spielwert hängt fast ganz an der erkannten Kernidee. Entschieden ist darüber mit der Gruppe
+      „behalten nach Urteil der KI-Tester“ (oben, „Duldungsliste“); mit den 20 Urteilen aus `behalten-mittel-1` ist
+      die Übereinstimmung 0,29 / 0,27.

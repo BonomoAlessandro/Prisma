@@ -1,5 +1,5 @@
 {
-  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste (levelliste.mjs).",
+  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten nach Urteil der KI-Tester (levelliste.mjs).",
   "duldung": {
     "ausschlussgrund": [
       "Einklang", "Geflecht", "Glasmurmel", "Schnittstelle", "Laterne", "Mosaik", "Lichtschleife", "Weichensteller",
@@ -97,5 +97,11 @@
     "Glasfaser": 114, "Farbverlauf": 105, "Schachbrett": 73, "Farbknoten": 95, "Smaragd": 81, "Chamäleon": 61,
     "Prismenreigen": 104, "Doppelspiegel": 101, "Sonnenwende": 77, "Pendel": 84, "Kathedrale": 86, "Supernova": 88,
     "Kristallpalast": 121, "Zwielicht": 137, "Spiegelkabinett": 131
-  }
+  },
+  "behalten": [
+    "Glasfenster", "Lichtnetz", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang",
+    "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Blaue Stunde", "Pinselstrich",
+    "Farbtupfer", "Rubin", "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer",
+    "Farbverlauf", "Schachbrett", "Smaragd", "Silberstreif"
+  ]
 }
