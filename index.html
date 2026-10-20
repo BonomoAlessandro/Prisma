@@ -7733,7 +7733,11 @@ const cameraRig = {
   basePhi: 0.86,          // Winkel von der Senkrechten
   userTheta: 0, userPhi: 0,
   goalTheta: 0, goalPhi: 0, // goalTheta bleibt in −π … π (dragCamera)
-  limitsPhiUp: 0.22, limitsPhiDown: 0.16,
+  limitsPhiUp: 0.22,      // höchstens so viel steiler als die Ausgangsansicht
+  // Flachster Blick (von der Senkrechten, ≈ 80°, in jedem Bildformat): Die Skybox ist bis über den Horizont zu sehen,
+  // das Feld noch von oben. Im Breitformat endet das Bild oben knapp unter dem Rand der HD-Streifen (10° über dem
+  // Horizont, SKYBOX); flacher stünde die Platte als schwarze Wand im Bild.
+  phiMax: 1.4,
   radius: 18,             // Abstand der Ausgangsansicht; gedreht bleibt er gleich (ein Zoom pumpte, siehe PLAN 2.18)
   homing: null,           // Rückflug zur Ausgangsansicht beim Levelwechsel (cameraGoHome)
 };
@@ -7750,6 +7754,11 @@ function fitCameraDistance() {
   const halfH = PLATE * 0.42;
   cameraRig.radius = Math.max(halfW / tanH, halfH / tanV, 14);
   cameraRig.basePhi = THREE.MathUtils.lerp(0.46, 0.86, wide);
+  // Neigung gilt gegen basePhi: Wird das Fenster breiter, nie flacher als phiMax
+  const down = cameraRig.phiMax - cameraRig.basePhi;
+  cameraRig.goalPhi = Math.min(cameraRig.goalPhi, down);
+  cameraRig.userPhi = Math.min(cameraRig.userPhi, down);
+  if (cameraRig.homing) cameraRig.homing.phi = Math.min(cameraRig.homing.phi, down);
   updateSky(wide);
 }
 
@@ -9480,7 +9489,8 @@ function dragCamera(dx, dy) {
   const wrap = Math.round(cameraRig.goalTheta / (2 * Math.PI)) * 2 * Math.PI;
   cameraRig.goalTheta -= wrap;
   cameraRig.userTheta -= wrap;
-  cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp, cameraRig.limitsPhiDown);
+  cameraRig.goalPhi = THREE.MathUtils.clamp(cameraRig.goalPhi - dy * s, -cameraRig.limitsPhiUp,
+    cameraRig.phiMax - cameraRig.basePhi);
 }
 
 function endPointer() {

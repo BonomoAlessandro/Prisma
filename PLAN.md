@@ -660,6 +660,15 @@ Zuletzt aktualisiert: 18. Oktober 2026
       Bild Zustand behält, auch mit laufender Zeit prüfen.
   - Vom Nutzer abgenommen („sieht wirklich gut aus“) und committet (15. Oktober, 7c78158). Offen: Leistung auf einem
     echten Handy (das Wasser rechnet mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel), Push und Deploy.
+- [x] **2.34 Kamera flacher neigbar** (Wunsch des Nutzers, 20. Oktober: „die Kamera weiter nach unten ziehen, sodass
+  die Skybox besser betrachtet werden kann“). Statt höchstens 0,16 rad flacher als die Ausgangsansicht (Breitformat
+  58°, Hochformat 36° von der Senkrechten; den Horizont sah man nie) gilt jetzt eine feste Grenze `cameraRig.phiMax`
+  = 1,4 rad (≈ 80°, 10° über der Brettebene) in jedem Bildformat; steiler wie bisher 0,22 rad. Wird das Fenster
+  breiter, rückt die Neigung auf die Grenze zurück. Geprüft mit Bildern aller vier Hintergründe von vier Seiten, quer
+  und hoch: nichts steht vor der Kamera; im Breitformat endet das Bild oben knapp unter dem Rand der HD-Streifen (10°
+  über dem Horizont). Flacher (1,5) stand die Platte als schwarze Wand im Bild. Im Wald sieht man jetzt die gerade
+  Oberkante des Nebelmeers vor den Bergen; sie steckt so im Panorama aus Blender. Vom Nutzer abgenommen („der
+  Kamerawinkel ist nun super“, 20. Oktober) und committet.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
