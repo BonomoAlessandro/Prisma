@@ -658,8 +658,8 @@ Zuletzt aktualisiert: 18. Oktober 2026
       angehaltener Zeit (`?t=`) bewegt sich nichts, darum zeigten die Prüfbilder es nicht; nachgestellt mit laufender
       Zeit auf der Grafikkarte. Jetzt vor dem Leeren `state.buffers.depth/color.setMask(true)`. Lehre: Was von Bild zu
       Bild Zustand behält, auch mit laufender Zeit prüfen.
-  - Offen: Urteil des Nutzers zur Insel, danach Review und Commit; Leistung auf einem echten Handy (das Wasser rechnet
-    mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel).
+  - Vom Nutzer abgenommen („sieht wirklich gut aus“) und committet (15. Oktober, 7c78158). Offen: Leistung auf einem
+    echten Handy (das Wasser rechnet mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel), Push und Deploy.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
