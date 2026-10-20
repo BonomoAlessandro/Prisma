@@ -66,3 +66,25 @@ mittel / schwer / sehr schwer): 6 / 19 / 7 / 3. Danach stehen 185 Level im Spiel
   `--write`), Beurteilung 178, alle grün. Angepasst: Der erfundene Fall „Ganze Regel mit einem Level des Ausbaus“ rechnet
   ohne die echten Urteile des Ausbaus (deren Korrekturen verschoben das erfundene Level mit). Stichprobe der
   Screenshots: Lichtblick (3) und Andromeda (175), Desktop und Handy, ohne Befund.
+
+**Review (20.10.2026)** (nur Werkzeuge und Tests: `tools/ausbau.mjs`, `tools/ki-tester/prepare.mjs`,
+`tools/beurteilung/ausschluesse/zerfall.mjs`, `tests/levelliste.test.mjs`)
+
+- **Stimmt mit dem Kommentar überein:** Vorprüfung auf Zerfall (`zweiterTeil` über das exportierte `gruppen`, die Regel
+  der Beurteilung unverändert), `--auch-gesetzte` (Level aus `--behalte` je Level dreimal seltener gezogen, nur bei
+  echter Verbesserung getauscht), bester Stand der Suche, `prepare.mjs` überspringt beurteilte Kandidaten (über
+  `kandidatName`, wie die Namen im Protokoll stehen), der angepasste Test.
+- **Randfälle geprüft:** Ohne freie und ohne tauschbare Level läuft die Suche nicht, der beste Stand ist dann die Wahl
+  selbst. Der Zufall hängt nur an der Gruppe und an der Reihenfolge der Kandidaten, bleibt also deterministisch (die
+  Folge ist durch die neue Liste `tauschbar` eine andere als vor dem Ticket, das ist gewollt). Ohne `--auch-gesetzte`
+  gibt die Suche jetzt den ersten Stand mit dem besten Ergebnis aus statt des letzten, gleich gut. Sind in der
+  Vorschau alle Kandidaten schon beurteilt, bricht `prepare.mjs` mit einem Fehler ab (gewollt).
+- **Eingearbeitet** (834e7d2): Der Aufruf von `wahl` nennt `--auch-gesetzte`; im Kopf „mit 2 und mehr drehbaren
+  Elementen“ statt „mit 2“; der Fehler von `prepare.mjs` nennt in der Vorschau, dass nur Kandidaten ohne Urteil zählen.
+  Levelliste 51 und KI-Tester 65 Tests grün.
+- **Offen (klein, nur zur Kenntnis):** In `vorBest` ist der zweite Teil (weniger getauschte bei gleichem Ergebnis) heute
+  wirkungslos: Ein Level aus `--behalte` steht nicht in `inFrage` und kehrt nach einem Tausch nie zurück, die Zahl der
+  getauschten steigt also nur. Unschädlich; es greift erst, wenn sie zurückkehren könnten. Ebenso wird ein Platz, an
+  dem ein Level aus `--behalte` schon getauscht ist, danach wie ein freier behandelt (ohne „echt besser“), nur mit
+  einem Drittel der Häufigkeit; auch das ist sinnvoll, da das neue Level ohnehin ein Urteil braucht.
+- **Bereit zum Mergen:** ja (was die Werkzeuge betrifft).
