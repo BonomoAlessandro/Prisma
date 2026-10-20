@@ -45,7 +45,7 @@ import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
-  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile,
+  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Die Verteilung der Grade nach dem Ausbau (Spec, Entscheid des Nutzers vom 20.10.2026): 500 Level. */
@@ -308,7 +308,11 @@ async function wahl() {
   const pruefe = (wahl) => {
     const t = Date.now(), f = folgeMit(wahl, { mitRegel: true, auffuellen: false });
     zeitRegel += Date.now() - t;
-    return { f, schlecht: [f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
+    // Zuerst die Korrekturen der KI-Tester, die zu weit führen (Gruppe 2): Mit den Urteilen schieben korrigierte Level
+    // einander, und steht eines schon vor der Häufungsregel mehr als MAX_SHIFT Plätze weit, lässt sie keinen Zug zu;
+    // ordne-level.mjs schriebe dann auch nicht
+    const zuWeit = zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
+    return { f, zuWeit, schlecht: [zuWeit + f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
   };
   const besser = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
   const { gewaehlt, bericht } = waehle();
@@ -338,8 +342,9 @@ async function wahl() {
     const { r, w } = stand.f, h = r.offen[zahlBis(r.offen.length)];
     const j = tauschbar[zahlBis(tauschbar.length)], k = gewaehlt[j];
     const alle = inFrage.filter(x => x.grad === k.grad && !gewaehlt.includes(x));
-    const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
-    const hinein = alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
+    // ohne offene Häufung (nur noch zu weite Korrekturen) ein beliebiger Kandidat
+    const seite = h ? r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]) : [];
+    const hinein = !h ? [] : alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
       && x.schwierigkeit <= Math.max(...seite));
     const quelle = (zahlBis(2) && hinein.length ? hinein : alle).sort((a, b) => b.spielwert - a.spielwert);
     if (!quelle.length) continue;
@@ -364,7 +369,9 @@ async function wahl() {
   // sie fallen und eine andere Haupt-Kernidee haben; genommen wird der erste Tausch, nach dem weniger offen bleibt.
   let paare = 0;
   for (let runde = 0; stand.schlecht[0] && runde < PAAR_RUNDEN; runde++) {
-    const { r, w } = stand.f, h = r.offen[0], gradH = r.grad[h.mit[0]];
+    const { r, w } = stand.f, h = r.offen[0];
+    if (!h) break;
+    const gradH = r.grad[h.mit[0]];
     const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
     const hinein = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
       && x.schwierigkeit >= Math.min(...seite) && x.schwierigkeit <= Math.max(...seite))
@@ -426,7 +433,8 @@ async function wahl() {
   const haeufig = {};
   for (const k of gewaehlt) haeufig[k.hauptKernidee ?? 'ohne'] = (haeufig[k.hauptKernidee ?? 'ohne'] || 0) + 1;
   console.log(`  Haupt-Kernideen: ${Object.entries(haeufig).map(([h, x]) => `${h} ${x}`).join(', ')}`);
-  console.log(`  danach mit der Häufungsregel: offene Häufungen ${ende.r.offen.length}, Züge ${ende.r.zuege.length}; `
+  console.log(`  danach mit der Häufungsregel: offene Häufungen ${ende.r.offen.length}, Züge ${ende.r.zuege.length}, `
+    + `zu weit korrigiert ${stand.zuWeit}; `
     + `Mittel je 10 Level ${ende.mittel ? 'steigt' : 'fällt (letzte Seite prüfen)'}; Grad `
     + `${ende.sinkt ? 'sinkt' : 'sinkt nie'}`);
   for (const h of ende.r.offen) {
