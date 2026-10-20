@@ -5,7 +5,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 - [x] Alle Stellen, die 150 Level annehmen, sind gefunden und angepasst (u. a. `tools/ordne-level.mjs`,
       `tools/levelliste.mjs`, Tests der Levelliste, `index.html`). Die heutige Reihenfolge der 150 bleibt Massstab der
@@ -20,7 +20,7 @@
 - [x] Laufzeit von Golden-Test und Tests der Levelliste mit 500 Leveln abgeschätzt; falls nötig beschleunigt, ohne das
       Verhalten zu ändern.
 - [x] Probelauf: Mit 35 Probe-Leveln (nicht committet) laufen alle Tests grün.
-- [ ] Review nach dem Ticket.
+- [x] Review nach dem Ticket.
 
 ## Comments
 
@@ -122,3 +122,14 @@ Levelauswahl: Abschnitte und Blättern lesbar umgesetzt, Tasten ← → greifen 
 (kein Doppelschritt). Nicht im Browser nachgeprüft; die Screenshot-Proben der Umsetzung gelten.
 
 Ergebnis: bereit zum Mergen.
+
+**Nach dem Review (20.10.2026, Koordinator)**
+
+- Punkt 1: als Abweichung im Kopf von `tools/levelliste.mjs` festgehalten (Anker bleiben die feste Auswahl aus dem
+  Bestand); ein neuer Ablauf mit neuen Ankern erst, wenn die Urteile am Rand auffällig werden.
+- Punkt 2: `wahl` erfüllt das Kriterium; die Haupt-Kernideen folgen aus der Suche gegen offene Häufungen, `bedarf`
+  nennt nur die Anzahlen.
+- Punkt 3: im Kopf von `tools/ki-tester/prepare.mjs` dokumentiert. Eine harte Abweisung bräche ab Gruppe 1 den Test
+  des Austauschs ohne Vorschau, und ein Austausch ist nicht geplant.
+- Punkt 4: bleibt so.
+- Gemergt nach main.

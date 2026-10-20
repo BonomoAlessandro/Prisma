@@ -70,6 +70,10 @@
 //   die Entscheide über den Bestand bleiben fest. Beurteilt werden sie in Läufen ausbau-… unter ihrem Namen als
 //   Kandidat; ihre eigene Korrektur gilt wie bei einem neuen Level vom Platz aus, an dem sie eingefügt sind. Häufung
 //   der Haupt-Kernidee und Mittel je 10 Level gelten für die ganze Reihenfolge.
+//   Die Anker der KI-Tester bleiben die feste Auswahl aus dem Bestand (Review Ticket 01): Mit dem Ausbau stehen sie
+//   nicht mehr am Rand ihres Grads, wie es die Spec der KI-Tester für ihre Wahl verlangte; ein neues Level am Rand hat
+//   dann keinen Anker dahinter. Neue Anker hiessen eine neue Version des Ablaufs, und die Urteile früherer Läufe wären
+//   nicht mehr vergleichbar. Der Test der Anker rechnet darum unter dem Bestand.
 import { readFileSync } from 'node:fs';
 import { L } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';

@@ -19,7 +19,10 @@
 //                  ausbau (die ganze Ausgabe von ordne-level.mjs --ausbau … --json), gilt ihre Reihenfolge als Vorschau
 //                  (nach platz, mit den Kandidaten unter ihrem Namen bei den KI-Testern): Plätze, Grade, Referenzen und
 //                  Anker rechnen dann in ihr, und beurteilt werden die Kandidaten des Ausbaus, die noch nicht im Spiel
-//                  stehen. Ein platz muss dann ein Level im Spiel sein.
+//                  stehen. Ein platz muss dann ein Level im Spiel sein. Achtung: Ohne Vorschau gilt formel als Platz
+//                  im ganzen Spiel; ordne-level.mjs zählt die formel eines Ersatzlevels aber unter dem Bestand. Käme
+//                  nach dem Ausbau noch ein Austausch, gehörte er darum mit --ausbau in eine Vorschau (Review Ticket
+//                  01).
 //   --anker        auch alle Anker beurteilen (Probelauf)
 //   --ohne-bilder  nur Texte und Aufträge (schnell, zum Durchsehen; die Screenshots brauchen leise.sh)
 //   --ohne-zwischenspeicher  auch die Bilder der Anker neu aufnehmen (sie kommen danach wieder in den Zwischenspeicher)
