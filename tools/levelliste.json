@@ -1,5 +1,5 @@
 {
-  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten nach Urteil der KI-Tester (levelliste.mjs).",
+  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten nach Urteil der KI-Tester, Ausbau (levelliste.mjs).",
   "duldung": {
     "ausschlussgrund": [],
     "ohneKernidee": [
@@ -73,7 +73,7 @@
     "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
     "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
     "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
-    "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Doppelspiegel", "Prismenreigen", "Sonnenwende", "Pendel",
+    "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
     "Kathedrale", "Supernova", "Zwielicht"
   ],
   "prueflisteErledigt": true,
@@ -93,5 +93,12 @@
     "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Blaue Stunde", "Pinselstrich",
     "Farbtupfer", "Rubin", "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer",
     "Farbverlauf", "Schachbrett", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
+  ],
+  "ausbau": [
+    "Lichtblick", "Kerzenschein", "Farbklecks", "Glanzlicht", "Morgentau", "Seifenblase", "Aquarell", "Pastell",
+    "Indigo", "Zinnober", "Kobalt", "Windrose", "Sonnenuhr", "Glockenspiel", "Wendeltreppe", "Lichtgitter",
+    "Farbtropfen", "Spiegelung", "Abendlicht", "Goldglanz", "Regenschauer", "Lichtwirbel", "Kristall", "Glasharfe",
+    "Silberblick", "Irrgarten", "Expedition", "Gipfelsturm", "Karawane", "Kreuzfahrt", "Schatzkarte", "Seidenstrasse",
+    "Andromeda", "Sternnebel", "Sonnenwind"
   ]
 }

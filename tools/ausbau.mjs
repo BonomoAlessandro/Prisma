@@ -10,19 +10,22 @@
 //       [--jobs N]
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
-//   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, er keinen
-//   Ausschlussgrund hat, ab „mittel“ eine Haupt-Kernidee und den Mindest-Spielwert, und er keinem Level im Spiel und
-//   keinem schon gewählten zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann einer nach dem anderen gewählt: der,
-//   dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt (so verteilen
-//   sie sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert. Er muss die Reihenfolge heil lassen:
-//   eingefügt wie von reihenfolge (levelliste.mjs) keine Häufung der Haupt-Kernidee mehr als vorher (ohne die
-//   Duldungsliste; die übrigen löst die Häufungsregel), das Mittel je 10 Level steigt, der Grad sinkt nie.
+//   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
+//   Schwierigkeit im Bereich, den sein Grad im Spiel abdeckt, ab „mittel“ mit Haupt-Kernidee und Mindest-Spielwert, in
+//   jedem Grad ohne zweiten unabhängigen Teil mit 2 und mehr drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall,
+//   wie ihn die KI-Tester lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann
+//   einer nach dem anderen gewählt: der, dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt
+//   (so verteilen sie sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert; keinem gewählten zu
+//   ähnlich, der Grad sinkt nie, das Mittel je 10 Level steigt, und um seinen Platz häuft sich seine Haupt-Kernidee
+//   nicht. Danach sucht die Wahl Tausche, bis mit der Häufungsregel keine Häufung offen bleibt (siehe unten).
 //   --behalte <datei>: eine frühere Wahl (Ausgabe von wahl), deren Level gesetzt sind, etwa nach einer Ablehnung durch
 //   die KI-Tester ohne die abgelehnten; die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den
-//   KI-Testern, „Kandidat <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } für
-//   ordne-level.mjs --ausbau (ohne Namen; die kommen nach dem Urteil der KI-Tester dazu).
+//   KI-Testern, „Kandidat <Abdruck>“), die nicht in Frage kommen. --auch-gesetzte: Reicht das nicht, darf die Suche
+//   auch Level aus --behalte tauschen (seltener als die übrigen; sie brauchen dann ein Urteil). Ausgabe: eine
+//   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau (ohne Namen; die kommen nach dem Urteil der
+//   KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte]
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
 import { fork } from 'node:child_process';
@@ -36,6 +39,8 @@ import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { kandidatName } from './leveldaten.mjs';
 import { zuAehnlich } from './aehnlichkeit.mjs';
+import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
+import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
   HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile,
@@ -48,6 +53,16 @@ export const GRUPPEN = 10;
 /** Der Bestand vor dem Ausbau (nach Ticket 25 der Spec der Beurteilung). */
 export const VORHER = { leicht: 31, mittel: 74, schwer: 32, 'sehr schwer': 13 };
 const BLOCK = 25;
+/**
+ * Vorprüfung auf Zerfall, wie ihn die KI-Tester lesen (Gruppe 1, Lauf ausbau-1): Die Regel der Beurteilung schliesst
+ * erst aus, wenn der zweite unabhängige Teil 3 drehbare Elemente hat (MIN_ELEMENTE in zerfall.mjs). Die KI-Tester
+ * lehnten aber alle 5 Kandidaten ab, deren zweiter Teil genau 2 hat, und von den übrigen 9 mit 2 nannte einer von
+ * beiden bei 3 Zerfall; bei keinem Kandidaten mit einem zweiten Teil unter 2 nannte einer Zerfall. Darum kommt nur in
+ * Frage, wessen zweiter Teil weniger drehbare Elemente hat, auch in „leicht“: Dort zählen Füllteil und Zerfall zwar
+ * nicht, doch beide leichten Kandidaten mit einem zweiten Teil aus 2, die die KI-Tester in Gruppe 1 sahen, fanden sie
+ * mühsam (Gefühl im Mittel 2,5).
+ */
+const ZWEITER_TEIL_HOECHSTENS = 1;
 /** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens. */
 const SUCHE_SCHRITTE = 4000;
 
@@ -148,12 +163,21 @@ function bedarf() {
   }
 }
 
+/** Drehbare Elemente im zweitgrössten unabhängigen Teil der Lösungsstellung (gruppen in zerfall.mjs), 0 bei einem Teil. */
+function zweiterTeil(level) {
+  const zwischenstand = new Map();
+  const ctx = { level, feldform: feldformVon(level), grad: GRADE[1],
+    merke: (k, rechne) => (zwischenstand.has(k) ? zwischenstand.get(k) : zwischenstand.set(k, rechne()).get(k)) };
+  return gruppen(ctx)[1]?.elemente.length ?? 0;
+}
+
 async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
   const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
+  const auchGesetzte = args.includes('--auch-gesetzte');
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>]');
+      + '[--ohne <name,…>] [--auch-gesetzte]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester
@@ -195,6 +219,9 @@ async function wahl() {
       return verwirf(k, 'ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
     if (zuAehnlich(k.level, L.LEVELS)) return verwirf(k, 'einem Level im Spiel zu ähnlich');
+    if (zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
+      return verwirf(k, 'zweiter unabhängiger Teil mit 2 und mehr drehbaren Elementen (Zerfall nach den KI-Testern)');
+    }
     return true;
   });
   // Die Reihenfolge mit den gewählten Leveln, wie reihenfolge sie rechnet (ohne Häufungsregel)
@@ -288,11 +315,20 @@ async function wahl() {
     return (zufall >>> 0) % n;
   };
   const frei = gewaehlt.flatMap((k, j) => (setze.includes(k) ? [] : [j]));
+  // mit --auch-gesetzte darf die Suche auch Level aus --behalte tauschen (sie brauchen dann ein neues Urteil), die
+  // übrigen aber dreimal so oft
+  const ausBehalte = auchGesetzte ? gewaehlt.flatMap((k, j) => (setze.includes(k) ? [j] : [])) : [];
+  const tauschbar = [...frei, ...frei, ...frei, ...ausBehalte];
   let stand = pruefe(gewaehlt), tausche = 0, schritte = 0;
-  while (stand.schlecht[0] && frei.length && schritte < SUCHE_SCHRITTE) {
+  // der beste Stand der Suche: wenig offen, dann wenige getauschte Level aus --behalte
+  const getauscht = (wahl) => setze.filter(k => !wahl.includes(k)).length;
+  let best = { wahl: [...gewaehlt], stand, getauscht: 0 };
+  const vorBest = (p, wahl) => besser(p.schlecht, best.stand.schlecht)
+    || (!besser(best.stand.schlecht, p.schlecht) && getauscht(wahl) < best.getauscht);
+  while (stand.schlecht[0] && tauschbar.length && schritte < SUCHE_SCHRITTE) {
     schritte++;
     const { r, w } = stand.f, h = r.offen[zahlBis(r.offen.length)];
-    const j = frei[zahlBis(frei.length)], k = gewaehlt[j];
+    const j = tauschbar[zahlBis(tauschbar.length)], k = gewaehlt[j];
     const alle = inFrage.filter(x => x.grad === k.grad && !gewaehlt.includes(x));
     const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
     const hinein = alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
@@ -305,12 +341,19 @@ async function wahl() {
     if (zuAehnlich(x.level, probe.filter(y => y !== x).map(y => y.level))) continue;
     const p = pruefe(probe);
     if (p.f.sinkt || !p.f.mittel || besser(stand.schlecht, p.schlecht)) continue;
+    // ein Level aus --behalte nur, wenn es echt besser wird: gleich gut hiesse ein neues Urteil ohne Gewinn
+    if (setze.includes(k) && !besser(p.schlecht, stand.schlecht)) continue;
     if (besser(p.schlecht, stand.schlecht)) tausche++;
     gewaehlt[j] = x;
     stand = p;
+    if (vorBest(p, gewaehlt)) best = { wahl: [...gewaehlt], stand: p, getauscht: getauscht(gewaehlt) };
   }
+  gewaehlt.splice(0, gewaehlt.length, ...best.wahl);
+  stand = best.stand;
   const ende = stand.f;
-  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, offen ${ende.r.offen.length}`);
+  const ersetzt = setze.filter(k => !gewaehlt.includes(k));
+  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, offen ${ende.r.offen.length}`
+    + `${ersetzt.length ? `; getauscht aus --behalte: ${ersetzt.map(k => k.name).join(', ')}` : ''}`);
   writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed, level: k.level })), null, 1)
     + '\n');
   console.log(`wahl für Gruppe ${gruppe}: ${gewaehlt.length} Level nach ${aus} (${zahl((Date.now() - t0) / 1000)} s, `
