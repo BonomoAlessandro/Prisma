@@ -193,9 +193,13 @@ function vorschauAus(liste, datei) {
   if (!plaetze.every(p => Number.isInteger(p) && p >= 1 && p <= liste.length) || new Set(plaetze).size !== liste.length) {
     throw new Error(`${datei}: Plätze nicht lückenlos 1–${liste.length}`);
   }
-  const fremd = liste.filter(x => !x.level && !IM_SPIEL.some(l => l.name === x.name));
+  const imSpiel = (x) => IM_SPIEL.some(l => l.name === x.name);
+  const fremd = liste.filter(x => !x.level && !imSpiel(x));
   if (fremd.length) throw new Error(`${datei}: nicht im Spiel: ${fremd.map(x => x.name).join(', ')}`);
-  return [...liste].sort((a, b) => a.platz - b.platz).map(x => ({ name: x.kandidat ?? x.name, grad: x.grad }));
+  // Ein Level im Spiel steht unter seinem Namen, auch ein neues aus dem Austausch oder einem früheren Ausbau, dem
+  // ordne-level.mjs ebenfalls kandidat mitgibt; nur ein Kandidat, der noch nicht im Spiel steht, unter diesem Namen
+  return [...liste].sort((a, b) => a.platz - b.platz)
+    .map(x => ({ name: imSpiel(x) ? x.name : x.kandidat ?? x.name, grad: x.grad }));
 }
 
 /**

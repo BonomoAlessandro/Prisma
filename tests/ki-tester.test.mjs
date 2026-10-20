@@ -470,17 +470,23 @@ test('prepare.mjs --kandidaten mit Vorschau (Ausbau): Plätze, Grade, Referenz u
     const reihe = HAUPT.map(l => ({ name: l.name, grad: l.grad }));
     const mit = [...reihe.slice(0, 2), { kandidat: KANDIDATEN[0] }, ...reihe.slice(2, 3), { kandidat: KANDIDATEN[1] },
       ...reihe.slice(3)];
+    // Die Anker und das Level auf Platz 12 stehen darin, wie ordne-level.mjs ein neues Level im Spiel (Austausch oder
+    // früherer Ausbau) ausgibt: mit kandidat und Leveldaten; sie zählen trotzdem unter ihrem Namen im Spiel
+    const alsNeu = new Set([...loadAnchors().map(a => a.name), HAUPT[9].name]);
     const liste = mit.map((x, k) => (x.kandidat ? { platz: k + 1, formel: k + 1, name: kandidatName(x.kandidat),
       kandidat: kandidatName(x.kandidat), grad: 'leicht', level: x.kandidat, ausbau: true }
-      : { platz: k + 1, name: x.name, grad: x.grad }));
+      : { platz: k + 1, name: x.name, grad: x.grad,
+        ...(alsNeu.has(x.name) ? { kandidat: kandidatName(HAUPT.find(l => l.name === x.name)),
+          level: HAUPT.find(l => l.name === x.name) } : {}) }));
     writeFileSync(datei, JSON.stringify(liste));
     try {
-      const p = spawnSync(process.execPath, [join(root, 'tools', 'ki-tester', 'prepare.mjs'), lauf, '--kandidaten',
+      const p = spawnSync(process.execPath, [join(root, 'tools', 'ki-tester', 'prepare.mjs'), lauf, '12', '--kandidaten',
         datei, '--ohne-bilder'], { encoding: 'utf8' });
       assert.equal(p.status, 0, p.stderr);
       const lj = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
       const vorschau = mit.map(x => (x.kandidat ? { name: kandidatName(x.kandidat), grad: 'leicht' } : x));
-      assert.equal(lj.level.length, 2);
+      assert.equal(lj.level.length, 3);
+      assert.deepEqual(lj.level.filter(x => !x.kandidat).map(x => [x.name, x.position]), [[HAUPT[9].name, 12]]);
       for (const [k, level] of KANDIDATEN.entries()) {
         const l = lj.level.find(x => x.name === kandidatName(level));
         assert.deepEqual([l.position, l.kandidat], [3 + 2 * k, true]);
