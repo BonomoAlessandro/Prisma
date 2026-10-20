@@ -23,6 +23,7 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
+import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
   ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
@@ -274,6 +275,47 @@ test('fuegeEin: vor das erste Level nach der Formel, das schwerer ist oder einen
   // gleiche Schwierigkeit: hinter das Level des Bestands, untereinander in der Reihenfolge von dazu
   assert.deepEqual(fuegeEin([0, 1], [3, 2], [10, 20, 20, 20], Array(4).fill('leicht'), new Map()), [0, 1, 3, 2]);
 });
+test('Ähnlichkeit: gedreht und gespiegelt dasselbe, Stellung egal, Gegenprobe mit versetztem Element', () => {
+  const level = MAIN.find(l => l.elements.length >= 6);
+  // um 90° gedreht und dann gespiegelt, jedes drehbare Element in anderer Stellung
+  const gedreht = { ...level, elements: level.elements.map(e => ({ ...e, x: e.z, z: e.x,
+    ...(e.fixed ? {} : { rot: ((e.rot ?? 0) + 3) % 8, dir: ((e.dir ?? 0) + 5) % 8 }) })) };
+  assert.equal(aehnlichkeit(level, gedreht), 1);
+  // Ein Element anders, auf einer freien Zelle oder in einer anderen Farbe: ohne Symmetrie n − 1 gemeinsame von n + 1
+  const n = level.elements.length, einsAnders = Math.round((n - 1) / (n + 1) * 100) / 100;
+  const frei = [...Array(49).keys()].map(k => [k % 7, Math.floor(k / 7)])
+    .find(([x, z]) => !level.elements.some(e => e.x === x && e.z === z));
+  const versetzt = { ...level, elements: level.elements.map((e, k) => (k ? e : { ...e, x: frei[0], z: frei[1] })) };
+  const quelle = level.elements.findIndex(e => e.type === 'source');
+  const umgefaerbt = { ...level, elements: level.elements.map((e, k) => (k === quelle
+    ? { ...e, color: e.color === 'red' ? 'blue' : 'red' } : e)) };
+  for (const [text, anders] of [['versetzt', versetzt], ['umgefärbt', umgefaerbt]]) {
+    const wert = aehnlichkeit(level, anders);
+    assert.ok(wert >= einsAnders && wert < 1, `${text}: ${wert}`);
+  }
+});
+test('Bedarf je Gruppe (ausbau.mjs): der Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
+  const tabelle = ['31/74/32/13', '37/93/39/16', '42/112/47/19', '47/131/54/23', '53/150/61/26', '58/170/68/29',
+    '63/189/76/32', '69/208/83/35', '74/227/90/39', '79/246/98/42', '85/265/105/45'];
+  assert.deepEqual(tabelle.map((_, k) => GRADE.map(g => bestandNach(k)[g]).join('/')), tabelle);
+});
+test('zuWeitKorrigiert mit dem Ausbau: der Bestand zählt unter sich, ein Level des Ausbaus ab dem Platz beim Einfügen',
+  () => {
+    // Bestand 0–9, Ausbau 10 und 11. 3 rückt unter dem Bestand 5 Plätze (4 → 9), in der ganzen Folge 7 (4 → 11)
+    const ausbau = Array.from({ length: 12 }, (_, i) => i >= 10);
+    const basis = [0, 1, 2, 3, 10, 4, 5, 11, 6, 7, 8, 9], korrigiert = [0, 1, 2, 10, 4, 5, 11, 6, 7, 8, 3, 9];
+    const ki3 = new Map([[3, { verschiebung: 5 }]]);
+    assert.deepEqual(zuWeitKorrigiert({ basis, korrigiert, folge: korrigiert, ki: ki3, ausbau }), []);
+    assert.deepEqual(zuWeitKorrigiert({ basis, korrigiert, folge: korrigiert, ki: ki3 }),
+      [{ i: 3, davor: 4, korrigiert: 11, ende: 11 }], 'Gegenprobe: ohne Ausbau gezählt');
+    // 10 stand beim Einfügen (eingefuegt) auf Platz 5, vor den Korrekturen am Bestand (basis) auf 6; am Ende auf 11
+    const vorher = [0, 1, 2, 3, 4, 10, 5, 11, 6, 7, 8, 9], eingefuegt = [0, 1, 2, 3, 10, 4, 5, 11, 6, 7, 8, 9];
+    const ende = [0, 1, 2, 3, 4, 5, 11, 6, 7, 8, 10, 9], ki10 = new Map([[10, { verschiebung: 5 }]]);
+    assert.deepEqual(zuWeitKorrigiert({ basis: vorher, eingefuegt, korrigiert: ende, folge: ende, ki: ki10, ausbau }),
+      [{ i: 10, davor: 5, korrigiert: 11, ende: 11 }]);
+    assert.deepEqual(zuWeitKorrigiert({ basis: vorher, eingefuegt: vorher, korrigiert: ende, folge: ende, ki: ki10,
+      ausbau }), [], 'Gegenprobe: ab basis gezählt');
+  });
 test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ_MITTEL} Punkt Rückschritt`, () => {
   const mittel = zehner(MAIN).map(z => z.reduce((s, l) => s + wert(l), 0) / z.length);
   const text = mittel.map(m => m.toFixed(1)).join(' ');
