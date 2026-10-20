@@ -4886,6 +4886,26 @@ function createBrushedTexture(size) {
   return tex;
 }
 
+/**
+ * Spiegelglas: zwei schräge Lichtstreifen (breit und schmal) als Leucht-Map – das vertraute Zeichen für Spiegel.
+ * Ohne sie liest sich die dunkle Fläche im schwarzen Rahmen wie ein Bildschirm.
+ */
+function makeMirrorStreakTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 128, 128);
+  ctx.fillStyle = '#fff';
+  ctx.filter = 'blur(1.5px)';
+  for (const [x, w] of [[30, 22], [64, 8]]) {
+    ctx.beginPath();
+    ctx.moveTo(x, -4); ctx.lineTo(x + w, -4); ctx.lineTo(x + w - 70, 132); ctx.lineTo(x - 70, 132);
+    ctx.fill();
+  }
+  return new THREE.CanvasTexture(c);
+}
+
 /* =====================================================================
    ENVIRONMENT (PMREM) — ein dunkler Raum mit wenigen Softboxen,
    damit Glas und Metall edle, ruhige Lichtkanten bekommen.
@@ -4893,8 +4913,8 @@ function createBrushedTexture(size) {
 
 /**
  * Raum der Umgebung: Farbe unten (Boden), am Horizont und oben. Die Szene spiegelt einen dunklen Raum. Spiegelglas
- * bekommt auf Handy und Tablet einen helleren, silbrigen Raum: Steil von oben spiegelt es sonst nur den fast
- * schwarzen Boden und wirkt auf dem dunklen Feld wie ein Loch. Am Computer (flacherer Blick) bleibt es beim dunklen.
+ * bekommt einen helleren, silbrigen Raum: Es spiegelt sonst nur den fast schwarzen Boden und wirkt auf dem dunklen
+ * Feld wie ein Loch oder ein ausgeschalteter Bildschirm.
  */
 const ENV_ROOM = {
   scene: { floor: [0.002, 0.002, 0.002], low: [0.010, 0.009, 0.020], high: [0.030, 0.028, 0.060] },
@@ -4946,7 +4966,7 @@ function buildEnvironment(roomColors = ENV_ROOM.scene) {
 }
 
 scene.environment = buildEnvironment();
-const mirrorEnvironment = IS_MOBILE ? buildEnvironment(ENV_ROOM.mirror) : null; // null: Umgebung der Szene
+const mirrorEnvironment = buildEnvironment(ENV_ROOM.mirror);
 
 /* =====================================================================
    HINTERGRUND — Sternenhimmel mit Milchstrasse
@@ -7855,7 +7875,10 @@ const MAT = {
   }),
   mirror: new THREE.MeshStandardMaterial({
     color: 0xf2f4ff, metalness: 1, roughness: 0.03, envMap: mirrorEnvironment, envMapIntensity: 1.7,
+    emissive: 0xdfe6ff, emissiveIntensity: 0.22, emissiveMap: makeMirrorStreakTexture(),
   }),
+  // Rahmen des Spiegels: schwarz lackiert, leichter Glanz
+  frameBlack: new THREE.MeshStandardMaterial({ color: 0x0a0a0d, metalness: 0.3, roughness: 0.32, envMapIntensity: 0.9 }),
   stone: new THREE.MeshStandardMaterial({
     color: 0x111117, metalness: 0, roughness: 0.38, envMapIntensity: 0.7,
   }),
@@ -7962,7 +7985,7 @@ function makeSource(el) {
   return root;
 }
 
-/** Spiegel: gebürsteter Rahmen, hochglänzende Fläche, auf Drehteller mit 45°-Markierungen (fest: Steinblock). */
+/** Spiegel: schmaler schwarzer Rahmen, silbrige Fläche mit Lichtstreifen, auf Drehteller mit 45°-Markierungen (fest: Steinblock). */
 function makeMirror(el) {
   const root = new THREE.Group();
   root.add(el.fixed ? makeFixedBase() : makePedestal(0.4));
@@ -7980,12 +8003,12 @@ function makeMirror(el) {
   pivot.rotation.y = dirToRotationY(el.rot);
   root.add(pivot);
 
-  const W = MIRROR_HALF_WIDTH * 2 * CELL, H = 0.6, T = 0.05, P = 0.032; // Breite, Höhe, Rahmentiefe, Profil
+  const W = MIRROR_HALF_WIDTH * 2 * CELL, H = 0.6, T = 0.03, P = 0.034; // Breite, Höhe, Rahmentiefe, Profil
   const bottom = BEAM_Y - H / 2;
 
   const frame = new THREE.Group();
   const bar = (w, h, x, y) => {
-    const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, T), MAT.metalBright));
+    const m = shadowed(new THREE.Mesh(new THREE.BoxGeometry(w, h, T), MAT.frameBlack));
     m.position.set(x, y, 0);
     frame.add(m);
   };
@@ -8001,7 +8024,7 @@ function makeMirror(el) {
 
   // Zwei schlanke Stützen zum Teller
   for (const sx of [-0.22, 0.22]) {
-    const leg = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.018, bottom - 0.06, 12), MAT.metalBright));
+    const leg = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.016, bottom - 0.06, 12), MAT.frameBlack));
     leg.position.set(sx, 0.06 + (bottom - 0.06) / 2, 0);
     pivot.add(leg);
   }
