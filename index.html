@@ -5027,6 +5027,7 @@ const background = new THREE.Mesh(
       uGlow: { value: SKY.glow },
       uPano: { value: 0 }, // 0 … 1: Platzhalter einer Skybox aus Blender statt Weltraum (skyTheme)
       uRings: { value: Array.from({ length: 9 }, () => new THREE.Vector3()) }, // dazu: Farbe nach Höhe (sky.rings)
+      uPreview: { value: null }, uPreviewOn: { value: 0 }, // statt der Ringe: Vorschau des Panoramas (skyTheme.update)
       // Magellansche Wolken: Welt → Tangentialebene um die Mitte, in Halbachsen (updateSky)
       uLmc: { value: new THREE.Matrix3() },
       uSmc: { value: new THREE.Matrix3() },
@@ -5038,9 +5039,10 @@ const background = new THREE.Mesh(
       gl_Position = projectionMatrix * viewMatrix * wp;
     }`,
     fragmentShader: `
-      uniform float uGlow, uPano;
+      uniform float uGlow, uPano, uPreviewOn;
       uniform mat3 uSkyRot, uCloudRot, uLmc, uSmc;
       uniform vec3 uCore, uRings[9];
+      uniform sampler2D uPreview;
       varying vec3 vDir;
       ${GLSL_NOISE}
       // Platzhalter einer Skybox aus Blender: Farbverlauf nach Höhe, im Panorama gemessen (9 Ringe von −90° bis 90°). Man
@@ -5049,6 +5051,13 @@ const background = new THREE.Mesh(
         float x = (asin(clamp(d.y, -1.0, 1.0)) / 3.141592653589793 + 0.5) * 8.0;
         vec3 col = vec3(0.0);
         for (int k = 0; k < 9; k++) col += uRings[k] * max(0.0, 1.0 - abs(x - float(k)));
+        // Vorschau: eine kleine Stufe des ganzen Bilds, sobald es dekodiert ist – wie das Panorama abgetastet, nur ohne
+        // Parallaxe (unendlich weit weg), bis das Netz davor eingeblendet ist
+        if (uPreviewOn > 0.0) {
+          vec3 b = vec3(d.x, -d.z, d.y); // Spiel -> Blender
+          vec2 uv = vec2(0.5 + atan(b.x, b.y) / 6.283185307179586, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.141592653589793);
+          col = mix(col, texture2D(uPreview, uv).rgb, uPreviewOn);
+        }
         return col;
       }
       // Magellansche Wolke: fleckig ausfransender Nebel aus Sternenlicht um die Mitte von m (siehe uLmc)
@@ -5537,26 +5546,29 @@ const skyBitmaps = (() => {
     }
     return { width, height, strips };
   }
-  // Bilder nacheinander, nicht alle zugleich: Jedes belegt dekodiert samt Mipmaps und Streifen bis 150 MB
+  // Bilder nacheinander, nicht alle zugleich (jedes belegt dekodiert samt Mipmaps und Streifen bis 150 MB), und jedes
+  // erst, wenn es dran ist: Wer schnell durchschaltet, wartet so nicht auf die Bilder einer schon freigegebenen Skybox
+  // (alive false: der Auftrag fällt weg)
   let worker = null, nextId = 0, flips = null, queue = Promise.resolve();
   const waiting = new Map();
-  const run = (url, rows) => (worker
+  const once = (url, rows) => (worker
     ? new Promise((resolve, reject) => {
       const id = nextId++;
       waiting.set(id, (d) => (d.r ? resolve(d.r) : reject(new Error(d.err))));
       worker.postMessage({ id, url, rows });
     })
-    : (queue = queue.catch(() => {}).then(() => decode(url, rows))));
+    : decode(url, rows));
+  const run = (url, rows, alive = () => true) => (queue = queue.catch(() => {}).then(() => {
+    if (!alive()) throw new Error('nicht mehr gebraucht');
+    return once(url, rows);
+  }));
   // Worker und Test erst beim ersten Bild (mit einem Hintergrund aus dem Code braucht es beides nie)
   function start() {
     try {
       worker = new Worker(URL.createObjectURL(new Blob([`const OPT = ${JSON.stringify(OPT)};\n${decode};
-        let queue = Promise.resolve();
-        onmessage = ({ data: { id, url, rows } }) => {
-          queue = queue.then(async () => {
-            try { const r = await decode(url, rows); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
-            catch (e) { postMessage({ id, err: String(e) }); }
-          });
+        onmessage = async ({ data: { id, url, rows } }) => {
+          try { const r = await decode(url, rows); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
+          catch (e) { postMessage({ id, err: String(e) }); }
         };`], { type: 'text/javascript' })));
       worker.onmessage = ({ data }) => { waiting.get(data.id)?.(data); waiting.delete(data.id); };
       worker.onerror = () => { // Worker nicht ladbar: offene Anfragen scheitern, ab jetzt ohne
@@ -5575,30 +5587,31 @@ const skyBitmaps = (() => {
       return d.getImageData(0, 0, 1, 1).data[2] > 128; // oben jetzt blau
     })().catch(() => false), new Promise((resolve) => setTimeout(resolve, 10000, null))]);
   }
-  return async (url) => {
+  return async (url, alive) => {
     const ok = await (flips ??= start());
     if (ok === null) flips = null; // keine Antwort in 10 s: die nächste Skybox prüft neu
     if (!ok) return null;
-    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity);
+    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive);
     if (Math.max(r.width, r.height) <= renderer.capabilities.maxTextureSize) return r;
     for (const s of r.strips) s.bitmap.close(); // zu gross für diese Grafik: ein Bild, three verkleinert es
     return null;
   };
 })();
 
-/** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild */
-async function loadSkyImage(url, bitmap = false) {
+/** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild (schon dekodiert: sonst täte es
+ * das erste drawImage im Hauptthread, beim Tiefenbild gemessen bis 170 ms) */
+async function loadSkyImage(url, bitmap = false, alive = () => true) {
   if (bitmap) {
     try {
-      const strips = await skyBitmaps(url);
+      const strips = await skyBitmaps(url, alive);
       if (strips) return strips;
-    } catch { /* wie ohne */ }
+    } catch (e) { if (!alive()) throw e; /* sonst wie ohne */ }
   }
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Bild nicht lesbar'));
     img.src = url;
+    img.decode().then(() => resolve(img), () => { img.onload = () => resolve(img); if (img.complete && img.naturalWidth) resolve(img); });
   });
 }
 
@@ -5637,7 +5650,8 @@ function* skyUpload(t) {
   const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
   const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
   bind();
-  gl.texStorage2D(gl.TEXTURE_2D, Math.floor(Math.log2(Math.max(w, h))) + 1, gl.SRGB8_ALPHA8, w, h);
+  const levels = Math.max(...strips.map((s) => s.level)) + 1; // ganze Kette aus dem Worker, Vorschau nur Stufe 0
+  gl.texStorage2D(gl.TEXTURE_2D, levels, gl.SRGB8_ALPHA8, w, h);
   // Grosse Streifen je in einem eigenen Bild, gleich abgeschickt: Schneller, als der Grafikprozess sie abnimmt, liefe
   // sein Puffer voll, und der nächste wartete (gemessen bis 100 ms)
   for (const { level, y, bitmap } of strips) {
@@ -5652,7 +5666,7 @@ function* skyUpload(t) {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, t.wrapS === THREE.RepeatWrapping ? gl.REPEAT : gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, levels > 1 ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
   const aniso = renderer.extensions.get('EXT_texture_filter_anisotropic');
   if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, t.anisotropy);
   closeSkyImage(t);
@@ -5738,18 +5752,24 @@ function* skyProxyGeometry(depth, center) {
   return geo;
 }
 
+/** bands: [{ u, v, tex, on }] – on: Anteil des Streifens (0 = noch nicht geladen, das ganze Bild zeigt sich; Uniform uOn) */
 function skyPanoramaMaterial(uniforms, center, full, bands) {
   const u = { ...uniforms, uFull: { value: full }, uCenter: { value: center } };
+  u.uSoft = { value: null }; // Vorschau, über die das scharfe Bild einblendet (uSoftOn 1 → 0, createPanoramaSky)
+  u.uSoftOn = { value: 0 };
   bands.forEach((b, i) => {
     u[`uBand${i}`] = { value: b.tex };
     u[`uRect${i}`] = { value: new THREE.Vector4(b.u[0], b.u[1], b.v[0], b.v[1]) };
+    u[`uOn${i}`] = { value: b.on ?? 1 };
   });
-  const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i};`).join('\n');
-  // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v)
+  const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i}; uniform float uOn${i};`).join('\n');
+  // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v). Kommt er
+  // erst nach dem Einblenden (uOn < 1), mischt er sich über das ganze Bild.
   const pick = bands.map((_, i) => `
-        if (!hit && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
+        if (!hit && uOn${i} > 0.0 && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
           vec2 s = 1.0 / vec2(uRect${i}.y - uRect${i}.x, uRect${i}.w - uRect${i}.z);
           col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y), gx * s, gy * s);
+          if (uOn${i} < 1.0) col = mix(SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy), col, uOn${i});
           hit = true;
         }`).join('');
   return new THREE.ShaderMaterial({
@@ -5771,7 +5791,8 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
         #else
           #define SAMPLE(t, p, gx, gy) texture2D(t, p).rgb
         #endif
-        uniform sampler2D uFull;
+        uniform sampler2D uFull, uSoft;
+        uniform float uSoftOn;
         uniform vec3 uCenter;
         uniform float uFade, uReady;
         ${decl}
@@ -5791,6 +5812,7 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
           bool hit = false;
           ${pick}
           if (!hit) col = SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy);
+          if (uSoftOn > 0.0) col = mix(col, texture2D(uSoft, vec2(u, 1.0 - v)).rgb, uSoftOn);
           gl_FragColor = vec4(col, uFade * uReady);
         }`,
   });
@@ -6156,6 +6178,16 @@ function* createFoamTexture(size) {
   return tex;
 }
 
+/**
+ * Gerechnete Textur merken (Generator): beim nächsten Aufbau eine Kopie mit denselben Daten, ohne nochmals zu rechnen
+ * (Wellen und Schaum des Wassers: wer wieder zum Strand wechselt, spart rund 0,3 s). Die Kopie gibt release frei.
+ */
+const rememberedTextures = new Map();
+function* rememberTexture(key, steps) {
+  if (!rememberedTextures.has(key)) rememberedTextures.set(key, yield* steps);
+  return rememberedTextures.get(key).clone(); // clone setzt needsUpdate (Texture.copy)
+}
+
 /** Karte aus einer Data-URL (Wasser): ohne Mipmaps, linear gefiltert */
 function mapTexture(url, what) {
   const img = new Image(), tex = new THREE.Texture(img);
@@ -6185,7 +6217,8 @@ function mapTexture(url, what) {
  */
 function* waterSurface(ctx, opt) {
   const w = ctx.data[opt.data];
-  const waves = yield* createWaveTexture(256), foam = yield* createFoamTexture(512);
+  const waves = yield* rememberTexture('waves', createWaveTexture(256));
+  const foam = yield* rememberTexture('foam', createFoamTexture(512));
   const ext = w.extent, N = Math.round(2 * ext);
   const geo = new THREE.PlaneGeometry(2 * ext, 2 * ext, N, N).rotateX(-Math.PI / 2);
   const under = { scene: new THREE.Scene(), target: null };
@@ -6992,7 +7025,10 @@ function createPanoramaSky(m) {
   const pointUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
   const light = new THREE.Vector3().fromArray(m.light.dir).normalize();
   const lightGLSL = `const vec3 SKY_LIGHT = vec3(${light.toArray().map((v) => v.toFixed(4)).join(', ')});`;
-  let loading = null, mesh = null, age = null, token = 0, offscreen = [];
+  let loading = null, failed = false, mesh = null, preview = null, age = null, token = 0, offscreen = [];
+  let bands = [];               // je Streifen: { on (Uniform uOn), age (s seit dem Hochladen), done }
+  let sharpen = null;           // scharfes ganzes Bild über der Vorschau: { on (Uniform uSoftOn), age, done }
+  const streaming = new Set();  // Streifen-Texturen, die gerade hochladen
 
   /** Teil laden (Skript mit Data-URLs); es muss zum Stand des Registers passen */
   async function loadPart(role) {
@@ -7009,27 +7045,52 @@ function createPanoramaSky(m) {
     const hd = PANO.hd && m.parts.some((p) => p.role === 'bands')
       ? await loadPart('bands').catch((e) => { console.warn(`${m.name}: ${e.message}, ohne Streifen`); return null; }) : null;
     const rects = hd ? m.panorama.bands : [];
-    // Farbbilder fertig dekodiert (Tiefe als Bild: skyLogDepth liest sie ungekippt über ein Canvas)
-    const images = await Promise.allSettled([
-      loadSkyImage(base.full, true), loadSkyImage(base.depth), ...(hd?.bands ?? []).map((url) => loadSkyImage(url, true))]);
-    const [fullImg, depthImg, ...bandImgs] = images.map((r) => r.value);
-    const dropImages = () => { for (const img of [fullImg, ...bandImgs]) for (const s of img?.strips ?? []) s.bitmap.close(); };
+    if (my !== token) return; // inzwischen wieder freigegeben (mit H weitergeschaltet): nichts mehr dekodieren
+    // Farbbilder fertig dekodiert (Tiefe als Bild: skyLogDepth liest sie ungekippt über ein Canvas). Erst das ganze
+    // Bild: Damit blendet die Skybox ein; die Streifen dekodiert der Worker danach, sie kommen später dazu (unten).
+    const alive = () => my === token;
+    const fullLoad = loadSkyImage(base.full, true, alive), depthLoad = loadSkyImage(base.depth);
+    const bandLoads = (hd?.bands ?? []).map((url) => loadSkyImage(url, true, alive)); // im Worker nach dem ganzen Bild
+    for (const load of bandLoads) load.catch(() => {}); // Fehler erst unten, beim Abbruch gar nicht: nie unbehandelt
+    const images = await Promise.allSettled([fullLoad, depthLoad]);
+    const [fullImg, depthImg] = images.map((r) => r.value);
+    const dropBands = () => { for (const load of bandLoads) load.then(closeSkyStrips, () => {}); };
+    const dropImages = () => { closeSkyStrips(fullImg); dropBands(); };
     const broken = images.find((r) => r.status === 'rejected');
     if (broken || my !== token) { // gescheitert oder inzwischen wieder freigegeben
       dropImages();
-      if (broken) throw broken.reason;
+      if (broken && my === token) throw broken.reason;
       return;
     }
-    await introCalm; // beim Start: erst nach der Enthüllung des Intros (siehe introCalm)
+    // Vorschau: die Stufe des ganzen Bilds mit höchstens 1024 Pixel Breite, als eigene kleine Textur ohne Mipmaps
+    // (kopiert: die Streifen braucht das ganze Bild noch), rund 2 MB. Damit steht die Skybox gleich, nur unscharf: auf
+    // der Himmelskugel (panoSky), sobald sie dekodiert ist, auf dem Netz, sobald es steht. Das scharfe Bild kommt nach
+    // der Enthüllung des Intros (unten); vorher hielte sein Hochladen den Grafikprozess an.
+    const small = fullImg.strips ? Math.ceil(Math.log2(fullImg.width / 1024)) : 0;
+    const smallStrips = small > 0 ? fullImg.strips.filter((s) => s.level === small) : [];
+    if (smallStrips.length) {
+      const strips = await Promise.all(smallStrips.map(async ({ y, bitmap }) => ({ level: 0, y, bitmap: await createImageBitmap(bitmap) })));
+      const tex = skyTexture({ width: fullImg.width >> small, height: fullImg.height >> small, strips }, true);
+      streaming.add(tex);
+      await sliced(skyUpload(tex));
+      streaming.delete(tex);
+      if (my !== token) { tex.dispose(); dropImages(); return; }
+      preview = tex;
+    }
+    await sceneReady; // erst nach dem ersten Bild der Szene: Seine Shader übersetzten sonst gleichzeitig, das Intro begänne später
     if (my !== token) { dropImages(); return; }
+    const full = skyTexture(fullImg, true);
+    streaming.add(full); // bis es hochgeladen ist: release schliesst seine Streifen
+    const dropFull = () => { streaming.delete(full); closeSkyImage(full); full.dispose(); };
     // Netz in Häppchen (sliced): Tiefe glätten, Ecken setzen
     const center = new THREE.Vector3().fromArray(m.panorama.center);
     const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log));
     const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center)) : null;
-    if (my !== token) { dropImages(); geo?.dispose(); return; }
-    const full = skyTexture(fullImg, true);
-    const sky = new THREE.Mesh(geo, skyPanoramaMaterial(uniforms, center, full,
-      rects.map((b, i) => ({ ...b, tex: skyTexture(bandImgs[i], false) }))));
+    if (my !== token) { dropFull(); dropBands(); geo?.dispose(); return; }
+    const soft = preview ?? full; // so lange auf dem Netz und in den Ebenen (Spiegelung im Wasser)
+    const sky = new THREE.Mesh(geo, skyPanoramaMaterial(uniforms, center, soft, rects.map((b) => ({ ...b, tex: null, on: 0 }))));
+    const myBands = bands = rects.map((_, i) => ({ on: sky.material.uniforms[`uOn${i}`], age: null, done: false }));
+    const mySharpen = sharpen = { on: sky.material.uniforms.uSoftOn, age: null, done: !preview };
     sky.renderOrder = -1000;           // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
     sky.frustumCulled = false;
     const parts = [sky];
@@ -7039,12 +7100,12 @@ function createPanoramaSky(m) {
     depth.generateMipmaps = false;
     depth.wrapS = THREE.RepeatWrapping;
     depth.needsUpdate = true;
-    const pano = { full, center, depth: { tex: depth, size: [depthImg.width, depthImg.height], log: m.panorama.depth.log } };
+    const pano = { full: soft, center, depth: { tex: depth, size: [depthImg.width, depthImg.height], log: m.panorama.depth.log } };
     const ctx = { uniforms, pointUniforms, data: base.data ?? {}, light, lightGLSL, fog: m.fog, air: m.air, pano, offscreen: [] };
     // Ebenen je ab einem neuen Bild; wer viel rechnet (Wasser, Bäume), ist ein Generator und läuft in Häppchen
     for (const layer of [...m.layers ?? [], null]) {
       await nextFrame();
-      if (my !== token) { for (const root of [...parts, ...ctx.offscreen]) releaseTree(root); return; }
+      if (my !== token) { for (const root of [...parts, ...ctx.offscreen]) releaseTree(root); dropFull(); dropBands(); return; }
       if (!layer) break;
       try {
         if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
@@ -7054,10 +7115,15 @@ function createPanoramaSky(m) {
     }
     // Nicht in der Bodenspiegelung (dort wird auch die Himmelskugel ausgeblendet), nicht anklickbar
     for (const p of parts) p.traverse((o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; });
+    // Übersetzen, Hochladen und erstes Zeichnen erst nach der Enthüllung des Intros (introCalm): Mit leerem Shader-Cache
+    // (erster Besuch) hielt das den Grafikprozess mitten in der Enthüllung bis 300 ms an. Bis dahin zeigt die
+    // Himmelskugel die Vorschau.
+    await introCalm;
+    if (my !== token) { for (const root of [...parts, ...ctx.offscreen]) releaseTree(root); dropFull(); dropBands(); return; }
     offscreen = ctx.offscreen;
     // Vor dem ersten Bild des Einblendens übersetzen und hochladen, ohne das laufende Bild anzuhalten: Shader im
-    // Hintergrund (compileParallel, beide Fassungen des Panoramas, siehe applyFade), Texturen in Häppchen (skyUpload;
-    // Panorama und Streifen rund 260 MB mit Mipmaps). Solange in der Szene, aber unsichtbar: compile geht auch über
+    // Hintergrund (compileParallel, beide Fassungen des Panoramas, siehe applyFade), Texturen in Häppchen (skyUpload; das
+    // ganze Bild nur ohne Vorschau, sonst folgt es unten). Solange in der Szene, aber unsichtbar: compile geht auch über
     // Unsichtbares und rechnet mit dem Licht der Szene.
     const staging = new THREE.Group();
     staging.visible = false;
@@ -7085,16 +7151,52 @@ function createPanoramaSky(m) {
       await Promise.all([...compiled, uploads]);
     } catch (e) {
       for (const root of [staging, ...ctx.offscreen]) releaseTree(root); // gescheitert: nichts halb Geladenes behalten
-      if (my === token) offscreen = [];
+      dropFull();
+      dropBands();
+      if (my === token) { offscreen = []; preview = null; } // die Vorschau hing in den Uniforms, ist also entsorgt
       throw e;
     } finally {
       scene.remove(staging);
     }
-    if (my !== token) { releaseTree(staging); return; } // inzwischen wieder freigegeben
+    if (my !== token) { releaseTree(staging); dropFull(); dropBands(); return; } // inzwischen wieder freigegeben
+    if (!preview) streaming.delete(full); // ohne Vorschau oben schon hochgeladen
     group.add(...parts);
     mesh = sky;
     adaptiveResolution.hold(); // Einblenden (doppelt gezeichnet) nicht als Überlast werten
+    // Grosse Texturen erst, wenn die Skybox ganz eingeblendet ist: Das erste Schreiben in eine neue grosse Textur hält
+    // den Grafikprozess kurz an (30–80 ms), das sah man im Intro und in der Überblendung als Ruck
+    const shown = () => uniforms.uFade.value >= 1 && uniforms.uReady.value >= 1;
+    if (preview) {
+      while (my === token && !shown()) await nextFrame();
+      if (my === token) await sliced(skyUpload(full));
+      streaming.delete(full);
+      if (my !== token) { full.dispose(); dropBands(); return; }
+      // Scharfes Bild statt der Vorschau, überall (Netz, Spiegelung im Wasser); das Netz blendet dabei weich über (uSoft)
+      for (const root of [group, ...offscreen]) root.traverse((o) => {
+        for (const mat of [o.material ?? []].flat()) for (const u of Object.values(mat.uniforms ?? {})) if (u.value === preview) u.value = full;
+      });
+      sky.material.uniforms.uSoft.value = preview;
+      mySharpen.on.value = 1;
+      mySharpen.age = 0;
+    }
+    // Streifen nachladen, je hochgeladen weich über dem ganzen Bild einblenden (update, uOn)
+    while (my === token && !shown()) await nextFrame();
+    for (const [i, load] of bandLoads.entries()) {
+      let img = null;
+      try { img = await load; } catch (e) { if (my === token) console.warn(`${m.name}: Streifen ${i + 1} nicht geladen (${e.message})`); }
+      if (my !== token || !img) { closeSkyStrips(img); myBands[i].done = true; continue; }
+      const tex = skyTexture(img, false);
+      streaming.add(tex); // release schliesst die Bilder, skyUpload bricht dann ab
+      await sliced(skyUpload(tex));
+      streaming.delete(tex);
+      if (my !== token) { tex.dispose(); continue; }
+      sky.material.uniforms[`uBand${i}`].value = tex;
+      myBands[i].age = 0;
+    }
   }
+
+  /** Dekodierte Streifen schliessen, die (noch) keine Textur haben */
+  function closeSkyStrips(img) { for (const s of img?.strips ?? []) s.bitmap.close(); }
 
   /** Grafikspeicher eines Teilbaums freigeben */
   function releaseTree(root) {
@@ -7126,14 +7228,23 @@ function createPanoramaSky(m) {
   return {
     group,
     panorama: true,
-    get ready() { return uniforms.uReady.value >= 1; },
+    /** ganz eingeblendet, samt Streifen */
+    get ready() { return uniforms.uReady.value >= 1 && (sharpen?.done ?? true) && bands.every((b) => b.done); },
+    /** geladen (blendet ab jetzt ein; Streifen kommen danach) oder gescheitert: bis dahin bleibt der bisherige Hintergrund
+     * stehen (skyTheme.update) */
+    get settled() { return mesh !== null || failed; },
+    /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
+    get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
     prepare() {
-      loading ??= build(token).catch((e) => console.error(`${m.name}: ${e.message}`));
+      if (loading) return;
+      const my = token;
+      loading = build(my).catch((e) => { if (my === token) failed = true; console.error(`${m.name}: ${e.message}`); });
     },
     setFade(k) {
       uniforms.uFade.value = k;
       if (k > 0) this.prepare();
+      else if (mesh) age = PANO.appear; // vor dem Einblenden geladen: nur uFade blendet (sonst mischten sich halb die Ringe)
       group.visible = k > 0;
       applyFade();
     },
@@ -7144,12 +7255,27 @@ function createPanoramaSky(m) {
       uniforms.uTime.value = t;
       pointUniforms.uPixelRatio.value = renderer.getPixelRatio();
       for (const p of group.children) p.userData.update?.(t, dt);
+      if (sharpen && sharpen.age !== null && !sharpen.done) {
+        sharpen.age += dt;
+        sharpen.on.value = Math.max(0, 1 - sharpen.age / PANO.appear);
+        sharpen.done = sharpen.on.value <= 0;
+      }
+      for (const b of bands) {
+        if (b.age === null || b.done) continue;
+        b.age += dt;
+        b.on.value = Math.min(1, b.age / PANO.appear);
+        b.done = b.on.value >= 1;
+      }
       applyFade();
     },
     release() {
       if (!loading) return;
       token++;
-      loading = null; mesh = null; age = null;
+      loading = null; failed = false; mesh = null; age = null; bands = []; sharpen = null;
+      preview?.dispose();
+      preview = null;
+      for (const t of streaming) closeSkyImage(t); // bricht skyUpload ab
+      streaming.clear();
       uniforms.uReady.value = 0;
       for (const root of [group, ...offscreen]) releaseTree(root);
       group.clear();
@@ -7161,12 +7287,13 @@ function createPanoramaSky(m) {
 /**
  * Hintergrund umschalten (Knopf unten rechts, Taste H; der Reihe nach, order): Milchstrasse und Sonnensystem aus dem
  * Code, dazu jede Skybox aus Blender im Register (backgrounds/skies.js, SKYBOX: Wald, Strand). Die Wahl bleibt
- * gespeichert. Beim Wechsel blendet erst der bisherige Hintergrund ganz aus, dann der neue ein: Undurchsichtige Teile
- * (Planeten, nahe 3D-Objekte einer Skybox) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem alten. Darum ist immer
- * höchstens einer eingeblendet, und Himmelskugel und Sterne mischen nur zwischen ihm und dem Neutralzustand (dunkler
- * Raum mit Sternen). sky: milkyWay (Anteil der Milchstrasse), stars (Helligkeit der Sterne), starsAboveHorizon (Sterne
- * nur über dem Horizont), rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module: prepare, setFade, update, ready,
- * release (siehe createPanoramaSky).
+ * gespeichert. Beim Wechsel bleibt der bisherige stehen, bis der neue geladen ist (settled); dann blendet erst der
+ * bisherige ganz aus, dann der neue ein: Undurchsichtige Teile (Planeten, nahe 3D-Objekte einer Skybox) blenden aus
+ * Schwarz ein und lägen sonst als dunkle Flächen über dem alten. Darum ist immer höchstens einer eingeblendet, und
+ * Himmelskugel und Sterne mischen nur zwischen ihm und dem Neutralzustand (dunkler Raum mit Sternen). sky: milkyWay
+ * (Anteil der Milchstrasse), stars (Helligkeit der Sterne), starsAboveHorizon (Sterne nur über dem Horizont), rings
+ * (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module: prepare, setFade, update, ready,
+ * settled, release (siehe createPanoramaSky).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, rings: null };
 const SKY_ENTRIES = (() => {
@@ -7206,7 +7333,7 @@ const skyTheme = {
   fadeTime: 0.9,   // s für Aus- und Einblenden zusammen
   // Eine ausgeblendete Skybox aus Blender gibt ihren Grafikspeicher frei: auf dem Handy sofort, sonst nach keep s
   // (wer mit H durchschaltet, kommt bald wieder vorbei, und Neuladen kostet einen Ruckler) – und immer, sobald eine
-  // andere gewählt ist: nie zwei Panoramen zugleich im Grafikspeicher.
+  // andere gewählt ist: zwei Panoramen zugleich im Grafikspeicher nur, solange das neue lädt und das alte noch steht.
   keep: IS_MOBILE ? 0 : 30,
   hidden: {},      // s ausgeblendet, je Hintergrund
   goal(id) { return id === this.current ? 1 : 0; },
@@ -7226,13 +7353,22 @@ const skyTheme = {
   },
   next() { this.set(this.order[(this.order.indexOf(this.current) + 1) % this.order.length]); },
   update(dt, t) {
-    if (this.fading) {
+    // Lädt der gewählte Hintergrund noch, bleibt der bisherige so lange stehen (sonst sähe man nur die Platzhalterfarben) –
+    // falls er etwas zeigt: Lädt er selbst noch, blendet er gleich aus und gibt frei (bricht sein Laden ab)
+    const shown = this.entries.filter((e) => e.id !== this.current && this.weight[e.id] > 0);
+    const hold = this.byId.get(this.current).module?.settled === false && shown.some((e) => e.module?.settled !== false);
+    if (this.fading && !hold) {
       const step = 2 * dt / this.fadeTime;
       const others = this.order.filter((n) => n !== this.current);
       for (const n of others) this.weight[n] = Math.max(0, this.weight[n] - step);
       if (others.every((n) => this.weight[n] === 0)) this.weight[this.current] = Math.min(1, this.weight[this.current] + step);
       this.apply();
     }
+    // Vorschau des eingeblendeten Panoramas statt der Platzhalterfarben (panoSky), in 0,3 s
+    const bg = background.material.uniforms;
+    const preview = this.entries.find((e) => this.weight[e.id] > 0)?.module?.preview ?? null;
+    if (bg.uPreview.value !== preview) { bg.uPreview.value = preview; bg.uPreviewOn.value = 0; }
+    if (preview) bg.uPreviewOn.value = Math.min(1, bg.uPreviewOn.value + dt / 0.3);
     const otherPanorama = this.byId.get(this.current).module?.panorama;
     for (const e of this.entries) {
       if (this.weight[e.id] > 0) { e.module?.update(t, dt); this.hidden[e.id] = 0; continue; }
@@ -10008,9 +10144,10 @@ const sceneReady = new Promise((resolve) => { markSceneReady = resolve; });
 
 /**
  * Intro ruhig: Strahl, Schriftzug, Farbfächer und Texte sind eingeblendet (CSS #intro: „Klicken zum Starten“ endet
- * 2,9 + 1,2 s nach Beginn der Enthüllung, danach pulsiert es nur noch langsam). Bis dahin wartet der Aufbau einer Skybox
- * (Hauptthread und Grafik, siehe createPanoramaSky): Schon ein einzelnes ausgelassenes Bild sah man als Ruck in der
- * langsamen Enthüllung. Dekodiert wird vorher (Worker). Ohne Intro (?nointro) sofort.
+ * 2,9 + 1,2 s nach Beginn der Enthüllung, danach pulsiert es nur noch langsam). Bis dahin wartet eine Skybox mit dem
+ * Übersetzen, Hochladen und ersten Zeichnen (siehe createPanoramaSky): Schon ein einzelnes ausgelassenes Bild sah man
+ * als Ruck in der langsamen Enthüllung. Vorher laufen Dekodieren (Worker), Vorschau auf der Himmelskugel, Netz und
+ * Ebenen in Häppchen. Ohne Intro (?nointro) sofort.
  */
 const INTRO_REVEAL_MS = 4200;
 let markIntroCalm;
