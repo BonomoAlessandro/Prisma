@@ -148,6 +148,8 @@ folge.forEach((i, k) => { platz[i] = k + 1; });
 /** Der Platz unter dem Bestand (ohne die Level des Ausbaus), an dem sich das Wandern misst; ohne Ausbau wie platz. */
 const platzBestand = new Array(n);
 folge.filter(i => !ausbau[i]).forEach((i, k) => { platzBestand[i] = k + 1; });
+/** Der Platz, wie formel ihn zählt: ein Level des Bestands unter dem Bestand, eines des Ausbaus in der ganzen Folge. */
+const platzWieFormel = (i) => (ausbau[i] ? platz[i] : platzBestand[i]);
 console.log(`Fixpunkt nach ${runde} Durchgängen: Schwierigkeit und Grade ändern sich mit den Graden nicht mehr`);
 
 // Reihenfolge
@@ -170,7 +172,7 @@ const entscheid = (i) => {
   const korrektur = u.verschiebung ? `, Korrektur ${vz(u.verschiebung)}` : '';
   const abgelehnt = u.abgelehnt ? `, abgelehnt (${u.gruende.join(', ')})` : '';
   const einordnung = (t) => `${t} ${u.eintrag.urteile[t].einordnung}`;
-  const wohin = `${korrektur}${abgelehnt} → Platz ${platz[i]}`;
+  const wohin = `${korrektur}${abgelehnt} → Platz ${platzWieFormel(i)}`;
   if (u.neu) return `${u.eintrag.lauf}: ${einordnung('A')}, ${einordnung('B')}${wohin}`;
   const je = Object.entries(u.je).map(([t, x]) => `${einordnung(t)} `
     + `${x.stimmtZu ? 'stimmt zu' : 'nicht'} (Abstand Formel ${x.formel}, alt ${x.alt})`).join(', ');
@@ -197,7 +199,7 @@ for (const i of [...neue].sort((x, y) => platz[x] - platz[y])) {
   const herkunft = a ? `${a.ersetzt ? `ersetzt ${a.ersetzt}` : 'Ausbau'}`
     + `${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
   console.log(`    ${levels[i].name}${levels[i].name === kandidat[i] ? '' : ` (${kandidat[i]})`}: ${herkunft}Platz `
-    + `${platz[i]}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
+    + `${platzWieFormel(i)}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
     + `${b[i].hauptKernidee.begriff ?? '–'}, Spielwert ${zahl(b[i].spielwert.wert)}; ${entscheid(i)}`);
 }
 
@@ -554,7 +556,8 @@ function ladeAusbau(datei) {
     if (ziel && !(Array.isArray(ziel) && ziel.length === 2 && ziel.every(Number.isFinite) && ziel[0] <= ziel[1])) {
       throw new Error(`${wo}: schwierigkeit muss [von, bis] sein, nicht ${JSON.stringify(ziel)}`);
     }
-    // Der Grad folgt im Ausbau der Schwelle (fuegeEin in levelliste.mjs); reihenfolge rechnet ihn, hier nur ein Platzhalter
+    // Der Grad folgt im Ausbau der Schwelle (fuegeEin in levelliste.mjs); reihenfolge rechnet ihn, hier nur ein
+    // Platzhalter
     const { name: _, grad: __, ...daten } = a.level;
     return { auftrag: a.auftrag ?? null, seed: a.seed ?? null, schwierigkeit: ziel,
       level: { name: a.name || kandidatName(daten), grad: GRADE[0], ...daten } };
@@ -562,6 +565,10 @@ function ladeAusbau(datei) {
   const namen = eintraege.map(a => a.level.name);
   const doppelt = namen.filter((x, k) => namen.indexOf(x) !== k);
   if (doppelt.length) throw new Error(`${datei}: doppelt: ${[...new Set(doppelt)].join(', ')}`);
+  // Dieselben Leveldaten (gleicher Abdruck) unter anderem Namen, in der Datei oder schon im Spiel
+  const abdrucke = eintraege.map(a => kandidatName(a.level)), imSpielSchon = new Set(L.LEVELS.map(kandidatName));
+  const gleich = eintraege.filter((a, k) => abdrucke.indexOf(abdrucke[k]) !== k || imSpielSchon.has(abdrucke[k]));
+  if (gleich.length) throw new Error(`${datei}: Leveldaten doppelt: ${gleich.map(a => a.level.name).join(', ')}`);
   return eintraege;
 }
 
