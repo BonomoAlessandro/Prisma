@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Urteil eines KI-Testers zu einem Level",
+  "description": "Eine Antwortdatei ist eine Liste solcher Urteile, eines je Level des Laufs.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["level", "aha", "lesbarkeit", "gefuehl", "einordnung", "ablehnung", "begruendung"],
+  "properties": {
+    "level": {
+      "description": "Kennung des Levels aus dem Auftrag (A1–A8 für Anker, sonst L1, L2 …).",
+      "type": "string",
+      "pattern": "^(A[1-8]|L[1-9][0-9]*)$"
+    },
+    "aha": {
+      "description": "Gibt es einen Aha-Moment? Beschreibung: worin er besteht, oder warum es keinen gibt.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ja", "beschreibung"],
+      "properties": {
+        "ja": { "type": "boolean" },
+        "beschreibung": { "type": "string", "minLength": 1, "maxLength": 600 }
+      }
+    },
+    "lesbarkeit": {
+      "description": "Wie gut sich das Feld lesen lässt, je Bildschirm: 1 = kaum lesbar, 5 = sofort klar.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["desktop", "handy", "beschreibung"],
+      "properties": {
+        "desktop": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "handy": { "type": "integer", "minimum": 1, "maximum": 5 },
+        "beschreibung": { "type": "string", "minLength": 1, "maxLength": 600 }
+      }
+    },
+    "gefuehl": {
+      "description": "Spass: 1 = langweilig oder ärgerlich, 3 = in Ordnung, 5 = grosser Spass.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "einordnung": {
+      "description": "Schwierigkeit im Vergleich zu den Ankern: „A3-A4“ = schwerer als A3 und leichter als A4, „A3“ = etwa so schwer wie A3, „<A1“ = leichter als A1, „>A8“ = schwerer als A8.",
+      "enum": ["<A1", "A1", "A1-A2", "A2", "A2-A3", "A3", "A3-A4", "A4", "A4-A5", "A5", "A5-A6", "A6", "A6-A7", "A7", "A7-A8", "A8", ">A8"]
+    },
+    "ablehnung": {
+      "description": "Alle Begriffe aus dem Glossar („Was Spass verdirbt“), die klar zutreffen, unabhängig vom Grad; leer, wenn keiner zutrifft. Ob ein Begriff beim Grad des Levels zählt, entscheidet die Regel.",
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "enum": ["Probieren", "Füllteil", "Scheinmischung", "Zerfall", "Knäuel"] }
+    },
+    "begruendung": {
+      "description": "Kurze Begründung des Urteils, bei einer Ablehnung vor allem für sie.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 600
+    }
+  }
+}

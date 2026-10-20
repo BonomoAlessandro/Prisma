@@ -14,7 +14,7 @@ Thumbs.db
 # Lokale Claude-Einstellungen
 .claude/settings.local.json
 
-# Kandidaten-Pools des Level-Generators (tools/pools.mjs)
+# Frühere Kandidaten-Pools und Reviews (tools/pools.mjs bis Ticket 21); lokal oft noch vorhanden
 tools/pools/
 
 # Blender: Szene (wald_scene.py baut sie neu), Renderings und kodierte Bilder (Ergebnis liegt in backgrounds/)

@@ -2,3 +2,5 @@
 vendor/** -text
 # Erzeugte Skyboxen: Das Register nennt die Grösse jeder Datei, sie muss Byte für Byte bleiben
 backgrounds/** -text
+# Shell-Skripte brauchen LF, sonst scheitert sh an den Zeilenenden (core.autocrlf)
+*.sh text eol=lf

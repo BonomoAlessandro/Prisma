@@ -1,4 +1,5 @@
-// Löser und Schwierigkeitsmessung für PRISMA-Level.
+// Löser für PRISMA-Level. Wie schwer ein Level ist, sagt allein die Beurteilung (tools/beurteilung/); die alte
+// Wertung (metrics mit score) gibt es seit Ticket 21 nicht mehr.
 // Lädt die reine Spiellogik aus index.html (Bereich LOGIC:BEGIN … LOGIC:END), genau wie die Tests.
 //
 // Idee: Statt alle Stellungen durchzuprobieren (bei 10 drehbaren Elementen bis zu 8^10), folgt der
@@ -15,7 +16,7 @@ const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'i
 const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END'));
 export const L = new Function(code + `
   return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
-    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, mod8 };`)();
+    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, mod8, OPEN };`)();
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);
@@ -23,75 +24,68 @@ export const getRot = (el) => (el.type === 'combiner' ? el.dir : el.rot);
 export const setRot = (el, v) => { if (el.type === 'combiner') el.dir = v; else el.rot = v; };
 export const keyOf = (el) => el.x + ',' + el.z;
 
-/** Wird geworfen, wenn die Verfolgung die Stellung eines noch offenen Elements liest. */
-class Need { constructor(el) { this.el = el; } }
-
 /**
  * Durchsucht die Stellungen der drehbaren Elemente, die das Licht erreicht.
- * Optionen: maxNodes (Abbruch), collect (wie viele Lösungen aufheben), prune (falsches Licht abschneiden).
+ * Optionen: maxNodes (Abbruch), collect (wie viele Lösungen aufheben), prune (falsches Licht abschneiden),
+ *   unique (nur die Eindeutigkeit gefragt: hält bei der zweiten Lösung an, count ist dann mindestens 2 und die übrigen
+ *   Zahlen gelten nur bis dahin; bei höchstens einer Lösung ist das Ergebnis dasselbe wie ohne unique).
  * Rückgabe:
  *   count:     Anzahl lösender Gesamtstellungen (Elemente ohne Licht vervielfachen)
  *   solutions: bis zu `collect` Lösungen als { set: { "x,z": Stellung }, free } (free = Elemente ohne Licht)
- *   nodes:     Anzahl Strahlverfolgungen – Suchaufwand, ein Mass für die Schwierigkeit
+ *   nodes:     Anzahl Strahlverfolgungen (Suchaufwand)
  *   leaves:    vollständig bestimmte Strahlbilder
  *   near:      Gesamtstellungen, in denen genau ein Ziel nicht stimmt ("fast gelöst"; nur ohne prune vollständig)
  *   aborted:   Suche wegen maxNodes abgebrochen
  */
-export function solve(level, { maxNodes = 2e6, collect = 50, prune = true, onLeaf = null } = {}) {
+export function solve(level, { maxNodes = 2e6, collect = 50, prune = true, onLeaf = null, unique = false } = {}) {
   const board = L.createBoard(level);
   const rot = board.elements.filter(L.isRotatable);
   const targets = board.elements.filter(e => e.type === 'target');
-  const value = new Map(); // el.id → Stellung (nur bereits entschiedene)
-  for (const el of rot) {
-    const prop = el.type === 'combiner' ? 'dir' : 'rot';
-    Object.defineProperty(el, prop, {
-      get() { if (!value.has(el.id)) throw new Need(el); return value.get(el.id); },
-      set(v) { value.set(el.id, L.mod8(v)); },
-      configurable: true,
-    });
-  }
+  for (const el of rot) setRot(el, L.OPEN); // offen: die Verfolgung hält dort an (traceBeams liefert open)
   const out = { count: 0, solutions: [], nodes: 0, leaves: 0, near: 0, guesses: 0, aborted: false, rotatable: rot.length };
   const wrongLight = (hits) => targets.some(t => (hits.get(t.id) || 0) & ~t.color);
+  // Elemente, deren Stellung noch offen ist (an einem Blatt: ohne Licht), und das Produkt ihrer Stellungen
+  let free = rot.length, mult = rot.reduce((m, el) => m * period(el), 1);
 
   // Rückgabe: Anzahl Blätter im Teilbaum. Eine Verzweigung mit mindestens zwei nicht sofort
   // widerlegten Möglichkeiten zählt als "Rateschritt" (guesses) – Zwangszüge zählen nicht.
-  const visit = () => {
+  // from: Stand der Verfolgung im Elternknoten, angehalten am Element, dessen Stellung eben gesetzt wurde. Bis dahin
+  // ist sie für alle Stellungen gleich, die Verfolgung macht also dort weiter.
+  const visit = (from) => {
     if (out.nodes >= maxNodes) { out.aborted = true; return 0; }
     out.nodes++;
-    let r;
-    try {
-      r = L.traceBeams(board);
-    } catch (e) {
-      if (!(e instanceof Need)) throw e;
-      if (prune && e.partialHits && wrongLight(e.partialHits)) return 0;
+    const r = L.traceBeams(board, undefined, from);
+    if (r.open) {
+      const el = r.open;
+      if (prune && wrongLight(r.hits)) return 0;
       let leaves = 0, alive = 0;
-      for (let v = 0; v < period(e.el) && !out.aborted; v++) {
-        value.set(e.el.id, v);
-        const n = visit();
+      const multBefore = mult;
+      free--; mult /= period(el);
+      for (let v = 0; v < period(el) && !out.aborted && !(unique && out.count > 1); v++) {
+        setRot(el, v);
+        const n = visit(r.resume);
         leaves += n;
         if (n) alive++;
       }
+      free++; mult = multBefore;
       if (alive >= 2) out.guesses++;
-      value.delete(e.el.id);
+      setRot(el, L.OPEN);
       return leaves;
     }
     out.leaves++;
-    if (onLeaf) onLeaf(r, board, value);
-    const free = rot.filter(el => !value.has(el.id));
-    const mult = free.reduce((m, el) => m * period(el), 1);
-    if (targets.filter(t => !r.satisfied.has(t.id)).length === 1) out.near += mult;
+    if (onLeaf) onLeaf(r, board);
+    if (r.satisfied.size === targets.length - 1) out.near += mult; // genau ein Ziel stimmt nicht
     if (r.solved) {
       out.count += mult;
       if (out.solutions.length < collect) {
-        out.solutions.push({
-          set: Object.fromEntries(rot.filter(el => value.has(el.id)).map(el => [keyOf(el), value.get(el.id)])),
-          free: free.length,
-        });
+        const set = {};
+        for (const el of rot) if (getRot(el) !== L.OPEN) set[keyOf(el)] = getRot(el);
+        out.solutions.push({ set, free });
       }
     }
     return 1;
   };
-  visit();
+  visit(null);
   return out;
 }
 
@@ -135,42 +129,4 @@ export function litCells(r, board) {
     else if (e.kind === 'reflect' || e.kind === 'hit') lit.add(Math.round(e.x) + ',' + Math.round(e.z));
   }
   return lit;
-}
-
-/**
- * Schwierigkeitskennzahlen eines Levels. Bewusst nur Eigenschaften des Levels selbst – die
- * Klicks hängen von der zufälligen Startverdrehung ab und gehen nicht in die Wertung ein.
- *   unique:    genau eine lösende Gesamtstellung (gleiche Regel wie im Spiel)
- *   search:    log2 Suchknoten mit Abschneiden (wie viel man ausprobieren muss)
- *   space:     log2 der Stellungen, die das Licht überhaupt erreicht (ohne Abschneiden, ggf. gedeckelt)
- *   guesses:   Verzweigungen mit mehreren nicht sofort widerlegten Möglichkeiten
- *   onPath:    Elemente, die das Licht in der Lösung berührt
- *   mixed:     Ziele mit Mischfarbe · targets, sources, rotatable, kinds, clicks (nur zur Info)
- *   score:     Gesamtwertung, an der Reihenfolge der handgebauten Level geeicht (Test: Rangkorrelation ≥ 0.8)
- */
-export function metrics(level) {
-  const sol = solve(level, { collect: 2 });
-  const full = solve(level, { prune: false, maxNodes: 3e5, collect: 0 });
-  const b = L.createBoard(level);
-  const rot = b.elements.filter(L.isRotatable);
-  const targets = b.elements.filter(e => e.type === 'target');
-  const set = sol.solutions[0]?.set;
-  let onPath = 0;
-  if (set) {
-    const bb = L.createBoard(level);
-    for (const el of bb.elements.filter(L.isRotatable)) if (keyOf(el) in set) setRot(el, set[keyOf(el)]);
-    onPath = litCells(L.traceBeams(bb), bb).size;
-  }
-  const search = Math.log2(Math.max(1, sol.nodes));
-  const space = Math.log2(Math.max(1, full.leaves));
-  const mixed = targets.filter(t => ![1, 2, 4].includes(t.color)).length;
-  // Rateschritte wachsen mit dem Suchbaum exponentiell – daher logarithmisch
-  const score = search + 0.5 * space + 1.2 * Math.log2(1 + sol.guesses) + 0.5 * targets.length + 0.4 * mixed + 0.25 * onPath;
-  return {
-    unique: sol.count === 1 && !sol.aborted, count: sol.count, rotatable: rot.length,
-    search: +search.toFixed(1), space: +space.toFixed(1), spaceCapped: full.aborted, guesses: sol.guesses,
-    onPath, mixed, targets: targets.length, sources: b.elements.filter(e => e.type === 'source').length,
-    kinds: [...new Set(b.elements.map(e => e.type))].sort(),
-    clicks: set ? clicksTo(level, set) : NaN, score: +score.toFixed(1), solution: set,
-  };
 }

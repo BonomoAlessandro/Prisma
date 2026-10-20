@@ -1,0 +1,61 @@
+{
+  "hinweis": "Ablauf 2 (Ticket 16, 17.10.2026): je zwei feste Anker pro Schwierigkeitsgrad in der Reihenfolge im Spiel (heute leicht 1–32, mittel 33–102, schwer 103–137, sehr schwer 138–150), einer am unteren, einer am oberen Ende. Gewählt nach den Regeln des Nutzers: (1) kein Ausschlussgrund und nicht auf der Prüfliste (tools/levelliste.json), weil sich deren Platz noch ändern kann; (2) auf der Duldungsliste nur wegen Kernidee oder Spielwert ist erlaubt, denn Anker zeigen die Schwierigkeit, nicht den Spass; wo möglich trotzdem ganz ohne Duldungsliste; (3) möglichst genau am Ende des Grads, sonst begründet. Dazu wie in Ablauf 1 kein Grenzfall der Neuzählung, und zusammen decken die Anker alle Elemente ab. Plätze und Schwierigkeit: Stand 17.10.2026. Die Anker von Ablauf 1 (Plätze der heutigen Reihenfolge) waren A1 Schleuse (3), A2 Brechpunkt (30), A3 Kreuzweg (35), A4 Farbverlauf (94), A5 Silberstreif (103), A6 Pulsar (135), A7 Morgenröte (141) und A8 Sternenstaub (148). Wer einen Anker ändert, erhöht die Version des Ablaufs (tools/ki-tester/protocol.mjs).",
+  "anker": [
+    {
+      "id": "A1",
+      "name": "Zickzack",
+      "grad": "leicht",
+      "ende": "unten",
+      "begruendung": "Platz 1, das leichteste Level (Schwierigkeit 19,8; Platz 2 Winkelzug 21,5). Eine weisse Quelle, Spiegel und ein Prisma, zwei Ziele, 2 drehbare Elemente: die einfachste Mechanik. Nicht auf der Duldungsliste."
+    },
+    {
+      "id": "A2",
+      "name": "Zusammenfluss",
+      "grad": "leicht",
+      "ende": "oben",
+      "begruendung": "Platz 30, Schwierigkeit 42,3, knapp unter der Schwelle von mittel (43). Nicht genau am Ende: 31 Lichtbündel hat einen Ausschlussgrund (Scheinmischung), 32 Streulicht steht auf der Prüfliste. Nicht auf der Duldungsliste. Eine rote und eine grüne Quelle mischen sich auf dem gelben Ziel (Mischziel aus zwei Quellen), nur Spiegel, 6 drehbare Elemente."
+    },
+    {
+      "id": "A3",
+      "name": "Glasfenster",
+      "grad": "mittel",
+      "ende": "unten",
+      "begruendung": "Platz 33, das erste mittlere Level, Schwierigkeit 43,7. Auf der Duldungsliste nur ab „mittel“ ohne nötige Kernidee; das ist für einen Anker erlaubt, und über dem Mindest-Spielwert liegt es (61,3). Ganz ohne Duldungsliste und nicht auf der Prüfliste ist in mittel erst 68 Feuerwerk, weit vom unteren Ende. Drei weisse Quellen, zwei Prismen, drei Ziele, 5 drehbare Elemente."
+    },
+    {
+      "id": "A4",
+      "name": "Lichtbogen",
+      "grad": "mittel",
+      "ende": "oben",
+      "begruendung": "Platz 97, Schwierigkeit 58,1, knapp unter der Schwelle von schwer (58,5). Nicht genau am Ende: 98 Polarlicht und 101 Libelle haben einen Ausschlussgrund (Scheinmischung), 99 Widerschein, 100 Chamäleon und 102 Smaragd stehen auf der Prüfliste. Nicht auf der Duldungsliste. Zwei weisse Quellen, zwei Prismen, vier Ziele mit einem Mischziel aus zwei Quellen, 7 drehbare Elemente."
+    },
+    {
+      "id": "A5",
+      "name": "Oase",
+      "grad": "schwer",
+      "ende": "unten",
+      "begruendung": "Platz 105, Schwierigkeit 59,3. Nicht genau am Ende: 103 Rangierbahnhof und 104 Opal haben einen Ausschlussgrund (Scheinmischung). Nicht auf der Duldungsliste. Zwei weisse Quellen, zwei Prismen, drei Ziele mit einem Mischziel aus zwei Quellen, 7 drehbare Elemente."
+    },
+    {
+      "id": "A6",
+      "name": "Lichtbrücke",
+      "grad": "schwer",
+      "ende": "oben",
+      "begruendung": "Platz 137, das letzte schwere Level, Schwierigkeit 86,0, knapp unter der Schwelle von sehr schwer (87). Nicht auf der Duldungsliste. Drei Prismen und ein Kombinator, Mischziel aus zwei Quellen und Farben abzählen, 11 drehbare Elemente."
+    },
+    {
+      "id": "A7",
+      "name": "Sternenstaub",
+      "grad": "sehr schwer",
+      "ende": "unten",
+      "begruendung": "Platz 138, das erste sehr schwere Level, Schwierigkeit 87,9; in Ablauf 1 der Anker A8. Nicht auf der Duldungsliste. Eine magentafarbene und zwei weisse Quellen, fünf Prismen, vier Ziele, 9 drehbare Elemente."
+    },
+    {
+      "id": "A8",
+      "name": "Pulsar",
+      "grad": "sehr schwer",
+      "ende": "oben",
+      "begruendung": "Platz 145, Schwierigkeit 90,4, das schwerste Level ohne Ausschlussgrund; in Ablauf 1 der Anker A6. Nicht genau am Ende: 146–150 haben alle einen Ausschlussgrund (Scheinmischung oder Knäuel). Nicht auf der Duldungsliste. Vier Prismen, Filter und Block, Abschalten und Lockvogel, 10 drehbare Elemente."
+    }
+  ]
+}
