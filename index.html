@@ -140,6 +140,18 @@
     transition: opacity 0.9s ease;
   }
   #solved .msg { font-size: 12px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); letter-spacing: 0.6em; text-transform: uppercase; padding-left: 0.6em; }
+  /* weicher dunkler Hof hinter Meldung, Statistik und Button: lesbar auch vor hellen Hintergründen (Strand, Wald) */
+  #solved::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    left: 50%; top: 50%; width: min(560px, 100vw); height: calc(100% + 90px);
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
+  }
+  /* Zahlen gross und hell, die Bezeichnung klein daneben */
+  #solved .stats { display: flex; gap: 28px; align-items: baseline; margin-top: -4px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); }
+  #solved .stats:empty { display: none; }
+  #solved .stats .num { font-size: 20px; letter-spacing: 0.08em; color: var(--ink); font-variant-numeric: tabular-nums; }
+  #solved .stats .unit { margin-left: 0.35em; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(232, 230, 240, 0.78); }
   #solved button { pointer-events: auto; }
   #solved button, #levels .close {
     font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
@@ -157,6 +169,10 @@
     /* Meldung ersetzt oben die Kopfzeile, in einer Zeile – dort ist der Platz ohnehin frei */
     #solved { top: max(4px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; justify-content: center; gap: 18px; }
     #solved .msg { font-size: 11px; letter-spacing: 0.35em; padding-left: 0.35em; }
+    #solved .stats { margin-top: 0; gap: 18px; }
+    #solved .stats .num { font-size: 16px; }
+    #solved .stats .unit { letter-spacing: 0.2em; }
+    #solved::before { width: min(900px, 100vw); height: calc(100% + 90px); }
     #solved button { padding: 8px 16px 8px calc(16px + 0.4em); }
     body.is-solved #hud { opacity: 0; }
   }
@@ -342,6 +358,7 @@
 
 <div id="solved" class="hidden" inert aria-live="polite">
   <div class="msg" id="solved-msg">Level gelöst</div>
+  <div class="stats" id="solved-stats"></div>
   <button id="btn-next">Weiter</button>
 </div>
 
@@ -8471,6 +8488,8 @@ const game = {
   hitProxies: [],     // unsichtbare Trefferzylinder der drehbaren Elemente
   targets: [],        // Modelle der Ziele
   result: null,
+  // Statistik des laufenden Versuchs: die Zeit läuft ab der ersten Drehung
+  stats: { turns: 0, startedAt: null, lastTurnAt: null },
 };
 
 const SHARED_MATERIALS = new Set(Object.values(MAT));
@@ -8488,6 +8507,7 @@ function disposeTree(root) {
 function loadLevel(index, beamDelay = 0) {
   game.levelIndex = index;
   game.board = createBoard(LEVELS[index]);
+  game.stats = { turns: 0, startedAt: null, lastTurnAt: null };
   for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
   game.objects.clear();
   game.hitProxies = [];
@@ -8573,6 +8593,10 @@ function rotateElement(el, delta) {
   if (!el || !isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels
   if (flow.state !== 'play') return; // während eines Levelwechsels nicht drehen
   audio.rotate();
+  const now = performance.now();
+  game.stats.turns++;
+  game.stats.startedAt ??= now;
+  game.stats.lastTurnAt = now;
   // Der Kombinator dreht seine Ausgangsrichtung, Spiegel und Prisma ihren Winkel
   if (el.type === 'combiner') el.dir = mod8(el.dir + delta);
   else el.rot = mod8(el.rot + delta);
@@ -9975,7 +9999,7 @@ const celebration = {
       shockUniforms.uShock.value.set(r, fade * fade, CELEBRATE.shockWidth * (1 + r * 0.12));
       if (!this.panelShown && tc >= CELEBRATE.panelDelay) {
         this.panelShown = true;
-        ui.showSolved(game.levelIndex, flow.firstSolve);
+        ui.showSolved(game.levelIndex, flow.firstSolve, flow.solveStats);
       }
       if (fade <= 0 && env < 0.01 && this.panelShown) {
         this.active = false;
@@ -10172,6 +10196,9 @@ function updateFlow(dt) {
     if (lit && !flow.solved) {
       flow.solved = true;
       flow.firstSolve = !progress.isSolved(game.levelIndex); // für die Meldung "Tutorial geschafft"
+      // bis zur lösenden Drehung, nicht bis die Ziele sichtbar leuchten; Drehungen danach zählen nicht mehr
+      const st = game.stats;
+      flow.solveStats = { turns: st.turns, seconds: st.startedAt === null ? 0 : (st.lastTurnAt - st.startedAt) / 1000 };
       progress.markSolved(game.levelIndex);
       progress.save(game.levelIndex);
       celebration.start(game.targets);
@@ -10211,6 +10238,13 @@ function updateFlow(dt) {
 const $ = (id) => document.getElementById(id);
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
 
+/** Sekunden als m:ss bzw. h:mm:ss. */
+function formatDuration(seconds) {
+  const s = Math.floor(seconds), pad = (n) => String(n).padStart(2, '0');
+  const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+  return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
+}
+
 /** Bereich ein-/ausblenden; versteckt ist er auch für Tastatur und Screenreader weg (inert). */
 function setShown(el, shown) {
   el.classList.toggle('hidden', !shown);
@@ -10237,7 +10271,7 @@ const introCalm = new Promise((resolve) => { markIntroCalm = resolve; });
 const ui = {
   hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
-  solved: $('solved'), solvedMsg: $('solved-msg'), next: $('btn-next'),
+  solved: $('solved'), solvedMsg: $('solved-msg'), solvedStats: $('solved-stats'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('page-tabs'), pageTitle: $('page-title'),
   shownPage: 'T',
   intro: $('intro'),
@@ -10317,12 +10351,21 @@ const ui = {
    * Meldung nach dem Lösen: beim ersten Lösen ggf. "Tutorial geschafft" bzw. "Alle Level gelöst".
    * Gibt es ein nächstes Level, geht es dorthin, sonst zur Levelauswahl.
    */
-  showSolved(index, first) {
+  showSolved(index, first, stats) {
     const tutorial = PAGES[0].indices;
     const all = LEVELS.every((_, i) => progress.isSolved(i));
     this.lastLevel = index === LEVELS.length - 1;
     this.solvedMsg.textContent = first && all ? 'Alle Level gelöst'
       : first && LEVELS[index].tutorial && progress.solvedCount(tutorial) === tutorial.length ? 'Tutorial geschafft' : 'Level gelöst';
+    const stat = (num, unit) => {
+      const el = document.createElement('span'), n = document.createElement('span'), u = document.createElement('span');
+      n.className = 'num'; n.textContent = num;
+      u.className = 'unit'; u.textContent = unit;
+      el.append(n, ' ', u); // Leerzeichen für Screenreader
+      return el;
+    };
+    this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit'), ' ',
+      stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen')] : []));
     this.next.textContent = this.lastLevel ? 'Levelauswahl' : 'Weiter';
     setShown(this.solved, true);
     document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
