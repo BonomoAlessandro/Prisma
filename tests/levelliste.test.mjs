@@ -651,8 +651,9 @@ test('Ganze Regel mit einem Level des Ausbaus: eingefügt nach der Formel, Besta
   const i = namenHeute.indexOf('Schliff');
   const opts = { heute: platzHeute.map((p, j) => (j === i ? null : p)), formelEntscheid: liste.prueflisteFormel,
     kandidat: kandidat.map((k, j) => (j === i ? 'Kandidat Test' : k)), ausbau: ausbauHeute.map((a, j) => a || j === i) };
-  // ohne die Urteile zu Schliff (es stand auf der Prüfliste); ein Urteil zu ihm unter seinem Namen zählt nicht mehr
-  const ohneSchliff = urteile.filter(e => e.level.name !== 'Schliff');
+  // ohne die Urteile zu Schliff (es stand auf der Prüfliste); ein Urteil zu ihm unter seinem Namen zählt nicht mehr.
+  // Ohne die Urteile der echten Level des Ausbaus: Ihre Korrekturen verschöben Schliff sonst mit
+  const ohneSchliff = urteile.filter(e => e.level.name !== 'Schliff' && !/^ausbau-/.test(e.lauf));
   const mit = (eintraege) => reihenfolge(werteHeute, namenHeute, [...ohneSchliff, ...eintraege], opts);
   const ohne = mit([]), formel = ohne.formel[i];
   // Der Bestand ohne Schliff steht untereinander wie ohne den Ausbau (ordne nur unter ihm), Schliff nach der Schwelle

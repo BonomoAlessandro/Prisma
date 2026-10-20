@@ -11,9 +11,9 @@
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
 //   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
-//   Schwierigkeit im Bereich, den sein Grad im Spiel abdeckt, ab „mittel“ mit Haupt-Kernidee, Mindest-Spielwert und
-//   ohne zweiten unabhängigen Teil mit 2 drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall, wie ihn die KI-Tester
-//   lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann einer nach dem anderen
+//   Schwierigkeit im Bereich, den sein Grad im Spiel abdeckt, ab „mittel“ mit Haupt-Kernidee und Mindest-Spielwert, in
+//   jedem Grad ohne zweiten unabhängigen Teil mit 2 drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall, wie ihn die
+//   KI-Tester lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann einer nach dem anderen
 //   gewählt: der, dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt
 //   (so verteilen sie sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert; keinem gewählten zu
 //   ähnlich, der Grad sinkt nie, das Mittel je 10 Level steigt, und um seinen Platz häuft sich seine Haupt-Kernidee
@@ -57,8 +57,10 @@ const BLOCK = 25;
  * Vorprüfung auf Zerfall, wie ihn die KI-Tester lesen (Gruppe 1, Lauf ausbau-1): Die Regel der Beurteilung schliesst
  * erst aus, wenn der zweite unabhängige Teil 3 drehbare Elemente hat (MIN_ELEMENTE in zerfall.mjs). Die KI-Tester
  * lehnten aber alle 5 Kandidaten ab, deren zweiter Teil genau 2 hat, und von den übrigen 9 mit 2 nannte einer von
- * beiden bei 3 Zerfall; bei keinem Kandidaten mit einem zweiten Teil unter 2 nannte einer Zerfall. Ab „mittel“ kommt
- * darum nur in Frage, wessen zweiter Teil weniger drehbare Elemente hat.
+ * beiden bei 3 Zerfall; bei keinem Kandidaten mit einem zweiten Teil unter 2 nannte einer Zerfall. Darum kommt nur in
+ * Frage, wessen zweiter Teil weniger drehbare Elemente hat, auch in „leicht“: Dort zählen Füllteil und Zerfall zwar
+ * nicht, doch beide leichten Kandidaten mit einem zweiten Teil aus 2, die die KI-Tester in Gruppe 1 sahen, fanden sie
+ * mühsam (Gefühl im Mittel 2,5).
  */
 const ZWEITER_TEIL_HOECHSTENS = 1;
 /** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens. */
@@ -217,7 +219,7 @@ async function wahl() {
       return verwirf(k, 'ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
     if (zuAehnlich(k.level, L.LEVELS)) return verwirf(k, 'einem Level im Spiel zu ähnlich');
-    if (k.grad !== GRADE[0] && zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
+    if (zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
       return verwirf(k, 'zweiter unabhängiger Teil mit 2 und mehr drehbaren Elementen (Zerfall nach den KI-Testern)');
     }
     return true;
