@@ -12,9 +12,9 @@
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
 //   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
 //   Schwierigkeit im Bereich, den sein Grad im Spiel abdeckt, ab „mittel“ mit Haupt-Kernidee und Mindest-Spielwert, in
-//   jedem Grad ohne zweiten unabhängigen Teil mit 2 drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall, wie ihn die
-//   KI-Tester lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann einer nach dem anderen
-//   gewählt: der, dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt
+//   jedem Grad ohne zweiten unabhängigen Teil mit 2 und mehr drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall,
+//   wie ihn die KI-Tester lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann
+//   einer nach dem anderen gewählt: der, dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt
 //   (so verteilen sie sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert; keinem gewählten zu
 //   ähnlich, der Grad sinkt nie, das Mittel je 10 Level steigt, und um seinen Platz häuft sich seine Haupt-Kernidee
 //   nicht. Danach sucht die Wahl Tausche, bis mit der Häufungsregel keine Häufung offen bleibt (siehe unten).
@@ -177,7 +177,7 @@ async function wahl() {
   const auchGesetzte = args.includes('--auch-gesetzte');
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>]');
+      + '[--ohne <name,…>] [--auch-gesetzte]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester

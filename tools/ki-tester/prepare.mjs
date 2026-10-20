@@ -217,7 +217,9 @@ function ladeKandidaten(roh, datei) {
   const beurteilt = new Set(vorschau ? zaehlendeUrteile().map(e => e.level.name) : []);
   const liste = roh.filter(x => x.level && (!vorschau
     || (x.ausbau && !IM_SPIEL.some(l => l.name === x.name) && !beurteilt.has(kandidatName(x.level)))));
-  if (!liste.length) throw new Error(`${datei}: keine Einträge mit Leveldaten`);
+  if (!liste.length) {
+    throw new Error(`${datei}: keine Einträge mit Leveldaten${vorschau ? ' (Kandidaten des Ausbaus ohne Urteil)' : ''}`);
+  }
   for (const x of liste) {
     const wo = `${datei}: ${kandidatName(x.level)}`;
     if (!(Number.isInteger(x.formel) && x.formel >= 1 && x.formel <= MAIN)) {
