@@ -73,3 +73,52 @@
   Danach zurückgesetzt (Leveldaten, `levelliste.json`, `golden.json`, Protokoll).
 - **Für die Gruppen:** Golden-Test-Referenz mit `node tests/golden.mjs --write` nachführen, sobald neue Level im Spiel
   stehen.
+
+**Review (20.10.2026)**
+
+Geprüft: Diff `main...ausbau/01-vorbereitung` (8dd2a7d) gegen Spec und Ticket, Schwerpunkte `levelliste.mjs`
+(`reihenfolge`, `fuegeEin`, `zuWeitKorrigiert`), `ordne-level.mjs --ausbau`, `ausbau.mjs`, `aehnlichkeit.mjs`,
+`prepare.mjs`/`protocol.mjs` (Vorschau), Levelauswahl in `index.html`, Tests. Ohne Ausbau rechnet `reihenfolge` wie
+vorher (`formel` aus `ordne` hängt nicht an `zurFormel`, Plätze und Sortierung von `zuWeitKorrigiert` gleich); `fuegeEin`
+hält „Grad sinkt nie“ ein, weil der Grad im Bestand entlang der Folge nicht sinkt und ein schwereres Level nach der
+Formel keinen tieferen Grad hat; `bestandNach` ergibt genau die Tabelle der Spec.
+
+Selbst eingearbeitet:
+- `4de64c7` **Vorschau (`prepare.mjs`):** `ordne-level.mjs --json` gibt jedem Level ohne heutigen Platz `kandidat` mit,
+  also auch den Ersatzleveln der Tickets 23–26 und den Leveln früherer Gruppen. `vorschauAus` nannte sie darum
+  „Kandidat <Abdruck>“: Ein Platz auf ihnen wurde als Argument abgewiesen, und ein Anker unter ihnen hätte den Lauf mit
+  „kein Level“ abgebrochen (spätestens ab Gruppe 2 relevant). Jetzt steht ein Level im Spiel unter seinem Namen; der
+  Test der Vorschau prüft das an den Ankern und an einem Platz als Argument.
+- `aa30d93` **`ordne-level.mjs`:** `ladeAusbau` prüfte entgegen seinem Kommentar nur doppelte Namen; jetzt auch
+  dieselben Leveldaten (Abdruck) in der Datei oder schon im Spiel. Im Bericht stehen „Platz“ und „Formel“ beim
+  Bestand nun beide unter dem Bestand gezählt (vorher Platz in der ganzen Folge neben der Formel unter dem Bestand);
+  ohne Ausbau unverändert. Eine Kommentarzeile über 120 Zeichen umbrochen.
+- `f25aee8` **Tests:** Ähnlichkeit an erfundenen Fällen (gedreht und gespiegelt mit anderer Stellung = 1; ein
+  versetztes oder umgefärbtes Element < 1), `bestandNach` gegen die Tabelle der Spec, `zuWeitKorrigiert` mit dem
+  Ausbau (Bestand zählt unter sich, ein Level des Ausbaus ab `eingefuegt`, je mit Gegenprobe).
+
+Grün nach den Änderungen (`leise.sh`, 80 %): Levelliste 51, KI-Tester 65, Logik 548, Golden, Beurteilung 178.
+
+Offen, nicht eingearbeitet (keine Blocker):
+1. **Anker beim Ausbau (Spec KI-Tester „je zwei Anker pro Grad, einer am unteren, einer am oberen Ende“):** Die Anker
+   bleiben bewusst die feste Auswahl aus dem Bestand. Mit 350 neuen Leveln, nach der Schwierigkeit eingefügt, stehen
+   sie im Spiel aber nicht mehr am Ende ihres Grads (etwa A8 mitten in „sehr schwer“, wenn neue sehr schwere Level
+   schwerer sind). Für die Einordnung neuer Level am Rand eines Grads haben die KI-Tester dann keinen Anker dahinter.
+   Vorschlag: so lassen (vergleichbare Urteile), aber im Kopf von `levelliste.mjs` oder in der Spec als Abweichung
+   festhalten, damit es nicht als Fehler gilt; ein neuer Ablauf mit neuen Ankern erst, wenn die Urteile am Rand auffällig
+   werden.
+2. **`bedarf` schlägt keine Haupt-Kernideen vor** (Akzeptanzkriterium „dazu je Grad die Haupt-Kernideen …“): Das leistet
+   erst `wahl` mit der Suche gegen offene Häufungen, `bedarf` zeigt nur Anzahlen. Vorschlag: im Ticket festhalten, dass
+   `wahl` das Kriterium erfüllt (die Haupt-Kernideen folgen aus der Suche, nicht aus einem Vorschlag vorab).
+3. **Austausch neben dem Ausbau:** Ein Ersatzlevel gehört zum Bestand, sein `formel` in `--json` zählt also unter dem
+   Bestand, während `prepare.mjs --kandidaten` ohne Vorschau Plätze im ganzen Spiel annimmt. Seit Phase 6 gibt es
+   keinen Austausch mehr; käme einer nach Gruppe 1, wären Platz und Grad der Referenz verschoben. Vorschlag: nur
+   dokumentieren oder `prepare.mjs` ohne Vorschau abweisen, sobald `ausbau` in `levelliste.json` nicht leer ist.
+4. Klein: `levellisteText` schreibt `"ausbau": []` auch ohne Ausbau (ändert `levelliste.json` beim nächsten
+   `--schreiben`, harmlos); `VERSIONS[2].gilt` prüft nun gar keine Obergrenze mehr (eine Grenze wie 500 wäre strenger,
+   ist aber nicht nötig); `wahl` liest den Grad aus dem Namen des Auftrags per Regex statt aus `angebot()`.
+
+Levelauswahl: Abschnitte und Blättern lesbar umgesetzt, Tasten ← → greifen bei offener Auswahl vor dem Levelwechsel
+(kein Doppelschritt). Nicht im Browser nachgeprüft; die Screenshot-Proben der Umsetzung gelten.
+
+Ergebnis: bereit zum Mergen.
