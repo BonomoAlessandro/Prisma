@@ -49,9 +49,16 @@
 //                ihre Namen kommen auf entfernteNamen, ihre Leveldaten in die feste Kopie für die Eichung
 //                (beurteilung/entfernte-level.json). Das geht nur, wenn jedes neue Level einen genehmigten Namen und
 //                ein zählendes Urteil der KI-Tester hat, das es nicht ablehnt.
+//   --ausbau:    eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit } wie
+//                beim Austausch, aber ohne ersetzt: neue Level für den Ausbau auf 500 Level (.scratch/500-level/,
+//                Kopf von levelliste.mjs). Sie kommen nach der Formel zum Bestand dazu; ohne name heissen sie
+//                „Kandidat <Abdruck>“. Mit --schreiben stehen sie danach mit ihrem Namen im Spiel und in levelliste.json
+//                unter ausbau; das geht nur, wenn jedes einen Namen und ein zählendes Urteil der KI-Tester aus einem Lauf
+//                ausbau-… hat, das es nicht ablehnt. Der Name braucht keine Genehmigung (Entscheid des Nutzers vom
+//                20.10.2026). --austausch und --ausbau gehen auch zusammen.
 //   --json:      schreibt das Ergebnis je Level (heutiger und neuer Platz, Grad, Gründe; bei einem neuen Level dazu
-//                der Name bei den KI-Testern und die Leveldaten) in die Datei; tools/ki-tester/prepare.mjs nimmt sie
-//                mit --kandidaten.
+//                der Name bei den KI-Testern und die Leveldaten, beim Ausbau ausbau: true) in die Datei;
+//                tools/ki-tester/prepare.mjs nimmt sie mit --kandidaten.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { L, solve, period } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';
@@ -62,8 +69,8 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, alleUrteile, ergaenzungBegruendet, festePlaetze,
-  imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitKorrigiert,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet,
+  festePlaetze, imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -93,16 +100,21 @@ const argument = (name) => (process.argv.includes(name) ? process.argv[process.a
 const schreiben = process.argv.includes('--schreiben');
 const jsonDatei = argument('--json');
 const start = Date.now();
-// Die Level im Spiel, mit dem Austausch: zuerst die der heutigen Reihenfolge, dann die neuen (imSpiel)
+// Die Level im Spiel, mit dem Austausch und dem Ausbau: zuerst die der heutigen Reihenfolge, dann die neuen, dann die
+// des Ausbaus (imSpiel)
 const austausch = argument('--austausch') ? ladeAustausch(argument('--austausch')) : [];
 const ersetzt = austausch.map(a => a.ersetzt);
-const { levels, heute } = imSpiel([...L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ersetzt.includes(l.name)),
-  ...austausch.map(a => a.level)]);
+const ausbauDazu = argument('--ausbau') ? ladeAusbau(argument('--ausbau')) : [];
+const bisherAusbau = existsSync(DATEI) ? ausbauNamen() : [];
+const { levels, heute, ausbau } = imSpiel([...L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ersetzt.includes(l.name)),
+  ...austausch.map(a => a.level), ...ausbauDazu.map(a => a.level)],
+[...bisherAusbau, ...ausbauDazu.map(a => a.level.name)]);
 const n = levels.length;
-/** Bei einem neuen Level der Name, unter dem die KI-Tester es beurteilen (Läufe ersatz-…). */
+/** Bei einem neuen Level der Name, unter dem die KI-Tester es beurteilen (Läufe ersatz-… und ausbau-…). */
 const kandidat = levels.map((l, i) => (heute[i] === null ? kandidatName(l) : null));
-const name = (i) => `${heute[i] ?? 'neu'} ${levels[i].name}`;
+const name = (i) => `${heute[i] ?? (ausbau[i] ? 'Ausbau' : 'neu')} ${levels[i].name}`;
 const neue = [...Array(n).keys()].filter(i => heute[i] === null);
+const bestand = [...Array(n).keys()].filter(i => !ausbau[i]);
 
 // Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit und den Urteilen der KI-Tester, die Beurteilung mit
 // diesen Graden. Die Zustimmung zu einem Level der Prüfliste rechnet mit dem Platz der Formel beim Entscheid
@@ -122,7 +134,7 @@ for (let vorher = null; ; vorher = b) {
   ordnung = reihenfolge(b.map(x => x.schwierigkeit.wert), levels.map(l => l.name), urteile, {
     haupt: b.map(x => x.hauptKernidee.begriff),
     geduldet: (i, g, u) => Object.values(GRUENDE).some(grund => grund.gilt(jetzt[i], g, u)),
-    heute, kandidat, formelEntscheid,
+    heute, kandidat, formelEntscheid, ausbau,
   });
   folge = ordnung.folge;
   const neu = ordnung.grad;
@@ -133,12 +145,16 @@ const werte = b.map(x => x.schwierigkeit.wert);
 const { formel, bleibt, ki } = ordnung;
 const platz = new Array(n);
 folge.forEach((i, k) => { platz[i] = k + 1; });
+/** Der Platz unter dem Bestand (ohne die Level des Ausbaus), an dem sich das Wandern misst; ohne Ausbau wie platz. */
+const platzBestand = new Array(n);
+folge.filter(i => !ausbau[i]).forEach((i, k) => { platzBestand[i] = k + 1; });
 console.log(`Fixpunkt nach ${runde} Durchgängen: Schwierigkeit und Grade ändern sich mit den Graden nicht mehr`);
 
 // Reihenfolge
-console.log(`\nReihenfolge (Verschiebungen bis ${MAX_WANDERN} Plätze übernommen, Plätze ab der heutigen Reihenfolge)`);
+console.log(`\nReihenfolge (Verschiebungen bis ${MAX_WANDERN} Plätze übernommen, Plätze ab der heutigen Reihenfolge`
+  + `${ausbauDazu.length || bisherAusbau.length ? ', gezählt unter dem Bestand ohne den Ausbau' : ''})`);
 const wandert = [...Array(n).keys()].filter(i => !bleibt.has(i) && heute[i] !== null);
-const um = wandert.map(i => Math.abs(platz[i] - heute[i]));
+const um = wandert.map(i => Math.abs(platzBestand[i] - heute[i]));
 console.log(`  ${wandert.length} Level nach der Formel, davon ${um.filter(x => x === 0).length} am heutigen Platz; `
   + `verschoben im Mittel um ${zahl(mittel(um))}, höchstens ${Math.max(...um)} Plätze; dazu ${neue.length} neue`);
 const pruef = [...ordnung.pruefliste].sort((i, j) => i - j);
@@ -169,20 +185,25 @@ for (const i of nachgezogen) {
   console.log(`  bleibt ausserdem, weil es zwischen den Leveln der Prüfliste ${MAX_WANDERN} Plätze überschritte: `
     + `${name(i)} (Formel ${formel[i]})`);
 }
-// Neue Level (Austausch, Tickets 23–26): nach der Formel, dazu das Urteil der KI-Tester aus einem Lauf ersatz-…
-if (neue.length) console.log(`  Neue Level (ohne heutigen Platz, nach der Formel): ${neue.length}`);
+// Neue Level (Austausch, Tickets 23–26, und Ausbau): nach der Formel, dazu das Urteil der KI-Tester aus einem Lauf
+// ersatz-… bzw. ausbau-…
+if (neue.length) {
+  console.log(`  Neue Level (ohne heutigen Platz, nach der Formel): ${neue.length}, davon im Ausbau `
+    + `${neue.filter(i => ausbau[i]).length} (neu in diesem Lauf ${ausbauDazu.length})`);
+}
 for (const i of [...neue].sort((x, y) => platz[x] - platz[y])) {
-  const a = austausch.find(x => x.level === levels[i]);
+  const a = [...austausch, ...ausbauDazu].find(x => x.level === levels[i]);
   const ziel = a?.schwierigkeit ? `, Ziel ${zielText(a)}` : '';
-  const herkunft = a ? `ersetzt ${a.ersetzt}${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
+  const herkunft = a ? `${a.ersetzt ? `ersetzt ${a.ersetzt}` : 'Ausbau'}`
+    + `${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
   console.log(`    ${levels[i].name}${levels[i].name === kandidat[i] ? '' : ` (${kandidat[i]})`}: ${herkunft}Platz `
     + `${platz[i]}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
     + `${b[i].hauptKernidee.begriff ?? '–'}, Spielwert ${zahl(b[i].spielwert.wert)}; ${entscheid(i)}`);
 }
 
 // Schwellen und Grade
-console.log('\nSchwellen der Grade');
-const sortiert = [...werte].sort((x, y) => x - y);
+console.log('\nSchwellen der Grade (hergeleitet am Bestand ohne den Ausbau)');
+const sortiert = bestand.map(i => werte[i]).sort((x, y) => x - y);
 let grenze = 0;
 VORLAEUFIG.slice(0, -1).forEach((anzahl, g) => {
   grenze += anzahl;
@@ -307,13 +328,13 @@ console.log('  Mittel der Schwierigkeit je 10 Level:');
 console.log(`    ${zehner(folge).map(z => zahl(mittel(z.map(i => werte[i])))).join(' ')}`);
 for (const [text, wer] of [...SICHTEN, ['heutige Reihenfolge', null]]) {
   // Eine Gruppe ohne Level dieser Sicht zählt nicht; verglichen wird dann mit der vorigen, die eines hat
-  const je = zehner(wer ? folge : [...Array(n).keys()]).map((z, k) => ({ k, w: z.filter(wer ?? (() => true)) }))
+  const je = zehner(wer ? folge : bestand).map((z, k) => ({ k, w: z.filter(wer ?? (() => true)) }))
     .filter(g => g.w.length).map(g => ({ k: g.k, m: mittel(g.w.map(i => werte[i])) }));
   const schritte = je.slice(1).map((g, j) => ({ von: je[j].k, k: g.k, s: g.m - je[j].m }));
   const kleinster = schritte.reduce((x, y) => (y.s < x.s ? y : x));
   console.log(`    ${text}: kleinster Schritt ${zahl(kleinster.s, 2)} (Plätze ${10 * kleinster.von + 1}–`
     + `${10 * kleinster.k + 10}), Schritte ${schritte.map(s => zahl(s.s)).join(' ')}`
-    + `${je.length < 15 ? `; ${15 - je.length} Gruppen ohne Level` : ''}`);
+    + `${je.length < Math.ceil(n / 10) ? `; ${Math.ceil(n / 10) - je.length} Gruppen ohne Level` : ''}`);
 }
 console.log('  Haupt-Kernidee höchstens zweimal je 10 Level:');
 for (const [text, wer] of SICHTEN) {
@@ -355,9 +376,10 @@ const mehrdeutig = levels.map((level, i) => [i, level, solve(level, { unique: tr
 });
 console.log(`  Genau eine Lösung: ${mehrdeutig.length ? `nicht bei ${zeige(mehrdeutig.map(([i]) => i))}` : 'alle'}`);
 const kiText = (wer) => [...ki].filter(([, u]) => wer(u)).map(([i]) => name(i)).join(', ') || '–';
-const kiNeu = [...ki.values()].filter(u => u.neu).length;
+const kiNeu = [...ki.values()].filter(u => u.neu).length, kiAusbau = [...ki.keys()].filter(i => ausbau[i]).length;
 console.log(`  Urteile der KI-Tester (Ablauf 2): ${ki.size - kiNeu} von ${pruef.length} Leveln der Prüfliste `
-  + `(Ticket 16, pruefung-…), ${kiNeu} von ${neue.length} neuen Leveln (ersatz-…); zur Formel: `
+  + `(Ticket 16, pruefung-…), ${kiNeu - kiAusbau} von ${neue.filter(i => !ausbau[i]).length} neuen Leveln `
+  + `(ersatz-…), ${kiAusbau} von ${neue.filter(i => ausbau[i]).length} Leveln des Ausbaus (ausbau-…); zur Formel: `
   + `${kiText(u => u.zurFormel)}; eigene Korrektur: ${kiText(u => u.verschiebung)}; abgelehnt: `
   + `${kiText(u => u.abgelehnt)}`);
 const zug = ({ i, von, nach }) => `${name(i)} (${b[i].hauptKernidee.begriff ?? 'ohne Haupt-Kernidee'}`
@@ -417,16 +439,18 @@ const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   .every(k => JSON.stringify(bisher[k]) === JSON.stringify(listen[k]))
   && JSON.stringify(bisher.ergaenzt) === JSON.stringify(ergaenzt)
   && JSON.stringify(bisher.prueflisteFormel) === JSON.stringify(prueflisteFormel)
-  && JSON.stringify(bisher.behalten ?? []) === JSON.stringify(behalten);
+  && JSON.stringify(bisher.behalten ?? []) === JSON.stringify(behalten)
+  && !ausbauDazu.length;
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
 // Mit dem Austausch nur, wenn jedes neue Level seinen genehmigten Namen und ein zählendes Urteil hat, das es nicht
 // ablehnt (Lehnen beide KI-Tester ab, kommt ein neuer Kandidat; Tickets 23–26)
-const austauschOffen = austausch.flatMap((a) => {
+const austauschOffen = [...austausch, ...ausbauDazu].flatMap((a) => {
   const i = levels.indexOf(a.level), u = ki.get(i);
   return [
-    ...(a.level.name === kandidat[i] ? [`${a.ersetzt}: Der Ersatz hat noch keinen genehmigten Namen`] : []),
-    ...(!u ? [`${levels[i].name}: noch kein Urteil der KI-Tester (Lauf ersatz-…)`] : []),
+    ...(a.level.name === kandidat[i] ? [a.ersetzt ? `${a.ersetzt}: Der Ersatz hat noch keinen genehmigten Namen`
+      : `${kandidat[i]}: Das Level des Ausbaus hat noch keinen Namen`] : []),
+    ...(!u ? [`${levels[i].name}: noch kein Urteil der KI-Tester (Lauf ${a.ersetzt ? 'ersatz' : 'ausbau'}-…)`] : []),
     ...(u?.abgelehnt ? [`${levels[i].name}: von beiden KI-Testern abgelehnt (${u.gruende.join(', ')})`] : []),
   ];
 });
@@ -451,6 +475,7 @@ if (schreiben && (ordnung.offen.length || zuWeit.length)) {
   const entfernteNamen = [...new Set([...(bisher?.entfernteNamen ?? []), ...ersetzt])];
   writeFileSync(DATEI, levellisteText({
     ...listen, urspruenglich, ergaenzt, entfernteNamen, prueflisteFormel, behalten,
+    ausbau: [...bisherAusbau.filter(x => levels.some(l => l.name === x)), ...ausbauDazu.map(a => a.level.name)],
   }));
   if (austausch.length) schreibeEntfernte();
   console.log(`  geschrieben: ${imSpielGleich ? '' : 'index.html und '}levelliste.json`
@@ -466,8 +491,10 @@ if (jsonDatei) {
       verschiebung: ki.get(i).verschiebung, abgelehnt: ki.get(i).abgelehnt } : null,
     duldung: Object.keys(GRUENDE).filter(grund => gilt(grund, i)), ausschluesse: begriffe(b[i]),
     hauptKernidee: b[i].hauptKernidee.begriff, spielwert: b[i].spielwert.wert,
-    // ein neues Level: der Name bei den KI-Testern und die Leveldaten (für prepare.mjs --kandidaten)
-    ...(heute[i] === null ? { kandidat: kandidat[i], level: levels[i] } : {}),
+    // ein neues Level: der Name bei den KI-Testern und die Leveldaten mit dem Grad hier (für prepare.mjs
+    // --kandidaten), beim Ausbau dazu ausbau
+    ...(heute[i] === null ? { kandidat: kandidat[i], level: { ...levels[i], grad: grad[i] } } : {}),
+    ...(ausbau[i] ? { ausbau: true } : {}),
   })), null, 1) + '\n');
   console.log(`\nErgebnis je Level in ${jsonDatei}`);
 }
@@ -504,6 +531,38 @@ function ladeAustausch(datei) {
     return { ersetzt: a.ersetzt, auftrag: a.auftrag ?? null, seed: a.seed ?? null, schwierigkeit: ziel,
       level: { name: a.name || kandidatName(daten), ...daten } };
   });
+}
+
+/**
+ * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag, wie beim Austausch, aber ohne
+ * ersetzt. Ein Name darf weder im Spiel noch auf der Liste der entfernten Namen stehen, kein Name und kein Level
+ * doppelt. Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad.
+ */
+function ladeAusbau(datei) {
+  const text = readFileSync(datei, 'utf8').trim();
+  const liste = text.startsWith('[') ? JSON.parse(text)
+    : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  const vergeben = [...L.LEVELS.map(l => l.name), ...(existsSync(DATEI) ? ladeLevelliste().entfernteNamen : [])];
+  const eintraege = liste.map((a, k) => {
+    const wo = `${datei}, Eintrag ${k + 1}`;
+    if (a.ersetzt !== undefined) throw new Error(`${wo}: Ein Level des Ausbaus ersetzt keines (--austausch)`);
+    if (!Array.isArray(a.level?.elements) || !a.level.solution) {
+      throw new Error(`${wo}: Leveldaten mit elements und solution nötig`);
+    }
+    if (a.name && vergeben.includes(a.name)) throw new Error(`${wo}: Name „${a.name}“ ist schon vergeben`);
+    const ziel = a.schwierigkeit ?? null;
+    if (ziel && !(Array.isArray(ziel) && ziel.length === 2 && ziel.every(Number.isFinite) && ziel[0] <= ziel[1])) {
+      throw new Error(`${wo}: schwierigkeit muss [von, bis] sein, nicht ${JSON.stringify(ziel)}`);
+    }
+    // Der Grad folgt im Ausbau der Schwelle (fuegeEin in levelliste.mjs); reihenfolge rechnet ihn, hier nur ein Platzhalter
+    const { name: _, grad: __, ...daten } = a.level;
+    return { auftrag: a.auftrag ?? null, seed: a.seed ?? null, schwierigkeit: ziel,
+      level: { name: a.name || kandidatName(daten), grad: GRADE[0], ...daten } };
+  });
+  const namen = eintraege.map(a => a.level.name);
+  const doppelt = namen.filter((x, k) => namen.indexOf(x) !== k);
+  if (doppelt.length) throw new Error(`${datei}: doppelt: ${[...new Set(doppelt)].join(', ')}`);
+  return eintraege;
 }
 
 /**
@@ -556,6 +615,13 @@ function schreibeLevels() {
     const kommentar = [`${herkunft}ersetzt ${a.ersetzt} (Austausch „${grad[levels.indexOf(a.level)]}“)`];
     bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
   }
+  for (const a of ausbauDazu) {
+    // Herkunft wie beim Austausch, statt „ersetzt …“ der Ausbau mit dem Grad
+    const teile = [a.seed !== null && `Seed ${a.seed}`, a.schwierigkeit && `Ziel ${zielText(a)}`];
+    const herkunft = a.auftrag ? `Generator ${[a.auftrag, ...teile.filter(Boolean)].join(', ')} · ` : '';
+    const kommentar = [`${herkunft}Ausbau „${grad[levels.indexOf(a.level)]}“`];
+    bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
+  }
   if (bloecke.size !== n) throw new Error(`index.html: ${bloecke.size} Level zwischen den Markierungen, erwartet ${n}`);
   const text = folge.map((i) => {
     const neu = bloecke.get(levels[i].name);
@@ -569,6 +635,7 @@ function schreibeLevels() {
 /** levelliste.json mit Namenslisten zu höchstens 120 Zeichen je Zeile. */
 function levellisteText({
   duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste, prueflisteErledigt, prueflisteFormel, behalten = [],
+  ausbau = [],
 }) {
   const zeilenweise = (teile, einzug, auf, zu) => {
     if (!teile.length) return `${auf}${zu}`;
@@ -590,7 +657,7 @@ function levellisteText({
     .join(',\n')}\n  }`;
   return '{\n'
     + '  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten '
-    + 'nach Urteil der KI-Tester (levelliste.mjs).",\n'
+    + 'nach Urteil der KI-Tester, Ausbau (levelliste.mjs).",\n'
     + `  "duldung": ${gruppe(duldung)},\n`
     + `  "urspruenglich": ${gruppe(urspruenglich)},\n`
     + `  "ergaenzt": ${gruppe(ergaenzt)},\n`
@@ -598,6 +665,7 @@ function levellisteText({
     + `  "pruefliste": ${liste(pruefliste, '  ')},\n`
     + `  "prueflisteErledigt": ${prueflisteErledigt},\n`
     + `  "prueflisteFormel": ${plaetze(prueflisteFormel, '  ')},\n`
-    + `  "behalten": ${liste(behalten, '  ')}\n`
+    + `  "behalten": ${liste(behalten, '  ')},\n`
+    + `  "ausbau": ${liste(ausbau, '  ')}\n`
     + '}\n';
 }

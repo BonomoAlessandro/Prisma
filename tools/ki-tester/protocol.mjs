@@ -59,19 +59,24 @@ const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
 /** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial). */
 export const levelAt = (position) => MAIN[position - 1];
 /**
- * Die Grade in der Reihenfolge im Spiel, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der
- * Reihenfolge (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150). Weil der Grad
- * entlang der Reihenfolge nie sinkt (Test der Levelliste), ist jeder Grad ein Abschnitt.
+ * Die Grade in einer Reihenfolge, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der Reihenfolge
+ * (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150). Weil der Grad entlang der
+ * Reihenfolge nie sinkt (Test der Levelliste), ist jeder Grad ein Abschnitt. reihe: je Platz ein Level mit name und
+ * grad, Vorgabe die Reihenfolge im Spiel; beim Ausbau auf 500 Level (.scratch/500-level/) die Vorschau aus
+ * tools/ordne-level.mjs --ausbau --json, in der die Kandidaten schon stehen.
  */
-export const GRADES = GRADE_NAMES.map((name) => {
-  const at = MAIN.flatMap((l, k) => (l.grad === name ? [k + 1] : []));
+export const gradesIn = (reihe = MAIN) => GRADE_NAMES.map((name) => {
+  const at = reihe.flatMap((l, k) => (l.grad === name ? [k + 1] : []));
   return { name, from: at[0], to: at.at(-1) };
 });
-/** Der Grad eines Platzes im Spiel, nach dem Grad des Levels dort. */
-export const gradeOf = (position) => GRADES.find(g => g.name === levelAt(position)?.grad);
-/** Referenz eines Levels in Ablauf 2: Platz in der Reihenfolge im Spiel, sein Grad und dessen Grenzen. */
-export const reference = (position) => {
-  const g = gradeOf(position);
+/** Die Grade in der Reihenfolge im Spiel (gradesIn). */
+export const GRADES = gradesIn();
+/** Der Grad eines Platzes, nach dem Grad des Levels dort (reihe wie bei gradesIn). */
+export const gradeOf = (position, reihe = MAIN) => (reihe === MAIN ? GRADES : gradesIn(reihe))
+  .find(g => g.name === reihe[position - 1]?.grad);
+/** Referenz eines Levels in Ablauf 2: Platz in der Reihenfolge (reihe wie bei gradesIn), sein Grad und dessen Grenzen. */
+export const reference = (position, reihe = MAIN) => {
+  const g = gradeOf(position, reihe);
   return { art: 'Reihenfolge im Spiel', position, grad: g.name, von: g.from, bis: g.to };
 };
 const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bis === g.to;
@@ -91,7 +96,9 @@ export const VERSIONS = {
   },
   2: {
     fingerabdruck: FINGERPRINT, referenz: 'Reihenfolge im Spiel',
-    gilt: (r) => r.art === 'Reihenfolge im Spiel' && r.von >= 1 && r.bis <= MAIN.length,
+    // ohne Obergrenze: Beim Ausbau beurteilen die KI-Tester Kandidaten in einer Vorschau der Reihenfolge, die länger
+    // ist als das Spiel, solange sie nicht darin stehen (abgelehnte nie)
+    gilt: (r) => r.art === 'Reihenfolge im Spiel' && r.von >= 1,
   },
 };
 export const TESTERS = ['A', 'B'];
@@ -129,10 +136,10 @@ export function rejectionTerms() {
   return [...text.slice(text.indexOf(`## ${SPOILERS}`)).matchAll(/^\*\*(.+?)\*\*:/gm)].map(m => m[1]);
 }
 
-/** Die Anker aus anchors.json mit ihrem Platz in der Reihenfolge im Spiel (1–150, über den Namen gefunden). */
-export function loadAnchors() {
+/** Die Anker aus anchors.json mit ihrem Platz in der Reihenfolge (reihe wie bei gradesIn; über den Namen gefunden). */
+export function loadAnchors(reihe = MAIN) {
   return ANCHORS.map((a) => {
-    const position = MAIN.findIndex(l => l.name === a.name) + 1;
+    const position = reihe.findIndex(l => l.name === a.name) + 1;
     if (!position) throw new Error(`Anker ${a.id}: kein Level „${a.name}“`);
     return { ...a, position };
   });
