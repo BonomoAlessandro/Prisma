@@ -6,8 +6,10 @@
 //   seeds - 1, verteilt in Blöcken auf --jobs Prozesse. Jedes gelieferte Level geht als JSON-Zeile { auftrag, seed,
 //   level, schwierigkeit, spielwert, hauptKernidee, kernideen } an die Datei (angehängt; level wie in LEVELS, ohne
 //   Namen; die Werte aus der Beurteilung des Generators, ungerundet). Dieselben Seeds liefern dieselben Level.
+//   --schwierigkeit VON,BIS: die Ziel-Schwierigkeit der Aufträge wie bei generiere.mjs (etwa für das obere Ende von
+//   „schwer“, das der Generator sonst selten trifft); die Zeile trägt sie dann als ziel.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs pool <auftrag …> --aus <datei> [--seed S] [--seeds M]
-//       [--jobs N]
+//       [--jobs N] [--schwierigkeit VON,BIS]
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
 //   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
@@ -25,7 +27,7 @@
 //   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau (ohne Namen; die kommen nach dem Urteil der
 //   KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--schritte N] [--zufall N]
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
 import { fork } from 'node:child_process';
@@ -63,7 +65,10 @@ const BLOCK = 25;
  * mühsam (Gefühl im Mittel 2,5).
  */
 const ZWEITER_TEIL_HOECHSTENS = 1;
-/** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens. */
+/** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens, ohne --schritte. */
+const PAAR_RUNDEN = 5, PAAR_KANDIDATEN = 12;
+/** Mehrfachtausch nach dem Paartausch (wahl): höchstens so viele Level auf einmal, so viele Versuche je Zahl. */
+const MEHR_HOECHSTENS = 6, MEHR_VERSUCHE = 60;
 const SUCHE_SCHRITTE = 4000;
 
 /**
@@ -92,12 +97,13 @@ if (process.env.AUSBAU_WORKER) {
   const [{ generiere, angebot }, { feldformVon }] = await Promise.all(
     ['./generator/index.mjs', './beurteilung/feldform.mjs'].map(f => import(f)));
   const feldform = feldformVon({}), auftraege = new Map(angebot().map(a => [a.name, a]));
-  process.on('message', ({ auftrag, from, to }) => {
+  process.on('message', ({ auftrag, from, to, schwierigkeit }) => {
     const level = [], gruende = {};
     for (let seed = from; seed < to; seed++) {
-      const { level: l, beurteilung: b, grund } = generiere({ ...auftraege.get(auftrag), seed, feldform });
+      const { level: l, beurteilung: b, grund } = generiere({ ...auftraege.get(auftrag), seed, feldform, schwierigkeit });
       if (!l) { gruende[grund] = (gruende[grund] || 0) + 1; continue; }
-      level.push({ auftrag, seed, level: l, schwierigkeit: b.schwierigkeit.wert, spielwert: b.spielwert.wert,
+      level.push({ auftrag, seed, ...(schwierigkeit ? { ziel: schwierigkeit } : {}), level: l,
+        schwierigkeit: b.schwierigkeit.wert, spielwert: b.spielwert.wert,
         hauptKernidee: b.hauptKernidee.begriff, kernideen: [...new Set(b.kernideen.map(k => k.begriff))] });
     }
     process.send({ auftrag, level, gruende });
@@ -111,6 +117,7 @@ else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) 
 
 async function pool() {
   const aus = flag('--aus', null), start = Number(flag('--seed', 1)), seeds = Number(flag('--seeds', 400));
+  const ziel = flag('--schwierigkeit', null)?.split(',').map(Number) ?? null;
   const jobs = Number(flag('--jobs', Math.max(1, os.cpus().length >> 1)));
   const auftraege = args.slice(1);
   const { angebot } = await import('./generator/index.mjs');
@@ -122,7 +129,7 @@ async function pool() {
   if (fremd.length) fail(`Unbekannte Aufträge: ${fremd.join(', ')}; bekannt: ${bekannt.join(', ')}`);
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const tasks = auftraege.flatMap(auftrag => Array.from({ length: Math.ceil(seeds / BLOCK) }, (_, k) => ({
-    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds) })));
+    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds), schwierigkeit: ziel })));
   const ergebnis = new Map(auftraege.map(a => [a, { level: [], gruende: {}, offen: 0 }]));
   for (const t of tasks) ergebnis.get(t.auftrag).offen++;
   const t0 = Date.now();
@@ -175,9 +182,10 @@ async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
   const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
   const auchGesetzte = args.includes('--auch-gesetzte');
+  const suchSchritte = Number(flag('--schritte', SUCHE_SCHRITTE)), startwert = Number(flag('--zufall', 0));
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>] [--auch-gesetzte]');
+      + '[--ohne <name,…>] [--auch-gesetzte] [--schritte N] [--zufall N]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester
@@ -308,8 +316,8 @@ async function wahl() {
   // in eine offene Häufung fällt und eine andere Haupt-Kernidee hat (er lockert sie auf), sonst irgendeinen. Genommen
   // wird der Tausch, wenn danach nicht mehr offen bleibt; auch gleich viel, damit die Suche über Stellen kommt, an denen
   // erst zwei Tausche helfen (etwa zwei Level mehr vor einer Seite). Zufall aus festem Startwert: dieselbe Wahl ergibt
-  // dasselbe.
-  let zufall = 0x9e3779b9 ^ gruppe;
+  // dasselbe. Mit --zufall N ein anderer Startwert, falls die Suche aus dem ersten nicht herausfindet.
+  let zufall = 0x9e3779b9 ^ gruppe ^ (startwert * 0x85ebca6b);
   const zahlBis = (n) => {
     zufall ^= zufall << 13; zufall ^= zufall >>> 17; zufall ^= zufall << 5;
     return (zufall >>> 0) % n;
@@ -325,7 +333,7 @@ async function wahl() {
   let best = { wahl: [...gewaehlt], stand, getauscht: 0 };
   const vorBest = (p, wahl) => besser(p.schlecht, best.stand.schlecht)
     || (!besser(best.stand.schlecht, p.schlecht) && getauscht(wahl) < best.getauscht);
-  while (stand.schlecht[0] && tauschbar.length && schritte < SUCHE_SCHRITTE) {
+  while (stand.schlecht[0] && tauschbar.length && schritte < suchSchritte) {
     schritte++;
     const { r, w } = stand.f, h = r.offen[zahlBis(r.offen.length)];
     const j = tauschbar[zahlBis(tauschbar.length)], k = gewaehlt[j];
@@ -350,11 +358,67 @@ async function wahl() {
   }
   gewaehlt.splice(0, gewaehlt.length, ...best.wahl);
   stand = best.stand;
+  // Paartausch, wenn noch etwas offen ist: Liegen drei Level derselben Haupt-Kernidee eng auf einer Seite, hilft oft
+  // erst ein zweites Level dazwischen, und ein einzelner Tausch ist gleich gut (Gruppe 2: Odyssee, Halo und
+  // Lichtbrücke auf 6 Plätzen). Getauscht werden zwei freie Level des Grads der Häufung gegen zwei Kandidaten, die in
+  // sie fallen und eine andere Haupt-Kernidee haben; genommen wird der erste Tausch, nach dem weniger offen bleibt.
+  let paare = 0;
+  for (let runde = 0; stand.schlecht[0] && runde < PAAR_RUNDEN; runde++) {
+    const { r, w } = stand.f, h = r.offen[0], gradH = r.grad[h.mit[0]];
+    const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
+    const hinein = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
+      && x.schwierigkeit >= Math.min(...seite) && x.schwierigkeit <= Math.max(...seite))
+      .sort((a, b) => b.spielwert - a.spielwert).slice(0, PAAR_KANDIDATEN);
+    const freie = frei.filter(j => gewaehlt[j].grad === gradH);
+    let gefunden = null;
+    suche: for (let a = 0; a < freie.length; a++) {
+      for (let b = a + 1; b < freie.length; b++) {
+        for (let x = 0; x < hinein.length; x++) {
+          for (let y = x + 1; y < hinein.length; y++) {
+            const probe = gewaehlt.map((k, q) => (q === freie[a] ? hinein[x] : q === freie[b] ? hinein[y] : k));
+            if (zuAehnlich(hinein[x].level, [hinein[y].level])) continue;
+            const p = pruefe(probe);
+            paare++;
+            if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) { gefunden = { probe, p }; break suche; }
+          }
+        }
+      }
+    }
+    // Mehrfachtausch: Die m freien Level des Grads, die am nächsten vor dem ersten Level der Häufung stehen, kommen
+    // hinter es, ersetzt durch m Kandidaten aus dem Bereich der Häufung. So rückt die Häufung um m Plätze nach vorn
+    // (Gruppe 2: Odyssee musste auf die Seite davor, weil hinter Lichtbrücke schon zwei Level mit Farben abzählen
+    // standen). Die Kandidaten: je Haupt-Kernidee ausser der der Häufung die mit dem höchsten Spielwert, in Gruppen zu m
+    // nach einer festen Mischung.
+    if (!gefunden) {
+      const erster = Math.min(...h.mit.map(i => r.folge.indexOf(i))), letzter = Math.max(...h.mit.map(i => r.folge.indexOf(i)));
+      const imBereich = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
+        && x.schwierigkeit > w[r.folge[erster]] && x.schwierigkeit < w[r.folge[letzter]])
+        .sort((a, b) => b.spielwert - a.spielwert);
+      const davor = freie.filter(j => r.folge.indexOf(levels.length + j) < erster)
+        .sort((a, b) => r.folge.indexOf(levels.length + b) - r.folge.indexOf(levels.length + a));
+      mehr: for (let m = 1; m <= Math.min(MEHR_HOECHSTENS, davor.length); m++) {
+        for (let versuch = 0; versuch < MEHR_VERSUCHE && imBereich.length >= m; versuch++) {
+          const neu = [...imBereich].sort((a, b) => ((zahlBis(1000) / 1000) - 0.5) || a.seed - b.seed).slice(0, m);
+          if (neu.some((x, q) => zuAehnlich(x.level, neu.slice(q + 1).map(y => y.level)))) continue;
+          const probe = gewaehlt.map((k, q) => (davor.slice(0, m).includes(q) ? neu[davor.indexOf(q)] : k));
+          const p = pruefe(probe);
+          paare++;
+          if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) { gefunden = { probe, p }; break mehr; }
+        }
+      }
+    }
+    if (!gefunden) break;
+    gewaehlt.splice(0, gewaehlt.length, ...gefunden.probe);
+    stand = gefunden.p;
+  }
   const ende = stand.f;
   const ersetzt = setze.filter(k => !gewaehlt.includes(k));
-  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, offen ${ende.r.offen.length}`
+  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, ${paare} Proben im `
+    + `Paartausch, offen ${ende.r.offen.length}`
     + `${ersetzt.length ? `; getauscht aus --behalte: ${ersetzt.map(k => k.name).join(', ')}` : ''}`);
-  writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed, level: k.level })), null, 1)
+  // die Ziel-Schwierigkeit des Auftrags als schwierigkeit, wie ordne-level.mjs --ausbau sie für die Herkunft liest
+  writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed,
+    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), level: k.level })), null, 1)
     + '\n');
   console.log(`wahl für Gruppe ${gruppe}: ${gewaehlt.length} Level nach ${aus} (${zahl((Date.now() - t0) / 1000)} s, `
     + `davon Häufungsregel ${zahl(zeitRegel / 1000)} s)`);
