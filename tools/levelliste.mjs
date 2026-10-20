@@ -62,6 +62,18 @@
 //   KI-Tester nach der Regel von merge, vom Platz der Formel aus und mit dem Grad dort; lehnen beide ein neues Level
 //   ab, kommt es nicht ins Spiel (ein neuer Kandidat statt Duldung). Die entfernten Level kommen mit ihrem Namen auf
 //   entfernteNamen; ihre Leveldaten bleiben als feste Kopie für die Eichung (beurteilung/heutige-reihenfolge.mjs).
+// - Ausbau auf 500 Level (.scratch/500-level/, Entscheide des Nutzers vom 20.10.2026): Die Level vor dem Ausbau sind der
+//   Bestand; sie stehen untereinander genau wie ohne den Ausbau (ordne, Prüfliste, Zustimmung und eigene Korrekturen der
+//   KI-Tester rechnen nur unter ihnen). Die Level des Ausbaus (ausbau in levelliste.json, die Namen in der Reihenfolge
+//   ihrer Aufnahme) kommen danach nach der Formel dazu (fuegeEin): jedes vor das erste Level des Bestands, das nach der
+//   Formel steht und schwerer ist oder einen höheren Grad hat; ihr Grad folgt der Schwelle. So sinkt der Grad nie, und
+//   die Entscheide über den Bestand bleiben fest. Beurteilt werden sie in Läufen ausbau-… unter ihrem Namen als
+//   Kandidat; ihre eigene Korrektur gilt wie bei einem neuen Level vom Platz aus, an dem sie eingefügt sind. Häufung
+//   der Haupt-Kernidee und Mittel je 10 Level gelten für die ganze Reihenfolge.
+//   Die Anker der KI-Tester bleiben die feste Auswahl aus dem Bestand (Review Ticket 01): Mit dem Ausbau stehen sie
+//   nicht mehr am Rand ihres Grads, wie es die Spec der KI-Tester für ihre Wahl verlangte; ein neues Level am Rand hat
+//   dann keinen Anker dahinter. Neue Anker hiessen eine neue Version des Ablaufs, und die Urteile früherer Läufe wären
+//   nicht mehr vergleichbar. Der Test der Anker rechnet darum unter dem Bestand.
 import { readFileSync } from 'node:fs';
 import { L } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';
@@ -86,11 +98,13 @@ export const PROTOKOLL = new URL('./ki-tester/protocol.jsonl', import.meta.url);
 export const ZAEHLENDE_ABLAEUFE = ['2'];
 /** Läufe, in denen die KI-Tester die neuen Level des Austauschs beurteilen (Tickets 23–26). */
 export const ERSATZ_LAEUFE = /^ersatz-/;
+/** Läufe, in denen die KI-Tester die Level des Ausbaus beurteilen (.scratch/500-level/). */
+export const AUSBAU_LAEUFE = /^ausbau-/;
 /**
- * Läufe, deren Urteile für die Levelliste zählen: die der Prüfliste (pruefung-…, Ticket 16) und die des Austauschs
- * (ersatz-…, Tickets 23–26); Probe- und Eichläufe nicht.
+ * Läufe, deren Urteile für die Levelliste zählen: die der Prüfliste (pruefung-…, Ticket 16), die des Austauschs
+ * (ersatz-…, Tickets 23–26) und die des Ausbaus (ausbau-…); Probe- und Eichläufe nicht.
  */
-export const ZAEHLENDE_LAEUFE = /^(pruefung|ersatz)-/;
+export const ZAEHLENDE_LAEUFE = /^(pruefung|ersatz|ausbau)-/;
 
 /**
  * Die Gründe der Duldungsliste, je { text, gilt(beurteilung, grad, ki) }: Verletzt ein Level mit dieser Beurteilung
@@ -112,7 +126,7 @@ export const GRUENDE = {
 
 /**
  * Die Daten der Levelliste aus levelliste.json: { duldung, urspruenglich, ergaenzt, entfernteNamen, pruefliste,
- * prueflisteErledigt, prueflisteFormel, behalten }.
+ * prueflisteErledigt, prueflisteFormel, behalten, ausbau }.
  */
 export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
 
@@ -159,8 +173,8 @@ export function ergaenzungBegruendet(grund, ki, grad) {
 }
 
 /**
- * Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…) oder des
- * Austauschs (ersatz-…), kein Anker.
+ * Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…), des Austauschs
+ * (ersatz-…) oder des Ausbaus (ausbau-…), kein Anker.
  */
 export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker;
 
@@ -169,16 +183,25 @@ export function zaehlendeUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
   return alleUrteile(text).filter(zaehlt);
 }
 
+/** Die Namen der Level des Ausbaus in der Reihenfolge ihrer Aufnahme (ausbau in levelliste.json), leer vor ihm. */
+export const ausbauNamen = () => ladeLevelliste().ausbau ?? [];
+
 /**
  * Die Level im Spiel, wie die Regeln der Levelliste sie zählen (Tickets 15 und 23): zuerst die der heutigen
  * Reihenfolge, die noch im Spiel stehen, in dieser Reihenfolge, dann die neuen aus dem Austausch in der Reihenfolge im
- * Spiel. main: die Level nach dem Tutorial (Vorgabe aus LEVELS). Rückgabe { levels, heute: je Level sein heutiger
- * Platz (1–150) oder null bei einem neuen }.
+ * Spiel, dann die des Ausbaus in der Reihenfolge der Namen in ausbau. main: die Level nach dem Tutorial (Vorgabe aus
+ * LEVELS); ausbau: die Namen der Level des Ausbaus (Vorgabe aus levelliste.json). Rückgabe { levels, heute: je Level
+ * sein heutiger Platz (1–150) oder null bei einem neuen, ausbau: je Level, ob es zum Ausbau gehört }.
  */
-export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT)) {
+export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT), ausbau = ausbauNamen()) {
   const alt = HEUTIGE_REIHENFOLGE.map(name => main.find(l => l.name === name)).filter(Boolean);
-  const neu = main.filter(l => heutigerPlatz(l.name) === null);
-  return { levels: [...alt, ...neu], heute: [...alt.map(l => heutigerPlatz(l.name)), ...neu.map(() => null)] };
+  const neu = main.filter(l => heutigerPlatz(l.name) === null && !ausbau.includes(l.name));
+  const dazu = ausbau.map(name => main.find(l => l.name === name)).filter(Boolean);
+  return {
+    levels: [...alt, ...neu, ...dazu],
+    heute: [...alt.map(l => heutigerPlatz(l.name)), ...neu.map(() => null), ...dazu.map(() => null)],
+    ausbau: [...alt.map(() => false), ...neu.map(() => false), ...dazu.map(() => true)],
+  };
 }
 
 /**
@@ -349,23 +372,46 @@ export function mittelSteigt(folge, werte) {
  * Häufungsregel; Indizes nach Platz), zuege und offen (der Häufungsregel, siehe entzerre), grad (je Index), zurFormel
  * (Set der Level der Prüfliste, denen beide zustimmen) und ki: Map Index →
  * { eintrag, neu, je, zurFormel, formelEntscheid, abgelehnt, gruende, verschiebung } (bei einem neuen Level je: null).
+ * Mit dem Ausbau (ausbau[i]: gehört das Level i zum Ausbau, siehe imSpiel und Kopf): ordne und die Urteile zum Bestand
+ * rechnen nur unter dem Bestand, platz, bleibt, pruefliste und die formel eines Levels des Bestands also mit Plätzen
+ * unter ihm; ein Level des Ausbaus hat als formel den Platz, an dem es eingefügt ist (fuegeEin), und braucht ein Urteil
+ * aus einem Lauf ausbau-…. basis ist die ganze Folge vor allen Korrekturen, eingefuegt die mit den Korrekturen am
+ * Bestand und den eingefügten Leveln des Ausbaus vor deren eigenen Korrekturen; ausbau kommt je Index zurück. Ohne
+ * Ausbau ist alles wie vorher und eingefuegt dasselbe wie korrigiert.
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
+  ausbau = [],
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
   // Austausch die Formel verschiebt; ohne festen Platz gilt die Formel von heute
   const fest = namen.map((x, i) => (heute[i] !== null && Object.hasOwn(formelEntscheid, x) ? formelEntscheid[x]
     : undefined));
-  const n = werte.length, { formel, pruefliste } = ordne(werte, new Set(), heute, fest);
+  const n = werte.length, alle = [...Array(n).keys()], imAusbau = alle.map(i => !!ausbau[i]);
+  // Der Bestand rechnet unter sich (ordne mit seinen Indizes, hier auf alle übersetzt), der Ausbau kommt danach dazu
+  const bestand = alle.filter(i => !imAusbau[i]), dazu = alle.filter(i => imAusbau[i]), m = bestand.length;
+  const teil = (a) => bestand.map(i => a[i]);
+  const ordneBestand = (zurFormel) => {
+    const o = ordne(teil(werte), new Set([...zurFormel].map(i => bestand.indexOf(i))), teil(heute), teil(fest));
+    const voll = (a) => alle.map(i => (imAusbau[i] ? undefined : a[bestand.indexOf(i)]));
+    return {
+      formel: voll(o.formel), platz: voll(o.platz), bleibt: new Map([...o.bleibt].map(([k, g]) => [bestand[k], g])),
+      pruefliste: o.pruefliste.map(k => bestand[k]),
+    };
+  };
+  const { formel, pruefliste } = ordneBestand(new Set());
   const ki = new Map();
   for (const eintrag of urteile) {
     const name = eintrag.level.name;
     const i = namen.includes(name) ? namen.indexOf(name) : kandidat.indexOf(name);
     if (i < 0) continue;
     const wo = `Urteil zu ${name} (${eintrag.lauf})`, neu = heute[i] === null;
-    if (neu !== ERSATZ_LAEUFE.test(eintrag.lauf)) {
+    if (imAusbau[i] !== AUSBAU_LAEUFE.test(eintrag.lauf)) {
+      throw new Error(`${wo}: ${imAusbau[i] ? 'ein Level des Ausbaus zählt nur aus einem Lauf ausbau-…'
+        : 'ein Lauf ausbau-… beurteilt nur Level des Ausbaus'}`);
+    }
+    if (!imAusbau[i] && neu !== ERSATZ_LAEUFE.test(eintrag.lauf)) {
       throw new Error(`${wo}: ${neu ? 'ein neues Level zählt nur aus einem Lauf ersatz-…'
         : 'ein Lauf ersatz-… beurteilt nur neue Level'}`);
     }
@@ -377,45 +423,77 @@ export function reihenfolge(werte, namen, urteile = [], {
     });
   }
   const zurFormel = new Set([...ki].filter(([, u]) => u.zurFormel).map(([i]) => i));
-  const ordnung = ordne(werte, zurFormel, heute, fest);
-  const basis = [...Array(n).keys()].sort((i, j) => ordnung.platz[i] - ordnung.platz[j]);
-  const grad = gradeEntlang(basis, werte, ordnung.bleibt);
-  for (const [i, u] of ki) {
+  const ordnung = ordneBestand(zurFormel);
+  const basisBestand = [...bestand].sort((i, j) => ordnung.platz[i] - ordnung.platz[j]);
+  const grad = gradeEntlang(basisBestand, werte, ordnung.bleibt);
+  for (const i of dazu) grad[i] = gradVon(werte[i]);
+  /** Die eigene Korrektur nach dem Urteil u; bis: Länge der Folge, in der das Level steht. */
+  const korrektur = (i, u, bis) => {
     const { level, anker, urteile: je, ergebnis } = u.eintrag;
     // am alten Platz das Ergebnis aus dem Protokoll; am Platz der Formel (ein Level der Prüfliste mit Zustimmung oder
     // ein neues Level) dieselbe Regel mit dem Grad dort
     const r = !u.zurFormel && !u.neu ? ergebnis : merge({
       level: { ...level, anker: null }, anker, urteile: je,
-      referenz: { art: 'Platz der Formel', position: formel[i], grad: grad[i], von: 1, bis: n },
+      referenz: { art: 'Platz der Formel', position: formel[i], grad: grad[i], von: 1, bis },
     }).ergebnis;
     // ein abgelehntes Level hat nach der Regel von merge keine Verschiebung
     Object.assign(u, { abgelehnt: r.abgelehnt, gruende: r.gruende, verschiebung: r.verschiebung });
-  }
-  const korrigiert = korrigiere(basis, grad, new Map([...ki].map(([i, u]) => [i, u.verschiebung])));
+  };
+  const verschiebungen = (wer) => new Map([...ki].filter(([i]) => wer(i)).map(([i, u]) => [i, u.verschiebung]));
+  for (const [i, u] of ki) if (!imAusbau[i]) korrektur(i, u, m);
+  const korrigiertBestand = korrigiere(basisBestand, grad, verschiebungen(i => !imAusbau[i]));
+  // Der Ausbau: eingefügt vor allen Korrekturen (basis) und nach denen am Bestand (eingefuegt); von dort aus gilt die
+  // eigene Korrektur eines Levels des Ausbaus
+  const basis = fuegeEin(basisBestand, dazu, werte, grad, ordnung.bleibt);
+  const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt);
+  for (const i of dazu) formel[i] = eingefuegt.indexOf(i) + 1;
+  for (const [i, u] of ki) if (imAusbau[i]) korrektur(i, u, n);
+  const korrigiert = korrigiere(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
   // Häufung der Haupt-Kernidee: Die Züge bleiben im Abschnitt des Grads, die Duldungsliste ändert sich dadurch nicht
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
   // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und jedes von den KI-Testern korrigierte Level
   // bleibt höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (den Grad sichert entzerre)
-  const zulaessig = (probe) => mittelSteigt(probe, werte)
-    && !zuWeitKorrigiert({ basis, korrigiert: probe, folge: probe, ki }).length;
+  const r = { basis, eingefuegt, korrigiert, ki, ausbau: imAusbau };
+  const zulaessig = (probe) => mittelSteigt(probe, werte) && !zuWeitKorrigiert({ ...r, folge: probe }).length;
   const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig)
     : { folge: korrigiert, zuege: [], offen: [] };
-  return { ...ordnung, basis, korrigiert, folge, zuege, offen, grad, zurFormel, ki };
+  return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
+}
+
+/**
+ * Fügt die Level des Ausbaus nach der Formel in eine Folge des Bestands ein (siehe Kopf): jedes vor das erste Level des
+ * Bestands, das nach der Formel steht (nicht in bleibt) und schwerer ist oder das einen höheren Grad hat; gibt es
+ * keines, ans Ende. Untereinander stehen die Level des Ausbaus nach der Schwierigkeit, bei gleichem Wert in der
+ * Reihenfolge von dazu. Davor steht so kein Level mit höherem Grad, dahinter keines mit niedrigerem (grad je Index, beim
+ * Ausbau nach der Schwelle). Rückgabe: die neue Folge.
+ */
+export function fuegeEin(folge, dazu, werte, grad, bleibt) {
+  const neu = [...folge], rang = (i) => GRADE.indexOf(grad[i]), imAusbau = new Set(dazu);
+  const sortiert = [...dazu].sort((i, j) => werte[i] - werte[j] || dazu.indexOf(i) - dazu.indexOf(j));
+  for (const i of sortiert) {
+    const p = neu.findIndex(j => !imAusbau.has(j) && ((!bleibt.has(j) && werte[j] > werte[i]) || rang(j) > rang(i)));
+    neu.splice(p < 0 ? neu.length : p, 0, i);
+  }
+  return neu;
 }
 
 /**
  * Korrekturen der KI-Tester, die zu weit führen (Ticket 24, Review M1): Ein korrigiertes Level steht nach den
  * Korrekturen und am Ende (nach der Häufungsregel) höchstens MAX_SHIFT Plätze von seinem Platz davor (basis). Viele
  * Korrekturen nahe beieinander schieben einander: Wer an einem korrigierten Level vorbeirückt, verschiebt es um einen
- * Platz. r: das Ergebnis von reihenfolge ({ basis, korrigiert, folge, ki }). Rückgabe: die Verstösse, je { i, davor,
- * korrigiert, ende } mit Plätzen ab 1, nach dem Platz davor.
+ * Platz. r: das Ergebnis von reihenfolge ({ basis, korrigiert, folge, ki }, mit dem Ausbau dazu ausbau und eingefuegt).
+ * Ein Level des Bestands zählt seine Plätze unter dem Bestand, wie ohne den Ausbau; ein Level des Ausbaus zählt sie in
+ * der ganzen Folge, vom Platz davor in eingefuegt aus. Rückgabe: die Verstösse, je { i, davor, korrigiert, ende } mit
+ * Plätzen ab 1 wie gezählt, nach dem Platz in basis.
  */
-export function zuWeitKorrigiert({ basis, korrigiert, folge, ki }) {
-  const platz = (f, i) => f.indexOf(i) + 1;
+export function zuWeitKorrigiert({ basis, korrigiert, folge, ki, ausbau = [], eingefuegt = basis }) {
+  const unter = (f, i) => (ausbau[i] ? f : f.filter(j => !ausbau[j]));
+  const platz = (f, i) => unter(f, i).indexOf(i) + 1;
+  const davor = (i) => (ausbau[i] ? eingefuegt : basis);
   return [...ki].filter(([, u]) => u.verschiebung).map(([i]) => i)
-    .filter(i => [korrigiert, folge].some(f => Math.abs(platz(f, i) - platz(basis, i)) > MAX_SHIFT))
-    .sort((i, j) => platz(basis, i) - platz(basis, j))
-    .map(i => ({ i, davor: platz(basis, i), korrigiert: platz(korrigiert, i), ende: platz(folge, i) }));
+    .filter(i => [korrigiert, folge].some(f => Math.abs(platz(f, i) - platz(davor(i), i)) > MAX_SHIFT))
+    .sort((i, j) => basis.indexOf(i) - basis.indexOf(j))
+    .map(i => ({ i, davor: platz(davor(i), i), korrigiert: platz(korrigiert, i), ende: platz(folge, i) }));
 }
 
 /**
