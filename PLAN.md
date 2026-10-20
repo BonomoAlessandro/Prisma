@@ -669,6 +669,15 @@ Zuletzt aktualisiert: 18. Oktober 2026
   über dem Horizont). Flacher (1,5) stand die Platte als schwarze Wand im Bild. Im Wald sieht man jetzt die gerade
   Oberkante des Nebelmeers vor den Bergen; sie steckt so im Panorama aus Blender. Vom Nutzer abgenommen („der
   Kamerawinkel ist nun super“, 20. Oktober) und committet.
+- [x] **2.35 Zoom von Hand** (Wunsch des Nutzers, 20. Oktober: „ein wenig rein- und rauszoomen, nicht allzu weit“).
+  Mausrad (ein Raster ≈ 10 %), Zwei-Finger-Geste des Touchpads (Rad mit `ctrlKey`, skaliert nicht mehr die Seite) und
+  zwei Finger auf dem Handy; Faktor auf den Abstand der Ausgangsansicht zwischen `zoomMin` 0,8 und `zoomMax` 1,25
+  (`cameraRig`), weich wie das Drehen. Kommt ein zweiter Finger dazu, zählt das Tippen des ersten nicht mehr, und nach
+  dem Zoomen dreht der verbliebene Finger die Kamera nicht. Beim Levelwechsel fliegt auch der Zoom zur Ausgangsansicht
+  zurück. `camera.far` 140 statt 120 (Himmelskugel hinter Panoramen 136 statt 116): Herausgezoomt im Hochformat ist
+  die Kamera bis ~40 vom Feld entfernt, das Netz eines Panoramas läge sonst teils hinter der Far-Plane. Geprüft mit
+  echten Eingaben (Rad, Touchpad, zwei Finger, Klick und Tippen drehen weiterhin) und Bildern an beiden Grenzen, steil
+  und flach. Vom Nutzer abgenommen („perfekt“, 20. Oktober), committet und gepusht.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

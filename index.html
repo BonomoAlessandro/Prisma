@@ -4731,9 +4731,10 @@ const compileParallel = (() => {
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(LOOK.fogColor, LOOK.fogDensity);
 
-// Near-Plane bewusst nicht zu klein: die Kamera ist nie näher als ~8 Einheiten, und eine grosse
-// Near-Plane verbessert die Tiefenauflösung erheblich (verhindert Z-Fighting am Boden).
-const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.0, 120);
+// Near-Plane bewusst nicht zu klein: die Kamera ist nie näher als ~6 Einheiten (herangezoomt), und eine grosse
+// Near-Plane verbessert die Tiefenauflösung erheblich (verhindert Z-Fighting am Boden). Far-Plane: auch
+// herausgezoomt im Hochformat (Kamera bis ~40 entfernt) liegt das Netz eines Panoramas davor (PANO.dMax).
+const camera = new THREE.PerspectiveCamera(32, window.innerWidth / window.innerHeight, 1.0, 140);
 const LAYER_NO_REFLECT = 1; // Objekte auf dieser Ebene erscheinen nicht in der Bodenspiegelung
 camera.layers.enable(LAYER_NO_REFLECT);
 
@@ -5492,7 +5493,7 @@ scene.add(solar.group);
 
 const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
 const PANO = {
-  dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera ~25 entfernt) vor camera.far
+  dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera bis ~40 entfernt) vor camera.far
   blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad)
   segU: 512, segV: 256,
   appear: 0.6,       // s: Einblenden, wenn die Daten erst nach der Wahl ankommen
@@ -7388,9 +7389,9 @@ const skyTheme = {
     stars.material.uniforms.uFade.value = mix('stars');
     stars.material.uniforms.uHorizon.value = s.starsAboveHorizon ? k : 0;
     // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz eines Panoramas und deckte weiter
-    // draussen liegende Teile zu. Mit 116 (vor camera.far = 120) liegt sie überall dahinter; sie rechnet nur mit der
+    // draussen liegende Teile zu. Mit 136 (vor camera.far = 140) liegt sie überall dahinter; sie rechnet nur mit der
     // Richtung, sieht also gleich aus.
-    background.scale.setScalar(a?.module?.panorama ? 116 / 80 : 1);
+    background.scale.setScalar(a?.module?.panorama ? 136 / 80 : 1);
     for (const e of this.entries) e.module?.setFade(e === a ? k : 0);
   },
 };
@@ -7739,6 +7740,9 @@ const cameraRig = {
   // Horizont, SKYBOX); flacher stünde die Platte als schwarze Wand im Bild.
   phiMax: 1.4,
   radius: 18,             // Abstand der Ausgangsansicht; gedreht bleibt er gleich (ein Zoom pumpte, siehe PLAN 2.18)
+  // Zoom von Hand (Mausrad, zwei Finger): Faktor auf radius, nur ein wenig näher heran oder weiter weg
+  userZoom: 1, goalZoom: 1,
+  zoomMin: 0.8, zoomMax: 1.25,
   homing: null,           // Rückflug zur Ausgangsansicht beim Levelwechsel (cameraGoHome)
 };
 
@@ -7778,9 +7782,9 @@ function orbitKeyLight(theta) {
 
 /** Beim Levelwechsel: in einem Bogen auf kürzestem Weg zurück zur Ausgangsansicht. */
 function cameraGoHome() {
-  const theta = cameraRig.goalTheta, phi = cameraRig.goalPhi;
-  if (Math.abs(theta) + Math.abs(phi) < 1e-3) return;
-  cameraRig.homing = { theta, phi, t: 0, duration: 0.8 + 0.25 * Math.abs(theta) };
+  const theta = cameraRig.goalTheta, phi = cameraRig.goalPhi, zoom = cameraRig.goalZoom;
+  if (Math.abs(theta) + Math.abs(phi) + Math.abs(zoom - 1) < 1e-3) return;
+  cameraRig.homing = { theta, phi, zoom, t: 0, duration: 0.8 + 0.25 * Math.abs(theta) };
 }
 
 function updateCamera(t, dt) {
@@ -7790,15 +7794,17 @@ function updateCamera(t, dt) {
     const e = h.t < 0.5 ? 4 * h.t ** 3 : 1 - (2 - 2 * h.t) ** 3 / 2; // ease-in-out
     cameraRig.goalTheta = h.theta * (1 - e);
     cameraRig.goalPhi = h.phi * (1 - e);
+    cameraRig.goalZoom = 1 + (h.zoom - 1) * (1 - e);
     if (h.t >= 1) cameraRig.homing = null;
   }
   const k = 1 - Math.pow(0.00002, dt); // Zeitkonstante ≈ 0.09 s: weich, aber nicht träge
   cameraRig.userTheta += (cameraRig.goalTheta - cameraRig.userTheta) * k;
   cameraRig.userPhi += (cameraRig.goalPhi - cameraRig.userPhi) * k;
+  cameraRig.userZoom += (cameraRig.goalZoom - cameraRig.userZoom) * k;
 
   const theta = cameraRig.baseTheta + cameraRig.userTheta + Math.sin(t * 0.13) * 0.035;
   const phi = cameraRig.basePhi + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
-  const r = cameraRig.radius * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
+  const r = cameraRig.radius * cameraRig.userZoom * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
 
   cameraRig.target.set(cameraRig.lead * Math.sin(theta), 0, cameraRig.lead * Math.cos(theta));
   camera.position.set(
@@ -7810,7 +7816,7 @@ function updateCamera(t, dt) {
   orbitKeyLight(cameraRig.baseTheta + cameraRig.userTheta);
 }
 
-// Ziehen dreht die Kamera; ausgewertet im Eingabemodul (INTERAKTION).
+// Ziehen dreht die Kamera, Mausrad und zwei Finger zoomen; ausgewertet im Eingabemodul (INTERAKTION).
 const drag = { active: false };
 renderer.domElement.addEventListener('contextmenu', (e) => e.preventDefault());
 
@@ -9269,7 +9275,7 @@ beamView.init();
 
 /* =====================================================================
    INTERAKTION — Klick/Tap dreht +45°, Rechtsklick/langes Drücken −45°,
-   Ziehen dreht die Kamera. Hover: sanfter Lichtrand + Lichtkreis am Boden.
+   Ziehen dreht die Kamera, Mausrad/zwei Finger zoomen. Hover: sanfter Lichtrand + Lichtkreis am Boden.
    ===================================================================== */
 
 const INPUT = {
@@ -9279,11 +9285,14 @@ const INPUT = {
   longPressMs: 450,
   touchSlop: 26,            // px: so weit daneben darf ein Finger tippen und trifft trotzdem
   hoverFade: 0.0008,        // Glättung des Hover-Leuchtens (pro Sekunde verbleibender Anteil)
+  wheelZoom: 0.001,         // Zoom je Pixel Mausrad (ein Raster ≈ 100 px ≈ 10 %), gedeckelt auf wheelStep je Ereignis
+  wheelStep: 100,
 };
 
 const raycaster = new THREE.Raycaster();
 const pointerNdc = new THREE.Vector2();
-const input = { pointer: null, hovered: null, longPressTimer: 0 };
+// pinch: zweiter Finger, solange zwei Finger zoomen ({ id, x, y, d: letzter Abstand der Finger })
+const input = { pointer: null, pinch: null, hovered: null, longPressTimer: 0 };
 
 /** Element unter einem Bildschirmpunkt (nur drehbare, über ihre Trefferzylinder). */
 const _pickPos = new THREE.Vector3();
@@ -9493,10 +9502,17 @@ function dragCamera(dx, dy) {
     cameraRig.phiMax - cameraRig.basePhi);
 }
 
+/** Zoom um den Faktor f (> 1: weiter weg), in den Grenzen von cameraRig. */
+function zoomCamera(f) {
+  cameraRig.homing = null;
+  cameraRig.goalZoom = THREE.MathUtils.clamp(cameraRig.goalZoom * f, cameraRig.zoomMin, cameraRig.zoomMax);
+}
+
 function endPointer() {
   clearTimeout(input.longPressTimer);
   if (input.pointer && input.pointer.type !== 'mouse') setHovered(null);
   input.pointer = null;
+  input.pinch = null;
   if (drag.active) {
     drag.active = false;
     adaptiveResolution.hold(1);
@@ -9511,12 +9527,25 @@ document.addEventListener('gesturestart', (e) => e.preventDefault());
 canvasEl.addEventListener('pointerdown', (e) => {
   // Eine Maus kann nicht zweimal drücken, ohne loszulassen: verlorenes pointerup aufräumen
   if (input.pointer && e.pointerType === 'mouse') endPointer();
-  if (input.pointer || e.button === 1) return; // ein Zeiger zur Zeit; Mittelklick ignorieren
+  const first = input.pointer;
+  if (first && !input.pinch && first.type !== 'mouse' && e.pointerType !== 'mouse') {
+    // Zweiter Finger: zoomen statt tippen oder drehen
+    clearTimeout(input.longPressTimer);
+    first.consumed = true;
+    input.pinch = { id: e.pointerId, x: e.clientX, y: e.clientY, d: Math.hypot(e.clientX - first.cx, e.clientY - first.cy) };
+    try { canvasEl.setPointerCapture(e.pointerId); } catch { /* z. B. synthetische Zeiger */ }
+    drag.active = true;
+    setHovered(null);
+    return;
+  }
+  if (input.pointer || e.button === 1) return; // sonst ein Zeiger zur Zeit; Mittelklick ignorieren
   const el = pickElement(e.clientX, e.clientY, e.pointerType === 'mouse' ? 0 : INPUT.touchSlop);
+  // x, y: zuletzt fürs Drehen ausgewertet; cx, cy: wo der Zeiger gerade ist (für den Abstand beim Zoomen);
+  // done: nach dem Zoomen mit zwei Fingern dreht der verbliebene nicht mehr (ein neuer zweiter zoomt wieder)
   input.pointer = {
     id: e.pointerId, type: e.pointerType, button: e.button,
-    x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY,
-    el, moved: false, consumed: false,
+    x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY,
+    el, moved: false, consumed: false, done: false,
   };
   try { canvasEl.setPointerCapture(e.pointerId); } catch { /* z. B. synthetische Zeiger */ }
   if (el) setHovered(el);
@@ -9538,7 +9567,17 @@ canvasEl.addEventListener('pointermove', (e) => {
     if (e.pointerType === 'mouse') setHovered(pickElement(e.clientX, e.clientY));
     return;
   }
-  if (e.pointerId !== p.id) return;
+  const q = input.pinch;
+  if (e.pointerId === p.id) { p.cx = e.clientX; p.cy = e.clientY; }
+  else if (q && e.pointerId === q.id) { q.x = e.clientX; q.y = e.clientY; }
+  else return;
+  if (q) {
+    const d = Math.hypot(q.x - p.cx, q.y - p.cy);
+    if (d > 0 && q.d > 0) zoomCamera(q.d / d); // auseinander: näher heran
+    q.d = d;
+    return;
+  }
+  if (p.done) return;
   if (!p.moved) {
     const threshold = p.type === 'mouse' ? INPUT.dragThresholdMouse : INPUT.dragThresholdTouch;
     if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < threshold) return;
@@ -9552,15 +9591,32 @@ canvasEl.addEventListener('pointermove', (e) => {
   p.y = e.clientY;
 });
 
+/** Zweiter Finger losgelassen: Zoomen fertig, der erste dreht bis zum Loslassen nicht mehr. */
+function endPinch(e) {
+  if (!input.pinch || e.pointerId !== input.pinch.id) return false;
+  input.pinch = null;
+  input.pointer.done = true;
+  return true;
+}
+
 canvasEl.addEventListener('pointerup', (e) => {
+  if (endPinch(e)) return;
   const p = input.pointer;
   if (!p || e.pointerId !== p.id) return;
   if (!p.moved && !p.consumed && p.el) rotateElement(p.el, p.button === 2 ? -1 : 1);
   endPointer();
   if (e.pointerType === 'mouse') setHovered(pickElement(e.clientX, e.clientY));
 });
-canvasEl.addEventListener('pointercancel', (e) => { if (input.pointer && e.pointerId === input.pointer.id) endPointer(); });
-canvasEl.addEventListener('lostpointercapture', (e) => { if (input.pointer && e.pointerId === input.pointer.id) endPointer(); });
+canvasEl.addEventListener('pointercancel', (e) => { if (!endPinch(e) && input.pointer && e.pointerId === input.pointer.id) endPointer(); });
+canvasEl.addEventListener('lostpointercapture', (e) => { if (!endPinch(e) && input.pointer && e.pointerId === input.pointer.id) endPointer(); });
+// Mausrad; die Zwei-Finger-Geste des Touchpads kommt als Rad mit ctrlKey (feiner, darum stärker gewichtet) und
+// skalierte sonst die ganze Seite
+canvasEl.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1) * (e.ctrlKey ? 10 : 1);
+  zoomCamera(Math.exp(THREE.MathUtils.clamp(px, -INPUT.wheelStep, INPUT.wheelStep) * INPUT.wheelZoom));
+  adaptiveResolution.hold(1); // wie beim Ziehen: währenddessen die Auflösung nicht umbauen
+}, { passive: false });
 window.addEventListener('blur', () => { if (input.pointer) endPointer(); });
 // Mittelklick: kein Autoscroll
 canvasEl.addEventListener('mousedown', (e) => { if (e.button === 1) e.preventDefault(); });
@@ -10614,7 +10670,8 @@ const frameRate = {
     if (flow.state !== 'play' || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
     if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
     // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
-    const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi);
+    const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi)
+      + Math.abs(cameraRig.goalZoom - cameraRig.userZoom);
     if (cam > 1e-3 || cameraRig.homing || skyTheme.fading) return true;
     for (const obj of game.objects.values()) {
       const u = obj.userData;
