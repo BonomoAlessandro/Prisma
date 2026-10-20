@@ -7558,14 +7558,6 @@ const plateTrim = new THREE.Group();
 }
 scene.add(plateTrim);
 
-// Schmaler, zurückversetzter Sockel unter der Platte – lässt die Platte schweben.
-const plinth = new THREE.Mesh(
-  new THREE.BoxGeometry(PLATE - 0.8, 1.6, PLATE - 0.8),
-  new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.8, metalness: 0.0, envMapIntensity: 0.3 })
-);
-plinth.position.y = -PLATE_THICK - 0.8;
-scene.add(plinth);
-
 /* =====================================================================
    BELEUCHTUNG — Museumsspot als Hauptlicht
    ===================================================================== */
