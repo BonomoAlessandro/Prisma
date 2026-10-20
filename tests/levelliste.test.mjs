@@ -89,20 +89,23 @@ test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das 
     ['●○○○ Leicht', '●●○○ Mittel', '●●●○ Schwer', '●●●● Sehr schwer']);
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => GRAD_ANZEIGE[l.grad]).map(l => l.name), []);
 });
-test('Der Seitentitel nennt den Grad, wenn alle Level der Seite ihn haben, das Tutorial keinen', () => {
-  // von Hand: 2 Tutorial-Level, eine leichte Seite, eine gemischte und eine angefangene sehr schwere
+test('Der Seitentitel nennt den Grad der Seite, auf einer gemischten den Bereich, das Tutorial keinen', () => {
+  // von Hand: 2 Tutorial-Level, eine leichte Seite, zwei gemischte (zwei und drei Grade) und eine angefangene sehr
+  // schwere
   const reihe = (grad, n) => Array.from({ length: n }, (_, k) => ({ name: `${grad} ${k}`, grad }));
   const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true },
-    ...reihe('leicht', 15), ...reihe('mittel', 5), ...reihe('sehr schwer', 3)];
+    ...reihe('leicht', 15), ...reihe('mittel', 8), ...reihe('schwer', 4), ...reihe('sehr schwer', 6)];
   assert.deepEqual(anzeige(hand, 2).PAGES.map(p => p.title),
-    ['Tutorial · die Mechaniken', 'Level 1 – 10 · Leicht', 'Level 11 – 20', 'Level 21 – 23 · Sehr schwer']);
-  // im Spiel: Jeder Titel nennt genau den Grad, den alle Level der Seite haben, sonst keinen
+    ['Tutorial · die Mechaniken', 'Level 1 – 10 · Leicht', 'Level 11 – 20 · Leicht bis Mittel',
+      'Level 21 – 30 · Mittel bis Sehr schwer', 'Level 31 – 33 · Sehr schwer']);
+  // im Spiel: Jeder Titel endet auf den Grad, den alle Level der Seite haben, sonst auf den Bereich vom leichtesten bis
+  // zum schwersten; ohne Grad (Tutorial) nennt er keinen
   const { GRAD_ANZEIGE, PAGES } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
   const falsch = PAGES.filter((p) => {
-    const grade = [...new Set(p.indices.map(i => L.LEVELS[i].grad))];
-    const soll = grade.length === 1 && GRAD_ANZEIGE[grade[0]] ? ` · ${GRAD_ANZEIGE[grade[0]].label}` : '';
-    const genannt = Object.values(GRAD_ANZEIGE).map(d => ` · ${d.label}`).filter(t => p.title.endsWith(t));
-    return genannt.join() !== soll;
+    const grade = GRADE.filter(g => p.indices.some(i => L.LEVELS[i].grad === g)).map(g => GRAD_ANZEIGE[g].label);
+    const soll = grade.length > 1 ? ` · ${grade[0]} bis ${grade.at(-1)}` : grade.length ? ` · ${grade[0]}` : '';
+    const genannt = Object.values(GRAD_ANZEIGE).some(d => p.title.includes(d.label));
+    return soll ? !p.title.endsWith(soll) : genannt;
   });
   assert.deepEqual(falsch.map(p => p.title), []);
 });

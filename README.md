@@ -47,7 +47,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
   - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
-    Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
+    Punkte und Text ab, der Seitentitel nennt den Grad der Seite oder ihren Bereich; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
     beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
     Platz davor, weder nach den Korrekturen noch am Ende (Ticket 24, mit Gegenproben an erfundenen Korrekturen, die
@@ -529,8 +529,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–31, mittel 32–105,
   schwer 106–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
   bis sehr schwer ●●●● oben rechts auf der Kachel der Levelauswahl, mit Punkten und Text in der Kopfzeile (hinter dem
-  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, wenn alle Level der Seite
-  denselben Grad haben. Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
+  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, gemischt als Bereich
+  („Leicht bis Mittel“). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
   Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den Grad als Text (in
   der Kopfzeile und im Namen der Kachel). Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl
   blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.

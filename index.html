@@ -211,6 +211,10 @@
   #levels .tile.done .dot { background: var(--ink); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
   @media (max-width: 520px) {
     #levels .grid { gap: 8px; } /* 2 Reihen, nur Ziffern */
+    /* Grad in eigener Zeile wie in der Kopfzeile: „Schwer bis Sehr schwer“ bräche sonst nur auf manchen Seiten um,
+       und „Schliessen“ spränge beim Blättern */
+    #levels .page-title .sep { display: none; }
+    #levels .page-title .zusatz { display: block; margin-top: 6px; }
     #levels .name { display: none; }
     #levels .num { margin-top: 8px; } /* Abstand zu den Punkten des Grads oben rechts auf der schmalen Kachel */
   }
@@ -9502,10 +9506,12 @@ const PAGES = (() => {
   for (let a = TUTORIAL_COUNT; a < LEVELS.length; a += PAGE_SIZE) {
     const indices = all.slice(a, a + PAGE_SIZE);
     const from = levelNumber(a), to = levelNumber(indices.at(-1));
-    // hat die ganze Seite denselben Grad, steht er im Seitentitel
-    const grad = LEVELS[a].grad;
-    const tier = GRAD_ANZEIGE[grad] && indices.every(i => LEVELS[i].grad === grad) ? grad : undefined;
-    const title = `Level ${from} – ${to}` + (tier ? ` · ${GRAD_ANZEIGE[tier].label}` : '');
+    // der Grad im Seitentitel: hat die ganze Seite denselben, steht er allein, sonst der Bereich vom leichtesten zum
+    // schwersten („Leicht bis Mittel“)
+    const grade = Object.keys(GRAD_ANZEIGE).filter(g => indices.some(i => LEVELS[i].grad === g))
+      .map(g => GRAD_ANZEIGE[g].label);
+    const tier = grade.length > 1 ? `${grade[0]} bis ${grade.at(-1)}` : grade[0];
+    const title = `Level ${from} – ${to}` + (tier ? ` · ${tier}` : '');
     pages.push({ id: String(from), label: `${from}–${to}`, title, indices });
   }
   return pages;
@@ -9805,7 +9811,17 @@ const ui = {
       t.querySelector('.pprog').textContent = `${solved}/${pg.indices.length}`;
     }
     const page = PAGES.find(q => q.id === id);
-    this.pageTitle.textContent = page.title;
+    // der Teil nach „·“ (Grad, beim Tutorial „die Mechaniken“) steht auf dem Handy hochkant in einer eigenen Zeile
+    const [kopf, zusatz] = page.title.split(' · ');
+    this.pageTitle.replaceChildren(kopf);
+    if (zusatz) {
+      const sep = document.createElement('span'), z = document.createElement('span');
+      sep.className = 'sep';
+      sep.textContent = ' · ';
+      z.className = 'zusatz';
+      z.textContent = zusatz;
+      this.pageTitle.append(sep, z);
+    }
     this.grid.replaceChildren();
     page.indices.forEach((i) => {
       const k = levelNumber(i) - 1;
