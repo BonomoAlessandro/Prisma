@@ -184,10 +184,13 @@
   #levels .page .pprog { font-size: 9px; letter-spacing: 0.1em; color: var(--ink-dim); }
   #levels .page.complete .pprog { color: var(--ink); }
   #levels .page-title { font-size: 10px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); margin: 0 0 14px; padding-left: 0.45em; }
-  #levels .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 28px; }
+  /* minmax(0, …): ein langer Name wie „Sonnenfinsternis“ verbreitert sonst alle Spalten, die Kacheln wären je Seite
+     verschieden gross */
+  #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
   #levels .tile.ghost { visibility: hidden; }
   #levels .tile {
     position: relative;
+    box-sizing: border-box; /* auch die Platzhalter (div, nicht button) */
     aspect-ratio: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
     border: 1px solid var(--ink-faint);
@@ -199,11 +202,15 @@
   #levels .tile .tier { position: absolute; top: 6px; right: 6px; display: flex; }
   #levels .tile .tier .label { display: none; }
   #levels .num { font-size: 15px; letter-spacing: 0.15em; }
-  #levels .name { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px; }
+  #levels .name {
+    font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--ink-dim); padding: 0 4px;
+    /* lange Wörter in der Kachel trennen; ohne Trennwörterbuch des Browsers bricht overflow-wrap an beliebiger Stelle */
+    max-width: 100%; box-sizing: border-box; -webkit-hyphens: auto; hyphens: auto; overflow-wrap: anywhere;
+  }
   #levels .dot { width: 4px; height: 4px; border-radius: 50%; background: transparent; }
   #levels .tile.done .dot { background: var(--ink); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
   @media (max-width: 520px) {
-    #levels .grid { grid-template-columns: repeat(5, 1fr); gap: 8px; } /* 2 Reihen, nur Ziffern */
+    #levels .grid { gap: 8px; } /* 2 Reihen, nur Ziffern */
     #levels .name { display: none; }
     #levels .num { margin-top: 8px; } /* Abstand zu den Punkten des Grads oben rechts auf der schmalen Kachel */
   }
