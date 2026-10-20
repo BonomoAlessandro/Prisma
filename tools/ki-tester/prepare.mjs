@@ -19,7 +19,9 @@
 //                  ausbau (die ganze Ausgabe von ordne-level.mjs --ausbau … --json), gilt ihre Reihenfolge als Vorschau
 //                  (nach platz, mit den Kandidaten unter ihrem Namen bei den KI-Testern): Plätze, Grade, Referenzen und
 //                  Anker rechnen dann in ihr, und beurteilt werden die Kandidaten des Ausbaus, die noch nicht im Spiel
-//                  stehen. Ein platz muss dann ein Level im Spiel sein. Achtung: Ohne Vorschau gilt formel als Platz
+//                  stehen und noch kein zählendes Urteil haben (etwa nach einem Ersatz für abgelehnte nur die neuen;
+//                  ein zweites Urteil zum selben Level wiese levelliste.mjs ab). Ein platz muss dann ein Level im
+//                  Spiel sein. Achtung: Ohne Vorschau gilt formel als Platz
 //                  im ganzen Spiel; ordne-level.mjs zählt die formel eines Ersatzlevels aber unter dem Bestand. Käme
 //                  nach dem Ausbau noch ein Austausch, gehörte er darum mit --ausbau in eine Vorschau (Review Ticket
 //                  01).
@@ -45,6 +47,7 @@ import {
   VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, loadAnchors, reference, today,
 } from './protocol.mjs';
 import { fieldText } from './field.mjs';
+import { zaehlendeUrteile } from '../levelliste.mjs';
 import { VIEWS, seitenUrl, takeShots } from './shots.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -211,7 +214,9 @@ function vorschauAus(liste, datei) {
  * Reihenfolge sein, und kein Kandidat darf doppelt vorkommen.
  */
 function ladeKandidaten(roh, datei) {
-  const liste = roh.filter(x => x.level && (!vorschau || (x.ausbau && !IM_SPIEL.some(l => l.name === x.name))));
+  const beurteilt = new Set(vorschau ? zaehlendeUrteile().map(e => e.level.name) : []);
+  const liste = roh.filter(x => x.level && (!vorschau
+    || (x.ausbau && !IM_SPIEL.some(l => l.name === x.name) && !beurteilt.has(kandidatName(x.level)))));
   if (!liste.length) throw new Error(`${datei}: keine Einträge mit Leveldaten`);
   for (const x of liste) {
     const wo = `${datei}: ${kandidatName(x.level)}`;
