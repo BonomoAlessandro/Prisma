@@ -64,3 +64,7 @@ zu Fall.
   Häufungsregel zählt je Probezug nur die geänderten Seiten (Wahl rund 15 statt über 60 Minuten).
 - **Tests:** Logik 1073, Levelliste 53, KI-Tester 65, Golden 334 (nach `--write`), Beurteilung 178, alle grün.
   Stichprobe: Spirale (147, Handy) und Zugbrücke (283, Desktop), ohne Befund.
+
+**Review (22.10.2026):** keine Befunde. Der Reviewer bestätigt: Ein Zug ändert nur die Seiten zwischen von und nach;
+die äussere Schleife der Häufungsregel nutzt weiter die volle Zählung; Vergleich über 20 000 zufällige Folgen (volle
+gegen inkrementelle Zählung, alte gegen neue Fassung) ohne Abweichung.
