@@ -233,10 +233,16 @@ async function wahl() {
     gesehen.add(name);
     kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, ''), beurteilt: beurteilt.has(name) });
   }
-  const setze = gesetzt.map((g) => {
+  const alleGesetzt = gesetzt.map((g) => {
     const k = kandidaten.find(x => x.name === kandidatName(g.level));
     if (!k) fail(`--behalte: ${kandidatName(g.level)} (${g.auftrag} Seed ${g.seed}) steht in keinem Pool`);
     return k;
+  });
+  // Setzt --behalte in einem Grad mehr Level, als er braucht (etwa nach --verschiebe), fallen die mit dem tiefsten
+  // Spielwert weg; sonst hätte die Gruppe mehr als 35 Level (Gruppe 3)
+  const setze = GRADE.flatMap((g) => {
+    const platz = Math.max(0, ziel[g] + (verschiebe[g] ?? 0) - im[g]);
+    return alleGesetzt.filter(k => k.grad === g).sort((a, b) => b.spielwert - a.spielwert).slice(0, platz);
   });
   const gruende = {};
   const bereich = Object.fromEntries(GRADE.map((g) => {
@@ -415,7 +421,8 @@ async function wahl() {
     const hinein = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
       && x.schwierigkeit >= Math.min(...seite) && x.schwierigkeit <= Math.max(...seite))
       .sort((a, b) => b.spielwert - a.spielwert).slice(0, PAAR_KANDIDATEN);
-    const freie = frei.filter(j => gewaehlt[j].grad === gradH);
+    // mit --auch-gesetzte auch die Plätze aus --behalte (sonst bliebe nichts, wenn alle des Grads gesetzt sind)
+    const freie = [...new Set(tauschbar)].filter(j => gewaehlt[j].grad === gradH);
     let gefunden = null;
     suche: for (let a = 0; a < freie.length; a++) {
       for (let b = a + 1; b < freie.length; b++) {
