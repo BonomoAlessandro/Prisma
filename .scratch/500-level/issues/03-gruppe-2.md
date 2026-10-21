@@ -9,13 +9,43 @@ mittel / schwer / sehr schwer): 5 / 19 / 8 / 3. Danach stehen 220 Level im Spiel
 
 **Status:** ready-for-agent
 
-- [ ] 35 neue Level im Spiel, je Grad wie oben; Fehlmengen eines Grads sind begründet und für die nächste Gruppe
+- [x] 35 neue Level im Spiel, je Grad wie oben; Fehlmengen eines Grads sind begründet und für die nächste Gruppe
       vermerkt.
-- [ ] Jedes neue Level hat genau eine Lösung, besteht die Beurteilung, hat ab „mittel“ eine nötige Kernidee und ist
+- [x] Jedes neue Level hat genau eine Lösung, besteht die Beurteilung, hat ab „mittel“ eine nötige Kernidee und ist
       keinem anderen Level zu ähnlich.
-- [ ] Beide KI-Tester haben jedes neue Level beurteilt (Protokoll); von beiden abgelehnte sind ersetzt.
-- [ ] Namen im bisherigen Stil vergeben, eindeutig, keiner von der Liste entfernter Level (ohne Freigabe des Nutzers).
-- [ ] Herkunft jedes Levels (Auftrag, Seed, Ziel-Schwierigkeit) ist nachbaubar.
+- [x] Beide KI-Tester haben jedes neue Level beurteilt (Protokoll); von beiden abgelehnte sind ersetzt.
+- [x] Namen im bisherigen Stil vergeben, eindeutig, keiner von der Liste entfernter Level (ohne Freigabe des Nutzers).
+- [x] Herkunft jedes Levels (Auftrag, Seed, Ziel-Schwierigkeit) ist nachbaubar.
 - [ ] Golden-Test-Referenz nachgeführt, alle Tests grün, Stichproben der Screenshots geprüft, auf main gemergt.
 
 ## Comments
+
+**Ergebnis (21.10.2026, Branch )**
+
+- **Im Spiel:** 220 Level, 42 / 112 / 47 / 19 nach der Tabelle; keine Fehlmenge. Neu: Taschenlampe, Lichtpunkt,
+  Glühbirne, Leuchtkäfer, Kinderspiel (leicht); Ocker, Karmin, Ultramarin, Malachit, Lapislazuli, Jade, Topas, Granat,
+  Achat, Onyx, Citrin, Aquamarin, Elfenbein, Perlglanz, Seidenglanz, Goldstaub, Silbermond, Kupferglanz, Messing
+  (mittel); Gewürzroute, Entdeckungsreise, Polarfahrt, Weltreise, Pilgerweg, Jakobsweg, Gebirgspfad, Gratwanderung
+  (schwer); Orion, Kassiopeia, Sirius (sehr schwer).
+- **KI-Tester, vier Läufe** ( 35,  20,  12,  6): abgelehnt 4
+  (Scheinmischung 1, Zerfall 1, Füllteil 2), schwach 1 (leicht, Gefühl 2,5). Im ersten Lauf waren 32 von 35 gut, die
+  Vorprüfung auf Zerfall wirkt.
+- **Was Läufe kostete:** Die Korrekturen der KI-Tester verschieben die Level; mehrere korrigierte Level nahe beieinander
+  schieben einander über 5 Plätze, dann lässt die Häufungsregel keinen Zug zu, und  schreibt nicht.
+  Die Wahl kannte die Korrekturen erst nach dem Urteil. Darum je Ersatz neue Tausche und neue Urteile (35 → 20 → 12 →
+  6). Werkzeug dazu (alle in ):
+  - Die Suche bewertet zu weit korrigierte Level vor offenen Häufungen.
+  - Sie nimmt bevorzugt Kandidaten mit Urteil; bei gleich gutem Ergebnis gewinnt die Wahl mit weniger Leveln ohne
+    Urteil.  wählt nur aus beurteilten (für die nächsten Gruppen: zuerst etwa 50 beurteilen lassen,
+    dann daraus wählen).
+  - ,  (anderer Startwert), Paar- und Mehrfachtausch gegen offene Häufungen.
+  - : Das obere Ende von „schwer“ (75–86) trifft der Generator sonst kaum; dort
+    standen Odyssee, Halo und Lichtbrücke so dicht, dass erst Kandidaten aus diesem Bereich die Häufung lösten. Die
+    Ziel-Schwierigkeit steht in der Herkunft (Kommentar des Levels).
+  - Die Vorprüfung auf Zerfall ist ab „mittel“ strenger: kein zweiter Teil mit drehbarem Element
+    (), weil beide KI-Tester einen Strang aus Quelle, einem Spiegel und Ziel mit fester
+    Zweitfarbe dreimal als Füllteil ablehnten.
+- **Pools** (nicht versioniert, ): Pool 3 (9 Aufträge × 600 Seeds ab 10601), oberes „schwer“
+  (6 × 1200 ab 20001, Ziel 72–86 bzw. 75–86), oberes „mittel“ (6 × 400 ab 20001, Ziel 52–58).
+- **Tests:** Logik 758, Levelliste 51, KI-Tester 65, Golden 229 (nach ), Beurteilung 178, alle grün.
+  Stichprobe: Karmin (51) und Sirius (210), Desktop und Handy, ohne Befund.

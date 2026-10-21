@@ -27,7 +27,9 @@
 //   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau (ohne Namen; die kommen nach dem Urteil der
 //   KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--schritte N] [--zufall N]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]
+//   --nur-beurteilt: nur Kandidaten mit zählendem Urteil (Läufe ausbau-…), ohne Ablehnung in --ohne; so lässt sich eine
+//   Gruppe aus einem Vorrat beurteilter Kandidaten zusammenstellen, ohne dass neue Urteile neue Korrekturen bringen.
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
 import { fork } from 'node:child_process';
@@ -188,11 +190,11 @@ function zweiterTeil(level) {
 async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
   const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
-  const auchGesetzte = args.includes('--auch-gesetzte');
+  const auchGesetzte = args.includes('--auch-gesetzte'), nurBeurteilt = args.includes('--nur-beurteilt');
   const suchSchritte = Number(flag('--schritte', SUCHE_SCHRITTE)), startwert = Number(flag('--zufall', 0));
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>] [--auch-gesetzte] [--schritte N] [--zufall N]');
+      + '[--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester
@@ -227,6 +229,7 @@ async function wahl() {
   const verwirf = (_, grund) => { gruende[grund] = (gruende[grund] || 0) + 1; return false; };
   const inFrage = kandidaten.filter((k) => {
     if (setze.includes(k)) return false;
+    if (nurBeurteilt && !k.beurteilt) return verwirf(k, 'ohne Urteil (--nur-beurteilt)');
     if (ohne.includes(k.name)) return verwirf(k, 'ausgeschlossen (--ohne)');
     if (gradVon(k.schwierigkeit) !== k.grad) return verwirf(k, 'Grad nach der Schwelle anders als im Auftrag');
     // im Bereich, den der Grad im Spiel abdeckt: Am Rand lägen sonst die neuen Level am weitesten von allen und kämen
