@@ -20,8 +20,8 @@
 //   levelliste.json, dazu die Grenzfälle der Neuzählung.
 // - Die übrigen Regeln der Levelliste: Grad, Mittel der Schwierigkeit und Haupt-Kernidee je 10 Level, Namen,
 //   Eindeutigkeit der Lösung, Korrekturen der KI-Tester (höchstens MAX_SHIFT Plätze vom Platz davor, nach den
-//   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs); dazu die Anker der KI-Tester und der Zusammenhang
-//   von Spielwert und Schwierigkeit.
+//   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs; im Ausbau entfällt das, zuWeitGilt); dazu die Anker
+//   der KI-Tester und der Zusammenhang von Spielwert und Schwierigkeit.
 // - Austausch (Tickets 23–26): Neue Level haben keinen heutigen Platz und stehen nach der Formel (imSpiel und reihenfolge
 //   in levelliste.mjs), dazu die Urteile der KI-Tester aus den Läufen ersatz-…. Mit --austausch rechnet das Skript, als
 //   wären die Kandidaten schon im Spiel und die ersetzten Level entfernt: wo jeder einordnet, mit welchem Grad, ob die
@@ -70,7 +70,7 @@ import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
   DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet,
-  festePlaetze, imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitKorrigiert,
+  festePlaetze, imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -391,11 +391,12 @@ console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10} j
 const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `
   + `${h.mit.length}-mal, ${h.mit.map(name).join(', ')}`).join('; ');
 if (offenText) console.log(`    nicht aufzulösen mit höchstens ${MAX_ENTZERREN} Plätzen: ${offenText}`);
-// Viele Korrekturen nahe beieinander schieben einander, ebenso die Züge der Häufungsregel (Ticket 24, Review M1)
-const zuWeit = zuWeitKorrigiert(ordnung);
+// Viele Korrekturen nahe beieinander schieben einander, ebenso die Züge der Häufungsregel (Ticket 24, Review M1); im
+// Ausbau gilt die Grenze nicht (zuWeitGilt, Entscheid des Nutzers vom 22.10.2026)
+const zuWeit = zuWeitGilt(ausbau) ? zuWeitKorrigiert(ordnung) : [];
 console.log(`  Korrekturen der KI-Tester höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am `
-  + `Ende: ${zuWeit.length ? `nicht bei ${zuWeit.map(v => `${name(v.i)} (Platz davor ${v.davor}, nach den `
-    + `Korrekturen ${v.korrigiert}, am Ende ${v.ende})`).join('; ')}` : 'eingehalten'}`);
+  + `Ende: ${!zuWeitGilt(ausbau) ? 'entfällt im Ausbau' : zuWeit.length ? `nicht bei ${zuWeit.map(v => `${name(v.i)} `
+    + `(Platz davor ${v.davor}, nach den Korrekturen ${v.korrigiert}, am Ende ${v.ende})`).join('; ')}` : 'eingehalten'}`);
 console.log('  Anker der KI-Tester (je zwei pro Grad, am unteren und oberen Ende):');
 // Die Anker stehen in anchors.json mit Namen; i ist ihr heutiger Platz (Index), wie bei den übrigen Zeilen hier
 for (const a of loadAnchors().map(x => ({ ...x, i: levels.findIndex(l => l.name === x.name) }))) {

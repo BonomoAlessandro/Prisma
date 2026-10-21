@@ -5,8 +5,8 @@
     "ohneKernidee": [
       "Glasfenster", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
       "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Pinselstrich", "Blaue Stunde", "Farbtupfer", "Rubin",
-      "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer", "Schachbrett",
-      "Farbverlauf", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
+      "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer", "Farbverlauf",
+      "Schachbrett", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
     ],
     "unterMindestSpielwert": [
       "Lichtnetz", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
@@ -70,10 +70,10 @@
     "Sternbild", "Singularität", "Urknall", "Lichtgeschwindigkeit"
   ],
   "pruefliste": [
-    "Schliff", "Spiegelbild", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
+    "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
     "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
-    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
-    "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
+    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Farbverlauf",
+    "Schachbrett", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
     "Kathedrale", "Supernova", "Zwielicht"
   ],
   "prueflisteErledigt": true,
@@ -103,6 +103,10 @@
     "Ocker", "Karmin", "Ultramarin", "Malachit", "Lapislazuli", "Jade", "Topas", "Granat", "Achat", "Onyx", "Citrin",
     "Aquamarin", "Elfenbein", "Perlglanz", "Seidenglanz", "Goldstaub", "Silbermond", "Kupferglanz", "Messing",
     "Gewürzroute", "Entdeckungsreise", "Polarfahrt", "Weltreise", "Pilgerweg", "Jakobsweg", "Gebirgspfad",
-    "Gratwanderung", "Orion", "Kassiopeia", "Sirius"
+    "Gratwanderung", "Orion", "Kassiopeia", "Sirius", "Fingerzeig", "Pfadfinder", "Wegmarke", "Lichtschalter",
+    "Kreisel", "Murmel", "Glasperle", "Tautropfen", "Bronze", "Quarz", "Bergkristall", "Rosenquarz", "Mondstein",
+    "Sonnenstein", "Glasmalerei", "Buntglas", "Fensterrose", "Glockenturm", "Kompass", "Sextant", "Astrolabium",
+    "Fernrohr", "Periskop", "Lichtleiter", "Steilwand", "Nordwand", "Seilschaft", "Biwak", "Basislager", "Höhenweg",
+    "Wega", "Atair", "Deneb", "Rigel", "Beteigeuze"
   ]
 }

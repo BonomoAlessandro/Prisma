@@ -27,7 +27,7 @@ import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
   ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
-  zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitKorrigiert,
+  zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -171,11 +171,15 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
   }
   // Eigene Korrekturen: nur mit Urteil, höchstens MAX_SHIFT Plätze, ohne Ablehnung; nach den Korrekturen und nach der
   // Häufungsregel steht jedes korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz davor (zuWeitKorrigiert,
-  // dieselbe Prüfung wie in ordne-level.mjs)
+  // dieselbe Prüfung wie in ordne-level.mjs); im Ausbau entfällt die Grenze für das Mitschieben (zuWeitGilt, Entscheid
+  // des Nutzers vom 22.10.2026), die einzelne Korrektur bleibt höchstens MAX_SHIFT Plätze
   const korrigiert = [...r.ki].filter(([, u]) => u.verschiebung);
   for (const [i, u] of korrigiert) assert.ok(Math.abs(u.verschiebung) <= MAX_SHIFT && !u.abgelehnt, heute[i].name);
-  assert.deepEqual(zuWeitKorrigiert(r).map(v => `${heute[v.i].name} ${v.davor}→${v.korrigiert}→${v.ende}`), [],
-    `mehr als ${MAX_SHIFT} Plätze von seinem Platz davor`);
+  assert.equal(zuWeitGilt(r.ausbau), !ausbauZahl, 'die Grenze gilt genau ohne Ausbau');
+  if (zuWeitGilt(r.ausbau)) {
+    assert.deepEqual(zuWeitKorrigiert(r).map(v => `${heute[v.i].name} ${v.davor}→${v.korrigiert}→${v.ende}`), [],
+      `mehr als ${MAX_SHIFT} Plätze von seinem Platz davor`);
+  }
   // Häufungsregel: jeder Zug höchstens MAX_ENTZERREN Plätze im eigenen Grad, und danach ist keine Häufung offen
   assert.deepEqual(r.offen.map(h => `${10 * h.gruppe + 1}–${10 * h.gruppe + 10} ${h.begriff}`), [], 'offen');
   for (const z of r.zuege) {
@@ -316,6 +320,11 @@ test('zuWeitKorrigiert mit dem Ausbau: der Bestand zählt unter sich, ein Level 
     assert.deepEqual(zuWeitKorrigiert({ basis: vorher, eingefuegt: vorher, korrigiert: ende, folge: ende, ki: ki10,
       ausbau }), [], 'Gegenprobe: ab basis gezählt');
   });
+test('zuWeitGilt: die Grenze für korrigierte Level gilt nur ohne Level des Ausbaus (Entscheid vom 22.10.2026)', () => {
+  assert.equal(zuWeitGilt(), true);
+  assert.equal(zuWeitGilt([false, false]), true);
+  assert.equal(zuWeitGilt([false, true, false]), false);
+});
 test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ_MITTEL} Punkt Rückschritt`, () => {
   const mittel = zehner(MAIN).map(z => z.reduce((s, l) => s + wert(l), 0) / z.length);
   const text = mittel.map(m => m.toFixed(1)).join(' ');
