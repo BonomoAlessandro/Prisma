@@ -721,6 +721,23 @@ Zuletzt aktualisiert: 21. Oktober 2026
   - *Wassermaske:* aus der Tiefe in voller Breite (4096), untere Hälfte; die Tiefenregel liest damit Wasser so fein
     wie das Bild (um ferne Palmen blieb sonst ein Saum ohne Spielwasser).
   - Budget der vorab gespeicherten Teile 3,5 statt 3 MB (Wahl des Nutzers; Felsen samt Bild rund 0,4 MB).
+  Nutzer: „massiv besser“, committet (090fcc0, 21. Oktober). Dritte Runde (Bilder `bilder/strand/KaputteSteine.png`,
+  `Inseln.png`; Nutzer: der grosse Steinhaufen sah vorher besser aus):
+  - *Steine:* Zwei Blöcke am Strand rechts wirkten zerschnitten. Das Spiel verwarf Stellen mit wenig Relief (Risse,
+    Fuss), und die Tiefenregel zog am Rand der Gruppe das Panorama vor sie (die Felsmarkierung der Karte reicht mit dem
+    Ring um die Blöcke weiter): Relief jetzt geschlossen und schon ab wenigen cm (`near_rocky`), die Markierung der
+    nahen Gruppen in der Karte um 3 m erweitert; der Saum, den das Spiel verwirft, liegt unter dem Boden (warf sonst
+    Schatten mit Treppenrand).
+  - *Aussehen der Felsen:* Gebacken wirkten sie fleckig und flau (Rauschen, zu grob). Blender rendert die Felsen jetzt
+    wie früher ins Panorama, je Ausschnitt (`rock_windows`, `rock_view`), gemalt wie die Streifen; das Spiel projiziert
+    dieses Bild vom Mittelpunkt aus auf die 3D-Felsen, wo man sie von dort sieht (Abstand und Gewicht in
+    `rockview.png`), sonst das gebackene Licht, jetzt entrauscht (OIDN mit Grundfarbe und Normalen, `anime.denoise`) und
+    auf dem Desktop doppelt so fein (Daten unter `hd` in `ebenen.json` kommen in den HD-Teil).
+  - *Inseln:* Die mit einer Palme ist jetzt eine grosse, bewaldete Insel 1,9 km draussen (Hügel 120 m), die mit zwei
+    Palmen grösser (16 m, sechs Palmen) und 350 m draussen, mit flachem Saum; die dritte bleibt.
+  - Aus dem Review: Wassermaske nur bis 20° unter dem Horizont (dort braucht es sie; als RGBA 3,7 statt 17 MB – eine
+    Graustufen-Textur lädt three mit texStorage2D nicht hoch, die Maske war leer; wie weit sie reicht, liest das Spiel
+    aus ihrer Höhe), `gpuMB` zählt Maske und Bilder der Ebenen mit, Wasser jenseits der Karte auf Meereshöhe.
   Wartet auf die Abnahme durch den Nutzer.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)

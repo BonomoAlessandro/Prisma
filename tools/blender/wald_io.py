@@ -14,7 +14,8 @@ def save_image(rgb, path, fmt='PNG', quality=92, bw=False):
     img.file_format = fmt
     if fmt == 'JPEG' or bw:
         st = bpy.context.scene.render.image_settings
-        keep = {k: getattr(st, k) for k in ('file_format', 'quality', 'color_mode', 'compression', 'color_management')}
+        keep = {k: getattr(st, k) for k in ('file_format', 'color_depth', 'quality', 'color_mode', 'compression',
+                                            'color_management')}
         st.file_format = fmt
         st.quality = quality
         st.color_management = 'OVERRIDE'

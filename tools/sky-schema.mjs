@@ -7,7 +7,7 @@
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, … }] }
 // Ein Teil setzt globalThis.PRISMA_SKY_PARTS['<id>/<role>'] = { rev, … }; base: full, depth, data, watermask?
-// (Wassermaske für waterSurface); bands: bands.
+// (Wassermaske für waterSurface); bands: bands, data? (ersetzt im Spiel gleichnamige Felder der Daten aus base).
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';

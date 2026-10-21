@@ -5982,8 +5982,15 @@ function* toonInstances(ctx, opt) {
  * sRGB-kodiert, gemalt wie das Panorama }; Strand: die nahen Felsen samt dem Gelände ihrer Gruppen). Blender hat sie
  * beleuchtet, mit Schatten; das Panorama zeigt sie nicht (aus seinem Mittelpunkt gesehen lägen sie schräg), ihre
  * Schatten darin bleiben. Wo das Gelände flach ist (rock8 unter der Hälfte), zeigt sich das Panorama: Dort stimmt es
- * (gebacken hob sich der Sand ab). Generator (sliced: wartet, bis das Bild dekodiert ist; hochgeladen wird es dann mit
- * den übrigen Texturen vor dem Einblenden).
+ * (gebacken hob sich der Sand ab).
+ * Mit view, viewTexture, viewData zeigen sie, wo man sie vom Mittelpunkt des Panoramas aus sieht, das Bild, das Blender
+ * von dort gemalt hat (vom Mittelpunkt aus projiziert: so sahen sie aus, als das Panorama sie noch zeigte – gebacken
+ * wirkten sie fleckiger und flauer); sonst das gebackene Licht. view.windows: Ausschnitte [az0, az1, el0, el1 (Grad,
+ * wie das Equirect), Breite, Zeile oben, Zeile unten (Anteil des Bilds)], untereinander im Bild; viewData ein Viertel:
+ * R Abstand vom Mittelpunkt (log, 8 Bit, Bereich view.log), G Gewicht (0 neben und am Rand der Felsen). Ein Punkt
+ * gilt als von dort gesehen, wenn sein Abstand zu dem im Bild passt.
+ * Generator (sliced: wartet, bis die Bilder dekodiert sind; hochgeladen werden sie mit den übrigen Texturen vor dem
+ * Einblenden).
  */
 function* bakedMesh(ctx, opt) {
   const set = ctx.data[opt.data];
@@ -5994,36 +6001,78 @@ function* bakedMesh(ctx, opt) {
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(Float32Array.from(uv, (v) => v / 65535), 2));
   geo.setAttribute('aRock', new THREE.Float32BufferAttribute(Float32Array.from(rock, (v) => v / 255), 1));
   geo.setIndex(new THREE.BufferAttribute(set.idx16 ? new Uint16Array(bytes(set.idx16)) : new Uint32Array(bytes(set.idx32)), 1));
-  const img = new Image(), tex = new THREE.Texture(img);
-  tex.encoding = THREE.sRGBEncoding;
-  tex.flipY = false; // Zeile 0 oben wie die UV-Karte aus Blender (v nach oben): im Shader 1 − v
-  tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
-  // dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread (siehe loadSkyImage)
-  let decoded = null;
-  img.src = set.texture;
-  img.decode().then(() => { decoded = true; }, () => { decoded = false; });
-  while (decoded === null) yield NEXT_FRAME;
-  if (!decoded || !img.naturalWidth) throw new Error('Bild der Felsen nicht lesbar');
-  tex.needsUpdate = true;
+  // Bild aus einer Data-URL, dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread
+  // (siehe loadSkyImage). color: Farbbild (sRGB, Mipmaps), sonst Daten (nächster Nachbar, ohne Mipmaps)
+  const image = function* (url, color) {
+    const img = new Image(), tex = new THREE.Texture(img);
+    tex.flipY = false; // Zeile 0 oben wie die Bilder und die UV-Karte aus Blender (v nach oben): im Shader 1 − v
+    if (color) {
+      tex.encoding = THREE.sRGBEncoding;
+      tex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    } else {
+      tex.minFilter = tex.magFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+    }
+    let decoded = null;
+    img.src = url;
+    img.decode().then(() => { decoded = true; }, () => { decoded = false; });
+    while (decoded === null) yield NEXT_FRAME;
+    if (!decoded || !img.naturalWidth) throw new Error('Bild der Felsen nicht lesbar');
+    tex.needsUpdate = true;
+    return tex;
+  };
+  const tex = yield* image(set.texture, true);
+  const view = set.view && set.viewTexture && set.viewData ? set.view : null;
+  const uniforms = { ...ctx.uniforms, uTex: { value: tex } };
+  if (view) {
+    uniforms.uView = { value: yield* image(set.viewTexture, true) };
+    uniforms.uViewData = { value: yield* image(set.viewData, false) };
+  }
+  // je Ausschnitt: Lage im Bild und Gewicht 0 … 1 (ohne Verzweigung: Ableitungen fürs Farbbild gelten überall)
+  const windows = (view?.windows ?? []).map(([a0, a1, e0, e1, w, t0, t1], i) => `
+          {
+            vec2 st = vec2((az - ${glf(a0)}) / ${glf(a1 - a0)}, (${glf(e1)} - el) / ${glf(e1 - e0)});
+            float inside = step(0.0, st.x) * step(st.x, 1.0) * step(0.0, st.y) * step(st.y, 1.0);
+            vec2 uv${i} = vec2(st.x * ${glf(w)}, ${glf(t0)} + st.y * ${glf(t1 - t0)});
+            vec4 dd = texture2D(uViewData, uv${i});
+            float ld = mix(VIEW_LOG.x, VIEW_LOG.y, dd.r);
+            float w${i} = inside * dd.g * (1.0 - smoothstep(0.015, 0.04, abs(log(dist) - ld)));
+            viewUv = mix(viewUv, uv${i}, inside);
+            weight = max(weight, w${i});
+          }`).join('');
   const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    uniforms: { ...ctx.uniforms, uTex: { value: tex } },
+    uniforms,
     vertexShader: `
         attribute float aRock;
         varying vec2 vUv;
         varying float vRock;
+        varying vec3 vPos;
         void main() {
           vUv = vec2(uv.x, 1.0 - uv.y);
           vRock = aRock;
-          gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(position, 1.0);
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vPos = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
     fragmentShader: `
-        uniform sampler2D uTex;
+        uniform sampler2D uTex${view ? ', uView, uViewData' : ''};
         uniform float uFade, uReady;
         varying vec2 vUv;
         varying float vRock;
+        varying vec3 vPos;
+        const vec3 VIEW_CENTER = ${glv(ctx.pano.center.toArray())};
+        const vec2 VIEW_LOG = ${glv((view?.log ?? [1, 2]).map(Math.log))};
         void main() {
+          vec3 col = texture2D(uTex, vUv).rgb;${view ? `
+          // Richtung vom Mittelpunkt wie im Equirect (Grad): az von Blender +y aus, el über dem Horizont
+          vec3 d = vPos - VIEW_CENTER;
+          float dist = length(d);
+          float az = degrees(atan(d.x, -d.z)), el = degrees(asin(clamp(d.y / dist, -1.0, 1.0)));
+          vec2 viewUv = vec2(0.0);
+          float weight = 0.0;${windows}
+          col = mix(col, texture2D(uView, viewUv).rgb, weight);` : ''}
           if (vRock < 0.5) discard;
-          gl_FragColor = vec4(texture2D(uTex, vUv).rgb * uFade * uReady, 1.0);
+          gl_FragColor = vec4(col * uFade * uReady, 1.0);
         }`,
   }));
   mesh.frustumCulled = false;
@@ -6421,7 +6470,10 @@ function groundTexture(data, n) {
   return tex;
 }
 
-/** Wassermaske des Panoramas (untere Hälfte des Equirects; Zeile 0 am Horizont): linear, ohne Mipmaps, rundum */
+/**
+ * Wassermaske des Panoramas (Zeile 0 am Horizont, Zeilen wie im Equirect: 360° / Breite je Zeile; so weit unter den
+ * Horizont, wie sie hoch ist, siehe MASK_DEG in tools/blender/wald_export.py): linear, ohne Mipmaps, rundum
+ */
 function maskTexture(img) {
   const tex = new THREE.Texture(img);
   tex.minFilter = tex.magFilter = THREE.LinearFilter;
@@ -6530,8 +6582,10 @@ function* waterSurface(ctx, opt) {
           vec2 m = at(wp.xz);
           float rock = texture2D(uMap, mapUV(wp.xz)).b;
           // an Land auf dem Sand (dort läuft das Wasser auf), am Fels auf Höhe des Wassers: Was er verdeckt,
-          // entscheiden die Felsen des Spiels und das Netz des Panoramas (ohne dessen Tiefenregel liegt es weiter vorn)
-          wp.y = LEVEL + max(-m.x, 0.0) * (1.0 - rock);
+          // entscheiden die Felsen des Spiels und das Netz des Panoramas (ohne dessen Tiefenregel liegt es weiter
+          // vorn). Jenseits der Karte offenes Wasser (ihr Rand gilt dort nicht, wie im Fragment)
+          float outside = smoothstep(EXT - 12.0, EXT - 1.0, max(abs(wp.x), abs(wp.z)));
+          wp.y = LEVEL + max(-m.x, 0.0) * (1.0 - rock) * (1.0 - outside);
           float lift = ${glf(opt.lift)};
           #ifndef CUT
             lift += ROCK_LIFT * rock;
@@ -6867,6 +6921,8 @@ function* waterSurface(ctx, opt) {
   // die Wasserfläche auf dem Strahl der Kamera. Wasser, Loch (ohne Treffer) oder etwas hinter P: hinter P; Fels vor P:
   // vor das höchste Wasser (Auflaufen bis 0,75 m, dazu lift); sonst (Sand: dort läuft das Wasser auf) wie es liegt.
   if (cut) {
+    // so viele Grad unter dem Horizont deckt die Wassermaske ab (siehe maskTexture)
+    const mask = ctx.pano.waterMask?.image, maskDeg = mask ? (mask.height * 360) / mask.width : 90;
     ctx.pano.depthRule = {
       uniforms: {
         uCutDepth: { value: ctx.pano.depth.tex }, uCutMap: { value: material.uniforms.uMap.value },
@@ -6892,10 +6948,10 @@ function* waterSurface(ctx, opt) {
           // Wasser: nach der Maske, so fein wie das Bild (die Tiefe ist gröber: um ferne Palmen blieb ein Saum ohne
           // Spielwasser), sonst nach der Tiefe. Etwas hinter dem Wasser: nur nah (Felsen, die das geglättete Netz vor
           // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben)
+          bool water = T.y < CUT_LEVEL + 0.03;
           #ifdef CUT_MASK
-            bool water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), 1.0 - 2.0 * acos(clamp(-d.y, -1.0, 1.0)) / PI)).r > 0.5;
-          #else
-            bool water = T.y < CUT_LEVEL + 0.03;
+            float below = degrees(asin(clamp(-d.y, -1.0, 1.0))) / ${glf(maskDeg)};
+            if (below < 1.0) water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
           #endif
           if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) {
             return max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR)));
@@ -7511,7 +7567,8 @@ function createPanoramaSky(m) {
       depth: { tex: depth, size: [depthImg.width, depthImg.height], log: m.panorama.depth.log, image: depthImg },
     };
     const ctx = {
-      uniforms, pointUniforms, data: base.data ?? {}, light, lightGLSL, fog: m.fog, air: m.air, pano, offscreen: [], later: [],
+      uniforms, pointUniforms, data: withHd(base.data ?? {}, hd?.data), light, lightGLSL, fog: m.fog, air: m.air, pano,
+      offscreen: [], later: [],
     };
     // Ebenen je ab einem neuen Bild; wer viel rechnet (Wasser, Bäume), ist ein Generator und läuft in Häppchen
     for (const layer of [...m.layers ?? [], null]) {
@@ -7607,6 +7664,13 @@ function createPanoramaSky(m) {
       sky.material.uniforms[`uBand${i}`].value = tex;
       myBands[i].age = 0;
     }
+  }
+
+  /** Daten der Ebenen: Felder aus dem HD-Teil (Desktop, etwa grössere Bilder) ersetzen die gleichnamigen */
+  function withHd(data, hdData) {
+    const out = { ...data };
+    for (const [k, v] of Object.entries(hdData ?? {})) out[k] = { ...out[k], ...v };
+    return out;
   }
 
   /** Dekodierte Streifen schliessen, die (noch) keine Textur haben */
