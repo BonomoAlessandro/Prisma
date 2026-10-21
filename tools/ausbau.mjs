@@ -28,7 +28,7 @@
 //   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau, mit schwierigkeit (der Ziel-Schwierigkeit), wo
 //   der Pool sie trägt (ohne Namen; die kommen nach dem Urteil der KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N] [--verschiebe g:n,…]
 //   --nur-beurteilt: nur Kandidaten mit zählendem Urteil (Läufe ausbau-…), ohne Ablehnung in --ohne; so lässt sich
 //   eine Gruppe aus einem Vorrat beurteilter Kandidaten zusammenstellen, ohne dass neue Urteile neue Korrekturen
 //   bringen. --schritte N: Schritte der Suche (sonst SUCHE_SCHRITTE); --zufall N: ein anderer Startwert ihres Zufalls.
@@ -199,11 +199,19 @@ async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
   const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
   const auchGesetzte = args.includes('--auch-gesetzte'), nurBeurteilt = args.includes('--nur-beurteilt');
+  // --verschiebe leicht:3,mittel:-3: so viele Level mehr bzw. weniger je Grad als nach der Tabelle, zusammen 0 (die
+  // nächste Gruppe gleicht es aus, weil der Bedarf aus dem Spiel gerechnet wird)
+  const verschiebe = Object.fromEntries((flag('--verschiebe', '') || '').split(',').filter(Boolean)
+    .map(t => t.split(':')).map(([g, x]) => [g, Number(x)]));
+  if (Object.keys(verschiebe).some(g => !GRADE.includes(g)) || !Object.values(verschiebe).every(Number.isInteger)
+    || Object.values(verschiebe).reduce((s, x) => s + x, 0) !== 0) {
+    fail('--verschiebe: je Grad eine ganze Zahl, etwa leicht:3,mittel:-3, zusammen 0');
+  }
   const suchSchritte = Number(flag('--schritte', SUCHE_SCHRITTE)), startwert = Number(flag('--zufall', 0));
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools || !(Number.isInteger(suchSchritte) && suchSchritte >= 0)
     || !Number.isInteger(startwert)) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]');
+      + '[--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N] [--verschiebe g:n,…]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester
@@ -295,7 +303,7 @@ async function wahl() {
   const waehle = () => {
     const gewaehlt = [...setze], bericht = [];
     for (const g of GRADE) {
-      const noetig = Math.max(0, ziel[g] - im[g] - setze.filter(k => k.grad === g).length);
+      const noetig = Math.max(0, ziel[g] + (verschiebe[g] ?? 0) - im[g] - setze.filter(k => k.grad === g).length);
       const imGrad = levels.flatMap((l, i) => (l.grad === g ? [werte[i]] : []));
       let offen = inFrage.filter(k => k.grad === g);
       let dazu = 0;
@@ -336,7 +344,11 @@ async function wahl() {
     // ordne-level.mjs schriebe dann auch nicht. Ein Level, das schon vor der Häufungsregel zu weit steht, zählt doppelt
     // (einmal hier, einmal in der ganzen Prüfung): Es sperrt jeden Zug, wiegt also schwerer (Review Ticket 03)
     const zuWeit = zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
-    return { f, zuWeit, schlecht: [zuWeit + f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
+    // Fällt das Mittel je 10 Level (etwa auf einer angefangenen letzten Seite mit wenigen Leveln), lässt die
+    // Häufungsregel ebenso keinen Zug zu; es zählt darum wie ein Verstoss mit, statt die Probe ganz zu verwerfen, damit
+    // die Suche eine Wahl finden kann, bei der es steigt (Gruppe 3)
+    const fehler = zuWeit + (f.mittel ? 0 : 1);
+    return { f, zuWeit, schlecht: [fehler + f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
   };
   const besser = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
   /** Ist einer der neuen Kandidaten einem anderen Level der Wahl probe zu ähnlich? */
@@ -380,7 +392,7 @@ async function wahl() {
     const probe = gewaehlt.map((y, q) => (q === j ? x : y));
     if (zuAehnlich(x.level, probe.filter(y => y !== x).map(y => y.level))) continue;
     const p = pruefe(probe);
-    if (p.f.sinkt || !p.f.mittel || besser(stand.schlecht, p.schlecht)) continue;
+    if (p.f.sinkt || besser(stand.schlecht, p.schlecht)) continue;
     // ein Level aus --behalte nur, wenn es echt besser wird: gleich gut hiesse ein neues Urteil ohne Gewinn
     if (setze.includes(k) && !besser(p.schlecht, stand.schlecht)) continue;
     if (besser(p.schlecht, stand.schlecht)) tausche++;
@@ -413,7 +425,7 @@ async function wahl() {
             if (aehnlichIn([hinein[x], hinein[y]], probe)) continue;
             const p = pruefe(probe);
             paare++;
-            if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) {
+            if (!p.f.sinkt && besser(p.schlecht, stand.schlecht)) {
               gefunden = { probe, p };
               break suche;
             }
@@ -446,7 +458,7 @@ async function wahl() {
           if (aehnlichIn(neu, probe)) continue;
           const p = pruefe(probe);
           paare++;
-          if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) { gefunden = { probe, p }; break mehr; }
+          if (!p.f.sinkt && besser(p.schlecht, stand.schlecht)) { gefunden = { probe, p }; break mehr; }
         }
       }
     }
