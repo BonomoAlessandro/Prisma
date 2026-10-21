@@ -69,8 +69,8 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet,
-  festePlaetze, imSpiel, ladeLevelliste, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet, festePlaetze,
+  imSpiel, ladeLevelliste, maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -390,7 +390,7 @@ console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10} j
   + `${ordnung.zuege.length ? ordnung.zuege.map(zug).join('; ') : 'keine Züge'}`);
 const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `
   + `${h.mit.length}-mal, ${h.mit.map(name).join(', ')}`).join('; ');
-if (offenText) console.log(`    nicht aufzulösen mit höchstens ${MAX_ENTZERREN} Plätzen: ${offenText}`);
+if (offenText) console.log(`    nicht aufzulösen mit höchstens ${maxEntzerren(ausbau)} Plätzen: ${offenText}`);
 // Viele Korrekturen nahe beieinander schieben einander, ebenso die Züge der Häufungsregel (Ticket 24, Review M1); im
 // Ausbau gilt die Grenze nicht (zuWeitGilt, Entscheid des Nutzers vom 22.10.2026)
 const zuWeit = zuWeitGilt(ausbau) ? zuWeitKorrigiert(ordnung) : [];

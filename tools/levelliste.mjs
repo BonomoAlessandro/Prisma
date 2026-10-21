@@ -29,10 +29,12 @@
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
 //   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
-//   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze, so wenig wie nötig:
+//   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
+//   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
-//   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder
-//   bricht die übrigen Regeln (Grad, Mittel je 10 Level, Korrekturen der KI-Tester).
+//   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Löst kein einzelner Zug sie auf, gilt
+//   auch eine Folge von Zügen, die sie je verkleinern und am Ende auflösen (höchstens VORAUSSCHAU Stellungen). Kein Zug
+//   schafft eine neue Häufung oder bricht die übrigen Regeln (Grad, Mittel je 10 Level, Korrekturen der KI-Tester).
 // - Korrekturen der KI-Tester (zuWeitKorrigiert, Ticket 24): Jede Korrektur führt höchstens MAX_SHIFT Plätze weit,
 //   doch rücken andere Level an einem korrigierten vorbei, verschiebt es das mit. Darum gilt auch für das Ergebnis:
 //   Kein korrigiertes Level steht mehr als MAX_SHIFT Plätze von seinem Platz davor, weder nach den Korrekturen noch am
@@ -94,6 +96,12 @@ export const TOLERANZ_MITTEL = 1;
 export const HAUPT_KERNIDEE_JE_10 = 2;
 /** Gegen eine Häufung der Haupt-Kernidee rückt ein Level höchstens so viele Plätze (entzerre). */
 export const MAX_ENTZERREN = 3;
+/** Die Häufungsregel prüft für eine Häufung höchstens so viele Stellungen voraus (entzerre). */
+export const VORAUSSCHAU = 40;
+/** Ebenso im Ausbau: bestehende Level dürfen weiter rücken, wenn nötig (Entscheid des Nutzers vom 22.10.2026). */
+export const MAX_ENTZERREN_AUSBAU = 5;
+/** Die Grenze der Häufungsregel für eine Liste des Ausbaus (siehe zuWeitGilt). */
+export const maxEntzerren = (ausbau = []) => (zuWeitGilt(ausbau) ? MAX_ENTZERREN : MAX_ENTZERREN_AUSBAU);
 /** Läufe, in denen die ursprüngliche Duldungsliste wachsen durfte (Ticket 16, die Läufe der Prüfliste). */
 export const ERGAENZENDE_LAEUFE = /^pruefung-/;
 export const DATEI = new URL('./levelliste.json', import.meta.url);
@@ -307,59 +315,92 @@ export function haeufungen(folge, haupt, geduldet) {
 
 /**
  * Löst die Häufungen der Haupt-Kernidee auf (Entscheide des Nutzers vom 17.10.2026, Ticket 16), eine nach der anderen,
- * die vorderste zuerst. Ein Level rückt dafür innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze; die Level
- * dazwischen rücken je einen Platz zu seinem alten hin. Ein Zug muss die Häufung auflösen, darf keine neue schaffen und
- * muss zulaessig(folge) bestehen (die übrigen Regeln, siehe reihenfolge). Wahl unter den Zügen:
+ * die vorderste zuerst. Ein Level rückt dafür innerhalb seines Grads um höchstens weit Plätze (MAX_ENTZERREN, im
+ * Ausbau MAX_ENTZERREN_AUSBAU, siehe maxEntzerren); die Level dazwischen rücken je einen Platz zu seinem alten hin. Ein
+ * Zug muss die Häufung auflösen, darf keine neue schaffen und muss zulaessig(folge) bestehen (die übrigen Regeln, siehe
+ * reihenfolge). Wahl unter den Zügen:
  *   1. zuerst Züge der betroffenen Level;
  *   2. lässt sich die Häufung so nicht auflösen, Züge anderer Level derselben oder einer Nachbarseite, dabei ein Level
  *      der Duldungsliste vor einem anderen;
  *   3. dann der kürzeste Zug, dann der des Levels auf dem späteren Platz, dann der nach hinten.
+ * Ist die Häufung um mehr als ein Level zu gross (etwa 4-mal dieselbe Haupt-Kernidee im Ausbau), löst kein einzelner Zug
+ * sie auf. Dann gelten mehrere Züge, die sie je verkleinern und am Ende auflösen; genommen die erste solche Folge nach
+ * derselben Wahl, Zug für Zug.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
  * der Duldungsliste. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen: die Häufungen, die sich so
  * nicht auflösen lassen }.
  */
-export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true) {
-  let neu = [...folge];
-  const zuege = [], offen = [];
+export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
-  for (;;) {
-    const vorher = haeufungen(neu, haupt, geduldet), h = vorher.find(x => !offen.some(o => gleich(o, x)));
-    if (!h) return { folge: neu, zuege, offen: vorher };
-    // Rang eines Zugs, kleiner ist besser: betroffen vor anderem, Duldungsliste vor anderem, kürzer, später, hinten
-    const rang = (z) => [h.mit.includes(z.i) ? 0 : 1, geduldet.has(z.i) ? 0 : 1, z.s, -z.von, -z.nach];
-    const besser = (a, b) => {
-      const ra = rang(a), rb = rang(b), k = ra.findIndex((x, j) => x !== rb[j]);
-      return k >= 0 && ra[k] < rb[k];
-    };
-    const seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
-    let best = null;
-    for (const kreis of [h.mit, neu.filter((i, p) => !h.mit.includes(i) && seiten.has(Math.floor(p / 10)))]) {
-      for (const i of kreis) {
-        const von = neu.indexOf(i);
-        for (let s = 1; s <= MAX_ENTZERREN; s++) {
-          for (const nach of [von + s, von - s]) {
-            if (nach < 0 || nach >= neu.length || grad[neu[nach]] !== grad[i]) continue;
-            const probe = verschiebe(neu, von, nach), danach = haeufungen(probe, haupt, geduldet);
-            if (danach.some(x => gleich(x, h) || !vorher.some(y => gleich(x, y))) || !zulaessig(probe)) continue;
-            const zug = { i, von, nach, s, probe };
-            if (!best || besser(zug, best)) best = zug;
-          }
+  // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
+  // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
+  const moeglich = (neu, h, nurBetroffene) => {
+    const vorher = haeufungen(neu, haupt, geduldet), seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
+    const alle = [];
+    for (const i of neu.filter((j, p) => h.mit.includes(j) || (!nurBetroffene && seiten.has(Math.floor(p / 10))))) {
+      const von = neu.indexOf(i);
+      for (let s = 1; s <= weit; s++) {
+        for (const nach of [von + s, von - s]) {
+          if (nach < 0 || nach >= neu.length || grad[neu[nach]] !== grad[i]) continue;
+          const probe = verschiebe(neu, von, nach), danach = haeufungen(probe, haupt, geduldet);
+          const rest = danach.find(x => gleich(x, h)) ?? null;
+          const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
+          if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
+          const rang = [h.mit.includes(i) ? 0 : 1, geduldet.has(i) ? 0 : 1, s, -von, -nach];
+          alle.push({ i, von, nach, probe, rest, rang });
         }
       }
-      if (best) break;
     }
-    if (!best) offen.push(h);
-    else {
-      neu = best.probe;
-      zuege.push({ i: best.i, von: best.von, nach: best.nach });
+    const vor = (a, b) => {
+      const k = a.rang.findIndex((x, j) => x !== b.rang[j]);
+      return k < 0 ? 0 : a.rang[k] - b.rang[k];
+    };
+    return alle.sort(vor);
+  };
+  // Die erste Folge von Zügen, die h auflöst, oder null; höchstens VORAUSSCHAU Stellungen je Häufung, sonst verzweigt
+  // eine unlösbare Häufung zu stark (jede Stellung hat Hunderte Züge)
+  let budget;
+  const loese = (neu, h) => {
+    if (budget-- <= 0) return null;
+    const betroffen = moeglich(neu, h, true).find(z => !z.rest);
+    if (betroffen) return [betroffen];
+    const zuege = moeglich(neu, h, false), ganz = zuege.find(z => !z.rest);
+    if (ganz) return [ganz];
+    for (const z of zuege) {
+      const weiter = loese(z.probe, z.rest);
+      if (weiter) return [z, ...weiter];
+      if (budget <= 0) break;
+    }
+    return null;
+  };
+  let neu = [...folge];
+  const zuege = [], offen = [];
+  for (;;) {
+    const h = haeufungen(neu, haupt, geduldet).find(x => !offen.some(o => gleich(o, x)));
+    if (!h) return { folge: neu, zuege, offen: haeufungen(neu, haupt, geduldet) };
+    budget = VORAUSSCHAU;
+    const folgeZuege = loese(neu, h);
+    if (!folgeZuege) offen.push(h);
+    for (const z of folgeZuege ?? []) {
+      neu = z.probe;
+      zuege.push({ i: z.i, von: z.von, nach: z.nach });
     }
   }
 }
 
-/** Steigt das Mittel der Schwierigkeit je 10 Level, mit höchstens TOLERANZ_MITTEL Punkten Rückschritt? */
+/**
+ * Steigt das Mittel der Schwierigkeit je 10 Level, mit höchstens TOLERANZ_MITTEL Punkten Rückschritt? Nur volle Seiten
+ * zählen: Eine angefangene letzte Seite gibt es nur zwischen den Gruppen des Ausbaus, und ihr Mittel aus wenigen Leveln
+ * ist zufällig (Ticket 06).
+ */
 export function mittelSteigt(folge, werte) {
-  const mittel = zehner(folge).map(z => z.reduce((s, i) => s + werte[i], 0) / z.length);
-  return mittel.every((m, k) => !k || m >= mittel[k - 1] - TOLERANZ_MITTEL);
+  return !fallendeSeiten(folge, werte).length;
+}
+
+/** Die vollen Seiten (ab 0), deren Mittel um mehr als TOLERANZ_MITTEL Punkte unter dem der vorigen liegt. */
+export function fallendeSeiten(folge, werte) {
+  const mittel = zehner(folge).filter(z => z.length === 10).map(z => z.reduce((s, i) => s + werte[i], 0) / 10);
+  return mittel.flatMap((m, k) => (k && m < mittel[k - 1] - TOLERANZ_MITTEL ? [k] : []));
 }
 
 /**
@@ -457,11 +498,13 @@ export function reihenfolge(werte, namen, urteile = [], {
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
   // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und ohne Ausbau bleibt jedes von den
   // KI-Testern korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (zuWeitGilt; den Grad
-  // sichert entzerre)
+  // sichert entzerre). Fällt das Mittel schon vor den Zügen auf einer Seite (eine Wahl des Ausbaus in der Suche),
+  // sperrt das nicht jeden Zug: Ein Zug darf nur keine weitere Seite fallen lassen (Ticket 06)
   const r = { basis, eingefuegt, korrigiert, ki, ausbau: imAusbau };
-  const zulaessig = (probe) => mittelSteigt(probe, werte)
+  const schonGefallen = new Set(fallendeSeiten(korrigiert, werte));
+  const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
-  const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig)
+  const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau))
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
 }

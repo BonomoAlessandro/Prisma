@@ -5,8 +5,8 @@
     "ohneKernidee": [
       "Glasfenster", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
       "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Pinselstrich", "Blaue Stunde", "Farbtupfer", "Rubin",
-      "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer", "Farbverlauf",
-      "Schachbrett", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
+      "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer", "Schachbrett",
+      "Farbverlauf", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
     ],
     "unterMindestSpielwert": [
       "Lichtnetz", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
@@ -72,8 +72,8 @@
   "pruefliste": [
     "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
     "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
-    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Farbverlauf",
-    "Schachbrett", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
+    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Bernstein", "Kreuzfeuer", "Schachbrett",
+    "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
     "Kathedrale", "Supernova", "Zwielicht"
   ],
   "prueflisteErledigt": true,
@@ -107,6 +107,10 @@
     "Kreisel", "Murmel", "Glasperle", "Tautropfen", "Bronze", "Quarz", "Bergkristall", "Rosenquarz", "Mondstein",
     "Sonnenstein", "Glasmalerei", "Buntglas", "Fensterrose", "Glockenturm", "Kompass", "Sextant", "Astrolabium",
     "Fernrohr", "Periskop", "Lichtleiter", "Steilwand", "Nordwand", "Seilschaft", "Biwak", "Basislager", "Höhenweg",
-    "Wega", "Atair", "Deneb", "Rigel", "Beteigeuze"
+    "Wega", "Atair", "Deneb", "Rigel", "Beteigeuze", "Schneeflocke", "Sonnenblume", "Löwenzahn", "Spiegelwand",
+    "Glaswand", "Lichtzelt", "Lichtfeder", "Farbenrad", "Spektrum", "Farbtafel", "Farbmuster", "Zwischenton",
+    "Halbton", "Farbton", "Lichtton", "Farbklang", "Akkord", "Harmonie", "Melodie", "Kanon", "Fuge", "Sonate", "Rondo",
+    "Menuett", "Walzer", "Fernweh", "Kompassnadel", "Sternenkarte", "Seekarte", "Leuchtfeuer", "Lotsenboot",
+    "Hafeneinfahrt", "Ankerplatz", "Aldebaran", "Arktur"
   ]
 }
