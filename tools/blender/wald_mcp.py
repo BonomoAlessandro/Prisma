@@ -89,6 +89,8 @@ def skybox(stil='anime'):
 
     from stile import stil as style
     todo = [s for s in ANIME if s[1] != 'mask' or style(stil).get('himmel') == 'mondnacht']   # Masken nur für den gemalten Himmel
+    if style(stil).get('wasser') is not None:   # Wassermaske so fein wie das ganze Bild: Tiefe in dessen Breite
+        todo = [('wald_export.py', 'depth', 4096) if s[:2] == ('wald_export.py', 'depth') else s for s in todo]
     steps = [(' '.join(map(str, s)), lambda s=s: run(*s, stil=stil)) for s in todo]
     return _later(stil, steps + [('export ' + stil, layers)])
 

@@ -70,7 +70,7 @@ def setup_cycles():
                         ('filepath', r.filepath)):
         setv(r, attr, value)
     im = r.image_settings
-    for attr, value in (('file_format', 'OPEN_EXR'), ('color_depth', '16'), ('exr_codec', 'ZIP')):
+    for attr, value in (('file_format', 'OPEN_EXR'), ('color_mode', 'RGBA'), ('color_depth', '16'), ('exr_codec', 'ZIP')):
         setv(im, attr, value)
     setv(sc.view_settings, 'view_transform', 'Standard')   # neu gebaute Szenen stehen auf AgX
     setv(sc, 'camera', bpy.data.objects['Panorama'])
@@ -149,6 +149,13 @@ def encode_depth(width, center):
     q = np.round(np.clip((s / np.maximum(cnt, 1) - a) / (b - a), 0, 1) * 65534).astype(np.int64)
     q[cnt == 0] = 65535
     save_image(np.stack([(q >> 8) / 255.0, (q & 255) / 255.0, np.zeros(q.shape)], -1), os.path.join(SKY, 'depth.png'))
+    level = stil(STIL).get('wasser')
+    if level is not None:
+        # Wassermaske, so fein wie gerendert (die Tiefe oben ist gröber): 1, wo das Panorama Wasser zeigt (Wasserfläche
+        # oder Grund darunter, ohne Treffer unter dem Horizont: das Loch unter dem Brett). Nur die untere Hälfte.
+        lower = P[P.shape[0] // 2:]
+        water = np.where(hit[P.shape[0] // 2:], lower[..., 2] <= level + 0.05, True)
+        save_image(np.repeat(water[..., None].astype(np.float64), 3, -1), os.path.join(SKY, 'watermask.png'), bw=True)
 
 
 def depth_center(out=OUT):

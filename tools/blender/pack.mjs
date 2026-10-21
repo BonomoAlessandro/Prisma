@@ -58,7 +58,7 @@ if (existsSync(layersFile)) {
   Object.assign(data, inline(JSON.parse(readFileSync(layersFile, 'utf8'))));
 }
 
-const base = { full: url(cfg.full), depth: url(cfg.depth), data };
+const base = { full: url(cfg.full), depth: url(cfg.depth), ...(cfg.watermask ? { watermask: url(cfg.watermask) } : {}), data };
 const hd = { bands: cfg.bands.map((b) => url(b.file)) };
 const rev = createHash('sha256').update(JSON.stringify([base, hd])).digest('hex').slice(0, 8);
 const partJs = (role, body) => `// Skybox ${id} (${role}) – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n` +

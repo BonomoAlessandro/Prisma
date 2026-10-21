@@ -250,22 +250,35 @@ def sample(field, u, v):
     return (field[y0, x0] * (1 - fx) + field[y0, x1] * fx) * (1 - fy) + (field[y1, x0] * (1 - fx) + field[y1, x1] * fx) * fy
 
 
-def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
-    """lineares Rendering (× EXPOSURE) -> Anzeige-Bild (sRGB-kodiert) im Anime-Stil. noise: Farbschwankung je Pixel.
-    wrap: Bild reicht rundum (360°), die Ränder gehen ineinander über."""
-    disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
+def grade(disp):
+    """Farbgebung im Anime-Stil (Anzeige-Farben, sRGB-kodiert), vor den Pinselstrichen"""
     lum = disp @ np.array([0.2126, 0.7152, 0.0722])
     if S.get('stops'):
         t = np.clip(lum / 0.78, 0, 1) ** 0.62                   # Dunkles gespreizt: Anime-Nächte bleiben lesbar
         pal = gradient_map(t, S['stops'])
         # eigene Farbe der Szene behalten (grünliche Bäume, Mondhof), verstärkt
-        col = pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
-    else:
-        # Farben der Szene, satter; in die Schatten mischt sich eine Farbe (gemalte Schatten sind nie schwarz)
-        col = lum[..., None] + (disp - lum[..., None]) * S['saettigung']
-        col = col + (1 - smoothstep_np(0.0, 0.45, lum))[..., None] * np.array(S['schatten'])
-        if 'licht' in S:   # Abendlicht: helle Töne wärmer
-            col = col * (1 + smoothstep_np(0.35, 0.85, lum)[..., None] * (np.array(S['licht']) - 1))
+        return pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
+    # Farben der Szene, satter; in die Schatten mischt sich eine Farbe (gemalte Schatten sind nie schwarz)
+    col = lum[..., None] + (disp - lum[..., None]) * S['saettigung']
+    col = col + (1 - smoothstep_np(0.0, 0.45, lum))[..., None] * np.array(S['schatten'])
+    if 'licht' in S:   # Abendlicht: helle Töne wärmer
+        col = col * (1 + smoothstep_np(0.35, 0.85, lum)[..., None] * (np.array(S['licht']) - 1))
+    return col
+
+
+def paint_texture(lin, size=2):
+    """Gebackenes Licht (Bild, lineare Szenenwerte wie gerendert) im Anime-Stil wie stylize, mit Pinselstrichen, ohne
+    Leuchten: was die Textur speichert (to_texture; nahe Felsen des Strands)"""
+    col = grade(srgb_encode(aces_game(lin * EXPOSURE)))
+    col = kuwahara(np.clip(col, 0, 1), size=size)
+    return to_texture(gamut(shoulder(np.clip(col, 0, 1))))
+
+
+def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
+    """lineares Rendering (× EXPOSURE) -> Anzeige-Bild (sRGB-kodiert) im Anime-Stil. noise: Farbschwankung je Pixel.
+    wrap: Bild reicht rundum (360°), die Ränder gehen ineinander über."""
+    disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
+    col = grade(disp)
     # Pinselstriche (rundum: mit Rand aus der Gegenseite, sonst entstünde an der Naht eine Kante)
     size = max(2, int(round(px_per_deg * 0.28)))
     m = 4 * size if wrap else 0
@@ -343,6 +356,8 @@ if __name__ == '__main__':
                 'full': 'full.jpg', 'depth': 'depth.png', 'depthLog': list(DEPTH_LOG),
                 'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)],
                 'light': {'dir': light_dir(OUT)}}
+        if os.path.exists(os.path.join(SKY, 'watermask.png')):   # wald_export depthcode, Szenen mit Wasser
+            data['watermask'] = 'watermask.png'
         data.update(measure_sky(SKY, data['full'], [b['file'] for b in data['bands']]))
         with open(os.path.join(SKY, 'sky.json'), 'w', encoding='utf-8') as fh:
             json.dump(data, fh, indent=2)
