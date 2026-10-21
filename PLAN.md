@@ -738,7 +738,8 @@ Zuletzt aktualisiert: 21. Oktober 2026
   - Aus dem Review: Wassermaske nur bis 20° unter dem Horizont (dort braucht es sie; als RGBA 3,7 statt 17 MB – eine
     Graustufen-Textur lädt three mit texStorage2D nicht hoch, die Maske war leer; wie weit sie reicht, liest das Spiel
     aus ihrer Höhe), `gpuMB` zählt Maske und Bilder der Ebenen mit, Wasser jenseits der Karte auf Meereshöhe.
-  Wartet auf die Abnahme durch den Nutzer.
+  Vom Nutzer abgenommen („sieht super aus“, 21. Oktober) und committet (f6efdf0). Offen: Merge nach main, Push,
+  Test auf einem echten Handy.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
