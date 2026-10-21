@@ -56,3 +56,10 @@ Kandidaten; die neu gewählten beurteilen die KI-Tester.
   habe ich abgebrochen (je Runde 1–2 von 6); die übrigen reichten.
 - **Tests:** Logik 968, Levelliste 53, KI-Tester 65, Golden 299 (nach `--write`), Beurteilung 178, alle grün.
   Stichprobe: Fuge (167, Desktop) und Arktur (280, Handy), ohne Befund.
+
+**Review (22.10.2026):** keine mittleren oder grossen Befunde. Der Reviewer bestätigt: Wo ein Zug eine Häufung
+auflöst, wählt `entzerre` wie vorher; die Schleife endet; das Budget gilt je Häufung. Klein und selbst behoben:
+zwei zu lange Importzeilen, ein Satz im Kopfkommentar. Hinweis übernommen: zuerst nur die Züge der betroffenen Level
+prüfen (spart Proben). Dazu aus der Wahl für Gruppe 5: Das Mittel je 10 Level zählt nur volle Seiten
+(`fallendeSeiten`), und fällt es schon vor den Zügen auf einer Seite, darf ein Zug nur keine weitere fallen lassen;
+sonst sperrte ein einziger Verstoss jeden Zug (siehe Ticket 06).

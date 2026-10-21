@@ -32,8 +32,9 @@
 //   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
 //   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
-//   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder
-//   bricht die übrigen Regeln (Grad, Mittel je 10 Level, Korrekturen der KI-Tester).
+//   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Löst kein einzelner Zug sie auf, gilt
+//   auch eine Folge von Zügen, die sie je verkleinern und am Ende auflösen (höchstens VORAUSSCHAU Stellungen). Kein Zug
+//   schafft eine neue Häufung oder bricht die übrigen Regeln (Grad, Mittel je 10 Level, Korrekturen der KI-Tester).
 // - Korrekturen der KI-Tester (zuWeitKorrigiert, Ticket 24): Jede Korrektur führt höchstens MAX_SHIFT Plätze weit,
 //   doch rücken andere Level an einem korrigierten vorbei, verschiebt es das mit. Darum gilt auch für das Ergebnis:
 //   Kein korrigiertes Level steht mehr als MAX_SHIFT Plätze von seinem Platz davor, weder nach den Korrekturen noch am
@@ -331,11 +332,12 @@ export function haeufungen(folge, haupt, geduldet) {
  */
 export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
-  // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt
-  const moeglich = (neu, h) => {
+  // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
+  // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
+  const moeglich = (neu, h, nurBetroffene) => {
     const vorher = haeufungen(neu, haupt, geduldet), seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
     const alle = [];
-    for (const i of neu.filter((j, p) => h.mit.includes(j) || seiten.has(Math.floor(p / 10)))) {
+    for (const i of neu.filter((j, p) => h.mit.includes(j) || (!nurBetroffene && seiten.has(Math.floor(p / 10))))) {
       const von = neu.indexOf(i);
       for (let s = 1; s <= weit; s++) {
         for (const nach of [von + s, von - s]) {
@@ -360,7 +362,9 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
   let budget;
   const loese = (neu, h) => {
     if (budget-- <= 0) return null;
-    const zuege = moeglich(neu, h), ganz = zuege.find(z => !z.rest);
+    const betroffen = moeglich(neu, h, true).find(z => !z.rest);
+    if (betroffen) return [betroffen];
+    const zuege = moeglich(neu, h, false), ganz = zuege.find(z => !z.rest);
     if (ganz) return [ganz];
     for (const z of zuege) {
       const weiter = loese(z.probe, z.rest);
@@ -384,10 +388,19 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
   }
 }
 
-/** Steigt das Mittel der Schwierigkeit je 10 Level, mit höchstens TOLERANZ_MITTEL Punkten Rückschritt? */
+/**
+ * Steigt das Mittel der Schwierigkeit je 10 Level, mit höchstens TOLERANZ_MITTEL Punkten Rückschritt? Nur volle Seiten
+ * zählen: Eine angefangene letzte Seite gibt es nur zwischen den Gruppen des Ausbaus, und ihr Mittel aus wenigen Leveln
+ * ist zufällig (Ticket 06).
+ */
 export function mittelSteigt(folge, werte) {
-  const mittel = zehner(folge).map(z => z.reduce((s, i) => s + werte[i], 0) / z.length);
-  return mittel.every((m, k) => !k || m >= mittel[k - 1] - TOLERANZ_MITTEL);
+  return !fallendeSeiten(folge, werte).length;
+}
+
+/** Die vollen Seiten (ab 0), deren Mittel um mehr als TOLERANZ_MITTEL Punkte unter dem der vorigen liegt. */
+export function fallendeSeiten(folge, werte) {
+  const mittel = zehner(folge).filter(z => z.length === 10).map(z => z.reduce((s, i) => s + werte[i], 0) / 10);
+  return mittel.flatMap((m, k) => (k && m < mittel[k - 1] - TOLERANZ_MITTEL ? [k] : []));
 }
 
 /**
@@ -485,9 +498,11 @@ export function reihenfolge(werte, namen, urteile = [], {
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
   // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und ohne Ausbau bleibt jedes von den
   // KI-Testern korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (zuWeitGilt; den Grad
-  // sichert entzerre)
+  // sichert entzerre). Fällt das Mittel schon vor den Zügen auf einer Seite (eine Wahl des Ausbaus in der Suche),
+  // sperrt das nicht jeden Zug: Ein Zug darf nur keine weitere Seite fallen lassen (Ticket 06)
   const r = { basis, eingefuegt, korrigiert, ki, ausbau: imAusbau };
-  const zulaessig = (probe) => mittelSteigt(probe, werte)
+  const schonGefallen = new Set(fallendeSeiten(korrigiert, werte));
+  const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
   const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau))
     : { folge: korrigiert, zuege: [], offen: [] };

@@ -69,8 +69,8 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet,
-  festePlaetze, imSpiel, ladeLevelliste, maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet, festePlaetze,
+  imSpiel, ladeLevelliste, maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */

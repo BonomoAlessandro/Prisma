@@ -25,9 +25,9 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { bestandNach } from '../tools/ausbau.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile,
-  entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, maxEntzerren,
-  reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
+  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL,
+  alleUrteile, entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste,
+  maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -327,7 +327,8 @@ test('zuWeitGilt: die Grenze für korrigierte Level gilt nur ohne Level des Ausb
   assert.equal(zuWeitGilt([false, true, false]), false);
 });
 test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ_MITTEL} Punkt Rückschritt`, () => {
-  const mittel = zehner(MAIN).map(z => z.reduce((s, l) => s + wert(l), 0) / z.length);
+  // nur volle Seiten (mittelSteigt): eine angefangene letzte Seite gibt es nur zwischen den Gruppen des Ausbaus
+  const mittel = zehner(MAIN).filter(z => z.length === 10).map(z => z.reduce((s, l) => s + wert(l), 0) / 10);
   const text = mittel.map(m => m.toFixed(1)).join(' ');
   for (let k = 1; k < mittel.length; k++) {
     assert.ok(mittel[k] >= mittel[k - 1] - TOLERANZ_MITTEL, `Mittelwerte ${text}`);
