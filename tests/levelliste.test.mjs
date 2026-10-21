@@ -25,9 +25,9 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { bestandNach } from '../tools/ausbau.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre,
-  ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, reihenfolge, stark,
-  zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
+  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile,
+  entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste, maxEntzerren,
+  reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -180,10 +180,11 @@ test('Jede Abweichung vom Platz der Formel ist im Protokoll oder durch die Häuf
     assert.deepEqual(zuWeitKorrigiert(r).map(v => `${heute[v.i].name} ${v.davor}→${v.korrigiert}→${v.ende}`), [],
       `mehr als ${MAX_SHIFT} Plätze von seinem Platz davor`);
   }
-  // Häufungsregel: jeder Zug höchstens MAX_ENTZERREN Plätze im eigenen Grad, und danach ist keine Häufung offen
+  // Häufungsregel: jeder Zug höchstens MAX_ENTZERREN Plätze (im Ausbau MAX_ENTZERREN_AUSBAU) im eigenen Grad, und
+  // danach ist keine Häufung offen
   assert.deepEqual(r.offen.map(h => `${10 * h.gruppe + 1}–${10 * h.gruppe + 10} ${h.begriff}`), [], 'offen');
   for (const z of r.zuege) {
-    assert.ok(Math.abs(z.nach - z.von) <= MAX_ENTZERREN, `${heute[z.i].name}: Zug zu weit`);
+    assert.ok(Math.abs(z.nach - z.von) <= maxEntzerren(r.ausbau), `${heute[z.i].name}: Zug zu weit`);
     assert.equal(r.grad[r.folge[z.nach]], r.grad[z.i], `${heute[z.i].name}: Zug in einen anderen Grad`);
   }
   if (!r.zuege.length) assert.deepEqual(r.folge, r.korrigiert);
@@ -592,6 +593,20 @@ test(`Häufungsregel: höchstens ${MAX_ENTZERREN} Plätze, betroffene Level zuer
   // Lässt sich nichts auflösen, bleibt die Häufung offen
   const alle = entzerre(folge, grad, mit(folge), new Set());
   assert.deepEqual([alle.zuege, alle.offen.length], [[], 3]);
+  // 4-mal X auf einer Seite: Kein einzelner Zug löst das auf; zwei Züge verkleinern sie und lösen sie dann auf. Der
+  // kürzeste erste Zug (10 auf 9) führt nicht ans Ziel (jeder zweite schöbe X von 9 zurück), darum ein anderer erster.
+  // Mit 1 Platz geht keine solche Folge, dann rückt kein Level und die Häufung bleibt offen
+  const vier = mit([10, 11, 12, 13]);
+  const zwei = entzerre(folge, grad, vier, new Set());
+  assert.deepEqual([zwei.zuege.length, zwei.offen, haeufungen(zwei.folge, vier, new Set())], [2, [], []]);
+  assert.notDeepEqual(zwei.zuege[0], { i: 10, von: 10, nach: 9 });
+  const eng = entzerre(folge, grad, vier, new Set(), () => true, 1);
+  assert.deepEqual([eng.zuege, eng.offen.map(h => h.mit.length)], [[], [4]]);
+});
+test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sonst ${MAX_ENTZERREN}`, () => {
+  assert.equal(maxEntzerren([]), MAX_ENTZERREN);
+  assert.equal(maxEntzerren([false, false]), MAX_ENTZERREN);
+  assert.equal(maxEntzerren([false, true]), MAX_ENTZERREN_AUSBAU);
 });
 test('Ganze Regel an den heutigen Leveln: zur Formel, am alten Platz mit Korrektur, abgelehnt auf die Duldungsliste',
   () => {
