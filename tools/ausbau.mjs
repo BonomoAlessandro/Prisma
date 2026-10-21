@@ -65,6 +65,13 @@ const BLOCK = 25;
  * mühsam (Gefühl im Mittel 2,5).
  */
 const ZWEITER_TEIL_HOECHSTENS = 1;
+/**
+ * Ab „mittel“ strenger (Gruppe 2, Lauf ausbau-2-2): Ein zweiter Teil mit einem einzigen drehbaren Element, meist eine
+ * Quelle über einen Spiegel zu einem Ziel, dessen zweite Farbe eine feste Quelle bringt, lehnten beide KI-Tester
+ * dreimal als Füllteil ab (in „sehr schwer“ und zweimal in „mittel“), bei vier anderen nicht. Füllteil gilt erst ab
+ * „mittel“; dort darf es darum keinen zweiten Teil mit drehbarem Element geben.
+ */
+const ZWEITER_TEIL_AB_MITTEL = 0;
 /** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens, ohne --schritte. */
 const PAAR_RUNDEN = 5, PAAR_KANDIDATEN = 12;
 /** Mehrfachtausch nach dem Paartausch (wahl): höchstens so viele Level auf einmal, so viele Versuche je Zahl. */
@@ -198,11 +205,14 @@ async function wahl() {
   const gesetzt = behalteDatei ? JSON.parse(readFileSync(behalteDatei, 'utf8')) : [];
   const roh = pools.split(',').flatMap(leseJsonl);
   const gesehen = new Set(), kandidaten = [];
+  // Kandidaten mit zählendem Urteil (Läufe ausbau-…), etwa gut beurteilte, die ein Tausch wieder herausnahm: Sie brauchen
+  // kein neues Urteil, die Suche nimmt sie darum lieber (abgelehnte und schwache stehen in --ohne)
+  const beurteilt = new Set(urteile.filter(e => /^ausbau-/.test(e.lauf)).map(e => e.level.name));
   for (const k of roh) {
     const name = kandidatName(k.level);
     if (gesehen.has(name)) continue;
     gesehen.add(name);
-    kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, '') });
+    kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, ''), beurteilt: beurteilt.has(name) });
   }
   const setze = gesetzt.map((g) => {
     const k = kandidaten.find(x => x.name === kandidatName(g.level));
@@ -227,7 +237,7 @@ async function wahl() {
       return verwirf(k, 'ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
     if (zuAehnlich(k.level, L.LEVELS)) return verwirf(k, 'einem Level im Spiel zu ähnlich');
-    if (zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
+    if (zweiterTeil(k.level) > (k.grad === GRADE[0] ? ZWEITER_TEIL_HOECHSTENS : ZWEITER_TEIL_AB_MITTEL)) {
       return verwirf(k, 'zweiter unabhängiger Teil mit 2 und mehr drehbaren Elementen (Zerfall nach den KI-Testern)');
     }
     return true;
@@ -332,9 +342,9 @@ async function wahl() {
   const ausBehalte = auchGesetzte ? gewaehlt.flatMap((k, j) => (setze.includes(k) ? [j] : [])) : [];
   const tauschbar = [...frei, ...frei, ...frei, ...ausBehalte];
   let stand = pruefe(gewaehlt), tausche = 0, schritte = 0;
-  // der beste Stand der Suche: wenig offen, dann wenige getauschte Level aus --behalte
-  const getauscht = (wahl) => setze.filter(k => !wahl.includes(k)).length;
-  let best = { wahl: [...gewaehlt], stand, getauscht: 0 };
+  // der beste Stand der Suche: wenig offen, dann wenige Level ohne Urteil (getauschte aus --behalte und neue)
+  const getauscht = (wahl) => wahl.filter(k => !k.beurteilt).length;
+  let best = { wahl: [...gewaehlt], stand, getauscht: getauscht(gewaehlt) };
   const vorBest = (p, wahl) => besser(p.schlecht, best.stand.schlecht)
     || (!besser(best.stand.schlecht, p.schlecht) && getauscht(wahl) < best.getauscht);
   while (stand.schlecht[0] && tauschbar.length && schritte < suchSchritte) {
@@ -346,7 +356,8 @@ async function wahl() {
     const seite = h ? r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]) : [];
     const hinein = !h ? [] : alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
       && x.schwierigkeit <= Math.max(...seite));
-    const quelle = (zahlBis(2) && hinein.length ? hinein : alle).sort((a, b) => b.spielwert - a.spielwert);
+    const auswahl = zahlBis(2) && hinein.length ? hinein : alle, mitUrteil = auswahl.filter(x => x.beurteilt);
+    const quelle = (zahlBis(2) && mitUrteil.length ? mitUrteil : auswahl).sort((a, b) => b.spielwert - a.spielwert);
     if (!quelle.length) continue;
     // bevorzugt mit hohem Spielwert: der Platz in der Liste nach dem Quadrat einer gleichverteilten Zahl
     const x = quelle[Math.floor((zahlBis(1000) / 1000) ** 2 * quelle.length)];
