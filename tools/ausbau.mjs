@@ -333,7 +333,8 @@ async function wahl() {
     zeitRegel += Date.now() - t;
     // Zuerst die Korrekturen der KI-Tester, die zu weit führen (Gruppe 2): Mit den Urteilen schieben korrigierte Level
     // einander, und steht eines schon vor der Häufungsregel mehr als MAX_SHIFT Plätze weit, lässt sie keinen Zug zu;
-    // ordne-level.mjs schriebe dann auch nicht
+    // ordne-level.mjs schriebe dann auch nicht. Ein Level, das schon vor der Häufungsregel zu weit steht, zählt doppelt
+    // (einmal hier, einmal in der ganzen Prüfung): Es sperrt jeden Zug, wiegt also schwerer (Review Ticket 03)
     const zuWeit = zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
     return { f, zuWeit, schlecht: [zuWeit + f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
   };
@@ -434,7 +435,13 @@ async function wahl() {
         .sort((a, b) => r.folge.indexOf(levels.length + b) - r.folge.indexOf(levels.length + a));
       mehr: for (let m = 1; m <= Math.min(MEHR_HOECHSTENS, davor.length); m++) {
         for (let versuch = 0; versuch < MEHR_VERSUCHE && imBereich.length >= m; versuch++) {
-          const neu = [...imBereich].sort((a, b) => ((zahlBis(1000) / 1000) - 0.5) || a.seed - b.seed).slice(0, m);
+          // gleichmässig gemischt (Fisher-Yates) mit dem festen Zufall, dann die ersten m (Review Ticket 03)
+          const gemischt = [...imBereich];
+          for (let q = gemischt.length - 1; q > 0; q--) {
+            const t = zahlBis(q + 1);
+            [gemischt[q], gemischt[t]] = [gemischt[t], gemischt[q]];
+          }
+          const neu = gemischt.slice(0, m);
           const probe = gewaehlt.map((k, q) => (davor.slice(0, m).includes(q) ? neu[davor.indexOf(q)] : k));
           if (aehnlichIn(neu, probe)) continue;
           const p = pruefe(probe);
