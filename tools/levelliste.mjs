@@ -303,14 +303,21 @@ const verschiebe = (folge, von, nach) => {
 /**
  * Die Häufungen der Haupt-Kernidee je 10 Level (folge: Indizes nach Platz, haupt: Haupt-Kernidee je Index oder null,
  * geduldet: Set der Indizes auf der Duldungsliste, die nicht zählen): je { gruppe (0 = Plätze 1–10), begriff, mit }.
+ * von, bis: nur die Seiten von bis bis (ab 0), etwa die, die ein Zug ändert.
  */
-export function haeufungen(folge, haupt, geduldet) {
-  return zehner(folge).flatMap((z, gruppe) => {
+export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity) {
+  const liste = [];
+  for (let gruppe = von; gruppe <= Math.min(bis, Math.ceil(folge.length / 10) - 1); gruppe++) {
     const je = {};
-    for (const i of z) if (haupt[i] && !geduldet.has(i)) (je[haupt[i]] ??= []).push(i);
-    return Object.entries(je).filter(([, mit]) => mit.length > HAUPT_KERNIDEE_JE_10)
-      .map(([begriff, mit]) => ({ gruppe, begriff, mit }));
-  });
+    for (let p = 10 * gruppe; p < Math.min(10 * gruppe + 10, folge.length); p++) {
+      const i = folge[p];
+      if (haupt[i] && !geduldet.has(i)) (je[haupt[i]] ??= []).push(i);
+    }
+    for (const [begriff, mit] of Object.entries(je)) {
+      if (mit.length > HAUPT_KERNIDEE_JE_10) liste.push({ gruppe, begriff, mit });
+    }
+  }
+  return liste;
 }
 
 /**
@@ -342,7 +349,11 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
       for (let s = 1; s <= weit; s++) {
         for (const nach of [von + s, von - s]) {
           if (nach < 0 || nach >= neu.length || grad[neu[nach]] !== grad[i]) continue;
-          const probe = verschiebe(neu, von, nach), danach = haeufungen(probe, haupt, geduldet);
+          // Ein Zug ändert nur die Seiten zwischen von und nach; die übrigen Häufungen bleiben wie vorher
+          const a = Math.floor(Math.min(von, nach) / 10), b = Math.floor(Math.max(von, nach) / 10);
+          const probe = verschiebe(neu, von, nach);
+          const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
+            ...haeufungen(probe, haupt, geduldet, a, b)];
           const rest = danach.find(x => gleich(x, h)) ?? null;
           const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
           if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;

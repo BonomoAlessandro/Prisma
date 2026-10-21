@@ -7,7 +7,7 @@ mittel / schwer / sehr schwer): 5 / 20 / 7 / 3. Danach stehen 325 Level im Spiel
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** in-progress
 
 - [ ] 35 neue Level im Spiel, je Grad wie oben; Fehlmengen eines Grads sind begründet und für die nächste Gruppe
       vermerkt.
@@ -19,3 +19,13 @@ mittel / schwer / sehr schwer): 5 / 20 / 7 / 3. Danach stehen 325 Level im Spiel
 - [ ] Golden-Test-Referenz nachgeführt, alle Tests grün, Stichproben der Screenshots geprüft, auf main gemergt.
 
 ## Comments
+
+## Comments
+
+**Zwischenstand (22.10.2026):** Die erste Wahl lief über eine Stunde ohne Ergebnis. Zwei Ursachen, beide behoben:
+- Fiel das Mittel je 10 Level schon vor den Zügen auf einer Seite (hier 181–190, oder die angefangene letzte Seite
+  321–325), liess die Häufungsregel keinen einzigen Zug zu, und alle Häufungen blieben offen (18). Jetzt zählen nur
+  volle Seiten, und ein Zug darf nur keine weitere Seite fallen lassen (`fallendeSeiten`).
+- Laut Messung (CPU-Profil) ging über die Hälfte der Zeit in `haeufungen`, das je Probezug alle 33 Seiten neu zählte.
+  Ein Zug ändert höchstens zwei Seiten; jetzt zählt es nur diese. Die Häufungsregel brauchte für 30 Schritte 24 statt
+  253 s.
