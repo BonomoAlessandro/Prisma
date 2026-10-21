@@ -67,3 +67,38 @@ Reihenfolge der Gruppen 1 und 2 ordnet sich beim Schreiben leicht anders (einige
   Mehrfachtausch auch über gesetzte Plätze; Fisher-Yates im Mehrfachtausch.
 - **Tests:** Logik 863, Levelliste 51, KI-Tester 65, Golden 264 (nach `--write`), Beurteilung 178, alle grün.
   Stichprobe: Kreisel (35) und Deneb (242), Desktop und Handy, ohne Befund.
+
+**Review (22.10.2026)**
+
+Geprüft: die Code-Änderungen der Gruppe in `tools/ausbau.mjs`, `tools/levelliste.mjs`, `tools/ordne-level.mjs` und
+`tests/levelliste.test.mjs`.
+
+- **zuWeitGilt (Entscheid des Nutzers):** entfällt im Ausbau überall: in der Häufungsregel (`zulaessig` in
+  `reihenfolge`), in `ordne-level.mjs` im Bericht („entfällt im Ausbau“) und beim Schreiben (`zuWeit` ist dann leer und
+  sperrt nicht), im Test der Levelliste (`zuWeitGilt(r.ausbau) === !ausbauZahl`, die Prüfung nur ohne Ausbau) und in
+  der Suche der Wahl (`zuWeit` 0). Ohne Ausbau gilt alles wie bisher (`zuWeitGilt([])` ist wahr; die Tests von
+  `zuWeitKorrigiert` sind unverändert). Die einzelne Korrektur bleibt höchstens 5 Plätze: `merge` und `korrigiere`
+  begrenzen sie, und der Test prüft `|verschiebung| <= MAX_SHIFT` weiter für alle Level. Die Grenze entfällt bewusst
+  für das ganze Spiel, sobald ein Level des Ausbaus darin ist (auch für den Bestand), wie im Entscheid.
+- **--verschiebe:** Prüfung (bekannter Grad, ganze Zahl, Summe 0) in Ordnung; Bedarf und gesetzte Plätze rechnen beide
+  mit `ziel + verschiebe - im`, so dass die Gruppe gleich gross bleibt. Überzählige Level aus `--behalte` fallen nach
+  dem tiefsten Spielwert weg und bleiben gewöhnliche Kandidaten.
+- **Fallendes Mittel als Fehler der Bewertung:** schlüssig; die Proben werden nicht mehr verworfen, nur schlechter
+  bewertet, `sinkt` bleibt ein Ausschluss. Der Paartausch bricht ab, wenn nur das Mittel fällt (keine offene Häufung),
+  die Einzelsuche nimmt dann einen beliebigen Kandidaten; das reicht.
+- **Paar- und Mehrfachtausch über gesetzte Plätze:** nur mit `--auch-gesetzte` (über `tauschbar`), und nur, wenn die
+  Probe echt besser ist, wie in der Einzelsuche.
+
+Eingearbeitet (`fix(ausbau): … (Review Ticket 04)`):
+
+1. `--verschiebe` in der letzten Gruppe (10) ist ein Fehler: Es gäbe keine nächste Gruppe, die es ausgleicht.
+2. Der Bericht von `wahl` nennt die aus `--behalte` weggefallenen Level (vorher fielen sie stumm weg, obwohl sie ein
+   Urteil haben).
+3. `--verschiebe` im Kopf von `ausbau.mjs` beschrieben, die Aufrufzeile auf 120 Zeichen umbrochen; der Kopf von
+   `ordne-level.mjs` nennt die Ausnahme im Ausbau.
+4. Test `zuWeitGilt` (ohne Liste, ohne Ausbau, mit Ausbau).
+
+Offen: nichts Mittleres oder Grosses. Randfälle ohne Folgen heute: `leicht:` (leerer Wert) gilt als 0; ein negativer
+Bedarf je Grad wird auf 0 begrenzt, dann wäre die Gruppe nicht mehr gleich gross (kommt mit der Tabelle nicht vor).
+
+Bereit zum Mergen: ja.
