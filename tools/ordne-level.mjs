@@ -20,8 +20,8 @@
 //   levelliste.json, dazu die Grenzfälle der Neuzählung.
 // - Die übrigen Regeln der Levelliste: Grad, Mittel der Schwierigkeit und Haupt-Kernidee je 10 Level, Namen,
 //   Eindeutigkeit der Lösung, Korrekturen der KI-Tester (höchstens MAX_SHIFT Plätze vom Platz davor, nach den
-//   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs); dazu die Anker der KI-Tester und der Zusammenhang
-//   von Spielwert und Schwierigkeit.
+//   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs; im Ausbau entfällt das, zuWeitGilt); dazu die Anker
+//   der KI-Tester und der Zusammenhang von Spielwert und Schwierigkeit.
 // - Austausch (Tickets 23–26): Neue Level haben keinen heutigen Platz und stehen nach der Formel (imSpiel und reihenfolge
 //   in levelliste.mjs), dazu die Urteile der KI-Tester aus den Läufen ersatz-…. Mit --austausch rechnet das Skript, als
 //   wären die Kandidaten schon im Spiel und die ersetzten Level entfernt: wo jeder einordnet, mit welchem Grad, ob die

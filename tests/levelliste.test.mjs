@@ -320,6 +320,11 @@ test('zuWeitKorrigiert mit dem Ausbau: der Bestand zählt unter sich, ein Level 
     assert.deepEqual(zuWeitKorrigiert({ basis: vorher, eingefuegt: vorher, korrigiert: ende, folge: ende, ki: ki10,
       ausbau }), [], 'Gegenprobe: ab basis gezählt');
   });
+test('zuWeitGilt: die Grenze für korrigierte Level gilt nur ohne Level des Ausbaus (Entscheid vom 22.10.2026)', () => {
+  assert.equal(zuWeitGilt(), true);
+  assert.equal(zuWeitGilt([false, false]), true);
+  assert.equal(zuWeitGilt([false, true, false]), false);
+});
 test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ_MITTEL} Punkt Rückschritt`, () => {
   const mittel = zehner(MAIN).map(z => z.reduce((s, l) => s + wert(l), 0) / z.length);
   const text = mittel.map(m => m.toFixed(1)).join(' ');

@@ -28,10 +28,14 @@
 //   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau, mit schwierigkeit (der Ziel-Schwierigkeit), wo
 //   der Pool sie trägt (ohne Namen; die kommen nach dem Urteil der KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N] [--verschiebe g:n,…]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]
+//       [--verschiebe g:n,…]
 //   --nur-beurteilt: nur Kandidaten mit zählendem Urteil (Läufe ausbau-…), ohne Ablehnung in --ohne; so lässt sich
 //   eine Gruppe aus einem Vorrat beurteilter Kandidaten zusammenstellen, ohne dass neue Urteile neue Korrekturen
 //   bringen. --schritte N: Schritte der Suche (sonst SUCHE_SCHRITTE); --zufall N: ein anderer Startwert ihres Zufalls.
+//   --verschiebe leicht:3,mittel:-3: je Grad so viele Level mehr bzw. weniger als nach der Tabelle, zusammen 0, nicht
+//   in der letzten Gruppe (Entscheid des Nutzers vom 22.10.2026); die nächste Gruppe gleicht es aus. Setzt --behalte
+//   in einem Grad mehr Level, als er dann braucht, fallen die mit dem tiefsten Spielwert weg (im Bericht genannt).
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
 import { fork } from 'node:child_process';
@@ -207,6 +211,10 @@ async function wahl() {
   if (Object.keys(verschiebe).some(g => !GRADE.includes(g)) || !Object.values(verschiebe).every(Number.isInteger)
     || Object.values(verschiebe).reduce((s, x) => s + x, 0) !== 0) {
     fail('--verschiebe: je Grad eine ganze Zahl, etwa leicht:3,mittel:-3, zusammen 0');
+  }
+  // in der letzten Gruppe gliche keine nächste es aus (Review Ticket 04)
+  if (gruppe === GRUPPEN && Object.values(verschiebe).some(Boolean)) {
+    fail(`--verschiebe: nicht in der letzten Gruppe (${GRUPPEN}), sonst fehlt am Ende der Bestand der Tabelle`);
   }
   const suchSchritte = Number(flag('--schritte', SUCHE_SCHRITTE)), startwert = Number(flag('--zufall', 0));
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools || !(Number.isInteger(suchSchritte) && suchSchritte >= 0)
@@ -478,6 +486,9 @@ async function wahl() {
   }
   const ende = stand.f;
   const ersetzt = setze.filter(k => !gewaehlt.includes(k));
+  // überzählige Level aus --behalte (Review Ticket 04): Sie fallen weg und kommen nur über die Suche wieder hinein
+  const weg = alleGesetzt.filter(k => !setze.includes(k) && !gewaehlt.includes(k));
+  if (weg.length) bericht.push(`weggefallen aus --behalte (zu viele im Grad): ${weg.map(k => k.name).join(', ')}`);
   bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, ${paare} Proben im `
     + `Paartausch, offen ${ende.r.offen.length}`
     + `${ersetzt.length ? `; getauscht aus --behalte: ${ersetzt.map(k => k.name).join(', ')}` : ''}`);
