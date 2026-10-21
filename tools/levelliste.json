@@ -72,7 +72,7 @@
   "pruefliste": [
     "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
     "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
-    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Bernstein", "Kreuzfeuer", "Schachbrett",
+    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
     "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
     "Kathedrale", "Supernova", "Zwielicht"
   ],
@@ -111,6 +111,10 @@
     "Glaswand", "Lichtzelt", "Lichtfeder", "Farbenrad", "Spektrum", "Farbtafel", "Farbmuster", "Zwischenton",
     "Halbton", "Farbton", "Lichtton", "Farbklang", "Akkord", "Harmonie", "Melodie", "Kanon", "Fuge", "Sonate", "Rondo",
     "Menuett", "Walzer", "Fernweh", "Kompassnadel", "Sternenkarte", "Seekarte", "Leuchtfeuer", "Lotsenboot",
-    "Hafeneinfahrt", "Ankerplatz", "Aldebaran", "Arktur"
+    "Hafeneinfahrt", "Ankerplatz", "Aldebaran", "Arktur", "Kiesel", "Wasserfarbe", "Buntstift", "Farbstift",
+    "Kreidestrich", "Bolero", "Reigen", "Kreistanz", "Pirouette", "Drehung", "Wirbel", "Spirale", "Schnecke",
+    "Muschel", "Seestern", "Koralle", "Perle", "Lagune", "Brandung", "Gezeitenkreis", "Ebbe", "Flut", "Windjammer",
+    "Dreimaster", "Segeltörn", "Kaperfahrt", "Flaschenpost", "Schatztruhe", "Geheimgang", "Falltür", "Zugbrücke",
+    "Burggraben", "Kapella", "Prokyon", "Antares"
   ]
 }
