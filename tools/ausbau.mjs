@@ -49,7 +49,8 @@ import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
-  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitKorrigiert,
+  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitGilt,
+  zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Die Verteilung der Grade nach dem Ausbau (Spec, Entscheid des Nutzers vom 20.10.2026): 500 Level. */
@@ -349,7 +350,9 @@ async function wahl() {
     // einander, und steht eines schon vor der Häufungsregel mehr als MAX_SHIFT Plätze weit, lässt sie keinen Zug zu;
     // ordne-level.mjs schriebe dann auch nicht. Ein Level, das schon vor der Häufungsregel zu weit steht, zählt doppelt
     // (einmal hier, einmal in der ganzen Prüfung): Es sperrt jeden Zug, wiegt also schwerer (Review Ticket 03)
-    const zuWeit = zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
+    // im Ausbau gilt die Grenze nicht mehr (zuWeitGilt, Entscheid des Nutzers vom 22.10.2026)
+    const zuWeit = !zuWeitGilt(f.r.ausbau) ? 0
+      : zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
     // Fällt das Mittel je 10 Level (etwa auf einer angefangenen letzten Seite mit wenigen Leveln), lässt die
     // Häufungsregel ebenso keinen Zug zu; es zählt darum wie ein Verstoss mit, statt die Probe ganz zu verwerfen, damit
     // die Suche eine Wahl finden kann, bei der es steigt (Gruppe 3)

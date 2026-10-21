@@ -38,6 +38,10 @@
 //   Kein korrigiertes Level steht mehr als MAX_SHIFT Plätze von seinem Platz davor, weder nach den Korrekturen noch am
 //   Ende (nach der Häufungsregel).
 //   ordne-level.mjs meldet einen Verstoss und schreibt dann nicht.
+//   Im Ausbau gilt das nicht mehr (Entscheid des Nutzers vom 22.10.2026, Ticket 04: „Jetzt da wir so viele neue Level
+//   generieren, dürfen bestehende Level auch verschoben werden, wenn nötig“; zuWeitGilt): Die KI-Tester korrigieren
+//   neue Level oft um volle MAX_SHIFT Plätze, gegenläufige Korrekturen schoben einander über die Grenze, und dann liess
+//   die Häufungsregel keinen Zug mehr zu. Eine einzelne Korrektur bleibt höchstens MAX_SHIFT Plätze (merge).
 // - Duldungsliste (levelliste.json, versioniert), nach Grund getrennt (GRUENDE): Level mit Ausschlussgrund, Level ab
 //   „mittel“ ohne nötige Kernidee, Level ab „mittel“ unter dem Mindest-Spielwert und Level, die beide KI-Tester
 //   ablehnen. Die Liste wird nur kürzer: Sie bleibt in jedem Grund eine Teilmenge der ursprünglichen Liste
@@ -451,10 +455,12 @@ export function reihenfolge(werte, namen, urteile = [], {
   const korrigiert = korrigiere(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
   // Häufung der Haupt-Kernidee: Die Züge bleiben im Abschnitt des Grads, die Duldungsliste ändert sich dadurch nicht
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
-  // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und jedes von den KI-Testern korrigierte Level
-  // bleibt höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (den Grad sichert entzerre)
+  // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und ohne Ausbau bleibt jedes von den
+  // KI-Testern korrigierte Level höchstens MAX_SHIFT Plätze von seinem Platz vor der Korrektur (zuWeitGilt; den Grad
+  // sichert entzerre)
   const r = { basis, eingefuegt, korrigiert, ki, ausbau: imAusbau };
-  const zulaessig = (probe) => mittelSteigt(probe, werte) && !zuWeitKorrigiert({ ...r, folge: probe }).length;
+  const zulaessig = (probe) => mittelSteigt(probe, werte)
+    && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
   const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
@@ -476,6 +482,12 @@ export function fuegeEin(folge, dazu, werte, grad, bleibt) {
   }
   return neu;
 }
+
+/**
+ * Gilt die Grenze für korrigierte Level (zuWeitKorrigiert)? Nur ohne Ausbau (ausbau: je Index, ob das Level zum Ausbau
+ * gehört; Entscheid des Nutzers vom 22.10.2026, siehe Kopf).
+ */
+export const zuWeitGilt = (ausbau = []) => !ausbau.some(Boolean);
 
 /**
  * Korrekturen der KI-Tester, die zu weit führen (Ticket 24, Review M1): Ein korrigiertes Level steht nach den

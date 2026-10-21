@@ -64,6 +64,14 @@ KI-Tester, Levelliste); deren Regeln gelten weiter, ausser wo hier etwas anderes
 6. **Abschluss:** Leveldaten, Golden-Test-Referenz und Protokoll aktualisiert, alle Tests grün, Herkunft jedes Levels
    (Auftrag, Seed, Ziel-Schwierigkeit) nachbaubar, Ergebnis unter `## Comments` im Ticket, Merge nach main.
 
+## Entscheide unterwegs
+
+- **22.10.2026:** Im Ausbau dürfen bestehende Level weiter verschoben werden, wenn nötig; die Prüfung „ein von den
+  KI-Testern korrigiertes Level steht höchstens 5 Plätze von seinem Platz davor“ (Ticket 24 der Spec der Beurteilung)
+  gilt im Ausbau nicht. Eine einzelne Korrektur bleibt höchstens 5 Plätze. Siehe Ticket 04.
+- **22.10.2026:** Eine Gruppe darf vom Bestand nach der Tabelle abweichen, wenn sich die Reihenfolge sonst nicht
+  schreiben lässt; die nächste Gruppe gleicht es aus (`--verschiebe` in `tools/ausbau.mjs`).
+
 ## Reviews
 
 - **Ticket 01** ändert Code und bekommt wie bisher ein Review nach dem Ticket.
