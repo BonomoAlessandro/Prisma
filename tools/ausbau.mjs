@@ -6,26 +6,32 @@
 //   seeds - 1, verteilt in Blöcken auf --jobs Prozesse. Jedes gelieferte Level geht als JSON-Zeile { auftrag, seed,
 //   level, schwierigkeit, spielwert, hauptKernidee, kernideen } an die Datei (angehängt; level wie in LEVELS, ohne
 //   Namen; die Werte aus der Beurteilung des Generators, ungerundet). Dieselben Seeds liefern dieselben Level.
+//   --schwierigkeit VON,BIS: die Ziel-Schwierigkeit der Aufträge wie bei generiere.mjs (etwa für das obere Ende von
+//   „schwer“, das der Generator sonst selten trifft); die Zeile trägt sie dann als ziel.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs pool <auftrag …> --aus <datei> [--seed S] [--seeds M]
-//       [--jobs N]
+//       [--jobs N] [--schwierigkeit VON,BIS]
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
 //   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
 //   Schwierigkeit im Bereich, den sein Grad im Spiel abdeckt, ab „mittel“ mit Haupt-Kernidee und Mindest-Spielwert, in
-//   jedem Grad ohne zweiten unabhängigen Teil mit 2 und mehr drehbaren Elementen (ZWEITER_TEIL_HOECHSTENS: Zerfall,
-//   wie ihn die KI-Tester lesen), und er keinem Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann
-//   einer nach dem anderen gewählt: der, dessen Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt
-//   (so verteilen sie sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert; keinem gewählten zu
-//   ähnlich, der Grad sinkt nie, das Mittel je 10 Level steigt, und um seinen Platz häuft sich seine Haupt-Kernidee
-//   nicht. Danach sucht die Wahl Tausche, bis mit der Häufungsregel keine Häufung offen bleibt (siehe unten).
+//   „leicht“ ohne zweiten unabhängigen Teil mit 2 und mehr drehbaren Elementen, ab „mittel“ ohne einen mit drehbarem
+//   Element (ZWEITER_TEIL_HOECHSTENS, ZWEITER_TEIL_AB_MITTEL: Zerfall, wie ihn die KI-Tester lesen), und er keinem
+//   Level im Spiel zu ähnlich ist (aehnlichkeit.mjs). Je Grad wird dann einer nach dem anderen gewählt: der, dessen
+//   Schwierigkeit am weitesten von den Leveln dieses Grads im Spiel und den schon gewählten liegt (so verteilen sie
+//   sich über den Grad), bei gleichem Abstand der mit dem höheren Spielwert; keinem gewählten zu ähnlich, der Grad
+//   sinkt nie, das Mittel je 10 Level steigt, und um seinen Platz häuft sich seine Haupt-Kernidee nicht. Danach sucht
+//   die Wahl Tausche, bis mit der Häufungsregel keine Häufung offen bleibt (siehe unten).
 //   --behalte <datei>: eine frühere Wahl (Ausgabe von wahl), deren Level gesetzt sind, etwa nach einer Ablehnung durch
 //   die KI-Tester ohne die abgelehnten; die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den
 //   KI-Testern, „Kandidat <Abdruck>“), die nicht in Frage kommen. --auch-gesetzte: Reicht das nicht, darf die Suche
 //   auch Level aus --behalte tauschen (seltener als die übrigen; sie brauchen dann ein Urteil). Ausgabe: eine
-//   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau (ohne Namen; die kommen nach dem Urteil der
-//   KI-Tester dazu).
+//   JSON-Liste { auftrag, seed, level } für ordne-level.mjs --ausbau, mit schwierigkeit (der Ziel-Schwierigkeit), wo
+//   der Pool sie trägt (ohne Namen; die kommen nach dem Urteil der KI-Tester dazu).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte]
+//       [--behalte <datei>] [--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]
+//   --nur-beurteilt: nur Kandidaten mit zählendem Urteil (Läufe ausbau-…), ohne Ablehnung in --ohne; so lässt sich
+//   eine Gruppe aus einem Vorrat beurteilter Kandidaten zusammenstellen, ohne dass neue Urteile neue Korrekturen
+//   bringen. --schritte N: Schritte der Suche (sonst SUCHE_SCHRITTE); --zufall N: ein anderer Startwert ihres Zufalls.
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
 import { fork } from 'node:child_process';
@@ -43,7 +49,7 @@ import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
-  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile,
+  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Die Verteilung der Grade nach dem Ausbau (Spec, Entscheid des Nutzers vom 20.10.2026): 500 Level. */
@@ -63,8 +69,20 @@ const BLOCK = 25;
  * mühsam (Gefühl im Mittel 2,5).
  */
 const ZWEITER_TEIL_HOECHSTENS = 1;
-/** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens. */
+/**
+ * Ab „mittel“ strenger (Gruppe 2, Lauf ausbau-2-2): Ein zweiter Teil mit einem einzigen drehbaren Element, meist eine
+ * Quelle über einen Spiegel zu einem Ziel, dessen zweite Farbe eine feste Quelle bringt, lehnten beide KI-Tester
+ * dreimal als Füllteil ab (in „sehr schwer“ und zweimal in „mittel“), bei vier anderen nicht. Füllteil gilt erst ab
+ * „mittel“; dort darf es darum keinen zweiten Teil mit drehbarem Element geben.
+ */
+const ZWEITER_TEIL_AB_MITTEL = 0;
+/** So viele Schritte hat die Suche gegen offene Häufungen (wahl) höchstens, ohne --schritte. */
 const SUCHE_SCHRITTE = 4000;
+/** Paartausch nach der Suche (wahl): höchstens so viele Runden, je Runde die so vielen Kandidaten mit dem höchsten
+ * Spielwert. */
+const PAAR_RUNDEN = 5, PAAR_KANDIDATEN = 12;
+/** Mehrfachtausch nach dem Paartausch (wahl): höchstens so viele Level auf einmal, so viele Versuche je Zahl. */
+const MEHR_HOECHSTENS = 6, MEHR_VERSUCHE = 60;
 
 /**
  * Der Bestand je Grad nach der Gruppe k (0 = vor dem Ausbau): je Grad VORHER plus der Anteil k / GRUPPEN der neuen
@@ -92,12 +110,14 @@ if (process.env.AUSBAU_WORKER) {
   const [{ generiere, angebot }, { feldformVon }] = await Promise.all(
     ['./generator/index.mjs', './beurteilung/feldform.mjs'].map(f => import(f)));
   const feldform = feldformVon({}), auftraege = new Map(angebot().map(a => [a.name, a]));
-  process.on('message', ({ auftrag, from, to }) => {
+  process.on('message', ({ auftrag, from, to, schwierigkeit }) => {
     const level = [], gruende = {};
     for (let seed = from; seed < to; seed++) {
-      const { level: l, beurteilung: b, grund } = generiere({ ...auftraege.get(auftrag), seed, feldform });
+      const { level: l, beurteilung: b, grund } = generiere({
+        ...auftraege.get(auftrag), seed, feldform, schwierigkeit });
       if (!l) { gruende[grund] = (gruende[grund] || 0) + 1; continue; }
-      level.push({ auftrag, seed, level: l, schwierigkeit: b.schwierigkeit.wert, spielwert: b.spielwert.wert,
+      level.push({ auftrag, seed, ...(schwierigkeit ? { ziel: schwierigkeit } : {}), level: l,
+        schwierigkeit: b.schwierigkeit.wert, spielwert: b.spielwert.wert,
         hauptKernidee: b.hauptKernidee.begriff, kernideen: [...new Set(b.kernideen.map(k => k.begriff))] });
     }
     process.send({ auftrag, level, gruende });
@@ -111,6 +131,10 @@ else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) 
 
 async function pool() {
   const aus = flag('--aus', null), start = Number(flag('--seed', 1)), seeds = Number(flag('--seeds', 400));
+  const ziel = flag('--schwierigkeit', null)?.split(',').map(Number) ?? null;
+  if (ziel && !(ziel.length === 2 && ziel.every(Number.isFinite) && ziel[0] <= ziel[1])) {
+    fail(`--schwierigkeit VON,BIS mit VON ≤ BIS, nicht ${ziel.join(',')}`);
+  }
   const jobs = Number(flag('--jobs', Math.max(1, os.cpus().length >> 1)));
   const auftraege = args.slice(1);
   const { angebot } = await import('./generator/index.mjs');
@@ -122,7 +146,7 @@ async function pool() {
   if (fremd.length) fail(`Unbekannte Aufträge: ${fremd.join(', ')}; bekannt: ${bekannt.join(', ')}`);
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const tasks = auftraege.flatMap(auftrag => Array.from({ length: Math.ceil(seeds / BLOCK) }, (_, k) => ({
-    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds) })));
+    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds), schwierigkeit: ziel })));
   const ergebnis = new Map(auftraege.map(a => [a, { level: [], gruende: {}, offen: 0 }]));
   for (const t of tasks) ergebnis.get(t.auftrag).offen++;
   const t0 = Date.now();
@@ -174,10 +198,12 @@ function zweiterTeil(level) {
 async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
   const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
-  const auchGesetzte = args.includes('--auch-gesetzte');
-  if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
+  const auchGesetzte = args.includes('--auch-gesetzte'), nurBeurteilt = args.includes('--nur-beurteilt');
+  const suchSchritte = Number(flag('--schritte', SUCHE_SCHRITTE)), startwert = Number(flag('--zufall', 0));
+  if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools || !(Number.isInteger(suchSchritte) && suchSchritte >= 0)
+    || !Number.isInteger(startwert)) {
     fail('Aufruf: node tools/ausbau.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>] [--auch-gesetzte]');
+      + '[--ohne <name,…>] [--auch-gesetzte] [--nur-beurteilt] [--schritte N] [--zufall N]');
   }
   const ziel = bestandNach(gruppe), im = jeGrad(MAIN);
   // Das Spiel wie in den Tests der Levelliste: Bestand und Ausbau, mit den zählenden Urteilen der KI-Tester
@@ -190,11 +216,14 @@ async function wahl() {
   const gesetzt = behalteDatei ? JSON.parse(readFileSync(behalteDatei, 'utf8')) : [];
   const roh = pools.split(',').flatMap(leseJsonl);
   const gesehen = new Set(), kandidaten = [];
+  // Kandidaten mit zählendem Urteil (Läufe ausbau-…), etwa gut beurteilte, die ein Tausch wieder herausnahm: Sie
+  // brauchen kein neues Urteil, die Suche nimmt sie darum lieber (abgelehnte und schwache stehen in --ohne)
+  const beurteilt = new Set(urteile.filter(e => /^ausbau-/.test(e.lauf)).map(e => e.level.name));
   for (const k of roh) {
     const name = kandidatName(k.level);
     if (gesehen.has(name)) continue;
     gesehen.add(name);
-    kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, '') });
+    kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, ''), beurteilt: beurteilt.has(name) });
   }
   const setze = gesetzt.map((g) => {
     const k = kandidaten.find(x => x.name === kandidatName(g.level));
@@ -209,6 +238,7 @@ async function wahl() {
   const verwirf = (_, grund) => { gruende[grund] = (gruende[grund] || 0) + 1; return false; };
   const inFrage = kandidaten.filter((k) => {
     if (setze.includes(k)) return false;
+    if (nurBeurteilt && !k.beurteilt) return verwirf(k, 'ohne Urteil (--nur-beurteilt)');
     if (ohne.includes(k.name)) return verwirf(k, 'ausgeschlossen (--ohne)');
     if (gradVon(k.schwierigkeit) !== k.grad) return verwirf(k, 'Grad nach der Schwelle anders als im Auftrag');
     // im Bereich, den der Grad im Spiel abdeckt: Am Rand lägen sonst die neuen Level am weitesten von allen und kämen
@@ -219,8 +249,9 @@ async function wahl() {
       return verwirf(k, 'ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
     if (zuAehnlich(k.level, L.LEVELS)) return verwirf(k, 'einem Level im Spiel zu ähnlich');
-    if (zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
-      return verwirf(k, 'zweiter unabhängiger Teil mit 2 und mehr drehbaren Elementen (Zerfall nach den KI-Testern)');
+    if (zweiterTeil(k.level) > (k.grad === GRADE[0] ? ZWEITER_TEIL_HOECHSTENS : ZWEITER_TEIL_AB_MITTEL)) {
+      return verwirf(k, `zweiter unabhängiger Teil mit ${k.grad === GRADE[0] ? '2 und mehr drehbaren Elementen'
+        : 'drehbarem Element'} (Zerfall nach den KI-Testern)`);
     }
     return true;
   });
@@ -300,16 +331,22 @@ async function wahl() {
   const pruefe = (wahl) => {
     const t = Date.now(), f = folgeMit(wahl, { mitRegel: true, auffuellen: false });
     zeitRegel += Date.now() - t;
-    return { f, schlecht: [f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
+    // Zuerst die Korrekturen der KI-Tester, die zu weit führen (Gruppe 2): Mit den Urteilen schieben korrigierte Level
+    // einander, und steht eines schon vor der Häufungsregel mehr als MAX_SHIFT Plätze weit, lässt sie keinen Zug zu;
+    // ordne-level.mjs schriebe dann auch nicht
+    const zuWeit = zuWeitKorrigiert({ ...f.r, folge: f.r.korrigiert }).length + zuWeitKorrigiert(f.r).length;
+    return { f, zuWeit, schlecht: [zuWeit + f.r.offen.length, f.r.offen.reduce((s, h) => s + h.mit.length, 0)] };
   };
   const besser = (a, b) => a[0] < b[0] || (a[0] === b[0] && a[1] < b[1]);
+  /** Ist einer der neuen Kandidaten einem anderen Level der Wahl probe zu ähnlich? */
+  const aehnlichIn = (neu, probe) => neu.some(x => zuAehnlich(x.level, probe.filter(y => y !== x).map(y => y.level)));
   const { gewaehlt, bericht } = waehle();
   // Lokale Suche: je Schritt ein gewähltes Level gegen einen anderen Kandidaten desselben Grads, zur Hälfte einen, der
   // in eine offene Häufung fällt und eine andere Haupt-Kernidee hat (er lockert sie auf), sonst irgendeinen. Genommen
   // wird der Tausch, wenn danach nicht mehr offen bleibt; auch gleich viel, damit die Suche über Stellen kommt, an denen
   // erst zwei Tausche helfen (etwa zwei Level mehr vor einer Seite). Zufall aus festem Startwert: dieselbe Wahl ergibt
-  // dasselbe.
-  let zufall = 0x9e3779b9 ^ gruppe;
+  // dasselbe. Mit --zufall N ein anderer Startwert, falls die Suche aus dem ersten nicht herausfindet.
+  let zufall = 0x9e3779b9 ^ gruppe ^ (startwert * 0x85ebca6b);
   const zahlBis = (n) => {
     zufall ^= zufall << 13; zufall ^= zufall >>> 17; zufall ^= zufall << 5;
     return (zufall >>> 0) % n;
@@ -320,20 +357,22 @@ async function wahl() {
   const ausBehalte = auchGesetzte ? gewaehlt.flatMap((k, j) => (setze.includes(k) ? [j] : [])) : [];
   const tauschbar = [...frei, ...frei, ...frei, ...ausBehalte];
   let stand = pruefe(gewaehlt), tausche = 0, schritte = 0;
-  // der beste Stand der Suche: wenig offen, dann wenige getauschte Level aus --behalte
-  const getauscht = (wahl) => setze.filter(k => !wahl.includes(k)).length;
-  let best = { wahl: [...gewaehlt], stand, getauscht: 0 };
+  // der beste Stand der Suche: wenig offen, dann wenige Level ohne Urteil (getauschte aus --behalte und neue)
+  const getauscht = (wahl) => wahl.filter(k => !k.beurteilt).length;
+  let best = { wahl: [...gewaehlt], stand, getauscht: getauscht(gewaehlt) };
   const vorBest = (p, wahl) => besser(p.schlecht, best.stand.schlecht)
     || (!besser(best.stand.schlecht, p.schlecht) && getauscht(wahl) < best.getauscht);
-  while (stand.schlecht[0] && tauschbar.length && schritte < SUCHE_SCHRITTE) {
+  while (stand.schlecht[0] && tauschbar.length && schritte < suchSchritte) {
     schritte++;
     const { r, w } = stand.f, h = r.offen[zahlBis(r.offen.length)];
     const j = tauschbar[zahlBis(tauschbar.length)], k = gewaehlt[j];
     const alle = inFrage.filter(x => x.grad === k.grad && !gewaehlt.includes(x));
-    const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
-    const hinein = alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
+    // ohne offene Häufung (nur noch zu weite Korrekturen) ein beliebiger Kandidat
+    const seite = h ? r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]) : [];
+    const hinein = !h ? [] : alle.filter(x => x.hauptKernidee !== h.begriff && x.schwierigkeit >= Math.min(...seite)
       && x.schwierigkeit <= Math.max(...seite));
-    const quelle = (zahlBis(2) && hinein.length ? hinein : alle).sort((a, b) => b.spielwert - a.spielwert);
+    const auswahl = zahlBis(2) && hinein.length ? hinein : alle, mitUrteil = auswahl.filter(x => x.beurteilt);
+    const quelle = (zahlBis(2) && mitUrteil.length ? mitUrteil : auswahl).sort((a, b) => b.spielwert - a.spielwert);
     if (!quelle.length) continue;
     // bevorzugt mit hohem Spielwert: der Platz in der Liste nach dem Quadrat einer gleichverteilten Zahl
     const x = quelle[Math.floor((zahlBis(1000) / 1000) ** 2 * quelle.length)];
@@ -350,11 +389,72 @@ async function wahl() {
   }
   gewaehlt.splice(0, gewaehlt.length, ...best.wahl);
   stand = best.stand;
+  // Paartausch, wenn noch etwas offen ist: Liegen drei Level derselben Haupt-Kernidee eng auf einer Seite, hilft oft
+  // erst ein zweites Level dazwischen, und ein einzelner Tausch ist gleich gut (Gruppe 2: Odyssee, Halo und
+  // Lichtbrücke auf 6 Plätzen). Getauscht werden zwei freie Level des Grads der Häufung gegen zwei Kandidaten, die in
+  // sie fallen und eine andere Haupt-Kernidee haben; genommen wird der erste Tausch, nach dem weniger offen bleibt.
+  let paare = 0;
+  for (let runde = 0; stand.schlecht[0] && runde < PAAR_RUNDEN; runde++) {
+    const { r, w } = stand.f, h = r.offen[0];
+    if (!h) break;
+    const gradH = r.grad[h.mit[0]];
+    const seite = r.folge.slice(Math.max(0, 10 * h.gruppe - 3), 10 * h.gruppe + 13).map(i => w[i]);
+    const hinein = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
+      && x.schwierigkeit >= Math.min(...seite) && x.schwierigkeit <= Math.max(...seite))
+      .sort((a, b) => b.spielwert - a.spielwert).slice(0, PAAR_KANDIDATEN);
+    const freie = frei.filter(j => gewaehlt[j].grad === gradH);
+    let gefunden = null;
+    suche: for (let a = 0; a < freie.length; a++) {
+      for (let b = a + 1; b < freie.length; b++) {
+        for (let x = 0; x < hinein.length; x++) {
+          for (let y = x + 1; y < hinein.length; y++) {
+            const probe = gewaehlt.map((k, q) => (q === freie[a] ? hinein[x] : q === freie[b] ? hinein[y] : k));
+            if (aehnlichIn([hinein[x], hinein[y]], probe)) continue;
+            const p = pruefe(probe);
+            paare++;
+            if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) {
+              gefunden = { probe, p };
+              break suche;
+            }
+          }
+        }
+      }
+    }
+    // Mehrfachtausch: Die m freien Level des Grads, die am nächsten vor dem ersten Level der Häufung stehen, kommen
+    // hinter es, ersetzt durch m Kandidaten aus dem Bereich der Häufung. So rückt die Häufung um m Plätze nach vorn
+    // (Gruppe 2: Odyssee musste auf die Seite davor, weil hinter Lichtbrücke schon zwei Level mit Farben abzählen
+    // standen). Die Kandidaten: m aus denen des Grads zwischen dem ersten und dem letzten Level der Häufung, mit einer
+    // anderen Haupt-Kernidee, nach einer Mischung aus dem Zufall der Suche (dieselbe Wahl ergibt dasselbe).
+    if (!gefunden) {
+      const plaetze = h.mit.map(i => r.folge.indexOf(i)), erster = Math.min(...plaetze), letzter = Math.max(...plaetze);
+      const imBereich = inFrage.filter(x => x.grad === gradH && !gewaehlt.includes(x) && x.hauptKernidee !== h.begriff
+        && x.schwierigkeit > w[r.folge[erster]] && x.schwierigkeit < w[r.folge[letzter]])
+        .sort((a, b) => b.spielwert - a.spielwert);
+      const davor = freie.filter(j => r.folge.indexOf(levels.length + j) < erster)
+        .sort((a, b) => r.folge.indexOf(levels.length + b) - r.folge.indexOf(levels.length + a));
+      mehr: for (let m = 1; m <= Math.min(MEHR_HOECHSTENS, davor.length); m++) {
+        for (let versuch = 0; versuch < MEHR_VERSUCHE && imBereich.length >= m; versuch++) {
+          const neu = [...imBereich].sort((a, b) => ((zahlBis(1000) / 1000) - 0.5) || a.seed - b.seed).slice(0, m);
+          const probe = gewaehlt.map((k, q) => (davor.slice(0, m).includes(q) ? neu[davor.indexOf(q)] : k));
+          if (aehnlichIn(neu, probe)) continue;
+          const p = pruefe(probe);
+          paare++;
+          if (!p.f.sinkt && p.f.mittel && besser(p.schlecht, stand.schlecht)) { gefunden = { probe, p }; break mehr; }
+        }
+      }
+    }
+    if (!gefunden) break;
+    gewaehlt.splice(0, gewaehlt.length, ...gefunden.probe);
+    stand = gefunden.p;
+  }
   const ende = stand.f;
   const ersetzt = setze.filter(k => !gewaehlt.includes(k));
-  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, offen ${ende.r.offen.length}`
+  bericht.push(`Häufungsregel: ${schritte} Schritte der Suche, ${tausche} Verbesserungen, ${paare} Proben im `
+    + `Paartausch, offen ${ende.r.offen.length}`
     + `${ersetzt.length ? `; getauscht aus --behalte: ${ersetzt.map(k => k.name).join(', ')}` : ''}`);
-  writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed, level: k.level })), null, 1)
+  // die Ziel-Schwierigkeit des Auftrags als schwierigkeit, wie ordne-level.mjs --ausbau sie für die Herkunft liest
+  writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed,
+    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), level: k.level })), null, 1)
     + '\n');
   console.log(`wahl für Gruppe ${gruppe}: ${gewaehlt.length} Level nach ${aus} (${zahl((Date.now() - t0) / 1000)} s, `
     + `davon Häufungsregel ${zahl(zeitRegel / 1000)} s)`);
@@ -362,7 +462,8 @@ async function wahl() {
   const haeufig = {};
   for (const k of gewaehlt) haeufig[k.hauptKernidee ?? 'ohne'] = (haeufig[k.hauptKernidee ?? 'ohne'] || 0) + 1;
   console.log(`  Haupt-Kernideen: ${Object.entries(haeufig).map(([h, x]) => `${h} ${x}`).join(', ')}`);
-  console.log(`  danach mit der Häufungsregel: offene Häufungen ${ende.r.offen.length}, Züge ${ende.r.zuege.length}; `
+  console.log(`  danach mit der Häufungsregel: offene Häufungen ${ende.r.offen.length}, Züge ${ende.r.zuege.length}, `
+    + `zu weit korrigiert ${stand.zuWeit}; `
     + `Mittel je 10 Level ${ende.mittel ? 'steigt' : 'fällt (letzte Seite prüfen)'}; Grad `
     + `${ende.sinkt ? 'sinkt' : 'sinkt nie'}`);
   for (const h of ende.r.offen) {

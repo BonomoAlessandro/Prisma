@@ -70,7 +70,7 @@
     "Sternbild", "Singularität", "Urknall", "Lichtgeschwindigkeit"
   ],
   "pruefliste": [
-    "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
+    "Schliff", "Spiegelbild", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
     "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
     "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
     "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
@@ -99,6 +99,10 @@
     "Indigo", "Zinnober", "Kobalt", "Windrose", "Sonnenuhr", "Glockenspiel", "Wendeltreppe", "Lichtgitter",
     "Farbtropfen", "Spiegelung", "Abendlicht", "Goldglanz", "Regenschauer", "Lichtwirbel", "Kristall", "Glasharfe",
     "Silberblick", "Irrgarten", "Expedition", "Gipfelsturm", "Karawane", "Kreuzfahrt", "Schatzkarte", "Seidenstrasse",
-    "Andromeda", "Sternnebel", "Sonnenwind"
+    "Andromeda", "Sternnebel", "Sonnenwind", "Taschenlampe", "Lichtpunkt", "Glühbirne", "Leuchtkäfer", "Kinderspiel",
+    "Ocker", "Karmin", "Ultramarin", "Malachit", "Lapislazuli", "Jade", "Topas", "Granat", "Achat", "Onyx", "Citrin",
+    "Aquamarin", "Elfenbein", "Perlglanz", "Seidenglanz", "Goldstaub", "Silbermond", "Kupferglanz", "Messing",
+    "Gewürzroute", "Entdeckungsreise", "Polarfahrt", "Weltreise", "Pilgerweg", "Jakobsweg", "Gebirgspfad",
+    "Gratwanderung", "Orion", "Kassiopeia", "Sirius"
   ]
 }
