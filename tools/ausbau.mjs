@@ -330,7 +330,8 @@ async function wahl() {
           if (zuAehnlich(k.level, gewaehlt.map(x => x.level))) return verwirf(k, 'einem gewählten zu ähnlich');
           const f = folgeMit([...gewaehlt, k]);
           if (f.sinkt) return verwirf(k, 'Grad sinkt');
-          if (!f.mittel) return verwirf(k, 'Mittel je 10 Level fällt');
+          // das Mittel je 10 Level prüft erst die Bewertung der ganzen Wahl (pruefe): Ohne die Häufungsregel fällt es
+          // im Ausbau schon am Stand im Spiel stellenweise, und hier schiede dann jeder Kandidat aus (Gruppe 4)
           if (haeuftSich(f, levels.length + gewaehlt.length)) return verwirf(k, 'Häufung der Haupt-Kernidee');
           return true;
         });
