@@ -131,6 +131,11 @@
     "Krokus", "Enzian", "Edelweiss", "Alpenglühen", "Bergsee", "Gipfelkreuz", "Passhöhe", "Hängebrücke", "Viadukt",
     "Aquädukt", "Kreuzgang", "Arkade", "Kuppel", "Gewölbe", "Säulenhalle", "Rundbogen", "Spitzbogen", "Laterna magica",
     "Camera obscura", "Getriebe", "Zahnrad", "Spieluhr", "Automaton", "Taschenuhr", "Sanduhr", "Wasseruhr",
-    "Kalenderstein", "Weisser Zwerg", "Neutronenstern", "Schwarzes Loch"
+    "Kalenderstein", "Weisser Zwerg", "Neutronenstern", "Schwarzes Loch", "Zitronengelb", "Grasgrün", "Himmelblau",
+    "Kirschrot", "Rosenrot", "Lindgrün", "Lichtkasten", "Guckkasten", "Prismenglas", "Brillenglas", "Linse",
+    "Brennpunkt", "Lichtstrahl", "Strahlengang", "Umlenkspiegel", "Kehrspiegel", "Spiegelpaar", "Doppelbild",
+    "Spiegelschrift", "Rückspiegel", "Seitenspiegel", "Wechselspiel", "Pingpong", "Waagschale", "Gleichgewicht",
+    "Steinkreis", "Observatorium", "Planetarium", "Himmelsscheibe", "Tierkreis", "Sternzeichen", "Mondbahn",
+    "Gravitation", "Gezeitenkraft", "Raumzeit"
   ]
 }
