@@ -613,7 +613,7 @@ test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sons
   assert.equal(maxEntzerren([false, false]), MAX_ENTZERREN);
   assert.equal(maxEntzerren([false, true]), MAX_ENTZERREN_AUSBAU);
 });
-test(`Häufung im Ausbau ab schwer: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, und nur wenn alle Level ab schwer sind`, () => {
+test(`Häufung im Ausbau ab schwer: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, nur wenn alle ab schwer sind`, () => {
   const grad = ['mittel', 'schwer', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer', 'schwer'];
   const folge = [...grad.keys()], X = (plaetze) => folge.map(i => (plaetze.includes(i) ? 'X' : null));
   const ausbau = [true], oben = obenIn(grad, ausbau);

@@ -347,15 +347,16 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity, oben
  * sie auf. Dann gelten mehrere Züge, die sie je verkleinern und am Ende auflösen; genommen die erste solche Folge nach
  * derselben Wahl, Zug für Zug.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
- * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen: die Häufungen, die sich so
- * nicht auflösen lassen }.
+ * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen:
+ * die Häufungen, die sich so nicht auflösen lassen }.
  */
 export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set()) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
   // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
   // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
   const moeglich = (neu, h, nurBetroffene) => {
-    const vorher = haeufungen(neu, haupt, geduldet, 0, Infinity, oben), seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
+    const vorher = haeufungen(neu, haupt, geduldet, 0, Infinity, oben);
+    const seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
     const alle = [];
     for (const i of neu.filter((j, p) => h.mit.includes(j) || (!nurBetroffene && seiten.has(Math.floor(p / 10))))) {
       const von = neu.indexOf(i);

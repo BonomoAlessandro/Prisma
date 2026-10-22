@@ -63,3 +63,7 @@ ersetzt durch „Gebirgsbach“, der übrige Namensvorrat enthält kein solches 
   (Hilfsskript, nicht im Repo) für Vorräte je Grad, reihum über die Haupt-Kernideen.
 - **Tests:** Logik 1178, Levelliste 54, KI-Tester 65, Golden 369 (nach `--write`), Beurteilung 178, alle grün.
   Stichprobe: Gletscher (135, Desktop) und Minotaurus (291, Handy), ohne Befund.
+
+**Review (22.10.2026):** keine mittleren oder grossen Befunde. `oben` wird überall durchgereicht, wo die Häufungsregel
+zählt; ohne Ausbau gilt nichts Neues. Klein und vom Reviewer behoben: Der Bericht in `ordne-level.mjs` zählte die
+Haupt-Kernidee fest mit 2 und nannte die Ausnahme ab „schwer“ nicht; einige neue Zeilen über 120 Zeichen umbrochen.

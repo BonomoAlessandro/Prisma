@@ -53,8 +53,8 @@ import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
-  GRADE_OBEN, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitGilt,
-  zuWeitKorrigiert,
+  GRADE_OBEN, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge,
+  zaehlendeUrteile, zuWeitGilt, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Die Verteilung der Grade nach dem Ausbau (Spec, Entscheid des Nutzers vom 20.10.2026): 500 Level. */
@@ -307,8 +307,8 @@ async function wahl() {
   /**
    * Häuft sich die Haupt-Kernidee des Levels i um seinen Platz? Im gleitenden Fenster zu 10 Leveln um ihn (4 davor, 5
    * danach) mehr als HAUPT_KERNIDEE_JE_10-mal (HAUPT_KERNIDEE_JE_10_OBEN, wenn alle ab „schwer“ sind), ohne die
-   * Duldungsliste. Anders als die Seiten verschiebt sich das Fenster
-   * nicht, wenn weiter vorn ein Level dazukommt; die Seiten prüft am Ende die Häufungsregel.
+   * Duldungsliste. Anders als die Seiten verschiebt sich das Fenster nicht, wenn weiter vorn ein Level dazukommt; die
+   * Seiten prüft am Ende die Häufungsregel.
    */
   const haeuftSich = (f, i) => {
     if (!f.haupt[i]) return false;
