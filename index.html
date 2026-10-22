@@ -98,6 +98,14 @@
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
   #hud .goal.done { color: var(--ink); }
   #hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
+  /* weicher dunkler Hof wie hinter der Meldung „gelöst“, breiter für die lange Unterzeile: lesbar vor hellen Hintergründen */
+  #hud { isolation: isolate; } /* eigener Stapel: der Hof (z-index -1) bleibt vor der Szene */
+  #hud::before {
+    content: ""; position: absolute; z-index: -1; pointer-events: none;
+    left: 50%; top: 50%; width: min(960px, 100vw + 120px); height: calc(100% + 90px);
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
+  }
   @media (max-height: 500px) { /* Handy quer: alles an die Ränder, damit nichts das Feld verdeckt */
     #hud { top: max(8px, env(safe-area-inset-top)); }
     #hud .sub { display: none; }
