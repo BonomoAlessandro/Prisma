@@ -48,3 +48,6 @@ mit der neuen Regel nur über beurteilte Kandidaten (`ausbau-7-4`) beim ersten S
   Korrekturrunde.
 - **Tests:** Logik 1283, Levelliste 54, KI-Tester 65, Golden 404 (nach `--write`), Beurteilung 178, alle grün.
   Stichprobe: Ganymed (131, Handy) und Knobelei (331, Desktop), ohne Befund.
+
+**Review (22.10.2026):** keine mittleren oder grossen Befunde; alle Prüfungen laufen über `GRADE_OBEN`/`obenIn`, keine
+Reste „ab schwer“. Klein und vom Reviewer behoben: eine Zeile im Test umbrochen, „Entscheide“ im Kopf.

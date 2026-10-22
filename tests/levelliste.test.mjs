@@ -614,7 +614,8 @@ test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sons
   assert.equal(maxEntzerren([false, true]), MAX_ENTZERREN_AUSBAU);
 });
 test(`Häufung im Ausbau ab mittel: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, nur wenn alle ab mittel sind`, () => {
-  const grad = ['leicht', 'mittel', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer', 'schwer'];
+  const grad = ['leicht', 'mittel', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer',
+    'schwer'];
   const folge = [...grad.keys()], X = (plaetze) => folge.map(i => (plaetze.includes(i) ? 'X' : null));
   const ausbau = [true], oben = obenIn(grad, ausbau);
   assert.deepEqual(oben, new Set(folge.slice(1)));

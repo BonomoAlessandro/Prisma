@@ -29,7 +29,7 @@
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
 //   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor (im Ausbau unter Leveln ab
-//   „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheid des Nutzers vom 22.10.2026), gezählt ohne die Level der
+//   „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt ohne die Level der
 //   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
 //   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
