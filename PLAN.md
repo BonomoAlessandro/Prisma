@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 18. Oktober 2026
+Zuletzt aktualisiert: 21. Oktober 2026
 
 ---
 
@@ -678,6 +678,68 @@ Zuletzt aktualisiert: 18. Oktober 2026
   die Kamera bis ~40 vom Feld entfernt, das Netz eines Panoramas läge sonst teils hinter der Far-Plane. Geprüft mit
   echten Eingaben (Rad, Touchpad, zwei Finger, Klick und Tippen drehen weiterhin) und Bildern an beiden Grenzen, steil
   und flach. Vom Nutzer abgenommen („perfekt“, 20. Oktober), committet und gepusht.
+- [ ] **2.36 Strand: Unschönheiten bei flacher Kamera** (Wunsch des Nutzers, 21. Oktober, Bilder unter
+  `bilder/strand/`; Branch `fix/strand-skybox-kamera`). Seit 2.34/2.35 und ohne Sockel sah man drei Fehler:
+  - *Boden:* eine orange Scheibe im Wasser unter dem Brett – das Loch im Gelände aus Blender (Ringe ab 1,5 m), durch
+    das das Panorama den Himmel zeigt; die Brechung im Wasser las es als Grund.
+  - *Steine:* Das Spielwasser endete, von der Seite oder flach gesehen, gezackt weit vor den Felsen, dazwischen das
+    flache gemalte Wasser; im Wasser ein Schatten der Felsen. Ursache: Das geglättete Netz des Panoramas lag um die
+    Felsen vor dem Wasser und verdeckte es im Tiefentest; der Grund für die Brechung wurde vom Mittelpunkt aus gelesen
+    (hinter dem Fels: Fels).
+  - *Horizont:* ein türkiser Streifen zwischen Spielwasser und Himmel – bis `fade[1]` (95 m) malt Blender nur den
+    Grund, das Spielwasser blendete schon ab 70 m aus und endete am Netz (88 m) hart.
+  Erste Runde (nur `index.html`): Das Netz schreibt als Tiefe, was es zeigt (`depthRule` von `waterSurface`,
+  `gl_FragDepth`): Wasser oder etwas nah hinter dem Wasser hinter die Wasserfläche, Fels vor dem Wasser davor – das
+  ersetzt den Schnitt am Fels vom Mittelpunkt aus (`open`, bleibt nur ohne `gl_FragDepth`). Ersatz für verdeckten
+  Grund (`groundShift`, in Häppchen nach dem Einblenden: `ctx.later`): die nächste Stelle, deren Grund das Panorama
+  zeigt, im Loch der Rand rundum. Nutzer: Boden „super“; am Horizont noch ein Balken, die „Inseln“ (Korallenköpfe, nur
+  durch das fehlende Wasser zu sehen) fehlen ihm, die Felsen sollen 3D sein.
+  Zweite Runde (Szene neu gerendert):
+  - *Horizont:* Das Spielwasser reicht bis kurz vor den Horizont (Ringe ums Gitter bis `WATER_FAR`, Ort aus dem Strahl,
+    weiter als `WATER_CAP` auf dem Strahl her) und blendet nach der Richtung des Netzes 1,2 … 0,3° unter dem Horizont
+    ins gemalte Meer. Nutzer: Das ferne Wasser „fliesst schnell von rechts nach links“ – Ursache die Spiegelung, die
+    das Panorama ohne Unschärfe las (benachbarte Zeilen sprangen zwischen den Farben am Horizont): jetzt unscharf nach
+    der Streuung der Wellen im Pixel (Mipmap-Stufe bis 6, Probe über dem Horizont), analytische Wellen nach der
+    Pixelgrösse aus, die Neigung fern ruhiger, Dünung zum Rand der Karte hin rundum aus.
+  - *Sandinseln* (Wahl des Nutzers): drei in der Lagune (`ISLETS`, 120–140 m), Palmen, Büsche, Gras aus eigenem
+    Zufall; die übrigen Pflanzen bleiben, wo sie waren (`ground(…, with_islets=False)` beim Verteilen).
+  - *3D-Felsen:* Felsgruppen, die bis `R_ROCK` = 55 m ans Brett reichen, ganz (`near_rock`), samt allen Blöcken darauf
+    (sonst ab 0,5 m) als ein Netz „Felsen nah“ (Sammlung Spiel, für die Kamera unsichtbar, Schatten bleiben). Im
+    Panorama dort flacher Boden in Felsfarbe, aber nur, soweit das Spiel das Relief zeichnet (`rock_relief`; flache
+    Platten bleiben im Panorama, sonst hob sich eine helle, nach oben gewandte Fläche ab); im Spiel zeigt flaches
+    Gelände der Gruppe das Panorama (`rock8` unter der Hälfte: gebackener Sand hob sich mit Treppenrand ab); im Netz nur
+    das Gelände, das das Spiel zeichnet (fast deckungsgleich über dem des Panoramas warf es dort Schatten: eine dunkle
+    Fläche mit Treppenrand im Wasser). Licht vom Mittelpunkt des Panoramas aus (`view_from` ACTIVE_CAMERA) und mit
+    dessen Einstellungen in ein Bild gebacken (Cycles, GPU, 512 Samples, `wald_export.setup_cycles`: sonst heller und
+    flauer), gemalt wie das Panorama (`anime.paint_texture`), im Spiel Ebene `bakedMesh`. Die Tiefenregel lässt die
+    nahen Gruppen aus (B der zweiten Wasserkarte; sonst verdeckte der flache Boden des Panoramas die Felsen). Wasser am
+    Fels ohne Anheben, Schaum dort nur am Rand (die Karte zählt um die Blöcke einen Ring mit: sonst ein breites weisses
+    Band).
+  - Fallen: `materials.clear()` löscht die Zuordnung je Fläche (die Blöcke hatten erst das Sandmaterial); Operatoren
+    im Ablauf nach dem MCP-Aufruf brauchen einen ausdrücklichen Kontext (`only()`); `save_image(bw=True)` liess die
+    Szene auf Graustufen stehen, alle folgenden Bilder wurden grau (jetzt zurückgesetzt, `setup_cycles` setzt RGBA).
+  - *Wassermaske:* aus der Tiefe in voller Breite (4096), untere Hälfte; die Tiefenregel liest damit Wasser so fein
+    wie das Bild (um ferne Palmen blieb sonst ein Saum ohne Spielwasser).
+  - Budget der vorab gespeicherten Teile 3,5 statt 3 MB (Wahl des Nutzers; Felsen samt Bild rund 0,4 MB).
+  Nutzer: „massiv besser“, committet (090fcc0, 21. Oktober). Dritte Runde (Bilder `bilder/strand/KaputteSteine.png`,
+  `Inseln.png`; Nutzer: der grosse Steinhaufen sah vorher besser aus):
+  - *Steine:* Zwei Blöcke am Strand rechts wirkten zerschnitten. Das Spiel verwarf Stellen mit wenig Relief (Risse,
+    Fuss), und die Tiefenregel zog am Rand der Gruppe das Panorama vor sie (die Felsmarkierung der Karte reicht mit dem
+    Ring um die Blöcke weiter): Relief jetzt geschlossen und schon ab wenigen cm (`near_rocky`), die Markierung der
+    nahen Gruppen in der Karte um 3 m erweitert; der Saum, den das Spiel verwirft, liegt unter dem Boden (warf sonst
+    Schatten mit Treppenrand).
+  - *Aussehen der Felsen:* Gebacken wirkten sie fleckig und flau (Rauschen, zu grob). Blender rendert die Felsen jetzt
+    wie früher ins Panorama, je Ausschnitt (`rock_windows`, `rock_view`), gemalt wie die Streifen; das Spiel projiziert
+    dieses Bild vom Mittelpunkt aus auf die 3D-Felsen, wo man sie von dort sieht (Abstand und Gewicht in
+    `rockview.png`), sonst das gebackene Licht, jetzt entrauscht (OIDN mit Grundfarbe und Normalen, `anime.denoise`) und
+    auf dem Desktop doppelt so fein (Daten unter `hd` in `ebenen.json` kommen in den HD-Teil).
+  - *Inseln:* Die mit einer Palme ist jetzt eine grosse, bewaldete Insel 1,9 km draussen (Hügel 120 m), die mit zwei
+    Palmen grösser (16 m, sechs Palmen) und 350 m draussen, mit flachem Saum; die dritte bleibt.
+  - Aus dem Review: Wassermaske nur bis 20° unter dem Horizont (dort braucht es sie; als RGBA 3,7 statt 17 MB – eine
+    Graustufen-Textur lädt three mit texStorage2D nicht hoch, die Maske war leer; wie weit sie reicht, liest das Spiel
+    aus ihrer Höhe), `gpuMB` zählt Maske und Bilder der Ebenen mit, Wasser jenseits der Karte auf Meereshöhe.
+  Vom Nutzer abgenommen („sieht super aus“, 21. Oktober) und committet (f6efdf0). Offen: Merge nach main, Push,
+  Test auf einem echten Handy.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

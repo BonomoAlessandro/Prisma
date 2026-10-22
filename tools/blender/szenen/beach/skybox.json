@@ -26,6 +26,7 @@
         { "count": 3, "speed": 0.4, "depth": 1.6, "length": 0.8, "shape": [0.42, 0.3], "pattern": "plain", "colors": [[0.78, 0.14, 0.55], [0.2, 0.75, 0.7], [0.95, 0.6, 0.1]] }
       ]
     },
+    { "type": "bakedMesh", "data": "rocks" },
     {
       "type": "toonInstances", "data": "flora", "soft": 0.7,
       "palette": { "shadow": [0.36, 0.40, 0.82], "mid": [0.66, 0.68, 0.92], "lit": [1.40, 1.06, 0.76],

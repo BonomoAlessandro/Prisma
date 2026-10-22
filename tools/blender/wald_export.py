@@ -28,6 +28,7 @@ from wald_io import save_image, load_exr
 from stile import stil
 
 LAT_TOP = 10.0
+MASK_DEG = 20.0   # so weit unter den Horizont reicht die Wassermaske (Spiel: waterSurface)
 DEPTH_LOG = (0.5, 6000.0)
 STIL = os.environ.get('WALD_STIL', '')   # anime, beach: Renderings nach out/<stil> (gemalt wird danach in anime.py)
 EXPOSURE = stil(STIL)['belichtung']
@@ -70,7 +71,7 @@ def setup_cycles():
                         ('filepath', r.filepath)):
         setv(r, attr, value)
     im = r.image_settings
-    for attr, value in (('file_format', 'OPEN_EXR'), ('color_depth', '16'), ('exr_codec', 'ZIP')):
+    for attr, value in (('file_format', 'OPEN_EXR'), ('color_mode', 'RGBA'), ('color_depth', '16'), ('exr_codec', 'ZIP')):
         setv(im, attr, value)
     setv(sc.view_settings, 'view_transform', 'Standard')   # neu gebaute Szenen stehen auf AgX
     setv(sc, 'camera', bpy.data.objects['Panorama'])
@@ -149,6 +150,15 @@ def encode_depth(width, center):
     q = np.round(np.clip((s / np.maximum(cnt, 1) - a) / (b - a), 0, 1) * 65534).astype(np.int64)
     q[cnt == 0] = 65535
     save_image(np.stack([(q >> 8) / 255.0, (q & 255) / 255.0, np.zeros(q.shape)], -1), os.path.join(SKY, 'depth.png'))
+    level = stil(STIL).get('wasser')
+    if level is not None:
+        # Wassermaske, so fein wie gerendert (die Tiefe oben ist gröber): 1, wo das Panorama Wasser zeigt (Wasserfläche
+        # oder Grund darunter, ohne Treffer: das Loch unter dem Brett). Nur bis MASK_DEG unter dem Horizont: Dort braucht
+        # es sie (ferne Palmen und Inseln), steiler reicht die Tiefe.
+        h0 = P.shape[0] // 2; rows = int(round(P.shape[0] * MASK_DEG / 180.0))
+        lower = P[h0:h0 + rows]
+        water = np.where(hit[h0:h0 + rows], lower[..., 2] <= level + 0.05, True)
+        save_image(np.repeat(water[..., None].astype(np.float64), 3, -1), os.path.join(SKY, 'watermask.png'), bw=True)
 
 
 def depth_center(out=OUT):

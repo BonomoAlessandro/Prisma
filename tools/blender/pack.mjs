@@ -1,7 +1,8 @@
 // Packt eine Skybox aus Blender fürs Spiel: Bilder als Skripte mit Data-URLs (Chrome lässt Bilder aus file:// nicht in
 // WebGL-Texturen, Data-URLs aus einem Skript schon) und ihr Eintrag im Register backgrounds/skies.js.
 //   backgrounds/<id>/base.<rev>.js   ganzes Panorama, Tiefe, Daten der Ebenen (jedes Gerät, vorab gespeichert)
-//   backgrounds/<id>/hd.<rev>.js     hoch aufgelöste Streifen für den Blick nach unten (nur Desktop, beim ersten Gebrauch)
+//   backgrounds/<id>/hd.<rev>.js     hoch aufgelöste Streifen für den Blick nach unten, dazu grössere Bilder der Ebenen
+//                                    (nur Desktop, beim ersten Gebrauch)
 // rev (Stand) steht im Dateinamen: Der Service Worker speichert ohne Query-Parameter, ein neuer Stand braucht neue Namen.
 // Aufruf: node tools/blender/pack.mjs <id>
 // Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Ebenen) und aus dessen Ordner
@@ -41,31 +42,44 @@ function size(file) {
   }
   throw new Error(`${file}: Grösse nicht gefunden`);
 }
-/** Grafikspeicher einer Textur mit Mipmaps (RGBA 8 Bit) */
-const gpuMB = (files) => Math.ceil(files.reduce((s, f) => { const [w, h] = size(f); return s + w * h * 4 * 4 / 3; }, 0) / 2 ** 20);
+/** Grafikspeicher von Texturen mit Mipmaps (RGBA 8 Bit), dazu masks ohne Mipmaps */
+const texels = (files) => files.reduce((s, f) => { const [w, h] = size(f); return s + w * h; }, 0);
+const gpuMB = (files, masks = []) => Math.ceil((texels(files) * 4 * 4 / 3 + texels(masks) * 4) / 2 ** 20);
 
 // Nahe Objekte (trees.json): Modelle und Instanzen; der Nebel der Szene gehört ins Register (mehrere Ebenen lesen ihn)
 const treesFile = join(src, 'trees.json');
 const trees = existsSync(treesFile) ? JSON.parse(readFileSync(treesFile, 'utf8')) : null;
 const data = trees ? { trees: { models: trees.models, instances: trees.trees } } : {};
 // Weitere Daten für die Ebenen (ebenen.json, vom Export der Szene, z. B. Pflanzen und Wasserkarte am Strand):
-// Texte "file:<name>" werden zu Data-URLs der Datei daneben
+// Texte "file:<name>" werden zu Data-URLs der Datei daneben; was unter "hd" steht, kommt in den HD-Teil (nur
+// Desktop) und ersetzt dort Felder gleichen Namens (etwa ein grösseres Bild)
 const layersFile = join(src, 'ebenen.json');
+// Bilder darin, die als Textur mit Mipmaps hochgeladen werden (JPEG; die Karten als PNG sind klein): für gpuMB
+const jpegs = (v) => (typeof v === 'string' ? (/^file:.*\.jpe?g$/i.test(v) ? [v.slice(5)] : [])
+  : v && typeof v === 'object' ? Object.values(v).flatMap(jpegs) : []);
+let layerImages = [], hdImages = [];
 if (existsSync(layersFile)) {
+  const raw = JSON.parse(readFileSync(layersFile, 'utf8'));
+  layerImages = jpegs({ ...raw, hd: null });
+  hdImages = jpegs(raw.hd ?? null);
   const inline = (v) => (typeof v === 'string' && v.startsWith('file:') ? url(v.slice(5))
     : Array.isArray(v) ? v.map(inline)
       : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, inline(x)])) : v);
-  Object.assign(data, inline(JSON.parse(readFileSync(layersFile, 'utf8'))));
+  Object.assign(data, inline(raw));
 }
 
-const base = { full: url(cfg.full), depth: url(cfg.depth), data };
-const hd = { bands: cfg.bands.map((b) => url(b.file)) };
+const base = { full: url(cfg.full), depth: url(cfg.depth), ...(cfg.watermask ? { watermask: url(cfg.watermask) } : {}), data };
+const hdData = data.hd;
+delete data.hd;
+const hd = { bands: cfg.bands.map((b) => url(b.file)), ...(hdData ? { data: hdData } : {}) };
 const rev = createHash('sha256').update(JSON.stringify([base, hd])).digest('hex').slice(0, 8);
 const partJs = (role, body) => `// Skybox ${id} (${role}) – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n` +
   `(globalThis.PRISMA_SKY_PARTS ||= {})[${JSON.stringify(`${id}/${role}`)}] = ${JSON.stringify({ rev, ...body })};\n`;
 const files = [
-  { role: 'base', file: `${id}/base.${rev}.js`, device: 'all', precache: true, js: partJs('base', base), gpuMB: gpuMB([cfg.full]) },
-  { role: 'bands', file: `${id}/hd.${rev}.js`, device: 'desktop', precache: false, js: partJs('bands', hd), gpuMB: gpuMB(cfg.bands.map((b) => b.file)) },
+  { role: 'base', file: `${id}/base.${rev}.js`, device: 'all', precache: true, js: partJs('base', base),
+    gpuMB: gpuMB([cfg.full, ...layerImages], cfg.watermask ? [cfg.watermask] : []) },
+  { role: 'bands', file: `${id}/hd.${rev}.js`, device: 'desktop', precache: false, js: partJs('bands', hd),
+    gpuMB: gpuMB([...cfg.bands.map((b) => b.file), ...hdImages]) },
 ];
 
 const entry = {

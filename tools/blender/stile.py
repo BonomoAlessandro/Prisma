@@ -44,6 +44,7 @@ STILE = {
         'spitze': 0.88,   # unter TEX_MAX (anime.py): kein hartes Kappen am Horizont zur Sonne hin
         'rauschen': 0.006,
         'volumen': 4,
+        'wasser': -3.0,   # Wasserspiegel (Blender z): wald_export schreibt dazu eine Wassermaske fürs Spiel
     },
 }
 

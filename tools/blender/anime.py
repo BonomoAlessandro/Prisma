@@ -133,6 +133,48 @@ def kuwahara(img, size, uniformity=4, sharpness=0.8, eccentricity=1.0, chunk=409
     return res
 
 
+def denoise(img, albedo, normal):
+    """Gebackenes Bild entrauschen (Denoise-Knoten des Kompositors, OIDN, mit Grundfarbe und Normalen als Hilfe): Beim
+    Backen entrauscht Cycles nicht, die Flächen wurden sonst fleckig. Alles (h, w, 3), linear, Zeile 0 oben."""
+    h, w, _ = img.shape
+    paths = {k: os.path.join(OUT, '_dn_%s.exr' % k) for k in ('img', 'alb', 'nrm', 'out')}
+    for key, a in (('img', img), ('alb', albedo), ('nrm', normal)):
+        im = bpy.data.images.new('dn_' + key, w, h, alpha=True, float_buffer=True)
+        im.colorspace_settings.name = 'Non-Color'
+        px = np.ones((h, w, 4), np.float32); px[..., :3] = a[::-1]
+        im.pixels.foreach_set(px.ravel())
+        im.filepath_raw = paths[key]; im.file_format = 'OPEN_EXR'; im.save()
+        bpy.data.images.remove(im)
+    sc = bpy.data.scenes.new('entrauschen')   # eigene Szene: die offene bleibt, wie sie ist
+    sc.render.engine = 'BLENDER_WORKBENCH'
+    sc.render.resolution_x, sc.render.resolution_y, sc.render.resolution_percentage = w, h, 100
+    sc.render.use_compositing = True
+    sc.view_settings.view_transform = 'Standard'
+    sc.render.image_settings.file_format = 'OPEN_EXR'
+    sc.render.image_settings.color_depth = '32'
+    ng = bpy.data.node_groups.new('entrauschen', 'CompositorNodeTree')
+    ng.interface.new_socket('Image', in_out='OUTPUT', socket_type='NodeSocketColor')
+    dn = ng.nodes.new('CompositorNodeDenoise')
+    srcs = []
+    for key, sock in (('img', 'Image'), ('alb', 'Albedo'), ('nrm', 'Normal')):
+        n = ng.nodes.new('CompositorNodeImage')
+        n.image = bpy.data.images.load(paths[key], check_existing=False)
+        n.image.colorspace_settings.name = 'Non-Color'
+        ng.links.new(n.outputs['Image'], dn.inputs[sock])
+        srcs.append(n.image)
+    out = ng.nodes.new('NodeGroupOutput')
+    ng.links.new(dn.outputs['Image'], out.inputs[0])
+    sc.compositing_node_group = ng
+    sc.render.filepath = paths['out']
+    bpy.ops.render.render(write_still=True, scene=sc.name)
+    res = load_exr(paths['out'])[..., :3].astype(np.float64)
+    for im in srcs:
+        bpy.data.images.remove(im)
+    bpy.data.node_groups.remove(ng)
+    bpy.data.scenes.remove(sc)
+    return res
+
+
 def blur(img, sigma):
     """Gauss über eine verkleinerte Fassung (schnell, für das Leuchten)."""
     f = max(1, int(sigma // 2))
@@ -250,22 +292,35 @@ def sample(field, u, v):
     return (field[y0, x0] * (1 - fx) + field[y0, x1] * fx) * (1 - fy) + (field[y1, x0] * (1 - fx) + field[y1, x1] * fx) * fy
 
 
-def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
-    """lineares Rendering (× EXPOSURE) -> Anzeige-Bild (sRGB-kodiert) im Anime-Stil. noise: Farbschwankung je Pixel.
-    wrap: Bild reicht rundum (360°), die Ränder gehen ineinander über."""
-    disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
+def grade(disp):
+    """Farbgebung im Anime-Stil (Anzeige-Farben, sRGB-kodiert), vor den Pinselstrichen"""
     lum = disp @ np.array([0.2126, 0.7152, 0.0722])
     if S.get('stops'):
         t = np.clip(lum / 0.78, 0, 1) ** 0.62                   # Dunkles gespreizt: Anime-Nächte bleiben lesbar
         pal = gradient_map(t, S['stops'])
         # eigene Farbe der Szene behalten (grünliche Bäume, Mondhof), verstärkt
-        col = pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
-    else:
-        # Farben der Szene, satter; in die Schatten mischt sich eine Farbe (gemalte Schatten sind nie schwarz)
-        col = lum[..., None] + (disp - lum[..., None]) * S['saettigung']
-        col = col + (1 - smoothstep_np(0.0, 0.45, lum))[..., None] * np.array(S['schatten'])
-        if 'licht' in S:   # Abendlicht: helle Töne wärmer
-            col = col * (1 + smoothstep_np(0.35, 0.85, lum)[..., None] * (np.array(S['licht']) - 1))
+        return pal + (disp - lum[..., None]) * (1.6 * smoothstep_np(0.06, 0.3, lum) * (1 - smoothstep_np(0.4, 0.7, lum)))[..., None]  # nicht im Dunkeln (Rauschen), nicht im hellen Nebel
+    # Farben der Szene, satter; in die Schatten mischt sich eine Farbe (gemalte Schatten sind nie schwarz)
+    col = lum[..., None] + (disp - lum[..., None]) * S['saettigung']
+    col = col + (1 - smoothstep_np(0.0, 0.45, lum))[..., None] * np.array(S['schatten'])
+    if 'licht' in S:   # Abendlicht: helle Töne wärmer
+        col = col * (1 + smoothstep_np(0.35, 0.85, lum)[..., None] * (np.array(S['licht']) - 1))
+    return col
+
+
+def paint_texture(lin, size=3):
+    """Gebackenes Licht (Bild, lineare Szenenwerte wie gerendert) im Anime-Stil wie stylize, mit Pinselstrichen, ohne
+    Leuchten: was die Textur speichert (to_texture; nahe Felsen des Strands)"""
+    col = grade(srgb_encode(aces_game(lin * EXPOSURE)))
+    col = kuwahara(np.clip(col, 0, 1), size=size)
+    return to_texture(gamut(shoulder(np.clip(col, 0, 1))))
+
+
+def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
+    """lineares Rendering (× EXPOSURE) -> Anzeige-Bild (sRGB-kodiert) im Anime-Stil. noise: Farbschwankung je Pixel.
+    wrap: Bild reicht rundum (360°), die Ränder gehen ineinander über."""
+    disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
+    col = grade(disp)
     # Pinselstriche (rundum: mit Rand aus der Gegenseite, sonst entstünde an der Naht eine Kante)
     size = max(2, int(round(px_per_deg * 0.28)))
     m = 4 * size if wrap else 0
@@ -343,6 +398,8 @@ if __name__ == '__main__':
                 'full': 'full.jpg', 'depth': 'depth.png', 'depthLog': list(DEPTH_LOG),
                 'bands': [{'file': 'band_%d.jpg' % i, 'u': [i / n, (i + 1) / n], 'v': [vt, 1.0]} for i in range(n)],
                 'light': {'dir': light_dir(OUT)}}
+        if os.path.exists(os.path.join(SKY, 'watermask.png')):   # wald_export depthcode, Szenen mit Wasser
+            data['watermask'] = 'watermask.png'
         data.update(measure_sky(SKY, data['full'], [b['file'] for b in data['bands']]))
         with open(os.path.join(SKY, 'sky.json'), 'w', encoding='utf-8') as fh:
             json.dump(data, fh, indent=2)

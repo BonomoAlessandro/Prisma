@@ -6,7 +6,8 @@
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, … }] }
-// Ein Teil setzt globalThis.PRISMA_SKY_PARTS['<id>/<role>'] = { rev, … } (base: full, depth, data; bands: bands).
+// Ein Teil setzt globalThis.PRISMA_SKY_PARTS['<id>/<role>'] = { rev, … }; base: full, depth, data, watermask?
+// (Wassermaske für waterSurface); bands: bands, data? (ersetzt im Spiel gleichnamige Felder der Daten aus base).
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ export const BUDGET = {
   registryBytes: 30e3,       // backgrounds/skies.js
   baseBytes: 2e6, baseGpuMB: 64,     // was jedes Gerät lädt
   totalBytes: 8e6, totalGpuMB: 300,  // alle Teile einer Skybox
-  precacheBytes: 3e6,        // alle vorab gespeicherten Teile zusammen (sw.js)
+  precacheBytes: 3.5e6,      // alle vorab gespeicherten Teile zusammen (sw.js); mit den Felsen des Strands (PLAN 2.36)
 };
 export const BLOOM_THRESHOLD = 1.0; // LOOK.bloomThreshold mit HDR: hellere Werte leuchten auf
 
@@ -72,6 +73,9 @@ const LAYER_PARAMS = {
       && isVec(s.shape, 2) && isNum(s.speed) && s.speed > 0 && isNum(s.depth) && s.depth > 0
       && ['tang', 'bands', 'plain'].includes(s.pattern) && Array.isArray(s.colors) && s.colors.length === 3
       && s.colors.every(isColor)),
+  },
+  bakedMesh: {
+    data: (v) => typeof v === 'string',
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
