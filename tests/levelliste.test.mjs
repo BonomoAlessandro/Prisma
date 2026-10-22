@@ -25,9 +25,10 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { bestandNach } from '../tools/ausbau.mjs';
 import {
-  GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU, MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL,
-  alleUrteile, entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel, festePlaetze, korrigiere, ladeLevelliste,
-  maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner, zustimmung, zuWeitGilt, zuWeitKorrigiert,
+  GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
+  MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
+  festePlaetze, korrigiere, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
+  zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
 let passed = 0;
@@ -335,14 +336,17 @@ test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ
   }
   assert.ok(mittel.at(-1) - mittel[0] >= 15, `zu wenig Spannweite: ${text}`);
 });
-test(`Dieselbe Haupt-Kernidee höchstens ${HAUPT_KERNIDEE_JE_10}-mal je 10 Level, ohne die Duldungsliste`, () => {
+test(`Dieselbe Haupt-Kernidee höchstens ${HAUPT_KERNIDEE_JE_10}-mal je 10 Level, ohne die Duldungsliste (im Ausbau `
+  + `ab schwer ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)`, () => {
   const zuOft = zehner(MAIN).flatMap((z, k) => {
-    const zahl = {};
+    const je = {};
     for (const l of z.filter(x => !duldung.includes(x.name))) {
       const h = nach.get(l.name).b.hauptKernidee.begriff;
-      if (h) zahl[h] = (zahl[h] || 0) + 1;
+      if (h) (je[h] ??= []).push(l);
     }
-    return Object.entries(zahl).filter(([, x]) => x > HAUPT_KERNIDEE_JE_10)
+    const grenze = (mit) => (ausbauZahl && mit.every(l => GRADE_OBEN.includes(l.grad)) ? HAUPT_KERNIDEE_JE_10_OBEN
+      : HAUPT_KERNIDEE_JE_10);
+    return Object.entries(je).filter(([, mit]) => mit.length > grenze(mit)).map(([h, mit]) => [h, mit.length])
       .map(([h, x]) => `Plätze ${10 * k + 1}–${10 * k + 10}: ${h} ${x}-mal`);
   });
   assert.deepEqual(zuOft, []);
@@ -608,6 +612,17 @@ test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sons
   assert.equal(maxEntzerren([]), MAX_ENTZERREN);
   assert.equal(maxEntzerren([false, false]), MAX_ENTZERREN);
   assert.equal(maxEntzerren([false, true]), MAX_ENTZERREN_AUSBAU);
+});
+test(`Häufung im Ausbau ab schwer: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, und nur wenn alle Level ab schwer sind`, () => {
+  const grad = ['mittel', 'schwer', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer', 'schwer'];
+  const folge = [...grad.keys()], X = (plaetze) => folge.map(i => (plaetze.includes(i) ? 'X' : null));
+  const ausbau = [true], oben = obenIn(grad, ausbau);
+  assert.deepEqual(oben, new Set(folge.slice(1)));
+  assert.equal(obenIn(grad, []).size, 0, 'ohne Ausbau gilt überall HAUPT_KERNIDEE_JE_10');
+  assert.equal(haeufungen(folge, X([1, 2, 3]), new Set(), 0, Infinity, oben).length, 0, '3-mal ab schwer');
+  assert.equal(haeufungen(folge, X([1, 2, 3, 4]), new Set(), 0, Infinity, oben).length, 1, '4-mal ab schwer');
+  assert.equal(haeufungen(folge, X([0, 2, 3]), new Set(), 0, Infinity, oben).length, 1, 'mit einem mittleren');
+  assert.equal(haeufungen(folge, X([1, 2, 3]), new Set()).length, 1, 'ohne oben');
 });
 test('Ganze Regel an den heutigen Leveln: zur Formel, am alten Platz mit Korrektur, abgelehnt auf die Duldungsliste',
   () => {

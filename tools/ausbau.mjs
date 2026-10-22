@@ -53,7 +53,7 @@ import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import {
-  HAUPT_KERNIDEE_JE_10, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitGilt,
+  GRADE_OBEN, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge, zaehlendeUrteile, zuWeitGilt,
   zuWeitKorrigiert,
 } from './levelliste.mjs';
 
@@ -306,13 +306,16 @@ async function wahl() {
   };
   /**
    * Häuft sich die Haupt-Kernidee des Levels i um seinen Platz? Im gleitenden Fenster zu 10 Leveln um ihn (4 davor, 5
-   * danach) mehr als HAUPT_KERNIDEE_JE_10-mal, ohne die Duldungsliste. Anders als die Seiten verschiebt sich das Fenster
+   * danach) mehr als HAUPT_KERNIDEE_JE_10-mal (HAUPT_KERNIDEE_JE_10_OBEN, wenn alle ab „schwer“ sind), ohne die
+   * Duldungsliste. Anders als die Seiten verschiebt sich das Fenster
    * nicht, wenn weiter vorn ein Level dazukommt; die Seiten prüft am Ende die Häufungsregel.
    */
   const haeuftSich = (f, i) => {
     if (!f.haupt[i]) return false;
     const p = f.r.folge.indexOf(i), fenster = f.r.folge.slice(Math.max(0, p - 4), p + 6);
-    return fenster.filter(j => f.haupt[j] === f.haupt[i] && !geduldet.has(j)).length > HAUPT_KERNIDEE_JE_10;
+    const mit = fenster.filter(j => f.haupt[j] === f.haupt[i] && !geduldet.has(j));
+    const oben = mit.every(j => GRADE_OBEN.includes(f.r.grad[j]));
+    return mit.length > (oben ? HAUPT_KERNIDEE_JE_10_OBEN : HAUPT_KERNIDEE_JE_10);
   };
   /** Die Wahl je Grad (siehe Kopf), ohne die Häufungsregel. Rückgabe: { gewaehlt, bericht }. */
   const waehle = () => {
