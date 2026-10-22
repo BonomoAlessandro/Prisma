@@ -337,7 +337,7 @@ test(`Das Mittel der Schwierigkeit je 10 Level steigt, mit höchstens ${TOLERANZ
   assert.ok(mittel.at(-1) - mittel[0] >= 15, `zu wenig Spannweite: ${text}`);
 });
 test(`Dieselbe Haupt-Kernidee höchstens ${HAUPT_KERNIDEE_JE_10}-mal je 10 Level, ohne die Duldungsliste (im Ausbau `
-  + `ab schwer ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)`, () => {
+  + `ab mittel ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)`, () => {
   const zuOft = zehner(MAIN).flatMap((z, k) => {
     const je = {};
     for (const l of z.filter(x => !duldung.includes(x.name))) {
@@ -613,15 +613,15 @@ test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sons
   assert.equal(maxEntzerren([false, false]), MAX_ENTZERREN);
   assert.equal(maxEntzerren([false, true]), MAX_ENTZERREN_AUSBAU);
 });
-test(`Häufung im Ausbau ab schwer: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, nur wenn alle ab schwer sind`, () => {
-  const grad = ['mittel', 'schwer', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer', 'schwer'];
+test(`Häufung im Ausbau ab mittel: erst ab ${HAUPT_KERNIDEE_JE_10_OBEN + 1}-mal, nur wenn alle ab mittel sind`, () => {
+  const grad = ['leicht', 'mittel', 'schwer', 'schwer', 'sehr schwer', 'schwer', 'schwer', 'schwer', 'schwer', 'schwer'];
   const folge = [...grad.keys()], X = (plaetze) => folge.map(i => (plaetze.includes(i) ? 'X' : null));
   const ausbau = [true], oben = obenIn(grad, ausbau);
   assert.deepEqual(oben, new Set(folge.slice(1)));
   assert.equal(obenIn(grad, []).size, 0, 'ohne Ausbau gilt überall HAUPT_KERNIDEE_JE_10');
-  assert.equal(haeufungen(folge, X([1, 2, 3]), new Set(), 0, Infinity, oben).length, 0, '3-mal ab schwer');
-  assert.equal(haeufungen(folge, X([1, 2, 3, 4]), new Set(), 0, Infinity, oben).length, 1, '4-mal ab schwer');
-  assert.equal(haeufungen(folge, X([0, 2, 3]), new Set(), 0, Infinity, oben).length, 1, 'mit einem mittleren');
+  assert.equal(haeufungen(folge, X([1, 2, 3]), new Set(), 0, Infinity, oben).length, 0, '3-mal ab mittel');
+  assert.equal(haeufungen(folge, X([1, 2, 3, 4]), new Set(), 0, Infinity, oben).length, 1, '4-mal ab mittel');
+  assert.equal(haeufungen(folge, X([0, 2, 3]), new Set(), 0, Infinity, oben).length, 1, 'mit einem leichten');
   assert.equal(haeufungen(folge, X([1, 2, 3]), new Set()).length, 1, 'ohne oben');
 });
 test('Ganze Regel an den heutigen Leveln: zur Formel, am alten Platz mit Korrektur, abgelehnt auf die Duldungsliste',

@@ -339,11 +339,11 @@ for (const [text, wer] of [...SICHTEN, ['heutige Reihenfolge', null]]) {
     + `${10 * kleinster.k + 10}), Schritte ${schritte.map(s => zahl(s.s)).join(' ')}`
     + `${je.length < Math.ceil(n / 10) ? `; ${Math.ceil(n / 10) - je.length} Gruppen ohne Level` : ''}`);
 }
-// im Ausbau unter Leveln ab „schwer“ höchstens HAUPT_KERNIDEE_JE_10_OBEN (Entscheid des Nutzers vom 22.10.2026)
+// im Ausbau unter Leveln ab „mittel“ höchstens HAUPT_KERNIDEE_JE_10_OBEN (Entscheid des Nutzers vom 22.10.2026)
 const oben = obenIn(grad, ausbau), grenzeJe10 = (mit) => (mit.every(i => oben.has(i)) ? HAUPT_KERNIDEE_JE_10_OBEN
   : HAUPT_KERNIDEE_JE_10);
 console.log(`  Haupt-Kernidee höchstens ${HAUPT_KERNIDEE_JE_10}-mal je 10 Level${oben.size
-  ? ` (unter Leveln ab schwer ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)` : ''}:`);
+  ? ` (unter Leveln ab mittel ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)` : ''}:`);
 for (const [text, wer] of SICHTEN) {
   const verletzt = [];
   zehner(folge).forEach((z, k) => {
@@ -391,7 +391,7 @@ console.log(`  Urteile der KI-Tester (Ablauf 2): ${ki.size - kiNeu} von ${pruef.
   + `${kiText(u => u.abgelehnt)}`);
 const zug = ({ i, von, nach }) => `${name(i)} (${b[i].hauptKernidee.begriff ?? 'ohne Haupt-Kernidee'}`
   + `${duldung.includes(i) ? ', Duldungsliste' : ''}) von Platz ${von + 1} auf ${nach + 1}`;
-console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10}${oben.size ? `, ab schwer `
+console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10}${oben.size ? `, ab mittel `
   + `${HAUPT_KERNIDEE_JE_10_OBEN},` : ''} je 10 Level ohne die Duldungsliste): `
   + `${ordnung.zuege.length ? ordnung.zuege.map(zug).join('; ') : 'keine Züge'}`);
 const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `

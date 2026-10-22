@@ -306,7 +306,7 @@ async function wahl() {
   };
   /**
    * Häuft sich die Haupt-Kernidee des Levels i um seinen Platz? Im gleitenden Fenster zu 10 Leveln um ihn (4 davor, 5
-   * danach) mehr als HAUPT_KERNIDEE_JE_10-mal (HAUPT_KERNIDEE_JE_10_OBEN, wenn alle ab „schwer“ sind), ohne die
+   * danach) mehr als HAUPT_KERNIDEE_JE_10-mal (HAUPT_KERNIDEE_JE_10_OBEN, wenn alle ab „mittel“ sind), ohne die
    * Duldungsliste. Anders als die Seiten verschiebt sich das Fenster nicht, wenn weiter vorn ein Level dazukommt; die
    * Seiten prüft am Ende die Häufungsregel.
    */
