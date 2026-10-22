@@ -29,7 +29,7 @@
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
 //   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor (im Ausbau unter Leveln ab
-//   „schwer“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheid des Nutzers vom 22.10.2026), gezählt ohne die Level der
+//   „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt ohne die Level der
 //   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
 //   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
@@ -96,12 +96,13 @@ export const TOLERANZ_MITTEL = 1;
 /** Je 10 Level kommt dieselbe Haupt-Kernidee höchstens so oft vor, ohne die Level der Duldungsliste. */
 export const HAUPT_KERNIDEE_JE_10 = 2;
 /**
- * Im Ausbau, wenn alle Level der Häufung „schwer“ oder „sehr schwer“ sind: Dort gibt es fast nur fünf Haupt-Kernideen,
- * mit 2 müsste jede Seite genau 2 von jeder haben (Entscheid des Nutzers vom 22.10.2026, Ticket 07).
+ * Im Ausbau, wenn alle Level der Häufung ab „mittel“ sind: Dort gibt es fast nur fünf Haupt-Kernideen, mit 2 müsste
+ * jede Seite genau 2 von jeder haben (Entscheide des Nutzers vom 22.10.2026: ab „schwer“ in Ticket 07, ab „mittel“ in
+ * Ticket 08).
  */
 export const HAUPT_KERNIDEE_JE_10_OBEN = 3;
 /** Die Grade, für die im Ausbau HAUPT_KERNIDEE_JE_10_OBEN gilt. */
-export const GRADE_OBEN = ['schwer', 'sehr schwer'];
+export const GRADE_OBEN = ['mittel', 'schwer', 'sehr schwer'];
 /** Die Indizes, für die HAUPT_KERNIDEE_JE_10_OBEN gilt: im Ausbau die Level der GRADE_OBEN, sonst keine. */
 export const obenIn = (grad, ausbau = []) => new Set(zuWeitGilt(ausbau) ? []
   : grad.flatMap((g, i) => (GRADE_OBEN.includes(g) ? [i] : [])));

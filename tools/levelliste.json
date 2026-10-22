@@ -71,8 +71,8 @@
   ],
   "pruefliste": [
     "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
-    "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Blendwerk",
-    "Traumfänger", "Saphir", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
+    "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
+    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
     "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
     "Kathedrale", "Supernova", "Zwielicht"
   ],
@@ -119,6 +119,10 @@
     "Rutschbahn", "Strömung", "Wasserspiel", "Springbrunnen", "Wasserfall", "Gebirgsbach", "Bachlauf", "Flussbett",
     "Mündung", "Fjord", "Gletscher", "Eiskristall", "Raureif", "Nordlicht", "Polarstern", "Morgenstern", "Venus",
     "Merkur", "Mars", "Saturn", "Jupiter", "Neptun", "Uranus", "Wehrgang", "Turmzimmer", "Minotaurus", "Ariadnefaden",
-    "Sphinx", "Spica", "Regulus", "Plejaden"
+    "Sphinx", "Spica", "Regulus", "Plejaden", "Glanzpapier", "Lichtfleck", "Abzweigung", "Kurve", "Torbogen",
+    "Fensterglas", "Titan", "Europa", "Kallisto", "Ganymed", "Phobos", "Deimos", "Mondsichel", "Halbmond", "Vollmond",
+    "Neumond", "Mondfinsternis", "Dämmerung", "Abenddämmerung", "Morgendämmerung", "Zwischenlicht", "Gegenschein",
+    "Nachglühen", "Abendglut", "Glut", "Orakel", "Rätselturm", "Zauberwürfel", "Puzzlestück", "Knobelei", "Kopfnuss",
+    "Denksport", "Hyaden", "Magellanwolke", "Milchstrasse"
   ]
 }
