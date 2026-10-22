@@ -7,7 +7,7 @@ mittel / schwer / sehr schwer): 5 / 19 / 8 / 3. Danach stehen 465 Level im Spiel
 
 **Blocked by:** 09
 
-**Status:** done
+**Status:** resolved
 
 - [x] 35 neue Level im Spiel, je Grad wie oben; Fehlmengen eines Grads sind begründet und für die nächste Gruppe
       vermerkt.
