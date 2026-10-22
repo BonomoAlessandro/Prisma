@@ -446,6 +446,9 @@ const QUALITY = {
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: 1024,
   reflections: true,
+  // Pinsel über gemalten Ebenen der Skyboxen (createBrushPass; je Skybox brush, auf dem Handy dort mobile): Desktop in
+  // voller Auflösung (RTX A2000, 1440 × 900: bis 0,8 ms), Handy je 2 × 2 Pixel und vergrössert; null aus
+  brush: IS_MOBILE ? { step: 2, full: false } : { step: 1, full: true },
 };
 
 const GRID = 7;            // Spielfeld 7×7
@@ -5527,13 +5530,17 @@ scene.add(solar.group);
    liegt (etwa Nebellagen). Grenze des Verfahrens: Dinge nahe am Brett sähe die Kamera aus einem anderen Winkel als der
    Mittelpunkt, sie stünden schräg. Darum fehlen sie im Panorama (nur ihre Schatten sind drin), und das Spiel zeichnet
    sie selbst (Ebenen, SKY_LAYERS).
+   Pinsel: Ebenen mit brush: true bekommen Pinselstriche wie das Panorama (anisotroper Kuwahara-Filter wie anime.py,
+   createBrushPass); Grösse und Regler im Feld brush der Skybox (size in Grad wie px_per_deg × 0.28, uniformity,
+   sharpness, eccentricity, mobile: Stufe auf dem Handy). Ohne brush bleibt alles ungemalt.
    Farben: lineare Szenenwerte, sRGB-kodiert, unter der Bloom-Schwelle (panorama.peak); ACES, Vignette und Korn macht der
    letzte Bildschritt wie bei allem. Ausgeblendet und nicht gewählt, gibt eine Skybox ihren Grafikspeicher frei
    (skyTheme.keep).
    Wald (forest): Mondnacht über einem Nebelmeer, nahe Fichten als 3D-Modelle (toonInstances), ein ziehender
    Nebelschleier (mistSheets) und Glühwürmchen (glowParticles).
    Strand (beach): Abend am Meer, das Brett über einer türkisen Lagune vor dem Strand; nahe Palmen, Bäume und Büsche
-   als 3D-Modelle mit eigenen Farben (toonInstances), Wellen, Schaum und Glitzern ums Brett (waterSurface).
+   als 3D-Modelle, beleuchtet und gemalt wie im Panorama (paintedInstances, mit Pinsel), Wellen, Schaum und Glitzern
+   ums Brett (waterSurface), Fische (fishSchools), nahe Felsen (bakedMesh).
    ===================================================================== */
 
 const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
@@ -5888,25 +5895,182 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
  * freigegeben), later (Arbeit, die warten kann: async (alive) =>, läuft, sobald die Skybox ganz eingeblendet ist;
  * alive() ist falsch, sobald sie freigegeben ist), under (von waterSurface: Szene unter der Wasseroberfläche) }. Am
  * Object3D optional userData.update(t, dt) (jedes Bild, solange sichtbar) und userData.dispose() (beim Freigeben).
+ * Jede Ebene kann brush: true tragen (Pinselstriche über ihren undurchsichtigen Materialien, createBrushPass; die
+ * Einstellungen stehen im Feld brush der Skybox); das gilt für jeden Typ und braucht dort keinen Code.
  * Neues kommt als weiterer Typ dazu; tools/sky-schema.mjs liest die Namen aus der Zeile `const SKY_LAYERS = { … }`.
  */
 
 /** Modell als Felder: unverändert (pos, nrm, col, idx) oder kompakt aus Base64 (pos16: Int16 / 8192, col8: Uint8,
- *  Wurzel der Farbe; idx16: Uint16; ohne Normalen), wie es der Export des Strands schreibt */
+ *  Wurzel der Farbe; idx16: Uint16; ohne Normalen), wie es der Export des Strands schreibt. Dazu dort (game_models):
+ *  prims: Blätter und Fiedern je Form noch kompakter (pack_prims): je Blatt erste Ecke base16 (Int16 / 8192), die
+ *  übrigen k − 1 als d8 (Int8 × dscale) relativ dazu, Farbe col8, Dreiecke nach tri (Ecken 0 … k − 1); leaf ist 1 für
+ *  ihre Ecken (Laub scheint durch, paintedInstances). tubes: Röhren (pack_tubes): je Röhre Ringe n8 und Ecken je Ring
+ *  s8, je Ring Mitte c16 (Int16 / 8192), Radius r16 (Uint16 / 2¹⁸), Farbe col8; die Ringe wie tube() in pflanzen.py
+ *  (Querachse mitgeführt, Anfang senkrecht zu oben bzw. zu x, wenn die Röhre senkrecht beginnt). self8 je Ecke, Blatt
+ *  bzw. Ring: Licht durch die eigene Krone (self_light), entpackt als self [Himmel, a0, a1, b1] je Ecke. */
 function unpackModel(m) {
-  if (!m.pos16) return m;
+  if (m.pos16 === undefined) return m; // leer ('') bei Bäumen ohne Früchte: alles in prims und tubes
   const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer;
-  return {
-    pos: Float32Array.from(new Int16Array(bytes(m.pos16)), (v) => v / 8192),
-    col: Float32Array.from(new Uint8Array(bytes(m.col8)), (v) => (v / 255) ** 2),
-    idx: new Uint16Array(bytes(m.idx16)),
+  const pos = Float32Array.from(new Int16Array(bytes(m.pos16)), (v) => v / 8192);
+  const col = Float32Array.from(new Uint8Array(bytes(m.col8)), (v) => (v / 255) ** 2);
+  const idx = new Uint16Array(bytes(m.idx16));
+  if (!m.prims && !m.tubes) return { pos, col, idx };
+  const prims = m.prims ?? [], t = m.tubes;
+  const rings = t ? new Uint8Array(bytes(t.n8)) : [], sides = t ? new Uint8Array(bytes(t.s8)) : [];
+  let nv = pos.length / 3, ni = idx.length;
+  for (const p of prims) { nv += p.count * p.k; ni += p.count * p.tri.length; }
+  rings.forEach((n, j) => { nv += n * sides[j]; ni += (n - 1) * sides[j] * 6; });
+  const P = new Float32Array(nv * 3), C = new Float32Array(nv * 3), leaf = new Float32Array(nv);
+  const S = new Float32Array(nv * 4).fill(1); // ohne self8: frei
+  // Lage im Blatt (entlang 0 … 1, quer in Blattbreiten): die Ecken des Sechsecks wie leaf() in pflanzen.py; alles
+  // andere in der Mitte (paintedInstances schneidet daraus eine runde Blattform)
+  const shape = new Float32Array(nv * 2).fill(0.5);
+  for (let e = 1; e < nv * 2; e += 2) shape[e] = 0;
+  const HEX = [0, 0, 0.3, 0.5, 0.72, 0.42, 1, 0, 0.72, -0.42, 0.3, -0.5];
+  const I = nv > 65536 ? new Uint32Array(ni) : new Uint16Array(ni);
+  P.set(pos); C.set(col); I.set(idx);
+  // self8 der Gruppe g (Blatt, Ring, Ecke) auf die Ecken v0 … v0 + k − 1
+  const setSelf = (s8, g, v0, k) => {
+    if (!s8) return;
+    const q = [s8[g * 4] / 255, s8[g * 4 + 1] / 255, (s8[g * 4 + 2] - 128) / 127, (s8[g * 4 + 3] - 128) / 127];
+    for (let e = 0; e < k; e++) S.set(q, (v0 + e) * 4);
   };
+  const s8 = m.self8 ? new Uint8Array(bytes(m.self8)) : null;
+  for (let e = 0; e < pos.length / 3; e++) setSelf(s8, e, e, 1);
+  let v = pos.length / 3, i = idx.length;
+  if (t) {
+    const c = Float32Array.from(new Int16Array(bytes(t.c16)), (x) => x / 8192);
+    const r = Float32Array.from(new Uint16Array(bytes(t.r16)), (x) => x / 2 ** 18);
+    const rc = new Uint8Array(bytes(t.col8)), rs = t.self8 ? new Uint8Array(bytes(t.self8)) : null;
+    const at = (k) => new THREE.Vector3(c[k * 3], c[k * 3 + 1], c[k * 3 + 2]);
+    const tan = new THREE.Vector3(), u = new THREE.Vector3(), w = new THREE.Vector3();
+    let k0 = 0;
+    rings.forEach((n, j) => {
+      const s = sides[j];
+      for (let k = 0; k < n; k++) {
+        // Richtung wie np.gradient: in der Mitte zentral, an den Enden einseitig
+        tan.subVectors(at(k0 + Math.min(k + 1, n - 1)), at(k0 + Math.max(k - 1, 0))).normalize();
+        if (k === 0) u.crossVectors(tan, new THREE.Vector3(Math.abs(tan.y) > 0.9 ? 1 : 0, Math.abs(tan.y) > 0.9 ? 0 : 1, 0));
+        else u.addScaledVector(tan, -tan.dot(u));
+        u.normalize();
+        w.crossVectors(tan, u);
+        const q = k0 + k, cen = at(q);
+        for (let e = 0; e < s; e++) {
+          const a = (e * 2 * Math.PI) / s, o = (v + k * s + e) * 3;
+          for (let x = 0; x < 3; x++) {
+            P[o + x] = cen.getComponent(x) + r[q] * (Math.cos(a) * u.getComponent(x) + Math.sin(a) * w.getComponent(x));
+            C[o + x] = (rc[q * 3 + x] / 255) ** 2;
+          }
+        }
+        setSelf(rs, q, v + k * s, s);
+        if (k < n - 1) {
+          for (let e = 0; e < s; e++) {
+            const a = v + k * s + e, b = v + k * s + ((e + 1) % s);
+            I.set([a, b, b + s, a, b + s, a + s], i);
+            i += 6;
+          }
+        }
+      }
+      v += n * s;
+      k0 += n;
+    });
+  }
+  for (const p of prims) {
+    const base = new Int16Array(bytes(p.base16)), d = new Int8Array(bytes(p.d8)), c = new Uint8Array(bytes(p.col8));
+    const ps = p.self8 ? new Uint8Array(bytes(p.self8)) : null;
+    for (let j = 0; j < p.count; j++, v += p.k) {
+      for (let e = 0; e < p.k; e++) {
+        for (let a = 0; a < 3; a++) {
+          P[(v + e) * 3 + a] = base[j * 3 + a] / 8192 + (e ? d[(j * (p.k - 1) + e - 1) * 3 + a] * p.dscale : 0);
+          C[(v + e) * 3 + a] = (c[j * 3 + a] / 255) ** 2;
+        }
+        leaf[v + e] = 1;
+      }
+      if (p.form === 'blatt') shape.set(HEX, v * 2);
+      setSelf(ps, j, v, p.k);
+      for (const e of p.tri) I[i++] = v + e;
+    }
+  }
+  return { pos: P, col: C, idx: I, leaf, self: S, shape };
 }
+
+/** Je Modell ein InstancedMesh mit material (Daten wie bei toonInstances; die Drehung auch als [x, y, z] wie in
+ *  Blender, Euler XYZ um dessen Achsen: Palmen lehnen); aInfo je Instanz: Licht unten, oben, Helligkeit,
+ *  Nebel-Oberkante; aCol, aLeaf, aSelf und aShape, wenn das Modell sie hat. Jedes Bild bekommt die Grafikkarte nur die
+ *  Instanzen, deren Hüllquader im Bild liegt (cullInstances; three.js zeichnete sonst alle: Eine Hülle um alle
+ *  Standorte enthielte immer das Brett). In der Standardansicht sind das von 188 Pflanzen am Strand gut ein Dutzend.
+ *  userData.instances: alle Matrizen (für den Pinsel). Generator (sliced: yield je Modell). */
+function* instancedModels(set, material, colored) {
+  const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const meshes = [];
+  for (const [k, packed] of set.models.entries()) {
+    const model = unpackModel(packed);
+    yield;
+    const list = set.instances.filter((t) => t[6] === k);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
+    if (colored) geo.setAttribute('aCol', new THREE.Float32BufferAttribute(model.col, 3));
+    if (model.leaf) geo.setAttribute('aLeaf', new THREE.Float32BufferAttribute(model.leaf, 1));
+    if (model.self) geo.setAttribute('aSelf', new THREE.Float32BufferAttribute(model.self, 4));
+    if (model.shape) geo.setAttribute('aShape', new THREE.Float32BufferAttribute(model.shape, 2));
+    geo.setIndex(ArrayBuffer.isView(model.idx) ? new THREE.BufferAttribute(model.idx, 1) : model.idx);
+    if (model.nrm) geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
+    else geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    const info = new Float32Array(list.length * 4), all = new Float32Array(list.length * 16);
+    const mesh = new THREE.InstancedMesh(geo, material, list.length);
+    list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, top = 0], i) => {
+      // Blender Rz·Ry·Rx in Spielachsen (x, z, −y): Ry·R(−z)·Rx, three.js-Reihenfolge 'YZX'
+      const [rx, ry, rz] = Array.isArray(turn) ? turn : [0, 0, turn];
+      q.setFromEuler(e.set(rx, rz, -ry, 'YZX'));
+      mtx.compose(new THREE.Vector3(x, y, z), q, new THREE.Vector3(w, h, w)).toArray(all, i * 16);
+      info.set([lo, hi, shade, top], i * 4);
+    });
+    mesh.instanceMatrix.array.set(all);
+    geo.setAttribute('aInfo', new THREE.InstancedBufferAttribute(info.slice(), 4));
+    mesh.frustumCulled = false; // selbst je Instanz (cullInstances)
+    mesh.userData.instances = all;
+    meshes.push({ mesh, all, info, boxes: null, shown: null });
+    out.add(mesh);
+    yield;
+  }
+  out.userData.update = () => cullInstances(meshes);
+  return out;
+}
+
+/** Nur die Instanzen im Bild der Kamera an die Grafikkarte (vorne in instanceMatrix und aInfo, count); hochgeladen nur,
+ *  wenn sich die Auswahl ändert. Hüllquader in der Welt einmal (die Ebenen stehen still). */
+const cullInstances = (() => {
+  const frustum = new THREE.Frustum(), viewProj = new THREE.Matrix4(), m = new THREE.Matrix4();
+  return (meshes) => {
+    camera.updateMatrixWorld();
+    frustum.setFromProjectionMatrix(viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    for (const g of meshes) {
+      const { mesh, all, info } = g, n = all.length / 16;
+      g.boxes ??= Array.from({ length: n }, (_, i) =>
+        mesh.geometry.boundingBox.clone().applyMatrix4(m.fromArray(all, i * 16).premultiply(mesh.matrixWorld)));
+      const shown = g.boxes.map((b) => frustum.intersectsBox(b));
+      if (g.shown && shown.every((v, i) => v === g.shown[i])) continue;
+      g.shown = shown;
+      const mat = mesh.instanceMatrix.array, attr = mesh.geometry.getAttribute('aInfo');
+      let c = 0;
+      for (let i = 0; i < n; i++) {
+        if (!shown[i]) continue;
+        mat.set(all.subarray(i * 16, i * 16 + 16), c * 16);
+        attr.array.set(info.subarray(i * 4, i * 4 + 4), c * 4);
+        c++;
+      }
+      mesh.count = c;
+      mesh.visible = c > 0;
+      mesh.instanceMatrix.needsUpdate = attr.needsUpdate = true;
+    }
+  };
+})();
 
 /**
  * Nahe Objekte (Daten: models {pos, nrm, idx} in Spielkoordinaten oder kompakt, siehe unpackModel; Fuss im Ursprung,
- * Höhe und Breite 1; instances [x, y, z, Höhe, Breite, Drehung um die Hochachse, Modell, Licht unten, Licht oben,
- * Helligkeit, Nebel-Oberkante]):
+ * Höhe und Breite 1; instances [x, y, z, Höhe, Breite, Drehung um die Hochachse (oder [x, y, z], instancedModels),
+ * Modell, Licht unten, Licht oben, Helligkeit, Nebel-Oberkante]):
  * Das Panorama zeigt sie nicht, aus seinem Mittelpunkt gesehen lägen sie schräg. Farben (palette) wie die gemalten
  * Objekte im Panorama: zwei Stufen im Hauptlicht (Toon; soft 0 … 1 macht sie weich), heller Rand an den Kanten zum
  * Licht, unten dunkler, etwas Dunst mit dem Abstand (air). Wie viel Licht ein Objekt unten und oben trifft (Schatten von
@@ -5995,30 +6159,131 @@ function* toonInstances(ctx, opt) {
           gl_FragColor = vec4(col * uFade * uReady, 1.0);
         }`,
   });
-  const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
-  for (const [k, packed] of set.models.entries()) {
-    const model = unpackModel(packed);
-    yield;
-    const list = set.instances.filter((t) => t[6] === k);
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.Float32BufferAttribute(model.pos, 3));
-    if (colored) geo.setAttribute('aCol', new THREE.Float32BufferAttribute(model.col, 3));
-    geo.setIndex(ArrayBuffer.isView(model.idx) ? new THREE.BufferAttribute(model.idx, 1) : model.idx);
-    if (model.nrm) geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
-    else geo.computeVertexNormals();
-    const info = new Float32Array(list.length * 4);
-    const mesh = new THREE.InstancedMesh(geo, material, list.length);
-    list.forEach(([x, y, z, h, w, turn, , lo, hi, shade, top = 0], i) => {
-      mtx.compose(new THREE.Vector3(x, y, z), q.setFromAxisAngle(up, turn), new THREE.Vector3(w, h, w));
-      mesh.setMatrixAt(i, mtx);
-      info.set([lo, hi, shade, top], i * 4);
-    });
-    geo.setAttribute('aInfo', new THREE.InstancedBufferAttribute(info, 4));
-    mesh.frustumCulled = false;          // die Hülle gilt nur für ein Modell, nicht für alle Standorte
-    out.add(mesh);
-    yield;
-  }
-  return out;
+  return yield* instancedModels(set, material, colored);
+}
+
+/** GLSL-mat3 aus einer Matrix in Zeilen [[a, b, c], …] (GLSL füllt Spalten) */
+const glm3 = (rows) => `mat3(${[0, 1, 2].map((c) => glv(rows.map((r) => r[c]))).join(', ')})`;
+
+/**
+ * Nahe Pflanzen wie im Panorama gemalt (Daten wie toonInstances mit Farbe je Ecke, Drehung [x, y, z] wie in Blender,
+ * dazu light aus dem Export des Strands, plant_light; Helligkeit je Instanz bleibt unbenutzt, Blender kennt sie
+ * nicht): Das Spiel rechnet, was Blender und anime.py für sie rechnen würden. Licht wie in Blender: Himmel und Boden
+ * aus einer Lichtsonde (sh: Kugelfunktionen bis Grad 2 in Blender-Achsen, Beleuchtungsstärke je Normale), Sonne (sun)
+ * × max(N·L, 0) mal Sonne an der Instanz (unten, oben: Schatten von Gelände und Nachbarn), beides durch die eigene
+ * Krone (aSelf aus self_light: Himmel; Sonne nach ihrem Azimut in den Achsen der Vorlage), Grundlicht (emit, wie
+ * mat_plant), Laub scheint zu translucent durch (Licht von hinten), Glanz wie die Principled BSDF; Luftperspektive
+ * nach airDist.
+ * Dann gemalt wie anime.grade: Belichtung, ACES und sRGB (so sähe es im Spiel aus), satter, bläuliche Schatten, warme
+ * Lichter (paint), zurück auf Szenenwerte vor ACES (wie die Textur des Panoramas, höchstens TEX_MAX). Pinselstriche mit
+ * brush (createBrushPass); ihr Runden der Blätter macht aShape nach (Sechseck -> runde Blattform). Generator (sliced:
+ * yield je Modell).
+ */
+function* paintedInstances(ctx, opt) {
+  const set = ctx.data[opt.data], L = set.light, P = L.paint, air = ctx.air;
+  const IN = [[0.59719, 0.35458, 0.04823], [0.07600, 0.90834, 0.01566], [0.02840, 0.13383, 0.83777]];
+  const OUT = [[1.60475, -0.53108, -0.07367], [-0.10208, 1.10813, -0.00605], [-0.00327, -0.07276, 1.07602]];
+  const inverse = (rows) => {
+    const m = new THREE.Matrix3().set(...rows.flat()).invert().elements; // spaltenweise
+    return [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[c * 3 + r]));
+  };
+  const T = glf(L.translucent);
+  const material = new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
+    side: THREE.DoubleSide, // offene Flächen (Blätter, Fiedern) von beiden Seiten
+    // Licht und Malen je Ecke, für Vorder- und Rückseite (gl_FrontFacing wählt im Pixel): Die Blätter sind klein, und
+    // gemalt ist das Licht ohnehin flächig – je Pixel kostete der Shader auf dem Handy ein Vielfaches
+    vertexShader: `
+        attribute vec4 aInfo; // Licht unten, oben; Helligkeit; Oberkante des Nebels
+        attribute vec3 aCol;
+        attribute float aLeaf; // 0 Holz, 1 Laub (scheint durch)
+        attribute vec4 aSelf; // durch die eigene Krone: Himmel; Sonne a0 + a1 cos φ + b1 sin φ
+        attribute vec2 aShape;
+        varying vec3 vFront, vBack;
+        varying vec2 vShape;
+        ${ctx.lightGLSL}
+        const vec3 SUN = ${glv(L.sun)}, EMIT = ${glv(L.emit)}, HAZE = ${glv(air.haze)};
+        const vec3 GLOSS_SUN = ${glv(L.gloss?.sun ?? L.sun)};
+        const float GLOSS_SKY = ${glf(L.gloss?.sky ?? 1 / Math.PI)};
+        const vec3 SHADOW = ${glv(P.shadow)}, WARM = ${glv(P.light)};
+        const mat3 IN_INV = ${glm3(inverse(IN))}, OUT_INV = ${glm3(inverse(OUT))};
+        const mat3 IN_M = ${glm3(IN)}, OUT_M = ${glm3(OUT)};
+        // Himmel und Boden der Lichtsonde (Blender-Achsen)
+        vec3 sky(vec3 n) {
+          return ${L.sh.map((c, i) => `${glv(c)} * ${['1.0', 'n.x', 'n.y', 'n.z', 'n.x * n.y', 'n.y * n.z',
+            '(3.0 * n.z * n.z - 1.0)', 'n.x * n.z', '(n.x * n.x - n.y * n.y)'][i]}`).join(' + ')};
+        }
+        // ACES wie der letzte Bildschritt (Belichtung 1) und zurück (anime.aces_inverse)
+        vec3 aces(vec3 c) {
+          vec3 v = IN_M * (c / 0.6);
+          v = (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081);
+          return clamp(OUT_M * v, 0.0, 1.0);
+        }
+        vec3 acesInverse(vec3 d) {
+          vec3 y = clamp(OUT_INV * d, 0.0, 1.0);
+          vec3 a = 1.0 - 0.983729 * y, b = 0.0245786 - 0.4329510 * y, c = -0.000090537 - 0.238081 * y;
+          vec3 x = (-b + sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * max(a, 1e-4));
+          return max(IN_INV * x, 0.0) * 0.6;
+        }
+        vec3 encode(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+        vec3 decode(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c)); }
+        // Farbe einer Seite mit Normale N: Licht wie in Blender, gemalt wie anime.grade, als Szenenwert vor ACES
+        vec3 shade(vec3 N, vec3 V, float dist, float sun, float sky0, float leaf) {
+          vec3 nb = vec3(N.x, -N.z, N.y);
+          float nl = dot(N, SKY_LIGHT);
+          vec3 front = max(sky(nb), 0.0) * sky0 + SUN * max(nl, 0.0) * sun;
+          vec3 back = max(sky(-nb), 0.0) * sky0 + SUN * max(-nl, 0.0) * sun;
+          // das Grundlicht steckt in Blender in der Principled BSDF: beim Laub nur ihr Anteil (1 − translucent)
+          vec3 lin = aCol * (mix(front, back, ${T} * leaf) + EMIT * (1.0 - ${T} * leaf));
+          // Glanz wie die Principled BSDF in Blender (Rauheit Laub 0.55, Holz 0.85; ohne ihn fehlte dem Laub der
+          // bläuliche Schimmer des Himmels): Himmel in Spiegelrichtung nach Fresnel, Sonne nach GGX
+          float nv = max(dot(N, V), 1e-3), rough = mix(0.85, 0.55, leaf), a2 = pow(rough, 4.0);
+          vec3 R = reflect(-V, N);
+          // sky() ist Beleuchtung eines weissen, matten Körpers (Pixelwert), Glanzstrahlen sehen den Himmel mit GLOSS_SKY
+          vec3 spec = (0.04 + (1.0 - rough - 0.04) * pow(1.0 - nv, 5.0)) * max(sky(vec3(R.x, -R.z, R.y)), 0.0) * GLOSS_SKY * sky0;
+          vec3 H = normalize(V + SKY_LIGHT);
+          float nh = max(dot(N, H), 0.0), k = rough * rough * 0.5, nlp = max(nl, 0.0);
+          float ggx = a2 / (3.14159 * pow(nh * nh * (a2 - 1.0) + 1.0, 2.0));
+          float fs = 0.04 + 0.96 * pow(1.0 - max(dot(V, H), 0.0), 5.0);
+          spec += GLOSS_SUN * sun * ggx * fs * nlp / (4.0 * mix(nlp, 1.0, k) * mix(nv, 1.0, k));
+          lin += spec * (1.0 - ${T} * leaf);
+          lin = mix(lin, HAZE, 1.0 - exp(-dist / ${glf(L.airDist)}));
+          // gemalt wie anime.grade (Anzeige-Farben, sRGB-kodiert)
+          vec3 d = encode(aces(lin * ${glf(P.exposure)}));
+          float lum = dot(d, vec3(0.2126, 0.7152, 0.0722));
+          d = lum + (d - lum) * ${glf(P.saturation)};
+          d += (1.0 - smoothstep(0.0, 0.45, lum)) * SHADOW;
+          d *= 1.0 + smoothstep(0.35, 0.85, lum) * (WARM - 1.0);
+          return min(acesInverse(decode(clamp(d, 0.0, 1.0))), 0.91); // TEX_MAX
+        }
+        void main() {
+          vShape = aShape;
+          mat4 m = modelMatrix * instanceMatrix;
+          // Azimut der Sonne in den Achsen der Vorlage (x = cos φ, z = sin φ): Licht durch die eigene Krone
+          vec2 sd = vec2(dot(SKY_LIGHT, normalize(m[0].xyz)), dot(SKY_LIGHT, normalize(m[2].xyz)));
+          sd /= max(length(sd), 1e-4);
+          float self = clamp(aSelf.y + aSelf.z * sd.x + aSelf.w * sd.y, 0.0, 1.0);
+          float sun = mix(aInfo.x, aInfo.y, smoothstep(0.2, 0.8, position.y)) * self;
+          vec4 wp = m * vec4(position, 1.0);
+          vec3 sc = vec3(length(m[0].xyz), length(m[1].xyz), length(m[2].xyz));
+          vec3 N = normalize(mat3(m) * (normal / (sc * sc)));
+          vec3 toCam = cameraPosition - wp.xyz;
+          float dist = length(toCam);
+          vFront = shade(N, toCam / dist, dist, sun, aSelf.x, aLeaf);
+          vBack = shade(-N, toCam / dist, dist, sun, aSelf.x, aLeaf); // Rückseite: Normale umgedreht
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+    fragmentShader: `
+        uniform float uFade, uReady;
+        varying vec3 vFront, vBack;
+        varying vec2 vShape;
+        void main() {
+          // runde Blätter statt Sechsecke (gemalt verwischt der Pinsel ihre Ecken), zur Spitze schmaler
+          if (abs(vShape.y) > 0.5 * pow(sin(3.14159 * vShape.x), 0.6) * (1.0 - 0.2 * vShape.x)) discard;
+          gl_FragColor = vec4((gl_FrontFacing ? vFront : vBack) * uFade * uReady, 1.0);
+        }`,
+  });
+  return yield* instancedModels(set, material, true);
 }
 
 /**
@@ -7517,7 +7782,7 @@ function fishSchools(ctx, opt) {
   return holder;
 }
 
-const SKY_LAYERS = { toonInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh };
+const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh };
 
 /**
  * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):
@@ -7601,6 +7866,7 @@ function createPanoramaSky(m) {
     sky.renderOrder = -1000;           // zuerst: alles Übrige liegt davor, der Tiefentest verwirft es früh
     sky.frustumCulled = false;
     const parts = [sky];
+    let painted = false; // eine Ebene mit Pinsel: seine Programme mit übersetzen
     // Tiefe ungeglättet (16 Bit in Rot und Grün: nächste Nachbarn, das Wasser mischt selbst im Log)
     const depth = new THREE.Texture(depthImg);
     depth.minFilter = depth.magFilter = THREE.NearestFilter;
@@ -7623,7 +7889,9 @@ function createPanoramaSky(m) {
       try {
         if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
         const made = SKY_LAYERS[layer.type](ctx, layer);
-        parts.push(made.isObject3D ? made : await sliced(made));
+        const part = made.isObject3D ? made : await sliced(made);
+        if (layer.brush && m.brush) painted = paint(part) || painted;
+        parts.push(part);
       } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
     }
     if (pano.depthRule) sky.material.userData.setDepthRule(pano.depthRule);
@@ -7649,6 +7917,7 @@ function createPanoramaSky(m) {
         sky.material.transparent = transparent;
         compiled.push(compileParallel(roots, { skip: skyTheme.idleGroups }));
       }
+      if (painted) compiled.push(compileParallel([brushPass.programs()]));
       const textures = new Set();
       for (const root of [staging, ...offscreen]) root.traverse((o) => {
         for (const mat of [o.material ?? []].flat()) {
@@ -7709,6 +7978,17 @@ function createPanoramaSky(m) {
       sky.material.uniforms[`uBand${i}`].value = tex;
       myBands[i].age = 0;
     }
+  }
+
+  /** Ebene mit Pinselstrichen (brush: true an der Ebene, Einstellungen im Feld brush der Skybox; createBrushPass): beim
+   *  Pass anmelden, beim Freigeben abmelden */
+  function paint(part) {
+    if (!brushPass.supported) return false;
+    const center = new THREE.Vector3().fromArray(m.panorama.center);
+    const off = brushPass.add({ root: part, brush: { ...BRUSH_DEFAULT, ...m.brush }, center, uniforms });
+    const before = part.userData.dispose;
+    part.userData.dispose = () => { before?.(); off(); };
+    return true;
   }
 
   /** Daten der Ebenen: Felder aus dem HD-Teil (Desktop, etwa grössere Bilder) ersetzen die gleichnamigen */
@@ -8177,6 +8457,451 @@ const FinalShader = {
     }`,
 };
 
+/**
+ * Pinselstriche über 3D-Ebenen einer Skybox (Baustein des Baukastens: Skybox-Feld brush, je Ebene brush: true; siehe
+ * Kopf des Abschnitts SKYBOX). Blender malt das Panorama mit dem anisotropen Kuwahara-Filter seines Kompositors
+ * (anime.stylize; Kyprianidis u. a. 2009, Gewichte als Polynome nach Kyprianidis u. a. 2010, Sektoren nach ihrer
+ * Streuung gewichtet nach Kyprianidis 2011). Was das Spiel selbst zeichnet (nahe Pflanzen, Bäume, Felsen), fehlte er:
+ * Palmwedel wirkten wie Kämme aus Einzelfiedern, gemalt sind es breite, gezackte, ruhig beleuchtete Flächen. Darum
+ * derselbe Filter hier, nach dem Bild der Szene und vor dem Leuchten, nur wo diese Ebenen sind (ihre undurchsichtigen
+ * Materialien schreiben Alpha BRUSH_MARK statt 1, mark) oder wohin er sie zieht: Lücken zwischen den Fiedern füllen
+ * sich, dort mischt er wie Blender Hintergrund hinein. Einstellungen wie in anime.py (BRUSH_DEFAULT): size (Radius in
+ * Grad; Blender nimmt px_per_deg × 0.28, so passt er zum gemalten Panorama), uniformity, sharpness, eccentricity, dazu
+ * mobile (Stufe auf dem Handy statt QUALITY.brush: 2 oder 3 Bildpixel je Filterpixel, 0 aus).
+ * Stufe { step, full } (QUALITY.brush, null aus): step × step Bildpixel je Filterpixel für Farben und Tensor; full:
+ * gemalt in voller Auflösung (sonst in der des Filters, dann vergrössert)
+ *  1. Farben wie im fertigen Bild (ACES und sRGB wie FinalShader, ohne Vignette; so filtert auch Blender) und Anteil
+ *     Pflanze. Licht über der Bloom-Schwelle (Strahlen, Leuchtkörper) und additiv Überlagertes bleibt ungemalt.
+ *  2. Strukturtensor (Sobel mit Gewichten für Drehsymmetrie, wie Blender).
+ *  3. Filter: Tensor geglättet (uniformity), je Pixel eine Ellipse entlang der Kanten, 8 Sektoren; zurück auf
+ *     Szenenwerte, vormultipliziert mit dem Deckungsgrad, über das Bild gelegt – ausser um das Brett: Ein Quader im
+ *     Stencil schützt Brett, Elemente und Wasser dort, auch wo eine gemalte Ebene angrenzt.
+ * Grösse der Striche: so gross in der Welt, wie Blender sie vom Mittelpunkt des Panoramas aus malte, also mal das
+ * Verhältnis der Abstände Mittelpunkt / Kamera, gemittelt über die sichtbaren Objekte (vom Mittelpunkt aus 1).
+ * Gerechnet wird nur im Ausschnitt um die sichtbaren Objekte (Hüllquader; die Ebenen stehen still).
+ */
+const BRUSH_MARK = 32;        // Alpha gemalter Ebenen (sonst 1; Himmel 0; additives Licht hebt es um je bis 1)
+const BRUSH_DEFAULT = { size: 0.28, uniformity: 4, sharpness: 0.8, eccentricity: 1.0 };
+const BRUSH_MAX_RADIUS = 12;  // Ausgabepixel; die Ellipse wird bis doppelt so lang
+const BRUSH_FULL_MAX = 2.4e6; // grössere Bilder (Pixel) auch mit full in der Auflösung des Filters malen: Kosten
+
+function createBrushPass(quality) {
+  const pass = new THREE.Pass();
+  pass.needsSwap = false;
+  pass.supported = renderer.capabilities.isWebGL2 && HDR_SUPPORTED;
+  const sources = new Set();
+  let forced;        // Stufe von setLevel (Vergleich, Messung); undefined: QUALITY.brush bzw. mobile der Skybox
+  let level = null;  // Stufe dieses Bilds
+  let sized = 0;     // step, für den die Ziele bemessen sind
+  const image = new THREE.Vector2(1, 1);
+  // bilinear: der Filter und das Vergrössern lesen zwischen den Pixeln
+  const target = () => new THREE.WebGLRenderTarget(1, 1, {
+    type: HDR_TYPE, depthBuffer: false, generateMipmaps: false,
+  });
+  const colorRT = target(), tensorRT = target(), paintRT = target();
+
+  // ACES wie der letzte Bildschritt (Belichtung LOOK.exposure) und zurück wie anime.aces_inverse
+  const IN = [[0.59719, 0.35458, 0.04823], [0.07600, 0.90834, 0.01566], [0.02840, 0.13383, 0.83777]];
+  const OUT = [[1.60475, -0.53108, -0.07367], [-0.10208, 1.10813, -0.00605], [-0.00327, -0.07276, 1.07602]];
+  const inverse = (rows) => {
+    const m = new THREE.Matrix3().set(...rows.flat()).invert().elements; // spaltenweise
+    return [0, 1, 2].map((r) => [0, 1, 2].map((c) => m[c * 3 + r]));
+  };
+  const COLOR_GLSL = `
+      const mat3 ACES_IN = ${glm3(IN)}, ACES_OUT = ${glm3(OUT)};
+      const mat3 ACES_IN_INV = ${glm3(inverse(IN))}, ACES_OUT_INV = ${glm3(inverse(OUT))};
+      const float EXPOSURE = ${glf(LOOK.exposure / 0.6)};
+      vec3 toDisplay(vec3 c) {
+        vec3 v = ACES_IN * (c * EXPOSURE);
+        v = (v * (v + 0.0245786) - 0.000090537) / (v * (0.983729 * v + 0.4329510) + 0.238081);
+        v = clamp(ACES_OUT * v, 0.0, 1.0);
+        return mix(v * 12.92, 1.055 * pow(v, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), v));
+      }
+      vec3 toScene(vec3 d) {
+        d = mix(d / 12.92, pow((d + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), d));
+        vec3 y = clamp(ACES_OUT_INV * d, 0.0, 1.0);
+        vec3 a = 1.0 - 0.983729 * y, b = 0.0245786 - 0.4329510 * y, c = -0.000090537 - 0.238081 * y;
+        vec3 x = (-b + sqrt(max(b * b - 4.0 * a * c, 0.0))) / (2.0 * max(a, 1e-4));
+        return max(ACES_IN_INV * x, 0.0) / EXPOSURE;
+      }`;
+  const vertexShader = 'void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }';
+  const shader = (uniforms, fragmentShader) => new THREE.ShaderMaterial({
+    uniforms, vertexShader, fragmentShader, depthTest: false, depthWrite: false,
+  });
+  // vormultipliziert über das Bild (dessen Alpha bleibt), nicht wo der Quader ums Brett im Stencil steht. Ohne
+  // stencilWriteMask 0: three setzt die Maske nur bei Materialien mit stencilWrite zurück, sie blieb auf 0 stehen, und
+  // glClear löschte den Stencil im nächsten Bild nicht (der Schutz galt nur im ersten); Keep schreibt ohnehin nichts
+  const OVER = {
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    stencilWrite: true, stencilFunc: THREE.NotEqualStencilFunc, stencilRef: 1,
+  };
+  const PLAIN = { blending: THREE.NoBlending, stencilWrite: false };
+
+  // 1. Farben (Anzeige, sRGB-kodiert) und Anteil Pflanze; Alpha −1: Licht, bleibt ungemalt (als Probe zählt seine
+  // Farbe: Kuwahara wählt ohnehin die ruhigen Sektoren, ein Strahl schmiert so kaum)
+  const colorMat = shader({ tScene: { value: null }, uStep: { value: 1 } }, `
+      uniform sampler2D tScene;
+      uniform int uStep;
+      ${COLOR_GLSL}
+      void main() {
+        ivec2 size = textureSize(tScene, 0), o = ivec2(gl_FragCoord.xy) * uStep;
+        vec3 sum = vec3(0.0);
+        float plant = 0.0;
+        bool lit = false;
+        for (int j = 0; j < uStep; j++) {
+          for (int i = 0; i < uStep; i++) {
+            vec4 c = texelFetch(tScene, min(o + ivec2(i, j), size - 1), 0);
+            bool leaf = c.a > ${glf(BRUSH_MARK / 4)};
+            // Licht (wie die Bloom-Schwelle) und was additiv darüber liegt
+            lit = lit || dot(c.rgb, vec3(0.299, 0.587, 0.114)) > 1.0 || (!leaf && c.a > 1.02);
+            sum += toDisplay(c.rgb);
+            plant += leaf ? 1.0 : 0.0;
+          }
+        }
+        float n = float(uStep * uStep);
+        gl_FragColor = vec4(sum / n, lit ? -1.0 : plant / n);
+      }`);
+
+  // 2. Strukturtensor (xx, xy, yy)
+  const tensorMat = shader({ tColor: { value: colorRT.texture } }, `
+      uniform sampler2D tColor;
+      vec3 at(ivec2 p, int x, int y) {
+        return texelFetch(tColor, clamp(p + ivec2(x, y), ivec2(0), textureSize(tColor, 0) - 1), 0).rgb;
+      }
+      void main() {
+        ivec2 p = ivec2(gl_FragCoord.xy);
+        vec3 a = at(p, -1, -1), b = at(p, 0, -1), c = at(p, 1, -1), d = at(p, -1, 0), f = at(p, 1, 0);
+        vec3 g = at(p, -1, 1), h = at(p, 0, 1), k = at(p, 1, 1);
+        const float E = 0.182, M = 1.0 - 2.0 * E; // Gewichte für Drehsymmetrie, Kyprianidis 2011, 3.2.1
+        vec3 dx = E * (c + k - a - g) + M * (f - d), dy = E * (g + k - a - c) + M * (h - b);
+        gl_FragColor = vec4(dot(dx, dx), dot(dx, dy), dot(dy, dy), 0.0);
+      }`);
+
+  // 3. anisotroper Kuwahara wie compositor_kuwahara_anisotropic.glsl in Blender, aber statt jedes Pixels der Ellipse
+  // (in voller Auflösung 22 ms je Bild auf einer RTX A2000) ein festes Muster aus Punktpaaren in der
+  // Einheitsscheibe, zur Mitte dichter wie Blenders Gewicht exp(−π d²), bilinear gelesen. Die Gewichte der Sektoren je
+  // Punkt (Polynome) stehen so fest im Shader, je Pixel kommt nur die Ellipse dazu.
+  const ZETA = 0.25; // Überlappung der Sektoren in der Mitte (Blender: 2 / Radius, hier der Radius 8 der Eichbilder)
+  const ENV = 3 * Math.PI / 16; // halber Öffnungswinkel der Hülle eines Sektors (Blender: 3/2 π / 8)
+  const ETA = (ZETA + Math.cos(ENV)) / Math.sin(ENV) ** 2;
+  /** Gewichte der 8 Sektoren (Sektor 0 Richtung +y, gegen den Uhrzeiger je 45°) an einem Punkt der Scheibe, Summe 1 */
+  function sectorWeights(x, y) {
+    const ex = (x - y) * Math.SQRT1_2, ey = (x + y) * Math.SQRT1_2;
+    const w = [[y, x], [ey, ex], [-x, y], [-ex, ey], [-y, x], [-ey, ex], [x, y], [ex, ey]]
+      .map(([along, across]) => Math.max(0, along + ZETA - ETA * across * across) ** 2);
+    const sum = w.reduce((a, b) => a + b);
+    return w.map((v) => v / sum);
+  }
+  /** pairs Punkte in der oberen Halbscheibe (der gespiegelte liegt unten): Radius nach exp(−π d²), Winkel golden */
+  const pattern = (pairs) => Array.from({ length: pairs }, (_, i) => {
+    const r = Math.sqrt(-Math.log(1 - ((i + 0.5) / pairs) * (1 - Math.exp(-Math.PI))) / Math.PI);
+    const a = Math.PI * ((i * 0.6180339887) % 1);
+    return [r * Math.cos(a), r * Math.sin(a)];
+  });
+  /** direct: malt gleich ins Bild (Pixel ohne Pinsel verworfen), sonst in paintRT (dort 0) */
+  const paintShader = (pairs, direct) => {
+    const total = Array(8).fill(0.125); // die Mitte zählt in jedem Sektor 1/8
+    const f = (v) => glf(+v.toFixed(5));
+    const taps = pattern(pairs).map(([x, y]) => {
+      const lines = [`o = E * vec2(${f(x)}, ${f(y)}); u = tap(uv + o); l = tap(uv - o);`,
+        'uu = u.rgb * u.rgb; ll = l.rgb * l.rgb;'];
+      sectorWeights(x, y).forEach((w, k) => {
+        if (w < 2e-3) return;
+        const m = (k + 4) % 8; // der gespiegelte Punkt zählt im Sektor gegenüber
+        total[k] += w;
+        total[m] += w;
+        lines.push(`S[${k}] += ${f(w)} * u; Q[${k}] += ${f(w)} * uu; S[${m}] += ${f(w)} * l; Q[${m}] += ${f(w)} * ll;`);
+      });
+      return lines.join('\n        ');
+    });
+    const probe = Array.from({ length: 8 }, (_, k) => glv([Math.cos(k * Math.PI / 4), Math.sin(k * Math.PI / 4)]
+      .map((v) => +v.toFixed(4))));
+    return `
+      uniform sampler2D tColor, tTensor;
+      uniform vec2 uPx;  // ein Ausgabepixel in uv der Filterziele
+      uniform float uRadius, uSigma, uSharp, uEcc;
+      ${COLOR_GLSL}
+      const float SPILL = 0.35; // so viel Pflanze in den gewählten Sektoren, und ein Pixel daneben ist ganz gemalt
+      const float TOTAL[8] = float[8](${total.map(f).join(', ')});
+      vec4 tap(vec2 uv) { vec4 c = texture2D(tColor, uv); return vec4(c.rgb, max(c.a, 0.0)); }
+      void main() {
+        vec2 uv = gl_FragCoord.xy * uPx;
+        vec4 c0 = texture2D(tColor, uv);
+        if (c0.a < 0.0) { ${direct ? 'discard;' : 'gl_FragColor = vec4(0.0); return;'} }
+        // keine Pflanze in der Nähe (Mitte und 8 Punkte im Radius): nichts zu malen
+        if (c0.a <= 0.0) {
+          float near = 0.0;
+          ${probe.map((d) => `near += max(texture2D(tColor, uv + uRadius * uPx * ${d}).a, 0.0);`).join('\n          ')}
+          if (near == 0.0) { ${direct ? 'discard;' : 'gl_FragColor = vec4(0.0); return;'} }
+        }
+        // Strukturtensor geglättet (Gauss uniformity / 3): 3 × 3 bilinear gelesene Punkte im Abstand sigma
+        vec2 s = uSigma * uPx;
+        vec3 t = texture2D(tTensor, uv).rgb + 0.60653 * (texture2D(tTensor, uv + vec2(s.x, 0.0)).rgb
+          + texture2D(tTensor, uv - vec2(s.x, 0.0)).rgb + texture2D(tTensor, uv + vec2(0.0, s.y)).rgb
+          + texture2D(tTensor, uv - vec2(0.0, s.y)).rgb) + 0.36788 * (texture2D(tTensor, uv + s).rgb
+          + texture2D(tTensor, uv - s).rgb + texture2D(tTensor, uv + vec2(s.x, -s.y)).rgb
+          + texture2D(tTensor, uv - vec2(s.x, -s.y)).rgb);
+        // Richtung geringster Änderung (Eigenvektor) und Anisotropie 0 … 1
+        float mid = 0.5 * (t.x + t.z), root = 0.5 * sqrt((t.x - t.z) * (t.x - t.z) + 4.0 * t.y * t.y);
+        float l1 = mid + root, l2 = mid - root;
+        vec2 v = vec2(l1 - t.x, -t.y);
+        v = length(v) > 0.0 ? normalize(v) : vec2(1.0, 0.0);
+        float an = l1 + l2 > 0.0 ? (l1 - l2) / (l1 + l2) : 0.0;
+        // Ellipse entlang der Kante, gleiche Fläche wie der Kreis: Scheibe -> Versatz in uv
+        float e = (uEcc + an) / uEcc;
+        mat2 E = mat2(uRadius * e * v * uPx, uRadius / e * vec2(-v.y, v.x) * uPx);
+        // je Sektor Summe von Farbe (in a der Anteil Pflanze) und Farbe²
+        vec4 S[8];
+        vec3 Q[8];
+        for (int k = 0; k < 8; k++) { S[k] = 0.125 * c0; Q[k] = 0.125 * c0.rgb * c0.rgb; }
+        vec2 o;
+        vec4 u, l;
+        vec3 uu, ll;
+        ${taps.join('\n        ')}
+        // Sektoren mit wenig Streuung zählen mehr: 1 / max(0.02, σ)^q, hier relativ zum ruhigsten (ohne Überlauf)
+        float sd[8];
+        float calm = 1e9;
+        for (int k = 0; k < 8; k++) {
+          S[k] /= TOTAL[k];
+          sd[k] = max(0.02, dot(sqrt(abs(Q[k] / TOTAL[k] - S[k].rgb * S[k].rgb)), vec3(1.0)));
+          calm = min(calm, sd[k]);
+        }
+        vec4 sum = vec4(0.0);
+        float ws = 0.0;
+        for (int k = 0; k < 8; k++) {
+          float w = pow(calm / sd[k], uSharp);
+          sum += w * S[k];
+          ws += w;
+        }
+        sum /= ws;
+        float cover = max(min(2.0 * c0.a, 1.0), smoothstep(0.0, SPILL, sum.a));
+        gl_FragColor = vec4(toScene(sum.rgb) * cover, cover);
+      }`;
+  };
+  const paintMat = shader({
+    tColor: { value: colorRT.texture }, tTensor: { value: tensorRT.texture }, uPx: { value: new THREE.Vector2() },
+    uRadius: { value: 4 }, uSigma: { value: 1 }, uSharp: { value: 12.8 }, uEcc: { value: 1 },
+  }, '');
+  let built = '';
+  /** Filter für count Punktpaare, gleich ins Bild (direct) oder in paintRT */
+  function paintFor(count, direct) {
+    if (built !== `${count} ${direct}`) {
+      built = `${count} ${direct}`;
+      paintMat.fragmentShader = paintShader(count, direct);
+      paintMat.needsUpdate = true;
+    }
+    Object.assign(paintMat, direct ? OVER : PLAIN);
+  }
+
+  // in der Auflösung des Filters gemalt: vergrössert über das Bild
+  const layMat = shader({ tPaint: { value: paintRT.texture }, uPx: { value: new THREE.Vector2() } }, `
+      uniform sampler2D tPaint;
+      uniform vec2 uPx;
+      void main() {
+        vec4 c = texture2D(tPaint, gl_FragCoord.xy * uPx);
+        if (c.a < 0.004) discard;
+        gl_FragColor = c;
+      }`);
+  Object.assign(layMat, OVER);
+  const quad = new THREE.FullScreenQuad(colorMat);
+
+  // Quader ums Brett (Elemente, Wasser am Rand): Stencil 1, wo die Szene in ihm liegt (vordere Seiten zählen hoch,
+  // hintere herunter, je nur vor der Szene)
+  const guardGeo = new THREE.BoxGeometry(PLATE + 1, 5, PLATE + 1).translate(0, 1, 0);
+  const guardMat = (side, op) => new THREE.MeshBasicMaterial({
+    side, colorWrite: false, depthWrite: false,
+    stencilWrite: true, stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: op,
+  });
+  const guards = [
+    new THREE.Mesh(guardGeo, guardMat(THREE.FrontSide, THREE.IncrementWrapStencilOp)),
+    new THREE.Mesh(guardGeo, guardMat(THREE.BackSide, THREE.DecrementWrapStencilOp)),
+  ];
+
+  const shown = (o) => {
+    for (; o; o = o.parent) {
+      if (!o.visible) return false;
+      if (o === scene) return true;
+    }
+    return false;
+  };
+  const frustum = new THREE.Frustum(), viewProj = new THREE.Matrix4(), at = new THREE.Vector3();
+  /** Hüllquader der Meshes, Instanzen einzeln, in der Welt (einmal je Quelle; die Ebenen stehen still) */
+  function boxes(s) {
+    if (s.boxes) return s.boxes;
+    const m = new THREE.Matrix4();
+    s.boxes = [];
+    s.root.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      if (!o.isInstancedMesh) {
+        s.boxes.push(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+        return;
+      }
+      // alle Instanzen (userData.instances, instancedModels): count enthält nur die gerade sichtbaren
+      const all = o.userData.instances ?? o.instanceMatrix.array.subarray(0, o.count * 16);
+      for (let i = 0; i < all.length / 16; i++) {
+        m.fromArray(all, i * 16);
+        s.boxes.push(o.geometry.boundingBox.clone().applyMatrix4(m.premultiply(o.matrixWorld)));
+      }
+    });
+    return s.boxes;
+  }
+  /** Sichtbare Objekte: Rechteck im Bild (NDC [x0, y0, x1, y1], null: keine) und Strichgrösse relativ zum Mittelpunkt
+   *  des Panoramas (Abstandsverhältnis, nach Grösse im Bild gemittelt) */
+  function survey(active) {
+    frustum.setFromProjectionMatrix(viewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    const rect = [1, 1, -1, -1];
+    let sum = 0, weight = 0;
+    for (const s of active) {
+      for (const box of boxes(s)) {
+        if (!frustum.intersectsBox(box)) continue;
+        box.getCenter(at);
+        const near = at.distanceTo(camera.position), k = (box.max.distanceTo(box.min) / near) ** 2;
+        sum += k * at.distanceTo(s.center) / near;
+        weight += k;
+        // Ecken ins Bild; reicht der Quader vor die Kamera, gilt das ganze Bild
+        for (let c = 0; c < 8; c++) {
+          at.set(c & 1 ? box.max.x : box.min.x, c & 2 ? box.max.y : box.min.y, c & 4 ? box.max.z : box.min.z);
+          at.applyMatrix4(camera.matrixWorldInverse);
+          if (-at.z < camera.near) { rect[0] = rect[1] = -1; rect[2] = rect[3] = 1; break; }
+          at.applyMatrix4(camera.projectionMatrix); // NDC (applyMatrix4 teilt durch w)
+          rect[0] = Math.min(rect[0], at.x); rect[1] = Math.min(rect[1], at.y);
+          rect[2] = Math.max(rect[2], at.x); rect[3] = Math.max(rect[3], at.y);
+        }
+      }
+    }
+    return { rect: weight ? rect : null, scale: weight ? sum / weight : 1 };
+  }
+  /** Ausschnitt (Scissor) eines Ziels in Pixeln aus dem Rechteck in NDC */
+  function clip(rt, r) {
+    const x0 = Math.max(0, Math.floor((r[0] + 1) / 2 * rt.width));
+    const y0 = Math.max(0, Math.floor((r[1] + 1) / 2 * rt.height));
+    const x1 = Math.min(rt.width, Math.ceil((r[2] + 1) / 2 * rt.width));
+    const y1 = Math.min(rt.height, Math.ceil((r[3] + 1) / 2 * rt.height));
+    rt.scissor.set(x0, y0, Math.max(0, x1 - x0), Math.max(0, y1 - y0));
+    rt.scissorTest = true;
+  }
+
+  /** Ablauf für diese Bildgrösse: Bildpixel je Filterpixel (step) und ob gleich ins Bild gemalt wird (direct); über
+   *  BRUSH_FULL_MAX Pixel (etwa 4K) kostete das zu viel, dann je mindestens 2 × 2 Pixel und vergrössert */
+  function plan(lv = level) {
+    const big = image.x * image.y > BRUSH_FULL_MAX;
+    return { step: lv.full && big ? Math.max(2, lv.step) : lv.step, direct: lv.full && !big };
+  }
+  /** Ziele für step bemessen (erst beim ersten Bild mit dieser Stufe) */
+  function size(n) {
+    sized = n;
+    for (const rt of [colorRT, tensorRT, paintRT]) rt.setSize(Math.ceil(image.x / n), Math.ceil(image.y / n));
+    colorMat.uniforms.uStep.value = n;
+  }
+  pass.setSize = (w, h) => {
+    image.set(w, h);
+    if (sized) size(sized);
+  };
+
+  pass.render = (renderer, writeBuffer, readBuffer) => {
+    if (!pass.supported) return;
+    const active = [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
+    if (!active.length) return;
+    const b = active[0].brush;
+    level = forced !== undefined ? forced
+      : IS_MOBILE && b.mobile !== undefined ? (b.mobile ? { step: b.mobile, full: false } : null) : quality;
+    if (!level) return;
+    const { rect, scale } = survey(active);
+    if (!rect) return;
+    const { step, direct } = plan();
+    if (step !== sized) size(step);
+    const out = direct ? 1 : step; // Bildpixel je Ausgabepixel
+    paintFor(level.pairs ?? (direct ? 24 : 12), direct);
+    const radius = b.size * (readBuffer.height / camera.fov) * scale; // Bildpixel
+    // Ausschnitt: die Objekte und so weit daneben, wie der Filter liest (Ellipse bis 2 Radien) und malt (2 Radien)
+    const reach = 4 * Math.min(radius, BRUSH_MAX_RADIUS * out) + 4 * step;
+    const mx = 2 * reach / readBuffer.width, my = 2 * reach / readBuffer.height;
+    const box = [rect[0] - mx, rect[1] - my, rect[2] + mx, rect[3] + my];
+    // Farben und Tensor noch einmal so weit daneben: Der Filter liest dort, sonst Reste früherer Bilder
+    const wide = [box[0] - mx, box[1] - my, box[2] + mx, box[3] + my];
+    const u = paintMat.uniforms;
+    u.uPx.value.set(out / (colorRT.width * step), out / (colorRT.height * step));
+    u.uRadius.value = THREE.MathUtils.clamp(radius / out, 1, BRUSH_MAX_RADIUS);
+    u.uSigma.value = Math.max(0.3, b.uniformity / 3 / out);
+    u.uSharp.value = b.sharpness * 16;
+    u.uEcc.value = 1 / Math.max(0.01, b.eccentricity);
+    const autoClear = renderer.autoClear;
+    renderer.autoClear = false;
+    colorMat.uniforms.tScene.value = readBuffer.texture;
+    const passes = [[colorMat, colorRT, wide], [tensorMat, tensorRT, wide]];
+    if (!direct) passes.push([paintMat, paintRT, box]);
+    for (const [mat, rt, area] of passes) {
+      clip(rt, area);
+      quad.material = mat;
+      renderer.setRenderTarget(rt);
+      quad.render(renderer);
+    }
+    const scissor = readBuffer.scissor.clone(), scissorTest = readBuffer.scissorTest;
+    clip(readBuffer, box);
+    renderer.setRenderTarget(readBuffer);
+    for (const g of guards) renderer.render(g, camera);
+    if (!direct) layMat.uniforms.uPx.value.set(1 / (paintRT.width * step), 1 / (paintRT.height * step));
+    quad.material = direct ? paintMat : layMat;
+    quad.render(renderer);
+    readBuffer.scissor.copy(scissor);
+    readBuffer.scissorTest = scissorTest;
+    renderer.setRenderTarget(readBuffer); // Ausschnitt wie vorher (das Leuchten zeichnet hier hinein)
+    renderer.autoClear = autoClear;
+  };
+
+  /** Ebene malen: { root (Object3D der Ebene), brush (Einstellungen), center (des Panoramas), uniforms (uFade,
+   *  uReady) }; ihre Materialien schreiben die Maske (mark). Liefert das Abmelden. */
+  pass.add = (source) => {
+    mark(source.root);
+    sources.add(source);
+    return () => {
+      sources.delete(source);
+      if (sources.size) return;
+      for (const rt of [colorRT, tensorRT, paintRT]) rt.dispose(); // Grafikspeicher frei (bis 50 MB in 4K)
+      sized = 0;
+    };
+  };
+  /** Programme des Pinsels als Gruppe zum Übersetzen im Hintergrund (compileParallel, mit den Ebenen der Skybox nach
+   *  introCalm; sonst beim ersten Bild mit Pinsel) */
+  let programs = null;
+  pass.programs = () => {
+    if (programs) return programs;
+    const lv = quality ?? { step: 2, full: false };
+    paintFor(lv.pairs ?? (plan(lv).direct ? 24 : 12), plan(lv).direct);
+    programs = new THREE.Group();
+    for (const m of [colorMat, tensorMat, paintMat, layMat]) programs.add(new THREE.Mesh(quad._mesh.geometry, m));
+    for (const g of guards) programs.add(new THREE.Mesh(guardGeo, g.material));
+    return programs;
+  };
+
+  /** Maske: Undurchsichtige Materialien unter root schreiben am Ende von main Alpha BRUSH_MARK, ohne dass ihr Shader
+   *  sich ändert (onBeforeCompile, eigener Schlüssel im Programm-Cache). Durchsichtige oder selbst mischende (etwa die
+   *  Fische, vormultipliziert) mischten mit Alpha die Farbe: Sie bleiben ungemalt */
+  const marked = new WeakSet();
+  function mark(root) {
+    root.traverse((o) => {
+      for (const m of [o.material ?? []].flat()) {
+        if (marked.has(m) || m.transparent || ![THREE.NormalBlending, THREE.NoBlending].includes(m.blending)) continue;
+        marked.add(m);
+        const before = m.onBeforeCompile, key = m.customProgramCacheKey;
+        m.onBeforeCompile = (shader, r) => {
+          before.call(m, shader, r);
+          const end = shader.fragmentShader.lastIndexOf('}'); // Ende von main (main steht zuletzt)
+          shader.fragmentShader = `${shader.fragmentShader.slice(0, end)}  gl_FragColor.a = ${glf(BRUSH_MARK)};\n}\n`;
+        };
+        m.customProgramCacheKey = () => `${key.call(m)}|brush|${before}`; // key liest sonst nur die Hülle oben
+        m.needsUpdate = true;
+      }
+    });
+  }
+
+  /** Stufe festlegen (Vergleich, Messung): { step, full, pairs? }, null (aus) oder undefined (wieder wie im Spiel) */
+  pass.setLevel = (next) => { forced = next; };
+  return pass;
+}
+
 function createComposer() {
   const size = renderer.getDrawingBufferSize(new THREE.Vector2());
   const rt = new THREE.WebGLRenderTarget(size.x, size.y, {
@@ -8189,6 +8914,9 @@ function createComposer() {
   });
   const comp = new THREE.EffectComposer(renderer, rt);
   comp.addPass(new THREE.RenderPass(scene, camera));
+  // Pinsel über gemalten Ebenen der Skyboxen: vor dem Leuchten, das danach über das gemalte Bild geht
+  const brush = createBrushPass(QUALITY.brush);
+  comp.addPass(brush);
 
   const bloom = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -8230,10 +8958,10 @@ function createComposer() {
   // und belegt daher keinen Grafikspeicher.
   finalPass.needsSwap = false;
   comp.addPass(finalPass);
-  return { comp, bloom, finalPass };
+  return { comp, bloom, finalPass, brush };
 }
 
-const { comp: composer, bloom: bloomPass, finalPass } = createComposer();
+const { comp: composer, bloom: bloomPass, finalPass, brush: brushPass } = createComposer();
 // Mit eigenem RenderTarget setzt der Composer sein Pixelverhältnis auf 1 – für HiDPI korrigieren.
 composer.setPixelRatio(renderer.getPixelRatio());
 
@@ -11301,7 +12029,7 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   skyReady: () => skyTheme.ready };
 // Zugriff für Debugging/Tests (nicht serialisieren). settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und
 // Überblenden um s Sekunden vor, ohne zu rendern (Screenshots der KI-Tester); das Spiel ruft es nie auf.
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig,
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);

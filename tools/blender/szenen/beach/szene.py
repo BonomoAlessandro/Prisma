@@ -1291,8 +1291,10 @@ WATER_GAME = (70.0, 95.0) # die Wasseroberfläche zeichnet bis hier das Spiel (W
 SHORE_RANGE = (-128.0, 32.0)   # Abstand zur Wasserlinie in der Karte (16 Bit: die Phase der Wellen hängt daran)
 
 
-GAME_DETAIL = {'palm': 0.4, 'tree': 0.3, 'tier': 0.3, 'bush': 0.15}  # Spielmodelle: weniger Fiedern und Blätter
-GAME_VARIANTS = {'palm': 4, 'tree': 3, 'tier': 1, 'bush': 2}            # ... und nur so viele Vorlagen je Art
+# Spielmodelle so dicht wie im Panorama (mit weniger Blättern, dafür grösseren, wirkten Büsche wie zerknülltes Papier
+# und Palmwedel wie Kämme); Blätter und Fiedern kompakt (pack_prims), sonst sprengten sie das Budget
+GAME_DETAIL = {'palm': 1.0, 'tree': 1.0, 'tier': 1.0, 'bush': 1.0}
+GAME_VARIANTS = {'palm': 4, 'tree': 3, 'tier': 1, 'bush': 2}            # nur so viele Vorlagen je Art
 
 
 def game_index():
@@ -1302,6 +1304,95 @@ def game_index():
         lo = KINDS[kind][0]
         idx[lo:lo + n] = np.arange(k, k + n); k += n
     return idx
+
+
+GAME_ASPECT = {'palm': 1.0, 'tree': 1.1, 'tier': 1.1, 'bush': 1.6}   # Breite / Höhe einer typischen Instanz (scatter)
+SELF_SKY = 64    # Richtungen, in denen ein Blatt den Himmel durch die eigene Krone sucht (Fibonacci-Kugel)
+SELF_SUN = 16    # Richtungen der Sonne rundum, auf ihrer Höhe
+SELF_LEAF = 0.35 # so viel Licht lässt ein Blatt dazwischen durch (Durchscheinen und Licht von Blatt zu Blatt)
+
+
+def _sphere(n):
+    i = np.arange(n) + 0.5
+    z = 1 - 2 * i / n
+    r = np.sqrt(1 - z * z); a = i * np.pi * (3 - 5 ** 0.5)
+    return np.c_[r * np.cos(a), r * np.sin(a), z]
+
+
+def self_light(md, aspect):
+    """Wie viel Himmel und Sonne ein Teil des Modells durch die eigene Krone sieht (Nachbarn und Gelände rechnet
+    near_plants je Instanz; ohne das waren Büsche und Kronen im Spiel durchweg hell, in Blender innen dunkel): je Ecke
+    [Himmel, a0, a1, b1] – Himmel: Anteil freier Richtungen rundum; Sonne auf ihrer Höhe als a0 + a1 cos φ + b1 sin φ
+    über den Azimut φ in Spielachsen der Vorlage (x = cos φ, z = sin φ; das Spiel dreht φ je Instanz). Die Vorlage
+    dafür so breit wie eine typische Instanz (aspect = Breite / Höhe). Gemessen je Blatt (von seiner Mitte), je Ring
+    einer Röhre (von aussen an ihr), sonst je Ecke."""
+    from mathutils.bvhtree import BVHTree
+    V = md['V'] * np.array([aspect, aspect, 1.0])
+    F = [list(map(int, f)) for f in md['F']]
+    bvh = BVHTree.FromPolygons(V.tolist(), F)
+    el = math.radians(SUN_ELEV)
+    phi = (np.arange(SELF_SUN) + 0.5) * 2 * np.pi / SELF_SUN
+    sun = np.c_[np.cos(phi) * np.cos(el), -np.sin(phi) * np.cos(el), np.full(SELF_SUN, np.sin(el))]   # Blender-Achsen
+    dirs = [Vector(d) for d in np.r_[_sphere(SELF_SKY), sun]]
+    groups, part = [], np.full(len(V), -1)
+    for form, o, *more in md['P']:
+        if form == 'rohr':
+            n, s = more
+            ring = V[o:o + n * s].reshape(n, s, 3)
+            mid = ring.mean(1); rad = np.linalg.norm(ring - mid[:, None], axis=2).max(1)
+            tid = len(groups)   # die Röhre als ganzes (ihre Ringe treffen einander nicht)
+            groups += [(slice(o + i * s, o + (i + 1) * s), mid[i], rad[i] * 1.2, tid) for i in range(n)]
+            part[o:o + n * s] = tid
+        else:
+            k = 6 if form == 'blatt' else 5
+            part[o:o + k] = len(groups)
+            groups.append((slice(o, o + k), V[o:o + k].mean(0), 1e-4, len(groups)))
+    # übrige Stücke (Früchte): je zusammenhängendem Stück eine eigene Nummer (sonst verdeckte jede Kokosnuss sich selbst)
+    root = {i: i for i in np.flatnonzero(part < 0)}
+    def find(i):
+        while root[i] != i:
+            root[i] = root[root[i]]; i = root[i]
+        return i
+    for f in F:
+        if part[f[0]] < 0:
+            for v in f[1:]:
+                root[find(v)] = find(f[0])
+    for i in root:
+        part[i] = len(groups) + find(i)
+    groups += [(slice(i, i + 1), V[i], 1e-3, part[i]) for i in np.flatnonzero(part >= len(groups))]
+    face_part = np.array([part[f[0]] for f in F])
+    face_leaf = np.asarray(md['M']) % 3 != 0          # Laub (1, 2) lässt Licht durch, Stamm und Frucht nicht
+
+    def through(c, d, own):
+        """Licht, das von d her durch die Krone zu c kommt: das eigene Teil zählt nicht, jedes Blatt lässt
+        SELF_LEAF durch (in Blender scheint Laub durch und hellt sich gegenseitig auf), Holz nichts"""
+        t = 1.0
+        for _ in range(8):
+            hit, _n, fi, _d = bvh.ray_cast(c, d)
+            if hit is None:
+                return t
+            if face_part[fi] != own:
+                if not face_leaf[fi]:
+                    return 0.0
+                t *= SELF_LEAF
+                if t < 0.02:
+                    return 0.0
+            c = hit + d * 1e-5
+        return t
+
+    out = np.zeros((len(V), 4))
+    for idx, c, eps, own in groups:
+        c = Vector(c)
+        free = np.array([through(c + d * eps, d, own) for d in dirs])
+        s_ = free[SELF_SKY:]
+        out[idx] = [free[:SELF_SKY].mean(), s_.mean(), 2 * (s_ * np.cos(phi)).mean(), 2 * (s_ * np.sin(phi)).mean()]
+    return out
+
+
+def _self8(a):
+    """self_light kompakt: Himmel und a0 als 0 … 255, a1 und b1 als 128 ± 127"""
+    a = np.atleast_2d(a)
+    return _b64(np.clip(np.round(np.c_[a[:, :2] * 255, a[:, 2:] * 127 + 128]), 0, 255).astype('u1'))
 
 
 def pack_model(co, col, tri):
@@ -1316,28 +1407,179 @@ def pack_model(co, col, tri):
             'idx16': b(tri.astype('<u2'))}
 
 
+def _b64(a):
+    import base64
+    return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
+
+
+def _fan(faces):
+    """Flächen (konvex) -> Dreiecke als Fächer"""
+    return [[f[0], f[i], f[i + 1]] for f in faces for i in range(1, len(f) - 1)]
+
+
+def pack_prims(form, V, col, sl, starts):
+    """Blätter oder Fiedern einer Form kompakt (rund ein Viertel von pack_model): erste Ecke Int16 (1/8192 der Vorlage),
+    die übrigen Int8 relativ dazu (Schritt dscale je Gruppe), Farbe je Blatt Uint8 (Wurzel), Licht durch die eigene
+    Krone je Blatt (self8, self_light); die Dreiecke gibt die Form (tri, Ecken 0 … k − 1 je Blatt)"""
+    P = _pflanzen()
+    faces = {'blatt': P.LEAF_FACES, 'fieder': P.STRIP_FACES}[form]
+    k = max(max(f) for f in faces) + 1
+    base = V[starts]
+    d = V[starts[:, None] + np.arange(1, k)] - base[:, None]
+    dscale = float(max(np.abs(d).max(), 1e-6) / 127)
+    return {'form': form, 'k': k, 'tri': [i for t in _fan(faces) for i in t], 'count': len(starts), 'dscale': dscale,
+            'base16': _b64(np.clip(np.round(base * 8192), -32767, 32767).astype('<i2')),
+            'd8': _b64(np.clip(np.round(d / dscale), -127, 127).astype('i1')),
+            'col8': _b64(np.clip(np.round(np.sqrt(np.clip(col[starts], 0, 1)) * 255), 0, 255).astype('u1')),
+            'self8': _self8(sl[starts])}
+
+
+def pack_tubes(V, col, sl, tubes):
+    """Röhren (Stämme, Äste, Stiele; tube() in pflanzen.py) kompakt: je Röhre Zahl der Ringe und Ecken je Ring (Uint8),
+    je Ring Mitte Int16 (1/8192 der Vorlage), Radius Uint16 (1/2¹⁸), Farbe Uint8 (Wurzel) und Licht durch die eigene
+    Krone (self8, self_light). Die Ringe baut das Spiel
+    wie tube(): Querachse von Ring zu Ring mitgeführt (Spielachsen: dieselbe Drehung)"""
+    c, r, rc, rs = [], [], [], []
+    for o, n, s in tubes:
+        ring = V[o:o + n * s].reshape(n, s, 3)
+        mid = ring.mean(1)
+        c.append(mid); r.append(np.linalg.norm(ring[:, 0] - mid, axis=1))
+        rc.append(col[o:o + n * s:s]); rs.append(sl[o:o + n * s:s])
+    c, r, rc, rs = np.concatenate(c), np.concatenate(r), np.concatenate(rc), np.concatenate(rs)
+    return {'count': len(tubes), 'n8': _b64(np.array([t[1] for t in tubes], 'u1')),
+            's8': _b64(np.array([t[2] for t in tubes], 'u1')),
+            'c16': _b64(np.clip(np.round(c * 8192), -32767, 32767).astype('<i2')),
+            'r16': _b64(np.clip(np.round(r * 2 ** 18), 0, 65535).astype('<u2')),
+            'col8': _b64(np.clip(np.round(np.sqrt(np.clip(rc, 0, 1)) * 255), 0, 255).astype('u1')), 'self8': _self8(rs)}
+
+
 def game_models():
-    """Modelle fürs Spiel (GAME_VARIANTS je Art in der Reihenfolge von KINDS; weniger Fiedern und Blätter als im
-    Panorama, gleiche Form): Spielkoordinaten (x, z, −y), Fuss im Ursprung, Höhe 1; kompakt (pack_model)"""
+    """Modelle fürs Spiel (GAME_VARIANTS je Art in der Reihenfolge von KINDS, so dicht wie im Panorama):
+    Spielkoordinaten (x, z, −y), Fuss im Ursprung, Höhe 1. Blätter und Fiedern je Form kompakt (prims, pack_prims),
+    Röhren ebenso (tubes, pack_tubes), der Rest (Früchte) als Netz (pack_model, self8 je Ecke)"""
     models = []
     full = plant_models(GAME_DETAIL)
     for kind, count in GAME_VARIANTS.items():
         lo = KINDS[kind][0]
         for _, md in full[lo:lo + count]:
-            me = mesh('tmp', md['V'], md['F'], md['M'], smooth=True)
-            me.calc_loop_triangles()
-            n = len(me.vertices)
-            co = np.empty(n * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
-            tri = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('vertices', tri)
-            bpy.data.meshes.remove(me)
-            vm = np.zeros(n, np.int64)
+            V = np.c_[md['V'][:, 0], md['V'][:, 2], -md['V'][:, 1]]   # Blender -> Spiel (eine Drehung: Umlauf bleibt)
+            vm = np.zeros(len(V), np.int64)
             for f, m in zip(md['F'], md['M']):
                 vm[f] = m
             cols = np.array(PLANT_COLORS[kind])                       # Material, dunkel/hell, rgb
             col = cols[vm, 0] + (cols[vm, 1] - cols[vm, 0]) * md['T'][:, None]
-            g = lambda a: np.c_[a[:, 0], a[:, 2], -a[:, 1]]          # Blender -> Spiel (eine Drehung: Umlauf bleibt)
-            models.append(pack_model(g(co), col, tri))
+            prim = np.zeros(len(V), bool)
+            groups, tubes = {}, []
+            for form, o, *more in md['P']:
+                if form == 'rohr':
+                    tubes.append((o, *more))
+                    prim[o:o + more[0] * more[1]] = True
+                else:
+                    groups.setdefault(form, []).append(o)
+                    prim[o:o + (6 if form == 'blatt' else 5)] = True
+            keep = np.flatnonzero(~prim)
+            remap = np.full(len(V), -1); remap[keep] = np.arange(len(keep))
+            tri = np.array(_fan([remap[f] for f in md['F'] if not prim[f[0]]]), np.int64).ravel()
+            sl = self_light(md, GAME_ASPECT[kind])
+            m = pack_model(V[keep], col[keep], tri)
+            m['self8'] = _self8(sl[keep])
+            m['prims'] = [pack_prims(form, V, col, sl, np.array(starts)) for form, starts in groups.items()]
+            if tubes:   # (ohne Röhren scheiterte np.concatenate)
+                m['tubes'] = pack_tubes(V, col, sl, tubes)
+            models.append(m)
     return models
+
+
+def light_probe(at=(0.0, 11.0), lift=1.2, r=0.5, res=96, spp=512):
+    """Wie Blender die Pflanzen beleuchtet: eine weisse, rein diffuse Kugel am Strand (vor den Palmen, frei zur Sonne),
+    aus sechs Richtungen orthografisch gerendert (Pixelwert = Beleuchtungsstärke für die Normale dort). Gefittet:
+    Himmel und Boden als Kugelfunktionen bis Grad 2 (9 Farben, Blender-Achsen) plus Sonne × max(N·L, 0) (Rest im Mittel
+    unter 1 %). Mit den Einstellungen des Panoramas (wald_export.setup_cycles)."""
+    import bmesh, importlib
+    os.environ['WALD_STIL'] = 'beach'
+    import wald_export
+    from wald_io import load_exr
+    wx = importlib.reload(wald_export)
+    scene = sc()
+    c = Vector((at[0], at[1], float(ground(np.array([at[0]]), np.array([at[1]])).z[0]) + lift))
+    me = bpy.data.meshes.new('Sonde')
+    bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=64, v_segments=32, radius=r); bm.to_mesh(me); bm.free()
+    me.shade_smooth()
+    m = bpy.data.materials.new('Sonde'); m.use_nodes = True
+    nt = m.node_tree; nt.nodes.clear()
+    d = nt.nodes.new('ShaderNodeBsdfDiffuse'); d.inputs['Color'].default_value = (1, 1, 1, 1)
+    nt.links.new(d.outputs[0], nt.nodes.new('ShaderNodeOutputMaterial').inputs['Surface'])
+    me.materials.append(m)
+    ob = bpy.data.objects.new('Sonde', me); ob.location = c
+    scene.collection.objects.link(ob)
+    cd = bpy.data.cameras.new('Sonde'); cd.type = 'ORTHO'; cd.ortho_scale = 2.2 * r
+    cd.clip_start, cd.clip_end = 5 - 1.3 * r, 5 + 1.3 * r   # nur die Kugel (von unten stünde sonst der Sand davor)
+    cam = bpy.data.objects.new('Sonde', cd); scene.collection.objects.link(cam)
+    samples = []
+    try:
+        wx.setup_cycles().samples = spp
+        scene.camera = cam
+        for k, dv in enumerate([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]):
+            dv = Vector(dv)
+            cam.location = c + dv * 5
+            cam.rotation_euler = (-dv).to_track_quat('-Z', 'X' if abs(dv.z) > 0.5 else 'Z').to_euler()
+            bpy.context.view_layer.update()
+            right, up, back = (np.array(cam.matrix_world.col[i][:3]) for i in range(3))
+            wx.render('sonde_%d' % k, res, res)
+            img = load_exr(os.path.join(wx.OUT, 'sonde_%d.exr' % k))[..., :3].astype(np.float64)
+            yy, xx = np.mgrid[0:res, 0:res]
+            u = ((xx + 0.5) / res - 0.5) * cd.ortho_scale / r
+            v = (0.5 - (yy + 0.5) / res) * cd.ortho_scale / r
+            ok = u * u + v * v < 0.85 ** 2          # Rand weg (Kantenglättung mischt Hintergrund hinein)
+            w = np.sqrt(np.clip(1 - u * u - v * v, 0, 1))
+            samples.append(np.c_[u[ok, None] * right + v[ok, None] * up + w[ok, None] * back, img[ok]])
+    finally:
+        wx.restore()
+        bpy.data.objects.remove(ob); bpy.data.meshes.remove(me); bpy.data.materials.remove(m)
+        bpy.data.objects.remove(cam); bpy.data.cameras.remove(cd)
+    s = np.concatenate(samples)
+    N, E = s[:, :3], s[:, 3:]
+    x, y, z = N.T
+    A = np.c_[np.ones(len(N)), x, y, z, x * y, y * z, 3 * z * z - 1, x * z, x * x - y * y,
+              np.maximum(N @ np.array(SUN[:]), 0)]
+    coef, *_ = np.linalg.lstsq(A, E, rcond=None)
+    log('Lichtsonde', c[:], 'Sonne', coef[9].round(3), 'Rest', round(float(np.abs(E - A @ coef).mean()), 4))
+    return {'sh': coef[:9].round(5).tolist(), 'sun': coef[9].round(4).tolist()}
+
+
+def plant_light(probe=None):
+    """Licht und Malen der nahen Pflanzen fürs Spiel (Ebene paintedInstances): Lichtsonde (Himmel als Kugelfunktionen in
+    Blender-Achsen, Sonne), Grundlicht und Durchscheinen wie mat_plant, Luftperspektive wie air_group, Malen wie
+    anime.grade (stile.py) – das Spiel rechnet damit dasselbe wie Blender und anime.py, ohne die Pinselstriche"""
+    from stile import stil
+    S = stil('beach')
+    return {**(probe or light_probe()), 'emit': [round(PLANT_AMBIENT * f, 4) for f in (0.55, 0.65, 1.0)],
+            'translucent': 0.3, 'airDist': AIR_DIST,
+            # Glanz: Glanzstrahlen sehen den Himmel mit SKY_GAIN statt SKY_LIGHT (sky_group), die Sonne als Lampe
+            'gloss': {'sky': round(SKY_GAIN / SKY_LIGHT, 4), 'sun': [round(SUN_STRENGTH * c, 4) for c in SUN_COLOR]},
+            'paint': {'exposure': S['belichtung'], 'saturation': S['saettigung'], 'shadow': list(S['schatten']),
+                      'light': list(S.get('licht', (1, 1, 1)))}}
+
+
+def flora_data(pts=None, probe=None):
+    """Pflanzen fürs Spiel; nur Modelle, die eine nahe Instanz nutzt (die übrigen Vorlagen kosteten sonst ~80 KB)"""
+    models, plants = game_models(), near_plants(pts)
+    used = sorted({t[6] for t in plants})
+    for t in plants:
+        t[6] = used.index(t[6])
+    return {'models': [models[k] for k in used], 'instances': plants, 'light': plant_light(probe)}
+
+
+def export_flora(stil='beach', probe=None):
+    """Nur die Pflanzen in sky/<stil>/ebenen.json neu (der Rest bleibt; export() dauert mit den Felsen Minuten)"""
+    import json
+    path = os.path.join(ROOT, 'sky', stil, 'ebenen.json')
+    with open(path, encoding='utf-8') as fh:
+        data = json.load(fh)
+    data['flora'] = flora_data(probe=probe)
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, separators=(',', ':'))
+    return {'bytes': len(json.dumps(data['flora'], separators=(',', ':'))), 'pflanzen': len(data['flora']['instances'])}
 
 
 def sun_visibility(p, occ_pos, occ_r):
@@ -1358,22 +1600,31 @@ def sun_visibility(p, occ_pos, occ_r):
     return lit
 
 
+def plant_axis(rot):
+    """Hochachse der Vorlage nach der Drehung (Euler XYZ, je Zeile): Palmen lehnen bis gut 25° zum Meer"""
+    a, b, g = rot[:, 0], rot[:, 1], rot[:, 2]
+    return np.c_[np.cos(a) * np.sin(b) * np.cos(g) + np.sin(a) * np.sin(g),
+                 np.cos(a) * np.sin(b) * np.sin(g) - np.sin(a) * np.cos(g), np.cos(a) * np.cos(b)]
+
+
 def near_plants(pts=None):
     """Pflanzen, die das Spiel zeichnet: [x, y, z, Höhe, Breite, Drehung, Modell, Sonne unten, oben, Helligkeit]
-    (Spielkoordinaten des Fusses); Sonne je Mittel aus drei Punkten am Stamm bzw. in der Krone"""
+    (Spielkoordinaten des Fusses; Drehung [x, y, z] wie in Blender, Euler XYZ: Palmen lehnen); Sonne je Mittel aus
+    drei Punkten am Stamm bzw. in der Krone"""
     pos, var, scl, rot = pts or plant_points()
     near = near_mask(pos, var)
+    axis = plant_axis(rot)
     # Schattenwerfer: Kronen aller Pflanzen bis etwas ausserhalb (Palmen oben, Bäume und Büsche in der Mitte)
     occ = np.hypot(pos[:, 0], pos[:, 1]) < R_NEAR + 60
     palm_ = var < KINDS['tree'][0]
     cz = np.where(palm_, 0.95, 0.65) * scl[:, 2]
-    occ_pos = (pos + np.c_[np.zeros((len(pos), 2)), cz])[occ]
+    occ_pos = (pos + axis * cz[:, None])[occ]
     occ_r = (np.where(palm_, 0.3, 0.3) * scl[:, 0])[occ]   # kleiner als die Hülle: Kronen sind lückig
-    p, v, s, r = pos[near], var[near], scl[near], rot[near]
+    p, v, s, r, ax = pos[near], var[near], scl[near], rot[near], axis[near]
     sun = np.array(SUN); sh = sun[:2] / np.linalg.norm(sun[:2])
     light = []
     for fs in ((0.1, 0.2, 0.3), (0.75, 0.85, 0.95)):
-        pts = np.concatenate([p + np.c_[np.zeros((len(p), 2)), f * s[:, 2]] for f in fs])
+        pts = np.concatenate([p + ax * (f * s[:, 2])[:, None] for f in fs])
         # aus der eigenen Krone heraus zur Sonne hin
         pts[:, :2] += 0.45 * np.tile(s[:, 0], len(fs))[:, None] * sh
         light.append(sun_visibility(pts, occ_pos, occ_r).reshape(3, -1).mean(0))
@@ -1382,8 +1633,8 @@ def near_plants(pts=None):
     game = np.c_[p[:, 0], p[:, 2], -p[:, 1]]
     gi = game_index()
     return [[round(float(g[0]), 3), round(float(g[1]), 3), round(float(g[2]), 3), round(float(si[2]), 3),
-             round(float(si[0]), 3), round(float(ri[2]), 3), int(gi[vi]), round(float(lo), 2), round(float(hi), 2),
-             round(float(sd), 2)]
+             round(float(si[0]), 3), [round(float(x), 3) for x in ri], int(gi[vi]), round(float(lo), 2),
+             round(float(hi), 2), round(float(sd), 2)]
             for g, si, ri, vi, lo, hi, sd in zip(game, s, r, v, light[0], light[1], shade)]
 
 
@@ -1699,15 +1950,14 @@ def export(stil='beach'):
     save_image(main, os.path.join(sky, 'water.png'))
     save_image(shore, os.path.join(sky, 'water_shore.png'))
     n, ext = WATER_MAP
-    plants = near_plants(pts)
+    flora = flora_data(pts)
     bake_near_rocks()
     rocks = {**rock_model(sky), 'view': rock_view(sky), 'viewTexture': 'file:rockview.jpg', 'viewData': 'file:rockview.png'}
-    data = {'flora': {'models': game_models(), 'instances': plants}, 'rocks': rocks,
+    data = {'flora': flora, 'rocks': rocks,
             # pack.mjs: in den HD-Teil (nur Desktop), ersetzt die Felder gleichen Namens
             'hd': {'rocks': {'texture': 'file:rocks_hd.jpg', 'viewTexture': 'file:rockview_hd.jpg'}},
             'water': {'map': 'file:water.png', 'shore': 'file:water_shore.png', 'size': n, 'extent': ext,
                       'level': WATER, 'depthRange': [-3, 13], 'shoreRange': list(SHORE_RANGE), 'fade': list(WATER_GAME)}}
     with open(os.path.join(sky, 'ebenen.json'), 'w', encoding='utf-8') as fh:
         json.dump(data, fh, separators=(',', ':'))
-    return {'pflanzen': len(plants), 'ecken': [m['n'] for m in data['flora']['models']],
-            'dreiecke': [len(m['idx16']) * 3 // 4 // 6 for m in data['flora']['models']]}
+    return {'pflanzen': len(flora['instances']), 'bytes': len(json.dumps(flora, separators=(',', ':')))}

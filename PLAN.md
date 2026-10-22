@@ -767,6 +767,70 @@ Zuletzt aktualisiert: 22. Oktober 2026
   - Geprüft: Bilder herausgezoomt vorher/nachher (das Loch ist weg, der Boden mit den Baumschatten läuft unter der
     Platte durch), Ansichten ohne Loch pixelgleich; Logiktests (548) und Offline-Test bestanden.
   Vom Nutzer abgenommen („das ist gut so“, 22. Oktober) und committet. Offen: Push.
+- [ ] **2.38 Strand: 3D-Bäume wie die gemalten** (Wunsch des Nutzers, 22. Oktober: „Ich will, dass die 3d Bäume gleich
+  aussehen wie die 2d Bäume … die Farbe des Baumstammes und die Farbe, aber auch die Form der Blätter“; Branch
+  `fix/strand-baeume`). Vorher: Stämme blass graulila statt mauve-braun, Laub blass salbeigrün statt satt, Büsche wie
+  zerknülltes Papier, Palmwedel wie Kämme.
+  - Eichbilder (`out/arbeit/eich.py` in Blender, `eich.sh` im Spiel, gitignored): Blender rendert die nahen Pflanzen vom
+    Mittelpunkt des Panoramas aus und malt sie wie das Panorama – so sähen sie als 2D aus; das Spiel zeigt dieselbe
+    Ansicht. Ursachen: Die Palette (Faktoren auf die Grundfarbe) bildet Licht und Malen von Blender nicht nach, der
+    Dunst der Ebene war 17-mal so dicht wie in Blender (0,004 statt 1/4200 je m), die Spielmodelle hatten 15–40 % der
+    Blätter (dafür grössere), die Palmen standen gerade (Blender neigt sie bis 24,5° zum Meer, das Spiel nahm nur die
+    Drehung um die Hochachse), und es fehlte der Pinsel (Kuwahara in `anime.py`), der Fiedern und Blätter zu Strichen
+    verschmilzt.
+  - Neue Ebene `paintedInstances` (Wald bleibt bei `toonInstances`, pixelgleich geprüft): Licht wie in Blender aus einer
+    Lichtsonde (`light_probe`: weisse Kugel am Strand aus sechs Richtungen gerendert, Himmel und Boden als
+    Kugelfunktionen bis Grad 2 plus Sonne, Rest unter 1 %), Grundlicht und Durchscheinen wie `mat_plant`, Glanz wie die
+    Principled BSDF (ohne ihn fehlte dem Laub der bläuliche Himmelsschimmer), dann gemalt wie `anime.grade` (ACES,
+    satter, bläuliche Schatten, warme Lichter) und zurück auf Szenenwerte; Daten `flora.light` (`plant_light`). Licht
+    und Malen je Ecke für Vorder- und Rückseite (je Pixel kostete der Shader auf dem Handy mehr als das Doppelte, ohne
+    sichtbaren Unterschied).
+  - Eigenschatten der Kronen (`self_light`): je Blatt, Fieder und Röhrenring, wie viel Himmel (64 Richtungen) und Sonne
+    (16 Azimute auf ihrer Höhe, als erste Harmonische) es durch die eigene Krone sieht; Laub lässt 35 % durch
+    (`SELF_LEAF`; undurchsichtig gerechnet waren die Wedel viel zu dunkel), das eigene Teil zählt nicht (auch je
+    Kokosnuss). Ohne das waren Büsche und Kronen durchweg hell, in Blender innen dunkel.
+  - Modelle so dicht wie im Panorama (`GAME_DETAIL` 1) und trotzdem kleiner: Blätter und Fiedern als erste Ecke plus
+    Int8-Abstände (`pack_prims`), Röhren als Mittellinie, Radius und Farbe je Ring (`pack_tubes`, das Spiel baut die
+    Ringe wie `tube()`), nur Modelle mit naher Instanz (zwei Vorlagen ohne Instanz kosteten 84 KB); Flora 379 → 303 KB
+    samt Eigenschatten, Basis 1,98 → 1,90 MB, vorab zusammen 3,35 von 3,5 MB. Runde Blätter statt Sechsecke: Das Spiel
+    schneidet aus jedem Sechseck eine runde Blattform (`aShape`), ohne zusätzliche Dreiecke.
+  - Neigung: Instanzen tragen die Drehung `[x, y, z]` wie in Blender; `near_plants` misst die Sonne entlang der
+    geneigten Achse.
+  - Pinsel als Baustein des Skybox-Baukastens (mit einem Agenten gebaut): anisotroper Kuwahara wie im Kompositor von
+    Blender (Strukturtensor, 8 Sektoren mit Polynom-Gewichten, festes Muster aus Punktpaaren statt jedes Pixels der
+    Ellipse), in Anzeigefarben, nur auf Ebenen mit `"brush": true`; Einstellungen im Feld `brush` der Skybox (`size` in
+    Grad wie `px_per_deg × 0.28`, uniformity, sharpness, eccentricity, `mobile`). Maske über Alpha, das
+    `onBeforeCompile` an die Materialien der Ebene hängt (gilt für jeden Ebenentyp), Brett im Stencil geschützt,
+    Ausschnitt aus den Hüllquadern. Stufen `QUALITY.brush`: Desktop voll, Handy halbe Auflösung. Strand: nur die
+    Pflanzen (gemalte Felsen kosteten in der Standardansicht das Doppelte); im Wald lokal mit den Fichten geprüft, ohne
+    Eintrag bleibt er pixelgleich.
+  - Varianten (Vergleichsseite: https://claude.ai/artifact/TtgNuC9qAur51f4jm6nm3m): Glätten von Licht, Farbe und
+    Normalen je Wedel und Büschel, Wedel als gezackte Flächen, Büsche mit halb so vielen, grösseren Blättern, je ohne
+    und mit Pinsel. Der Nutzer wählte „Pinsel + Voll“ auf Desktop und Handy („der Pinselfilter schaut mit abstand am
+    besten aus“); Glätten und Flächen vor dem Pinsel machten das Bild flacher. Die Varianten liegen als
+    `out/arbeit/varianten-2.38.patch` (gitignored), falls das Handy zu langsam ist.
+  - Nur Pflanzen im Bild zeichnen (`cullInstances`): `THREE.InstancedMesh` schaltet in r147 das Ausblenden selbst ab,
+    alle 577 000 Dreiecke liefen durch den (seit dem Licht je Ecke teuren) Vertexshader, auch in der Standardansicht,
+    die kaum Pflanzen zeigt. Jetzt prüft jedes Bild die 188 Hüllquader auf der CPU und gibt nur die sichtbaren Instanzen
+    weiter (hochgeladen nur bei Änderung); in der Standardansicht sind es 11 (Handy) bzw. 13 (Desktop). Gilt auch für
+    die Fichten im Wald (pixelgleich).
+  - Aus den Reviews behoben: Grundlicht im Laub ×0,7 wie in der Principled BSDF, Kokosnüsse beschatteten sich selbst,
+    Glanz nach den Werten der Szene (`gloss`: Himmel SKY_GAIN/SKY_LIGHT, Sonne als Lampe); beim Pinsel blieb die
+    Schreibmaske des Stencils auf 0 stehen (der Schutz des Bretts galt nur im ersten Bild), seine Ziele werden beim
+    Verlassen der Skybox freigegeben, seine Programme erst nach dem Intro mit den Ebenen übersetzt, Farben und Tensor
+    weiter als gemalt wird geschrieben (sonst las der Rand Reste früherer Bilder), selbst mischende Materialien bleiben
+    ungemalt. Der Offline-Test lädt jetzt jede Skybox (der Strand stand in keinem Test) und zählt auch ausgelassene
+    Ebenen (Warnung) als Fehler.
+  - Gemessen (nur Pflanzenpixel, Spiel ohne Pinsel gegen Eichbild): Helligkeit je Drittel auf ±5 von 255 Stufen gleich,
+    das Spiel noch etwas satter grün (Blau 5–9 Stufen tiefer).
+  - Leistung (Pflanzen und Pinsel zusammen gegen beides aus, Median; Handy in Software, nur Verhältnisse): Desktop (RTX
+    A2000, 1440 × 900, ganzes Bild rund 4,8 ms) flach 0,95 ms, Bucht 0,57 ms (alter Stand 0,29 / 0,13); Handy flach 9,4
+    % der Bildzeit, in der Standardansicht 3,8 % (alter Stand 1,7 / 0,8 %; vor dem Ausblenden je Instanz 16 / 12 %). Der
+    Pinsel allein: Desktop voll 0,45 / 0,12 ms (flach / Standard), Handy halb 7,2 / 2,5 %. Ein echtes Handy ist nicht
+    geprüft.
+  - Tests: Logik 548 bestanden, offline bestanden (mit dem Strand).
+  Vom Nutzer zum Commit freigegeben (22. Oktober; Pinsel im Wald vorerst nicht einschalten) und auf
+  `fix/strand-baeume` committet. Offen: Merge nach main, Push, Test auf einem echten Handy.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

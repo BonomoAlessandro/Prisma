@@ -6,6 +6,7 @@
   "daten": "sky/beach",
   "sky": { "stars": 0 },
   "air": { "haze": [0.42, 0.46, 0.52], "lit": [0.62, 0.55, 0.46], "density": 0.004 },
+  "brush": { "size": 0.28, "uniformity": 4, "sharpness": 0.8, "eccentricity": 1.0 },
   "layers": [
     {
       "type": "waterSurface", "data": "water", "wave": [7.8, 1.1], "height": 0.19, "reach": 1.0, "lift": 0.3,
@@ -27,10 +28,6 @@
       ]
     },
     { "type": "bakedMesh", "data": "rocks" },
-    {
-      "type": "toonInstances", "data": "flora", "soft": 0.7,
-      "palette": { "shadow": [0.36, 0.40, 0.82], "mid": [0.66, 0.68, 0.92], "lit": [1.40, 1.06, 0.76],
-                   "rim": [2.1, 1.5, 0.95] }
-    }
+    { "type": "paintedInstances", "data": "flora", "brush": true }
   ]
 }

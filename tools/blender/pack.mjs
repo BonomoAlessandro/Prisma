@@ -5,7 +5,7 @@
 //                                    (nur Desktop, beim ersten Gebrauch)
 // rev (Stand) steht im Dateinamen: Der Service Worker speichert ohne Query-Parameter, ein neuer Stand braucht neue Namen.
 // Aufruf: node tools/blender/pack.mjs <id>
-// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Ebenen) und aus dessen Ordner
+// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Pinsel, Ebenen) und aus dessen Ordner
 // `daten` die Ausgabe der Pipeline: sky.json (Mittelpunkt, Tiefe, Streifen, Hauptlicht, Spitze, Farbringe von
 // wald_export.py bzw. anime.py json), die Bilder, trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene) und
 // ebenen.json (export() der Szene: weitere Daten für die Ebenen).
@@ -89,6 +89,7 @@ const entry = {
   light: cfg.light,
   ...(trees?.fog ? { fog: trees.fog } : {}),
   ...(author.air ? { air: author.air } : {}),
+  ...(author.brush ? { brush: author.brush } : {}),
   sky: { ...author.sky, rings: cfg.rings },
   layers: author.layers ?? [],
 };

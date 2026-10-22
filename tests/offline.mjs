@@ -1,7 +1,7 @@
 // Prüft, dass PRISMA offline läuft: liefert das Spiel über einen lokalen Server aus, wartet, bis der Service Worker
 // (sw.js) die Seite übernommen hat, stoppt den Server und lädt neu – mit Parametern, als index.html und als Ordner.
 // Jedes Mal muss die Szene laufen, die Schrift Jost geladen sein und die Konsole fehlerfrei bleiben. Dazu einmal online
-// eine Skybox aus Blender wählen (Teile im Speicher: vorab bzw. beim ersten Gebrauch) und sie offline zeigen.
+// jede Skybox aus Blender wählen (Teile im Speicher: vorab bzw. beim ersten Gebrauch) und sie offline zeigen.
 // Aufruf: node tests/offline.mjs [--redirect]   (--redirect: Server leitet index.html auf ./ weiter, wie manche Hoster)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -64,8 +64,8 @@ async function cleanup() {
   await Promise.race([chromeExited, sleep(5000)]);
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien offen */ }
 }
-// Notbremse: Hängt Chrome, endet der Test trotzdem
-setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 300000).unref();
+// Notbremse: Hängt Chrome, endet der Test trotzdem (jede Skybox zweimal, in SwiftShader brauchte das bis über 300 s)
+setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 600000).unref();
 
 let ok = true;
 const check = (cond, text) => { console.log(`  ${cond ? 'ok  ' : 'FAIL'}  ${text}`); ok &&= cond; };
@@ -114,17 +114,29 @@ try {
   await waitFor(sceneRuns, 'Szene online mit Service Worker');
   check(pageQueries.some(q => q.includes('_ijt=probe')), 'online mit Service Worker: Parameter der Seite kommen beim Server an');
 
-  // Skybox aus Blender (die erste im Register) wählen: Danach liegen alle ihre Teile im Speicher (base vorab, die
-  // Streifen nach diesem ersten Gebrauch; das Fenster ist breit genug für den Desktop)
-  const sky = loadSkies(root)[0];
-  if (sky) {
-    errors.length = 0;
+  // Jede Skybox aus Blender wählen: Danach liegen alle ihre Teile im Speicher (base vorab, die Streifen nach diesem
+  // ersten Gebrauch; das Fenster ist breit genug für den Desktop). Alle, nicht nur die erste: Fehler in den Shadern
+  // ihrer Ebenen (etwa paintedInstances, Pinsel) stehen sonst in keinem Test. Eine Ebene, die beim Aufbau scheitert,
+  // lässt die Skybox still weg und meldet nur eine Warnung („… ausgelassen“): auch die zählen
+  const skies = loadSkies(root);
+  const warnings = [];
+  const onWarn = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'warning') warnings.push(m.params.args.map((a) => a.value).join(' '));
+  };
+  const skyWarnings = () => warnings.filter((w) => /Streifen|Stand|Skybox|ausgelassen/.test(w));
+  for (const sky of skies) {
+    errors.length = warnings.length = 0;
+    ws.addEventListener('message', onWarn);
     await send('Page.navigate', { url: base + `index.html?noadapt&nointro&sky=${sky.id}` });
     await waitFor('window.__prisma?.skyReady?.()', `Skybox ${sky.id} online`, 400);
+    ws.removeEventListener('message', onWarn);
     const files = sky.parts.map((p) => new URL(`backgrounds/${p.file}`, base).href);
     await waitFor(`caches.open('prisma-v1').then((c) => c.keys()).then((k) => ${JSON.stringify(files)}.every((f) => k.some((r) => r.url === f)))`,
       `Teile von ${sky.id} im Speicher`, 50);
-    check(relevantErrors().length === 0, `online: Skybox ${sky.id} geladen, alle Teile im Speicher, Konsole ohne Fehler`);
+    const all = [...relevantErrors(), ...skyWarnings()];
+    check(all.length === 0, `online: Skybox ${sky.id} geladen, alle Teile im Speicher, Konsole ohne Fehler`
+      + (all.length ? '\n        ' + all.join('\n        ') : ''));
   }
 
   // Server weg: ab jetzt antwortet nur noch der Zwischenspeicher
@@ -139,18 +151,13 @@ try {
     await sleep(300);
     check(relevantErrors().length === 0, `offline /${path}: Konsole ohne Fehler` + (relevantErrors().length ? '\n        ' + relevantErrors().join('\n        ') : ''));
   }
-  if (sky) {
-    errors.length = 0;
-    const warnings = [];
-    const onWarn = (ev) => {
-      const m = JSON.parse(ev.data);
-      if (m.method === 'Runtime.consoleAPICalled' && m.params.type === 'warning') warnings.push(m.params.args.map((a) => a.value).join(' '));
-    };
+  for (const sky of skies) {
+    errors.length = warnings.length = 0;
     ws.addEventListener('message', onWarn);
     await send('Page.navigate', { url: base + `index.html?noadapt&nointro&sky=${sky.id}` });
     await waitFor('window.__prisma?.skyReady?.()', `Skybox ${sky.id} offline`, 400);
     ws.removeEventListener('message', onWarn);
-    const all = [...relevantErrors(), ...warnings.filter((w) => /Streifen|Stand|Skybox/.test(w))];
+    const all = [...relevantErrors(), ...skyWarnings()];
     check(all.length === 0, `offline: Skybox ${sky.id} ganz geladen (mit Streifen), Konsole ohne Fehler` + (all.length ? '\n        ' + all.join('\n        ') : ''));
   }
 } catch (e) {

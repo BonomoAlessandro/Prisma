@@ -5,7 +5,12 @@
 //     parts: [{ role: 'base' | 'bands', file: '<id>/<name>.<rev>.js', device: 'all' | 'desktop', precache, bytes, gpuMB }],
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
-//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, … }] }
+//     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
+//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, brush?, … }] }
+// brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
+// jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
+// (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
+// Filterpixel, 0 aus; sonst QUALITY.brush). Fehlende Felder: BRUSH_DEFAULT.
 // Ein Teil setzt globalThis.PRISMA_SKY_PARTS['<id>/<role>'] = { rev, … }; base: full, depth, data, watermask?
 // (Wassermaske für waterSurface); bands: bands, data? (ersetzt im Spiel gleichnamige Felder der Daten aus base).
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
@@ -47,7 +52,18 @@ export function codeSkies(html) {
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 const isVec = (v, n = 3) => Array.isArray(v) && v.length === n && v.every(isNum);
 const isColor = (v) => isVec(v) && v.every((x) => x >= 0);
+/** Licht der nahen Pflanzen (plant_light im Export des Strands): Lichtsonde, Grundlicht, Malen wie anime.py */
+const isPlantLight = (v) => Array.isArray(v?.sh) && v.sh.length === 9 && v.sh.every((c) => isVec(c)) && isColor(v.sun)
+  && isColor(v.emit) && isNum(v.translucent) && v.airDist > 0 && isNum(v.paint?.exposure) && isNum(v.paint?.saturation)
+  && isColor(v.paint?.shadow) && isColor(v.paint?.light);
 const isInt = (v) => Number.isInteger(v) && v > 0;
+/** Pinsel der Skybox (createBrushPass): Felder optional, in ihrem Bereich */
+const BRUSH_RANGES = { size: [0.01, 2], uniformity: [0, 50], sharpness: [0, 1], eccentricity: [0, 2] };
+const isBrush = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
+  && Object.keys(v).every((k) => k in BRUSH_RANGES || k === 'mobile')
+  && Object.entries(BRUSH_RANGES).every(([k, [lo, hi]]) => v[k] === undefined
+    || (isNum(v[k]) && v[k] >= lo && v[k] <= hi))
+  && (v.mobile === undefined || [0, 2, 3].includes(v.mobile));
 
 // Parameter der Ebenentypen (SKY_LAYERS in index.html): Feld -> Prüfung
 const LAYER_PARAMS = {
@@ -55,6 +71,9 @@ const LAYER_PARAMS = {
     data: (v) => typeof v === 'string',
     palette: (v) => ['shadow', 'mid', 'lit', 'rim'].every((k) => isColor(v?.[k])),
     soft: (v) => v === undefined || (isNum(v) && v >= 0 && v <= 1),
+  },
+  paintedInstances: {
+    data: (v) => typeof v === 'string',
   },
   glowParticles: {
     data: (v) => typeof v === 'string', count: isInt, seed: isNum, ring: (v) => isVec(v, 2), aboveFog: isNum,
@@ -150,6 +169,15 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
     if (!isVec(s.light?.dir) || Math.abs(Math.hypot(...s.light.dir) - 1) > 1e-3) err('light.dir: Einheitsvektor zum Licht');
     if (s.fog && !(isNum(s.fog.top) && isVec(s.fog.soft) && isVec(s.fog.core))) err('fog: top, soft, core');
     if (s.air && !(isColor(s.air.haze) && isColor(s.air.lit) && isNum(s.air.density))) err('air: haze, lit, density');
+    if (s.brush !== undefined && !isBrush(s.brush)) {
+      err('brush: { size 0.01 … 2, uniformity 0 … 50, sharpness 0 … 1, eccentricity 0 … 2, mobile 0 | 2 | 3 }, '
+        + 'alle optional');
+    }
+    const painted = (s.layers ?? []).filter((l) => l.brush !== undefined);
+    if (painted.some((l) => typeof l.brush !== 'boolean')) err('Ebene: brush nur true oder false');
+    if (painted.some((l) => l.brush === true) !== (s.brush !== undefined)) {
+      err('brush: Einstellungen der Skybox und Ebenen mit brush: true gehören zusammen');
+    }
     const sky = s.sky ?? {};
     if (!Array.isArray(sky.rings) || sky.rings.length !== 9 || !sky.rings.every(isColor)) err('sky.rings: 9 Farben');
     for (const k of ['stars', 'milkyWay']) if (k in sky && !(isNum(sky[k]) && sky[k] >= 0 && sky[k] <= 1)) err(`sky.${k}: 0 … 1`);
@@ -158,7 +186,11 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
       if (types && !types.includes(l.type)) err(`Ebene ${l.type}: im Spiel unbekannt`);
       for (const [key, ok] of Object.entries(LAYER_PARAMS[l.type] ?? {})) if (!ok(l[key])) err(`Ebene ${l.type}: ${key} fehlt oder ungültig`);
       if (l.data && baseData && !(l.data in baseData)) err(`Ebene ${l.type}: Daten ${l.data} fehlen in base`);
-      if ((l.type === 'toonInstances' || l.type === 'mistSheets') && !s.air) err(`Ebene ${l.type}: braucht air`);
+      const airy = ['toonInstances', 'paintedInstances', 'mistSheets'];
+      if (airy.includes(l.type) && !s.air) err(`Ebene ${l.type}: braucht air`);
+      if (l.type === 'paintedInstances' && baseData && !isPlantLight(baseData[l.data]?.light)) {
+        err(`Ebene paintedInstances: Daten ${l.data} ohne light (sh, sun, emit, translucent, airDist, paint)`);
+      }
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
       if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
         err('Ebene fishSchools: braucht davor waterSurface');
