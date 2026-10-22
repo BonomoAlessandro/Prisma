@@ -123,6 +123,10 @@
     "Fensterglas", "Titan", "Europa", "Kallisto", "Ganymed", "Phobos", "Deimos", "Mondsichel", "Halbmond", "Vollmond",
     "Neumond", "Mondfinsternis", "Dämmerung", "Abenddämmerung", "Morgendämmerung", "Zwischenlicht", "Gegenschein",
     "Nachglühen", "Abendglut", "Glut", "Orakel", "Rätselturm", "Zauberwürfel", "Puzzlestück", "Knobelei", "Kopfnuss",
-    "Denksport", "Hyaden", "Magellanwolke", "Milchstrasse"
+    "Denksport", "Hyaden", "Magellanwolke", "Milchstrasse", "Lupe", "Kerzenlicht", "Fackel", "Lichtkugel", "Sternchen",
+    "Funkenregen", "Sternenregen", "Lichtspiel", "Silhouette", "Scherenschnitt", "Intarsie", "Filigran", "Ornament",
+    "Arabeske", "Ranke", "Blütenblatt", "Lotus", "Orchidee", "Iris", "Lavendel", "Flieder", "Hortensie", "Tulpe",
+    "Narzisse", "Schachzug", "Gambit", "Zugzwang", "Springergabel", "Turmopfer", "Endspiel", "Räderwerk", "Galaxis",
+    "Spiralnebel", "Kugelsternhaufen", "Roter Riese"
   ]
 }
