@@ -61,12 +61,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `stark` im Protokoll erfüllen (Tickets 24 und 25, mit Gegenproben an erfundenen Urteilen; seit Ticket 25 nennt die
     Liste genau diese Level, 27 in „mittel“ und 4 in „schwer“); eindeutige Namen, keiner aus der
     Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
-    nichts), 150 Level nach dem Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
+    nichts), 150 Level nach dem Tutorial und dazu die des Ausbaus; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
     Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
     23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
     nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
     Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
-    nur an den Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
+    nur an den Leveldaten. Zum Ausbau auf 500 Level: Die Level des Ausbaus stehen in `levelliste.json`, jedes mit
+    zählendem Urteil (Lauf `ausbau-…`), Herkunft im Kommentar und Grad nach der Schwelle, keines einem anderen Level zu
+    ähnlich; `fuegeEin` und die ganze Regel mit einem Level des Ausbaus an erfundenen Fällen; die Plätze der Regeln für
+    den Bestand zählen unter dem Bestand. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
     Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
     fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
@@ -101,7 +104,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
-  Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
+  Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
+  → / Bild↓ eine Seite weiter; oben springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des
+  Abschnitts.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
@@ -202,7 +207,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung; im Kommentar die Herkunft aus Auftrag, Seed und
   Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS` es nachbaut),
   nimmt die ersetzten heraus, setzt ihre Namen auf `entfernteNamen` und legt ihre Leveldaten als feste Kopie für die
-  Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001);
+  Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001).
+  Ausbau auf 500 Level (`.scratch/500-level/`, in Gruppen zu 35): Die Level vor dem Ausbau sind der Bestand und stehen
+  untereinander genau wie ohne ihn; die Level des Ausbaus (`ausbau` in `levelliste.json`) fügt `levelliste.mjs`
+  (`fuegeEin`) nach der Formel dazu, ihr Grad folgt der Schwelle, beurteilt werden sie in Läufen `ausbau-…`.
+  `--ausbau datei` (wie `--austausch`, aber ohne `ersetzt`) rechnet mit den Kandidaten, `--json` liefert die ganze
+  Reihenfolge als Vorschau für `prepare.mjs --kandidaten`, `--schreiben` setzt sie mit ihren Namen ein (eine Freigabe
+  der Namen durch den Nutzer braucht es beim Ausbau nicht);
+  `ausbau.mjs` erzeugt und wählt die Level einer Gruppe: `pool <auftrag …> --aus datei [--seed S] [--seeds M]
+  [--jobs N]` sammelt Kandidaten des Generators parallel (über `leise.sh`), `wahl <gruppe> --pool datei[,…] --aus
+  datei [--behalte datei] [--ohne name,…]` wählt nach dem Bedarf je Grad (Bestand nach der Gruppe laut Spec weniger
+  die Level im Spiel) über den Bereich des Grads verteilt, keinem Level zu ähnlich, ohne dass der Grad sinkt oder das
+  Mittel je 10 Level fällt, und sucht dann so lange Tausche, bis mit der Häufungsregel keine Häufung offen bleibt
+  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe;
+  `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
+  die acht Symmetrien des Felds); ab 0,5 ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
+  heute drei Fast-Doppel aus dem Austausch, Dreiklang – Delta, Karussell – Rundflug und Fokus – Türkis);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
   je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
