@@ -28,7 +28,8 @@
 //   Schwelle erreicht. So sinkt der Grad nie, und ein Level am alten Platz zieht keine anderen mit. Die eigenen
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
-//   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
+//   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor (im Ausbau unter Leveln ab
+//   „schwer“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheid des Nutzers vom 22.10.2026), gezählt ohne die Level der
 //   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
 //   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
@@ -94,6 +95,16 @@ export const MAX_WANDERN = 10;
 export const TOLERANZ_MITTEL = 1;
 /** Je 10 Level kommt dieselbe Haupt-Kernidee höchstens so oft vor, ohne die Level der Duldungsliste. */
 export const HAUPT_KERNIDEE_JE_10 = 2;
+/**
+ * Im Ausbau, wenn alle Level der Häufung „schwer“ oder „sehr schwer“ sind: Dort gibt es fast nur fünf Haupt-Kernideen,
+ * mit 2 müsste jede Seite genau 2 von jeder haben (Entscheid des Nutzers vom 22.10.2026, Ticket 07).
+ */
+export const HAUPT_KERNIDEE_JE_10_OBEN = 3;
+/** Die Grade, für die im Ausbau HAUPT_KERNIDEE_JE_10_OBEN gilt. */
+export const GRADE_OBEN = ['schwer', 'sehr schwer'];
+/** Die Indizes, für die HAUPT_KERNIDEE_JE_10_OBEN gilt: im Ausbau die Level der GRADE_OBEN, sonst keine. */
+export const obenIn = (grad, ausbau = []) => new Set(zuWeitGilt(ausbau) ? []
+  : grad.flatMap((g, i) => (GRADE_OBEN.includes(g) ? [i] : [])));
 /** Gegen eine Häufung der Haupt-Kernidee rückt ein Level höchstens so viele Plätze (entzerre). */
 export const MAX_ENTZERREN = 3;
 /** Die Häufungsregel prüft für eine Häufung höchstens so viele Stellungen voraus (entzerre). */
@@ -303,9 +314,10 @@ const verschiebe = (folge, von, nach) => {
 /**
  * Die Häufungen der Haupt-Kernidee je 10 Level (folge: Indizes nach Platz, haupt: Haupt-Kernidee je Index oder null,
  * geduldet: Set der Indizes auf der Duldungsliste, die nicht zählen): je { gruppe (0 = Plätze 1–10), begriff, mit }.
- * von, bis: nur die Seiten von bis bis (ab 0), etwa die, die ein Zug ändert.
+ * von, bis: nur die Seiten von bis bis (ab 0), etwa die, die ein Zug ändert. oben: Set der Indizes, für die
+ * HAUPT_KERNIDEE_JE_10_OBEN gilt (obenIn); eine Häufung nur aus solchen darf so gross sein.
  */
-export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity) {
+export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity, oben = new Set()) {
   const liste = [];
   for (let gruppe = von; gruppe <= Math.min(bis, Math.ceil(folge.length / 10) - 1); gruppe++) {
     const je = {};
@@ -314,7 +326,8 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity) {
       if (haupt[i] && !geduldet.has(i)) (je[haupt[i]] ??= []).push(i);
     }
     for (const [begriff, mit] of Object.entries(je)) {
-      if (mit.length > HAUPT_KERNIDEE_JE_10) liste.push({ gruppe, begriff, mit });
+      const grenze = mit.every(i => oben.has(i)) ? HAUPT_KERNIDEE_JE_10_OBEN : HAUPT_KERNIDEE_JE_10;
+      if (mit.length > grenze) liste.push({ gruppe, begriff, mit });
     }
   }
   return liste;
@@ -334,15 +347,16 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity) {
  * sie auf. Dann gelten mehrere Züge, die sie je verkleinern und am Ende auflösen; genommen die erste solche Folge nach
  * derselben Wahl, Zug für Zug.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
- * der Duldungsliste. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen: die Häufungen, die sich so
- * nicht auflösen lassen }.
+ * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen:
+ * die Häufungen, die sich so nicht auflösen lassen }.
  */
-export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN) {
+export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set()) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
   // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
   // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
   const moeglich = (neu, h, nurBetroffene) => {
-    const vorher = haeufungen(neu, haupt, geduldet), seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
+    const vorher = haeufungen(neu, haupt, geduldet, 0, Infinity, oben);
+    const seiten = new Set([h.gruppe - 1, h.gruppe, h.gruppe + 1]);
     const alle = [];
     for (const i of neu.filter((j, p) => h.mit.includes(j) || (!nurBetroffene && seiten.has(Math.floor(p / 10))))) {
       const von = neu.indexOf(i);
@@ -353,7 +367,7 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
           const a = Math.floor(Math.min(von, nach) / 10), b = Math.floor(Math.max(von, nach) / 10);
           const probe = verschiebe(neu, von, nach);
           const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
-            ...haeufungen(probe, haupt, geduldet, a, b)];
+            ...haeufungen(probe, haupt, geduldet, a, b, oben)];
           const rest = danach.find(x => gleich(x, h)) ?? null;
           const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
           if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
@@ -387,8 +401,8 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
   let neu = [...folge];
   const zuege = [], offen = [];
   for (;;) {
-    const h = haeufungen(neu, haupt, geduldet).find(x => !offen.some(o => gleich(o, x)));
-    if (!h) return { folge: neu, zuege, offen: haeufungen(neu, haupt, geduldet) };
+    const h = haeufungen(neu, haupt, geduldet, 0, Infinity, oben).find(x => !offen.some(o => gleich(o, x)));
+    if (!h) return { folge: neu, zuege, offen: haeufungen(neu, haupt, geduldet, 0, Infinity, oben) };
     budget = VORAUSSCHAU;
     const folgeZuege = loese(neu, h);
     if (!folgeZuege) offen.push(h);
@@ -515,7 +529,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   const schonGefallen = new Set(fallendeSeiten(korrigiert, werte));
   const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
-  const { folge, zuege, offen } = haupt ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau))
+  const { folge, zuege, offen } = haupt
+    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau), obenIn(grad, imAusbau))
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
 }

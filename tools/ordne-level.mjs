@@ -69,8 +69,9 @@ import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, MAX_WANDERN, alleUrteile, ausbauNamen, ergaenzungBegruendet, festePlaetze,
-  imSpiel, ladeLevelliste, maxEntzerren, reihenfolge, stark, zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
+  DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_WANDERN, alleUrteile, ausbauNamen,
+  ergaenzungBegruendet, festePlaetze, imSpiel, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark,
+  zaehlendeUrteile, zehner, zuWeitGilt, zuWeitKorrigiert,
 } from './levelliste.mjs';
 
 /** Vorläufige Aufteilung (Spec): leicht 1–30, mittel 31–100, schwer 101–140, sehr schwer 141–150. */
@@ -338,7 +339,11 @@ for (const [text, wer] of [...SICHTEN, ['heutige Reihenfolge', null]]) {
     + `${10 * kleinster.k + 10}), Schritte ${schritte.map(s => zahl(s.s)).join(' ')}`
     + `${je.length < Math.ceil(n / 10) ? `; ${Math.ceil(n / 10) - je.length} Gruppen ohne Level` : ''}`);
 }
-console.log('  Haupt-Kernidee höchstens zweimal je 10 Level:');
+// im Ausbau unter Leveln ab „schwer“ höchstens HAUPT_KERNIDEE_JE_10_OBEN (Entscheid des Nutzers vom 22.10.2026)
+const oben = obenIn(grad, ausbau), grenzeJe10 = (mit) => (mit.every(i => oben.has(i)) ? HAUPT_KERNIDEE_JE_10_OBEN
+  : HAUPT_KERNIDEE_JE_10);
+console.log(`  Haupt-Kernidee höchstens ${HAUPT_KERNIDEE_JE_10}-mal je 10 Level${oben.size
+  ? ` (unter Leveln ab schwer ${HAUPT_KERNIDEE_JE_10_OBEN}-mal)` : ''}:`);
 for (const [text, wer] of SICHTEN) {
   const verletzt = [];
   zehner(folge).forEach((z, k) => {
@@ -347,7 +352,7 @@ for (const [text, wer] of SICHTEN) {
       const h = b[i].hauptKernidee.begriff;
       if (h) (zahlJe[h] ??= []).push(i);
     }
-    for (const [h, mit] of Object.entries(zahlJe).filter(([, mit]) => mit.length > 2)) {
+    for (const [h, mit] of Object.entries(zahlJe).filter(([, mit]) => mit.length > grenzeJe10(mit))) {
       verletzt.push(`Plätze ${10 * k + 1}–${10 * k + 10}: ${h} ${mit.length}-mal, ${zeige(mit)}`);
     }
   });
@@ -386,7 +391,8 @@ console.log(`  Urteile der KI-Tester (Ablauf 2): ${ki.size - kiNeu} von ${pruef.
   + `${kiText(u => u.abgelehnt)}`);
 const zug = ({ i, von, nach }) => `${name(i)} (${b[i].hauptKernidee.begriff ?? 'ohne Haupt-Kernidee'}`
   + `${duldung.includes(i) ? ', Duldungsliste' : ''}) von Platz ${von + 1} auf ${nach + 1}`;
-console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10} je 10 Level ohne die Duldungsliste): `
+console.log(`  Häufung der Haupt-Kernidee (höchstens ${HAUPT_KERNIDEE_JE_10}${oben.size ? `, ab schwer `
+  + `${HAUPT_KERNIDEE_JE_10_OBEN},` : ''} je 10 Level ohne die Duldungsliste): `
   + `${ordnung.zuege.length ? ordnung.zuege.map(zug).join('; ') : 'keine Züge'}`);
 const offenText = ordnung.offen.map(h => `Plätze ${10 * h.gruppe + 1}–${10 * h.gruppe + 10}: ${h.begriff} `
   + `${h.mit.length}-mal, ${h.mit.map(name).join(', ')}`).join('; ');
