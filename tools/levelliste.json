@@ -127,6 +127,10 @@
     "Funkenregen", "Sternenregen", "Lichtspiel", "Silhouette", "Scherenschnitt", "Intarsie", "Filigran", "Ornament",
     "Arabeske", "Ranke", "Blütenblatt", "Lotus", "Orchidee", "Iris", "Lavendel", "Flieder", "Hortensie", "Tulpe",
     "Narzisse", "Schachzug", "Gambit", "Zugzwang", "Springergabel", "Turmopfer", "Endspiel", "Räderwerk", "Galaxis",
-    "Spiralnebel", "Kugelsternhaufen", "Roter Riese"
+    "Spiralnebel", "Kugelsternhaufen", "Roter Riese", "Funke", "Glimmer", "Morgenlicht", "Frühlicht", "Hellblau",
+    "Krokus", "Enzian", "Edelweiss", "Alpenglühen", "Bergsee", "Gipfelkreuz", "Passhöhe", "Hängebrücke", "Viadukt",
+    "Aquädukt", "Kreuzgang", "Arkade", "Kuppel", "Gewölbe", "Säulenhalle", "Rundbogen", "Spitzbogen", "Laterna magica",
+    "Camera obscura", "Getriebe", "Zahnrad", "Spieluhr", "Automaton", "Taschenuhr", "Sanduhr", "Wasseruhr",
+    "Kalenderstein", "Weisser Zwerg", "Neutronenstern", "Schwarzes Loch"
   ]
 }
