@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 21. Oktober 2026
+Zuletzt aktualisiert: 22. Oktober 2026
 
 ---
 
@@ -740,6 +740,33 @@ Zuletzt aktualisiert: 21. Oktober 2026
     aus ihrer Höhe), `gpuMB` zählt Maske und Bilder der Ebenen mit, Wasser jenseits der Karte auf Meereshöhe.
   Vom Nutzer abgenommen („sieht super aus“, 21. Oktober) und committet (f6efdf0). Offen: Merge nach main, Push,
   Test auf einem echten Handy.
+- [x] **2.37 Wald: schwarzes Loch unter der Platte** (Wunsch des Nutzers, 22. Oktober: „Seit man rausscrollen kann, ist
+  es möglich den Boden unter der Platform zu sehen und dort ist ein schwarzes Loch“; der Rest der Skybox soll genau so
+  bleiben). Ursache: Das Gelände in Blender war unter dem Mittelpunkt des Panoramas in einem Radius von 1,5 m offen
+  (`terrain_mesh`, „nie zu sehen“), im Panorama ein dunkler Kreis von rund 7° um den Nadir; seit 2.35 und ohne Sockel
+  sieht man ihn herausgezoomt unter der Vorderkante der Platte.
+  - Gelände geschlossen: ein Fächer um die Mittelecke (`wald_scene.py`, `make_mesh` nimmt dafür auch eine Liste von
+    Flächenblöcken); in `wald_anime.blend` ebenso geflickt, ein Neuaufbau ergibt dasselbe Netz (geprüft).
+  - Nur die Kappe neu, damit der Rest bleibt (alles neu wären 30 min, und die Malschritte von `anime.py` haben sich
+    seit dem Strand geändert, etwa `TEX_MAX`): Cycles mit Bildrand (`use_border`) auf demselben Pixelraster, die
+    unteren 20° des ganzen Bilds und der drei Streifen, die Tiefe der unteren 12°. Gegenprobe mit offenem Loch: im
+    Mittel 2·10⁻⁵ neben dem alten Rendering. Gemalt wie `anime.py pano` bzw. `bands` auf 30° um den Nadir;
+    ausserhalb des Lochs weicht das neue Bild höchstens 0,8 von 255 Stufen vom alten ab, Übergang 8–9,5° vom Nadir.
+    Am Pol drängten sich Pinselstriche und Farbrauschen zu einem Stern feiner Strahlen zusammen: unter 7° entlang der
+    Zeile geglättet, so stark, wie die Zeile verdichtet ist.
+  - JPEG verlustfrei zusammengesetzt (`out/arbeit/jpegnaht.py`): die Blockzeilen über Zeile 1936 (ganzes Bild, 9,8°
+    vom Nadir) bzw. 3072 (Streifen, 10°) Bit für Bit aus dem alten, darunter aus dem neuen; neu kodiert ist nur der
+    erste DC-Wert je Komponente. Dekodiert ist alles darüber pixelgleich (ausser der einen Zeile an der Naht:
+    Farbinterpolation). Tiefe: Zeilen 0–491 von 512 gleich, darunter Boden statt „nichts getroffen“.
+  - Budget: Das ganze Bild wird 8 KB grösser, vorab waren nur noch 2 KB frei. Die Tiefenkarte ist dafür verlustfrei
+    dichter gepackt (zlib 9, `out/arbeit/png_dichter.py`, Farbraum-Blöcke unverändert): 340 → 276 KB. Wald-base
+    1,52 → 1,44 MB, vorab zusammen 3,42 von 3,5 MB; HD-Streifen 4,48 → 4,56 MB.
+  - Register: neuer Stand; `peak` 0,9216 → 0,7794, weil die Messung seit dem Strand über 3 × 3 Pixel mittelt (das alte
+    Bild ergibt heute denselben Wert, das Spiel prüft ihn nur gegen die Bloom-Schwelle); die beiden untersten
+    Farbringe (Platzhalter beim Laden) zeigen Boden statt Loch.
+  - Geprüft: Bilder herausgezoomt vorher/nachher (das Loch ist weg, der Boden mit den Baumschatten läuft unter der
+    Platte durch), Ansichten ohne Loch pixelgleich; Logiktests (548) und Offline-Test bestanden.
+  Vom Nutzer abgenommen („das ist gut so“, 22. Oktober) und committet. Offen: Push.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 
