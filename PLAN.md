@@ -5,7 +5,7 @@ Nachvollziehbarkeit stehen. Neue Wünsche kommen einfach als neuer Punkt dazu.
 
 **Legende:** `[ ]` offen · `[~]` in Arbeit · `[x]` erledigt · **E** = Entscheidung des Nutzers nötig
 
-Zuletzt aktualisiert: 18. Oktober 2026
+Zuletzt aktualisiert: 22. Oktober 2026
 
 ---
 
@@ -658,8 +658,179 @@ Zuletzt aktualisiert: 18. Oktober 2026
       angehaltener Zeit (`?t=`) bewegt sich nichts, darum zeigten die Prüfbilder es nicht; nachgestellt mit laufender
       Zeit auf der Grafikkarte. Jetzt vor dem Leeren `state.buffers.depth/color.setMask(true)`. Lehre: Was von Bild zu
       Bild Zustand behält, auch mit laufender Zeit prüfen.
-  - Offen: Urteil des Nutzers zur Insel, danach Review und Commit; Leistung auf einem echten Handy (das Wasser rechnet
-    mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel).
+  - Vom Nutzer abgenommen („sieht wirklich gut aus“) und committet (15. Oktober, 7c78158). Offen: Leistung auf einem
+    echten Handy (das Wasser rechnet mehr als vorher; am Fels acht Abfragen der Tiefe je Pixel), Push und Deploy.
+- [x] **2.34 Kamera flacher neigbar** (Wunsch des Nutzers, 20. Oktober: „die Kamera weiter nach unten ziehen, sodass
+  die Skybox besser betrachtet werden kann“). Statt höchstens 0,16 rad flacher als die Ausgangsansicht (Breitformat
+  58°, Hochformat 36° von der Senkrechten; den Horizont sah man nie) gilt jetzt eine feste Grenze `cameraRig.phiMax`
+  = 1,4 rad (≈ 80°, 10° über der Brettebene) in jedem Bildformat; steiler wie bisher 0,22 rad. Wird das Fenster
+  breiter, rückt die Neigung auf die Grenze zurück. Geprüft mit Bildern aller vier Hintergründe von vier Seiten, quer
+  und hoch: nichts steht vor der Kamera; im Breitformat endet das Bild oben knapp unter dem Rand der HD-Streifen (10°
+  über dem Horizont). Flacher (1,5) stand die Platte als schwarze Wand im Bild. Im Wald sieht man jetzt die gerade
+  Oberkante des Nebelmeers vor den Bergen; sie steckt so im Panorama aus Blender. Vom Nutzer abgenommen („der
+  Kamerawinkel ist nun super“, 20. Oktober) und committet.
+- [x] **2.35 Zoom von Hand** (Wunsch des Nutzers, 20. Oktober: „ein wenig rein- und rauszoomen, nicht allzu weit“).
+  Mausrad (ein Raster ≈ 10 %), Zwei-Finger-Geste des Touchpads (Rad mit `ctrlKey`, skaliert nicht mehr die Seite) und
+  zwei Finger auf dem Handy; Faktor auf den Abstand der Ausgangsansicht zwischen `zoomMin` 0,8 und `zoomMax` 1,25
+  (`cameraRig`), weich wie das Drehen. Kommt ein zweiter Finger dazu, zählt das Tippen des ersten nicht mehr, und nach
+  dem Zoomen dreht der verbliebene Finger die Kamera nicht. Beim Levelwechsel fliegt auch der Zoom zur Ausgangsansicht
+  zurück. `camera.far` 140 statt 120 (Himmelskugel hinter Panoramen 136 statt 116): Herausgezoomt im Hochformat ist
+  die Kamera bis ~40 vom Feld entfernt, das Netz eines Panoramas läge sonst teils hinter der Far-Plane. Geprüft mit
+  echten Eingaben (Rad, Touchpad, zwei Finger, Klick und Tippen drehen weiterhin) und Bildern an beiden Grenzen, steil
+  und flach. Vom Nutzer abgenommen („perfekt“, 20. Oktober), committet und gepusht.
+- [ ] **2.36 Strand: Unschönheiten bei flacher Kamera** (Wunsch des Nutzers, 21. Oktober, Bilder unter
+  `bilder/strand/`; Branch `fix/strand-skybox-kamera`). Seit 2.34/2.35 und ohne Sockel sah man drei Fehler:
+  - *Boden:* eine orange Scheibe im Wasser unter dem Brett – das Loch im Gelände aus Blender (Ringe ab 1,5 m), durch
+    das das Panorama den Himmel zeigt; die Brechung im Wasser las es als Grund.
+  - *Steine:* Das Spielwasser endete, von der Seite oder flach gesehen, gezackt weit vor den Felsen, dazwischen das
+    flache gemalte Wasser; im Wasser ein Schatten der Felsen. Ursache: Das geglättete Netz des Panoramas lag um die
+    Felsen vor dem Wasser und verdeckte es im Tiefentest; der Grund für die Brechung wurde vom Mittelpunkt aus gelesen
+    (hinter dem Fels: Fels).
+  - *Horizont:* ein türkiser Streifen zwischen Spielwasser und Himmel – bis `fade[1]` (95 m) malt Blender nur den
+    Grund, das Spielwasser blendete schon ab 70 m aus und endete am Netz (88 m) hart.
+  Erste Runde (nur `index.html`): Das Netz schreibt als Tiefe, was es zeigt (`depthRule` von `waterSurface`,
+  `gl_FragDepth`): Wasser oder etwas nah hinter dem Wasser hinter die Wasserfläche, Fels vor dem Wasser davor – das
+  ersetzt den Schnitt am Fels vom Mittelpunkt aus (`open`, bleibt nur ohne `gl_FragDepth`). Ersatz für verdeckten
+  Grund (`groundShift`, in Häppchen nach dem Einblenden: `ctx.later`): die nächste Stelle, deren Grund das Panorama
+  zeigt, im Loch der Rand rundum. Nutzer: Boden „super“; am Horizont noch ein Balken, die „Inseln“ (Korallenköpfe, nur
+  durch das fehlende Wasser zu sehen) fehlen ihm, die Felsen sollen 3D sein.
+  Zweite Runde (Szene neu gerendert):
+  - *Horizont:* Das Spielwasser reicht bis kurz vor den Horizont (Ringe ums Gitter bis `WATER_FAR`, Ort aus dem Strahl,
+    weiter als `WATER_CAP` auf dem Strahl her) und blendet nach der Richtung des Netzes 1,2 … 0,3° unter dem Horizont
+    ins gemalte Meer. Nutzer: Das ferne Wasser „fliesst schnell von rechts nach links“ – Ursache die Spiegelung, die
+    das Panorama ohne Unschärfe las (benachbarte Zeilen sprangen zwischen den Farben am Horizont): jetzt unscharf nach
+    der Streuung der Wellen im Pixel (Mipmap-Stufe bis 6, Probe über dem Horizont), analytische Wellen nach der
+    Pixelgrösse aus, die Neigung fern ruhiger, Dünung zum Rand der Karte hin rundum aus.
+  - *Sandinseln* (Wahl des Nutzers): drei in der Lagune (`ISLETS`, 120–140 m), Palmen, Büsche, Gras aus eigenem
+    Zufall; die übrigen Pflanzen bleiben, wo sie waren (`ground(…, with_islets=False)` beim Verteilen).
+  - *3D-Felsen:* Felsgruppen, die bis `R_ROCK` = 55 m ans Brett reichen, ganz (`near_rock`), samt allen Blöcken darauf
+    (sonst ab 0,5 m) als ein Netz „Felsen nah“ (Sammlung Spiel, für die Kamera unsichtbar, Schatten bleiben). Im
+    Panorama dort flacher Boden in Felsfarbe, aber nur, soweit das Spiel das Relief zeichnet (`rock_relief`; flache
+    Platten bleiben im Panorama, sonst hob sich eine helle, nach oben gewandte Fläche ab); im Spiel zeigt flaches
+    Gelände der Gruppe das Panorama (`rock8` unter der Hälfte: gebackener Sand hob sich mit Treppenrand ab); im Netz nur
+    das Gelände, das das Spiel zeichnet (fast deckungsgleich über dem des Panoramas warf es dort Schatten: eine dunkle
+    Fläche mit Treppenrand im Wasser). Licht vom Mittelpunkt des Panoramas aus (`view_from` ACTIVE_CAMERA) und mit
+    dessen Einstellungen in ein Bild gebacken (Cycles, GPU, 512 Samples, `wald_export.setup_cycles`: sonst heller und
+    flauer), gemalt wie das Panorama (`anime.paint_texture`), im Spiel Ebene `bakedMesh`. Die Tiefenregel lässt die
+    nahen Gruppen aus (B der zweiten Wasserkarte; sonst verdeckte der flache Boden des Panoramas die Felsen). Wasser am
+    Fels ohne Anheben, Schaum dort nur am Rand (die Karte zählt um die Blöcke einen Ring mit: sonst ein breites weisses
+    Band).
+  - Fallen: `materials.clear()` löscht die Zuordnung je Fläche (die Blöcke hatten erst das Sandmaterial); Operatoren
+    im Ablauf nach dem MCP-Aufruf brauchen einen ausdrücklichen Kontext (`only()`); `save_image(bw=True)` liess die
+    Szene auf Graustufen stehen, alle folgenden Bilder wurden grau (jetzt zurückgesetzt, `setup_cycles` setzt RGBA).
+  - *Wassermaske:* aus der Tiefe in voller Breite (4096), untere Hälfte; die Tiefenregel liest damit Wasser so fein
+    wie das Bild (um ferne Palmen blieb sonst ein Saum ohne Spielwasser).
+  - Budget der vorab gespeicherten Teile 3,5 statt 3 MB (Wahl des Nutzers; Felsen samt Bild rund 0,4 MB).
+  Nutzer: „massiv besser“, committet (090fcc0, 21. Oktober). Dritte Runde (Bilder `bilder/strand/KaputteSteine.png`,
+  `Inseln.png`; Nutzer: der grosse Steinhaufen sah vorher besser aus):
+  - *Steine:* Zwei Blöcke am Strand rechts wirkten zerschnitten. Das Spiel verwarf Stellen mit wenig Relief (Risse,
+    Fuss), und die Tiefenregel zog am Rand der Gruppe das Panorama vor sie (die Felsmarkierung der Karte reicht mit dem
+    Ring um die Blöcke weiter): Relief jetzt geschlossen und schon ab wenigen cm (`near_rocky`), die Markierung der
+    nahen Gruppen in der Karte um 3 m erweitert; der Saum, den das Spiel verwirft, liegt unter dem Boden (warf sonst
+    Schatten mit Treppenrand).
+  - *Aussehen der Felsen:* Gebacken wirkten sie fleckig und flau (Rauschen, zu grob). Blender rendert die Felsen jetzt
+    wie früher ins Panorama, je Ausschnitt (`rock_windows`, `rock_view`), gemalt wie die Streifen; das Spiel projiziert
+    dieses Bild vom Mittelpunkt aus auf die 3D-Felsen, wo man sie von dort sieht (Abstand und Gewicht in
+    `rockview.png`), sonst das gebackene Licht, jetzt entrauscht (OIDN mit Grundfarbe und Normalen, `anime.denoise`) und
+    auf dem Desktop doppelt so fein (Daten unter `hd` in `ebenen.json` kommen in den HD-Teil).
+  - *Inseln:* Die mit einer Palme ist jetzt eine grosse, bewaldete Insel 1,9 km draussen (Hügel 120 m), die mit zwei
+    Palmen grösser (16 m, sechs Palmen) und 350 m draussen, mit flachem Saum; die dritte bleibt.
+  - Aus dem Review: Wassermaske nur bis 20° unter dem Horizont (dort braucht es sie; als RGBA 3,7 statt 17 MB – eine
+    Graustufen-Textur lädt three mit texStorage2D nicht hoch, die Maske war leer; wie weit sie reicht, liest das Spiel
+    aus ihrer Höhe), `gpuMB` zählt Maske und Bilder der Ebenen mit, Wasser jenseits der Karte auf Meereshöhe.
+  Vom Nutzer abgenommen („sieht super aus“, 21. Oktober) und committet (f6efdf0). Offen: Merge nach main, Push,
+  Test auf einem echten Handy.
+- [x] **2.37 Wald: schwarzes Loch unter der Platte** (Wunsch des Nutzers, 22. Oktober: „Seit man rausscrollen kann, ist
+  es möglich den Boden unter der Platform zu sehen und dort ist ein schwarzes Loch“; der Rest der Skybox soll genau so
+  bleiben). Ursache: Das Gelände in Blender war unter dem Mittelpunkt des Panoramas in einem Radius von 1,5 m offen
+  (`terrain_mesh`, „nie zu sehen“), im Panorama ein dunkler Kreis von rund 7° um den Nadir; seit 2.35 und ohne Sockel
+  sieht man ihn herausgezoomt unter der Vorderkante der Platte.
+  - Gelände geschlossen: ein Fächer um die Mittelecke (`wald_scene.py`, `make_mesh` nimmt dafür auch eine Liste von
+    Flächenblöcken); in `wald_anime.blend` ebenso geflickt, ein Neuaufbau ergibt dasselbe Netz (geprüft).
+  - Nur die Kappe neu, damit der Rest bleibt (alles neu wären 30 min, und die Malschritte von `anime.py` haben sich
+    seit dem Strand geändert, etwa `TEX_MAX`): Cycles mit Bildrand (`use_border`) auf demselben Pixelraster, die
+    unteren 20° des ganzen Bilds und der drei Streifen, die Tiefe der unteren 12°. Gegenprobe mit offenem Loch: im
+    Mittel 2·10⁻⁵ neben dem alten Rendering. Gemalt wie `anime.py pano` bzw. `bands` auf 30° um den Nadir;
+    ausserhalb des Lochs weicht das neue Bild höchstens 0,8 von 255 Stufen vom alten ab, Übergang 8–9,5° vom Nadir.
+    Am Pol drängten sich Pinselstriche und Farbrauschen zu einem Stern feiner Strahlen zusammen: unter 7° entlang der
+    Zeile geglättet, so stark, wie die Zeile verdichtet ist.
+  - JPEG verlustfrei zusammengesetzt (`out/arbeit/jpegnaht.py`): die Blockzeilen über Zeile 1936 (ganzes Bild, 9,8°
+    vom Nadir) bzw. 3072 (Streifen, 10°) Bit für Bit aus dem alten, darunter aus dem neuen; neu kodiert ist nur der
+    erste DC-Wert je Komponente. Dekodiert ist alles darüber pixelgleich (ausser der einen Zeile an der Naht:
+    Farbinterpolation). Tiefe: Zeilen 0–491 von 512 gleich, darunter Boden statt „nichts getroffen“.
+  - Budget: Das ganze Bild wird 8 KB grösser, vorab waren nur noch 2 KB frei. Die Tiefenkarte ist dafür verlustfrei
+    dichter gepackt (zlib 9, `out/arbeit/png_dichter.py`, Farbraum-Blöcke unverändert): 340 → 276 KB. Wald-base
+    1,52 → 1,44 MB, vorab zusammen 3,42 von 3,5 MB; HD-Streifen 4,48 → 4,56 MB.
+  - Register: neuer Stand; `peak` 0,9216 → 0,7794, weil die Messung seit dem Strand über 3 × 3 Pixel mittelt (das alte
+    Bild ergibt heute denselben Wert, das Spiel prüft ihn nur gegen die Bloom-Schwelle); die beiden untersten
+    Farbringe (Platzhalter beim Laden) zeigen Boden statt Loch.
+  - Geprüft: Bilder herausgezoomt vorher/nachher (das Loch ist weg, der Boden mit den Baumschatten läuft unter der
+    Platte durch), Ansichten ohne Loch pixelgleich; Logiktests (548) und Offline-Test bestanden.
+  Vom Nutzer abgenommen („das ist gut so“, 22. Oktober) und committet. Offen: Push.
+- [ ] **2.38 Strand: 3D-Bäume wie die gemalten** (Wunsch des Nutzers, 22. Oktober: „Ich will, dass die 3d Bäume gleich
+  aussehen wie die 2d Bäume … die Farbe des Baumstammes und die Farbe, aber auch die Form der Blätter“; Branch
+  `fix/strand-baeume`). Vorher: Stämme blass graulila statt mauve-braun, Laub blass salbeigrün statt satt, Büsche wie
+  zerknülltes Papier, Palmwedel wie Kämme.
+  - Eichbilder (`out/arbeit/eich.py` in Blender, `eich.sh` im Spiel, gitignored): Blender rendert die nahen Pflanzen vom
+    Mittelpunkt des Panoramas aus und malt sie wie das Panorama – so sähen sie als 2D aus; das Spiel zeigt dieselbe
+    Ansicht. Ursachen: Die Palette (Faktoren auf die Grundfarbe) bildet Licht und Malen von Blender nicht nach, der
+    Dunst der Ebene war 17-mal so dicht wie in Blender (0,004 statt 1/4200 je m), die Spielmodelle hatten 15–40 % der
+    Blätter (dafür grössere), die Palmen standen gerade (Blender neigt sie bis 24,5° zum Meer, das Spiel nahm nur die
+    Drehung um die Hochachse), und es fehlte der Pinsel (Kuwahara in `anime.py`), der Fiedern und Blätter zu Strichen
+    verschmilzt.
+  - Neue Ebene `paintedInstances` (Wald bleibt bei `toonInstances`, pixelgleich geprüft): Licht wie in Blender aus einer
+    Lichtsonde (`light_probe`: weisse Kugel am Strand aus sechs Richtungen gerendert, Himmel und Boden als
+    Kugelfunktionen bis Grad 2 plus Sonne, Rest unter 1 %), Grundlicht und Durchscheinen wie `mat_plant`, Glanz wie die
+    Principled BSDF (ohne ihn fehlte dem Laub der bläuliche Himmelsschimmer), dann gemalt wie `anime.grade` (ACES,
+    satter, bläuliche Schatten, warme Lichter) und zurück auf Szenenwerte; Daten `flora.light` (`plant_light`). Licht
+    und Malen je Ecke für Vorder- und Rückseite (je Pixel kostete der Shader auf dem Handy mehr als das Doppelte, ohne
+    sichtbaren Unterschied).
+  - Eigenschatten der Kronen (`self_light`): je Blatt, Fieder und Röhrenring, wie viel Himmel (64 Richtungen) und Sonne
+    (16 Azimute auf ihrer Höhe, als erste Harmonische) es durch die eigene Krone sieht; Laub lässt 35 % durch
+    (`SELF_LEAF`; undurchsichtig gerechnet waren die Wedel viel zu dunkel), das eigene Teil zählt nicht (auch je
+    Kokosnuss). Ohne das waren Büsche und Kronen durchweg hell, in Blender innen dunkel.
+  - Modelle so dicht wie im Panorama (`GAME_DETAIL` 1) und trotzdem kleiner: Blätter und Fiedern als erste Ecke plus
+    Int8-Abstände (`pack_prims`), Röhren als Mittellinie, Radius und Farbe je Ring (`pack_tubes`, das Spiel baut die
+    Ringe wie `tube()`), nur Modelle mit naher Instanz (zwei Vorlagen ohne Instanz kosteten 84 KB); Flora 379 → 303 KB
+    samt Eigenschatten, Basis 1,98 → 1,90 MB, vorab zusammen 3,35 von 3,5 MB. Runde Blätter statt Sechsecke: Das Spiel
+    schneidet aus jedem Sechseck eine runde Blattform (`aShape`), ohne zusätzliche Dreiecke.
+  - Neigung: Instanzen tragen die Drehung `[x, y, z]` wie in Blender; `near_plants` misst die Sonne entlang der
+    geneigten Achse.
+  - Pinsel als Baustein des Skybox-Baukastens (mit einem Agenten gebaut): anisotroper Kuwahara wie im Kompositor von
+    Blender (Strukturtensor, 8 Sektoren mit Polynom-Gewichten, festes Muster aus Punktpaaren statt jedes Pixels der
+    Ellipse), in Anzeigefarben, nur auf Ebenen mit `"brush": true`; Einstellungen im Feld `brush` der Skybox (`size` in
+    Grad wie `px_per_deg × 0.28`, uniformity, sharpness, eccentricity, `mobile`). Maske über Alpha, das
+    `onBeforeCompile` an die Materialien der Ebene hängt (gilt für jeden Ebenentyp), Brett im Stencil geschützt,
+    Ausschnitt aus den Hüllquadern. Stufen `QUALITY.brush`: Desktop voll, Handy halbe Auflösung. Strand: nur die
+    Pflanzen (gemalte Felsen kosteten in der Standardansicht das Doppelte); im Wald lokal mit den Fichten geprüft, ohne
+    Eintrag bleibt er pixelgleich.
+  - Varianten (Vergleichsseite: https://claude.ai/artifact/TtgNuC9qAur51f4jm6nm3m): Glätten von Licht, Farbe und
+    Normalen je Wedel und Büschel, Wedel als gezackte Flächen, Büsche mit halb so vielen, grösseren Blättern, je ohne
+    und mit Pinsel. Der Nutzer wählte „Pinsel + Voll“ auf Desktop und Handy („der Pinselfilter schaut mit abstand am
+    besten aus“); Glätten und Flächen vor dem Pinsel machten das Bild flacher. Die Varianten liegen als
+    `out/arbeit/varianten-2.38.patch` (gitignored), falls das Handy zu langsam ist.
+  - Nur Pflanzen im Bild zeichnen (`cullInstances`): `THREE.InstancedMesh` schaltet in r147 das Ausblenden selbst ab,
+    alle 577 000 Dreiecke liefen durch den (seit dem Licht je Ecke teuren) Vertexshader, auch in der Standardansicht,
+    die kaum Pflanzen zeigt. Jetzt prüft jedes Bild die 188 Hüllquader auf der CPU und gibt nur die sichtbaren Instanzen
+    weiter (hochgeladen nur bei Änderung); in der Standardansicht sind es 11 (Handy) bzw. 13 (Desktop). Gilt auch für
+    die Fichten im Wald (pixelgleich).
+  - Aus den Reviews behoben: Grundlicht im Laub ×0,7 wie in der Principled BSDF, Kokosnüsse beschatteten sich selbst,
+    Glanz nach den Werten der Szene (`gloss`: Himmel SKY_GAIN/SKY_LIGHT, Sonne als Lampe); beim Pinsel blieb die
+    Schreibmaske des Stencils auf 0 stehen (der Schutz des Bretts galt nur im ersten Bild), seine Ziele werden beim
+    Verlassen der Skybox freigegeben, seine Programme erst nach dem Intro mit den Ebenen übersetzt, Farben und Tensor
+    weiter als gemalt wird geschrieben (sonst las der Rand Reste früherer Bilder), selbst mischende Materialien bleiben
+    ungemalt. Der Offline-Test lädt jetzt jede Skybox (der Strand stand in keinem Test) und zählt auch ausgelassene
+    Ebenen (Warnung) als Fehler.
+  - Gemessen (nur Pflanzenpixel, Spiel ohne Pinsel gegen Eichbild): Helligkeit je Drittel auf ±5 von 255 Stufen gleich,
+    das Spiel noch etwas satter grün (Blau 5–9 Stufen tiefer).
+  - Leistung (Pflanzen und Pinsel zusammen gegen beides aus, Median; Handy in Software, nur Verhältnisse): Desktop (RTX
+    A2000, 1440 × 900, ganzes Bild rund 4,8 ms) flach 0,95 ms, Bucht 0,57 ms (alter Stand 0,29 / 0,13); Handy flach 9,4
+    % der Bildzeit, in der Standardansicht 3,8 % (alter Stand 1,7 / 0,8 %; vor dem Ausblenden je Instanz 16 / 12 %). Der
+    Pinsel allein: Desktop voll 0,45 / 0,12 ms (flach / Standard), Handy halb 7,2 / 2,5 %. Ein echtes Handy ist nicht
+    geprüft.
+  - Tests: Logik 548 bestanden, offline bestanden (mit dem Strand).
+  Vom Nutzer zum Commit freigegeben (22. Oktober; Pinsel im Wald vorerst nicht einschalten) und auf
+  `fix/strand-baeume` committet. Offen: Merge nach main, Push, Test auf einem echten Handy.
 
 ## 3. Qualität der Level und Werkzeuge (aus den Reviews)
 

@@ -1,35 +1,20 @@
 {
-  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste (levelliste.mjs).",
+  "kommentar": "Duldung, ursprüngliche Liste, Ergänzungen aus Ticket 16, entfernte Namen, Prüfliste, behalten nach Urteil der KI-Tester, Ausbau (levelliste.mjs).",
   "duldung": {
-    "ausschlussgrund": [
-      "Einklang", "Geflecht", "Glasmurmel", "Schnittstelle", "Laterne", "Mosaik", "Lichtschleife", "Weichensteller",
-      "Lichtorgel", "Polarlicht", "Libelle", "Rangierbahnhof", "Opal", "Unendlichkeit", "Kristallpalast", "Komet",
-      "Interferenz", "Irrlicht", "Leuchtturm", "Glasperlenspiel", "Sternbild", "Singularität", "Urknall",
-      "Lichtgeschwindigkeit", "Korona", "Prismenhof", "Quasar", "Ereignishorizont", "Zenit", "Farbenrausch",
-      "Farbmühle"
-    ],
+    "ausschlussgrund": [],
     "ohneKernidee": [
-      "Farbwechsel", "Lichtpfad", "Funkenflug", "Glasfenster", "Tagesanbruch", "Einklang", "Verästelung", "Kreuzweg",
-      "Geflecht", "Glasmurmel", "Knotenpunkt", "Spiegelachse", "Schnittstelle", "Lichtschacht", "Sonnenstrahl",
-      "Streulicht", "Drehscheibe", "Strahlenkranz", "Turmalin", "Legierung", "Laterne", "Farbschleuse", "Perlmutt",
-      "Lichtfaden", "Paravent", "Bumerang", "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke",
-      "Blaue Stunde", "Pinselstrich", "Widerschein", "Farbtupfer", "Rubin", "Lichtkreuz", "Glühwürmchen",
-      "Spektralband", "Rochade", "Traumfänger", "Glasbläser", "Schimmer", "Kreuzfeuer", "Uhrwerk", "Farbverlauf",
-      "Schachbrett", "Smaragd", "Silberstreif", "Chamäleon", "Polarlicht", "Sonnenwende", "Pendel", "Kathedrale",
-      "Rangierbahnhof", "Sternwarte", "Lichthof", "Lichtjahr"
+      "Glasfenster", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
+      "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Pinselstrich", "Blaue Stunde", "Farbtupfer", "Rubin",
+      "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer", "Schachbrett",
+      "Farbverlauf", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
     ],
     "unterMindestSpielwert": [
-      "Farbwechsel", "Lichtpfad", "Funkenflug", "Tagesanbruch", "Einklang", "Verästelung", "Lichtnetz", "Kreuzweg",
-      "Geflecht", "Glasmurmel", "Knotenpunkt", "Spiegelachse", "Schnittstelle", "Lichtschacht", "Sonnenstrahl",
-      "Streulicht", "Drehscheibe", "Strahlenkranz", "Turmalin", "Legierung", "Laterne", "Farbschleuse", "Perlmutt",
-      "Lichtfaden", "Paravent", "Bumerang", "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke",
-      "Blaue Stunde", "Pinselstrich", "Widerschein", "Farbtupfer", "Rubin", "Glühwürmchen", "Spektralband", "Rochade",
-      "Glasbläser", "Schimmer", "Kreuzfeuer", "Uhrwerk", "Smaragd", "Chamäleon", "Polarlicht", "Sonnenwende", "Pendel",
-      "Kathedrale", "Rangierbahnhof", "Sternwarte", "Lichthof", "Komet", "Lichtjahr", "Urknall", "Spiegelkabinett"
+      "Lichtnetz", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang", "Mondlicht",
+      "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Pinselstrich", "Blaue Stunde", "Farbtupfer", "Rubin",
+      "Glühwürmchen", "Spektralband", "Schimmer", "Kreuzfeuer", "Smaragd", "Sonnenwende", "Pendel", "Kathedrale",
+      "Lichtjahr"
     ],
-    "abgelehnt": [
-      "Einklang", "Sonnenstrahl", "Laterne", "Widerschein", "Lichtschleife", "Weichensteller", "Spiegelkabinett"
-    ]
+    "abgelehnt": []
   },
   "urspruenglich": {
     "ausschlussgrund": [
@@ -75,16 +60,82 @@
     ]
   },
   "entfernteNamen": [
-    "Begegnung", "Auslese", "Doppelpass", "Labyrinth", "Seitenlicht", "Lichtbündel"
+    "Begegnung", "Auslese", "Doppelpass", "Labyrinth", "Seitenlicht", "Lichtbündel", "Korona", "Prismenhof",
+    "Spiegelkabinett", "Quasar", "Ereignishorizont", "Farbenrausch", "Zenit", "Farbmühle", "Glasmurmel",
+    "Schnittstelle", "Sonnenstrahl", "Geflecht", "Laterne", "Einklang", "Widerschein", "Mosaik", "Lichtschleife",
+    "Weichensteller", "Lichtorgel", "Polarlicht", "Libelle", "Lichtpfad", "Farbwechsel", "Kreuzweg", "Tagesanbruch",
+    "Knotenpunkt", "Verästelung", "Lichtschacht", "Funkenflug", "Drehscheibe", "Legierung", "Lichtfaden", "Paravent",
+    "Chamäleon", "Spiegelachse", "Rochade", "Uhrwerk", "Glasbläser", "Rangierbahnhof", "Opal", "Sternwarte",
+    "Lichthof", "Unendlichkeit", "Komet", "Kristallpalast", "Interferenz", "Irrlicht", "Leuchtturm", "Glasperlenspiel",
+    "Sternbild", "Singularität", "Urknall", "Lichtgeschwindigkeit"
   ],
   "pruefliste": [
-    "Spiegelbild", "Schliff", "Farbwechsel", "Lichtpfad", "Tagesanbruch", "Lichtharfe", "Einklang", "Verästelung",
-    "Lichtnetz", "Schattenspiel", "Spiegelachse", "Sonnenstrahl", "Streulicht", "Laterne", "Bumerang", "Mondlicht",
-    "Weichen", "Pinselstrich", "Kaleidoskop", "Widerschein", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband",
-    "Mosaik", "Saphir", "Blendwerk", "Traumfänger", "Glasbläser", "Lichtschleife", "Farbnebel", "Spiegeltreppe",
-    "Schimmer", "Kreuzfeuer", "Weichensteller", "Bernstein", "Glasfaser", "Farbverlauf", "Schachbrett", "Farbknoten",
-    "Smaragd", "Chamäleon", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel", "Kathedrale", "Supernova",
-    "Kristallpalast", "Zwielicht", "Spiegelkabinett"
+    "Spiegelbild", "Schliff", "Lichtnetz", "Schattenspiel", "Lichtharfe", "Streulicht", "Bumerang", "Mondlicht",
+    "Weichen", "Pinselstrich", "Kaleidoskop", "Rubin", "Glitzer", "Glühwürmchen", "Spektralband", "Saphir",
+    "Blendwerk", "Traumfänger", "Farbnebel", "Spiegeltreppe", "Schimmer", "Kreuzfeuer", "Bernstein", "Schachbrett",
+    "Farbverlauf", "Glasfaser", "Farbknoten", "Smaragd", "Prismenreigen", "Doppelspiegel", "Sonnenwende", "Pendel",
+    "Kathedrale", "Supernova", "Zwielicht"
   ],
-  "prueflisteErledigt": true
+  "prueflisteErledigt": true,
+  "prueflisteFormel": {
+    "Spiegelbild": 46, "Schliff": 27, "Farbwechsel": 32, "Lichtpfad": 31, "Tagesanbruch": 37, "Lichtharfe": 74,
+    "Einklang": 58, "Verästelung": 40, "Lichtnetz": 35, "Schattenspiel": 41, "Spiegelachse": 76, "Sonnenstrahl": 45,
+    "Streulicht": 47, "Laterne": 53, "Bumerang": 59, "Mondlicht": 60, "Weichen": 62, "Pinselstrich": 63,
+    "Kaleidoskop": 71, "Widerschein": 72, "Rubin": 36, "Glitzer": 79, "Glühwürmchen": 80, "Spektralband": 82,
+    "Mosaik": 109, "Saphir": 66, "Blendwerk": 99, "Traumfänger": 113, "Glasbläser": 97, "Lichtschleife": 87,
+    "Farbnebel": 116, "Spiegeltreppe": 69, "Schimmer": 85, "Kreuzfeuer": 91, "Weichensteller": 92, "Bernstein": 90,
+    "Glasfaser": 114, "Farbverlauf": 105, "Schachbrett": 73, "Farbknoten": 95, "Smaragd": 81, "Chamäleon": 61,
+    "Prismenreigen": 104, "Doppelspiegel": 101, "Sonnenwende": 77, "Pendel": 84, "Kathedrale": 86, "Supernova": 88,
+    "Kristallpalast": 121, "Zwielicht": 137, "Spiegelkabinett": 131
+  },
+  "behalten": [
+    "Glasfenster", "Lichtnetz", "Streulicht", "Strahlenkranz", "Turmalin", "Farbschleuse", "Perlmutt", "Bumerang",
+    "Mondlicht", "Weichen", "Glasbaustein", "Fadenkreuz", "Lichtschranke", "Blaue Stunde", "Pinselstrich",
+    "Farbtupfer", "Rubin", "Lichtkreuz", "Glühwürmchen", "Spektralband", "Traumfänger", "Schimmer", "Kreuzfeuer",
+    "Farbverlauf", "Schachbrett", "Smaragd", "Silberstreif", "Sonnenwende", "Pendel", "Kathedrale", "Lichtjahr"
+  ],
+  "ausbau": [
+    "Lichtblick", "Kerzenschein", "Farbklecks", "Glanzlicht", "Morgentau", "Seifenblase", "Aquarell", "Pastell",
+    "Indigo", "Zinnober", "Kobalt", "Windrose", "Sonnenuhr", "Glockenspiel", "Wendeltreppe", "Lichtgitter",
+    "Farbtropfen", "Spiegelung", "Abendlicht", "Goldglanz", "Regenschauer", "Lichtwirbel", "Kristall", "Glasharfe",
+    "Silberblick", "Irrgarten", "Expedition", "Gipfelsturm", "Karawane", "Kreuzfahrt", "Schatzkarte", "Seidenstrasse",
+    "Andromeda", "Sternnebel", "Sonnenwind", "Taschenlampe", "Lichtpunkt", "Glühbirne", "Leuchtkäfer", "Kinderspiel",
+    "Ocker", "Karmin", "Ultramarin", "Malachit", "Lapislazuli", "Jade", "Topas", "Granat", "Achat", "Onyx", "Citrin",
+    "Aquamarin", "Elfenbein", "Perlglanz", "Seidenglanz", "Goldstaub", "Silbermond", "Kupferglanz", "Messing",
+    "Gewürzroute", "Entdeckungsreise", "Polarfahrt", "Weltreise", "Pilgerweg", "Jakobsweg", "Gebirgspfad",
+    "Gratwanderung", "Orion", "Kassiopeia", "Sirius", "Fingerzeig", "Pfadfinder", "Wegmarke", "Lichtschalter",
+    "Kreisel", "Murmel", "Glasperle", "Tautropfen", "Bronze", "Quarz", "Bergkristall", "Rosenquarz", "Mondstein",
+    "Sonnenstein", "Glasmalerei", "Buntglas", "Fensterrose", "Glockenturm", "Kompass", "Sextant", "Astrolabium",
+    "Fernrohr", "Periskop", "Lichtleiter", "Steilwand", "Nordwand", "Seilschaft", "Biwak", "Basislager", "Höhenweg",
+    "Wega", "Atair", "Deneb", "Rigel", "Beteigeuze", "Schneeflocke", "Sonnenblume", "Löwenzahn", "Spiegelwand",
+    "Glaswand", "Lichtzelt", "Lichtfeder", "Farbenrad", "Spektrum", "Farbtafel", "Farbmuster", "Zwischenton",
+    "Halbton", "Farbton", "Lichtton", "Farbklang", "Akkord", "Harmonie", "Melodie", "Kanon", "Fuge", "Sonate", "Rondo",
+    "Menuett", "Walzer", "Fernweh", "Kompassnadel", "Sternenkarte", "Seekarte", "Leuchtfeuer", "Lotsenboot",
+    "Hafeneinfahrt", "Ankerplatz", "Aldebaran", "Arktur", "Kiesel", "Wasserfarbe", "Buntstift", "Farbstift",
+    "Kreidestrich", "Bolero", "Reigen", "Kreistanz", "Pirouette", "Drehung", "Wirbel", "Spirale", "Schnecke",
+    "Muschel", "Seestern", "Koralle", "Perle", "Lagune", "Brandung", "Gezeitenkreis", "Ebbe", "Flut", "Windjammer",
+    "Dreimaster", "Segeltörn", "Kaperfahrt", "Flaschenpost", "Schatztruhe", "Geheimgang", "Falltür", "Zugbrücke",
+    "Burggraben", "Kapella", "Prokyon", "Antares", "Papierflieger", "Drachenschnur", "Windspiel", "Schaukel",
+    "Rutschbahn", "Strömung", "Wasserspiel", "Springbrunnen", "Wasserfall", "Gebirgsbach", "Bachlauf", "Flussbett",
+    "Mündung", "Fjord", "Gletscher", "Eiskristall", "Raureif", "Nordlicht", "Polarstern", "Morgenstern", "Venus",
+    "Merkur", "Mars", "Saturn", "Jupiter", "Neptun", "Uranus", "Wehrgang", "Turmzimmer", "Minotaurus", "Ariadnefaden",
+    "Sphinx", "Spica", "Regulus", "Plejaden", "Glanzpapier", "Lichtfleck", "Abzweigung", "Kurve", "Torbogen",
+    "Fensterglas", "Titan", "Europa", "Kallisto", "Ganymed", "Phobos", "Deimos", "Mondsichel", "Halbmond", "Vollmond",
+    "Neumond", "Mondfinsternis", "Dämmerung", "Abenddämmerung", "Morgendämmerung", "Zwischenlicht", "Gegenschein",
+    "Nachglühen", "Abendglut", "Glut", "Orakel", "Rätselturm", "Zauberwürfel", "Puzzlestück", "Knobelei", "Kopfnuss",
+    "Denksport", "Hyaden", "Magellanwolke", "Milchstrasse", "Lupe", "Kerzenlicht", "Fackel", "Lichtkugel", "Sternchen",
+    "Funkenregen", "Sternenregen", "Lichtspiel", "Silhouette", "Scherenschnitt", "Intarsie", "Filigran", "Ornament",
+    "Arabeske", "Ranke", "Blütenblatt", "Lotus", "Orchidee", "Iris", "Lavendel", "Flieder", "Hortensie", "Tulpe",
+    "Narzisse", "Schachzug", "Gambit", "Zugzwang", "Springergabel", "Turmopfer", "Endspiel", "Räderwerk", "Galaxis",
+    "Spiralnebel", "Kugelsternhaufen", "Roter Riese", "Funke", "Glimmer", "Morgenlicht", "Frühlicht", "Hellblau",
+    "Krokus", "Enzian", "Edelweiss", "Alpenglühen", "Bergsee", "Gipfelkreuz", "Passhöhe", "Hängebrücke", "Viadukt",
+    "Aquädukt", "Kreuzgang", "Arkade", "Kuppel", "Gewölbe", "Säulenhalle", "Rundbogen", "Spitzbogen", "Laterna magica",
+    "Camera obscura", "Getriebe", "Zahnrad", "Spieluhr", "Automaton", "Taschenuhr", "Sanduhr", "Wasseruhr",
+    "Kalenderstein", "Weisser Zwerg", "Neutronenstern", "Schwarzes Loch", "Zitronengelb", "Grasgrün", "Himmelblau",
+    "Kirschrot", "Rosenrot", "Lindgrün", "Lichtkasten", "Guckkasten", "Prismenglas", "Brillenglas", "Linse",
+    "Brennpunkt", "Lichtstrahl", "Strahlengang", "Umlenkspiegel", "Kehrspiegel", "Spiegelpaar", "Doppelbild",
+    "Spiegelschrift", "Rückspiegel", "Seitenspiegel", "Wechselspiel", "Pingpong", "Waagschale", "Gleichgewicht",
+    "Steinkreis", "Observatorium", "Planetarium", "Himmelsscheibe", "Tierkreis", "Sternzeichen", "Mondbahn",
+    "Gravitation", "Gezeitenkraft", "Raumzeit"
+  ]
 }

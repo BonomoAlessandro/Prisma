@@ -17,7 +17,7 @@ import { kandidatName, seiteMitLeveln } from '../tools/leveldaten.mjs';
 
 const {
   VERSION, VERSIONS, FINGERPRINT, AGENT, fingerprint, GRADES, PROVISIONAL_GRADES, MAX_SHIFT, reference, levelAt,
-  loadAnchors, SCHEMA, glossary, rejectionTerms, brief, answerErrors, merge, entry, protocolErrors,
+  loadAnchors, gradesIn, SCHEMA, glossary, rejectionTerms, brief, answerErrors, merge, entry, protocolErrors,
 } = protocol;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const protocolFile = process.argv[2] || join(root, 'tools', 'ki-tester', 'protocol.jsonl');
@@ -225,8 +225,12 @@ const GRENZFAELLE = ['Zwielicht', 'Lichtkegel', 'Schnittstelle', 'Prismenreigen'
 /** Taugt als Anker: kein Ausschlussgrund und nicht auf der Prüfliste (Regel des Nutzers, Ticket 16). */
 const usable = (level) => !AUSSCHLUSS.includes(level.name) && !LEVELLISTE.pruefliste.includes(level.name);
 test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und einer am oberen Ende', () => {
-  const anchors = loadAnchors();
-  for (const g of GRADES) {
+  // Gerechnet in der Reihenfolge des Bestands, ohne die Level des Ausbaus auf 500 Level: Die Anker sind eine feste
+  // Auswahl aus dem Bestand; kämen mit jeder Gruppe neue, wären die Urteile der Läufe nicht mehr vergleichbar
+  const ausbau = LEVELLISTE.ausbau ?? [];
+  const bestand = L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ausbau.includes(l.name));
+  const anchors = loadAnchors(bestand), imBestand = (position) => bestand[position - 1];
+  for (const g of gradesIn(bestand)) {
     const own = anchors.filter(a => a.grad === g.name);
     assert.deepEqual(own.map(a => a.ende), ['unten', 'oben'], g.name);
     const third = (g.to - g.from + 1) / 3;
@@ -235,7 +239,7 @@ test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und eine
       // Am Ende heisst: im äussersten Drittel des Grads, oder zwischen ihm und dem Ende taugt kein Level als Anker
       const outer = a.ende === 'unten' ? a.position < g.from + third : a.position > g.to - third;
       const [from, to] = a.ende === 'unten' ? [g.from, a.position - 1] : [a.position + 1, g.to];
-      const nearer = Array.from({ length: Math.max(0, to - from + 1) }, (_, k) => levelAt(from + k)).filter(usable);
+      const nearer = Array.from({ length: Math.max(0, to - from + 1) }, (_, k) => imBestand(from + k)).filter(usable);
       assert.ok(outer || !nearer.length, `${a.name} nicht am Ende, näher daran: ${nearer.map(l => l.name).join(', ')}`);
     }
   }
@@ -243,7 +247,8 @@ test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und eine
   assert.deepEqual(positions, [...positions].sort((a, b) => a - b), 'Anker nach Platz geordnet');
 });
 test('Kein Anker mit Ausschlussgrund, auf der Prüfliste oder ein Grenzfall der Neuzählung', () => {
-  assert.ok(AUSSCHLUSS.length > 0 && LEVELLISTE.pruefliste.length > 0, 'levelliste.json gelesen');
+  // seit Ticket 25 ist die Liste mit Ausschlussgrund leer (alle vier Grade ausgetauscht); gelesen ist sie trotzdem
+  assert.ok(Array.isArray(AUSSCHLUSS) && LEVELLISTE.pruefliste.length > 0, 'levelliste.json gelesen');
   for (const a of loadAnchors()) {
     assert.ok(usable(a), `${a.name}: Ausschlussgrund oder Prüfliste`);
     assert.ok(!GRENZFAELLE.includes(a.name), a.name);
@@ -349,8 +354,8 @@ const tampered = [
   ['Ablauf 1 mit anderen als den vorläufigen Graden', (e) => {
     e.ablauf = '1'; e.referenz = { art: 'heutige Reihenfolge', position: 60, grad: 'mittel', von: 33, bis: 102 };
   }, /Referenz nicht die von Ablauf 1 \(heutige Reihenfolge\)/],
-  ['Ablauf 2 mit einem Grad über das Spiel hinaus', (e) => { e.referenz.bis = 151; },
-    /Referenz nicht die von Ablauf 2/],
+  // Seit dem Ausbau auf 500 Level ohne Obergrenze: Kandidaten stehen in einer Vorschau, die länger ist als das Spiel
+  ['Ablauf 2 mit einem Grad vor Platz 1', (e) => { e.referenz.von = 0; }, /Referenz nicht die von Ablauf 2/],
   ['Verschiebung 6', (e) => { e.ergebnis.verschiebung = -6; e.ergebnis.position = 54; }, /Verschiebung −6: mehr als 5 Plätze/],
   ['über die Gradgrenze 30/31', (e) => {
     e.referenz = fixedReference(33); e.ergebnis.verschiebung = -5; e.ergebnis.position = 28;
@@ -452,6 +457,47 @@ test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz
       const falsch = prepare([{ formel: 100, level: KANDIDATEN[0] }]);
       assert.notEqual(falsch.status, 0);
       assert.match(falsch.stderr, /Grad leicht, auf Platz 100 gilt mittel/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(dirname(datei), { recursive: true, force: true });
+    }
+  });
+test('prepare.mjs --kandidaten mit Vorschau (Ausbau): Plätze, Grade, Referenz und Anker in der Reihenfolge der Vorschau',
+  () => {
+    const lauf = `test-vorschau-${process.pid}`, dir = join(root, 'tests', 'output', 'ki-tester', lauf);
+    const datei = join(mkdtempSync(join(tmpdir(), 'prisma-vorschau-')), 'ordnung.json');
+    // Die Vorschau wie aus ordne-level.mjs --ausbau --json: das Spiel, dazu auf Platz 3 und 5 die zwei Kandidaten
+    const reihe = HAUPT.map(l => ({ name: l.name, grad: l.grad }));
+    const mit = [...reihe.slice(0, 2), { kandidat: KANDIDATEN[0] }, ...reihe.slice(2, 3), { kandidat: KANDIDATEN[1] },
+      ...reihe.slice(3)];
+    // Die Anker und das Level auf Platz 12 stehen darin, wie ordne-level.mjs ein neues Level im Spiel (Austausch oder
+    // früherer Ausbau) ausgibt: mit kandidat und Leveldaten; sie zählen trotzdem unter ihrem Namen im Spiel
+    const alsNeu = new Set([...loadAnchors().map(a => a.name), HAUPT[9].name]);
+    const liste = mit.map((x, k) => (x.kandidat ? { platz: k + 1, formel: k + 1, name: kandidatName(x.kandidat),
+      kandidat: kandidatName(x.kandidat), grad: 'leicht', level: x.kandidat, ausbau: true }
+      : { platz: k + 1, name: x.name, grad: x.grad,
+        ...(alsNeu.has(x.name) ? { kandidat: kandidatName(HAUPT.find(l => l.name === x.name)),
+          level: HAUPT.find(l => l.name === x.name) } : {}) }));
+    writeFileSync(datei, JSON.stringify(liste));
+    try {
+      const p = spawnSync(process.execPath, [join(root, 'tools', 'ki-tester', 'prepare.mjs'), lauf, '12', '--kandidaten',
+        datei, '--ohne-bilder'], { encoding: 'utf8' });
+      assert.equal(p.status, 0, p.stderr);
+      const lj = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
+      const vorschau = mit.map(x => (x.kandidat ? { name: kandidatName(x.kandidat), grad: 'leicht' } : x));
+      assert.equal(lj.level.length, 3);
+      assert.deepEqual(lj.level.filter(x => !x.kandidat).map(x => [x.name, x.position]), [[HAUPT[9].name, 12]]);
+      for (const [k, level] of KANDIDATEN.entries()) {
+        const l = lj.level.find(x => x.name === kandidatName(level));
+        assert.deepEqual([l.position, l.kandidat], [3 + 2 * k, true]);
+        assert.deepEqual(l.referenz, reference(3 + 2 * k, vorschau));
+      }
+      // Die Anker stehen auf ihrem Platz in der Vorschau: hinter den Kandidaten zwei Plätze weiter als im Spiel
+      for (const a of loadAnchors()) {
+        assert.equal(lj.anker[a.id], vorschau.findIndex(x => x.name === a.name) + 1, a.id);
+        if (a.position > 3) assert.equal(lj.anker[a.id], a.position + 2, a.id);
+      }
+      assert.equal(lj.vorschau, datei);
     } finally {
       rmSync(dir, { recursive: true, force: true });
       rmSync(dirname(datei), { recursive: true, force: true });

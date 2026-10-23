@@ -30,6 +30,11 @@ SUN_ELEV = 7.0       # Grad über dem Horizont: tief, golden (bei 12° wirkte es
 SUN = Vector((0.941 * math.cos(math.radians(SUN_ELEV)), -0.338 * math.cos(math.radians(SUN_ELEV)),
               math.sin(math.radians(SUN_ELEV)))).normalized()   # über dem Meer rechts (Spiel: +x, etwas nach vorn)
 R_NEAR = 45.0        # näher zeichnet das Spiel selbst (Parallaxe: die Kamera steht bis ~25 neben dem Mittelpunkt)
+R_ROCK = 55.0        # Felsgruppen, die näher heranreichen, zeichnet das Spiel als 3D-Modell (ganz, nie halb)
+# Inseln vor der Küste, vom Brett aus über das Wasser zu sehen: x, y, Radius (m), Palmen, Höhe des Hügels (m). Eine
+# Sandinsel in der Lagune, eine grössere weiter draussen, dazu eine grosse, bewaldete Insel weit in der Ferne (ab 60 m
+# Radius bewaldet, islet_plants)
+ISLETS = [(-313.0, -157.0, 16.0, 6, 0.0), (100.0, -95.0, 8.0, 3, 0.0), (-480.0, -1840.0, 280.0, 0, 120.0)]
 B1, B2, B3, B4, B5, B6, B7, B8, B9 = (Perlin(s) for s in (101, 113, 127, 131, 137, 139, 149, 151, 157))
 
 
@@ -99,6 +104,16 @@ def coast(x, y):
     return s + fbm(B1, x * 0.05 + 3.3, y * 0.05 - 8.1, 3) * 2.0
 
 
+def islets(x, y):
+    """Abstand zur Wasserlinie der Inseln vor der Küste (> 0 an Land), unregelmässig rund (die Buchten wachsen mit der
+    Insel, bis 8 m tief)"""
+    s = np.full(np.shape(x), -1e3)
+    for ix, iy, r, *_ in ISLETS:
+        f = 0.25 * min(1.0, 20.0 / r)
+        s = np.maximum(s, r - np.hypot(x - ix, y - iy) + fbm(B4, x * f + ix, y * f + iy, 2) * 0.8 * min(r, 60.0) / 6)
+    return s
+
+
 def _hash4(cx, cy, seed):
     """vier Zufallszahlen 0 … 1 je ganzzahliger Zelle (cx, cy)"""
     v = ((cx * 73856093) ^ (cy * 19349663) ^ (seed * 83492791)) & 0x7fffffff
@@ -127,28 +142,33 @@ def facets(x, y, cell, seed):
     return h
 
 
-def ground(x, y):
+def ground(x, y, with_islets=True):
+    """with_islets=False: die Welt ohne die Sandinseln (so verteilt plant_points die Pflanzen wie bisher)"""
     x = np.asarray(x, float); y = np.asarray(y, float)
     g = Ground()
-    s = coast(x, y)
+    s_main = coast(x, y)
+    s = np.maximum(s_main, islets(x, y)) if with_islets else s_main
     d = np.maximum(-s, 0.0)
+    d_main = np.maximum(-s_main, 0.0)   # Riff und Korallenköpfe nach der Insel (um die Sandinseln nur flacher)
     # Grund: am Ufer rasch tiefer, dann eine Lagune (weiter draussen tiefer, mit Korallenköpfen), das Riffdach knapp
     # unter Wasser, dahinter der Abfall ins Tiefe. Tiefer als SEA_FLOOR nie.
     patch = 0.5 + 0.5 * fbm(B5, x / 35 + 3, y / 35 - 7, 3)
     reef_d = REEF + 25 * fbm(B3, x / 160 + 4, y / 160 - 2, 2)
     basin = -1.6 * (1 - np.exp(-d / 4)) - 0.09 * np.minimum(d, 25) - 2.0 * smoothstep(20, 70, d) * (0.55 + 0.45 * patch)
-    heads = smoothstep(0.78, 0.88, 0.5 + 0.5 * fbm(B8, x * 0.07, y * 0.07, 2)) * smoothstep(30, 50, d) * (1 - smoothstep(reef_d - 25, reef_d - 8, d))
+    heads = smoothstep(0.78, 0.88, 0.5 + 0.5 * fbm(B8, x * 0.07, y * 0.07, 2)) * smoothstep(30, 50, d_main) * (1 - smoothstep(reef_d - 25, reef_d - 8, d_main))
     basin = basin + heads * 2.2
-    crest = np.exp(-((d - reef_d) / 9.0) ** 2)
-    outer = smoothstep(reef_d, reef_d + 170, d)
+    crest = np.exp(-((d_main - reef_d) / 9.0) ** 2)
+    outer = smoothstep(reef_d, reef_d + 170, d_main)
     sea = (basin * (1 - crest) - 0.45 * crest) * (1 - outer) + SEA_FLOOR * outer
+    # um die Inseln draussen ein flacher Saum wie in der Lagune (türkis, nicht gleich tiefblau)
+    sea = np.where(s > s_main, sea + (basin - sea) * (1 - smoothstep(15, 90, d)), sea)
     # Land: Strand, Strandwall mit Dünen, flach ansteigendes Hinterland, die beiden Berge
     ls = np.maximum(s, 0.0)
     dune = 0.5 + 0.5 * fbm(B2, x * 0.09 + 31, y * 0.09 + 20, 3)
     land = (0.1 * np.minimum(ls, 6) + 0.9 * smoothstep(5, 10, ls) * (0.5 + dune)
             + 0.035 * np.minimum(np.maximum(ls - 12, 0), 110) * (0.6 + 0.4 * (0.5 + 0.5 * fbm(B3, x / 80, y / 80, 3))))
     hill = np.zeros_like(x)
-    for hx, hy, hh, hr in HILLS:
+    for hx, hy, hh, hr in HILLS + [(ix, iy, ih, r * 0.85) for ix, iy, r, _, ih in ISLETS if ih > 0]:
         t = np.hypot(x - hx, (y - hy) * 1.15) / hr
         dome = np.clip(1 - t * t, 0, None) ** 2.2   # rundlich, zum Fuss hin flach auslaufend
         ridges = ridged(B4, (x - hx) / 60 + hx, (y - hy) / 60 + hy, 4)
@@ -160,10 +180,10 @@ def ground(x, y):
     h = h + 0.035 * np.sin((x - 0.25 * y) * 0.9) * smoothstep(-2.5, 0, s) * (1 - smoothstep(3, 5.5, s))
     # Fels: Landzunge links und einzelne Blöcke in der Brandung (nicht neben dem Brett), dazu zwei Kaps, hinter denen
     # der Strand verschwindet
-    point = np.exp(-((x + 22) / 6) ** 2) * smoothstep(-5, 2, s) * (1 - smoothstep(7, 13, s))
+    point = np.exp(-((x + 22) / 6) ** 2) * smoothstep(-5, 2, s_main) * (1 - smoothstep(7, 13, s_main))
     for cx, cy, cr in ((-128.0, 22.0, 11.0), (131.0, 25.0, 9.0)):
-        point = np.maximum(point, np.exp(-(np.hypot(x - cx, y - cy) / cr) ** 2) * smoothstep(-6, 1, s) * (1 - smoothstep(9, 16, s)))
-    band = smoothstep(-6, -3, s) * (1 - smoothstep(2, 5, s)) * smoothstep(17, 24, np.hypot(x, y)) * (np.abs(x) < 120)
+        point = np.maximum(point, np.exp(-(np.hypot(x - cx, y - cy) / cr) ** 2) * smoothstep(-6, 1, s_main) * (1 - smoothstep(9, 16, s_main)))
+    band = smoothstep(-6, -3, s_main) * (1 - smoothstep(2, 5, s_main)) * smoothstep(17, 24, np.hypot(x, y)) * (np.abs(x) < 120)
     crag = 0.5 + 0.5 * fbm(B6, x * 0.32 - 7, y * 0.32 + 13, 3)
     rough = 0.5 + 0.5 * fbm(B7, x * 0.9 - 2, y * 0.9 + 4, 2)
     blocks = np.sqrt(smoothstep(0.68, 0.8, 0.5 + 0.5 * fbm(B8, x * 0.42 + 50, y * 0.42 - 30, 2))) * band
@@ -183,7 +203,8 @@ def ground(x, y):
     q = (rock + tilt) / st
     terr = (np.floor(q) + smoothstep(0.55, 0.9, q - np.floor(q))) * st - tilt
     crack = smoothstep(0.9, 0.97, 1 - np.abs(fbm(B7, x * 0.55 + 11, y * 0.55 - 3, 2)))
-    g.z = WATER + h + rock + w * (terr - rock) - 0.22 * crack * w
+    g.relief = rock + w * (terr - rock) - 0.22 * crack * w   # was der Fels aufträgt (nah zeichnet ihn das Spiel)
+    g.z = WATER + h + g.relief
     g.rock = smoothstep(0.1, 0.35, rock)
     g.rockzone = g_rockzone   # etwas weiter als der Fels: Geröll und Blöcke am Fuss
     g.s = s
@@ -220,12 +241,97 @@ def attrs(me, **arrays):
 
 
 def terrain_mesh():
-    """Gelände als Ringe um die Mitte; Attribute für das Material"""
+    """Gelände als Ringe um die Mitte; Attribute für das Material. Ohne das Relief der nahen Felsen (near_rock), soweit
+    das Spiel sie zeichnet (near_rocky): Dort zeigt das Panorama flachen Boden in der Farbe des Felses (wo er von der
+    Seite neben den Felsen des Spiels durchscheint, passt er so zu ihren Schattenseiten); flache Felsplatten bleiben."""
     X, Y, F = ring_mesh('Gelaende', 1024, 1.5, EXTENT)
     g = ground(X, Y)
-    me = make_mesh('Gelaende', np.stack([X, Y, g.z], -1), F)
+    nw = near_rocky(X, Y)
+    me = make_mesh('Gelaende', np.stack([X, Y, g.z - g.relief * nw], -1), F)
     attrs(me, rock=g.rock, veg=g.veg, grass=g.grass, shore=g.s, forest=g.forest, reef=g.reef, lagoon=g.lagoon, hill=g.hill)
     log('Gelände', len(X), 'Ecken')
+    return me
+
+
+_NEAR_ROCK = {}
+
+
+def near_rocky(x, y):
+    """0 … 1: wie weit das Spiel das Gelände einer nahen Felsgruppe zeichnet (ab der Hälfte, siehe bakedMesh); wo es
+    flach ist, zeigt es das Panorama, das dort mit dem Relief gerendert ist. Nach dem Relief, schon ab wenigen cm (die
+    Blöcke stehen so bis zum Fuss) und geschlossen (Risse und Fugen zwischen den Absätzen gefüllt: sonst wirkten die
+    Blöcke zerschnitten). Bilinear aus dem Raster von near_rock."""
+    near_rock(np.zeros(1), np.zeros(1))   # Raster anlegen
+    G = _NEAR_ROCK
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    u = (x - G['x0']) / G['step']; v = (y - G['y0']) / G['step']
+    out = (u >= 0) & (u <= G['rocky'].shape[1] - 1) & (v >= 0) & (v <= G['rocky'].shape[0] - 1)   # ausserhalb: 0
+    u = np.clip(u, 0, G['rocky'].shape[1] - 1.001); v = np.clip(v, 0, G['rocky'].shape[0] - 1.001)
+    j = np.floor(u).astype(np.int64); i = np.floor(v).astype(np.int64); fu = u - j; fv = v - i
+    R = G['rocky']
+    return ((R[i, j] * (1 - fu) + R[i, j + 1] * fu) * (1 - fv) + (R[i + 1, j] * (1 - fu) + R[i + 1, j + 1] * fu) * fv) * out
+
+
+def near_rock(x, y):
+    """1, wo eine nahe Felsgruppe liegt (das Spiel zeichnet sie): zusammenhängender Fels (Relief > 2 cm), der bis R_ROCK
+    ans Brett reicht, auf einem Raster von 0,5 m, um zwei Zellen erweitert; sonst 0"""
+    if 'grid' not in _NEAR_ROCK:
+        step, x0, x1, y0, y1 = 0.5, -150.0, 150.0, -40.0, 90.0
+        gx = np.arange(x0, x1, step); gy = np.arange(y0, y1, step)
+        GX, GY = np.meshgrid(gx, gy)
+        relief = ground(GX, GY).relief
+        rock = relief > 0.02
+        sel = rock & (np.hypot(GX, GY) < R_ROCK)
+        reach = rock & (np.hypot(GX, GY) < R_ROCK + 25)   # sehr lange Gruppen enden dort
+        while True:   # Gruppen ganz: von den nahen Zellen aus über den Fels ausbreiten
+            grow = sel.copy()
+            grow[1:] |= sel[:-1]; grow[:-1] |= sel[1:]; grow[:, 1:] |= sel[:, :-1]; grow[:, :-1] |= sel[:, 1:]
+            grow &= reach
+            if (grow == sel).all():
+                break
+            sel = grow
+        for _ in range(2):
+            grow = sel.copy()
+            grow[1:] |= sel[:-1]; grow[:-1] |= sel[1:]; grow[:, 1:] |= sel[:, :-1]; grow[:, :-1] |= sel[:, 1:]
+            sel = grow
+        # geschlossen: erst über 2 Zellen ausdehnen, dann ebenso weit zurücknehmen (füllt schmale Risse, nicht den Rand)
+        def spread(a, op):
+            pad = np.pad(a, 2, mode='edge')
+            return op([pad[di:di + a.shape[0], dj:dj + a.shape[1]] for di in range(5) for dj in range(5)], 0)
+        closed = spread(spread(relief, np.max), np.min)
+        _NEAR_ROCK.update(grid=sel, rocky=smoothstep(0.01, 0.05, closed) * sel, x0=x0, y0=y0, step=step)
+    G = _NEAR_ROCK
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    i = np.round((y - G['y0']) / G['step']).astype(np.int64); j = np.round((x - G['x0']) / G['step']).astype(np.int64)
+    ok = (i >= 0) & (i < G['grid'].shape[0]) & (j >= 0) & (j < G['grid'].shape[1])
+    out = np.zeros(x.shape)
+    out[ok] = G['grid'][i[ok], j[ok]]
+    return out
+
+
+def rock_patch(step=0.4):
+    """Netz der nahen Felsgruppen aus dem Gelände (Raster step), nur wo das Spiel es zeichnet (near_rocky, mit einem
+    Feld Rand): Flaches Gelände der Gruppe läge fast deckungsgleich auf dem des Panoramas und würfe darauf Schatten (eine
+    dunkle Fläche mit Treppenrand im Wasser)"""
+    near_rock(np.zeros(1), np.zeros(1))   # Raster der nahen Felsgruppen anlegen
+    G = _NEAR_ROCK
+    rows, cols = np.nonzero(G['grid'])
+    xs = np.arange(G['x0'] + cols.min() * G['step'] - 1, G['x0'] + cols.max() * G['step'] + 1, step)
+    ys = np.arange(G['y0'] + rows.min() * G['step'] - 1, G['y0'] + rows.max() * G['step'] + 1, step)
+    X, Y = np.meshgrid(xs, ys)
+    keep = near_rocky(X, Y) >= 0.3
+    cell = keep[:-1, :-1] | keep[1:, :-1] | keep[:-1, 1:] | keep[1:, 1:]
+    used = np.zeros(X.shape, bool)
+    used[:-1, :-1] |= cell; used[1:, :-1] |= cell; used[:-1, 1:] |= cell; used[1:, 1:] |= cell
+    idx = np.full(X.shape, -1); idx[used] = np.arange(used.sum())
+    g = ground(X[used], Y[used])
+    i, j = np.nonzero(cell)
+    F = np.stack([idx[i, j], idx[i, j + 1], idx[i + 1, j + 1], idx[i + 1, j]], -1)
+    # den Saum, den das Spiel verwirft (near_rocky unter der Hälfte), unter den Boden: Er läge sonst knapp über dem des
+    # Panoramas und würfe darauf Schatten mit Treppenrand
+    sink = 0.3 * (1 - smoothstep(0.3, 0.5, near_rocky(X[used], Y[used])))
+    me = make_mesh('Felsen nah Gelaende', np.stack([X[used], Y[used], g.z - sink], -1), F)
+    attrs(me, rock=g.rock, veg=g.veg, grass=g.grass, shore=g.s, forest=g.forest, reef=g.reef, lagoon=g.lagoon, hill=g.hill)
     return me
 
 
@@ -611,7 +717,7 @@ def plant_points():
         Y = (Y + rng.uniform(-0.45, 0.45, Y.shape) * spacing).ravel()
         ok = np.hypot(X - center[0], Y - center[1]) < rmax
         X, Y = X[ok], Y[ok]
-        G = ground(X, Y)
+        G = ground(X, Y, with_islets=False)
         sel = keep(X, Y, G) > rng.random(len(X))
         X, Y = X[sel], Y[sel]
         for k, v in vars(G).items():
@@ -667,8 +773,48 @@ def plant_points():
             (1.1, 1.7), center=(0.0, 30.0), sink=0.4)
     scatter(0.7, 170, lambda X, Y, G: G.rockzone * band(G.s, -3.5, -2.0, 2.0, 4.0) * 0.35, {'rock': 1.0}, (0.15, 0.45),
             (1.0, 1.6), center=(0.0, 30.0), sink=0.3)
+    out.append(islet_plants())
     pos, var, scl, rot = (np.concatenate(a) for a in zip(*out))
     return pos, var, scl, rot
+
+
+def islet_plants():
+    """Pflanzen auf den Inseln vor der Küste (je Insel ein eigener Zufall: die übrigen Standorte bleiben, wie sie
+    waren): Palmen vom Rand weg nach aussen geneigt, dazu ein paar Büsche und Strandgras; die grossen bewaldet wie die
+    Insel selbst (Laubwald am Hügel, Palmen am Strandwall)"""
+    pos, var, scl, rot = [], [], [], []
+    for k, (ix, iy, r, palms, _) in enumerate(ISLETS):
+        rng = np.random.default_rng(31 + k)
+        def put(kind, n, rmax, height, width, lean):
+            for _ in range(n):
+                a = rng.uniform(0, 2 * np.pi); q = r * rmax * np.sqrt(rng.uniform(0.05, 1.0))
+                x, y = ix + q * np.cos(a), iy + q * np.sin(a)
+                h = rng.uniform(*height); w = h * rng.uniform(*width)
+                z = float(ground(np.array([x]), np.array([y])).z[0])
+                pos.append((x, y, z)); var.append(rng.integers(*KINDS[kind])); scl.append((w, w, h))
+                rot.append((0.0, lean * rng.uniform(0.6, 1.2), a + rng.normal(0, 0.4)) if lean else (0.0, 0.0, rng.uniform(0, 2 * np.pi)))
+        if r < 60:
+            put('palm', palms, 0.55, (6.0, 10.0), (0.9, 1.15), 0.3)
+            put('bush', 1 + palms, 0.5, (0.8, 1.6), (1.2, 1.8), 0)
+            put('grass', 4 + 3 * palms, 0.75, (0.35, 0.7), (0.9, 1.4), 0)
+            continue
+        # gross: auf einem Raster, nach dem Wald des Geländes (weit weg: was man von dort sieht, Kronen)
+        n = int(2.4 * r / 9.0)
+        gx = (np.arange(n) - n / 2 + 0.5) * 9.0
+        X, Y = np.meshgrid(gx + ix, gx + iy)
+        X = (X + rng.uniform(-4, 4, X.shape)).ravel(); Y = (Y + rng.uniform(-4, 4, Y.shape)).ravel()
+        G = ground(X, Y)
+        beach = smoothstep(4, 6, G.s) * (1 - smoothstep(14, 20, G.s))
+        sel = np.maximum(G.forest, 0.6 * beach) > rng.random(len(X))
+        X, Y, z, hill, bch = X[sel], Y[sel], G.z[sel], G.hill[sel], beach[sel]
+        m = len(X)
+        palm_ = (bch > 0.5) | (rng.random(m) < np.where(hill > 20, 0.08, 0.4))
+        lo = np.where(palm_, KINDS['palm'][0], KINDS['tree'][0]); hi = np.where(palm_, KINDS['palm'][1], KINDS['tree'][1])
+        h = rng.uniform(8.0, 15.0, m)
+        pos += list(zip(X, Y, z - 0.1 * h)); var += list(rng.integers(lo, hi)); scl += list(np.stack([h * 1.15, h * 1.15, h], -1))
+        rot += list(np.stack([np.zeros(m), np.where(palm_, 0.1, 0.0), rng.uniform(0, 2 * np.pi, m)], -1))
+        log('Insel', ix, iy, m, 'Bäume')
+    return np.array(pos), np.array(var, np.int64), np.array(scl), np.array(rot)
 
 
 def instancer(name, coll):
@@ -707,22 +853,70 @@ def points(name, pos, var, scl, rot):
 
 
 def near_mask(pos, var):
-    """Was das Spiel selbst zeichnet: Palmen, Bäume und Büsche näher als R_NEAR (Gras und Felsen bleiben im Panorama)"""
+    """Was das Spiel selbst zeichnet: Palmen, Bäume und Büsche näher als R_NEAR (Gras bleibt im Panorama; Felsen siehe
+    rock_mask)"""
     return (np.hypot(pos[:, 0], pos[:, 1]) < R_NEAR) & (var < GAME_KINDS)
+
+
+def rock_mask(pos, var, scl):
+    """Felsblöcke, die das Spiel mit den nahen Felsgruppen zeichnet: alle auf einer nahen Gruppe (im Panorama fehlt dort
+    der Fels, auf dem sie liegen), sonst ab 0,5 m näher als R_ROCK (Kiesel: kaum Versatz, aber viele Flächen)"""
+    lo, hi = KINDS['rock']
+    group = near_rock(pos[:, 0], pos[:, 1]) > 0
+    return (var >= lo) & (var < hi) & (group | ((np.hypot(pos[:, 0], pos[:, 1]) < R_ROCK) & (scl[:, 2] >= 0.5)))
 
 
 def build_plants():
     coll = build_templates()
     pos, var, scl, rot = plant_points()
     near = near_mask(pos, var)
+    stone = rock_mask(pos, var, scl)
     ng = instancer('Pflanzen verteilen', coll)
-    far = link('Pflanzen', points('Pflanzenpunkte', pos[~near], var[~near], scl[~near], rot[~near]))
+    rest = ~near & ~stone
+    far = link('Pflanzen', points('Pflanzenpunkte', pos[rest], var[rest], scl[rest], rot[rest]))
     far.modifiers.new('Verteilen', 'NODES').node_group = ng
     spiel = collection('Spiel')
     nob = link('Pflanzen nah', points('Pflanzenpunkte nah', pos[near], var[near], scl[near], rot[near]), spiel)
     nob.modifiers.new('Verteilen', 'NODES').node_group = ng
     nob.visible_camera = False   # das Spiel zeichnet sie; ihre Schatten bleiben im Panorama
-    log('Pflanzen', int((~near).sum()), 'fern,', int(near.sum()), 'nah')
+    log('Pflanzen', int(rest.sum()), 'fern,', int(near.sum()), 'nah,', int(stone.sum()), 'Felsblöcke nah')
+    build_near_rocks(coll, pos[stone], var[stone], scl[stone], rot[stone])
+
+
+def build_near_rocks(coll, pos, var, scl, rot):
+    """Nahe Felsen als ein Netz (Sammlung Spiel, für die Kamera unsichtbar, ihre Schatten bleiben im Panorama): das
+    Gelände der nahen Felsgruppen (rock_patch) und die Felsblöcke dort, ausmultipliziert, mit UV-Karte
+    (unwrap_near_rocks). Für bake_near_rocks."""
+    import bmesh
+    from mathutils import Euler, Matrix
+    _remove(['Felsen nah'])
+    me = rock_patch()
+    npatch = len(me.polygons)
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    lo = KINDS['rock'][0]
+    tone = bm.verts.layers.float.get('tone') or bm.verts.layers.float.new('tone')
+    for p, v, s_, r in zip(pos, var, scl, rot):
+        tpl = coll.objects['s%02d' % v].data
+        M = Matrix.Translation(p) @ Euler(r.tolist(), 'XYZ').to_matrix().to_4x4() @ Matrix.Diagonal((*s_, 1.0))
+        n0 = len(bm.verts)
+        bm.from_mesh(tpl)   # hängt an (Flächen nach denen des Geländes: Material Fels, siehe unten)
+        bm.verts.ensure_lookup_table()
+        new = bm.verts[n0:]
+        bmesh.ops.transform(bm, matrix=M, verts=new)
+        t = float(np.random.default_rng(int(v) - lo).random())
+        for vt in new:
+            vt[tone] = t
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.clear()   # löscht auch die Zuordnung je Fläche: erst danach setzen
+    me.materials.append(bpy.data.materials['Boden'])
+    me.materials.append(bpy.data.materials['Fels'])
+    me.polygons.foreach_set('material_index', (np.arange(len(me.polygons)) >= npatch).astype(np.int32))
+    ob = link('Felsen nah', me, collection('Spiel'))
+    ob.visible_camera = False
+    unwrap_near_rocks(ob)
+    log('Felsen nah', len(me.vertices), 'Ecken,', len(me.polygons), 'Dreiecke,', len(pos), 'Blöcke')
 
 
 # ---------------------------------------------------------------- Himmel, Sonne, Wolken, Luft
@@ -1097,8 +1291,10 @@ WATER_GAME = (70.0, 95.0) # die Wasseroberfläche zeichnet bis hier das Spiel (W
 SHORE_RANGE = (-128.0, 32.0)   # Abstand zur Wasserlinie in der Karte (16 Bit: die Phase der Wellen hängt daran)
 
 
-GAME_DETAIL = {'palm': 0.4, 'tree': 0.3, 'tier': 0.3, 'bush': 0.15}  # Spielmodelle: weniger Fiedern und Blätter
-GAME_VARIANTS = {'palm': 4, 'tree': 3, 'tier': 1, 'bush': 2}            # ... und nur so viele Vorlagen je Art
+# Spielmodelle so dicht wie im Panorama (mit weniger Blättern, dafür grösseren, wirkten Büsche wie zerknülltes Papier
+# und Palmwedel wie Kämme); Blätter und Fiedern kompakt (pack_prims), sonst sprengten sie das Budget
+GAME_DETAIL = {'palm': 1.0, 'tree': 1.0, 'tier': 1.0, 'bush': 1.0}
+GAME_VARIANTS = {'palm': 4, 'tree': 3, 'tier': 1, 'bush': 2}            # nur so viele Vorlagen je Art
 
 
 def game_index():
@@ -1108,6 +1304,95 @@ def game_index():
         lo = KINDS[kind][0]
         idx[lo:lo + n] = np.arange(k, k + n); k += n
     return idx
+
+
+GAME_ASPECT = {'palm': 1.0, 'tree': 1.1, 'tier': 1.1, 'bush': 1.6}   # Breite / Höhe einer typischen Instanz (scatter)
+SELF_SKY = 64    # Richtungen, in denen ein Blatt den Himmel durch die eigene Krone sucht (Fibonacci-Kugel)
+SELF_SUN = 16    # Richtungen der Sonne rundum, auf ihrer Höhe
+SELF_LEAF = 0.35 # so viel Licht lässt ein Blatt dazwischen durch (Durchscheinen und Licht von Blatt zu Blatt)
+
+
+def _sphere(n):
+    i = np.arange(n) + 0.5
+    z = 1 - 2 * i / n
+    r = np.sqrt(1 - z * z); a = i * np.pi * (3 - 5 ** 0.5)
+    return np.c_[r * np.cos(a), r * np.sin(a), z]
+
+
+def self_light(md, aspect):
+    """Wie viel Himmel und Sonne ein Teil des Modells durch die eigene Krone sieht (Nachbarn und Gelände rechnet
+    near_plants je Instanz; ohne das waren Büsche und Kronen im Spiel durchweg hell, in Blender innen dunkel): je Ecke
+    [Himmel, a0, a1, b1] – Himmel: Anteil freier Richtungen rundum; Sonne auf ihrer Höhe als a0 + a1 cos φ + b1 sin φ
+    über den Azimut φ in Spielachsen der Vorlage (x = cos φ, z = sin φ; das Spiel dreht φ je Instanz). Die Vorlage
+    dafür so breit wie eine typische Instanz (aspect = Breite / Höhe). Gemessen je Blatt (von seiner Mitte), je Ring
+    einer Röhre (von aussen an ihr), sonst je Ecke."""
+    from mathutils.bvhtree import BVHTree
+    V = md['V'] * np.array([aspect, aspect, 1.0])
+    F = [list(map(int, f)) for f in md['F']]
+    bvh = BVHTree.FromPolygons(V.tolist(), F)
+    el = math.radians(SUN_ELEV)
+    phi = (np.arange(SELF_SUN) + 0.5) * 2 * np.pi / SELF_SUN
+    sun = np.c_[np.cos(phi) * np.cos(el), -np.sin(phi) * np.cos(el), np.full(SELF_SUN, np.sin(el))]   # Blender-Achsen
+    dirs = [Vector(d) for d in np.r_[_sphere(SELF_SKY), sun]]
+    groups, part = [], np.full(len(V), -1)
+    for form, o, *more in md['P']:
+        if form == 'rohr':
+            n, s = more
+            ring = V[o:o + n * s].reshape(n, s, 3)
+            mid = ring.mean(1); rad = np.linalg.norm(ring - mid[:, None], axis=2).max(1)
+            tid = len(groups)   # die Röhre als ganzes (ihre Ringe treffen einander nicht)
+            groups += [(slice(o + i * s, o + (i + 1) * s), mid[i], rad[i] * 1.2, tid) for i in range(n)]
+            part[o:o + n * s] = tid
+        else:
+            k = 6 if form == 'blatt' else 5
+            part[o:o + k] = len(groups)
+            groups.append((slice(o, o + k), V[o:o + k].mean(0), 1e-4, len(groups)))
+    # übrige Stücke (Früchte): je zusammenhängendem Stück eine eigene Nummer (sonst verdeckte jede Kokosnuss sich selbst)
+    root = {i: i for i in np.flatnonzero(part < 0)}
+    def find(i):
+        while root[i] != i:
+            root[i] = root[root[i]]; i = root[i]
+        return i
+    for f in F:
+        if part[f[0]] < 0:
+            for v in f[1:]:
+                root[find(v)] = find(f[0])
+    for i in root:
+        part[i] = len(groups) + find(i)
+    groups += [(slice(i, i + 1), V[i], 1e-3, part[i]) for i in np.flatnonzero(part >= len(groups))]
+    face_part = np.array([part[f[0]] for f in F])
+    face_leaf = np.asarray(md['M']) % 3 != 0          # Laub (1, 2) lässt Licht durch, Stamm und Frucht nicht
+
+    def through(c, d, own):
+        """Licht, das von d her durch die Krone zu c kommt: das eigene Teil zählt nicht, jedes Blatt lässt
+        SELF_LEAF durch (in Blender scheint Laub durch und hellt sich gegenseitig auf), Holz nichts"""
+        t = 1.0
+        for _ in range(8):
+            hit, _n, fi, _d = bvh.ray_cast(c, d)
+            if hit is None:
+                return t
+            if face_part[fi] != own:
+                if not face_leaf[fi]:
+                    return 0.0
+                t *= SELF_LEAF
+                if t < 0.02:
+                    return 0.0
+            c = hit + d * 1e-5
+        return t
+
+    out = np.zeros((len(V), 4))
+    for idx, c, eps, own in groups:
+        c = Vector(c)
+        free = np.array([through(c + d * eps, d, own) for d in dirs])
+        s_ = free[SELF_SKY:]
+        out[idx] = [free[:SELF_SKY].mean(), s_.mean(), 2 * (s_ * np.cos(phi)).mean(), 2 * (s_ * np.sin(phi)).mean()]
+    return out
+
+
+def _self8(a):
+    """self_light kompakt: Himmel und a0 als 0 … 255, a1 und b1 als 128 ± 127"""
+    a = np.atleast_2d(a)
+    return _b64(np.clip(np.round(np.c_[a[:, :2] * 255, a[:, 2:] * 127 + 128]), 0, 255).astype('u1'))
 
 
 def pack_model(co, col, tri):
@@ -1122,28 +1407,179 @@ def pack_model(co, col, tri):
             'idx16': b(tri.astype('<u2'))}
 
 
+def _b64(a):
+    import base64
+    return base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
+
+
+def _fan(faces):
+    """Flächen (konvex) -> Dreiecke als Fächer"""
+    return [[f[0], f[i], f[i + 1]] for f in faces for i in range(1, len(f) - 1)]
+
+
+def pack_prims(form, V, col, sl, starts):
+    """Blätter oder Fiedern einer Form kompakt (rund ein Viertel von pack_model): erste Ecke Int16 (1/8192 der Vorlage),
+    die übrigen Int8 relativ dazu (Schritt dscale je Gruppe), Farbe je Blatt Uint8 (Wurzel), Licht durch die eigene
+    Krone je Blatt (self8, self_light); die Dreiecke gibt die Form (tri, Ecken 0 … k − 1 je Blatt)"""
+    P = _pflanzen()
+    faces = {'blatt': P.LEAF_FACES, 'fieder': P.STRIP_FACES}[form]
+    k = max(max(f) for f in faces) + 1
+    base = V[starts]
+    d = V[starts[:, None] + np.arange(1, k)] - base[:, None]
+    dscale = float(max(np.abs(d).max(), 1e-6) / 127)
+    return {'form': form, 'k': k, 'tri': [i for t in _fan(faces) for i in t], 'count': len(starts), 'dscale': dscale,
+            'base16': _b64(np.clip(np.round(base * 8192), -32767, 32767).astype('<i2')),
+            'd8': _b64(np.clip(np.round(d / dscale), -127, 127).astype('i1')),
+            'col8': _b64(np.clip(np.round(np.sqrt(np.clip(col[starts], 0, 1)) * 255), 0, 255).astype('u1')),
+            'self8': _self8(sl[starts])}
+
+
+def pack_tubes(V, col, sl, tubes):
+    """Röhren (Stämme, Äste, Stiele; tube() in pflanzen.py) kompakt: je Röhre Zahl der Ringe und Ecken je Ring (Uint8),
+    je Ring Mitte Int16 (1/8192 der Vorlage), Radius Uint16 (1/2¹⁸), Farbe Uint8 (Wurzel) und Licht durch die eigene
+    Krone (self8, self_light). Die Ringe baut das Spiel
+    wie tube(): Querachse von Ring zu Ring mitgeführt (Spielachsen: dieselbe Drehung)"""
+    c, r, rc, rs = [], [], [], []
+    for o, n, s in tubes:
+        ring = V[o:o + n * s].reshape(n, s, 3)
+        mid = ring.mean(1)
+        c.append(mid); r.append(np.linalg.norm(ring[:, 0] - mid, axis=1))
+        rc.append(col[o:o + n * s:s]); rs.append(sl[o:o + n * s:s])
+    c, r, rc, rs = np.concatenate(c), np.concatenate(r), np.concatenate(rc), np.concatenate(rs)
+    return {'count': len(tubes), 'n8': _b64(np.array([t[1] for t in tubes], 'u1')),
+            's8': _b64(np.array([t[2] for t in tubes], 'u1')),
+            'c16': _b64(np.clip(np.round(c * 8192), -32767, 32767).astype('<i2')),
+            'r16': _b64(np.clip(np.round(r * 2 ** 18), 0, 65535).astype('<u2')),
+            'col8': _b64(np.clip(np.round(np.sqrt(np.clip(rc, 0, 1)) * 255), 0, 255).astype('u1')), 'self8': _self8(rs)}
+
+
 def game_models():
-    """Modelle fürs Spiel (GAME_VARIANTS je Art in der Reihenfolge von KINDS; weniger Fiedern und Blätter als im
-    Panorama, gleiche Form): Spielkoordinaten (x, z, −y), Fuss im Ursprung, Höhe 1; kompakt (pack_model)"""
+    """Modelle fürs Spiel (GAME_VARIANTS je Art in der Reihenfolge von KINDS, so dicht wie im Panorama):
+    Spielkoordinaten (x, z, −y), Fuss im Ursprung, Höhe 1. Blätter und Fiedern je Form kompakt (prims, pack_prims),
+    Röhren ebenso (tubes, pack_tubes), der Rest (Früchte) als Netz (pack_model, self8 je Ecke)"""
     models = []
     full = plant_models(GAME_DETAIL)
     for kind, count in GAME_VARIANTS.items():
         lo = KINDS[kind][0]
         for _, md in full[lo:lo + count]:
-            me = mesh('tmp', md['V'], md['F'], md['M'], smooth=True)
-            me.calc_loop_triangles()
-            n = len(me.vertices)
-            co = np.empty(n * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
-            tri = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('vertices', tri)
-            bpy.data.meshes.remove(me)
-            vm = np.zeros(n, np.int64)
+            V = np.c_[md['V'][:, 0], md['V'][:, 2], -md['V'][:, 1]]   # Blender -> Spiel (eine Drehung: Umlauf bleibt)
+            vm = np.zeros(len(V), np.int64)
             for f, m in zip(md['F'], md['M']):
                 vm[f] = m
             cols = np.array(PLANT_COLORS[kind])                       # Material, dunkel/hell, rgb
             col = cols[vm, 0] + (cols[vm, 1] - cols[vm, 0]) * md['T'][:, None]
-            g = lambda a: np.c_[a[:, 0], a[:, 2], -a[:, 1]]          # Blender -> Spiel (eine Drehung: Umlauf bleibt)
-            models.append(pack_model(g(co), col, tri))
+            prim = np.zeros(len(V), bool)
+            groups, tubes = {}, []
+            for form, o, *more in md['P']:
+                if form == 'rohr':
+                    tubes.append((o, *more))
+                    prim[o:o + more[0] * more[1]] = True
+                else:
+                    groups.setdefault(form, []).append(o)
+                    prim[o:o + (6 if form == 'blatt' else 5)] = True
+            keep = np.flatnonzero(~prim)
+            remap = np.full(len(V), -1); remap[keep] = np.arange(len(keep))
+            tri = np.array(_fan([remap[f] for f in md['F'] if not prim[f[0]]]), np.int64).ravel()
+            sl = self_light(md, GAME_ASPECT[kind])
+            m = pack_model(V[keep], col[keep], tri)
+            m['self8'] = _self8(sl[keep])
+            m['prims'] = [pack_prims(form, V, col, sl, np.array(starts)) for form, starts in groups.items()]
+            if tubes:   # (ohne Röhren scheiterte np.concatenate)
+                m['tubes'] = pack_tubes(V, col, sl, tubes)
+            models.append(m)
     return models
+
+
+def light_probe(at=(0.0, 11.0), lift=1.2, r=0.5, res=96, spp=512):
+    """Wie Blender die Pflanzen beleuchtet: eine weisse, rein diffuse Kugel am Strand (vor den Palmen, frei zur Sonne),
+    aus sechs Richtungen orthografisch gerendert (Pixelwert = Beleuchtungsstärke für die Normale dort). Gefittet:
+    Himmel und Boden als Kugelfunktionen bis Grad 2 (9 Farben, Blender-Achsen) plus Sonne × max(N·L, 0) (Rest im Mittel
+    unter 1 %). Mit den Einstellungen des Panoramas (wald_export.setup_cycles)."""
+    import bmesh, importlib
+    os.environ['WALD_STIL'] = 'beach'
+    import wald_export
+    from wald_io import load_exr
+    wx = importlib.reload(wald_export)
+    scene = sc()
+    c = Vector((at[0], at[1], float(ground(np.array([at[0]]), np.array([at[1]])).z[0]) + lift))
+    me = bpy.data.meshes.new('Sonde')
+    bm = bmesh.new(); bmesh.ops.create_uvsphere(bm, u_segments=64, v_segments=32, radius=r); bm.to_mesh(me); bm.free()
+    me.shade_smooth()
+    m = bpy.data.materials.new('Sonde'); m.use_nodes = True
+    nt = m.node_tree; nt.nodes.clear()
+    d = nt.nodes.new('ShaderNodeBsdfDiffuse'); d.inputs['Color'].default_value = (1, 1, 1, 1)
+    nt.links.new(d.outputs[0], nt.nodes.new('ShaderNodeOutputMaterial').inputs['Surface'])
+    me.materials.append(m)
+    ob = bpy.data.objects.new('Sonde', me); ob.location = c
+    scene.collection.objects.link(ob)
+    cd = bpy.data.cameras.new('Sonde'); cd.type = 'ORTHO'; cd.ortho_scale = 2.2 * r
+    cd.clip_start, cd.clip_end = 5 - 1.3 * r, 5 + 1.3 * r   # nur die Kugel (von unten stünde sonst der Sand davor)
+    cam = bpy.data.objects.new('Sonde', cd); scene.collection.objects.link(cam)
+    samples = []
+    try:
+        wx.setup_cycles().samples = spp
+        scene.camera = cam
+        for k, dv in enumerate([(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]):
+            dv = Vector(dv)
+            cam.location = c + dv * 5
+            cam.rotation_euler = (-dv).to_track_quat('-Z', 'X' if abs(dv.z) > 0.5 else 'Z').to_euler()
+            bpy.context.view_layer.update()
+            right, up, back = (np.array(cam.matrix_world.col[i][:3]) for i in range(3))
+            wx.render('sonde_%d' % k, res, res)
+            img = load_exr(os.path.join(wx.OUT, 'sonde_%d.exr' % k))[..., :3].astype(np.float64)
+            yy, xx = np.mgrid[0:res, 0:res]
+            u = ((xx + 0.5) / res - 0.5) * cd.ortho_scale / r
+            v = (0.5 - (yy + 0.5) / res) * cd.ortho_scale / r
+            ok = u * u + v * v < 0.85 ** 2          # Rand weg (Kantenglättung mischt Hintergrund hinein)
+            w = np.sqrt(np.clip(1 - u * u - v * v, 0, 1))
+            samples.append(np.c_[u[ok, None] * right + v[ok, None] * up + w[ok, None] * back, img[ok]])
+    finally:
+        wx.restore()
+        bpy.data.objects.remove(ob); bpy.data.meshes.remove(me); bpy.data.materials.remove(m)
+        bpy.data.objects.remove(cam); bpy.data.cameras.remove(cd)
+    s = np.concatenate(samples)
+    N, E = s[:, :3], s[:, 3:]
+    x, y, z = N.T
+    A = np.c_[np.ones(len(N)), x, y, z, x * y, y * z, 3 * z * z - 1, x * z, x * x - y * y,
+              np.maximum(N @ np.array(SUN[:]), 0)]
+    coef, *_ = np.linalg.lstsq(A, E, rcond=None)
+    log('Lichtsonde', c[:], 'Sonne', coef[9].round(3), 'Rest', round(float(np.abs(E - A @ coef).mean()), 4))
+    return {'sh': coef[:9].round(5).tolist(), 'sun': coef[9].round(4).tolist()}
+
+
+def plant_light(probe=None):
+    """Licht und Malen der nahen Pflanzen fürs Spiel (Ebene paintedInstances): Lichtsonde (Himmel als Kugelfunktionen in
+    Blender-Achsen, Sonne), Grundlicht und Durchscheinen wie mat_plant, Luftperspektive wie air_group, Malen wie
+    anime.grade (stile.py) – das Spiel rechnet damit dasselbe wie Blender und anime.py, ohne die Pinselstriche"""
+    from stile import stil
+    S = stil('beach')
+    return {**(probe or light_probe()), 'emit': [round(PLANT_AMBIENT * f, 4) for f in (0.55, 0.65, 1.0)],
+            'translucent': 0.3, 'airDist': AIR_DIST,
+            # Glanz: Glanzstrahlen sehen den Himmel mit SKY_GAIN statt SKY_LIGHT (sky_group), die Sonne als Lampe
+            'gloss': {'sky': round(SKY_GAIN / SKY_LIGHT, 4), 'sun': [round(SUN_STRENGTH * c, 4) for c in SUN_COLOR]},
+            'paint': {'exposure': S['belichtung'], 'saturation': S['saettigung'], 'shadow': list(S['schatten']),
+                      'light': list(S.get('licht', (1, 1, 1)))}}
+
+
+def flora_data(pts=None, probe=None):
+    """Pflanzen fürs Spiel; nur Modelle, die eine nahe Instanz nutzt (die übrigen Vorlagen kosteten sonst ~80 KB)"""
+    models, plants = game_models(), near_plants(pts)
+    used = sorted({t[6] for t in plants})
+    for t in plants:
+        t[6] = used.index(t[6])
+    return {'models': [models[k] for k in used], 'instances': plants, 'light': plant_light(probe)}
+
+
+def export_flora(stil='beach', probe=None):
+    """Nur die Pflanzen in sky/<stil>/ebenen.json neu (der Rest bleibt; export() dauert mit den Felsen Minuten)"""
+    import json
+    path = os.path.join(ROOT, 'sky', stil, 'ebenen.json')
+    with open(path, encoding='utf-8') as fh:
+        data = json.load(fh)
+    data['flora'] = flora_data(probe=probe)
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, separators=(',', ':'))
+    return {'bytes': len(json.dumps(data['flora'], separators=(',', ':'))), 'pflanzen': len(data['flora']['instances'])}
 
 
 def sun_visibility(p, occ_pos, occ_r):
@@ -1164,22 +1600,31 @@ def sun_visibility(p, occ_pos, occ_r):
     return lit
 
 
+def plant_axis(rot):
+    """Hochachse der Vorlage nach der Drehung (Euler XYZ, je Zeile): Palmen lehnen bis gut 25° zum Meer"""
+    a, b, g = rot[:, 0], rot[:, 1], rot[:, 2]
+    return np.c_[np.cos(a) * np.sin(b) * np.cos(g) + np.sin(a) * np.sin(g),
+                 np.cos(a) * np.sin(b) * np.sin(g) - np.sin(a) * np.cos(g), np.cos(a) * np.cos(b)]
+
+
 def near_plants(pts=None):
     """Pflanzen, die das Spiel zeichnet: [x, y, z, Höhe, Breite, Drehung, Modell, Sonne unten, oben, Helligkeit]
-    (Spielkoordinaten des Fusses); Sonne je Mittel aus drei Punkten am Stamm bzw. in der Krone"""
+    (Spielkoordinaten des Fusses; Drehung [x, y, z] wie in Blender, Euler XYZ: Palmen lehnen); Sonne je Mittel aus
+    drei Punkten am Stamm bzw. in der Krone"""
     pos, var, scl, rot = pts or plant_points()
     near = near_mask(pos, var)
+    axis = plant_axis(rot)
     # Schattenwerfer: Kronen aller Pflanzen bis etwas ausserhalb (Palmen oben, Bäume und Büsche in der Mitte)
     occ = np.hypot(pos[:, 0], pos[:, 1]) < R_NEAR + 60
     palm_ = var < KINDS['tree'][0]
     cz = np.where(palm_, 0.95, 0.65) * scl[:, 2]
-    occ_pos = (pos + np.c_[np.zeros((len(pos), 2)), cz])[occ]
+    occ_pos = (pos + axis * cz[:, None])[occ]
     occ_r = (np.where(palm_, 0.3, 0.3) * scl[:, 0])[occ]   # kleiner als die Hülle: Kronen sind lückig
-    p, v, s, r = pos[near], var[near], scl[near], rot[near]
+    p, v, s, r, ax = pos[near], var[near], scl[near], rot[near], axis[near]
     sun = np.array(SUN); sh = sun[:2] / np.linalg.norm(sun[:2])
     light = []
     for fs in ((0.1, 0.2, 0.3), (0.75, 0.85, 0.95)):
-        pts = np.concatenate([p + np.c_[np.zeros((len(p), 2)), f * s[:, 2]] for f in fs])
+        pts = np.concatenate([p + ax * (f * s[:, 2])[:, None] for f in fs])
         # aus der eigenen Krone heraus zur Sonne hin
         pts[:, :2] += 0.45 * np.tile(s[:, 0], len(fs))[:, None] * sh
         light.append(sun_visibility(pts, occ_pos, occ_r).reshape(3, -1).mean(0))
@@ -1188,8 +1633,8 @@ def near_plants(pts=None):
     game = np.c_[p[:, 0], p[:, 2], -p[:, 1]]
     gi = game_index()
     return [[round(float(g[0]), 3), round(float(g[1]), 3), round(float(g[2]), 3), round(float(si[2]), 3),
-             round(float(si[0]), 3), round(float(ri[2]), 3), int(gi[vi]), round(float(lo), 2), round(float(hi), 2),
-             round(float(sd), 2)]
+             round(float(si[0]), 3), [round(float(x), 3) for x in ri], int(gi[vi]), round(float(lo), 2),
+             round(float(hi), 2), round(float(sd), 2)]
             for g, si, ri, vi, lo, hi, sd in zip(game, s, r, v, light[0], light[1], shade)]
 
 
@@ -1226,7 +1671,7 @@ def water_map(pts=None):
     """Karten ums Brett fürs Wasser im Spiel (Zeile 0: Spiel-z = −extent, Spalte 0: x = −extent), je 16 Bit in zwei
     Kanälen (hoch, tief): erste R/G Wassertiefe (−3 … 13 m; an Land negativ: Höhe über dem Wasser – fein genug, dass
     die Wasserlinie des Auflaufens keine Stufen bekommt), B Fels; zweite R/G Abstand zur Wasserlinie (SHORE_RANGE,
-    > 0 an Land: die Phase der Wellen hängt daran)"""
+    > 0 an Land: die Phase der Wellen hängt daran), B nahe Felsgruppe (zeichnet das Spiel, im Panorama flach)"""
     n, ext = WATER_MAP
     c = (np.arange(n) + 0.5) / n * 2 * ext - ext
     GX, GZ = np.meshgrid(c, c)                                   # Spalte x, Zeile z (Spiel)
@@ -1254,11 +1699,248 @@ def water_map(pts=None):
         return (q >> 8) / 255.0, (q & 255) / 255.0
     dh, dl = bits((depth + 3) / 16)
     sh, sl = bits((g.s - SHORE_RANGE[0]) / (SHORE_RANGE[1] - SHORE_RANGE[0]))
-    return np.stack([dh, dl, np.round(rock * 255) / 255], -1), np.stack([sh, sl, np.zeros_like(sh)], -1)
+    # nahe Felsgruppe, um 4 Zellen (3 m) erweitert: so weit reicht in der Karte der Fels (mit dem Ring um die Blöcke);
+    # die Tiefenregel zöge dort sonst das Panorama vor die Felsen des Spiels
+    near = near_rock(sx, sy).max((2, 3))
+    for _ in range(4):
+        pad = np.pad(near, 1, mode='edge')
+        near = np.max([pad[i:i + n, j:j + n] for i in range(3) for j in range(3)], 0)
+    return np.stack([dh, dl, np.round(rock * 255) / 255], -1), np.stack([sh, sl, near], -1)
+
+
+ROCK_TEX = 1024   # Bild der nahen Felsen (gebackenes Licht; nur, wo die Ansicht vom Mittelpunkt sie nicht zeigt),
+                  # Seitenlänge auf dem Desktop; das Handy bekommt die halbe
+
+
+def only(ob):
+    """Kontext für Operatoren mit ob allein ausgewählt und aktiv – ausdrücklich: im Ablauf nach dem MCP-Aufruf (Timer,
+    nach neu()) fehlte sonst das aktive Objekt"""
+    layer = sc().view_layers[0]
+    for o in layer.objects:
+        o.select_set(False)
+    ob.select_set(True)
+    layer.objects.active = ob
+    wm = bpy.context.window_manager
+    return bpy.context.temp_override(window=wm.windows[0] if wm.windows else None, view_layer=layer, object=ob,
+                                     active_object=ob, selected_objects=[ob], selected_editable_objects=[ob])
+
+
+def unwrap_near_rocks(ob):
+    """Nahe Felsen fürs Backen und fürs Spiel: das Gelände darin planar vereinfacht, alles in Dreiecken, eine UV-Karte"""
+    import bmesh
+    with only(ob):
+        bpy.ops.object.mode_set(mode='EDIT')
+        bm = bmesh.from_edit_mesh(ob.data)
+        for f in bm.faces:
+            f.select = f.material_index == 0
+        bmesh.update_edit_mesh(ob.data)
+        bpy.ops.mesh.dissolve_limited(angle_limit=0.1, delimit={'MATERIAL'})
+        bpy.ops.mesh.select_all(action='SELECT')
+        bpy.ops.mesh.quads_convert_to_tris()
+        bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.012, area_weight=0.0, scale_to_bounds=True)
+        bpy.ops.object.mode_set(mode='OBJECT')
+
+
+def bake_near_rocks(samples=1024):
+    """Licht der nahen Felsen (Cycles, COMBINED: Farbe, Sonne mit Schatten, Himmel, Grundlicht) in ein Bild nach ihrer
+    UV-Karte backen, entrauscht (anime.denoise, mit Grundfarbe und Normalen, ebenfalls gebacken) –
+    out/beach/felsen_licht.exr –, mit den Einstellungen des Panoramas (wald_export.setup_cycles: gleiche Lichtsprünge und
+    Begrenzung): Das Spiel zeigt sie so, wie Blender sie beleuchtet"""
+    import importlib
+    os.environ['WALD_STIL'] = 'beach'
+    import wald_export, anime
+    wx = importlib.reload(wald_export)
+    anime = importlib.reload(anime)
+    ob = bpy.data.objects['Felsen nah']
+    imgs = {}
+    for key in ('licht', 'farbe', 'normale'):
+        name = 'Felsen ' + key
+        if bpy.data.images.get(name):
+            bpy.data.images.remove(bpy.data.images[name])
+        imgs[key] = bpy.data.images.new(name, ROCK_TEX, ROCK_TEX, float_buffer=True)
+    nodes = []
+    for mat in ob.data.materials:   # Ziel des Backens: ein Bildknoten je Material, aktiv (danach wieder weg)
+        n = mat.node_tree.nodes.new('ShaderNodeTexImage')
+        mat.node_tree.nodes.active = n
+        nodes.append((mat, n))
+    scene = sc()
+    bk = scene.render.bake
+    wx.setup_cycles()   # restore() unten
+    wx.setv(bk, 'target', 'IMAGE_TEXTURES')
+    wx.setv(bk, 'margin', 8)   # die halbe Lücke zwischen den Inseln (island_margin): Mipmaps ohne Nähte
+    # gesehen vom Mittelpunkt des Panoramas (dessen Kamera setzt setup_cycles), nicht senkrecht von oben: Glanz und
+    # nasser Sand wie im Panorama daneben (sonst hob sich der Boden der Felsgruppen hell ab)
+    wx.setv(bk, 'view_from', 'ACTIVE_CAMERA')
+    for attr in ('use_pass_direct', 'use_pass_indirect', 'use_pass_color', 'normal_space'):
+        wx.setv(bk, attr, getattr(bk, attr))
+    t0 = time.time()
+    try:
+        for key, kind, spp in (('licht', 'COMBINED', samples), ('farbe', 'DIFFUSE', 16), ('normale', 'NORMAL', 4)):
+            for _, n in nodes:
+                n.image = imgs[key]
+            scene.cycles.samples = spp
+            if kind == 'DIFFUSE':   # nur die Grundfarbe
+                bk.use_pass_direct = bk.use_pass_indirect = False
+                bk.use_pass_color = True
+            bk.normal_space = 'OBJECT'
+            with only(ob):
+                bpy.ops.object.bake(type=kind)
+    finally:
+        wx.restore()
+        for mat, n in nodes:
+            mat.node_tree.nodes.remove(n)
+    px = {k: np.array(im.pixels[:], np.float64).reshape(ROCK_TEX, ROCK_TEX, 4)[::-1, :, :3] for k, im in imgs.items()}
+    clean = anime.denoise(px['licht'], px['farbe'], px['normale'] * 2 - 1)
+    for im in imgs.values():
+        bpy.data.images.remove(im)
+    img = bpy.data.images.new('Felsen Licht', ROCK_TEX, ROCK_TEX, float_buffer=True)
+    out = np.ones((ROCK_TEX, ROCK_TEX, 4), np.float32); out[..., :3] = clean[::-1]
+    img.pixels.foreach_set(out.ravel())
+    img.filepath_raw = os.path.join(ROOT, 'out', 'beach', 'felsen_licht.exr')
+    img.file_format = 'OPEN_EXR'
+    img.save()
+    log('Felsen gebacken', round(time.time() - t0, 1), 's')
+
+
+def rock_model(sky):
+    """Nahe Felsen fürs Spiel (nach bake_near_rocks): Ecken in Spielkoordinaten (Int16, 1/256 m), UV (Uint16),
+    Dreiecke (Uint16, ab 65536 Ecken Uint32), je Ecke wie viel Fels sie trägt (Uint8: Blöcke 1, Gelände nach seinem
+    Relief – wo es flach ist, zeigt das Spiel das Panorama, das dort stimmt); das gebackene Licht gemalt wie das
+    Panorama als sky/beach/rocks_hd.jpg und halb so gross rocks.jpg (Szenenwerte vor ACES, sRGB-kodiert)"""
+    import base64, importlib
+    from wald_io import save_image
+    os.environ['WALD_STIL'] = 'beach'
+    import anime
+    anime = importlib.reload(anime)
+    img = bpy.data.images['Felsen Licht']
+    lin = np.array(img.pixels[:], np.float64).reshape(img.size[1], img.size[0], 4)[::-1, :, :3]   # Zeile 0 oben
+    painted = anime.paint_texture(lin)
+    save_image(painted, os.path.join(sky, 'rocks_hd.jpg'), 'JPEG', 88)                     # Desktop (HD-Teil)
+    h, w = painted.shape[:2]
+    save_image(painted.reshape(h // 2, 2, w // 2, 2, 3).mean((1, 3)), os.path.join(sky, 'rocks.jpg'), 'JPEG', 88)
+    me = bpy.data.objects['Felsen nah'].data
+    me.calc_loop_triangles()
+    loops = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('loops', loops)
+    vi = np.empty(len(me.loops), np.int64); me.loops.foreach_get('vertex_index', vi)
+    uv = np.empty(len(me.loops) * 2); me.uv_layers.active.data.foreach_get('uv', uv); uv = uv.reshape(-1, 2)
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    # je Ecke und UV eine Ecke im Spiel (an den Nähten der UV-Karte doppelt)
+    quv = np.clip(np.round(uv * 65535), 0, 65535).astype(np.int64)
+    key = (vi * 65536 + quv[:, 0]) * 65536 + quv[:, 1]
+    uniq, first, inv = np.unique(key, return_index=True, return_inverse=True)
+    tri = inv[loops]
+    pos = co[vi[first]]
+    game = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]]                  # Blender -> Spiel
+    mi = np.empty(len(me.polygons), np.int32); me.polygons.foreach_get('material_index', mi)
+    tot = np.empty(len(me.polygons), np.int64); me.polygons.foreach_get('loop_total', tot)
+    block = np.repeat(mi, tot)[first] == 1                           # Flächen der Blöcke (Material Fels)
+    rocky = np.where(block, 1.0, near_rocky(pos[:, 0], pos[:, 1]))
+    n = len(uniq)
+    b = lambda a: base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
+    idx = {'idx16': b(tri.astype('<u2'))} if n <= 65536 else {'idx32': b(tri.astype('<u4'))}
+    return {'n': n, 'scale': 256, 'pos16': b(np.clip(np.round(game * 256), -32767, 32767).astype('<i2')), **idx,
+            'uv16': b(quv[first].astype('<u2')), 'rock8': b(np.round(rocky * 255).astype('u1')), 'texture': 'file:rocks.jpg'}
+
+
+ROCK_VIEW_PPD = 4096 * 3 / 360.0   # Pixel je Grad der Ansicht der Felsen: wie die HD-Streifen
+ROCK_VIEW_DIST = (10.0, 80.0)      # Abstand der Felsen vom Mittelpunkt (m), log mit 8 Bit: auf 0,8 % genau
+
+
+def rock_windows():
+    """Ausschnitte des Panoramas, in denen die nahen Felsen liegen: [(az0, az1, el0, el1)] in Grad (az wie das
+    Equirect: 0 = Blender +y, el über dem Horizont), je Gruppe von Richtungen (Lücken über 10° trennen), mit Rand"""
+    me = bpy.data.objects['Felsen nah'].data
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co)
+    d = co.reshape(-1, 3) - np.array(PANO_CENTER)
+    az = np.degrees(np.arctan2(d[:, 0], d[:, 1])); el = np.degrees(np.arctan2(d[:, 2], np.hypot(d[:, 0], d[:, 1])))
+    order = np.argsort(az); az, el = az[order], el[order]
+    cuts = np.nonzero(np.diff(az) > 10)[0] + 1
+    out = []
+    for a, e in zip(np.split(az, cuts), np.split(el, cuts)):
+        out.append((float(np.floor(a.min() - 2)), float(np.ceil(a.max() + 2)), float(np.floor(e.min() - 2)), float(np.ceil(e.max() + 1))))
+    return out
+
+
+def rock_view(sky, spp=64):
+    """Die nahen Felsen, wie das Panorama sie früher zeigte: je Ausschnitt (rock_windows) vom Mittelpunkt gerendert, mit
+    den Felsen, und gemalt wie die Streifen (anime.stylize) – das Spiel projiziert das Bild vom Mittelpunkt aus auf seine
+    Felsen, wo man sie von dort sieht (sonst das gebackene Licht). Dazu je Pixel Abstand vom Mittelpunkt und Gewicht
+    (1 auf den Felsen, zum Rand und an verdeckten Stellen 0), aus zwei Renderings der Lage mit und ohne Felsen.
+    Ausschnitte untereinander: sky/beach/rockview_hd.jpg (Desktop), halb so gross rockview.jpg; Abstand und Gewicht
+    rockview.png (ein Viertel: R Abstand log in ROCK_VIEW_DIST, G Gewicht; neben den Felsen 0, das Bild bleibt so
+    klein). -> {windows: [[az0, az1, el0, el1, Breite, Zeile oben, Zeile unten]] (die letzten drei als Anteil des
+    Bilds), log: Bereich des Abstands}"""
+    import importlib
+    from wald_io import save_image, load_exr
+    os.environ['WALD_STIL'] = 'beach'
+    import wald_export, anime
+    wx = importlib.reload(wald_export)
+    anime = importlib.reload(anime)
+    ob = bpy.data.objects['Felsen nah']
+    out = os.path.join(ROOT, 'out', 'beach')
+    field = anime.paint_field()
+    center = np.array(PANO_CENTER)
+    la, lb = np.log(ROCK_VIEW_DIST[0]), np.log(ROCK_VIEW_DIST[1])
+    colors, datas, wins = [], [], []
+    for k, (a0, a1, e0, e1) in enumerate(rock_windows()):
+        w = int(round((a1 - a0) * ROCK_VIEW_PPD)) // 4 * 4; h = int(round((e1 - e0) * ROCK_VIEW_PPD)) // 4 * 4
+        renders = {}
+        for name, kind in (('farbe', None), ('mit', True), ('ohne', False)):
+            temp = []
+            try:
+                c = wx.setup_cycles()
+                wx.setv(ob, 'visible_camera', kind is not False)
+                cd = sc().camera.data
+                cd.longitude_min, cd.longitude_max = math.radians(a0), math.radians(a1)
+                cd.latitude_min, cd.latitude_max = math.radians(e0), math.radians(e1)
+                if kind is None:
+                    c.samples = spp
+                else:   # Lage: ein Abtastwert je Pixel, ohne Filter (wie die Tiefe)
+                    temp = wx.flat()
+                    c.samples = 1; c.use_denoising = False; c.use_adaptive_sampling = False
+                    c.pixel_filter_type = 'BOX'; c.filter_width = 0.01
+                    sc().render.image_settings.color_depth = '32'
+                wx.render('rockview_%d_%s' % (k, name), w, h)
+            finally:
+                wx.restore()
+                if temp:
+                    bpy.data.materials.remove(temp[0]); bpy.data.worlds.remove(temp[1])
+            renders[name] = load_exr(os.path.join(out, 'rockview_%d_%s.exr' % (k, name)))[..., :3].astype(np.float64)
+        # gemalt wie die Streifen (Farbschwankung aus demselben Feld)
+        v, u = np.mgrid[0:h, 0:w]
+        uu = 0.5 + (a0 + (u + 0.5) / w * (a1 - a0)) / 360.0; vv = (90.0 - (e1 - (v + 0.5) / h * (e1 - e0))) / 180.0
+        disp = anime.stylize(renders['farbe'] * anime.EXPOSURE, ROCK_VIEW_PPD, anime.sample(field, uu, vv))
+        colors.append(anime.to_texture(disp))
+        # Gewicht: Fels, wo die Lage mit den Felsen von der ohne abweicht; zum Rand 3 Pixel eingezogen, weich
+        hit = np.linalg.norm(renders['mit'], axis=-1) > 1e-6
+        rock = hit & (np.linalg.norm(renders['mit'] - renders['ohne'], axis=-1) > 0.01)
+        for _ in range(3):
+            pad = np.pad(rock, 1, mode='constant')
+            rock = pad[1:-1, 1:-1] & pad[:-2, 1:-1] & pad[2:, 1:-1] & pad[1:-1, :-2] & pad[1:-1, 2:]
+        weight = anime.blur(rock[..., None].astype(np.float64), 1.5)[..., 0] * rock
+        dist = np.linalg.norm(renders['mit'] - center, axis=-1)
+        q = np.round(np.clip((np.log(np.maximum(dist, 1e-3)) - la) / (lb - la), 0, 1) * 255) / 255
+        # je 4 × 4 Pixel das in der Mitte (Nearest im Spiel: der Wert gilt für den ganzen Block)
+        datas.append((np.stack([q, weight, np.zeros_like(q)], -1) * (weight > 0)[..., None])[2::4, 2::4])
+        wins.append([a0, a1, e0, e1, w, h])
+    # untereinander, links bündig
+    W = max(c.shape[1] for c in colors); H = sum(c.shape[0] for c in colors)
+    atlas = np.zeros((H, W, 3)); data = np.zeros((-(-H // 4), -(-W // 4), 3)); y = 0
+    for c, d_, win in zip(colors, datas, wins):
+        atlas[y:y + c.shape[0], :c.shape[1]] = c
+        data[y // 4:y // 4 + d_.shape[0], :d_.shape[1]] = d_
+        win[4:] = [win[4] / W, y / H, (y + c.shape[0]) / H]   # Breite und Zeilen im Bild (Anteil, Zeile 0 oben)
+        y += c.shape[0]
+    save_image(atlas, os.path.join(sky, 'rockview_hd.jpg'), 'JPEG', 88)
+    save_image(atlas.reshape(H // 2, 2, W // 2, 2, 3).mean((1, 3)), os.path.join(sky, 'rockview.jpg'), 'JPEG', 88)
+    save_image(data, os.path.join(sky, 'rockview.png'))
+    log('Ansicht der Felsen', len(wins), 'Ausschnitte,', W, '×', H)
+    return {'windows': wins, 'log': list(ROCK_VIEW_DIST)}
 
 
 def export(stil='beach'):
-    """sky/<stil>/ebenen.json (Pflanzen nah: Modelle und Standorte; Wasser: Karte als water.png) für pack.mjs"""
+    """sky/<stil>/ebenen.json (Pflanzen nah: Modelle und Standorte; nahe Felsen: Netz und Bild rocks.jpg; Wasser: Karte
+    als water.png) für pack.mjs"""
     import json
     from wald_io import save_image
     sky = os.path.join(ROOT, 'sky', stil)
@@ -1268,11 +1950,14 @@ def export(stil='beach'):
     save_image(main, os.path.join(sky, 'water.png'))
     save_image(shore, os.path.join(sky, 'water_shore.png'))
     n, ext = WATER_MAP
-    plants = near_plants(pts)
-    data = {'flora': {'models': game_models(), 'instances': plants},
+    flora = flora_data(pts)
+    bake_near_rocks()
+    rocks = {**rock_model(sky), 'view': rock_view(sky), 'viewTexture': 'file:rockview.jpg', 'viewData': 'file:rockview.png'}
+    data = {'flora': flora, 'rocks': rocks,
+            # pack.mjs: in den HD-Teil (nur Desktop), ersetzt die Felder gleichen Namens
+            'hd': {'rocks': {'texture': 'file:rocks_hd.jpg', 'viewTexture': 'file:rockview_hd.jpg'}},
             'water': {'map': 'file:water.png', 'shore': 'file:water_shore.png', 'size': n, 'extent': ext,
                       'level': WATER, 'depthRange': [-3, 13], 'shoreRange': list(SHORE_RANGE), 'fade': list(WATER_GAME)}}
     with open(os.path.join(sky, 'ebenen.json'), 'w', encoding='utf-8') as fh:
         json.dump(data, fh, separators=(',', ':'))
-    return {'pflanzen': len(plants), 'ecken': [m['n'] for m in data['flora']['models']],
-            'dreiecke': [len(m['idx16']) * 3 // 4 // 6 for m in data['flora']['models']]}
+    return {'pflanzen': len(flora['instances']), 'bytes': len(json.dumps(flora, separators=(',', ':')))}

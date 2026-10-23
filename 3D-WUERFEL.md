@@ -60,8 +60,9 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   ohne y und bitgleich (`tests/golden.mjs`).
 - **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, Werkzeuge der Levelliste
   wie `tools/ordne-level.mjs`).
-  Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 159).
-  Eigene Seite „Würfel“ in der Levelauswahl; „Weiter“ nach Level 150 führt nicht in den Würfel.
+  Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 509).
+  In der Levelauswahl eine eigene Spielart „Würfel“ (Umschalter über den Abschnitten, eine Seite, die Abschnitte
+  bleiben dort unsichtbar stehen); „Weiter“ nach Level 500 führt nicht in den Würfel.
 - **Darstellung:** `cubeToWorld`, `beamPointToWorld`, `normalToWorld`, `placeInCube`. Strahl-Shader:
   Schnittnormalen als `aCap0/aCap1` (vec3), Abstand zu den Schnittebenen wird im Vertex-Shader als `vCut`
   berechnet (linear in p, daher exakt interpoliert). Bodenschein wird mit der Höhe schwächer (`vLift`).
@@ -72,7 +73,8 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   der 2D-Bodenring mit; durchquert sie den Rahmen, leuchtet er auf. Statt Funkenregen ein Feuerwerk aus jedem Ziel
   (`rain.burstFrom`, mit Luftwiderstand). `celebration.endWave()` setzt Ring, Schale und Rahmen zurück.
 - **Kamera:** `cameraRig.cube/lift/zoom/tilt/turn` – im Würfel Blick auf die Würfelmitte, flacher, schräger,
-  weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der engen 2D-Grenzen.
+  weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der 2D-Grenzen (`phiLimits`, gilt auch
+  beim Drehen des Handys). Der Zoom von Hand (`cameraRig.userZoom`) wirkt zusätzlich zu `cameraRig.zoom`.
 - **Werkzeuge:** `tools/solver.mjs` – `keyOf` liefert im Würfel "x,y,z", Exporte der 3D-Funktionen.
 - **Beurteilung** (Ticket 14): `tools/beurteilung/feldform-wuerfel.mjs`, die Würfel-Feldform mit Zellen "x,y,z", den
   18 Richtungen und der Drehachse je Element; `feldformVon` liefert sie bei `dim: 3`. Die Wirkung der Elemente kommt
@@ -103,15 +105,15 @@ Alle Läufe über `sh tools/leise.sh …`, nacheinander; die Zeiten sind von dor
 `LEISE_MAX_CPU=65 LEISE_CPU=65`).
 
 ```bash
-node tests/logic.test.mjs        # 567 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
+node tests/logic.test.mjs        # 1617 Tests, inkl. Block "Würfel (dim: 3)" (~30 s)
 node tests/golden.mjs            # flache Level unverändert? (~2 s; --voll ~25 s) – --write nur bei bewusster Änderung
 node tests/beurteilung.test.mjs  # 205 Tests (~75 s), Würfel in feldform-wuerfel.test.mjs und wuerfel.test.mjs
 node tests/generator.test.mjs    # 31 Tests (~67 s mit 65 %), dazu fünf Aufträge im Würfel 4 × 4 × 4 (nur über leise.sh)
-node tests/levelliste.test.mjs   # 37 Tests; liest Code der Anzeige aus index.html und gibt ihm CUBE_START mit
+node tests/levelliste.test.mjs   # 54 Tests; liest Code der Anzeige aus index.html und gibt ihm CUBE_START mit
 node tests/offline.mjs
 node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"
 node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"     # Klicks im Würfel (~50 s)
-node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160; $(cat tests/cube-probe.js)"   # (~70 s)
+node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=510; $(cat tests/cube-probe.js)"   # (~70 s)
 ```
 
 Headless-Chrome ohne Grafikkarte rendert nur 2–3 Bilder/s: Bei Screenshots 20–40 s warten.
@@ -129,8 +131,9 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 
 ## Bekannt / offen
 
-- N bzw. → auf Level 150 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort). Bewusst so
-  gelassen – entscheiden, ob 2D und Würfel auch beim Blättern getrennt sein sollen.
+- N bzw. → auf Level 500 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort; die Pfeile der
+  Levelauswahl blättern nur in der gewählten Spielart). Bewusst so gelassen – entscheiden, ob 2D und Würfel auch beim
+  Blättern getrennt sein sollen.
 - Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
 - Die Würfel-Level im Spiel sind handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und
   ohne Kernidee, Kern hat die Kernidee „Mischziel aus zwei Quellen“. Der Generator liefert Würfel-Level (Ticket 22),

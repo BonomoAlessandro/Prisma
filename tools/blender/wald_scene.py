@@ -44,12 +44,16 @@ SNOW_Z = 230.0   # Schneegrenze im Gebirge (m)
 # ---------------------------------------------------------------- Hilfen
 
 def make_mesh(name, V, F, mat_idx=None, mats=(), smooth=True):
-    V = np.asarray(V, np.float32); F = np.asarray(F, np.int32)
-    k = F.shape[1]
+    """F: Flächen (n, k) oder eine Liste solcher Blöcke (etwa Vierecke und Dreiecke), in dieser Reihenfolge"""
+    V = np.asarray(V, np.float32)
+    blocks = [np.asarray(b, np.int32) for b in (F if isinstance(F, (list, tuple)) else [F])]
+    size = sum(b.size for b in blocks)
+    starts = np.concatenate([np.arange(0, b.size, b.shape[1]) + sum(c.size for c in blocks[:i])
+                             for i, b in enumerate(blocks)]).astype(np.int32)
     me = bpy.data.meshes.new(name)
     me.vertices.add(len(V)); me.vertices.foreach_set('co', V.ravel())
-    me.loops.add(F.size); me.loops.foreach_set('vertex_index', F.ravel())
-    me.polygons.add(len(F)); me.polygons.foreach_set('loop_start', np.arange(0, F.size, k, dtype=np.int32))
+    me.loops.add(size); me.loops.foreach_set('vertex_index', np.concatenate([b.ravel() for b in blocks]))
+    me.polygons.add(len(starts)); me.polygons.foreach_set('loop_start', starts)
     if mat_idx is not None:
         me.polygons.foreach_set('material_index', np.asarray(mat_idx, np.int32))
     me.update(calc_edges=True)
@@ -353,10 +357,12 @@ def terrain_mesh():
     V = np.concatenate([[[0, 0, terrain(np.array(0.0), np.array(0.0))]], np.stack([X, Y, Z], -1).reshape(-1, 3)])
     nr = len(radii)
     i = np.arange(nr - 1)[:, None]; j = np.arange(nseg)[None]; j1 = (j + 1) % nseg
-    # (die Mitte unter dem Brett, Radius 1,5, bleibt offen – nie zu sehen)
     F = np.stack(np.broadcast_arrays(1 + i * nseg + j, 1 + i * nseg + j1, 1 + (i + 1) * nseg + j1, 1 + (i + 1) * nseg + j), -1).reshape(-1, 4)
+    # Mitte unter dem Brett (Radius r0) als Fächer um die Ecke 0: Herausgezoomt sieht man unter die Platte (PLAN 2.37)
+    jj = np.arange(nseg)
+    fan = np.stack([np.zeros(nseg, np.int64), 1 + (jj + 1) % nseg, 1 + jj], -1)
     log('Gelände', len(V), 'Ecken')
-    return make_mesh('Gelaende', V, F)
+    return make_mesh('Gelaende', V, [F, fan])
 
 
 def build_terrain(mat):

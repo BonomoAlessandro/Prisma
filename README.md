@@ -48,22 +48,31 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
   - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
-    Punkte und Text ab, der Seitentitel nennt den Grad einer einheitlichen Seite; die Reihenfolge ist die der Formel,
+    Punkte und Text ab, der Seitentitel nennt den Grad der Seite oder ihren Bereich; die Reihenfolge ist die der Formel,
     und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
-    beide Regeln an erfundenen Fällen); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
-    Urteil; das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe Haupt-Kernidee höchstens
-    zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer Spielwert und Ablehnung
-    durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in Ticket 16, wuchs die
-    ursprüngliche Liste um begründete Ergänzungen); eindeutige Namen, keiner aus der Liste entfernter Namen; jeder Name
-    der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird nichts), 150 Level nach dem
-    Tutorial; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen Gelbfilter als Grün, mit
-    Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets 23–26): Jedes neue Level
-    steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es nicht ablehnt; jedes
-    entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die Eichung; die Regel
-    für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt nur an den
-    Leveldaten. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und Auswahlliste in
-    `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der fremden Filterfarbe
-    (`oddFilters` in `quality.mjs`).
+    beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
+    Platz davor, weder nach den Korrekturen noch am Ende (Ticket 24, mit Gegenproben an erfundenen Korrekturen, die
+    einander schieben); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
+    Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
+    erfundenen Verschiebungen); das Mittel der Schwierigkeit je 10 Level fällt um höchstens 1 Punkt; dieselbe
+    Haupt-Kernidee höchstens zweimal je 10 Level, ohne die Duldungsliste; Ausschluss, fehlende Kernidee, zu tiefer
+    Spielwert und Ablehnung durch beide KI-Tester nur bei Leveln auf der Duldungsliste, die nur kürzer wird (einmal, in
+    Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen); nach dem Austausch eines Grads stehen aus ihm
+    nur noch Level der Gruppe „behalten nach Urteil der KI-Tester“ darauf, die nie wächst und deren Level die Regel
+    `stark` im Protokoll erfüllen (Tickets 24 und 25, mit Gegenproben an erfundenen Urteilen; seit Ticket 25 nennt die
+    Liste genau diese Level, 27 in „mittel“ und 4 in „schwer“); eindeutige Namen, keiner aus der
+    Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
+    nichts), 150 Level nach dem Tutorial und dazu die des Ausbaus; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
+    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
+    23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
+    nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
+    Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
+    nur an den Leveldaten. Zum Ausbau auf 500 Level: Die Level des Ausbaus stehen in `levelliste.json`, jedes mit
+    zählendem Urteil (Lauf `ausbau-…`), Herkunft im Kommentar und Grad nach der Schwelle, keines einem anderen Level zu
+    ähnlich; `fuegeEin` und die ganze Regel mit einem Level des Ausbaus an erfundenen Fällen; die Plätze der Regeln für
+    den Bestand zählen unter dem Bestand. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
+    Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
+    fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -102,7 +111,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
-  Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige.
+  Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
+  → / Bild↓ eine Seite weiter; oben springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des
+  Abschnitts.
 - **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 5×5×5-Würfel (`LEVELS_3D`, `dim: 3`),
   in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
   wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
@@ -130,7 +141,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Dateinamen); beides schreibt `node tools/blender/pack.mjs <id>` aus `tools/blender/szenen/<id>/skybox.json` (Name,
   Reihenfolge, Sterne, Farben, Ebenen) und der Ausgabe der Pipeline. `tools/sky-schema.mjs` prüft das Register (beim
   Packen und in den Tests), `sw.js` liest seine Listen daraus. Was das Spiel zu einem Panorama selbst zeichnet (nahe
-  Objekte, Nebellagen, Leuchtpunkte, bewegtes Wasser), sind Ebenentypen mit Parametern (`SKY_LAYERS`). `backgrounds/`
+  Objekte, Nebellagen, Leuchtpunkte, bewegtes Wasser), sind Ebenentypen mit Parametern (`SKY_LAYERS`). Pinsel: Jede
+  Ebene mit `"brush": true` bekommt Pinselstriche wie das gemalte Panorama (anisotroper Kuwahara-Filter wie `anime.py`,
+  `createBrushPass`); die Einstellungen stehen im Feld `brush` der Skybox (`size` Radius in Grad wie
+  `px_per_deg * 0.28`, `uniformity`, `sharpness`, `eccentricity` wie der Knoten im Kompositor, `mobile` Stufe auf dem
+  Handy), Standard aus. `backgrounds/`
   muss samt Unterordnern mit ausgeliefert werden. Konzept und weitere Schritte: PLAN 2.32. Belichtung und Malstil je
   Szene stehen in `tools/blender/stile.py` (Name = `WALD_STIL` = Ordner `out/<stil>`, `sky/<stil>`).
 - **Wald** (`forest`, erste Skybox): `wald_scene.py` baut die Szene (Gelände, Fichten, Nebel, Mond) als `wald.blend`,
@@ -151,6 +166,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Strand** (`beach`, PLAN 2.33): Szene in `tools/blender/szenen/beach/szene.py`; über den MCP
   `wald_mcp.neu('beach')` (baut `beach.blend`, rund 5 s), `wald_mcp.skybox('beach')` (rendert, malt und exportiert
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
+  Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
+  danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der
@@ -173,21 +190,29 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2,
   Läufe `pruefung-…`; Ticket 16) kommt ein Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der
   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt
-  es. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze,
-  nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem
-  Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft
-  sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im
-  eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein anderes derselben oder einer
-  Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein
-  Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die Korrekturen der KI-Tester. Der Bericht
-  zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste
-  nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste. `--schreiben` trägt Reihenfolge und Grad
-  in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste und `prueflisteErledigt` in
-  `tools/levelliste.json`; die ursprüngliche Duldungsliste und die entfernten Namen bleiben, wie sie sind, nur einmal,
-  in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide KI-Tester
-  ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Ein zweiter Lauf
-  ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der Reihenfolge, Gründe
-  der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
+  es. Dieser Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt: An dem Platz der Formel beim
+  Entscheid, den `levelliste.json` festhält (`prueflisteFormel`, Ticket 26), misst sich, ob das Level auf der Prüfliste
+  steht, und mit ihm rechnet die Zustimmung; ein Level, das erst später darüber kommt, braucht ein Urteil, und sein
+  Platz der Formel kommt dazu (`festePlaetze`). Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der
+  Regel von `merge` (höchstens 5 Plätze, nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am
+  Platz der Formel dieselbe Regel mit dem Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die
+  Duldungsliste (Grund `abgelehnt`). Häuft sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne
+  die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
+  anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
+  spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
+  Korrekturen der KI-Tester: Kein korrigiertes Level steht mehr als 5 Plätze von seinem Platz davor, weder nach den
+  Korrekturen (die einander schieben, wenn sie nahe beieinander liegen) noch am Ende (`zuWeitKorrigiert`, Ticket 24).
+  Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die
+  Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste, darunter jedes korrigierte
+  Level, das zu weit steht (Platz davor, nach den Korrekturen, am Ende).
+  `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
+  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
+  `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
+  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide
+  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Bleibt
+  eine Häufung offen oder steht ein korrigiertes Level zu weit, schreibt es nicht, auch mit `--austausch`. Ein
+  zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der
+  Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
   Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
   die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
   dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
@@ -198,7 +223,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung; im Kommentar die Herkunft aus Auftrag, Seed und
   Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS` es nachbaut),
   nimmt die ersetzten heraus, setzt ihre Namen auf `entfernteNamen` und legt ihre Leveldaten als feste Kopie für die
-  Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001);
+  Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001).
+  Ausbau auf 500 Level (`.scratch/500-level/`, in Gruppen zu 35): Die Level vor dem Ausbau sind der Bestand und stehen
+  untereinander genau wie ohne ihn; die Level des Ausbaus (`ausbau` in `levelliste.json`) fügt `levelliste.mjs`
+  (`fuegeEin`) nach der Formel dazu, ihr Grad folgt der Schwelle, beurteilt werden sie in Läufen `ausbau-…`.
+  `--ausbau datei` (wie `--austausch`, aber ohne `ersetzt`) rechnet mit den Kandidaten, `--json` liefert die ganze
+  Reihenfolge als Vorschau für `prepare.mjs --kandidaten`, `--schreiben` setzt sie mit ihren Namen ein (eine Freigabe
+  der Namen durch den Nutzer braucht es beim Ausbau nicht);
+  `ausbau.mjs` erzeugt und wählt die Level einer Gruppe: `pool <auftrag …> --aus datei [--seed S] [--seeds M]
+  [--jobs N]` sammelt Kandidaten des Generators parallel (über `leise.sh`), `wahl <gruppe> --pool datei[,…] --aus
+  datei [--behalte datei] [--ohne name,…]` wählt nach dem Bedarf je Grad (Bestand nach der Gruppe laut Spec weniger
+  die Level im Spiel) über den Bereich des Grads verteilt, keinem Level zu ähnlich, ohne dass der Grad sinkt oder das
+  Mittel je 10 Level fällt, und sucht dann so lange Tausche, bis mit der Häufungsregel keine Häufung offen bleibt
+  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe;
+  `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
+  die acht Symmetrien des Felds); ab 0,5 ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
+  heute drei Fast-Doppel aus dem Austausch, Dreiklang – Delta, Karussell – Rundflug und Fokus – Türkis);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
   je CPU-Stunde je Gruppe mit festen Seeds, die mittlere Zeit je Aufruf der Strahlregel auf zufälligen Stellungen
@@ -519,8 +559,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Level mit Ausschlussgrund 6 neue aus dem Generator (Sammellinse, Strahlteiler, Amethyst, Fackellauf, Fernlicht,
   Blitz; je mit Herkunft im Kommentar), nach der Formel eingeordnet und von den KI-Testern geprüft (Lauf
   `ersatz-leicht-1`); die ersetzten stehen nur noch als feste Kopie für die Eichung in
-  `tools/beurteilung/entfernte-level.json`. Die frühere Reihenfolge entstand so: Die
-  Level 121–150 (aus `harden.mjs`) waren alle schwerer als die ersten 120. 70 der ersten 120 sind
+  `tools/beurteilung/entfernte-level.json`. Ebenso kamen 8 neue sehr schwere Level in Ticket 26 (Lauf
+  `ersatz-sehr-schwer-1`) und 30 neue mittlere in Ticket 24 (Läufe `ersatz-mittel-1` bis `-5`): für die 13 mit
+  Ausschlussgrund oder Ablehnung und für 17 ohne erkannte Kernidee, die die KI-Tester schwach beurteilten, dazu 15 neue
+  schwere in Ticket 25 (Läufe `ersatz-schwer-1` und `-2`): für die 13 mit Ausschlussgrund, Lichthof und Sternwarte.
+  27 mittlere und 4 schwere Level, die nur wegen Kernidee oder Spielwert auf der Duldungsliste stehen, bleiben nach
+  ihrem Urteil (Gruppe `behalten` in `tools/levelliste.json`); seit Ticket 25 stehen nur noch sie auf der Liste, alle
+  vier Grade sind ausgetauscht. Die frühere Reihenfolge entstand so: Die Level 121–150 (aus `harden.mjs`)
+  waren alle schwerer als die ersten 120. 70 der ersten 120 sind
   mittelschwere Level, nachträglich einsortiert: zuerst 20 zwischen die damaligen Level 16 und 68 (Review zweier
   Tester in `tools/pools/mittel/review/`), dann 50 zwischen die damaligen Level 40 und 69 (vor Ticket 15 die Plätze
   40–119; Review von drei Testern aus Spielersicht und einem Spielermodell in `tools/pools/mittel2/review/`; beides
@@ -528,8 +574,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–31, mittel 32–105,
   schwer 106–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
   bis sehr schwer ●●●● oben rechts auf der Kachel der Levelauswahl, mit Punkten und Text in der Kopfzeile (hinter dem
-  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, wenn alle Level der Seite
-  denselben Grad haben. Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
+  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, gemischt als Bereich
+  („Leicht bis Mittel“). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
   Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den Grad als Text (in
   der Kopfzeile und im Namen der Kachel). Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl
   blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.

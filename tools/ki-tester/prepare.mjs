@@ -15,6 +15,16 @@
 //                  <Abdruck>“ (kandidatName in leveldaten.mjs), bis sein Name genehmigt ist. Seine Bilder kommen von
 //                  einer Kopie von index.html mit den Kandidaten (<lauf>/seite/, ausserhalb von eingabe/, denn sie
 //                  enthält die Lösungen).
+//                  Ausbau auf 500 Level (.scratch/500-level/, Läufe ausbau-…): Steht in der Datei ein Eintrag mit
+//                  ausbau (die ganze Ausgabe von ordne-level.mjs --ausbau … --json), gilt ihre Reihenfolge als Vorschau
+//                  (nach platz, mit den Kandidaten unter ihrem Namen bei den KI-Testern): Plätze, Grade, Referenzen und
+//                  Anker rechnen dann in ihr, und beurteilt werden die Kandidaten des Ausbaus, die noch nicht im Spiel
+//                  stehen und noch kein zählendes Urteil haben (etwa nach einem Ersatz für abgelehnte nur die neuen;
+//                  ein zweites Urteil zum selben Level wiese levelliste.mjs ab). Ein platz muss dann ein Level im
+//                  Spiel sein. Achtung: Ohne Vorschau gilt formel als Platz
+//                  im ganzen Spiel; ordne-level.mjs zählt die formel eines Ersatzlevels aber unter dem Bestand. Käme
+//                  nach dem Ausbau noch ein Austausch, gehörte er darum mit --ausbau in eine Vorschau (Review Ticket
+//                  01).
 //   --anker        auch alle Anker beurteilen (Probelauf)
 //   --ohne-bilder  nur Texte und Aufträge (schnell, zum Durchsehen; die Screenshots brauchen leise.sh)
 //   --ohne-zwischenspeicher  auch die Bilder der Anker neu aufnehmen (sie kommen danach wieder in den Zwischenspeicher)
@@ -34,9 +44,10 @@ import { L } from '../solver.mjs';
 import { findChrome } from '../chrome.mjs';
 import { kandidatName, seiteMitLeveln } from '../leveldaten.mjs';
 import {
-  VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, levelAt, loadAnchors, reference, today,
+  VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, loadAnchors, reference, today,
 } from './protocol.mjs';
 import { fieldText } from './field.mjs';
+import { zaehlendeUrteile } from '../levelliste.mjs';
 import { VIEWS, seitenUrl, takeShots } from './shots.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -46,10 +57,17 @@ const mitKandidaten = args.indexOf('--kandidaten');
 const kandidatenDatei = mitKandidaten < 0 ? null : args.splice(mitKandidaten, 2)[1] ?? '';
 const flags = new Set(args.filter(a => a.startsWith('--')));
 const [run, ...positions] = args.filter(a => !a.startsWith('--')).map(String);
-const MAIN = L.LEVELS.length - L.TUTORIAL_COUNT;
+const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
+// Die Reihenfolge, in der Plätze, Grade und Anker rechnen: die im Spiel oder beim Ausbau die Vorschau (siehe Kopf)
+const roh = kandidatenDatei ? leseListe(kandidatenDatei) : [];
+const vorschau = roh.some(x => x.ausbau);
+const reihe = vorschau ? vorschauAus(roh, kandidatenDatei) : IM_SPIEL;
+const MAIN = reihe.length;
+/** Das Level im Spiel auf einem Platz der Reihenfolge (undefined bei einem Kandidaten der Vorschau). */
+const imSpielAuf = (position) => IM_SPIEL.find(l => l.name === reihe[position - 1]?.name);
 const unknown = [...flags].filter(f => !['--anker', '--ohne-bilder', '--ohne-zwischenspeicher'].includes(f));
 if (!run || !/^[\w-]+$/.test(run) || unknown.length || kandidatenDatei === ''
-  || positions.some(p => !(Number.isInteger(+p) && +p >= 1 && +p <= MAIN))) {
+  || positions.some(p => !(Number.isInteger(+p) && +p >= 1 && +p <= MAIN && imSpielAuf(+p)))) {
   console.error('Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] '
     + `[--kandidaten <datei>] [--anker] [--ohne-bilder] [--ohne-zwischenspeicher]   (Platz 1–${MAIN})`);
   process.exit(1);
@@ -68,24 +86,25 @@ for (const t of TESTERS) {
   }
 }
 
-const anchors = loadAnchors();
+const anchors = loadAnchors(reihe);
 for (const a of anchors) {
-  if (gradeOf(a.position).name !== a.grad) throw new Error(`Anker ${a.id} ${a.name} steht auf Platz ${a.position}, nicht in ${a.grad}`);
+  if (gradeOf(a.position, reihe).name !== a.grad) throw new Error(`Anker ${a.id} ${a.name} steht auf Platz ${a.position}, nicht in ${a.grad}`);
 }
 const byPosition = new Map(anchors.map(a => [a.position, a]));
 // Die Leveldaten je Kennung: aus dem Spiel nach Platz, bei einem Kandidaten aus der Datei
 const daten = new Map();
 const level = (position, id, anchor = null, kandidat = null) => {
-  daten.set(id, kandidat ?? levelAt(position));
+  daten.set(id, kandidat ?? imSpielAuf(position));
   return {
-    id, name: kandidat ? kandidatName(kandidat) : levelAt(position).name, position, grad: gradeOf(position).name,
-    anker: anchor, referenz: reference(position), ...(kandidat ? { kandidat: true } : {}),
+    id, name: kandidat ? kandidatName(kandidat) : imSpielAuf(position).name, position,
+    grad: gradeOf(position, reihe).name, anker: anchor, referenz: reference(position, reihe),
+    ...(kandidat ? { kandidat: true } : {}),
   };
 };
-const kandidaten = kandidatenDatei ? ladeKandidaten(kandidatenDatei) : [];
+const kandidaten = kandidatenDatei ? ladeKandidaten(roh, kandidatenDatei) : [];
 const hash = (s) => createHash('sha256').update(s).digest('hex');
 const others = [
-  ...[...new Set(positions.map(Number))].filter(p => !byPosition.has(p)).map(p => ({ p, name: levelAt(p).name })),
+  ...[...new Set(positions.map(Number))].filter(p => !byPosition.has(p)).map(p => ({ p, name: imSpielAuf(p).name })),
   ...kandidaten.map(x => ({ p: x.formel, name: kandidatName(x.level), kandidat: x.level })),
 ].sort((a, b) => hash(a.name).localeCompare(hash(b.name)));
 const judged = [
@@ -113,13 +132,13 @@ if (neu.length) {
 let seconds = null, reused = [];
 if (!flags.has('--ohne-bilder')) {
   const shots = imSpiel.map(l => ({
-    l, index: L.LEVELS.indexOf(levelAt(l.position)), label: l.id, file: join(input, 'bilder', l.id),
+    l, index: L.LEVELS.indexOf(imSpielAuf(l.position)), label: l.id, file: join(input, 'bilder', l.id),
   }));
   // Zwischenspeicher der Anker-Bilder (siehe Kopf): je Anker und Bildschirm eine Datei <Schlüssel>-<Bildschirm>.png
   const cache = join(root, 'tests', 'output', 'ki-tester', 'anker-bilder');
   const environment = environmentHash();
   const cached = (s, view) => join(cache, `${hash(JSON.stringify({
-    ablauf: FINGERPRINT, umgebung: environment, index: s.index, level: levelAt(s.l.position), kennung: s.label,
+    ablauf: FINGERPRINT, umgebung: environment, index: s.index, level: imSpielAuf(s.l.position), kennung: s.label,
   })).slice(0, 32)}-${view.name}.png`);
   const fromCache = flags.has('--ohne-zwischenspeicher') ? []
     : shots.filter(s => s.l.anker && VIEWS.every(v => existsSync(cached(s, v))));
@@ -147,7 +166,7 @@ for (const t of TESTERS) {
 }
 writeFileSync(join(dir, 'lauf.json'), JSON.stringify({
   lauf: run, ablauf: VERSION, fingerabdruck: FINGERPRINT, agent: AGENT, erstellt: today(),
-  referenz: 'Reihenfolge im Spiel', anker: Object.fromEntries(anchors.map(a => [a.id, a.position])), level: judged,
+  referenz: 'Reihenfolge im Spiel', ...(vorschau ? { vorschau: kandidatenDatei } : {}), anker: Object.fromEntries(anchors.map(a => [a.id, a.position])), level: judged,
   reihenfolge: order, ankerBilderAusZwischenspeicher: reused,
 }, null, 2) + '\n');
 
@@ -165,22 +184,49 @@ if (seconds) {
 console.log(`Aufträge: ${TESTERS.map(t => slash(join(dir, `auftrag-${t}.md`))).join(', ')}`);
 console.log(`Antworten: ${TESTERS.map(t => slash(join(dir, answerPath(t)))).join(', ')}`);
 
-/**
- * Die Kandidaten aus der Datei (siehe Kopf): je Eintrag mit Leveldaten { formel, level }. Der Grad des Levels muss der
- * Grad seines Platzes im Spiel sein, und kein Kandidat darf doppelt vorkommen.
- */
-function ladeKandidaten(datei) {
+/** Die Einträge der Datei: eine JSON-Liste oder eine JSON-Zeile je Eintrag. */
+function leseListe(datei) {
   const text = readFileSync(datei, 'utf8').trim();
-  const liste = (text.startsWith('[') ? JSON.parse(text)
-    : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l))).filter(x => x.level);
-  if (!liste.length) throw new Error(`${datei}: keine Einträge mit Leveldaten`);
+  return text.startsWith('[') ? JSON.parse(text) : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+}
+
+/**
+ * Die Vorschau der Reihenfolge beim Ausbau (siehe Kopf): je Platz { name, grad }, ein Kandidat unter seinem Namen bei
+ * den KI-Testern. Die Plätze laufen lückenlos ab 1, und jedes Level, das kein Kandidat ist, steht im Spiel.
+ */
+function vorschauAus(liste, datei) {
+  const plaetze = liste.map(x => x.platz);
+  if (!plaetze.every(p => Number.isInteger(p) && p >= 1 && p <= liste.length) || new Set(plaetze).size !== liste.length) {
+    throw new Error(`${datei}: Plätze nicht lückenlos 1–${liste.length}`);
+  }
+  const imSpiel = (x) => IM_SPIEL.some(l => l.name === x.name);
+  const fremd = liste.filter(x => !x.level && !imSpiel(x));
+  if (fremd.length) throw new Error(`${datei}: nicht im Spiel: ${fremd.map(x => x.name).join(', ')}`);
+  // Ein Level im Spiel steht unter seinem Namen, auch ein neues aus dem Austausch oder einem früheren Ausbau, dem
+  // ordne-level.mjs ebenfalls kandidat mitgibt; nur ein Kandidat, der noch nicht im Spiel steht, unter diesem Namen
+  return [...liste].sort((a, b) => a.platz - b.platz)
+    .map(x => ({ name: imSpiel(x) ? x.name : x.kandidat ?? x.name, grad: x.grad }));
+}
+
+/**
+ * Die Kandidaten aus den Einträgen der Datei (siehe Kopf): je Eintrag mit Leveldaten { formel, level }, mit Vorschau
+ * nur die des Ausbaus, die noch nicht im Spiel stehen. Der Grad des Levels muss der Grad seines Platzes in der
+ * Reihenfolge sein, und kein Kandidat darf doppelt vorkommen.
+ */
+function ladeKandidaten(roh, datei) {
+  const beurteilt = new Set(vorschau ? zaehlendeUrteile().map(e => e.level.name) : []);
+  const liste = roh.filter(x => x.level && (!vorschau
+    || (x.ausbau && !IM_SPIEL.some(l => l.name === x.name) && !beurteilt.has(kandidatName(x.level)))));
+  if (!liste.length) {
+    throw new Error(`${datei}: keine Einträge mit Leveldaten${vorschau ? ' (Kandidaten des Ausbaus ohne Urteil)' : ''}`);
+  }
   for (const x of liste) {
     const wo = `${datei}: ${kandidatName(x.level)}`;
     if (!(Number.isInteger(x.formel) && x.formel >= 1 && x.formel <= MAIN)) {
       throw new Error(`${wo}: Platz der Formel (formel) 1–${MAIN} nötig`);
     }
-    if (x.level.grad !== gradeOf(x.formel).name) {
-      throw new Error(`${wo}: Grad ${x.level.grad}, auf Platz ${x.formel} gilt ${gradeOf(x.formel).name}`);
+    if (x.level.grad !== gradeOf(x.formel, reihe).name) {
+      throw new Error(`${wo}: Grad ${x.level.grad}, auf Platz ${x.formel} gilt ${gradeOf(x.formel, reihe).name}`);
     }
     const gleich = liste.filter(y => kandidatName(y.level) === kandidatName(x.level));
     if (gleich.length > 1) throw new Error(`${wo}: doppelt`);

@@ -1,8 +1,8 @@
 // Würfel-Level für Screenshots einstellen: Level laden, optional Lösung setzen, Kamera neigen.
 // Vorher (im selben Ausdruck) Variablen setzen, z. B. Würfel 2 gelöst:
-//   node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=160;
+//   node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=510;
 //     window.CUBE_SOLVE={'2,0,0':3,'2,2,0':1,'3,4,4':3,'2,4,4':3,'2,2,4':1}; $(cat tests/cube-probe.js)"
-//   CUBE_INDEX: Index in LEVELS (Würfel-Level ab CUBE_START, heute 159 und 160 – verschiebt sich, wenn 2D-Level dazukommen)
+//   CUBE_INDEX: Index in LEVELS (Würfel-Level ab CUBE_START, heute 509 und 510 – verschiebt sich, wenn 2D-Level dazukommen)
 //   CUBE_SOLVE: { "x,y,z": Stellung } (optional)
 //   CUBE_PHI / CUBE_THETA: Kamera neigen bzw. drehen (optional, wie beim Ziehen)
 // Ohne Grafikkarte (SwiftShader) rendert Chrome nur 2–3 Bilder/s: Wartezeit 20–40 s.

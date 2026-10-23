@@ -1,8 +1,9 @@
 // Service Worker: macht PRISMA offline spielbar (registriert in index.html, nur über http(s)).
 // Beim Installieren landen alle Dateien des Spiels im Zwischenspeicher. Online kommt die Seite frisch vom Server und
 // der Speicher wird nachgeführt; braucht das Netz länger als NETWORK_WAIT, antwortet der Speicher. Offline antwortet
-// immer der Speicher. Die Bibliotheken unter vendor/ ändern sich nie (Version im Ordnernamen) und kommen direkt
-// aus dem Speicher. Alle anderen Anfragen gehen am Service Worker vorbei.
+// immer der Speicher. Die Bibliotheken unter vendor/ (Version im Ordnernamen) und die Teile der Skyboxen (Stand im
+// Dateinamen) ändern sich nie und kommen direkt aus dem Speicher – auch wenn der Server erst aufwachen muss. Alle
+// anderen Anfragen gehen am Service Worker vorbei.
 // Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht). Grosse
 // Dateien, die nicht jedes Gerät braucht, in LAZY: gespeichert erst beim ersten Gebrauch.
 // Skyboxen aus Blender stehen nicht hier, sondern im Register backgrounds/skies.js (tools/blender/pack.mjs): Teile mit
@@ -12,7 +13,7 @@
 // CACHE hochzählen, wenn vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
 
 const CACHE = 'prisma-v1';
-const SKIES = 'ccac9f87';
+const SKIES = '5b35fe09';
 const FILES = [
   'index.html',
   'manifest.webmanifest',
@@ -45,7 +46,9 @@ const NETWORK_WAIT = 3000; // ms
 const PAGE = new URL('index.html', self.location).href;
 const ROOT = new URL('./', self.location).href;
 const VENDOR = new URL('vendor/', self.location).href;
+const SKY_PARTS = new URL('backgrounds/', self.location).href; // darin je Skybox ein Ordner; skies.js selbst nicht
 const KNOWN = new Set([...FILES, ...LAZY].map((f) => new URL(f, self.location).href));
+const fixed = (key) => key.startsWith(VENDOR) || (key.startsWith(SKY_PARTS) && key.slice(SKY_PARTS.length).includes('/'));
 
 /**
  * Speicherschlüssel einer Anfrage: die Datei ohne Parameter; ./ und index.html?… sind alle die Seite selbst.
@@ -97,7 +100,7 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const key = event.request.method === 'GET' ? cacheKey(event.request.url) : null;
   if (!key) return;
-  event.respondWith(key.includes('/vendor/') ? fromCache(event, key) : fromNetwork(event, key));
+  event.respondWith(fixed(key) ? fromCache(event, key) : fromNetwork(event, key));
 });
 
 async function fromCache(event, key) {

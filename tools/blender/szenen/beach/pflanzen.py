@@ -3,17 +3,24 @@
 # Fiedern sind Geometrie (kleine Vielecke, keine Textur mit Alpha): So zeichnen Blender und das Spiel dasselbe, und
 # Cycles braucht keine durchsichtigen Flächen.
 # Rückgabe je Modell: dict V (Ecken), F (Flächen, Listen von Eckennummern), M (Material je Fläche), T (Ton je Ecke 0…1:
-# Farbschwankung der Blätter, beim Stamm Ringe). Material: 0 Stamm/Rinde, 1 Laub, 2 dürres Laub, 3 Frucht.
-# detail: 1 für das Panorama, kleiner fürs Spiel (weniger Fiedern und Blätter, gleiche Form).
+# Farbschwankung der Blätter, beim Stamm Ringe), P (Teile, die das Spiel kompakt speichert: [(Form, erste Ecke, …)],
+# Form 'blatt' = Sechseck wie leaf(), 'fieder' = Streifen aus fünf Ecken, 'rohr' = tube() mit Ringen und Ecken je
+# Ring). Material: 0 Stamm/Rinde, 1 Laub, 2 dürres Laub, 3 Frucht.
+# detail: 1 wie im Panorama (auch das Spiel, seit PLAN 2.38), kleiner: weniger Fiedern und Blätter, gleiche Form.
 import numpy as np
+
+LEAF_FACES = [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]]   # Blatt: Grund, Schulter, Schulter, Spitze, …
+STRIP_FACES = [[0, 1, 2, 3], [3, 2, 4]]                       # Fieder, Halm: zwei am Grund, zwei in der Mitte, Spitze
 
 
 class Builder:
     def __init__(self):
-        self.V, self.F, self.M, self.T = [], [], [], []
+        self.V, self.F, self.M, self.T, self.P = [], [], [], [], []
 
-    def add(self, verts, faces, mat, tone):
+    def add(self, verts, faces, mat, tone, form=None):
         o = len(self.V)
+        if form:
+            self.P.append((form, o) if isinstance(form, str) else (form[0], o, *form[1:]))
         self.V.extend(np.asarray(verts, float).tolist())
         self.F.extend([[i + o for i in f] for f in faces])
         self.M.extend([mat] * len(faces))
@@ -38,7 +45,7 @@ class Builder:
             tones.extend([tone if rings is None else rings[i]] * sides)
         faces = [[i * sides + k, i * sides + (k + 1) % sides, (i + 1) * sides + (k + 1) % sides, (i + 1) * sides + k]
                  for i in range(n - 1) for k in range(sides)]
-        self.add(verts, faces, mat, tones)
+        self.add(verts, faces, mat, tones, ('rohr', n, sides))
 
     def leaf(self, base, along, side, length, width, fold, mat, tone):
         """Blatt als Sechseck: Grund, zwei Schultern, Spitze; entlang der Mittelrippe leicht gefaltet (fold)"""
@@ -47,12 +54,12 @@ class Builder:
         p = [base, base + along * length * 0.3 + side * width * 0.5 + lift, base + along * length * 0.72 + side * width * 0.42 + lift,
              base + along * length, base + along * length * 0.72 - side * width * 0.42 + lift,
              base + along * length * 0.3 - side * width * 0.5 + lift]
-        self.add(p, [[0, 1, 2], [0, 2, 3], [0, 3, 4], [0, 4, 5]], mat, tone)
+        self.add(p, LEAF_FACES, mat, tone, 'blatt')
 
     def result(self):
         """Fuss bei z = 0 (was darunter hängt, zählt mit), Höhe 1"""
         V = np.array(self.V); V[:, 2] -= min(0.0, V[:, 2].min()); V /= V[:, 2].max()
-        return {'V': V, 'F': self.F, 'M': np.array(self.M), 'T': np.array(self.T)}
+        return {'V': V, 'F': self.F, 'M': np.array(self.M), 'T': np.array(self.T), 'P': self.P}
 
 
 def _norm(v):
@@ -118,7 +125,7 @@ def palm(seed, detail=1.0):
                 tip = p0 + dirp * ln + np.array([0, 0, -ln * (0.22 + 0.2 * age)])
                 wv = _norm(np.cross(dirp, upw)) * w
                 verts = [p0 - wv * 0.6, p0 + wv * 0.6, mid + wv, mid - wv, tip]
-                b.add(verts, [[0, 1, 2, 3], [3, 2, 4]], 2 if dead else 1, (tone_f + rng.normal(0, 0.08)) * (1 - 0.3 * age))
+                b.add(verts, STRIP_FACES, 2 if dead else 1, (tone_f + rng.normal(0, 0.08)) * (1 - 0.3 * age), 'fieder')
     # Kokosnüsse
     for k in range(int(rng.integers(4, 9))):
         a = rng.uniform(0, 2 * np.pi)
