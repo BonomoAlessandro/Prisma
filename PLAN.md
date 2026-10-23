@@ -14,11 +14,7 @@
 
 ## 2. Levelauswahl
 
-- [ ] **2.1 Nur die Level des gewählten Grads:** Ist „Leicht“ gewählt, zeigt die Auswahl nur leichte Level, und das
-  Blättern geht am Ende nicht von selbst zu „Mittel“ weiter; ebenso bei den anderen Graden. Heute blättern die Pfeile
-  durch alle Seiten hindurch, und eine gemischte Seite (z. B. 81–90) zeigt Level aus zwei Graden. Offen: ob auch
-  „Weiter“ nach dem letzten leichten Level im Grad bleibt.
-- [ ] **2.2 Wischen auf dem Smartphone:** In der Levelauswahl blättert ein Wischen über die Levelliste zur nächsten
+- [ ] **2.1 Wischen auf dem Smartphone:** In der Levelauswahl blättert ein Wischen über die Levelliste zur nächsten
   bzw. vorigen Seite, wie heute die Pfeile ‹ ›. Wischen nach links zeigt die nächste Seite, nach rechts die vorige.
 
 ## 3. Würfel-Level (3D)
