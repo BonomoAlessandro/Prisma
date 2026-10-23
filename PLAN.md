@@ -12,17 +12,12 @@
 - [ ] **1.3 Lichtstrahlen:** Je nach Blickwinkel sehen die Strahlen noch immer wellenartig aus. Aussehen verbessern.
 - [ ] **1.4 Prismen:** Aussehen anpassen, sodass besser ersichtlich ist, auf welcher Seite die Farben herauskommen.
 
-## 2. Levelauswahl
+## 2. Würfel-Level (3D)
 
-- [ ] **2.1 Wischen auf dem Smartphone:** In der Levelauswahl blättert ein Wischen über die Levelliste zur nächsten
-  bzw. vorigen Seite, wie heute die Pfeile ‹ ›. Wischen nach links zeigt die nächste Seite, nach rechts die vorige.
-
-## 3. Würfel-Level (3D)
-
-- [ ] **3.1 Würfel-Level erstellen und ausbauen.** Der Prototyp liegt auf dem Branch `feature/3d-wuerfel` (Würfel
+- [ ] **2.1 Würfel-Level erstellen und ausbauen.** Der Prototyp liegt auf dem Branch `feature/3d-wuerfel` (Würfel
   5 × 5 × 5, Konzept und Stand in `3D-WUERFEL.md` auf dem Branch).
 
-## 4. Später (nächste Version, nicht jetzt)
+## 3. Später (nächste Version, nicht jetzt)
 
 - [ ] Neue Mechaniken, z. B. verschiebbare Elemente, Strahlteiler (halbdurchlässiger Spiegel), Portale, Schalter:
   - **Schalter (Lichtsensor):** Trifft Licht den Schalter, bewegt sich automatisch ein anderes Element (verschieben,
@@ -37,50 +32,50 @@
     Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 
-## 5. Google Play Store
+## 4. Google Play Store
 
 Weg: Prisma bleibt eine Web-App und wird als Trusted Web Activity (TWA) in eine Android-Hülle verpackt (Bubblewrap oder
-PWABuilder) – das Spiel selbst wird nicht umgeschrieben. Reihenfolge: zuerst 5.1–5.4 (lohnt sich auch ohne Store),
-dann 5.5–5.7, parallel 5.8–5.10, zuletzt der Test 5.11. Die Regeln (Testerzahl, verlangte Android-Version) vor dem
+PWABuilder) – das Spiel selbst wird nicht umgeschrieben. Reihenfolge: zuerst 4.1–4.4 (lohnt sich auch ohne Store),
+dann 4.5–4.7, parallel 4.8–4.10, zuletzt der Test 4.11. Die Regeln (Testerzahl, verlangte Android-Version) vor dem
 Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 **Im Projekt**
-- [ ] **5.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
-  Vor dem geschlossenen Test (5.11) endgültig entscheiden: Spielfortschritt (localStorage), Manifest-`id` und Asset
+- [ ] **4.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
+  Vor dem geschlossenen Test (4.11) endgültig entscheiden: Spielfortschritt (localStorage), Manifest-`id` und Asset
   Links hängen an der Adresse, ein späterer Wechsel kostet die Spieler ihren Fortschritt. Bei GitHub Pages als
-  Projektseite (`…github.io/Prisma/`) muss `assetlinks.json` (5.5) im Repo `BonomoAlessandro.github.io` liegen.
-- [x] **5.2 Offline-Fähigkeit:** Service Worker (`sw.js`), der Spiel, Icons, Bibliotheken und Schrift
+  Projektseite (`…github.io/Prisma/`) muss `assetlinks.json` (4.5) im Repo `BonomoAlessandro.github.io` liegen.
+- [x] **4.2 Offline-Fähigkeit:** Service Worker (`sw.js`), der Spiel, Icons, Bibliotheken und Schrift
   zwischenspeichert. Online kommt die Seite frisch vom Server (nach 3 s Wartezeit aus dem Speicher), offline aus
   dem Speicher; `vendor/` direkt aus dem Speicher; alle anderen Anfragen gehen vorbei. Nur über http(s) (über
   file:// gibt es keine Service Worker).
   `tests/logic.test.mjs` prüft die Dateiliste, `tests/offline.mjs` lädt das Spiel, stoppt den Server und lädt neu.
-- [x] **5.3 Abhängigkeiten lokal ausliefern:** Three.js r147 samt 7 Zusatzmodulen in `vendor/three-0.147.0/` (aus dem
+- [x] **4.3 Abhängigkeiten lokal ausliefern:** Three.js r147 samt 7 Zusatzmodulen in `vendor/three-0.147.0/` (aus dem
   npm-Paket, Prüfsumme der Registry geprüft, byte-gleich mit den bisherigen CDN-Dateien), die Schrift „Jost“ in
   `vendor/jost/` (nur der lateinische Zeichensatz, variable Schrift für alle Stärken). Lizenzen liegen bei
   (MIT, SIL OFL). Kein Abruf bei fremden Servern mehr.
-- [x] **5.4 Manifest ergänzen:** Name „Prisma – Licht-Puzzle“ (Startbildschirm „Prisma“; „Prisma“ allein ist im Store
+- [x] **4.4 Manifest ergänzen:** Name „Prisma – Licht-Puzzle“ (Startbildschirm „Prisma“; „Prisma“ allein ist im Store
   durch eine Foto-App besetzt), feste `id` „prisma“ (nicht mehr ändern, sonst gilt die installierte Web-App als neue;
   die Play-App erkennt man an Paketname und Signaturschlüssel), `scope`, Sprache,
   Beschreibung, Kategorie. Android-Icons mit Schutzrand (`icons/icon-maskable-192/512.png`, erzeugt mit
   `tools/icons.mjs`: ohne Ecke, Prisma auf 85 % verkleinert, Strahl und Spektrum bis zum Rand). Seitentitel
   angepasst. Speicherschlüssel des Fortschritts unverändert. Chrome meldet keine Manifest-Fehler, installierbar.
-- [ ] **5.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
+- [ ] **4.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
   Browser-Adressleiste.
-- [ ] **5.6 Android App Bundle (.aab) bauen und signieren** (Bubblewrap). Signaturschlüssel sicher aufbewahren – ohne
+- [ ] **4.6 Android App Bundle (.aab) bauen und signieren** (Bubblewrap). Signaturschlüssel sicher aufbewahren – ohne
   ihn keine Updates.
-- [ ] **5.7 Test auf echten Android-Geräten:** Leistung auf schwächeren Handys, Zurück-Taste, Hoch-/Querformat, Ton.
+- [ ] **4.7 Test auf echten Android-Geräten:** Leistung auf schwächeren Handys, Zurück-Taste, Hoch-/Querformat, Ton.
 
 **Konto und Store-Eintrag**
-- [ ] **5.8 Google-Play-Entwicklerkonto:** einmalig 25 USD, Identitätsprüfung.
-- [ ] **5.9 Pflichtangaben:** Datenschutzerklärung als Webseite (Fortschritt nur lokal; seit 5.3 keine Abrufe bei
+- [ ] **4.8 Google-Play-Entwicklerkonto:** einmalig 25 USD, Identitätsprüfung.
+- [ ] **4.9 Pflichtangaben:** Datenschutzerklärung als Webseite (Fortschritt nur lokal; seit 4.3 keine Abrufe bei
   fremden Servern mehr), Formular „Datensicherheit“, Altersfreigabe-Fragebogen, Zielgruppe.
-- [ ] **5.10 Store-Material:** Icon 512 × 512 (vorhanden), Titelgrafik 1024 × 500, mindestens 2 Screenshots,
+- [ ] **4.10 Store-Material:** Icon 512 × 512 (vorhanden), Titelgrafik 1024 × 500, mindestens 2 Screenshots,
   Kurzbeschreibung (80 Zeichen), lange Beschreibung.
-- [ ] **5.11 Geschlossener Test:** Neue private Konten brauchen mindestens 12 Tester über 14 Tage, bevor die App
+- [ ] **4.11 Geschlossener Test:** Neue private Konten brauchen mindestens 12 Tester über 14 Tage, bevor die App
   öffentlich erscheinen darf – zeitlich der längste Schritt.
 
-## 6. Steam
+## 5. Steam
 
-- [ ] **6.1 Prisma irgendwann auch auf Steam veröffentlichen.** Als Web-App braucht Prisma dafür eine Desktop-Hülle
+- [ ] **5.1 Prisma irgendwann auch auf Steam veröffentlichen.** Als Web-App braucht Prisma dafür eine Desktop-Hülle
   (z. B. Electron oder Tauri). Weg und Schritte sind noch offen; Regeln und Gebühr (Steam Direct) vor dem Start
   nachsehen.
