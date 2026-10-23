@@ -14,6 +14,8 @@
 
 - [ ] **2.1 Würfel-Level erstellen und ausbauen.** Der Prototyp liegt auf dem Branch `feature/3d-wuerfel` (Würfel
   5 × 5 × 5, Konzept und Stand in `3D-WUERFEL.md` auf dem Branch).
+- [ ] **2.2 Strahl auf der Plattform blocken:** Strahlt ein Strahl auf die Plattform (im Würfel ein Strahl nach unten),
+  wird er dort geblockt und leuchtet nicht durch.
 
 ## 3. Später (nächste Version, nicht jetzt)
 
