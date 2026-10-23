@@ -222,6 +222,12 @@
      verschieden gross */
   #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
   #levels .tile.ghost { visibility: hidden; }
+  /* Blättern mit Bewegung (ui.slidePage): Raster und Nachbarseite fahren gemeinsam im Fenster; sein Rand lässt Platz
+     für den Fokusrahmen der Kacheln, der Abstand zu den Pfeilen bleibt (die −6 px fallen mit deren Rand zusammen).
+     clip statt hidden: kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite */
+  #levels .grid-window { overflow: hidden; overflow: clip; margin: -6px; padding: 6px; }
+  #levels .grid-track { position: relative; }
+  #levels .grid.peek { position: absolute; top: 0; left: 0; width: 100%; }
   #levels .tile {
     position: relative;
     box-sizing: border-box; /* auch die Platzhalter (div, nicht button) */
@@ -386,7 +392,9 @@
       <div class="page-title" id="page-title" aria-live="polite"></div>
       <button class="step" id="page-next" aria-label="Nächste Seite">›</button>
     </div>
-    <div class="grid" id="level-grid"></div>
+    <div class="grid-window">
+      <div class="grid-track" id="grid-track"><div class="grid" id="level-grid"></div></div>
+    </div>
     <button class="close" id="btn-levels-close">Schliessen</button>
   </div>
 </div>
@@ -19687,6 +19695,8 @@ const PAGES = (() => {
   return pages;
 })();
 const pageOf = (i) => PAGES.find(p => p.indices.includes(i));
+/** Blättern mit Bewegung: Dauer für eine ganze Seite, Abstand zwischen zwei Seiten, Nachgeben am Anfang und Ende. */
+const PAGE_SLIDE = { ms: 280, gap: 32, rubber: 0.3, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
 /**
  * Abschnitte der Levelauswahl (Ausbau auf 500 Level): das Tutorial und je Grad die Level mit ihm. Fünf feste Knöpfe
  * statt eines Reiters je Seite (50 Seiten wären auf dem Handy 13 Reihen); geblättert wird mit den Pfeilen oder durch
@@ -19887,8 +19897,10 @@ const ui = {
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
   solved: $('solved'), solvedMsg: $('solved-msg'), solvedStats: $('solved-stats'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('sections'), pageTitle: $('page-title'),
-  prevPage: $('page-prev'), nextPage: $('page-next'),
+  prevPage: $('page-prev'), nextPage: $('page-next'), track: $('grid-track'),
   shownPage: 'T',
+  peek: null,  // Nachbarseite neben dem Raster beim Blättern
+  slide: null, // laufende Bewegung { anim, done }
   intro: $('intro'),
   lastLevel: false,
 
@@ -19933,25 +19945,49 @@ const ui = {
   },
   /**
    * Wischen über die Levelauswahl (Finger oder Stift, nicht die Maus): nach links die nächste Seite, nach rechts die
-   * vorige, wie die Pfeile. Geblättert wird beim Loslassen. Ein zweiter Finger bricht ab; senkrechtes Ziehen
-   * übernimmt der Browser (touch-action: pan-y, im Querformat scrollt es) und meldet dann pointercancel.
+   * vorige, wie die Pfeile. Die Kacheln folgen dem Finger, die Nachbarseite fährt daneben herein; beim Loslassen
+   * blättert es weiter oder federt zurück. Ein zweiter Finger bricht ab; senkrechtes Ziehen übernimmt der Browser
+   * (touch-action: pan-y, im Querformat scrollt es) und meldet dann pointercancel.
    */
   initSwipe() {
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches; // dann blättert es ohne Bewegung
     let swipe = null, swipedAt = -Infinity;
+    // weit genug gewischt: weiter zur Nachbarseite, sonst zurück in die Ruhe
+    const release = (e, cancelled) => {
+      const s = swipe;
+      swipe = null;
+      if (!s.horizontal) return;
+      swipedAt = performance.now();
+      const dx = e.clientX - s.x, step = dx < 0 ? 1 : -1, page = this.pageBeside(step);
+      if (!cancelled && page && Math.abs(dx) >= INPUT.swipeMin) this.slidePage(page, step, s.shown);
+      else if (s.shown) this.snapBack(s.shown);
+    };
     this.levels.addEventListener('pointerdown', (e) => {
       swipedAt = -Infinity; // neues Drücken: sein Klick gilt wieder (Tippen gleich nach dem Wischen)
       if (e.pointerType === 'mouse') return;
-      swipe = e.isPrimary ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+      if (!e.isPrimary) { if (swipe) release(e, true); return; }
+      this.endSlide(); // eine noch laufende Bewegung ist gleich fertig, der Finger fasst die neue Seite
+      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, grab: 0, horizontal: false, shown: 0 };
     });
-    this.levels.addEventListener('pointercancel', (e) => { if (swipe?.id === e.pointerId) swipe = null; });
-    this.levels.addEventListener('pointerup', (e) => {
-      if (swipe?.id !== e.pointerId) return;
-      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
-      swipe = null;
-      if (Math.abs(dx) < INPUT.swipeMin || Math.abs(dy) > Math.abs(dx) * INPUT.swipeSlope) return;
-      swipedAt = performance.now();
-      this.flipPage(dx < 0 ? 1 : -1);
+    this.levels.addEventListener('pointermove', (e) => {
+      const s = swipe;
+      if (s?.id !== e.pointerId) return;
+      if (!s.horizontal) {
+        const dx = e.clientX - s.x, dy = e.clientY - s.y;
+        if (Math.hypot(dx, dy) < INPUT.dragThresholdTouch) return;
+        if (Math.abs(dy) > Math.abs(dx) * INPUT.swipeSlope) { swipe = null; return; } // senkrecht: kein Wischen
+        s.horizontal = true;
+        s.grab = e.clientX; // ab hier folgen die Kacheln dem Finger, ohne Sprung; die Weite zum Blättern zählt ab s.x
+        return;
+      }
+      if (still()) return;
+      const dx = e.clientX - s.grab, step = dx < 0 ? 1 : -1, page = this.pageBeside(step);
+      this.setPeek(page, step);
+      s.shown = page ? dx : dx * PAGE_SLIDE.rubber; // am Anfang und Ende gibt die Seite nur zögernd nach
+      this.movePages(s.shown);
     });
+    this.levels.addEventListener('pointerup', (e) => { if (swipe?.id === e.pointerId) release(e, false); });
+    this.levels.addEventListener('pointercancel', (e) => { if (swipe?.id === e.pointerId) release(e, true); });
     // Ein Klick gleich nach dem Wischen ohne neues Drücken öffnet keine Kachel und schliesst die Auswahl nicht (Chrome
     // schickt ihn beim Stift, beim Finger nach so weitem Ziehen meist keinen); auf window abgefangen, vor allen anderen
     // Empfängern
@@ -20050,15 +20086,82 @@ const ui = {
     this.showPage(pageOf(game.levelIndex).id);
     (this.grid.querySelector('.current') || this.tabs.querySelector('[aria-pressed="true"]'))?.focus();
   },
+  /** Die Seite neben der gezeigten (+1 nächste, −1 vorige); am Anfang und Ende keine. */
+  pageBeside(step) {
+    return PAGES[PAGES.findIndex(q => q.id === this.shownPage) + step] ?? null;
+  },
   /** Eine Seite weiter (+1) oder zurück (−1), am Anfang und Ende nicht weiter. */
   flipPage(step) {
-    const k = PAGES.findIndex(q => q.id === this.shownPage) + step;
-    if (k >= 0 && k < PAGES.length) this.showPage(PAGES[k].id);
+    this.endSlide(); // schnell hintereinander: die laufende Bewegung ist gleich fertig
+    const page = this.pageBeside(step);
+    if (page) this.slidePage(page, step);
   },
-  /** Abschnitte, Blättern und die Kacheln der gewählten Seite aufbauen. */
+  /** Gewählte Seite ohne Bewegung zeigen (Öffnen, Abschnitt). */
   showPage(id) {
-    this.shownPage = id;
-    const page = PAGES.find(q => q.id === id), k = PAGES.indexOf(page);
+    this.endSlide();
+    this.movePages(0);
+    this.setPeek(null);
+    const page = PAGES.find(q => q.id === id);
+    this.showHeader(page);
+    this.fillGrid(this.grid, page);
+  },
+  /**
+   * Zur Nachbarseite blättern: Raster und Nachbarseite fahren gemeinsam, bis die neue Seite in der Mitte steht; dann
+   * übernimmt das Raster ihre Kacheln. Titel, Abschnitte und Pfeile wechseln gleich. from: wo die beiden schon stehen
+   * (beim Wischen, px).
+   */
+  slidePage(page, step, from = 0) {
+    this.showHeader(page);
+    const done = () => { this.movePages(0); this.setPeek(null); this.fillGrid(this.grid, page); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+    this.setPeek(page, step);
+    this.animatePages(from, -step * this.pageStride(), done);
+  },
+  /** Zurück in die Ruhe: zu kurz gewischt, am Anfang oder Ende, oder abgebrochen. */
+  snapBack(from) {
+    this.animatePages(from, 0, () => { this.movePages(0); this.setPeek(null); });
+  },
+  /** Weg von einer Seite zur nächsten: ihre Breite und der Abstand dazwischen (px). */
+  pageStride() { return this.track.offsetWidth + PAGE_SLIDE.gap; },
+  /** Raster und Nachbarseite um x px verschieben (0: Ruhe). */
+  movePages(x) { this.track.style.transform = x ? `translateX(${x}px)` : ''; },
+  /** Nachbarseite neben dem Raster zeigen (step +1 rechts, −1 links), page null entfernt sie. */
+  setPeek(page, step) {
+    if (this.peek?.dataset.id === page?.id) return;
+    this.peek?.remove();
+    this.peek = null;
+    if (!page) return;
+    const peek = document.createElement('div');
+    peek.className = 'grid peek';
+    peek.dataset.id = page.id;
+    peek.inert = true; // nur zum Ansehen; bedienbar ist sie erst als Raster
+    peek.setAttribute('aria-hidden', 'true');
+    peek.style.left = `${step * this.pageStride()}px`;
+    this.fillGrid(peek, page);
+    this.track.appendChild(peek);
+    this.peek = peek;
+  },
+  /** Raster und Nachbarseite von from nach to fahren (px), die Dauer im Verhältnis zum Weg; danach done(). */
+  animatePages(from, to, done) {
+    const ms = PAGE_SLIDE.ms * Math.min(1, Math.abs(to - from) / this.pageStride());
+    this.movePages(to); // Endstand schon setzen: kein Bild mit dem alten Stand zwischen Ende und done
+    const anim = this.track.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+      { duration: ms, easing: PAGE_SLIDE.easing });
+    this.slide = { anim, done };
+    anim.onfinish = () => { if (this.slide?.anim === anim) this.endSlide(); }; // nicht die Bewegung danach beenden
+  },
+  /** Laufende Bewegung sofort fertig machen. */
+  endSlide() {
+    const s = this.slide;
+    if (!s) return;
+    this.slide = null;
+    s.anim.cancel();
+    s.done();
+  },
+  /** Abschnitte, Pfeile und Titel zur gewählten Seite. */
+  showHeader(page) {
+    this.shownPage = page.id;
+    const k = PAGES.indexOf(page);
     for (const t of this.tabs.children) {
       const s = SECTIONS.find(q => q.id === t.dataset.id), solved = progress.solvedCount(s.indices);
       t.setAttribute('aria-pressed', String(s.indices.some(i => page.indices.includes(i))));
@@ -20079,7 +20182,10 @@ const ui = {
       z.textContent = zusatz;
       this.pageTitle.append(sep, z);
     }
-    this.grid.replaceChildren();
+  },
+  /** Kacheln einer Seite in ein Raster (das echte oder die Nachbarseite beim Blättern). */
+  fillGrid(grid, page) {
+    grid.replaceChildren();
     page.indices.forEach((i) => {
       const k = levelNumber(i) - 1;
       const b = document.createElement('button');
@@ -20102,14 +20208,14 @@ const ui = {
       b.classList.toggle('current', i === game.levelIndex);
       b.classList.toggle('done', done);
       b.addEventListener('click', () => { this.closeLevels(); if (i !== game.levelIndex || flow.state !== 'play') changeLevel(i); });
-      this.grid.appendChild(b);
+      grid.appendChild(b);
     });
     // leere Plätze auffüllen: jede Seite gleich hoch, "Schliessen" springt beim Blättern nicht
     for (let k = page.indices.length; k < PAGE_SIZE; k++) {
       const ghost = document.createElement('div');
       ghost.className = 'tile ghost';
       ghost.setAttribute('aria-hidden', 'true');
-      this.grid.appendChild(ghost);
+      grid.appendChild(ghost);
     }
   },
   closeLevels() {
