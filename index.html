@@ -192,6 +192,9 @@
     background: rgba(3, 3, 8, 0.78);
     z-index: 6;
     transition: opacity 0.4s ease;
+    /* waagrechtes Ziehen bekommt der Browser nirgends (kein Zurück-Wischen vom Rand): über die Kacheln blättert es
+       (ui.initSwipe), daneben geschieht nichts; senkrecht scrollt es im Querformat */
+    touch-action: pan-y;
   }
   #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
   #levels h2 { margin: 0 0 22px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
@@ -236,8 +239,15 @@
   #levels .page-title { font-size: 10px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); margin: 0; padding-left: 0.45em; }
   /* minmax(0, …): ein langer Name wie „Sonnenfinsternis“ verbreitert sonst alle Spalten, die Kacheln wären je Seite
      verschieden gross */
-  #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
+  #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
   #levels .tile.ghost { visibility: hidden; }
+  /* Blättern mit Bewegung (ui.slidePage): Raster und Nachbarseite fahren gemeinsam im Fenster; sein Rand lässt Platz
+     für den Fokusrahmen der Kacheln, der Abstand zu den Pfeilen bleibt (die −6 px fallen mit deren Rand zusammen).
+     clip statt hidden: kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite. Der
+     Abstand zu „Schliessen“ (28 px) liegt unter dem Fenster, damit gewischt nur auf den Kacheln beginnt */
+  #levels .grid-window { overflow: hidden; overflow: clip; margin: -6px -6px 22px; padding: 6px; }
+  #levels .grid-track { position: relative; }
+  #levels .grid.peek { position: absolute; top: 0; left: 0; width: 100%; }
   #levels .tile {
     position: relative;
     box-sizing: border-box; /* auch die Platzhalter (div, nicht button) */
@@ -277,7 +287,7 @@
     #levels .tile { aspect-ratio: auto; height: 46px; }
     #levels .name { display: none; }
     #levels .num { margin-top: 8px; } /* wie hochkant: dreistellige Zahlen stiessen sonst an die Punkte des Grads */
-    #levels .grid { margin-bottom: 14px; }
+    #levels .grid-window { margin-bottom: 8px; } /* 14 px bis „Schliessen“ */
     #levels .page-title { margin-bottom: 10px; }
   }
 
@@ -405,7 +415,9 @@
       <div class="page-title" id="page-title" aria-live="polite"></div>
       <button class="step" id="page-next" aria-label="Nächste Seite">›</button>
     </div>
-    <div class="grid" id="level-grid"></div>
+    <div class="grid-window" id="grid-window">
+      <div class="grid-track" id="grid-track"><div class="grid" id="level-grid"></div></div>
+    </div>
     <button class="close" id="btn-levels-close">Schliessen</button>
   </div>
 </div>
@@ -14187,6 +14199,40 @@ function loadSkyScript(src) {
     document.head.appendChild(s);
   });
 }
+
+/**
+ * Daten-PNG (Data-URL) ohne Farbangaben. Die PNGs der Skyboxen (Tiefe, Karten) tragen sRGB, gAMA und cHRM; Firefox
+ * rechnet solche Bilder ins Farbprofil des Bildschirms um, beim Zeichnen ins Canvas (skyLogDepth, groundShift; three
+ * lädt nach WebGL ohne Umrechnung hoch): schon ohne eigenes Profil um ±1, mit dem eines Notebooks bis 36 Stufen je
+ * Kanal. Mit 16 Bit in Rot und Grün lagen Tiefe und Wasser dann falsch. Bilder ohne Angaben lässt er, wie sie sind
+ * (geprüft mit Firefox 158, Chrome wie vorher). Die Angaben stehen vor den Bilddaten (IDAT), der Rest bleibt unverändert.
+ */
+const PNG_COLOR_CHUNKS = new Set(['sRGB', 'gAMA', 'cHRM', 'iCCP', 'cICP', 'mDCV', 'cLLI']);
+function plainPng(url) {
+  const head = 'data:image/png;base64,';
+  if (!url.startsWith(head)) return url;
+  const bin = atob(url.slice(head.length));
+  if (!bin.startsWith('\x89PNG\r\n\x1a\n')) return url;
+  const u32 = (p) => ((bin.charCodeAt(p) << 24) | (bin.charCodeAt(p + 1) << 16) | (bin.charCodeAt(p + 2) << 8) | bin.charCodeAt(p + 3)) >>> 0;
+  let out = bin.slice(0, 8), p = 8, dropped = false;
+  while (p + 8 <= bin.length && bin.slice(p + 4, p + 8) !== 'IDAT') {
+    const end = p + 12 + u32(p);
+    if (PNG_COLOR_CHUNKS.has(bin.slice(p + 4, p + 8))) dropped = true;
+    else out += bin.slice(p, end);
+    p = end;
+  }
+  return dropped ? head + btoa(out + bin.slice(p)) : url;
+}
+/** Alle PNG-Data-URLs in einem Teil einer Skybox ohne Farbangaben (plainPng), an Ort und Stelle. Listen aus Zahlen
+ * (Geometrie der Ebenen, im Wald rund 30 000 Werte) übergeht es: Mit ihnen hielt es den Hauptthread doppelt so lang an
+ * (Wald, Chrome mit vierfach gedrosselter CPU: rund 21 statt 10 ms). */
+function plainPngs(o) {
+  for (const [k, v] of Object.entries(o)) {
+    if (typeof v === 'string') o[k] = plainPng(v);
+    else if (v && typeof v === 'object' && typeof v[0] !== 'number') plainPngs(v);
+  }
+  return o;
+}
 /**
  * Farbbilder der Skyboxen dekodieren, für WebGL kippen, Mipmaps rechnen und alles in Streifen zu STRIP_ROWS Zeilen
  * schneiden – in einem Worker: Kippen kostete im Hauptthread selbst mit createImageBitmap rund 25 ms je 4096×3413-Bild,
@@ -14210,11 +14256,23 @@ const skyBitmaps = (() => {
       if (next.width !== w || next.height !== h) throw new Error('Grösse übergangen');
       levels.push(next);
     }
+    // Streifen über ein OffscreenCanvas als eigenes Bild: Einen mit createImageBitmap(lv, 0, y, …) zugeschnittenen lädt
+    // Firefox ohne den Zuschnitt in WebGL (jeder Streifen zeigte die obersten Zeilen, der Grund lag in Ringen); so
+    // bitgenau und je Streifen in 1–2 statt bis 25 ms hochgeladen. willReadFrequently: Canvas im Hauptspeicher, Chrome
+    // wie vorher (sonst lagen die wartenden Streifen im Grafikprozess, an der Spitze rund 180 MB mehr). Vormultipliziert
+    // (das Canvas): gleich für die deckenden JPEGs, nicht für ein Farbbild mit Alpha.
+    const cut = (lv, y, h) => {
+      const c = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(lv.width, h) : null;
+      const g = c?.getContext('2d', { willReadFrequently: true });
+      if (!g) return createImageBitmap(lv, 0, y, lv.width, h);
+      g.drawImage(lv, 0, -y);
+      return c.transferToImageBitmap();
+    };
     const strips = [];
     for (const [level, lv] of levels.entries()) {
       if (lv.height <= rows) { strips.push({ level, y: 0, bitmap: lv }); continue; }
       for (let y = 0; y < lv.height; y += rows) {
-        strips.push({ level, y, bitmap: await createImageBitmap(lv, 0, y, lv.width, Math.min(rows, lv.height - y)) });
+        strips.push({ level, y, bitmap: await cut(lv, y, Math.min(rows, lv.height - y)) });
       }
       lv.close();
     }
@@ -16429,7 +16487,7 @@ function createPanoramaSky(m) {
     const key = `${m.id}/${role}`, got = window.PRISMA_SKY_PARTS?.[key];
     delete window.PRISMA_SKY_PARTS?.[key]; // die Bilder stecken gleich in den Texturen
     if (!got || got.rev !== m.rev) throw new Error(`${part.file}: anderer Stand als im Register`);
-    return got;
+    return plainPngs(got);
   }
 
   async function build(my) {
@@ -19335,6 +19393,8 @@ const INPUT = {
   hoverFade: 0.0008,        // Glättung des Hover-Leuchtens (pro Sekunde verbleibender Anteil)
   wheelZoom: 0.001,         // Zoom je Pixel Mausrad (ein Raster ≈ 100 px ≈ 10 %), gedeckelt auf wheelStep je Ereignis
   wheelStep: 100,
+  swipeMin: 50,             // px: so weit wischt ein Finger in der Levelauswahl waagrecht, um zu blättern
+  swipeSlope: 0.6,          // höchstens so viel senkrecht je waagrecht (≈ 30°), sonst ist es kein Wischen
 };
 
 const raycaster = new THREE.Raycaster();
@@ -20199,10 +20259,13 @@ const pageOf = (i) => PAGES.find(p => p.indices.includes(i));
 /** Spielarten der Levelauswahl (Umschalter über den Abschnitten): die Fläche (Tutorial + Level) und der Würfel. */
 const MODES = [{ id: '2d', label: 'Fläche', tag: '2D' }, { id: '3d', label: 'Würfel', tag: '3D' }]
   .filter(m => PAGES.some(p => p.mode === m.id));
+/** Blättern mit Bewegung: Dauer für eine ganze Seite, Abstand zwischen zwei Seiten, Nachgeben am Anfang und Ende. */
+const PAGE_SLIDE = { ms: 280, gap: 32, rubber: 0.3, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
 /**
  * Abschnitte der Levelauswahl (Ausbau auf 500 Level): das Tutorial und je Grad die Level mit ihm. Fünf feste Knöpfe
- * statt eines Reiters je Seite (50 Seiten wären auf dem Handy 13 Reihen); geblättert wird mit den Pfeilen. Eine
- * gemischte Seite gehört zu jedem Grad, den sie enthält. Nur in der Fläche; der Würfel hat eine einzige Seite.
+ * statt eines Reiters je Seite (50 Seiten wären auf dem Handy 13 Reihen); geblättert wird mit den Pfeilen oder durch
+ * Wischen. Eine gemischte Seite gehört zu jedem Grad, den sie enthält. Nur in der Fläche; der Würfel hat eine einzige
+ * Seite.
  */
 const SECTIONS = [{ id: 'T', label: 'Tutorial', indices: PAGES[0].indices },
   ...Object.entries(GRAD_ANZEIGE).map(([g, d]) => ({ id: g, label: d.label,
@@ -20400,8 +20463,10 @@ const ui = {
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
   solved: $('solved'), solvedMsg: $('solved-msg'), solvedStats: $('solved-stats'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), modes: $('mode-tabs'), tabs: $('sections'), pageTitle: $('page-title'),
-  prevPage: $('page-prev'), nextPage: $('page-next'),
+  prevPage: $('page-prev'), nextPage: $('page-next'), gridWindow: $('grid-window'), track: $('grid-track'),
   shownPage: 'T',
+  peek: null,  // Nachbarseite neben dem Raster beim Blättern
+  slide: null, // laufende Bewegung { anim, done }
   intro: $('intro'),
   lastLevel: false,
 
@@ -20439,6 +20504,7 @@ const ui = {
     }
     this.prevPage.addEventListener('click', () => this.flipPage(-1));
     this.nextPage.addEventListener('click', () => this.flipPage(1));
+    this.initSwipe();
     this.updateSound();
     this.updateSkyButton();
     // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s) und das erste Bild steht (spätestens
@@ -20453,6 +20519,64 @@ const ui = {
     const unlock = (e) => { if (e.isTrusted) audio.unlock(); }; // synthetische Ereignisse (Tests) zählen nicht als Geste
     window.addEventListener('pointerdown', unlock, { passive: true });
     window.addEventListener('keydown', unlock);
+  },
+  /**
+   * Wischen über die Kacheln (Finger oder Stift, nicht die Maus; Titel, Pfeile und Rand der Auswahl blättern nicht):
+   * nach links die nächste Seite, nach rechts die vorige, wie die Pfeile. Die Kacheln folgen dem Finger, die
+   * Nachbarseite fährt daneben herein; beim Loslassen blättert es weiter oder federt zurück. Ein zweiter Finger bricht
+   * ab; senkrechtes Ziehen übernimmt der Browser (touch-action: pan-y, im Querformat scrollt es) und meldet dann
+   * pointercancel.
+   */
+  initSwipe() {
+    const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches; // dann blättert es ohne Bewegung
+    let swipe = null, swipedAt = -Infinity;
+    // weit genug gewischt: weiter zur Nachbarseite, sonst zurück in die Ruhe
+    const release = (e, cancelled) => {
+      const s = swipe;
+      swipe = null;
+      if (!s.horizontal) return;
+      swipedAt = performance.now();
+      const dx = e.clientX - s.x, step = dx < 0 ? 1 : -1, page = this.pageBeside(step);
+      if (!cancelled && page && Math.abs(dx) >= INPUT.swipeMin) this.slidePage(page, step, s.shown);
+      else if (s.shown) this.snapBack(s.shown);
+    };
+    // irgendwo in der Auswahl: neues Drücken lässt seinen Klick wieder gelten (Tippen gleich nach dem Wischen), ein
+    // zweiter Finger bricht das Wischen ab
+    this.levels.addEventListener('pointerdown', (e) => {
+      swipedAt = -Infinity;
+      if (!e.isPrimary && swipe) release(e, true);
+    });
+    // beginnen nur auf den Kacheln; Ziehen und Loslassen zählen in der ganzen Auswahl (der Finger darf hinaus)
+    this.gridWindow.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || !e.isPrimary) return;
+      this.endSlide(); // eine noch laufende Bewegung ist gleich fertig, der Finger fasst die neue Seite
+      swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, grab: 0, horizontal: false, shown: 0 };
+    });
+    this.levels.addEventListener('pointermove', (e) => {
+      const s = swipe;
+      if (s?.id !== e.pointerId) return;
+      if (!s.horizontal) {
+        const dx = e.clientX - s.x, dy = e.clientY - s.y;
+        if (Math.hypot(dx, dy) < INPUT.dragThresholdTouch) return;
+        if (Math.abs(dy) > Math.abs(dx) * INPUT.swipeSlope) { swipe = null; return; } // senkrecht: kein Wischen
+        s.horizontal = true;
+        s.grab = e.clientX; // ab hier folgen die Kacheln dem Finger, ohne Sprung; die Weite zum Blättern zählt ab s.x
+        return;
+      }
+      if (still()) return;
+      const dx = e.clientX - s.grab, step = dx < 0 ? 1 : -1, page = this.pageBeside(step);
+      this.setPeek(page, step);
+      s.shown = page ? dx : dx * PAGE_SLIDE.rubber; // am Anfang und Ende gibt die Seite nur zögernd nach
+      this.movePages(s.shown);
+    });
+    this.levels.addEventListener('pointerup', (e) => { if (swipe?.id === e.pointerId) release(e, false); });
+    this.levels.addEventListener('pointercancel', (e) => { if (swipe?.id === e.pointerId) release(e, true); });
+    // Ein Klick gleich nach dem Wischen ohne neues Drücken öffnet keine Kachel und schliesst die Auswahl nicht (Chrome
+    // schickt ihn beim Stift, beim Finger nach so weitem Ziehen meist keinen); auf window abgefangen, vor allen anderen
+    // Empfängern
+    window.addEventListener('click', (e) => {
+      if (performance.now() - swipedAt < 400) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
   },
 
   showHud(index) {
@@ -20558,18 +20682,86 @@ const ui = {
       || own.find(p => progress.solvedCount(p.indices) < p.indices.length) || own[0];
     this.showPage(page.id);
   },
-  /** Eine Seite weiter (+1) oder zurück (−1) in der Spielart der gezeigten Seite, am Anfang und Ende nicht weiter. */
-  flipPage(step) {
+  /** Die Seite neben der gezeigten (+1 nächste, −1 vorige) in derselben Spielart; am Anfang und Ende keine. */
+  pageBeside(step) {
     const own = PAGES.filter(p => p.mode === PAGES.find(q => q.id === this.shownPage).mode);
-    const k = own.findIndex(q => q.id === this.shownPage) + step;
-    if (k >= 0 && k < own.length) this.showPage(own[k].id);
+    return own[own.findIndex(q => q.id === this.shownPage) + step] ?? null;
   },
-  /** Spielart-Umschalter, Abschnitte, Blättern und die Kacheln der gewählten Seite aufbauen. */
+  /** Eine Seite weiter (+1) oder zurück (−1), am Anfang und Ende nicht weiter. */
+  flipPage(step) {
+    this.endSlide(); // schnell hintereinander: die laufende Bewegung ist gleich fertig
+    const page = this.pageBeside(step);
+    if (page) this.slidePage(page, step);
+  },
+  /** Gewählte Seite ohne Bewegung zeigen (Öffnen, Abschnitt, Spielart). */
   showPage(id) {
-    this.shownPage = id;
-    const page = PAGES.find(q => q.id === id), own = PAGES.filter(p => p.mode === page.mode), k = own.indexOf(page);
+    this.endSlide();
+    this.movePages(0);
+    this.setPeek(null);
+    const page = PAGES.find(q => q.id === id);
+    this.showHeader(page);
+    this.fillGrid(this.grid, page);
+  },
+  /**
+   * Zur Nachbarseite blättern: Raster und Nachbarseite fahren gemeinsam, bis die neue Seite in der Mitte steht; dann
+   * übernimmt das Raster ihre Kacheln. Titel, Abschnitte und Pfeile wechseln gleich. from: wo die beiden schon stehen
+   * (beim Wischen, px).
+   */
+  slidePage(page, step, from = 0) {
+    this.showHeader(page);
+    const done = () => { this.movePages(0); this.setPeek(null); this.fillGrid(this.grid, page); };
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) { done(); return; }
+    this.setPeek(page, step);
+    this.animatePages(from, -step * this.pageStride(), done);
+  },
+  /** Zurück in die Ruhe: zu kurz gewischt, am Anfang oder Ende, oder abgebrochen. */
+  snapBack(from) {
+    this.animatePages(from, 0, () => { this.movePages(0); this.setPeek(null); });
+  },
+  /** Weg von einer Seite zur nächsten: ihre Breite und der Abstand dazwischen (px). */
+  pageStride() { return this.track.offsetWidth + PAGE_SLIDE.gap; },
+  /** Raster und Nachbarseite um x px verschieben (0: Ruhe). */
+  movePages(x) { this.track.style.transform = x ? `translateX(${x}px)` : ''; },
+  /** Nachbarseite neben dem Raster zeigen (step +1 rechts, −1 links), page null entfernt sie. */
+  setPeek(page, step) {
+    if (this.peek?.dataset.id === page?.id) return;
+    this.peek?.remove();
+    this.peek = null;
+    if (!page) return;
+    const peek = document.createElement('div');
+    peek.className = 'grid peek';
+    peek.dataset.id = page.id;
+    peek.inert = true; // nur zum Ansehen; bedienbar ist sie erst als Raster
+    peek.setAttribute('aria-hidden', 'true');
+    peek.style.left = `${step * this.pageStride()}px`;
+    this.fillGrid(peek, page);
+    this.track.appendChild(peek);
+    this.peek = peek;
+  },
+  /** Raster und Nachbarseite von from nach to fahren (px), die Dauer im Verhältnis zum Weg; danach done(). */
+  animatePages(from, to, done) {
+    const ms = PAGE_SLIDE.ms * Math.min(1, Math.abs(to - from) / this.pageStride());
+    this.movePages(to); // Endstand schon setzen: kein Bild mit dem alten Stand zwischen Ende und done
+    const anim = this.track.animate([{ transform: `translateX(${from}px)` }, { transform: `translateX(${to}px)` }],
+      { duration: ms, easing: PAGE_SLIDE.easing });
+    this.slide = { anim, done };
+    anim.onfinish = () => { if (this.slide?.anim === anim) this.endSlide(); }; // nicht die Bewegung danach beenden
+  },
+  /** Laufende Bewegung sofort fertig machen. */
+  endSlide() {
+    const s = this.slide;
+    if (!s) return;
+    this.slide = null;
+    s.anim.cancel();
+    s.done();
+  },
+  /** Spielart-Umschalter, Abschnitte, Pfeile und Titel zur gewählten Seite. */
+  showHeader(page) {
+    this.shownPage = page.id;
+    const own = PAGES.filter(p => p.mode === page.mode), k = own.indexOf(page);
     for (const m of this.modes.children) {
-      const md = MODES.find(q => q.id === m.dataset.id), indices = PAGES.filter(p => p.mode === md.id).flatMap(p => p.indices);
+      const md = MODES.find(q => q.id === m.dataset.id);
+      const indices = PAGES.filter(p => p.mode === md.id).flatMap(p => p.indices);
       const solved = progress.solvedCount(indices);
       m.setAttribute('aria-pressed', String(md.id === page.mode));
       m.setAttribute('aria-label', `${md.label} ${md.tag}, ${solved} von ${indices.length} gelöst`);
@@ -20598,7 +20790,10 @@ const ui = {
       z.textContent = zusatz;
       this.pageTitle.append(sep, z);
     }
-    this.grid.replaceChildren();
+  },
+  /** Kacheln einer Seite in ein Raster (das echte oder die Nachbarseite beim Blättern). */
+  fillGrid(grid, page) {
+    grid.replaceChildren();
     page.indices.forEach((i) => {
       const k = levelNumber(i) - 1;
       const b = document.createElement('button');
@@ -20621,14 +20816,14 @@ const ui = {
       b.classList.toggle('current', i === game.levelIndex);
       b.classList.toggle('done', done);
       b.addEventListener('click', () => { this.closeLevels(); if (i !== game.levelIndex || flow.state !== 'play') changeLevel(i); });
-      this.grid.appendChild(b);
+      grid.appendChild(b);
     });
     // leere Plätze auffüllen: jede Seite gleich hoch, "Schliessen" springt beim Blättern nicht
     for (let k = page.indices.length; k < PAGE_SIZE; k++) {
       const ghost = document.createElement('div');
       ghost.className = 'tile ghost';
       ghost.setAttribute('aria-hidden', 'true');
-      this.grid.appendChild(ghost);
+      grid.appendChild(ghost);
     }
   },
   closeLevels() {

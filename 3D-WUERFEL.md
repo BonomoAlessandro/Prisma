@@ -131,9 +131,9 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 
 ## Bekannt / offen
 
-- N bzw. → auf Level 500 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort; die Pfeile der
-  Levelauswahl blättern nur in der gewählten Spielart). Bewusst so gelassen – entscheiden, ob 2D und Würfel auch beim
-  Blättern getrennt sein sollen.
+- N bzw. → auf Level 500 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort; Pfeile und Wischen
+  in der Levelauswahl blättern nur in der gewählten Spielart). Bewusst so gelassen – entscheiden, ob 2D und Würfel auch
+  beim Blättern getrennt sein sollen.
 - Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
 - Die Würfel-Level im Spiel sind handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und
   ohne Kernidee, Kern hat die Kernidee „Mischziel aus zwei Quellen“. Der Generator liefert Würfel-Level (Ticket 22),
