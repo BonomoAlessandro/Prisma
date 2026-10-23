@@ -153,14 +153,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
 - **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt im Schlot über einem Lavasee, Vorbilder Nyiragongo und Erta
-  Ale: Wände aus waagrechten Lavaschichten mit Terrassen (Basalt, Rost- und Schwefelflecken), unten warm von der Lava
-  angeleuchtet, oben kühl; Dampfsäulen aus dem See (Volumen); durch die Öffnung ein rauchiger Nachthimmel. Szene in
-  `tools/blender/szenen/volcano/szene.py` (in Cycles gerendert, gemalt mit dem Stil `volcano` in `stile.py` wie der
-  Strand). `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')` (mit einer Quadro T2000 rund zwei Stunden; ohne MCP
-  auch headless mit denselben Skripten über `wald_mcp.run`), danach `node tools/blender/pack.mjs volcano`. Bewegt
-  zeichnet das Spiel den See ums Brett (`lavaPool`: treibende Krustenplatten mit glühenden Rissen, die sich öffnen und
-  schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken) und den Dampf
-  (`steamPlumes`: aufsteigende Schwaden als zur Kamera gedrehte Flächen); Blender malt dort nur die dunkle Kruste.
+  Ale: Rundum eine trichterförmige Böschung (um 45°) mit Absätzen, bedeckt mit tausenden Felsblöcken wie am Strand
+  (gleiche Blockform und dasselbe Material, in Basaltfarben, unten warm von der Lava angeleuchtet) und Geröll; durch
+  die weite Öffnung ein rauchiger Nachthimmel. Szene in `tools/blender/szenen/volcano/szene.py` (in Cycles gerendert,
+  gemalt mit dem Stil `volcano` in `stile.py` wie der Strand). `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')`
+  (ohne MCP auch headless mit denselben Skripten über `wald_mcp.run`), danach `node tools/blender/pack.mjs volcano`.
+  Bewegt zeichnet das Spiel den See ums Brett (`lavaPool`: treibende Krustenplatten mit glühenden Rissen, die sich
+  öffnen und schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken); Blender
+  malt dort nur die Kruste. Ein Dutzend Felsbrocken am Ufer zeichnet das Spiel wie die nahen Felsen am Strand
+  (`bakedMesh`, Licht gebacken und gemalt, `export()` der Szene).
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der

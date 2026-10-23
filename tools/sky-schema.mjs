@@ -104,7 +104,7 @@ const LAYER_PARAMS = {
   bakedMesh: {
     data: (v) => typeof v === 'string',
   },
-  // Vulkan: Lavasee und Dampf. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
+  // Vulkan: Lavasee. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
   // liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
   lavaPool: {
     level: isNum, lift: (v) => isNum(v) && v >= 0, radius: isPos, fade: isPos, seed: isNum,
@@ -115,11 +115,6 @@ const LAYER_PARAMS = {
     bursts: (v) => isInt(v?.count) && v.count <= 32 && isRange(v.ring) && isRange(v.size) && isRange(v.period),
     spatter: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
     sparks: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
-  },
-  steamPlumes: {
-    level: isNum, seed: isNum, puffs: isInt, height: isPos, size: isRange, life: isRange,
-    vents: (v) => isInt(v?.count) && isRange(v.ring),
-    near: isRange, lit: isBright, mid: isBright, high: isBright, alpha: (v) => isNum(v) && v >= 0 && v <= 1,
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),

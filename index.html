@@ -15075,78 +15075,6 @@ function lavaPool(ctx, opt) {
 }
 
 /**
- * Dampf (Vulkan): Schwaden, die an einigen Stellen des Sees (vents: count im Ring ring) langsam aufsteigen, sich
- * ausbreiten und vergehen, je Stelle puffs Schwaden versetzt (Dauer life in s, Höhe height, Grösse size in m): so
- * entsteht eine Säule. Halbtransparente, zur Kamera gedrehte Flächen mit weicher, wolkiger Form; unten von der Lava
- * rosa-orange angeleuchtet (lit), in der Mitte weiss-grau (mid), oben grau-violett (high). Nahe an der Kamera (near:
- * Abstand von, bis) blenden sie aus, damit sie das Brett nie verdecken.
- */
-function steamPlumes(ctx, opt) {
-  const rand = mulberry32(opt.seed);
-  const v = opt.vents, n = opt.puffs;
-  const P = [], C = [], S = [], idx = [];
-  for (let i = 0; i < v.count; i++) {
-    const a = (i + rand() * 0.6) / v.count * 2 * Math.PI, r = v.ring[0] + rand() * (v.ring[1] - v.ring[0]);
-    const x = Math.sin(a) * r, z = Math.cos(a) * r;
-    for (let k = 0; k < n; k++) {
-      const base = P.length / 3;
-      const seed = [k / n + rand() * 0.3 / n, opt.life[0] + rand() * (opt.life[1] - opt.life[0]), rand(), rand()];
-      for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
-        P.push(x, opt.level, z); C.push(cx, cy); S.push(...seed); // alle Ecken einer Schwade gleich
-      }
-      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
-    }
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  geo.setAttribute('aCorner', new THREE.Float32BufferAttribute(C, 2));
-  geo.setAttribute('aSeed', new THREE.Float32BufferAttribute(S, 4));
-  geo.setIndex(idx);
-  const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    uniforms: ctx.uniforms,
-    transparent: true, depthWrite: false,
-    vertexShader: `attribute vec2 aCorner;
-        attribute vec4 aSeed;           // Versatz der Phase, Dauer, Zufall, Zufall
-        uniform float uTime;
-        varying vec2 vUv;
-        varying float vPh, vSeed, vNear;
-        void main() {
-          float ph = fract(uTime / aSeed.y + aSeed.x);
-          vec3 c = position + vec3(sin(uTime * 0.21 + aSeed.z * 9.0) * 1.8 * ph, ph * ${glf(opt.height)},
-                                   cos(uTime * 0.17 + aSeed.w * 9.0) * 1.8 * ph);
-          float s = mix(${glf(opt.size[0])}, ${glf(opt.size[1])}, aSeed.z) * (0.45 + 1.1 * ph);
-          float ang = aSeed.w * 6.2831 + uTime * 0.04 * (aSeed.z - 0.5);
-          vec2 k = mat2(cos(ang), sin(ang), -sin(ang), cos(ang)) * aCorner;
-          vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
-          vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
-          vec3 wp = c + (right * k.x + up * k.y) * s * 0.5;
-          vUv = aCorner; vPh = ph; vSeed = aSeed.z;
-          vNear = smoothstep(${glf(opt.near[0])}, ${glf(opt.near[1])}, length(cameraPosition - c));
-          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
-        }`,
-    fragmentShader: `uniform float uTime, uFade, uReady;
-        varying vec2 vUv;
-        varying float vPh, vSeed, vNear;
-        ${GLSL_NOISE}
-        void main() {
-          float n = fbm(vec3(vUv * 1.6 + vSeed * 31.0, uTime * 0.06 + vSeed * 5.0));
-          float dens = 1.0 - smoothstep(0.25, 1.0, length(vUv) + (0.5 - n) * 0.8);
-          float life = smoothstep(0.0, 0.15, vPh) * (1.0 - smoothstep(0.5, 1.0, vPh));
-          float a = dens * life * vNear * ${glf(opt.alpha)};
-          if (a < 0.004) discard;
-          vec3 col = mix(${glv(opt.lit)}, ${glv(opt.mid)}, smoothstep(0.0, 0.35, vPh + vUv.y * 0.1));
-          col = mix(col, ${glv(opt.high)}, smoothstep(0.45, 1.0, vPh));
-          col *= 0.8 + 0.35 * n;                     // wolkige Helligkeit
-          float k = uFade * uReady;
-          gl_FragColor = vec4(col * k, a * k);
-        }`,
-  }));
-  mesh.frustumCulled = false;
-  mesh.renderOrder = 5;
-  return mesh;
-}
-
-/**
  * Kachelbare Wellen fürs Wasser (waterSurface): RGB = Normale feiner Wellen (Summe von Sinuswellen mit ganzzahligen
  * Wellenzahlen, vorwiegend in einer Richtung), A = kachelbares Rauschen (Lücken der Brecher). Generator (yield je Zeile).
  */
@@ -16442,7 +16370,7 @@ function fishSchools(ctx, opt) {
   return holder;
 }
 
-const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool, steamPlumes };
+const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool };
 
 /**
  * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):

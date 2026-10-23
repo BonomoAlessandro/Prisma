@@ -1,15 +1,17 @@
 # Baut die Blender-Szene „Im Vulkan“ (Skybox volcano, PLAN 1.2), realistisch gerendert und danach gemalt wie der
 # Strand. Über den Blender-MCP: wald_mcp.neu('volcano') baut sie und speichert tools/blender/volcano.blend; einzelne
 # Teile neu mit wald_mcp.scene('volcano').replace_…(). Ohne MCP headless mit denselben Skripten (wald_mcp.run).
-# Vorbilder: Nyiragongo (Lavasee aus dunkler Kruste mit glühenden Rissen, Dampfsäulen direkt aus dem See) und Erta Ale
-# (Kraterwände aus waagrechten Lavaschichten mit Terrassen, grauschwarz, Rost- und Schwefelflecken).
-# Aufbau: Das Brett schwebt im Schlot über dem Lavasee (LAVA_Z). Rundum fällt die Wand steil in den See: Schichten von
-# einigen Metern, abwechselnd vor- und zurückspringend, dazwischen breitere Terrassen (BENCHES); oben ein unregelmässiger
-# Rand, dahinter flach. Durch die Öffnung ein rauchiger Nachthimmel, unten vom Glühen angestrahlt. Dampfsäulen steigen
-# aus dem See (Sammlung „Volumen“). Licht: die Lava von unten (Risse leuchten, dazu die Flächenlampe „Glut See“), kühl
-# und schwach der Himmel von oben (Hauptlicht „Oben“).
-# Den See bis LAVA_GAME zeichnet das Spiel selbst und bewegt (Ebene lavaPool: treibende Kruste, Risse, Blasen,
-# Spritzer, Funken; Dampf: steamPlumes); Blender malt dort nur eine dunkle Grundfarbe (kleineres Bild, Budget).
+# Vorbilder: Nyiragongo (Lavasee aus dunkler Kruste mit glühenden Rissen) und Erta Ale (Krater mit Absätzen,
+# grauschwarzer Basalt, Rost- und Schwefelflecken).
+# Aufbau: Das Brett schwebt im Schlot über dem Lavasee (LAVA_Z). Rundum steigt eine trichterförmige Böschung (GRADE,
+# um 45°) mit Absätzen (BENCHES) bis zum Rand, dahinter flach; darauf tausende Felsblöcke wie am Strand (S.boulder,
+# Material wie dort in Vulkanfarben), gestaut an den Kanten der Absätze und am Ufer, dazwischen Geröll. Durch die weite
+# Öffnung ein rauchiger Nachthimmel; im Krater nur leichter Dunst (Luftperspektive), keine Dampfsäulen. Licht: die
+# Lava von unten (Risse leuchten, dazu die Flächenlampe „Glut See“), kühl und schwach der Himmel von oben (Hauptlicht
+# „Oben“).
+# Das Spiel zeichnet selbst: den See bis LAVA_GAME, bewegt (lavaPool; Blender malt dort nur die Kruste), und ein
+# Dutzend Felsbrocken am Ufer (bakedMesh, wie die nahen Felsen am Strand: gebackenes Licht, gemalt; Sammlung „Spiel“,
+# für die Panoramakamera unsichtbar).
 # Koordinaten: Blender (x, y, z) = Spiel (x, −z, y). Brett im Ursprung, Panorama-Mittelpunkt (0, 0, 3).
 import bpy, math, os, sys, time, importlib.util
 import numpy as np
@@ -41,14 +43,14 @@ def log(*a):
 
 PANO_CENTER = (0.0, 0.0, 3.0)
 LAVA_Z = -9.0         # Lavasee (Spiel: level der Ebenen)
-FOOT = 27.0           # mittlerer Radius, an dem die Wand in den See fällt
-LAVA_GAME = 23.0      # bis hier zeichnet das Spiel den See (radius von lavaPool), voll deckend bis LAVA_GAME − 2.5
-SLOPE = 0.16          # die Wand weicht je Meter Höhe so weit zurück (gut 80°)
-# Terrassen: Höhe über der Lava, Breite (m)
-BENCHES = [(24.0, 5.0), (52.0, 7.0), (88.0, 9.0), (128.0, 11.0)]
-RIM = 165.0           # Rand über der Lava (je Richtung ±20 m)
-LAYER = 3.4           # mittlere Dicke einer Lavaschicht (m)
-SEGMENTS = 1024       # Gitter der Wand rundum
+FOOT = 25.0           # mittlerer Radius, an dem die Böschung in den See taucht
+LAVA_GAME = 22.0      # bis hier zeichnet das Spiel den See (radius von lavaPool), voll deckend bis LAVA_GAME − 2.5
+GRADE = 1.0           # Neigung der Böschung (Höhe je Meter waagrecht: 45°)
+# Absätze: so weit vom Fuss (m, waagrecht) beginnt einer, so breit ist er im Mittel
+BENCHES = [(16.0, 7.0), (40.0, 9.0), (70.0, 11.0)]
+RIM = 105.0           # Rand über der Lava (je Richtung ±12 m); dahinter flach
+SEGMENTS = 1024       # Gitter der Böschung rundum
+EXTENT = 700.0
 TOP = Vector((-0.30, 0.35, 0.89)).normalized()   # kühles Licht von oben (Hauptlicht fürs Spiel)
 B1, B2, B3, B4, B5 = (Perlin(s) for s in (503, 509, 521, 523, 541))
 
@@ -63,115 +65,212 @@ def link(name, data, coll=None):
     return ob
 
 
-def _hash(i, seed):
-    """Zufall 0 … 1 je ganzer Zahl (Schicht, Abschnitt)"""
-    v = (np.asarray(i, np.int64) * 73856093 ^ seed * 19349663) & 0x7fffffff
-    v = (v * 1103515245 + 12345) & 0x7fffffff
-    return (v % 100003) / 100003.0
+# ---------------------------------------------------------------- Böschung
 
-
-# ---------------------------------------------------------------- Kraterwand
-
-def rim_height(th):
+def foot_radius(th):
+    """Fuss der Böschung je Richtung (Bogenmass, von +y über +x): Buchten und Vorsprünge"""
     c, s = np.cos(th), np.sin(th)
-    return RIM + 18 * fbm(B5, c * 1.6 + 3, s * 1.6 - 2, 3)
+    return FOOT + 2.5 * fbm(B1, c * 1.3 + 7, s * 1.3 - 4, 3) + 1.0 * fbm(B2, c * 4.0, s * 4.0, 2)
 
 
-def wall_radius(th, h):
-    """Radius der Wand bei Winkel th (Bogenmass, von +y über +x) und Höhe h über der Lava. Nur grobe Formen rundum
-    (keine feinen senkrechten Rippen); die Schichtung läuft waagrecht."""
-    th = np.asarray(th, float); h = np.asarray(h, float)
-    c, s = np.cos(th), np.sin(th)
-    r = FOOT + 3.0 * fbm(B1, c * 1.3 + 7, s * 1.3 - 4, 3) + 1.2 * fbm(B2, c * 4.0, s * 4.0, 2)
-    r = r + SLOPE * np.maximum(h, 0) - 0.4 * np.minimum(h, 0)
-    for k, (hb, wb) in enumerate(BENCHES):   # Terrassen: auf kurzer Höhe weit zurück, je Richtung schmaler oder breiter
-        width = wb * (0.55 + 0.9 * (0.5 + 0.5 * fbm(B3, c * 2.2 + k * 5, s * 2.2 - k * 3, 2)))
-        r = r + width * smoothstep(hb - 0.6, hb + 1.4, h)
-    # Schichten: jede springt ein Stück vor oder zurück, unten mit überhängender Kante; die Fugen leicht gewellt
-    q = (h + 1.6 * fbm(B4, c * 3.0, s * 3.0, 2)) / LAYER
-    layer = np.floor(q)
-    f = q - layer
-    off = (_hash(layer, 11) - 0.5) * 1.4
-    # innerhalb der Schicht in Abschnitte (6 … 14 m) gebrochen, die ein wenig verschieden weit vorstehen
-    arc = th * r
-    seg = np.floor(arc / (6 + 8 * _hash(layer, 5)) + _hash(layer, 7) * 10)
-    off = off + (_hash(seg * 131 + layer, 3) - 0.5) * 0.7
-    lip = 0.35 * smoothstep(0.85, 1.0, f)   # Oberkante jeder Schicht steht als Lippe vor
-    r = r - off * smoothstep(0.0, 0.08, f) * smoothstep(1.0, 0.92, f) - lip
-    return r, layer
+def slope_height(x, y):
+    """Höhe der Böschung über der Lava (unter dem See negativ) und Lage auf ihr: u (m waagrecht vom Fuss), bench
+    (0 … 1 auf einem Absatz), lip (0 … 1 an der Kante eines Absatzes, wo sich Blöcke stauen)"""
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    th = np.arctan2(x, y); c, s = np.cos(th), np.sin(th)
+    u = np.hypot(x, y) - foot_radius(th)
+    h = GRADE * u
+    bench = np.zeros_like(u); lip = np.zeros_like(u)
+    start = 0.0
+    for k, (u0, w0) in enumerate(BENCHES):   # auf dem Absatz steigt es kaum: von der Höhe ab dort die Breite abziehen
+        w = w0 * (0.5 + 1.0 * (0.5 + 0.5 * fbm(B3, c * 2.0 + k * 5, s * 2.0 - k * 3, 2)))
+        a = u0 + start
+        on = np.clip(u - a, 0, w)
+        h = h - GRADE * 0.88 * on
+        bench = np.maximum(bench, ((u > a) & (u < a + w)).astype(float))
+        lip = np.maximum(lip, np.exp(-((u - a) / 2.0) ** 2))
+        start += w
+    rim = RIM + 12 * fbm(B5, c * 1.6 + 3, s * 1.6 - 2, 3)
+    h = np.where(h > rim, rim + (h - rim) * 0.05, h)   # dahinter flach
+    h = h + 1.2 * fbm(B4, x * 0.08, y * 0.08, 3) * np.clip(u / 4, 0, 1)
+    return h, u, bench * (u > 0), lip * (u > 0)
 
 
-def wall_mesh():
-    """Wand als Zylindergitter (Winkel × Höhe), oben zum Rand hin flach nach aussen. Attribute: layer (Zufall der
-    Schicht 0 … 1), h (Höhe über der Lava)"""
-    n = SEGMENTS
-    th = np.arange(n) * 2 * np.pi / n
-    # Zeilen: unten fein (die Lava leuchtet die Kanten an), oben gröber
-    hs = np.concatenate([np.arange(-3.0, 30.0, 0.35), np.arange(30.0, RIM + 30.0, 0.7)])
-    T, H = np.meshgrid(th, hs)
-    rim = rim_height(T)
-    Hc = np.minimum(H, rim)
-    R, layer = wall_radius(T, Hc)
-    # über dem Rand: flach nach aussen (Plateau)
-    R = R + np.maximum(H - rim, 0) * 25.0
-    X, Y = R * np.sin(T), R * np.cos(T)
-    Z = LAVA_Z + Hc + 0.05 * np.maximum(H - rim, 0)
-    rows = len(hs)
-    i = np.arange(rows - 1)[:, None]; j = np.arange(n)[None]
-    F = np.stack(np.broadcast_arrays(i * n + j, (i + 1) * n + j, (i + 1) * n + (j + 1) % n, i * n + (j + 1) % n), -1).reshape(-1, 4)
-    me = make_mesh('Wand', np.stack([X.ravel(), Y.ravel(), Z.ravel()], -1), F, smooth=False)
-    S.attrs(me, layer=_hash(layer.ravel().astype(np.int64), 23), h=Hc.ravel())
-    log('Wand', len(X.ravel()), 'Ecken')
+def slope_mesh():
+    X, Y, F = S.ring_mesh('Boeschung', SEGMENTS, FOOT - 6.0, EXTENT)
+    h, u, bench, lip = slope_height(X, Y)
+    me = make_mesh('Boeschung', np.stack([X, Y, LAVA_Z + h], -1), F)
+    S.attrs(me, h=h, bench=bench)
+    log('Böschung', len(X), 'Ecken')
     return me
 
 
-def mat_wall():
-    """Basalt grauschwarz, je Schicht etwas anders (manche rostrot, manche heller), Schwefel in Flecken; rau, mit Relief
-    entlang der Schichten. Knapp über dem See glühende Spalten und Spritzer."""
-    m = bpy.data.materials.new('Wand'); m.use_nodes = True
+def mat_scree():
+    """Geröll zwischen den Blöcken: dunkler Basalt, körnig, mit Rost- und Schwefelflecken; knapp über der Lava glüht es"""
+    m = bpy.data.materials.new('Geroell'); m.use_nodes = True
     t = NT(m.node_tree)
     out = t.node('ShaderNodeOutputMaterial')
-    bsdf = t.node('ShaderNodeBsdfPrincipled', in_Roughness=0.9)
-    def attr(nm):
-        a = t.node('ShaderNodeAttribute'); a.attribute_name = nm
-        return a.outputs['Fac']
-    layer, h = attr('layer'), attr('h')
+    bsdf = t.node('ShaderNodeBsdfPrincipled', in_Roughness=0.95)
     geo = t.node('ShaderNodeNewGeometry')
     pos = geo.outputs['Position']
-    nz = t.node('ShaderNodeSeparateXYZ'); t.link(geo.outputs['Normal'], nz.inputs[0])
-    # Gestein, waagrecht gestreckt (Schichten)
-    mp = t.node('ShaderNodeMapping'); mp.inputs['Scale'].default_value = (0.6, 0.6, 2.2)
-    t.link(pos, mp.inputs['Vector'])
-    n1 = t.node('ShaderNodeTexNoise', in_Scale=0.9, in_Detail=8.0, in_Roughness=0.62); t.link(mp.outputs[0], n1.inputs['Vector'])
-    n2 = t.node('ShaderNodeTexNoise', in_Scale=0.05, in_Detail=3.0); t.link(pos, n2.inputs['Vector'])
-    base = t.mix(n1.outputs['Fac'], (0.034, 0.034, 0.040, 1), (0.10, 0.10, 0.11, 1))
-    rust = t.math('MULTIPLY', t.math('GREATER_THAN', layer, 0.78), t.maprange(n2.outputs['Fac'], 0.42, 0.6))
-    base = t.mix(rust, base, t.mix(n1.outputs['Fac'], (0.10, 0.035, 0.018, 1), (0.20, 0.08, 0.035, 1)))
-    light = t.math('MULTIPLY', t.math('LESS_THAN', layer, 0.18), 0.6)
-    base = t.mix(light, base, (0.13, 0.125, 0.12, 1))
-    # Schwefel: wenige Flecken, vor allem auf den Absätzen und oben
-    n3 = t.node('ShaderNodeTexNoise', in_Scale=0.035, in_Detail=4.0); t.link(pos, n3.inputs['Vector'])
-    sulfur = t.math('MULTIPLY', t.maprange(n3.outputs['Fac'], 0.62, 0.7), t.maprange(h, 15.0, 40.0))
-    sulfur = t.math('MULTIPLY', sulfur, t.maprange(nz.outputs['Z'], 0.2, 0.7, 0.4, 1.0))
-    base = t.mix(sulfur, base, t.mix(n1.outputs['Fac'], (0.34, 0.27, 0.05, 1), (0.55, 0.47, 0.12, 1)))
-    t.link(base, bsdf.inputs['Base Color'])
-    # Relief: Blöcke und Kanten der Schichten
-    bmp = t.node('ShaderNodeBump', in_Strength=0.6, in_Distance=0.4)
-    vor = t.node('ShaderNodeTexVoronoi', in_Scale=0.45); t.link(mp.outputs[0], vor.inputs['Vector'])
-    t.link(t.math('ADD', n1.outputs['Fac'], t.math('MULTIPLY', vor.outputs['Distance'], 0.6)), bmp.inputs['Height'])
+    a = t.node('ShaderNodeAttribute'); a.attribute_name = 'h'
+    h = a.outputs['Fac']
+    n1 = t.node('ShaderNodeTexNoise', in_Scale=1.6, in_Detail=6.0, in_Roughness=0.65); t.link(pos, n1.inputs['Vector'])
+    n2 = t.node('ShaderNodeTexNoise', in_Scale=0.04, in_Detail=3.0); t.link(pos, n2.inputs['Vector'])
+    col = t.mix(n1.outputs['Fac'], (0.030, 0.028, 0.030, 1), (0.090, 0.082, 0.078, 1))
+    rust = t.maprange(n2.outputs['Fac'], 0.60, 0.68)
+    col = t.mix(t.math('MULTIPLY', rust, 0.8), col, (0.16, 0.06, 0.03, 1))
+    sulfur = t.math('MULTIPLY', t.maprange(n2.outputs['Fac'], 0.30, 0.25), t.maprange(h, 10.0, 25.0))
+    col = t.mix(t.math('MULTIPLY', sulfur, 0.85), col, (0.45, 0.38, 0.09, 1))
+    t.link(col, bsdf.inputs['Base Color'])
+    vor = t.node('ShaderNodeTexVoronoi', in_Scale=2.5); t.link(pos, vor.inputs['Vector'])
+    bmp = t.node('ShaderNodeBump', in_Strength=0.8, in_Distance=0.15)
+    t.link(t.math('ADD', vor.outputs['Distance'], t.math('MULTIPLY', n1.outputs['Fac'], 0.5)), bmp.inputs['Height'])
     t.link(bmp.outputs['Normal'], bsdf.inputs['Normal'])
-    # knapp über der Lava: Spritzer und glühender Saum (keine Adern: die wirkten wie gezeichnet)
-    splash = t.math('MULTIPLY', t.maprange(h, 1.2, 0.2), t.maprange(n1.outputs['Fac'], 0.4, 0.6))
-    t.link(t.mix(splash, (1.0, 0.18, 0.03, 1), (1.0, 0.45, 0.08, 1)), bsdf.inputs['Emission Color'])
-    t.link(t.math('MULTIPLY', splash, 6.0), bsdf.inputs['Emission Strength'])
+    splash = t.math('MULTIPLY', t.maprange(h, 0.9, 0.1), t.maprange(n1.outputs['Fac'], 0.4, 0.6))
+    t.link(t.mix(splash, (0.9, 0.10, 0.02, 1), (1.0, 0.30, 0.04, 1)), bsdf.inputs['Emission Color'])
+    t.link(t.math('MULTIPLY', splash, 5.0), bsdf.inputs['Emission Strength'])
     t.link(S.air(t, bsdf.outputs[0]), out.inputs['Surface'])
     return m
 
 
-def build_wall():
-    me = wall_mesh()
-    me.materials.append(mat_wall())
-    link('Wand', me)
+ROCK_AMBIENT = 0.10   # Grundlicht der Blöcke (Anteil der eigenen Farbe, bläulich): Schatten nie ganz schwarz
+
+
+def mat_rock():
+    """Felsblock wie am Strand (szenen/beach mat_rock), in Vulkanfarben: dunkler Basalt, nach oben gewandte Flächen
+    heller, je Block anders getönt (tone), einzelne Risse; vereinzelt Rost und Schwefel. Das Kantenlicht kommt von der
+    Lava (unten warm) und vom Himmel (oben kühl)."""
+    m = bpy.data.materials.new('Fels'); m.use_nodes = True
+    t = NT(m.node_tree)
+    out = t.node('ShaderNodeOutputMaterial')
+    geo = t.node('ShaderNodeNewGeometry')
+    pos = geo.outputs['Position']
+    nrm = t.node('ShaderNodeSeparateXYZ'); t.link(geo.outputs['Normal'], nrm.inputs[0])
+    tone = t.node('ShaderNodeAttribute'); tone.attribute_name = 'tone'
+    n1 = t.node('ShaderNodeTexNoise', in_Scale=0.8, in_Detail=4.0); t.link(pos, n1.inputs['Vector'])
+    nf = t.node('ShaderNodeTexNoise', in_Scale=4.0, in_Detail=3.0); t.link(pos, nf.inputs['Vector'])
+    up = t.maprange(nrm.outputs['Z'], 0.3, 0.9)
+    col = t.mix(up, (0.050, 0.046, 0.046, 1), (0.125, 0.112, 0.104, 1))
+    col = t.mix(t.math('MULTIPLY', tone.outputs['Fac'], 0.5), col, (0.085, 0.070, 0.066, 1))
+    vor = t.node('ShaderNodeTexVoronoi', in_Scale=0.9); vor.feature = 'DISTANCE_TO_EDGE'
+    t.link(pos, vor.inputs['Vector'])
+    crack = t.math('MULTIPLY', t.maprange(vor.outputs['Distance'], 0.03, 0.0), t.maprange(n1.outputs['Fac'], 0.5, 0.62))
+    col = t.mix(t.math('MULTIPLY', crack, 0.8), col, (0.02, 0.018, 0.02, 1))
+    rust = t.math('MULTIPLY', t.math('GREATER_THAN', tone.outputs['Fac'], 0.82), t.maprange(nf.outputs['Fac'], 0.45, 0.6))
+    col = t.mix(t.math('MULTIPLY', rust, 0.7), col, (0.17, 0.065, 0.03, 1))
+    sulfur = t.math('MULTIPLY', t.maprange(nf.outputs['Fac'], 0.64, 0.7), up)
+    col = t.mix(t.math('MULTIPLY', sulfur, 0.6), col, (0.42, 0.35, 0.08, 1))
+    bsdf = t.node('ShaderNodeBsdfPrincipled', in_Roughness=0.85)
+    t.link(col, bsdf.inputs['Base Color'])
+    t.link(t.vmath('MULTIPLY', col, (0.55, 0.65, 1.0)), bsdf.inputs['Emission Color'])
+    bsdf.inputs['Emission Strength'].default_value = ROCK_AMBIENT
+    t.link(S.air(t, bsdf.outputs[0]), out.inputs['Surface'])
+    return m
+
+
+TEMPLATES = 8
+
+
+def build_templates():
+    """Felsblöcke als Vorlagen (vom Rendern ausgeschlossen) wie am Strand: S.boulder (kantig, Bruchflächen), Kanten
+    scharf, je Vorlage ein Ton. Die Namen tragen die Nummer (der Geometrieknoten sortiert nach Namen)."""
+    coll = S.collection('Vulkanvorlagen', exclude=True)
+    for ob in list(coll.objects):
+        bpy.data.objects.remove(ob)
+    mat = bpy.data.materials.get('Fels') or mat_rock()
+    for k in range(TEMPLATES):
+        V, F, _ = S.boulder(1200 + k)
+        name = 'v%02d' % k
+        me = S.mesh(name, V, F, mats=[mat])
+        me.set_sharp_from_angle(angle=math.radians(25))
+        S.attrs(me, tone=np.full(len(V), np.random.default_rng(k + 40).random()))
+        link(name, me, coll)
+    return coll
+
+
+def boulder_points(n=11000, seed=71):
+    """Blöcke auf der Böschung: dicht, gestaut an den Kanten der Absätze und am Seeufer, unten grösser. Zeilen (x, y, z
+    Blender), Vorlage, Grösse (m), Drehung um z"""
+    rng = np.random.default_rng(seed)
+    pts = []
+    while len(pts) < n:
+        m = 4000
+        r = np.sqrt(rng.uniform((FOOT - 2) ** 2, (FOOT + 150) ** 2, m))
+        th = rng.uniform(0, 2 * np.pi, m)
+        x, y = r * np.sin(th), r * np.cos(th)
+        h, u, bench, lip = slope_height(x, y)
+        keep = (u > -0.5) & (h < RIM + 4) & (rng.random(m) < 0.25 + 0.55 * lip + 0.35 * np.exp(-u / 6))
+        for xi, yi, hi, ui, li in zip(x[keep], y[keep], h[keep], u[keep], lip[keep]):
+            size = float(np.clip(rng.lognormal(0.0, 0.5) * (1.0 + 1.2 * np.exp(-ui / 15) + 0.6 * li), 0.4, 6.0))
+            pts.append((xi, yi, LAVA_Z + hi - 0.3 * size, rng.integers(TEMPLATES), size, rng.uniform(0, 2 * np.pi)))
+    return pts[:n]
+
+
+def build_boulders():
+    coll = build_templates()
+    pts = boulder_points()
+    pos = np.array([p[:3] for p in pts]); var = np.array([p[3] for p in pts])
+    size = np.array([p[4] for p in pts]); rot = np.array([p[5] for p in pts])
+    scl = np.stack([size * 1.4, size * 1.1, size * 0.8], -1)
+    eul = np.stack([np.zeros(len(pts)), np.zeros(len(pts)), rot], -1)
+    me = S.points('Bloecke', pos, var, scl, eul)
+    ob = link('Bloecke', me)
+    mod = ob.modifiers.new('Bloecke', 'NODES')
+    mod.node_group = S.instancer('Bloecke verteilen', coll)
+    log('Blöcke', len(pts))
+
+
+def build_slope():
+    me = slope_mesh()
+    me.materials.append(mat_scree())
+    link('Boeschung', me)
+    build_boulders()
+
+
+# Felsbrocken am Seeufer nahe am Brett, die das Spiel selbst zeichnet (bakedMesh): Winkel (Grad), Abstand vom Fuss
+# (m, negativ: im See), Grösse (m). Die meisten nach vorn (+y): In der Standardansicht liegt dort der obere Bildrand
+RIM_ROCKS = [(-48, -1.2, 3.2), (-30, 0.5, 4.2), (-14, -0.8, 2.6), (2, 0.8, 3.8), (16, -1.5, 2.4), (31, 0.2, 4.6),
+             (47, -0.6, 3.0), (64, 0.9, 3.6), (95, -1.0, 3.4), (140, 0.4, 4.0), (200, -0.8, 3.2), (250, 0.6, 3.8),
+             (300, -1.2, 3.0)]
+
+
+def build_rim_rocks():
+    """Felsbrocken am Ufer als ein Netz (Sammlung Spiel: für die Kamera unsichtbar, Licht und Schatten bleiben im
+    Panorama), mit UV-Karte (wie am Strand unwrap_near_rocks); für bake_rim_rocks"""
+    import bmesh
+    from mathutils import Euler, Matrix
+    for n in ('Felsen nah',):
+        if bpy.data.objects.get(n):
+            bpy.data.objects.remove(bpy.data.objects[n])
+    coll = bpy.data.collections['Vulkanvorlagen']
+    rng = np.random.default_rng(83)
+    bm = bmesh.new()
+    tone = bm.verts.layers.float.new('tone')
+    for deg, du, size in RIM_ROCKS:
+        a = math.radians(deg)
+        r = float(foot_radius(np.array(a))) + du
+        v = int(rng.integers(TEMPLATES))
+        tpl = coll.objects['v%02d' % v].data
+        s_ = (size * 1.3, size * 1.0, size * 0.75)
+        M = Matrix.Translation((r * math.sin(a), r * math.cos(a), LAVA_Z - 0.3 * size)) \
+            @ Euler((0, 0, rng.uniform(0, 6.3)), 'XYZ').to_matrix().to_4x4() @ Matrix.Diagonal((*s_, 1.0))
+        n0 = len(bm.verts)
+        bm.from_mesh(tpl)
+        bm.verts.ensure_lookup_table()
+        new = bm.verts[n0:]
+        bmesh.ops.transform(bm, matrix=M, verts=new)
+        t = float(rng.random())
+        for vt in new:
+            vt[tone] = t
+    me = bpy.data.meshes.new('Felsen nah')
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(bpy.data.materials['Fels'])
+    ob = link('Felsen nah', me, S.collection('Spiel'))
+    ob.visible_camera = False
+    S.unwrap_near_rocks(ob)
+    log('Felsen nah', len(me.vertices), 'Ecken,', len(RIM_ROCKS), 'Brocken')
 
 
 # ---------------------------------------------------------------- Lavasee
@@ -182,12 +281,12 @@ CRUST = (0.025, 0.020, 0.022)
 
 def lake_mesh():
     """See als Scheibe bis unter die Wand; Attribut wall: Abstand zum Fuss der Wand (m, > 0 im See)"""
-    r_max = FOOT + 6.0
+    r_max = FOOT + 8.0
     X, Y, F = S.ring_mesh('See', 1024, 0.3, r_max)
     X = np.concatenate([X, [0.0]]); Y = np.concatenate([Y, [0.0]])
     j = np.arange(1024)
     fan = np.stack([np.full(1024, len(X) - 1), (j + 1) % 1024, j], -1)
-    r0, _ = wall_radius(np.arctan2(X, Y), np.zeros(len(X)))
+    r0 = foot_radius(np.arctan2(X, Y))
     me = make_mesh('See', np.stack([X, Y, np.full(len(X), LAVA_Z)], -1), [F, fan])
     S.attrs(me, wall=r0 - np.hypot(X, Y))
     return me
@@ -217,16 +316,16 @@ def mat_lake():
     crack = t.math('MAXIMUM', c1, t.math('MULTIPLY', c2, 0.7))
     r = t.vmath('LENGTH', t.vmath('MULTIPLY', pos, (1, 1, 0)))
     open_ = t.maprange(r, LAVA_GAME - 3.2, LAVA_GAME - 2.4)   # unter dem Spiel nur schwach
-    crack = t.math('MULTIPLY', crack, t.math('ADD', 0.15, t.math('MULTIPLY', open_, 0.85)))
+    crack = t.math('MULTIPLY', crack, open_)   # unter dem Spiel nur die Kruste (kleineres Bild)
     # Glutsaum an der Wand mit Spritzern
     sn = t.node('ShaderNodeTexNoise', in_Scale=0.6, in_Detail=3.0); t.link(pos, sn.inputs['Vector'])
     rim = t.math('MAXIMUM', t.maprange(wall, 1.4, 0.3), t.math('MULTIPLY', t.maprange(wall, 3.0, 1.2), t.maprange(sn.outputs['Fac'], 0.55, 0.68)))
     heat = t.math('MAXIMUM', crack, rim)
     ramp = t.node('ShaderNodeValToRGB')
     cr = ramp.color_ramp
-    cr.elements[0].position = 0.0; cr.elements[0].color = (0.35, 0.03, 0.01, 1)
-    cr.elements[1].position = 1.0; cr.elements[1].color = (1.0, 0.62, 0.18, 1)
-    e = cr.elements.new(0.45); e.color = (0.95, 0.20, 0.03, 1)
+    cr.elements[0].position = 0.0; cr.elements[0].color = (0.32, 0.025, 0.008, 1)
+    cr.elements[1].position = 1.0; cr.elements[1].color = (1.0, 0.40, 0.06, 1)   # höchstens kräftiges Orange-Gelb
+    e = cr.elements.new(0.5); e.color = (0.92, 0.15, 0.02, 1)
     t.link(heat, ramp.inputs['Fac'])
     t.link(ramp.outputs['Color'], bsdf.inputs['Emission Color'])
     t.link(t.math('MULTIPLY', t.math('POWER', heat, 0.8), CRACK_STRENGTH), bsdf.inputs['Emission Strength'])
@@ -259,9 +358,9 @@ def sky_group():
     sep = t.node('ShaderNodeSeparateXYZ'); t.link(t.vmath('NORMALIZE', gi.outputs['Richtung']), sep.inputs[0])
     ramp = t.node('ShaderNodeValToRGB')
     cr = ramp.color_ramp; cr.interpolation = 'EASE'
-    cr.elements[0].position = 0.0; cr.elements[0].color = (0.20, 0.11, 0.14, 1)
+    cr.elements[0].position = 0.0; cr.elements[0].color = (0.16, 0.08, 0.10, 1)
     cr.elements[1].position = 1.0; cr.elements[1].color = (0.020, 0.028, 0.085, 1)
-    for p, col in ((0.7, (0.22, 0.09, 0.17, 1)), (0.86, (0.08, 0.06, 0.20, 1))):
+    for p, col in ((0.45, (0.12, 0.06, 0.16, 1)), (0.7, (0.05, 0.045, 0.15, 1))):
         e = cr.elements.new(p); e.color = col
     t.link(t.math('MAXIMUM', sep.outputs['Z'], 0.0), ramp.inputs['Fac'])
     n = t.node('ShaderNodeTexNoise', in_Scale=2.5, in_Detail=5.0); t.link(gi.outputs['Richtung'], n.inputs['Vector'])
@@ -307,106 +406,6 @@ def lights():
     ob.visible_glossy = False
 
 
-# ---------------------------------------------------------------- Dampf
-
-STEAM_DENS = 0.22
-STEAM_GLOW = (0.085, 0.082, 0.11)   # Grundhelligkeit des Dampfs
-
-
-def mat_steam():
-    """Dampf als Volumen: weiss-grau, streut das Licht der Lava von unten (rosa-orange) und des Himmels (oben grau-violett)"""
-    m = bpy.data.materials.new('Dampf'); m.use_nodes = True
-    t = NT(m.node_tree)
-    out = t.node('ShaderNodeOutputMaterial')
-    vol = t.node('ShaderNodeVolumePrincipled', in_Anisotropy=0.35)
-    vol.inputs['Color'].default_value = (0.86, 0.84, 0.88, 1)
-    k = t.node('ShaderNodeAttribute'); k.attribute_type = 'OBJECT'; k.attribute_name = 'dichte'
-    t.link(k.outputs['Fac'], vol.inputs['Density'])
-    # Grundhelligkeit grau-violett (Streulicht des Himmels und der hellen Schwaden ringsum, gemalt): Im dichten Inneren
-    # strebt die Helligkeit gegen diese Farbe, unten kommt das Licht der Lava dazu
-    dens = t.node('ShaderNodeAttribute'); dens.attribute_name = 'density'
-    vol.inputs['Emission Color'].default_value = STEAM_GLOW + (1,)
-    t.link(t.math('MULTIPLY', dens.outputs['Fac'], k.outputs['Fac']), vol.inputs['Emission Strength'])
-    t.link(vol.outputs[0], out.inputs['Volume'])
-    return m
-
-
-def column_lobes(rng, height, r0, r1, lean):
-    """Ballen einer Dampfsäule: nach oben breiter und lockerer, leicht geneigt (lean: Versatz oben, x)"""
-    lobes = []
-    n = 16
-    for i in range(n):
-        f = i / (n - 1)
-        r = r0 + (r1 - r0) * f ** 1.2
-        c = np.array([lean * f ** 1.5 + rng.normal(0, r * 0.2), rng.normal(0, r * 0.2), f * height])
-        for _ in range(3):
-            v = rng.normal(size=3); v /= np.linalg.norm(v)
-            lobes.append((c + v * r * 0.55, np.full(3, r * rng.uniform(0.45, 0.75))))
-    return lobes
-
-
-def blob_mesh(name, lobes, voxel):
-    """Ballen (Ellipsoide) zu einer Fläche vereint (Voxel-Remesh), wie die Wolkenform am Strand"""
-    V0, F0 = S._unit_sphere()
-    V = np.concatenate([V0 * rad + c for c, rad in lobes])
-    F = np.concatenate([F0 + k * len(V0) for k in range(len(lobes))])
-    me = make_mesh(name + '_roh', V, F, smooth=False)
-    tmp = link(name + '_roh', me)
-    mod = tmp.modifiers.new('Vereinen', 'REMESH')
-    mod.mode = 'VOXEL'; mod.voxel_size = voxel; mod.adaptivity = 0.0
-    dg = bpy.context.evaluated_depsgraph_get()
-    out = bpy.data.meshes.new_from_object(tmp.evaluated_get(dg))
-    bpy.data.objects.remove(tmp); bpy.data.meshes.remove(me)
-    out.name = name
-    return out
-
-
-def volume_from(name, form_me, coll, mat, loc, rot, width, dichte):
-    """Volumen aus einer Form (unsichtbar), mit weichem, ausgefranstem Rand wie die Wolken am Strand"""
-    form = link(name + ' Form', form_me, coll)
-    form.location, form.rotation_euler = loc, rot
-    for vis in ('visible_camera', 'visible_shadow', 'visible_diffuse', 'visible_glossy', 'visible_transmission',
-                'visible_volume_scatter'):
-        setattr(form, vis, False)
-    vd = bpy.data.volumes.new(name)
-    vd.materials.append(mat)
-    ob = link(name, vd, coll)
-    ob.location, ob.rotation_euler = loc, rot
-    ob['dichte'] = dichte
-    mv = ob.modifiers.new('Form', 'MESH_TO_VOLUME')
-    mv.object = form
-    mv.resolution_mode = 'VOXEL_SIZE'; mv.voxel_size = width / 70.0
-    mv.interior_band_width = width / 25.0
-    mv.density = 1.0
-    tex = bpy.data.textures.new(name + ' Rand', 'CLOUDS')
-    tex.cloud_type = 'COLOR'; tex.noise_scale = width * 0.12; tex.noise_depth = 3
-    dp = ob.modifiers.new('Ausfransen', 'VOLUME_DISPLACE')
-    dp.texture = tex; dp.texture_map_mode = 'LOCAL'
-    dp.strength = width * 0.12
-    dp.texture_mid_level = (0.5, 0.5, 0.5)
-    return ob
-
-
-# Dampfsäulen aus dem See: Winkel (Grad), Abstand von der Mitte, Höhe, Breite unten, oben. Die meisten vorn (+y): In
-# der Standardansicht des Spiels liegt dort der obere Bildrand
-STEAM = [(-10, 20.0, 48, 2.5, 7), (35, 18.5, 38, 2.0, 6), (80, 21.5, 52, 3.0, 8), (150, 20.0, 42, 2.5, 6.5),
-         (215, 21.0, 55, 3.0, 8), (285, 19.5, 40, 2.2, 6), (-45, 22.5, 34, 2.0, 5)]
-
-
-def build_volumes():
-    coll = S.collection('Volumen')
-    for ob in list(coll.objects):
-        bpy.data.objects.remove(ob)
-    mat = mat_steam()
-    rng = np.random.default_rng(61)
-    for k, (deg, d, h, r0, r1) in enumerate(STEAM):
-        a = math.radians(deg)
-        me = blob_mesh('Dampfform_%02d' % k, column_lobes(rng, h, r0, r1, -0.2 * h), r1 / 16.0)
-        volume_from('Dampf_%02d' % k, me, coll, mat, (d * math.sin(a), d * math.cos(a), LAVA_Z - 1.0),
-                    (0, 0, -a + math.pi / 2), r1 * 2, STEAM_DENS)
-    log('Dampf', len(STEAM))
-
-
 def cameras():
     cd = bpy.data.cameras.new('Panorama'); cd.type = 'PANO'; cd.panorama_type = 'EQUIRECTANGULAR'
     cd.clip_start = 0.05; cd.clip_end = 60000
@@ -423,9 +422,9 @@ def build():
     """Ganze Szene in die (leere) aktuelle Datei bauen"""
     sc().render.engine = 'CYCLES'
     world()
-    build_wall()
+    build_slope()
+    build_rim_rocks()
     build_lake()
-    build_volumes()
     lights()
     cameras()
 
@@ -438,13 +437,10 @@ def _remove(names):
 
 
 def replace_crater():
-    _remove(['Wand', 'See'])
-    build_wall()
+    _remove(['Boeschung', 'Bloecke', 'Felsen nah', 'See'])
+    build_slope()
+    build_rim_rocks()
     build_lake()
-
-
-def replace_volumes():
-    build_volumes()
 
 
 def replace_world():
@@ -456,10 +452,98 @@ def replace_world():
     lights()
 
 
+# ---------------------------------------------------------------- Export fürs Spiel
+
+ROCK_TEX = 1024   # Bild der Felsbrocken am Ufer (gebackenes Licht), Seitenlänge auf dem Desktop; das Handy die halbe
+
+
+def bake_rim_rocks(stil='volcano', samples=512):
+    """Licht der Felsbrocken am Ufer backen wie am Strand (szenen/beach bake_near_rocks): Cycles COMBINED mit den
+    Einstellungen des Panoramas, dazu Grundfarbe und Normale, entrauscht (anime.denoise) -> Bild „Felsen Licht“"""
+    import importlib
+    os.environ['WALD_STIL'] = stil
+    import wald_export, anime
+    wx = importlib.reload(wald_export)
+    anime = importlib.reload(anime)
+    ob = bpy.data.objects['Felsen nah']
+    imgs = {}
+    for key in ('licht', 'farbe', 'normale'):
+        name = 'Felsen ' + key
+        if bpy.data.images.get(name):
+            bpy.data.images.remove(bpy.data.images[name])
+        imgs[key] = bpy.data.images.new(name, ROCK_TEX, ROCK_TEX, float_buffer=True)
+    mat = ob.data.materials[0]
+    node = mat.node_tree.nodes.new('ShaderNodeTexImage')
+    mat.node_tree.nodes.active = node
+    scene = sc()
+    bk = scene.render.bake
+    wx.setup_cycles()
+    wx.setv(bk, 'target', 'IMAGE_TEXTURES')
+    wx.setv(bk, 'margin', 8)
+    wx.setv(bk, 'view_from', 'ACTIVE_CAMERA')
+    for attr in ('use_pass_direct', 'use_pass_indirect', 'use_pass_color', 'normal_space'):
+        wx.setv(bk, attr, getattr(bk, attr))
+    # die Vorlagen (gleiches Material) und die Blöcke würden sonst mitgebacken bzw. verdecken nichts: nur ob ist aktiv
+    try:
+        for key, kind, spp in (('licht', 'COMBINED', samples), ('farbe', 'DIFFUSE', 16), ('normale', 'NORMAL', 4)):
+            node.image = imgs[key]
+            scene.cycles.samples = spp
+            if kind == 'DIFFUSE':
+                bk.use_pass_direct = bk.use_pass_indirect = False
+                bk.use_pass_color = True
+            bk.normal_space = 'OBJECT'
+            with S.only(ob):
+                bpy.ops.object.bake(type=kind)
+    finally:
+        wx.restore()
+        mat.node_tree.nodes.remove(node)
+    px = {k: np.array(im.pixels[:], np.float64).reshape(ROCK_TEX, ROCK_TEX, 4)[::-1, :, :3] for k, im in imgs.items()}
+    clean = anime.denoise(px['licht'], px['farbe'], px['normale'] * 2 - 1)
+    for im in imgs.values():
+        bpy.data.images.remove(im)
+    return clean
+
+
+def rock_model(sky, lin, stil='volcano'):
+    """Felsbrocken am Ufer fürs Spiel (bakedMesh, wie am Strand rock_model): Ecken in Spielkoordinaten (Int16, 1/256 m),
+    UV (Uint16), Dreiecke, rock8 überall 255 (nur Fels); das gebackene Licht gemalt wie das Panorama als
+    sky/<stil>/rocks_hd.jpg und halb so gross rocks.jpg"""
+    import base64, importlib
+    from wald_io import save_image
+    os.environ['WALD_STIL'] = stil
+    import anime
+    anime = importlib.reload(anime)
+    painted = anime.paint_texture(lin)
+    save_image(painted, os.path.join(sky, 'rocks_hd.jpg'), 'JPEG', 86)
+    h, w = painted.shape[:2]
+    save_image(painted.reshape(h // 2, 2, w // 2, 2, 3).mean((1, 3)), os.path.join(sky, 'rocks.jpg'), 'JPEG', 86)
+    me = bpy.data.objects['Felsen nah'].data
+    me.calc_loop_triangles()
+    loops = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('loops', loops)
+    vi = np.empty(len(me.loops), np.int64); me.loops.foreach_get('vertex_index', vi)
+    uv = np.empty(len(me.loops) * 2); me.uv_layers.active.data.foreach_get('uv', uv); uv = uv.reshape(-1, 2)
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    quv = np.clip(np.round(uv * 65535), 0, 65535).astype(np.int64)
+    key = (vi * 65536 + quv[:, 0]) * 65536 + quv[:, 1]
+    uniq, first, inv = np.unique(key, return_index=True, return_inverse=True)
+    tri = inv[loops]
+    pos = co[vi[first]]
+    game = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]]                  # Blender -> Spiel
+    n = len(uniq)
+    b = lambda a: base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
+    idx = {'idx16': b(tri.astype('<u2'))} if n <= 65536 else {'idx32': b(tri.astype('<u4'))}
+    return {'n': n, 'scale': 256, 'pos16': b(np.clip(np.round(game * 256), -32767, 32767).astype('<i2')), **idx,
+            'uv16': b(quv[first].astype('<u2')), 'rock8': b(np.full(n, 255, 'u1')), 'texture': 'file:rocks.jpg'}
+
+
 def export(stil='volcano'):
-    """Daten für die Ebenen des Spiels: keine (lavaPool und steamPlumes rechnen alles selbst). Eine alte ebenen.json
-    entfernen."""
-    path = os.path.join(ROOT, 'sky', stil, 'ebenen.json')
-    if os.path.exists(path):
-        os.remove(path)
-    return {'ebenen': 0}
+    """sky/<stil>/ebenen.json für pack.mjs: die Felsbrocken am Ufer (bakedMesh, Bild rocks.jpg, im HD-Teil
+    rocks_hd.jpg). lavaPool rechnet alles andere selbst."""
+    import json
+    sky = os.path.join(ROOT, 'sky', stil)
+    os.makedirs(sky, exist_ok=True)
+    rocks = rock_model(sky, bake_rim_rocks(stil), stil)
+    data = {'rocks': rocks, 'hd': {'rocks': {'texture': 'file:rocks_hd.jpg'}}}
+    with open(os.path.join(sky, 'ebenen.json'), 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, separators=(',', ':'))
+    return {'felsen_ecken': rocks['n']}
