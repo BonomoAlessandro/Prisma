@@ -192,7 +192,9 @@
     background: rgba(3, 3, 8, 0.78);
     z-index: 6;
     transition: opacity 0.4s ease;
-    touch-action: pan-y; /* waagrechtes Wischen blättert (ui.initSwipe), senkrecht bleibt das Scrollen im Querformat */
+    /* waagrechtes Ziehen bekommt der Browser nirgends (kein Zurück-Wischen vom Rand): über die Kacheln blättert es
+       (ui.initSwipe), daneben geschieht nichts; senkrecht scrollt es im Querformat */
+    touch-action: pan-y;
   }
   #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
   #levels h2 { margin: 0 0 22px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
@@ -220,12 +222,13 @@
   #levels .page-title { font-size: 10px; letter-spacing: 0.45em; text-transform: uppercase; color: var(--ink-dim); margin: 0; padding-left: 0.45em; }
   /* minmax(0, …): ein langer Name wie „Sonnenfinsternis“ verbreitert sonst alle Spalten, die Kacheln wären je Seite
      verschieden gross */
-  #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 28px; }
+  #levels .grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
   #levels .tile.ghost { visibility: hidden; }
   /* Blättern mit Bewegung (ui.slidePage): Raster und Nachbarseite fahren gemeinsam im Fenster; sein Rand lässt Platz
      für den Fokusrahmen der Kacheln, der Abstand zu den Pfeilen bleibt (die −6 px fallen mit deren Rand zusammen).
-     clip statt hidden: kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite */
-  #levels .grid-window { overflow: hidden; overflow: clip; margin: -6px; padding: 6px; }
+     clip statt hidden: kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite. Der
+     Abstand zu „Schliessen“ (28 px) liegt unter dem Fenster, damit gewischt nur auf den Kacheln beginnt */
+  #levels .grid-window { overflow: hidden; overflow: clip; margin: -6px -6px 22px; padding: 6px; }
   #levels .grid-track { position: relative; }
   #levels .grid.peek { position: absolute; top: 0; left: 0; width: 100%; }
   #levels .tile {
@@ -265,7 +268,7 @@
     #levels .tile { aspect-ratio: auto; height: 46px; }
     #levels .name { display: none; }
     #levels .num { margin-top: 8px; } /* wie hochkant: dreistellige Zahlen stiessen sonst an die Punkte des Grads */
-    #levels .grid { margin-bottom: 14px; }
+    #levels .grid-window { margin-bottom: 8px; } /* 14 px bis „Schliessen“ */
     #levels .page-title { margin-bottom: 10px; }
   }
 
@@ -392,7 +395,7 @@
       <div class="page-title" id="page-title" aria-live="polite"></div>
       <button class="step" id="page-next" aria-label="Nächste Seite">›</button>
     </div>
-    <div class="grid-window">
+    <div class="grid-window" id="grid-window">
       <div class="grid-track" id="grid-track"><div class="grid" id="level-grid"></div></div>
     </div>
     <button class="close" id="btn-levels-close">Schliessen</button>
@@ -19897,7 +19900,7 @@ const ui = {
   controls: $('controls'), sound: $('btn-sound'), sky: $('btn-sky'),
   solved: $('solved'), solvedMsg: $('solved-msg'), solvedStats: $('solved-stats'), next: $('btn-next'),
   levels: $('levels'), grid: $('level-grid'), tabs: $('sections'), pageTitle: $('page-title'),
-  prevPage: $('page-prev'), nextPage: $('page-next'), track: $('grid-track'),
+  prevPage: $('page-prev'), nextPage: $('page-next'), gridWindow: $('grid-window'), track: $('grid-track'),
   shownPage: 'T',
   peek: null,  // Nachbarseite neben dem Raster beim Blättern
   slide: null, // laufende Bewegung { anim, done }
@@ -19944,10 +19947,11 @@ const ui = {
     window.addEventListener('keydown', unlock);
   },
   /**
-   * Wischen über die Levelauswahl (Finger oder Stift, nicht die Maus): nach links die nächste Seite, nach rechts die
-   * vorige, wie die Pfeile. Die Kacheln folgen dem Finger, die Nachbarseite fährt daneben herein; beim Loslassen
-   * blättert es weiter oder federt zurück. Ein zweiter Finger bricht ab; senkrechtes Ziehen übernimmt der Browser
-   * (touch-action: pan-y, im Querformat scrollt es) und meldet dann pointercancel.
+   * Wischen über die Kacheln (Finger oder Stift, nicht die Maus; Titel, Pfeile und Rand der Auswahl blättern nicht):
+   * nach links die nächste Seite, nach rechts die vorige, wie die Pfeile. Die Kacheln folgen dem Finger, die
+   * Nachbarseite fährt daneben herein; beim Loslassen blättert es weiter oder federt zurück. Ein zweiter Finger bricht
+   * ab; senkrechtes Ziehen übernimmt der Browser (touch-action: pan-y, im Querformat scrollt es) und meldet dann
+   * pointercancel.
    */
   initSwipe() {
     const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches; // dann blättert es ohne Bewegung
@@ -19962,10 +19966,15 @@ const ui = {
       if (!cancelled && page && Math.abs(dx) >= INPUT.swipeMin) this.slidePage(page, step, s.shown);
       else if (s.shown) this.snapBack(s.shown);
     };
+    // irgendwo in der Auswahl: neues Drücken lässt seinen Klick wieder gelten (Tippen gleich nach dem Wischen), ein
+    // zweiter Finger bricht das Wischen ab
     this.levels.addEventListener('pointerdown', (e) => {
-      swipedAt = -Infinity; // neues Drücken: sein Klick gilt wieder (Tippen gleich nach dem Wischen)
-      if (e.pointerType === 'mouse') return;
-      if (!e.isPrimary) { if (swipe) release(e, true); return; }
+      swipedAt = -Infinity;
+      if (!e.isPrimary && swipe) release(e, true);
+    });
+    // beginnen nur auf den Kacheln; Ziehen und Loslassen zählen in der ganzen Auswahl (der Finger darf hinaus)
+    this.gridWindow.addEventListener('pointerdown', (e) => {
+      if (e.pointerType === 'mouse' || !e.isPrimary) return;
       this.endSlide(); // eine noch laufende Bewegung ist gleich fertig, der Finger fasst die neue Seite
       swipe = { id: e.pointerId, x: e.clientX, y: e.clientY, grab: 0, horizontal: false, shown: 0 };
     });
