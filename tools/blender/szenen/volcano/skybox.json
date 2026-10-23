@@ -1,0 +1,9 @@
+{
+  "format": 1,
+  "id": "volcano",
+  "name": "Vulkan",
+  "order": 50,
+  "daten": "sky/volcano",
+  "sky": { "stars": 0 },
+  "layers": []
+}

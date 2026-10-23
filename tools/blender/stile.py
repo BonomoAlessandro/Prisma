@@ -46,6 +46,19 @@ STILE = {
         'volumen': 4,
         'wasser': -3.0,   # Wasserspiegel (Blender z): wald_export schreibt dazu eine Wassermaske fürs Spiel
     },
+    # Vulkan in der Dämmerung wie beim Strand gemalt: satt, Schatten violett statt schwarz, die Lava glüht orange
+    'volcano': {
+        'belichtung': 1.0,
+        'saettigung': 1.3,
+        'schatten': (0.050, 0.022, 0.080),
+        'glut': (1.0, 0.55, 0.30),
+        'himmel': None,
+        'licht': (1.0, 0.88, 0.72),
+        'knie': 0.72,
+        'spitze': 0.88,
+        'rauschen': 0.006,
+        'volumen': 4,
+    },
 }
 
 

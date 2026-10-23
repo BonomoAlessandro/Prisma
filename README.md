@@ -152,6 +152,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
   Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
+- **Vulkan** (`volcano`, PLAN 1.2): Szene in `tools/blender/szenen/volcano/szene.py` (Lavafeld mit glühenden Rissen,
+  Lavastrom neben dem Brett, Vulkan mit Aschesäule, Dämmerung; Bausteine aus der Strand-Szene), gemalt mit dem Stil
+  `volcano` in `stile.py`. Über den MCP `wald_mcp.neu('volcano')` (rund 15 s), `wald_mcp.skybox('volcano')`, danach
+  `node tools/blender/pack.mjs volcano`. Nur das Panorama, noch keine Ebenen.
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der

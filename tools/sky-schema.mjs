@@ -22,7 +22,9 @@ export const BUDGET = {
   registryBytes: 30e3,       // backgrounds/skies.js
   baseBytes: 2e6, baseGpuMB: 64,     // was jedes Gerät lädt
   totalBytes: 8e6, totalGpuMB: 300,  // alle Teile einer Skybox
-  precacheBytes: 3.5e6,      // alle vorab gespeicherten Teile zusammen (sw.js); mit den Felsen des Strands (PLAN 2.36)
+  // alle vorab gespeicherten Teile zusammen (sw.js); mit den Felsen des Strands (PLAN 2.36) und dem Vulkan (PLAN 1.2).
+  // Jede weitere Skybox kostet rund 1–2 MB: vor der nächsten entscheiden, ob base aller Skyboxen vorab kommen muss
+  precacheBytes: 4.5e6,
 };
 export const BLOOM_THRESHOLD = 1.0; // LOOK.bloomThreshold mit HDR: hellere Werte leuchten auf
 
