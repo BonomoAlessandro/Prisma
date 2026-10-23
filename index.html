@@ -1165,7 +1165,7 @@ const LEVELS = [
     //   Das Licht verschwindet nacheinander: zuerst am Spiegel, der längs zum Strahl steht; ist er gedreht, am Prisma,
     //   das dem Licht den Rücken zeigt.
     name: 'Schatten', tutorial: true,
-    hint: 'Licht verschwindet, wenn es genau längs auf einen Spiegel fällt oder ein Prisma von hinten trifft.',
+    hint: 'Licht verschwindet, wenn es genau längs auf einen Spiegel fällt oder ein Prisma auf der Seite seiner Farbpfeile trifft.',
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 0 },
@@ -17604,15 +17604,85 @@ function createComposer() {
   // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten.
   [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]
     .forEach(t => { t.texture.type = HDR_TYPE; });
-  // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos.
-  bloom.materialHighPassFilter.fragmentShader = bloom.materialHighPassFilter.fragmentShader.replace(
-    'gl_FragColor = mix( outputColor, texel, alpha );',
-    'vec3 excess = texel.rgb * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4));\n' +
-    'gl_FragColor = vec4(min(excess, vec3(2.5)) * alpha, 1.0);'
-  );
+  // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
+  // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
+  // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
+  // stellenweise erfasst – das Leuchten zerfiel in Perlen und Wellen. Mit Pixeldichte 2 entspricht die
+  // halbe Auflösung dort genau einem Bloom-Pixel pro CSS-Pixel.
+  const bloomDiv = IS_MOBILE ? 1 : 2;
+  // Gegen Wellen im Leuchten dünner Strahlen: UnrealBloom verkleinert mit einem Kastenfilter (ein Bloom-Pixel mittelt
+  // seinen Block, auf dem Desktop nur dessen mittlere 2 × 2 Bildpunkte) und vergrössert bilinear. Beides hängt davon
+  // ab, wo ein dünner Strahl im Raster liegt: Der Kasten rundet seine Lage auf ganze Bloom-Pixel, die bilineare
+  // Vergrösserung knickt den Saum zwischen ihnen. Entlang eines schrägen Strahls wechselt diese Lage stetig – der Saum
+  // wurde regelmässig breiter und schmaler, je nach Blickwinkel mit anderem Abstand, und beim Schweben der Kamera
+  // wanderte das Muster. Darum:
+  // - Hochpass mit Dreiecksfilter über die doppelte Breite eines Bloom-Pixels (verteilt einen Strahl zwischen zwei
+  //   Bloom-Pixeln stetig nach seiner Lage) und der Schwelle je Bildpunkt: Eine Schwelle nach dem Mitteln liess
+  //   Strahlen je nach Lage verschieden stark blühen. Handy 4 × 4, Desktop 8 × 8 Abtastungen (Intel Iris Xe, 1080p:
+  //   +0,5 ms gegenüber einer Abtastung).
+  // - Vergrössern der Bloom-Stufen (Zusammensetzen, Auftragen aufs Bild) als kubischer B-Spline statt bilinear.
+  const bloomRatio = 2 * bloomDiv; // Bildpunkte je Bloom-Pixel und Richtung
+  const taps = Array.from({ length: 2 * bloomRatio }, (_, i) => i - bloomRatio + 0.5);
+  const glslNum = (x) => x.toFixed(1);
+  // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos. Die Abtastungen rasten auf
+  // Bildpunktmitten ein, die Gewichte rechnen mit dem echten Abstand zur Mitte des Bloom-Pixels: Geht die Bildgrösse
+  // nicht in ganzen Bloom-Pixeln auf (krumme Fenstergrösse, adaptive Auflösung), wandert dessen Mitte gegen die
+  // Bildpunkte, und feste Versätze träfen Bildpunktgrenzen – dort mittelte die Abtastung wieder vor der Schwelle.
+  bloom.highPassUniforms.uSrcSize = { value: new THREE.Vector2() };
+  bloom.materialHighPassFilter.fragmentShader = `
+    uniform sampler2D tDiffuse;
+    uniform float luminosityThreshold;
+    uniform float smoothWidth;
+    uniform vec2 uSrcSize; // Grösse des Szenenbilds in Bildpunkten
+    varying vec2 vUv;
+    vec3 excess(vec2 px) {
+      vec3 texel = texture2D(tDiffuse, px / uSrcSize).rgb;
+      float v = dot(texel, vec3(0.299, 0.587, 0.114));
+      float alpha = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, v);
+      return min(texel * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4)), vec3(2.5)) * alpha;
+    }
+    void main() {
+      vec2 c = vUv * uSrcSize, b = floor(c + 0.5), d = c - b; // Mitte des Bloom-Pixels, nächste Bildpunktecke, Rest
+      ${taps.map((p, i) => `float wx${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.x), ` +
+        `wy${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.y);`).join('\n      ')}
+      vec3 e = vec3(0.0);
+      ${taps.flatMap((px, i) => taps.map((py, j) =>
+        `e += excess(b + vec2(${glslNum(px)}, ${glslNum(py)})) * (wx${i} * wy${j});`)).join('\n      ')}
+      gl_FragColor = vec4(e / ${glslNum(bloomRatio ** 4)}, 1.0);
+    }`;
   bloom.highPassUniforms.smoothWidth.value = 0.6;
-  // Leuchten additiv aufs Bild legen wie bisher, aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
+  // Kubischer B-Spline aus vier bilinearen Abtastungen (size: Grösse der Textur in Texeln)
+  const BSPLINE_GLSL = `
+    vec4 bspline(sampler2D tex, vec2 uv, vec2 size) {
+      vec2 st = uv * size - 0.5;
+      vec2 i = floor(st), f = st - i, f2 = f * f, f3 = f2 * f;
+      vec2 w0 = (1.0 - 3.0 * f + 3.0 * f2 - f3) / 6.0, w1 = (4.0 - 6.0 * f2 + 3.0 * f3) / 6.0;
+      vec2 w2 = (1.0 + 3.0 * f + 3.0 * f2 - 3.0 * f3) / 6.0, w3 = f3 / 6.0;
+      vec2 g0 = w0 + w1, g1 = w2 + w3;
+      vec2 p0 = (i - 0.5 + w1 / g0) / size, p1 = (i + 1.5 + w3 / g1) / size;
+      return (texture2D(tex, p0) * g0.x + texture2D(tex, vec2(p1.x, p0.y)) * g1.x) * g0.y
+           + (texture2D(tex, vec2(p0.x, p1.y)) * g0.x + texture2D(tex, p1) * g1.x) * g1.y;
+    }`;
+  // Zusammensetzen in der Grösse der feinsten Stufe: die gröberen Stufen 2–5 vergrössert der B-Spline
+  const composite = bloom.compositeMaterial;
+  for (let i = 2; i <= 5; i++) composite.uniforms['uSize' + i] = { value: new THREE.Vector2() };
+  composite.fragmentShader = composite.fragmentShader
+    .replace('void main() {', `uniform vec2 uSize2, uSize3, uSize4, uSize5;${BSPLINE_GLSL}\nvoid main() {`)
+    .replace(/texture2D\(blurTexture([2-5]), vUv\)/g, 'bspline(blurTexture$1, vUv, uSize$1)');
+  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline. Leuchten additiv aufs Bild legen wie bisher,
+  // aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
+  bloom.copyUniforms.uSrcSize = { value: new THREE.Vector2() };
   Object.assign(bloom.materialCopy, {
+    fragmentShader: `
+      uniform float opacity;
+      uniform sampler2D tDiffuse;
+      uniform vec2 uSrcSize;
+      varying vec2 vUv;
+      ${BSPLINE_GLSL}
+      void main() {
+        gl_FragColor = bspline(tDiffuse, vUv, uSrcSize);
+        gl_FragColor.a *= opacity;
+      }`,
     blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor,
     blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
   });
@@ -17621,14 +17691,16 @@ function createComposer() {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
-  // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
-  // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
-  // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
-  // stellenweise erfasst – das Leuchten zerfiel in Perlen und Wellen. Mit Pixeldichte 2 entspricht die
-  // halbe Auflösung dort genau einem Bloom-Pixel pro CSS-Pixel.
   const bloomSetSize = bloom.setSize.bind(bloom);
-  const bloomDiv = IS_MOBILE ? 1 : 2;
-  bloom.setSize = (w, h) => bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
+  bloom.setSize = (w, h) => {
+    bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
+    bloom.highPassUniforms.uSrcSize.value.set(Math.floor(w), Math.floor(h)); // gebrochene Grössen schneidet WebGL ab
+    for (let i = 2; i <= 5; i++) {
+      const t = bloom.renderTargetsVertical[i - 1];
+      composite.uniforms['uSize' + i].value.set(t.width, t.height);
+    }
+    bloom.copyUniforms.uSrcSize.value.set(bloom.renderTargetsHorizontal[0].width, bloom.renderTargetsHorizontal[0].height);
+  };
   bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
@@ -18269,7 +18341,73 @@ function easeToward(current, goal, dt, speed = 0.0005) {
   return current + (goal - current) * (1 - Math.pow(speed, dt));
 }
 
-/** Prisma: dreiseitiges Glasprisma zwischen zwei Metallplatten, Austrittsfläche (lokal −z) in Richtung rot·45°. */
+/**
+ * Zeichen des Prismas auf seinem Sockel (PLAN 1.3): hinten ein weisser Strich (Eingang), vorn drei Pfeilspitzen in Rot,
+ * Grün und Blau, jede in Richtung ihres Strahls (refractInPrism: Rot rot − 1, Grün rot, Blau rot + 1; lokal liegt der
+ * Austritt bei −z und Rot auf der Seite −x). Sie drehen mit und zeigen auch ohne Licht, wohin das Prisma die Farben
+ * wirft; tritt eine Farbe aus, leuchtet ihr Pfeil heller (unter der Bloom-Schwelle). Die Pfeile liegen vor der
+ * Bodenplatte des Prismas, sonst verdeckte diese sie von oben. Auf dem eckigen Steinsockel eines festen Prismas ist
+ * weniger Platz als auf dem Drehteller (Radius 0.38): Dort sind sie kleiner und näher.
+ */
+const PRISM_MARKS = {
+  fan: [{ color: 1, offset: -1 }, { color: 2, offset: 0 }, { color: 4, offset: 1 }],
+  arrowAt: 0.3, arrowAtFixed: 0.27, arrowScaleFixed: 0.75,
+  barAt: 0.35, barAtFixed: 0.31,
+  plateY: 0.078, // über dem Drehteller samt Leuchtring (Oberkante 0.07)
+  arrowIdle: 1.1, arrowLit: 0.8, barIdle: 0.75, barLit: 0.4,
+};
+let prismMarkParts = null; // Geometrien, geteilt von allen Prismen (beim ersten Gebrauch gebaut)
+function prismMarkGeometries() {
+  if (prismMarkParts) return prismMarkParts;
+  const arrow = new THREE.ShapeGeometry(new THREE.Shape(
+    [[0, 0.075], [0.075, -0.045], [0, -0.018], [-0.075, -0.045]].map(([x, y]) => new THREE.Vector2(x, y))
+  )).rotateX(-Math.PI / 2); // Spitze nach −z
+  const bar = new THREE.BoxGeometry(0.16, 0.008, 0.04);
+  for (const geo of [arrow, bar]) SHARED_GEOMETRIES.add(geo);
+  prismMarkParts = { arrow, bar };
+  return prismMarkParts;
+}
+/** Gruppe der Zeichen (lokal wie das Prisma) und update(Farben, die austreten; Leuchten des Prismas; dt). */
+function makePrismMarks(fixed) {
+  const { arrow, bar } = prismMarkGeometries();
+  const m = PRISM_MARKS;
+  const y = fixed ? FIXED_BASE_TOP + 0.012 : m.plateY; // Steinsockel: über der Randleiste (Oberkante 0.079)
+  const group = new THREE.Group();
+  const flat = (geo, mat) => {
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.raycast = () => {};
+    mesh.layers.set(LAYER_NO_REFLECT); // wie die Leuchtränder nicht in der Bodenspiegelung
+    group.add(mesh);
+    return mesh;
+  };
+  const arrows = m.fan.map(({ color, offset }) => {
+    const mat = new THREE.MeshBasicMaterial({ color: 0, side: THREE.DoubleSide });
+    const mesh = flat(arrow, mat);
+    const a = offset * Math.PI / 4, r = fixed ? m.arrowAtFixed : m.arrowAt;
+    mesh.position.set(Math.sin(a) * r, y, -Math.cos(a) * r);
+    mesh.rotation.y = -a; // Spitze −z → (sin a, −cos a)
+    if (fixed) mesh.scale.setScalar(m.arrowScaleFixed);
+    // Helle Farben (Grün) gedämpft, sonst überstrahlen sie Rot und Blau
+    return { color, mat, glow: 0, tame: 1 - 0.5 * brightTame(COLOR_RGB[color]) };
+  });
+  const barMat = new THREE.MeshBasicMaterial({ color: 0 });
+  flat(bar, barMat).position.set(0, y, fixed ? m.barAtFixed : m.barAt);
+  return {
+    group,
+    update(color, glow, dt) {
+      for (const a of arrows) {
+        a.glow = easeToward(a.glow, color & a.color ? 1 : 0, dt);
+        a.mat.color.copy(COLOR_RGB[a.color]).multiplyScalar((m.arrowIdle + a.glow * m.arrowLit) * a.tame);
+      }
+      barMat.color.setScalar(m.barIdle + glow * m.barLit);
+    },
+  };
+}
+
+/**
+ * Prisma: dreiseitiges Glasprisma zwischen zwei Metallplatten, Austrittsfläche (lokal −z) in Richtung rot·45°, auf dem
+ * Sockel seine Zeichen (makePrismMarks).
+ */
 function makePrism(el) {
   const root = new THREE.Group();
   root.add(el.fixed ? makeFixedBase() : makePedestal(0.38));
@@ -18307,6 +18445,9 @@ function makePrism(el) {
   veil.raycast = () => {};
   pivot.add(veil);
 
+  const marks = makePrismMarks(el.fixed);
+  pivot.add(marks.group);
+
   const u = root.userData;
   u.pivot = pivot;
   u.veil = veil;
@@ -18315,8 +18456,10 @@ function makePrism(el) {
   u.orient = (e) => { pivot.rotation.y = -Math.PI / 2 - e.rot * Math.PI / 4; };
   u.orient(el);
   u.update = (t, dt) => {
-    u.glow = easeToward(u.glow, activeColorOf(u) ? 1 : 0, dt);
+    const color = activeColorOf(u);
+    u.glow = easeToward(u.glow, color ? 1 : 0, dt);
     veilMat.color.setScalar(0.08 + u.glow * 1.1);
+    marks.update(color, u.glow, dt);
   };
   return root;
 }
@@ -18810,6 +18953,7 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     uCore: { value: BEAM.coreWidth },
     uGlow: { value: BEAM.glowWidth },
     uIntensity: { value: 1 },
+    uCalm: { value: 0 }, // 1: ohne Fliessen und Energiepakete (Spiegelung, renderReflection)
   },
   `
   void main() {
@@ -18834,6 +18978,7 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
   uniform float uCore;
   uniform float uGlow;
   uniform float uIntensity;
+  uniform float uCalm;
   void main() {
     // Pixelgrösse vor discard bestimmen (Ableitungen nur in einheitlichem Kontrollfluss verlässlich)
     float px = length(vec2(dFdx(vLocal.y), dFdy(vLocal.y)));
@@ -18845,7 +18990,13 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     float flow = 0.82
       + 0.12 * noise1(pathDist * 7.0 - uTime * 5.5)
       + 0.08 * noise1(pathDist * 19.0 + uTime * 3.1);
-    float packet = pow(max(0.0, sin(pathDist * 1.6 - uTime * 4.2)), 24.0) * 0.55;
+    // Pakete hellen nur den weichen Glow auf (der allein unter der Bloom-Schwelle bleibt; über dem Kern blüht es an
+    // einem Paket so nur rund 10 % stärker): Früher hoben sie auch den Kern (bis 2,4fach) – der blühte an jedem
+    // Paket zu einer Beule auf, und die wandernden Beulen liessen den Strahl wellig wirken, am stärksten bei flachem
+    // Blick, wo die Pakete im Bild dicht aufeinander folgen.
+    float packet = pow(max(0.0, sin(pathDist * 1.6 - uTime * 4.2)), 24.0) * 0.3;
+    flow = mix(flow, 0.92, uCalm); // 0.92: Mittel des Fliessens
+    packet *= 1.0 - uCalm;
     // Glow-Breite fest: Das frühere "Atmen" (Breite ±8 % entlang des Strahls, wandernd) wirkte auf scharfen
     // Bildschirmen wie Wellen – vor allem bei Strahlen quer zur Blickrichtung. Leicht schmaler als uGlow,
     // damit es im Mittel wie vorher aussieht.
@@ -18872,9 +19023,9 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // Helle Farben (Weiss, Gelb, Cyan, Grün) überschreiten die Bloom-Schwelle viel stärker als
     // Rot oder Blau – gedämpft, damit alle Strahlen gleich kräftig wirken.
     float bright = smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)));
-    vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow * mix(1.0, 0.72, bright)
-             + hot * core * (3.0 + packet * 3.0) * mix(1.0, 0.8, bright);
-    col *= (1.0 + packet) * uIntensity * visible;
+    vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow * (1.0 + packet) * mix(1.0, 0.72, bright)
+             + hot * core * 3.0 * mix(1.0, 0.8, bright);
+    col *= uIntensity * visible;
     gl_FragColor = vec4(col, 1.0);
   }`
 ));
@@ -21006,9 +21157,10 @@ function renderReflection() {
   background.visible = false; // gespiegelt nur ein bläulicher Fleck; ein dunkler Raum spiegelt sich schwarz
   // Gespiegelte Strahlen weich und ohne dünnen Kern: der würde in der niedrig aufgelösten
   // Spiegelung zur Treppenlinie – und auf poliertem Stein ist ein Spiegelbild ohnehin weich.
+  // Ohne Fliessen und Pakete: Ihr Auf und Ab zerfiel in der kleinen, weichgezeichneten Textur zu wandernden Flecken.
   const bu = beamMaterial.uniforms;
   const core = bu.uCore.value, glow = bu.uGlow.value, intensity = bu.uIntensity.value;
-  bu.uCore.value = 0.045; bu.uGlow.value = 0.09; bu.uIntensity.value = 0.45;
+  bu.uCore.value = 0.045; bu.uGlow.value = 0.09; bu.uIntensity.value = 0.45; bu.uCalm.value = 1;
   // Leuchtende Edelsteine ebenso gedämpft spiegeln: ihr HDR-Kern würde sonst als harte, weisse Kontur erscheinen
   // (Werte sichern und exakt wiederherstellen – kein Teilen, damit sich nichts aufschaukeln kann)
   const dimmed = [];
@@ -21024,7 +21176,7 @@ function renderReflection() {
     u.core.material.color.copy(core);
     u.gem.material.emissiveIntensity = emissive;
   }
-  bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity;
+  bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity; bu.uCalm.value = 0;
   background.visible = backgroundVisible;
   floorTop.visible = true;
 }
