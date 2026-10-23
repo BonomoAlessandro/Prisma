@@ -114,7 +114,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
   → / Bild↓ eine Seite weiter, auf dem Handy auch Wischen über die Kacheln (nach links die nächste Seite); oben
   springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des Abschnitts.
-- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 5×5×5-Würfel (`LEVELS_3D`, `dim: 3`),
+- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`),
   in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
   wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
   Derselbe Durchlauf der Strahlregel wie für die flachen Level (`tracePass`, ADR 0003): Ein flaches Level ist ein Würfel

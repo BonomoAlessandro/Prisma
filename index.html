@@ -13214,42 +13214,42 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
  */
 const LEVELS_3D = [
   {
-    // Lösung: Spiegel (2,0,2) Achse z rot 3 – Ost → hinauf; Prisma (2,2,2) Achse x rot 2 – Fächer nach oben:
-    //   Rot → oben/Süd → Ziel (2,4,4), Grün → hinauf → Spiegel (2,4,2) Achse z rot 1 → West → Ziel (0,4,2),
-    //   Blau → oben/Nord → Ziel (2,4,0).
-    name: 'Aufzug', dim: 3, size: 5,
+    // Lösung: Spiegel (3,0,3) Achse z rot 3 – Ost → hinauf; Prisma (3,3,3) Achse x rot 2 – Fächer nach oben:
+    //   Rot → oben/Süd → Ziel (3,6,6), Grün → hinauf → Spiegel (3,6,3) Achse z rot 1 → West → Ziel (0,6,3),
+    //   Blau → oben/Nord → Ziel (3,6,0).
+    name: 'Aufzug', dim: 3, size: 7,
     hint: 'Jedes Element dreht in seinem Ring – die Zapfen zeigen die Achse.',
     elements: [
-      { type: 'source', x: 0, y: 0, z: 2, dir: 0 },
-      { type: 'mirror', x: 2, y: 0, z: 2, axis: 'z', rot: 1 },
-      { type: 'prism', x: 2, y: 2, z: 2, axis: 'x', rot: 0 },
-      { type: 'mirror', x: 2, y: 4, z: 2, axis: 'z', rot: 0 },
-      { type: 'target', x: 2, y: 4, z: 4, color: 'red' },
-      { type: 'target', x: 0, y: 4, z: 2, color: 'green' },
-      { type: 'target', x: 2, y: 4, z: 0, color: 'blue' },
+      { type: 'source', x: 0, y: 0, z: 3, dir: 0 },
+      { type: 'mirror', x: 3, y: 0, z: 3, axis: 'z', rot: 1 },
+      { type: 'prism', x: 3, y: 3, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 3, y: 6, z: 3, axis: 'z', rot: 0 },
+      { type: 'target', x: 3, y: 6, z: 6, color: 'red' },
+      { type: 'target', x: 0, y: 6, z: 3, color: 'green' },
+      { type: 'target', x: 3, y: 6, z: 0, color: 'blue' },
     ],
-    solution: { '2,0,2': 3, '2,2,2': 2, '2,4,2': 1 },
+    solution: { '3,0,3': 3, '3,3,3': 2, '3,6,3': 1 },
   },
   {
-    // Lösung: Rot: Spiegel (2,0,0) Achse z rot 3 – Ost → hinauf; Spiegel (2,2,0) Achse x rot 1 – hinauf → Süd
-    //   → Ziel (2,2,2). Weiss: Prisma (3,4,4) Achse z rot 3 – Rot → hinab → Ziel (3,0,4), Grün → unten/West
-    //   → Ziel (1,2,4), Blau → West → Spiegel (2,4,4) Achse z rot 3 → hinab → Spiegel (2,2,4) Achse x rot 1
-    //   → Nord → Ziel (2,2,2): Rot + Blau = Magenta in der Würfelmitte. Grün kreuzt den Blauschacht bei (2,3,4).
-    name: 'Kern', dim: 3, size: 5,
+    // Lösung: Rot: Spiegel (3,0,0) Achse z rot 3 – Ost → hinauf; Spiegel (3,3,0) Achse x rot 1 – hinauf → Süd
+    //   → Ziel (3,3,3). Weiss: Prisma (4,6,6) Achse z rot 3 – Rot → hinab → Ziel (4,0,6), Grün → unten/West
+    //   → Ziel (1,3,6), Blau → West → Spiegel (3,6,6) Achse z rot 3 → hinab → Spiegel (3,3,6) Achse x rot 1
+    //   → Nord → Ziel (3,3,3): Rot + Blau = Magenta in der Würfelmitte. Grün kreuzt den Blauschacht bei (3,5,6).
+    name: 'Kern', dim: 3, size: 7,
     hint: 'Strahlen kreuzen sich in leeren Zellen. Magenta = Rot + Blau – beide müssen in die Mitte.',
     elements: [
       { type: 'source', x: 0, y: 0, z: 0, dir: 0, color: 'red' },
-      { type: 'mirror', x: 2, y: 0, z: 0, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 2, y: 2, z: 0, axis: 'x', rot: 3 },
-      { type: 'source', x: 4, y: 4, z: 4, dir: 4 },
-      { type: 'prism', x: 3, y: 4, z: 4, axis: 'z', rot: 4 },
-      { type: 'mirror', x: 2, y: 4, z: 4, axis: 'z', rot: 1 },
-      { type: 'mirror', x: 2, y: 2, z: 4, axis: 'x', rot: 2 },
-      { type: 'target', x: 2, y: 2, z: 2, color: 'magenta' },
-      { type: 'target', x: 3, y: 0, z: 4, color: 'red' },
-      { type: 'target', x: 1, y: 2, z: 4, color: 'green' },
+      { type: 'mirror', x: 3, y: 0, z: 0, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 3, y: 3, z: 0, axis: 'x', rot: 3 },
+      { type: 'source', x: 6, y: 6, z: 6, dir: 4 },
+      { type: 'prism', x: 4, y: 6, z: 6, axis: 'z', rot: 4 },
+      { type: 'mirror', x: 3, y: 6, z: 6, axis: 'z', rot: 1 },
+      { type: 'mirror', x: 3, y: 3, z: 6, axis: 'x', rot: 2 },
+      { type: 'target', x: 3, y: 3, z: 3, color: 'magenta' },
+      { type: 'target', x: 4, y: 0, z: 6, color: 'red' },
+      { type: 'target', x: 1, y: 3, z: 6, color: 'green' },
     ],
-    solution: { '2,0,0': 3, '2,2,0': 1, '3,4,4': 3, '2,4,4': 3, '2,2,4': 1 },
+    solution: { '3,0,0': 3, '3,3,0': 1, '4,6,6': 3, '3,6,6': 3, '3,3,6': 1 },
   },
 ];
 
@@ -17736,7 +17736,7 @@ function updateCamera(t, dt) {
   const cube = cameraRig.cube;
   cameraRig.lift += ((cube ? cube * CELL / 2 : 0) - cameraRig.lift) * k;
   // Hochformat: Das 2D-Feld füllt die Breite, der schmalere Würfel darf näher heran
-  const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) : 1;
+  const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) * cube / CUBE.cameraSize : 1;
   cameraRig.zoom += (zoom - cameraRig.zoom) * k;
   cameraRig.tilt += ((cube ? CUBE.cameraTilt : 0) - cameraRig.tilt) * k;
   cameraRig.turn += ((cube ? CUBE.cameraTurn : 0) - cameraRig.turn) * k;
@@ -18509,6 +18509,7 @@ const CUBE = {
   frameColor: new THREE.Color(0.3, 0.34, 0.5),
   cameraZoom: 1.3,                                  // Abstand im Vergleich zum 2D-Feld (der Würfel ist höher)
   cameraZoomNarrow: 0.95,                           // … im Hochformat (dort begrenzt die Breite, der Würfel ist schmaler)
+  cameraSize: 5,                                    // Kantenlänge, für die die Abstände gelten; andere Würfel im Verhältnis
   cameraTilt: 0.3,                                  // flacher als beim 2D-Feld: die Ebenen liegen sichtbar übereinander
   cameraTurn: 0.5,                                  // schräg: Strahlen zur Kamera hin liegen nicht hintereinander
   phiMin: 0.22, phiMax: 1.42,                       // Neigung: fast senkrecht von oben bis knapp über die Platte

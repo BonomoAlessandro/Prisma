@@ -1,7 +1,7 @@
 # Würfel-Level in 3D – Prototyp
 
 Stand: 11. Oktober 2026, Beurteilung und Tests nachgeführt am 16. Oktober (Ticket 14), Generator am 18. Oktober
-(Ticket 22) · Branch `feature/3d-wuerfel` ·
+(Ticket 22), Würfel 7 × 7 × 7 am 23. Oktober · Branch `feature/3d-wuerfel` ·
 Zweck: prüfen, ob Rätsel in einem Würfel Potenzial haben.
 Alle bisherigen Level (Tutorial + 150) bleiben genau so, wie sie sind.
 
@@ -11,6 +11,8 @@ Alle bisherigen Level (Tutorial + 150) bleiben genau so, wie sie sind.
    und Darstellung/Bedienung). Ergebnis: Logik gut machbar, das Hauptrisiko ist die Lesbarkeit im Würfel;
    7×7×7 voll besetzt wäre auf dem Handy kaum bedienbar, daher klein anfangen.
 2. Danach umsetzen: 5×5×5-Würfel, zwei Beispiel-Level, eigener Branch, Teilschritte einzeln committen.
+3. 23. Oktober (Wunsch des Nutzers): beide Level auf einen Würfel 7 × 7 × 7 übertragen, um zu sehen, wie sich der
+   grössere Würfel spielt und liest. Die Fassung 5 × 5 × 5 steht in der Git-Geschichte.
 
 ## Vorgehen (Commits auf dem Branch)
 
@@ -43,7 +45,7 @@ senkrecht dazu genau wie ein 2D-Element: `rot` bzw. `dir` zählen dort in 45°-S
 Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 
 ```js
-{ name, dim: 3, size: 5, hint,
+{ name, dim: 3, size: 7, hint,
   elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],   // y = Ebene, 0 = unten
   solution: { "x,y,z": rot bzw. dir } }
 ```
@@ -74,7 +76,9 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   (`rain.burstFrom`, mit Luftwiderstand). `celebration.endWave()` setzt Ring, Schale und Rahmen zurück.
 - **Kamera:** `cameraRig.cube/lift/zoom/tilt/turn` – im Würfel Blick auf die Würfelmitte, flacher, schräger,
   weiter weg (im Hochformat näher), Neigung `CUBE.phiMin … phiMax` statt der 2D-Grenzen (`phiLimits`, gilt auch
-  beim Drehen des Handys). Der Zoom von Hand (`cameraRig.userZoom`) wirkt zusätzlich zu `cameraRig.zoom`.
+  beim Drehen des Handys). Der Zoom von Hand (`cameraRig.userZoom`) wirkt zusätzlich zu `cameraRig.zoom`. Die
+  Abstände `CUBE.cameraZoom`/`cameraZoomNarrow` gelten für den Würfel 5 × 5 × 5 (`CUBE.cameraSize`); ein anderer
+  Würfel rückt im Verhältnis seiner Kantenlänge weiter weg bzw. näher heran.
 - **Werkzeuge:** `tools/solver.mjs` – `keyOf` liefert im Würfel "x,y,z", Exporte der 3D-Funktionen.
 - **Beurteilung** (Ticket 14): `tools/beurteilung/feldform-wuerfel.mjs`, die Würfel-Feldform mit Zellen "x,y,z", den
   18 Richtungen und der Drehachse je Element; `feldformVon` liefert sie bei `dim: 3`. Die Wirkung der Elemente kommt
@@ -92,12 +96,19 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 
 ## Die zwei Level
 
-- **Aufzug** (3 drehbar, Wertung 12.3): Spiegel (Achse z) hebt den Strahl, Prisma (Achse x) fächert ihn senkrecht
+- **Aufzug** (3 drehbar): Spiegel (Achse z) hebt den Strahl, Prisma (Achse x) fächert ihn senkrecht
   auf drei Ziele in der obersten Ebene, ein Spiegel lenkt Grün zur Seite.
-- **Kern** (5 drehbar, Wertung 21.6): Rot von unten vorne und Blau (aus einem Prisma oben hinten) müssen sich als
+- **Kern** (5 drehbar): Rot von unten vorne und Blau (aus einem Prisma oben hinten) müssen sich als
   Magenta in der Würfelmitte treffen; Grün kreuzt dabei den Blauschacht in einer leeren Zelle.
 
 Beide sind laut Löser eindeutig lösbar; die Lösungen stehen als Kommentar über den Leveln.
+
+Übertragung von 5 × 5 × 5 auf 7 × 7 × 7 (23. Oktober): Aufzug ist genau gestreckt (Koordinaten 0/2/4 → 0/3/6);
+weil alle Abstände gleich wachsen, trifft jeder Strahl dieselben Elemente wie vorher. Kern hat auch Koordinaten 1
+und 3 und ist darum von Hand übertragen: Quellen in den Ecken (0,0,0) und (6,6,6), Spiegel auf x = 3, Mischziel in
+der Mitte (3,3,3), das Prisma neben der Quelle der Achse nach bei x = 4, Grün kreuzt den Blauschacht bei (3,5,6)
+und endet auf halber Höhe (1,3,6). Beide haben dieselbe Lösung (Stellungen) wie vorher und sind laut Löser und
+Durchprobieren eindeutig.
 
 ## Tests und Befehle
 
@@ -148,5 +159,5 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 
 1. Beide Level von Hand spielen (Desktop und Handy) und entscheiden, ob es sich lohnt (**E** in PLAN.md, Abschnitt 4).
 2. Wenn ja: kleines Würfel-Tutorial (Achse, Aufzug), 5–10 weitere handgebaute Level.
-3. Danach Würfel-Level aus dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen, grössere Würfel erst nach
-   Spieltests.
+3. Danach Würfel-Level aus dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen. Die Grösse (5 oder 7)
+   nach Spieltests festlegen; auf dem Handy sind die Elemente im Würfel 7 × 7 × 7 deutlich kleiner.

@@ -41,15 +41,15 @@ test('Aufzug: leicht, ohne Mischung und Kernidee, darum unter dem Mindest-Spielw
 
 test('Kern: Mischziel aus zwei Quellen in der Würfelmitte ist die Haupt-Kernidee, schwerer als Aufzug', () => {
   const b = beurteile(level('Kern'));
-  const mischziel = { ziel: '2,2,2', farbe: 'magenta', quellen: ['0,0,0', '4,4,4'], ausZweiQuellen: true };
+  const mischziel = { ziel: '3,3,3', farbe: 'magenta', quellen: ['0,0,0', '6,6,6'], ausZweiQuellen: true };
   assert.deepEqual(b.mischziele, [mischziel]);
   assert.equal(b.hauptKernidee.begriff, 'Mischziel aus zwei Quellen');
-  assert.equal(b.hauptKernidee.fund.ziel, '2,2,2');
+  assert.equal(b.hauptKernidee.fund.ziel, '3,3,3');
   assert.ok(b.spielwert.wert >= MINDEST_SPIELWERT, `Spielwert ${b.spielwert.wert}`);
   assert.ok(b.schwierigkeit.wert > beurteile(level('Aufzug')).schwierigkeit.wert);
   const { farblogik } = b.schwierigkeit.teilwerte.denkarbeit;
   assert.deepEqual([farblogik.mischen, farblogik.zerlegen], [1, 1]);
-  // Zusammenspiel: das gemeinsame Mischziel und die Kreuzung von Grün und Blau in der leeren Zelle 2,3,4
+  // Zusammenspiel: das gemeinsame Mischziel und die Kreuzung von Grün und Blau in der leeren Zelle 3,5,6
   assert.equal(b.schwierigkeit.teilwerte.zusammenspiel.stellen, 2);
 });
 
