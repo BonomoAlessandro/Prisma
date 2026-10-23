@@ -13910,6 +13910,40 @@ function loadSkyScript(src) {
     document.head.appendChild(s);
   });
 }
+
+/**
+ * Daten-PNG (Data-URL) ohne Farbangaben. Die PNGs der Skyboxen (Tiefe, Karten) tragen sRGB, gAMA und cHRM; Firefox
+ * rechnet solche Bilder ins Farbprofil des Bildschirms um, beim Zeichnen ins Canvas (skyLogDepth, groundShift; three
+ * lädt nach WebGL ohne Umrechnung hoch): schon ohne eigenes Profil um ±1, mit dem eines Notebooks bis 36 Stufen je
+ * Kanal. Mit 16 Bit in Rot und Grün lagen Tiefe und Wasser dann falsch. Bilder ohne Angaben lässt er, wie sie sind
+ * (geprüft mit Firefox 158, Chrome wie vorher). Die Angaben stehen vor den Bilddaten (IDAT), der Rest bleibt unverändert.
+ */
+const PNG_COLOR_CHUNKS = new Set(['sRGB', 'gAMA', 'cHRM', 'iCCP', 'cICP', 'mDCV', 'cLLI']);
+function plainPng(url) {
+  const head = 'data:image/png;base64,';
+  if (!url.startsWith(head)) return url;
+  const bin = atob(url.slice(head.length));
+  if (!bin.startsWith('\x89PNG\r\n\x1a\n')) return url;
+  const u32 = (p) => ((bin.charCodeAt(p) << 24) | (bin.charCodeAt(p + 1) << 16) | (bin.charCodeAt(p + 2) << 8) | bin.charCodeAt(p + 3)) >>> 0;
+  let out = bin.slice(0, 8), p = 8, dropped = false;
+  while (p + 8 <= bin.length && bin.slice(p + 4, p + 8) !== 'IDAT') {
+    const end = p + 12 + u32(p);
+    if (PNG_COLOR_CHUNKS.has(bin.slice(p + 4, p + 8))) dropped = true;
+    else out += bin.slice(p, end);
+    p = end;
+  }
+  return dropped ? head + btoa(out + bin.slice(p)) : url;
+}
+/** Alle PNG-Data-URLs in einem Teil einer Skybox ohne Farbangaben (plainPng), an Ort und Stelle. Listen aus Zahlen
+ * (Geometrie der Ebenen, im Wald rund 30 000 Werte) übergeht es: Mit ihnen hielt es den Hauptthread doppelt so lang an
+ * (Wald, Chrome mit vierfach gedrosselter CPU: rund 21 statt 10 ms). */
+function plainPngs(o) {
+  for (const [k, v] of Object.entries(o)) {
+    if (typeof v === 'string') o[k] = plainPng(v);
+    else if (v && typeof v === 'object' && typeof v[0] !== 'number') plainPngs(v);
+  }
+  return o;
+}
 /**
  * Farbbilder der Skyboxen dekodieren, für WebGL kippen, Mipmaps rechnen und alles in Streifen zu STRIP_ROWS Zeilen
  * schneiden – in einem Worker: Kippen kostete im Hauptthread selbst mit createImageBitmap rund 25 ms je 4096×3413-Bild,
@@ -13933,11 +13967,23 @@ const skyBitmaps = (() => {
       if (next.width !== w || next.height !== h) throw new Error('Grösse übergangen');
       levels.push(next);
     }
+    // Streifen über ein OffscreenCanvas als eigenes Bild: Einen mit createImageBitmap(lv, 0, y, …) zugeschnittenen lädt
+    // Firefox ohne den Zuschnitt in WebGL (jeder Streifen zeigte die obersten Zeilen, der Grund lag in Ringen); so
+    // bitgenau und je Streifen in 1–2 statt bis 25 ms hochgeladen. willReadFrequently: Canvas im Hauptspeicher, Chrome
+    // wie vorher (sonst lagen die wartenden Streifen im Grafikprozess, an der Spitze rund 180 MB mehr). Vormultipliziert
+    // (das Canvas): gleich für die deckenden JPEGs, nicht für ein Farbbild mit Alpha.
+    const cut = (lv, y, h) => {
+      const c = typeof OffscreenCanvas === 'function' ? new OffscreenCanvas(lv.width, h) : null;
+      const g = c?.getContext('2d', { willReadFrequently: true });
+      if (!g) return createImageBitmap(lv, 0, y, lv.width, h);
+      g.drawImage(lv, 0, -y);
+      return c.transferToImageBitmap();
+    };
     const strips = [];
     for (const [level, lv] of levels.entries()) {
       if (lv.height <= rows) { strips.push({ level, y: 0, bitmap: lv }); continue; }
       for (let y = 0; y < lv.height; y += rows) {
-        strips.push({ level, y, bitmap: await createImageBitmap(lv, 0, y, lv.width, Math.min(rows, lv.height - y)) });
+        strips.push({ level, y, bitmap: await cut(lv, y, Math.min(rows, lv.height - y)) });
       }
       lv.close();
     }
@@ -16152,7 +16198,7 @@ function createPanoramaSky(m) {
     const key = `${m.id}/${role}`, got = window.PRISMA_SKY_PARTS?.[key];
     delete window.PRISMA_SKY_PARTS?.[key]; // die Bilder stecken gleich in den Texturen
     if (!got || got.rev !== m.rev) throw new Error(`${part.file}: anderer Stand als im Register`);
-    return got;
+    return plainPngs(got);
   }
 
   async function build(my) {
