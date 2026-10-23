@@ -9,7 +9,6 @@
   - [ ] Canyon
   - [ ] Wüste
   - [ ] Idyllisches Dorf, umgeben von Bergen
-- [ ] **1.3 Prismen:** Aussehen anpassen, sodass besser ersichtlich ist, auf welcher Seite die Farben herauskommen.
 
 ## 2. Würfel-Level (3D)
 
