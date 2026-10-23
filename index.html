@@ -14889,28 +14889,33 @@ function mistSheets(ctx, opt) {
 }
 
 /**
- * Lavasee unter dem Brett im Comic-Stil (Vulkan): eine Scheibe auf der Höhe level (+ lift zur Kamera hin, für den
- * Tiefentest gegen das Netz des Panoramas), Radius radius, am Rand über fade ins gemalte Panorama ausgeblendet. Die
- * Fläche leuchtet in flachen Stufen (heat: Kern gelb, hell, orange; Muster der Grösse flow.scale m, das langsam
- * fliesst und treibt: flow.speed, flow.drift in m/s), helle Säume (ring) um die gelben Flecken. Darin wenige dunkle
- * Schollen (crust: Anteil share, Grösse scale m, zwei Töne colors) und die Felsen des Panoramas (data: Felsen
- * [x, z, Radius] aus dem Export der Szene) mit hellen, pulsierenden Ringen und Kontur (line). Blasen (bubbles: Raster
- * cell, Anteil share, Radius size, Dauer period in s) schwellen als klare Kreise an, platzen, ziehen zwei Ringe und
- * werfen Spritzer; darüber steigen Funken als klare Punkte auf (sparks). Nahe beim Brett (calm: Radien, Faktor) ist
- * die Lava gedämpfter und roter, damit die Strahlen lesbar bleiben. Alle Farben sind Szenenwerte unter der
- * Bloom-Schwelle.
+ * Lavasee unter dem Brett (Vulkan, wie der Nyiragongo): eine Scheibe auf der Höhe level (+ lift zur Kamera hin, für
+ * den Tiefentest gegen das Netz des Panoramas), Radius radius, am Rand über fade ins gemalte Panorama ausgeblendet.
+ * Dunkle Krustenplatten (crust: zwei Töne) mit unregelmässigen, glühenden Rissen in zwei Grössen (plates: Platten
+ * scale m, feinere Risse fine im Anteil der Platten, Breite crack im Anteil der Zelle); die Platten treiben (drift, m/s)
+ * und verformen sich langsam (churn), die Risse öffnen und schliessen sich. Farbe der Glut nach Hitze (heat: Kern,
+ * heiss, tief). Gasblasen (bursts: count Stellen im Ring ring, Radius size, Dauer period in s) wölben die Kruste auf,
+ * ihre Risse glühen auf, dann reisst sie, Lava spritzt kurz hoch (spatter: Tropfen je Blase, Höhe height in m, Grösse
+ * size) und kühlt wieder zu Kruste ab. Dazu Funken (sparks). Nahe beim Brett (calm: Radien, Faktor) glüht alles
+ * gedämpfter. Alle Farben sind Szenenwerte unter der Bloom-Schwelle.
  */
 function lavaPool(ctx, opt) {
   const out = new THREE.Group();
   const y0 = opt.level + opt.lift;
   const [calm0, calm1, calmK] = opt.calm;
-  const [core, light, hot] = opt.heat;
-  const b = opt.bubbles, c = opt.crust;
-  const rocks = (opt.data && ctx.data[opt.data]?.rocks) || [];
-  const ROCKS = 12;
-  const rockU = Array.from({ length: ROCKS }, (_, i) => new THREE.Vector3(...(rocks[i] ?? [0, 0, -1])));
+  const [core, hot, deep] = opt.heat;
+  const pl = opt.plates, bu = opt.bursts, sp = opt.spatter;
+  const rand = mulberry32(opt.seed);
+  // Blasen: Ort, Dauer, Versatz (gemeinsam für Scheibe und Spritzer)
+  const bursts = Array.from({ length: bu.count }, () => {
+    const a = rand() * 2 * Math.PI, r = bu.ring[0] + rand() * (bu.ring[1] - bu.ring[0]);
+    return { x: Math.sin(a) * r, z: Math.cos(a) * r, period: bu.period[0] + rand() * (bu.period[1] - bu.period[0]),
+      offset: rand(), size: bu.size[0] + rand() * (bu.size[1] - bu.size[0]) };
+  });
+  const burstU = bursts.map((b) => new THREE.Vector4(b.x, b.z, b.period, b.offset));
+  const sizeU = bursts.map((b) => b.size);
   const disc = new THREE.Mesh(new THREE.CircleGeometry(opt.radius, 160).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
-    uniforms: { ...ctx.uniforms, uRocks: { value: rockU } },
+    uniforms: { ...ctx.uniforms, uBursts: { value: burstU }, uBurstR: { value: sizeU } },
     transparent: true, depthWrite: false,
     vertexShader: `varying vec3 vPos;
         void main() {
@@ -14919,80 +14924,79 @@ function lavaPool(ctx, opt) {
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
     fragmentShader: `uniform float uTime, uFade, uReady;
-        uniform vec3 uRocks[${ROCKS}];
+        uniform vec4 uBursts[${bu.count}];
+        uniform float uBurstR[${bu.count}];
         varying vec3 vPos;
         ${GLSL_NOISE}
         vec2 hash2(vec2 p) {
           p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
           return fract(sin(p) * 43758.5453);
         }
-        const vec3 CORE = ${glv(core)}, LIGHT = ${glv(light)}, HOT = ${glv(hot)}, RING = ${glv(opt.ring)};
-        const vec3 LINE = ${glv(opt.line)}, CRUST0 = ${glv(c.colors[0])}, CRUST1 = ${glv(c.colors[1])};
-        // schmale Linie bei |x| < w (Kontur, Saum)
-        float line(float x, float w) { return 1.0 - smoothstep(w * 0.7, w * 1.3, abs(x)); }
+        // Abstand zur nächsten Zellgrenze (Anteil der Zelle); die Zellpunkte kreisen langsam (die Platten verformen sich)
+        float cells(vec2 x, float t) {
+          vec2 n = floor(x), f = fract(x), mg = vec2(0.0), mr = vec2(0.0);
+          float md = 8.0;
+          for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j)), o = 0.5 + 0.4 * sin(t + 6.2831 * hash2(n + g));
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < md) { md = d; mr = r; mg = g; }
+          }
+          md = 8.0;
+          for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+            vec2 g = mg + vec2(float(i), float(j)), o = 0.5 + 0.4 * sin(t + 6.2831 * hash2(n + g));
+            vec2 r = g + o - f;
+            if (dot(mr - r, mr - r) > 1e-5) md = min(md, dot(0.5 * (mr + r), normalize(r - mr)));
+          }
+          return md;
+        }
+        const vec3 CORE = ${glv(core)}, HOT = ${glv(hot)}, DEEP = ${glv(deep)};
+        const vec3 CRUST0 = ${glv(opt.crust[0])}, CRUST1 = ${glv(opt.crust[1])};
+        vec3 glow(float h) { return h < 0.5 ? mix(DEEP, HOT, h * 2.0) : mix(HOT, CORE, h * 2.0 - 1.0); }
         void main() {
           vec2 p = vPos.xz;
           float t = uTime;
-          // Gedämpft nahe beim Brett: dunkler und röter
-          float calm = smoothstep(${glf(calm0)}, ${glf(calm1)}, length(p));
-          vec3 dim = mix(vec3(${glf(calmK)}, ${glf(calmK * 0.72)}, ${glf(calmK * 0.55)}), vec3(1.0), calm);
-          // fliessende Flächen in drei Stufen, helle Säume um die gelben Flecken
-          vec2 w = p / ${glf(opt.flow.scale)} - ${glv(opt.flow.drift)} * t / ${glf(opt.flow.scale)};
-          w += vec2(fbm3(vec3(w * 0.5, t * ${glf(opt.flow.speed)})), fbm3(vec3(w * 0.5 + 7.0, t * ${glf(opt.flow.speed)}))) * 1.4;
-          float n = fbm3(vec3(w, t * ${glf(opt.flow.speed * 0.6)}));
-          vec3 col = LIGHT;
-          col = mix(col, CORE, step(0.53, n));
-          col = mix(col, HOT, step(n, 0.37));
-          col = mix(col, RING, line(n - 0.53, 0.012));
-          col *= dim;
-          // Schollen: wenige dunkle Inseln, die mit der Lava treiben; Kontur und heller Ring
-          float s = fbm3(vec3((p - ${glv(opt.flow.drift)} * t * 0.8) / ${glf(c.scale)}, 3.7));
-          float edge = ${glf(1 - c.share)};
-          col = mix(col, RING * dim, step(edge - 0.06, s));
-          col = mix(col, mix(CRUST0, CRUST1, step(0.5, fract(s * 23.0))), step(edge, s));
-          col = mix(col, LINE, line(s - edge, 0.008));
-          // Felsen: dunkel, zwei Töne (zum Licht hin heller), Kontur, heller Ring, der pulsiert
-          for (int i = 0; i < ${ROCKS}; i++) {
-            vec3 r = uRocks[i];
-            if (r.z <= 0.0) continue;
-            vec2 q = p - r.xy;
-            float d = length(q) - r.z;
-            float ring = 0.35 + 0.12 * sin(t * 2.2 + float(i) * 1.7);
-            col = mix(col, RING * dim, step(d, ring));
-            col = mix(col, HOT * dim, line(d - ring, 0.05));
-            if (d < 0.0) col = mix(CRUST0, CRUST1, step(0.1, dot(normalize(q), vec2(0.6, -0.8))));
-            col = mix(col, LINE, line(d, 0.06));
-          }
-          // Blasen: je Zelle des Rasters höchstens eine; schwillt an, platzt, zwei Ringe, Spritzer
-          vec2 bc = floor(p / ${glf(b.cell)});
-          vec2 h = hash2(bc + 3.7), h2 = hash2(bc + 11.3);
-          if (h.x < ${glf(b.share)}) {
-            float period = mix(${glf(b.period[0])}, ${glf(b.period[1])}, h.y);
-            float ph = fract(t / period + h2.x);
-            vec2 at = (bc + 0.4 + 0.2 * hash2(bc + 5.1)) * ${glf(b.cell)};
-            float R = min(mix(${glf(b.size[0])}, ${glf(b.size[1])}, h2.y), ${glf(b.cell)} * 0.22);
-            vec2 q = p - at;
-            float d = length(q);
-            if (ph < 0.72) {
-              float r = R * smoothstep(0.0, 0.7, ph);
-              if (d < r) {
-                col = mix(HOT, LIGHT, step(0.45, ph)) * dim;                       // Haut wird dünn, glüht durch
-                col = mix(col, CORE * dim, step(length(q / r - vec2(-0.32, 0.32)), 0.3));   // Glanzpunkt
-              }
-              col = mix(col, LINE, line(d - r, 0.05) * step(0.05, ph));
-            } else if (ph < 0.95) {
-              float s = (ph - 0.72) / 0.23;
-              float r1 = R * (0.9 + 0.9 * s), r2 = R * (0.5 + 1.3 * s);
-              col = mix(col, RING * dim, line(d - r1, 0.08 * (1.0 - s) + 0.02));
-              col = mix(col, LINE, line(d - r2, 0.05 * (1.0 - s) + 0.015));
-              // Spritzer: sechs Tropfen fliegen nach aussen und werden kleiner
-              float a = atan(q.y, q.x) + h.y * 6.2831;
-              float k = floor(a / 1.0472 + 0.5);
-              vec2 dir = vec2(cos(k * 1.0472 - h.y * 6.2831), sin(k * 1.0472 - h.y * 6.2831));
-              vec2 drop = q - dir * R * (0.8 + 1.4 * s);
-              col = mix(col, CORE * dim, step(length(drop), R * 0.22 * (1.0 - s)));
+          vec2 q = p - ${glv(pl.drift)} * t;
+          vec2 w = q + (vec2(fbm3(vec3(q * 0.12, t * 0.02)), fbm3(vec3(q * 0.12 + 7.0, t * 0.02))) - 0.44) * 8.0;
+          float open = 0.7 + 0.6 * noise(vec3(p * 0.15, t * 0.25));            // Risse atmen
+          float big = cells(w / ${glf(pl.scale)}, t * ${glf(pl.churn)});
+          float small = cells(w / ${glf(pl.scale * 0.32)} + 9.0, t * ${glf(pl.churn * 1.3)});
+          float cw = ${glf(pl.crack)} * open;
+          float k1 = (1.0 - smoothstep(0.0, cw, big)) * mix(0.5, 1.0, smoothstep(0.3, 0.65, noise(vec3(w * 0.4, 2.0))));
+          float k2 = (1.0 - smoothstep(0.0, cw * 0.8, small)) * smoothstep(${glf(1 - pl.fine)}, ${glf(1 - pl.fine + 0.12)}, noise(vec3(p * 0.3, 5.0))) * 0.75;
+          float heat = max(k1, k2);
+          float halo = (1.0 - smoothstep(0.0, cw * 3.5, big)) * 0.18;            // Kruste neben den Rissen glimmt
+          vec3 crust = mix(CRUST0, CRUST1, noise(vec3(w * 0.5, 1.0)));
+          // Blasen: Kruste wölbt sich, Risse glühen auf, reisst, glüht hell, kühlt ab
+          for (int i = 0; i < ${bu.count}; i++) {
+            vec4 b = uBursts[i];
+            float R = uBurstR[i];
+            float ph = fract(t / b.z + b.w);
+            vec2 d = p - b.xy;
+            float r = length(d);
+            if (r > R * 3.0) continue;
+            if (ph < 0.55) {                                                   // aufwölben
+              float s = ph / 0.55, rr = R * (0.4 + 0.6 * s);
+              float inside = 1.0 - smoothstep(rr * 0.85, rr, r);
+              float torn = 1.0 - smoothstep(0.0, cw * (0.8 + 1.2 * s), small);   // die feinen Risse reissen auf
+              crust = mix(crust, crust * 1.6 + 0.01, inside * s);                // gespannt, heller
+              heat = max(heat, inside * torn * s * s * 0.85);
+              heat = max(heat, (1.0 - smoothstep(rr, rr * 1.15, r)) * smoothstep(rr * 0.8, rr, r) * s * 0.6);
+            } else if (ph < 0.68) {                                            // aufgerissen: helle Lava
+              float s = (ph - 0.55) / 0.13;
+              float edge = R * (1.0 + 0.45 * s) * (0.75 + 0.5 * noise(vec3(d * 2.5, b.w * 30.0 + s)));
+              heat = max(heat, (1.0 - smoothstep(edge * 0.8, edge, r)) * (0.7 + 0.3 * (1.0 - r / edge)));
+            } else {                                                           // abkühlen, Spritzer ringsum
+              float s = (ph - 0.68) / 0.32;
+              float edge = R * (1.1 - 0.6 * s) * (0.75 + 0.5 * noise(vec3(d * 2.5, b.w * 30.0 + 1.0)));
+              float spot = (1.0 - smoothstep(edge * 0.75, edge, r)) * (0.6 + 0.4 * (1.0 - r / edge));
+              float drops = step(0.86, noise(vec3(d * 5.0, b.w * 40.0))) * (1.0 - smoothstep(R, R * 2.6, r));
+              heat = max(heat, max(spot, drops * 0.8) * (1.0 - s) * (1.0 - s));
             }
           }
+          float calm = mix(${glf(calmK)}, 1.0, smoothstep(${glf(calm0)}, ${glf(calm1)}, length(p)));
+          vec3 col = crust + DEEP * halo * calm;
+          col = mix(col, glow(heat) * calm, smoothstep(0.02, 0.25, heat));
           float a = 1.0 - smoothstep(${glf(opt.radius - opt.fade)}, ${glf(opt.radius)}, length(p));
           gl_FragColor = vec4(col, a * uFade * uReady);
         }`,
@@ -15002,267 +15006,144 @@ function lavaPool(ctx, opt) {
   disc.renderOrder = -900; // gleich nach dem Panorama, vor allem Übrigen
   out.add(disc);
 
-  // Funken: klare Punkte, die aufsteigen, leicht schwanken, abkühlen (gelb zu rot) und verlöschen
-  const sp = opt.sparks, rand = mulberry32(opt.seed);
+  // Spritzer (beim Aufreissen hochgeworfen, im Bogen zurück) und Funken (steigen auf): Punkte, Grösse in Metern
   const screenH = { value: 1 };
-  const pos = new Float32Array(sp.count * 3), seed = new Float32Array(sp.count * 2);
-  for (let i = 0; i < sp.count; i++) {
-    const a = rand() * 2 * Math.PI, r = Math.sqrt(rand()) * (opt.radius - opt.fade);
-    pos.set([Math.sin(a) * r, y0, Math.cos(a) * r], i * 3);
-    seed.set([rand(), 1.6 + rand() * 2.4], i * 2);
-  }
-  const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 2));
-  const sparks = new THREE.Points(geo, new THREE.ShaderMaterial({
-    uniforms: { ...ctx.pointUniforms, uScreenH: screenH },
-    transparent: true, depthWrite: false,
-    vertexShader: `attribute vec2 aSeed;
-        uniform float uTime, uScreenH;
-        varying float vPh;
-        void main() {
-          float ph = fract(uTime / aSeed.y + aSeed.x * 13.0);
-          float s = aSeed.x * 6.2831;
-          vec3 p = position + vec3(sin(uTime * 1.3 + s) * 0.8 * ph, ph * ${glf(sp.height)} * (0.5 + 0.5 * aSeed.x),
-                                   cos(uTime * 1.1 + s) * 0.8 * ph);
-          vec4 mv = modelViewMatrix * vec4(p, 1.0);
-          gl_Position = projectionMatrix * mv;
-          vPh = ph;
-          gl_PointSize = max(${glf(sp.size)} * (1.0 - 0.5 * ph) * projectionMatrix[1][1] * 0.5 * uScreenH / max(-mv.z, 0.1), 2.0);
-        }`,
-    fragmentShader: `uniform float uFade, uReady;
-        varying float vPh;
-        void main() {
-          float r = length(gl_PointCoord - 0.5) * 2.0;
-          if (r > 1.0 || vPh > 0.85) discard;
-          vec3 col = mix(${glv(sp.color)}, ${glv(sp.color)} * vec3(1.0, 0.5, 0.3), step(0.45, vPh));
-          col = mix(col, ${glv(opt.line)}, step(0.72, r));
-          gl_FragColor = vec4(col, uFade * uReady);
-        }`,
-  }));
-  sparks.frustumCulled = false;
-  sparks.renderOrder = 6;
-  out.add(sparks);
-  const size = new THREE.Vector2();
-  out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
-  return out;
-}
-
-/**
- * Lavafälle (Vulkan): Bänder entlang der Pfade aus dem Export der Szene (data: { falls: [{ path: [[x, y, z], …],
- * width }] }, Spielkoordinaten), quer zur Kraterwand und etwas vor sie gesetzt (inset, m: für den Tiefentest gegen
- * das Netz, das den Fall still zeigt). Flach in Stufen wie gemalt: Mitte gelb, aussen orange, Rand rot (heat), mit
- * Streifen, die mit speed m/s hinabfliessen, und welligen Rändern. Unten im See ein Aufprall: Ringe laufen nach
- * aussen (ring), in der Mitte brodelt es.
- */
-function lavaFalls(ctx, opt) {
-  const out = new THREE.Group();
-  const falls = ctx.data[opt.data].falls;
-  const [core, light, edge] = opt.heat;
-  const P = [], U = [], V = [], idx = [];
-  const bases = [];
-  for (const f of falls) {
-    // gleichmässig nachgetastet, damit die Streifen gleich lang sind
-    const pts = f.path.map((q) => new THREE.Vector3(...q));
-    const dense = [pts[0]];
-    for (let i = 1; i < pts.length; i++) {
-      const n = Math.max(1, Math.ceil(pts[i].distanceTo(pts[i - 1]) / 0.6));
-      for (let k = 1; k <= n; k++) dense.push(pts[i - 1].clone().lerp(pts[i], k / n));
+  const P = [], A = [], B = [];
+  for (const b of bursts) {
+    for (let k = 0; k < sp.count; k++) {
+      const a = rand() * 2 * Math.PI, h = rand() * 1.4;
+      P.push(b.x, y0, b.z);
+      A.push(Math.cos(a) * h, sp.height * (0.5 + 0.5 * rand()), Math.sin(a) * h, -1);   // Geschwindigkeit; w < 0: Spritzer
+      B.push(b.period, b.offset, 0, 0);
     }
-    let u = 0;
-    dense.forEach((q, i) => {
-      if (i) u += q.distanceTo(dense[i - 1]);
-      const radial = new THREE.Vector3(q.x, 0, q.z).normalize();
-      const side = new THREE.Vector3(-radial.z, 0, radial.x).multiplyScalar(f.width / 2);
-      const c = q.clone().addScaledVector(radial, -opt.inset);
-      const first = P.length / 3;
-      P.push(c.x - side.x, c.y, c.z - side.z, c.x + side.x, c.y, c.z + side.z);
-      U.push(u, u); V.push(-1, 1);
-      if (i) idx.push(first - 2, first - 1, first + 1, first - 2, first + 1, first);
-    });
-    bases.push(dense[dense.length - 1]);
+  }
+  const sk = opt.sparks;
+  for (let i = 0; i < sk.count; i++) {
+    const a = rand() * 2 * Math.PI, r = Math.sqrt(rand()) * (opt.radius - opt.fade);
+    P.push(Math.sin(a) * r, y0, Math.cos(a) * r);
+    A.push(0, sk.height * (0.5 + 0.5 * rand()), 0, rand());
+    B.push(1.6 + rand() * 2.4, rand(), 0, 0);
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  geo.setAttribute('aU', new THREE.Float32BufferAttribute(U, 1));
-  geo.setAttribute('aV', new THREE.Float32BufferAttribute(V, 1));
-  geo.setIndex(idx);
-  const ribbons = new THREE.Mesh(geo, new THREE.ShaderMaterial({
-    uniforms: ctx.uniforms,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    vertexShader: `attribute float aU, aV;
-        varying float vU, vV;
+  geo.setAttribute('aVel', new THREE.Float32BufferAttribute(A, 4));
+  geo.setAttribute('aTime', new THREE.Float32BufferAttribute(B, 4));
+  const drops = new THREE.Points(geo, new THREE.ShaderMaterial({
+    uniforms: { ...ctx.pointUniforms, uScreenH: screenH },
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute vec4 aVel, aTime;
+        uniform float uTime, uScreenH;
+        varying float vOn, vCool;
         void main() {
-          vU = aU; vV = aV;
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec3 p = position;
+          float size;
+          if (aVel.w < 0.0) {                         // Spritzer: ab dem Aufreissen (Phase 0.55) im Bogen
+            float tau = (fract(uTime / aTime.x + aTime.y) - 0.55) * aTime.x;
+            float vy = sqrt(2.0 * 9.81 * aVel.y);
+            p += vec3(aVel.x * tau, vy * tau - 4.905 * tau * tau, aVel.z * tau);
+            vOn = step(0.0, tau) * step(${glf(opt.level)}, p.y);
+            vCool = clamp(tau / 1.2, 0.0, 1.0);
+            size = ${glf(sp.size)};
+          } else {                                    // Funke: steigt auf, schwankt
+            float ph = fract(uTime / aTime.x + aTime.y * 13.0), s = aVel.w * 6.2831;
+            p += vec3(sin(uTime * 1.3 + s) * 0.8 * ph, ph * aVel.y, cos(uTime * 1.1 + s) * 0.8 * ph);
+            vOn = 1.0 - smoothstep(0.6, 1.0, ph);
+            vCool = ph;
+            size = ${glf(sk.size)};
+          }
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = max(size * projectionMatrix[1][1] * 0.5 * uScreenH / max(-mv.z, 0.1), 1.5);
         }`,
-    fragmentShader: `uniform float uTime, uFade, uReady;
-        varying float vU, vV;
+    fragmentShader: `uniform float uFade, uReady;
+        varying float vOn, vCool;
         void main() {
-          float flow = vU - uTime * ${glf(opt.speed)};
-          float v = abs(vV) + 0.1 * sin(vU * 1.9 - uTime * 7.0) + 0.06 * sin(vU * 4.3 + uTime * 5.0);
-          if (v > 1.0) discard;
-          float lane = floor(vV * 2.5);
-          float streak = fract(flow / 2.4 + 0.37 * lane);
-          vec3 col = ${glv(core)};
-          col = mix(col, ${glv(light)}, step(0.38, v));
-          col = mix(col, ${glv(light)}, step(streak, 0.28) * step(v, 0.38));   // fliessende Streifen
-          col = mix(col, ${glv(edge)}, step(0.76, v));
-          gl_FragColor = vec4(col, uFade * uReady);
+          float r = length(gl_PointCoord - 0.5) * 2.0;
+          float a = (1.0 - smoothstep(0.5, 1.0, r)) * vOn;
+          vec3 col = mix(${glv(sp.color)}, ${glv(sk.color)}, vCool);   // kühlt ab: gelb zu rot
+          gl_FragColor = vec4(col * a * uFade * uReady, 0.0);
         }`,
   }));
-  ribbons.frustumCulled = false;
-  ribbons.renderOrder = 4;
-  out.add(ribbons);
-  // Aufprall unten: flache Scheiben auf dem See mit nach aussen laufenden Ringen
-  const splashGeo = new THREE.CircleGeometry(opt.splash, 48).rotateX(-Math.PI / 2);
-  const splashMat = new THREE.ShaderMaterial({
-    uniforms: ctx.uniforms,
-    transparent: true, depthWrite: false,
-    vertexShader: `varying vec2 vQ;
-        void main() {
-          vQ = position.xz / ${glf(opt.splash)};
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-        }`,
-    fragmentShader: `uniform float uTime, uFade, uReady;
-        varying vec2 vQ;
-        ${GLSL_NOISE}
-        void main() {
-          float d = length(vQ);
-          float a = 0.0;
-          vec3 col = ${glv(light)};
-          for (int k = 0; k < 3; k++) {
-            float r = fract(uTime * 0.9 + float(k) / 3.0);
-            float l = 1.0 - smoothstep(0.025, 0.06, abs(d - r));
-            col = mix(col, ${glv(opt.ring)}, l * step(a, 0.5));
-            a = max(a, l * (1.0 - r));
-          }
-          float boil = step(d, 0.32 + 0.08 * noise(vec3(vQ * 6.0, uTime * 3.0)));
-          col = mix(col, ${glv(core)}, boil);
-          a = max(a, boil);
-          gl_FragColor = vec4(col, a * uFade * uReady);
-        }`,
-  });
-  for (const q of bases) {
-    const s = new THREE.Mesh(splashGeo, splashMat);
-    s.position.set(q.x, opt.level + opt.lift, q.z);
-    s.frustumCulled = false;
-    s.renderOrder = 3;
-    out.add(s);
-  }
+  drops.frustumCulled = false;
+  drops.renderOrder = 6;
+  out.add(drops);
+  const size = new THREE.Vector2();
+  out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
 }
 
 /**
- * Dampf (Vulkan): Wolken in klaren Formen und geschwungene Rauchbänder, die vom See zwischen Brett und Kraterwand
- * aufsteigen. puffs: Punkte (Ring ring, Höhe height, Grösse size in m, Dauer life in s), Form aus Rauschen mit
- * Kontur (line), drei Farbstufen (colors: hell, mittel, Schatten; oben hell), unten von der Lava angestrahlt (lit).
- * ribbons: Bänder (Ring ring, Höhe height, Breite width, Ausschlag amp in m, Tempo speed), die sich als S-Kurve
- * hinaufwinden, weiss mit Kontur. Nahe an der Kamera ausgeblendet, damit sie das Brett nie verdecken.
+ * Dampf (Vulkan): Schwaden, die an einigen Stellen des Sees (vents: count im Ring ring) langsam aufsteigen, sich
+ * ausbreiten und vergehen, je Stelle puffs Schwaden versetzt (Dauer life in s, Höhe height, Grösse size in m): so
+ * entsteht eine Säule. Halbtransparente, zur Kamera gedrehte Flächen mit weicher, wolkiger Form; unten von der Lava
+ * rosa-orange angeleuchtet (lit), in der Mitte weiss-grau (mid), oben grau-violett (high). Nahe an der Kamera (near:
+ * Abstand von, bis) blenden sie aus, damit sie das Brett nie verdecken.
  */
 function steamPlumes(ctx, opt) {
-  const out = new THREE.Group();
   const rand = mulberry32(opt.seed);
-  const screenH = { value: 1 };
-  const onRing = ([r0, r1]) => { const a = rand() * 2 * Math.PI, r = r0 + rand() * (r1 - r0); return [Math.sin(a) * r, Math.cos(a) * r]; };
-  const pf = opt.puffs;
-  const pos = new Float32Array(pf.count * 3), seed = new Float32Array(pf.count * 2);
-  for (let i = 0; i < pf.count; i++) {
-    const [x, z] = onRing(pf.ring);
-    pos.set([x, opt.level, z], i * 3);
-    seed.set([rand(), pf.life[0] + rand() * (pf.life[1] - pf.life[0])], i * 2);
+  const v = opt.vents, n = opt.puffs;
+  const P = [], C = [], S = [], idx = [];
+  for (let i = 0; i < v.count; i++) {
+    const a = (i + rand() * 0.6) / v.count * 2 * Math.PI, r = v.ring[0] + rand() * (v.ring[1] - v.ring[0]);
+    const x = Math.sin(a) * r, z = Math.cos(a) * r;
+    for (let k = 0; k < n; k++) {
+      const base = P.length / 3;
+      const seed = [k / n + rand() * 0.3 / n, opt.life[0] + rand() * (opt.life[1] - opt.life[0]), rand(), rand()];
+      for (const [cx, cy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        P.push(x, opt.level, z); C.push(cx, cy); S.push(...seed); // alle Ecken einer Schwade gleich
+      }
+      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geo.setAttribute('aSeed', new THREE.BufferAttribute(seed, 2));
-  const [cl, cm, cs] = pf.colors;
-  const puffs = new THREE.Points(geo, new THREE.ShaderMaterial({
-    uniforms: { ...ctx.pointUniforms, uScreenH: screenH },
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  geo.setAttribute('aCorner', new THREE.Float32BufferAttribute(C, 2));
+  geo.setAttribute('aSeed', new THREE.Float32BufferAttribute(S, 4));
+  geo.setIndex(idx);
+  const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
     transparent: true, depthWrite: false,
-    vertexShader: `attribute vec2 aSeed;
-        uniform float uTime, uScreenH;
+    vertexShader: `attribute vec2 aCorner;
+        attribute vec4 aSeed;           // Versatz der Phase, Dauer, Zufall, Zufall
+        uniform float uTime;
+        varying vec2 vUv;
         varying float vPh, vSeed, vNear;
         void main() {
-          float ph = fract(uTime / aSeed.y + aSeed.x * 13.0);
-          vec3 p = position + vec3(sin(uTime * 0.4 + aSeed.x * 9.0) * 1.5 * ph, ph * ${glf(pf.height)}, 0.0);
-          vec4 mv = modelViewMatrix * vec4(p, 1.0);
-          gl_Position = projectionMatrix * mv;
-          vPh = ph; vSeed = aSeed.x;
-          vNear = smoothstep(6.0, 14.0, -mv.z);
-          gl_PointSize = ${glf(pf.size)} * (0.45 + 0.8 * ph) * projectionMatrix[1][1] * 0.5 * uScreenH / max(-mv.z, 0.1);
+          float ph = fract(uTime / aSeed.y + aSeed.x);
+          vec3 c = position + vec3(sin(uTime * 0.21 + aSeed.z * 9.0) * 1.8 * ph, ph * ${glf(opt.height)},
+                                   cos(uTime * 0.17 + aSeed.w * 9.0) * 1.8 * ph);
+          float s = mix(${glf(opt.size[0])}, ${glf(opt.size[1])}, aSeed.z) * (0.45 + 1.1 * ph);
+          float ang = aSeed.w * 6.2831 + uTime * 0.04 * (aSeed.z - 0.5);
+          vec2 k = mat2(cos(ang), sin(ang), -sin(ang), cos(ang)) * aCorner;
+          vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
+          vec3 up = vec3(viewMatrix[0][1], viewMatrix[1][1], viewMatrix[2][1]);
+          vec3 wp = c + (right * k.x + up * k.y) * s * 0.5;
+          vUv = aCorner; vPh = ph; vSeed = aSeed.z;
+          vNear = smoothstep(${glf(opt.near[0])}, ${glf(opt.near[1])}, length(cameraPosition - c));
+          gl_Position = projectionMatrix * viewMatrix * vec4(wp, 1.0);
         }`,
     fragmentShader: `uniform float uTime, uFade, uReady;
+        varying vec2 vUv;
         varying float vPh, vSeed, vNear;
         ${GLSL_NOISE}
         void main() {
-          vec2 c = gl_PointCoord - 0.5;
-          c.y = -c.y; // oben positiv
-          float n = fbm3(vec3(c * 2.6 + vSeed * 40.0, uTime * 0.12 + vSeed * 9.0));
-          float dens = 1.0 - length(c) * 2.2 + (n - 0.45) * 0.9;
-          float grow = smoothstep(0.0, 0.2, vPh) * (1.0 - smoothstep(0.6, 1.0, vPh));
-          dens -= (1.0 - grow) * 0.8; // erscheint und vergeht als Form, die schrumpft
-          if (dens < 0.0) discard;
-          float shade = c.y * 1.8 + (n - 0.45) * 1.4 + 0.15;
-          vec3 col = ${glv(cs)};
-          col = mix(col, ${glv(cm)}, step(0.0, shade));
-          col = mix(col, ${glv(cl)}, step(0.5, shade));
-          col = mix(col, ${glv(pf.lit)}, step(c.y, -0.2) * step(vPh, 0.35));     // unten von der Lava angestrahlt
-          col = mix(col, ${glv(opt.line)}, step(dens, 0.06));                    // Kontur
-          gl_FragColor = vec4(col, ${glf(pf.alpha)} * vNear * uFade * uReady);
+          float n = fbm(vec3(vUv * 1.6 + vSeed * 31.0, uTime * 0.06 + vSeed * 5.0));
+          float dens = 1.0 - smoothstep(0.25, 1.0, length(vUv) + (0.5 - n) * 0.8);
+          float life = smoothstep(0.0, 0.15, vPh) * (1.0 - smoothstep(0.5, 1.0, vPh));
+          float a = dens * life * vNear * ${glf(opt.alpha)};
+          if (a < 0.004) discard;
+          vec3 col = mix(${glv(opt.lit)}, ${glv(opt.mid)}, smoothstep(0.0, 0.35, vPh + vUv.y * 0.1));
+          col = mix(col, ${glv(opt.high)}, smoothstep(0.45, 1.0, vPh));
+          col *= 0.8 + 0.35 * n;                     // wolkige Helligkeit
+          float k = uFade * uReady;
+          gl_FragColor = vec4(col * k, a * k);
         }`,
   }));
-  puffs.frustumCulled = false;
-  puffs.renderOrder = 5;
-  out.add(puffs);
-  // Rauchbänder: Streifen aus SEG Abschnitten, je Ecke Lage entlang (aS), Seite (aSide), Zufall (aRib)
-  const rb = opt.ribbons, SEG = 32;
-  const P = [], A = [], idx = [];
-  for (let i = 0; i < rb.count; i++) {
-    const [x, z] = onRing(rb.ring), r = rand();
-    for (let s = 0; s <= SEG; s++) {
-      for (const side of [-1, 1]) { P.push(x, opt.level, z); A.push(s / SEG, side, r); }
-      if (s) { const k = P.length / 3 - 4; idx.push(k, k + 1, k + 3, k, k + 3, k + 2); }
-    }
-  }
-  const rgeo = new THREE.BufferGeometry();
-  rgeo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
-  rgeo.setAttribute('aRib', new THREE.Float32BufferAttribute(A, 3));
-  rgeo.setIndex(idx);
-  const ribbons = new THREE.Mesh(rgeo, new THREE.ShaderMaterial({
-    uniforms: ctx.uniforms,
-    transparent: true, depthWrite: false, side: THREE.DoubleSide,
-    vertexShader: `attribute vec3 aRib;
-        uniform float uTime;
-        varying float vSide, vA;
-        void main() {
-          float s = aRib.x, seed = aRib.z;
-          float life = fract(uTime / ${glf(rb.life)} + seed * 7.0);
-          vec3 radial = normalize(vec3(position.x, 0.0, position.z));
-          vec3 tang = vec3(-radial.z, 0.0, radial.x);
-          float wave = sin(6.2831 * (s * 1.1 - uTime * ${glf(rb.speed)} * (0.7 + 0.6 * seed)) + seed * 6.2831);
-          vec3 c = position + vec3(0.0, s * ${glf(rb.height)} * (0.4 + 0.6 * life), 0.0)
-                 + tang * wave * ${glf(rb.amp)} * (0.3 + s) - radial * s * 2.0;
-          vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), cameraPosition - c));
-          float w = ${glf(rb.width)} * sin(3.1416 * s) * (0.6 + 0.4 * seed);
-          c += side * aRib.y * w * 0.5;
-          vSide = aRib.y;
-          vA = smoothstep(0.0, 0.12, s) * (1.0 - smoothstep(0.55, 1.0, s)) * sin(3.1416 * life)
-             * smoothstep(6.0, 14.0, length(cameraPosition - c));
-          gl_Position = projectionMatrix * viewMatrix * vec4(c, 1.0);
-        }`,
-    fragmentShader: `uniform float uFade, uReady;
-        varying float vSide, vA;
-        void main() {
-          vec3 col = mix(${glv(rb.color)}, ${glv(opt.line)}, step(0.7, abs(vSide)));
-          gl_FragColor = vec4(col, step(0.15, vA) * ${glf(rb.alpha)} * uFade * uReady);
-        }`,
-  }));
-  ribbons.frustumCulled = false;
-  ribbons.renderOrder = 5;
-  out.add(ribbons);
-  const size = new THREE.Vector2();
-  out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
-  return out;
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 5;
+  return mesh;
 }
 
 /**
@@ -16561,7 +16442,7 @@ function fishSchools(ctx, opt) {
   return holder;
 }
 
-const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool, lavaFalls, steamPlumes };
+const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool, steamPlumes };
 
 /**
  * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):

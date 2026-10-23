@@ -104,30 +104,22 @@ const LAYER_PARAMS = {
   bakedMesh: {
     data: (v) => typeof v === 'string',
   },
-  // Vulkan: Lavasee, Lavafälle, Dampf. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle:
-  // Die Lava liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
+  // Vulkan: Lavasee und Dampf. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
+  // liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
   lavaPool: {
     level: isNum, lift: (v) => isNum(v) && v >= 0, radius: isPos, fade: isPos, seed: isNum,
-    data: (v) => v === undefined || typeof v === 'string',
-    flow: (v) => isPos(v?.scale) && isNum(v.speed) && isVec(v.drift, 2),
     calm: (v) => isVec(v) && v[0] >= 0 && v[1] > v[0] && v[2] >= 0 && v[2] <= 1,
-    heat: isGlow(3), ring: isBright, line: isColor,
-    crust: (v) => isNum(v?.share) && v.share >= 0 && v.share < 0.5 && isPos(v.scale)
-      && Array.isArray(v.colors) && v.colors.length === 2 && v.colors.every(isColor),
-    bubbles: (v) => isPos(v?.cell) && isNum(v.share) && v.share >= 0 && v.share <= 1 && isRange(v.size) && isRange(v.period),
-    sparks: (v) => isInt(v?.count) && isPos(v.height) && isPos(v.size) && isBright(v.color),
-  },
-  lavaFalls: {
-    data: (v) => typeof v === 'string', level: isNum, lift: (v) => isNum(v) && v >= 0, inset: isNum, speed: isNum,
-    heat: isGlow(3), ring: isBright, splash: isPos,
+    plates: (v) => isPos(v?.scale) && isVec(v.drift, 2) && isNum(v.churn) && isNum(v.crack) && v.crack > 0
+      && v.crack < 0.5 && isNum(v.fine) && v.fine >= 0 && v.fine <= 1,
+    heat: isGlow(3), crust: (v) => Array.isArray(v) && v.length === 2 && v.every(isColor),
+    bursts: (v) => isInt(v?.count) && v.count <= 32 && isRange(v.ring) && isRange(v.size) && isRange(v.period),
+    spatter: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
+    sparks: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
   },
   steamPlumes: {
-    level: isNum, seed: isNum, line: isColor,
-    puffs: (v) => isInt(v?.count) && isRange(v.ring) && isPos(v.height) && isPos(v.size) && isRange(v.life)
-      && Array.isArray(v.colors) && v.colors.length === 3 && v.colors.every(isBright) && isBright(v.lit)
-      && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
-    ribbons: (v) => isInt(v?.count) && isRange(v.ring) && isPos(v.height) && isPos(v.width) && isNum(v.amp)
-      && isNum(v.speed) && isPos(v.life) && isBright(v.color) && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
+    level: isNum, seed: isNum, puffs: isInt, height: isPos, size: isRange, life: isRange,
+    vents: (v) => isInt(v?.count) && isRange(v.ring),
+    near: isRange, lit: isBright, mid: isBright, high: isBright, alpha: (v) => isNum(v) && v >= 0 && v <= 1,
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
