@@ -192,6 +192,7 @@
     background: rgba(3, 3, 8, 0.78);
     z-index: 6;
     transition: opacity 0.4s ease;
+    touch-action: pan-y; /* waagrechtes Wischen blättert (ui.initSwipe), senkrecht bleibt das Scrollen im Querformat */
   }
   #levels .inner { width: min(560px, calc(100vw - 32px)); text-align: center; }
   #levels h2 { margin: 0 0 22px; font-size: 11px; font-weight: 300; letter-spacing: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
@@ -18929,6 +18930,8 @@ const INPUT = {
   hoverFade: 0.0008,        // Glättung des Hover-Leuchtens (pro Sekunde verbleibender Anteil)
   wheelZoom: 0.001,         // Zoom je Pixel Mausrad (ein Raster ≈ 100 px ≈ 10 %), gedeckelt auf wheelStep je Ereignis
   wheelStep: 100,
+  swipeMin: 50,             // px: so weit wischt ein Finger in der Levelauswahl waagrecht, um zu blättern
+  swipeSlope: 0.6,          // höchstens so viel senkrecht je waagrecht (≈ 30°), sonst ist es kein Wischen
 };
 
 const raycaster = new THREE.Raycaster();
@@ -19686,8 +19689,8 @@ const PAGES = (() => {
 const pageOf = (i) => PAGES.find(p => p.indices.includes(i));
 /**
  * Abschnitte der Levelauswahl (Ausbau auf 500 Level): das Tutorial und je Grad die Level mit ihm. Fünf feste Knöpfe
- * statt eines Reiters je Seite (50 Seiten wären auf dem Handy 13 Reihen); geblättert wird mit den Pfeilen. Eine
- * gemischte Seite gehört zu jedem Grad, den sie enthält.
+ * statt eines Reiters je Seite (50 Seiten wären auf dem Handy 13 Reihen); geblättert wird mit den Pfeilen oder durch
+ * Wischen. Eine gemischte Seite gehört zu jedem Grad, den sie enthält.
  */
 const SECTIONS = [{ id: 'T', label: 'Tutorial', indices: PAGES[0].indices },
   ...Object.entries(GRAD_ANZEIGE).map(([g, d]) => ({ id: g, label: d.label,
@@ -19912,6 +19915,7 @@ const ui = {
     }
     this.prevPage.addEventListener('click', () => this.flipPage(-1));
     this.nextPage.addEventListener('click', () => this.flipPage(1));
+    this.initSwipe();
     this.updateSound();
     this.updateSkyButton();
     // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s) und das erste Bild steht (spätestens
@@ -19926,6 +19930,34 @@ const ui = {
     const unlock = (e) => { if (e.isTrusted) audio.unlock(); }; // synthetische Ereignisse (Tests) zählen nicht als Geste
     window.addEventListener('pointerdown', unlock, { passive: true });
     window.addEventListener('keydown', unlock);
+  },
+  /**
+   * Wischen über die Levelauswahl (Finger oder Stift, nicht die Maus): nach links die nächste Seite, nach rechts die
+   * vorige, wie die Pfeile. Geblättert wird beim Loslassen. Ein zweiter Finger bricht ab; senkrechtes Ziehen
+   * übernimmt der Browser (touch-action: pan-y, im Querformat scrollt es) und meldet dann pointercancel.
+   */
+  initSwipe() {
+    let swipe = null, swipedAt = -Infinity;
+    this.levels.addEventListener('pointerdown', (e) => {
+      swipedAt = -Infinity; // neues Drücken: sein Klick gilt wieder (Tippen gleich nach dem Wischen)
+      if (e.pointerType === 'mouse') return;
+      swipe = e.isPrimary ? { id: e.pointerId, x: e.clientX, y: e.clientY } : null;
+    });
+    this.levels.addEventListener('pointercancel', (e) => { if (swipe?.id === e.pointerId) swipe = null; });
+    this.levels.addEventListener('pointerup', (e) => {
+      if (swipe?.id !== e.pointerId) return;
+      const dx = e.clientX - swipe.x, dy = e.clientY - swipe.y;
+      swipe = null;
+      if (Math.abs(dx) < INPUT.swipeMin || Math.abs(dy) > Math.abs(dx) * INPUT.swipeSlope) return;
+      swipedAt = performance.now();
+      this.flipPage(dx < 0 ? 1 : -1);
+    });
+    // Ein Klick gleich nach dem Wischen ohne neues Drücken öffnet keine Kachel und schliesst die Auswahl nicht (Chrome
+    // schickt ihn beim Stift, beim Finger nach so weitem Ziehen meist keinen); auf window abgefangen, vor allen anderen
+    // Empfängern
+    window.addEventListener('click', (e) => {
+      if (performance.now() - swipedAt < 400) { e.stopPropagation(); e.preventDefault(); }
+    }, true);
   },
 
   showHud(index) {

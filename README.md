@@ -105,8 +105,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
-  → / Bild↓ eine Seite weiter; oben springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des
-  Abschnitts.
+  → / Bild↓ eine Seite weiter, auf dem Handy auch Wischen (nach links die nächste Seite); oben springen Tutorial,
+  Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des Abschnitts.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
