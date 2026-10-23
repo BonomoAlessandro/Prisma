@@ -31,7 +31,7 @@ EXPOSURE = S['belichtung']
 PEAK = S.get('spitze', 0.95)
 # Obergrenze in der Textur: Satte, warme Töne (Sonne, ihr Spiegelbild) bräuchten zurückgerechnet in einzelnen Kanälen
 # mehr als PEAK; dazu Spielraum für das Überschwingen des JPEG an Kanten (sonst 255, also 1.0)
-TEX_MAX = 0.91
+TEX_MAX = S.get('textur', 0.91)   # stile.py textur: tiefer für Szenen mit viel sattem Orange (JPEG schwingt dort über)
 YMAX = float(aces_game(np.full(3, PEAK))[0])   # dieselbe Spitze als Anzeige-Wert (linear, vor sRGB)
 
 _IN_M = np.array([[0.59719, 0.35458, 0.04823], [0.07600, 0.90834, 0.01566], [0.02840, 0.13383, 0.83777]])
@@ -385,7 +385,7 @@ if __name__ == '__main__':
             disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
         save_image(in_game(disp), os.path.join(OUT, src + '_anime.png'))
         if dst:
-            save_image(to_texture(disp), os.path.join(SKY, dst + '.jpg'), 'JPEG', 90)
+            save_image(to_texture(disp), os.path.join(SKY, dst + '.jpg'), 'JPEG', S.get('jpeg', 90))   # vorab gespeichert: Budget
         print('ANIME', src)
     elif argv[0] == 'json':
         # Beschreibung für pack.mjs: Mittelpunkt und Hauptlicht vom Rendern der Tiefe (WALD_STIL=anime wald_export.py

@@ -13,7 +13,7 @@
 // CACHE hochzählen, wenn vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
 
 const CACHE = 'prisma-v1';
-const SKIES = 'e4170853';
+const SKIES = '6e05fb0a';
 const FILES = [
   'index.html',
   'manifest.webmanifest',

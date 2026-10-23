@@ -647,6 +647,18 @@ console.log('Offline');
   test('Skyboxen: nichts Verwaistes in backgrounds/ (alte Stände räumt pack.mjs weg)', () => {
     assert.deepEqual(orphans(root, skies), []);
   });
+  test('Skyboxen: Ebene lavaPool – Prüfung lehnt grelle Lava, zu breiten Rand und fehlende Blasen ab', () => {
+    const volcano = skies.find((s) => s.id === 'volcano');
+    assert.ok(volcano, 'Skybox volcano fehlt im Register');
+    const pool = volcano.layers.find((l) => l.type === 'lavaPool');
+    assert.ok(pool, 'volcano ohne Ebene lavaPool');
+    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom');
+    assert.ok(errorsWith({ fade: pool.radius }).some((e) => /fade/.test(e)), 'Rand');
+    assert.ok(errorsWith({ bubbles: undefined }).some((e) => /bubbles/.test(e)), 'Blasen');
+    assert.ok(errorsWith({ steam: { ...pool.steam, ring: [20, 10] } }).some((e) => /steam/.test(e)), 'Dampfring');
+  });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
     assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);

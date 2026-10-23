@@ -10,6 +10,8 @@
 #   spitze      hellster Szenenwert nach dem Malen (Standard 0.95, unter der Bloom-Schwelle)
 #   volumen     Streuungen im Volumen beim Rendern (Standard 2; dichte Wolken bleiben damit innen grau)
 #   rauschen    Stärke der Farbschwankung wie bei Gouache (Standard 0.02; ein gerenderter Himmel wirkt damit fleckig)
+#   textur      Obergrenze eines Kanals in der Textur (anime.py TEX_MAX, Standard 0.91); spitze bleibt darunter
+#   jpeg        Qualität des ganzen Bilds (anime.py pano, Standard 90; die Streifen bleiben bei 90)
 #   himmel      'mondnacht': gemalter Nachthimmel mit Mond, Wolken und Sternen statt des gerenderten (Himmelsmaske);
 #               None: der gerenderte Himmel bleibt und wird wie alles andere gemalt
 
@@ -55,9 +57,11 @@ STILE = {
         'himmel': None,
         'licht': (1.0, 0.88, 0.72),
         'knie': 0.72,
-        'spitze': 0.88,
+        'spitze': 0.8,    # unter textur
         'rauschen': 0.006,
-        'volumen': 4,
+        'volumen': 1,   # Dampf im geschlossenen Krater: mehr Streuungen kosteten Stunden
+        'jpeg': 86,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
+        'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): die glühenden Fugen blieben sonst bei 255
     },
 }
 

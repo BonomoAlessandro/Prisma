@@ -98,6 +98,22 @@ const LAYER_PARAMS = {
   bakedMesh: {
     data: (v) => typeof v === 'string',
   },
+  // Lavasee (Vulkan): Grössen > 0, die Scheibe muss breiter sein als ihr Rand; heat Kern, Fuge, Saum; crust zwei Töne.
+  // Farben unter der Bloom-Schwelle: Die Lava liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
+  lavaPool: {
+    level: isNum, lift: (v) => isNum(v) && v >= 0, radius: (v) => isNum(v) && v > 0, fade: (v) => isNum(v) && v > 0,
+    cell: (v) => isNum(v) && v > 0, seam: (v) => isNum(v) && v > 0 && v < 0.5, drift: (v) => isVec(v, 2),
+    churn: isNum, seed: isNum,
+    calm: (v) => isVec(v) && v[0] >= 0 && v[1] > v[0] && v[2] >= 0 && v[2] <= 1,
+    heat: (v) => Array.isArray(v) && v.length === 3 && v.every((c) => isColor(c) && Math.max(...c) < BLOOM_THRESHOLD),
+    crust: (v) => Array.isArray(v) && v.length === 2 && v.every(isColor),
+    bubbles: (v) => isNum(v?.cell) && v.cell > 0 && isNum(v.share) && v.share >= 0 && v.share <= 1
+      && isVec(v.size, 2) && v.size[0] > 0 && v.size[1] >= v.size[0]
+      && isVec(v.period, 2) && v.period[0] > 0 && v.period[1] >= v.period[0],
+    embers: (v) => isInt(v?.count) && isNum(v.height) && v.height > 0 && isNum(v.size) && v.size > 0 && isColor(v.color),
+    steam: (v) => isInt(v?.count) && isVec(v.ring, 2) && v.ring[1] > v.ring[0] && isNum(v.height) && v.height > 0
+      && isNum(v.size) && v.size > 0 && isColor(v.color) && isColor(v.lit) && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
+  },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
     speed: isNum, scale: isNum, stretch: isNum, cover: (v) => isVec(v, 2), fade: (v) => isVec(v, 2),
@@ -194,6 +210,7 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
         err(`Ebene paintedInstances: Daten ${l.data} ohne light (sh, sun, emit, translucent, airDist, paint)`);
       }
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
+      if (l.type === 'lavaPool' && !(l.fade < l.radius)) err('Ebene lavaPool: fade muss kleiner sein als radius');
       if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
         err('Ebene fishSchools: braucht davor waterSurface');
       }
