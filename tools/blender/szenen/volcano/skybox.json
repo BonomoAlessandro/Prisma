@@ -4,17 +4,27 @@
   "name": "Vulkan",
   "order": 50,
   "daten": "sky/volcano",
-  "sky": { "stars": 0 },
+  "sky": { "stars": 0.6, "starsAboveHorizon": true },
   "layers": [
     {
-      "type": "lavaPool", "level": -9, "lift": 0.25, "radius": 22, "fade": 3, "seed": 23,
-      "cell": 3.2, "seam": 0.035, "drift": [0.10, 0.04], "churn": 0.12, "calm": [6, 16, 0.6],
-      "heat": [[0.90, 0.62, 0.18], [0.85, 0.25, 0.03], [0.34, 0.04, 0.02]],
-      "crust": [[0.025, 0.010, 0.020], [0.040, 0.016, 0.030]],
+      "type": "lavaPool", "data": "lake", "level": -9, "lift": 0.25, "radius": 23, "fade": 2.5, "seed": 23,
+      "flow": { "scale": 4.5, "speed": 0.08, "drift": [0.12, 0.05] }, "calm": [6, 15, 0.7],
+      "heat": [[0.66, 0.46, 0.06], [0.64, 0.29, 0.03], [0.55, 0.13, 0.02]],
+      "ring": [0.72, 0.62, 0.26], "line": [0.02, 0.02, 0.055],
+      "crust": { "share": 0.12, "scale": 9, "colors": [[0.06, 0.065, 0.11], [0.11, 0.12, 0.20]] },
       "bubbles": { "cell": 4.2, "share": 0.55, "size": [0.5, 1.05], "period": [2.0, 4.5] },
-      "embers": { "count": 140, "height": 14, "size": 0.12, "color": [0.95, 0.62, 0.20] },
-      "steam": { "count": 22, "ring": [14, 23], "height": 24, "size": 7, "alpha": 0.5,
-                 "color": [0.20, 0.15, 0.24], "lit": [0.55, 0.20, 0.08] }
+      "sparks": { "count": 120, "height": 12, "size": 0.16, "color": [0.90, 0.62, 0.12] }
+    },
+    {
+      "type": "lavaFalls", "data": "falls", "level": -9, "lift": 0.3, "inset": 1.6, "speed": 3.5, "splash": 3.0,
+      "heat": [[0.66, 0.46, 0.06], [0.64, 0.29, 0.03], [0.36, 0.04, 0.015]], "ring": [0.72, 0.62, 0.26]
+    },
+    {
+      "type": "steamPlumes", "level": -9, "seed": 31, "line": [0.22, 0.18, 0.36],
+      "puffs": { "count": 26, "ring": [15, 25], "height": 26, "size": 6, "life": [5, 9], "alpha": 0.95,
+                 "colors": [[0.95, 0.88, 0.92], [0.80, 0.60, 0.74], [0.44, 0.40, 0.62]], "lit": [0.95, 0.50, 0.32] },
+      "ribbons": { "count": 6, "ring": [12, 24], "height": 30, "width": 0.45, "amp": 3.5, "speed": 0.18, "life": 9,
+                   "color": [0.92, 0.90, 0.95], "alpha": 0.85 }
     }
   ]
 }

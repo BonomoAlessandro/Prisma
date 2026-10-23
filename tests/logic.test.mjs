@@ -647,17 +647,20 @@ console.log('Offline');
   test('Skyboxen: nichts Verwaistes in backgrounds/ (alte Stände räumt pack.mjs weg)', () => {
     assert.deepEqual(orphans(root, skies), []);
   });
-  test('Skyboxen: Ebene lavaPool – Prüfung lehnt grelle Lava, zu breiten Rand und fehlende Blasen ab', () => {
+  test('Skyboxen: Ebenen des Vulkans – Prüfung lehnt grelle Lava, zu breiten Rand, fehlende Blasen und falsche Bereiche ab', () => {
     const volcano = skies.find((s) => s.id === 'volcano');
     assert.ok(volcano, 'Skybox volcano fehlt im Register');
-    const pool = volcano.layers.find((l) => l.type === 'lavaPool');
-    assert.ok(pool, 'volcano ohne Ebene lavaPool');
-    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html) });
-    assert.deepEqual(errorsWith({}), []);
-    assert.ok(errorsWith({ heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom');
-    assert.ok(errorsWith({ fade: pool.radius }).some((e) => /fade/.test(e)), 'Rand');
-    assert.ok(errorsWith({ bubbles: undefined }).some((e) => /bubbles/.test(e)), 'Blasen');
-    assert.ok(errorsWith({ steam: { ...pool.steam, ring: [20, 10] } }).some((e) => /steam/.test(e)), 'Dampfring');
+    const layer = (type) => volcano.layers.find((l) => l.type === type) ?? assert.fail(`volcano ohne Ebene ${type}`);
+    const pool = layer('lavaPool'), falls = layer('lavaFalls'), steam = layer('steamPlumes');
+    const errorsWith = (base, change) => checkSkies([{ ...volcano, layers: [{ ...base, ...change }] }], { types: layerTypes(html) });
+    for (const l of [pool, falls, steam]) assert.deepEqual(errorsWith(l, {}), []);
+    assert.ok(errorsWith(pool, { heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom See');
+    assert.ok(errorsWith(falls, { heat: [falls.heat[0], [1.0, 0.5, 0.1], falls.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom Fall');
+    assert.ok(errorsWith(pool, { fade: pool.radius }).some((e) => /fade/.test(e)), 'Rand');
+    assert.ok(errorsWith(pool, { bubbles: undefined }).some((e) => /bubbles/.test(e)), 'Blasen');
+    assert.ok(errorsWith(pool, { crust: { ...pool.crust, share: 0.8 } }).some((e) => /crust/.test(e)), 'Schollen');
+    assert.ok(errorsWith(steam, { puffs: { ...steam.puffs, ring: [20, 10] } }).some((e) => /puffs/.test(e)), 'Dampfring');
+    assert.ok(errorsWith(steam, { ribbons: { ...steam.ribbons, color: [1.1, 1.1, 1.1] } }).some((e) => /ribbons/.test(e)), 'Bänder');
   });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);

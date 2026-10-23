@@ -48,20 +48,20 @@ STILE = {
         'volumen': 4,
         'wasser': -3.0,   # Wasserspiegel (Blender z): wald_export schreibt dazu eine Wassermaske fürs Spiel
     },
-    # Vulkan in der Dämmerung wie beim Strand gemalt: satt, Schatten violett statt schwarz, die Lava glüht orange
+    # Vulkan von innen im Comic-Stil: Die Szene leuchtet schon in flachen Farbstufen (Emission), das Malen gibt nur
+    # Pinselstriche und das Leuchten der Lava dazu; Schatten kühl (blau), kalt gegen heiss
     'volcano': {
         'belichtung': 1.0,
-        'saettigung': 1.3,
-        'schatten': (0.050, 0.022, 0.080),
-        'glut': (1.0, 0.55, 0.30),
+        'saettigung': 1.1,
+        'schatten': (0.0, 0.008, 0.045),
+        'glut': (1.0, 0.62, 0.28),
         'himmel': None,
-        'licht': (1.0, 0.88, 0.72),
         'knie': 0.72,
         'spitze': 0.8,    # unter textur
-        'rauschen': 0.006,
-        'volumen': 1,   # Dampf im geschlossenen Krater: mehr Streuungen kosteten Stunden
+        'rauschen': 0.004,
+        'volumen': 1,
         'jpeg': 86,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
-        'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): die glühenden Fugen blieben sonst bei 255
+        'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): das satte Orange bliebe sonst bei 255
     },
 }
 

@@ -152,13 +152,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
   Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
-- **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt im Krater über einem Lavasee, rundum steile Kraterwände, oben
-  die Öffnung zu einem violetten, rauchigen Himmel, Dampf an den Wänden. Szene in
-  `tools/blender/szenen/volcano/szene.py` (Bausteine aus der Strand-Szene), gemalt mit dem Stil `volcano` in
-  `stile.py`. Über den MCP `wald_mcp.neu('volcano')` (rund 10 s), `wald_mcp.skybox('volcano')` (mit einer Quadro
-  T2000 gut zwei Stunden), danach `node tools/blender/pack.mjs volcano`. Den See ums Brett zeichnet das Spiel bewegt
-  (Ebene `lavaPool`): treibende, wallende Schollen mit glühenden Fugen in Farbstufen, Blasen, die sich wölben,
-  durchglühen und platzen, aufsteigende Glutfunken und Dampfschwaden; Blender malt dort nur eine flache Grundfarbe.
+- **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt im Krater über einem leuchtenden Lavasee, alles im
+  Comic-Stil: Terrassen aus grossen Blöcken (kühl blaugrau, unten orange angeleuchtet, Konturen), Lavafälle, Dampf in
+  klaren Formen, oben dunkelblauer Nachthimmel. Szene in `tools/blender/szenen/volcano/szene.py`: Alles leuchtet aus
+  sich (Emission) mit Cel-Shading in Stufen nach festen Lichtrichtungen, Konturen aus der Bevel-Normale; gemalt mit dem
+  Stil `volcano` in `stile.py`. `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')` (rund 10 min, ohne MCP auch
+  headless mit denselben Skripten), danach `node tools/blender/pack.mjs volcano`. Bewegt zeichnet das Spiel den See
+  ums Brett (`lavaPool`: fliessende Farbflächen, Schollen, Felsen mit Ringen, Blasen, die anschwellen und platzen,
+  Spritzer, Funken), die Lavafälle (`lavaFalls`, Pfade aus `export()`) und den Dampf (`steamPlumes`: Wolken und
+  geschwungene Rauchbänder).
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der

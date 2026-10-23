@@ -59,6 +59,12 @@ const isPlantLight = (v) => Array.isArray(v?.sh) && v.sh.length === 9 && v.sh.ev
   && isColor(v.emit) && isNum(v.translucent) && v.airDist > 0 && isNum(v.paint?.exposure) && isNum(v.paint?.saturation)
   && isColor(v.paint?.shadow) && isColor(v.paint?.light);
 const isInt = (v) => Number.isInteger(v) && v > 0;
+const isPos = (v) => isNum(v) && v > 0;
+/** [von, bis] mit 0 < von <= bis */
+const isRange = (v) => isVec(v, 2) && v[0] > 0 && v[1] >= v[0];
+/** Farbe, die nicht aufblüht (jeder Kanal unter der Bloom-Schwelle); isGlow(n): n solche */
+const isBright = (v) => isColor(v) && Math.max(...v) < BLOOM_THRESHOLD;
+const isGlow = (n) => (v) => Array.isArray(v) && v.length === n && v.every(isBright);
 /** Pinsel der Skybox (createBrushPass): Felder optional, in ihrem Bereich */
 const BRUSH_RANGES = { size: [0.01, 2], uniformity: [0, 50], sharpness: [0, 1], eccentricity: [0, 2] };
 const isBrush = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -98,21 +104,30 @@ const LAYER_PARAMS = {
   bakedMesh: {
     data: (v) => typeof v === 'string',
   },
-  // Lavasee (Vulkan): Grössen > 0, die Scheibe muss breiter sein als ihr Rand; heat Kern, Fuge, Saum; crust zwei Töne.
-  // Farben unter der Bloom-Schwelle: Die Lava liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
+  // Vulkan: Lavasee, Lavafälle, Dampf. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle:
+  // Die Lava liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
   lavaPool: {
-    level: isNum, lift: (v) => isNum(v) && v >= 0, radius: (v) => isNum(v) && v > 0, fade: (v) => isNum(v) && v > 0,
-    cell: (v) => isNum(v) && v > 0, seam: (v) => isNum(v) && v > 0 && v < 0.5, drift: (v) => isVec(v, 2),
-    churn: isNum, seed: isNum,
+    level: isNum, lift: (v) => isNum(v) && v >= 0, radius: isPos, fade: isPos, seed: isNum,
+    data: (v) => v === undefined || typeof v === 'string',
+    flow: (v) => isPos(v?.scale) && isNum(v.speed) && isVec(v.drift, 2),
     calm: (v) => isVec(v) && v[0] >= 0 && v[1] > v[0] && v[2] >= 0 && v[2] <= 1,
-    heat: (v) => Array.isArray(v) && v.length === 3 && v.every((c) => isColor(c) && Math.max(...c) < BLOOM_THRESHOLD),
-    crust: (v) => Array.isArray(v) && v.length === 2 && v.every(isColor),
-    bubbles: (v) => isNum(v?.cell) && v.cell > 0 && isNum(v.share) && v.share >= 0 && v.share <= 1
-      && isVec(v.size, 2) && v.size[0] > 0 && v.size[1] >= v.size[0]
-      && isVec(v.period, 2) && v.period[0] > 0 && v.period[1] >= v.period[0],
-    embers: (v) => isInt(v?.count) && isNum(v.height) && v.height > 0 && isNum(v.size) && v.size > 0 && isColor(v.color),
-    steam: (v) => isInt(v?.count) && isVec(v.ring, 2) && v.ring[1] > v.ring[0] && isNum(v.height) && v.height > 0
-      && isNum(v.size) && v.size > 0 && isColor(v.color) && isColor(v.lit) && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
+    heat: isGlow(3), ring: isBright, line: isColor,
+    crust: (v) => isNum(v?.share) && v.share >= 0 && v.share < 0.5 && isPos(v.scale)
+      && Array.isArray(v.colors) && v.colors.length === 2 && v.colors.every(isColor),
+    bubbles: (v) => isPos(v?.cell) && isNum(v.share) && v.share >= 0 && v.share <= 1 && isRange(v.size) && isRange(v.period),
+    sparks: (v) => isInt(v?.count) && isPos(v.height) && isPos(v.size) && isBright(v.color),
+  },
+  lavaFalls: {
+    data: (v) => typeof v === 'string', level: isNum, lift: (v) => isNum(v) && v >= 0, inset: isNum, speed: isNum,
+    heat: isGlow(3), ring: isBright, splash: isPos,
+  },
+  steamPlumes: {
+    level: isNum, seed: isNum, line: isColor,
+    puffs: (v) => isInt(v?.count) && isRange(v.ring) && isPos(v.height) && isPos(v.size) && isRange(v.life)
+      && Array.isArray(v.colors) && v.colors.length === 3 && v.colors.every(isBright) && isBright(v.lit)
+      && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
+    ribbons: (v) => isInt(v?.count) && isRange(v.ring) && isPos(v.height) && isPos(v.width) && isNum(v.amp)
+      && isNum(v.speed) && isPos(v.life) && isBright(v.color) && isNum(v.alpha) && v.alpha >= 0 && v.alpha <= 1,
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
