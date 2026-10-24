@@ -72,11 +72,14 @@ Wie in `.scratch/500-level/spec.md`, mit dem Würfel statt des flachen Felds:
    „der Pool kann fast nicht zu gross sein“; reicht er für einen Grad nicht, wird er mit neuen Seeds vergrössert.
 2. **Ähnlichkeit:** kein Kandidat einem Würfel-Level im Spiel oder einem anderen Kandidaten zu ähnlich.
 3. **Einordnen** in die Reihenfolge der Würfel-Level nach der Formel.
-4. **KI-Tester:** beide beurteilen jeden Kandidaten; die Regeln für Ablehnung, Ersatz und Korrektur bleiben.
+4. **KI-Tester:** beide beurteilen jeden Kandidaten; die Regeln für Ablehnung, Ersatz und Korrektur bleiben. Der Koordinator
+   verlangt im Auftrag an die Agents ausdrücklich alle vier Bilder je Level und Anker (Gruppe 2: beide sahen zuerst nur
+   das Desktop-Bild und schätzten die Lesbarkeit am Handy). Nach jeder Gruppe kann eine neue Version der Würfel-Anker
+   kommen (W2 nach Gruppe 1).
 5. **Namen** vergibt der Koordinator ohne Freigabe des Nutzers: eindeutig über flache und Würfel-Level, keiner von
    der Liste entfernter Level.
-6. **Abschluss:** Leveldaten, Golden-Referenz, Protokoll, alle Tests grün, Herkunft jedes Levels nachbaubar,
-   Ergebnis unter `## Comments`, Push.
+6. **Abschluss:** Leveldaten, Golden-Referenz, Protokoll, alle Tests grün, Herkunft jedes Levels nachbaubar
+   (Auftrag, Seed, Ziel und Stand des Codes, Review Ticket 02), Ergebnis unter `## Comments`, Push.
 
 ## Reihenfolge der Würfel-Level
 
