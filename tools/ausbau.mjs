@@ -142,15 +142,21 @@ else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) 
 /**
  * Stand des Codes, mit dem pool die Level baut (Commit, kurz): Ein Seed liefert nur mit demselben Generator und derselben
  * Beurteilung dasselbe Level (Review Ticket 02 der Würfel-Level). Mit „+“, wenn Generator, Beurteilung oder Spiellogik
- * vom Commit abweichen; dann ist der Stand nicht genau nachbaubar.
+ * vom Commit abweichen; dann ist der Stand nicht genau nachbaubar. null ohne git oder ausserhalb eines Repos (mit
+ * Warnung); die Zeilen tragen dann stand: null, und tests/wuerfelliste.test.mjs lehnt die Herkunft ab.
  */
 function standDesCodes() {
-  const git = (...a) => execFileSync('git', a, { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' })
-    .trim();
-  const geaendert = git('status', '--porcelain', '--', 'tools/generator', 'tools/beurteilung', 'tools/solver.mjs',
-    'tools/ausbau.mjs', 'index.html');
-  if (geaendert) console.error(`pool: Generator, Beurteilung oder Spiellogik geändert, Stand mit „+“:\n${geaendert}`);
-  return git('rev-parse', '--short=7', 'HEAD') + (geaendert ? '+' : '');
+  const git = (...a) => execFileSync('git', a, { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+  try {
+    const geaendert = git('status', '--porcelain', '--', 'tools/generator', 'tools/beurteilung', 'tools/solver.mjs',
+      'tools/ausbau.mjs', 'index.html');
+    if (geaendert) console.error(`pool: Generator, Beurteilung oder Spiellogik geändert, Stand mit „+“:\n${geaendert}`);
+    return git('rev-parse', '--short=7', 'HEAD') + (geaendert ? '+' : '');
+  } catch (e) {
+    console.error(`pool: Stand des Codes unbekannt (git: ${e.message.split('\n')[0]}), Herkunft nicht nachbaubar`);
+    return null;
+  }
 }
 
 async function pool() {

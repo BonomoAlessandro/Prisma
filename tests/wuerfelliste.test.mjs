@@ -86,10 +86,10 @@ await test('Ausser den handgebauten: Urteil der KI-Tester (wuerfel-…) und Herk
   const neu = W.flatMap((l, i) => (HANDGEBAUT.includes(l.name) ? [] : [i]));
   assert.deepEqual(neu.filter(i => !r.ki.has(i)).map(i => W[i].name), [], 'ohne Urteil');
   // Stand: der Commit, mit dem ausbau.mjs pool … --wuerfel das Level aus dem Seed baut (mit „+“ nicht nachbaubar)
-  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7} `
+  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7,40} `
     + `· Würfel „[a-z ]+“\\r?\\n {4}name: '${name}', dim: 3`);
   assert.deepEqual(neu.filter(i => !herkunft(W[i].name).test(html)).map(i => W[i].name), [], 'Herkunft');
-  const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7}) · Würfel/g)].map(m => m[1]))];
+  const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7,40}) · Würfel/g)].map(m => m[1]))];
   assert.deepEqual(staende.filter(x => !commitDa(x)), [], 'Stand ist kein Commit');
   assert.deepEqual(W.filter(l => !HANDGEBAUT.includes(l.name) && l.hint).map(l => l.name), [], 'Hinweis nur handgebaut');
 });
