@@ -75,9 +75,13 @@ Wie in `.scratch/500-level/spec.md`, mit dem Würfel statt des flachen Felds:
 4. **KI-Tester:** beide beurteilen jeden Kandidaten; die Regeln für Ablehnung, Ersatz und Korrektur bleiben. Der Koordinator
    verlangt im Auftrag an die Agents ausdrücklich alle vier Bilder je Level und Anker (Gruppe 2: beide sahen zuerst nur
    das Desktop-Bild und schätzten die Lesbarkeit am Handy). Nach jeder Gruppe kann eine neue Version der Würfel-Anker
-   kommen (W2 nach Gruppe 1).
+   kommen (W2 nach Gruppe 1). Die Korrektur (höchstens ±5) rechnet `reihenfolge` vom Platz nach der Formel aus, nicht
+   vom Platz der Vorschau, den die Tester sehen; `ergebnis` im Protokoll kann darum vom angewandten Wert abweichen
+   (Review Ticket 04). Der Endplatz kann sich zudem durch die Häufungsregel und die Korrekturen anderer Level um mehr
+   als 5 verschieben.
 5. **Namen** vergibt der Koordinator ohne Freigabe des Nutzers: eindeutig über flache und Würfel-Level, keiner von
-   der Liste entfernter Level.
+   der Liste entfernter Level, und gut unterscheidbar: kein Name, der einen anderen enthält oder dasselbe Grundwort
+   trägt (…anlage, …hof, …kasten; Review Ticket 04).
 6. **Abschluss:** Leveldaten, Golden-Referenz, Protokoll, alle Tests grün, Herkunft jedes Levels nachbaubar
    (Auftrag, Seed, Ziel und Stand des Codes, Review Ticket 02), Ergebnis unter `## Comments`, Push.
 
