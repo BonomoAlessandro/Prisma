@@ -9,7 +9,7 @@
 //   daran, was das Spiel aus den Daten macht (Elemente wie in createBoard, Lösung), nicht an Name, Grad, Kommentaren
 //   oder der Reihenfolge der Felder und Elemente.
 // - seiteMitLeveln: index.html mit weiteren Leveln am Ende von LEVELS, als Seite an einem anderen Ort (für die
-//   Screenshots der Kandidaten).
+//   Screenshots der Kandidaten); seiteMitWuerfeln dasselbe am Ende von LEVELS_3D.
 import { createHash } from 'node:crypto';
 
 const TYPE_DE = { mirror: 'Spiegel', prism: 'Prisma', combiner: 'Kombinator' };
@@ -84,10 +84,28 @@ export const kandidatName = (level) => `Kandidat ${abdruck(level)}`;
 export function seiteMitLeveln(html, levels, basis) {
   const nl = html.includes('\r\n') ? '\r\n' : '\n';
   const ende = html.indexOf('  /* LEVELS:END */');
+  if (ende < 0) throw new Error('index.html: LEVELS:END fehlt');
+  return mitBasis(html, ende, levels.map(l => levelCode(l).replaceAll('\n', nl) + nl).join(''), basis);
+}
+
+/**
+ * Wie seiteMitLeveln, für Würfel-Level: index.html mit weiteren Leveln am Ende von LEVELS_3D (vor dem „];“, das
+ * „const LEVELS_3D = [“ schliesst), je Level eine Zeile JSON. Den Block im Format der übrigen (levelCode im Würfel)
+ * braucht erst die Gruppe, die Level ins Spiel schreibt; für die Screenshots genügen die Daten.
+ */
+export function seiteMitWuerfeln(html, levels, basis) {
+  const nl = html.includes('\r\n') ? '\r\n' : '\n';
+  const start = html.indexOf('const LEVELS_3D = [');
+  const ende = start < 0 ? -1 : html.indexOf(`${nl}];`, start) + nl.length;
+  if (ende < nl.length) throw new Error('index.html: const LEVELS_3D = [ … ]; fehlt');
+  return mitBasis(html, ende, levels.map(l => `  ${JSON.stringify(l)},${nl}`).join(''), basis);
+}
+
+/** html mit text an der Stelle ende und einem <base href="basis"> gleich nach <head> (davor). */
+function mitBasis(html, ende, text, basis) {
+  const nl = html.includes('\r\n') ? '\r\n' : '\n';
   const kopf = html.indexOf('<head>');
-  if (ende < 0 || kopf < 0 || kopf > ende) throw new Error('index.html: <head> oder LEVELS:END fehlt');
-  const bloecke = levels.map(l => levelCode(l).replaceAll('\n', nl) + nl).join('');
+  if (kopf < 0 || kopf > ende) throw new Error('index.html: <head> fehlt oder steht nach den Leveln');
   const nachKopf = kopf + '<head>'.length;
-  return html.slice(0, nachKopf) + `${nl}<base href="${basis}">` + html.slice(nachKopf, ende) + bloecke
-    + html.slice(ende);
+  return html.slice(0, nachKopf) + `${nl}<base href="${basis}">` + html.slice(nachKopf, ende) + text + html.slice(ende);
 }
