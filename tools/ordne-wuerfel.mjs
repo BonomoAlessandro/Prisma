@@ -16,7 +16,7 @@
 //                 die Ausgabe von tools/wuerfel.mjs wahl: neue Würfel-Level (level wie in LEVELS_3D), name der
 //                 vergebene Name; ohne name heisst es wie bei den KI-Testern „Kandidat <Abdruck>“ (kandidatName in
 //                 leveldaten.mjs). auftrag, seed und schwierigkeit (Ziel-Schwierigkeit [von, bis]) sind wahlweise und
-//                 stehen als Herkunft im Kommentar des Levels, damit generiere.mjs es nachbaut.
+//                 stehen als Herkunft im Kommentar des Levels, damit ausbau.mjs pool … --wuerfel es nachbaut.
 //   --schreiben:  ordnet die Würfel-Level in index.html und setzt ihren Grad; die Kandidaten kommen mit ihrem Namen
 //                 dazu (levelCode in leveldaten.mjs). Nur wenn alle Prüfungen oben bestehen, also jeder Kandidat einen
 //                 Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
@@ -189,7 +189,7 @@ function schreibeWuerfel() {
     }
   }
   for (const k of kandidaten) {
-    // Herkunft im Kommentar, so dass generiere.mjs das Level im Würfel nachbaut
+    // Herkunft im Kommentar, so dass ausbau.mjs pool … --wuerfel das Level nachbaut
     const teile = [k.seed !== null && `Seed ${k.seed}`, k.schwierigkeit && `Ziel ${k.schwierigkeit.map(x => zahl(x))
       .join('–')}`].filter(Boolean);
     const herkunft = k.auftrag ? `Generator ${[k.auftrag, ...teile].join(', ')} · ` : '';
