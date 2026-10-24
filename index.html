@@ -13214,12 +13214,14 @@ const LEVELS = [
 const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /**
- * Würfel-Level (Prototyp): { name, dim: 3, size, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
+ * Würfel-Level: { name, dim: 3, size, grad?, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
  * solution: { "x,y,z": rot bzw. dir } }. y ist die Ebene (0 = unten), axis die Drehachse (Standard 'y', siehe AXES).
  * Getrennt von LEVELS, damit die Werkzeuge der Levelliste (tools/ordne-level.mjs) und der Fortschritt der 2D-Level
- * unberührt bleiben.
+ * unberührt bleiben. Reihenfolge und Grade zwischen WUERFEL:BEGIN und WUERFEL:END schreibt tools/ordne-wuerfel.mjs
+ * (.scratch/wuerfel-500/).
  */
 const LEVELS_3D = [
+  /* WUERFEL:BEGIN */
   {
     // Lösung: Spiegel (3,0,3) Achse z rot 3 – Ost → hinauf; Prisma (3,3,3) Achse x rot 2 – Fächer nach oben:
     //   Rot → oben/Süd → Ziel (3,6,6), Grün → hinauf → Spiegel (3,6,3) Achse z rot 1 → West → Ziel (0,6,3),
@@ -13258,6 +13260,7 @@ const LEVELS_3D = [
     ],
     solution: { '3,0,0': 3, '3,3,0': 1, '4,6,6': 3, '3,6,6': 3, '3,3,6': 1 },
   },
+  /* WUERFEL:END */
 ];
 
 /* LOGIC:END ============================================================ */

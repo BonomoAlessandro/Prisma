@@ -16,9 +16,14 @@ const TYPE_DE = { mirror: 'Spiegel', prism: 'Prisma', combiner: 'Kombinator' };
 const str = (v) => `'${String(v).replace(/['\\]/g, '\\$&')}'`;
 const mod8 = (v) => (((v || 0) % 8) + 8) % 8;
 
-/** Ein Element als Zeile wie in LEVELS: type, x, z, dann dir, rot, color (ausser Weiss bei Quellen), fixed. */
+/**
+ * Ein Element als Zeile wie in LEVELS: type, x, z, dann dir, rot, color (ausser Weiss bei Quellen), fixed; im Würfel
+ * wie in LEVELS_3D: type, x, y, z, axis (ausser der Vorgabe y), dann dasselbe.
+ */
 function elementCode(e) {
-  const parts = [`type: ${str(e.type)}`, `x: ${e.x}`, `z: ${e.z}`];
+  const parts = e.y === undefined ? [`type: ${str(e.type)}`, `x: ${e.x}`, `z: ${e.z}`]
+    : [`type: ${str(e.type)}`, `x: ${e.x}`, `y: ${e.y}`, `z: ${e.z}`];
+  if (e.axis !== undefined && e.axis !== 'y') parts.push(`axis: ${str(e.axis)}`);
   if (e.dir !== undefined) parts.push(`dir: ${e.dir}`);
   if (e.rot !== undefined) parts.push(`rot: ${e.rot}`);
   if (e.color !== undefined && !(e.type === 'source' && e.color === 'white')) parts.push(`color: ${str(e.color)}`);
@@ -26,14 +31,18 @@ function elementCode(e) {
   return `{ ${parts.join(', ')} }`;
 }
 
+/** Die Zelle eines Elements wie in den Schlüsseln der Lösung: "x,z", im Würfel "x,y,z". */
+const zelle = (e) => (e.y === undefined ? `${e.x},${e.z}` : `${e.x},${e.y},${e.z}`);
+
 /**
- * Die Lösung als Kommentar („// Lösung: Spiegel (5,3) rot 3 · …“), auf etwa 100 Zeichen umbrochen wie die übrigen
+ * Die Lösung als Kommentar („// Lösung: Spiegel (5,3) rot 3 · …“, im Würfel mit Zelle x,y,z und Drehachse), auf etwa 100 Zeichen umbrochen wie die übrigen
  * Level: Eine umbrochene Zeile endet mit „·“, die nächste beginnt eingerückt.
  */
 function loesungText(level) {
   const teile = Object.entries(level.solution).map(([k, v]) => {
-    const e = level.elements.find(q => `${q.x},${q.z}` === k);
-    return `${TYPE_DE[e.type]} (${k}) ${e.type === 'combiner' ? 'dir' : 'rot'} ${v}`;
+    const e = level.elements.find(q => zelle(q) === k);
+    const achse = level.dim === 3 ? ` Achse ${e.axis || 'y'}` : '';
+    return `${TYPE_DE[e.type]} (${k})${achse} ${e.type === 'combiner' ? 'dir' : 'rot'} ${v}`;
   });
   const zeilen = [];
   let z = '// Lösung:';
@@ -47,13 +56,16 @@ function loesungText(level) {
 
 /**
  * Ein Level als Block für LEVELS in index.html (Zeilen mit „\n“, ohne Zeilenende am Schluss): Lösungskommentar, dazu
- * die Zeilen aus kommentar (ohne „// “), Name und Grad, Elemente, Lösung.
+ * die Zeilen aus kommentar (ohne „// “), Name und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für LEVELS_3D hat
+ * nach dem Namen dim und size, dazu wahlweise hint.
  */
 export function levelCode(level, kommentar = []) {
   return [
     '  {',
     ...[...loesungText(level), ...kommentar.map(k => `// ${k}`)].map(l => `    ${l}`),
-    `    name: ${str(level.name)},${level.grad ? ` grad: ${str(level.grad)},` : ''}`,
+    `    name: ${str(level.name)},${level.dim === 3 ? ` dim: 3, size: ${level.size},` : ''}`
+      + `${level.grad ? ` grad: ${str(level.grad)},` : ''}`,
+    ...(level.dim === 3 && level.hint ? [`    hint: ${str(level.hint)},`] : []),
     '    elements: [',
     ...level.elements.map(e => `      ${elementCode(e)},`),
     '    ],',
@@ -64,13 +76,16 @@ export function levelCode(level, kommentar = []) {
 
 /**
  * Abdruck eines Levels: 8 Hex-Zeichen aus den Elementen, wie createBoard sie liest (Typ, Zelle, Stellung, Richtung,
- * Farbe mit Weiss als Vorgabe, fest), und der Lösung, je sortiert.
+ * Farbe mit Weiss als Vorgabe, fest), und der Lösung, je sortiert. Im Würfel kommen Ebene, Drehachse (Vorgabe y) und
+ * die Grösse dazu; ein flaches Level hat denselben Abdruck wie vor dem Würfel.
  */
 export function abdruck(level) {
+  const wuerfel = level.dim === 3;
   const elemente = level.elements.map(e => JSON.stringify([e.type, e.x, e.z, mod8(e.rot), mod8(e.dir),
-    e.color || 'white', !!e.fixed])).sort();
+    e.color || 'white', !!e.fixed, ...(wuerfel ? [e.y, e.axis || 'y'] : [])])).sort();
   const loesung = Object.entries(level.solution).map(([k, v]) => `${k}:${v}`).sort();
-  return createHash('sha256').update(JSON.stringify({ elemente, loesung })).digest('hex').slice(0, 8);
+  const daten = wuerfel ? { elemente, loesung, size: level.size } : { elemente, loesung };
+  return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 8);
 }
 
 /** Der Name, unter dem die KI-Tester ein neues Level vor der Genehmigung seines Namens beurteilen. */

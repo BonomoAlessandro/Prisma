@@ -11,7 +11,13 @@
 // Erstes Licht – Winkelzug 0,43) und ab 0,30 abwärts nichts Auffälliges. Die Grenze liegt in der Lücke zwischen 0,45
 // und 0,59. Ab ihr ist ein neues Level zu ähnlich, gegen ein Level im Spiel und gegen einen anderen Kandidaten
 // derselben Wahl; die drei Paare im Spiel bleiben, bis über sie entschieden ist.
-// Aufruf: node tools/aehnlichkeit.mjs   (Bericht: die ähnlichsten Paare unter den Leveln im Spiel)
+// Würfel-Level (.scratch/wuerfel-500/ Ticket 01) vergleicht es nur untereinander, über die 48 Symmetrien des Würfels
+// (sechs Vertauschungen der Achsen, jede mit acht Spiegelungen). Auch die senkrechten Spiegelungen zählen, obwohl unten
+// die Plattform liegt: Ein Strahl endet dort wie an der Oberkante, ein auf den Kopf gestelltes Rätsel ist dasselbe. Bei
+// Spiegel, Prisma und Kombinator zählt die Drehachse zur Art (sie legt fest, wohin das Element lenken kann) und dreht
+// mit; bei Quelle, Ziel, Filter und Block nicht, so wie die Richtung einer Quelle nicht zählt. Grenze wie im flachen
+// Feld, gemessen siehe Kommentar zu AEHNLICH_AB.
+// Aufruf: node tools/aehnlichkeit.mjs   (Bericht: die ähnlichsten Paare unter den Leveln im Spiel, flach und im Würfel)
 import { pathToFileURL } from 'node:url';
 import { L } from './solver.mjs';
 
@@ -26,21 +32,51 @@ const SYMMETRIEN = [
   (x, z) => [N - x, z], (x, z) => [z, x], (x, z) => [x, N - z], (x, z) => [N - z, N - x],
 ];
 
-/** Art eines Elements ohne Stellung: Typ, Farbe bei Quelle, Ziel und Filter, fest oder drehbar. */
-const art = (e) => [e.type, ['source', 'target', 'filter'].includes(e.type) ? e.color ?? 'white' : '',
-  e.fixed ? 'fest' : ''].join(':');
+/** Die drei Achsen des Würfels in der Reihenfolge der Koordinaten [x, y, z]. */
+const ACHSEN = ['x', 'y', 'z'];
+/**
+ * Die 48 Symmetrien des Würfels mit Kantenlänge n, je (Zelle [x, y, z], Achse) → [Zelle, Achse]: Koordinate i des
+ * Bilds ist Koordinate perm[i] des Urbilds, gespiegelt, wenn Bit i von flip gesetzt ist; die Achse perm[i] wird zu i.
+ */
+const wuerfelSymmetrien = (n) => [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]].flatMap(perm =>
+  Array.from({ length: 8 }, (_, flip) => (c, achse) => [
+    perm.map((k, i) => (flip >> i & 1 ? n - 1 - c[k] : c[k])), ACHSEN[perm.indexOf(ACHSEN.indexOf(achse))],
+  ]));
+const WUERFEL_SYMMETRIEN = new Map();
 
-/** Die Elemente eines Levels als Menge von Texten „Art@x,z“, nach der Symmetrie s. */
-const menge = (level, s = SYMMETRIEN[0]) => new Set(level.elements.map((e) => {
-  const [x, z] = s(e.x, e.z);
-  return `${art(e)}@${x},${z}`;
+/** Elemente, deren Drehachse im Würfel zur Art zählt. */
+const MIT_ACHSE = ['mirror', 'prism', 'combiner'];
+
+/** Art eines Elements ohne Stellung: Typ, Farbe bei Quelle, Ziel und Filter, fest oder drehbar; achse im Würfel. */
+const art = (e, achse) => [e.type, ['source', 'target', 'filter'].includes(e.type) ? e.color ?? 'white' : '',
+  e.fixed ? 'fest' : '', ...(achse && MIT_ACHSE.includes(e.type) ? [achse] : [])].join(':');
+
+/** Die Elemente eines Levels als Menge von Texten „Art@x,z“ (im Würfel „Art@x,y,z“), nach der Symmetrie s. */
+const menge = (level, s = symmetrien(level)[0]) => new Set(level.elements.map((e) => {
+  if (level.dim !== 3) {
+    const [x, z] = s(e.x, e.z);
+    return `${art(e)}@${x},${z}`;
+  }
+  const [c, achse] = s([e.x, e.y, e.z], e.axis || 'y');
+  return `${art(e, achse)}@${c.join(',')}`;
 }));
 
-/** Ähnlichkeit zweier Level (0–1, siehe Kopf), auf zwei Stellen gerundet. */
+/** Die Symmetrien des Felds eines Levels: acht im flachen Feld, 48 im Würfel (je Kantenlänge einmal gebaut). */
+function symmetrien(level) {
+  if (level.dim !== 3) return SYMMETRIEN;
+  if (!WUERFEL_SYMMETRIEN.has(level.size)) WUERFEL_SYMMETRIEN.set(level.size, wuerfelSymmetrien(level.size));
+  return WUERFEL_SYMMETRIEN.get(level.size);
+}
+
+/**
+ * Ähnlichkeit zweier Level (0–1, siehe Kopf), auf zwei Stellen gerundet. Ein flaches Level und ein Würfel-Level, oder
+ * zwei Würfel verschiedener Grösse, sind nie ähnlich (0).
+ */
 export function aehnlichkeit(a, b) {
+  if ((a.dim === 3) !== (b.dim === 3) || (a.dim === 3 && a.size !== b.size)) return 0;
   const mb = menge(b);
   let best = 0;
-  for (const s of SYMMETRIEN) {
+  for (const s of symmetrien(a)) {
     const ma = menge(a, s), gemeinsam = [...ma].filter(t => mb.has(t)).length;
     best = Math.max(best, gemeinsam / (ma.size + mb.size - gemeinsam));
   }
@@ -59,15 +95,20 @@ export function zuAehnlich(level, andere) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  for (const [titel, levels] of [['Flach:', L.LEVELS], ['Würfel:', L.LEVELS_3D]]) bericht(titel, levels);
+}
+
+/** Die ähnlichsten Paare unter den Leveln. */
+function bericht(titel, levels) {
   const paare = [];
-  for (let i = 0; i < L.LEVELS.length; i++) {
-    for (let j = i + 1; j < L.LEVELS.length; j++) {
-      paare.push({ a: L.LEVELS[i].name, b: L.LEVELS[j].name, wert: aehnlichkeit(L.LEVELS[i], L.LEVELS[j]) });
+  for (let i = 0; i < levels.length; i++) {
+    for (let j = i + 1; j < levels.length; j++) {
+      paare.push({ a: levels[i].name, b: levels[j].name, wert: aehnlichkeit(levels[i], levels[j]) });
     }
   }
   paare.sort((x, y) => y.wert - x.wert);
   const zahl = (x) => x.toFixed(2).replace('.', ',');
-  console.log(`${L.LEVELS.length} Level, ${paare.length} Paare; Grenze ${zahl(AEHNLICH_AB)}`);
+  console.log(`${titel} ${levels.length} Level, ${paare.length} Paare; Grenze ${zahl(AEHNLICH_AB)}`);
   console.log(`Ab der Grenze: ${paare.filter(p => p.wert >= AEHNLICH_AB).length} Paare`);
   for (const p of paare.slice(0, 15)) console.log(`  ${zahl(p.wert)}  ${p.a} – ${p.b}`);
   const stufen = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8];

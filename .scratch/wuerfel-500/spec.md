@@ -13,9 +13,9 @@ etwas anderes steht. Entscheide des Nutzers vom 24.10.2026.
   Kernidee, keinem anderen Level zu ähnlich, von beiden KI-Testern beurteilt, Namen im bisherigen Stil.
 - **Verteilung der Grade** wie das Ziel des Ausbaus auf 500: **17 leicht / 53 mittel / 21 schwer / 9 sehr schwer**.
   Der Grad folgt den festen Schwellen (`tools/beurteilung/grad.mjs`).
-- **Zuerst nur 100** (Entscheid vom 24.10.2026): Abgearbeitet werden vorerst nur die Vorbereitung und die Gruppen
-  1–4 (Tickets 01–05). Danach hält der Koordinator an, und der Nutzer entscheidet, ob und wann es mit Gruppe 5
-  weitergeht.
+- **Bis der Nutzer anhält** (Entscheide vom 24.10.2026): Zuerst sollten es 100 sein (Tickets 01–05). Danach hat der
+  Nutzer entschieden: Nach jedem fertigen Ticket beginnt der Koordinator gleich das nächste, auch nach Gruppe 4, bis
+  der Nutzer sagt, dass es genug ist.
 - **Ohne Einführung:** Es gibt kein Würfel-Tutorial. Die handgebauten Level Aufzug und Kern bleiben im Spiel und
   werden wie die neuen nach der Formel eingeordnet; zusammen sind es am Ende 502 Würfel-Level. Sie zählen nicht zu den
   500 und nicht zur Verteilung oben.
@@ -29,8 +29,7 @@ von main in den Branch.
 
 ## Vorgehen in kleinen Gruppen
 
-- Nach der Vorbereitung (Ticket 01) kommen die neuen Level in **20 Gruppen zu je 25** (Tickets 02–21); vorerst nur
-  die Gruppen 1–4.
+- Nach der Vorbereitung (Ticket 01) kommen die neuen Level in **20 Gruppen zu je 25** (Tickets 02–21).
 - **Jede Gruppe ist ein fertiger Stand:** auf `feature/3d-wuerfel` gepusht, alle Tests grün, die Verteilung der Grade
   so nahe wie möglich an der Zielverteilung. Der Nutzer kann nach jeder Gruppe pausieren oder aufhören. Bestand und
   Anteil je Gruppe nach der Zielverteilung, gerundet nach dem grössten Rest; jeder Bestand ist auch für sich verteilt
@@ -62,7 +61,7 @@ von main in den Branch.
 
 - Liefert ein Grad zu wenig (am ehesten „schwer“ und „sehr schwer“, siehe Probe unten), wird das im Ticket
   festgehalten und in der nächsten Gruppe nachgeholt.
-- Vor jeder Gruppe fragt der Koordinator den Nutzer nicht erneut, ausser vor Gruppe 5 (siehe Ziel).
+- Vor jeder Gruppe fragt der Koordinator den Nutzer nicht erneut (siehe Ziel).
 
 ## Ablauf einer Gruppe
 

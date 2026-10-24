@@ -10,9 +10,6 @@ Danach stehen 125 neue Würfel-Level im Spiel: 22 / 66 / 26 / 11 (dazu Aufzug un
 
 **Status:** ready-for-agent
 
-**Erst nach Rückfrage:** Vor diesem Ticket hält der Koordinator an; der Nutzer entscheidet, ob und wann es weitergeht
-(Spec, Abschnitt „Ziel“).
-
 - [ ] 25 neue Level im Spiel, je Grad wie oben; Fehlmengen eines Grads sind begründet und für die nächste Gruppe
       vermerkt.
 - [ ] Jedes neue Level hat genau eine Lösung, besteht die Beurteilung, hat ab „mittel“ eine nötige Kernidee und ist

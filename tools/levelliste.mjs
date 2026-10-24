@@ -449,10 +449,12 @@ export function fallendeSeiten(folge, werte) {
  * aus einem Lauf ausbau-…. basis ist die ganze Folge vor allen Korrekturen, eingefuegt die mit den Korrekturen am
  * Bestand und den eingefügten Leveln des Ausbaus vor deren eigenen Korrekturen; ausbau kommt je Index zurück. Ohne
  * Ausbau ist alles wie vorher und eingefuegt dasselbe wie korrigiert.
+ * ausbauLaeufe: die Läufe, aus denen ein Level des Ausbaus sein Urteil hat. Die Würfel-Level (wuerfelliste.mjs) rechnen
+ * so: ohne Bestand, jedes Level wie eines des Ausbaus, mit den Läufen wuerfel-….
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [],
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE,
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -478,9 +480,10 @@ export function reihenfolge(werte, namen, urteile = [], {
     const i = namen.includes(name) ? namen.indexOf(name) : kandidat.indexOf(name);
     if (i < 0) continue;
     const wo = `Urteil zu ${name} (${eintrag.lauf})`, neu = heute[i] === null;
-    if (imAusbau[i] !== AUSBAU_LAEUFE.test(eintrag.lauf)) {
-      throw new Error(`${wo}: ${imAusbau[i] ? 'ein Level des Ausbaus zählt nur aus einem Lauf ausbau-…'
-        : 'ein Lauf ausbau-… beurteilt nur Level des Ausbaus'}`);
+    if (imAusbau[i] !== ausbauLaeufe.test(eintrag.lauf)) {
+      const lauf = `${ausbauLaeufe.source.slice(1)}…`; // aus /^ausbau-/ „ausbau-…“
+      throw new Error(`${wo}: ${imAusbau[i] ? `ein Level des Ausbaus zählt nur aus einem Lauf ${lauf}`
+        : `ein Lauf ${lauf} beurteilt nur Level des Ausbaus`}`);
     }
     if (!imAusbau[i] && neu !== ERSATZ_LAEUFE.test(eintrag.lauf)) {
       throw new Error(`${wo}: ${neu ? 'ein neues Level zählt nur aus einem Lauf ersatz-…'
