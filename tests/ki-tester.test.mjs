@@ -564,12 +564,18 @@ test('Würfel: Licht in drei Koordinaten, die Richtungen als Wörter, Enden auf 
     { type: 'source', x: 2, y: 5, z: 0, dir: 2, color: 'blue' },
     { type: 'prism', x: 2, y: 5, z: 4, axis: 'x', rot: 0 },
     { type: 'target', x: 6, y: 6, z: 6, color: 'red' },
+    { type: 'mirror', x: 6, y: 0, z: 6, axis: 'x', rot: 0 },
   ], solution: {} };
   const text = fieldText(probe, 'L1');
   assert.ok(text.includes('- weiss von (0,3,3) nach Ost und unten bis (3,0,3), endet auf der Plattform\n'), 'floor');
   assert.ok(text.includes('- blau von (2,5,4) nach Süd und oben bis (2,6,5), verlässt den Würfel\n'), 'edge');
   assert.ok(text.includes('- (0,3,3) Quelle weiss, Achse z (Nord–Süd), strahlt nach Ost und unten'), 'Quelle');
   assert.match(text, /^Ebene y=1: leer$/m);
+  // die Lage der Spiegelfläche als Wort
+  assert.ok(text.includes('- (6,0,6) Spiegel, drehbar, Achse x (West–Ost), Fläche durch die Achse (West–Ost) und '
+    + 'Nord–Süd, liegt waagrecht\n'), 'waagrecht');
+  assert.ok(aufzug.includes('West oben–Ost unten, steht schräg\n'), 'schräg');
+  assert.ok(kern.includes('und unten–oben, steht senkrecht\n'), 'senkrecht');
 });
 test('Würfel: Die flache Ausgabe hängt nicht vom Würfel ab (Felder ohne dim wie bisher)', () => {
   const flat = L.LEVELS[L.TUTORIAL_COUNT];

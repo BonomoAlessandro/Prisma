@@ -153,7 +153,13 @@ function describe3(e) {
   const at = (k) => L.planeDir(e.axis, k), how = `${turn(e)}, ${AXIS[e.axis]}`;
   switch (e.type) {
     case 'source': return `Quelle ${COLOR[e.color]}, ${AXIS[e.axis]}, strahlt ${toward3(at(e.dir))}`;
-    case 'mirror': return `Spiegel, ${how}, Fläche durch die Achse (${AXIS_LINE[e.axis]}) und ${line3(at(e.rot))}`;
+    case 'mirror': {
+      // die Lage der Fläche als Wort: Sie enthält die Achse und die Linie der Stellung
+      // (Achse y oder Linie senkrecht: senkrecht; waagrechte Achse und waagrechte Linie: waagrecht; sonst schräg)
+      const d = at(e.rot), senkrecht = d[0] === 0 && d[2] === 0;
+      const lage = e.axis === 'y' || senkrecht ? 'steht senkrecht' : d[1] === 0 ? 'liegt waagrecht' : 'steht schräg';
+      return `Spiegel, ${how}, Fläche durch die Achse (${AXIS_LINE[e.axis]}) und ${line3(d)}, ${lage}`;
+    }
     case 'prism': return `Prisma, ${how}, Farbfächer ${toward3(at(e.rot))} (weisses Licht: `
       + `Rot ${toward3(at(e.rot - 1))}, Grün ${toward3(at(e.rot))}, Blau ${toward3(at(e.rot + 1))})`;
     case 'combiner': return `Kombinator, ${how}, Ausgang ${toward3(at(e.dir))}`;
