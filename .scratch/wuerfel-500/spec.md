@@ -1,4 +1,4 @@
-# Spec: 100 Würfel-Level
+# Spec: 500 Würfel-Level
 
 Status: ready-for-agent
 
@@ -8,14 +8,17 @@ etwas anderes steht. Entscheide des Nutzers vom 24.10.2026.
 
 ## Ziel
 
-- **100 neue Würfel-Level** aus dem Generator in `tools/generator/`, alle im Würfel **7 × 7 × 7**, mit denselben
+- **500 neue Würfel-Level** aus dem Generator in `tools/generator/`, alle im Würfel **7 × 7 × 7**, mit denselben
   Qualitätsmerkmalen wie die flachen Level: genau eine Lösung, Beurteilung bestanden, ab „mittel“ eine nötige
   Kernidee, keinem anderen Level zu ähnlich, von beiden KI-Testern beurteilt, Namen im bisherigen Stil.
 - **Verteilung der Grade** wie das Ziel des Ausbaus auf 500: **17 leicht / 53 mittel / 21 schwer / 9 sehr schwer**.
   Der Grad folgt den festen Schwellen (`tools/beurteilung/grad.mjs`).
+- **Zuerst nur 100** (Entscheid vom 24.10.2026): Abgearbeitet werden vorerst nur die Vorbereitung und die Gruppen
+  1–4 (Tickets 01–05). Danach hält der Koordinator an, und der Nutzer entscheidet, ob und wann es mit Gruppe 5
+  weitergeht.
 - **Ohne Einführung:** Es gibt kein Würfel-Tutorial. Die handgebauten Level Aufzug und Kern bleiben im Spiel und
-  werden wie die neuen nach der Formel eingeordnet; zusammen sind es danach 102 Würfel-Level. Sie zählen nicht zu den
-  100 und nicht zur Verteilung oben.
+  werden wie die neuen nach der Formel eingeordnet; zusammen sind es am Ende 502 Würfel-Level. Sie zählen nicht zu den
+  500 und nicht zur Verteilung oben.
 - Die flachen Level (Tutorial und 500) bleiben unverändert (`tests/golden.mjs`).
 
 ## Branch
@@ -26,21 +29,40 @@ von main in den Branch.
 
 ## Vorgehen in kleinen Gruppen
 
-- Nach der Vorbereitung (Ticket 01) kommen die neuen Level in **4 Gruppen zu je 25** (Tickets 02–05).
+- Nach der Vorbereitung (Ticket 01) kommen die neuen Level in **20 Gruppen zu je 25** (Tickets 02–21); vorerst nur
+  die Gruppen 1–4.
 - **Jede Gruppe ist ein fertiger Stand:** auf `feature/3d-wuerfel` gepusht, alle Tests grün, die Verteilung der Grade
-  so nahe wie möglich an der Zielverteilung. Der Nutzer kann nach jeder Gruppe pausieren oder aufhören.
+  so nahe wie möglich an der Zielverteilung. Der Nutzer kann nach jeder Gruppe pausieren oder aufhören. Bestand und
+  Anteil je Gruppe nach der Zielverteilung, gerundet nach dem grössten Rest; jeder Bestand ist auch für sich verteilt
+  wie das Ziel.
 - Bestand der neuen Level nach jeder Gruppe (leicht / mittel / schwer / sehr schwer), ohne Aufzug und Kern:
 
   | Gruppe | Ticket | neue Level | Bestand | neu in der Gruppe |
   |---|---|---|---|---|
-  | 1 | 02 | 25 | 4 / 14 / 5 / 2 | 4 / 14 / 5 / 2 |
-  | 2 | 03 | 50 | 8 / 27 / 11 / 4 | 4 / 13 / 6 / 2 |
-  | 3 | 04 | 75 | 13 / 40 / 16 / 6 | 5 / 13 / 5 / 2 |
+  | 1 | 02 | 25 | 5 / 13 / 5 / 2 | 5 / 13 / 5 / 2 |
+  | 2 | 03 | 50 | 9 / 27 / 10 / 4 | 4 / 14 / 5 / 2 |
+  | 3 | 04 | 75 | 13 / 40 / 16 / 6 | 4 / 13 / 6 / 2 |
   | 4 | 05 | 100 | 17 / 53 / 21 / 9 | 4 / 13 / 5 / 3 |
+  | 5 | 06 | 125 | 22 / 66 / 26 / 11 | 5 / 13 / 5 / 2 |
+  | 6 | 07 | 150 | 26 / 80 / 31 / 13 | 4 / 14 / 5 / 2 |
+  | 7 | 08 | 175 | 30 / 93 / 37 / 15 | 4 / 13 / 6 / 2 |
+  | 8 | 09 | 200 | 34 / 106 / 42 / 18 | 4 / 13 / 5 / 3 |
+  | 9 | 10 | 225 | 39 / 119 / 47 / 20 | 5 / 13 / 5 / 2 |
+  | 10 | 11 | 250 | 43 / 133 / 52 / 22 | 4 / 14 / 5 / 2 |
+  | 11 | 12 | 275 | 47 / 146 / 58 / 24 | 4 / 13 / 6 / 2 |
+  | 12 | 13 | 300 | 51 / 159 / 63 / 27 | 4 / 13 / 5 / 3 |
+  | 13 | 14 | 325 | 56 / 172 / 68 / 29 | 5 / 13 / 5 / 2 |
+  | 14 | 15 | 350 | 60 / 186 / 73 / 31 | 4 / 14 / 5 / 2 |
+  | 15 | 16 | 375 | 64 / 199 / 79 / 33 | 4 / 13 / 6 / 2 |
+  | 16 | 17 | 400 | 68 / 212 / 84 / 36 | 4 / 13 / 5 / 3 |
+  | 17 | 18 | 425 | 73 / 225 / 89 / 38 | 5 / 13 / 5 / 2 |
+  | 18 | 19 | 450 | 77 / 239 / 94 / 40 | 4 / 14 / 5 / 2 |
+  | 19 | 20 | 475 | 81 / 252 / 100 / 42 | 4 / 13 / 6 / 2 |
+  | 20 | 21 | 500 | 85 / 265 / 105 / 45 | 4 / 13 / 5 / 3 |
 
 - Liefert ein Grad zu wenig (am ehesten „schwer“ und „sehr schwer“, siehe Probe unten), wird das im Ticket
   festgehalten und in der nächsten Gruppe nachgeholt.
-- Vor jeder Gruppe fragt der Koordinator den Nutzer nicht erneut.
+- Vor jeder Gruppe fragt der Koordinator den Nutzer nicht erneut, ausser vor Gruppe 5 (siehe Ziel).
 
 ## Ablauf einer Gruppe
 
@@ -82,7 +104,7 @@ Nur über `tools/leise.sh`, auf diesem Rechner nach der lokalen Grenze, nie mehr
 
 ## Nicht Teil dieser Spec
 
-- Ein Würfel-Tutorial, andere Würfelgrössen als 7 × 7 × 7.
+- Mehr als 500 neue Würfel-Level, ein Würfel-Tutorial, andere Würfelgrössen als 7 × 7 × 7.
 - Änderungen an der Strahlregel, an den Schwellen der Grade oder an den Gewichten der Beurteilung.
 - Neue Kernideen für den Würfel (etwa den Lockvogel möglich machen).
 - Der Merge nach main.

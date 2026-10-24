@@ -1,12 +1,12 @@
-# 02: Würfel-Gruppe 1 (25 neue Level)
+# 20: Würfel-Gruppe 19 (475 neue Level)
 
 **What to build:** 25 neue Würfel-Level 7 × 7 × 7 aus dem Generator, nach dem Ablauf einer Gruppe in der Spec. Neu je
-Grad (leicht / mittel / schwer / sehr schwer): 4 / 14 / 5 / 2.
-Danach stehen 25 neue Würfel-Level im Spiel: 4 / 14 / 5 / 2 (dazu Aufzug und Kern).
+Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 / 6 / 2.
+Danach stehen 475 neue Würfel-Level im Spiel: 81 / 252 / 100 / 42 (dazu Aufzug und Kern).
 
 **Spec:** ../spec.md, Abschnitte „Vorgehen in kleinen Gruppen“ und „Ablauf einer Gruppe“.
 
-**Blocked by:** 01
+**Blocked by:** 19
 
 **Status:** ready-for-agent
 
@@ -20,7 +20,5 @@ Danach stehen 25 neue Würfel-Level im Spiel: 4 / 14 / 5 / 2 (dazu Aufzug und Ke
 - [ ] Herkunft jedes Levels (Auftrag, Seed, Ziel-Schwierigkeit) ist nachbaubar.
 - [ ] Golden-Referenz nachgeführt, alle Tests grün, Stichproben der Screenshots geprüft, auf `feature/3d-wuerfel`
       gepusht.
-- [ ] **Pilot:** Dauer und Ausbeute je Grad (Kandidaten, Ablehnungen der KI-Tester, CPU-Zeit) stehen unter
-      `## Comments`, als Grundlage für die Schätzung der übrigen Gruppen.
 
 ## Comments

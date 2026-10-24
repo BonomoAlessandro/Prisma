@@ -1,12 +1,12 @@
-# 03: Würfel-Gruppe 2 (50 neue Level)
+# 21: Würfel-Gruppe 20 (500 neue Level)
 
 **What to build:** 25 neue Würfel-Level 7 × 7 × 7 aus dem Generator, nach dem Ablauf einer Gruppe in der Spec. Neu je
-Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 / 6 / 2.
-Danach stehen 50 neue Würfel-Level im Spiel: 8 / 27 / 11 / 4 (dazu Aufzug und Kern).
+Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 / 5 / 3.
+Danach stehen 500 neue Würfel-Level im Spiel: 85 / 265 / 105 / 45 (dazu Aufzug und Kern).
 
 **Spec:** ../spec.md, Abschnitte „Vorgehen in kleinen Gruppen“ und „Ablauf einer Gruppe“.
 
-**Blocked by:** 02
+**Blocked by:** 20
 
 **Status:** ready-for-agent
 
