@@ -1,5 +1,6 @@
-// Golden-Regressionstest: hält für jedes Level aus LEVELS (Tutorial + Hauptlevel) das vollständige
-// Ergebnis der Strahlverfolgung und des Lösers fest und meldet jede Abweichung.
+// Golden-Regressionstest: hält für jedes Level aus LEVELS (Tutorial + Hauptlevel) und LEVELS_3D (Würfel-Level, seit
+// .scratch/wuerfel-500/ Ticket 01) das vollständige Ergebnis der Strahlverfolgung und des Lösers fest und meldet jede
+// Abweichung.
 // Aufruf: node tests/golden.mjs            vergleicht mit tests/golden.json (Exit-Code 1 bei Abweichung)
 //         node tests/golden.mjs --voll     vergleicht zusätzlich den Löser aller Level (vor Änderungen am Löser)
 //         node tests/golden.mjs --schnell  vergleicht nur die Strahlbilder, ohne Löser (etwa 1 s, für Zwischenschritte
@@ -17,8 +18,9 @@
 // Bis Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung fest (`score` aus metrics in solver.mjs), und
 // diese Einträge bestimmten, für welche Level der normale Lauf den Löser vergleicht. Beides entfällt mit der alten
 // Wertung. Jetzt vergleicht der normale Lauf den Löser für eine Stichprobe nach dem Platz im Spiel: das Tutorial und
-// jedes 10. Level danach (Platz 1, 11, …, 141). Die Referenz hat die Löserdaten aller Level, also passt jede
-// Stichprobe, auch nachdem tools/ordne-level.mjs die Level neu geordnet hat.
+// jedes 10. Level danach (Platz 1, 11, …, 141), ebenso jedes 10. Würfel-Level (Platz 1, 11, … unter ihnen). Die
+// Referenz hat die Löserdaten aller Level, also passt jede Stichprobe, auch nachdem tools/ordne-level.mjs oder
+// tools/ordne-wuerfel.mjs die Level neu geordnet hat. Die Namen sind über flache und Würfel-Level eindeutig.
 // Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht (seit Ticket 15 ordnet tools/ordne-level.mjs
 // die Level neu), Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um höchstens
 // 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine Gegenprobe prüft den
@@ -52,8 +54,10 @@ const golden = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
 // Den Löser rechnet der normale Lauf für die Stichprobe: das Tutorial und jedes 10. Level danach im Spiel (Platz 1, 11,
 // …, 141). Verglichen wird auch sie nach Namen: Ein neu geordnetes Level hat dieselben Strahlbilder und
 // Löserergebnisse.
-const STICHPROBE = new Set(L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0)
-  .map(l => l.name));
+const STICHPROBE = new Set([...L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0),
+  ...L.LEVELS_3D.filter((_, i) => i % 10 === 0)].map(l => l.name));
+/** Alle Level, flach und im Würfel. */
+const ALLE = [...L.LEVELS, ...L.LEVELS_3D];
 const inStichprobe = (level) => STICHPROBE.has(level.name);
 
 // Strahlbilder in Start- und Lösungsstellung, gerechnet mit `logic` (L oder die veränderte Logik der Gegenprobe)
@@ -83,7 +87,8 @@ function record(level) {
 // und Richtungen stecken in den Koordinaten; eine falsche Zelle weicht um mindestens 0,0046 ab
 // (Spiegelkante gegen schräges Auslaufen über die Feldecke), also weit über der Toleranz.
 const TOLERANCE = 1e-9;
-const FLOAT = new Set(['x', 'z', 'x0', 'z0', 'x1', 'z1', 'n0', 'n1', 'normal', 'length', 'fade', 'dist', 'dist0']);
+const FLOAT = new Set(['x', 'y', 'z', 'x0', 'y0', 'z0', 'x1', 'y1', 'z1', 'n0', 'n1', 'normal', 'length', 'fade', 'dist',
+  'dist0']);
 const isObject = (v) => v !== null && typeof v === 'object';
 
 /** Erste Abweichung von `a` (erwartet) zu `b` (jetzt) als Text mit Pfad, sonst null. */
@@ -123,7 +128,7 @@ function compare(golden, current) {
 function short(s) { return s === undefined ? 'undefined' : s.length > 120 ? s.slice(0, 120) + '…' : s; }
 
 const t0 = Date.now();
-const current = L.LEVELS.map(record);
+const current = ALLE.map(record);
 const ms = Date.now() - t0;
 
 if (write) {
@@ -152,7 +157,7 @@ report(!golden.some(g => 'score' in g), 'Referenz ohne alte Wertung (score, bis 
     const reflect = reflectOnMirror;
     reflectOnMirror = (dir, rot) => { const d = reflect(dir, rot); return dir === 0 && d === 2 ? 6 : d; };
     return { createBoard, traceBeams, isRotatable };`)();
-  const caught = L.LEVELS.filter(level => gold(level)
+  const caught = ALLE.filter(level => gold(level)
     && compare([gold(level)], [{ ...gold(level), ...traces(bent, level) }]).length).length;
   report(caught > 0, `Gegenprobe: ein Spiegel, der nach Norden statt nach Süden lenkt, fällt auf (in ${caught} Leveln)`);
   const sample = golden.find((g) => g.solver);
@@ -181,6 +186,7 @@ if (umgestellt) {
 const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser'
   : full ? 'Löser für alle Level' : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Platz 1, 11, …), `
     + '--voll für alle';
+const wuerfel = current.filter(c => L.LEVELS_3D.some(l => l.name === c.name)).length;
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
-else console.log(`  ok   alle ${current.length} Level wie in golden.json, ${scope} (${ms} ms)`);
+else console.log(`  ok   alle ${current.length} Level (davon ${wuerfel} Würfel) wie in golden.json, ${scope} (${ms} ms)`);
 if (failed || diffs.length) process.exit(1);

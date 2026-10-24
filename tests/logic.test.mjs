@@ -722,7 +722,9 @@ console.log('Würfel (dim: 3)');
     });
   });
   test('Würfel-Level: Löser stimmt mit dem Durchprobieren überein, Blätter wie von vorn', () => {
-    for (const lvl of L.LEVELS_3D) compareWithBruteForce(lvl);
+    for (const lvl of L.LEVELS_3D) {
+      if (spaceOf(lvl) <= 1 << 14) compareWithBruteForce(lvl); // grosse Level nur mit dem schlauen Löser
+    }
   });
   test('Löser auf zufälligen Würfeln mit Kombinatoren wie das Durchprobieren, Blätter wie von vorn', () => {
     // Alle drei Achsen, drehbare und feste Kombinatoren: Die Verfolgung hält im Würfel wie im flachen Feld beim

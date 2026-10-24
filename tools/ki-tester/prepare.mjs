@@ -25,6 +25,17 @@
 //                  im ganzen Spiel; ordne-level.mjs zählt die formel eines Ersatzlevels aber unter dem Bestand. Käme
 //                  nach dem Ausbau noch ein Austausch, gehörte er darum mit --ausbau in eine Vorschau (Review Ticket
 //                  01).
+//                  Würfel (.scratch/wuerfel-500/, Läufe wuerfel-…): Die Datei ist die Würfel-Vorschau, die ganze
+//                  Ausgabe von tools/ordne-wuerfel.mjs --json (jeder Eintrag mit wuerfel, platz 1 … N in der
+//                  Reihenfolge der Würfel-Level, ein Kandidat mit kandidat und Leveldaten dim: 3, size: 7, grad).
+//                  Plätze, Grade, Referenzen (Reihenfolge der Würfel) und die Würfel-Anker (anchors-wuerfel.json)
+//                  rechnen in ihr; beurteilt werden die Kandidaten, die nicht im Spiel stehen und kein zählendes
+//                  Würfel-Urteil haben (zaehlendeWuerfelUrteile). Referenz eines Kandidaten ist sein Platz in der
+//                  Vorschau (platz), nicht formel: Die Vorschau ordnet nach der Formel, und so beurteilen die
+//                  KI-Tester ihn dort, wo er steht. Ein platz als Argument ist ein Würfel-Level im Spiel. Ohne
+//                  Vorschau gilt die Reihenfolge von LEVELS_3D, deren Level dann einen Grad brauchen. Seite für die
+//                  Bilder: Kandidaten am Ende von LEVELS_3D; Bilder aus mehreren Blickwinkeln (CUBE_ANGLES in
+//                  shots.mjs). Auftrag aus brief-wuerfel.md, Schema mit den Einordnungen der Würfel-Anker (schemaOf).
 //   --anker        auch alle Anker beurteilen (Probelauf)
 //   --ohne-bilder  nur Texte und Aufträge (schnell, zum Durchsehen; die Screenshots brauchen leise.sh)
 //   --ohne-zwischenspeicher  auch die Bilder der Anker neu aufnehmen (sie kommen danach wieder in den Zwischenspeicher)
@@ -42,13 +53,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
 import { L } from '../solver.mjs';
 import { findChrome } from '../chrome.mjs';
-import { kandidatName, seiteMitLeveln } from '../leveldaten.mjs';
+import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../leveldaten.mjs';
 import {
   VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, loadAnchors, reference, today,
+  WUERFEL_VERSION, WUERFEL_FINGERPRINT, WUERFEL_IM_SPIEL, WUERFEL_LAEUFE, WUERFEL_REFERENZ, fingerprintWuerfel,
+  loadAnchorsWuerfel, referenceWuerfel, schemaOf,
 } from './protocol.mjs';
 import { fieldText } from './field.mjs';
-import { zaehlendeUrteile } from '../levelliste.mjs';
-import { VIEWS, seitenUrl, takeShots } from './shots.mjs';
+import { zaehlendeUrteile, zaehlendeWuerfelUrteile } from '../levelliste.mjs';
+import { CUBE_ANGLES, imageNames, seitenUrl, takeShots } from './shots.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -57,24 +70,35 @@ const mitKandidaten = args.indexOf('--kandidaten');
 const kandidatenDatei = mitKandidaten < 0 ? null : args.splice(mitKandidaten, 2)[1] ?? '';
 const flags = new Set(args.filter(a => a.startsWith('--')));
 const [run, ...positions] = args.filter(a => !a.startsWith('--')).map(String);
-const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
-// Die Reihenfolge, in der Plätze, Grade und Anker rechnen: die im Spiel oder beim Ausbau die Vorschau (siehe Kopf)
+const fail = (msg) => { console.error(msg); process.exit(1); };
 const roh = kandidatenDatei ? leseListe(kandidatenDatei) : [];
-const vorschau = roh.some(x => x.ausbau);
+// Würfel (siehe Kopf): ein Lauf wuerfel-…, Kandidaten nur aus einer Würfel-Vorschau
+const wuerfel = WUERFEL_LAEUFE.test(run ?? '');
+if (roh.length && roh.some(x => x.wuerfel) !== wuerfel) {
+  fail(wuerfel ? `${kandidatenDatei}: keine Würfel-Vorschau (wuerfel), ein Lauf wuerfel-… braucht eine`
+    : `${kandidatenDatei}: Würfel-Vorschau nur in einem Lauf wuerfel-…`);
+}
+const IM_SPIEL = wuerfel ? WUERFEL_IM_SPIEL : L.LEVELS.slice(L.TUTORIAL_COUNT);
+const [ABLAUF, ABDRUCK] = wuerfel ? [WUERFEL_VERSION, WUERFEL_FINGERPRINT] : [VERSION, FINGERPRINT];
+const referenz = wuerfel ? referenceWuerfel : reference;
+// Die Reihenfolge, in der Plätze, Grade und Anker rechnen: die im Spiel oder beim Ausbau die Vorschau (siehe Kopf)
+const vorschau = roh.some(x => x.ausbau || x.wuerfel);
 const reihe = vorschau ? vorschauAus(roh, kandidatenDatei) : IM_SPIEL;
+if (wuerfel && !reihe.every(l => l.grad)) {
+  fail('Würfel-Level im Spiel ohne Grad: zuerst eine Würfel-Vorschau (--kandidaten).');
+}
 const MAIN = reihe.length;
 /** Das Level im Spiel auf einem Platz der Reihenfolge (undefined bei einem Kandidaten der Vorschau). */
 const imSpielAuf = (position) => IM_SPIEL.find(l => l.name === reihe[position - 1]?.name);
 const unknown = [...flags].filter(f => !['--anker', '--ohne-bilder', '--ohne-zwischenspeicher'].includes(f));
 if (!run || !/^[\w-]+$/.test(run) || unknown.length || kandidatenDatei === ''
   || positions.some(p => !(Number.isInteger(+p) && +p >= 1 && +p <= MAIN && imSpielAuf(+p)))) {
-  console.error('Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] '
+  fail('Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] '
     + `[--kandidaten <datei>] [--anker] [--ohne-bilder] [--ohne-zwischenspeicher]   (Platz 1–${MAIN})`);
-  process.exit(1);
 }
-if (fingerprint() !== FINGERPRINT) {
-  console.error('Auftrag, Anker, Schema, Glossar oder Feld eines Ankers geändert, aber keine neue Version (siehe protocol.mjs).');
-  process.exit(1);
+if ((wuerfel ? fingerprintWuerfel() : fingerprint()) !== ABDRUCK) {
+  fail('Auftrag, Anker, Schema, Glossar oder Feld eines Ankers geändert, aber keine neue Version '
+    + '(siehe protocol.mjs).');
 }
 const dir = join(root, 'tests', 'output', 'ki-tester', run);
 const input = join(dir, 'eingabe');
@@ -86,7 +110,7 @@ for (const t of TESTERS) {
   }
 }
 
-const anchors = loadAnchors(reihe);
+const anchors = wuerfel ? loadAnchorsWuerfel(reihe) : loadAnchors(reihe);
 for (const a of anchors) {
   if (gradeOf(a.position, reihe).name !== a.grad) throw new Error(`Anker ${a.id} ${a.name} steht auf Platz ${a.position}, nicht in ${a.grad}`);
 }
@@ -94,10 +118,10 @@ const byPosition = new Map(anchors.map(a => [a.position, a]));
 // Die Leveldaten je Kennung: aus dem Spiel nach Platz, bei einem Kandidaten aus der Datei
 const daten = new Map();
 const level = (position, id, anchor = null, kandidat = null) => {
-  daten.set(id, kandidat ?? imSpielAuf(position));
+  daten.set(id, kandidat?.level ?? imSpielAuf(position));
   return {
-    id, name: kandidat ? kandidatName(kandidat) : imSpielAuf(position).name, position,
-    grad: gradeOf(position, reihe).name, anker: anchor, referenz: reference(position, reihe),
+    id, name: kandidat ? kandidat.name : imSpielAuf(position).name, position,
+    grad: gradeOf(position, reihe).name, anker: anchor, referenz: referenz(position, reihe),
     ...(kandidat ? { kandidat: true } : {}),
   };
 };
@@ -105,7 +129,9 @@ const kandidaten = kandidatenDatei ? ladeKandidaten(roh, kandidatenDatei) : [];
 const hash = (s) => createHash('sha256').update(s).digest('hex');
 const others = [
   ...[...new Set(positions.map(Number))].filter(p => !byPosition.has(p)).map(p => ({ p, name: imSpielAuf(p).name })),
-  ...kandidaten.map(x => ({ p: x.formel, name: kandidatName(x.level), kandidat: x.level })),
+  // im Würfel ist die Referenz eines Kandidaten sein Platz in der Vorschau (siehe Kopf)
+  ...kandidaten.map(x => ({ p: wuerfel ? x.platz : x.formel, name: nameVon(x),
+    kandidat: { level: x.level, name: nameVon(x) } })),
 ].sort((a, b) => hash(a.name).localeCompare(hash(b.name)));
 const judged = [
   ...anchors.filter(a => flags.has('--anker') || positions.map(Number).includes(a.position)).map(a => level(a.position, a.id, a.id)),
@@ -120,54 +146,65 @@ mkdirSync(join(input, 'bilder'), { recursive: true });
 for (const t of TESTERS) mkdirSync(dirname(join(dir, answerPath(t))), { recursive: true });
 const all = [...anchors.map(a => level(a.position, a.id, a.id)), ...judged.filter(l => !l.anker)];
 for (const l of all) writeFileSync(join(input, `${l.id}.md`), fieldText(daten.get(l.id), l.id));
-copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
-// Die Kandidaten stehen für die Bilder am Ende von LEVELS in einer Kopie von index.html (ausserhalb von eingabe/)
+if (wuerfel) writeFileSync(join(input, 'answer.schema.json'), JSON.stringify(schemaOf(ABLAUF), null, 2) + '\n');
+else copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
+// Die Kandidaten stehen für die Bilder am Ende von LEVELS (im Würfel von LEVELS_3D, unter ihrem Namen bei den
+// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Kopie von index.html (nicht in eingabe/)
 const imSpiel = all.filter(l => !l.kandidat), neu = all.filter(l => l.kandidat);
 const seite = join(dir, 'seite', 'index.html');
 if (neu.length) {
   mkdirSync(dirname(seite), { recursive: true });
-  writeFileSync(seite, seiteMitLeveln(readFileSync(join(root, 'index.html'), 'utf8'), neu.map(l => daten.get(l.id)),
-    pathToFileURL(root).href + '/'));
+  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
+  writeFileSync(seite, wuerfel ? seiteMitWuerfeln(html, neu.map(l => ({ ...daten.get(l.id), name: l.name })), basis)
+    : seiteMitLeveln(html, neu.map(l => daten.get(l.id)), basis));
 }
+// Im Würfel: Index in LEVELS des Spiels ab CUBE_START (= Zahl der flachen Level), Bilder aus mehreren Blickwinkeln
+const angles = wuerfel ? CUBE_ANGLES : null, images = imageNames('', angles);
 let seconds = null, reused = [];
 if (!flags.has('--ohne-bilder')) {
   const shots = imSpiel.map(l => ({
-    l, index: L.LEVELS.indexOf(imSpielAuf(l.position)), label: l.id, file: join(input, 'bilder', l.id),
+    l, label: l.id, file: join(input, 'bilder', l.id),
+    index: (wuerfel ? L.LEVELS.length + IM_SPIEL.indexOf(imSpielAuf(l.position))
+      : L.LEVELS.indexOf(imSpielAuf(l.position))),
   }));
-  // Zwischenspeicher der Anker-Bilder (siehe Kopf): je Anker und Bildschirm eine Datei <Schlüssel>-<Bildschirm>.png
+  // Zwischenspeicher der Anker-Bilder (siehe Kopf): je Anker, Bildschirm und Blickwinkel eine Datei
+  // <Schlüssel>-<Bildschirm>[-<Blickwinkel>].png
   const cache = join(root, 'tests', 'output', 'ki-tester', 'anker-bilder');
   const environment = environmentHash();
-  const cached = (s, view) => join(cache, `${hash(JSON.stringify({
-    ablauf: FINGERPRINT, umgebung: environment, index: s.index, level: imSpielAuf(s.l.position), kennung: s.label,
-  })).slice(0, 32)}-${view.name}.png`);
+  const cached = (s, image) => join(cache, `${hash(JSON.stringify({
+    ablauf: ABDRUCK, umgebung: environment, index: s.index, level: imSpielAuf(s.l.position), kennung: s.label,
+    ...(angles ? { ansichten: angles } : {}),
+  })).slice(0, 32)}${image}.png`);
   const fromCache = flags.has('--ohne-zwischenspeicher') ? []
-    : shots.filter(s => s.l.anker && VIEWS.every(v => existsSync(cached(s, v))));
-  for (const s of fromCache) for (const v of VIEWS) copyFileSync(cached(s, v), `${s.file}-${v.name}.png`);
+    : shots.filter(s => s.l.anker && images.every(i => existsSync(cached(s, i))));
+  for (const s of fromCache) for (const i of images) copyFileSync(cached(s, i), `${s.file}${i}.png`);
   const fresh = shots.filter(s => !fromCache.includes(s));
-  if (fresh.length) seconds = await takeShots(fresh.map(({ index, label, file }) => ({ index, label, file })));
+  if (fresh.length) seconds = await takeShots(fresh.map(({ index, label, file }) => ({ index, label, file, angles })));
   mkdirSync(cache, { recursive: true });
   for (const s of fresh.filter(x => x.l.anker)) {
-    for (const v of VIEWS) copyFileSync(`${s.file}-${v.name}.png`, cached(s, v));
+    for (const i of images) copyFileSync(`${s.file}${i}.png`, cached(s, i));
   }
   reused = fromCache.map(s => s.label);
   if (neu.length) {
-    const mehr = await takeShots(neu.map((l, j) => ({ index: L.LEVELS.length + j, label: l.id,
-      file: join(input, 'bilder', l.id) })), console.log, seitenUrl(seite));
-    seconds = Object.fromEntries(VIEWS.map(v => [v.name, [...(seconds?.[v.name] ?? []), ...mehr[v.name]]]));
+    const first = wuerfel ? L.LEVELS.length + IM_SPIEL.length : L.LEVELS.length;
+    const mehr = await takeShots(neu.map((l, j) => ({ index: first + j, label: l.id,
+      file: join(input, 'bilder', l.id), angles })), console.log, seitenUrl(seite));
+    seconds = Object.fromEntries(Object.keys(mehr).map(v => [v, [...(seconds?.[v] ?? []), ...mehr[v]]]));
   }
 }
 
 // Aufträge und lauf.json
 for (const t of TESTERS) {
   writeFileSync(join(dir, `auftrag-${t}.md`), brief({
-    tester: t, lauf: run, eingabe: slash(input), ausgabe: slash(join(dir, answerPath(t))), anchors,
+    tester: t, lauf: run, wuerfel, eingabe: slash(input), ausgabe: slash(join(dir, answerPath(t))), anchors,
     levels: order[t].map(id => judged.find(l => l.id === id)),
   }));
 }
 writeFileSync(join(dir, 'lauf.json'), JSON.stringify({
-  lauf: run, ablauf: VERSION, fingerabdruck: FINGERPRINT, agent: AGENT, erstellt: today(),
-  referenz: 'Reihenfolge im Spiel', ...(vorschau ? { vorschau: kandidatenDatei } : {}), anker: Object.fromEntries(anchors.map(a => [a.id, a.position])), level: judged,
-  reihenfolge: order, ankerBilderAusZwischenspeicher: reused,
+  lauf: run, ablauf: ABLAUF, fingerabdruck: ABDRUCK, agent: AGENT, erstellt: today(),
+  referenz: wuerfel ? WUERFEL_REFERENZ : 'Reihenfolge im Spiel', ...(wuerfel ? { wuerfel: true } : {}),
+  ...(vorschau ? { vorschau: kandidatenDatei } : {}), anker: Object.fromEntries(anchors.map(a => [a.id, a.position])),
+  level: judged, reihenfolge: order, ankerBilderAusZwischenspeicher: reused,
 }, null, 2) + '\n');
 
 console.log(`Lauf ${run} vorbereitet in ${slash(dir)}`);
@@ -202,33 +239,47 @@ function vorschauAus(liste, datei) {
   const imSpiel = (x) => IM_SPIEL.some(l => l.name === x.name);
   const fremd = liste.filter(x => !x.level && !imSpiel(x));
   if (fremd.length) throw new Error(`${datei}: nicht im Spiel: ${fremd.map(x => x.name).join(', ')}`);
+  // Im Würfel nennt die Vorschau (ordne-wuerfel.mjs) den Namen jedes Kandidaten bei den KI-Testern selbst
+  const ohne = wuerfel ? liste.filter(x => !imSpiel(x) && !(typeof x.kandidat === 'string' && x.kandidat)) : [];
+  if (ohne.length) {
+    throw new Error(`${datei}: Kandidat ohne kandidat (Name bei den KI-Testern) auf Platz ${ohne[0].platz}`);
+  }
   // Ein Level im Spiel steht unter seinem Namen, auch ein neues aus dem Austausch oder einem früheren Ausbau, dem
   // ordne-level.mjs ebenfalls kandidat mitgibt; nur ein Kandidat, der noch nicht im Spiel steht, unter diesem Namen
   return [...liste].sort((a, b) => a.platz - b.platz)
     .map(x => ({ name: imSpiel(x) ? x.name : x.kandidat ?? x.name, grad: x.grad }));
 }
 
+/** Der Name eines Kandidaten bei den KI-Testern: „Kandidat <Abdruck>“, im Würfel aus der Vorschau (kandidat). */
+function nameVon(x) {
+  return wuerfel ? x.kandidat : kandidatName(x.level);
+}
+
 /**
  * Die Kandidaten aus den Einträgen der Datei (siehe Kopf): je Eintrag mit Leveldaten { formel, level }, mit Vorschau
  * nur die des Ausbaus, die noch nicht im Spiel stehen. Der Grad des Levels muss der Grad seines Platzes in der
- * Reihenfolge sein, und kein Kandidat darf doppelt vorkommen.
+ * Reihenfolge sein, und kein Kandidat darf doppelt vorkommen. Im Würfel jeder Eintrag der Vorschau mit Leveldaten
+ * (dim: 3), der noch nicht im Spiel steht und kein zählendes Würfel-Urteil hat, an seinem Platz (platz).
  */
 function ladeKandidaten(roh, datei) {
-  const beurteilt = new Set(vorschau ? zaehlendeUrteile().map(e => e.level.name) : []);
+  const beurteilt = new Set(!vorschau ? [] : (wuerfel ? zaehlendeWuerfelUrteile() : zaehlendeUrteile())
+    .map(e => e.level.name));
   const liste = roh.filter(x => x.level && (!vorschau
-    || (x.ausbau && !IM_SPIEL.some(l => l.name === x.name) && !beurteilt.has(kandidatName(x.level)))));
+    || ((x.ausbau || wuerfel) && !IM_SPIEL.some(l => l.name === x.name) && !beurteilt.has(nameVon(x)))));
   if (!liste.length) {
-    throw new Error(`${datei}: keine Einträge mit Leveldaten${vorschau ? ' (Kandidaten des Ausbaus ohne Urteil)' : ''}`);
+    const ohne = wuerfel ? ' (Kandidaten ohne Würfel-Urteil)' : vorschau ? ' (Kandidaten des Ausbaus ohne Urteil)' : '';
+    throw new Error(`${datei}: keine Einträge mit Leveldaten${ohne}`);
   }
   for (const x of liste) {
-    const wo = `${datei}: ${kandidatName(x.level)}`;
-    if (!(Number.isInteger(x.formel) && x.formel >= 1 && x.formel <= MAIN)) {
-      throw new Error(`${wo}: Platz der Formel (formel) 1–${MAIN} nötig`);
+    const wo = `${datei}: ${nameVon(x)}`, p = wuerfel ? x.platz : x.formel;
+    if (wuerfel && !(x.level.dim === 3 && x.level.size === 7)) throw new Error(`${wo}: kein Würfel 7 × 7 × 7`);
+    if (!(Number.isInteger(p) && p >= 1 && p <= MAIN)) {
+      throw new Error(`${wo}: ${wuerfel ? 'Platz (platz)' : 'Platz der Formel (formel)'} 1–${MAIN} nötig`);
     }
-    if (x.level.grad !== gradeOf(x.formel, reihe).name) {
-      throw new Error(`${wo}: Grad ${x.level.grad}, auf Platz ${x.formel} gilt ${gradeOf(x.formel, reihe).name}`);
+    if (x.level.grad !== gradeOf(p, reihe).name) {
+      throw new Error(`${wo}: Grad ${x.level.grad}, auf Platz ${p} gilt ${gradeOf(p, reihe).name}`);
     }
-    const gleich = liste.filter(y => kandidatName(y.level) === kandidatName(x.level));
+    const gleich = liste.filter(y => nameVon(y) === nameVon(x));
     if (gleich.length > 1) throw new Error(`${wo}: doppelt`);
   }
   return liste;

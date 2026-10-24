@@ -73,6 +73,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     den Bestand zählen unter dem Bestand. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
     Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
     fremden Filterfarbe (`oddFilters` in `quality.mjs`).
+  - `node tests/wuerfelliste.test.mjs` prüft die Würfel-Level (`.scratch/wuerfel-500/`; über `leise.sh`): Reihenfolge
+    und Grade wie `tools/ordne-wuerfel.mjs` sie rechnet, keine Regel verletzt (im Würfel gibt es keine Duldungsliste),
+    genau eine Lösung, keinem anderen Würfel-Level zu ähnlich, Namen eindeutig über flache und Würfel-Level, ausser
+    Aufzug und Kern ein Urteil der KI-Tester (`wuerfel-…`) und die Herkunft im Kommentar; dazu die Bausteine an
+    erfundenen Fällen (Verteilung der Grade nach der Tabelle der Spec, Korrektur der KI-Tester, Ähnlichkeit über die 48
+    Symmetrien des Würfels, Leveldaten als Text).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -235,9 +241,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   datei [--behalte datei] [--ohne name,…]` wählt nach dem Bedarf je Grad (Bestand nach der Gruppe laut Spec weniger
   die Level im Spiel) über den Bereich des Grads verteilt, keinem Level zu ähnlich, ohne dass der Grad sinkt oder das
   Mittel je 10 Level fällt, und sucht dann so lange Tausche, bis mit der Häufungsregel keine Häufung offen bleibt
-  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe;
+  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe; `pool … --wuerfel` sammelt
+  Kandidaten im Würfel 7 × 7 × 7;
+  Würfel-Level (`.scratch/wuerfel-500/`): `wuerfel.mjs wahl <gruppe> --pool datei[,…] --aus datei [--behalte datei]
+  [--ohne name,…]` wählt die neuen einer Gruppe (Bedarf je Grad nach der Spec, gegen Häufungen der Haupt-Kernidee),
+  `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
+  [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
+  Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie zwischen
+  `WUERFEL:BEGIN` und `WUERFEL:END` in `index.html`;
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
-  die acht Symmetrien des Felds); ab 0,5 ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
+  die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
+  ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
   heute drei Fast-Doppel aus dem Austausch, Dreiklang – Delta, Karussell – Rundflug und Fokus – Türkis);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level

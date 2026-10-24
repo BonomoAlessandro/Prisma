@@ -8,8 +8,9 @@
 //   Namen; die Werte aus der Beurteilung des Generators, ungerundet). Dieselben Seeds liefern dieselben Level.
 //   --schwierigkeit VON,BIS: die Ziel-Schwierigkeit der Aufträge wie bei generiere.mjs (etwa für das obere Ende von
 //   „schwer“, das der Generator sonst selten trifft); die Zeile trägt sie dann als ziel.
+//   --wuerfel: Kandidaten im Würfel 7 × 7 × 7 (WUERFEL, .scratch/wuerfel-500/), level wie in LEVELS_3D ohne Namen.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs pool <auftrag …> --aus <datei> [--seed S] [--seeds M]
-//       [--jobs N] [--schwierigkeit VON,BIS]
+//       [--jobs N] [--schwierigkeit VON,BIS] [--wuerfel]
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
 //   (Tabelle der Spec, ZIEL und GRUPPEN) weniger die Level im Spiel; was einer Gruppe fehlte, holt die nächste so von
 //   selbst nach. Ein Kandidat kommt in Frage, wenn sein Grad nach der Schwelle der seines Auftrags ist, seine
@@ -64,6 +65,8 @@ export const GRUPPEN = 10;
 /** Der Bestand vor dem Ausbau (nach Ticket 25 der Spec der Beurteilung). */
 export const VORHER = { leicht: 31, mittel: 74, schwer: 32, 'sehr schwer': 13 };
 const BLOCK = 25;
+/** Der Würfel der Würfel-Level (.scratch/wuerfel-500/ Spec: alle 7 × 7 × 7), für pool --wuerfel. */
+export const WUERFEL = { dim: 3, size: 7 };
 /**
  * Vorprüfung auf Zerfall, wie ihn die KI-Tester lesen (Gruppe 1, Lauf ausbau-1): Die Regel der Beurteilung schliesst
  * erst aus, wenn der zweite unabhängige Teil 3 drehbare Elemente hat (MIN_ELEMENTE in zerfall.mjs). Die KI-Tester
@@ -114,8 +117,9 @@ if (process.env.AUSBAU_WORKER) {
   // Prozess für pool: rechnet Blöcke von Seeds eines Auftrags und schickt die Level zurück
   const [{ generiere, angebot }, { feldformVon }] = await Promise.all(
     ['./generator/index.mjs', './beurteilung/feldform.mjs'].map(f => import(f)));
-  const feldform = feldformVon({}), auftraege = new Map(angebot().map(a => [a.name, a]));
-  process.on('message', ({ auftrag, from, to, schwierigkeit }) => {
+  const auftraege = new Map(angebot().map(a => [a.name, a]));
+  process.on('message', ({ auftrag, from, to, schwierigkeit, wuerfel }) => {
+    const feldform = feldformVon(wuerfel ? WUERFEL : {});
     const level = [], gruende = {};
     for (let seed = from; seed < to; seed++) {
       const { level: l, beurteilung: b, grund } = generiere({
@@ -141,7 +145,8 @@ async function pool() {
     fail(`--schwierigkeit VON,BIS mit VON ≤ BIS, nicht ${ziel.join(',')}`);
   }
   const jobs = Number(flag('--jobs', Math.max(1, os.cpus().length >> 1)));
-  const auftraege = args.slice(1);
+  const wuerfel = args.includes('--wuerfel');
+  const auftraege = args.slice(1).filter(a => a !== '--wuerfel');
   const { angebot } = await import('./generator/index.mjs');
   const bekannt = angebot().map(a => a.name);
   if (!aus || !auftraege.length || ![start, seeds, jobs].every(Number.isInteger)) {
@@ -151,7 +156,7 @@ async function pool() {
   if (fremd.length) fail(`Unbekannte Aufträge: ${fremd.join(', ')}; bekannt: ${bekannt.join(', ')}`);
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const tasks = auftraege.flatMap(auftrag => Array.from({ length: Math.ceil(seeds / BLOCK) }, (_, k) => ({
-    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds), schwierigkeit: ziel })));
+    auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds), schwierigkeit: ziel, wuerfel })));
   const ergebnis = new Map(auftraege.map(a => [a, { level: [], gruende: {}, offen: 0 }]));
   for (const t of tasks) ergebnis.get(t.auftrag).offen++;
   const t0 = Date.now();
