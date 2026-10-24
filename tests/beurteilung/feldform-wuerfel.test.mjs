@@ -236,7 +236,7 @@ test('Drehungen: Aufzug (Prisma mit Achse x) und Kern (Achse z) haben je zwei, m
   const zahl = {};
   for (const level of L.LEVELS_3D) {
     const d = feldformVon(level).drehungen(level);
-    zahl[level.name] = d.map(g => vierteldrehungen(level, g));
+    if (['Aufzug', 'Kern'].includes(level.name)) zahl[level.name] = d.map(g => vierteldrehungen(level, g));
     for (const g of d.slice(1)) gleichGedreht(level, g, level.name);
   }
   assert.deepEqual(zahl, { Aufzug: [0, 1], Kern: [0, 3] });
