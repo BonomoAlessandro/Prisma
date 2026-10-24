@@ -4,8 +4,9 @@
 //
 // pool: Kandidaten aus dem Generator (tools/generator/) für Aufträge wie „mittel-mischziel“, Seeds start … start +
 //   seeds - 1, verteilt in Blöcken auf --jobs Prozesse. Jedes gelieferte Level geht als JSON-Zeile { auftrag, seed,
-//   level, schwierigkeit, spielwert, hauptKernidee, kernideen } an die Datei (angehängt; level wie in LEVELS, ohne
-//   Namen; die Werte aus der Beurteilung des Generators, ungerundet). Dieselben Seeds liefern dieselben Level.
+//   level, schwierigkeit, spielwert, hauptKernidee, kernideen, stand } an die Datei (angehängt; level wie in LEVELS,
+//   ohne Namen; die Werte aus der Beurteilung des Generators, ungerundet; stand der Commit, siehe standDesCodes).
+//   Dieselben Seeds liefern auf demselben Stand dieselben Level.
 //   --schwierigkeit VON,BIS: die Ziel-Schwierigkeit der Aufträge wie bei generiere.mjs (etwa für das obere Ende von
 //   „schwer“, das der Generator sonst selten trifft); die Zeile trägt sie dann als ziel.
 //   --wuerfel: Kandidaten im Würfel 7 × 7 × 7 (WUERFEL, .scratch/wuerfel-500/), level wie in LEVELS_3D ohne Namen.
@@ -39,7 +40,7 @@
 //   in einem Grad mehr Level, als er dann braucht, fallen die mit dem tiefsten Spielwert weg (im Bericht genannt).
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
-import { fork } from 'node:child_process';
+import { execFileSync, fork } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
@@ -138,6 +139,20 @@ else if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) 
   fail('Aufruf: node tools/ausbau.mjs pool|wahl|bedarf … (siehe Kopf)');
 }
 
+/**
+ * Stand des Codes, mit dem pool die Level baut (Commit, kurz): Ein Seed liefert nur mit demselben Generator und derselben
+ * Beurteilung dasselbe Level (Review Ticket 02 der Würfel-Level). Mit „+“, wenn Generator, Beurteilung oder Spiellogik
+ * vom Commit abweichen; dann ist der Stand nicht genau nachbaubar.
+ */
+function standDesCodes() {
+  const git = (...a) => execFileSync('git', a, { cwd: fileURLToPath(new URL('..', import.meta.url)), encoding: 'utf8' })
+    .trim();
+  const geaendert = git('status', '--porcelain', '--', 'tools/generator', 'tools/beurteilung', 'tools/solver.mjs',
+    'tools/ausbau.mjs', 'index.html');
+  if (geaendert) console.error(`pool: Generator, Beurteilung oder Spiellogik geändert, Stand mit „+“:\n${geaendert}`);
+  return git('rev-parse', '--short=7', 'HEAD') + (geaendert ? '+' : '');
+}
+
 async function pool() {
   const aus = flag('--aus', null), start = Number(flag('--seed', 1)), seeds = Number(flag('--seeds', 400));
   const ziel = flag('--schwierigkeit', null)?.split(',').map(Number) ?? null;
@@ -155,6 +170,7 @@ async function pool() {
   const fremd = auftraege.filter(a => !bekannt.includes(a));
   if (fremd.length) fail(`Unbekannte Aufträge: ${fremd.join(', ')}; bekannt: ${bekannt.join(', ')}`);
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
+  const stand = standDesCodes();
   const tasks = auftraege.flatMap(auftrag => Array.from({ length: Math.ceil(seeds / BLOCK) }, (_, k) => ({
     auftrag, from: start + k * BLOCK, to: Math.min(start + (k + 1) * BLOCK, start + seeds), schwierigkeit: ziel, wuerfel })));
   const ergebnis = new Map(auftraege.map(a => [a, { level: [], gruende: {}, offen: 0 }]));
@@ -179,7 +195,7 @@ async function pool() {
   });
   // in fester Reihenfolge (Auftrag, Seed), gleich wie die Arbeit verteilt war
   for (const a of auftraege) {
-    const zeilen = ergebnis.get(a).level.sort((x, y) => x.seed - y.seed).map(x => JSON.stringify(x) + '\n');
+    const zeilen = ergebnis.get(a).level.sort((x, y) => x.seed - y.seed).map(x => JSON.stringify({ ...x, stand }) + '\n');
     if (zeilen.length) appendFileSync(aus, zeilen.join(''));
   }
   console.error(`pool: ${[...ergebnis.values()].reduce((s, e) => s + e.level.length, 0)} Level nach ${aus}, `
