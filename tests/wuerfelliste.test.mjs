@@ -46,6 +46,11 @@ await test('Jedes Würfel-Level ist ein Würfel 7 × 7 × 7 mit Grad', () => {
 await test('Reihenfolge und Grade wie von ordne-wuerfel.mjs gerechnet', () => {
   assert.deepEqual(r.folge.map(i => W[i].name), W.map(l => l.name));
   assert.deepEqual(W.map(l => l.grad), r.grad);
+  // Fixpunkt (Ticket 05): mit umgedrehter Eingabe dieselbe Folge, auch bei Leveln mit gleichem Wert
+  const um = W.map((_, i) => W.length - 1 - i);
+  const ru = wuerfelReihenfolge(um.map(i => werte[i]), um.map(i => W[i].name), um.map(i => b[i].hauptKernidee.begriff),
+    { kandidat: um.map(i => kandidatName(W[i])), urteile });
+  assert.deepEqual(ru.folge.map(k => W[um[k]].name), W.map(l => l.name), 'hängt von der Reihenfolge in index.html ab');
 });
 await test('Grad sinkt nie, Mittel je 10 Level fällt nicht, keine Häufung der Haupt-Kernidee offen', () => {
   assert.deepEqual(W.filter((l, p) => p && GRADE.indexOf(l.grad) < GRADE.indexOf(W[p - 1].grad)).map(l => l.name), []);

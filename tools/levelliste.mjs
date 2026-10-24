@@ -482,6 +482,8 @@ export function fallendeSeiten(folge, werte) {
  * Ausbau ist alles wie vorher und eingefuegt dasselbe wie korrigiert.
  * ausbauLaeufe: die Läufe, aus denen ein Level des Ausbaus sein Urteil hat. Die Würfel-Level (wuerfelliste.mjs) rechnen
  * so: ohne Bestand, jedes Level wie eines des Ausbaus, mit den Läufen wuerfel-….
+ * gleichstand: je Index ein Text, der bei gleichem Wert im Ausbau entscheidet (fuegeEin); ohne (null) die Reihenfolge
+ * der Eingabe. Die Würfel-Level geben den Abdruck, damit die Folge nicht von der Reihenfolge in index.html abhängt.
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
