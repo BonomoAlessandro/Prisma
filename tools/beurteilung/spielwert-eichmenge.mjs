@@ -12,7 +12,7 @@
 //   und ihre Urteile ändern die Eichmenge darum nicht.
 import { readFileSync } from 'node:fs';
 import { inHeutigerReihenfolge } from './heutige-reihenfolge.mjs';
-import { AUSBAU_LAEUFE, ERSATZ_LAEUFE } from '../levelliste.mjs';
+import { AUSBAU_LAEUFE, ERSATZ_LAEUFE, imWuerfel } from '../levelliste.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
@@ -28,6 +28,7 @@ export function eichmenge() {
   const ki = new Map();
   for (const line of read('../ki-tester/protocol.jsonl').split('\n').filter(l => l.trim())) {
     const e = JSON.parse(line);
+    if (imWuerfel(e)) continue; // die Eichmenge sind die flachen Level
     const neu = ERSATZ_LAEUFE.test(e.lauf) || AUSBAU_LAEUFE.test(e.lauf);
     if (neu && !heute.some(l => l.name === e.level.name)) continue;
     if (!ki.has(e.level.name)) ki.set(e.level.name, []);

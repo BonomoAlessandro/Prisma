@@ -18,7 +18,8 @@ const cube = (elements, size = 3, name = 'Mini-Würfel') => ({ ...miniLevel(elem
 const level = (name) => L.LEVELS_3D.find(l => l.name === name);
 
 test('Aufzug und Kern: Die Beurteilung läuft ganz durch, ohne offenen Teil und ohne Ausschlussgrund', () => {
-  for (const l of L.LEVELS_3D) {
+  // ohne Grad; die Level aus dem Generator prüft tests/wuerfelliste.test.mjs mit ihrem Grad
+  for (const l of ['Aufzug', 'Kern'].map(level)) {
     const b = beurteile(l);
     assert.deepEqual(b.offen, [], l.name);
     assert.deepEqual(b.ausschluesse, [], l.name);

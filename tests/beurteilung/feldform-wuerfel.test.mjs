@@ -136,6 +136,14 @@ test('Zelle eines Ereignisses, Anfang und Ende eines Abschnitts, Durchlauf, auch
   assert.deepEqual(vor.map(c => c.zelle), ['1,1,1', '2,2,1']);
   assert.deepEqual(zurueck.map(c => c.zelle), ['2,2,1', '1,1,1']);
   assert.equal(new Set([...vor, ...zurueck].map(c => c.achse)).size, 1);
+  // Nach unten und schräg nach unten endet der Strahl auf der Plattform (y = −0.5): in keiner Zelle, auch nicht in der
+  // untersten, auf die gerundet sein Ende fiele
+  for (const [dir, ende] of [[2, '2,0,2'], [1, '3,0,2']]) {
+    const unten = L.traceBeams(L.createBoard(cube([{ type: 'source', x: 2, y: 2, z: 2, axis: 'z', dir, color: 'red' }])));
+    assert.equal(unten.events.at(-1).kind, 'floor');
+    assert.equal(f5.zelleBei(unten.events.at(-1)), null, ende);
+    assert.equal(unten.segments.map(f5.abschnitt).at(-1).bis, null, ende);
+  }
 });
 
 // Drehungen: Zu jeder Drehung, die die Feldform liefert, muss die Strahlregel dasselbe Strahlbild gedreht ergeben, in
@@ -228,7 +236,7 @@ test('Drehungen: Aufzug (Prisma mit Achse x) und Kern (Achse z) haben je zwei, m
   const zahl = {};
   for (const level of L.LEVELS_3D) {
     const d = feldformVon(level).drehungen(level);
-    zahl[level.name] = d.map(g => vierteldrehungen(level, g));
+    if (['Aufzug', 'Kern'].includes(level.name)) zahl[level.name] = d.map(g => vierteldrehungen(level, g));
     for (const g of d.slice(1)) gleichGedreht(level, g, level.name);
   }
   assert.deepEqual(zahl, { Aufzug: [0, 1], Kern: [0, 3] });
