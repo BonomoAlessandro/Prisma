@@ -33,7 +33,7 @@ Danach stehen 50 neue Würfel-Level im Spiel: 9 / 27 / 10 / 4 (dazu Aufzug und K
   - Pool-1, pool-2-mittel und pool-2-sehr-schwer sind auf 33f26f8 gebaut, pool-2-schwer auf 0d0edd0. Geprüft mit je 6 Stichproben, die auf ihrem Stand alle gleich herauskommen und auf dem anderen nicht.
   - Gruppe 1 ist nachgetragen. Der Test verlangt den Stand als Commit.
 - **KI-Tester:** Beide sahen zuerst nur das Desktop-Bild. Auf Nachfrage sahen sie alle Bilder; A ergänzte auch die Bilder der Anker. Geändert hat das nur Lesbarkeit und Aha (je 8 Urteile), bei A ausserdem L15 (A7 → A6-A7, jetzt ganz gelöst). Keine Ablehnung.
-  - Korrekturen: Viele mittlere Kandidaten finden beide leichter als die Formel, bis 5 Plätze nach vorn; zwei schwere nach hinten (+1, +5).
+  - Korrekturen: Viele mittlere Kandidaten finden beide leichter als die Formel, bis 5 Plätze nach vorn; zwei mittlere nach hinten (Korridor +1, 735de90a +5).
   - Ab Gruppe 3 verlangt der Auftrag an die Agents alle Bilder ausdrücklich.
 - **Dauer:**
   - Wahl 144 s, aus 4210 Kandidaten (in Frage 1116).
