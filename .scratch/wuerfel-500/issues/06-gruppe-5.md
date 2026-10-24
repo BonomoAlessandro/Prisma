@@ -23,8 +23,6 @@ Danach stehen 125 neue Würfel-Level im Spiel: 22 / 66 / 26 / 11 (dazu Aufzug un
 
 ## Comments
 
-## Comments
-
 - 2026-10-25: Erledigt. 25 neue Würfel-Level, 5 / 13 / 5 / 2; im Spiel jetzt 125 neue (22 / 66 / 26 / 11) und Aufzug und Kern.
   - leicht: Klettergerüst, Schuhkarton, Fensterladen, Gartenzaun, Hundehütte
   - mittel: Werkstatt, Silo, Brückenkopf, Stallung, Atelier, Remise, Schanze, Stauwehr, Bastion, Kontor, Kaminzimmer, Fähre, Wäscherei
@@ -35,3 +33,8 @@ Danach stehen 125 neue Würfel-Level im Spiel: 22 / 66 / 26 / 11 (dazu Aufzug un
 - Review Ticket 05: bestanden; der Reviewer prüft den Fixpunkt der Reihenfolge jetzt auch mit umgedrehter Eingabe (1dee403). Grenzfall Hängende Gärten (Garten wie Irrgarten, Wintergarten) umbenannt in Persepolis.
 - Namensvorrat aufgestockt; Namen von der Liste entfernter Level (Unendlichkeit, Laterne, Leuchtturm) daraus gestrichen, Hyperraum (neben Hyperwürfel) auch.
 - Dauer: Wahl 320 s, Bilder 87 min (der Reviewer lief gleichzeitig), KI-Tester 10–16 min; Ersatz: Wahl 246 s, Bilder 22 min, Tester je 2–3 min.
+- Review Ticket 06: Ersatz geprüft (4ea06aa4 nicht im Spiel, bd81156b = Bibliothek von Babel mit Urteil beider
+  Tester im zählenden Lauf wuerfel-5-2), Nachbau auf Stand 33f26f8 bestätigt (Schuhkarton, Kontor, Felsendom,
+  Bibliothek von Babel: gleicher Abdruck), Verteilung 22 / 66 / 26 / 11, tests/wuerfelliste.test.mjs grün. Offen für
+  den Koordinator: Kaminzimmer trägt dasselbe Grundwort wie das flache Turmzimmer (Spec Schritt 5), umbenennen;
+  Grenzfall Persepolis neben Akropolis (beide …polis).
