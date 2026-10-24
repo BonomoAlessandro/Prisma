@@ -9,9 +9,10 @@
 //   wandert (vor Ticket 16: 56 Strahlenkranz).
 // - Urteile der KI-Tester (reihenfolge, Ticket 16 nach dem Plan aus Ticket 05): Es zählen nur die Läufe der Prüfliste
 //   (pruefung-…) und des Austauschs (ersatz-…, siehe unten) von Ablauf 2, keine Probe- oder Eichläufe
-//   (zaehlendeUrteile). Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide KI-Tester zustimmen: Der
-//   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz (zustimmung).
-//   Sonst bleibt es am alten Platz. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von
+//   (zaehlendeUrteile). Einträge aus dem Würfel (wuerfel-…) zählen hier nie (imWuerfel); die der Würfel-Level
+//   liefert zaehlendeWuerfelUrteile. Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide
+//   KI-Tester zustimmen: Der Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als
+//   der alte Platz (zustimmung). Sonst bleibt es am alten Platz. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von
 //   merge (ki-tester/protocol.mjs): höchstens MAX_SHIFT Plätze und nie über eine Gradgrenze (korrigiere).
 //   Am alten Platz gilt das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort: gerechnet
 //   vom Platz der Formel (Rang nach der Schwierigkeit) aus, angewandt von dort, wo das Level nach ordne steht; wegen
@@ -87,7 +88,7 @@ import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
 import { HEUTIGE_REIHENFOLGE, heutigerPlatz } from './beurteilung/heutige-reihenfolge.mjs';
-import { MAX_SHIFT, TESTERS, merge, wish } from './ki-tester/protocol.mjs';
+import { MAX_SHIFT, TESTERS, VERSIONS, WUERFEL_LAEUFE, merge, wish } from './ki-tester/protocol.mjs';
 
 /** Weiter wandert kein Level ohne die KI-Tester (Spec „KI-Tester“: Kleinere Abweichungen entscheidet die Formel). */
 export const MAX_WANDERN = 10;
@@ -157,9 +158,21 @@ export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
 /** So viel Gefühl hat ein behaltenes Level im Mittel über alle Urteile mindestens (Regel stark, Ticket 24). */
 export const MIN_GEFUEHL_BEHALTEN = 4;
 
-/** Alle Einträge des Protokolls, nicht nur die zählenden (Text: eine JSON-Zeile je Eintrag; Vorgabe die Datei). */
+/** Ist ein Eintrag des Protokolls aus dem Würfel (Version des Würfel-Ablaufs, Lauf wuerfel-…)? */
+export const imWuerfel = (e) => !!VERSIONS[e.ablauf]?.wuerfel || WUERFEL_LAEUFE.test(e.lauf);
+const zeilen = (text) => text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+
+/**
+ * Alle flachen Einträge des Protokolls, nicht nur die zählenden (Text: eine JSON-Zeile je Eintrag; Vorgabe die Datei).
+ * Die Einträge aus dem Würfel kennen die Regeln der flachen Levelliste nicht (alleWuerfelUrteile).
+ */
 export function alleUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
-  return text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  return zeilen(text).filter(e => !imWuerfel(e));
+}
+
+/** Alle Einträge des Protokolls aus dem Würfel (imWuerfel), nicht nur die zählenden. */
+export function alleWuerfelUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
+  return zeilen(text).filter(imWuerfel);
 }
 
 /**
@@ -200,11 +213,29 @@ export function ergaenzungBegruendet(grund, ki, grad) {
  * Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…), des Austauschs
  * (ersatz-…) oder des Ausbaus (ausbau-…), kein Anker.
  */
-export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker;
+export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker
+  && !imWuerfel(e);
 
 /** Die zählenden Einträge des Protokolls (Text mit einer JSON-Zeile je Eintrag, Vorgabe protocol.jsonl). */
 export function zaehlendeUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
   return alleUrteile(text).filter(zaehlt);
+}
+
+/**
+ * Läufe im Würfel, deren Urteile zählen (.scratch/wuerfel-500/): die der Gruppen, wuerfel-<Gruppe>… wie wuerfel-1 oder
+ * wuerfel-1-2. Probe- und Eichläufe (wuerfel-probe, wuerfel-eich-…) nicht.
+ */
+export const ZAEHLENDE_WUERFEL_LAEUFE = /^wuerfel-\d/;
+/**
+ * Zählt ein Eintrag für die Reihenfolge der Würfel-Level? Jede Version des Würfel-Ablaufs (eine neue Auswahl der
+ * Anker entwertet die Urteile der früheren nicht), ein Lauf einer Gruppe, kein Anker.
+ */
+export const zaehltImWuerfel = (e) => !!VERSIONS[e.ablauf]?.wuerfel && ZAEHLENDE_WUERFEL_LAEUFE.test(e.lauf)
+  && !e.level.anker;
+
+/** Die zählenden Einträge des Protokolls aus dem Würfel (zaehltImWuerfel); Text wie bei zaehlendeUrteile. */
+export function zaehlendeWuerfelUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
+  return alleWuerfelUrteile(text).filter(zaehltImWuerfel);
 }
 
 /** Die Namen der Level des Ausbaus in der Reihenfolge ihrer Aufnahme (ausbau in levelliste.json), leer vor ihm. */

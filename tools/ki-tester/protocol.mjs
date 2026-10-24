@@ -26,6 +26,14 @@
 // Ablehnen: Die KI-Tester nennen alle Begriffe aus „Was Spass verdirbt“, die zutreffen, unabhängig vom Grad. Abgelehnt
 // ist ein Level, wenn beide mindestens einen Begriff nennen, der beim Grad der Referenz gilt; Füllteil und Zerfall
 // gelten erst ab „mittel“ (Glossar).
+//
+// Würfel (.scratch/wuerfel-500/, Läufe wuerfel-…): eigene Versionen W1, W2 … neben den flachen, mit eigenem Auftrag
+// (brief-wuerfel.md), eigenen Ankern (anchors-wuerfel.json, je Version eine Auswahl von Würfel-Leveln) und eigenem
+// Fingerabdruck. Referenz ist der Platz in der Reihenfolge der Würfel-Level (1 = erstes Würfel-Level, eigene
+// Reihenfolge neben der flachen) und der Grad dort. Glossar, Schema der Antwort (nur die Einordnungen folgen den
+// Ankern der Version, schemaFor) und die Regel des Zusammenführens sind dieselben. Eine neue Auswahl der Anker ist eine
+// neue Version in anchors-wuerfel.json mit einem Eintrag in WUERFEL_FINGERPRINTS; die Einträge einer früheren bleiben
+// gültig, denn ihre Kennungen stehen weiter in der Datei.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { L } from '../solver.mjs';
@@ -80,6 +88,26 @@ export const reference = (position, reihe = MAIN) => {
   return { art: 'Reihenfolge im Spiel', position, grad: g.name, von: g.from, bis: g.to };
 };
 const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bis === g.to;
+
+/** Die Würfel-Level im Spiel in ihrer Reihenfolge (LEVELS_3D; Platz 1 = erstes Würfel-Level). */
+export const WUERFEL_IM_SPIEL = L.LEVELS_3D;
+export const WUERFEL_REFERENZ = 'Reihenfolge der Würfel';
+/** Referenz eines Würfel-Levels: Platz in der Reihenfolge der Würfel-Level (reihe), sein Grad und dessen Grenzen. */
+export const referenceWuerfel = (position, reihe = WUERFEL_IM_SPIEL) => {
+  const g = gradesIn(reihe).find(x => x.name === reihe[position - 1]?.grad);
+  return { art: WUERFEL_REFERENZ, position, grad: g.name, von: g.from, bis: g.to };
+};
+/** Läufe im Würfel heissen wuerfel-…, flache nie so. */
+export const WUERFEL_LAEUFE = /^wuerfel-/;
+/** Die Versionen des Würfel-Ablaufs aus anchors-wuerfel.json, je { hinweis, anker }; die letzte ist die aktuelle. */
+const WUERFEL_ANKER = JSON.parse(read('./anchors-wuerfel.json')).versionen;
+/**
+ * Fingerabdruck je Version des Würfel-Ablaufs (fingerprintWuerfel). Eine neue Version in anchors-wuerfel.json braucht
+ * hier ihren Eintrag; die früheren bleiben stehen.
+ */
+export const WUERFEL_FINGERPRINTS = { W1: 'a8722e54a520de10' };
+export const WUERFEL_VERSION = Object.keys(WUERFEL_ANKER).at(-1);
+export const WUERFEL_FINGERPRINT = WUERFEL_FINGERPRINTS[WUERFEL_VERSION];
 /**
  * Die Versionen des Ablaufs mit Fingerabdruck und Referenz. Einträge einer älteren Version bleiben als Geschichte
  * gültig: Jeder wird nach der Referenz seiner Version geprüft (gilt). Schema der Antwort und Regel des Zusammenführens
@@ -88,6 +116,9 @@ const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bi
  *   Reihenfolge, vorläufige Grade.
  * - 2 (Ticket 16): Platz in der Reihenfolge im Spiel, Grad aus den Leveldaten, Grenzen aus der Reihenfolge, dazu das
  *   geschärfte Glossar (Füllteil, Abschalten, Falle) und neue Anker.
+ * - W1, W2 … (Würfel, siehe Kopf; unten aus anchors-wuerfel.json angefügt): Platz in der Reihenfolge der Würfel-Level,
+ *   nur in Läufen wuerfel-…, mit wuerfel: true und den Kennungen ihrer Anker (kennungen).
+ * Jede Version kennt die Kennungen ihrer Anker (kennungen) und damit ihr Schema (schemaOf).
  */
 export const VERSIONS = {
   1: {
@@ -101,6 +132,14 @@ export const VERSIONS = {
     gilt: (r) => r.art === 'Reihenfolge im Spiel' && r.von >= 1,
   },
 };
+for (const [v, w] of Object.entries(WUERFEL_ANKER)) {
+  VERSIONS[v] = {
+    fingerabdruck: WUERFEL_FINGERPRINTS[v], referenz: WUERFEL_REFERENZ, wuerfel: true,
+    kennungen: w.anker.map(a => a.id),
+    // ohne Obergrenze wie Ablauf 2: Die Kandidaten stehen in einer Vorschau der Würfel-Reihenfolge
+    gilt: (r) => r.art === WUERFEL_REFERENZ && r.von >= 1,
+  };
+}
 export const TESTERS = ['A', 'B'];
 /** Antwortdatei eines KI-Testers, relativ zum Ordner des Laufs: jeder hat einen eigenen Ordner. */
 export const answerPath = (tester) => `antwort-${tester}/urteile.json`;
@@ -111,6 +150,33 @@ export const today = () => {
 export const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `−${-n}` : '0');
 export const SCHEMA = JSON.parse(read('./answer.schema.json'));
 const ANCHORS = JSON.parse(read('./anchors.json')).anker;
+// Die flachen Versionen haben die acht Kennungen aus anchors.json (Ablauf 1 andere Level unter denselben Kennungen)
+for (const v of ['1', '2']) VERSIONS[v].kennungen = ANCHORS.map(a => a.id);
+
+/** Die erlaubten Einordnungen zu den Kennungen der Anker: <A1, A1, A1-A2, A2, …, >An. */
+export function placings(ids) {
+  const out = ['<' + ids[0]];
+  ids.forEach((id, k) => { out.push(id); if (k < ids.length - 1) out.push(id + '-' + ids[k + 1]); });
+  return [...out, '>' + ids.at(-1)];
+}
+/**
+ * Das Schema der Antwort zu den Kennungen der Anker: answer.schema.json, nur die Kennung des Levels und die
+ * Einordnungen nach den Ankern. Die flache Version 2 nimmt die Datei selbst (dieselben Werte).
+ */
+export function schemaFor(ids) {
+  const s = structuredClone(SCHEMA), first = ids[0], last = ids.at(-1);
+  s.properties.level.description = `Kennung des Levels aus dem Auftrag (${first}–${last} für Anker, sonst L1, L2 …).`;
+  s.properties.level.pattern = `^(${ids.join('|')}|L[1-9][0-9]*)$`;
+  const second = ids[1] ?? first;
+  s.properties.einordnung.description = `Schwierigkeit im Vergleich zu den Ankern: „${first}-${second}“ = `
+    + `schwerer als ${first} und leichter als ${second}, „${first}“ = etwa so schwer wie ${first}, `
+    + `„<${first}“ = leichter als ${first}, „>${last}“ = schwerer als ${last}.`;
+  s.properties.einordnung.enum = placings(ids);
+  return s;
+}
+/** Das Schema der Antwort einer Version (Vorgabe die aktuelle flache). */
+export const schemaOf = (version = VERSION) => (VERSIONS[version]?.wuerfel ? schemaFor(VERSIONS[version].kennungen)
+  : SCHEMA);
 /** Gelten laut Glossar erst ab „mittel“. */
 const FROM_MEDIUM = ['Füllteil', 'Zerfall'];
 const SPOILERS = 'Was Spass verdirbt';
@@ -145,9 +211,24 @@ export function loadAnchors(reihe = MAIN) {
   });
 }
 
-/** brief.md: der Auftrag und, im Kommentar „<!-- Zeilen“ am Schluss, die Vorlagen der Zeilen („name: Text“). */
-function template() {
-  const [text, rest = ''] = read('./brief.md').split('\n<!-- Zeilen');
+/**
+ * Die Anker einer Version des Würfel-Ablaufs (Vorgabe die aktuelle) mit ihrem Platz in der Reihenfolge der Würfel-Level
+ * (reihe, Vorgabe die im Spiel; über den Namen gefunden).
+ */
+export function loadAnchorsWuerfel(reihe = WUERFEL_IM_SPIEL, version = WUERFEL_VERSION) {
+  return WUERFEL_ANKER[version].anker.map((a) => {
+    const position = reihe.findIndex(l => l.name === a.name) + 1;
+    if (!position) throw new Error(`Würfel-Anker ${a.id}: kein Würfel-Level „${a.name}“`);
+    return { ...a, position };
+  });
+}
+
+/**
+ * brief.md (flach) bzw. brief-wuerfel.md: der Auftrag und, im Kommentar „<!-- Zeilen“ am Schluss, die Vorlagen der
+ * Zeilen („name: Text“).
+ */
+function template(file = './brief.md') {
+  const [text, rest = ''] = read(file).split('\n<!-- Zeilen');
   const line = Object.fromEntries([...rest.matchAll(/^([a-z-]+): (.+)$/gm)].map(m => [m[1], m[2]]));
   return { text: text.trimEnd() + '\n', line };
 }
@@ -158,18 +239,25 @@ const fill = (text, values) => text.replace(/\{\{(\w+)\}\}/g, (_, key) => {
 
 /**
  * Der Auftrag an einen KI-Tester. levels: die zu beurteilenden Level in seiner Reihenfolge, je { id, anker };
- * eingabe, ausgabe: die Pfade, die er liest und schreibt.
+ * eingabe, ausgabe: die Pfade, die er liest und schreibt. wuerfel: der Auftrag im Würfel (brief-wuerfel.md, Vorgabe
+ * Version und Anker des Würfel-Ablaufs); ein Anker ohne ende (W1) steht dort ohne Ende des Grads.
  */
-export function brief({ tester, lauf, version = VERSION, eingabe, ausgabe, levels, anchors = loadAnchors() }) {
-  const { text, line } = template();
+export function brief({ tester, lauf, wuerfel = false, version = wuerfel ? WUERFEL_VERSION : VERSION, eingabe, ausgabe,
+  levels, anchors = wuerfel ? loadAnchorsWuerfel() : loadAnchors() }) {
+  const { text, line } = template(wuerfel ? './brief-wuerfel.md' : './brief.md');
   const files = (id) => fill(line.dateien, { ID: id });
+  const ids = anchors.map(a => a.id);
   return fill(text, {
     TESTER: tester, LAUF: lauf, VERSION: version, EINGABE: eingabe, AUSGABE: ausgabe,
     GLOSSAR: glossary().replace(/^## /gm, '### '),
-    ANKER: anchors.map(a => fill(line.anker, { ID: a.id, GRAD: a.grad, ENDE: line[`ende-${a.ende}`], DATEIEN: files(a.id) }))
-      .join('\n'),
+    ANKER: anchors.map(a => fill(line.anker, { ID: a.id, GRAD: a.grad, ENDE: a.ende ? line[`ende-${a.ende}`] : '',
+      DATEIEN: files(a.id) })).join('\n'),
     LEVEL: levels.map((l, k) => fill(line[l.anker ? 'level-anker' : 'level'], { NR: k + 1, ID: l.id, DATEIEN: files(l.id) }))
       .join('\n'),
+    ...(wuerfel ? {
+      ANKERHINWEIS: line[anchors.every(a => a.ende) ? 'ankerhinweis-ende' : 'ankerhinweis-ohne'],
+      EINORDNUNGEN: placings(ids).map(p => `\`"${p}"\``).join(', '), LETZTER: ids.at(-1),
+    } : {}),
   });
 }
 
@@ -190,6 +278,28 @@ export function fingerprint() {
   for (const a of anchors) {
     // Name und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des Grads difficulty)
     const { name, difficulty, grad, ...data } = levelAt(a.position);
+    hash.update(fieldText(data, a.id) + JSON.stringify(data));
+  }
+  return hash.digest('hex').slice(0, 16);
+}
+
+/**
+ * Fingerabdruck einer Version des Würfel-Ablaufs, wie fingerprint: der Auftrag im Würfel an beide (mit allen Ankern und
+ * einem weiteren Level), der Block der Version in anchors-wuerfel.json (nicht die ganze Datei: eine neue Version
+ * ändert den Fingerabdruck einer früheren nicht), ihr Schema, das Glossar und je Anker Feld als Text und Leveldaten.
+ */
+export function fingerprintWuerfel(version = WUERFEL_VERSION) {
+  const hash = createHash('sha256');
+  const anchors = loadAnchorsWuerfel(WUERFEL_IM_SPIEL, version);
+  const levels = [...anchors.map(a => ({ id: a.id, anker: a.id })), { id: 'L1', anker: null }];
+  for (const t of TESTERS) {
+    hash.update(brief({ tester: t, lauf: 'LAUF', wuerfel: true, version: 'VERSION', eingabe: 'EINGABE',
+      ausgabe: answerPath(t), levels, anchors }));
+  }
+  hash.update(JSON.stringify(WUERFEL_ANKER[version]) + JSON.stringify(schemaOf(version)));
+  hash.update(glossary());
+  for (const a of anchors) {
+    const { name, difficulty, grad, ...data } = WUERFEL_IM_SPIEL[a.position - 1];
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);
@@ -224,9 +334,12 @@ function schemaErrors(v, s, path) {
   return out;
 }
 
-/** Fehler eines Urteils zum Level { id, anker }: Schema, dazu gehört es zum Level, und ein Anker ordnet sich bei sich ein. */
-export function answerErrors(answer, level) {
-  const out = schemaErrors(answer, SCHEMA, `Urteil ${level.id}`);
+/**
+ * Fehler eines Urteils zum Level { id, anker }: Schema (Vorgabe das flache, im Würfel schemaOf der Version), dazu
+ * gehört es zum Level, und ein Anker ordnet sich bei sich ein.
+ */
+export function answerErrors(answer, level, schema = SCHEMA) {
+  const out = schemaErrors(answer, schema, `Urteil ${level.id}`);
   if (out.length) return out;
   if (answer.level !== level.id) out.push(`Urteil ${level.id}: gehört zu ${answer.level}`);
   if (level.anker && answer.einordnung !== level.anker) {
@@ -297,13 +410,14 @@ export function merge({ level, referenz: r, anker, urteile }) {
 }
 
 /**
- * Ein Eintrag des Protokolls: beide Einzelurteile, Ergebnis und Begründung, mit Datum, Version des Ablaufs und dem
- * Modell und Agent-Typ der KI-Tester (agent { modell, typ }).
+ * Ein Eintrag des Protokolls: beide Einzelurteile, Ergebnis und Begründung, mit Datum, Version des Ablaufs (ablauf,
+ * Vorgabe die aktuelle flache; im Würfel WUERFEL_VERSION) und dem Modell und Agent-Typ der KI-Tester
+ * (agent { modell, typ }).
  */
-export function entry({ datum, lauf, agent, level, referenz, anker, urteile }) {
+export function entry({ datum, ablauf = VERSION, lauf, agent, level, referenz, anker, urteile }) {
   const { ergebnis, begruendung } = merge({ level, referenz, anker, urteile });
   return {
-    datum, ablauf: VERSION, lauf, agent: { modell: agent.modell, typ: agent.typ },
+    datum, ablauf, lauf, agent: { modell: agent.modell, typ: agent.typ },
     level: { id: level.id, name: level.name, anker: level.anker ?? null }, referenz, anker,
     urteile: { A: urteile.A, B: urteile.B }, ergebnis, begruendung,
   };
@@ -317,6 +431,10 @@ function entryErrors(e) {
   const version = typeof e.ablauf === 'string' && Object.hasOwn(VERSIONS, e.ablauf) ? VERSIONS[e.ablauf] : null;
   if (!version) out.push(`Version des Ablaufs fehlt oder unbekannt (${e.ablauf})`);
   if (!present(e.lauf)) out.push('Lauf fehlt');
+  else if (version && !!version.wuerfel !== WUERFEL_LAEUFE.test(e.lauf)) {
+    out.push(version.wuerfel ? `Würfel-Ablauf ${e.ablauf} in einem Lauf ohne wuerfel-`
+      : `Lauf ${e.lauf} mit dem flachen Ablauf ${e.ablauf}`);
+  }
   if (!present(e.agent?.modell) || !present(e.agent?.typ)) out.push('Modell oder Agent-Typ der KI-Tester fehlt');
   if (!present(e.begruendung)) out.push('Begründung fehlt');
   const { level, referenz: r, anker, urteile, ergebnis: g } = e;
@@ -325,7 +443,7 @@ function entryErrors(e) {
     r.position <= r.bis;
   if (!complete) return [...out, 'Referenz unvollständig'];
   if (version && !version.gilt(r)) out.push(`Referenz nicht die von Ablauf ${e.ablauf} (${version.referenz})`);
-  const ids = ANCHORS.map(a => a.id);
+  const ids = version?.kennungen ?? ANCHORS.map(a => a.id);
   if (ids.some((id, k) => !Number.isInteger(anker?.[id]) || (k && anker[id] <= anker[ids[k - 1]]))) return [...out, 'Plätze der Anker fehlen'];
   if (level.anker && anker[level.anker] !== r.position) out.push(`Anker ${level.anker} steht nicht auf Platz ${r.position}`);
   if (typeof g?.abgelehnt !== 'boolean' || !Array.isArray(g.gruende) || !Number.isInteger(g.verschiebung) || !Number.isInteger(g.position)) {
@@ -337,7 +455,8 @@ function entryErrors(e) {
   if (level.anker && g.verschiebung) out.push(`Anker ${level.anker} verschoben`);
   if (g.abgelehnt && g.verschiebung) out.push('abgelehnt und verschoben');
   if (Object.keys(urteile ?? {}).join() !== TESTERS.join()) return [...out, 'Urteile von A und B nötig'];
-  const wrong = TESTERS.flatMap(t => answerErrors(urteile[t], level).map(m => `${t}: ${m}`));
+  const schema = version ? schemaOf(e.ablauf) : SCHEMA;
+  const wrong = TESTERS.flatMap(t => answerErrors(urteile[t], level, schema).map(m => `${t}: ${m}`));
   if (wrong.length || !version) return [...out, ...wrong];
   const both = TESTERS.every(t => termsAt(urteile[t], r.grad).length > 0);
   if (g.abgelehnt && !both) out.push(`abgelehnt, aber nicht beide nennen einen Begriff, der bei ${r.grad} gilt`);

@@ -1,0 +1,24 @@
+{
+  "hinweis": "Anker der KI-Tester im Würfel (.scratch/wuerfel-500/), je Version des Würfel-Ablaufs eine feste Auswahl von Würfel-Leveln, über ihren Namen gefunden; ihr Platz folgt der Reihenfolge der Würfel-Level. Die zuletzt genannte Version ist die aktuelle (tools/ki-tester/protocol.mjs). Eine neue Auswahl kommt als neue Version dazu, die bisherigen bleiben unverändert stehen: Ihre Einträge im Protokoll prüft der Test mit ihren Kennungen. Wer eine Version ändert statt eine neue anzulegen, entwertet deren Einträge.",
+  "versionen": {
+    "W1": {
+      "hinweis": "Entscheid des Koordinators vom 24.10.2026 (Ticket 01 der Würfel-Level): Geeichte Würfel-Level gibt es noch nicht. Gruppe 1 läuft darum mit den zwei handgebauten Würfel-Leveln im Spiel als Anker; beide sind nach der Formel leicht (Aufzug 20,5, Kern 39,4). Die Bereiche der Einordnung sind damit grob (<A1, A1, A1-A2, A2, >A2); das ist gewollt. Am Ende von Gruppe 1 wählt der Koordinator je Grad zwei Würfel-Level (eines am unteren, eines am oberen Ende) als neue Anker, das gibt die Version W2.",
+      "anker": [
+        {
+          "id": "A1",
+          "name": "Aufzug",
+          "grad": "leicht",
+          "ende": null,
+          "begruendung": "Handgebaut, Schwierigkeit 20,5, ohne Kernidee: eine Quelle, ein Spiegel hebt den Strahl, ein Prisma fächert ihn senkrecht auf drei Ziele in der obersten Ebene, 3 drehbare Elemente mit Achse x und z."
+        },
+        {
+          "id": "A2",
+          "name": "Kern",
+          "grad": "leicht",
+          "ende": null,
+          "begruendung": "Handgebaut, Schwierigkeit 39,4, Kernidee Mischziel aus zwei Quellen: Rot von unten hinten und Blau aus einem Prisma oben vorne treffen sich als Magenta in der Würfelmitte, 5 drehbare Elemente mit Achse x und z."
+        }
+      ]
+    }
+  }
+}

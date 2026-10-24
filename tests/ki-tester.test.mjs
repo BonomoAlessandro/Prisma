@@ -1,6 +1,10 @@
 // Testet den Ablauf der KI-Tester (tools/ki-tester/): Schema der Antworten, Zusammenführen der beiden Urteile, Referenz
 // und Grade in der Reihenfolge im Spiel, die Anker, das Feld als Text, den Auftrag samt Fingerabdruck der Eingaben und
 // das versionierte Protokoll mit den Einträgen aller Versionen.
+// Dazu der Würfel (.scratch/wuerfel-500/): Feld als Text im Würfel, eigene Versionen mit eigenen Ankern und
+// Fingerabdruck, Einträge im Protokoll, die Seite mit Würfel-Kandidaten und prepare.mjs mit einer Würfel-Vorschau
+// (tests/ki-tester/wuerfel-vorschau.json: Aufzug, Kern und drei Kandidaten aus dem Generator, Seeds 1 und 2 leicht,
+// Seed 1 mittel mit Mischziel aus zwei Quellen).
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync, writeFileSync } from 'node:fs';
@@ -13,12 +17,16 @@ import { L } from '../tools/solver.mjs';
 import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
-import { kandidatName, seiteMitLeveln } from '../tools/leveldaten.mjs';
+import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../tools/leveldaten.mjs';
 
 const {
   VERSION, VERSIONS, FINGERPRINT, AGENT, fingerprint, GRADES, PROVISIONAL_GRADES, MAX_SHIFT, reference, levelAt,
   loadAnchors, gradesIn, SCHEMA, glossary, rejectionTerms, brief, answerErrors, merge, entry, protocolErrors,
+  WUERFEL_VERSION, WUERFEL_FINGERPRINT, WUERFEL_FINGERPRINTS, WUERFEL_IM_SPIEL, fingerprintWuerfel, loadAnchorsWuerfel,
+  referenceWuerfel, schemaFor, schemaOf, placings,
 } = protocol;
+const WUERFEL_ANKER = JSON.parse(readFileSync(new URL('../tools/ki-tester/anchors-wuerfel.json', import.meta.url),
+  'utf8')).versionen;
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const protocolFile = process.argv[2] || join(root, 'tools', 'ki-tester', 'protocol.jsonl');
 
@@ -322,8 +330,9 @@ test(`Das versionierte Protokoll ist gültig (${protocolFile.replace(root, '.')}
   const per = Object.keys(VERSIONS).map(v => `Ablauf ${v}: ${entries.filter(e => e.ablauf === v).length}`);
   console.log(`        ${entries.length} Einträge (${per.join(', ')})`);
 });
-test('Versionen: die aktuelle mit ihrem Fingerabdruck, Ablauf 1 als Geschichte', () => {
-  assert.deepEqual(Object.keys(VERSIONS), ['1', '2']);
+test('Versionen: die aktuelle mit ihrem Fingerabdruck, Ablauf 1 als Geschichte, dazu die des Würfels', () => {
+  assert.deepEqual(Object.keys(VERSIONS), ['1', '2', ...Object.keys(WUERFEL_ANKER)]);
+  assert.deepEqual(Object.keys(VERSIONS).filter(v => VERSIONS[v].wuerfel), Object.keys(WUERFEL_ANKER));
   assert.equal(VERSIONS[VERSION].fingerabdruck, FINGERPRINT);
   assert.deepEqual([VERSIONS[1].referenz, VERSIONS[2].referenz], ['heutige Reihenfolge', 'Reihenfolge im Spiel']);
   assert.equal(valid().referenz.art, VERSIONS[VERSION].referenz);
@@ -501,6 +510,281 @@ test('prepare.mjs --kandidaten mit Vorschau (Ausbau): Plätze, Grade, Referenz u
     } finally {
       rmSync(dir, { recursive: true, force: true });
       rmSync(dirname(datei), { recursive: true, force: true });
+    }
+  });
+
+console.log('Würfel: Feld als Text');
+const VORSCHAU_DATEI = join(root, 'tests', 'ki-tester', 'wuerfel-vorschau.json');
+const VORSCHAU = JSON.parse(readFileSync(VORSCHAU_DATEI, 'utf8'));
+const WUERFEL_KANDIDATEN = VORSCHAU.filter(x => x.level);
+const WUERFEL_LEVEL = [...WUERFEL_IM_SPIEL, ...WUERFEL_KANDIDATEN.map(x => x.level)];
+const AXIS_TEXT = { y: 'Achse y (senkrecht)', x: 'Achse x (West–Ost)', z: 'Achse z (Nord–Süd)' };
+test('Würfel: kennt weder Lösung noch Name noch Grad, nennt jedes Element mit Zelle (x,y,z) und Achse', () => {
+  for (const lvl of WUERFEL_LEVEL) {
+    const text = fieldText(lvl, 'L1'), wo = lvl.name;
+    assert.equal(fieldText({ ...lvl, solution: undefined }, 'L1'), text, `${wo}: hängt von der Lösung ab`);
+    assert.equal(fieldText({ ...lvl, name: 'Anders', grad: 'sehr schwer' }, 'L1'), text, `${wo}: Name oder Grad`);
+    assert.ok(!text.includes(lvl.name), `${wo}: Name verrät das Level`);
+    assert.match(text, /^Würfel 7 × 7 × 7 auf einer Plattform\. Jede Zelle hat drei Koordinaten \(x,y,z\)/m);
+    for (const e of lvl.elements) {
+      const line = text.split('\n').find(l => l.startsWith(`- (${e.x},${e.y},${e.z}) `));
+      assert.ok(line, `${wo}: (${e.x},${e.y},${e.z}) fehlt unter Elemente`);
+      if (['mirror', 'prism', 'combiner', 'source'].includes(e.type)) {
+        assert.ok(line.includes(AXIS_TEXT[e.axis || 'y']), `${wo}: Achse fehlt in ${line}`);
+      }
+    }
+    // Ebene für Ebene: jede Ebene einmal, eine leere in einer Zeile
+    for (let y = 0; y < 7; y++) {
+      const leer = !lvl.elements.some(e => e.y === y);
+      assert.equal(text.split('\n').filter(l => l.startsWith(`Ebene y=${y}`)).length, 1, `${wo}: Ebene ${y}`);
+      assert.equal(new RegExp(`^Ebene y=${y}[^\\n]*: leer$`, 'm').test(text), leer, `${wo}: Ebene ${y} leer?`);
+    }
+    // je Abschnitt des Lichts eine Zeile
+    const r = L.traceBeams(L.createBoard(lvl));
+    const licht = text.slice(text.indexOf('## Licht'), text.indexOf('\nZiele:')).split('\n')
+      .filter(l => l.startsWith('- '));
+    assert.equal(licht.length, r.segments.length || 1, `${wo}: Abschnitte des Lichts`);
+  }
+});
+test('Würfel: Licht in drei Koordinaten, die Richtungen als Wörter, Enden auf der Plattform und am Rand', () => {
+  const aufzug = fieldText(WUERFEL_IM_SPIEL.find(l => l.name === 'Aufzug'), 'A1');
+  assert.ok(aufzug.includes('- weiss von (0,0,3) nach Ost bis (3,0,3), Spiegel lenkt um\n'), 'Aufzug, Spiegel');
+  assert.ok(aufzug.includes('- weiss von (3,0,3) nach unten, endet auf der Plattform\n'), 'Aufzug, Plattform');
+  assert.ok(aufzug.includes('- (3,3,3) Prisma, drehbar, Achse x (West–Ost), Farbfächer nach Süd (weisses Licht: '
+    + 'Rot nach Süd und unten, Grün nach Süd, Blau nach Süd und oben)'), 'Aufzug, Prisma');
+  assert.ok(aufzug.includes('- (3,0,3) Spiegel, drehbar, Achse z (Nord–Süd), Fläche durch die Achse (Nord–Süd) und '
+    + 'West oben–Ost unten'), 'Aufzug, Spiegel');
+  const kern = fieldText(WUERFEL_IM_SPIEL.find(l => l.name === 'Kern'), 'A2');
+  assert.ok(kern.includes('- rot von (4,6,6) nach West und unten bis (1,3,6), trifft das Ziel\n'), 'Kern, schräg');
+  assert.ok(kern.includes('- blau von (4,6,6) nach West und oben, verlässt den Würfel\n'), 'Kern, oben hinaus');
+  assert.ok(kern.includes('- (1,3,6) grün: bekommt rot, falsche Farbe'), 'Kern, Ziel');
+  // floor nach einigen Schritten schräg nach unten, edge nach einigen Schritten seitlich
+  const probe = { name: 'Probe', dim: 3, size: 7, elements: [
+    { type: 'source', x: 0, y: 3, z: 3, axis: 'z', dir: 1 },
+    { type: 'source', x: 2, y: 5, z: 0, dir: 2, color: 'blue' },
+    { type: 'prism', x: 2, y: 5, z: 4, axis: 'x', rot: 0 },
+    { type: 'target', x: 6, y: 6, z: 6, color: 'red' },
+  ], solution: {} };
+  const text = fieldText(probe, 'L1');
+  assert.ok(text.includes('- weiss von (0,3,3) nach Ost und unten bis (3,0,3), endet auf der Plattform\n'), 'floor');
+  assert.ok(text.includes('- blau von (2,5,4) nach Süd und oben bis (2,6,5), verlässt den Würfel\n'), 'edge');
+  assert.ok(text.includes('- (0,3,3) Quelle weiss, Achse z (Nord–Süd), strahlt nach Ost und unten'), 'Quelle');
+  assert.match(text, /^Ebene y=1: leer$/m);
+});
+test('Würfel: Die flache Ausgabe hängt nicht vom Würfel ab (Felder ohne dim wie bisher)', () => {
+  const flat = L.LEVELS[L.TUTORIAL_COUNT];
+  assert.ok(!fieldText(flat, 'L1').includes('Würfel') && fieldText(flat, 'L1').startsWith('# Level L1\n\nFeld 7 × 7.'));
+});
+
+console.log('Würfel: Versionen, Anker, Auftrag');
+test(`Würfel-Version ${WUERFEL_VERSION}: alles, was die KI-Tester im Würfel sehen, ist unverändert (Fingerabdruck)`,
+  () => {
+  assert.equal(fingerprintWuerfel(), WUERFEL_FINGERPRINT, 'Auftrag, Würfel-Anker, Schema, Glossar oder Feld eines '
+    + 'Würfel-Ankers geändert: neue Version in anchors-wuerfel.json und WUERFEL_FINGERPRINTS in protocol.mjs');
+  assert.equal(WUERFEL_VERSION, Object.keys(WUERFEL_ANKER).at(-1), 'die letzte Version ist die aktuelle');
+  for (const v of Object.keys(WUERFEL_ANKER)) {
+    assert.match(v, /^W[1-9][0-9]*$/, v);
+    assert.ok(/^[0-9a-f]{16}$/.test(WUERFEL_FINGERPRINTS[v]), `${v}: Fingerabdruck fehlt`);
+    assert.equal(VERSIONS[v].fingerabdruck, WUERFEL_FINGERPRINTS[v], v);
+    assert.deepEqual(VERSIONS[v].kennungen, WUERFEL_ANKER[v].anker.map(a => a.id), v);
+  }
+  // der Fingerabdruck der flachen Version hängt nicht am Würfel
+  assert.equal(fingerprint(), FINGERPRINT);
+  assert.notEqual(WUERFEL_FINGERPRINT, FINGERPRINT);
+});
+test('Würfel-Anker: in eigener Datei mit Namen, Kennungen A1 … An, Würfel-Level im Spiel, nach Platz geordnet', () => {
+  for (const [v, w] of Object.entries(WUERFEL_ANKER)) {
+    assert.deepEqual(w.anker.map(a => a.id), w.anker.map((_, k) => `A${k + 1}`), v);
+    assert.equal(new Set(w.anker.map(a => a.name)).size, w.anker.length, `${v}: Namen doppelt`);
+    for (const a of w.anker) {
+      assert.ok(['leicht', 'mittel', 'schwer', 'sehr schwer'].includes(a.grad), `${v} ${a.id}: Grad`);
+      assert.ok([null, 'unten', 'oben'].includes(a.ende), `${v} ${a.id}: Ende`);
+      assert.ok(a.begruendung.length > 40, `${v} ${a.id}: Begründung fehlt`);
+    }
+  }
+  // die aktuelle Auswahl steht im Spiel, als Würfel-Level; W1: die zwei handgebauten (Entscheid des Koordinators)
+  const anchors = loadAnchorsWuerfel();
+  assert.ok(anchors.every(a => WUERFEL_IM_SPIEL[a.position - 1].dim === 3));
+  assert.deepEqual(WUERFEL_ANKER.W1.anker.map(a => [a.id, a.name, a.grad]), [['A1', 'Aufzug', 'leicht'],
+    ['A2', 'Kern', 'leicht']]);
+  // in der Vorschau nach Platz geordnet und im Grad ihres Platzes
+  const reihe = [...VORSCHAU].sort((a, b) => a.platz - b.platz)
+    .map(x => ({ name: x.kandidat ?? x.name, grad: x.grad }));
+  const imVorschau = loadAnchorsWuerfel(reihe);
+  assert.deepEqual(imVorschau.map(a => a.position), [2, 4]);
+  for (const a of imVorschau) assert.equal(reihe[a.position - 1].grad, a.grad, a.id);
+});
+test('Würfel: Schema mit den Einordnungen der Anker, sonst wie answer.schema.json', () => {
+  assert.deepEqual(placings(['A1', 'A2']), ['<A1', 'A1', 'A1-A2', 'A2', '>A2']);
+  assert.deepEqual(placings(loadAnchors().map(a => a.id)), SCHEMA.properties.einordnung.enum, 'flach');
+  const s = schemaOf(WUERFEL_VERSION), ids = VERSIONS[WUERFEL_VERSION].kennungen;
+  assert.deepEqual(s.properties.einordnung.enum, placings(ids));
+  assert.equal(schemaOf(VERSION), SCHEMA);
+  const ohne = (x) => {
+    const c = structuredClone(x);
+    delete c.properties.level; delete c.properties.einordnung;
+    return c;
+  };
+  assert.deepEqual(ohne(s), ohne(SCHEMA), 'übrige Felder gleich');
+  const errors = (a, level = LEVEL) => answerErrors(answer(a), level, s);
+  for (const e of ['<A1', 'A1', 'A1-A2', 'A2', '>A2']) assert.deepEqual(errors({ einordnung: e }), [], e);
+  for (const e of ['A2-A3', 'A3', '>A8']) assert.notDeepEqual(errors({ einordnung: e }), [], e);
+  assert.notDeepEqual(errors({ level: 'A3', einordnung: 'A2' }, { id: 'A3', anker: 'A3' }), [], 'Kennung A3');
+  assert.deepEqual(schemaFor(['A1', 'A2']), s);
+});
+test('Würfel: Auftrag aus brief-wuerfel.md, alles eingesetzt, Anker ohne Namen, vier Bilder je Level', () => {
+  const text = brief({ tester: 'A', lauf: 'wuerfel-test', wuerfel: true, eingabe: 'x/eingabe',
+    ausgabe: 'x/antwort-A/urteile.json', levels: [{ id: 'L1', anker: null }, { id: 'A2', anker: 'A2' }] });
+  assert.ok(!/\{\{|\}\}|<!--/.test(text), 'Platzhalter oder Vorlagen übrig');
+  assert.ok(text.startsWith(`# Auftrag an KI-Tester A (Lauf wuerfel-test, Ablauf ${WUERFEL_VERSION})`));
+  assert.ok(text.includes('## Das Spiel im Würfel') && text.includes('Drehachse'));
+  for (const a of loadAnchorsWuerfel()) {
+    const ende = a.ende ? `, ${a.ende === 'unten' ? 'unteres' : 'oberes'} Ende des Grads` : '';
+    assert.ok(text.includes(`- **${a.id}**: ${a.grad}${ende}. `), a.id);
+    // als Wort: „Kern“ steckt in „Kernidee“
+    assert.ok(!new RegExp(`(^|\\P{L})${a.name}(\\P{L}|$)`, 'u').test(text), `${a.name}: Name verrät den Anker`);
+  }
+  assert.ok(text.includes('genau einer dieser Werte: `"<A1"`, `"A1"`, `"A1-A2"`, `"A2"`, `">A2"`'));
+  assert.ok(text.includes('1. **L1**: `L1.md`, `bilder/L1-desktop.png`, `bilder/L1-desktop-oben.png`, '
+    + '`bilder/L1-desktop-seite.png`, `bilder/L1-handy.png`'));
+  assert.ok(text.includes(glossary().replace(/^## /gm, '### ')), 'Glossar fehlt');
+  // „Was Spass verdirbt“ und die Regel des Ablehnens wie im flachen Auftrag
+  const flach = brief({ tester: 'A', lauf: 'x', eingabe: 'x', ausgabe: 'y', levels: [] });
+  const regel = (t) => t.slice(t.indexOf('- `ablehnung`'), t.indexOf('es kommt dann nicht ins Spiel.'));
+  assert.equal(regel(text), regel(flach));
+});
+
+console.log('Würfel: Protokoll');
+const W_ANKER = { A1: 2, A2: 4 };
+// erfundene Würfel-Reihenfolge: leicht 1–4, mittel 5–30
+const wReferenz = (position) => ({ art: 'Reihenfolge der Würfel', position, grad: position <= 4 ? 'leicht' : 'mittel',
+  von: position <= 4 ? 1 : 5, bis: position <= 4 ? 4 : 30 });
+const wValid = (over = {}) => entry({
+  datum: '2026-10-24', ablauf: WUERFEL_VERSION, lauf: 'wuerfel-1', agent: AGENT, level: LEVEL, referenz: wReferenz(10),
+  anker: { ...W_ANKER },
+  urteile: { A: answer({ einordnung: '>A2' }), B: answer({ einordnung: '>A2', ablehnung: ['Knäuel'] }) },
+  ...over,
+});
+test('Ein Würfel-Eintrag ist gültig: Version W…, Lauf wuerfel-…, Referenz in der Reihenfolge der Würfel', () => {
+  const e = wValid();
+  assert.deepEqual(protocolErrors(line(e)), []);
+  assert.deepEqual([e.ablauf, e.referenz.art, e.ergebnis.verschiebung, e.ergebnis.abgelehnt], [WUERFEL_VERSION,
+    'Reihenfolge der Würfel', 0, false]);
+  assert.deepEqual(referenceWuerfel(2, VORSCHAU.map(x => ({ name: x.name, grad: x.grad }))),
+    { art: 'Reihenfolge der Würfel', position: 2, grad: 'leicht', von: 1, bis: 4 });
+});
+test('Würfel: Zusammenführen mit zwei Ankern, höchstens 5 Plätze, nie über eine Gradgrenze', () => {
+  const both = (a, b, position) => merge({ level: LEVEL, referenz: wReferenz(position), anker: W_ANKER,
+    urteile: { A: answer({ einordnung: a }), B: answer({ einordnung: b }) } }).ergebnis;
+  assert.equal(both('>A2', '>A2', 20).verschiebung, 0, 'mittel ist schwerer als A2');
+  // von 3 aus wollen beide über A2 hinaus (ab 5), leicht endet bei 4: +1, an A2 vorbei
+  assert.deepEqual([both('>A2', '>A2', 3).verschiebung, both('>A2', '>A2', 3).position], [1, 4]);
+  assert.equal(both('<A1', 'A1', 4).verschiebung, -1, 'A1 heisst 1–3, <A1 Platz 1');
+  assert.equal(both('A1-A2', 'A1-A2', 12).verschiebung, -5, 'mittel beginnt bei 5, höchstens 5 Plätze');
+  assert.equal(both('A1-A2', '>A2', 12).verschiebung, 0, 'nur gemeinsam');
+});
+const wGegenproben = [
+  ['Würfel-Ablauf in einem flachen Lauf', (e) => { e.lauf = 'ausbau-1'; },
+    /Würfel-Ablauf W1 in einem Lauf ohne wuerfel-/],
+  ['flacher Ablauf in einem Würfel-Lauf', (e) => { e.ablauf = '2'; e.referenz.art = 'Reihenfolge im Spiel'; },
+    /Lauf wuerfel-1 mit dem flachen Ablauf 2/],
+  ['Würfel mit der Referenz der flachen Level', (e) => { e.referenz.art = 'Reihenfolge im Spiel'; },
+    /Referenz nicht die von Ablauf W1 \(Reihenfolge der Würfel\)/],
+  ['Einordnung zu einem Anker, den es im Würfel nicht gibt', (e) => { e.urteile.A.einordnung = 'A3-A4'; },
+    /einordnung: "A3-A4" ist nicht erlaubt/],
+  ['Plätze der Würfel-Anker fehlen', (e) => { delete e.anker.A2; }, /Plätze der Anker fehlen/],
+  ['Würfel-Anker verschoben', (e) => {
+    e.level = { id: 'A2', name: 'Kern', anker: 'A2' }; e.referenz = wReferenz(4);
+    for (const t of ['A', 'B']) Object.assign(e.urteile[t], { level: 'A2', einordnung: 'A2', ablehnung: [] });
+    e.ergebnis = { abgelehnt: false, gruende: [], verschiebung: -1, position: 3 };
+  }, /Anker A2 verschoben/],
+];
+for (const [name, spoil, expected] of wGegenproben) {
+  test(`Würfel-Gegenprobe: ${name}`, () => {
+    const bad = wValid();
+    spoil(bad);
+    const errors = protocolErrors(readFileSync(protocolFile, 'utf8') + line(bad));
+    assert.ok(errors.some(m => expected.test(m)), `erwartet ${expected}, gemeldet: ${errors.join(' | ') || 'nichts'}`);
+  });
+}
+test('Würfel: Ein flacher Eintrag in einem Lauf wuerfel-… ist ungültig, die flachen Einträge bleiben gültig', () => {
+  const e = valid();
+  e.lauf = 'wuerfel-test';
+  assert.ok(protocolErrors(line(e)).some(m => /mit dem flachen Ablauf 2/.test(m)));
+  const flach = readFileSync(protocolFile, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l))
+    .filter(x => !VERSIONS[x.ablauf]?.wuerfel);
+  assert.deepEqual(protocolErrors(flach.map(line).join('')), []);
+});
+
+console.log('Würfel: Kandidaten (Vorschau, Seite)');
+test('Seite mit Würfel-Kandidaten: <base> und die Kandidaten am Ende von LEVELS_3D, sonst wie index.html', () => {
+  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
+  const neu = WUERFEL_KANDIDATEN.map(x => x.level);
+  const seite = seiteMitWuerfeln(html, neu, basis);
+  const logik = (h) => new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
+    return { LEVELS, LEVELS_3D };`)();
+  const vorher = logik(html), nachher = logik(seite);
+  assert.deepEqual(nachher.LEVELS, vorher.LEVELS, 'flache Level unverändert');
+  assert.deepEqual(nachher.LEVELS_3D, [...vorher.LEVELS_3D, ...neu]);
+  const ohne = seite.replace(/\r?\n<base href="[^"]+">/, '');
+  const nl = html.includes('\r\n') ? '\r\n' : '\n';
+  const ende = html.indexOf(`${nl}];`, html.indexOf('const LEVELS_3D = [')) + nl.length;
+  assert.ok(ohne.startsWith(html.slice(0, ende)) && ohne.endsWith(html.slice(ende)), 'sonst gleich');
+});
+test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, Referenz und Anker in der Vorschau',
+  () => {
+    const lauf = `wuerfel-test-${process.pid}`, dir = join(root, 'tests', 'output', 'ki-tester', lauf);
+    const run = (name, datei = VORSCHAU_DATEI, ...mehr) => spawnSync(process.execPath, [join(root, 'tools',
+      'ki-tester', 'prepare.mjs'), name, '--kandidaten', datei, '--ohne-bilder', ...mehr], { encoding: 'utf8' });
+    const tmp = mkdtempSync(join(tmpdir(), 'prisma-wuerfel-'));
+    try {
+      const p = run(lauf, VORSCHAU_DATEI, '--anker');
+      assert.equal(p.status, 0, p.stderr);
+      const lj = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
+      assert.deepEqual([lj.ablauf, lj.fingerabdruck, lj.wuerfel, lj.referenz], [WUERFEL_VERSION, WUERFEL_FINGERPRINT,
+        true, 'Reihenfolge der Würfel']);
+      assert.deepEqual(lj.anker, { A1: 2, A2: 4 });
+      const reihe = [...VORSCHAU].sort((a, b) => a.platz - b.platz).map(x => ({ name: x.kandidat ?? x.name,
+        grad: x.grad }));
+      assert.deepEqual(lj.level.filter(l => l.anker).map(l => [l.id, l.name, l.position]), [['A1', 'Aufzug', 2],
+        ['A2', 'Kern', 4]]);
+      assert.equal(lj.level.length, 2 + WUERFEL_KANDIDATEN.length);
+      for (const x of WUERFEL_KANDIDATEN) {
+        const l = lj.level.find(y => y.name === x.kandidat);
+        assert.ok(l, `${x.kandidat} fehlt`);
+        assert.deepEqual([l.position, l.grad, l.kandidat], [x.platz, x.grad, true]);
+        assert.deepEqual(l.referenz, referenceWuerfel(x.platz, reihe));
+        assert.equal(readFileSync(join(dir, 'eingabe', `${l.id}.md`), 'utf8'), fieldText(x.level, l.id));
+      }
+      for (const a of loadAnchorsWuerfel()) {
+        assert.equal(readFileSync(join(dir, 'eingabe', `${a.id}.md`), 'utf8'),
+          fieldText(WUERFEL_IM_SPIEL[a.position - 1], a.id));
+      }
+      assert.deepEqual(JSON.parse(readFileSync(join(dir, 'eingabe', 'answer.schema.json'), 'utf8')),
+        schemaOf(WUERFEL_VERSION));
+      const auftrag = readFileSync(join(dir, 'auftrag-B.md'), 'utf8');
+      assert.ok(auftrag.includes('## Das Spiel im Würfel') && !auftrag.includes('Kandidat'), 'Auftrag');
+      // Die Seite für die Bilder: die Kandidaten unter ihrem Namen am Ende von LEVELS_3D, nach Kennung
+      const ids = lj.level.filter(l => l.kandidat).map(l => l.id).sort();
+      const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
+      assert.equal(seite, seiteMitWuerfeln(readFileSync(join(root, 'index.html'), 'utf8'), ids.map((id) => {
+        const name = lj.level.find(l => l.id === id).name;
+        return { ...WUERFEL_KANDIDATEN.find(x => x.kandidat === name).level, name };
+      }), pathToFileURL(root).href + '/'));
+      // Abgewiesen: Würfel-Vorschau in einem flachen Lauf, flache Liste in einem Würfel-Lauf, falscher Grad
+      rmSync(dir, { recursive: true, force: true });
+      const flach = run(`test-flach-${process.pid}`);
+      assert.notEqual(flach.status, 0);
+      assert.match(flach.stderr, /Würfel-Vorschau nur in einem Lauf wuerfel-/);
+      const falsch = join(tmp, 'falsch.json');
+      writeFileSync(falsch, JSON.stringify(VORSCHAU.map(x => ({ ...x, wuerfel: undefined }))));
+      assert.match(run(lauf, falsch).stderr, /keine Würfel-Vorschau/);
+      writeFileSync(falsch, JSON.stringify(VORSCHAU.map(x => (x.platz === 1 ? { ...x, level: { ...x.level,
+        grad: 'mittel' } } : x))));
+      assert.match(run(lauf, falsch).stderr, /Grad mittel, auf Platz 1 gilt leicht/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+      rmSync(tmp, { recursive: true, force: true });
     }
   });
 
