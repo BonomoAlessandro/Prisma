@@ -105,7 +105,7 @@ const WUERFEL_ANKER = JSON.parse(read('./anchors-wuerfel.json')).versionen;
  * Fingerabdruck je Version des Würfel-Ablaufs (fingerprintWuerfel). Eine neue Version in anchors-wuerfel.json braucht
  * hier ihren Eintrag; die früheren bleiben stehen.
  */
-export const WUERFEL_FINGERPRINTS = { W1: 'b3600cb3e01e6cf0' };
+export const WUERFEL_FINGERPRINTS = { W1: 'b3600cb3e01e6cf0', W2: '01abed404f7b79b8' };
 export const WUERFEL_VERSION = Object.keys(WUERFEL_ANKER).at(-1);
 export const WUERFEL_FINGERPRINT = WUERFEL_FINGERPRINTS[WUERFEL_VERSION];
 /**

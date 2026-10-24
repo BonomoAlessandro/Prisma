@@ -19,6 +19,67 @@
           "begruendung": "Handgebaut, Schwierigkeit 39,4, Kernidee Mischziel aus zwei Quellen: Rot von unten hinten und Blau aus einem Prisma oben vorne treffen sich als Magenta in der Würfelmitte, 5 drehbare Elemente mit Achse x und z."
         }
       ]
+    },
+    "W2": {
+      "hinweis": "Entscheid des Koordinators vom 24.10.2026 (Ticket 03 der Würfel-Level): nach Gruppe 1 je Grad zwei Würfel-Level als Anker, eines am unteren und eines am oberen Ende des Grads in der Reihenfolge der Würfel-Level (27 Level). Gewählt sind Level, die die KI-Tester nicht verschoben haben (Treppenhaus −4 und Dachfenster +2 sind darum keine Anker). In „sehr schwer“ gibt es erst zwei Level, beide sind Anker.",
+      "anker": [
+        {
+          "id": "A1",
+          "name": "Bauklotz",
+          "grad": "leicht",
+          "ende": "unten",
+          "begruendung": "Platz 1, das leichteste Würfel-Level (Schwierigkeit 15,4; Platz 2 Aufzug 20,5), ohne Kernidee. Beide KI-Tester: Gefühl 3, Einordnung A1."
+        },
+        {
+          "id": "A2",
+          "name": "Kern",
+          "grad": "leicht",
+          "ende": "oben",
+          "begruendung": "Platz 7, das letzte leichte Level (Schwierigkeit 39,4; die Schwelle von mittel liegt bei 43), handgebaut, Kernidee Mischziel aus zwei Quellen. War schon Anker in W1."
+        },
+        {
+          "id": "A3",
+          "name": "Galerie",
+          "grad": "mittel",
+          "ende": "unten",
+          "begruendung": "Schwierigkeit 43,2, das leichteste mittlere Level nach der Formel (Platz 9; Platz 8 Treppenhaus ist von den KI-Testern verschoben). Kernidee Abschalten. Beide KI-Tester: Gefühl 4."
+        },
+        {
+          "id": "A4",
+          "name": "Laubengang",
+          "grad": "mittel",
+          "ende": "oben",
+          "begruendung": "Platz 20, das letzte mittlere Level (Schwierigkeit 58,2; die Schwelle von schwer liegt bei 58,5). Kernidee Sammelstelle. KI-Tester: Gefühl 4 und 5."
+        },
+        {
+          "id": "A5",
+          "name": "Zitadelle",
+          "grad": "schwer",
+          "ende": "unten",
+          "begruendung": "Platz 21, das erste schwere Level (Schwierigkeit 60,8). Kernidee Sammelstelle. KI-Tester: Gefühl 5 und 4."
+        },
+        {
+          "id": "A6",
+          "name": "Basilika",
+          "grad": "schwer",
+          "ende": "oben",
+          "begruendung": "Platz 25, das letzte schwere Level (Schwierigkeit 81,9; die Schwelle von sehr schwer liegt bei 87). Kernidee Abschalten. Beide KI-Tester: Gefühl 5."
+        },
+        {
+          "id": "A7",
+          "name": "Hyperwürfel",
+          "grad": "sehr schwer",
+          "ende": "unten",
+          "begruendung": "Platz 26, Schwierigkeit 88,8, Kernidee Sammelstelle. Eines von zwei sehr schweren Leveln; KI-Tester A lehnte es wegen Knäuel ab, B nicht; es bleibt, weil nur beide zusammen ablehnen (Gefühl 3 und 4). Ohne Alternative im Grad."
+        },
+        {
+          "id": "A8",
+          "name": "Tesserakt",
+          "grad": "sehr schwer",
+          "ende": "oben",
+          "begruendung": "Platz 27, das schwerste Würfel-Level (Schwierigkeit 93,5), Kernidee Mischziel aus zwei Quellen. Beide KI-Tester: Gefühl 4."
+        }
+      ]
     }
   }
 }

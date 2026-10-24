@@ -12,11 +12,12 @@
 //   KI-Tester aus einem Lauf wuerfel-…; für die Reihenfolge: keine Häufung der Haupt-Kernidee offen, das Mittel je 10
 //   Level fällt nicht, der Grad sinkt nie.
 // Aufruf: sh tools/leise.sh node tools/ordne-wuerfel.mjs [--kandidaten <datei>] [--schreiben] [--json <datei>]
-//   --kandidaten: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit }, etwa
+//   --kandidaten: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit, stand }, etwa
 //                 die Ausgabe von tools/wuerfel.mjs wahl: neue Würfel-Level (level wie in LEVELS_3D), name der
 //                 vergebene Name; ohne name heisst es wie bei den KI-Testern „Kandidat <Abdruck>“ (kandidatName in
-//                 leveldaten.mjs). auftrag, seed und schwierigkeit (Ziel-Schwierigkeit [von, bis]) sind wahlweise und
-//                 stehen als Herkunft im Kommentar des Levels, damit ausbau.mjs pool … --wuerfel es nachbaut.
+//                 leveldaten.mjs). auftrag, seed, schwierigkeit (Ziel-Schwierigkeit [von, bis]) und stand (der Commit,
+//                 mit dem der Pool gebaut ist) sind wahlweise und stehen als Herkunft im Kommentar des Levels, damit
+//                 ausbau.mjs pool … --wuerfel es auf diesem Stand nachbaut.
 //   --schreiben:  ordnet die Würfel-Level in index.html und setzt ihren Grad; die Kandidaten kommen mit ihrem Namen
 //                 dazu (levelCode in leveldaten.mjs). Nur wenn alle Prüfungen oben bestehen, also jeder Kandidat einen
 //                 Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
@@ -191,7 +192,7 @@ function schreibeWuerfel() {
   for (const k of kandidaten) {
     // Herkunft im Kommentar, so dass ausbau.mjs pool … --wuerfel das Level nachbaut
     const teile = [k.seed !== null && `Seed ${k.seed}`, k.schwierigkeit && `Ziel ${k.schwierigkeit.map(x => zahl(x))
-      .join('–')}`].filter(Boolean);
+      .join('–')}`, k.stand && `Stand ${k.stand}`].filter(Boolean);
     const herkunft = k.auftrag ? `Generator ${[k.auftrag, ...teile].join(', ')} · ` : '';
     const kommentar = [`${herkunft}Würfel „${r.grad[levels.indexOf(k.level)]}“`];
     bloecke.set(k.level.name, levelCode(k.level, kommentar).split('\n'));

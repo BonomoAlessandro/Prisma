@@ -5,6 +5,7 @@
 // Leveldaten als Text (tools/leveldaten.mjs) für Würfel-Level.
 // Aufruf: node tests/wuerfelliste.test.mjs   (über leise.sh; beurteilt die Würfel-Level einmal mit ihrem Grad)
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { L, solve, period, keyOf } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
@@ -27,6 +28,9 @@ process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
 const W = L.LEVELS_3D;
 const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const commitDa = (x) => {
+  try { execFileSync('git', ['cat-file', '-e', `${x}^{commit}`], { stdio: 'ignore' }); return true; } catch { return false; }
+};
 
 console.log('Würfel-Level im Spiel');
 const b = await beurteileAlle(W.map(level => ({ level, opts: { grad: level.grad ?? null, teuer: true } })));
@@ -78,12 +82,15 @@ await test('Namen eindeutig über flache und Würfel-Level, keiner von der Liste
   assert.deepEqual(namen.filter((x, k) => namen.indexOf(x) !== k), []);
   assert.deepEqual(W.map(l => l.name).filter(x => entfernt.includes(x)), []);
 });
-await test('Ausser den handgebauten: Urteil der KI-Tester (wuerfel-…) und Herkunft im Kommentar', () => {
+await test('Ausser den handgebauten: Urteil der KI-Tester (wuerfel-…) und Herkunft mit Stand des Codes', () => {
   const neu = W.flatMap((l, i) => (HANDGEBAUT.includes(l.name) ? [] : [i]));
   assert.deepEqual(neu.filter(i => !r.ki.has(i)).map(i => W[i].name), [], 'ohne Urteil');
-  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)? · Würfel „[a-z ]+“`
-    + `\\r?\\n {4}name: '${name}', dim: 3`);
+  // Stand: der Commit, mit dem ausbau.mjs pool … --wuerfel das Level aus dem Seed baut (mit „+“ nicht nachbaubar)
+  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7} `
+    + `· Würfel „[a-z ]+“\\r?\\n {4}name: '${name}', dim: 3`);
   assert.deepEqual(neu.filter(i => !herkunft(W[i].name).test(html)).map(i => W[i].name), [], 'Herkunft');
+  const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7}) · Würfel/g)].map(m => m[1]))];
+  assert.deepEqual(staende.filter(x => !commitDa(x)), [], 'Stand ist kein Commit');
   assert.deepEqual(W.filter(l => !HANDGEBAUT.includes(l.name) && l.hint).map(l => l.name), [], 'Hinweis nur handgebaut');
 });
 

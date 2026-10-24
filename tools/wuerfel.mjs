@@ -171,7 +171,8 @@ async function wahl() {
   }
 
   writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed,
-    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), level: k.level })), null, 1) + '\n');
+    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), ...(k.stand ? { stand: k.stand } : {}), level: k.level })), null, 1)
+    + '\n');
   const je = Object.fromEntries(GRADE.map(g => [g, gewaehlt.filter(k => k.grad === g).length]));
   console.log(`Gruppe ${gruppe}: ${gewaehlt.length} Level gewählt (${GRADE.map(g => je[g]).join(' / ')}; gesetzt `
     + `${gesetzt.length}), Bestand danach ${GRADE.map(g => im[g] + je[g]).join(' / ')}, Ziel `

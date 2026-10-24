@@ -2,9 +2,11 @@
 // und Grade in der Reihenfolge im Spiel, die Anker, das Feld als Text, den Auftrag samt Fingerabdruck der Eingaben und
 // das versionierte Protokoll mit den Einträgen aller Versionen.
 // Dazu der Würfel (.scratch/wuerfel-500/): Feld als Text im Würfel, eigene Versionen mit eigenen Ankern und
-// Fingerabdruck, Einträge im Protokoll, die Seite mit Würfel-Kandidaten und prepare.mjs mit einer Würfel-Vorschau
-// (tests/ki-tester/wuerfel-vorschau.json: Aufzug, Kern und drei Kandidaten aus dem Generator, Seeds 1 und 2 leicht,
-// Seed 1 mittel mit Mischziel aus zwei Quellen).
+// Fingerabdruck, Einträge im Protokoll, die Seite mit Würfel-Kandidaten und prepare.mjs mit einer Würfel-Vorschau.
+// Die Vorschau baut der Test aus den Würfel-Leveln im Spiel und drei Kandidaten aus dem Generator
+// (tests/ki-tester/wuerfel-kandidaten.json: Seeds 1 und 2 leicht, Seed 1 mittel mit Mischziel aus zwei Quellen), damit
+// sie die Anker jeder Würfel-Version enthält. Was die Form einer Version braucht (zwei Anker, erfundene Einträge,
+// Gegenproben), prüft er fest mit W1; was die aktuelle betrifft, mit WUERFEL_VERSION und loadAnchorsWuerfel().
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync, writeFileSync } from 'node:fs';
@@ -514,9 +516,23 @@ test('prepare.mjs --kandidaten mit Vorschau (Ausbau): Plätze, Grade, Referenz u
   });
 
 console.log('Würfel: Feld als Text');
-const VORSCHAU_DATEI = join(root, 'tests', 'ki-tester', 'wuerfel-vorschau.json');
-const VORSCHAU = JSON.parse(readFileSync(VORSCHAU_DATEI, 'utf8'));
+// Die Würfel-Vorschau in der Form von ordne-wuerfel.mjs --json: die Würfel-Level im Spiel in ihrer Reihenfolge, jeder
+// Kandidat hinter dem letzten Level seines Grads (oder eines leichteren), damit der Grad nie sinkt
+const GRAD_RANG = ['leicht', 'mittel', 'schwer', 'sehr schwer'];
+const VORSCHAU = (() => {
+  const reihe = WUERFEL_IM_SPIEL.map(l => ({ name: l.name, grad: l.grad, wuerfel: true }));
+  const kandidaten = JSON.parse(readFileSync(join(root, 'tests', 'ki-tester', 'wuerfel-kandidaten.json'), 'utf8'));
+  for (const k of kandidaten) {
+    const rang = GRAD_RANG.indexOf(k.level.grad);
+    const hinter = reihe.findLastIndex(x => GRAD_RANG.indexOf(x.grad) <= rang);
+    reihe.splice(hinter + 1, 0, { name: k.kandidat, grad: k.level.grad, wuerfel: true, kandidat: k.kandidat,
+      level: k.level });
+  }
+  return reihe.map((x, i) => ({ platz: i + 1, ...x }));
+})();
 const WUERFEL_KANDIDATEN = VORSCHAU.filter(x => x.level);
+// die Reihenfolge der Vorschau, wie prepare.mjs sie liest
+const VORSCHAU_REIHE = VORSCHAU.map(x => ({ name: x.kandidat ?? x.name, grad: x.grad }));
 const WUERFEL_LEVEL = [...WUERFEL_IM_SPIEL, ...WUERFEL_KANDIDATEN.map(x => x.level)];
 const AXIS_TEXT = { y: 'Achse y (senkrecht)', x: 'Achse x (West–Ost)', z: 'Achse z (Nord–Süd)' };
 test('Würfel: kennt weder Lösung noch Name noch Grad, nennt jedes Element mit Zelle (x,y,z) und Achse', () => {
@@ -613,12 +629,17 @@ test('Würfel-Anker: in eigener Datei mit Namen, Kennungen A1 … An, Würfel-Le
   assert.ok(anchors.every(a => WUERFEL_IM_SPIEL[a.position - 1].dim === 3));
   assert.deepEqual(WUERFEL_ANKER.W1.anker.map(a => [a.id, a.name, a.grad]), [['A1', 'Aufzug', 'leicht'],
     ['A2', 'Kern', 'leicht']]);
-  // in der Vorschau nach Platz geordnet und im Grad ihres Platzes
-  const reihe = [...VORSCHAU].sort((a, b) => a.platz - b.platz)
-    .map(x => ({ name: x.kandidat ?? x.name, grad: x.grad }));
-  const imVorschau = loadAnchorsWuerfel(reihe);
-  assert.deepEqual(imVorschau.map(a => a.position), [2, 4]);
-  for (const a of imVorschau) assert.equal(reihe[a.position - 1].grad, a.grad, a.id);
+  for (const a of anchors) assert.equal(WUERFEL_IM_SPIEL[a.position - 1].grad, a.grad, `${a.id}: Grad im Spiel`);
+  // in der Vorschau auf dem Platz ihres Namens, nach Platz geordnet und im Grad ihres Platzes
+  const imVorschau = loadAnchorsWuerfel(VORSCHAU_REIHE);
+  for (const [k, a] of imVorschau.entries()) {
+    assert.equal(a.position, VORSCHAU_REIHE.findIndex(x => x.name === a.name) + 1, a.id);
+    assert.ok(!k || a.position > imVorschau[k - 1].position, `${a.id}: nicht nach Platz geordnet`);
+    assert.equal(VORSCHAU_REIHE[a.position - 1].grad, a.grad, a.id);
+  }
+  // W1 in einer Reihenfolge, in der Aufzug und Kern stehen (eine ältere Version braucht ihre Anker nicht im Spiel)
+  const w1 = loadAnchorsWuerfel([{ name: 'X' }, { name: 'Aufzug' }, { name: 'Y' }, { name: 'Kern' }], 'W1');
+  assert.deepEqual(w1.map(a => [a.id, a.position]), [['A1', 2], ['A2', 4]]);
 });
 test('Würfel: Schema mit den Einordnungen der Anker, sonst wie answer.schema.json', () => {
   assert.deepEqual(placings(['A1', 'A2']), ['<A1', 'A1', 'A1-A2', 'A2', '>A2']);
@@ -632,11 +653,20 @@ test('Würfel: Schema mit den Einordnungen der Anker, sonst wie answer.schema.js
     return c;
   };
   assert.deepEqual(ohne(s), ohne(SCHEMA), 'übrige Felder gleich');
-  const errors = (a, level = LEVEL) => answerErrors(answer(a), level, s);
-  for (const e of ['<A1', 'A1', 'A1-A2', 'A2', '>A2']) assert.deepEqual(errors({ einordnung: e }), [], e);
-  for (const e of ['A2-A3', 'A3', '>A8']) assert.notDeepEqual(errors({ einordnung: e }), [], e);
-  assert.notDeepEqual(errors({ level: 'A3', einordnung: 'A2' }, { id: 'A3', anker: 'A3' }), [], 'Kennung A3');
-  assert.deepEqual(schemaFor(['A1', 'A2']), s);
+  // die aktuelle Version: alle Einordnungen ihrer Anker, keine zu einem Anker dahinter
+  const errors = (a, level = LEVEL, schema = s) => answerErrors(answer(a), level, schema);
+  const n = ids.length, weiter = `A${n + 1}`;
+  for (const e of placings(ids)) assert.deepEqual(errors({ einordnung: e }), [], e);
+  for (const e of [`A${n}-${weiter}`, weiter, `>${weiter}`]) assert.notDeepEqual(errors({ einordnung: e }), [], e);
+  assert.notDeepEqual(errors({ level: weiter, einordnung: `A${n}` }, { id: weiter, anker: weiter }), [],
+    `Kennung ${weiter}`);
+  assert.deepEqual(schemaFor(ids), s);
+  // W1 mit zwei Ankern: fünf Einordnungen
+  const w1 = schemaOf('W1');
+  assert.deepEqual(w1, schemaFor(['A1', 'A2']));
+  for (const e of ['<A1', 'A1', 'A1-A2', 'A2', '>A2']) assert.deepEqual(errors({ einordnung: e }, LEVEL, w1), [], e);
+  for (const e of ['A2-A3', 'A3', '>A8']) assert.notDeepEqual(errors({ einordnung: e }, LEVEL, w1), [], e);
+  assert.notDeepEqual(errors({ level: 'A3', einordnung: 'A2' }, { id: 'A3', anker: 'A3' }, w1), [], 'Kennung A3');
 });
 test('Würfel: Auftrag aus brief-wuerfel.md, alles eingesetzt, Anker ohne Namen, vier Bilder je Level', () => {
   const text = brief({ tester: 'A', lauf: 'wuerfel-test', wuerfel: true, eingabe: 'x/eingabe',
@@ -650,7 +680,14 @@ test('Würfel: Auftrag aus brief-wuerfel.md, alles eingesetzt, Anker ohne Namen,
     // als Wort: „Kern“ steckt in „Kernidee“
     assert.ok(!new RegExp(`(^|\\P{L})${a.name}(\\P{L}|$)`, 'u').test(text), `${a.name}: Name verrät den Anker`);
   }
-  assert.ok(text.includes('genau einer dieser Werte: `"<A1"`, `"A1"`, `"A1-A2"`, `"A2"`, `">A2"`'));
+  const werte = (ids) => `genau einer dieser Werte: ${placings(ids).map(p => `\`"${p}"\``).join(', ')}`;
+  assert.ok(text.includes(werte(loadAnchorsWuerfel().map(a => a.id))), 'Einordnungen der aktuellen Version');
+  // W1: zwei Anker ohne Ende des Grads, fünf Einordnungen
+  const w1 = brief({ tester: 'A', lauf: 'wuerfel-test', wuerfel: true, version: 'W1', anchors: WUERFEL_ANKER.W1.anker,
+    eingabe: 'x/eingabe', ausgabe: 'x/antwort-A/urteile.json', levels: [{ id: 'L1', anker: null }] });
+  assert.ok(w1.startsWith('# Auftrag an KI-Tester A (Lauf wuerfel-test, Ablauf W1)'));
+  assert.ok(w1.includes('genau einer dieser Werte: `"<A1"`, `"A1"`, `"A1-A2"`, `"A2"`, `">A2"`'));
+  assert.ok(w1.includes('- **A1**: leicht. ') && w1.includes('- **A2**: leicht. '), 'W1 ohne Ende des Grads');
   assert.ok(text.includes('1. **L1**: `L1.md`, `bilder/L1-desktop.png`, `bilder/L1-desktop-oben.png`, '
     + '`bilder/L1-desktop-seite.png`, `bilder/L1-handy.png`'));
   assert.ok(text.includes(glossary().replace(/^## /gm, '### ')), 'Glossar fehlt');
@@ -661,12 +698,13 @@ test('Würfel: Auftrag aus brief-wuerfel.md, alles eingesetzt, Anker ohne Namen,
 });
 
 console.log('Würfel: Protokoll');
+// Erfundene Einträge in der Form von W1 (zwei Anker): fest W1, unabhängig von der aktuellen Version
 const W_ANKER = { A1: 2, A2: 4 };
 // erfundene Würfel-Reihenfolge: leicht 1–4, mittel 5–30
 const wReferenz = (position) => ({ art: 'Reihenfolge der Würfel', position, grad: position <= 4 ? 'leicht' : 'mittel',
   von: position <= 4 ? 1 : 5, bis: position <= 4 ? 4 : 30 });
 const wValid = (over = {}) => entry({
-  datum: '2026-10-24', ablauf: WUERFEL_VERSION, lauf: 'wuerfel-1', agent: AGENT, level: LEVEL, referenz: wReferenz(10),
+  datum: '2026-10-24', ablauf: 'W1', lauf: 'wuerfel-1', agent: AGENT, level: LEVEL, referenz: wReferenz(10),
   anker: { ...W_ANKER },
   urteile: { A: answer({ einordnung: '>A2' }), B: answer({ einordnung: '>A2', ablehnung: ['Knäuel'] }) },
   ...over,
@@ -674,10 +712,18 @@ const wValid = (over = {}) => entry({
 test('Ein Würfel-Eintrag ist gültig: Version W…, Lauf wuerfel-…, Referenz in der Reihenfolge der Würfel', () => {
   const e = wValid();
   assert.deepEqual(protocolErrors(line(e)), []);
-  assert.deepEqual([e.ablauf, e.referenz.art, e.ergebnis.verschiebung, e.ergebnis.abgelehnt], [WUERFEL_VERSION,
+  assert.deepEqual([e.ablauf, e.referenz.art, e.ergebnis.verschiebung, e.ergebnis.abgelehnt], ['W1',
     'Reihenfolge der Würfel', 0, false]);
-  assert.deepEqual(referenceWuerfel(2, VORSCHAU.map(x => ({ name: x.name, grad: x.grad }))),
-    { art: 'Reihenfolge der Würfel', position: 2, grad: 'leicht', von: 1, bis: 4 });
+  const erfunden = Array.from({ length: 30 }, (_, k) => ({ name: `W${k + 1}`, grad: k < 4 ? 'leicht' : 'mittel' }));
+  for (const p of [2, 10]) assert.deepEqual(referenceWuerfel(p, erfunden), wReferenz(p), String(p));
+  // die aktuelle Version mit den Plätzen ihrer Anker im Spiel, für ein Level im Spiel, das kein Anker ist
+  const anchors = loadAnchorsWuerfel();
+  const position = WUERFEL_IM_SPIEL.findIndex((_, k) => !anchors.some(a => a.position === k + 1)) + 1;
+  const urteil = answer({ einordnung: `>${anchors.at(-1).id}` });
+  const jetzt = entry({ datum: '2026-10-24', ablauf: WUERFEL_VERSION, lauf: 'wuerfel-1', agent: AGENT, level: LEVEL,
+    referenz: referenceWuerfel(position), anker: Object.fromEntries(anchors.map(a => [a.id, a.position])),
+    urteile: { A: urteil, B: urteil } });
+  assert.deepEqual(protocolErrors(line(jetzt)), [], WUERFEL_VERSION);
 });
 test('Würfel: Zusammenführen mit zwei Ankern, höchstens 5 Plätze, nie über eine Gradgrenze', () => {
   const both = (a, b, position) => merge({ level: LEVEL, referenz: wReferenz(position), anker: W_ANKER,
@@ -740,21 +786,26 @@ test('Seite mit Würfel-Kandidaten: <base> und die Kandidaten am Ende von LEVELS
 test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, Referenz und Anker in der Vorschau',
   () => {
     const lauf = `wuerfel-test-${process.pid}`, dir = join(root, 'tests', 'output', 'ki-tester', lauf);
-    const run = (name, datei = VORSCHAU_DATEI, ...mehr) => spawnSync(process.execPath, [join(root, 'tools',
+    const tmp = mkdtempSync(join(tmpdir(), 'prisma-wuerfel-')), vorschauDatei = join(tmp, 'vorschau.json');
+    writeFileSync(vorschauDatei, JSON.stringify(VORSCHAU));
+    const run = (name, datei = vorschauDatei, ...mehr) => spawnSync(process.execPath, [join(root, 'tools',
       'ki-tester', 'prepare.mjs'), name, '--kandidaten', datei, '--ohne-bilder', ...mehr], { encoding: 'utf8' });
-    const tmp = mkdtempSync(join(tmpdir(), 'prisma-wuerfel-'));
     try {
-      const p = run(lauf, VORSCHAU_DATEI, '--anker');
+      const p = run(lauf, vorschauDatei, '--anker');
       assert.equal(p.status, 0, p.stderr);
       const lj = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
       assert.deepEqual([lj.ablauf, lj.fingerabdruck, lj.wuerfel, lj.referenz], [WUERFEL_VERSION, WUERFEL_FINGERPRINT,
         true, 'Reihenfolge der Würfel']);
-      assert.deepEqual(lj.anker, { A1: 2, A2: 4 });
-      const reihe = [...VORSCHAU].sort((a, b) => a.platz - b.platz).map(x => ({ name: x.kandidat ?? x.name,
-        grad: x.grad }));
-      assert.deepEqual(lj.level.filter(l => l.anker).map(l => [l.id, l.name, l.position]), [['A1', 'Aufzug', 2],
-        ['A2', 'Kern', 4]]);
-      assert.equal(lj.level.length, 2 + WUERFEL_KANDIDATEN.length);
+      // die Anker der aktuellen Version auf ihrem Platz in der Vorschau, hinter Kandidaten weiter als im Spiel
+      const reihe = VORSCHAU_REIHE, anchors = loadAnchorsWuerfel(reihe);
+      assert.deepEqual(lj.anker, Object.fromEntries(anchors.map(a => [a.id, a.position])));
+      assert.deepEqual(lj.level.filter(l => l.anker).map(l => [l.id, l.name, l.position]),
+        anchors.map(a => [a.id, a.name, a.position]));
+      for (const a of loadAnchorsWuerfel()) {
+        const davor = WUERFEL_KANDIDATEN.filter(x => x.platz < lj.anker[a.id]).length;
+        assert.equal(lj.anker[a.id], a.position + davor, a.id);
+      }
+      assert.equal(lj.level.length, anchors.length + WUERFEL_KANDIDATEN.length);
       for (const x of WUERFEL_KANDIDATEN) {
         const l = lj.level.find(y => y.name === x.kandidat);
         assert.ok(l, `${x.kandidat} fehlt`);
@@ -785,9 +836,10 @@ test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, R
       const falsch = join(tmp, 'falsch.json');
       writeFileSync(falsch, JSON.stringify(VORSCHAU.map(x => ({ ...x, wuerfel: undefined }))));
       assert.match(run(lauf, falsch).stderr, /keine Würfel-Vorschau/);
-      writeFileSync(falsch, JSON.stringify(VORSCHAU.map(x => (x.platz === 1 ? { ...x, level: { ...x.level,
-        grad: 'mittel' } } : x))));
-      assert.match(run(lauf, falsch).stderr, /Grad mittel, auf Platz 1 gilt leicht/);
+      const k = WUERFEL_KANDIDATEN[0], anders = k.grad === 'leicht' ? 'mittel' : 'leicht';
+      writeFileSync(falsch, JSON.stringify(VORSCHAU.map(x => (x === k ? { ...x, level: { ...x.level,
+        grad: anders } } : x))));
+      assert.match(run(lauf, falsch).stderr, new RegExp(`Grad ${anders}, auf Platz ${k.platz} gilt ${k.grad}`));
     } finally {
       rmSync(dir, { recursive: true, force: true });
       rmSync(tmp, { recursive: true, force: true });
