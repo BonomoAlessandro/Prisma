@@ -67,9 +67,10 @@ function neueWuerfelFeldform(groesse) {
   };
   const achseVon = (el) => el.axis || 'y';
   const stellungVon = (el) => (el.type === 'source' ? el.dir : getRot(el));
+  // Ein Strahl nach unten endet auf der Plattform (y = −0.5, PLAN 2.2): in keiner Zelle, obwohl gerundet y = 0
   const bei = (x, y, z) => {
     const rx = Math.round(x), ry = Math.round(y), rz = Math.round(z);
-    return inside(rx, ry, rz) ? key(rx, ry, rz) : null;
+    return y > -0.5 && inside(rx, ry, rz) ? key(rx, ry, rz) : null;
   };
 
   /**
