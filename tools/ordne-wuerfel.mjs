@@ -32,9 +32,9 @@ import { gradVon } from './beurteilung/grad.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
-  HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, alleUrteile, fallendeSeiten, ladeLevelliste,
+  HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile,
 } from './levelliste.mjs';
-import { HANDGEBAUT, WUERFEL, WUERFEL_LAEUFE, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { HANDGEBAUT, WUERFEL, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 const INDEX = new URL('../index.html', import.meta.url);
 const argument = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
@@ -47,19 +47,19 @@ const levels = [...L.LEVELS_3D, ...kandidaten.map(k => k.level)], n = levels.len
 const imSpiel = levels.map((_, i) => i < L.LEVELS_3D.length);
 /** Der Name bei den KI-Testern: der des Levels, bei einem Kandidaten ohne Platz im Spiel „Kandidat <Abdruck>“. */
 const kandidat = levels.map((l, i) => (imSpiel[i] ? null : kandidatName(l)));
-const namen = levels.map(l => l.name);
+const namen = levels.map(l => l.name || null); // ein Kandidat ohne vergebenen Namen: null
 const name = (i) => namen[i] ?? kandidat[i];
 
 // Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit und den Urteilen der KI-Tester, die Beurteilung mit
 // diesen Graden
-const urteile = alleUrteile().filter(e => WUERFEL_LAEUFE.test(e.lauf) && !e.level.anker);
+const urteile = zaehlendeWuerfelUrteile();
 let grad = levels.map((l, i) => l.grad ?? kandidaten[i - L.LEVELS_3D.length]?.grad ?? null), b, r, runde = 0;
 for (;;) {
   if (++runde > 5) throw new Error('Kein Fixpunkt nach 5 Durchgängen: Die Grade wechseln hin und her.');
   console.log(`Durchgang ${runde}: beurteile die ${n} Würfel-Level …`);
   b = await beurteileAlle(levels.map((level, i) => ({ level, opts: { grad: grad[i], teuer: true } })));
   r = wuerfelReihenfolge(b.map(x => x.schwierigkeit.wert), namen.map((x, i) => x ?? kandidat[i]),
-    b.map(x => x.hauptKernidee.begriff), { kandidat, urteile });
+    b.map(x => x.hauptKernidee.begriff), { kandidat: levels.map(kandidatName), urteile });
   if (r.grad.every((g, i) => g === grad[i])) break;
   grad = r.grad;
 }

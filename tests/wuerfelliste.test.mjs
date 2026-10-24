@@ -13,9 +13,9 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
-import { alleUrteile, fallendeSeiten, ladeLevelliste } from '../tools/levelliste.mjs';
+import { fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRUPPEN, HANDGEBAUT, WUERFEL, WUERFEL_LAEUFE, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
+  GRUPPEN, HANDGEBAUT, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
 
 let passed = 0;
@@ -31,8 +31,9 @@ const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
 console.log('Würfel-Level im Spiel');
 const b = await beurteileAlle(W.map(level => ({ level, opts: { grad: level.grad ?? null, teuer: true } })));
 const werte = b.map(x => x.schwierigkeit.wert);
-const urteile = alleUrteile().filter(e => WUERFEL_LAEUFE.test(e.lauf) && !e.level.anker);
-const r = wuerfelReihenfolge(werte, W.map(l => l.name), b.map(x => x.hauptKernidee.begriff), { urteile });
+const urteile = zaehlendeWuerfelUrteile();
+const r = wuerfelReihenfolge(werte, W.map(l => l.name), b.map(x => x.hauptKernidee.begriff),
+  { kandidat: W.map(kandidatName), urteile });
 
 await test('Jedes Würfel-Level ist ein Würfel 7 × 7 × 7 mit Grad', () => {
   assert.deepEqual(W.filter(l => l.dim !== WUERFEL.dim || l.size !== WUERFEL.size).map(l => l.name), []);
@@ -99,7 +100,7 @@ await test('Verteilung der Grade: Bestand nach jeder Gruppe wie in der Tabelle d
   }
   assert.deepEqual(bestandNach(GRUPPEN), ZIEL);
 });
-await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der KI-Tester im Grad, nur Läufe wuerfel-…', () => {
+await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der KI-Tester im Grad, nur Läufe wuerfel-<Gruppe>…', () => {
   // sechs Level, 1 leicht; das Urteil zu L3 will nach vorn, kommt aber nicht über die Grenze von „mittel“
   const w = [30, 10, 55, 80, 20, 45], namen = w.map((_, i) => `L${i}`), haupt = w.map(() => null);
   const ohne = wuerfelReihenfolge(w, namen, haupt);
@@ -109,7 +110,7 @@ await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der 
   const urteil = (name, lauf) => ({ lauf, ablauf: '2', level: { name, anker: null }, anker,
     urteile: Object.fromEntries(['A', 'B'].map(t => [t, { einordnung: '<A1', ablehnung: [] }])) });
   // L2 (55, mittel, Platz 5) will vor A1: in seinem Grad höchstens bis an die Grenze von „mittel“ (Platz 4)
-  const mit = wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'wuerfel-probe')] });
+  const mit = wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'wuerfel-1')] });
   assert.ok(mit.ki.get(2).verschiebung < 0 && mit.ki.get(2).verschiebung >= -MAX_SHIFT);
   assert.deepEqual(mit.folge, [1, 4, 0, 2, 5, 3]);
   // ein Urteil aus einem flachen Lauf zählt im Würfel nicht

@@ -67,7 +67,9 @@ von main in den Branch.
 
 Wie in `.scratch/500-level/spec.md`, mit dem Würfel statt des flachen Felds:
 
-1. **Kandidaten** aus dem Generator mit der Würfel-Feldform `feldformVon({ dim: 3, size: 7 })`, mit Reserve.
+1. **Kandidaten** aus dem Generator mit der Würfel-Feldform `feldformVon({ dim: 3, size: 7 })`, mit Reserve. Entscheid vom
+   24.10.2026: ein grosser Vorrat für alle Gruppen (`tools/ausbau.mjs pool … --wuerfel`, unter `tests/output/wuerfel/`),
+   „der Pool kann fast nicht zu gross sein“; reicht er für einen Grad nicht, wird er mit neuen Seeds vergrössert.
 2. **Ähnlichkeit:** kein Kandidat einem Würfel-Level im Spiel oder einem anderen Kandidaten zu ähnlich.
 3. **Einordnen** in die Reihenfolge der Würfel-Level nach der Formel.
 4. **KI-Tester:** beide beurteilen jeden Kandidaten; die Regeln für Ablehnung, Ersatz und Korrektur bleiben.

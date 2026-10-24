@@ -31,9 +31,9 @@ import { feldformVon } from './beurteilung/feldform.mjs';
 import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { kandidatName } from './leveldaten.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
-import { alleUrteile } from './levelliste.mjs';
+import { zaehlendeWuerfelUrteile } from './levelliste.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
-import { GRUPPEN, HANDGEBAUT, WUERFEL, WUERFEL_LAEUFE, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { GRUPPEN, HANDGEBAUT, WUERFEL, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 /** Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in „leicht“ und ab „mittel“ (wie tools/ausbau.mjs). */
 const ZWEITER_TEIL_HOECHSTENS = 1, ZWEITER_TEIL_AB_MITTEL = 0;
@@ -82,7 +82,7 @@ async function wahl() {
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const t0 = Date.now(), ziel = bestandNach(gruppe), im = neuImSpiel();
   // Die Würfel-Level im Spiel, mit ihrem Grad beurteilt, und die Urteile der KI-Tester (Läufe wuerfel-…)
-  const W = L.LEVELS_3D, urteile = alleUrteile().filter(e => WUERFEL_LAEUFE.test(e.lauf) && !e.level.anker);
+  const W = L.LEVELS_3D, urteile = zaehlendeWuerfelUrteile();
   const bW = await beurteileAlle(W.map(level => ({ level, opts: { grad: level.grad ?? null, teuer: true } })));
   // Die Kandidaten aus den Pools, ohne doppelte und ohne die im Spiel; die gesetzten aus --behalte
   const imSpielName = new Set(W.map(kandidatName));
