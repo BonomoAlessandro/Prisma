@@ -136,12 +136,13 @@ async function wahl() {
     }
   }
 
-  // Die Reihenfolge mit den gewählten Leveln, wie ordne-wuerfel.mjs sie rechnet; gegen offene Häufungen tauschen
+  // Die Reihenfolge mit den gewählten Leveln, wie ordne-wuerfel.mjs sie rechnet; gegen offene Häufungen tauschen. Die
+  // Level im Spiel tragen ihr Urteil unter „Kandidat <Abdruck>“ (beurteilt vor dem Einordnen), darum auch hier kandidat.
   const folgeMit = (wahl) => {
     const werte = [...bW.map(x => x.schwierigkeit.wert), ...wahl.map(k => k.schwierigkeit)];
     const haupt = [...bW.map(x => x.hauptKernidee.begriff), ...wahl.map(k => k.hauptKernidee)];
     return wuerfelReihenfolge(werte, [...W.map(l => l.name), ...wahl.map(k => k.name)], haupt,
-      { kandidat: [...W.map(() => null), ...wahl.map(k => k.name)], urteile });
+      { kandidat: [...W.map(kandidatName), ...wahl.map(k => k.name)], urteile });
   };
   let r = folgeMit(gewaehlt), tausche = 0;
   const getauscht = [];
