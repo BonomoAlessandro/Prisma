@@ -35,8 +35,11 @@ import { zaehlendeWuerfelUrteile } from './levelliste.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
 import { GRUPPEN, HANDGEBAUT, WUERFEL, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
-/** Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in „leicht“ und ab „mittel“ (wie tools/ausbau.mjs). */
-const ZWEITER_TEIL_HOECHSTENS = 1, ZWEITER_TEIL_AB_MITTEL = 0;
+/**
+ * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als tools/ausbau.mjs (dort
+ * „leicht“ bis 1): In Gruppe 1 lehnten beide KI-Tester alle drei leichten Kandidaten mit einem solchen Teil ab.
+ */
+const ZWEITER_TEIL_HOECHSTENS = 0;
 /** So viele Tausche gegen offene Häufungen höchstens (wahl). */
 const TAUSCH_RUNDEN = 200;
 
@@ -109,7 +112,7 @@ async function wahl() {
       return verwirf('ab „mittel“ ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
     if (W.some(l => aehnlichkeit(k.level, l) >= AEHNLICH_AB)) return verwirf('einem Würfel-Level im Spiel zu ähnlich');
-    if (zweiterTeil(k.level) > (k.grad === GRADE[0] ? ZWEITER_TEIL_HOECHSTENS : ZWEITER_TEIL_AB_MITTEL)) {
+    if (zweiterTeil(k.level) > ZWEITER_TEIL_HOECHSTENS) {
       return verwirf('zweiter unabhängiger Teil mit drehbarem Element (Zerfall, Füllteil)');
     }
     return true;
