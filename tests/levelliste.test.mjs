@@ -84,13 +84,16 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
 });
 // Die Daten der Anzeige aus index.html (GRAD_ANZEIGE und die Seiten der Levelauswahl, Ticket 17); wie Kachel, Kopfzeile
 // und Seitentitel aussehen, prüfen die Screenshot-Proben. Auf dem Würfel-Branch hängen die Würfel-Level im Spiel ab
-// CUBE_START hinter LEVELS; hier gibt es keine, CUBE_START ist das Ende der Level (wie auch beim Fortschritt unten).
-const anzeige = (levels, tutorialCount) => {
+// CUBE_START hinter LEVELS; ohne Angabe gibt es keine, CUBE_START ist das Ende der Level (wie auch beim Fortschritt
+// unten). Dazu die Abschnitte der Levelauswahl (SECTIONS) je Spielart.
+const anzeige = (levels, tutorialCount, cubeStart = levels.length) => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
   const code = ['levelNumber', 'GRAD_PUNKTE', 'GRAD_ANZEIGE', 'PAGE_SIZE'].map(konstante).join('\n') + '\n' +
-    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES };';
-  return new Function('LEVELS', 'TUTORIAL_COUNT', 'CUBE_START', code)(levels, tutorialCount, levels.length);
+    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\n' +
+    html.match(/^const SECTIONS = [\s\S]*?^ {2}\.filter\(s => s\.indices\.length\);/m)[0] +
+    '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES, SECTIONS };';
+  return new Function('LEVELS', 'TUTORIAL_COUNT', 'CUBE_START', code)(levels, tutorialCount, cubeStart);
 };
 test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das Tutorial ohne Grad', () => {
   const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
@@ -119,6 +122,32 @@ test('Der Seitentitel nennt den Grad der Seite, auf einer gemischten den Bereich
     return soll ? !p.title.endsWith(soll) : genannt;
   });
   assert.deepEqual(falsch.map(p => p.title), []);
+});
+test('Die Würfel-Level haben eigene Seiten zu 10 und Abschnitte nach Grad, ohne Tutorial', () => {
+  // von Hand: 2 Tutorial-Level, 12 flache, dahinter 23 Würfel-Level (5 leicht, 18 mittel, kein schwerer)
+  const reihe = (grad, n, dim) => Array.from({ length: n },
+    (_, k) => ({ name: `${dim ?? ''}${grad} ${k}`, grad, dim }));
+  const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true }, ...reihe('leicht', 12),
+    ...reihe('leicht', 5, 3), ...reihe('mittel', 18, 3)];
+  const { PAGES, SECTIONS } = anzeige(hand, 2, 14);
+  assert.deepEqual(PAGES.map(p => `${p.mode} ${p.id}: ${p.title}`),
+    ['2d T: Tutorial · die Mechaniken', '2d 1: Level 1 – 10 · Leicht', '2d 11: Level 11 – 12 · Leicht',
+      '3d W1: Würfel 1 – 10 · Leicht bis Mittel', '3d W11: Würfel 11 – 20 · Mittel',
+      '3d W21: Würfel 21 – 23 · Mittel']);
+  assert.deepEqual(PAGES.flatMap(p => p.indices), hand.map((_, i) => i), 'jedes Level auf genau einer Seite');
+  assert.deepEqual(SECTIONS.map(s => `${s.mode} ${s.label} ${s.indices.length}`),
+    ['2d Tutorial 2', '2d Leicht 12', '3d Leicht 5', '3d Mittel 18']);
+  assert.equal(new Set(SECTIONS.map(s => s.id)).size, SECTIONS.length, 'Kennungen der Abschnitte eindeutig');
+  // im Spiel mit den heutigen Würfel-Leveln: jedes trägt einen Grad, der Grad sinkt nie, jedes steht auf einer Seite
+  const imSpiel = [...L.LEVELS, ...L.LEVELS_3D];
+  const spiel = anzeige(imSpiel, L.TUTORIAL_COUNT, L.LEVELS.length);
+  assert.deepEqual(L.LEVELS_3D.filter(l => !GRADE.includes(l.grad)).map(l => l.name), []);
+  assert.deepEqual(L.LEVELS_3D.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(L.LEVELS_3D[i - 1].grad))
+    .map(l => l.name), []);
+  assert.deepEqual(spiel.PAGES.filter(p => p.mode === '3d').flatMap(p => p.indices),
+    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k));
+  assert.deepEqual(spiel.SECTIONS.filter(s => s.mode === '3d').flatMap(s => s.indices).sort((a, b) => a - b),
+    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k), 'jedes Würfel-Level in genau einem Abschnitt');
 });
 
 console.log('Reihenfolge');
