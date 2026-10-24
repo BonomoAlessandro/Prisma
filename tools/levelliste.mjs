@@ -485,7 +485,7 @@ export function fallendeSeiten(folge, werte) {
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE,
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null,
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -549,8 +549,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   const korrigiertBestand = korrigiere(basisBestand, grad, verschiebungen(i => !imAusbau[i]));
   // Der Ausbau: eingefügt vor allen Korrekturen (basis) und nach denen am Bestand (eingefuegt); von dort aus gilt die
   // eigene Korrektur eines Levels des Ausbaus
-  const basis = fuegeEin(basisBestand, dazu, werte, grad, ordnung.bleibt);
-  const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt);
+  const basis = fuegeEin(basisBestand, dazu, werte, grad, ordnung.bleibt, gleichstand);
+  const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt, gleichstand);
   for (const i of dazu) formel[i] = eingefuegt.indexOf(i) + 1;
   for (const [i, u] of ki) if (imAusbau[i]) korrektur(i, u, n);
   const korrigiert = korrigiere(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
@@ -575,11 +575,14 @@ export function reihenfolge(werte, namen, urteile = [], {
  * Bestands, das nach der Formel steht (nicht in bleibt) und schwerer ist oder das einen höheren Grad hat; gibt es
  * keines, ans Ende. Untereinander stehen die Level des Ausbaus nach der Schwierigkeit, bei gleichem Wert in der
  * Reihenfolge von dazu. Davor steht so kein Level mit höherem Grad, dahinter keines mit niedrigerem (grad je Index, beim
- * Ausbau nach der Schwelle). Rückgabe: die neue Folge.
+ * Ausbau nach der Schwelle). Mit gleichstand (je Index ein Text) entscheidet bei gleichem Wert dieser statt der
+ * Reihenfolge von dazu, damit das Ergebnis nicht von der Reihenfolge der Eingabe abhängt (Würfel, Ticket 05).
+ * Rückgabe: die neue Folge.
  */
-export function fuegeEin(folge, dazu, werte, grad, bleibt) {
+export function fuegeEin(folge, dazu, werte, grad, bleibt, gleichstand = null) {
   const neu = [...folge], rang = (i) => GRADE.indexOf(grad[i]), imAusbau = new Set(dazu);
-  const sortiert = [...dazu].sort((i, j) => werte[i] - werte[j] || dazu.indexOf(i) - dazu.indexOf(j));
+  const gleich = (i, j) => (gleichstand ? Number(gleichstand[i] > gleichstand[j]) - Number(gleichstand[i] < gleichstand[j]) : 0);
+  const sortiert = [...dazu].sort((i, j) => werte[i] - werte[j] || gleich(i, j) || dazu.indexOf(i) - dazu.indexOf(j));
   for (const i of sortiert) {
     const p = neu.findIndex(j => !imAusbau.has(j) && ((!bleibt.has(j) && werte[j] > werte[i]) || rang(j) > rang(i)));
     neu.splice(p < 0 ? neu.length : p, 0, i);

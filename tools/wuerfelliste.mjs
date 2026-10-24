@@ -54,6 +54,9 @@ export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile
   return reihenfolge(werte, namen, urteile.filter(e => ZAEHLENDE_WUERFEL_LAEUFE.test(e.lauf)), {
     haupt, heute: Array(n).fill(null), ausbau: Array(n).fill(true), kandidat: namen.map((_, i) => kandidat[i] ?? null),
     ausbauLaeufe: ZAEHLENDE_WUERFEL_LAEUFE,
+    // bei gleichem Wert der Abdruck (kandidatName), nicht der Platz in index.html: sonst kippen zwei gleich schwere
+    // Level mit Urteil bei jedem Ordnen hin und her
+    gleichstand: namen.map((x, i) => kandidat[i] ?? x),
   });
 }
 

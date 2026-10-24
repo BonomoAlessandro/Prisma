@@ -311,6 +311,11 @@ test('fuegeEin: vor das erste Level nach der Formel, das schwerer ist oder einen
   assert.deepEqual(fuegeEin([0, 1, 2, 3, 4, 5], [6, 7, 8, 9], werte, grad, bleibt), [0, 1, 2, 6, 3, 7, 8, 4, 5, 9]);
   // gleiche Schwierigkeit: hinter das Level des Bestands, untereinander in der Reihenfolge von dazu
   assert.deepEqual(fuegeEin([0, 1], [3, 2], [10, 20, 20, 20], Array(4).fill('leicht'), new Map()), [0, 1, 3, 2]);
+  // mit gleichstand entscheidet der Text, gleich in welcher Reihenfolge dazu kommt (Würfel)
+  const text = ['a', 'b', 'x', 'c'];
+  for (const dazu of [[3, 2], [2, 3]]) {
+    assert.deepEqual(fuegeEin([0, 1], dazu, [10, 20, 20, 20], Array(4).fill('leicht'), new Map(), text), [0, 1, 3, 2]);
+  }
 });
 test('Ähnlichkeit: gedreht und gespiegelt dasselbe, Stellung egal, Gegenprobe mit versetztem Element', () => {
   const level = MAIN.find(l => l.elements.length >= 6);
