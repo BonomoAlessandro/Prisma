@@ -20,13 +20,14 @@ import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
 import { HEUTIGE_REIHENFOLGE, entfernteLevel } from '../tools/beurteilung/heutige-reihenfolge.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
-import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
+import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
-  MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
+  MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
+  entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
   festePlaetze, korrigiere, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
   zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
@@ -720,6 +721,27 @@ test('Ganze Regel mit einem Level des Ausbaus: eingefügt nach der Formel, Besta
   // dass der Test etwas prüft): Mit Schliff im Bestand ist die Folge unter dem Bestand eine andere
   const imBestand = reihenfolge(werteHeute, namenHeute, ohneSchliff, { ...opts, ausbau: ausbauHeute });
   assert.notDeepEqual(imBestand.folge.filter(j => j !== i), ohne.folge.filter(j => j !== i));
+});
+test('Urteile aus dem Würfel (wuerfel-…): zählen nur dort, die flachen Regeln sehen sie nicht', () => {
+  const ref = { art: 'Reihenfolge der Würfel', position: 3, grad: 'leicht', von: 1, bis: 4 };
+  const u = (einordnung) => ({ level: 'L1', aha: { ja: true, beschreibung: 'x' },
+    lesbarkeit: { desktop: 4, handy: 3, beschreibung: 'x' }, gefuehl: 4, einordnung, ablehnung: [], begruendung: 'x' });
+  const wuerfel = (lauf, level = { id: 'L1', name: 'Kandidat Würfel', anker: null }) => entry({ datum: '2026-10-24',
+    ablauf: WUERFEL_VERSION, lauf, agent: AGENT, level, referenz: ref, anker: { A1: 2, A2: 4 },
+    urteile: { A: u('A1-A2'), B: u('>A2') } });
+  const flach = erfunden('Weichen', 'A2', 'A2', [], 'pruefung-test');
+  const eintraege = [wuerfel('wuerfel-1'), wuerfel('wuerfel-1-2'), wuerfel('wuerfel-probe'), flach,
+    wuerfel('wuerfel-1', { id: 'A1', name: 'Aufzug', anker: 'A1' })];
+  const text = eintraege.map(e => JSON.stringify(e) + '\n').join('');
+  assert.deepEqual(zaehlendeWuerfelUrteile(text).map(e => e.lauf), ['wuerfel-1', 'wuerfel-1-2'],
+    'nur Läufe der Gruppen, keine Probe, kein Anker');
+  assert.deepEqual(alleWuerfelUrteile(text).length, 4);
+  assert.deepEqual(alleUrteile(text), [flach], 'flach nur die flachen');
+  assert.deepEqual(zaehlendeUrteile(text), [flach]);
+  assert.equal(zaehlt(wuerfel('wuerfel-1')), false);
+  // ein Würfel-Eintrag unter dem Namen eines flachen Levels änderte dessen Regel stark nicht
+  const alsFlach = wuerfel('wuerfel-1', { id: 'L1', name: 'Weichen', anker: null });
+  assert.deepEqual(stark('Weichen', alleUrteile(text + JSON.stringify(alsFlach) + '\n')), stark('Weichen', [flach]));
 });
 
 console.log('Leveldaten als Text (Austausch, tools/leveldaten.mjs)');

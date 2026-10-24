@@ -6,11 +6,13 @@
 //   angelegt bzw. von den KI-Testern geschrieben)
 //   --trocken: nur prüfen und das Ergebnis zeigen, nichts anhängen
 // Danach: node tests/ki-tester.test.mjs prüft das ganze Protokoll.
+// Würfel (Läufe wuerfel-…, lauf.json mit wuerfel): Version, Fingerabdruck und Schema des Würfel-Ablaufs.
 import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   VERSION, FINGERPRINT, TESTERS, answerPath, fingerprint, answerErrors, entry, protocolErrors, signed, today,
+  WUERFEL_VERSION, WUERFEL_FINGERPRINT, fingerprintWuerfel, schemaOf,
 } from './protocol.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -22,10 +24,18 @@ if (!run) fail('Aufruf: node tools/ki-tester/merge.mjs <lauf> [--trocken]');
 const dir = join(resolve(here, '..', '..'), 'tests', 'output', 'ki-tester', run);
 if (!existsSync(join(dir, 'lauf.json'))) fail(`Kein Lauf ${run}: zuerst prepare.mjs`);
 const lauf = JSON.parse(readFileSync(join(dir, 'lauf.json'), 'utf8'));
-if (fingerprint() !== FINGERPRINT) fail('Auftrag, Anker, Schema, Glossar oder Feld eines Ankers geändert, aber keine neue Version (siehe protocol.mjs).');
-if (lauf.ablauf !== VERSION || lauf.fingerabdruck !== FINGERPRINT) {
-  fail(`Lauf ${run} gehört zu Ablauf ${lauf.ablauf} (${lauf.fingerabdruck}), nicht zu ${VERSION} (${FINGERPRINT}): neu vorbereiten.`);
+// Ein Lauf im Würfel (lauf.json mit wuerfel) prüft gegen die aktuelle Version des Würfel-Ablaufs
+const [version, abdruck, jetzt] = lauf.wuerfel ? [WUERFEL_VERSION, WUERFEL_FINGERPRINT, fingerprintWuerfel()]
+  : [VERSION, FINGERPRINT, fingerprint()];
+if (jetzt !== abdruck) {
+  fail('Auftrag, Anker, Schema, Glossar oder Feld eines Ankers geändert, aber keine neue Version '
+    + '(siehe protocol.mjs).');
 }
+if (lauf.ablauf !== version || lauf.fingerabdruck !== abdruck) {
+  fail(`Lauf ${run} gehört zu Ablauf ${lauf.ablauf} (${lauf.fingerabdruck}), nicht zu ${version} (${abdruck}): `
+    + 'neu vorbereiten.');
+}
+const schema = schemaOf(version);
 
 // Antworten lesen und prüfen: jedes Level des Laufs genau einmal, jedes Urteil nach Schema
 const errors = [], answers = {};
@@ -41,7 +51,7 @@ for (const t of TESTERS) {
     if (!l) { errors.push(`${t}: Urteil zu unbekanntem Level ${JSON.stringify(a?.level)}`); continue; }
     if (answers[t].has(l.id)) errors.push(`${t}: ${l.id} doppelt`);
     answers[t].set(l.id, a);
-    errors.push(...answerErrors(a, l).map(m => `${t}: ${m}`));
+    errors.push(...answerErrors(a, l, schema).map(m => `${t}: ${m}`));
   }
   for (const l of lauf.level) if (!answers[t].has(l.id)) errors.push(`${t}: Urteil zu ${l.id} fehlt`);
 }
@@ -51,7 +61,7 @@ const old = existsSync(protocolFile) ? readFileSync(protocolFile, 'utf8') : '';
 if (old.split('\n').some(line => line.trim() && JSON.parse(line).lauf === run)) fail(`Lauf ${run} steht schon im Protokoll.`);
 const datum = today();
 const entries = lauf.level.map(l => entry({
-  datum, lauf: run, agent: lauf.agent, level: l, referenz: l.referenz, anker: lauf.anker,
+  datum, ablauf: version, lauf: run, agent: lauf.agent, level: l, referenz: l.referenz, anker: lauf.anker,
   urteile: Object.fromEntries(TESTERS.map(t => [t, answers[t].get(l.id)])),
 }));
 const text = (old && !old.endsWith('\n') ? '\n' : '') + entries.map(e => JSON.stringify(e) + '\n').join('');
