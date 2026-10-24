@@ -639,6 +639,17 @@ console.log('Würfel (dim: 3)');
     assert.equal(r.events.at(-1).kind, 'absorb');
     assert.ok(Math.abs(r.segments[0].y1 - (3 - L.MIRROR_HALF_HEIGHT)) < 1e-9);
   });
+  test('Strahl nach unten endet auf der Plattform, nach oben läuft er aus (PLAN 2.2)', () => {
+    for (let dir = 0; dir < 8; dir++) {
+      const [dx, dy, dz] = L.planeDir('z', dir), tag = `${dir} ${vec([dx, dy, dz])}`;
+      const r = L.traceBeams(cube([{ type: 'source', x: 2, y: 2, z: 2, axis: 'z', dir }]));
+      const last = r.events.at(-1), s = r.segments.at(-1);
+      if (dy < 0) {
+        assert.deepEqual([last.kind, last.x, last.y, last.z], ['floor', 2 + dx * 2.5, -0.5, 2 + dz * 2.5], tag);
+        assert.deepEqual([s.x1, s.y1, s.z1, s.fade], [last.x, last.y, last.z, undefined], tag);
+      } else assert.equal(last.kind, 'edge', tag);
+    }
+  });
   test('Diagonale in der Spiegelfläche endet an der ersten Rahmenkante', () => {
     // Achse z, rot 0: Fläche x-z; Strahl (1, 0, 1) läuft in ihr und erreicht zuerst die Ober-/Unterkante (in z)
     const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 0, dir: 1 }, { type: 'mirror', x: 2, y: 2, z: 2, axis: 'z', rot: 0 }]));

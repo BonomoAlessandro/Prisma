@@ -662,7 +662,7 @@ function refractInPrism(dir, color, rot) {
  *              (Spiegel: Spiegelfläche, sonst senkrecht zum Strahl), damit kein Leuchten durch Objekte dringt
  *              fade (optional): Auslaufstrecke vor dem Ende, über die der Strahl verblasst (Feldkante)
  *   events:    [{ x, z, color, kind, dist, target?, element?, normal? }]
- *              kind ∈ reflect | refract | filter | merge | hit | absorb | edge
+ *              kind ∈ reflect | refract | filter | merge | hit | absorb | edge | floor (Würfel: auf der Plattform)
  *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
  *   mixes:     Map(combinerId → abgegebene Mischfarbe)
  *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
@@ -992,7 +992,14 @@ function tracePass(board, extraRays, emitting, from) {
 
     for (;;) {
       const nx = cx + dx, ny = cy + dy, nz = cz + dz;
-      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && (ny < 0 || ny >= S))) {
+      if (dy < 0 && ny < 0) {
+        // Würfel: nach unten endet der Strahl auf der Plattform (Oberkante eine halbe Zelle unter der untersten Ebene)
+        const fx = cx + dx * 0.5, fy = cy - 0.5, fz = cz + dz * 0.5;
+        const d = emit(fx, fy, fz);
+        events.push({ x: fx, y: fy, z: fz, color: ray.color, kind: 'floor', dist: d });
+        break;
+      }
+      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && ny >= S)) {
         // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
         const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ey = cy + dy * 0.5 + ahead[1] * EDGE_RUN;
         const ez = cz + dz * 0.5 + ahead[2] * EDGE_RUN;
@@ -19191,7 +19198,8 @@ const FLARE_STYLE = {
   merge:   { scale: 0.45, intensity: 2.2 },
   hit:     { scale: 0.95, intensity: 3.2 },
   absorb:  { scale: 0.32, intensity: 1.0 },
-  edge:    { scale: 0.0,  intensity: 0.0 },
+  floor:   { scale: 0.32, intensity: 1.0 },
+  edge:   { scale: 0.0,  intensity: 0.0 },
 };
 const WHITE = new THREE.Color(1, 1, 1);
 
