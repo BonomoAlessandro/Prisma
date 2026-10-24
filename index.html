@@ -13303,6 +13303,24 @@ const LEVELS_3D = [
     solution: { '3,3,5': 0, '5,3,3': 2, '4,3,6': 0, '5,3,5': 0 },
   },
   {
+    // Lösung: Prisma (5,4,1) Achse x rot 1 · Spiegel (5,5,2) Achse y rot 1 ·
+    //   Spiegel (5,6,1) Achse x rot 3 · Spiegel (5,4,4) Achse y rot 3
+    // Generator leicht, Seed 20022, Stand 33f26f8 · Würfel „leicht“
+    name: 'Schublade', dim: 3, size: 7, grad: 'leicht',
+    elements: [
+      { type: 'source', x: 5, y: 4, z: 0, dir: 2 },
+      { type: 'prism', x: 5, y: 4, z: 1, axis: 'x', rot: 4 },
+      { type: 'mirror', x: 5, y: 5, z: 2, rot: 2 },
+      { type: 'mirror', x: 5, y: 6, z: 1, axis: 'x', rot: 2 },
+      { type: 'target', x: 5, y: 6, z: 0, color: 'blue' },
+      { type: 'target', x: 6, y: 6, z: 2, color: 'green' },
+      { type: 'mirror', x: 5, y: 4, z: 4, rot: 1 },
+      { type: 'mirror', x: 4, y: 4, z: 4, rot: 1, fixed: true },
+      { type: 'target', x: 4, y: 4, z: 1, color: 'red' },
+    ],
+    solution: { '5,4,1': 1, '5,5,2': 1, '5,6,1': 3, '5,4,4': 3 },
+  },
+  {
     // Lösung: Spiegel (6,6,5) Achse y rot 3 · Spiegel (6,6,3) Achse y rot 1 ·
     //   Spiegel (0,6,3) Achse y rot 3 · Spiegel (0,6,4) Achse y rot 1 · Spiegel (3,6,4) Achse y rot 1 ·
     //   Prisma (3,6,6) Achse y rot 1
@@ -13319,22 +13337,6 @@ const LEVELS_3D = [
       { type: 'target', x: 4, y: 6, z: 6, color: 'red' },
     ],
     solution: { '6,6,5': 3, '6,6,3': 1, '0,6,3': 3, '0,6,4': 1, '3,6,4': 1, '3,6,6': 1 },
-  },
-  {
-    // Lösung: Prisma (4,1,1) Achse y rot 1 · Spiegel (4,1,5) Achse y rot 3 ·
-    //   Spiegel (6,1,1) Achse y rot 1 · Spiegel (6,1,3) Achse y rot 3
-    // Generator leicht-falle, Seed 20021, Stand 33f26f8 · Würfel „leicht“
-    name: 'Treppe', dim: 3, size: 7, grad: 'leicht',
-    elements: [
-      { type: 'source', x: 0, y: 1, z: 1, dir: 0, color: 'magenta' },
-      { type: 'prism', x: 4, y: 1, z: 1, rot: 0 },
-      { type: 'mirror', x: 4, y: 1, z: 5, rot: 1 },
-      { type: 'target', x: 0, y: 1, z: 5, color: 'blue' },
-      { type: 'mirror', x: 6, y: 1, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, y: 1, z: 3, rot: 0 },
-      { type: 'target', x: 1, y: 1, z: 3, color: 'red' },
-    ],
-    solution: { '4,1,1': 1, '4,1,5': 3, '6,1,1': 1, '6,1,3': 3 },
   },
   {
     // Lösung: Prisma (2,3,4) Achse y rot 3 · Spiegel (4,3,6) Achse y rot 0 ·
@@ -13354,6 +13356,22 @@ const LEVELS_3D = [
     solution: { '2,3,4': 3, '4,3,6': 0, '2,3,3': 1, '0,3,4': 3 },
   },
   {
+    // Lösung: Prisma (4,1,1) Achse y rot 1 · Spiegel (4,1,5) Achse y rot 3 ·
+    //   Spiegel (6,1,1) Achse y rot 1 · Spiegel (6,1,3) Achse y rot 3
+    // Generator leicht-falle, Seed 20021, Stand 33f26f8 · Würfel „leicht“
+    name: 'Treppe', dim: 3, size: 7, grad: 'leicht',
+    elements: [
+      { type: 'source', x: 0, y: 1, z: 1, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 4, y: 1, z: 1, rot: 0 },
+      { type: 'mirror', x: 4, y: 1, z: 5, rot: 1 },
+      { type: 'target', x: 0, y: 1, z: 5, color: 'blue' },
+      { type: 'mirror', x: 6, y: 1, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, y: 1, z: 3, rot: 0 },
+      { type: 'target', x: 1, y: 1, z: 3, color: 'red' },
+    ],
+    solution: { '4,1,1': 1, '4,1,5': 3, '6,1,1': 1, '6,1,3': 3 },
+  },
+  {
     // Lösung: Prisma (4,6,6) Achse y rot 7 · Spiegel (2,6,4) Achse y rot 2 ·
     //   Spiegel (4,6,1) Achse y rot 1 · Spiegel (1,6,1) Achse y rot 3
     // Generator leicht-sammelstelle, Seed 20092, Stand 33f26f8 · Würfel „leicht“
@@ -13370,6 +13388,42 @@ const LEVELS_3D = [
       { type: 'target', x: 1, y: 6, z: 3, color: 'red' },
     ],
     solution: { '4,6,6': 7, '2,6,4': 2, '4,6,1': 1, '1,6,1': 3 },
+  },
+  {
+    // Lösung: Spiegel (1,2,4) Achse x rot 0 · Spiegel (1,3,5) Achse y rot 3 ·
+    //   Spiegel (0,4,5) Achse z rot 2 · Spiegel (1,5,5) Achse y rot 3 · Spiegel (1,6,4) Achse z rot 1 ·
+    //   Spiegel (0,6,3) Achse y rot 2
+    // Generator leicht, Seed 20020, Stand 33f26f8 · Würfel „leicht“
+    name: 'Briefkasten', dim: 3, size: 7, grad: 'leicht',
+    elements: [
+      { type: 'source', x: 1, y: 6, z: 0, axis: 'x', dir: 7 },
+      { type: 'mirror', x: 1, y: 2, z: 4, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 1, y: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 0, y: 4, z: 5, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 1, y: 5, z: 5, rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 3, rot: 3 },
+      { type: 'target', x: 3, y: 6, z: 0, color: 'white' },
+    ],
+    solution: { '1,2,4': 0, '1,3,5': 3, '0,4,5': 2, '1,5,5': 3, '1,6,4': 1, '0,6,3': 2 },
+  },
+  {
+    // Lösung: Prisma (6,2,2) Achse y rot 5 · Spiegel (2,2,2) Achse y rot 3 ·
+    //   Spiegel (6,2,0) Achse y rot 1 · Spiegel (4,2,0) Achse y rot 3 · Spiegel (4,2,5) Achse x rot 1
+    // Generator leicht-falle, Seed 20088, Stand 33f26f8 · Würfel „leicht“
+    name: 'Hängematte', dim: 3, size: 7, grad: 'leicht',
+    elements: [
+      { type: 'source', x: 6, y: 2, z: 6, dir: 6, color: 'magenta' },
+      { type: 'prism', x: 6, y: 2, z: 2, rot: 2 },
+      { type: 'mirror', x: 2, y: 2, z: 2, rot: 1 },
+      { type: 'target', x: 2, y: 2, z: 6, color: 'red' },
+      { type: 'mirror', x: 6, y: 2, z: 0, rot: 3 },
+      { type: 'mirror', x: 4, y: 2, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, y: 2, z: 5, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 4, y: 4, z: 5, axis: 'x', rot: 3, fixed: true },
+      { type: 'target', x: 4, y: 4, z: 0, color: 'blue' },
+    ],
+    solution: { '6,2,2': 5, '2,2,2': 3, '6,2,0': 1, '4,2,0': 3, '4,2,5': 1 },
   },
   {
     // Lösung: Rot: Spiegel (3,0,0) Achse z rot 3 – Ost → hinauf; Spiegel (3,3,0) Achse x rot 1 – hinauf → Süd
@@ -13393,22 +13447,45 @@ const LEVELS_3D = [
     solution: { '3,0,0': 3, '3,3,0': 1, '4,6,6': 3, '3,6,6': 3, '3,3,6': 1 },
   },
   {
-    // Lösung: Spiegel (1,2,4) Achse x rot 0 · Spiegel (1,3,5) Achse y rot 3 ·
-    //   Spiegel (0,4,5) Achse z rot 2 · Spiegel (1,5,5) Achse y rot 3 · Spiegel (1,6,4) Achse z rot 1 ·
-    //   Spiegel (0,6,3) Achse y rot 2
-    // Generator leicht, Seed 20020, Stand 33f26f8 · Würfel „leicht“
-    name: 'Briefkasten', dim: 3, size: 7, grad: 'leicht',
+    // Lösung: Prisma (4,4,1) Achse y rot 6 · Spiegel (5,4,1) Achse y rot 1 ·
+    //   Prisma (5,2,3) Achse x rot 2 · Spiegel (4,5,1) Achse y rot 1
+    // Generator leicht-sammelstelle, Seed 20149, Stand 33f26f8 · Würfel „leicht“
+    name: 'Kommode', dim: 3, size: 7, grad: 'leicht',
     elements: [
-      { type: 'source', x: 1, y: 6, z: 0, axis: 'x', dir: 7 },
-      { type: 'mirror', x: 1, y: 2, z: 4, axis: 'x', rot: 3 },
-      { type: 'mirror', x: 1, y: 3, z: 5, rot: 0 },
-      { type: 'mirror', x: 0, y: 4, z: 5, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 1, y: 5, z: 5, rot: 0 },
-      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 2 },
-      { type: 'mirror', x: 0, y: 6, z: 3, rot: 3 },
-      { type: 'target', x: 3, y: 6, z: 0, color: 'white' },
+      { type: 'prism', x: 4, y: 4, z: 1, rot: 1 },
+      { type: 'source', x: 0, y: 4, z: 5, dir: 7, color: 'green' },
+      { type: 'source', x: 5, y: 4, z: 6, dir: 6, color: 'blue' },
+      { type: 'mirror', x: 5, y: 4, z: 1, rot: 0 },
+      { type: 'target', x: 4, y: 4, z: 0, color: 'green' },
+      { type: 'target', x: 5, y: 4, z: 0, color: 'blue' },
+      { type: 'source', x: 5, y: 2, z: 0, dir: 2 },
+      { type: 'prism', x: 5, y: 2, z: 3, axis: 'x', rot: 6 },
+      { type: 'mirror', x: 4, y: 5, z: 1, rot: 0 },
+      { type: 'target', x: 4, y: 6, z: 0, color: 'blue' },
     ],
-    solution: { '1,2,4': 0, '1,3,5': 3, '0,4,5': 2, '1,5,5': 3, '1,6,4': 1, '0,6,3': 2 },
+    solution: { '4,4,1': 6, '5,4,1': 1, '5,2,3': 2, '4,5,1': 1 },
+  },
+  {
+    // Lösung: Prisma (3,3,1) Achse y rot 1 · Spiegel (4,3,0) Achse y rot 0 ·
+    //   Spiegel (6,3,4) Achse y rot 2 · Spiegel (5,3,5) Achse x rot 1 · Spiegel (4,4,5) Achse y rot 1 ·
+    //   Spiegel (4,5,4) Achse x rot 0
+    // Generator leicht-sammelstelle, Seed 20385, Stand 33f26f8 · Würfel „leicht“
+    name: 'Stockwerk', dim: 3, size: 7, grad: 'leicht',
+    elements: [
+      { type: 'prism', x: 3, y: 3, z: 1, rot: 6 },
+      { type: 'source', x: 6, y: 3, z: 2, dir: 5, color: 'yellow' },
+      { type: 'mirror', x: 4, y: 3, z: 0, rot: 2 },
+      { type: 'source', x: 0, y: 3, z: 1, dir: 0, color: 'blue' },
+      { type: 'target', x: 4, y: 3, z: 1, color: 'red' },
+      { type: 'target', x: 3, y: 3, z: 4, color: 'blue' },
+      { type: 'mirror', x: 6, y: 3, z: 4, rot: 0 },
+      { type: 'mirror', x: 5, y: 3, z: 5, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 4, y: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, y: 5, z: 4, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 4, y: 4, z: 3, rot: 3, fixed: true },
+      { type: 'target', x: 6, y: 2, z: 3, color: 'green' },
+    ],
+    solution: { '3,3,1': 1, '4,3,0': 0, '6,3,4': 2, '5,3,5': 1, '4,4,5': 1, '4,5,4': 0 },
   },
   {
     // Lösung: Spiegel (6,2,4) Achse y rot 3 · Prisma (6,2,0) Achse y rot 4 ·
@@ -13428,6 +13505,120 @@ const LEVELS_3D = [
       { type: 'target', x: 1, y: 3, z: 5, color: 'blue' },
     ],
     solution: { '6,2,4': 3, '6,2,0': 4, '0,2,0': 3, '1,3,1': 1, '1,3,4': 7 },
+  },
+  {
+    // Lösung: Spiegel (3,2,4) Achse y rot 1 · Spiegel (3,2,0) Achse y rot 3 ·
+    //   Spiegel (1,2,0) Achse y rot 1 · Spiegel (1,2,4) Achse y rot 1 · Prisma (5,2,4) Achse y rot 4 ·
+    //   Spiegel (4,2,3) Achse z rot 2
+    // Generator mittel-abzaehlen, Seed 20112, Stand 33f26f8 · Würfel „mittel“
+    name: 'Galerie', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 3, y: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 3, y: 2, z: 0, rot: 1 },
+      { type: 'mirror', x: 1, y: 2, z: 0, rot: 0 },
+      { type: 'mirror', x: 1, y: 2, z: 4, rot: 3 },
+      { type: 'source', x: 0, y: 2, z: 0, dir: 0, color: 'cyan' },
+      { type: 'source', x: 1, y: 2, z: 6, dir: 6, color: 'green' },
+      { type: 'source', x: 6, y: 2, z: 4, dir: 4, color: 'cyan' },
+      { type: 'target', x: 3, y: 2, z: 6, color: 'cyan' },
+      { type: 'target', x: 6, y: 2, z: 0, color: 'green' },
+      { type: 'target', x: 0, y: 2, z: 4, color: 'green' },
+      { type: 'prism', x: 5, y: 2, z: 4, rot: 5 },
+      { type: 'mirror', x: 4, y: 2, z: 3, axis: 'z', rot: 3 },
+      { type: 'target', x: 6, y: 2, z: 1, color: 'blue' },
+    ],
+    solution: { '3,2,4': 1, '3,2,0': 3, '1,2,0': 1, '1,2,4': 1, '5,2,4': 4, '4,2,3': 2 },
+  },
+  {
+    // Lösung: Prisma (2,4,2) Achse y rot 1 · Spiegel (4,4,2) Achse y rot 3 ·
+    //   Spiegel (2,4,3) Achse y rot 1 · Spiegel (3,4,3) Achse y rot 1 · Prisma (2,2,1) Achse x rot 2 ·
+    //   Spiegel (3,4,5) Achse x rot 1
+    // Generator mittel-falle, Seed 20300, Stand 33f26f8 · Würfel „mittel“
+    name: 'Bergfried', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 2, y: 4, z: 0, dir: 2, color: 'magenta' },
+      { type: 'prism', x: 2, y: 4, z: 2, rot: 5 },
+      { type: 'mirror', x: 4, y: 4, z: 2, rot: 2 },
+      { type: 'target', x: 4, y: 4, z: 0, color: 'red' },
+      { type: 'mirror', x: 2, y: 4, z: 3, rot: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 3, rot: 3 },
+      { type: 'source', x: 2, y: 2, z: 0, dir: 2, color: 'yellow' },
+      { type: 'prism', x: 2, y: 2, z: 1, axis: 'x', rot: 7 },
+      { type: 'mirror', x: 3, y: 4, z: 5, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 3, y: 5, z: 3, rot: 2, fixed: true },
+      { type: 'mirror', x: 2, y: 5, z: 1, axis: 'x', rot: 3, fixed: true },
+      { type: 'target', x: 2, y: 5, z: 0, color: 'green' },
+      { type: 'target', x: 2, y: 6, z: 3, color: 'red' },
+      { type: 'target', x: 3, y: 6, z: 5, color: 'blue' },
+    ],
+    solution: { '2,4,2': 1, '4,4,2': 3, '2,4,3': 1, '3,4,3': 1, '2,2,1': 2, '3,4,5': 1 },
+  },
+  {
+    // Lösung: Spiegel (5,4,5) Achse y rot 1 · Spiegel (0,4,6) Achse y rot 1 ·
+    //   Spiegel (1,4,6) Achse y rot 3 · Spiegel (6,4,5) Achse z rot 3 · Spiegel (2,6,6) Achse x rot 3 ·
+    //   Spiegel (6,6,5) Achse z rot 1 · Spiegel (4,6,5) Achse y rot 1
+    // Generator mittel-abschalten, Seed 20022, Stand 33f26f8 · Würfel „mittel“
+    name: 'Flur', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 5, y: 4, z: 0, dir: 2, color: 'magenta' },
+      { type: 'mirror', x: 5, y: 4, z: 5, rot: 2 },
+      { type: 'target', x: 1, y: 4, z: 5, color: 'magenta' },
+      { type: 'source', x: 0, y: 4, z: 0, dir: 2, color: 'magenta' },
+      { type: 'mirror', x: 0, y: 4, z: 6, rot: 3 },
+      { type: 'mirror', x: 1, y: 4, z: 6, rot: 2 },
+      { type: 'mirror', x: 6, y: 4, z: 5, axis: 'z', rot: 2 },
+      { type: 'source', x: 0, y: 0, z: 2, axis: 'x', dir: 1, color: 'green' },
+      { type: 'mirror', x: 2, y: 6, z: 6, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 3, y: 6, z: 5, axis: 'x', rot: 1, fixed: true },
+      { type: 'mirror', x: 5, y: 3, z: 6, rot: 1, fixed: true },
+      { type: 'target', x: 6, y: 2, z: 6, color: 'green' },
+      { type: 'mirror', x: 6, y: 6, z: 5, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 4, y: 6, z: 5, rot: 0 },
+      { type: 'target', x: 4, y: 6, z: 1, color: 'magenta' },
+    ],
+    solution: { '5,4,5': 1, '0,4,6': 1, '1,4,6': 3, '6,4,5': 3, '2,6,6': 3, '6,6,5': 1, '4,6,5': 1 },
+  },
+  {
+    // Lösung: Spiegel (5,0,5) Achse y rot 1 · Spiegel (2,0,5) Achse y rot 1 ·
+    //   Spiegel (2,0,1) Achse y rot 1 · Spiegel (5,0,1) Achse y rot 1 · Prisma (1,0,5) Achse y rot 7 ·
+    //   Spiegel (1,0,1) Achse y rot 3
+    // Generator mittel-abzaehlen, Seed 20307, Stand 33f26f8 · Würfel „mittel“
+    name: 'Schiessscharte', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 5, y: 0, z: 5, rot: 0 },
+      { type: 'mirror', x: 2, y: 0, z: 5, rot: 3 },
+      { type: 'mirror', x: 2, y: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 5, y: 0, z: 1, rot: 3 },
+      { type: 'source', x: 2, y: 0, z: 0, dir: 2, color: 'cyan' },
+      { type: 'source', x: 0, y: 0, z: 5, dir: 0, color: 'magenta' },
+      { type: 'source', x: 6, y: 0, z: 1, dir: 4, color: 'blue' },
+      { type: 'target', x: 2, y: 0, z: 6, color: 'blue' },
+      { type: 'target', x: 5, y: 0, z: 0, color: 'blue' },
+      { type: 'target', x: 6, y: 0, z: 5, color: 'cyan' },
+      { type: 'prism', x: 1, y: 0, z: 5, rot: 2 },
+      { type: 'mirror', x: 1, y: 0, z: 1, rot: 2 },
+      { type: 'target', x: 5, y: 0, z: 6, color: 'red' },
+    ],
+    solution: { '5,0,5': 1, '2,0,5': 1, '2,0,1': 1, '5,0,1': 1, '1,0,5': 7, '1,0,1': 3 },
+  },
+  {
+    // Lösung: Prisma (3,0,5) Achse y rot 3 · Spiegel (3,4,1) Achse x rot 1 ·
+    //   Prisma (3,6,1) Achse x rot 1 · Spiegel (3,6,5) Achse y rot 3 · Spiegel (1,6,5) Achse z rot 3
+    // Generator mittel-sammelstelle, Seed 20647, Stand 33f26f8 · Würfel „mittel“
+    name: 'Kolonnade', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'prism', x: 3, y: 0, z: 5, rot: 4 },
+      { type: 'source', x: 4, y: 0, z: 6, dir: 5, color: 'magenta' },
+      { type: 'source', x: 6, y: 0, z: 2, dir: 3, color: 'green' },
+      { type: 'target', x: 1, y: 0, z: 5, color: 'magenta' },
+      { type: 'target', x: 2, y: 0, z: 6, color: 'green' },
+      { type: 'source', x: 3, y: 4, z: 0, dir: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 1, axis: 'x', rot: 2 },
+      { type: 'prism', x: 3, y: 6, z: 1, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 3, y: 6, z: 5, rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 5, axis: 'z', rot: 2 },
+    ],
+    solution: { '3,0,5': 3, '3,4,1': 1, '3,6,1': 1, '3,6,5': 3, '1,6,5': 3 },
   },
   {
     // Lösung: Prisma (4,5,2) Achse y rot 1 · Spiegel (3,4,4) Achse y rot 3 ·
@@ -13472,121 +13663,6 @@ const LEVELS_3D = [
     solution: { '1,1,2': 3, '1,6,2': 3, '1,6,1': 1, '3,4,3': 5, '0,6,1': 5, '0,6,0': 1 },
   },
   {
-    // Lösung: Prisma (5,3,0) Achse y rot 3 · Spiegel (5,1,5) Achse x rot 1 ·
-    //   Spiegel (5,1,6) Achse x rot 1 · Spiegel (3,3,0) Achse y rot 3 · Spiegel (3,3,6) Achse x rot 1 ·
-    //   Spiegel (3,4,6) Achse x rot 3
-    // Generator mittel-sammelstelle, Seed 21189, Stand 33f26f8 · Würfel „mittel“
-    name: 'Brückenbogen', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'prism', x: 5, y: 3, z: 0, rot: 4 },
-      { type: 'source', x: 6, y: 3, z: 1, dir: 5, color: 'red' },
-      { type: 'source', x: 6, y: 3, z: 0, dir: 4, color: 'cyan' },
-      { type: 'target', x: 5, y: 3, z: 6, color: 'yellow' },
-      { type: 'target', x: 0, y: 3, z: 5, color: 'green' },
-      { type: 'source', x: 5, y: 0, z: 5, axis: 'x', dir: 2, color: 'green' },
-      { type: 'mirror', x: 5, y: 1, z: 5, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 5, y: 1, z: 6, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 3, y: 3, z: 0, rot: 0 },
-      { type: 'mirror', x: 3, y: 3, z: 6, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 3, y: 4, z: 6, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 3, y: 4, z: 4, axis: 'x', rot: 3, fixed: true },
-      { type: 'target', x: 3, y: 6, z: 4, color: 'blue' },
-    ],
-    solution: { '5,3,0': 3, '5,1,5': 1, '5,1,6': 1, '3,3,0': 3, '3,3,6': 1, '3,4,6': 3 },
-  },
-  {
-    // Lösung: Prisma (2,4,2) Achse y rot 1 · Spiegel (4,4,2) Achse y rot 3 ·
-    //   Spiegel (2,4,3) Achse y rot 1 · Spiegel (3,4,3) Achse y rot 1 · Prisma (2,2,1) Achse x rot 2 ·
-    //   Spiegel (3,4,5) Achse x rot 1
-    // Generator mittel-falle, Seed 20300, Stand 33f26f8 · Würfel „mittel“
-    name: 'Bergfried', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'source', x: 2, y: 4, z: 0, dir: 2, color: 'magenta' },
-      { type: 'prism', x: 2, y: 4, z: 2, rot: 5 },
-      { type: 'mirror', x: 4, y: 4, z: 2, rot: 2 },
-      { type: 'target', x: 4, y: 4, z: 0, color: 'red' },
-      { type: 'mirror', x: 2, y: 4, z: 3, rot: 2 },
-      { type: 'mirror', x: 3, y: 4, z: 3, rot: 3 },
-      { type: 'source', x: 2, y: 2, z: 0, dir: 2, color: 'yellow' },
-      { type: 'prism', x: 2, y: 2, z: 1, axis: 'x', rot: 7 },
-      { type: 'mirror', x: 3, y: 4, z: 5, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 3, y: 5, z: 3, rot: 2, fixed: true },
-      { type: 'mirror', x: 2, y: 5, z: 1, axis: 'x', rot: 3, fixed: true },
-      { type: 'target', x: 2, y: 5, z: 0, color: 'green' },
-      { type: 'target', x: 2, y: 6, z: 3, color: 'red' },
-      { type: 'target', x: 3, y: 6, z: 5, color: 'blue' },
-    ],
-    solution: { '2,4,2': 1, '4,4,2': 3, '2,4,3': 1, '3,4,3': 1, '2,2,1': 2, '3,4,5': 1 },
-  },
-  {
-    // Lösung: Prisma (1,5,4) Achse y rot 5 · Prisma (1,3,1) Achse x rot 0 ·
-    //   Spiegel (1,3,2) Achse x rot 1 · Spiegel (1,6,4) Achse z rot 1 · Spiegel (0,6,5) Achse y rot 2 ·
-    //   Spiegel (1,6,6) Achse x rot 2
-    // Generator mittel-sammelstelle, Seed 20559, Stand 33f26f8 · Würfel „mittel“
-    name: 'Zinnen', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'prism', x: 1, y: 5, z: 4, rot: 6 },
-      { type: 'source', x: 6, y: 5, z: 4, dir: 4, color: 'red' },
-      { type: 'source', x: 5, y: 5, z: 0, dir: 3, color: 'blue' },
-      { type: 'target', x: 0, y: 5, z: 4, color: 'red' },
-      { type: 'target', x: 1, y: 5, z: 2, color: 'cyan' },
-      { type: 'source', x: 1, y: 3, z: 0, dir: 2 },
-      { type: 'prism', x: 1, y: 3, z: 1, axis: 'x', rot: 4 },
-      { type: 'mirror', x: 1, y: 3, z: 2, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 2 },
-      { type: 'mirror', x: 0, y: 6, z: 5, rot: 3 },
-      { type: 'mirror', x: 1, y: 6, z: 6, axis: 'x', rot: 3 },
-      { type: 'target', x: 4, y: 6, z: 3, color: 'blue' },
-    ],
-    solution: { '1,5,4': 5, '1,3,1': 0, '1,3,2': 1, '1,6,4': 1, '0,6,5': 2, '1,6,6': 2 },
-  },
-  {
-    // Lösung: Spiegel (3,2,4) Achse y rot 1 · Spiegel (3,2,0) Achse y rot 3 ·
-    //   Spiegel (1,2,0) Achse y rot 1 · Spiegel (1,2,4) Achse y rot 1 · Prisma (5,2,4) Achse y rot 4 ·
-    //   Spiegel (4,2,3) Achse z rot 2
-    // Generator mittel-abzaehlen, Seed 20112, Stand 33f26f8 · Würfel „mittel“
-    name: 'Galerie', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 3, y: 2, z: 4, rot: 2 },
-      { type: 'mirror', x: 3, y: 2, z: 0, rot: 1 },
-      { type: 'mirror', x: 1, y: 2, z: 0, rot: 0 },
-      { type: 'mirror', x: 1, y: 2, z: 4, rot: 3 },
-      { type: 'source', x: 0, y: 2, z: 0, dir: 0, color: 'cyan' },
-      { type: 'source', x: 1, y: 2, z: 6, dir: 6, color: 'green' },
-      { type: 'source', x: 6, y: 2, z: 4, dir: 4, color: 'cyan' },
-      { type: 'target', x: 3, y: 2, z: 6, color: 'cyan' },
-      { type: 'target', x: 6, y: 2, z: 0, color: 'green' },
-      { type: 'target', x: 0, y: 2, z: 4, color: 'green' },
-      { type: 'prism', x: 5, y: 2, z: 4, rot: 5 },
-      { type: 'mirror', x: 4, y: 2, z: 3, axis: 'z', rot: 3 },
-      { type: 'target', x: 6, y: 2, z: 1, color: 'blue' },
-    ],
-    solution: { '3,2,4': 1, '3,2,0': 3, '1,2,0': 1, '1,2,4': 1, '5,2,4': 4, '4,2,3': 2 },
-  },
-  {
-    // Lösung: Spiegel (5,0,5) Achse y rot 1 · Spiegel (2,0,5) Achse y rot 1 ·
-    //   Spiegel (2,0,1) Achse y rot 1 · Spiegel (5,0,1) Achse y rot 1 · Prisma (1,0,5) Achse y rot 7 ·
-    //   Spiegel (1,0,1) Achse y rot 3
-    // Generator mittel-abzaehlen, Seed 20307, Stand 33f26f8 · Würfel „mittel“
-    name: 'Schiessscharte', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 5, y: 0, z: 5, rot: 0 },
-      { type: 'mirror', x: 2, y: 0, z: 5, rot: 3 },
-      { type: 'mirror', x: 2, y: 0, z: 1, rot: 0 },
-      { type: 'mirror', x: 5, y: 0, z: 1, rot: 3 },
-      { type: 'source', x: 2, y: 0, z: 0, dir: 2, color: 'cyan' },
-      { type: 'source', x: 0, y: 0, z: 5, dir: 0, color: 'magenta' },
-      { type: 'source', x: 6, y: 0, z: 1, dir: 4, color: 'blue' },
-      { type: 'target', x: 2, y: 0, z: 6, color: 'blue' },
-      { type: 'target', x: 5, y: 0, z: 0, color: 'blue' },
-      { type: 'target', x: 6, y: 0, z: 5, color: 'cyan' },
-      { type: 'prism', x: 1, y: 0, z: 5, rot: 2 },
-      { type: 'mirror', x: 1, y: 0, z: 1, rot: 2 },
-      { type: 'target', x: 5, y: 0, z: 6, color: 'red' },
-    ],
-    solution: { '5,0,5': 1, '2,0,5': 1, '2,0,1': 1, '5,0,1': 1, '1,0,5': 7, '1,0,1': 3 },
-  },
-  {
     // Lösung: Spiegel (2,2,5) Achse y rot 1 · Spiegel (4,2,5) Achse y rot 1 ·
     //   Spiegel (4,2,1) Achse y rot 1 · Spiegel (2,2,1) Achse y rot 1 · Prisma (1,2,1) Achse y rot 1 ·
     //   Spiegel (1,2,6) Achse y rot 3
@@ -13611,6 +13687,168 @@ const LEVELS_3D = [
     solution: { '2,2,5': 1, '4,2,5': 1, '4,2,1': 1, '2,2,1': 1, '1,2,1': 1, '1,2,6': 3 },
   },
   {
+    // Lösung: Prisma (4,0,4) Achse y rot 7 · Spiegel (4,0,0) Achse y rot 1 ·
+    //   Spiegel (6,0,4) Achse y rot 3 · Spiegel (6,0,2) Achse y rot 1 · Spiegel (3,0,2) Achse z rot 1 ·
+    //   Spiegel (4,5,4) Achse y rot 3 · Spiegel (3,5,4) Achse y rot 3
+    // Generator mittel-falle, Seed 20924, Stand 33f26f8 · Würfel „mittel“
+    name: 'Portikus', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 0, y: 0, z: 4, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 4, y: 0, z: 4, rot: 2 },
+      { type: 'mirror', x: 4, y: 0, z: 0, rot: 3 },
+      { type: 'target', x: 0, y: 0, z: 0, color: 'red' },
+      { type: 'mirror', x: 6, y: 0, z: 4, rot: 2 },
+      { type: 'mirror', x: 6, y: 0, z: 2, rot: 2 },
+      { type: 'mirror', x: 3, y: 0, z: 2, axis: 'z', rot: 3 },
+      { type: 'mirror', x: 3, y: 5, z: 2, axis: 'x', rot: 1, fixed: true },
+      { type: 'source', x: 4, y: 5, z: 0, dir: 2 },
+      { type: 'mirror', x: 4, y: 5, z: 4, rot: 1 },
+      { type: 'mirror', x: 3, y: 5, z: 4, rot: 2 },
+      { type: 'target', x: 2, y: 5, z: 4, color: 'blue' },
+      { type: 'target', x: 3, y: 5, z: 6, color: 'white' },
+    ],
+    solution: { '4,0,4': 7, '4,0,0': 1, '6,0,4': 3, '6,0,2': 1, '3,0,2': 1, '4,5,4': 3, '3,5,4': 3 },
+  },
+  {
+    // Lösung: Prisma (5,3,0) Achse y rot 3 · Spiegel (5,1,5) Achse x rot 1 ·
+    //   Spiegel (5,1,6) Achse x rot 1 · Spiegel (3,3,0) Achse y rot 3 · Spiegel (3,3,6) Achse x rot 1 ·
+    //   Spiegel (3,4,6) Achse x rot 3
+    // Generator mittel-sammelstelle, Seed 21189, Stand 33f26f8 · Würfel „mittel“
+    name: 'Brückenbogen', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'prism', x: 5, y: 3, z: 0, rot: 4 },
+      { type: 'source', x: 6, y: 3, z: 1, dir: 5, color: 'red' },
+      { type: 'source', x: 6, y: 3, z: 0, dir: 4, color: 'cyan' },
+      { type: 'target', x: 5, y: 3, z: 6, color: 'yellow' },
+      { type: 'target', x: 0, y: 3, z: 5, color: 'green' },
+      { type: 'source', x: 5, y: 0, z: 5, axis: 'x', dir: 2, color: 'green' },
+      { type: 'mirror', x: 5, y: 1, z: 5, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 5, y: 1, z: 6, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 3, y: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 3, y: 3, z: 6, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 6, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 4, axis: 'x', rot: 3, fixed: true },
+      { type: 'target', x: 3, y: 6, z: 4, color: 'blue' },
+    ],
+    solution: { '5,3,0': 3, '5,1,5': 1, '5,1,6': 1, '3,3,0': 3, '3,3,6': 1, '3,4,6': 3 },
+  },
+  {
+    // Lösung: Spiegel (4,4,1) Achse y rot 3 · Spiegel (1,4,1) Achse y rot 1 ·
+    //   Spiegel (1,4,4) Achse y rot 3 · Spiegel (4,4,4) Achse y rot 3 · Prisma (5,4,4) Achse y rot 5 ·
+    //   Spiegel (5,4,1) Achse y rot 1
+    // Generator mittel-abzaehlen, Seed 20030, Stand 33f26f8 · Würfel „mittel“
+    name: 'Loggia', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 4, y: 4, z: 1, rot: 1 },
+      { type: 'mirror', x: 1, y: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 1, y: 4, z: 4, rot: 2 },
+      { type: 'mirror', x: 4, y: 4, z: 4, rot: 1 },
+      { type: 'source', x: 4, y: 4, z: 0, dir: 2 },
+      { type: 'source', x: 6, y: 4, z: 4, dir: 4, color: 'magenta' },
+      { type: 'source', x: 0, y: 4, z: 1, dir: 0, color: 'red' },
+      { type: 'target', x: 1, y: 4, z: 0, color: 'white' },
+      { type: 'target', x: 0, y: 4, z: 4, color: 'red' },
+      { type: 'target', x: 4, y: 4, z: 5, color: 'red' },
+      { type: 'prism', x: 5, y: 4, z: 4, rot: 6 },
+      { type: 'mirror', x: 5, y: 4, z: 1, rot: 2 },
+      { type: 'target', x: 1, y: 4, z: 5, color: 'blue' },
+    ],
+    solution: { '4,4,1': 3, '1,4,1': 1, '1,4,4': 3, '4,4,4': 3, '5,4,4': 5, '5,4,1': 1 },
+  },
+  {
+    // Lösung: Prisma (6,5,1) Achse y rot 4 · Spiegel (6,5,5) Achse y rot 3 ·
+    //   Spiegel (6,2,2) Achse y rot 0 · Spiegel (5,6,5) Achse x rot 1 · Prisma (4,6,6) Achse y rot 4 ·
+    //   Spiegel (1,6,6) Achse y rot 1
+    // Generator mittel-sammelstelle, Seed 20535, Stand 33f26f8 · Würfel „mittel“
+    name: 'Terrasse', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'prism', x: 6, y: 5, z: 1, rot: 1 },
+      { type: 'source', x: 0, y: 5, z: 5, dir: 0, color: 'green' },
+      { type: 'mirror', x: 6, y: 5, z: 5, rot: 2 },
+      { type: 'source', x: 6, y: 5, z: 0, dir: 2, color: 'blue' },
+      { type: 'target', x: 0, y: 5, z: 1, color: 'green' },
+      { type: 'target', x: 5, y: 5, z: 0, color: 'blue' },
+      { type: 'source', x: 6, y: 0, z: 4, axis: 'x', dir: 3 },
+      { type: 'mirror', x: 6, y: 2, z: 2, rot: 3 },
+      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'x', rot: 2 },
+      { type: 'prism', x: 4, y: 6, z: 6, rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 6, rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 3, rot: 1, fixed: true },
+      { type: 'mirror', x: 0, y: 6, z: 3, rot: 1, fixed: true },
+      { type: 'target', x: 0, y: 6, z: 0, color: 'green' },
+    ],
+    solution: { '6,5,1': 4, '6,5,5': 3, '6,2,2': 0, '5,6,5': 1, '4,6,6': 4, '1,6,6': 1 },
+  },
+  {
+    // Lösung: Spiegel (4,0,3) Achse x rot 3 · Spiegel (2,1,3) Achse x rot 1 ·
+    //   Prisma (2,2,3) Achse z rot 0 · Spiegel (5,2,3) Achse y rot 1 · Spiegel (6,0,5) Achse y rot 2 ·
+    //   Spiegel (5,0,6) Achse x rot 1
+    // Generator mittel-mischziel, Seed 20548, Stand 33f26f8 · Würfel „mittel“
+    name: 'Brüstung', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 4, y: 6, z: 0, dir: 2, color: 'red' },
+      { type: 'source', x: 4, y: 0, z: 6, dir: 6, color: 'blue' },
+      { type: 'mirror', x: 4, y: 0, z: 3, axis: 'x', rot: 1 },
+      { type: 'target', x: 4, y: 6, z: 3, color: 'magenta' },
+      { type: 'source', x: 2, y: 1, z: 0, dir: 2 },
+      { type: 'mirror', x: 2, y: 1, z: 3, axis: 'x', rot: 3 },
+      { type: 'prism', x: 2, y: 2, z: 3, axis: 'z', rot: 4 },
+      { type: 'mirror', x: 5, y: 2, z: 3, rot: 2 },
+      { type: 'target', x: 5, y: 2, z: 4, color: 'green' },
+      { type: 'target', x: 3, y: 3, z: 3, color: 'red' },
+      { type: 'mirror', x: 6, y: 0, z: 5, rot: 3 },
+      { type: 'mirror', x: 5, y: 0, z: 6, axis: 'x', rot: 0 },
+      { type: 'target', x: 1, y: 4, z: 6, color: 'blue' },
+    ],
+    solution: { '4,0,3': 3, '2,1,3': 1, '2,2,3': 0, '5,2,3': 1, '6,0,5': 2, '5,0,6': 1 },
+  },
+  {
+    // Lösung: Spiegel (2,6,2) Achse y rot 1 · Spiegel (4,6,2) Achse y rot 3 ·
+    //   Spiegel (4,6,5) Achse y rot 3 · Spiegel (2,6,5) Achse y rot 1 · Prisma (2,6,1) Achse y rot 3 ·
+    //   Spiegel (0,6,1) Achse y rot 3
+    // Generator mittel-abzaehlen, Seed 20455, Stand 33f26f8 · Würfel „mittel“
+    name: 'Geländer', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 2, y: 6, z: 2, rot: 2 },
+      { type: 'mirror', x: 4, y: 6, z: 2, rot: 0 },
+      { type: 'mirror', x: 4, y: 6, z: 5, rot: 0 },
+      { type: 'mirror', x: 2, y: 6, z: 5, rot: 3 },
+      { type: 'source', x: 4, y: 6, z: 6, dir: 6, color: 'red' },
+      { type: 'source', x: 2, y: 6, z: 0, dir: 2, color: 'magenta' },
+      { type: 'source', x: 0, y: 6, z: 5, dir: 0, color: 'magenta' },
+      { type: 'target', x: 2, y: 6, z: 6, color: 'magenta' },
+      { type: 'target', x: 4, y: 6, z: 1, color: 'red' },
+      { type: 'target', x: 5, y: 6, z: 5, color: 'red' },
+      { type: 'prism', x: 2, y: 6, z: 1, rot: 1 },
+      { type: 'mirror', x: 0, y: 6, z: 1, rot: 1 },
+      { type: 'mirror', x: 0, y: 6, z: 2, rot: 1, fixed: true },
+      { type: 'target', x: 5, y: 6, z: 2, color: 'blue' },
+    ],
+    solution: { '2,6,2': 1, '4,6,2': 3, '4,6,5': 3, '2,6,5': 1, '2,6,1': 3, '0,6,1': 3 },
+  },
+  {
+    // Lösung: Prisma (1,5,4) Achse y rot 5 · Prisma (1,3,1) Achse x rot 0 ·
+    //   Spiegel (1,3,2) Achse x rot 1 · Spiegel (1,6,4) Achse z rot 1 · Spiegel (0,6,5) Achse y rot 2 ·
+    //   Spiegel (1,6,6) Achse x rot 2
+    // Generator mittel-sammelstelle, Seed 20559, Stand 33f26f8 · Würfel „mittel“
+    name: 'Zinnen', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'prism', x: 1, y: 5, z: 4, rot: 6 },
+      { type: 'source', x: 6, y: 5, z: 4, dir: 4, color: 'red' },
+      { type: 'source', x: 5, y: 5, z: 0, dir: 3, color: 'blue' },
+      { type: 'target', x: 0, y: 5, z: 4, color: 'red' },
+      { type: 'target', x: 1, y: 5, z: 2, color: 'cyan' },
+      { type: 'source', x: 1, y: 3, z: 0, dir: 2 },
+      { type: 'prism', x: 1, y: 3, z: 1, axis: 'x', rot: 4 },
+      { type: 'mirror', x: 1, y: 3, z: 2, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 5, rot: 3 },
+      { type: 'mirror', x: 1, y: 6, z: 6, axis: 'x', rot: 3 },
+      { type: 'target', x: 4, y: 6, z: 3, color: 'blue' },
+    ],
+    solution: { '1,5,4': 5, '1,3,1': 0, '1,3,2': 1, '1,6,4': 1, '0,6,5': 2, '1,6,6': 2 },
+  },
+  {
     // Lösung: Prisma (5,6,4) Achse y rot 3 · Spiegel (6,6,4) Achse y rot 3 ·
     //   Spiegel (3,6,6) Achse x rot 2 · Spiegel (0,6,3) Achse y rot 2 · Spiegel (0,6,1) Achse z rot 2
     // Generator mittel-sammelstelle, Seed 20102, Stand 33f26f8 · Würfel „mittel“
@@ -13629,6 +13867,30 @@ const LEVELS_3D = [
       { type: 'mirror', x: 0, y: 6, z: 1, axis: 'z', rot: 1 },
     ],
     solution: { '5,6,4': 3, '6,6,4': 3, '3,6,6': 2, '0,6,3': 2, '0,6,1': 2 },
+  },
+  {
+    // Lösung: Spiegel (5,6,4) Achse y rot 1 · Spiegel (2,6,2) Achse y rot 2 ·
+    //   Spiegel (3,6,3) Achse y rot 0 · Spiegel (5,6,5) Achse x rot 3 · Prisma (3,6,1) Achse y rot 3 ·
+    //   Spiegel (0,6,1) Achse y rot 3 · Spiegel (6,5,5) Achse y rot 3
+    // Generator mittel-abschalten, Seed 20837, Stand 33f26f8 · Würfel „mittel“
+    name: 'Fachwerk', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 0, y: 6, z: 4, dir: 0, color: 'green' },
+      { type: 'mirror', x: 5, y: 6, z: 4, rot: 0 },
+      { type: 'target', x: 5, y: 6, z: 1, color: 'green' },
+      { type: 'source', x: 4, y: 6, z: 0, dir: 3, color: 'cyan' },
+      { type: 'mirror', x: 2, y: 6, z: 2, rot: 1 },
+      { type: 'mirror', x: 3, y: 6, z: 3, rot: 2 },
+      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'x', rot: 0 },
+      { type: 'target', x: 5, y: 0, z: 5, color: 'green' },
+      { type: 'prism', x: 3, y: 6, z: 1, rot: 1 },
+      { type: 'mirror', x: 0, y: 6, z: 1, rot: 0 },
+      { type: 'target', x: 0, y: 6, z: 2, color: 'blue' },
+      { type: 'mirror', x: 6, y: 5, z: 5, rot: 0 },
+      { type: 'source', x: 6, y: 0, z: 0, axis: 'x', dir: 1, color: 'blue' },
+      { type: 'target', x: 1, y: 6, z: 5, color: 'blue' },
+    ],
+    solution: { '5,6,4': 1, '2,6,2': 2, '3,6,3': 0, '5,6,5': 3, '3,6,1': 3, '0,6,1': 3, '6,5,5': 3 },
   },
   {
     // Lösung: Spiegel (5,2,5) Achse x rot 1 · Spiegel (6,5,0) Achse y rot 2 ·
@@ -13683,6 +13945,29 @@ const LEVELS_3D = [
     solution: { '3,3,5': 1, '0,3,5': 3, '0,3,1': 1, '3,3,1': 1, '5,3,1': 3, '5,3,6': 1, '5,5,6': 3 },
   },
   {
+    // Lösung: Prisma (6,2,1) Achse y rot 5 · Spiegel (2,2,5) Achse y rot 0 ·
+    //   Spiegel (6,2,0) Achse x rot 3 · Spiegel (6,6,0) Achse x rot 1 · Spiegel (1,6,2) Achse y rot 1 ·
+    //   Spiegel (0,6,2) Achse y rot 1 · Spiegel (0,6,1) Achse x rot 1
+    // Generator mittel-sammelstelle, Seed 20078, Stand 33f26f8 · Würfel „mittel“
+    name: 'Zwischengeschoss', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'prism', x: 6, y: 2, z: 1, rot: 7 },
+      { type: 'source', x: 6, y: 2, z: 6, dir: 6, color: 'cyan' },
+      { type: 'source', x: 0, y: 2, z: 3, dir: 1, color: 'red' },
+      { type: 'mirror', x: 2, y: 2, z: 5, rot: 3 },
+      { type: 'target', x: 5, y: 2, z: 0, color: 'green' },
+      { type: 'target', x: 0, y: 2, z: 1, color: 'magenta' },
+      { type: 'mirror', x: 6, y: 2, z: 0, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 6, y: 6, z: 0, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 6, y: 6, z: 5, rot: 3, fixed: true },
+      { type: 'mirror', x: 1, y: 6, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 1, y: 6, z: 2, rot: 0 },
+      { type: 'mirror', x: 0, y: 6, z: 2, rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 1, axis: 'x', rot: 3 },
+    ],
+    solution: { '6,2,1': 5, '2,2,5': 0, '6,2,0': 3, '6,6,0': 1, '1,6,2': 1, '0,6,2': 1, '0,6,1': 1 },
+  },
+  {
     // Lösung: Spiegel (3,2,4) Achse z rot 1 · Spiegel (2,2,2) Achse x rot 3 ·
     //   Spiegel (4,6,2) Achse x rot 3 · Spiegel (3,5,2) Achse y rot 2 · Spiegel (4,4,2) Achse z rot 2 ·
     //   Spiegel (0,4,6) Achse x rot 2 · Spiegel (0,6,4) Achse z rot 0
@@ -13707,103 +13992,6 @@ const LEVELS_3D = [
     solution: { '3,2,4': 1, '2,2,2': 3, '4,6,2': 3, '3,5,2': 2, '4,4,2': 2, '0,4,6': 2, '0,6,4': 0 },
   },
   {
-    // Lösung: Spiegel (5,6,4) Achse y rot 1 · Spiegel (5,6,0) Achse y rot 3 ·
-    //   Spiegel (1,6,0) Achse y rot 1 · Spiegel (1,6,4) Achse y rot 1 · Prisma (1,6,5) Achse y rot 7 ·
-    //   Spiegel (2,6,5) Achse y rot 1 · Spiegel (2,6,6) Achse y rot 1
-    // Generator mittel-abzaehlen, Seed 20333, Stand 33f26f8 · Würfel „mittel“
-    name: 'Treppenabsatz', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 5, y: 6, z: 4, rot: 0 },
-      { type: 'mirror', x: 5, y: 6, z: 0, rot: 2 },
-      { type: 'mirror', x: 1, y: 6, z: 0, rot: 0 },
-      { type: 'mirror', x: 1, y: 6, z: 4, rot: 0 },
-      { type: 'source', x: 1, y: 6, z: 6, dir: 6, color: 'magenta' },
-      { type: 'source', x: 0, y: 6, z: 0, dir: 0, color: 'yellow' },
-      { type: 'source', x: 6, y: 6, z: 4, dir: 4, color: 'red' },
-      { type: 'target', x: 6, y: 6, z: 0, color: 'red' },
-      { type: 'target', x: 0, y: 6, z: 4, color: 'red' },
-      { type: 'target', x: 5, y: 6, z: 6, color: 'white' },
-      { type: 'prism', x: 1, y: 6, z: 5, rot: 2 },
-      { type: 'mirror', x: 2, y: 6, z: 5, rot: 2 },
-      { type: 'mirror', x: 2, y: 6, z: 6, rot: 3 },
-    ],
-    solution: { '5,6,4': 1, '5,6,0': 3, '1,6,0': 1, '1,6,4': 1, '1,6,5': 7, '2,6,5': 1, '2,6,6': 1 },
-  },
-  {
-    // Lösung: Spiegel (5,0,1) Achse y rot 1 · Spiegel (1,0,1) Achse y rot 1 ·
-    //   Spiegel (1,0,3) Achse y rot 3 · Spiegel (5,0,3) Achse y rot 1 · Prisma (1,0,4) Achse y rot 5 ·
-    //   Spiegel (0,0,3) Achse z rot 1 · Spiegel (0,3,0) Achse y rot 0 · Spiegel (0,6,3) Achse z rot 3
-    // Generator mittel-abzaehlen, Seed 20114, Stand 33f26f8 · Würfel „mittel“
-    name: 'Wintergarten', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 5, y: 0, z: 1, rot: 3 },
-      { type: 'mirror', x: 1, y: 0, z: 1, rot: 3 },
-      { type: 'mirror', x: 1, y: 0, z: 3, rot: 1 },
-      { type: 'mirror', x: 5, y: 0, z: 3, rot: 3 },
-      { type: 'source', x: 1, y: 0, z: 6, dir: 6, color: 'cyan' },
-      { type: 'source', x: 6, y: 0, z: 3, dir: 4 },
-      { type: 'source', x: 5, y: 0, z: 0, dir: 2, color: 'blue' },
-      { type: 'target', x: 6, y: 0, z: 1, color: 'blue' },
-      { type: 'target', x: 5, y: 0, z: 6, color: 'blue' },
-      { type: 'target', x: 1, y: 0, z: 0, color: 'white' },
-      { type: 'prism', x: 1, y: 0, z: 4, rot: 6 },
-      { type: 'mirror', x: 0, y: 0, z: 3, axis: 'z', rot: 3 },
-      { type: 'mirror', x: 0, y: 3, z: 0, rot: 3 },
-      { type: 'mirror', x: 0, y: 6, z: 3, axis: 'z', rot: 1 },
-      { type: 'target', x: 1, y: 6, z: 4, color: 'green' },
-    ],
-    solution: { '5,0,1': 1, '1,0,1': 1, '1,0,3': 3, '5,0,3': 1, '1,0,4': 5, '0,0,3': 1, '0,3,0': 0, '0,6,3': 3 },
-  },
-  {
-    // Lösung: Prisma (6,2,1) Achse y rot 5 · Spiegel (2,2,5) Achse y rot 0 ·
-    //   Spiegel (6,2,0) Achse x rot 3 · Spiegel (6,6,0) Achse x rot 1 · Spiegel (1,6,2) Achse y rot 1 ·
-    //   Spiegel (0,6,2) Achse y rot 1 · Spiegel (0,6,1) Achse x rot 1
-    // Generator mittel-sammelstelle, Seed 20078, Stand 33f26f8 · Würfel „mittel“
-    name: 'Zwischengeschoss', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'prism', x: 6, y: 2, z: 1, rot: 7 },
-      { type: 'source', x: 6, y: 2, z: 6, dir: 6, color: 'cyan' },
-      { type: 'source', x: 0, y: 2, z: 3, dir: 1, color: 'red' },
-      { type: 'mirror', x: 2, y: 2, z: 5, rot: 3 },
-      { type: 'target', x: 5, y: 2, z: 0, color: 'green' },
-      { type: 'target', x: 0, y: 2, z: 1, color: 'magenta' },
-      { type: 'mirror', x: 6, y: 2, z: 0, axis: 'x', rot: 1 },
-      { type: 'mirror', x: 6, y: 6, z: 0, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 6, y: 6, z: 5, rot: 3, fixed: true },
-      { type: 'mirror', x: 1, y: 6, z: 5, rot: 1, fixed: true },
-      { type: 'mirror', x: 1, y: 6, z: 2, rot: 0 },
-      { type: 'mirror', x: 0, y: 6, z: 2, rot: 2 },
-      { type: 'mirror', x: 0, y: 6, z: 1, axis: 'x', rot: 3 },
-    ],
-    solution: { '6,2,1': 5, '2,2,5': 0, '6,2,0': 3, '6,6,0': 1, '1,6,2': 1, '0,6,2': 1, '0,6,1': 1 },
-  },
-  {
-    // Lösung: Spiegel (2,4,1) Achse y rot 1 · Spiegel (2,4,4) Achse y rot 1 ·
-    //   Spiegel (5,4,4) Achse y rot 1 · Spiegel (5,4,1) Achse y rot 1 · Prisma (1,4,1) Achse y rot 1 ·
-    //   Spiegel (1,4,4) Achse x rot 1 · Spiegel (0,6,4) Achse y rot 1 · Spiegel (0,6,1) Achse y rot 3
-    // Generator mittel-abzaehlen, Seed 20297, Stand 33f26f8 · Würfel „mittel“
-    name: 'Dachterrasse', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 2, y: 4, z: 1, rot: 2 },
-      { type: 'mirror', x: 2, y: 4, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, y: 4, z: 4, rot: 3 },
-      { type: 'mirror', x: 5, y: 4, z: 1, rot: 2 },
-      { type: 'source', x: 0, y: 4, z: 1, dir: 0, color: 'magenta' },
-      { type: 'source', x: 6, y: 4, z: 4, dir: 4, color: 'magenta' },
-      { type: 'source', x: 5, y: 4, z: 0, dir: 2, color: 'red' },
-      { type: 'target', x: 5, y: 4, z: 6, color: 'red' },
-      { type: 'target', x: 6, y: 4, z: 1, color: 'red' },
-      { type: 'target', x: 2, y: 4, z: 0, color: 'magenta' },
-      { type: 'prism', x: 1, y: 4, z: 1, rot: 4 },
-      { type: 'mirror', x: 1, y: 4, z: 4, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 1, fixed: true },
-      { type: 'mirror', x: 0, y: 6, z: 4, rot: 2 },
-      { type: 'mirror', x: 0, y: 6, z: 1, rot: 2 },
-      { type: 'target', x: 4, y: 6, z: 1, color: 'blue' },
-    ],
-    solution: { '2,4,1': 1, '2,4,4': 1, '5,4,4': 1, '5,4,1': 1, '1,4,1': 1, '1,4,4': 1, '0,6,4': 1, '0,6,1': 3 },
-  },
-  {
     // Lösung: Spiegel (4,5,1) Achse y rot 3 · Spiegel (3,1,0) Achse z rot 3 ·
     //   Prisma (5,1,0) Achse z rot 6 · Prisma (5,6,1) Achse z rot 1 · Spiegel (5,4,0) Achse x rot 1 ·
     //   Spiegel (6,6,1) Achse y rot 3 · Spiegel (6,6,0) Achse x rot 1
@@ -13824,80 +14012,6 @@ const LEVELS_3D = [
       { type: 'mirror', x: 6, y: 6, z: 0, axis: 'x', rot: 2 },
     ],
     solution: { '4,5,1': 3, '3,1,0': 3, '5,1,0': 6, '5,6,1': 1, '5,4,0': 1, '6,6,1': 3, '6,6,0': 1 },
-  },
-  {
-    // Lösung: Spiegel (4,4,0) Achse y rot 3 · Spiegel (2,4,0) Achse y rot 1 ·
-    //   Spiegel (2,4,2) Achse y rot 1 · Spiegel (4,4,2) Achse y rot 1 · Prisma (2,4,4) Achse y rot 6 ·
-    //   Spiegel (1,4,3) Achse x rot 2 · Spiegel (0,4,4) Achse z rot 2 · Spiegel (1,4,5) Achse z rot 1
-    // Generator mittel-abzaehlen, Seed 20329, Stand 33f26f8 · Würfel „mittel“
-    name: 'Innenhof', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'mirror', x: 4, y: 4, z: 0, rot: 1 },
-      { type: 'mirror', x: 2, y: 4, z: 0, rot: 2 },
-      { type: 'mirror', x: 2, y: 4, z: 2, rot: 2 },
-      { type: 'mirror', x: 4, y: 4, z: 2, rot: 2 },
-      { type: 'source', x: 6, y: 4, z: 2, dir: 4, color: 'green' },
-      { type: 'source', x: 0, y: 4, z: 0, dir: 0, color: 'cyan' },
-      { type: 'source', x: 2, y: 4, z: 6, dir: 6, color: 'yellow' },
-      { type: 'target', x: 4, y: 4, z: 6, color: 'cyan' },
-      { type: 'target', x: 1, y: 4, z: 2, color: 'green' },
-      { type: 'target', x: 6, y: 4, z: 0, color: 'green' },
-      { type: 'prism', x: 2, y: 4, z: 4, rot: 2 },
-      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'x', rot: 3 },
-      { type: 'mirror', x: 0, y: 4, z: 4, axis: 'z', rot: 1 },
-      { type: 'mirror', x: 1, y: 4, z: 5, axis: 'z', rot: 3 },
-      { type: 'target', x: 1, y: 3, z: 6, color: 'red' },
-    ],
-    solution: { '4,4,0': 3, '2,4,0': 1, '2,4,2': 1, '4,4,2': 1, '2,4,4': 6, '1,4,3': 2, '0,4,4': 2, '1,4,5': 1 },
-  },
-  {
-    // Lösung: Prisma (4,3,2) Achse y rot 1 · Spiegel (4,3,6) Achse y rot 3 ·
-    //   Spiegel (6,3,2) Achse y rot 1 · Spiegel (6,3,4) Achse y rot 3 · Spiegel (1,3,4) Achse z rot 1 ·
-    //   Spiegel (1,5,4) Achse x rot 1 · Spiegel (1,5,6) Achse y rot 3 · Spiegel (0,5,6) Achse z rot 1
-    // Generator mittel-falle, Seed 20276, Stand 33f26f8 · Würfel „mittel“
-    name: 'Rotunde', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'source', x: 0, y: 3, z: 2, dir: 0, color: 'magenta' },
-      { type: 'prism', x: 4, y: 3, z: 2, rot: 7 },
-      { type: 'mirror', x: 4, y: 3, z: 6, rot: 0 },
-      { type: 'target', x: 0, y: 3, z: 6, color: 'blue' },
-      { type: 'mirror', x: 6, y: 3, z: 2, rot: 2 },
-      { type: 'mirror', x: 6, y: 3, z: 4, rot: 2 },
-      { type: 'source', x: 0, y: 5, z: 5, dir: 7 },
-      { type: 'mirror', x: 1, y: 3, z: 4, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 1, y: 5, z: 4, axis: 'x', rot: 2 },
-      { type: 'target', x: 5, y: 1, z: 4, color: 'green' },
-      { type: 'mirror', x: 1, y: 5, z: 6, rot: 1 },
-      { type: 'mirror', x: 0, y: 5, z: 6, axis: 'z', rot: 2 },
-      { type: 'filter', x: 2, y: 4, z: 4, color: 'green' },
-      { type: 'target', x: 0, y: 6, z: 6, color: 'red' },
-    ],
-    solution: { '4,3,2': 1, '4,3,6': 3, '6,3,2': 1, '6,3,4': 3, '1,3,4': 1, '1,5,4': 1, '1,5,6': 3, '0,5,6': 1 },
-  },
-  {
-    // Lösung: Prisma (5,5,2) Achse y rot 3 · Spiegel (3,5,2) Achse y rot 1 ·
-    //   Spiegel (5,5,3) Achse y rot 3 · Spiegel (4,5,5) Achse y rot 1 · Spiegel (4,5,6) Achse x rot 1 ·
-    //   Spiegel (4,6,6) Achse z rot 1 · Spiegel (3,6,6) Achse y rot 1 · Spiegel (3,6,5) Achse y rot 1
-    // Generator mittel-falle, Seed 20851, Stand 33f26f8 · Würfel „mittel“
-    name: 'Vorhalle', dim: 3, size: 7, grad: 'mittel',
-    elements: [
-      { type: 'source', x: 5, y: 5, z: 0, dir: 2, color: 'magenta' },
-      { type: 'prism', x: 5, y: 5, z: 2, rot: 6 },
-      { type: 'mirror', x: 3, y: 5, z: 2, rot: 0 },
-      { type: 'target', x: 3, y: 5, z: 0, color: 'blue' },
-      { type: 'mirror', x: 5, y: 5, z: 3, rot: 0 },
-      { type: 'mirror', x: 4, y: 5, z: 3, rot: 3, fixed: true },
-      { type: 'source', x: 0, y: 5, z: 5, dir: 0 },
-      { type: 'mirror', x: 4, y: 5, z: 5, rot: 2 },
-      { type: 'filter', x: 2, y: 5, z: 5, color: 'red' },
-      { type: 'mirror', x: 4, y: 5, z: 6, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 4, y: 6, z: 6, axis: 'z', rot: 2 },
-      { type: 'mirror', x: 3, y: 6, z: 6, rot: 3 },
-      { type: 'mirror', x: 3, y: 6, z: 5, rot: 2 },
-      { type: 'target', x: 5, y: 5, z: 5, color: 'red' },
-      { type: 'target', x: 1, y: 6, z: 5, color: 'red' },
-    ],
-    solution: { '5,5,2': 3, '3,5,2': 1, '5,5,3': 3, '4,5,5': 1, '4,5,6': 1, '4,6,6': 1, '3,6,6': 1, '3,6,5': 1 },
   },
   {
     // Lösung: Spiegel (1,2,6) Achse y rot 3 · Spiegel (3,2,6) Achse y rot 1 ·
@@ -13927,6 +14041,105 @@ const LEVELS_3D = [
     solution: { '1,2,6': 3, '3,2,6': 1, '3,2,3': 1, '1,2,3': 1, '3,2,1': 1, '4,2,2': 3, '5,1,2': 1, '6,1,1': 2 },
   },
   {
+    // Lösung: Spiegel (5,0,1) Achse y rot 1 · Spiegel (1,0,1) Achse y rot 1 ·
+    //   Spiegel (1,0,3) Achse y rot 3 · Spiegel (5,0,3) Achse y rot 1 · Prisma (1,0,4) Achse y rot 5 ·
+    //   Spiegel (0,0,3) Achse z rot 1 · Spiegel (0,3,0) Achse y rot 0 · Spiegel (0,6,3) Achse z rot 3
+    // Generator mittel-abzaehlen, Seed 20114, Stand 33f26f8 · Würfel „mittel“
+    name: 'Wintergarten', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 5, y: 0, z: 1, rot: 3 },
+      { type: 'mirror', x: 1, y: 0, z: 1, rot: 3 },
+      { type: 'mirror', x: 1, y: 0, z: 3, rot: 1 },
+      { type: 'mirror', x: 5, y: 0, z: 3, rot: 3 },
+      { type: 'source', x: 1, y: 0, z: 6, dir: 6, color: 'cyan' },
+      { type: 'source', x: 6, y: 0, z: 3, dir: 4 },
+      { type: 'source', x: 5, y: 0, z: 0, dir: 2, color: 'blue' },
+      { type: 'target', x: 6, y: 0, z: 1, color: 'blue' },
+      { type: 'target', x: 5, y: 0, z: 6, color: 'blue' },
+      { type: 'target', x: 1, y: 0, z: 0, color: 'white' },
+      { type: 'prism', x: 1, y: 0, z: 4, rot: 6 },
+      { type: 'mirror', x: 0, y: 0, z: 3, axis: 'z', rot: 3 },
+      { type: 'mirror', x: 0, y: 3, z: 0, rot: 3 },
+      { type: 'mirror', x: 0, y: 6, z: 3, axis: 'z', rot: 1 },
+      { type: 'target', x: 1, y: 6, z: 4, color: 'green' },
+    ],
+    solution: { '5,0,1': 1, '1,0,1': 1, '1,0,3': 3, '5,0,3': 1, '1,0,4': 5, '0,0,3': 1, '0,3,0': 0, '0,6,3': 3 },
+  },
+  {
+    // Lösung: Spiegel (5,6,4) Achse y rot 1 · Spiegel (5,6,0) Achse y rot 3 ·
+    //   Spiegel (1,6,0) Achse y rot 1 · Spiegel (1,6,4) Achse y rot 1 · Prisma (1,6,5) Achse y rot 7 ·
+    //   Spiegel (2,6,5) Achse y rot 1 · Spiegel (2,6,6) Achse y rot 1
+    // Generator mittel-abzaehlen, Seed 20333, Stand 33f26f8 · Würfel „mittel“
+    name: 'Treppenabsatz', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 5, y: 6, z: 4, rot: 0 },
+      { type: 'mirror', x: 5, y: 6, z: 0, rot: 2 },
+      { type: 'mirror', x: 1, y: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 4, rot: 0 },
+      { type: 'source', x: 1, y: 6, z: 6, dir: 6, color: 'magenta' },
+      { type: 'source', x: 0, y: 6, z: 0, dir: 0, color: 'yellow' },
+      { type: 'source', x: 6, y: 6, z: 4, dir: 4, color: 'red' },
+      { type: 'target', x: 6, y: 6, z: 0, color: 'red' },
+      { type: 'target', x: 0, y: 6, z: 4, color: 'red' },
+      { type: 'target', x: 5, y: 6, z: 6, color: 'white' },
+      { type: 'prism', x: 1, y: 6, z: 5, rot: 2 },
+      { type: 'mirror', x: 2, y: 6, z: 5, rot: 2 },
+      { type: 'mirror', x: 2, y: 6, z: 6, rot: 3 },
+    ],
+    solution: { '5,6,4': 1, '5,6,0': 3, '1,6,0': 1, '1,6,4': 1, '1,6,5': 7, '2,6,5': 1, '2,6,6': 1 },
+  },
+  {
+    // Lösung: Spiegel (2,4,1) Achse y rot 1 · Spiegel (2,4,4) Achse y rot 1 ·
+    //   Spiegel (5,4,4) Achse y rot 1 · Spiegel (5,4,1) Achse y rot 1 · Prisma (1,4,1) Achse y rot 1 ·
+    //   Spiegel (1,4,4) Achse x rot 1 · Spiegel (0,6,4) Achse y rot 1 · Spiegel (0,6,1) Achse y rot 3
+    // Generator mittel-abzaehlen, Seed 20297, Stand 33f26f8 · Würfel „mittel“
+    name: 'Dachterrasse', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 2, y: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 2, y: 4, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, y: 4, z: 4, rot: 3 },
+      { type: 'mirror', x: 5, y: 4, z: 1, rot: 2 },
+      { type: 'source', x: 0, y: 4, z: 1, dir: 0, color: 'magenta' },
+      { type: 'source', x: 6, y: 4, z: 4, dir: 4, color: 'magenta' },
+      { type: 'source', x: 5, y: 4, z: 0, dir: 2, color: 'red' },
+      { type: 'target', x: 5, y: 4, z: 6, color: 'red' },
+      { type: 'target', x: 6, y: 4, z: 1, color: 'red' },
+      { type: 'target', x: 2, y: 4, z: 0, color: 'magenta' },
+      { type: 'prism', x: 1, y: 4, z: 1, rot: 4 },
+      { type: 'mirror', x: 1, y: 4, z: 4, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 1, y: 6, z: 4, axis: 'z', rot: 1, fixed: true },
+      { type: 'mirror', x: 0, y: 6, z: 4, rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 1, rot: 2 },
+      { type: 'target', x: 4, y: 6, z: 1, color: 'blue' },
+    ],
+    solution: { '2,4,1': 1, '2,4,4': 1, '5,4,4': 1, '5,4,1': 1, '1,4,1': 1, '1,4,4': 1, '0,6,4': 1, '0,6,1': 3 },
+  },
+  {
+    // Lösung: Prisma (5,5,2) Achse y rot 3 · Spiegel (3,5,2) Achse y rot 1 ·
+    //   Spiegel (5,5,3) Achse y rot 3 · Spiegel (4,5,5) Achse y rot 1 · Spiegel (4,5,6) Achse x rot 1 ·
+    //   Spiegel (4,6,6) Achse z rot 1 · Spiegel (3,6,6) Achse y rot 1 · Spiegel (3,6,5) Achse y rot 1
+    // Generator mittel-falle, Seed 20851, Stand 33f26f8 · Würfel „mittel“
+    name: 'Vorhalle', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 5, y: 5, z: 0, dir: 2, color: 'magenta' },
+      { type: 'prism', x: 5, y: 5, z: 2, rot: 6 },
+      { type: 'mirror', x: 3, y: 5, z: 2, rot: 0 },
+      { type: 'target', x: 3, y: 5, z: 0, color: 'blue' },
+      { type: 'mirror', x: 5, y: 5, z: 3, rot: 0 },
+      { type: 'mirror', x: 4, y: 5, z: 3, rot: 3, fixed: true },
+      { type: 'source', x: 0, y: 5, z: 5, dir: 0 },
+      { type: 'mirror', x: 4, y: 5, z: 5, rot: 2 },
+      { type: 'filter', x: 2, y: 5, z: 5, color: 'red' },
+      { type: 'mirror', x: 4, y: 5, z: 6, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 4, y: 6, z: 6, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 3, y: 6, z: 6, rot: 3 },
+      { type: 'mirror', x: 3, y: 6, z: 5, rot: 2 },
+      { type: 'target', x: 5, y: 5, z: 5, color: 'red' },
+      { type: 'target', x: 1, y: 6, z: 5, color: 'red' },
+    ],
+    solution: { '5,5,2': 3, '3,5,2': 1, '5,5,3': 3, '4,5,5': 1, '4,5,6': 1, '4,6,6': 1, '3,6,6': 1, '3,6,5': 1 },
+  },
+  {
     // Lösung: Prisma (1,4,2) Achse y rot 0 · Spiegel (3,4,4) Achse y rot 2 ·
     //   Spiegel (2,4,1) Achse y rot 0 · Spiegel (3,4,2) Achse y rot 0 · Prisma (2,2,2) Achse z rot 7 ·
     //   Spiegel (4,2,5) Achse x rot 1 · Spiegel (4,3,5) Achse x rot 3
@@ -13952,28 +14165,126 @@ const LEVELS_3D = [
     solution: { '1,4,2': 0, '3,4,4': 2, '2,4,1': 0, '3,4,2': 0, '2,2,2': 7, '4,2,5': 1, '4,3,5': 3 },
   },
   {
-    // Lösung: Spiegel (5,1,1) Achse z rot 1 · Prisma (5,2,1) Achse x rot 2 ·
-    //   Spiegel (5,6,5) Achse z rot 0 · Prisma (2,5,1) Achse z rot 4 · Spiegel (1,5,1) Achse y rot 3 ·
-    //   Spiegel (1,5,4) Achse y rot 3 · Spiegel (0,5,4) Achse y rot 3 · Spiegel (0,5,6) Achse y rot 1
-    // Generator mittel, Seed 20048, Stand 33f26f8 · Würfel „mittel“
-    name: 'Pavillon', dim: 3, size: 7, grad: 'mittel',
+    // Lösung: Spiegel (2,6,6) Achse y rot 3 · Spiegel (2,6,3) Achse y rot 1 ·
+    //   Spiegel (4,6,3) Achse y rot 1 · Spiegel (4,6,6) Achse y rot 1 · Prisma (1,6,6) Achse y rot 7 ·
+    //   Spiegel (1,6,0) Achse y rot 1 · Spiegel (0,6,0) Achse y rot 3
+    // Generator mittel-abzaehlen, Seed 20774, Stand 33f26f8 · Würfel „mittel“
+    name: 'Gebälk', dim: 3, size: 7, grad: 'mittel',
     elements: [
-      { type: 'source', x: 6, y: 1, z: 1, dir: 4, color: 'magenta' },
-      { type: 'mirror', x: 5, y: 1, z: 1, axis: 'z', rot: 2 },
-      { type: 'prism', x: 5, y: 2, z: 1, axis: 'x', rot: 5 },
-      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'z', rot: 3 },
-      { type: 'target', x: 5, y: 3, z: 0, color: 'blue' },
-      { type: 'target', x: 5, y: 5, z: 6, color: 'yellow' },
-      { type: 'source', x: 2, y: 0, z: 1, axis: 'x', dir: 2 },
-      { type: 'prism', x: 2, y: 5, z: 1, axis: 'z', rot: 3 },
-      { type: 'mirror', x: 1, y: 5, z: 1, rot: 2 },
-      { type: 'mirror', x: 1, y: 5, z: 4, rot: 2 },
-      { type: 'target', x: 1, y: 6, z: 1, color: 'blue' },
-      { type: 'target', x: 0, y: 3, z: 1, color: 'red' },
-      { type: 'mirror', x: 0, y: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 0, y: 5, z: 6, rot: 0 },
+      { type: 'mirror', x: 2, y: 6, z: 6, rot: 1 },
+      { type: 'mirror', x: 2, y: 6, z: 3, rot: 0 },
+      { type: 'mirror', x: 4, y: 6, z: 3, rot: 0 },
+      { type: 'mirror', x: 4, y: 6, z: 6, rot: 0 },
+      { type: 'source', x: 6, y: 6, z: 3, dir: 4, color: 'blue' },
+      { type: 'source', x: 2, y: 6, z: 0, dir: 2 },
+      { type: 'source', x: 0, y: 6, z: 6, dir: 0, color: 'magenta' },
+      { type: 'target', x: 4, y: 6, z: 2, color: 'blue' },
+      { type: 'target', x: 0, y: 6, z: 3, color: 'magenta' },
+      { type: 'target', x: 5, y: 6, z: 6, color: 'white' },
+      { type: 'prism', x: 1, y: 6, z: 6, rot: 5 },
+      { type: 'mirror', x: 1, y: 6, z: 0, rot: 3 },
+      { type: 'mirror', x: 0, y: 6, z: 0, rot: 2 },
     ],
-    solution: { '5,1,1': 1, '5,2,1': 2, '5,6,5': 0, '2,5,1': 4, '1,5,1': 3, '1,5,4': 3, '0,5,4': 3, '0,5,6': 1 },
+    solution: { '2,6,6': 3, '2,6,3': 1, '4,6,3': 1, '4,6,6': 1, '1,6,6': 7, '1,6,0': 1, '0,6,0': 3 },
+  },
+  {
+    // Lösung: Spiegel (0,4,2) Achse y rot 0 · Spiegel (2,5,1) Achse y rot 3 ·
+    //   Spiegel (1,5,1) Achse y rot 3 · Spiegel (0,6,4) Achse x rot 0 · Spiegel (2,1,5) Achse y rot 3 ·
+    //   Prisma (0,4,6) Achse x rot 1 · Spiegel (0,5,6) Achse z rot 3 · Spiegel (2,5,6) Achse y rot 3
+    // Generator mittel-abschalten, Seed 20116, Stand 33f26f8 · Würfel „mittel“
+    name: 'Giebel', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 0, y: 0, z: 6, axis: 'x', dir: 3, color: 'magenta' },
+      { type: 'mirror', x: 0, y: 4, z: 2, rot: 2 },
+      { type: 'target', x: 1, y: 5, z: 2, color: 'magenta' },
+      { type: 'source', x: 2, y: 5, z: 0, dir: 2, color: 'magenta' },
+      { type: 'mirror', x: 2, y: 5, z: 1, rot: 0 },
+      { type: 'mirror', x: 1, y: 5, z: 1, rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 4, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 2, y: 1, z: 5, rot: 0 },
+      { type: 'source', x: 1, y: 0, z: 5, axis: 'z', dir: 7, color: 'green' },
+      { type: 'target', x: 3, y: 6, z: 1, color: 'green' },
+      { type: 'prism', x: 0, y: 4, z: 6, axis: 'x', rot: 7 },
+      { type: 'mirror', x: 0, y: 5, z: 6, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 2, y: 5, z: 6, rot: 0 },
+      { type: 'target', x: 4, y: 5, z: 1, color: 'blue' },
+    ],
+    solution: { '0,4,2': 0, '2,5,1': 3, '1,5,1': 3, '0,6,4': 0, '2,1,5': 3, '0,4,6': 1, '0,5,6': 3, '2,5,6': 3 },
+  },
+  {
+    // Lösung: Spiegel (3,1,3) Achse x rot 3 · Spiegel (4,4,6) Achse y rot 2 ·
+    //   Spiegel (3,3,6) Achse y rot 1 · Spiegel (3,6,3) Achse z rot 3 · Spiegel (5,6,3) Achse y rot 1 ·
+    //   Spiegel (5,6,5) Achse y rot 1 · Spiegel (5,1,6) Achse y rot 2 · Prisma (5,6,1) Achse y rot 0
+    // Generator mittel-abschalten, Seed 21080, Stand 33f26f8 · Würfel „mittel“
+    name: 'Korridor', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 3, y: 1, z: 6, dir: 6 },
+      { type: 'mirror', x: 3, y: 1, z: 3, axis: 'x', rot: 1 },
+      { type: 'target', x: 3, y: 0, z: 3, color: 'white' },
+      { type: 'source', x: 2, y: 6, z: 6, axis: 'z', dir: 1 },
+      { type: 'mirror', x: 4, y: 4, z: 6, rot: 3 },
+      { type: 'mirror', x: 3, y: 3, z: 6, rot: 3 },
+      { type: 'mirror', x: 3, y: 6, z: 3, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 5, y: 6, z: 3, rot: 0 },
+      { type: 'mirror', x: 5, y: 6, z: 5, rot: 2 },
+      { type: 'mirror', x: 6, y: 6, z: 5, rot: 3, fixed: true },
+      { type: 'target', x: 6, y: 6, z: 2, color: 'cyan' },
+      { type: 'mirror', x: 5, y: 1, z: 6, rot: 0 },
+      { type: 'source', x: 4, y: 0, z: 6, axis: 'z', dir: 7, color: 'cyan' },
+      { type: 'prism', x: 5, y: 6, z: 1, rot: 7 },
+      { type: 'filter', x: 6, y: 6, z: 4, color: 'cyan' },
+      { type: 'target', x: 6, y: 6, z: 1, color: 'green' },
+    ],
+    solution: { '3,1,3': 3, '4,4,6': 2, '3,3,6': 1, '3,6,3': 3, '5,6,3': 1, '5,6,5': 1, '5,1,6': 2, '5,6,1': 0 },
+  },
+  {
+    // Lösung: Spiegel (4,4,0) Achse y rot 3 · Spiegel (2,4,0) Achse y rot 1 ·
+    //   Spiegel (2,4,2) Achse y rot 1 · Spiegel (4,4,2) Achse y rot 1 · Prisma (2,4,4) Achse y rot 6 ·
+    //   Spiegel (1,4,3) Achse x rot 2 · Spiegel (0,4,4) Achse z rot 2 · Spiegel (1,4,5) Achse z rot 1
+    // Generator mittel-abzaehlen, Seed 20329, Stand 33f26f8 · Würfel „mittel“
+    name: 'Innenhof', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 4, y: 4, z: 0, rot: 1 },
+      { type: 'mirror', x: 2, y: 4, z: 0, rot: 2 },
+      { type: 'mirror', x: 2, y: 4, z: 2, rot: 2 },
+      { type: 'mirror', x: 4, y: 4, z: 2, rot: 2 },
+      { type: 'source', x: 6, y: 4, z: 2, dir: 4, color: 'green' },
+      { type: 'source', x: 0, y: 4, z: 0, dir: 0, color: 'cyan' },
+      { type: 'source', x: 2, y: 4, z: 6, dir: 6, color: 'yellow' },
+      { type: 'target', x: 4, y: 4, z: 6, color: 'cyan' },
+      { type: 'target', x: 1, y: 4, z: 2, color: 'green' },
+      { type: 'target', x: 6, y: 4, z: 0, color: 'green' },
+      { type: 'prism', x: 2, y: 4, z: 4, rot: 2 },
+      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 0, y: 4, z: 4, axis: 'z', rot: 1 },
+      { type: 'mirror', x: 1, y: 4, z: 5, axis: 'z', rot: 3 },
+      { type: 'target', x: 1, y: 3, z: 6, color: 'red' },
+    ],
+    solution: { '4,4,0': 3, '2,4,0': 1, '2,4,2': 1, '4,4,2': 1, '2,4,4': 6, '1,4,3': 2, '0,4,4': 2, '1,4,5': 1 },
+  },
+  {
+    // Lösung: Spiegel (3,4,4) Achse y rot 1 · Spiegel (1,4,5) Achse y rot 3 ·
+    //   Prisma (1,1,3) Achse z rot 5 · Spiegel (1,3,3) Achse x rot 1 · Spiegel (0,1,3) Achse z rot 1 ·
+    //   Spiegel (6,4,3) Achse y rot 1 · Spiegel (6,4,5) Achse y rot 3
+    // Generator mittel-mischziel, Seed 20955, Stand 33f26f8 · Würfel „mittel“
+    name: 'Burghof', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 3, y: 4, z: 6, dir: 6, color: 'yellow' },
+      { type: 'source', x: 0, y: 4, z: 5, dir: 0, color: 'cyan' },
+      { type: 'mirror', x: 3, y: 4, z: 4, rot: 3 },
+      { type: 'mirror', x: 1, y: 4, z: 5, rot: 0 },
+      { type: 'target', x: 1, y: 4, z: 4, color: 'white' },
+      { type: 'source', x: 2, y: 0, z: 3, axis: 'z', dir: 5 },
+      { type: 'prism', x: 1, y: 1, z: 3, axis: 'z', rot: 4 },
+      { type: 'mirror', x: 1, y: 3, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 0, y: 1, z: 3, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 0, y: 4, z: 3, axis: 'z', rot: 3, fixed: true },
+      { type: 'target', x: 1, y: 3, z: 4, color: 'blue' },
+      { type: 'mirror', x: 6, y: 4, z: 3, rot: 0 },
+      { type: 'mirror', x: 6, y: 4, z: 5, rot: 0 },
+      { type: 'target', x: 1, y: 4, z: 6, color: 'red' },
+    ],
+    solution: { '3,4,4': 1, '1,4,5': 3, '1,1,3': 5, '1,3,3': 1, '0,1,3': 1, '6,4,3': 1, '6,4,5': 3 },
   },
   {
     // Lösung: Prisma (5,2,5) Achse y rot 4 · Spiegel (4,2,5) Achse z rot 1 ·
@@ -14002,6 +14313,54 @@ const LEVELS_3D = [
     solution: { '5,2,5': 4, '4,2,5': 1, '4,2,2': 2, '4,3,5': 1, '5,2,1': 2, '4,3,6': 1, '6,3,6': 3, '4,2,0': 2 },
   },
   {
+    // Lösung: Spiegel (5,1,1) Achse z rot 1 · Prisma (5,2,1) Achse x rot 2 ·
+    //   Spiegel (5,6,5) Achse z rot 0 · Prisma (2,5,1) Achse z rot 4 · Spiegel (1,5,1) Achse y rot 3 ·
+    //   Spiegel (1,5,4) Achse y rot 3 · Spiegel (0,5,4) Achse y rot 3 · Spiegel (0,5,6) Achse y rot 1
+    // Generator mittel, Seed 20048, Stand 33f26f8 · Würfel „mittel“
+    name: 'Pavillon', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 6, y: 1, z: 1, dir: 4, color: 'magenta' },
+      { type: 'mirror', x: 5, y: 1, z: 1, axis: 'z', rot: 2 },
+      { type: 'prism', x: 5, y: 2, z: 1, axis: 'x', rot: 5 },
+      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'z', rot: 3 },
+      { type: 'target', x: 5, y: 3, z: 0, color: 'blue' },
+      { type: 'target', x: 5, y: 5, z: 6, color: 'yellow' },
+      { type: 'source', x: 2, y: 0, z: 1, axis: 'x', dir: 2 },
+      { type: 'prism', x: 2, y: 5, z: 1, axis: 'z', rot: 3 },
+      { type: 'mirror', x: 1, y: 5, z: 1, rot: 2 },
+      { type: 'mirror', x: 1, y: 5, z: 4, rot: 2 },
+      { type: 'target', x: 1, y: 6, z: 1, color: 'blue' },
+      { type: 'target', x: 0, y: 3, z: 1, color: 'red' },
+      { type: 'mirror', x: 0, y: 5, z: 4, rot: 2 },
+      { type: 'mirror', x: 0, y: 5, z: 6, rot: 0 },
+    ],
+    solution: { '5,1,1': 1, '5,2,1': 2, '5,6,5': 0, '2,5,1': 4, '1,5,1': 3, '1,5,4': 3, '0,5,4': 3, '0,5,6': 1 },
+  },
+  {
+    // Lösung: Prisma (4,3,2) Achse y rot 1 · Spiegel (4,3,6) Achse y rot 3 ·
+    //   Spiegel (6,3,2) Achse y rot 1 · Spiegel (6,3,4) Achse y rot 3 · Spiegel (1,3,4) Achse z rot 1 ·
+    //   Spiegel (1,5,4) Achse x rot 1 · Spiegel (1,5,6) Achse y rot 3 · Spiegel (0,5,6) Achse z rot 1
+    // Generator mittel-falle, Seed 20276, Stand 33f26f8 · Würfel „mittel“
+    name: 'Rotunde', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'source', x: 0, y: 3, z: 2, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 4, y: 3, z: 2, rot: 7 },
+      { type: 'mirror', x: 4, y: 3, z: 6, rot: 0 },
+      { type: 'target', x: 0, y: 3, z: 6, color: 'blue' },
+      { type: 'mirror', x: 6, y: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 6, y: 3, z: 4, rot: 2 },
+      { type: 'source', x: 0, y: 5, z: 5, dir: 7 },
+      { type: 'mirror', x: 1, y: 3, z: 4, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 1, y: 5, z: 4, axis: 'x', rot: 2 },
+      { type: 'target', x: 5, y: 1, z: 4, color: 'green' },
+      { type: 'mirror', x: 1, y: 5, z: 6, rot: 1 },
+      { type: 'mirror', x: 0, y: 5, z: 6, axis: 'z', rot: 2 },
+      { type: 'filter', x: 2, y: 4, z: 4, color: 'green' },
+      { type: 'target', x: 0, y: 6, z: 6, color: 'red' },
+    ],
+    solution: { '4,3,2': 1, '4,3,6': 3, '6,3,2': 1, '6,3,4': 3, '1,3,4': 1, '1,5,4': 1, '1,5,6': 3, '0,5,6': 1 },
+  },
+  {
     // Lösung: Prisma (5,3,0) Achse y rot 2 · Spiegel (6,3,0) Achse y rot 1 ·
     //   Prisma (5,2,3) Achse x rot 3 · Spiegel (5,4,1) Achse x rot 2 · Spiegel (5,6,3) Achse x rot 1 ·
     //   Spiegel (5,6,6) Achse x rot 3 · Spiegel (5,5,2) Achse y rot 0 · Spiegel (5,2,0) Achse y rot 3
@@ -14028,30 +14387,54 @@ const LEVELS_3D = [
     solution: { '5,3,0': 2, '6,3,0': 1, '5,2,3': 3, '5,4,1': 2, '5,6,3': 1, '5,6,6': 3, '5,5,2': 0, '5,2,0': 3 },
   },
   {
-    // Lösung: Spiegel (3,1,3) Achse x rot 3 · Spiegel (4,4,6) Achse y rot 2 ·
-    //   Spiegel (3,3,6) Achse y rot 1 · Spiegel (3,6,3) Achse z rot 3 · Spiegel (5,6,3) Achse y rot 1 ·
-    //   Spiegel (5,6,5) Achse y rot 1 · Spiegel (5,1,6) Achse y rot 2 · Prisma (5,6,1) Achse y rot 0
-    // Generator mittel-abschalten, Seed 21080, Stand 33f26f8 · Würfel „mittel“
-    name: 'Korridor', dim: 3, size: 7, grad: 'mittel',
+    // Lösung: Prisma (0,1,3) Achse y rot 0 · Prisma (2,6,5) Achse y rot 5 ·
+    //   Spiegel (4,1,3) Achse y rot 3 · Spiegel (4,1,0) Achse y rot 1 · Spiegel (0,6,5) Achse y rot 3 ·
+    //   Spiegel (3,1,0) Achse z rot 1 · Spiegel (0,6,6) Achse x rot 3
+    // Generator mittel-sammelstelle, Seed 20477, Stand 33f26f8 · Würfel „mittel“
+    name: 'Kemenate', dim: 3, size: 7, grad: 'mittel',
     elements: [
-      { type: 'source', x: 3, y: 1, z: 6, dir: 6 },
-      { type: 'mirror', x: 3, y: 1, z: 3, axis: 'x', rot: 1 },
-      { type: 'target', x: 3, y: 0, z: 3, color: 'white' },
-      { type: 'source', x: 2, y: 6, z: 6, axis: 'z', dir: 1 },
-      { type: 'mirror', x: 4, y: 4, z: 6, rot: 3 },
-      { type: 'mirror', x: 3, y: 3, z: 6, rot: 3 },
-      { type: 'mirror', x: 3, y: 6, z: 3, axis: 'z', rot: 2 },
-      { type: 'mirror', x: 5, y: 6, z: 3, rot: 0 },
-      { type: 'mirror', x: 5, y: 6, z: 5, rot: 2 },
-      { type: 'mirror', x: 6, y: 6, z: 5, rot: 3, fixed: true },
-      { type: 'target', x: 6, y: 6, z: 2, color: 'cyan' },
-      { type: 'mirror', x: 5, y: 1, z: 6, rot: 0 },
-      { type: 'source', x: 4, y: 0, z: 6, axis: 'z', dir: 7, color: 'cyan' },
-      { type: 'prism', x: 5, y: 6, z: 1, rot: 7 },
-      { type: 'filter', x: 6, y: 6, z: 4, color: 'cyan' },
-      { type: 'target', x: 6, y: 6, z: 1, color: 'green' },
+      { type: 'prism', x: 0, y: 1, z: 3, rot: 2 },
+      { type: 'source', x: 0, y: 1, z: 0, dir: 2, color: 'cyan' },
+      { type: 'source', x: 0, y: 1, z: 6, dir: 6, color: 'red' },
+      { type: 'target', x: 2, y: 1, z: 5, color: 'blue' },
+      { type: 'target', x: 2, y: 1, z: 1, color: 'red' },
+      { type: 'source', x: 3, y: 6, z: 6, dir: 5, color: 'magenta' },
+      { type: 'prism', x: 2, y: 6, z: 5, rot: 3 },
+      { type: 'mirror', x: 2, y: 6, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 3, y: 6, z: 1, rot: 3, fixed: true },
+      { type: 'target', x: 3, y: 6, z: 0, color: 'cyan' },
+      { type: 'mirror', x: 4, y: 1, z: 3, rot: 2 },
+      { type: 'mirror', x: 4, y: 1, z: 0, rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 5, rot: 2 },
+      { type: 'mirror', x: 3, y: 1, z: 0, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 0, y: 6, z: 6, axis: 'x', rot: 1 },
+      { type: 'target', x: 0, y: 2, z: 6, color: 'red' },
     ],
-    solution: { '3,1,3': 3, '4,4,6': 2, '3,3,6': 1, '3,6,3': 3, '5,6,3': 1, '5,6,5': 1, '5,1,6': 2, '5,6,1': 0 },
+    solution: { '0,1,3': 0, '2,6,5': 5, '4,1,3': 3, '4,1,0': 1, '0,6,5': 3, '3,1,0': 1, '0,6,6': 3 },
+  },
+  {
+    // Lösung: Spiegel (1,4,0) Achse y rot 1 · Spiegel (1,4,3) Achse y rot 1 ·
+    //   Spiegel (3,4,3) Achse y rot 1 · Spiegel (3,4,0) Achse y rot 3 · Prisma (1,4,5) Achse y rot 6 ·
+    //   Spiegel (0,4,4) Achse z rot 1 · Spiegel (0,6,2) Achse z rot 3
+    // Generator mittel-abzaehlen, Seed 21149, Stand 33f26f8 · Würfel „mittel“
+    name: 'Refektorium', dim: 3, size: 7, grad: 'mittel',
+    elements: [
+      { type: 'mirror', x: 1, y: 4, z: 0, rot: 3 },
+      { type: 'mirror', x: 1, y: 4, z: 3, rot: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 3, rot: 2 },
+      { type: 'mirror', x: 3, y: 4, z: 0, rot: 1 },
+      { type: 'source', x: 6, y: 4, z: 3, dir: 4, color: 'green' },
+      { type: 'source', x: 1, y: 4, z: 6, dir: 6 },
+      { type: 'source', x: 0, y: 4, z: 0, dir: 0 },
+      { type: 'target', x: 4, y: 4, z: 0, color: 'yellow' },
+      { type: 'target', x: 3, y: 4, z: 5, color: 'white' },
+      { type: 'target', x: 0, y: 4, z: 3, color: 'green' },
+      { type: 'prism', x: 1, y: 4, z: 5, rot: 1 },
+      { type: 'mirror', x: 0, y: 4, z: 4, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 0, y: 6, z: 2, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 2, y: 6, z: 0, axis: 'x', rot: 1, fixed: true },
+    ],
+    solution: { '1,4,0': 1, '1,4,3': 1, '3,4,3': 1, '3,4,0': 3, '1,4,5': 6, '0,4,4': 1, '0,6,2': 3 },
   },
   {
     // Lösung: Spiegel (5,5,2) Achse y rot 1 · Spiegel (5,5,5) Achse y rot 1 ·
@@ -14082,6 +14465,39 @@ const LEVELS_3D = [
       { type: 'target', x: 6, y: 5, z: 0, color: 'blue' },
     ],
     solution: { '5,5,2': 1, '5,5,5': 1, '2,5,5': 3, '2,5,2': 1, '5,4,6': 0, '4,6,5': 1, '1,6,4': 2, '4,6,1': 0, '5,6,2': 2, '6,6,1': 1 },
+  },
+  {
+    // Lösung: Spiegel (6,1,3) Achse z rot 3 · Spiegel (5,0,6) Achse y rot 0 ·
+    //   Spiegel (4,0,5) Achse y rot 2 · Spiegel (6,4,3) Achse x rot 1 · Spiegel (6,4,1) Achse y rot 1 ·
+    //   Spiegel (6,5,3) Achse x rot 1 · Spiegel (3,0,6) Achse y rot 0 · Spiegel (3,0,4) Achse y rot 2 ·
+    //   Spiegel (6,5,4) Achse x rot 1 · Spiegel (4,0,3) Achse z rot 3 · Spiegel (4,2,1) Achse y rot 3
+    // Generator schwer-abschalten, Seed 21059, Stand 0d0edd0 · Würfel „schwer“
+    name: 'Wolkenkratzer', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 0, y: 1, z: 3, dir: 0, color: 'red' },
+      { type: 'mirror', x: 6, y: 1, z: 3, axis: 'z', rot: 2 },
+      { type: 'target', x: 6, y: 0, z: 3, color: 'red' },
+      { type: 'source', x: 6, y: 0, z: 5, dir: 3, color: 'red' },
+      { type: 'mirror', x: 5, y: 0, z: 6, rot: 2 },
+      { type: 'mirror', x: 4, y: 0, z: 5, rot: 3 },
+      { type: 'mirror', x: 6, y: 4, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 6, y: 4, z: 1, rot: 0 },
+      { type: 'source', x: 0, y: 4, z: 1, dir: 0, color: 'cyan' },
+      { type: 'mirror', x: 6, y: 5, z: 3, axis: 'x', rot: 0 },
+      { type: 'filter', x: 3, y: 4, z: 1, color: 'blue' },
+      { type: 'mirror', x: 3, y: 0, z: 6, rot: 3 },
+      { type: 'source', x: 0, y: 0, z: 3, dir: 1, color: 'green' },
+      { type: 'mirror', x: 3, y: 0, z: 4, rot: 1 },
+      { type: 'mirror', x: 6, y: 5, z: 4, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 4, y: 0, z: 3, axis: 'z', rot: 1 },
+      { type: 'target', x: 6, y: 6, z: 4, color: 'blue' },
+      { type: 'mirror', x: 4, y: 2, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, y: 4, z: 5, axis: 'x', rot: 3, fixed: true },
+      { type: 'mirror', x: 6, y: 1, z: 5, axis: 'x', rot: 1, fixed: true },
+      { type: 'target', x: 6, y: 5, z: 2, color: 'green' },
+      { type: 'target', x: 6, y: 1, z: 4, color: 'red' },
+    ],
+    solution: { '6,1,3': 3, '5,0,6': 0, '4,0,5': 2, '6,4,3': 1, '6,4,1': 1, '6,5,3': 1, '3,0,6': 0, '3,0,4': 2, '6,5,4': 1, '4,0,3': 3, '4,2,1': 3 },
   },
   {
     // Lösung: Prisma (4,4,4) Achse y rot 4 · Spiegel (5,4,5) Achse y rot 0 ·
@@ -14140,93 +14556,6 @@ const LEVELS_3D = [
     solution: { '3,0,4': 1, '6,0,4': 1, '6,0,1': 3, '3,0,1': 1, '4,3,4': 1, '4,5,4': 3, '6,5,4': 3, '6,6,6': 3, '3,6,6': 1, '3,6,0': 1 },
   },
   {
-    // Lösung: Spiegel (1,3,3) Achse y rot 3 · Prisma (1,3,4) Achse y rot 0 ·
-    //   Prisma (1,1,5) Achse x rot 3 · Spiegel (3,3,2) Achse x rot 1 · Spiegel (2,3,5) Achse y rot 2 ·
-    //   Spiegel (2,6,2) Achse x rot 1 · Prisma (2,6,5) Achse x rot 6 · Spiegel (1,4,5) Achse x rot 1
-    // Generator schwer, Seed 20386, Stand 33f26f8 · Würfel „schwer“
-    name: 'Zikkurat', dim: 3, size: 7, grad: 'schwer',
-    elements: [
-      { type: 'source', x: 1, y: 0, z: 5, axis: 'x', dir: 2 },
-      { type: 'source', x: 6, y: 3, z: 3, dir: 4 },
-      { type: 'mirror', x: 1, y: 3, z: 3, rot: 1 },
-      { type: 'prism', x: 1, y: 3, z: 4, rot: 1 },
-      { type: 'prism', x: 1, y: 1, z: 5, axis: 'x', rot: 5 },
-      { type: 'mirror', x: 3, y: 3, z: 2, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 2, y: 3, z: 5, rot: 3 },
-      { type: 'target', x: 4, y: 3, z: 4, color: 'green' },
-      { type: 'target', x: 2, y: 4, z: 3, color: 'yellow' },
-      { type: 'target', x: 4, y: 2, z: 2, color: 'red' },
-      { type: 'target', x: 1, y: 3, z: 6, color: 'blue' },
-      { type: 'source', x: 2, y: 0, z: 2, axis: 'x', dir: 2 },
-      { type: 'mirror', x: 2, y: 6, z: 2, axis: 'x', rot: 2 },
-      { type: 'prism', x: 2, y: 6, z: 5, axis: 'x', rot: 3 },
-      { type: 'mirror', x: 1, y: 4, z: 5, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 1, y: 4, z: 6, rot: 3, fixed: true },
-      { type: 'target', x: 0, y: 4, z: 6, color: 'red' },
-    ],
-    solution: { '1,3,3': 3, '1,3,4': 0, '1,1,5': 3, '3,3,2': 1, '2,3,5': 2, '2,6,2': 1, '2,6,5': 6, '1,4,5': 1 },
-  },
-  {
-    // Lösung: Spiegel (6,1,3) Achse z rot 3 · Spiegel (5,0,6) Achse y rot 0 ·
-    //   Spiegel (4,0,5) Achse y rot 2 · Spiegel (6,4,3) Achse x rot 1 · Spiegel (6,4,1) Achse y rot 1 ·
-    //   Spiegel (6,5,3) Achse x rot 1 · Spiegel (3,0,6) Achse y rot 0 · Spiegel (3,0,4) Achse y rot 2 ·
-    //   Spiegel (6,5,4) Achse x rot 1 · Spiegel (4,0,3) Achse z rot 3 · Spiegel (4,2,1) Achse y rot 3
-    // Generator schwer-abschalten, Seed 21059, Stand 0d0edd0 · Würfel „schwer“
-    name: 'Wolkenkratzer', dim: 3, size: 7, grad: 'schwer',
-    elements: [
-      { type: 'source', x: 0, y: 1, z: 3, dir: 0, color: 'red' },
-      { type: 'mirror', x: 6, y: 1, z: 3, axis: 'z', rot: 2 },
-      { type: 'target', x: 6, y: 0, z: 3, color: 'red' },
-      { type: 'source', x: 6, y: 0, z: 5, dir: 3, color: 'red' },
-      { type: 'mirror', x: 5, y: 0, z: 6, rot: 2 },
-      { type: 'mirror', x: 4, y: 0, z: 5, rot: 3 },
-      { type: 'mirror', x: 6, y: 4, z: 3, axis: 'x', rot: 0 },
-      { type: 'mirror', x: 6, y: 4, z: 1, rot: 0 },
-      { type: 'source', x: 0, y: 4, z: 1, dir: 0, color: 'cyan' },
-      { type: 'mirror', x: 6, y: 5, z: 3, axis: 'x', rot: 0 },
-      { type: 'filter', x: 3, y: 4, z: 1, color: 'blue' },
-      { type: 'mirror', x: 3, y: 0, z: 6, rot: 3 },
-      { type: 'source', x: 0, y: 0, z: 3, dir: 1, color: 'green' },
-      { type: 'mirror', x: 3, y: 0, z: 4, rot: 1 },
-      { type: 'mirror', x: 6, y: 5, z: 4, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 4, y: 0, z: 3, axis: 'z', rot: 1 },
-      { type: 'target', x: 6, y: 6, z: 4, color: 'blue' },
-      { type: 'mirror', x: 4, y: 2, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, y: 4, z: 5, axis: 'x', rot: 3, fixed: true },
-      { type: 'mirror', x: 6, y: 1, z: 5, axis: 'x', rot: 1, fixed: true },
-      { type: 'target', x: 6, y: 5, z: 2, color: 'green' },
-      { type: 'target', x: 6, y: 1, z: 4, color: 'red' },
-    ],
-    solution: { '6,1,3': 3, '5,0,6': 0, '4,0,5': 2, '6,4,3': 1, '6,4,1': 1, '6,5,3': 1, '3,0,6': 0, '3,0,4': 2, '6,5,4': 1, '4,0,3': 3, '4,2,1': 3 },
-  },
-  {
-    // Lösung: Prisma (2,4,5) Achse y rot 5 · Spiegel (2,4,1) Achse y rot 3 ·
-    //   Spiegel (0,4,5) Achse y rot 1 · Spiegel (0,4,3) Achse y rot 3 · Spiegel (4,5,1) Achse x rot 3 ·
-    //   Spiegel (1,4,3) Achse z rot 3 · Spiegel (1,6,3) Achse z rot 1 · Spiegel (4,6,1) Achse x rot 3 ·
-    //   Spiegel (4,6,0) Achse y rot 1 · Prisma (0,6,0) Achse y rot 2 · Spiegel (5,6,5) Achse z rot 1
-    // Generator schwer-falle, Seed 20139, Stand 33f26f8 · Würfel „schwer“
-    name: 'Pyramide', dim: 3, size: 7, grad: 'schwer',
-    elements: [
-      { type: 'source', x: 6, y: 4, z: 5, dir: 4, color: 'magenta' },
-      { type: 'prism', x: 2, y: 4, z: 5, rot: 0 },
-      { type: 'mirror', x: 2, y: 4, z: 1, rot: 0 },
-      { type: 'target', x: 6, y: 4, z: 1, color: 'blue' },
-      { type: 'mirror', x: 0, y: 4, z: 5, rot: 0 },
-      { type: 'mirror', x: 0, y: 4, z: 3, rot: 1 },
-      { type: 'source', x: 4, y: 5, z: 6, dir: 6 },
-      { type: 'mirror', x: 4, y: 5, z: 1, axis: 'x', rot: 1 },
-      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 1, y: 6, z: 3, axis: 'z', rot: 0 },
-      { type: 'target', x: 0, y: 6, z: 3, color: 'yellow' },
-      { type: 'mirror', x: 4, y: 6, z: 1, axis: 'x', rot: 1 },
-      { type: 'mirror', x: 4, y: 6, z: 0, rot: 0 },
-      { type: 'prism', x: 0, y: 6, z: 0, rot: 4 },
-      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'z', rot: 2 },
-      { type: 'target', x: 5, y: 5, z: 6, color: 'red' },
-    ],
-    solution: { '2,4,5': 5, '2,4,1': 3, '0,4,5': 1, '0,4,3': 3, '4,5,1': 3, '1,4,3': 3, '1,6,3': 1, '4,6,1': 3, '4,6,0': 1, '0,6,0': 2, '5,6,5': 1 },
-  },
-  {
     // Lösung: Prisma (2,1,1) Achse y rot 2 · Spiegel (4,1,3) Achse y rot 0 ·
     //   Spiegel (1,1,2) Achse y rot 2 · Spiegel (2,1,3) Achse y rot 2 · Prisma (2,5,2) Achse x rot 7 ·
     //   Spiegel (2,4,3) Achse z rot 0 · Spiegel (2,6,5) Achse z rot 1 · Spiegel (1,6,6) Achse x rot 2 ·
@@ -14255,6 +14584,34 @@ const LEVELS_3D = [
       { type: 'target', x: 0, y: 1, z: 3, color: 'blue' },
     ],
     solution: { '2,1,1': 2, '4,1,3': 0, '1,1,2': 2, '2,1,3': 2, '2,5,2': 7, '2,4,3': 0, '2,6,5': 1, '1,6,6': 2, '0,1,5': 2, '1,1,6': 3, '0,5,3': 3 },
+  },
+  {
+    // Lösung: Prisma (1,6,4) Achse y rot 3 · Spiegel (4,6,1) Achse y rot 0 ·
+    //   Prisma (4,1,4) Achse y rot 1 · Spiegel (5,1,5) Achse z rot 1 · Spiegel (4,1,6) Achse y rot 3 ·
+    //   Spiegel (6,1,4) Achse y rot 3 · Spiegel (6,1,3) Achse x rot 3 · Spiegel (1,6,6) Achse x rot 3 ·
+    //   Spiegel (6,2,3) Achse x rot 1
+    // Generator schwer-sammelstelle, Seed 20355, Stand 33f26f8 · Würfel „schwer“
+    name: 'Klosteranlage', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'prism', x: 1, y: 6, z: 4, rot: 7 },
+      { type: 'source', x: 1, y: 6, z: 0, dir: 2, color: 'blue' },
+      { type: 'source', x: 6, y: 6, z: 3, dir: 5, color: 'yellow' },
+      { type: 'mirror', x: 4, y: 6, z: 1, rot: 3 },
+      { type: 'target', x: 0, y: 6, z: 4, color: 'blue' },
+      { type: 'target', x: 0, y: 6, z: 5, color: 'green' },
+      { type: 'source', x: 4, y: 1, z: 0, dir: 2 },
+      { type: 'prism', x: 4, y: 1, z: 4, rot: 3 },
+      { type: 'mirror', x: 5, y: 1, z: 5, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 4, y: 1, z: 6, rot: 1 },
+      { type: 'target', x: 5, y: 0, z: 6, color: 'green' },
+      { type: 'target', x: 1, y: 1, z: 6, color: 'magenta' },
+      { type: 'mirror', x: 6, y: 1, z: 4, rot: 2 },
+      { type: 'mirror', x: 6, y: 1, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 6, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 6, y: 2, z: 3, axis: 'x', rot: 3 },
+      { type: 'target', x: 6, y: 2, z: 4, color: 'red' },
+    ],
+    solution: { '1,6,4': 3, '4,6,1': 0, '4,1,4': 1, '5,1,5': 1, '4,1,6': 3, '6,1,4': 3, '6,1,3': 3, '1,6,6': 3, '6,2,3': 1 },
   },
   {
     // Lösung: Prisma (3,2,2) Achse z rot 2 · Spiegel (3,0,2) Achse x rot 3 ·
@@ -14289,35 +14646,90 @@ const LEVELS_3D = [
     solution: { '3,2,2': 2, '3,0,2': 3, '4,5,2': 1, '4,5,0': 1, '4,1,0': 3, '0,1,0': 3, '0,0,0': 1, '4,1,2': 3, '5,0,3': 3, '3,0,3': 1, '4,3,2': 1 },
   },
   {
-    // Lösung: Spiegel (4,3,5) Achse z rot 3 · Spiegel (0,3,4) Achse y rot 1 ·
-    //   Spiegel (1,3,4) Achse y rot 1 · Spiegel (6,3,5) Achse y rot 1 · Prisma (3,3,1) Achse y rot 1 ·
-    //   Spiegel (4,3,2) Achse y rot 0 · Spiegel (5,3,1) Achse x rot 2 · Spiegel (6,3,2) Achse z rot 3 ·
-    //   Prisma (0,3,1) Achse y rot 1 · Prisma (6,4,6) Achse x rot 3
-    // Generator schwer-abschalten, Seed 20242, Stand 33f26f8 · Würfel „schwer“
-    name: 'Basilika', dim: 3, size: 7, grad: 'schwer',
+    // Lösung: Spiegel (1,3,3) Achse y rot 3 · Prisma (1,3,4) Achse y rot 0 ·
+    //   Prisma (1,1,5) Achse x rot 3 · Spiegel (3,3,2) Achse x rot 1 · Spiegel (2,3,5) Achse y rot 2 ·
+    //   Spiegel (2,6,2) Achse x rot 1 · Prisma (2,6,5) Achse x rot 6 · Spiegel (1,4,5) Achse x rot 1
+    // Generator schwer, Seed 20386, Stand 33f26f8 · Würfel „schwer“
+    name: 'Zikkurat', dim: 3, size: 7, grad: 'schwer',
     elements: [
-      { type: 'source', x: 4, y: 0, z: 5, axis: 'x', dir: 2, color: 'blue' },
-      { type: 'mirror', x: 4, y: 3, z: 5, axis: 'z', rot: 2 },
-      { type: 'target', x: 1, y: 3, z: 5, color: 'blue' },
-      { type: 'source', x: 0, y: 3, z: 0, dir: 2 },
-      { type: 'mirror', x: 0, y: 3, z: 4, rot: 0 },
-      { type: 'mirror', x: 1, y: 3, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, y: 3, z: 5, rot: 0 },
-      { type: 'target', x: 6, y: 3, z: 6, color: 'blue' },
-      { type: 'source', x: 3, y: 3, z: 0, dir: 2, color: 'cyan' },
-      { type: 'prism', x: 3, y: 3, z: 1, rot: 5 },
-      { type: 'mirror', x: 4, y: 3, z: 2, rot: 1 },
-      { type: 'target', x: 3, y: 3, z: 3, color: 'blue' },
-      { type: 'mirror', x: 5, y: 3, z: 1, axis: 'x', rot: 1 },
-      { type: 'mirror', x: 6, y: 3, z: 2, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 6, y: 6, z: 5, axis: 'x', rot: 0, fixed: true },
-      { type: 'target', x: 6, y: 5, z: 6, color: 'yellow' },
-      { type: 'prism', x: 0, y: 3, z: 1, rot: 5 },
-      { type: 'target', x: 4, y: 3, z: 1, color: 'red' },
-      { type: 'source', x: 3, y: 0, z: 5, axis: 'z', dir: 7, color: 'yellow' },
-      { type: 'prism', x: 6, y: 4, z: 6, axis: 'x', rot: 6 },
+      { type: 'source', x: 1, y: 0, z: 5, axis: 'x', dir: 2 },
+      { type: 'source', x: 6, y: 3, z: 3, dir: 4 },
+      { type: 'mirror', x: 1, y: 3, z: 3, rot: 1 },
+      { type: 'prism', x: 1, y: 3, z: 4, rot: 1 },
+      { type: 'prism', x: 1, y: 1, z: 5, axis: 'x', rot: 5 },
+      { type: 'mirror', x: 3, y: 3, z: 2, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 2, y: 3, z: 5, rot: 3 },
+      { type: 'target', x: 4, y: 3, z: 4, color: 'green' },
+      { type: 'target', x: 2, y: 4, z: 3, color: 'yellow' },
+      { type: 'target', x: 4, y: 2, z: 2, color: 'red' },
+      { type: 'target', x: 1, y: 3, z: 6, color: 'blue' },
+      { type: 'source', x: 2, y: 0, z: 2, axis: 'x', dir: 2 },
+      { type: 'mirror', x: 2, y: 6, z: 2, axis: 'x', rot: 2 },
+      { type: 'prism', x: 2, y: 6, z: 5, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 1, y: 4, z: 5, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 1, y: 4, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 0, y: 4, z: 6, color: 'red' },
     ],
-    solution: { '4,3,5': 3, '0,3,4': 1, '1,3,4': 1, '6,3,5': 1, '3,3,1': 1, '4,3,2': 0, '5,3,1': 2, '6,3,2': 3, '0,3,1': 1, '6,4,6': 3 },
+    solution: { '1,3,3': 3, '1,3,4': 0, '1,1,5': 3, '3,3,2': 1, '2,3,5': 2, '2,6,2': 1, '2,6,5': 6, '1,4,5': 1 },
+  },
+  {
+    // Lösung: Prisma (1,3,4) Achse y rot 7 · Spiegel (3,3,4) Achse y rot 1 ·
+    //   Spiegel (1,3,3) Achse y rot 3 · Spiegel (2,3,3) Achse y rot 3 · Spiegel (2,3,2) Achse x rot 3 ·
+    //   Spiegel (2,5,2) Achse x rot 3 · Spiegel (2,5,1) Achse y rot 3 · Prisma (0,5,4) Achse x rot 4 ·
+    //   Spiegel (0,5,1) Achse y rot 3 · Spiegel (2,5,0) Achse y rot 3 · Spiegel (4,5,0) Achse z rot 3
+    // Generator schwer-falle, Seed 20093, Stand 33f26f8 · Würfel „schwer“
+    name: 'Burganlage', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 1, y: 3, z: 6, dir: 6, color: 'magenta' },
+      { type: 'prism', x: 1, y: 3, z: 4, rot: 1 },
+      { type: 'mirror', x: 3, y: 3, z: 4, rot: 0 },
+      { type: 'target', x: 3, y: 3, z: 6, color: 'blue' },
+      { type: 'mirror', x: 1, y: 3, z: 3, rot: 0 },
+      { type: 'mirror', x: 2, y: 3, z: 3, rot: 0 },
+      { type: 'mirror', x: 2, y: 3, z: 2, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 2, y: 5, z: 2, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 2, y: 5, z: 1, rot: 0 },
+      { type: 'target', x: 6, y: 5, z: 1, color: 'red' },
+      { type: 'source', x: 0, y: 5, z: 6, dir: 6 },
+      { type: 'prism', x: 0, y: 5, z: 4, axis: 'x', rot: 5 },
+      { type: 'mirror', x: 0, y: 5, z: 1, rot: 1 },
+      { type: 'target', x: 0, y: 6, z: 3, color: 'red' },
+      { type: 'target', x: 0, y: 1, z: 0, color: 'blue' },
+      { type: 'mirror', x: 2, y: 5, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, y: 5, z: 0, axis: 'z', rot: 1 },
+      { type: 'target', x: 4, y: 6, z: 0, color: 'green' },
+    ],
+    solution: { '1,3,4': 7, '3,3,4': 1, '1,3,3': 3, '2,3,3': 3, '2,3,2': 3, '2,5,2': 3, '2,5,1': 3, '0,5,4': 4, '0,5,1': 3, '2,5,0': 3, '4,5,0': 3 },
+  },
+  {
+    // Lösung: Spiegel (5,1,2) Achse y rot 3 · Spiegel (5,1,4) Achse y rot 1 ·
+    //   Spiegel (3,1,4) Achse y rot 1 · Spiegel (3,1,2) Achse y rot 1 · Spiegel (6,1,1) Achse z rot 3 ·
+    //   Spiegel (6,5,1) Achse x rot 3 · Prisma (6,5,0) Achse x rot 6 · Spiegel (6,2,0) Achse x rot 3 ·
+    //   Spiegel (6,2,6) Achse x rot 3 · Spiegel (6,0,6) Achse x rot 1
+    // Generator schwer-abzaehlen, Seed 21114, Stand 0d0edd0 · Würfel „schwer“
+    name: 'Stufenpyramide', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'mirror', x: 5, y: 1, z: 2, rot: 2 },
+      { type: 'mirror', x: 5, y: 1, z: 4, rot: 0 },
+      { type: 'mirror', x: 3, y: 1, z: 4, rot: 0 },
+      { type: 'mirror', x: 3, y: 1, z: 2, rot: 0 },
+      { type: 'source', x: 5, y: 1, z: 6, dir: 6 },
+      { type: 'source', x: 6, y: 1, z: 2, dir: 4, color: 'green' },
+      { type: 'source', x: 0, y: 1, z: 4, dir: 0, color: 'green' },
+      { type: 'target', x: 6, y: 1, z: 4, color: 'cyan' },
+      { type: 'target', x: 2, y: 1, z: 2, color: 'white' },
+      { type: 'target', x: 3, y: 1, z: 5, color: 'green' },
+      { type: 'source', x: 0, y: 1, z: 1, dir: 0 },
+      { type: 'mirror', x: 6, y: 1, z: 1, axis: 'z', rot: 1 },
+      { type: 'mirror', x: 6, y: 5, z: 1, axis: 'x', rot: 2 },
+      { type: 'prism', x: 6, y: 5, z: 0, axis: 'x', rot: 7 },
+      { type: 'mirror', x: 6, y: 2, z: 0, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 6, y: 2, z: 6, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 6, y: 0, z: 6, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 6, y: 0, z: 2, rot: 1, fixed: true },
+      { type: 'target', x: 0, y: 0, z: 2, color: 'green' },
+    ],
+    solution: { '5,1,2': 3, '5,1,4': 1, '3,1,4': 1, '3,1,2': 1, '6,1,1': 3, '6,5,1': 3, '6,5,0': 6, '6,2,0': 3, '6,2,6': 3, '6,0,6': 1 },
   },
   {
     // Lösung: Prisma (1,3,2) Achse y rot 3 · Prisma (5,3,5) Achse y rot 4 ·
@@ -14349,6 +14761,159 @@ const LEVELS_3D = [
       { type: 'target', x: 4, y: 4, z: 0, color: 'red' },
     ],
     solution: { '1,3,2': 3, '5,3,5': 4, '4,4,1': 7, '0,3,5': 1, '6,4,1': 1, '6,0,1': 3, '4,3,6': 2, '3,0,0': 1, '2,0,0': 3, '2,0,4': 1 },
+  },
+  {
+    // Lösung: Prisma (2,4,5) Achse y rot 5 · Spiegel (2,4,1) Achse y rot 3 ·
+    //   Spiegel (0,4,5) Achse y rot 1 · Spiegel (0,4,3) Achse y rot 3 · Spiegel (4,5,1) Achse x rot 3 ·
+    //   Spiegel (1,4,3) Achse z rot 3 · Spiegel (1,6,3) Achse z rot 1 · Spiegel (4,6,1) Achse x rot 3 ·
+    //   Spiegel (4,6,0) Achse y rot 1 · Prisma (0,6,0) Achse y rot 2 · Spiegel (5,6,5) Achse z rot 1
+    // Generator schwer-falle, Seed 20139, Stand 33f26f8 · Würfel „schwer“
+    name: 'Pyramide', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 6, y: 4, z: 5, dir: 4, color: 'magenta' },
+      { type: 'prism', x: 2, y: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 2, y: 4, z: 1, rot: 0 },
+      { type: 'target', x: 6, y: 4, z: 1, color: 'blue' },
+      { type: 'mirror', x: 0, y: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 0, y: 4, z: 3, rot: 1 },
+      { type: 'source', x: 4, y: 5, z: 6, dir: 6 },
+      { type: 'mirror', x: 4, y: 5, z: 1, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 1, y: 6, z: 3, axis: 'z', rot: 0 },
+      { type: 'target', x: 0, y: 6, z: 3, color: 'yellow' },
+      { type: 'mirror', x: 4, y: 6, z: 1, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 4, y: 6, z: 0, rot: 0 },
+      { type: 'prism', x: 0, y: 6, z: 0, rot: 4 },
+      { type: 'mirror', x: 5, y: 6, z: 5, axis: 'z', rot: 2 },
+      { type: 'target', x: 5, y: 5, z: 6, color: 'red' },
+    ],
+    solution: { '2,4,5': 5, '2,4,1': 3, '0,4,5': 1, '0,4,3': 3, '4,5,1': 3, '1,4,3': 3, '1,6,3': 1, '4,6,1': 3, '4,6,0': 1, '0,6,0': 2, '5,6,5': 1 },
+  },
+  {
+    // Lösung: Prisma (2,4,5) Achse z rot 2 · Spiegel (5,1,5) Achse x rot 1 ·
+    //   Prisma (2,2,2) Achse y rot 3 · Spiegel (0,2,2) Achse z rot 1 · Spiegel (2,2,3) Achse x rot 3 ·
+    //   Spiegel (0,5,2) Achse z rot 3 · Spiegel (6,1,4) Achse z rot 2 · Spiegel (2,0,5) Achse x rot 1 ·
+    //   Spiegel (2,0,0) Achse y rot 1 · Spiegel (0,0,0) Achse z rot 1 · Spiegel (3,5,0) Achse y rot 1
+    // Generator schwer, Seed 20678, Stand 0d0edd0 · Würfel „schwer“
+    name: 'Tempelanlage', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 2, y: 2, z: 0, dir: 2 },
+      { type: 'source', x: 6, y: 4, z: 5, dir: 4 },
+      { type: 'prism', x: 2, y: 4, z: 5, axis: 'z', rot: 6 },
+      { type: 'mirror', x: 5, y: 1, z: 5, axis: 'x', rot: 3 },
+      { type: 'prism', x: 2, y: 2, z: 2, rot: 4 },
+      { type: 'mirror', x: 0, y: 2, z: 2, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 2, y: 2, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 0, y: 5, z: 2, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 6, y: 1, z: 4, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 3, y: 5, z: 2, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, y: 1, z: 2, rot: 2, fixed: true },
+      { type: 'target', x: 5, y: 1, z: 1, color: 'red' },
+      { type: 'mirror', x: 2, y: 0, z: 5, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 2, y: 0, z: 0, rot: 2 },
+      { type: 'target', x: 0, y: 5, z: 0, color: 'cyan' },
+      { type: 'mirror', x: 0, y: 0, z: 0, axis: 'z', rot: 0 },
+      { type: 'target', x: 1, y: 3, z: 5, color: 'blue' },
+      { type: 'mirror', x: 3, y: 5, z: 0, rot: 2 },
+      { type: 'target', x: 2, y: 1, z: 3, color: 'red' },
+    ],
+    solution: { '2,4,5': 2, '5,1,5': 1, '2,2,2': 3, '0,2,2': 1, '2,2,3': 3, '0,5,2': 3, '6,1,4': 2, '2,0,5': 1, '2,0,0': 1, '0,0,0': 1, '3,5,0': 1 },
+  },
+  {
+    // Lösung: Spiegel (4,3,5) Achse z rot 3 · Spiegel (0,3,4) Achse y rot 1 ·
+    //   Spiegel (1,3,4) Achse y rot 1 · Spiegel (6,3,5) Achse y rot 1 · Prisma (3,3,1) Achse y rot 1 ·
+    //   Spiegel (4,3,2) Achse y rot 0 · Spiegel (5,3,1) Achse x rot 2 · Spiegel (6,3,2) Achse z rot 3 ·
+    //   Prisma (0,3,1) Achse y rot 1 · Prisma (6,4,6) Achse x rot 3
+    // Generator schwer-abschalten, Seed 20242, Stand 33f26f8 · Würfel „schwer“
+    name: 'Basilika', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 4, y: 0, z: 5, axis: 'x', dir: 2, color: 'blue' },
+      { type: 'mirror', x: 4, y: 3, z: 5, axis: 'z', rot: 2 },
+      { type: 'target', x: 1, y: 3, z: 5, color: 'blue' },
+      { type: 'source', x: 0, y: 3, z: 0, dir: 2 },
+      { type: 'mirror', x: 0, y: 3, z: 4, rot: 0 },
+      { type: 'mirror', x: 1, y: 3, z: 4, rot: 2 },
+      { type: 'mirror', x: 6, y: 3, z: 5, rot: 0 },
+      { type: 'target', x: 6, y: 3, z: 6, color: 'blue' },
+      { type: 'source', x: 3, y: 3, z: 0, dir: 2, color: 'cyan' },
+      { type: 'prism', x: 3, y: 3, z: 1, rot: 5 },
+      { type: 'mirror', x: 4, y: 3, z: 2, rot: 1 },
+      { type: 'target', x: 3, y: 3, z: 3, color: 'blue' },
+      { type: 'mirror', x: 5, y: 3, z: 1, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 6, y: 3, z: 2, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 6, y: 6, z: 5, axis: 'x', rot: 0, fixed: true },
+      { type: 'target', x: 6, y: 5, z: 6, color: 'yellow' },
+      { type: 'prism', x: 0, y: 3, z: 1, rot: 5 },
+      { type: 'target', x: 4, y: 3, z: 1, color: 'red' },
+      { type: 'source', x: 3, y: 0, z: 5, axis: 'z', dir: 7, color: 'yellow' },
+      { type: 'prism', x: 6, y: 4, z: 6, axis: 'x', rot: 6 },
+    ],
+    solution: { '4,3,5': 3, '0,3,4': 1, '1,3,4': 1, '6,3,5': 1, '3,3,1': 1, '4,3,2': 0, '5,3,1': 2, '6,3,2': 3, '0,3,1': 1, '6,4,6': 3 },
+  },
+  {
+    // Lösung: Prisma (3,6,2) Achse y rot 2 · Spiegel (5,6,0) Achse y rot 0 ·
+    //   Spiegel (3,6,1) Achse y rot 1 · Spiegel (4,1,3) Achse y rot 3 · Spiegel (1,6,2) Achse x rot 1 ·
+    //   Prisma (4,3,2) Achse z rot 7 · Spiegel (5,4,2) Achse x rot 0 · Spiegel (4,5,2) Achse z rot 1 ·
+    //   Prisma (3,1,0) Achse y rot 4 · Spiegel (1,1,0) Achse y rot 3 · Spiegel (1,1,2) Achse x rot 1
+    // Generator schwer-sammelstelle, Seed 20306, Stand 33f26f8 · Würfel „schwer“
+    name: 'Pantheon', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'prism', x: 3, y: 6, z: 2, rot: 0 },
+      { type: 'source', x: 6, y: 6, z: 1, dir: 5, color: 'blue' },
+      { type: 'mirror', x: 5, y: 6, z: 0, rot: 3 },
+      { type: 'source', x: 0, y: 6, z: 1, dir: 0, color: 'red' },
+      { type: 'mirror', x: 3, y: 6, z: 1, rot: 3 },
+      { type: 'target', x: 1, y: 6, z: 4, color: 'cyan' },
+      { type: 'target', x: 4, y: 6, z: 3, color: 'red' },
+      { type: 'source', x: 6, y: 1, z: 3, dir: 4 },
+      { type: 'mirror', x: 4, y: 1, z: 3, rot: 1 },
+      { type: 'mirror', x: 4, y: 1, z: 6, rot: 3, fixed: true },
+      { type: 'mirror', x: 3, y: 1, z: 6, rot: 1, fixed: true },
+      { type: 'source', x: 0, y: 6, z: 3, dir: 7, color: 'yellow' },
+      { type: 'mirror', x: 1, y: 6, z: 2, axis: 'x', rot: 2 },
+      { type: 'prism', x: 4, y: 3, z: 2, axis: 'z', rot: 4 },
+      { type: 'mirror', x: 5, y: 4, z: 2, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 4, y: 5, z: 2, axis: 'z', rot: 3 },
+      { type: 'target', x: 0, y: 5, z: 2, color: 'red' },
+      { type: 'target', x: 6, y: 3, z: 2, color: 'green' },
+      { type: 'prism', x: 3, y: 1, z: 0, rot: 1 },
+      { type: 'mirror', x: 1, y: 1, z: 0, rot: 2 },
+      { type: 'mirror', x: 1, y: 1, z: 2, axis: 'x', rot: 0 },
+    ],
+    solution: { '3,6,2': 2, '5,6,0': 0, '3,6,1': 1, '4,1,3': 3, '1,6,2': 1, '4,3,2': 7, '5,4,2': 0, '4,5,2': 1, '3,1,0': 4, '1,1,0': 3, '1,1,2': 1 },
+  },
+  {
+    // Lösung: Spiegel (1,4,2) Achse y rot 1 · Spiegel (6,6,1) Achse y rot 2 ·
+    //   Spiegel (5,6,0) Achse y rot 0 · Spiegel (0,5,2) Achse y rot 3 · Prisma (4,6,3) Achse y rot 7 ·
+    //   Spiegel (6,6,3) Achse y rot 1 · Spiegel (6,6,5) Achse y rot 3 · Spiegel (5,6,5) Achse y rot 3 ·
+    //   Spiegel (5,5,2) Achse y rot 1 · Spiegel (0,2,5) Achse y rot 1 · Spiegel (1,6,2) Achse x rot 1
+    // Generator schwer-abschalten, Seed 20302, Stand 33f26f8 · Würfel „schwer“
+    name: 'Kolosseum', dim: 3, size: 7, grad: 'schwer',
+    elements: [
+      { type: 'source', x: 1, y: 0, z: 6, axis: 'x', dir: 3, color: 'green' },
+      { type: 'mirror', x: 1, y: 4, z: 2, rot: 3 },
+      { type: 'target', x: 3, y: 6, z: 2, color: 'green' },
+      { type: 'source', x: 1, y: 6, z: 6, dir: 7, color: 'cyan' },
+      { type: 'mirror', x: 6, y: 6, z: 1, rot: 3 },
+      { type: 'mirror', x: 5, y: 6, z: 0, rot: 2 },
+      { type: 'mirror', x: 0, y: 5, z: 2, rot: 1 },
+      { type: 'target', x: 0, y: 6, z: 3, color: 'green' },
+      { type: 'prism', x: 4, y: 6, z: 3, rot: 4 },
+      { type: 'mirror', x: 6, y: 6, z: 3, rot: 0 },
+      { type: 'mirror', x: 6, y: 6, z: 5, rot: 1 },
+      { type: 'mirror', x: 5, y: 6, z: 5, rot: 0 },
+      { type: 'target', x: 5, y: 6, z: 6, color: 'magenta' },
+      { type: 'mirror', x: 5, y: 5, z: 2, rot: 2 },
+      { type: 'source', x: 5, y: 5, z: 6, dir: 6, color: 'magenta' },
+      { type: 'mirror', x: 0, y: 5, z: 4, axis: 'x', rot: 1, fixed: true },
+      { type: 'mirror', x: 0, y: 6, z: 4, axis: 'x', rot: 1, fixed: true },
+      { type: 'target', x: 0, y: 6, z: 6, color: 'blue' },
+      { type: 'mirror', x: 0, y: 2, z: 5, rot: 0 },
+      { type: 'source', x: 2, y: 0, z: 5, axis: 'z', dir: 5, color: 'red' },
+      { type: 'mirror', x: 1, y: 6, z: 2, axis: 'x', rot: 0 },
+      { type: 'filter', x: 5, y: 5, z: 4, color: 'blue' },
+    ],
+    solution: { '1,4,2': 1, '6,6,1': 2, '5,6,0': 0, '0,5,2': 3, '4,6,3': 7, '6,6,3': 1, '6,6,5': 3, '5,6,5': 3, '5,5,2': 1, '0,2,5': 1, '1,6,2': 1 },
   },
   {
     // Lösung: Prisma (1,3,5) Achse y rot 0 · Spiegel (0,3,4) Achse y rot 2 ·
@@ -14384,41 +14949,6 @@ const LEVELS_3D = [
       { type: 'target', x: 2, y: 6, z: 1, color: 'green' },
     ],
     solution: { '1,3,5': 0, '0,3,4': 2, '1,5,1': 1, '2,4,5': 6, '2,4,1': 7, '2,3,4': 3, '4,5,4': 1, '4,6,5': 0, '5,5,5': 1, '2,5,1': 3, '5,5,1': 3, '5,5,0': 3, '2,6,5': 3 },
-  },
-  {
-    // Lösung: Prisma (2,3,1) Achse y rot 4 · Spiegel (3,3,1) Achse y rot 3 ·
-    //   Prisma (4,3,3) Achse z rot 6 · Spiegel (2,5,3) Achse z rot 0 · Spiegel (5,4,3) Achse z rot 2 ·
-    //   Spiegel (1,0,2) Achse z rot 3 · Spiegel (0,3,1) Achse z rot 1 · Spiegel (0,6,1) Achse x rot 3 ·
-    //   Spiegel (0,6,0) Achse y rot 3 · Spiegel (2,6,0) Achse z rot 1 · Spiegel (2,4,0) Achse x rot 3 ·
-    //   Spiegel (1,4,3) Achse x rot 1 · Spiegel (0,4,2) Achse z rot 2 · Spiegel (4,5,3) Achse x rot 0
-    // Generator sehr schwer-sammelstelle, Seed 20132, Stand 33f26f8 · Würfel „sehr schwer“
-    name: 'Hyperwürfel', dim: 3, size: 7, grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 2, y: 3, z: 1, rot: 2 },
-      { type: 'source', x: 2, y: 3, z: 0, dir: 2, color: 'red' },
-      { type: 'source', x: 3, y: 3, z: 0, dir: 2, color: 'cyan' },
-      { type: 'mirror', x: 3, y: 3, z: 1, rot: 1 },
-      { type: 'target', x: 1, y: 3, z: 2, color: 'white' },
-      { type: 'target', x: 1, y: 3, z: 0, color: 'blue' },
-      { type: 'source', x: 0, y: 3, z: 3, dir: 0, color: 'magenta' },
-      { type: 'prism', x: 4, y: 3, z: 3, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 2, y: 5, z: 3, axis: 'z', rot: 2 },
-      { type: 'mirror', x: 5, y: 4, z: 3, axis: 'z', rot: 1 },
-      { type: 'source', x: 0, y: 0, z: 2, dir: 0, color: 'cyan' },
-      { type: 'mirror', x: 1, y: 0, z: 2, axis: 'z', rot: 0 },
-      { type: 'mirror', x: 0, y: 3, z: 1, axis: 'z', rot: 3 },
-      { type: 'mirror', x: 0, y: 6, z: 1, axis: 'x', rot: 2 },
-      { type: 'mirror', x: 0, y: 6, z: 0, rot: 1 },
-      { type: 'mirror', x: 2, y: 6, z: 0, axis: 'z', rot: 3 },
-      { type: 'mirror', x: 2, y: 4, z: 0, axis: 'x', rot: 0 },
-      { type: 'target', x: 2, y: 4, z: 5, color: 'green' },
-      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'x', rot: 0 },
-      { type: 'mirror', x: 0, y: 4, z: 2, axis: 'z', rot: 3 },
-      { type: 'target', x: 4, y: 6, z: 0, color: 'red' },
-      { type: 'mirror', x: 4, y: 5, z: 3, axis: 'x', rot: 3 },
-      { type: 'target', x: 0, y: 1, z: 3, color: 'blue' },
-    ],
-    solution: { '2,3,1': 4, '3,3,1': 3, '4,3,3': 6, '2,5,3': 0, '5,4,3': 2, '1,0,2': 3, '0,3,1': 1, '0,6,1': 3, '0,6,0': 3, '2,6,0': 1, '2,4,0': 3, '1,4,3': 1, '0,4,2': 2, '4,5,3': 0 },
   },
   {
     // Lösung: Spiegel (2,6,1) Achse y rot 1 · Spiegel (5,6,1) Achse y rot 1 ·
@@ -14457,6 +14987,41 @@ const LEVELS_3D = [
     solution: { '2,6,1': 1, '5,6,1': 1, '5,6,4': 1, '2,6,4': 1, '3,0,3': 3, '3,0,6': 1, '0,6,6': 3, '5,6,5': 5, '4,6,6': 3, '2,6,6': 1, '1,6,4': 3, '1,6,5': 1, '4,6,3': 1, '3,6,3': 3 },
   },
   {
+    // Lösung: Prisma (2,3,1) Achse y rot 4 · Spiegel (3,3,1) Achse y rot 3 ·
+    //   Prisma (4,3,3) Achse z rot 6 · Spiegel (2,5,3) Achse z rot 0 · Spiegel (5,4,3) Achse z rot 2 ·
+    //   Spiegel (1,0,2) Achse z rot 3 · Spiegel (0,3,1) Achse z rot 1 · Spiegel (0,6,1) Achse x rot 3 ·
+    //   Spiegel (0,6,0) Achse y rot 3 · Spiegel (2,6,0) Achse z rot 1 · Spiegel (2,4,0) Achse x rot 3 ·
+    //   Spiegel (1,4,3) Achse x rot 1 · Spiegel (0,4,2) Achse z rot 2 · Spiegel (4,5,3) Achse x rot 0
+    // Generator sehr schwer-sammelstelle, Seed 20132, Stand 33f26f8 · Würfel „sehr schwer“
+    name: 'Hyperwürfel', dim: 3, size: 7, grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 2, y: 3, z: 1, rot: 2 },
+      { type: 'source', x: 2, y: 3, z: 0, dir: 2, color: 'red' },
+      { type: 'source', x: 3, y: 3, z: 0, dir: 2, color: 'cyan' },
+      { type: 'mirror', x: 3, y: 3, z: 1, rot: 1 },
+      { type: 'target', x: 1, y: 3, z: 2, color: 'white' },
+      { type: 'target', x: 1, y: 3, z: 0, color: 'blue' },
+      { type: 'source', x: 0, y: 3, z: 3, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 4, y: 3, z: 3, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 2, y: 5, z: 3, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 5, y: 4, z: 3, axis: 'z', rot: 1 },
+      { type: 'source', x: 0, y: 0, z: 2, dir: 0, color: 'cyan' },
+      { type: 'mirror', x: 1, y: 0, z: 2, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 0, y: 3, z: 1, axis: 'z', rot: 3 },
+      { type: 'mirror', x: 0, y: 6, z: 1, axis: 'x', rot: 2 },
+      { type: 'mirror', x: 0, y: 6, z: 0, rot: 1 },
+      { type: 'mirror', x: 2, y: 6, z: 0, axis: 'z', rot: 3 },
+      { type: 'mirror', x: 2, y: 4, z: 0, axis: 'x', rot: 0 },
+      { type: 'target', x: 2, y: 4, z: 5, color: 'green' },
+      { type: 'mirror', x: 1, y: 4, z: 3, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 0, y: 4, z: 2, axis: 'z', rot: 3 },
+      { type: 'target', x: 4, y: 6, z: 0, color: 'red' },
+      { type: 'mirror', x: 4, y: 5, z: 3, axis: 'x', rot: 3 },
+      { type: 'target', x: 0, y: 1, z: 3, color: 'blue' },
+    ],
+    solution: { '2,3,1': 4, '3,3,1': 3, '4,3,3': 6, '2,5,3': 0, '5,4,3': 2, '1,0,2': 3, '0,3,1': 1, '0,6,1': 3, '0,6,0': 3, '2,6,0': 1, '2,4,0': 3, '1,4,3': 1, '0,4,2': 2, '4,5,3': 0 },
+  },
+  {
     // Lösung: Spiegel (4,2,3) Achse y rot 1 · Spiegel (3,2,3) Achse y rot 1 ·
     //   Spiegel (5,4,2) Achse z rot 3 · Prisma (6,4,2) Achse z rot 2 · Spiegel (6,3,2) Achse x rot 3 ·
     //   Prisma (3,2,4) Achse x rot 3 · Spiegel (3,5,1) Achse x rot 2 · Spiegel (3,3,4) Achse x rot 1 ·
@@ -14489,6 +15054,76 @@ const LEVELS_3D = [
       { type: 'mirror', x: 3, y: 6, z: 6, axis: 'z', rot: 1 },
     ],
     solution: { '4,2,3': 1, '3,2,3': 1, '5,4,2': 3, '6,4,2': 2, '6,3,2': 3, '3,2,4': 3, '3,5,1': 2, '3,3,4': 1, '2,2,3': 3, '2,2,6': 3, '6,3,4': 1, '6,6,4': 1, '6,6,6': 3, '3,6,6': 3 },
+  },
+  {
+    // Lösung: Spiegel (4,2,4) Achse x rot 1 · Spiegel (2,4,4) Achse z rot 2 ·
+    //   Spiegel (6,2,2) Achse y rot 2 · Prisma (5,2,1) Achse y rot 3 · Spiegel (5,2,4) Achse x rot 1 ·
+    //   Spiegel (0,2,1) Achse z rot 1 · Spiegel (0,4,1) Achse x rot 3 · Prisma (5,1,1) Achse y rot 6 ·
+    //   Spiegel (1,2,5) Achse z rot 1 · Spiegel (1,3,6) Achse y rot 0 · Spiegel (1,5,4) Achse y rot 0 ·
+    //   Spiegel (5,1,0) Achse y rot 3 · Spiegel (6,1,0) Achse z rot 3 · Spiegel (6,4,0) Achse z rot 1
+    // Generator sehr schwer-mischziel, Seed 20605, Stand 33f26f8 · Würfel „sehr schwer“
+    name: 'Klein-Flasche', dim: 3, size: 7, grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 6, y: 4, z: 4, dir: 4, color: 'blue' },
+      { type: 'source', x: 4, y: 2, z: 0, dir: 2, color: 'yellow' },
+      { type: 'mirror', x: 4, y: 2, z: 4, axis: 'x', rot: 0 },
+      { type: 'target', x: 4, y: 4, z: 4, color: 'white' },
+      { type: 'source', x: 4, y: 6, z: 4, axis: 'z', dir: 3 },
+      { type: 'mirror', x: 2, y: 4, z: 4, axis: 'z', rot: 1 },
+      { type: 'mirror', x: 6, y: 2, z: 2, rot: 0 },
+      { type: 'prism', x: 5, y: 2, z: 1, rot: 2 },
+      { type: 'mirror', x: 5, y: 2, z: 4, axis: 'x', rot: 0 },
+      { type: 'mirror', x: 0, y: 2, z: 1, axis: 'z', rot: 2 },
+      { type: 'mirror', x: 0, y: 4, z: 1, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 5, y: 6, z: 4, axis: 'x', rot: 1, fixed: true },
+      { type: 'mirror', x: 5, y: 6, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 1, y: 6, z: 6, color: 'red' },
+      { type: 'target', x: 0, y: 4, z: 0, color: 'cyan' },
+      { type: 'source', x: 5, y: 1, z: 6, dir: 6 },
+      { type: 'prism', x: 5, y: 1, z: 1, rot: 4 },
+      { type: 'mirror', x: 1, y: 2, z: 5, axis: 'z', rot: 0 },
+      { type: 'mirror', x: 1, y: 3, z: 6, rot: 2 },
+      { type: 'mirror', x: 1, y: 5, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, y: 1, z: 0, rot: 1 },
+      { type: 'mirror', x: 6, y: 1, z: 0, axis: 'z', rot: 2 },
+      { type: 'target', x: 1, y: 6, z: 5, color: 'green' },
+      { type: 'mirror', x: 6, y: 4, z: 0, axis: 'z', rot: 3 },
+    ],
+    solution: { '4,2,4': 1, '2,4,4': 2, '6,2,2': 2, '5,2,1': 3, '5,2,4': 1, '0,2,1': 1, '0,4,1': 3, '5,1,1': 6, '1,2,5': 1, '1,3,6': 0, '1,5,4': 0, '5,1,0': 3, '6,1,0': 3, '6,4,0': 1 },
+  },
+  {
+    // Lösung: Prisma (2,2,4) Achse y rot 0 · Spiegel (4,2,2) Achse y rot 2 ·
+    //   Spiegel (3,2,5) Achse y rot 0 · Spiegel (4,2,4) Achse y rot 0 · Spiegel (5,2,5) Achse x rot 1 ·
+    //   Spiegel (6,3,5) Achse y rot 3 · Spiegel (6,5,3) Achse x rot 0 · Spiegel (6,4,2) Achse z rot 0 ·
+    //   Spiegel (3,6,3) Achse z rot 3 · Prisma (3,5,4) Achse x rot 5 · Spiegel (3,5,2) Achse y rot 3 ·
+    //   Prisma (5,3,2) Achse z rot 0 · Spiegel (6,5,2) Achse z rot 3 · Spiegel (6,3,2) Achse y rot 1
+    // Generator sehr schwer-falle, Seed 21454, Stand 33f26f8 · Würfel „sehr schwer“
+    name: 'Möbiusband', dim: 3, size: 7, grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 0, y: 2, z: 4, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 2, y: 2, z: 4, rot: 4 },
+      { type: 'mirror', x: 4, y: 2, z: 2, rot: 1 },
+      { type: 'target', x: 2, y: 2, z: 0, color: 'red' },
+      { type: 'mirror', x: 3, y: 2, z: 5, rot: 1 },
+      { type: 'mirror', x: 4, y: 2, z: 4, rot: 3 },
+      { type: 'mirror', x: 5, y: 2, z: 5, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 6, y: 3, z: 5, rot: 2 },
+      { type: 'mirror', x: 6, y: 5, z: 3, axis: 'x', rot: 3 },
+      { type: 'mirror', x: 6, y: 4, z: 2, axis: 'z', rot: 3 },
+      { type: 'target', x: 6, y: 5, z: 1, color: 'blue' },
+      { type: 'source', x: 6, y: 6, z: 6, dir: 5, color: 'cyan' },
+      { type: 'mirror', x: 3, y: 6, z: 3, axis: 'z', rot: 0 },
+      { type: 'source', x: 3, y: 6, z: 5, axis: 'x', dir: 5 },
+      { type: 'prism', x: 3, y: 5, z: 4, axis: 'x', rot: 1 },
+      { type: 'mirror', x: 3, y: 5, z: 2, rot: 1 },
+      { type: 'prism', x: 5, y: 3, z: 2, axis: 'z', rot: 4 },
+      { type: 'target', x: 6, y: 2, z: 2, color: 'blue' },
+      { type: 'mirror', x: 6, y: 5, z: 2, axis: 'z', rot: 0 },
+      { type: 'target', x: 6, y: 6, z: 2, color: 'red' },
+      { type: 'mirror', x: 6, y: 3, z: 2, rot: 2 },
+      { type: 'target', x: 1, y: 3, z: 5, color: 'green' },
+    ],
+    solution: { '2,2,4': 0, '4,2,2': 2, '3,2,5': 0, '4,2,4': 0, '5,2,5': 1, '6,3,5': 3, '6,5,3': 0, '6,4,2': 0, '3,6,3': 3, '3,5,4': 5, '3,5,2': 3, '5,3,2': 0, '6,5,2': 3, '6,3,2': 1 },
   },
   /* WUERFEL:END */
 ];
