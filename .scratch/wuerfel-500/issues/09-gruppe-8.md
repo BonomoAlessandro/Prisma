@@ -34,3 +34,16 @@ Danach stehen 200 neue Würfel-Level im Spiel: 34 / 106 / 42 / 18 (dazu Aufzug u
 - **Namen:** Der Vorrat für „mittel“ ist aufgestockt und geprüft (Handwerk, Bauteile, Wasserbau). Umbenannt nach
   Review 08: Chorgestühl → Lesepult (zu nah an Chorraum und Glockenstuhl).
 - Golden nachgeführt, alle Tests grün. Stichproben der Screenshots stammen aus den Bildern der Tester.
+
+**25.10.2026, Review:** Geprüft auf 5af54c2.
+- **Herkunft:** Münze (mittel, Seed 20778, Stand 33f26f8) und Potala (schwer, Seed 20971, Stand 0d0edd0) mit
+  `tools/ausbau.mjs pool … --wuerfel` auf dem Stand aus `git archive` nachgebaut; der Abdruck stimmt (5f3e2484,
+  648647c1).
+- **Urteile:** Alle 25 neuen haben ein zählendes Urteil. Die drei aus früheren Läufen sind Thermen (5fd08683),
+  Apotheke (f3a6e4f2) und Escorial (9e0f14cb), alle aus wuerfel-7, keines von beiden abgelehnt. Bei Thermen nennt B
+  Knäuel; das zählt als einzelne Ablehnung nicht.
+- **Grade:** 34 / 106 / 42 / 18 wie bestandNach(8). `tests/wuerfelliste.test.mjs`: 12 Tests bestanden.
+- **Namen, offen:** Wachturm trägt das Grundwort von Glockenturm und Rätselturm (dazu Turmzimmer, Turmopfer); nach Spec
+  Schritt 5 umbenennen. Inhaltlich nah und dicht beieinander: Münze (Platz 136) und Börse (138), Taufbecken (140) und
+  Baptisterium (147); Lesepult und Kanzel; Kolonie und Kolonnade sehen sich ähnlich; Hafenmole neben Hafenkran und
+  Hafeneinfahrt. Vorschlag: in der nächsten Gruppe Wachturm, Börse und Taufbecken umbenennen, die übrigen beobachten.
