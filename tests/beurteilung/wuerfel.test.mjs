@@ -1,6 +1,7 @@
 // Tests der Beurteilung mit Würfel-Leveln (Ticket 14, nur auf dem Branch feature/3d-wuerfel). Die Beurteilung kennt das
 // Feld nur über die Feldform; hier über die Würfel-Feldform (feldform-wuerfel.mjs):
-// - die beiden Würfel-Level Aufzug und Kern ganz beurteilt, mit plausiblen Werten (begründet in Ticket 14);
+// - die beiden handgebauten Würfel-Level Aufzug und Kern (nur noch Testdaten, tests/wuerfel-handgebaut.mjs) ganz
+//   beurteilt, mit plausiblen Werten (begründet in Ticket 14);
 // - Mini-Würfel für Mischziel, Scheinmischung und Knäuel, mit Licht zwischen den Ebenen; beim Knäuel zählen die 18
 //   Nachbarn im Raum (ohne Raumdiagonalen);
 // - flache Level als Würfel mit einer Ebene: Die Würfel-Feldform muss sie genau wie die flache beurteilen.
@@ -11,11 +12,12 @@ import { beurteile } from '../../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../../tools/beurteilung/parallel.mjs';
 import { MINDEST_SPIELWERT } from '../../tools/beurteilung/spielwert.mjs';
 import { test, miniLevel } from './helfer.mjs';
+import { AUFZUG, KERN } from '../wuerfel-handgebaut.mjs';
 
 console.log('Beurteilung: Würfel-Level');
 
 const cube = (elements, size = 3, name = 'Mini-Würfel') => ({ ...miniLevel(elements, name), dim: 3, size });
-const level = (name) => L.LEVELS_3D.find(l => l.name === name);
+const level = (name) => ({ Aufzug: AUFZUG, Kern: KERN })[name];
 
 test('Aufzug und Kern: Die Beurteilung läuft ganz durch, ohne offenen Teil und ohne Ausschlussgrund', () => {
   // ohne Grad; die Level aus dem Generator prüft tests/wuerfelliste.test.mjs mit ihrem Grad

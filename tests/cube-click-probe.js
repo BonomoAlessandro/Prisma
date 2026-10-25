@@ -1,9 +1,10 @@
 // Aufruf: node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"
-// Klickt im Würfel-Level "Kern" jedes drehbare Element in seiner Mitte an und meldet, welches Element sich gedreht
-// hat (erwartet: jeweils genau das angeklickte – sonst verdeckt ein vorderes Element das hintere).
+// Klickt im Würfel-Level "Blumentopf" (Anker A2 der KI-Tester; bis zum 25.10.2026 "Kern") jedes drehbare Element
+// in seiner Mitte an und meldet, welches Element sich gedreht hat (erwartet: jeweils genau das angeklickte – sonst
+// verdeckt ein vorderes Element das hintere).
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
-  const index = LEVELS.findIndex(l => l.name === 'Kern');
+  const index = LEVELS.findIndex(l => l.name === 'Blumentopf');
   window.__prisma.goto(index);
   while (!(window.__prisma.playing() && game.levelIndex === index)) await wait(100);
   await wait(1500); // Kamera eingeschwenkt

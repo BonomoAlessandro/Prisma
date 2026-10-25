@@ -96,6 +96,10 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
 
 ## Die zwei Level
 
+Seit dem 25.10.2026 nicht mehr im Spiel (Entscheid des Nutzers: sie waren nur zum Testen da); sie bleiben als
+Testdaten in `tests/wuerfel-handgebaut.mjs`. Die Würfel-Level im Spiel kommen alle aus dem Generator
+(`.scratch/wuerfel-500/`).
+
 - **Aufzug** (3 drehbar): Spiegel (Achse z) hebt den Strahl, Prisma (Achse x) fächert ihn senkrecht
   auf drei Ziele in der obersten Ebene, ein Spiegel lenkt Grün zur Seite.
 - **Kern** (5 drehbar): Rot von unten vorne und Blau (aus einem Prisma oben hinten) müssen sich als

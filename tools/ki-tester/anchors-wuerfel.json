@@ -80,6 +80,67 @@
           "begruendung": "Platz 27, das schwerste Würfel-Level (Schwierigkeit 93,5), Kernidee Mischziel aus zwei Quellen. Beide KI-Tester: Gefühl 4."
         }
       ]
+    },
+    "W3": {
+      "hinweis": "Entscheid des Nutzers vom 25.10.2026 (Ticket 10 der Würfel-Level): Aufzug und Kern waren nur zum Testen da und sind aus dem Spiel genommen. Darum steht Kern nicht mehr als A2 zur Verfügung; die übrigen Anker bleiben wie in W2.",
+      "anker": [
+        {
+          "id": "A1",
+          "name": "Bauklotz",
+          "grad": "leicht",
+          "ende": "unten",
+          "begruendung": "Das leichteste Würfel-Level (Schwierigkeit 15,4), ohne Kernidee. Beide KI-Tester: Gefühl 3, Einordnung A1. War schon Anker in W2."
+        },
+        {
+          "id": "A2",
+          "name": "Blumentopf",
+          "grad": "leicht",
+          "ende": "oben",
+          "begruendung": "Ersatz für Kern: das schwerste leichte Level mit Kernidee, das die KI-Tester nicht verschoben haben (Schwierigkeit 37,8, Kernidee Falle; Kartonschachtel 41,8 und Stockwerk 40,6 sind um −5 und +5 verschoben). Lauf wuerfel-7: Gefühl 3 und 3, Einordnung A2-A3 und A2."
+        },
+        {
+          "id": "A3",
+          "name": "Galerie",
+          "grad": "mittel",
+          "ende": "unten",
+          "begruendung": "Schwierigkeit 43,2, das leichteste mittlere Level nach der Formel (Platz 9; Platz 8 Treppenhaus ist von den KI-Testern verschoben). Kernidee Abschalten. Beide KI-Tester: Gefühl 4."
+        },
+        {
+          "id": "A4",
+          "name": "Laubengang",
+          "grad": "mittel",
+          "ende": "oben",
+          "begruendung": "Platz 20, das letzte mittlere Level (Schwierigkeit 58,2; die Schwelle von schwer liegt bei 58,5). Kernidee Sammelstelle. KI-Tester: Gefühl 4 und 5."
+        },
+        {
+          "id": "A5",
+          "name": "Zitadelle",
+          "grad": "schwer",
+          "ende": "unten",
+          "begruendung": "Platz 21, das erste schwere Level (Schwierigkeit 60,8). Kernidee Sammelstelle. KI-Tester: Gefühl 5 und 4."
+        },
+        {
+          "id": "A6",
+          "name": "Basilika",
+          "grad": "schwer",
+          "ende": "oben",
+          "begruendung": "Platz 25, das letzte schwere Level (Schwierigkeit 81,9; die Schwelle von sehr schwer liegt bei 87). Kernidee Abschalten. Beide KI-Tester: Gefühl 5."
+        },
+        {
+          "id": "A7",
+          "name": "Hyperwürfel",
+          "grad": "sehr schwer",
+          "ende": "unten",
+          "begruendung": "Platz 26, Schwierigkeit 88,8, Kernidee Sammelstelle. Eines von zwei sehr schweren Leveln; KI-Tester A lehnte es wegen Knäuel ab, B nicht; es bleibt, weil nur beide zusammen ablehnen (Gefühl 3 und 4). Ohne Alternative im Grad."
+        },
+        {
+          "id": "A8",
+          "name": "Tesserakt",
+          "grad": "sehr schwer",
+          "ende": "oben",
+          "begruendung": "Platz 27, das schwerste Würfel-Level (Schwierigkeit 93,5), Kernidee Mischziel aus zwei Quellen. Beide KI-Tester: Gefühl 4."
+        }
+      ]
     }
   }
 }

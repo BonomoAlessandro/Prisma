@@ -6,6 +6,7 @@ import assert from 'node:assert/strict';
 import { L, setRot } from '../../tools/solver.mjs';
 import { feldformVon } from '../../tools/beurteilung/feldform.mjs';
 import { test, miniLevel } from './helfer.mjs';
+import { AUFZUG, KERN } from '../wuerfel-handgebaut.mjs';
 
 console.log('Feldform (Würfel)');
 
@@ -236,7 +237,7 @@ test('Drehungen ohne Prisma mit waagrechter Achse: vier, viermal gedreht wieder 
 
 test('Drehungen: Aufzug (Prisma mit Achse x) und Kern (Achse z) haben je zwei, mit gleichem Strahlbild', () => {
   const zahl = {};
-  for (const level of L.LEVELS_3D) {
+  for (const level of [AUFZUG, KERN, ...L.LEVELS_3D]) {
     const d = feldformVon(level).drehungen(level);
     if (['Aufzug', 'Kern'].includes(level.name)) zahl[level.name] = d.map(g => vierteldrehungen(level, g));
     for (const g of d.slice(1)) gleichGedreht(level, g, level.name);

@@ -2,7 +2,7 @@
 
 **What to build:** 25 neue Würfel-Level 7 × 7 × 7 aus dem Generator, nach dem Ablauf einer Gruppe in der Spec. Neu je
 Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 / 5 / 3.
-Danach stehen 300 neue Würfel-Level im Spiel: 51 / 159 / 63 / 27 (dazu Aufzug und Kern).
+Danach stehen 300 neue Würfel-Level im Spiel: 51 / 159 / 63 / 27. Aufzug und Kern sind nicht mehr im Spiel (Entscheid vom 25.10.2026).
 
 **Spec:** ../spec.md, Abschnitte „Vorgehen in kleinen Gruppen“ und „Ablauf einer Gruppe“.
 

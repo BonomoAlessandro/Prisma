@@ -16,8 +16,9 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
 import { fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRUPPEN, HANDGEBAUT, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
+  GRUPPEN, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
+import { KERN } from './wuerfel-handgebaut.mjs';
 
 let passed = 0;
 async function test(name, fn) {
@@ -87,8 +88,8 @@ await test('Namen eindeutig über flache und Würfel-Level, keiner von der Liste
   assert.deepEqual(namen.filter((x, k) => namen.indexOf(x) !== k), []);
   assert.deepEqual(W.map(l => l.name).filter(x => entfernt.includes(x)), []);
 });
-await test('Ausser den handgebauten: Urteil der KI-Tester (wuerfel-…) und Herkunft mit Stand des Codes', () => {
-  const neu = W.flatMap((l, i) => (HANDGEBAUT.includes(l.name) ? [] : [i]));
+await test('Jedes Würfel-Level: Urteil der KI-Tester (wuerfel-…), Herkunft mit Stand des Codes, kein Hinweis', () => {
+  const neu = W.map((_, i) => i);
   assert.deepEqual(neu.filter(i => !r.ki.has(i)).map(i => W[i].name), [], 'ohne Urteil');
   // Stand: der Commit, mit dem ausbau.mjs pool … --wuerfel das Level aus dem Seed baut (mit „+“ nicht nachbaubar)
   const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7,40} `
@@ -96,7 +97,7 @@ await test('Ausser den handgebauten: Urteil der KI-Tester (wuerfel-…) und Herk
   assert.deepEqual(neu.filter(i => !herkunft(W[i].name).test(html)).map(i => W[i].name), [], 'Herkunft');
   const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7,40}) · Würfel/g)].map(m => m[1]))];
   assert.deepEqual(staende.filter(x => !commitDa(x)), [], 'Stand ist kein Commit');
-  assert.deepEqual(W.filter(l => !HANDGEBAUT.includes(l.name) && l.hint).map(l => l.name), [], 'Hinweis nur handgebaut');
+  assert.deepEqual(W.filter(l => l.hint).map(l => l.name), [], 'Hinweis');
 });
 
 console.log('Bausteine');
@@ -129,7 +130,7 @@ await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der 
   assert.deepEqual(wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'ausbau-1')] }).folge, ohne.folge);
 });
 await test('Ähnlichkeit im Würfel: über die 48 Symmetrien mit gedrehter Drehachse, Gegenproben', () => {
-  const kern = W.find(l => l.name === 'Kern');
+  const kern = KERN;
   // (x, y, z) → (z, 6 − x, y): die Achse x wird zu y, y zu z, z zu x; Stellungen beliebig
   const zu = { x: 'y', y: 'z', z: 'x' };
   const gedreht = { ...kern, elements: kern.elements.map(e => ({ ...e, x: e.z, y: 6 - e.x, z: e.y,
@@ -146,7 +147,7 @@ await test('Leveldaten als Text: ein Würfel-Level liest sich zurück, sein Abdr
     const code = levelCode(level, ['Probe']);
     assert.deepEqual(new Function(`return [${code}][0]`)(), level, level.name);
   }
-  const kern = W.find(l => l.name === 'Kern');
+  const kern = KERN;
   const anders = { ...kern, elements: kern.elements.map((e, k) => (k === 1 ? { ...e, axis: 'x' } : e)) };
   assert.notEqual(abdruck(anders), abdruck(kern));
   assert.notEqual(kandidatName({ ...kern, elements: kern.elements.map((e, k) => (k === 1 ? { ...e, y: 1 } : e)) }),

@@ -20,6 +20,7 @@ import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
 import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../tools/leveldaten.mjs';
+import { AUFZUG, KERN } from './wuerfel-handgebaut.mjs';
 
 const {
   VERSION, VERSIONS, FINGERPRINT, AGENT, fingerprint, GRADES, PROVISIONAL_GRADES, MAX_SHIFT, reference, levelAt,
@@ -563,14 +564,14 @@ test('Würfel: kennt weder Lösung noch Name noch Grad, nennt jedes Element mit 
   }
 });
 test('Würfel: Licht in drei Koordinaten, die Richtungen als Wörter, Enden auf der Plattform und am Rand', () => {
-  const aufzug = fieldText(WUERFEL_IM_SPIEL.find(l => l.name === 'Aufzug'), 'A1');
+  const aufzug = fieldText(AUFZUG, 'A1');
   assert.ok(aufzug.includes('- weiss von (0,0,3) nach Ost bis (3,0,3), Spiegel lenkt um\n'), 'Aufzug, Spiegel');
   assert.ok(aufzug.includes('- weiss von (3,0,3) nach unten, endet auf der Plattform\n'), 'Aufzug, Plattform');
   assert.ok(aufzug.includes('- (3,3,3) Prisma, drehbar, Achse x (West–Ost), Farbfächer nach Süd (weisses Licht: '
     + 'Rot nach Süd und unten, Grün nach Süd, Blau nach Süd und oben)'), 'Aufzug, Prisma');
   assert.ok(aufzug.includes('- (3,0,3) Spiegel, drehbar, Achse z (Nord–Süd), Fläche durch die Achse (Nord–Süd) und '
     + 'West oben–Ost unten'), 'Aufzug, Spiegel');
-  const kern = fieldText(WUERFEL_IM_SPIEL.find(l => l.name === 'Kern'), 'A2');
+  const kern = fieldText(KERN, 'A2');
   assert.ok(kern.includes('- rot von (4,6,6) nach West und unten bis (1,3,6), trifft das Ziel\n'), 'Kern, schräg');
   assert.ok(kern.includes('- blau von (4,6,6) nach West und oben, verlässt den Würfel\n'), 'Kern, oben hinaus');
   assert.ok(kern.includes('- (1,3,6) grün: bekommt rot, falsche Farbe'), 'Kern, Ziel');
