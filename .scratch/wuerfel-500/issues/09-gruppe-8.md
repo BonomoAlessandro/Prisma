@@ -30,7 +30,7 @@ Danach stehen 200 neue Würfel-Level im Spiel: 34 / 106 / 42 / 18 (dazu Aufzug u
 - **KI-Tester (wuerfel-8):** 22 Level beurteilt; die übrigen 3 hatten schon ein zählendes Urteil aus früheren Läufen.
   Keiner lehnt ab. L7 hat keinen Aha-Moment (Spiegeltreppe), bleibt aber als leichtes Level. L11, L15 und L16 sind am
   Handy schwach lesbar (A: 2 von 5). B meldet drei Level ganz in einer Ebene (L19, L5, L12). Das ist die offene Frage
-  an den Nutzer; bis zu seinem Entscheid gilt die bisherige Regel.
+  an den Nutzer; bis zum Entscheid gilt die bisherige Regel.
 - **Namen:** Der Vorrat für „mittel“ ist aufgestockt und geprüft (Handwerk, Bauteile, Wasserbau). Umbenannt nach
   Review 08: Chorgestühl → Lesepult (zu nah an Chorraum und Glockenstuhl).
 - Golden nachgeführt, alle Tests grün. Stichproben der Screenshots stammen aus den Bildern der Tester.

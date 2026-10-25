@@ -75,8 +75,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     fremden Filterfarbe (`oddFilters` in `quality.mjs`).
   - `node tests/wuerfelliste.test.mjs` prüft die Würfel-Level (`.scratch/wuerfel-500/`; über `leise.sh`): Reihenfolge
     und Grade wie `tools/ordne-wuerfel.mjs` sie rechnet, keine Regel verletzt (im Würfel gibt es keine Duldungsliste),
-    genau eine Lösung, keinem anderen Würfel-Level zu ähnlich, Namen eindeutig über flache und Würfel-Level, ausser
-    Aufzug und Kern ein Urteil der KI-Tester (`wuerfel-…`) und die Herkunft im Kommentar; dazu die Bausteine an
+    genau eine Lösung, keinem anderen Würfel-Level zu ähnlich, Namen eindeutig über flache und Würfel-Level, je Level
+    ein Urteil der KI-Tester (`wuerfel-…`) und die Herkunft im Kommentar, kein Hinweis; dazu die Bausteine an
     erfundenen Fällen (Verteilung der Grade nach der Tabelle der Spec, Korrektur der KI-Tester, Ähnlichkeit über die 48
     Symmetrien des Würfels, Leveldaten als Text).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator

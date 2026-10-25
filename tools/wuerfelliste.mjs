@@ -9,18 +9,16 @@
 //   Leveln ab „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, ein Level rückt dafür höchstens MAX_ENTZERREN_AUSBAU Plätze; das
 //   Mittel der Schwierigkeit je 10 Level fällt um höchstens TOLERANZ_MITTEL.
 // - Keine Duldungsliste: Jedes Würfel-Level erfüllt jede Regel (verletzt), sonst schreibt ordne-wuerfel.mjs nicht.
-// - Die handgebauten Level Aufzug und Kern (HANDGEBAUT) brauchen kein Urteil der KI-Tester und keine Herkunft; alle
-//   übrigen kommen aus dem Generator, haben ein zählendes Urteil aus einem Lauf wuerfel-…, das sie nicht ablehnt.
-// - Verteilung der Grade (Spec, Tabelle): ZIEL nach GRUPPEN Gruppen, bestandNach(k) nach der Gruppe k, ohne die
-//   handgebauten.
+// - Jedes Würfel-Level kommt aus dem Generator und hat ein zählendes Urteil aus einem Lauf wuerfel-…, das es nicht
+//   ablehnt. Die handgebauten Aufzug und Kern hat der Nutzer am 25.10.2026 aus dem Spiel genommen (nur noch Testdaten,
+//   tests/wuerfel-handgebaut.mjs).
+// - Verteilung der Grade (Spec, Tabelle): ZIEL nach GRUPPEN Gruppen, bestandNach(k) nach der Gruppe k.
 import { GRADE } from './beurteilung/index.mjs';
 import { GRUENDE, ZAEHLENDE_WUERFEL_LAEUFE, reihenfolge } from './levelliste.mjs';
 import { L } from './solver.mjs';
 
 /** Der Würfel aller Würfel-Level (Spec: 7 × 7 × 7). */
 export const WUERFEL = { dim: 3, size: 7 };
-/** Die handgebauten Würfel-Level; sie zählen nicht zu den neuen und nicht zur Verteilung der Grade. */
-export const HANDGEBAUT = ['Aufzug', 'Kern'];
 /** Die Verteilung der Grade der neuen Würfel-Level am Ende (Spec, Entscheid des Nutzers vom 24.10.2026). */
 export const ZIEL = { leicht: 85, mittel: 265, schwer: 105, 'sehr schwer': 45 };
 /** So viele Gruppen zu je 25 Leveln (Tickets 02–21). */

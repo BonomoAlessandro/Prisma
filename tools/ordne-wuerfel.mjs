@@ -8,8 +8,8 @@
 //   dann mit den Graden der Reihenfolge, bis sie sich nicht mehr ändern.
 // - Geprüft je Level: keine Regel verletzt (verletzt in wuerfelliste.mjs; im Würfel gibt es keine Duldungsliste),
 //   genau eine Lösung (die notierte), keinem anderen Würfel-Level zu ähnlich (aehnlichkeit.mjs), Name eindeutig über
-//   flache und Würfel-Level und nicht von der Liste entfernter Level, ausser den handgebauten ein zählendes Urteil der
-//   KI-Tester aus einem Lauf wuerfel-…; für die Reihenfolge: keine Häufung der Haupt-Kernidee offen, das Mittel je 10
+//   flache und Würfel-Level und nicht von der Liste entfernter Level, ein zählendes Urteil der KI-Tester aus einem
+//   Lauf wuerfel-…; für die Reihenfolge: keine Häufung der Haupt-Kernidee offen, das Mittel je 10
 //   Level fällt nicht, der Grad sinkt nie.
 // Aufruf: sh tools/leise.sh node tools/ordne-wuerfel.mjs [--kandidaten <datei>] [--schreiben] [--json <datei>]
 //   --kandidaten: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit, stand }, etwa
@@ -35,7 +35,7 @@ import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
   HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile,
 } from './levelliste.mjs';
-import { HANDGEBAUT, WUERFEL, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { WUERFEL, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 const INDEX = new URL('../index.html', import.meta.url);
 const argument = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
@@ -91,8 +91,7 @@ const flach = L.LEVELS.map(l => l.name), entfernt = ladeLevelliste().entfernteNa
 const alleNamen = [...flach, ...namen.filter(Boolean)];
 pruefe('Namen eindeutig über flache und Würfel-Level, keiner entfernt', [
   ...alleNamen.filter((x, k) => alleNamen.indexOf(x) !== k), ...namen.filter(x => entfernt.includes(x))]);
-pruefe('Urteil der KI-Tester (ausser den handgebauten)', folge.filter(i => !HANDGEBAUT.includes(namen[i]) && !ki.has(i))
-  .map(name));
+pruefe('Urteil der KI-Tester', folge.filter(i => !ki.has(i)).map(name));
 const zug = ({ i, von, nach, tausch }) => `${name(i)} (${b[i].hauptKernidee.begriff}) ${tausch ? "tauscht" : "von"} Platz ${von + 1} ${tausch ? "mit" : "auf"} ${nach + 1}`;
 console.log(`  Häufungsregel (höchstens ${HAUPT_KERNIDEE_JE_10}, ab „mittel“ ${HAUPT_KERNIDEE_JE_10_OBEN} je 10 Level): `
   + `${r.zuege.length ? r.zuege.map(zug).join('; ') : 'keine Züge'}`);

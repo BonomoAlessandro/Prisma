@@ -16,9 +16,12 @@ etwas anderes steht. Entscheide des Nutzers vom 24.10.2026.
 - **Bis der Nutzer anhält** (Entscheide vom 24.10.2026): Zuerst sollten es 100 sein (Tickets 01–05). Danach hat der
   Nutzer entschieden: Nach jedem fertigen Ticket beginnt der Koordinator gleich das nächste, auch nach Gruppe 4, bis
   der Nutzer sagt, dass es genug ist.
-- **Ohne Einführung:** Es gibt kein Würfel-Tutorial. Die handgebauten Level Aufzug und Kern bleiben im Spiel und
-  werden wie die neuen nach der Formel eingeordnet; zusammen sind es am Ende 502 Würfel-Level. Sie zählen nicht zu den
-  500 und nicht zur Verteilung oben.
+- **Ohne Einführung:** Es gibt kein Würfel-Tutorial. Die handgebauten Level Aufzug und Kern waren nur zum Testen da:
+  Am 25.10.2026 (vor Gruppe 9, Ticket 10) hat der Nutzer sie aus dem Spiel genommen. Im Spiel stehen nur die Level aus
+  dem Generator. Aufzug und Kern bleiben als Testdaten (`tests/wuerfel-handgebaut.mjs`), Kern als Anker nur in den
+  Versionen W1 und W2 der KI-Tester.
+- **Pause bei 300** (Entscheid vom 25.10.2026): Nach Gruppe 12 (Ticket 13, 300 Würfel-Level) hält der Koordinator an,
+  bis der Nutzer weitergehen lässt.
 - Die flachen Level (Tutorial und 500) bleiben unverändert (`tests/golden.mjs`).
 
 ## Branch
@@ -34,7 +37,7 @@ von main in den Branch.
   so nahe wie möglich an der Zielverteilung. Der Nutzer kann nach jeder Gruppe pausieren oder aufhören. Bestand und
   Anteil je Gruppe nach der Zielverteilung, gerundet nach dem grössten Rest; jeder Bestand ist auch für sich verteilt
   wie das Ziel.
-- Bestand der neuen Level nach jeder Gruppe (leicht / mittel / schwer / sehr schwer), ohne Aufzug und Kern:
+- Bestand der neuen Level nach jeder Gruppe (leicht / mittel / schwer / sehr schwer):
 
   | Gruppe | Ticket | neue Level | Bestand | neu in der Gruppe |
   |---|---|---|---|---|

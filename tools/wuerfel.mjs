@@ -38,7 +38,7 @@ import { kandidatName } from './leveldaten.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
 import { zaehlendeWuerfelUrteile } from './levelliste.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
-import { GRUPPEN, HANDGEBAUT, WUERFEL, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { GRUPPEN, WUERFEL, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 /**
  * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als tools/ausbau.mjs (dort
@@ -55,9 +55,8 @@ const flag = (name, def) => { const i = args.indexOf(name); return i < 0 ? def :
 const fail = (text) => { console.error(text); process.exit(1); };
 const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
 const leseJsonl = (datei) => readFileSync(datei, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-/** Die neuen Würfel-Level im Spiel (ohne die handgebauten) je Grad. */
-const neuImSpiel = () => Object.fromEntries(GRADE.map(g => [g, L.LEVELS_3D
-  .filter(l => !HANDGEBAUT.includes(l.name) && l.grad === g).length]));
+/** Die Würfel-Level im Spiel je Grad. */
+const neuImSpiel = () => Object.fromEntries(GRADE.map(g => [g, L.LEVELS_3D.filter(l => l.grad === g).length]));
 
 if (args[0] === 'wahl') await wahl();
 else if (args[0] === 'bedarf') bedarf();
@@ -65,7 +64,7 @@ else fail('Aufruf: node tools/wuerfel.mjs wahl|bedarf … (siehe Kopf)');
 
 function bedarf() {
   const im = neuImSpiel();
-  console.log(`Würfel-Level im Spiel: ${L.LEVELS_3D.length} (davon handgebaut ${HANDGEBAUT.length}); neue je Grad `
+  console.log(`Würfel-Level im Spiel: ${L.LEVELS_3D.length}; je Grad `
     + `${GRADE.map(g => `${g} ${im[g]}`).join(', ')}`);
   for (let k = 1; k <= GRUPPEN; k++) {
     const b = bestandNach(k), n = GRADE.reduce((s, g) => s + b[g], 0);
