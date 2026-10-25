@@ -41,3 +41,27 @@ Danach stehen 250 neue Würfel-Level im Spiel: 43 / 133 / 52 / 22. Aufzug und Ke
   wie Metope und Kapitell. Der Vorrat für „mittel“ ist fast leer: Die meisten Namen darin scheitern am Grundwort
   (…haus, …erei, …werk). Vor Gruppe 11 stocke ich ihn auf.
 - Golden nachgeführt, alle Tests grün. Stichproben der Screenshots stammen aus den Bildern der Tester.
+
+**25.10.2026, Review:** Geprüft auf 1df6ca5 (Merge von eecb241).
+- **Herkunft:** Krabbe (mittel-abzaehlen, Seed 20285, Stand 33f26f8) und Lalibela (schwer-abzaehlen, Seed 20550,
+  Stand 0d0edd0) mit `tools/ausbau.mjs pool … --wuerfel` auf dem Stand aus `git archive` nachgebaut; der Abdruck
+  stimmt (9f1264df, 5537bb72).
+- **Urteile:** Alle 25 neuen haben ein zählendes Urteil (22 aus wuerfel-10, Supraporte und Deckenfresko aus
+  wuerfel-10-2, Krabbe aus wuerfel-10-3), keines von beiden abgelehnt; B nennt bei Ewige Wiederkehr Knäuel, das zählt
+  allein nicht. 4100b3ff, b09e40f2, c0fd7282 und 2b43ea8c stehen nicht im Spiel.
+- **Häufung:** keine offen. Seiten 9 und 10 stehen genau an der Grenze 3 (alle Level ab „mittel“): Seite 9 Farben
+  abzählen, Sammelstelle und Abschalten je 3, Seite 10 Farben abzählen, Abschalten und Sammelstelle je 3.
+- **Grade:** 43 / 133 / 52 / 22 wie bestandNach(10). `tests/wuerfelliste.test.mjs`: 12 Tests bestanden,
+  `tests/ki-tester.test.mjs`: 83 Tests bestanden.
+- **Namen:** eindeutig, keiner von der Liste entfernter Level, die fünf Umbenennungen sind in Ordnung bis auf
+  Kupferstich (unten). Offen für den Koordinator (das Review ändert index.html nicht):
+  - **Zinngießer** ist der einzige Name mit „ß“; alle anderen schreiben „ss“ (Schiessscharte, Weisser Zwerg). Dazu
+    Zinn… wie Zinnen (Würfel, Seite 10) und Zinnober (flach). Vorschlag: neuer Name.
+  - **Deckenfresko** (Platz 91) und **Kassettendecke** (Platz 86) tragen beide „Decke“, auf derselben Seite 9.
+  - **Kandelaber** ist inhaltlich so nah an Kerzenlicht und Kerzenschein wie das eben umbenannte Kerzenleuchter.
+  - **Kupferstich** (aus der Umbenennung) teilt „Kupfer“ mit Kupferglanz (flach) und klingt wie Pinselstrich und
+    Kreidestrich (flach).
+  - Kleiner: Kai ist inhaltlich nah an Hafenmole und Hafenkran. Krabbe und Wimperg (Platz 81/82) sind gotische Bauzier
+    wie Fiale, obwohl Triglyphe, Akanthus und Volute aus diesem Grund ersetzt wurden. Drehorgel trägt das Grundwort
+    von Lichtorgel (entfernt, nicht im Spiel). Nudelholz/Holzkiste und Siegelring/Ringmauer teilen ein Wort, einmal
+    als Grund-, einmal als Bestimmungswort.
