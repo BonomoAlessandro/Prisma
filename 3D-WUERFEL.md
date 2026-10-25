@@ -91,8 +91,8 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   Tabelle und eine eingefrorene Feldform je Grösse, dazu die Drehachsen `drehachsen` (y, x, z): Drehbare Elemente und
   feste Spiegel des Ergänzens bekommen eine davon, Quellen die erste, mit der sie in die verlangte Richtung leuchten
   (auf `feature/levelgenerator` nachgezogen, dort nur y). Die Bausteine der Kernideen bauen mit Drehachse y; Licht
-  zwischen die Ebenen bringen ihre Quellen und das Ergänzen. Würfel-Level kommen nicht ins Spiel; `LEVELS_3D` bleibt
-  bei Aufzug und Kern.
+  zwischen die Ebenen bringen ihre Quellen und das Ergänzen. Damals kamen Würfel-Level noch nicht ins Spiel;
+  `LEVELS_3D` blieb bei Aufzug und Kern. Heute stehen dort nur Level aus dem Generator (`.scratch/wuerfel-500/`).
 
 ## Die zwei Level
 
@@ -149,10 +149,11 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 - N bzw. → auf Level 500 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort; Pfeile und Wischen
   in der Levelauswahl blättern nur in der gewählten Spielart). Bewusst so gelassen – entscheiden, ob 2D und Würfel auch
   beim Blättern getrennt sein sollen.
-- Kein Tutorial für Achsen/Ebenen, nur ein Hinweis pro Level in der Kopfzeile.
-- Die Würfel-Level im Spiel sind handgebaut. Die Beurteilung kennt den Würfel (Ticket 14): Aufzug ist leicht und
-  ohne Kernidee, Kern hat die Kernidee „Mischziel aus zwei Quellen“. Der Generator liefert Würfel-Level (Ticket 22),
-  die aber nicht ins Spiel kommen. In kleinen Würfeln (4 × 4 × 4) liefern Farben abzählen, Falle und Lockvogel nichts,
+- Kein Tutorial für Achsen/Ebenen und kein Hinweis in der Kopfzeile (den einzigen hatte Aufzug; seit dem
+  25.10.2026 nicht mehr im Spiel).
+- Die Würfel-Level im Spiel kommen alle aus dem Generator (`.scratch/wuerfel-500/`). Die Beurteilung kennt den
+  Würfel (Ticket 14): Aufzug ist leicht und ohne Kernidee, Kern hat die Kernidee „Mischziel aus zwei Quellen“ (beide
+  nur noch Testdaten). In kleinen Würfeln (4 × 4 × 4) liefern Farben abzählen, Falle und Lockvogel nichts,
   wie im flachen Feld 4 × 4; im Würfel 3 × 3 × 3 ist der Knäuel der häufigste Grund ohne Level.
 - Nur in Headless-Chrome getestet (Screenshots, simulierte Klicks) – noch nicht von Hand gespielt, nicht auf
   einem echten Handy, Leistung nicht gemessen.
@@ -160,6 +161,8 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
   Ideen: Lote/Schatten deutlicher, Achse am Element sichtbarer, Explosionsansicht der Ebenen.
 
 ## Nächste Schritte (Vorschlag)
+
+Stand vor den Würfel-Leveln aus dem Generator; die Würfel-Level entstehen heute nach `.scratch/wuerfel-500/spec.md`.
 
 1. Beide Level von Hand spielen (Desktop und Handy) und entscheiden, ob es sich lohnt (**E** in PLAN.md, Abschnitt 4).
 2. Wenn ja: kleines Würfel-Tutorial (Achse, Aufzug), 5–10 weitere handgebaute Level.
