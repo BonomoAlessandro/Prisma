@@ -14,10 +14,11 @@
 //   verteilen sie sich über den Grad), dann der mit dem höheren Spielwert; keiner einem gewählten zu ähnlich. Bleibt
 //   danach mit der Häufungsregel eine Häufung offen, tauscht die Wahl ein Level der Häufung gegen einen anderen Kandidaten
 //   desselben Grads mit anderer Haupt-Kernidee, bis keine mehr offen ist (höchstens TAUSCH_RUNDEN Tausche; ein Tausch
-//   zählt, wenn die offenen Häufungen danach zusammen weniger Level haben). Hilft das
-//   nicht (etwa eine Häufung nur aus Leveln im Spiel, die die neuen auf eine Seite schieben), tauscht sie einen anderen
-//   gewählten Kandidaten gegen einen seines Grads (die nach der Schwierigkeit nächsten zuerst, höchstens TAUSCH_NAH):
-//   Ein anders schwerer verschiebt die Grenzen der Seiten (Ticket 07, eine Häufung nur aus Leveln im Spiel auf Seite 3).
+//   zählt, wenn die offenen Häufungen danach zusammen weniger Level haben). Hilft das nicht (etwa eine Häufung nur aus
+//   Leveln im Spiel, die die neuen auf eine Seite schieben), tauscht sie einen anderen gewählten Kandidaten gegen einen
+//   seines Grads (die nach der Schwierigkeit nächsten zuerst, höchstens TAUSCH_NAH): Ein anders schwerer verschiebt die
+//   Grenzen der Seiten (Ticket 07, eine Häufung nur aus Leveln im Spiel auf Seite 3). Findet sich kein solcher Tausch,
+//   bleibt die Häufung offen (Ausgabe „Häufungsregel: offen …“).
 //   --behalte <datei>: eine frühere Wahl, deren Level gesetzt sind (etwa nach einer Ablehnung durch die KI-Tester ohne
 //   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den KI-Testern, „Kandidat
 //   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen).
