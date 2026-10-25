@@ -1,5 +1,6 @@
 // Würfel-Level für Screenshots einstellen: Level laden, optional Lösung setzen, Kamera neigen.
-// Vorher (im selben Ausdruck) Variablen setzen, z. B. Würfel 2 gelöst:
+// Vorher (im selben Ausdruck) Variablen setzen, z. B. (Index und Lösung von „Kern“, bis zum 25.10.2026 im Spiel;
+// für ein heutiges Würfel-Level Index und Lösung aus index.html nehmen):
 //   node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=510;
 //     window.CUBE_SOLVE={'3,0,0':3,'3,3,0':1,'4,6,6':3,'3,6,6':3,'3,3,6':1}; $(cat tests/cube-probe.js)"
 //   CUBE_INDEX: Index in LEVELS (Würfel-Level ab CUBE_START, heute 509 und 510 – verschiebt sich, wenn 2D-Level dazukommen)
