@@ -643,6 +643,13 @@ test(`Häufungsregel: höchstens ${MAX_ENTZERREN} Plätze, betroffene Level zuer
   assert.notDeepEqual(zwei.zuege[0], { i: 10, von: 10, nach: 9 });
   const eng = entzerre(folge, grad, vier, new Set(), () => true, 1);
   assert.deepEqual([eng.zuege, eng.offen.map(h => h.mit.length)], [[], [4]]);
+  // An beiden Grenzen der zweiten Seite steht X gegenüber (9 und 20): Jedes Rücken über eine Grenze schiebt ein X
+  // zurück, das Rücken anderer Level ein Level ohne X. Nur ein Tausch (Würfel) löst das: 11 tauscht mit 8
+  const grenzen = mit([9, 11, 12, 13, 20]);
+  assert.equal(entzerre(folge, grad, grenzen, new Set()).offen.length, 1, 'ohne Tausch');
+  const getauscht = entzerre(folge, grad, grenzen, new Set(), () => true, MAX_ENTZERREN, new Set(), true);
+  assert.deepEqual([getauscht.zuege, haeufungen(getauscht.folge, grenzen, new Set())],
+    [[{ i: 11, von: 11, nach: 8, tausch: true }], []]);
 });
 test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sonst ${MAX_ENTZERREN}`, () => {
   assert.equal(maxEntzerren([]), MAX_ENTZERREN);

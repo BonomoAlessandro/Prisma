@@ -342,6 +342,12 @@ const verschiebe = (folge, von, nach) => {
   neu.splice(nach, 0, i);
   return neu;
 };
+/** Die Folge, in der die Level auf den Plätzen von und nach (Indizes) die Plätze tauschen; die übrigen bleiben. */
+const tausche = (folge, von, nach) => {
+  const neu = [...folge];
+  [neu[von], neu[nach]] = [neu[nach], neu[von]];
+  return neu;
+};
 
 /**
  * Die Häufungen der Haupt-Kernidee je 10 Level (folge: Indizes nach Platz, haupt: Haupt-Kernidee je Index oder null,
@@ -378,11 +384,16 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity, oben
  * Ist die Häufung um mehr als ein Level zu gross (etwa 4-mal dieselbe Haupt-Kernidee im Ausbau), löst kein einzelner Zug
  * sie auf. Dann gelten mehrere Züge, die sie je verkleinern und am Ende auflösen; genommen die erste solche Folge nach
  * derselben Wahl, Zug für Zug.
+ * Mit tauschen (Würfel, Ticket 08) gibt es neben dem Rücken einen zweiten Zug: Das Level tauscht den Platz mit dem
+ * Level auf dem Platz nach (desselben Grads, beide höchstens weit Plätze), die dazwischen bleiben. Rückt ein Level
+ * über eine Seitengrenze, schiebt es das Level an der Grenze auf seine alte Seite; trägt dieses dieselbe
+ * Haupt-Kernidee, ändert das Rücken nichts, der Tausch schon. Bei sonst gleichem Rang kommt das Rücken zuerst.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
- * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen:
- * die Häufungen, die sich so nicht auflösen lassen }.
+ * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach[, tausch] }] mit Plätzen ab 0,
+ * offen: die Häufungen, die sich so nicht auflösen lassen }.
  */
-export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set()) {
+export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set(),
+  tauschen = false) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
   // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
   // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
@@ -397,14 +408,16 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
           if (nach < 0 || nach >= neu.length || grad[neu[nach]] !== grad[i]) continue;
           // Ein Zug ändert nur die Seiten zwischen von und nach; die übrigen Häufungen bleiben wie vorher
           const a = Math.floor(Math.min(von, nach) / 10), b = Math.floor(Math.max(von, nach) / 10);
-          const probe = verschiebe(neu, von, nach);
-          const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
-            ...haeufungen(probe, haupt, geduldet, a, b, oben)];
-          const rest = danach.find(x => gleich(x, h)) ?? null;
-          const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
-          if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
-          const rang = [h.mit.includes(i) ? 0 : 1, geduldet.has(i) ? 0 : 1, s, -von, -nach];
-          alle.push({ i, von, nach, probe, rest, rang });
+          for (const tausch of tauschen ? [false, true] : [false]) {
+            const probe = (tausch ? tausche : verschiebe)(neu, von, nach);
+            const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
+              ...haeufungen(probe, haupt, geduldet, a, b, oben)];
+            const rest = danach.find(x => gleich(x, h)) ?? null;
+            const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
+            if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
+            const rang = [h.mit.includes(i) ? 0 : 1, geduldet.has(i) ? 0 : 1, s, tausch ? 1 : 0, -von, -nach];
+            alle.push({ i, von, nach, probe, rest, rang, tausch });
+          }
         }
       }
     }
@@ -440,7 +453,7 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
     if (!folgeZuege) offen.push(h);
     for (const z of folgeZuege ?? []) {
       neu = z.probe;
-      zuege.push({ i: z.i, von: z.von, nach: z.nach });
+      zuege.push({ i: z.i, von: z.von, nach: z.nach, ...(z.tausch ? { tausch: true } : {}) });
     }
   }
 }
@@ -487,7 +500,7 @@ export function fallendeSeiten(folge, werte) {
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null,
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false,
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -567,7 +580,7 @@ export function reihenfolge(werte, namen, urteile = [], {
   const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
   const { folge, zuege, offen } = haupt
-    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau), obenIn(grad, imAusbau))
+    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau), obenIn(grad, imAusbau), tauschen)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
 }
