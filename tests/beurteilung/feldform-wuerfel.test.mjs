@@ -148,8 +148,8 @@ test('Zelle eines Ereignisses, Anfang und Ende eines Abschnitts, Durchlauf, auch
 
 // Drehungen: Zu jeder Drehung, die die Feldform liefert, muss die Strahlregel dasselbe Strahlbild gedreht ergeben, in
 // Start- und Lösungsstellung. Gedreht wird um die senkrechte Achse durch die Würfelmitte wie im flachen Feld: x' =
-// size − 1 − z, z' = x; ein Vektor [dx, dy, dz] wird [−dz, dy, dx]. Wie oft gedreht ist, zeigt das erste Element (es
-// steht nie auf der Mittelachse).
+// size − 1 − z, z' = x; ein Vektor [dx, dy, dz] wird [−dz, dy, dx]. Wie oft gedreht ist, zeigt das erste Element
+// neben der Mittelachse (auf ihr steht etwa die Quelle von Brotkorb).
 const dreheVektor = (v, n) => { for (let i = 0; i < n; i++) v = [-v[2], v[1], v[0]]; return v; };
 const drehePunkt = (size, p, n) => {
   let { x, z } = p;
@@ -157,9 +157,10 @@ const drehePunkt = (size, p, n) => {
   return { x, y: p.y, z };
 };
 function vierteldrehungen(level, gedreht) {
-  const size = level.size || 5, e = level.elements[0], g = gedreht.elements[0];
+  const size = level.size || 5, i = level.elements.findIndex(e => 2 * e.x !== size - 1 || 2 * e.z !== size - 1);
+  const e = level.elements[i], g = gedreht.elements[i];
   const n = [0, 1, 2, 3].filter(k => { const p = drehePunkt(size, e, k); return p.x === g.x && p.z === g.z; });
-  assert.equal(n.length, 1, 'erstes Element auf der Mittelachse');
+  assert.equal(n.length, 1, 'alle Elemente auf der Mittelachse');
   return n[0];
 }
 function inStellung(level, loesung) {

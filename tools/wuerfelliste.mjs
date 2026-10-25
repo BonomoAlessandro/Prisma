@@ -57,6 +57,9 @@ export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile
     // bei gleichem Wert der Abdruck (kandidatName), nicht der Platz in index.html: sonst kippen zwei gleich schwere
     // Level mit Urteil bei jedem Ordnen hin und her
     gleichstand: namen.map((x, i) => kandidat[i] ?? x),
+    // gegen Häufungen auch Plätze tauschen (entzerre): Mit 150 Leveln und mehr steht an den Seitengrenzen oft dieselbe
+    // Haupt-Kernidee, dann löst das Rücken nichts (Ticket 08)
+    tauschen: true,
   });
 }
 

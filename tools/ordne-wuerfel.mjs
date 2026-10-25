@@ -93,7 +93,7 @@ pruefe('Namen eindeutig über flache und Würfel-Level, keiner entfernt', [
   ...alleNamen.filter((x, k) => alleNamen.indexOf(x) !== k), ...namen.filter(x => entfernt.includes(x))]);
 pruefe('Urteil der KI-Tester (ausser den handgebauten)', folge.filter(i => !HANDGEBAUT.includes(namen[i]) && !ki.has(i))
   .map(name));
-const zug = ({ i, von, nach }) => `${name(i)} (${b[i].hauptKernidee.begriff}) von Platz ${von + 1} auf ${nach + 1}`;
+const zug = ({ i, von, nach, tausch }) => `${name(i)} (${b[i].hauptKernidee.begriff}) ${tausch ? "tauscht" : "von"} Platz ${von + 1} ${tausch ? "mit" : "auf"} ${nach + 1}`;
 console.log(`  Häufungsregel (höchstens ${HAUPT_KERNIDEE_JE_10}, ab „mittel“ ${HAUPT_KERNIDEE_JE_10_OBEN} je 10 Level): `
   + `${r.zuege.length ? r.zuege.map(zug).join('; ') : 'keine Züge'}`);
 pruefe('keine Häufung offen', r.offen.map(h => `Seite ${h.gruppe + 1} ${h.begriff} ${h.mit.length}-mal`));
