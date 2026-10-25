@@ -112,7 +112,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
     Rechtsklick, Ziehen und Hover.
   - `node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"` klickt im Würfel-Level
-    „Kern“ jedes drehbare Element an und meldet, welches sich gedreht hat. `tests/cube-probe.js` stellt ein
+    „Blumentopf“ jedes drehbare Element an und meldet, welches sich gedreht hat. `tests/cube-probe.js` stellt ein
     Würfel-Level für Screenshots ein (Aufruf im Kopf der Datei und in [3D-WUERFEL.md](3D-WUERFEL.md)).
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
