@@ -13,7 +13,11 @@
 //   bei gleicher Zahl der, dessen Schwierigkeit am weitesten von den schon gewählten und denen im Spiel liegt (so
 //   verteilen sie sich über den Grad), dann der mit dem höheren Spielwert; keiner einem gewählten zu ähnlich. Bleibt
 //   danach mit der Häufungsregel eine Häufung offen, tauscht die Wahl ein Level der Häufung gegen einen anderen Kandidaten
-//   desselben Grads mit anderer Haupt-Kernidee, bis keine mehr offen ist (höchstens TAUSCH_RUNDEN Tausche).
+//   desselben Grads mit anderer Haupt-Kernidee, bis keine mehr offen ist (höchstens TAUSCH_RUNDEN Tausche; ein Tausch
+//   zählt, wenn die offenen Häufungen danach zusammen weniger Level haben). Hilft das
+//   nicht (etwa eine Häufung nur aus Leveln im Spiel, die die neuen auf eine Seite schieben), tauscht sie einen anderen
+//   gewählten Kandidaten gegen einen seines Grads (die nach der Schwierigkeit nächsten zuerst, höchstens TAUSCH_NAH):
+//   Ein anders schwerer verschiebt die Grenzen der Seiten (Ticket 07, eine Häufung nur aus Leveln im Spiel auf Seite 3).
 //   --behalte <datei>: eine frühere Wahl, deren Level gesetzt sind (etwa nach einer Ablehnung durch die KI-Tester ohne
 //   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den KI-Testern, „Kandidat
 //   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen).
@@ -42,6 +46,8 @@ import { GRUPPEN, HANDGEBAUT, WUERFEL, bestandNach, wuerfelReihenfolge } from '.
 const ZWEITER_TEIL_HOECHSTENS = 0;
 /** So viele Tausche gegen offene Häufungen höchstens (wahl). */
 const TAUSCH_RUNDEN = 200;
+/** Beim Tausch eines Kandidaten ausserhalb der Häufung höchstens so viele Ersatz-Kandidaten (12 reichten in Gruppe 6 nicht). */
+const TAUSCH_NAH = 400;
 
 const args = process.argv.slice(2);
 const flag = (name, def) => { const i = args.indexOf(name); return i < 0 ? def : args.splice(i, 2)[1]; };
@@ -147,21 +153,35 @@ async function wahl() {
     return wuerfelReihenfolge(werte, [...W.map(l => l.name), ...wahl.map(k => k.name)], haupt,
       { kandidat: [...W.map(kandidatName), ...wahl.map(k => k.name)], urteile });
   };
+  // Wie viele Level die offenen Häufungen zusammen haben: Ein Tausch zählt schon, wenn er eine Häufung verkleinert
+  const zuViel = (x) => x.offen.reduce((s, h) => s + h.mit.length, 0);
   let r = folgeMit(gewaehlt), tausche = 0;
   const getauscht = [];
   while (r.offen.length && tausche < TAUSCH_RUNDEN) {
-    const h = r.offen[0], wer = h.mit.map(i => i - W.length).filter(j => j >= 0 && !gesetzt.includes(gewaehlt[j]));
+    const h = r.offen[0], frei = (j) => !gesetzt.includes(gewaehlt[j]);
+    const wer = h.mit.map(i => i - W.length).filter(j => j >= 0 && frei(j));
     let besser = null;
-    for (const j of wer) {
+    const versuche = (j, kandidaten) => {
       const raus = gewaehlt[j];
-      for (const rein of inFrage.filter(k => k.grad === raus.grad && k.hauptKernidee !== h.begriff
-        && !gewaehlt.includes(k))) {
+      for (const rein of kandidaten) {
         const probe = gewaehlt.map((k, n) => (n === j ? rein : k));
         if (nahAn(rein, probe)) continue;
         const rp = folgeMit(probe);
-        if (rp.offen.length < r.offen.length) { besser = { probe, rp, raus, rein }; break; }
+        if (zuViel(rp) < zuViel(r)) { besser = { probe, rp, raus, rein }; return; }
       }
+    };
+    for (const j of wer) {
+      versuche(j, inFrage.filter(k => k.grad === gewaehlt[j].grad && k.hauptKernidee !== h.begriff
+        && !gewaehlt.includes(k)));
       if (besser) break;
+    }
+    // sonst ein anderer gewählter Kandidat gegen einen ähnlich schweren seines Grads (verschiebt die Seiten)
+    for (const j of gewaehlt.keys()) {
+      if (besser) break;
+      if (wer.includes(j) || !frei(j)) continue;
+      const raus = gewaehlt[j], abstand = (k) => Math.abs(k.schwierigkeit - raus.schwierigkeit);
+      versuche(j, inFrage.filter(k => k.grad === raus.grad && !gewaehlt.includes(k))
+        .sort((a, b) => abstand(a) - abstand(b)).slice(0, TAUSCH_NAH));
     }
     tausche++;
     if (!besser) break;
