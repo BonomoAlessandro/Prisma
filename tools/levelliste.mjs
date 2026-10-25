@@ -387,7 +387,8 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity, oben
  * Mit tauschen (Würfel, Ticket 08) gibt es neben dem Rücken einen zweiten Zug: Das Level tauscht den Platz mit dem
  * Level auf dem Platz nach (desselben Grads, beide höchstens weit Plätze), die dazwischen bleiben. Rückt ein Level
  * über eine Seitengrenze, schiebt es das Level an der Grenze auf seine alte Seite; trägt dieses dieselbe
- * Haupt-Kernidee, ändert das Rücken nichts, der Tausch schon. Bei sonst gleichem Rang kommt das Rücken zuerst.
+ * Haupt-Kernidee, ändert das Rücken nichts, der Tausch schon. In der Wahl unter 3. kommt bei gleich langem Zug das Rücken vor dem
+ * Tausch, erst danach zählt der spätere Platz.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
  * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach[, tausch] }] mit Plätzen ab 0,
  * offen: die Häufungen, die sich so nicht auflösen lassen }.

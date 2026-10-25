@@ -158,9 +158,10 @@ const drehePunkt = (size, p, n) => {
 };
 function vierteldrehungen(level, gedreht) {
   const size = level.size || 5, i = level.elements.findIndex(e => 2 * e.x !== size - 1 || 2 * e.z !== size - 1);
+  assert.ok(i >= 0, 'alle Elemente auf der Mittelachse');
   const e = level.elements[i], g = gedreht.elements[i];
   const n = [0, 1, 2, 3].filter(k => { const p = drehePunkt(size, e, k); return p.x === g.x && p.z === g.z; });
-  assert.equal(n.length, 1, 'alle Elemente auf der Mittelachse');
+  assert.equal(n.length, 1, `Element ${i} neben der Mittelachse nicht eindeutig gedreht`);
   return n[0];
 }
 function inStellung(level, loesung) {
