@@ -11,6 +11,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Beim Entwickeln über `localhost` bleibt der Service Worker für diese Adresse registriert (er liefert das Spiel auch
   bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder „Bypass for network“.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
+- **Würfel-Level (3D-Prototyp):** Vorgehen, Modell und offene Punkte in [3D-WUERFEL.md](3D-WUERFEL.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
 - **Icon:** `favicon.svg` (Prisma mit Farbfächer), PNG-Varianten in `icons/` (iOS 180 px, Android 192/512 px),
   dazu `icon-maskable-*.png` für Android, das Icons selbst rund oder eckig zuschneidet (`node tools/icons.mjs` erzeugt
@@ -19,7 +20,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
   eingebunden, über file:// blockiert es der Browser.
 - **Tests:**
-  - `node tests/logic.test.mjs` prüft die Strahllogik.
+  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe, das Tutorial und jedes 10. Level der Reihenfolge im Spiel
     (Platz 1, 11, …, 141): das Verhalten exakt, Kommazahlen auf 1e-9 genau (etwa 2 s). Die Referenz hält die
@@ -72,6 +73,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     den Bestand zählen unter dem Bestand. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
     Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
     fremden Filterfarbe (`oddFilters` in `quality.mjs`).
+  - `node tests/wuerfelliste.test.mjs` prüft die Würfel-Level (`.scratch/wuerfel-500/`; über `leise.sh`): Reihenfolge
+    und Grade wie `tools/ordne-wuerfel.mjs` sie rechnet, keine Regel verletzt (im Würfel gibt es keine Duldungsliste),
+    genau eine Lösung, keinem anderen Würfel-Level zu ähnlich, Namen eindeutig über flache und Würfel-Level, je Level
+    ein Urteil der KI-Tester (`wuerfel-…`) und die Herkunft im Kommentar, kein Hinweis; dazu die Bausteine an
+    erfundenen Fällen (Verteilung der Grade nach der Tabelle der Spec, Korrektur der KI-Tester, Ähnlichkeit über die 48
+    Symmetrien des Würfels, Leveldaten als Text).
   - `node tests/generator.test.mjs` prüft den Generator (Spec, Nahtstelle 4; nur über `leise.sh`, denn der Generator
     prüft den Deckel; etwa 1 min): feste Seeds für „leicht“ ohne Kernidee und mit jeder der sechs Kernideen (je 50,
     dazu je Kernidee ein fester Seed, der ein Level mit ihr liefert), für „leicht“ mit den Ziel-Schwierigkeiten 33–43
@@ -80,7 +87,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und Kernidee einen Auftrag mit einem festen Seed, der ein Level mit ihr als Haupt-Kernidee liefert (Ticket 28; in
     „sehr schwer“ ausser dem Lockvogel). Jedes Level hat so viele Quellen, wie die Vorgabe seines Grads verlangt;
     „mittel“ mit Falle, Seed 278 verwirft er mit „zu wenige Quellen“, der feste Seed desselben Auftrags liefert mit
-    genau zwei, „leicht“ weiter auch mit einer (Ticket 29).
+    genau zwei, „leicht“ weiter auch mit einer (Ticket 29). Auf dem Würfel-Branch (Ticket 22) laufen dazu fünf
+    Aufträge im Würfel 4 × 4 × 4 („leicht“ ohne Kernidee, mit Mischziel, Abschalten und Sammelstelle, „mittel“ mit
+    Mischziel) durch alle Prüfungen, und die Würfel-Level nutzen den Raum (Licht zwischen den Ebenen, drehbare
+    Elemente mit waagrechter Drehachse).
     Derselbe Auftrag ergibt dasselbe Level, auch nach anderen Aufträgen; jedes gelieferte Level hat genau eine Lösung,
     besteht die Beurteilung (neu beurteilt und gleich der mitgegebenen), hat den verlangten Grad und die verlangte
     Kernidee nötig, Leveldaten wie in LEVELS und eine Startstellung mit genug Klicks. Kein Filter, dessen Strahl schon
@@ -101,12 +111,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
     Rechtsklick, Ziehen und Hover.
+  - `node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"` klickt im Würfel-Level
+    „Blumentopf“ jedes drehbare Element an und meldet, welches sich gedreht hat. `tests/cube-probe.js` stellt ein
+    Würfel-Level für Screenshots ein (Aufruf im Kopf der Datei und in [3D-WUERFEL.md](3D-WUERFEL.md)).
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
   Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
   Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
   Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
   → / Bild↓ eine Seite weiter, auf dem Handy auch Wischen über die Kacheln (nach links die nächste Seite); oben
   springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des Abschnitts.
+- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`),
+  in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
+  wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
+  Derselbe Durchlauf der Strahlregel wie für die flachen Level (`tracePass`, ADR 0003): Ein flaches Level ist ein Würfel
+  mit einer Ebene. Nur das Brett hat eine eigene Fassung (`createBoard3`, mit y und Drehachse); die flachen Level
+  bleiben bitgleich (`tests/golden.mjs`).
+  Die Kamera lässt sich im Würfel viel stärker neigen. Beurteilung (Ticket 14) und Generator (Ticket 22) kennen den
+  Würfel über die Würfel-Feldform (`tools/beurteilung/feldform-wuerfel.mjs`); Würfel-Level aus dem Generator kommen
+  nicht ins Spiel.
 - **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
@@ -219,9 +241,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   datei [--behalte datei] [--ohne name,…]` wählt nach dem Bedarf je Grad (Bestand nach der Gruppe laut Spec weniger
   die Level im Spiel) über den Bereich des Grads verteilt, keinem Level zu ähnlich, ohne dass der Grad sinkt oder das
   Mittel je 10 Level fällt, und sucht dann so lange Tausche, bis mit der Häufungsregel keine Häufung offen bleibt
-  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe;
+  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe; `pool … --wuerfel` sammelt
+  Kandidaten im Würfel 7 × 7 × 7;
+  Würfel-Level (`.scratch/wuerfel-500/`): `wuerfel.mjs wahl <gruppe> --pool datei[,…] --aus datei [--behalte datei]
+  [--ohne name,…]` wählt die neuen einer Gruppe (Bedarf je Grad nach der Spec, gegen Häufungen der Haupt-Kernidee),
+  `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
+  [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
+  Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie zwischen
+  `WUERFEL:BEGIN` und `WUERFEL:END` in `index.html`;
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
-  die acht Symmetrien des Felds); ab 0,5 ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
+  die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
+  ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
   heute drei Fast-Doppel aus dem Austausch, Dreiklang – Delta, Karussell – Rundflug und Fokus – Türkis);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
@@ -282,6 +312,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Grösse nur einmal an (eingefroren, alle Beurteilungen teilen sie): Das Spielermodell fragt die Nachbarn in jeder
     Beurteilung zehntausendfach ab. Auf main gibt es nur die flache Feldform, eine weitere (Würfel) kommt in
     `feldformVon` dazu.
+    Auf dem Würfel-Branch ist das die Würfel-Feldform (`feldform-wuerfel.mjs`, Ticket 14) für Level mit `dim: 3`:
+    Zellen „x,y,z“, 18 Richtungen, Drehachse je Element; für den Generator (Ticket 22) auch `element` und `rahmen`
+    (`{ dim: 3, size }`), die drei Drehachsen und die Nachbarn aus einer Tabelle, je Grösse eine eingefrorene.
   - **Regeln:** Jede liegt in einer eigenen Datei: `mischziele.mjs`, `schliessen.mjs`, je Ausschlussgrund eine in
     `ausschluesse/`, je Kernidee eine in `kernideen/`, dazu `schwierigkeit.mjs` und `spielwert.mjs`. Sie steht mit
     einer Zeile in `regeln.mjs`, unter der Kommentarzeile ihres Tickets. Wie eine Regel aussieht, steht im Kopf von

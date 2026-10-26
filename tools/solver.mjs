@@ -16,13 +16,15 @@ const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'i
 const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:END'));
 export const L = new Function(code + `
   return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
-    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, mod8, OPEN };`)();
+    mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT,
+    mod8, OPEN, LEVELS_3D, AXES, planeDir, planeIndex, reflect3, refractInPrism3 };`)();
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);
 export const getRot = (el) => (el.type === 'combiner' ? el.dir : el.rot);
 export const setRot = (el, v) => { if (el.type === 'combiner') el.dir = v; else el.rot = v; };
-export const keyOf = (el) => el.x + ',' + el.z;
+/** Lösungsschlüssel: "x,z", im Würfel "x,y,z". */
+export const keyOf = (el) => (el.y === undefined ? el.x + ',' + el.z : el.x + ',' + el.y + ',' + el.z);
 
 /**
  * Durchsucht die Stellungen der drehbaren Elemente, die das Licht erreicht.
@@ -120,13 +122,14 @@ export function bruteForce(level) {
   return { count, near, total };
 }
 
-/** Elemente, mit denen Licht in einem Strahlbild in Berührung kommt (als "x,z"). */
+/** Elemente, mit denen Licht in einem Strahlbild in Berührung kommt (als "x,z", im Würfel "x,y,z"). */
 export function litCells(r, board) {
   const lit = new Set();
   const byId = new Map(board.elements.map(e => [e.id, e]));
+  const round = (v) => (v === undefined ? undefined : Math.round(v));
   for (const e of r.events) {
-    if (e.element !== undefined) { const el = byId.get(e.element); lit.add(el.x + ',' + el.z); }
-    else if (e.kind === 'reflect' || e.kind === 'hit') lit.add(Math.round(e.x) + ',' + Math.round(e.z));
+    if (e.element !== undefined) lit.add(keyOf(byId.get(e.element)));
+    else if (e.kind === 'reflect' || e.kind === 'hit') lit.add(keyOf({ x: round(e.x), y: round(e.y), z: round(e.z) }));
   }
   return lit;
 }

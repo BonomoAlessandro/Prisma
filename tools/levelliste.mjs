@@ -9,9 +9,10 @@
 //   wandert (vor Ticket 16: 56 Strahlenkranz).
 // - Urteile der KI-Tester (reihenfolge, Ticket 16 nach dem Plan aus Ticket 05): Es zählen nur die Läufe der Prüfliste
 //   (pruefung-…) und des Austauschs (ersatz-…, siehe unten) von Ablauf 2, keine Probe- oder Eichläufe
-//   (zaehlendeUrteile). Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide KI-Tester zustimmen: Der
-//   Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz (zustimmung).
-//   Sonst bleibt es am alten Platz. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von
+//   (zaehlendeUrteile). Einträge aus dem Würfel (wuerfel-…) zählen hier nie (imWuerfel); die der Würfel-Level
+//   liefert zaehlendeWuerfelUrteile. Ein Level der Prüfliste kommt nur auf den Platz der Formel, wenn beide
+//   KI-Tester zustimmen: Der Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als
+//   der alte Platz (zustimmung). Sonst bleibt es am alten Platz. Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von
 //   merge (ki-tester/protocol.mjs): höchstens MAX_SHIFT Plätze und nie über eine Gradgrenze (korrigiere).
 //   Am alten Platz gilt das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad dort: gerechnet
 //   vom Platz der Formel (Rang nach der Schwierigkeit) aus, angewandt von dort, wo das Level nach ordne steht; wegen
@@ -87,7 +88,7 @@ import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
 import { HEUTIGE_REIHENFOLGE, heutigerPlatz } from './beurteilung/heutige-reihenfolge.mjs';
-import { MAX_SHIFT, TESTERS, merge, wish } from './ki-tester/protocol.mjs';
+import { MAX_SHIFT, TESTERS, VERSIONS, WUERFEL_LAEUFE, merge, wish } from './ki-tester/protocol.mjs';
 
 /** Weiter wandert kein Level ohne die KI-Tester (Spec „KI-Tester“: Kleinere Abweichungen entscheidet die Formel). */
 export const MAX_WANDERN = 10;
@@ -157,9 +158,21 @@ export const ladeLevelliste = () => JSON.parse(readFileSync(DATEI, 'utf8'));
 /** So viel Gefühl hat ein behaltenes Level im Mittel über alle Urteile mindestens (Regel stark, Ticket 24). */
 export const MIN_GEFUEHL_BEHALTEN = 4;
 
-/** Alle Einträge des Protokolls, nicht nur die zählenden (Text: eine JSON-Zeile je Eintrag; Vorgabe die Datei). */
+/** Ist ein Eintrag des Protokolls aus dem Würfel (Version des Würfel-Ablaufs, Lauf wuerfel-…)? */
+export const imWuerfel = (e) => !!VERSIONS[e.ablauf]?.wuerfel || WUERFEL_LAEUFE.test(e.lauf);
+const zeilen = (text) => text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+
+/**
+ * Alle flachen Einträge des Protokolls, nicht nur die zählenden (Text: eine JSON-Zeile je Eintrag; Vorgabe die Datei).
+ * Die Einträge aus dem Würfel kennen die Regeln der flachen Levelliste nicht (alleWuerfelUrteile).
+ */
 export function alleUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
-  return text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
+  return zeilen(text).filter(e => !imWuerfel(e));
+}
+
+/** Alle Einträge des Protokolls aus dem Würfel (imWuerfel), nicht nur die zählenden. */
+export function alleWuerfelUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
+  return zeilen(text).filter(imWuerfel);
 }
 
 /**
@@ -200,11 +213,29 @@ export function ergaenzungBegruendet(grund, ki, grad) {
  * Zählt ein Eintrag des Protokolls für die Levelliste? Ablauf 2, ein Lauf der Prüfliste (pruefung-…), des Austauschs
  * (ersatz-…) oder des Ausbaus (ausbau-…), kein Anker.
  */
-export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker;
+export const zaehlt = (e) => ZAEHLENDE_ABLAEUFE.includes(e.ablauf) && ZAEHLENDE_LAEUFE.test(e.lauf) && !e.level.anker
+  && !imWuerfel(e);
 
 /** Die zählenden Einträge des Protokolls (Text mit einer JSON-Zeile je Eintrag, Vorgabe protocol.jsonl). */
 export function zaehlendeUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
   return alleUrteile(text).filter(zaehlt);
+}
+
+/**
+ * Läufe im Würfel, deren Urteile zählen (.scratch/wuerfel-500/): die der Gruppen, wuerfel-<Gruppe>… wie wuerfel-1 oder
+ * wuerfel-1-2. Probe- und Eichläufe (wuerfel-probe, wuerfel-eich-…) nicht.
+ */
+export const ZAEHLENDE_WUERFEL_LAEUFE = /^wuerfel-\d/;
+/**
+ * Zählt ein Eintrag für die Reihenfolge der Würfel-Level? Jede Version des Würfel-Ablaufs (eine neue Auswahl der
+ * Anker entwertet die Urteile der früheren nicht), ein Lauf einer Gruppe, kein Anker.
+ */
+export const zaehltImWuerfel = (e) => !!VERSIONS[e.ablauf]?.wuerfel && ZAEHLENDE_WUERFEL_LAEUFE.test(e.lauf)
+  && !e.level.anker;
+
+/** Die zählenden Einträge des Protokolls aus dem Würfel (zaehltImWuerfel); Text wie bei zaehlendeUrteile. */
+export function zaehlendeWuerfelUrteile(text = readFileSync(PROTOKOLL, 'utf8')) {
+  return alleWuerfelUrteile(text).filter(zaehltImWuerfel);
 }
 
 /** Die Namen der Level des Ausbaus in der Reihenfolge ihrer Aufnahme (ausbau in levelliste.json), leer vor ihm. */
@@ -311,6 +342,12 @@ const verschiebe = (folge, von, nach) => {
   neu.splice(nach, 0, i);
   return neu;
 };
+/** Die Folge, in der die Level auf den Plätzen von und nach (Indizes) die Plätze tauschen; die übrigen bleiben. */
+const tausche = (folge, von, nach) => {
+  const neu = [...folge];
+  [neu[von], neu[nach]] = [neu[nach], neu[von]];
+  return neu;
+};
 
 /**
  * Die Häufungen der Haupt-Kernidee je 10 Level (folge: Indizes nach Platz, haupt: Haupt-Kernidee je Index oder null,
@@ -347,11 +384,17 @@ export function haeufungen(folge, haupt, geduldet, von = 0, bis = Infinity, oben
  * Ist die Häufung um mehr als ein Level zu gross (etwa 4-mal dieselbe Haupt-Kernidee im Ausbau), löst kein einzelner Zug
  * sie auf. Dann gelten mehrere Züge, die sie je verkleinern und am Ende auflösen; genommen die erste solche Folge nach
  * derselben Wahl, Zug für Zug.
+ * Mit tauschen (Würfel, Ticket 08) gibt es neben dem Rücken einen zweiten Zug: Das Level tauscht den Platz mit dem
+ * Level auf dem Platz nach (desselben Grads, beide höchstens weit Plätze), die dazwischen bleiben. Rückt ein Level
+ * über eine Seitengrenze, schiebt es das Level an der Grenze auf seine alte Seite; trägt dieses dieselbe
+ * Haupt-Kernidee, ändert das Rücken nichts, der Tausch schon. In der Wahl unter 3. kommt bei gleich langem Zug das Rücken vor dem
+ * Tausch, erst danach zählt der spätere Platz.
  * folge: Indizes nach Platz, grad je Index, haupt: Haupt-Kernidee je Index oder null, geduldet: Set der Indizes auf
- * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach }] mit Plätzen ab 0, offen:
- * die Häufungen, die sich so nicht auflösen lassen }.
+ * der Duldungsliste, oben: siehe haeufungen. Rückgabe: { folge, zuege: [{ i, von, nach[, tausch] }] mit Plätzen ab 0,
+ * offen: die Häufungen, die sich so nicht auflösen lassen }.
  */
-export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set()) {
+export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, weit = MAX_ENTZERREN, oben = new Set(),
+  tauschen = false) {
   const gleich = (x, y) => x.gruppe === y.gruppe && x.begriff === y.begriff;
   // Die gültigen Züge gegen die Häufung h in neu, nach der Wahl oben geordnet; rest: wie oft h danach noch vorkommt.
   // nurBetroffene: nur Züge der betroffenen Level (die erste Wahl, spart die übrigen Proben)
@@ -366,14 +409,16 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
           if (nach < 0 || nach >= neu.length || grad[neu[nach]] !== grad[i]) continue;
           // Ein Zug ändert nur die Seiten zwischen von und nach; die übrigen Häufungen bleiben wie vorher
           const a = Math.floor(Math.min(von, nach) / 10), b = Math.floor(Math.max(von, nach) / 10);
-          const probe = verschiebe(neu, von, nach);
-          const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
-            ...haeufungen(probe, haupt, geduldet, a, b, oben)];
-          const rest = danach.find(x => gleich(x, h)) ?? null;
-          const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
-          if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
-          const rang = [h.mit.includes(i) ? 0 : 1, geduldet.has(i) ? 0 : 1, s, -von, -nach];
-          alle.push({ i, von, nach, probe, rest, rang });
+          for (const tausch of tauschen ? [false, true] : [false]) {
+            const probe = (tausch ? tausche : verschiebe)(neu, von, nach);
+            const danach = [...vorher.filter(x => x.gruppe < a || x.gruppe > b),
+              ...haeufungen(probe, haupt, geduldet, a, b, oben)];
+            const rest = danach.find(x => gleich(x, h)) ?? null;
+            const neueHaeufung = danach.some(x => !gleich(x, h) && !vorher.some(y => gleich(x, y)));
+            if ((rest && rest.mit.length >= h.mit.length) || neueHaeufung || !zulaessig(probe)) continue;
+            const rang = [h.mit.includes(i) ? 0 : 1, geduldet.has(i) ? 0 : 1, s, tausch ? 1 : 0, -von, -nach];
+            alle.push({ i, von, nach, probe, rest, rang, tausch });
+          }
         }
       }
     }
@@ -409,7 +454,7 @@ export function entzerre(folge, grad, haupt, geduldet, zulaessig = () => true, w
     if (!folgeZuege) offen.push(h);
     for (const z of folgeZuege ?? []) {
       neu = z.probe;
-      zuege.push({ i: z.i, von: z.von, nach: z.nach });
+      zuege.push({ i: z.i, von: z.von, nach: z.nach, ...(z.tausch ? { tausch: true } : {}) });
     }
   }
 }
@@ -449,10 +494,16 @@ export function fallendeSeiten(folge, werte) {
  * aus einem Lauf ausbau-…. basis ist die ganze Folge vor allen Korrekturen, eingefuegt die mit den Korrekturen am
  * Bestand und den eingefügten Leveln des Ausbaus vor deren eigenen Korrekturen; ausbau kommt je Index zurück. Ohne
  * Ausbau ist alles wie vorher und eingefuegt dasselbe wie korrigiert.
+ * ausbauLaeufe: die Läufe, aus denen ein Level des Ausbaus sein Urteil hat. Die Würfel-Level (wuerfelliste.mjs) rechnen
+ * so: ohne Bestand, jedes Level wie eines des Ausbaus, mit den Läufen wuerfel-….
+ * gleichstand: je Index ein Text, der bei gleichem Wert im Ausbau entscheidet (fuegeEin); ohne (null) die Reihenfolge
+ * der Eingabe. Die Würfel-Level geben den Abdruck, damit die Folge nicht von der Reihenfolge in index.html abhängt.
+ * obenAuch: Namen von Leveln unter „mittel“, für die HAUPT_KERNIDEE_JE_10_OBEN trotzdem gilt (GRENZ_DULDUNG in
+ * wuerfelliste.mjs).
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [],
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false, obenAuch = [],
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -478,9 +529,10 @@ export function reihenfolge(werte, namen, urteile = [], {
     const i = namen.includes(name) ? namen.indexOf(name) : kandidat.indexOf(name);
     if (i < 0) continue;
     const wo = `Urteil zu ${name} (${eintrag.lauf})`, neu = heute[i] === null;
-    if (imAusbau[i] !== AUSBAU_LAEUFE.test(eintrag.lauf)) {
-      throw new Error(`${wo}: ${imAusbau[i] ? 'ein Level des Ausbaus zählt nur aus einem Lauf ausbau-…'
-        : 'ein Lauf ausbau-… beurteilt nur Level des Ausbaus'}`);
+    if (imAusbau[i] !== ausbauLaeufe.test(eintrag.lauf)) {
+      const lauf = `${ausbauLaeufe.source.slice(1)}…`; // aus /^ausbau-/ „ausbau-…“
+      throw new Error(`${wo}: ${imAusbau[i] ? `ein Level des Ausbaus zählt nur aus einem Lauf ${lauf}`
+        : `ein Lauf ${lauf} beurteilt nur Level des Ausbaus`}`);
     }
     if (!imAusbau[i] && neu !== ERSATZ_LAEUFE.test(eintrag.lauf)) {
       throw new Error(`${wo}: ${neu ? 'ein neues Level zählt nur aus einem Lauf ersatz-…'
@@ -515,8 +567,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   const korrigiertBestand = korrigiere(basisBestand, grad, verschiebungen(i => !imAusbau[i]));
   // Der Ausbau: eingefügt vor allen Korrekturen (basis) und nach denen am Bestand (eingefuegt); von dort aus gilt die
   // eigene Korrektur eines Levels des Ausbaus
-  const basis = fuegeEin(basisBestand, dazu, werte, grad, ordnung.bleibt);
-  const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt);
+  const basis = fuegeEin(basisBestand, dazu, werte, grad, ordnung.bleibt, gleichstand);
+  const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt, gleichstand);
   for (const i of dazu) formel[i] = eingefuegt.indexOf(i) + 1;
   for (const [i, u] of ki) if (imAusbau[i]) korrektur(i, u, n);
   const korrigiert = korrigiere(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
@@ -531,7 +583,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
   const { folge, zuege, offen } = haupt
-    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau), obenIn(grad, imAusbau))
+    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau),
+      new Set([...obenIn(grad, imAusbau), ...alle.filter(i => obenAuch.includes(namen[i]))]), tauschen)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
 }
@@ -541,11 +594,14 @@ export function reihenfolge(werte, namen, urteile = [], {
  * Bestands, das nach der Formel steht (nicht in bleibt) und schwerer ist oder das einen höheren Grad hat; gibt es
  * keines, ans Ende. Untereinander stehen die Level des Ausbaus nach der Schwierigkeit, bei gleichem Wert in der
  * Reihenfolge von dazu. Davor steht so kein Level mit höherem Grad, dahinter keines mit niedrigerem (grad je Index, beim
- * Ausbau nach der Schwelle). Rückgabe: die neue Folge.
+ * Ausbau nach der Schwelle). Mit gleichstand (je Index ein Text) entscheidet bei gleichem Wert dieser statt der
+ * Reihenfolge von dazu, damit das Ergebnis nicht von der Reihenfolge der Eingabe abhängt (Würfel, Ticket 05).
+ * Rückgabe: die neue Folge.
  */
-export function fuegeEin(folge, dazu, werte, grad, bleibt) {
+export function fuegeEin(folge, dazu, werte, grad, bleibt, gleichstand = null) {
   const neu = [...folge], rang = (i) => GRADE.indexOf(grad[i]), imAusbau = new Set(dazu);
-  const sortiert = [...dazu].sort((i, j) => werte[i] - werte[j] || dazu.indexOf(i) - dazu.indexOf(j));
+  const gleich = (i, j) => (gleichstand ? Number(gleichstand[i] > gleichstand[j]) - Number(gleichstand[i] < gleichstand[j]) : 0);
+  const sortiert = [...dazu].sort((i, j) => werte[i] - werte[j] || gleich(i, j) || dazu.indexOf(i) - dazu.indexOf(j));
   for (const i of sortiert) {
     const p = neu.findIndex(j => !imAusbau.has(j) && ((!bleibt.has(j) && werte[j] > werte[i]) || rang(j) > rang(i)));
     neu.splice(p < 0 ? neu.length : p, 0, i);

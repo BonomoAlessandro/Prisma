@@ -12,8 +12,21 @@
 
 ## 2. Würfel-Level (3D)
 
-- [ ] **2.1 Würfel-Level erstellen und ausbauen.** Der Prototyp liegt auf dem Branch `feature/3d-wuerfel` (Würfel
-  5 × 5 × 5, Konzept und Stand in `3D-WUERFEL.md` auf dem Branch).
+- [~] **2.1 Würfel-Level erstellen und ausbauen.** Würfel 7 × 7 × 7 (bis 23. Oktober 5 × 5 × 5), Konzept und Stand in
+  `3D-WUERFEL.md`; Spec und Tickets für den Ausbau in `.scratch/wuerfel-500/`.
+  - **Stand 26.10.2026: 300 Würfel-Level im Spiel** (Tickets 01–13, 12 Gruppen zu 25), alle aus dem Generator:
+    51 leicht, 159 mittel, 63 schwer, 27 sehr schwer (17 / 53 / 21 / 9 %). Jedes hat genau eine Lösung, besteht die
+    Beurteilung, hat ab „mittel“ eine nötige Kernidee, ist keinem anderen zu ähnlich und von beiden KI-Testern
+    beurteilt; Herkunft (Auftrag, Seed, Stand) nachbaubar. Die zwei handgebauten Testlevel (Aufzug, Kern) sind
+    entfernt. Nach dem Stand von 300 zusammen mit `feature/3d-wuerfel` nach main gemergt.
+  - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3); geduldet ist nur Seite 6 an der
+    Grenze leicht/mittel (Stockwerk, GRENZ_DULDUNG in `tools/wuerfelliste.mjs`, Entscheid vom 26.10.2026).
+  - [ ] Weiter bis 500 (Tickets 14–21, Gruppen 13–20), erst auf Anweisung. Der Pool ist bei „sehr schwer“ knapp
+    (neue Seeds bringen dort kaum noch Kandidaten), bei „mittel“ mit pool-3 erweitert.
+  - [ ] **E** Offen: Bekommt das erste Würfel-Level den Achsen-Hinweis, den früher Aufzug hatte?
+  - [ ] **E** Offen: Was gilt für Würfel-Level, die ganz in einer waagrechten Ebene liegen (bis zum Entscheid die
+    bisherige Regel)?
+  - [ ] Leistung auf dem Handy und Spieltests mit Menschen.
 - [ ] **2.2 Strahl auf der Plattform blocken:** Strahlt ein Strahl auf die Plattform (im Würfel ein Strahl nach unten),
   wird er dort geblockt und leuchtet nicht durch.
 
@@ -30,6 +43,14 @@
     Die Sammellinse lenkt dann die Strahlen in den äusseren Zellen um 45° zur Mitte, und im Brennpunkt mischen sich
     ihre Farben. Die Zerstreuungslinse macht aus einem Strahl drei (geradeaus und ±45°), in der gleichen Farbe.
     Abgrenzen vom Prisma, das schon einen Strahl in drei teilt (dort nach Farben).
+- [~] **Würfel-Level in 3D** (Wunsch des Nutzers, 11. Oktober; Branch `feature/3d-wuerfel`): Prototyp mit zwei
+  handgebauten Leveln im 7×7×7-Würfel (bis 23. Oktober 5×5×5), um das Potenzial zu prüfen. Modell: feste Drehachse
+  je Element, gleich viele Stellungen wie in 2D (Löser bleibt schnell). Alle Elemente direkt anklickbar (die
+  Ebenenwahl ist wieder entfernt), freiere Kamera. **E** nach dem Ausprobieren: weiterverfolgen? Dann offen: Tutorial
+  für die Achsen, Würfel-Level aus dem Generator (Ticket 22) von Hand und mit den KI-Testern prüfen, Grösse (5 oder 7)
+  nach Spieltests festlegen, Leistung auf dem Handy.
+  → Beurteilung und Generator im Würfel, eine Strahlregel für beide: Spec `.scratch/levelgenerator/spec.md`,
+  Tickets 14, 22 und 27.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 
 ## 4. Google Play Store

@@ -18,6 +18,7 @@
 // Auf main gibt es nur die flache Feldform. Eine weitere Feldform (Würfel, Ticket 14) liefert dieselben Teile, auch
 // eigene Drehungen, und kommt in feldformVon dazu.
 import { L, period, getRot } from '../solver.mjs';
+import { wuerfelFeldform } from './feldform-wuerfel.mjs'; // nur auf dem Würfel-Branch
 
 /**
  * Flache Feldformen nach Grösse, einmal angelegt: Ihre Nachbartabelle kostet etwas. Alle Beurteilungen im Prozess
@@ -27,6 +28,7 @@ const FLACH = new Map();
 
 /** Die Feldform eines Levels. */
 export function feldformVon(level) {
+  if (level.dim === 3) return wuerfelFeldform(level.size || 5); // nur auf dem Würfel-Branch, Standard wie createBoard3
   if (level.dim !== undefined && level.dim !== 2) throw new Error(`Level "${level.name}": keine Feldform für dim ${level.dim}`);
   const groesse = level.size || 7;
   if (!FLACH.has(groesse)) FLACH.set(groesse, flacheFeldform(groesse));

@@ -20,13 +20,14 @@ import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
 import { HEUTIGE_REIHENFOLGE, entfernteLevel } from '../tools/beurteilung/heutige-reihenfolge.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
-import { AGENT, MAX_SHIFT, entry } from '../tools/ki-tester/protocol.mjs';
+import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
-  MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
+  MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
+  entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
   festePlaetze, korrigiere, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
   zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
@@ -82,13 +83,17 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
   assert.deepEqual(sinkt.map(l => `${MAIN.indexOf(l) + 1} ${l.name}`), []);
 });
 // Die Daten der Anzeige aus index.html (GRAD_ANZEIGE und die Seiten der Levelauswahl, Ticket 17); wie Kachel, Kopfzeile
-// und Seitentitel aussehen, prüfen die Screenshot-Proben
-const anzeige = (levels, tutorialCount) => {
+// und Seitentitel aussehen, prüfen die Screenshot-Proben. Auf dem Würfel-Branch hängen die Würfel-Level im Spiel ab
+// CUBE_START hinter LEVELS; ohne Angabe gibt es keine, CUBE_START ist das Ende der Level (wie auch beim Fortschritt
+// unten). Dazu die Abschnitte der Levelauswahl (SECTIONS) je Spielart.
+const anzeige = (levels, tutorialCount, cubeStart = levels.length) => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
   const code = ['levelNumber', 'GRAD_PUNKTE', 'GRAD_ANZEIGE', 'PAGE_SIZE'].map(konstante).join('\n') + '\n' +
-    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES };';
-  return new Function('LEVELS', 'TUTORIAL_COUNT', code)(levels, tutorialCount);
+    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\n' +
+    html.match(/^const SECTIONS = [\s\S]*?^ {2}\.filter\(s => s\.indices\.length\);/m)[0] +
+    '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES, SECTIONS };';
+  return new Function('LEVELS', 'TUTORIAL_COUNT', 'CUBE_START', code)(levels, tutorialCount, cubeStart);
 };
 test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das Tutorial ohne Grad', () => {
   const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
@@ -117,6 +122,32 @@ test('Der Seitentitel nennt den Grad der Seite, auf einer gemischten den Bereich
     return soll ? !p.title.endsWith(soll) : genannt;
   });
   assert.deepEqual(falsch.map(p => p.title), []);
+});
+test('Die Würfel-Level haben eigene Seiten zu 10 und Abschnitte nach Grad, ohne Tutorial', () => {
+  // von Hand: 2 Tutorial-Level, 12 flache, dahinter 23 Würfel-Level (5 leicht, 18 mittel, kein schwerer)
+  const reihe = (grad, n, dim) => Array.from({ length: n },
+    (_, k) => ({ name: `${dim ?? ''}${grad} ${k}`, grad, dim }));
+  const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true }, ...reihe('leicht', 12),
+    ...reihe('leicht', 5, 3), ...reihe('mittel', 18, 3)];
+  const { PAGES, SECTIONS } = anzeige(hand, 2, 14);
+  assert.deepEqual(PAGES.map(p => `${p.mode} ${p.id}: ${p.title}`),
+    ['2d T: Tutorial · die Mechaniken', '2d 1: Level 1 – 10 · Leicht', '2d 11: Level 11 – 12 · Leicht',
+      '3d W1: Würfel 1 – 10 · Leicht bis Mittel', '3d W11: Würfel 11 – 20 · Mittel',
+      '3d W21: Würfel 21 – 23 · Mittel']);
+  assert.deepEqual(PAGES.flatMap(p => p.indices), hand.map((_, i) => i), 'jedes Level auf genau einer Seite');
+  assert.deepEqual(SECTIONS.map(s => `${s.mode} ${s.label} ${s.indices.length}`),
+    ['2d Tutorial 2', '2d Leicht 12', '3d Leicht 5', '3d Mittel 18']);
+  assert.equal(new Set(SECTIONS.map(s => s.id)).size, SECTIONS.length, 'Kennungen der Abschnitte eindeutig');
+  // im Spiel mit den heutigen Würfel-Leveln: jedes trägt einen Grad, der Grad sinkt nie, jedes steht auf einer Seite
+  const imSpiel = [...L.LEVELS, ...L.LEVELS_3D];
+  const spiel = anzeige(imSpiel, L.TUTORIAL_COUNT, L.LEVELS.length);
+  assert.deepEqual(L.LEVELS_3D.filter(l => !GRADE.includes(l.grad)).map(l => l.name), []);
+  assert.deepEqual(L.LEVELS_3D.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(L.LEVELS_3D[i - 1].grad))
+    .map(l => l.name), []);
+  assert.deepEqual(spiel.PAGES.filter(p => p.mode === '3d').flatMap(p => p.indices),
+    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k));
+  assert.deepEqual(spiel.SECTIONS.filter(s => s.mode === '3d').flatMap(s => s.indices).sort((a, b) => a - b),
+    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k), 'jedes Würfel-Level in genau einem Abschnitt');
 });
 
 console.log('Reihenfolge');
@@ -280,6 +311,11 @@ test('fuegeEin: vor das erste Level nach der Formel, das schwerer ist oder einen
   assert.deepEqual(fuegeEin([0, 1, 2, 3, 4, 5], [6, 7, 8, 9], werte, grad, bleibt), [0, 1, 2, 6, 3, 7, 8, 4, 5, 9]);
   // gleiche Schwierigkeit: hinter das Level des Bestands, untereinander in der Reihenfolge von dazu
   assert.deepEqual(fuegeEin([0, 1], [3, 2], [10, 20, 20, 20], Array(4).fill('leicht'), new Map()), [0, 1, 3, 2]);
+  // mit gleichstand entscheidet der Text, gleich in welcher Reihenfolge dazu kommt (Würfel)
+  const text = ['a', 'b', 'x', 'c'];
+  for (const dazu of [[3, 2], [2, 3]]) {
+    assert.deepEqual(fuegeEin([0, 1], dazu, [10, 20, 20, 20], Array(4).fill('leicht'), new Map(), text), [0, 1, 3, 2]);
+  }
 });
 test('Ähnlichkeit: gedreht und gespiegelt dasselbe, Stellung egal, Gegenprobe mit versetztem Element', () => {
   const level = MAIN.find(l => l.elements.length >= 6);
@@ -607,6 +643,13 @@ test(`Häufungsregel: höchstens ${MAX_ENTZERREN} Plätze, betroffene Level zuer
   assert.notDeepEqual(zwei.zuege[0], { i: 10, von: 10, nach: 9 });
   const eng = entzerre(folge, grad, vier, new Set(), () => true, 1);
   assert.deepEqual([eng.zuege, eng.offen.map(h => h.mit.length)], [[], [4]]);
+  // An beiden Grenzen der zweiten Seite steht X gegenüber (9 und 20): Jedes Rücken über eine Grenze schiebt ein X
+  // zurück, das Rücken anderer Level ein Level ohne X. Nur ein Tausch (Würfel) löst das: 11 tauscht mit 8
+  const grenzen = mit([9, 11, 12, 13, 20]);
+  assert.equal(entzerre(folge, grad, grenzen, new Set()).offen.length, 1, 'ohne Tausch');
+  const getauscht = entzerre(folge, grad, grenzen, new Set(), () => true, MAX_ENTZERREN, new Set(), true);
+  assert.deepEqual([getauscht.zuege, haeufungen(getauscht.folge, grenzen, new Set())],
+    [[{ i: 11, von: 11, nach: 8, tausch: true }], []]);
 });
 test(`Häufungsregel im Ausbau: höchstens ${MAX_ENTZERREN_AUSBAU} Plätze, sonst ${MAX_ENTZERREN}`, () => {
   assert.equal(maxEntzerren([]), MAX_ENTZERREN);
@@ -720,6 +763,27 @@ test('Ganze Regel mit einem Level des Ausbaus: eingefügt nach der Formel, Besta
   const imBestand = reihenfolge(werteHeute, namenHeute, ohneSchliff, { ...opts, ausbau: ausbauHeute });
   assert.notDeepEqual(imBestand.folge.filter(j => j !== i), ohne.folge.filter(j => j !== i));
 });
+test('Urteile aus dem Würfel (wuerfel-…): zählen nur dort, die flachen Regeln sehen sie nicht', () => {
+  const ref = { art: 'Reihenfolge der Würfel', position: 3, grad: 'leicht', von: 1, bis: 4 };
+  const u = (einordnung) => ({ level: 'L1', aha: { ja: true, beschreibung: 'x' },
+    lesbarkeit: { desktop: 4, handy: 3, beschreibung: 'x' }, gefuehl: 4, einordnung, ablehnung: [], begruendung: 'x' });
+  const wuerfel = (lauf, level = { id: 'L1', name: 'Kandidat Würfel', anker: null }) => entry({ datum: '2026-10-24',
+    ablauf: WUERFEL_VERSION, lauf, agent: AGENT, level, referenz: ref, anker: { A1: 2, A2: 4 },
+    urteile: { A: u('A1-A2'), B: u('>A2') } });
+  const flach = erfunden('Weichen', 'A2', 'A2', [], 'pruefung-test');
+  const eintraege = [wuerfel('wuerfel-1'), wuerfel('wuerfel-1-2'), wuerfel('wuerfel-probe'), flach,
+    wuerfel('wuerfel-1', { id: 'A1', name: 'Aufzug', anker: 'A1' })];
+  const text = eintraege.map(e => JSON.stringify(e) + '\n').join('');
+  assert.deepEqual(zaehlendeWuerfelUrteile(text).map(e => e.lauf), ['wuerfel-1', 'wuerfel-1-2'],
+    'nur Läufe der Gruppen, keine Probe, kein Anker');
+  assert.deepEqual(alleWuerfelUrteile(text).length, 4);
+  assert.deepEqual(alleUrteile(text), [flach], 'flach nur die flachen');
+  assert.deepEqual(zaehlendeUrteile(text), [flach]);
+  assert.equal(zaehlt(wuerfel('wuerfel-1')), false);
+  // ein Würfel-Eintrag unter dem Namen eines flachen Levels änderte dessen Regel stark nicht
+  const alsFlach = wuerfel('wuerfel-1', { id: 'L1', name: 'Weichen', anker: null });
+  assert.deepEqual(stark('Weichen', alleUrteile(text + JSON.stringify(alsFlach) + '\n')), stark('Weichen', [flach]));
+});
 
 console.log('Leveldaten als Text (Austausch, tools/leveldaten.mjs)');
 const ausCode = (code) => new Function(`return ${code.replace(/,\s*$/, '')};`)();
@@ -822,7 +886,8 @@ test('Der Fortschritt hängt am Namen: Gelöste Level und das aktuelle bleiben b
   const speicher = new Map();
   const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)) };
   const code = `${html.slice(von, bis)}\nreturn progress;`;
-  const fortschritt = (levels) => new Function('LEVELS', 'FLOW', 'localStorage', code)(levels, FLOW, localStorage);
+  const fortschritt = (levels) => new Function('LEVELS', 'FLOW', 'localStorage', 'CUBE_START', code)(levels, FLOW,
+    localStorage, levels.length);
   const vorher = [...L.LEVELS.slice(0, L.TUTORIAL_COUNT), ...heute];
   // ein Tutorial-Level und vier Level, die heute an einem anderen Platz stehen; das letzte ist das aktuelle
   const gewandert = vorher.map((_, i) => i).filter(i => L.LEVELS[i] !== vorher[i]);

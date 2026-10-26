@@ -14,7 +14,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3 };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -595,6 +595,224 @@ L.LEVELS.forEach((lvl, i) => {
     assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
   });
 });
+
+console.log('Würfel (dim: 3)');
+{
+  const cube = (elements, size = 5) => L.createBoard({ name: 'test3', dim: 3, size, elements });
+  const vec = (d) => JSON.stringify(d);
+  test('Achse y verhält sich wie die 2D-Ebene (Spiegel und Prisma)', () => {
+    for (let rot = 0; rot < 8; rot++) for (let dir = 0; dir < 8; dir++) {
+      const nd = L.reflectOnMirror(dir, rot);
+      assert.equal(vec(L.reflect3(L.planeDir('y', dir), 'y', rot)), vec(nd === dir ? null : L.planeDir('y', nd)));
+      const outs = L.refractInPrism3(L.planeDir('y', dir), 7, 'y', rot).map(o => vec(o.d));
+      assert.deepEqual(outs, L.refractInPrism(dir, 7, rot).map(o => vec(L.planeDir('y', o.dir))));
+    }
+  });
+  test('Spiegelungen bleiben in den 18 Richtungen (keine Raumdiagonalen)', () => {
+    const all = [];
+    for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+      const n = dx * dx + dy * dy + dz * dz;
+      if (n === 1 || n === 2) all.push([dx, dy, dz]);
+    }
+    assert.equal(all.length, 18);
+    const ok = new Set(all.map(vec));
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) for (const d of all) {
+      const r = L.reflect3(d, axis, rot);
+      if (r) assert.ok(ok.has(vec(r)), `${axis} ${rot} ${vec(d)} → ${vec(r)}`);
+    }
+  });
+  test('Spiegel im Würfel: Regel der Drehebene (reflectOnMirror) gleich der Vektorformel d − 2 (d·n) / (n·n) · n', () => {
+    const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) {
+      for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+        const d = [dx, dy, dz], q = dot(d, d);
+        if (q !== 1 && q !== 2) continue;
+        const n = L.planeDir(axis, rot + 2), k = dot(d, n), f = 2 * k / dot(n, n);
+        const expected = k === 0 ? null : d.map((c, i) => c - f * n[i]);
+        assert.equal(vec(L.reflect3(d, axis, rot)), vec(expected), `${axis} ${rot} ${vec(d)}`);
+      }
+    }
+  });
+  test('Spiegel mit Achse z lenkt Ost nach oben', () => assert.equal(vec(L.reflect3([1, 0, 0], 'z', 3)), vec([0, 1, 0])));
+  test('Strahl längs der Drehachse endet am Spiegelrand', () => {
+    const r = L.traceBeams(cube([{ type: 'source', x: 2, y: 0, z: 2, axis: 'z', dir: 6 }, { type: 'mirror', x: 2, y: 3, z: 2, rot: 1 }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+    assert.ok(Math.abs(r.segments[0].y1 - (3 - L.MIRROR_HALF_HEIGHT)) < 1e-9);
+  });
+  test('Strahl nach unten endet auf der Plattform, nach oben läuft er aus (PLAN 2.2)', () => {
+    for (let dir = 0; dir < 8; dir++) {
+      const [dx, dy, dz] = L.planeDir('z', dir), tag = `${dir} ${vec([dx, dy, dz])}`;
+      const r = L.traceBeams(cube([{ type: 'source', x: 2, y: 2, z: 2, axis: 'z', dir }]));
+      const last = r.events.at(-1), s = r.segments.at(-1);
+      if (dy < 0) {
+        assert.deepEqual([last.kind, last.x, last.y, last.z], ['floor', 2 + dx * 2.5, -0.5, 2 + dz * 2.5], tag);
+        assert.deepEqual([s.x1, s.y1, s.z1, s.fade], [last.x, last.y, last.z, undefined], tag);
+      } else assert.equal(last.kind, 'edge', tag);
+    }
+  });
+  test('Diagonale in der Spiegelfläche endet an der ersten Rahmenkante', () => {
+    // Achse z, rot 0: Fläche x-z; Strahl (1, 0, 1) läuft in ihr und erreicht zuerst die Ober-/Unterkante (in z)
+    const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 0, dir: 1 }, { type: 'mirror', x: 2, y: 2, z: 2, axis: 'z', rot: 0 }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+    const s = r.segments[0];
+    assert.ok(Math.abs(Math.hypot(2 - s.x1, 2 - s.z1) - L.MIRROR_HALF_HEIGHT * Math.SQRT2) < 1e-9);
+  });
+  test('Spiegelnormale zeigt zum einfallenden Strahl und steht senkrecht zur Achse (alle Achsen)', () => {
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) for (let k = 0; k < 8; k++) {
+      const d = L.planeDir(axis, k), n = L.mirrorFrontNormal3(axis, rot, d);
+      const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      assert.ok(Math.abs(dot(n, L.AXES[axis].a)) < 1e-12);
+      assert.ok(dot(n, d) <= 1e-12, `${axis} ${rot} ${k}`);
+    }
+  });
+  test('Verfolgung im Würfel: Spiegelnormale wie mirrorFrontNormal3, auch für Strahlen mit Anteil längs der Achse', () => {
+    let checked = 0;
+    for (const axis of Object.keys(L.AXES)) for (let rot = 0; rot < 8; rot++) {
+      for (const dx of [-1, 0, 1]) for (const dy of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+        const d = [dx, dy, dz], q = dx * dx + dy * dy + dz * dz, tag = `${axis} ${rot} ${vec(d)}`;
+        if (q !== 1 && q !== 2) continue;
+        const b = cube([{ type: 'mirror', x: 2, y: 2, z: 2, axis, rot }]);
+        const r = L.traceBeams(b, [{ x: 2 - dx, y: 2 - dy, z: 2 - dz, d, color: 7 }]);
+        if (L.reflect3(d, axis, rot) === null) { assert.equal(r.events[0].kind, 'absorb', tag); continue; }
+        assert.equal(r.events[0].kind, 'reflect', tag);
+        const n = L.mirrorFrontNormal3(axis, rot, d);
+        assert.deepEqual(r.events[0].normal, n, tag);
+        assert.deepEqual([r.segments[0].n1, r.segments[1].n0], [n, n], tag);
+        checked++;
+      }
+    }
+    assert.equal(checked, 288);
+  });
+  test('Würfel: Richtung ausserhalb der 18 (Raumdiagonale, Nullvektor) wird gemeldet', () => {
+    const b = cube([{ type: 'target', x: 4, y: 4, z: 4 }]);
+    for (const d of [[1, 1, 1], [0, 0, 0], [2, 0, 0]]) {
+      assert.throws(() => L.traceBeams(b, [{ x: 0, y: 0, z: 0, d, color: 7 }]), /Startstrahl mit ungültiger Richtung/);
+      assert.throws(() => L.reflect3(d, 'x', 1), /Spiegelung mit ungültiger Richtung/);
+      assert.throws(() => L.mirrorFrontNormal3('z', 1, d), /Spiegelnormale mit ungültiger Richtung/);
+    }
+  });
+  test('Prisma mit Achse z fächert senkrecht (Ebene x-y): Rot schräg hinauf, Blau schräg hinab', () => {
+    const outs = L.refractInPrism3([1, 0, 0], 7, 'z', 0).map(o => [o.color, vec(o.d)]);
+    assert.deepEqual(outs, [[1, vec([1, 1, 0])], [2, vec([1, 0, 0])], [4, vec([1, -1, 0])]]);
+  });
+  test('Prisma: Licht schräg zur Drehebene tritt nicht aus', () => {
+    const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 2, dir: 0 }, { type: 'prism', x: 2, y: 2, z: 2, axis: 'x' }]));
+    assert.equal(r.events.at(-1).kind, 'absorb');
+  });
+  test('Würfel: Zelle ausserhalb und doppelt belegt werden gemeldet', () => {
+    assert.throws(() => cube([{ type: 'target', x: 0, y: 5, z: 0 }]), /ausserhalb/);
+    assert.throws(() => cube([{ type: 'target', x: 1, y: 1, z: 1 }, { type: 'blocker', x: 1, y: 1, z: 1 }]), /doppelt/);
+    assert.throws(() => cube([{ type: 'mirror', x: 1, y: 1, z: 1, axis: 'w' }]), /Achse/);
+  });
+  L.LEVELS_3D.forEach((lvl) => {
+    const tag = `Würfel "${lvl.name}"`;
+    test(`${tag}: Start ungelöst, notierte Lösung löst, Lösung eindeutig`, () => {
+      assert.equal(L.traceBeams(L.createBoard(lvl)).solved, false);
+      const b = L.createBoard(lvl);
+      const rot = b.elements.filter(L.isRotatable);
+      assert.deepEqual(rot.map(S.keyOf).sort(), Object.keys(lvl.solution).sort(), 'Lösung nennt nicht genau die drehbaren Elemente');
+      for (const el of rot) S.setRot(el, lvl.solution[S.keyOf(el)]);
+      assert.equal(L.traceBeams(b).solved, true);
+      const r = S.solve(lvl);
+      assert.equal(r.aborted, false, 'Suche abgebrochen');
+      assert.equal(r.count, 1, `${r.count} Lösungen`);
+      const period = Object.fromEntries(rot.map(el => [S.keyOf(el), S.period(el)]));
+      const norm = (sol) => Object.fromEntries(Object.entries(sol).map(([k, v]) => [k, v % period[k]]));
+      assert.deepEqual(norm(r.solutions[0].set), norm(lvl.solution));
+    });
+  });
+  test('Würfel-Level: Löser stimmt mit dem Durchprobieren überein, Blätter wie von vorn', () => {
+    for (const lvl of L.LEVELS_3D) {
+      if (spaceOf(lvl) <= 1 << 14) compareWithBruteForce(lvl); // grosse Level nur mit dem schlauen Löser
+    }
+  });
+  test('Löser auf zufälligen Würfeln mit Kombinatoren wie das Durchprobieren, Blätter wie von vorn', () => {
+    // Alle drei Achsen, drehbare und feste Kombinatoren: Die Verfolgung hält im Würfel wie im flachen Feld beim
+    // Abschicken der Startstrahlen und im Strahl an und macht dort weiter.
+    let seed = 1357, checked = 0;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const int = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+    const colors = ['red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+    for (let n = 0; n < 200; n++) {
+      const size = int(3, 4), used = new Set(), elements = [];
+      const add = (e) => {
+        for (;;) {
+          const x = int(0, size - 1), y = int(0, size - 1), z = int(0, size - 1), key = x + ',' + y + ',' + z;
+          if (!used.has(key)) { used.add(key); elements.push({ ...e, x, y, z, axis: 'xyz'[int(0, 2)] }); return; }
+        }
+      };
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'source', dir: int(0, 7), color: colors[int(0, 6)] });
+      for (let i = int(1, 3); i > 0; i--) add({ type: 'mirror', rot: int(0, 3), fixed: rnd() < 0.2 });
+      if (rnd() < 0.5) add({ type: 'prism', rot: int(0, 7) });
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'combiner', dir: int(0, 7), fixed: rnd() < 0.5 });
+      for (let i = int(1, 2); i > 0; i--) add({ type: 'target', color: colors[int(0, 6)] });
+      const lvl = { name: 'würfel ' + n, dim: 3, size, elements };
+      if (spaceOf(lvl) > 4096) continue;
+      compareWithBruteForce(lvl);
+      checked++;
+    }
+    assert.ok(checked > 100, 'zu wenige Felder geprüft: ' + checked);
+  });
+  // Ein flaches Level als Würfel mit einer Ebene (y = 0, Drehachse überall y): Beide laufen durch denselben Durchlauf
+  // (tracePass, ADR 0003), der Würfel über die Tabellen der Drehebene und mit y in der Ausgabe. Kommazahlen dürfen um
+  // Rundungsreste abweichen, alles andere nicht.
+  const asCube = (lvl) => ({
+    ...lvl, dim: 3, size: lvl.size || 7, elements: lvl.elements.map(e => ({ ...e, y: 0 })),
+    solution: Object.fromEntries(Object.entries(lvl.solution || {}).map(([k, v]) => [k.replace(',', ',0,'), v])),
+  });
+  // Würfel-Ergebnis flach lesen: y, y0 und y1 fallen weg, wenn sie 0 sind, Normalen [nx, 0, nz] werden [nx, nz]
+  const NORMALS = ['n0', 'n1', 'normal'];
+  const flatten = (v, key) => {
+    if (v instanceof Map || v instanceof Set) return [...v].map(x => flatten(x));
+    if (NORMALS.includes(key) && v.length === 3 && v[1] === 0) return [v[0], v[2]];
+    if (Array.isArray(v)) return v.map(x => flatten(x));
+    if (!v || typeof v !== 'object') return v;
+    const out = {};
+    for (const [k, x] of Object.entries(v)) if (!(['y', 'y0', 'y1'].includes(k) && x === 0)) out[k] = flatten(x, k);
+    return out;
+  };
+  const FLOAT = new Set(['x', 'z', 'x0', 'z0', 'x1', 'z1', 'n0', 'n1', 'normal', 'length', 'fade', 'dist', 'dist0']);
+  const near = (a, b, path, float = false) => {
+    if (float && typeof a === 'number' && typeof b === 'number') {
+      return assert.ok(Math.abs(a - b) <= 1e-9, `${path}: ${a} gegen ${b}`);
+    }
+    if (!a || !b || typeof a !== 'object') return assert.equal(b, a, path);
+    assert.deepEqual(Object.keys(b), Object.keys(a), path);
+    for (const k of Object.keys(a)) near(a[k], b[k], path + '.' + k, float || FLOAT.has(k));
+  };
+  test('Flaches Level als Würfel mit einer Ebene: gleiche Strahlbilder in Start- und Lösungsstellung', () => {
+    for (const lvl of L.LEVELS) {
+      const cube = asCube(lvl);
+      for (const solved of [false, true]) {
+        const b2 = L.createBoard(lvl), b3 = L.createBoard(cube);
+        if (solved) {
+          for (const el of b2.elements) if (S.keyOf(el) in lvl.solution) S.setRot(el, lvl.solution[S.keyOf(el)]);
+          for (const el of b3.elements) if (S.keyOf(el) in cube.solution) S.setRot(el, cube.solution[S.keyOf(el)]);
+        }
+        near(flatten(L.traceBeams(b2)), flatten(L.traceBeams(b3)), `${lvl.name}${solved ? ' (gelöst)' : ''}`);
+      }
+    }
+  });
+  test('Flaches Level als Würfel mit einer Ebene: gleicher Löser, Blätter wie von vorn', () => {
+    let checked = 0;
+    for (const lvl of L.LEVELS) {
+      if (spaceOf(lvl) > 1 << 14) continue;
+      const cube = asCube(lvl);
+      for (const opts of [{}, { prune: false }]) {
+        const r2 = S.solve(lvl, opts), r3 = S.solve(cube, { ...opts, onLeaf: sameAsFresh(cube.name) });
+        const flatKeys = (set) => Object.fromEntries(Object.entries(set).map(([k, v]) => [k.replace(',0,', ','), v]));
+        for (const sol of r3.solutions) sol.set = flatKeys(sol.set);
+        assert.deepEqual(r3, r2, lvl.name + ' ' + JSON.stringify(opts));
+      }
+      checked++;
+    }
+    assert.ok(checked > 50, 'zu wenige Level geprüft: ' + checked);
+  });
+  test('Würfel-Level haben eigene Namen (Fortschritt wird nach Namen gespeichert)', () => {
+    const names = L.LEVELS.concat(L.LEVELS_3D).map(l => l.name);
+    assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), []);
+  });
+}
 
 console.log('Offline');
 {
