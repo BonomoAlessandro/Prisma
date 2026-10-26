@@ -38,7 +38,7 @@ import { kandidatName } from './leveldaten.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
 import { zaehlendeWuerfelUrteile } from './levelliste.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
-import { GRUPPEN, WUERFEL, bestandNach, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { GRUPPEN, WUERFEL_TEXT, bestandNach, istWuerfel, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 /**
  * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als tools/ausbau.mjs (dort
@@ -100,7 +100,7 @@ async function wahl() {
     const name = kandidatName(k.level);
     if (gesehen.has(name) || imSpielName.has(name)) continue;
     gesehen.add(name);
-    if (k.level.dim !== WUERFEL.dim || k.level.size !== WUERFEL.size) fail(`${k.auftrag} Seed ${k.seed}: kein Würfel 7 × 7 × 7`);
+    if (!istWuerfel(k.level)) fail(`${k.auftrag} Seed ${k.seed}: kein Würfel ${WUERFEL_TEXT}`);
     kandidaten.push({ ...k, name, grad: k.auftrag.replace(/-[a-z]+$/, '') });
   }
   const gesetzt = (behalteDatei ? JSON.parse(readFileSync(behalteDatei, 'utf8')) : []).map((g) => {

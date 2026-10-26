@@ -186,15 +186,15 @@ function ending3(ev, el, from, last) {
  * jedes Element mit Zelle, Drehachse und Stellung, das Licht in der Startstellung in drei Koordinaten und die Ziele.
  */
 function cubeText(level, label) {
-  const board = L.createBoard({ name: label, dim: 3, size: level.size, elements: level.elements });
+  const board = L.createBoard({ name: label, dim: 3, size: level.size, height: level.height, elements: level.elements });
   const r = L.traceBeams(board);
-  const n = board.size, top = n - 1;
+  const n = board.size, h = board.height, top = n - 1, oben = h - 1;
   const els = [...board.elements].sort((a, b) => a.y - b.y || a.z - b.z || a.x - b.x);
   const count = (f) => board.elements.filter(f).length;
   const targets = els.filter(e => e.type === 'target');
   const out = [`# Level ${label}`, '',
-    `Würfel ${n} × ${n} × ${n} auf einer Plattform. Jede Zelle hat drei Koordinaten (x,y,z): Spalte x = 0 … `
-    + `${top} von links nach rechts, Ebene y = 0 … ${top} von unten nach oben (Ebene 0 liegt auf der Plattform), `
+    `Würfel ${n} × ${n} × ${h} auf einer Plattform. Jede Zelle hat drei Koordinaten (x,y,z): Spalte x = 0 … `
+    + `${top} von links nach rechts, Ebene y = 0 … ${oben} von unten nach oben (Ebene 0 liegt auf der Plattform), `
     + `Zeile z = 0 … ${top} von hinten nach vorne (Zeile ${top} beim Spieler). Ost heisst nach rechts (+x), West `
     + 'nach links, Süd nach vorne (+z), Nord nach hinten, oben eine Ebene höher (+y), unten eine tiefer.', '',
     'Licht läuft von Zelle zu Zelle in 18 Richtungen: in den acht Richtungen einer Ebene (etwa „nach Ost“, '
@@ -214,9 +214,9 @@ function cubeText(level, label) {
     + `von ${targets.length}`, '',
     '## Startstellung, Ebene für Ebene', ''];
   const head = '      ' + Array.from({ length: n }, (_, x) => `x=${x}`.padEnd(5)).join('').trimEnd();
-  for (let y = 0; y < n; y++) {
-    if (!els.some(e => e.y === y)) { out.push(`${level3(y, top)}: leer`, ''); continue; }
-    out.push(`${level3(y, top)}:`, '', '```', head);
+  for (let y = 0; y < h; y++) {
+    if (!els.some(e => e.y === y)) { out.push(`${level3(y, oben)}: leer`, ''); continue; }
+    out.push(`${level3(y, oben)}:`, '', '```', head);
     for (let z = 0; z < n; z++) {
       out.push(`z=${z}   ` + Array.from({ length: n }, (_, x) => {
         const e = board.grid[(y * n + z) * n + x];

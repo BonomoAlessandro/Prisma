@@ -840,10 +840,13 @@ function refractInPrism3(d, color, axis, rot) {
   return refractInPrism(k, color, rot).map(o => ({ d: planeDir(axis, o.dir), color: o.color }));
 }
 
-/** Spielzustand eines Würfel-Levels: wie createBoard, dazu Ebene y und Drehachse axis je Element. */
+/**
+ * Spielzustand eines Würfel-Levels: wie createBoard, dazu Ebene y und Drehachse axis je Element. size ist die Kante der
+ * Grundfläche (x, z), height die Zahl der Ebenen (y; ohne Angabe size, ein Würfel). Die Würfel-Level sind 7 × 7 × 5.
+ */
 function createBoard3(level) {
-  const size = level.size || 5;
-  if (size > MAX_SIZE_3D) throw new Error(`Level "${level.name}": Würfel grösser als ${MAX_SIZE_3D}`);
+  const size = level.size || 5, height = level.height || size;
+  if (size > MAX_SIZE_3D || height > MAX_SIZE_3D) throw new Error(`Level "${level.name}": Würfel grösser als ${MAX_SIZE_3D}`);
   const elements = level.elements.map((e, i) => {
     if (!ELEMENT_TYPES.includes(e.type)) throw new Error(`Level "${level.name}": unbekannter Typ "${e.type}"`);
     if (e.color && !COLORS[e.color]) throw new Error(`Level "${level.name}": unbekannte Farbe "${e.color}"`);
@@ -861,16 +864,16 @@ function createBoard3(level) {
       fixed: !!e.fixed,
     };
   });
-  const grid = new Array(size * size * size).fill(null); // Index (y · size + z) · size + x
+  const grid = new Array(size * size * height).fill(null); // Index (y · size + z) · size + x
   for (const el of elements) {
     const key = el.x + ',' + el.y + ',' + el.z;
     if (el.y === undefined) throw new Error(`Level "${level.name}": Element ${el.x},?,${el.z} ohne Ebene y`);
-    if (![el.x, el.y, el.z].every(c => Number.isInteger(c) && c >= 0 && c < size)) throw new Error(`Level "${level.name}": ${key} ausserhalb`);
+    if (![el.x, el.y, el.z].every((c, k) => Number.isInteger(c) && c >= 0 && c < (k === 1 ? height : size))) throw new Error(`Level "${level.name}": ${key} ausserhalb`);
     const i = (el.y * size + el.z) * size + el.x;
     if (grid[i]) throw new Error(`Level "${level.name}": Zelle ${key} doppelt belegt`);
     grid[i] = el;
   }
-  return { dim: 3, size, elements, grid, name: level.name };
+  return { dim: 3, size, height, elements, grid, name: level.name };
 }
 
 /**
@@ -904,7 +907,7 @@ for (let A = 0; A < 3; A++) for (let r = 0; r < 8; r++) {
  * Kopie (der Löser setzt von dort aus jede Stellung).
  */
 function tracePass(board, extraRays, emitting, from) {
-  const cube = board.dim === 3, S = board.size;
+  const cube = board.dim === 3, S = board.size, H = board.height;
   const units = cube ? UNIT_DIRS3 : UNIT_DIRS, backs = cube ? BACK_DIRS3 : BACK_DIRS;
   const segments = from ? from.segments.slice() : [];
   const events = from ? from.events.slice() : [];
@@ -1000,7 +1003,7 @@ function tracePass(board, extraRays, emitting, from) {
         events.push({ x: fx, y: fy, z: fz, color: ray.color, kind: 'floor', dist: d });
         break;
       }
-      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && ny >= S)) {
+      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && ny >= H)) {
         // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
         const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ey = cy + dy * 0.5 + ahead[1] * EDGE_RUN;
         const ez = cz + dz * 0.5 + ahead[2] * EDGE_RUN;
@@ -13215,7 +13218,7 @@ const LEVELS = [
 const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /**
- * Würfel-Level: { name, dim: 3, size, grad, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
+ * Würfel-Level: { name, dim: 3, size, height?, grad, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
  * solution: { "x,y,z": rot bzw. dir } }. y ist die Ebene (0 = unten), axis die Drehachse (Standard 'y', siehe AXES).
  * grad wie in LEVELS; entlang der Reihenfolge sinkt er nie, die Levelauswahl teilt den Würfel danach in Abschnitte.
  * Getrennt von LEVELS, damit die Werkzeuge der Levelliste (tools/ordne-level.mjs) und der Fortschritt der 2D-Level
@@ -25246,7 +25249,8 @@ const cameraRig = {
   userZoom: 1, goalZoom: 1,
   zoomMin: 0.8, zoomMax: 1.25,
   homing: null,           // Rückflug zur Ausgangsansicht beim Levelwechsel (cameraGoHome)
-  cube: 0,                // Kantenlänge des Würfels im Würfel-Level, sonst 0 (loadLevel)
+  cube: 0,                // Kantenlänge der Grundfläche im Würfel-Level, sonst 0 (loadLevel)
+  cubeHeight: 0,          // seine Zahl der Ebenen
   lift: 0,                // Höhe des Blickpunkts (Würfel: seine Mitte)
   zoom: 1,                // Abstandsfaktor (Würfel: CUBE.cameraZoom)
   tilt: 0,                // zusätzliche Neigung (Würfel: CUBE.cameraTilt, flacher – die Höhe wird lesbar)
@@ -25315,7 +25319,7 @@ function updateCamera(t, dt) {
 
   // Würfel-Level: Blick auf die Würfelmitte, etwas weiter weg (weich übergeblendet, auch beim Levelwechsel)
   const cube = cameraRig.cube;
-  cameraRig.lift += ((cube ? cube * CELL / 2 : 0) - cameraRig.lift) * k;
+  cameraRig.lift += ((cube ? cameraRig.cubeHeight * CELL / 2 : 0) - cameraRig.lift) * k;
   // Hochformat: Das 2D-Feld füllt die Breite, der schmalere Würfel darf näher heran
   const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) * cube / CUBE.cameraSize : 1;
   cameraRig.zoom += (zoom - cameraRig.zoom) * k;
@@ -26169,7 +26173,8 @@ const CUBE = {
 
 const cubeView = {
   group: new THREE.Group(),
-  size: 0,         // Kantenlänge des aktuellen Würfels, 0 = 2D-Level
+  size: 0,         // Kantenlänge der Grundfläche des aktuellen Würfels, 0 = 2D-Level
+  height: 0,       // seine Zahl der Ebenen
   frameMat: null,  // Linien des Rahmens (leuchten beim Lösen auf, siehe glow)
 
   /** Neues Level: Hilfen auf- bzw. abbauen. */
@@ -26178,20 +26183,21 @@ const cubeView = {
     this.group.clear();
     this.frameMat = null;
     this.size = board.dim === 3 ? board.size : 0;
+    this.height = board.dim === 3 ? board.height : 0;
     if (!this.size) return;
-    const n = this.size, ext = n * CELL, mid = (n - 1) / 2;
+    const n = this.size, h = this.height, ext = n * CELL, extH = h * CELL, mid = (n - 1) / 2;
     const quiet = (o) => { o.raycast = () => {}; o.layers.set(LAYER_NO_REFLECT); return o; };
     const lineMat = (color, opacity) => new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false, fog: false });
     const dotMat = (color, opacity, size) => new THREE.PointsMaterial({ color, size, transparent: true, opacity, depthWrite: false, fog: false });
 
-    const box = new THREE.BoxGeometry(ext, ext, ext);
+    const box = new THREE.BoxGeometry(ext, extH, ext);
     const frame = quiet(new THREE.LineSegments(new THREE.EdgesGeometry(box), this.frameMat = lineMat(CUBE.frameColor.clone(), 0.5)));
     box.dispose();
     // auf der Platte stehend, die Zellen mittig darin (siehe cubeToWorld)
-    cubeToWorld(mid, 0, mid, n, frame.position).y = ext / 2 + 0.002;
+    cubeToWorld(mid, 0, mid, n, frame.position).y = extH / 2 + 0.002;
 
     const p = [];
-    for (let y = 0; y < n; y++) for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) p.push(...cubeToWorld(x, y, z, n).toArray());
+    for (let y = 0; y < h; y++) for (let z = 0; z < n; z++) for (let x = 0; x < n; x++) p.push(...cubeToWorld(x, y, z, n).toArray());
     const cells = new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
     const dots = quiet(new THREE.Points(cells, dotMat(CUBE.frameColor, 0.7, 0.045)));
     this.group.add(frame, dots);
@@ -26230,8 +26236,9 @@ function loadLevel(index, beamDelay = 0) {
   game.targets = [...game.objects.values()].filter(o => o.userData.element.type === 'target');
   cubeView.build(game.board);
   cameraRig.cube = game.board.dim === 3 ? game.board.size : 0;
+  cameraRig.cubeHeight = game.board.dim === 3 ? game.board.height : 0;
   // Staub im ganzen Würfel, nicht nur knapp über der Platte (Teilchen liegen zwischen 0.12 und 0.84)
-  beamView.dust.scale.y = cameraRig.cube ? cameraRig.cube * CELL / 0.84 : 1;
+  beamView.dust.scale.y = cameraRig.cube ? cameraRig.cubeHeight * CELL / 0.84 : 1;
   markShadowsDirty();
   // Schonfrist für die adaptive Auflösung (neue Shader kompilieren beim ersten Frame)
   requestAnimationFrame(() => adaptiveResolution.hold()); // im nächsten Frame: beim ersten Aufruf noch nicht definiert
@@ -27812,7 +27819,7 @@ const celebration = {
       if (cubeView.size) {
         // Würfel: Kugelschale aus der Mitte bis über die Ecken; am Boden ihr Schnittkreis, der Rahmen leuchtet auf,
         // während sie ihn durchquert (Flächenmitten bei ext/2, Ecken bei ext·√3/2)
-        const ext = cubeView.size * CELL, h = ext / 2;
+        const ext = cubeView.size * CELL, h = cubeView.height * CELL / 2;
         fade = Math.max(0, 1 - r / (ext * CELEBRATE.shellReach));
         this.shell.visible = fade > 0;
         this.shell.position.set(0, h, 0);

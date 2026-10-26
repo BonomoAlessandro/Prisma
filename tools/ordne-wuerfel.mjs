@@ -35,7 +35,7 @@ import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
   HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile,
 } from './levelliste.mjs';
-import { WUERFEL, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { WUERFEL_TEXT, istWuerfel, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 const INDEX = new URL('../index.html', import.meta.url);
 const argument = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
@@ -156,7 +156,7 @@ function ladeKandidaten(datei) {
   const abdruecke = new Set(L.LEVELS_3D.map(kandidatName));
   for (const k of liste) {
     const wer = k.name ?? kandidatName(k.level);
-    if (k.level.dim !== WUERFEL.dim || k.level.size !== WUERFEL.size) throw new Error(`${datei}: ${wer} ist kein Würfel 7 × 7 × 7`);
+    if (!istWuerfel(k.level)) throw new Error(`${datei}: ${wer} ist kein Würfel ${WUERFEL_TEXT}`);
     if (k.grad && !GRADE.includes(k.grad)) throw new Error(`${datei}: ${wer} mit unbekanntem Auftrag ${k.auftrag}`);
     if (abdruecke.has(kandidatName(k.level))) throw new Error(`${datei}: ${wer} doppelt oder schon im Spiel`);
     abdruecke.add(kandidatName(k.level));
@@ -166,7 +166,7 @@ function ladeKandidaten(datei) {
 
 /**
  * Ordnet die Würfel-Level in index.html zwischen WUERFEL:BEGIN und WUERFEL:END nach der Reihenfolge und setzt je Level
- * das Feld grad hinter dim und size. Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst
+ * das Feld grad hinter dim und size (und height). Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst
  * unverändert. Die Kandidaten kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar).
  */
 function schreibeWuerfel() {
@@ -174,7 +174,7 @@ function schreibeWuerfel() {
   const a = html.indexOf('/* WUERFEL:BEGIN */'), e = html.indexOf('/* WUERFEL:END */');
   if (a < 0 || e < a) throw new Error('index.html: Markierungen WUERFEL:BEGIN/END fehlen');
   const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
-  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+)(?:, grad: '[a-z ]+')?,$/;
+  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+(?:, height: \d+)?)(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
   for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {

@@ -1,5 +1,6 @@
 // Feldform der Würfel-Level (Ticket 14, nur auf dem Branch feature/3d-wuerfel): dieselben Teile wie die flache Feldform
-// (feldform.mjs), für einen Würfel aus groesse × groesse × groesse Zellen. Die Wirkung der Elemente kommt aus der
+// (feldform.mjs), für einen Würfel aus groesse × hoehe × groesse Zellen (Grundfläche groesse × groesse, hoehe Ebenen;
+// die Würfel-Level sind 7 × 7 × 5, .scratch/wuerfel-7x7x5/). Die Wirkung der Elemente kommt aus der
 // Strahlregel des Würfels in index.html (planeDir, reflect3, refractInPrism3; ADR 0003), es gibt keine eigene.
 //
 // - Zelle: „x,y,z“ wie in der Lösung eines Würfel-Levels, y ist die Ebene (0 = unten). Die Zellen stehen Ebene für
@@ -37,19 +38,20 @@ const gleich = (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2];
  */
 const WUERFEL = new Map();
 
-/** Würfel-Feldform mit groesse × groesse × groesse Zellen, je Grösse dieselbe (siehe WUERFEL). */
-export function wuerfelFeldform(groesse) {
-  if (!WUERFEL.has(groesse)) WUERFEL.set(groesse, neueWuerfelFeldform(groesse));
-  return WUERFEL.get(groesse);
+/** Würfel-Feldform mit groesse × hoehe × groesse Zellen (hoehe ohne Angabe groesse), je Grösse dieselbe (WUERFEL). */
+export function wuerfelFeldform(groesse, hoehe = groesse) {
+  const k = `${groesse}×${hoehe}`;
+  if (!WUERFEL.has(k)) WUERFEL.set(k, neueWuerfelFeldform(groesse, hoehe));
+  return WUERFEL.get(k);
 }
 
-/** Würfel-Feldform mit groesse × groesse × groesse Zellen. Teile und Bedeutung wie in flacheFeldform (feldform.mjs). */
-function neueWuerfelFeldform(groesse) {
+/** Würfel-Feldform mit groesse × hoehe × groesse Zellen. Teile und Bedeutung wie in flacheFeldform (feldform.mjs). */
+function neueWuerfelFeldform(groesse, hoehe) {
   const key = (x, y, z) => x + ',' + y + ',' + z;
-  const inside = (x, y, z) => x >= 0 && y >= 0 && z >= 0 && x < groesse && y < groesse && z < groesse;
+  const inside = (x, y, z) => x >= 0 && y >= 0 && z >= 0 && x < groesse && y < hoehe && z < groesse;
   const lies = (zelle) => zelle.split(',').map(Number);
   const zellen = [];
-  for (let y = 0; y < groesse; y++) for (let z = 0; z < groesse; z++) {
+  for (let y = 0; y < hoehe; y++) for (let z = 0; z < groesse; z++) {
     for (let x = 0; x < groesse; x++) zellen.push(key(x, y, z));
   }
   const richtungen = VEKTOREN.map((_, d) => d);
@@ -117,7 +119,7 @@ function neueWuerfelFeldform(groesse) {
     zellen: Object.freeze(zellen),
     richtungen: Object.freeze(richtungen),
     /** Angaben der Leveldaten, die diesen Würfel festlegen (wie in LEVELS_3D); feldformVon liest daraus dieselbe. */
-    rahmen: Object.freeze({ dim: 3, size: groesse }),
+    rahmen: Object.freeze(hoehe === groesse ? { dim: 3, size: groesse } : { dim: 3, size: groesse, height: hoehe }),
     /** Die Drehachsen, die ein Element haben kann (Werte wie drehachse), zuerst y. */
     drehachsen: DREHACHSEN,
     zelle: (el) => key(el.x, el.y, el.z),
