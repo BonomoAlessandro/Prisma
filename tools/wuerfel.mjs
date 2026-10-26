@@ -20,7 +20,8 @@
 //   Grenzen der Seiten (Ticket 07, eine Häufung nur aus Leveln im Spiel auf Seite 3). Findet sich kein solcher Tausch,
 //   bleibt die Häufung offen (Ausgabe „Häufungsregel: offen …“).
 //   --behalte <datei>: eine frühere Wahl, deren Level gesetzt sind (etwa nach einer Ablehnung durch die KI-Tester ohne
-//   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den KI-Testern, „Kandidat
+//   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…> oder --ohne @<datei> (dieselbe Liste in einer
+//   Datei): Kandidaten (Name bei den KI-Testern, „Kandidat
 //   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen), mit
 //   stand und gesenkt (umrechnen), wo der Pool sie trägt. Ein Kandidat, der die Ebenen-Regel verletzt, kommt nie in Frage.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/wuerfel.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
@@ -135,7 +136,10 @@ function zweiterTeil(level) {
 
 async function wahl() {
   const gruppe = Number(args[1]), aus = flag('--aus', null), pools = flag('--pool', null);
-  const behalteDatei = flag('--behalte', null), ohne = (flag('--ohne', '') || '').split(',').filter(Boolean);
+  // --ohne @datei: die Liste aus einer Datei (lange Listen sprengen sonst die Kommandozeile, Ticket 09 im Quader)
+  const ohneText = flag('--ohne', '') || '';
+  const behalteDatei = flag('--behalte', null), ohne = (ohneText.startsWith('@') ? readFileSync(ohneText.slice(1), 'utf8') : ohneText)
+    .split(',').map(x => x.trim()).filter(Boolean);
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/wuerfel.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
       + '[--ohne <name,…>]');
