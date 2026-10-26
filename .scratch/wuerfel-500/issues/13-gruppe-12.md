@@ -59,3 +59,52 @@ Danach stehen 300 neue Würfel-Level im Spiel: 51 / 159 / 63 / 27. Aufzug und Ke
   Strohhut (Blumen… wie Blumentopf).
 - Golden nachgeführt (809 Level, davon 300 Würfel), alle Tests grün. Exit-Code 0 bei allen, im neuen Skript
   geprüft. Stichproben der Screenshots stammen aus den Bildern der Tester.
+
+**26.10.2026, Reviewer:** Geprüft auf 280d462 (Merge von 085aa17).
+- **Duldung Seite 6 (GRENZ_DULDUNG, obenAuch):** Korrekt und eng. `obenAuch` nimmt nur die genannten Level in die
+  Menge, für die HAUPT_KERNIDEE_JE_10_OBEN gilt. Mit Stockwerk gilt die Grenze 3 nur, wenn alle übrigen Level der
+  Häufung ab „mittel“ sind. Eine vierte Sammelstelle oder ein zweites leichtes Level wird weiter gemeldet. Nur
+  `wuerfelReihenfolge` übergibt `obenAuch`. `ordne-level.mjs` und `ausbau.mjs` rufen `reihenfolge` ohne die Option
+  auf (Vorgabe `[]`), für die flachen Level ändert sich nichts (levelliste.test und Golden grün). Die Suche in
+  `ausbau.mjs wahl` (`haeuftSich`) kennt die Duldung nicht; dort ist sie nur strenger, nicht falsch. Die Duldung hängt
+  am Namen. Rückt Stockwerk in späteren Gruppen von der Grenze weg, gilt sie trotzdem weiter; dann sollte sie fallen.
+  **Fix (Test fehlte):** zwei Tests in `tests/wuerfelliste.test.mjs`. (1) Jedes Level der Liste ist im Spiel und
+  leicht, und ohne die Duldung bliebe genau eine Häufung offen: Seite 6, Sammelstelle (Palisade, Stockwerk,
+  Taubenschlag). (2) An erfundenen Fällen gilt die Grenze 3 nur mit dem Namen der Liste. 4-mal oder mit einem zweiten
+  leichten Level wird die Häufung wieder gemeldet.
+- **Herkunft:** Hattusa (schwer-falle, Seed 21581, Stand 1df6ca5) und Krug (leicht-falle, Seed 20050, Stand 33f26f8)
+  mit `ausbau.mjs pool … --wuerfel --seed S --seeds 1` auf dem Stand aus `git archive` nachgebaut. Elemente und Lösung
+  gleichen index.html und gruppe-12.json. Kein Level trägt „Stand …+“ (300 Zeilen: 245 × 33f26f8, 39 × 0d0edd0,
+  16 × 1df6ca5).
+- **Urteile:** Jedes der 25 neuen hat ein Urteil beider Tester (18 aus wuerfel-12, 6 aus wuerfel-12-2, Kiosk aus
+  wuerfel-12-3), keines mit Ablehnung. Von beiden abgelehnt wurden nur 1965cb63, 926299f9 (Knäuel) und 9297d73c
+  (Füllteil, Zerfall), keines davon steht im Spiel. Die Verschiebungen rechnet `reihenfolge` vom Platz der Formel aus.
+  Darum weichen einige vom `ergebnis` im Protokoll ab, wie die Spec es vorsieht: Sanssouci und Ajanta +3 → +5,
+  Hattusa −5 → 0, Poincaré und Hausdorff −2 → 0, Stempel 0 → +1. index.html entspricht der Folge aus
+  `ordne-wuerfel.mjs`.
+  Ungenau im Kommentar oben: Am Handy schwach (2) ist nicht nur Hausdorff bei B. Hausdorff und Gauss sind es bei
+  beiden, Poincaré bei A, Hattusa und Geodreieck bei B.
+- **Häufung:** Unabhängig aus der Folge nachgezählt. Über der Grenze liegt nur die geduldete Seite 6. Alle übrigen
+  Häufungen zu 3 sind ganz ab „mittel“. Das Mittel fällt auf keiner Seite.
+- **Grade:** 51 / 159 / 63 / 27, neu 4 / 13 / 5 / 3, wie bestandNach(12) und das Ticket.
+- **Namen:** Eindeutig, keiner steht auf der Liste entfernter Level, keiner nennt einen Begriff des Glossars. Ab
+  „schwer“ passen die Orte in den Stil, die Mathematiker bei „sehr schwer“ auch (wie Riemann, Gödel). Zu nah sind
+  diese. Vorschläge, die neuen Namen sind gegen alle flachen, Würfel- und entfernten Namen und levelliste.json geprüft:
+  - **Strohhut → Eierbecher:** gleiches Grundwort wie Fingerhut (Würfel, Platz 2, auch leicht). Strohhut war von Hand
+    gesetzt.
+  - **Siegellack → Kandelaber:** Siegel… wie Siegelring (Würfel); beide gehören zum Siegeln eines Briefs.
+  - **Flaschenzug → Ziegelei:** …zug wie Winkelzug und Schachzug, Flaschen… wie Flaschenpost (alle flach).
+  - **Drehtür → Spinnerei:** …tür wie Falltür (flach), Dreh… wie Drehorgel (Würfel) und Drehung (flach), dazu
+    „drehen“ als Spielmechanik (Drehachse im Glossar).
+  - **Gnomon → Museum:** Ein Gnomon ist der Schattenstab der Sonnenuhr (flach), also fast dasselbe.
+  - **Geodreieck → Schreibmaschine:** Geodreieck ist ein Winkelgerät wie Winkelmass (Würfel). Mit Theodolit, Senkblei
+    und Sextant (flach) bilden die Messgeräte einen Klumpen. Theodolit bleibt.
+  - **Schönbrunn → Himeji:** Schönbrunn ist der dritte Wiener Ort neben Hofburg und Belvedere (Würfel), und …brunn
+    klingt wie Springbrunnen (flach). Sanssouci steht auf Seite 23 neben Versailles (zwei Lustschlösser). Das wiegt
+    weniger, ohne Vorschlag.
+  - Kleiner, ohne Vorschlag: Kaffeemühle (Umbenennung) teilt …mühle mit Farbmühle (entfernt); Review 12 zählte das
+    Grundwort eines entfernten Levels (Lichtschacht) als Grund. Zinnsoldat klingt wie Zinnen (Würfel) und Zinnober
+    (flach). Aus dem Bestand, nicht neu: Hinterhof und Innenhof (beide Würfel) tragen …hof, das Beispiel der Spec.
+- **Tests:** Jeder Test einzeln mit Exit-Code, jede Ausgabe ganz gelesen. Alle grün (Exit 0): golden (809 Level,
+  davon 300 Würfel), logic 1916, ki-tester 83, levelliste 56, beurteilung 205, generator 31, wuerfelliste 14 (mit den
+  zwei neuen).

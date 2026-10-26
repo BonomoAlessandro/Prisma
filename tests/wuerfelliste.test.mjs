@@ -14,9 +14,9 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
-import { fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
+import { fallendeSeiten, haeufungen, ladeLevelliste, obenIn, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRUPPEN, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
+  GRENZ_DULDUNG, GRUPPEN, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
 import { KERN } from './wuerfel-handgebaut.mjs';
 
@@ -100,6 +100,15 @@ await test('Jedes Würfel-Level: Urteil der KI-Tester (wuerfel-…), Herkunft mi
   assert.deepEqual(W.filter(l => l.hint).map(l => l.name), [], 'Hinweis');
 });
 
+await test('Grenz-Duldung (Ticket 13): nur leichte Level, gebraucht genau für die eine Häufung auf Seite 6', () => {
+  const p = (x) => W.findIndex(l => l.name === x);
+  assert.deepEqual(GRENZ_DULDUNG.filter(x => p(x) < 0 || W[p(x)].grad !== 'leicht'), [], 'nicht im Spiel oder nicht leicht');
+  // ohne die Duldung bliebe genau diese Häufung offen (Entscheid des Nutzers vom 26.10.2026)
+  const ohne = haeufungen(r.folge, b.map(x => x.hauptKernidee.begriff), new Set(), 0, Infinity, obenIn(r.grad, r.ausbau));
+  assert.deepEqual(ohne.map(h => `Seite ${h.gruppe + 1} ${h.begriff}: ${h.mit.map(i => W[i].name).sort().join(', ')}`),
+    ['Seite 6 Sammelstelle: Palisade, Stockwerk, Taubenschlag']);
+});
+
 console.log('Bausteine');
 await test('Verteilung der Grade: Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
   const spec = readFileSync(new URL('../.scratch/wuerfel-500/spec.md', import.meta.url), 'utf8');
@@ -128,6 +137,17 @@ await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der 
   assert.deepEqual(mit.folge, [1, 4, 0, 2, 5, 3]);
   // ein Urteil aus einem flachen Lauf zählt im Würfel nicht
   assert.deepEqual(wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'ausbau-1')] }).folge, ohne.folge);
+});
+await test('Grenz-Duldung: ein leichtes Level der Liste zählt wie ab mittel (3), nicht mehr und nur mit diesem Namen', () => {
+  // eine Seite: das leichte Level 0 und die mittleren 1, 2 mit derselben Haupt-Kernidee S, die übrigen verschieden
+  const offen = (name, w, haupt) => wuerfelReihenfolge(w, [name, ...w.slice(1).map((_, i) => `L${i + 1}`)], haupt)
+    .offen.map(h => `${h.begriff} ${h.mit.length}`);
+  const w = [40, 45, 46, 50, 52, 54, 60, 62, 64, 66], haupt = ['S', 'S', 'S', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
+  assert.deepEqual(offen(GRENZ_DULDUNG[0], w, haupt), []);
+  assert.deepEqual(offen('Anders', w, haupt), ['S 3'], 'ohne die Liste gilt für ein leichtes Level die Grenze 2');
+  assert.deepEqual(offen(GRENZ_DULDUNG[0], w, ['S', 'S', 'S', 'S', 'B', 'C', 'D', 'E', 'F', 'G']), ['S 4'], 'viermal');
+  // mit einem zweiten leichten Level in der Häufung gilt wieder die Grenze 2
+  assert.deepEqual(offen(GRENZ_DULDUNG[0], [40, 41, 46, 50, 52, 54, 60, 62, 64, 66], haupt), ['S 3'], 'zwei leichte');
 });
 await test('Ähnlichkeit im Würfel: über die 48 Symmetrien mit gedrehter Drehachse, Gegenproben', () => {
   const kern = KERN;
