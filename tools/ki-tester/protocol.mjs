@@ -105,7 +105,8 @@ const WUERFEL_ANKER = JSON.parse(read('./anchors-wuerfel.json')).versionen;
  * Fingerabdruck je Version des Würfel-Ablaufs (fingerprintWuerfel). Eine neue Version in anchors-wuerfel.json braucht
  * hier ihren Eintrag; die früheren bleiben stehen.
  */
-export const WUERFEL_FINGERPRINTS = { W1: 'b3600cb3e01e6cf0', W2: '01abed404f7b79b8', W3: 'a5338def1a55f16c' };
+export const WUERFEL_FINGERPRINTS = { W1: 'b3600cb3e01e6cf0', W2: '01abed404f7b79b8', W3: 'a5338def1a55f16c',
+  W4: 'b646a90be4fc8fbf', W5: '4b5c722cf0b56218', W6: '0b9f804f8878ea32' };
 export const WUERFEL_VERSION = Object.keys(WUERFEL_ANKER).at(-1);
 export const WUERFEL_FINGERPRINT = WUERFEL_FINGERPRINTS[WUERFEL_VERSION];
 /**
@@ -136,6 +137,8 @@ for (const [v, w] of Object.entries(WUERFEL_ANKER)) {
   VERSIONS[v] = {
     fingerabdruck: WUERFEL_FINGERPRINTS[v], referenz: WUERFEL_REFERENZ, wuerfel: true,
     kennungen: w.anker.map(a => a.id),
+    /** Die Namen der Anker je Kennung (levelliste.mjs rechnet ihre Plätze damit auf die heutige Reihenfolge um). */
+    ankerNamen: Object.fromEntries(w.anker.map(a => [a.id, a.name])),
     // ohne Obergrenze wie Ablauf 2: Die Kandidaten stehen in einer Vorschau der Würfel-Reihenfolge
     gilt: (r) => r.art === WUERFEL_REFERENZ && r.von >= 1,
   };

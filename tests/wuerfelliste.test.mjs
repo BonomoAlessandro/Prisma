@@ -16,7 +16,7 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
 import { fallendeSeiten, haeufungen, ladeLevelliste, obenIn, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRENZ_DULDUNG, GRUPPEN, QUADER, WUERFEL_TEXT, ZIEL, bestandNach, ebenenVerletzt, getroffeneEbenen, istWuerfel, senke,
+  BEHALTEN, GRENZ_DULDUNG, GRUPPEN, QUADER, WUERFEL_TEXT, ZIEL, bestandNach, ebenenVerletzt, getroffeneEbenen, istWuerfel, senke,
   verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
 import { KERN } from './wuerfel-handgebaut.mjs';
@@ -65,6 +65,9 @@ await test('Kein Würfel-Level verletzt eine Regel (Ausschlussgrund, Kernidee, S
     return v.length ? [`${l.name}: ${v.join(', ')}`] : [];
   }), []);
 });
+await test('Jedes Würfel-Level erfüllt die Ebenen-Regel (mindestens 3 getroffene Ebenen, am Boden; Dauerregel)', () => {
+  assert.deepEqual(W.flatMap(l => ebenenVerletzt(l).map(t => `${l.name}: ${t}`)), []);
+});
 await test('Jedes Würfel-Level hat genau eine Lösung, die notierte', () => {
   const falsch = W.filter((level) => {
     const s = solve(level, { unique: true });
@@ -93,29 +96,31 @@ await test('Jedes Würfel-Level: Urteil der KI-Tester (wuerfel-…), Herkunft mi
   const neu = W.map((_, i) => i);
   assert.deepEqual(neu.filter(i => !r.ki.has(i)).map(i => W[i].name), [], 'ohne Urteil');
   // Stand: der Commit, mit dem ausbau.mjs pool … --wuerfel das Level aus dem Seed baut (mit „+“ nicht nachbaubar)
-  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7,40} `
-    + `· Würfel „[a-z ]+“\\r?\\n {4}name: '${name}', dim: 3`);
+  // „gesenkt um N“: aus dem Würfel 7 × 7 × 7 in den Quader (wuerfel.mjs umrechnen, .scratch/wuerfel-7x7x5/)
+  const herkunft = (name) => new RegExp(`// Generator [a-z -]+, Seed \\d+(?:, Ziel [\\d,]+–[\\d,]+)?, Stand [0-9a-f]{7,40}`
+    + `(?:, gesenkt um \\d)? · Würfel „[a-z ]+“\\r?\\n {4}name: '${name}', dim: 3`);
   assert.deepEqual(neu.filter(i => !herkunft(W[i].name).test(html)).map(i => W[i].name), [], 'Herkunft');
-  const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7,40}) · Würfel/g)].map(m => m[1]))];
+  const staende = [...new Set([...html.matchAll(/, Stand ([0-9a-f]{7,40})(?:, gesenkt um \d)? · Würfel/g)].map(m => m[1]))];
   assert.deepEqual(staende.filter(x => !commitDa(x)), [], 'Stand ist kein Commit');
   assert.deepEqual(W.filter(l => l.hint).map(l => l.name), [], 'Hinweis');
 });
 
-await test('Grenz-Duldung (Ticket 13): nur leichte Level, gebraucht genau für die eine Häufung auf Seite 6', () => {
+await test('Grenz-Duldung (Ticket 13): nur leichte Level, und jedes gebraucht (seit 7 × 7 × 5 leer)', () => {
   const p = (x) => W.findIndex(l => l.name === x);
   assert.deepEqual(GRENZ_DULDUNG.filter(x => p(x) < 0 || W[p(x)].grad !== 'leicht'), [], 'nicht im Spiel oder nicht leicht');
-  // ohne die Duldung bliebe genau diese Häufung offen (Entscheid des Nutzers vom 26.10.2026)
+  // ein geduldetes Level steht in einer Häufung, die ohne die Duldung offen bliebe (Entscheid des Nutzers vom 26.10.2026)
   const ohne = haeufungen(r.folge, b.map(x => x.hauptKernidee.begriff), new Set(), 0, Infinity, obenIn(r.grad, r.ausbau));
-  assert.deepEqual(ohne.map(h => `Seite ${h.gruppe + 1} ${h.begriff}: ${h.mit.map(i => W[i].name).sort().join(', ')}`),
-    ['Seite 6 Sammelstelle: Palisade, Stockwerk, Taubenschlag']);
+  assert.deepEqual(GRENZ_DULDUNG.filter(x => !ohne.some(h => h.mit.includes(p(x)))), [], 'nicht gebraucht');
 });
 
 console.log('Bausteine');
 await test('Verteilung der Grade: Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
-  const spec = readFileSync(new URL('../.scratch/wuerfel-500/spec.md', import.meta.url), 'utf8');
-  const tabelle = [...spec.matchAll(/^ {2}\| (\d+) \| \d+ \| (\d+) \| ([\d /]+) \|/gm)]
-    .map(([, g, n, bestand]) => [Number(g), Number(n), bestand.trim()]);
-  assert.equal(tabelle.length, GRUPPEN);
+  // bis 300 die Tabelle der Spec wuerfel-7x7x5 (Gruppen 1–9), danach die der Spec wuerfel-500 ab ihrer Gruppe 13
+  const zeilen = (spec) => [...readFileSync(new URL(`../.scratch/${spec}/spec.md`, import.meta.url), 'utf8')
+    .matchAll(/^ {2,3}\| (\d+) \| \d+ \| (\d+) \| ([\d /]+) \|/gm)].map(([, g, n, bestand]) => [Number(g), Number(n), bestand.trim()]);
+  const tabelle = [...zeilen('wuerfel-7x7x5'), ...zeilen('wuerfel-500').filter(([g]) => g > 12).map(([g, ...x]) => [g - 3, ...x])];
+  assert.deepEqual(tabelle.map(([g]) => g), Array.from({ length: GRUPPEN }, (_, k) => k + 1));
+  assert.deepEqual(bestandNach(0), BEHALTEN);
   for (const [g, n, bestand] of tabelle) {
     const x = bestandNach(g);
     assert.equal(GRADE.map(k => x[k]).join(' / '), bestand, `Gruppe ${g}`);
@@ -181,7 +186,7 @@ await test('Leveldaten als Text: ein Würfel-Level liest sich zurück, sein Abdr
   const ohne = { ...quader };
   delete ohne.height;
   assert.notEqual(abdruck(quader), abdruck(ohne));
-  assert.equal(abdruck({ ...flach, height: 7 }), abdruck(flach));
+  assert.equal(abdruck({ ...ohne, height: 7 }), abdruck(ohne), "height = size wie ohne");
 });
 await test('Ebenen-Regel (Dauerregel): getroffene Ebenen in der Lösung, Zierstück zählt nicht, am Boden', () => {
   // Quelle unten, Spiegel mit Achse z lenkt nach oben, Spiegel auf Ebene 2 nach Süd, Ziel auf Ebene 2: zwei Ebenen
@@ -206,6 +211,25 @@ await test('Ebenen-Regel (Dauerregel): getroffene Ebenen in der Lösung, Zierst�
     solution: { '3,1,0': 3, '3,5,0': 1 } };
   assert.ok(ebenenVerletzt(hoch).some(t => /schwebt/.test(t)));
   assert.deepEqual(senke(hoch, 1), { ...mitte, height: 5 });
+  // der Löser sieht gehoben und gesenkt dieselben Lösungen (über und unter den Elementen nur leerer Raum)
+  const loesungen = (l) => solve(l, { collect: 10 }).solutions.map(s => JSON.stringify(s.set)).sort();
+  assert.ok(loesungen(hoch).length, 'gehoben lösbar');
+  assert.deepEqual(loesungen(senke(hoch, 1)).map(s => s.replace(/,(\d),/g, (_, y) => `,${+y + 1},`)), loesungen(hoch));
+});
+await test('Ebenen-Regel: getroffen zählt bei jeder Ereignisart, die Lösungsstellung gilt auch für den Kombinator', () => {
+  const quelle = { type: 'source', x: 0, y: 0, z: 0, dir: 0 }, hoch = { type: 'mirror', x: 3, y: 0, z: 0, axis: 'z', rot: 3 };
+  const probe = (elements, solution = {}) => getroffeneEbenen({ name: 'Probe', ...QUADER, elements, solution });
+  // Spiegel streifend (am Rahmen geschluckt), Prisma schluckt, Prisma fächert, Blocker: das getroffene zählt, das
+  // dahinter (Ebene 4) nicht
+  for (const zwei of [{ type: 'mirror', axis: 'z', rot: 2 }, { type: 'prism', axis: 'z', rot: 1 },
+    { type: 'prism', axis: 'z', rot: 0 }, { type: 'blocker' }]) {
+    assert.deepEqual(probe([quelle, hoch, { ...zwei, x: 3, y: 2, z: 0 }, { type: 'blocker', x: 3, y: 4, z: 0 }]), [0, 2],
+      zwei.type);
+  }
+  // Kombinator: Startstellung dir 0 trifft nichts, die Lösung dir 6 lenkt nach oben auf das Ziel auf Ebene 3
+  const kombi = [quelle, { type: 'combiner', x: 2, y: 0, z: 0, axis: 'z', dir: 0 }, { type: 'target', x: 2, y: 3, z: 0 }];
+  assert.deepEqual(probe(kombi), [0]);
+  assert.deepEqual(probe(kombi, { '2,0,0': 6 }), [0, 3]);
 });
 await test('Ähnlichkeit im Quader 7 × 7 × 5: nur Symmetrien, die y erhalten; Würfel und Quader nie ähnlich', () => {
   const q = { name: 'q', dim: 3, size: 7, height: 5, solution: {}, elements: [

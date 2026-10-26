@@ -17,7 +17,8 @@
 //                 vergebene Name; ohne name heisst es wie bei den KI-Testern „Kandidat <Abdruck>“ (kandidatName in
 //                 leveldaten.mjs). auftrag, seed, schwierigkeit (Ziel-Schwierigkeit [von, bis]) und stand (der Commit,
 //                 mit dem der Pool gebaut ist) sind wahlweise und stehen als Herkunft im Kommentar des Levels, damit
-//                 ausbau.mjs pool … --wuerfel es auf diesem Stand nachbaut.
+//                 ausbau.mjs pool … --wuerfel es auf diesem Stand nachbaut. gesenkt (wuerfel.mjs umrechnen): um so viele
+//                 Ebenen ist das Level aus dem Würfel 7 × 7 × 7 jenes Stands in den Quader gesenkt.
 //   --schreiben:  ordnet die Würfel-Level in index.html und setzt ihren Grad; die Kandidaten kommen mit ihrem Namen
 //                 dazu (levelCode in leveldaten.mjs). Nur wenn alle Prüfungen oben bestehen, also jeder Kandidat einen
 //                 Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
