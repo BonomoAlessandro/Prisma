@@ -206,6 +206,25 @@ await test('Ebenen-Regel (Dauerregel): getroffene Ebenen in der Lösung, Zierst�
     solution: { '3,1,0': 3, '3,5,0': 1 } };
   assert.ok(ebenenVerletzt(hoch).some(t => /schwebt/.test(t)));
   assert.deepEqual(senke(hoch, 1), { ...mitte, height: 5 });
+  // der Löser sieht gehoben und gesenkt dieselben Lösungen (über und unter den Elementen nur leerer Raum)
+  const loesungen = (l) => solve(l, { collect: 10 }).solutions.map(s => JSON.stringify(s.set)).sort();
+  assert.ok(loesungen(hoch).length, 'gehoben lösbar');
+  assert.deepEqual(loesungen(senke(hoch, 1)).map(s => s.replace(/,(\d),/g, (_, y) => `,${+y + 1},`)), loesungen(hoch));
+});
+await test('Ebenen-Regel: getroffen zählt bei jeder Ereignisart, die Lösungsstellung gilt auch für den Kombinator', () => {
+  const quelle = { type: 'source', x: 0, y: 0, z: 0, dir: 0 }, hoch = { type: 'mirror', x: 3, y: 0, z: 0, axis: 'z', rot: 3 };
+  const probe = (elements, solution = {}) => getroffeneEbenen({ name: 'Probe', ...QUADER, elements, solution });
+  // Spiegel streifend (am Rahmen geschluckt), Prisma schluckt, Prisma fächert, Blocker: das getroffene zählt, das
+  // dahinter (Ebene 4) nicht
+  for (const zwei of [{ type: 'mirror', axis: 'z', rot: 2 }, { type: 'prism', axis: 'z', rot: 1 },
+    { type: 'prism', axis: 'z', rot: 0 }, { type: 'blocker' }]) {
+    assert.deepEqual(probe([quelle, hoch, { ...zwei, x: 3, y: 2, z: 0 }, { type: 'blocker', x: 3, y: 4, z: 0 }]), [0, 2],
+      zwei.type);
+  }
+  // Kombinator: Startstellung dir 0 trifft nichts, die Lösung dir 6 lenkt nach oben auf das Ziel auf Ebene 3
+  const kombi = [quelle, { type: 'combiner', x: 2, y: 0, z: 0, axis: 'z', dir: 0 }, { type: 'target', x: 2, y: 3, z: 0 }];
+  assert.deepEqual(probe(kombi), [0]);
+  assert.deepEqual(probe(kombi, { '2,0,0': 6 }), [0, 3]);
 });
 await test('Ähnlichkeit im Quader 7 × 7 × 5: nur Symmetrien, die y erhalten; Würfel und Quader nie ähnlich', () => {
   const q = { name: 'q', dim: 3, size: 7, height: 5, solution: {}, elements: [
