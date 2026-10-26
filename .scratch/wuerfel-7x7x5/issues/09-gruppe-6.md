@@ -39,3 +39,56 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 4 / 12 /
   - Hypatia, Hardy, Fakultät
   - Gegen eine Häufung von Kunsttechniken sind vier Namen von Hand getauscht.
 - **Golden und Tests:** Golden nachgeführt (734 Level). Alle Tests mit Exit 0.
+
+**26.10.2026, Reviewer: in Ordnung nach fünfzehn Umbenennungen** (Branch `review/quader-09`).
+
+- **Entfernte Level:** schlüssig.
+  - Vier mittlere Sammelstelle-Level lagen auf 11 Plätzen, dazu die leichten Häufungen auf Seite 4.
+  - Abdrücke in `ohne.txt`: 78e6fda8 (Barkasse), 6ad3ca9b (Klüver), 49205964 (Relief), 6e50b96e (Töpfer),
+    11ed58c9 (Kissen), 0cc217ca (Eierbecher), 5d51e9b1 (Vogeltränke), dazu der abgelehnte 87e8f9e0.
+  - Keiner der acht ist im Spiel. Kein Test und kein Werkzeug nennt die Namen, nur `tools/levelliste.json`.
+  - **Behoben:** Töpfer fehlte auf `entfernteNamen`. Nach dem Merge von Review 08 stand das Level unter diesem Namen
+    im Spiel, deshalb ist Töpfer ergänzt. Besanmast bleibt auf der Liste.
+- **Werkzeug:** `--ohne @datei` ist korrekt.
+  - Nachgeführt: der Kopf (der Umbruch war zerrissen) und der Aufruf in Kopf und Fehlermeldung.
+  - Die Datei darf jetzt auch eine Zeile je Kandidat haben.
+- **Umbenannt:**
+  - Leicht:
+    - Guetzli → Sparschwein. Guetzli ist ein Keks, Keksdose steht auf Platz 1.
+    - Kuscheltier → Fotoalbum. Kuscheltier ist der Oberbegriff zu Teddybär, 6 Plätze davor.
+    - Faltenrock → Toaster. Mütze, Strickjacke und Faltenrock waren drei Kleider auf 11 Plätzen.
+  - Mittel:
+    - Seladon → Sattler. Seladon lag direkt neben Gouache, beides Kunsttechniken.
+    - Batik → Böttcher. Batik lag 3 Plätze vor Fresko.
+    - Scagliola → Heissluftballon. Scagliola lag direkt vor Lithografie, Papyrus 3 Plätze davor.
+    - Kapstan → Schreiner. Ein Kapstan ist fast dasselbe wie die Ankerwinde (12 Plätze davor), dazu kommt Bugspriet 2 Plätze daneben.
+    - Ukulele → Schaluppe. Ukulele lag direkt neben Okarina, wie Balalaika in Review 08.
+    - Glockengiesser → Marionette. „Glocken“ steckt in Glockenspiel und Glockenturm (flach), und Drechsler lag 3 Plätze davor.
+    - Leuchtbake → Hochrad. „Leucht“ steckt in Kronleuchter und vier flachen Namen, und Leuchtfeuer ist fast dasselbe.
+    - Ständerbau → Färber. Ständerbau und Mittelbau lagen nebeneinander, beide enden auf „bau“.
+    - Stuckateur → Synagoge. Stuckateur und Steinmetz lagen nebeneinander, beides Handwerk am Bau.
+  - Schwer:
+    - Nimrud → Volubilis. Nimrud und Ninive lagen 2 Plätze auseinander, beides assyrische Hauptstädte.
+    - Bhaktapur → Masada. Harappa, Sanchi und Bhaktapur waren drei südasiatische Stätten auf 4 Plätzen.
+    - Aspendos → Skara Brae. Aspendos lag 4 Plätze vor Ephesos, beides antike Städte in Kleinasien.
+  - Die neuen Namen kommen nirgends sonst vor, auch nicht auf `entfernteNamen` oder als Teilwort.
+    - Verworfen, weil schon vergeben oder entfernt: Pavillon, Pagode, Krypta, Kanzel, Rikscha, Viadukt, Petra, Knossos und Lalibela.
+    - Ebenfalls verworfen: Bildhauer und Seiler, wegen „Bild“ und „Seil“.
+  - Die alten Namen waren nie auf main, deshalb nicht auf `entfernteNamen`.
+  - Golden ist nachgeführt.
+- **Geprüft, in Ordnung:**
+  - Die Verteilung ist 40 / 120 / 45 / 20. Neu sind 7 / 16 / 6 / 3 = 32, entfernt 3 / 4 / 0 / 0.
+  - Die Herkunft der 32 steht im Spiel. Stichproben in den Pools stimmen: Seeds 60940, 71520, 80394 und 21634.
+  - Protokoll:
+    - Jedes neue Level hat genau ein Urteil: 30 aus wuerfel-6-q, dazu 215e6df2 und 5d36eac0 aus wuerfel-6-q2.
+    - 87e8f9e0 ist abgelehnt (Knäuel, Probieren) und nicht im Spiel.
+    - Die Plätze der Anker steigen: 2/25/38/143/165/181/197/198, danach 2/32/41/159/182/202/221/222 (q) und 2/32/41/159/182/202/223/224 (q2).
+  - Bilder, Stichproben aus wuerfel-6-q: L11 (Volubilis, vorher Nimrud), L17 (Sparschwein, vorher Guetzli) und
+    L20 (Böttcher, vorher Batik). Jedes geht über mehrere Ebenen und hat Elemente am Boden.
+- **Offen:**
+  - Mittel hat viele Instrumente: Okarina, Alphorn, Posaune, Marimba, Celesta, Trommel, Spinett, Clavichord und
+    Bandoneon auf den Plätzen 120–157. Bei den nächsten Gruppen keine weiteren nehmen.
+  - Hardy (207) und Ramanujan (218) sind ein bekanntes Paar. Sie liegen 11 Plätze auseinander und bleiben.
+  - Der neue Vorrat war nicht streng genug: 15 von 32 Namen sind ersetzt. Vor der nächsten Gruppe sollte er gegen
+    Teilwörter in den flachen Namen und gegen Nachbarn im Spiel geprüft werden.
+- **Tests:** Exit 0 bei wuerfelliste, levelliste, ki-tester, beurteilung, logic und golden.
