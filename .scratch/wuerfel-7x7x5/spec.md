@@ -67,7 +67,8 @@ Alles bleibt auf **`feature/3d-wuerfel`** und kommt nicht nach main.
 - **Werkzeuge:** Diese Teile rechnen ebenfalls mit der Höhe:
   - Feldform (`feldform-wuerfel.mjs`, `feldformVon`)
   - Generator und Beurteilung
-  - Ähnlichkeit: Es zählen nur die Symmetrien, die y erhalten, also die acht der Grundfläche. Ein Würfel und ein
+  - Ähnlichkeit: Es zählen nur die Symmetrien, die y auf y lassen: die acht der Grundfläche, je auch auf den Kopf
+    gestellt (16, wie im Würfel; Review Ticket 01). Ein Würfel und ein
     flacherer Quader sind nie ähnlich.
   - KI-Tester, mit Text und Bildern
   - Leveldaten, Wahl und Ordnen

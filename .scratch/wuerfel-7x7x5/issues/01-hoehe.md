@@ -8,12 +8,12 @@
 
 **What to build:** Würfel-Level mit eigener Höhe (`height`, Standard `size`), siehe Spec „Das Modell“.
 
-- [ ] Spiel: Brett, Strahlregel, Darstellung, Kamera, Anklicken und Levelauswahl mit 7 × 7 × 5; Screenshots desktop
+- [x] Spiel: Brett, Strahlregel, Darstellung, Kamera, Anklicken und Levelauswahl mit 7 × 7 × 5; Screenshots desktop
       und handy geprüft.
-- [ ] Feldform, Generator, Beurteilung, Ähnlichkeit (Symmetrien der Grundfläche), KI-Tester (Text, Bilder),
+- [x] Feldform, Generator, Beurteilung, Ähnlichkeit (Symmetrien der Grundfläche), KI-Tester (Text, Bilder),
       Leveldaten, Wahl und Ordnen kennen die Höhe.
-- [ ] Ohne `height` verhält sich alles wie bisher (Golden-Referenz unverändert, Aufzug und Kern als Testdaten).
-- [ ] Tests für einen Quader 7 × 7 × 5; alle Tests grün; Review.
+- [x] Ohne `height` verhält sich alles wie bisher (Golden-Referenz unverändert, Aufzug und Kern als Testdaten).
+- [x] Tests für einen Quader 7 × 7 × 5; alle Tests grün; Review.
 
 ## Comments
 
