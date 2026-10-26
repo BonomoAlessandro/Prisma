@@ -4,7 +4,8 @@
 // Dazu der Würfel (.scratch/wuerfel-500/): Feld als Text im Würfel, eigene Versionen mit eigenen Ankern und
 // Fingerabdruck, Einträge im Protokoll, die Seite mit Würfel-Kandidaten und prepare.mjs mit einer Würfel-Vorschau.
 // Die Vorschau baut der Test aus den Würfel-Leveln im Spiel und drei Kandidaten aus dem Generator
-// (tests/ki-tester/wuerfel-kandidaten.json: Seeds 1 und 2 leicht, Seed 1 mittel mit Mischziel aus zwei Quellen), damit
+// (tests/ki-tester/wuerfel-kandidaten.json, im Quader 7 × 7 × 5 aus dem Pool vom Stand 74361c6: leicht Seeds 60001
+// und 60005, mittel mit Mischziel aus zwei Quellen Seed 60001), damit
 // sie die Anker jeder Würfel-Version enthält. Was die Form einer Version braucht (zwei Anker, erfundene Einträge,
 // Gegenproben), prüft er fest mit W1; was die aktuelle betrifft, mit WUERFEL_VERSION und loadAnchorsWuerfel().
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
@@ -542,7 +543,8 @@ test('Würfel: kennt weder Lösung noch Name noch Grad, nennt jedes Element mit 
     assert.equal(fieldText({ ...lvl, solution: undefined }, 'L1'), text, `${wo}: hängt von der Lösung ab`);
     assert.equal(fieldText({ ...lvl, name: 'Anders', grad: 'sehr schwer' }, 'L1'), text, `${wo}: Name oder Grad`);
     assert.ok(!text.includes(lvl.name), `${wo}: Name verrät das Level`);
-    assert.match(text, /^Würfel 7 × 7 × 7 auf einer Plattform\. Jede Zelle hat drei Koordinaten \(x,y,z\)/m);
+    const h = lvl.height || lvl.size;
+    assert.match(text, new RegExp(`^Würfel 7 × 7 × ${h} auf einer Plattform\\. Jede Zelle hat drei Koordinaten \\(x,y,z\\)`, 'm'));
     for (const e of lvl.elements) {
       const line = text.split('\n').find(l => l.startsWith(`- (${e.x},${e.y},${e.z}) `));
       assert.ok(line, `${wo}: (${e.x},${e.y},${e.z}) fehlt unter Elemente`);
@@ -551,7 +553,7 @@ test('Würfel: kennt weder Lösung noch Name noch Grad, nennt jedes Element mit 
       }
     }
     // Ebene für Ebene: jede Ebene einmal, eine leere in einer Zeile
-    for (let y = 0; y < 7; y++) {
+    for (let y = 0; y < h; y++) {
       const leer = !lvl.elements.some(e => e.y === y);
       assert.equal(text.split('\n').filter(l => l.startsWith(`Ebene y=${y}`)).length, 1, `${wo}: Ebene ${y}`);
       assert.equal(new RegExp(`^Ebene y=${y}[^\\n]*: leer$`, 'm').test(text), leer, `${wo}: Ebene ${y} leer?`);

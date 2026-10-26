@@ -141,6 +141,67 @@
           "begruendung": "Platz 27, das schwerste Würfel-Level (Schwierigkeit 93,5), Kernidee Mischziel aus zwei Quellen. Beide KI-Tester: Gefühl 4."
         }
       ]
+    },
+    "W4": {
+      "hinweis": "Entscheid des Nutzers vom 26.10.2026 (.scratch/wuerfel-7x7x5/, Ticket 03): Die Würfel-Level sind jetzt Quader 7 × 7 × 5 über mindestens 3 Ebenen. Keiner der Anker aus W3 erfüllt die Regel, darum neue Anker aus den 75 behaltenen (gesenkten) Leveln, je Grad am unteren und oberen Ende; gewählt nach ihren Urteilen im Würfel 7 × 7 × 7 (unverschoben, beide Tester nahe beieinander).",
+      "anker": [
+        {
+          "id": "A1",
+          "name": "Wippe",
+          "grad": "leicht",
+          "ende": "unten",
+          "begruendung": "Platz 1 im Quader, Schwierigkeit 20,2, ohne Kernidee. Das leichteste Level im Quader. Im 7 × 7 × 7: Gefühl 2 und 3, beide A1."
+        },
+        {
+          "id": "A2",
+          "name": "Picknick",
+          "grad": "leicht",
+          "ende": "oben",
+          "begruendung": "Platz 16 im Quader, Schwierigkeit 40,5, Mischziel aus zwei Quellen. Das zweitschwerste leichte (Stockwerk, das schwerste, war im 7 × 7 × 7 um +5 verschoben). Im 7 × 7 × 7: beide A2-A3."
+        },
+        {
+          "id": "A3",
+          "name": "Zither",
+          "grad": "mittel",
+          "ende": "unten",
+          "begruendung": "Platz 18 im Quader, Schwierigkeit 43,2, Farben abzählen. Das leichteste mittlere. Im 7 × 7 × 7: Gefühl 4 und 4."
+        },
+        {
+          "id": "A4",
+          "name": "Gesims",
+          "grad": "mittel",
+          "ende": "oben",
+          "begruendung": "Platz 60 im Quader, Schwierigkeit 58,3, Mischziel aus zwei Quellen. Das schwerste mittlere. Im 7 × 7 × 7: Gefühl 4 und 4, A4 und A4-A5."
+        },
+        {
+          "id": "A5",
+          "name": "Palmyra",
+          "grad": "schwer",
+          "ende": "unten",
+          "begruendung": "Platz 63 im Quader, Schwierigkeit 67,7, Farben abzählen. Das drittleichteste schwere (Hattusa war im 7 × 7 × 7 um −5 verschoben, bei Himeji lagen die Tester weit auseinander). Im 7 × 7 × 7: Gefühl 5 und 5."
+        },
+        {
+          "id": "A6",
+          "name": "Schlossanlage",
+          "grad": "schwer",
+          "ende": "oben",
+          "begruendung": "Platz 70 im Quader, Schwierigkeit 85,1, Sammelstelle. Das schwerste schwere. Im 7 × 7 × 7: Gefühl 4 und 5."
+        },
+        {
+          "id": "A7",
+          "name": "Möbiusband",
+          "grad": "sehr schwer",
+          "ende": "unten",
+          "begruendung": "Platz 71 im Quader, Schwierigkeit 87,0, Falle. Das leichteste sehr schwere. Im 7 × 7 × 7: Gefühl 4 und 4."
+        },
+        {
+          "id": "A8",
+          "name": "Banach-Tarski",
+          "grad": "sehr schwer",
+          "ende": "oben",
+          "begruendung": "Platz 74 im Quader, Schwierigkeit 89,0, Farben abzählen. Das zweitschwerste sehr schwere (Ewige Wiederkehr fand ein Tester mühsam, Gefühl 2). Im 7 × 7 × 7: Gefühl 5 und 4, beide A7."
+        }
+      ]
     }
   }
 }
