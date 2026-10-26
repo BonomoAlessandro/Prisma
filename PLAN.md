@@ -12,8 +12,21 @@
 
 ## 2. Würfel-Level (3D)
 
-- [ ] **2.1 Würfel-Level erstellen und ausbauen.** Der Prototyp liegt auf dem Branch `feature/3d-wuerfel` (Würfel
-  7 × 7 × 7, bis 23. Oktober 5 × 5 × 5, Konzept und Stand in `3D-WUERFEL.md` auf dem Branch).
+- [~] **2.1 Würfel-Level erstellen und ausbauen.** Würfel 7 × 7 × 7 (bis 23. Oktober 5 × 5 × 5), Konzept und Stand in
+  `3D-WUERFEL.md`; Spec und Tickets für den Ausbau in `.scratch/wuerfel-500/`.
+  - **Stand 26.10.2026: 300 Würfel-Level im Spiel** (Tickets 01–13, 12 Gruppen zu 25), alle aus dem Generator:
+    51 leicht, 159 mittel, 63 schwer, 27 sehr schwer (17 / 53 / 21 / 9 %). Jedes hat genau eine Lösung, besteht die
+    Beurteilung, hat ab „mittel“ eine nötige Kernidee, ist keinem anderen zu ähnlich und von beiden KI-Testern
+    beurteilt; Herkunft (Auftrag, Seed, Stand) nachbaubar. Die zwei handgebauten Testlevel (Aufzug, Kern) sind
+    entfernt. Nach dem Stand von 300 zusammen mit `feature/3d-wuerfel` nach main gemergt.
+  - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3); geduldet ist nur Seite 6 an der
+    Grenze leicht/mittel (Stockwerk, GRENZ_DULDUNG in `tools/wuerfelliste.mjs`, Entscheid vom 26.10.2026).
+  - [ ] Weiter bis 500 (Tickets 14–21, Gruppen 13–20), erst auf Anweisung. Der Pool ist bei „sehr schwer“ knapp
+    (neue Seeds bringen dort kaum noch Kandidaten), bei „mittel“ mit pool-3 erweitert.
+  - [ ] **E** Offen: Bekommt das erste Würfel-Level den Achsen-Hinweis, den früher Aufzug hatte?
+  - [ ] **E** Offen: Was gilt für Würfel-Level, die ganz in einer waagrechten Ebene liegen (bis zum Entscheid die
+    bisherige Regel)?
+  - [ ] Leistung auf dem Handy und Spieltests mit Menschen.
 
 ## 3. Später (nächste Version, nicht jetzt)
 
