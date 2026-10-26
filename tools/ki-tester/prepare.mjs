@@ -61,6 +61,7 @@ import {
 } from './protocol.mjs';
 import { fieldText } from './field.mjs';
 import { zaehlendeUrteile, zaehlendeWuerfelUrteile } from '../levelliste.mjs';
+import { WUERFEL_TEXT, istWuerfel } from '../wuerfelliste.mjs';
 import { CUBE_ANGLES, imageNames, seitenUrl, takeShots } from './shots.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -272,7 +273,7 @@ function ladeKandidaten(roh, datei) {
   }
   for (const x of liste) {
     const wo = `${datei}: ${nameVon(x)}`, p = wuerfel ? x.platz : x.formel;
-    if (wuerfel && !(x.level.dim === 3 && x.level.size === 7)) throw new Error(`${wo}: kein Würfel 7 × 7 × 7`);
+    if (wuerfel && !istWuerfel(x.level)) throw new Error(`${wo}: kein Würfel ${WUERFEL_TEXT}`);
     if (!(Number.isInteger(p) && p >= 1 && p <= MAIN)) {
       throw new Error(`${wo}: ${wuerfel ? 'Platz (platz)' : 'Platz der Formel (formel)'} 1–${MAIN} nötig`);
     }
