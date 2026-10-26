@@ -322,7 +322,7 @@ def stylize(lin, px_per_deg, noise, wrap=False, stars=None):
     disp = srgb_encode(aces_game(blur(lin, 0.7)))           # so sähe es heute im Spiel aus (Renderrauschen geglättet)
     col = grade(disp)
     # Pinselstriche (rundum: mit Rand aus der Gegenseite, sonst entstünde an der Naht eine Kante)
-    size = max(2, int(round(px_per_deg * 0.28)))
+    size = max(2, int(round(px_per_deg * S.get('pinsel', 0.28))))
     m = 4 * size if wrap else 0
     padded = np.concatenate([col[:, -m:], col, col[:, :m]], 1) if m else col
     col = kuwahara(np.clip(padded, 0, 1), size=size)

@@ -1,14 +1,19 @@
 # Baut die Blender-Szene „Im Vulkan“ (Skybox volcano, PLAN 1.2), realistisch gerendert und danach gemalt wie der
 # Strand. Über den Blender-MCP: wald_mcp.neu('volcano') baut sie und speichert tools/blender/volcano.blend; einzelne
 # Teile neu mit wald_mcp.scene('volcano').replace_…(). Ohne MCP headless mit denselben Skripten (wald_mcp.run).
-# Vorbilder: Nyiragongo (Lavasee aus dunkler Kruste mit glühenden Rissen) und Erta Ale (Krater mit Absätzen,
-# grauschwarzer Basalt, Rost- und Schwefelflecken).
-# Aufbau: Das Brett schwebt im Schlot über dem Lavasee (LAVA_Z). Rundum steigt eine trichterförmige Böschung (GRADE,
-# um 45°) mit Absätzen (BENCHES) bis zum Rand, dahinter flach; darauf tausende Felsblöcke wie am Strand (S.boulder,
-# Material wie dort in Vulkanfarben), gestaut an den Kanten der Absätze und am Ufer, dazwischen Geröll. Durch die weite
-# Öffnung ein rauchiger Nachthimmel; im Krater nur leichter Dunst (Luftperspektive), keine Dampfsäulen. Licht: die
-# Lava von unten (Risse leuchten, dazu die Flächenlampe „Glut See“), kühl und schwach der Himmel von oben (Hauptlicht
-# „Oben“).
+# Vorbilder: Nyiragongo (Lavasee aus dunkler Kruste mit glühenden Rissen) und Masaya (steile, waagrecht geschichtete
+# Kraterwände mit Absätzen und Überhängen, unten orange von der Lava angeleuchtet, oben kühl und heller verwittert);
+# gemalt wie eine Anime-Landschaft: grosse, klar begrenzte Flächen, kühle Schatten gegen warmes Licht.
+# Aufbau: Das Brett schwebt im Schlot über dem Lavasee (LAVA_Z). Am Ufer eine niedrige Schutthalde (TALUS), darüber
+# die Wand in zwei Stufen mit einem schmalen Absatz (TIER1) bis zum Rand (RIM), dahinter flach. Im Grundriss besteht
+# sie aus geraden Flächen (plan): Rippen und Buchten, dazu V-förmige Rinnen (GULLIES) mit Schuttkegeln darunter. In der
+# Höhe liegen Bänke (strata) mit eigenem Grundriss und eigener Neigung übereinander, unten unterschnitten, oben
+# abgeschrägt, darin dünne Lagen in eigener Farbe; auf den Bänken verkippte Felsflächen (facets), die an scharfen
+# Graten aneinanderstossen. Auf Halde und Absatz Felsblöcke wie am Strand (S.boulder, Material wie dort in
+# Vulkanfarben). Durch die Öffnung ein rauchiger Nachthimmel; im Krater nur leichter Dunst (Luftperspektive), keine
+# Dampfsäulen. Licht: die Lava von unten (Risse leuchten, dazu die Flächenlampe „Glut See“ und die Punktlampe „Glut
+# Mitte“, die die Wand von unten anleuchtet), kühl der Mond von oben (Hauptlicht „Oben“): jede Rippe hat so eine warme
+# und eine kühle Seite.
 # Das Spiel zeichnet selbst: den See bis LAVA_GAME, bewegt (lavaPool; Blender malt dort nur die Kruste), und ein
 # Dutzend Felsbrocken am Ufer (bakedMesh, wie die nahen Felsen am Strand: gebackenes Licht, gemalt; Sammlung „Spiel“,
 # für die Panoramakamera unsichtbar).
@@ -43,16 +48,20 @@ def log(*a):
 
 PANO_CENTER = (0.0, 0.0, 3.0)
 LAVA_Z = -9.0         # Lavasee (Spiel: level der Ebenen)
-FOOT = 25.0           # mittlerer Radius, an dem die Böschung in den See taucht
+FOOT = 25.0           # mittlerer Radius, an dem die Schutthalde in den See taucht
 LAVA_GAME = 22.0      # bis hier zeichnet das Spiel den See (radius von lavaPool), voll deckend bis LAVA_GAME − 2.5
-GRADE = 1.0           # Neigung der Böschung (Höhe je Meter waagrecht: 45°)
-# Absätze: so weit vom Fuss (m, waagrecht) beginnt einer, so breit ist er im Mittel
-BENCHES = [(16.0, 7.0), (40.0, 9.0), (70.0, 11.0)]
-RIM = 105.0           # Rand über der Lava (je Richtung ±12 m); dahinter flach
-SEGMENTS = 1024       # Gitter der Böschung rundum
+TALUS = 0.72          # Neigung der Schutthalde (Höhe je Meter waagrecht, um 36°)
+TIER1 = 46.0          # Absatz zwischen den beiden Stufen der Wand (m über der Lava, je Richtung ±6 m)
+RIM = 94.0            # Rand über der Lava (je Richtung ±12 m, an Rinnen tiefer); dahinter flach
+LEAN = 0.14           # die Wand neigt sich nach hinten (m waagrecht je m Höhe)
+R_REF = 40.0          # Bezugsradius für Längen entlang der Wand (Rippen, Rinnen, Felsflächen)
+SEG = 2048            # Spalten des Gitters rundum
+DH = 0.2              # Zeilenabstand der Wand (m), je Spalte gleich: Bänke und Lagen enden ohne Treppen
+DIP = 3.0             # die Bänke wellen rundum um bis zu so viel (m); die Zeilen des Gitters wellen mit
 EXTENT = 700.0
-TOP = Vector((-0.30, 0.35, 0.89)).normalized()   # kühles Licht von oben (Hauptlicht fürs Spiel)
-B1, B2, B3, B4, B5 = (Perlin(s) for s in (503, 509, 521, 523, 541))
+TOP = Vector((-0.45, 0.52, 0.72)).normalized()   # kühles Licht von oben (Hauptlicht fürs Spiel)
+B1, B2 = Perlin(503), Perlin(509)
+G2, G3, G4, G5, G6, G7, G8 = (Perlin(s) for s in (523, 541, 547, 557, 563, 569, 571))
 
 
 def sc():
@@ -65,71 +74,305 @@ def link(name, data, coll=None):
     return ob
 
 
-# ---------------------------------------------------------------- Böschung
+# ---------------------------------------------------------------- Kraterwand
 
 def foot_radius(th):
-    """Fuss der Böschung je Richtung (Bogenmass, von +y über +x): Buchten und Vorsprünge"""
+    """Fuss der Schutthalde je Richtung (Bogenmass, von +y über +x): Buchten und Vorsprünge"""
     c, s = np.cos(th), np.sin(th)
     return FOOT + 2.5 * fbm(B1, c * 1.3 + 7, s * 1.3 - 4, 3) + 1.0 * fbm(B2, c * 4.0, s * 4.0, 2)
 
 
-def slope_height(x, y):
-    """Höhe der Böschung über der Lava (unter dem See negativ) und Lage auf ihr: u (m waagrecht vom Fuss), bench
-    (0 … 1 auf einem Absatz), lip (0 … 1 an der Kante eines Absatzes, wo sich Blöcke stauen)"""
-    x = np.asarray(x, float); y = np.asarray(y, float)
-    th = np.arctan2(x, y); c, s = np.cos(th), np.sin(th)
-    u = np.hypot(x, y) - foot_radius(th)
-    h = GRADE * u
-    bench = np.zeros_like(u); lip = np.zeros_like(u)
-    start = 0.0
-    for k, (u0, w0) in enumerate(BENCHES):   # auf dem Absatz steigt es kaum: von der Höhe ab dort die Breite abziehen
-        w = w0 * (0.5 + 1.0 * (0.5 + 0.5 * fbm(B3, c * 2.0 + k * 5, s * 2.0 - k * 3, 2)))
-        a = u0 + start
-        on = np.clip(u - a, 0, w)
-        h = h - GRADE * 0.88 * on
-        bench = np.maximum(bench, ((u > a) & (u < a + w)).astype(float))
-        lip = np.maximum(lip, np.exp(-((u - a) / 2.0) ** 2))
-        start += w
-    rim = RIM + 12 * fbm(B5, c * 1.6 + 3, s * 1.6 - 2, 3)
-    h = np.where(h > rim, rim + (h - rim) * 0.05, h)   # dahinter flach
-    h = h + 1.2 * fbm(B4, x * 0.08, y * 0.08, 3) * np.clip(u / 4, 0, 1)
-    return h, u, bench * (u > 0), lip * (u > 0)
+def ring(P, th, f, octaves=3):
+    """Rauschen rundum ohne Naht, gut 6 · f Wellen je Umlauf"""
+    return fbm(P, np.cos(th) * f + 3.7, np.sin(th) * f - 1.9, octaves)
 
 
-def slope_mesh():
-    X, Y, F = S.ring_mesh('Boeschung', SEGMENTS, FOOT - 6.0, EXTENT)
-    h, u, bench, lip = slope_height(X, Y)
-    me = make_mesh('Boeschung', np.stack([X, Y, LAVA_Z + h], -1), F)
-    S.attrs(me, h=h, bench=bench)
-    log('Böschung', len(X), 'Ecken')
+def plan(rng, spacing, amp, alternate=False, irregular=0.0):
+    """Grundriss aus geraden Flächen: Ecken entlang der Wand (m bei R_REF) im mittleren Abstand spacing, je Ecke ein
+    Versatz nach aussen (m, Streuung amp; alternate: abwechselnd vor und zurück, also Rippen und Buchten). irregular:
+    Streuung der Abstände (lognormal); dazu wechselt die Stärke entlang der Wand (ruhige und wilde Abschnitte), und die
+    Folge vor/zurück bricht ab und zu ab. Für np.interp, mit je einer Ecke vor und nach der Naht"""
+    Lu = 2 * np.pi * R_REF
+    if irregular:
+        gaps = spacing * np.clip(rng.lognormal(0.0, irregular, int(4 * Lu / spacing)), 0.25, 3.0)
+        n = max(6, int(np.searchsorted(np.cumsum(gaps), Lu)))
+        u = np.sort((np.cumsum(gaps[:n]) / gaps[:n].sum() * Lu + rng.uniform(0, Lu)) % Lu)
+        ce = np.sort(rng.uniform(0, Lu, 6)); cv = rng.uniform(0.25, 1.6, 6)
+        env = np.interp(u, np.concatenate([[ce[-1] - Lu], ce, [ce[0] + Lu]]), np.concatenate([[cv[-1]], cv, [cv[0]]]))
+    else:
+        n = max(6, int(Lu / spacing))
+        u = np.sort(((np.arange(n) + rng.uniform(-0.3, 0.3, n)) * Lu / n + rng.uniform(0, Lu)) % Lu)
+        env = np.ones(n)
+    o = rng.normal(0, amp, n) * env
+    if alternate:
+        turn = rng.random(n) < (0.75 if irregular else 1.0)       # meist wechselt die Richtung, nicht immer
+        sign = np.cumprod(np.where(turn, -1.0, 1.0))
+        o = np.abs(o) * sign + rng.normal(0, 0.3 * amp, n) * env
+    return np.concatenate([[u[-1] - Lu], u, [u[0] + Lu]]), np.concatenate([[o[-1]], o, [o[0]]])
+
+
+def _gullies(seed=37, n=8):
+    """Rinnen, unregelmässig verteilt (mindestens 14 m auseinander): Mitte (m entlang der Wand), halbe Breite links und
+    rechts, Tiefe (m), Ansatz über der Halde (m; manche beginnen erst weit oben und haben kaum Schutt darunter), Grösse
+    und Breite ihres Schuttkegels"""
+    rng = np.random.default_rng(seed)
+    Lu = 2 * np.pi * R_REF
+    c = []
+    while len(c) < n:
+        x = rng.uniform(0, Lu)
+        if all(abs((x - y + Lu / 2) % Lu - Lu / 2) > 14.0 for y in c):
+            c.append(x)
+    start = np.where(rng.random(n) < 0.35, rng.uniform(12.0, 35.0, n), 0.0)
+    return dict(c=np.array(c), wl=rng.uniform(3.0, 12.0, n), wr=rng.uniform(3.0, 12.0, n), d=rng.uniform(3.0, 15.0, n),
+                start=start, cone=rng.uniform(0.3, 1.5, n) * np.where(start > 0, 0.3, 1.0), spread=rng.uniform(1.6, 3.4, n))
+
+
+PLAN = plan(np.random.default_rng(13), 15.0, 4.5, alternate=True, irregular=0.7)   # Rippen und Buchten der Wand
+GULLIES = _gullies()
+
+
+def gully(th):
+    """Rinnen an der Stelle th: Anteil der nächsten (0 … 1, V-förmig: die Seiten sind ebene Flächen), Tiefe (m) und
+    Ansatz über der Halde (m) der tiefsten, Höhe des Schuttkegels darunter (0 … 1.5)"""
+    G = GULLIES
+    Lu = 2 * np.pi * R_REF
+    du = (np.mod(th, 2 * np.pi)[..., None] * R_REF - G['c'] + Lu / 2) % Lu - Lu / 2
+    w = np.where(du < 0, G['wl'], G['wr'])
+    v = np.clip(1 - np.abs(du) / w, 0, 1)
+    k = np.argmax(v * G['d'], -1)[..., None]
+    cone = (np.clip(1 - np.abs(du) / (w * G['spread']), 0, 1) ** 1.5 * G['cone']).max(-1)
+    return v.max(-1), np.take_along_axis(v * G['d'], k, -1)[..., 0], G['start'][k[..., 0]], cone
+
+
+def columns(th):
+    """Aufbau der Wand je Richtung th: Fuss rf (die Halde taucht in die Lava), Rinne g (0 … 1) mit Tiefe gd und Ansatz
+    gs, Höhe der Halde ht (unter Rinnen Kegel, sonst je Gegend breite Fächer oder fast nichts), Fuss der Wand rc (Rippen
+    und Buchten, dazu grosse Bögen), Absatz h1 und seine Breite w1, Rand h2"""
+    rf = foot_radius(th)
+    g, gd, gs, cone = gully(th)
+    ht = np.maximum(1.0, 2.5 + 7.0 * cone + 4.0 * smoothstep(-0.3, 0.3, ring(G6, th, 1.3))
+                    + 1.2 * ring(G2, th, 9.0, 2))
+    bay = 5.0 * ring(G7, th, 0.45, 2)                # grosse Buchten und Vorsprünge
+    rc = np.maximum(rf + ht / TALUS + np.interp(np.mod(th, 2 * np.pi) * R_REF, *PLAN) + bay, rf + 2.0)
+    h1 = TIER1 + 6.0 * ring(G3, th, 1.5) - 4.0 * g
+    w1 = np.clip(1.0 + 7.0 * (0.5 + 0.5 * ring(G4, th, 2.5)), 0.6, 9.0)
+    h2 = RIM + 12.0 * ring(G5, th, 1.2) + 5.0 * ring(G5, th, 4.0, 2) - 16.0 * g
+    return dict(rf=rf, g=g, gd=gd, gs=gs, ht=ht, rc=rc, h1=h1, w1=w1, h2=h2)
+
+
+def wall_base(C, h, tier=1):
+    """Radius der Wand ohne die Bänke in der Höhe h: vom Fuss rc nach hinten geneigt, in Rinnen ab ihrem Ansatz nach
+    oben immer tiefer; die obere Stufe um die Breite des Absatzes weiter hinten"""
+    h0 = C['ht'] + C['gs']
+    r = C['rc'] + LEAN * (h - C['ht']) + C['gd'] * smoothstep(h0, h0 + 14.0, h)
+    return r + C['w1'] if tier == 2 else r
+
+
+def talus_height(r, x, y, C):
+    """Höhe der Schutthalde über der Lava (unter dem See negativ), am Fuss der Wand ohne Höcker"""
+    s = np.clip((r - C['rf'] + 4.0 / TALUS) / (C['rc'] - C['rf'] + 4.0 / TALUS), 0, 1)
+    return C['ht'] * (r - C['rf']) / (C['rc'] - C['rf']) + 0.35 * fbm(G3, x * 0.18, y * 0.18, 3) * np.sin(np.pi * s)
+
+
+# Grundfarben der Bänke (linear): unten dunkel und rotbraun, nach oben grauer und heller verwittert
+PAL = {'basalt': (0.048, 0.043, 0.045), 'braun': (0.085, 0.064, 0.056), 'schlacke': (0.115, 0.050, 0.034),
+       'asche': (0.150, 0.134, 0.124), 'hell': (0.255, 0.232, 0.212)}
+PAL_NAMES = ('basalt', 'braun', 'schlacke', 'asche', 'hell')
+
+
+def strata(seed=91):
+    """Bänke von unten nach oben, je 5 … 16 m: eigener Grundriss aus geraden Flächen (zickzack um den der ganzen Wand),
+    eigene Neigung (lean), unten unterschnitten, oben abgeschrägt (bevel); darin dünne Lagen (Unterkanten lz) mit
+    kleinen Stufen und Farbe"""
+    rng = np.random.default_rng(seed)
+    out = []
+    z = -10.0 - DH / 2                        # Grenzen immer zwischen zwei Zeilen des Gitters (Vielfache von DH)
+    while z < RIM + 40.0:
+        thick = round(rng.uniform(5.0, 16.0) / DH) * DH
+        up = float(smoothstep(15.0, RIM, z + thick / 2))
+        w = np.array((0.4 - 0.3 * up, 0.3, 0.25 - 0.15 * up, 0.1 + 0.25 * up, 0.02 + 0.3 * up)); w = w / w.sum()
+        lz = [0.0]
+        while lz[-1] < thick:
+            lz.append(lz[-1] + max(1, round(rng.lognormal(0.0, 0.6) / DH)) * DH)
+        lz = np.array(lz[:-1])
+        nl = len(lz)
+        base = np.array(PAL[PAL_NAMES[rng.choice(5, p=w)]])
+        other = np.array([PAL[PAL_NAMES[i]] for i in rng.choice(5, nl, p=w)])
+        col = np.where((rng.random(nl) < 0.08)[:, None], other, base[None]) * rng.uniform(0.94, 1.06, nl)[:, None]
+        wild = 1.2 * rng.uniform(0.3, 1.6)            # wie stark diese Bank vor und zurück springt
+        out.append(dict(z0=z, thick=thick, lean=rng.uniform(-0.12, 0.35), plan=plan(rng, 9.0, wild, True, 0.6),
+                        bevel=rng.uniform(0.5, 1.5), lz=lz, step=rng.uniform(-0.3, 0.3, nl) * (rng.random(nl) < 0.35),
+                        col=col))
+        z += thick
+    return out
+
+
+FACET = (8.0, 3.2)    # grosse Felsflächen: mittlerer Abstand ihrer Mitten entlang der Wand und in der Höhe (m)
+FINER = [((2.5, 1.2), 0.5)]   # kleinere Felsflächen darauf (Grösse, Anteil): Fels bricht in jeder Grösse
+CONE = 0.3            # jede Fläche steigt von ihrer Mitte weg an (m je m): sie bleibt meist bei ihrer Mitte
+_T = np.random.default_rng(77)
+FACETS = dict(off=_T.normal(0, 0.5, 8192), tu=_T.uniform(-0.35, 0.35, 8192), th=_T.uniform(-0.3, 0.5, 8192),
+              tone=_T.uniform(0.88, 1.12, 8192))
+
+
+def _lattice(size, seed, nh=400):
+    """Zitterndes Gitter rundum ohne Naht (Zeilen von −20 m an): Abstände, Anzahl, Lage der Mitten in den Zellen"""
+    Lu = 2 * np.pi * R_REF
+    nu = int(round(Lu / size[0]))
+    rng = np.random.default_rng(seed)
+    return Lu / nu, size[1], nu, nh, rng.uniform(0.1, 0.9, (nu, nh)), rng.uniform(0.1, 0.9, (nu, nh))
+
+
+def _around(u, h, size, seed, reach=2):
+    """Die Mitten um jede Stelle (bis reach Zellen weit): (Nummer der Zelle, Abstand du, dh in m)"""
+    su, sh, nu, nh, JU, JH = _lattice(size, seed)
+    i0 = np.floor(u / su).astype(int); j0 = np.floor((h + 20.0) / sh).astype(int)
+    for di in range(-reach, reach + 1):
+        for dj in range(-reach, reach + 1):
+            i = (i0 + di) % nu; j = np.clip(j0 + dj, 0, nh - 1)
+            yield i * nh + j, u - (i0 + di + JU[i, j]) * su, h - ((j + JH[i, j]) * sh - 20.0)
+
+
+def facets(u, h, k, size=FACET, seed=5):
+    """Felsflächen: um jede Mitte des Gitters eine eigene, verkippte Ebene je Bank k; die Wand folgt der jeweils
+    vordersten (Minimum des Versatzes nach aussen), so stossen die Flächen an scharfen Graten aneinander, ohne Fugen.
+    Versatz (m nach aussen) und Schlüssel der Fläche (für die Farbe). Der Anstieg von der Mitte weg (CONE) hält jede
+    Fläche bei ihrer Mitte: Gewänne eine Ebene von ausserhalb der geprüften Zellen, spränge die Wand an den Linien des
+    Gitters."""
+    F = FACETS
+    o = np.full(u.shape, np.inf); key = np.zeros(u.shape, int)
+    stretch = size[0] / size[1]
+    for c, du, dh in _around(u, h, size, seed):
+        q = (c * 7919 + k * 104729) % 8192
+        v = F['off'][q] + F['tu'][q] * du + F['th'][q] * dh + CONE * np.hypot(du, dh * stretch)
+        key = np.where(v < o, q, key); o = np.minimum(v, o)
+    return o, key
+
+
+def relief(th, h, L):
+    """Versatz der Wand nach aussen (m) und Grundfarbe an den Stellen (th, h) aus den Bänken L: je Bank ihr Grundriss,
+    ihre Neigung und Lagen; darauf Felsflächen in drei Grössen, an den Bänken abgeschnitten"""
+    u = np.mod(th, 2 * np.pi) * R_REF
+    k = np.clip(np.searchsorted([b['z0'] for b in L], h, 'right') - 1, 0, len(L) - 1)   # waagrecht, zwischen Zeilen
+    o, key = facets(u, h, k)
+    for n, (size, amp) in enumerate(FINER):
+        o = o + amp * facets(u, h, k, size, 6 + n)[0]
+    col = np.zeros(h.shape + (3,))
+    for i, b in enumerate(L):
+        m = k == i
+        if not m.any():
+            continue
+        d = h[m] - b['z0']
+        j = np.clip(np.searchsorted(b['lz'], d, 'right') - 1, 0, len(b['lz']) - 1)
+        o[m] += (np.interp(u[m], *b['plan']) + b['lean'] * (d - 0.5 * b['thick']) + b['step'][j]
+                 + 0.9 * (1 - smoothstep(0.0, 0.7, d))                 # unten unterschnitten
+                 + b['bevel'] * smoothstep(b['thick'] - b['bevel'], b['thick'], d))   # oben abgeschrägt
+        col[m] = b['col'][j] * FACETS['tone'][key[m]][:, None]
+    return o, col
+
+
+def scree_color(x, y, h):
+    """Schutt: dunkler Basalt bis Braun, gefleckt, oben heller wie die verwitterten Schichten"""
+    n = 0.5 + 0.5 * fbm(G4, x * 0.35, y * 0.35, 3)
+    a, b = np.array(PAL['basalt']), np.array(PAL['braun'])
+    col = a + np.clip(1.4 * n, 0, 1)[..., None] * (b - a)
+    pale = smoothstep(30.0, RIM, h)[..., None]
+    return col * (1 - pale) + np.array(PAL['asche']) * pale
+
+
+ROWS = dict(halde=28, absatz=10, rand=6, weit=40)   # Zeilen ausserhalb der Wand
+
+
+def wall_mesh():
+    """Kraterwand als ein Gitter: je Richtung ein Profil von unter der Lava über Halde, untere Stufe, Absatz, obere
+    Stufe und Rand bis weit hinaus. Attribute h (m über der Lava), cliff (1 an der Wand), albedo (Grundfarbe)"""
+    th = np.arange(SEG) * 2 * np.pi / SEG
+    C = columns(th)
+    L = strata()
+    sn, cs = np.sin(th), np.cos(th)
+    R, H, K, A = [], [], [], []
+
+    def flat(r, h):   # Halde, Absatz, Rand: ohne Schichten
+        R.append(r); H.append(h); K.append(np.zeros_like(r)); A.append(scree_color(r * sn, r * cs, h))
+
+    dip = DIP * ring(G8, th, 0.6, 2)                  # die Bänke wellen sanft rundum
+
+    def tier(h0, h1, which):   # Zeilen auf festen Höhen über der Welle dip; ausserhalb der Stufe auf deren Enden gelegt
+        rows = np.arange(np.floor((h0 - dip).min() / DH), np.ceil((h1 - dip).max() / DH) + 1)[:, None] * DH
+        h = np.clip(rows + dip, h0, h1)
+        o, col = relief(np.broadcast_to(th, h.shape), h - dip, L)
+        r = wall_base(C, h, which) + o * smoothstep(h0, h0 + 1.2, h)   # die Bänke treten aus der Halde hervor
+        R.append(r); H.append(h); K.append(np.ones_like(r)); A.append(col)
+
+    s = np.linspace(0, 1, ROWS['halde'], endpoint=False)[:, None]
+    r = C['rf'] - 4.0 / TALUS + s * (C['rc'] - C['rf'] + 4.0 / TALUS)
+    flat(r, talus_height(r, r * sn, r * cs, C))
+    tier(C['ht'], C['h1'], 1)
+    o1, _ = relief(th, C['h1'] - dip, L)
+    r0 = wall_base(C, C['h1'], 1) + o1                  # Kante der unteren Stufe
+    h1b = C['h1'] + 0.15 * C['w1']
+    r1 = wall_base(C, h1b, 2)                           # Fuss der oberen Stufe
+    s = np.linspace(0, 1, ROWS['absatz'], endpoint=False)[:, None]
+    r = r0 + s * (r1 - r0)
+    flat(r, C['h1'] + s * (h1b - C['h1']) + 0.2 * fbm(G5, r * sn * 0.3, r * cs * 0.3, 2) * np.sin(np.pi * s))
+    tier(h1b, C['h2'], 2)
+    r2 = wall_base(C, C['h2'], 2)                       # Kante oben ohne den letzten Vorsprung: der Rand rundet ab
+    s = np.linspace(0, 1, ROWS['rand'], endpoint=False)[:, None]
+    flat(r2 + 4.0 * s, C['h2'] + 0.8 * np.sin(0.5 * np.pi * s))
+    s = np.linspace(0, 1, ROWS['weit'])[:, None]
+    r = (r2 + 4.0) * ((EXTENT / (r2 + 4.0)) ** s)
+    flat(r, C['h2'] + 0.8 + 0.03 * (r - r2 - 4.0) + 3.0 * fbm(G6, r * sn * 0.01, r * cs * 0.01, 3) * smoothstep(0, 40, r - r2))
+    R = np.concatenate(R); H = np.concatenate(H); K = np.concatenate(K); A = np.concatenate(A)
+    nr = len(R)
+    V = np.stack([R * sn, R * cs, LAVA_Z + H], -1).reshape(-1, 3)
+    i = np.arange(nr - 1)[:, None] * SEG; j = np.arange(SEG)[None]
+    a = i + j; b = i + (j + 1) % SEG
+    F = np.stack([a, b, b + SEG, a + SEG], -1).reshape(-1, 4)   # Normale zur Mitte hin bzw. nach oben
+    P = V.reshape(nr, SEG, 3)
+    same = np.all(np.abs(P[1:] - P[:-1]) < 1e-6, -1)           # Zeile fällt auf die vorige (Enden der Stufen)
+    F = F[~(same & np.roll(same, -1, 1)).ravel()]               # Flächen ohne Inhalt weg
+    me = make_mesh('Kraterwand', V, F)
+    me.set_sharp_from_angle(angle=math.radians(25))   # Flächen der Bänke glatt, ihre Kanten scharf
+    S.attrs(me, h=H.ravel(), cliff=K.ravel())
+    ca = me.color_attributes.new('albedo', 'FLOAT_COLOR', 'POINT')
+    ca.data.foreach_set('color', np.concatenate([A.reshape(-1, 3), np.ones((A.size // 3, 1))], 1).astype(np.float32).ravel())
+    log('Kraterwand', len(V), 'Ecken,', len(L), 'Bänke')
     return me
 
 
-def mat_scree():
-    """Geröll zwischen den Blöcken: dunkler Basalt, körnig, mit Rost- und Schwefelflecken; knapp über der Lava glüht es"""
-    m = bpy.data.materials.new('Geroell'); m.use_nodes = True
+def mat_wall():
+    """Grundfarbe aus dem Gitter (albedo: Bänke, Lagen, Felsflächen, Schutt), gefleckt; an der Wand (cliff 1) leicht
+    rau, der Schutt (cliff 0) körnig, knapp über der Lava glüht er; Schatten nie ganz schwarz (bläuliches Grundlicht wie
+    bei den Blöcken)"""
+    m = bpy.data.materials.new('Wand'); m.use_nodes = True
     t = NT(m.node_tree)
     out = t.node('ShaderNodeOutputMaterial')
-    bsdf = t.node('ShaderNodeBsdfPrincipled', in_Roughness=0.95)
+    bsdf = t.node('ShaderNodeBsdfPrincipled', in_Roughness=0.92)
     geo = t.node('ShaderNodeNewGeometry')
     pos = geo.outputs['Position']
-    a = t.node('ShaderNodeAttribute'); a.attribute_name = 'h'
-    h = a.outputs['Fac']
-    n1 = t.node('ShaderNodeTexNoise', in_Scale=1.6, in_Detail=6.0, in_Roughness=0.65); t.link(pos, n1.inputs['Vector'])
-    n2 = t.node('ShaderNodeTexNoise', in_Scale=0.04, in_Detail=3.0); t.link(pos, n2.inputs['Vector'])
-    col = t.mix(n1.outputs['Fac'], (0.030, 0.028, 0.030, 1), (0.090, 0.082, 0.078, 1))
-    rust = t.maprange(n2.outputs['Fac'], 0.60, 0.68)
-    col = t.mix(t.math('MULTIPLY', rust, 0.8), col, (0.16, 0.06, 0.03, 1))
-    sulfur = t.math('MULTIPLY', t.maprange(n2.outputs['Fac'], 0.30, 0.25), t.maprange(h, 10.0, 25.0))
-    col = t.mix(t.math('MULTIPLY', sulfur, 0.85), col, (0.45, 0.38, 0.09, 1))
+    alb = t.node('ShaderNodeAttribute'); alb.attribute_name = 'albedo'
+    ah = t.node('ShaderNodeAttribute'); ah.attribute_name = 'h'
+    ac = t.node('ShaderNodeAttribute'); ac.attribute_name = 'cliff'
+    h, cliff = ah.outputs['Fac'], ac.outputs['Fac']
+    n1 = t.node('ShaderNodeTexNoise', in_Scale=0.4, in_Detail=2.0); t.link(pos, n1.inputs['Vector'])
+    mottle = t.node('ShaderNodeTexNoise', in_Scale=0.9, in_Detail=3.0); t.link(pos, mottle.inputs['Vector'])
+    tone = t.math('MULTIPLY', t.maprange(n1.outputs['Fac'], 0.35, 0.65, 0.9, 1.1),
+                  t.maprange(mottle.outputs['Fac'], 0.3, 0.7, 0.88, 1.1))
+    col = t.vmath('MULTIPLY', alb.outputs['Color'], tone)
     t.link(col, bsdf.inputs['Base Color'])
-    vor = t.node('ShaderNodeTexVoronoi', in_Scale=2.5); t.link(pos, vor.inputs['Vector'])
-    bmp = t.node('ShaderNodeBump', in_Strength=0.8, in_Distance=0.15)
-    t.link(t.math('ADD', vor.outputs['Distance'], t.math('MULTIPLY', n1.outputs['Fac'], 0.5)), bmp.inputs['Height'])
+    vor = t.node('ShaderNodeTexVoronoi', in_Scale=3.0); t.link(pos, vor.inputs['Vector'])
+    rough = t.node('ShaderNodeTexNoise', in_Scale=1.2, in_Detail=6.0); t.link(pos, rough.inputs['Vector'])
+    wall_h = t.math('MULTIPLY', rough.outputs['Fac'], 0.3)
+    bmp = t.node('ShaderNodeBump', in_Distance=0.1)
+    t.link(t.math('SUBTRACT', 0.8, t.math('MULTIPLY', cliff, 0.3)), bmp.inputs['Strength'])
+    t.link(t.mix(cliff, vor.outputs['Distance'], wall_h), bmp.inputs['Height'])
     t.link(bmp.outputs['Normal'], bsdf.inputs['Normal'])
-    splash = t.math('MULTIPLY', t.maprange(h, 0.9, 0.1), t.maprange(n1.outputs['Fac'], 0.4, 0.6))
-    t.link(t.mix(splash, (0.9, 0.10, 0.02, 1), (1.0, 0.30, 0.04, 1)), bsdf.inputs['Emission Color'])
-    t.link(t.math('MULTIPLY', splash, 5.0), bsdf.inputs['Emission Strength'])
+    n2 = t.node('ShaderNodeTexNoise', in_Scale=1.6, in_Detail=4.0); t.link(pos, n2.inputs['Vector'])
+    splash = t.math('MULTIPLY', t.maprange(h, 0.9, 0.1), t.maprange(n2.outputs['Fac'], 0.4, 0.6))
+    glow = t.vmath('MULTIPLY', t.mix(splash, (0.9, 0.10, 0.02, 1), (1.0, 0.30, 0.04, 1)), t.math('MULTIPLY', splash, 5.0))
+    amb = t.vmath('MULTIPLY', col, (0.55 * ROCK_AMBIENT, 0.65 * ROCK_AMBIENT, ROCK_AMBIENT))
+    t.link(t.vmath('ADD', glow, amb), bsdf.inputs['Emission Color'])
+    bsdf.inputs['Emission Strength'].default_value = 1.0
     t.link(S.air(t, bsdf.outputs[0]), out.inputs['Surface'])
     return m
 
@@ -169,7 +412,7 @@ def mat_rock():
     return m
 
 
-TEMPLATES = 8
+TEMPLATES = 16
 
 
 def build_templates():
@@ -189,42 +432,53 @@ def build_templates():
     return coll
 
 
-def boulder_points(n=11000, seed=71):
-    """Blöcke auf der Böschung: dicht, gestaut an den Kanten der Absätze und am Seeufer, unten grösser. Zeilen (x, y, z
-    Blender), Vorlage, Grösse (m), Drehung um z"""
+def boulder_points(n_talus=8000, n_base=1500, n_giant=30, n_bench=900, seed=71):
+    """Blöcke auf der Schutthalde: in Gruppen (Dichte nach einem Rauschfeld), je Gegend grob (Bergsturz) oder fein, am
+    Fuss grösser (grosse Blöcke rollen weiter), oben am Fuss der Wand frisch abgebrochene, dazu einzelne Riesenblöcke;
+    auf dem Absatz kleinere. Lage (x, y, z Blender), Vorlage, Grösse je Achse (m), Drehung (Euler, leicht gekippt)"""
     rng = np.random.default_rng(seed)
-    pts = []
-    while len(pts) < n:
-        m = 4000
-        r = np.sqrt(rng.uniform((FOOT - 2) ** 2, (FOOT + 150) ** 2, m))
-        th = rng.uniform(0, 2 * np.pi, m)
-        x, y = r * np.sin(th), r * np.cos(th)
-        h, u, bench, lip = slope_height(x, y)
-        keep = (u > -0.5) & (h < RIM + 4) & (rng.random(m) < 0.25 + 0.55 * lip + 0.35 * np.exp(-u / 6))
-        for xi, yi, hi, ui, li in zip(x[keep], y[keep], h[keep], u[keep], lip[keep]):
-            size = float(np.clip(rng.lognormal(0.0, 0.5) * (1.0 + 1.2 * np.exp(-ui / 15) + 0.6 * li), 0.4, 6.0))
-            pts.append((xi, yi, LAVA_Z + hi - 0.3 * size, rng.integers(TEMPLATES), size, rng.uniform(0, 2 * np.pi)))
-    return pts[:n]
+    n = n_talus + n_base + n_giant
+    th = rng.uniform(0, 2 * np.pi, n)
+    C = columns(th)
+    s = np.concatenate([rng.random(n_talus) ** 1.3, rng.uniform(0.82, 1.0, n_base), rng.uniform(0.0, 0.5, n_giant)])
+    r = C['rf'] - 0.5 + s * (C['rc'] - C['rf'] - 0.1)
+    x, y = r * np.sin(th), r * np.cos(th)
+    dens = 0.5 + 0.5 * fbm(G3, x * 0.07 + 11.0, y * 0.07 - 5.0, 3)
+    keep = rng.random(n) < np.clip(1.6 * dens - 0.2, 0.05, 1.0)
+    keep[n - n_giant:] = True
+    grain = 0.55 + 1.1 * smoothstep(-0.3, 0.4, fbm(G4, x * 0.05 - 7.0, y * 0.05 + 3.0, 2))   # grob oder fein
+    size = np.clip(rng.lognormal(0.0, 0.55, n) * grain * (0.7 + 1.5 * (1 - s)), 0.3, 4.0)
+    size[n - n_giant:] = rng.uniform(3.5, 7.0, n_giant)
+    z = LAVA_Z + talus_height(r, x, y, C) - 0.3 * size
+    tb = rng.uniform(0, 2 * np.pi, n_bench)
+    Cb = columns(tb)
+    rb = wall_base(Cb, Cb['h1'], 1)
+    rr = rb + 0.6 + rng.random(n_bench) * (Cb['w1'] - 0.9)
+    sb = np.clip(rng.lognormal(0.0, 0.5, n_bench) * 0.8, 0.3, 2.5)
+    zb = LAVA_Z + Cb['h1'] + 0.15 * (rr - rb) - 0.3 * sb
+    on = Cb['w1'] > 1.5
+    pos = np.concatenate([np.stack([x, y, z], -1)[keep], np.stack([rr * np.sin(tb), rr * np.cos(tb), zb], -1)[on]])
+    size = np.concatenate([size[keep], sb[on]])
+    m = len(pos)
+    scl = size[:, None] * np.stack([rng.uniform(1.0, 1.7, m), rng.uniform(0.8, 1.3, m), rng.uniform(0.5, 1.0, m)], -1)
+    rot = np.stack([rng.normal(0, 0.25, m), rng.normal(0, 0.25, m), rng.uniform(0, 2 * np.pi, m)], -1)
+    return pos, rng.integers(TEMPLATES, size=m), scl, rot
 
 
 def build_boulders():
     coll = build_templates()
-    pts = boulder_points()
-    pos = np.array([p[:3] for p in pts]); var = np.array([p[3] for p in pts])
-    size = np.array([p[4] for p in pts]); rot = np.array([p[5] for p in pts])
-    scl = np.stack([size * 1.4, size * 1.1, size * 0.8], -1)
-    eul = np.stack([np.zeros(len(pts)), np.zeros(len(pts)), rot], -1)
-    me = S.points('Bloecke', pos, var, scl, eul)
+    pos, var, scl, rot = boulder_points()
+    me = S.points('Bloecke', pos, var, scl, rot)
     ob = link('Bloecke', me)
     mod = ob.modifiers.new('Bloecke', 'NODES')
     mod.node_group = S.instancer('Bloecke verteilen', coll)
-    log('Blöcke', len(pts))
+    log('Blöcke', len(pos))
 
 
-def build_slope():
-    me = slope_mesh()
-    me.materials.append(mat_scree())
-    link('Boeschung', me)
+def build_wall():
+    me = wall_mesh()
+    me.materials.append(mat_wall())
+    link('Kraterwand', me)
     build_boulders()
 
 
@@ -346,7 +600,8 @@ SKY_LIGHT = 0.6
 AIR_DIST = 900.0      # Dunst im Schlot
 AIR_HEIGHT = 300.0
 GLOW_ENERGY = 1.1e4   # Widerschein der Lava (W): Flächenlampe knapp über dem See, nach oben
-TOP_STRENGTH = 1.1
+GLOW_CORE = 6e4       # Glühen aus dem See (W): Punktlampe über der Mitte, leuchtet die Wand von unten an
+TOP_STRENGTH = 3.0
 TOP_COLOR = (0.55, 0.62, 1.0)
 
 
@@ -404,6 +659,12 @@ def lights():
     ob.rotation_euler = (math.pi, 0, 0)   # Flächenlampen leuchten entlang ihrer −Z: hier nach oben
     ob.visible_camera = False
     ob.visible_glossy = False
+    ld = bpy.data.lights.new('Glut Mitte', 'POINT'); ld.shadow_soft_size = 10.0
+    ld.energy = GLOW_CORE; ld.color = (1.0, 0.36, 0.10)
+    ob = link('Glut Mitte', ld)
+    ob.location = (0.0, 0.0, LAVA_Z + 2.0)
+    ob.visible_camera = False
+    ob.visible_glossy = False
 
 
 def cameras():
@@ -422,7 +683,7 @@ def build():
     """Ganze Szene in die (leere) aktuelle Datei bauen"""
     sc().render.engine = 'CYCLES'
     world()
-    build_slope()
+    build_wall()
     build_rim_rocks()
     build_lake()
     lights()
@@ -437,8 +698,8 @@ def _remove(names):
 
 
 def replace_crater():
-    _remove(['Boeschung', 'Bloecke', 'Felsen nah', 'See'])
-    build_slope()
+    _remove(['Kraterwand', 'Bloecke', 'Felsen nah', 'See'])
+    build_wall()
     build_rim_rocks()
     build_lake()
 
@@ -448,7 +709,7 @@ def replace_world():
     world()
     if old:
         bpy.data.worlds.remove(old)
-    _remove(['Oben', 'Glut See'])
+    _remove(['Oben', 'Glut See', 'Glut Mitte'])
     lights()
 
 

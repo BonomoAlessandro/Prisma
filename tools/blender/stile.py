@@ -10,6 +10,7 @@
 #   spitze      hellster Szenenwert nach dem Malen (Standard 0.95, unter der Bloom-Schwelle)
 #   volumen     Streuungen im Volumen beim Rendern (Standard 2; dichte Wolken bleiben damit innen grau)
 #   rauschen    Stärke der Farbschwankung wie bei Gouache (Standard 0.02; ein gerenderter Himmel wirkt damit fleckig)
+#   pinsel      Grösse der Pinselstriche in Grad (Standard 0.28); kleiner für nahe Felsen mit feinen Linien
 #   textur      Obergrenze eines Kanals in der Textur (anime.py TEX_MAX, Standard 0.91); spitze bleibt darunter
 #   jpeg        Qualität des ganzen Bilds (anime.py pano, Standard 90; die Streifen bleiben bei 90)
 #   himmel      'mondnacht': gemalter Nachthimmel mit Mond, Wolken und Sternen statt des gerenderten (Himmelsmaske);
@@ -62,6 +63,7 @@ STILE = {
         'volumen': 1,     # Dampf im geschlossenen Krater: mehr Streuungen kosteten Stunden
         'jpeg': 82,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
         'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): das satte Orange bliebe sonst bei 255
+        'pinsel': 0.14,   # die Kraterwand ist nah: feinere Striche, die Schichten bleiben lesbar
     },
 }
 
