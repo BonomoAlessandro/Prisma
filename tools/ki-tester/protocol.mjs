@@ -106,7 +106,7 @@ const WUERFEL_ANKER = JSON.parse(read('./anchors-wuerfel.json')).versionen;
  * hier ihren Eintrag; die früheren bleiben stehen.
  */
 export const WUERFEL_FINGERPRINTS = { W1: 'b3600cb3e01e6cf0', W2: '01abed404f7b79b8', W3: 'a5338def1a55f16c',
-  W4: 'b646a90be4fc8fbf' };
+  W4: 'b646a90be4fc8fbf', W5: '4b5c722cf0b56218' };
 export const WUERFEL_VERSION = Object.keys(WUERFEL_ANKER).at(-1);
 export const WUERFEL_FINGERPRINT = WUERFEL_FINGERPRINTS[WUERFEL_VERSION];
 /**

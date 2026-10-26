@@ -202,6 +202,67 @@
           "begruendung": "Platz 74 im Quader, Schwierigkeit 89,0, Farben abzählen. Das zweitschwerste sehr schwere (Ewige Wiederkehr fand ein Tester mühsam, Gefühl 2). Im 7 × 7 × 7: Gefühl 5 und 4, beide A7."
         }
       ]
+    },
+    "W5": {
+      "hinweis": "Entscheid des Koordinators vom 26.10.2026 (.scratch/wuerfel-7x7x5/, Ticket 03): Anker zählen nicht als Urteil. Die 8 Anker aus W4 brauchen darum ein eigenes Urteil, das unter W4 nicht möglich ist; W5 nimmt 8 andere Level, die unter W4 (Läufe wuerfel-0-1 bis -3) im Quader beurteilt sind, je Grad nahe dem unteren und oberen Ende und mit nahe beieinander liegenden Urteilen. Dazu nennt der Auftrag den Quader 7 × 7 × 5 (unter W4 stand dort noch 7 × 7 × 7, die Texte der Level zeigten richtig 7 × 7 × 5; ein KI-Tester hat es bemerkt).",
+      "anker": [
+        {
+          "id": "A1",
+          "name": "Schneebesen",
+          "grad": "leicht",
+          "ende": "unten",
+          "begruendung": "Platz 2 im Quader, Schwierigkeit 23,5, Mischziel aus zwei Quellen. Lauf wuerfel-0-1: Gefühl 3 und 3, A1 und <A1, bleibt."
+        },
+        {
+          "id": "A2",
+          "name": "Zahnbürste",
+          "grad": "leicht",
+          "ende": "oben",
+          "begruendung": "Platz 14 im Quader, Schwierigkeit 36,7, Falle. Lauf wuerfel-0-1: Gefühl 4 und 3, A2-A3 und A2, +1 (Picknick, Stockwerk und Kommode sind Anker von W4, ohne Urteil oder verschoben)."
+        },
+        {
+          "id": "A3",
+          "name": "Tympanon",
+          "grad": "mittel",
+          "ende": "unten",
+          "begruendung": "Platz 19 im Quader, Schwierigkeit 43,4, Mischziel aus zwei Quellen. Lauf wuerfel-0-1: Gefühl 4 und 4, A3 und A2-A3, bleibt."
+        },
+        {
+          "id": "A4",
+          "name": "Mittelbau",
+          "grad": "mittel",
+          "ende": "oben",
+          "begruendung": "Platz 59 im Quader, Schwierigkeit 57,6, Sammelstelle. Lauf wuerfel-0-2: Gefühl 4 und 4, beide A4, bleibt."
+        },
+        {
+          "id": "A5",
+          "name": "Ninive",
+          "grad": "schwer",
+          "ende": "unten",
+          "begruendung": "Platz 64 im Quader, Schwierigkeit 70,3, Sammelstelle. Lauf wuerfel-0-2: Gefühl 4 und 4, A5 und A6, bleibt (bei Himeji lagen die Tester weit auseinander)."
+        },
+        {
+          "id": "A6",
+          "name": "Fatehpur Sikri",
+          "grad": "schwer",
+          "ende": "oben",
+          "begruendung": "Platz 69 im Quader, Schwierigkeit 81,8, Mischziel aus zwei Quellen. Lauf wuerfel-0-1: Gefühl 4 und 5, A6 und A5, bleibt."
+        },
+        {
+          "id": "A7",
+          "name": "Gauss",
+          "grad": "sehr schwer",
+          "ende": "unten",
+          "begruendung": "Platz 72 im Quader, Schwierigkeit 88,1, Farben abzählen. Lauf wuerfel-0-2: Gefühl 4 und 4, A7 und A5-A6, bleibt (Ikosaeder bekam einmal Füllteil)."
+        },
+        {
+          "id": "A8",
+          "name": "Ewige Wiederkehr",
+          "grad": "sehr schwer",
+          "ende": "oben",
+          "begruendung": "Platz 75 im Quader, Schwierigkeit 92,8, Sammelstelle. Das schwerste Level. Lauf wuerfel-0-1: Gefühl 4 und 5, A7 und A6, −3 (im Grad)."
+        }
+      ]
     }
   }
 }
