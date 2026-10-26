@@ -30,3 +30,36 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 3 / 13 /
   - Nach Review 04 werden die 225 entfernten Namen nicht wieder vergeben (`entfernteNamen`).
   - Der Vorrat ist um etwa 230 geprüfte Namen ergänzt.
 - **Golden und Tests:** Golden nachgeführt (634 Level). Alle Tests mit Exit 0, je Test geprüft.
+
+**26.10.2026, Reviewer, Branch `review/quader-05`:** in Ordnung, mit fünf Umbenennungen.
+
+- **Umbenannt:**
+  - Puppenstube → Kehrblech (dasselbe Grundwort wie Bauernstube)
+  - Chorgestühl → Gasometer (Gestühl wie Glockenstuhl)
+  - Bibliothek → Theaterloge (steckt in „Bibliothek von Babel“)
+  - Kontrafagott → Okarina (enthält Fagott)
+  - Borges → Dedekind (Borges ist ein Schriftsteller, keine Mathematik; neben Aleph und dem früheren „Bibliothek von
+    Babel“ eine Häufung)
+
+  Die Gegennamen stehen auf `entfernteNamen`, aber auf main noch im Spiel. Wer dort gespielt hat, kennt sie. Golden
+  ist nachgeführt.
+- **Geprüft, in Ordnung:**
+  - Die Namen sind eindeutig, keiner steht auf `entfernteNamen`, und keiner stösst an einen Namen im Spiel. Cusco hat
+    kein Cuzco neben sich, Kolmogorow kein Kolmogorov.
+  - Die Verteilung ist 24 / 69 / 22 / 10, neu 3 / 13 / 6 / 3.
+  - Die Herkunft ist vollständig: Neue Level haben Stand 74361c6. Die 6 umgerechneten Level haben den Stand im
+    7 × 7 × 7 und „gesenkt um N“.
+  - Die Ebenen-Regel gilt für alle 25. Vestibül liegt mit den Ebenen 0–2 knapp darin.
+  - Protokoll: wuerfel-2-q hat 25 Urteile, 24 im Spiel plus a1f97f10 (ersetzt). wuerfel-2-q2 hat 1 Urteil, für
+    39b02c38 (jetzt Kehrblech). Keines ist abgelehnt.
+  - Die Anker-Plätze steigen: 4/23/29/92/106/113/121/122 und 3/19/30/91/106/113/124/125.
+  - Die Anker-Einträge von Tester A zu entfernen ist in Ordnung. Der Auftrag verlangt nur ein Urteil je Level. Die 25
+    Urteile sind genau gleich wie in `urteile.json.mit-ankern`, und die 8 entfernten Einträge sind nur A1–A8 mit der
+    eigenen Kennung.
+  - Bilder, Stichproben L1, L16 und L20: Die Level gehen sichtbar über mehrere Ebenen, mit Elementen am Boden.
+- **Offen:**
+  - Kasematte und Hängematte (entfernt) enden gleich, haben aber kein gemeinsames Grundwort. Darum bleibt Kasematte.
+  - Im Namen-Vorrat `tests/output/wuerfel/namen-vorrat.json` tragen viele Namen für „mittel“ dasselbe Grundwort, etwa
+    Badehaus, Backhaus, Waschhaus oder Sägewerk, Stellwerk. Daraus darf jeweils nur einer ins Spiel. Ab Gruppe 3
+    darauf achten.
+- **Tests,** je mit Exit 0: wuerfelliste (20), levelliste (56), ki-tester (84), beurteilung (206), logic, golden.
