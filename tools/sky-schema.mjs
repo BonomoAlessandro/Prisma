@@ -22,7 +22,9 @@ export const BUDGET = {
   registryBytes: 30e3,       // backgrounds/skies.js
   baseBytes: 2e6, baseGpuMB: 64,     // was jedes Gerät lädt
   totalBytes: 8e6, totalGpuMB: 300,  // alle Teile einer Skybox
-  precacheBytes: 3.5e6,      // alle vorab gespeicherten Teile zusammen (sw.js); mit den Felsen des Strands (PLAN 2.36)
+  // alle vorab gespeicherten Teile zusammen (sw.js); mit den Felsen des Strands (PLAN 2.36) und dem Vulkan (PLAN 1.2).
+  // Jede weitere Skybox kostet rund 1–2 MB: vor der nächsten entscheiden, ob base aller Skyboxen vorab kommen muss
+  precacheBytes: 4.5e6,
 };
 export const BLOOM_THRESHOLD = 1.0; // LOOK.bloomThreshold mit HDR: hellere Werte leuchten auf
 
@@ -57,6 +59,12 @@ const isPlantLight = (v) => Array.isArray(v?.sh) && v.sh.length === 9 && v.sh.ev
   && isColor(v.emit) && isNum(v.translucent) && v.airDist > 0 && isNum(v.paint?.exposure) && isNum(v.paint?.saturation)
   && isColor(v.paint?.shadow) && isColor(v.paint?.light);
 const isInt = (v) => Number.isInteger(v) && v > 0;
+const isPos = (v) => isNum(v) && v > 0;
+/** [von, bis] mit 0 < von <= bis */
+const isRange = (v) => isVec(v, 2) && v[0] > 0 && v[1] >= v[0];
+/** Farbe, die nicht aufblüht (jeder Kanal unter der Bloom-Schwelle); isGlow(n): n solche */
+const isBright = (v) => isColor(v) && Math.max(...v) < BLOOM_THRESHOLD;
+const isGlow = (n) => (v) => Array.isArray(v) && v.length === n && v.every(isBright);
 /** Pinsel der Skybox (createBrushPass): Felder optional, in ihrem Bereich */
 const BRUSH_RANGES = { size: [0.01, 2], uniformity: [0, 50], sharpness: [0, 1], eccentricity: [0, 2] };
 const isBrush = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -95,6 +103,18 @@ const LAYER_PARAMS = {
   },
   bakedMesh: {
     data: (v) => typeof v === 'string',
+  },
+  // Vulkan: Lavasee. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
+  // liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
+  lavaPool: {
+    level: isNum, lift: (v) => isNum(v) && v >= 0, radius: isPos, fade: isPos, seed: isNum,
+    calm: (v) => isVec(v) && v[0] >= 0 && v[1] > v[0] && v[2] >= 0 && v[2] <= 1,
+    plates: (v) => isPos(v?.scale) && isVec(v.drift, 2) && isNum(v.churn) && isNum(v.crack) && v.crack > 0
+      && v.crack < 0.5 && isNum(v.fine) && v.fine >= 0 && v.fine <= 1,
+    heat: isGlow(3), crust: (v) => Array.isArray(v) && v.length === 2 && v.every(isColor),
+    bursts: (v) => isInt(v?.count) && v.count <= 32 && isRange(v.ring) && isRange(v.size) && isRange(v.period),
+    spatter: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
+    sparks: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),
@@ -192,6 +212,7 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
         err(`Ebene paintedInstances: Daten ${l.data} ohne light (sh, sun, emit, translucent, airDist, paint)`);
       }
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
+      if (l.type === 'lavaPool' && !(l.fade < l.radius)) err('Ebene lavaPool: fade muss kleiner sein als radius');
       if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
         err('Ebene fishSchools: braucht davor waterSurface');
       }

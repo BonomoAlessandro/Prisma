@@ -865,6 +865,20 @@ console.log('Offline');
   test('Skyboxen: nichts Verwaistes in backgrounds/ (alte Stände räumt pack.mjs weg)', () => {
     assert.deepEqual(orphans(root, skies), []);
   });
+  test('Skyboxen: Ebenen des Vulkans – Prüfung lehnt grelle Lava, zu breiten Rand, fehlende Blasen und falsche Bereiche ab', () => {
+    const volcano = skies.find((s) => s.id === 'volcano');
+    assert.ok(volcano, 'Skybox volcano fehlt im Register');
+    const pool = volcano.layers.find((l) => l.type === 'lavaPool') ?? assert.fail('volcano ohne Ebene lavaPool');
+    assert.ok(volcano.layers.some((l) => l.type === 'bakedMesh'), 'volcano ohne Felsbrocken (bakedMesh)');
+    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom See');
+    assert.ok(errorsWith({ spatter: { ...pool.spatter, color: [1.0, 0.9, 0.5] } }).some((e) => /spatter/.test(e)), 'Bloom Spritzer');
+    assert.ok(errorsWith({ fade: pool.radius }).some((e) => /fade/.test(e)), 'Rand');
+    assert.ok(errorsWith({ bursts: undefined }).some((e) => /bursts/.test(e)), 'Blasen');
+    assert.ok(errorsWith({ plates: { ...pool.plates, crack: 0.7 } }).some((e) => /plates/.test(e)), 'Risse');
+    assert.ok(errorsWith({ bursts: { ...pool.bursts, ring: [20, 10] } }).some((e) => /bursts/.test(e)), 'Blasenring');
+  });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
     assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);

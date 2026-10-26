@@ -22675,6 +22675,192 @@ function mistSheets(ctx, opt) {
 }
 
 /**
+ * Lavasee unter dem Brett (Vulkan, wie der Nyiragongo): eine Scheibe auf der Höhe level (+ lift zur Kamera hin, für
+ * den Tiefentest gegen das Netz des Panoramas), Radius radius, am Rand über fade ins gemalte Panorama ausgeblendet.
+ * Dunkle Krustenplatten (crust: zwei Töne) mit unregelmässigen, glühenden Rissen in zwei Grössen (plates: Platten
+ * scale m, feinere Risse fine im Anteil der Platten, Breite crack im Anteil der Zelle); die Platten treiben (drift, m/s)
+ * und verformen sich langsam (churn), die Risse öffnen und schliessen sich. Farbe der Glut nach Hitze (heat: Kern,
+ * heiss, tief). Gasblasen (bursts: count Stellen im Ring ring, Radius size, Dauer period in s) wölben die Kruste auf,
+ * ihre Risse glühen auf, dann reisst sie, Lava spritzt kurz hoch (spatter: Tropfen je Blase, Höhe height in m, Grösse
+ * size) und kühlt wieder zu Kruste ab. Dazu Funken (sparks). Nahe beim Brett (calm: Radien, Faktor) glüht alles
+ * gedämpfter. Alle Farben sind Szenenwerte unter der Bloom-Schwelle.
+ */
+function lavaPool(ctx, opt) {
+  const out = new THREE.Group();
+  const y0 = opt.level + opt.lift;
+  const [calm0, calm1, calmK] = opt.calm;
+  const [core, hot, deep] = opt.heat;
+  const pl = opt.plates, bu = opt.bursts, sp = opt.spatter;
+  const rand = mulberry32(opt.seed);
+  // Blasen: Ort, Dauer, Versatz (gemeinsam für Scheibe und Spritzer)
+  const bursts = Array.from({ length: bu.count }, () => {
+    const a = rand() * 2 * Math.PI, r = bu.ring[0] + rand() * (bu.ring[1] - bu.ring[0]);
+    return { x: Math.sin(a) * r, z: Math.cos(a) * r, period: bu.period[0] + rand() * (bu.period[1] - bu.period[0]),
+      offset: rand(), size: bu.size[0] + rand() * (bu.size[1] - bu.size[0]) };
+  });
+  const burstU = bursts.map((b) => new THREE.Vector4(b.x, b.z, b.period, b.offset));
+  const sizeU = bursts.map((b) => b.size);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(opt.radius, 160).rotateX(-Math.PI / 2), new THREE.ShaderMaterial({
+    uniforms: { ...ctx.uniforms, uBursts: { value: burstU }, uBurstR: { value: sizeU } },
+    transparent: true, depthWrite: false,
+    vertexShader: `varying vec3 vPos;
+        void main() {
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vPos = wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+    fragmentShader: `uniform float uTime, uFade, uReady;
+        uniform vec4 uBursts[${bu.count}];
+        uniform float uBurstR[${bu.count}];
+        varying vec3 vPos;
+        ${GLSL_NOISE}
+        vec2 hash2(vec2 p) {
+          p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+          return fract(sin(p) * 43758.5453);
+        }
+        // Abstand zur nächsten Zellgrenze (Anteil der Zelle); die Zellpunkte kreisen langsam (die Platten verformen sich)
+        float cells(vec2 x, float t) {
+          vec2 n = floor(x), f = fract(x), mg = vec2(0.0), mr = vec2(0.0);
+          float md = 8.0;
+          for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j)), o = 0.5 + 0.4 * sin(t + 6.2831 * hash2(n + g));
+            vec2 r = g + o - f;
+            float d = dot(r, r);
+            if (d < md) { md = d; mr = r; mg = g; }
+          }
+          md = 8.0;
+          for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) {
+            vec2 g = mg + vec2(float(i), float(j)), o = 0.5 + 0.4 * sin(t + 6.2831 * hash2(n + g));
+            vec2 r = g + o - f;
+            if (dot(mr - r, mr - r) > 1e-5) md = min(md, dot(0.5 * (mr + r), normalize(r - mr)));
+          }
+          return md;
+        }
+        const vec3 CORE = ${glv(core)}, HOT = ${glv(hot)}, DEEP = ${glv(deep)};
+        const vec3 CRUST0 = ${glv(opt.crust[0])}, CRUST1 = ${glv(opt.crust[1])};
+        vec3 glow(float h) { return h < 0.5 ? mix(DEEP, HOT, h * 2.0) : mix(HOT, CORE, h * 2.0 - 1.0); }
+        void main() {
+          vec2 p = vPos.xz;
+          float t = uTime;
+          vec2 q = p - ${glv(pl.drift)} * t;
+          vec2 w = q + (vec2(fbm3(vec3(q * 0.12, t * 0.02)), fbm3(vec3(q * 0.12 + 7.0, t * 0.02))) - 0.44) * 8.0;
+          float open = 0.7 + 0.6 * noise(vec3(p * 0.15, t * 0.25));            // Risse atmen
+          float big = cells(w / ${glf(pl.scale)}, t * ${glf(pl.churn)});
+          float small = cells(w / ${glf(pl.scale * 0.32)} + 9.0, t * ${glf(pl.churn * 1.3)});
+          float cw = ${glf(pl.crack)} * open;
+          float k1 = (1.0 - smoothstep(0.0, cw, big)) * mix(0.5, 1.0, smoothstep(0.3, 0.65, noise(vec3(w * 0.4, 2.0))));
+          float k2 = (1.0 - smoothstep(0.0, cw * 0.8, small)) * smoothstep(${glf(1 - pl.fine)}, ${glf(1 - pl.fine + 0.12)}, noise(vec3(p * 0.3, 5.0))) * 0.75;
+          float heat = max(k1, k2);
+          float halo = (1.0 - smoothstep(0.0, cw * 3.5, big)) * 0.18;            // Kruste neben den Rissen glimmt
+          vec3 crust = mix(CRUST0, CRUST1, noise(vec3(w * 0.5, 1.0)));
+          // Blasen: Kruste wölbt sich, Risse glühen auf, reisst, glüht hell, kühlt ab
+          for (int i = 0; i < ${bu.count}; i++) {
+            vec4 b = uBursts[i];
+            float R = uBurstR[i];
+            float ph = fract(t / b.z + b.w);
+            vec2 d = p - b.xy;
+            float r = length(d);
+            if (r > R * 3.0) continue;
+            if (ph < 0.55) {                                                   // aufwölben
+              float s = ph / 0.55, rr = R * (0.4 + 0.6 * s);
+              float inside = 1.0 - smoothstep(rr * 0.85, rr, r);
+              float torn = 1.0 - smoothstep(0.0, cw * (0.8 + 1.2 * s), small);   // die feinen Risse reissen auf
+              crust = mix(crust, crust * 1.6 + 0.01, inside * s);                // gespannt, heller
+              heat = max(heat, inside * torn * s * s * 0.85);
+              heat = max(heat, (1.0 - smoothstep(rr, rr * 1.15, r)) * smoothstep(rr * 0.8, rr, r) * s * 0.6);
+            } else if (ph < 0.68) {                                            // aufgerissen: helle Lava
+              float s = (ph - 0.55) / 0.13;
+              float edge = R * (1.0 + 0.45 * s) * (0.75 + 0.5 * noise(vec3(d * 2.5, b.w * 30.0 + s)));
+              heat = max(heat, (1.0 - smoothstep(edge * 0.8, edge, r)) * (0.7 + 0.3 * (1.0 - r / edge)));
+            } else {                                                           // abkühlen, Spritzer ringsum
+              float s = (ph - 0.68) / 0.32;
+              float edge = R * (1.1 - 0.6 * s) * (0.75 + 0.5 * noise(vec3(d * 2.5, b.w * 30.0 + 1.0)));
+              float spot = (1.0 - smoothstep(edge * 0.75, edge, r)) * (0.6 + 0.4 * (1.0 - r / edge));
+              float drops = step(0.86, noise(vec3(d * 5.0, b.w * 40.0))) * (1.0 - smoothstep(R, R * 2.6, r));
+              heat = max(heat, max(spot, drops * 0.8) * (1.0 - s) * (1.0 - s));
+            }
+          }
+          float calm = mix(${glf(calmK)}, 1.0, smoothstep(${glf(calm0)}, ${glf(calm1)}, length(p)));
+          vec3 col = crust + DEEP * halo * calm;
+          col = mix(col, glow(heat) * calm, smoothstep(0.02, 0.25, heat));
+          float a = 1.0 - smoothstep(${glf(opt.radius - opt.fade)}, ${glf(opt.radius)}, length(p));
+          gl_FragColor = vec4(col, a * uFade * uReady);
+        }`,
+  }));
+  disc.position.y = y0;
+  disc.frustumCulled = false;
+  disc.renderOrder = -900; // gleich nach dem Panorama, vor allem Übrigen
+  out.add(disc);
+
+  // Spritzer (beim Aufreissen hochgeworfen, im Bogen zurück) und Funken (steigen auf): Punkte, Grösse in Metern
+  const screenH = { value: 1 };
+  const P = [], A = [], B = [];
+  for (const b of bursts) {
+    for (let k = 0; k < sp.count; k++) {
+      const a = rand() * 2 * Math.PI, h = rand() * 1.4;
+      P.push(b.x, y0, b.z);
+      A.push(Math.cos(a) * h, sp.height * (0.5 + 0.5 * rand()), Math.sin(a) * h, -1);   // Geschwindigkeit; w < 0: Spritzer
+      B.push(b.period, b.offset, 0, 0);
+    }
+  }
+  const sk = opt.sparks;
+  for (let i = 0; i < sk.count; i++) {
+    const a = rand() * 2 * Math.PI, r = Math.sqrt(rand()) * (opt.radius - opt.fade);
+    P.push(Math.sin(a) * r, y0, Math.cos(a) * r);
+    A.push(0, sk.height * (0.5 + 0.5 * rand()), 0, rand());
+    B.push(1.6 + rand() * 2.4, rand(), 0, 0);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+  geo.setAttribute('aVel', new THREE.Float32BufferAttribute(A, 4));
+  geo.setAttribute('aTime', new THREE.Float32BufferAttribute(B, 4));
+  const drops = new THREE.Points(geo, new THREE.ShaderMaterial({
+    uniforms: { ...ctx.pointUniforms, uScreenH: screenH },
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute vec4 aVel, aTime;
+        uniform float uTime, uScreenH;
+        varying float vOn, vCool;
+        void main() {
+          vec3 p = position;
+          float size;
+          if (aVel.w < 0.0) {                         // Spritzer: ab dem Aufreissen (Phase 0.55) im Bogen
+            float tau = (fract(uTime / aTime.x + aTime.y) - 0.55) * aTime.x;
+            float vy = sqrt(2.0 * 9.81 * aVel.y);
+            p += vec3(aVel.x * tau, vy * tau - 4.905 * tau * tau, aVel.z * tau);
+            vOn = step(0.0, tau) * step(${glf(opt.level)}, p.y);
+            vCool = clamp(tau / 1.2, 0.0, 1.0);
+            size = ${glf(sp.size)};
+          } else {                                    // Funke: steigt auf, schwankt
+            float ph = fract(uTime / aTime.x + aTime.y * 13.0), s = aVel.w * 6.2831;
+            p += vec3(sin(uTime * 1.3 + s) * 0.8 * ph, ph * aVel.y, cos(uTime * 1.1 + s) * 0.8 * ph);
+            vOn = 1.0 - smoothstep(0.6, 1.0, ph);
+            vCool = ph;
+            size = ${glf(sk.size)};
+          }
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = max(size * projectionMatrix[1][1] * 0.5 * uScreenH / max(-mv.z, 0.1), 1.5);
+        }`,
+    fragmentShader: `uniform float uFade, uReady;
+        varying float vOn, vCool;
+        void main() {
+          float r = length(gl_PointCoord - 0.5) * 2.0;
+          float a = (1.0 - smoothstep(0.5, 1.0, r)) * vOn;
+          vec3 col = mix(${glv(sp.color)}, ${glv(sk.color)}, vCool);   // kühlt ab: gelb zu rot
+          gl_FragColor = vec4(col * a * uFade * uReady, 0.0);
+        }`,
+  }));
+  drops.frustumCulled = false;
+  drops.renderOrder = 6;
+  out.add(drops);
+  const size = new THREE.Vector2();
+  out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
+  return out;
+}
+
+/**
  * Kachelbare Wellen fürs Wasser (waterSurface): RGB = Normale feiner Wellen (Summe von Sinuswellen mit ganzzahligen
  * Wellenzahlen, vorwiegend in einer Richtung), A = kachelbares Rauschen (Lücken der Brecher). Generator (yield je Zeile).
  */
@@ -23970,7 +24156,7 @@ function fishSchools(ctx, opt) {
   return holder;
 }
 
-const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh };
+const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool };
 
 /**
  * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):

@@ -174,6 +174,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
   Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
+- **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt im Schlot über einem Lavasee, Vorbilder Nyiragongo (See) und
+  Masaya (Wand): Rundum eine steile, geschichtete Kraterwand in zwei Stufen mit schmalem Absatz, im Grundriss aus
+  geraden Flächen (Rippen und Buchten in wechselnden Abständen, ruhige und wilde Abschnitte, V-förmige Rinnen,
+  manche erst weit oben), aus Gesteinsbänken mit dünnen Lagen und kantigen Felsflächen; am Fuss eine Schutthalde,
+  je nach Stelle Fächer, Kegel oder fast kahl, mit Felsblöcken wie am Strand in Gruppen, dazu Riesenblöcke. Licht:
+  warm von der Lava unten, kühl vom Mond oben. Szene in `tools/blender/szenen/volcano/szene.py` (in Cycles gerendert,
+  gemalt mit dem Stil `volcano` in `stile.py` wie der Strand, feinere Pinselstriche `pinsel`, weil die Wand nah ist). `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')`
+  (ohne MCP auch headless mit denselben Skripten über `wald_mcp.run`), danach `node tools/blender/pack.mjs volcano`.
+  Bewegt zeichnet das Spiel den See ums Brett (`lavaPool`: treibende Krustenplatten mit glühenden Rissen, die sich
+  öffnen und schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken); Blender
+  malt dort nur die Kruste. Ein Dutzend Felsbrocken am Ufer zeichnet das Spiel wie die nahen Felsen am Strand
+  (`bakedMesh`, Licht gebacken und gemalt, `export()` der Szene).
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der
