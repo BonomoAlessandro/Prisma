@@ -40,3 +40,46 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 /
 - **Namen:** Keksdose, Bauernhof, Pantoffel, Mütze, Deichtor, Trockendock, Drehbank, Museum, Mandoline, Tapisserie, Alphorn, Posaune, Kombüse, Trommel, Cembalo, Palisade, Taubenschlag, Kölner Dom, Kyoto, Ephesos, Karthago, Prambanan, Nazca, Julia-Menge, Turing.
   - Die 225 Namen der entfernten Level stehen wieder im Vorrat, daher auch Palisade und Taubenschlag.
 - **Golden und Tests:** Golden nachgeführt (609 Level), alle Tests mit Exit 0.
+
+**26.10.2026, Reviewer (Tickets 03 und 04), Branch `review/quader-04`:** in Ordnung, mit drei kleinen Korrekturen.
+
+- **Behoben:**
+  - **Test rot:** In `wuerfelliste.test.mjs` schlug „Grenz-Duldung: ein leichtes Level der Liste …“ fehl (Exit 1). Er
+    nahm `GRENZ_DULDUNG[0]`, und die Liste ist jetzt leer. Neu nimmt `wuerfelReihenfolge` dafür `obenAuch` (Vorgabe
+    `GRENZ_DULDUNG`), und der Test gibt eine eigene Liste. So bleibt der Mechanismus geprüft.
+  - **Namen: Cembalo, Palisade und Taubenschlag heissen jetzt Ölmühle, Fallgatter und Bienenkorb.**
+    - Alle drei sind Namen entfernter Level (mit anderem Seed).
+    - Der Fortschritt im Browser zählt nach Namen. Wer bei 300 Würfel-Leveln Palisade gelöst hatte, sähe die neue
+      Palisade als gelöst, denn `progress.load` filtert nur unbekannte Namen.
+    - Ausserdem gibt es im Würfel schon viele Instrumente (Review Ticket 12 der Spec wuerfel-500).
+    - Golden ist nachgeführt.
+  - Die verwaiste JSDoc-Zeile vor `WUERFEL` ist gestrichen.
+- **Neue Tests:**
+  - `heutigeAnker` an einem erfundenen Fall. Mit den heutigen Plätzen ist die Korrektur −2, mit den Plätzen beim Lauf
+    wäre sie −4. Rückfall, wenn ein Anker nicht im Spiel steht oder die Anker nicht nach Platz stehen.
+  - Über alle 100 Urteile: Jedes findet seine Anker im Spiel und nach Platz in der Formel, ohne Rückfall.
+  - Der Test der Verteilung prüft auch die Spalte „neu“ beider Tabellen.
+- **Geprüft, in Ordnung:**
+  - `heutigeAnker` rechnet Level und Anker im selben Rahmen: `formel`, vor den eigenen Korrekturen, denn
+    `referenz.position` ist `formel[i]`.
+  - Flache Einträge haben kein `wuerfel` und bleiben wie bisher (golden und levelliste grün).
+  - Urteile zu entfernten Leveln zählen nicht.
+  - `bestandNach` und `anteilig` stimmen mit beiden Tabellen überein, auch mit wuerfel-500 bis Gruppe 12.
+  - Protokoll:
+    - wuerfel-0-1 bis -3: W4, 67 Level.
+    - wuerfel-0-4: W5, die 8 Anker aus W4.
+    - wuerfel-1-q2: W6, 25 Kandidaten.
+    - Zusammen 100 verschiedene Level, keines abgelehnt.
+  - Stichproben der Bilder aus wuerfel-1-q2 (L2, L10, L13): Die Level gehen über mehrere Ebenen, mit Elementen unten.
+- **Offen, für Ticket 05:**
+  - Der Rückfall in `heutigeAnker` geschieht still. Wird ein Anker-Level umbenannt, rechnen seine Urteile wieder mit
+    den Plätzen beim Lauf, also mit dem alten Fehler. Der neue Test fängt das ab. Ein Fehler statt des Rückfalls wäre
+    vielleicht besser.
+  - **W6:** Möbiusband (A7, „unten“) und Gauss (A8, „oben“) stehen im Spiel jetzt auf Platz 99 und 100, nicht auf
+    97 und 98 wie in der Begründung. Banach-Tarski, Ewige Wiederkehr und Ikosaeder rücken vor sie.
+    - Dadurch gibt es in „sehr schwer“ kaum noch „>A8“, und das untere Ende ist nicht verankert.
+    - Eine W7 prüfen, sobald die Vorschau von Gruppe 2 steht.
+  - **W5 A2 (Zahnbürste):** In der Begründung heisst es „Picknick, Stockwerk und Kommode sind Anker von W4“. Das stimmt
+    nur für Picknick. Eine Korrektur würde den Fingerabdruck ändern, darum ist es nur vermerkt.
+  - **Namen entfernter Level wieder vergeben:** Die Spec lässt es zu. Weil der Fortschritt nach Namen zählt, besser
+    nicht. Falls es gewollt ist, eine Frage an den Nutzer.
