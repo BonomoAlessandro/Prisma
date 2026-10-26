@@ -16,7 +16,8 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
 import { fallendeSeiten, haeufungen, ladeLevelliste, obenIn, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRENZ_DULDUNG, GRUPPEN, WUERFEL_TEXT, ZIEL, bestandNach, istWuerfel, verletzt, wuerfelReihenfolge,
+  GRENZ_DULDUNG, GRUPPEN, QUADER, WUERFEL_TEXT, ZIEL, bestandNach, ebenenVerletzt, getroffeneEbenen, istWuerfel, senke,
+  verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
 import { KERN } from './wuerfel-handgebaut.mjs';
 
@@ -181,6 +182,30 @@ await test('Leveldaten als Text: ein Würfel-Level liest sich zurück, sein Abdr
   delete ohne.height;
   assert.notEqual(abdruck(quader), abdruck(ohne));
   assert.equal(abdruck({ ...flach, height: 7 }), abdruck(flach));
+});
+await test('Ebenen-Regel (Dauerregel): getroffene Ebenen in der Lösung, Zierstück zählt nicht, am Boden', () => {
+  // Quelle unten, Spiegel mit Achse z lenkt nach oben, Spiegel auf Ebene 2 nach Süd, Ziel auf Ebene 2: zwei Ebenen
+  const level = { name: 'Probe', ...QUADER, elements: [
+    { type: 'source', x: 0, y: 0, z: 0, dir: 0 }, { type: 'mirror', x: 3, y: 0, z: 0, axis: 'z', rot: 0 },
+    { type: 'mirror', x: 3, y: 2, z: 0, axis: 'x', rot: 0 }, { type: 'target', x: 3, y: 2, z: 5 },
+    { type: 'blocker', x: 6, y: 4, z: 6 }], solution: { '3,0,0': 3, '3,2,0': 1 } };
+  assert.ok(L.traceBeams(L.createBoard({ ...level, elements: level.elements.map(e => {
+    const k = `${e.x},${e.y},${e.z}`;
+    return k in level.solution ? { ...e, rot: level.solution[k] } : e;
+  }) })).solved, 'Probe gelöst');
+  assert.deepEqual(getroffeneEbenen(level), [0, 2]);
+  assert.equal(ebenenVerletzt(level).length, 1, 'der Blocker auf Ebene 4 zählt nicht');
+  // Ziel eine Ebene höher (Spiegel auf Ebene 2 nach Süd und oben geht nicht): Ziel und Spiegel auf Ebene 4
+  const drei = { ...level, elements: level.elements.map(e => (e.type === 'target' ? { ...e, y: 4 } : e.y === 2 ? { ...e, y: 4 } : e)),
+    solution: { '3,0,0': 3, '3,4,0': 1 } };
+  const mitte = { ...drei, elements: [...drei.elements, { type: 'filter', x: 3, y: 2, z: 0, color: 'white' }] };
+  assert.deepEqual(getroffeneEbenen(mitte), [0, 2, 4]);
+  assert.deepEqual(ebenenVerletzt(mitte), []);
+  // gehoben: schwebt; gesenkt wieder am Boden, Lösung und getroffene Ebenen wie vorher
+  const hoch = { ...mitte, height: 7, elements: mitte.elements.map(e => ({ ...e, y: e.y + 1 })),
+    solution: { '3,1,0': 3, '3,5,0': 1 } };
+  assert.ok(ebenenVerletzt(hoch).some(t => /schwebt/.test(t)));
+  assert.deepEqual(senke(hoch, 1), { ...mitte, height: 5 });
 });
 await test('Ähnlichkeit im Quader 7 × 7 × 5: nur Symmetrien, die y erhalten; Würfel und Quader nie ähnlich', () => {
   const q = { name: 'q', dim: 3, size: 7, height: 5, solution: {}, elements: [

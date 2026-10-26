@@ -21,11 +21,20 @@
 //   bleibt die Häufung offen (Ausgabe „Häufungsregel: offen …“).
 //   --behalte <datei>: eine frühere Wahl, deren Level gesetzt sind (etwa nach einer Ablehnung durch die KI-Tester ohne
 //   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…>: Kandidaten (Name bei den KI-Testern, „Kandidat
-//   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen).
+//   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen), mit
+//   stand und gesenkt (umrechnen), wo der Pool sie trägt. Ein Kandidat, der die Ebenen-Regel verletzt, kommt nie in Frage.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/wuerfel.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
 //       [--behalte <datei>] [--ohne <name,…>]
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/wuerfel.mjs bedarf
+// umrechnen: Kandidaten aus Pools im Würfel 7 × 7 × 7 in den Quader QUADER (7 × 7 × 5, .scratch/wuerfel-7x7x5/,
+//   Ticket 02). Ein Kandidat kommt mit, wenn seine Elemente in 5 Ebenen passen und er nach dem Senken (unterstes
+//   Element auf y = 0) die Ebenen-Regel erfüllt (ebenenVerletzt). Seine Lösung bleibt dieselbe: Über der obersten Ebene
+//   mit Elementen ist nur leerer Raum, ein Strahl dorthin läuft so oder so aus. Er wird im Quader neu beurteilt (mit
+//   dem Grad seines Auftrags); mit Ausschlussgrund fällt er weg. Die Zeile wie bei ausbau.mjs pool, mit Auftrag, Seed
+//   und Stand aus dem Würfel 7 × 7 × 7 und gesenkt: um so viele Ebenen (Herkunft: der Seed baut auf diesem Stand das
+//   Level im Würfel, gesenkt ist es das im Quader).
+//     LEISE_CPU=50 sh tools/leise.sh node tools/wuerfel.mjs umrechnen --pool <datei>[,<datei> …] --aus <datei>
 import { readFileSync, writeFileSync } from 'node:fs';
 import { L } from './solver.mjs';
 import { GRADE } from './beurteilung/index.mjs';
@@ -38,7 +47,8 @@ import { kandidatName } from './leveldaten.mjs';
 import { aehnlichkeit, AEHNLICH_AB } from './aehnlichkeit.mjs';
 import { zaehlendeWuerfelUrteile } from './levelliste.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
-import { GRUPPEN, WUERFEL_TEXT, bestandNach, istWuerfel, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { GRUPPEN, QUADER, WUERFEL_TEXT, bestandNach, ebenenVerletzt, istWuerfel, senke, wuerfelReihenfolge }
+  from './wuerfelliste.mjs';
 
 /**
  * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als tools/ausbau.mjs (dort
@@ -60,7 +70,49 @@ const neuImSpiel = () => Object.fromEntries(GRADE.map(g => [g, L.LEVELS_3D.filte
 
 if (args[0] === 'wahl') await wahl();
 else if (args[0] === 'bedarf') bedarf();
-else fail('Aufruf: node tools/wuerfel.mjs wahl|bedarf … (siehe Kopf)');
+else if (args[0] === 'umrechnen') await umrechnen();
+else fail('Aufruf: node tools/wuerfel.mjs wahl|bedarf|umrechnen … (siehe Kopf)');
+
+
+async function umrechnen() {
+  const aus = flag('--aus', null), pools = flag('--pool', null);
+  if (!aus || !pools) fail('Aufruf: node tools/wuerfel.mjs umrechnen --pool <datei>[,<datei> …] --aus <datei>');
+  if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
+  const t0 = Date.now(), gruende = {}, zaehle = (g) => { gruende[g] = (gruende[g] || 0) + 1; };
+  const gesehen = new Set(L.LEVELS_3D.map(kandidatName)), passend = [];
+  let gelesen = 0;
+  for (const k of pools.split(',').flatMap(leseJsonl)) {
+    gelesen++;
+    if (k.level.dim !== 3 || k.level.size !== QUADER.size || (k.level.height ?? k.level.size) !== QUADER.size) {
+      zaehle(`kein Würfel ${QUADER.size} × ${QUADER.size} × ${QUADER.size}`);
+      continue;
+    }
+    const ys = k.level.elements.map(e => e.y), tief = Math.min(...ys);
+    if (Math.max(...ys) - tief >= QUADER.height) { zaehle(`passt nicht in ${QUADER.height} Ebenen`); continue; }
+    const level = senke(k.level, tief);
+    if (ebenenVerletzt(level).length) { zaehle('Ebenen-Regel'); continue; }
+    const name = kandidatName(level);
+    if (gesehen.has(name)) { zaehle('doppelt oder im Spiel'); continue; }
+    gesehen.add(name);
+    passend.push({ k, level, tief });
+  }
+  const grad = (auftrag) => auftrag.replace(/-[a-z]+$/, '');
+  const b = await beurteileAlle(passend.map(p => ({ level: p.level, opts: { grad: grad(p.k.auftrag), teuer: true } })));
+  const zeilen = [];
+  passend.forEach(({ k, level, tief }, i) => {
+    if (b[i].ausschluesse.length) { zaehle('Ausschlussgrund im Quader'); return; }
+    const { auftrag, seed, ziel, stand } = k;
+    zeilen.push(JSON.stringify({ auftrag, seed, ...(ziel ? { ziel } : {}), level, schwierigkeit: b[i].schwierigkeit.wert,
+      spielwert: b[i].spielwert.wert, hauptKernidee: b[i].hauptKernidee.begriff,
+      kernideen: [...new Set(b[i].kernideen.map(x => x.begriff))], stand, gesenkt: tief }) + '\n');
+  });
+  writeFileSync(aus, zeilen.join(''));
+  const je = Object.fromEntries(GRADE.map(g => [g, zeilen.map(z => JSON.parse(z)).filter(z => grad(z.auftrag) === g
+    && gradVon(z.schwierigkeit) === g).length]));
+  console.log(`umrechnen: ${gelesen} gelesen, ${zeilen.length} nach ${aus} (Grad wie im Auftrag: `
+    + `${GRADE.map(g => `${g} ${je[g]}`).join(', ')}), ${zahl((Date.now() - t0) / 1000)} s`);
+  console.log(`  verworfen: ${Object.entries(gruende).map(([g, n]) => `${g} ${n}`).join(', ') || 'keiner'}`);
+}
 
 function bedarf() {
   const im = neuImSpiel();
@@ -113,6 +165,7 @@ async function wahl() {
   const inFrage = kandidaten.filter((k) => {
     if (gesetzt.includes(k)) return false;
     if (ohne.includes(k.name)) return verwirf('ausgeschlossen (--ohne)');
+    if (ebenenVerletzt(k.level).length) return verwirf('Ebenen-Regel (mindestens 3 Ebenen, am Boden)');
     if (gradVon(k.schwierigkeit) !== k.grad) return verwirf('Grad nach der Schwelle anders als im Auftrag');
     if (k.grad !== GRADE[0] && (!k.hauptKernidee || k.spielwert < MINDEST_SPIELWERT)) {
       return verwirf('ab „mittel“ ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
@@ -191,7 +244,8 @@ async function wahl() {
   }
 
   writeFileSync(aus, JSON.stringify(gewaehlt.map(k => ({ auftrag: k.auftrag, seed: k.seed,
-    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), ...(k.stand ? { stand: k.stand } : {}), level: k.level })), null, 1)
+    ...(k.ziel ? { schwierigkeit: k.ziel } : {}), ...(k.stand ? { stand: k.stand } : {}),
+    ...(Number.isInteger(k.gesenkt) ? { gesenkt: k.gesenkt } : {}), level: k.level })), null, 1)
     + '\n');
   const je = Object.fromEntries(GRADE.map(g => [g, gewaehlt.filter(k => k.grad === g).length]));
   console.log(`Gruppe ${gruppe}: ${gewaehlt.length} Level gewählt (${GRADE.map(g => je[g]).join(' / ')}; gesetzt `

@@ -15,10 +15,15 @@
 // - Verteilung der Grade (Spec, Tabelle): ZIEL nach GRUPPEN Gruppen, bestandNach(k) nach der Gruppe k.
 import { GRADE } from './beurteilung/index.mjs';
 import { GRUENDE, ZAEHLENDE_WUERFEL_LAEUFE, reihenfolge } from './levelliste.mjs';
-import { L } from './solver.mjs';
+import { L, keyOf, setRot } from './solver.mjs';
 
 /** Der Würfel aller Würfel-Level (Spec: 7 × 7 × 7; height wie in den Leveldaten, ohne Angabe size). */
 export const WUERFEL = { dim: 3, size: 7 };
+/**
+ * Der Würfel aller Würfel-Level nach der Dauerregel des Nutzers vom 26.10.2026 (.scratch/wuerfel-7x7x5/): Grundfläche
+ * 7 × 7, Höhe 5. Ab Ticket 03 der Spec ist er WUERFEL; bis dahin die Form der umgerechneten und neuen Kandidaten.
+ */
+export const QUADER = Object.freeze({ dim: 3, size: 7, height: 5 });
 /** Hat das Level den Würfel WUERFEL (Grundfläche und Höhe)? */
 export const istWuerfel = (level) => level.dim === WUERFEL.dim && level.size === WUERFEL.size
   && (level.height || level.size) === (WUERFEL.height || WUERFEL.size);
@@ -41,6 +46,47 @@ export function bestandNach(k) {
   const fehlen = summe - ganz.reduce((s, x) => s + x, 0);
   for (let r = 0; r < fehlen; r++) ganz[reste[r][1]]++;
   return Object.fromEntries(GRADE.map((g, j) => [g, ganz[j]]));
+}
+
+/**
+ * Ebenen-Regel (.scratch/wuerfel-7x7x5/, Dauerregel des Nutzers vom 26.10.2026, gilt für jedes Würfel-Level, ausser er
+ * sagt etwas anderes): In der Lösung trifft der Strahl Elemente auf mindestens MIN_EBENEN Ebenen y (Quellen zählen
+ * immer, ein Element, das kein Strahl berührt, nie: sonst genügte ein Zierstück), und das unterste Element steht auf
+ * der Ebene 0 (kein Level schwebt).
+ */
+export const MIN_EBENEN = 3;
+
+/** Die Ebenen y (aufsteigend) der Elemente, die der Strahl in der Lösungsstellung trifft, samt den Quellen. */
+export function getroffeneEbenen(level) {
+  const board = L.createBoard({ ...level, elements: level.elements.map(e => ({ ...e })) });
+  for (const el of board.elements) if (keyOf(el) in level.solution) setRot(el, level.solution[keyOf(el)]);
+  const n = board.size, ids = new Set(board.elements.filter(e => e.type === 'source').map(e => e.id));
+  for (const ev of L.traceBeams(board).events) {
+    if (ev.element !== undefined) ids.add(ev.element);
+    else if (ev.target !== undefined) ids.add(ev.target);
+    else if (ev.kind === 'reflect') ids.add(board.grid[(ev.y * n + ev.z) * n + ev.x].id);
+  }
+  return [...new Set(board.elements.filter(e => ids.has(e.id)).map(e => e.y))].sort((a, b) => a - b);
+}
+
+/**
+ * Was ein Würfel-Level an der Ebenen-Regel verletzt, als Texte (leer: nichts): zu wenige getroffene Ebenen, unterstes
+ * Element nicht am Boden.
+ */
+export function ebenenVerletzt(level) {
+  const ebenen = getroffeneEbenen(level), boden = Math.min(...level.elements.map(e => e.y));
+  return [...(ebenen.length < MIN_EBENEN ? [`trifft nur ${ebenen.length} Ebene(n) (${ebenen.join(', ')}), mindestens ${MIN_EBENEN}`] : []),
+    ...(boden > 0 ? [`schwebt: unterstes Element auf der Ebene ${boden}`] : [])];
+}
+
+/**
+ * Das Level um tief Ebenen gesenkt, im Quader QUADER (Elemente und Lösung): für Level aus dem Würfel 7 × 7 × 7, deren
+ * Elemente in 5 Ebenen passen. Die Lösung bleibt dieselbe, über der obersten Ebene mit Elementen ist nur leerer Raum.
+ */
+export function senke(level, tief) {
+  const zelle = (k) => { const [x, y, z] = k.split(',').map(Number); return `${x},${y - tief},${z}`; };
+  return { ...level, ...QUADER, elements: level.elements.map(e => ({ ...e, y: e.y - tief })),
+    solution: Object.fromEntries(Object.entries(level.solution).map(([k, v]) => [zelle(k), v])) };
 }
 
 /** Die Würfel-Level im Spiel (LEVELS_3D, in ihrer Reihenfolge). */

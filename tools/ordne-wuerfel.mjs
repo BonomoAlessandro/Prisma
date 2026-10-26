@@ -191,7 +191,9 @@ function schreibeWuerfel() {
   for (const k of kandidaten) {
     // Herkunft im Kommentar, so dass ausbau.mjs pool … --wuerfel das Level nachbaut
     const teile = [k.seed !== null && `Seed ${k.seed}`, k.schwierigkeit && `Ziel ${k.schwierigkeit.map(x => zahl(x))
-      .join('–')}`, k.stand && `Stand ${k.stand}`].filter(Boolean);
+      .join('–')}`, k.stand && `Stand ${k.stand}`,
+      // aus dem Würfel 7 × 7 × 7 in den Quader gesenkt (wuerfel.mjs umrechnen, .scratch/wuerfel-7x7x5/)
+      Number.isInteger(k.gesenkt) && `gesenkt um ${k.gesenkt}`].filter(Boolean);
     const herkunft = k.auftrag ? `Generator ${[k.auftrag, ...teile].join(', ')} · ` : '';
     const kommentar = [`${herkunft}Würfel „${r.grad[levels.indexOf(k.level)]}“`];
     bloecke.set(k.level.name, levelCode(k.level, kommentar).split('\n'));
