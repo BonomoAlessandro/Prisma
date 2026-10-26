@@ -13,7 +13,7 @@ import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
-import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
+import { MAX_SHIFT, VERSIONS } from '../tools/ki-tester/protocol.mjs';
 import { fallendeSeiten, haeufungen, ladeLevelliste, obenIn, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
   BEHALTEN, GRENZ_DULDUNG, GRUPPEN, QUADER, WUERFEL_TEXT, ZIEL, bestandNach, ebenenVerletzt, getroffeneEbenen, istWuerfel, senke,
@@ -117,13 +117,15 @@ console.log('Bausteine');
 await test('Verteilung der Grade: Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
   // bis 300 die Tabelle der Spec wuerfel-7x7x5 (Gruppen 1–9), danach die der Spec wuerfel-500 ab ihrer Gruppe 13
   const zeilen = (spec) => [...readFileSync(new URL(`../.scratch/${spec}/spec.md`, import.meta.url), 'utf8')
-    .matchAll(/^ {2,3}\| (\d+) \| \d+ \| (\d+) \| ([\d /]+) \|/gm)].map(([, g, n, bestand]) => [Number(g), Number(n), bestand.trim()]);
+    .matchAll(/^ {2,3}\| (\d+) \| \d+ \| (\d+) \| ([\d /]+) \| ([\d /]+) \|/gm)]
+    .map(([, g, n, bestand, neu]) => [Number(g), Number(n), bestand.trim(), neu.trim()]);
   const tabelle = [...zeilen('wuerfel-7x7x5'), ...zeilen('wuerfel-500').filter(([g]) => g > 12).map(([g, ...x]) => [g - 3, ...x])];
   assert.deepEqual(tabelle.map(([g]) => g), Array.from({ length: GRUPPEN }, (_, k) => k + 1));
   assert.deepEqual(bestandNach(0), BEHALTEN);
-  for (const [g, n, bestand] of tabelle) {
-    const x = bestandNach(g);
+  for (const [g, n, bestand, neu] of tabelle) {
+    const x = bestandNach(g), vorher = bestandNach(g - 1);
     assert.equal(GRADE.map(k => x[k]).join(' / '), bestand, `Gruppe ${g}`);
+    assert.equal(GRADE.map(k => x[k] - vorher[k]).join(' / '), neu, `Gruppe ${g}: Spalte neu`);
     assert.equal(GRADE.reduce((s, k) => s + x[k], 0), n, `Gruppe ${g}`);
   }
   assert.deepEqual(bestandNach(GRUPPEN), ZIEL);
@@ -144,16 +146,38 @@ await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der 
   // ein Urteil aus einem flachen Lauf zählt im Würfel nicht
   assert.deepEqual(wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'ausbau-1')] }).folge, ohne.folge);
 });
+await test('Korrektur der KI-Tester: Anker über ihren Namen auf dem heutigen Platz der Formel (Ticket 04 der Spec wuerfel-7x7x5)', () => {
+  // W1: A1 Aufzug, A2 Kern. Beim Lauf standen sie auf 1 und 2, heute auf 1 und 4; Z (Platz 5) liegt für beide
+  // zwischen A1 und A2: heute bis Platz 3 (−2), mit den Plätzen beim Lauf bis Platz 1 (−4)
+  const urteil = { lauf: 'wuerfel-1', ablauf: 'W1', level: { name: 'Z', anker: null }, anker: { A1: 1, A2: 2 },
+    urteile: Object.fromEntries(['A', 'B'].map(t => [t, { einordnung: 'A1-A2', ablehnung: [] }])) };
+  const v = (namen, w = [10, 15, 20, 30, 35]) => wuerfelReihenfolge(w, namen, w.map(() => null), { urteile: [urteil] })
+    .ki.get(4).verschiebung;
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z']), -2);
+  // Rückfall auf die Plätze des Eintrags: ein Anker nicht im Spiel, oder die Anker heute nicht nach Platz
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Anders', 'Z']), -4, 'Anker nicht im Spiel');
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z'], [25, 15, 20, 10, 35]), -4, 'Anker nicht nach Platz');
+});
+await test('Jedes zählende Würfel-Urteil findet seine Anker im Spiel, nach Platz in der heutigen Formel (kein Rückfall)', () => {
+  const p = (name) => r.formel[W.findIndex(l => l.name === name)];
+  assert.deepEqual([...r.ki.values()].flatMap(({ eintrag: e }) => {
+    const plaetze = Object.keys(e.anker).map(id => p(VERSIONS[e.ablauf].ankerNamen[id]));
+    return plaetze.every((x, k) => Number.isInteger(x) && (!k || x > plaetze[k - 1])) ? []
+      : [`${e.level.name} (${e.lauf}, ${e.ablauf}): ${plaetze.join(', ')}`];
+  }), []);
+});
 await test('Grenz-Duldung: ein leichtes Level der Liste zählt wie ab mittel (3), nicht mehr und nur mit diesem Namen', () => {
-  // eine Seite: das leichte Level 0 und die mittleren 1, 2 mit derselben Haupt-Kernidee S, die übrigen verschieden
-  const offen = (name, w, haupt) => wuerfelReihenfolge(w, [name, ...w.slice(1).map((_, i) => `L${i + 1}`)], haupt)
-    .offen.map(h => `${h.begriff} ${h.mit.length}`);
+  // eine Seite: das leichte Level 0 und die mittleren 1, 2 mit derselben Haupt-Kernidee S, die übrigen verschieden;
+  // die Liste hier eigens (GRENZ_DULDUNG ist seit 7 × 7 × 5 leer, der Mechanismus bleibt)
+  const liste = ['Geduldet'];
+  const offen = (name, w, haupt) => wuerfelReihenfolge(w, [name, ...w.slice(1).map((_, i) => `L${i + 1}`)], haupt,
+    { obenAuch: liste }).offen.map(h => `${h.begriff} ${h.mit.length}`);
   const w = [40, 45, 46, 50, 52, 54, 60, 62, 64, 66], haupt = ['S', 'S', 'S', 'A', 'B', 'C', 'D', 'E', 'F', 'G'];
-  assert.deepEqual(offen(GRENZ_DULDUNG[0], w, haupt), []);
+  assert.deepEqual(offen(liste[0], w, haupt), []);
   assert.deepEqual(offen('Anders', w, haupt), ['S 3'], 'ohne die Liste gilt für ein leichtes Level die Grenze 2');
-  assert.deepEqual(offen(GRENZ_DULDUNG[0], w, ['S', 'S', 'S', 'S', 'B', 'C', 'D', 'E', 'F', 'G']), ['S 4'], 'viermal');
+  assert.deepEqual(offen(liste[0], w, ['S', 'S', 'S', 'S', 'B', 'C', 'D', 'E', 'F', 'G']), ['S 4'], 'viermal');
   // mit einem zweiten leichten Level in der Häufung gilt wieder die Grenze 2
-  assert.deepEqual(offen(GRENZ_DULDUNG[0], [40, 41, 46, 50, 52, 54, 60, 62, 64, 66], haupt), ['S 3'], 'zwei leichte');
+  assert.deepEqual(offen(liste[0], [40, 41, 46, 50, 52, 54, 60, 62, 64, 66], haupt), ['S 3'], 'zwei leichte');
 });
 await test('Ähnlichkeit im Würfel: über die 48 Symmetrien mit gedrehter Drehachse, Gegenproben', () => {
   const kern = KERN;

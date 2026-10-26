@@ -19,7 +19,6 @@ import { GRADE } from './beurteilung/index.mjs';
 import { GRUENDE, ZAEHLENDE_WUERFEL_LAEUFE, reihenfolge } from './levelliste.mjs';
 import { L, keyOf, setRot } from './solver.mjs';
 
-/** Hier nur für QUADER: Der Würfel aller Würfel-Level steht unten (WUERFEL). */
 /**
  * Der Würfel aller Würfel-Level nach der Dauerregel des Nutzers vom 26.10.2026 (.scratch/wuerfel-7x7x5/): Grundfläche
  * 7 × 7, Höhe 5.
@@ -130,9 +129,9 @@ export const GRENZ_DULDUNG = [];
  * Reihenfolge und Grade der Würfel-Level (siehe Kopf). werte[i], namen[i], haupt[i]: Schwierigkeit, Name und
  * Haupt-Kernidee (oder null) des Levels i; kandidat[i]: der Name bei den KI-Testern (kandidatName in leveldaten.mjs),
  * auch nach dem Einordnen, denn die Urteile tragen ihn; urteile: die zählenden Würfel-Einträge des Protokolls (zaehlendeWuerfelUrteile; andere Läufe übergeht
- * die Funktion). Rückgabe: wie reihenfolge in levelliste.mjs (folge, grad, formel, ki, zuege, offen …).
+ * die Funktion); obenAuch: die Namen der Grenz-Duldung (Vorgabe GRENZ_DULDUNG, anders nur im Test). Rückgabe: wie reihenfolge in levelliste.mjs (folge, grad, formel, ki, zuege, offen …).
  */
-export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile = [] } = {}) {
+export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile = [], obenAuch = GRENZ_DULDUNG } = {}) {
   const n = werte.length;
   return reihenfolge(werte, namen, urteile.filter(e => ZAEHLENDE_WUERFEL_LAEUFE.test(e.lauf)), {
     haupt, heute: Array(n).fill(null), ausbau: Array(n).fill(true), kandidat: namen.map((_, i) => kandidat[i] ?? null),
@@ -143,7 +142,7 @@ export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile
     // gegen Häufungen auch Plätze tauschen (entzerre): Mit 150 Leveln und mehr steht an den Seitengrenzen oft dieselbe
     // Haupt-Kernidee, dann löst das Rücken nichts (Ticket 08)
     tauschen: true,
-    obenAuch: GRENZ_DULDUNG,
+    obenAuch,
   });
 }
 
