@@ -52,6 +52,8 @@
   → Beurteilung und Generator im Würfel, eine Strahlregel für beide: Spec `.scratch/levelgenerator/spec.md`,
   Tickets 14, 22 und 27.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
+- [ ] **Storyline** (Idee des Nutzers, 26. Oktober): Vielleicht eine Art Geschichte, die die Level verbindet, am
+  ehesten etwas, das mit Licht zu tun hat. Noch offen, wie sie aussieht und wie sie erzählt wird.
 
 ## 4. Google Play Store
 
