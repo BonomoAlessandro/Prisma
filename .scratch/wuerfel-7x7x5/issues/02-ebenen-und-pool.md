@@ -51,3 +51,19 @@ y = 0) als feste Regel der Würfel-Levelliste, der umgerechnete Pool und ein ers
 
 - **Zusammen mit dem umgerechneten Pool:** je Grad (nur mit Grad wie im Auftrag) 1001 / 1481 / 840 / 321. Für die 9 Gruppen bis 300 braucht es 34 / 116 / 53 / 22, das reicht reichlich.
 - **Tests:** alle grün, mit Exit 0.
+
+**26.10.2026, Review (Branch `review/quader-02`):** gut, ohne Fehler im Code.
+
+- **`getroffeneEbenen`:** erfasst jede Ereignisart von `tracePass`, die ein Element trifft: `absorb` (Quelle, Blocker, Spiegel streifend am Rahmen, Prisma ohne Austritt, Filter ohne Durchlass), `refract`, `filter`, `merge` tragen `element`, `hit` trägt `target`, `reflect` geht über die Zelle. `edge` und `floor` haben kein Element. Ein nicht getroffenes Element zählt nie. Die Ereignisse sind die des letzten Durchgangs von `traceBeams`, also mit den Ausgängen der Kombinatoren. `setRot` setzt beim Kombinator `dir`.
+- **Senken:** Die Annahme stimmt. Unter dem untersten Element läuft ein Strahl auf den Boden, über dem obersten an den Rand, in beiden Formen ohne Treffer und mit gleich vielen Abschnitten.
+- **Stichprobe mit dem Löser:** alle 3643 Kandidaten in `tests/output/quader/` (1300 umgerechnet, 2343 aus `pool-1-*`).
+  - Alle haben genau eine Lösung, die notierte, erfüllen die Ebenen-Regel und haben die Form 7 × 7 × 5 mit y von 0 bis 4.
+  - Die getroffenen Ebenen stimmen mit einer unabhängigen Rechnung über die Endpunkte der Strahlabschnitte überein.
+  - Die 1300 umgerechneten, zurück in den Würfel 7 × 7 × 7 gehoben, haben dort dieselbe eindeutige Lösung.
+  - `gesenkt` je Wert: 0: 279, 1: 146, 2: 458, 3: 290, 4: 127.
+- **Hinweis:** 75 der umgerechneten Kandidaten sind Level im Spiel (gesenkt). `umrechnen` vergleicht mit den Leveln im Würfel 7 × 7 × 7 und findet sie darum nicht. `wahl` verwirft sie nach Ticket 03 (Name im Spiel, Ähnlichkeit), wenn der Bestand gleich gesenkt ist. Die Zahlen je Grad oben sind darum um bis zu 75 zu hoch, es reicht trotzdem.
+- **Kleinigkeit:** Ein Kandidat aus `--behalte` geht in `wahl` nicht durch den Filter der Ebenen-Regel. Er stammt aus einer früheren Wahl, darum offen gelassen.
+- **Ergänzt:**
+  - Test „getroffen zählt bei jeder Ereignisart“: Spiegel streifend, Prisma schluckt und fächert, Blocker, und ein Kombinator, dessen Lösung `dir` von der Startstellung abweicht.
+  - Im Test der Ebenen-Regel: Gehoben und gesenkt hat das Level dieselben Lösungen.
+  - Kopf von `ordne-wuerfel.mjs`: das Feld `gesenkt`.
