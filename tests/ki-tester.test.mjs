@@ -594,6 +594,16 @@ test('Würfel: Licht in drei Koordinaten, die Richtungen als Wörter, Enden auf 
   assert.ok(aufzug.includes('West oben–Ost unten, steht schräg\n'), 'schräg');
   assert.ok(kern.includes('und unten–oben, steht senkrecht\n'), 'senkrecht');
 });
+test('Würfel: Quader 7 × 7 × 5 (height) mit fünf Ebenen, Licht nach oben endet über der Ebene 4', () => {
+  const quader = { name: 'Quader', dim: 3, size: 7, height: 5, solution: {}, elements: [
+    { type: 'source', x: 3, y: 0, z: 3, axis: 'z', dir: 6 }, { type: 'target', x: 0, y: 4, z: 0 }] };
+  const text = fieldText(quader, 'L1');
+  assert.match(text, /^Würfel 7 × 7 × 5 auf einer Plattform\..* Ebene y = 0 … 4 von unten nach oben/m);
+  assert.match(text, /Zeile z = 0 … 6 von hinten nach vorne/);
+  assert.match(text, /^Ebene y=4 \(oben\):$/m);
+  assert.ok(!text.includes('Ebene y=5'), 'Ebene 5');
+  assert.ok(text.includes('- weiss von (3,0,3) nach oben bis (3,4,3), verlässt den Würfel\n'), text);
+});
 test('Würfel: Die flache Ausgabe hängt nicht vom Würfel ab (Felder ohne dim wie bisher)', () => {
   const flat = L.LEVELS[L.TUTORIAL_COUNT];
   assert.ok(!fieldText(flat, 'L1').includes('Würfel') && fieldText(flat, 'L1').startsWith('# Level L1\n\nFeld 7 × 7.'));

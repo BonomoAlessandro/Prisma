@@ -27954,8 +27954,9 @@ const flow = {
   solved: false,  // Lösungsmoment für das aktuelle Feld schon ausgelöst
 };
 const waveDelay = (el) => (el.x + el.z + (el.y || 0)) * FLOW.wave; // Würfel: die Welle steigt auch nach oben
-/** Dauer der Welle über ein Feld (Level oder Board; Würfel: drei Achsen). */
-const waveLength = (b = game.board) => (b.dim === 3 ? 3 : 2) * ((b.size || 7) - 1) * FLOW.wave;
+/** Dauer der Welle über ein Feld (Level oder Board; Würfel: drei Achsen, in der Höhe so viele Ebenen wie height). */
+const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
+  + (b.dim === 3 ? (b.height || b.size || 7) - 1 : 0)) * FLOW.wave;
 
 /**
  * Fortschritt im Browser. Gelöste Level werden nach Namen gespeichert, nicht nach Position – so bleibt

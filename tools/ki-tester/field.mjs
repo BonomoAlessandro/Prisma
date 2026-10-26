@@ -232,7 +232,7 @@ function cubeText(level, label) {
 
   out.push('', '## Licht in der Startstellung', '');
   const used = new Set();
-  const inside = (p) => p.every(c => c >= 0 && c < n);
+  const inside = (p) => p.every((c, i) => c >= 0 && c < (i === 1 ? h : n));
   for (const s of r.segments) {
     const k = r.events.findIndex((ev, i) => !used.has(i) && ev.x === s.x1 && ev.y === s.y1 && ev.z === s.z1);
     used.add(k);

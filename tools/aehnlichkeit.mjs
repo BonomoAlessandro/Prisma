@@ -16,7 +16,9 @@
 // die Plattform liegt: Ein Strahl endet dort wie an der Oberkante, ein auf den Kopf gestelltes Rätsel ist dasselbe. Bei
 // Spiegel, Prisma und Kombinator zählt die Drehachse zur Art (sie legt fest, wohin das Element lenken kann) und dreht
 // mit; bei Quelle, Ziel, Filter und Block nicht, so wie die Richtung einer Quelle nicht zählt. Grenze wie im flachen
-// Feld, gemessen siehe Kommentar zu AEHNLICH_AB.
+// Feld, gemessen siehe Kommentar zu AEHNLICH_AB. Im flacheren Quader (height, .scratch/wuerfel-7x7x5/) bleiben die 16
+// Symmetrien, die die Achse y auf y lassen: die acht der Grundfläche, je auch auf den Kopf gestellt (wie oben). Ein
+// Würfel und ein Quader sind nie ähnlich.
 // Aufruf: node tools/aehnlichkeit.mjs   (Bericht: die ähnlichsten Paare unter den Leveln im Spiel, flach und im Würfel)
 import { pathToFileURL } from 'node:url';
 import { L } from './solver.mjs';

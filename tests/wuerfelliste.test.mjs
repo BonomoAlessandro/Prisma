@@ -16,7 +16,7 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { MAX_SHIFT } from '../tools/ki-tester/protocol.mjs';
 import { fallendeSeiten, haeufungen, ladeLevelliste, obenIn, zaehlendeWuerfelUrteile } from '../tools/levelliste.mjs';
 import {
-  GRENZ_DULDUNG, GRUPPEN, WUERFEL, ZIEL, bestandNach, verletzt, wuerfelReihenfolge,
+  GRENZ_DULDUNG, GRUPPEN, WUERFEL_TEXT, ZIEL, bestandNach, istWuerfel, verletzt, wuerfelReihenfolge,
 } from '../tools/wuerfelliste.mjs';
 import { KERN } from './wuerfel-handgebaut.mjs';
 
@@ -40,8 +40,8 @@ const urteile = zaehlendeWuerfelUrteile();
 const r = wuerfelReihenfolge(werte, W.map(l => l.name), b.map(x => x.hauptKernidee.begriff),
   { kandidat: W.map(kandidatName), urteile });
 
-await test('Jedes Würfel-Level ist ein Würfel 7 × 7 × 7 mit Grad', () => {
-  assert.deepEqual(W.filter(l => l.dim !== WUERFEL.dim || l.size !== WUERFEL.size).map(l => l.name), []);
+await test(`Jedes Würfel-Level ist ein Würfel ${WUERFEL_TEXT} mit Grad`, () => {
+  assert.deepEqual(W.filter(l => !istWuerfel(l)).map(l => l.name), []);
   assert.deepEqual(W.filter(l => !GRADE.includes(l.grad)).map(l => l.name), [], 'ohne Grad');
 });
 await test('Reihenfolge und Grade wie von ordne-wuerfel.mjs gerechnet', () => {
