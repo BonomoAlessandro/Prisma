@@ -41,8 +41,8 @@ Im Code ist sie eine feste Regel der Würfel-Levelliste, ohne Duldungsliste.
     - Sie behalten Namen und Herkunft, mit einem Vermerk der Verschiebung.
     - Sie werden neu beurteilt, und beide KI-Tester beurteilen sie neu, denn Abdruck und Bilder ändern sich.
   - **Ersetzen:** Die übrigen 225 kommen aus dem Spiel. Gruppen zu 25 ersetzen sie durch neue.
-    - Ihre Namen werden wieder frei.
-    - Sie stehen nicht auf der Liste entfernter Level.
+    - Ihre Namen werden nicht wieder vergeben: Der Fortschritt im Spiel zählt nach Namen (Review Ticket 04). Sie stehen
+      in `entfernteNamen` (`tools/levelliste.json`).
 - Die flachen Level bleiben unverändert (`tests/golden.mjs`).
 
 ## Branch
