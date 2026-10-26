@@ -120,9 +120,11 @@ export const imSpiel = () => L.LEVELS_3D;
  * Würfel-Level unter „mittel“, für die die Häufungsregel wie ab „mittel“ zählt (HAUPT_KERNIDEE_JE_10_OBEN): Stockwerk
  * ist mit 300 Würfel-Leveln das letzte leichte (Platz 51) und steht mit Palisade und Taubenschlag (mittel, alle drei
  * Sammelstelle) auf Seite 6; die drei waren schon im Spiel und sind nur gerückt (Entscheid des Nutzers vom 26.10.2026,
- * Ticket 13: diese eine Häufung an der Grenze leicht/mittel dulden).
+ * Ticket 13: diese eine Häufung an der Grenze leicht/mittel dulden). Seit dem Umbau auf 7 × 7 × 5 (.scratch/wuerfel-7x7x5/,
+ * Ticket 04) steht Stockwerk nicht mehr dort, die Häufung gibt es nicht mehr: leer. Der Mechanismus (obenAuch in
+ * levelliste.mjs) bleibt für einen ähnlichen Fall.
  */
-export const GRENZ_DULDUNG = ['Stockwerk'];
+export const GRENZ_DULDUNG = [];
 
 /**
  * Reihenfolge und Grade der Würfel-Level (siehe Kopf). werte[i], namen[i], haupt[i]: Schwierigkeit, Name und

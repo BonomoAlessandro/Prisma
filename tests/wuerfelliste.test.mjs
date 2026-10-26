@@ -105,13 +105,12 @@ await test('Jedes Würfel-Level: Urteil der KI-Tester (wuerfel-…), Herkunft mi
   assert.deepEqual(W.filter(l => l.hint).map(l => l.name), [], 'Hinweis');
 });
 
-await test('Grenz-Duldung (Ticket 13): nur leichte Level, gebraucht genau für die eine Häufung auf Seite 6', () => {
+await test('Grenz-Duldung (Ticket 13): nur leichte Level, und jedes gebraucht (seit 7 × 7 × 5 leer)', () => {
   const p = (x) => W.findIndex(l => l.name === x);
   assert.deepEqual(GRENZ_DULDUNG.filter(x => p(x) < 0 || W[p(x)].grad !== 'leicht'), [], 'nicht im Spiel oder nicht leicht');
-  // ohne die Duldung bliebe genau diese Häufung offen (Entscheid des Nutzers vom 26.10.2026)
+  // ein geduldetes Level steht in einer Häufung, die ohne die Duldung offen bliebe (Entscheid des Nutzers vom 26.10.2026)
   const ohne = haeufungen(r.folge, b.map(x => x.hauptKernidee.begriff), new Set(), 0, Infinity, obenIn(r.grad, r.ausbau));
-  assert.deepEqual(ohne.map(h => `Seite ${h.gruppe + 1} ${h.begriff}: ${h.mit.map(i => W[i].name).sort().join(', ')}`),
-    ['Seite 6 Sammelstelle: Palisade, Stockwerk, Taubenschlag']);
+  assert.deepEqual(GRENZ_DULDUNG.filter(x => !ohne.some(h => h.mit.includes(p(x)))), [], 'nicht gebraucht');
 });
 
 console.log('Bausteine');

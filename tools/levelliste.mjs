@@ -552,7 +552,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   for (const i of dazu) grad[i] = gradVon(werte[i]);
   /** Die eigene Korrektur nach dem Urteil u; bis: Länge der Folge, in der das Level steht. */
   const korrektur = (i, u, bis) => {
-    const { level, anker, urteile: je, ergebnis } = u.eintrag;
+    const { level, urteile: je, ergebnis } = u.eintrag;
+    const anker = heutigeAnker(u.eintrag) ?? u.eintrag.anker;
     // am alten Platz das Ergebnis aus dem Protokoll; am Platz der Formel (ein Level der Prüfliste mit Zustimmung oder
     // ein neues Level) dieselbe Regel mit dem Grad dort
     const r = !u.zurFormel && !u.neu ? ergebnis : merge({
@@ -561,6 +562,20 @@ export function reihenfolge(werte, namen, urteile = [], {
     }).ergebnis;
     // ein abgelehntes Level hat nach der Regel von merge keine Verschiebung
     Object.assign(u, { abgelehnt: r.abgelehnt, gruende: r.gruende, verschiebung: r.verschiebung });
+  };
+  /**
+   * Im Würfel die Plätze der Anker eines Eintrags in der heutigen Formel (über ihre Namen, VERSIONS[…].ankerNamen),
+   * nicht die beim Lauf: Wächst das Spiel, rücken die Anker nach hinten, und eine Einordnung „A7“ meinte das Level A7,
+   * nicht seinen damaligen Platz (Ticket 04 der Spec wuerfel-7x7x5: die 75 Level, beurteilt bei 75 Leveln, wollten
+   * bei 100 sonst fast alle −5). null, wenn ein Anker nicht mehr im Spiel steht, noch keinen Platz hat oder die Plätze
+   * nicht steigen; dann gelten die des Eintrags. Flache Level wie bisher.
+   */
+  const heutigeAnker = (eintrag) => {
+    const namenJe = VERSIONS[eintrag.ablauf]?.wuerfel ? VERSIONS[eintrag.ablauf].ankerNamen : null;
+    if (!namenJe) return null;
+    const plaetze = Object.keys(eintrag.anker).map(id => [id, formel[namen.indexOf(namenJe[id])]]);
+    return plaetze.every(([, p], k) => Number.isInteger(p) && (!k || p > plaetze[k - 1][1]))
+      ? Object.fromEntries(plaetze) : null;
   };
   const verschiebungen = (wer) => new Map([...ki].filter(([i]) => wer(i)).map(([i, u]) => [i, u.verschiebung]));
   for (const [i, u] of ki) if (!imAusbau[i]) korrektur(i, u, m);
