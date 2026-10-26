@@ -498,10 +498,12 @@ export function fallendeSeiten(folge, werte) {
  * so: ohne Bestand, jedes Level wie eines des Ausbaus, mit den Läufen wuerfel-….
  * gleichstand: je Index ein Text, der bei gleichem Wert im Ausbau entscheidet (fuegeEin); ohne (null) die Reihenfolge
  * der Eingabe. Die Würfel-Level geben den Abdruck, damit die Folge nicht von der Reihenfolge in index.html abhängt.
+ * obenAuch: Namen von Leveln unter „mittel“, für die HAUPT_KERNIDEE_JE_10_OBEN trotzdem gilt (GRENZ_DULDUNG in
+ * wuerfelliste.mjs).
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false,
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false, obenAuch = [],
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -581,7 +583,8 @@ export function reihenfolge(werte, namen, urteile = [], {
   const zulaessig = (probe) => fallendeSeiten(probe, werte).every(k => schonGefallen.has(k))
     && (!zuWeitGilt(imAusbau) || !zuWeitKorrigiert({ ...r, folge: probe }).length);
   const { folge, zuege, offen } = haupt
-    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau), obenIn(grad, imAusbau), tauschen)
+    ? entzerre(korrigiert, grad, haupt, aufListe, zulaessig, maxEntzerren(imAusbau),
+      new Set([...obenIn(grad, imAusbau), ...alle.filter(i => obenAuch.includes(namen[i]))]), tauschen)
     : { folge: korrigiert, zuege: [], offen: [] };
   return { ...ordnung, ...r, formel, folge, zuege, offen, grad, zurFormel };
 }

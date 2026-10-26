@@ -42,6 +42,14 @@ export function bestandNach(k) {
 export const imSpiel = () => L.LEVELS_3D;
 
 /**
+ * Würfel-Level unter „mittel“, für die die Häufungsregel wie ab „mittel“ zählt (HAUPT_KERNIDEE_JE_10_OBEN): Stockwerk
+ * ist mit 300 Würfel-Leveln das letzte leichte (Platz 51) und steht mit Palisade und Taubenschlag (mittel, alle drei
+ * Sammelstelle) auf Seite 6; die drei waren schon im Spiel und sind nur gerückt (Entscheid des Nutzers vom 26.10.2026,
+ * Ticket 13: diese eine Häufung an der Grenze leicht/mittel dulden).
+ */
+export const GRENZ_DULDUNG = ['Stockwerk'];
+
+/**
  * Reihenfolge und Grade der Würfel-Level (siehe Kopf). werte[i], namen[i], haupt[i]: Schwierigkeit, Name und
  * Haupt-Kernidee (oder null) des Levels i; kandidat[i]: der Name bei den KI-Testern (kandidatName in leveldaten.mjs),
  * auch nach dem Einordnen, denn die Urteile tragen ihn; urteile: die zählenden Würfel-Einträge des Protokolls (zaehlendeWuerfelUrteile; andere Läufe übergeht
@@ -58,6 +66,7 @@ export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile
     // gegen Häufungen auch Plätze tauschen (entzerre): Mit 150 Leveln und mehr steht an den Seitengrenzen oft dieselbe
     // Haupt-Kernidee, dann löst das Rücken nichts (Ticket 08)
     tauschen: true,
+    obenAuch: GRENZ_DULDUNG,
   });
 }
 
