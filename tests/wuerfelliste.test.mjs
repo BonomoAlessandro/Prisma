@@ -172,4 +172,26 @@ await test('Leveldaten als Text: ein Würfel-Level liest sich zurück, sein Abdr
   assert.notEqual(abdruck(anders), abdruck(kern));
   assert.notEqual(kandidatName({ ...kern, elements: kern.elements.map((e, k) => (k === 1 ? { ...e, y: 1 } : e)) }),
     kandidatName(kern));
+  // Quader 7 × 7 × 5 (.scratch/wuerfel-7x7x5/): height steht im Text und im Abdruck, height = size wie ohne
+  const flach = W.find(l => l.elements.every(e => e.y < 5)), quader = { ...flach, height: 5 };
+  const code = levelCode(quader, []);
+  assert.match(code, /dim: 3, size: 7, height: 5, grad:/);
+  assert.deepEqual(new Function(`return [${code}][0]`)(), quader);
+  const ohne = { ...quader };
+  delete ohne.height;
+  assert.notEqual(abdruck(quader), abdruck(ohne));
+  assert.equal(abdruck({ ...flach, height: 7 }), abdruck(flach));
+});
+await test('Ähnlichkeit im Quader 7 × 7 × 5: nur Symmetrien, die y erhalten; Würfel und Quader nie ähnlich', () => {
+  const q = { name: 'q', dim: 3, size: 7, height: 5, solution: {}, elements: [
+    { type: 'source', x: 0, y: 0, z: 1, dir: 0 }, { type: 'mirror', x: 5, y: 0, z: 1, axis: 'z', rot: 1 },
+    { type: 'mirror', x: 5, y: 4, z: 1, rot: 1 }, { type: 'target', x: 5, y: 4, z: 6 }] };
+  // um y gedreht (x, z) → (6 − z, x) und in der Höhe gespiegelt (y → 4 − y): gleich
+  const gedreht = { ...q, elements: q.elements.map(e => ({ ...e, x: 6 - e.z, z: e.x, ...(e.axis === 'z' ? { axis: 'x' } : {}) })) };
+  assert.equal(aehnlichkeit(q, gedreht), 1);
+  assert.equal(aehnlichkeit(q, { ...q, elements: q.elements.map(e => ({ ...e, y: 4 - e.y })) }), 1);
+  // y mit x getauscht ist im Quader keine Symmetrie
+  const gekippt = { ...q, elements: q.elements.map(e => ({ ...e, x: e.y, y: Math.min(e.x, 4) })) };
+  assert.ok(aehnlichkeit(q, gekippt) < 1);
+  assert.equal(aehnlichkeit(q, { ...q, height: undefined }), 0);
 });

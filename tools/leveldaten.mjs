@@ -57,13 +57,14 @@ function loesungText(level) {
 /**
  * Ein Level als Block für LEVELS in index.html (Zeilen mit „\n“, ohne Zeilenende am Schluss): Lösungskommentar, dazu
  * die Zeilen aus kommentar (ohne „// “), Name und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für LEVELS_3D hat
- * nach dem Namen dim und size, dazu wahlweise hint.
+ * nach dem Namen dim und size (und height, wenn gesetzt), dazu wahlweise hint.
  */
 export function levelCode(level, kommentar = []) {
   return [
     '  {',
     ...[...loesungText(level), ...kommentar.map(k => `// ${k}`)].map(l => `    ${l}`),
     `    name: ${str(level.name)},${level.dim === 3 ? ` dim: 3, size: ${level.size},` : ''}`
+      + `${level.dim === 3 && level.height ? ` height: ${level.height},` : ''}`
       + `${level.grad ? ` grad: ${str(level.grad)},` : ''}`,
     ...(level.dim === 3 && level.hint ? [`    hint: ${str(level.hint)},`] : []),
     '    elements: [',
@@ -77,14 +78,17 @@ export function levelCode(level, kommentar = []) {
 /**
  * Abdruck eines Levels: 8 Hex-Zeichen aus den Elementen, wie createBoard sie liest (Typ, Zelle, Stellung, Richtung,
  * Farbe mit Weiss als Vorgabe, fest), und der Lösung, je sortiert. Im Würfel kommen Ebene, Drehachse (Vorgabe y) und
- * die Grösse dazu; ein flaches Level hat denselben Abdruck wie vor dem Würfel.
+ * die Grösse dazu (die Höhe nur, wenn sie gesetzt ist: ein Würfel 7 × 7 × 7 behält seinen Abdruck); ein flaches Level
+ * hat denselben Abdruck wie vor dem Würfel.
  */
 export function abdruck(level) {
   const wuerfel = level.dim === 3;
   const elemente = level.elements.map(e => JSON.stringify([e.type, e.x, e.z, mod8(e.rot), mod8(e.dir),
     e.color || 'white', !!e.fixed, ...(wuerfel ? [e.y, e.axis || 'y'] : [])])).sort();
   const loesung = Object.entries(level.solution).map(([k, v]) => `${k}:${v}`).sort();
-  const daten = wuerfel ? { elemente, loesung, size: level.size } : { elemente, loesung };
+  const daten = !wuerfel ? { elemente, loesung }
+    : level.height && level.height !== level.size ? { elemente, loesung, size: level.size, height: level.height }
+      : { elemente, loesung, size: level.size };
   return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 8);
 }
 

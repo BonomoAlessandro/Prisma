@@ -17,8 +17,13 @@ import { GRADE } from './beurteilung/index.mjs';
 import { GRUENDE, ZAEHLENDE_WUERFEL_LAEUFE, reihenfolge } from './levelliste.mjs';
 import { L } from './solver.mjs';
 
-/** Der Würfel aller Würfel-Level (Spec: 7 × 7 × 7). */
+/** Der Würfel aller Würfel-Level (Spec: 7 × 7 × 7; height wie in den Leveldaten, ohne Angabe size). */
 export const WUERFEL = { dim: 3, size: 7 };
+/** Hat das Level den Würfel WUERFEL (Grundfläche und Höhe)? */
+export const istWuerfel = (level) => level.dim === WUERFEL.dim && level.size === WUERFEL.size
+  && (level.height || level.size) === (WUERFEL.height || WUERFEL.size);
+/** Der Würfel WUERFEL als Text, etwa „7 × 7 × 7“ (Breite × Tiefe × Höhe). */
+export const WUERFEL_TEXT = `${WUERFEL.size} × ${WUERFEL.size} × ${WUERFEL.height || WUERFEL.size}`;
 /** Die Verteilung der Grade der neuen Würfel-Level am Ende (Spec, Entscheid des Nutzers vom 24.10.2026). */
 export const ZIEL = { leicht: 85, mittel: 265, schwer: 105, 'sehr schwer': 45 };
 /** So viele Gruppen zu je 25 Leveln (Tickets 02–21). */

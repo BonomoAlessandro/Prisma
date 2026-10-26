@@ -35,13 +35,17 @@ const SYMMETRIEN = [
 /** Die drei Achsen des Würfels in der Reihenfolge der Koordinaten [x, y, z]. */
 const ACHSEN = ['x', 'y', 'z'];
 /**
- * Die 48 Symmetrien des Würfels mit Kantenlänge n, je (Zelle [x, y, z], Achse) → [Zelle, Achse]: Koordinate i des
- * Bilds ist Koordinate perm[i] des Urbilds, gespiegelt, wenn Bit i von flip gesetzt ist; die Achse perm[i] wird zu i.
+ * Die Symmetrien des Würfels mit Grundfläche n × n und h Ebenen, je (Zelle [x, y, z], Achse) → [Zelle, Achse]:
+ * Koordinate i des Bilds ist Koordinate perm[i] des Urbilds, gespiegelt, wenn Bit i von flip gesetzt ist; die Achse
+ * perm[i] wird zu i. Im Würfel (h = n) alle 48, im flacheren Quader nur die 16, die y auf y lassen.
  */
-const wuerfelSymmetrien = (n) => [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]].flatMap(perm =>
-  Array.from({ length: 8 }, (_, flip) => (c, achse) => [
-    perm.map((k, i) => (flip >> i & 1 ? n - 1 - c[k] : c[k])), ACHSEN[perm.indexOf(ACHSEN.indexOf(achse))],
-  ]));
+const wuerfelSymmetrien = (n, h) => [[0, 1, 2], [0, 2, 1], [1, 0, 2], [1, 2, 0], [2, 0, 1], [2, 1, 0]]
+  .filter(perm => h === n || perm[1] === 1).flatMap(perm =>
+    Array.from({ length: 8 }, (_, flip) => (c, achse) => [
+      perm.map((k, i) => (flip >> i & 1 ? (i === 1 ? h : n) - 1 - c[k] : c[k])), ACHSEN[perm.indexOf(ACHSEN.indexOf(achse))],
+    ]));
+/** Zahl der Ebenen eines Würfel-Levels (ohne height ein Würfel). */
+const hoeheVon = (level) => level.height || level.size;
 const WUERFEL_SYMMETRIEN = new Map();
 
 /** Elemente, deren Drehachse im Würfel zur Art zählt. */
@@ -61,11 +65,12 @@ const menge = (level, s = symmetrien(level)[0]) => new Set(level.elements.map((e
   return `${art(e, achse)}@${c.join(',')}`;
 }));
 
-/** Die Symmetrien des Felds eines Levels: acht im flachen Feld, 48 im Würfel (je Kantenlänge einmal gebaut). */
+/** Die Symmetrien des Felds eines Levels: acht im flachen Feld, im Würfel 48 oder 16 (je Grösse einmal gebaut). */
 function symmetrien(level) {
   if (level.dim !== 3) return SYMMETRIEN;
-  if (!WUERFEL_SYMMETRIEN.has(level.size)) WUERFEL_SYMMETRIEN.set(level.size, wuerfelSymmetrien(level.size));
-  return WUERFEL_SYMMETRIEN.get(level.size);
+  const k = `${level.size}×${hoeheVon(level)}`;
+  if (!WUERFEL_SYMMETRIEN.has(k)) WUERFEL_SYMMETRIEN.set(k, wuerfelSymmetrien(level.size, hoeheVon(level)));
+  return WUERFEL_SYMMETRIEN.get(k);
 }
 
 /**
@@ -73,7 +78,7 @@ function symmetrien(level) {
  * zwei Würfel verschiedener Grösse, sind nie ähnlich (0).
  */
 export function aehnlichkeit(a, b) {
-  if ((a.dim === 3) !== (b.dim === 3) || (a.dim === 3 && a.size !== b.size)) return 0;
+  if ((a.dim === 3) !== (b.dim === 3) || (a.dim === 3 && (a.size !== b.size || hoeheVon(a) !== hoeheVon(b)))) return 0;
   const mb = menge(b);
   let best = 0;
   for (const s of symmetrien(a)) {
