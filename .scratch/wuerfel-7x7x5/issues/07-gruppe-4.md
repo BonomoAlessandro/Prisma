@@ -35,3 +35,37 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 /
   - Nach Review 06 ist jeder Name gegen gleiches Wortende, Teilwort und Ähnlichkeit geprüft, gegen das Spiel und `entfernteNamen`. Auch Namen, die von Hand gewählt sind.
   - Von Hand ersetzt: vier Schiffsteile hintereinander und drei Physik-Namen bei „sehr schwer“. Die Instrumente stehen im Vorrat zuletzt.
 - **Golden und Tests:** Golden nachgeführt (684 Level). Alle Tests mit Exit 0, je Test geprüft.
+
+**26.10.2026, Reviewer: in Ordnung nach zwei Umbenennungen** (Branch `review/quader-07`).
+
+- **Umbenannt:**
+  - Wandteppich → Barkasse. Wandteppich heisst dasselbe wie Tapisserie (Platz 81). Dazu standen auf den Plätzen
+    114–124 fünf Kunst-Namen: Triptychon, Wandteppich, Emaille, Relief, Ikone.
+  - Ikone → Zeppelin. Ikone und Triptychon sind beide sakrale Tafelbilder. Auf den Plätzen 118–127 fehlten Schiffe und
+    Fahrzeuge.
+  - Beide Namen sind frei, auch gegenüber `entfernteNamen` (Draisine und Rikscha stehen dort). Sie teilen kein
+    Grundwort und sind kein Teilwort. Golden ist nachgeführt.
+- **Herkunft:** Harappa und Sanchi hatten „Ziel 74,0–86,0“. Jetzt steht dort „Ziel 74–86“, wie bei den flachen Leveln
+  (`zielText` in `ordne-level.mjs`). `ordne-wuerfel.mjs` schreibt das Ziel nun ebenso. Beide stehen mit Auftrag, Seed,
+  Ziel [74, 86] und Stand 4ef5157 in `tests/output/quader/pool-2-schwer-oben.jsonl`, mit gleichem Abdruck. Der Pool
+  hat 76 Kandidaten aus 4 Aufträgen.
+- **Geprüft, in Ordnung:**
+  - Die Namen sind eindeutig über alle 684 Level, und keiner steht auf `entfernteNamen`. Sie teilen kein Grundwort.
+    Nur das Bestimmungswort teilen Federball (Federkiel, entfernt), Schiessstand (Schiessscharte, entfernt),
+    Ankerwinde (Ankerplatz) und Spielzeugauto (Spieluhr). Diese Namen bleiben.
+  - Der Stil passt je Grad. Schwer sind antike Stätten, sehr schwer Mathematik: Lemniskate, Cauchy, Fourier.
+  - Die Verteilung ist 32 / 95 / 33 / 15, neu 4 / 13 / 5 / 3.
+  - Protokoll: wuerfel-4-q hat 25 Urteile, 21 davon im Spiel. Nicht im Spiel sind 7f6e688e (von beiden abgelehnt,
+    Knäuel), 5e4f94f8, e92487d8 und 8188f8f7. wuerfel-4-q2 hat 4 Urteile, alle im Spiel. Damit hat jedes neue Level
+    genau ein Urteil. Bei Lemniskate lehnt nur B ab (Knäuel), also ist es nicht abgelehnt.
+  - Die Plätze der Anker steigen: 2/26/36/126/147/158/171/172 und 2/25/36/126/145/158/173/174.
+  - Die Ebenen-Regel gilt für alle 25. Jedes Level steht am Boden. Ankerwinde und Droschke liegen mit den Ebenen 0–2
+    knapp darin.
+  - Bilder, Stichproben wuerfel-4-q L9 (Federball) und L14 (Droschke), dazu wuerfel-4-q2 L2 (Harappa): Die Level gehen
+    über mehrere Ebenen, mit Elementen am Boden.
+- **Offen:**
+  - Lemniskate und Cauchy haben bei beiden Testern nur Gefühl 3 und 2. Das ist erlaubt, aber knapp für „sehr schwer“.
+  - Dampfwalze und Walzer (flach) sehen sich ähnlich, haben aber ein anderes Wort. Der Name bleibt.
+  - Auf den Plätzen 115–120 stehen noch vier Instrumente: Spinett, Clavichord, Grammophon, Bandoneon. Instrumente
+    weiter nur selten vergeben, Kunst-Namen ebenso.
+  - Gleichbedeutende Namen wie Wandteppich und Tapisserie findet das Namen-Skript nicht. Auf sie achtet man von Hand.
