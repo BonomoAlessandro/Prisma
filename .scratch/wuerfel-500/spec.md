@@ -115,7 +115,9 @@ Nur über `tools/leise.sh`, auf diesem Rechner nach der lokalen Grenze, nie mehr
 
 ## Nicht Teil dieser Spec
 
-- Mehr als 500 neue Würfel-Level, ein Würfel-Tutorial, andere Würfelgrössen als 7 × 7 × 7.
+- Mehr als 500 neue Würfel-Level, ein Würfel-Tutorial.
+- **Ab 26.10.2026 gilt für jedes Würfel-Level die Dauerregel aus `.scratch/wuerfel-7x7x5/spec.md`** (7 × 7 × 5, mindestens
+  3 Ebenen, am Boden); die Tickets 14–21 kommen in 7 × 7 × 5.
 - Änderungen an der Strahlregel, an den Schwellen der Grade oder an den Gewichten der Beurteilung.
 - Neue Kernideen für den Würfel (etwa den Lockvogel möglich machen).
 - Der Merge nach main.

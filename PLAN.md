@@ -21,11 +21,19 @@
     entfernt. Nach dem Stand von 300 zusammen mit `feature/3d-wuerfel` nach main gemergt.
   - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3); geduldet ist nur Seite 6 an der
     Grenze leicht/mittel (Stockwerk, GRENZ_DULDUNG in `tools/wuerfelliste.mjs`, Entscheid vom 26.10.2026).
-  - [ ] Weiter bis 500 (Tickets 14–21, Gruppen 13–20), erst auf Anweisung. Der Pool ist bei „sehr schwer“ knapp
-    (neue Seeds bringen dort kaum noch Kandidaten), bei „mittel“ mit pool-3 erweitert.
+  - [ ] **Überarbeitung auf 7 × 7 × 5 über mindestens 3 Ebenen.** Entscheid des Nutzers vom 26.10.2026 nach dem
+    Ansehen: Viele Level lagen auf einer Ebene, nicht am Boden.
+    - Die Regel gilt ab jetzt immer für jedes Würfel-Level, ausser der Nutzer sagt etwas anderes:
+      - Grundfläche 7 × 7, Höhe 5.
+      - Die Lösung trifft Elemente auf mindestens 3 Ebenen.
+      - Das unterste Element steht am Boden.
+    - 75 der 300 Level passen nach dem Verschieben und bleiben; 225 werden in 9 Gruppen ersetzt.
+    - Spec und Tickets: `.scratch/wuerfel-7x7x5/`. Damit ist die frühere offene Frage zu den Leveln in einer waagrechten
+      Ebene entschieden.
+  - [ ] Weiter bis 500 (Tickets 14–21 der Spec `wuerfel-500`, in 7 × 7 × 5), erst auf Anweisung.
+    - Der Pool ist bei „sehr schwer“ knapp: Neue Seeds bringen dort kaum noch Kandidaten.
+    - Bei „mittel“ ist der Pool mit pool-3 erweitert.
   - [ ] **E** Offen: Bekommt das erste Würfel-Level den Achsen-Hinweis, den früher Aufzug hatte?
-  - [ ] **E** Offen: Was gilt für Würfel-Level, die ganz in einer waagrechten Ebene liegen (bis zum Entscheid die
-    bisherige Regel)?
   - [ ] Leistung auf dem Handy und Spieltests mit Menschen.
 - [ ] **2.2 Strahl auf der Plattform blocken:** Strahlt ein Strahl auf die Plattform (im Würfel ein Strahl nach unten),
   wird er dort geblockt und leuchtet nicht durch.
