@@ -336,6 +336,31 @@ export function korrigiere(folge, grad, korrekturen) {
   return neu;
 }
 
+/**
+ * Wie korrigiere, aber jedes Level auf einmal an seinen Zielplatz (Würfel, Option nachZiel in reihenfolge; Review
+ * Ticket 10 der Spec wuerfel-7x7x5): Zielplatz ist der Platz vorher plus die Korrektur (höchstens MAX_SHIFT Plätze) und
+ * einen halben Platz weiter (sonst entschiede der Platz vorher bei gleichem Ziel gegen das korrigierte Level, und ±1
+ * ginge verloren; Review Ticket 11), im
+ * Abschnitt seines Grads wird nach ihm geordnet, bei gleichem Ziel nach dem Platz vorher. Nacheinander angewandt
+ * schob jede Korrektur die Level dazwischen um einen Platz; zogen fast alle eines Grads nach vorn, wanderte ein
+ * unkorrigiertes Level (Gauss) 19 Plätze nach hinten. So bleibt jedes nahe an seinem Ziel.
+ */
+export function korrigiereNachZiel(folge, grad, korrekturen) {
+  const ziel = new Map(folge.map((i, p) => {
+    const k = korrekturen.get(i) || 0;
+    return [i, p + Math.sign(k) * (Math.min(Math.abs(k), MAX_SHIFT) + (k ? 0.5 : 0))];
+  }));
+  const neu = [];
+  for (let a = 0; a < folge.length;) {
+    let e = a;
+    while (e < folge.length && grad[folge[e]] === grad[folge[a]]) e++;
+    neu.push(...folge.slice(a, e).map((i, k) => [i, a + k]).sort((x, y) => ziel.get(x[0]) - ziel.get(y[0]) || x[1] - y[1])
+      .map(([i]) => i));
+    a = e;
+  }
+  return neu;
+}
+
 /** Die Folge, in der das Level vom Platz von (Index) auf den Platz nach rückt; die dazwischen rücken je einen Platz. */
 const verschiebe = (folge, von, nach) => {
   const neu = [...folge], [i] = neu.splice(von, 1);
@@ -503,7 +528,7 @@ export function fallendeSeiten(folge, werte) {
  */
 export function reihenfolge(werte, namen, urteile = [], {
   haupt = null, geduldet = () => false, heute = werte.map((_, i) => i + 1), kandidat = [], formelEntscheid = {},
-  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false, obenAuch = [],
+  ausbau = [], ausbauLaeufe = AUSBAU_LAEUFE, gleichstand = null, tauschen = false, obenAuch = [], nachZiel = false,
 } = {}) {
   // Der Entscheid aus Ticket 16 bleibt fest (Entscheid des Nutzers vom 19.10.2026, Ticket 26): Ein Level mit festem
   // Platz der Formel beim Entscheid bleibt auf der Prüfliste, und zugestimmt wird an diesem Platz, auch wenn ein
@@ -554,8 +579,14 @@ export function reihenfolge(werte, namen, urteile = [], {
   const korrektur = (i, u, bis) => {
     const { level, anker, urteile: je, ergebnis } = u.eintrag;
     // am alten Platz das Ergebnis aus dem Protokoll; am Platz der Formel (ein Level der Prüfliste mit Zustimmung oder
-    // ein neues Level) dieselbe Regel mit dem Grad dort
-    const r = !u.zurFormel && !u.neu ? ergebnis : merge({
+    // ein neues Level) dieselbe Regel mit dem Grad dort. Im Würfel gilt das Ergebnis aus dem Protokoll auch für ein
+    // neues Level, vom Platz der Formel aus (Ticket 10 der Spec wuerfel-7x7x5): Die Plätze der Anker beim Lauf passen
+    // nicht mehr, sobald das Spiel wächst (die bei 75 Leveln beurteilten wollten bei 100 fast alle −5), und die heutigen
+    // auch nicht, sobald die Anker im Grad wandern (die Anker „sehr schwer“ waren beim Lauf die schwersten, heute sind
+    // sie die leichtesten; jedes Urteil „etwa wie A7“ zöge dann −5). Die Verschiebung beim Lauf trägt, was die KI-Tester
+    // gegenüber den Nachbarn von damals meinten.
+    const imWuerfel = !!VERSIONS[u.eintrag.ablauf]?.wuerfel;
+    const r = imWuerfel || (!u.zurFormel && !u.neu) ? ergebnis : merge({
       level: { ...level, anker: null }, anker, urteile: je,
       referenz: { art: 'Platz der Formel', position: formel[i], grad: grad[i], von: 1, bis },
     }).ergebnis;
@@ -571,7 +602,7 @@ export function reihenfolge(werte, namen, urteile = [], {
   const eingefuegt = fuegeEin(korrigiertBestand, dazu, werte, grad, ordnung.bleibt, gleichstand);
   for (const i of dazu) formel[i] = eingefuegt.indexOf(i) + 1;
   for (const [i, u] of ki) if (imAusbau[i]) korrektur(i, u, n);
-  const korrigiert = korrigiere(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
+  const korrigiert = (nachZiel ? korrigiereNachZiel : korrigiere)(eingefuegt, grad, verschiebungen(i => imAusbau[i]));
   // Häufung der Haupt-Kernidee: Die Züge bleiben im Abschnitt des Grads, die Duldungsliste ändert sich dadurch nicht
   const aufListe = new Set(haupt ? basis.filter(i => geduldet(i, grad[i], ki.get(i))) : []);
   // Kein Zug darf die übrigen Regeln brechen: das Mittel je 10 Level, und ohne Ausbau bleibt jedes von den

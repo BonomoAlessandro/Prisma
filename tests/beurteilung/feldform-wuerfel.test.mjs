@@ -336,3 +336,23 @@ test('Eine Würfel-Feldform je Grösse, eingefroren wie die flache', () => {
   assert.throws(() => { f.zellen.reverse(); }, TypeError);
   assert.throws(() => { f.rahmen.size = 5; }, TypeError);
 });
+
+// Würfel 7 × 7 × 5 (.scratch/wuerfel-7x7x5/, Ticket 01): Grundfläche size × size, height Ebenen
+test('Quader 7 × 7 × 5: Zellen, Nachbarn und Rand nach height, rahmen mit height, eigene Feldform', () => {
+  const f = feldformVon({ name: 'leer', dim: 3, size: 7, height: 5, elements: [] });
+  assert.equal(f.zellen.length, 7 * 7 * 5);
+  assert.deepEqual(f.rahmen, { dim: 3, size: 7, height: 5 });
+  assert.equal(feldformVon({ name: 'neu', ...f.rahmen, elements: [] }), f);
+  assert.notEqual(feldformVon({ name: '7', dim: 3, size: 7, elements: [] }), f);
+  assert.deepEqual(feldformVon({ name: '7', dim: 3, size: 7, height: 7, elements: [] }).rahmen, { dim: 3, size: 7 });
+  const oben = f5.richtungen.find(d => vektor(d).join() === '0,1,0');
+  assert.equal(f.nachbar('3,3,3', oben), '3,4,3');
+  assert.equal(f.nachbar('3,4,3', oben), null);
+  assert.ok(f.zellen.includes('6,4,6') && !f.zellen.includes('3,5,3'));
+  // ein Strahl nach oben verlässt den Quader über der Ebene 4
+  assert.equal(f.zelleBei({ x: 3, y: 5, z: 3 }), null);
+  // Drehungen um y bleiben im Quader
+  const level = { ...cube([{ type: 'source', x: 0, y: 4, z: 6, dir: 0 }, { type: 'mirror', x: 6, y: 4, z: 6, rot: 1 },
+    { type: 'target', x: 6, y: 4, z: 0 }], 'Quader', 7), height: 5, solution: { '6,4,6': 3 } };
+  for (const g of f.drehungen(level)) assert.ok(g.elements.every(e => f.zellen.includes(f.zelle(e))));
+});
