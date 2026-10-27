@@ -338,7 +338,9 @@ export function korrigiere(folge, grad, korrekturen) {
 
 /**
  * Wie korrigiere, aber jedes Level auf einmal an seinen Zielplatz (Würfel, Option nachZiel in reihenfolge; Review
- * Ticket 10 der Spec wuerfel-7x7x5): Zielplatz ist der Platz vorher plus die Korrektur (höchstens MAX_SHIFT Plätze), im
+ * Ticket 10 der Spec wuerfel-7x7x5): Zielplatz ist der Platz vorher plus die Korrektur (höchstens MAX_SHIFT Plätze) und
+ * einen halben Platz weiter (sonst entschiede der Platz vorher bei gleichem Ziel gegen das korrigierte Level, und ±1
+ * ginge verloren; Review Ticket 11), im
  * Abschnitt seines Grads wird nach ihm geordnet, bei gleichem Ziel nach dem Platz vorher. Nacheinander angewandt
  * schob jede Korrektur die Level dazwischen um einen Platz; zogen fast alle eines Grads nach vorn, wanderte ein
  * unkorrigiertes Level (Gauss) 19 Plätze nach hinten. So bleibt jedes nahe an seinem Ziel.
@@ -346,7 +348,7 @@ export function korrigiere(folge, grad, korrekturen) {
 export function korrigiereNachZiel(folge, grad, korrekturen) {
   const ziel = new Map(folge.map((i, p) => {
     const k = korrekturen.get(i) || 0;
-    return [i, p + Math.sign(k) * Math.min(Math.abs(k), MAX_SHIFT)];
+    return [i, p + Math.sign(k) * (Math.min(Math.abs(k), MAX_SHIFT) + (k ? 0.5 : 0))];
   }));
   const neu = [];
   for (let a = 0; a < folge.length;) {
