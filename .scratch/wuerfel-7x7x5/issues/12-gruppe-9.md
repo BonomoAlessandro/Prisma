@@ -61,7 +61,7 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 4 / 13 /
     - Schuhcreme → Föhn: „Schuh“ in Handschuh, dem direkten Nachbarn, und im entfernten Schuhkarton.
     - Gürtel → Kühlbox: Handschuh, Gürtel, Knopf und Mütze, vier Kleidungsstücke auf 11 Plätzen.
   - Mittel:
-    - Zellenschmelz → Origami: Schmelz ist Emaille, fast ein Synonym zu Emaille (Würfel).
+    - Zellenschmelz → Origami: Zellenschmelz ist eine Art Emaille, fast ein Synonym zu Emaille (Würfel).
     - Fallreep → Krähennest: „Fall“ in Fallgatter (Würfel), Falltür, Lichtfalle und Wasserfall (flach).
     - Steingut → Akanthus: „Stein“ in Steinmetz (Würfel) und sieben flachen Namen; zwei Plätze neben Fayence.
     - Ketsch → Oldtimer: direkt neben Galionsfigur, Klipper 7 Plätze danach.
