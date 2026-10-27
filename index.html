@@ -28413,24 +28413,28 @@ const introCalm = new Promise((resolve) => { markIntroCalm = resolve; });
 
 /* =====================================================================
    GESCHICHTE (Prototyp, ?geschichte) — «Die verlorenen Farben»: Im Prolog
-   zerbricht das weisse Licht, seine Farben fallen in die Welten. Jedes
-   Kapitel ist eine Welt, die fahl beginnt; jedes gelöste Level gibt ihr vom
-   Brett aus ein Stück Farbe zurück, das letzte die ganze (FinalShader:
-   uWorld, uRing). Kurze Kapitel aus leichten Leveln, damit man es schnell
-   durchspielt. Der Stand bleibt gespeichert; ?geschichte=neu beginnt von vorn.
+   zerbricht das weisse Licht, und die Welt wird fahl; nur im Prisma, auf dem
+   Brett, ist es noch ganz. Verloren sind die Farben der Welt, nicht die des
+   Lichts (fast alle Level brauchen alle drei Grundfarben). Jedes Kapitel ist
+   eine Welt, die fahl beginnt; jedes gelöste Level lenkt Licht vom Brett
+   hinaus und gibt ihr ein Stück Farbe zurück, das letzte die ganze
+   (FinalShader: uWorld, uRing). Kurze Kapitel aus leichten Leveln, damit man
+   es schnell durchspielt. Der Stand bleibt gespeichert; ?geschichte=neu
+   beginnt von vorn.
    ===================================================================== */
 
 const STORY_KAPITEL = [
   { kicker: 'Prolog', titel: 'Erstes Licht', sky: 'milky', farbe: null, level: ['Erstes Licht', 'Brechung'],
     text: 'Am Anfang war ein einziges, weisses Licht.', ende: 'Das Licht zerbricht' },
-  { kicker: 'Kapitel I', titel: 'Das Grün', sky: 'forest', farbe: 'green', level: ['Zickzack', 'Farbstift', 'Kerzenlicht'],
-    text: 'Seine Farben fielen in die Welt, und die Welt wurde fahl. Im Wald schläft das Grün.', ende: 'Das Grün ist zurück' },
-  { kicker: 'Kapitel II', titel: 'Das Blau', sky: 'beach', farbe: 'blue', level: ['Lichtpunkt', 'Morgenlicht'],
-    text: 'Am Meer wartet das Blau.', ende: 'Das Blau ist zurück' },
-  { kicker: 'Kapitel III', titel: 'Das Rot', sky: 'volcano', farbe: 'red', level: ['Glimmer', 'Schneeflocke'],
-    text: 'Tief im Berg glüht noch das Rot.', ende: 'Das Rot ist zurück' },
-  { kicker: 'Finale', titel: 'Weiss', sky: 'solar', farbe: 'white', level: ['Kiesel'],
-    text: 'Drei Farben, ein Licht. Bring sie zusammen.', ende: 'Das Licht ist wieder ganz' },
+  { kicker: 'Kapitel I', titel: 'Der Wald', sky: 'forest', farbe: 'green', level: ['Zickzack', 'Farbstift', 'Kerzenlicht'],
+    text: 'Das Licht zerbrach, und die Welt wurde fahl. Nur im Prisma ist es noch ganz. Der Wald hat sein Grün verloren. Lenke das Licht hinaus.',
+    ende: 'Der Wald ist wieder grün' },
+  { kicker: 'Kapitel II', titel: 'Das Meer', sky: 'beach', farbe: 'blue', level: ['Lichtpunkt', 'Morgenlicht'],
+    text: 'Am Strand ist das Meer grau geworden. Gib ihm sein Blau zurück.', ende: 'Das Meer ist wieder blau' },
+  { kicker: 'Kapitel III', titel: 'Der Vulkan', sky: 'volcano', farbe: 'red', level: ['Glimmer', 'Schneeflocke'],
+    text: 'Selbst die Glut im Berg ist fahl. Bring ihr Rot zurück.', ende: 'Die Glut ist wieder rot' },
+  { kicker: 'Finale', titel: 'Der Himmel', sky: 'solar', farbe: 'white', level: ['Kiesel'],
+    text: 'Nur der Himmel ist noch fahl. Schick ihm das ganze Licht.', ende: 'Die Welt leuchtet wieder' },
 ];
 /** Farben der Kapitel: Kante des wandernden Rings (linear) und Funken, Steine, Karte (CSS, wie der Fächer im Intro) */
 const STORY_FARBE = {
@@ -28566,7 +28570,7 @@ const story = {
   },
   showEnd() {
     ui.hideSolved();
-    this.showCard({ kicker: 'Ende', titel: 'Das Licht ist wieder ganz', farbe: 'white',
+    this.showCard({ kicker: 'Ende', titel: 'Die Welt leuchtet wieder', farbe: 'white',
       text: 'So weit der Prototyp: ein Prolog, drei Welten und ein Finale.' },
     [['Nochmal von vorn', () => this.restart()], ['Zum Spiel', () => this.exit()]]);
   },

@@ -59,6 +59,10 @@
     Finale Weiss im Sonnensystem). Die Welt beginnt fahl, jedes gelöste Level gibt ihr vom Brett aus Farbe zurück,
     das letzte die ganze; kurze Kapitel aus leichten Leveln. Der Nutzer findet die Idee gut (27. Oktober). Noch
     offen: wie sie ins ganze Spiel kommt (Kapitellänge, Skybox-Wahl im Kapitel, Würfel-Level als Epilog).
+  - Entscheid 27. Oktober: Verloren sind die Farben der Welt, nicht die des Lichts. Nur im Prisma (auf dem Brett)
+    ist das Licht noch ganz, jedes gelöste Level lenkt es hinaus; Kapitel heissen nach dem Ort («Der Wald»). Grund:
+    482 der 500 Level brauchen alle drei Grundfarben (458 mit Prisma), Level nach gefundenen Farben auszuwählen geht
+    nicht. Weitere Welten: Wüste Gelb, Eis oder Gletscher Cyan, Blütental Magenta, Dorf als Finale (PLAN 1.2).
 
 ## 4. Google Play Store
 
