@@ -14,7 +14,7 @@
 
 - [~] **2.1 Würfel-Level erstellen und ausbauen.** Seit 27.10.2026 Quader 7 × 7 × 5 (vorher 7 × 7 × 7, bis 23. Oktober
   5 × 5 × 5), Konzept in `3D-WUERFEL.md`; Specs und Tickets in `.scratch/wuerfel-500/` und `.scratch/wuerfel-7x7x5/`.
-  - **Stand 27.10.2026: 300 Würfel-Level im Quader 7 × 7 × 5** auf `feature/3d-wuerfel` (noch nicht auf main):
+  - **Stand 27.10.2026: 300 Würfel-Level im Quader 7 × 7 × 5**, vom Nutzer abgenommen und am 27.10. nach main gemergt:
     51 leicht, 159 mittel, 63 schwer, 27 sehr schwer (17 / 53 / 21 / 9 %). Jedes geht in der Lösung über mindestens
     3 Ebenen und steht am Boden, hat genau eine Lösung, besteht die Beurteilung, hat ab „mittel“ eine nötige Kernidee,
     ist keinem anderen zu ähnlich und von beiden KI-Testern beurteilt; Herkunft (Auftrag, Seed, Stand, „gesenkt um N“)
@@ -28,7 +28,6 @@
   - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3), ohne Duldung. Gegen Häufungen
     wurden 15 Level des Umbaus wieder entfernt; im oberen Bereich von „leicht“ und „mittel“ häufen sich Sammelstelle
     und Mischziel, eigene Pools mit Ziel-Schwierigkeit (`pool-2-*-oben`) helfen dort.
-  - [ ] Nach main, wenn der Nutzer es will (main hat noch die 300 Level im Würfel 7 × 7 × 7).
   - [ ] Weiter bis 500 (Tickets 14–21 der Spec `wuerfel-500`, in 7 × 7 × 5), erst auf Anweisung.
     - Für jede Gruppe wird es schwerer, Häufungen zu vermeiden; mit Ziel-Pools je Bereich rechnen.
     - Namen: Vorrat in `tests/output/wuerfel/namen-vorrat.json` (nicht versioniert), streng prüfen (Teilwort,
