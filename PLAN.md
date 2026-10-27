@@ -12,27 +12,27 @@
 
 ## 2. Würfel-Level (3D)
 
-- [~] **2.1 Würfel-Level erstellen und ausbauen.** Würfel 7 × 7 × 7 (bis 23. Oktober 5 × 5 × 5), Konzept und Stand in
-  `3D-WUERFEL.md`; Spec und Tickets für den Ausbau in `.scratch/wuerfel-500/`.
-  - **Stand 26.10.2026: 300 Würfel-Level im Spiel** (Tickets 01–13, 12 Gruppen zu 25), alle aus dem Generator:
-    51 leicht, 159 mittel, 63 schwer, 27 sehr schwer (17 / 53 / 21 / 9 %). Jedes hat genau eine Lösung, besteht die
-    Beurteilung, hat ab „mittel“ eine nötige Kernidee, ist keinem anderen zu ähnlich und von beiden KI-Testern
-    beurteilt; Herkunft (Auftrag, Seed, Stand) nachbaubar. Die zwei handgebauten Testlevel (Aufzug, Kern) sind
-    entfernt. Nach dem Stand von 300 zusammen mit `feature/3d-wuerfel` nach main gemergt.
-  - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3); geduldet ist nur Seite 6 an der
-    Grenze leicht/mittel (Stockwerk, GRENZ_DULDUNG in `tools/wuerfelliste.mjs`, Entscheid vom 26.10.2026).
-  - [ ] **Überarbeitung auf 7 × 7 × 5 über mindestens 3 Ebenen.** Entscheid des Nutzers vom 26.10.2026 nach dem
-    Ansehen: Viele Level lagen auf einer Ebene, nicht am Boden.
-    - Die Regel gilt ab jetzt immer für jedes Würfel-Level, ausser der Nutzer sagt etwas anderes:
-      - Grundfläche 7 × 7, Höhe 5.
-      - Die Lösung trifft Elemente auf mindestens 3 Ebenen.
-      - Das unterste Element steht am Boden.
-    - 75 der 300 Level passen nach dem Verschieben und bleiben; 225 werden in 9 Gruppen ersetzt.
-    - Spec und Tickets: `.scratch/wuerfel-7x7x5/`. Damit ist die frühere offene Frage zu den Leveln in einer waagrechten
-      Ebene entschieden.
+- [~] **2.1 Würfel-Level erstellen und ausbauen.** Seit 27.10.2026 Quader 7 × 7 × 5 (vorher 7 × 7 × 7, bis 23. Oktober
+  5 × 5 × 5), Konzept in `3D-WUERFEL.md`; Specs und Tickets in `.scratch/wuerfel-500/` und `.scratch/wuerfel-7x7x5/`.
+  - **Stand 27.10.2026: 300 Würfel-Level im Quader 7 × 7 × 5** auf `feature/3d-wuerfel` (noch nicht auf main):
+    51 leicht, 159 mittel, 63 schwer, 27 sehr schwer (17 / 53 / 21 / 9 %). Jedes geht in der Lösung über mindestens
+    3 Ebenen und steht am Boden, hat genau eine Lösung, besteht die Beurteilung, hat ab „mittel“ eine nötige Kernidee,
+    ist keinem anderen zu ähnlich und von beiden KI-Testern beurteilt; Herkunft (Auftrag, Seed, Stand, „gesenkt um N“)
+    nachbaubar.
+  - **Dauerregel des Nutzers (26.10.2026), gilt immer, ausser er sagt etwas anderes:** Grundfläche 7 × 7, Höhe 5;
+    die Lösung trifft Elemente auf mindestens 3 Ebenen; das unterste Element steht am Boden (`ebenenVerletzt` in
+    `tools/wuerfelliste.mjs`, Test über alle Level im Spiel).
+  - Umbau (Tickets 01–12 der Spec `wuerfel-7x7x5`): 75 der alten 300 gesenkt und behalten, 225 entfernt (Namen nie
+    wieder vergeben, `entfernteNamen`), 9 Gruppen neu. Unterwegs neu im Code: Höhe der Würfel-Level (`height`),
+    Ebenen-Regel, Pool umrechnen, Korrektur der KI-Tester im Würfel aus dem Lauf und nach Zielplatz.
+  - Häufungsregel im Würfel wie im Ausbau (höchstens 2 je Seite, ab „mittel“ 3), ohne Duldung. Gegen Häufungen
+    wurden 15 Level des Umbaus wieder entfernt; im oberen Bereich von „leicht“ und „mittel“ häufen sich Sammelstelle
+    und Mischziel, eigene Pools mit Ziel-Schwierigkeit (`pool-2-*-oben`) helfen dort.
+  - [ ] Nach main, wenn der Nutzer es will (main hat noch die 300 Level im Würfel 7 × 7 × 7).
   - [ ] Weiter bis 500 (Tickets 14–21 der Spec `wuerfel-500`, in 7 × 7 × 5), erst auf Anweisung.
-    - Der Pool ist bei „sehr schwer“ knapp: Neue Seeds bringen dort kaum noch Kandidaten.
-    - Bei „mittel“ ist der Pool mit pool-3 erweitert.
+    - Für jede Gruppe wird es schwerer, Häufungen zu vermeiden; mit Ziel-Pools je Bereich rechnen.
+    - Namen: Vorrat in `tests/output/wuerfel/namen-vorrat.json` (nicht versioniert), streng prüfen (Teilwort,
+      Wortende, Nachbarn im Spiel).
   - [ ] **E** Offen: Bekommt das erste Würfel-Level den Achsen-Hinweis, den früher Aufzug hatte?
   - [ ] Leistung auf dem Handy und Spieltests mit Menschen.
 - [ ] **2.2 Strahl auf der Plattform blocken:** Strahlt ein Strahl auf die Plattform (im Würfel ein Strahl nach unten),
