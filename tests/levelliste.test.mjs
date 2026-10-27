@@ -598,6 +598,11 @@ test('Korrektur nach Zielplatz (Würfel): ein unkorrigiertes Level wandert nicht
     korrigiereNachZiel(folge, grad, new Map([[3, MAX_SHIFT]])), `+${MAX_SHIFT} statt +9`);
   assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[1, 9]])).slice(0, 4), [0, 2, 1, 3], 'leicht endet bei 2');
   assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[4, -5]])).slice(0, 4), [0, 1, 2, 4], 'mittel ab 3');
+  // eine einzelne Korrektur wirkt voll wie in korrigiere, auch ±1 (halber Platz, Review Ticket 11)
+  for (const [i, k] of [[4, 1], [5, -1], [4, 3], [8, -5]]) {
+    const m = new Map([[i, k]]);
+    assert.deepEqual(korrigiereNachZiel(folge, grad, m), korrigiere(folge, grad, m), `${i} um ${k}`);
+  }
 });
 test(`Korrekturen schieben einander: höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am Ende`,
   () => {
