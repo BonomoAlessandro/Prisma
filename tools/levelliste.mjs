@@ -552,30 +552,21 @@ export function reihenfolge(werte, namen, urteile = [], {
   for (const i of dazu) grad[i] = gradVon(werte[i]);
   /** Die eigene Korrektur nach dem Urteil u; bis: Länge der Folge, in der das Level steht. */
   const korrektur = (i, u, bis) => {
-    const { level, urteile: je, ergebnis } = u.eintrag;
-    const anker = heutigeAnker(u.eintrag) ?? u.eintrag.anker;
+    const { level, anker, urteile: je, ergebnis } = u.eintrag;
     // am alten Platz das Ergebnis aus dem Protokoll; am Platz der Formel (ein Level der Prüfliste mit Zustimmung oder
-    // ein neues Level) dieselbe Regel mit dem Grad dort
-    const r = !u.zurFormel && !u.neu ? ergebnis : merge({
+    // ein neues Level) dieselbe Regel mit dem Grad dort. Im Würfel gilt das Ergebnis aus dem Protokoll auch für ein
+    // neues Level, vom Platz der Formel aus (Ticket 10 der Spec wuerfel-7x7x5): Die Plätze der Anker beim Lauf passen
+    // nicht mehr, sobald das Spiel wächst (die bei 75 Leveln beurteilten wollten bei 100 fast alle −5), und die heutigen
+    // auch nicht, sobald die Anker im Grad wandern (die Anker „sehr schwer“ waren beim Lauf die schwersten, heute sind
+    // sie die leichtesten; jedes Urteil „etwa wie A7“ zöge dann −5). Die Verschiebung beim Lauf trägt, was die KI-Tester
+    // gegenüber den Nachbarn von damals meinten.
+    const imWuerfel = !!VERSIONS[u.eintrag.ablauf]?.wuerfel;
+    const r = imWuerfel || (!u.zurFormel && !u.neu) ? ergebnis : merge({
       level: { ...level, anker: null }, anker, urteile: je,
       referenz: { art: 'Platz der Formel', position: formel[i], grad: grad[i], von: 1, bis },
     }).ergebnis;
     // ein abgelehntes Level hat nach der Regel von merge keine Verschiebung
     Object.assign(u, { abgelehnt: r.abgelehnt, gruende: r.gruende, verschiebung: r.verschiebung });
-  };
-  /**
-   * Im Würfel die Plätze der Anker eines Eintrags in der heutigen Formel (über ihre Namen, VERSIONS[…].ankerNamen),
-   * nicht die beim Lauf: Wächst das Spiel, rücken die Anker nach hinten, und eine Einordnung „A7“ meinte das Level A7,
-   * nicht seinen damaligen Platz (Ticket 04 der Spec wuerfel-7x7x5: die 75 Level, beurteilt bei 75 Leveln, wollten
-   * bei 100 sonst fast alle −5). null, wenn ein Anker nicht mehr im Spiel steht, noch keinen Platz hat oder die Plätze
-   * nicht steigen; dann gelten die des Eintrags. Flache Level wie bisher.
-   */
-  const heutigeAnker = (eintrag) => {
-    const namenJe = VERSIONS[eintrag.ablauf]?.wuerfel ? VERSIONS[eintrag.ablauf].ankerNamen : null;
-    if (!namenJe) return null;
-    const plaetze = Object.keys(eintrag.anker).map(id => [id, formel[namen.indexOf(namenJe[id])]]);
-    return plaetze.every(([, p], k) => Number.isInteger(p) && (!k || p > plaetze[k - 1][1]))
-      ? Object.fromEntries(plaetze) : null;
   };
   const verschiebungen = (wer) => new Map([...ki].filter(([i]) => wer(i)).map(([i, u]) => [i, u.verschiebung]));
   for (const [i, u] of ki) if (!imAusbau[i]) korrektur(i, u, m);
