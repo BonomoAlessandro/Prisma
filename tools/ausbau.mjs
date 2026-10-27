@@ -9,7 +9,9 @@
 //   Dieselben Seeds liefern auf demselben Stand dieselben Level.
 //   --schwierigkeit VON,BIS: die Ziel-Schwierigkeit der Aufträge wie bei generiere.mjs (etwa für das obere Ende von
 //   „schwer“, das der Generator sonst selten trifft); die Zeile trägt sie dann als ziel.
-//   --wuerfel: Kandidaten im Würfel 7 × 7 × 7 (WUERFEL, .scratch/wuerfel-500/), level wie in LEVELS_3D ohne Namen.
+//   --wuerfel: Kandidaten im Würfel 7 × 7 × 5 (WUERFEL = QUADER, .scratch/wuerfel-7x7x5/; bis 26.10.2026 7 × 7 × 7,
+//     .scratch/wuerfel-500/), level wie in LEVELS_3D ohne Namen. Was die Ebenen-Regel verletzt (ebenenVerletzt,
+//     Dauerregel des Nutzers), verwirft pool wie ein Level ohne Ergebnis (Grund „Ebenen-Regel“).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/ausbau.mjs pool <auftrag …> --aus <datei> [--seed S] [--seeds M]
 //       [--jobs N] [--schwierigkeit VON,BIS] [--wuerfel]
 // wahl: wählt aus Pool-Dateien die neuen Level einer Gruppe (1–10). Der Bedarf je Grad ist der Bestand nach der Gruppe
@@ -54,6 +56,7 @@ import { zuAehnlich } from './aehnlichkeit.mjs';
 import { gruppen } from './beurteilung/ausschluesse/zerfall.mjs';
 import { feldformVon } from './beurteilung/feldform.mjs';
 import { gedeckelt, deckelText } from './deckel.mjs';
+import { QUADER, ebenenVerletzt } from './wuerfelliste.mjs';
 import {
   GRADE_OBEN, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, imSpiel, ladeLevelliste, mittelSteigt, reihenfolge,
   zaehlendeUrteile, zuWeitGilt, zuWeitKorrigiert,
@@ -66,8 +69,8 @@ export const GRUPPEN = 10;
 /** Der Bestand vor dem Ausbau (nach Ticket 25 der Spec der Beurteilung). */
 export const VORHER = { leicht: 31, mittel: 74, schwer: 32, 'sehr schwer': 13 };
 const BLOCK = 25;
-/** Der Würfel der Würfel-Level (.scratch/wuerfel-500/ Spec: alle 7 × 7 × 7), für pool --wuerfel. */
-export const WUERFEL = { dim: 3, size: 7 };
+/** Der Würfel der Würfel-Level für pool --wuerfel: 7 × 7 × 5 (QUADER, Dauerregel des Nutzers vom 26.10.2026). */
+export const WUERFEL = QUADER;
 /**
  * Vorprüfung auf Zerfall, wie ihn die KI-Tester lesen (Gruppe 1, Lauf ausbau-1): Die Regel der Beurteilung schliesst
  * erst aus, wenn der zweite unabhängige Teil 3 drehbare Elemente hat (MIN_ELEMENTE in zerfall.mjs). Die KI-Tester
@@ -125,7 +128,8 @@ if (process.env.AUSBAU_WORKER) {
     for (let seed = from; seed < to; seed++) {
       const { level: l, beurteilung: b, grund } = generiere({
         ...auftraege.get(auftrag), seed, feldform, schwierigkeit });
-      if (!l) { gruende[grund] = (gruende[grund] || 0) + 1; continue; }
+      const fehlt = !l ? grund : wuerfel && ebenenVerletzt(l).length ? 'Ebenen-Regel' : null;
+      if (fehlt) { gruende[fehlt] = (gruende[fehlt] || 0) + 1; continue; }
       level.push({ auftrag, seed, ...(schwierigkeit ? { ziel: schwierigkeit } : {}), level: l,
         schwierigkeit: b.schwierigkeit.wert, spielwert: b.spielwert.wert,
         hauptKernidee: b.hauptKernidee.begriff, kernideen: [...new Set(b.kernideen.map(k => k.begriff))] });

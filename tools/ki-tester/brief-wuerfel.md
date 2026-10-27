@@ -18,9 +18,10 @@ wird nach festen Regeln.
 
 ## Das Spiel im Würfel
 
-- Das Feld ist ein Würfel aus 7 × 7 × 7 Zellen auf einer Plattform, von schräg oben gesehen. Jede Zelle hat drei
-  Koordinaten (x,y,z): x von links nach rechts (West → Ost), y die Ebene von unten nach oben (Ebene 0 liegt auf der
-  Plattform, Ebene 6 oben), z von hinten nach vorne (Nord → Süd). Der Text jedes Levels erklärt sie noch einmal.
+- Das Feld ist ein Würfel aus 7 × 7 × 5 Zellen (7 breit, 7 tief, 5 Ebenen hoch) auf einer Plattform, von schräg oben
+  gesehen. Jede Zelle hat drei Koordinaten (x,y,z): x von links nach rechts (West → Ost), y die Ebene von unten nach
+  oben (Ebene 0 liegt auf der Plattform, Ebene 4 oben), z von hinten nach vorne (Nord → Süd). Der Text jedes Levels
+  erklärt sie noch einmal.
 - Licht läuft von Zelle zu Zelle in 18 Richtungen: in den acht Richtungen einer Ebene (waagrecht, senkrecht im Raster
   und diagonal), gerade nach oben oder unten, und schräg zwischen den Ebenen, je Schritt eine Zelle nach Ost, West,
   Nord oder Süd und eine Ebene höher oder tiefer (etwa „nach Ost und oben“). Raumdiagonalen gibt es nicht. Strahlen

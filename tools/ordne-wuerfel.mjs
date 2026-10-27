@@ -17,7 +17,8 @@
 //                 vergebene Name; ohne name heisst es wie bei den KI-Testern „Kandidat <Abdruck>“ (kandidatName in
 //                 leveldaten.mjs). auftrag, seed, schwierigkeit (Ziel-Schwierigkeit [von, bis]) und stand (der Commit,
 //                 mit dem der Pool gebaut ist) sind wahlweise und stehen als Herkunft im Kommentar des Levels, damit
-//                 ausbau.mjs pool … --wuerfel es auf diesem Stand nachbaut.
+//                 ausbau.mjs pool … --wuerfel es auf diesem Stand nachbaut. gesenkt (wuerfel.mjs umrechnen): um so viele
+//                 Ebenen ist das Level aus dem Würfel 7 × 7 × 7 jenes Stands in den Quader gesenkt.
 //   --schreiben:  ordnet die Würfel-Level in index.html und setzt ihren Grad; die Kandidaten kommen mit ihrem Namen
 //                 dazu (levelCode in leveldaten.mjs). Nur wenn alle Prüfungen oben bestehen, also jeder Kandidat einen
 //                 Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
@@ -35,7 +36,7 @@ import { kandidatName, levelCode } from './leveldaten.mjs';
 import {
   HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, fallendeSeiten, ladeLevelliste, zaehlendeWuerfelUrteile,
 } from './levelliste.mjs';
-import { WUERFEL, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
+import { WUERFEL_TEXT, istWuerfel, verletzt, wuerfelReihenfolge } from './wuerfelliste.mjs';
 
 const INDEX = new URL('../index.html', import.meta.url);
 const argument = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : null);
@@ -156,7 +157,7 @@ function ladeKandidaten(datei) {
   const abdruecke = new Set(L.LEVELS_3D.map(kandidatName));
   for (const k of liste) {
     const wer = k.name ?? kandidatName(k.level);
-    if (k.level.dim !== WUERFEL.dim || k.level.size !== WUERFEL.size) throw new Error(`${datei}: ${wer} ist kein Würfel 7 × 7 × 7`);
+    if (!istWuerfel(k.level)) throw new Error(`${datei}: ${wer} ist kein Würfel ${WUERFEL_TEXT}`);
     if (k.grad && !GRADE.includes(k.grad)) throw new Error(`${datei}: ${wer} mit unbekanntem Auftrag ${k.auftrag}`);
     if (abdruecke.has(kandidatName(k.level))) throw new Error(`${datei}: ${wer} doppelt oder schon im Spiel`);
     abdruecke.add(kandidatName(k.level));
@@ -166,7 +167,7 @@ function ladeKandidaten(datei) {
 
 /**
  * Ordnet die Würfel-Level in index.html zwischen WUERFEL:BEGIN und WUERFEL:END nach der Reihenfolge und setzt je Level
- * das Feld grad hinter dim und size. Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst
+ * das Feld grad hinter dim und size (und height). Jedes Level steht dort als Block von „  {“ bis „  },“; sein Text bleibt sonst
  * unverändert. Die Kandidaten kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar).
  */
 function schreibeWuerfel() {
@@ -174,7 +175,7 @@ function schreibeWuerfel() {
   const a = html.indexOf('/* WUERFEL:BEGIN */'), e = html.indexOf('/* WUERFEL:END */');
   if (a < 0 || e < a) throw new Error('index.html: Markierungen WUERFEL:BEGIN/END fehlen');
   const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
-  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+)(?:, grad: '[a-z ]+')?,$/;
+  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+(?:, height: \d+)?)(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
   for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {
@@ -189,9 +190,12 @@ function schreibeWuerfel() {
     }
   }
   for (const k of kandidaten) {
-    // Herkunft im Kommentar, so dass ausbau.mjs pool … --wuerfel das Level nachbaut
-    const teile = [k.seed !== null && `Seed ${k.seed}`, k.schwierigkeit && `Ziel ${k.schwierigkeit.map(x => zahl(x))
-      .join('–')}`, k.stand && `Stand ${k.stand}`].filter(Boolean);
+    // Herkunft im Kommentar, so dass ausbau.mjs pool … --wuerfel das Level nachbaut; das Ziel wie in ordne-level.mjs
+    // (zielText) mit den Zahlen wie angegeben, etwa „74–86“ statt „74,0–86,0“ (Review Quader 07)
+    const teile = [k.seed !== null && `Seed ${k.seed}`, k.schwierigkeit && `Ziel ${k.schwierigkeit
+      .map(x => String(x).replace('.', ',')).join('–')}`, k.stand && `Stand ${k.stand}`,
+      // aus dem Würfel 7 × 7 × 7 in den Quader gesenkt (wuerfel.mjs umrechnen, .scratch/wuerfel-7x7x5/)
+      Number.isInteger(k.gesenkt) && `gesenkt um ${k.gesenkt}`].filter(Boolean);
     const herkunft = k.auftrag ? `Generator ${[k.auftrag, ...teile].join(', ')} · ` : '';
     const kommentar = [`${herkunft}Würfel „${r.grad[levels.indexOf(k.level)]}“`];
     bloecke.set(k.level.name, levelCode(k.level, kommentar).split('\n'));

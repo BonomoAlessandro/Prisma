@@ -650,6 +650,21 @@ console.log('Würfel (dim: 3)');
       } else assert.equal(last.kind, 'edge', tag);
     }
   });
+  test('Quader 7 × 7 × 5 (height): Brett, Rand oben nach height, ohne height ein Würfel', () => {
+    const quader = (elements) => L.createBoard({ name: 'quader', dim: 3, size: 7, height: 5, elements });
+    assert.deepEqual([cube([]).size, cube([]).height], [5, 5]);
+    const b = quader([{ type: 'source', x: 3, y: 0, z: 3, axis: 'z', dir: 6 }]);
+    assert.deepEqual([b.size, b.height, b.grid.length], [7, 5, 7 * 7 * 5]);
+    assert.throws(() => quader([{ type: 'target', x: 3, y: 5, z: 3 }]), /ausserhalb/);
+    assert.doesNotThrow(() => quader([{ type: 'target', x: 6, y: 4, z: 6 }]));
+    // nach oben (Achse z, dir 6) läuft der Strahl über der Ebene 4 aus, nicht erst über 6
+    const r = L.traceBeams(b), last = r.events.at(-1);
+    assert.equal(last.kind, 'edge');
+    assert.ok(last.y > 4 && r.segments.every(s => Math.min(s.y0, s.y1) < 5), JSON.stringify(last));
+    // ein Ziel ganz oben wird getroffen
+    const t = L.traceBeams(quader([{ type: 'source', x: 3, y: 0, z: 3, axis: 'z', dir: 6 }, { type: 'target', x: 3, y: 4, z: 3 }]));
+    assert.equal(t.solved, true);
+  });
   test('Diagonale in der Spiegelfläche endet an der ersten Rahmenkante', () => {
     // Achse z, rot 0: Fläche x-z; Strahl (1, 0, 1) läuft in ihr und erreicht zuerst die Ober-/Unterkante (in z)
     const r = L.traceBeams(cube([{ type: 'source', x: 0, y: 2, z: 0, dir: 1 }, { type: 'mirror', x: 2, y: 2, z: 2, axis: 'z', rot: 0 }]));
