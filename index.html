@@ -172,6 +172,60 @@
   }
   #solved button:hover, #levels .close:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
 
+  /* ---------- Geschichte (Prototyp, ?geschichte) ---------- */
+  body:not(.story) #story-gems, body:not(.story) #story-card { display: none; }
+  body.story #btn-sky, body.story #btn-levels { display: none; } /* Welt und Level gehören zum Kapitel */
+  #story-card {
+    position: fixed; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    padding: 0 24px; text-align: center; cursor: pointer;
+    background: radial-gradient(ellipse 60% 45% at 50% 50%, rgba(3, 3, 8, 0.82), rgba(3, 3, 8, 0.5) 60%, rgba(3, 3, 8, 0.15));
+    transition: opacity 1.2s ease;
+  }
+  #story-card.final { cursor: default; }
+  #story-card .kicker { font-size: 10px; letter-spacing: 0.6em; padding-left: 0.6em; text-transform: uppercase; color: var(--ink-dim); }
+  #story-card .titel {
+    font-size: clamp(22px, 5vw, 34px); font-weight: 200; letter-spacing: 0.32em; padding-left: 0.32em;
+    text-transform: uppercase; text-shadow: 0 0 28px var(--farbe), 0 0 2px var(--farbe);
+  }
+  #story-card .text { max-width: 28em; font-size: 13px; line-height: 1.9; letter-spacing: 0.08em; color: rgba(232, 230, 240, 0.85); }
+  #story-card .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; margin-top: 14px; }
+  #story-card .actions:empty, #story-card.final .hint { display: none; }
+  #story-card .hint { margin-top: 18px; font-size: 9px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; color: rgba(232, 230, 240, 0.4); }
+  #story-card button {
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    padding: 12px 26px 12px calc(26px + 0.4em);
+    border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px;
+    background: rgba(3, 3, 8, 0.55);
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  #story-card button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+  #story-gems {
+    position: fixed; z-index: 3; pointer-events: none;
+    top: max(30px, env(safe-area-inset-top)); left: max(24px, env(safe-area-inset-left));
+    display: flex; gap: 14px; transition: opacity 1.2s ease;
+  }
+  #story-gems i {
+    width: 9px; height: 9px; box-sizing: border-box; transform: rotate(45deg);
+    border: 1px solid var(--farbe); opacity: 0.5;
+    transition: background-color 0.8s ease, box-shadow 0.8s ease, opacity 0.8s ease, border-color 0.8s ease;
+  }
+  #story-gems i[data-c="green"] { --farbe: #6eff8c; }
+  #story-gems i[data-c="blue"] { --farbe: #6e96ff; }
+  #story-gems i[data-c="red"] { --farbe: #ff5a50; }
+  #story-gems.whole i[data-c] { --farbe: #ffffff; }
+  #story-gems i.got, #story-gems.whole i { background: var(--farbe); opacity: 1; box-shadow: 0 0 10px 2px var(--farbe); }
+  .story-spark {
+    position: fixed; left: 0; top: 0; z-index: 6; pointer-events: none;
+    width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%;
+    background: radial-gradient(circle, #fff 0, var(--farbe) 45%, transparent 72%);
+    box-shadow: 0 0 22px 8px var(--farbe);
+  }
+  @media (max-height: 500px) { #story-gems { top: max(12px, env(safe-area-inset-top)); } }
+  @media (max-width: 520px) { /* Handy hochkant: unten links, oben steht die Kopfzeile */
+    #story-gems { top: auto; bottom: max(30px, calc(env(safe-area-inset-bottom) + 16px)); }
+  }
+
   @media (max-height: 500px) { /* Handy quer: Schaltflächen und Meldung an den Rand (nach den Grundregeln) */
     #controls { flex-direction: column; bottom: auto; top: 50%; transform: translateY(-50%); }
     /* Meldung ersetzt oben die Kopfzeile, in einer Zeile – dort ist der Platz ohnehin frei */
@@ -404,6 +458,18 @@
   <div class="msg" id="solved-msg">Level gelöst</div>
   <div class="stats" id="solved-stats"></div>
   <button id="btn-next">Weiter</button>
+</div>
+
+<!-- Geschichte (Prototyp, ?geschichte): Steine der gefundenen Farben, Karte zu Beginn jedes Kapitels -->
+<div id="story-gems" class="hidden" aria-hidden="true">
+  <i data-c="green"></i><i data-c="blue"></i><i data-c="red"></i>
+</div>
+<div id="story-card" class="hidden" inert aria-live="polite">
+  <div class="kicker"></div>
+  <div class="titel"></div>
+  <div class="text"></div>
+  <div class="actions"></div>
+  <div class="hint"></div>
 </div>
 
 <div id="levels" class="hidden" inert role="dialog" aria-modal="true" aria-label="Levelauswahl">
@@ -24768,12 +24834,25 @@ const FinalShader = {
     uVignette: { value: LOOK.vignette },
     uAberration: { value: LOOK.aberration },
     uGrain: { value: LOOK.grain },
+    // Geschichte (Prototyp, story): fahle Welt ausserhalb eines Rings um das Brett. uWorld 1 = Welt in Farbe (aus),
+    // uRing Abstand des Rings vom Plattenrand (Welteinheiten, gemessen am Schnitt des Blickstrahls mit der Ebene des
+    // Bretts), uFront Leuchten der wandernden Ringkante in uFrontColor
+    uWorld: { value: 1 },
+    uRing: { value: 0 },
+    uFront: { value: 0 },
+    uFrontColor: { value: new THREE.Color(1, 1, 1) },
+    uInvViewProj: { value: new THREE.Matrix4() },
+    uCamPos: { value: new THREE.Vector3() },
+    uPlateHalf: { value: PLATE / 2 },
   },
   vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0); }`,
   fragmentShader: `
     uniform sampler2D tDiffuse;
     uniform vec2 uResolution;
     uniform float uTime, uExposure, uVignette, uAberration, uGrain;
+    uniform float uWorld, uRing, uFront, uPlateHalf;
+    uniform vec3 uFrontColor, uCamPos;
+    uniform mat4 uInvViewProj;
     varying vec2 vUv;
 
     // ACES Filmic (identisch zu three.js ACESFilmicToneMapping)
@@ -24821,6 +24900,24 @@ const FinalShader = {
 
       col = acesFilmic(col);
       col = linearToSRGB(col);
+
+      // Geschichte: Farbe nur im Ring um das Brett, draussen fahl (grau, kühl, dunkler); Himmel über dem Horizont erst
+      // mit der ganzen Welt
+      if (uWorld < 0.999) {
+        vec4 far = uInvViewProj * vec4(vUv * 2.0 - 1.0, 1.0, 1.0);
+        vec3 dir = normalize(far.xyz / far.w - uCamPos);
+        float d = 1e4;
+        if (dir.y < -1e-4) {
+          vec3 hit = uCamPos + dir * (-uCamPos.y / dir.y);
+          d = length(max(abs(hit.xz) - uPlateHalf, 0.0));
+        }
+        float soft = 0.9 + 0.3 * uRing;
+        float keep = max(1.0 - smoothstep(uRing, uRing + soft, d), smoothstep(0.0, 1.0, uWorld));
+        float l = dot(col, vec3(0.299, 0.587, 0.114));
+        vec3 pale = mix(vec3(l), col, 0.06) * 0.72 + 0.012;
+        float edge = (d - uRing - 0.5 * soft) / (0.6 + 0.15 * uRing);
+        col = mix(pale, col, keep) + uFrontColor * (uFront * 0.28 * exp(-edge * edge) * (1.0 - uWorld));
+      }
 
       // Filmkorn (in den Mitteltönen am stärksten) + gleichzeitig Dithering gegen Banding
       float lum = dot(col, vec3(0.299, 0.587, 0.114));
@@ -28164,7 +28261,7 @@ const progress = {
   },
   save(index) {
     try {
-      localStorage.setItem(FLOW.storageKey, this.keyOf(index));
+      if (!story.active) localStorage.setItem(FLOW.storageKey, this.keyOf(index)); // die Geschichte verschiebt das Spiel nicht
       localStorage.setItem(FLOW.solvedKey, JSON.stringify([...this.solved]));
     } catch { /* privates Fenster o. Ä. */ }
   },
@@ -28247,6 +28344,7 @@ function updateFlow(dt) {
       progress.markSolved(game.levelIndex);
       progress.save(game.levelIndex);
       celebration.start(game.targets);
+      story.onSolved(game.levelIndex);
     } else if (!game.result.solved && flow.solved) { // wieder verdreht
       flow.solved = false;
       celebration.cancel();
@@ -28312,6 +28410,270 @@ const sceneReady = new Promise((resolve) => { markSceneReady = resolve; });
 const INTRO_REVEAL_MS = 4200;
 let markIntroCalm;
 const introCalm = new Promise((resolve) => { markIntroCalm = resolve; });
+
+/* =====================================================================
+   GESCHICHTE (Prototyp, ?geschichte) — «Die verlorenen Farben»: Im Prolog
+   zerbricht das weisse Licht, seine Farben fallen in die Welten. Jedes
+   Kapitel ist eine Welt, die fahl beginnt; jedes gelöste Level gibt ihr vom
+   Brett aus ein Stück Farbe zurück, das letzte die ganze (FinalShader:
+   uWorld, uRing). Kurze Kapitel aus leichten Leveln, damit man es schnell
+   durchspielt. Der Stand bleibt gespeichert; ?geschichte=neu beginnt von vorn.
+   ===================================================================== */
+
+const STORY_KAPITEL = [
+  { kicker: 'Prolog', titel: 'Erstes Licht', sky: 'milky', farbe: null, level: ['Erstes Licht', 'Brechung'],
+    text: 'Am Anfang war ein einziges, weisses Licht.', ende: 'Das Licht zerbricht' },
+  { kicker: 'Kapitel I', titel: 'Das Grün', sky: 'forest', farbe: 'green', level: ['Zickzack', 'Farbstift', 'Kerzenlicht'],
+    text: 'Seine Farben fielen in die Welt, und die Welt wurde fahl. Im Wald schläft das Grün.', ende: 'Das Grün ist zurück' },
+  { kicker: 'Kapitel II', titel: 'Das Blau', sky: 'beach', farbe: 'blue', level: ['Lichtpunkt', 'Morgenlicht'],
+    text: 'Am Meer wartet das Blau.', ende: 'Das Blau ist zurück' },
+  { kicker: 'Kapitel III', titel: 'Das Rot', sky: 'volcano', farbe: 'red', level: ['Glimmer', 'Schneeflocke'],
+    text: 'Tief im Berg glüht noch das Rot.', ende: 'Das Rot ist zurück' },
+  { kicker: 'Finale', titel: 'Weiss', sky: 'solar', farbe: 'white', level: ['Kiesel'],
+    text: 'Drei Farben, ein Licht. Bring sie zusammen.', ende: 'Das Licht ist wieder ganz' },
+];
+/** Farben der Kapitel: Kante des wandernden Rings (linear) und Funken, Steine, Karte (CSS, wie der Fächer im Intro) */
+const STORY_FARBE = {
+  green: { ring: [0.35, 1.0, 0.5], css: '#6eff8c' },
+  blue: { ring: [0.4, 0.6, 1.0], css: '#6e96ff' },
+  red: { ring: [1.0, 0.35, 0.28], css: '#ff5a50' },
+  white: { ring: [1, 1, 1], css: '#ffffff' },
+};
+const STORY = {
+  storageKey: 'prisma.geschichte',
+  ringStart: -0.2,  // Ring zu Beginn eines Kapitels: nur die Platte und ein Hauch darum
+  ringSpan: 4.5,    // so weit wächst er bis vor dem letzten Level (Querformat: im Bild liegt fast alles innerhalb von 7)
+  ringFull: 180,    // letztes Level: der Ring läuft bis zum Horizont
+  stepTime: 2.2,    // s für einen Schritt des Rings
+  fullTime: 3.4,    // s bis zum Horizont
+  worldTime: 2.4,   // s für die ganze Welt (Farbe zurück oder im Prolog Ablassen)
+  worldDelay: 1.5,  // s nach dem Lösen, bis der Himmel nachzieht
+  cardMs: 6500,     // Kapitelkarte blendet von selbst aus
+};
+const easeInOutCubic = (k) => (k < 0.5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2);
+
+const story = {
+  active: new URLSearchParams(location.search).has('geschichte'),
+  seq: [],          // alle Level der Geschichte der Reihe nach: { k: Kapitel, i: Platz in LEVELS, n: Nummer im Kapitel }
+  pos: 0,           // Platz in seq
+  done: new Set(),  // in der Geschichte gelöste Level (Namen), unabhängig vom Fortschritt des Spiels
+  chapter: -1,      // Kapitel, dessen Welt gerade steht
+  justCompleted: -1, // Kapitel, das das letzte Lösen vollendet hat (Meldung)
+  pending: null,    // Welt erst umstellen, wenn die alte Skybox ausgeblendet ist
+  view: { world: 1, worldGoal: 1, worldDelay: 0, ring: STORY.ringStart, front: 0, tween: null },
+
+  init() {
+    if (!this.active) return;
+    STORY_KAPITEL.forEach((c, k) => {
+      c.count = 0;
+      for (const name of c.level) {
+        const i = LEVELS.findIndex((l) => l.name === name);
+        if (i < 0) { console.warn(`Geschichte: Level ${name} fehlt`); continue; }
+        this.seq.push({ k, i, n: c.count++ });
+      }
+    });
+    if (new URLSearchParams(location.search).get('geschichte') !== 'neu') {
+      try {
+        const s = JSON.parse(localStorage.getItem(STORY.storageKey) || 'null');
+        if (s && Number.isInteger(s.pos)) this.pos = Math.max(0, Math.min(this.seq.length - 1, s.pos));
+        if (Array.isArray(s?.done)) this.done = new Set(s.done.filter((n) => typeof n === 'string'));
+      } catch { /* neu beginnen */ }
+    }
+    this.gems = $('story-gems');
+    this.card = $('story-card');
+    this.card.addEventListener('click', (e) => { if (!e.target.closest('button')) this.hideCard(); });
+    this.card.querySelector('.hint').textContent = IS_TOUCH ? 'Tippen zum Weiterspielen' : 'Klicken zum Weiterspielen';
+    document.body.classList.add('story');
+    ui.intro.querySelector('.sub').textContent = 'Die verlorenen Farben · Prototyp';
+    this.enterChapter(this.seq[this.pos].k, false, false);
+  },
+  save() {
+    try { localStorage.setItem(STORY.storageKey, JSON.stringify({ pos: this.pos, done: [...this.done] })); } catch { /* egal */ }
+  },
+  solvedIn(k) { return this.seq.filter((s) => s.k === k && this.done.has(LEVELS[s.i].name)).length; },
+  complete(k) { return this.solvedIn(k) === STORY_KAPITEL[k].count; },
+  ringFor(p) { return STORY.ringStart + STORY.ringSpan * p; },
+  /** Welt eines Kapitels nach seinem Stand: der Prolog in Farbe, bis das Licht zerbricht; sonst fahl bis zum Schluss */
+  worldOf(k) {
+    const c = STORY_KAPITEL[k], n = this.solvedIn(k);
+    if (k === 0) return { world: n === c.count ? 0 : 1, ring: STORY.ringStart };
+    return n === c.count ? { world: 1, ring: STORY.ringFull } : { world: 0, ring: this.ringFor(n / c.count) };
+  },
+
+  /** Ab Startbildschirm: erstes Level der Geschichte, dazu die Karte seines Kapitels. */
+  start() {
+    enterLevel(this.seq[this.pos].i);
+    this.showCard(STORY_KAPITEL[this.chapter]);
+  },
+  /** Welt eines Kapitels aufstellen: Skybox wechseln, Farbe nach dem Stand (bei animate erst nach dem Ausblenden). */
+  enterChapter(k, animate, card = true) {
+    const c = STORY_KAPITEL[k];
+    this.chapter = k;
+    const apply = () => {
+      this.pending = null;
+      const w = this.worldOf(k), v = this.view;
+      Object.assign(v, { world: w.world, worldGoal: w.world, worldDelay: 0, ring: w.ring, front: 0, tween: null });
+      if (c.farbe) finalPass.uniforms.uFrontColor.value.fromArray(STORY_FARBE[c.farbe].ring);
+    };
+    if (skyTheme.byId.has(c.sky) && skyTheme.current !== c.sky) {
+      skyTheme.set(c.sky, animate, false);
+      if (animate) this.pending = apply; else apply();
+    } else apply();
+    this.updateGems();
+    if (card) this.showCard(c);
+  },
+  goTo(pos) {
+    pos = Math.max(0, Math.min(this.seq.length - 1, pos));
+    const s = this.seq[pos];
+    this.pos = pos;
+    this.justCompleted = -1;
+    this.save();
+    this.hideCard();
+    if (s.k !== this.chapter) this.enterChapter(s.k, true);
+    changeLevel(s.i);
+  },
+  advance() {
+    if (this.pos >= this.seq.length - 1) this.showEnd();
+    else this.goTo(this.pos + 1);
+  },
+  /** Lösungsmoment (updateFlow): Ring wächst, am Kapitelende läuft er bis zum Horizont und der Himmel zieht nach. */
+  onSolved(index) {
+    const s = this.seq[this.pos];
+    if (!this.active || s?.i !== index || this.done.has(LEVELS[index].name)) return;
+    this.done.add(LEVELS[index].name);
+    this.save();
+    const k = s.k, v = this.view, done = this.complete(k);
+    this.justCompleted = done ? k : -1;
+    if (k === 0) { // Prolog: Das Licht zerbricht, die Welt wird fahl, die Farben fliegen davon
+      if (done) {
+        Object.assign(v, { worldGoal: 0, worldDelay: STORY.worldDelay });
+        setTimeout(() => this.scatter(), 1100);
+      }
+      return;
+    }
+    const goal = this.worldOf(k).ring;
+    v.tween = { from: v.ring, to: goal, t: 0, dur: done ? STORY.fullTime : STORY.stepTime,
+      ease: done ? (x) => x * x * x : easeInOutCubic };
+    if (done) {
+      Object.assign(v, { worldGoal: 1, worldDelay: STORY.worldDelay });
+      setTimeout(() => this.collect(STORY_KAPITEL[k]), 900);
+    }
+  },
+  /** Text der Meldung nach dem Lösen (null: wie im Spiel). */
+  solvedMessage(index) {
+    const s = this.seq[this.pos];
+    return s?.i === index && this.justCompleted === s.k ? STORY_KAPITEL[s.k].ende : null;
+  },
+  showEnd() {
+    ui.hideSolved();
+    this.showCard({ kicker: 'Ende', titel: 'Das Licht ist wieder ganz', farbe: 'white',
+      text: 'So weit der Prototyp: ein Prolog, drei Welten und ein Finale.' },
+    [['Nochmal von vorn', () => this.restart()], ['Zum Spiel', () => this.exit()]]);
+  },
+  restart() {
+    this.done.clear();
+    this.chapter = -1;
+    this.goTo(0);
+  },
+  exit() {
+    const url = new URL(location.href);
+    url.searchParams.delete('geschichte');
+    location.href = url.href;
+  },
+
+  showCard(c, actions = null) {
+    const card = this.card;
+    card.querySelector('.kicker').textContent = c.kicker;
+    card.querySelector('.titel').textContent = c.titel;
+    card.querySelector('.text').textContent = c.text;
+    card.querySelector('.actions').replaceChildren(...(actions ?? []).map(([label, fn]) => {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.addEventListener('click', fn);
+      return b;
+    }));
+    card.classList.toggle('final', !!actions);
+    card.style.setProperty('--farbe', STORY_FARBE[c.farbe]?.css ?? 'rgba(232, 230, 240, 0.6)');
+    setShown(card, true);
+    clearTimeout(this.cardTimer);
+    if (!actions) this.cardTimer = setTimeout(() => this.hideCard(), STORY.cardMs);
+  },
+  hideCard() { clearTimeout(this.cardTimer); setShown(this.card, false); },
+  /** Karte offen, die sich mit einem Klick oder einer Taste schliessen lässt (nicht die am Ende mit ihren Knöpfen) */
+  cardDismissable() { return this.active && !this.card.classList.contains('hidden') && !this.card.classList.contains('final'); },
+
+  /** Steine oben links: einer je Farbe, voll, wenn ihr Kapitel geschafft ist; erst sichtbar, wenn das Licht zerbrochen ist */
+  updateGems() {
+    this.gems.classList.toggle('hidden', !this.complete(0));
+    for (const g of this.gems.children) {
+      const k = STORY_KAPITEL.findIndex((c) => c.farbe === g.dataset.c);
+      g.classList.toggle('got', k >= 0 && this.complete(k));
+    }
+    this.gems.classList.toggle('whole', this.complete(STORY_KAPITEL.length - 1));
+  },
+  /** Mitte des Bretts auf dem Bildschirm (CSS-Pixel) */
+  boardOnScreen() {
+    const v = new THREE.Vector3(0, 0.4, 0).project(camera);
+    return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight];
+  },
+  spark(css, from, to, ms, done) {
+    const el = document.createElement('div');
+    el.className = 'story-spark';
+    el.style.setProperty('--farbe', css);
+    document.body.appendChild(el);
+    const at = ([x, y], s) => `translate(${x}px, ${y}px) scale(${s})`;
+    el.animate([
+      { transform: at(from, 0.3), opacity: 0 },
+      { transform: at(from, 1.5), opacity: 1, offset: 0.18 },
+      { transform: at(to, 0.6), opacity: 1 },
+    ], { duration: ms, easing: 'cubic-bezier(0.55, 0, 0.35, 1)' }).onfinish = () => { el.remove(); done?.(); };
+  },
+  /** Prolog: drei Funken fliegen vom Brett aus dem Bild, danach erscheinen die leeren Steine */
+  scatter() {
+    const from = this.boardOnScreen(), far = Math.max(innerWidth, innerHeight);
+    [['red', -2.4], ['green', -0.75], ['blue', 1.6]].forEach(([c, a], j) => {
+      const to = [from[0] + Math.cos(a) * far, from[1] + Math.sin(a) * far];
+      this.spark(STORY_FARBE[c].css, from, to, 1700, j === 2 ? () => this.updateGems() : null);
+    });
+  },
+  /** Kapitelende: der Funke seiner Farbe fliegt vom Brett in seinen Stein (Finale: in alle) */
+  collect(c) {
+    const gem = this.gems.querySelector(`[data-c="${c.farbe}"]`) ?? this.gems;
+    const r = gem.getBoundingClientRect();
+    this.spark(STORY_FARBE[c.farbe].css, this.boardOnScreen(), [r.left + r.width / 2, r.top + r.height / 2], 1300,
+      () => this.updateGems());
+  },
+
+  /** Pro Bild: Ring und Welt nachführen, die Kamera für den letzten Bildschritt übergeben. */
+  update(dt) {
+    if (!this.active) return;
+    const v = this.view, u = finalPass.uniforms;
+    if (this.pending && skyTheme.order.every((id) => id === skyTheme.current || skyTheme.weight[id] === 0)) this.pending();
+    const tw = v.tween;
+    if (tw) {
+      tw.t += dt;
+      const k = Math.min(1, tw.t / tw.dur);
+      v.ring = tw.from + (tw.to - tw.from) * tw.ease(k);
+      v.front = Math.sin(Math.PI * k);
+      if (k >= 1) { v.tween = null; v.front = 0; }
+    }
+    if (v.worldDelay > 0) v.worldDelay -= dt;
+    else if (v.world !== v.worldGoal) {
+      const step = dt / STORY.worldTime;
+      v.world = v.world < v.worldGoal ? Math.min(v.worldGoal, v.world + step) : Math.max(v.worldGoal, v.world - step);
+    }
+    u.uWorld.value = v.world;
+    u.uRing.value = v.ring;
+    u.uFront.value = v.front;
+    camera.updateMatrixWorld();
+    u.uInvViewProj.value.multiplyMatrices(camera.matrixWorld, camera.projectionMatrixInverse);
+    u.uCamPos.value.setFromMatrixPosition(camera.matrixWorld);
+  },
+  get animating() {
+    const v = this.view;
+    return this.active && (!!this.pending || !!v.tween || v.world !== v.worldGoal);
+  },
+};
 
 const ui = {
   hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
@@ -28451,6 +28813,13 @@ const ui = {
         (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
     }
     this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
+    const s = story.active ? story.seq[story.pos] : null;
+    if (s?.i === index) { // Geschichte: Kapitel statt Nummer und Grad
+      const c = STORY_KAPITEL[s.k];
+      this.title.textContent = `${c.titel} · ${s.n + 1} / ${c.count}`;
+      this.tier.hidden = true;
+      if (!lvl.tutorial) this.sub.textContent = `${lvl.name} · ` + (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
+    }
     this.hud.classList.remove('hidden');
   },
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
@@ -28490,6 +28859,10 @@ const ui = {
     };
     this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit'), ' ',
       stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen')] : []));
+    if (story.active) { // Geschichte: am Kapitelende sein Satz, weiter geht es immer in der Geschichte
+      this.lastLevel = false;
+      this.solvedMsg.textContent = story.solvedMessage(index) ?? 'Level gelöst';
+    }
     this.next.textContent = this.lastLevel ? 'Levelauswahl' : 'Weiter';
     setShown(this.solved, true);
     document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
@@ -28498,7 +28871,8 @@ const ui = {
   solvedVisible() { return !this.solved.classList.contains('hidden'); },
   advance() {
     if (flow.state !== 'play' || !this.solvedVisible()) return; // z. B. zweites Auslösen (Taste + Klick)
-    if (this.lastLevel) this.openLevels(); else stepLevel(1);
+    if (story.active) story.advance();
+    else if (this.lastLevel) this.openLevels(); else stepLevel(1);
   },
 
   toggleSound() {
@@ -28701,10 +29075,11 @@ const ui = {
     setShown(this.controls, true);
     // nach dem Ausblenden ganz entfernen (die Puls-Animation liefe sonst endlos weiter)
     setTimeout(() => { this.intro.style.display = 'none'; }, 1200);
-    enterLevel(progress.load());
+    if (story.active) story.start(); else enterLevel(progress.load());
   },
 };
 ui.init();
+story.init();
 
 /* ---------- Tasten ----------
    N / →: nächstes Level · P / ←: voriges Level (nur freigeschaltete, kein Umbruch) · R: neu starten · M: Ton · L: Levelauswahl
@@ -28718,6 +29093,20 @@ window.addEventListener('keydown', (e) => {
   if ((e.code === 'Enter' || e.code === 'Space') && e.target.closest?.('button')) return;
   if (flow.state === 'intro') {
     if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); ui.start(); }
+    return;
+  }
+  if (story.cardDismissable()) { // Kapitelkarte: jede Taste schliesst sie, Enter und Leertaste tun sonst nichts
+    story.hideCard();
+    if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); return; }
+  }
+  if (story.active && (e.code === 'KeyL' || e.code === 'KeyH')) { // Geschichte: Welt und Level gehören zum Kapitel
+    ui.flashHint('In der Geschichte gehört die Welt zum Kapitel');
+    return;
+  }
+  if (story.active && ['KeyN', 'ArrowRight', 'KeyP', 'ArrowLeft'].includes(e.code)) { // in der Geschichte blättern
+    if (e.code === 'KeyP' || e.code === 'ArrowLeft') story.goTo(story.pos - 1);
+    else if (ui.solvedVisible()) ui.advance();
+    else story.goTo(story.pos + 1); // überspringen, ohne zu lösen
     return;
   }
   if (e.code === 'Escape') ui.closeLevels();
@@ -28959,7 +29348,7 @@ const frameRate = {
     // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
     const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi)
       + Math.abs(cameraRig.goalZoom - cameraRig.userZoom);
-    if (cam > 1e-3 || cameraRig.homing || skyTheme.fading) return true;
+    if (cam > 1e-3 || cameraRig.homing || skyTheme.fading || story.animating) return true;
     for (const obj of game.objects.values()) {
       const u = obj.userData;
       if (u.rotation || u.pulseT > -100) return true; // Drehung, Puls nach dem Einblenden
@@ -29021,6 +29410,7 @@ function frame(ts) {
 function animate(t, dt) {
   updateCamera(t, dt);
   skyTheme.update(dt, t);
+  story.update(dt);
   background.position.copy(camera.position); // Hintergrundkugel immer um die Kamera
   stars.position.copy(camera.position); // Sterne ebenso: unendlich weit weg, keine Parallaxe
   stars.material.uniforms.uTime.value = t;
@@ -29045,7 +29435,7 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   skyReady: () => skyTheme.ready };
 // Zugriff für Debugging/Tests (nicht serialisieren). settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und
 // Überblenden um s Sekunden vor, ohne zu rendern (Screenshots der KI-Tester); das Spiel ruft es nie auf.
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView,
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);

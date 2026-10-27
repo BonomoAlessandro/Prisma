@@ -54,6 +54,10 @@
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
 - [ ] **Storyline** (Idee des Nutzers, 26. Oktober): Vielleicht eine Art Geschichte, die die Level verbindet, am
   ehesten etwas, das mit Licht zu tun hat. Noch offen, wie sie aussieht und wie sie erzählt wird.
+  - Prototyp «Die verlorenen Farben» (27. Oktober, Branch `feature/storyline-prototyp`, `index.html?geschichte`):
+    Im Prolog zerbricht das weisse Licht, je Welt ein Kapitel mit einer Farbe (Wald Grün, Strand Blau, Vulkan Rot,
+    Finale Weiss im Sonnensystem). Die Welt beginnt fahl, jedes gelöste Level gibt ihr vom Brett aus Farbe zurück,
+    das letzte die ganze; kurze Kapitel aus leichten Leveln. Noch offen: ob die Richtung trägt.
 
 ## 4. Google Play Store
 
