@@ -589,8 +589,8 @@ test('Korrektur nach Zielplatz (Würfel): ein unkorrigiertes Level wandert nicht
   const grad = [...Array(3).fill('leicht'), ...Array(12).fill('mittel')], folge = [...grad.keys()];
   const vorn = new Map(folge.filter(i => i >= 3 && i !== 8).map(i => [i, -3]));
   assert.equal(korrigiere(folge, grad, vorn).indexOf(8), 14, 'nacheinander wandert 8 ans Ende');
-  assert.deepEqual(korrigiereNachZiel(folge, grad, vorn), [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 8, 11, 12, 13, 14],
-    'nach Ziel nur 2 Plätze');
+  assert.deepEqual(korrigiereNachZiel(folge, grad, vorn), [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 8, 12, 13, 14],
+    'nach Ziel nur 3 Plätze (jede Korrektur einen halben Platz weiter, Review Ticket 11)');
   // ohne Korrektur (fehlt oder 0) bleibt alles; Kappung auf MAX_SHIFT; nie über die Gradgrenze
   assert.deepEqual(korrigiereNachZiel(folge, grad, new Map()), folge, 'keine Korrektur');
   assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[4, 0]])), folge, 'Korrektur 0');
