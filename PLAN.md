@@ -5,10 +5,11 @@
 - [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am
   Strand. Gilt für jede Skybox, auch für die neuen aus 1.2.
 - [~] **1.2 Neue Skyboxen:**
-  - [x] Vulkan mit Lava (seit 26.10.2026 auf main)
-  - [ ] Canyon
-  - [ ] Wüste
-  - [ ] Idyllisches Dorf, umgeben von Bergen
+  - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
+  - [ ] Wüste (Storyline: Gelb)
+  - [ ] Eis oder Gletscher (Storyline: Cyan)
+  - [ ] Blütental in der Dämmerung, z. B. Lavendel oder Kirschblüten (Storyline: Magenta)
+  - [ ] Idyllisches Dorf, umgeben von Bergen (Storyline: Finale)
 
 ## 2. Würfel-Level (3D)
 
