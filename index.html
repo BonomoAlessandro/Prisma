@@ -28387,6 +28387,7 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
  */
 const progress = {
   solved: new Set(), // Levelnamen
+  keepCurrent: false, // die Geschichte (story.init) verschiebt das aktuelle Level des Spiels nicht
   keyOf: (i) => LEVELS[i].name,
   isSolved(i) { return i >= 0 && i < LEVELS.length && this.solved.has(this.keyOf(i)); },
   markSolved(i) { this.solved.add(this.keyOf(i)); },
@@ -28408,7 +28409,7 @@ const progress = {
   },
   save(index) {
     try {
-      if (!story.active) localStorage.setItem(FLOW.storageKey, this.keyOf(index)); // die Geschichte verschiebt das Spiel nicht
+      if (!this.keepCurrent) localStorage.setItem(FLOW.storageKey, this.keyOf(index));
       localStorage.setItem(FLOW.solvedKey, JSON.stringify([...this.solved]));
     } catch { /* privates Fenster o. Ä. */ }
   },
@@ -28635,6 +28636,7 @@ const story = {
     this.card.addEventListener('click', (e) => { if (!e.target.closest('button')) this.hideCard(); });
     this.card.querySelector('.hint').textContent = IS_TOUCH ? 'Tippen zum Weiterspielen' : 'Klicken zum Weiterspielen';
     document.body.classList.add('story');
+    progress.keepCurrent = true;
     ui.intro.querySelector('.sub').textContent = 'Die verlorenen Farben · Prototyp';
     this.enterChapter(this.seq[this.pos].k, false, false);
   },
