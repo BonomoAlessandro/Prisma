@@ -34,3 +34,47 @@ der Ebenen-Regel. Neu je Grad (leicht / mittel / schwer / sehr schwer): 3 / 13 /
   - Von Hand getauscht wegen Häufungen: Keramik und Schiffsteile.
 - **Review 10:** gemergt, mit 14 Umbenennungen und ohne `ankerNamen`.
 - **Golden und Tests:** Golden nachgeführt (784 Level). Alle Tests mit Exit 0.
+
+**27.10.2026, Reviewer: in Ordnung nach elf Umbenennungen, eine Frage offen** (Branch `review/quader-11`).
+
+- **`korrigiereNachZiel`:** korrekt im Sinn des Entscheids.
+  - Die Grade bleiben getrennt: Geordnet wird je zusammenhängendem Abschnitt eines Grads. Der ist zusammenhängend, weil
+    `grad` aus der Folge selbst stammt.
+  - Eine fehlende Korrektur ist 0 (`|| 0`). Die Kappung auf MAX_SHIFT ist da.
+  - Flach unverändert: Die Option gilt nur über `wuerfelReihenfolge`. Golden und levelliste sind grün.
+  - **Behoben:** Es fehlte ein Test. Neu in `tests/levelliste.test.mjs`: Ein unkorrigiertes Level zwischen lauter −3
+    wandert nacheinander ans Ende, nach Ziel nur 2 Plätze. Dazu: Korrektur fehlt oder 0, Kappung, Gradgrenzen.
+- **Offen, für Entwickler und Reviewer gemeinsam:** Bei gleichem Ziel entscheidet der Platz vorher. Ein Level landet so
+  vor dem, das schon auf seinem Zielplatz steht, wenn es nach hinten will, und dahinter, wenn es nach vorn will. Jede
+  einzelne Korrektur wirkt darum einen Platz schwächer: ±1 verliert sich ganz (so Cahokia, −1), ±5 wirkt als ±4.
+  - Ein Vorschlag: das Ziel einen halben Platz weiter, `p + sign(k) · (min(|k|, MAX_SHIFT) + 0,5)`. Dann wirkt eine
+    einzelne Korrektur wie in `korrigiere`.
+  - Ausprobiert, nicht übernommen: Die Reihenfolge ändert sich, und auf Seite 11 öffnet sich eine Häufung
+    „Abschalten“. Das braucht einen eigenen Durchgang mit `ordne-wuerfel.mjs` und vielleicht einen Tausch.
+- **Entfernt:** Marionette (dc78c5a9) steht auf `entfernteNamen` und in `ohne.txt`, ebenso b979a143 und a578d21f.
+- **Umbenannt** (Teilwörter, Wortenden, Häufungen):
+  - Leicht:
+    - Kugelschreiber → Fernbedienung: „Kugel“ in Lichtkugel und Kugelsternhaufen (flach); Lineal 2 Plätze davor.
+    - Blumenvase → Salzstreuer: „Blume“ in Sonnenblume (flach), fast dasselbe wie das entfernte Blumentopf.
+  - Mittel:
+    - Glockenguss → Posamenter: „Glocken“ in Glockenspiel und Glockenturm (flach), wie Glockengiesser in Review 09.
+    - Laubsäge → Einspänner: Schraubstock, Drehbank und Laubsäge, drei Werkzeuge auf 11 Plätzen; „Laub“ im
+      entfernten Laubengang.
+    - Säulenbasis → Kesselflicker: „Säule“ in Säulenhalle (flach), „Basis“ in Basislager (flach).
+    - Lugger → Tempera: Brigg, Lugger und Kogge, drei Schiffe auf 11 Plätzen.
+    - Trolleybus → Wagner: endet auf „bus“ wie Omnibus.
+    - Hängekoje → Sfumato: „Hänge“ in Hängebrücke (flach) und im entfernten Hängematte; direkt neben Galionsfigur.
+    - Formschneider → Spengler: direkt neben Lithografie, zwei Drucktechniken.
+  - Schwer:
+    - Kairouan → Butrint: Dougga, Karthago und Kairouan, drei Stätten in Tunesien auf 11 Plätzen (wie El Djem in
+      Review 10).
+    - Tiwanaku → Paphos: direkt neben Cusco, zwei Stätten der Anden; Machu Picchu 19 Plätze danach.
+  - Die neuen Namen sind gegen alle flachen, Würfel- und entfernten Namen geprüft. Die alten waren nie auf main,
+    deshalb nicht auf `entfernteNamen`. Golden ist nachgeführt.
+- **Geprüft, in Ordnung:**
+  - Die Verteilung ist 47 / 146 / 57 / 25.
+  - Protokoll: Jedes der 26 neuen Level hat genau ein Urteil, 23 aus wuerfel-8-q und 3 aus wuerfel-8-q2. Keines ist
+    abgelehnt.
+  - Reihenfolge: Der Grad sinkt nie, das Mittel je 10 Level fällt nicht, keine Häufung ist offen (wuerfelliste).
+    Gauss steht auf 257, nach der Formel auf 254.
+- **Tests:** wuerfelliste, levelliste, ki-tester, beurteilung, logic und golden mit Exit 0.

@@ -28,7 +28,7 @@ import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
   entzerre, ergaenzungBegruendet, fuegeEin, haeufungen, imSpiel,
-  festePlaetze, korrigiere, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
+  festePlaetze, korrigiere, korrigiereNachZiel, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark, zaehlendeUrteile, zaehlt, zehner,
   zustimmung, zuWeitGilt, zuWeitKorrigiert,
 } from '../tools/levelliste.mjs';
 
@@ -583,6 +583,21 @@ test('Korrektur: höchstens 5 Plätze, nie aus dem Abschnitt des Grads, die Leve
   assert.deepEqual(korrigiere(folge, grad, new Map([[3, 9]])), [0, 1, 2, 4, 5, 6, 7, 8, 3, 9], '+5 statt +9');
   assert.deepEqual(korrigiere(folge, grad, new Map([[5, -4]])), [0, 1, 2, 5, 3, 4, 6, 7, 8, 9], 'bis zur Grenze');
   assert.deepEqual(korrigiere(folge, grad, new Map([[1, 2]])), [0, 2, 1, 3, 4, 5, 6, 7, 8, 9], 'leicht endet bei 2');
+});
+test('Korrektur nach Zielplatz (Würfel): ein unkorrigiertes Level wandert nicht weit, Grade bleiben getrennt', () => {
+  // 3 leichte, 12 mittlere; alle mittleren ausser 8 ziehen 3 Plätze nach vorn (so Gauss, Review Ticket 10 im Quader)
+  const grad = [...Array(3).fill('leicht'), ...Array(12).fill('mittel')], folge = [...grad.keys()];
+  const vorn = new Map(folge.filter(i => i >= 3 && i !== 8).map(i => [i, -3]));
+  assert.equal(korrigiere(folge, grad, vorn).indexOf(8), 14, 'nacheinander wandert 8 ans Ende');
+  assert.deepEqual(korrigiereNachZiel(folge, grad, vorn), [0, 1, 2, 3, 4, 5, 6, 7, 9, 10, 8, 11, 12, 13, 14],
+    'nach Ziel nur 2 Plätze');
+  // ohne Korrektur (fehlt oder 0) bleibt alles; Kappung auf MAX_SHIFT; nie über die Gradgrenze
+  assert.deepEqual(korrigiereNachZiel(folge, grad, new Map()), folge, 'keine Korrektur');
+  assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[4, 0]])), folge, 'Korrektur 0');
+  assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[3, 9]])),
+    korrigiereNachZiel(folge, grad, new Map([[3, MAX_SHIFT]])), `+${MAX_SHIFT} statt +9`);
+  assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[1, 9]])).slice(0, 4), [0, 2, 1, 3], 'leicht endet bei 2');
+  assert.deepEqual(korrigiereNachZiel(folge, grad, new Map([[4, -5]])).slice(0, 4), [0, 1, 2, 4], 'mittel ab 3');
 });
 test(`Korrekturen schieben einander: höchstens ${MAX_SHIFT} Plätze vom Platz davor, nach den Korrekturen und am Ende`,
   () => {
