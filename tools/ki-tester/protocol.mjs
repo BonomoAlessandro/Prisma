@@ -137,8 +137,6 @@ for (const [v, w] of Object.entries(WUERFEL_ANKER)) {
   VERSIONS[v] = {
     fingerabdruck: WUERFEL_FINGERPRINTS[v], referenz: WUERFEL_REFERENZ, wuerfel: true,
     kennungen: w.anker.map(a => a.id),
-    /** Die Namen der Anker je Kennung (levelliste.mjs rechnet ihre Plätze damit auf die heutige Reihenfolge um). */
-    ankerNamen: Object.fromEntries(w.anker.map(a => [a.id, a.name])),
     // ohne Obergrenze wie Ablauf 2: Die Kandidaten stehen in einer Vorschau der Würfel-Reihenfolge
     gilt: (r) => r.art === WUERFEL_REFERENZ && r.von >= 1,
   };
