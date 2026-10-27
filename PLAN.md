@@ -4,8 +4,8 @@
 
 - [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am
   Strand. Gilt für jede Skybox, auch für die neuen aus 1.2.
-- [ ] **1.2 Neue Skyboxen:**
-  - [ ] Vulkan mit Lava
+- [~] **1.2 Neue Skyboxen:**
+  - [x] Vulkan mit Lava (seit 26.10.2026 auf main)
   - [ ] Canyon
   - [ ] Wüste
   - [ ] Idyllisches Dorf, umgeben von Bergen
