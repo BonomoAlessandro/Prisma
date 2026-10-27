@@ -142,6 +142,8 @@ export function wuerfelReihenfolge(werte, namen, haupt, { kandidat = [], urteile
     // gegen Häufungen auch Plätze tauschen (entzerre): Mit 150 Leveln und mehr steht an den Seitengrenzen oft dieselbe
     // Haupt-Kernidee, dann löst das Rücken nichts (Ticket 08)
     tauschen: true,
+    // jede Korrektur der KI-Tester auf einmal an ihren Zielplatz (korrigiereNachZiel, Review Ticket 10 im Quader)
+    nachZiel: true,
     obenAuch,
   });
 }
