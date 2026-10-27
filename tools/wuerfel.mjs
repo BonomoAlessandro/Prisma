@@ -21,11 +21,11 @@
 //   bleibt die Häufung offen (Ausgabe „Häufungsregel: offen …“).
 //   --behalte <datei>: eine frühere Wahl, deren Level gesetzt sind (etwa nach einer Ablehnung durch die KI-Tester ohne
 //   die abgelehnten); die Wahl füllt nur den Rest. --ohne <name,…> oder --ohne @<datei> (dieselbe Liste in einer
-//   Datei): Kandidaten (Name bei den KI-Testern, „Kandidat
-//   <Abdruck>“), die nicht in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen), mit
+//   Datei, getrennt durch Kommas oder Zeilen): Kandidaten (Name bei den KI-Testern, „Kandidat <Abdruck>“), die nicht
+//   in Frage kommen. Ausgabe: eine JSON-Liste { auftrag, seed, level } (ohne Namen), mit
 //   stand und gesenkt (umrechnen), wo der Pool sie trägt. Ein Kandidat, der die Ebenen-Regel verletzt, kommt nie in Frage.
 //     LEISE_CPU=50 sh tools/leise.sh node tools/wuerfel.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei>
-//       [--behalte <datei>] [--ohne <name,…>]
+//       [--behalte <datei>] [--ohne <name,…> | --ohne @<datei>]
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/wuerfel.mjs bedarf
 // umrechnen: Kandidaten aus Pools im Würfel 7 × 7 × 7 in den Quader QUADER (7 × 7 × 5, .scratch/wuerfel-7x7x5/,
@@ -139,10 +139,10 @@ async function wahl() {
   // --ohne @datei: die Liste aus einer Datei (lange Listen sprengen sonst die Kommandozeile, Ticket 09 im Quader)
   const ohneText = flag('--ohne', '') || '';
   const behalteDatei = flag('--behalte', null), ohne = (ohneText.startsWith('@') ? readFileSync(ohneText.slice(1), 'utf8') : ohneText)
-    .split(',').map(x => x.trim()).filter(Boolean);
+    .split(/[,\r\n]/).map(x => x.trim()).filter(Boolean);
   if (!(gruppe >= 1 && gruppe <= GRUPPEN) || !aus || !pools) {
     fail('Aufruf: node tools/wuerfel.mjs wahl <gruppe> --pool <datei>[,<datei> …] --aus <datei> [--behalte <datei>] '
-      + '[--ohne <name,…>]');
+      + '[--ohne <name,…> | --ohne @<datei>]');
   }
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const t0 = Date.now(), ziel = bestandNach(gruppe), im = neuImSpiel();

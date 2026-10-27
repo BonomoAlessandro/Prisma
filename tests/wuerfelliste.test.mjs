@@ -146,25 +146,20 @@ await test('Reihenfolge: nach der Formel, Grad nach der Schwelle, Korrektur der 
   // ein Urteil aus einem flachen Lauf zählt im Würfel nicht
   assert.deepEqual(wuerfelReihenfolge(w, namen, haupt, { urteile: [urteil('L2', 'ausbau-1')] }).folge, ohne.folge);
 });
-await test('Korrektur der KI-Tester: Anker über ihren Namen auf dem heutigen Platz der Formel (Ticket 04 der Spec wuerfel-7x7x5)', () => {
-  // W1: A1 Aufzug, A2 Kern. Beim Lauf standen sie auf 1 und 2, heute auf 1 und 4; Z (Platz 5) liegt für beide
-  // zwischen A1 und A2: heute bis Platz 3 (−2), mit den Plätzen beim Lauf bis Platz 1 (−4)
+await test('Korrektur der KI-Tester im Würfel: die Verschiebung aus dem Protokoll, vom Platz der Formel aus (Ticket 10 der Spec wuerfel-7x7x5)', () => {
+  // Das Urteil sagt beim Lauf −3; wie die Anker heute stehen, ändert daran nichts (früher rechnete reihenfolge neu)
   const urteil = { lauf: 'wuerfel-1', ablauf: 'W1', level: { name: 'Z', anker: null }, anker: { A1: 1, A2: 2 },
-    urteile: Object.fromEntries(['A', 'B'].map(t => [t, { einordnung: 'A1-A2', ablehnung: [] }])) };
+    urteile: Object.fromEntries(['A', 'B'].map(t => [t, { einordnung: 'A1-A2', ablehnung: [] }])),
+    ergebnis: { abgelehnt: false, gruende: [], verschiebung: -3, position: 2 } };
   const v = (namen, w = [10, 15, 20, 30, 35]) => wuerfelReihenfolge(w, namen, w.map(() => null), { urteile: [urteil] })
     .ki.get(4).verschiebung;
-  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z']), -2);
-  // Rückfall auf die Plätze des Eintrags: ein Anker nicht im Spiel, oder die Anker heute nicht nach Platz
-  assert.equal(v(['Aufzug', 'P', 'Q', 'Anders', 'Z']), -4, 'Anker nicht im Spiel');
-  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z'], [25, 15, 20, 10, 35]), -4, 'Anker nicht nach Platz');
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z']), -3);
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Anders', 'Z']), -3, 'Anker nicht im Spiel');
+  assert.equal(v(['Aufzug', 'P', 'Q', 'Kern', 'Z'], [25, 15, 20, 10, 35]), -3, 'Anker anders geordnet');
 });
-await test('Jedes zählende Würfel-Urteil findet seine Anker im Spiel, nach Platz in der heutigen Formel (kein Rückfall)', () => {
-  const p = (name) => r.formel[W.findIndex(l => l.name === name)];
-  assert.deepEqual([...r.ki.values()].flatMap(({ eintrag: e }) => {
-    const plaetze = Object.keys(e.anker).map(id => p(VERSIONS[e.ablauf].ankerNamen[id]));
-    return plaetze.every((x, k) => Number.isInteger(x) && (!k || x > plaetze[k - 1])) ? []
-      : [`${e.level.name} (${e.lauf}, ${e.ablauf}): ${plaetze.join(', ')}`];
-  }), []);
+await test('Jedes zählende Würfel-Urteil wirkt mit der Verschiebung aus seinem Lauf', () => {
+  assert.deepEqual([...r.ki.values()].filter(u => u.verschiebung !== u.eintrag.ergebnis.verschiebung)
+    .map(u => u.eintrag.level.name), []);
 });
 await test('Grenz-Duldung: ein leichtes Level der Liste zählt wie ab mittel (3), nicht mehr und nur mit diesem Namen', () => {
   // eine Seite: das leichte Level 0 und die mittleren 1, 2 mit derselben Haupt-Kernidee S, die übrigen verschieden;
