@@ -57,7 +57,8 @@
   - Prototyp «Die verlorenen Farben» (27. Oktober, Branch `feature/storyline-prototyp`, `index.html?geschichte`):
     Im Prolog zerbricht das weisse Licht, je Welt ein Kapitel mit einer Farbe (Wald Grün, Strand Blau, Vulkan Rot,
     Finale Weiss im Sonnensystem). Die Welt beginnt fahl, jedes gelöste Level gibt ihr vom Brett aus Farbe zurück,
-    das letzte die ganze; kurze Kapitel aus leichten Leveln. Noch offen: ob die Richtung trägt.
+    das letzte die ganze; kurze Kapitel aus leichten Leveln. Der Nutzer findet die Idee gut (27. Oktober). Noch
+    offen: wie sie ins ganze Spiel kommt (Kapitellänge, Skybox-Wahl im Kapitel, Würfel-Level als Epilog).
 
 ## 4. Google Play Store
 
