@@ -421,20 +421,56 @@
     background: radial-gradient(closest-side, rgba(3, 3, 8, 0.75), rgba(3, 3, 8, 0.45) 55%, rgba(3, 3, 8, 0));
   }
   #story .caption .tap { margin-top: 18px; }
-  /* Bilder im Dorf: Strahl der Taschenlampe, Blinken des Polarsterns (Epilog) */
-  #story .village .torch { opacity: 0; transition: opacity 1.4s ease 0.3s; }
-  #story .village.beam .torch { opacity: 1; }
-  #story .village.answer .polar { animation: story-blink 1s ease-in-out 1s 3; }
-  #story .village.answer .torch { animation: story-blink-torch 1s ease-in-out 4.4s 3; }
-  @keyframes story-blink { 0%, 100% { opacity: 1; transform: scale(1); } 45% { opacity: 1; transform: scale(2.6); } }
-  @keyframes story-blink-torch { 0%, 100% { opacity: 0; } 40% { opacity: 1; } }
-  #story .village .polar { transform-box: fill-box; transform-origin: center; }
+  /* Bühne für Prolog und Epilog (createStoryScene): das Dorf über den ganzen Bildschirm, Untertitel darunter */
+  #story[data-mode="scene"] { background-color: #020208; padding: 0; }
+  #story .scene { display: none; position: absolute; inset: 0; overflow: hidden; }
+  #story[data-mode="scene"] .scene { display: block; }
+  #story .scene .world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.6s ease; }
+  #story .scene.lit .world { opacity: 1; }
+  #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
+  #story .scene .flk { animation: story-flicker 3.2s ease-in-out infinite; }
+  @keyframes story-twinkle { from { opacity: 0.12; } }
+  @keyframes story-flicker { 0%, 100% { opacity: 0.9; } 30% { opacity: 1; } 55% { opacity: 0.6; } 80% { opacity: 0.85; } }
+  #story .scene .sub {
+    position: absolute; left: 16px; right: 16px; bottom: max(7vh, calc(env(safe-area-inset-bottom) + 28px));
+    display: flex; flex-direction: column; align-items: center; pointer-events: none;
+    isolation: isolate; /* eigene Ebene: sonst läge der Hof (z-index -1) unter dem Bild der Bühne */
+  }
+  #story .scene .sub::before { /* dunkler Hof: der Text bleibt vor hellen Fenstern und dem Strahl lesbar */
+    content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(980px, 100vw + 80px); height: calc(100% + 140px);
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(2, 2, 8, 0.7), rgba(2, 2, 8, 0.4) 55%, rgba(2, 2, 8, 0));
+  }
+  #story .scene .lines { position: relative; width: min(780px, 100%); height: 3.6em; font-size: clamp(16px, 2.2vw, 22px); }
+  /* der alte Satz blendet aus, der neue danach ein (kein Übereinander zweier Sätze) */
+  #story .scene .line {
+    position: absolute; left: 0; right: 0; bottom: 0; margin: 0;
+    line-height: 1.7; letter-spacing: 0.03em; text-align: center; color: #f2f0fa;
+    text-shadow: 0 0 14px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.9);
+    opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease;
+  }
+  #story .scene .line.on { opacity: 1; transform: none; transition-duration: 1.2s; transition-delay: 0.5s; }
+  #story .scene .hint { margin-top: 16px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); opacity: 0; transition: opacity 0.8s ease; }
+  #story .scene .hint.on { opacity: 1; }
+  #story .scene .hint span { display: inline-block; animation: intro-pulse 2.4s ease-in-out infinite; }
+  #story .scene .actions { pointer-events: auto; margin-top: 22px; }
+  #story .scene .skip {
+    position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+    padding: 12px 8px 12px calc(8px + 0.4em); font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ink-dim);
+    transition: color 0.25s ease;
+  }
+  #story .scene .skip:hover { color: var(--ink); }
+  #story .scene .skip[hidden] { display: none; }
+  #story.hidden .scene * { animation-play-state: paused; }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
     body.story #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
     #story .art { width: min(300px, 50vw, 55vh); margin-bottom: 12px; } /* nach der Höhe: der Epilog mit Knöpfen passt auch bei 320 px */
     #story .art.icon { width: 40px; margin-bottom: 10px; }
     #story .path { margin-top: 14px; }
     #story .tap, #story .actions { margin-top: 14px; }
+    #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
+    #story .scene .lines { font-size: 15px; height: 3.5em; }
+    #story .scene .hint { margin-top: 8px; }
   }
 
   #perf {
@@ -28998,11 +29034,6 @@ const STORY_ICONS = {
 /** Stationen des Wegs (Leiste auf den Karten): das Dorf, dann je Kapitel eine. */
 const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
   ['planeten', 'Planeten'], ['sterne', 'Sterne']];
-const STORY_PROLOG = [
-  { art: 'night', text: 'Hoch in den Bergen liegt ein kleines Dorf. Jede Nacht schaut Noa von dort zum Polarstern hinauf, dem Stern, der sich nie bewegt.' },
-  { art: 'beam', text: 'Heute will Noa ihm ein Zeichen schicken. Doch das Licht einer Taschenlampe reicht nicht bis zu den Sternen.' },
-  { art: 'beam', text: 'Aber Licht lässt sich weitergeben: von Spiegel zu Spiegel, von Ort zu Ort. Hilf ihm, den Weg nach oben zu finden.' },
-];
 /**
  * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel), Text der Karte, Meldung und Knopf
  * nach dem letzten Level. up: Blick in den Himmel steiler (Vulkan: über die Kraterwand). finale: danach antwortet der
@@ -29010,7 +29041,7 @@ const STORY_PROLOG = [
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest', levels: ['Taschenlampe', 'Leuchtkäfer'],
-    text: 'Im Bergwald nehmen die Glühwürmchen Noas Licht auf und tragen es durch die Bäume.',
+    text: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Lenke es zwischen den Bäumen hindurch.',
     done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
   { station: 2, title: 'Das Meer', sky: 'beach', levels: ['Drachenschnur', 'Meeresleuchten'],
     text: 'Am Meer springt das Licht von Welle zu Welle, bis hinüber zur anderen Küste.',
@@ -29033,51 +29064,444 @@ const STORY_CHAPTERS = [
     done: 'Die Antwort ist unterwegs', next: 'Zu Noa' },
 ];
 const STORY_FINALE = ['Der Polarstern hat das Zeichen gesehen.', 'Und er antwortet.'];
-const STORY_EPILOG = 'In dieser Nacht blinkt der Polarstern dreimal. Noa lacht und blinkt mit der Taschenlampe zurück.';
+/**
+ * Prolog und Epilog: Einstellungen der Kamera über dem Dorf (Bühne siehe createStoryScene), je mit einem Satz.
+ * cam: Bildmitte x, y und Zoom in der Ebene von Noa, im Hochformat camP (dort passt nur ein schmaler Streifen ins
+ * Bild); from: Start der ersten Fahrt; move: Dauer der Fahrt (s); act: was dabei geschieht (siehe scene.act).
+ */
+const STORY_PROLOG = [
+  { from: { x: 820, y: 160, z: 1.08 }, fromP: { x: 760, y: 120, z: 1.08 }, cam: { x: 800, y: 470, z: 1 },
+    camP: { x: 760, y: 470, z: 1 }, move: 6,
+    text: 'Hoch oben in den Bergen, wo die Nächte klar und still sind, liegt ein kleines Dorf.' },
+  { cam: { x: 520, y: 590, z: 2 }, move: 4.5,
+    text: 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht am Himmel den Polarstern, den einen Stern, der sich nie vom Fleck rührt.' },
+  { cam: { x: 560, y: 560, z: 2.2 }, move: 2.6, act: 'lamp',
+    text: 'Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die Taschenlampe leuchtet auf.' },
+  { cam: { x: 900, y: 300, z: 1.35 }, camP: { x: 760, y: 330, z: 1.3 }, move: 5, act: 'reach',
+    text: 'Doch der Himmel ist weit. Der Lichtstrahl verblasst, lange bevor er die Sterne erreicht.' },
+  { cam: { x: 760, y: 600, z: 1.55 }, camP: { x: 560, y: 600, z: 1.55 }, move: 4, act: 'gather',
+    text: 'Da blinkt es am Waldrand. Glühwürmchen umschwirren die Lampe und fangen das Licht ein.' },
+  { cam: { x: 1250, y: 560, z: 1.7 }, camP: { x: 1300, y: 590, z: 1.6 }, move: 5.5, act: 'carry',
+    text: 'Denn Licht lässt sich weitergeben: von Spiegel zu Spiegel, von Ort zu Ort. Hilf ihm, den weiten Weg zu den Sternen zu finden.' },
+];
+const STORY_EPILOG = [
+  { from: { x: 800, y: 470, z: 1 }, fromP: { x: 760, y: 470, z: 1 }, cam: { x: 760, y: 420, z: 1.25 },
+    camP: { x: 520, y: 470, z: 1.3 }, move: 5,
+    text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.' },
+  { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
+    text: 'Da blinkt der Polarstern: einmal, zweimal, dreimal.' },
+  { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, move: 3, act: 'answer',
+    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Die Antwort ist angekommen.' },
+];
 
-/** Bild des Dorfs für Prolog und Epilog (Klasse night, beam oder answer, siehe CSS #story .village). */
-const STORY_VILLAGE = (() => {
-  const rand = mulberry32(7);
-  let stars = '';
-  for (let i = 0; i < 46; i++) {
-    stars += `<circle cx="${(rand() * 400).toFixed(1)}" cy="${(rand() * 125).toFixed(1)}" r="${(0.35 + rand() * 0.75).toFixed(2)}" opacity="${(0.25 + rand() * 0.6).toFixed(2)}"/>`;
+/**
+ * Bühne für Prolog und Epilog: ein Bergdorf bei Nacht über den ganzen Bildschirm, gezeichnet in sechs Ebenen (Himmel,
+ * ferne Berge, Bergwald, Dorf, Noas Hügel, Vordergrund). Eine Kamera fährt darüber; nahe Ebenen ziehen schneller
+ * vorbei als ferne (Parallaxe, p). Die Szene lebt: Sterne funkeln, Rauch steigt aus den Kaminen, Glühwürmchen
+ * schwirren am Waldrand. Masse in der Ebene von Noa (p = 1): bei Zoom 1 ein Bild von 1600 × 900. Ohne SVG-Filter
+ * (Unschärfe kostete bei jeder Kamerabewegung viel), Leuchten über radiale Verläufe.
+ */
+function createStoryScene(host) {
+  const rand = mulberry32(11);
+  const r = (a, b) => a + (b - a) * rand();
+  const n = (v) => +v.toFixed(1);
+  const smooth01 = (v) => { const k = Math.min(1, Math.max(0, v)); return k * k * (3 - 2 * k); };
+  const line = (pts) => 'M' + pts.map(([x, y]) => `${n(x)} ${n(y)}`).join('L');
+  const area = (pts) => `${line(pts)}L${pts.at(-1)[0]} 2600L${pts[0][0]} 2600Z`; // weit hinab: im Hochformat sieht man mehr
+  const yAt = (pts, x) => {
+    const i = pts.findIndex(([px]) => px > x);
+    if (i <= 0) return (i < 0 ? pts.at(-1) : pts[0])[1];
+    const [ax, ay] = pts[i - 1], [bx, by] = pts[i];
+    return ay + (by - ay) * (x - ax) / (bx - ax);
+  };
+  /** Grat aus Stützpunkten, viermal verfeinert: Jede neue Mitte liegt etwas versetzt, so wird die Kante zackig. */
+  const ridge = (ctrl, rough) => {
+    let pts = ctrl;
+    for (let pass = 0; pass < 4; pass++) {
+      const next = [];
+      for (let i = 0; i < pts.length - 1; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
+        next.push(pts[i], [(ax + bx) / 2, (ay + by) / 2 + (rand() - 0.5) * (bx - ax) * rough]);
+      }
+      pts = [...next, pts.at(-1)];
+    }
+    return pts;
+  };
+  /** Sanfte Kuppen: zwischen den Stützpunkten weich (waagrecht an jedem Stützpunkt). */
+  const soft = (ctrl) => ctrl.slice(1).flatMap(([bx, by], i) => {
+    const [ax, ay] = ctrl[i];
+    return Array.from({ length: 12 }, (_, k) => { const t = k / 12; return [ax + (bx - ax) * t, ay + (by - ay) * t * t * (3 - 2 * t)]; });
+  }).concat([ctrl.at(-1)]);
+  /** Schneekappen über der Schneegrenze: von der Kante ein Stück hinab, je höher der Gipfel, desto tiefer. */
+  const snow = (pts, limit) => {
+    let d = '', run = [];
+    const flush = () => {
+      if (run.length > 2) d += line([...run, ...run.slice().reverse().map(([x, y]) => [x + r(-2, 2), y + (limit - y) * r(0.25, 0.45)])]) + 'Z';
+      run = [];
+    };
+    for (const p of pts) { if (p[1] < limit) run.push(p); else flush(); }
+    flush();
+    return d;
+  };
+  /** Tanne als eine Fläche: drei Stufen und ein kurzer Stamm. */
+  const FIR = [[0.3, 0.64], [0.14, 0.62], [0.4, 0.36], [0.2, 0.34], [0.5, 0.05], [0.07, 0.05], [0.07, 0]];
+  const fir = (x, y, h) => {
+    const w = h * r(0.34, 0.44), lean = r(-0.03, 0.03) * h;
+    const side = (s) => FIR.map(([dx, dy]) => `L${n(x + s * dx * w)} ${n(y - dy * h)}`);
+    return `M${n(x + lean)} ${n(y - h)}${side(-1).join('')}${side(1).reverse().join('')}Z`;
+  };
+  const firRow = (x0, x1, [s0, s1], [h0, h1], base) => {
+    let d = '';
+    for (let x = x0; x < x1; x += r(s0, s1)) d += fir(x, base(x), r(h0, h1));
+    return d;
+  };
+  const rim = (pts, color, opacity, width = 1.2) =>
+    `<path d="${line(pts)}" fill="none" stroke="${color}" stroke-opacity="${opacity}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;
+
+  // Himmel: Verlauf, Milchstrasse, Sterne (einige funkeln), der Polarstern
+  let stars = '', band = '';
+  for (let i = 0; i < 300; i++) {
+    const y = r(-950, 620);
+    if (y > 420 && rand() < 0.6) continue; // zum Horizont hin dünner
+    const big = rand() < 0.07, twinkle = rand() < 0.25;
+    stars += `<circle cx="${n(r(-700, 2300))}" cy="${n(y)}" r="${(big ? r(1.3, 2.1) : r(0.4, 1.1)).toFixed(2)}" opacity="${r(0.3, 0.95).toFixed(2)}"` +
+      (twinkle ? ` class="tw" style="animation-delay:${(-r(0, 6)).toFixed(1)}s;animation-duration:${r(2.4, 5.5).toFixed(1)}s"` : '') + '/>';
   }
-  const houses = [[205, 166, 20, 16, 'M201 167L215 156L229 167Z'], [234, 170, 16, 13, 'M231 171L242 162L253 171Z'],
-    [262, 158, 10, 26, 'M260 159L267 146L274 159Z'], [280, 172, 22, 16, 'M276 173L291 163L306 173Z'],
-    [312, 176, 16, 14, 'M309 177L320 169L331 177Z']]
-    .map(([x, y, w, h, roof]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/><path d="${roof}"/>`).join('');
-  const windows = [[210, 171, 4, 4], [240, 175, 3.5, 3.5], [265.5, 164, 3, 5], [285, 177, 4, 4], [294, 177, 4, 4], [318, 180, 3.5, 3.5]]
-    .map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('');
-  return `<svg class="village" viewBox="0 0 400 230" aria-hidden="true">
-    <defs>
-      <linearGradient id="v-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05061a"/><stop offset="0.7" stop-color="#141433"/><stop offset="1" stop-color="#211d40"/></linearGradient>
-      <radialGradient id="v-halo"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.3" stop-color="#c8d2ff" stop-opacity="0.35"/><stop offset="1" stop-color="#c8d2ff" stop-opacity="0"/></radialGradient>
-      <linearGradient id="v-torch" gradientUnits="userSpaceOnUse" x1="150.6" y1="156.7" x2="292" y2="42"><stop offset="0" stop-color="#fff4d6" stop-opacity="0.95"/><stop offset="0.35" stop-color="#fff4d6" stop-opacity="0.35"/><stop offset="0.72" stop-color="#fff4d6" stop-opacity="0"/></linearGradient>
-      <filter id="v-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.4"/></filter>
-      <filter id="v-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <rect width="400" height="230" fill="url(#v-sky)"/>
-    <g fill="#fff">${stars}</g>
-    <g class="polar">
-      <circle cx="292" cy="42" r="12" fill="url(#v-halo)"/>
-      <path d="M292 31v22M281 42h22" stroke="#fff" stroke-width="0.6" stroke-linecap="round" opacity="0.85"/>
-      <circle cx="292" cy="42" r="2.1" fill="#fff" filter="url(#v-glow)"/>
-    </g>
-    <path d="M0 150L40 118L70 132L120 82L150 104L175 92L215 128L255 96L290 118L330 78L370 112L400 100V230H0Z" fill="#1a1938"/>
-    <path d="M112 90L120 82L128 90L124 89L120 92L116 89ZM322 86L330 78L338 86L334 85L330 88L326 85Z" fill="#3b3b68"/>
-    <path d="M0 178L50 160L95 170L130 156L160 158L200 168L240 152L290 160L340 150L400 166V230H0Z" fill="#111029"/>
-    <g class="torch"><path d="M150.6 156.7L300.8 52.9L283.2 31.1Z" fill="url(#v-torch)" filter="url(#v-blur)"/><circle cx="150.6" cy="156.7" r="1.6" fill="#fff8e6" filter="url(#v-glow)"/></g>
-    <path d="M0 200L60 188L105 186L125 176L132 172L150 171L162 178L200 182L260 180L320 190L400 184V230H0Z" fill="#0a0a1d"/>
-    <g fill="#07071a">${houses}</g>
-    <g fill="#ffc874" filter="url(#v-glow)">${windows}</g>
-    <g fill="#04040d">
-      <circle cx="140" cy="159" r="3.2"/>
-      <path d="M136.2 163.2Q140 161.4 143.8 163.2L145 171.5L135 171.5Z"/>
-      <path d="M142.6 164.4L148.2 159.6" stroke="#04040d" stroke-width="1.9" stroke-linecap="round"/>
-    </g>
-    <rect x="146.6" y="157.3" width="4.6" height="2.3" rx="0.6" transform="rotate(-39 148.9 158.45)" fill="#22223a"/>
-  </svg>`;
-})();
+  for (let i = 0; i < 180; i++) {
+    const x = r(-300, 2000), spread = (rand() + rand() + rand() - 1.5) * 110;
+    band += `<circle cx="${n(x)}" cy="${n(150 + spread)}" r="${r(0.35, 0.8).toFixed(2)}" opacity="${r(0.25, 0.7).toFixed(2)}"/>`;
+  }
+  // Milchstrasse aus vielen weichen Flecken entlang eines Bands, verschieden breit und hell
+  let milky = '';
+  for (let i = 0; i < 14; i++) {
+    const x = -300 + i * 170 + r(-60, 60);
+    milky += `<ellipse cx="${n(x)}" cy="${n(150 + r(-40, 40))}" rx="${n(r(160, 320))}" ry="${n(r(55, 130))}" fill="url(#s-mw)" opacity="${r(0.25, 0.6).toFixed(2)}"/>`;
+  }
+
+  // Ferne Berge mit Schnee, dahinter Dunst
+  const far = ridge([[-800, 560], [-520, 430], [-300, 490], [-80, 360], [150, 470], [380, 335], [560, 440], [770, 300], [940, 415],
+    [1120, 345], [1300, 455], [1510, 320], [1720, 440], [1930, 370], [2400, 520]], 0.32);
+  // Bergwald: niedrigere Kämme, dicht mit Tannen
+  const mid = ridge([[-800, 650], [-450, 565], [-160, 605], [100, 528], [330, 592], [520, 548], [720, 606], [910, 566], [1110, 618],
+    [1310, 548], [1560, 604], [1810, 538], [2400, 630]], 0.22);
+  // Dorfhügel
+  const hill = soft([[-800, 732], [-200, 706], [250, 712], [520, 690], [700, 660], [900, 641], [1100, 646], [1300, 668],
+    [1600, 700], [2000, 712], [2400, 730]]);
+  // Noas Hügel links, der Waldrand rechts
+  const ground = soft([[-800, 772], [-350, 746], [50, 712], [300, 668], [430, 657], [560, 672], [760, 742], [980, 768],
+    [1180, 752], [1450, 742], [1750, 750], [2400, 775]]);
+
+  // Häuser: Mitte x, Breite, Höhe, Dachhöhe, Fenster [dx, dy über dem Boden], Kamin
+  const HOUSES = [[700, 44, 28, 18, [[-9, 11], [8, 11]], 1], [756, 34, 24, 16, [[0, 9]], 0],
+    [818, 54, 34, 22, [[-15, 12], [0, 12], [15, 12]], 1], [884, 40, 28, 18, [[-7, 10]], 1], [940, 30, 22, 15, [[0, 8]], 0],
+    [1072, 48, 32, 21, [[-11, 12], [10, 12]], 1], [1128, 38, 26, 17, [[0, 10]], 0], [1174, 32, 22, 15, [], 1]];
+  const chimneys = [];
+  let houses = '', glows = '';
+  const windowAt = (x, y) => {
+    if (rand() < 0.15) { houses += `<rect x="${n(x - 2.5)}" y="${n(y - 3)}" width="5" height="6" fill="#16162e"/>`; return; }
+    glows += `<circle cx="${n(x)}" cy="${n(y)}" r="17" fill="url(#s-win)"${rand() < 0.3 ? ` class="flk" style="animation-delay:${(-r(0, 3)).toFixed(1)}s"` : ''}/>`;
+    houses += `<rect x="${n(x - 2.5)}" y="${n(y - 3)}" width="5" height="6" fill="#ffd28a"/>`;
+  };
+  for (const [x, w, h, roof, wins, chimney] of HOUSES) {
+    const base = yAt(hill, x) + 6, top = base - h, eave = `M${x - w / 2 - 4} ${n(top + 1)}L${x} ${n(top - roof)}L${x + w / 2 + 4} ${n(top + 1)}`;
+    if (chimney) {
+      const cx = x + w * 0.22, cy = top - roof * 0.62;
+      houses += `<rect x="${n(cx - 3)}" y="${n(cy - 9)}" width="6" height="14" fill="#0a0a1c"/>`;
+      chimneys.push([cx, cy - 10]);
+    }
+    houses += `<rect x="${x - w / 2}" y="${n(top)}" width="${w}" height="${h + 12}" fill="#0a0a1d"/><path d="${eave}Z" fill="#0d0d26"/>` +
+      `<path d="${eave}" fill="none" stroke="#3c4080" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+    for (const [dx, dy] of wins) windowAt(x + dx, base - dy - 4);
+  }
+  { // Kirche: Turm mit Spitze und Kreuz, ein kleines Schiff daneben
+    const base = yAt(hill, 1004) + 6, top = base - 76;
+    houses += `<rect x="1015" y="${n(base - 30)}" width="26" height="42" fill="#0a0a1d"/><path d="M1013 ${n(base - 29)}L1028 ${n(base - 44)}L1043 ${n(base - 29)}Z" fill="#0d0d26"/>` +
+      `<rect x="993" y="${n(top)}" width="22" height="88" fill="#0a0a1d"/><path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}Z" fill="#0d0d26"/>` +
+      `<path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}" fill="none" stroke="#3c4080" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke"/>` +
+      `<path d="M1004 ${n(top - 40)}v-11M999.5 ${n(top - 46)}h9" stroke="#0d0d26" stroke-width="2"/>`;
+    glows += `<circle cx="1004" cy="${n(top + 20)}" r="15" fill="url(#s-win)"/>`;
+    houses += `<circle cx="1004" cy="${n(top + 20)}" r="3.6" fill="#ffd28a"/>`;
+  }
+  // Weg vom Dorf hinunter, mit Laternen
+  const path = [690, 640, 590, 540, 480, 420].map((x) => [x, yAt(hill, x) + 5]);
+  let lanterns = '';
+  for (const [x, y] of path.slice(1, -1)) lanterns += `<circle cx="${n(x)}" cy="${n(y - 9)}" r="11" fill="url(#s-win)" opacity="0.7"/><circle cx="${n(x)}" cy="${n(y - 9)}" r="1.8" fill="#ffe2a8"/><rect x="${n(x - 0.7)}" y="${n(y - 7)}" width="1.4" height="7" fill="#0a0a1d"/>`;
+  // Zaun an Noas Hügel
+  const posts = [470, 494, 518, 542].map((x) => [x, yAt(ground, x)]);
+  const fence = posts.map(([x, y]) => `<rect x="${x - 1.5}" y="${n(y - 18)}" width="3" height="20"/>`).join('') +
+    `<path d="${line(posts.map(([x, y]) => [x, y - 13]))}${line(posts.map(([x, y]) => [x, y - 6]))}" fill="none" stroke="#05050f" stroke-width="2"/>`;
+  // Vordergrund: Grasbüschel
+  let grass = '';
+  for (let x = -900; x < 2500; x += r(12, 28)) {
+    const y = 884 + r(-6, 6);
+    grass += `M${n(x - 6)} ${n(y)}L${n(x - 3)} ${n(y - r(8, 18))}L${n(x)} ${n(y)}L${n(x + 2)} ${n(y - r(10, 24))}L${n(x + 5)} ${n(y)}Z`;
+  }
+
+  host.insertAdjacentHTML('beforeend', `<div class="scene">
+    <svg class="world" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="s-sky" gradientUnits="userSpaceOnUse" x1="0" y1="-700" x2="0" y2="640"><stop offset="0" stop-color="#03040f"/><stop offset="0.45" stop-color="#080a24"/><stop offset="0.8" stop-color="#15163a"/><stop offset="1" stop-color="#28274f"/></linearGradient>
+        <radialGradient id="s-mw"><stop offset="0" stop-color="#c9cfff" stop-opacity="0.16"/><stop offset="1" stop-color="#c9cfff" stop-opacity="0"/></radialGradient>
+        <radialGradient id="s-halo"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="0.08" stop-color="#eef0ff" stop-opacity="0.5"/><stop offset="0.25" stop-color="#cdd5ff" stop-opacity="0.16"/><stop offset="1" stop-color="#cdd5ff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="s-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3070" stop-opacity="0"/><stop offset="0.5" stop-color="#2c3070" stop-opacity="0.5"/><stop offset="1" stop-color="#2c3070" stop-opacity="0"/></linearGradient>
+        <radialGradient id="s-win"><stop offset="0" stop-color="#ffb35a" stop-opacity="0.55"/><stop offset="0.4" stop-color="#ff9c3a" stop-opacity="0.16"/><stop offset="1" stop-color="#ff9c3a" stop-opacity="0"/></radialGradient>
+        <radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient>
+        <linearGradient id="s-beam" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff1cc" stop-opacity="0.42"/><stop offset="0.15" stop-color="#fff1cc" stop-opacity="0.2"/><stop offset="0.35" stop-color="#fff1cc" stop-opacity="0.07"/><stop offset="0.55" stop-color="#fff1cc" stop-opacity="0"/></linearGradient>
+        <linearGradient id="s-core" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffaf0" stop-opacity="0.95"/><stop offset="0.12" stop-color="#fffaf0" stop-opacity="0.4"/><stop offset="0.32" stop-color="#fffaf0" stop-opacity="0.06"/><stop offset="0.5" stop-color="#fffaf0" stop-opacity="0"/></linearGradient>
+        <radialGradient id="s-gw"><stop offset="0" stop-color="#e4ff8a" stop-opacity="0.9"/><stop offset="0.3" stop-color="#c2ff4a" stop-opacity="0.3"/><stop offset="1" stop-color="#c2ff4a" stop-opacity="0"/></radialGradient>
+        <radialGradient id="s-smoke"><stop offset="0" stop-color="#5c6190" stop-opacity="0.55"/><stop offset="0.6" stop-color="#5c6190" stop-opacity="0.2"/><stop offset="1" stop-color="#5c6190" stop-opacity="0"/></radialGradient>
+      </defs>
+      <g class="layer" data-p="0.06">
+        <rect x="-3000" y="-3000" width="7600" height="4400" fill="url(#s-sky)"/>
+        <g transform="rotate(-16 900 150)">${milky}<g fill="#dfe3ff">${band}</g></g>
+        <g fill="#fff">${stars}</g>
+        <g class="polar"><circle r="64" fill="url(#s-halo)"/><path d="M0 -30V30M-30 0H30" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity="0.7"/><circle r="3.6" fill="#fff"/></g>
+      </g>
+      <g class="layer" data-p="0.22">
+        <path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>${rim(far, '#8a90d8', 0.35)}
+        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>
+      </g>
+      <g class="layer" data-p="0.42">
+        <path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}
+        <path d="${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}" fill="#101030"/>
+        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>
+      </g>
+      <g class="layer" data-p="0.68">
+        <path d="${area(hill)}" fill="#0d0d25"/>${rim(hill, '#2c3066', 0.5)}
+        <path d="${line(path)}" fill="none" stroke="#1b1b3b" stroke-width="3" stroke-linecap="round"/>
+        <path d="${firRow(360, 650, [7, 15], [22, 52], (x) => yAt(hill, x) + 4)}${firRow(1215, 1580, [7, 14], [24, 58], (x) => yAt(hill, x) + 4)}${firRow(-700, 300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}${firRow(1600, 2300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}" fill="#0a0a1f"/>
+        <g>${glows}</g>${houses}${lanterns}
+        <g class="smoke"></g>
+      </g>
+      <g class="layer" data-p="1">
+        <path d="${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}" fill="#0a0a20"/>
+        <path d="${area(ground)}" fill="#08081b"/>${rim(ground, '#2a2e62', 0.55, 1.5)}
+        <path d="${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}" fill="#050515"/>
+        <g fill="#05050f">${fence}</g>
+        <g class="noa" fill="#03030a">
+          <path d="M422.5 628L422 650Q421.5 653 418.8 655.4Q417.6 657.6 420.4 657.6L429 657.6L429.3 628Z"/>
+          <path d="M431.2 628L431.5 657.6L440.6 657.6Q443.2 657.4 441.6 655.2Q439 653 438.8 650L438.2 628Z"/>
+          <path d="M419.5 592Q430 585.5 440.5 592L443.6 610L447.6 634.5Q430 639 412.4 634.5L416.4 610Z"/>
+          <circle cx="430" cy="576.5" r="9.4"/>
+          <path d="M419.8 575Q419.2 559.5 430 558.4Q440.8 559.5 440.2 575Z"/><rect x="418.6" y="571.2" width="22.8" height="5.2" rx="2.6"/>
+          <circle cx="430" cy="555.2" r="4.3"/>
+          <path class="scarf" d="M421.2 587Q430 591.5 438.8 587L440.2 591.6Q430 596 419.8 591.6ZM435.5 590L455 597Q449 602 441 595.6Z"/>
+          <path d="M437.2 568.5A9.4 9.4 0 0 1 438.6 581M440.8 592.6L443.9 610L447.6 634" fill="none" stroke="#4a4f98" stroke-opacity="0.75" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+          <g class="arm"><rect x="-2" y="-3" width="24" height="6" rx="3"/><circle cx="21.5" cy="0" r="3.8"/>
+            <rect x="22" y="-4.2" width="11.5" height="8.4" rx="2" fill="#22223c"/><rect x="32.4" y="-4.8" width="2.4" height="9.6" rx="1" fill="#3a3a60"/></g>
+        </g>
+        <g class="beam" opacity="0"><path class="cone" fill="url(#s-beam)"/><path class="core" fill="url(#s-core)"/><circle class="lamp" r="24" fill="url(#s-lamp)"/></g>
+        <g class="worms"></g>
+      </g>
+      <g class="layer" data-p="1.35">
+        <path d="${fir(-140, 905, 780)}${fir(60, 910, 520)}${fir(2060, 905, 720)}${fir(2200, 912, 460)}" fill="#020208"/>
+        <path d="${grass}" fill="#030309"/><rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>
+      </g>
+    </svg>
+    <div class="sub"><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
+    <button class="skip" type="button">Überspringen</button>
+  </div>`);
+
+  const el = host.lastElementChild, q = (s) => el.querySelector(s);
+  const layers = [...el.querySelectorAll('.layer')].map((g) => ({ g, p: +g.dataset.p }));
+  const arm = q('.arm'), beam = q('.beam'), cone = q('.cone'), core = q('.core'), lamp = q('.lamp'), polar = q('.polar');
+  const beamGrads = [q('#s-beam'), q('#s-core')], lines = [...el.querySelectorAll('.line')];
+  const scarf = q('.scarf');
+  const SVG_NS = q('svg').namespaceURI; // nicht als Adresse im Quelltext (siehe Test „Offline“)
+  const make = (parent, tag, attrs) => {
+    const e = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+    parent.appendChild(e);
+    return e;
+  };
+  const smoke = chimneys.flatMap(([x, y], i) => [0, 1 / 3, 2 / 3].map((off) => ({ x, y, off: off + i * 0.13, el: make(q('.smoke'), 'ellipse', { fill: 'url(#s-smoke)' }) })));
+  const worms = Array.from({ length: 16 }, () => {
+    const g = make(q('.worms'), 'g', {});
+    make(g, 'circle', { r: 11, fill: 'url(#s-gw)' });
+    make(g, 'circle', { r: 1.9, fill: '#efffb0' });
+    return { el: g, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
+      ph: r(0, 6.3), fl: r(2, 5), spin: r(1.6, 2.6) * (rand() < 0.5 ? -1 : 1), ox: r(18, 44), oy: r(12, 30), delay: r(0, 1.6) };
+  });
+  q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
+  const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
+
+  const scene = {
+    el, skip: q('.skip'),
+    time: 0, speed: 1, tweens: [], running: false, last: 0,
+    cam: { x: 800, y: 450, z: 1 },
+    arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
+    worms: 'idle', gatherAt: 0, carryAt: 0,
+    moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
+    movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
+
+    portrait() { return innerWidth / innerHeight < 0.9; },
+    reset(shot) {
+      this.tweens = [];
+      this.speed = 1;
+      this.moving = false;
+      this.arm = 75;
+      this.beamLen = this.beamPower = this.starBoost = 0;
+      this.worms = 'idle';
+      this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
+      this.say('');
+      this.hint(false);
+      this.actions([]);
+    },
+    /** Einblenden und die Szene laufen lassen. */
+    show() {
+      el.classList.remove('lit');
+      if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
+      void el.offsetWidth;
+      el.classList.add('lit');
+    },
+    /** Ausblenden (CSS 1,6 s), danach anhalten. */
+    async hide() {
+      el.classList.remove('lit');
+      await storySleep(1600);
+      this.running = false;
+    },
+    tween(seconds, fn, ease = storyEase, delay = 0) {
+      return new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
+    },
+    /** Kamerafahrt zur Einstellung (im Hochformat camP); Zoom geometrisch, damit er gleichmässig wirkt. */
+    moveTo(shot) {
+      const to = (this.portrait() && shot.camP) || shot.cam, from = { ...this.cam };
+      if (this.speed < 10) this.speed = 1; // nach dem Beschleunigen wieder normal (ausser beim Überspringen)
+      const seconds = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shot.move;
+      this.moving = true;
+      this.movedAt = this.time;
+      return this.tween(seconds, (k) => {
+        this.cam = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k };
+      }).then(() => {
+        this.moving = false;
+        if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
+      });
+    },
+    /** Was in einer Einstellung geschieht. */
+    act(name) {
+      if (name === 'lamp') { // Arm hoch, Klick, der Strahl wächst zum Himmel
+        this.tween(1.1, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.4).then(() => {
+          if (this.speed >= 10) return; // übersprungen: kein Klick mehr über dem Ausblenden
+          audio.rotate();
+          this.beamPower = 1;
+          this.tween(1.8, (k) => { this.beamLen = 0.3 * k; }, (k) => 1 - (1 - k) ** 3); // nah: nur ein Stück, sonst reicht er bis zum Stern
+        });
+      } else if (name === 'reach') { // beim Blick nach oben streckt sich der Strahl und verblasst vor den Sternen
+        const from = this.beamLen;
+        this.tween(3.5, (k) => { this.beamLen = from + (1 - from) * k; }, storyEase, 0.3);
+      } else if (name === 'gather') { // Glühwürmchen fliegen zur Lampe und umkreisen sie
+        this.worms = 'gather';
+        this.gatherAt = this.time + 0.6;
+        for (let i = 0; i < 5; i++) audio.hit(2, 0.9 + i * 0.32, { octave: 2, gain: 0.018 });
+      } else if (name === 'carry') { // … und tragen das Licht in den Wald, die Lampe wird schwächer
+        this.worms = 'carry';
+        this.carryAt = this.time + 0.3;
+        this.tween(3.2, (k) => { this.beamPower = 1 - 0.75 * k; }, storyEase, 0.5);
+      } else if (name === 'blink') { // Epilog: der Polarstern blinkt dreimal
+        for (let i = 0; i < 3; i++) {
+          this.tween(0.9, (k) => { this.starBoost = Math.sin(Math.PI * k); }, storyLinear, 1.4 + i * 1.1);
+          audio.hit(7, 1.6 + i * 1.1, { octave: 2, gain: 0.05 });
+        }
+      } else if (name === 'answer') { // Noa hebt die Lampe und blinkt dreimal zurück
+        this.beamLen = 0.55;
+        this.tween(1.0, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.3);
+        for (let i = 0; i < 3; i++) {
+          this.tween(0.8, (k) => { this.beamPower = Math.sin(Math.PI * k); }, storyLinear, 1.6 + i * 1.0);
+          audio.hit(7, 1.8 + i * 1.0, { gain: 0.03 });
+        }
+      }
+    },
+    /** Untertitel: der alte blendet aus, der neue danach ein (CSS .line.on). */
+    say(text) {
+      const [a, b] = lines, cur = a.classList.contains('on') ? a : b, next = cur === a ? b : a;
+      cur.classList.remove('on');
+      if (!text) return;
+      next.textContent = text;
+      next.classList.add('on');
+    },
+    hint(on) { q('.hint').classList.toggle('on', on); },
+    actions(list) {
+      const box = q('.actions');
+      box.replaceChildren();
+      for (const [label, fn] of list) {
+        const b = document.createElement('button');
+        b.textContent = label;
+        b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+        box.append(b);
+      }
+    },
+
+    frame(now) {
+      if (!this.running) return;
+      const dt = Math.min(0.05, (now - this.last) / 1000) * this.speed;
+      this.last = now;
+      this.time += dt;
+      for (const tw of this.tweens.slice()) {
+        tw.t += dt;
+        if (tw.t < 0) continue;
+        const k = Math.min(1, tw.t / tw.s);
+        tw.fn(tw.ease(k));
+        if (k >= 1) { this.tweens.splice(this.tweens.indexOf(tw), 1); tw.resolve(); }
+      }
+      this.draw();
+      requestAnimationFrame((t) => this.frame(t));
+    },
+    draw() {
+      const t = this.time, c = this.cam, fit = Math.min(1, 900 * innerWidth / innerHeight / 820); // Hochformat: weiter weg
+      for (const { g, p } of layers) {
+        const z = (1 + (c.z - 1) * p) * fit, x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
+        g.setAttribute('transform', `translate(800 450) scale(${z.toFixed(4)}) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})`);
+      }
+      // Noa: Arm mit Lampe, Schal im Wind, der Strahl aus der Lampe
+      arm.setAttribute('transform', `translate(440 592) rotate(${this.arm.toFixed(2)})`);
+      scarf.setAttribute('transform', `rotate(${(Math.sin(t * 2.3) * 4).toFixed(2)} 437 590)`);
+      const a = this.arm * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), tx = 440 + 34 * ux, ty = 592 + 34 * uy;
+      if (this.beamPower > 0.002) {
+        const len = 860 * this.beamLen, ex = tx + ux * len, ey = ty + uy * len;
+        const cone2 = (w0, w1) => `M${n(tx - uy * w0)} ${n(ty + ux * w0)}L${n(ex - uy * w1)} ${n(ey + ux * w1)}L${n(ex + uy * w1)} ${n(ey - ux * w1)}L${n(tx + uy * w0)} ${n(ty - ux * w0)}Z`;
+        cone.setAttribute('d', cone2(3, len * 0.04));
+        core.setAttribute('d', cone2(1.4, len * 0.011));
+        for (const g of beamGrads) {
+          g.setAttribute('x1', n(tx)); g.setAttribute('y1', n(ty));
+          // Verlauf mit der Länge: der Strahl verblasst immer vor seiner Spitze (Stopps enden bei 0,55)
+          g.setAttribute('x2', n(tx + ux * len / 0.55)); g.setAttribute('y2', n(ty + uy * len / 0.55));
+        }
+        lamp.setAttribute('cx', n(tx));
+        lamp.setAttribute('cy', n(ty));
+        beam.setAttribute('opacity', (this.beamPower * (0.93 + 0.07 * Math.sin(t * 23))).toFixed(3));
+      } else beam.setAttribute('opacity', '0');
+      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald
+      for (const w of worms) {
+        let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9, s = 1;
+        if (this.worms !== 'idle') {
+          const g = smooth01((t - this.gatherAt - w.delay) / 2.4), ang = t * w.spin + w.ph;
+          x += (tx + Math.cos(ang) * w.ox - x) * g;
+          y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
+          s += 0.6 * g;
+          if (this.worms === 'carry') {
+            const k = smooth01((t - this.carryAt - w.delay * 0.7) / 3.6);
+            x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
+            y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
+          }
+        }
+        w.el.setAttribute('transform', `translate(${n(x)} ${n(y)}) scale(${s.toFixed(2)})`);
+        w.el.setAttribute('opacity', (0.45 + 0.55 * Math.sin(t * w.fl + w.ph) ** 2).toFixed(2));
+      }
+      // Rauch aus den Kaminen
+      for (const p of smoke) {
+        const k = (t * 0.05 + p.off) % 1, size = 3 + k * 10;
+        p.el.setAttribute('cx', n(p.x + k * 34 + Math.sin(t * 0.6 + p.off * 9) * 3));
+        p.el.setAttribute('cy', n(p.y - k * 85));
+        p.el.setAttribute('rx', n(size * 1.5));
+        p.el.setAttribute('ry', n(size));
+        p.el.setAttribute('opacity', (Math.sin(Math.PI * k) ** 1.5 * 0.5).toFixed(2));
+      }
+      // der Polarstern atmet leicht; im Epilog blinkt er
+      polar.setAttribute('transform', `translate(1120 150) scale(${(1 + 0.05 * Math.sin(t * 1.7) + 1.8 * this.starBoost).toFixed(3)})`);
+    },
+  };
+  return scene;
+}
 
 const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2); // wie der Rückflug der Kamera
 const storyLinear = (k) => k;
@@ -29097,6 +29521,9 @@ const story = {
   fast: 1,            // Tippen in einer Zwischenszene: schneller
   tweens: [],
   waitTap: null,
+  scene: null,        // Bühne für Prolog und Epilog (createStoryScene), beim ersten Gebrauch gebaut
+  covered: false,     // die Bühne deckt das Spiel ganz zu (frameRate: 30 Bilder/s reichen)
+  skipped: false,     // Prolog übersprungen
 
   init() {
     if (!this.on) return;
@@ -29140,7 +29567,7 @@ const story = {
   async begin() {
     this.running = true;
     flow.state = 'story';
-    if (this.prolog) for (const p of STORY_PROLOG) await this.card({ art: p.art, text: p.text });
+    if (this.prolog) await this.playScene(STORY_PROLOG, { skippable: true });
     await this.card(this.chapterCard(this.chapter()));
     await this.skyReady();
     await this.arrive(this.steps[this.step].index, this.chapter().up);
@@ -29221,9 +29648,50 @@ const story = {
     ui.hideSolved();
     ui.hideHud();
     try { localStorage.removeItem(this.storageKey); } catch { /* egal */ }
-    await this.showCard({ art: 'answer', kicker: 'Epilog', text: STORY_EPILOG, path: STORY_STATIONS.length,
-      actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
-        ['Zum Spiel', () => { location.href = location.pathname; }]] });
+    await this.playScene(STORY_EPILOG, { actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
+      ['Zum Spiel', () => { location.href = location.pathname; }]] });
+  },
+  /**
+   * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
+   * während einer Fahrt macht sie schneller. actions: Knöpfe nach der letzten Einstellung (Epilog), die Bühne bleibt
+   * dann stehen; sonst blendet sie aus.
+   */
+  async playScene(shots, { skippable = false, actions = null } = {}) {
+    const sc = this.scene ??= this.makeScene();
+    sc.reset(shots[0]);
+    sc.skip.hidden = !skippable;
+    this.skipped = false;
+    this.open('scene');
+    this.covered = true;
+    sc.show();
+    for (const shot of shots) {
+      if (this.skipped) break;
+      sc.say(shot.text);
+      sc.hint(false);
+      if (shot.act) sc.act(shot.act);
+      await sc.moveTo(shot);
+      if (this.skipped) break;
+      if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
+      sc.hint(true);
+      await this.untilTap();
+    }
+    sc.skip.hidden = true; // Escape wirkt nur im Prolog (sonst ginge damit später eine Karte weiter)
+    sc.say('');
+    sc.hint(false);
+    await sc.hide();
+    this.covered = false;
+  },
+  makeScene() {
+    const sc = createStoryScene(this.el);
+    sc.skip.addEventListener('click', (e) => { e.stopPropagation(); this.skipProlog(); });
+    return sc;
+  },
+  /** Prolog überspringen: laufende Fahrt sofort zu Ende, keine weiteren Einstellungen. */
+  skipProlog() {
+    if (!this.scene || this.scene.skip.hidden) return;
+    this.skipped = true;
+    this.scene.speed = 60;
+    this.tap();
   },
 
   /* ---------- Zwischenszenen ---------- */
@@ -29401,12 +29869,7 @@ const story = {
     const art = el.querySelector('.art');
     art.className = 'art' + (c.icon ? ' icon' : '');
     if (c.icon) art.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${STORY_ICONS[c.icon]}</svg>`;
-    else if (c.art) {
-      art.innerHTML = STORY_VILLAGE;
-      // erst im nächsten Bild: so blendet der Strahl der Taschenlampe ein bzw. das Blinken beginnt neu
-      const v = art.firstElementChild;
-      requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add(c.art)));
-    } else art.replaceChildren();
+    else art.replaceChildren();
     el.querySelector('.kicker').textContent = c.kicker ?? '';
     el.querySelector('.text').textContent = c.text;
     this.fillPath(el.querySelector('.path'), c.path);
@@ -29445,7 +29908,12 @@ const story = {
   untilTap() { return new Promise((resolve) => { this.waitTap = resolve; }); },
   /** Tippen/Klicken auf die Geschichte (oder Enter): Karte weiter, in einer Zwischenszene schneller. */
   tap() {
-    if (!this.waitTap) { this.fast = 3; return; }
+    if (!this.waitTap) {
+      this.fast = 3;
+      const sc = this.scene;
+      if (sc?.moving && sc.speed < 10 && sc.time - sc.movedAt > 0.3) sc.speed = 4; // Kamerafahrt auf der Bühne
+      return;
+    }
     const resolve = this.waitTap;
     this.waitTap = null;
     this.fast = 1;
@@ -29456,6 +29924,7 @@ const story = {
   keydown(e) {
     if (!this.el.classList.contains('hidden') || flow.state === 'story') {
       if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.tap(); }
+      else if (e.code === 'Escape') this.skipProlog();
       return e.code !== 'KeyM';
     }
     if (e.code === 'KeyN' || e.code === 'ArrowRight') { this.skip(); return true; }
@@ -29902,7 +30371,7 @@ const frameRate = {
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   busy(ts) {
-    if (ui.levelsOpen()) return false; // Feld liegt abgedunkelt hinter der Auswahl
+    if (ui.levelsOpen() || story.covered) return false; // Feld liegt hinter der Auswahl bzw. der Bühne der Geschichte
     if (flow.state !== 'play' || story.tweens.length || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
     if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
     // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
