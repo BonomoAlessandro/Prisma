@@ -29008,7 +29008,7 @@ ui.init();
 /* =====================================================================
    GESCHICHTE (Prototyp, ?signal) — «Ein Lichtsignal an die Sterne».
    Noa will aus einem Bergdorf dem Polarstern ein Zeichen schicken. Eine Taschenlampe reicht nicht so weit, doch Licht
-   lässt sich weitergeben: Der Spieler reicht es Welt für Welt weiter (ein Kapitel = eine Skybox und ein Level). Am
+   lässt sich weitergeben: Der Spieler reicht es Welt für Welt weiter (ein Kapitel = eine Skybox und zwei Level). Am
    Kapitelende steigen die Strahlen der Ziele zu einem Punkt am Himmel, ein Träger nimmt ihn mit in die nächste Welt
    (travel). Ganz oben antwortet der Polarstern: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn blinken (Epilog
    auf der Bühne, createStoryScene). Die Würfel-Level gehören nicht zu dieser Geschichte.
@@ -29032,28 +29032,28 @@ const STORY_ICONS = {
 const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
   ['planeten', 'Planeten'], ['sterne', 'Sterne']];
 /**
- * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel; im Prototyp eines je Welt), Meldung
+ * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel; zwei je Welt), Meldung
  * und Knopf nach dem letzten Level. travel: Untertitel, wenn das Licht hier ankommt (nach dem Prolog, auf der Reise,
  * beim Fortsetzen); carrier: was das Licht von hier in die nächste Welt trägt (STORY_CARRIERS). up: Blick in den Himmel
  * steiler (Vulkan: über die Kraterwand). finale: danach antwortet der Stern, und der Epilog folgt.
  */
 const STORY_CHAPTERS = [
-  { station: 1, title: 'Der Bergwald', sky: 'forest', levels: ['Leuchtkäfer'],
+  { station: 1, title: 'Der Bergwald', sky: 'forest', levels: ['Taschenlampe', 'Leuchtkäfer'],
     travel: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Lenke es zwischen den Bäumen hindurch.',
     carrier: 'glow', done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
-  { station: 2, title: 'Das Meer', sky: 'beach', levels: ['Meeresleuchten'],
+  { station: 2, title: 'Das Meer', sky: 'beach', levels: ['Drachenschnur', 'Meeresleuchten'],
     travel: 'Die Glühwürmchen tragen das Licht aus dem Wald hinaus, über die Hügel bis ans Meer. Dort springt es von Welle zu Welle.',
     carrier: 'spray', done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
-  { station: 3, title: 'Die Wüste', sky: 'desert', levels: ['Spiegelbild'],
+  { station: 3, title: 'Die Wüste', sky: 'desert', levels: ['Wegmarke', 'Spiegelbild'],
     travel: 'Der Wind über den Wellen nimmt das Licht mit, weit übers Meer, bis an den Rand der Wüste. Dort warten die Pyramiden.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
-  { station: 4, title: 'Der Vulkan', sky: 'volcano', levels: ['Funkenregen'], up: 1.0,
+  { station: 4, title: 'Der Vulkan', sky: 'volcano', levels: ['Fackel', 'Funkenregen'], up: 1.0,
     travel: 'Ein Wirbel aus Sand trägt das Licht über die Dünen, bis die Erde unter ihm rot zu glühen beginnt.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
-  { station: 5, title: 'Die Planeten', sky: 'solar', levels: ['Europa'],
+  { station: 5, title: 'Die Planeten', sky: 'solar', levels: ['Europa', 'Kallisto'],
     travel: 'Der Vulkan bricht aus und schleudert das Licht hinauf, höher als alle Wolken, bis zu den Planeten.',
     carrier: 'comet', done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
-  { station: 6, title: 'Die Sterne', sky: 'milky', levels: ['Polarstern'], finale: true,
+  { station: 6, title: 'Die Sterne', sky: 'milky', levels: ['Sternchen', 'Polarstern'], finale: true,
     travel: 'Ein Komet nimmt das Licht mit, hinaus aus dem Sonnensystem, dorthin, wo nur noch Sterne sind.',
     done: 'Ganz oben', next: 'Hinaufschauen' },
 ];
@@ -30027,7 +30027,7 @@ const story = {
 
   hudText(index) {
     const ch = this.chapter(), lvl = LEVELS[index], k = ch.levels.indexOf(lvl.name) + 1;
-    const count = ch.levels.length > 1 ? ` · Level ${k} / ${ch.levels.length}` : ''; // im Prototyp eines je Welt
+    const count = ch.levels.length > 1 ? ` · Level ${k} / ${ch.levels.length}` : '';
     return [`${ch.title} – ${lvl.name}`, `Kapitel ${STORY_CHAPTERS.indexOf(ch) + 1} / ${STORY_CHAPTERS.length}${count} · ` +
       (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück')];
   },
