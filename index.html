@@ -371,6 +371,9 @@
 
   /* ---------- Geschichte (Prototyp, ?signal): Karten zwischen den Kapiteln, Untertitel in den Zwischenszenen ---------- */
   body.story #btn-levels, body.story #btn-sky { display: none; } /* die Geschichte wählt Level und Hintergrund */
+  /* Geschichte: Startbildschirm deckend, die erste Welt lädt dahinter und zeigt sich erst nach dem Start */
+  body.story #intro { background: radial-gradient(ellipse at 50% 55%, #0e0c1e, #030308 70%); }
+  #story.instant { transition: none !important; } /* sofort da, ohne Einblenden (Beginn des Prologs) */
   #story {
     position: fixed; inset: 0; z-index: 7;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -29010,7 +29013,8 @@ ui.init();
    (travel). Ganz oben antwortet der Polarstern: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn blinken (Epilog
    auf der Bühne, createStoryScene). Die Würfel-Level gehören nicht zu dieser Geschichte.
    ?signal: weiter, wo man war · ?signal=neu: von vorn · ?signal=4: ab Kapitel 4. Ohne ?signal ändert sich nichts;
-   die Geschichte speichert nur ihren eigenen Stand (prisma.signal), nicht den Fortschritt der Levelauswahl.
+   die Geschichte speichert nur ihren eigenen Stand (prisma.signal, dazu die schon betretenen Welten in
+   prisma.signal.seen), nicht den Fortschritt der Levelauswahl.
    ===================================================================== */
 
 const STORY_PARAM = new URLSearchParams(location.search).get('signal'); // null: ohne Geschichte
@@ -29534,6 +29538,9 @@ const story = {
   waitTap: null,
   scene: null,        // Bühne für Prolog und Epilog (createStoryScene), beim ersten Gebrauch gebaut
   covered: false,     // die Bühne deckt das Spiel ganz zu (frameRate: 30 Bilder/s reichen)
+  blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
+  seen: new Set(),    // Kapitel, in denen schon ein Level begonnen hat: dort kein Einstieg mehr (begin)
+  seenKey: 'prisma.signal.seen',
   skipped: false,     // Prolog übersprungen
 
   init() {
@@ -29551,8 +29558,10 @@ const story = {
     let step = 0;
     if (numbered) step = Math.max(0, this.steps.findIndex((s) => s.c === Math.min(+STORY_PARAM, STORY_CHAPTERS.length) - 1));
     else if (STORY_PARAM !== 'neu') try { step = Math.floor(+localStorage.getItem(this.storageKey)) || 0; } catch { /* von vorn */ }
+    if (STORY_PARAM === 'neu') this.saveSeen();
+    else try { this.seen = new Set(JSON.parse(localStorage.getItem(this.seenKey) || '[]').filter(Number.isInteger)); } catch { /* keine */ }
     this.step = step >= 0 && step < this.steps.length ? step : 0;
-    this.prolog = this.step === 0 && !numbered;
+    this.prolog = this.step === 0 && !numbered && !this.seen.has(0); // der Prolog gehört zum ersten Einstieg
     // ein Neuladen fängt nicht wieder von vorn bzw. beim gewählten Kapitel an
     if (numbered || STORY_PARAM === 'neu') {
       this.save(); // sonst ginge ein Neuladen vor dem ersten „Weiter“ zum alten Stand zurück
@@ -29571,6 +29580,7 @@ const story = {
   /** Hintergrund des Kapitels, nicht als Wahl gespeichert; fehlt die Skybox (z. B. skies.js nicht geladen): Milchstrasse. */
   setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate, false); },
   save() { try { localStorage.setItem(this.storageKey, String(this.step)); } catch { /* privates Fenster */ } },
+  saveSeen() { try { localStorage.setItem(this.seenKey, JSON.stringify([...this.seen])); } catch { /* privates Fenster */ } },
 
   /* ---------- Ablauf ---------- */
 
@@ -29578,8 +29588,21 @@ const story = {
   async begin() {
     this.running = true;
     flow.state = 'story';
-    if (this.prolog) await this.playScene(STORY_PROLOG, { skippable: true });
-    await this.enter(this.steps[this.step].index, this.chapter());
+    const { c, index } = this.steps[this.step];
+    if (this.seen.has(c)) {
+      // in dieser Welt hat schon ein Level begonnen: ohne Einstieg gleich ins Level, sobald ihr Himmel da ist
+      for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
+      enterLevel(index);
+      this.running = false;
+      return;
+    }
+    if (this.prolog) {
+      // die Bühne deckt sofort alles zu: Während der Startbildschirm ausblendet, scheint die erste Welt nicht durch
+      this.el.classList.add('instant');
+      requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.remove('instant')));
+      await this.playScene(STORY_PROLOG, { skippable: true });
+    }
+    await this.enter(index, this.chapter());
     this.running = false;
   },
   /** „Weiter“ nach dem Lösen (oder N): im Kapitel das nächste Level, am Kapitelende die Zwischenszene. */
@@ -29623,9 +29646,14 @@ const story = {
     await this.wait(1.0);
     this.endAscent();
     const sunk = this.sinkTo(index);
-    const fadeTime = skyTheme.fadeTime;
-    skyTheme.fadeTime = 3; // langsamer als beim Umschalten mit H: erst aus, dann ein, je 1,5 s
-    this.setSky(ch.sky, true); // die alte Welt bleibt, bis die neue geladen ist (skyTheme.update)
+    // Langsamer als beim Umschalten mit H: erst aus, dann ein, je 1,5 s. Die alte Welt bleibt, bis die neue geladen ist
+    // (skyTheme.update). Zwischen zwei Welten auf der Erde gleitet der Himmel dazwischen über die Farben beider (blendSky)
+    // statt über die Nacht; ins Sonnensystem und zu den Sternen geht es durch die Nacht.
+    const fadeTime = skyTheme.fadeTime, old = skyTheme.current;
+    skyTheme.fadeTime = 3;
+    this.setSky(ch.sky, true);
+    const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
+    this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
     // Bogen über den Himmel, vom Standort der Kamera aus gesehen: seitwärts, abwechselnd links und rechts, und am Ende
     // so hoch, wie man in der neuen Welt hinaufschaut (Vulkan: über die Kraterwand)
     const d = fl.position.clone().sub(camera.position), dist = d.length();
@@ -29646,8 +29674,28 @@ const story = {
     }
     await this.fall(index, fl.position.clone());
     skyTheme.fadeTime = fadeTime; // erst jetzt: sonst blendete der Rest der neuen Welt plötzlich schneller ein
+    this.blend = null;
   },
   /**
+   * Himmel zwischen zwei Welten auf der Erde, nach skyTheme.update: Die Panoramen blenden durchsichtig über der
+   * Himmelskugel (skyTheme zeigt immer nur eines zugleich). Dazwischen zeigte die Kugel den leeren Weltraum; hier zeigt
+   * sie stattdessen den Farbverlauf beider Welten (sky.rings), der während des ganzen Überblendens von der alten zur
+   * neuen gleitet. Die Vorschau eines Panoramas auf der Kugel (uPreview) blendet mit ihm aus und ein, die Sterne gehen
+   * von der alten zur neuen Helligkeit.
+   */
+  blendSky() {
+    const { from, to } = this.blend, a = skyTheme.byId.get(from).sky, b = skyTheme.byId.get(to).sky;
+    const wa = skyTheme.weight[from], wb = skyTheme.weight[to], smooth = (w) => w * w * (3 - 2 * w);
+    const p = wa > 0 ? 0.5 * (1 - wa) : 0.5 + 0.5 * wb; // 0 … 1 über das ganze Überblenden
+    const bg = background.material.uniforms, su = stars.material.uniforms;
+    bg.uPano.value = 1;
+    bg.uRings.value.forEach((c, i) => c.fromArray(a.rings[i]).lerp(_storyDir.fromArray(b.rings[i]), p));
+    bg.uPreviewOn.value = Math.min(bg.uPreviewOn.value, smooth(Math.max(wa, wb)));
+    su.uFade.value = a.stars + (b.stars - a.stars) * p;
+    su.uHorizon.value = (a.starsAboveHorizon ? 1 : 0) + ((b.starsAboveHorizon ? 1 : 0) - (a.starsAboveHorizon ? 1 : 0)) * p;
+  },
+  /**
+   * Ganz oben: Der Polarstern  /**
    * Ganz oben: Der Polarstern leuchtet auf und antwortet; sein Strahl fällt zurück aufs Brett, die Kamera folgt ihm.
    * Der Aufprall klingt aus (Lichtwelle, Funkenregen, die Ziele blitzen), dann geht der Blick noch einmal hinauf zum
    * Stern, und während die Welt in der Nacht versinkt, taucht das Dorf auf, in dem Noa wartet (Epilog).
@@ -29704,7 +29752,7 @@ const story = {
     flow.state = 'story';
     ui.hideSolved();
     ui.hideHud();
-    try { localStorage.removeItem(this.storageKey); } catch { /* egal */ }
+    try { localStorage.removeItem(this.storageKey); localStorage.removeItem(this.seenKey); } catch { /* egal */ }
     await this.playScene(STORY_EPILOG, { soft, actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
       ['Zum Spiel', () => { location.href = location.pathname; }]] });
   },
@@ -29862,7 +29910,12 @@ const story = {
       carrier.strength = Math.min(carrier.strength, 1 - THREE.MathUtils.smoothstep(k, 0.55, 0.95));
       this.look(fl.position);
       this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.7, 1);
-      if (!entered && k > 0.6) { entered = true; enterLevel(index); }
+      if (!entered && k > 0.6) {
+        entered = true;
+        enterLevel(index);
+        this.seen.add(this.steps[this.step].c); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
+        this.saveSeen();
+      }
       if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise
     });
     fl.visible = false;
@@ -29991,6 +30044,7 @@ const story = {
   wait(seconds) { return this.tween(seconds, () => {}); },
   update(dt) {
     this.carrier?.update(dt * this.fast);
+    if (this.blend) this.blendSky();
     if (!this.tweens.length) return;
     const d = dt * this.fast;
     for (const tw of this.tweens.slice()) {
