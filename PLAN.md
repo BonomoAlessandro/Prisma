@@ -14,6 +14,10 @@ Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prot
     dürfen keine Klumpen entstehen, in denen zu viele Level auf dieselbe Art gelöst werden (dieselbe Haupt-Kernidee,
     ähnliches Feld). Lässt sich beides nicht zugleich erfüllen, geht die Vielfalt vor; dann kommt das nächstbeste
     Level mit einer anderen Lösungsart.
+  - **Steigende Schwierigkeit (Wunsch des Nutzers, 28.10.2026):** Neben der Bewertung zählt die Schwierigkeit. Innerhalb
+    eines Grads steigt sie über die Geschichte: Die letzten leichten Level (bei den Sternen) sind schwerer als die
+    ersten (im Bergwald), ebenso in jedem anderen Grad. Die Wahl verteilt die Level eines Grads darum über seinen
+    ganzen Bereich der Schwierigkeit, und die Welten bekommen ihn der Reihe nach, von unten nach oben.
   - **E** Offen: Reihenfolge innerhalb einer Welt (steigend innerhalb des Grads?); wo das Tutorial hingehört (vor oder
     in der ersten Welt, bei jedem Grad?); was aus der Levelauswahl wird (nur die Level der Geschichte?); Fortschritt
     je Grad getrennt; Wechsel des Grads mitten in der Geschichte; Prolog und Einstiege beim zweiten Durchgang mit
