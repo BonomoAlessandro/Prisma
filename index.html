@@ -369,6 +369,73 @@
     #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro .start { animation-duration: 0.01s; animation-delay: 0s; }
   }
 
+  /* ---------- Geschichte (Prototyp, ?signal): Karten zwischen den Kapiteln, Untertitel in den Zwischenszenen ---------- */
+  body.story #btn-levels, body.story #btn-sky { display: none; } /* die Geschichte wählt Level und Hintergrund */
+  #story {
+    position: fixed; inset: 0; z-index: 7;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 16px; box-sizing: border-box;
+    cursor: pointer;
+    background-color: transparent; /* Zwischenszene (veil) und Untertitel: die Szene bleibt sichtbar */
+    transition: opacity 0.8s ease, background-color 0.8s ease;
+  }
+  #story[data-mode="card"] { background-color: rgba(4, 4, 12, 0.95); }
+  #story .card, #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; }
+  #story[data-mode="card"] .card, #story[data-mode="caption"] .caption { display: flex; }
+  #story .swap { opacity: 0; }
+  #story .art { width: min(440px, 88vw); margin-bottom: 26px; }
+  #story .art svg { display: block; width: 100%; height: auto; }
+  #story .art.icon { width: 56px; margin-bottom: 22px; }
+  #story .art.icon svg { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(200, 210, 255, 0.5)); }
+  #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
+  #story .kicker:empty { display: none; }
+  #story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw, 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
+  #story .path { display: flex; align-items: center; gap: 0; margin-top: 30px; }
+  #story .path:empty { display: none; }
+  #story .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; color: rgba(232, 230, 240, 0.25); }
+  #story .path .st svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  #story .path .st span { font-size: 7px; letter-spacing: 0.2em; text-transform: uppercase; }
+  #story .path .st.done { color: var(--ink-dim); }
+  #story .path .st.now { color: #fff; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); animation: intro-pulse 2.4s ease-in-out infinite; }
+  #story .path .ln { width: 16px; height: 1px; margin-bottom: 14px; background: rgba(232, 230, 240, 0.15); }
+  #story .path .ln.done { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  @media (max-width: 480px) { /* Handy hochkant: sieben Stationen ohne Namen in einer Zeile */
+    #story .path .st { width: 34px; }
+    #story .path .st span { display: none; }
+    #story .path .ln { width: 8px; margin-bottom: 0; }
+  }
+  #story .tap { margin-top: 34px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); animation: intro-pulse 2.4s ease-in-out infinite; }
+  #story.hidden .tap, #story.hidden .path .st.now { animation-play-state: paused; } /* ausgeblendet bleibt die Karte stehen: Puls ruht im Spiel */
+  #story .actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
+  #story .actions:empty { display: none; }
+  #story .actions button {
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase; padding: 12px 22px 12px calc(22px + 0.4em);
+    border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+  }
+  #story .actions button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+  #story .actions:not(:empty) + .tap { display: none; }
+  #story .caption { position: absolute; left: 16px; right: 16px; bottom: max(14vh, 70px); }
+  #story .caption::before { /* dunkler Hof wie hinter „Level gelöst“ */
+    content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(720px, 100vw); height: calc(100% + 100px);
+    transform: translate(-50%, -50%);
+    background: radial-gradient(closest-side, rgba(3, 3, 8, 0.75), rgba(3, 3, 8, 0.45) 55%, rgba(3, 3, 8, 0));
+  }
+  #story .caption .tap { margin-top: 18px; }
+  /* Bilder im Dorf: Strahl der Taschenlampe, Blinken des Polarsterns (Epilog) */
+  #story .village .torch { opacity: 0; transition: opacity 1.4s ease 0.3s; }
+  #story .village.beam .torch { opacity: 1; }
+  #story .village.answer .polar { animation: story-blink 1s ease-in-out 1s 3; }
+  #story .village.answer .torch { animation: story-blink-torch 1s ease-in-out 4.4s 3; }
+  @keyframes story-blink { 0%, 100% { opacity: 1; transform: scale(1); } 45% { opacity: 1; transform: scale(2.6); } }
+  @keyframes story-blink-torch { 0%, 100% { opacity: 0; } 40% { opacity: 1; } }
+  #story .village .polar { transform-box: fill-box; transform-origin: center; }
+  @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
+    #story .art { width: min(300px, 50vw, 55vh); margin-bottom: 12px; } /* nach der Höhe: der Epilog mit Knöpfen passt auch bei 320 px */
+    #story .art.icon { width: 40px; margin-bottom: 10px; }
+    #story .path { margin-top: 14px; }
+    #story .tap, #story .actions { margin-top: 14px; }
+  }
+
   #perf {
     position: fixed; left: 12px; bottom: 12px; z-index: 5;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
@@ -420,6 +487,21 @@
       <div class="grid-track" id="grid-track"><div class="grid" id="level-grid"></div></div>
     </div>
     <button class="close" id="btn-levels-close">Schliessen</button>
+  </div>
+</div>
+
+<div id="story" class="hidden" inert aria-live="polite">
+  <div class="card">
+    <div class="art"></div>
+    <div class="kicker"></div>
+    <p class="text"></p>
+    <div class="path"></div>
+    <div class="actions"></div>
+    <div class="tap"></div>
+  </div>
+  <div class="caption">
+    <p class="text"></p>
+    <div class="tap"></div>
   </div>
 </div>
 
@@ -25685,8 +25767,14 @@ function updateCamera(t, dt) {
     cameraRig.target.z + r * Math.sin(phi) * Math.cos(theta)
   );
   camera.lookAt(cameraRig.target);
+  // Geschichte (?signal): in den Zwischenszenen schaut die Kamera vom Brett hinauf in den Himmel (story.gaze 0 … 1)
+  if (story.gaze > 0) {
+    const d = _gazeLook.copy(cameraRig.target).sub(camera.position).normalize().lerp(story.gazeDir, story.gaze).normalize();
+    camera.lookAt(d.add(camera.position));
+  }
   orbitKeyLight(cameraRig.baseTheta + cameraRig.userTheta);
 }
+const _gazeLook = new THREE.Vector3();
 
 // Ziehen dreht die Kamera, Mausrad und zwei Finger zoomen; ausgewertet im Eingabemodul (INTERAKTION).
 const drag = { active: false };
@@ -28345,6 +28433,7 @@ const progress = {
 /** Level wechseln: altes Feld versinkt, danach wächst das neue heraus. */
 function changeLevel(index) {
   if (flow.state === 'intro' || index < 0 || index >= LEVELS.length) return;
+  if (flow.state === 'story' && !story.holdEnter) return; // die Geschichte führt gerade (story.sinkTo darf)
   flow.next = index;
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   flow.state = 'out';
@@ -28405,7 +28494,7 @@ function warmupShaders() {
 
 /** Pro Frame: Übergänge animieren und den Lösungsmoment auslösen bzw. zurücknehmen. */
 function updateFlow(dt) {
-  if (flow.state === 'intro') return;
+  if (flow.state === 'intro' || flow.state === 'story') return; // story: die Geschichte führt (Zwischenszene, Karte)
   if (flow.state === 'play') {
     const lit = game.result.solved && game.targets.every(o => o.userData.hit > 0.85);
     if (lit && !flow.solved) {
@@ -28434,7 +28523,8 @@ function updateFlow(dt) {
   }
   markShadowsDirty();
   if (flow.t >= dur + waveLength()) {
-    if (out) enterLevel(flow.next);
+    if (out && story.holdEnter) story.sunk(); // Geschichte: das neue Level wächst erst nach ihrer Zwischenszene
+    else if (out) enterLevel(flow.next);
     else {
       flow.state = 'play';
       warmupShaders();
@@ -28608,7 +28698,10 @@ const ui = {
     const lvl = LEVELS[index], n = levelNumber(index);
     this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
     fillTier(this.tier, lvl);
-    if (lvl.dim === 3) {
+    if (story.on) {
+      this.tier.hidden = true; // in der Geschichte zählen Kapitel, nicht Grade
+      [this.title.textContent, this.sub.textContent] = story.hudText(index);
+    } else if (lvl.dim === 3) {
       this.title.textContent = `Würfel ${n} / ${LEVELS.length - CUBE_START} – ${lvl.name}`;
       this.sub.textContent = lvl.hint;
     } else if (lvl.tutorial) {
@@ -28661,6 +28754,7 @@ const ui = {
     this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit'), ' ',
       stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen')] : []));
     this.next.textContent = this.lastLevel ? 'Levelauswahl' : 'Weiter';
+    if (story.on) [this.solvedMsg.textContent, this.next.textContent] = story.solvedText();
     setShown(this.solved, true);
     document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
   },
@@ -28668,7 +28762,8 @@ const ui = {
   solvedVisible() { return !this.solved.classList.contains('hidden'); },
   advance() {
     if (flow.state !== 'play' || !this.solvedVisible()) return; // z. B. zweites Auslösen (Taste + Klick)
-    if (this.lastLevel) this.openLevels(); else stepLevel(1);
+    if (story.on) story.advance();
+    else if (this.lastLevel) this.openLevels(); else stepLevel(1);
   },
 
   toggleSound() {
@@ -28871,10 +28966,692 @@ const ui = {
     setShown(this.controls, true);
     // nach dem Ausblenden ganz entfernen (die Puls-Animation liefe sonst endlos weiter)
     setTimeout(() => { this.intro.style.display = 'none'; }, 1200);
-    enterLevel(progress.load());
+    if (story.on) story.begin();
+    else enterLevel(progress.load());
   },
 };
 ui.init();
+
+/* =====================================================================
+   GESCHICHTE (Prototyp, ?signal) — «Ein Lichtsignal an die Sterne».
+   Noa will aus einem Bergdorf dem Polarstern ein Zeichen schicken. Eine Taschenlampe reicht nicht so weit, doch Licht
+   lässt sich weitergeben: Der Spieler reicht es Welt für Welt weiter (ein Kapitel = eine Skybox und ein bis zwei
+   Level). Am Kapitelende steigen die Strahlen der Ziele zu einem Punkt am Himmel, die Kamera schaut ihnen nach, dann
+   zeigt eine Karte das nächste Kapitel und den Weg. Ganz oben antwortet der Polarstern: Sein Strahl kommt zurück, das
+   Brett faltet sich zum Würfel, und ein Würfel-Level bringt die Antwort zu Noa.
+   ?signal: weiter, wo man war · ?signal=neu: von vorn · ?signal=4: ab Kapitel 4. Ohne ?signal ändert sich nichts;
+   die Geschichte speichert nur ihren eigenen Stand (prisma.signal), nicht den Fortschritt der Levelauswahl.
+   ===================================================================== */
+
+const STORY_PARAM = new URLSearchParams(location.search).get('signal'); // null: ohne Geschichte
+const STORY_UP = 0.42; // Blick in den Himmel: so hoch über den Horizont (rad), wenn das Kapitel nichts anderes sagt (up)
+const STORY_ICONS = {
+  dorf: '<path d="M4.5 19.5v-7.5l7.5-6 7.5 6v7.5z"/><path d="M10 19.5V15h4v4.5"/>',
+  wald: '<path d="M12 3.5l-5 7h3l-4.5 6.5h13L14 10.5h3z"/><path d="M12 17v3.5"/>',
+  meer: '<path d="M2.5 10c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/><path d="M2.5 15.5c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/>',
+  wueste: '<path d="M2.5 19.5l7-11 7 11z"/><path d="M9.5 8.5l2.2 11"/><circle cx="18.2" cy="6" r="2.2"/>',
+  vulkan: '<path d="M2.5 19.5l5.5-9h2.2l1.8 2 1.8-2h2.2l5.5 9z"/><path d="M11 7.5c-.6-1.6.6-2.6 0-4.2M14 7.5c.8-1.2 1.8-1.6 2.6-1.2"/>',
+  planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
+  sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
+};
+/** Stationen des Wegs (Leiste auf den Karten): das Dorf, dann je Kapitel eine. */
+const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
+  ['planeten', 'Planeten'], ['sterne', 'Sterne']];
+const STORY_PROLOG = [
+  { art: 'night', text: 'Hoch in den Bergen liegt ein kleines Dorf. Jede Nacht schaut Noa von dort zum Polarstern hinauf, dem Stern, der sich nie bewegt.' },
+  { art: 'beam', text: 'Heute will Noa ihm ein Zeichen schicken. Doch das Licht einer Taschenlampe reicht nicht bis zu den Sternen.' },
+  { art: 'beam', text: 'Aber Licht lässt sich weitergeben: von Spiegel zu Spiegel, von Ort zu Ort. Hilf ihm, den Weg nach oben zu finden.' },
+];
+/**
+ * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel), Text der Karte, Meldung und Knopf
+ * nach dem letzten Level. up: Blick in den Himmel steiler (Vulkan: über die Kraterwand). finale: danach antwortet der
+ * Stern; cube: das Würfel-Level der Antwort (Name und Hinweis statt Levelname und Bedienung in der Kopfzeile).
+ */
+const STORY_CHAPTERS = [
+  { station: 1, title: 'Der Bergwald', sky: 'forest', levels: ['Taschenlampe', 'Leuchtkäfer'],
+    text: 'Im Bergwald nehmen die Glühwürmchen Noas Licht auf und tragen es durch die Bäume.',
+    done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
+  { station: 2, title: 'Das Meer', sky: 'beach', levels: ['Drachenschnur', 'Meeresleuchten'],
+    text: 'Am Meer springt das Licht von Welle zu Welle, bis hinüber zur anderen Küste.',
+    done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
+  { station: 3, title: 'Die Wüste', sky: 'desert', levels: ['Wegmarke', 'Spiegelbild'],
+    text: 'In der Wüste werfen die Pyramiden das Licht von Spitze zu Spitze.',
+    done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
+  { station: 4, title: 'Der Vulkan', sky: 'volcano', levels: ['Fackel', 'Funkenregen'], up: 1.0,
+    text: 'Am Vulkan packt die heisse Luft das Licht und reisst es hinauf in den Himmel.',
+    done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
+  { station: 5, title: 'Die Planeten', sky: 'solar', levels: ['Europa'],
+    text: 'Über den Wolken ist es still. Das Licht zieht an den Planeten vorbei, immer weiter hinaus.',
+    done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
+  { station: 6, title: 'Die Sterne', sky: 'milky', levels: ['Sternchen', 'Polarstern'], finale: true,
+    text: 'Zwischen tausend Sternen sucht das Licht den einen, der sich nie bewegt.',
+    done: 'Ganz oben', next: 'Hinaufschauen' },
+  { station: 7, title: 'Die Antwort', sky: 'milky', levels: ['Keksdose'], cube: true, name: 'Zurück zu Noa',
+    hint: 'Die Antwort kommt durch den Raum: Licht läuft auch nach oben und unten · Ziehen dreht den Würfel',
+    text: 'Der Polarstern hat geantwortet. Bring seine Antwort zurück zu Noa.',
+    done: 'Die Antwort ist unterwegs', next: 'Zu Noa' },
+];
+const STORY_FINALE = ['Der Polarstern hat das Zeichen gesehen.', 'Und er antwortet.'];
+const STORY_EPILOG = 'In dieser Nacht blinkt der Polarstern dreimal. Noa lacht und blinkt mit der Taschenlampe zurück.';
+
+/** Bild des Dorfs für Prolog und Epilog (Klasse night, beam oder answer, siehe CSS #story .village). */
+const STORY_VILLAGE = (() => {
+  const rand = mulberry32(7);
+  let stars = '';
+  for (let i = 0; i < 46; i++) {
+    stars += `<circle cx="${(rand() * 400).toFixed(1)}" cy="${(rand() * 125).toFixed(1)}" r="${(0.35 + rand() * 0.75).toFixed(2)}" opacity="${(0.25 + rand() * 0.6).toFixed(2)}"/>`;
+  }
+  const houses = [[205, 166, 20, 16, 'M201 167L215 156L229 167Z'], [234, 170, 16, 13, 'M231 171L242 162L253 171Z'],
+    [262, 158, 10, 26, 'M260 159L267 146L274 159Z'], [280, 172, 22, 16, 'M276 173L291 163L306 173Z'],
+    [312, 176, 16, 14, 'M309 177L320 169L331 177Z']]
+    .map(([x, y, w, h, roof]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/><path d="${roof}"/>`).join('');
+  const windows = [[210, 171, 4, 4], [240, 175, 3.5, 3.5], [265.5, 164, 3, 5], [285, 177, 4, 4], [294, 177, 4, 4], [318, 180, 3.5, 3.5]]
+    .map(([x, y, w, h]) => `<rect x="${x}" y="${y}" width="${w}" height="${h}"/>`).join('');
+  return `<svg class="village" viewBox="0 0 400 230" aria-hidden="true">
+    <defs>
+      <linearGradient id="v-sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#05061a"/><stop offset="0.7" stop-color="#141433"/><stop offset="1" stop-color="#211d40"/></linearGradient>
+      <radialGradient id="v-halo"><stop offset="0" stop-color="#fff" stop-opacity="0.9"/><stop offset="0.3" stop-color="#c8d2ff" stop-opacity="0.35"/><stop offset="1" stop-color="#c8d2ff" stop-opacity="0"/></radialGradient>
+      <linearGradient id="v-torch" gradientUnits="userSpaceOnUse" x1="150.6" y1="156.7" x2="292" y2="42"><stop offset="0" stop-color="#fff4d6" stop-opacity="0.95"/><stop offset="0.35" stop-color="#fff4d6" stop-opacity="0.35"/><stop offset="0.72" stop-color="#fff4d6" stop-opacity="0"/></linearGradient>
+      <filter id="v-blur" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.4"/></filter>
+      <filter id="v-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    </defs>
+    <rect width="400" height="230" fill="url(#v-sky)"/>
+    <g fill="#fff">${stars}</g>
+    <g class="polar">
+      <circle cx="292" cy="42" r="12" fill="url(#v-halo)"/>
+      <path d="M292 31v22M281 42h22" stroke="#fff" stroke-width="0.6" stroke-linecap="round" opacity="0.85"/>
+      <circle cx="292" cy="42" r="2.1" fill="#fff" filter="url(#v-glow)"/>
+    </g>
+    <path d="M0 150L40 118L70 132L120 82L150 104L175 92L215 128L255 96L290 118L330 78L370 112L400 100V230H0Z" fill="#1a1938"/>
+    <path d="M112 90L120 82L128 90L124 89L120 92L116 89ZM322 86L330 78L338 86L334 85L330 88L326 85Z" fill="#3b3b68"/>
+    <path d="M0 178L50 160L95 170L130 156L160 158L200 168L240 152L290 160L340 150L400 166V230H0Z" fill="#111029"/>
+    <g class="torch"><path d="M150.6 156.7L300.8 52.9L283.2 31.1Z" fill="url(#v-torch)" filter="url(#v-blur)"/><circle cx="150.6" cy="156.7" r="1.6" fill="#fff8e6" filter="url(#v-glow)"/></g>
+    <path d="M0 200L60 188L105 186L125 176L132 172L150 171L162 178L200 182L260 180L320 190L400 184V230H0Z" fill="#0a0a1d"/>
+    <g fill="#07071a">${houses}</g>
+    <g fill="#ffc874" filter="url(#v-glow)">${windows}</g>
+    <g fill="#04040d">
+      <circle cx="140" cy="159" r="3.2"/>
+      <path d="M136.2 163.2Q140 161.4 143.8 163.2L145 171.5L135 171.5Z"/>
+      <path d="M142.6 164.4L148.2 159.6" stroke="#04040d" stroke-width="1.9" stroke-linecap="round"/>
+    </g>
+    <rect x="146.6" y="157.3" width="4.6" height="2.3" rx="0.6" transform="rotate(-39 148.9 158.45)" fill="#22223a"/>
+  </svg>`;
+})();
+
+const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2); // wie der Rückflug der Kamera
+const storyLinear = (k) => k;
+const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
+
+const story = {
+  on: STORY_PARAM !== null,
+  storageKey: 'prisma.signal',
+  el: $('story'),
+  steps: [],          // je Level der Geschichte { c: Kapitel, index: Platz in LEVELS }
+  step: 0,            // Level, das gerade läuft
+  prolog: false,      // beim Start den Prolog zeigen
+  gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
+  gazeDir: new THREE.Vector3(0, 1, 0),
+  holdEnter: false,   // updateFlow: nach dem Versinken auf die Geschichte warten (sunk)
+  running: false,     // eine Zwischenszene läuft
+  fast: 1,            // Tippen in einer Zwischenszene: schneller
+  tweens: [],
+  waitTap: null,
+
+  init() {
+    if (!this.on) return;
+    document.body.classList.add('story');
+    this.intro();
+    const byName = new Map(LEVELS.map((l, i) => [l.name, i]));
+    STORY_CHAPTERS.forEach((ch, c) => {
+      for (const name of ch.levels) {
+        if (byName.has(name)) this.steps.push({ c, index: byName.get(name) });
+        else console.warn(`Geschichte: Level ${name} fehlt`);
+      }
+    });
+    const numbered = /^\d+$/.test(STORY_PARAM);
+    let step = 0;
+    if (numbered) step = Math.max(0, this.steps.findIndex((s) => s.c === Math.min(+STORY_PARAM, STORY_CHAPTERS.length) - 1));
+    else if (STORY_PARAM !== 'neu') try { step = Math.floor(+localStorage.getItem(this.storageKey)) || 0; } catch { /* von vorn */ }
+    this.step = step >= 0 && step < this.steps.length ? step : 0;
+    this.prolog = this.step === 0 && !numbered;
+    // ein Neuladen fängt nicht wieder von vorn bzw. beim gewählten Kapitel an
+    if (numbered || STORY_PARAM === 'neu') {
+      this.save(); // sonst ginge ein Neuladen vor dem ersten „Weiter“ zum alten Stand zurück
+      const rest = [...new URLSearchParams(location.search)].filter(([k]) => k !== 'signal').map(([k, v]) => (v ? `${k}=${v}` : k));
+      try { history.replaceState(null, '', `${location.pathname}?${[...rest, 'signal'].join('&')}`); } catch { /* file:// */ }
+    }
+    progress.save = () => {}; // der Fortschritt der Levelauswahl bleibt, wie er war
+    this.setSky(this.chapter().sky, false); // lädt schon während des Intros
+    this.el.addEventListener('click', () => this.tap());
+    this.buildScene();
+  },
+  intro() {
+    $('intro').querySelector('.sub').textContent = 'Ein Lichtsignal an die Sterne';
+  },
+  chapter() { return STORY_CHAPTERS[this.steps[this.step].c]; },
+  /** Hintergrund des Kapitels, nicht als Wahl gespeichert; fehlt die Skybox (z. B. skies.js nicht geladen): Milchstrasse. */
+  setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate, false); },
+  save() { try { localStorage.setItem(this.storageKey, String(this.step)); } catch { /* privates Fenster */ } },
+
+  /* ---------- Ablauf ---------- */
+
+  /** Nach dem Startbildschirm: Prolog (nur am Anfang), Karte des Kapitels, dann aus dem Himmel aufs Brett. */
+  async begin() {
+    this.running = true;
+    flow.state = 'story';
+    if (this.prolog) for (const p of STORY_PROLOG) await this.card({ art: p.art, text: p.text });
+    await this.card(this.chapterCard(this.chapter()));
+    await this.skyReady();
+    await this.arrive(this.steps[this.step].index, this.chapter().up);
+    this.running = false;
+  },
+  /** „Weiter“ nach dem Lösen (oder N): im Kapitel das nächste Level, am Kapitelende die Zwischenszene. */
+  advance() {
+    if (this.running) return;
+    const cur = this.steps[this.step], next = this.steps[this.step + 1];
+    if (!next) { this.ending(); return; }
+    this.step++;
+    this.save();
+    if (next.c === cur.c) changeLevel(next.index);
+    else if (STORY_CHAPTERS[cur.c].finale) this.finale(next);
+    else this.chapterEnd(next);
+  },
+  skip() {
+    if (flow.state !== 'play' || this.running) return;
+    celebration.cancel();
+    ui.hideSolved();
+    this.advance();
+  },
+  async chapterEnd(next) {
+    const ch = STORY_CHAPTERS[next.c];
+    await this.ascend(STORY_CHAPTERS[this.steps[this.step - 1].c].up ?? STORY_UP);
+    await this.showCard(this.chapterCard(ch));
+    this.endAscent();
+    this.setSky(ch.sky, true);
+    const sunk = this.sinkTo(next.index); // unter der Karte versinkt das alte Feld
+    await this.untilTap();
+    await sunk;
+    await this.skyReady();
+    await this.arrive(next.index, ch.up);
+    this.running = false;
+  },
+  /** Ganz oben: Der Polarstern leuchtet auf und antwortet; sein Strahl kommt zurück, das Brett faltet sich zum Würfel. */
+  async finale(next) {
+    await this.ascend(0.5, true);
+    for (const line of STORY_FINALE) await this.caption(line);
+    const cap = this.el.querySelector('.caption');
+    cap.classList.add('swap');
+    await storySleep(350);
+    this.open('veil');
+    cap.classList.remove('swap');
+    this.fast = 1;
+    const star = this.flare.position.clone(), hit = new THREE.Vector3(0, BEAM_Y, 0);
+    this.tween(0.8, (k) => { for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k; });
+    this.aim(this.answer, star, hit, WHITE);
+    audio.hit(7, 0, { octave: 2, gain: 0.06 });
+    audio.hit(7, 0.3, { gain: 0.05 });
+    // der Strahl fällt immer schneller, die Kamera folgt seiner Spitze bis aufs Brett
+    await this.tween(2.4, (k) => {
+      const u = k * k;
+      this.answer.material.uniforms.uHead.value = u;
+      this.look(_storyHead.copy(star).lerp(hit, u));
+      this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.8, 1);
+    }, storyLinear);
+    this.endAscent();
+    // Aufprall: Lichtwelle über die Platte, das alte Feld versinkt
+    const sunk = this.sinkTo(next.index);
+    this.shock(WHITE);
+    this.pulse();
+    audio.chord([1, 2, 4, 7], 0);
+    this.tween(1.4, (k) => {
+      this.answer.material.uniforms.uStrength.value = 1 - k;
+      this.flare.material.opacity = 1 - k;
+    }, storyLinear);
+    await sunk;
+    await this.fold(next.index);
+    this.answer.visible = this.flare.visible = false;
+    this.close();
+    this.running = false;
+  },
+  /** Nach dem Würfel-Level: Epilog im Dorf, Ende des Prototyps. */
+  async ending() {
+    this.running = true;
+    flow.state = 'story';
+    ui.hideSolved();
+    ui.hideHud();
+    try { localStorage.removeItem(this.storageKey); } catch { /* egal */ }
+    await this.showCard({ art: 'answer', kicker: 'Epilog', text: STORY_EPILOG, path: STORY_STATIONS.length,
+      actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
+        ['Zum Spiel', () => { location.href = location.pathname; }]] });
+  },
+
+  /* ---------- Zwischenszenen ---------- */
+
+  /** Blickrichtung in den Himmel: geradeaus über das Brett hinweg, elevation (rad) über dem Horizont. */
+  aimGaze(elevation) {
+    const f = _gazeLook.copy(cameraRig.target).sub(camera.position).setY(0).normalize();
+    this.gazeDir.copy(f).multiplyScalar(Math.cos(elevation)).setY(Math.sin(elevation)).normalize();
+  },
+  /**
+   * Die Strahlen der Ziele steigen zu einem Lichtpunkt am Himmel, die Kamera schaut ihnen nach; der Punkt blitzt auf,
+   * wenn sie ankommen. star: Es ist der Polarstern, er leuchtet schon vorher schwach und bleibt danach stehen.
+   */
+  async ascend(elevation, star = false) {
+    this.running = true;
+    flow.state = 'story';
+    this.fast = 1;
+    ui.hideSolved();
+    ui.hideHud();
+    setHovered(null);
+    adaptiveResolution.hold(6);
+    this.open('veil');
+    this.aimGaze(elevation);
+    const fl = this.flare, point = fl.position.copy(camera.position).addScaledVector(this.gazeDir, star ? 60 : 72);
+    fl.visible = true;
+    fl.material.opacity = star ? 0.55 : 0;
+    fl.scale.setScalar(star ? 2.4 : 1);
+    const targets = game.targets.slice(0, this.beams.length);
+    const colors = targets.map((o) => o.userData.element.color);
+    const from = targets.map((o) => o.userData.gem.getWorldPosition(new THREE.Vector3()));
+    const middle = from.reduce((a, p) => a.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, from.length));
+    const rise = 2.0, step = 0.14;
+    targets.forEach((obj, i) => {
+      const b = this.beams[i];
+      this.aim(b, from[i], point, COLOR_RGB[colors[i]]);
+      audio.hit(colors[i], 0.15 + i * step, { octave: 2, gain: 0.045 });
+      this.tween(rise, (k) => { b.material.uniforms.uHead.value = k; }, storyEase, 0.15 + i * step);
+    });
+    // die Kamera folgt der Spitze der mittleren Strahlen hinauf (am Anfang weich vom Brett weg)
+    this.tween(rise, (k) => {
+      this.look(_storyHead.copy(middle).lerp(point, storyEase(k)));
+      this.gaze = THREE.MathUtils.smoothstep(k, 0, 0.3);
+    }, storyLinear, 0.15 + (targets.length - 1) * step / 2);
+    await this.wait(0.15 + (targets.length - 1) * step + rise);
+    // Ankunft am Himmel
+    audio.chord(star ? [...colors, 7] : colors, 0);
+    this.pulse();
+    await this.tween(1.3, (k) => {
+      const burst = k < 0.15 ? k / 0.15 : Math.exp(-(k - 0.15) * 3);
+      fl.material.opacity = Math.min(1, (star ? 0.55 : 0) + k * 6);
+      fl.scale.setScalar((star ? 6 : 5) + 9 * burst);
+    }, storyLinear);
+  },
+  endAscent() {
+    for (const b of this.beams) b.visible = false;
+  },
+  /** Blick in den Himmel auf einen Punkt richten (gaze bestimmt, wie weit). */
+  look(point) { this.gazeDir.copy(point).sub(camera.position).normalize(); },
+  /**
+   * Aus dem Himmel aufs Brett: Die Kamera schaut erst in den neuen Himmel, wo das Licht ankommt, und folgt ihm dann
+   * hinab aufs Brett; dort verlischt es, und das Level wächst.
+   */
+  async arrive(index, up = STORY_UP) { // up: undefined → STORY_UP
+    this.aimGaze(up);
+    this.gaze = 1;
+    const fl = this.flare, from = fl.position.copy(camera.position).addScaledVector(this.gazeDir, 72).clone();
+    const to = new THREE.Vector3(0, BEAM_Y, 0);
+    fl.visible = true;
+    fl.material.opacity = 1;
+    fl.scale.setScalar(6);
+    this.close();
+    await this.wait(0.6); // die Karte blendet aus, der neue Himmel steht still
+    let entered = false;
+    await this.tween(2.8, (k) => {
+      fl.position.lerpVectors(from, to, k);
+      fl.scale.setScalar(6 - 4 * k);
+      fl.material.opacity = 1 - THREE.MathUtils.smoothstep(k, 0.72, 0.95);
+      this.look(fl.position);
+      this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.7, 1);
+      if (!entered && k > 0.6) { entered = true; enterLevel(index); }
+    });
+    fl.visible = false;
+  },
+  /** Altes Feld versinken lassen, ohne dass das neue von selbst wächst (updateFlow ruft sunk). */
+  sinkTo(index) {
+    return new Promise((resolve) => {
+      this._sunk = resolve;
+      this.holdEnter = true;
+      changeLevel(index);
+    });
+  },
+  sunk() {
+    this.holdEnter = false;
+    flow.state = 'story';
+    const resolve = this._sunk;
+    this._sunk = null;
+    resolve?.();
+  },
+  /**
+   * Das Brett faltet sich zum Würfel: vier Wände aus Zellen klappen von den Kanten hoch, der Deckel schliesst, dann
+   * wächst das Würfel-Level darin, und die Wände verblassen zum Rahmen des Würfels.
+   */
+  async fold(index) {
+    const lvl = LEVELS[index], f = this.folder;
+    cameraRig.cube = lvl.size; // die Kamera weicht schon zurück wie im Würfel
+    cameraRig.cubeHeight = lvl.height;
+    f.group.visible = true;
+    f.lid.visible = false;
+    f.setTilt(Math.PI / 2);
+    f.lidHinge.rotation.x = 0;
+    f.wallMat.uniforms.uStrength.value = f.lidMat.uniforms.uStrength.value = 0;
+    await this.tween(0.7, (k) => { f.wallMat.uniforms.uStrength.value = k; });
+    await this.tween(1.5, (k) => f.setTilt(Math.PI / 2 * (1 - k)));
+    audio.rotate();
+    f.lid.visible = true;
+    await this.tween(0.35, (k) => { f.lidMat.uniforms.uStrength.value = k; });
+    await this.tween(1.1, (k) => { f.lidHinge.rotation.x = -Math.PI / 2 * k; });
+    audio.rotate();
+    audio.chord([2, 4, 7], 0.05);
+    this.pulse();
+    enterLevel(index);
+    await this.tween(1.4, (k) => { f.wallMat.uniforms.uStrength.value = f.lidMat.uniforms.uStrength.value = 1 - k; }, storyLinear);
+    f.group.visible = false;
+  },
+  /** Bloom kurz hochziehen wie beim Lösen. */
+  pulse() {
+    return this.tween(1.6, (k) => {
+      const env = k < 0.08 ? k / 0.08 : Math.exp(-(k - 0.08) * 4);
+      bloomPass.strength = LOOK.bloomStrength * (1 + 1.3 * env * (1 - k));
+    }, storyLinear);
+  },
+  /** Lichtwelle über die Platte (wie beim Lösen, siehe celebration). */
+  shock(color) {
+    shockUniforms.uShockColor.value.copy(color).multiplyScalar(0.6);
+    return this.tween(1.5, (k) => {
+      const r = k * CELEBRATE.shockReach, fade = 1 - k;
+      shockUniforms.uShock.value.set(r, k < 1 ? fade * fade : 0, CELEBRATE.shockWidth * (1 + r * 0.12));
+    }, storyLinear);
+  },
+  async skyReady(seconds = 8) {
+    const tap = this.el.querySelector('.card .tap');
+    if (!skyTheme.ready && !this.el.classList.contains('hidden')) tap.textContent = 'Einen Moment …';
+    for (let t = 0; !skyTheme.ready && t < seconds; t += 0.1) await this.wait(0.1);
+  },
+
+  /* ---------- Karten und Untertitel ---------- */
+
+  chapterCard(ch) {
+    const n = STORY_CHAPTERS.indexOf(ch) + 1;
+    return ch.cube ? { icon: 'dorf', kicker: 'Finale · Die Antwort', text: ch.text, path: STORY_STATIONS.length }
+      : { icon: STORY_STATIONS[ch.station][0], kicker: `Kapitel ${n} · ${ch.title}`, text: ch.text, path: ch.station };
+  },
+  async card(c) {
+    await this.showCard(c);
+    await this.untilTap();
+  },
+  /** Karte zeigen (über der Szene, fast deckend); eine schon offene wechselt ihren Inhalt mit kurzem Überblenden. */
+  showCard(c) { return this.present('card', this.el.querySelector('.card'), (el) => this.fillCard(el, c)); },
+  async caption(text) {
+    await this.present('caption', this.el.querySelector('.caption'), (el) => {
+      el.querySelector('.text').textContent = text;
+      el.querySelector('.tap').textContent = IS_TOUCH ? 'Tippen' : 'Klicken';
+    });
+    await this.untilTap();
+  },
+  async present(mode, el, fill) {
+    const shown = !this.el.classList.contains('hidden') && this.el.dataset.mode === mode;
+    if (shown) { el.classList.add('swap'); await storySleep(350); }
+    fill(el);
+    if (!shown) { el.classList.add('swap'); this.open(mode); void el.offsetWidth; }
+    el.classList.remove('swap');
+    await storySleep(shown ? 350 : 800);
+  },
+  fillCard(el, c) {
+    const art = el.querySelector('.art');
+    art.className = 'art' + (c.icon ? ' icon' : '');
+    if (c.icon) art.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${STORY_ICONS[c.icon]}</svg>`;
+    else if (c.art) {
+      art.innerHTML = STORY_VILLAGE;
+      // erst im nächsten Bild: so blendet der Strahl der Taschenlampe ein bzw. das Blinken beginnt neu
+      const v = art.firstElementChild;
+      requestAnimationFrame(() => requestAnimationFrame(() => v.classList.add(c.art)));
+    } else art.replaceChildren();
+    el.querySelector('.kicker').textContent = c.kicker ?? '';
+    el.querySelector('.text').textContent = c.text;
+    this.fillPath(el.querySelector('.path'), c.path);
+    const actions = el.querySelector('.actions');
+    actions.replaceChildren();
+    for (const [label, fn] of c.actions ?? []) {
+      const b = document.createElement('button');
+      b.textContent = label;
+      b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+      actions.append(b);
+    }
+    el.querySelector('.tap').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
+  },
+  /** Leiste der Stationen: bis now erreicht, now leuchtet; now ≥ Zahl der Stationen: alle erreicht. */
+  fillPath(el, now) {
+    el.replaceChildren();
+    if (now === undefined) return;
+    STORY_STATIONS.forEach(([icon, name], i) => {
+      if (i) {
+        const ln = document.createElement('i');
+        ln.className = 'ln' + (i <= now ? ' done' : '');
+        el.append(ln);
+      }
+      const st = document.createElement('div');
+      st.className = 'st' + (i < now ? ' done' : i === now ? ' now' : '');
+      st.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${STORY_ICONS[icon]}</svg><span></span>`;
+      st.querySelector('span').textContent = name;
+      el.append(st);
+    });
+  },
+  open(mode) {
+    this.el.dataset.mode = mode;
+    setShown(this.el, true);
+  },
+  close() { setShown(this.el, false); },
+  untilTap() { return new Promise((resolve) => { this.waitTap = resolve; }); },
+  /** Tippen/Klicken auf die Geschichte (oder Enter): Karte weiter, in einer Zwischenszene schneller. */
+  tap() {
+    if (!this.waitTap) { this.fast = 3; return; }
+    const resolve = this.waitTap;
+    this.waitTap = null;
+    this.fast = 1;
+    audio.rotate();
+    resolve();
+  },
+  /** Tasten in der Geschichte; true: erledigt (die übrigen Tasten des Spiels nicht mehr). */
+  keydown(e) {
+    if (!this.el.classList.contains('hidden') || flow.state === 'story') {
+      if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.tap(); }
+      return e.code !== 'KeyM';
+    }
+    if (e.code === 'KeyN' || e.code === 'ArrowRight') { this.skip(); return true; }
+    return ['KeyP', 'ArrowLeft', 'KeyL', 'KeyH'].includes(e.code); // die Geschichte wählt Level und Hintergrund
+  },
+
+  /* ---------- Kopfzeile und Meldung ---------- */
+
+  hudText(index) {
+    const ch = this.chapter(), lvl = LEVELS[index], k = ch.levels.indexOf(lvl.name) + 1;
+    const chapters = STORY_CHAPTERS.filter((c) => !c.cube).length;
+    const sub = ch.hint ?? `Kapitel ${STORY_CHAPTERS.indexOf(ch) + 1} / ${chapters} · Level ${k} / ${ch.levels.length} · ` +
+      (IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück');
+    return [`${ch.title} – ${ch.name ?? lvl.name}`, sub];
+  },
+  solvedText() {
+    const cur = this.steps[this.step], next = this.steps[this.step + 1], ch = STORY_CHAPTERS[cur.c];
+    return next && next.c === cur.c ? ['Gelöst', 'Weiter'] : [ch.done, ch.next];
+  },
+
+  /* ---------- Zeitachse (läuft mit animate, Zeit der Szene) ---------- */
+
+  tween(seconds, fn, ease = storyEase, delay = 0) {
+    return new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
+  },
+  wait(seconds) { return this.tween(seconds, () => {}); },
+  update(dt) {
+    if (!this.tweens.length) return;
+    const d = dt * this.fast;
+    for (const tw of this.tweens.slice()) {
+      tw.t += d;
+      if (tw.t < 0) continue;
+      const k = Math.min(1, tw.t / tw.s);
+      tw.fn(tw.ease(k));
+      if (k >= 1) { this.tweens.splice(this.tweens.indexOf(tw), 1); tw.resolve(); }
+    }
+  },
+
+  /* ---------- 3D: Himmelsstrahlen, Lichtpunkt, Faltwände ---------- */
+
+  /** Alles einmal anlegen, unsichtbar: compileParallel übersetzt beim Start auch Unsichtbares mit. */
+  buildScene() {
+    const geo = new THREE.CylinderGeometry(0.2, 0.2, 1, 16, 1, true).translate(0, 0.5, 0);
+    this.beams = Array.from({ length: 10 }, () => this.makeBeam(geo));
+    this.answer = this.makeBeam(geo);
+    this.flare = this.makeFlare();
+    const cube = LEVELS[this.steps.at(-1).index];
+    this.folder = this.makeFolder(cube.size * CELL, cube.height * CELL, cube.size, cube.height);
+  },
+  /** Strahl als leuchtende Röhre (Kern und Hof aus dem Blickwinkel); wächst bis uHead (0 … 1 seiner Länge). */
+  makeBeam(geo) {
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { uColor: { value: new THREE.Color() }, uHead: { value: 0 }, uStrength: { value: 1 } },
+      vertexShader: `
+        varying vec3 vN;
+        varying vec3 vV;
+        varying vec3 vAxis;
+        varying float vY;
+        void main() {
+          vY = position.y;
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          vN = normalize(mat3(modelMatrix) * normal);
+          vAxis = normalize(mat3(modelMatrix) * vec3(0.0, 1.0, 0.0));
+          vV = cameraPosition - wp.xyz;
+          gl_Position = projectionMatrix * viewMatrix * wp;
+        }`,
+      // Mitte der Röhre aus Sicht der Kamera: Blickrichtung quer zur Achse (schräg gesehen sonst fast unsichtbar)
+      fragmentShader: `
+        uniform vec3 uColor;
+        uniform float uHead;
+        uniform float uStrength;
+        varying vec3 vN;
+        varying vec3 vV;
+        varying vec3 vAxis;
+        varying float vY;
+        void main() {
+          if (vY > uHead) discard;
+          vec3 v = normalize(vV), axis = normalize(vAxis);
+          vec3 across = v - axis * dot(v, axis);
+          float l = length(across);
+          float f = l > 1e-4 ? abs(dot(normalize(vN), across / l)) : 1.0;
+          float profile = pow(f, 18.0) * 3.2 + pow(f, 4.0) * 0.4;
+          vec3 color = mix(uColor, vec3(1.0), pow(f, 30.0) * 0.75); // weisslicher Kern
+          float head = 1.0 + 3.0 * exp(-(uHead - vY) * 60.0);
+          gl_FragColor = vec4(color * profile * head * smoothstep(0.0, 0.01, vY) * uStrength, 1.0);
+        }`,
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.visible = false;
+    mesh.frustumCulled = false;
+    mesh.raycast = () => {};
+    mesh.layers.set(LAYER_NO_REFLECT);
+    scene.add(mesh);
+    return mesh;
+  },
+  aim(beam, from, to, color) {
+    const dir = _storyDir.copy(to).sub(from), len = dir.length();
+    beam.position.copy(from);
+    beam.quaternion.setFromUnitVectors(Y_AXIS, dir.normalize());
+    beam.scale.set(1, len, 1);
+    const u = beam.material.uniforms;
+    u.uColor.value.copy(color);
+    u.uHead.value = 0;
+    u.uStrength.value = 1;
+    beam.visible = true;
+  },
+  /** Lichtpunkt am Himmel (Ziel der Strahlen, im Finale der Polarstern): weicher Hof mit vier feinen Zacken. */
+  makeFlare() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d');
+    const r = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+    // weich auslaufend: ohne sichtbaren Rand (sonst wirkt der Hof wie eine Scheibe)
+    r.addColorStop(0, 'rgba(255,255,255,1)');
+    r.addColorStop(0.05, 'rgba(255,255,255,0.85)');
+    r.addColorStop(0.1, 'rgba(235,238,255,0.45)');
+    r.addColorStop(0.18, 'rgba(220,226,255,0.18)');
+    r.addColorStop(0.3, 'rgba(210,218,255,0.06)');
+    r.addColorStop(0.5, 'rgba(200,210,255,0.015)');
+    r.addColorStop(1, 'rgba(200,210,255,0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 128, 128);
+    g.globalCompositeOperation = 'lighter';
+    for (const across of [true, false]) {
+      const l = across ? g.createLinearGradient(0, 0, 128, 0) : g.createLinearGradient(0, 0, 0, 128);
+      l.addColorStop(0, 'rgba(255,255,255,0)');
+      l.addColorStop(0.5, 'rgba(255,255,255,0.7)');
+      l.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = l;
+      if (across) g.fillRect(8, 63.25, 112, 1.5); else g.fillRect(63.25, 8, 1.5, 112);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.encoding = THREE.sRGBEncoding;
+    const mat = new THREE.SpriteMaterial({ map: tex, color: new THREE.Color(2.4, 2.4, 2.4), transparent: true, depthWrite: false,
+      depthTest: false, blending: THREE.AdditiveBlending, fog: false });
+    const s = new THREE.Sprite(mat);
+    s.visible = false;
+    s.renderOrder = 10;
+    s.raycast = () => {};
+    s.layers.set(LAYER_NO_REFLECT);
+    scene.add(s);
+    return s;
+  },
+  /** Vier Wände (ext × extH, Zellen n × h) an den Kanten der Platte und ein Deckel, der an der hinteren Wand hängt. */
+  makeFolder(ext, extH, n, h) {
+    const mat = (cells) => new THREE.ShaderMaterial({
+      uniforms: { uCells: { value: cells }, uStrength: { value: 0 }, uColor: { value: new THREE.Color(0.5, 0.6, 1.0) } },
+      vertexShader: `
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform vec2 uCells;
+        uniform float uStrength;
+        uniform vec3 uColor;
+        varying vec2 vUv;
+        void main() {
+          vec2 g = vUv * uCells, w = max(fwidth(g), vec2(1e-4));
+          vec2 e = min(fract(g), 1.0 - fract(g)) / w;           // Abstand zur nächsten Zellgrenze in Pixeln
+          float line = 1.0 - clamp(min(e.x, e.y) / 1.5, 0.0, 1.0);
+          vec2 b = min(g, uCells - g) / w;                       // … zum Rand der Wand
+          float rim = 1.0 - clamp(min(b.x, b.y) / 2.5, 0.0, 1.0);
+          gl_FragColor = vec4(uColor * (0.05 + line * 0.7 + rim * 2.2) * uStrength, 1.0);
+        }`,
+      extensions: { derivatives: true },
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
+    });
+    const wallMat = mat(new THREE.Vector2(n, h)), lidMat = mat(new THREE.Vector2(n, n));
+    const wallGeo = new THREE.PlaneGeometry(ext, extH).translate(0, extH / 2, 0);
+    const lidGeo = new THREE.PlaneGeometry(ext, ext).translate(0, ext / 2, 0);
+    const group = new THREE.Group(), half = ext / 2, hinges = [];
+    const panel = (geo, material, x, y, z, turn) => {
+      const pivot = new THREE.Group(), hinge = new THREE.Group(), mesh = new THREE.Mesh(geo, material);
+      pivot.position.set(x, y, z);
+      pivot.rotation.y = turn; // lokales +z zeigt von der Kante nach aussen
+      mesh.raycast = () => {};
+      mesh.layers.set(LAYER_NO_REFLECT);
+      hinge.add(mesh);
+      pivot.add(hinge);
+      group.add(pivot);
+      return hinge;
+    };
+    const lift = 0.02; // knapp über der Platte: flach liegend flimmerten die Wände sonst mit ihrem Rand
+    hinges.push(panel(wallGeo, wallMat, 0, lift, half, 0), panel(wallGeo, wallMat, 0, lift, -half, Math.PI),
+      panel(wallGeo, wallMat, half, lift, 0, Math.PI / 2), panel(wallGeo, wallMat, -half, lift, 0, -Math.PI / 2));
+    const lidHinge = panel(lidGeo, lidMat, 0, extH + lift, -half, Math.PI);
+    group.visible = false;
+    boardGroup.add(group);
+    return {
+      group, wallMat, lidMat, lidHinge, lid: lidHinge.parent,
+      /** Neigung der Wände: π/2 flach nach aussen, 0 aufrecht. */
+      setTilt(a) { for (const hg of hinges) hg.rotation.x = a; },
+    };
+  },
+};
+const _storyDir = new THREE.Vector3(), _storyHead = new THREE.Vector3();
+story.init();
 
 /* ---------- Tasten ----------
    N / →: nächstes Level · P / ←: voriges Level (nur freigeschaltete, kein Umbruch) · R: neu starten · M: Ton · L: Levelauswahl
@@ -28890,6 +29667,7 @@ window.addEventListener('keydown', (e) => {
     if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); ui.start(); }
     return;
   }
+  if (story.on && story.keydown(e)) return;
   if (e.code === 'Escape') ui.closeLevels();
   else if (e.code === 'KeyL') { if (ui.levelsOpen()) ui.closeLevels(); else ui.openLevels(); }
   else if (e.code === 'KeyM') ui.toggleSound();
@@ -29124,7 +29902,7 @@ const frameRate = {
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   busy(ts) {
     if (ui.levelsOpen()) return false; // Feld liegt abgedunkelt hinter der Auswahl
-    if (flow.state !== 'play' || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
+    if (flow.state !== 'play' || story.tweens.length || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
     if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
     // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
     const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi)
@@ -29198,6 +29976,7 @@ function animate(t, dt) {
   finalPass.uniforms.uTime.value = t;
 
   updateFlow(dt);
+  story.update(dt);
   celebration.update(dt, t);
   animateRotations(dt);
   for (const obj of game.objects.values()) {
@@ -29215,7 +29994,7 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   skyReady: () => skyTheme.ready };
 // Zugriff für Debugging/Tests (nicht serialisieren). settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und
 // Überblenden um s Sekunden vor, ohne zu rendern (Screenshots der KI-Tester); das Spiel ruft es nie auf.
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView,
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
