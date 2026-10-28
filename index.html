@@ -21830,8 +21830,8 @@ scene.add(solar.group);
 const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
 const PANO = {
   dMin: 6, dMax: 88, // Abstand der Netzecken vom Mittelpunkt: auch im Hochformat (Kamera bis ~40 entfernt) vor camera.far
-  blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad)
-  segU: 512, segV: 256,
+  blurDeg: 1,        // Glättung der Tiefe (Sigma in Grad); je Skybox panorama.depth.blur
+  segU: 512, segV: 256, // Netz; je Skybox panorama.depth.mesh (Wüste: nahe Dünenkämme schärfer)
   appear: 0.6,       // s: Einblenden, wenn die Daten erst nach der Wahl ankommen
   // Streifen nur auf dem Desktop: zusammen mit dem ganzen Bild rund 260 MB Grafikspeicher (ohne: rund 45 MB)
   hd: !IS_MOBILE && renderer.capabilities.maxTextureSize >= 4096,
@@ -22057,9 +22057,9 @@ function* skyUpload(t) {
   t.addEventListener('dispose', () => { gl.deleteTexture(tex); renderer.properties.remove(t); });
 }
 
-/** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand, Ferne auf dMax begrenzt.
- * Generator für sliced (Häppchen je Spalte bzw. Zeile). */
-function* skyLogDepth(img, depthLog) {
+/** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand (Sigma blurDeg in Grad, 0:
+ * ungeglättet), Ferne auf dMax begrenzt. Generator für sliced (Häppchen je Spalte bzw. Zeile). */
+function* skyLogDepth(img, depthLog, blurDeg = PANO.blurDeg) {
   const w = img.width, h = img.height;
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
@@ -22079,8 +22079,9 @@ function* skyLogDepth(img, depthLog) {
     }
     yield;
   }
+  if (!(blurDeg > 0)) return { w, h, data: src };
   // Gauss, getrennt: waagrecht über die Naht hinweg, senkrecht am Rand festgehalten
-  const sigma = PANO.blurDeg * w / 360, r = Math.ceil(sigma * 3), k = [];
+  const sigma = blurDeg * w / 360, r = Math.ceil(sigma * 3), k = [];
   for (let i = -r; i <= r; i++) k.push(Math.exp(-i * i / (2 * sigma * sigma)));
   const ks = k.reduce((s, v) => s + v, 0);
   const pass = function* (from, horizontal) {
@@ -22101,9 +22102,9 @@ function* skyLogDepth(img, depthLog) {
   return { w, h, data: yield* pass(yield* pass(src, true), false) };
 }
 
-/** Kugelnetz um den Mittelpunkt, Ecken im Abstand der Szene (bilinear aus der Tiefe). Generator für sliced. */
-function* skyProxyGeometry(depth, center) {
-  const { segU, segV } = PANO;
+/** Kugelnetz um den Mittelpunkt (mesh: Felder waagrecht und senkrecht), Ecken im Abstand der Szene (bilinear aus der
+ * Tiefe). Generator für sliced. */
+function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV]) {
   const pos = new Float32Array((segU + 1) * (segV + 1) * 3);
   const sample = (u, v) => {
     const { w, h, data } = depth;
@@ -22622,7 +22623,9 @@ function* paintedInstances(ctx, opt) {
  * sRGB-kodiert, gemalt wie das Panorama }; Strand: die nahen Felsen samt dem Gelände ihrer Gruppen). Blender hat sie
  * beleuchtet, mit Schatten; das Panorama zeigt sie nicht (aus seinem Mittelpunkt gesehen lägen sie schräg), ihre
  * Schatten darin bleiben. Wo das Gelände flach ist (rock8 unter der Hälfte), zeigt sich das Panorama: Dort stimmt es
- * (gebacken hob sich der Sand ab).
+ * (gebacken hob sich der Sand ab). Mit fade: [von, bis] läuft das Netz dazwischen ins Panorama aus, statt hart
+ * abzubrechen: durchsichtig, oder mit ground: [sink, up] (Wüste: rock8 · up ist die Höhe der nahen Dünen über dem Sand
+ * des Panoramas, das Netz liegt sink tiefer) in die Farbe, die das Panorama vom Sand direkt darunter zeigt.
  * Mit view, viewTexture, viewData zeigen sie, wo man sie vom Mittelpunkt des Panoramas aus sieht, das Bild, das Blender
  * von dort gemalt hat (vom Mittelpunkt aus projiziert: so sahen sie aus, als das Panorama sie noch zeigte – gebacken
  * wirkten sie fleckiger und flauer); sonst das gebackene Licht. view.windows: Ausschnitte [az0, az1, el0, el1 (Grad,
@@ -22680,6 +22683,11 @@ function* bakedMesh(ctx, opt) {
             viewUv = mix(viewUv, uv${i}, inside);
             weight = max(weight, w${i});
           }`).join('');
+  // fade [von, bis] in rock8: dort geht die Farbe in die des Panoramas über; ground [sink, up]: rock8 ist die Höhe über
+  // dem Sand des Panoramas (mal up, in m), das Netz liegt sink tiefer – die Farbe kommt von diesem Sand unter dem Punkt
+  // (was dahinter liegt, wäre bei schrägem Blick der Sand unter der Düne)
+  const fade = opt.fade ?? null, ground = fade && opt.ground;
+  if (ground) Object.assign(uniforms, { uPano: { value: ctx.pano.full } });
   const mesh = new THREE.Mesh(geo, new THREE.ShaderMaterial({
     uniforms,
     vertexShader: `
@@ -22694,7 +22702,15 @@ function* bakedMesh(ctx, opt) {
           vPos = wp.xyz;
           gl_Position = projectionMatrix * viewMatrix * wp;
         }`,
-    fragmentShader: `
+    fragmentShader: `${ground ? `
+        #if __VERSION__ >= 300
+          #define LOD0(t, p) textureLod(t, p, 0.0)
+        #elif defined(GL_EXT_shader_texture_lod)
+          #define LOD0(t, p) texture2DLodEXT(t, p, 0.0)
+        #else
+          #define LOD0(t, p) texture2D(t, p)
+        #endif
+        uniform sampler2D uPano;` : ''}
         uniform sampler2D uTex${view ? ', uView, uViewData' : ''};
         uniform float uFade, uReady;
         varying vec2 vUv;
@@ -22711,9 +22727,16 @@ function* bakedMesh(ctx, opt) {
           vec2 viewUv = vec2(0.0);
           float weight = 0.0;${windows}
           col = mix(col, texture2D(uView, viewUv).rgb, weight);` : ''}
-          if (vRock < 0.5) discard;
-          gl_FragColor = vec4(col * uFade * uReady, 1.0);
+          ${ground ? `if (vRock < ${glf(fade[0])}) discard;
+          vec3 g = vec3(vPos.x, vPos.y + ${glf(ground[0])} - vRock * ${glf(ground[1])}, vPos.z) - VIEW_CENTER;
+          vec3 b = normalize(vec3(g.x, -g.z, g.y));
+          vec3 sand = LOD0(uPano, vec2(0.5 + atan(b.x, b.y) / 6.2831853, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.1415927)).rgb;
+          col = mix(sand, col, smoothstep(${glf(fade[0])}, ${glf(fade[1])}, vRock));` : fade ? `float a = smoothstep(${glf(fade[0])}, ${glf(fade[1])}, vRock);
+          if (a <= 0.0) discard;` : 'if (vRock < 0.5) discard;'}
+          gl_FragColor = vec4(col * uFade * uReady, ${fade && !ground ? 'a' : '1.0'});
         }`,
+    transparent: !!fade && !ground,
+    extensions: { shaderTextureLOD: !!ground },
   }));
   mesh.frustumCulled = false;
   return mesh;
@@ -24372,8 +24395,8 @@ function createPanoramaSky(m) {
     const dropFull = () => { streaming.delete(full); closeSkyImage(full); full.dispose(); };
     // Netz in Häppchen (sliced): Tiefe glätten, Ecken setzen
     const center = new THREE.Vector3().fromArray(m.panorama.center);
-    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log));
-    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center)) : null;
+    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log, m.panorama.depth.blur));
+    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center, m.panorama.depth.mesh)) : null;
     if (my !== token) { dropFull(); dropBands(); geo?.dispose(); return; }
     const soft = preview ?? full; // so lange auf dem Netz und in den Ebenen (Spiegelung im Wasser)
     const sky = new THREE.Mesh(geo, skyPanoramaMaterial(uniforms, center, soft, rects.map((b) => ({ ...b, tex: null, on: 0 }))));

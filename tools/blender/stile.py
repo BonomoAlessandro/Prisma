@@ -15,6 +15,8 @@
 #   jpeg        Qualität des ganzen Bilds (anime.py pano, Standard 90; die Streifen bleiben bei 90)
 #   himmel      'mondnacht': gemalter Nachthimmel mit Mond, Wolken und Sternen statt des gerenderten (Himmelsmaske);
 #               None: der gerenderte Himmel bleibt und wird wie alles andere gemalt
+#   streifen    Oberkante der hoch aufgelösten Streifen in Grad über dem Horizont (wald_export.py LAT_TOP, Standard 10);
+#               höher, wenn nahe Formen weit hinaufragen (Wüste: Dünenkämme), kostet Grafikspeicher
 
 STILE = {
     '': {'belichtung': 5.5},   # realistischer Wald (wald_export.py encode, nicht gemalt)
@@ -64,6 +66,23 @@ STILE = {
         'jpeg': 82,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
         'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): das satte Orange bliebe sonst bei 255
         'pinsel': 0.14,   # die Kraterwand ist nah: feinere Striche, die Schichten bleiben lesbar
+    },
+    # Wüste am Nachmittag wie eine Anime-Landschaft: Sand golden, Schatten rosa-lila,
+    # oben ein helles, klares Blau
+    'desert': {
+        'belichtung': 1.0,
+        'saettigung': 1.3,
+        'schatten': (0.055, 0.028, 0.060),   # rosa-lila wie in gemalten Wüsten (Journey, Nausicaä), nie grau
+        'glut': (1.0, 0.90, 0.70),
+        'himmel': None,
+        'licht': (1.0, 0.95, 0.82),
+        'knie': 0.75,
+        'spitze': 0.86,
+        'rauschen': 0.006,
+        'volumen': 1,
+        'jpeg': 85,
+        'textur': 0.88,
+        'streifen': 22.0,   # die nahen Dünen ragen bis 19° hinauf (szene.py _fit_view)
     },
 }
 

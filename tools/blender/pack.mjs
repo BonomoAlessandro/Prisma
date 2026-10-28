@@ -5,7 +5,7 @@
 //                                    (nur Desktop, beim ersten Gebrauch)
 // rev (Stand) steht im Dateinamen: Der Service Worker speichert ohne Query-Parameter, ein neuer Stand braucht neue Namen.
 // Aufruf: node tools/blender/pack.mjs <id>
-// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, Sterne, Farben, Pinsel, Ebenen) und aus dessen Ordner
+// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, vorab, Tiefe, Sterne, Farben, Pinsel, Ebenen) und aus dessen Ordner
 // `daten` die Ausgabe der Pipeline: sky.json (Mittelpunkt, Tiefe, Streifen, Hauptlicht, Spitze, Farbringe von
 // wald_export.py bzw. anime.py json), die Bilder, trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene) und
 // ebenen.json (export() der Szene: weitere Daten für die Ebenen).
@@ -76,7 +76,9 @@ const rev = createHash('sha256').update(JSON.stringify([base, hd])).digest('hex'
 const partJs = (role, body) => `// Skybox ${id} (${role}) – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n` +
   `(globalThis.PRISMA_SKY_PARTS ||= {})[${JSON.stringify(`${id}/${role}`)}] = ${JSON.stringify({ rev, ...body })};\n`;
 const files = [
-  { role: 'base', file: `${id}/base.${rev}.js`, device: 'all', precache: true, js: partJs('base', base),
+  // vorab: false in skybox.json – das ganze Bild erst beim ersten Gebrauch laden (wie die Streifen), nicht beim
+  // Installieren (BUDGET.precacheBytes in tools/sky-schema.mjs)
+  { role: 'base', file: `${id}/base.${rev}.js`, device: 'all', precache: author.vorab ?? true, js: partJs('base', base),
     gpuMB: gpuMB([cfg.full, ...layerImages], cfg.watermask ? [cfg.watermask] : []) },
   { role: 'bands', file: `${id}/hd.${rev}.js`, device: 'desktop', precache: false, js: partJs('bands', hd),
     gpuMB: gpuMB([...cfg.bands.map((b) => b.file), ...hdImages]) },
@@ -85,7 +87,8 @@ const files = [
 const entry = {
   format: SKY_FORMAT, id, name: author.name, order: author.order, rev,
   parts: files.map(({ role, file, device, precache, js, gpuMB: g }) => ({ role, file, device, precache, bytes: Buffer.byteLength(js), gpuMB: g })),
-  panorama: { center: cfg.center, depth: { log: cfg.depthLog }, bands: cfg.bands.map(({ u, v }) => ({ u, v })), peak: cfg.peak },
+  // depth in skybox.json: Glättung blur (Grad) und Netz mesh der Tiefe im Spiel, sonst wie PANO in index.html
+  panorama: { center: cfg.center, depth: { log: cfg.depthLog, ...author.depth }, bands: cfg.bands.map(({ u, v }) => ({ u, v })), peak: cfg.peak },
   light: cfg.light,
   ...(trees?.fog ? { fog: trees.fog } : {}),
   ...(author.air ? { air: author.air } : {}),
