@@ -1,5 +1,29 @@
 # PRISMA – Plan und offene Punkte
 
+## 0. Als Nächstes: Schwierigkeit wählen, dann Noas Geschichte
+
+Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prototyp «Ein Lichtsignal an die Sterne»
+(Branch `feature/lichtsignal-prototyp`, Start mit `?signal`): Prolog im Bergdorf, sechs Welten mit je eigener Skybox
+(Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) und Reisen dazwischen, Finale beim Polarstern, Epilog bei Noa.
+
+- [ ] **0.1 Neuer Spielablauf:** Keine feste Reihe von 500 Leveln mehr. Im Menü wählt der Spieler die Schwierigkeit
+  (leicht, mittel, schwer, sehr schwer); danach spielt er Noas Geschichte mit genau 10 Leveln je Skybox, also
+  60 Leveln je Schwierigkeit.
+  - **E** Offen: Reihenfolge innerhalb einer Welt (steigend innerhalb des Grads?); wo das Tutorial hingehört (vor oder
+    in der ersten Welt, bei jedem Grad?); was aus der Levelauswahl wird (nur die Level der Geschichte?); Fortschritt
+    je Grad getrennt; Wechsel des Grads mitten in der Geschichte; Prolog und Einstiege beim zweiten Durchgang mit
+    anderem Grad; die Würfel-Level (eigener Teil nach dem Epilog?).
+- [ ] **0.2 Nicht mehr gebrauchte Level zur Seite legen:** Was in keiner Welt mehr vorkommt, nicht löschen, sondern in
+  einen Vorrat verschieben, damit es später wieder verwendet werden kann (Leveldaten samt Herkunft und Urteil der
+  KI-Tester). Die Tests, die heute Reihenfolge, Grade und Namen festhalten (`tests/levelliste.test.mjs`,
+  `tests/golden.mjs`, `entfernteNamen`), an den neuen Ablauf anpassen.
+- [ ] **0.3 Fehlende Level generieren:** Je Grad braucht es 60 Level. Heute gibt es in der Fläche 85 leichte,
+  265 mittlere, 105 schwere und 45 sehr schwere; für «sehr schwer» fehlen also mindestens 15 (Generator und KI-Tester
+  wie beim Ausbau auf 500).
+  - **E** Offen: Die Namen der Level folgen heute dem Grad (leicht: Alltagslicht, sehr schwer: Sterne). Sollen sie
+    zur Welt passen (im Meer «Meeresleuchten», bei den Sternen «Polarstern»), braucht es neue Namen oder eine neue
+    Zuordnung.
+
 ## 1. Aussehen
 
 - [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am
@@ -63,8 +87,9 @@
   → Beurteilung und Generator im Würfel, eine Strahlregel für beide: Spec `.scratch/levelgenerator/spec.md`,
   Tickets 14, 22 und 27.
 - [ ] Eventuell eine 3D-Karte für die Levelauswahl.
-- [ ] **Storyline** (Idee des Nutzers, 26. Oktober): Vielleicht eine Art Geschichte, die die Level verbindet, am
-  ehesten etwas, das mit Licht zu tun hat. Noch offen, wie sie aussieht und wie sie erzählt wird.
+- [~] **Storyline** (Idee des Nutzers, 26. Oktober): Vielleicht eine Art Geschichte, die die Level verbindet, am
+  ehesten etwas, das mit Licht zu tun hat. Seit 28. Oktober als Prototyp «Ein Lichtsignal an die Sterne» (Branch
+  `feature/lichtsignal-prototyp`, `?signal`); wie es weitergeht, steht unter 0.
 
 ## 4. Google Play Store
 
