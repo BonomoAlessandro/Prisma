@@ -379,23 +379,18 @@
     background-color: transparent; /* Zwischenszene (veil) und Untertitel: die Szene bleibt sichtbar */
     transition: opacity 0.8s ease, background-color 0.8s ease;
   }
-  #story[data-mode="card"] { background-color: rgba(4, 4, 12, 0.95); }
-  #story .card, #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; }
-  #story[data-mode="card"] .card, #story[data-mode="caption"] .caption { display: flex; }
+  #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; }
+  #story[data-mode="caption"] .caption { display: flex; }
   #story .swap { opacity: 0; }
-  #story .art { width: min(440px, 88vw); margin-bottom: 26px; }
-  #story .art svg { display: block; width: 100%; height: auto; }
-  #story .art.icon { width: 56px; margin-bottom: 22px; }
-  #story .art.icon svg { fill: none; stroke: var(--ink); stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 6px rgba(200, 210, 255, 0.5)); }
   #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
   #story .kicker:empty { display: none; }
   #story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw, 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
   #story .path { display: flex; align-items: center; gap: 0; margin-top: 30px; }
   #story .path:empty { display: none; }
-  #story .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 52px; color: rgba(232, 230, 240, 0.25); }
-  #story .path .st svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
-  #story .path .st span { font-size: 7px; letter-spacing: 0.2em; text-transform: uppercase; }
-  #story .path .st.done { color: var(--ink-dim); }
+  #story .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; color: rgba(232, 230, 240, 0.3); }
+  #story .path .st svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  #story .path .st span { font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; }
+  #story .path .st.done { color: rgba(232, 230, 240, 0.78); }
   #story .path .st.now { color: #fff; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); animation: intro-pulse 2.4s ease-in-out infinite; }
   #story .path .ln { width: 16px; height: 1px; margin-bottom: 14px; background: rgba(232, 230, 240, 0.15); }
   #story .path .ln.done { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
@@ -405,7 +400,7 @@
     #story .path .ln { width: 8px; margin-bottom: 0; }
   }
   #story .tap { margin-top: 34px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); animation: intro-pulse 2.4s ease-in-out infinite; }
-  #story.hidden .tap, #story.hidden .path .st.now { animation-play-state: paused; } /* ausgeblendet bleibt die Karte stehen: Puls ruht im Spiel */
+  #story.hidden .tap, #story.hidden .path .st.now { animation-play-state: paused; } /* ausgeblendet: Puls ruht im Spiel */
   #story .actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
   #story .actions:empty { display: none; }
   #story .actions button {
@@ -413,14 +408,13 @@
     border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
   }
   #story .actions button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
-  #story .actions:not(:empty) + .tap { display: none; }
   #story .caption { position: absolute; left: 16px; right: 16px; bottom: max(14vh, 70px); }
   /* dunkler Verlauf über die ganze Breite bis zum unteren Rand, wie bei Untertiteln im Film: auch vor hellem Himmel
      (Wüste, Strand) lesbar, ohne dass ein Fleck um den Text entsteht */
   #story .caption::before {
     content: ""; position: absolute; z-index: -1; left: 50%; width: 100vw; top: -70px; bottom: -40vh;
     transform: translateX(-50%);
-    background: linear-gradient(to top, rgba(3, 3, 8, 0.62), rgba(3, 3, 8, 0.4) 55%, rgba(3, 3, 8, 0));
+    background: linear-gradient(to top, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
   }
   #story .caption .text, #story .caption .kicker { text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9); }
   #story .caption .tap { margin-top: 18px; }
@@ -429,7 +423,7 @@
   #story .tap:empty { display: none; } /* Reise: Untertitel ohne Aufforderung zum Tippen */
   /* Bühne für Prolog und Epilog (createStoryScene): das Dorf über den ganzen Bildschirm, Untertitel darunter */
   #story[data-mode="scene"] { background-color: #020208; padding: 0; }
-  #story.flash { background-color: #f4f2ff !important; transition: none; } /* Finale: Blitz, aus dem das Dorf auftaucht */
+  #story.slow { transition: opacity 1.8s ease, background-color 1.8s ease; } /* Finale: Welt versinkt, Dorf taucht auf */
   #story .scene { display: none; position: absolute; inset: 0; overflow: hidden; }
   #story[data-mode="scene"] .scene { display: block; }
   #story .scene .world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.6s ease; }
@@ -471,8 +465,6 @@
   #story.hidden .scene * { animation-play-state: paused; }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
     body.story #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
-    #story .art { width: min(300px, 50vw, 55vh); margin-bottom: 12px; } /* nach der Höhe: der Epilog mit Knöpfen passt auch bei 320 px */
-    #story .art.icon { width: 40px; margin-bottom: 10px; }
     #story .path { margin-top: 14px; }
     #story .tap, #story .actions { margin-top: 14px; }
     #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
@@ -535,14 +527,6 @@
 </div>
 
 <div id="story" class="hidden" inert aria-live="polite">
-  <div class="card">
-    <div class="art"></div>
-    <div class="kicker"></div>
-    <p class="text"></p>
-    <div class="path"></div>
-    <div class="actions"></div>
-    <div class="tap"></div>
-  </div>
   <div class="caption">
     <div class="kicker"></div>
     <p class="text"></p>
@@ -29044,33 +29028,28 @@ const STORY_ICONS = {
 const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
   ['planeten', 'Planeten'], ['sterne', 'Sterne']];
 /**
- * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel; im Prototyp eines je Welt), Text der
- * Karte (nach dem Prolog und beim Fortsetzen), Meldung und Knopf nach dem letzten Level. carrier: was das Licht von hier
- * in die nächste Welt trägt (STORY_CARRIERS); travel: Untertitel der Reise hierher. up: Blick in den Himmel steiler
- * (Vulkan: über die Kraterwand). finale: danach antwortet der Stern, und der Epilog folgt.
+ * Kapitel: Station auf dem Weg, Hintergrund, Level (Namen, leicht bis früh mittel; im Prototyp eines je Welt), Meldung
+ * und Knopf nach dem letzten Level. travel: Untertitel, wenn das Licht hier ankommt (nach dem Prolog, auf der Reise,
+ * beim Fortsetzen); carrier: was das Licht von hier in die nächste Welt trägt (STORY_CARRIERS). up: Blick in den Himmel
+ * steiler (Vulkan: über die Kraterwand). finale: danach antwortet der Stern, und der Epilog folgt.
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest', levels: ['Leuchtkäfer'],
-    text: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Lenke es zwischen den Bäumen hindurch.',
+    travel: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Lenke es zwischen den Bäumen hindurch.',
     carrier: 'glow', done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
   { station: 2, title: 'Das Meer', sky: 'beach', levels: ['Meeresleuchten'],
-    text: 'Am Meer springt das Licht von Welle zu Welle, bis hinüber zur anderen Küste.',
     travel: 'Die Glühwürmchen tragen das Licht aus dem Wald hinaus, über die Hügel bis ans Meer. Dort springt es von Welle zu Welle.',
     carrier: 'spray', done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
   { station: 3, title: 'Die Wüste', sky: 'desert', levels: ['Spiegelbild'],
-    text: 'In der Wüste werfen die Pyramiden das Licht von Spitze zu Spitze.',
     travel: 'Der Wind über den Wellen nimmt das Licht mit, weit übers Meer, bis an den Rand der Wüste. Dort warten die Pyramiden.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
   { station: 4, title: 'Der Vulkan', sky: 'volcano', levels: ['Funkenregen'], up: 1.0,
-    text: 'Am Vulkan packt die heisse Luft das Licht und reisst es hinauf in den Himmel.',
     travel: 'Ein Wirbel aus Sand trägt das Licht über die Dünen, bis die Erde unter ihm rot zu glühen beginnt.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
   { station: 5, title: 'Die Planeten', sky: 'solar', levels: ['Europa'],
-    text: 'Über den Wolken ist es still. Das Licht zieht an den Planeten vorbei, immer weiter hinaus.',
     travel: 'Der Vulkan bricht aus und schleudert das Licht hinauf, höher als alle Wolken, bis zu den Planeten.',
     carrier: 'comet', done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
   { station: 6, title: 'Die Sterne', sky: 'milky', levels: ['Polarstern'], finale: true,
-    text: 'Zwischen tausend Sternen sucht das Licht den einen, der sich nie bewegt.',
     travel: 'Ein Komet nimmt das Licht mit, hinaus aus dem Sonnensystem, dorthin, wo nur noch Sterne sind.',
     done: 'Ganz oben', next: 'Hinaufschauen' },
 ];
@@ -29109,8 +29088,8 @@ const STORY_PROLOG = [
     text: 'Denn Licht lässt sich weitergeben: von Spiegel zu Spiegel, von Ort zu Ort. Hilf ihm, den weiten Weg zu den Sternen zu finden.' },
 ];
 const STORY_EPILOG = [
-  { from: { x: 800, y: 470, z: 1 }, fromP: { x: 760, y: 470, z: 1 }, cam: { x: 760, y: 420, z: 1.25 },
-    camP: { x: 520, y: 470, z: 1.3 }, move: 5,
+  { from: { x: 900, y: 120, z: 1.12 }, fromP: { x: 980, y: 160, z: 1.08 }, cam: { x: 760, y: 420, z: 1.25 },
+    camP: { x: 520, y: 470, z: 1.3 }, move: 6.5,
     text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.' },
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
     text: 'Da blinkt der Polarstern: einmal, zweimal, dreimal.' },
@@ -29360,6 +29339,13 @@ function createStoryScene(host) {
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
 
     portrait() { return innerWidth / innerHeight < 0.9; },
+    /** Wo der Polarstern bei dieser Kamera im Bild steht (Anteil der Breite und Höhe), wie draw() rechnet. */
+    starAt(c) {
+      const W = innerWidth, H = innerHeight, fit = Math.min(1, 900 * W / H / 820), p = layers[0].p;
+      const z = (1 + (c.z - 1) * p) * fit, x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
+      const slice = Math.max(W / 1600, H / 900); // preserveAspectRatio slice
+      return [((1120 - x) * z) * slice / W + 0.5, ((150 - y) * z) * slice / H + 0.5];
+    },
     reset(shot) {
       this.tweens = [];
       this.speed = 1;
@@ -29588,14 +29574,12 @@ const story = {
 
   /* ---------- Ablauf ---------- */
 
-  /** Nach dem Startbildschirm: Prolog (nur am Anfang), Karte des Kapitels, dann aus dem Himmel aufs Brett. */
+  /** Nach dem Startbildschirm: Prolog (nur am Anfang), dann bringt der Träger das Licht in die erste Welt. */
   async begin() {
     this.running = true;
     flow.state = 'story';
     if (this.prolog) await this.playScene(STORY_PROLOG, { skippable: true });
-    await this.card(this.chapterCard(this.chapter()));
-    await this.skyReady();
-    await this.arrive(this.steps[this.step].index, this.chapter().up);
+    await this.enter(this.steps[this.step].index, this.chapter());
     this.running = false;
   },
   /** „Weiter“ nach dem Lösen (oder N): im Kapitel das nächste Level, am Kapitelende die Zwischenszene. */
@@ -29631,7 +29615,7 @@ const story = {
     const fl = this.flare, carrier = this.carrier, n = STORY_CHAPTERS.indexOf(ch) + 1;
     carrier.start(from.carrier, fl.position);
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: `Kapitel ${n} · ${ch.title}`, text: ch.travel ?? ch.text, path: ch.station }));
+      { kicker: `Kapitel ${n} · ${ch.title}`, text: ch.travel, path: ch.station }));
     this.tween(0.9, (k) => {
       carrier.strength = k;
       for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k;
@@ -29665,7 +29649,8 @@ const story = {
   },
   /**
    * Ganz oben: Der Polarstern leuchtet auf und antwortet; sein Strahl fällt zurück aufs Brett, die Kamera folgt ihm.
-   * Beim Aufprall blitzt es hell, und aus dem Licht wird das Dorf, in dem Noa wartet (Epilog).
+   * Der Aufprall klingt aus (Lichtwelle, Funkenregen, die Ziele blitzen), dann geht der Blick noch einmal hinauf zum
+   * Stern, und während die Welt in der Nacht versinkt, taucht das Dorf auf, in dem Noa wartet (Epilog).
    */
   async finale() {
     await this.ascend(0.5, true);
@@ -29692,17 +29677,35 @@ const story = {
     this.shock(WHITE);
     this.pulse();
     audio.chord([1, 2, 4, 7], 0);
-    await this.wait(0.2);
+    celebration.rain.burst([7, 7, 4, 2, 1]);
+    for (const obj of game.targets) obj.userData.flash = 1;
+    this.tween(1.4, (k) => { this.answer.material.uniforms.uStrength.value = 1 - k; }, storyLinear, 0.3);
+    await this.wait(2.6);
+    // Blick hinauf zum Stern, so dass er dort steht, wo ihn gleich das gezeichnete Dorf zeigt: beim Überblenden geht
+    // Stern in Stern über
+    const sc = this.scene ??= this.makeScene(), first = STORY_EPILOG[0];
+    const [fx, fy] = sc.starAt((sc.portrait() && first.fromP) || first.from);
+    const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)), tanH = tanV * camera.aspect;
+    const d = star.clone().sub(camera.position).normalize();
+    const el = Math.asin(d.y) - Math.atan((1 - 2 * fy) * tanV), az = Math.atan2(d.x, d.z) + Math.atan((2 * fx - 1) * tanH);
+    const view = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+    const fl = this.flare, size = fl.scale.x;
+    this.tween(3.4, (k) => {
+      this.gazeDir.copy(view);
+      this.gaze = k;
+      fl.scale.setScalar(size + (4.5 - size) * k); // etwa so gross wie der gezeichnete Stern
+    });
+    await this.wait(3.2);
     await this.ending(true);
   },
-  /** Nach dem letzten Level: Epilog im Dorf, Ende des Prototyps. flash: aus einem hellen Blitz heraus (Finale). */
-  async ending(flash = false) {
+  /** Nach dem letzten Level: Epilog im Dorf, Ende des Prototyps. soft: langsam überblenden (Finale). */
+  async ending(soft = false) {
     this.running = true;
     flow.state = 'story';
     ui.hideSolved();
     ui.hideHud();
     try { localStorage.removeItem(this.storageKey); } catch { /* egal */ }
-    await this.playScene(STORY_EPILOG, { flash, actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
+    await this.playScene(STORY_EPILOG, { soft, actions: [['Nochmals erleben', () => { location.search = '?signal=neu'; }],
       ['Zum Spiel', () => { location.href = location.pathname; }]] });
   },
   /**
@@ -29710,19 +29713,22 @@ const story = {
    * während einer Fahrt macht sie schneller. actions: Knöpfe nach der letzten Einstellung (Epilog), die Bühne bleibt
    * dann stehen; sonst blendet sie aus.
    */
-  async playScene(shots, { skippable = false, actions = null, flash = false } = {}) {
+  async playScene(shots, { skippable = false, actions = null, soft = false } = {}) {
     const sc = this.scene ??= this.makeScene();
     sc.reset(shots[0]);
     sc.skip.hidden = !skippable;
     this.skipped = false;
-    if (flash) this.el.classList.add('flash'); // hell, dann ins Dunkel der Bühne (CSS #story.flash)
+    // soft: Die Welt dahinter versinkt langsam in der Nacht, während die Bühne einblendet (CSS #story.slow); erst
+    // danach ist sie ganz verdeckt
+    this.el.classList.toggle('slow', soft);
     this.open('scene');
-    this.covered = true;
     sc.show();
-    if (flash) {
-      requestAnimationFrame(() => requestAnimationFrame(() => this.el.classList.remove('flash')));
-      for (const o of [this.answer, this.flare]) o.visible = false; // liegen jetzt hinter der Bühne
+    if (soft) {
+      await this.wait(1.9);
+      this.el.classList.remove('slow');
+      for (const o of [this.answer, this.flare]) o.visible = false;
     }
+    this.covered = true;
     for (const shot of shots) {
       if (this.skipped) break;
       sc.say(shot.text);
@@ -29810,17 +29816,36 @@ const story = {
   /** Blick in den Himmel auf einen Punkt richten (gaze bestimmt, wie weit). */
   look(point) { this.gazeDir.copy(point).sub(camera.position).normalize(); },
   /**
-   * Aus dem Himmel aufs Brett: Die Kamera schaut erst in den neuen Himmel, wo das Licht ankommt, und folgt ihm dann
-   * hinab aufs Brett; dort verlischt es, und das Level wächst.
+   * In eine Welt hinein ohne Reise davor (nach dem Prolog, beim Fortsetzen): Der Träger, der das Licht hierher bringt
+   * (im ersten Kapitel die Glühwürmchen des Prologs, sonst der der Welt davor), fliegt mit ihm von der Seite heran,
+   * tief über dem Horizont, und es fällt aufs Brett. Dazu der Untertitel mit Kapitel und Weg wie auf der Reise. Bis der
+   * Himmel der Welt geladen ist, bleibt davor dunkel, was davor war (die Bühne des Prologs, der Startbildschirm).
    */
-  async arrive(index, up = STORY_UP) { // up: undefined → STORY_UP
+  async enter(index, ch) {
+    const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
+    for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
+    const up = ch.up ?? STORY_UP, dist = 60;
     this.aimGaze(up);
+    // tief über dem Horizont heran (im Wald über die Wipfel) und erst vor der Kamera etwas höher
+    const az1 = Math.atan2(this.gazeDir.x, this.gazeDir.z), az0 = az1 + (c % 2 ? 1 : -1);
+    const el0 = Math.max(0.03, up - 0.4), el1 = Math.max(0.2, up - 0.15);
+    const place = (el, az) => fl.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el))
+      .multiplyScalar(dist).add(camera.position);
+    place(el0, az0);
+    fl.visible = true;
+    fl.material.opacity = 1;
+    fl.scale.setScalar(5);
+    carrier.start(c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', fl.position);
+    carrier.strength = 1;
+    this.look(fl.position);
     this.gaze = 1;
-    const fl = this.flare;
-    fl.position.copy(camera.position).addScaledVector(this.gazeDir, 72);
-    fl.scale.setScalar(6);
-    this.close();
-    await this.wait(0.6); // die Karte blendet aus, der neue Himmel steht still
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
+      { kicker: `Kapitel ${c + 1} · ${ch.title}`, text: ch.travel, path: ch.station }));
+    await this.tween(3.4, (k) => {
+      place(el0 + (el1 - el0) * k, az0 + (az1 - az0) * k);
+      carrier.orb.copy(fl.position);
+      this.look(fl.position);
+    });
     await this.fall(index, fl.position.clone());
   },
   /** Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst. */
@@ -29873,36 +29898,22 @@ const story = {
       shockUniforms.uShock.value.set(r, k < 1 ? fade * fade : 0, CELEBRATE.shockWidth * (1 + r * 0.12));
     }, storyLinear);
   },
-  async skyReady(seconds = 8) {
-    const tap = this.el.querySelector('.card .tap');
-    if (!skyTheme.ready && !this.el.classList.contains('hidden')) tap.textContent = 'Einen Moment …';
-    for (let t = 0; !skyTheme.ready && t < seconds; t += 0.1) await this.wait(0.1);
-  },
 
-  /* ---------- Karten und Untertitel ---------- */
+  /* ---------- Untertitel ---------- */
 
-  chapterCard(ch) {
-    const n = STORY_CHAPTERS.indexOf(ch) + 1;
-    return { icon: STORY_STATIONS[ch.station][0], kicker: `Kapitel ${n} · ${ch.title}`, text: ch.text, path: ch.station };
-  },
-  async card(c) {
-    await this.showCard(c);
-    await this.untilTap();
-  },
-  /** Karte zeigen (über der Szene, fast deckend); eine schon offene wechselt ihren Inhalt mit kurzem Überblenden. */
-  showCard(c) { return this.present('card', this.el.querySelector('.card'), (el) => this.fillCard(el, c)); },
   async caption(text) {
     await this.present('caption', this.el.querySelector('.caption'),
       (el) => this.fillCaption(el, { text, tap: IS_TOUCH ? 'Tippen' : 'Klicken' }));
     await this.untilTap();
   },
-  /** Untertitel füllen: Kapitel darüber, Weg darunter (beides nur auf der Reise), Aufforderung zum Tippen. */
+  /** Untertitel füllen: Kapitel darüber, Weg darunter (beides nur bei der Ankunft in einer Welt), Aufforderung zum Tippen. */
   fillCaption(el, { kicker = '', text, path, tap = '' }) {
     el.querySelector('.kicker').textContent = kicker;
     el.querySelector('.text').textContent = text;
     this.fillPath(el.querySelector('.path'), path);
     el.querySelector('.tap').textContent = tap;
   },
+  /** Untertitel zeigen; ein schon offener wechselt seinen Inhalt mit kurzem Überblenden. */
   async present(mode, el, fill) {
     const shown = !this.el.classList.contains('hidden') && this.el.dataset.mode === mode;
     if (shown) { el.classList.add('swap'); await storySleep(350); }
@@ -29910,24 +29921,6 @@ const story = {
     if (!shown) { el.classList.add('swap'); this.open(mode); void el.offsetWidth; }
     el.classList.remove('swap');
     await storySleep(shown ? 350 : 800);
-  },
-  fillCard(el, c) {
-    const art = el.querySelector('.art');
-    art.className = 'art' + (c.icon ? ' icon' : '');
-    if (c.icon) art.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${STORY_ICONS[c.icon]}</svg>`;
-    else art.replaceChildren();
-    el.querySelector('.kicker').textContent = c.kicker ?? '';
-    el.querySelector('.text').textContent = c.text;
-    this.fillPath(el.querySelector('.path'), c.path);
-    const actions = el.querySelector('.actions');
-    actions.replaceChildren();
-    for (const [label, fn] of c.actions ?? []) {
-      const b = document.createElement('button');
-      b.textContent = label;
-      b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
-      actions.append(b);
-    }
-    el.querySelector('.tap').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   },
   /** Leiste der Stationen: bis now erreicht, now leuchtet; now ≥ Zahl der Stationen: alle erreicht. */
   fillPath(el, now) {
