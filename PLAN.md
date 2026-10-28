@@ -29,6 +29,9 @@ Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prot
 - [ ] **0.3 Fehlende Level generieren:** Je Grad braucht es 60 Level. Heute gibt es in der Fläche 85 leichte,
   265 mittlere, 105 schwere und 45 sehr schwere; für «sehr schwer» fehlen also mindestens 15 (Generator und KI-Tester
   wie beim Ausbau auf 500).
+  - [x] **Sehr schwer (29.10.2026):** 15 neue Level beurteilt und gewählt, noch nicht im Spiel, in
+    `tools/geschichte/sehr-schwer-neu.json`; Herkunft und Wahl in `.scratch/noa-geschichte/01-sehr-schwer-vorrat.md`.
+    Mit den 45 im Spiel sind es 60 (je Haupt-Kernidee höchstens 12, dazu ein Lockvogel).
   - **E** Offen: Die Namen der Level folgen heute dem Grad (leicht: Alltagslicht, sehr schwer: Sterne). Sollen sie
     zur Welt passen (im Meer «Meeresleuchten», bei den Sternen «Polarstern»), braucht es neue Namen oder eine neue
     Zuordnung.
