@@ -430,6 +430,7 @@
   @keyframes story-blink-torch { 0%, 100% { opacity: 0; } 40% { opacity: 1; } }
   #story .village .polar { transform-box: fill-box; transform-origin: center; }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
+    body.story #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
     #story .art { width: min(300px, 50vw, 55vh); margin-bottom: 12px; } /* nach der Höhe: der Epilog mit Knöpfen passt auch bei 320 px */
     #story .art.icon { width: 40px; margin-bottom: 10px; }
     #story .path { margin-top: 14px; }
