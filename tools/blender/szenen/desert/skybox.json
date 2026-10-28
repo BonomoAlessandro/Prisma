@@ -1,0 +1,13 @@
+{
+  "format": 1,
+  "id": "desert",
+  "name": "Wüste",
+  "order": 60,
+  "daten": "sky/desert",
+  "vorab": false,
+  "depth": { "blur": 0.5, "mesh": [1024, 512] },
+  "sky": { "stars": 0 },
+  "layers": [
+    { "type": "bakedMesh", "data": "dunes", "fade": [0.1, 0.8], "ground": [0.25, 2.5] }
+  ]
+}

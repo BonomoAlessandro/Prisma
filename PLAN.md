@@ -6,7 +6,10 @@
   Strand. Gilt für jede Skybox, auch für die neuen aus 1.2.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
-  - [ ] Wüste (Storyline: Gelb)
+  - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
+    als 3D-Netz im Spiel (bakedMesh mit Übergang in den Sand), eine kleine Oase und die Pyramiden von Giza. Lädt ihr
+    Bild erst beim Wählen (`vorab: false`), weil die vorab gespeicherten Skyboxen sonst über 4,5 MB kämen; offen, ob
+    das Budget steigen soll.
   - [ ] Eis oder Gletscher (Storyline: Cyan)
   - [ ] Blütental in der Dämmerung, z. B. Lavendel oder Kirschblüten (Storyline: Magenta)
   - [ ] Idyllisches Dorf, umgeben von Bergen (Storyline: Finale)

@@ -103,6 +103,10 @@ const LAYER_PARAMS = {
   },
   bakedMesh: {
     data: (v) => typeof v === 'string',
+    // optional: Bereich in rock8 (0 … 1, aufsteigend), über den das Netz ins Panorama ausläuft
+    fade: (v) => v === undefined || (isVec(v, 2) && v[0] >= 0 && v[1] > v[0] && v[1] <= 1),
+    // optional mit fade: [sink, up] (m), rock8 · up ist die Höhe über dem Sand des Panoramas
+    ground: (v) => v === undefined || (isVec(v, 2) && v[0] >= 0 && v[1] > 0),
   },
   // Vulkan: Lavasee. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
   // liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
@@ -182,6 +186,13 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
     const pano = s.panorama ?? {};
     if (!isVec(pano.center)) err('panorama.center');
     if (!isVec(pano.depth?.log, 2) || !(pano.depth.log[0] > 0 && pano.depth.log[1] > pano.depth.log[0])) err('panorama.depth.log');
+    if (pano.depth && 'blur' in pano.depth && !(isNum(pano.depth.blur) && pano.depth.blur >= 0 && pano.depth.blur <= 5)) {
+      err('panorama.depth.blur: 0 … 5 (Grad)');
+    }
+    // Netz der Tiefe: Uint32-Indizes, aber jede Ecke kostet Zeit beim Laden (sliced) und Grafikspeicher
+    if (pano.depth && 'mesh' in pano.depth && !(isVec(pano.depth.mesh, 2) && pano.depth.mesh.every((n) => isInt(n) && n <= 2048))) {
+      err('panorama.depth.mesh: zwei ganze Zahlen bis 2048');
+    }
     for (const b of pano.bands ?? []) {
       if (!isVec(b.u, 2) || !isVec(b.v, 2) || ![...b.u, ...b.v].every((x) => x >= 0 && x <= 1)) err('panorama.bands: u und v in 0 … 1');
     }

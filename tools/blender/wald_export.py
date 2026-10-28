@@ -27,10 +27,10 @@ from wald_lib import aces_game, srgb_encode
 from wald_io import save_image, load_exr
 from stile import stil
 
-LAT_TOP = 10.0
 MASK_DEG = 20.0   # so weit unter den Horizont reicht die Wassermaske (Spiel: waterSurface)
 DEPTH_LOG = (0.5, 6000.0)
 STIL = os.environ.get('WALD_STIL', '')   # anime, beach: Renderings nach out/<stil> (gemalt wird danach in anime.py)
+LAT_TOP = stil(STIL).get('streifen', 10.0)   # Oberkante der HD-Streifen (Grad über dem Horizont, stile.py)
 EXPOSURE = stil(STIL)['belichtung']
 OUT = os.path.join(HERE, 'out', STIL)
 SKY = os.path.join(HERE, 'sky', STIL)
