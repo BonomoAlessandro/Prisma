@@ -349,7 +349,10 @@
     animation: intro-fade 1.2s ease 2.3s forwards;
   }
   #intro .sub { margin-top: 8px; }
-  #intro .start { margin-top: 64px; animation-delay: 2.9s; }
+  /* „Klicken zum Starten“ erst, wenn der Hintergrund dahinter geladen ist (ui.init setzt .ready), vorher startet nichts */
+  #intro .start { margin-top: 64px; animation: none; }
+  #intro.ready .start { animation: intro-fade 1.2s ease forwards; }
+  #intro:not(.ready) { cursor: default; }
   #intro:not(.go) * { animation-play-state: paused !important; }
   #intro .start span { animation: intro-pulse 2.4s ease-in-out 4s infinite; }
   @keyframes intro-beam {
@@ -366,7 +369,7 @@
   @keyframes intro-fade { to { opacity: 1; } }
   @keyframes intro-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
   @media (prefers-reduced-motion: reduce) {
-    #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro .start { animation-duration: 0.01s; animation-delay: 0s; }
+    #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro.ready .start { animation-duration: 0.01s; animation-delay: 0s; }
   }
 
   /* ---------- Geschichte (Prototyp, ?signal): Karten zwischen den Kapiteln, Untertitel in den Zwischenszenen ---------- */
@@ -429,6 +432,10 @@
   #story.slow { transition: opacity 1.8s ease, background-color 1.8s ease; } /* Finale: Welt versinkt, Dorf taucht auf */
   #story .scene { display: none; position: absolute; inset: 0; overflow: hidden; }
   #story[data-mode="scene"] .scene { display: block; }
+  /* vorab einmal unsichtbar zeichnen (story.prewarmScene): Das erste Zeichnen der grossen Szene hielt das Bild an */
+  #story .scene.prewarm { display: block; pointer-events: none; }
+  #story .scene.prewarm .world { opacity: 0.002; }
+  #story .scene.prewarm .sub, #story .scene.prewarm .skip { visibility: hidden; }
   #story .scene .world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.6s ease; }
   #story .scene.lit .world { opacity: 1; }
   #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
@@ -24601,8 +24608,9 @@ function createPanoramaSky(m) {
     mesh = sky;
     adaptiveResolution.hold(); // Einblenden (doppelt gezeichnet) nicht als Überlast werten
     // Grosse Texturen erst, wenn die Skybox ganz eingeblendet ist: Das erste Schreiben in eine neue grosse Textur hält
-    // den Grafikprozess kurz an (30–80 ms), das sah man im Intro und in der Überblendung als Ruck
-    const shown = () => uniforms.uFade.value >= 1 && uniforms.uReady.value >= 1;
+    // den Grafikprozess kurz an (30–80 ms), das sah man im Intro und in der Überblendung als Ruck. Ebenso während einer
+    // Zwischenszene der Geschichte (skyTheme.quiet): Dort fliegt das Licht, und jeder Ruck fiele auf.
+    const shown = () => uniforms.uFade.value >= 1 && uniforms.uReady.value >= 1 && !skyTheme.quiet;
     if (preview) {
       while (my === token && !shown()) await nextFrame();
       if (my === token) await sliced(skyUpload(full));
@@ -24788,6 +24796,7 @@ const skyTheme = {
   current: 'milky',
   weight: Object.fromEntries(SKY_ENTRIES.map((e) => [e.id, e.id === 'milky' ? 1 : 0])), // Anteil, 0 … 1
   fadeTime: 0.9,   // s für Aus- und Einblenden zusammen
+  quiet: false,    // Zwischenszene der Geschichte: grosse Texturen (scharfes Bild, Streifen) erst danach (createPanoramaSky)
   // Eine ausgeblendete Skybox aus Blender gibt ihren Grafikspeicher frei: auf dem Handy sofort, sonst nach keep s
   // (wer mit H durchschaltet, kommt bald wieder vorbei, und Neuladen kostet einen Ruckler) – und immer, sobald eine
   // andere gewählt ist: zwei Panoramen zugleich im Grafikspeicher nur, solange das neue lädt und das alte noch steht.
@@ -28521,7 +28530,9 @@ function warmupShaders() {
   celebration.rain.points.visible = true;
   compileParallel([scene]); // stösst sofort an (übersetzt im Hintergrund): der Zustand oben gilt nur dafür
   obj?.userData.warmup(false);
-  elementWarmup.dispose(); // die echten Elemente haben ihre Programme jetzt
+  // die echten Elemente haben ihre Programme jetzt. Die Geschichte behält die unsichtbaren Vorwärm-Elemente jeder Art:
+  // Sonst übersetzte das erste Level mit einer neuen Art seine Shader mitten im Fall des Lichts (ein Ruck)
+  if (!story.on) elementWarmup.dispose();
   celebration.rain.points.visible = celebration.rain.alive > 0;
 }
 
@@ -28616,6 +28627,7 @@ const ui = {
   peek: null,  // Nachbarseite neben dem Raster beim Blättern
   slide: null, // laufende Bewegung { anim, done }
   intro: $('intro'),
+  canStart: false, // Hintergrund hinter dem Startbildschirm geladen (siehe init)
   lastLevel: false,
 
   init() {
@@ -28660,7 +28672,18 @@ const ui = {
     Promise.all([until(document.fonts?.ready, 800), until(sceneReady, 5000)]).then(() => {
       this.intro.classList.add('go');
       // reduzierte Bewegung: die Animationen sind gleich fertig (CSS), also nicht warten
-      setTimeout(markIntroCalm, matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : INTRO_REVEAL_MS);
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches, revealed = performance.now();
+      setTimeout(markIntroCalm, still ? 0 : INTRO_REVEAL_MS);
+      // „Klicken zum Starten“ frühestens nach der Enthüllung (2,9 s) und erst, wenn der Hintergrund dahinter ganz geladen
+      // ist; lädt er nicht (Fehler, sehr langsames Netz), nach 15 s trotzdem, damit das Spiel nicht hängen bleibt
+      const check = () => {
+        const waited = performance.now() - revealed;
+        if (waited >= (still ? 0 : 2900) && (skyTheme.ready || waited > 15000)) {
+          this.canStart = true;
+          this.intro.classList.add('ready');
+        } else setTimeout(check, 100);
+      };
+      check();
     });
     // Ton freischalten, sobald der Spieler irgendwo interagiert (Autoplay-Regeln der Browser)
     const unlock = (e) => { if (e.isTrusted) audio.unlock(); }; // synthetische Ereignisse (Tests) zählen nicht als Geste
@@ -28993,7 +29016,7 @@ const ui = {
 
   /** Startbildschirm verlassen: Ton freischalten, erstes Level herauswachsen lassen. */
   start(gesture = true) {
-    if (flow.state !== 'intro') return;
+    if (flow.state !== 'intro' || !this.canStart) return; // erst, wenn „Klicken zum Starten“ da ist
     if (gesture) audio.unlock(); // ohne Geste verweigert der Browser den Ton – dann beim ersten Klick
     setShown(this.intro, false);
     setShown(this.controls, true);
@@ -29589,6 +29612,7 @@ const story = {
     this.running = true;
     flow.state = 'story';
     const { c, index } = this.steps[this.step];
+    this.scene ??= this.makeScene(); // jetzt, unter dem Startbildschirm, statt erst im Finale (ein Ruck)
     if (this.seen.has(c)) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg gleich ins Level, sobald ihr Himmel da ist
       for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
@@ -29651,30 +29675,40 @@ const story = {
     // statt über die Nacht; ins Sonnensystem und zu den Sternen geht es durch die Nacht.
     const fadeTime = skyTheme.fadeTime, old = skyTheme.current;
     skyTheme.fadeTime = 3;
+    skyTheme.quiet = true; // scharfes Bild und Streifen der neuen Welt erst nach der Landung (jeder Ruck fiele auf)
     this.setSky(ch.sky, true);
     const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
     this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
     // Bogen über den Himmel, vom Standort der Kamera aus gesehen: seitwärts, abwechselnd links und rechts, und am Ende
     // so hoch, wie man in der neuen Welt hinaufschaut (Vulkan: über die Kraterwand)
-    const d = fl.position.clone().sub(camera.position), dist = d.length();
-    const el0 = Math.asin(d.y / dist), az0 = Math.atan2(d.x, d.z);
-    const el1 = Math.min(1.15, Math.max(el0, ch.up ?? STORY_UP) + 0.1);
-    const az1 = az0 + (n % 2 ? 1 : -1) * 1.1;
+    const d = fl.position.clone().sub(camera.position), dist = d.length(), side = n % 2 ? 1 : -1;
+    const el0 = Math.asin(d.y / dist), el1 = Math.min(1.15, Math.max(el0, ch.up ?? STORY_UP) + 0.1);
+    let az0 = Math.atan2(d.x, d.z);
     const place = (el, az) => fl.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el))
       .multiplyScalar(dist).add(camera.position);
+    const hover = (el, az) => this.tween(0.1, (k) => {
+      place(el, az + side * 0.03 * k);
+      carrier.orb.copy(fl.position);
+      this.look(fl.position);
+    }, storyLinear);
+    // Lädt die neue Welt noch, sammelt der Träger das Licht weiter, fast still (höchstens 8 s): Hochladen und Übersetzen
+    // halten den Grafikprozess kurz an, und ein Ruck fiele im Flug auf
+    const mod = skyTheme.byId.get(skyTheme.current).module;
+    for (let t = 0; mod?.settled === false && t < 8; t += 0.1) { await hover(el0, az0); az0 += side * 0.03; }
+    const az1 = az0 + side * 1.1;
     await this.tween(6, (k) => {
       place(el0 + (el1 - el0) * k + Math.sin(Math.PI * k) * 0.12, az0 + (az1 - az0) * k);
       carrier.orb.copy(fl.position);
       this.look(fl.position);
     });
     await sunk;
-    // lädt die neue Welt noch, schwebt das Licht weiter (höchstens 8 s)
-    for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) {
-      await this.tween(0.1, (k) => { place(el1, az1 + (n % 2 ? 1 : -1) * 0.02 * (t + k)); carrier.orb.copy(fl.position); this.look(fl.position); }, storyLinear);
-    }
+    // blendet die neue Welt noch ein, schwebt das Licht weiter (höchstens 8 s)
+    let az = az1;
+    for (let t = 0; skyTheme.fading && t < 8; t += 0.1) { await hover(el1, az); az += side * 0.03; }
     await this.fall(index, fl.position.clone());
     skyTheme.fadeTime = fadeTime; // erst jetzt: sonst blendete der Rest der neuen Welt plötzlich schneller ein
     this.blend = null;
+    this.wait(1.2).then(() => { skyTheme.quiet = false; }); // erst, wenn das Level steht
   },
   /**
    * Himmel zwischen zwei Welten auf der Erde, nach skyTheme.update: Die Panoramen blenden durchsichtig über der
@@ -29702,6 +29736,7 @@ const story = {
    */
   async finale() {
     await this.ascend(0.5, true);
+    this.prewarmScene(STORY_EPILOG[0]); // die Kamera steht still: jetzt fällt ein langes Bild nicht auf
     for (const line of STORY_FINALE) await this.caption(line);
     const cap = this.el.querySelector('.caption');
     cap.classList.add('swap');
@@ -29764,6 +29799,7 @@ const story = {
   async playScene(shots, { skippable = false, actions = null, soft = false } = {}) {
     const sc = this.scene ??= this.makeScene();
     sc.reset(shots[0]);
+    sc.el.classList.remove('prewarm');
     sc.skip.hidden = !skippable;
     this.skipped = false;
     // soft: Die Welt dahinter versinkt langsam in der Nacht, während die Bühne einblendet (CSS #story.slow); erst
@@ -29793,6 +29829,16 @@ const story = {
     sc.hint(false);
     await sc.hide();
     this.covered = false;
+  },
+  /**
+   * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot), bevor sie gebraucht wird: Das erste Zeichnen der
+   * grossen Szene dauerte über 100 ms. playScene nimmt die Klasse wieder weg.
+   */
+  prewarmScene(shot) {
+    const sc = this.scene ??= this.makeScene();
+    sc.reset(shot);
+    sc.draw();
+    sc.el.classList.add('prewarm');
   },
   makeScene() {
     const sc = createStoryScene(this.el);
@@ -30317,7 +30363,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 // ?nointro: direkt ins Spiel (Screenshot-Tests)
-if (new URLSearchParams(location.search).has('nointro')) { ui.start(false); markIntroCalm(); }
+if (new URLSearchParams(location.search).has('nointro')) { ui.canStart = true; ui.start(false); markIntroCalm(); }
 
 
 /* =====================================================================
