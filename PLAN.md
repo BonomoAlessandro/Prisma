@@ -9,6 +9,11 @@ Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prot
 - [ ] **0.1 Neuer Spielablauf:** Keine feste Reihe von 500 Leveln mehr. Im Menü wählt der Spieler die Schwierigkeit
   (leicht, mittel, schwer, sehr schwer); danach spielt er Noas Geschichte mit genau 10 Leveln je Skybox, also
   60 Leveln je Schwierigkeit.
+  - **Wahl der Level (Wunsch des Nutzers, 28.10.2026):** Je Welt und Grad kommen die 10 am besten bewerteten Level
+    dazu (Urteil der KI-Tester, Spielwert), aber ohne Häufungen: Innerhalb einer Welt und über die Weltgrenzen hinweg
+    dürfen keine Klumpen entstehen, in denen zu viele Level auf dieselbe Art gelöst werden (dieselbe Haupt-Kernidee,
+    ähnliches Feld). Lässt sich beides nicht zugleich erfüllen, geht die Vielfalt vor; dann kommt das nächstbeste
+    Level mit einer anderen Lösungsart.
   - **E** Offen: Reihenfolge innerhalb einer Welt (steigend innerhalb des Grads?); wo das Tutorial hingehört (vor oder
     in der ersten Welt, bei jedem Grad?); was aus der Levelauswahl wird (nur die Level der Geschichte?); Fortschritt
     je Grad getrennt; Wechsel des Grads mitten in der Geschichte; Prolog und Einstiege beim zweiten Durchgang mit
