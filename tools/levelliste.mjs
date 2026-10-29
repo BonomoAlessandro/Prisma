@@ -82,8 +82,11 @@
 //   nicht mehr am Rand ihres Grads, wie es die Spec der KI-Tester für ihre Wahl verlangte; ein neues Level am Rand hat
 //   dann keinen Anker dahinter. Neue Anker hiessen eine neue Version des Ablaufs, und die Urteile früherer Läufe wären
 //   nicht mehr vergleichbar. Der Test der Anker rechnet darum unter dem Bestand.
+// - Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Regeln gelten für die flachen Level aus Spiel und
+//   Vorrat, in der Folge des gemeinsamen Laders (ALLE in lader.mjs, wie nach dem Zurückholen aller). Solange das Spiel
+//   seine Level in ihrer Folge lässt, ist das die Reihenfolge von vor dem Ablegen.
 import { readFileSync } from 'node:fs';
-import { L } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
@@ -245,10 +248,11 @@ export const ausbauNamen = () => ladeLevelliste().ausbau ?? [];
  * Die Level im Spiel, wie die Regeln der Levelliste sie zählen (Tickets 15 und 23): zuerst die der heutigen
  * Reihenfolge, die noch im Spiel stehen, in dieser Reihenfolge, dann die neuen aus dem Austausch in der Reihenfolge im
  * Spiel, dann die des Ausbaus in der Reihenfolge der Namen in ausbau. main: die Level nach dem Tutorial (Vorgabe aus
- * LEVELS); ausbau: die Namen der Level des Ausbaus (Vorgabe aus levelliste.json). Rückgabe { levels, heute: je Level
- * sein heutiger Platz (1–150) oder null bei einem neuen, ausbau: je Level, ob es zum Ausbau gehört }.
+ * Spiel und Vorrat, ALLE im Lader); ausbau: die Namen der Level des Ausbaus (Vorgabe aus levelliste.json). Rückgabe
+ * { levels, heute: je Level sein heutiger Platz (1–150) oder null bei einem neuen, ausbau: je Level, ob es zum Ausbau
+ * gehört }.
  */
-export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT), ausbau = ausbauNamen()) {
+export function imSpiel(main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT), ausbau = ausbauNamen()) {
   const alt = HEUTIGE_REIHENFOLGE.map(name => main.find(l => l.name === name)).filter(Boolean);
   const neu = main.filter(l => heutigerPlatz(l.name) === null && !ausbau.includes(l.name));
   const dazu = ausbau.map(name => main.find(l => l.name === name)).filter(Boolean);

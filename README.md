@@ -105,6 +105,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     verfälschten Kopien, die mit der erwarteten Meldung rot werden. Mit dem Pfad einer eigenen verfälschten Kopie wird
     er rot. Dazu Kandidaten ohne Platz im Spiel: die Seite mit den Kandidaten für die Bilder und `prepare.mjs
     --kandidaten` (Name, Referenz, Feld als Text, Abweisung bei falschem Grad; ohne Bilder).
+  - `node tests/vorrat.test.mjs` prüft den Vorrat und den gemeinsamen Lader (`.scratch/noa-geschichte/`, Ticket 02;
+    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`index.html` und der
+    Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
+    und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
+    dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller).
+  - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
+    und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
@@ -263,7 +270,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `WUERFEL:BEGIN` und `WUERFEL:END` in `index.html`;
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
   die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
-  ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare im Spiel;
+  ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare in Spiel und Vorrat;
   heute drei Fast-Doppel aus dem Austausch, Dreiklang – Delta, Karussell – Rundflug und Fokus – Türkis);
   `bench.mjs <generator|trace|solver …> [gruppe …] [--seeds N] [--jobs N] [--unique] [--save datei] [--compare datei]`
   misst die Effizienz in CPU-Zeit, nicht mit der Wanduhr (der Deckel von `leise.sh` verzerrt sie): angenommene Level
@@ -575,6 +582,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     die Bilder sind byte-gleich mit denen nach 150 s Warten.
     `sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …>` nimmt Level (Platz im Spiel) mit der
     Kopfzeile wie im Spiel auf.
+- **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
+  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `index.html`
+  Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente, Lösung), darüber
+  `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und Vorrat.
+  `node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]` nimmt Level aus
+  `index.html` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren Platz
+  zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `index.html` byte-gleich. Der gemeinsame Lader
+  (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
+  im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
+  Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm, schreiben
+  aber nur, wenn ihre Art nicht im Vorrat liegt.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, seit

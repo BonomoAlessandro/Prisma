@@ -34,9 +34,13 @@
 // Ankern der Version, schemaFor) und die Regel des Zusammenführens sind dieselben. Eine neue Auswahl der Anker ist eine
 // neue Version in anchors-wuerfel.json mit einem Eintrag in WUERFEL_FINGERPRINTS; die Einträge einer früheren bleiben
 // gültig, denn ihre Kennungen stehen weiter in der Datei.
+//
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Reihenfolge im Spiel und die der Würfel kommen aus
+// dem gemeinsamen Lader (ALLE in lader.mjs), mit den Leveln des Vorrats an ihrem Platz. So finden Anker und
+// Fingerabdruck ihre Level, und Plätze und Grade bleiben, wie die Urteile sie kennen, auch wenn Level im Vorrat liegen.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { L } from '../solver.mjs';
+import { ALLE } from '../lader.mjs';
 import { fieldText } from './field.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -63,8 +67,8 @@ export const PROVISIONAL_GRADES = [
 ];
 export const provisionalGradeOf = (position) => PROVISIONAL_GRADES.find(g => position >= g.from && position <= g.to);
 const GRADE_NAMES = PROVISIONAL_GRADES.map(g => g.name);
-const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
-/** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial). */
+const MAIN = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
+/** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial; mit dem Vorrat, siehe Kopf). */
 export const levelAt = (position) => MAIN[position - 1];
 /**
  * Die Grade in einer Reihenfolge, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der Reihenfolge
@@ -89,8 +93,11 @@ export const reference = (position, reihe = MAIN) => {
 };
 const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bis === g.to;
 
-/** Die Würfel-Level im Spiel in ihrer Reihenfolge (LEVELS_3D; Platz 1 = erstes Würfel-Level). */
-export const WUERFEL_IM_SPIEL = L.LEVELS_3D;
+/**
+ * Die Würfel-Level in ihrer Reihenfolge (LEVELS_3D; Platz 1 = erstes Würfel-Level), mit denen im Vorrat an ihrem Platz
+ * (siehe Kopf).
+ */
+export const WUERFEL_IM_SPIEL = ALLE.LEVELS_3D;
 export const WUERFEL_REFERENZ = 'Reihenfolge der Würfel';
 /** Referenz eines Würfel-Levels: Platz in der Reihenfolge der Würfel-Level (reihe), sein Grad und dessen Grenzen. */
 export const referenceWuerfel = (position, reihe = WUERFEL_IM_SPIEL) => {

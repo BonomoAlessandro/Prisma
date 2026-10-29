@@ -1,13 +1,13 @@
 // Leveldaten als Text für index.html und ein Abdruck je Level (Ticket 23, Austausch): für tools/ordne-level.mjs, das
 // neue Level ins Spiel schreibt, und tools/ki-tester/prepare.mjs, das Kandidaten ohne Platz im Spiel aufnimmt.
 // - levelCode: ein Level als Block zwischen LEVELS:BEGIN und LEVELS:END, im Format der übrigen (Lösungskommentar,
-//   Name und Grad, je Element eine Zeile, Lösung). Die Elemente bleiben in ihrer Reihenfolge, denn nach ihr zählt das
-//   Spiel die Elemente durch.
+//   Name, Titel und Grad, je Element eine Zeile, Lösung). Die Elemente bleiben in ihrer Reihenfolge, denn nach ihr
+//   zählt das Spiel die Elemente durch. Dasselbe Format hat der Vorrat (tools/vorrat.mjs).
 // - abdruck und kandidatName: Ein neues Level hat vor der Genehmigung seines Namens noch keinen (Haltepunkt der
 //   Tickets 23–26). Die KI-Tester beurteilen es darum unter einem Namen aus seinen Leveldaten, „Kandidat <Abdruck>“;
 //   über ihn findet die Levelliste ihr Urteil, wenn das Level mit seinem Namen im Spiel steht. Der Abdruck hängt nur
-//   daran, was das Spiel aus den Daten macht (Elemente wie in createBoard, Lösung), nicht an Name, Grad, Kommentaren
-//   oder der Reihenfolge der Felder und Elemente.
+//   daran, was das Spiel aus den Daten macht (Elemente wie in createBoard, Lösung), nicht an Name, Titel, Grad,
+//   Kommentaren oder der Reihenfolge der Felder und Elemente.
 // - seiteMitLeveln: index.html mit weiteren Leveln am Ende von LEVELS, als Seite an einem anderen Ort (für die
 //   Screenshots der Kandidaten); seiteMitWuerfeln dasselbe am Ende von LEVELS_3D.
 import { createHash } from 'node:crypto';
@@ -56,8 +56,9 @@ function loesungText(level) {
 
 /**
  * Ein Level als Block für LEVELS in index.html (Zeilen mit „\n“, ohne Zeilenende am Schluss): Lösungskommentar, dazu
- * die Zeilen aus kommentar (ohne „// “), Name und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für LEVELS_3D hat
- * nach dem Namen dim und size (und height, wenn gesetzt), dazu wahlweise hint.
+ * die Zeilen aus kommentar (ohne „// “), Name, Titel (wenn gesetzt: der Anzeigename in Noas Geschichte, Spec
+ * .scratch/noa-geschichte/) und Grad, Elemente, Lösung. Ein Würfel-Level (dim 3) für LEVELS_3D hat nach dem Namen dim
+ * und size (und height, wenn gesetzt), dazu wahlweise hint. Im selben Format stehen die Level im Vorrat (vorrat.mjs).
  */
 export function levelCode(level, kommentar = []) {
   return [
@@ -65,6 +66,7 @@ export function levelCode(level, kommentar = []) {
     ...[...loesungText(level), ...kommentar.map(k => `// ${k}`)].map(l => `    ${l}`),
     `    name: ${str(level.name)},${level.dim === 3 ? ` dim: 3, size: ${level.size},` : ''}`
       + `${level.dim === 3 && level.height ? ` height: ${level.height},` : ''}`
+      + `${level.titel ? ` titel: ${str(level.titel)},` : ''}`
       + `${level.grad ? ` grad: ${str(level.grad)},` : ''}`,
     ...(level.dim === 3 && level.hint ? [`    hint: ${str(level.hint)},`] : []),
     '    elements: [',

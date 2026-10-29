@@ -59,8 +59,13 @@
 //   --json:      schreibt das Ergebnis je Level (heutiger und neuer Platz, Grad, Gründe; bei einem neuen Level dazu
 //                der Name bei den KI-Testern und die Leveldaten, beim Ausbau ausbau: true) in die Datei;
 //                tools/ki-tester/prepare.mjs nimmt sie mit --kandidaten.
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Gerechnet wird mit allen flachen Leveln aus Spiel und
+// Vorrat in der Folge des gemeinsamen Laders (ALLE in lader.mjs), „im Spiel“ heisst hier beides; ein neuer Name und ein
+// neues Level dürfen auch im Vorrat nicht vorkommen. Mit --schreiben schreibt es nur, wenn kein flaches Level im
+// Vorrat liegt (vorher node tools/vorrat.mjs zurueckholen --flach, danach wieder ablegen).
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { L, solve, period } from './solver.mjs';
+import { solve, period } from './solver.mjs';
+import { ALLE, VORRAT } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { SCHWELLEN, gradVon } from './beurteilung/grad.mjs';
@@ -107,7 +112,8 @@ const austausch = argument('--austausch') ? ladeAustausch(argument('--austausch'
 const ersetzt = austausch.map(a => a.ersetzt);
 const ausbauDazu = argument('--ausbau') ? ladeAusbau(argument('--ausbau')) : [];
 const bisherAusbau = existsSync(DATEI) ? ausbauNamen() : [];
-const { levels, heute, ausbau } = imSpiel([...L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ersetzt.includes(l.name)),
+const { levels, heute, ausbau } = imSpiel([
+  ...ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).filter(l => !ersetzt.includes(l.name)),
   ...austausch.map(a => a.level), ...ausbauDazu.map(a => a.level)],
 [...bisherAusbau, ...ausbauDazu.map(a => a.level.name)]);
 const n = levels.length;
@@ -369,7 +375,7 @@ for (let a = 0; a + 10 <= n; a++) {
   if (Object.values(zahlJe).some(x => x > 2)) gleitend++;
 }
 console.log(`    zum Vergleich in gleitenden Fenstern zu 10 Leveln, alle: verletzt in ${gleitend} von ${n - 9}`);
-const namen = [...L.LEVELS.slice(0, L.TUTORIAL_COUNT), ...levels].map(l => l.name);
+const namen = [...ALLE.LEVELS.slice(0, ALLE.TUTORIAL_COUNT), ...levels].map(l => l.name);
 const bisherEntfernt = existsSync(DATEI) ? ladeLevelliste().entfernteNamen : [];
 const wiederVergeben = namen.filter(x => bisherEntfernt.includes(x) || ersetzt.includes(x));
 console.log(`  Namen eindeutig: ${new Set(namen).size === namen.length ? 'ja' : 'nein'}; entfernte Namen wieder `
@@ -419,7 +425,7 @@ const korrelation = [['alle', () => true], ...GRADE.map(g => [g, i => grad[i] ==
 console.log(`\nRangkorrelation von Spielwert und Schwierigkeit: ${korrelation.join(', ')}`);
 
 // Stand der Leveldaten und der Levelliste
-const reihe = L.LEVELS.slice(L.TUTORIAL_COUNT);
+const reihe = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
 const imSpielGleich = folge.every((i, k) => reihe[k]?.name === levels[i].name && reihe[k].grad === grad[i]);
 const bisher = existsSync(DATEI) ? ladeLevelliste() : null;
 // Die ursprüngliche Liste wuchs einmal, in Ticket 16, um begründete Ergänzungen (ergaenzungBegruendet): Level, die
@@ -477,6 +483,10 @@ if (schreiben && (ordnung.offen.length || zuWeit.length)) {
   console.log(`  nicht geschrieben: ${[...austauschOffen, ...wiederVergeben.map(x => `${x}: entfernter Name`)]
     .join('; ')}`);
   process.exitCode = 1;
+} else if (schreiben && VORRAT.flach.length) {
+  console.log(`  nicht geschrieben: ${VORRAT.flach.length} flache Level im Vorrat (zuerst node tools/vorrat.mjs `
+    + 'zurueckholen --flach)');
+  process.exitCode = 1;
 } else if (schreiben) {
   if (!imSpielGleich) schreibeLevels();
   const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
@@ -524,7 +534,7 @@ function ladeAustausch(datei) {
   const text = readFileSync(datei, 'utf8').trim();
   const liste = text.startsWith('[') ? JSON.parse(text)
     : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-  const main = L.LEVELS.slice(L.TUTORIAL_COUNT);
+  const main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
   return liste.map((a, k) => {
     const wo = `${datei}, Eintrag ${k + 1}`;
     if (!main.some(l => l.name === a.ersetzt)) throw new Error(`${wo}: kein Level „${a.ersetzt}“ im Spiel`);
@@ -544,14 +554,16 @@ function ladeAustausch(datei) {
 
 /**
  * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag, wie beim Austausch, aber ohne
- * ersetzt. Ein Name darf weder im Spiel noch auf der Liste der entfernten Namen stehen, kein Name und kein Level
- * doppelt. Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad.
+ * ersetzt. Ein Name darf weder in Spiel oder Vorrat (flach oder im Würfel) noch auf der Liste der entfernten Namen
+ * stehen, kein Name und kein Level doppelt. Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den
+ * Leveldaten samt Name und Grad.
  */
 function ladeAusbau(datei) {
   const text = readFileSync(datei, 'utf8').trim();
   const liste = text.startsWith('[') ? JSON.parse(text)
     : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-  const vergeben = [...L.LEVELS.map(l => l.name), ...(existsSync(DATEI) ? ladeLevelliste().entfernteNamen : [])];
+  const vergeben = [...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name)
+    .concat(existsSync(DATEI) ? ladeLevelliste().entfernteNamen : []);
   const eintraege = liste.map((a, k) => {
     const wo = `${datei}, Eintrag ${k + 1}`;
     if (a.ersetzt !== undefined) throw new Error(`${wo}: Ein Level des Ausbaus ersetzt keines (--austausch)`);
@@ -573,7 +585,7 @@ function ladeAusbau(datei) {
   const doppelt = namen.filter((x, k) => namen.indexOf(x) !== k);
   if (doppelt.length) throw new Error(`${datei}: doppelt: ${[...new Set(doppelt)].join(', ')}`);
   // Dieselben Leveldaten (gleicher Abdruck) unter anderem Namen, in der Datei oder schon im Spiel
-  const abdrucke = eintraege.map(a => kandidatName(a.level)), imSpielSchon = new Set(L.LEVELS.map(kandidatName));
+  const abdrucke = eintraege.map(a => kandidatName(a.level)), imSpielSchon = new Set(ALLE.LEVELS.map(kandidatName));
   const gleich = eintraege.filter((a, k) => abdrucke.indexOf(abdrucke[k]) !== k || imSpielSchon.has(abdrucke[k]));
   if (gleich.length) throw new Error(`${datei}: Leveldaten doppelt: ${gleich.map(a => a.level.name).join(', ')}`);
   return eintraege;
@@ -586,7 +598,7 @@ function ladeAusbau(datei) {
 function schreibeEntfernte() {
   // nur Level der heutigen Reihenfolge; ein ersetztes neues Level ist nicht Teil des Massstabs
   const neu = ersetzt.filter(x => HEUTIGE_REIHENFOLGE.includes(x))
-    .map(x => L.LEVELS.find(l => l.name === x && !l.tutorial));
+    .map(x => ALLE.LEVELS.find(l => l.name === x && !l.tutorial));
   const alle = [...entfernteLevel().filter(l => !ersetzt.includes(l.name)), ...neu];
   writeFileSync(ENTFERNTE, '{\n'
     + '  "kommentar": "Entfernte Level der heutigen Reihenfolge, wie sie zuletzt im Spiel standen: feste Kopie für die '
@@ -605,6 +617,8 @@ function schreibeLevels() {
   const a = html.indexOf('/* LEVELS:BEGIN */'), e = html.indexOf('/* LEVELS:END */');
   if (a < 0 || e < a) throw new Error('index.html: Markierungen LEVELS:BEGIN/END fehlen');
   const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  // mit Titel wie bei levelCode (Spec .scratch/noa-geschichte/), wenn ein Level einen hat
+  const NAMENSZEILE = /^( {4}name: '([^']+)'(?:, titel: '(?:[^'\\]|\\.)*')?)(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
   for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {
@@ -612,10 +626,9 @@ function schreibeLevels() {
     else if (!block) throw new Error(`index.html: Zeile ausserhalb eines Levels: ${zeile}`);
     else block.push(zeile);
     if (zeile === '  },') {
-      const m = block.map(z => z.match(/^ {4}name: '([^']+)'(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/))
-        .find(Boolean);
+      const m = block.map(z => z.match(NAMENSZEILE)).find(Boolean);
       if (!m) throw new Error(`index.html: Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
-      bloecke.set(m[1], block);
+      bloecke.set(m[2], block);
       block = null;
     }
   }
@@ -640,8 +653,7 @@ function schreibeLevels() {
   const text = folge.map((i) => {
     const neu = bloecke.get(levels[i].name);
     if (!neu) throw new Error(`index.html: Level „${levels[i].name}“ fehlt`);
-    return neu.map(z => z.replace(/^( {4}name: '[^']+')(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/,
-      `$1, grad: '${grad[i]}',`)).join(nl);
+    return neu.map(z => z.replace(NAMENSZEILE, `$1, grad: '${grad[i]}',`)).join(nl);
   }).join(nl) + nl;
   writeFileSync(INDEX, html.slice(0, von) + text + html.slice(bis));
 }

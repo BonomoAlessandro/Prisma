@@ -42,11 +42,13 @@
 //   in einem Grad mehr Level, als er dann braucht, fallen die mit dem tiefsten Spielwert weg (im Bericht genannt).
 // bedarf: der Bestand je Grad im Spiel, nach jeder Gruppe und der Bedarf der nächsten.
 //     node tools/ausbau.mjs bedarf
+// „Im Spiel“ heisst seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): die flachen Level aus Spiel und Vorrat,
+// über den gemeinsamen Lader (ALLE in lader.mjs); so ist ein neues Level auch keinem im Vorrat zu ähnlich.
 import { execFileSync, fork } from 'node:child_process';
 import { appendFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
-import { L } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
@@ -114,7 +116,7 @@ const flag = (name, def) => { const i = args.indexOf(name); return i < 0 ? def :
 const fail = (text) => { console.error(text); process.exit(1); };
 const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
 const leseJsonl = (datei) => readFileSync(datei, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
+const MAIN = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
 const jeGrad = (levels) => Object.fromEntries(GRADE.map(g => [g, levels.filter(l => l.grad === g).length]));
 
 if (process.env.AUSBAU_WORKER) {
@@ -302,7 +304,7 @@ async function wahl() {
     if (k.grad !== GRADE[0] && (!k.hauptKernidee || k.spielwert < MINDEST_SPIELWERT)) {
       return verwirf(k, 'ohne Haupt-Kernidee oder unter dem Mindest-Spielwert');
     }
-    if (zuAehnlich(k.level, L.LEVELS)) return verwirf(k, 'einem Level im Spiel zu ähnlich');
+    if (zuAehnlich(k.level, ALLE.LEVELS)) return verwirf(k, 'einem Level in Spiel oder Vorrat zu ähnlich');
     if (zweiterTeil(k.level) > (k.grad === GRADE[0] ? ZWEITER_TEIL_HOECHSTENS : ZWEITER_TEIL_AB_MITTEL)) {
       return verwirf(k, `zweiter unabhängiger Teil mit ${k.grad === GRADE[0] ? '2 und mehr drehbaren Elementen'
         : 'drehbarem Element'} (Zerfall nach den KI-Testern)`);

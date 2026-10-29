@@ -26,8 +26,12 @@
 //                 mit wuerfel: true (für tools/ki-tester/prepare.mjs --kandidaten): { platz, name, schwierigkeit, formel,
 //                 grad, gradNachSchwelle, kiTester, verletzt, ausschluesse, hauptKernidee, spielwert, wuerfel } und bei
 //                 einem Kandidaten ohne Platz im Spiel kandidat (der Name bei den KI-Testern) und level (mit Grad).
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Gerechnet wird mit allen Würfel-Leveln aus Spiel und
+// Vorrat (ALLE in lader.mjs), „im Spiel“ heisst hier beides. Schreiben geht nur, wenn keines im Vorrat liegt (vorher
+// node tools/vorrat.mjs zurueckholen --wuerfel, danach wieder ablegen).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { L, solve, period, keyOf } from './solver.mjs';
+import { solve, period, keyOf } from './solver.mjs';
+import { ALLE, VORRAT } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
@@ -44,9 +48,11 @@ const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
 const schreiben = process.argv.includes('--schreiben'), jsonDatei = argument('--json');
 const start = Date.now();
 
+/** Die Würfel-Level aus Spiel und Vorrat (siehe Kopf). */
+const W = ALLE.LEVELS_3D;
 const kandidaten = argument('--kandidaten') ? ladeKandidaten(argument('--kandidaten')) : [];
-const levels = [...L.LEVELS_3D, ...kandidaten.map(k => k.level)], n = levels.length;
-const imSpiel = levels.map((_, i) => i < L.LEVELS_3D.length);
+const levels = [...W, ...kandidaten.map(k => k.level)], n = levels.length;
+const imSpiel = levels.map((_, i) => i < W.length);
 /** Der Name bei den KI-Testern: der des Levels, bei einem Kandidaten ohne Platz im Spiel „Kandidat <Abdruck>“. */
 const kandidat = levels.map((l, i) => (imSpiel[i] ? null : kandidatName(l)));
 const namen = levels.map(l => l.name || null); // ein Kandidat ohne vergebenen Namen: null
@@ -55,7 +61,7 @@ const name = (i) => namen[i] ?? kandidat[i];
 // Bis zum Fixpunkt: Reihenfolge und Grade aus der Schwierigkeit und den Urteilen der KI-Tester, die Beurteilung mit
 // diesen Graden
 const urteile = zaehlendeWuerfelUrteile();
-let grad = levels.map((l, i) => l.grad ?? kandidaten[i - L.LEVELS_3D.length]?.grad ?? null), b, r, runde = 0;
+let grad = levels.map((l, i) => l.grad ?? kandidaten[i - W.length]?.grad ?? null), b, r, runde = 0;
 for (;;) {
   if (++runde > 5) throw new Error('Kein Fixpunkt nach 5 Durchgängen: Die Grade wechseln hin und her.');
   console.log(`Durchgang ${runde}: beurteile die ${n} Würfel-Level …`);
@@ -74,7 +80,7 @@ const pruefe = (text, liste) => {
   console.log(`  ${text}: ${liste.length ? liste.join(', ') : 'ja'}`);
   if (liste.length) fehler.push(text);
 };
-console.log(`\n${n} Würfel-Level (${L.LEVELS_3D.length} im Spiel, ${kandidaten.length} Kandidaten), `
+console.log(`\n${n} Würfel-Level (${W.length} in Spiel und Vorrat, ${kandidaten.length} Kandidaten), `
   + `${runde} Durchgänge, ${zahl((Date.now() - start) / 1000)} s`);
 console.log(`  je Grad: ${GRADE.map(g => `${g} ${folge.filter(i => r.grad[i] === g).length}`).join(', ')}`);
 const regeln = levels.map((_, i) => verletzt(b[i], r.grad[i], ki.get(i)));
@@ -88,7 +94,7 @@ for (let p = 0; p < n; p++) {
   }
 }
 pruefe(`keinem anderen Würfel-Level zu ähnlich (ab ${zahl(AEHNLICH_AB, 2)})`, nah);
-const flach = L.LEVELS.map(l => l.name), entfernt = ladeLevelliste().entfernteNamen ?? [];
+const flach = ALLE.LEVELS.map(l => l.name), entfernt = ladeLevelliste().entfernteNamen ?? [];
 const alleNamen = [...flach, ...namen.filter(Boolean)];
 pruefe('Namen eindeutig über flache und Würfel-Level, keiner entfernt', [
   ...alleNamen.filter((x, k) => alleNamen.indexOf(x) !== k), ...namen.filter(x => entfernt.includes(x))]);
@@ -127,6 +133,10 @@ if (jsonDatei) {
 if (schreiben) {
   const ohneName = kandidaten.filter(k => !k.level.name);
   if (ohneName.length) fehler.push(`${ohneName.length} Kandidaten ohne Namen`);
+  if (VORRAT.wuerfel.length) {
+    fehler.push(`${VORRAT.wuerfel.length} Würfel-Level im Vorrat (zuerst node tools/vorrat.mjs zurueckholen `
+      + '--wuerfel)');
+  }
   if (fehler.length) {
     console.error(`\nNicht geschrieben: ${fehler.join('; ')}.`);
     process.exit(1);
@@ -154,7 +164,7 @@ function ladeKandidaten(datei) {
   const roh = text.startsWith('[') ? JSON.parse(text) : text.split('\n').filter(z => z.trim()).map(z => JSON.parse(z));
   const liste = roh.map(k => ({ ...k, level: { ...k.level, ...(k.name ? { name: k.name } : {}) },
     grad: k.auftrag ? k.auftrag.replace(/-[a-z]+$/, '') : null, seed: k.seed ?? null, schwierigkeit: k.schwierigkeit }));
-  const abdruecke = new Set(L.LEVELS_3D.map(kandidatName));
+  const abdruecke = new Set(W.map(kandidatName));
   for (const k of liste) {
     const wer = k.name ?? kandidatName(k.level);
     if (!istWuerfel(k.level)) throw new Error(`${datei}: ${wer} ist kein Würfel ${WUERFEL_TEXT}`);
@@ -175,7 +185,8 @@ function schreibeWuerfel() {
   const a = html.indexOf('/* WUERFEL:BEGIN */'), e = html.indexOf('/* WUERFEL:END */');
   if (a < 0 || e < a) throw new Error('index.html: Markierungen WUERFEL:BEGIN/END fehlen');
   const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
-  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+(?:, height: \d+)?)(?:, grad: '[a-z ]+')?,$/;
+  // mit Titel wie bei levelCode (Spec .scratch/noa-geschichte/), wenn ein Würfel-Level einen bekommt
+  const NAMENSZEILE = /^( {4}name: '([^']+)', dim: 3, size: \d+(?:, height: \d+)?(?:, titel: '(?:[^'\\]|\\.)*')?)(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
   for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {

@@ -4,6 +4,7 @@
 // Aufruf: node tests/beurteilung/feldform.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { L, setRot } from '../../tools/solver.mjs';
+import { ALLE } from '../../tools/lader.mjs';
 import { feldformVon } from '../../tools/beurteilung/feldform.mjs';
 import { test, miniLevel } from './helfer.mjs';
 
@@ -28,7 +29,7 @@ test('Zellen: quadratisches Feld, 7 × 7 ohne Grössenangabe, sonst nach size', 
 });
 
 test('Zelle eines Elements: im Feld, und die drehbaren Elemente stehen in den Zellen der Lösung (alle Level)', () => {
-  for (const level of L.LEVELS) {
+  for (const level of ALLE.LEVELS) {
     const f = feldformVon(level);
     assert.ok(level.elements.every(e => f.zellen.includes(f.zelle(e))), level.name);
     const rotatable = level.elements.filter(e => f.stellungen(e).length).map(f.zelle);
@@ -95,7 +96,7 @@ test('Durchlauf eines Strahlabschnitts: die Zellen zwischen Anfang und Ende samt
 });
 
 test('Drehachse: in flachen Leveln immer senkrecht, die Achse y (alle Level)', () => {
-  for (const level of L.LEVELS) {
+  for (const level of ALLE.LEVELS) {
     const f = feldformVon(level);
     for (const e of level.elements) assert.equal(f.drehachse(e), 'y', level.name);
   }
@@ -112,7 +113,7 @@ test('Mögliche Stellungen: drehbarer Spiegel 4 (rot und rot + 4 wirken gleich),
 });
 
 test('Jede Stellung einer Lösung ist eine mögliche Stellung ihres Elements (alle Level)', () => {
-  for (const level of L.LEVELS) {
+  for (const level of ALLE.LEVELS) {
     const f = feldformVon(level);
     for (const e of level.elements) {
       const s = f.stellungen(e);
@@ -198,7 +199,7 @@ test('Ein Level mit anderem dim hat keine flache Feldform, auf dem Würfel-Branc
 });
 
 test('Drehungen um die Drehachse: vier, die erste ist das Level, viermal gedreht wieder das Level, jede gelöst (alle Level)', () => {
-  for (const level of L.LEVELS) {
+  for (const level of ALLE.LEVELS) {
     const f = feldformVon(level), d = f.drehungen(level);
     assert.equal(d.length, 4, level.name);
     assert.equal(d[0], level, level.name);

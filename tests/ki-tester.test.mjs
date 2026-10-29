@@ -8,6 +8,9 @@
 // und 60005, mittel mit Mischziel aus zwei Quellen Seed 60001), damit
 // sie die Anker jeder Würfel-Version enthält. Was die Form einer Version braucht (zwei Anker, erfundene Einträge,
 // Gegenproben), prüft er fest mit W1; was die aktuelle betrifft, mit WUERFEL_VERSION und loadAnchorsWuerfel().
+// Die Reihenfolge im Spiel und die der Würfel sind seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02) die aus
+// Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, wie protocol.mjs sie liest); die Seite für die Bilder
+// von prepare.mjs hat alle Level daraus (alleText).
 // Aufruf: node tests/ki-tester.test.mjs [protokoll]   (Vorgabe tools/ki-tester/protocol.jsonl; mit einer Kopie, in der
 //         ein Eintrag verfälscht ist, muss der Test rot werden)
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, appendFileSync, writeFileSync } from 'node:fs';
@@ -17,6 +20,7 @@ import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { L } from '../tools/solver.mjs';
+import { ALLE, alleText } from '../tools/lader.mjs';
 import * as protocol from '../tools/ki-tester/protocol.mjs';
 import { fieldText } from '../tools/ki-tester/field.mjs';
 import { ladeLevelliste } from '../tools/levelliste.mjs';
@@ -209,7 +213,7 @@ test('Begründung nennt beide Listen und die Verschiebung', () => {
 });
 
 console.log('Referenz und Grade (Ablauf 2)');
-const MAIN = L.LEVELS.length - L.TUTORIAL_COUNT;
+const MAIN = ALLE.LEVELS.length - ALLE.TUTORIAL_COUNT;
 test('Die Grade folgen der Reihenfolge im Spiel: je ein Abschnitt, zusammen lückenlos alle Plätze', () => {
   let next = 1;
   for (const g of GRADES) {
@@ -220,10 +224,10 @@ test('Die Grade folgen der Reihenfolge im Spiel: je ein Abschnitt, zusammen lüc
 });
 test('Referenz: Platz in der Reihenfolge im Spiel, Grad aus den Leveldaten, Grenzen aus der Reihenfolge', () => {
   for (let p = 1; p <= MAIN; p++) {
-    const r = reference(p), level = L.LEVELS[L.TUTORIAL_COUNT + p - 1];
+    const r = reference(p), level = ALLE.LEVELS[ALLE.TUTORIAL_COUNT + p - 1];
     assert.equal(levelAt(p), level, `Platz ${p}`);
     assert.deepEqual([r.art, r.position, r.grad], ['Reihenfolge im Spiel', p, level.grad], `Platz ${p}`);
-    const inside = L.LEVELS.slice(L.TUTORIAL_COUNT).flatMap((l, k) => (l.grad === r.grad ? [k + 1] : []));
+    const inside = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).flatMap((l, k) => (l.grad === r.grad ? [k + 1] : []));
     assert.deepEqual([r.von, r.bis], [inside[0], inside.at(-1)], `Platz ${p}`);
   }
 });
@@ -240,7 +244,7 @@ test('Je zwei Anker pro Grad der Reihenfolge im Spiel, einer am unteren und eine
   // Gerechnet in der Reihenfolge des Bestands, ohne die Level des Ausbaus auf 500 Level: Die Anker sind eine feste
   // Auswahl aus dem Bestand; kämen mit jeder Gruppe neue, wären die Urteile der Läufe nicht mehr vergleichbar
   const ausbau = LEVELLISTE.ausbau ?? [];
-  const bestand = L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ausbau.includes(l.name));
+  const bestand = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).filter(l => !ausbau.includes(l.name));
   const anchors = loadAnchors(bestand), imBestand = (position) => bestand[position - 1];
   for (const g of gradesIn(bestand)) {
     const own = anchors.filter(a => a.grad === g.name);
@@ -270,8 +274,8 @@ test('Kein Anker mit Ausschlussgrund, auf der Prüfliste oder ein Grenzfall der 
 
 console.log('Feld als Text');
 test('Feld als Text kennt weder Lösung noch Name noch Grad und nennt jedes Element', () => {
-  for (let i = L.TUTORIAL_COUNT; i < L.LEVELS.length; i++) {
-    const lvl = L.LEVELS[i];
+  for (let i = ALLE.TUTORIAL_COUNT; i < ALLE.LEVELS.length; i++) {
+    const lvl = ALLE.LEVELS[i];
     const text = fieldText(lvl, 'L1');
     assert.equal(fieldText({ ...lvl, solution: undefined }, 'L1'), text, `${lvl.name}: hängt von der Lösung ab`);
     const anders = lvl.grad === 'leicht' ? 'sehr schwer' : 'leicht';
@@ -421,7 +425,7 @@ console.log('Kandidaten ohne Platz im Spiel (Austausch, Tickets 23–26)');
 const kandidatAus = (l) => ({ name: '', grad: l.grad, solution: l.solution,
   elements: l.elements.map(e => (e.type === 'combiner' && !e.fixed ? { ...e, dir: ((e.dir ?? 0) + 1) % 8 }
     : ['mirror', 'prism'].includes(e.type) && !e.fixed ? { ...e, rot: ((e.rot ?? 0) + 1) % 8 } : e)) });
-const HAUPT = L.LEVELS.slice(L.TUTORIAL_COUNT), KANDIDATEN = [HAUPT[2], HAUPT[5]].map(kandidatAus);
+const HAUPT = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT), KANDIDATEN = [HAUPT[2], HAUPT[5]].map(kandidatAus);
 test('Seite mit Kandidaten: index.html mit <base> und den Kandidaten am Ende von LEVELS, sonst gleich', () => {
   const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
   const seite = seiteMitLeveln(html, KANDIDATEN, basis);
@@ -461,7 +465,7 @@ test('prepare.mjs --kandidaten: Name „Kandidat <Abdruck>“, Referenz am Platz
       // Die Seite für die Bilder liegt ausserhalb von eingabe/ und hat die Kandidaten in der Reihenfolge der Kennungen
       const ids = lj.level.map(x => x.id).sort();
       const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
-      assert.equal(seite, seiteMitLeveln(readFileSync(join(root, 'index.html'), 'utf8'),
+      assert.equal(seite, seiteMitLeveln(alleText(),
         ids.map(id => KANDIDATEN.find(lv => kandidatName(lv) === lj.level.find(x => x.id === id).name)),
         pathToFileURL(root).href + '/'));
       assert.ok(!readFileSync(join(dir, 'auftrag-A.md'), 'utf8').includes('Kandidat'), 'Name im Auftrag');
@@ -607,7 +611,7 @@ test('Würfel: Quader 7 × 7 × 5 (height) mit fünf Ebenen, Licht nach oben end
   assert.ok(text.includes('- weiss von (3,0,3) nach oben bis (3,4,3), verlässt den Würfel\n'), text);
 });
 test('Würfel: Die flache Ausgabe hängt nicht vom Würfel ab (Felder ohne dim wie bisher)', () => {
-  const flat = L.LEVELS[L.TUTORIAL_COUNT];
+  const flat = ALLE.LEVELS[ALLE.TUTORIAL_COUNT];
   assert.ok(!fieldText(flat, 'L1').includes('Würfel') && fieldText(flat, 'L1').startsWith('# Level L1\n\nFeld 7 × 7.'));
 });
 
@@ -837,7 +841,7 @@ test('prepare.mjs wuerfel-… --kandidaten <Würfel-Vorschau>: Plätze, Grade, R
       // Die Seite für die Bilder: die Kandidaten unter ihrem Namen am Ende von LEVELS_3D, nach Kennung
       const ids = lj.level.filter(l => l.kandidat).map(l => l.id).sort();
       const seite = readFileSync(join(dir, 'seite', 'index.html'), 'utf8');
-      assert.equal(seite, seiteMitWuerfeln(readFileSync(join(root, 'index.html'), 'utf8'), ids.map((id) => {
+      assert.equal(seite, seiteMitWuerfeln(alleText(), ids.map((id) => {
         const name = lj.level.find(l => l.id === id).name;
         return { ...WUERFEL_KANDIDATEN.find(x => x.kandidat === name).level, name };
       }), pathToFileURL(root).href + '/'));

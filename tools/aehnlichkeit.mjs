@@ -19,9 +19,9 @@
 // Feld, gemessen siehe Kommentar zu AEHNLICH_AB. Im flacheren Quader (height, .scratch/wuerfel-7x7x5/) bleiben die 16
 // Symmetrien, die die Achse y auf y lassen: die acht der Grundfläche, je auch auf den Kopf gestellt (wie oben). Ein
 // Würfel und ein Quader sind nie ähnlich.
-// Aufruf: node tools/aehnlichkeit.mjs   (Bericht: die ähnlichsten Paare unter den Leveln im Spiel, flach und im Würfel)
+// Aufruf: node tools/aehnlichkeit.mjs   (Bericht: die ähnlichsten Paare unter allen Leveln aus Spiel und Vorrat, über
+//         den gemeinsamen Lader lader.mjs, flach und im Würfel)
 import { pathToFileURL } from 'node:url';
-import { L } from './solver.mjs';
 
 /** Ab dieser Ähnlichkeit (Jaccard-Index 0–1, auf zwei Stellen gerundet) ist ein neues Level zu ähnlich. */
 export const AEHNLICH_AB = 0.5;
@@ -102,7 +102,8 @@ export function zuAehnlich(level, andere) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  for (const [titel, levels] of [['Flach:', L.LEVELS], ['Würfel:', L.LEVELS_3D]]) bericht(titel, levels);
+  const { ALLE } = await import('./lader.mjs');
+  for (const [titel, levels] of [['Flach:', ALLE.LEVELS], ['Würfel:', ALLE.LEVELS_3D]]) bericht(titel, levels);
 }
 
 /** Die ähnlichsten Paare unter den Leveln. */

@@ -28,10 +28,16 @@
 // Laufzeit (über leise.sh, Stand Ticket 21): Strahlbilder aller Level wenige ms, Löser für alle 159 Level etwa 20–25 s
 // (fast alles in den 30 schwersten Leveln). Der normale Lauf rechnet den Löser deshalb nur für die Stichprobe (etwa
 // 2 s); --voll und --write rechnen ihn für alle.
+// Alle Level heisst seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): aus Spiel und Vorrat, über den
+// gemeinsamen Lader (tools/lader.mjs), in der Folge wie nach dem Zurückholen aller; so fehlt keines in der Referenz,
+// und die Stichprobe bleibt dieselbe, wenn Level im Vorrat liegen.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { L, setRot, keyOf, solve } from '../tools/solver.mjs';
+import { ALLE as SPIEL_UND_VORRAT } from '../tools/lader.mjs';
+
+const { LEVELS, TUTORIAL_COUNT, LEVELS_3D } = SPIEL_UND_VORRAT;
 
 const file = join(dirname(fileURLToPath(import.meta.url)), 'golden.json');
 const write = process.argv.includes('--write');
@@ -54,10 +60,10 @@ const golden = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
 // Den Löser rechnet der normale Lauf für die Stichprobe: das Tutorial und jedes 10. Level danach im Spiel (Platz 1, 11,
 // …, 141). Verglichen wird auch sie nach Namen: Ein neu geordnetes Level hat dieselben Strahlbilder und
 // Löserergebnisse.
-const STICHPROBE = new Set([...L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0),
-  ...L.LEVELS_3D.filter((_, i) => i % 10 === 0)].map(l => l.name));
-/** Alle Level, flach und im Würfel. */
-const ALLE = [...L.LEVELS, ...L.LEVELS_3D];
+const STICHPROBE = new Set([...LEVELS.filter((_, i) => i < TUTORIAL_COUNT || (i - TUTORIAL_COUNT) % 10 === 0),
+  ...LEVELS_3D.filter((_, i) => i % 10 === 0)].map(l => l.name));
+/** Alle Level, flach und im Würfel, aus Spiel und Vorrat. */
+const ALLE = [...LEVELS, ...LEVELS_3D];
 const inStichprobe = (level) => STICHPROBE.has(level.name);
 
 // Strahlbilder in Start- und Lösungsstellung, gerechnet mit `logic` (L oder die veränderte Logik der Gegenprobe)
@@ -186,7 +192,7 @@ if (umgestellt) {
 const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser'
   : full ? 'Löser für alle Level' : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Platz 1, 11, …), `
     + '--voll für alle';
-const wuerfel = current.filter(c => L.LEVELS_3D.some(l => l.name === c.name)).length;
+const wuerfel = current.filter(c => LEVELS_3D.some(l => l.name === c.name)).length;
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
 else console.log(`  ok   alle ${current.length} Level (davon ${wuerfel} Würfel) wie in golden.json, ${scope} (${ms} ms)`);
 if (failed || diffs.length) process.exit(1);

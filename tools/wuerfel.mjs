@@ -36,8 +36,10 @@
 //   und Stand aus dem Würfel 7 × 7 × 7 und gesenkt: um so viele Ebenen (Herkunft: der Seed baut auf diesem Stand das
 //   Level im Würfel, gesenkt ist es das im Quader).
 //     LEISE_CPU=50 sh tools/leise.sh node tools/wuerfel.mjs umrechnen --pool <datei>[,<datei> …] --aus <datei>
+// „Im Spiel“ heisst seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): die Würfel-Level aus Spiel und Vorrat,
+// über den gemeinsamen Lader (ALLE in lader.mjs).
 import { readFileSync, writeFileSync } from 'node:fs';
-import { L } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
@@ -67,7 +69,7 @@ const fail = (text) => { console.error(text); process.exit(1); };
 const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
 const leseJsonl = (datei) => readFileSync(datei, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
 /** Die Würfel-Level im Spiel je Grad. */
-const neuImSpiel = () => Object.fromEntries(GRADE.map(g => [g, L.LEVELS_3D.filter(l => l.grad === g).length]));
+const neuImSpiel = () => Object.fromEntries(GRADE.map(g => [g, ALLE.LEVELS_3D.filter(l => l.grad === g).length]));
 
 if (args[0] === 'wahl') await wahl();
 else if (args[0] === 'bedarf') bedarf();
@@ -80,7 +82,7 @@ async function umrechnen() {
   if (!aus || !pools) fail('Aufruf: node tools/wuerfel.mjs umrechnen --pool <datei>[,<datei> …] --aus <datei>');
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const t0 = Date.now(), gruende = {}, zaehle = (g) => { gruende[g] = (gruende[g] || 0) + 1; };
-  const gesehen = new Set(L.LEVELS_3D.map(kandidatName)), passend = [];
+  const gesehen = new Set(ALLE.LEVELS_3D.map(kandidatName)), passend = [];
   let gelesen = 0;
   for (const k of pools.split(',').flatMap(leseJsonl)) {
     gelesen++;
@@ -117,7 +119,7 @@ async function umrechnen() {
 
 function bedarf() {
   const im = neuImSpiel();
-  console.log(`Würfel-Level im Spiel: ${L.LEVELS_3D.length}; je Grad `
+  console.log(`Würfel-Level im Spiel: ${ALLE.LEVELS_3D.length}; je Grad `
     + `${GRADE.map(g => `${g} ${im[g]}`).join(', ')}`);
   for (let k = 1; k <= GRUPPEN; k++) {
     const b = bestandNach(k), n = GRADE.reduce((s, g) => s + b[g], 0);
@@ -147,7 +149,7 @@ async function wahl() {
   if (!gedeckelt()) fail(`Nur über tools/leise.sh mit höchstens dem Deckel (${deckelText()})`);
   const t0 = Date.now(), ziel = bestandNach(gruppe), im = neuImSpiel();
   // Die Würfel-Level im Spiel, mit ihrem Grad beurteilt, und die Urteile der KI-Tester (Läufe wuerfel-…)
-  const W = L.LEVELS_3D, urteile = zaehlendeWuerfelUrteile();
+  const W = ALLE.LEVELS_3D, urteile = zaehlendeWuerfelUrteile();
   const bW = await beurteileAlle(W.map(level => ({ level, opts: { grad: level.grad ?? null, teuer: true } })));
   // Die Kandidaten aus den Pools, ohne doppelte und ohne die im Spiel; die gesetzten aus --behalte
   const imSpielName = new Set(W.map(kandidatName));

@@ -10,7 +10,7 @@ import { beurteile, TEILE } from '../../tools/beurteilung/index.mjs';
 import { eiche, gekreuzt, jeBereich, gerade, ungerade } from '../../tools/beurteilung/schwierigkeit-eichung.mjs';
 import { test, miniLevel, heutigeLevel, vorausBeurteilen } from './helfer.mjs';
 import { schliessbar, horizonte, siebenFallunterscheidungen as sieben } from './probieren-level.mjs';
-import { L } from '../../tools/solver.mjs';
+import { ALLE } from '../../tools/lader.mjs';
 
 console.log('Beurteilung: Schwierigkeit');
 await vorausBeurteilen(['teuer']);
@@ -84,7 +84,7 @@ test('Fallunterscheidungen: Folgern allein löst das eine Level, das andere brau
 });
 
 test('Gedreht ist es dasselbe Rätsel: dieselbe Schwierigkeit, obwohl das Spielermodell die Zellen anders durchgeht', () => {
-  const querschlaeger = L.LEVELS.find(l => l.name === 'Querschläger');
+  const querschlaeger = ALLE.LEVELS.find(l => l.name === 'Querschläger');
   for (const level of [querschlaeger, sieben]) {
     const b = beurteile(level), b1 = beurteile(gedreht(level)), b2 = beurteile(gedreht(gedreht(level)));
     assert.ok(b.schwierigkeit, level.name);

@@ -3,11 +3,15 @@
 // erfüllen jede Regel (keine Duldungsliste im Würfel); dazu die Bausteine an erfundenen Fällen: Verteilung der Grade
 // nach der Tabelle der Spec, Reihenfolge mit Korrekturen der KI-Tester, Ähnlichkeit über die Symmetrien des Würfels,
 // Leveldaten als Text (tools/leveldaten.mjs) für Würfel-Level.
+// Seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02) sind „die Würfel-Level“ die aus Spiel und Vorrat (ALLE im
+// gemeinsamen Lader tools/lader.mjs, in der Folge wie nach dem Zurückholen aller; die Herkunft im Kommentar aus
+// alleText): Die Regeln bleiben gültig, auch wenn die Würfel-Level im Vorrat liegen.
 // Aufruf: node tests/wuerfelliste.test.mjs   (über leise.sh; beurteilt die Würfel-Level einmal mit ihrem Grad)
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { L, solve, period, keyOf } from '../tools/solver.mjs';
+import { ALLE, alleText } from '../tools/lader.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
 import { gradVon } from '../tools/beurteilung/grad.mjs';
@@ -28,13 +32,13 @@ async function test(name, fn) {
 }
 process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
-const W = L.LEVELS_3D;
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+const W = ALLE.LEVELS_3D;
+const html = alleText();
 const commitDa = (x) => {
   try { execFileSync('git', ['cat-file', '-e', `${x}^{commit}`], { stdio: 'ignore' }); return true; } catch { return false; }
 };
 
-console.log('Würfel-Level im Spiel');
+console.log('Würfel-Level in Spiel und Vorrat');
 const b = await beurteileAlle(W.map(level => ({ level, opts: { grad: level.grad ?? null, teuer: true } })));
 const werte = b.map(x => x.schwierigkeit.wert);
 const urteile = zaehlendeWuerfelUrteile();
@@ -88,7 +92,7 @@ await test(`Kein Würfel-Level ist einem anderen zu ähnlich (ab ${AEHNLICH_AB})
   assert.deepEqual(zuNah, []);
 });
 await test('Namen eindeutig über flache und Würfel-Level, keiner von der Liste entfernter Level', () => {
-  const namen = [...L.LEVELS, ...W].map(l => l.name), entfernt = ladeLevelliste().entfernteNamen ?? [];
+  const namen = [...ALLE.LEVELS, ...W].map(l => l.name), entfernt = ladeLevelliste().entfernteNamen ?? [];
   assert.deepEqual(namen.filter((x, k) => namen.indexOf(x) !== k), []);
   assert.deepEqual(W.map(l => l.name).filter(x => entfernt.includes(x)), []);
 });

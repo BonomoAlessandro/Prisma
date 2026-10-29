@@ -1,4 +1,7 @@
 // Testet die reine Spiellogik aus index.html (Bereich zwischen LOGIC:BEGIN und LOGIC:END).
+// Die Level, an denen sie die Strahlregel und den Löser prüft (Lösung, Eindeutigkeit, Würfel, Vergleiche), kommen aus
+// Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, Spec .scratch/noa-geschichte/); das Tutorial aus dem
+// Spiel.
 // Aufruf: node tests/logic.test.mjs
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -404,6 +407,8 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
 console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
 const S = await import('../tools/solver.mjs');
+// Alle Level aus Spiel und Vorrat (siehe Kopf)
+const { ALLE } = await import('../tools/lader.mjs');
 // Modus unique (nur die Eindeutigkeit gefragt): Bei höchstens einer Lösung liefert er dasselbe wie dieselbe Suche ohne
 // ihn (ref), sonst hält er bei der zweiten Lösung an: mit den ersten Lösungen von ref und höchstens so vielen Knoten.
 // Rückgabe: gesparte Knoten.
@@ -420,7 +425,7 @@ const sameAsFresh = (name) => (r, board) => assert.deepStrictEqual(r, L.traceBea
 /** Anzahl Gesamtstellungen der drehbaren Elemente. */
 const spaceOf = (lvl) => L.createBoard(lvl).elements.filter(L.isRotatable).reduce((m, el) => m * S.period(el), 1);
 test('Löser stimmt mit stumpfem Durchprobieren überein (Lösungen und Fast-Lösungen, auch im Modus unique)', () => {
-  for (const lvl of L.LEVELS) {
+  for (const lvl of ALLE.LEVELS) {
     if (spaceOf(lvl) > 1 << 14) continue; // grosse Level nur mit dem schlauen Löser
     const bf = S.bruteForce(lvl), full = S.solve(lvl, { prune: false, onLeaf: sameAsFresh(lvl.name) }), cut = S.solve(lvl);
     assert.equal(full.count, bf.count, lvl.name);
@@ -564,14 +569,14 @@ test('Tutorial-Hinweise: nur bekannte Platzhalter', () => {
   for (const l of L.LEVELS.filter(q => q.tutorial)) assert.deepEqual(l.hint.replace(/\{(Klick|Rechtsklick)\}/g, '').match(/[{}]/g), null, l.name);
 });
 test('Namen: alle Level eindeutig', () => {
-  const names = L.LEVELS.map(l => l.name);
+  const names = ALLE.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');
 });
 // Lösung und Eindeutigkeit jedes Levels. Die Tests der Reihenfolge, der Grade, der Duldungsliste und der Namen
 // (Nahtstelle 3) stehen in tests/levelliste.test.mjs; sie ersetzen seit Ticket 15 die Tests zu Markierung, gehärteten
 // Leveln, Härte-Abnahme und Auswahlliste, seit Ticket 21 auch die Tests der vorgesehenen Namen (NAMES in profiles.mjs)
 // und der fremden Filterfarbe (oddFilters in quality.mjs).
-L.LEVELS.forEach((lvl, i) => {
+ALLE.LEVELS.forEach((lvl, i) => {
   const tag = `Level ${i + 1} "${lvl.name}"`;
   test(`${tag}: Startstellung ist nicht gelöst`, () => {
     assert.equal(L.traceBeams(L.createBoard(lvl)).solved, false);
@@ -719,7 +724,7 @@ console.log('Würfel (dim: 3)');
     assert.throws(() => cube([{ type: 'target', x: 1, y: 1, z: 1 }, { type: 'blocker', x: 1, y: 1, z: 1 }]), /doppelt/);
     assert.throws(() => cube([{ type: 'mirror', x: 1, y: 1, z: 1, axis: 'w' }]), /Achse/);
   });
-  L.LEVELS_3D.forEach((lvl) => {
+  ALLE.LEVELS_3D.forEach((lvl) => {
     const tag = `Würfel "${lvl.name}"`;
     test(`${tag}: Start ungelöst, notierte Lösung löst, Lösung eindeutig`, () => {
       assert.equal(L.traceBeams(L.createBoard(lvl)).solved, false);
@@ -737,7 +742,7 @@ console.log('Würfel (dim: 3)');
     });
   });
   test('Würfel-Level: Löser stimmt mit dem Durchprobieren überein, Blätter wie von vorn', () => {
-    for (const lvl of L.LEVELS_3D) {
+    for (const lvl of ALLE.LEVELS_3D) {
       if (spaceOf(lvl) <= 1 << 14) compareWithBruteForce(lvl); // grosse Level nur mit dem schlauen Löser
     }
   });
@@ -796,7 +801,7 @@ console.log('Würfel (dim: 3)');
     for (const k of Object.keys(a)) near(a[k], b[k], path + '.' + k, float || FLOAT.has(k));
   };
   test('Flaches Level als Würfel mit einer Ebene: gleiche Strahlbilder in Start- und Lösungsstellung', () => {
-    for (const lvl of L.LEVELS) {
+    for (const lvl of ALLE.LEVELS) {
       const cube = asCube(lvl);
       for (const solved of [false, true]) {
         const b2 = L.createBoard(lvl), b3 = L.createBoard(cube);
@@ -810,7 +815,7 @@ console.log('Würfel (dim: 3)');
   });
   test('Flaches Level als Würfel mit einer Ebene: gleicher Löser, Blätter wie von vorn', () => {
     let checked = 0;
-    for (const lvl of L.LEVELS) {
+    for (const lvl of ALLE.LEVELS) {
       if (spaceOf(lvl) > 1 << 14) continue;
       const cube = asCube(lvl);
       for (const opts of [{}, { prune: false }]) {
@@ -824,7 +829,7 @@ console.log('Würfel (dim: 3)');
     assert.ok(checked > 50, 'zu wenige Level geprüft: ' + checked);
   });
   test('Würfel-Level haben eigene Namen (Fortschritt wird nach Namen gespeichert)', () => {
-    const names = L.LEVELS.concat(L.LEVELS_3D).map(l => l.name);
+    const names = ALLE.LEVELS.concat(ALLE.LEVELS_3D).map(l => l.name);
     assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), []);
   });
 }
