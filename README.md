@@ -110,6 +110,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
     und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
     dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller).
+  - `node tests/geschichte.test.mjs` prüft die Wahl der 240 Level für Noas Geschichte (`.scratch/noa-geschichte/`,
+    Ticket 03; nur über `leise.sh`, etwa 3 min: Beurteilung des Pools, die Wahl neu und der Löser): `tools/geschichte/
+    wahl.json` ist nachbaubar (neu gerechnet byte-gleich), 4 × 60 Level, je Welt 10 auf den Plätzen 1–10, der Grad aus
+    den Leveldaten, Welt *w* mit den Rängen 10·*w* … 10·*w*+9 nach Schwierigkeit, höchstens 2 Plätze vertauscht, jede
+    Welt in ihrem Abschnitt des Pools (in «sehr schwer» statt dessen höchstens 3 Plätze vom Rang im Grad, auch über die
+    Weltgrenze, Entscheid des Nutzers vom 29.10.2026), dieselbe Haupt-Kernidee höchstens zweimal je 10
+    aufeinanderfolgende Level auch über die Weltgrenzen (in «sehr schwer» genau die Verstösse, die die Wahl selbst
+    nennt, weil es dort auch mit 3 Plätzen nicht aufgeht), keine zwei zu ähnlich, kein abgelehntes, genau eine Lösung,
+    die Titel aus `titel.json` (eindeutig über Titel und Namen, Regeln der Spec) und die Schlüssel der 15 neuen sehr
+    schweren Level; dazu Gegenproben an erfundenen Änderungen und Pools (auch zur Regel der 3 Plätze über die
+    Weltgrenze und, gegen alle Anordnungen eines kleinen Falls, zur kleinsten Verschiebung).
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
@@ -593,6 +604,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
   Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm, schreiben
   aber nur, wenn ihre Art nicht im Vorrat liegt.
+- **Wahl für Noas Geschichte** (`.scratch/noa-geschichte/`, Ticket 03; nur für die Entwicklung):
+  `LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]` wählt je Grad die 60 Level der
+  Geschichte aus den flachen Leveln des Grads (Spiel und Vorrat, für «sehr schwer» dazu die 15 aus
+  `tools/geschichte/sehr-schwer-neu.json`) und verteilt sie auf die 6 Welten zu je 10 (etwa 30 s): ohne abgelehnte
+  (beide KI-Tester, Ausschlussgrund, ab «mittel» unter dem Mindest-Spielwert), nach der Bewertung (Gefühl und Aha der
+  KI-Tester, dann Spielwert; ohne Urteil aus dem Spielwert geschätzt), die Vielfalt vor der Bewertung, je Welt ein
+  Sechstel des Pools nach Schwierigkeit (in «sehr schwer» über den ganzen Grad, höchstens 3 Plätze vom Rang, auch über
+  die Weltgrenze). Regeln, Entscheide und Abweichungen im Kopf des Werkzeugs; das Ergebnis mit
+  Begründung je Level in `tools/geschichte/wahl.json`. Die Titel stehen von Hand in `tools/geschichte/titel.json` (je
+  Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
+  neu zu und prüft sie.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, seit

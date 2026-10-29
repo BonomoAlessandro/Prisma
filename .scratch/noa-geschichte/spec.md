@@ -95,6 +95,23 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
   - **Schwierigkeit:** Die 60 verteilen sich über den ganzen Bereich des Grads. Nach Schwierigkeit geordnet bekommt
     Welt *w* die Ränge 10·*w* … 10·*w*+9; innerhalb einer Welt darf die Vielfalt Level um höchstens 2 Plätze
     vertauschen.
+- **Entscheide des Nutzers (29.10.2026, nach dem Bericht zu Ticket 03):**
+  - **Abgelehnt** ist ein Level, wenn die KI-Tester **oder** die Beurteilung es ablehnen: die KI-Tester, wenn in einem
+    Urteil beide einen Begriff aus «Was Spass verdirbt» nennen, der beim Grad des Levels gilt; die Beurteilung mit
+    einem Ausschlussgrund oder ab «mittel» mit einem Spielwert unter dem Mindest-Spielwert (60). Die 25 Level, die
+    nur nach dem Urteil der KI-Tester im Spiel blieben (Spielwert unter 60), kommen nicht in die Geschichte. Ein
+    fehlendes Urteil ist keine Ablehnung; die Bewertung stützt sich dann auf den Spielwert.
+  - **«sehr schwer»:** Nur in diesem Grad darf ein Level bis zu 3 Plätze von seinem Platz nach Schwierigkeit (Rang
+    1–60) abweichen, auch über eine Weltgrenze (Welt *w* hat dann nicht zwingend genau die Ränge 10·*w* … 10·*w*+9).
+    Damit soll die Vielfalt ganz aufgehen; unter den Anordnungen, die das erfüllen, gilt die mit den kleinsten
+    Verschiebungen. Geht es auch mit 3 Plätzen nicht ganz auf, wird nicht weiter gelockert, sondern gemeldet. Die
+    übrigen Grade bleiben bei den Rängen je Welt und höchstens 2 Plätzen innerhalb der Welt; die verschobenen Grenzen
+    der Abschnitte in «schwer» sind in Ordnung.
+  - **«sehr schwer» vorerst mit Platzhaltern:** Auch mit 3 Plätzen geht die Vielfalt nicht ganz auf (die 60 Level
+    haben fast nur 5 Haupt-Kernideen zu je etwa 12). Die Geschichte nimmt vorerst die vorhandenen Level in der
+    Anordnung mit dem kleinsten Zuviel (`verstoesse` in `wahl.json`, vom Test genau so erlaubt). Ganz am Schluss
+    (Ticket 09) werden neue, passende sehr schwere Level generiert und ersetzen diese Platzhalter, bis die Vielfalt
+    ganz aufgeht.
 - **Ergebnis:** ein Werkzeug rechnet die Wahl nachbaubar (gleiche Eingaben, gleiches Ergebnis) und schreibt sie mit
   Begründung je Level (Rang, Bewertung, Haupt-Kernidee, Schwierigkeit) nach `tools/geschichte/`; Tests prüfen alle
   Regeln.
@@ -144,6 +161,7 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
 | 06 | Übersicht mit Bestwerten, Wiederholen | 04 |
 | 07 | Kapitel «Im Dorf» | 04 |
 | 08 | Aufräumen, Begriffe, Abnahme | 05, 06, 07 |
+| 09 | Neue sehr schwere Level statt der Platzhalter | 08 |
 
 ## Reviews und Commits
 
