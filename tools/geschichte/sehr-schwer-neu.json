@@ -1,5 +1,5 @@
 {
- "kommentar": "15 neue sehr schwere Level für Noas Geschichte (PLAN.md 0.3), noch nicht im Spiel. Mit den 45 sehr schweren im Spiel ergibt das die 60 des Grads. Herkunft: tools/ausbau.mjs pool, Auftrag und Seed je Level (Pools in .scratch/noa-geschichte/01-sehr-schwer-vorrat.md); Urteile der KI-Tester im Protokoll (tools/ki-tester/protocol.jsonl) unter dem Kandidatennamen. Sortiert nach Schwierigkeit; Namen folgen beim Einbau.",
+ "kommentar": "15 neue sehr schwere Level für Noas Geschichte (PLAN.md 0.3), noch nicht im Spiel. Mit den 45 sehr schweren im Spiel ergibt das die 60 des Grads. Herkunft: tools/ausbau.mjs pool, Auftrag und Seed je Level (Pools in .scratch/noa-geschichte/issues/01-sehr-schwer-vorrat.md); Urteile der KI-Tester im Protokoll (tools/ki-tester/protocol.jsonl) unter dem Kandidatennamen. Sortiert nach Schwierigkeit; Namen folgen beim Einbau.",
  "level": [
   {
    "kandidat": "Kandidat f7e8b93d",

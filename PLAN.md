@@ -5,6 +5,7 @@
 Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prototyp «Ein Lichtsignal an die Sterne»
 (Branch `feature/lichtsignal-prototyp`, Start mit `?signal`): Prolog im Bergdorf, sechs Welten mit je eigener Skybox
 (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) und Reisen dazwischen, Finale beim Polarstern, Epilog bei Noa.
+Entscheide aus dem Grilling vom 29.10.2026, Spec und Tickets: `.scratch/noa-geschichte/` (Tickets 02–08).
 
 - [ ] **0.1 Neuer Spielablauf:** Keine feste Reihe von 500 Leveln mehr. Im Menü wählt der Spieler die Schwierigkeit
   (leicht, mittel, schwer, sehr schwer); danach spielt er Noas Geschichte mit genau 10 Leveln je Skybox, also
@@ -18,10 +19,10 @@ Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prot
     eines Grads steigt sie über die Geschichte: Die letzten leichten Level (bei den Sternen) sind schwerer als die
     ersten (im Bergwald), ebenso in jedem anderen Grad. Die Wahl verteilt die Level eines Grads darum über seinen
     ganzen Bereich der Schwierigkeit, und die Welten bekommen ihn der Reihe nach, von unten nach oben.
-  - **E** Offen: Reihenfolge innerhalb einer Welt (steigend innerhalb des Grads?); wo das Tutorial hingehört (vor oder
-    in der ersten Welt, bei jedem Grad?); was aus der Levelauswahl wird (nur die Level der Geschichte?); Fortschritt
-    je Grad getrennt; Wechsel des Grads mitten in der Geschichte; Prolog und Einstiege beim zweiten Durchgang mit
-    anderem Grad; die Würfel-Level (eigener Teil nach dem Epilog?).
+  - **Entschieden (29.10.2026, Spec):** Die Geschichte ist der einzige Ablauf; ein Grad je Durchgang mit eigenem
+    Fortschritt; steigend auch innerhalb einer Welt (Vertauschungen höchstens 2 Plätze); Tutorial als Kapitel
+    «Im Dorf» nach dem Prolog (Üben oder Gleich los); die Levelauswahl wird zur Übersicht des Grads mit Bestwerten;
+    Prolog und Einstiege beim ersten Durchgang je Grad; Würfel-Level vorerst in den Vorrat.
 - [ ] **0.2 Nicht mehr gebrauchte Level zur Seite legen:** Was in keiner Welt mehr vorkommt, nicht löschen, sondern in
   einen Vorrat verschieben, damit es später wieder verwendet werden kann (Leveldaten samt Herkunft und Urteil der
   KI-Tester). Die Tests, die heute Reihenfolge, Grade und Namen festhalten (`tests/levelliste.test.mjs`,
@@ -30,11 +31,10 @@ Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prot
   265 mittlere, 105 schwere und 45 sehr schwere; für «sehr schwer» fehlen also mindestens 15 (Generator und KI-Tester
   wie beim Ausbau auf 500).
   - [x] **Sehr schwer (29.10.2026):** 15 neue Level beurteilt und gewählt, noch nicht im Spiel, in
-    `tools/geschichte/sehr-schwer-neu.json`; Herkunft und Wahl in `.scratch/noa-geschichte/01-sehr-schwer-vorrat.md`.
+    `tools/geschichte/sehr-schwer-neu.json`; Herkunft und Wahl in `.scratch/noa-geschichte/issues/01-sehr-schwer-vorrat.md`.
     Mit den 45 im Spiel sind es 60 (je Haupt-Kernidee höchstens 12, dazu ein Lockvogel).
-  - **E** Offen: Die Namen der Level folgen heute dem Grad (leicht: Alltagslicht, sehr schwer: Sterne). Sollen sie
-    zur Welt passen (im Meer «Meeresleuchten», bei den Sternen «Polarstern»), braucht es neue Namen oder eine neue
-    Zuordnung.
+  - **Entschieden (29.10.2026, Spec):** Die 240 Level bekommen Titel, die zu ihrer Welt passen; der bisherige Name
+    bleibt der Schlüssel für Werkzeuge und Protokoll.
 
 ## 1. Aussehen
 

@@ -4,6 +4,8 @@
 Pool die besten 15 wählen, beurteilt und fertig für den Umbau, aber noch nirgends eingebaut. Wunsch des Nutzers vom
 28.10.2026; dazu die Regeln in PLAN.md 0.1 (beste Bewertung ohne Häufungen, Schwierigkeit steigt über die Welten).
 
+**Spec:** ../spec.md
+
 **Status:** resolved
 
 - [x] Grosser Pool aus dem Generator, alle sieben Aufträge «sehr schwer»
