@@ -109,7 +109,7 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
     der Abschnitte in «schwer» sind in Ordnung.
   - **«sehr schwer» vorerst mit Platzhaltern:** Auch mit 3 Plätzen geht die Vielfalt nicht ganz auf (die 60 Level
     haben fast nur 5 Haupt-Kernideen zu je etwa 12). Die Geschichte nimmt vorerst die vorhandenen Level in der
-    Anordnung mit dem kleinsten Zuviel (`verstoesse` in `wahl.json`, vom Test genau so erlaubt). Ganz am Schluss
+    Anordnung mit dem kleinsten Zuviel (`verstoesse` in `wahl.json`, vom Test genau so erlaubt). Vor dem Aufräumen und der Abnahme
     (Ticket 09) werden neue, passende sehr schwere Level generiert und ersetzen diese Platzhalter, bis die Vielfalt
     ganz aufgeht.
 - **Ergebnis:** ein Werkzeug rechnet die Wahl nachbaubar (gleiche Eingaben, gleiches Ergebnis) und schreibt sie mit
@@ -160,8 +160,8 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
 | 05 | Menü mit den vier Graden | 04 |
 | 06 | Übersicht mit Bestwerten, Wiederholen | 04 |
 | 07 | Kapitel «Im Dorf» | 04 |
-| 08 | Aufräumen, Begriffe, Abnahme | 05, 06, 07 |
-| 09 | Neue sehr schwere Level statt der Platzhalter | 08 |
+| 09 | Neue sehr schwere Level statt der Platzhalter | 04 (Zeitpunkt bestimmt der Nutzer) |
+| 08 | Aufräumen, Begriffe, Abnahme | 05, 06, 07, 09 |
 
 ## Reviews und Commits
 
