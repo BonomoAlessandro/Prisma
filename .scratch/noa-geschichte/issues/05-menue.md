@@ -30,3 +30,11 @@ Lichtwege; je Desktop, Handy hoch und quer, Übersicht `bilder/uebersicht.png`).
 gekommen ist, die sechs Welten als Punkte darauf, «Weiter» am Kopf des Lichts. Beim Bau die Ansicht Handy hoch
 aufräumen (vier schmale Spalten, Gedränge am Stern). Hervorgehoben wird der nächstschwerere Grad nur direkt nach dem
 Epilog (Entscheid 14); sonst führt «Weiter». Vorlage: `variante-lichtwege.html` mit `gemeinsam.css`/`gemeinsam.js`.
+
+**Baustein vorgebaut (29.10.2026):** `.scratch/noa-geschichte/bausteine/menue/` (`menue.js`, `menue.css`,
+`probe.html`, `LIESMICH.md` mit Schnittstelle und Einbau; Bilder mit `aufnahme.mjs` neu). Handy hoch: Grade als
+Zeilen, Lampen gestaffelt links, Wege steigen auf und laufen im Fächer zum Stern; «Weiter» unten. Entscheide des
+Koordinators zu den offenen Fragen des Bausteins: «23 / 60» zählt gelöste Level (Ticket 04 liefert die Zahl); ist der
+nächstschwerere Grad schon geschafft, wird der nächste nicht geschaffte hervorgehoben, nach «sehr schwer» keiner; ein
+Grad gilt ab dem Prolog als begonnen (`welt: 'dorf'`, «Dorf · 0 / 60»); hinter dem Menü schaut die Kamera in den
+Himmel, damit das Brett nicht hinter den Wegen steht.
