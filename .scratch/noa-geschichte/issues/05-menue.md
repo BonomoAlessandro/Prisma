@@ -23,3 +23,10 @@ des Epilogs. Die Gestalt wählt der Nutzer aus Vorschauen.
 - [ ] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
+
+**Haltepunkt erledigt (29.10.2026):** Vorschauen in `.scratch/noa-geschichte/menue-vorschau/` (Karten, Fächer,
+Lichtwege; je Desktop, Handy hoch und quer, Übersicht `bilder/uebersicht.png`). Der Nutzer wählt **Variante 3
+«Lichtwege zum Polarstern»**: je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad
+gekommen ist, die sechs Welten als Punkte darauf, «Weiter» am Kopf des Lichts. Beim Bau die Ansicht Handy hoch
+aufräumen (vier schmale Spalten, Gedränge am Stern). Hervorgehoben wird der nächstschwerere Grad nur direkt nach dem
+Epilog (Entscheid 14); sonst führt «Weiter». Vorlage: `variante-lichtwege.html` mit `gemeinsam.css`/`gemeinsam.js`.

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Menü – Übersicht der Vorschauen</title>
+<style>
+  /* Übersicht für den Haltepunkt von Ticket 05: drei Varianten × drei Grössen, alle Bilder im selben Massstab
+     (CSS-Pixel; die Handybilder sind mit Pixeldichte 2 aufgenommen und hier halb so gross gezeigt). */
+  @font-face { font-family: "Jost"; font-weight: 200 400; src: url(../../../vendor/jost/jost-latin.woff2) format("woff2"); }
+  body { margin: 0; padding: 56px 64px 64px; background: #0c0c16; color: #e8e6f0; font-family: "Jost", "Segoe UI", sans-serif; font-weight: 300; }
+  h1 { margin: 0; font-weight: 300; font-size: 38px; letter-spacing: 0.06em; }
+  .stand { margin: 12px 0 0; font-size: 20px; color: rgba(232, 230, 240, 0.7); }
+  .variante { margin-top: 64px; }
+  .variante h2 { margin: 0 0 6px; font-weight: 400; font-size: 32px; letter-spacing: 0.04em; }
+  .variante .idee { margin: 0 0 22px; font-size: 19px; color: rgba(232, 230, 240, 0.7); }
+  .reihe { display: flex; gap: 40px; align-items: flex-start; }
+  figure { margin: 0; }
+  figcaption { margin-bottom: 10px; font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(232, 230, 240, 0.85); }
+  figcaption b { font-weight: 400; color: #fff; }
+  img { display: block; border: 1px solid rgba(232, 230, 240, 0.25); border-radius: 6px; }
+  .desktop img { width: 1440px; height: 900px; }
+  .hoch img { width: 390px; height: 844px; }
+  .quer img { width: 844px; height: 390px; }
+</style>
+</head>
+<body>
+  <h1>PRISMA · Menü mit den vier Graden (Ticket 05) · drei Varianten zur Wahl</h1>
+  <p class="stand">Stand in allen Bildern: Leicht geschafft (Polarstern) · Mittel begonnen, Wüste 23 / 60, zuletzt gespielt
+    (Ziel von «Weiter») · Schwer noch nicht begonnen, hervorgehoben · Sehr schwer noch nicht begonnen.
+    Hintergrund: Milchstrasse aus dem Spiel. Variante 1 Desktop zeigt den Fokusring (auf «Von vorn» bei Mittel).</p>
+
+  <section class="variante">
+    <h2>Variante 1 · Vier Karten</h2>
+    <p class="idee">Alle Grade gleichzeitig; «Weiter» darüber. Desktop und quer in einer Reihe, hochkant als Raster 2 × 2.</p>
+    <div class="reihe">
+      <figure class="desktop"><figcaption><b>V1 Karten</b> · Desktop 1440 × 900</figcaption><img src="bilder/karten-desktop.png" alt=""></figure>
+      <figure class="hoch"><figcaption><b>V1</b> · Handy hoch 390 × 844</figcaption><img src="bilder/karten-hoch.png" alt=""></figure>
+      <figure class="quer"><figcaption><b>V1</b> · Handy quer 844 × 390</figcaption><img src="bilder/karten-quer.png" alt=""></figure>
+    </div>
+  </section>
+
+  <section class="variante">
+    <h2>Variante 2 · Fächer vor dem Nachthimmel</h2>
+    <p class="idee">Sternkarten als Fächer, vorn der gewählte Grad (beim Öffnen das Ziel von «Weiter»); wählen mit Wischen, Pfeilen oder Reitern.</p>
+    <div class="reihe">
+      <figure class="desktop"><figcaption><b>V2 Fächer</b> · Desktop 1440 × 900</figcaption><img src="bilder/faecher-desktop.png" alt=""></figure>
+      <figure class="hoch"><figcaption><b>V2</b> · Handy hoch 390 × 844</figcaption><img src="bilder/faecher-hoch.png" alt=""></figure>
+      <figure class="quer"><figcaption><b>V2</b> · Handy quer 844 × 390</figcaption><img src="bilder/faecher-quer.png" alt=""></figure>
+    </div>
+  </section>
+
+  <section class="variante">
+    <h2>Variante 3 · Lichtwege zum Polarstern</h2>
+    <p class="idee">Jeder Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht gekommen ist; «Weiter» am Kopf des Lichts.</p>
+    <div class="reihe">
+      <figure class="desktop"><figcaption><b>V3 Lichtwege</b> · Desktop 1440 × 900</figcaption><img src="bilder/lichtwege-desktop.png" alt=""></figure>
+      <figure class="hoch"><figcaption><b>V3</b> · Handy hoch 390 × 844</figcaption><img src="bilder/lichtwege-hoch.png" alt=""></figure>
+      <figure class="quer"><figcaption><b>V3</b> · Handy quer 844 × 390</figcaption><img src="bilder/lichtwege-quer.png" alt=""></figure>
+    </div>
+  </section>
+</body>
+</html>
