@@ -23,3 +23,12 @@ jede Kachel zeigt Bestzeit und wenigste Drehungen.
 - [ ] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
+
+**Baustein vorgebaut (29.10.2026):** `.scratch/noa-geschichte/bausteine/uebersicht/` (`uebersicht.js`,
+`uebersicht.css`, `probe.html`, `LIESMICH.md` mit Schnittstelle, Speicherstand-Vorschlag
+`prisma.noa.<grad>.bestwerte` und `merkeBestwerte`; Bilder mit `aufnahme.mjs` neu). Desktop: alle Welten
+untereinander mit Lichtweg je Reihe; Handy/Tablet: eine Welt je Seite, Stationen oben, Wischen nur auf den Kacheln.
+Entscheide des Koordinators zu den offenen Fragen: Titel gesperrter Level bleiben blass sichtbar; nach «Überspringen»
+im Dorf sind alle Übungen frei; eine neue Bestmarke wird erst gemeldet, wenn es schon einen Wert gab; die Taste L
+öffnet die Übersicht wie bisher die Levelauswahl; Zeichen für Drehungen mit Legende genügt; die Gesamtsumme steht nur
+bei einem geschafften Grad. Kleinigkeit für den Einbau: Trennung «Asteroiden-gürtel» statt «Asteroidengür-tel».
