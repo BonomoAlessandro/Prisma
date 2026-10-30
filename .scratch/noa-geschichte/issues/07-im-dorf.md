@@ -252,3 +252,64 @@ zusammen (Bestwerte der Übungen und die Reihe «Im Dorf» brauchen beide).
     wiederholt; beobachten.
   - Kicker «Im Dorf» auf der Bühne ist klein und blass (Stil der Untertitel-Kicker); ggf. im Review des Spielerlebnisses
     beurteilen.
+
+**Review Code (30.10.2026)** – Grundlage `git show 2083133`, Einbauplan 1–9, Spec (Entscheide 3, 10, 18, 21, 28).
+
+Urteil: **gut, mit zwei kleinen Fehlern (behoben)**. Zustand und Stand sind sauber getrennt (`inDorf`/`uebung`,
+`currentIndex()`, `stand.dorf` nur nach «Üben», geprüft in `setGrade`, nicht in `progress`); der Abbruch der Einstiege
+ist knapp und richtig: Nur Flug und Fall tragen die Marke, `gazeTo` und das Warten in `skyOf` laufen weiter, `land`
+schliesst den Untertitel (ein `present` mitten im Überblenden öffnet ihn nicht wieder, weil es `shown` vorher
+bestimmt), `enterLevel` kommt genau einmal (ab `entered` bzw. `entering = null` ist kein zweiter Abbruch möglich). Die
+Reisen sind nicht überspringbar (`fall` aus `travel` ohne Marke, `entering` bleibt null). `#btn-skip` ist unter Menü,
+Übersicht, Reise, Finale, Epilog, beim Wiederholen in den Welten und ausserhalb (`zeige`) versteckt (`skippable`).
+Randfälle durchgegangen: Neuladen mitten im Dorf, im Einstieg ins Dorf (Stand läuft, `dorf` nicht gesehen → Einstieg
+wieder), während des Satzes zum Ende (`ende` schon gespeichert → Bergwald), kaputter Stand (`storyDorfStand` → wie nie
+gespielt), «Von vorn» (`progress.remove` + `setGrade`), Gradwechsel aus Menü und Übersicht (`setGrade` setzt `inDorf`
+und `endeWartet` zurück), «Überspringen» während `resume`/`begin` (`endeWartet`, `done`) und während die Übung
+versinkt (`sinkTo` setzt beim Versinken fort). Übungen zählen nicht zu den 60 (`menuStand` und die Kopfzeile der
+Übersicht zählen nur die Welten).
+
+Entscheide des Umsetzers: alle plausibel und mit Spec/Ticket vereinbar. 1 (Level der Welten aus der Übersicht beendet
+das Dorf als übersprungen) folgt aus der Kette; 2 und 3 wie Plan Punkt 5/6 (Esc bleibt im Dorf beim Menü, Entscheid 18
+erfüllt der Knopf «jederzeit»); 4 hält die Probe auf Überdeckung (auch Handy hochkant, `skipUeberdeckt` mit
+`#controls`); 5–7 passen zu Plan und Ticket 06.
+
+**Kleine Funde (selbst behoben, eigener Commit):**
+1. *«Gelöst» blitzte über dem Satz zum Ende auf*: «Überspringen» gleich nach dem Lösen (die Feier läuft, `panelDelay`
+   noch nicht erreicht): `dorfEnde` blendet «Gelöst» aus, die Feier zeigt es danach trotzdem (`celebration.update` →
+   `ui.showSolved`), bis `sinkTo`/`changeLevel` es nach dem Blick in den Himmel wieder wegnimmt. Fix: `dorfEnde` setzt
+   bei laufender Feier `celebration.panelShown = true`. Mit dem alten Stand schlägt die neue Probe fehl, mit dem Fix
+   nicht.
+2. *Neuladen, während das Angebot steht, brachte den ganzen Prolog wieder* (Plan Punkt 3 wollte nur das Angebot):
+   `prolog` wurde erst nach der Wahl gesehen. Fix: `offer` sieht den Prolog, sobald das Angebot steht; der Zweig «nur
+   das Angebot auf dem letzten Bild» in `begin` greift jetzt auch nach einem Neuladen (vorher nur für ältere Stände).
+3. Unit-Test ohne Browser fehlte: `storyDorfStand` (gültig, ohne `ende`, kaputte Werte) und dass `progress` das Feld
+   `dorf` stehen lässt, im Speicherstand-Test von `tests/levelliste.test.mjs`.
+4. Probe `--dorf` ergänzt: Stand mitten im Dorf aus der Karte (Übung 3), «Überspringen» in der Feier (je Bild geprüft,
+   dass «Gelöst» nicht erscheint); Neuladen während des Angebots → ohne Prolog nur das Angebot → «Gleich los».
+5. Zwei überlange Kommentarzeilen (Doku von `progress`, `dorfEnde`) umbrochen.
+
+**Mittlere Funde (für den Umsetzer):**
+1. *Bergwald lädt erst nach dem Tippen auf den Satz zum Ende* (`dorfEnde` → `enter` → `skyOf(STORY_CHAPTERS[0])`).
+   Nach «Üben» ersetzt die Milchstrasse den Wald; nach einem langen Dorf ist er freigegeben (`skyTheme.keep`). Nach
+   dem Tippen steht der Satz mit «Klicken» dann bis zu einigen Sekunden ohne Reaktion weiter (auf dem Testrechner kurz,
+   weil der Wald noch im Speicher lag). Vorschlag: den Bergwald schon mit dem Satz zum Ende laden (nach `await hoch`
+   `setSky(STORY_CHAPTERS[0].sky, true)` – passt zum Text «Am Waldrand blinken schon die Glühwürmchen»; dann ist
+   `skyOf` in `enter` sofort durch) oder wenigstens die Aufforderung `tap` nach dem Tippen leeren. Zusammen mit dem
+   offenen Punkt «Vorwärmen» (Wald vor dem Prolog) im Review des Spielerlebnisses beurteilen.
+2. *Lücken der Probe* (keine Fehler gefunden, aber ungeprüft): Wiederholen einer früheren Übung, solange das Kapitel
+   läuft, bis zur ersten ungelösten (`advanceDorf`: `replay` endet, `dorf.platz` folgt); Bergwald 1 aus der Übersicht
+   mitten im Dorf (Entscheid 1 des Umsetzers: `dorf.ende = 'uebersprungen'`, Einstieg in den Bergwald, kein Satz zum
+   Ende); Neuladen während des Einstiegs ins Dorf; Einstieg überspringen, während er auf `sunk` wartet; «Überspringen»
+   während die Übung nach «Weiter» versinkt (`flow.state === 'out'`). Vorschlag: in `dorfAblauf` mit vorbereiteten
+   Ständen (`laden({...})`) ergänzen, je ein kurzer Abschnitt.
+
+**Kleinigkeiten ohne Änderung:** Nach «Üben»/«Gleich los» und nach einem Klick auf `#btn-skip` fällt der Fokus auf
+`body` (die Knöpfe verschwinden; `setShown` nimmt ihn weg) – für die Tastatur unschädlich, Enter/Esc wirken weiter. Esc
+im Angebot tut nichts («Gleich los» ist dort das Überspringen) – stimmig.
+
+**Tests (Review):** `tests/levelliste.test.mjs` 55 bestanden (mit dem neuen Teil); `tests/geschichte.test.mjs` 30
+bestanden; Probe `--dorf` auf dem Desktop mit den Fixes **bestanden**, Konsole leer; dieselbe Probe auf dem Stand
+2083133 (eigener Worktree) scheitert an genau den zwei neuen Prüfungen (Feier, Neuladen im Angebot). Im ersten Lauf auf
+2083133 einmal 581 ms Lücke gleich nach dem ersten Zeichnen der Bühne (frischer Worktree, kalter Cache), im Lauf mit
+den Fixes nicht wieder.

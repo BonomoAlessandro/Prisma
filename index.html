@@ -15378,9 +15378,9 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
  * Momente, die nur beim ersten Mal kommen (prolog, angebot, dorf und die Einstiege in die Welten unter der Kennung
  * ihrer Station, etwa meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten
  * (gespielt; dorf, das Kapitel «Im Dorf», prüft story.setGrade über storyDorfStand). Die Bestwerte je Level liegen
- * daneben unter prisma.noa.<grad>.bestwerte (best, noteBest), damit sie «Von vorn» überleben (Entscheid 27). Dazu der zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel
- * (prisma.solvedLevels, prisma.current, prisma.sky, prisma.signal, prisma.signal.seen) liest das Spiel nicht mehr und
- * löscht sie nicht.
+ * daneben unter prisma.noa.<grad>.bestwerte (best, noteBest), damit sie «Von vorn» überleben (Entscheid 27). Dazu der
+ * zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel (prisma.solvedLevels, prisma.current,
+ * prisma.sky, prisma.signal, prisma.signal.seen) liest das Spiel nicht mehr und löscht sie nicht.
  */
 const progress = {
   keyOf: (grad) => `prisma.noa.${grad.replaceAll(' ', '-')}`,
@@ -17820,8 +17820,9 @@ const story = {
   },
   /**
    * Das Angebot nach dem Prolog (auch nach «Überspringen») auf der Bühne: «Im Dorf», der Satz und die Knöpfe «Üben» und
-   * «Gleich los», der Fokus auf «Üben». Die Wahl gilt sofort (gesehen: angebot; nach «Üben» stand.dorf, und der Himmel
-   * des Dorfs kommt hinter der Bühne, die ihn noch ganz zudeckt). Zurück: true bei «Üben».
+   * «Gleich los», der Fokus auf «Üben». Der Prolog ist gesehen, sobald das Angebot steht; die Wahl gilt sofort (gesehen:
+   * angebot; nach «Üben» stand.dorf, und der Himmel des Dorfs kommt hinter der Bühne, die ihn noch ganz zudeckt).
+   * Zurück: true bei «Üben».
    */
   async offer(sc) {
     const a = STORY_DORF.angebot;
@@ -17831,6 +17832,7 @@ const story = {
     sc.hint(false);
     sc.kicker(a.kicker);
     sc.say(a.text);
+    this.see('prolog'); // schon jetzt: Ein Neuladen vor der Wahl bringt nur noch das Angebot (begin)
     const ueben = await new Promise((resolve) => {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
       sc.el.querySelector('.actions button').focus({ preventScroll: true });
@@ -17840,7 +17842,6 @@ const story = {
       this.stand.dorf = { platz: 0, ende: null };
       this.setSky(STORY_DORF.sky, false);
     }
-    this.see('prolog');
     this.see('angebot');
     return ueben;
   },
@@ -17917,8 +17918,8 @@ const story = {
   /**
    * Ende des Kapitels «Im Dorf» (art: 'gespielt' nach der letzten Übung, 'uebersprungen'): «Gelöst», Kopfzeile und
    * Knöpfe gehen weg, der Blick hebt sich, darunter versinkt die Übung; der Satz zum Ende wartet auf Tippen, dann
-   * tragen die Glühwürmchen das Licht in den Bergwald (Einstieg wie nach dem Prolog). Während einer Zwischenszene wartet ein
-   * «Überspringen», bis sie fertig ist (done).
+   * tragen die Glühwürmchen das Licht in den Bergwald (Einstieg wie nach dem Prolog). Während einer Zwischenszene
+   * wartet ein «Überspringen», bis sie fertig ist (done).
    */
   async dorfEnde(art) {
     if (!this.inDorf || this.choosing || !this.dorfLaeuft()) return;
@@ -17927,6 +17928,8 @@ const story = {
     flow.state = 'story'; // die Übung dreht nicht mehr (auch mitten im Herauswachsen)
     this.fast = 1;
     ui.hideSolved();
+    // gleich nach dem Lösen übersprungen: «Gelöst» käme sonst noch aus der Feier (panelDelay) über den Satz zum Ende
+    if (celebration.active) celebration.panelShown = true;
     ui.hideHud();
     setHovered(null);
     setShown(ui.controls, false);

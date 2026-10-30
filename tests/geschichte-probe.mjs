@@ -1048,6 +1048,8 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
  * evtl. noch: kein leeres Brett); kein dorf im Stand, Übersicht ohne Dorf.
  * Sehr schwer: alle 9 Übungen bis zum Ende → Bergwald (dorf.ende gespielt), dann aus der Übersicht Übung 8 wiederholen
  * → 9 → «Zur Übersicht». Dazu die Bildzeiten; auf dem Handy quer, ob «Überspringen» etwas überdeckt.
+ * Dazu (Review): ein Stand mitten im Dorf, «Überspringen» gleich nach dem Lösen (kein «Gelöst» über dem Satz zum Ende),
+ * und ein Neuladen, während das Angebot steht (danach nur noch das Angebot).
  */
 async function dorfAblauf() {
   console.log(`${view.name}: Im Dorf`);
@@ -1224,6 +1226,41 @@ async function dorfAblauf() {
   pruefe(JSON.stringify((await uebStand()).aktuell) === '[0,8]' && (await stand(g)).platz === 0,
     'Sehr schwer: Übersicht nach dem Wiederholen');
   await uebersichtZu();
+
+  // Review: ein Stand mitten im Dorf (Übung 3) aus der Karte, «Überspringen» gleich nach dem Lösen (die Feier läuft
+  // noch): «Gelöst» kommt nicht mehr über den Satz zum Ende. Ein älterer Stand mit Prolog ohne Angebot: nur das Angebot
+  await laden({ 'prisma.noa.leicht': { platz: 0, geloest: uebungen.slice(0, 2), gesehen: ['prolog', 'angebot', 'dorf'],
+    geschafft: false, dorf: { platz: 2, ende: null } } });
+  await tippe(karte('leicht'), 'Karte Leicht');
+  await uebungLaeuft(2);
+  await ev(`${D}.loese()`);
+  await until(`window.__prisma.celebrating() && !window.__prisma.solvedPanel()`, 'Leicht: Übung 3 feiert', 10);
+  // je Bild: erscheint «Gelöst» nach dem Überspringen? (nur kurz, beim Versinken nimmt changeLevel es weg)
+  await ev(`window.__geloestDanach = false; window.__schau = performance.now() + 4000; (function schau() {
+    if (window.__prisma.solvedPanel() && !window.__prismaDebug.story.inDorf) window.__geloestDanach = true;
+    if (performance.now() < window.__schau) requestAnimationFrame(schau); })(); true`);
+  const feier = await ev(`${D}.celebration.active && !${D}.celebration.panelShown`);
+  await tippe(SKIP, 'Überspringen');
+  await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'Leicht: Ende des Dorfs (Feier)', 20);
+  await sleep(2500);
+  pruefe(feier && !(await ev('window.__geloestDanach')) && (await stand('leicht')).dorf?.ende === 'uebersprungen',
+    `Leicht: «Gelöst» nach «Überspringen» in der Feier (Feier ohne «Gelöst» beim Tippen: ${feier})`);
+  // Neuladen, während das Angebot steht: danach ohne Prolog nur das Angebot
+  await laden();
+  await tippe(karte('mittel'), 'Karte Mittel');
+  await prologWeg('mittel');
+  await until(`document.querySelectorAll('${ANGEBOT}').length === 2`, 'Mittel: Angebot', 60);
+  pruefe((await stand('mittel'))?.gesehen.join() === 'prolog', 'Mittel: Prolog gesehen, sobald das Angebot steht');
+  await ev('window.__vorher = true');
+  await send('Page.reload');
+  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await geste();
+  await tippe(karte('mittel'), 'Karte Mittel');
+  await until(`${storyMode} === 'scene'`, 'Mittel nach dem Neuladen: Bühne', 30);
+  pruefe(await ev(`${D}.story.scene.skip.hidden`), 'Mittel nach dem Neuladen: Prolog statt nur des Angebots');
+  await angebot('mittel nach dem Neuladen', 'Gleich los');
+  await until(`${D}.story.entering`, 'Mittel nach dem Neuladen: Einstieg in den Bergwald', 30);
+  pruefe((await stand('mittel')).gesehen.join() === 'prolog,angebot', 'Mittel nach dem Neuladen: gesehen');
 }
 /** Die Übung n steht auf dem Brett und läuft. */
 async function uebungLaeuft(n) {
