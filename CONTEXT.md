@@ -57,8 +57,7 @@ Seine 60 Level stehen in fester Reihenfolge (`STORY_LEVELS`); sein Stand (Platz,
 geschafft) gilt nur für seinen Grad (`progress`, `prisma.noa.<grad>`). Geschafft ist ein Grad, wenn sein Finale
 gesehen ist, nicht schon mit 60 gelösten Leveln. Nach «Von vorn» beginnt ein neuer Durchgang, mit Prolog und
 Einstiegen.
-_Vermeiden_: Reise (für die 60 Level eines Grads in ihrer Reihenfolge; im Code steht dafür noch «Reise des Grads»,
-`story.steps`)
+_Vermeiden_: Reise (für die 60 Level eines Grads in ihrer Reihenfolge; im Code `story.steps`)
 
 **Welt**:
 Eine der sechs Stationen eines Durchgangs, in dieser Reihenfolge: Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne. Je
@@ -70,15 +69,41 @@ _Vermeiden_: Skybox, Hintergrund (für die Welt)
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter der Grad und
-«Übung 2 / 9»). Nach dem Prolog, auch nach dessen Überspringen, fragt das Angebot einmal je Grad: «Üben» spielt das
-Kapitel, «Gleich los» führt gleich zum Einstieg in den Bergwald. Das Kapitel lässt sich jederzeit überspringen;
-gespielt oder übersprungen, bringen danach die Glühwürmchen das Licht in den Bergwald. Es ist keine der sechs Welten:
-Sein Einstieg kommt ohne Träger (das Licht ist schon bei Noa), und die Übungen zählen nicht zu den 60 Leveln des Grads
-(im Menü steht der Grad dort auf «Dorf · 0 / 60»). Die Übersicht zeigt es, sobald es gespielt wurde; nach dem
-Überspringen sind alle Übungen frei. Hintergrund vorerst die Milchstrasse, bis der Nutzer eine eigene Skybox macht.
+die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter der Grad, «Übung 2 / 9»
+und statt der Bedienung der Hinweis der Übung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
+beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
+folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die
+Glühwürmchen das Licht in den Bergwald wie nach «Gleich los». Es ist ein Kapitel, aber keine der sechs Welten: ohne
+Nummer, sein Einstieg ohne Träger, und die Übungen zählen nicht zu den 60 Leveln des Grads (im Menü steht der Grad dort
+auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar; Neuladen setzt an der Übung fort. Die Übersicht
+zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle Übungen frei, und eine Übung aus der
+Übersicht führt nach der 9. zurück in die Übersicht. Hintergrund vorerst die Milchstrasse, bis der Nutzer eine eigene
+Skybox macht (`STORY_DORF.sky`, die eine Stelle dafür). Im Code `STORY_DORF` (Texte, Himmel), `story.inDorf` und
+`story.uebung` (die laufende Übung), im Stand `prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder
+übersprungen), nur nach «Üben».
 _Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
+
+**Angebot**:
+Die Frage nach dem Prolog, auf der Bühne: «Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit
+Noa im Dorf üben?» mit «Üben» (das Kapitel «Im Dorf») und «Gleich los» (Einstieg in den Bergwald); der Fokus steht auf
+«Üben». Kommt einmal je Grad, auch nach dem Überspringen des Prologs, und nur, solange der Bergwald nicht gesehen ist.
+Die Wahl gilt sofort (gesehen: `angebot`); Neuladen vor der Wahl bringt nur das Angebot wieder, ohne den Prolog. Es
+hat kein eigenes Überspringen: «Gleich los» ist es. Im Code `story.offer`, Texte in `STORY_DORF.angebot`.
+
+**Einstieg ins Dorf**:
+Das Licht kommt nach «Üben» ins Dorf: ein Untertitel «Im Dorf · Erstes Licht» (Noa übt hinter dem Haus mit der
+Taschenlampe), der Lichtpunkt fällt ohne Träger aufs Brett, und die erste Übung wächst. Danach ist der Moment `dorf`
+gesehen; er kommt je Grad nur einmal. Überspringbar wie der Einstieg in eine Welt. Abgrenzung: kein Einstieg in eine
+Welt, das Dorf ist keine.
+
+**Überspringen**:
+Eine Zwischenszene abkürzen, ohne Schnitt: den Prolog (sein Knopf auf der Bühne oder Esc; danach kommt das Angebot),
+einen Einstieg in eine Welt oder ins Dorf («Überspringen» oder Esc; das Licht landet weich auf dem Brett) und das
+Kapitel «Im Dorf» (nur der Knopf «Dorf überspringen»). Reisen und Finale laufen immer ganz (Entscheid des Nutzers), sie
+lassen sich nur durch Tippen beschleunigen. Ein Level lässt sich nie überspringen (ADR 0005).
+_Vermeiden_: Überspringen für Level (gibt es nicht), Abbrechen
 
 **Einstieg in eine Welt**:
 Das Licht kommt zum ersten Mal je Grad in einer Welt an, ohne Reise davor (nach dem Prolog oder «Im Dorf», beim
@@ -145,11 +170,6 @@ jede Änderung dort verlangt eine neue Version ihres Ablaufs, siehe `tools/ki-te
 **Vielfalt**:
 Die Regel der Wahl, die vor der Bewertung gilt: dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende
 Level eines Grads, auch über die Grenzen der Welten, und keine zwei Level einander zu ähnlich.
-
-**Platzhalter**:
-Ein Level in «sehr schwer», das nur vorläufig in der Geschichte steht, weil dort die Vielfalt mit den vorhandenen
-Leveln nicht aufgeht; ein neues Level ersetzt es, und es kommt in den Vorrat (ADR 0005). Abgrenzung: Im Code der
-Skyboxen heissen auch die Farben Platzhalter, die stehen, solange ein Bild lädt.
 
 **Name**:
 Der stabile Schlüssel eines Levels (`name`), eindeutig über Spiel und Vorrat und nach dem Entfernen nie wieder
@@ -271,3 +291,10 @@ _Abgelöst_ durch die Übersicht (ADR 0005).
 **Hintergrund wählen**:
 Der Spieler schaltete die Skybox selbst um (Knopf, Taste H).
 _Abgelöst_: Die Welt bestimmt den Hintergrund (ADR 0005).
+
+**Platzhalter** (Level der Geschichte):
+Bis zum 30.10.2026 ein Level in «sehr schwer», das nur vorläufig in der Geschichte stand, weil dort die Vielfalt mit den
+vorhandenen Leveln nicht aufging.
+_Abgelöst_ mit Ticket 09: Besser bewertete, beurteilte Level ersetzen alle 23, die Vielfalt geht ganz auf; die
+ersetzten liegen im Vorrat (ADR 0005). Im Code der Skyboxen heissen weiterhin die Farben Platzhalter, die stehen,
+solange ein Bild lädt.

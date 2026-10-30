@@ -62,9 +62,11 @@ Level-Format (`LEVELS_3D` in index.html, im LOGIC-Block direkt nach `LEVELS`):
   ohne y und bitgleich (`tests/golden.mjs`).
 - **Levelliste:** `LEVELS` im LOGIC-Block enthält nur die 2D-Level (Tests, Golden-Test, Werkzeuge der Levelliste
   wie `tools/ordne-level.mjs`).
-  Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index, heute 509).
-  In der Levelauswahl eine eigene Spielart „Würfel“ (Umschalter über den Abschnitten, eine Seite, die Abschnitte
-  bleiben dort unsichtbar stehen); „Weiter“ nach Level 500 führt nicht in den Würfel.
+  Im Spiel hängt `LEVELS.push(...LEVELS_3D)` sie hinten an (`CUBE_START` = erster Würfel-Index).
+  Seit Noas Geschichte (ADR 0005, Ticket 04) liegen alle Würfel-Level im Vorrat (`tools/vorrat/wuerfel.js`) und
+  haben keinen Zugang im Spiel; die Levelauswahl mit der Spielart „Würfel“ ist entfernt. Strahlregel und Darstellung
+  bleiben: Zurückgeholt (`tools/vorrat.mjs`) zeigt sie die Testschnittstelle (`__prismaDebug.zeige(index)`, Kopfzeile
+  „Würfel n / m – Name“).
 - **Darstellung:** `cubeToWorld`, `beamPointToWorld`, `normalToWorld`, `placeInCube`. Strahl-Shader:
   Schnittnormalen als `aCap0/aCap1` (vec3), Abstand zu den Schnittebenen wird im Vertex-Shader als `vCut`
   berechnet (linear in p, daher exakt interpoliert). Bodenschein wird mit der Höhe schwächer (`vLift`).
@@ -146,9 +148,8 @@ Die Logik-Tests für den Würfel nutzen den Löser (`S.solve`) wie bei den 2D-Le
 
 ## Bekannt / offen
 
-- N bzw. → auf Level 500 blättert weiter in den Würfel (nur „Weiter“ nach dem Lösen stoppt dort; Pfeile und Wischen
-  in der Levelauswahl blättern nur in der gewählten Spielart). Bewusst so gelassen – entscheiden, ob 2D und Würfel auch
-  beim Blättern getrennt sein sollen.
+- Ob die Würfel-Level ein zweiter Teil der Geschichte werden, ist offen (ADR 0005, PLAN.md 0). Bis dahin gibt es kein
+  Blättern und keine Levelauswahl mehr, die Frage nach getrennten Folgen für Fläche und Würfel stellt sich erst dann.
 - Kein Tutorial für Achsen/Ebenen und kein Hinweis in der Kopfzeile (den einzigen hatte Aufzug; seit dem
   25.10.2026 nicht mehr im Spiel).
 - Die Würfel-Level im Spiel kommen alle aus dem Generator (`.scratch/wuerfel-500/`). Die Beurteilung kennt den
