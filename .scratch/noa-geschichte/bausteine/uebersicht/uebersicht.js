@@ -10,9 +10,10 @@
    ===================================================================== */
 
 /**
- * Baut die Übersicht in root (ein leeres Element, z. B. <div id="uebersicht">) und gibt { show, hide, offen } zurück.
+ * Baut die Übersicht in root (ein leeres Element, z. B. <div id="uebersicht">) und gibt { show, hide, vorwaermen,
+ * offen } zurück.
  * icons: Zeichen der Stationen (im Spiel STORY_ICONS: dorf, wald, meer, …), Inhalt eines SVG mit viewBox 0 0 24 24.
- * onPlay({ welt, level, wiederholen, eintrag }): eine offene oder gelöste Kachel gewählt; welt ist der Index in
+ * onPlay({ welt, level, wiederholen, eintrag }): eine offene, freie oder gelöste Kachel gewählt; welt ist der Index in
  * daten.welten oder 'dorf', level der Index in der Reihe, wiederholen true bei einem gelösten Level, eintrag das
  * Objekt aus den Daten. onClose(): Escape, «Schliessen» oder Klick neben die Kacheln. Beide schliessen nicht selbst;
  * der Aufrufer ruft hide().
@@ -59,8 +60,8 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
    * Weiche Trennstriche in langen Wörtern, ohne Wörterbuch (hyphens: auto kennt Deutsch nicht in jedem Browser): in
    * jeder Gruppe von Konsonanten zwischen zwei Vokalen vor dem längsten Anlaut, mit dem ein deutsches Wort beginnen
    * kann (Schaum-krone, Feuer-schlund, See-pferd-chen, Luft-spiegelung), sonst vor dem letzten Konsonanten
-   * (Asteroiden-gürtel); vorn zwei, hinten drei Buchstaben mindestens. Gebraucht nur, wenn ein Wort auch klein nicht
-   * in die Kachel passt (.ueb-brich); sonst trennt das CSS nicht.
+   * (Asteroiden-gürtel); vorn zwei, hinten vier Buchstaben mindestens (sonst Asteroidengür-tel, Bärenhü-ter). Gebraucht
+   * nur, wenn ein Wort auch klein nicht in die Kachel passt (.ueb-brich); sonst trennt das CSS nicht.
    */
   const VOKAL = /[aeiouyäöüàéèê]/i;
   const ANLAUT = ['schr', 'schl', 'schm', 'schn', 'schw', 'spr', 'str', 'pfl', 'pfr', 'sch', 'pf', 'bl', 'br', 'ch', 'ck',
@@ -75,7 +76,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       if (e >= w.length) break; // am Wortende: keine Trennstelle
       const gruppe = klein.slice(i, e), anlaut = ANLAUT.find((a) => gruppe.endsWith(a));
       const t = e - (anlaut ? anlaut.length : 1);
-      if (t >= 2 && w.length - t >= 3) stellen.push(t);
+      if (t >= 2 && w.length - t >= 4) stellen.push(t);
       i = e;
     }
     return stellen.reduceRight((s, t) => s.slice(0, t) + SHY + s.slice(t), w);
@@ -120,12 +121,13 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   const schritte = [...root.querySelectorAll('.ueb-schritt')];
 
   let daten = null, reihen = [], seite = 0, modus = '', offen = false;
-  let wisch = null, gewischtUm = -Infinity, fahrt = null, hinweisUhr = 0;
+  let wisch = null, gewischtUm = -Infinity, gezeigtUm = -Infinity, fahrt = null, hinweisUhr = 0;
 
   /**
    * Reihen der Übersicht: «Im Dorf» (falls gespielt), dann die Welten. Zustand je Level: gelöst (spielbar), offen (das
    * erste ungelöste der Kette) oder gesperrt (jedes spätere ungelöste). Die Welten bilden eine Kette über alle Reihen,
-   * das Dorf eine eigene.
+   * das Dorf eine eigene. Mit dorf.frei (nach «Überspringen») ist dort jede ungelöste Übung frei: spielbar wie die
+   * offene, ohne deren Hof.
    */
   function baueReihen(d) {
     const r = [];
@@ -133,9 +135,11 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     (d.welten ?? []).forEach((w, i) => r.push({ art: 'welt', schluessel: i, name: w.name, icon: w.icon, level: w.level ?? [] }));
     for (const art of ['dorf', 'welt']) {
       let frei = true;
+      const alleFrei = art === 'dorf' && !!d.dorf?.frei;
       for (const re of r.filter((x) => x.art === art)) {
         re.zustand = re.level.map((l) => {
           if (l.geloest) return 'geloest';
+          if (alleFrei) return 'frei';
           if (frei) { frei = false; return 'offen'; }
           return 'gesperrt';
         });
@@ -146,7 +150,8 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       re.geloest = re.zustand.filter((z) => z === 'geloest').length;
       re.mitZeit = mitZeit.length;
       re.summe = mitZeit.reduce((s, l) => s + Math.floor(l.bestzeit), 0);
-      re.lage = re.level.length && re.geloest === re.level.length ? 'fertig' : re.zustand.includes('offen') || re.geloest ? 'jetzt' : 'spaeter';
+      re.lage = re.level.length && re.geloest === re.level.length ? 'fertig'
+        : re.zustand.some((z) => z === 'offen' || z === 'frei') || re.geloest ? 'jetzt' : 'spaeter';
     }
     return r;
   }
@@ -164,11 +169,11 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     const aktuell = daten.aktuell && daten.aktuell.welt === re.schluessel && daten.aktuell.level === l;
     let unten = '';
     if (z === 'gesperrt') unten = `<span class="ueb-schloss">${ico(Z.schloss)}</span>`;
-    else if (z === 'offen') unten = `<span class="ueb-los">${re.art === 'dorf' ? 'Üben' : 'Weiter'}${ico(Z.rechts)}</span>`;
+    else if (z === 'offen' || z === 'frei') unten = `<span class="ueb-los">${re.art === 'dorf' ? 'Üben' : 'Weiter'}${ico(Z.rechts)}</span>`;
     else unten = (mitZeit ? `<span class="ueb-wert">${ico(Z.uhr)}${zeit(lvl.bestzeit)}</span>` : '<span></span>') +
       (mitDr ? `<span class="ueb-wert">${ico(Z.drehung)}${Math.round(lvl.drehungen)}</span>` : '');
     const sprache = [`${art} ${l + 1}`, titel, z === 'gesperrt' ? 'gesperrt'
-      : z === 'offen' ? (re.art === 'dorf' ? 'als Nächstes zu üben' : 'als Nächstes zu spielen') : 'gelöst'];
+      : z === 'offen' ? (re.art === 'dorf' ? 'als Nächstes zu üben' : 'als Nächstes zu spielen') : z === 'frei' ? 'frei' : 'gelöst'];
     if (mitZeit) sprache.push(`Bestzeit ${sprichZeit(lvl.bestzeit)}`);
     if (mitDr) sprache.push(`wenigste ${drehungen(Math.round(lvl.drehungen))}`);
     if (aktuell) sprache.push('läuft gerade');
@@ -198,7 +203,8 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     const g = (typeof daten.grad === 'string' ? GRADE[daten.grad] : daten.grad) ?? { name: String(daten.grad ?? ''), punkte: 0 };
     const welten = reihen.filter((re) => re.art === 'welt');
     const geloest = welten.reduce((s, re) => s + re.geloest, 0), gesamt = welten.reduce((s, re) => s + re.level.length, 0);
-    const geschafft = gesamt > 0 && geloest === gesamt;
+    // geschafft heisst: Finale gesehen (daten.geschafft); ohne Angabe, wenn alle gelöst sind
+    const geschafft = typeof daten.geschafft === 'boolean' ? daten.geschafft : gesamt > 0 && geloest === gesamt;
     const summe = welten.reduce((s, re) => s + re.summe, 0), alleZeiten = welten.every((re) => re.mitZeit === re.level.length);
     gradEl.innerHTML = `<span class="ueb-gradzeile" aria-hidden="true"><span class="ueb-pips">${[1, 2, 3, 4]
       .map((i) => `<i${i <= g.punkte ? ' class="ueb-an"' : ''}></i>`).join('')}</span><span class="ueb-gradname">${esc(g.name)}</span></span>` +
@@ -367,6 +373,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     if (!offen || e.altKey || e.metaKey || (e.ctrlKey && e.key !== 'Home' && e.key !== 'End')) return;
     const k = e.key, an = document.activeElement, kachel = an?.closest?.('.ueb-kachel');
     const nimm = () => { e.preventDefault(); e.stopPropagation(); };
+    if (k === 'Enter' && e.repeat) { nimm(); return; } // gehaltenes Enter (etwa von der Karte im Menü) spielt nichts
     if (k === 'Escape') { nimm(); onClose(); return; }
     if (k === 'Tab') { e.stopPropagation(); falle(e); return; }
     const pfeile = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
@@ -463,9 +470,11 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   });
   root.addEventListener('pointerup', (e) => { if (wisch?.id === e.pointerId) loslassen(e, false); });
   root.addEventListener('pointercancel', (e) => { if (wisch?.id === e.pointerId) loslassen(e, true); });
-  // ein Klick gleich nach dem Wischen (ohne neues Drücken) wählt keine Kachel und schliesst nicht
+  // ein Klick gleich nach dem Wischen (ohne neues Drücken) wählt keine Kachel und schliesst nicht; ebenso einer mit
+  // Maus oder Finger gleich nach dem Öffnen (der zweite eines Doppelklicks auf den Knopf, der sie geöffnet hat)
   addEventListener('click', (e) => {
-    if (performance.now() - gewischtUm < 400 && root.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
+    const jetzt = performance.now(), gleich = jetzt - gewischtUm < 400 || e.detail > 0 && jetzt - gezeigtUm < 400;
+    if (gleich && root.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
   }, true);
   addEventListener('resize', () => { if (offen) { setzeModus(); passeTitelAn(); } });
 
@@ -474,6 +483,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
    * sonst daten.aktuell, sonst die offene Kachel. Auf Seiten zeigt sie deren Welt.
    */
   function show(d, wahl = {}) {
+    gezeigtUm = performance.now();
     daten = d;
     reihen = baueReihen(d);
     zeichne();
@@ -507,6 +517,23 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     hinweis.classList.remove('ueb-da');
     hinweis.textContent = '';
   }
+  /**
+   * Einmal unsichtbar zeichnen (fast durchsichtig, nicht bedienbar, ohne Fokus), solange nichts anderes läuft: Beim
+   * ersten Zeigen stand sonst ein Bild rund 100 ms, während der Browser alles zum ersten Mal zeichnete (danach nicht
+   * mehr). Nur, solange sie zu ist; show() zeichnet danach ohnehin neu.
+   */
+  function vorwaermen(d) {
+    if (offen) return;
+    daten = d;
+    reihen = baueReihen(d);
+    zeichne();
+    seite = 0;
+    setzeModus();
+    zeigeSeitenkopf();
+    passeTitelAn();
+    root.classList.add('ueb-vorwaermen');
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('ueb-vorwaermen')));
+  }
 
-  return { show, hide, get offen() { return offen; } };
+  return { show, hide, vorwaermen, get offen() { return offen; } };
 }

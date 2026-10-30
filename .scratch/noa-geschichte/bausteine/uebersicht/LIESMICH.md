@@ -39,10 +39,12 @@ const uebersicht = createUebersicht({
 
 ## Schnittstelle
 
-`createUebersicht({ root, icons, onPlay, onClose })` baut die Übersicht in `root` und gibt `{ show, hide, offen }`
-zurück. `show(daten, wahl?)` zeichnet sie jedes Mal neu aus den Daten, blendet sie ein und setzt den Fokus;
-`hide()` blendet aus; `offen` sagt, ob sie offen ist. Die Übersicht schliesst nie selbst: `onPlay` und `onClose`
-melden nur, der Aufrufer ruft `hide()`.
+`createUebersicht({ root, icons, onPlay, onClose })` baut die Übersicht in `root` und gibt `{ show, hide, vorwaermen,
+offen }` zurück. `show(daten, wahl?)` zeichnet sie jedes Mal neu aus den Daten, blendet sie ein und setzt den Fokus;
+`hide()` blendet aus; `offen` sagt, ob sie offen ist. `vorwaermen(daten)` zeichnet sie einmal fast durchsichtig
+(nicht bedienbar, ohne Fokus): Das erste Zeigen hielt sonst ein Bild rund 100 ms an (Ticket 06, im Spiel unter dem
+ruhigen Startbildschirm). Die Übersicht schliesst nie selbst: `onPlay` und `onClose` melden nur, der Aufrufer ruft
+`hide()`.
 
 ### Daten
 
@@ -61,7 +63,9 @@ uebersicht.show({
         …] },
     …],
   dorf: { level: [ … 9 Übungen … ] },   // nur, wenn «Im Dorf» gespielt wurde; sonst weglassen oder null
-                                        // (name 'Im Dorf' und icon 'dorf' sind vorgegeben, überschreibbar)
+                                        // (name 'Im Dorf' und icon 'dorf' sind vorgegeben, überschreibbar;
+                                        // frei: true nach «Überspringen»: jede ungelöste Übung ist spielbar)
+  geschafft: true,                      // Finale gesehen (Kopf «Geschafft»); fehlt es: wenn alle gelöst sind
   aktuell: { welt: 2, level: 3 },       // das laufende Level (aus dem Spiel geöffnet), sonst weglassen;
                                         // welt: Index in welten oder 'dorf'
 }, { fokus: { welt: 0, level: 0 } });   // wahl (frei): diese Kachel fokussieren bzw. ihre Welt zeigen
@@ -71,10 +75,11 @@ Die Übersicht rechnet daraus:
 
 - **Zustand je Level:** gelöst (wieder spielbar), **offen** (das erste ungelöste der Reise), **gesperrt** (jedes
   spätere ungelöste: sichtbar, nicht wählbar). Die sechs Welten sind eine Kette über alle Reihen; «Im Dorf» ist eine
-  eigene Kette (nach «Überspringen» ist die nächste Übung offen, die übrigen gesperrt).
+  eigene Kette; mit `dorf.frei` (nach «Überspringen», Entscheid des Koordinators) ist dort jede ungelöste Übung
+  **frei** (spielbar wie die offene, ohne deren Hof; `onPlay` mit `wiederholen: false`).
 - **Je Welt:** gelöst / 10 und die Summe der Bestzeiten der gelösten Level (fehlt, solange keine da ist).
-- **Kopf:** Grad als Punkte und Name, gelöste / 60; ist alles gelöst, «Geschafft» mit dem Polarstern und die Summe
-  aller Bestzeiten.
+- **Kopf:** Grad als Punkte und Name, gelöste / 60; ist der Grad geschafft (`geschafft`, sonst: alles gelöst),
+  «Geschafft» mit dem Polarstern und die Summe aller Bestzeiten.
 - **Werte:** Zeit kurz wie im Feld «Gelöst» (`1:42`, ab einer Stunde `1:02:05`, angefangene Sekunden abgeschnitten),
   Drehungen als Zahl mit Zeichen; die Legende im Kopf erklärt beide Zeichen. Was keinen Bestwert hat, bleibt leer.
 - **Fokus beim Öffnen:** `wahl.fokus`, sonst `aktuell`, sonst die offene Kachel, sonst die erste der ersten Welt.
@@ -107,7 +112,8 @@ Die Übersicht rechnet daraus:
   Wischen wählt keine Kachel. Bei reduzierter Bewegung ohne Fahrt.
 - **Lange Titel:** passt ein Wort nicht in die Kachel, wird es kleiner gesetzt; passt es auch so nicht, wird es
   getrennt, vor einem Anlaut, mit dem ein deutsches Wort beginnen kann (Feuer-schlund, Asteroiden-gürtel; eigene
-  einfache Regel, weil `hyphens: auto` nicht jeder Browser auf Deutsch kann). Bei 1440 px Breite betrifft das nur
+  einfache Regel, weil `hyphens: auto` nicht jeder Browser auf Deutsch kann), und nie vor einem Rest unter vier
+  Buchstaben (nicht Asteroidengür-tel; seit dem Einbau, Ticket 06). Bei 1440 px Breite betrifft das nur
   «Johanniswürmchen» und «Asteroidengürtel» (kleiner gesetzt), auf dem Handy keinen Titel.
 
 ## Bedienung und Bildschirmleser
@@ -122,10 +128,22 @@ Die Übersicht rechnet daraus:
   der Reise weiter, auch über die Grenze der Welt (auf Seiten blättert es mit), hoch/runter eine Reihe (Desktop: in
   die Welt darüber/darunter), **Pos1/Ende** Anfang/Ende der Welt (mit Strg: der ganzen Reise), **Bild↑/↓** vorige/
   nächste Welt, **Enter/Leertaste** spielt, **Escape** schliesst. Auf den Stationen wechseln ←/→ die Station.
+- Ein gehaltenes Enter (Tastenwiederholung, etwa von der Karte im Menü) spielt keine Kachel, und ein Klick mit Maus
+  oder Finger in den ersten 400 ms nach dem Öffnen wirkt nicht: Der zweite Klick eines Doppelklicks auf den Knopf,
+  der sie öffnet, startete sonst die Kachel darunter oder schloss sie gleich wieder (Review Ticket 06).
 - Fokus sichtbar: 2 px weiss mit bläulichem Hof (stärker als sonst im Spiel, weil er auf dem Himmel stehen muss).
 - Gesperrt ist nicht nur blasser, sondern gestrichelt und mit Schloss; offen hell mit Hof und «Weiter ›» («Üben ›»
   im Dorf); gelöst mit leuchtendem Punkt und den Werten.
 - Beim Blättern sagt eine höfliche Live-Region die neue Welt an («Vulkan: 0 von 10 gelöst»).
+
+## Im Spiel (Ticket 06)
+
+Eingesetzt in `index.html` (Abschnitte «Übersicht des Grads» im CSS und «ÜBERSICHT DES GRADS» im Skript), mit den
+Änderungen oben (Trennung, `geschafft`, `dorf.frei`) auch hier im Baustein. Nur im Spiel: Ebene 7 statt 6, damit die
+Übersicht über dem ausblendenden Menü liegt. Die Daten setzt `story.overviewData(grad)` zusammen, die Bestwerte
+liegen wie unten vorgeschlagen unter `prisma.noa.<grad>.bestwerte` (`progress.best`, `progress.noteBest`; der Grad
+mit Bindestrich wie `progress.keyOf`, also `prisma.noa.sehr-schwer.bestwerte`) und überleben «Von vorn»
+(Entscheid 27).
 
 ## Speicherstand (Vorschlag)
 

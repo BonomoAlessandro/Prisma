@@ -851,21 +851,23 @@ test('Jedes Level hat genau eine Lösung, die notierte', () => {
   assert.deepEqual(falsch.map(l => l.name), []);
 });
 test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*, gelöste Level nach Namen, der zuletzt '
-  + 'gespielte Grad; unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel liest das Spiel nicht',
+  + 'gespielte Grad; unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel liest das Spiel nicht; '
+  + 'Bestwerte je Level (Ticket 06) je für sich, überleben «Von vorn»',
 () => {
   // progress aus index.html mit einer Attrappe von localStorage
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const von = html.indexOf('const progress = {'), bis = html.indexOf('\n};', von) + 3;
   const speicher = new Map();
-  const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)) };
+  const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),
+    removeItem: k => speicher.delete(k) };
   const progress = new Function('localStorage', 'STORY_LEVELS', `${html.slice(von, bis)}\nreturn progress;`)(
     localStorage, L.STORY_LEVELS);
   // neu: von vorn
   assert.deepEqual(progress.load('sehr schwer', 60), { platz: 0, geloest: [], gesehen: [], geschafft: false });
   assert.equal(progress.last(), null);
-  // je Grad für sich, unter seinem Schlüssel; weitere Felder (etwa Bestwerte, Ticket 06) bleiben
+  // je Grad für sich, unter seinem Schlüssel; weitere Felder (etwa gespielt, Ticket 05) bleiben
   const stand = { platz: 12, geloest: ['Kastor', 'Mira'], gesehen: ['prolog', 'wald', 'meer'], geschafft: false,
-    bestwerte: { Kastor: { zeit: 31, drehungen: 9 } } };
+    gespielt: 1761800000000 };
   progress.save('sehr schwer', stand);
   progress.setLast('sehr schwer');
   assert.deepEqual([...speicher.keys()].sort(), ['prisma.noa.sehr-schwer', 'prisma.noa.zuletzt']);
@@ -880,6 +882,39 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
   assert.deepEqual(progress.load('mittel', 60), { platz: 0, geloest: ['Kastor'], gesehen: [], geschafft: false });
   speicher.set('prisma.noa.zuletzt', 'mittelschwer');
   assert.equal(progress.last(), null);
+  // Bestwerte (Ticket 06, Entscheide 24 und 27): je Grad unter prisma.noa.<grad>.bestwerte, Zeit in ganzen Sekunden,
+  // Bestzeit und wenigste Drehungen je für sich; gemeldet nur eine Verbesserung eines schon vorhandenen Werts
+  assert.deepEqual(progress.best('sehr schwer'), {});
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 31.9, turns: 9 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'erstes Lösen: keine Meldung');
+  assert.equal(speicher.get('prisma.noa.sehr-schwer.bestwerte'), '{"Kastor":{"zeit":31,"drehungen":9}}');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 31.2, turns: 9 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'gleiche Werte (in ganzen Sekunden): keine Meldung');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 40, turns: 7 }),
+    { neueBestzeit: false, wenigerDrehungen: true }, 'nur weniger Drehungen');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 25.5, turns: 12 }),
+    { neueBestzeit: true, wenigerDrehungen: false }, 'nur schneller');
+  assert.deepEqual(progress.best('sehr schwer'), { Kastor: { zeit: 25, drehungen: 7 } }, 'je für sich aus zwei Läufen');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 3, turns: 2 }),
+    { neueBestzeit: true, wenigerDrehungen: true }, 'beides besser');
+  assert.deepEqual(progress.best('mittel'), {}, 'ein anderer Grad');
+  // «Von vorn» (remove) löscht nur den Stand, die Bestwerte bleiben (Entscheid 27)
+  progress.remove('sehr schwer');
+  assert.equal(speicher.has('prisma.noa.sehr-schwer'), false);
+  assert.deepEqual(progress.best('sehr schwer'), { Kastor: { zeit: 3, drehungen: 2 } });
+  // unlesbar: keine; kaputte Einträge fallen weg, gültige Teile bleiben
+  speicher.set('prisma.noa.mittel.bestwerte', '{kaputt');
+  assert.deepEqual(progress.best('mittel'), {});
+  speicher.set('prisma.noa.mittel.bestwerte', JSON.stringify([1, 2]));
+  assert.deepEqual(progress.best('mittel'), {});
+  speicher.set('prisma.noa.mittel.bestwerte', JSON.stringify({ Mira: { zeit: -1, drehungen: 4 }, Wega: null,
+    Atlas: { zeit: '12', drehungen: 1.5 }, Rigel: { zeit: Infinity }, Deneb: 'schnell',
+    Vega: { zeit: 0, drehungen: 0 } }));
+  assert.deepEqual(progress.best('mittel'), { Mira: { drehungen: 4 }, Atlas: { drehungen: 1.5 },
+    Vega: { zeit: 0, drehungen: 0 } });
+  assert.deepEqual(progress.noteBest('mittel', 'Mira', { seconds: 50, turns: 5 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'Zeit fehlte: keine Meldung');
+  assert.deepEqual(progress.best('mittel').Mira, { zeit: 50, drehungen: 4 });
   // die alten Schlüssel stehen im Spiel nirgends mehr als Text im Code (nur noch im Kommentar)
   const alt = ['prisma.solvedLevels', 'prisma.current', 'prisma.sky', 'prisma.signal', 'prisma.signal.seen'];
   const spiel = html.slice(html.indexOf('/* LOGIC:END'));

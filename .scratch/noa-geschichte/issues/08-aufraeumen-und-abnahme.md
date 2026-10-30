@@ -38,3 +38,8 @@ hoch 206 ms), vermutlich das erste Zeichnen des Leucht-Filters der Wege (`feGaus
 Menü» auf dem Handy (121 ms). Vorwärmen, solange der Startbildschirm steht. Ebenso die Prolog-Bühne beim ersten
 Zeichnen (Desktop 103–151 ms, Handy bis 249 ms) und sporadisch Epilog → Menü (einmal 248 ms). Während Reise und Finale
 sind «Menü» und «Neu starten» sichtbar, wirken aber nicht – ausblenden oder sichtbar sperren.
+
+**Aus dem Review von Ticket 06 (30.10.2026):** In der Übersicht wirken Pfeile/Pos1/Ende nicht, solange «Schliessen»
+den Fokus hat; Hinweis zur gesperrten Kachel auf dem Desktop näher an die Kachel; «Schliessen» auf 44 px; erstes
+Zeichnen einer frisch geladenen Skybox (Reise, Weltgrenze) kostet 50–120 ms; auf kleinen Handys hoch (unter 700 px)
+zeigt das Menü die Aktion der Karte nicht; Begriffe «Wiederholen» und «Bestwerte» ins Glossar.

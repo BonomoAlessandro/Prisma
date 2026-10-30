@@ -65,7 +65,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     nichts), 150 Level nach dem Tutorial und dazu die des Ausbaus; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
     Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Speicherstand von Noas Geschichte je Grad unter
     `prisma.noa.*` (gelöste Level nach Namen, unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel
-    liest das Spiel nicht mehr; Ticket 04, statt des alten Fortschritts). Zum Austausch (Tickets
+    liest das Spiel nicht mehr; Ticket 04, statt des alten Fortschritts), dazu die Bestwerte je Level unter
+    `prisma.noa.<grad>.bestwerte` (Bestzeit und wenigste Drehungen je für sich, gemeldet nur eine Verbesserung eines
+    vorhandenen Werts, Kaputtes fällt weg, «Von vorn» lässt sie stehen; Ticket 06). Zum Austausch (Tickets
     23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
     nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
     Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
@@ -131,14 +133,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`STORY_LEVELS`) ist die Reise aus `wahl.json`; `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien
     der Texte ein Level der Wahl aus dem Vorrat zurück und ein anderes hin (ohne Titel), byte-gleich.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
-    [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start]` spielt Noas Geschichte in
-    Headless-Chrome über das Menü (Tickets 04 und 05; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
+    [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht]` spielt Noas Geschichte
+    in Headless-Chrome über das Menü (Tickets 04 bis 06; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
     die Sperre hat): je Grad ein Durchgang durch die ersten Welten (Karte im Menü, Prolog, Einstieg, je 10 Level,
     Reise), danach Neuladen und «Weiter» am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis
     «Zum Menü», dann ohne Neuladen ins Menü (geschafft, der nächstschwerere hervorgehoben, «Weiter» zu einem anderen
     begonnenen Grad) und in den hervorgehobenen Grad; `--menue` das Menü im Ablauf (Stand je Grad, «Weiter», «Menü» im
     Spiel und zurück ins selbe Level, Esc, Wechsel in einen Grad in einer anderen Welt, «Von vorn» mit Rückfrage, ein
-    neuer Grad aus dem Spiel heraus), auf dem Desktop dazu ein gehaltenes Enter am Startbildschirm (`--start` allein).
+    neuer Grad aus dem Spiel heraus), auf dem Desktop dazu ein gehaltenes Enter am Startbildschirm (`--start` allein);
+    `--uebersicht` die Übersicht und das Wiederholen (etwa 4 min: aus dem Spiel mit Knopf und L und zurück ins selbe
+    Level, Tasten darunter, Wiederholen in einer anderen Welt ohne Zwischenszene, «Neue Bestzeit · Weniger
+    Drehungen», «Weiter» über eine Weltgrenze, wo nur der Himmel blendet, zurück in den normalen Ablauf beim ersten
+    ungelösten Level, aus dem Menü die Übersicht eines geschafften Grads bis zum letzten Level und «Zur Übersicht»,
+    «Von vorn» lässt die Bestwerte stehen; auf dem Handy Wischen, Stationen und Pfeile; auf dem Desktop dazu die Reise
+    nach dem Wiederholen).
     `--handy` 390 × 844, `--quer` 844 × 390, beide mit Touch (`Input.dispatchTouchEvent`),
     sonst 1440 × 900 mit der Maus. Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
     die Probe in `localStorage`. Sie prüft Kopfzeile, Speicherstand, Menü und Konsole, dass das Menü nach der Wahl
@@ -160,11 +168,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Testschnittstelle (`__prismaDebug.zeige(index)`, ausserhalb der Geschichte), die Probe der Bedienung das erste
     Tutorial-Level.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
-  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Menü. Tasten: R neu starten, M Ton, Esc Menü (im Menü,
-  das aus dem Spiel kam, zurück), Enter weiter (nach dem Lösen), F Leistungsanzeige; im Menü Tab, Pfeile, Pos1/Ende
-  und Enter; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
-  Hintergrund wählt die Geschichte (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Die Levelauswahl, der
-  Hintergrund-Knopf und die Tasten N, P, H und L sind mit Ticket 04 weggefallen.
+  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Übersicht (nur in einem Level der Geschichte), Menü.
+  Tasten: R neu starten, M Ton, Esc Menü (im Menü, das aus dem Spiel kam, zurück), L Übersicht (in der Übersicht
+  schliesst L sie wieder), Enter weiter (nach dem Lösen), F Leistungsanzeige; im Menü Tab, Pfeile, Pos1/Ende und
+  Enter; in der Übersicht Pfeile (auch über die Grenze einer Welt), Pos1/Ende (mit Strg: der ganze Grad), Bild↑/↓,
+  Tab, Enter und Esc; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
+  Hintergrund wählt die Geschichte (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Der Hintergrund-Knopf
+  und die Tasten N, P und H sind mit Ticket 04 weggefallen, die Levelauswahl ersetzt die Übersicht (Ticket 06).
 - **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`), seit
   Noas Geschichte (Ticket 04) alle im Vorrat (`tools/vorrat/wuerfel.js`, zurückzuholen mit `tools/vorrat.mjs`). Jedes
   Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und wirkt in der Ebene senkrecht dazu wie im
@@ -179,18 +189,28 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Tickets 04 und 05): Startbildschirm (Klick startet und schaltet den Ton frei), dann das Menü «Lichtwege zum
   Polarstern» (`createMenu`): je Grad sein Stand («Wüste · 23 / 60», «noch nicht begonnen», geschafft mit dem
   Polarstern), «Weiter» zum zuletzt gespielten unter den begonnenen, nicht geschafften Graden, «Von vorn» mit
-  Rückfrage (löscht nur diesen Grad); hinter dem Menü schaut die Kamera in den Himmel. Je Grad ein Durchgang: Prolog
+  Rückfrage (löscht nur den Stand dieses Grads, seine Bestwerte bleiben), ein geschaffter Grad öffnet seine Übersicht;
+  hinter dem Menü schaut die Kamera in den Himmel. Je Grad ein Durchgang: Prolog
   im Dorf, dann 6 Welten (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) zu je 10 Leveln, beim ersten Betreten einer
   Welt ein Einstieg, zwischen den Welten die Reise des Lichts, nach der letzten Welt Finale und Epilog, am Ende «Zum
   Menü» (ohne Neuladen; der geschaffte Grad markiert, der nächstschwerere hervorgehoben). Im Spiel führt «Menü» (Esc)
   ins Menü, der Stand bleibt. Prolog und Einstiege kommen je Grad nur beim ersten Mal; der Prolog lässt sich
-  überspringen. Die Level je Grad und Welt stehen im Datenblock `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben
-  von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter `prisma.noa.<grad>` (`sehr schwer` als
-  `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene Momente, geschafft, `gespielt`: Zeit des
-  letzten Speicherns für «Weiter») und der zuletzt gewählte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort
-  fort. Die alten Schlüssel (`prisma.solvedLevels`, `prisma.current`, `prisma.sky`, `prisma.signal`,
-  `prisma.signal.seen`) liest das Spiel nicht mehr. Das Tutorial steht im Spiel, kommt im Ablauf aber erst mit dem
-  Kapitel «Im Dorf» (Ticket 07).
+  überspringen. Die Übersicht des Grads (Ticket 06, `createUebersicht`; im Spiel «Übersicht» oder L, Blick in den
+  Himmel wie beim Menü) zeigt je Welt 10 Kacheln (gelöst mit Bestzeit und wenigsten Drehungen, das nächste ungelöste
+  offen, spätere gesperrt) und die Summe der Bestzeiten; auf dem Desktop alle Welten untereinander, auf Handy und
+  Tablet eine je Seite (Stationen, Pfeile, Wischen über die Kacheln). Ein gelöstes Level läuft dort als Wiederholen:
+  ohne Einstieg, Reise und Untertitel, «Weiter» zum nächsten Level der Reihe, beim Wechsel der Welt blendet nur der
+  Himmel; beim nächsten ungelösten Level gilt wieder der normale Ablauf, nach dem letzten eines geschafften Grads
+  kommt die Übersicht. Der Platz im Speicherstand fällt dabei nie zurück, und das Wiederholen eines geschafften Grads
+  ändert den zuletzt gespielten Grad nicht. Eine neue Bestmarke meldet das Feld «Gelöst» («Neue Bestzeit», «Weniger
+  Drehungen»), aber nur, wenn es schon einen Wert gab. Die Level je Grad und Welt stehen im Datenblock
+  `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter
+  `prisma.noa.<grad>` (`sehr schwer` als `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene
+  Momente, geschafft, `gespielt`: Zeit des letzten Speicherns für «Weiter»), die Bestwerte je Level unter
+  `prisma.noa.<grad>.bestwerte` (Zeit in ganzen Sekunden, überleben «Von vorn», Entscheid 27) und der zuletzt
+  gewählte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort fort. Die alten Schlüssel (`prisma.solvedLevels`,
+  `prisma.current`, `prisma.sky`, `prisma.signal`, `prisma.signal.seen`) liest das Spiel nicht mehr. Das Tutorial
+  steht im Spiel, kommt im Ablauf aber erst mit dem Kapitel «Im Dorf» (Ticket 07).
   Kopfzeile nach Entscheid 20: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter Grad,
   Kapitel und Level («●○○○ Leicht · Kapitel 2 / 6 · Level 1 / 10») und die Bedienung. Sie zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
@@ -202,7 +222,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   einen Hintergrund statt dem der Welt (Tests). Testschnittstelle für Werkzeuge und Proben (`__prismaDebug`, das Spiel
   ruft sie nie auf): `zeige(index)` zeigt ein Level ausserhalb der Geschichte (ohne Speicherstand), `loese()` löst das
   laufende Level Drehung für Drehung, `menu` ist das Menü (`story.choose(grad)` wählt einen Grad, solange es offen
-  ist), `settle(s)` spult mit `?t=` vor.
+  ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
   60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
@@ -705,7 +725,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   hochkant in einer eigenen Zeile darunter). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil
   Rot, Grün und Blau Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den
   Grad als Text. Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl (Seiten zu 10, Fläche und
-  Würfel) ist mit Ticket 04 weggefallen; die Übersicht des Grads folgt in Ticket 06.
+  Würfel) ist mit Ticket 04 weggefallen; an ihrer Stelle steht seit Ticket 06 die Übersicht des Grads.
   Wichtig: Der Levelname (`name`) ist der stabile Schlüssel jedes Levels (Speicherstand, Werkzeuge, Protokoll der
   KI-Tester, Golden-Test); angezeigt wird `titel ?? name`. Gelöste Level speichert das Spiel nach Namen (geprüft in
   `tests/levelliste.test.mjs`). Die Namen der 150 wurden einst der Position nach vergeben (bis Ticket 21 in

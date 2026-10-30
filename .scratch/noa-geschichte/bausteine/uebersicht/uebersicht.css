@@ -27,6 +27,8 @@
   -webkit-tap-highlight-color: transparent;
 }
 .ueb.ueb-zu { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0s 0.4s; }
+/* einmal unsichtbar zeichnen (vorwaermen): fast durchsichtig, aber gezeichnet */
+.ueb.ueb-zu.ueb-vorwaermen { opacity: 0.002; visibility: visible; transition: none; }
 :where(.ueb) button { /* Grundform ohne Gewicht: die Klassen unten setzen Rand und Fläche */
   font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
   cursor: pointer; text-align: inherit; -webkit-tap-highlight-color: transparent;
@@ -117,6 +119,8 @@
 /* gesperrt: sichtbar, aber zurückgenommen; gestrichelter Rand und Schloss, nicht nur die Farbe */
 .ueb-gesperrt { border-style: dashed; border-color: rgba(232, 230, 240, 0.2); background: rgba(6, 6, 14, 0.74); cursor: default; }
 .ueb-gesperrt .ueb-nr, .ueb-gesperrt .ueb-name, .ueb-gesperrt .ueb-unten { color: var(--ueb-blass); }
+/* frei (Übungen «Im Dorf» nach «Überspringen», daten.dorf.frei): spielbar wie das offene, ohne dessen Hof */
+.ueb-frei .ueb-los { color: var(--ueb-dim); }
 /* das laufende Level (aus dem Spiel geöffnet) */
 .ueb-kachel[aria-current="true"]:not(.ueb-offen) { border-color: #fff; }
 

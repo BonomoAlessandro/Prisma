@@ -143,6 +143,7 @@
     transition: color 0.25s ease, background-color 0.25s ease;
   }
   #controls button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+  #controls button[hidden] { display: none; } /* «Übersicht» nur in einem Level der Geschichte */
   #controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
   #btn-sound .off { display: none; }
   #btn-sound.muted .on { display: none; }
@@ -182,12 +183,26 @@
     transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
   }
   #solved button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+  /* neue Bestmarke (Entscheid 24, Ticket 06): hell unter der Meldung («Neue Bestzeit · Weniger Drehungen»), die Zahl
+     dazu leuchtet einmal auf. Nur, wenn es schon einen Wert gab (story.markSolved). «> .best»: nicht die Zahl .num.best
+     (sonst bekäme sie Einzug und Sperrung der Meldung) */
+  #solved > .best {
+    margin-top: -8px; font-size: 10px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase;
+    color: #fff; text-shadow: 0 0 10px rgba(170, 180, 255, 0.9), 0 0 3px rgba(3, 3, 8, 0.9);
+  }
+  #solved > .best:empty { display: none; }
+  #solved .stats .num.best {
+    text-shadow: 0 0 10px rgba(170, 180, 255, 0.75), 0 0 12px rgba(3, 3, 8, 0.9); animation: solved-best 1.8s ease-out;
+  }
+  @keyframes solved-best { from { color: #fff; text-shadow: 0 0 14px #fff, 0 0 30px rgba(170, 180, 255, 0.95); } }
+  @media (prefers-reduced-motion: reduce) { #solved .stats .num.best { animation: none; } }
 
   @media (max-height: 500px) { /* Handy quer: Schaltflächen und Meldung an den Rand (nach den Grundregeln) */
     #controls { flex-direction: column; bottom: auto; top: 50%; transform: translateY(-50%); }
     /* Meldung ersetzt oben die Kopfzeile, in einer Zeile – dort ist der Platz ohnehin frei */
     #solved { top: max(4px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; justify-content: center; gap: 18px; }
     #solved .msg { font-size: 11px; letter-spacing: 0.35em; padding-left: 0.35em; }
+    #solved > .best { margin-top: 0; font-size: 9px; letter-spacing: 0.25em; padding-left: 0.25em; } /* in der Zeile */
     #solved .stats { margin-top: 0; gap: 18px; }
     #solved .stats .num { font-size: 16px; }
     #solved .stats .unit { letter-spacing: 0.2em; }
@@ -637,7 +652,12 @@
     .menue-name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
     .menue-stand { font-size: 11.5px; }
     .menue-stand .menue-stern { width: 20px; height: 20px; }
-    .menue-aktion { display: none; } /* die Zeile selbst ist der Knopf */
+    /* die Aktion klein hinter dem Stand, in derselben Zeile (Ticket 06: ohne sie sah man nicht, wohin eine Karte führt,
+       etwa «Übersicht» beim geschafften Grad); Abweichung vom Baustein, der sie hier ausblendet */
+    .menue-wahl { flex-flow: row wrap; justify-content: flex-end; align-items: center; column-gap: 10px; }
+    .menue-zeile1 { flex: 0 0 100%; justify-content: flex-end; }
+    .menue-aktion { gap: 4px; font-size: 8px; letter-spacing: 0.26em; margin-right: -0.26em; }
+    .menue-aktion .menue-ico { font-size: 10px; }
     /* «Von vorn» als Ziel für den Finger so hoch, wie es geht, bis 40 px: Mit vier Graden mit «Von vorn» (je 44 px
        Karte darüber) füllen sie bei 390 px Höhe die Liste genau, auf niedrigeren Handys bleibt es kleiner (ohne dvh 28) */
     .menue-vonvorn {
@@ -650,6 +670,330 @@
     .menue-frage-box { padding: 20px 22px 18px; }
     .menue-frage-titel { margin-bottom: 10px; }
     .menue-frage-text { margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+  }
+
+  /* ---------- Übersicht des Grads (Ticket 06): Welten mit je 10 Kacheln, Bestwerte, Wiederholen ----------
+     Baustein aus .scratch/noa-geschichte/bausteine/uebersicht/ (createUebersicht, LIESMICH.md). Alles unter .ueb und
+     mit dem Präfix ueb-. Schrift, Farben und Knöpfe wie im Spiel (:root, #solved button, .tier .pips, #story .path) und
+     im Menü «Lichtwege zum Polarstern»: Nachthimmel, Licht, Welten als Stationen. data-modus="alle": alle Welten
+     untereinander (Desktop); "seiten": eine Welt je Seite. Beim Einbau dazu (auch im Baustein): die freien Übungen
+     «Im Dorf» (.ueb-frei, Ticket 07); nur im Spiel: Ebene 7 statt 6 (über dem ausblendenden Menü). */
+  .ueb {
+    --ueb-ink: var(--ink, #e8e6f0);
+    --ueb-dim: rgba(232, 230, 240, 0.64);
+    --ueb-blass: rgba(232, 230, 240, 0.42);
+    --ueb-faint: rgba(232, 230, 240, 0.16);
+    --ueb-rand: rgba(232, 230, 240, 0.3);
+    --ueb-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel des Startbildschirms */
+    --ueb-luecke: 10px;        /* zwischen den Kacheln */
+    --ueb-rand-x: max(16px, env(safe-area-inset-left), env(safe-area-inset-right));
+    position: fixed; inset: 0; z-index: 7; /* wie das Menü, danach im Dokument: darüber, während es ausblendet */
+    display: flex; justify-content: center;
+    overflow: hidden auto;
+    color: var(--ueb-ink);
+    font-family: var(--font, "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif);
+    font-weight: 300;
+    /* abgedunkelt, zum Rand mehr: der Himmel (Menü) bzw. die Szene (Spiel) bleibt sichtbar, die Schrift lesbar */
+    background: radial-gradient(ellipse at 50% 45%, rgba(3, 3, 8, 0.68), rgba(3, 3, 8, 0.9) 92%);
+    transition: opacity 0.4s ease, visibility 0s;
+    /* waagrechtes Ziehen bekommt der Browser nicht (kein Zurück-Wischen vom Rand): über die Kacheln blättert es,
+       senkrecht scrollt es, wenn der Platz nicht reicht */
+    touch-action: pan-y;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .ueb.ueb-zu { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.4s ease, visibility 0s 0.4s; }
+  /* einmal unsichtbar zeichnen (vorwaermen): fast durchsichtig, aber gezeichnet */
+  .ueb.ueb-zu.ueb-vorwaermen { opacity: 0.002; visibility: visible; transition: none; }
+  :where(.ueb) button { /* Grundform ohne Gewicht: die Klassen unten setzen Rand und Fläche */
+    font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0;
+    cursor: pointer; text-align: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  :where(.ueb) :is(p, h2, ol) { margin: 0; }
+  /* Tastaturfokus: hell und mit Hof (1 px in --ink-dim wie sonst im Spiel ist auf dem Himmel zu schwach) */
+  .ueb :focus-visible { outline: 2px solid #fff; outline-offset: 3px; box-shadow: 0 0 18px rgba(var(--ueb-glow), 0.6); }
+  .ueb .ueb-ico {
+    width: 1em; height: 1em; flex: none;
+    fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round;
+  }
+  .ueb .ueb-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .ueb .ueb-wert { display: inline-flex; align-items: center; gap: 0.35em; white-space: nowrap; }
+  .ueb .ueb-wert .ueb-ico { opacity: 0.85; }
+
+  /* ---------- Rahmen ---------- */
+  .ueb-rahmen {
+    position: relative; box-sizing: border-box;
+    width: min(1320px, 100% - 2 * var(--ueb-rand-x));
+    min-height: 100%;
+    display: grid; align-content: start;
+  }
+
+  /* ---------- Kopf: Grad und Fortschritt ---------- */
+  .ueb-kopf { grid-area: kopf; }
+  .ueb-titel {
+    font-size: 10px; font-weight: 300; letter-spacing: 0.5em; text-transform: uppercase; color: var(--ueb-dim);
+  }
+  .ueb-grad { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; margin-top: 10px; }
+  .ueb-gradzeile { display: inline-flex; align-items: center; gap: 12px; }
+  .ueb-pips { display: inline-flex; gap: 4px; color: var(--ueb-dim); }
+  .ueb-pips i { width: 6px; height: 6px; box-sizing: border-box; border: 1px solid currentColor; border-radius: 50%; }
+  .ueb-pips i.ueb-an { background: currentColor; border-color: transparent; }
+  .ueb-gradname { font-size: 16px; letter-spacing: 0.38em; text-transform: uppercase; color: #fff; }
+  .ueb-fortschritt {
+    display: inline-flex; align-items: center; gap: 10px; font-size: 13px; letter-spacing: 0.06em;
+    font-variant-numeric: tabular-nums;
+  }
+  .ueb-trenn { color: var(--ueb-blass); }
+  .ueb-stern { width: 26px; height: 26px; margin: -6px -2px; overflow: visible; }
+  .ueb-legende { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 11px; letter-spacing: 0.06em; color: var(--ueb-dim); }
+  .ueb-legende span { display: inline-flex; align-items: center; gap: 6px; }
+  .ueb-legende .ueb-ico { font-size: 13px; }
+
+  /* ---------- Kacheln ---------- */
+  .ueb-kacheln {
+    list-style: none; padding: 0;
+    position: relative; isolation: isolate; /* der Lichtweg (z-index −1) liegt hinter den Kacheln */
+    display: grid; gap: var(--ueb-luecke);
+  }
+  .ueb-kacheln > li { display: flex; min-width: 0; }
+  .ueb-kachel {
+    position: relative; box-sizing: border-box; flex: 1; min-width: 0;
+    display: flex; flex-direction: column; justify-content: space-between; gap: 4px;
+    padding: 9px 9px 8px;
+    border: 1px solid var(--ueb-rand); border-radius: 8px;
+    background: rgba(12, 12, 28, 0.84);
+    transition: border-color 0.25s ease, background-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .ueb-nr { font-size: 12px; letter-spacing: 0.12em; color: var(--ueb-dim); font-variant-numeric: tabular-nums; line-height: 1; }
+  /* gelöst: leuchtender Punkt wie in der bisherigen Levelauswahl */
+  .ueb-punkt {
+    position: absolute; top: 11px; right: 11px; width: 5px; height: 5px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+  }
+  .ueb-name {
+    display: block; overflow: hidden;
+    font-size: 13px; line-height: 1.22; letter-spacing: 0.01em; color: var(--ueb-ink);
+    /* lange Wörter (uebersicht.js passeTitelAn): erst kleiner, dann an den Trennstellen (weiche Trennstriche im Titel),
+       zuletzt irgendwo. Ohne «eng» und «brich» trennt nichts, damit ein zu langes Wort auffällt (scrollWidth) */
+    -webkit-hyphens: none; hyphens: none; overflow-wrap: normal;
+  }
+  .ueb-name.ueb-eng { font-size: 11.5px; letter-spacing: 0; }
+  .ueb-name.ueb-brich { -webkit-hyphens: manual; hyphens: manual; overflow-wrap: anywhere; }
+  .ueb-unten {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 2px 6px;
+    min-height: 14px; font-size: 11.5px; line-height: 1; color: rgba(232, 230, 240, 0.82); font-variant-numeric: tabular-nums;
+  }
+  .ueb-unten .ueb-ico { font-size: 12px; }
+  .ueb-kachel:not(.ueb-gesperrt):hover { border-color: rgba(232, 230, 240, 0.62); background: rgba(30, 30, 56, 0.86); }
+  /* offen: das nächste Level, hell und mit Hof wie der Hauptknopf «Weiter» im Menü */
+  .ueb-offen {
+    border-color: rgba(255, 255, 255, 0.8); background: rgba(22, 22, 46, 0.9);
+    box-shadow: 0 0 22px rgba(var(--ueb-glow), 0.34), inset 0 0 14px rgba(255, 255, 255, 0.07);
+  }
+  .ueb-los { display: inline-flex; align-items: center; gap: 4px; font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; color: #fff; }
+  .ueb-los .ueb-ico { font-size: 11px; }
+  /* gesperrt: sichtbar, aber zurückgenommen; gestrichelter Rand und Schloss, nicht nur die Farbe */
+  .ueb-gesperrt { border-style: dashed; border-color: rgba(232, 230, 240, 0.2); background: rgba(6, 6, 14, 0.74); cursor: default; }
+  .ueb-gesperrt .ueb-nr, .ueb-gesperrt .ueb-name, .ueb-gesperrt .ueb-unten { color: var(--ueb-blass); }
+  /* frei (Übungen «Im Dorf» nach «Überspringen», Ticket 07): spielbar wie das offene, ohne dessen Hof */
+  .ueb-frei .ueb-los { color: var(--ueb-dim); }
+  /* das laufende Level (aus dem Spiel geöffnet) */
+  .ueb-kachel[aria-current="true"]:not(.ueb-offen) { border-color: #fff; }
+
+  /* Station einer Welt: Zeichen im Kreis wie die Stationen der Lichtwege; fertig hell, die jetzige mit Hof */
+  .ueb-station {
+    box-sizing: border-box; display: grid; place-items: center; flex: none;
+    width: 34px; height: 34px; border-radius: 50%; font-size: 18px;
+    border: 1px solid var(--ueb-faint); background: rgba(3, 3, 8, 0.75); color: var(--ueb-blass);
+  }
+  .ueb-fertig .ueb-station { border-color: rgba(255, 255, 255, 0.7); color: #fff; box-shadow: 0 0 12px rgba(var(--ueb-glow), 0.45); }
+  .ueb-jetzt .ueb-station {
+    border-color: #fff; color: #fff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.55), 0 0 26px rgba(var(--ueb-glow), 0.6);
+  }
+  .ueb-welt-name { font-size: 14px; letter-spacing: 0.34em; text-transform: uppercase; white-space: nowrap; }
+  .ueb-welt-stand {
+    display: flex; align-items: center; gap: 12px; font-size: 12px; letter-spacing: 0.05em; color: var(--ueb-dim);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- Fuss: Schliessen wie «Weiter» im Feld «Gelöst» ---------- */
+  .ueb-fuss { grid-area: fuss; display: flex; justify-content: center; }
+  .ueb-schliessen {
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    padding: 13px 26px 13px calc(26px + 0.4em);
+    border: 1px solid var(--ueb-rand); border-radius: 999px;
+    background: rgba(3, 3, 8, 0.6);
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  .ueb-schliessen:hover { border-color: var(--ueb-dim); background: rgba(40, 40, 60, 0.6); }
+  /* Hinweis (gesperrte Kachel): kurz über dem Fuss */
+  .ueb-hinweis {
+    /* links und rechts 16 px, so breit wie der Text und mittig (mit left: 50% bräche er schon ab der halben Breite um) */
+    position: fixed; left: 16px; right: 16px; bottom: max(84px, calc(env(safe-area-inset-bottom) + 76px)); z-index: 1;
+    width: fit-content; margin: 0 auto; box-sizing: border-box;
+    padding: 10px 18px; border-radius: 18px; background: rgba(10, 10, 24, 0.94); border: 1px solid var(--ueb-faint);
+    font-size: 12.5px; letter-spacing: 0.03em; text-align: center;
+    opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
+  }
+  .ueb-hinweis.ueb-da { opacity: 1; }
+
+  /* ---------- Stationen und Pfeile (nur Seiten) ---------- */
+  .ueb-stationen { grid-area: stationen; display: none; justify-content: center; align-items: center; }
+  .ueb-tab { position: relative; width: 40px; height: 46px; display: grid; place-items: start center; padding-top: 2px; border-radius: 10px; }
+  .ueb-tab .ueb-station { width: 32px; height: 32px; font-size: 17px; }
+  /* gezeigte Welt: Punkt darunter und heller Rand */
+  .ueb-tab[aria-current="true"] .ueb-station { border-color: #fff; color: #fff; background: rgba(40, 40, 70, 0.9); }
+  .ueb-tab[aria-current="true"]::after {
+    content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%;
+    background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
+  }
+  .ueb-weg { flex: 0 0 10px; height: 1px; margin-bottom: 10px; background: rgba(232, 230, 240, 0.18); }
+  .ueb-weg.ueb-an { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  .ueb-pager { grid-area: pager; display: none; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+  .ueb-schritt {
+    width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; font-size: 20px; color: var(--ueb-dim);
+    border: 1px solid var(--ueb-faint); transition: border-color 0.25s ease, opacity 0.25s ease;
+  }
+  .ueb-schritt:hover { border-color: var(--ueb-dim); color: var(--ueb-ink); }
+  .ueb-schritt:disabled { opacity: 0.25; cursor: default; }
+  .ueb-seitentitel { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
+  .ueb-seitenname { display: inline-flex; align-items: center; gap: 12px; font-size: 18px; }
+  .ueb-seitenname .ueb-welt-name { font-size: 15px; margin-right: -0.34em; }
+
+  /* ========== Alle Welten untereinander (Desktop) ========== */
+  .ueb[data-modus="alle"] .ueb-rahmen {
+    width: min(1360px, 100% - 80px);
+    height: 100%; min-height: 0; padding: max(32px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
+    grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "kopf" "fenster" "fuss"; row-gap: 22px; align-content: stretch;
+  }
+  .ueb[data-modus="alle"] .ueb-kopf { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-left: 4px; }
+  .ueb[data-modus="alle"] .ueb-fenster {
+    grid-area: fenster; display: flex; flex-direction: column; min-height: 0;
+    overflow: hidden auto; padding: 6px; margin: -6px; /* Platz für den Fokusrahmen */
+    scrollbar-width: thin; scrollbar-color: rgba(232, 230, 240, 0.3) transparent;
+  }
+  .ueb[data-modus="alle"] .ueb-spur { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .ueb[data-modus="alle"] .ueb-welt {
+    /* füllt die Höhe bis 108 px, nie kleiner als ihr Inhalt (sonst lägen die Reihen übereinander); reicht die Höhe nicht,
+       scrollt das Fenster */
+    flex: 1 1 0; max-height: 108px;
+    display: grid; grid-template-columns: 176px minmax(0, 1fr); column-gap: 22px;
+  }
+  .ueb[data-modus="alle"] .ueb-welt-kopf { display: flex; align-items: center; justify-content: flex-end; gap: 14px; text-align: right; }
+  .ueb[data-modus="alle"] .ueb-welt-text { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+  .ueb[data-modus="alle"] .ueb-welt-name { margin-right: -0.34em; }
+  .ueb[data-modus="alle"] .ueb-spaeter .ueb-welt-name { color: var(--ueb-dim); }
+  .ueb[data-modus="alle"] .ueb-kacheln { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  /* Lichtweg durch die Reihe: von der Station bis zur offenen Kachel hell, danach fein gestrichelt */
+  .ueb[data-modus="alle"] .ueb-kacheln::before, .ueb[data-modus="alle"] .ueb-kacheln::after {
+    content: ""; position: absolute; z-index: -1; left: -22px; pointer-events: none;
+  }
+  /* --ueb-rest: freie Plätze am Ende der Reihe («Im Dorf» hat 9 Übungen), dort endet der Weg */
+  .ueb[data-modus="alle"] .ueb-kacheln::before {
+    top: 50%; right: calc((100% - 9 * var(--ueb-luecke)) / 10 * var(--ueb-rest, 0) + var(--ueb-luecke) * var(--ueb-rest, 0));
+    border-top: 1px dashed rgba(232, 230, 240, 0.26);
+  }
+  .ueb[data-modus="alle"] .ueb-kacheln::after {
+    top: calc(50% - 0.75px); height: 1.5px; width: max(0px, calc(22px + var(--ueb-licht)));
+    background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.85), 0 0 16px rgba(var(--ueb-glow), 0.7);
+  }
+  .ueb[data-modus="alle"] .ueb-unten { gap: 2px 4px; }
+  .ueb[data-modus="alle"] .ueb-unten .ueb-wert { gap: 0.25em; }
+  .ueb[data-modus="alle"] .ueb-fuss { position: relative; }
+  .ueb[data-modus="alle"] .ueb-hinweis { bottom: 88px; }
+  /* schmalerer Desktop (Laptop): Namen der Welten enger, mehr Platz für die Kacheln */
+  @media (max-width: 1360px) {
+    .ueb[data-modus="alle"] .ueb-welt { grid-template-columns: 150px minmax(0, 1fr); }
+    .ueb[data-modus="alle"] .ueb-welt-name { font-size: 13px; letter-spacing: 0.28em; margin-right: -0.28em; }
+  }
+  /* niedriger Desktop (Laptop, 1536 × 730 bei 125 %): Kopf in einer Zeile, «Schliessen» oben rechts, Reihen enger */
+  @media (max-height: 820px) {
+    .ueb[data-modus="alle"] .ueb-rahmen {
+      padding: max(16px, env(safe-area-inset-top)) 0 max(14px, env(safe-area-inset-bottom)); row-gap: 14px;
+      grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
+      grid-template-areas: "kopf fuss" "fenster fenster";
+    }
+    .ueb[data-modus="alle"] .ueb-kopf { align-items: center; }
+    .ueb[data-modus="alle"] .ueb-kopftext { display: flex; align-items: baseline; gap: 28px; }
+    .ueb[data-modus="alle"] .ueb-grad { margin-top: 0; }
+    .ueb[data-modus="alle"] .ueb-fuss { margin-left: 28px; }
+    .ueb[data-modus="alle"] .ueb-schliessen { padding: 10px 18px 10px calc(18px + 0.4em); }
+    .ueb[data-modus="alle"] .ueb-spur { gap: 10px; }
+    .ueb[data-modus="alle"] .ueb-welt-text { gap: 5px; }
+    .ueb[data-modus="alle"] .ueb-kachel { padding: 7px 8px 6px; gap: 2px; }
+    .ueb[data-modus="alle"] .ueb-hinweis { bottom: 24px; }
+  }
+
+  /* ========== Eine Welt je Seite (Handy, Tablet, kleines Fenster) ========== */
+  .ueb[data-modus="seiten"] .ueb-rahmen {
+    width: min(780px, 100% - 2 * var(--ueb-rand-x));
+    padding: max(22px, env(safe-area-inset-top)) 0 max(22px, env(safe-area-inset-bottom));
+    grid-template-rows: auto auto auto auto auto; grid-template-areas: "kopf" "stationen" "pager" "fenster" "fuss";
+    row-gap: 16px; align-content: center;
+  }
+  .ueb[data-modus="seiten"] .ueb-kopf { display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .ueb[data-modus="seiten"] .ueb-grad { justify-content: center; }
+  .ueb[data-modus="seiten"] .ueb-legende { justify-content: center; margin-top: 12px; }
+  .ueb[data-modus="seiten"] .ueb-stationen { display: flex; }
+  .ueb[data-modus="seiten"] .ueb-pager { display: grid; }
+  .ueb[data-modus="seiten"] .ueb-welt-kopf { display: none; } /* der Pager zeigt die Welt */
+  /* Fenster: Kacheln und Nachbarwelt fahren gemeinsam; der Rand lässt Platz für den Fokusrahmen. clip statt hidden:
+     kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite */
+  .ueb[data-modus="seiten"] .ueb-fenster { grid-area: fenster; overflow: hidden; overflow: clip; padding: 6px; margin: -6px; }
+  .ueb[data-modus="seiten"] .ueb-spur { display: flex; align-items: flex-start; gap: 32px; }
+  .ueb[data-modus="seiten"] .ueb-welt { flex: 0 0 100%; min-width: 0; }
+  .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .ueb[data-modus="seiten"] .ueb-kachel { min-height: 112px; padding: 10px 11px 9px; }
+  .ueb[data-modus="seiten"] .ueb-fuss { margin-top: 10px; }
+  .ueb[data-modus="seiten"] .ueb-name { font-size: 15px; }
+  .ueb[data-modus="seiten"] .ueb-name.ueb-eng { font-size: 12.5px; }
+  .ueb[data-modus="seiten"] .ueb-unten { font-size: 12.5px; }
+  .ueb[data-modus="seiten"] .ueb-unten .ueb-ico { font-size: 13px; }
+
+  /* Handy hochkant: zwei Spalten, fünf Reihen; die Kacheln breit genug für Titel und beide Werte */
+  @media (max-width: 560px) {
+    .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 90px; }
+    .ueb[data-modus="seiten"] .ueb-rahmen { row-gap: 14px; }
+    .ueb[data-modus="seiten"] .ueb-legende { font-size: 10.5px; gap: 4px 14px; }
+  }
+  @media (max-width: 380px) { /* schmale Handys: Stationen enger */
+    .ueb-tab { width: 36px; }
+    .ueb-tab .ueb-station { width: 30px; height: 30px; font-size: 16px; }
+    .ueb-weg { flex-basis: 6px; }
+  }
+
+  /* Handy quer: Kopf, Stationen und Schliessen in einer Zeile, darunter die Welt und zwei Reihen zu fünf Kacheln */
+  @media (max-height: 500px) {
+    .ueb[data-modus="seiten"] .ueb-rahmen {
+      width: min(820px, 100% - 2 * var(--ueb-rand-x));
+      padding: max(8px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
+      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto auto auto;
+      grid-template-areas: "kopf stationen fuss" "pager pager pager" "fenster fenster fenster";
+      row-gap: 6px; column-gap: 12px; align-items: center;
+    }
+    .ueb[data-modus="seiten"] .ueb-kopf { align-items: flex-start; text-align: left; }
+    .ueb[data-modus="seiten"] .ueb-titel { display: none; }
+    .ueb[data-modus="seiten"] .ueb-grad { justify-content: flex-start; margin-top: 0; gap: 4px 12px; }
+    .ueb[data-modus="seiten"] .ueb-gradname { font-size: 12.5px; letter-spacing: 0.24em; }
+    .ueb[data-modus="seiten"] .ueb-tab { width: 36px; }
+    .ueb[data-modus="seiten"] .ueb-weg { flex-basis: 8px; }
+    .ueb[data-modus="seiten"] .ueb-fortschritt { font-size: 12px; gap: 8px; }
+    .ueb[data-modus="seiten"] .ueb-legende { display: none; }
+    .ueb[data-modus="seiten"] .ueb-fuss { justify-content: flex-end; }
+    .ueb[data-modus="seiten"] .ueb-schliessen { padding: 10px 16px 10px calc(16px + 0.4em); }
+    .ueb[data-modus="seiten"] .ueb-pager { grid-template-columns: 40px minmax(0, 1fr) 40px; }
+    .ueb[data-modus="seiten"] .ueb-schritt { width: 40px; height: 36px; border-radius: 18px; }
+    .ueb[data-modus="seiten"] .ueb-seitentitel { flex-direction: row; justify-content: center; gap: 18px; }
+    .ueb[data-modus="seiten"] .ueb-seitenname { font-size: 16px; gap: 10px; }
+    .ueb[data-modus="seiten"] .ueb-seitenname .ueb-welt-name { font-size: 13px; }
+    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 0; height: clamp(76px, calc((100vh - 128px) / 2), 116px); }
+    .ueb[data-modus="seiten"] .ueb-hinweis { bottom: max(12px, env(safe-area-inset-bottom)); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ueb, .ueb.ueb-zu, .ueb-kachel, .ueb-hinweis { transition-duration: 0.01s; }
   }
 
   #perf {
@@ -675,6 +1019,9 @@
   <button id="btn-sound" title="Ton an/aus (M)" aria-label="Ton aus" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13l-4.5-4H4z"/><path class="on" d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
   </button>
+  <button id="btn-overview" title="Übersicht (L)" aria-label="Übersicht" hidden>
+    <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="14" y="4.5" width="5.5" height="5.5" rx="1"/><rect x="4.5" y="14" width="5.5" height="5.5" rx="1"/><rect x="14" y="14" width="5.5" height="5.5" rx="1"/></svg>
+  </button>
   <button id="btn-menu" title="Menü (Esc)" aria-label="Menü">
     <svg viewBox="0 0 24 24"><path d="M5 7.5h14M5 12h14M5 16.5h14"/></svg>
   </button>
@@ -682,6 +1029,7 @@
 
 <div id="solved" class="hidden" inert aria-live="polite">
   <div class="msg" id="solved-msg">Level gelöst</div>
+  <div class="best" id="solved-best"></div>
   <div class="stats" id="solved-stats"></div>
   <button id="btn-next">Weiter</button>
 </div>
@@ -696,6 +1044,7 @@
 </div>
 
 <div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
+<div id="uebersicht"></div> <!-- Übersicht des Grads (createUebersicht füllt sie) -->
 
 <div id="intro">
   <div class="stage">
@@ -14988,6 +15337,7 @@ const flow = {
   t: 0,           // Zeit seit Beginn des aktuellen Übergangs
   next: 0,        // Ziel-Level beim Versinken
   solved: false,  // Lösungsmoment für das aktuelle Feld schon ausgelöst
+  record: null,   // neue Bestmarke beim Lösen ({ neueBestzeit, wenigerDrehungen }, story.markSolved) für «Gelöst»
 };
 const waveDelay = (el) => (el.x + el.z + (el.y || 0)) * FLOW.wave; // Würfel: die Welle steigt auch nach oben
 /** Dauer der Welle über ein Feld (Level oder Board; Würfel: drei Achsen, in der Höhe so viele Ebenen wie height). */
@@ -14999,8 +15349,9 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
  * (Leerzeichen als Bindestrich: prisma.noa.sehr-schwer) ein JSON { platz, geloest, gesehen, geschafft }. platz: das
  * Level, das dran ist (0 … 59 in der Reise des Grads); geloest: die gelösten Level (Namen, nicht Plätze); gesehen: die
  * Momente, die nur beim ersten Mal kommen (prolog und die Einstiege in die Welten unter der Kennung ihrer Station, etwa
- * meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten (Bestwerte je Level in
- * Ticket 06, das Tutorial in Ticket 07). Dazu der zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel
+ * meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten (gespielt, das Tutorial in
+ * Ticket 07). Die Bestwerte je Level liegen daneben unter prisma.noa.<grad>.bestwerte (best, noteBest), damit sie
+ * «Von vorn» überleben (Entscheid 27). Dazu der zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel
  * (prisma.solvedLevels, prisma.current, prisma.sky, prisma.signal, prisma.signal.seen) liest das Spiel nicht mehr und
  * löscht sie nicht.
  */
@@ -15019,8 +15370,42 @@ const progress = {
     return { ...s, platz, geloest: namen(s.geloest), gesehen: namen(s.gesehen), geschafft: s.geschafft === true };
   },
   save(grad, stand) { this.write(this.keyOf(grad), JSON.stringify(stand)); },
-  /** «Von vorn» im Menü: den Stand nur dieses Grads löschen (Entscheid 19); der zuletzt gespielte Grad bleibt. */
+  /**
+   * «Von vorn» im Menü: den Stand nur dieses Grads löschen (Entscheid 19); der zuletzt gespielte Grad und die
+   * Bestwerte bleiben (Entscheid 27).
+   */
   remove(grad) { try { localStorage.removeItem(this.keyOf(grad)); } catch { /* privates Fenster o. Ä. */ } },
+  bestKeyOf(grad) { return `${this.keyOf(grad)}.bestwerte`; },
+  /**
+   * Bestwerte eines Grads (Entscheid 24): je Level (Name) { zeit, drehungen }, zeit in ganzen Sekunden, beide je für
+   * sich, auch aus verschiedenen Läufen. Was keine endliche Zahl ≥ 0 ist, fällt weg; unlesbar: keine.
+   */
+  best(grad) {
+    let s = null;
+    try { s = JSON.parse(this.read(this.bestKeyOf(grad)) || 'null'); } catch { /* keine */ }
+    const gut = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0, alle = {};
+    if (!s || typeof s !== 'object' || Array.isArray(s)) return alle;
+    for (const [name, w] of Object.entries(s)) {
+      const e = {};
+      if (gut(w?.zeit)) e.zeit = w.zeit;
+      if (gut(w?.drehungen)) e.drehungen = w.drehungen;
+      if (Object.keys(e).length) alle[name] = e;
+    }
+    return alle;
+  },
+  /**
+   * Ein Level gelöst (seconds: Zeit bis zur lösenden Drehung, turns: Drehungen): Bestzeit und wenigste Drehungen je
+   * für sich nachführen. Zurück, was besser wurde, für das Feld «Gelöst»; gemeldet nur, wenn es schon einen Wert gab
+   * (nicht beim ersten Lösen). Die Zeit zählt in ganzen Sekunden wie die Anzeige: Bleibt sie gleich, ist es keine
+   * neue Bestzeit.
+   */
+  noteBest(grad, name, { seconds, turns }) {
+    const alle = this.best(grad), alt = alle[name] ?? {}, zeit = Math.floor(seconds);
+    alle[name] = { zeit: Math.min(alt.zeit ?? Infinity, zeit), drehungen: Math.min(alt.drehungen ?? Infinity, turns) };
+    this.write(this.bestKeyOf(grad), JSON.stringify(alle));
+    return { neueBestzeit: alt.zeit !== undefined && zeit < alt.zeit,
+      wenigerDrehungen: alt.drehungen !== undefined && turns < alt.drehungen };
+  },
   /** Der zuletzt gespielte Grad (einer aus STORY_LEVELS), sonst null. */
   last() { const g = this.read(this.lastKey); return g !== null && Object.hasOwn(STORY_LEVELS, g) ? g : null; },
   setLast(grad) { this.write(this.lastKey, grad); },
@@ -15065,6 +15450,7 @@ function enterLevel(index) {
   flow.state = 'in';
   flow.t = 0;
   flow.solved = false;
+  flow.record = null;
   loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index])); // erst wenn alles steht
   for (const obj of game.objects.values()) obj.scale.setScalar(1e-3);
   ui.showHud(index);
@@ -15098,7 +15484,7 @@ function updateFlow(dt) {
       // bis zur lösenden Drehung, nicht bis die Ziele sichtbar leuchten; Drehungen danach zählen nicht mehr
       const st = game.stats;
       flow.solveStats = { turns: st.turns, seconds: st.startedAt === null ? 0 : (st.lastTurnAt - st.startedAt) / 1000 };
-      story.markSolved(game.levelIndex);
+      flow.record = story.markSolved(game.levelIndex, flow.solveStats); // neue Bestmarke für «Gelöst»
       celebration.start(game.targets);
     } else if (!game.result.solved && flow.solved) { // wieder verdreht
       flow.solved = false;
@@ -15169,7 +15555,8 @@ const introCalm = new Promise((resolve) => { markIntroCalm = resolve; });
 const ui = {
   hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'),
-  solved: $('solved'), solvedMsg: $('solved-msg'), solvedStats: $('solved-stats'), next: $('btn-next'),
+  solved: $('solved'), solvedMsg: $('solved-msg'), solvedBest: $('solved-best'), solvedStats: $('solved-stats'),
+  next: $('btn-next'), overview: $('btn-overview'),
   intro: $('intro'),
   canStart: false, // Hintergrund hinter dem Startbildschirm geladen (siehe init)
 
@@ -15177,6 +15564,7 @@ const ui = {
     $('btn-restart').addEventListener('click', () => stepLevel(0));
     this.sound.addEventListener('click', () => this.toggleSound());
     $('btn-menu').addEventListener('click', () => story.toMenu());
+    this.overview.addEventListener('click', () => story.toOverview());
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
@@ -15217,6 +15605,7 @@ const ui = {
     const bedienung = IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück';
     this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
     this.hud.classList.toggle('geschichte', story.drives(index)); // Handy quer: die Unterzeile bleibt (CSS)
+    this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
     fillTier(this.tier, lvl);
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
@@ -15261,20 +15650,25 @@ const ui = {
 
   /**
    * Meldung nach dem Lösen, mit Zeit und Drehungen. In der Geschichte sagt sie, wie es weitergeht (story.solvedText),
-   * und „Weiter“ führt dorthin; ausserhalb der Geschichte (Testschnittstelle) gibt es kein „Weiter“. Unter dem offenen
-   * Menü nicht: Wer mitten im Lösungsmoment ins Menü geht, sieht sie, wenn er ins Level zurückkehrt (story.resume).
+   * und „Weiter“ führt dorthin; ausserhalb der Geschichte (Testschnittstelle) gibt es kein „Weiter“. Eine neue
+   * Bestmarke (flow.record, Entscheid 24) steht darunter, die Zahl dazu leuchtet auf. Unter dem offenen Menü oder der
+   * Übersicht nicht: Wer mitten im Lösungsmoment dorthin geht, sieht sie, wenn er ins Level zurückkehrt (story.resume).
    */
   showSolved(index, stats) {
     if (story.choosing) return;
-    const stat = (num, unit) => {
+    const r = flow.record;
+    const stat = (num, unit, best) => {
       const el = document.createElement('span'), n = document.createElement('span'), u = document.createElement('span');
-      n.className = 'num'; n.textContent = num;
+      n.className = best ? 'num best' : 'num'; n.textContent = num;
       u.className = 'unit'; u.textContent = unit;
       el.append(n, ' ', u); // Leerzeichen für Screenreader
       return el;
     };
-    this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit'), ' ',
-      stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen')] : []));
+    this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit', r?.neueBestzeit), ' ',
+      stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen', r?.wenigerDrehungen)] : []));
+    // in der Zeile oben (Handy quer: dort ohne Zeit und Drehungen) und für den Bildschirmleser (aria-live)
+    this.solvedBest.textContent = [r?.neueBestzeit && 'Neue Bestzeit', r?.wenigerDrehungen && 'Weniger Drehungen']
+      .filter(Boolean).join(' · ');
     const inStory = story.drives(index);
     if (inStory) [this.solvedMsg.textContent, this.next.textContent] = story.solvedText();
     else this.solvedMsg.textContent = 'Level gelöst';
@@ -15856,6 +16250,550 @@ const createMenu = (() => {
 })();
 
 /* =====================================================================
+   ÜBERSICHT DES GRADS (Ticket 06, Spec .scratch/noa-geschichte/, Entscheide 9, 16, 19, 24) — Baustein aus
+   .scratch/noa-geschichte/bausteine/uebersicht/ (dort LIESMICH.md mit Schnittstelle und probe.html).
+   Ersetzt die Levelauswahl: je Welt eine Reihe mit Station, Name und Summe der Bestzeiten, je Level eine Kachel mit
+   Nummer, Titel, gelöst, Bestzeit und wenigsten Drehungen. Gelöste Level sind wieder spielbar, das nächste ungelöste
+   ist offen, spätere sind gesperrt (sichtbar, nicht wählbar). «Im Dorf» als eigene Reihe, wenn es gespielt wurde.
+   Desktop (breit und hoch genug): alle Welten untereinander, durch jede Reihe ein Lichtweg wie im Menü. Sonst (Handy
+   hoch und quer, Tablet, kleines Fenster): eine Welt je Seite, Blättern mit den Stationen, den Pfeilen oder Wischen
+   über die Kacheln (mit Bewegung, wie die bisherige Levelauswahl). Den Stand liefert story.overviewData, die Wahl
+   nimmt story.playFromOverview.
+   Beim Einbau geändert (im Baustein nachgeführt): Trennung erst vor einem Rest von vier Buchstaben (Asteroiden-gürtel
+   statt Asteroidengür-tel); daten.geschafft (Finale gesehen) statt «alle gelöst» für den Kopf; daten.dorf.frei (nach
+   «Überspringen» sind alle Übungen spielbar, Ticket 07).
+   ===================================================================== */
+
+/**
+ * Baut die Übersicht in root (ein leeres Element, z. B. <div id="uebersicht">) und gibt { show, hide, vorwaermen,
+ * offen } zurück.
+ * icons: Zeichen der Stationen (im Spiel STORY_ICONS: dorf, wald, meer, …), Inhalt eines SVG mit viewBox 0 0 24 24.
+ * onPlay({ welt, level, wiederholen, eintrag }): eine offene, freie oder gelöste Kachel gewählt; welt ist der Index in
+ * daten.welten oder 'dorf', level der Index in der Reihe, wiederholen true bei einem gelösten Level, eintrag das
+ * Objekt aus den Daten. onClose(): Escape, «Schliessen» oder Klick neben die Kacheln. Beide schliessen nicht selbst;
+ * der Aufrufer ruft hide().
+ */
+function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () => {} }) {
+  /** Alle Welten untereinander (Desktop), sonst eine Welt je Seite. Die Grenze steht nur hier: das CSS richtet sich
+   * nach data-modus am root */
+  const ALLE = matchMedia('(min-width: 1180px) and (min-height: 600px)');
+  /** Wischen und Blättern wie in der bisherigen Levelauswahl (INPUT.swipeMin, swipeSlope, dragThresholdTouch,
+   * PAGE_SLIDE im Spiel) */
+  const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
+  /** wie GRAD_ANZEIGE im Spiel */
+  const GRADE = {
+    'leicht': { name: 'Leicht', punkte: 1 }, 'mittel': { name: 'Mittel', punkte: 2 },
+    'schwer': { name: 'Schwer', punkte: 3 }, 'sehr schwer': { name: 'Sehr schwer', punkte: 4 },
+  };
+  /** eigene Zeichen, im Strich der STORY_ICONS */
+  const Z = {
+    uhr: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    drehung: '<path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M17.3 3.6v3.6h-3.6"/>',
+    schloss: '<rect x="6" y="11" width="12" height="8.5" rx="1.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/>',
+    links: '<path d="M14.5 5.5L8 12l6.5 6.5"/>',
+    rechts: '<path d="M9.5 5.5l6.5 6.5-6.5 6.5"/>',
+  };
+
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+  const ico = (pfad, cls = '') => `<svg class="ueb-ico${cls ? ' ' + cls : ''}" viewBox="0 0 24 24" aria-hidden="true">${pfad ?? ''}</svg>`;
+  const wert = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0;
+  /** 1:42, ab einer Stunde 1:02:05 (wie formatDuration im Spiel) */
+  const zeit = (sek) => {
+    const s = Math.floor(sek), z = (n) => String(n).padStart(2, '0'), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60;
+    return h ? `${h}:${z(m)}:${z(s % 60)}` : `${m}:${z(s % 60)}`;
+  };
+  /** für Bildschirmleser «1 Minute 42 Sekunden» statt «1:42» */
+  const sprichZeit = (sek) => {
+    const s = Math.floor(sek), h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, r = s % 60, t = [];
+    if (h) t.push(`${h} ${h === 1 ? 'Stunde' : 'Stunden'}`);
+    if (m) t.push(`${m} ${m === 1 ? 'Minute' : 'Minuten'}`);
+    if (r || !t.length) t.push(`${r} ${r === 1 ? 'Sekunde' : 'Sekunden'}`);
+    return t.join(' ');
+  };
+  const drehungen = (n) => `${n} ${n === 1 ? 'Drehung' : 'Drehungen'}`;
+  /**
+   * Weiche Trennstriche in langen Wörtern, ohne Wörterbuch (hyphens: auto kennt Deutsch nicht in jedem Browser): in
+   * jeder Gruppe von Konsonanten zwischen zwei Vokalen vor dem längsten Anlaut, mit dem ein deutsches Wort beginnen
+   * kann (Schaum-krone, Feuer-schlund, See-pferd-chen, Luft-spiegelung), sonst vor dem letzten Konsonanten
+   * (Asteroiden-gürtel); vorn zwei, hinten vier Buchstaben mindestens (sonst Asteroidengür-tel, Bärenhü-ter). Gebraucht
+   * nur, wenn ein Wort auch klein nicht in die Kachel passt (.ueb-brich); sonst trennt das CSS nicht.
+   */
+  const VOKAL = /[aeiouyäöüàéèê]/i;
+  const ANLAUT = ['schr', 'schl', 'schm', 'schn', 'schw', 'spr', 'str', 'pfl', 'pfr', 'sch', 'pf', 'bl', 'br', 'ch', 'ck',
+    'dr', 'fl', 'fr', 'gl', 'gr', 'kl', 'kn', 'kr', 'ph', 'pl', 'pr', 'sp', 'st', 'th', 'tr', 'zw'];
+  const SHY = String.fromCharCode(0xad);
+  const trenne = (titel) => String(titel ?? '').replace(/\p{L}{9,}/gu, (w) => {
+    const klein = w.toLowerCase(), stellen = [];
+    for (let i = 1; i < w.length; i++) {
+      if (VOKAL.test(klein[i]) || !VOKAL.test(klein[i - 1])) continue; // Anfang einer Gruppe von Konsonanten
+      let e = i;
+      while (e < w.length && !VOKAL.test(klein[e])) e++;
+      if (e >= w.length) break; // am Wortende: keine Trennstelle
+      const gruppe = klein.slice(i, e), anlaut = ANLAUT.find((a) => gruppe.endsWith(a));
+      const t = e - (anlaut ? anlaut.length : 1);
+      if (t >= 2 && w.length - t >= 4) stellen.push(t);
+      i = e;
+    }
+    return stellen.reduceRight((s, t) => s.slice(0, t) + SHY + s.slice(t), w);
+  });
+  const still = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const uid = `ueb-${Math.random().toString(36).slice(2, 8)}`;
+  /** Polarstern klein (wie im Menü): ein geschaffter Grad */
+  const STERN = `<svg class="ueb-stern" viewBox="-50 -50 100 100" aria-hidden="true"><defs><radialGradient id="${uid}-hof">
+    <stop offset="0" stop-color="#fff" stop-opacity="0.6"/><stop offset="0.3" stop-color="#cdd4ff" stop-opacity="0.22"/>
+    <stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient></defs><circle r="46" fill="url(#${uid}-hof)"/>
+    <path d="M0-46L2.6-2.6 32 0 2.6 2.6 0 46-2.6 2.6-32 0-2.6-2.6z" fill="#fff"/><circle r="5" fill="#fff"/></svg>`;
+
+  root.classList.add('ueb', 'ueb-zu');
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-labelledby', `${uid}-titel`);
+  root.setAttribute('aria-describedby', `${uid}-grad`);
+  root.inert = true;
+  root.innerHTML = `
+    <div class="ueb-rahmen">
+      <header class="ueb-kopf">
+        <div class="ueb-kopftext">
+          <h2 class="ueb-titel" id="${uid}-titel">Übersicht</h2>
+          <p class="ueb-grad" id="${uid}-grad"></p>
+        </div>
+        <p class="ueb-legende" aria-hidden="true"><span>${ico(Z.uhr)}Bestzeit</span><span>${ico(Z.drehung)}wenigste Drehungen</span></p>
+      </header>
+      <nav class="ueb-stationen" aria-label="Welten"></nav>
+      <div class="ueb-pager">
+        <button class="ueb-schritt" data-schritt="-1" aria-label="Vorige Welt">${ico(Z.links)}</button>
+        <div class="ueb-seitentitel"></div>
+        <button class="ueb-schritt" data-schritt="1" aria-label="Nächste Welt">${ico(Z.rechts)}</button>
+      </div>
+      <div class="ueb-fenster"><div class="ueb-spur"></div></div>
+      <footer class="ueb-fuss"><button class="ueb-schliessen">Schliessen</button></footer>
+    </div>
+    <p class="ueb-hinweis" role="status"></p>`;
+  const $ = (sel) => root.querySelector(sel);
+  const rahmen = $('.ueb-rahmen'), gradEl = $('.ueb-grad'), stationen = $('.ueb-stationen'), seitentitel = $('.ueb-seitentitel');
+  const fenster = $('.ueb-fenster'), spur = $('.ueb-spur'), hinweis = $('.ueb-hinweis');
+  const schritte = [...root.querySelectorAll('.ueb-schritt')];
+
+  let daten = null, reihen = [], seite = 0, modus = '', offen = false;
+  let wisch = null, gewischtUm = -Infinity, gezeigtUm = -Infinity, fahrt = null, hinweisUhr = 0;
+
+  /**
+   * Reihen der Übersicht: «Im Dorf» (falls gespielt), dann die Welten. Zustand je Level: gelöst (spielbar), offen (das
+   * erste ungelöste der Kette) oder gesperrt (jedes spätere ungelöste). Die Welten bilden eine Kette über alle Reihen,
+   * das Dorf eine eigene. Mit dorf.frei (nach «Überspringen») ist dort jede ungelöste Übung frei: spielbar wie die
+   * offene, ohne deren Hof.
+   */
+  function baueReihen(d) {
+    const r = [];
+    if (d.dorf) r.push({ art: 'dorf', schluessel: 'dorf', name: d.dorf.name ?? 'Im Dorf', icon: d.dorf.icon ?? 'dorf', level: d.dorf.level ?? [] });
+    (d.welten ?? []).forEach((w, i) => r.push({ art: 'welt', schluessel: i, name: w.name, icon: w.icon, level: w.level ?? [] }));
+    for (const art of ['dorf', 'welt']) {
+      let frei = true;
+      const alleFrei = art === 'dorf' && !!d.dorf?.frei;
+      for (const re of r.filter((x) => x.art === art)) {
+        re.zustand = re.level.map((l) => {
+          if (l.geloest) return 'geloest';
+          if (alleFrei) return 'frei';
+          if (frei) { frei = false; return 'offen'; }
+          return 'gesperrt';
+        });
+      }
+    }
+    for (const re of r) {
+      const mitZeit = re.level.filter((l) => l.geloest && wert(l.bestzeit));
+      re.geloest = re.zustand.filter((z) => z === 'geloest').length;
+      re.mitZeit = mitZeit.length;
+      re.summe = mitZeit.reduce((s, l) => s + Math.floor(l.bestzeit), 0);
+      re.lage = re.level.length && re.geloest === re.level.length ? 'fertig'
+        : re.zustand.some((z) => z === 'offen' || z === 'frei') || re.geloest ? 'jetzt' : 'spaeter';
+    }
+    return r;
+  }
+
+  /** «4 / 10 · ◷ 6:12» (sichtbar) und «Meer: 4 von 10 gelöst, Summe der Bestzeiten …» (Bildschirmleser) */
+  const standHtml = (re) => `<span>${re.geloest} / ${re.level.length}</span>` +
+    (re.mitZeit ? `<span class="ueb-wert">${ico(Z.uhr)}${zeit(re.summe)}</span>` : '');
+  const standText = (re) => `${re.name}: ${re.geloest} von ${re.level.length} gelöst` +
+    (re.mitZeit ? `, Summe der Bestzeiten ${sprichZeit(re.summe)}` : '');
+
+  function kachelHtml(re, l) {
+    const lvl = re.level[l], z = re.zustand[l], titel = lvl.titel ?? lvl.name ?? '';
+    const art = re.art === 'dorf' ? 'Übung' : 'Level';
+    const mitZeit = z === 'geloest' && wert(lvl.bestzeit), mitDr = z === 'geloest' && wert(lvl.drehungen);
+    const aktuell = daten.aktuell && daten.aktuell.welt === re.schluessel && daten.aktuell.level === l;
+    let unten = '';
+    if (z === 'gesperrt') unten = `<span class="ueb-schloss">${ico(Z.schloss)}</span>`;
+    else if (z === 'offen' || z === 'frei') unten = `<span class="ueb-los">${re.art === 'dorf' ? 'Üben' : 'Weiter'}${ico(Z.rechts)}</span>`;
+    else unten = (mitZeit ? `<span class="ueb-wert">${ico(Z.uhr)}${zeit(lvl.bestzeit)}</span>` : '<span></span>') +
+      (mitDr ? `<span class="ueb-wert">${ico(Z.drehung)}${Math.round(lvl.drehungen)}</span>` : '');
+    const sprache = [`${art} ${l + 1}`, titel, z === 'gesperrt' ? 'gesperrt'
+      : z === 'offen' ? (re.art === 'dorf' ? 'als Nächstes zu üben' : 'als Nächstes zu spielen') : z === 'frei' ? 'frei' : 'gelöst'];
+    if (mitZeit) sprache.push(`Bestzeit ${sprichZeit(lvl.bestzeit)}`);
+    if (mitDr) sprache.push(`wenigste ${drehungen(Math.round(lvl.drehungen))}`);
+    if (aktuell) sprache.push('läuft gerade');
+    return `<li><button class="ueb-kachel ueb-${z}" tabindex="-1" aria-label="${esc(sprache.join(', '))}"` +
+      `${z === 'gesperrt' ? ' aria-disabled="true"' : ''}${aktuell ? ' aria-current="true"' : ''}>` +
+      `<span class="ueb-nr">${l + 1}</span>${z === 'geloest' ? '<span class="ueb-punkt"></span>' : ''}` +
+      `<span class="ueb-name">${esc(trenne(titel))}</span><span class="ueb-unten">${unten}</span></button></li>`;
+  }
+
+  function reiheHtml(re, r) {
+    // Licht im Weg der Reihe (nur alle Welten untereinander): von der Station bis zur Mitte der offenen Kachel bzw. der
+    // letzten gelösten, bei einer fertigen Welt ganz durch (die Kacheln decken es zu, es scheint in den Lücken)
+    // (Raster zu 10 Plätzen; «Im Dorf» hat 9, der Rest bleibt frei)
+    const k = re.zustand.includes('offen') ? re.zustand.indexOf('offen') : re.zustand.lastIndexOf('geloest');
+    const rest = Math.max(0, 10 - re.level.length), platz = (n) => `(100% - 9 * var(--ueb-luecke)) / 10 * ${n} + ${n} * var(--ueb-luecke)`;
+    const licht = re.lage === 'fertig' ? `calc(100% - ${platz(rest)})` : k < 0 ? '-100vw' : `calc(${platz(k)} + (100% - 9 * var(--ueb-luecke)) / 20)`;
+    return `<section class="ueb-welt ueb-${re.lage}" data-reihe="${r}" role="group" aria-label="${esc(standText(re))}">
+      <div class="ueb-welt-kopf" aria-hidden="true">
+        <span class="ueb-welt-text"><span class="ueb-welt-name">${esc(re.name)}</span><span class="ueb-welt-stand">${standHtml(re)}</span></span>
+        <span class="ueb-station">${ico(icons[re.icon])}</span>
+      </div>
+      <ol class="ueb-kacheln" style="--ueb-licht: ${licht}; --ueb-rest: ${rest}">${re.level.map((_, l) => kachelHtml(re, l)).join('')}</ol>
+    </section>`;
+  }
+
+  function zeichne() {
+    const g = (typeof daten.grad === 'string' ? GRADE[daten.grad] : daten.grad) ?? { name: String(daten.grad ?? ''), punkte: 0 };
+    const welten = reihen.filter((re) => re.art === 'welt');
+    const geloest = welten.reduce((s, re) => s + re.geloest, 0), gesamt = welten.reduce((s, re) => s + re.level.length, 0);
+    // geschafft heisst: Finale gesehen (daten.geschafft); ohne Angabe, wenn alle gelöst sind
+    const geschafft = typeof daten.geschafft === 'boolean' ? daten.geschafft : gesamt > 0 && geloest === gesamt;
+    const summe = welten.reduce((s, re) => s + re.summe, 0), alleZeiten = welten.every((re) => re.mitZeit === re.level.length);
+    gradEl.innerHTML = `<span class="ueb-gradzeile" aria-hidden="true"><span class="ueb-pips">${[1, 2, 3, 4]
+      .map((i) => `<i${i <= g.punkte ? ' class="ueb-an"' : ''}></i>`).join('')}</span><span class="ueb-gradname">${esc(g.name)}</span></span>` +
+      `<span class="ueb-fortschritt" aria-hidden="true">${geschafft ? `${STERN}<span>Geschafft</span><span class="ueb-trenn">·</span>` : ''}` +
+      `<span>${geloest} / ${gesamt}</span>${geschafft && alleZeiten ? `<span class="ueb-trenn">·</span><span class="ueb-wert">${ico(Z.uhr)}${zeit(summe)}</span>` : ''}</span>` +
+      `<span class="ueb-sr">${esc(g.name)}, ${geschafft ? 'geschafft, ' : ''}${geloest} von ${gesamt} Level gelöst` +
+      `${geschafft && alleZeiten ? `, Summe der Bestzeiten ${sprichZeit(summe)}` : ''}</span>`;
+    root.classList.toggle('ueb-geschafft', geschafft);
+    stationen.innerHTML = reihen.map((re, r) => (r ? `<span class="ueb-weg${re.lage !== 'spaeter' ? ' ueb-an' : ''}" aria-hidden="true"></span>` : '') +
+      `<button class="ueb-tab ueb-${re.lage}" data-reihe="${r}" aria-label="${esc(standText(re))}"><span class="ueb-station">${ico(icons[re.icon])}</span></button>`).join('');
+    spur.innerHTML = reihen.map(reiheHtml).join('');
+  }
+
+  const kacheln = (r) => [...(spur.children[r]?.querySelectorAll('.ueb-kachel') ?? [])];
+  /** die offene Kachel einer Kette ('welt' oder 'dorf') als [Reihe, Level], sonst null */
+  function offeneKachel(art) {
+    const r = reihen.findIndex((re) => re.art === art && re.zustand.includes('offen'));
+    return r < 0 ? null : [r, reihen[r].zustand.indexOf('offen')];
+  }
+  /** Kachel, die beim Öffnen den Fokus bekommt: gewählt, sonst das laufende Level, sonst das offene, sonst die erste
+   * der ersten Welt */
+  function startZiel(wahl) {
+    const finde = (a) => {
+      if (!a) return null;
+      const r = reihen.findIndex((re) => re.schluessel === a.welt);
+      return r >= 0 && reihen[r].level[a.level ?? 0] ? [r, a.level ?? 0] : null;
+    };
+    const erste = Math.max(0, reihen.findIndex((re) => re.art === 'welt'));
+    return finde(wahl.fokus) ?? finde(daten.aktuell) ?? offeneKachel('welt') ?? offeneKachel('dorf') ?? [erste, 0];
+  }
+
+  /** Nur eine Kachel ist mit Tab erreichbar (die zuletzt fokussierte), die übrigen mit den Pfeiltasten */
+  function rolle(k) {
+    if (!k) return;
+    for (const alt of spur.querySelectorAll('.ueb-kachel[tabindex="0"]')) if (alt !== k) alt.tabIndex = -1;
+    k.tabIndex = 0;
+  }
+  function fokussiere(r, l) {
+    const k = kacheln(r)[l];
+    if (!k) return;
+    if (modus === 'seiten' && r !== seite) blaettere(r, { bewegt: Math.abs(r - seite) === 1 });
+    rolle(k);
+    k.focus();
+  }
+
+  // ---------- Seiten: eine Welt je Seite, Blättern mit Bewegung ----------
+  function setzeModus() {
+    const neu = ALLE.matches ? 'alle' : 'seiten';
+    if (neu !== modus) { modus = neu; root.dataset.modus = neu; }
+    ordne();
+  }
+  /** Seiten in Ruhe: nur die gezeigte ist bedienbar (die übrigen liegen daneben, beim Wischen sichtbar) */
+  function ordne() {
+    beendeFahrt();
+    [...spur.children].forEach((s, r) => { s.inert = modus === 'seiten' && r !== seite; });
+    schiebe(0);
+  }
+  const schrittweite = () => spur.clientWidth + (parseFloat(getComputedStyle(spur).columnGap) || 0);
+  /** Spur in Ruhe (dx 0) oder um dx px aus der Ruhe (beim Wischen) */
+  function schiebe(dx) {
+    spur.style.transform = modus === 'seiten' && (seite || dx) ? `translateX(${-seite * schrittweite() + dx}px)` : '';
+  }
+  function fahre(von, nach) {
+    const anim = spur.animate([{ transform: `translateX(${von}px)` }, { transform: `translateX(${nach}px)` }],
+      { duration: WISCH.ms * Math.min(1, Math.abs(nach - von) / schrittweite()), easing: WISCH.easing });
+    fahrt = { anim };
+    anim.onfinish = () => { if (fahrt?.anim === anim) beendeFahrt(); };
+  }
+  /** laufende Bewegung gleich fertig (der Endstand ist schon gesetzt) */
+  function beendeFahrt() {
+    const f = fahrt;
+    fahrt = null;
+    f?.anim.cancel();
+  }
+  /**
+   * Zur Seite ziel blättern: Kopf, Stationen und Pfeile wechseln gleich, die Kacheln fahren (bewegt, ausser bei
+   * reduzierter Bewegung). von: wo die Spur beim Wischen schon steht (px aus der Ruhe der alten Seite).
+   */
+  function blaettere(ziel, { von = 0, bewegt = true } = {}) {
+    if (modus !== 'seiten' || ziel < 0 || ziel >= reihen.length || ziel === seite) {
+      if (von) zurueck(von);
+      return false;
+    }
+    beendeFahrt();
+    const w = schrittweite(), start = -seite * w + von;
+    seite = ziel;
+    [...spur.children].forEach((s, r) => { s.inert = r !== seite; });
+    // Tab führt auf der neuen Seite zu ihrer offenen Kachel, sonst zur ersten
+    if (!spur.children[seite].contains(spur.querySelector('.ueb-kachel[tabindex="0"]'))) {
+      const z = reihen[seite].zustand.indexOf('offen');
+      rolle(kacheln(seite)[Math.max(0, z)]);
+    }
+    zeigeSeitenkopf();
+    schiebe(0);
+    if (bewegt && !still()) fahre(start, -seite * w);
+    return true;
+  }
+  /** zu kurz gewischt oder am Rand: zurück in die Ruhe */
+  function zurueck(von) {
+    schiebe(0);
+    if (!still()) fahre(-seite * schrittweite() + von, -seite * schrittweite());
+  }
+  /** Kopf der gezeigten Seite: Station, Name, Stand; Pfeile und Stationen dazu */
+  function zeigeSeitenkopf() {
+    const re = reihen[seite];
+    if (!re) return;
+    seitentitel.innerHTML = `<span class="ueb-seitenname" aria-hidden="true">${ico(icons[re.icon])}<span class="ueb-welt-name">${esc(re.name)}</span></span>` +
+      `<span class="ueb-welt-stand" aria-hidden="true">${standHtml(re)}</span><span class="ueb-sr">${esc(standText(re))}</span>`;
+    const weg = document.activeElement;
+    schritte[0].disabled = seite === 0;
+    schritte[1].disabled = seite === reihen.length - 1;
+    if (weg?.disabled) schritte[weg === schritte[0] ? 1 : 0].focus(); // Pfeil am Ende: Fokus nicht verlieren
+    for (const t of stationen.querySelectorAll('.ueb-tab')) {
+      if (+t.dataset.reihe === seite) t.setAttribute('aria-current', 'true'); else t.removeAttribute('aria-current');
+    }
+  }
+
+  // ---------- Titel: lange Wörter kleiner, nur notfalls mitten im Wort umbrechen ----------
+  function passeTitelAn() {
+    const namen = [...spur.querySelectorAll('.ueb-name')];
+    for (const t of namen) t.classList.remove('ueb-eng', 'ueb-brich');
+    const zuBreit = (t) => t.scrollWidth > t.clientWidth + 1;
+    const lang = namen.filter(zuBreit);
+    lang.forEach((t) => t.classList.add('ueb-eng'));
+    lang.filter(zuBreit).forEach((t) => t.classList.add('ueb-brich'));
+  }
+
+  // ---------- Hinweis (gesperrte Kachel) ----------
+  function sage(text) {
+    hinweis.textContent = text;
+    hinweis.classList.add('ueb-da');
+    clearTimeout(hinweisUhr);
+    hinweisUhr = setTimeout(() => hinweis.classList.remove('ueb-da'), 2800);
+  }
+
+  // ---------- Bedienung ----------
+  spur.addEventListener('click', (e) => {
+    const k = e.target.closest('.ueb-kachel');
+    if (!k) return;
+    const r = +k.closest('.ueb-welt').dataset.reihe, l = kacheln(r).indexOf(k), re = reihen[r], z = re.zustand[l];
+    rolle(k);
+    if (z === 'gesperrt') {
+      const o = offeneKachel(re.art);
+      const vor = o && reihen[o[0]];
+      sage(vor ? `Gesperrt – erst «${vor.level[o[1]].titel ?? vor.level[o[1]].name ?? ''}» (${vor.name} ${o[1] + 1}) lösen` : 'Gesperrt');
+      return;
+    }
+    onPlay({ welt: re.schluessel, level: l, wiederholen: z === 'geloest', eintrag: re.level[l] });
+  });
+  stationen.addEventListener('click', (e) => {
+    const t = e.target.closest('.ueb-tab');
+    if (t) blaettere(+t.dataset.reihe, { bewegt: Math.abs(+t.dataset.reihe - seite) === 1 });
+  });
+  for (const b of schritte) b.addEventListener('click', () => blaettere(seite + +b.dataset.schritt));
+  $('.ueb-schliessen').addEventListener('click', () => onClose());
+  // Klick neben die Kacheln (auf den Hintergrund) schliesst wie in der bisherigen Levelauswahl
+  root.addEventListener('click', (e) => { if (e.target === root || e.target === rahmen) onClose(); });
+  root.addEventListener('focusin', (e) => { if (e.target.classList?.contains('ueb-kachel')) rolle(e.target); });
+
+  /**
+   * Tasten (solange offen, vor dem Spiel abgefangen): Pfeile über die Kacheln (links/rechts in der Reihenfolge, auch
+   * über die Grenze der Welt; hoch/runter eine Reihe), Pos1/Ende Anfang und Ende der Welt (mit Strg: ganz), Bild↑/↓
+   * vorige und nächste Welt, Escape schliesst, Tab bleibt im Dialog. Ausserhalb der Kacheln blättern ←/→ (Seiten).
+   */
+  function taste(e) {
+    if (!offen || e.altKey || e.metaKey || (e.ctrlKey && e.key !== 'Home' && e.key !== 'End')) return;
+    const k = e.key, an = document.activeElement, kachel = an?.closest?.('.ueb-kachel');
+    const nimm = () => { e.preventDefault(); e.stopPropagation(); };
+    if (k === 'Enter' && e.repeat) { nimm(); return; } // gehaltenes Enter (etwa von der Karte im Menü) spielt nichts
+    if (k === 'Escape') { nimm(); onClose(); return; }
+    if (k === 'Tab') { e.stopPropagation(); falle(e); return; }
+    const pfeile = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+    if (!pfeile.includes(k)) return;
+    if (kachel && root.contains(kachel)) {
+      const r = +kachel.closest('.ueb-welt').dataset.reihe, l = kacheln(r).indexOf(kachel), n = reihen[r].level.length;
+      const letzte = (z) => reihen[z].level.length - 1;
+      let ziel = null;
+      if (k === 'ArrowRight') ziel = l < n - 1 ? [r, l + 1] : r < reihen.length - 1 ? [r + 1, 0] : null;
+      else if (k === 'ArrowLeft') ziel = l > 0 ? [r, l - 1] : r > 0 ? [r - 1, letzte(r - 1)] : null;
+      else if (k === 'Home') ziel = e.ctrlKey ? [0, 0] : [r, 0];
+      else if (k === 'End') ziel = e.ctrlKey ? [reihen.length - 1, letzte(reihen.length - 1)] : [r, n - 1];
+      else if (k === 'PageUp' || k === 'PageDown' || modus === 'alle') {
+        const z = r + (k === 'PageDown' || k === 'ArrowDown' ? 1 : -1);
+        if (z >= 0 && z < reihen.length) ziel = [z, Math.min(l, letzte(z))];
+      } else { // Seite: hoch und runter im Raster der Welt
+        const sp = getComputedStyle(kachel.closest('.ueb-kacheln')).gridTemplateColumns.split(' ').length || 1;
+        const z = l + (k === 'ArrowDown' ? sp : -sp);
+        if (z >= 0 && z < n) ziel = [r, z];
+        else if (k === 'ArrowDown' && Math.floor(l / sp) < Math.floor((n - 1) / sp)) ziel = [r, n - 1];
+      }
+      nimm();
+      if (ziel) fokussiere(...ziel);
+      return;
+    }
+    if (an?.closest?.('.ueb-stationen') && (k === 'ArrowLeft' || k === 'ArrowRight')) {
+      const tabs = [...stationen.querySelectorAll('.ueb-tab')], i = tabs.indexOf(an.closest('.ueb-tab'));
+      nimm();
+      tabs[Math.min(tabs.length - 1, Math.max(0, i + (k === 'ArrowRight' ? 1 : -1)))]?.focus();
+      return;
+    }
+    if (modus === 'seiten' && ['ArrowLeft', 'ArrowRight', 'PageUp', 'PageDown'].includes(k)) {
+      nimm();
+      blaettere(seite + (k === 'ArrowRight' || k === 'PageDown' ? 1 : -1));
+      return;
+    }
+    if (!root.contains(an) || an === root) { // Fokus verloren (Klick auf den Hintergrund): zurück auf die Kacheln
+      nimm();
+      const t = spur.querySelector('.ueb-kachel[tabindex="0"]');
+      if (t && !t.closest('[inert]')) t.focus();
+    }
+  }
+  /** Tab und Umschalt+Tab bleiben im Dialog */
+  function falle(e) {
+    const ziele = [...root.querySelectorAll('button')]
+      .filter((b) => b.tabIndex >= 0 && !b.disabled && !b.closest('[inert]') && b.getClientRects().length);
+    if (!ziele.length) return;
+    const i = ziele.indexOf(document.activeElement);
+    if (e.shiftKey ? i <= 0 : i < 0 || i === ziele.length - 1) {
+      e.preventDefault();
+      ziele[e.shiftKey ? ziele.length - 1 : 0].focus();
+    }
+  }
+
+  /**
+   * Wischen über die Kacheln (Finger oder Stift, nicht die Maus; Kopf, Stationen und Pfeile blättern nicht), wie in
+   * der bisherigen Levelauswahl: Die Kacheln folgen dem Finger, die Nachbarwelt fährt daneben herein; beim Loslassen
+   * blättert es weiter oder federt zurück. Ein zweiter Finger bricht ab; senkrechtes Ziehen übernimmt der Browser
+   * (touch-action: pan-y) und meldet dann pointercancel.
+   */
+  function loslassen(e, abgebrochen) {
+    const w = wisch;
+    wisch = null;
+    if (!w.waagrecht) return;
+    gewischtUm = performance.now();
+    const dx = e.clientX - w.x, schritt = dx < 0 ? 1 : -1;
+    if (!abgebrochen && Math.abs(dx) >= WISCH.min && reihen[seite + schritt]) blaettere(seite + schritt, { von: w.gezeigt });
+    else if (w.gezeigt) zurueck(w.gezeigt);
+  }
+  root.addEventListener('pointerdown', (e) => {
+    gewischtUm = -Infinity; // neues Drücken: sein Klick gilt wieder
+    if (!e.isPrimary && wisch) loslassen(e, true);
+  });
+  fenster.addEventListener('pointerdown', (e) => {
+    if (modus !== 'seiten' || e.pointerType === 'mouse' || !e.isPrimary || !e.target.closest('.ueb-kacheln')) return;
+    beendeFahrt();
+    wisch = { id: e.pointerId, x: e.clientX, y: e.clientY, griff: 0, waagrecht: false, gezeigt: 0 };
+  });
+  root.addEventListener('pointermove', (e) => {
+    const w = wisch;
+    if (w?.id !== e.pointerId) return;
+    if (!w.waagrecht) {
+      const dx = e.clientX - w.x, dy = e.clientY - w.y;
+      if (Math.hypot(dx, dy) < WISCH.schwelle) return;
+      if (Math.abs(dy) > Math.abs(dx) * WISCH.steigung) { wisch = null; return; } // senkrecht: kein Wischen
+      w.waagrecht = true;
+      w.griff = e.clientX; // ab hier folgen die Kacheln dem Finger, ohne Sprung
+      return;
+    }
+    if (still()) return;
+    const dx = e.clientX - w.griff;
+    w.gezeigt = reihen[seite + (dx < 0 ? 1 : -1)] ? dx : dx * WISCH.gummi; // am Anfang und Ende nur zögernd
+    schiebe(w.gezeigt);
+  });
+  root.addEventListener('pointerup', (e) => { if (wisch?.id === e.pointerId) loslassen(e, false); });
+  root.addEventListener('pointercancel', (e) => { if (wisch?.id === e.pointerId) loslassen(e, true); });
+  // ein Klick gleich nach dem Wischen (ohne neues Drücken) wählt keine Kachel und schliesst nicht; ebenso einer mit
+  // Maus oder Finger gleich nach dem Öffnen (der zweite eines Doppelklicks auf den Knopf, der sie geöffnet hat)
+  addEventListener('click', (e) => {
+    const jetzt = performance.now(), gleich = jetzt - gewischtUm < 400 || e.detail > 0 && jetzt - gezeigtUm < 400;
+    if (gleich && root.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  addEventListener('resize', () => { if (offen) { setzeModus(); passeTitelAn(); } });
+
+  /**
+   * Zeigt die Übersicht mit diesen Daten (jedes Mal neu gezeichnet) und setzt den Fokus: wahl.fokus { welt, level },
+   * sonst daten.aktuell, sonst die offene Kachel. Auf Seiten zeigt sie deren Welt.
+   */
+  function show(d, wahl = {}) {
+    gezeigtUm = performance.now();
+    daten = d;
+    reihen = baueReihen(d);
+    zeichne();
+    offen = true;
+    root.inert = false;
+    root.classList.remove('ueb-zu');
+    removeEventListener('keydown', taste, true);
+    addEventListener('keydown', taste, true);
+    const [r, l] = startZiel(wahl);
+    seite = r;
+    setzeModus();
+    zeigeSeitenkopf();
+    passeTitelAn();
+    document.fonts?.ready?.then(() => { if (offen) passeTitelAn(); });
+    const k = kacheln(r)[l];
+    rolle(k);
+    k?.focus();
+    // die Welt erst nach dem Öffnen ansagen, wenn geblättert wird (sonst doppelt mit dem Fokus)
+    requestAnimationFrame(() => { if (offen) seitentitel.setAttribute('aria-live', 'polite'); });
+  }
+  function hide() {
+    if (!offen) return;
+    offen = false;
+    beendeFahrt();
+    wisch = null;
+    removeEventListener('keydown', taste, true);
+    root.classList.add('ueb-zu');
+    root.inert = true;
+    seitentitel.removeAttribute('aria-live');
+    clearTimeout(hinweisUhr);
+    hinweis.classList.remove('ueb-da');
+    hinweis.textContent = '';
+  }
+  /**
+   * Einmal unsichtbar zeichnen (fast durchsichtig, nicht bedienbar, ohne Fokus), solange nichts anderes läuft: Beim
+   * ersten Zeigen stand sonst ein Bild rund 100 ms, während der Browser alles zum ersten Mal zeichnete (danach nicht
+   * mehr). Nur, solange sie zu ist; show() zeichnet danach ohnehin neu.
+   */
+  function vorwaermen(d) {
+    if (offen) return;
+    daten = d;
+    reihen = baueReihen(d);
+    zeichne();
+    seite = 0;
+    setzeModus();
+    zeigeSeitenkopf();
+    passeTitelAn();
+    root.classList.add('ueb-vorwaermen');
+    requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('ueb-vorwaermen')));
+  }
+
+  return { show, hide, vorwaermen, get offen() { return offen; } };
+}
+
+/* =====================================================================
    NOAS GESCHICHTE — «Ein Lichtsignal an die Sterne», der Ablauf des Spiels (Spec .scratch/noa-geschichte/).
    Noa will aus einem Bergdorf dem Polarstern ein Zeichen schicken. Eine Taschenlampe reicht nicht so weit, doch Licht
    lässt sich weitergeben: Der Spieler reicht es Welt für Welt weiter (ein Kapitel = eine Welt mit ihrer Skybox und
@@ -16375,20 +17313,36 @@ const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2); // w
 const storyLinear = (k) => k;
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 
-/** Das Menü der Geschichte (createMenu); den Stand liefert story.menuStand, die Aktionen nimmt story.pick. */
+/**
+ * Das Menü der Geschichte (createMenu); den Stand liefert story.menuStand, die Aktionen nimmt story.pick. Ein
+ * geschaffter Grad öffnet seine Übersicht (Entscheid 19).
+ */
 const menu = createMenu({
   root: $('menue'),
   icons: STORY_ICONS,
-  uebersicht: false, // bis zur Übersicht (Ticket 06) fragt ein geschaffter Grad «Von vorn»
+  uebersicht: true,
   onAction: (a) => story.pick(a),
 });
+/** Die Übersicht eines Grads (createUebersicht): Daten aus story.overviewData; Wahl und Schliessen nimmt story. */
+const uebersicht = createUebersicht({
+  root: $('uebersicht'),
+  icons: STORY_ICONS,
+  onPlay: (wahl) => story.playFromOverview(wahl),
+  onClose: () => story.closeOverview(),
+});
+// einmal unsichtbar zeichnen, solange der Startbildschirm ruhig steht (sonst stand beim ersten Öffnen ein Bild ~100 ms)
+introCalm.then(() => { if (!uebersicht.offen) uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht')); });
 
 const story = {
   el: $('story'),
   grade: null,        // gewählter Grad (Schlüssel in STORY_LEVELS), bis zur Wahl der zuletzt gespielte oder null
   stand: null,        // sein Speicherstand (progress.load), platz siehe step
-  choosing: false,    // das Menü ist offen (openMenu bis choose)
-  paused: null,       // Menü aus dem Spiel geöffnet: { grade, at } (toMenu); im selben Grad geht es dort weiter (resume)
+  choosing: false,    // Menü oder Übersicht offen (openMenu bis choose, Übersicht bis zur Wahl oder zum Schliessen)
+  paused: null,       // Menü oder Übersicht aus dem Spiel geöffnet: { grade, at } (toMenu, toOverview); im selben
+                      // Grad geht es dort weiter (resume)
+  overview: null,     // Übersicht offen: { grade, from: 'menu' | 'spiel' } (dorthin führt Schliessen zurück)
+  replay: false,      // Wiederholen (Entscheid 16): gelöste Level ohne Einstieg, Reise und Untertitel; der Platz
+                      // im Speicherstand bleibt, bis wieder ein ungelöstes Level dran ist
   outside: false,     // ein Level ausserhalb der Geschichte (Testschnittstelle zeige): ohne Stand und Kopfzeile
   steps: [],          // je Level der Reise des Grads { c: Kapitel, index: Platz in LEVELS }
   step: 0,            // Level, das gerade läuft (der Platz im Speicherstand)
@@ -16414,9 +17368,10 @@ const story = {
     this.el.addEventListener('click', () => this.tap());
     this.buildScene();
   },
-  /** Grad setzen: seine Reise aus STORY_LEVELS, sein Stand, sein Platz. */
+  /** Grad setzen: seine Reise aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet). */
   setGrade(grade) {
     this.grade = grade;
+    this.replay = false;
     const byName = new Map(LEVELS.map((l, i) => [l.name, i]));
     this.steps = [];
     STORY_CHAPTERS.forEach((ch, c) => {
@@ -16439,10 +17394,13 @@ const story = {
   setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate); },
   /** Die Geschichte führt das Level index (sonst: ausserhalb, Testschnittstelle zeige). */
   drives(index) { return !this.outside && this.grade !== null && this.steps[this.step]?.index === index; },
-  /** Stand des Grads speichern; gespielt: wann zuletzt (ms seit 1970), für «Weiter» im Menü (menuStand). */
+  /**
+   * Stand des Grads speichern; gespielt: wann zuletzt (ms seit 1970), für «Weiter» im Menü (menuStand). Der Platz
+   * fällt nie zurück (Wiederholen spielt Level davor).
+   */
   save() {
     if (this.outside || this.grade === null) return;
-    this.stand.platz = this.step;
+    this.stand.platz = Math.max(this.stand.platz, this.step);
     this.stand.gespielt = Date.now();
     progress.save(this.grade, this.stand);
   },
@@ -16453,11 +17411,19 @@ const story = {
     this.save();
   },
   seen(moment) { return this.stand.gesehen.includes(moment); },
-  /** Ein Level der Reise ist gelöst (beim Lösen, updateFlow). */
-  markSolved(index) {
-    if (!this.drives(index) || this.stand.geloest.includes(LEVELS[index].name)) return;
-    this.stand.geloest.push(LEVELS[index].name);
-    this.save();
+  /**
+   * Ein Level der Reise ist gelöst (beim Lösen, updateFlow; stats: flow.solveStats): gelöst merken und die Bestwerte
+   * nachführen, auch beim Wiederholen. Zurück, was besser wurde ({ neueBestzeit, wenigerDrehungen }, für «Gelöst»),
+   * ausserhalb der Geschichte null.
+   */
+  markSolved(index, stats) {
+    if (!this.drives(index)) return null;
+    const name = LEVELS[index].name, record = progress.noteBest(this.grade, name, stats);
+    if (!this.stand.geloest.includes(name)) {
+      this.stand.geloest.push(name);
+      this.save();
+    }
+    return record;
   },
 
   /* ---------- Ablauf ---------- */
@@ -16475,6 +17441,15 @@ const story = {
    * nach dem Epilog der nächstschwerere Grad (Entscheid 14).
    */
   openMenu({ sofort = false, hervorheben = false } = {}) {
+    this.lift(sofort);
+    menu.show(this.menuStand(hervorheben));
+  },
+  /**
+   * Menü oder Übersicht öffnet: Kopfzeile, Knöpfe und «Gelöst» gehen weg, der Blick hebt sich vom Brett in den Himmel
+   * (sofort: unter dem Startbildschirm). Bis zur Wahl oder zum Schliessen ist choosing gesetzt: Dann erscheinen
+   * Kopfzeile und «Gelöst» nicht (ui), Tippen wirkt nicht (tap), 30 Bilder/s reichen (frameRate).
+   */
+  lift(sofort = false) {
     this.choosing = true;
     this.fast = 1;
     setHovered(null);
@@ -16485,7 +17460,6 @@ const story = {
       if (this.gaze === 0) this.aimGaze(this.steps.length ? this.chapter().up ?? STORY_UP : STORY_UP);
       if (sofort) { this.gazeRun++; this.gaze = 1; } else this.gazeTo(1, 1.8);
     }
-    menu.show(this.menuStand(hervorheben));
   },
   /**
    * Stand je Grad für das Menü (createMenu): neu, begonnen (ab dem Prolog; Welt des Platzes, vor dem Bergwald das Dorf,
@@ -16523,6 +17497,97 @@ const story = {
     this.paused = this.outside || this.grade === null ? null : { grade: this.grade, at: performance.now() };
     this.openMenu();
   },
+  /**
+   * «Übersicht» im Spiel (Knopf, Taste L) wie «Menü»: Das Level bleibt stehen (paused), der Blick hebt sich in den
+   * Himmel, darüber die Übersicht des laufenden Grads mit dem laufenden Level. Nur in einem Level der Geschichte.
+   */
+  toOverview() {
+    if (this.choosing || this.running || this.holdEnter || !['play', 'in', 'out'].includes(flow.state)) return;
+    if (this.outside || this.grade === null) return;
+    this.paused = { grade: this.grade, at: performance.now() };
+    this.lift();
+    this.openOverview(this.grade, 'spiel');
+  },
+  /** Übersicht des Grads grade öffnen (from: 'menu' oder 'spiel', dorthin führt Schliessen zurück). */
+  openOverview(grade, from) {
+    this.overview = { grade, from };
+    if (from === 'menu') menu.hide(); // die Übersicht blendet darüber ein (gleiche Ebene, im Dokument danach)
+    uebersicht.show(this.overviewData(grade, from === 'spiel'));
+  },
+  /**
+   * Übersicht schliessen (Esc, «Schliessen», Klick daneben, L): zurück ins Menü (Fokus bei der Karte des Grads) bzw.
+   * ins Level, das beim Öffnen lief (die Zeit in der Übersicht zählt nicht, resume). Fokus: in einem gelösten Level
+   * auf «Weiter», sobald «Gelöst» wieder steht (Enter führt weiter), sonst auf «Übersicht».
+   */
+  closeOverview() {
+    const o = this.overview;
+    if (!o || !uebersicht.offen) return;
+    uebersicht.hide();
+    this.overview = null;
+    if (o.from === 'menu') {
+      menu.show(this.menuStand());
+      $('menue').querySelector(`[data-menue-fokus="wahl:${CSS.escape(o.grade)}"]`)?.focus({ preventScroll: true });
+      return;
+    }
+    this.choosing = false;
+    const p = this.paused, geloest = flow.solved;
+    this.paused = null;
+    const zurueck = p ? this.resume(p) : Promise.resolve();
+    if (!geloest) { ui.overview.focus({ preventScroll: true }); return; }
+    zurueck.then(() => { if (!this.choosing && ui.solvedVisible()) ui.next.focus({ preventScroll: true }); });
+  },
+  /**
+   * Kachel in der Übersicht gewählt (Entscheide 9 und 16). Ein gelöstes Level läuft als Wiederholen: ohne Einstieg,
+   * Reise und Untertitel, der Platz im Speicherstand bleibt; aus dem Menü ändert das den zuletzt gespielten Grad nicht
+   * (Entscheid 3 zu Ticket 06). Das offene Level läuft im normalen Ablauf; ist es das Level auf dem Brett, geht es dort
+   * weiter wie nach Schliessen. Ein altes Brett versinkt, während die Kamera im Himmel ist (begin).
+   */
+  playFromOverview({ welt, eintrag, wiederholen }) {
+    const o = this.overview, p = this.paused;
+    if (!o || !uebersicht.offen || welt === 'dorf') return; // die Übungen «Im Dorf» kommen mit Ticket 07
+    if (o.grade !== this.grade) this.setGrade(o.grade); // aus dem Menü: ein anderer Grad als der auf dem Brett
+    const i = this.steps.findIndex((s) => LEVELS[s.index].name === eintrag.name);
+    if (i < 0) return;
+    uebersicht.hide();
+    this.overview = null;
+    this.choosing = false;
+    this.paused = null;
+    if (!wiederholen && p?.grade === o.grade && i === this.step && game.board
+      && game.levelIndex === this.steps[i].index) {
+      this.resume(p); // das offene Level steht noch auf dem Brett: dort weiter
+      return;
+    }
+    this.outside = false;
+    this.step = i;
+    this.replay = wiederholen;
+    if (!wiederholen) this.save();
+    this.begin();
+  },
+  /**
+   * Daten der Übersicht (createUebersicht) für den Grad grade: die sechs Welten mit ihren Leveln (Titel, gelöst,
+   * Bestwerte nur bei gelösten: nach «Von vorn» bleiben sie gespeichert, erscheinen aber erst wieder mit dem Lösen),
+   * geschafft (Finale gesehen), aus dem Spiel das laufende Level. dorf: die Übungen «Im Dorf», sobald das Kapitel
+   * gespielt ist (Ticket 07: stand.dorf, nach «Überspringen» alle frei).
+   */
+  overviewData(grade, imSpiel = false) {
+    const s = grade === this.grade && this.stand ? this.stand
+      : progress.load(grade, (STORY_LEVELS[grade] ?? []).flat().length);
+    const best = progress.best(grade), titel = new Map(LEVELS.map((l) => [l.name, l.titel]));
+    const level = (name) => {
+      const geloest = s.geloest.includes(name), b = geloest ? best[name] ?? {} : {};
+      return { name, titel: titel.get(name), geloest, bestzeit: b.zeit ?? null, drehungen: b.drehungen ?? null };
+    };
+    const welten = STORY_CHAPTERS.map((ch, c) => ({ name: ch.title.replace(/^(Der|Die|Das) /, ''),
+      icon: storyChapterId(ch), level: (STORY_LEVELS[grade]?.[c] ?? []).map(level) }));
+    const d = { grad: grade, welten, geschafft: s.geschafft };
+    if (s.dorf) {
+      d.dorf = { level: LEVELS.slice(0, TUTORIAL_COUNT).map((l) => level(l.name)),
+        frei: s.dorf.ende === 'uebersprungen' };
+    }
+    const cur = imSpiel && this.steps[this.step];
+    if (cur) d.aktuell = { welt: cur.c, level: (STORY_LEVELS[grade]?.[cur.c] ?? []).indexOf(LEVELS[cur.index].name) };
+    return d;
+  },
   /** Esc im Menü, das aus dem Spiel kam: zurück ins Level wie mit «Weiter» (nach dem Start und dem Epilog nicht). */
   back() {
     if (this.choosing && this.paused) this.choose(this.paused.grade);
@@ -16536,15 +17601,16 @@ const story = {
     this.close();
     this.scene.hide();
   },
-  /**
-   * Aktion im Menü (createMenu, onAction). Ein geschaffter Grad fragt bis zur Übersicht (Ticket 06) «Von vorn»
-   * (uebersicht: false); bestätigt, ist er danach neu.
-   */
+  /** Aktion im Menü (createMenu, onAction): ein geschaffter Grad öffnet seine Übersicht, die übrigen spielen. */
   pick({ aktion, grad }) {
     if (aktion === 'vonvorn') this.resetGrade(grad);
+    else if (aktion === 'uebersicht') this.openOverview(grad, 'menu');
     else this.choose(grad);
   },
-  /** «Von vorn» (nach der Rückfrage im Menü): nur der Stand dieses Grads geht (Entscheid 19); das Menü bleibt offen. */
+  /**
+   * «Von vorn» (nach der Rückfrage im Menü): nur der Stand dieses Grads geht (Entscheid 19), seine Bestwerte bleiben
+   * (Entscheid 27); das Menü bleibt offen.
+   */
   resetGrade(grade) {
     progress.remove(grade);
     if (this.grade === grade) { this.paused = null; this.setGrade(grade); } // sein Level auf dem Brett gilt nicht mehr
@@ -16558,7 +17624,9 @@ const story = {
     if (!this.choosing) return;
     this.choosing = false;
     menu.hide();
-    progress.setLast(grade);
+    // zurück in ein Wiederholen eines geschafften Grads (Esc): Es bleibt der zuletzt gespielte, nicht geschaffte Grad
+    // (Entscheid 25 und 3 zu Ticket 06)
+    if (!(grade === this.grade && this.stand?.geschafft)) progress.setLast(grade);
     const p = this.paused;
     this.paused = null;
     if (p?.grade === grade && game.board && game.levelIndex === this.steps[this.step]?.index) {
@@ -16571,7 +17639,10 @@ const story = {
     this.save();
     this.begin();
   },
-  /** Zurück ins Level, das beim Öffnen des Menüs lief: Der Blick senkt sich aufs Brett, es geht weiter wie vorher. */
+  /**
+   * Zurück ins Level, das beim Öffnen von Menü oder Übersicht lief: Der Blick senkt sich aufs Brett, es geht weiter
+   * wie vorher; die Zeit dort zählt nicht für die Bestzeit.
+   */
   async resume(p) {
     this.running = true;
     // beide Zeitpunkte verschieben: Kam der Lösungsmoment der letzten Drehung vor dem Menü erst danach, zählte sonst
@@ -16589,15 +17660,15 @@ const story = {
   },
   /**
    * Prolog (nur beim ersten Mal je Grad), dann bringt der Träger das Licht in die Welt, in der es weitergeht. Ein altes
-   * Feld (Menü aus dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel bzw. die Bühne
-   * deckt es zu.
+   * Feld (Menü oder Übersicht aus dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel
+   * bzw. die Bühne deckt es zu. Wiederholen (replay) kommt immer ohne Prolog und Einstieg.
    */
   async begin() {
     this.running = true;
     const { index } = this.steps[this.step], ch = this.chapter();
     flow.state = 'story';
     const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
-    if (this.seen(storyChapterId(ch))) {
+    if (this.replay || this.seen(storyChapterId(ch))) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
       // ist (sonst sähe man ein leeres Brett, solange ihr Himmel lädt), dann senkt sich der Blick, und das Level wächst
       await this.skyOf(ch);
@@ -16640,10 +17711,25 @@ const story = {
       onStep?.(k);
     });
   },
-  /** „Weiter“ nach dem Lösen: im Kapitel das nächste Level, am Kapitelende die Zwischenszene. */
+  /**
+   * „Weiter“ nach dem Lösen: im Kapitel das nächste Level, am Kapitelende die Zwischenszene. Beim Wiederholen
+   * (Entscheid 16) das nächste gelöste Level ohne Zwischenszene, in einer anderen Welt blendet nur der Himmel
+   * (replayWorld); nach dem letzten Level eines geschafften Grads die Übersicht. Ist das nächste Level noch ungelöst,
+   * gilt wieder der normale Ablauf (Reise, Finale).
+   */
   advance() {
     if (this.running) return;
     const cur = this.steps[this.step], next = this.steps[this.step + 1];
+    if (this.replay) {
+      if (!next && this.stand.geschafft) { this.toOverview(); return; }
+      if (next && this.stand.geloest.includes(LEVELS[next.index].name)) {
+        this.step++;
+        if (next.c === cur.c) changeLevel(next.index);
+        else this.replayWorld(next);
+        return;
+      }
+      this.replay = false;
+    }
     if (next?.c !== cur.c && STORY_CHAPTERS[cur.c].finale) { this.finale(); return; }
     if (!next) { this.ending(); return; }
     this.step++;
@@ -16656,6 +17742,36 @@ const story = {
     await this.ascend(from.up ?? STORY_UP);
     await this.travel(from, STORY_CHAPTERS[next.c], next.index);
     this.running = false;
+  },
+  /**
+   * Wiederholen über die Grenze einer Welt (Entscheid 16): Nur der Himmel blendet, ohne Träger, Untertitel und Blick
+   * in den Himmel. Das alte Level bleibt stehen (dreht nicht mehr), bis der Himmel der neuen Welt geladen ist
+   * (settled, höchstens 8 s; nicht ready: das scharfe Bild und die Streifen kommen mit quiet erst danach), dann
+   * versinkt es, und das neue wächst, während der Himmel überblendet: langsamer als sonst, zwischen zwei Welten auf der
+   * Erde über die Farben beider wie auf der Reise (blendSky).
+   */
+  async replayWorld(next) {
+    this.running = true;
+    flow.state = 'story';
+    this.fast = 1; // wie ascend: ein Tippen vorher (Enter beim Herauswachsen) verkürzt das Warten auf den Himmel nicht
+    ui.hideSolved();
+    ui.hideHud();
+    setHovered(null);
+    const fadeTime = skyTheme.fadeTime, old = skyTheme.current;
+    skyTheme.quiet = true; // grosse Texturen erst, wenn das Level steht (wie nach der Reise)
+    skyTheme.fadeTime = 2.4;
+    this.setSky(STORY_CHAPTERS[next.c].sky, true);
+    const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
+    this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
+    const mod = skyTheme.byId.get(skyTheme.current).module;
+    for (let t = 0; mod?.settled === false && t < 8; t += 0.1) await this.wait(0.1);
+    await this.sinkTo(next.index);
+    enterLevel(next.index);
+    for (let t = 0; skyTheme.fading && t < 8; t += 0.1) await this.wait(0.1);
+    skyTheme.fadeTime = fadeTime;
+    this.blend = null;
+    this.running = false;
+    this.wait(1.2).then(() => { skyTheme.quiet = false; });
   },
   /**
    * Zwischen zwei Welten, ohne Schnitt: Ein Träger (Glühwürmchen, Gischt, Sand, Glut, Komet) nimmt den Lichtpunkt mit,
@@ -17090,9 +18206,15 @@ const story = {
     return [`${STORY_CHAPTERS[cur.c].title} – ${lvl.titel ?? lvl.name}`,
       `Kapitel ${cur.c + 1} / ${STORY_CHAPTERS.length} · Level ${imKapitel.indexOf(cur) + 1} / ${imKapitel.length}`];
   },
+  /**
+   * Meldung und Knopf nach dem Lösen: im Kapitel «Gelöst» / «Weiter», am Ende der Welt ihr Satz und wohin es geht
+   * (beim Wiederholen ebenso, nur ohne Reise); nach dem letzten Level eines geschafften Grads beim Wiederholen zurück
+   * in die Übersicht statt ins Finale.
+   */
   solvedText() {
     const cur = this.steps[this.step], next = this.steps[this.step + 1], ch = STORY_CHAPTERS[cur.c];
-    return next && next.c === cur.c ? ['Gelöst', 'Weiter'] : [ch.done, ch.next];
+    if (next && next.c === cur.c) return ['Gelöst', 'Weiter'];
+    return !next && this.replay && this.stand.geschafft ? [ch.done, 'Zur Übersicht'] : [ch.done, ch.next];
   },
 
   /* ---------- Zeitachse (läuft mit animate, Zeit der Szene) ---------- */
@@ -17331,9 +18453,10 @@ const _storyDir = new THREE.Vector3(), _storyHead = new THREE.Vector3();
 story.init();
 
 /* ---------- Tasten ----------
-   R: neu starten · M: Ton · Esc: Menü · Enter: weiter (nach dem Lösen) bzw. Start; im Menü Tab, Pfeile, Pos1/Ende,
-   Enter (menu.keydown), Esc zurück ins Spiel (story.back); in den Zwischenszenen Enter/Leertaste weiter, Esc
-   überspringt den Prolog (story.keydown).
+   R: neu starten · M: Ton · Esc: Menü · L: Übersicht · Enter: weiter (nach dem Lösen) bzw. Start; im Menü Tab,
+   Pfeile, Pos1/Ende, Enter (menu.keydown), Esc zurück ins Spiel (story.back); in der Übersicht Pfeile, Pos1/Ende,
+   Bild↑/↓, Tab, Enter und Esc (createUebersicht fängt sie ab), L schliesst sie; in den Zwischenszenen
+   Enter/Leertaste weiter, Esc überspringt den Prolog (story.keydown).
    Level und Hintergrund wählt die Geschichte (Entscheide 21 und 26). C (Debug): Farbe der Quellen wechseln */
 
 /**
@@ -17366,6 +18489,12 @@ window.addEventListener('keydown', (e) => {
     if (flow.state !== 'intro') holdUntilRelease(e.code);
     return;
   }
+  // offene Übersicht: ihre Tasten nimmt sie selbst (Capture), R usw. wirken nicht aufs Feld darunter; L schliesst
+  if (uebersicht.offen) {
+    if (e.code === 'KeyM') ui.toggleSound();
+    else if (e.code === 'KeyL') story.closeOverview();
+    return;
+  }
   // offenes Menü: R, Pfeile usw. bedienen nicht das Feld darunter; Esc führt zurück ins Spiel, wenn es von dort kam
   if (menu.offen) {
     if (menu.keydown(e)) return;
@@ -17376,6 +18505,7 @@ window.addEventListener('keydown', (e) => {
   if (story.keydown(e)) return;
   if (e.code === 'KeyM') ui.toggleSound();
   else if (e.code === 'Escape') story.toMenu();
+  else if (e.code === 'KeyL') story.toOverview();
   else if (e.code === 'Enter' && ui.solvedVisible()) {
     e.preventDefault();
     ui.advance();
@@ -17695,8 +18825,8 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
 // Kopfzeile mit Titel oder Name und Grad (Bilder der KI-Tester, Proben im Würfel). loese(): das laufende Level lösen,
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
-// (progress) und Neuladen.
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu,
+// (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
@@ -17706,7 +18836,9 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
     story.outside = true;
     story.choosing = false;
     story.paused = null;
+    story.overview = null;
     menu.hide(true);
+    uebersicht.hide();
     story.gazeRun++;
     story.gaze = 0;
     story.close();
