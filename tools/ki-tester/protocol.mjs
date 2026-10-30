@@ -284,8 +284,9 @@ export function fingerprint() {
   for (const file of ['./anchors.json', './answer.schema.json']) hash.update(read(file));
   hash.update(glossary());
   for (const a of anchors) {
-    // Name und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des Grads difficulty)
-    const { name, difficulty, grad, ...data } = levelAt(a.position);
+    // Name, Titel (Noas Geschichte, Ticket 04) und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des
+    // Grads difficulty)
+    const { name, titel, difficulty, grad, ...data } = levelAt(a.position);
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);
@@ -307,7 +308,7 @@ export function fingerprintWuerfel(version = WUERFEL_VERSION) {
   hash.update(JSON.stringify(WUERFEL_ANKER[version]) + JSON.stringify(schemaOf(version)));
   hash.update(glossary());
   for (const a of anchors) {
-    const { name, difficulty, grad, ...data } = WUERFEL_IM_SPIEL[a.position - 1];
+    const { name, titel, difficulty, grad, ...data } = WUERFEL_IM_SPIEL[a.position - 1];
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);

@@ -48,9 +48,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Probieren, Schwierigkeit und Schliessen an ihren Testleveln).
   - `node tests/levelliste.test.mjs` prüft die Levelliste (Spec, Nahtstelle 3; unter `leise.sh` etwa 25 s): Jedes Level
     nach dem Tutorial hat einen Grad, der nie sinkt und den Schwellen folgt; die Anzeige bildet die Grade auf 1–4
-    Punkte und Text ab, der Seitentitel nennt den Grad der Seite oder ihren Bereich; die Reihenfolge ist die der Formel,
-    und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16, dazu
-    beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
+    Punkte und Text ab (die Seiten der Levelauswahl gibt es seit Ticket 04 nicht mehr); die Reihenfolge ist die der
+    Formel, und jede Abweichung davon ist im Protokoll der KI-Tester oder durch die Häufungsregel begründet (Ticket 16,
+    dazu beide Regeln an erfundenen Fällen); kein von den KI-Testern korrigiertes Level steht mehr als 5 Plätze von seinem
     Platz davor, weder nach den Korrekturen noch am Ende (Ticket 24, mit Gegenproben an erfundenen Korrekturen, die
     einander schieben); die Prüfliste stimmt und ist erledigt, jedes Level darauf hat ein zählendes
     Urteil, und sein Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt (Ticket 26, mit Gegenproben an
@@ -63,7 +63,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Liste genau diese Level, 27 in „mittel“ und 4 in „schwer“); eindeutige Namen, keiner aus der
     Liste entfernter Namen; jeder Name der heutigen Reihenfolge steht im Spiel oder auf dieser Liste (umbenannt wird
     nichts), 150 Level nach dem Tutorial und dazu die des Ausbaus; kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch einen
-    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Fortschritt hängt am Namen. Zum Austausch (Tickets
+    Gelbfilter als Grün, mit Gegenprobe); genau eine Lösung; der Speicherstand von Noas Geschichte je Grad unter
+    `prisma.noa.*` (gelöste Level nach Namen, unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel
+    liest das Spiel nicht mehr; Ticket 04, statt des alten Fortschritts). Zum Austausch (Tickets
     23–26): Jedes neue Level steht nach der Formel und hat ein zählendes Urteil der KI-Tester (Lauf `ersatz-…`), das es
     nicht ablehnt; jedes entfernte Level hat seinen Namen auf der Liste und seine Leveldaten in der festen Kopie für die
     Eichung; die Regel für neue Level an einem erfundenen Fall; `levelCode` ergibt jedes Level wieder, der Abdruck hängt
@@ -109,7 +111,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`index.html` und der
     Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
     und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
-    dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller).
+    dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller) und seit dem
+    Umbau zu Noas Geschichte (Ticket 04): Jedes Level von vorher steht im Spiel oder im Vorrat, mit unveränderten
+    Leveldaten (`tests/vor-dem-umbau.json`: je Name ein Abdruck, aus `index.html` im Stand `fc22df1`), dazu nur die 15
+    neuen sehr schweren, alle Würfel-Level im Vorrat; mit Gegenproben.
   - `node tests/geschichte.test.mjs` prüft die Wahl der 240 Level für Noas Geschichte (`.scratch/noa-geschichte/`,
     Ticket 03; nur über `leise.sh`, etwa 3 min: Beurteilung des Pools, die Wahl neu und der Löser): `tools/geschichte/
     wahl.json` ist nachbaubar (neu gerechnet byte-gleich), 4 × 60 Level, je Welt 10 auf den Plätzen 1–10, der Grad aus
@@ -119,8 +124,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     aufeinanderfolgende Level auch über die Weltgrenzen (in «sehr schwer» genau die Verstösse, die die Wahl selbst
     nennt, weil es dort auch mit 3 Plätzen nicht aufgeht), keine zwei zu ähnlich, kein abgelehntes, genau eine Lösung,
     die Titel aus `titel.json` (eindeutig über Titel und Namen, Regeln der Spec) und die Schlüssel der 15 neuen sehr
-    schweren Level; dazu Gegenproben an erfundenen Änderungen und Pools (auch zur Regel der 3 Plätze über die
-    Weltgrenze und, gegen alle Anordnungen eines kleinen Falls, zur kleinsten Verschiebung).
+    schweren Level (seit Ticket 04 je einmal im Spiel, mit denselben Leveldaten); dazu Gegenproben an erfundenen
+    Änderungen und Pools (auch zur Regel der 3 Plätze über die Weltgrenze und, gegen alle Anordnungen eines kleinen
+    Falls, zur kleinsten Verschiebung). Die Wahl im Spiel (Ticket 04): `index.html` enthält das Tutorial und genau die
+    240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe, keine Würfel-Level; der Datenblock der Geschichte
+    (`STORY_LEVELS`) ist die Reise aus `wahl.json`; `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien
+    der Texte ein Level der Wahl aus dem Vorrat zurück und ein anderes hin (ohne Titel), byte-gleich.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh node tests/geschichte-probe.mjs [--handy] [--grad leicht,mittel,…]
+    [--welten 2] [--finale <grad>]` spielt Noas Geschichte in Headless-Chrome (Ticket 04; etwa 3 min je Grad): je Grad
+    ein Durchgang durch die ersten Welten (Wahl des Grads, Prolog, Einstieg, je 10 Level, Reise), danach Neuladen und
+    Fortsetzen am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis «Zum Menü». Über die
+    Testschnittstelle (`__prismaDebug`: `story.choose`, `loese`, Weiter wie ein Spieler; den Stand für das Finale
+    setzt sie in `localStorage`). Sie prüft Kopfzeile, Speicherstand und Konsole und legt Bilder der wichtigen Momente
+    nach `tests/output/geschichte/` (`«sehr schwer»` als `sehr-schwer`).
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
@@ -130,34 +146,53 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
     Rechtsklick, Ziehen und Hover.
   - `node tests/screenshot.mjs cube-click 1440 900 500 "$(cat tests/cube-click-probe.js)"` klickt im Würfel-Level
-    „Blumentopf“ jedes drehbare Element an und meldet, welches sich gedreht hat. `tests/cube-probe.js` stellt ein
-    Würfel-Level für Screenshots ein (Aufruf im Kopf der Datei und in [3D-WUERFEL.md](3D-WUERFEL.md)).
+    „Zahnbürste“ jedes drehbare Element an und meldet, welches sich gedreht hat. `tests/cube-probe.js` stellt ein
+    Würfel-Level für Screenshots ein (Aufruf im Kopf der Datei und in [3D-WUERFEL.md](3D-WUERFEL.md)). Seit Ticket 04
+    liegen die Würfel-Level im Vorrat: vorher zurückholen (`tools/vorrat.mjs`); die Proben zeigen Level über die
+    Testschnittstelle (`__prismaDebug.zeige(index)`, ausserhalb der Geschichte), die Probe der Bedienung das erste
+    Tutorial-Level.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
-  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Hintergrund (Milchstrasse, Sonnensystem, Wald oder Strand, der Reihe nach), Levelauswahl.
-  Tasten: N / → nächstes Level, P / ← voriges Level, R neu starten, M Ton, H Hintergrund, L Levelauswahl,
-  Enter weiter (nach dem Lösen), Esc schliessen, F Leistungsanzeige. In der Levelauswahl blättern ← / Bild↑ und
-  → / Bild↓ eine Seite weiter, auf dem Handy auch Wischen über die Kacheln (nach links die nächste Seite); oben
-  springen Tutorial, Leicht, Mittel, Schwer und Sehr schwer zur ersten Seite des Abschnitts.
-- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** zwei Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`),
-  in der Levelauswahl unter „Würfel · 3D“. Jedes Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und
-  wirkt in der Ebene senkrecht dazu wie im 2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
+  Schaltflächen unten rechts: Level neu starten, Ton an/aus. Tasten: R neu starten, M Ton, Enter weiter (nach dem
+  Lösen), F Leistungsanzeige; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
+  Hintergrund wählt die Geschichte (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Die Levelauswahl, der
+  Hintergrund-Knopf und die Tasten N, P, H und L sind mit Ticket 04 weggefallen.
+- **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`), seit
+  Noas Geschichte (Ticket 04) alle im Vorrat (`tools/vorrat/wuerfel.js`, zurückzuholen mit `tools/vorrat.mjs`). Jedes
+  Element dreht um eine feste Achse in einem Ring (Achszapfen zeigen sie) und wirkt in der Ebene senkrecht dazu wie im
+  2D-Feld; Spiegel mit waagrechter Achse lenken Licht zwischen die Ebenen.
   Derselbe Durchlauf der Strahlregel wie für die flachen Level (`tracePass`, ADR 0003): Ein flaches Level ist ein Würfel
   mit einer Ebene. Nur das Brett hat eine eigene Fassung (`createBoard3`, mit y und Drehachse); die flachen Level
   bleiben bitgleich (`tests/golden.mjs`).
   Die Kamera lässt sich im Würfel viel stärker neigen. Beurteilung (Ticket 14) und Generator (Ticket 22) kennen den
   Würfel über die Würfel-Feldform (`tools/beurteilung/feldform-wuerfel.mjs`); Würfel-Level aus dem Generator kommen
   nicht ins Spiel.
-- **Ablauf:** Startbildschirm (Klick startet und schaltet den Ton frei), dann das Tutorial. Die Kopfzeile zählt die
+- **Ablauf:** Noas Geschichte «Ein Lichtsignal an die Sterne» ist das Spiel (Spec `.scratch/noa-geschichte/`,
+  Ticket 04): Startbildschirm (Klick startet und schaltet den Ton frei), dann die Wahl des Grads (vier Knöpfe,
+  schlicht bis Ticket 05). Je Grad ein Durchgang: Prolog im Dorf, dann 6 Welten (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) zu
+  je 10 Leveln, beim ersten Betreten einer Welt ein Einstieg, zwischen den Welten die Reise des Lichts, nach der
+  letzten Welt Finale und Epilog, am Ende «Zum Menü» (lädt neu, bis Ticket 05). Prolog und Einstiege kommen je Grad nur
+  beim ersten Mal; der Prolog lässt sich überspringen. Die Level je Grad und Welt stehen im Datenblock
+  `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad
+  unter `prisma.noa.<grad>` (`sehr schwer` als `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene
+  Momente, geschafft) und der zuletzt gespielte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort fort. Die alten
+  Schlüssel (`prisma.solvedLevels`, `prisma.current`, `prisma.sky`, `prisma.signal`, `prisma.signal.seen`) liest das
+  Spiel nicht mehr. Das Tutorial steht im Spiel, kommt im Ablauf aber erst mit dem Kapitel «Im Dorf» (Ticket 07).
+  Kopfzeile nach Entscheid 20: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter Grad,
+  Kapitel und Level («●○○○ Leicht · Kapitel 2 / 6 · Level 1 / 10») und die Bedienung. Sie zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
   Grundfarbe an, wird ihr Bogen heller; kommt eine an, die das Ziel nicht braucht, flackert sie in ihrem leeren
   Platz. Beim Lösen leuchten die Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die
   Platte und es regnen Funken; danach "Level gelöst" mit Weiter-Button. Ton komplett per Web Audio erzeugt.
-  `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn).
+  `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn), `?sky=<id>` zeigt
+  einen Hintergrund statt dem der Welt (Tests). Testschnittstelle für Werkzeuge und Proben (`__prismaDebug`, das Spiel
+  ruft sie nie auf): `zeige(index)` zeigt ein Level ausserhalb der Geschichte (ohne Speicherstand), `loese()` löst das
+  laufende Level Drehung für Drehung, `story.choose(grad)` wählt einen Grad, `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
-  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, offene
-  Levelauswahl). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz → 72 bzw. 29).
+  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
+  Geschichte, Wahl des Grads). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
+  72 bzw. 29).
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
 - **Skyboxen aus Blender** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Hintergründe, die
   in Blender als Panorama entstehen; im Spiel zeichnet sie ein allgemeines Modul (`createPanoramaSky`, Abschnitt SKYBOX
@@ -582,9 +617,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     taugt kein Level als Anker (kein Ausschlussgrund, nicht auf der Prüfliste).
   - **Version und Fingerabdruck:** `VERSION`, `FINGERPRINT` und `VERSIONS` in `protocol.mjs`; die Version steht in
     jedem Eintrag. Der Fingerabdruck umfasst alles, was die KI-Tester sehen: die Aufträge aus `brief.md` samt den Zeilen
-    der Listen, `anchors.json`, das Schema, das Glossar und das Feld als Text der Anker samt ihren Leveldaten, nicht
-    aber die Bilder. Ändert sich davon etwas oder die Regel, kommt eine neue Version: Test, `prepare.mjs` und
-    `merge.mjs` melden einen anderen Fingerabdruck, und `merge.mjs` nimmt nur Läufe der aktuellen Version mit ihrem
+    der Listen, `anchors.json`, das Schema, das Glossar und das Feld als Text der Anker samt ihren Leveldaten (ohne
+    Name, Titel und Grad, die sie nicht sehen; den Titel bringt Noas Geschichte, Ticket 04), nicht aber die Bilder.
+    Ändert sich davon etwas oder die Regel, kommt eine neue Version: Test, `prepare.mjs` und `merge.mjs` melden einen anderen Fingerabdruck, und `merge.mjs` nimmt nur Läufe der aktuellen Version mit ihrem
     Fingerabdruck an. Einträge älterer Versionen bleiben gültig; der Test prüft jeden nach der Referenz seiner Version
     (Ablauf 1: 43 Einträge, heutige Reihenfolge und vorläufige Grade).
   - **Screenshots:** `shots.mjs` lädt je Level die Seite mit `?t=12` neu, spult Herauswachsen und Aufleuchten mit
@@ -592,7 +627,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     weiterem Vorspulen byte-gleich sind. Das dauert 26,6 s je Aufnahme (ein Level auf einem Bildschirm) statt 150 s;
     die Bilder sind byte-gleich mit denen nach 150 s Warten.
     `sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …>` nimmt Level (Platz im Spiel) mit der
-    Kopfzeile wie im Spiel auf.
+    Kopfzeile eines Levels ausserhalb der Geschichte auf. Seit Ticket 04 zeigt es jedes Level nach dem Neuladen über die
+    Testschnittstelle (`__prismaDebug.zeige`) vor der Milchstrasse (`?sky=milky`), wie zuvor ohne Speicherstand.
 - **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
   stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `index.html`
   Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente, Lösung), darüber
@@ -603,7 +639,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
   im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
   Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm, schreiben
-  aber nur, wenn ihre Art nicht im Vorrat liegt.
+  aber nur, wenn ihre Art nicht im Vorrat liegt. Seit Ticket 04 liegen dort die 275 flachen Level ausserhalb von Noas
+  Geschichte und alle 300 Würfel-Level.
 - **Wahl für Noas Geschichte** (`.scratch/noa-geschichte/`, Ticket 03; nur für die Entwicklung):
   `LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]` wählt je Grad die 60 Level der
   Geschichte aus den flachen Leveln des Grads (Spiel und Vorrat, für «sehr schwer» dazu die 15 aus
@@ -614,10 +651,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die Weltgrenze). Regeln, Entscheide und Abweichungen im Kopf des Werkzeugs; das Ergebnis mit
   Begründung je Level in `tools/geschichte/wahl.json`. Die Titel stehen von Hand in `tools/geschichte/titel.json` (je
   Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
-  neu zu und prüft sie.
+  neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
+  In `index.html` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
+  (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es
+  in den Vorrat, Level der Wahl im Vorrat holt es zurück, und zwischen `GESCHICHTE:BEGIN` und `GESCHICHTE:END` schreibt
+  es den Datenblock der Reise (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
+  Neue Level kommen vorher über `ordne-level.mjs --ausbau` ins Spiel (mit allen flachen Leveln im Spiel, also erst
+  `vorrat.mjs zurueckholen --flach`), so die 15 neuen sehr schweren in Ticket 04; danach `wahl` und `spiel`.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
-  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach 150 Level, seit
+  Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach seit Ticket 04
+  (Noas Geschichte) genau die 240 Level der Geschichte mit ihrem Titel (`titel`, die Reise in `STORY_LEVELS`), in der
+  Reihenfolge der Reihe; die übrigen der 515 flachen Level (500 und die 15 neuen sehr schweren aus Ticket 01, über
+  `ordne-level.mjs --ausbau` in die Reihe eingefügt) liegen im Vorrat. Die Reihe: 150 Level, seit
   Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
   Level mehr als 10 Plätze. Über die 51 Level, die nach der Formel weiter wandern würden (Prüfliste in
   `tools/levelliste.json`), haben in Ticket 16 die KI-Tester geurteilt: 28 stehen nach der Formel, die übrigen an
@@ -639,15 +685,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar und
   im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–31, mittel 32–105,
   schwer 106–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
-  bis sehr schwer ●●●● oben rechts auf der Kachel der Levelauswahl, mit Punkten und Text in der Kopfzeile (hinter dem
-  Namen, auf dem Handy hochkant in einer eigenen Zeile darunter) und als Text im Seitentitel, gemischt als Bereich
-  („Leicht bis Mittel“). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil Rot, Grün und Blau
-  Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den Grad als Text (in
-  der Kopfzeile und im Namen der Kachel). Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl
-  blättert in Seiten (Tutorial, 1–10, 11–20 … 141–150; ab 9 Seiten in zwei Reihen) – reine Seiten, keine Themen.
-  Alle Level sind jederzeit spielbar, nichts muss freigeschaltet werden. Fortschritt und aktuelles Level bleiben
-  im Browser gespeichert (nach Levelname).
-  Wichtig: Der Levelname ist der Speicherschlüssel des Fortschritts; ein Umordnen ändert ihn nicht (geprüft in
+  bis sehr schwer ●●●● mit dem Text dazu: in Noas Geschichte in der Unterzeile der Kopfzeile und auf den Knöpfen der
+  Wahl des Grads, bei einem Level ausserhalb der Geschichte (Testschnittstelle) hinter dem Namen (auf dem Handy
+  hochkant in einer eigenen Zeile darunter). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil
+  Rot, Grün und Blau Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den
+  Grad als Text. Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl (Seiten zu 10, Fläche und
+  Würfel) ist mit Ticket 04 weggefallen; die Übersicht des Grads folgt in Ticket 06.
+  Wichtig: Der Levelname (`name`) ist der stabile Schlüssel jedes Levels (Speicherstand, Werkzeuge, Protokoll der
+  KI-Tester, Golden-Test); angezeigt wird `titel ?? name`. Gelöste Level speichert das Spiel nach Namen (geprüft in
   `tests/levelliste.test.mjs`). Die Namen der 150 wurden einst der Position nach vergeben (bis Ticket 21 in
   `tools/profiles.mjs`; als feste Liste in `tools/beurteilung/heutige-reihenfolge.json`) – nach dem Veröffentlichen
   nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie wieder

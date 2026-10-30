@@ -38,3 +38,9 @@ Koordinators zu den offenen Fragen des Bausteins: «23 / 60» zählt gelöste Le
 nächstschwerere Grad schon geschafft, wird der nächste nicht geschaffte hervorgehoben, nach «sehr schwer» keiner; ein
 Grad gilt ab dem Prolog als begonnen (`welt: 'dorf'`, «Dorf · 0 / 60»); hinter dem Menü schaut die Kamera in den
 Himmel, damit das Brett nicht hinter den Wegen steht.
+
+**Aus dem Review von Ticket 04 (30.10.2026):** Nach der Wahl eines Grads in einer anderen Welt das Menü sofort
+schliessen bzw. einen Schleier zeigen (heute bleibt die Wahl bis 3 s stehen, weil `enter()` auf `skyTheme.ready`
+wartet, ohne `close()`); beim Fortsetzen in einer anderen Welt die 3,5–3,9 s Laden des Himmels nicht als leeres Brett
+zeigen, sondern weich überbrücken (z. B. Kamera bleibt im Himmel, bis die Welt bereit ist). Auf dem Handy quer fehlt
+die Unterzeile der Kopfzeile (wie vor dem Umbau) – beim Einbau des Menüs prüfen, ob sie dort Platz findet.

@@ -8,22 +8,26 @@
 // neuen Level; dazu, dass die Wahl nachbaubar ist (neu gerechnet byte-gleich wie die Datei). Gegenproben an erfundenen
 // Fällen zeigen, dass jede Prüfung einen Verstoss findet, und an erfundenen Pools, dass die Wahl die Vielfalt vor die
 // Bewertung stellt, über die Grenzen der Welten anordnet, über den ganzen Grad die kleinsten Verschiebungen findet und
-// ohne Wahl so wenige Verstösse wie möglich lässt.
+// ohne Wahl so wenige Verstösse wie möglich lässt. Seit Ticket 04 die Wahl im Spiel: index.html enthält das Tutorial
+// und genau die 240 mit ihrem Titel, in der Reihenfolge der Reihe (nicht umgeordnet), der Datenblock der Geschichte
+// (STORY_LEVELS) die Reise aus wahl.json, alles übrige liegt im Vorrat; geschichte.mjs spiel ändert danach nichts mehr
+// und bringt an Kopien der Texte jedes Level dorthin, wo es hingehört.
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tests/geschichte.test.mjs   (etwa 3 min: Beurteilung des Pools, die Wahl
 //         neu und der Löser für die 240 Level)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { period, solve } from '../tools/solver.mjs';
-import { ALLE } from '../tools/lader.mjs';
+import { L, period, solve } from '../tools/solver.mjs';
+import { ALLE, VORRAT } from '../tools/lader.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { MINDEST_SPIELWERT } from '../tools/beurteilung/spielwert.mjs';
-import { kandidatName } from '../tools/leveldaten.mjs';
+import { abdruck, kandidatName } from '../tools/leveldaten.mjs';
 import { alleUrteile, ladeLevelliste } from '../tools/levelliste.mjs';
+import { ablegen, lese, namenImSpiel, zurueckholen } from '../tools/vorrat.mjs';
 import {
   DATEIEN, HOECHSTENS, JE_GRAD, JE_WELT, UEBER_GRENZEN, VERTAUSCHUNG, WELTEN, ablehnung, alleNamen, alsDaten,
-  anordnungen, bewerte, bewertungen, fensterVerstoesse, ladeTitel, mitTitel, nachSchwierigkeit, neueLevel,
-  ordneUeberGrenzen, poolLevel, pruefe, sechstel, titelFehler, waehle, waehleGrad, waehleWelt, wahlText, zuviel,
-  zustandNach,
+  anordnungen, bewerte, bewertungen, blockZeilen, fensterVerstoesse, insSpiel, ladeTitel, mitTitel, nachSchwierigkeit,
+  neueLevel, ordneUeberGrenzen, poolLevel, pruefe, reiseAus, reiseImSpiel, sechstel, titelFehler, waehle, waehleGrad,
+  waehleWelt, wahlText, zuviel, zustandNach,
 } from '../tools/geschichte.mjs';
 
 let passed = 0;
@@ -204,20 +208,28 @@ await test('Gegenproben der Titel: doppelt (auch in anderer Schreibung), Name ei
   assert.match(titelFehler(kurz, alleNamen(), ENTFERNT).join(), /Vulkan, schwer: 9 Titel/);
 });
 await test('Die 15 neuen Level haben einen eigenen Schlüssel: eindeutig über Spiel und Vorrat (auch in anderer '
-  + 'Schreibung), nicht von der Liste entfernter Level, ihr Kandidat in der Datei', () => {
-  const neu = neueLevel(), namen = [...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name.toLowerCase());
+  + 'Schreibung; seit Ticket 04 je genau einmal im Spiel, mit denselben Leveldaten), nicht von der Liste entfernter '
+  + 'Level, ihr Kandidat in der Datei', () => {
+  const neu = neueLevel(), alle = [...ALLE.LEVELS, ...ALLE.LEVELS_3D];
   assert.equal(neu.length, 15);
   for (const n of neu) {
     assert.ok(n.level.name, `${n.kandidat} ohne Schlüssel`);
-    assert.ok(!namen.includes(n.level.name.toLowerCase()), `${n.level.name} gibt es schon`);
+    const gleich = alle.filter(l => l.name.toLowerCase() === n.level.name.toLowerCase());
+    assert.deepEqual(gleich.map(l => [l.name, abdruck(l), l.grad]), [[n.level.name, abdruck(n.level), n.level.grad]],
+      `${n.level.name}: einmal, mit denselben Leveldaten`);
     assert.ok(!ENTFERNT.map(x => x.toLowerCase()).includes(n.level.name.toLowerCase()), `${n.level.name} entfernt`);
     assert.equal(kandidatName(n.level), n.kandidat, `${n.level.name}: Abdruck`);
     const l = LEVEL.find(x => x.name === n.level.name);
     if (l) assert.equal(l.kandidat, n.kandidat);
   }
   assert.equal(new Set(neu.map(n => n.level.name.toLowerCase())).size, 15);
-  // Gegenprobe: ein Schlüssel, den es schon gibt, oder keiner
-  const doppelt = neu.map((n, i) => (i ? n : { ...n, level: { ...n.level, name: ALLE.LEVELS.at(-1).name } }));
+  // im Pool je einmal und weiter als neu
+  const pool = poolLevel(neu);
+  assert.deepEqual(neu.map(n => pool.filter(p => p.name === n.level.name).map(p => [p.neu, p.kandidat])),
+    neu.map(n => [[true, n.kandidat]]));
+  // Gegenprobe: ein Schlüssel, den es mit anderen Leveldaten schon gibt, oder keiner
+  const vorhanden = ALLE.LEVELS[ALLE.TUTORIAL_COUNT].name;
+  const doppelt = neu.map((n, i) => (i ? n : { ...n, level: { ...n.level, name: vorhanden } }));
   assert.throws(() => poolLevel(doppelt), /gibt es schon/);
   const leer = neu.map((n, i) => (i ? n : { ...n, level: { ...n.level, name: '' } }));
   assert.throws(() => poolLevel(leer), /ohne Schlüssel/);
@@ -466,4 +478,60 @@ await test('ordneUeberGrenzen (nur «sehr schwer»): gegen alle Anordnungen mit 
   const mit = ordneUeberGrenzen(eng, 3, { mitVerstoessen: true });
   assert.deepEqual(kosten(mit, eng), kosten(pruefeGegenAlle(eng, true), eng));
   assert.equal(zuviel(fensterVerstoesse(mit)), 1);
+});
+
+console.log('Die Wahl im Spiel (Ticket 04)');
+const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
+await test('index.html enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
+  + 'der Reihenfolge der Reihe; die übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
+  assert.equal(L.TUTORIAL_COUNT, 9);
+  assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => !l.tutorial).map(l => l.name), []);
+  assert.deepEqual(IM_SPIEL.map(l => l.name).sort(), LEVEL.map(l => l.name).sort());
+  const titel = new Map(LEVEL.map(l => [l.name, l.titel]));
+  assert.deepEqual(IM_SPIEL.filter(l => l.titel !== titel.get(l.name)).map(l => `${l.name}: ${l.titel}`), []);
+  // nicht umgeordnet: dieselbe Folge wie in der ganzen Reihe aus Spiel und Vorrat (Lader)
+  const reihe = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).map(l => l.name).filter(x => titel.has(x));
+  assert.deepEqual(IM_SPIEL.map(l => l.name), reihe);
+  assert.equal(L.LEVELS_3D.length, 0, 'keine Würfel-Level im Spiel');
+  assert.equal(VORRAT.wuerfel.length, ALLE.LEVELS_3D.length);
+  assert.equal(VORRAT.flach.length + IM_SPIEL.length, ALLE.LEVELS.length - ALLE.TUTORIAL_COUNT);
+  assert.deepEqual([...VORRAT.flach, ...VORRAT.wuerfel].filter(l => 'titel' in l).map(l => l.name), []);
+});
+await test('Der Datenblock der Geschichte (STORY_LEVELS) nennt je Grad die 6 Welten mit ihren 10 Leveln wie wahl.json, '
+  + 'jedes im Spiel mit seinem Grad; höchstens 120 Zeichen je Zeile', () => {
+  const reise = reiseAus(DATEN);
+  assert.deepEqual(L.STORY_LEVELS, reise);
+  assert.deepEqual(reiseImSpiel(readFileSync(new URL('../index.html', import.meta.url), 'utf8')), reise);
+  const grad = new Map(IM_SPIEL.map(l => [l.name, l.grad]));
+  for (const g of GRADE) {
+    assert.deepEqual(reise[g].map(w => w.length), WELTEN.map(() => JE_WELT), g);
+    assert.deepEqual(reise[g].flat().filter(x => grad.get(x) !== g), [], `${g}: Grad`);
+  }
+  assert.deepEqual(blockZeilen(reise).filter(z => [...z].length > 120), []);
+  // Gegenprobe: ein Platz doppelt bzw. leer fällt auf
+  const doppelt = structuredClone(DATEN);
+  doppelt.level[1].platz = doppelt.level[0].platz;
+  assert.throws(() => reiseAus(doppelt), /passt nicht in die Reise/);
+});
+await test('geschichte.mjs spiel: ein zweiter Lauf ändert nichts; an Kopien der Texte kommt ein Level der Wahl aus '
+  + 'dem Vorrat zurück, ein anderes geht hin (ohne Titel), danach wieder byte-gleich; ohne ein Level bricht es ab',
+() => {
+  const texte = lese();
+  assert.deepEqual(insSpiel(texte, DATEN).schritte, [], 'nichts zu tun');
+  // ein Level der Wahl liegt im Vorrat, ein übriges flaches und ein Würfel-Level stehen im Spiel, eines mit Titel; je
+  // das letzte im Vorrat, denn Ablegen hängt hinten an (so ist der Vorrat danach wieder byte-gleich)
+  const story = LEVEL[17].name, uebrig = VORRAT.flach.at(-1).name, wuerfel = VORRAT.wuerfel.at(-1).name;
+  let t = ablegen(texte, [story]);
+  t = zurueckholen(t, [uebrig, wuerfel]);
+  t = { ...t, spiel: t.spiel.replace(`name: '${uebrig}', `, `name: '${uebrig}', titel: 'Irrweg', `) };
+  const r = insSpiel(t, DATEN);
+  assert.deepEqual(r.schritte.map(s => s.was), ['zurückholen', 'ablegen']);
+  assert.deepEqual([r.holen, r.weg], [[story], { flach: [uebrig], wuerfel: [wuerfel] }]);
+  const ende = r.schritte.at(-1).texte;
+  for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(ende[k] === texte[k], `${k} byte-gleich`);
+  assert.ok(namenImSpiel(ende.spiel, 'flach').includes(story));
+  // ein Level der Wahl, das es nicht gibt
+  const fremd = structuredClone(DATEN);
+  fremd.level[0].name = 'Gibt es nicht';
+  assert.throws(() => insSpiel(texte, fremd), /Weder im Spiel noch im Vorrat[^]*Gibt es nicht/);
 });

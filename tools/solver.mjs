@@ -17,7 +17,7 @@ const code = html.slice(html.indexOf('/* LOGIC:BEGIN'), html.indexOf('/* LOGIC:E
 export const L = new Function(code + `
   return { DIRS, COLORS, COLOR_NAMES, MAX_BOUNCES, EDGE_RUN, MIRROR_HALF_WIDTH, ELEMENT_TYPES, reflectOnMirror,
     mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT,
-    mod8, OPEN, LEVELS_3D, AXES, planeDir, planeIndex, reflect3, refractInPrism3 };`)();
+    mod8, OPEN, LEVELS_3D, AXES, planeDir, planeIndex, reflect3, refractInPrism3, STORY_LEVELS };`)();
 
 /** Wirksame Stellungen: Spiegel 4 (rot und rot + 4 wirken gleich), Prisma und Kombinator 8. */
 export const period = (el) => (el.type === 'mirror' ? 4 : 8);

@@ -1,9 +1,10 @@
 // Noas Geschichte als Spielablauf (Spec .scratch/noa-geschichte/, «Wahl der 240 Level» und «Namen der Welten»;
 // Ticket 03): Je Grad wählt es die 60 Level der Geschichte, verteilt sie auf die 6 Welten zu je 10 und gibt jedem
 // einen Titel. Das Ergebnis steht in tools/geschichte/wahl.json, die Titel in tools/geschichte/titel.json (von Hand
-// gepflegt). Das Spiel liest beides erst ab Ticket 04.
+// gepflegt). Ins Spiel bringt es die Wahl mit dem Befehl spiel (Ticket 04, unten).
 // - Pool je Grad: die flachen Level des Grads aus Spiel und Vorrat (ALLE im Lader, ohne Tutorial), für «sehr schwer»
-//   dazu die 15 aus sehr-schwer-neu.json (unter ihrem Schlüssel name; die KI-Tester kennen sie als Kandidat).
+//   dazu die 15 aus sehr-schwer-neu.json (unter ihrem Schlüssel name; die KI-Tester kennen sie als Kandidat). Seit
+//   Ticket 04 stehen sie im Spiel (ordne-level.mjs --ausbau) und gelten dort weiter als die neuen (poolLevel).
 // - Abgelehnt (kommt nicht in Frage; Auslegung von «kein von beiden abgelehntes Level», bestätigt als Entscheid des
 //   Nutzers vom 29.10.2026: ausgeschlossen, wenn die KI-Tester oder die Beurteilung ablehnen):
 //   - von den KI-Testern: In einem Urteil nennen beide einen Begriff aus «Was Spass verdirbt», der beim heutigen Grad
@@ -55,16 +56,28 @@
 // - Titel (titel.json): je Welt und Grad 10, in der Reihenfolge der Plätze; der Titel auf Platz k gehört dem Level auf
 //   Platz k. Eindeutig über alle Titel und alle Namen in Spiel, Vorrat und der 15 neuen (Gross- und Kleinschreibung
 //   egal), keiner von der Liste entfernter Level, ein oder zwei Wörter, «ss» statt «ß» (titelFehler).
+// - Ins Spiel (Befehl spiel, Ticket 04): index.html enthält danach das Tutorial und genau die 240 Level aus wahl.json,
+//   jedes mit seinem Titel (Feld titel hinter dem Namen); die übrigen flachen Level und alle Würfel-Level legt es in
+//   den Vorrat (vorrat.mjs), ohne Titel. Level der Wahl, die im Vorrat liegen, holt es zurück. Zwischen
+//   GESCHICHTE:BEGIN und GESCHICHTE:END (STORY_LEVELS in index.html) schreibt es je Grad die 6 Welten mit den
+//   Schlüsseln ihrer 10 Level in der Reihenfolge der Reise; daraus liest das Spiel seine Kapitel (STORY_CHAPTERS). Die
+//   Level im Spiel ordnet es nicht um: So setzt der Lader die Reihe der flachen Level und die der Würfel-Level
+//   unverändert wieder zusammen. Ein Level der Wahl, das weder im Spiel noch im Vorrat steht, muss zuerst ins Spiel
+//   (neue Level über ordne-level.mjs --ausbau, mit allen flachen Leveln im Spiel); dann bricht es ab. Ein zweiter Lauf
+//   ändert nichts. Nach einer neuen Wahl oder neuen Titeln: wahl bzw. titel, dann spiel.
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]   (etwa 30 s; --trocken: nur der
 //           Bericht, ohne wahl.json zu schreiben)
 //         node tools/geschichte.mjs titel   (nach einer Änderung in titel.json: ordnet die Titel neu zu, ohne neue
 //           Wahl)
+//         node tools/geschichte.mjs spiel [--trocken]   (bringt wahl.json ins Spiel, siehe oben; --trocken: nur der
+//           Bericht)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { ALLE } from './lader.mjs';
+import { ARTEN, INDEX, ablegen, inhalt, lese, namenImSpiel, zurueckholen } from './vorrat.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
-import { kandidatName } from './leveldaten.mjs';
+import { abdruck, kandidatName } from './leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from './aehnlichkeit.mjs';
 import { HAUPT_KERNIDEE_JE_10, alleUrteile, ladeLevelliste } from './levelliste.mjs';
 import { TESTERS, merge } from './ki-tester/protocol.mjs';
@@ -114,19 +127,26 @@ export function neueLevel(datei = DATEIEN.neu) {
 
 /**
  * Der Pool aller Grade (siehe Kopf), je { name, level, grad, kandidat (Name bei den KI-Testern, falls anders), neu }.
- * Ein Level ohne Schlüssel oder mit einem Namen, den es schon gibt, bricht ab.
+ * Seit Ticket 04 stehen die neuen Level im Spiel (über ordne-level.mjs --ausbau); dann kommen sie aus ALLE wie die
+ * übrigen und gelten weiter als neu (mit ihrem Kandidaten), so bleibt die Wahl dieselbe. Ein neues Level ohne
+ * Schlüssel, mit einem anderen Grad oder mit einem Namen, unter dem andere Leveldaten in Spiel oder Vorrat stehen,
+ * bricht ab.
  */
 export function poolLevel(neue = neueLevel()) {
+  const neuNach = new Map(neue.map(n => [n.level.name, n]));
   const main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).map(level => ({ name: level.name, level, grad: level.grad,
-    kandidat: null, neu: false }));
-  const dazu = neue.map(n => ({ name: n.level.name, level: n.level, grad: n.level.grad, kandidat: n.kandidat,
-    neu: true }));
-  const namen = [...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name);
-  for (const p of dazu) {
-    if (!p.name) throw new Error(`sehr-schwer-neu.json: ${p.kandidat} ohne Schlüssel (name)`);
-    if (namen.includes(p.name)) throw new Error(`sehr-schwer-neu.json: ${p.name} gibt es schon in Spiel oder Vorrat`);
-    if (p.grad !== GRADE[3]) throw new Error(`sehr-schwer-neu.json: ${p.name} hat den Grad ${p.grad}`);
+    kandidat: neuNach.get(level.name)?.kandidat ?? null, neu: neuNach.has(level.name) }));
+  const vorhanden = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
+  for (const n of neue) {
+    const name = n.level.name, da = vorhanden.get(name);
+    if (!name) throw new Error(`sehr-schwer-neu.json: ${n.kandidat} ohne Schlüssel (name)`);
+    if (da && (da.dim === 3 || da.tutorial || abdruck(da) !== abdruck(n.level) || da.grad !== n.level.grad)) {
+      throw new Error(`sehr-schwer-neu.json: ${name} gibt es schon in Spiel oder Vorrat, mit anderen Leveldaten`);
+    }
+    if (n.level.grad !== GRADE[3]) throw new Error(`sehr-schwer-neu.json: ${name} hat den Grad ${n.level.grad}`);
   }
+  const dazu = neue.filter(n => !vorhanden.has(n.level.name)).map(n => ({ name: n.level.name, level: n.level,
+    grad: n.level.grad, kandidat: n.kandidat, neu: true }));
   return [...main, ...dazu];
 }
 
@@ -905,6 +925,141 @@ export const mitTitel = (daten, titel) => ({ ...daten,
   level: daten.level.map(l => geordnet({ ...l, titel: titel[l.welt][l.grad][l.platz - 1] })) });
 
 // ---------------------------------------------------------------------------------------------------------------
+// Ins Spiel (Ticket 04, siehe Kopf)
+
+/** Die Markierungen des Datenblocks der Geschichte in index.html (in STORY_LEVELS). */
+export const BLOCK = { anfang: '/* GESCHICHTE:BEGIN */', ende: '/* GESCHICHTE:END */' };
+
+/**
+ * Die Reise je Grad aus wahl.json (daten: die gelesene Datei): { Grad: [[die 10 Schlüssel der ersten Welt], …] }, die
+ * Welten in der Reihenfolge von WELTEN, darin nach Platz. Wirft, wenn ein Platz fehlt oder doppelt ist.
+ */
+export function reiseAus(daten) {
+  const reise = Object.fromEntries(GRADE.map(g => [g, WELTEN.map(() => Array(JE_WELT).fill(null))]));
+  for (const l of daten.level) {
+    const welt = reise[l.grad]?.[WELTEN.indexOf(l.welt)];
+    if (!welt || !(l.platz >= 1 && l.platz <= JE_WELT) || welt[l.platz - 1] !== null) {
+      throw new Error(`wahl.json: ${l.name} (${l.grad}, ${l.welt}, Platz ${l.platz}) passt nicht in die Reise`);
+    }
+    welt[l.platz - 1] = l.name;
+  }
+  const leer = GRADE.flatMap(g => reise[g].flatMap((w, k) => w.flatMap((x, j) => (x === null
+    ? [`${g}, ${WELTEN[k]}, Platz ${j + 1}`] : []))));
+  if (leer.length) throw new Error(`wahl.json: kein Level auf ${leer.join('; ')}`);
+  return reise;
+}
+
+const js = (x) => `'${String(x).replace(/['\\]/g, '\\$&')}'`;
+
+/**
+ * Die Zeilen des Datenblocks (ohne Zeilenende): je Grad eine Liste der Welten, je Welt ihre Schlüssel, darüber ein
+ * Kommentar mit dem Namen der Welt; auf höchstens 120 Zeichen umbrochen.
+ */
+export function blockZeilen(reise) {
+  const zeilen = [];
+  for (const g of GRADE) {
+    zeilen.push(`  ${js(g)}: [`);
+    reise[g].forEach((welt, k) => {
+      zeilen.push(`    // ${WELTEN[k]}`);
+      let z = '    [';
+      welt.forEach((x, j) => {
+        const teil = `${js(x)}${j === welt.length - 1 ? '],' : ','}`;
+        if (z.length + 1 + teil.length > 120 && z.trim() !== '[') { zeilen.push(z); z = `     ${teil}`; }
+        else z += z.endsWith('[') ? teil : ` ${teil}`;
+      });
+      zeilen.push(z);
+    });
+    zeilen.push('  ],');
+  }
+  return zeilen;
+}
+
+/** Die Grenzen der Zeilen zwischen zwei Markierungen in einem Text, wie in vorrat.mjs: { von, bis, nl }. */
+function zwischen(text, anfang, ende) {
+  const nl = text.includes('\r\n') ? '\r\n' : '\n';
+  const a = text.indexOf(anfang), e = text.indexOf(ende);
+  if (a < 0 || e < a) throw new Error(`index.html: Markierungen ${anfang} und ${ende} fehlen`);
+  return { von: text.indexOf(nl, a) + nl.length, bis: text.lastIndexOf(nl, e) + nl.length, nl };
+}
+
+/** index.html mit dem Datenblock der Reise (reiseAus) zwischen GESCHICHTE:BEGIN und GESCHICHTE:END. */
+export function mitBlock(html, reise) {
+  const b = zwischen(html, BLOCK.anfang, BLOCK.ende);
+  return html.slice(0, b.von) + blockZeilen(reise).map(z => z + b.nl).join('') + html.slice(b.bis);
+}
+
+/** Die Reise aus dem Datenblock in index.html (wie das Spiel ihn liest), oder null ohne Markierungen. */
+export function reiseImSpiel(html) {
+  if (!html.includes(BLOCK.anfang)) return null;
+  const b = zwischen(html, BLOCK.anfang, BLOCK.ende);
+  return new Function(`return {\n${html.slice(b.von, b.bis)}};`)();
+}
+
+/**
+ * Eine Namenszeile im Format von levelCode: Einzug und Name (im Würfel mit dim, size und height), wahlweise Titel,
+ * dahinter der Rest.
+ */
+const NAMENSZEILE = new RegExp(String.raw`^( {4}name: '((?:[^'\\]|\\.)*)',(?: dim: 3, size: \d+,(?: height: \d+,)?)?)`
+  + String.raw`( titel: '(?:[^'\\]|\\.)*',)?(.*)$`);
+
+/**
+ * index.html mit den Titeln der Geschichte (titel: Map Name → Titel) in den Namenszeilen der Level zwischen den
+ * Markierungen (flach und Würfel); ein Level, das nicht in titel steht, hat danach keinen Titel. Der übrige Text
+ * bleibt.
+ */
+export function mitTitelnImSpiel(html, titel) {
+  const unquote = (s) => s.replace(/\\(.)/g, '$1');
+  let text = html;
+  for (const art of Object.keys(ARTEN)) {
+    const b = zwischen(text, ARTEN[art].anfang, ARTEN[art].ende);
+    const zeilen = text.slice(b.von, b.bis).split(b.nl).map((z) => {
+      const m = z.match(NAMENSZEILE);
+      if (!m) return z;
+      const t = titel.get(unquote(m[2]));
+      return `${m[1]}${t ? ` titel: ${js(t)},` : ''}${m[4]}`;
+    });
+    text = text.slice(0, b.von) + zeilen.join(b.nl) + text.slice(b.bis);
+  }
+  return text;
+}
+
+/**
+ * Bringt die Wahl ins Spiel (siehe Kopf). texte wie lese() in vorrat.mjs, daten: die gelesene wahl.json. Rückgabe:
+ * { schritte: [{ was, texte }] } in der Reihenfolge, in der sie geschrieben werden (zurückholen: erst index.html, dann
+ * der Vorrat; ablegen: erst der Vorrat, dann index.html; so steht ein Level bei einem Abbruch höchstens doppelt), dazu
+ * holen, weg (Namen je Art), titel (Zahl) und reise. Wirft, wenn ein Level der Wahl weder im Spiel noch im Vorrat
+ * steht.
+ */
+export function insSpiel(texte, daten) {
+  const reise = reiseAus(daten), titel = new Map(daten.level.map(l => [l.name, l.titel]));
+  const imSpiel = (t, art) => namenImSpiel(t.spiel, art);
+  const imVorrat = (t, art) => inhalt(t[art], art).map(b => b.name);
+  const namen = daten.level.map(l => l.name);
+  const fehlen = namen.filter(x => !imSpiel(texte, 'flach').includes(x) && !imVorrat(texte, 'flach').includes(x));
+  if (fehlen.length) {
+    throw new Error('Weder im Spiel noch im Vorrat (neue Level zuerst über ordne-level.mjs --ausbau): '
+      + fehlen.join(', '));
+  }
+  const schritte = [];
+  let t = texte;
+  const holen = namen.filter(x => imVorrat(t, 'flach').includes(x));
+  if (holen.length) {
+    t = zurueckholen(t, holen);
+    schritte.push({ was: 'zurückholen', texte: t });
+  }
+  const spiel = mitBlock(mitTitelnImSpiel(t.spiel, titel), reise);
+  const weg = { flach: imSpiel(t, 'flach').filter(x => !titel.has(x)), wuerfel: imSpiel(t, 'wuerfel') };
+  if (weg.flach.length || weg.wuerfel.length) {
+    t = ablegen({ ...t, spiel }, [...weg.flach, ...weg.wuerfel]);
+    schritte.push({ was: 'ablegen', texte: t });
+  } else if (spiel !== t.spiel) {
+    t = { ...t, spiel };
+    schritte.push({ was: 'Titel und Datenblock', texte: t });
+  }
+  return { schritte, holen, weg, titel: titel.size, reise };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
 // Kommandozeile
 
 const fail = (text) => { console.error(text); process.exit(1); };
@@ -961,6 +1116,34 @@ async function wahlBefehl(trocken) {
   console.log('\nwahl.json geschrieben');
 }
 
+/** Bringt wahl.json ins Spiel (siehe Kopf und insSpiel) und berichtet; trocken: ohne zu schreiben. */
+function spielBefehl(trocken) {
+  const daten = JSON.parse(readFileSync(DATEIEN.wahl, 'utf8'));
+  let r;
+  try {
+    r = insSpiel(lese(), daten);
+  } catch (e) {
+    fail(e.message);
+  }
+  const kurz = (liste) => (liste.length > 8 ? `${liste.slice(0, 8).join(', ')} …` : liste.join(', ') || '–');
+  console.log(`Wahl ins Spiel: ${r.titel} Level mit Titel, Datenblock ${GRADE.length} × ${WELTEN.length} × ${JE_WELT}`);
+  console.log(`  zurückholen: ${r.holen.length} (${kurz(r.holen)})`);
+  console.log(`  ablegen: ${r.weg.flach.length} flache (${kurz(r.weg.flach)}), ${r.weg.wuerfel.length} Würfel-Level`);
+  if (!r.schritte.length) { console.log('index.html und Vorrat stimmen schon, nichts zu schreiben'); return; }
+  if (trocken) { console.log('--trocken: nichts geschrieben'); return; }
+  let vorher = lese();
+  for (const s of r.schritte) {
+    const dateien = [[INDEX, 'spiel'], ...Object.entries(ARTEN).map(([art, a]) => [a.datei, art])]
+      .filter(([, k]) => s.texte[k] !== vorher[k]);
+    // zurückholen: erst index.html, dann der Vorrat; ablegen: erst der Vorrat (siehe insSpiel)
+    if (s.was !== 'zurückholen') dateien.reverse();
+    for (const [datei, k] of dateien) writeFileSync(datei, s.texte[k]);
+    const namen = dateien.map(([, k]) => (k === 'spiel' ? 'index.html' : `tools/vorrat/${k}.js`));
+    console.log(`  ${s.was}: geschrieben ${namen.join(', ')}`);
+    vorher = s.texte;
+  }
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [befehl, ...rest] = process.argv.slice(2);
   if (befehl === 'wahl') await wahlBefehl(rest.includes('--trocken'));
@@ -968,5 +1151,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const titel = pruefeTitel(), daten = JSON.parse(readFileSync(DATEIEN.wahl, 'utf8'));
     writeFileSync(DATEIEN.wahl, wahlText(mitTitel(daten, titel)));
     console.log('Titel neu zugeordnet, wahl.json geschrieben');
-  } else fail('Aufruf: node tools/geschichte.mjs wahl [--trocken] | titel (siehe Kopf)');
+  } else if (befehl === 'spiel') spielBefehl(rest.includes('--trocken'));
+  else fail('Aufruf: node tools/geschichte.mjs wahl [--trocken] | titel | spiel [--trocken] (siehe Kopf)');
 }

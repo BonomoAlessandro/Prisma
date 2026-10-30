@@ -4,10 +4,13 @@
 // dem Zurückholen (einfuegen) an erfundenen Fällen, das Format des Vorrats (der Block wie im Spiel, der Platz darüber,
 // Leveldaten wie im Spiel, Titel), die Auswahl nach Art und Grad und die Fehler; dazu der Lader auf dem Stand der
 // Dateien: jedes Level genau einmal, in der Folge wie nach dem Zurückholen aller, die Level im Spiel dieselben Objekte
-// wie in L. Gerechnet wird auf Kopien der Texte im Speicher; die Dateien bleiben unberührt.
+// wie in L. Gerechnet wird auf Kopien der Texte im Speicher; die Dateien bleiben unberührt. Seit dem Umbau zu Noas
+// Geschichte (Ticket 04): Jedes Level von vorher (tests/vor-dem-umbau.json) steht im Spiel oder im Vorrat, unverändert.
 // Aufruf: node tests/vorrat.test.mjs   (wenige Sekunden)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { L } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
@@ -249,4 +252,36 @@ test('Kommandozeile: liste liest nur, ein falscher Aufruf schreibt nichts', () =
     assert.notEqual(p.status, 0, falsch.join(' '));
   }
   assert.deepEqual(lese(), DATEIEN, 'Dateien unverändert');
+});
+
+console.log('Umbau zu Noas Geschichte (Ticket 04)');
+// Die Level vor dem Umbau (tests/vor-dem-umbau.json: index.html im Stand fc22df1, je Name ein Abdruck der Leveldaten)
+const VORHER = JSON.parse(readFileSync(new URL('./vor-dem-umbau.json', import.meta.url), 'utf8')).level;
+/** Abdruck wie in vor-dem-umbau.json: sha256 der Leveldaten ohne Titel (den bringt erst der Umbau), 16 Zeichen. */
+const abdruckVorher = (level) => {
+  const { titel, ...daten } = level;
+  return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 16);
+};
+/** Was an den Leveln (Name → Level) gegenüber vorher (Name → Abdruck) fehlt oder anders ist. */
+const verloren = (vorher, levels) => Object.entries(vorher).flatMap(([name, h]) => (!levels.has(name)
+  ? [`${name} fehlt`] : abdruckVorher(levels.get(name)) !== h ? [`${name} geändert`] : []));
+test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränderten Leveldaten, dazu nur die 15 '
+  + 'neuen sehr schweren aus dem Ausbau; mit Gegenproben', () => {
+  const jetzt = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
+  assert.equal(Object.keys(VORHER).length, 809, 'Tutorial, 500 flache und 300 Würfel-Level');
+  assert.deepEqual(verloren(VORHER, jetzt), []);
+  const dazu = [...jetzt.keys()].filter(x => !(x in VORHER));
+  const neu = JSON.parse(readFileSync(new URL('../tools/geschichte/sehr-schwer-neu.json', import.meta.url), 'utf8'))
+    .level.map(e => e.level.name);
+  assert.deepEqual(dazu.sort(), [...neu].sort(), 'neu im Spiel');
+  assert.deepEqual(VORRAT.wuerfel.map(l => l.name), ALLE.LEVELS_3D.map(l => l.name), 'alle Würfel-Level im Vorrat');
+  // Gegenproben: ein Element gedreht, ein Level weg, ein Titel dazu (zählt nicht)
+  const erstes = ALLE.LEVELS[ALLE.TUTORIAL_COUNT], k = erstes.elements.findIndex(e => 'rot' in e);
+  const gedreht = { ...erstes, elements: erstes.elements.map((e, j) => (j === k ? { ...e, rot: e.rot + 1 } : e)) };
+  assert.deepEqual(verloren(VORHER, new Map([...jetzt, [erstes.name, gedreht]])), [`${erstes.name} geändert`]);
+  const ohne = new Map(jetzt);
+  ohne.delete(ALLE.LEVELS_3D[0].name);
+  assert.deepEqual(verloren(VORHER, ohne), [`${ALLE.LEVELS_3D[0].name} fehlt`]);
+  const { titel, ...ohneTitel } = erstes;
+  assert.deepEqual(verloren(VORHER, new Map([...jetzt, [erstes.name, { ...ohneTitel, titel: 'Anders' }]])), []);
 });
