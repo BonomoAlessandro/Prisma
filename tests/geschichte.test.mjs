@@ -14,10 +14,8 @@
 // Ticket 04 die Wahl im Spiel: index.html enthält das Tutorial und genau die 240 mit ihrem Titel, in der Reihenfolge
 // der Reihe (nicht umgeordnet), der Datenblock der Geschichte (STORY_LEVELS) die Reise aus wahl.json, alles übrige
 // liegt im Vorrat; geschichte.mjs spiel ändert danach nichts mehr und bringt an Kopien der Texte jedes Level dorthin,
-// wo es hingehört. ERWARTET ROT bis zum Einbau von Ticket 09 (Comments im Ticket): Diese drei Tests vergleichen das
-// Spiel mit wahl.json; die neue Wahl steht schon in wahl.json, ihre 23 neuen Level aber noch nicht im Spiel (sie
-// kommen über ordne-level.mjs --ausbau und geschichte.mjs spiel). Sie bleiben, wie sie sind, und werden mit dem Einbau
-// grün.
+// wo es hingehört. Seit dem Einbau von Ticket 09 stehen die 23 gewählten Kandidaten im Spiel (über ordne-level.mjs
+// --ausbau und geschichte.mjs spiel), die 23 ersetzten Platzhalter im Vorrat (298 flache dort).
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tests/geschichte.test.mjs   (etwa 5 min: Beurteilung des Pools, die Wahl
 //         neu samt Suche in «sehr schwer» und der Löser für die 240 Level)
 import assert from 'node:assert/strict';
@@ -646,14 +644,8 @@ await test('waehleGrad über die Weltgrenzen mit mehr als 60 (Ticket 09): Gehen 
 });
 
 console.log('Die Wahl im Spiel (Ticket 04)');
-// ERWARTET ROT bis zum Einbau von Ticket 09 (Kopf und Comments im Ticket): Die drei folgenden Tests vergleichen das
-// Spiel mit wahl.json. Die neue Wahl von «sehr schwer» steht schon in wahl.json, ihre neuen Level aus
-// sehr-schwer-kandidaten.json aber noch nicht im Spiel; sie kommen erst mit ordne-level.mjs --ausbau und
-// geschichte.mjs spiel dorthin. Bis dahin schlagen die Tests mit diesen Leveln fehl; sie bleiben unverändert.
-const ROT_BIS_EINBAU = '(erwartet rot bis zum Einbau von Ticket 09) ';
 const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
-await test(ROT_BIS_EINBAU
-  + 'index.html enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
+await test('index.html enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
   + 'der Reihenfolge der Reihe; die übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
   assert.equal(L.TUTORIAL_COUNT, 9);
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => !l.tutorial).map(l => l.name), []);
@@ -668,8 +660,7 @@ await test(ROT_BIS_EINBAU
   assert.equal(VORRAT.flach.length + IM_SPIEL.length, ALLE.LEVELS.length - ALLE.TUTORIAL_COUNT);
   assert.deepEqual([...VORRAT.flach, ...VORRAT.wuerfel].filter(l => 'titel' in l).map(l => l.name), []);
 });
-await test(ROT_BIS_EINBAU
-  + 'Der Datenblock der Geschichte (STORY_LEVELS) nennt je Grad die 6 Welten mit ihren 10 Leveln wie wahl.json, '
+await test('Der Datenblock der Geschichte (STORY_LEVELS) nennt je Grad die 6 Welten mit ihren 10 Leveln wie wahl.json, '
   + 'jedes im Spiel mit seinem Grad; höchstens 120 Zeichen je Zeile', () => {
   const reise = reiseAus(DATEN);
   assert.deepEqual(L.STORY_LEVELS, reise);
@@ -685,8 +676,7 @@ await test(ROT_BIS_EINBAU
   doppelt.level[1].platz = doppelt.level[0].platz;
   assert.throws(() => reiseAus(doppelt), /passt nicht in die Reise/);
 });
-await test(ROT_BIS_EINBAU
-  + 'geschichte.mjs spiel: ein zweiter Lauf ändert nichts; an Kopien der Texte kommt ein Level der Wahl aus '
+await test('geschichte.mjs spiel: ein zweiter Lauf ändert nichts; an Kopien der Texte kommt ein Level der Wahl aus '
   + 'dem Vorrat zurück, ein anderes geht hin (ohne Titel), danach wieder byte-gleich; ohne ein Level bricht es ab',
 () => {
   const texte = lese();

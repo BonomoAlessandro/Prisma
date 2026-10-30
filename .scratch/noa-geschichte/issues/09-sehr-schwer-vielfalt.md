@@ -15,22 +15,22 @@ und der Abnahme (Ticket 08) werden neue, passende sehr schwere Level generiert u
 dass die Regel ganz aufgeht: dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende Level, auch über
 Weltgrenzen, mit höchstens 3 Plätzen Abweichung vom Rang nach Schwierigkeit.
 
-- [ ] Ausgangslage aus `tools/geschichte/wahl.json` (`grade["sehr schwer"].verstoesse`): welche Haupt-Kernideen an
+- [x] Ausgangslage aus `tools/geschichte/wahl.json` (`grade["sehr schwer"].verstoesse`): welche Haupt-Kernideen an
       welchen Stellen zu oft stehen, welche fehlen; daraus der Bedarf an neuen Leveln je Haupt-Kernidee und Bereich
       der Schwierigkeit. Zuerst prüfen, was beurteilte, nicht abgelehnte Kandidaten aus Ticket 01 (Lauf `ausbau-noa-1`
       und frühere `ausbau-…`) schon decken; erst den Rest generieren.
-- [ ] Generieren mit Haupt-Kernideen, die in «sehr schwer» selten sind (z. B. Lockvogel oder Ideen, die der
+- [x] Generieren mit Haupt-Kernideen, die in «sehr schwer» selten sind (z. B. Lockvogel oder Ideen, die der
       Generator in anderen Graden kennt), im passenden Bereich der Schwierigkeit; über `tools/ausbau.mjs` wie in
       Ticket 01, nur über `tools/leise.sh` mit `LEISE_CPU=50`.
-- [ ] Vorauswahl wie in Ticket 01 (Grad «sehr schwer», genau eine Lösung, keinem Level in Spiel und Vorrat zu
+- [x] Vorauswahl wie in Ticket 01 (Grad «sehr schwer», genau eine Lösung, keinem Level in Spiel und Vorrat zu
       ähnlich), dann ein Lauf der KI-Tester; nur nicht abgelehnte mit gutem Urteil kommen in Frage.
-- [ ] Die Wahl (`tools/geschichte.mjs wahl`) nimmt die neuen Level in den Pool; die ersetzten Platzhalter gehen in
+- [x] Die Wahl (`tools/geschichte.mjs wahl`) nimmt die neuen Level in den Pool; die ersetzten Platzhalter gehen in
       den Vorrat (`tools/vorrat.mjs`). `verstoesse` ist leer, der Test erlaubt in «sehr schwer» keine Verstösse mehr.
-- [ ] Titel: Die Plätze behalten ihre Titel; neue Level bekommen einen Schlüssel (`name`) im Stil der übrigen sehr
+- [x] Titel: Die Plätze behalten ihre Titel; neue Level bekommen einen Schlüssel (`name`) im Stil der übrigen sehr
       schweren (Sternnamen), eindeutig über Spiel und Vorrat und nicht von der Liste entfernter Level.
-- [ ] Speicherstand: Vor dem Merge gibt es keine Spielstände von Spielern; ersetzte Level brauchen keinen Übergang.
+- [x] Speicherstand: Vor dem Merge gibt es keine Spielstände von Spielern; ersetzte Level brauchen keinen Übergang.
       Bestehende Teststände dürfen verfallen (im Ticket festhalten).
-- [ ] Probe im Browser: ein Durchgang durch eine Welt von «sehr schwer» mit neuen Leveln.
+- [x] Probe im Browser: ein Durchgang durch eine Welt von «sehr schwer» mit neuen Leveln.
 - [ ] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
@@ -308,3 +308,38 @@ Lauf der KI-Tester) entfällt. Die Leveldaten der Kandidaten werden versioniert 
     ist schon im Worktree vor Ticket 09 rot (Würfel-Vorrat mit CRLF in diesem Checkout; nicht von Ticket 09 berührt).
 - **Offen:** Einbau (Schritte oben), Anpassung von `vorrat.test.mjs`, Probe im Browser, Review. Ob 1959 das Optimum
   ist, ist nicht bewiesen (untere Schranke 1848); die Wahl ist die beste gefundene und nachbaubar.
+
+**Einbau (Stufe 4), ausgeführt (30.10.2026, Branch `noa/09-einbau` ab `feature/lichtsignal-prototyp` 8599a74, in
+einem eigenen Worktree, parallel zu Ticket 07 im Haupt-Checkout)**
+
+- `feature/noa-09-wahl` (563473a) ohne Konflikt hineingemergt. Danach die Schrittfolge 1–6 genau wie oben, Schweres
+  über `LEISE_CPU=80 sh tools/leise.sh` (Grenze dieses Rechners), nur ein schwerer Lauf zugleich; die Sperre
+  `/tmp/prisma-leise.lock` gilt für alle Worktrees (Git Bash, ein `/tmp` je Benutzer), Läufe von Ticket 07 und
+  Ticket 09 haben aufeinander gewartet.
+  1. `vorrat.mjs zurueckholen --flach`: 275 zurückgeholt.
+  2. `geschichte.mjs ausbau tests/output/noa/ausbau-09.jsonl`: die 23 Kandidaten (Albireo … Mirfak).
+  3. `ordne-level.mjs --ausbau …` (Bericht, 59 s) ohne Abbruch, Häufungsregel eingehalten, Namen eindeutig, genau eine
+     Lösung, Urteile «388 von 388 Leveln des Ausbaus»; wie in der Probe an der Kopie rücken einige Level 1–5 Plätze
+     (u. a. Alhena, Ankaa, Markab, Hyaden, Weisser Zwerg). Dann `--schreiben`: `index.html` und
+     `tools/levelliste.json` (die 23 unter `ausbau`).
+  4. `tests/golden.mjs`: genau 24 Abweichungen (Anzahl 824 → 847 und die 23 neuen), danach `--write` (847 Level).
+  5. `geschichte.mjs spiel`: 298 flache in den Vorrat, Titel und Datenblock wie `wahl.json`; zweiter Lauf «nichts zu
+     schreiben».
+  6. `geschichte.mjs wahl` neu: `wahl.json` inhaltlich byte-gleich (das Werkzeug schreibt LF, der Checkout hat CRLF;
+     Git sieht keinen Unterschied, Datei wieder ausgecheckt). Summe der Ränge 1959, 0 Verstösse.
+- **Anpassungen:** `tests/vorrat.test.mjs` lässt neben den 15 aus `sehr-schwer-neu.json` die 23 Kandidaten mit
+  Schlüssel aus `sehr-schwer-kandidaten.json` zu (und prüft, dass es 23 sind); `tests/golden.json` neu; README (Vorrat
+  298 flache, 538 flache Level, Testbeschreibungen von Vorrat und Geschichte) und Kopf von `tests/geschichte.test.mjs`
+  nachgeführt; `ROT_BIS_EINBAU` und die Hinweise «erwartet rot» gestrichen, die drei Tests sonst unverändert.
+- **`index.html`:** Nur die Werkzeuge haben geschrieben, keine Handarbeit. Der Diff zu `feature/lichtsignal-prototyp`
+  liegt ganz in `LEVELS` und im Datenblock `STORY_LEVELS` (937 Zeilen dazu, 944 weg: 23 Level rein, 23 in den Vorrat,
+  35 Level, die mit der neuen Reihe ihren Platz unter den 240 tauschen, und die Reise in «sehr schwer»). Zeilenenden
+  unverändert (die Werkzeuge halten sie je Datei).
+- **Tests** (alle aus der README-Liste, ein Lauf über `leise.sh`): Strahlregel 2032, Golden grün (847 Level),
+  Beurteilung 206, Levelliste 55, Würfelliste 20, Generator 31, KI-Tester 84, Vorrat 15 (auch «Titel: levelCode …» mit
+  CRLF, seit 563473a), Geschichte 35/35 (die drei bis dahin roten grün, etwa 8½ min), Offline bestanden.
+- **Probe im Browser:** `GPU=1 … tests/geschichte-probe.mjs --grad sehr-schwer --welten 1`: Menü, Prolog, Einstieg,
+  Bergwald mit den 10 Leveln (darin neu Ankaa, Albireo, Dubhe, Diphda, Alioth auf den Plätzen 5, 6, 8, 9, 10), Reise
+  zum Meer, Neuladen und «Weiter»; «Probe bestanden, Konsole ohne Fehler». Bilder unter `tests/output/geschichte/`.
+- **Speicherstand:** wie oben; Teststände `prisma.noa.sehr-schwer` dürfen verfallen.
+- **Offen:** Review. Status bleibt bis dahin.
