@@ -2,19 +2,24 @@
 // Ticket 03): tools/geschichte/wahl.json gegen die Regeln aus tools/geschichte.mjs. 4 × 60 Level, je Welt 10 auf den
 // Plätzen 1–10, der Grad aus den Leveldaten, die Ränge nach Schwierigkeit je Welt und Vertauschungen um höchstens
 // 2 Plätze (in «sehr schwer» nach dem Entscheid des Nutzers vom 29.10.2026 statt dessen höchstens 3 Plätze vom Rang im
-// Grad, auch über die Weltgrenze), jede Welt in ihrem Abschnitt des Pools, die Vielfalt (ausser den Verstössen, die die
-// Wahl in «sehr schwer» selbst nennt, weil sie dort auch mit 3 Plätzen nicht aufgeht), keine zwei zu ähnlichen Level,
-// kein abgelehntes, genau eine Lösung, die Titel aus titel.json eindeutig und nach den Regeln, die Schlüssel der 15
-// neuen Level; dazu, dass die Wahl nachbaubar ist (neu gerechnet byte-gleich wie die Datei). Gegenproben an erfundenen
-// Fällen zeigen, dass jede Prüfung einen Verstoss findet, und an erfundenen Pools, dass die Wahl die Vielfalt vor die
-// Bewertung stellt, über die Grenzen der Welten anordnet, über den ganzen Grad die kleinsten Verschiebungen findet und
-// ohne Wahl so wenige Verstösse wie möglich lässt. Seit Ticket 04 die Wahl im Spiel: index.html enthält das Tutorial
-// und genau die 240 mit ihrem Titel, in der Reihenfolge der Reihe (nicht umgeordnet), der Datenblock der Geschichte
-// (STORY_LEVELS) die Reise aus wahl.json, alles übrige liegt im Vorrat; geschichte.mjs spiel ändert danach nichts mehr
-// und bringt an Kopien der Texte jedes Level dorthin, wo es hingehört.
-// Aufruf: LEISE_CPU=50 sh tools/leise.sh node tests/geschichte.test.mjs   (etwa 3 min: Beurteilung des Pools, die Wahl
-//         neu und der Löser für die 240 Level)
+// Grad, auch über die Weltgrenze), jede Welt in ihrem Abschnitt des Pools, die Vielfalt in allen Graden ohne Verstoss,
+// keine zwei zu ähnlichen Level, kein abgelehntes, genau eine Lösung, die Titel aus titel.json eindeutig und nach den
+// Regeln, die Schlüssel der 15 neuen Level und der Kandidaten aus Ticket 09; dazu, dass die Wahl nachbaubar ist (neu
+// gerechnet byte-gleich wie die Datei). Ticket 09: «sehr schwer» wählt 60 aus mehr (Spiel, Vorrat und die beurteilten
+// Kandidaten aus sehr-schwer-kandidaten.json) nach der Bewertung, ohne Verstoss, nicht schlechter als die Analyse; die
+// übrigen drei Grade sind unverändert (Prüfsumme von vorher). Gegenproben an erfundenen Fällen zeigen, dass jede
+// Prüfung einen Verstoss findet, und an erfundenen Pools, dass die Wahl die Vielfalt vor die Bewertung stellt, über die
+// Grenzen der Welten anordnet, über den ganzen Grad die kleinsten Verschiebungen findet, ohne Wahl so wenige Verstösse
+// wie möglich lässt und mit Wahl über den ganzen Grad die kleinste Summe der Ränge findet (gegen alle Mengen). Seit
+// Ticket 04 die Wahl im Spiel: index.html enthält das Tutorial und genau die 240 mit ihrem Titel, in der Reihenfolge
+// der Reihe (nicht umgeordnet), der Datenblock der Geschichte (STORY_LEVELS) die Reise aus wahl.json, alles übrige
+// liegt im Vorrat; geschichte.mjs spiel ändert danach nichts mehr und bringt an Kopien der Texte jedes Level dorthin,
+// wo es hingehört. Seit dem Einbau von Ticket 09 stehen die 23 gewählten Kandidaten im Spiel (über ordne-level.mjs
+// --ausbau und geschichte.mjs spiel), die 23 ersetzten Platzhalter im Vorrat (298 flache dort).
+// Aufruf: LEISE_CPU=50 sh tools/leise.sh node tests/geschichte.test.mjs   (etwa 5 min: Beurteilung des Pools, die Wahl
+//         neu samt Suche in «sehr schwer» und der Löser für die 240 Level)
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { L, period, solve } from '../tools/solver.mjs';
 import { ALLE, VORRAT } from '../tools/lader.mjs';
@@ -24,11 +29,15 @@ import { abdruck, kandidatName } from '../tools/leveldaten.mjs';
 import { alleUrteile, ladeLevelliste } from '../tools/levelliste.mjs';
 import { ablegen, lese, namenImSpiel, zurueckholen } from '../tools/vorrat.mjs';
 import {
-  DATEIEN, HOECHSTENS, JE_GRAD, JE_WELT, UEBER_GRENZEN, VERTAUSCHUNG, WELTEN, ablehnung, alleNamen, alsDaten,
-  anordnungen, bewerte, bewertungen, blockZeilen, fensterVerstoesse, insSpiel, ladeTitel, mitTitel, nachSchwierigkeit,
-  neueLevel, ordneUeberGrenzen, poolLevel, pruefe, reiseAus, reiseImSpiel, sechstel, titelFehler, waehle, waehleGrad,
-  waehleWelt, wahlText, zuviel, zustandNach,
+  DATEIEN, GUT_AB, JE_GRAD, JE_WELT, UEBER_GRENZEN, VERTAUSCHUNG, WELTEN, ablehnung, alleNamen, alsDaten, anordnungen,
+  ausbauListe, besteMengeUeberGrenzen, bewerte, bewertungen, blockZeilen, fensterVerstoesse, insSpiel,
+  kandidatenLevel, ladeTitel, mitTitel, nachBewertung, nachSchwierigkeit, namenFehler, neueLevel, ordneUeberGrenzen,
+  poolLevel, pruefe, reiseAus, reiseImSpiel, schreibung, sechstel, titelFehler, waehle, waehleGrad, waehleWelt,
+  wahlText, zuviel, zustandNach,
 } from '../tools/geschichte.mjs';
+
+/** Prüfsumme von «leicht», «mittel» und «schwer» in wahl.json vor Ticket 09 (Stand 63c44b7, siehe Test). */
+const VORHER_DREI_GRADE = 'af5e1d4eab2fa234ef2f0171cdf38a52085612d5d80d3a9319f6f5c730d82b09';
 
 let passed = 0;
 async function test(name, fn) {
@@ -61,10 +70,14 @@ await test('Alle Regeln (pruefe): 4 × 60, je Welt 10 auf den Plätzen 1–10, G
   assert.equal(LEVEL.length, GRADE.length * JE_GRAD);
   assert.deepEqual(pruefe(LEVEL, info, { erlaubt: ERLAUBT }), []);
 });
-await test('Grad: Jedes Level steht im Grad seiner Leveldaten (die 15 neuen in «sehr schwer»)', () => {
+await test('Grad: Jedes Level steht im Grad seiner Leveldaten (die 15 neuen und die Kandidaten aus Ticket 09 in «sehr '
+  + 'schwer»)', () => {
   for (const l of LEVEL) assert.equal(info(l.name).level.grad, l.grad, l.name);
-  const neu = neueLevel().map(n => n.level.name);
-  assert.deepEqual(LEVEL.filter(l => neu.includes(l.name)).map(l => l.grad), neu.map(() => GRADE[3]));
+  const neu = [...neueLevel(), ...kandidatenLevel()].map(n => n.level.name || n.kandidat);
+  for (const x of neu) assert.equal(info(x).grad, GRADE[3], x);
+  const gewaehlt = LEVEL.filter(l => neu.includes(l.name));
+  assert.deepEqual(gewaehlt.map(l => [l.name, l.grad]), gewaehlt.map(l => [l.name, GRADE[3]]));
+  assert.ok(gewaehlt.length > 15, 'Kandidaten gewählt');
 });
 await test('Schwierigkeit: Welt w hat die Ränge 10·w … 10·w+9, höchstens 2 Plätze vertauscht (in «sehr schwer» '
   + 'höchstens 3 Plätze vom Rang im Grad, auch über die Weltgrenze), und die Datei nennt Rang und Schwierigkeit '
@@ -87,9 +100,9 @@ await test('Schwierigkeit: Welt w hat die Ränge 10·w … 10·w+9, höchstens 2
     }
   }
 });
-await test('Bereich: Die Welten teilen den Pool ohne Lücke von unten nach oben, jede wählt aus ihrem Abschnitt (in '
-  + '«sehr schwer» gilt statt dessen die Regel der 3 Plätze), Abweichungen von den Sechsteln stehen in der Datei',
-  () => {
+await test('Bereich: Die Welten teilen den Pool ohne Lücke von unten nach oben, jede wählt aus ihrem Abschnitt, '
+  + 'Abweichungen von den Sechsteln stehen in der Datei (in «sehr schwer» gilt statt dessen die Regel der 3 Plätze, '
+  + 'und der Abschnitt einer Welt reicht bis zum Level mit ihrem letzten Rang)', () => {
   for (const g of GRADE) {
     const d = DATEN.grade[g], reihe = BEWERTET.filter(p => p.grad === g && !p.abgelehnt).sort(nachSchwierigkeit);
     const n = reihe.length, sechs = sechstel(n);
@@ -98,45 +111,59 @@ await test('Bereich: Die Welten teilen den Pool ohne Lücke von unten nach oben,
     d.abschnitte.forEach((a, k) => {
       if (k) assert.equal(a.poolPlaetze[0], d.abschnitte[k - 1].poolPlaetze[1] + 1, `${g}: Lücke vor ${a.welt}`);
       const hier = reihe.slice(a.poolPlaetze[0] - 1, a.poolPlaetze[1]).map(p => p.name);
-      for (const l of LEVEL.filter(x => x.grad === g && x.welt === a.welt && !UEBER_GRENZEN[g])) {
-        assert.ok(hier.includes(l.name), `${g}: ${l.name} nicht im Abschnitt von ${a.welt}`);
+      const imAbschnitt = UEBER_GRENZEN[g]
+        ? LEVEL.filter(x => x.grad === g && Math.floor((x.rang - 1) / JE_WELT) === k)
+        : LEVEL.filter(x => x.grad === g && x.welt === a.welt);
+      for (const l of imAbschnitt) assert.ok(hier.includes(l.name), `${g}: ${l.name} nicht im Abschnitt von ${a.welt}`);
+      if (UEBER_GRENZEN[g] && k < WELTEN.length - 1) {
+        assert.equal(reihe[a.poolPlaetze[1] - 1].name, LEVEL.find(x => x.grad === g && x.rang === JE_WELT * (k + 1))
+          .name, `${g}: Abschnitt von ${a.welt} endet beim Level mit Rang ${JE_WELT * (k + 1)}`);
       }
     });
     const verschoben = d.abschnitte.slice(1).filter((a, k) => a.poolPlaetze[0] - 1 !== sechs[k + 1]).length;
-    assert.equal(d.verschoben.length, verschoben, `${g}: verschobene Grenzen`);
+    assert.equal(d.verschoben.length, UEBER_GRENZEN[g] ? 0 : verschoben, `${g}: verschobene Grenzen`);
   }
 });
-await test('Vielfalt: in «leicht», «mittel», «schwer» höchstens 2-mal dieselbe Haupt-Kernidee je 10 '
-  + 'aufeinanderfolgende Level, auch über die Weltgrenzen; in «sehr schwer» genau die genannten Verstösse', () => {
+await test('Vielfalt: in allen Graden höchstens 2-mal dieselbe Haupt-Kernidee je 10 aufeinanderfolgende Level, auch '
+  + 'über die Weltgrenzen (seit Ticket 09 auch in «sehr schwer»)', () => {
   for (const g of GRADE) {
     const folge = WELTEN.flatMap(w => LEVEL.filter(l => l.grad === g && l.welt === w).sort((a, b) => a.platz - b.platz))
       .map(l => info(l.name));
-    assert.deepEqual(fensterVerstoesse(folge), DATEN.grade[g].verstoesse, g);
-    if (g !== GRADE[3]) assert.deepEqual(DATEN.grade[g].verstoesse, [], g);
+    assert.deepEqual(fensterVerstoesse(folge), [], g);
+    assert.deepEqual(DATEN.grade[g].verstoesse, [], g);
   }
 });
-await test('«sehr schwer»: Der Pool ist genau 60, mit den Rängen je Welt geht die Vielfalt schon in einer Welt nicht '
-  + 'auf, und auch mit 3 Plätzen über die Weltgrenzen nicht (darum die Verstösse); die Anordnung hat weniger als nach '
-  + 'Rang und als mit 2 Plätzen, und einige Level stehen in einer Nachbarwelt', () => {
-  const reihe = BEWERTET.filter(p => p.grad === GRADE[3] && !p.abgelehnt).sort(nachSchwierigkeit);
-  assert.equal(reihe.length, JE_GRAD);
-  const welt = (w) => reihe.slice(JE_WELT * w, JE_WELT * (w + 1));
-  const unmoeglich = WELTEN.filter((_, w) => {
-    const je = {};
-    for (const p of welt(w)) if (p.haupt) je[p.haupt] = (je[p.haupt] ?? 0) + 1;
-    return Object.values(je).some(x => x > HOECHSTENS);
-  });
-  assert.ok(unmoeglich.length > 0, 'keine Welt mit mehr als 2-mal derselben Haupt-Kernidee: dann müsste es aufgehen');
-  assert.equal(ordneUeberGrenzen(reihe, UEBER_GRENZEN[GRADE[3]]), null, 'mit 3 Plätzen ginge es ganz auf');
-  const v = DATEN.grade[GRADE[3]].verstoesse;
-  assert.ok(v.length > 0);
-  assert.ok(zuviel(v) < zuviel(fensterVerstoesse(reihe)), 'nicht besser als nach Rang');
-  const zwei = ordneUeberGrenzen(reihe, 2, { mitVerstoessen: true });
-  assert.ok(zuviel(v) < zuviel(fensterVerstoesse(zwei)), 'nicht besser als mit 2 Plätzen');
-  const nachbar = LEVEL.filter(l => l.grad === GRADE[3]
-    && Math.floor((l.rang - 1) / JE_WELT) !== WELTEN.indexOf(l.welt));
+await test('Übrige Grade unverändert (Ticket 09): «leicht», «mittel» und «schwer» in wahl.json wie vorher (Prüfsumme '
+  + 'aus dem Stand 63c44b7), ohne Suche und ohne Verschiebung über die Weltgrenze', () => {
+  const andere = GRADE.slice(0, 3);
+  const text = JSON.stringify({ grade: andere.map(g => DATEN.grade[g]),
+    level: LEVEL.filter(l => andere.includes(l.grad)) });
+  assert.equal(createHash('sha256').update(text).digest('hex'), VORHER_DREI_GRADE);
+  for (const g of andere) assert.ok(!('suche' in DATEN.grade[g]) && !UEBER_GRENZEN[g], g);
+});
+await test('«sehr schwer» (Ticket 09): 60 aus mehr als 60 (Spiel, Vorrat und Kandidaten), die am besten bewerteten 60 '
+  + 'gehen nicht auf (darum die Suche), die gewählten schon, ohne Verstoss; Summe der Ränge in der Bewertung wie in '
+  + 'der Datei, nicht schlechter als die Analyse (1968), nicht unter der unteren Schranke; einige Level in einer '
+  + 'Nachbarwelt, mit Grund', () => {
+  const g = GRADE[3], reihe = BEWERTET.filter(p => p.grad === g && !p.abgelehnt).sort(nachSchwierigkeit);
+  assert.ok(reihe.length > JE_GRAD, `Pool ${reihe.length}`);
+  assert.ok(reihe.some(p => p.ersatz) && BEWERTET.some(p => p.grad === g && p.ersatz && p.abgelehnt));
+  const ordnung = [...reihe].sort(nachBewertung), rang = new Map(ordnung.map((p, i) => [p.name, i]));
+  const besten = ordnung.slice(0, JE_GRAD).sort(nachSchwierigkeit);
+  assert.equal(ordneUeberGrenzen(besten, UEBER_GRENZEN[g]), null, 'die besten 60 gingen auf: dann ohne Suche');
+  const ss = LEVEL.filter(l => l.grad === g);
+  const gewaehlt = ss.map(l => info(l.name)).sort(nachSchwierigkeit);
+  assert.ok(ordneUeberGrenzen(gewaehlt, UEBER_GRENZEN[g]));
+  const summe = ss.reduce((s, l) => s + rang.get(l.name), 0), s = DATEN.grade[g].suche;
+  assert.deepEqual(ss.map(l => l.bewertung.rang - 1), ss.map(l => rang.get(l.name)), 'Rang in der Bewertung');
+  assert.equal(s.summeDerRaenge, summe);
+  assert.ok(summe <= 1968, `Summe der Ränge ${summe} schlechter als die Analyse`);
+  assert.ok(s.untereSchranke <= summe && s.ohneVielfalt <= s.untereSchranke, JSON.stringify(s));
+  assert.equal(s.ohneVielfalt, besten.reduce((x, p) => x + rang.get(p.name), 0));
+  const nachbar = ss.filter(l => Math.floor((l.rang - 1) / JE_WELT) !== WELTEN.indexOf(l.welt));
   assert.ok(nachbar.length > 0 && nachbar.every(l => /in (Bergwald|Meer|Wüste|Vulkan|Planeten|Sterne) nach/
     .test(l.vielfalt)), 'Level in einer Nachbarwelt, mit Grund');
+  assert.ok(ss.some(l => /^statt .* \(besser bewertet\): nicht in der besten gefundenen Menge/.test(l.vielfalt)));
 });
 await test('Kein abgelehntes Level, und die Datei nennt die abgelehnten des Pools mit Grund', () => {
   for (const g of GRADE) {
@@ -234,6 +261,58 @@ await test('Die 15 neuen Level haben einen eigenen Schlüssel: eindeutig über S
   const leer = neu.map((n, i) => (i ? n : { ...n, level: { ...n.level, name: '' } }));
   assert.throws(() => poolLevel(leer), /ohne Schlüssel/);
 });
+await test('Die Kandidaten aus Ticket 09 (sehr-schwer-kandidaten.json): genau die gewählten haben einen Schlüssel, '
+  + 'eindeutig in jeder Schreibung über Spiel, Vorrat, die neuen, die übrigen Kandidaten, Titel und entfernte Namen; '
+  + 'Kandidat und Abdruck stimmen; im Pool als Ersatz, ohne gutes Urteil ausgeschlossen; mit Gegenproben', () => {
+  const kand = kandidatenLevel(), titel = Object.values(TITEL).flatMap(w => Object.values(w).flat());
+  assert.equal(kand.length, 35);
+  for (const k of kand) {
+    assert.equal(kandidatName(k.level), k.kandidat, `${k.kandidat}: Abdruck`);
+    const l = LEVEL.find(x => x.kandidat === k.kandidat);
+    if (k.level.name) assert.equal(l?.name, k.level.name, `${k.level.name} nicht gewählt`);
+    else assert.ok(!l, `${k.kandidat} gewählt, aber ohne Schlüssel`);
+    const p = BEWERTET.find(x => x.kandidat === k.kandidat);
+    assert.deepEqual([p.name, p.ersatz, p.neu, p.grad], [k.level.name || k.kandidat, true, true, GRADE[3]]);
+    assert.equal(!!p.abgelehnt, !(p.bewertung.gefuehl >= GUT_AB && p.bewertung.aha > 0), p.name);
+  }
+  assert.match(BEWERTET.find(x => x.kandidat === 'Kandidat 525422a7').abgelehnt,
+    /ohne gutes Urteil.*Gefühl im Mittel 2,5/);
+  assert.deepEqual(namenFehler(kand, alleNamen(), ENTFERNT, titel), []);
+  assert.deepEqual(BEWERTET.filter(p => p.name.startsWith('Kandidat ') && LEVEL.some(l => l.name === p.name)), []);
+  // Gegenproben: ein Kandidat ohne Schlüssel bekommt einen
+  const frei = kand.findIndex(k => !k.level.name);
+  const mit = (name, i = frei) => kand.map((k, j) => (j === i ? { ...k, level: { ...k.level, name } } : k));
+  assert.deepEqual(namenFehler(mit('Polaris'), alleNamen(), ENTFERNT, titel), []);
+  assert.match(namenFehler(mit('Vega'), ['Wega'], [], []).join(), /«Vega» wie Name «Wega»/);
+  assert.match(namenFehler(mit('Castor'), ['Kastor'], [], []).join(), /«Castor» wie Name «Kastor»/);
+  assert.match(namenFehler(mit('morgenroete'), ['Morgenröte'], [], []).join(), /wie Name «Morgenröte»/);
+  assert.match(namenFehler(mit(ENTFERNT[0].toUpperCase()), [], ENTFERNT, []).join(), /wie entfernter Name/);
+  assert.match(namenFehler(mit(titel[0]), [], [], titel).join(), /wie Titel/);
+  assert.match(namenFehler(mit('Kandidat 1234abcd'), [], [], []).join(), /kein Schlüssel/);
+  const zweimal = mit('polaris', kand.findIndex((k, j) => j > frei && !k.level.name));
+  assert.match(namenFehler(zweimal.map((k, j) => (j === frei ? { ...k, level: { ...k.level, name: 'Polaris' } } : k)),
+    [], [], []).join(), /doppelt unter den Kandidaten/);
+  assert.equal(schreibung('Weiß-Zwerg'), schreibung('weisszwerg'));
+  // poolLevel: Abdruck passt nicht, ohne Schlüssel schon im Spiel, Name eines anderen Levels
+  assert.throws(() => poolLevel(neueLevel(), kand.map((k, i) => (i ? k : { ...k, kandidat: 'Kandidat 00000000' }))),
+    /passt nicht zu den Leveldaten/);
+  const imSpiel = ALLE.LEVELS[ALLE.TUTORIAL_COUNT];
+  const ohne = { level: { ...imSpiel, name: '' }, kandidat: kandidatName(imSpiel) };
+  assert.throws(() => poolLevel(neueLevel(), [...kand, ohne]), /ohne Schlüssel, steht aber als/);
+  assert.throws(() => poolLevel(neueLevel(), mit(imSpiel.name)), /gibt es schon in Spiel oder Vorrat/);
+});
+await test('ausbauListe (für ordne-level.mjs --ausbau): die gewählten Kandidaten, die noch nicht in Spiel oder Vorrat '
+  + 'stehen, mit Schlüssel und Herkunft (Ziel 96–112 nur bei den Seeds aus pool-ss-2)', () => {
+  const kand = kandidatenLevel(), vorhanden = new Set([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name));
+  const liste = ausbauListe(DATEN);
+  assert.deepEqual(liste.map(a => a.name), kand.filter(k => k.level.name && !vorhanden.has(k.level.name))
+    .map(k => k.level.name));
+  for (const a of liste) {
+    const k = kand.find(x => x.level.name === a.name);
+    assert.deepEqual([kandidatName(a.level), a.auftrag, a.seed], [k.kandidat, k.auftrag, k.seed]);
+    assert.deepEqual(a.schwierigkeit, a.seed >= 50001 ? [96, 112] : undefined, a.name);
+  }
+});
 
 console.log('Gegenproben der Prüfung (pruefe) an erfundenen Änderungen');
 /** Die Wahl mit einer Änderung an Kopien der Level. */
@@ -297,8 +376,20 @@ await test('Dreimal dieselbe Haupt-Kernidee in 10 aufeinanderfolgenden Leveln f�
   const anders = (name) => (ziel.includes(name) ? { ...info(name), haupt: 'Falle' } : info(name));
   const f = pruefe(LEVEL, anders, { erlaubt: ERLAUBT }).join('\n');
   assert.match(f, /schwer: Falle 3-mal auf den Plätzen \d+–\d+/);
-  // die Verstösse aus «sehr schwer» gelten nicht für «schwer»
-  assert.match(pruefe(LEVEL, info, { erlaubt: { schwer: ERLAUBT[GRADE[3]] } }).join('\n'), /sehr schwer: /);
+  // erfunden ebenso in «sehr schwer» über die Grenze von Planeten und Sterne; als erlaubt genannt gilt ein Verstoss nur
+  // in seinem Grad
+  const zielSS = ['Planeten:9', 'Planeten:10', 'Sterne:1'].map((k) => {
+    const [welt, platz] = k.split(':');
+    return finde(LEVEL, GRADE[3], welt, Number(platz)).name;
+  });
+  const andersSS = (name) => (zielSS.includes(name) ? { ...info(name), haupt: 'Lockvogel' } : info(name));
+  assert.match(pruefe(LEVEL, andersSS, { erlaubt: ERLAUBT }).join('\n'),
+    /sehr schwer: Lockvogel 3-mal auf den Plätzen/);
+  const genannt = fensterVerstoesse(WELTEN.flatMap(w => LEVEL.filter(l => l.grad === GRADE[3] && l.welt === w)
+    .sort((a, b) => a.platz - b.platz)).map(l => andersSS(l.name)));
+  assert.ok(genannt.length > 0);
+  assert.match(pruefe(LEVEL, andersSS, { erlaubt: { schwer: genannt } }).join('\n'), /sehr schwer: Lockvogel/);
+  assert.deepEqual(pruefe(LEVEL, andersSS, { erlaubt: { [GRADE[3]]: genannt } }), []);
 });
 await test('Zwei zu ähnliche Level und ein abgelehntes fallen auf', () => {
   const [a, b] = [LEVEL[0].name, LEVEL[100].name];
@@ -478,6 +569,78 @@ await test('ordneUeberGrenzen (nur «sehr schwer»): gegen alle Anordnungen mit 
   const mit = ordneUeberGrenzen(eng, 3, { mitVerstoessen: true });
   assert.deepEqual(kosten(mit, eng), kosten(pruefeGegenAlle(eng, true), eng));
   assert.equal(zuviel(fensterVerstoesse(mit)), 1);
+});
+/**
+ * Lässt sich eine Folge (Haupt-Kernideen nach Rang) mit höchstens d Plätzen vom Rang so anordnen, dass keine
+ * Haupt-Kernidee mehr als 2-mal in 10 aufeinanderfolgenden steht? Einfache Tiefensuche, unabhängig vom Werkzeug.
+ */
+const laesstSichAnordnen = (ideen, d) => {
+  const n = ideen.length, frei = new Array(n).fill(true), folge = [];
+  const rec = (p) => {
+    if (p === n) return true;
+    for (let r = Math.max(0, p - d); r <= Math.min(n - 1, p + d); r++) {
+      if (!frei[r] || (p - d >= 0 && frei[p - d] && r !== p - d)) continue;
+      const x = ideen[r];
+      if (x && folge.slice(-9).filter(y => y === x).length >= 2) continue;
+      frei[r] = false; folge.push(x);
+      if (rec(p + 1)) return true;
+      frei[r] = true; folge.pop();
+    }
+    return false;
+  };
+  return rec(0);
+};
+await test('besteMengeUeberGrenzen (Ticket 09): an erfundenen Pools von 14 Leveln die Menge von 12 mit der kleinsten '
+  + 'Summe der Ränge, die sich mit höchstens 3 Plätzen ohne Verstoss anordnen lässt (gegen alle 91 Mengen, mit einer '
+  + 'eigenen Tiefensuche); geht keine, null; die untere Schranke darunter; nachbaubar', () => {
+  let zufall = 7;
+  const naechste = () => { zufall = (zufall * 1103515245 + 12345) % 2147483648; return zufall / 2147483648; };
+  const teilmengen = (m, k) => {
+    const aus = [], rec = (i, a) => {
+      if (a.length === k) { aus.push([...a]); return; }
+      for (let j = i; j <= m - (k - a.length); j++) { a.push(j); rec(j + 1, a); a.pop(); }
+    };
+    rec(0, []);
+    return aus;
+  };
+  const alle = teilmengen(14, 12), ergebnisse = [];
+  assert.equal(alle.length, 91);
+  for (let fall = 0; fall < 6; fall++) {
+    // Falle gehäuft, einige ohne Haupt-Kernidee, Bewertung zufällig
+    const reihe = Array.from({ length: 14 }, (_, i) => fl(`z${String(i).padStart(2, '0')}`, i, ['Falle', 'Falle',
+      'Abschalten', 'Sammelstelle', 'Farben abzählen', 'Mischziel aus zwei Quellen', null][Math.floor(naechste() * 7)],
+    1 + Math.floor(naechste() * 5)));
+    const rang = new Map([...reihe].sort(nachBewertung).map((l, i) => [l, i]));
+    const summe = (menge) => menge.reduce((s, l) => s + rang.get(l), 0);
+    const geht = alle.map(a => a.map(i => reihe[i])).filter(m => laesstSichAnordnen(m.map(l => l.haupt), 3));
+    const best = geht.length ? Math.min(...geht.map(summe)) : null;
+    const r = besteMengeUeberGrenzen(reihe, rang, 3, { n: 12 });
+    assert.equal(r ? summe(r.menge) : null, best, `Fall ${fall}`);
+    ergebnisse.push(best);
+    if (!r) continue;
+    assert.ok(ordneUeberGrenzen(r.menge, 3), `Fall ${fall}: lässt sich nicht anordnen`);
+    assert.deepEqual(r.menge, [...r.menge].sort(nachSchwierigkeit));
+    assert.ok(r.schranke <= best, `Fall ${fall}: untere Schranke ${r.schranke} über ${best}`);
+    assert.deepEqual(besteMengeUeberGrenzen(reihe, rang, 3, { n: 12 }).menge, r.menge, 'nachbaubar');
+  }
+  // die Fälle prüfen etwas: einige gehen, einige nicht, und nicht immer die besten 12
+  assert.ok(ergebnisse.includes(null) && ergebnisse.some(x => x !== null && x > 66), JSON.stringify(ergebnisse));
+});
+await test('waehleGrad über die Weltgrenzen mit mehr als 60 (Ticket 09): Gehen die am besten bewerteten 60 auf, nimmt '
+  + 'es sie ohne Suche; das schlechter bewertete von zwei zu ähnlichen fällt weg, mit Grund', () => {
+  const ideen = [...IDEEN, 'Lockvogel'];
+  const genau = Array.from({ length: 60 }, (_, i) => fl(`g${String(i).padStart(2, '0')}`, i, ideen[i % 6]));
+  const mehr = [...genau, ...WELTEN.map((_, w) => fl(`schlecht${w}`, 10 * w + 4.5, null, 1))];
+  const r = waehleGrad(mehr, { aehnlich: keine, ueberGrenzen: 3 });
+  assert.deepEqual(r.welten.flatMap(w => w.welt).map(l => l.name), genau.map(l => l.name));
+  assert.deepEqual([r.verstoesse, r.suche, r.ueberGrenzen], [[], null, 3]);
+  const paar = (a, b) => ([a.name, b.name].sort().join() === 'g05,g06' ? 0.6 : 0);
+  const s = waehleGrad(mehr, { aehnlich: paar, ueberGrenzen: 3 });
+  const folge = s.welten.flatMap(w => w.welt);
+  assert.ok(!folge.some(l => l.name === 'g06') && folge.some(l => l.name === 'g05'));
+  assert.deepEqual(fensterVerstoesse(folge), []);
+  assert.deepEqual(s.welten[0].uebergangen.map(u => [u.level.name, u.grund]), [['g06', 'zu ähnlich wie g05 (0,6)']]);
+  assert.deepEqual(s.grenzen.at(-1), mehr.length);
 });
 
 console.log('Die Wahl im Spiel (Ticket 04)');

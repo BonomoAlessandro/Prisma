@@ -1,5 +1,5 @@
 {
- "kommentar": "35 beurteilte, nicht abgelehnte sehr schwere Kandidaten aus Ticket 01 der Spec .scratch/noa-geschichte/ (Lauf ausbau-noa-1 der KI-Tester), die nicht im Spiel stehen; die 15 gewählten stehen in sehr-schwer-neu.json und im Spiel. Vorrat für Ticket 09 (Wahl von «sehr schwer» nach Bewertung, siehe Comments dort). Herkunft: tools/ausbau.mjs pool mit den sieben Aufträgen «sehr schwer», Auftrag und Seed je Level; Seeds 40001–43000 ohne Ziel-Schwierigkeit, Seeds 50001–52000 mit --schwierigkeit 96,112. Die Pools von Ticket 01 waren verloren und wurden am 30.10.2026 mit denselben Aufträgen und Seeds nachgebaut (Ticket 09, Stufe 1); der Abdruck jedes Levels (kandidatName in tools/leveldaten.mjs) ist geprüft. Schwierigkeit, Haupt-Kernidee und Spielwert aus der Beurteilung vom 30.10.2026; Urteile der KI-Tester im Protokoll (tools/ki-tester/protocol.jsonl) unter dem Kandidatennamen. Kandidat 525422a7 hat Gefühl 2,5 und nur bei einem Aha (kommt in Ticket 09 nicht in Frage). Sortiert nach Schwierigkeit; level.name leer, bis ein Level ins Spiel kommt.",
+ "kommentar": "35 beurteilte, nicht abgelehnte sehr schwere Kandidaten aus Ticket 01 der Spec .scratch/noa-geschichte/ (Lauf ausbau-noa-1 der KI-Tester), die nicht im Spiel stehen; die 15 gewählten stehen in sehr-schwer-neu.json und im Spiel. Vorrat für Ticket 09 (Wahl von «sehr schwer» nach Bewertung, siehe Comments dort). Herkunft: tools/ausbau.mjs pool mit den sieben Aufträgen «sehr schwer», Auftrag und Seed je Level; Seeds 40001–43000 ohne Ziel-Schwierigkeit, Seeds 50001–52000 mit --schwierigkeit 96,112. Die Pools von Ticket 01 waren verloren und wurden am 30.10.2026 mit denselben Aufträgen und Seeds nachgebaut (Ticket 09, Stufe 1); der Abdruck jedes Levels (kandidatName in tools/leveldaten.mjs) ist geprüft. Schwierigkeit, Haupt-Kernidee und Spielwert aus der Beurteilung vom 30.10.2026; Urteile der KI-Tester im Protokoll (tools/ki-tester/protocol.jsonl) unter dem Kandidatennamen. Kandidat 525422a7 hat Gefühl 2,5 und nur bei einem Aha (kommt in Ticket 09 nicht in Frage). Sortiert nach Schwierigkeit. level.name: der Schlüssel der 23, die die Wahl von «sehr schwer» in Ticket 09 nimmt (Sternnamen wie die übrigen sehr schweren, eindeutig in jeder Schreibung, namenFehler in tools/geschichte.mjs; so gewählt, dass die Reihenfolge bei gleicher Bewertung, gleichem Spielwert und gleicher Schwierigkeit wie unter dem Kandidatennamen bleibt und die Wahl dieselbe ist), leer bei den übrigen.",
  "level": [
   {
    "kandidat": "Kandidat 0a93f026",
@@ -184,7 +184,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Albireo",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -368,7 +368,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Alioth",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -544,7 +544,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Ankaa",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -712,7 +712,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Diphda",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -873,7 +873,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Hamal",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -1041,7 +1041,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Dubhe",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -1380,7 +1380,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Alhena",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -1711,7 +1711,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Enif",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -1875,7 +1875,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Kochab",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2069,7 +2069,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Menkar",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2239,7 +2239,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Merak",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2400,7 +2400,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Sadr",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2569,7 +2569,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Mintaka",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2751,7 +2751,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Izar",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -2919,7 +2919,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Nunki",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -3099,7 +3099,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Saiph",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -3289,7 +3289,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Markab",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -3478,7 +3478,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Megrez",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -3974,7 +3974,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Schedir",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -4319,7 +4319,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Wezen",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -5206,7 +5206,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Alpheratz",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -5730,7 +5730,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Alkaid",
     "grad": "sehr schwer",
     "elements": [
      {
@@ -5906,7 +5906,7 @@
     ]
    },
    "level": {
-    "name": "",
+    "name": "Mirfak",
     "grad": "sehr schwer",
     "elements": [
      {

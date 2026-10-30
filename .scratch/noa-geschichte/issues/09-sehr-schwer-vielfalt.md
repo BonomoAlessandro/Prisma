@@ -6,7 +6,7 @@
 Endstand prüft und die Werkzeuge aus Ticket 01 noch da sind. **Wann es läuft, entscheidet der Nutzer**; das
 Generieren hält die Sperre von `tools/leise.sh` lange (in Ticket 01 rund 1½ h) und läuft nicht neben anderen Proben.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** In «sehr schwer» geht die Vielfalt der Wahl nicht auf (Ticket 03, Entscheid des Nutzers vom
 29.10.2026): Die 60 Level haben fast nur 5 Haupt-Kernideen zu je etwa 12, darum steht in vielen Fenstern von 10
@@ -15,23 +15,23 @@ und der Abnahme (Ticket 08) werden neue, passende sehr schwere Level generiert u
 dass die Regel ganz aufgeht: dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende Level, auch über
 Weltgrenzen, mit höchstens 3 Plätzen Abweichung vom Rang nach Schwierigkeit.
 
-- [ ] Ausgangslage aus `tools/geschichte/wahl.json` (`grade["sehr schwer"].verstoesse`): welche Haupt-Kernideen an
+- [x] Ausgangslage aus `tools/geschichte/wahl.json` (`grade["sehr schwer"].verstoesse`): welche Haupt-Kernideen an
       welchen Stellen zu oft stehen, welche fehlen; daraus der Bedarf an neuen Leveln je Haupt-Kernidee und Bereich
       der Schwierigkeit. Zuerst prüfen, was beurteilte, nicht abgelehnte Kandidaten aus Ticket 01 (Lauf `ausbau-noa-1`
       und frühere `ausbau-…`) schon decken; erst den Rest generieren.
-- [ ] Generieren mit Haupt-Kernideen, die in «sehr schwer» selten sind (z. B. Lockvogel oder Ideen, die der
+- [x] Generieren mit Haupt-Kernideen, die in «sehr schwer» selten sind (z. B. Lockvogel oder Ideen, die der
       Generator in anderen Graden kennt), im passenden Bereich der Schwierigkeit; über `tools/ausbau.mjs` wie in
       Ticket 01, nur über `tools/leise.sh` mit `LEISE_CPU=50`.
-- [ ] Vorauswahl wie in Ticket 01 (Grad «sehr schwer», genau eine Lösung, keinem Level in Spiel und Vorrat zu
+- [x] Vorauswahl wie in Ticket 01 (Grad «sehr schwer», genau eine Lösung, keinem Level in Spiel und Vorrat zu
       ähnlich), dann ein Lauf der KI-Tester; nur nicht abgelehnte mit gutem Urteil kommen in Frage.
-- [ ] Die Wahl (`tools/geschichte.mjs wahl`) nimmt die neuen Level in den Pool; die ersetzten Platzhalter gehen in
+- [x] Die Wahl (`tools/geschichte.mjs wahl`) nimmt die neuen Level in den Pool; die ersetzten Platzhalter gehen in
       den Vorrat (`tools/vorrat.mjs`). `verstoesse` ist leer, der Test erlaubt in «sehr schwer» keine Verstösse mehr.
-- [ ] Titel: Die Plätze behalten ihre Titel; neue Level bekommen einen Schlüssel (`name`) im Stil der übrigen sehr
+- [x] Titel: Die Plätze behalten ihre Titel; neue Level bekommen einen Schlüssel (`name`) im Stil der übrigen sehr
       schweren (Sternnamen), eindeutig über Spiel und Vorrat und nicht von der Liste entfernter Level.
-- [ ] Speicherstand: Vor dem Merge gibt es keine Spielstände von Spielern; ersetzte Level brauchen keinen Übergang.
+- [x] Speicherstand: Vor dem Merge gibt es keine Spielstände von Spielern; ersetzte Level brauchen keinen Übergang.
       Bestehende Teststände dürfen verfallen (im Ticket festhalten).
-- [ ] Probe im Browser: ein Durchgang durch eine Welt von «sehr schwer» mit neuen Leveln.
-- [ ] Alle Tests grün; Review nach dem Ticket.
+- [x] Probe im Browser: ein Durchgang durch eine Welt von «sehr schwer» mit neuen Leveln.
+- [x] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
 
@@ -202,3 +202,171 @@ Regel wie in den übrigen Graden: beste Bewertung, Vielfalt vor Bewertung, ±3 �
 Platzhalter gegen besser bewertete, schon beurteilte Kandidaten aus `ausbau-noa-1`. Stufe 3 (neu generieren, neuer
 Lauf der KI-Tester) entfällt. Die Leveldaten der Kandidaten werden versioniert abgelegt, damit sie nicht wieder nur in
 `tests/output/` liegen. Einbau (Stufe 4) nach Ticket 07.
+
+**Wahl und Werkzeug für Stufe 4, ohne Einbau (30.10.2026, Branch `feature/noa-09-wahl` ab `63c44b7`)**
+
+- **Pool und Regeln** (`tools/geschichte.mjs`, Kopf und Abschnitt «Wahl über den ganzen Grad»): Der Pool von «sehr
+  schwer» sind die 60 aus Spiel und Vorrat und die 35 Kandidaten aus `tools/geschichte/sehr-schwer-kandidaten.json`
+  (`kandidatenLevel`, im Pool als `ersatz`, unter ihrem Schlüssel oder ohne Schlüssel unter dem Kandidatennamen).
+  Kandidaten nur mit gutem Urteil wie in Ticket 01 (Gefühl im Mittel ab 3, Aha bei mindestens einem; `GUT_AB`,
+  `gutesUrteil`): 525422a7 steht in `wahl.json` unter `ausgeschlossen` (Gefühl 2,5, Aha 0,5). `waehleGrad` nimmt mit
+  `UEBER_GRENZEN` jetzt immer `waehleUeberGrenzen`: kein abgelehntes, keines einem gewählten Level eines anderen Grads
+  oder einem besser bewerteten des Pools zu ähnlich (heute keines); gehen die 60 am besten bewerteten mit ±3 auf, gelten
+  sie, sonst die Menge mit der kleinsten Summe der Ränge in der Bewertung, die sich mit ±3 über die Weltgrenzen ohne
+  Verstoss anordnen lässt (wie `besteMenge`), angeordnet mit `ordneUeberGrenzen` (kleinste Verschiebung). Geht keine,
+  die 60 besten mit dem kleinsten Zuviel (nicht gelockert). Die Sechstel gelten in «sehr schwer» nicht; der Abschnitt
+  einer Welt in `wahl.json` ist der Teil des Pools, aus dem ihre Ränge kommen, und `vielfalt` nennt «statt X (besser
+  bewertet): nicht in der besten gefundenen Menge …». Die übrigen drei Grade rechnen wie bisher.
+- **Suche** (`besteMengeUeberGrenzen`, `sucheSchichten`): über die Plätze wie `ordneUeberGrenzen`, dazu je Platz die
+  Wahl des Levels für Rang p+3; Zustand: zuletzt gewähltes Level, Haupt-Kernideen der gewählten, noch nicht gestellten
+  Ränge und der letzten 9 Plätze; untere Schranke je Zustand aus den freien Plätzen je Haupt-Kernidee und den am besten
+  bewerteten Leveln, die noch kommen können. **Genau geht nicht:** ohne Strahl über 6,8 Mio. Zustände schon bei Platz 8
+  (gemessen, Abbruch). Darum ein Strahl von 100 000 Zuständen je Platz (nachbaubar: feste Reihenfolge nach Kosten plus
+  Schranke, Verschiebungen, Schlüssel), danach Nachbessern in Fenstern von 20 Leveln des Pools (Schritt 5, innen genau),
+  bis ein Durchgang nichts mehr bringt. Probe im Scratchpad: Strahl 2000 fand keine Menge, 20 000 Summe 2039, 100 000
+  Summe 1959; eine iterierte lokale Suche mit fester Folge von Zufallszahlen (wie die Analyse) kam in 15 min auch nicht
+  unter 1959. Kleine Fälle rechnet der Strahl genau (Test gegen alle Mengen). **Laufzeit** über `leise.sh`: `wahl` etwa
+  75 s (Beurteilung 12–19 s, Wahl aller Grade 60 s, davon die Suche etwa 50 s), vorher etwa 30 s.
+- **Ergebnis** (`wahl.json` neu, `verstoesse` in allen Graden leer; «leicht», «mittel», «schwer» unverändert, Prüfsumme
+  im Test): **23 rein, 23 raus**, Summe der Ränge in der Bewertung **1959** (ab 0 gezählt; Analyse 1968, untere Schranke
+  der Suche 1848, ohne Vielfalt 1770; steht in `wahl.json` unter `grade["sehr schwer"].suche`), **0 Verstösse**,
+  Gefühl im Mittel der 60 **4,19** (vorher 3,87), verschoben 48 Level, zusammen 104 Plätze (10 über eine Weltgrenze).
+  Haupt-Kernideen Ab 12, Sa 12, Fa 12, Fz 12, Mi 10, Lo 2. Gegenüber der Analyse (1968) kommt Izar (ac0fd637) statt
+  239dd03f, und Kugelsternhaufen geht statt Prokyon.
+  - **Rein, mit Schlüssel** (Kandidat, Schwierigkeit, Haupt-Kernidee, Gefühl, Platz): Albireo (aad8ee01, 88,0, Fz,
+    4,0, Bergwald 6), Alioth (dd52f00a, 88,5, Mi, 4,5, Bergwald 10), Ankaa (b15759ab, 88,6, Sa, 4,0, Bergwald 5),
+    Diphda (7bad0b0c, 88,7, Fz, 5,0, Bergwald 9), Hamal (4d11a993, 88,8, Sa, 4,5, Meer 3), Dubhe (f09bb21b, 88,9, Fa,
+    4,5, Bergwald 8), Alhena (7c2319ec, 89,4, Mi, 4,0, Meer 7), Enif (0dc0739b, 90,9, Ab, 4,5, Wüste 2), Kochab
+    (2fb3afb5, 91,0, Fa, 4,0, Wüste 4), Menkar (be9c3fb2, 91,1, Fa, 3,0, Wüste 8), Merak (928f2230, 91,5, Ab, 4,5,
+    Vulkan 1), Sadr (f4e9da8e, 91,7, Mi, 4,0, Wüste 10), Mintaka (8cde63f2, 91,8, Fz, 5,0, Wüste 9), Izar (ac0fd637,
+    91,8, Sa, 4,0, Vulkan 5), Nunki (330805ef, 92,3, Lo, 3,5, Vulkan 2), Saiph (192e9bb4, 92,4, Mi, 3,5, Vulkan 7),
+    Markab (7d2b8d12, 92,7, Mi, 4,0, Planeten 1), Megrez (a6700df9, 93,8, Ab, 3,5, Planeten 8), Schedir (12a1b927,
+    95,0, Fz, 4,5, Planeten 6), Wezen (24d655cd, 96,2, Sa, 4,5, Sterne 3), Alpheratz (929badef, 99,6, Ab, 4,5,
+    Sterne 5), Alkaid (69d92fd5, 102,4, Ab, 4,5, Sterne 8), Mirfak (aa669d97, 106,8, Fz, 4,5, Sterne 9).
+  - **Raus** (gehen beim Einbau in den Vorrat, bleiben im Pool): Spica, Abendstern, Wega, Galaxis, Andromeda, Hyaden,
+    Deneb, Sonnenwind, Abendrot, Arktur, Pulsar, Weisser Zwerg, Regulus, Kugelsternhaufen, Plejaden, Antares, Roter
+    Riese, Neutronenstern, Milchstrasse, Raumzeit, Schwarzes Loch, Sternnebel, Shaula (Gefühl 3,0–4,0; Shaula aus
+    Ticket 01).
+  - Nicht gewählt: 11 Kandidaten bleiben ohne Schlüssel in der Datei (0a93f026, 239dd03f, 2b606bcd, fd747d28,
+    f043193d, cff39df8, 0bad3327, b2fa2853, 25582948, af87cceb, 3e415b77), dazu 525422a7 (ausgeschlossen).
+- **Schlüssel** (Entscheid selbst, nach dem Muster von Ticket 03): in `sehr-schwer-kandidaten.json` unter
+  `level.name`, wie bei `sehr-schwer-neu.json`; nur die 23 gewählten, die übrigen bleiben leer. Sternnamen, eindeutig
+  in jeder Schreibung (`schreibung`: Gross/klein, Umlaute, ß, Akzente, c/k, ph/f, th/t, y/i, v/w, Doppelbuchstaben;
+  so fallen etwa Vega, Castor, Procyon, Capella als Doppel von Wega, Kastor, Prokyon, Kapella auf) über Spiel, Vorrat,
+  die 15 neuen, die übrigen Kandidaten, alle Titel und `entfernteNamen` (`namenFehler`; `wahl` prüft sie vorher und
+  bricht ab, wenn ein gewählter Kandidat keinen Schlüssel hat). Die Namen sind so gewählt, dass die Reihenfolge bei
+  gleicher Bewertung, gleichem Spielwert oder gleicher Schwierigkeit wie unter dem Kandidatennamen bleibt (Gruppen mit
+  Achernar/Spiralnebel, Pollux/Mizar/Gravitation/Kugelsternhaufen, Abendrot); so ist die Wahl mit Namen dieselbe wie
+  ohne (geprüft: zweiter Lauf gleich). `titel.json` unverändert, die Titel bleiben an ihren Plätzen.
+- **Speicherstand:** Vor dem Merge gibt es keine Spielstände von Spielern; die ersetzten Level brauchen keinen
+  Übergang. Bestehende Teststände in «sehr schwer» (`prisma.noa.sehr-schwer`) dürfen verfallen: Platz und gelöste
+  Level beziehen sich danach auf die neue Reise.
+- **Tests** (`tests/geschichte.test.mjs`): Vielfalt in allen Graden ohne Verstoss; «sehr schwer» 60 aus mehr als 60,
+  die besten 60 gehen nicht auf, die gewählten schon, Summe der Ränge wie in der Datei und ≤ 1968, nicht unter der
+  unteren Schranke, Level in Nachbarwelten mit Grund; übrige Grade unverändert (Prüfsumme aus `63c44b7`); Abschnitte
+  in «sehr schwer» bis zum Level mit dem letzten Rang der Welt; Kandidaten (Schlüssel genau bei den gewählten, Abdruck,
+  im Pool als Ersatz, ohne gutes Urteil ausgeschlossen) mit Gegenproben zu `namenFehler` und `poolLevel`;
+  `ausbauListe`; `besteMengeUeberGrenzen` gegen alle Mengen an sechs erfundenen Pools (14 Level, Menge von 12, mit
+  einer eigenen Tiefensuche); `waehleGrad` mit mehr als 60 (die besten gehen auf: ohne Suche; zu ähnliche fallen weg,
+  mit Grund); die erlaubten Verstösse gelten nur in ihrem Grad (jetzt an einem erfundenen Verstoss in «sehr schwer»).
+  **Erwartet rot bis zum Einbau** (im Test markiert, nicht abgeschwächt): die drei Tests «Die Wahl im Spiel» (Spiel =
+  Wahl, Datenblock, `spiel` ändert nichts), weil die 23 neuen Level noch nicht im Spiel stehen. Ergebnis über
+  `leise.sh` im Branch: 32 bestanden, die drei erwartet roten rot (etwa 5 min).
+
+- **Einbau (Stufe 4), Schrittfolge** – noch nicht ausgeführt; nach Ticket 06/07 auf dem Stand, in dem `index.html` frei
+  ist, nacheinander, Schweres über `LEISE_CPU=50 sh tools/leise.sh`:
+  1. `node tools/vorrat.mjs zurueckholen --flach` (alle 275 flachen Level aus dem Vorrat ins Spiel; `ordne-level.mjs`
+     schreibt nur ohne flache Level im Vorrat).
+  2. `node tools/geschichte.mjs ausbau <datei>` schreibt die 23 gewählten Kandidaten als JSON-Zeilen
+     `{ level, name, auftrag, seed, schwierigkeit }` (Ziel 96–112 nur bei den Seeds aus `pool-ss-2`), wie in Ticket 04.
+  3. `ordne-level.mjs --ausbau <datei>` (Bericht), dann mit `--schreiben`: die 23 kommen nach der Formel in die Reihe,
+     mit Herkunft im Kommentar und in `levelliste.json` unter `ausbau`.
+  4. `node tests/golden.mjs` (erwartet: nur die 23 neu, Anzahl 824 → 847), dann `node tests/golden.mjs --write`.
+  5. `node tools/geschichte.mjs spiel`: legt die 23 ersetzten Platzhalter und die übrigen flachen Level (298) in den
+     Vorrat, Titel und Datenblock wie `wahl.json`; ein zweiter Lauf ändert nichts.
+  6. `geschichte.mjs wahl` neu: `wahl.json` muss byte-gleich bleiben (die 23 gelten im Spiel weiter als Kandidaten aus
+     der Liste).
+  7. Tests anpassen (unten), alle Tests über `leise.sh`, Probe im Browser (eine Welt «sehr schwer» mit neuen Leveln),
+     Review, Commit.
+- **Probe an einer Kopie** (Scratchpad, ohne `.git`, 30.10.2026 16:13–16:25, ein Lauf über `leise.sh`; nichts davon im
+  Worktree): Schritte 1–6 laufen durch. Zurückgeholt 275; `ordne-level.mjs --ausbau` ohne Abbruch (Häufungsregel
+  eingehalten, Namen eindeutig, genau eine Lösung, Urteile «388 von 388 Leveln des Ausbaus»; wie in Ticket 04 rücken
+  dabei einige Level der Reihe um 1–5 Plätze, darunter Alhena, Ankaa, Markab, Hyaden, Weisser Zwerg), 40 s; Golden vor
+  `--write` genau 24 Abweichungen (Anzahl und die 23 neuen), danach 847 Level; `spiel` legt 298 flache ab, zweiter Lauf
+  nichts; `wahl` danach **byte-gleich** (die übrigen Grade also auch nach dem Einbau unverändert). Tests danach:
+  Geschichte 35/35 (die drei bis dahin roten grün), Levelliste 55, Golden grün, Strahlregel 2032, KI-Tester 84,
+  Beurteilung 206.
+- **Nach dem Einbau anzupassen:**
+  - `tests/vorrat.test.mjs`, «Jedes Level von vor dem Umbau … dazu nur die 15 neuen sehr schweren»: liest nur
+    `sehr-schwer-neu.json`; dazu die Kandidaten mit Schlüssel aus `sehr-schwer-kandidaten.json` (sonst rot mit den 23).
+  - `tests/golden.json` mit `--write` (Schritt 4).
+  - Texte mit Zahlen: README («Seit Ticket 04 liegen dort die 275 flachen Level …» → 298; Levels: 515 flache → 538),
+    Kopf von `tests/geschichte.test.mjs` und README-Abschnitt zum Test (der Hinweis «erwartet rot bis zum Einbau» und
+    `ROT_BIS_EINBAU` im Test fallen weg).
+  - Nicht wegen Ticket 09, aber in der Probe aufgefallen: In der Kopie ohne `.git` meldet `tests/wuerfelliste.test.mjs`
+    «Stand ist kein Commit» (braucht Git, im Worktree nicht betroffen), und `tests/vorrat.test.mjs` «Titel: levelCode …»
+    ist schon im Worktree vor Ticket 09 rot (Würfel-Vorrat mit CRLF in diesem Checkout; nicht von Ticket 09 berührt).
+- **Offen:** Einbau (Schritte oben), Anpassung von `vorrat.test.mjs`, Probe im Browser, Review. Ob 1959 das Optimum
+  ist, ist nicht bewiesen (untere Schranke 1848); die Wahl ist die beste gefundene und nachbaubar.
+
+**Einbau (Stufe 4), ausgeführt (30.10.2026, Branch `noa/09-einbau` ab `feature/lichtsignal-prototyp` 8599a74, in
+einem eigenen Worktree, parallel zu Ticket 07 im Haupt-Checkout)**
+
+- `feature/noa-09-wahl` (563473a) ohne Konflikt hineingemergt. Danach die Schrittfolge 1–6 genau wie oben, Schweres
+  über `LEISE_CPU=80 sh tools/leise.sh` (Grenze dieses Rechners), nur ein schwerer Lauf zugleich; die Sperre
+  `/tmp/prisma-leise.lock` gilt für alle Worktrees (Git Bash, ein `/tmp` je Benutzer), Läufe von Ticket 07 und
+  Ticket 09 haben aufeinander gewartet.
+  1. `vorrat.mjs zurueckholen --flach`: 275 zurückgeholt.
+  2. `geschichte.mjs ausbau tests/output/noa/ausbau-09.jsonl`: die 23 Kandidaten (Albireo … Mirfak).
+  3. `ordne-level.mjs --ausbau …` (Bericht, 59 s) ohne Abbruch, Häufungsregel eingehalten, Namen eindeutig, genau eine
+     Lösung, Urteile «388 von 388 Leveln des Ausbaus»; wie in der Probe an der Kopie rücken einige Level 1–5 Plätze
+     (u. a. Alhena, Ankaa, Markab, Hyaden, Weisser Zwerg). Dann `--schreiben`: `index.html` und
+     `tools/levelliste.json` (die 23 unter `ausbau`).
+  4. `tests/golden.mjs`: genau 24 Abweichungen (Anzahl 824 → 847 und die 23 neuen), danach `--write` (847 Level).
+  5. `geschichte.mjs spiel`: 298 flache in den Vorrat, Titel und Datenblock wie `wahl.json`; zweiter Lauf «nichts zu
+     schreiben».
+  6. `geschichte.mjs wahl` neu: `wahl.json` inhaltlich byte-gleich (das Werkzeug schreibt LF, der Checkout hat CRLF;
+     Git sieht keinen Unterschied, Datei wieder ausgecheckt). Summe der Ränge 1959, 0 Verstösse.
+- **Anpassungen:** `tests/vorrat.test.mjs` lässt neben den 15 aus `sehr-schwer-neu.json` die 23 Kandidaten mit
+  Schlüssel aus `sehr-schwer-kandidaten.json` zu (und prüft, dass es 23 sind); `tests/golden.json` neu; README (Vorrat
+  298 flache, 538 flache Level, Testbeschreibungen von Vorrat und Geschichte) und Kopf von `tests/geschichte.test.mjs`
+  nachgeführt; `ROT_BIS_EINBAU` und die Hinweise «erwartet rot» gestrichen, die drei Tests sonst unverändert.
+- **`index.html`:** Nur die Werkzeuge haben geschrieben, keine Handarbeit. Der Diff zu `feature/lichtsignal-prototyp`
+  liegt ganz in `LEVELS` und im Datenblock `STORY_LEVELS` (937 Zeilen dazu, 944 weg: 23 Level rein, 23 in den Vorrat,
+  35 bleibende sehr schwere Level mit geändertem Eintrag – 34 mit neuem Titel, weil sie in der Reise einen anderen
+  Platz haben, dazu einige, die in der Reihe 1–5 Plätze rücken –, und die Reise in «sehr schwer»; Review). Zeilenenden
+  unverändert (die Werkzeuge halten sie je Datei).
+- **Tests** (alle aus der README-Liste, ein Lauf über `leise.sh`): Strahlregel 2032, Golden grün (847 Level),
+  Beurteilung 206, Levelliste 55, Würfelliste 20, Generator 31, KI-Tester 84, Vorrat 15 (auch «Titel: levelCode …» mit
+  CRLF, seit 563473a), Geschichte 35/35 (die drei bis dahin roten grün, etwa 8½ min), Offline bestanden.
+- **Probe im Browser:** `GPU=1 … tests/geschichte-probe.mjs --grad sehr-schwer --welten 1`: Menü, Prolog, Einstieg,
+  Bergwald mit den 10 Leveln (darin neu Ankaa, Albireo, Dubhe, Diphda, Alioth auf den Plätzen 5, 6, 8, 9, 10), Reise
+  zum Meer, Neuladen und «Weiter»; «Probe bestanden, Konsole ohne Fehler». Bilder unter `tests/output/geschichte/`.
+- **Speicherstand:** wie oben; Teststände `prisma.noa.sehr-schwer` dürfen verfallen.
+- **Offen:** Review. Status bleibt bis dahin.
+
+**Review (30.10.2026)** (Branch `noa/09-einbau`, Diff `8599a74..noa/09-einbau`; Schwerpunkt Einbau e0a54d6, Werkzeug
+stichprobenhaft)
+
+- **Schrittfolge 1–7:** vollständig und nachvollziehbar. Zahlen stimmen in Daten, README und Testköpfen: Golden 847
+  Level (15 bestehende Einträge nur umgestellt, unverändert, 23 neu), Vorrat 298 flache (im Spiel 249 = Tutorial und
+  240), 538 flache Level, 23 neue Namen auch in `levelliste.json` unter `ausbau`.
+- **`index.html`:** Ausserhalb von `LEVELS` und `STORY_LEVELS` byte-gleich (verglichen ohne die beiden Blöcke), im
+  Index LF wie vorher, keine Zeilenend-Umstellung. In `LEVELS` 23 raus (die 23 Platzhalter), 23 rein; bei den
+  bleibenden Leveln ändern sich nur Titel (34, alle «sehr schwer»), Leveldaten sonst gleich. Die Titel je Platz der
+  Reise sind vor und nach dem Einbau dieselben 240 (Titel gehören zum Platz). `STORY_LEVELS` von «leicht», «mittel»,
+  «schwer» unverändert, und keines ihrer Level hat Platz in der Reihe oder Titel geändert; umgestellt sind nur sehr
+  schwere Level (mindestens 9 der 217 bleibenden wandern in der Reihe, wie von `ordne-level.mjs --ausbau` gemeldet).
+- **Tests:** Anpassungen sinnvoll, nicht abgeschwächt (`vorrat.test.mjs` prüft zusätzlich genau 23 Kandidaten mit
+  Schlüssel; die drei Tests der Wahl im Spiel inhaltlich unverändert, `verstoesse` in allen Graden leer).
+  `ROT_BIS_EINBAU` und «erwartet rot» restlos weg. Lauf über `leise.sh` (`LEISE_CPU=80`): Vorrat 15, Golden grün (847),
+  Levelliste 55, Geschichte 35/35.
+- **Probe im Browser:** `--grad sehr-schwer --welten 2 --finale sehr-schwer`: Bergwald und Meer (darin neu Ankaa,
+  Albireo, Dubhe, Diphda, Alioth, Hamal, Alhena), Finale in den Sternen (Einstieg, Platz 51 und 60, Epilog, Menü);
+  alle gelöst, Kopfzeile mit Titel (z. B. Alioth als «Felsschlucht», Bergwald 10/10), «Probe bestanden, Konsole ohne
+  Fehler».
+- **Kleine Funde, selbst eingearbeitet:** Im Bericht zum Einbau hiessen die 35 geänderten Einträge «Level, die ihren
+  Platz unter den 240 tauschen»; genauer sind es bleibende sehr schwere Level mit neuem Titel (neuer Platz in der Reise)
+  und einige, die in der Reihe rücken (oben präzisiert). Die Spec sagte noch «Pool genau 60» und «vorerst mit
+  Platzhaltern»; dort ein Hinweis auf Ticket 09 ergänzt.
+- **Mittlere/grosse Funde:** keine. Ergebnis: bereit zum Merge; Status `resolved`.

@@ -5,7 +5,8 @@
 // Leveldaten wie im Spiel, Titel), die Auswahl nach Art und Grad und die Fehler; dazu der Lader auf dem Stand der
 // Dateien: jedes Level genau einmal, in der Folge wie nach dem Zurückholen aller, die Level im Spiel dieselben Objekte
 // wie in L. Gerechnet wird auf Kopien der Texte im Speicher; die Dateien bleiben unberührt. Seit dem Umbau zu Noas
-// Geschichte (Ticket 04): Jedes Level von vorher (tests/vor-dem-umbau.json) steht im Spiel oder im Vorrat, unverändert.
+// Geschichte (Ticket 04): Jedes Level von vorher (tests/vor-dem-umbau.json) steht im Spiel oder im Vorrat, unverändert;
+// dazu kommen nur die 15 neuen sehr schweren (Ticket 04) und die 23 Kandidaten mit Schlüssel (Ticket 09).
 // Aufruf: node tests/vorrat.test.mjs   (wenige Sekunden)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -268,14 +269,17 @@ const abdruckVorher = (level) => {
 const verloren = (vorher, levels) => Object.entries(vorher).flatMap(([name, h]) => (!levels.has(name)
   ? [`${name} fehlt`] : abdruckVorher(levels.get(name)) !== h ? [`${name} geändert`] : []));
 test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränderten Leveldaten, dazu nur die 15 '
-  + 'neuen sehr schweren aus dem Ausbau; mit Gegenproben', () => {
+  + 'neuen sehr schweren aus dem Ausbau und die Kandidaten mit Schlüssel aus Ticket 09; mit Gegenproben', () => {
   const jetzt = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
   assert.equal(Object.keys(VORHER).length, 809, 'Tutorial, 500 flache und 300 Würfel-Level');
   assert.deepEqual(verloren(VORHER, jetzt), []);
   const dazu = [...jetzt.keys()].filter(x => !(x in VORHER));
   const neu = JSON.parse(readFileSync(new URL('../tools/geschichte/sehr-schwer-neu.json', import.meta.url), 'utf8'))
     .level.map(e => e.level.name);
-  assert.deepEqual(dazu.sort(), [...neu].sort(), 'neu im Spiel');
+  const kandidaten = JSON.parse(readFileSync(new URL('../tools/geschichte/sehr-schwer-kandidaten.json',
+    import.meta.url), 'utf8')).level.map(e => e.level.name).filter(Boolean);
+  assert.equal(kandidaten.length, 23, 'Kandidaten mit Schlüssel (Ticket 09)');
+  assert.deepEqual(dazu.sort(), [...neu, ...kandidaten].sort(), 'neu im Spiel');
   assert.deepEqual(VORRAT.wuerfel.map(l => l.name), ALLE.LEVELS_3D.map(l => l.name), 'alle Würfel-Level im Vorrat');
   // Gegenproben: ein Element gedreht, ein Level weg, ein Titel dazu (zählt nicht)
   const erstes = ALLE.LEVELS[ALLE.TUTORIAL_COUNT], k = erstes.elements.findIndex(e => 'rot' in e);

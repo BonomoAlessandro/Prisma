@@ -6045,43 +6045,38 @@ const LEVELS = [
     solution: { '3,3': 1, '5,5': 1, '5,2': 3, '3,4': 4, '3,2': 7, '4,3': 3, '3,5': 6, '1,3': 0, '5,1': 1, '5,4': 7 },
   },
   {
-    // Lösung: Spiegel (2,2) rot 3 · Spiegel (1,2) rot 1 · Spiegel (4,5) rot 1 · Spiegel (2,4) rot 3 ·
-    //   Spiegel (6,6) rot 3 · Spiegel (6,5) rot 1 · Spiegel (4,0) rot 1 · Prisma (5,2) rot 7 ·
-    //   Spiegel (1,0) rot 3 · Prisma (2,1) rot 5 · Spiegel (5,1) rot 1 · Spiegel (0,1) rot 1 ·
-    //   Spiegel (6,1) rot 2
-    // Generator sehr schwer-mischziel, Seed 11543 · Ausbau „sehr schwer“
-    name: 'Spica', titel: 'Baumriese', grad: 'sehr schwer',
+    // Lösung: Spiegel (2,5) rot 3 · Prisma (3,6) rot 1 · Spiegel (2,3) rot 3 · Prisma (2,4) rot 6 ·
+    //   Prisma (3,2) rot 3 · Spiegel (2,2) rot 3 · Prisma (1,5) rot 0 · Prisma (4,5) rot 5 ·
+    //   Spiegel (4,4) rot 1
+    // Wertung 53.4 · 9 drehbar · 4 Ziele · Rateschritte 84811 · gehärtet aus Profil 3-bunt, Seed 7013
+    name: 'Sternenstaub', titel: 'Bachtobel', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 0, z: 2, dir: 0, color: 'magenta' },
-      { type: 'source', x: 0, z: 5, dir: 0, color: 'cyan' },
-      { type: 'mirror', x: 2, z: 2, rot: 1 },
-      { type: 'mirror', x: 1, z: 2, rot: 3 },
-      { type: 'mirror', x: 4, z: 5, rot: 3 },
-      { type: 'target', x: 1, z: 5, color: 'white' },
-      { type: 'source', x: 0, z: 6, dir: 0 },
-      { type: 'source', x: 0, z: 4, dir: 0 },
-      { type: 'mirror', x: 2, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, z: 6, rot: 0 },
-      { type: 'mirror', x: 6, z: 5, rot: 2 },
-      { type: 'mirror', x: 4, z: 0, rot: 3 },
-      { type: 'prism', x: 5, z: 2, rot: 6 },
-      { type: 'mirror', x: 1, z: 0, rot: 1 },
-      { type: 'prism', x: 2, z: 1, rot: 0 },
-      { type: 'mirror', x: 5, z: 1, rot: 3 },
-      { type: 'target', x: 3, z: 1, color: 'red' },
-      { type: 'mirror', x: 0, z: 1, rot: 2 },
-      { type: 'target', x: 0, z: 0, color: 'red' },
-      { type: 'mirror', x: 6, z: 1, rot: 3 },
-      { type: 'target', x: 5, z: 0, color: 'green' },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'source', x: 6, z: 5, dir: 4, color: 'magenta' },
+      { type: 'mirror', x: 2, z: 2, rot: 2 },
+      { type: 'mirror', x: 2, z: 3, rot: 1 },
+      { type: 'mirror', x: 4, z: 3, rot: 1, fixed: true },
+      { type: 'mirror', x: 4, z: 4, rot: 2 },
+      { type: 'mirror', x: 2, z: 5, rot: 2 },
+      { type: 'prism', x: 3, z: 2, rot: 6 },
+      { type: 'prism', x: 2, z: 4, rot: 4 },
+      { type: 'prism', x: 1, z: 5, rot: 4 },
+      { type: 'prism', x: 4, z: 5, rot: 4 },
+      { type: 'prism', x: 3, z: 6, rot: 2 },
+      { type: 'target', x: 5, z: 1, color: 'blue' },
+      { type: 'target', x: 1, z: 3, color: 'magenta' },
+      { type: 'target', x: 2, z: 6, color: 'magenta' },
+      { type: 'target', x: 4, z: 6, color: 'red' },
     ],
-    solution: { '2,2': 3, '1,2': 1, '4,5': 1, '2,4': 3, '6,6': 3, '6,5': 1, '4,0': 1, '5,2': 7, '1,0': 3, '2,1': 5, '5,1': 1, '0,1': 1, '6,1': 2 },
+    solution: { '2,5': 3, '3,6': 1, '2,3': 3, '2,4': 6, '3,2': 3, '2,2': 3, '1,5': 0, '4,5': 5, '4,4': 1 },
   },
   {
     // Lösung: Prisma (1,3) rot 7 · Spiegel (3,5) rot 1 · Prisma (3,6) rot 1 · Spiegel (4,6) rot 3 ·
     //   Spiegel (6,5) rot 3 · Spiegel (3,4) rot 1 · Spiegel (2,4) rot 3 · Spiegel (1,0) rot 1 ·
     //   Spiegel (0,0) rot 3 · Spiegel (0,2) rot 1
     // Generator sehr schwer-sammelstelle, Seed 12035 · Ausbau „sehr schwer“
-    name: 'Kapella', titel: 'Waldnacht', grad: 'sehr schwer',
+    name: 'Kapella', titel: 'Baumriese', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 1, z: 3, rot: 6 },
       { type: 'source', x: 1, z: 6, dir: 6, color: 'green' },
@@ -6105,104 +6100,193 @@ const LEVELS = [
     solution: { '1,3': 7, '3,5': 1, '3,6': 1, '4,6': 3, '6,5': 3, '3,4': 1, '2,4': 3, '1,0': 1, '0,0': 3, '0,2': 1 },
   },
   {
-    // Lösung: Spiegel (1,1) rot 3 · Spiegel (3,5) rot 3 · Spiegel (0,5) rot 1 · Spiegel (2,1) rot 3 ·
-    //   Spiegel (2,3) rot 1 · Prisma (5,1) rot 1 · Spiegel (6,2) rot 2 · Spiegel (6,1) rot 3 ·
-    //   Prisma (3,4) rot 2 · Spiegel (5,5) rot 3 · Spiegel (3,6) rot 3 · Spiegel (6,0) rot 1 ·
-    //   Spiegel (4,0) rot 3 · Spiegel (2,0) rot 1
-    // Generator sehr schwer-abschalten, Seed 11004 · Ausbau „sehr schwer“
-    name: 'Wega', titel: 'Johanniswürmchen', grad: 'sehr schwer',
+    // Lösung: Spiegel (3,5) rot 1 · Spiegel (3,2) rot 1 · Spiegel (6,2) rot 3 · Spiegel (6,5) rot 1 ·
+    //   Spiegel (5,4) rot 3 · Spiegel (2,4) rot 1 · Spiegel (2,0) rot 1 · Spiegel (0,0) rot 3 ·
+    //   Prisma (3,1) rot 1 · Spiegel (4,1) rot 3 · Prisma (1,5) rot 7 · Spiegel (1,3) rot 3
+    // Generator sehr schwer-abzaehlen, Seed 41595 · Ausbau „sehr schwer“
+    name: 'Albireo', titel: 'Dunkler Tann', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 1, z: 6, dir: 6, color: 'green' },
-      { type: 'mirror', x: 1, z: 1, rot: 2 },
-      { type: 'target', x: 0, z: 1, color: 'green' },
-      { type: 'source', x: 3, z: 0, dir: 2, color: 'yellow' },
-      { type: 'mirror', x: 3, z: 5, rot: 1 },
-      { type: 'mirror', x: 0, z: 5, rot: 3 },
-      { type: 'mirror', x: 2, z: 1, rot: 2 },
+      { type: 'mirror', x: 3, z: 5, rot: 3 },
+      { type: 'mirror', x: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 6, z: 2, rot: 0 },
+      { type: 'mirror', x: 6, z: 5, rot: 2 },
+      { type: 'source', x: 3, z: 0, dir: 2, color: 'magenta' },
+      { type: 'source', x: 6, z: 6, dir: 6, color: 'magenta' },
+      { type: 'source', x: 0, z: 5, dir: 0, color: 'magenta' },
+      { type: 'target', x: 0, z: 2, color: 'white' },
+      { type: 'target', x: 6, z: 0, color: 'blue' },
+      { type: 'target', x: 3, z: 6, color: 'blue' },
+      { type: 'source', x: 5, z: 0, dir: 2, color: 'green' },
+      { type: 'mirror', x: 5, z: 4, rot: 1 },
+      { type: 'mirror', x: 2, z: 4, rot: 3 },
+      { type: 'mirror', x: 2, z: 0, rot: 3 },
+      { type: 'mirror', x: 0, z: 0, rot: 1 },
+      { type: 'prism', x: 3, z: 1, rot: 6 },
+      { type: 'mirror', x: 4, z: 1, rot: 0 },
+      { type: 'prism', x: 1, z: 5, rot: 6 },
+      { type: 'mirror', x: 1, z: 3, rot: 2 },
+      { type: 'mirror', x: 4, z: 3, rot: 1, fixed: true },
+      { type: 'mirror', x: 4, z: 6, rot: 1, fixed: true },
+      { type: 'target', x: 4, z: 0, color: 'red' },
+      { type: 'target', x: 5, z: 6, color: 'red' },
+    ],
+    solution: { '3,5': 1, '3,2': 1, '6,2': 3, '6,5': 1, '5,4': 3, '2,4': 1, '2,0': 1, '0,0': 3, '3,1': 1, '4,1': 3, '1,5': 7, '1,3': 3 },
+  },
+  {
+    // Lösung: Spiegel (5,5) rot 3 · Spiegel (3,4) rot 2 · Spiegel (2,1) rot 1 · Prisma (3,5) rot 1 ·
+    //   Prisma (4,3) rot 4 · Prisma (2,2) rot 7 · Spiegel (3,6) rot 1 · Spiegel (0,3) rot 1 ·
+    //   Prisma (6,3) rot 3
+    // Generator sehr schwer-lockvogel, Seed 41653 · Ausbau „sehr schwer“
+    name: 'Kanopus', titel: 'Nebelwald', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 0, color: 'magenta' },
+      { type: 'source', x: 6, z: 1, dir: 3, color: 'yellow' },
+      { type: 'source', x: 2, z: 6, dir: 6, color: 'yellow' },
+      { type: 'mirror', x: 5, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 4, rot: 1 },
+      { type: 'mirror', x: 2, z: 1, rot: 0 },
+      { type: 'target', x: 5, z: 1, color: 'red' },
+      { type: 'target', x: 5, z: 6, color: 'magenta' },
+      { type: 'target', x: 0, z: 1, color: 'yellow' },
+      { type: 'blocker', x: 1, z: 2 },
+      { type: 'prism', x: 3, z: 5, rot: 6 },
+      { type: 'prism', x: 4, z: 3, rot: 1 },
+      { type: 'prism', x: 2, z: 2, rot: 3 },
+      { type: 'mirror', x: 3, z: 6, rot: 2 },
+      { type: 'mirror', x: 0, z: 3, rot: 2 },
+      { type: 'target', x: 4, z: 0, color: 'green' },
+      { type: 'source', x: 3, z: 0, dir: 1 },
+      { type: 'prism', x: 6, z: 3, rot: 4 },
+      { type: 'target', x: 3, z: 2, color: 'blue' },
+    ],
+    solution: { '5,5': 3, '3,4': 2, '2,1': 1, '3,5': 1, '4,3': 4, '2,2': 7, '3,6': 1, '0,3': 1, '6,3': 3 },
+  },
+  {
+    // Lösung: Prisma (5,2) rot 1 · Spiegel (5,0) rot 1 · Spiegel (5,6) rot 1 · Spiegel (6,6) rot 3 ·
+    //   Prisma (1,4) rot 2 · Spiegel (3,6) rot 0 · Prisma (4,2) rot 3 · Spiegel (1,5) rot 1 ·
+    //   Spiegel (0,2) rot 3 · Spiegel (0,5) rot 2
+    // Generator sehr schwer-sammelstelle, Seed 40895 · Ausbau „sehr schwer“
+    name: 'Diphda', titel: 'Waldnacht', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 5, z: 2, rot: 4 },
+      { type: 'source', x: 0, z: 0, dir: 0, color: 'magenta' },
+      { type: 'mirror', x: 5, z: 0, rot: 3 },
+      { type: 'source', x: 6, z: 1, dir: 3, color: 'green' },
+      { type: 'target', x: 6, z: 2, color: 'red' },
+      { type: 'target', x: 6, z: 3, color: 'white' },
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'mirror', x: 5, z: 6, rot: 2 },
+      { type: 'mirror', x: 6, z: 6, rot: 0 },
+      { type: 'prism', x: 1, z: 4, rot: 3 },
+      { type: 'mirror', x: 3, z: 6, rot: 3 },
+      { type: 'source', x: 6, z: 0, dir: 3 },
+      { type: 'prism', x: 4, z: 2, rot: 0 },
+      { type: 'target', x: 4, z: 3, color: 'magenta' },
+      { type: 'mirror', x: 1, z: 5, rot: 3 },
+      { type: 'target', x: 3, z: 5, color: 'green' },
+      { type: 'mirror', x: 0, z: 2, rot: 1 },
+      { type: 'mirror', x: 0, z: 5, rot: 0 },
+      { type: 'mirror', x: 1, z: 6, rot: 0, fixed: true },
+      { type: 'target', x: 0, z: 3, color: 'blue' },
+    ],
+    solution: { '5,2': 1, '5,0': 1, '5,6': 1, '6,6': 3, '1,4': 2, '3,6': 0, '4,2': 3, '1,5': 1, '0,2': 3, '0,5': 2 },
+  },
+  {
+    // Lösung: Prisma (3,1) rot 3 · Spiegel (5,5) rot 1 · Spiegel (5,6) rot 3 · Prisma (2,6) rot 6 ·
+    //   Prisma (4,2) rot 5 · Spiegel (4,1) rot 3 · Spiegel (6,1) rot 3 · Spiegel (6,0) rot 1 ·
+    //   Spiegel (5,0) rot 3 · Spiegel (4,4) rot 2 · Spiegel (1,1) rot 0
+    // Generator sehr schwer-sammelstelle, Seed 40911 · Ausbau „sehr schwer“
+    name: 'Hamal', titel: 'Brecher', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 3, z: 1, rot: 7 },
+      { type: 'source', x: 2, z: 0, dir: 1, color: 'blue' },
+      { type: 'source', x: 3, z: 0, dir: 2, color: 'green' },
+      { type: 'target', x: 2, z: 1, color: 'cyan' },
+      { type: 'target', x: 0, z: 4, color: 'yellow' },
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 5, z: 5, rot: 0 },
+      { type: 'mirror', x: 5, z: 6, rot: 0 },
+      { type: 'prism', x: 2, z: 6, rot: 0 },
+      { type: 'source', x: 0, z: 6, dir: 7, color: 'magenta' },
+      { type: 'prism', x: 4, z: 2, rot: 1 },
+      { type: 'mirror', x: 4, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 5, z: 0, rot: 2 },
+      { type: 'target', x: 6, z: 5, color: 'blue' },
+      { type: 'blocker', x: 6, z: 3 },
+      { type: 'mirror', x: 4, z: 4, rot: 1 },
+      { type: 'mirror', x: 1, z: 2, rot: 1, fixed: true },
+      { type: 'mirror', x: 1, z: 1, rot: 3 },
+      { type: 'target', x: 0, z: 2, color: 'blue' },
+    ],
+    solution: { '3,1': 3, '5,5': 1, '5,6': 3, '2,6': 6, '4,2': 5, '4,1': 3, '6,1': 3, '6,0': 1, '5,0': 3, '4,4': 2, '1,1': 0 },
+  },
+  {
+    // Lösung: Prisma (2,6) rot 5 · Prisma (3,4) rot 6 · Spiegel (3,2) rot 3 · Prisma (5,4) rot 1 ·
+    //   Spiegel (4,2) rot 3 · Spiegel (6,4) rot 1 · Spiegel (6,5) rot 3 · Spiegel (4,1) rot 1 ·
+    //   Prisma (5,1) rot 3 · Spiegel (4,0) rot 1 · Spiegel (3,0) rot 3
+    // Generator sehr schwer-sammelstelle, Seed 40922 · Ausbau „sehr schwer“
+    name: 'Fomalhaut', titel: 'Urwald', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 2, z: 6, rot: 7 },
+      { type: 'source', x: 6, z: 6, dir: 4, color: 'blue' },
+      { type: 'source', x: 6, z: 2, dir: 3, color: 'green' },
+      { type: 'target', x: 2, z: 1, color: 'cyan' },
+      { type: 'target', x: 1, z: 5, color: 'yellow' },
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'prism', x: 3, z: 4, rot: 0 },
+      { type: 'mirror', x: 3, z: 2, rot: 0 },
+      { type: 'target', x: 4, z: 3, color: 'blue' },
+      { type: 'source', x: 5, z: 0, dir: 2 },
+      { type: 'prism', x: 5, z: 4, rot: 4 },
+      { type: 'mirror', x: 4, z: 2, rot: 1 },
+      { type: 'mirror', x: 6, z: 4, rot: 2 },
+      { type: 'mirror', x: 6, z: 5, rot: 1 },
+      { type: 'target', x: 0, z: 1, color: 'red' },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'prism', x: 5, z: 1, rot: 6 },
+      { type: 'mirror', x: 4, z: 0, rot: 0 },
+      { type: 'mirror', x: 3, z: 0, rot: 2 },
+      { type: 'target', x: 0, z: 2, color: 'blue' },
+    ],
+    solution: { '2,6': 5, '3,4': 6, '3,2': 3, '5,4': 1, '4,2': 3, '6,4': 1, '6,5': 3, '4,1': 1, '5,1': 3, '4,0': 1, '3,0': 3 },
+  },
+  {
+    // Lösung: Prisma (3,2) rot 3 · Spiegel (4,2) rot 3 · Prisma (2,6) rot 7 · Spiegel (4,6) rot 3 ·
+    //   Spiegel (5,2) rot 1 · Spiegel (5,5) rot 3 · Spiegel (2,3) rot 1 · Spiegel (0,3) rot 3 ·
+    //   Spiegel (2,1) rot 3 · Prisma (3,1) rot 6 · Spiegel (3,0) rot 1
+    // Generator sehr schwer-sammelstelle, Seed 42721 · Ausbau „sehr schwer“
+    name: 'Dubhe', titel: 'Johanniswürmchen', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 3, z: 2, rot: 0 },
+      { type: 'source', x: 6, z: 5, dir: 5, color: 'blue' },
+      { type: 'source', x: 4, z: 0, dir: 2, color: 'red' },
+      { type: 'mirror', x: 4, z: 2, rot: 2 },
+      { type: 'target', x: 0, z: 2, color: 'blue' },
+      { type: 'target', x: 3, z: 5, color: 'white' },
+      { type: 'source', x: 0, z: 6, dir: 0 },
+      { type: 'prism', x: 2, z: 6, rot: 2 },
+      { type: 'mirror', x: 4, z: 6, rot: 0 },
+      { type: 'mirror', x: 5, z: 2, rot: 0 },
+      { type: 'mirror', x: 5, z: 5, rot: 0 },
       { type: 'source', x: 6, z: 3, dir: 4 },
       { type: 'mirror', x: 2, z: 3, rot: 3 },
-      { type: 'prism', x: 5, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, z: 2, rot: 1 },
-      { type: 'mirror', x: 6, z: 1, rot: 1 },
-      { type: 'target', x: 4, z: 4, color: 'yellow' },
-      { type: 'prism', x: 3, z: 4, rot: 5 },
-      { type: 'mirror', x: 5, z: 5, rot: 2 },
-      { type: 'mirror', x: 3, z: 6, rot: 2 },
-      { type: 'target', x: 2, z: 6, color: 'blue' },
-      { type: 'mirror', x: 6, z: 0, rot: 3 },
-      { type: 'mirror', x: 4, z: 0, rot: 0 },
-      { type: 'target', x: 5, z: 6, color: 'red' },
-      { type: 'mirror', x: 2, z: 0, rot: 3 },
-      { type: 'target', x: 1, z: 0, color: 'green' },
+      { type: 'mirror', x: 0, z: 3, rot: 2 },
+      { type: 'mirror', x: 2, z: 1, rot: 2 },
+      { type: 'prism', x: 3, z: 1, rot: 0 },
+      { type: 'mirror', x: 3, z: 0, rot: 2 },
+      { type: 'target', x: 0, z: 4, color: 'red' },
+      { type: 'target', x: 0, z: 0, color: 'green' },
     ],
-    solution: { '1,1': 3, '3,5': 3, '0,5': 1, '2,1': 3, '2,3': 1, '5,1': 1, '6,2': 2, '6,1': 3, '3,4': 2, '5,5': 3, '3,6': 3, '6,0': 1, '4,0': 3, '2,0': 1 },
-  },
-  {
-    // Lösung: Spiegel (1,3) rot 1 · Spiegel (1,5) rot 1 · Spiegel (3,5) rot 3 · Spiegel (3,3) rot 3 ·
-    //   Spiegel (4,4) rot 1 · Spiegel (4,3) rot 3 · Spiegel (5,3) rot 1 · Spiegel (5,6) rot 3 ·
-    //   Prisma (3,1) rot 1 · Spiegel (5,1) rot 1 · Spiegel (6,3) rot 3 · Spiegel (6,0) rot 1 ·
-    //   Spiegel (4,0) rot 3 · Spiegel (0,3) rot 1
-    // Generator sehr schwer-abzaehlen, Seed 10159 · Ausbau „sehr schwer“
-    name: 'Galaxis', titel: 'Dunkler Tann', grad: 'sehr schwer',
-    elements: [
-      { type: 'mirror', x: 1, z: 3, rot: 2 },
-      { type: 'mirror', x: 1, z: 5, rot: 2 },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
-      { type: 'mirror', x: 3, z: 3, rot: 0 },
-      { type: 'source', x: 6, z: 5, dir: 4, color: 'blue' },
-      { type: 'source', x: 1, z: 6, dir: 6 },
-      { type: 'source', x: 3, z: 0, dir: 2, color: 'magenta' },
-      { type: 'target', x: 1, z: 2, color: 'blue' },
-      { type: 'target', x: 3, z: 6, color: 'cyan' },
-      { type: 'target', x: 0, z: 5, color: 'white' },
-      { type: 'source', x: 6, z: 4, dir: 4, color: 'green' },
-      { type: 'mirror', x: 4, z: 4, rot: 2 },
-      { type: 'mirror', x: 4, z: 3, rot: 2 },
-      { type: 'mirror', x: 5, z: 3, rot: 3 },
-      { type: 'mirror', x: 5, z: 6, rot: 2 },
-      { type: 'prism', x: 3, z: 1, rot: 7 },
-      { type: 'mirror', x: 5, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, z: 3, rot: 1 },
-      { type: 'mirror', x: 6, z: 0, rot: 0 },
-      { type: 'mirror', x: 4, z: 0, rot: 0 },
-      { type: 'mirror', x: 0, z: 3, rot: 0 },
-      { type: 'target', x: 0, z: 2, color: 'red' },
-    ],
-    solution: { '1,3': 1, '1,5': 1, '3,5': 3, '3,3': 3, '4,4': 1, '4,3': 3, '5,3': 1, '5,6': 3, '3,1': 1, '5,1': 1, '6,3': 3, '6,0': 1, '4,0': 3, '0,3': 1 },
-  },
-  {
-    // Lösung: Spiegel (2,5) rot 3 · Prisma (3,6) rot 1 · Spiegel (2,3) rot 3 · Prisma (2,4) rot 6 ·
-    //   Prisma (3,2) rot 3 · Spiegel (2,2) rot 3 · Prisma (1,5) rot 0 · Prisma (4,5) rot 5 ·
-    //   Spiegel (4,4) rot 1
-    // Wertung 53.4 · 9 drehbar · 4 Ziele · Rateschritte 84811 · gehärtet aus Profil 3-bunt, Seed 7013
-    name: 'Sternenstaub', titel: 'Nebelwald', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 3, z: 0, dir: 2 },
-      { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'source', x: 6, z: 5, dir: 4, color: 'magenta' },
-      { type: 'mirror', x: 2, z: 2, rot: 2 },
-      { type: 'mirror', x: 2, z: 3, rot: 1 },
-      { type: 'mirror', x: 4, z: 3, rot: 1, fixed: true },
-      { type: 'mirror', x: 4, z: 4, rot: 2 },
-      { type: 'mirror', x: 2, z: 5, rot: 2 },
-      { type: 'prism', x: 3, z: 2, rot: 6 },
-      { type: 'prism', x: 2, z: 4, rot: 4 },
-      { type: 'prism', x: 1, z: 5, rot: 4 },
-      { type: 'prism', x: 4, z: 5, rot: 4 },
-      { type: 'prism', x: 3, z: 6, rot: 2 },
-      { type: 'target', x: 5, z: 1, color: 'blue' },
-      { type: 'target', x: 1, z: 3, color: 'magenta' },
-      { type: 'target', x: 2, z: 6, color: 'magenta' },
-      { type: 'target', x: 4, z: 6, color: 'red' },
-    ],
-    solution: { '2,5': 3, '3,6': 1, '2,3': 3, '2,4': 6, '3,2': 3, '2,2': 3, '1,5': 0, '4,5': 5, '4,4': 1 },
+    solution: { '3,2': 3, '4,2': 3, '2,6': 7, '4,6': 3, '5,2': 1, '5,5': 3, '2,3': 1, '0,3': 3, '2,1': 3, '3,1': 6, '3,0': 1 },
   },
   {
     // Lösung: Spiegel (0,5) rot 1 · Spiegel (5,1) rot 1 · Spiegel (5,0) rot 1 · Spiegel (3,2) rot 3 ·
     //   Prisma (3,4) rot 0 · Spiegel (5,4) rot 1 · Spiegel (1,1) rot 3 · Prisma (1,3) rot 1 ·
     //   Spiegel (5,6) rot 1 · Spiegel (1,6) rot 1 · Spiegel (4,3) rot 1
     // Generator sehr schwer-mischziel, Seed 41160 · Ausbau „sehr schwer“
-    name: 'Kastor', titel: 'Walgesang', grad: 'sehr schwer',
+    name: 'Kastor', titel: 'Tiefsee', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 4, z: 6, dir: 6, color: 'red' },
       { type: 'source', x: 6, z: 1, dir: 4, color: 'cyan' },
@@ -6233,7 +6317,7 @@ const LEVELS = [
     //   Prisma (4,5) rot 5 · Spiegel (4,3) rot 1 · Spiegel (2,1) rot 3 · Spiegel (2,0) rot 1 ·
     //   Spiegel (1,0) rot 3 · Spiegel (5,2) rot 1
     // Generator sehr schwer-sammelstelle, Seed 10188 · Ausbau „sehr schwer“
-    name: 'Atair', titel: 'Brecher', grad: 'sehr schwer',
+    name: 'Atair', titel: 'Mahlstrom', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 1, z: 4, rot: 7 },
       { type: 'source', x: 6, z: 4, dir: 4, color: 'magenta' },
@@ -6259,12 +6343,42 @@ const LEVELS = [
     solution: { '1,4': 5, '0,2': 1, '2,6': 3, '0,6': 1, '4,5': 5, '4,3': 1, '2,1': 3, '2,0': 1, '1,0': 3, '5,2': 1 },
   },
   {
+    // Lösung: Spiegel (4,3) rot 1 · Spiegel (5,5) rot 0 · Prisma (6,4) rot 5 · Spiegel (2,4) rot 3 ·
+    //   Spiegel (3,1) rot 0 · Spiegel (0,4) rot 2 · Spiegel (2,6) rot 3 · Spiegel (0,6) rot 1 ·
+    //   Prisma (6,3) rot 5 · Spiegel (4,1) rot 3 · Spiegel (6,0) rot 1 · Spiegel (1,0) rot 3
+    // Generator sehr schwer-mischziel, Seed 41581 · Ausbau „sehr schwer“
+    name: 'Alhena', titel: 'Meeresgrund', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 4, z: 6, dir: 6, color: 'green' },
+      { type: 'source', x: 0, z: 3, dir: 0, color: 'blue' },
+      { type: 'mirror', x: 4, z: 3, rot: 3 },
+      { type: 'target', x: 2, z: 3, color: 'cyan' },
+      { type: 'source', x: 0, z: 0, dir: 1 },
+      { type: 'mirror', x: 5, z: 5, rot: 2 },
+      { type: 'prism', x: 6, z: 4, rot: 3 },
+      { type: 'mirror', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 3, z: 1, rot: 3 },
+      { type: 'mirror', x: 0, z: 4, rot: 1 },
+      { type: 'target', x: 1, z: 5, color: 'cyan' },
+      { type: 'mirror', x: 2, z: 6, rot: 1 },
+      { type: 'mirror', x: 0, z: 6, rot: 3 },
+      { type: 'source', x: 3, z: 6, dir: 7 },
+      { type: 'prism', x: 6, z: 3, rot: 7 },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'target', x: 0, z: 5, color: 'red' },
+      { type: 'target', x: 5, z: 1, color: 'red' },
+      { type: 'mirror', x: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 1, z: 0, rot: 2 },
+    ],
+    solution: { '4,3': 1, '5,5': 0, '6,4': 5, '2,4': 3, '3,1': 0, '0,4': 2, '2,6': 3, '0,6': 1, '6,3': 5, '4,1': 3, '6,0': 1, '1,0': 3 },
+  },
+  {
     // Lösung: Spiegel (3,1) rot 3 · Spiegel (1,1) rot 1 · Spiegel (4,4) rot 1 · Prisma (2,2) rot 5 ·
     //   Spiegel (0,2) rot 3 · Spiegel (0,5) rot 1 · Spiegel (6,5) rot 3 · Spiegel (6,1) rot 1 ·
     //   Spiegel (2,0) rot 1 · Spiegel (3,2) rot 1 · Spiegel (4,2) rot 3 · Prisma (5,2) rot 3 ·
     //   Spiegel (5,4) rot 1
     // Generator sehr schwer-mischziel, Seed 11914 · Ausbau „sehr schwer“
-    name: 'Sirius', titel: 'Tiefsee', grad: 'sehr schwer',
+    name: 'Sirius', titel: 'Springflut', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'yellow' },
       { type: 'source', x: 4, z: 6, dir: 6, color: 'cyan' },
@@ -6298,7 +6412,7 @@ const LEVELS = [
     //   Spiegel (0,2) rot 3 · Spiegel (0,3) rot 1 · Spiegel (5,3) rot 3 · Spiegel (1,6) rot 1 ·
     //   Spiegel (1,0) rot 1
     // Generator sehr schwer-abzaehlen, Seed 11803 · Ausbau „sehr schwer“
-    name: 'Aldebaran', titel: 'Meeresgrund', grad: 'sehr schwer',
+    name: 'Aldebaran', titel: 'Walgesang', grad: 'sehr schwer',
     elements: [
       { type: 'mirror', x: 2, z: 1, rot: 0 },
       { type: 'mirror', x: 6, z: 1, rot: 2 },
@@ -6331,7 +6445,7 @@ const LEVELS = [
     //   Spiegel (2,1) rot 1 · Prisma (2,2) rot 3 · Spiegel (2,6) rot 3 · Prisma (3,2) rot 1 ·
     //   Spiegel (6,2) rot 3 · Spiegel (6,1) rot 1
     // Generator sehr schwer-sammelstelle, Seed 10419 · Ausbau „sehr schwer“
-    name: 'Spiralnebel', titel: 'Mahlstrom', grad: 'sehr schwer',
+    name: 'Spiralnebel', titel: 'Riesenwelle', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 4, z: 4, rot: 2 },
       { type: 'source', x: 0, z: 3, dir: 0, color: 'yellow' },
@@ -6357,319 +6471,126 @@ const LEVELS = [
     solution: { '4,4': 3, '4,3': 1, '5,4': 1, '1,1': 1, '2,1': 1, '2,2': 3, '2,6': 3, '3,2': 1, '6,2': 3, '6,1': 1 },
   },
   {
-    // Lösung: Prisma (3,5) rot 7 · Spiegel (4,5) rot 3 · Prisma (4,3) rot 3 · Spiegel (2,5) rot 0 ·
-    //   Spiegel (1,4) rot 0 · Prisma (5,2) rot 3 · Spiegel (6,4) rot 1 · Spiegel (3,2) rot 3 ·
-    //   Spiegel (5,5) rot 1 · Spiegel (3,3) rot 1 · Spiegel (4,1) rot 3 · Spiegel (5,4) rot 1
-    // Wertung 50.3 · 12 drehbar · 4 Ziele · Rateschritte 30719 · gehärtet aus Profil 3-bunt, Seed 3065
-    name: 'Abendstern', titel: 'Hochmoor', grad: 'sehr schwer',
+    // Lösung: Spiegel (3,0) rot 1 · Spiegel (3,4) rot 3 · Spiegel (4,3) rot 1 · Prisma (2,5) rot 7 ·
+    //   Spiegel (2,3) rot 1 · Spiegel (6,3) rot 3 · Spiegel (6,2) rot 1 · Spiegel (4,5) rot 3 ·
+    //   Spiegel (4,0) rot 3 · Spiegel (2,1) rot 1 · Spiegel (5,0) rot 1 · Spiegel (1,3) rot 1
+    // Generator sehr schwer-mischziel, Seed 366, Ziel 88,36–89,15 · ersetzt Korona (Austausch „sehr schwer“)
+    name: 'Lichtfächer', titel: 'Hochmoor', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 6, z: 2, dir: 4 },
-      { type: 'source', x: 3, z: 6, dir: 6 },
-      { type: 'mirror', x: 3, z: 0, rot: 2, fixed: true },
-      { type: 'mirror', x: 4, z: 1, rot: 1 },
-      { type: 'mirror', x: 3, z: 2, rot: 1 },
-      { type: 'mirror', x: 4, z: 2, rot: 3, fixed: true },
-      { type: 'mirror', x: 2, z: 3, rot: 1, fixed: true },
-      { type: 'mirror', x: 3, z: 3, rot: 0 },
-      { type: 'mirror', x: 1, z: 4, rot: 1 },
-      { type: 'mirror', x: 4, z: 4, rot: 3, fixed: true },
-      { type: 'mirror', x: 5, z: 4, rot: 3 },
-      { type: 'mirror', x: 6, z: 4, rot: 2 },
-      { type: 'mirror', x: 2, z: 5, rot: 2 },
+      { type: 'source', x: 0, z: 0, dir: 0, color: 'cyan' },
+      { type: 'source', x: 0, z: 4, dir: 0, color: 'yellow' },
+      { type: 'mirror', x: 3, z: 0, rot: 2 },
+      { type: 'mirror', x: 3, z: 4, rot: 0 },
+      { type: 'target', x: 1, z: 0, color: 'white' },
+      { type: 'source', x: 0, z: 2, dir: 0, color: 'green' },
+      { type: 'source', x: 3, z: 6, dir: 5 },
+      { type: 'mirror', x: 4, z: 3, rot: 2 },
+      { type: 'prism', x: 2, z: 5, rot: 6 },
+      { type: 'mirror', x: 2, z: 3, rot: 3 },
+      { type: 'mirror', x: 6, z: 3, rot: 1 },
+      { type: 'mirror', x: 6, z: 2, rot: 3 },
       { type: 'mirror', x: 4, z: 5, rot: 0 },
-      { type: 'mirror', x: 5, z: 5, rot: 3 },
-      { type: 'prism', x: 5, z: 2, rot: 7 },
-      { type: 'prism', x: 4, z: 3, rot: 4 },
-      { type: 'prism', x: 3, z: 5, rot: 5 },
-      { type: 'target', x: 6, z: 1, color: 'blue' },
-      { type: 'target', x: 2, z: 2, color: 'red' },
-      { type: 'target', x: 0, z: 5, color: 'green' },
-      { type: 'target', x: 6, z: 5, color: 'magenta' },
+      { type: 'mirror', x: 4, z: 0, rot: 1 },
+      { type: 'mirror', x: 2, z: 1, rot: 3 },
+      { type: 'target', x: 1, z: 1, color: 'magenta' },
+      { type: 'mirror', x: 5, z: 0, rot: 2 },
+      { type: 'mirror', x: 1, z: 3, rot: 3 },
+      { type: 'target', x: 5, z: 6, color: 'green' },
     ],
-    solution: { '3,5': 7, '4,5': 3, '4,3': 3, '2,5': 0, '1,4': 0, '5,2': 3, '6,4': 1, '3,2': 3, '5,5': 1, '3,3': 1, '4,1': 3, '5,4': 1 },
+    solution: { '3,0': 1, '3,4': 3, '4,3': 1, '2,5': 7, '2,3': 1, '6,3': 3, '6,2': 1, '4,5': 3, '4,0': 3, '2,1': 1, '5,0': 1, '1,3': 1 },
   },
   {
-    // Lösung: Spiegel (4,1) rot 3 · Spiegel (2,1) rot 3 · Spiegel (5,4) rot 3 · Spiegel (5,6) rot 1 ·
-    //   Prisma (6,6) rot 7 · Spiegel (6,5) rot 1 · Spiegel (3,5) rot 3 · Spiegel (3,6) rot 3 ·
-    //   Spiegel (2,6) rot 1 · Prisma (1,5) rot 4 · Spiegel (0,5) rot 1 · Spiegel (0,4) rot 3 ·
-    //   Spiegel (5,2) rot 3
-    // Generator sehr schwer-mischziel, Seed 11509 · Ausbau „sehr schwer“
-    name: 'Hyaden', titel: 'Springflut', grad: 'sehr schwer',
+    // Lösung: Spiegel (1,5) rot 3 · Spiegel (5,1) rot 1 · Spiegel (5,0) rot 1 · Spiegel (6,6) rot 3 ·
+    //   Prisma (6,3) rot 5 · Spiegel (1,3) rot 3 · Spiegel (5,4) rot 3 · Spiegel (0,5) rot 3 ·
+    //   Prisma (2,1) rot 6 · Spiegel (2,0) rot 1 · Spiegel (1,0) rot 3 · Spiegel (0,3) rot 1
+    // Generator sehr schwer-mischziel, Seed 41786 · Ausbau „sehr schwer“
+    name: 'Alioth', titel: 'Felsschlucht', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 4, z: 0, dir: 2, color: 'blue' },
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'green' },
-      { type: 'mirror', x: 4, z: 1, rot: 1 },
-      { type: 'mirror', x: 2, z: 1, rot: 0 },
-      { type: 'target', x: 2, z: 3, color: 'white' },
-      { type: 'source', x: 6, z: 4, dir: 4 },
-      { type: 'mirror', x: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, z: 6, rot: 2 },
-      { type: 'prism', x: 6, z: 6, rot: 0 },
-      { type: 'mirror', x: 6, z: 5, rot: 2 },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
-      { type: 'mirror', x: 3, z: 6, rot: 0 },
-      { type: 'mirror', x: 2, z: 6, rot: 0 },
-      { type: 'source', x: 1, z: 6, dir: 6 },
-      { type: 'prism', x: 1, z: 5, rot: 7 },
-      { type: 'mirror', x: 0, z: 5, rot: 3 },
-      { type: 'mirror', x: 0, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, z: 2, rot: 0 },
-      { type: 'target', x: 0, z: 6, color: 'red' },
-      { type: 'target', x: 6, z: 2, color: 'green' },
-    ],
-    solution: { '4,1': 3, '2,1': 3, '5,4': 3, '5,6': 1, '6,6': 7, '6,5': 1, '3,5': 3, '3,6': 3, '2,6': 1, '1,5': 4, '0,5': 1, '0,4': 3, '5,2': 3 },
-  },
-  {
-    // Lösung: Spiegel (3,3) rot 3 · Spiegel (3,1) rot 1 · Spiegel (5,1) rot 1 · Spiegel (5,3) rot 3 ·
-    //   Spiegel (4,5) rot 1 · Spiegel (1,5) rot 3 · Spiegel (1,6) rot 3 · Spiegel (0,6) rot 1 ·
-    //   Spiegel (0,4) rot 3 · Spiegel (2,4) rot 1 · Spiegel (3,0) rot 1 · Prisma (2,3) rot 7 ·
-    //   Kombinator (2,0) dir 4
-    // Generator sehr schwer-abzaehlen, Seed 11484 · Ausbau „sehr schwer“
-    name: 'Deneb', titel: 'Albatros', grad: 'sehr schwer',
-    elements: [
-      { type: 'mirror', x: 3, z: 3, rot: 1 },
-      { type: 'mirror', x: 3, z: 1, rot: 2 },
-      { type: 'mirror', x: 5, z: 1, rot: 2 },
-      { type: 'mirror', x: 5, z: 3, rot: 2 },
-      { type: 'source', x: 6, z: 1, dir: 4, color: 'blue' },
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'magenta' },
-      { type: 'source', x: 5, z: 6, dir: 6, color: 'magenta' },
-      { type: 'target', x: 6, z: 3, color: 'magenta' },
-      { type: 'target', x: 0, z: 1, color: 'blue' },
-      { type: 'target', x: 5, z: 0, color: 'blue' },
-      { type: 'source', x: 4, z: 6, dir: 6, color: 'green' },
-      { type: 'mirror', x: 4, z: 5, rot: 2 },
-      { type: 'mirror', x: 1, z: 5, rot: 0 },
-      { type: 'mirror', x: 1, z: 6, rot: 2 },
-      { type: 'mirror', x: 0, z: 6, rot: 0 },
-      { type: 'mirror', x: 0, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 6, rot: 1, fixed: true },
-      { type: 'mirror', x: 3, z: 6, rot: 3, fixed: true },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'prism', x: 2, z: 3, rot: 3 },
-      { type: 'combiner', x: 2, z: 0, dir: 0 },
-      { type: 'target', x: 0, z: 0, color: 'yellow' },
-    ],
-    solution: { '3,3': 3, '3,1': 1, '5,1': 1, '5,3': 3, '4,5': 1, '1,5': 3, '1,6': 3, '0,6': 1, '0,4': 3, '2,4': 1, '3,0': 1, '2,3': 7, '2,0': 4 },
-  },
-  {
-    // Lösung: Spiegel (1,0) rot 0 · Spiegel (3,5) rot 3 · Prisma (4,4) rot 3 · Prisma (5,4) rot 5 ·
-    //   Spiegel (6,5) rot 1 · Spiegel (6,6) rot 3 · Spiegel (5,2) rot 3 · Spiegel (6,2) rot 3 ·
-    //   Spiegel (6,1) rot 1 · Spiegel (1,1) rot 3 · Spiegel (1,2) rot 3 · Spiegel (0,2) rot 3 ·
-    //   Spiegel (0,4) rot 1 · Spiegel (2,4) rot 3
-    // Generator sehr schwer-mischziel, Seed 11349 · Ausbau „sehr schwer“
-    name: 'Sonnenwind', titel: 'Riesenwelle', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 0, z: 1, dir: 7, color: 'blue' },
-      { type: 'source', x: 0, z: 5, dir: 0, color: 'yellow' },
-      { type: 'mirror', x: 1, z: 0, rot: 3 },
-      { type: 'mirror', x: 3, z: 5, rot: 1 },
-      { type: 'target', x: 3, z: 2, color: 'white' },
-      { type: 'source', x: 6, z: 4, dir: 4 },
-      { type: 'prism', x: 4, z: 4, rot: 7 },
-      { type: 'mirror', x: 4, z: 5, rot: 1, fixed: true },
-      { type: 'prism', x: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, z: 5, rot: 3 },
-      { type: 'mirror', x: 6, z: 6, rot: 2 },
-      { type: 'target', x: 3, z: 6, color: 'red' },
-      { type: 'mirror', x: 5, z: 2, rot: 2 },
-      { type: 'mirror', x: 6, z: 2, rot: 0 },
-      { type: 'mirror', x: 6, z: 1, rot: 3 },
-      { type: 'mirror', x: 1, z: 1, rot: 1 },
-      { type: 'mirror', x: 1, z: 2, rot: 0 },
-      { type: 'mirror', x: 0, z: 2, rot: 1 },
-      { type: 'mirror', x: 0, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 0, rot: 3, fixed: true },
-      { type: 'target', x: 6, z: 0, color: 'blue' },
-    ],
-    solution: { '1,0': 0, '3,5': 3, '4,4': 3, '5,4': 5, '6,5': 1, '6,6': 3, '5,2': 3, '6,2': 3, '6,1': 1, '1,1': 3, '1,2': 3, '0,2': 3, '0,4': 1, '2,4': 3 },
-  },
-  {
-    // Lösung: Prisma (5,2) rot 5 · Spiegel (6,3) rot 2 · Spiegel (5,3) rot 3 · Spiegel (2,5) rot 3 ·
-    //   Spiegel (1,5) rot 3 · Spiegel (1,6) rot 3 · Spiegel (0,6) rot 1 · Spiegel (0,4) rot 3 ·
-    //   Spiegel (2,0) rot 1 · Spiegel (0,0) rot 3 · Prisma (4,1) rot 3 · Spiegel (3,1) rot 1 ·
-    //   Spiegel (6,6) rot 3 · Spiegel (6,5) rot 1
-    // Generator sehr schwer-sammelstelle, Seed 10936 · Ausbau „sehr schwer“
-    name: 'Arktur', titel: 'Korallenriff', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 5, z: 2, rot: 7 },
-      { type: 'source', x: 3, z: 6, dir: 7, color: 'blue' },
-      { type: 'mirror', x: 6, z: 3, rot: 3 },
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
-      { type: 'mirror', x: 5, z: 3, rot: 1 },
-      { type: 'target', x: 5, z: 1, color: 'blue' },
-      { type: 'target', x: 0, z: 2, color: 'magenta' },
-      { type: 'source', x: 6, z: 4, dir: 4, color: 'blue' },
-      { type: 'mirror', x: 2, z: 5, rot: 0 },
-      { type: 'mirror', x: 1, z: 5, rot: 0 },
-      { type: 'mirror', x: 1, z: 6, rot: 0 },
-      { type: 'mirror', x: 0, z: 6, rot: 3 },
-      { type: 'mirror', x: 0, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 0, rot: 2 },
-      { type: 'mirror', x: 0, z: 0, rot: 2 },
-      { type: 'source', x: 4, z: 0, dir: 2, color: 'magenta' },
-      { type: 'prism', x: 4, z: 1, rot: 0 },
-      { type: 'mirror', x: 3, z: 1, rot: 0 },
-      { type: 'mirror', x: 4, z: 6, rot: 1, fixed: true },
-      { type: 'target', x: 3, z: 0, color: 'blue' },
-      { type: 'mirror', x: 6, z: 6, rot: 0 },
-      { type: 'mirror', x: 6, z: 5, rot: 3 },
-      { type: 'target', x: 2, z: 6, color: 'red' },
-    ],
-    solution: { '5,2': 5, '6,3': 2, '5,3': 3, '2,5': 3, '1,5': 3, '1,6': 3, '0,6': 1, '0,4': 3, '2,0': 1, '0,0': 3, '4,1': 3, '3,1': 1, '6,6': 3, '6,5': 1 },
-  },
-  {
-    // Lösung: Spiegel (5,5) rot 3 · Spiegel (3,4) rot 2 · Spiegel (2,1) rot 1 · Prisma (3,5) rot 1 ·
-    //   Prisma (4,3) rot 4 · Prisma (2,2) rot 7 · Spiegel (3,6) rot 1 · Spiegel (0,3) rot 1 ·
-    //   Prisma (6,3) rot 3
-    // Generator sehr schwer-lockvogel, Seed 41653 · Ausbau „sehr schwer“
-    name: 'Kanopus', titel: 'Bachtobel', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 0, z: 5, dir: 0, color: 'magenta' },
-      { type: 'source', x: 6, z: 1, dir: 3, color: 'yellow' },
-      { type: 'source', x: 2, z: 6, dir: 6, color: 'yellow' },
-      { type: 'mirror', x: 5, z: 5, rot: 0 },
-      { type: 'mirror', x: 3, z: 4, rot: 1 },
-      { type: 'mirror', x: 2, z: 1, rot: 0 },
-      { type: 'target', x: 5, z: 1, color: 'red' },
-      { type: 'target', x: 5, z: 6, color: 'magenta' },
-      { type: 'target', x: 0, z: 1, color: 'yellow' },
-      { type: 'blocker', x: 1, z: 2 },
-      { type: 'prism', x: 3, z: 5, rot: 6 },
-      { type: 'prism', x: 4, z: 3, rot: 1 },
-      { type: 'prism', x: 2, z: 2, rot: 3 },
-      { type: 'mirror', x: 3, z: 6, rot: 2 },
-      { type: 'mirror', x: 0, z: 3, rot: 2 },
-      { type: 'target', x: 4, z: 0, color: 'green' },
-      { type: 'source', x: 3, z: 0, dir: 1 },
-      { type: 'prism', x: 6, z: 3, rot: 4 },
-      { type: 'target', x: 3, z: 2, color: 'blue' },
-    ],
-    solution: { '5,5': 3, '3,4': 2, '2,1': 1, '3,5': 1, '4,3': 4, '2,2': 7, '3,6': 1, '0,3': 1, '6,3': 3 },
-  },
-  {
-    // Lösung: Prisma (2,6) rot 5 · Prisma (3,4) rot 6 · Spiegel (3,2) rot 3 · Prisma (5,4) rot 1 ·
-    //   Spiegel (4,2) rot 3 · Spiegel (6,4) rot 1 · Spiegel (6,5) rot 3 · Spiegel (4,1) rot 1 ·
-    //   Prisma (5,1) rot 3 · Spiegel (4,0) rot 1 · Spiegel (3,0) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 40922 · Ausbau „sehr schwer“
-    name: 'Fomalhaut', titel: 'Urwald', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 2, z: 6, rot: 7 },
-      { type: 'source', x: 6, z: 6, dir: 4, color: 'blue' },
-      { type: 'source', x: 6, z: 2, dir: 3, color: 'green' },
-      { type: 'target', x: 2, z: 1, color: 'cyan' },
-      { type: 'target', x: 1, z: 5, color: 'yellow' },
-      { type: 'source', x: 0, z: 4, dir: 0 },
-      { type: 'prism', x: 3, z: 4, rot: 0 },
-      { type: 'mirror', x: 3, z: 2, rot: 0 },
-      { type: 'target', x: 4, z: 3, color: 'blue' },
-      { type: 'source', x: 5, z: 0, dir: 2 },
-      { type: 'prism', x: 5, z: 4, rot: 4 },
-      { type: 'mirror', x: 4, z: 2, rot: 1 },
-      { type: 'mirror', x: 6, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, z: 5, rot: 1 },
-      { type: 'target', x: 0, z: 1, color: 'red' },
-      { type: 'mirror', x: 4, z: 1, rot: 2 },
-      { type: 'prism', x: 5, z: 1, rot: 6 },
-      { type: 'mirror', x: 4, z: 0, rot: 0 },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'target', x: 0, z: 2, color: 'blue' },
-    ],
-    solution: { '2,6': 5, '3,4': 6, '3,2': 3, '5,4': 1, '4,2': 3, '6,4': 1, '6,5': 3, '4,1': 1, '5,1': 3, '4,0': 1, '3,0': 3 },
-  },
-  {
-    // Lösung: Spiegel (3,3) rot 1 · Prisma (5,2) rot 3 · Prisma (5,5) rot 5 · Spiegel (5,4) rot 1 ·
-    //   Spiegel (2,2) rot 1 · Spiegel (4,4) rot 2 · Spiegel (1,5) rot 3 · Kombinator (1,6) dir 4 ·
-    //   Spiegel (6,4) rot 3 · Spiegel (6,3) rot 1 · Spiegel (3,1) rot 3
-    // Generator sehr schwer-mischziel, Seed 11198 · Ausbau „sehr schwer“
-    name: 'Weisser Zwerg', titel: 'Dünenmeer', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 2, z: 6, dir: 6, color: 'blue' },
-      { type: 'source', x: 3, z: 6, dir: 6, color: 'green' },
-      { type: 'mirror', x: 3, z: 3, rot: 3 },
-      { type: 'target', x: 2, z: 3, color: 'cyan' },
-      { type: 'source', x: 3, z: 0, dir: 1 },
-      { type: 'prism', x: 5, z: 2, rot: 2 },
-      { type: 'source', x: 6, z: 5, dir: 4, color: 'yellow' },
-      { type: 'prism', x: 5, z: 5, rot: 4 },
-      { type: 'mirror', x: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 2, z: 2, rot: 2 },
-      { type: 'target', x: 2, z: 0, color: 'blue' },
-      { type: 'mirror', x: 4, z: 4, rot: 3 },
-      { type: 'mirror', x: 6, z: 2, rot: 2, fixed: true },
-      { type: 'target', x: 5, z: 1, color: 'yellow' },
+      { type: 'source', x: 3, z: 0, dir: 2, color: 'blue' },
+      { type: 'source', x: 1, z: 6, dir: 6, color: 'green' },
       { type: 'mirror', x: 1, z: 5, rot: 2 },
-      { type: 'combiner', x: 1, z: 6, dir: 1 },
-      { type: 'target', x: 0, z: 6, color: 'yellow' },
-      { type: 'mirror', x: 6, z: 4, rot: 1 },
-      { type: 'mirror', x: 6, z: 3, rot: 3 },
-      { type: 'mirror', x: 3, z: 1, rot: 1 },
-    ],
-    solution: { '3,3': 1, '5,2': 3, '5,5': 5, '5,4': 1, '2,2': 1, '4,4': 2, '1,5': 3, '1,6': 4, '6,4': 3, '6,3': 1, '3,1': 3 },
-  },
-  {
-    // Lösung: Prisma (2,2) rot 2 · Spiegel (3,2) rot 1 · Spiegel (0,4) rot 2 · Spiegel (1,5) rot 2 ·
-    //   Spiegel (5,0) rot 3 · Prisma (6,0) rot 2 · Spiegel (6,1) rot 3 · Spiegel (1,2) rot 3 ·
-    //   Spiegel (0,2) rot 1 · Spiegel (0,0) rot 3 · Spiegel (6,4) rot 2 · Prisma (4,6) rot 5
-    // Generator sehr schwer-sammelstelle, Seed 10656 · Ausbau „sehr schwer“
-    name: 'Regulus', titel: 'Sandviper', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 2, z: 2, rot: 4 },
-      { type: 'source', x: 4, z: 0, dir: 3, color: 'red' },
-      { type: 'source', x: 3, z: 6, dir: 6, color: 'cyan' },
-      { type: 'mirror', x: 3, z: 2, rot: 3 },
-      { type: 'target', x: 4, z: 4, color: 'magenta' },
-      { type: 'target', x: 2, z: 5, color: 'green' },
-      { type: 'mirror', x: 0, z: 4, rot: 1 },
-      { type: 'mirror', x: 1, z: 5, rot: 3 },
-      { type: 'source', x: 5, z: 6, dir: 6 },
-      { type: 'mirror', x: 5, z: 0, rot: 1 },
-      { type: 'prism', x: 6, z: 0, rot: 6 },
-      { type: 'target', x: 2, z: 6, color: 'blue' },
-      { type: 'mirror', x: 6, z: 1, rot: 2 },
-      { type: 'mirror', x: 1, z: 1, rot: 3, fixed: true },
-      { type: 'mirror', x: 1, z: 2, rot: 2 },
-      { type: 'mirror', x: 0, z: 2, rot: 2 },
-      { type: 'mirror', x: 0, z: 0, rot: 1 },
-      { type: 'target', x: 1, z: 0, color: 'green' },
-      { type: 'source', x: 2, z: 0, dir: 1, color: 'cyan' },
-      { type: 'mirror', x: 6, z: 4, rot: 0 },
-      { type: 'prism', x: 4, z: 6, rot: 3 },
-      { type: 'target', x: 0, z: 6, color: 'blue' },
-    ],
-    solution: { '2,2': 2, '3,2': 1, '0,4': 2, '1,5': 2, '5,0': 3, '6,0': 2, '6,1': 3, '1,2': 3, '0,2': 1, '0,0': 3, '6,4': 2, '4,6': 5 },
-  },
-  {
-    // Lösung: Prisma (0,3) rot 7 · Spiegel (0,5) rot 1 · Spiegel (1,4) rot 0 · Spiegel (0,1) rot 3 ·
-    //   Spiegel (6,1) rot 3 · Prisma (2,2) rot 5 · Spiegel (3,6) rot 1 · Prisma (4,6) rot 7 ·
-    //   Spiegel (6,4) rot 2 · Spiegel (2,0) rot 1 · Spiegel (1,0) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 10567 · Ausbau „sehr schwer“
-    name: 'Kugelsternhaufen', titel: 'Schirokko', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 0, z: 3, rot: 1 },
-      { type: 'source', x: 6, z: 5, dir: 4, color: 'yellow' },
-      { type: 'mirror', x: 0, z: 5, rot: 3 },
-      { type: 'source', x: 5, z: 0, dir: 3, color: 'blue' },
-      { type: 'mirror', x: 1, z: 4, rot: 3 },
-      { type: 'target', x: 1, z: 2, color: 'white' },
-      { type: 'target', x: 4, z: 3, color: 'magenta' },
-      { type: 'mirror', x: 0, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, z: 1, rot: 0 },
-      { type: 'source', x: 4, z: 0, dir: 3 },
-      { type: 'prism', x: 2, z: 2, rot: 3 },
-      { type: 'source', x: 3, z: 0, dir: 2 },
-      { type: 'mirror', x: 3, z: 6, rot: 3 },
-      { type: 'prism', x: 4, z: 6, rot: 5 },
-      { type: 'mirror', x: 6, z: 4, rot: 1 },
-      { type: 'target', x: 5, z: 6, color: 'blue' },
-      { type: 'target', x: 5, z: 3, color: 'green' },
+      { type: 'target', x: 3, z: 5, color: 'cyan' },
+      { type: 'source', x: 6, z: 1, dir: 4 },
+      { type: 'mirror', x: 5, z: 1, rot: 2 },
+      { type: 'mirror', x: 5, z: 0, rot: 2 },
+      { type: 'mirror', x: 4, z: 0, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 6, rot: 1, fixed: true },
+      { type: 'mirror', x: 6, z: 6, rot: 2 },
+      { type: 'prism', x: 6, z: 3, rot: 3 },
+      { type: 'mirror', x: 1, z: 3, rot: 0 },
+      { type: 'target', x: 6, z: 2, color: 'blue' },
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'mirror', x: 5, z: 4, rot: 1 },
+      { type: 'mirror', x: 0, z: 5, rot: 0 },
+      { type: 'prism', x: 2, z: 1, rot: 5 },
       { type: 'mirror', x: 2, z: 0, rot: 2 },
-      { type: 'mirror', x: 1, z: 0, rot: 0 },
-      { type: 'target', x: 6, z: 0, color: 'red' },
+      { type: 'target', x: 0, z: 0, color: 'green' },
+      { type: 'mirror', x: 1, z: 0, rot: 1 },
+      { type: 'mirror', x: 0, z: 3, rot: 2 },
+      { type: 'target', x: 0, z: 6, color: 'red' },
     ],
-    solution: { '0,3': 7, '0,5': 1, '1,4': 0, '0,1': 3, '6,1': 3, '2,2': 5, '3,6': 1, '4,6': 7, '6,4': 2, '2,0': 1, '1,0': 3 },
+    solution: { '1,5': 3, '5,1': 1, '5,0': 1, '6,6': 3, '6,3': 5, '1,3': 3, '5,4': 3, '0,5': 3, '2,1': 6, '2,0': 1, '1,0': 3, '0,3': 1 },
+  },
+  {
+    // Lösung: Prisma (1,1) rot 5 · Spiegel (1,4) rot 3 · Spiegel (3,5) rot 3 · Spiegel (3,4) rot 3 ·
+    //   Spiegel (5,4) rot 1 · Prisma (5,5) rot 4 · Prisma (1,2) rot 4 · Spiegel (2,0) rot 1 ·
+    //   Prisma (3,2) rot 0 · Spiegel (6,2) rot 1
+    // Generator sehr schwer, Seed 41243 · Ausbau „sehr schwer“
+    name: 'Ankaa', titel: 'Waldgeist', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 1, z: 6, dir: 6, color: 'yellow' },
+      { type: 'source', x: 6, z: 1, dir: 4, color: 'red' },
+      { type: 'prism', x: 1, z: 1, rot: 3 },
+      { type: 'mirror', x: 1, z: 4, rot: 2 },
+      { type: 'target', x: 0, z: 1, color: 'magenta' },
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, z: 4, rot: 3 },
+      { type: 'prism', x: 5, z: 5, rot: 0 },
+      { type: 'mirror', x: 1, z: 0, rot: 3, fixed: true },
+      { type: 'source', x: 3, z: 0, dir: 3 },
+      { type: 'prism', x: 1, z: 2, rot: 5 },
+      { type: 'target', x: 4, z: 6, color: 'magenta' },
+      { type: 'target', x: 0, z: 2, color: 'green' },
+      { type: 'mirror', x: 2, z: 0, rot: 3 },
+      { type: 'target', x: 0, z: 3, color: 'red' },
+      { type: 'prism', x: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 6, z: 2, rot: 2 },
+      { type: 'mirror', x: 2, z: 6, rot: 1, fixed: true },
+      { type: 'target', x: 6, z: 4, color: 'green' },
+    ],
+    solution: { '1,1': 5, '1,4': 3, '3,5': 3, '3,4': 3, '5,4': 1, '5,5': 4, '1,2': 4, '2,0': 1, '3,2': 0, '6,2': 1 },
+  },
+  {
+    // Lösung: Spiegel (3,2) rot 2 · Spiegel (6,3) rot 1 · Spiegel (5,1) rot 3 · Prisma (1,4) rot 0 ·
+    //   Prisma (1,3) rot 1 · Prisma (5,5) rot 7 · Spiegel (4,4) rot 1 · Spiegel (4,5) rot 3 ·
+    //   Spiegel (2,5) rot 0 · Spiegel (0,0) rot 3 · Spiegel (0,1) rot 1
+    // Generator sehr schwer-lockvogel, Seed 40912 · Ausbau „sehr schwer“
+    name: 'Enif', titel: 'Pharao', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 7, color: 'yellow' },
+      { type: 'source', x: 0, z: 3, dir: 0, color: 'magenta' },
+      { type: 'source', x: 5, z: 6, dir: 6, color: 'yellow' },
+      { type: 'mirror', x: 3, z: 2, rot: 1 },
+      { type: 'mirror', x: 6, z: 3, rot: 0 },
+      { type: 'mirror', x: 5, z: 1, rot: 1 },
+      { type: 'target', x: 2, z: 1, color: 'magenta' },
+      { type: 'target', x: 6, z: 5, color: 'red' },
+      { type: 'target', x: 6, z: 1, color: 'magenta' },
+      { type: 'mirror', x: 6, z: 2, rot: 3, fixed: true },
+      { type: 'prism', x: 1, z: 4, rot: 4 },
+      { type: 'prism', x: 1, z: 3, rot: 6 },
+      { type: 'prism', x: 5, z: 5, rot: 6 },
+      { type: 'mirror', x: 4, z: 4, rot: 0 },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'target', x: 3, z: 5, color: 'green' },
+      { type: 'mirror', x: 2, z: 5, rot: 3 },
+      { type: 'source', x: 6, z: 0, dir: 4, color: 'blue' },
+      { type: 'mirror', x: 0, z: 0, rot: 2 },
+      { type: 'mirror', x: 0, z: 1, rot: 2 },
+    ],
+    solution: { '3,2': 2, '6,3': 1, '5,1': 3, '1,4': 0, '1,3': 1, '5,5': 7, '4,4': 1, '4,5': 3, '2,5': 0, '0,0': 3, '0,1': 1 },
   },
   {
     // Lösung: Spiegel (1,3) rot 1 · Spiegel (1,4) rot 1 · Spiegel (1,1) rot 1 · Spiegel (1,0) rot 3 ·
@@ -6677,7 +6598,7 @@ const LEVELS = [
     //   Spiegel (3,6) rot 1 · Spiegel (4,6) rot 3 · Spiegel (4,0) rot 3 · Spiegel (5,0) rot 1 ·
     //   Spiegel (5,3) rot 3 · Spiegel (0,1) rot 3
     // Generator sehr schwer-mischziel, Seed 11995 · Ausbau „sehr schwer“
-    name: 'Rigel', titel: 'Flammenmeer', grad: 'sehr schwer',
+    name: 'Rigel', titel: 'Samum', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'cyan' },
       { type: 'source', x: 6, z: 6, dir: 6, color: 'red' },
@@ -6704,107 +6625,102 @@ const LEVELS = [
     solution: { '1,3': 1, '1,4': 1, '1,1': 1, '1,0': 3, '2,0': 1, '2,5': 3, '0,5': 3, '3,2': 3, '3,6': 1, '4,6': 3, '4,0': 3, '5,0': 1, '5,3': 3, '0,1': 3 },
   },
   {
-    // Lösung: Spiegel (3,0) rot 1 · Spiegel (3,4) rot 3 · Spiegel (4,3) rot 1 · Prisma (2,5) rot 7 ·
-    //   Spiegel (2,3) rot 1 · Spiegel (6,3) rot 3 · Spiegel (6,2) rot 1 · Spiegel (4,5) rot 3 ·
-    //   Spiegel (4,0) rot 3 · Spiegel (2,1) rot 1 · Spiegel (5,0) rot 1 · Spiegel (1,3) rot 1
-    // Generator sehr schwer-mischziel, Seed 366, Ziel 88,36–89,15 · ersetzt Korona (Austausch „sehr schwer“)
-    name: 'Lichtfächer', titel: 'Waldgeist', grad: 'sehr schwer',
+    // Lösung: Spiegel (5,3) rot 1 · Spiegel (5,6) rot 3 · Spiegel (4,4) rot 1 · Spiegel (3,4) rot 3 ·
+    //   Prisma (2,4) rot 5 · Spiegel (1,4) rot 3 · Spiegel (1,5) rot 3 · Spiegel (0,5) rot 3 ·
+    //   Spiegel (0,6) rot 1 · Spiegel (2,0) rot 1 · Spiegel (1,0) rot 3 · Prisma (6,1) rot 7 ·
+    //   Spiegel (6,0) rot 1
+    // Generator sehr schwer-mischziel, Seed 42703 · Ausbau „sehr schwer“
+    name: 'Menkar', titel: 'Dünenmeer', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 0, z: 0, dir: 0, color: 'cyan' },
-      { type: 'source', x: 0, z: 4, dir: 0, color: 'yellow' },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'mirror', x: 3, z: 4, rot: 0 },
-      { type: 'target', x: 1, z: 0, color: 'white' },
-      { type: 'source', x: 0, z: 2, dir: 0, color: 'green' },
-      { type: 'source', x: 3, z: 6, dir: 5 },
-      { type: 'mirror', x: 4, z: 3, rot: 2 },
-      { type: 'prism', x: 2, z: 5, rot: 6 },
-      { type: 'mirror', x: 2, z: 3, rot: 3 },
-      { type: 'mirror', x: 6, z: 3, rot: 1 },
-      { type: 'mirror', x: 6, z: 2, rot: 3 },
-      { type: 'mirror', x: 4, z: 5, rot: 0 },
-      { type: 'mirror', x: 4, z: 0, rot: 1 },
-      { type: 'mirror', x: 2, z: 1, rot: 3 },
-      { type: 'target', x: 1, z: 1, color: 'magenta' },
-      { type: 'mirror', x: 5, z: 0, rot: 2 },
-      { type: 'mirror', x: 1, z: 3, rot: 3 },
-      { type: 'target', x: 5, z: 6, color: 'green' },
-    ],
-    solution: { '3,0': 1, '3,4': 3, '4,3': 1, '2,5': 7, '2,3': 1, '6,3': 3, '6,2': 1, '4,5': 3, '4,0': 3, '2,1': 1, '5,0': 1, '1,3': 1 },
-  },
-  {
-    // Lösung: Spiegel (4,6) rot 1 · Spiegel (4,3) rot 1 · Spiegel (2,3) rot 1 · Spiegel (2,6) rot 3 ·
-    //   Spiegel (1,1) rot 1 · Spiegel (1,0) rot 3 · Spiegel (2,0) rot 1 · Prisma (1,3) rot 1 ·
-    //   Spiegel (1,5) rot 3 · Spiegel (0,5) rot 1 · Spiegel (0,4) rot 3 · Spiegel (5,4) rot 1 ·
-    //   Spiegel (5,5) rot 1 · Spiegel (6,5) rot 3
-    // Generator sehr schwer-abzaehlen, Seed 10043 · Ausbau „sehr schwer“
-    name: 'Andromeda', titel: 'Felsschlucht', grad: 'sehr schwer',
-    elements: [
-      { type: 'mirror', x: 4, z: 6, rot: 3 },
-      { type: 'mirror', x: 4, z: 3, rot: 3 },
-      { type: 'mirror', x: 2, z: 3, rot: 2 },
-      { type: 'mirror', x: 2, z: 6, rot: 1 },
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'magenta' },
-      { type: 'source', x: 4, z: 0, dir: 2, color: 'red' },
-      { type: 'source', x: 6, z: 6, dir: 4, color: 'yellow' },
-      { type: 'target', x: 5, z: 3, color: 'red' },
-      { type: 'target', x: 2, z: 2, color: 'white' },
-      { type: 'target', x: 0, z: 6, color: 'red' },
-      { type: 'source', x: 6, z: 1, dir: 4, color: 'blue' },
-      { type: 'mirror', x: 1, z: 1, rot: 3 },
-      { type: 'mirror', x: 1, z: 0, rot: 1 },
-      { type: 'mirror', x: 2, z: 0, rot: 2 },
-      { type: 'prism', x: 1, z: 3, rot: 0 },
+      { type: 'source', x: 0, z: 3, dir: 0, color: 'blue' },
+      { type: 'source', x: 4, z: 0, dir: 2, color: 'green' },
+      { type: 'mirror', x: 5, z: 3, rot: 3 },
+      { type: 'mirror', x: 5, z: 6, rot: 2 },
+      { type: 'mirror', x: 4, z: 4, rot: 0 },
+      { type: 'target', x: 5, z: 4, color: 'white' },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'mirror', x: 3, z: 4, rot: 1 },
+      { type: 'prism', x: 2, z: 4, rot: 3 },
+      { type: 'mirror', x: 1, z: 4, rot: 2 },
       { type: 'mirror', x: 1, z: 5, rot: 0 },
       { type: 'mirror', x: 0, z: 5, rot: 2 },
-      { type: 'mirror', x: 0, z: 4, rot: 0 },
-      { type: 'mirror', x: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, z: 5, rot: 0 },
-      { type: 'mirror', x: 6, z: 5, rot: 2 },
-      { type: 'target', x: 6, z: 3, color: 'blue' },
+      { type: 'mirror', x: 0, z: 6, rot: 0 },
+      { type: 'mirror', x: 2, z: 0, rot: 3 },
+      { type: 'mirror', x: 1, z: 0, rot: 1 },
+      { type: 'target', x: 0, z: 4, color: 'blue' },
+      { type: 'source', x: 0, z: 1, dir: 0 },
+      { type: 'prism', x: 6, z: 1, rot: 2 },
+      { type: 'mirror', x: 6, z: 0, rot: 3 },
+      { type: 'mirror', x: 5, z: 0, rot: 3, fixed: true },
+      { type: 'target', x: 6, z: 3, color: 'red' },
     ],
-    solution: { '4,6': 1, '4,3': 1, '2,3': 1, '2,6': 3, '1,1': 1, '1,0': 3, '2,0': 1, '1,3': 1, '1,5': 3, '0,5': 1, '0,4': 3, '5,4': 1, '5,5': 1, '6,5': 3 },
+    solution: { '5,3': 1, '5,6': 3, '4,4': 1, '3,4': 3, '2,4': 5, '1,4': 3, '1,5': 3, '0,5': 3, '0,6': 1, '2,0': 1, '1,0': 3, '6,1': 7, '6,0': 1 },
   },
   {
-    // Lösung: Spiegel (4,3) rot 1 · Spiegel (2,3) rot 1 · Spiegel (2,5) rot 1 · Spiegel (4,5) rot 1 ·
-    //   Prisma (3,1) rot 1 · Spiegel (5,1) rot 3 · Spiegel (5,0) rot 3 · Spiegel (6,0) rot 1 ·
-    //   Spiegel (3,6) rot 3 · Spiegel (6,2) rot 3 · Spiegel (1,2) rot 1 · Spiegel (1,0) rot 1 ·
-    //   Spiegel (0,6) rot 1 · Spiegel (0,4) rot 3
-    // Generator sehr schwer-abzaehlen, Seed 10315 · Ausbau „sehr schwer“
-    name: 'Plejaden', titel: 'Feuerzunge', grad: 'sehr schwer',
+    // Lösung: Prisma (4,5) rot 3 · Spiegel (6,3) rot 2 · Spiegel (1,2) rot 0 · Prisma (2,6) rot 5 ·
+    //   Spiegel (2,1) rot 3 · Spiegel (6,1) rot 3 · Spiegel (0,6) rot 1 · Spiegel (0,4) rot 3 ·
+    //   Spiegel (6,0) rot 1 · Spiegel (5,0) rot 3 · Spiegel (5,6) rot 1 · Spiegel (6,6) rot 3
+    // Generator sehr schwer-sammelstelle, Seed 11925 · Ausbau „sehr schwer“
+    name: 'Pollux', titel: 'Mumie', grad: 'sehr schwer',
     elements: [
-      { type: 'mirror', x: 4, z: 3, rot: 0 },
-      { type: 'mirror', x: 2, z: 3, rot: 0 },
-      { type: 'mirror', x: 2, z: 5, rot: 0 },
-      { type: 'mirror', x: 4, z: 5, rot: 2 },
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
-      { type: 'source', x: 4, z: 0, dir: 2, color: 'red' },
-      { type: 'source', x: 6, z: 5, dir: 4 },
-      { type: 'target', x: 5, z: 3, color: 'yellow' },
+      { type: 'prism', x: 4, z: 5, rot: 6 },
+      { type: 'source', x: 3, z: 0, dir: 1, color: 'yellow' },
+      { type: 'mirror', x: 6, z: 3, rot: 3 },
+      { type: 'source', x: 0, z: 3, dir: 7, color: 'blue' },
+      { type: 'mirror', x: 1, z: 2, rot: 2 },
       { type: 'target', x: 4, z: 6, color: 'red' },
-      { type: 'target', x: 2, z: 0, color: 'white' },
-      { type: 'source', x: 3, z: 0, dir: 2 },
-      { type: 'prism', x: 3, z: 1, rot: 0 },
-      { type: 'mirror', x: 5, z: 1, rot: 0 },
+      { type: 'target', x: 1, z: 5, color: 'cyan' },
+      { type: 'source', x: 6, z: 2, dir: 3 },
+      { type: 'prism', x: 2, z: 6, rot: 4 },
+      { type: 'mirror', x: 2, z: 1, rot: 1 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'target', x: 3, z: 6, color: 'green' },
+      { type: 'mirror', x: 0, z: 6, rot: 2 },
+      { type: 'mirror', x: 0, z: 4, rot: 1 },
+      { type: 'target', x: 6, z: 4, color: 'magenta' },
+      { type: 'mirror', x: 6, z: 0, rot: 3 },
       { type: 'mirror', x: 5, z: 0, rot: 2 },
-      { type: 'mirror', x: 6, z: 0, rot: 0 },
-      { type: 'mirror', x: 3, z: 6, rot: 0 },
-      { type: 'mirror', x: 6, z: 2, rot: 0 },
-      { type: 'mirror', x: 1, z: 2, rot: 0 },
-      { type: 'mirror', x: 1, z: 0, rot: 0 },
-      { type: 'target', x: 0, z: 0, color: 'red' },
-      { type: 'mirror', x: 0, z: 6, rot: 0 },
-      { type: 'mirror', x: 0, z: 4, rot: 0 },
-      { type: 'target', x: 5, z: 4, color: 'blue' },
+      { type: 'mirror', x: 5, z: 6, rot: 3 },
+      { type: 'mirror', x: 6, z: 6, rot: 1 },
     ],
-    solution: { '4,3': 1, '2,3': 1, '2,5': 1, '4,5': 1, '3,1': 1, '5,1': 3, '5,0': 3, '6,0': 1, '3,6': 3, '6,2': 3, '1,2': 1, '1,0': 1, '0,6': 1, '0,4': 3 },
+    solution: { '4,5': 3, '6,3': 2, '1,2': 0, '2,6': 5, '2,1': 3, '6,1': 3, '0,6': 1, '0,4': 3, '6,0': 1, '5,0': 3, '5,6': 1, '6,6': 3 },
+  },
+  {
+    // Lösung: Prisma (5,6) rot 7 · Spiegel (4,5) rot 2 · Prisma (3,1) rot 2 · Spiegel (5,3) rot 1 ·
+    //   Prisma (3,2) rot 0 · Spiegel (0,4) rot 2 · Spiegel (5,0) rot 0 · Spiegel (1,5) rot 0 ·
+    //   Spiegel (4,2) rot 3 · Spiegel (2,4) rot 2
+    // Generator sehr schwer-sammelstelle, Seed 42412 · Ausbau „sehr schwer“
+    name: 'Merak', titel: 'Feuersee', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 5, z: 6, rot: 0 },
+      { type: 'source', x: 0, z: 6, dir: 0, color: 'green' },
+      { type: 'source', x: 6, z: 3, dir: 3, color: 'magenta' },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'target', x: 6, z: 5, color: 'cyan' },
+      { type: 'target', x: 6, z: 6, color: 'blue' },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'prism', x: 3, z: 1, rot: 6 },
+      { type: 'mirror', x: 5, z: 3, rot: 3 },
+      { type: 'mirror', x: 0, z: 3, rot: 1, fixed: true },
+      { type: 'target', x: 0, z: 2, color: 'magenta' },
+      { type: 'source', x: 0, z: 5, dir: 7 },
+      { type: 'prism', x: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 0, z: 4, rot: 3 },
+      { type: 'mirror', x: 5, z: 0, rot: 1 },
+      { type: 'mirror', x: 1, z: 5, rot: 3 },
+      { type: 'target', x: 6, z: 1, color: 'red' },
+      { type: 'mirror', x: 4, z: 2, rot: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 1 },
+      { type: 'target', x: 4, z: 0, color: 'green' },
+    ],
+    solution: { '5,6': 7, '4,5': 2, '3,1': 2, '5,3': 1, '3,2': 0, '0,4': 2, '5,0': 0, '1,5': 0, '4,2': 3, '2,4': 2 },
   },
   {
     // Lösung: Spiegel (1,0) rot 1 · Prisma (1,5) rot 0 · Spiegel (3,5) rot 3 · Kombinator (3,3) dir 7 ·
     //   Spiegel (1,3) rot 1 · Spiegel (4,5) rot 3 · Prisma (4,4) rot 5 · Spiegel (4,3) rot 3 ·
     //   Spiegel (2,4) rot 3 · Kombinator (2,5) dir 2
     // Wertung 52.2 · 10 drehbar · 3 Ziele · Rateschritte 49178 · gehärtet aus Profil 3-misch, Seed 8068
-    name: 'Lichtkegel', titel: 'Atoll', grad: 'sehr schwer',
+    name: 'Lichtkegel', titel: 'Korallenriff', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 0, dir: 0 },
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -6831,40 +6747,106 @@ const LEVELS = [
     solution: { '1,0': 1, '1,5': 0, '3,5': 3, '3,3': 7, '1,3': 1, '4,5': 3, '4,4': 5, '4,3': 3, '2,4': 3, '2,5': 2 },
   },
   {
-    // Lösung: Prisma (4,5) rot 3 · Spiegel (6,3) rot 2 · Spiegel (1,2) rot 0 · Prisma (2,6) rot 5 ·
-    //   Spiegel (2,1) rot 3 · Spiegel (6,1) rot 3 · Spiegel (0,6) rot 1 · Spiegel (0,4) rot 3 ·
-    //   Spiegel (6,0) rot 1 · Spiegel (5,0) rot 3 · Spiegel (5,6) rot 1 · Spiegel (6,6) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 11925 · Ausbau „sehr schwer“
-    name: 'Pollux', titel: 'Königskammer', grad: 'sehr schwer',
+    // Lösung: Spiegel (2,2) rot 1 · Spiegel (1,3) rot 1 · Spiegel (4,3) rot 3 · Prisma (0,1) rot 1 ·
+    //   Spiegel (4,1) rot 3 · Spiegel (4,0) rot 3 · Spiegel (3,4) rot 2 · Spiegel (0,5) rot 1 ·
+    //   Spiegel (5,5) rot 1 · Spiegel (6,6) rot 3 · Prisma (2,6) rot 5 · Spiegel (6,3) rot 1
+    // Generator sehr schwer-mischziel, Seed 42120 · Ausbau „sehr schwer“
+    name: 'Sadr', titel: 'Königskammer', grad: 'sehr schwer',
     elements: [
-      { type: 'prism', x: 4, z: 5, rot: 6 },
-      { type: 'source', x: 3, z: 0, dir: 1, color: 'yellow' },
-      { type: 'mirror', x: 6, z: 3, rot: 3 },
-      { type: 'source', x: 0, z: 3, dir: 7, color: 'blue' },
-      { type: 'mirror', x: 1, z: 2, rot: 2 },
-      { type: 'target', x: 4, z: 6, color: 'red' },
-      { type: 'target', x: 1, z: 5, color: 'cyan' },
+      { type: 'source', x: 2, z: 0, dir: 2, color: 'cyan' },
+      { type: 'source', x: 1, z: 0, dir: 2, color: 'red' },
+      { type: 'mirror', x: 2, z: 2, rot: 3 },
+      { type: 'mirror', x: 1, z: 3, rot: 3 },
+      { type: 'mirror', x: 4, z: 3, rot: 1 },
+      { type: 'target', x: 4, z: 2, color: 'white' },
+      { type: 'source', x: 0, z: 0, dir: 2 },
+      { type: 'prism', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 4, z: 1, rot: 0 },
+      { type: 'mirror', x: 4, z: 0, rot: 2 },
+      { type: 'mirror', x: 3, z: 4, rot: 1 },
+      { type: 'mirror', x: 0, z: 5, rot: 2 },
+      { type: 'mirror', x: 5, z: 5, rot: 3 },
+      { type: 'mirror', x: 5, z: 6, rot: 1, fixed: true },
+      { type: 'mirror', x: 6, z: 6, rot: 2 },
+      { type: 'target', x: 1, z: 6, color: 'yellow' },
+      { type: 'target', x: 6, z: 0, color: 'red' },
       { type: 'source', x: 6, z: 2, dir: 3 },
-      { type: 'prism', x: 2, z: 6, rot: 4 },
-      { type: 'mirror', x: 2, z: 1, rot: 1 },
-      { type: 'mirror', x: 6, z: 1, rot: 0 },
-      { type: 'target', x: 3, z: 6, color: 'green' },
-      { type: 'mirror', x: 0, z: 6, rot: 2 },
-      { type: 'mirror', x: 0, z: 4, rot: 1 },
-      { type: 'target', x: 6, z: 4, color: 'magenta' },
-      { type: 'mirror', x: 6, z: 0, rot: 3 },
-      { type: 'mirror', x: 5, z: 0, rot: 2 },
-      { type: 'mirror', x: 5, z: 6, rot: 3 },
-      { type: 'mirror', x: 6, z: 6, rot: 1 },
+      { type: 'prism', x: 2, z: 6, rot: 3 },
+      { type: 'mirror', x: 6, z: 3, rot: 3 },
+      { type: 'target', x: 4, z: 6, color: 'blue' },
     ],
-    solution: { '4,5': 3, '6,3': 2, '1,2': 0, '2,6': 5, '2,1': 3, '6,1': 3, '0,6': 1, '0,4': 3, '6,0': 1, '5,0': 3, '5,6': 1, '6,6': 3 },
+    solution: { '2,2': 1, '1,3': 1, '4,3': 3, '0,1': 1, '4,1': 3, '4,0': 3, '3,4': 2, '0,5': 1, '5,5': 1, '6,6': 3, '2,6': 5, '6,3': 1 },
+  },
+  {
+    // Lösung: Prisma (4,3) rot 3 · Spiegel (2,3) rot 3 · Spiegel (2,4) rot 3 · Prisma (2,0) rot 5 ·
+    //   Prisma (5,2) rot 5 · Spiegel (6,0) rot 1 · Spiegel (4,6) rot 1 · Spiegel (5,6) rot 3 ·
+    //   Prisma (3,6) rot 5 · Spiegel (3,2) rot 1
+    // Generator sehr schwer, Seed 40343 · Ausbau „sehr schwer“
+    name: 'Mintaka', titel: 'Weisse Wüste', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'source', x: 4, z: 0, dir: 2, color: 'magenta' },
+      { type: 'prism', x: 4, z: 3, rot: 5 },
+      { type: 'mirror', x: 2, z: 3, rot: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 0 },
+      { type: 'prism', x: 2, z: 0, rot: 1 },
+      { type: 'mirror', x: 1, z: 0, rot: 3, fixed: true },
+      { type: 'mirror', x: 1, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 0, z: 6, color: 'red' },
+      { type: 'target', x: 0, z: 4, color: 'blue' },
+      { type: 'source', x: 6, z: 2, dir: 4, color: 'cyan' },
+      { type: 'prism', x: 5, z: 2, rot: 6 },
+      { type: 'mirror', x: 5, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 6, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 6, z: 0, rot: 2 },
+      { type: 'mirror', x: 4, z: 6, rot: 3 },
+      { type: 'mirror', x: 5, z: 6, rot: 2 },
+      { type: 'target', x: 0, z: 2, color: 'blue' },
+      { type: 'target', x: 3, z: 0, color: 'yellow' },
+      { type: 'source', x: 6, z: 3, dir: 3 },
+      { type: 'prism', x: 3, z: 6, rot: 4 },
+      { type: 'target', x: 5, z: 0, color: 'blue' },
+      { type: 'mirror', x: 3, z: 2, rot: 3 },
+    ],
+    solution: { '4,3': 3, '2,3': 3, '2,4': 3, '2,0': 5, '5,2': 5, '6,0': 1, '4,6': 1, '5,6': 3, '3,6': 5, '3,2': 1 },
+  },
+  {
+    // Lösung: Spiegel (2,1) rot 3 · Spiegel (2,4) rot 1 · Spiegel (5,4) rot 1 · Prisma (3,1) rot 1 ·
+    //   Spiegel (0,4) rot 3 · Spiegel (5,1) rot 3 · Prisma (3,4) rot 5 · Prisma (4,4) rot 5 ·
+    //   Prisma (5,3) rot 2 · Spiegel (1,1) rot 2 · Kombinator (4,2) dir 6
+    // Wertung 54.5 · 11 drehbar · 4 Ziele · Rateschritte 80714 · gehärtet aus Profil 4-bunt, Seed 8051
+    name: 'Morgenröte', titel: 'Sonnentempel', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 6, z: 3, dir: 4 },
+      { type: 'source', x: 2, z: 6, dir: 6, color: 'green' },
+      { type: 'source', x: 5, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 0, rot: 0, fixed: true },
+      { type: 'mirror', x: 1, z: 1, rot: 1 },
+      { type: 'mirror', x: 2, z: 1, rot: 0 },
+      { type: 'mirror', x: 5, z: 1, rot: 2 },
+      { type: 'mirror', x: 0, z: 4, rot: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 5, z: 4, rot: 3 },
+      { type: 'mirror', x: 1, z: 6, rot: 2, fixed: true },
+      { type: 'prism', x: 3, z: 1, rot: 6 },
+      { type: 'prism', x: 5, z: 3, rot: 4 },
+      { type: 'prism', x: 3, z: 4, rot: 1 },
+      { type: 'prism', x: 4, z: 4, rot: 4 },
+      { type: 'filter', x: 5, z: 5, color: 'yellow' },
+      { type: 'combiner', x: 4, z: 2, dir: 5 },
+      { type: 'target', x: 4, z: 0, color: 'cyan' },
+      { type: 'target', x: 5, z: 0, color: 'red' },
+      { type: 'target', x: 6, z: 4, color: 'yellow' },
+      { type: 'target', x: 0, z: 5, color: 'green' },
+    ],
+    solution: { '2,1': 3, '2,4': 1, '5,4': 1, '3,1': 1, '0,4': 3, '5,1': 3, '3,4': 5, '4,4': 5, '5,3': 2, '1,1': 2, '4,2': 6 },
   },
   {
     // Lösung: Prisma (5,2) rot 2 · Spiegel (1,2) rot 1 · Spiegel (3,1) rot 1 · Spiegel (3,0) rot 1 ·
     //   Spiegel (5,6) rot 3 · Spiegel (4,6) rot 1 · Spiegel (6,1) rot 1 · Spiegel (2,0) rot 3 ·
     //   Prisma (3,3) rot 4 · Spiegel (0,4) rot 1 · Spiegel (1,4) rot 3
     // Generator sehr schwer-sammelstelle, Seed 40563 · Ausbau „sehr schwer“
-    name: 'Mizar', titel: 'Eruption', grad: 'sehr schwer',
+    name: 'Mizar', titel: 'Feuersturm', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 5, z: 2, rot: 7 },
       { type: 'source', x: 5, z: 0, dir: 2, color: 'red' },
@@ -6896,7 +6878,7 @@ const LEVELS = [
     //   Spiegel (3,2) rot 1 · Prisma (1,2) rot 4 · Prisma (4,4) rot 2 · Spiegel (0,4) rot 3 ·
     //   Spiegel (4,6) rot 1 · Spiegel (6,6) rot 3 · Spiegel (6,3) rot 1 · Spiegel (4,1) rot 1
     // Generator sehr schwer, Seed 40139 · Ausbau „sehr schwer“
-    name: 'Alkor', titel: 'Feuersturm', grad: 'sehr schwer',
+    name: 'Alkor', titel: 'Glutkern', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'source', x: 0, z: 6, dir: 0, color: 'yellow' },
@@ -6921,11 +6903,76 @@ const LEVELS = [
     solution: { '2,4': 3, '4,3': 1, '1,4': 5, '3,6': 3, '3,2': 1, '1,2': 4, '4,4': 2, '0,4': 3, '4,6': 1, '6,6': 3, '6,3': 1, '4,1': 1 },
   },
   {
+    // Lösung: Spiegel (3,2) rot 1 · Prisma (1,4) rot 1 · Spiegel (5,4) rot 1 · Spiegel (2,5) rot 2 ·
+    //   Spiegel (1,6) rot 0 · Spiegel (1,2) rot 3 · Spiegel (6,5) rot 1 · Prisma (0,2) rot 6 ·
+    //   Spiegel (3,6) rot 1 · Spiegel (1,3) rot 1 · Spiegel (0,1) rot 3 · Spiegel (6,1) rot 3
+    // Generator sehr schwer-mischziel, Seed 40142 · Ausbau „sehr schwer“
+    name: 'Kochab', titel: 'Sandviper', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 4, z: 0, dir: 2, color: 'yellow' },
+      { type: 'source', x: 3, z: 0, dir: 2, color: 'blue' },
+      { type: 'mirror', x: 3, z: 2, rot: 0 },
+      { type: 'target', x: 4, z: 2, color: 'white' },
+      { type: 'source', x: 1, z: 0, dir: 2 },
+      { type: 'source', x: 0, z: 3, dir: 1 },
+      { type: 'prism', x: 1, z: 4, rot: 6 },
+      { type: 'mirror', x: 5, z: 4, rot: 0 },
+      { type: 'mirror', x: 2, z: 5, rot: 0 },
+      { type: 'mirror', x: 1, z: 6, rot: 1 },
+      { type: 'mirror', x: 1, z: 2, rot: 2 },
+      { type: 'mirror', x: 5, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'prism', x: 0, z: 2, rot: 5 },
+      { type: 'mirror', x: 6, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 0, z: 5, color: 'green' },
+      { type: 'target', x: 2, z: 0, color: 'blue' },
+      { type: 'blocker', x: 2, z: 6 },
+      { type: 'mirror', x: 3, z: 6, rot: 2 },
+      { type: 'mirror', x: 1, z: 3, rot: 3 },
+      { type: 'mirror', x: 4, z: 3, rot: 1, fixed: true },
+      { type: 'target', x: 4, z: 5, color: 'red' },
+      { type: 'mirror', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'target', x: 6, z: 0, color: 'green' },
+    ],
+    solution: { '3,2': 1, '1,4': 1, '5,4': 1, '2,5': 2, '1,6': 0, '1,2': 3, '6,5': 1, '0,2': 6, '3,6': 1, '1,3': 1, '0,1': 3, '6,1': 3 },
+  },
+  {
+    // Lösung: Prisma (1,4) rot 7 · Spiegel (0,4) rot 1 · Spiegel (4,1) rot 0 · Spiegel (5,2) rot 0 ·
+    //   Prisma (6,3) rot 3 · Spiegel (3,3) rot 1 · Spiegel (4,5) rot 2 · Spiegel (3,1) rot 1 ·
+    //   Spiegel (6,1) rot 2 · Spiegel (5,6) rot 0 · Spiegel (3,5) rot 2 · Spiegel (4,6) rot 0
+    // Generator sehr schwer-sammelstelle, Seed 673, Ziel 90,42–91,28 · ersetzt Quasar (Austausch „sehr schwer“)
+    name: 'Leitstern', titel: 'Skorpion', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 1, z: 4, rot: 2 },
+      { type: 'source', x: 0, z: 0, dir: 2, color: 'yellow' },
+      { type: 'mirror', x: 0, z: 4, rot: 3 },
+      { type: 'source', x: 3, z: 6, dir: 5, color: 'blue' },
+      { type: 'target', x: 1, z: 1, color: 'magenta' },
+      { type: 'target', x: 6, z: 4, color: 'white' },
+      { type: 'source', x: 1, z: 6, dir: 7 },
+      { type: 'mirror', x: 4, z: 1, rot: 2 },
+      { type: 'mirror', x: 5, z: 2, rot: 2 },
+      { type: 'prism', x: 6, z: 3, rot: 7 },
+      { type: 'mirror', x: 3, z: 3, rot: 0 },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 3, z: 1, rot: 3 },
+      { type: 'mirror', x: 6, z: 1, rot: 1 },
+      { type: 'mirror', x: 5, z: 6, rot: 2 },
+      { type: 'target', x: 5, z: 0, color: 'green' },
+      { type: 'source', x: 6, z: 2, dir: 3, color: 'yellow' },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, z: 6, rot: 1 },
+      { type: 'target', x: 6, z: 5, color: 'green' },
+    ],
+    solution: { '1,4': 7, '0,4': 1, '4,1': 0, '5,2': 0, '6,3': 3, '3,3': 1, '4,5': 2, '3,1': 1, '6,1': 2, '5,6': 0, '3,5': 2, '4,6': 0 },
+  },
+  {
     // Lösung: Prisma (5,4) rot 4 · Spiegel (4,3) rot 2 · Spiegel (5,2) rot 2 · Spiegel (3,0) rot 0 ·
     //   Spiegel (2,1) rot 0 · Spiegel (1,0) rot 0 · Spiegel (0,1) rot 2 · Prisma (2,5) rot 3 ·
     //   Spiegel (0,5) rot 3 · Prisma (2,2) rot 3 · Spiegel (0,2) rot 3
     // Generator sehr schwer-sammelstelle, Seed 10645 · Ausbau „sehr schwer“
-    name: 'Prokyon', titel: 'Ausbruch', grad: 'sehr schwer',
+    name: 'Prokyon', titel: 'Feuerzunge', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 5, z: 4, rot: 6 },
       { type: 'source', x: 6, z: 5, dir: 5, color: 'red' },
@@ -6951,75 +6998,74 @@ const LEVELS = [
     solution: { '5,4': 4, '4,3': 2, '5,2': 2, '3,0': 0, '2,1': 0, '1,0': 0, '0,1': 2, '2,5': 3, '0,5': 3, '2,2': 3, '0,2': 3 },
   },
   {
-    // Lösung: Prisma (0,2) rot 1 · Prisma (4,1) rot 3 · Spiegel (4,4) rot 1 · Spiegel (2,1) rot 3 ·
-    //   Spiegel (5,4) rot 1 · Prisma (4,5) rot 3 · Spiegel (2,6) rot 3 · Spiegel (5,5) rot 1 ·
-    //   Spiegel (1,6) rot 1 · Spiegel (6,5) rot 1 · Spiegel (1,2) rot 3 · Spiegel (5,2) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 10529 · Ausbau „sehr schwer“
-    name: 'Roter Riese', titel: 'Erdfeuer', grad: 'sehr schwer',
+    // Lösung: Spiegel (2,4) rot 3 · Spiegel (2,2) rot 1 · Spiegel (4,2) rot 1 · Spiegel (4,4) rot 3 ·
+    //   Spiegel (2,6) rot 1 · Spiegel (3,6) rot 3 · Spiegel (3,0) rot 1 · Spiegel (0,0) rot 3 ·
+    //   Prisma (5,2) rot 3 · Spiegel (5,5) rot 1 · Prisma (4,5) rot 5 · Spiegel (2,1) rot 3
+    // Generator sehr schwer-abzaehlen, Seed 11189 · Ausbau „sehr schwer“
+    name: 'Gravitation', titel: 'Schirokko', grad: 'sehr schwer',
     elements: [
-      { type: 'prism', x: 0, z: 2, rot: 0 },
-      { type: 'source', x: 2, z: 0, dir: 3, color: 'green' },
-      { type: 'source', x: 0, z: 0, dir: 2, color: 'blue' },
-      { type: 'target', x: 3, z: 5, color: 'cyan' },
-      { type: 'target', x: 0, z: 5, color: 'cyan' },
-      { type: 'source', x: 6, z: 1, dir: 4 },
-      { type: 'prism', x: 4, z: 1, rot: 1 },
-      { type: 'mirror', x: 4, z: 4, rot: 3 },
-      { type: 'mirror', x: 2, z: 1, rot: 2 },
-      { type: 'mirror', x: 5, z: 4, rot: 2 },
-      { type: 'source', x: 5, z: 6, dir: 5 },
-      { type: 'prism', x: 4, z: 5, rot: 7 },
-      { type: 'target', x: 4, z: 6, color: 'red' },
-      { type: 'mirror', x: 2, z: 6, rot: 1 },
-      { type: 'mirror', x: 5, z: 5, rot: 3 },
-      { type: 'mirror', x: 1, z: 6, rot: 3 },
-      { type: 'mirror', x: 6, z: 5, rot: 2 },
-      { type: 'target', x: 6, z: 6, color: 'red' },
-      { type: 'mirror', x: 1, z: 2, rot: 2 },
-      { type: 'mirror', x: 5, z: 2, rot: 2 },
-      { type: 'target', x: 5, z: 0, color: 'blue' },
+      { type: 'mirror', x: 2, z: 4, rot: 0 },
+      { type: 'mirror', x: 2, z: 2, rot: 0 },
+      { type: 'mirror', x: 4, z: 2, rot: 3 },
+      { type: 'mirror', x: 4, z: 4, rot: 0 },
+      { type: 'source', x: 6, z: 2, dir: 4, color: 'magenta' },
+      { type: 'source', x: 0, z: 4, dir: 0, color: 'cyan' },
+      { type: 'source', x: 4, z: 6, dir: 6, color: 'magenta' },
+      { type: 'target', x: 0, z: 2, color: 'white' },
+      { type: 'target', x: 4, z: 0, color: 'blue' },
+      { type: 'target', x: 6, z: 4, color: 'blue' },
+      { type: 'source', x: 0, z: 5, dir: 0, color: 'red' },
+      { type: 'mirror', x: 2, z: 5, rot: 1, fixed: true },
+      { type: 'mirror', x: 2, z: 6, rot: 0 },
+      { type: 'mirror', x: 3, z: 6, rot: 0 },
+      { type: 'mirror', x: 3, z: 0, rot: 2 },
+      { type: 'mirror', x: 0, z: 0, rot: 2 },
+      { type: 'prism', x: 5, z: 2, rot: 4 },
+      { type: 'mirror', x: 5, z: 5, rot: 0 },
+      { type: 'target', x: 6, z: 5, color: 'red' },
+      { type: 'prism', x: 4, z: 5, rot: 3 },
+      { type: 'mirror', x: 2, z: 1, rot: 0 },
+      { type: 'target', x: 6, z: 1, color: 'red' },
     ],
-    solution: { '0,2': 1, '4,1': 3, '4,4': 1, '2,1': 3, '5,4': 1, '4,5': 3, '2,6': 3, '5,5': 1, '1,6': 1, '6,5': 1, '1,2': 3, '5,2': 3 },
+    solution: { '2,4': 3, '2,2': 1, '4,2': 1, '4,4': 3, '2,6': 1, '3,6': 3, '3,0': 1, '0,0': 3, '5,2': 3, '5,5': 1, '4,5': 5, '2,1': 3 },
   },
   {
-    // Lösung: Spiegel (2,4) rot 3 · Spiegel (4,4) rot 3 · Spiegel (1,6) rot 0 · Spiegel (0,5) rot 2 ·
-    //   Spiegel (0,3) rot 2 · Spiegel (3,0) rot 0 · Spiegel (3,6) rot 0 · Spiegel (5,6) rot 0 ·
-    //   Spiegel (0,1) rot 2 · Spiegel (1,0) rot 0 · Spiegel (1,3) rot 0 · Prisma (0,2) rot 6
-    // Generator sehr schwer-mischziel, Seed 312, Ziel 89,16–90,32 · ersetzt Prismenhof (Austausch „sehr schwer“)
-    name: 'Abendrot', titel: 'Sonnentempel', grad: 'sehr schwer',
+    // Lösung: Prisma (0,1) rot 1 · Spiegel (1,0) rot 0 · Prisma (3,5) rot 6 · Spiegel (5,3) rot 0 ·
+    //   Spiegel (6,4) rot 2 · Spiegel (3,1) rot 1 · Prisma (6,1) rot 5 · Spiegel (2,4) rot 0 ·
+    //   Spiegel (5,0) rot 0 · Spiegel (1,4) rot 2 · Spiegel (3,0) rot 3 · Spiegel (4,0) rot 1
+    // Generator sehr schwer-sammelstelle, Seed 40656 · Ausbau „sehr schwer“
+    name: 'Izar', titel: 'Erdfeuer', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 6, z: 2, dir: 4, color: 'blue' },
-      { type: 'source', x: 2, z: 6, dir: 6, color: 'green' },
-      { type: 'mirror', x: 2, z: 4, rot: 0 },
-      { type: 'mirror', x: 4, z: 4, rot: 2 },
-      { type: 'target', x: 4, z: 2, color: 'cyan' },
-      { type: 'source', x: 6, z: 1, dir: 3, color: 'yellow' },
-      { type: 'mirror', x: 1, z: 6, rot: 2 },
-      { type: 'mirror', x: 0, z: 5, rot: 0 },
-      { type: 'mirror', x: 0, z: 3, rot: 3 },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'filter', x: 1, z: 2, color: 'red' },
-      { type: 'mirror', x: 4, z: 1, rot: 2, fixed: true },
-      { type: 'mirror', x: 3, z: 6, rot: 1 },
-      { type: 'mirror', x: 5, z: 4, rot: 0, fixed: true },
-      { type: 'mirror', x: 6, z: 5, rot: 2, fixed: true },
-      { type: 'mirror', x: 5, z: 6, rot: 2 },
-      { type: 'mirror', x: 0, z: 1, rot: 3 },
-      { type: 'mirror', x: 1, z: 0, rot: 1 },
-      { type: 'source', x: 4, z: 0, dir: 3 },
-      { type: 'mirror', x: 1, z: 3, rot: 2 },
-      { type: 'prism', x: 0, z: 2, rot: 7 },
-      { type: 'target', x: 6, z: 3, color: 'red' },
-      { type: 'target', x: 2, z: 0, color: 'blue' },
+      { type: 'prism', x: 0, z: 1, rot: 5 },
+      { type: 'source', x: 6, z: 5, dir: 5, color: 'blue' },
+      { type: 'mirror', x: 1, z: 0, rot: 2 },
+      { type: 'source', x: 0, z: 0, dir: 2, color: 'green' },
+      { type: 'target', x: 0, z: 6, color: 'magenta' },
+      { type: 'target', x: 4, z: 5, color: 'yellow' },
+      { type: 'source', x: 4, z: 6, dir: 5 },
+      { type: 'prism', x: 3, z: 5, rot: 4 },
+      { type: 'mirror', x: 5, z: 3, rot: 1 },
+      { type: 'mirror', x: 6, z: 4, rot: 1 },
+      { type: 'target', x: 5, z: 5, color: 'blue' },
+      { type: 'mirror', x: 3, z: 1, rot: 0 },
+      { type: 'source', x: 1, z: 6, dir: 7 },
+      { type: 'prism', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 2, z: 4, rot: 1 },
+      { type: 'mirror', x: 5, z: 0, rot: 1 },
+      { type: 'mirror', x: 1, z: 4, rot: 1 },
+      { type: 'target', x: 3, z: 6, color: 'green' },
+      { type: 'mirror', x: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, z: 0, rot: 0 },
+      { type: 'target', x: 6, z: 0, color: 'blue' },
     ],
-    solution: { '2,4': 3, '4,4': 3, '1,6': 0, '0,5': 2, '0,3': 2, '3,0': 0, '3,6': 0, '5,6': 0, '0,1': 2, '1,0': 0, '1,3': 0, '0,2': 6 },
+    solution: { '0,1': 1, '1,0': 0, '3,5': 6, '5,3': 0, '6,4': 2, '3,1': 1, '6,1': 5, '2,4': 0, '5,0': 0, '1,4': 2, '3,0': 3, '4,0': 1 },
   },
   {
     // Lösung: Spiegel (6,2) rot 3 · Spiegel (3,2) rot 3 · Prisma (5,3) rot 4 · Spiegel (2,0) rot 0 ·
     //   Spiegel (1,1) rot 0 · Spiegel (0,3) rot 1 · Spiegel (0,2) rot 3 · Prisma (0,5) rot 6 ·
     //   Spiegel (1,4) rot 0 · Spiegel (3,0) rot 3 · Spiegel (4,0) rot 1 · Spiegel (2,1) rot 3
     // Generator sehr schwer-mischziel, Seed 40263 · Ausbau „sehr schwer“
-    name: 'Algol', titel: 'Feuerring', grad: 'sehr schwer',
+    name: 'Algol', titel: 'Asteroidengürtel', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 0, dir: 2, color: 'magenta' },
       { type: 'source', x: 3, z: 6, dir: 6, color: 'cyan' },
@@ -7050,7 +7096,7 @@ const LEVELS = [
     //   Spiegel (2,1) rot 0 · Prisma (3,2) rot 2 · Prisma (4,1) rot 5 · Spiegel (1,5) rot 3 ·
     //   Spiegel (0,5) rot 3 · Prisma (3,4) rot 7 · Spiegel (2,3) rot 3 · Spiegel (2,6) rot 3
     // Generator sehr schwer-abschalten, Seed 11243 · Ausbau „sehr schwer“
-    name: 'Orion', titel: 'Feuerschlund', grad: 'sehr schwer',
+    name: 'Orion', titel: 'Eruption', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 5, z: 6, dir: 6, color: 'red' },
       { type: 'mirror', x: 5, z: 0, rot: 0 },
@@ -7081,7 +7127,7 @@ const LEVELS = [
     //   Spiegel (0,2) rot 3 · Spiegel (3,1) rot 1 · Spiegel (0,5) rot 1 · Spiegel (3,5) rot 1 ·
     //   Prisma (4,3) rot 6 · Spiegel (4,2) rot 3 · Spiegel (6,2) rot 1 · Spiegel (6,4) rot 3
     // Generator sehr schwer-sammelstelle, Seed 40703 · Ausbau „sehr schwer“
-    name: 'Bellatrix', titel: 'Eisriese', grad: 'sehr schwer',
+    name: 'Bellatrix', titel: 'Gasriese', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 1, z: 0, rot: 5 },
       { type: 'source', x: 0, z: 0, dir: 0, color: 'red' },
@@ -7113,7 +7159,7 @@ const LEVELS = [
     //   Spiegel (2,3) rot 0 · Prisma (1,6) rot 0 · Spiegel (4,3) rot 0 · Prisma (1,2) rot 7 ·
     //   Spiegel (5,4) rot 0 · Spiegel (1,0) rot 1 · Spiegel (6,2) rot 3 · Spiegel (6,3) rot 2
     // Generator sehr schwer-falle, Seed 11138 · Ausbau „sehr schwer“
-    name: 'Beteigeuze', titel: 'Saturnring', grad: 'sehr schwer',
+    name: 'Beteigeuze', titel: 'Feuerring', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'magenta' },
       { type: 'prism', x: 3, z: 1, rot: 7 },
@@ -7138,73 +7184,76 @@ const LEVELS = [
     solution: { '3,1': 0, '5,3': 2, '4,0': 0, '5,1': 0, '2,3': 0, '1,6': 0, '4,3': 0, '1,2': 7, '5,4': 0, '1,0': 1, '6,2': 3, '6,3': 2 },
   },
   {
-    // Lösung: Spiegel (2,1) rot 3 · Spiegel (2,4) rot 1 · Spiegel (5,4) rot 1 · Prisma (3,1) rot 1 ·
-    //   Spiegel (0,4) rot 3 · Spiegel (5,1) rot 3 · Prisma (3,4) rot 5 · Prisma (4,4) rot 5 ·
-    //   Prisma (5,3) rot 2 · Spiegel (1,1) rot 2 · Kombinator (4,2) dir 6
-    // Wertung 54.5 · 11 drehbar · 4 Ziele · Rateschritte 80714 · gehärtet aus Profil 4-bunt, Seed 8051
-    name: 'Morgenröte', titel: 'Pharao', grad: 'sehr schwer',
+    // Lösung: Prisma (1,3) rot 4 · Spiegel (5,3) rot 0 · Prisma (3,1) rot 3 · Spiegel (3,6) rot 3 ·
+    //   Spiegel (2,6) rot 1 · Spiegel (2,1) rot 1 · Spiegel (1,1) rot 1 · Spiegel (1,0) rot 1 ·
+    //   Spiegel (0,0) rot 3 · Spiegel (5,6) rot 0 · Prisma (4,5) rot 5
+    // Generator sehr schwer-sammelstelle, Seed 40816 · Ausbau „sehr schwer“
+    name: 'Megrez', titel: 'Perihel', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 6, z: 3, dir: 4 },
-      { type: 'source', x: 2, z: 6, dir: 6, color: 'green' },
-      { type: 'source', x: 5, z: 6, dir: 6 },
-      { type: 'mirror', x: 2, z: 0, rot: 0, fixed: true },
-      { type: 'mirror', x: 1, z: 1, rot: 1 },
-      { type: 'mirror', x: 2, z: 1, rot: 0 },
-      { type: 'mirror', x: 5, z: 1, rot: 2 },
-      { type: 'mirror', x: 0, z: 4, rot: 2 },
-      { type: 'mirror', x: 2, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, z: 4, rot: 3 },
-      { type: 'mirror', x: 1, z: 6, rot: 2, fixed: true },
-      { type: 'prism', x: 3, z: 1, rot: 6 },
-      { type: 'prism', x: 5, z: 3, rot: 4 },
-      { type: 'prism', x: 3, z: 4, rot: 1 },
-      { type: 'prism', x: 4, z: 4, rot: 4 },
-      { type: 'filter', x: 5, z: 5, color: 'yellow' },
-      { type: 'combiner', x: 4, z: 2, dir: 5 },
-      { type: 'target', x: 4, z: 0, color: 'cyan' },
-      { type: 'target', x: 5, z: 0, color: 'red' },
-      { type: 'target', x: 6, z: 4, color: 'yellow' },
-      { type: 'target', x: 0, z: 5, color: 'green' },
+      { type: 'prism', x: 1, z: 3, rot: 5 },
+      { type: 'source', x: 1, z: 6, dir: 6, color: 'yellow' },
+      { type: 'source', x: 4, z: 6, dir: 5, color: 'blue' },
+      { type: 'target', x: 0, z: 3, color: 'green' },
+      { type: 'target', x: 0, z: 2, color: 'magenta' },
+      { type: 'target', x: 0, z: 4, color: 'magenta' },
+      { type: 'source', x: 6, z: 2, dir: 3 },
+      { type: 'mirror', x: 5, z: 3, rot: 2 },
+      { type: 'prism', x: 3, z: 1, rot: 5 },
+      { type: 'mirror', x: 3, z: 6, rot: 1 },
+      { type: 'mirror', x: 2, z: 6, rot: 3 },
+      { type: 'mirror', x: 2, z: 1, rot: 2 },
+      { type: 'mirror', x: 1, z: 1, rot: 3 },
+      { type: 'mirror', x: 1, z: 0, rot: 3 },
+      { type: 'mirror', x: 0, z: 0, rot: 2 },
+      { type: 'source', x: 6, z: 5, dir: 3 },
+      { type: 'mirror', x: 5, z: 6, rot: 3 },
+      { type: 'prism', x: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, z: 4, rot: 1, fixed: true },
+      { type: 'target', x: 0, z: 5, color: 'red' },
+      { type: 'target', x: 1, z: 2, color: 'green' },
     ],
-    solution: { '2,1': 3, '2,4': 1, '5,4': 1, '3,1': 1, '0,4': 3, '5,1': 3, '3,4': 5, '4,4': 5, '5,3': 2, '1,1': 2, '4,2': 6 },
+    solution: { '1,3': 4, '5,3': 0, '3,1': 3, '3,6': 3, '2,6': 1, '2,1': 1, '1,1': 1, '1,0': 1, '0,0': 3, '5,6': 0, '4,5': 5 },
   },
   {
-    // Lösung: Spiegel (1,1) rot 1 · Spiegel (4,1) rot 1 · Spiegel (6,4) rot 3 · Spiegel (6,3) rot 1 ·
-    //   Prisma (2,3) rot 3 · Spiegel (1,3) rot 1 · Spiegel (0,5) rot 2 · Spiegel (1,6) rot 0 ·
-    //   Spiegel (6,1) rot 2 · Prisma (3,0) rot 7 · Spiegel (0,1) rot 3 · Spiegel (0,2) rot 1
-    // Generator sehr schwer-mischziel, Seed 11960 · Ausbau „sehr schwer“
-    name: 'Neutronenstern', titel: 'Perihel', grad: 'sehr schwer',
+    // Lösung: Prisma (1,2) rot 2 · Spiegel (1,4) rot 3 · Prisma (5,4) rot 5 · Spiegel (0,4) rot 1 ·
+    //   Spiegel (4,1) rot 3 · Spiegel (1,5) rot 1 · Spiegel (6,1) rot 3 · Spiegel (6,0) rot 1 ·
+    //   Spiegel (0,0) rot 3 · Spiegel (0,1) rot 1 · Spiegel (2,1) rot 1 · Kombinator (5,3) dir 7 ·
+    //   Spiegel (0,3) rot 3 · Spiegel (2,5) rot 1
+    // Generator sehr schwer, Seed 42941 · Ausbau „sehr schwer“
+    name: 'Nunki', titel: 'Flammenmeer', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 6, z: 5, dir: 4, color: 'red' },
-      { type: 'source', x: 1, z: 0, dir: 2, color: 'green' },
-      { type: 'mirror', x: 1, z: 1, rot: 2 },
+      { type: 'source', x: 0, z: 2, dir: 0 },
+      { type: 'source', x: 6, z: 3, dir: 3 },
+      { type: 'prism', x: 1, z: 2, rot: 0 },
+      { type: 'mirror', x: 1, z: 4, rot: 0 },
+      { type: 'prism', x: 5, z: 4, rot: 1 },
+      { type: 'mirror', x: 0, z: 4, rot: 2 },
+      { type: 'target', x: 3, z: 5, color: 'red' },
+      { type: 'target', x: 3, z: 2, color: 'green' },
+      { type: 'source', x: 4, z: 6, dir: 6, color: 'red' },
       { type: 'mirror', x: 4, z: 1, rot: 2 },
-      { type: 'target', x: 4, z: 5, color: 'yellow' },
-      { type: 'source', x: 0, z: 4, dir: 0 },
-      { type: 'mirror', x: 6, z: 4, rot: 0 },
-      { type: 'mirror', x: 6, z: 3, rot: 3 },
-      { type: 'prism', x: 2, z: 3, rot: 4 },
-      { type: 'mirror', x: 1, z: 3, rot: 2 },
-      { type: 'mirror', x: 2, z: 6, rot: 1, fixed: true },
-      { type: 'target', x: 4, z: 6, color: 'red' },
-      { type: 'mirror', x: 0, z: 5, rot: 1 },
-      { type: 'mirror', x: 1, z: 6, rot: 3 },
-      { type: 'mirror', x: 6, z: 1, rot: 3 },
-      { type: 'target', x: 5, z: 0, color: 'cyan' },
-      { type: 'source', x: 0, z: 3, dir: 7 },
-      { type: 'prism', x: 3, z: 0, rot: 3 },
-      { type: 'mirror', x: 0, z: 1, rot: 2 },
-      { type: 'mirror', x: 0, z: 2, rot: 2 },
-      { type: 'target', x: 2, z: 2, color: 'blue' },
+      { type: 'mirror', x: 1, z: 5, rot: 2 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'target', x: 5, z: 6, color: 'red' },
+      { type: 'mirror', x: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 0, z: 0, rot: 0 },
+      { type: 'blocker', x: 3, z: 1 },
+      { type: 'mirror', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 2, z: 1, rot: 2 },
+      { type: 'combiner', x: 5, z: 3, dir: 4 },
+      { type: 'target', x: 6, z: 2, color: 'cyan' },
+      { type: 'mirror', x: 0, z: 3, rot: 1 },
+      { type: 'mirror', x: 2, z: 5, rot: 3 },
+      { type: 'target', x: 2, z: 6, color: 'red' },
     ],
-    solution: { '1,1': 1, '4,1': 1, '6,4': 3, '6,3': 1, '2,3': 3, '1,3': 1, '0,5': 2, '1,6': 0, '6,1': 2, '3,0': 7, '0,1': 3, '0,2': 1 },
+    solution: { '1,2': 2, '1,4': 3, '5,4': 5, '0,4': 1, '4,1': 3, '1,5': 1, '6,1': 3, '6,0': 1, '0,0': 3, '0,1': 1, '2,1': 1, '5,3': 7, '0,3': 3, '2,5': 1 },
   },
   {
     // Lösung: Prisma (4,4) rot 2 · Spiegel (5,1) rot 3 · Spiegel (3,1) rot 3 · Prisma (5,5) rot 2 ·
     //   Prisma (3,3) rot 3 · Kombinator (6,6) dir 6 · Spiegel (3,4) rot 3 · Spiegel (1,3) rot 3 ·
     //   Spiegel (1,6) rot 3 · Kombinator (2,4) dir 2
     // Generator sehr schwer-sammelstelle, Seed 10608 · Ausbau „sehr schwer“
-    name: 'Magellanwolke', titel: 'Bahnresonanz', grad: 'sehr schwer',
+    name: 'Magellanwolke', titel: 'Aphel', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 4, z: 4, rot: 1 },
       { type: 'source', x: 4, z: 0, dir: 2, color: 'yellow' },
@@ -7230,44 +7279,11 @@ const LEVELS = [
     solution: { '4,4': 2, '5,1': 3, '3,1': 3, '5,5': 2, '3,3': 3, '6,6': 6, '3,4': 3, '1,3': 3, '1,6': 3, '2,4': 2 },
   },
   {
-    // Lösung: Spiegel (5,3) rot 2 · Spiegel (6,2) rot 2 · Spiegel (1,3) rot 0 · Spiegel (1,5) rot 2 ·
-    //   Spiegel (2,6) rot 0 · Prisma (5,2) rot 2 · Spiegel (3,4) rot 0 · Spiegel (6,3) rot 2 ·
-    //   Spiegel (4,5) rot 2 · Spiegel (1,2) rot 0 · Spiegel (5,6) rot 0 · Spiegel (6,5) rot 2 ·
-    //   Spiegel (3,5) rot 0 · Prisma (4,2) rot 3
-    // Generator sehr schwer-mischziel, Seed 11295 · Ausbau „sehr schwer“
-    name: 'Milchstrasse', titel: 'Ringschatten', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 6, z: 4, dir: 5, color: 'red' },
-      { type: 'source', x: 0, z: 1, dir: 0, color: 'cyan' },
-      { type: 'mirror', x: 5, z: 3, rot: 0 },
-      { type: 'mirror', x: 6, z: 2, rot: 0 },
-      { type: 'target', x: 5, z: 1, color: 'white' },
-      { type: 'source', x: 0, z: 4, dir: 7, color: 'cyan' },
-      { type: 'mirror', x: 1, z: 3, rot: 2 },
-      { type: 'mirror', x: 1, z: 5, rot: 1 },
-      { type: 'mirror', x: 2, z: 6, rot: 2 },
-      { type: 'source', x: 3, z: 0, dir: 1 },
-      { type: 'prism', x: 5, z: 2, rot: 0 },
-      { type: 'mirror', x: 3, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, z: 3, rot: 0 },
-      { type: 'mirror', x: 4, z: 5, rot: 3 },
-      { type: 'mirror', x: 1, z: 2, rot: 2 },
-      { type: 'target', x: 0, z: 3, color: 'blue' },
-      { type: 'mirror', x: 5, z: 6, rot: 2 },
-      { type: 'target', x: 3, z: 2, color: 'magenta' },
-      { type: 'mirror', x: 6, z: 5, rot: 3 },
-      { type: 'mirror', x: 3, z: 5, rot: 1 },
-      { type: 'prism', x: 4, z: 2, rot: 4 },
-      { type: 'target', x: 4, z: 6, color: 'green' },
-    ],
-    solution: { '5,3': 2, '6,2': 2, '1,3': 0, '1,5': 2, '2,6': 0, '5,2': 2, '3,4': 0, '6,3': 2, '4,5': 2, '1,2': 0, '5,6': 0, '6,5': 2, '3,5': 0, '4,2': 3 },
-  },
-  {
     // Lösung: Prisma (6,4) rot 3 · Spiegel (5,3) rot 0 · Spiegel (5,5) rot 2 · Spiegel (1,2) rot 2 ·
     //   Prisma (2,1) rot 1 · Spiegel (4,1) rot 1 · Spiegel (4,6) rot 3 · Spiegel (5,2) rot 3 ·
     //   Spiegel (5,0) rot 1 · Spiegel (1,0) rot 3 · Spiegel (1,1) rot 3 · Prisma (0,5) rot 7
     // Generator sehr schwer-sammelstelle, Seed 42153 · Ausbau „sehr schwer“
-    name: 'Alnilam', titel: 'Aphel', grad: 'sehr schwer',
+    name: 'Alnilam', titel: 'Bahnresonanz', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 6, z: 4, rot: 6 },
       { type: 'source', x: 2, z: 6, dir: 7, color: 'cyan' },
@@ -7295,41 +7311,77 @@ const LEVELS = [
     solution: { '6,4': 3, '5,3': 0, '5,5': 2, '1,2': 2, '2,1': 1, '4,1': 1, '4,6': 3, '5,2': 3, '5,0': 1, '1,0': 3, '1,1': 3, '0,5': 7 },
   },
   {
-    // Lösung: Prisma (1,4) rot 7 · Spiegel (0,4) rot 1 · Spiegel (4,1) rot 0 · Spiegel (5,2) rot 0 ·
-    //   Prisma (6,3) rot 3 · Spiegel (3,3) rot 1 · Spiegel (4,5) rot 2 · Spiegel (3,1) rot 1 ·
-    //   Spiegel (6,1) rot 2 · Spiegel (5,6) rot 0 · Spiegel (3,5) rot 2 · Spiegel (4,6) rot 0
-    // Generator sehr schwer-sammelstelle, Seed 673, Ziel 90,42–91,28 · ersetzt Quasar (Austausch „sehr schwer“)
-    name: 'Leitstern', titel: 'Glutkern', grad: 'sehr schwer',
+    // Lösung: Spiegel (6,0) rot 1 · Spiegel (6,4) rot 3 · Spiegel (1,2) rot 1 · Prisma (4,3) rot 5 ·
+    //   Spiegel (2,6) rot 3 · Spiegel (2,3) rot 1 · Spiegel (4,2) rot 1 · Spiegel (1,1) rot 1 ·
+    //   Spiegel (0,3) rot 3 · Spiegel (0,5) rot 1 · Spiegel (2,1) rot 3 · Spiegel (6,6) rot 3 ·
+    //   Spiegel (5,6) rot 1
+    // Generator sehr schwer-mischziel, Seed 42851 · Ausbau „sehr schwer“
+    name: 'Saiph', titel: 'Ausbruch', grad: 'sehr schwer',
     elements: [
-      { type: 'prism', x: 1, z: 4, rot: 2 },
-      { type: 'source', x: 0, z: 0, dir: 2, color: 'yellow' },
-      { type: 'mirror', x: 0, z: 4, rot: 3 },
-      { type: 'source', x: 3, z: 6, dir: 5, color: 'blue' },
-      { type: 'target', x: 1, z: 1, color: 'magenta' },
-      { type: 'target', x: 6, z: 4, color: 'white' },
-      { type: 'source', x: 1, z: 6, dir: 7 },
-      { type: 'mirror', x: 4, z: 1, rot: 2 },
-      { type: 'mirror', x: 5, z: 2, rot: 2 },
-      { type: 'prism', x: 6, z: 3, rot: 7 },
-      { type: 'mirror', x: 3, z: 3, rot: 0 },
-      { type: 'mirror', x: 4, z: 5, rot: 0 },
-      { type: 'mirror', x: 3, z: 1, rot: 3 },
-      { type: 'mirror', x: 6, z: 1, rot: 1 },
+      { type: 'source', x: 0, z: 0, dir: 0, color: 'blue' },
+      { type: 'source', x: 0, z: 2, dir: 0, color: 'yellow' },
+      { type: 'mirror', x: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 6, z: 4, rot: 2 },
+      { type: 'mirror', x: 1, z: 2, rot: 0 },
+      { type: 'target', x: 1, z: 4, color: 'white' },
+      { type: 'source', x: 0, z: 6, dir: 0, color: 'cyan' },
+      { type: 'source', x: 4, z: 6, dir: 6 },
+      { type: 'prism', x: 4, z: 3, rot: 3 },
+      { type: 'mirror', x: 2, z: 6, rot: 0 },
+      { type: 'mirror', x: 2, z: 3, rot: 0 },
+      { type: 'mirror', x: 4, z: 2, rot: 2 },
+      { type: 'mirror', x: 1, z: 1, rot: 3 },
+      { type: 'mirror', x: 0, z: 3, rot: 0 },
+      { type: 'filter', x: 0, z: 4, color: 'green' },
+      { type: 'target', x: 0, z: 1, color: 'blue' },
+      { type: 'mirror', x: 0, z: 5, rot: 3 },
+      { type: 'mirror', x: 2, z: 1, rot: 1 },
+      { type: 'mirror', x: 3, z: 1, rot: 1, fixed: true },
+      { type: 'mirror', x: 6, z: 5, rot: 1, fixed: true },
+      { type: 'target', x: 3, z: 6, color: 'red' },
+      { type: 'mirror', x: 6, z: 6, rot: 2 },
       { type: 'mirror', x: 5, z: 6, rot: 2 },
-      { type: 'target', x: 5, z: 0, color: 'green' },
-      { type: 'source', x: 6, z: 2, dir: 3, color: 'yellow' },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'target', x: 5, z: 1, color: 'green' },
+    ],
+    solution: { '6,0': 1, '6,4': 3, '1,2': 1, '4,3': 5, '2,6': 3, '2,3': 1, '4,2': 1, '1,1': 1, '0,3': 3, '0,5': 1, '2,1': 3, '6,6': 3, '5,6': 1 },
+  },
+  {
+    // Lösung: Prisma (5,1) rot 2 · Prisma (5,5) rot 4 · Spiegel (0,5) rot 1 · Spiegel (0,4) rot 3 ·
+    //   Spiegel (1,4) rot 3 · Spiegel (5,4) rot 1 · Spiegel (1,0) rot 1 · Spiegel (6,4) rot 1 ·
+    //   Spiegel (4,6) rot 0 · Spiegel (2,2) rot 1 · Prisma (2,3) rot 5 · Spiegel (4,4) rot 2
+    // Generator sehr schwer-sammelstelle, Seed 51827, Ziel 96–112 · Ausbau „sehr schwer“
+    name: 'Wezen', titel: 'Dunkelwolke', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 5, z: 1, rot: 1 },
+      { type: 'source', x: 6, z: 1, dir: 4, color: 'cyan' },
+      { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
+      { type: 'target', x: 0, z: 6, color: 'blue' },
+      { type: 'target', x: 6, z: 2, color: 'magenta' },
+      { type: 'source', x: 6, z: 6, dir: 5 },
+      { type: 'prism', x: 5, z: 5, rot: 7 },
+      { type: 'mirror', x: 0, z: 5, rot: 0 },
+      { type: 'mirror', x: 0, z: 4, rot: 2 },
+      { type: 'mirror', x: 1, z: 4, rot: 0 },
+      { type: 'mirror', x: 5, z: 4, rot: 3 },
+      { type: 'mirror', x: 1, z: 0, rot: 2 },
+      { type: 'mirror', x: 6, z: 4, rot: 3 },
+      { type: 'target', x: 0, z: 0, color: 'green' },
       { type: 'mirror', x: 4, z: 6, rot: 1 },
+      { type: 'target', x: 0, z: 2, color: 'magenta' },
+      { type: 'source', x: 2, z: 6, dir: 6, color: 'cyan' },
+      { type: 'mirror', x: 2, z: 2, rot: 3 },
+      { type: 'prism', x: 2, z: 3, rot: 3 },
+      { type: 'mirror', x: 4, z: 4, rot: 0 },
       { type: 'target', x: 6, z: 5, color: 'green' },
     ],
-    solution: { '1,4': 7, '0,4': 1, '4,1': 0, '5,2': 0, '6,3': 3, '3,3': 1, '4,5': 2, '3,1': 1, '6,1': 2, '5,6': 0, '3,5': 2, '4,6': 0 },
+    solution: { '5,1': 2, '5,5': 4, '0,5': 1, '0,4': 3, '1,4': 3, '5,4': 1, '1,0': 1, '6,4': 1, '4,6': 0, '2,2': 1, '2,3': 5, '4,4': 2 },
   },
   {
     // Lösung: Spiegel (2,1) rot 1 · Spiegel (2,0) rot 1 · Prisma (0,0) rot 2 · Prisma (1,2) rot 2 ·
     //   Kombinator (4,4) dir 0 · Prisma (6,3) rot 5 · Spiegel (2,3) rot 3 · Spiegel (2,6) rot 3 ·
     //   Prisma (3,5) rot 7 · Spiegel (0,6) rot 1
     // Generator sehr schwer, Seed 40562 · Ausbau „sehr schwer“
-    name: 'Alphard', titel: 'Firmament', grad: 'sehr schwer',
+    name: 'Alphard', titel: 'Sternwiege', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 1, dir: 4 },
       { type: 'source', x: 0, z: 1, dir: 1 },
@@ -7354,171 +7406,12 @@ const LEVELS = [
     solution: { '2,1': 1, '2,0': 1, '0,0': 2, '1,2': 2, '4,4': 0, '6,3': 5, '2,3': 3, '2,6': 3, '3,5': 7, '0,6': 1 },
   },
   {
-    // Lösung: Spiegel (2,4) rot 3 · Spiegel (2,2) rot 1 · Spiegel (4,2) rot 1 · Spiegel (4,4) rot 3 ·
-    //   Spiegel (2,6) rot 1 · Spiegel (3,6) rot 3 · Spiegel (3,0) rot 1 · Spiegel (0,0) rot 3 ·
-    //   Prisma (5,2) rot 3 · Spiegel (5,5) rot 1 · Prisma (4,5) rot 5 · Spiegel (2,1) rot 3
-    // Generator sehr schwer-abzaehlen, Seed 11189 · Ausbau „sehr schwer“
-    name: 'Gravitation', titel: 'Weisse Wüste', grad: 'sehr schwer',
-    elements: [
-      { type: 'mirror', x: 2, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 2, rot: 0 },
-      { type: 'mirror', x: 4, z: 2, rot: 3 },
-      { type: 'mirror', x: 4, z: 4, rot: 0 },
-      { type: 'source', x: 6, z: 2, dir: 4, color: 'magenta' },
-      { type: 'source', x: 0, z: 4, dir: 0, color: 'cyan' },
-      { type: 'source', x: 4, z: 6, dir: 6, color: 'magenta' },
-      { type: 'target', x: 0, z: 2, color: 'white' },
-      { type: 'target', x: 4, z: 0, color: 'blue' },
-      { type: 'target', x: 6, z: 4, color: 'blue' },
-      { type: 'source', x: 0, z: 5, dir: 0, color: 'red' },
-      { type: 'mirror', x: 2, z: 5, rot: 1, fixed: true },
-      { type: 'mirror', x: 2, z: 6, rot: 0 },
-      { type: 'mirror', x: 3, z: 6, rot: 0 },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'mirror', x: 0, z: 0, rot: 2 },
-      { type: 'prism', x: 5, z: 2, rot: 4 },
-      { type: 'mirror', x: 5, z: 5, rot: 0 },
-      { type: 'target', x: 6, z: 5, color: 'red' },
-      { type: 'prism', x: 4, z: 5, rot: 3 },
-      { type: 'mirror', x: 2, z: 1, rot: 0 },
-      { type: 'target', x: 6, z: 1, color: 'red' },
-    ],
-    solution: { '2,4': 3, '2,2': 1, '4,2': 1, '4,4': 3, '2,6': 1, '3,6': 3, '3,0': 1, '0,0': 3, '5,2': 3, '5,5': 1, '4,5': 5, '2,1': 3 },
-  },
-  {
-    // Lösung: Spiegel (4,4) rot 1 · Spiegel (4,2) rot 1 · Spiegel (6,2) rot 3 · Spiegel (6,4) rot 1 ·
-    //   Prisma (2,3) rot 3 · Spiegel (0,5) rot 2 · Spiegel (1,6) rot 0 · Spiegel (2,6) rot 1 ·
-    //   Prisma (3,4) rot 7 · Spiegel (3,0) rot 1 · Spiegel (1,0) rot 3
-    // Generator sehr schwer-abzaehlen, Seed 11010 · Ausbau „sehr schwer“
-    name: 'Schwarzes Loch', titel: 'Nova', grad: 'sehr schwer',
-    elements: [
-      { type: 'mirror', x: 4, z: 4, rot: 3 },
-      { type: 'mirror', x: 4, z: 2, rot: 2 },
-      { type: 'mirror', x: 6, z: 2, rot: 0 },
-      { type: 'mirror', x: 6, z: 4, rot: 3 },
-      { type: 'source', x: 4, z: 0, dir: 2, color: 'blue' },
-      { type: 'source', x: 0, z: 4, dir: 0, color: 'magenta' },
-      { type: 'source', x: 6, z: 6, dir: 6 },
-      { type: 'target', x: 6, z: 1, color: 'cyan' },
-      { type: 'target', x: 4, z: 6, color: 'magenta' },
-      { type: 'target', x: 0, z: 2, color: 'white' },
-      { type: 'source', x: 0, z: 1, dir: 1 },
-      { type: 'prism', x: 2, z: 3, rot: 6 },
-      { type: 'mirror', x: 0, z: 5, rot: 1 },
-      { type: 'mirror', x: 1, z: 6, rot: 1 },
-      { type: 'mirror', x: 2, z: 6, rot: 3 },
-      { type: 'prism', x: 3, z: 4, rot: 4 },
-      { type: 'mirror', x: 3, z: 0, rot: 2 },
-      { type: 'target', x: 1, z: 3, color: 'magenta' },
-      { type: 'mirror', x: 1, z: 0, rot: 2 },
-    ],
-    solution: { '4,4': 1, '4,2': 1, '6,2': 3, '6,4': 1, '2,3': 3, '0,5': 2, '1,6': 0, '2,6': 1, '3,4': 7, '3,0': 1, '1,0': 3 },
-  },
-  {
-    // Lösung: Prisma (2,4) rot 7 · Spiegel (2,2) rot 1 · Spiegel (3,4) rot 3 · Spiegel (3,3) rot 3 ·
-    //   Spiegel (6,3) rot 3 · Spiegel (4,1) rot 2 · Spiegel (0,5) rot 2 · Spiegel (1,6) rot 0 ·
-    //   Prisma (5,1) rot 3 · Spiegel (5,4) rot 3 · Prisma (5,5) rot 1 · Spiegel (5,6) rot 3
-    // Generator sehr schwer-falle, Seed 12126 · Ausbau „sehr schwer“
-    name: 'Kassiopeia', titel: 'Sternhaufen', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 0, z: 4, dir: 0, color: 'magenta' },
-      { type: 'prism', x: 2, z: 4, rot: 2 },
-      { type: 'mirror', x: 2, z: 2, rot: 0 },
-      { type: 'target', x: 0, z: 2, color: 'red' },
-      { type: 'mirror', x: 3, z: 4, rot: 1 },
-      { type: 'mirror', x: 3, z: 3, rot: 2 },
-      { type: 'source', x: 5, z: 0, dir: 2 },
-      { type: 'source', x: 3, z: 0, dir: 1, color: 'green' },
-      { type: 'mirror', x: 6, z: 3, rot: 2 },
-      { type: 'mirror', x: 4, z: 1, rot: 1 },
-      { type: 'mirror', x: 0, z: 5, rot: 1 },
-      { type: 'mirror', x: 1, z: 6, rot: 1 },
-      { type: 'prism', x: 5, z: 1, rot: 1 },
-      { type: 'mirror', x: 2, z: 5, rot: 0, fixed: true },
-      { type: 'target', x: 4, z: 2, color: 'green' },
-      { type: 'target', x: 6, z: 2, color: 'blue' },
-      { type: 'target', x: 3, z: 6, color: 'white' },
-      { type: 'mirror', x: 5, z: 4, rot: 0 },
-      { type: 'source', x: 6, z: 4, dir: 3 },
-      { type: 'prism', x: 5, z: 5, rot: 4 },
-      { type: 'mirror', x: 5, z: 6, rot: 0 },
-      { type: 'target', x: 6, z: 5, color: 'red' },
-    ],
-    solution: { '2,4': 7, '2,2': 1, '3,4': 3, '3,3': 3, '6,3': 3, '4,1': 2, '0,5': 2, '1,6': 0, '5,1': 3, '5,4': 3, '5,5': 1, '5,6': 3 },
-  },
-  {
-    // Lösung: Prisma (1,1) rot 7 · Prisma (2,4) rot 7 · Spiegel (4,1) rot 3 · Prisma (1,4) rot 1 ·
-    //   Spiegel (1,5) rot 3 · Spiegel (4,0) rot 1 · Spiegel (6,3) rot 3 · Spiegel (0,5) rot 3 ·
-    //   Spiegel (0,6) rot 1 · Spiegel (4,3) rot 3 · Spiegel (5,2) rot 1 · Spiegel (3,2) rot 3 ·
-    //   Spiegel (3,6) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 10017 · Ausbau „sehr schwer“
-    name: 'Sternnebel', titel: 'Sternenmeer', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 1, z: 1, rot: 3 },
-      { type: 'source', x: 0, z: 2, dir: 7, color: 'cyan' },
-      { type: 'source', x: 0, z: 0, dir: 1, color: 'red' },
-      { type: 'target', x: 2, z: 0, color: 'white' },
-      { type: 'target', x: 1, z: 0, color: 'red' },
-      { type: 'source', x: 0, z: 4, dir: 0 },
-      { type: 'prism', x: 2, z: 4, rot: 0 },
-      { type: 'mirror', x: 4, z: 1, rot: 0 },
-      { type: 'prism', x: 1, z: 4, rot: 5 },
-      { type: 'mirror', x: 1, z: 5, rot: 2 },
-      { type: 'mirror', x: 4, z: 0, rot: 2 },
-      { type: 'source', x: 6, z: 0, dir: 2, color: 'red' },
-      { type: 'mirror', x: 6, z: 3, rot: 2 },
-      { type: 'mirror', x: 0, z: 5, rot: 2 },
-      { type: 'mirror', x: 0, z: 6, rot: 0 },
-      { type: 'target', x: 1, z: 6, color: 'magenta' },
-      { type: 'target', x: 2, z: 5, color: 'green' },
-      { type: 'mirror', x: 4, z: 3, rot: 0 },
-      { type: 'mirror', x: 4, z: 4, rot: 1, fixed: true },
-      { type: 'mirror', x: 5, z: 4, rot: 3, fixed: true },
-      { type: 'mirror', x: 5, z: 2, rot: 2 },
-      { type: 'mirror', x: 3, z: 2, rot: 1 },
-      { type: 'mirror', x: 3, z: 6, rot: 0 },
-    ],
-    solution: { '1,1': 7, '2,4': 7, '4,1': 3, '1,4': 1, '1,5': 3, '4,0': 1, '6,3': 3, '0,5': 3, '0,6': 1, '4,3': 3, '5,2': 1, '3,2': 3, '3,6': 3 },
-  },
-  {
-    // Lösung: Prisma (4,3) rot 7 · Spiegel (6,3) rot 1 · Spiegel (4,2) rot 3 · Spiegel (5,2) rot 3 ·
-    //   Spiegel (5,1) rot 3 · Spiegel (6,1) rot 3 · Spiegel (6,0) rot 1 · Spiegel (3,0) rot 3 ·
-    //   Spiegel (3,5) rot 3 · Spiegel (0,5) rot 3 · Spiegel (0,6) rot 1 · Spiegel (1,6) rot 3 ·
-    //   Prisma (2,2) rot 4 · Prisma (2,1) rot 2
-    // Generator sehr schwer-falle, Seed 10977 · Ausbau „sehr schwer“
-    name: 'Antares', titel: 'Feuersee', grad: 'sehr schwer',
-    elements: [
-      { type: 'source', x: 4, z: 6, dir: 6, color: 'magenta' },
-      { type: 'prism', x: 4, z: 3, rot: 0 },
-      { type: 'mirror', x: 6, z: 3, rot: 2 },
-      { type: 'target', x: 6, z: 5, color: 'blue' },
-      { type: 'mirror', x: 4, z: 2, rot: 2 },
-      { type: 'mirror', x: 5, z: 2, rot: 1 },
-      { type: 'mirror', x: 5, z: 1, rot: 1 },
-      { type: 'mirror', x: 6, z: 1, rot: 2 },
-      { type: 'mirror', x: 6, z: 0, rot: 0 },
-      { type: 'mirror', x: 3, z: 0, rot: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 2 },
-      { type: 'mirror', x: 0, z: 5, rot: 0 },
-      { type: 'mirror', x: 0, z: 6, rot: 3 },
-      { type: 'mirror', x: 1, z: 6, rot: 0 },
-      { type: 'mirror', x: 1, z: 3, rot: 1, fixed: true },
-      { type: 'mirror', x: 0, z: 3, rot: 1, fixed: true },
-      { type: 'source', x: 2, z: 0, dir: 2 },
-      { type: 'prism', x: 2, z: 2, rot: 2 },
-      { type: 'target', x: 1, z: 2, color: 'cyan' },
-      { type: 'prism', x: 2, z: 1, rot: 5 },
-      { type: 'target', x: 0, z: 0, color: 'red' },
-    ],
-    solution: { '4,3': 7, '6,3': 1, '4,2': 3, '5,2': 3, '5,1': 3, '6,1': 3, '6,0': 1, '3,0': 3, '3,5': 3, '0,5': 3, '0,6': 1, '1,6': 3, '2,2': 4, '2,1': 2 },
-  },
-  {
     // Lösung: Spiegel (3,5) rot 1 · Spiegel (3,2) rot 3 · Spiegel (5,2) rot 3 · Spiegel (5,5) rot 1 ·
     //   Prisma (3,1) rot 3 · Spiegel (2,1) rot 1 · Spiegel (0,0) rot 3 · Spiegel (0,3) rot 1 ·
     //   Spiegel (5,6) rot 1 · Spiegel (5,0) rot 1 · Spiegel (4,3) rot 1 · Spiegel (4,0) rot 3 ·
     //   Prisma (6,3) rot 2
     // Generator sehr schwer-abzaehlen, Seed 10292 · Ausbau „sehr schwer“
-    name: 'Gezeitenkraft', titel: 'Asteroidengürtel', grad: 'sehr schwer',
+    name: 'Gezeitenkraft', titel: 'Feuerschlund', grad: 'sehr schwer',
     elements: [
       { type: 'mirror', x: 3, z: 5, rot: 0 },
       { type: 'mirror', x: 3, z: 2, rot: 1 },
@@ -7546,11 +7439,78 @@ const LEVELS = [
     solution: { '3,5': 1, '3,2': 3, '5,2': 3, '5,5': 1, '3,1': 3, '2,1': 1, '0,0': 3, '0,3': 1, '5,6': 1, '5,0': 1, '4,3': 1, '4,0': 3, '6,3': 2 },
   },
   {
+    // Lösung: Prisma (2,4) rot 7 · Spiegel (2,2) rot 1 · Spiegel (3,4) rot 3 · Spiegel (3,3) rot 3 ·
+    //   Spiegel (6,3) rot 3 · Spiegel (4,1) rot 2 · Spiegel (0,5) rot 2 · Spiegel (1,6) rot 0 ·
+    //   Prisma (5,1) rot 3 · Spiegel (5,4) rot 3 · Prisma (5,5) rot 1 · Spiegel (5,6) rot 3
+    // Generator sehr schwer-falle, Seed 12126 · Ausbau „sehr schwer“
+    name: 'Kassiopeia', titel: 'Himmelspol', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 0, z: 4, dir: 0, color: 'magenta' },
+      { type: 'prism', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 2, z: 2, rot: 0 },
+      { type: 'target', x: 0, z: 2, color: 'red' },
+      { type: 'mirror', x: 3, z: 4, rot: 1 },
+      { type: 'mirror', x: 3, z: 3, rot: 2 },
+      { type: 'source', x: 5, z: 0, dir: 2 },
+      { type: 'source', x: 3, z: 0, dir: 1, color: 'green' },
+      { type: 'mirror', x: 6, z: 3, rot: 2 },
+      { type: 'mirror', x: 4, z: 1, rot: 1 },
+      { type: 'mirror', x: 0, z: 5, rot: 1 },
+      { type: 'mirror', x: 1, z: 6, rot: 1 },
+      { type: 'prism', x: 5, z: 1, rot: 1 },
+      { type: 'mirror', x: 2, z: 5, rot: 0, fixed: true },
+      { type: 'target', x: 4, z: 2, color: 'green' },
+      { type: 'target', x: 6, z: 2, color: 'blue' },
+      { type: 'target', x: 3, z: 6, color: 'white' },
+      { type: 'mirror', x: 5, z: 4, rot: 0 },
+      { type: 'source', x: 6, z: 4, dir: 3 },
+      { type: 'prism', x: 5, z: 5, rot: 4 },
+      { type: 'mirror', x: 5, z: 6, rot: 0 },
+      { type: 'target', x: 6, z: 5, color: 'red' },
+    ],
+    solution: { '2,4': 7, '2,2': 1, '3,4': 3, '3,3': 3, '6,3': 3, '4,1': 2, '0,5': 2, '1,6': 0, '5,1': 3, '5,4': 3, '5,5': 1, '5,6': 3 },
+  },
+  {
+    // Lösung: Spiegel (3,2) rot 1 · Spiegel (5,3) rot 3 · Spiegel (5,4) rot 3 · Prisma (4,4) rot 2 ·
+    //   Spiegel (4,6) rot 1 · Spiegel (6,5) rot 1 · Prisma (4,3) rot 7 · Spiegel (5,1) rot 1 ·
+    //   Spiegel (1,5) rot 1 · Spiegel (1,1) rot 1 · Spiegel (4,2) rot 3 · Spiegel (3,0) rot 3 ·
+    //   Spiegel (4,0) rot 1
+    // Generator sehr schwer-mischziel, Seed 40538 · Ausbau „sehr schwer“
+    name: 'Markab', titel: 'Saturnring', grad: 'sehr schwer',
+    elements: [
+      { type: 'source', x: 3, z: 6, dir: 6, color: 'red' },
+      { type: 'source', x: 2, z: 0, dir: 2, color: 'cyan' },
+      { type: 'mirror', x: 3, z: 2, rot: 3 },
+      { type: 'target', x: 2, z: 2, color: 'white' },
+      { type: 'source', x: 6, z: 3, dir: 4 },
+      { type: 'mirror', x: 5, z: 3, rot: 2 },
+      { type: 'mirror', x: 5, z: 4, rot: 0 },
+      { type: 'prism', x: 4, z: 4, rot: 3 },
+      { type: 'mirror', x: 4, z: 6, rot: 3 },
+      { type: 'mirror', x: 6, z: 6, rot: 3, fixed: true },
+      { type: 'mirror', x: 6, z: 5, rot: 3 },
+      { type: 'source', x: 1, z: 6, dir: 7 },
+      { type: 'prism', x: 4, z: 3, rot: 0 },
+      { type: 'target', x: 6, z: 1, color: 'green' },
+      { type: 'mirror', x: 5, z: 1, rot: 0 },
+      { type: 'mirror', x: 3, z: 1, rot: 1, fixed: true },
+      { type: 'mirror', x: 1, z: 5, rot: 3 },
+      { type: 'mirror', x: 1, z: 1, rot: 0 },
+      { type: 'target', x: 0, z: 1, color: 'green' },
+      { type: 'mirror', x: 4, z: 2, rot: 2 },
+      { type: 'target', x: 6, z: 2, color: 'red' },
+      { type: 'mirror', x: 3, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, z: 0, rot: 2 },
+      { type: 'target', x: 1, z: 0, color: 'blue' },
+    ],
+    solution: { '3,2': 1, '5,3': 3, '5,4': 3, '4,4': 2, '4,6': 1, '6,5': 1, '4,3': 7, '5,1': 1, '1,5': 1, '1,1': 1, '4,2': 3, '3,0': 3, '4,0': 1 },
+  },
+  {
     // Lösung: Prisma (1,4) rot 5 · Spiegel (1,0) rot 3 · Spiegel (2,0) rot 1 · Spiegel (2,2) rot 3 ·
     //   Spiegel (0,2) rot 1 · Spiegel (0,1) rot 3 · Spiegel (5,5) rot 1 · Prisma (1,5) rot 2 ·
     //   Spiegel (3,0) rot 0 · Prisma (2,3) rot 2 · Spiegel (5,2) rot 2
     // Generator sehr schwer, Seed 40374 · Ausbau „sehr schwer“
-    name: 'Achernar', titel: 'Planetenparade', grad: 'sehr schwer',
+    name: 'Achernar', titel: 'Ringschatten', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 4, dir: 4 },
       { type: 'prism', x: 1, z: 4, rot: 2 },
@@ -7576,6 +7536,40 @@ const LEVELS = [
       { type: 'target', x: 0, z: 6, color: 'blue' },
     ],
     solution: { '1,4': 5, '1,0': 3, '2,0': 1, '2,2': 3, '0,2': 1, '0,1': 3, '5,5': 1, '1,5': 2, '3,0': 0, '2,3': 2, '5,2': 2 },
+  },
+  {
+    // Lösung: Spiegel (3,2) rot 3 · Spiegel (1,2) rot 1 · Spiegel (1,5) rot 1 · Spiegel (3,5) rot 3 ·
+    //   Spiegel (4,4) rot 3 · Spiegel (5,4) rot 3 · Spiegel (5,2) rot 1 · Spiegel (0,2) rot 3 ·
+    //   Prisma (3,1) rot 1 · Spiegel (6,1) rot 3 · Spiegel (6,0) rot 1 · Spiegel (4,0) rot 3 ·
+    //   Prisma (5,5) rot 3
+    // Generator sehr schwer-abzaehlen, Seed 42430 · Ausbau „sehr schwer“
+    name: 'Schedir', titel: 'Planetenparade', grad: 'sehr schwer',
+    elements: [
+      { type: 'mirror', x: 3, z: 2, rot: 2 },
+      { type: 'mirror', x: 1, z: 2, rot: 2 },
+      { type: 'mirror', x: 1, z: 5, rot: 2 },
+      { type: 'mirror', x: 3, z: 5, rot: 0 },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'source', x: 1, z: 6, dir: 6, color: 'magenta' },
+      { type: 'source', x: 6, z: 5, dir: 4, color: 'magenta' },
+      { type: 'target', x: 1, z: 1, color: 'blue' },
+      { type: 'target', x: 0, z: 5, color: 'white' },
+      { type: 'target', x: 3, z: 6, color: 'blue' },
+      { type: 'source', x: 4, z: 6, dir: 6, color: 'green' },
+      { type: 'mirror', x: 4, z: 4, rot: 1 },
+      { type: 'mirror', x: 5, z: 4, rot: 0 },
+      { type: 'mirror', x: 5, z: 2, rot: 2 },
+      { type: 'mirror', x: 0, z: 2, rot: 0 },
+      { type: 'prism', x: 3, z: 1, rot: 3 },
+      { type: 'mirror', x: 6, z: 1, rot: 0 },
+      { type: 'mirror', x: 6, z: 0, rot: 0 },
+      { type: 'mirror', x: 4, z: 0, rot: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 1, fixed: true },
+      { type: 'target', x: 2, z: 1, color: 'red' },
+      { type: 'prism', x: 5, z: 5, rot: 5 },
+      { type: 'target', x: 6, z: 4, color: 'green' },
+    ],
+    solution: { '3,2': 3, '1,2': 1, '1,5': 1, '3,5': 3, '4,4': 3, '5,4': 3, '5,2': 1, '0,2': 3, '3,1': 1, '6,1': 3, '6,0': 1, '4,0': 3, '5,5': 3 },
   },
   {
     // Lösung: Prisma (3,1) rot 6 · Spiegel (0,4) rot 2 · Prisma (2,5) rot 6 · Spiegel (0,3) rot 2 ·
@@ -7613,7 +7607,7 @@ const LEVELS = [
     //   Prisma (5,3) rot 3 · Spiegel (2,6) rot 0 · Spiegel (0,5) rot 1 · Spiegel (1,0) rot 0 ·
     //   Spiegel (0,1) rot 2
     // Generator sehr schwer, Seed 50514, Ziel 96–112 · Ausbau „sehr schwer“
-    name: 'Hadar', titel: 'Himmelspol', grad: 'sehr schwer',
+    name: 'Hadar', titel: 'Firmament', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 6, z: 1, dir: 4 },
       { type: 'prism', x: 2, z: 1, rot: 3 },
@@ -7645,7 +7639,7 @@ const LEVELS = [
     //   Spiegel (2,3) rot 0 · Spiegel (0,5) rot 2 · Prisma (0,3) rot 7 · Spiegel (1,3) rot 1 ·
     //   Spiegel (1,5) rot 1
     // Generator sehr schwer-sammelstelle, Seed 109, Ziel 96,52–110 · ersetzt Farbmühle (Austausch „sehr schwer“)
-    name: 'Konjunktion', titel: 'Fixstern', grad: 'sehr schwer',
+    name: 'Konjunktion', titel: 'Sternenmeer', grad: 'sehr schwer',
     elements: [
       { type: 'prism', x: 6, z: 2, rot: 0 },
       { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
@@ -7673,45 +7667,12 @@ const LEVELS = [
     solution: { '6,2': 4, '6,1': 1, '3,3': 1, '4,3': 2, '4,5': 1, '5,5': 1, '5,6': 3, '3,4': 0, '2,3': 0, '0,5': 2, '0,3': 7, '1,3': 1, '1,5': 1 },
   },
   {
-    // Lösung: Prisma (6,3) rot 3 · Spiegel (1,4) rot 3 · Spiegel (2,4) rot 1 · Spiegel (2,5) rot 1 ·
-    //   Spiegel (2,6) rot 0 · Spiegel (4,4) rot 0 · Spiegel (4,3) rot 1 · Spiegel (4,2) rot 1 ·
-    //   Spiegel (0,3) rot 1 · Spiegel (0,2) rot 3 · Spiegel (3,1) rot 1 · Spiegel (0,1) rot 1 ·
-    //   Spiegel (0,0) rot 3
-    // Generator sehr schwer-sammelstelle, Seed 11499 · Ausbau „sehr schwer“
-    name: 'Raumzeit', titel: 'Dunkelwolke', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 6, z: 3, rot: 6 },
-      { type: 'source', x: 3, z: 0, dir: 1, color: 'green' },
-      { type: 'source', x: 6, z: 0, dir: 2, color: 'magenta' },
-      { type: 'target', x: 4, z: 5, color: 'white' },
-      { type: 'target', x: 6, z: 6, color: 'magenta' },
-      { type: 'source', x: 1, z: 6, dir: 6, color: 'magenta' },
-      { type: 'mirror', x: 1, z: 4, rot: 0 },
-      { type: 'mirror', x: 2, z: 4, rot: 3 },
-      { type: 'mirror', x: 2, z: 5, rot: 2 },
-      { type: 'source', x: 0, z: 4, dir: 1, color: 'blue' },
-      { type: 'mirror', x: 2, z: 6, rot: 3 },
-      { type: 'mirror', x: 4, z: 4, rot: 2 },
-      { type: 'mirror', x: 4, z: 3, rot: 3 },
-      { type: 'mirror', x: 4, z: 2, rot: 2 },
-      { type: 'mirror', x: 3, z: 3, rot: 3, fixed: true },
-      { type: 'mirror', x: 0, z: 3, rot: 3 },
-      { type: 'mirror', x: 0, z: 2, rot: 0 },
-      { type: 'mirror', x: 3, z: 1, rot: 2 },
-      { type: 'mirror', x: 0, z: 1, rot: 0 },
-      { type: 'mirror', x: 0, z: 0, rot: 1 },
-      { type: 'mirror', x: 2, z: 0, rot: 1, fixed: true },
-      { type: 'target', x: 3, z: 4, color: 'blue' },
-    ],
-    solution: { '6,3': 3, '1,4': 3, '2,4': 1, '2,5': 1, '2,6': 0, '4,4': 0, '4,3': 1, '4,2': 1, '0,3': 1, '0,2': 3, '3,1': 1, '0,1': 1, '0,0': 3 },
-  },
-  {
     // Lösung: Spiegel (1,1) rot 3 · Spiegel (5,0) rot 0 · Spiegel (4,3) rot 3 · Spiegel (6,2) rot 1 ·
     //   Prisma (6,3) rot 4 · Spiegel (4,4) rot 3 · Spiegel (1,4) rot 3 · Spiegel (1,5) rot 3 ·
     //   Spiegel (0,5) rot 1 · Spiegel (5,4) rot 2 · Spiegel (6,5) rot 2 · Spiegel (5,6) rot 0 ·
     //   Spiegel (2,6) rot 1 · Prisma (4,6) rot 0
     // Generator sehr schwer-mischziel, Seed 357, Ziel 90,33–90,41 · ersetzt Spiegelkabinett (Austausch „sehr schwer“)
-    name: 'Weissabgleich', titel: 'Mumie', grad: 'sehr schwer',
+    name: 'Weissabgleich', titel: 'Albatros', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'green' },
       { type: 'source', x: 6, z: 1, dir: 5, color: 'red' },
@@ -7745,7 +7706,7 @@ const LEVELS = [
     //   Spiegel (0,0) rot 3 · Spiegel (6,0) rot 1 · Spiegel (5,0) rot 3 · Spiegel (6,5) rot 3 ·
     //   Spiegel (1,3) rot 3 · Spiegel (6,4) rot 1
     // Generator sehr schwer-abzaehlen, Seed 170, Ziel 96,18–99,16 · ersetzt Farbenrausch (Austausch „sehr schwer“)
-    name: 'Dreigestirn', titel: 'Sternwiege', grad: 'sehr schwer',
+    name: 'Dreigestirn', titel: 'Nova', grad: 'sehr schwer',
     elements: [
       { type: 'mirror', x: 4, z: 6, rot: 2 },
       { type: 'mirror', x: 4, z: 2, rot: 0 },
@@ -7776,43 +7737,12 @@ const LEVELS = [
     solution: { '4,6': 1, '4,2': 1, '2,2': 1, '2,6': 3, '1,2': 7, '1,1': 1, '4,1': 1, '6,1': 3, '0,0': 3, '6,0': 1, '5,0': 3, '6,5': 3, '1,3': 3, '6,4': 1 },
   },
   {
-    // Lösung: Prisma (2,2) rot 1 · Prisma (5,4) rot 4 · Spiegel (3,6) rot 0 · Spiegel (2,5) rot 0 ·
-    //   Spiegel (4,3) rot 2 · Spiegel (6,1) rot 2 · Spiegel (1,6) rot 0 · Spiegel (0,5) rot 2 ·
-    //   Prisma (5,6) rot 5 · Spiegel (4,5) rot 0 · Kombinator (2,4) dir 1
-    // Generator sehr schwer-sammelstelle, Seed 11205 · Ausbau „sehr schwer“
-    name: 'Shaula', titel: 'Südliches Kreuz', grad: 'sehr schwer',
-    elements: [
-      { type: 'prism', x: 2, z: 2, rot: 2 },
-      { type: 'source', x: 2, z: 0, dir: 2, color: 'cyan' },
-      { type: 'source', x: 0, z: 2, dir: 0, color: 'red' },
-      { type: 'target', x: 5, z: 5, color: 'cyan' },
-      { type: 'target', x: 4, z: 2, color: 'red' },
-      { type: 'source', x: 6, z: 4, dir: 4 },
-      { type: 'prism', x: 5, z: 4, rot: 1 },
-      { type: 'mirror', x: 3, z: 6, rot: 1 },
-      { type: 'mirror', x: 2, z: 5, rot: 1 },
-      { type: 'mirror', x: 4, z: 3, rot: 3 },
-      { type: 'mirror', x: 6, z: 1, rot: 1 },
-      { type: 'mirror', x: 1, z: 6, rot: 1 },
-      { type: 'mirror', x: 0, z: 5, rot: 3 },
-      { type: 'mirror', x: 4, z: 1, rot: 0, fixed: true },
-      { type: 'target', x: 6, z: 3, color: 'green' },
-      { type: 'source', x: 6, z: 5, dir: 3 },
-      { type: 'prism', x: 5, z: 6, rot: 2 },
-      { type: 'mirror', x: 4, z: 5, rot: 1 },
-      { type: 'target', x: 4, z: 6, color: 'white' },
-      { type: 'combiner', x: 2, z: 4, dir: 7 },
-      { type: 'target', x: 5, z: 0, color: 'blue' },
-    ],
-    solution: { '2,2': 1, '5,4': 4, '3,6': 0, '2,5': 0, '4,3': 2, '6,1': 2, '1,6': 0, '0,5': 2, '5,6': 5, '4,5': 0, '2,4': 1 },
-  },
-  {
     // Lösung: Prisma (2,4) rot 1 · Spiegel (2,6) rot 3 · Spiegel (3,4) rot 1 · Spiegel (3,5) rot 1 ·
     //   Spiegel (5,5) rot 3 · Spiegel (1,2) rot 2 · Prisma (2,3) rot 3 · Spiegel (5,1) rot 3 ·
     //   Spiegel (0,3) rot 1 · Spiegel (0,1) rot 3 · Spiegel (5,0) rot 1 · Spiegel (6,1) rot 1 ·
     //   Prisma (6,5) rot 1 · Spiegel (4,0) rot 3
     // Generator sehr schwer-falle, Seed 534, Ziel 91,29–96,51 · ersetzt Zenit (Austausch „sehr schwer“)
-    name: 'Azur', titel: 'Gasriese', grad: 'sehr schwer',
+    name: 'Azur', titel: 'Eisriese', grad: 'sehr schwer',
     elements: [
       { type: 'source', x: 0, z: 4, dir: 0, color: 'magenta' },
       { type: 'prism', x: 2, z: 4, rot: 2 },
@@ -7840,42 +7770,43 @@ const LEVELS = [
     solution: { '2,4': 1, '2,6': 3, '3,4': 1, '3,5': 1, '5,5': 3, '1,2': 2, '2,3': 3, '5,1': 3, '0,3': 1, '0,1': 3, '5,0': 1, '6,1': 1, '6,5': 1, '4,0': 3 },
   },
   {
-    // Lösung: Spiegel (5,3) rot 3 · Spiegel (5,4) rot 1 · Spiegel (6,4) rot 1 · Prisma (2,3) rot 7 ·
-    //   Spiegel (3,4) rot 3 · Prisma (6,2) rot 5 · Prisma (5,5) rot 7 · Spiegel (3,3) rot 1 ·
-    //   Prisma (2,5) rot 5 · Spiegel (1,4) rot 1
-    // Wertung 52.7 · 10 drehbar · 3 Ziele · Rateschritte 74084 · gehärtet aus Profil 3-spiegel, Seed 6144
-    name: 'Pulsar', titel: 'Samum', grad: 'sehr schwer',
+    // Lösung: Prisma (3,1) rot 0 · Spiegel (4,0) rot 0 · Prisma (4,5) rot 1 · Spiegel (1,0) rot 0 ·
+    //   Spiegel (4,2) rot 2 · Spiegel (4,6) rot 1 · Spiegel (6,6) rot 3 · Spiegel (2,2) rot 1 ·
+    //   Spiegel (0,2) rot 3 · Prisma (0,3) rot 2 · Spiegel (1,4) rot 0 · Prisma (4,3) rot 1
+    // Generator sehr schwer, Seed 40862 · Ausbau „sehr schwer“
+    name: 'Mirfak', titel: 'Südliches Kreuz', grad: 'sehr schwer',
     elements: [
-      { type: 'source', x: 2, z: 6, dir: 6 },
-      { type: 'source', x: 5, z: 6, dir: 6 },
-      { type: 'source', x: 6, z: 6, dir: 6 },
+      { type: 'source', x: 3, z: 0, dir: 2 },
+      { type: 'prism', x: 3, z: 1, rot: 7 },
+      { type: 'mirror', x: 4, z: 0, rot: 3 },
+      { type: 'source', x: 3, z: 6, dir: 7 },
+      { type: 'prism', x: 4, z: 5, rot: 7 },
       { type: 'mirror', x: 5, z: 1, rot: 0, fixed: true },
-      { type: 'mirror', x: 3, z: 3, rot: 2 },
-      { type: 'mirror', x: 5, z: 3, rot: 0 },
-      { type: 'mirror', x: 6, z: 3, rot: 3, fixed: true },
+      { type: 'target', x: 6, z: 0, color: 'magenta' },
+      { type: 'target', x: 5, z: 5, color: 'magenta' },
+      { type: 'source', x: 0, z: 1, dir: 7 },
+      { type: 'mirror', x: 1, z: 0, rot: 2 },
+      { type: 'mirror', x: 4, z: 2, rot: 3 },
+      { type: 'mirror', x: 4, z: 6, rot: 0 },
+      { type: 'mirror', x: 3, z: 3, rot: 2, fixed: true },
+      { type: 'target', x: 4, z: 1, color: 'yellow' },
+      { type: 'mirror', x: 6, z: 6, rot: 1 },
+      { type: 'source', x: 2, z: 6, dir: 6 },
+      { type: 'mirror', x: 2, z: 2, rot: 0 },
+      { type: 'mirror', x: 0, z: 2, rot: 2 },
+      { type: 'prism', x: 0, z: 3, rot: 4 },
       { type: 'mirror', x: 1, z: 4, rot: 2 },
-      { type: 'mirror', x: 3, z: 4, rot: 2 },
-      { type: 'mirror', x: 5, z: 4, rot: 2 },
-      { type: 'mirror', x: 6, z: 4, rot: 3 },
-      { type: 'mirror', x: 0, z: 5, rot: 3, fixed: true },
-      { type: 'prism', x: 6, z: 2, rot: 7 },
-      { type: 'prism', x: 2, z: 3, rot: 0 },
-      { type: 'prism', x: 2, z: 5, rot: 7 },
-      { type: 'prism', x: 5, z: 5, rot: 0 },
-      { type: 'filter', x: 6, z: 5, color: 'cyan' },
-      { type: 'blocker', x: 4, z: 5 },
-      { type: 'target', x: 6, z: 1, color: 'blue' },
-      { type: 'target', x: 1, z: 3, color: 'blue' },
-      { type: 'target', x: 3, z: 6, color: 'red' },
+      { type: 'prism', x: 4, z: 3, rot: 7 },
+      { type: 'target', x: 5, z: 3, color: 'red' },
     ],
-    solution: { '5,3': 3, '5,4': 1, '6,4': 1, '2,3': 7, '3,4': 3, '6,2': 5, '5,5': 7, '3,3': 1, '2,5': 5, '1,4': 1 },
+    solution: { '3,1': 0, '4,0': 0, '4,5': 1, '1,0': 0, '4,2': 2, '4,6': 1, '6,6': 3, '2,2': 1, '0,2': 3, '0,3': 2, '1,4': 0, '4,3': 1 },
   },
   {
     // Lösung: Spiegel (3,1) rot 1 · Spiegel (3,4) rot 1 · Spiegel (1,4) rot 3 · Spiegel (1,1) rot 3 ·
     //   Spiegel (4,2) rot 3 · Spiegel (6,2) rot 1 · Spiegel (6,4) rot 3 · Spiegel (0,4) rot 1 ·
     //   Prisma (3,5) rot 7 · Spiegel (6,5) rot 1 · Spiegel (5,6) rot 1 · Spiegel (5,0) rot 1
     // Generator sehr schwer-abzaehlen, Seed 101, Ziel 90,55–96,17 · ersetzt Ereignishorizont (Austausch „sehr schwer“)
-    name: 'Umlaufbahn', titel: 'Skorpion', grad: 'sehr schwer',
+    name: 'Umlaufbahn', titel: 'Atoll', grad: 'sehr schwer',
     elements: [
       { type: 'mirror', x: 3, z: 1, rot: 3 },
       { type: 'mirror', x: 3, z: 4, rot: 0 },
@@ -7930,6 +7861,71 @@ const LEVELS = [
       { type: 'target', x: 0, z: 4, color: 'blue' },
     ],
     solution: { '2,1': 0, '0,3': 2, '1,3': 1, '4,6': 0, '5,5': 2, '4,4': 0, '1,5': 3, '0,5': 1, '4,2': 7, '5,2': 1, '5,4': 1 },
+  },
+  {
+    // Lösung: Prisma (2,0) rot 3 · Spiegel (0,2) rot 2 · Spiegel (4,5) rot 3 · Spiegel (6,5) rot 1 ·
+    //   Prisma (6,6) rot 4 · Spiegel (5,6) rot 1 · Spiegel (5,2) rot 3 · Spiegel (4,4) rot 0 ·
+    //   Spiegel (2,6) rot 0 · Spiegel (1,5) rot 0 · Spiegel (6,2) rot 1 · Prisma (1,2) rot 7 ·
+    //   Spiegel (5,1) rot 1
+    // Generator sehr schwer-sammelstelle, Seed 42541 · Ausbau „sehr schwer“
+    name: 'Alpheratz', titel: 'Fixstern', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 2, z: 0, rot: 2 },
+      { type: 'source', x: 6, z: 0, dir: 4, color: 'yellow' },
+      { type: 'source', x: 6, z: 4, dir: 5, color: 'blue' },
+      { type: 'target', x: 2, z: 4, color: 'yellow' },
+      { type: 'target', x: 1, z: 0, color: 'magenta' },
+      { type: 'mirror', x: 0, z: 2, rot: 3 },
+      { type: 'source', x: 4, z: 6, dir: 6 },
+      { type: 'mirror', x: 4, z: 5, rot: 0 },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'prism', x: 6, z: 6, rot: 0 },
+      { type: 'mirror', x: 5, z: 6, rot: 2 },
+      { type: 'mirror', x: 5, z: 2, rot: 1 },
+      { type: 'mirror', x: 4, z: 4, rot: 3 },
+      { type: 'mirror', x: 2, z: 6, rot: 1 },
+      { type: 'mirror', x: 1, z: 5, rot: 3 },
+      { type: 'mirror', x: 6, z: 2, rot: 2 },
+      { type: 'target', x: 6, z: 3, color: 'green' },
+      { type: 'source', x: 0, z: 3, dir: 7 },
+      { type: 'prism', x: 1, z: 2, rot: 1 },
+      { type: 'mirror', x: 5, z: 1, rot: 3 },
+      { type: 'target', x: 0, z: 1, color: 'blue' },
+      { type: 'target', x: 0, z: 6, color: 'blue' },
+    ],
+    solution: { '2,0': 3, '0,2': 2, '4,5': 3, '6,5': 1, '6,6': 4, '5,6': 1, '5,2': 3, '4,4': 0, '2,6': 0, '1,5': 0, '6,2': 1, '1,2': 7, '5,1': 1 },
+  },
+  {
+    // Lösung: Prisma (3,1) rot 3 · Spiegel (4,2) rot 2 · Prisma (5,3) rot 5 · Spiegel (5,2) rot 3 ·
+    //   Spiegel (6,2) rot 1 · Spiegel (6,5) rot 3 · Prisma (0,4) rot 6 · Spiegel (2,0) rot 3 ·
+    //   Spiegel (3,6) rot 1 · Spiegel (0,1) rot 3 · Spiegel (2,5) rot 1
+    // Generator sehr schwer-sammelstelle, Seed 50914, Ziel 96–112 · Ausbau „sehr schwer“
+    name: 'Alkaid', titel: 'Sternhaufen', grad: 'sehr schwer',
+    elements: [
+      { type: 'prism', x: 3, z: 1, rot: 0 },
+      { type: 'source', x: 6, z: 1, dir: 4, color: 'red' },
+      { type: 'source', x: 0, z: 6, dir: 7, color: 'cyan' },
+      { type: 'mirror', x: 4, z: 2, rot: 0 },
+      { type: 'target', x: 3, z: 4, color: 'magenta' },
+      { type: 'target', x: 1, z: 3, color: 'white' },
+      { type: 'source', x: 5, z: 6, dir: 6 },
+      { type: 'prism', x: 5, z: 3, rot: 3 },
+      { type: 'mirror', x: 2, z: 1, rot: 1, fixed: true },
+      { type: 'mirror', x: 5, z: 2, rot: 1 },
+      { type: 'mirror', x: 6, z: 2, rot: 3 },
+      { type: 'mirror', x: 6, z: 5, rot: 0 },
+      { type: 'mirror', x: 4, z: 5, rot: 3, fixed: true },
+      { type: 'mirror', x: 4, z: 6, rot: 3, fixed: true },
+      { type: 'target', x: 6, z: 0, color: 'cyan' },
+      { type: 'source', x: 2, z: 6, dir: 5 },
+      { type: 'prism', x: 0, z: 4, rot: 0 },
+      { type: 'mirror', x: 2, z: 0, rot: 1 },
+      { type: 'mirror', x: 3, z: 6, rot: 2 },
+      { type: 'mirror', x: 0, z: 1, rot: 0 },
+      { type: 'mirror', x: 2, z: 5, rot: 0 },
+      { type: 'target', x: 4, z: 4, color: 'green' },
+    ],
+    solution: { '3,1': 3, '4,2': 2, '5,3': 5, '5,2': 3, '6,2': 1, '6,5': 3, '0,4': 6, '2,0': 3, '3,6': 1, '0,1': 3, '2,5': 1 },
   },
   /* LEVELS:END */
 ];
@@ -8018,21 +8014,18 @@ const STORY_LEVELS = {
   ],
   'sehr schwer': [
     // Bergwald
-    ['Sternenstaub', 'Kanopus', 'Fomalhaut', 'Spica', 'Lichtfächer', 'Galaxis', 'Abendstern', 'Wega', 'Kapella',
-     'Andromeda'],
+    ['Kanopus', 'Sternenstaub', 'Fomalhaut', 'Kapella', 'Ankaa', 'Albireo', 'Lichtfächer', 'Dubhe', 'Diphda', 'Alioth'],
     // Meer
-    ['Sirius', 'Kastor', 'Atair', 'Hyaden', 'Spiralnebel', 'Sonnenwind', 'Aldebaran', 'Arktur', 'Lichtkegel', 'Deneb'],
+    ['Kastor', 'Aldebaran', 'Hamal', 'Sirius', 'Atair', 'Spiralnebel', 'Alhena', 'Lichtkegel', 'Umlaufbahn',
+     'Weissabgleich'],
     // Wüste
-    ['Abendrot', 'Morgenröte', 'Weissabgleich', 'Regulus', 'Umlaufbahn', 'Kugelsternhaufen', 'Pulsar', 'Weisser Zwerg',
-     'Gravitation', 'Pollux'],
+    ['Morgenröte', 'Enif', 'Pollux', 'Kochab', 'Leitstern', 'Gravitation', 'Rigel', 'Menkar', 'Mintaka', 'Sadr'],
     // Vulkan
-    ['Antares', 'Rigel', 'Alkor', 'Leitstern', 'Roter Riese', 'Plejaden', 'Prokyon', 'Mizar', 'Orion', 'Algol'],
+    ['Merak', 'Nunki', 'Mizar', 'Alkor', 'Izar', 'Prokyon', 'Saiph', 'Orion', 'Gezeitenkraft', 'Beteigeuze'],
     // Planeten
-    ['Beteigeuze', 'Gezeitenkraft', 'Azur', 'Bellatrix', 'Milchstrasse', 'Achernar', 'Magellanwolke', 'Neutronenstern',
-     'Alnilam', 'Thuban'],
+    ['Markab', 'Algol', 'Bellatrix', 'Azur', 'Achernar', 'Schedir', 'Alnilam', 'Megrez', 'Magellanwolke', 'Thuban'],
     // Sterne
-    ['Alphard', 'Dreigestirn', 'Raumzeit', 'Hadar', 'Konjunktion', 'Schwarzes Loch', 'Sternnebel', 'Kassiopeia',
-     'Shaula', 'Mira'],
+    ['Hadar', 'Alphard', 'Wezen', 'Kassiopeia', 'Alpheratz', 'Dreigestirn', 'Konjunktion', 'Alkaid', 'Mirfak', 'Mira'],
   ],
   /* GESCHICHTE:END */
 };
