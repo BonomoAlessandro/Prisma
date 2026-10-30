@@ -118,20 +118,26 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Leveldaten (`tests/vor-dem-umbau.json`: je Name ein Abdruck, aus `index.html` im Stand `fc22df1`), dazu nur die 15
     neuen sehr schweren, alle Würfel-Level im Vorrat; mit Gegenproben.
   - `node tests/geschichte.test.mjs` prüft die Wahl der 240 Level für Noas Geschichte (`.scratch/noa-geschichte/`,
-    Ticket 03; nur über `leise.sh`, etwa 3 min: Beurteilung des Pools, die Wahl neu und der Löser): `tools/geschichte/
-    wahl.json` ist nachbaubar (neu gerechnet byte-gleich), 4 × 60 Level, je Welt 10 auf den Plätzen 1–10, der Grad aus
-    den Leveldaten, Welt *w* mit den Rängen 10·*w* … 10·*w*+9 nach Schwierigkeit, höchstens 2 Plätze vertauscht, jede
-    Welt in ihrem Abschnitt des Pools (in «sehr schwer» statt dessen höchstens 3 Plätze vom Rang im Grad, auch über die
-    Weltgrenze, Entscheid des Nutzers vom 29.10.2026), dieselbe Haupt-Kernidee höchstens zweimal je 10
-    aufeinanderfolgende Level auch über die Weltgrenzen (in «sehr schwer» genau die Verstösse, die die Wahl selbst
-    nennt, weil es dort auch mit 3 Plätzen nicht aufgeht), keine zwei zu ähnlich, kein abgelehntes, genau eine Lösung,
-    die Titel aus `titel.json` (eindeutig über Titel und Namen, Regeln der Spec) und die Schlüssel der 15 neuen sehr
-    schweren Level (seit Ticket 04 je einmal im Spiel, mit denselben Leveldaten); dazu Gegenproben an erfundenen
-    Änderungen und Pools (auch zur Regel der 3 Plätze über die Weltgrenze und, gegen alle Anordnungen eines kleinen
-    Falls, zur kleinsten Verschiebung). Die Wahl im Spiel (Ticket 04): `index.html` enthält das Tutorial und genau die
-    240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe, keine Würfel-Level; der Datenblock der Geschichte
-    (`STORY_LEVELS`) ist die Reise aus `wahl.json`; `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien
-    der Texte ein Level der Wahl aus dem Vorrat zurück und ein anderes hin (ohne Titel), byte-gleich.
+    Ticket 03; nur über `leise.sh`, etwa 5 min: Beurteilung des Pools, die Wahl neu samt Suche in «sehr schwer»
+    und der Löser): `tools/geschichte/wahl.json` ist nachbaubar (neu gerechnet byte-gleich), 4 × 60 Level, je Welt 10
+    auf den Plätzen 1–10, der Grad aus den Leveldaten, Welt *w* mit den Rängen 10·*w* … 10·*w*+9 nach Schwierigkeit,
+    höchstens 2 Plätze vertauscht, jede Welt in ihrem Abschnitt des Pools (in «sehr schwer» statt dessen höchstens
+    3 Plätze vom Rang im Grad, auch über die Weltgrenze, Entscheid des Nutzers vom 29.10.2026), dieselbe Haupt-Kernidee
+    höchstens zweimal je 10 aufeinanderfolgende Level auch über die Weltgrenzen, in allen Graden ohne Verstoss, keine
+    zwei zu ähnlich, kein abgelehntes, genau eine Lösung, die Titel aus `titel.json` (eindeutig über Titel und Namen,
+    Regeln der Spec) und die Schlüssel der 15 neuen sehr schweren Level (seit Ticket 04 je einmal im Spiel, mit
+    denselben Leveldaten). Seit Ticket 09: «sehr schwer» wählt 60 aus mehr (Spiel, Vorrat und die beurteilten
+    Kandidaten aus `tools/geschichte/sehr-schwer-kandidaten.json`), die am besten bewerteten gehen nicht auf, die
+    gewählten schon, Summe der Ränge in der Bewertung nicht schlechter als die Analyse; «leicht», «mittel» und «schwer»
+    unverändert (Prüfsumme); die Schlüssel der gewählten Kandidaten eindeutig in jeder Schreibung, Kandidaten nur mit
+    gutem Urteil; `ausbauListe` für `ordne-level.mjs --ausbau`. Dazu Gegenproben an erfundenen Änderungen und Pools
+    (auch zur Regel der 3 Plätze über die Weltgrenze, gegen alle Anordnungen eines kleinen Falls zur kleinsten
+    Verschiebung und gegen alle Mengen kleiner Fälle zur Suche über den ganzen Grad). Die Wahl im Spiel (Ticket 04):
+    `index.html` enthält das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe,
+    keine Würfel-Level; der Datenblock der Geschichte (`STORY_LEVELS`) ist die Reise aus `wahl.json`;
+    `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien der Texte ein Level der Wahl aus dem Vorrat zurück
+    und ein anderes hin (ohne Titel), byte-gleich. Diese drei Tests sind im Branch von Ticket 09 rot, bis die neuen
+    Level eingebaut sind (Schrittfolge im Ticket).
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
     [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht]` spielt Noas Geschichte
     in Headless-Chrome über das Menü (Tickets 04 bis 06; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
@@ -679,13 +685,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Wahl für Noas Geschichte** (`.scratch/noa-geschichte/`, Ticket 03; nur für die Entwicklung):
   `LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]` wählt je Grad die 60 Level der
   Geschichte aus den flachen Leveln des Grads (Spiel und Vorrat, für «sehr schwer» dazu die 15 aus
-  `tools/geschichte/sehr-schwer-neu.json`) und verteilt sie auf die 6 Welten zu je 10 (etwa 30 s): ohne abgelehnte
-  (beide KI-Tester, Ausschlussgrund, ab «mittel» unter dem Mindest-Spielwert), nach der Bewertung (Gefühl und Aha der
-  KI-Tester, dann Spielwert; ohne Urteil aus dem Spielwert geschätzt), die Vielfalt vor der Bewertung, je Welt ein
-  Sechstel des Pools nach Schwierigkeit (in «sehr schwer» über den ganzen Grad, höchstens 3 Plätze vom Rang, auch über
-  die Weltgrenze). Regeln, Entscheide und Abweichungen im Kopf des Werkzeugs; das Ergebnis mit
-  Begründung je Level in `tools/geschichte/wahl.json`. Die Titel stehen von Hand in `tools/geschichte/titel.json` (je
-  Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
+  `tools/geschichte/sehr-schwer-neu.json` und seit Ticket 09 die beurteilten Kandidaten aus
+  `tools/geschichte/sehr-schwer-kandidaten.json`) und verteilt sie auf die 6 Welten zu je 10 (etwa 75 s): ohne
+  abgelehnte (beide KI-Tester, Ausschlussgrund, ab «mittel» unter dem Mindest-Spielwert, Kandidaten ohne gutes
+  Urteil), nach der Bewertung (Gefühl und Aha der KI-Tester, dann Spielwert; ohne Urteil aus dem Spielwert geschätzt),
+  die Vielfalt vor der Bewertung, je Welt ein Sechstel des Pools nach Schwierigkeit (in «sehr schwer» über den ganzen
+  Grad: die 60 mit der kleinsten Summe der Ränge in der Bewertung, die sich mit höchstens 3 Plätzen vom Rang, auch über
+  die Weltgrenze, ohne Verstoss anordnen lassen; Suche mit Strahl und Nachbessern). Regeln, Entscheide und
+  Abweichungen im Kopf des Werkzeugs; das Ergebnis mit Begründung je Level in `tools/geschichte/wahl.json`. Wählt es
+  einen Kandidaten ohne Schlüssel, bricht es ab, bis der Kandidat in `sehr-schwer-kandidaten.json` einen Sternnamen
+  hat (eindeutig in jeder Schreibung); `node tools/geschichte.mjs ausbau <datei>` schreibt die gewählten Kandidaten,
+  die noch nicht in Spiel oder Vorrat stehen, für `ordne-level.mjs --ausbau`. Die Titel stehen von Hand in
+  `tools/geschichte/titel.json` (je Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
   neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
   In `index.html` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
   (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es

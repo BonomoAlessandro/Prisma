@@ -5,6 +5,13 @@
 // - Pool je Grad: die flachen Level des Grads aus Spiel und Vorrat (ALLE im Lader, ohne Tutorial), für «sehr schwer»
 //   dazu die 15 aus sehr-schwer-neu.json (unter ihrem Schlüssel name; die KI-Tester kennen sie als Kandidat). Seit
 //   Ticket 04 stehen sie im Spiel (ordne-level.mjs --ausbau) und gelten dort weiter als die neuen (poolLevel).
+//   Seit Ticket 09 kommen die 35 beurteilten Kandidaten aus sehr-schwer-kandidaten.json dazu (ersatz; aus Ticket 01,
+//   Lauf ausbau-noa-1 der KI-Tester): unter ihrem Schlüssel, ohne Schlüssel unter dem Namen bei den KI-Testern. Wen
+//   die Wahl nimmt, der bekommt von Hand einen Schlüssel (Sternname wie die übrigen sehr schweren, eindeutig in jeder
+//   Schreibung über alle Namen, Titel und entfernten Namen: namenFehler) und kommt beim Einbau ins Spiel (Befehl
+//   ausbau, dann ordne-level.mjs --ausbau); dort gilt er weiter als Kandidat aus der Liste, so bleibt die Wahl
+//   dieselbe.
+//   Die Platzhalter, die die Wahl nicht mehr nimmt, legt spiel in den Vorrat; sie bleiben im Pool.
 // - Abgelehnt (kommt nicht in Frage; Auslegung von «kein von beiden abgelehntes Level», bestätigt als Entscheid des
 //   Nutzers vom 29.10.2026: ausgeschlossen, wenn die KI-Tester oder die Beurteilung ablehnen):
 //   - von den KI-Testern: In einem Urteil nennen beide einen Begriff aus «Was Spass verdirbt», der beim heutigen Grad
@@ -15,6 +22,8 @@
 //     Level nach spielwert.mjs nicht ins Spiel). In «leicht» gibt es keinen Mindest-Spielwert. Das trifft auch die
 //     Level, die nach dem Urteil der KI-Tester im Spiel behalten wurden (behalten in levelliste.json); sie kommen nicht
 //     in die Geschichte.
+//   - Ein Kandidat aus sehr-schwer-kandidaten.json kommt dazu nur mit gutem Urteil in Frage (Regel der Wahl in Ticket
+//     01: Gefühl im Mittel ab GUT_AB, Aha bei mindestens einem; gutesUrteil); heute fällt so 525422a7 weg.
 // - Bewertung (bewertung): zuerst das Gefühl im Mittel über alle Urteile beider KI-Tester, dann der Anteil der Urteile
 //   mit Aha-Moment, dann der Spielwert (wie bei der Wahl der 15 neuen, Ticket 01). Ohne Urteil stützt sie sich auf den
 //   Spielwert: Gefühl und Aha sind dann das Mittel der SCHAETZEN_AUS beurteilten Level desselben Grads mit dem
@@ -38,24 +47,31 @@
 //   welchem es kam und warum.
 // - Anordnung: Unter allen Anordnungen, die die Regeln erfüllen, die mit den wenigsten Vertauschungen (kleinste Summe
 //   der Abstände von Platz und Rang über den Grad), bei Gleichstand je Welt die erste in der Reihenfolge der Ränge.
-// - «sehr schwer» (Entscheid des Nutzers vom 29.10.2026, UEBER_GRENZEN): Der Pool ist genau 60, es gibt keine Wahl,
-//   und schon in den Sechsteln steht eine Haupt-Kernidee drei- oder viermal; mit den Rängen je Welt geht die Vielfalt
-//   darum nicht auf. Nur in diesem Grad steht ein Level statt dessen höchstens 3 Plätze von seinem Rang im Grad (1–60),
-//   auch über eine Weltgrenze (Welt w hat dann nicht genau die Ränge 10·w … 10·w+9), und die Vielfalt soll ganz
-//   aufgehen. Unter den Anordnungen, die das erfüllen, die mit der kleinsten Summe der Verschiebungen, dann den
-//   wenigsten verschobenen Leveln, dann die erste nach Rang (ordneUeberGrenzen). Geht es auch so nicht ganz auf (heute
-//   so: mit je 12 von fünf Haupt-Kernideen müsste die Folge streng im Takt von 10 laufen, und die Schwierigkeit häuft
-//   etwa viermal Falle unter den zehn schwersten; es geht auch mit 7 Plätzen nicht, gerechnet), wird nicht weiter
-//   gelockert: die Anordnung mit höchstens 3 Plätzen, die das kleinste Zuviel hat (Summe über alle Fenster, wie oft
-//   eine Haupt-Kernidee mehr als HOECHSTENS-mal vorkommt), dann wie oben. Die Verstösse stehen im Ergebnis
-//   (verstoesse) und im Bericht. Bei mehr als 60 im Pool wählte es wie in den übrigen Graden (das hält die Regel
-//   ohnehin ein).
+// - «sehr schwer» (Entscheid des Nutzers vom 29.10.2026, UEBER_GRENZEN): Mit den Rängen je Welt ging die Vielfalt hier
+//   nicht auf (die 60 Level von Ticket 03 hatten fast nur 5 Haupt-Kernideen zu je 12, und schon in den Sechsteln stand
+//   eine drei- oder viermal). Nur in diesem Grad steht ein Level statt dessen höchstens 3 Plätze von seinem Rang unter
+//   den 60 gewählten (1–60), auch über eine Weltgrenze (Welt w hat dann nicht genau die Ränge 10·w … 10·w+9), und die
+//   Vielfalt soll ganz aufgehen. Seit Ticket 09 (Entscheide des Koordinators und des Nutzers vom 30.10.2026) wählt es
+//   dazu 60 aus dem grösseren Pool nach denselben Regeln wie die übrigen Grade, nur über den ganzen Grad statt je Welt
+//   (waehleUeberGrenzen): kein abgelehntes, keines einem gewählten Level eines anderen Grads oder einem besser
+//   bewerteten des Pools zu ähnlich; gehen die 60 am besten bewerteten auf, gelten sie; sonst Vielfalt vor Bewertung,
+//   die Menge mit der kleinsten Summe der Ränge in der Bewertung, die sich so anordnen lässt (wie besteMenge, so gehen
+//   die nächstbesten Level mit anderer Haupt-Kernidee vor; die Suche besteMengeUeberGrenzen ist ein Strahl mit
+//   Nachbessern, keine genaue Suche, Begründung dort). Die Sechstel gelten hier nicht; der Abschnitt einer Welt im
+//   Ergebnis ist der Teil des Pools, aus dem ihre Ränge kommen. Angeordnet: unter den Anordnungen, die die Regel
+//   erfüllen, die mit der kleinsten Summe der Verschiebungen, dann den wenigsten verschobenen Leveln, dann die erste
+//   nach Rang (ordneUeberGrenzen). Geht es mit keiner Menge ganz auf, wird nicht weiter gelockert: die 60 am besten
+//   bewerteten in der Anordnung mit höchstens 3 Plätzen, die das kleinste Zuviel hat (Summe über alle Fenster, wie oft
+//   eine Haupt-Kernidee mehr als HOECHSTENS-mal vorkommt), dann wie oben; die Verstösse stehen im Ergebnis
+//   (verstoesse) und im Bericht. Mit den Kandidaten von Ticket 09 geht es ganz auf (keine Verstösse); die Zahlen der
+//   Suche (Summe der Ränge ab 0 gezählt, untere Schranke, ohne Vielfalt) stehen in wahl.json unter suche.
 // - Geht die Vielfalt in einem anderen Grad gar nicht auf (keine Wahl, und keine Grenze lässt sich verschieben), wird
 //   ebenso nichts gelockert: Ränge und Vertauschungen wie oben, und die Anordnung mit dem kleinsten Zuviel, bei
 //   Gleichstand mit den wenigsten Vertauschungen (ohneVielfalt). Heute kommt das nicht vor.
 // - Titel (titel.json): je Welt und Grad 10, in der Reihenfolge der Plätze; der Titel auf Platz k gehört dem Level auf
-//   Platz k. Eindeutig über alle Titel und alle Namen in Spiel, Vorrat und der 15 neuen (Gross- und Kleinschreibung
-//   egal), keiner von der Liste entfernter Level, ein oder zwei Wörter, «ss» statt «ß» (titelFehler).
+//   Platz k. Eindeutig über alle Titel und alle Namen in Spiel, Vorrat, der 15 neuen und der Kandidaten mit Schlüssel
+//   (Gross- und Kleinschreibung egal), keiner von der Liste entfernter Level, ein oder zwei Wörter, «ss» statt «ß»
+//   (titelFehler).
 // - Ins Spiel (Befehl spiel, Ticket 04): index.html enthält danach das Tutorial und genau die 240 Level aus wahl.json,
 //   jedes mit seinem Titel (Feld titel hinter dem Namen); die übrigen flachen Level und alle Würfel-Level legt es in
 //   den Vorrat (vorrat.mjs), ohne Titel. Level der Wahl, die im Vorrat liegen, holt es zurück. Zwischen
@@ -64,13 +80,17 @@
 //   Level im Spiel ordnet es nicht um: So setzt der Lader die Reihe der flachen Level und die der Würfel-Level
 //   unverändert wieder zusammen. Ein Level der Wahl, das weder im Spiel noch im Vorrat steht, muss zuerst ins Spiel
 //   (neue Level über ordne-level.mjs --ausbau, mit allen flachen Leveln im Spiel); dann bricht es ab. Ein zweiter Lauf
-//   ändert nichts. Nach einer neuen Wahl oder neuen Titeln: wahl bzw. titel, dann spiel.
-// Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]   (etwa 30 s; --trocken: nur der
-//           Bericht, ohne wahl.json zu schreiben)
+//   ändert nichts. Nach einer neuen Wahl oder neuen Titeln: wahl bzw. titel, dann spiel. Neue Kandidaten aus
+//   sehr-schwer-kandidaten.json bringt der Befehl ausbau in die Form für ordne-level.mjs --ausbau (ausbauListe).
+// Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]   (etwa 75 s, davon die Suche in
+//           «sehr schwer» etwa 50 s; --trocken: nur der Bericht, ohne wahl.json zu schreiben; ohne --trocken bricht es
+//           ab, solange ein gewählter Kandidat keinen Schlüssel hat)
 //         node tools/geschichte.mjs titel   (nach einer Änderung in titel.json: ordnet die Titel neu zu, ohne neue
 //           Wahl)
 //         node tools/geschichte.mjs spiel [--trocken]   (bringt wahl.json ins Spiel, siehe oben; --trocken: nur der
 //           Bericht)
+//         node tools/geschichte.mjs ausbau <datei>   (die gewählten Kandidaten, die noch nicht in Spiel oder Vorrat
+//           stehen, als JSON-Zeilen für ordne-level.mjs --ausbau <datei>)
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { ALLE } from './lader.mjs';
@@ -103,8 +123,12 @@ export const HOECHSTENS = HAUPT_KERNIDEE_JE_10;
 /** Ohne Urteil der KI-Tester: Gefühl und Aha aus so vielen beurteilten Leveln mit dem nächsten Spielwert. */
 export const SCHAETZEN_AUS = 10;
 
+/** Kandidaten aus sehr-schwer-kandidaten.json kommen nur mit Gefühl im Mittel ab diesem Wert und Aha in Frage. */
+export const GUT_AB = 3;
+
 export const DATEIEN = {
   neu: new URL('./geschichte/sehr-schwer-neu.json', import.meta.url),
+  kandidaten: new URL('./geschichte/sehr-schwer-kandidaten.json', import.meta.url),
   wahl: new URL('./geschichte/wahl.json', import.meta.url),
   titel: new URL('./geschichte/titel.json', import.meta.url),
 };
@@ -126,29 +150,63 @@ export function neueLevel(datei = DATEIEN.neu) {
 }
 
 /**
- * Der Pool aller Grade (siehe Kopf), je { name, level, grad, kandidat (Name bei den KI-Testern, falls anders), neu }.
- * Seit Ticket 04 stehen die neuen Level im Spiel (über ordne-level.mjs --ausbau); dann kommen sie aus ALLE wie die
- * übrigen und gelten weiter als neu (mit ihrem Kandidaten), so bleibt die Wahl dieselbe. Ein neues Level ohne
- * Schlüssel, mit einem anderen Grad oder mit einem Namen, unter dem andere Leveldaten in Spiel oder Vorrat stehen,
- * bricht ab.
+ * Die beurteilten Kandidaten für «sehr schwer» aus sehr-schwer-kandidaten.json (Ticket 09): je { level, kandidat,
+ * auftrag, seed }. Der Schlüssel level.name ist leer, bis die Wahl ein Level nimmt; dann ein Sternname (von Hand).
  */
-export function poolLevel(neue = neueLevel()) {
+export function kandidatenLevel(datei = DATEIEN.kandidaten) {
+  return JSON.parse(readFileSync(datei, 'utf8')).level.map(e => ({ level: e.level, kandidat: e.kandidat,
+    auftrag: e.auftrag, seed: e.seed }));
+}
+
+/**
+ * Der Pool aller Grade (siehe Kopf), je { name, level, grad, kandidat (Name bei den KI-Testern, falls anders), neu,
+ * ersatz (aus sehr-schwer-kandidaten.json) }. Seit Ticket 04 stehen die neuen Level im Spiel (über ordne-level.mjs
+ * --ausbau); dann kommen sie aus ALLE wie die übrigen und gelten weiter als neu (mit ihrem Kandidaten), so bleibt die
+ * Wahl dieselbe. Ebenso die Kandidaten aus Ticket 09, sobald sie im Spiel stehen; bis dahin heissen sie im Pool nach
+ * ihrem Schlüssel oder, ohne Schlüssel, wie bei den KI-Testern. Ein neues Level ohne Schlüssel, mit einem anderen Grad
+ * oder mit einem Namen, unter dem andere Leveldaten in Spiel oder Vorrat stehen, bricht ab; ebenso ein Kandidat, dessen
+ * Leveldaten nicht zum Kandidatennamen passen oder ohne Schlüssel schon in Spiel oder Vorrat stehen.
+ */
+export function poolLevel(neue = neueLevel(), kandidaten = kandidatenLevel()) {
   const neuNach = new Map(neue.map(n => [n.level.name, n]));
-  const main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).map(level => ({ name: level.name, level, grad: level.grad,
-    kandidat: neuNach.get(level.name)?.kandidat ?? null, neu: neuNach.has(level.name) }));
+  const ersatzNach = new Map(kandidaten.filter(k => k.level.name).map(k => [k.level.name, k]));
+  const main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).map((level) => {
+    const k = neuNach.get(level.name) ?? ersatzNach.get(level.name);
+    return { name: level.name, level, grad: level.grad, kandidat: k?.kandidat ?? null, neu: !!k,
+      ersatz: ersatzNach.has(level.name) };
+  });
   const vorhanden = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
-  for (const n of neue) {
+  const pruefeNeu = (n, datei) => {
     const name = n.level.name, da = vorhanden.get(name);
-    if (!name) throw new Error(`sehr-schwer-neu.json: ${n.kandidat} ohne Schlüssel (name)`);
+    if (!name) throw new Error(`${datei}: ${n.kandidat} ohne Schlüssel (name)`);
     if (da && (da.dim === 3 || da.tutorial || abdruck(da) !== abdruck(n.level) || da.grad !== n.level.grad)) {
-      throw new Error(`sehr-schwer-neu.json: ${name} gibt es schon in Spiel oder Vorrat, mit anderen Leveldaten`);
+      throw new Error(`${datei}: ${name} gibt es schon in Spiel oder Vorrat, mit anderen Leveldaten`);
     }
-    if (n.level.grad !== GRADE[3]) throw new Error(`sehr-schwer-neu.json: ${name} hat den Grad ${n.level.grad}`);
+    if (n.level.grad !== GRADE[3]) throw new Error(`${datei}: ${name} hat den Grad ${n.level.grad}`);
+  };
+  for (const n of neue) pruefeNeu(n, 'sehr-schwer-neu.json');
+  const flach = new Map(ALLE.LEVELS.map(l => [kandidatName(l), l.name]));
+  for (const k of kandidaten) {
+    const datei = 'sehr-schwer-kandidaten.json';
+    if (kandidatName(k.level) !== k.kandidat) throw new Error(`${datei}: ${k.kandidat} passt nicht zu den Leveldaten`);
+    if (k.level.name) pruefeNeu(k, datei);
+    else if (flach.has(k.kandidat)) {
+      throw new Error(`${datei}: ${k.kandidat} ohne Schlüssel, steht aber als ${flach.get(k.kandidat)} in Spiel oder `
+        + 'Vorrat');
+    }
   }
-  const dazu = neue.filter(n => !vorhanden.has(n.level.name)).map(n => ({ name: n.level.name, level: n.level,
-    grad: n.level.grad, kandidat: n.kandidat, neu: true }));
+  const dazu = [
+    ...neue.filter(n => !vorhanden.has(n.level.name)).map(n => ({ name: n.level.name, level: n.level,
+      grad: n.level.grad, kandidat: n.kandidat, neu: true, ersatz: false })),
+    ...kandidaten.filter(k => !vorhanden.has(k.level.name)).map(k => ({ name: k.level.name || k.kandidat,
+      level: k.level.name ? k.level : { ...k.level, name: k.kandidat }, grad: k.level.grad, kandidat: k.kandidat,
+      neu: true, ersatz: true })),
+  ];
   return [...main, ...dazu];
 }
+
+/** Hat ein Kandidat aus sehr-schwer-kandidaten.json ein gutes Urteil (urteil wie urteilAus; Ticket 01)? */
+export const gutesUrteil = (u) => !!u && u.gefuehl >= GUT_AB && u.aha > 0;
 
 /** Die flachen Urteile zu einem Level: unter seinem Namen oder als Kandidat (eintraege: alleUrteile). */
 export const urteileZu = (p, eintraege) => {
@@ -165,7 +223,8 @@ export function urteilAus(eintraege) {
 }
 
 /**
- * Warum ein Level abgelehnt ist (siehe Kopf), als Text, sonst null. p: { grad, spielwert, ausschluesse, eintraege }.
+ * Warum ein Level abgelehnt ist (siehe Kopf), als Text, sonst null. p: { grad, spielwert, ausschluesse, eintraege,
+ * ersatz }. Ein Kandidat aus sehr-schwer-kandidaten.json (ersatz) kommt dazu nur mit gutem Urteil in Frage.
  */
 export function ablehnung(p) {
   for (const e of p.eintraege) {
@@ -175,6 +234,11 @@ export function ablehnung(p) {
   if (p.ausschluesse.length) return `Ausschlussgrund (${p.ausschluesse.join(', ')})`;
   if (p.grad !== GRADE[0] && p.spielwert < MINDEST_SPIELWERT) {
     return `Spielwert ${p.spielwert.toFixed(1)} unter dem Mindest-Spielwert ${MINDEST_SPIELWERT}`;
+  }
+  const u = p.ersatz ? urteilAus(p.eintraege) : null, komma = (x) => String(r2(x)).replace('.', ',');
+  if (p.ersatz && !gutesUrteil(u)) {
+    return `Kandidat ohne gutes Urteil der KI-Tester (${u ? `Gefühl im Mittel ${komma(u.gefuehl)}, Aha ${komma(u.aha)}`
+      : 'kein Urteil'}; nötig Gefühl ab ${GUT_AB} und Aha, Ticket 01)`;
   }
   return null;
 }
@@ -422,21 +486,9 @@ export function waehleGrad(levels, { frueher = [], aehnlich = (a, b) => aehnlich
   ueberGrenzen = 0 } = {}) {
   const reihe = [...levels].sort(nachSchwierigkeit), n = reihe.length, W = WELTEN.length;
   if (n < JE_GRAD) throw new Error(`Pool mit ${n} Leveln, nötig sind ${JE_GRAD}`);
-  // Ohne Wahl und mit Verschiebungen über die Weltgrenzen (Entscheid des Nutzers vom 29.10.2026, «sehr schwer»): die
-  // Anordnung des ganzen Grads; geht sie nicht auf, wie in den übrigen Graden (und dann mit Verstössen)
-  if (ueberGrenzen && n === JE_GRAD) {
-    // geht die Vielfalt auch so nicht ganz auf, die mit dem kleinsten Zuviel (nicht weiter gelockert)
-    const folge = ordneUeberGrenzen(reihe, ueberGrenzen)
-      ?? ordneUeberGrenzen(reihe, ueberGrenzen, { mitVerstoessen: true });
-    return {
-      welten: WELTEN.map((_, k) => {
-        const welt = folge.slice(JE_WELT * k, JE_WELT * (k + 1));
-        return { welt, rangfolge: [...welt].sort(nachSchwierigkeit), abschnitt: [JE_WELT * k, JE_WELT * (k + 1)],
-          uebergangen: [] };
-      }),
-      grenzen: sechstel(n), verschoben: [], verstoesse: fensterVerstoesse(folge), ueberGrenzen,
-    };
-  }
+  // Mit Verschiebungen über die Weltgrenzen (Entscheid des Nutzers vom 29.10.2026, «sehr schwer»): Wahl und Anordnung
+  // über den ganzen Grad (Ticket 09)
+  if (ueberGrenzen) return waehleUeberGrenzen(reihe, ueberGrenzen, { frueher, aehnlich });
   const grenzen = sechstel(n), fest = new Set(), verschoben = [];
   const raum = (w) => grenzen[w + 1] - grenzen[w];
   const ergebnis = [], zustaende = [[ZUSTAND_LEER]];
@@ -480,6 +532,62 @@ export function waehleGrad(levels, { frueher = [], aehnlich = (a, b) => aehnlich
       uebergangen: e.uebergangen })),
     grenzen, verschoben, verstoesse: [], ueberGrenzen: 0,
   };
+}
+
+/**
+ * Die Wahl eines Grads mit Verschiebungen über die Weltgrenzen (siehe Kopf, «sehr schwer»; Ticket 09). reihe: der Pool
+ * nach Schwierigkeit, ohne abgelehnte; d: so viele Plätze darf ein Level von seinem Rang unter den 60 gewählten stehen.
+ * Wer einem gewählten Level eines anderen Grads (frueher) oder einem besser bewerteten des Pools, das selbst in Frage
+ * kommt, zu ähnlich ist, kommt nicht in Frage. Geht die Vielfalt mit den JE_GRAD am besten bewerteten auf, gelten sie;
+ * sonst die Menge mit der kleinsten Summe der Ränge in der Bewertung, die sich anordnen lässt (besteMengeUeberGrenzen);
+ * gibt es keine, die am besten bewerteten mit dem kleinsten Zuviel. Angeordnet wie in ordneUeberGrenzen. Rückgabe wie
+ * waehleGrad; je Welt ist rangfolge der Block ihrer Ränge (10·w … 10·w+9 unter den gewählten) und abschnitt der Teil
+ * des Pools, aus dem er kommt (bis zum Level mit Rang 10·w+9, die letzte Welt bis zum Ende), dazu suche (die Zahlen
+ * der Suche für wahl.json) oder null.
+ */
+function waehleUeberGrenzen(reihe, d, { frueher, aehnlich }) {
+  const n = reihe.length, W = WELTEN.length;
+  const ordnung = [...reihe].sort(nachBewertung), rang = new Map(ordnung.map((l, i) => [l, i]));
+  const weg = new Map();
+  for (const x of ordnung) {
+    for (const y of [...frueher, ...ordnung.slice(0, rang.get(x)).filter(z => !weg.has(z))]) {
+      const w = aehnlich(x, y);
+      if (w >= AEHNLICH_AB) { weg.set(x, { y, w }); break; }
+    }
+  }
+  const frei = reihe.filter(x => !weg.has(x));
+  if (frei.length < JE_GRAD) throw new Error(`Pool ohne zu ähnliche mit ${frei.length} Leveln, nötig sind ${JE_GRAD}`);
+  const besten = ordnung.filter(x => !weg.has(x)).slice(0, JE_GRAD).sort(nachSchwierigkeit);
+  const summe = (menge) => menge.reduce((s, l) => s + rang.get(l), 0);
+  let menge = besten, suche = null;
+  if (frei.length > JE_GRAD && !ordneUeberGrenzen(besten, d)) {
+    const r = besteMengeUeberGrenzen(frei, rang, d);
+    if (r) menge = r.menge;
+    suche = { summeDerRaenge: r ? summe(r.menge) : null, untereSchranke: r?.schranke ?? null,
+      ohneVielfalt: summe(besten), ...(r ? r.zahlen : {}) };
+  }
+  // geht die Vielfalt nicht ganz auf, die Anordnung mit dem kleinsten Zuviel (nicht weiter gelockert)
+  const folge = ordneUeberGrenzen(menge, d) ?? ordneUeberGrenzen(menge, d, { mitVerstoessen: true });
+  const gewaehlt = new Set(menge);
+  const grund = (x) => {
+    const a = weg.get(x);
+    if (a) return `zu ähnlich wie ${a.y.name} (${String(a.w).replace('.', ',')})`;
+    if (!suche) return 'weniger gut bewertet';
+    return `nicht in der besten gefundenen Menge von ${JE_GRAD} (kleinste Summe der Ränge in der Bewertung), die sich `
+      + `so anordnen lässt, dass keine Haupt-Kernidee mehr als ${HOECHSTENS}-mal in ${FENSTER} aufeinanderfolgenden `
+      + `Leveln steht (höchstens ${d} Plätze vom Rang, auch über die Weltgrenzen)`;
+  };
+  const welten = WELTEN.map((_, k) => {
+    const block = menge.slice(JE_WELT * k, JE_WELT * (k + 1));
+    const von = k ? reihe.indexOf(menge[JE_WELT * k - 1]) + 1 : 0;
+    const bis = k < W - 1 ? reihe.indexOf(block.at(-1)) + 1 : n;
+    const schlechtestes = Math.max(...block.map(l => rang.get(l)));
+    const uebergangen = reihe.slice(von, bis).filter(x => !gewaehlt.has(x) && rang.get(x) < schlechtestes)
+      .sort(nachBewertung).map(level => ({ level, grund: grund(level) }));
+    return { welt: folge.slice(JE_WELT * k, JE_WELT * (k + 1)), rangfolge: block, abschnitt: [von, bis], uebergangen };
+  });
+  return { welten, grenzen: [...welten.map(w => w.abschnitt[0]), n], verschoben: [],
+    verstoesse: fensterVerstoesse(folge), ueberGrenzen: d, suche };
 }
 
 /**
@@ -546,6 +654,243 @@ export function ordneUeberGrenzen(reihe, d, { mitVerstoessen = false } = {}) {
     zustand = weiter(...zustand, r);
   }
   return folge;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Wahl über den ganzen Grad (Ticket 09, siehe Kopf «sehr schwer»)
+//
+// Gesucht ist die Menge von n Leveln aus dem Pool mit der kleinsten Summe der Ränge in der Bewertung, die sich so
+// anordnen lässt, dass jedes Level höchstens d Plätze von seinem Rang (unter den n gewählten, nach Schwierigkeit)
+// steht und keine Haupt-Kernidee mehr als HOECHSTENS-mal in FENSTER aufeinanderfolgenden Plätzen. Gerechnet über die
+// Plätze p = 0 … n-1 wie ordneUeberGrenzen, dazu die Wahl: Vor Platz p bekommt Rang p + d sein Level, ein späteres im
+// Pool als das von Rang p + d - 1. Zustand: das zuletzt gewählte Level (j), die Haupt-Kernideen der gewählten, noch
+// nicht gestellten Ränge p-d … p+d-1 (je 3 Bit, 0: gestellt) und die der letzten FENSTER - 1 Plätze (je 3 Bit). Ein
+// Zustand mit gleichem Schlüssel und schlechteren Kosten (Summe der Ränge, dann der Verschiebungen, dann der
+// verschobenen Level) fällt weg. Von zwei Leveln derselben Haupt-Kernidee kommt das spätere als nächstes nur in Frage,
+// wenn es besser bewertet ist (das frühere lässt sonst mehr offen).
+// Untere Schranke je Zustand (h): Die noch fehlenden Ränge brauchen so viele Level aus dem Rest des Pools; je
+// Haupt-Kernidee höchstens so viele, wie auf den freien Plätzen noch Platz haben (früheste Plätze nach den letzten
+// Vorkommen), weniger die schon gewählten, noch nicht gestellten; davon die am besten bewerteten (gierig, das ist hier
+// genau). An der Wurzel ist das die untere Schranke im Ergebnis.
+// Genau wäre die Suche über alle Zustände; das sprengt den Speicher (am echten Pool von «sehr schwer» über 6,8 Mio.
+// Zustände schon bei Platz 8, gemessen am 30.10.2026). Darum ein Strahl: je Platz nur die STRAHL besten Zustände nach
+// Kosten plus Schranke (bei Gleichstand nach Verschiebungen und Schlüssel, also nachbaubar), danach Nachbessern in
+// Fenstern: Die gewählte Menge bleibt ausserhalb von NACHBESSERN.fenster aufeinanderfolgenden Leveln des Pools fest,
+// innerhalb rechnet die Suche ohne Strahl genau (mit den Kosten der Menge als Schranke); die Fenster rücken in
+// Schritten von NACHBESSERN.schritt durch den Pool, bis ein ganzer Durchgang nichts mehr verbessert. Kleine Pools
+// (bis STRAHL Zustände je Platz) rechnet der Strahl genau (Test gegen alle Mengen).
+
+/** So viele Zustände je Platz behält der Strahl der Suche (besteMengeUeberGrenzen; Begründung im Abschnitt oben). */
+export const STRAHL = 100000;
+/** Nachbessern in Fenstern: so viele aufeinanderfolgende Level des Pools frei, in so grossen Schritten. */
+export const NACHBESSERN = { fenster: 20, schritt: 5 };
+
+const OHNE_IDEE = 6;
+/** Wie oft Haupt-Kernidee x in rest (je 3 Bit, die jüngste unten) vorkommt. */
+const imRest = (rest, x) => {
+  let k = 0;
+  for (let i = 0; i < FENSTER - 1; i++) { if ((rest & 7) === x) k++; rest >>= 3; }
+  return k;
+};
+
+/**
+ * Die Suche aus dem Abschnitt oben über Leveln in Zahlen: idee[i] (0–5, OHNE_IDEE ohne Haupt-Kernidee) und kosten[i]
+ * je Level des Pools nach Schwierigkeit; n Ränge, d Plätze. strahl: so viele Zustände je Platz (0: alle); schranke:
+ * nur Zustände mit Kosten plus h bis hierher; fest[i]: 1 muss gewählt sein, -1 darf nicht, 0 frei. Rückgabe { wahl
+ * (Indizes nach Rang), g (Summe der Ränge), s, v (Verschiebungen, verschobene), schranke (h an der Wurzel) } oder null.
+ * (Gilt für d bis 3 und HOECHSTENS = 2.)
+ */
+export function sucheSchichten(idee, kosten, n, d, { strahl = 0, schranke = Infinity, fest = null } = {}) {
+  const M = idee.length, B3 = 6 * d, RB = 3 * (FENSTER - 1), R8 = 2 ** RB, ANFANG = R8 - 1;
+  if (d > 3 || HOECHSTENS !== 2 || M > 254) throw new Error('Suche nur für höchstens 3 Plätze, 2 je Fenster');
+  const F = fest ?? new Int8Array(M);
+  const slot = (slots, k) => (slots >> (3 * k)) & 7;
+  const erlaubtAb = new Int32Array(M + 1), mussAb = new Int32Array(M + 1);
+  for (let i = M - 1; i >= 0; i--) {
+    erlaubtAb[i] = erlaubtAb[i + 1] + (F[i] >= 0 ? 1 : 0);
+    mussAb[i] = mussAb[i + 1] + (F[i] === 1 ? 1 : 0);
+  }
+  const nachKosten = [...idee.keys()].sort((a, b) => kosten[a] - kosten[b] || a - b);
+  // je Haupt-Kernidee, wie oft sie auf den Plätzen p … n-1 noch stehen kann (je 4 Bit; gilt in einer Schicht)
+  const platzCache = new Map();
+  const plaetze = (p, rest) => {
+    let c = platzCache.get(rest);
+    if (c !== undefined) return c;
+    c = 0;
+    for (let x = 5; x >= 0; x--) {
+      let a = -Infinity, b = -Infinity, r = rest;
+      for (let i = 0; i < FENSTER - 1; i++) {
+        if ((r & 7) === x) { if (b === -Infinity) b = p - 1 - i; else if (a === -Infinity) a = p - 1 - i; }
+        r >>= 3;
+      }
+      let k = 0;
+      for (let q = Math.max(p, 0); ; q++) {
+        q = Math.max(q, a + FENSTER);
+        if (q > n - 1) break;
+        k++; a = b; b = q;
+      }
+      c = c * 16 + Math.min(k, 15);
+    }
+    platzCache.set(rest, c);
+    return c;
+  };
+  const hCache = new Map(), cap = new Int32Array(6);
+  const h = (p, j, slots, rest) => {
+    const R = n - Math.min(n, p + d);
+    let c = plaetze(p, rest);
+    for (let x = 0; x < 6; x++) { cap[x] = c % 16; c = Math.floor(c / 16); }
+    for (let k = 0; k < 2 * d; k++) { const s = slot(slots, k); if (s && s - 1 !== OHNE_IDEE) cap[s - 1]--; }
+    let key = j + 1;
+    for (let x = 0; x < 6; x++) { if (cap[x] < 0) return Infinity; key = key * 16 + cap[x]; }
+    key = key * 64 + R;
+    let v = hCache.get(key);
+    if (v !== undefined) return v;
+    v = 0;
+    let genommen = 0;
+    for (let i = j + 1; i < M && v !== Infinity; i++) {
+      if (F[i] !== 1) continue;
+      if (idee[i] !== OHNE_IDEE && --cap[idee[i]] < 0) v = Infinity;
+      genommen++; v += kosten[i];
+    }
+    for (let q = 0; q < M && genommen < R && v !== Infinity; q++) {
+      const i = nachKosten[q], x = idee[i];
+      if (i <= j || F[i] !== 0 || (x !== OHNE_IDEE && cap[x] <= 0)) continue;
+      if (x !== OHNE_IDEE) cap[x]--;
+      genommen++; v += kosten[i];
+    }
+    if (genommen !== R) v = Infinity;
+    hCache.set(key, v);
+    return v;
+  };
+  const FELDER = ['j', 'slots', 'rest', 'g', 's', 'v', 'f', 'eltern', 'item', 'rang'];
+  const schicht = (gr) => ({ n: 0, j: new Int16Array(gr), slots: new Int32Array(gr), rest: new Int32Array(gr),
+    g: new Int32Array(gr), s: new Int16Array(gr), v: new Int16Array(gr), f: new Float64Array(gr),
+    eltern: new Int32Array(gr), item: new Int16Array(gr), rang: new Int16Array(gr) });
+  const besser = (T, a, g, s, v) => g < T.g[a] || (g === T.g[a] && (s < T.s[a] || (s === T.s[a] && v < T.v[a])));
+  let S = schicht(1);
+  S.n = 1; S.j[0] = -1; S.rest[0] = ANFANG; S.eltern[0] = -1; S.item[0] = -1; S.rang[0] = -1;
+  const verlauf = [S], items = [], kand = [];
+  for (let p = -d; p < n; p++) {
+    let T = schicht(Math.max(1024, S.n * 4));
+    const index = new Map(), t = p + d;
+    for (let a = 0; a < S.n; a++) {
+      const j = S.j[a], slots = S.slots[a], rest = S.rest[a], g = S.g[a], s = S.s[a], v = S.v[a];
+      // das Level für Rang t: das nächste feste muss kommen; von zwei derselben Haupt-Kernidee das spätere nur, wenn
+      // es besser bewertet ist; es bleiben genug für die übrigen Ränge
+      items.length = 0;
+      if (t <= n - 1) {
+        const bestJe = new Array(7).fill(Infinity);
+        for (let i = j + 1; i < M && erlaubtAb[i] >= n - t; i++) {
+          if (F[i] === -1) continue;
+          if (F[i] === 1) { if (mussAb[i + 1] <= n - 1 - t) items.push(i); break; }
+          if (mussAb[i + 1] > n - 1 - t || kosten[i] >= bestJe[idee[i]]) continue;
+          bestJe[idee[i]] = kosten[i];
+          items.push(i);
+        }
+      } else items.push(-1);
+      for (const i of items) {
+        const s7 = slots | (i >= 0 ? (idee[i] + 1) << B3 : 0), j2 = i >= 0 ? i : j, g2 = g + (i >= 0 ? kosten[i] : 0);
+        // auf Platz p ein noch freier Rang p-d … p+d; ist Rang p-d frei, muss er es sein
+        kand.length = 0;
+        if (p < 0) kand.push(-1);
+        else {
+          const muss = slot(s7, 0) !== 0;
+          for (let k = 0; k <= 2 * d; k++) {
+            const x = slot(s7, k);
+            if (!x) continue;
+            if (muss && k !== 0) break;
+            if (x - 1 !== OHNE_IDEE && imRest(rest, x - 1) >= HOECHSTENS) { if (muss) break; continue; }
+            kand.push(k);
+          }
+        }
+        for (const k of kand) {
+          let slots2 = s7 >> 3, rest2 = rest, s2 = s, v2 = v;
+          if (k >= 0) {
+            const x = slot(s7, k);
+            slots2 = (s7 & ~(7 << (3 * k))) >> 3;
+            rest2 = ((rest << 3) | (x - 1)) & (R8 - 1);
+            s2 += Math.abs(k - d); v2 += k !== d ? 1 : 0;
+          }
+          const key = (j2 + 1) * 2 ** (B3 + RB) + slots2 * R8 + rest2;
+          let b = index.get(key);
+          if (b !== undefined && !besser(T, b, g2, s2, v2)) continue;
+          if (b === undefined) {
+            if (T.n === T.j.length) {
+              const U = schicht(T.n * 2);
+              for (const f of FELDER) U[f].set(T[f]);
+              U.n = T.n; T = U;
+            }
+            b = T.n++;
+            index.set(key, b);
+          }
+          T.j[b] = j2; T.slots[b] = slots2; T.rest[b] = rest2; T.g[b] = g2; T.s[b] = s2; T.v[b] = v2;
+          T.eltern[b] = a; T.item[b] = i; T.rang[b] = k < 0 ? -1 : p - d + k;
+        }
+      }
+    }
+    // erst nach dem Entdoppeln die Schranke: Kosten plus h
+    platzCache.clear();
+    let m = 0;
+    for (let b = 0; b < T.n; b++) {
+      const f = T.g[b] + (p < 0 ? 0 : h(p + 1, T.j[b], T.slots[b], T.rest[b]));
+      if (f === Infinity || f > schranke) continue;
+      if (m !== b) for (const k of FELDER) T[k][m] = T[k][b];
+      T.f[m++] = f;
+    }
+    T.n = m;
+    if (strahl && T.n > strahl) {
+      const ord = Array.from({ length: T.n }, (_, i) => i).sort((a, b) => T.f[a] - T.f[b] || T.s[a] - T.s[b]
+        || T.v[a] - T.v[b] || T.j[a] - T.j[b] || T.slots[a] - T.slots[b] || T.rest[a] - T.rest[b]);
+      const U = schicht(strahl);
+      for (let q = 0; q < strahl; q++) for (const k of FELDER) U[k][q] = T[k][ord[q]];
+      U.n = strahl; T = U;
+    }
+    if (!T.n) return null;
+    verlauf.push(T);
+    S = T;
+  }
+  let e = 0;
+  for (let a = 1; a < S.n; a++) if (besser(S, e, S.g[a], S.s[a], S.v[a])) e = a;
+  const wahl = [];
+  for (let L = verlauf.length - 1, q = e; L > 0; q = verlauf[L].eltern[q], L--) {
+    if (verlauf[L].item[q] >= 0) wahl.push(verlauf[L].item[q]);
+  }
+  platzCache.clear();
+  return { wahl: wahl.reverse(), g: S.g[e], s: S.s[e], v: S.v[e], schranke: h(-d, -1, 0, ANFANG) };
+}
+
+/**
+ * Die Menge von n Leveln aus reihe (nach Schwierigkeit) mit der kleinsten Summe der Ränge in der Bewertung (rang), die
+ * sich mit höchstens d Plätzen vom Rang ohne Verstoss gegen die Vielfalt anordnen lässt (Abschnitt oben): Strahl, dann
+ * Nachbessern in Fenstern. Stirbt der Strahl aus, einmal mit vierfacher Breite. Rückgabe { menge (nach Schwierigkeit),
+ * schranke (untere Schranke der Summe), zahlen: { strahl, fenster, schritt, durchgaenge, verbessert } } oder null.
+ */
+export function besteMengeUeberGrenzen(reihe, rang, d, { n = JE_GRAD, strahl = STRAHL,
+  nachbessern = NACHBESSERN } = {}) {
+  const ideen = [...new Set(reihe.map(l => l.haupt).filter(Boolean))].sort();
+  if (ideen.length > 6) throw new Error(`Suche für höchstens 6 Haupt-Kernideen, nicht ${ideen.length}`);
+  const idee = reihe.map(l => (l.haupt ? ideen.indexOf(l.haupt) : OHNE_IDEE)), kosten = reihe.map(l => rang.get(l));
+  let breite = strahl, r = sucheSchichten(idee, kosten, n, d, { strahl: breite });
+  if (!r && breite) r = sucheSchichten(idee, kosten, n, d, { strahl: breite *= 4 });
+  if (!r) return null;
+  const M = reihe.length, { fenster, schritt } = nachbessern;
+  let durchgaenge = 0, verbessert = 0;
+  for (let weiter = fenster > 0; weiter;) {
+    weiter = false;
+    durchgaenge++;
+    for (let a = 0; a < M; a += schritt) {
+      const fest = new Int8Array(M).fill(-1);
+      for (const i of r.wahl) fest[i] = 1;
+      fest.fill(0, a, Math.min(M, a + fenster));
+      const q = sucheSchichten(idee, kosten, n, d, { fest, schranke: r.g });
+      if (q && (q.g < r.g || (q.g === r.g && (q.s < r.s || (q.s === r.s && q.v < r.v))))) {
+        if (q.g < r.g) { weiter = true; verbessert++; }
+        r = { ...q, schranke: r.schranke };
+      }
+    }
+  }
+  return { menge: r.wahl.map(i => reihe[i]), schranke: r.schranke,
+    zahlen: { strahl: breite, fenster, schritt, durchgaenge, verbessert } };
 }
 
 /** Wie weit eine Anordnung (Ränge nach Platz) vertauscht: die Summe der Abstände von Platz und Rang. */
@@ -755,18 +1100,25 @@ export function alsDaten(wahl, titel = null) {
       vertauschung: e.ueberGrenzen ? `höchstens ${e.ueberGrenzen} Plätze vom Rang im Grad, auch über die Weltgrenze `
         + '(Entscheid des Nutzers vom 29.10.2026)' : `höchstens ${VERTAUSCHUNG} Plätze vom Rang, innerhalb der Welt`,
       verstoesse: e.verstoesse,
+      ...(e.suche ? { suche: e.suche } : {}),
     };
-    e.welten.forEach((w, k) => {
-      // die besten 10 des Abschnitts nach der Bewertung; wer davon nicht gewählt ist, ist übergangen, und wer dafür
-      // kam, steht in der Reihenfolge der Bewertung an seiner Stelle
+    // je Abschnitt die besten 10 nach der Bewertung; wer davon nicht gewählt ist, ist übergangen, und wer dafür kam
+    // (aus der Rangfolge des Abschnitts), steht in der Reihenfolge der Bewertung an seiner Stelle (statt)
+    const statt = new Map();
+    for (const w of e.welten) {
       const kandidaten = reihe.slice(w.abschnitt[0], w.abschnitt[1]).sort(nachBewertung);
       const besten = kandidaten.slice(0, JE_WELT), fehlen = besten.filter(x => !alle.includes(x));
       const dafuer = [...w.rangfolge].filter(x => !besten.includes(x)).sort(nachBewertung);
       const grund = new Map(w.uebergangen.map(u => [u.level, u.grund]));
+      dafuer.forEach((l, i) => {
+        if (!fehlen[i]) return;
+        statt.set(l, `statt ${fehlen[i].name} (besser bewertet): ${grund.get(fehlen[i]) ?? 'weniger gut bewertet'}`);
+      });
+    }
+    e.welten.forEach((w, k) => {
       w.welt.forEach((l, j) => {
         const r = rang.get(l), q = JE_WELT * k + j, gruende = [];
-        const statt = fehlen[dafuer.indexOf(l)];
-        if (statt) gruende.push(`statt ${statt.name} (besser bewertet): ${grund.get(statt) ?? 'weniger gut bewertet'}`);
+        if (statt.has(l)) gruende.push(statt.get(l));
         if (r !== q) {
           const andere = Math.floor(r / JE_WELT) !== k ? ` in ${WELTEN[Math.floor(r / JE_WELT)]}` : '';
           gruende.push(`Platz ${j + 1} statt ${r % JE_WELT + 1}${andere} nach Schwierigkeit: `
@@ -888,9 +1240,46 @@ export function titelFehler(titel, namen, entfernt) {
   return fehler;
 }
 
-/** Alle Namen, gegen die Titel eindeutig sein müssen: Spiel und Vorrat (flach und Würfel) und die neuen Level. */
-export const alleNamen = (neue = neueLevel()) => [...ALLE.LEVELS, ...ALLE.LEVELS_3D, ...neue.map(n => n.level)]
-  .map(l => l.name);
+/**
+ * Alle Namen, gegen die Titel eindeutig sein müssen: Spiel und Vorrat (flach und Würfel), die neuen Level und die
+ * Kandidaten mit Schlüssel.
+ */
+export const alleNamen = (neue = neueLevel(), kandidaten = kandidatenLevel()) => [...new Set([...ALLE.LEVELS,
+  ...ALLE.LEVELS_3D, ...neue.map(n => n.level), ...kandidaten.filter(k => k.level.name).map(k => k.level)]
+  .map(l => l.name))];
+
+/**
+ * Ein Name so, dass andere Schreibungen gleich aussehen: ohne Gross- und Kleinschreibung, Umlaute als ae/oe/ue, ß als
+ * ss, ohne Akzente, Leer- und Satzzeichen, c wie k, ph wie f, th wie t, y wie i, v wie w, doppelte Buchstaben einfach
+ * (Wega und Vega, Kastor und Castor, Morgenröte und Morgenroete).
+ */
+export const schreibung = (x) => x.toLocaleLowerCase('de-CH').replace(/ä/g, 'ae').replace(/ö/g, 'oe')
+  .replace(/ü/g, 'ue').replace(/ß/g, 'ss').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]/g, '').replace(/ph/g, 'f').replace(/th/g, 't').replace(/c/g, 'k').replace(/y/g, 'i')
+  .replace(/v/g, 'w').replace(/(.)\1+/g, '$1');
+
+/**
+ * Was an den Schlüsseln der Kandidaten aus sehr-schwer-kandidaten.json nicht stimmt (Ticket 09): je Kandidat mit
+ * Schlüssel kein Kandidatenname, eindeutig in jeder Schreibung (schreibung) über alle Namen in Spiel und Vorrat, die
+ * neuen Level, die übrigen Kandidaten, die Titel und die Liste entfernter Level. Derselbe Name in Spiel oder Vorrat ist
+ * das Level selbst (dass die Leveldaten gleich sind, prüft poolLevel). namen: alle übrigen Namen (alleNamen), titel:
+ * alle Titel. Rückgabe: Texte.
+ */
+export function namenFehler(kandidaten, namen, entfernt, titel) {
+  const fehler = [], mit = kandidaten.filter(k => k.level.name).map(k => k.level.name);
+  const andere = [...namen.map(x => ({ x, wo: 'Name' })), ...titel.map(x => ({ x, wo: 'Titel' })),
+    ...entfernt.map(x => ({ x, wo: 'entfernter Name' }))];
+  for (const name of mit) {
+    if (name !== name.trim() || /\s{2}/.test(name) || name.startsWith('Kandidat')) {
+      fehler.push(`«${name}»: kein Schlüssel`);
+    }
+    const s = schreibung(name);
+    const gleich = andere.filter(a => schreibung(a.x) === s && !(a.wo === 'Name' && a.x === name));
+    for (const a of gleich) fehler.push(`«${name}» wie ${a.wo} «${a.x}»`);
+    if (mit.filter(y => schreibung(y) === s).length > 1) fehler.push(`«${name}» doppelt unter den Kandidaten`);
+  }
+  return fehler;
+}
 
 /** wahl.json als Text: oben die Angaben je Grad, dann je Level eine Zeile. */
 export function wahlText(daten) {
@@ -1072,18 +1461,29 @@ function pruefeTitel() {
   return titel;
 }
 
+/** Prüft die Schlüssel der Kandidaten (namenFehler) und bricht bei einem Fehler ab. */
+function pruefeNamen() {
+  const titel = existsSync(DATEIEN.titel) ? Object.values(ladeTitel()).flatMap(w => Object.values(w).flat()) : [];
+  const fehler = namenFehler(kandidatenLevel(), alleNamen(), ladeLevelliste().entfernteNamen, titel);
+  if (fehler.length) fail(`Schlüssel (tools/geschichte/sehr-schwer-kandidaten.json):\n  ${fehler.join('\n  ')}`);
+}
+
 async function wahlBefehl(trocken) {
   const t0 = Date.now();
+  pruefeNamen();
   const bewertet = await bewerte();
+  const t1 = Date.now();
   const wahl = waehle(bewertet);
+  const t2 = Date.now();
   const titel = existsSync(DATEIEN.titel) ? pruefeTitel() : null;
   if (!titel) console.error('tools/geschichte/titel.json fehlt: Wahl ohne Titel');
   const daten = alsDaten(wahl, titel);
   const info = new Map(bewertet.map(p => [p.name, p]));
   const erlaubt = Object.fromEntries(GRADE.map(g => [g, wahl.grade[g].verstoesse]));
   const fehler = pruefe(daten.level, n => info.get(n), { erlaubt });
-  console.log(`Wahl der 240 Level (${zahl((Date.now() - t0) / 1000)} s); Suche nach der besten Menge: `
-    + `${SUCHE.aufrufe}-mal, ${SUCHE.schritte} Schritte, ${SUCHE.abgebrochen}-mal an der Grenze von ${SUCHE_KNOTEN}`);
+  console.log(`Wahl der 240 Level (${zahl((Date.now() - t0) / 1000)} s, davon Beurteilung ${zahl((t1 - t0) / 1000)} s, `
+    + `Wahl ${zahl((t2 - t1) / 1000)} s); Suche nach der besten Menge: ${SUCHE.aufrufe}-mal, ${SUCHE.schritte} `
+    + `Schritte, ${SUCHE.abgebrochen}-mal an der Grenze von ${SUCHE_KNOTEN}`);
   for (const g of GRADE) {
     const e = wahl.grade[g], d = daten.grade[g];
     console.log(`\n${g}: Pool ${e.pool.length}, abgelehnt ${e.ausgeschlossen.length}`
@@ -1109,8 +1509,27 @@ async function wahlBefehl(trocken) {
       + `Plätze${ueber ? `, davon ${ueber} über die Weltgrenze (${d.vertauschung})` : ''}; Verstösse gegen die `
       + `Vielfalt: ${new Set(e.verstoesse.map(v => v.von)).size} von ${JE_GRAD - FENSTER + 1} Fenstern, Zuviel `
       + `${zuviel(e.verstoesse)}`);
+    if (e.suche) {
+      const s = e.suche;
+      console.log(`  Wahl über die Weltgrenzen: Summe der Ränge in der Bewertung ${s.summeDerRaenge ?? '–'} (ab 0 `
+        + `gezählt; untere Schranke ${s.untereSchranke ?? '–'}, ohne Vielfalt ${s.ohneVielfalt}); Strahl ${s.strahl}, `
+        + `dann Fenster ${s.fenster} Level in Schritten von ${s.schritt}: ${s.durchgaenge} Durchgänge, `
+        + `${s.verbessert}-mal verbessert`);
+    }
+    const ersatz = imGrad.filter(l => info.get(l.name).ersatz);
+    if (ersatz.length) {
+      console.log(`  aus sehr-schwer-kandidaten.json: ${ersatz.length} (${ersatz.map(l => `${l.name} `
+        + `[${l.kandidat.replace('Kandidat ', '')}]`).join(', ')})`);
+    }
   }
   if (fehler.length) fail(`\nPrüfung:\n  ${fehler.join('\n  ')}`);
+  const ohneSchluessel = daten.level.filter(l => info.get(l.name).ersatz && l.name === l.kandidat);
+  if (ohneSchluessel.length) {
+    const text = `${ohneSchluessel.length} gewählte Kandidaten ohne Schlüssel (level.name in tools/geschichte/`
+      + `sehr-schwer-kandidaten.json eintragen, dann wahl neu): ${ohneSchluessel.map(l => l.name).join(', ')}`;
+    if (!trocken) fail(`\n${text}`);
+    console.log(`\n${text}`);
+  }
   if (trocken) { console.log('\n--trocken: wahl.json nicht geschrieben'); return; }
   writeFileSync(DATEIEN.wahl, wahlText(daten));
   console.log('\nwahl.json geschrieben');
@@ -1144,6 +1563,22 @@ function spielBefehl(trocken) {
   }
 }
 
+/** Die Kandidaten mit Seeds ab diesem kamen aus dem Pool mit Ziel-Schwierigkeit (Ticket 01, pool-ss-2). */
+const ZIEL_OBEN = { abSeed: 50001, schwierigkeit: [96, 112] };
+
+/**
+ * Die gewählten Kandidaten aus sehr-schwer-kandidaten.json, die weder im Spiel noch im Vorrat stehen, als Eingabe für
+ * ordne-level.mjs --ausbau (Ticket 09, wie die 15 neuen in Ticket 04): je { level, name, auftrag, seed,
+ * schwierigkeit (nur bei Seeds aus pool-ss-2) }. daten: die gelesene wahl.json.
+ */
+export function ausbauListe(daten, kandidaten = kandidatenLevel()) {
+  const gewaehlt = new Set(daten.level.map(l => l.name));
+  const vorhanden = new Set([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name));
+  return kandidaten.filter(k => k.level.name && gewaehlt.has(k.level.name) && !vorhanden.has(k.level.name))
+    .map(k => ({ level: k.level, name: k.level.name, auftrag: k.auftrag, seed: k.seed,
+      ...(k.seed >= ZIEL_OBEN.abSeed ? { schwierigkeit: ZIEL_OBEN.schwierigkeit } : {}) }));
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [befehl, ...rest] = process.argv.slice(2);
   if (befehl === 'wahl') await wahlBefehl(rest.includes('--trocken'));
@@ -1152,5 +1587,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     writeFileSync(DATEIEN.wahl, wahlText(mitTitel(daten, titel)));
     console.log('Titel neu zugeordnet, wahl.json geschrieben');
   } else if (befehl === 'spiel') spielBefehl(rest.includes('--trocken'));
-  else fail('Aufruf: node tools/geschichte.mjs wahl [--trocken] | titel | spiel [--trocken] (siehe Kopf)');
+  else if (befehl === 'ausbau' && rest[0]) {
+    const liste = ausbauListe(JSON.parse(readFileSync(DATEIEN.wahl, 'utf8')));
+    writeFileSync(rest[0], `${liste.map(a => JSON.stringify(a)).join('\n')}\n`);
+    console.log(`${liste.length} Kandidaten für ordne-level.mjs --ausbau nach ${rest[0]} geschrieben`
+      + `${liste.length ? `: ${liste.map(a => a.name).join(', ')}` : ''}`);
+  } else {
+    fail('Aufruf: node tools/geschichte.mjs wahl [--trocken] | titel | spiel [--trocken] | ausbau <datei> '
+      + '(siehe Kopf)');
+  }
 }
