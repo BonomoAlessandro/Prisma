@@ -99,6 +99,7 @@
   #hud .sub .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; }
   #hud .sub .teil { white-space: nowrap; }
   #hud .sub .ctl::before { content: " · "; }
+  #hud .sub .hinweis { display: block; } /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile (statt der Bedienung) */
   @media (max-width: 520px) {
     #hud .sub .ctl { display: block; }
     #hud .sub .ctl::before { content: none; }
@@ -369,10 +370,12 @@
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, rgba(2, 2, 8, 0.7), rgba(2, 2, 8, 0.4) 55%, rgba(2, 2, 8, 0));
   }
-  #story .scene .lines { position: relative; width: min(780px, 100%); height: 3.6em; font-size: clamp(16px, 2.2vw, 22px); }
+  /* beide Sätze in derselben Zelle, unten bündig: Ein langer Satz wächst nach oben, ohne die Zeile darüber (Angebot:
+     «Im Dorf») zu überdecken; mindestens zwei Zeilen hoch, damit der Hinweis darunter stillsteht */
+  #story .scene .lines { position: relative; display: grid; width: min(780px, 100%); min-height: 3.6em; font-size: clamp(16px, 2.2vw, 22px); }
   /* der alte Satz blendet aus, der neue danach ein (kein Übereinander zweier Sätze) */
   #story .scene .line {
-    position: absolute; left: 0; right: 0; bottom: 0; margin: 0;
+    grid-area: 1 / 1; align-self: end; margin: 0;
     line-height: 1.7; letter-spacing: 0.03em; text-align: center; color: #f2f0fa;
     text-shadow: 0 0 14px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.9);
     opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease;
@@ -382,6 +385,15 @@
   #story .scene .hint.on { opacity: 1; }
   #story .scene .hint span { display: inline-block; animation: intro-pulse 2.4s ease-in-out infinite; }
   #story .scene .actions { pointer-events: auto; margin-top: 22px; }
+  /* Angebot nach dem Prolog (Ticket 07): «Im Dorf» über dem Satz, die Knöpfe blenden mit ihm ein */
+  #story .scene .kicker {
+    margin-bottom: 12px; text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9);
+    opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s linear 0.6s;
+  }
+  #story .scene .kicker.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease 0.5s, visibility 0s; }
+  #story .scene .actions.angebot { animation: story-angebot 1.2s ease 0.5s both; }
+  @keyframes story-angebot { from { opacity: 0; transform: translateY(6px); } }
+  @media (prefers-reduced-motion: reduce) { #story .scene .actions.angebot { animation: none; } }
   #story .scene .skip {
     position: absolute; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
     padding: 12px 8px 12px calc(8px + 0.4em); font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ink-dim);
@@ -390,12 +402,26 @@
   #story .scene .skip:hover { color: var(--ink); }
   #story .scene .skip[hidden] { display: none; }
   #story.hidden .scene * { animation-play-state: paused; }
+  /* «Überspringen» für die Einstiege in die Welten und das Kapitel «Im Dorf» (Ticket 07; den Prolog überspringt der
+     Knopf der Bühne): oben rechts wie dort, über dem Untertitel. Auf dem Handy hochkant unten links, die Kopfzeile
+     im Dorf reicht dort über die ganze Breite. Unter Menü und Übersicht nicht (story.skippable). */
+  #btn-skip {
+    position: fixed; z-index: 8; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
+    padding: 12px 8px 12px calc(8px + 0.4em); font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ink-dim);
+    text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9);
+    transition: color 0.25s ease, opacity 0.6s ease;
+  }
+  #btn-skip:hover { color: var(--ink); }
+  @media (max-width: 520px) {
+    #btn-skip { top: auto; right: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
+  }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
     #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
     #story .path { margin-top: 14px; }
     #story .tap, #story .actions { margin-top: 14px; }
     #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
-    #story .scene .lines { font-size: 15px; height: 3.5em; }
+    #story .scene .lines { font-size: 15px; min-height: 3.5em; }
+    #story .scene .kicker { margin-bottom: 6px; }
     #story .scene .hint { margin-top: 8px; }
   }
 
@@ -1042,6 +1068,7 @@
     <div class="tap"></div>
   </div>
 </div>
+<button id="btn-skip" class="hidden" type="button" inert>Überspringen</button>
 
 <div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
 <div id="uebersicht"></div> <!-- Übersicht des Grads (createUebersicht füllt sie) -->
@@ -15348,10 +15375,10 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
  * Speicherstand von Noas Geschichte (Spec .scratch/noa-geschichte/, «Speicherstand»): je Grad unter prisma.noa.<grad>
  * (Leerzeichen als Bindestrich: prisma.noa.sehr-schwer) ein JSON { platz, geloest, gesehen, geschafft }. platz: das
  * Level, das dran ist (0 … 59 in der Reise des Grads); geloest: die gelösten Level (Namen, nicht Plätze); gesehen: die
- * Momente, die nur beim ersten Mal kommen (prolog und die Einstiege in die Welten unter der Kennung ihrer Station, etwa
- * meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten (gespielt, das Tutorial in
- * Ticket 07). Die Bestwerte je Level liegen daneben unter prisma.noa.<grad>.bestwerte (best, noteBest), damit sie
- * «Von vorn» überleben (Entscheid 27). Dazu der zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel
+ * Momente, die nur beim ersten Mal kommen (prolog, angebot, dorf und die Einstiege in die Welten unter der Kennung
+ * ihrer Station, etwa meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten
+ * (gespielt; dorf, das Kapitel «Im Dorf», prüft story.setGrade über storyDorfStand). Die Bestwerte je Level liegen
+ * daneben unter prisma.noa.<grad>.bestwerte (best, noteBest), damit sie «Von vorn» überleben (Entscheid 27). Dazu der zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel
  * (prisma.solvedLevels, prisma.current, prisma.sky, prisma.signal, prisma.signal.seen) liest das Spiel nicht mehr und
  * löscht sie nicht.
  */
@@ -15596,7 +15623,8 @@ const ui = {
 
   /**
    * Kopfzeile. In Noas Geschichte nach Entscheid 20: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter
-   * Grad, Kapitel und Level («●●○○ Mittel · Kapitel 2 / 6 · Level 4 / 10») und die Bedienung. Ein Level ausserhalb
+   * Grad, Kapitel und Level («●●○○ Mittel · Kapitel 2 / 6 · Level 4 / 10») und die Bedienung; im Dorf «Im Dorf –
+   * Umweg», darunter «●○○○ Leicht · Übung 2 / 9» und der Hinweis der Übung (Ticket 07). Ein Level ausserhalb
    * der Geschichte (Testschnittstelle zeige): Titel oder Name mit dem Grad dahinter, darunter die Bedienung, im
    * Tutorial und im Würfel der Hinweis.
    */
@@ -15607,15 +15635,19 @@ const ui = {
     this.hud.classList.toggle('geschichte', story.drives(index)); // Handy quer: die Unterzeile bleibt (CSS)
     this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
     fillTier(this.tier, lvl);
+    const hinweis = () => lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
+      .replaceAll('{Rechtsklick}', IS_TOUCH ? 'Lang drücken' : 'Rechtsklick');
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
       this.title.textContent = title;
       this.tier.hidden = true; // der Grad steht in der Unterzeile
       const tier = document.createElement('span'), ctl = document.createElement('span');
       tier.className = 'tier';
-      fillTier(tier, lvl);
-      ctl.className = 'ctl';
-      ctl.textContent = bedienung;
+      // eine Übung im Dorf hat keinen Grad: der gewählte; statt der Bedienung ihr Hinweis in eigener Zeile (nicht in
+      // .ctl: Das blendet das Handy quer aus)
+      fillTier(tier, lvl.tutorial ? { grad: story.grade } : lvl);
+      ctl.className = lvl.tutorial ? 'hinweis' : 'ctl';
+      ctl.textContent = lvl.tutorial ? hinweis() : bedienung;
       // Kapitel und Level je am Stück: Auf dem Handy hochkant bräche sonst «Level 1 / 10» vor der 10 um
       const teile = info.split(' · ').flatMap((text, k) => {
         const teil = document.createElement('span');
@@ -15630,8 +15662,7 @@ const ui = {
       this.sub.textContent = lvl.hint ?? '';
     } else if (lvl.tutorial) {
       this.title.textContent = `Tutorial ${index + 1} / ${TUTORIAL_COUNT} – ${lvl.name}`;
-      this.sub.textContent = lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
-        .replaceAll('{Rechtsklick}', IS_TOUCH ? 'Lang drücken' : 'Rechtsklick');
+      this.sub.textContent = hinweis();
     } else {
       this.title.textContent = lvl.titel ?? lvl.name;
       this.sub.textContent = bedienung;
@@ -16802,7 +16833,9 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
    blinken (Epilog auf der Bühne, createStoryScene).
    Nach dem Startbildschirm wählt der Spieler im Menü einen Grad (createMenu, Ticket 05); jeder Grad hat seine eigene
    Reise (STORY_LEVELS) und seinen eigenen Stand (progress, prisma.noa.*): Platz, gelöste Level, gesehene Momente.
-   Prolog und Einstiege in die Welten kommen je Grad nur beim ersten Mal. Neuladen setzt dort fort, wo der Grad steht.
+   Prolog und Einstiege in die Welten kommen je Grad nur beim ersten Mal. Nach dem Prolog wählt der Spieler «Üben»
+   (Kapitel «Im Dorf», das Tutorial, STORY_DORF) oder «Gleich los». Prolog, Kapitel «Im Dorf» und Einstiege lassen
+   sich überspringen, die Reisen nicht (Entscheide 10, 28). Neuladen setzt dort fort, wo der Grad steht.
    Ins Menü geht es mit «Menü» im Spiel (der Stand bleibt) und am Ende des Epilogs; dahinter schaut die Kamera in den
    Himmel. Die Würfel-Level gehören nicht zu dieser Geschichte.
    ===================================================================== */
@@ -16849,6 +16882,28 @@ const STORY_CHAPTERS = [
 const STORY_FINALE = ['Der Polarstern hat das Zeichen gesehen.', 'Und er antwortet.'];
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
+/**
+ * Das Kapitel «Im Dorf» (Entscheide 3, 10, 18; Ticket 07): das Tutorial zwischen Prolog und Bergwald, keine der sechs
+ * Welten. Seine Übungen sind LEVELS[0 … TUTORIAL_COUNT − 1] mit Name und Hinweis; sie zählen nicht zu den 60 des Grads.
+ * angebot: nach dem Prolog auf der Bühne (auch nach «Überspringen»), beim ersten Durchgang je Grad; einstieg: der
+ * Untertitel, wenn das Licht ins Dorf kommt (ohne Träger: Es ist schon bei Noa); ende: nach der letzten Übung oder
+ * «Überspringen», danach tragen die Glühwürmchen das Licht in den Bergwald. done/next: «Gelöst» nach der letzten Übung.
+ * sky: der Hintergrund, die Stelle für eine eigene Skybox des Dorfs (fehlt sie, nimmt setSky die Milchstrasse).
+ */
+const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'milky',
+  angebot: { kicker: 'Im Dorf', ueben: 'Üben', los: 'Gleich los',
+    text: 'Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit Noa im Dorf üben?' },
+  einstieg: { kicker: 'Im Dorf · Erstes Licht', traeger: null, moment: 'dorf', path: 0,
+    text: 'Hinter dem Haus übt Noa mit der Taschenlampe. Ein alter Spiegel, ein Stück buntes Glas – und das Licht geht genau dorthin, wo Noa es haben will.' },
+  ende: 'Jetzt weiss Noa, wie man Licht weitergibt. Am Waldrand blinken schon die Glühwürmchen.',
+  done: 'Das Dorf leuchtet', next: 'In den Bergwald' };
+/**
+ * Stand des Dorfs im Speicherstand (prisma.noa.<grad>.dorf, nur nach «Üben»): { platz: Übung 0 … 8, ende: null (das
+ * Kapitel läuft) | 'gespielt' | 'uebersprungen' }; Unlesbares gilt als nicht gespielt (null).
+ */
+const storyDorfStand = (d) => (d && typeof d === 'object' && Number.isInteger(d.platz) && d.platz >= 0
+  && d.platz < TUTORIAL_COUNT && [null, 'gespielt', 'uebersprungen'].includes(d.ende ?? null)
+  ? { platz: d.platz, ende: d.ende ?? null } : null);
 /**
  * Träger zwischen zwei Welten (story.makeCarrier): Punkte um den Lichtpunkt und hinter ihm her. motion: swarm
  * (umkreisen ihn), helix (Wirbel, nach hinten weiter), trail (Spur auf seinem Weg, wave: auf und ab wie Wellen),
@@ -17097,7 +17152,7 @@ function createStoryScene(host) {
         <path d="${grass}" fill="#030309"/><rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>
       </g>
     </svg>
-    <div class="sub"><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
+    <div class="sub"><div class="kicker"></div><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
     <button class="skip" type="button">Überspringen</button>
   </div>`);
 
@@ -17150,6 +17205,7 @@ function createStoryScene(host) {
       this.worms = 'idle';
       this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
       this.say('');
+      this.kicker('');
       this.hint(false);
       this.actions([]);
     },
@@ -17226,8 +17282,16 @@ function createStoryScene(host) {
       next.classList.add('on');
     },
     hint(on) { q('.hint').classList.toggle('on', on); },
-    actions(list) {
+    /** Zeile über dem Untertitel (Angebot nach dem Prolog: «Im Dorf»); leer: blendet aus. */
+    kicker(text) {
+      const k = q('.sub .kicker');
+      if (text) k.textContent = text;
+      k.classList.toggle('on', !!text);
+    },
+    /** Knöpfe unter dem Untertitel ([Beschriftung, Aktion]); angebot: blenden mit dem Satz ein (CSS). */
+    actions(list, { angebot = false } = {}) {
       const box = q('.actions');
+      box.classList.toggle('angebot', angebot);
       box.replaceChildren();
       for (const [label, fn] of list) {
         const b = document.createElement('button');
@@ -17346,6 +17410,12 @@ const story = {
   outside: false,     // ein Level ausserhalb der Geschichte (Testschnittstelle zeige): ohne Stand und Kopfzeile
   steps: [],          // je Level der Reise des Grads { c: Kapitel, index: Platz in LEVELS }
   step: 0,            // Level, das gerade läuft (der Platz im Speicherstand)
+  inDorf: false,      // eine Übung «Im Dorf» läuft (Ticket 07), dann ist uebung das Level statt steps[step]; mit
+                      // replay als Wiederholen aus der Übersicht
+  uebung: 0,          // die Übung im Dorf (0 … TUTORIAL_COUNT − 1, zugleich ihr Platz in LEVELS)
+  entering: null,     // ein Einstieg (enter) läuft, bis das Level zu wachsen beginnt: { skip } (Überspringen, land)
+  endeWartet: false,  // «Überspringen» im Dorf, während eine Zwischenszene lief: danach (done)
+  skipShown: false,   // «Überspringen» (#btn-skip) ist zu sehen (update, skippable)
   gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
   gazeDir: new THREE.Vector3(0, 1, 0),
   gazeRun: 0,         // zählt die weichen Blickwechsel (gazeTo): ein neuer löst den laufenden ab
@@ -17364,14 +17434,23 @@ const story = {
     // während des Startbildschirms. Mit ?sky= (Tests) bleibt der dort gewählte
     const last = progress.last();
     if (last) this.setGrade(last);
-    if (!urlSky) this.setSky(STORY_CHAPTERS[this.steps[this.step]?.c ?? 0].sky, false);
+    if (!urlSky) {
+      this.setSky(this.dorfLaeuft() ? STORY_DORF.sky : STORY_CHAPTERS[this.steps[this.step]?.c ?? 0].sky, false);
+    }
     this.el.addEventListener('click', () => this.tap());
+    this.skipBtn = $('btn-skip');
+    this.skipBtn.addEventListener('click', (e) => { e.stopPropagation(); this.skip(); });
     this.buildScene();
   },
-  /** Grad setzen: seine Reise aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet). */
+  /**
+   * Grad setzen: seine Reise aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet, ebenso eine Übung im
+   * Dorf: begin setzt sie fort). Den Stand des Dorfs prüft erst dieser Schritt (progress kennt das Tutorial nicht).
+   */
   setGrade(grade) {
     this.grade = grade;
     this.replay = false;
+    this.inDorf = false;
+    this.endeWartet = false;
     const byName = new Map(LEVELS.map((l, i) => [l.name, i]));
     this.steps = [];
     STORY_CHAPTERS.forEach((ch, c) => {
@@ -17382,9 +17461,15 @@ const story = {
     });
     this.stand = progress.load(grade, this.steps.length);
     this.step = this.stand.platz;
+    const dorf = storyDorfStand(this.stand.dorf);
+    if (dorf) this.stand.dorf = dorf;
+    else delete this.stand.dorf;
   },
+  /** Das Kapitel «Im Dorf» ist begonnen und noch nicht zu Ende (gespielt oder übersprungen). */
+  dorfLaeuft() { return this.stand?.dorf?.ende === null; },
   /** Das Level, mit dem es nach dem Start wohl weitergeht (Vorwärmen): im zuletzt gespielten Grad, sonst im ersten. */
   firstIndex() {
+    if (this.dorfLaeuft()) return this.stand.dorf.platz;
     if (this.steps.length) return this.steps[this.step].index;
     const name = Object.values(STORY_LEVELS)[0]?.[0]?.[0], i = LEVELS.findIndex(l => l.name === name);
     return i >= 0 ? i : 0;
@@ -17392,14 +17477,17 @@ const story = {
   chapter() { return STORY_CHAPTERS[this.steps[this.step].c]; },
   /** Hintergrund des Kapitels; fehlt die Skybox (z. B. skies.js nicht geladen): Milchstrasse. */
   setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate); },
+  /** Das Level, das die Geschichte gerade spielt: im Dorf die Übung, sonst das Level des Platzes (Platz in LEVELS). */
+  currentIndex() { return this.inDorf ? this.uebung : this.steps[this.step]?.index; },
   /** Die Geschichte führt das Level index (sonst: ausserhalb, Testschnittstelle zeige). */
-  drives(index) { return !this.outside && this.grade !== null && this.steps[this.step]?.index === index; },
+  drives(index) { return !this.outside && this.grade !== null && this.currentIndex() === index; },
   /**
    * Stand des Grads speichern; gespielt: wann zuletzt (ms seit 1970), für «Weiter» im Menü (menuStand). Der Platz
-   * fällt nie zurück (Wiederholen spielt Level davor).
+   * fällt nie zurück (Wiederholen spielt Level davor). Im Dorf (nicht beim Wiederholen) dazu die Übung.
    */
   save() {
     if (this.outside || this.grade === null) return;
+    if (this.inDorf && !this.replay && this.dorfLaeuft()) this.stand.dorf.platz = this.uebung;
     this.stand.platz = Math.max(this.stand.platz, this.step);
     this.stand.gespielt = Date.now();
     progress.save(this.grade, this.stand);
@@ -17540,27 +17628,54 @@ const story = {
    * Kachel in der Übersicht gewählt (Entscheide 9 und 16). Ein gelöstes Level läuft als Wiederholen: ohne Einstieg,
    * Reise und Untertitel, der Platz im Speicherstand bleibt; aus dem Menü ändert das den zuletzt gespielten Grad nicht
    * (Entscheid 3 zu Ticket 06). Das offene Level läuft im normalen Ablauf; ist es das Level auf dem Brett, geht es dort
-   * weiter wie nach Schliessen. Ein altes Brett versinkt, während die Kamera im Himmel ist (begin).
+   * weiter wie nach Schliessen. Ein altes Brett versinkt, während die Kamera im Himmel ist (begin). Eine Übung im
+   * Dorf: playDorf.
    */
-  playFromOverview({ welt, eintrag, wiederholen }) {
+  playFromOverview({ welt, level, eintrag, wiederholen }) {
     const o = this.overview, p = this.paused;
-    if (!o || !uebersicht.offen || welt === 'dorf') return; // die Übungen «Im Dorf» kommen mit Ticket 07
+    if (!o || !uebersicht.offen) return;
     if (o.grade !== this.grade) this.setGrade(o.grade); // aus dem Menü: ein anderer Grad als der auf dem Brett
-    const i = this.steps.findIndex((s) => LEVELS[s.index].name === eintrag.name);
+    const i = welt === 'dorf' ? (LEVELS[level]?.name === eintrag.name ? level : -1)
+      : this.steps.findIndex((s) => LEVELS[s.index].name === eintrag.name);
     if (i < 0) return;
     uebersicht.hide();
     this.overview = null;
     this.choosing = false;
     this.paused = null;
-    if (!wiederholen && p?.grade === o.grade && i === this.step && game.board
+    if (welt === 'dorf') { this.playDorf(i, wiederholen, p); return; }
+    if (!wiederholen && p?.grade === o.grade && !this.inDorf && i === this.step && game.board
       && game.levelIndex === this.steps[i].index) {
       this.resume(p); // das offene Level steht noch auf dem Brett: dort weiter
       return;
     }
+    // ein Level der Welten mitten im Kapitel «Im Dorf» (nur das erste des Bergwalds ist offen): Das Dorf ist damit
+    // übersprungen, ohne seinen Schluss (Entscheid des Umsetzers, Ticket 07)
+    if (this.dorfLaeuft()) this.stand.dorf.ende = 'uebersprungen';
+    this.inDorf = false;
     this.outside = false;
     this.step = i;
     this.replay = wiederholen;
     if (!wiederholen) this.save();
+    this.begin();
+  },
+  /**
+   * Übung i «Im Dorf» aus der Übersicht (Entscheid 4 zu Ticket 07): Läuft das Kapitel noch, geht es an der offenen
+   * Übung weiter wie sonst (steht sie auf dem Brett, wie Schliessen); jede andere läuft als Wiederholen, ohne Einstieg,
+   * «Weiter» zur nächsten, nach der letzten zurück in die Übersicht. Nach «Überspringen» sind alle frei (auch die
+   * ungelösten laufen so). p: Spiel pausiert beim Öffnen.
+   */
+  playDorf(i, wiederholen, p) {
+    const laeuft = this.dorfLaeuft();
+    if (!wiederholen && laeuft && p?.grade === this.grade && this.inDorf && !this.replay && this.uebung === i
+      && game.board && game.levelIndex === i) {
+      this.resume(p);
+      return;
+    }
+    this.outside = false;
+    this.inDorf = true;
+    this.uebung = i;
+    this.replay = wiederholen || !laeuft;
+    if (!this.replay) this.save();
     this.begin();
   },
   /**
@@ -17579,13 +17694,16 @@ const story = {
     };
     const welten = STORY_CHAPTERS.map((ch, c) => ({ name: ch.title.replace(/^(Der|Die|Das) /, ''),
       icon: storyChapterId(ch), level: (STORY_LEVELS[grade]?.[c] ?? []).map(level) }));
-    const d = { grad: grade, welten, geschafft: s.geschafft };
-    if (s.dorf) {
+    const d = { grad: grade, welten, geschafft: s.geschafft }, dorf = storyDorfStand(s.dorf);
+    if (dorf) {
       d.dorf = { level: LEVELS.slice(0, TUTORIAL_COUNT).map((l) => level(l.name)),
-        frei: s.dorf.ende === 'uebersprungen' };
+        frei: dorf.ende === 'uebersprungen' };
     }
     const cur = imSpiel && this.steps[this.step];
-    if (cur) d.aktuell = { welt: cur.c, level: (STORY_LEVELS[grade]?.[cur.c] ?? []).indexOf(LEVELS[cur.index].name) };
+    if (imSpiel && this.inDorf) d.aktuell = { welt: 'dorf', level: this.uebung };
+    else if (cur) {
+      d.aktuell = { welt: cur.c, level: (STORY_LEVELS[grade]?.[cur.c] ?? []).indexOf(LEVELS[cur.index].name) };
+    }
     return d;
   },
   /** Esc im Menü, das aus dem Spiel kam: zurück ins Level wie mit «Weiter» (nach dem Start und dem Epilog nicht). */
@@ -17629,7 +17747,7 @@ const story = {
     if (!(grade === this.grade && this.stand?.geschafft)) progress.setLast(grade);
     const p = this.paused;
     this.paused = null;
-    if (p?.grade === grade && game.board && game.levelIndex === this.steps[this.step]?.index) {
+    if (p?.grade === grade && game.board && game.levelIndex === this.currentIndex()) { // auch eine Übung im Dorf
       this.save(); // gespielt: jetzt (menuStand)
       this.resume(p);
       return;
@@ -17656,35 +17774,75 @@ const story = {
     if (flow.solved && flow.state === 'play' && (!celebration.active || celebration.panelShown)) {
       ui.showSolved(game.levelIndex, flow.solveStats);
     }
-    this.running = false;
+    this.done();
   },
   /**
-   * Prolog (nur beim ersten Mal je Grad), dann bringt der Träger das Licht in die Welt, in der es weitergeht. Ein altes
-   * Feld (Menü oder Übersicht aus dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel
-   * bzw. die Bühne deckt es zu. Wiederholen (replay) kommt immer ohne Prolog und Einstieg.
+   * Prolog (nur beim ersten Mal je Grad) mit dem Angebot «Üben» / «Gleich los» (Entscheid 18), dann bringt der Träger
+   * das Licht in die Welt, in der es weitergeht, bzw. das Licht kommt ins Dorf. Ein altes Feld (Menü oder Übersicht aus
+   * dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel bzw. die Bühne deckt es zu.
+   * Läuft das Kapitel «Im Dorf», geht es an seiner Übung weiter. Wiederholen (replay) kommt immer ohne Prolog und
+   * Einstieg.
    */
   async begin() {
     this.running = true;
-    const { index } = this.steps[this.step], ch = this.chapter();
     flow.state = 'story';
+    if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = this.stand.dorf.platz; }
+    let index = this.currentIndex(), ch = this.inDorf ? STORY_DORF : this.chapter();
     const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
-    if (this.replay || this.seen(storyChapterId(ch))) {
+    if (this.replay || this.seen(this.inDorf ? STORY_DORF.einstieg.moment : storyChapterId(ch))) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
       // ist (sonst sähe man ein leeres Brett, solange ihr Himmel lädt), dann senkt sich der Blick, und das Level wächst
       await this.skyOf(ch);
       await sunk;
       setShown(ui.controls, true);
       await this.gazeTo(0, 2.2, (k) => { if (k > 0.25 && flow.state === 'story') enterLevel(index); });
-      this.running = false;
+      this.done();
       return;
     }
-    if (!this.seen('prolog')) {
+    // das Angebot nur vor dem ersten Level des Grads (ein älterer Stand ohne «angebot» bekommt es nicht mitten im Wald)
+    const angebot = !this.inDorf && !this.seen('angebot') && !this.seen(storyChapterId(STORY_CHAPTERS[0]));
+    if (!this.seen('prolog') || angebot) {
       this.setSky(ch.sky, true); // lädt hinter der Bühne
-      await this.playScene(STORY_PROLOG, { skippable: true });
+      // nach einem Neuladen zwischen Prolog und Wahl: nur das Angebot, auf dem letzten Bild des Prologs, ohne Fahrt
+      const shots = this.seen('prolog') ? [{ ...STORY_PROLOG.at(-1), text: '', act: null, move: 0 }] : STORY_PROLOG;
+      const ueben = await this.playScene(shots, { skippable: !this.seen('prolog'), angebot });
       this.see('prolog');
+      if (ueben) { this.inDorf = true; this.uebung = 0; index = this.currentIndex(); ch = STORY_DORF; }
     }
-    await this.enter(index, ch, sunk);
+    if (this.inDorf) await this.enter(index, ch, sunk, STORY_DORF.einstieg);
+    else await this.enter(index, ch, sunk);
+    this.done();
+  },
+  /** Eine Zwischenszene ist zu Ende; wartet ein «Überspringen» des Dorfs (skip), kommt es jetzt. */
+  done() {
     this.running = false;
+    if (this.endeWartet) { this.endeWartet = false; this.dorfEnde('uebersprungen'); }
+  },
+  /**
+   * Das Angebot nach dem Prolog (auch nach «Überspringen») auf der Bühne: «Im Dorf», der Satz und die Knöpfe «Üben» und
+   * «Gleich los», der Fokus auf «Üben». Die Wahl gilt sofort (gesehen: angebot; nach «Üben» stand.dorf, und der Himmel
+   * des Dorfs kommt hinter der Bühne, die ihn noch ganz zudeckt). Zurück: true bei «Üben».
+   */
+  async offer(sc) {
+    const a = STORY_DORF.angebot;
+    // übersprungen: Die Fahrt läuft im Zeitraffer zu Ende (sonst klickte die Lampe noch unter dem Angebot)
+    for (let t = 0; sc.tweens.length && t < 40; t++) await storySleep(50);
+    sc.speed = 1;
+    sc.hint(false);
+    sc.kicker(a.kicker);
+    sc.say(a.text);
+    const ueben = await new Promise((resolve) => {
+      sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
+      sc.el.querySelector('.actions button').focus({ preventScroll: true });
+    });
+    sc.actions([]); // nur eine Wahl (Doppelklick)
+    if (ueben) {
+      this.stand.dorf = { platz: 0, ende: null };
+      this.setSky(STORY_DORF.sky, false);
+    }
+    this.see('prolog');
+    this.see('angebot');
+    return ueben;
   },
   /**
    * Himmel der Welt ch und warten, bis er da ist (höchstens 8 s). Sieht man dabei in den Himmel (nach dem Menü),
@@ -17719,6 +17877,7 @@ const story = {
    */
   advance() {
     if (this.running) return;
+    if (this.inDorf) { this.advanceDorf(); return; }
     const cur = this.steps[this.step], next = this.steps[this.step + 1];
     if (this.replay) {
       if (!next && this.stand.geschafft) { this.toOverview(); return; }
@@ -17736,6 +17895,55 @@ const story = {
     this.save();
     if (next.c === cur.c) changeLevel(next.index);
     else this.chapterEnd(next);
+  },
+  /**
+   * «Weiter» im Dorf: die nächste Übung, nach der letzten das Ende des Kapitels (dorfEnde). Beim Wiederholen nach dem
+   * Ende des Kapitels zurück in die Übersicht; läuft das Kapitel noch, gilt ab der ersten ungelösten Übung wieder der
+   * normale Ablauf.
+   */
+  advanceDorf() {
+    const next = this.uebung + 1, laeuft = this.dorfLaeuft();
+    if (next >= TUTORIAL_COUNT) {
+      if (this.replay && !laeuft) { this.toOverview(); return; }
+      this.replay = false;
+      this.dorfEnde('gespielt');
+      return;
+    }
+    if (this.replay && laeuft && !this.stand.geloest.includes(LEVELS[next].name)) this.replay = false;
+    this.uebung = next;
+    this.save();
+    changeLevel(next);
+  },
+  /**
+   * Ende des Kapitels «Im Dorf» (art: 'gespielt' nach der letzten Übung, 'uebersprungen'): «Gelöst», Kopfzeile und
+   * Knöpfe gehen weg, der Blick hebt sich, darunter versinkt die Übung; der Satz zum Ende wartet auf Tippen, dann
+   * tragen die Glühwürmchen das Licht in den Bergwald (Einstieg wie nach dem Prolog). Während einer Zwischenszene wartet ein
+   * «Überspringen», bis sie fertig ist (done).
+   */
+  async dorfEnde(art) {
+    if (!this.inDorf || this.choosing || !this.dorfLaeuft()) return;
+    if (this.running) { this.endeWartet = true; return; }
+    this.running = true;
+    flow.state = 'story'; // die Übung dreht nicht mehr (auch mitten im Herauswachsen)
+    this.fast = 1;
+    ui.hideSolved();
+    ui.hideHud();
+    setHovered(null);
+    setShown(ui.controls, false);
+    this.stand.dorf.ende = art;
+    this.inDorf = false;
+    this.replay = false;
+    this.save();
+    if (this.gaze === 0) this.aimGaze(STORY_UP);
+    const hoch = this.gazeTo(1, 1.8);
+    await this.wait(0.6);
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
+      { kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: IS_TOUCH ? 'Tippen' : 'Klicken' }));
+    await hoch;
+    const { index } = this.steps[this.step], sunk = this.sinkTo(index); // erst im Himmel: kein leeres Brett
+    await this.untilTap();
+    await this.enter(index, STORY_CHAPTERS[0], sunk);
+    this.done();
   },
   async chapterEnd(next) {
     const from = STORY_CHAPTERS[this.steps[this.step - 1].c];
@@ -17917,9 +18125,10 @@ const story = {
   /**
    * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
    * während einer Fahrt macht sie schneller. actions: Knöpfe nach der letzten Einstellung (Epilog), die Bühne bleibt
-   * dann stehen; sonst blendet sie aus.
+   * dann stehen; sonst blendet sie aus. angebot: nach der letzten Einstellung oder dem Überspringen das Angebot
+   * (offer), danach blendet sie aus; zurück die Wahl (true: «Üben»), sonst false.
    */
-  async playScene(shots, { skippable = false, actions = null, soft = false } = {}) {
+  async playScene(shots, { skippable = false, actions = null, soft = false, angebot = false } = {}) {
     const sc = this.scene ??= this.makeScene();
     sc.reset(shots[0]);
     sc.el.classList.remove('prewarm');
@@ -17944,14 +18153,18 @@ const story = {
       await sc.moveTo(shot);
       if (this.skipped) break;
       if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
+      if (angebot && shot === shots.at(-1)) break; // statt «Tippen» gleich das Angebot
       sc.hint(true);
       await this.untilTap();
     }
     sc.skip.hidden = true; // Escape wirkt nur im Prolog (sonst ginge damit später eine Karte weiter)
+    const ueben = angebot ? await this.offer(sc) : false;
     sc.say('');
+    sc.kicker('');
     sc.hint(false);
     await sc.hide();
     this.covered = false;
+    return ueben;
   },
   /**
    * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot), bevor sie gebraucht wird: Das erste Zeichnen der
@@ -17965,6 +18178,7 @@ const story = {
   },
   makeScene() {
     const sc = createStoryScene(this.el);
+    sc.skip.hidden = true; // nur im Prolog (playScene); sonst hielte skip ihn nach einem Neuladen für offen
     sc.skip.addEventListener('click', (e) => { e.stopPropagation(); this.skipProlog(); });
     return sc;
   },
@@ -18037,11 +18251,18 @@ const story = {
    * (im ersten Kapitel die Glühwürmchen des Prologs, sonst der der Welt davor), fliegt mit ihm von der Seite heran,
    * tief über dem Horizont, und es fällt aufs Brett. Dazu der Untertitel mit Kapitel und Weg wie auf der Reise. Bis der
    * Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im Himmel der Welt davor); schaut sie
-   * schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin).
+   * schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin). wie: was der Welt
+   * ch sonst entnommen wird (Einstieg ins Dorf: STORY_DORF.einstieg, ohne Träger): kicker, text, path (Station),
+   * traeger (STORY_CARRIERS oder null), moment (gesehen, sobald das Level wächst).
+   * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
    */
-  async enter(index, ch, sunk) {
+  async enter(index, ch, sunk, wie = {}) {
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
-    await this.skyOf(ch);
+    const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
+      traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
+    const e = this.entering = { skip: false };
+    await this.skyOf(ch); // übersprungen: trotzdem bis der Himmel da ist (kein leeres Brett unter einem fremden Himmel)
+    if (e.skip) { await this.land(index, moment, sunk); return; }
     const up = ch.up ?? STORY_UP, dist = 60, from = this.gaze > 0.5 ? this.gazeDir.clone() : null;
     this.gazeRun++; // ein weicher Blickwechsel (gazeTo) endet hier
     this.aimGaze(up);
@@ -18054,7 +18275,7 @@ const story = {
     fl.visible = true;
     fl.material.opacity = 1;
     fl.scale.setScalar(5);
-    carrier.start(c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', fl.position);
+    carrier.start(traeger, fl.position); // ohne Träger (null): nur der Lichtpunkt
     carrier.strength = 1;
     // aus dem Himmel (Menü): erst noch dorthin, wohin die Kamera schon schaut, dann folgt sie dem Licht
     const follow = (k) => {
@@ -18063,18 +18284,23 @@ const story = {
     };
     follow(0);
     this.gaze = 1;
-    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: `Kapitel ${c + 1} · ${ch.title}`, text: ch.travel, path: ch.station }));
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, { kicker, text, path }));
     await this.tween(3.4, (k) => {
       place(el0 + (el1 - el0) * k, az0 + (az1 - az0) * k);
       carrier.orb.copy(fl.position);
       follow(k);
-    });
+    }, storyEase, 0, e);
+    if (e.skip) { await this.land(index, moment, sunk); return; }
     await sunk;
-    await this.fall(index, fl.position.clone());
+    if (e.skip) { await this.land(index, moment, sunk); return; }
+    await this.fall(index, fl.position.clone(), moment, e);
   },
-  /** Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst. */
-  async fall(index, from) {
+  /**
+   * Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst, der
+   * Moment (Einstieg in eine Welt, ins Dorf; sonst die Welt des Platzes) ist gesehen. e: im Einstieg (enter) dessen
+   * Zustand: Bis das Level wächst, lässt er sich überspringen (land).
+   */
+  async fall(index, from, moment = storyChapterId(this.chapter()), e = null) {
     const fl = this.flare, carrier = this.carrier, to = new THREE.Vector3(0, BEAM_Y, 0), size = fl.scale.x;
     fl.visible = true;
     fl.material.opacity = 1;
@@ -18089,14 +18315,56 @@ const story = {
       this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.7, 1);
       if (!entered && k > 0.6) {
         entered = true;
+        if (e && this.entering === e) this.entering = null; // ab hier nicht mehr zu überspringen
         enterLevel(index);
         setShown(ui.controls, true); // nach dem Menü wieder da
-        this.see(storyChapterId(this.chapter())); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
+        this.see(moment); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
       }
       if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise
-    });
+    }, storyEase, 0, e);
+    if (!entered) { await this.land(index, moment); return; } // übersprungen, bevor das Level wuchs
     fl.visible = false;
     carrier.stop();
+  },
+  /**
+   * Einstieg übersprungen (Entscheid 10; Vorbild der Prolog: kein Schnitt, nur eine kürzere, weiche Fahrt): Der
+   * Untertitel geht zu, Lichtpunkt und Träger blenden in 0,4 s aus, dann senkt sich der Blick aufs Brett, und das Level
+   * wächst wie beim Fortsetzen; der Moment ist gesehen. sunk: das alte Feld ist versunken.
+   */
+  async land(index, moment, sunk = Promise.resolve()) {
+    this.entering = null;
+    this.close();
+    const fl = this.flare, carrier = this.carrier, o = fl.material.opacity, s = carrier.strength;
+    this.tween(0.4, (k) => { fl.material.opacity = o * (1 - k); carrier.strength = s * (1 - k); }, storyLinear)
+      .then(() => { fl.visible = false; carrier.stop(); });
+    await sunk;
+    setShown(ui.controls, true);
+    await this.gazeTo(0, 1.8, (k) => {
+      if (k <= 0.25 || flow.state !== 'story') return;
+      enterLevel(index);
+      this.see(moment);
+    });
+  },
+  /**
+   * «Überspringen» (Knopf #btn-skip) bzw. Esc (taste): den Prolog (sein Knopf auf der Bühne), einen Einstieg (enter
+   * landet weich) und, nur mit dem Knopf, das Kapitel «Im Dorf» (dorfEnde). Die Reisen laufen ganz (Entscheid 28).
+   */
+  skip(taste = false) {
+    if (this.scene && !this.scene.skip.hidden) { this.skipProlog(); return; }
+    const e = this.entering;
+    if (e) {
+      if (e.skip) return;
+      e.skip = true;
+      this.dropTweens(e); // Flug oder Fall halten an, wo sie sind; enter bzw. fall gehen zu land
+      return;
+    }
+    if (!taste && this.skippable()) this.dorfEnde('uebersprungen');
+  },
+  /** Ist «Überspringen» (#btn-skip) jetzt zu sehen: in einem Einstieg und solange das Kapitel «Im Dorf» läuft. */
+  skippable() {
+    if (this.choosing || this.outside || this.grade === null || flow.state === 'intro') return false;
+    if (this.entering) return !this.entering.skip;
+    return this.inDorf && this.dorfLaeuft() && !this.endeWartet; // auch beim Wiederholen einer Übung davor
   },
   /** Altes Feld versinken lassen, ohne dass das neue von selbst wächst (updateFlow ruft sunk). */
   sinkTo(index) {
@@ -18194,7 +18462,7 @@ const story = {
   keydown(e) {
     if (this.el.classList.contains('hidden') && flow.state !== 'story') return false;
     if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.tap(); }
-    else if (e.code === 'Escape') this.skipProlog();
+    else if (e.code === 'Escape') this.skip(true); // Prolog oder Einstieg (das Dorf nicht: dort öffnet Esc das Menü)
     return e.code !== 'KeyM';
   },
 
@@ -18202,6 +18470,10 @@ const story = {
 
   /** Kopfzeile (Entscheid 20): [«Das Meer – Brandung», «Kapitel 2 / 6 · Level 4 / 10»]; Grad und Bedienung: ui. */
   hudText(index) {
+    // im Dorf: «Im Dorf – Umweg», «Übung 2 / 9» (Grad und Hinweis: ui)
+    if (this.inDorf) {
+      return [`${STORY_DORF.title} – ${LEVELS[index].name}`, `Übung ${this.uebung + 1} / ${TUTORIAL_COUNT}`];
+    }
     const cur = this.steps[this.step], lvl = LEVELS[index], imKapitel = this.steps.filter(s => s.c === cur.c);
     return [`${STORY_CHAPTERS[cur.c].title} – ${lvl.titel ?? lvl.name}`,
       `Kapitel ${cur.c + 1} / ${STORY_CHAPTERS.length} · Level ${imKapitel.indexOf(cur) + 1} / ${imKapitel.length}`];
@@ -18212,6 +18484,10 @@ const story = {
    * in die Übersicht statt ins Finale.
    */
   solvedText() {
+    if (this.inDorf) { // nach der letzten Übung in den Bergwald, beim Wiederholen nach dem Kapitel in die Übersicht
+      if (this.uebung + 1 < TUTORIAL_COUNT) return ['Gelöst', 'Weiter'];
+      return [STORY_DORF.done, this.replay && !this.dorfLaeuft() ? 'Zur Übersicht' : STORY_DORF.next];
+    }
     const cur = this.steps[this.step], next = this.steps[this.step + 1], ch = STORY_CHAPTERS[cur.c];
     if (next && next.c === cur.c) return ['Gelöst', 'Weiter'];
     return !next && this.replay && this.stand.geschafft ? [ch.done, 'Zur Übersicht'] : [ch.done, ch.next];
@@ -18219,11 +18495,25 @@ const story = {
 
   /* ---------- Zeitachse (läuft mit animate, Zeit der Szene) ---------- */
 
-  tween(seconds, fn, ease = storyEase, delay = 0) {
-    return new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
+  /** mark: Marke für dropTweens (Flug und Fall eines Einstiegs: sein Zustand entering). */
+  tween(seconds, fn, ease = storyEase, delay = 0, mark = null) {
+    return new Promise((resolve) => {
+      this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve, mark });
+    });
+  },
+  /**
+   * Die Tweens mit der Marke mark abbrechen: Sie verschwinden ohne letzten Schritt (Lichtpunkt und Kamera springen
+   * nicht ans Ende), ihre Promise ist erfüllt. Weiche Blickwechsel (gazeTo) und Warten (skyOf, wait) bleiben.
+   */
+  dropTweens(mark) {
+    const weg = this.tweens.filter((tw) => tw.mark === mark);
+    this.tweens = this.tweens.filter((tw) => tw.mark !== mark);
+    for (const tw of weg) tw.resolve();
   },
   wait(seconds) { return this.tween(seconds, () => {}); },
   update(dt) {
+    const skip = this.skippable();
+    if (skip !== this.skipShown) { this.skipShown = skip; setShown(this.skipBtn, skip); }
     this.carrier?.update(dt * this.fast);
     if (this.blend) this.blendSky();
     if (!this.tweens.length) return;
@@ -18456,7 +18746,8 @@ story.init();
    R: neu starten · M: Ton · Esc: Menü · L: Übersicht · Enter: weiter (nach dem Lösen) bzw. Start; im Menü Tab,
    Pfeile, Pos1/Ende, Enter (menu.keydown), Esc zurück ins Spiel (story.back); in der Übersicht Pfeile, Pos1/Ende,
    Bild↑/↓, Tab, Enter und Esc (createUebersicht fängt sie ab), L schliesst sie; in den Zwischenszenen
-   Enter/Leertaste weiter, Esc überspringt den Prolog (story.keydown).
+   Enter/Leertaste weiter, Esc überspringt den Prolog und die Einstiege (story.keydown); im Dorf öffnet Esc das Menü
+   wie in jedem Level (das Kapitel überspringt nur der Knopf).
    Level und Hintergrund wählt die Geschichte (Entscheide 21 und 26). C (Debug): Farbe der Quellen wechseln */
 
 /**
