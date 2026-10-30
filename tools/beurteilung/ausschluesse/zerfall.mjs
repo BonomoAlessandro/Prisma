@@ -17,7 +17,8 @@ const MIN_ELEMENTE = 3;
 
 /**
  * Gruppen von Zielen der Lösungsstellung, die mit den meisten drehbaren Elementen zuerst, je { ziele, elemente } als Ids
- * in der Reihenfolge des Levels. Exportiert für die Vorprüfung beim Ausbau (tools/ausbau.mjs wahl).
+ * in der Reihenfolge des Levels. Exportiert für die Vorprüfung der Würfel-Kandidaten (tools/wuerfel.mjs wahl; bis
+ * Ticket 08 von Noas Geschichte auch tools/ausbau.mjs wahl).
  */
 export function gruppen(ctx) {
   const { level, feldform } = ctx;

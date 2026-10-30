@@ -54,8 +54,9 @@ import { GRUPPEN, QUADER, WUERFEL_TEXT, bestandNach, ebenenVerletzt, istWuerfel,
   from './wuerfelliste.mjs';
 
 /**
- * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als tools/ausbau.mjs (dort
- * „leicht“ bis 1): In Gruppe 1 lehnten beide KI-Tester alle drei leichten Kandidaten mit einem solchen Teil ab.
+ * Zweiter unabhängiger Teil: so viele drehbare Elemente höchstens, in jedem Grad. Strenger als einst tools/ausbau.mjs
+ * wahl (dort „leicht“ bis 1): In Gruppe 1 lehnten beide KI-Tester alle drei leichten Kandidaten mit einem solchen Teil
+ * ab.
  */
 const ZWEITER_TEIL_HOECHSTENS = 0;
 /** So viele Tausche gegen offene Häufungen höchstens (wahl). */
