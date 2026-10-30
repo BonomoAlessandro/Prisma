@@ -18373,7 +18373,9 @@ const story = {
    */
   async land(index, moment, sunk = Promise.resolve()) {
     this.entering = null;
-    this.skipRuhe = performance.now() + STORY_SKIP_RUHE;
+    // «Dorf überspringen» erst 2 s nach dem Herauswachsen (wie im Fall), nicht schon während der Landung: Mit dem Warten
+    // aufs Versinken und grossen Winkeln dauert sie länger als die Pause
+    this.skipRuhe = Infinity;
     this.fast = 1;
     this.landing = true; // Tippen beschleunigt die Landung nicht (sie ist schon die Abkürzung)
     this.close();
@@ -18398,6 +18400,7 @@ const story = {
       this.gazeDir.copy(von).applyQuaternion(q.slerpQuaternions(keine, dreh, k)).normalize();
       if (!gewachsen && k > 0.25 && (1 - k) * winkel < 1.05 && flow.state === 'story') {
         gewachsen = true;
+        this.skipRuhe = performance.now() + STORY_SKIP_RUHE;
         enterLevel(index);
         this.see(moment);
       }
@@ -18405,6 +18408,7 @@ const story = {
     this.gaze = 0;
     this.landing = false;
     if (!gewachsen && flow.state === 'story') { enterLevel(index); this.see(moment); }
+    this.skipRuhe = Math.min(this.skipRuhe, performance.now() + STORY_SKIP_RUHE);
   },
   /**
    * «Überspringen» (Knopf #btn-skip) bzw. Esc (taste): den Prolog (sein Knopf auf der Bühne), einen Einstieg (enter

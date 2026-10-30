@@ -314,6 +314,16 @@ bestanden; Probe `--dorf` auf dem Desktop mit den Fixes **bestanden**, Konsole l
 2083133 einmal 581 ms Lücke gleich nach dem ersten Zeichnen der Bühne (frischer Worktree, kalter Cache), im Lauf mit
 den Fixes nicht wieder.
 
+*Nachprüfung der Nachbesserung 1a207e6 (30.10.2026):* slerp-Landung (Winkel 180° praktisch unerreichbar, Brett schon
+im Blick: 1,8 s ohne Drehung wie vorher, nicht abbrechbar), `fast`, Vorwärmen mit `makeInteractive` (läuft vor jedem
+Level, `loadLevel` leert `hitProxies` ohnehin, kein Leck), `quiet`, Vorladen des Walds und der verzögerte `sunk` der
+Probe sind in Ordnung; behoben (eigener Commit): Die 2 s ohne Knopf begannen in `land` schon beim Überspringen, sodass
+«Dorf überspringen» bei langer Landung (Warten aufs Versinken) schon während der Landung erschien – jetzt erst 2 s nach
+dem Herauswachsen wie im Fall; neue Probe d2) in `--dorf-raender` (Flug ins Dorf übersprungen, Landung wartet
+aufs Versinken; `einstiegWeg` prüft je Bild, dass der Knopf bis dahin fehlt) scheitert auf 1a207e6 und besteht jetzt.
+Offen (mittel, Vorschlag): Nach «Gleich los» endet `quiet` mit der Bühne, Bild und Streifen des Walds laden darum zu
+Beginn des Einstiegs; wie nach der Reise erst 1,2 s nach dem Herauswachsen freigeben.
+
 **Nachbesserung nach Review (30.10.2026, Umsetzer)** – Funde aus «Review Code» und dem Bericht zum Spielerlebnis
 (`review-07-erlebnis.md` des Reviewers); gemessen mit `geschichte-probe.mjs --dorf` und `--dorf-raender` (Desktop,
 Handy hoch, quer, Touch) und dem Treiber des Reviewers (`erlebnis.mjs skip,tempo,bilder`, Desktop, Handy hoch, quer,

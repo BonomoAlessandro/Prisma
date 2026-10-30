@@ -1038,7 +1038,13 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
   const vorher = await ev(`({ skyBereit: ${D}.skyTheme.ready, fall: ${D}.story.flare.scale.x < 4.9 })`);
   if (esc) await taste('Escape');
   else await tippe(SKIP, 'Überspringen');
+  // während der Landung, bis das Level wächst, kein «Überspringen» (es meinte im Dorf schon das Kapitel)
+  await sleep(100);
+  await ev(`window.__skipLandung = false; (function schau() { if (['in', 'play'].includes(${D}.flow.state)) return;
+    if (!document.getElementById('btn-skip').classList.contains('hidden')) window.__skipLandung = true;
+    requestAnimationFrame(schau); })(); true`);
   await until(`window.__prisma.playing() && !${D}.story.running`, `${g}: ${was}: Level steht`, 40);
+  pruefe(!(await ev('window.__skipLandung')), `${g}: ${was}: «Überspringen» während der Landung zu sehen`);
   await sleep(1200);
   const log = await ende(`${g}: ${was} übersprungen`);
   const n = wachsen(log);
@@ -1293,7 +1299,8 @@ async function dorfAblauf() {
  *    dorf.ende uebersprungen; c) Neuladen während des Einstiegs ins Dorf: «Weiter» bringt den Einstieg wieder, ohne
  *    Prolog und Angebot; e) «Überspringen», während die Übung nach «Weiter» versinkt: die nächste wächst nicht, Satz zum
  *    Ende, Bergwald; d) einen Einstieg überspringen, während er auf das Versinken des alten Bretts wartet (sunk
- *    künstlich verzögert): Er landet erst danach, genau ein Level wächst.
+ *    künstlich verzögert): Er landet erst danach, genau ein Level wächst; d2) ebenso im Flug ins Dorf: «Dorf
+ *    überspringen» erst 2 s nach dem Herauswachsen, nicht während des Wartens.
  */
 async function dorfRaender() {
   console.log(`${view.name}: Im Dorf, Randfälle`);
@@ -1389,6 +1396,23 @@ async function dorfRaender() {
     (t) => t.mark)`, 'd: Einstieg wartet aufs Versinken', 30);
   await einstiegWeg('mittel', 'Einstieg in den Bergwald (wartet aufs Versinken)', 'wald', { esc: !view.phone });
   await kopfzeile('mittel', 0);
+
+  // d2) Einstieg ins Dorf im Flug überspringen, während das alte Brett noch nicht versunken ist: Die Landung wartet
+  // darauf; «Dorf überspringen» kommt erst 2 s nach dem Herauswachsen, nicht schon während des Wartens (einstiegWeg)
+  if (view.phone) await tippe('#btn-menu', 'Menü');
+  else await taste('Escape');
+  await until(`${menueOffen} && !${D}.story.tweens.length`, 'd2: Menü', 10);
+  await ev(`(() => { const s = ${D}.story, alt = s.sunk; let einmal = false;
+    s.sunk = function () { if (einmal) return; einmal = true;
+      setTimeout(() => { s.sunk = alt; alt.call(s); }, 12000); }; })()`);
+  await tippe(karte('sehr schwer'), 'Karte Sehr schwer');
+  await prologWeg('sehr schwer');
+  await angebot('sehr schwer', 'Üben');
+  await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.tweens.some((t) => t.mark)`,
+    'd2: Flug ins Dorf, das alte Brett wartet', 30);
+  await einstiegWeg('sehr schwer', 'Einstieg ins Dorf (Flug, Landung wartet aufs Versinken)', 'dorf',
+    { esc: !view.phone });
+  await uebungLaeuft(0);
 }
 /** Die Übung n steht auf dem Brett und läuft. */
 async function uebungLaeuft(n) {
