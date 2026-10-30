@@ -1,5 +1,8 @@
 # Die heutige Reihenfolge ist der Massstab für die Schwierigkeit
 
+**Für das Spiel abgelöst durch ADR 0005** (Die Geschichte ersetzt die feste Reihenfolge): Im Spiel stehen die Level
+in der Reihenfolge der Geschichte. Als Massstab für die Eichung der Schwierigkeit gilt dieser Entscheid weiter.
+
 Es gibt keine Spieldaten, und KI-Tester waren sich bei der Schwierigkeit kaum einig (Rangkorrelation 0,02–0,27). Die
 heutige Reihenfolge der 150 Level ist von Hand festgelegt und vom Nutzer grösstenteils selbst gespielt. Darum eichen
 wir die Schwierigkeit an ihr. Die Gewichte werden an der einen Hälfte der Level eingestellt und an der anderen

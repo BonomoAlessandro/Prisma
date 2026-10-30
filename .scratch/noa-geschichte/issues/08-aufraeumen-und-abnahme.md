@@ -43,3 +43,34 @@ sind «Menü» und «Neu starten» sichtbar, wirken aber nicht – ausblenden od
 den Fokus hat; Hinweis zur gesperrten Kachel auf dem Desktop näher an die Kachel; «Schliessen» auf 44 px; erstes
 Zeichnen einer frisch geladenen Skybox (Reise, Weltgrenze) kostet 50–120 ms; auf kleinen Handys hoch (unter 700 px)
 zeigt das Menü die Aktion der Karte nicht; Begriffe «Wiederholen» und «Bestwerte» ins Glossar.
+
+**Doku-Teil (Worktree noa/08-doku, 30.10.2026)** – parallel zu Ticket 07 und zum Einbau von 09, ohne Code:
+
+- **`CONTEXT.md`** (Abschnitt «Noas Geschichte»): Durchgang (geschafft heisst Finale gesehen, «Von vorn», «Reise» nur
+  noch unter _Vermeiden_), Welt (Abgrenzung zu «Im Dorf»: Kapitel ohne Nummer, keine Welt), Einstieg in eine Welt
+  (überspringbar, Einstieg ins Dorf ohne Träger), Reise (läuft ganz, nicht überspringbar, Entscheid 28), Übersicht
+  geschärft; «Im Dorf» nach dem Einbauplan und den Entscheiden von Ticket 07 neu gefasst (Übungen, Angebot auch nach
+  übersprungenem Prolog, keine der sechs Welten, zählt nicht zu den 60, Übersicht, Milchstrasse); neu «Menü» (mit
+  «Weiter» und «Von vorn», Wunsch aus 05), «Wiederholen», «Bestwerte» (überleben «Von vorn», Entscheid 27) und
+  «Testschnittstelle» (Wunsch aus 04). Titel: «sonst den Namen (die Übungen im Dorf)». Geschichte, Grad, Vorrat
+  unverändert geprüft. «Was Spass macht», «Kernideen», «Was Spass verdirbt» unberührt; `tests/ki-tester.test.mjs`
+  danach grün (siehe unten).
+- **ADR 0001:** Verweis «Für das Spiel abgelöst durch ADR 0005», als Massstab der Eichung gilt es weiter.
+- **ADR 0005** nachgeführt: «Weiter» und «Von vorn» im Menü, «Im Dorf» als Kapitel ohne Welt, Wiederholen ohne
+  Zwischenszenen, Bestwerte überleben «Von vorn», Reisen laufen ganz (Entscheide 27, 28); die Entscheide des
+  Koordinators aus 05–07 als markierte Liste; unter «Verworfen» Bestwerte mit «Von vorn» löschen und Reisen
+  überspringbar.
+- **PLAN.md 0:** Stand vom 30.10. (02–06 fertig, 07 und 09 in Arbeit, 08 offen), offene Punkte ausserhalb der Spec
+  (eigene Skybox «Im Dorf», Würfel als Teil 2, Zwischenszenen in einer Welt), Entscheide vom 30.10., Vorrat unter 0.2,
+  Platzhalter und Ticket 09 unter 0.3. Nicht auf «erledigt» gesetzt.
+- **Offen für den Code-Teil von 08:**
+  - «Im Dorf» in `CONTEXT.md` nach dem fertigen Ticket 07 gegenlesen (Kopfzeile, Name der Knöpfe, Code-Namen wie
+    `STORY_DORF`/`story.inDorf` erst nach dem Einbau nennen; «Überspringen» beim Einstieg mit dem gebauten Knopf und Esc
+    abgleichen).
+  - Eintrag «Reihe» unter «Abgelöst» erst nachführen, wenn Levelliste, KI-Tester und Golden-Test umgestellt oder
+    entfernt sind; «Platzhalter» erst nach dem Einbau von 09 als abgelöst markieren.
+  - Im Code «Reise» nur für `story.travel`, Kommentare um `story.steps` auf «Durchgang» (dann den Hinweis «im Code
+    steht dafür noch …» unter Durchgang streichen).
+  - `SPEC.md` und `3D-WUERFEL.md` erwähnen noch Levelauswahl und Hintergrund-Umschalten (Hinweis aus 04).
+  - PLAN.md 0 nach der Abnahme auf erledigt setzen; Checkbox «`CONTEXT.md` … ADR» erst dann abhaken, wenn «Im Dorf»
+    nach 07 gegengelesen ist.
