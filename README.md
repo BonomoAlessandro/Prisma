@@ -22,16 +22,18 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Tests:**
   - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
-    `tests/golden.json`, dazu den Löser für eine Stichprobe, das Tutorial und jedes 10. Level der Reihenfolge im Spiel
-    (Platz 1, 11, …, 141): das Verhalten exakt, Kommazahlen auf 1e-9 genau (etwa 2 s). Die Referenz hält die
-    Löserdaten aller Level fest, die Stichprobe passt also auch nach einem Umordnen. Verglichen wird je Level nach
-    Namen, gleich auf welchem Platz es steht; er meldet, wie viele Level an einem anderen Platz stehen als in der
-    Referenz. `--voll` vergleicht den Löser für alle 159 Level (etwa 25 s), vor und nach Änderungen am Löser.
-    `--schnell` vergleicht nur die Strahlbilder, ohne Löser (etwa 1 s), für Zwischenschritte eines Umbaus. Nach
-    mehreren Schritten, am Schluss und immer, wenn der Löser berührt ist, läuft er ohne `--schnell`. `--write` schreibt
-    die Referenz neu, aber nur bei einer bewussten Änderung des Verhaltens oder wenn Level dazukommen oder wegfallen;
-    ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis Ticket 21 hielt die
-    Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die Stichprobe.
+    `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
+    jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
+    08 von Noas Geschichte nicht mehr nach dem Platz in der Reihe): das Verhalten exakt, Kommazahlen auf 1e-9 genau
+    (etwa 2 s). Die Referenz hält die Löserdaten aller Level fest, die Stichprobe passt also auch nach einem Umordnen.
+    Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht; er meldet, wie viele Level an einem anderen
+    Platz stehen als in der Referenz. `--voll` vergleicht den Löser für alle 159 Level (etwa 25 s), vor und nach
+    Änderungen am Löser. `--schnell` vergleicht nur die Strahlbilder, ohne Löser (etwa 1 s), für Zwischenschritte eines
+    Umbaus. Nach mehreren Schritten, am Schluss und immer, wenn der Löser berührt ist, läuft er ohne `--schnell`.
+    `--write` schreibt die Referenz neu, aber nur bei einer bewussten Änderung des Verhaltens oder wenn Level dazukommen
+    oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
+    Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
+    Stichprobe.
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -76,7 +78,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     ähnlich; `fuegeEin` und die ganze Regel mit einem Level des Ausbaus an erfundenen Fällen; die Plätze der Regeln für
     den Bestand zählen unter dem Bestand. Er ersetzt die früheren Tests zu Markierung, gehärteten Leveln, Härte-Abnahme und
     Auswahlliste in `tests/logic.test.mjs`, seit Ticket 21 auch die der Namen (`NAMES` in `profiles.mjs`) und der
-    fremden Filterfarbe (`oddFilters` in `quality.mjs`).
+    fremden Filterfarbe (`oddFilters` in `quality.mjs`). Seit Noas Geschichte prüft er die Reihe aus Spiel und Vorrat,
+    nicht den Ablauf des Spiels (ADR 0005); mit Ticket 08 sind der Test des Bedarfs je Gruppe (`ausbau.mjs bedarf`) und
+    der Austausch (`ordne-level.mjs --austausch`) weggefallen, die Level von damals prüft er weiter.
   - `node tests/wuerfelliste.test.mjs` prüft die Würfel-Level (`.scratch/wuerfel-500/`; über `leise.sh`): Reihenfolge
     und Grade wie `tools/ordne-wuerfel.mjs` sie rechnet, keine Regel verletzt (im Würfel gibt es keine Duldungsliste),
     genau eine Lösung, keinem anderen Würfel-Level zu ähnlich, Namen eindeutig über flache und Würfel-Level, je Level
@@ -117,7 +121,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Umbau zu Noas Geschichte (Ticket 04): Jedes Level von vorher steht im Spiel oder im Vorrat, mit unveränderten
     Leveldaten (`tests/vor-dem-umbau.json`: je Name ein Abdruck, aus `index.html` im Stand `fc22df1`), dazu nur die 15
     neuen sehr schweren aus Ticket 04 und die 23 Kandidaten mit Schlüssel aus Ticket 09, alle Würfel-Level im Vorrat;
-    mit Gegenproben.
+    mit Gegenproben. Seit Ticket 08 dazu `inGanzerFolge` (wie `ordne-level.mjs` und `ordne-wuerfel.mjs` in Spiel und
+    Vorrat schreiben): ohne Änderung byte-gleich, neu geordnet die ganze Folge wie geordnet, ein neues Level an seinem
+    Platz im Vorrat (ohne Level seiner Art im Vorrat im Spiel).
   - `node tests/geschichte.test.mjs` prüft die Wahl der 240 Level für Noas Geschichte (`.scratch/noa-geschichte/`,
     Ticket 03; nur über `leise.sh`, etwa 5 min: Beurteilung des Pools, die Wahl neu samt Suche in «sehr schwer»
     und der Löser): `tools/geschichte/wahl.json` ist nachbaubar (neu gerechnet byte-gleich), 4 × 60 Level, je Welt 10
@@ -292,7 +298,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Generator nach Profilen (`generate.mjs`, `profiles.mjs`: Grössenstufe × Mischung), das Härten (`harden.mjs`), die
   Pools (`pools.mjs`), das Kuratieren (`curate.mjs`) samt Auswahlliste (`selection.jsonl`) und handgebauten Kandidaten
   (`candidates.jsonl`), der Ja/Nein-Filter (`quality.mjs`) und die alte Wertung (`metrics` mit `score` und der
-  Zählung `mixed`). Kandidaten liefert der Generator, Reihenfolge und Grade `ordne-level.mjs`.
+  Zählung `mixed`). Kandidaten liefert der Generator, Reihenfolge und Grade `ordne-level.mjs`. Mit Ticket 08 von Noas
+  Geschichte sind die Werkzeuge weggefallen, die nur der Reihe als Ablauf des Spiels dienten (im Verlauf bis
+  `944b038`): der Austausch (`ordne-level.mjs --austausch`: ein Level ersetzen und das alte entfernen; heute liegt ein
+  Level, das nicht in die Geschichte kommt, im Vorrat) und die Wahl einer Gruppe des Ausbaus auf 500 Level nach dem
+  Bedarf der Reihe (`ausbau.mjs wahl` und `bedarf`). Die Reihe selbst bleibt als Folge aller flachen Level aus Spiel
+  und Vorrat (ADR 0005): Referenz der KI-Tester, Platz im Vorrat, Massstab der Grade, und neue Level bekommen in ihr
+  ihren Platz und Grad.
   `solver.mjs` folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen (schneidet ab, sobald ein Ziel
   falsches Licht erhält; die Verfolgung macht nach jeder gesetzten Stellung dort weiter, wo sie angehalten hat), und
   zählt Lösungen, Suchknoten, Blätter, Fast-Lösungen und Rateschritte; `clicksTo` zählt die Klicks bis zu einer Lösung.
@@ -302,65 +314,64 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   (`… generiere.mjs leicht --anzahl 3 | node tools/show.mjs`), ein Level aus index.html mit `--level <platz|name>`
   (Platz in LEVELS ab 1, das Tutorial mitgezählt). `--beurteilen` beurteilt Level ohne mitgegebene Beurteilung (alle
   Regeln, mit ihrem Grad; je Level bis einige Sekunden) und nennt dazu die Ausschlussgründe;
-  `ordne-level.mjs [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die 150 Level nach der
-  Schwierigkeit der Beurteilung und legt ihren Grad fest (Ticket 15). Gerechnet wird von der heutigen Reihenfolge aus
-  (`beurteilung/heutige-reihenfolge.json`); Verschiebungen bis 10 Plätze werden übernommen, weiter wandernde Level
-  bleiben an ihrem Platz und stehen auf der Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2,
-  Läufe `pruefung-…`; Ticket 16) kommt ein Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der
-  Platz der Formel liegt für beide in ihrem Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt
-  es. Dieser Entscheid bleibt fest, auch wenn ein Austausch die Formel verschiebt: An dem Platz der Formel beim
-  Entscheid, den `levelliste.json` festhält (`prueflisteFormel`, Ticket 26), misst sich, ob das Level auf der Prüfliste
-  steht, und mit ihm rechnet die Zustimmung; ein Level, das erst später darüber kommt, braucht ein Urteil, und sein
-  Platz der Formel kommt dazu (`festePlaetze`). Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der
-  Regel von `merge` (höchstens 5 Plätze, nie über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am
-  Platz der Formel dieselbe Regel mit dem Grad dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die
-  Duldungsliste (Grund `abgelehnt`). Häuft sich danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne
-  die Duldungsliste), rückt ein Level im eigenen Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein
-  anderes derselben oder einer Nachbarseite, eines der Duldungsliste vor einem anderen; dann der kürzeste Zug, der
-  spätere Platz, nach hinten. Kein Zug schafft eine neue Häufung oder bricht Grad, Mittel je 10 Level oder die
-  Korrekturen der KI-Tester: Kein korrigiertes Level steht mehr als 5 Plätze von seinem Platz davor, weder nach den
-  Korrekturen (die einander schieben, wenn sie nahe beieinander liegen) noch am Ende (`zuWeitKorrigiert`, Ticket 24).
-  Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge der Häufungsregel, Schwellen und ihre Herleitung, die
-  Duldungsliste nach Grund und Grad samt neuen Leveln darauf und die Regeln der Levelliste, darunter jedes korrigierte
-  Level, das zu weit steht (Platz davor, nach den Korrekturen, am Ende).
-  `--schreiben` trägt Reihenfolge und Grad in index.html ein (zwischen `LEVELS:BEGIN/END`) und Duldungsliste, Prüfliste
-  und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die entfernten Namen,
-  `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt) bleiben, wie sie
-  sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`: Level, die beide
-  KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel verletzen). Bleibt
-  eine Häufung offen oder steht ein korrigiertes Level zu weit, schreibt es nicht, auch mit `--austausch`. Ein
-  zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade entlang der
-  Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
-  Austausch (Tickets 23–26): Ein neues Level hat keinen heutigen Platz, wandert also nicht und steht nach der Formel;
-  die KI-Tester beurteilen es in einem Lauf `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von
-  dort gilt ihre Korrektur wie am Platz der Formel, und lehnen beide ab, kommt es nicht ins Spiel.
-  `--austausch datei` (eine JSON-Liste `{ ersetzt, level, name, auftrag, seed, schwierigkeit }`, die Leveldaten etwa
-  von `generiere.mjs`, `schwierigkeit` die Ziel-Schwierigkeit `[von, bis]` des Auftrags) rechnet, als wären die
-  Kandidaten schon im Spiel und die ersetzten Level entfernt: Platz, Grad, Haupt-Kernidee und Regeln je Kandidat, mit
-  `--json` auch die Leveldaten für `prepare.mjs --kandidaten`. Mit `--schreiben` und genehmigten Namen setzt es die
-  neuen Level ein (nur mit einem zählenden Urteil ohne Ablehnung; im Kommentar die Herkunft aus Auftrag, Seed und
-  Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS` es nachbaut),
-  nimmt die ersetzten heraus, setzt ihre Namen auf `entfernteNamen` und legt ihre Leveldaten als feste Kopie für die
+  `ordne-level.mjs [--ausbau datei] [--schreiben] [--json datei]` (über `leise.sh`, etwa 40 s) ordnet die flachen Level
+  der Reihe aus Spiel und Vorrat nach der Schwierigkeit der Beurteilung und legt ihren Grad fest (Ticket 15, damals die
+  150 Level im Spiel). Gerechnet wird von der heutigen Reihenfolge aus (`beurteilung/heutige-reihenfolge.json`);
+  Verschiebungen bis 10 Plätze werden übernommen, weiter wandernde Level bleiben an ihrem Platz und stehen auf der
+  Prüfliste der KI-Tester. Mit den zählenden Urteilen der KI-Tester (Ablauf 2, Läufe `pruefung-…`; Ticket 16) kommt ein
+  Level der Prüfliste nur auf den Platz der Formel, wenn beide zustimmen: Der Platz der Formel liegt für beide in ihrem
+  Bereich der Einordnung oder näher daran als der alte Platz. Sonst bleibt es. Dieser Entscheid bleibt fest, auch wenn
+  neue Level die Formel verschieben: An dem Platz der Formel beim Entscheid, den `levelliste.json` festhält
+  (`prueflisteFormel`, Ticket 26), misst sich, ob das Level auf der Prüfliste steht, und mit ihm rechnet die Zustimmung;
+  ein Level, das erst später darüber kommt, braucht ein Urteil, und sein Platz der Formel kommt dazu (`festePlaetze`).
+  Von dort, wo es steht, gilt die eigene Korrektur der KI-Tester nach der Regel von `merge` (höchstens 5 Plätze, nie
+  über eine Gradgrenze; am alten Platz das Ergebnis aus dem Protokoll, am Platz der Formel dieselbe Regel mit dem Grad
+  dort). Lehnen beide ab, wird es nicht korrigiert und kommt auf die Duldungsliste (Grund `abgelehnt`). Häuft sich
+  danach dieselbe Haupt-Kernidee auf einer Seite (mehr als zweimal ohne die Duldungsliste), rückt ein Level im eigenen
+  Grad um höchstens 3 Plätze: zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, eines
+  der Duldungsliste vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Kein Zug schafft eine neue
+  Häufung oder bricht Grad, Mittel je 10 Level oder die Korrekturen der KI-Tester: Kein korrigiertes Level steht mehr
+  als 5 Plätze von seinem Platz davor, weder nach den Korrekturen (die einander schieben, wenn sie nahe beieinander
+  liegen) noch am Ende (`zuWeitKorrigiert`, Ticket 24). Der Bericht zeigt Prüfliste samt Entscheid je Level, die Züge
+  der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und
+  die Regeln der Levelliste, darunter jedes korrigierte Level, das zu weit steht (Platz davor, nach den Korrekturen, am
+  Ende). `--schreiben` trägt Reihenfolge und Grad in Spiel und Vorrat ein (seit Ticket 08 von Noas Geschichte über
+  `inGanzerFolge` in `vorrat.mjs`: die Level im Spiel zwischen `LEVELS:BEGIN/END`, die übrigen im Vorrat an ihrem
+  Platz; was im Spiel steht, bleibt im Spiel, was im Vorrat liegt, im Vorrat, vorher zurückholen muss man nichts) und
+  Duldungsliste, Prüfliste und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die
+  entfernten Namen, `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt)
+  bleiben, wie sie sind, nur einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen (`ergaenzt`:
+  Level, die beide KI-Tester ablehnen, und Level, die durch ihr Urteil in einen Grad kommen, in dem sie eine Regel
+  verletzen). Bleibt eine Häufung offen oder steht ein korrigiertes Level zu weit, schreibt es nicht, auch mit
+  `--ausbau`. Ein zweiter Lauf ändert nichts. Die Regeln (Reihenfolge, Urteile der KI-Tester, Häufungsregel, Grade
+  entlang der Reihenfolge, Gründe der Duldung, Toleranzen) stehen in `levelliste.mjs`, gemeinsam für Skript und Test.
+  Austausch (Tickets 23–26, mit Ticket 08 von Noas Geschichte weggefallen): Ein neues Level ersetzte ein altes; es hat
+  keinen heutigen Platz, wandert also nicht und steht nach der Formel, die KI-Tester beurteilten es in einem Lauf
+  `ersatz-…` unter dem Namen „Kandidat <Abdruck>“ (`leveldaten.mjs`), von dort gilt ihre Korrektur wie am Platz der
+  Formel. Die ersetzten stehen mit ihrem Namen auf `entfernteNamen` und mit ihren Leveldaten als feste Kopie für die
   Eichung in `beurteilung/entfernte-level.json` (so bleiben die 150 der heutigen Reihenfolge der Massstab, ADR 0001).
-  Ausbau auf 500 Level (`.scratch/500-level/`, in Gruppen zu 35): Die Level vor dem Ausbau sind der Bestand und stehen
-  untereinander genau wie ohne ihn; die Level des Ausbaus (`ausbau` in `levelliste.json`) fügt `levelliste.mjs`
-  (`fuegeEin`) nach der Formel dazu, ihr Grad folgt der Schwelle, beurteilt werden sie in Läufen `ausbau-…`.
-  `--ausbau datei` (wie `--austausch`, aber ohne `ersetzt`) rechnet mit den Kandidaten, `--json` liefert die ganze
-  Reihenfolge als Vorschau für `prepare.mjs --kandidaten`, `--schreiben` setzt sie mit ihren Namen ein (eine Freigabe
-  der Namen durch den Nutzer braucht es beim Ausbau nicht);
-  `ausbau.mjs` erzeugt und wählt die Level einer Gruppe: `pool <auftrag …> --aus datei [--seed S] [--seeds M]
-  [--jobs N]` sammelt Kandidaten des Generators parallel (über `leise.sh`), `wahl <gruppe> --pool datei[,…] --aus
-  datei [--behalte datei] [--ohne name,…]` wählt nach dem Bedarf je Grad (Bestand nach der Gruppe laut Spec weniger
-  die Level im Spiel) über den Bereich des Grads verteilt, keinem Level zu ähnlich, ohne dass der Grad sinkt oder das
-  Mittel je 10 Level fällt, und sucht dann so lange Tausche, bis mit der Häufungsregel keine Häufung offen bleibt
-  (etwa 40 s für Gruppe 1); `bedarf` zeigt den Bestand und den Bedarf je Gruppe; `pool … --wuerfel` sammelt
-  Kandidaten im Würfel 7 × 7 × 7;
+  Ausbau (`.scratch/500-level/`, einst auf 500 Level in Gruppen zu 35, seit Noas Geschichte neue Level für sie): Die
+  Level vor dem Ausbau sind der Bestand und stehen untereinander genau wie ohne ihn; die Level des Ausbaus (`ausbau` in
+  `levelliste.json`) fügt `levelliste.mjs` (`fuegeEin`) nach der Formel dazu, ihr Grad folgt der Schwelle, beurteilt
+  werden sie in Läufen `ausbau-…`. `--ausbau datei` (eine JSON-Liste oder eine JSON-Zeile je Eintrag `{ level, name,
+  auftrag, seed, schwierigkeit }`, die Leveldaten etwa von `generiere.mjs`, `schwierigkeit` die Ziel-Schwierigkeit
+  `[von, bis]` des Auftrags) rechnet mit den Kandidaten: Platz, Grad, Haupt-Kernidee und Regeln je Kandidat; `--json`
+  liefert die ganze Reihenfolge als Vorschau für `prepare.mjs --kandidaten`; `--schreiben` setzt sie mit ihren Namen
+  und der Herkunft im Kommentar ein (Auftrag, Seed, Ziel-Schwierigkeit, mit der `generiere.mjs <auftrag> --seed S
+  --anzahl 1 --schwierigkeit VON,BIS` es nachbaut; nur mit einem zählenden Urteil ohne Ablehnung; eine Freigabe der
+  Namen durch den Nutzer braucht es nicht), und zwar in den Vorrat, solange dort flache Level liegen (in die Geschichte
+  bringt sie `geschichte.mjs spiel`, siehe «Wahl für Noas Geschichte»);
+  `ausbau.mjs pool <auftrag …> --aus datei [--seed S] [--seeds M] [--jobs N] [--schwierigkeit VON,BIS] [--wuerfel]`
+  sammelt Kandidaten des Generators parallel (über `leise.sh`), mit `--wuerfel` im Würfel 7 × 7 × 5 (bis Ticket 08
+  wählte `ausbau.mjs wahl` daraus eine Gruppe nach dem Bedarf der Reihe, `bedarf` zeigte ihn; heute wählt der
+  Koordinator die Kandidaten für den Lauf der KI-Tester und `geschichte.mjs wahl` die für die Geschichte);
   Würfel-Level (`.scratch/wuerfel-500/`): `wuerfel.mjs wahl <gruppe> --pool datei[,…] --aus datei [--behalte datei]
   [--ohne name,…]` wählt die neuen einer Gruppe (Bedarf je Grad nach der Spec, gegen Häufungen der Haupt-Kernidee),
   `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
   [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
-  Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie zwischen
-  `WUERFEL:BEGIN` und `WUERFEL:END` in `index.html`;
+  Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie in Spiel und Vorrat
+  (`index.html` zwischen `WUERFEL:BEGIN` und `WUERFEL:END`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
+  dort Würfel-Level liegen);
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
   die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
   ist ein neues Level zu ähnlich (ohne Argument: die ähnlichsten Paare in Spiel und Vorrat;
@@ -616,10 +627,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--kandidaten datei] [--anker]
     [--ohne-bilder] [--ohne-zwischenspeicher]`. Die Level heissen L1, L2 … (feste Mischung, der Platz bleibt
     verborgen), die Anker A1–A8 (`anchors.json`, je zwei pro Grad mit Begründung). `--anker` lässt auch die Anker
-    beurteilen (Probelauf). `--kandidaten` nimmt neue Level ohne Platz im Spiel auf (Austausch, Läufe `ersatz-…`): eine
-    JSON-Liste `{ formel, level }`, etwa die Ausgabe von `ordne-level.mjs --austausch … --json`; Referenz ist der Platz
-    nach der Formel mit dem Grad dort, im Protokoll heisst ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen
-    von einer Kopie von index.html mit den Kandidaten am Ende von `LEVELS` (`<lauf>/seite/`, ausserhalb von `eingabe/`).
+    beurteilen (Probelauf). `--kandidaten` nimmt neue Level ohne Platz in der Reihe auf (Ausbau, Läufe `ausbau-…`, mit
+    der Vorschau aus `ordne-level.mjs --ausbau … --json`; einst Austausch, Läufe `ersatz-…`): eine JSON-Liste
+    `{ formel, level }`; ohne Vorschau ist die Referenz der Platz nach der Formel mit dem Grad dort, im Protokoll heisst
+    ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Kopie von index.html mit den Kandidaten am Ende
+    von `LEVELS` (`<lauf>/seite/`, ausserhalb von `eingabe/`).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
     geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `vendor/`, `backgrounds/`, `shots.mjs`,
     `chrome.mjs`, der Chrome selbst, Leveldaten, Platz und Kennung des Ankers. `--ohne-zwischenspeicher` nimmt sie neu
@@ -685,9 +697,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `index.html` byte-gleich. Der gemeinsame Lader
   (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
   im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`index.html` mit allen
-  Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm, schreiben
-  aber nur, wenn ihre Art nicht im Vorrat liegt. Seit Ticket 04 liegen dort die flachen Level ausserhalb von Noas
-  Geschichte (seit Ticket 09 298) und alle 300 Würfel-Level.
+  Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
+  schreiben seit Ticket 08 in Spiel und Vorrat (`inGanzerFolge` in `vorrat.mjs`: alle Level der Art zurückholen, ordnen,
+  die vorher abgelegten und neue wieder ablegen; ohne Level der Art im Vorrat bleiben neue im Spiel). Seit Ticket 04
+  liegen dort die flachen Level ausserhalb von Noas Geschichte (seit Ticket 09 298) und alle 300 Würfel-Level.
 - **Wahl für Noas Geschichte** (`.scratch/noa-geschichte/`, Ticket 03; nur für die Entwicklung):
   `LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]` wählt je Grad die 60 Level der
   Geschichte aus den flachen Leveln des Grads (Spiel und Vorrat, für «sehr schwer» dazu die 15 aus
@@ -708,8 +721,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es
   in den Vorrat, Level der Wahl im Vorrat holt es zurück, und zwischen `GESCHICHTE:BEGIN` und `GESCHICHTE:END` schreibt
   es den Datenblock der Reise (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
-  Neue Level kommen vorher über `ordne-level.mjs --ausbau` ins Spiel (mit allen flachen Leveln im Spiel, also erst
-  `vorrat.mjs zurueckholen --flach`), so die 15 neuen sehr schweren in Ticket 04; danach `wahl` und `spiel`.
+  Neue Level kommen vorher über `ordne-level.mjs --ausbau` in die Reihe (so die 15 neuen sehr schweren in Ticket 04 und
+  die 23 aus Ticket 09, damals mit allen flachen Leveln im Spiel, also erst `vorrat.mjs zurueckholen --flach`; seit
+  Ticket 08 schreibt `ordne-level.mjs` in Spiel und Vorrat). Ein Ausbau sehr schwerer Level läuft heute so:
+  Kandidaten mit `ausbau.mjs pool`, Vorschau mit `ordne-level.mjs --ausbau <datei> --json <vorschau>`, Lauf der
+  KI-Tester (`prepare.mjs ausbau-… --kandidaten <vorschau>`, `merge.mjs`), die guten mit Schlüssel in
+  `tools/geschichte/sehr-schwer-kandidaten.json`, `geschichte.mjs wahl`, `geschichte.mjs ausbau <datei>`,
+  `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
+  dazu), `geschichte.mjs spiel`.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
   Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach seit Ticket 04
