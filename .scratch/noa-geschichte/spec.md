@@ -51,6 +51,9 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
     Bestzeiten; eine neue Bestmarke meldet das Feld «Gelöst» kurz.
 25. «Weiter» im Menü führt zum zuletzt gespielten, nicht geschafften Grad; gibt es keinen, fehlt der Knopf.
 26. Die Welt bestimmt den Hintergrund; Hintergrund-Knopf und Taste H entfallen, `prisma.sky` wird nicht mehr gelesen.
+27. (30.10.2026) «Von vorn» lässt die Bestwerte (Bestzeit, wenigste Drehungen) des Grads stehen; nur der Fortschritt
+    beginnt neu.
+28. (30.10.2026) Die Reisen zwischen den Welten laufen ganz und sind nicht überspringbar.
 
 ## Ablauf im Spiel
 
