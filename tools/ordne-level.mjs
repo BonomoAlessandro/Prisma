@@ -527,9 +527,9 @@ function folgeNamen(liste) {
 }
 
 /**
- * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag. Ein Name darf weder in Spiel oder Vorrat (flach oder im Würfel) noch auf der Liste der entfernten Namen
- * stehen, kein Name und kein Level doppelt. Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den
- * Leveldaten samt Name und Grad.
+ * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag. Ein Name darf weder in Spiel oder
+ * Vorrat (flach oder im Würfel) noch auf der Liste der entfernten Namen stehen, kein Name und kein Level doppelt.
+ * Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad.
  */
 function ladeAusbau(datei) {
   const text = readFileSync(datei, 'utf8').trim();

@@ -22,8 +22,8 @@
 //                 Ebenen ist das Level aus dem Würfel 7 × 7 × 7 jenes Stands in den Quader gesenkt.
 //   --schreiben:  ordnet die Würfel-Level in der ganzen Folge aus Spiel und Vorrat (inGanzerFolge in vorrat.mjs) und
 //                 setzt ihren Grad; die Kandidaten kommen mit ihrem Namen dazu (levelCode in leveldaten.mjs), in den
-//                 Vorrat, solange dort Würfel-Level liegen, sonst ins Spiel. Nur wenn alle Prüfungen oben bestehen, also jeder Kandidat einen
-//                 Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
+//                 Vorrat, solange dort Würfel-Level liegen, sonst ins Spiel. Nur wenn alle Prüfungen oben bestehen,
+//                 also jeder Kandidat einen Namen und ein zählendes Urteil hat, das ihn nicht ablehnt.
 //   --json:       schreibt das Ergebnis je Level nach Platz in die Datei, in der Form von ordne-level.mjs --json und
 //                 mit wuerfel: true (für tools/ki-tester/prepare.mjs --kandidaten): { platz, name, schwierigkeit, formel,
 //                 grad, gradNachSchwelle, kiTester, verletzt, ausschluesse, hauptKernidee, spielwert, wuerfel } und bei

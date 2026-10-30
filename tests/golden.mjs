@@ -198,8 +198,8 @@ if (umgestellt) {
   console.log(`  ok   ${umgestellt} Level stehen an einem anderen Platz als in golden.json, verglichen nach Namen`);
 }
 const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser'
-  : full ? 'Löser für alle Level' : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Geschichte, Vorrat, Würfel), `
-    + '--voll für alle';
+  : full ? 'Löser für alle Level'
+    : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Geschichte, Vorrat, Würfel), --voll für alle`;
 const wuerfel = current.filter(c => LEVELS_3D.some(l => l.name === c.name)).length;
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
 else console.log(`  ok   alle ${current.length} Level (davon ${wuerfel} Würfel) wie in golden.json, ${scope} (${ms} ms)`);

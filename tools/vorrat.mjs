@@ -250,7 +250,10 @@ export function inGanzerFolge(texte, art, aendere, neu = []) {
   const spiel = aendere(geholt.spiel);
   const weg = vorher.length ? [...vorher, ...neu] : [];
   if (!weg.length) return { ...geholt, spiel, abgelegt: Object.fromEntries(Object.keys(ARTEN).map(a => [a, []])) };
-  return ablegen({ ...geholt, spiel }, weg);
+  const r = ablegen({ ...geholt, spiel }, weg);
+  // Ohne Änderung die Texte wie vorher, auch wenn die Datei des Vorrats nicht in der Folge liegt (nach einzelnem
+  // Ablegen): ablegen hängt alle in der Folge an, ein Lauf ohne Änderung ordnete sonst die Datei um (Review Ticket 08)
+  return spiel === geholt.spiel && !neu.length ? { ...texte, abgelegt: r.abgelegt } : r;
 }
 
 /**

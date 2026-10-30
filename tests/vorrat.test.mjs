@@ -167,6 +167,10 @@ test('Ändert nichts: Spiel und Vorrat byte-gleich, flach und im Würfel', () =>
     for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(r[k] === A[k], `${art}: ${k} anders`);
     assert.deepEqual(r.abgelegt[art], A.abgelegt[art]);
   }
+  // auch mit einem Vorrat, dessen Datei nicht in der Folge liegt (ein spätes Level vor einem frühen abgelegt)
+  const B = ablegen(ablegen(T, [FLACH[200]]), [FLACH[3]]);
+  const r = inGanzerFolge(B, 'flach', x => x);
+  for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(r[k] === B[k], `ausser der Folge: ${k} anders`);
 });
 test('Neu geordnet: die ganze Folge wie geordnet, im Spiel und im Vorrat dieselben Level', () => {
   // umgekehrt, wie ein Werkzeug, das die ganze Reihe neu ordnet

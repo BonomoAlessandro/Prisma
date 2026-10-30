@@ -4,7 +4,8 @@
 // tests/ki-tester.test.mjs.
 //
 // Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge (ohne Tutorial; bis Ticket 26 die 150 im Spiel, seit
-// Noas Geschichte die Reihe aus Spiel und Vorrat, ADR 0005) und sein Grad aus den Leveldaten (grad). Die Grenzen eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
+// Noas Geschichte die Reihe aus Spiel und Vorrat, ADR 0005) und sein Grad aus den Leveldaten (grad). Die Grenzen
+// eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
 // prepare.mjs hält die Referenz jedes Levels und die Plätze der Anker bei der Vorbereitung in lauf.json fest, und
 // merge.mjs rechnet mit diesen, auch wenn sich die Reihenfolge seither geändert hat. Ablauf 1 rechnete mit den Plätzen
 // der heutigen Reihenfolge (feste Namensliste, beurteilung/heutige-reihenfolge.mjs) und den vorläufigen Graden; seine

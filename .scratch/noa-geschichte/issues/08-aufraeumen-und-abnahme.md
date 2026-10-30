@@ -126,3 +126,46 @@ Spiel-Teil; `index.html`, `CONTEXT.md`, `SPEC.md`, `3D-WUERFEL.md` und `tests/ge
      will das nicht). Alternative wäre eine eingefrorene Reihe, in die neue Level nur noch eingereiht werden.
   2. `prepare.mjs --kandidaten` ohne Vorschau (Format des Austauschs `{ formel, level }`) hat keinen Erzeuger mehr; vom
      Test gedeckt, darum behalten. Entfernen?
+
+**Review Werkzeug-Teil (30.10.2026)** – `noa/08-werkzeuge` (`3565337`…`b82b7e7`, Basis `944b038`). Urteil: bereit zum
+Merge.
+
+- **`inGanzerFolge` und `ordne-level.mjs`/`ordne-wuerfel.mjs`:** richtig. Auf den echten Dateien ergibt ein Lauf ohne
+  Änderung für beide Arten `index.html` und Vorrat byte-gleich; mit gemischten Zeilenenden (`index.html` LF, Vorrat
+  CRLF und umgekehrt) bleibt jede Datei bei ihren, die ganze Folge stimmt, und zweimal umgekehrt ergibt wieder die
+  Ausgangstexte. `ordne-level.mjs` schreibt nur, wenn Reihenfolge oder Grade abweichen (`imSpielGleich`); zuerst den
+  Vorrat, dann `index.html`, wie beim Ablegen. Steht ein Level im Spiel und im Vorrat, bricht schon der Lader ab
+  («Im Spiel und im Vorrat»), ebenso `zurueckholen`; geschrieben wird dann nichts. Die Namenszeile mit `titel` (Level
+  der Geschichte) ersetzt `ordneLevels` richtig.
+- **Kleiner Fund, behoben:** «Ändert aendere nichts, sind die Texte byte-gleich» galt nur, solange die Datei des
+  Vorrats in der Folge der Reihe liegt. Nach einzelnem Ablegen (spätes Level vor frühem) hängte `ablegen` alles neu
+  in der Folge an, ein Lauf ohne Änderung ordnete also die Datei um (`ordne-wuerfel.mjs --schreiben` schreibt immer).
+  Jetzt gibt `inGanzerFolge` ohne Änderung und ohne neue Level die Texte unverändert zurück; Test dazu in
+  `tests/vorrat.test.mjs` (im bestehenden Test «Ändert nichts»).
+- **Kleiner Fund, behoben:** neue Kommentarzeilen über 120 Zeichen umgebrochen (`prepare.mjs`, `protocol.mjs`,
+  `ordne-level.mjs`, `ordne-wuerfel.mjs`, `levelliste.mjs`, Ausgabe in `golden.mjs`).
+- **Entfernte Teile:** nichts hängt mehr daran. Kein Import von `ausbau.mjs` (`ZIEL`, `GRUPPEN`, `VORHER`,
+  `bestandNach`) in `tools/` oder `tests/`; `pool` und der Worker sind gegenüber `944b038` Zeichen für Zeichen gleich,
+  keine verwaisten Bezeichner. `bestandNach`/`bedarf` in `wuerfelliste.mjs` und `wuerfel.mjs` sind die der Würfel,
+  nicht betroffen. `--austausch`, `ausbau.mjs wahl/bedarf` und `zurueckholen --flach` stehen nur noch in
+  abgeschlossenen Tickets (levelgenerator 23–26, 500-level, wuerfel-500, Ticket 09) und als Rückblick in README und
+  Köpfen. `SPEC.md`, `3D-WUERFEL.md`, ADR und `CONTEXT.md` nennen sie nicht.
+- **Golden-Stichprobe** (93 Level): Tutorial, je Grad 6 Level der Geschichte (das erste jeder Welt), jedes 10. flache
+  Level des Vorrats (in der Folge der Reihe, also über alle Grade) und jedes 10. Würfel-Level; alle Grade und der Würfel
+  sind gedeckt, die Prüfung «nicht in Spiel und Vorrat» fängt Tippfehler. Die Referenz hat weiter die Löserdaten aller
+  847 Level. Anmerkung ohne Handlungsbedarf: Aus der Geschichte kommt immer der erste Platz einer Welt.
+- **README:** Ablauf für neue sehr schwere Level vollständig und in der richtigen Reihenfolge (`pool` → Vorschau →
+  KI-Tester → Schlüssel → `wahl` → `geschichte.mjs ausbau` → `ordne-level --ausbau --schreiben` → `golden --write` →
+  `spiel`); er passt zu den Köpfen von `geschichte.mjs` und `ordne-level.mjs`.
+- **Tests:** nicht abgeschwächt. «Bedarf je Gruppe» prüfte nur `bestandNach` aus `ausbau.mjs`, also die entfernte
+  Tabelle der 500er-Reihe; der Wegfall ist berechtigt. Die Würfel-Tabelle prüft `tests/wuerfelliste.test.mjs` weiter.
+  Neu drei Tests zu `inGanzerFolge` und die Gegenprobe oben.
+- **Testläufe** (über `leise.sh`, `LEISE_CPU=100`): vor den Fixes Vorrat 18, Golden 847 Level (Stichprobe 93),
+  Levelliste 54, Würfelliste 20, KI-Tester 84, alle bestanden; nach den Fixes Vorrat 18 und Golden erneut bestanden.
+- **Offene Fragen:** (1) Prüfliste, Duldung und Häufung je 10 behalten: einverstanden. Sie halten die Reihe fest;
+  fielen sie weg, wanderten beim nächsten `ordne-level` Plätze und Grade und damit die Referenzen der KI-Tester und der
+  Platz im Vorrat (ADR 0005 will die Folge behalten). Eine eingefrorene Reihe wäre ein neuer Entscheid, kein
+  Aufräumen. (2) `{ formel, level }` ohne Vorschau behalten: einverstanden, der Pfad ist derselbe Code wie mit Vorschau
+  und kostet nichts. Er ist aber eine Falle, seit es Level des Ausbaus gibt (der Kopf von `prepare.mjs` warnt: ohne
+  Vorschau zählt `formel` im ganzen Spiel, `ordne-level` unter dem Bestand). Für neue flache Level darum immer mit
+  Vorschau aus `ordne-level.mjs --ausbau … --json`.

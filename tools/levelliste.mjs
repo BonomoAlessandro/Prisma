@@ -31,10 +31,10 @@
 //   Schwelle erreicht. So sinkt der Grad nie, und ein Level am alten Platz zieht keine anderen mit. Die eigenen
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
-//   Haupt-Kernidee auf einer Seite zu 10 Leveln (je 10 Level der Reihe) öfter als HAUPT_KERNIDEE_JE_10-mal vor (im Ausbau unter Leveln ab
-//   „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt ohne die Level der
-//   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
-//   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
+//   Haupt-Kernidee auf einer Seite zu 10 Leveln (je 10 Level der Reihe) öfter als HAUPT_KERNIDEE_JE_10-mal vor (im
+//   Ausbau unter Leveln ab „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt
+//   ohne die Level der Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im
+//   Ausbau MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
 //   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Löst kein einzelner Zug sie auf, gilt
 //   auch eine Folge von Zügen, die sie je verkleinern und am Ende auflösen (höchstens VORAUSSCHAU Stellungen). Kein Zug
@@ -64,9 +64,8 @@
 //   streicht nur Level, die es nicht mehr gibt. Dieselbe Regel gilt in „schwer“ (Entscheid vom 19.10.2026, Ticket 25).
 // - Je 10 Level (einst eine Seite der Levelauswahl, seit Noas Geschichte nur noch ein Abschnitt der Reihe; die
 //   Geschichte hat eigene Regeln der Vielfalt, tools/geschichte.mjs): Das Mittel der Schwierigkeit fällt um höchstens
-//   TOLERANZ_MITTEL Punkte,
-//   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
-//   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
+//   TOLERANZ_MITTEL Punkte, und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne
+//   die Level der Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
 // - Neue Level aus dem Austausch (Tickets 23–26; Spec: „Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester
 //   prüfen“): Sie haben keinen heutigen Platz (imSpiel), wandern also nicht und stehen nach der Formel wie die übrigen.
 //   Beurteilt werden sie in Läufen ersatz-… unter dem Namen aus ihren Leveldaten (kandidatName in leveldaten.mjs), bevor
