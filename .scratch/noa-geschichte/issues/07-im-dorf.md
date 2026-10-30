@@ -4,7 +4,7 @@
 
 **Blocked by:** 04
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Das Tutorial als Kapitel der Geschichte (Entscheid 3, 10, 18): Nach dem Prolog fragt ein Untertitel
 «Möchtest du zuerst mit Noa im Dorf üben?» mit «Üben» und «Gleich los». «Üben» spielt die 9 Tutorial-Level im Dorf,
@@ -20,7 +20,7 @@ danach bringen die Glühwürmchen das Licht in den Bergwald wie heute.
 - [x] Ein kurzer Text der Geschichte zum Kapitel (Noa übt mit der Taschenlampe), im Stil der übrigen Untertitel.
 - [x] Die Übersicht (Ticket 06) zeigt «Im Dorf», wenn es gespielt wurde; das Kapitel zählt nicht zu den 60 Leveln.
 - [x] Probe im Browser: Üben, Gleich los, Überspringen mitten im Kapitel; Desktop und Handy.
-- [ ] Alle Tests grün; Review nach dem Ticket. (Tests grün, Review steht aus)
+- [x] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
 
@@ -387,3 +387,14 @@ klein 360×640).
   Dorfs käme später an `STORY_DORF.sky`. Fokus fällt nach der Wahl im Angebot und nach «Überspringen» auf `body`
   (Review Code, unschädlich). Handy quer: Der Hinweis der Übung (11,5 px, eine Zeile) reicht bis an den
   hinteren Rand des Bretts und berührt dort ein fernes Ziel (`quer-03-uebung-1.png`); im Review beurteilen.
+
+**Letzter Fund (30.10.2026, Umsetzer):** Nach «Gleich los» kamen etwa 1,9 s Schwarz: Prolog und Angebot liefen mit
+`skyTheme.quiet`, der Wald war nach der Wahl nicht bereit, `enter` wartete in `skyOf`. Jetzt hebt `offer` `quiet` auf,
+sobald das Angebot steht (die Fahrt des Prologs ist vorbei, der Spieler liest): Der Wald lädt dort fertig und ist nach 4 s
+Angebot auf allen Bildschirmen bereit; in der Kamerafahrt lädt nichts mehr. Nach «Üben» ist er nicht mehr gewählt und lädt
+nicht weiter. Gemessen: Wahl bis spielbar nach «Gleich los» 7,6–7,7 s (Desktop, Handy hoch, quer; vorher 9,5 s), nach
+«Üben» ebenso; längste Lücke, während das Angebot steht und der Wald lädt, 53 / 20 / 19 ms (Desktop / Handy hoch /
+quer). Probe `--dorf` (neu mit dieser Messung) und `--dorf-raender` auf Desktop, Handy hoch und quer bestanden, keine
+Lücke über 100 ms (längste 88 ms, Prolog), Konsole leer; `tests/geschichte.test.mjs` 30 bestanden. Treiber: Drehung je
+Bild höchstens 4,4 / 4,2 / 5,7° (quer einmal beim normalen Flug 3 s nach «Gleich los», nicht in der Landung), Lücken
+höchstens 71 / 54 / 70 ms. Ticket abgenommen.

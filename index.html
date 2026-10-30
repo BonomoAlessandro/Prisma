@@ -17828,8 +17828,8 @@ const story = {
       this.setSky(ch.sky, true); // lädt hinter der Bühne
       // nach einem Neuladen zwischen Prolog und Wahl: nur das Angebot, auf dem letzten Bild des Prologs, ohne Fahrt
       const shots = this.seen('prolog') ? [{ ...STORY_PROLOG.at(-1), text: '', act: null, move: 0 }] : STORY_PROLOG;
-      // scharfes Bild und Streifen des Walds erst nach der Bühne (ihr Hochladen hielt die Fahrt des Prologs bis 110 ms
-      // an); nach «Üben» braucht es sie vorerst gar nicht (Review Ticket 07)
+      // scharfes Bild und Streifen des Walds nicht während der Fahrt des Prologs (ihr Hochladen hielt sie bis 110 ms
+      // an), sondern sobald das Angebot steht (offer); ohne Angebot nach der Bühne (Review Ticket 07)
       skyTheme.quiet = true;
       const ueben = await this.playScene(shots, { skippable: !this.seen('prolog'), angebot });
       skyTheme.quiet = false;
@@ -17863,6 +17863,10 @@ const story = {
     const ueben = await new Promise((resolve) => {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
       sc.el.querySelector('.actions button').focus({ preventScroll: true });
+      // jetzt lädt der Wald fertig (scharfes Bild, Streifen): Die Fahrt des Prologs ist vorbei, der Spieler liest. So
+      // ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war), und in der Kamerafahrt lädt nichts mehr.
+      // Nach «Üben» ist er nicht mehr gewählt und lädt nicht weiter (Review Ticket 07)
+      skyTheme.quiet = false;
     });
     sc.actions([]); // nur eine Wahl (Doppelklick)
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo

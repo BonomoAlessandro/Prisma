@@ -1089,6 +1089,12 @@ async function dorfAblauf() {
   await prologWeg('leicht');
   await sleep(400);
   await ende('Leicht: Menü → Prolog → Überspringen', { buehne: true });
+  // solange das Angebot steht, lädt der Wald fertig (quiet aus): keine Lücke über 100 ms, er ist danach bereit
+  await messe();
+  await until(`document.querySelectorAll('${ANGEBOT}').length === 2`, 'Leicht: Angebot', 60);
+  await sleep(4000);
+  await ende('Leicht: Angebot steht, der Wald lädt fertig');
+  console.log(`  Wald nach 4 s Angebot bereit: ${await ev(`${D}.skyTheme.ready`)}`);
   await angebot('leicht', 'Üben', { name: 'dorf-angebot', mitTaste: !view.phone });
   await messe();
   await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg ins Dorf', 30);
