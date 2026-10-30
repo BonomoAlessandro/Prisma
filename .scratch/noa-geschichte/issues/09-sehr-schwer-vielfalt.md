@@ -149,3 +149,56 @@ Pool (Spiel, Vorrat und neue Kandidaten) mit denselben Regeln wie heute (±3 üb
 Bewertung, nächstbestes Level mit anderer Haupt-Kernidee). So bleiben ersetzte Platzhalter im Vorrat, ohne die Wahl
 zu verfälschen, und die Regel aus der Spec («Lässt sich beides nicht erfüllen, kommt das nächstbeste Level mit anderer
 Lösungsart») gilt auch hier. `waehleGrad`/`UEBER_GRENZEN` werden dafür verallgemeinert (Teil dieses Tickets).
+
+**Stufe 1 und 2 (30.10.2026; Freigabe des Nutzers für Stufe 1; kein weiteres Generieren, kein Lauf der KI-Tester,
+nur dieser Bericht geändert)**
+
+- **Stufe 1, Nachbau der Pools von Ticket 01** (ein Lauf über `leise.sh`, `LEISE_CPU=50`, `--jobs 9`, 12:14–13:22,
+  68 min): `tests/output/noa/pool-ss-1.jsonl` (738 Level, Seeds 40001–43000, die sieben Aufträge) und
+  `pool-ss-2.jsonl` (114, Seeds 50001–52000, `--schwierigkeit 96,112`), genau so viele wie damals. Vorprobe vor dem
+  Lauf (`generiere.mjs`, zwei bekannte Seeds) und Probe nach dem ersten Auftrag: Abdruck stimmt. Am Ende stimmen alle
+  13 bekannten Seeds aus `sehr-schwer-neu.json` (Auftrag, Seed, Abdruck), und alle 48 Kandidaten aus `ausbau-noa-1`
+  sind wieder da. Die Zeilen tragen `stand` mit «+», weil `index.html` offene Änderungen von Ticket 05 hatte; die
+  Spiellogik ist davon nicht berührt (Abdrücke gleich).
+- **Stufe 2, die 35 beurteilten Kandidaten ausserhalb des Spiels** (bewertet mit `bewerte` aus `tools/geschichte.mjs`
+  zusammen mit den 60, importiert): keiner abgelehnt, alle «sehr schwer» mit Haupt-Kernidee und Spielwert ab 84,8,
+  keinem flachen Level in Spiel und Vorrat zu ähnlich (höchstens 0,26), untereinander unter 0,35. Haupt-Kernideen
+  Mi 7, Fz 9, Sa 5, Fa 6, Ab 6, Lo 2 (wie aus Ticket 01 geschätzt). Schwierigkeit 87,9–106,8; vier liegen über allen
+  60 heutigen (99,6, 101,0, 102,4, 106,8). In Frage kommen 34 (Gefühl ab 3 und Aha; 525422a7 mit Gefühl 2,5 nicht).
+- **Die Wahl von 60 aus den 60 und den 34** mit den Regeln von «sehr schwer» (Entscheid des Koordinators: Rang nach
+  Schwierigkeit unter den 60 gewählten, höchstens 3 Plätze davon, auch über Weltgrenzen; höchstens 2 je Haupt-Kernidee
+  in 10 aufeinanderfolgenden; Vielfalt vor Bewertung, Bewertung als kleinste Summe der Ränge in der Bewertung wie
+  `besteMenge`). Gerechnet im Scratchpad mit eigener Suche über die Plätze und lokaler Suche, jede Lösung gegengeprüft
+  mit dem importierten `ordneUeberGrenzen` und `fensterVerstoesse`. **Die Regel geht ganz auf: 0 Verstösse.** Eine
+  genaue Suche über alle Mengen sprengte den Speicher; die Mengen unten sind darum die besten **gefundenen**, nicht
+  bewiesen beste.
+  - **Nach Bewertung (die Regel des Entscheids): 23 rein, 23 raus.** Summe der Ränge 1968 (ohne Vielfalt bestenfalls
+    1770). Gefühl im Mittel der 60: 4,19 statt 3,87. Haupt-Kernideen danach Ab 12, Sa 12, Fz 12, Fa 12, Mi 10, Lo 2.
+    Verschoben 45 Level, zusammen 88 Plätze.
+    - Rein (Schwierigkeit, Idee, Gefühl): aad8ee01 88,0 Fz 4,0; dd52f00a 88,5 Mi 4,5; b15759ab 88,6 Sa 4,0;
+      7bad0b0c 88,7 Fz 5,0; 4d11a993 88,8 Sa 4,5; f09bb21b 88,9 Fa 4,5; 239dd03f 89,1 Fz 3,5; 7c2319ec 89,4 Mi 4,0;
+      0dc0739b 90,9 Ab 4,5; 2fb3afb5 91,0 Fa 4,0; be9c3fb2 91,1 Fa 3,0; 928f2230 91,5 Ab 4,5; f4e9da8e 91,7 Mi 4,0;
+      8cde63f2 91,8 Fz 5,0; 330805ef 92,3 Lo 3,5; 192e9bb4 92,4 Mi 3,5; 7d2b8d12 92,7 Mi 4,0; a6700df9 93,8 Ab 3,5;
+      12a1b927 95,0 Fz 4,5; 24d655cd 96,2 Sa 4,5; 929badef 99,6 Ab 4,5; 69d92fd5 102,4 Ab 4,5; aa669d97 106,8 Fz 4,5.
+      Aha bei allen von beiden; Spielwert 88,4–96,8.
+    - Raus: Spica, Abendstern, Wega, Galaxis, Andromeda, Hyaden, Deneb, Sonnenwind, Abendrot, Arktur, Pulsar, Weisser
+      Zwerg, Regulus, Plejaden, Antares, Prokyon, Roter Riese, Neutronenstern, Milchstrasse, Raumzeit, Schwarzes Loch,
+      Sternnebel, Shaula (Gefühl 3,0–4,0, meist 3,0–3,5; darunter Shaula aus Ticket 01).
+    - Nicht gewählt: 11 Kandidaten (0a93f026, 2b606bcd, ac0fd637, fd747d28, f043193d, cff39df8, 0bad3327, b2fa2853,
+      25582948, af87cceb, 3e415b77).
+  - **Mit den wenigsten Tauschen: 7 rein, 7 raus.** Rein f09bb21b (Fa 88,9, Gefühl 4,5), be9c3fb2 (Fa 91,1, 3,0),
+    330805ef (Lo 92,3, 3,5), 7d2b8d12 (Mi 92,7, 4,0), 24d655cd (Sa 96,2, 4,5), 69d92fd5 (Ab 102,4, 4,5), aa669d97
+    (Fz 106,8, 4,5); raus Wega, Sonnenwind, Abendrot, Regulus, Prokyon, Raumzeit, Shaula. Verschoben 48 Level,
+    96 Plätze. Ob 6 Tausche reichen, ist ungeklärt (genaue Suche zu gross). Weniger als die 9 der Analyse, weil echte
+    Kandidaten eigene Schwierigkeiten haben und die zwei schwersten das obere Ende erweitern.
+- **Offen für Stufe 3: nichts.** Die Regel geht mit den beurteilten Kandidaten ganz auf, ohne neues Generieren und ohne
+  Lauf der KI-Tester. Zu entscheiden bleibt, ob die Wahl wirklich nach Bewertung tauscht (23 Level neu, die Geschichte
+  in «sehr schwer» wird deutlich besser bewertet) oder so wenig wie möglich (7). Die Mengen oben hängen an der
+  genauen Regel, die `waehleGrad` in Stufe 4 bekommt (Bewertung als Summe der Ränge oder anders); die Wahl in Stufe 4
+  rechnet sie neu.
+
+**Entscheid des Nutzers (30.10.2026, nach Stufe 2):** Die Wahl für «sehr schwer» tauscht **nach Bewertung** (gleiche
+Regel wie in den übrigen Graden: beste Bewertung, Vielfalt vor Bewertung, ±3 über die Weltgrenzen), also rund 23
+Platzhalter gegen besser bewertete, schon beurteilte Kandidaten aus `ausbau-noa-1`. Stufe 3 (neu generieren, neuer
+Lauf der KI-Tester) entfällt. Die Leveldaten der Kandidaten werden versioniert abgelegt, damit sie nicht wieder nur in
+`tests/output/` liegen. Einbau (Stufe 4) nach Ticket 07.
