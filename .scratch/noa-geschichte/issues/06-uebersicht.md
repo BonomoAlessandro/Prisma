@@ -160,3 +160,8 @@ nacheinander bauen, nie zwei Agenten zugleich in `index.html`.
 4. «Geschafft» heisst überall: Finale gesehen (`geschafft` im Stand), auch in der Übersicht; sind alle 60 gelöst,
    aber das Finale fehlt (z. B. Neuladen im Finale), führt «Weiter» ins Finale (Koordinator).
 5. Übersicht aus dem Spiel wie das Menü: Level pausiert, Blick in den Himmel (Koordinator).
+
+**Aus dem Review von Ticket 05 (30.10.2026):** Ein geschaffter Grad im Menü braucht ohne Übersicht nach «Von vorn» einen
+zweiten Klick zum Beginnen; mit der Übersicht (`uebersicht: true`, Zweig `'uebersicht'` in `story.pick`) entfällt das.
+Auf dem Handy quer zeigt die Karte ihre Aktion nicht (so im Baustein) – dort beim Einbau eine Beschriftung oder ein
+Zeichen ergänzen.

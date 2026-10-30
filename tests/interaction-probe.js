@@ -2,7 +2,7 @@
 // Simuliert Klick, Rechtsklick, Ziehen und Hover auf das erste drehbare Element.
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
-  // ohne Level (nach dem Start die Wahl des Grads): das erste Tutorial-Level ausserhalb der Geschichte zeigen
+  // ohne Level (nach dem Start das Menü): das erste Tutorial-Level ausserhalb der Geschichte zeigen
   if (!window.__prisma.playing() && window.__prismaDebug.flow.state === 'story') window.__prismaDebug.zeige(0);
   while (!window.__prisma.playing()) await wait(50); // Level-Übergang abwarten
   const canvas = document.querySelector('canvas');

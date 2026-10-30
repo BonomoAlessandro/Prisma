@@ -81,8 +81,8 @@
   }
   #hud.hidden { transition-duration: 0.3s; }
   #hud .title { font-size: 13px; font-weight: 300; }
-  /* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile (in der Geschichte in der Unterzeile) und
-     auf den Knöpfen der Wahl des Grads. Ohne eigene Farben, weil Rot, Grün und Blau Lichtfarben sind: Den Grad
+  /* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile (in der Geschichte in der Unterzeile; das
+     Menü zeichnet sie gleich, .menue-pips). Ohne eigene Farben, weil Rot, Grün und Blau Lichtfarben sind: Den Grad
      trägt die Zahl der vollen Punkte, volle und leere unterscheiden sich in der Form. */
   .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; color: var(--ink-dim); }
   .tier .pips { display: inline-flex; gap: 3px; vertical-align: 1px; }
@@ -119,6 +119,9 @@
     #hud .sub { display: none; }
     #hud .goal { margin-top: 2px; font-size: 9px; }
     #hud.tutorial .sub { display: block; margin-top: 4px; font-size: 9px; letter-spacing: 0.2em; } /* Tutorial: Hinweis bleibt */
+    /* Geschichte (Entscheid 20): Grad, Kapitel und Level klein in einer Zeile, ohne die Bedienung */
+    #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
+    #hud.geschichte .sub .ctl { display: none; }
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
 
@@ -273,7 +276,7 @@
     #intro .beam, #intro .title, #intro .spectrum line, #intro .sub, #intro.ready .start { animation-duration: 0.01s; animation-delay: 0s; }
   }
 
-  /* ---------- Noas Geschichte: Wahl des Grads, Untertitel, Bühne für Prolog und Epilog ---------- */
+  /* ---------- Noas Geschichte: Untertitel, Bühne für Prolog und Epilog (das Menü folgt weiter unten) ---------- */
   /* Startbildschirm deckend: die Welt, in der es weitergeht, lädt dahinter und zeigt sich erst nach dem Start */
   #intro { background: radial-gradient(ellipse at 50% 55%, #0e0c1e, #030308 70%); }
   #story {
@@ -286,23 +289,6 @@
   }
   #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; }
   #story[data-mode="caption"] .caption { display: flex; }
-  /* Wahl des Grads nach dem Startbildschirm (schlicht, bis das Menü kommt, Ticket 05): vier Knöpfe über der Welt */
-  #story .grades { display: none; position: relative; flex-direction: column; align-items: center; cursor: default; }
-  #story[data-mode="grades"] .grades { display: flex; }
-  #story .grades::before { /* dunkler Hof: lesbar vor hellem Himmel */
-    content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(640px, 100vw + 80px);
-    height: calc(100% + 200px); transform: translate(-50%, -50%);
-    background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.45) 55%, rgba(3, 3, 8, 0));
-  }
-  #story .grades .list { display: flex; flex-direction: column; gap: 12px; width: min(260px, 100%); }
-  #story .grades button {
-    display: flex; justify-content: center; padding: 14px 18px 14px calc(18px + 0.3em);
-    border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
-    transition: border-color 0.25s ease, background-color 0.25s ease;
-  }
-  #story .grades button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
-  #story .grades .tier { font-size: 10px; letter-spacing: 0.35em; text-transform: uppercase; color: var(--ink); }
-  #story .grades .tier .pips { margin-right: 0.9em; }
   #story .swap { opacity: 0; }
   #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
   #story .kicker:empty { display: none; }
@@ -398,6 +384,274 @@
     #story .scene .hint { margin-top: 8px; }
   }
 
+  /* ---------- Menü der Geschichte (Ticket 05): «Lichtwege zum Polarstern» ----------
+     Je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad gekommen ist; Punkte teilen
+     ihn in die sechs Welten (createMenu, Baustein aus .scratch/noa-geschichte/bausteine/menue/). Alle Klassen beginnen
+     mit «menue-», die Wurzel #menue trägt «menue» (createMenu setzt sie). Über dem Spiel und der Bühne (gleiche Ebene
+     wie #story, danach im Dokument), unter dem Startbildschirm; hinter dem Menü schaut die Kamera in den Himmel.
+     Desktop und Handy quer: Lampen links untereinander, die Beschriftung links davon, der Stern rechts oben, «Weiter»
+     am Kopf des Lichts. Handy hoch: die Grade als Zeilen unten; die Wege steigen gestaffelt am linken Rand auf (der
+     schwerste ganz aussen, er ist der längste) und biegen im Fächer zum Stern rechts oben ab, so kreuzt kein Weg eine
+     Beschriftung; «Weiter» ganz unten in Reichweite des Daumens.
+     Die Bedingung für hoch steht gleich in createMenu (HOCH): beide zusammen ändern. */
+  .menue {
+    --menue-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel und den Strahl des Startbildschirms */
+    --menue-ink: var(--ink, #e8e6f0);
+    --menue-dim: rgba(232, 230, 240, 0.66); /* etwas heller als --ink-dim: kleine Schrift auf dem Himmel */
+    --menue-linie: rgba(232, 230, 240, 0.3);
+    position: fixed; inset: 0; z-index: var(--menue-z, 7);
+    overflow: hidden;
+    color: var(--menue-ink);
+    font-family: var(--font, "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    user-select: none; -webkit-user-select: none;
+    transition: opacity 0.8s ease;
+  }
+  .menue[hidden] { display: none; }
+  .menue.menue-aus { opacity: 0; pointer-events: none; }
+  .menue *, .menue *::before, .menue *::after { box-sizing: border-box; }
+  /* leicht abgedunkelt, zum Rand hin mehr: der Himmel bleibt sichtbar, die Schrift lesbar */
+  .menue::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(3, 3, 8, 0.12), rgba(3, 3, 8, 0.66) 92%);
+  }
+  :where(.menue) button { /* schwach (:where), damit die Klassen der Knöpfe gelten */
+    font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+    text-align: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  /* Tastaturfokus: heller und mit Hof (der Rahmen des Spiels, 1 px in --ink-dim, ist auf dem Himmel zu schwach) */
+  .menue button:focus-visible {
+    outline: 1.5px solid #fff; outline-offset: 4px;
+    box-shadow: 0 0 20px rgba(var(--menue-glow), 0.55);
+  }
+  /* zuletzt mit Zeiger oder Finger bedient: kein Rahmen (der Fokus liegt trotzdem dort, die nächste Taste zeigt ihn) */
+  .menue.menue-zeiger button:focus-visible { outline: none; box-shadow: none; }
+  .menue.menue-zeiger .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+  .menue-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .menue-inhalt { position: absolute; inset: 0; }
+  .menue-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .menue-ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* Kopf: Titel wie der Startbildschirm, klein */
+  .menue-kopf { position: absolute; left: 7%; top: 56px; }
+  .menue-titel {
+    margin: 0; font-size: 24px; font-weight: 200; letter-spacing: 0.5em; text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35);
+  }
+  .menue-unter { margin: 8px 0 0; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--menue-dim); }
+
+  /* Polarstern: weicher Hof mit vier Strahlen (wie der Lichtpunkt am Himmel im Spiel) */
+  .menue-ziel { position: absolute; left: 79%; top: 23%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  .menue-stern { display: inline-block; flex: none; }
+  .menue-stern svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .menue-ziel .menue-stern { width: 150px; height: 150px; }
+  /* über dem Stern: die Wege kommen immer von unten links und liefen sonst durch das Wort */
+  .menue-wort {
+    position: absolute; bottom: calc(100% - 4px); font-size: 9px; letter-spacing: 0.5em; padding-left: 0.5em;
+    text-transform: uppercase; color: var(--menue-dim); white-space: nowrap;
+  }
+
+  /* Grade: Desktop eine Spalte links, die Beschriftung rechtsbündig vor der Lampe */
+  .menue-grade {
+    list-style: none; margin: 0; padding: 0;
+    position: absolute; left: 7%; top: 27%; bottom: 9%; width: 330px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .menue-grad { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "wahl lampe" "neu ."; align-items: center; column-gap: 20px; }
+  .menue-wahl {
+    grid-area: wahl; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; text-align: right;
+    min-height: 44px; padding: 6px 4px 6px 12px; border-radius: 10px;
+    transition: background-color 0.25s ease;
+  }
+  .menue-wahl:hover { background: rgba(255, 255, 255, 0.04); }
+  .menue-zeile1 { display: flex; align-items: center; gap: 12px; }
+  .menue-pips { display: inline-flex; gap: 4px; color: var(--menue-dim); }
+  .menue-pips i { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+  .menue-pips i.menue-on { background: currentColor; border-color: transparent; } /* volle und leere: Form, nicht Farbe */
+  .menue-name { font-size: 16px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; white-space: nowrap; }
+  .menue-stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
+  .menue-neu .menue-stand { color: var(--menue-dim); }
+  .menue-stand .menue-stern { width: 24px; height: 24px; margin: -5px 0; }
+  .menue-zahl { font-variant-numeric: tabular-nums; }
+  .menue-aktion {
+    display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.38em; margin-right: -0.38em;
+    text-transform: uppercase; color: var(--menue-dim);
+  }
+  .menue-aktion .menue-ico { font-size: 12px; }
+  .menue-zuletzt .menue-aktion { color: var(--menue-ink); }
+  /* «Von vorn»: klein und zurückhaltend, mit dem Zeichen von «Level neu starten» */
+  .menue-vonvorn {
+    grid-area: neu; justify-self: end; display: inline-flex; align-items: center; gap: 0.7em;
+    min-height: 36px; padding: 8px 10px; margin: 2px -0.3em 0 0; border-radius: 999px;
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+    transition: color 0.25s ease;
+  }
+  .menue-vonvorn .menue-ico { font-size: 14px; }
+  .menue-vonvorn:hover { color: var(--menue-ink); }
+
+  /* Lampe: Anfang des Wegs; leuchtet, sobald das Licht im Grad unterwegs ist */
+  .menue-lampe { grid-area: lampe; position: relative; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.45); }
+  .menue-begonnen .menue-lampe, .menue-geschafft .menue-lampe {
+    background: #fff; border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(var(--menue-glow), 0.7);
+  }
+  /* hervorgehoben (direkt nach dem Epilog der nächstschwerere Grad): Ring um die Lampe, Schrift hell */
+  .menue-hervor .menue-lampe { border-color: #fff; box-shadow: 0 0 10px rgba(var(--menue-glow), 0.9); }
+  .menue-hervor .menue-lampe::after {
+    content: ""; position: absolute; inset: -11px; border-radius: 50%;
+    border: 1px solid rgba(var(--menue-glow), 0.6); box-shadow: 0 0 16px rgba(var(--menue-glow), 0.45);
+    animation: menue-puls 2.4s ease-in-out infinite;
+  }
+  .menue-hervor .menue-name, .menue-hervor .menue-pips, .menue-hervor .menue-aktion { color: #fff; }
+  @keyframes menue-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* «Weiter»: Pille wie «Weiter» im Feld «Gelöst», heller und mit Hof; Desktop am Kopf des Lichts (Lage: createMenu) */
+  .menue-weiter {
+    position: absolute; z-index: 2; transform: translate(-50%, -50%); white-space: nowrap;
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 13px 34px 12px calc(34px + 0.45em);
+    font-size: 13px; letter-spacing: 0.45em; text-transform: uppercase; text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px;
+    background: rgba(10, 10, 24, 0.92); /* deckend: die Wege dahinter scheinen nicht durch */
+    box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .menue-weiter[hidden] { display: none; }
+  .menue-weiter:hover { border-color: #fff; box-shadow: 0 0 34px rgba(var(--menue-glow), 0.45), inset 0 0 14px rgba(255, 255, 255, 0.1); }
+  .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.6), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+  .menue-wohin { font-size: 10px; letter-spacing: 0.22em; text-transform: none; color: var(--menue-dim); }
+
+  /* Wege (SVG, createMenu zeichnet sie bei jeder Grössenänderung neu) */
+  .menue-wege { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .menue-wege polyline, .menue-wege line { fill: none; }
+  .menue-grund { stroke: rgba(232, 230, 240, 0.22); stroke-width: 1; transition: stroke 0.25s ease; }
+  .menue-weg.menue-neu .menue-grund { stroke-dasharray: 2 7; stroke: rgba(232, 230, 240, 0.34); }
+  .menue-weg.menue-hervor .menue-grund { stroke: rgba(var(--menue-glow), 0.8); stroke-width: 1.2; }
+  .menue-weg.menue-an .menue-grund { stroke: rgba(232, 230, 240, 0.6); } /* Zeiger oder Fokus auf dem Grad */
+  .menue-hof { stroke: rgba(var(--menue-glow), 0.22); stroke-width: 9; stroke-linecap: round; }
+  .menue-licht { stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+  .menue-station { fill: rgba(3, 3, 8, 0.9); stroke: rgba(232, 230, 240, 0.45); stroke-width: 1; }
+  .menue-station.menue-an { fill: #fff; stroke: none; }
+  .menue-welt { color: rgba(232, 230, 240, 0.4); }
+  .menue-welt.menue-an { color: rgba(232, 230, 240, 0.85); }
+  .menue-welt.menue-jetzt { color: #fff; }
+  .menue-welt svg { overflow: visible; }
+  .menue-scheibe { fill: rgba(5, 5, 14, 0.9); } /* hochkant: das Zeichen sitzt auf dem Weg, die Scheibe unterbricht ihn */
+  .menue-faden { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; } /* vom Kopf des Lichts zu «Weiter» */
+
+  /* Einblenden: das Licht wächst von der Lampe bis zu seinem Kopf, die Punkte gehen an, wenn es sie erreicht
+     (--d: Verzögerung, --dur: Dauer je Element; --menue-vorbei: schon vergangene Zeit beim Neuzeichnen) */
+  .menue-wachsen .menue-hof, .menue-wachsen .menue-licht {
+    stroke-dasharray: var(--len) 100000;
+    animation: menue-wachsen var(--dur) cubic-bezier(0.33, 1, 0.68, 1) calc(var(--d) - var(--menue-vorbei, 0s)) both;
+  }
+  .menue-wachsen .menue-auf { animation: menue-auf 0.5s ease calc(var(--d) - var(--menue-vorbei, 0s)) both; }
+  @keyframes menue-wachsen { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+  @keyframes menue-auf { from { opacity: 0; } }
+  .menue-weiter.menue-auf { animation: menue-auf 0.8s ease 0.5s both; }
+  @media (prefers-reduced-motion: reduce) {
+    .menue-wachsen .menue-hof, .menue-wachsen .menue-licht, .menue-wachsen .menue-auf, .menue-weiter.menue-auf,
+    .menue-hervor .menue-lampe::after { animation: none; }
+  }
+
+  /* Rückfrage vor «Von vorn» */
+  .menue-frage {
+    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px;
+    background: rgba(3, 3, 8, 0.62); transition: opacity 0.3s ease;
+  }
+  .menue-frage[hidden] { display: none; }
+  .menue-frage.menue-aus { opacity: 0; pointer-events: none; }
+  .menue-frage-box {
+    width: min(430px, 100%); padding: 30px 26px 24px; text-align: center;
+    border: 1px solid var(--menue-linie); border-radius: 16px; background: rgba(8, 8, 22, 0.94);
+    box-shadow: 0 0 40px rgba(var(--menue-glow), 0.18);
+  }
+  .menue-frage-titel { margin: 0 0 14px; font-size: 13px; font-weight: 300; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; color: #fff; }
+  .menue-frage-text { margin: 0 0 24px; font-size: 14px; line-height: 1.7; letter-spacing: 0.03em; color: var(--menue-dim); }
+  .menue-frage-knoepfe { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .menue-pille {
+    min-height: 44px; padding: 12px 24px 12px calc(24px + 0.4em);
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    border: 1px solid var(--menue-linie); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  .menue-pille:hover { border-color: var(--menue-dim); background: rgba(40, 40, 60, 0.6); }
+  .menue-pille-ja { border-color: rgba(255, 255, 255, 0.72); }
+
+  /* ---------- Handy hoch: die Grade als Zeilen, die Wege am linken Rand ---------- */
+  @media (max-width: 600px) and (orientation: portrait) {
+    .menue-kopf { left: 0; right: 0; top: max(22px, env(safe-area-inset-top)); text-align: center; }
+    .menue-titel { font-size: 19px; padding-left: 0.5em; }
+    .menue-unter { margin-top: 6px; font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; }
+    .menue-ziel { left: calc(100% - 96px); top: 24%; }
+    .menue-ziel .menue-stern { width: 112px; height: 112px; }
+    .menue-wort { bottom: calc(100% - 8px); font-size: 8.5px; }
+    .menue-grade {
+      left: 0; right: max(10px, env(safe-area-inset-right)); top: auto; width: auto;
+      bottom: max(28px, env(safe-area-inset-bottom)); justify-content: flex-end; gap: 8px;
+    }
+    .menue-mit-weiter .menue-grade { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 86px); }
+    /* Spalte der Lampen 104 px: je Grad eine Bahn zu 22 px, Leicht innen, Sehr schwer aussen (--menue-i: 0 … 3) */
+    .menue-grad { grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: "lampe wahl neu"; column-gap: 4px; }
+    .menue-lampe { justify-self: start; align-self: start; margin: 13px 0 0 calc(16px + (3 - var(--menue-i)) * 22px); }
+    .menue-wahl { align-items: flex-start; text-align: left; gap: 5px; padding: 7px 6px 7px 8px; }
+    .menue-zeile1 { gap: 10px; }
+    .menue-name { font-size: 13.5px; letter-spacing: 0.26em; margin-right: 0; }
+    .menue-stand { font-size: 12.5px; gap: 7px; }
+    .menue-stand .menue-stern { width: 20px; height: 20px; margin: -4px -2px; }
+    .menue-aktion { font-size: 8.5px; letter-spacing: 0.3em; margin-right: 0; }
+    .menue-vonvorn {
+      grid-area: neu; justify-self: end; flex-direction: column; gap: 5px; min-width: 56px; min-height: 52px;
+      padding: 6px 4px; margin: 0; border-radius: 12px; font-size: 8px; letter-spacing: 0.2em;
+    }
+    .menue-vonvorn .menue-ico { font-size: 16px; }
+    .menue-weiter {
+      left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+      top: auto; bottom: max(20px, env(safe-area-inset-bottom)); transform: none;
+    }
+    .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    .menue-frage-box { padding: 26px 20px 20px; }
+  }
+  /* kleine Handys hoch (z. B. 360 × 640): Aktion auf der Zeile nicht, die Zeile selbst ist der Knopf */
+  @media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
+    .menue-ziel { top: 22%; }
+    .menue-ziel .menue-stern { width: 92px; height: 92px; }
+    .menue-aktion { display: none; }
+    .menue-grade { gap: 4px; }
+    .menue-vonvorn { min-height: 46px; }
+    .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
+    .menue-mit-weiter .menue-grade { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
+  }
+
+  /* ---------- Handy quer: wie Desktop, enger ---------- */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .menue-kopf { left: max(20px, env(safe-area-inset-left)); top: 14px; display: flex; align-items: baseline; gap: 16px; }
+    .menue-titel { font-size: 16px; }
+    .menue-unter { margin: 0; font-size: 8px; letter-spacing: 0.35em; }
+    .menue-ziel { left: 84%; top: 27%; }
+    .menue-ziel .menue-stern { width: 96px; height: 96px; }
+    .menue-wort { bottom: calc(100% - 2px); font-size: 8px; }
+    .menue-grade { left: max(14px, env(safe-area-inset-left)); top: 46px; bottom: max(8px, env(safe-area-inset-bottom)); width: 262px; }
+    .menue-grad { column-gap: 14px; }
+    .menue-wahl { gap: 3px; padding: 3px 4px 2px 8px; }
+    .menue-name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
+    .menue-stand { font-size: 11.5px; }
+    .menue-stand .menue-stern { width: 20px; height: 20px; }
+    .menue-aktion { display: none; } /* die Zeile selbst ist der Knopf */
+    /* «Von vorn» als Ziel für den Finger so hoch, wie es geht, bis 40 px: Mit vier Graden mit «Von vorn» (je 44 px
+       Karte darüber) füllen sie bei 390 px Höhe die Liste genau, auf niedrigeren Handys bleibt es kleiner (ohne dvh 28) */
+    .menue-vonvorn {
+      min-height: 28px; padding: 3px 8px; margin-top: 0; font-size: 8.5px; letter-spacing: 0.22em;
+      min-height: clamp(28px, calc((100dvh - 46px - max(8px, env(safe-area-inset-bottom))) / 4 - 44px), 40px);
+    }
+    .menue-lampe { width: 10px; height: 10px; }
+    .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
+    .menue-wohin { font-size: 9px; }
+    .menue-frage-box { padding: 20px 22px 18px; }
+    .menue-frage-titel { margin-bottom: 10px; }
+    .menue-frage-text { margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+  }
+
   #perf {
     position: fixed; left: 12px; bottom: 12px; z-index: 5;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
@@ -421,6 +675,9 @@
   <button id="btn-sound" title="Ton an/aus (M)" aria-label="Ton aus" aria-pressed="false">
     <svg viewBox="0 0 24 24"><path d="M4 9.5h3l4.5-4v13l-4.5-4H4z"/><path class="on" d="M15 9a4 4 0 0 1 0 6M17.5 6.5a7.5 7.5 0 0 1 0 11"/><path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5"/></svg>
   </button>
+  <button id="btn-menu" title="Menü (Esc)" aria-label="Menü">
+    <svg viewBox="0 0 24 24"><path d="M5 7.5h14M5 12h14M5 16.5h14"/></svg>
+  </button>
 </nav>
 
 <div id="solved" class="hidden" inert aria-live="polite">
@@ -430,10 +687,6 @@
 </div>
 
 <div id="story" class="hidden" inert aria-live="polite">
-  <div class="grades" role="group" aria-label="Schwierigkeit wählen">
-    <div class="kicker">Schwierigkeit</div>
-    <div class="list"></div>
-  </div>
   <div class="caption">
     <div class="kicker"></div>
     <p class="text"></p>
@@ -441,6 +694,8 @@
     <div class="tap"></div>
   </div>
 </div>
+
+<div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
 
 <div id="intro">
   <div class="stage">
@@ -14699,8 +14954,9 @@ const NO_LIGHT = { segments: [], events: [] }; // leeres Strahlergebnis: alles b
 const CUBE_START = LEVELS.length;
 LEVELS.push(...LEVELS_3D);
 /**
- * Anzeige der Grade (Feld grad in LEVELS): volle Punkte von GRAD_PUNKTE (●○○○ … ●●●●) und Text in der Kopfzeile und
- * auf den Knöpfen der Wahl des Grads, für Screenreader als Text. Das Tutorial hat keinen Grad und keine Anzeige.
+ * Anzeige der Grade (Feld grad in LEVELS): volle Punkte von GRAD_PUNKTE (●○○○ … ●●●●) und Text in der Kopfzeile, für
+ * Screenreader als Text (das Menü hat dieselben Grade und Namen, createMenu). Das Tutorial hat keinen Grad und keine
+ * Anzeige.
  */
 const GRAD_PUNKTE = 4;
 const GRAD_ANZEIGE = {
@@ -14763,6 +15019,8 @@ const progress = {
     return { ...s, platz, geloest: namen(s.geloest), gesehen: namen(s.gesehen), geschafft: s.geschafft === true };
   },
   save(grad, stand) { this.write(this.keyOf(grad), JSON.stringify(stand)); },
+  /** «Von vorn» im Menü: den Stand nur dieses Grads löschen (Entscheid 19); der zuletzt gespielte Grad bleibt. */
+  remove(grad) { try { localStorage.removeItem(this.keyOf(grad)); } catch { /* privates Fenster o. Ä. */ } },
   /** Der zuletzt gespielte Grad (einer aus STORY_LEVELS), sonst null. */
   last() { const g = this.read(this.lastKey); return g !== null && Object.hasOwn(STORY_LEVELS, g) ? g : null; },
   setLast(grad) { this.write(this.lastKey, grad); },
@@ -14918,6 +15176,7 @@ const ui = {
   init() {
     $('btn-restart').addEventListener('click', () => stepLevel(0));
     this.sound.addEventListener('click', () => this.toggleSound());
+    $('btn-menu').addEventListener('click', () => story.toMenu());
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
@@ -14957,6 +15216,7 @@ const ui = {
     const lvl = LEVELS[index];
     const bedienung = IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück';
     this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
+    this.hud.classList.toggle('geschichte', story.drives(index)); // Handy quer: die Unterzeile bleibt (CSS)
     fillTier(this.tier, lvl);
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
@@ -14988,7 +15248,8 @@ const ui = {
       this.sub.textContent = bedienung;
     }
     this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
-    this.hud.classList.remove('hidden');
+    // unter dem offenen Menü nicht (ein Level, das beim Öffnen gerade wechselte, wächst dahinter fertig heraus)
+    this.hud.classList.toggle('hidden', story.choosing);
   },
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
   showGoal(lit, total) {
@@ -15000,9 +15261,11 @@ const ui = {
 
   /**
    * Meldung nach dem Lösen, mit Zeit und Drehungen. In der Geschichte sagt sie, wie es weitergeht (story.solvedText),
-   * und „Weiter“ führt dorthin; ausserhalb der Geschichte (Testschnittstelle) gibt es kein „Weiter“.
+   * und „Weiter“ führt dorthin; ausserhalb der Geschichte (Testschnittstelle) gibt es kein „Weiter“. Unter dem offenen
+   * Menü nicht: Wer mitten im Lösungsmoment ins Menü geht, sieht sie, wenn er ins Level zurückkehrt (story.resume).
    */
   showSolved(index, stats) {
+    if (story.choosing) return;
     const stat = (num, unit) => {
       const el = document.createElement('span'), n = document.createElement('span'), u = document.createElement('span');
       n.className = 'num'; n.textContent = num;
@@ -15038,18 +15301,559 @@ const ui = {
     this.sound.setAttribute('aria-label', audio.muted ? 'Ton an' : 'Ton aus');
   },
 
-  /** Startbildschirm verlassen: Ton freischalten, dann die Wahl des Grads (story.menu). */
+  /** Startbildschirm verlassen: Ton freischalten, dann das Menü (story.start); die Knöpfe kommen mit dem Level. */
   start(gesture = true) {
     if (flow.state !== 'intro' || !this.canStart) return; // erst, wenn „Klicken zum Starten“ da ist
     if (gesture) audio.unlock(); // ohne Geste verweigert der Browser den Ton – dann beim ersten Klick
     setShown(this.intro, false);
-    setShown(this.controls, true);
     // nach dem Ausblenden ganz entfernen (die Puls-Animation liefe sonst endlos weiter)
     setTimeout(() => { this.intro.style.display = 'none'; }, 1200);
-    story.menu();
+    story.start();
   },
 };
 ui.init();
+
+/* =====================================================================
+   MENÜ DER GESCHICHTE (Ticket 05) — «Lichtwege zum Polarstern», Baustein aus .scratch/noa-geschichte/bausteine/menue/
+   (dort LIESMICH.md mit Schnittstelle und probe.html).
+   Je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad gekommen ist; Punkte teilen
+   ihn in die sechs Welten. «Weiter» führt zum zuletzt gespielten, nicht geschafften Grad; ein geschaffter Grad trägt
+   den Polarstern; «Von vorn» je begonnenem oder geschafftem Grad, mit Rückfrage. Gestalt im Stil (Präfix menue-).
+
+     const menu = createMenu({ root, onAction });
+     menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus bleibt beim Grad)
+     menu.hide();        // ausblenden; Promise, erfüllt, wenn es ganz weg ist (hide(true): sofort, Testschnittstelle)
+     menu.offen;         // true, solange es offen ist
+     menu.keydown(e);    // aus dem Tastatur-Handler des Spiels: true, wenn das Menü die Taste genommen hat
+
+   stand = { grade: { leicht: { stand: 'neu' | 'begonnen' | 'geschafft', welt, geloest }, mittel, schwer,
+             'sehr schwer' }, zuletzt: 'mittel', hervorheben: false }   (das Spiel: story.menuStand)
+   onAction({ aktion, grad }): 'weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn' (nach der Rückfrage).
+   Ohne Abhängigkeiten vom übrigen Spiel; die Zeichen der Welten gibt es mit (icons: STORY_ICONS).
+   ===================================================================== */
+
+const createMenu = (() => {
+  /** Die Grade in der Reihenfolge des Menüs; id wie das Feld grad in LEVELS (GRAD_ANZEIGE im Spiel). */
+  const GRADE = [
+    { id: 'leicht', name: 'Leicht', punkte: 1 },
+    { id: 'mittel', name: 'Mittel', punkte: 2 },
+    { id: 'schwer', name: 'Schwer', punkte: 3 },
+    { id: 'sehr schwer', name: 'Sehr schwer', punkte: 4 },
+  ];
+  /** Die sechs Welten eines Durchgangs (id wie in STORY_ICONS); vor der ersten Welt ist das Licht im Dorf. */
+  const WELTEN = [
+    { id: 'wald', name: 'Bergwald' }, { id: 'meer', name: 'Meer' }, { id: 'wueste', name: 'Wüste' },
+    { id: 'vulkan', name: 'Vulkan' }, { id: 'planeten', name: 'Planeten' }, { id: 'sterne', name: 'Sterne' },
+  ];
+  const JE_WELT = 10;
+  const LEVEL = WELTEN.length * JE_WELT; // 60 je Grad
+  /** Zeichen wie STORY_ICONS im Spiel (createMenu({ icons: STORY_ICONS }) nimmt die des Spiels), dazu «neu starten». */
+  const ICONS = {
+    wald: '<path d="M12 3.5l-5 7h3l-4.5 6.5h13L14 10.5h3z"/><path d="M12 17v3.5"/>',
+    meer: '<path d="M2.5 10c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/><path d="M2.5 15.5c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/>',
+    wueste: '<path d="M2.5 19.5l7-11 7 11z"/><path d="M9.5 8.5l2.2 11"/><circle cx="18.2" cy="6" r="2.2"/>',
+    vulkan: '<path d="M2.5 19.5l5.5-9h2.2l1.8 2 1.8-2h2.2l5.5 9z"/><path d="M11 7.5c-.6-1.6.6-2.6 0-4.2M14 7.5c.8-1.2 1.8-1.6 2.6-1.2"/>',
+    planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
+    sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
+    neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>', // «Level neu starten» im Spiel
+    pfeil: '<path d="M9.5 5.5l6.5 6.5-6.5 6.5"/>',
+  };
+  const AKTION = { weiter: 'Weiter', beginnen: 'Beginnen', fortsetzen: 'Fortsetzen', uebersicht: 'Übersicht', vonvorn: 'Von vorn' };
+  // gleich wie im CSS des Menüs
+  const HOCH = '(max-width: 600px) and (orientation: portrait)';
+  const STILL = '(prefers-reduced-motion: reduce)';
+  const AUS_MS = 800, FRAGE_MS = 300; // Ausblenden des Menüs bzw. der Rückfrage (Transition im CSS des Menüs)
+  const WACHSEN = { start: 0.35, grund: 0.5, je: 1.3 }; // Einblenden: Beginn (s), Dauer = grund + je · Anteil des Wegs
+  let zaehler = 0;
+
+  const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const f = (n) => n.toFixed(1);
+  const make = (tag, cls, text) => {
+    const el = document.createElement(tag);
+    if (cls) el.className = cls;
+    if (text !== undefined) el.textContent = text;
+    return el;
+  };
+
+  /* ---------- Wege als Polylinien: Länge, Punkt und Richtung bei einer Länge, Stück bis zu einer Länge ---------- */
+
+  function weg(pts) {
+    const len = [0];
+    for (let k = 1; k < pts.length; k++) len.push(len[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y));
+    return { pts, len, L: len[len.length - 1] };
+  }
+  /** Punkt bei Bogenlänge s, mit Richtung (dx, dy, Länge 1). */
+  function punkt(w, s) {
+    s = clamp(s, 0, w.L);
+    let k = 1;
+    while (k < w.pts.length - 1 && w.len[k] < s) k++;
+    const a = w.pts[k - 1], b = w.pts[k], l = w.len[k] - w.len[k - 1] || 1, t = (s - w.len[k - 1]) / l;
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, dx: (b.x - a.x) / l, dy: (b.y - a.y) / l };
+  }
+  function stueck(w, s) {
+    const out = [w.pts[0]];
+    for (let k = 1; k < w.pts.length && w.len[k] < s; k++) out.push(w.pts[k]);
+    out.push(punkt(w, s));
+    return out;
+  }
+  /** Von A über die Ecke C nach S, die Ecke mit Radius r gerundet (quadratische Kurve, in Stücken). */
+  function ecke(A, C, S, r) {
+    const ein = Math.hypot(A.x - C.x, A.y - C.y), aus = Math.hypot(S.x - C.x, S.y - C.y);
+    r = Math.min(r, ein * 0.9, aus * 0.5);
+    const P = { x: C.x + (A.x - C.x) / ein * r, y: C.y + (A.y - C.y) / ein * r };
+    const Q = { x: C.x + (S.x - C.x) / aus * r, y: C.y + (S.y - C.y) / aus * r };
+    const pts = [A, P];
+    for (let k = 1; k < 10; k++) {
+      const t = k / 10, u = 1 - t;
+      pts.push({ x: u * u * P.x + 2 * u * t * C.x + t * t * Q.x, y: u * u * P.y + 2 * u * t * C.y + t * t * Q.y });
+    }
+    pts.push(Q, S);
+    return pts;
+  }
+  const punkte = (pts) => pts.map((p) => `${f(p.x)},${f(p.y)}`).join(' ');
+
+  /* ---------- Stand lesen ---------- */
+
+  /** Stand des Spiels in die Daten des Menüs; Fehlendes gilt als «neu», Zahlen werden begrenzt. */
+  function lies(stand, uebersicht) {
+    const grade = GRADE.map((g, i) => {
+      const s = stand?.grade?.[g.id] ?? {};
+      const art = s.stand === 'begonnen' || s.stand === 'geschafft' ? s.stand : 'neu';
+      const geloest = art === 'geschafft' ? LEVEL : art === 'neu' ? 0 : clamp(Math.floor(+s.geloest || 0), 0, LEVEL);
+      // Welt: id oder Nummer 0 … 5; 'dorf' vor der ersten Welt (Prolog, «Im Dorf»); fehlt sie, aus den gelösten Leveln
+      let welt = typeof s.welt === 'number' ? Math.floor(s.welt) : WELTEN.findIndex((w) => w.id === s.welt);
+      const dorf = art === 'begonnen' && s.welt === 'dorf';
+      if (art !== 'begonnen') welt = art === 'geschafft' ? WELTEN.length : -1;
+      else if (dorf) welt = -1;
+      else if (!(welt >= 0 && welt < WELTEN.length)) welt = Math.min(WELTEN.length - 1, Math.floor(geloest / JE_WELT));
+      const aktion = art === 'geschafft' ? (uebersicht ? 'uebersicht' : 'vonvorn') : art === 'neu' ? 'beginnen' : 'fortsetzen';
+      return { ...g, i, art, geloest, welt, dorf, aktion, anteil: geloest / LEVEL };
+    });
+    const zuletzt = grade.find((g) => g.id === stand?.zuletzt) ?? null;
+    const weiter = zuletzt?.art === 'begonnen' ? zuletzt : null;
+    // hervorheben: true → der nächstschwerere, noch nicht geschaffte Grad nach dem zuletzt geschafften; oder eine id
+    let hervor = null;
+    if (typeof stand?.hervorheben === 'string') hervor = grade.find((g) => g.id === stand.hervorheben) ?? null;
+    else if (stand?.hervorheben && zuletzt?.art === 'geschafft') hervor = grade.slice(zuletzt.i + 1).find((g) => g.art !== 'geschafft') ?? null;
+    return { grade, zuletzt, weiter, hervor };
+  }
+  const weltName = (g) => (g.dorf ? 'Dorf' : WELTEN[g.welt].name);
+  const ariaStand = (g) => (g.art === 'geschafft' ? 'geschafft, Polarstern erreicht' : g.art === 'neu' ? 'noch nicht begonnen'
+    : `begonnen, ${g.dorf ? 'im Dorf' : weltName(g)}, ${g.geloest} von ${LEVEL} Leveln gelöst`);
+
+  /* ---------- Baustein ---------- */
+
+  return function createMenu({ root, onAction = () => {}, uebersicht = true, icons = {} } = {}) {
+    if (!root) throw new Error('createMenu: root fehlt');
+    const uid = `menue-${++zaehler}`;
+    const ICO = { ...ICONS, ...icons };
+    const icon = (id) => `<svg class="menue-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICO[id]}</svg>`;
+    const stern = () => `<span class="menue-stern" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><use href="#${uid}-stern"/></svg></span>`;
+
+    root.classList.add('menue', 'menue-aus');
+    root.hidden = true;
+    root.inert = true;
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.setAttribute('aria-label', 'Menü');
+    root.innerHTML = `
+      <svg class="menue-defs" aria-hidden="true" focusable="false"><defs>
+        <radialGradient id="${uid}-hof"><stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="0.22" stop-color="#cdd4ff" stop-opacity="0.26"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${uid}-strahl"><stop offset="0" stop-color="#ffffff"/><stop offset="0.7" stop-color="#e6eaff" stop-opacity="0.5"/><stop offset="1" stop-color="#e6eaff" stop-opacity="0"/></radialGradient>
+        <symbol id="${uid}-stern" viewBox="-50 -50 100 100">
+          <circle r="48" fill="url(#${uid}-hof)"/>
+          <path d="M0-46L2.4-2.4 30 0 2.4 2.4 0 46-2.4 2.4-30 0-2.4-2.4z" fill="url(#${uid}-strahl)"/>
+          <path d="M0-16L1.2-1.2 16 0 1.2 1.2 0 16-1.2 1.2-16 0-1.2-1.2z" fill="#fff" transform="rotate(45)" opacity="0.55"/>
+          <circle r="4.2" fill="#fff"/>
+        </symbol>
+      </defs></svg>
+      <div class="menue-inhalt">
+        <svg class="menue-wege" aria-hidden="true" focusable="false"></svg>
+        <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">Ein Lichtsignal an die Sterne</p></header>
+        <div class="menue-ziel" aria-hidden="true">${stern()}<span class="menue-wort">Polarstern</span></div>
+        <button type="button" class="menue-weiter" data-menue-fokus="weiter" hidden><span>Weiter</span><span class="menue-wohin"></span></button>
+        <ol class="menue-grade" aria-label="Grade"></ol>
+      </div>
+      <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
+        <div class="menue-frage-box">
+          <h3 class="menue-frage-titel" id="${uid}-frage-titel"></h3>
+          <p class="menue-frage-text" id="${uid}-frage-text"></p>
+          <div class="menue-frage-knoepfe">
+            <button type="button" class="menue-pille" data-menue-frage="nein">Abbrechen</button>
+            <button type="button" class="menue-pille menue-pille-ja" data-menue-frage="ja">Von vorn</button>
+          </div>
+        </div>
+      </div>
+      <p class="menue-sr" aria-live="polite"></p>`;
+    const $ = (sel) => root.querySelector(sel);
+    // Fokusrahmen erst nach einer Taste: Chrome zeigt ihn sonst auch, wenn das Menü nach einem Klick ins Leere (etwa auf
+    // den Startbildschirm) den Fokus setzt; mit Zeiger oder Finger bedient, bleibt er weg (CSS .menue-zeiger)
+    addEventListener('pointerdown', () => root.classList.add('menue-zeiger'), true);
+    addEventListener('keydown', () => root.classList.remove('menue-zeiger'), true);
+    const inhalt = $('.menue-inhalt'), svg = $('.menue-wege'), liste = $('.menue-grade'), weiterBtn = $('.menue-weiter');
+    const sternEl = $('.menue-ziel .menue-stern'), frageEl = $('.menue-frage'), sr = $('.menue-sr');
+    const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
+
+    let daten = lies({}, uebersicht);
+    let offen = false;
+    let gesperrt = false;   // nach einer Aktion (ausser «Von vorn») bis zum nächsten show(): kein Doppelklick
+    let frage = null;       // Grad der offenen Rückfrage
+    let frageVon = null;    // Knopf, der sie geöffnet hat (bekommt den Fokus zurück)
+    let aktiv = null;       // Grad unter Zeiger oder Fokus: sein Weg heller
+    let wachsenSeit = -Infinity; // Zeit des Einblendens (performance.now) für die Bewegung der Wege
+    let zeitAus = 0, zeitFrage = 0, plan = 0;
+
+    /* ---------- Aufbau der Grade ---------- */
+
+    function render() {
+      liste.replaceChildren();
+      for (const g of daten.grade) {
+        const li = make('li', `menue-grad menue-${g.art}`);
+        li.dataset.grad = g.id;
+        li.style.setProperty('--menue-i', g.i);
+        if (g === daten.hervor) li.classList.add('menue-hervor');
+        if (g === daten.weiter) li.classList.add('menue-zuletzt');
+
+        const lampe = make('span', 'menue-lampe');
+        lampe.setAttribute('aria-hidden', 'true');
+
+        const wahl = make('button', 'menue-wahl');
+        wahl.type = 'button';
+        wahl.dataset.menueFokus = `wahl:${g.id}`;
+        wahl.setAttribute('aria-label', `${g.name}: ${ariaStand(g)}${g === daten.hervor ? ', als Nächstes empfohlen' : ''}. ${AKTION[g.aktion]}`);
+        if (g.aktion === 'vonvorn') wahl.setAttribute('aria-haspopup', 'dialog');
+        const zeile = make('span', 'menue-zeile1');
+        const pips = make('span', 'menue-pips');
+        for (let k = 1; k <= 4; k++) pips.append(make('i', k <= g.punkte ? 'menue-on' : ''));
+        zeile.append(pips, make('span', 'menue-name', g.name));
+        const stand = make('span', 'menue-stand');
+        if (g.art === 'geschafft') { stand.innerHTML = stern(); stand.append(make('span', '', 'Geschafft')); }
+        else if (g.art === 'neu') stand.textContent = 'noch nicht begonnen';
+        else stand.append(make('span', '', weltName(g)), make('span', 'menue-trenn', '·'), make('span', 'menue-zahl', `${g.geloest} / ${LEVEL}`));
+        const aktion = make('span', 'menue-aktion', AKTION[g.aktion]);
+        aktion.insertAdjacentHTML('beforeend', icon('pfeil'));
+        wahl.append(zeile, stand, aktion);
+        wahl.addEventListener('click', () => (g.aktion === 'vonvorn' ? oeffneFrage(g, wahl) : melde(g.aktion, g)));
+        li.append(wahl, lampe);
+
+        // «Von vorn» bei begonnenem oder geschafftem Grad (ohne Übersicht ist es beim geschafften schon die Karte)
+        if (g.art !== 'neu' && g.aktion !== 'vonvorn') {
+          const vv = make('button', 'menue-vonvorn');
+          vv.type = 'button';
+          vv.dataset.menueFokus = `vonvorn:${g.id}`;
+          vv.setAttribute('aria-label', `${g.name} von vorn beginnen`);
+          vv.setAttribute('aria-haspopup', 'dialog');
+          vv.innerHTML = `${icon('neu')}<span>Von vorn</span>`;
+          vv.addEventListener('click', () => oeffneFrage(g, vv));
+          li.append(vv);
+        }
+        liste.append(li);
+      }
+      const w = daten.weiter;
+      weiterBtn.hidden = !w;
+      root.classList.toggle('menue-mit-weiter', !!w);
+      if (w) {
+        weiterBtn.querySelector('.menue-wohin').textContent = `${w.name} · ${weltName(w)} ${w.geloest} / ${LEVEL}`;
+        weiterBtn.setAttribute('aria-label', `Weiter: ${w.name}, ${w.dorf ? 'im Dorf' : weltName(w)}, ${w.geloest} von ${LEVEL} Leveln gelöst`);
+      }
+    }
+
+    /* ---------- Wege zeichnen (bei jeder Grössenänderung neu) ---------- */
+
+    function zeichne() {
+      if (!offen) return;
+      const R = root.getBoundingClientRect(), W = R.width, H = R.height;
+      if (!W || !H) return;
+      const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: r.left - R.left + r.width / 2, y: r.top - R.top + r.height / 2 }; };
+      const hoch = matchMedia(HOCH).matches;
+      const S = mitte(sternEl);
+      const lis = [...liste.children];
+      const lampen = lis.map((li) => mitte(li.querySelector('.menue-lampe')));
+      const listeOben = lis.length ? lis[0].getBoundingClientRect().top - R.top : H;
+      // hochkant: senkrecht vor der Lampe hinauf bis über die Zeilen, dort zum Stern; je schwerer, desto höher biegt er
+      // ab (Leicht innen und am tiefsten): so kreuzen sich die Wege nie, und keiner läuft über eine Beschriftung
+      const abstand = clamp((listeOben - 12 - (S.y + 50)) / 4, 6, 22);
+      const wege = daten.grade.map((g, i) => {
+        const A = lampen[i];
+        const T = listeOben - 12 - i * abstand;
+        if (hoch && T < A.y - 2 && T > S.y + 20) return weg(ecke(A, { x: A.x, y: T }, S, Math.min(14, abstand * 0.7)));
+        return weg([A, S]);
+      });
+
+      // Bewegung beim Einblenden: was schon vergangen ist, rechnet das CSS ab (Neuzeichnen mitten im Wachsen)
+      const vorbei = (performance.now() - wachsenSeit) / 1000;
+      const wachsen = vorbei < 3.2 && !matchMedia(STILL).matches;
+      svg.classList.toggle('menue-wachsen', wachsen);
+      svg.style.setProperty('--menue-vorbei', `${Math.max(0, vorbei).toFixed(3)}s`);
+      const dauer = (g) => WACHSEN.grund + WACHSEN.je * g.anteil;
+      // Zeitpunkt, an dem das Licht den Bruchteil y seines Wegs erreicht (Umkehrung von ease-out-cubic)
+      const bei = (g, y) => WACHSEN.start + dauer(g) * (1 - Math.cbrt(1 - clamp(y, 0, 1)));
+
+      // die sechs Welten als Zeichen: auf dem Weg von «Weiter», sonst des hervorgehobenen, ganz neu auf dem leichten
+      const haupt = daten.weiter ?? daten.hervor ?? (daten.grade.every((g) => g.art === 'neu') ? daten.grade[0] : null);
+      let unten = '', oben = '';
+      daten.grade.forEach((g, i) => {
+        const w = wege[i], p = g.anteil, s = p * w.L;
+        const cls = ['menue-weg', `menue-${g.art}`, g === daten.hervor && 'menue-hervor', g.id === aktiv && 'menue-an'].filter(Boolean).join(' ');
+        let teil = `<polyline class="menue-grund" points="${punkte(w.pts)}"/>`;
+        if (p > 0) {
+          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(stueck(w, s))}"`;
+          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" filter="url(#${uid}-leuchten)" ${z}/>`;
+        }
+        unten += `<g class="${cls}" data-grad="${g.id}">${teil}</g>`;
+        // Grenzen der Welten
+        for (let k = 1; k < WELTEN.length; k++) {
+          const y = k / WELTEN.length, P = punkt(w, y * w.L), an = y <= p + 1e-9, c = `cx="${f(P.x)}" cy="${f(P.y)}"`;
+          oben += `<circle class="menue-station" ${c} r="2.4"/>`; // darüber geht er an, wenn das Licht ihn erreicht
+          if (an) oben += `<circle class="menue-station menue-an menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s" ${c} r="2.6"/>`;
+        }
+        if (g === haupt) {
+          const s2 = hoch ? 15 : 17, o = hoch ? 0 : 19; // hochkant auf dem Weg (die Bahnen liegen eng), sonst daneben
+          WELTEN.forEach((welt, k) => {
+            const y = (k + 0.5) / WELTEN.length, M = punkt(w, y * w.L);
+            const n = { x: M.dy, y: -M.dx }; // links der Richtung zum Stern
+            const x = M.x + n.x * o, yy = M.y + n.y * o;
+            const zcls = k < g.welt ? 'menue-an' : k === g.welt ? 'menue-jetzt' : '';
+            const auf = y <= p ? ` menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s` : '';
+            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` filter="url(#${uid}-leuchten)"` : ''}>`
+              + (hoch ? `<circle class="menue-scheibe" cx="${f(x)}" cy="${f(yy)}" r="${s2 / 2 + 3}"/>` : '')
+              + `<svg x="${f(x - s2 / 2)}" y="${f(yy - s2 / 2)}" width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${ICO[welt.id]}</svg></g>`;
+          });
+        }
+        // Kopf des Lichts: gross am Weg von «Weiter», klein bei den übrigen begonnenen
+        if (g.art === 'begonnen' && p > 0) {
+          const K = punkt(w, s), d = `style="--d:${(WACHSEN.start + dauer(g) * 0.85).toFixed(2)}s"`;
+          oben += g === daten.weiter
+            ? `<g class="menue-auf" ${d}><circle cx="${f(K.x)}" cy="${f(K.y)}" r="20" fill="url(#${uid}-kopf)"/><circle cx="${f(K.x)}" cy="${f(K.y)}" r="3.6" fill="#fff"/></g>`
+            : `<circle class="menue-auf" ${d} cx="${f(K.x)}" cy="${f(K.y)}" r="2.8" fill="#fff"/>`;
+        }
+      });
+
+      // «Weiter» (Desktop, quer) unter dem Kopf des Lichts, mit feiner Linie dorthin; nie über die Beschriftung der
+      // Grade, nie über den Rand; hochkant liegt es fest unten (CSS)
+      weiterBtn.style.left = weiterBtn.style.top = '';
+      const wg = daten.weiter;
+      if (wg && !hoch) {
+        const w = wege[wg.i], K = punkt(w, wg.anteil * w.L);
+        let u = { x: -K.dy, y: K.dx }; // rechts der Richtung: beim Weg nach rechts oben ist das unten
+        if (u.y < 0) u = { x: -u.x, y: -u.y };
+        const r = weiterBtn.getBoundingClientRect(), bw = r.width, bh = r.height;
+        const ab = bh / 2 + 26, rand = 16;
+        if (K.y + u.y * ab + bh / 2 > H - rand) u = { x: -u.x, y: -u.y }; // unten kein Platz: über den Weg
+        const links = Math.max(...lampen.map((a) => a.x)) + 28 + bw / 2;
+        const B = {
+          x: Math.max(links, Math.min(K.x + u.x * ab, W - rand - bw / 2)),
+          y: clamp(K.y + u.y * ab, rand + bh / 2, H - rand - bh / 2),
+        };
+        weiterBtn.style.left = `${f(B.x)}px`;
+        weiterBtn.style.top = `${f(B.y)}px`;
+        // Linie vom Kopf bis an den Rand der Pille
+        const v = { x: K.x - B.x, y: K.y - B.y }, t = Math.min(bw / 2 / Math.abs(v.x || 1e-6), bh / 2 / Math.abs(v.y || 1e-6));
+        if (t < 1) {
+          const E = { x: B.x + v.x * t, y: B.y + v.y * t }, l = Math.hypot(K.x - E.x, K.y - E.y);
+          if (l > 14) {
+            const a = { x: K.x + (E.x - K.x) / l * 7, y: K.y + (E.y - K.y) / l * 7 };
+            oben += `<line class="menue-faden menue-auf" style="--d:${(WACHSEN.start + dauer(wg) * 0.85).toFixed(2)}s" x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(E.x)}" y2="${f(E.y)}"/>`;
+          }
+        }
+      }
+
+      svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
+      svg.innerHTML = `<defs>
+          <filter id="${uid}-leuchten" filterUnits="userSpaceOnUse" x="0" y="0" width="${f(W)}" height="${f(H)}">
+            <feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <radialGradient id="${uid}-kopf"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.35" stop-color="#cdd4ff" stop-opacity="0.25"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
+        </defs>${unten}${oben}`;
+    }
+    /** Neu zeichnen im nächsten Bild (mehrere Anlässe zugleich: einmal). */
+    function planen() {
+      if (!offen || plan) return;
+      plan = requestAnimationFrame(() => { plan = 0; zeichne(); });
+    }
+    const beobachter = typeof ResizeObserver === 'function' ? new ResizeObserver(planen) : null;
+    addEventListener('resize', planen);
+    document.fonts?.ready?.then(planen);
+
+    /** Zeiger oder Fokus auf einem Grad: sein Weg heller. */
+    function setzeAktiv(id) {
+      if (id === aktiv) return;
+      aktiv = id;
+      for (const el of svg.querySelectorAll('.menue-weg')) el.classList.toggle('menue-an', el.dataset.grad === id);
+    }
+    const gradVon = (el) => (el === weiterBtn ? daten.weiter?.id ?? null : el?.closest?.('.menue-grad')?.dataset.grad ?? null);
+    inhalt.addEventListener('pointerover', (e) => setzeAktiv(gradVon(e.target)));
+    inhalt.addEventListener('pointerleave', () => setzeAktiv(gradVon(document.activeElement)));
+    inhalt.addEventListener('focusin', (e) => setzeAktiv(gradVon(e.target)));
+
+    /* ---------- Fokus ---------- */
+
+    const ziel = (key) => (key ? root.querySelector(`[data-menue-fokus="${CSS.escape(key)}"]`) : null);
+    function fokussiere(key) {
+      const el = ziel(key);
+      if (el && !el.hidden) el.focus({ preventScroll: true });
+      return !!el;
+    }
+    /** Wohin der Fokus beim Öffnen geht: «Weiter», sonst der hervorgehobene, der zuletzt gespielte, der erste Grad. */
+    function startFokus() {
+      if (daten.weiter) return 'weiter';
+      const g = daten.hervor ?? daten.zuletzt ?? daten.grade.find((x) => x.art === 'begonnen') ?? daten.grade[0];
+      return `wahl:${g.id}`;
+    }
+    /** Haltepunkte der Pfeiltasten: «Weiter», dann die Grade von oben nach unten. */
+    const halte = () => [...(daten.weiter ? [weiterBtn] : []), ...liste.querySelectorAll('.menue-wahl')];
+
+    /* ---------- Aktionen und Rückfrage ---------- */
+
+    function melde(aktion, g) {
+      if (gesperrt || !offen) return;
+      if (aktion !== 'vonvorn') gesperrt = true; // das Spiel blendet das Menü aus; show() gibt es wieder frei
+      onAction({ aktion, grad: g.id });
+    }
+    weiterBtn.addEventListener('click', () => { if (daten.weiter) melde('weiter', daten.weiter); });
+
+    function oeffneFrage(g, von) {
+      if (!offen || gesperrt) return;
+      clearTimeout(zeitFrage);
+      frage = g;
+      frageVon = von?.dataset.menueFokus ?? null;
+      $('.menue-frage-titel').textContent = `${g.name} von vorn beginnen?`;
+      $('.menue-frage-text').textContent = g.art === 'geschafft'
+        ? `Der Stand dieses Grads wird gelöscht, auch der erreichte Polarstern. Die anderen Grade bleiben, wie sie sind.`
+        : `Der Stand dieses Grads wird gelöscht (${g.dorf ? 'im Dorf' : weltName(g)}, ${g.geloest} von ${LEVEL} Leveln). Die anderen Grade bleiben, wie sie sind.`;
+      inhalt.inert = true;
+      frageEl.hidden = false;
+      void frageEl.offsetWidth; // erst sichtbar setzen, dann einblenden
+      frageEl.classList.remove('menue-aus');
+      neinBtn.focus({ preventScroll: true }); // sicher: Abbrechen zuerst
+    }
+    /** ja: bestätigt («Von vorn» an das Spiel); sofort: ohne Ausblenden und ohne Fokus (show, hide). */
+    function schliesseFrage(ja = false, sofort = false) {
+      if (!frage) return;
+      const g = frage;
+      frage = null;
+      frageEl.classList.add('menue-aus');
+      inhalt.inert = false;
+      clearTimeout(zeitFrage);
+      const weg = () => { if (!frage) frageEl.hidden = true; };
+      if (sofort) { weg(); return; }
+      zeitFrage = setTimeout(weg, FRAGE_MS);
+      if (!ja) { fokussiere(frageVon) || fokussiere(`wahl:${g.id}`); return; }
+      fokussiere(`wahl:${g.id}`); // vor onAction: ein show() darin behält den Fokus beim Grad
+      melde('vonvorn', g);
+      fokussiere(`wahl:${g.id}`) || fokussiere(startFokus());
+      sage(`${g.name}: Stand gelöscht.`);
+    }
+    neinBtn.addEventListener('click', () => schliesseFrage(false));
+    jaBtn.addEventListener('click', () => schliesseFrage(true));
+    frageEl.addEventListener('click', (e) => { if (e.target === frageEl) schliesseFrage(false); });
+
+    /** Meldung für den Bildschirmleser (leeren und neu setzen: auch dieselbe Meldung zweimal). */
+    function sage(text) {
+      sr.textContent = '';
+      requestAnimationFrame(() => { sr.textContent = text; });
+    }
+
+    /* ---------- Tasten ---------- */
+
+    /** true: die Taste gehört dem Menü (Standardaktion verhindert). */
+    function taste(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return false;
+      if (frage) {
+        if (e.key === 'Escape') { schliesseFrage(false); return true; }
+        // in der Rückfrage bleiben: Tab und Pfeile wechseln zwischen den zwei Knöpfen
+        if (e.key === 'Tab' || ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+          (document.activeElement === neinBtn ? jaBtn : neinBtn).focus();
+          return true;
+        }
+        return false;
+      }
+      const schritt = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+      if (!schritt && e.key !== 'Home' && e.key !== 'End') return false;
+      const stopps = halte();
+      if (!stopps.length) return false;
+      const akt = document.activeElement;
+      let i = stopps.indexOf(akt);
+      if (i < 0 && akt?.closest?.('.menue-grad')) i = stopps.indexOf(akt.closest('.menue-grad').querySelector('.menue-wahl'));
+      let el;
+      if (e.key === 'Home') el = stopps[0];
+      else if (e.key === 'End') el = stopps[stopps.length - 1];
+      else if (i < 0) el = ziel(startFokus());
+      else el = stopps[clamp(i + schritt, 0, stopps.length - 1)];
+      el?.focus({ preventScroll: true });
+      return true;
+    }
+    root.addEventListener('keydown', (e) => {
+      if (!offen || e.defaultPrevented) return;
+      if (taste(e)) { e.preventDefault(); e.stopPropagation(); }
+    });
+
+    /* ---------- Öffnen und Schliessen ---------- */
+
+    return {
+      get offen() { return offen; },
+      /** Einblenden mit dem Stand des Spiels; ist das Menü schon offen, neu aufbauen (Fokus bleibt beim selben Knopf). */
+      show(stand = {}) {
+        daten = lies(stand, uebersicht);
+        gesperrt = false;
+        const war = offen;
+        const key = war && root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
+        if (war && frage) schliesseFrage(false, true);
+        render();
+        if (!war) {
+          offen = true;
+          clearTimeout(zeitAus);
+          root.hidden = false;
+          root.inert = false;
+          void root.offsetWidth; // erst sichtbar setzen, dann einblenden
+          root.classList.remove('menue-aus');
+          weiterBtn.classList.toggle('menue-auf', !matchMedia(STILL).matches);
+          wachsenSeit = performance.now();
+          aktiv = null;
+          beobachter?.observe(root);
+          beobachter?.observe(liste);
+          zeichne();
+          fokussiere(startFokus());
+        } else {
+          zeichne();
+          if (key) fokussiere(key) || fokussiere(startFokus());
+        }
+      },
+      /** Ausblenden; erfüllt, wenn es ganz weg ist (dann hidden). sofort: ohne Überblenden (Testschnittstelle). */
+      hide(sofort = false) {
+        if (!offen) return Promise.resolve();
+        offen = false;
+        schliesseFrage(false, true);
+        if (root.contains(document.activeElement)) document.activeElement.blur();
+        root.inert = true;
+        root.classList.add('menue-aus');
+        beobachter?.disconnect();
+        cancelAnimationFrame(plan);
+        plan = 0;
+        clearTimeout(zeitAus);
+        return new Promise((resolve) => {
+          zeitAus = setTimeout(() => { if (!offen) root.hidden = true; resolve(); }, sofort ? 0 : AUS_MS);
+          if (sofort) root.hidden = true;
+        });
+      },
+      /**
+       * Für den Tastatur-Handler des Spiels, solange das Menü offen ist: true, wenn die Taste dem Menü gehört (dann
+       * nichts weiter tun). Liegt der Fokus ausserhalb (Klick ins Leere), holen ihn Pfeile und Tab zurück ins Menü.
+       */
+      keydown(e) {
+        if (!offen) return false;
+        if (root.contains(e.target)) return e.defaultPrevented || taste(e) && (e.preventDefault(), true);
+        if (['ArrowDown', 'ArrowUp', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'Tab'].includes(e.key)) {
+          e.preventDefault();
+          if (frage) neinBtn.focus(); else fokussiere(startFokus());
+          return true;
+        }
+        if (frage && e.key === 'Escape') { schliesseFrage(false); return true; }
+        return false;
+      },
+    };
+  };
+})();
 
 /* =====================================================================
    NOAS GESCHICHTE — «Ein Lichtsignal an die Sterne», der Ablauf des Spiels (Spec .scratch/noa-geschichte/).
@@ -15058,10 +15862,11 @@ ui.init();
    10 Leveln). Am Kapitelende steigen die Strahlen der Ziele zu einem Punkt am Himmel, ein Träger nimmt ihn mit in die
    nächste Welt (travel). Ganz oben antwortet der Polarstern: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn
    blinken (Epilog auf der Bühne, createStoryScene).
-   Nach dem Startbildschirm wählt der Spieler einen Grad (menu, schlicht bis Ticket 05); jeder Grad hat seine eigene
+   Nach dem Startbildschirm wählt der Spieler im Menü einen Grad (createMenu, Ticket 05); jeder Grad hat seine eigene
    Reise (STORY_LEVELS) und seinen eigenen Stand (progress, prisma.noa.*): Platz, gelöste Level, gesehene Momente.
    Prolog und Einstiege in die Welten kommen je Grad nur beim ersten Mal. Neuladen setzt dort fort, wo der Grad steht.
-   Die Würfel-Level gehören nicht zu dieser Geschichte.
+   Ins Menü geht es mit «Menü» im Spiel (der Stand bleibt) und am Ende des Epilogs; dahinter schaut die Kamera in den
+   Himmel. Die Würfel-Level gehören nicht zu dieser Geschichte.
    ===================================================================== */
 
 const STORY_UP = 0.42; // Blick in den Himmel: so hoch über den Horizont (rad), wenn das Kapitel nichts anderes sagt (up)
@@ -15417,11 +16222,11 @@ function createStoryScene(host) {
       void el.offsetWidth;
       el.classList.add('lit');
     },
-    /** Ausblenden (CSS 1,6 s), danach anhalten. */
+    /** Ausblenden (CSS 1,6 s), danach anhalten (ausser sie zeigt sich inzwischen wieder: «Zum Menü» und gleich neu). */
     async hide() {
       el.classList.remove('lit');
       await storySleep(1600);
-      this.running = false;
+      if (!el.classList.contains('lit')) this.running = false;
     },
     tween(seconds, fn, ease = storyEase, delay = 0) {
       return new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
@@ -15570,16 +16375,26 @@ const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2); // w
 const storyLinear = (k) => k;
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 
+/** Das Menü der Geschichte (createMenu); den Stand liefert story.menuStand, die Aktionen nimmt story.pick. */
+const menu = createMenu({
+  root: $('menue'),
+  icons: STORY_ICONS,
+  uebersicht: false, // bis zur Übersicht (Ticket 06) fragt ein geschaffter Grad «Von vorn»
+  onAction: (a) => story.pick(a),
+});
+
 const story = {
   el: $('story'),
   grade: null,        // gewählter Grad (Schlüssel in STORY_LEVELS), bis zur Wahl der zuletzt gespielte oder null
   stand: null,        // sein Speicherstand (progress.load), platz siehe step
-  choosing: false,    // die Wahl des Grads ist offen (menu)
+  choosing: false,    // das Menü ist offen (openMenu bis choose)
+  paused: null,       // Menü aus dem Spiel geöffnet: { grade, at } (toMenu); im selben Grad geht es dort weiter (resume)
   outside: false,     // ein Level ausserhalb der Geschichte (Testschnittstelle zeige): ohne Stand und Kopfzeile
   steps: [],          // je Level der Reise des Grads { c: Kapitel, index: Platz in LEVELS }
   step: 0,            // Level, das gerade läuft (der Platz im Speicherstand)
   gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
   gazeDir: new THREE.Vector3(0, 1, 0),
+  gazeRun: 0,         // zählt die weichen Blickwechsel (gazeTo): ein neuer löst den laufenden ab
   holdEnter: false,   // updateFlow: nach dem Versinken auf die Geschichte warten (sunk)
   running: false,     // eine Zwischenszene läuft
   fast: 1,            // Tippen in einer Zwischenszene: schneller
@@ -15624,9 +16439,11 @@ const story = {
   setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate); },
   /** Die Geschichte führt das Level index (sonst: ausserhalb, Testschnittstelle zeige). */
   drives(index) { return !this.outside && this.grade !== null && this.steps[this.step]?.index === index; },
+  /** Stand des Grads speichern; gespielt: wann zuletzt (ms seit 1970), für «Weiter» im Menü (menuStand). */
   save() {
     if (this.outside || this.grade === null) return;
     this.stand.platz = this.step;
+    this.stand.gespielt = Date.now();
     progress.save(this.grade, this.stand);
   },
   /** Ein Moment, der nur beim ersten Mal kommt (prolog, Einstieg in eine Welt), ist gesehen. */
@@ -15645,59 +16462,183 @@ const story = {
 
   /* ---------- Ablauf ---------- */
 
-  /**
-   * Nach dem Startbildschirm: die vier Grade zur Wahl (schlicht, bis Ticket 05 das Menü baut), über der Welt, in der
-   * es im zuletzt gespielten Grad weitergeht; sein Knopf hat den Fokus.
-   */
-  menu() {
+  /** Nach dem Startbildschirm: das Menü über dem Himmel der Welt, in der es im zuletzt gespielten Grad weitergeht. */
+  start() {
     flow.state = 'story';
-    this.choosing = true;
     this.scene ??= this.makeScene(); // jetzt, unter dem Startbildschirm, statt erst im Finale (ein Ruck)
-    const list = this.el.querySelector('.grades .list');
-    if (!list.children.length) {
-      for (const grade of Object.keys(STORY_LEVELS)) {
-        const b = document.createElement('button'), tier = document.createElement('span');
-        b.type = 'button';
-        b.dataset.grade = grade;
-        tier.className = 'tier';
-        fillTier(tier, { grad: grade });
-        b.append(tier);
-        b.addEventListener('click', (e) => { e.stopPropagation(); this.choose(grade); });
-        list.append(b);
-      }
-    }
-    this.open('grades');
-    const last = [...list.children].find(b => b.dataset.grade === progress.last()) ?? list.firstElementChild;
-    last.focus({ preventScroll: true });
+    this.openMenu({ sofort: true });
   },
-  /** Grad gewählt: dort weiter, wo er steht; neu von vorn mit dem Prolog. */
+  /**
+   * Menü öffnen (Entscheide 8, 14, 17): nach dem Startbildschirm, mit «Menü» im Spiel und am Ende des Epilogs.
+   * Kopfzeile, Knöpfe und «Gelöst» sind solange weg; dahinter schaut die Kamera in den Himmel, damit das Brett nicht
+   * hinter den Wegen steht (vom Brett hebt sich der Blick weich, sofort: unter dem Startbildschirm). hervorheben: direkt
+   * nach dem Epilog der nächstschwerere Grad (Entscheid 14).
+   */
+  openMenu({ sofort = false, hervorheben = false } = {}) {
+    this.choosing = true;
+    this.fast = 1;
+    setHovered(null);
+    ui.hideHud();
+    ui.hideSolved();
+    setShown(ui.controls, false);
+    if (this.gaze < 1) {
+      if (this.gaze === 0) this.aimGaze(this.steps.length ? this.chapter().up ?? STORY_UP : STORY_UP);
+      if (sofort) { this.gazeRun++; this.gaze = 1; } else this.gazeTo(1, 1.8);
+    }
+    menu.show(this.menuStand(hervorheben));
+  },
+  /**
+   * Stand je Grad für das Menü (createMenu): neu, begonnen (ab dem Prolog; Welt des Platzes, vor dem Bergwald das Dorf,
+   * gelöste Level der Reise) oder geschafft. «Weiter» (Entscheid 25) führt zum zuletzt gespielten unter den begonnenen
+   * Graden: dem zuletzt gewählten, wenn er begonnen ist, sonst dem mit dem jüngsten Speichern (gespielt; ohne Zeit
+   * zählt ein Stand als ältester). «Von vorn» und «geschafft» nehmen einen Grad aus dieser Wahl. hervorheben: direkt
+   * nach dem Epilog der nächstschwerere, noch nicht geschaffte Grad nach dem zuletzt gewählten (Entscheid 14).
+   */
+  menuStand(hervorheben = false) {
+    const grade = {}, gespielt = {};
+    for (const [g, welten] of Object.entries(STORY_LEVELS)) {
+      const namen = new Set(welten.flat()), s = progress.load(g, namen.size);
+      if (s.geschafft) { grade[g] = { stand: 'geschafft' }; continue; }
+      if (!s.gesehen.length && !s.geloest.length && !s.platz) continue; // neu (auch ein unlesbarer Stand)
+      let c = 0;
+      for (let rest = s.platz; c < welten.length - 1 && rest >= welten[c].length; c++) rest -= welten[c].length;
+      const welt = storyChapterId(STORY_CHAPTERS[c]);
+      grade[g] = { stand: 'begonnen', welt: c === 0 && !s.gesehen.includes(welt) ? 'dorf' : welt,
+        geloest: s.geloest.filter((n) => namen.has(n)).length };
+      gespielt[g] = Number.isFinite(s.gespielt) ? s.gespielt : 0;
+    }
+    const last = progress.last(), order = Object.keys(STORY_LEVELS), begonnen = Object.keys(gespielt);
+    const weiter = gespielt[last] !== undefined ? last
+      : begonnen.reduce((a, g) => (a === null || gespielt[g] > gespielt[a] ? g : a), null);
+    const nach = order.indexOf(last);
+    const hervor = hervorheben && nach >= 0
+      ? order.slice(nach + 1).find((g) => grade[g]?.stand !== 'geschafft') ?? false : false;
+    // zuletzt: das Ziel von «Weiter»; ohne begonnenen Grad der zuletzt gewählte (Fokus im Menü)
+    return { grade, zuletzt: weiter ?? last, hervorheben: hervor };
+  },
+  /** «Menü» im Spiel (Entscheid 17, Esc): Der Stand bleibt; der Blick hebt sich vom Brett in den Himmel. */
+  toMenu() {
+    if (this.choosing || this.running || this.holdEnter || !['play', 'in', 'out'].includes(flow.state)) return;
+    // zurück ins selbe Level (choose): Es steht noch auf dem Brett; at: die Zeit im Menü zählt nicht
+    this.paused = this.outside || this.grade === null ? null : { grade: this.grade, at: performance.now() };
+    this.openMenu();
+  },
+  /** Esc im Menü, das aus dem Spiel kam: zurück ins Level wie mit «Weiter» (nach dem Start und dem Epilog nicht). */
+  back() {
+    if (this.choosing && this.paused) this.choose(this.paused.grade);
+  },
+  /** «Zum Menü» am Ende des Epilogs, ohne Neuladen: Das Menü blendet über der Bühne ein, die Bühne aus. */
+  afterEpilog() {
+    if (this.choosing) return;
+    this.running = false;
+    this.covered = false; // dahinter der Himmel der Sterne, die Kamera schaut noch zum Polarstern
+    this.openMenu({ hervorheben: true });
+    this.close();
+    this.scene.hide();
+  },
+  /**
+   * Aktion im Menü (createMenu, onAction). Ein geschaffter Grad fragt bis zur Übersicht (Ticket 06) «Von vorn»
+   * (uebersicht: false); bestätigt, ist er danach neu.
+   */
+  pick({ aktion, grad }) {
+    if (aktion === 'vonvorn') this.resetGrade(grad);
+    else this.choose(grad);
+  },
+  /** «Von vorn» (nach der Rückfrage im Menü): nur der Stand dieses Grads geht (Entscheid 19); das Menü bleibt offen. */
+  resetGrade(grade) {
+    progress.remove(grade);
+    if (this.grade === grade) { this.paused = null; this.setGrade(grade); } // sein Level auf dem Brett gilt nicht mehr
+    menu.show(this.menuStand());
+  },
+  /**
+   * Grad gewählt: dort weiter, wo er steht; neu von vorn mit dem Prolog. Das Menü blendet sofort aus (nicht erst, wenn
+   * der Himmel der Welt da ist); war es aus dem Spiel geöffnet und geht es im selben Level weiter, steht es noch da.
+   */
   choose(grade) {
     if (!this.choosing) return;
     this.choosing = false;
+    menu.hide();
     progress.setLast(grade);
+    const p = this.paused;
+    this.paused = null;
+    if (p?.grade === grade && game.board && game.levelIndex === this.steps[this.step]?.index) {
+      this.save(); // gespielt: jetzt (menuStand)
+      this.resume(p);
+      return;
+    }
+    this.outside = false;
     this.setGrade(grade);
-    this.setSky(this.chapter().sky, true);
+    this.save();
     this.begin();
   },
-  /** Prolog (nur beim ersten Mal je Grad), dann bringt der Träger das Licht in die Welt, in der es weitergeht. */
+  /** Zurück ins Level, das beim Öffnen des Menüs lief: Der Blick senkt sich aufs Brett, es geht weiter wie vorher. */
+  async resume(p) {
+    this.running = true;
+    // beide Zeitpunkte verschieben: Kam der Lösungsmoment der letzten Drehung vor dem Menü erst danach, zählte sonst
+    // die Zeit im Menü ab (unter dem Menü gibt es keine Drehung, lastTurnAt liegt immer davor)
+    const st = game.stats, pause = performance.now() - p.at;
+    if (st.startedAt !== null) { st.startedAt += pause; st.lastTurnAt += pause; }
+    setShown(ui.controls, true);
+    ui.showHud(game.levelIndex);
+    await this.gazeTo(0, 1.8);
+    // gelöst: die Meldung wieder (kam der Lösungsmoment erst unter dem Menü, jetzt; sonst kommt sie noch von selbst)
+    if (flow.solved && flow.state === 'play' && (!celebration.active || celebration.panelShown)) {
+      ui.showSolved(game.levelIndex, flow.solveStats);
+    }
+    this.running = false;
+  },
+  /**
+   * Prolog (nur beim ersten Mal je Grad), dann bringt der Träger das Licht in die Welt, in der es weitergeht. Ein altes
+   * Feld (Menü aus dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel bzw. die Bühne
+   * deckt es zu.
+   */
   async begin() {
     this.running = true;
-    flow.state = 'story';
     const { index } = this.steps[this.step], ch = this.chapter();
+    flow.state = 'story';
+    const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
     if (this.seen(storyChapterId(ch))) {
-      // in dieser Welt hat schon ein Level begonnen: ohne Einstieg gleich ins Level, sobald ihr Himmel da ist
-      this.close();
-      for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
-      enterLevel(index);
+      // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
+      // ist (sonst sähe man ein leeres Brett, solange ihr Himmel lädt), dann senkt sich der Blick, und das Level wächst
+      await this.skyOf(ch);
+      await sunk;
+      setShown(ui.controls, true);
+      await this.gazeTo(0, 2.2, (k) => { if (k > 0.25 && flow.state === 'story') enterLevel(index); });
       this.running = false;
       return;
     }
     if (!this.seen('prolog')) {
+      this.setSky(ch.sky, true); // lädt hinter der Bühne
       await this.playScene(STORY_PROLOG, { skippable: true });
       this.see('prolog');
     }
-    await this.enter(index, ch);
+    await this.enter(index, ch, sunk);
     this.running = false;
+  },
+  /**
+   * Himmel der Welt ch und warten, bis er da ist (höchstens 8 s). Sieht man dabei in den Himmel (nach dem Menü),
+   * wechselt er wie auf der Reise langsamer, zwischen zwei Welten auf der Erde über die Farben beider (blendSky).
+   */
+  async skyOf(ch) {
+    const old = skyTheme.current, fadeTime = skyTheme.fadeTime;
+    this.setSky(ch.sky, true);
+    if (skyTheme.current !== old) {
+      skyTheme.fadeTime = 2.4;
+      const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
+      this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
+    }
+    for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
+    skyTheme.fadeTime = fadeTime;
+    this.blend = null;
+  },
+  /** Blick weich in den Himmel (to = 1) oder zurück aufs Brett (0); ein neuer Aufruf löst einen laufenden ab. */
+  gazeTo(to, seconds, onStep) {
+    const run = ++this.gazeRun, from = this.gaze;
+    return this.tween(seconds, (k) => {
+      if (run !== this.gazeRun) return;
+      this.gaze = from + (to - from) * k;
+      onStep?.(k);
+    });
   },
   /** „Weiter“ nach dem Lösen: im Kapitel das nächste Level, am Kapitelende die Zwischenszene. */
   advance() {
@@ -15793,7 +16734,6 @@ const story = {
     su.uHorizon.value = (a.starsAboveHorizon ? 1 : 0) + ((b.starsAboveHorizon ? 1 : 0) - (a.starsAboveHorizon ? 1 : 0)) * p;
   },
   /**
-   * Ganz oben: Der Polarstern  /**
    * Ganz oben: Der Polarstern leuchtet auf und antwortet; sein Strahl fällt zurück aufs Brett, die Kamera folgt ihm.
    * Der Aufprall klingt aus (Lichtwelle, Funkenregen, die Ziele blitzen), dann geht der Blick noch einmal hinauf zum
    * Stern, und während die Welt in der Nacht versinkt, taucht das Dorf auf, in dem Noa wartet (Epilog).
@@ -15847,7 +16787,7 @@ const story = {
   },
   /**
    * Nach dem letzten Level: Der Grad ist geschafft, Epilog im Dorf. soft: langsam überblenden (Finale). «Zum Menü»
-   * lädt die Seite neu (Startbildschirm, dann die Wahl des Grads), bis Ticket 05 das Menü baut.
+   * führt ohne Neuladen ins Menü (afterEpilog; Entscheid 14).
    */
   async ending(soft = false) {
     this.running = true;
@@ -15856,7 +16796,7 @@ const story = {
     ui.hideHud();
     this.stand.geschafft = true;
     this.save();
-    await this.playScene(STORY_EPILOG, { soft, actions: [['Zum Menü', () => location.reload()]] });
+    await this.playScene(STORY_EPILOG, { soft, actions: [['Zum Menü', () => this.afterEpilog()]] });
   },
   /**
    * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
@@ -15980,12 +16920,14 @@ const story = {
    * In eine Welt hinein ohne Reise davor (nach dem Prolog, beim Fortsetzen): Der Träger, der das Licht hierher bringt
    * (im ersten Kapitel die Glühwürmchen des Prologs, sonst der der Welt davor), fliegt mit ihm von der Seite heran,
    * tief über dem Horizont, und es fällt aufs Brett. Dazu der Untertitel mit Kapitel und Weg wie auf der Reise. Bis der
-   * Himmel der Welt geladen ist, bleibt davor dunkel, was davor war (die Bühne des Prologs, der Startbildschirm).
+   * Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im Himmel der Welt davor); schaut sie
+   * schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin).
    */
-  async enter(index, ch) {
+  async enter(index, ch, sunk) {
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
-    for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
-    const up = ch.up ?? STORY_UP, dist = 60;
+    await this.skyOf(ch);
+    const up = ch.up ?? STORY_UP, dist = 60, from = this.gaze > 0.5 ? this.gazeDir.clone() : null;
+    this.gazeRun++; // ein weicher Blickwechsel (gazeTo) endet hier
     this.aimGaze(up);
     // tief über dem Horizont heran (im Wald über die Wipfel) und erst vor der Kamera etwas höher
     const az1 = Math.atan2(this.gazeDir.x, this.gazeDir.z), az0 = az1 + (c % 2 ? 1 : -1);
@@ -15998,15 +16940,21 @@ const story = {
     fl.scale.setScalar(5);
     carrier.start(c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', fl.position);
     carrier.strength = 1;
-    this.look(fl.position);
+    // aus dem Himmel (Menü): erst noch dorthin, wohin die Kamera schon schaut, dann folgt sie dem Licht
+    const follow = (k) => {
+      this.look(fl.position);
+      if (from) this.gazeDir.lerp(from, 1 - THREE.MathUtils.smoothstep(k, 0, 0.6)).normalize();
+    };
+    follow(0);
     this.gaze = 1;
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
       { kicker: `Kapitel ${c + 1} · ${ch.title}`, text: ch.travel, path: ch.station }));
     await this.tween(3.4, (k) => {
       place(el0 + (el1 - el0) * k, az0 + (az1 - az0) * k);
       carrier.orb.copy(fl.position);
-      this.look(fl.position);
+      follow(k);
     });
+    await sunk;
     await this.fall(index, fl.position.clone());
   },
   /** Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst. */
@@ -16026,6 +16974,7 @@ const story = {
       if (!entered && k > 0.6) {
         entered = true;
         enterLevel(index);
+        setShown(ui.controls, true); // nach dem Menü wieder da
         this.see(storyChapterId(this.chapter())); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
       }
       if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise
@@ -16112,7 +17061,7 @@ const story = {
   untilTap() { return new Promise((resolve) => { this.waitTap = resolve; }); },
   /** Tippen/Klicken auf die Geschichte (oder Enter): Karte weiter, in einer Zwischenszene schneller. */
   tap() {
-    if (this.choosing) return; // Wahl des Grads: nur die Knöpfe
+    if (this.choosing) return; // Menü: nur seine Knöpfe
     if (!this.waitTap) {
       this.fast = 3;
       const sc = this.scene;
@@ -16125,10 +17074,9 @@ const story = {
     audio.rotate();
     resolve();
   },
-  /** Tasten in der Geschichte; true: erledigt (die übrigen Tasten des Spiels nicht mehr). */
+  /** Tasten in der Geschichte (das offene Menü nimmt sie vorher, menu.keydown); true: erledigt. */
   keydown(e) {
     if (this.el.classList.contains('hidden') && flow.state !== 'story') return false;
-    if (this.choosing) return e.code !== 'KeyM'; // Wahl des Grads: Tab und Enter auf den Knöpfen
     if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); this.tap(); }
     else if (e.code === 'Escape') this.skipProlog();
     return e.code !== 'KeyM';
@@ -16383,25 +17331,51 @@ const _storyDir = new THREE.Vector3(), _storyHead = new THREE.Vector3();
 story.init();
 
 /* ---------- Tasten ----------
-   R: neu starten · M: Ton · Enter: weiter (nach dem Lösen) bzw. Start; in den Zwischenszenen Enter/Leertaste weiter,
-   Esc überspringt den Prolog (story.keydown). Level und Hintergrund wählt die Geschichte (Entscheide 21 und 26).
-   C (Debug): Farbe der Quellen wechseln */
+   R: neu starten · M: Ton · Esc: Menü · Enter: weiter (nach dem Lösen) bzw. Start; im Menü Tab, Pfeile, Pos1/Ende,
+   Enter (menu.keydown), Esc zurück ins Spiel (story.back); in den Zwischenszenen Enter/Leertaste weiter, Esc
+   überspringt den Prolog (story.keydown).
+   Level und Hintergrund wählt die Geschichte (Entscheide 21 und 26). C (Debug): Farbe der Quellen wechseln */
+
+/**
+ * Nach dem Start mit Enter oder Leertaste hat ein Knopf des Menüs gleich den Fokus: Die gehaltene Taste löste sonst
+ * seinen Klick aus, bei Enter die Wiederholung des Drückens, bei der Leertaste das Loslassen (ohne Wahl in den Prolog
+ * von «Leicht» oder weiter). Bis zum Loslassen gehört sie niemandem; ein neues Drücken (Loslassen verpasst, etwa in
+ * einem anderen Fenster) gibt sie wieder frei.
+ */
+function holdUntilRelease(code) {
+  const halt = (u) => {
+    if (u.code !== code) return;
+    const done = u.type === 'keyup' || !u.repeat;
+    if (done) { removeEventListener('keydown', halt, true); removeEventListener('keyup', halt, true); }
+    if (u.type === 'keydown' && !u.repeat) return; // neu gedrückt: wieder wie sonst
+    u.preventDefault();
+    u.stopImmediatePropagation();
+  };
+  addEventListener('keydown', halt, true);
+  addEventListener('keyup', halt, true);
+}
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   // Enter/Leertaste auf einer Schaltfläche löst deren Klick aus – nicht zusätzlich hier
   if ((e.code === 'Enter' || e.code === 'Space') && e.target.closest?.('button')) return;
   if (flow.state === 'intro') {
-    if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); ui.start(); }
-    // nach dem Start hat ein Knopf der Wahl des Grads den Fokus: Das Loslassen der Leertaste klickte ihn sonst gleich
-    if (e.code === 'Space') {
-      const halt = (u) => { if (u.code === 'Space') u.preventDefault(); };
-      window.addEventListener('keyup', halt, { once: true, capture: true });
-    }
+    if (e.code !== 'Enter' && e.code !== 'Space') return;
+    e.preventDefault();
+    ui.start();
+    if (flow.state !== 'intro') holdUntilRelease(e.code);
+    return;
+  }
+  // offenes Menü: R, Pfeile usw. bedienen nicht das Feld darunter; Esc führt zurück ins Spiel, wenn es von dort kam
+  if (menu.offen) {
+    if (menu.keydown(e)) return;
+    if (e.code === 'KeyM') ui.toggleSound();
+    else if (e.code === 'Escape') story.back();
     return;
   }
   if (story.keydown(e)) return;
   if (e.code === 'KeyM') ui.toggleSound();
+  else if (e.code === 'Escape') story.toMenu();
   else if (e.code === 'Enter' && ui.solvedVisible()) {
     e.preventDefault();
     ui.advance();
@@ -16607,7 +17581,7 @@ window.addEventListener('keydown', (e) => {
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
  * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
  * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
- * der Kamera), die Bühne der Geschichte das Feld verdeckt oder die Wahl des Grads offen ist.
+ * der Kamera), die Bühne der Geschichte das Feld verdeckt oder das Menü offen ist (ausser der Blick hebt sich gerade).
  */
 const frameRate = {
   activeFps: 60,
@@ -16622,7 +17596,8 @@ const frameRate = {
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   busy(ts) {
-    if (story.covered || story.choosing) return false; // Feld hinter der Bühne bzw. leer unter der Wahl des Grads
+    // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
+    if (story.covered || story.choosing && !story.tweens.length) return false;
     if (flow.state !== 'play' || story.tweens.length || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
     if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
     // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
@@ -16716,11 +17691,12 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
 // rendern (Screenshots der KI-Tester). zeige(index): LEVELS[index] ausserhalb der Geschichte zeigen, gleich nach dem
-// Laden mit ?nointro (die Wahl des Grads ist offen): ohne Speicherstand, Kopfzeile mit Titel oder Name und Grad (Bilder
-// der KI-Tester, Proben im Würfel). loese(): das laufende Level lösen, Drehung für Drehung wie ein Spieler (Proben des
-// Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad wählt story.choose(grad), einen Stand setzen Proben
-// über localStorage (progress) und Neuladen.
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story,
+// Laden mit ?nointro (das Menü ist offen; es geht sofort weg, die Kamera schaut aufs Brett): ohne Speicherstand,
+// Kopfzeile mit Titel oder Name und Grad (Bilder der KI-Tester, Proben im Würfel). loese(): das laufende Level lösen,
+// Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
+// wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
+// (progress) und Neuladen.
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
@@ -16729,7 +17705,12 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
     if (!(index >= 0 && index < LEVELS.length)) throw new Error(`zeige: kein Level ${index}`);
     story.outside = true;
     story.choosing = false;
+    story.paused = null;
+    menu.hide(true);
+    story.gazeRun++;
+    story.gaze = 0;
     story.close();
+    setShown(ui.controls, true);
     if (game.board && flow.state === 'play') { changeLevel(index); return; }
     // mit ?t= steht die Zeit (FIXED_TIME): Strahlen, die nach ihr geboren sind, wüchsen nie. Wie beim ersten Level
     // vor dem ersten Bild zählen sie ab 0, so stehen sie nach settle wie früher

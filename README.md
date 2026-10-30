@@ -130,13 +130,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe, keine Würfel-Level; der Datenblock der Geschichte
     (`STORY_LEVELS`) ist die Reise aus `wahl.json`; `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien
     der Texte ein Level der Wahl aus dem Vorrat zurück und ein anderes hin (ohne Titel), byte-gleich.
-  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh node tests/geschichte-probe.mjs [--handy] [--grad leicht,mittel,…]
-    [--welten 2] [--finale <grad>]` spielt Noas Geschichte in Headless-Chrome (Ticket 04; etwa 3 min je Grad): je Grad
-    ein Durchgang durch die ersten Welten (Wahl des Grads, Prolog, Einstieg, je 10 Level, Reise), danach Neuladen und
-    Fortsetzen am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis «Zum Menü». Über die
-    Testschnittstelle (`__prismaDebug`: `story.choose`, `loese`, Weiter wie ein Spieler; den Stand für das Finale
-    setzt sie in `localStorage`). Sie prüft Kopfzeile, Speicherstand und Konsole und legt Bilder der wichtigen Momente
-    nach `tests/output/geschichte/` (`«sehr schwer»` als `sehr-schwer`).
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
+    [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start]` spielt Noas Geschichte in
+    Headless-Chrome über das Menü (Tickets 04 und 05; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
+    die Sperre hat): je Grad ein Durchgang durch die ersten Welten (Karte im Menü, Prolog, Einstieg, je 10 Level,
+    Reise), danach Neuladen und «Weiter» am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis
+    «Zum Menü», dann ohne Neuladen ins Menü (geschafft, der nächstschwerere hervorgehoben, «Weiter» zu einem anderen
+    begonnenen Grad) und in den hervorgehobenen Grad; `--menue` das Menü im Ablauf (Stand je Grad, «Weiter», «Menü» im
+    Spiel und zurück ins selbe Level, Esc, Wechsel in einen Grad in einer anderen Welt, «Von vorn» mit Rückfrage, ein
+    neuer Grad aus dem Spiel heraus), auf dem Desktop dazu ein gehaltenes Enter am Startbildschirm (`--start` allein).
+    `--handy` 390 × 844, `--quer` 844 × 390, beide mit Touch (`Input.dispatchTouchEvent`),
+    sonst 1440 × 900 mit der Maus. Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
+    die Probe in `localStorage`. Sie prüft Kopfzeile, Speicherstand, Menü und Konsole, dass das Menü nach der Wahl
+    sofort ausblendet und die Kamera im Himmel bleibt, bis die Welt bereit ist (kein leeres Brett), misst die
+    Bildzeiten der Übergänge (Lücken über 100 ms sind Fehler) und legt Bilder nach `tests/output/geschichte/`
+    (`<bildschirm>-<name>.png`, `«sehr schwer»` als `sehr-schwer`).
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
@@ -152,8 +160,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Testschnittstelle (`__prismaDebug.zeige(index)`, ausserhalb der Geschichte), die Probe der Bedienung das erste
     Tutorial-Level.
 - **Steuerung:** Klick/Tap dreht ein Element um 45°, Rechtsklick oder langes Drücken zurück, Ziehen dreht die Kamera rund ums Feld.
-  Schaltflächen unten rechts: Level neu starten, Ton an/aus. Tasten: R neu starten, M Ton, Enter weiter (nach dem
-  Lösen), F Leistungsanzeige; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
+  Schaltflächen unten rechts: Level neu starten, Ton an/aus, Menü. Tasten: R neu starten, M Ton, Esc Menü (im Menü,
+  das aus dem Spiel kam, zurück), Enter weiter (nach dem Lösen), F Leistungsanzeige; im Menü Tab, Pfeile, Pos1/Ende
+  und Enter; in den Zwischenszenen Enter oder Leertaste weiter, Esc überspringt den Prolog. Level und
   Hintergrund wählt die Geschichte (Entscheide 21 und 26 der Spec `.scratch/noa-geschichte/`): Die Levelauswahl, der
   Hintergrund-Knopf und die Tasten N, P, H und L sind mit Ticket 04 weggefallen.
 - **Würfel-Level (Prototyp, Branch `feature/3d-wuerfel`):** Level in einem 7×7×7-Würfel (`LEVELS_3D`, `dim: 3`), seit
@@ -167,16 +176,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Würfel über die Würfel-Feldform (`tools/beurteilung/feldform-wuerfel.mjs`); Würfel-Level aus dem Generator kommen
   nicht ins Spiel.
 - **Ablauf:** Noas Geschichte «Ein Lichtsignal an die Sterne» ist das Spiel (Spec `.scratch/noa-geschichte/`,
-  Ticket 04): Startbildschirm (Klick startet und schaltet den Ton frei), dann die Wahl des Grads (vier Knöpfe,
-  schlicht bis Ticket 05). Je Grad ein Durchgang: Prolog im Dorf, dann 6 Welten (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) zu
-  je 10 Leveln, beim ersten Betreten einer Welt ein Einstieg, zwischen den Welten die Reise des Lichts, nach der
-  letzten Welt Finale und Epilog, am Ende «Zum Menü» (lädt neu, bis Ticket 05). Prolog und Einstiege kommen je Grad nur
-  beim ersten Mal; der Prolog lässt sich überspringen. Die Level je Grad und Welt stehen im Datenblock
-  `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad
-  unter `prisma.noa.<grad>` (`sehr schwer` als `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene
-  Momente, geschafft) und der zuletzt gespielte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort fort. Die alten
-  Schlüssel (`prisma.solvedLevels`, `prisma.current`, `prisma.sky`, `prisma.signal`, `prisma.signal.seen`) liest das
-  Spiel nicht mehr. Das Tutorial steht im Spiel, kommt im Ablauf aber erst mit dem Kapitel «Im Dorf» (Ticket 07).
+  Tickets 04 und 05): Startbildschirm (Klick startet und schaltet den Ton frei), dann das Menü «Lichtwege zum
+  Polarstern» (`createMenu`): je Grad sein Stand («Wüste · 23 / 60», «noch nicht begonnen», geschafft mit dem
+  Polarstern), «Weiter» zum zuletzt gespielten unter den begonnenen, nicht geschafften Graden, «Von vorn» mit
+  Rückfrage (löscht nur diesen Grad); hinter dem Menü schaut die Kamera in den Himmel. Je Grad ein Durchgang: Prolog
+  im Dorf, dann 6 Welten (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) zu je 10 Leveln, beim ersten Betreten einer
+  Welt ein Einstieg, zwischen den Welten die Reise des Lichts, nach der letzten Welt Finale und Epilog, am Ende «Zum
+  Menü» (ohne Neuladen; der geschaffte Grad markiert, der nächstschwerere hervorgehoben). Im Spiel führt «Menü» (Esc)
+  ins Menü, der Stand bleibt. Prolog und Einstiege kommen je Grad nur beim ersten Mal; der Prolog lässt sich
+  überspringen. Die Level je Grad und Welt stehen im Datenblock `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben
+  von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter `prisma.noa.<grad>` (`sehr schwer` als
+  `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene Momente, geschafft, `gespielt`: Zeit des
+  letzten Speicherns für «Weiter») und der zuletzt gewählte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort
+  fort. Die alten Schlüssel (`prisma.solvedLevels`, `prisma.current`, `prisma.sky`, `prisma.signal`,
+  `prisma.signal.seen`) liest das Spiel nicht mehr. Das Tutorial steht im Spiel, kommt im Ablauf aber erst mit dem
+  Kapitel «Im Dorf» (Ticket 07).
   Kopfzeile nach Entscheid 20: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter Grad,
   Kapitel und Level («●○○○ Leicht · Kapitel 2 / 6 · Level 1 / 10») und die Bedienung. Sie zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
@@ -187,11 +201,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `?nointro` überspringt den Startbildschirm (nutzen die Screenshot-Tests; `INTRO=1` zeigt ihn), `?sky=<id>` zeigt
   einen Hintergrund statt dem der Welt (Tests). Testschnittstelle für Werkzeuge und Proben (`__prismaDebug`, das Spiel
   ruft sie nie auf): `zeige(index)` zeigt ein Level ausserhalb der Geschichte (ohne Speicherstand), `loese()` löst das
-  laufende Level Drehung für Drehung, `story.choose(grad)` wählt einen Grad, `settle(s)` spult mit `?t=` vor.
+  laufende Level Drehung für Drehung, `menu` ist das Menü (`story.choose(grad)` wählt einen Grad, solange es offen
+  ist), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
   60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
-  Geschichte, Wahl des Grads). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
+  Geschichte, Menü). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
   72 bzw. 29).
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
 - **Skyboxen aus Blender** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Hintergründe, die
@@ -685,8 +700,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   nicht versioniert); die Namen wandern mit ihren Leveln, umbenannt wurde nichts. Jede Lösung steht als Kommentar und
   im Feld `solution`. Jedes Level nach dem Tutorial trägt seinen Grad im Feld `grad` (leicht 1–31, mittel 32–105,
   schwer 106–137, sehr schwer 138–150). Das Spiel zeigt ihn (Ticket 17, `GRAD_ANZEIGE`) als Punkte von leicht ●○○○
-  bis sehr schwer ●●●● mit dem Text dazu: in Noas Geschichte in der Unterzeile der Kopfzeile und auf den Knöpfen der
-  Wahl des Grads, bei einem Level ausserhalb der Geschichte (Testschnittstelle) hinter dem Namen (auf dem Handy
+  bis sehr schwer ●●●● mit dem Text dazu: in Noas Geschichte in der Unterzeile der Kopfzeile und auf den Karten des
+  Menüs, bei einem Level ausserhalb der Geschichte (Testschnittstelle) hinter dem Namen (auf dem Handy
   hochkant in einer eigenen Zeile darunter). Das Tutorial hat keinen Grad. Eigene Farben haben die Grade nicht, weil
   Rot, Grün und Blau Lichtfarben sind: Volle und leere Punkte unterscheiden sich in der Form, und Screenreader lesen den
   Grad als Text. Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl (Seiten zu 10, Fläche und

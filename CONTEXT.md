@@ -95,6 +95,12 @@ Die Rangfolge der Level für die Wahl: zuerst das Gefühl im Mittel der Urteile 
 Urteile mit Aha-Moment, dann der Spielwert. Ohne Urteil wird sie aus dem Spielwert geschätzt. Abgrenzung: weder die
 Schwierigkeit noch der Spielwert allein.
 
+**Haupt-Kernidee**:
+Unter den nötigen Kernideen eines Levels die, die dem Schliessen am meisten abverlangt, nach fester Rangfolge (Falle,
+Abschalten, Farben abzählen, Sammelstelle, Lockvogel, Mischziel aus zwei Quellen). Ohne nötige Kernidee hat ein Level
+keine. Nach ihr zählt die Vielfalt. (Hier und nicht unter «Was Spass macht»: Diesen Abschnitt lesen die KI-Tester, und
+jede Änderung dort verlangt eine neue Version ihres Ablaufs, siehe `tools/ki-tester/protocol.mjs`.)
+
 **Vielfalt**:
 Die Regel der Wahl, die vor der Bewertung gilt: dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende
 Level eines Grads, auch über die Grenzen der Welten, und keine zwei Level einander zu ähnlich.
@@ -147,11 +153,6 @@ _Vermeiden_: Tester (ohne Zusatz klingt es nach Menschen)
 **Kernidee**:
 Die Einsicht, um die ein Level gebaut ist. Ein Level ab „mittel“ hat mindestens eine.
 _Vermeiden_: Muster, Grundmuster (das ist die Anordnung auf dem Feld)
-
-**Haupt-Kernidee**:
-Unter den nötigen Kernideen eines Levels die, die dem Schliessen am meisten abverlangt, nach fester Rangfolge (Falle,
-Abschalten, Farben abzählen, Sammelstelle, Lockvogel, Mischziel aus zwei Quellen). Ohne nötige Kernidee hat ein Level
-keine. Nach ihr zählt die Vielfalt.
 
 **Aha-Moment**:
 Der Moment, in dem der Spieler die Kernidee findet und das Level damit knackt.

@@ -4,7 +4,7 @@
 // bedeutungslos, die Verhältnisse zeigen aber, welche Stufe die Kosten verursacht.
 (async () => {
   const d = window.__prismaDebug;
-  // ohne Level (nach dem Start die Wahl des Grads): das erste Tutorial-Level ausserhalb der Geschichte zeigen
+  // ohne Level (nach dem Start das Menü): das erste Tutorial-Level ausserhalb der Geschichte zeigen
   if (!window.__prisma.playing() && d.flow.state === 'story') d.zeige(0);
   while (!window.__prisma.playing()) await new Promise(r => setTimeout(r, 50));
   const gl = d.renderer.getContext();

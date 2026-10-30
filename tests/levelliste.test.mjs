@@ -88,7 +88,7 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
   const sinkt = MAIN.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(MAIN[i - 1].grad));
   assert.deepEqual(sinkt.map(l => `${MAIN.indexOf(l) + 1} ${l.name}`), []);
 });
-// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE, Ticket 17); wie Kopfzeile und Wahl des Grads aussehen, prüfen
+// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE, Ticket 17); wie Kopfzeile und Menü aussehen, prüfen
 // die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der Levelauswahl gibt es seit Ticket 04 nicht mehr.
 const anzeige = () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
