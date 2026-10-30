@@ -16,9 +16,13 @@ Nutzer wollte den Prototyp als Spiel, mit einer wählbaren Schwierigkeit statt e
 
 - Die Geschichte ist der einzige Ablauf des Spiels; Reihe, Levelauswahl und `?signal` entfallen.
 - Der Spieler wählt im Menü einen Grad. Er gilt für einen ganzen Durchgang, jeder Grad hat seinen eigenen Stand, und
-  gewechselt wird nur über das Menü.
+  gewechselt wird nur über das Menü. «Weiter» im Menü führt zum zuletzt gespielten, nicht geschafften Grad; «Von vorn»
+  löscht nur den Stand eines Grads.
 - Ein Durchgang: Prolog, auf Wunsch «Im Dorf» (das Tutorial), sechs Welten mit je genau 10 Leveln (Bergwald, Meer,
   Wüste, Vulkan, Planeten, Sterne), Finale, Epilog. Also 60 Level je Grad und 240 im Spiel, dazu das Tutorial.
+- «Im Dorf» ist ein Kapitel der Geschichte, aber keine Welt: Nach dem Prolog wählt der Spieler einmal je Grad «Üben»
+  oder «Gleich los»; die 9 Übungen (die Level des Tutorials) zählen nicht zu den 60 Leveln des Grads. Hintergrund
+  vorerst die Milchstrasse.
 - Die Wahl rechnet ein Werkzeug nachbaubar: kein abgelehntes Level (von den KI-Testern oder der Beurteilung), dann nach
   der Bewertung, aber die Vielfalt geht vor (dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende
   Level, auch über die Weltgrenzen; keine zwei Level zu ähnlich). Die Schwierigkeit steigt über die Welten und in der
@@ -27,13 +31,28 @@ Nutzer wollte den Prototyp als Spiel, mit einer wählbaren Schwierigkeit statt e
   `index.html`, mit einem Werkzeug zum Zurückholen. Das gilt auch für alle Würfel-Level.
 - Jedes Level der Geschichte bekommt einen Titel, der zu seiner Welt passt; der Name bleibt der Schlüssel.
 - Die Übersicht des Grads ersetzt die Levelauswahl: gelöste Level wieder spielbar, das nächste ungelöste offen,
-  spätere gesperrt, dazu die Bestwerte.
+  spätere gesperrt, dazu die Bestwerte (Bestzeit und wenigste Drehungen, je für sich). Wiederholen kommt ohne
+  Zwischenszenen; über eine Weltgrenze blendet nur der Hintergrund.
+- Die Bestwerte überleben «Von vorn» (30.10.2026); nur der Fortschritt beginnt neu.
 - Die Welt bestimmt den Hintergrund; Hintergrund-Knopf und Taste H entfallen.
 - Kein Level lässt sich überspringen: Taste N und der Sprung in ein Kapitel (`?signal=<Kapitel>`) fallen ganz weg, auch
-  in keinem Testmodus. Überspringen lassen sich nur der Prolog, die Einstiege in die Welten und «Im Dorf».
+  in keinem Testmodus. Überspringen lassen sich nur der Prolog, die Einstiege in die Welten und «Im Dorf». Die Reisen
+  zwischen den Welten laufen immer ganz (30.10.2026).
 - Der bisherige Fortschritt wird nicht übernommen; die alten Schlüssel werden nicht mehr gelesen und nicht gelöscht.
 
-Die genaue Gestalt von Menü, Übersicht und «Im Dorf» legen die Tickets 05–07 fest; hier steht nur die Sache.
+Die genaue Gestalt von Menü, Übersicht und «Im Dorf» legen die Tickets 05–07 fest; hier steht nur die Sache. Daraus,
+vom Koordinator entschieden:
+
+- Geschafft ist ein Grad, wenn sein Finale gesehen ist, auch in der Übersicht; sind alle 60 gelöst und fehlt das
+  Finale, führt «Weiter» ins Finale (Ticket 06).
+- Die Karte eines geschafften Grads öffnet seine Übersicht. Wiederholen im geschafften Grad ändert den zuletzt
+  gespielten Grad nicht, und nach seinem letzten Level kommt die Übersicht, kein Finale (Ticket 06).
+- Die Übersicht ist auch aus dem Spiel zu öffnen; das Level wartet darunter wie unter dem Menü, mit Blick in den
+  Himmel, und die Zeit zählt nicht (Ticket 05 und 06).
+- Das Angebot «Üben» / «Gleich los» kommt auch nach dem Überspringen des Prologs. Der Einstieg ins Dorf kommt ohne
+  Träger, das Licht ist schon bei Noa. Die Übersicht zeigt «Im Dorf», sobald es gespielt wurde, ist auch im Dorf
+  erreichbar, und nach dem Überspringen sind alle Übungen frei; eine Übung aus der Übersicht führt nach der 9. zurück
+  in die Übersicht (Ticket 06 und 07).
 
 ## Folgen
 
@@ -74,5 +93,8 @@ Die genaue Gestalt von Menü, Übersicht und «Im Dorf» legen die Tickets 05–
 - Zwischenszenen innerhalb einer Welt: Momente der Geschichte gibt es nur beim Wechsel der Welt.
 - Überspringen in einem Testmodus behalten: Werkzeuge und Proben steuern über die Testschnittstelle (`__prismaDebug`).
 - Den alten Fortschritt übernehmen.
+- Die Bestwerte mit «Von vorn» löschen (Einbauplan von Ticket 06): Sie liegen in einem eigenen Schlüssel je Grad.
+- Die Reisen überspringbar machen wie die Einstiege (offene Frage aus Ticket 07): Sie laufen ganz und lassen sich nur
+  durch Tippen beschleunigen.
 - In «sehr schwer» weiter lockern: Auch mit 7 Plätzen ginge die Vielfalt nicht auf; neue Level statt weiterer
   Lockerung.

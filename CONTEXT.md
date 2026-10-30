@@ -42,45 +42,86 @@ Kurz für Schwierigkeitsgrad. Der Spieler wählt ihn im Menü für einen ganzen 
 Grad hat seine eigenen 60 Level und seinen eigenen Stand. Im Code `grad`.
 _Vermeiden_: Schwierigkeit (das ist das Mass, aus dem der Grad folgt), Modus
 
+**Menü**:
+Was nach dem Startbildschirm kommt und wohin «Menü» (Knopf, Esc) im Spiel und «Zum Menü» nach dem Epilog führen: je
+Grad eine Karte mit seinem Stand («Wüste · 23 / 60», «noch nicht begonnen», geschafft mit dem Polarstern), darüber
+«Weiter» zum zuletzt gespielten, nicht geschafften Grad; gibt es keinen, fehlt «Weiter». Die Karte setzt einen
+begonnenen Grad fort, öffnet bei einem geschafften die Übersicht und beginnt sonst einen Durchgang. «Von vorn» (mit
+Rückfrage) löscht den Stand eines Grads, nicht seine Bestwerte. Kommt das Menü aus dem Spiel, wartet das Level
+darunter; die Zeit im Menü zählt nicht.
+_Vermeiden_: Wahl (das ist die Wahl der Level, siehe unten), Levelauswahl
+
 **Durchgang**:
 Einmal die Geschichte in einem Grad: Prolog, auf Wunsch «Im Dorf», die sechs Welten, Finale beim Polarstern, Epilog.
 Seine 60 Level stehen in fester Reihenfolge (`STORY_LEVELS`); sein Stand (Platz, gelöste Level, gesehene Momente,
-geschafft) gilt nur für seinen Grad (`progress`, `prisma.noa.<grad>`).
+geschafft) gilt nur für seinen Grad (`progress`, `prisma.noa.<grad>`). Geschafft ist ein Grad, wenn sein Finale
+gesehen ist, nicht schon mit 60 gelösten Leveln. Nach «Von vorn» beginnt ein neuer Durchgang, mit Prolog und
+Einstiegen.
+_Vermeiden_: Reise (für die 60 Level eines Grads in ihrer Reihenfolge; im Code steht dafür noch «Reise des Grads»,
+`story.steps`)
 
 **Welt**:
 Eine der sechs Stationen eines Durchgangs, in dieser Reihenfolge: Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne. Je
 Grad hat sie genau 10 Level; die Schwierigkeit steigt von Welt zu Welt. Im Spiel und im Code heisst sie Kapitel
 («Kapitel 2 / 6», `STORY_CHAPTERS`), in den Werkzeugen Welt (`WELTEN`). Abgrenzung: Die Welt bestimmt ihre Skybox, ist
 aber mehr als der Hintergrund; dieselbe Skybox kann an mehreren Orten stehen (die Milchstrasse vorerst auch
-«Im Dorf»).
+«Im Dorf»). «Im Dorf» ist ein Kapitel der Geschichte, aber keine Welt und hat keine Nummer.
 _Vermeiden_: Skybox, Hintergrund (für die Welt)
 
 **Im Dorf**:
-Das Tutorial als Kapitel zwischen Prolog und Bergwald. Nach dem Prolog wählt der Spieler «Üben» oder «Gleich los»; das
-Kapitel lässt sich jederzeit überspringen. Es ist keine Welt: Seine 9 Tutorial-Level zählen nicht zu den 60 des Grads.
+Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
+die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter der Grad und
+«Übung 2 / 9»). Nach dem Prolog, auch nach dessen Überspringen, fragt das Angebot einmal je Grad: «Üben» spielt das
+Kapitel, «Gleich los» führt gleich zum Einstieg in den Bergwald. Das Kapitel lässt sich jederzeit überspringen;
+gespielt oder übersprungen, bringen danach die Glühwürmchen das Licht in den Bergwald. Es ist keine der sechs Welten:
+Sein Einstieg kommt ohne Träger (das Licht ist schon bei Noa), und die Übungen zählen nicht zu den 60 Leveln des Grads
+(im Menü steht der Grad dort auf «Dorf · 0 / 60»). Die Übersicht zeigt es, sobald es gespielt wurde; nach dem
+Überspringen sind alle Übungen frei. Hintergrund vorerst die Milchstrasse, bis der Nutzer eine eigene Skybox macht.
+_Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
+Geschichte), Welt (für das Dorf)
 
 **Einstieg in eine Welt**:
-Das Licht kommt zum ersten Mal je Grad in einer Welt an, ohne Reise davor (nach dem Prolog, beim Fortsetzen): Ein
-Träger bringt es, ein Untertitel nennt die Welt, dann fällt es aufs Brett. Kommt je Grad nur einmal.
-Abgrenzung: Ein Einstieg im Level ist ein kurzer Strang, den ein anderer Strahl an einem seiner Spiegel trifft (siehe
-Füllteil).
+Das Licht kommt zum ersten Mal je Grad in einer Welt an, ohne Reise davor (nach dem Prolog oder «Im Dorf», beim
+Fortsetzen): Ein Träger bringt es, ein Untertitel nennt die Welt, dann fällt es aufs Brett. Kommt je Grad nur einmal
+und lässt sich überspringen wie der Prolog; das Licht landet dann ohne Schnitt auf dem Brett. «Im Dorf» hat einen
+eigenen Einstieg, ohne Träger. Abgrenzung: Die Reise lässt sich nicht überspringen. Ein Einstieg im Level ist ein
+kurzer Strang, den ein anderer Strahl an einem seiner Spiegel trifft (siehe Füllteil).
 
 **Reise**:
 Der Übergang von einer Welt in die nächste: Die Strahlen der Ziele steigen zu einem Lichtpunkt auf, ein Träger nimmt
-ihn mit, ein Untertitel sagt, wohin es geht. Beim Wiederholen gibt es keine; dann blendet nur der Hintergrund. Im Code
+ihn mit, ein Untertitel sagt, wohin es geht. Sie läuft immer ganz und lässt sich nicht überspringen (Entscheid des
+Nutzers), nur durch Tippen beschleunigen. Beim Wiederholen gibt es keine; dann blendet nur der Hintergrund. Im Code
 `story.travel`.
-_Vermeiden_: Reise für die 60 Level eines Grads in ihrer Reihenfolge (im Code steht dafür noch «Reise des Grads»,
-`story.steps`; gemeint ist der Durchgang)
+_Vermeiden_: Reise für den Durchgang (die 60 Level eines Grads in ihrer Reihenfolge) und für den Einstieg in eine Welt
 
 **Träger**:
 Was das Licht auf der Reise in die nächste Welt trägt, je Welt eines: Glühwürmchen, Gischt, Sand, Glut, Komet.
 
 **Übersicht**:
-Die Level eines Grads nach Welten: gelöste wieder spielbar, das nächste ungelöste offen, spätere gesperrt, je Level die
-Bestwerte (Bestzeit und wenigste Drehungen, je für sich). Ein gelöstes Level noch einmal spielen heisst Wiederholen; es
-kommt ohne Einstieg und Reise. Abgrenzung: Das Menü zeigt die vier Grade mit ihrem Stand, die Übersicht die Level eines
-Grads.
+Die Level eines Grads nach Welten, dazu «Im Dorf», sobald es gespielt wurde: gelöste wieder spielbar (Wiederholen),
+das nächste ungelöste offen, spätere gesperrt, je gelöstes Level die Bestwerte. Aus dem Spiel (Knopf «Übersicht»,
+Taste L) wartet das Level darunter wie beim Menü; aus dem Menü öffnet sie die Karte eines geschafften Grads.
+Abgrenzung: Das Menü zeigt die vier Grade mit ihrem Stand, die Übersicht die Level eines Grads.
 _Vermeiden_: Levelauswahl (abgelöst, siehe unten)
+
+**Wiederholen**:
+Ein gelöstes Level aus der Übersicht noch einmal spielen. Es kommt ohne Einstieg, Reise und Finale; «Weiter» führt zum
+nächsten Level, über eine Weltgrenze blendet nur der Hintergrund. Erst beim nächsten ungelösten Level gilt wieder der
+normale Ablauf mit Reise und Finale. Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level
+zurück in die Übersicht, ebenso die 9. Übung im Dorf. Im Code `story.replay`.
+_Vermeiden_: Neu starten (setzt das Level auf dem Brett zurück), Von vorn (löscht den Stand eines Grads)
+
+**Bestwerte**:
+Je Level die Bestzeit (in ganzen Sekunden) und die wenigsten Drehungen, je für sich über alle Lösungen, auch beim
+Wiederholen. Die Übersicht zeigt sie bei gelösten Leveln, je Welt die Summe der Bestzeiten und bei einem geschafften
+Grad die ganze Summe; verbessert eine Lösung einen schon vorhandenen Wert, meldet es das Feld «Gelöst» («Neue
+Bestzeit», «Weniger Drehungen»). Sie liegen je Grad getrennt vom Stand (`prisma.noa.<grad>.bestwerte`) und überleben
+«Von vorn» (Entscheid des Nutzers).
+_Vermeiden_: Rekord, Highscore, Statistik
+
+**Testschnittstelle**:
+`window.__prismaDebug`, nur über die Konsole: Werkzeuge, Proben und die Bilder der KI-Tester steuern das Spiel damit.
+Sie bietet keinen Weg, ein Level zu überspringen; auch Taste N und `?signal` gibt es nicht mehr (ADR 0005).
 
 ## Level der Geschichte
 
@@ -117,8 +158,8 @@ _Vermeiden_: Name für das, was der Spieler in der Geschichte liest (das ist der
 
 **Titel**:
 Der Anzeigename eines Levels der Geschichte (`titel`): ein oder zwei Wörter, die zu seiner Welt passen, eindeutig über
-alle Titel und Namen. Das Spiel zeigt den Titel, sonst den Namen (Tutorial). Ein Titel gehört zum Platz in der Welt:
-Ersetzt ein Level ein anderes, behält der Platz seinen Titel; ein Level im Vorrat hat keinen.
+alle Titel und Namen. Das Spiel zeigt den Titel, sonst den Namen (die Übungen im Dorf). Ein Titel gehört zum Platz in
+der Welt: Ersetzt ein Level ein anderes, behält der Platz seinen Titel; ein Level im Vorrat hat keinen.
 
 **Vorrat**:
 Die Level, die nicht im Spiel stehen, aber jederzeit zurückkommen können: die nicht gewählten flachen Level und alle
