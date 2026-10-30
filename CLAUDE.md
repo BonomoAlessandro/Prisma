@@ -1,3 +1,10 @@
+## Laufende Arbeit
+
+Noas Geschichte (Branch `feature/lichtsignal-prototyp`): Stand, nächste Schritte und Arbeitsweise stehen in
+`.scratch/noa-geschichte/STAND.md` – zuerst lesen. Antworten auf Deutsch (Schweizer Schreibweise), Commits ohne
+Hinweis auf Claude, schwere Prozesse nur über `LEISE_CPU=50 sh tools/leise.sh`, kein Push und kein Merge nach `main`
+ohne Auftrag des Nutzers.
+
 ## Agent skills
 
 ### Issue tracker
