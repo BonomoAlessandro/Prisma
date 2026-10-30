@@ -165,8 +165,10 @@ test('Titel: levelCode schreibt ihn hinter Name und Würfel, Vorrat und Spiel le
   assert.match(levelCode(flach),
     new RegExp(`\\n {4}name: '${flach.name}', titel: 'Moosbett', grad: '${flach.grad}',\\n`));
   assert.match(levelCode(wuerfel), /\n {4}name: '[^']+', dim: 3, size: 7, height: 5, titel: 'Noa\\'s Turm', grad: '/);
+  // in den Zeilenenden der Datei (CRLF in einem Windows-Checkout mit core.autocrlf), wie vorrat.mjs selbst schreibt
+  const nl = T.wuerfel.includes('\r\n') ? '\r\n' : '\n';
   const text = T.wuerfel.replace('  /* VORRAT:END */', ['  // Platz im Spiel: am Anfang', levelCode(wuerfel),
-    '  /* VORRAT:END */'].join('\n'));
+    '  /* VORRAT:END */'].join('\n').replace(/\n/g, nl));
   assert.deepEqual(inhalt(text, 'wuerfel').map(e => [e.name, e.titel, e.grad]),
     [[wuerfel.name, "Noa's Turm", wuerfel.grad]]);
   assert.deepEqual(leveldaten(text, 'wuerfel'), [wuerfel]);
