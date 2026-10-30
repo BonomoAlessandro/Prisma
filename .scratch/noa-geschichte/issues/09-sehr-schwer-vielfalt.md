@@ -6,7 +6,7 @@
 Endstand prüft und die Werkzeuge aus Ticket 01 noch da sind. **Wann es läuft, entscheidet der Nutzer**; das
 Generieren hält die Sperre von `tools/leise.sh` lange (in Ticket 01 rund 1½ h) und läuft nicht neben anderen Proben.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** In «sehr schwer» geht die Vielfalt der Wahl nicht auf (Ticket 03, Entscheid des Nutzers vom
 29.10.2026): Die 60 Level haben fast nur 5 Haupt-Kernideen zu je etwa 12, darum steht in vielen Fenstern von 10
@@ -31,7 +31,7 @@ Weltgrenzen, mit höchstens 3 Plätzen Abweichung vom Rang nach Schwierigkeit.
 - [x] Speicherstand: Vor dem Merge gibt es keine Spielstände von Spielern; ersetzte Level brauchen keinen Übergang.
       Bestehende Teststände dürfen verfallen (im Ticket festhalten).
 - [x] Probe im Browser: ein Durchgang durch eine Welt von «sehr schwer» mit neuen Leveln.
-- [ ] Alle Tests grün; Review nach dem Ticket.
+- [x] Alle Tests grün; Review nach dem Ticket.
 
 ## Comments
 
@@ -333,7 +333,8 @@ einem eigenen Worktree, parallel zu Ticket 07 im Haupt-Checkout)**
   nachgeführt; `ROT_BIS_EINBAU` und die Hinweise «erwartet rot» gestrichen, die drei Tests sonst unverändert.
 - **`index.html`:** Nur die Werkzeuge haben geschrieben, keine Handarbeit. Der Diff zu `feature/lichtsignal-prototyp`
   liegt ganz in `LEVELS` und im Datenblock `STORY_LEVELS` (937 Zeilen dazu, 944 weg: 23 Level rein, 23 in den Vorrat,
-  35 Level, die mit der neuen Reihe ihren Platz unter den 240 tauschen, und die Reise in «sehr schwer»). Zeilenenden
+  35 bleibende sehr schwere Level mit geändertem Eintrag – 34 mit neuem Titel, weil sie in der Reise einen anderen
+  Platz haben, dazu einige, die in der Reihe 1–5 Plätze rücken –, und die Reise in «sehr schwer»; Review). Zeilenenden
   unverändert (die Werkzeuge halten sie je Datei).
 - **Tests** (alle aus der README-Liste, ein Lauf über `leise.sh`): Strahlregel 2032, Golden grün (847 Level),
   Beurteilung 206, Levelliste 55, Würfelliste 20, Generator 31, KI-Tester 84, Vorrat 15 (auch «Titel: levelCode …» mit
@@ -343,3 +344,29 @@ einem eigenen Worktree, parallel zu Ticket 07 im Haupt-Checkout)**
   zum Meer, Neuladen und «Weiter»; «Probe bestanden, Konsole ohne Fehler». Bilder unter `tests/output/geschichte/`.
 - **Speicherstand:** wie oben; Teststände `prisma.noa.sehr-schwer` dürfen verfallen.
 - **Offen:** Review. Status bleibt bis dahin.
+
+**Review (30.10.2026)** (Branch `noa/09-einbau`, Diff `8599a74..noa/09-einbau`; Schwerpunkt Einbau e0a54d6, Werkzeug
+stichprobenhaft)
+
+- **Schrittfolge 1–7:** vollständig und nachvollziehbar. Zahlen stimmen in Daten, README und Testköpfen: Golden 847
+  Level (15 bestehende Einträge nur umgestellt, unverändert, 23 neu), Vorrat 298 flache (im Spiel 249 = Tutorial und
+  240), 538 flache Level, 23 neue Namen auch in `levelliste.json` unter `ausbau`.
+- **`index.html`:** Ausserhalb von `LEVELS` und `STORY_LEVELS` byte-gleich (verglichen ohne die beiden Blöcke), im
+  Index LF wie vorher, keine Zeilenend-Umstellung. In `LEVELS` 23 raus (die 23 Platzhalter), 23 rein; bei den
+  bleibenden Leveln ändern sich nur Titel (34, alle «sehr schwer»), Leveldaten sonst gleich. Die Titel je Platz der
+  Reise sind vor und nach dem Einbau dieselben 240 (Titel gehören zum Platz). `STORY_LEVELS` von «leicht», «mittel»,
+  «schwer» unverändert, und keines ihrer Level hat Platz in der Reihe oder Titel geändert; umgestellt sind nur sehr
+  schwere Level (mindestens 9 der 217 bleibenden wandern in der Reihe, wie von `ordne-level.mjs --ausbau` gemeldet).
+- **Tests:** Anpassungen sinnvoll, nicht abgeschwächt (`vorrat.test.mjs` prüft zusätzlich genau 23 Kandidaten mit
+  Schlüssel; die drei Tests der Wahl im Spiel inhaltlich unverändert, `verstoesse` in allen Graden leer).
+  `ROT_BIS_EINBAU` und «erwartet rot» restlos weg. Lauf über `leise.sh` (`LEISE_CPU=80`): Vorrat 15, Golden grün (847),
+  Levelliste 55, Geschichte 35/35.
+- **Probe im Browser:** `--grad sehr-schwer --welten 2 --finale sehr-schwer`: Bergwald und Meer (darin neu Ankaa,
+  Albireo, Dubhe, Diphda, Alioth, Hamal, Alhena), Finale in den Sternen (Einstieg, Platz 51 und 60, Epilog, Menü);
+  alle gelöst, Kopfzeile mit Titel (z. B. Alioth als «Felsschlucht», Bergwald 10/10), «Probe bestanden, Konsole ohne
+  Fehler».
+- **Kleine Funde, selbst eingearbeitet:** Im Bericht zum Einbau hiessen die 35 geänderten Einträge «Level, die ihren
+  Platz unter den 240 tauschen»; genauer sind es bleibende sehr schwere Level mit neuem Titel (neuer Platz in der Reise)
+  und einige, die in der Reihe rücken (oben präzisiert). Die Spec sagte noch «Pool genau 60» und «vorerst mit
+  Platzhaltern»; dort ein Hinweis auf Ticket 09 ergänzt.
+- **Mittlere/grosse Funde:** keine. Ergebnis: bereit zum Merge; Status `resolved`.

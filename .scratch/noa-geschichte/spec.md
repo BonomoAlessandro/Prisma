@@ -89,7 +89,9 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
 ## Wahl der 240 Level
 
 - **Pool je Grad:** alle flachen Level des Grads (heute im Spiel), für «sehr schwer» dazu die 15 aus
-  `tools/geschichte/sehr-schwer-neu.json` (zusammen genau 60).
+  `tools/geschichte/sehr-schwer-neu.json` (zusammen genau 60). Seit Ticket 09 (30.10.2026) kommen in «sehr schwer»
+  die beurteilten Kandidaten aus `tools/geschichte/sehr-schwer-kandidaten.json` dazu; die Wahl nimmt 60 aus dem
+  grösseren Pool (Entscheide im Ticket 09).
 - **Regeln** (PLAN.md 0.1):
   - Beste Bewertung (Urteil der KI-Tester, Spielwert), kein von beiden abgelehntes Level.
   - **Vielfalt vor Bewertung:** dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende Level des Grads,
@@ -114,7 +116,9 @@ aus dem Grilling vom 29.10.2026, dazu die Regeln der Wahl in PLAN.md 0.1 vom 28.
     haben fast nur 5 Haupt-Kernideen zu je etwa 12). Die Geschichte nimmt vorerst die vorhandenen Level in der
     Anordnung mit dem kleinsten Zuviel (`verstoesse` in `wahl.json`, vom Test genau so erlaubt). Vor dem Aufräumen und der Abnahme
     (Ticket 09) werden neue, passende sehr schwere Level generiert und ersetzen diese Platzhalter, bis die Vielfalt
-    ganz aufgeht.
+    ganz aufgeht. **Erledigt mit Ticket 09 (30.10.2026):** 23 Platzhalter durch besser bewertete, beurteilte
+    Kandidaten aus Ticket 01 ersetzt (nach Bewertung, Entscheid des Nutzers), 0 Verstösse; die ersetzten liegen im
+    Vorrat.
 - **Ergebnis:** ein Werkzeug rechnet die Wahl nachbaubar (gleiche Eingaben, gleiches Ergebnis) und schreibt sie mit
   Begründung je Level (Rang, Bewertung, Haupt-Kernidee, Schwierigkeit) nach `tools/geschichte/`; Tests prüfen alle
   Regeln.
