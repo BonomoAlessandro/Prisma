@@ -133,7 +133,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`STORY_LEVELS`) ist die Reise aus `wahl.json`; `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien
     der Texte ein Level der Wahl aus dem Vorrat zurück und ein anderes hin (ohne Titel), byte-gleich.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
-    [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]` spielt Noas
+    [--grad leicht,mittel,…] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]` spielt Noas
     Geschichte in Headless-Chrome über das Menü (Tickets 04 bis 07; etwa 3 min je Grad; der Zeitrahmen läuft erst, wenn `leise.sh`
     die Sperre hat): je Grad ein Durchgang durch die ersten Welten (Karte im Menü, Prolog, Einstieg, je 10 Level,
     Reise), danach Neuladen und «Weiter» am selben Platz ohne Einstieg; `--finale` das Finale ab der letzten Welt bis
@@ -150,7 +150,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     auf «Üben», Einstieg ins Dorf, Übungen mit Kopfzeile und Hinweis, Neuladen und «Weiter» in die Übung, Menü und
     Übersicht im Dorf, «Überspringen» mitten in einer Übung und beim Herauswachsen, «Gleich los», alle 9 Übungen bis
     zum Bergwald, Wiederholen einer Übung aus der Übersicht, Einstiege übersprungen im Flug, im Fall und gleich zu
-    Beginn: genau ein Level wächst, kein leeres Brett). Nach dem Prolog wählen die übrigen Abläufe «Gleich los».
+    Beginn: genau ein Level wächst, kein leeres Brett, Tempo des Einstiegs, Drehung der Kamera je Bild); `--dorf-raender`
+    Randfälle des Dorfs (etwa 5 min: Wiederholen im laufenden Kapitel, Bergwald 1 aus der Übersicht mitten im Dorf,
+    Neuladen im Einstieg, «Dorf überspringen» beim Versinken, Einstieg überspringen, während er aufs Versinken wartet). Nach dem Prolog wählen die übrigen Abläufe «Gleich los».
     `--handy` 390 × 844, `--quer` 844 × 390, beide mit Touch (`Input.dispatchTouchEvent`),
     sonst 1440 × 900 mit der Maus. Gelöst wird über die Testschnittstelle (`__prismaDebug.loese`), einen Stand setzt
     die Probe in `localStorage`. Sie prüft Kopfzeile, Speicherstand, Menü und Konsole, dass das Menü nach der Wahl

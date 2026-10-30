@@ -99,7 +99,13 @@
   #hud .sub .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; }
   #hud .sub .teil { white-space: nowrap; }
   #hud .sub .ctl::before { content: " · "; }
-  #hud .sub .hinweis { display: block; } /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile (statt der Bedienung) */
+  /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile (statt der Bedienung). Er ist der Lehrinhalt des Kapitels: in
+     normaler Schreibung, grösser und heller als die Unterzeile darüber (Review Ticket 07) */
+  #hud .sub .hinweis {
+    display: block; max-width: 40em; margin: 6px auto 0; font-size: 13.5px; line-height: 1.5; letter-spacing: 0.02em;
+    text-transform: none; color: rgba(232, 230, 240, 0.84);
+  }
+  @media (max-width: 520px) { #hud .sub .hinweis { font-size: 13px; } }
   @media (max-width: 520px) {
     #hud .sub .ctl { display: block; }
     #hud .sub .ctl::before { content: none; }
@@ -123,6 +129,7 @@
     /* Geschichte (Entscheid 20): Grad, Kapitel und Level klein in einer Zeile, ohne die Bedienung */
     #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
     #hud.geschichte .sub .ctl { display: none; }
+    #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
 
@@ -387,11 +394,14 @@
   #story .scene .actions { pointer-events: auto; margin-top: 22px; }
   /* Angebot nach dem Prolog (Ticket 07): «Im Dorf» über dem Satz, die Knöpfe blenden mit ihm ein */
   #story .scene .kicker {
-    margin-bottom: 12px; text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9);
+    margin-bottom: 12px; font-size: 12px; color: rgba(232, 230, 240, 0.86);
+    text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.95), 0 0 2px rgba(2, 2, 8, 0.9);
     opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s linear 0.6s;
   }
   #story .scene .kicker.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease 0.5s, visibility 0s; }
   #story .scene .actions.angebot { animation: story-angebot 1.2s ease 0.5s both; }
+  /* im Angebot gibt es kein «Tippen»: seine leere Zeile fällt weg, die Frage steht tiefer, unter Noa und den Häusern */
+  #story .scene .sub.angebot .hint { display: none; }
   @keyframes story-angebot { from { opacity: 0; transform: translateY(6px); } }
   @media (prefers-reduced-motion: reduce) { #story .scene .actions.angebot { animation: none; } }
   #story .scene .skip {
@@ -407,13 +417,17 @@
      im Dorf reicht dort über die ganze Breite. Unter Menü und Übersicht nicht (story.skippable). */
   #btn-skip {
     position: fixed; z-index: 8; top: max(16px, env(safe-area-inset-top)); right: max(16px, env(safe-area-inset-right));
-    padding: 12px 8px 12px calc(8px + 0.4em); font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--ink-dim);
-    text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9);
+    padding: 12px 8px 12px calc(8px + 0.35em); font-size: 10.5px; letter-spacing: 0.35em; text-transform: uppercase;
+    color: rgba(232, 230, 240, 0.82); text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9);
     transition: color 0.25s ease, opacity 0.6s ease;
   }
   #btn-skip:hover { color: var(--ink); }
   @media (max-width: 520px) {
-    #btn-skip { top: auto; right: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)); }
+    /* «Dorf überspringen» in zwei kurzen Zeilen: neben den vier Knöpfen unten rechts ist auch bei 360 px Platz */
+    #btn-skip {
+      top: auto; right: auto; bottom: max(16px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left));
+      max-width: 9em; padding: 8px; font-size: 10px; letter-spacing: 0.15em; line-height: 1.4; text-align: left;
+    }
   }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
     #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
@@ -422,6 +436,10 @@
     #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
     #story .scene .lines { font-size: 15px; min-height: 3.5em; }
     #story .scene .kicker { margin-bottom: 6px; }
+    /* Angebot: die Frage passt in eine Zeile; ohne die Reserve für zwei Zeilen steht sie tiefer, unter Noa und dem Dorf,
+       der Hof dahinter etwas dunkler */
+    #story .scene .sub.angebot .lines { min-height: 0; }
+    #story .scene .sub.angebot::before { background: radial-gradient(closest-side, rgba(2, 2, 8, 0.82), rgba(2, 2, 8, 0.55) 55%, rgba(2, 2, 8, 0)); }
     #story .scene .hint { margin-top: 8px; }
   }
 
@@ -16897,6 +16915,8 @@ const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'milky',
     text: 'Hinter dem Haus übt Noa mit der Taschenlampe. Ein alter Spiegel, ein Stück buntes Glas – und das Licht geht genau dorthin, wo Noa es haben will.' },
   ende: 'Jetzt weiss Noa, wie man Licht weitergibt. Am Waldrand blinken schon die Glühwürmchen.',
   done: 'Das Dorf leuchtet', next: 'In den Bergwald' };
+/** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
+const STORY_SKIP_RUHE = 2000;
 /**
  * Stand des Dorfs im Speicherstand (prisma.noa.<grad>.dorf, nur nach «Üben»): { platz: Übung 0 … 8, ende: null (das
  * Kapitel läuft) | 'gespielt' | 'uebersprungen' }; Unlesbares gilt als nicht gespielt (null).
@@ -17206,6 +17226,7 @@ function createStoryScene(host) {
       this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
       this.say('');
       this.kicker('');
+      q('.sub').classList.remove('angebot');
       this.hint(false);
       this.actions([]);
     },
@@ -17285,7 +17306,7 @@ function createStoryScene(host) {
     /** Zeile über dem Untertitel (Angebot nach dem Prolog: «Im Dorf»); leer: blendet aus. */
     kicker(text) {
       const k = q('.sub .kicker');
-      if (text) k.textContent = text;
+      if (text) { k.textContent = text; q('.sub').classList.add('angebot'); } // Gestalt des Angebots (CSS), bis reset
       k.classList.toggle('on', !!text);
     },
     /** Knöpfe unter dem Untertitel ([Beschriftung, Aktion]); angebot: blenden mit dem Satz ein (CSS). */
@@ -17416,6 +17437,8 @@ const story = {
   entering: null,     // ein Einstieg (enter) läuft, bis das Level zu wachsen beginnt: { skip } (Überspringen, land)
   endeWartet: false,  // «Überspringen» im Dorf, während eine Zwischenszene lief: danach (done)
   skipShown: false,   // «Überspringen» (#btn-skip) ist zu sehen (update, skippable)
+  skipRuhe: 0,        // bis dann (performance.now) kein «Dorf überspringen»: gleich nach einem Einstieg
+  landing: false,     // ein übersprungener Einstieg landet (land): Tippen beschleunigt nicht
   gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
   gazeDir: new THREE.Vector3(0, 1, 0),
   gazeRun: 0,         // zählt die weichen Blickwechsel (gazeTo): ein neuer löst den laufenden ab
@@ -17805,7 +17828,11 @@ const story = {
       this.setSky(ch.sky, true); // lädt hinter der Bühne
       // nach einem Neuladen zwischen Prolog und Wahl: nur das Angebot, auf dem letzten Bild des Prologs, ohne Fahrt
       const shots = this.seen('prolog') ? [{ ...STORY_PROLOG.at(-1), text: '', act: null, move: 0 }] : STORY_PROLOG;
+      // scharfes Bild und Streifen des Walds erst nach der Bühne (ihr Hochladen hielt die Fahrt des Prologs bis 110 ms
+      // an); nach «Üben» braucht es sie vorerst gar nicht (Review Ticket 07)
+      skyTheme.quiet = true;
       const ueben = await this.playScene(shots, { skippable: !this.seen('prolog'), angebot });
+      skyTheme.quiet = false;
       this.see('prolog');
       if (ueben) { this.inDorf = true; this.uebung = 0; index = this.currentIndex(); ch = STORY_DORF; }
     }
@@ -17838,6 +17865,7 @@ const story = {
       sc.el.querySelector('.actions button').focus({ preventScroll: true });
     });
     sc.actions([]); // nur eine Wahl (Doppelklick)
+    this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
     if (ueben) {
       this.stand.dorf = { platz: 0, ende: null };
       this.setSky(STORY_DORF.sky, false);
@@ -17944,7 +17972,12 @@ const story = {
       { kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: IS_TOUCH ? 'Tippen' : 'Klicken' }));
     await hoch;
     const { index } = this.steps[this.step], sunk = this.sinkTo(index); // erst im Himmel: kein leeres Brett
+    // der Himmel des Bergwalds kommt schon, während der Satz steht («Am Waldrand blinken schon …»): Nach dem Tippen
+    // wartet der Einstieg dann nicht mehr auf ihn (Review Ticket 07)
+    const wald = this.skyOf(STORY_CHAPTERS[0]);
     await this.untilTap();
+    this.el.querySelector('.caption .tap').textContent = ''; // getippt: die Aufforderung geht sofort
+    await wald;
     await this.enter(index, STORY_CHAPTERS[0], sunk);
     this.done();
   },
@@ -18264,6 +18297,7 @@ const story = {
     const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
       traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
     const e = this.entering = { skip: false };
+    this.fast = 1; // ein Tippen davor (Prolog, Bühne) beschleunigt den Einstieg nicht; Tippen während seiner schon
     await this.skyOf(ch); // übersprungen: trotzdem bis der Himmel da ist (kein leeres Brett unter einem fremden Himmel)
     if (e.skip) { await this.land(index, moment, sunk); return; }
     const up = ch.up ?? STORY_UP, dist = 60, from = this.gaze > 0.5 ? this.gazeDir.clone() : null;
@@ -18318,7 +18352,10 @@ const story = {
       this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.7, 1);
       if (!entered && k > 0.6) {
         entered = true;
-        if (e && this.entering === e) this.entering = null; // ab hier nicht mehr zu überspringen
+        if (e && this.entering === e) { // ab hier nicht mehr zu überspringen
+          this.entering = null;
+          this.skipRuhe = performance.now() + STORY_SKIP_RUHE;
+        }
         enterLevel(index);
         setShown(ui.controls, true); // nach dem Menü wieder da
         this.see(moment); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
@@ -18336,17 +18373,38 @@ const story = {
    */
   async land(index, moment, sunk = Promise.resolve()) {
     this.entering = null;
+    this.skipRuhe = performance.now() + STORY_SKIP_RUHE;
+    this.fast = 1;
+    this.landing = true; // Tippen beschleunigt die Landung nicht (sie ist schon die Abkürzung)
     this.close();
     const fl = this.flare, carrier = this.carrier, o = fl.material.opacity, s = carrier.strength;
     this.tween(0.4, (k) => { fl.material.opacity = o * (1 - k); carrier.strength = s * (1 - k); }, storyLinear)
       .then(() => { fl.visible = false; carrier.stop(); });
     await sunk;
     setShown(ui.controls, true);
-    await this.gazeTo(0, 1.8, (k) => {
-      if (k <= 0.25 || flow.state !== 'story') return;
-      enterLevel(index);
-      this.see(moment);
-    });
+    // Der Blick dreht sich auf dem Grosskreis von seiner jetzigen Richtung aufs Brett, gleichmässig verteilt (Review
+    // Ticket 07). Das lineare Mischen von updateCamera (gaze) zwischen Brett und gazeDir drängte bei einem früh
+    // übersprungenen Einstieg (gazeDir 130–150° vom Brett) fast die ganze Drehung in wenige Bilder. Grosse Winkel
+    // dauern länger: höchstens etwa 1,3° je Bild bei 60 Bildern/s. Das Level wächst, sobald das Brett ins Bild kommt.
+    const brett = _gazeLook.copy(cameraRig.target).sub(camera.position).normalize().clone();
+    const von = brett.clone().lerp(this.gazeDir, this.gaze).normalize(), winkel = von.angleTo(brett);
+    const dreh = new THREE.Quaternion().setFromUnitVectors(von, brett), q = new THREE.Quaternion(), keine = q.clone();
+    const smooth = (k) => k * k * (3 - 2 * k);
+    this.gazeRun++; // ein laufender weicher Blickwechsel endet hier
+    this.gazeDir.copy(von);
+    this.gaze = 1;
+    let gewachsen = false;
+    await this.tween(1.8 * Math.max(1, winkel / (Math.PI / 2)), (k) => {
+      this.gazeDir.copy(von).applyQuaternion(q.slerpQuaternions(keine, dreh, k)).normalize();
+      if (!gewachsen && k > 0.25 && (1 - k) * winkel < 1.05 && flow.state === 'story') {
+        gewachsen = true;
+        enterLevel(index);
+        this.see(moment);
+      }
+    }, smooth);
+    this.gaze = 0;
+    this.landing = false;
+    if (!gewachsen && flow.state === 'story') { enterLevel(index); this.see(moment); }
   },
   /**
    * «Überspringen» (Knopf #btn-skip) bzw. Esc (taste): den Prolog (sein Knopf auf der Bühne), einen Einstieg (enter
@@ -18367,6 +18425,9 @@ const story = {
   skippable() {
     if (this.choosing || this.outside || this.grade === null || flow.state === 'intro') return false;
     if (this.entering) return !this.entering.skip;
+    // nach dem Einstieg ins Dorf eine Pause: «Überspringen» wechselt dort die Bedeutung (Einstieg → Kapitel), ein
+    // Tippen, das noch den Einstieg meinte, beendet sonst das Dorf (Review Ticket 07)
+    if (performance.now() < this.skipRuhe) return false;
     return this.inDorf && this.dorfLaeuft() && !this.endeWartet; // auch beim Wiederholen einer Übung davor
   },
   /** Altes Feld versinken lassen, ohne dass das neue von selbst wächst (updateFlow ruft sunk). */
@@ -18450,7 +18511,7 @@ const story = {
   tap() {
     if (this.choosing) return; // Menü: nur seine Knöpfe
     if (!this.waitTap) {
-      this.fast = 3;
+      if (!this.landing) this.fast = 3; // die Landung (land) nicht: sie ist schon die Abkürzung
       const sc = this.scene;
       if (sc?.moving && sc.speed < 10 && sc.time - sc.movedAt > 0.3) sc.speed = 4; // Kamerafahrt auf der Bühne
       return;
@@ -18516,7 +18577,12 @@ const story = {
   wait(seconds) { return this.tween(seconds, () => {}); },
   update(dt) {
     const skip = this.skippable();
-    if (skip !== this.skipShown) { this.skipShown = skip; setShown(this.skipBtn, skip); }
+    if (skip !== this.skipShown) {
+      this.skipShown = skip;
+      // im Dorf sagt der Knopf, was er überspringt (nur beim Einblenden: kein Wechsel vor den Augen)
+      if (skip) this.skipBtn.textContent = this.entering ? 'Überspringen' : 'Dorf überspringen';
+      setShown(this.skipBtn, skip);
+    }
     this.carrier?.update(dt * this.fast);
     if (this.blend) this.blendSky();
     if (!this.tweens.length) return;
@@ -19162,7 +19228,16 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
 (() => {
   const group = new THREE.Group(), types = new Set();
   group.visible = false;
-  const add = (el) => { if (ELEMENT_FACTORIES[el.type]) { group.add(ELEMENT_FACTORIES[el.type](el)); types.add(el.type); } };
+  // drehbare mit Trefferzylinder, Lichtrand und Leuchtringen (makeInteractive): Deren Shader übersetzte sonst das erste
+  // Bild, in dem ein drehbares Element herauswächst (70–140 ms Stillstand beim ersten Level, Review Ticket 07)
+  const add = (el) => {
+    if (!ELEMENT_FACTORIES[el.type]) return;
+    const obj = ELEMENT_FACTORIES[el.type](el);
+    obj.userData.element = el;
+    if (isRotatable(el)) makeInteractive(obj);
+    group.add(obj);
+    types.add(el.type);
+  };
   const random = Math.random;
   Math.random = () => 0.5; // die Zufallsfolge des Spiels nicht verschieben (mit ?t= fest, siehe FIXED_TIME)
   try {
@@ -19178,6 +19253,7 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
   const beams = [beamMaterial, floorGlowMaterial].map((mat) => new THREE.Mesh(buildBeamGeometry([]), mat));
   group.add(...beams);
   boardGroup.add(group);
+  game.hitProxies = []; // makeInteractive trägt die Trefferzylinder der Vorwärm-Elemente ein: Sie sind nie zu treffen
 })();
 
 /** Materialien der Bildschritte (Bloom, letzter Schritt) in einer Szene ohne Licht: so übersetzt three sie wie im Vollbild */

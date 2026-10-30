@@ -16,11 +16,13 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
+//           [--dorf-raender]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --grad: die Grade des Durchgangs
 //   («sehr schwer» als sehr-schwer); --welten: so viele Welten je Durchgang (Vorgabe 2, mit der Reise in die nächste);
 //   --finale: dazu das Finale in diesem Grad; --menue: dazu der Ablauf im Menü; --start: nur das gehaltene Enter;
-//   --uebersicht: dazu Übersicht und Wiederholen; --dorf: dazu «Im Dorf». Ohne --grad, --finale, --menue, --start,
-//   --uebersicht und --dorf alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü etwa 3 min, die
+//   --uebersicht: dazu Übersicht und Wiederholen; --dorf: dazu «Im Dorf»; --dorf-raender: Randfälle des Dorfs (Review
+//   Ticket 07, etwa 5 min). Ohne --grad, --finale, --menue, --start, --uebersicht, --dorf und --dorf-raender alle vier
+//   Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü etwa 3 min, die
 //   Übersicht etwa 4 min, das Dorf etwa 6 min. Zeitrahmen: jede
 //   Anfrage an Chrome höchstens 30 s, der ganze Lauf höchstens 14 min; dann schliesst die Probe Chrome und bricht mit
 //   Fehler ab.
@@ -44,14 +46,15 @@ const finaleGrad = wert('--finale') && grad(wert('--finale'));
 const menue = args.includes('--menue');
 const uebersichtProbe = args.includes('--uebersicht');
 const dorfProbe = args.includes('--dorf');
+const dorfRaenderProbe = args.includes('--dorf-raender');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
-  : finaleGrad || startTaste || uebersichtProbe || dorfProbe ? [] : GRADE;
+  : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe ? [] : GRADE;
 const welten = +(wert('--welten') ?? 2);
 if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 && welten <= 5)
   || args.includes('--handy') && args.includes('--quer')) {
   console.error('Aufruf: node tests/geschichte-probe.mjs [--handy | --quer] [--grad leicht,mittel,…] [--welten 1–5] '
-    + '[--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]');
+    + '[--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]');
   process.exit(1);
 }
 requireQuiet();
@@ -152,7 +155,8 @@ async function messe() {
   await ev(`(() => { const b = window.__bz = { an: true, log: [] }; const loop = (ts) => { if (!b.an) return;
     const s = ${D}.story, k = ${D}.skyTheme; b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current,
       ready: k.ready, settled: k.byId.get(k.current).module?.settled ?? true, menu: ${D}.menu.offen,
-      ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames });
+      ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames,
+      blick: ((m) => [-m[8], -m[9], -m[10]])(${D}.camera.matrixWorld.elements) });
       requestAnimationFrame(loop); };
     requestAnimationFrame(loop); })()`);
 }
@@ -181,7 +185,7 @@ async function ende(name, { buehne = false } = {}) {
   log.slice(1).forEach((e, i) => { // wo die langen Lücken liegen: Zeit seit Beginn und Zustand davor und danach
     const d = e.ts - log[i].ts;
     if (d <= 50) return;
-    const z = ({ ts, ...x }) => JSON.stringify({ ...x, gaze: +x.gaze.toFixed(3) });
+    const z = ({ ts, blick, ...x }) => JSON.stringify({ ...x, gaze: +x.gaze.toFixed(3) });
     const warum = art[i] ? ` (${art[i]}, zählt nicht)` : '';
     console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`);
   });
@@ -994,8 +998,10 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false } = 
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
   pruefe(k.sub.startsWith(`${GRAD_TEXT[g]} · Übung ${n + 1} / 9`) && k.hinweis?.length > 10
     && !/[{}]/.test(k.hinweis), `${g}, Übung ${n + 1}: Unterzeile «${k.sub}»`);
-  pruefe(k.uebersicht && k.skip === !replay, `${g}, Übung ${n + 1}: Knöpfe Übersicht ${k.uebersicht}, `
-    + `Überspringen ${k.skip}`);
+  // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
+  const skipText = !replay ? await warteSkip(true) : null;
+  pruefe(k.uebersicht && (replay ? !k.skip : skipText === 'Dorf überspringen'),
+    `${g}, Übung ${n + 1}: Knöpfe Übersicht ${k.uebersicht}, Überspringen ${k.skip} «${skipText}»`);
   if (bilder) { await sleep(2200); await bild(`dorf-${slug(g)}-uebung-${n + 1}`); }
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Übung ${n + 1} gelöst`, 30);
@@ -1016,6 +1022,16 @@ async function prologWeg(g, { esc = false } = {}) {
   if (esc) await taste('Escape');
   else await tippe('#story .scene .skip', 'Überspringen');
 }
+/** Grösste Drehung der Kamera zwischen zwei Bildern im Log einer Messung (Grad). */
+const drehung = (log) => Math.max(0, ...log.slice(1).map((e, i) => {
+  const a = log[i].blick, b = e.blick, p = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  return Math.acos(Math.min(1, p / Math.hypot(...a) / Math.hypot(...b))) * 180 / Math.PI;
+}));
+/** Warten, bis «Überspringen» zu sehen ist (bzw. nicht), höchstens 4 s; zurück seine Beschriftung oder null. */
+async function warteSkip(sichtbar) {
+  for (let i = 0; i < 40 && (await skipSichtbar()) !== sichtbar; i++) await sleep(100);
+  return (await skipSichtbar()) ? ev("document.getElementById('btn-skip').textContent") : null;
+}
 /** Einstieg überspringen (esc: mit der Taste, sonst der Knopf) und prüfen: Level steht, Untertitel zu, Moment gesehen. */
 async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
   await messe();
@@ -1027,10 +1043,14 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
   const log = await ende(`${g}: ${was} übersprungen`);
   const n = wachsen(log);
   pruefe(n === 1, `${g}: ${was} übersprungen: ${n}× enterLevel`);
-  const s = await stand(g), skip = await skipSichtbar();
-  // danach: im Dorf «Überspringen» für das Kapitel, in einer Welt keines
-  pruefe((await ev(storyMode)) === false && s.gesehen.includes(moment) && skip === (moment === 'dorf'),
+  const s = await stand(g), skip = await warteSkip(moment === 'dorf');
+  // danach: im Dorf «Dorf überspringen» (nach der Pause), in einer Welt keines
+  pruefe((await ev(storyMode)) === false && s.gesehen.includes(moment)
+    && skip === (moment === 'dorf' ? 'Dorf überspringen' : null),
     `${g}: ${was} übersprungen: Untertitel ${await ev(storyMode)}, gesehen ${s.gesehen}, Überspringen ${skip}`);
+  const grad = drehung(log);
+  pruefe(grad <= 5, `${g}: ${was} übersprungen: Kamera dreht ${grad.toFixed(1)}° in einem Bild`);
+  console.log(`  ${was} übersprungen: grösste Drehung je Bild ${grad.toFixed(1)}°`);
   if (sky) ohneLeeresBrett(log, sky, `${g}: ${was} übersprungen`);
   console.log(`  ${was} übersprungen: Himmel bereit ${vorher.skyBereit}, im Fall ${vorher.fall}`);
 }
@@ -1074,6 +1094,10 @@ async function dorfAblauf() {
   await until(`window.__prisma.playing() && ${D}.story.inDorf`, 'Leicht: Übung 1', 40);
   await sleep(800);
   const log = await ende('Leicht: Üben → Einstieg ins Dorf → Übung 1');
+  // Tempo (Review G1): nach übersprungenem Prolog läuft der Einstieg nicht im Zeitraffer, der Satz steht gut 5 s
+  const satz = log.filter((e) => e.story === 'caption'), dauer = satz.length ? satz.at(-1).ts - satz[0].ts : 0;
+  pruefe(dauer > 4000, `Leicht: Satz zum Einstieg ins Dorf nur ${Math.round(dauer)} ms zu sehen`);
+  console.log(`  Satz zum Einstieg ins Dorf ${Math.round(dauer)} ms`);
   pruefe(!log.some((e) => e.traeger), 'Leicht: Einstieg ins Dorf mit Träger');
   let s = await stand('leicht');
   pruefe(s.gesehen.join() === 'prolog,angebot,dorf' && JSON.stringify(s.dorf) === '{"platz":0,"ende":null}',
@@ -1262,9 +1286,113 @@ async function dorfAblauf() {
   await until(`${D}.story.entering`, 'Mittel nach dem Neuladen: Einstieg in den Bergwald', 30);
   pruefe((await stand('mittel')).gesehen.join() === 'prolog,angebot', 'Mittel nach dem Neuladen: gesehen');
 }
+/**
+ * Randfälle des Kapitels «Im Dorf» (Review Ticket 07, je mit vorbereitetem Stand):
+ * a) eine frühere Übung wiederholen, während das Kapitel läuft: bis zur ersten ungelösten, dann normal (dorf.platz
+ *    wächst wieder); b) Bergwald 1 aus der Übersicht mitten im Dorf: ohne Satz zum Ende in den Bergwald,
+ *    dorf.ende uebersprungen; c) Neuladen während des Einstiegs ins Dorf: «Weiter» bringt den Einstieg wieder, ohne
+ *    Prolog und Angebot; e) «Überspringen», während die Übung nach «Weiter» versinkt: die nächste wächst nicht, Satz zum
+ *    Ende, Bergwald; d) einen Einstieg überspringen, während er auf das Versinken des alten Bretts wartet (sunk
+ *    künstlich verzögert): Er landet erst danach, genau ein Level wächst.
+ */
+async function dorfRaender() {
+  console.log(`${view.name}: Im Dorf, Randfälle`);
+  uebungen = await ev('LEVELS.slice(0, TUTORIAL_COUNT).map((l) => l.name)');
+  const imDorf = (platz, geloest) => ({ platz: 0, geloest: uebungen.slice(0, geloest),
+    gesehen: ['prolog', 'angebot', 'dorf'], geschafft: false, dorf: { platz, ende: null } });
+  const zurDorfReihe = async (r) => { // Handy: eine Welt je Seite
+    if (!view.phone) return;
+    await tippe(`${UEB} .ueb-tab[data-reihe="${r}"]`, `Station ${r}`);
+    await sleep(700);
+  };
+
+  // a) Übung 2 wiederholen, während das Kapitel bei Übung 4 steht
+  await laden({ 'prisma.noa.leicht': imDorf(3, 3) });
+  await tippe(karte('leicht'), 'Karte Leicht');
+  await uebungLaeuft(3);
+  await tippe('#btn-overview', 'Übersicht');
+  await until(`${uebOffen} && !${D}.story.tweens.length`, 'a: Übersicht', 10);
+  await zurDorfReihe(0);
+  await tippe(kachel(0, 1), 'Kachel Übung 2');
+  await uebung('leicht', 1);
+  await uebung('leicht', 2);
+  await uebungLaeuft(3);
+  let s = await stand('leicht');
+  pruefe(await ev(`${D}.story.replay`) === false && s.dorf?.platz === 3, `a: zurück im Ablauf ${JSON.stringify(s)}`);
+  await uebung('leicht', 3);
+  await uebungLaeuft(4);
+  s = await stand('leicht');
+  pruefe(s.dorf?.platz === 4 && s.dorf.ende === null, `a: nach Übung 4 ${JSON.stringify(s.dorf)}`);
+
+  // b) Bergwald 1 aus der Übersicht mitten im Dorf
+  await tippe('#btn-overview', 'Übersicht');
+  await until(`${uebOffen} && !${D}.story.tweens.length`, 'b: Übersicht', 10);
+  await zurDorfReihe(1);
+  await ev(`window.__dorfSatz = false; (function schau() { if (document.querySelector('#story .caption .kicker')
+    .textContent === 'Im Dorf' && ${storyMode} === 'caption') window.__dorfSatz = true;
+    if (!window.__prisma.playing() || ${D}.story.inDorf) requestAnimationFrame(schau); })(); true`);
+  await tippe(kachel(1, 0), 'Kachel Bergwald 1');
+  await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
+    + "'Kapitel 1 · Der Bergwald'", 'b: Einstieg in den Bergwald', 30);
+  await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'b: Bergwald 1', 40);
+  s = await stand('leicht');
+  pruefe(s.dorf?.ende === 'uebersprungen' && s.gesehen.includes('wald') && !(await ev('window.__dorfSatz')),
+    `b: Bergwald 1 aus der Übersicht ${JSON.stringify(s)}, Satz zum Ende ${await ev('window.__dorfSatz')}`);
+  await kopfzeile('leicht', 0);
+
+  // c) Neuladen während des Einstiegs ins Dorf
+  await laden();
+  await tippe(karte('schwer'), 'Karte Schwer');
+  await prologWeg('schwer');
+  await angebot('schwer', 'Üben');
+  await until(`${storyMode} === 'caption' && ${D}.story.entering`, 'c: Einstieg ins Dorf', 30);
+  await ev('window.__vorher = true');
+  await send('Page.reload');
+  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'c: Menü nach dem Neuladen');
+  await geste();
+  s = await stand('schwer');
+  pruefe(JSON.stringify(s.dorf) === '{"platz":0,"ende":null}' && s.gesehen.join() === 'prolog,angebot',
+    `c: Stand im Einstieg ${JSON.stringify(s)}`);
+  await tippe('#menue .menue-weiter', 'Weiter');
+  let buehne = false;
+  for (let i = 0; i < 300 && !(await ev(`${storyMode} === 'caption'`)); i++) {
+    if (await ev(`${storyMode} === 'scene'`)) buehne = true;
+    await sleep(100);
+  }
+  pruefe(!buehne && await kicker() === 'Im Dorf · Erstes Licht', `c: nach dem Neuladen «${await kicker()}», Bühne ${buehne}`);
+  await uebung('schwer', 0, { weiter: false });
+
+  // e) «Überspringen», während die Übung nach «Weiter» versinkt
+  await messe();
+  await tippe('#btn-next', 'Weiter');
+  await until(`${D}.flow.state === 'out'`, 'e: Übung 1 versinkt', 10);
+  await tippe(SKIP, 'Dorf überspringen');
+  await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'e: Satz zum Ende', 20);
+  await tippe('#story .caption .text', 'Untertitel');
+  await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'e: Bergwald 1', 60);
+  const logE = await ende('e: Überspringen beim Versinken → Bergwald 1');
+  pruefe(wachsen(logE) === 1 && (await stand('schwer')).dorf?.ende === 'uebersprungen',
+    `e: ${wachsen(logE)}× Herauswachsen, ${JSON.stringify((await stand('schwer')).dorf)}`);
+  await kopfzeile('schwer', 0);
+
+  // d) Einstieg überspringen, während er auf das Versinken wartet: Das alte Brett meldet «versunken» erst 12 s später
+  if (view.phone) await tippe('#btn-menu', 'Menü');
+  else await taste('Escape');
+  await until(`${menueOffen} && !${D}.story.tweens.length`, 'd: Menü', 10);
+  await ev(`(() => { const s = ${D}.story, alt = s.sunk; let einmal = false;
+    s.sunk = function () { if (einmal) return; einmal = true;
+      setTimeout(() => { s.sunk = alt; alt.call(s); }, 12000); }; })()`);
+  await tippe(karte('mittel'), 'Karte Mittel');
+  await prologWeg('mittel');
+  await angebot('mittel', 'Gleich los');
+  await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.flare.visible && !${D}.story.tweens.some(
+    (t) => t.mark)`, 'd: Einstieg wartet aufs Versinken', 30);
+  await einstiegWeg('mittel', 'Einstieg in den Bergwald (wartet aufs Versinken)', 'wald', { esc: !view.phone });
+  await kopfzeile('mittel', 0);
+}
 /** Die Übung n steht auf dem Brett und läuft. */
 async function uebungLaeuft(n) {
-  await until(`window.__prisma.playing()`, `Übung ${n + 1} läuft`, 30);
+  await until(`window.__prisma.playing() && !${D}.story.running`, `Übung ${n + 1} läuft`, 30);
   const r = await ev(`({ dorf: ${D}.story.inDorf, uebung: ${D}.story.uebung, index: ${D}.game.levelIndex })`);
   pruefe(r.dorf && r.uebung === n && r.index === n, `Übung ${n + 1} erwartet: ${JSON.stringify(r)}`);
 }
@@ -1278,6 +1406,7 @@ try {
   if (menue) await menueAblauf();
   if (uebersichtProbe) await uebersichtAblauf();
   if (dorfProbe) await dorfAblauf();
+  if (dorfRaenderProbe) await dorfRaender();
   for (const [i, g] of grade.entries()) await durchgang(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {

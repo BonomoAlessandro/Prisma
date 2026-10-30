@@ -313,3 +313,67 @@ bestanden; Probe `--dorf` auf dem Desktop mit den Fixes **bestanden**, Konsole l
 2083133 (eigener Worktree) scheitert an genau den zwei neuen Prüfungen (Feier, Neuladen im Angebot). Im ersten Lauf auf
 2083133 einmal 581 ms Lücke gleich nach dem ersten Zeichnen der Bühne (frischer Worktree, kalter Cache), im Lauf mit
 den Fixes nicht wieder.
+
+**Nachbesserung nach Review (30.10.2026, Umsetzer)** – Funde aus «Review Code» und dem Bericht zum Spielerlebnis
+(`review-07-erlebnis.md` des Reviewers); gemessen mit `geschichte-probe.mjs --dorf` und `--dorf-raender` (Desktop,
+Handy hoch, quer, Touch) und dem Treiber des Reviewers (`erlebnis.mjs skip,tempo,bilder`, Desktop, Handy hoch, quer,
+klein 360×640).
+
+- **G1 Tempo:** `offer` setzt nach der Wahl `fast = 1`, `enter` zu Beginn ebenso (Tippen *während* des Einstiegs
+  beschleunigt weiter). Satz zum Einstieg ins Dorf nach übersprungenem Prolog (Knopf, Esc, Enter) jetzt 5,1–5,2 s statt
+  1,7 s, gleich wie mit ganz geschautem Prolog; «Gleich los» ebenso (`fast` während des Einstiegs immer 1).
+- **G2 Kamera:** `land` dreht den Blick nicht mehr über das lineare Mischen von `updateCamera`, sondern auf dem
+  Grosskreis von der jetzigen Blickrichtung aufs Brett (Quaternion-slerp, sanfte Kurve; über 90° länger: höchstens etwa
+  1,3° je Bild bei 60 Bildern/s), Tippen beschleunigt die Landung nicht (`landing`). Das Level wächst, sobald das Brett
+  noch höchstens 60° entfernt ist. `updateCamera` bleibt (Menü, Reisen, Finale unverändert). Grösste Drehung je Bild
+  beim Überspringen (Treiber, alle Zeitpunkte 0 / 0,7 / 1,5 / 2,5 / 3,1 s nach «Üben», 0 / 1,2 / 3,0 / 4,3 s nach
+  «Gleich los»): Desktop 1,4–2,5° (einmal 5,1° beim Überspringen mitten im Fall), Handy hoch 1,3–3,1°, quer 1,7–3,0°,
+  klein 1,4–3,0° (vorher bis 59°). Probe: 1,2–2,8° in allen übersprungenen Einstiegen.
+- **M1 Bedeutung von «Überspringen»:** Nach dem Ende eines Einstiegs bleibt der Knopf 2 s weg (`STORY_SKIP_RUHE`,
+  `skipRuhe`), im Dorf heisst er «Dorf überspringen» (im Einstieg weiter «Überspringen»; die Beschriftung wechselt nur
+  beim Einblenden).
+- **M2 Hinweise:** `#hud .sub .hinweis` in normaler Schreibung, 13,5 px (Handy hoch 13 px, quer 11,5 px), 84 %
+  Deckkraft, höchstens 40 em breit; auf allen vier Bildschirmen ohne Überlauf.
+- **M3 Hänger beim Herauswachsen:** Ursache gefunden: Das Vorwärmen beim Start baute die Elemente ohne ihre
+  Ausrüstung als drehbares Element (`makeInteractive`: Trefferzylinder, Lichtrand, Hover-Ring, gestrichelter Leuchtring).
+  Der Shader des Leuchtrings wurde darum erst im Bild übersetzt, in dem ein drehbares Element herauswuchs (Long Animation
+  Frame: 70–140 ms in `composer.render`, ein neues Programm `MeshBasicMaterial` am Ring y 0,064). Jetzt rüstet das
+  Vorwärmen drehbare Elemente mit `makeInteractive` aus (ihre Trefferzylinder fallen gleich wieder aus
+  `game.hitProxies`). Herauswachsen der ersten Übung frisch geladen: 36–58 ms statt 70–141 ms (je drei Läufe); das galt
+  für jedes erste Level mit Drehteller nach dem Laden, nicht nur im Dorf.
+- **Ruck im Prolog:** Das Hochladen von scharfem Bild und Streifen des Walds hinter der Bühne hielt die Fahrt des
+  Prologs einmal 110 ms an; `begin` setzt während Prolog und Angebot `skyTheme.quiet` (wie die Reisen). Nach «Üben»
+  braucht es den Wald vorerst nicht mehr.
+- **M4 / K2 Bergwald nach dem Satz zum Ende:** `dorfEnde` lädt den Himmel des Bergwalds schon, während der Satz steht
+  (`skyOf` parallel zum Warten aufs Tippen), und nimmt «Klicken» nach dem Tippen sofort weg; der Einstieg wartet danach
+  nur noch, falls der Wald noch nicht da ist.
+- **M5 Probe:** neuer Ablauf `--dorf-raender` (eigener Aufruf, damit kein Lauf über 14 min kommt): a) Übung 2
+  wiederholen, während das Kapitel bei Übung 4 steht → normal ab der ersten ungelösten, `dorf.platz` wächst wieder;
+  b) Bergwald 1 aus der Übersicht mitten im Dorf → ohne Satz zum Ende, `dorf.ende` uebersprungen; c) Neuladen während
+  des Einstiegs ins Dorf → «Weiter» bringt den Einstieg wieder, ohne Bühne; e) «Dorf überspringen», während die Übung
+  nach «Weiter» versinkt → die nächste wächst nicht, Satz zum Ende, Bergwald, genau ein Herauswachsen; d) Einstieg
+  überspringen, während er aufs Versinken wartet (`sunk` künstlich 12 s verzögert) → landet danach, genau einmal.
+  `--dorf` prüft zusätzlich Tempo (Satz > 4 s), Drehung je Bild (≤ 5°) in jedem übersprungenen Einstieg, die
+  Beschriftung «Dorf überspringen» und wartet die Pause nach dem Einstieg ab; das Bildprotokoll von `messe` enthält die
+  Blickrichtung.
+- **K1 Kicker «Im Dorf»:** 12 px, 86 % Deckkraft, kräftigerer Schatten. **K3 «Überspringen»:** 10,5 px, 82 %; auf dem
+  Handy hochkant unten links in zwei kurzen Zeilen («Dorf / überspringen»), so bleibt neben den vier Knöpfen auch bei
+  360 px Platz (die Probe prüft Überdeckung). **K4 Angebot quer:** Im Angebot fallen die Reserve für zwei Zeilen und die
+  leere Zeile «Tippen» weg, die Frage steht tiefer; der Hof dahinter ist quer dunkler.
+- **Bildzeiten** (längste Lücke, Desktop / Handy hoch / quer, ms): Menü → Prolog → Überspringen 88 / 19 / 71; Üben →
+  Einstieg ins Dorf → Übung 1 71 / 52 / 54; Weiter → Übung 4 37 / 36 / 53; Überspringen → Satz zum Ende 35 / 37 / 36;
+  Satz zum Ende → Bergwald 1 52 / 37 / 37; Einstieg ins Dorf im Flug übersprungen 37 / 53 / 53; Überspringen beim
+  Herauswachsen 35 / 19 / 18; Einstieg Bergwald im Fall übersprungen 36 / 36 / 37; gleich zu Beginn 52 / 36 / 36;
+  Übung 8 wiederholen → 9 37 / 19 / 53; Überspringen beim Versinken → Bergwald 1 36 / 36 / 36; Einstieg übersprungen,
+  während er aufs Versinken wartet 36 / 36 / 36. Keine Lücke über 100 ms. Treiber (übersprungene Einstiege): Desktop
+  höchstens 72 ms, Handy hoch 54, quer 54, klein 53 (vorher bis 144 ms); die Fälle mit eigenen Bildern des Treibers
+  zählen nicht.
+- **Tests** (nacheinander über `leise.sh`, `LEISE_MAX_CPU=100 LEISE_CPU=100`): Strahlregel 1963, Golden 824 Level,
+  Vorrat 15, Levelliste 55, Würfelliste 20, KI-Tester 84, Beurteilung 206, Geschichte 30, Generator 31, Offline,
+  Bedienung (Konsole leer), `shots.mjs` Platz 1 und 240: alle bestanden. Probe `--dorf` und `--dorf-raender` auf
+  Desktop, Handy hoch und quer bestanden, Konsole leer (die letzte CSS-Änderung, die leere Zeile «Tippen» im Angebot,
+  danach nur mit den Bildern des Treibers geprüft).
+- **Offen:** Vor dem Prolog lädt weiterhin die Vorschau des Walds (nur noch ohne scharfes Bild); eine eigene Skybox des
+  Dorfs käme später an `STORY_DORF.sky`. Fokus fällt nach der Wahl im Angebot und nach «Überspringen» auf `body`
+  (Review Code, unschädlich). Handy quer: Der Hinweis der Übung (11,5 px, eine Zeile) reicht bis an den
+  hinteren Rand des Bretts und berührt dort ein fernes Ziel (`quer-03-uebung-1.png`); im Review beurteilen.
