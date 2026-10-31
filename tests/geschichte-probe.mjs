@@ -1606,6 +1606,9 @@ const konsole = logs.filter(l => /\[exception\]|\[error\]|THREE\.WebGLProgram/.t
 const warnungen = logs.filter(l => /\[warn/.test(l));
 for (const l of konsole) pruefe(false, `Konsole: ${l}`);
 if (warnungen.length) console.log(`Warnungen:\n  ${warnungen.join('\n  ')}`);
+// Sicherheitsnetz der Hauptschleife (sceneLoop.guard): Sie ruhte, obwohl etwas anstand – eine Weckstelle fehlt
+const weckstellen = warnungen.filter(l => /Weckstelle fehlt/.test(l));
+if (weckstellen.length) console.log(`\nWARNUNG: ${weckstellen.length}× fehlende Weckstelle (siehe oben, sceneLoop.guard)`);
 if (bildzeiten.length) {
   console.log('\nBildzeiten (Lücken zwischen zwei Bildern des Browsers):');
   for (const b of bildzeiten) {

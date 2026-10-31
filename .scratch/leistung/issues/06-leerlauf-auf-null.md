@@ -198,3 +198,18 @@ Hinweis an 02.
   oder seit dem Wecken noch keinen Schritt gemacht hat). Nicht selbst geändert, weil der Entwickler gerade in
   `index.html` arbeitet.
 - Läufe: `logic` (2033), `golden`, `hall` (6) grün.
+
+**Nach dem Review (31.10.2026).**
+
+- 101443b und den Abschluss von 02 (dc33566) gemergt. `recomputeBeams`: erst `wake()`, dann `last === null` prüfen
+  (Fund oben). Probe (eigene, headless): sichtbare Schleife künstlich ruhen lassen (`ambient` aus), 3 s warten, dann
+  drehen (`rotateElement`) bzw. nur `recomputeBeams` als Weckruf: Der alte Strahl blendet von 0,99 an aus, der neue
+  wächst von 0 bis zur vollen Länge (je etwa 130 Bilder, 2,4 s wach), Konsole sauber.
+- **Sicherheitsnetz** `sceneLoop.guard()`: Solange die Schleife ruht, alle 350 ms `pending()` (sichtbar dazu die
+  Umgebung) fragen; steht doch etwas an, `console.warn('sceneLoop: Weckstelle fehlt – … ansteht: <was>')` und wecken.
+  `pending()` gibt dafür zurück, was ansteht (Text). Mit `?t=` läuft das Netz nicht. `tests/leerlauf-probe.mjs` und
+  `tests/geschichte-probe.mjs` melden solche Warnungen als «WARNUNG: n× fehlende Weckstelle».
+- **«Überspringen»** (`story.update` schaltet `#btn-skip`): `pending()` hält die Schleife wach, solange
+  `skippable()` vom angezeigten Stand abweicht oder die Pause nach dem Einstieg ins Dorf (`skipRuhe`, endlich) läuft.
+  Andere DOM-Zustände aus `animate`: «Gelöst» kommt aus der Feier (ansteht), `updateFlow` blendet nur in `in`/`out`
+  (ansteht), Treffer-Töne über die Strahlen (ansteht). Keine weitere Lücke.

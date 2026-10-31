@@ -181,6 +181,9 @@ try {
 }
 const bad = logs.filter((l) => /\[exception\]|\[error\]|THREE\.WebGLProgram/.test(l));
 pruefe(bad.length === 0, `Konsole: ${bad.join(' | ')}`);
+// Sicherheitsnetz der Hauptschleife (sceneLoop.guard): Sie ruhte, obwohl etwas anstand – eine Weckstelle fehlt
+const weckstellen = logs.filter((l) => /Weckstelle fehlt/.test(l));
+if (weckstellen.length) console.log(`WARNUNG: ${weckstellen.length}× fehlende Weckstelle:\n  ${weckstellen.join('\n  ')}`);
 const OUT = join(root, 'tests', 'output', 'leistung');
 mkdirSync(OUT, { recursive: true });
 writeFileSync(join(OUT, `${name}.json`), JSON.stringify(ergebnis, null, 1));

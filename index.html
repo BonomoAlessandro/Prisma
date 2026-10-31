@@ -8183,17 +8183,24 @@ const sceneLoop = {
    * alles, was in dt weich nachgeführt wird (Hover, Treffer und falsche Farbe der Ziele)?
    */
   pending() {
-    if (story.tweens.length || story.carrier?.kind || story.blend) return true;
-    if (flow.state === 'in' || flow.state === 'out' || celebration.active || celebration.rain.alive > 0) return true;
-    if (skyTheme.busy || cameraRig.homing || cameraRig.settling > 1e-3) return true;
-    if (beamView.time < beamView.settleAt + 1.2) return true;
+    // Rückgabe: was ansteht (Text, für die Warnung des Sicherheitsnetzes, guard), sonst false
+    if (story.tweens.length || story.carrier?.kind || story.blend) return 'Geschichte (Tween, Träger, Überblenden)';
+    // «Überspringen» schaltet story.update um: noch nicht nachgeführt, oder die Pause nach dem Einstieg ins Dorf läuft
+    // (Infinity während der Landung: Deren Tweens halten die Schleife wach, danach wird sie endlich)
+    if (story.skippable() !== story.skipShown) return 'Überspringen';
+    if (Number.isFinite(story.skipRuhe) && performance.now() < story.skipRuhe) return 'Überspringen (Pause)';
+    if (flow.state === 'in' || flow.state === 'out') return `Feld (${flow.state})`;
+    if (celebration.active || celebration.rain.alive > 0) return 'Feier';
+    if (skyTheme.busy) return 'Himmel';
+    if (cameraRig.homing || cameraRig.settling > 1e-3) return 'Kamera';
+    if (beamView.time < beamView.settleAt + 1.2) return 'Strahlen';
     for (const obj of game.objects.values()) {
       const u = obj.userData;
-      if (u.rotation || u.pulseT > -100) return true;
-      if (u.hover !== undefined && Math.abs((input.hovered === u.element ? 1 : 0) - u.hover) > 2e-3) return true;
+      if (u.rotation || u.pulseT > -100) return 'Drehen oder Puls';
+      if (u.hover !== undefined && Math.abs((input.hovered === u.element ? 1 : 0) - u.hover) > 2e-3) return 'Hover';
       if (u.hitGoal === undefined) continue;
-      if (Math.abs(u.hitGoal - u.hit) > 1e-3 || Math.abs(u.wrongGoal - u.wrong) > 1e-3 || u.flash > 1e-3) return true;
-      for (const seg of u.ringSegs) if (Math.abs(seg.userData.arriveGoal - seg.userData.arrive) > 1e-3) return true;
+      if (Math.abs(u.hitGoal - u.hit) > 1e-3 || Math.abs(u.wrongGoal - u.wrong) > 1e-3 || u.flash > 1e-3) return 'Ziel';
+      for (const seg of u.ringSegs) if (Math.abs(seg.userData.arriveGoal - seg.userData.arrive) > 1e-3) return 'Ziel';
     }
     return false;
   },
@@ -8203,6 +8210,23 @@ const sceneLoop = {
    * leben. Still steht die Szene nur mit ?t= (FIXED_TIME: Bilder der Tests und der KI-Tester).
    */
   ambient() { return FIXED_TIME === null; },
+  guardTimer: 0,
+  /**
+   * Sicherheitsnetz, solange die Schleife ruht: alle 350 ms fragen, ob doch etwas ansteht (pending, sichtbar auch die
+   * Umgebung). Dann fehlt eine Weckstelle: warnen (console.warn «sceneLoop: Weckstelle fehlt», die Proben melden das)
+   * und wecken. Mit ?t= nicht (die Szene steht dort ohnehin, Bilder der Tests bleiben unberührt).
+   */
+  guard() {
+    clearTimeout(this.guardTimer);
+    if (FIXED_TIME !== null) return;
+    this.guardTimer = setTimeout(() => {
+      if (this.awake || !this.started) return;
+      const why = this.pending() || (!this.covered && this.ambient() && 'Umgebung');
+      if (!why) { this.guard(); return; }
+      console.warn(`sceneLoop: Weckstelle fehlt – die Schleife ruhte, obwohl ansteht: ${why} (Sicherheitsnetz weckt)`);
+      this.wake();
+    }, 350);
+  },
   /** Weckt die ruhende Schleife (cold: Render-Targets oder Ähnliches geändert, vor dem nächsten Ruhen zeichnen). */
   wake(cold = false) {
     if (cold) this.dirty = true;
@@ -14088,10 +14112,11 @@ function loadLevel(index, beamDelay = 0) {
 }
 
 function recomputeBeams(instant = false, delay = 0) {
-  // Ruhte die Schleife (geweckt, aber noch kein Schritt seither: last null), steht beamView.time noch beim letzten
-  // Schritt: Neue Strahlen wären sonst schon gewachsen, entfallene schon ausgeblendet (Geburt und Tod zählen ab time)
-  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = clock.getElapsedTime();
   sceneLoop.wake(); // Strahlen wachsen, Elemente drehen sich (auch hinter der Bühne fertig)
+  // Ruhte die Schleife (geweckt, auch eben durch wake oben, aber noch kein Schritt seither: last null), steht
+  // beamView.time noch beim letzten Schritt: Neue Strahlen wären sonst schon gewachsen, entfallene schon ausgeblendet
+  // (Geburt und Tod zählen ab time). Darum erst wecken, dann prüfen.
+  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = clock.getElapsedTime();
   game.result = traceBeams(game.board);
   beamView.update(game.result, instant, delay);
   // Ein Ziel leuchtet erst auf, wenn der letzte seiner Strahlen sichtbar angekommen ist.
@@ -20386,6 +20411,7 @@ function frame(ts) {
     if (loop.still >= REST_STEPS) {
       if (loop.dirty && loop.mayDraw()) draw(dt, t0, false); // aufwärmen und den Stand von jetzt auf die Leinwand
       loop.awake = false; // ruhen, bis wake()
+      loop.guard();
       return;
     }
     requestAnimationFrame(frame);
@@ -20409,7 +20435,7 @@ function frame(ts) {
   draw(dt, t0);
   // nichts bewegt sich mehr: ruhen, bis wake() (das letzte Bild bleibt stehen; die Bilder bis hierher zeigen auch, was
   // ohne Weckruf geändert wurde)
-  if (loop.still >= REST_STEPS) { loop.awake = false; return; }
+  if (loop.still >= REST_STEPS) { loop.awake = false; loop.guard(); return; }
   requestAnimationFrame(frame);
 }
 
