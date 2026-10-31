@@ -66,8 +66,11 @@ async function until(send, expression, what, seconds = 300) {
   throw new Error(`Zeitüberschreitung: ${what}`);
 }
 const frames = (send) => evaluate(send, 'window.__prisma.frames');
+/** n neue Bilder abwarten. Mit ?t= steht die Szene, die Hauptschleife ruht bald (sceneLoop): wecken, dann zeichnet sie
+ *  wieder ein paar Bilder (REST_STEPS), bevor sie erneut ruht. */
 async function rendered(send, n) {
   const f = await frames(send);
+  await evaluate(send, '__prismaDebug.sceneLoop.wake(true)');
   await until(send, `window.__prisma.frames >= ${f + n}`, `${n} Bilder`);
 }
 const capture = async (send) => (await send('Page.captureScreenshot', { format: 'png' })).result.data;

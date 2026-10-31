@@ -288,3 +288,62 @@ Fix: `bildEnde` setzt nach dem `readPixels` `adaptiveResolution.skip = 2`; `tick
 wertet die beiden Bilder nicht, weder Fenster und Zähler noch Schonfrist und Ruhe. Sonst reagiert die Absenkung wie ohne
 Messung. `APP_VERSION` = `2026-10-31 leistung-01c`. Handy-Durchlauf 1 wird mit 01c wiederholt: Die Spiel-Abschnitte
 liefen mit halber Auflösung, die Werte taugen nicht als Ausgangswert. Abnahme: Karte am Ende `adaptiv 1.00, Umbauten 0`.
+
+**Handy-Durchlauf 1 wiederholt mit 01c (massgebender Ausgangswert), Poco F4 GT, 31.10.2026, vom Nutzer:**
+
+```
+PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)
+Version     2026-10-31 leistung-01c
+Zeit        31.10.2026, 15:51:09
+Gerät       Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36
+Modell      Android 13.0.0 21121210G
+GPU         ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+Bildschirm  393×873, Fenster 392×739, Pixelverhältnis 2.75
+Rendern     784×1478 (Pixelverhältnis 2.00, adaptiv 1.00, Umbauten 0), Handy
+Takt        60 Hz (Median der Bildabstände 16.60 ms)
+Zeichenzeit ERSATZMASS: frame() bis nach readPixels (1 px), jedes 10. Bild; der Abstand danach zählt nicht
+ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): 477 Bildabstände mit readPixels nicht gezählt
+Grenzen     p95 ≤ 18.3 ms, kein Bild > 33 ms; Zeichnen p95 ≤ 8 ms (Handy)
+
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s
+Seitenstart*         1  790.3  790.3    1      –  23.8     1
+Startbildschirm    260   16.7   98.7    5   40.0   4.6    62
+Menü               673   16.6   32.9    0   28.0   6.6    42
+Prolog            2235   65.9  148.0  320  137.3   3.4    22
+Einstieg           319   16.6  115.0    2   46.3   9.2    65
+Spiel             1697   16.6   49.4    3   37.6  10.4    54
+Reise              695   16.6  131.6    2   32.6   8.0    66
+Spiel n. Reise     327   16.6   49.4    2   45.6  11.1    38
+Gesamt            6206   49.3  148.0  334   62.2
+* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je
+  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.
+
+Flüssig:    nein (Startbildschirm, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+Zeichnen ≤ 8 ms: nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+
+Längste Bilder:
+   790.3 ms  Seitenstart bei 0.2 s
+   148.0 ms  Prolog bei 43.7 s
+   132.0 ms  Prolog bei 46.2 s
+   131.6 ms  Reise bei 115.9 s
+   131.6 ms  Prolog bei 11.4 s
+   131.6 ms  Prolog bei 13.6 s
+   131.6 ms  Prolog bei 21.6 s
+   131.6 ms  Prolog bei 60.3 s
+
+Hänger des Hauptthreads (long-animation-frame):
+     807 ms  Seitenstart bei 0.2 s: https://prisma-5d09.onrender.com/?perf=: Script 764 ms, Rendern 26 ms
+     227 ms  Prolog bei 51.1 s: FrameRequestCallback → frame: Script 163 ms, Rendern 168 ms
+     223 ms  Prolog bei 43.7 s: FrameRequestCallback → frame: Script 145 ms, Rendern 149 ms
+     221 ms  Prolog bei 52.5 s: FrameRequestCallback → frame: Script 137 ms, Rendern 142 ms
+     214 ms  Prolog bei 57.8 s: FrameRequestCallback → frame: Script 150 ms, Rendern 155 ms
+     210 ms  Prolog bei 59.0 s: FrameRequestCallback → frame: Script 148 ms, Rendern 151 ms
+     196 ms  Prolog bei 20.4 s: FrameRequestCallback → frame: Script 137 ms, Rendern 141 ms
+     196 ms  Prolog bei 14.8 s: FrameRequestCallback → frame: Script 135 ms, Rendern 139 ms
+```
+
+Der Nutzer: «diesmal war die Grafik gut». `adaptiv 1.00, Umbauten 0`, volle Auflösung (Pixelverhältnis 2). Befund:
+Spiel, Menü und Reise p95 16,6 ms (sichtbar flüssig), aber Zeichnen (Ersatzmass) p95 33–46 ms, weit über der Marge
+von 8 ms (Messrunde 07; das Ersatzmass enthält den Halt von `readPixels`, auf einer Kachel-GPU eher zu hoch).
+Prolog p95 65,9 ms, 320 Bilder über 33 ms, verdeckte Szene zeichnet mit 22/s bei 137 ms (Tickets 02/04).
+Seitenstart-Hänger 807 ms Script (Messrunde 07).
