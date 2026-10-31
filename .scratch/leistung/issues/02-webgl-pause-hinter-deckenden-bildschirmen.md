@@ -158,12 +158,13 @@ Bildzähler einer eigenen Probe (headless mit GPU, frischer Stand): Startbildsch
 ruht; Prolog beim Warten auf Tippen 0 Bilder in 1,5 s, ruht, verdeckt; vom Laden bis zum Klick insgesamt 3 Bilder
 (Aufwärmen, Vorschau, Himmel eingeblendet), 9 während die Bühne einblendet; im Spiel 30–45 Bilder/s wie bisher.
 
-**Poco F4 GT, Handy-Durchlauf 1 (Stand 01) als Vorher-Referenz.** Vorbehalt: Mit `?perf` lief das Spiel ab dem Prolog
-mit halber Auflösung, weil das Ersatzmass die Absenkung auslöste (ohne `?perf` laut Nutzer nicht verpixelt).
-Startbildschirm p95 32,9 ms, 7 Bilder > 33 ms, **63 gez/s**, Zeichnen p95 32,9 ms; Prolog p95 65,9 ms, 343 Bilder
-> 33 ms, **19 gez/s**, **Zeichnen p95 136 ms**, Hänger 200–220 ms in `FrameRequestCallback → frame` (Script ~140 ms);
-Karte `adaptiv 0.50, Umbauten 2`. Mit diesem Ticket fallen die verdeckten Bilder und diese Hänger weg; Nachweis im
-Handy-Durchlauf 2 (Ticket 07).
+**Poco F4 GT, Handy-Durchlauf 1 mit 01c als Vorher-Referenz** (volle Auflösung, Karte `adaptiv 1.00, Umbauten 0`,
+Grafik gut; ganze Karte in Ticket 01): Startbildschirm p95 16,7 ms, max 98,7 ms, 5 Bilder > 33 ms, Zeichnen p95
+40,0 ms, **62 gez/s**; Prolog p95 65,9 ms, max 148 ms, 320 Bilder > 33 ms, **Zeichnen p95 137,3 ms**, **22 gez/s**;
+Spiel p95 16,6 ms, Zeichnen p95 37,6 ms, 54 gez/s; Seitenstart-Hänger 807 ms Script. Mit diesem Ticket fallen die
+gezeichneten Bilder hinter Startbildschirm und Bühne weg (dort 62 bzw. 22 je s mit 40 bzw. 137 ms Zeichenzeit);
+Nachweis im Handy-Durchlauf 2 (Ticket 07). Überholt: der erste Durchlauf mit 01b (`adaptiv 0.50, Umbauten 2`, halbe
+Auflösung ab dem Prolog wegen des Ersatzmasses).
 
 **Befund `adaptiveResolution` ohne Verdeckung (nicht geändert):** Sie misst den Abstand zweier gezeichneter Bilder,
 nicht die Zeichenzeit: Jeder Hänger des Hauptthreads oder des Grafikprozesses (SVG, DOM, Uploads, Hall) zählt als
