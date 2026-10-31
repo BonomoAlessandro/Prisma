@@ -9137,6 +9137,57 @@ async function loadSkyImage(url, bitmap = false, alive = () => true) {
   });
 }
 
+/**
+ * Das erste Zeichnen einer Skybox vorwegnehmen (Generator für sliced): Beim ersten Bild, in dem sie einblendet, lud
+ * three die Netze hoch und richtete die Programme ein; das hielt dieses Bild 50–120 ms an, mitten in der Reise oder an
+ * einer Weltgrenze (Review Ticket 06). Hier zeichnet jedes Teil einmal unsichtbar in ein Ziel von 1 × 1 Pixel, je in
+ * einem eigenen Bild, das Panorama durchsichtig wie beim Einblenden. Eine eigene Ebene (SKY_WARM_LAYER) für die Teile,
+ * die Lichter der Szene und die Kamera: Mit denselben Lichtern und in ein Ziel wie beim Composer trifft es dieselben
+ * Programme (sonst übersetzte three neue). Schatten werden dabei nicht neu gezeichnet.
+ */
+const SKY_WARM_LAYER = 30;
+function* skyWarmDraw(staging, parts, sky, alive) {
+  const target = new THREE.WebGLRenderTarget(1, 1), cam = camera.clone(), lights = [];
+  cam.layers.set(SKY_WARM_LAYER);
+  scene.traverse((o) => { if (o.isLight) { lights.push(o); o.layers.enable(SKY_WARM_LAYER); } });
+  const draw = (part) => {
+    const touched = [];
+    part.traverse((o) => {
+      touched.push([o, o.frustumCulled]);
+      o.frustumCulled = false;
+      o.layers.enable(SKY_WARM_LAYER);
+    });
+    const before = renderer.getRenderTarget(), shadows = renderer.shadowMap.needsUpdate;
+    staging.visible = true;
+    renderer.shadowMap.needsUpdate = false;
+    try {
+      renderer.setRenderTarget(target);
+      renderer.render(scene, cam);
+    } finally {
+      renderer.setRenderTarget(before);
+      renderer.shadowMap.needsUpdate = shadows;
+      staging.visible = false;
+      for (const [o, culled] of touched) { o.frustumCulled = culled; o.layers.disable(SKY_WARM_LAYER); }
+    }
+  };
+  try {
+    for (const part of parts) {
+      if (!alive()) return;
+      if (part === sky) { // beim Einblenden durchsichtig (applyFade), danach nicht: beide Fassungen
+        for (const transparent of [true, false]) {
+          sky.material.transparent = transparent;
+          sky.material.needsUpdate = true;
+          draw(sky);
+        }
+      } else draw(part);
+      yield NEXT_FRAME;
+    }
+  } finally {
+    for (const l of lights) l.layers.disable(SKY_WARM_LAYER);
+    target.dispose();
+  }
+}
+
 /** Dekodierte Bilder einer Textur schliessen (nach dem Hochladen oder bei Abbruch); ein Bild sammelt die GC ein */
 function closeSkyImage(t) {
   for (const s of t.userData.strips ?? []) s.bitmap.close();
@@ -9172,7 +9223,10 @@ function* skyUpload(t) {
   const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
   const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
   bind();
-  const levels = Math.max(...strips.map((s) => s.level)) + 1; // ganze Kette aus dem Worker, Vorschau nur Stufe 0
+  // ganze Kette aus dem Worker, Vorschau nur Stufe 0; mipmaps (Bilder der Felsen): nur Stufe 0, die übrigen erzeugt
+  // danach die Grafikkarte wie bei three (generateMipmap)
+  const levels = t.userData.mipmaps ? Math.floor(Math.log2(Math.max(w, h))) + 1
+    : Math.max(...strips.map((s) => s.level)) + 1;
   gl.texStorage2D(gl.TEXTURE_2D, levels, gl.SRGB8_ALPHA8, w, h);
   // Grosse Streifen je in einem eigenen Bild, gleich abgeschickt: Schneller, als der Grafikprozess sie abnimmt, liefe
   // sein Puffer voll, und der nächste wartete (gemessen bis 100 ms)
@@ -9185,6 +9239,7 @@ function* skyUpload(t) {
     yield bitmap.width * bitmap.height >= 1 << 19 ? NEXT_FRAME : undefined;
   }
   bind();
+  if (t.userData.mipmaps) gl.generateMipmap(gl.TEXTURE_2D);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, t.wrapS === THREE.RepeatWrapping ? gl.REPEAT : gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -9793,18 +9848,35 @@ function* bakedMesh(ctx, opt) {
   // Bild aus einer Data-URL, dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread
   // (siehe loadSkyImage). color: Farbbild (sRGB, Mipmaps), sonst Daten (nächster Nachbar, ohne Mipmaps)
   // Als ImageBitmap ohne Farbumrechnung, im Hintergrund dekodiert: Ein dekodiertes Bild (img.decode) dekodierte der
-  // Browser beim Hochladen noch einmal im Hauptthread, weil three die Farbumrechnung abschaltet (das grosse Bild der
-  // Felsen am Strand, 2662 × 1706: über 100 ms in einem Bild, Ticket 08). Wo das nicht geht, wie bisher als Bild.
+  // Browser beim Hochladen noch einmal im Hauptthread, weil three die Farbumrechnung abschaltet. Farbbilder dazu in
+  // Streifen zu 256 Zeilen, die skyUpload je in einem eigenen Bild hochlädt (Mipmaps danach auf der Grafikkarte): Das
+  // grosse Bild der Felsen am Strand (2662 × 1706) hielt in einem Stück ein Bild über 100 ms an (Ticket 08). Wo das
+  // nicht geht, wie bisher als Bild.
+  const BITMAP = { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }, ZEILEN = 256;
   const image = function* (url, color) {
     let bitmap = null, done = typeof createImageBitmap !== 'function';
     if (!done) {
-      fetch(url).then((r) => r.blob())
-        .then((blob) => createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }))
+      fetch(url).then((r) => r.blob()).then((blob) => createImageBitmap(blob, BITMAP))
         .then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
     }
     while (!done) yield NEXT_FRAME;
-    const img = bitmap ?? new Image(), tex = new THREE.Texture(img);
-    if (bitmap) tex.addEventListener('dispose', () => bitmap.close());
+    let strips = null;
+    if (bitmap && color && renderer.capabilities.isWebGL2) {
+      const { width: w, height: h } = bitmap, ys = [];
+      for (let y = 0; y < h; y += ZEILEN) ys.push(y);
+      let fertig = false;
+      Promise.all(ys.map((y) => createImageBitmap(bitmap, 0, y, w, Math.min(ZEILEN, h - y), BITMAP)))
+        .then((bs) => { strips = bs.map((b, i) => ({ level: 0, y: ys[i], bitmap: b })); }, () => {})
+        .finally(() => { fertig = true; });
+      while (!fertig) yield NEXT_FRAME;
+    }
+    const img = strips ? { width: bitmap.width, height: bitmap.height } : bitmap ?? new Image();
+    const tex = new THREE.Texture(img);
+    if (strips) {
+      bitmap.close();
+      tex.userData.strips = strips;
+      tex.userData.mipmaps = true;
+    } else if (bitmap) tex.addEventListener('dispose', () => bitmap.close());
     tex.flipY = false; // Zeile 0 oben wie die Bilder und die UV-Karte aus Blender (v nach oben): im Shader 1 − v
     if (color) {
       tex.encoding = THREE.sRGBEncoding;
@@ -9813,6 +9885,7 @@ function* bakedMesh(ctx, opt) {
       tex.minFilter = tex.magFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
     }
+    if (strips) return tex; // lädt skyUpload hoch, three nicht (needsUpdate bleibt aus)
     if (!bitmap) {
       let decoded = null;
       img.src = url;
@@ -11630,6 +11703,7 @@ function createPanoramaSky(m) {
         }
       })());
       await Promise.all([...compiled, uploads]);
+      await sliced(skyWarmDraw(staging, parts, sky, () => my === token));
     } catch (e) {
       for (const root of [staging, ...ctx.offscreen]) releaseTree(root); // gescheitert: nichts halb Geladenes behalten
       dropFull();
