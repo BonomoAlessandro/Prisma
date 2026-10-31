@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Solange ein deckender Bildschirm die 3D-Szene vollständig verdeckt, wird sie **nicht gezeichnet**,
 also mit 0 gerenderten Bildern statt 60 bzw. 30. Das betrifft den Startbildschirm, die Bühne von Prolog und Epilog im
@@ -221,3 +221,14 @@ Review des Diffs, Merge nach `feature/leistung` (Koordinator).
   Tests `frames` → `ticks` vollständig (übrige `frames` in `shots.mjs` und die Anzeige in `geschichte-probe.mjs` mit
   Absicht). Stil (Deutsch, «ss», Kommentare) passt.
 - Tests nach dem Fix: `logic` (2033), `golden`, `hall` (6), `geschichte-probe --start` grün, Konsole ohne Fehler.
+
+### Review im Browser (31.10.2026)
+
+Freigabe aus Spielersicht. Kein Hänger, kein eingefrorener Himmel, Strahl oder Tween, kein sichtbarer Fehler beim
+Aufdecken (Screencast jedes Bildes, Desktop und Handy 4×). Hinter Startbildschirm und Prolog 0 gezeichnete Bilder/s
+(vorher 43–53 bzw. 13–17). Ungedrosselt `adaptiv 1.00, Umbauten 0` in 2 von 2 Läufen (vorher `Umbauten 2`, einmal
+0.80); Handy 4× `1.00/2` (vorher `0.75/3`). `geschichte-probe` (`--grad leicht --welten 2 --finale leicht`, `--handy`,
+`--uebersicht --dorf`, `--ganz`) und eine Randfall-Probe (Tab verbergen, Grössenwechsel, Neuladen, Tippen mitten im
+Prolog) grün. Hinweise: Hinter dem Startbildschirm ein gewolltes Bild vor dem Ruhen bis 1,5 s nach `canStart` (Proben
+auf `__prisma.ruht()` warten lassen); «Überspringen» (`skippable()`) schaltet nur bei laufender Schleife um, für 06 im
+Auge behalten. Hänger bei `introCalm` bleibt Ticket 03.
