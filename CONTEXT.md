@@ -281,8 +281,9 @@ Begriffe aus älteren Specs, Tickets und Kommentaren, die den Ablauf des Spiels 
 **Reihe** (500er-Reihe):
 Bis zum 29.10.2026 der Ablauf des Spiels: das Tutorial und alle flachen Level in einer festen Folge nach
 Schwierigkeit, zuletzt 500, daneben die Würfel-Level in einer eigenen Folge.
-_Abgelöst_ als Ablauf durch die Geschichte (ADR 0005). Werkzeuge und Tests (Levelliste, KI-Tester, Golden-Test)
-rechnen weiter mit ihr, als ganzer Folge aus Spiel und Vorrat.
+_Abgelöst_ als Ablauf durch die Geschichte (ADR 0005). Weiter die Folge aller flachen Level aus Spiel und Vorrat:
+Referenz der KI-Tester, Platz im Vorrat und Ort, an dem neue Level ihren Grad bekommen (`ordne-level.mjs`,
+Levelliste). Austausch, Seiten und der Bedarf je Gruppe sind weg (Ticket 08).
 
 **Levelauswahl**:
 Die Wahl eines Levels der Reihe, nach Fläche und Würfel getrennt, in Seiten zu 10.
