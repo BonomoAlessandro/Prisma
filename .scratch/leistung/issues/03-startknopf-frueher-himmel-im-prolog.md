@@ -224,3 +224,34 @@ beschrieben; vorher `1,00 / 2`). Knopf (Start-Probe): Desktop frisch 4,36–4,37
 immer 2,91 s nach `.go`; Handy ×4 frisch 6,53–6,54 s, wiederkehrend 5,84–5,95 s. «Weiter» Desktop: Laden 1,36–1,39 s,
 max 24–34 ms; Handy ×4: Laden 2,6–2,8 s, aber Menü max 450 ms beim Klick (der Himmel des wiederkehrenden Spielers lädt
 nach der Enthüllung, der Klick 1,5 s nach dem Knopf trifft ein laufendes Stück); offen für den Poco-Durchlauf 2.
+
+**31.10.2026, Browser-Review (Stand `4da7be3`, vorher `6e2e4a0`; echtes Fenster, Quadro T2000, `leise.sh` 100 %).**
+Urteil: **bereit für Handy-Durchlauf 2.**
+
+- **Absenkung `0,50` ist Streuung, nicht neu durch 03.** Referenzdurchlauf Handy ×4, abwechselnd je 3 Läufe: vorher
+  `1.00/2`, `0.50/2`, `0.50/2`; nachher `1.00/2`, `0.50/2`, `1.00/2` (ein vierter, instrumentierter nachher: `0.50/2`).
+  Eine Probe schrieb jede Änderung von `adaptiveResolution` mit den letzten 60 `tick` mit: In allen Läufen (vorher und
+  nachher) senkt sie zuerst bei 57–61 s im ersten Level (`play`, 30 Bilder/s, Budget 43 ms, Bilder 30–55 ms: die
+  4×-Drosselung ist CPU-gebunden, CPU p95 von `frame()` 26–32 ms). Ob die Probe dann zurücknimmt und sperrt (`1.00/2`)
+  oder «geholfen» hat und bei 91–95 s auf 0,5 geht, entscheidet der Zufall im Messfenster. Im ersten Level lief kein
+  Ladestück über 30 ms (Zeiten jedes `sliced`-Schritts protokolliert); die Arbeit vor `frame()` im selben rAF ist dort
+  also nicht die Ursache. Vorher zeigte ein Lauf noch den alten Fehler (Takt 6,1 ms aus einem Aufhol-Bild, Absenkung
+  in der Reise), den `134a552` behebt. Desktop nachher 2 × `1.00/0`.
+- **Optik** (Bilder und Screencast mit Helligkeit je Bild, Desktop und Handy ×4, neu und «Weiter»): Enthüllung,
+  Knopf, Menü, alle Bilder des Prologs, Angebot und Spiel gleich wie vorher (nebeneinander kein Unterschied), Wald im
+  Spiel scharf. Kein schwarzes Bild nach «Weiter»: Die Kamera steht 2–3 s auf dem Himmel (Vorschau), dann blendet das
+  Level ein. Start-Probe neu: nach `.go` vorher Lücken bis 230–550 ms (beim Knopf, Himmel lädt), nachher Desktop
+  höchstens 89 ms, Handy ×4 in der Enthüllung keine über 36 ms, bei `introCalm` einmal 269 ms (nur das Pulsieren).
+- **Bestehend, nicht 03:** Jeder Umbau der Auflösung zeigt ein einzelnes schwarzes Bild (Screencast: Helligkeit 33 → 5
+  → 33, in allen Läufen mit Umbau, vorher wie nachher, keins ohne Umbau). Auf dem Poco also nur sichtbar, wenn die
+  Absenkung doch greift.
+- **Hänger beim Klick ins Menü (wiederkehrend, Handy ×4):** in 3 instrumentierten Läufen nicht nachgestellt: Menü max
+  124–161 ms. Der lange Task beim Klick ist das Öffnen des Menüs selbst (128–168 ms, kein Ladestück; der Klick kommt
+  0,2 s nach `introCalm`, die Stücke davor dauerten 31–37 ms). Spätere Lücken bis 430 ms ohne Script (Grafikprozess)
+  liegen im markierten Laden bzw. im Abstieg ins Level. Keine einfache Abhilfe nötig; auf dem Poco beobachten.
+- Hinweis zur Karte: Der Abschnitt Startbildschirm enthält auch das Vorwärmen vor `.go` (Desktop einmal 458 ms bei
+  1,1 s, ohne Script): unsichtbar, vor der Enthüllung, aber auf der Karte als «längstes Bild» sichtbar. Prolog Handy
+  ×4: mehr Bilder über 33 ms als vorher (58–93 statt 15–28, Laden in den Pausen), max kleiner; auf dem Poco auf ein
+  Stocken der Glühwürmchen in den Pausen achten.
+- Konsole: keine Fehler, keine Warnung «Weckstelle fehlt». `node tests/logic.test.mjs` (2033) und
+  `node tests/golden.mjs` grün.
