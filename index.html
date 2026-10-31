@@ -8142,7 +8142,8 @@ const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve))
  * Aufdecken, Grösse, Sichtbarkeit, Eingaben). Vor dem Ruhen einmal zeichnen, wenn sich seit dem letzten Bild etwas
  * geändert hat: Das wärmt Programme, Uploads und Render-Targets vor dem Aufdecken auf, und die Leinwand zeigt den Stand
  * von jetzt. Die Uhr (clock) läuft weiter, die Zeitbasis springt beim Aufdecken also nicht. Sichtbar ruht die Schleife
- * nie (Leerlauf: Ticket 06 der Leistung, mit demselben wake).
+ * ebenso, sobald sich nichts bewegt: keine Logik ansteht und keine Umgebung lebt (ambient; das letzte Bild bleibt
+ * stehen). Gezeichnet wird sichtbar im Takt von frameRate.
  */
 const REST_STEPS = 10; // so viele Schritte in Folge ohne anstehende Logik, dann ruhen
 const sceneLoop = {
@@ -8177,15 +8178,31 @@ const sceneLoop = {
     if (fades) Promise.all(fades.map((a) => a.finished.catch(() => {}))).then(done);
     else setTimeout(done, 1900); // ohne getAnimations: länger als das längste Einblenden
   },
-  /** Steht Logik an, die fortschreiten muss? (Nur verdeckt gefragt; sichtbar läuft die Schleife immer.) */
+  /**
+   * Steht Logik an, die fortschreiten muss: Tweens, Überblenden, Kamera, Feld, Feier, Strahlen, Drehen, Puls, dazu
+   * alles, was in dt weich nachgeführt wird (Hover, Treffer und falsche Farbe der Ziele)?
+   */
   pending() {
     if (story.tweens.length || story.carrier?.kind || story.blend) return true;
     if (flow.state === 'in' || flow.state === 'out' || celebration.active || celebration.rain.alive > 0) return true;
     if (skyTheme.busy || cameraRig.homing || cameraRig.settling > 1e-3) return true;
     if (beamView.time < beamView.settleAt + 1.2) return true;
-    for (const obj of game.objects.values()) if (obj.userData.rotation || obj.userData.pulseT > -100) return true;
+    for (const obj of game.objects.values()) {
+      const u = obj.userData;
+      if (u.rotation || u.pulseT > -100) return true;
+      if (u.hover !== undefined && Math.abs((input.hovered === u.element ? 1 : 0) - u.hover) > 2e-3) return true;
+      if (u.hitGoal === undefined) continue;
+      if (Math.abs(u.hitGoal - u.hit) > 1e-3 || Math.abs(u.wrongGoal - u.wrong) > 1e-3 || u.flash > 1e-3) return true;
+      for (const seg of u.ringSegs) if (Math.abs(seg.userData.arriveGoal - seg.userData.arrive) > 1e-3) return true;
+    }
     return false;
   },
+  /**
+   * Bewegt sich in der sichtbaren Szene etwas von selbst (Bestandsaufnahme Ticket 06 der Leistung)? Solange die Uhr
+   * läuft, immer: Die Kamera schwebt, Strahlen fliessen, Ziele drehen sich und atmen, Staub, Sterne und jeder Himmel
+   * leben. Still steht die Szene nur mit ?t= (FIXED_TIME: Bilder der Tests und der KI-Tester).
+   */
+  ambient() { return FIXED_TIME === null; },
   /** Weckt die ruhende Schleife (cold: Render-Targets oder Ähnliches geändert, vor dem nächsten Ruhen zeichnen). */
   wake(cold = false) {
     if (cold) this.dirty = true;
@@ -8193,6 +8210,10 @@ const sceneLoop = {
     if (this.awake || !this.started) return;
     this.awake = true;
     this.last = null;
+    // Sichtbar: das erste Bild nach dem Ruhen sofort (frameRate), die Pause ist kein langsames Bild
+    frameRate.skipped = Infinity;
+    frameRate.prevTs = null;
+    adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 1);
     requestAnimationFrame(frame);
   },
   start() {
@@ -9735,7 +9756,8 @@ function* instancedModels(set, material, colored) {
 }
 
 /** Nur die Instanzen im Bild der Kamera an die Grafikkarte (vorne in instanceMatrix und aInfo, count); hochgeladen nur,
- *  wenn sich die Auswahl ändert. Hüllquader in der Welt einmal (die Ebenen stehen still). */
+ *  wenn sich die Auswahl ändert. Hüllquader in der Welt einmal (die Ebenen stehen still). Ohne neue Arrays je Bild:
+ *  Die Auswahl steht in einem festen Feld je Mesh (shown). */
 const cullInstances = (() => {
   const frustum = new THREE.Frustum(), viewProj = new THREE.Matrix4(), m = new THREE.Matrix4();
   return (meshes) => {
@@ -9745,9 +9767,14 @@ const cullInstances = (() => {
       const { mesh, all, info } = g, n = all.length / 16;
       g.boxes ??= Array.from({ length: n }, (_, i) =>
         mesh.geometry.boundingBox.clone().applyMatrix4(m.fromArray(all, i * 16).premultiply(mesh.matrixWorld)));
-      const shown = g.boxes.map((b) => frustum.intersectsBox(b));
-      if (g.shown && shown.every((v, i) => v === g.shown[i])) continue;
-      g.shown = shown;
+      let changed = !g.shown;
+      g.shown ??= new Uint8Array(n);
+      const shown = g.shown;
+      for (let i = 0; i < n; i++) {
+        const v = frustum.intersectsBox(g.boxes[i]) ? 1 : 0;
+        if (v !== shown[i]) { shown[i] = v; changed = true; }
+      }
+      if (!changed) continue;
       const mat = mesh.instanceMatrix.array, attr = mesh.geometry.getAttribute('aInfo');
       let c = 0;
       for (let i = 0; i < n; i++) {
@@ -14129,6 +14156,7 @@ function rotateElement(el, delta) {
   const current = u.pivot.rotation.y;
   const goal = (u.rotation ? u.rotation.to : current) - delta * Math.PI / 4;
   u.rotation = { from: current, to: goal, t: 0 };
+  sceneLoop.wake(); // auch ohne Eingabe (__prismaDebug.loese)
   recomputeBeams(false, ROTATE.beamDelay);
 }
 
@@ -14906,6 +14934,7 @@ function pickElement(clientX, clientY, slop = 0) {
 function setHovered(el) {
   if (input.hovered === el) return;
   input.hovered = el;
+  sceneLoop.wake(); // Hover blendet weich ein und aus
   renderer.domElement.style.cursor = el ? 'pointer' : '';
 }
 
@@ -15052,7 +15081,7 @@ function makeInteractive(obj) {
 
   u.hover = 0;
   u.pulseT = -1000; // Zeit seit Beginn des Pulses (negativ: Verzögerung; -1000: kein Puls)
-  u.startPulse = (delay = 0) => { u.pulseT = -delay; };
+  u.startPulse = (delay = 0) => { u.pulseT = -delay; sceneLoop.wake(); };
   u.updateHover = (dt) => {
     const goal = input.hovered === u.element ? 1 : 0;
     u.hover += (goal - u.hover) * (1 - Math.pow(INPUT.hoverFade, dt));
@@ -15315,6 +15344,7 @@ const audio = {
   muted: false,
   storageKey: 'prisma.muted',
   _ctx: null,    // vorab angelegt (prepare)
+  _shimmerOn: false, _shimmerTimer: 0, // Hintergrund-Glitzern läuft (ab unlock); sein Zeitgeber (0: ruht)
 
   /**
    * Vorab, ohne Geste: Kontext angehalten anlegen, Knoten aufbauen und die Impulsantwort des Halls (hallData, seit dem
@@ -15381,18 +15411,28 @@ const audio = {
    * wie Lichtreflexe im Raum. Alle paar Sekunden ein Ton, manchmal ein zweiter dazu.
    */
   _startShimmer() {
+    this._shimmerOn = true;
+    this._shimmerResume();
+  },
+  /**
+   * Nächsten Glitzerton planen. Im Hintergrund-Tab oder stumm ruht der Zeitgeber ganz (kein Ton zu hören, der Kontext
+   * steht dann ohnehin); _sync plant wieder, sobald der Tab sichtbar bzw. der Ton an ist.
+   */
+  _shimmerResume(delay = 2000) {
+    if (!this._shimmerOn || this._shimmerTimer || this.muted || document.hidden) return;
     const tick = () => {
-      // im Hintergrund-Tab oder stumm nichts planen (der Kontext steht dann ohnehin)
-      if (!this.muted && !document.hidden && this.ctx.state === 'running') {
+      this._shimmerTimer = 0;
+      if (this.muted || document.hidden) return; // ruhen bis _sync
+      if (this.ctx.state === 'running') {
         const pick = () => SHIMMER_HZ[Math.floor(Math.random() * SHIMMER_HZ.length)];
         const opts = { gain: 0.012 + Math.random() * 0.01, attack: 0.02, decay: 3.5 + Math.random() * 1.5,
           partials: [[1, 1], [2.76, 0.12]], wet: 1.2 };
         this._bell(pick(), opts);
         if (Math.random() < 0.35) this._bell(pick(), { ...opts, when: 0.25 + Math.random() * 0.5, gain: opts.gain * 0.7 });
       }
-      setTimeout(tick, 2500 + Math.random() * 4000);
+      this._shimmerResume(2500 + Math.random() * 4000);
     };
-    setTimeout(tick, 2000);
+    this._shimmerTimer = setTimeout(tick, delay);
   },
 
   setMuted(m) {
@@ -15414,6 +15454,7 @@ const audio = {
     if (run && this.ctx.state !== 'running') this.ctx.resume();
     // erst nach dem Ausblenden anhalten, sonst knackt es
     if (!run && this.ctx.state === 'running') this._suspendTimer = setTimeout(() => this.ctx.suspend(), 300);
+    if (run) this._shimmerResume(); // Glitzern ruhte (Tab verborgen oder stumm)
   },
 
   /** Eigener Ausgang für eine Tonfolge, die sich als Ganzes abbrechen lässt (Lösungsmoment). */
@@ -15673,6 +15714,7 @@ const celebration = {
     this.colors = order.map(o => o.userData.element.color);
     this.t = 0;
     this.active = true;
+    sceneLoop.wake();
     this.chordDone = this.panelShown = false;
     // Hell, etwas höher als beim Treffer: die Ziele "antworten" nacheinander
     // Eigener Ausgang: beim Abbrechen verstummen auch die schon geplanten Töne und der Akkord
@@ -19530,10 +19572,17 @@ const adaptiveResolution = {
 };
 
 const REFLECT_GLOW_DIM = 0.3; // Leuchtkörper erscheinen in der Spiegelung gedämpft (wie die Strahlen)
+// Platte im Bild? Sonst braucht niemand die Spiegelung (Menü und Übersicht: Der Blick hebt sich in den Himmel); im
+// ersten Bild, in dem die Platte wieder auftaucht, ist sie schon neu
+const _reflectFrustum = new THREE.Frustum(), _reflectViewProj = new THREE.Matrix4();
+const _reflectPlate = new THREE.Box3(new THREE.Vector3(-PLATE / 2, -0.01, -PLATE / 2), new THREE.Vector3(PLATE / 2, 0.01, PLATE / 2));
+const _reflectDimmed = []; // gedämpfte Ziele (userData) dieses Bilds; ihre Werte in userData.reflectSave (ohne Allokation)
 
 function renderReflection() {
   if (!QUALITY.reflections) return;
   camera.updateMatrixWorld();
+  _reflectFrustum.setFromProjectionMatrix(_reflectViewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+  if (!_reflectFrustum.intersectsBox(_reflectPlate)) return;
   floorTop.updateMatrixWorld();
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
@@ -19548,19 +19597,22 @@ function renderReflection() {
   bu.uCore.value = 0.045; bu.uGlow.value = 0.09; bu.uIntensity.value = 0.45; bu.uCalm.value = 1;
   // Leuchtende Edelsteine ebenso gedämpft spiegeln: ihr HDR-Kern würde sonst als harte, weisse Kontur erscheinen
   // (Werte sichern und exakt wiederherstellen – kein Teilen, damit sich nichts aufschaukeln kann)
-  const dimmed = [];
   for (const obj of game.objects.values()) {
     const u = obj.userData;
     if (u.element.type !== 'target') continue;
-    dimmed.push([u, u.core.material.color.clone(), u.gem.material.emissiveIntensity]);
+    const save = u.reflectSave ??= { core: new THREE.Color(), emissive: 0 };
+    save.core.copy(u.core.material.color);
+    save.emissive = u.gem.material.emissiveIntensity;
+    _reflectDimmed.push(u);
     u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
     u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
   }
   reflector.onBeforeRender(renderer, scene, camera);
-  for (const [u, core, emissive] of dimmed) {
-    u.core.material.color.copy(core);
-    u.gem.material.emissiveIntensity = emissive;
+  for (const u of _reflectDimmed) {
+    u.core.material.color.copy(u.reflectSave.core);
+    u.gem.material.emissiveIntensity = u.reflectSave.emissive;
   }
+  _reflectDimmed.length = 0;
   bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity; bu.uCalm.value = 0;
   background.visible = backgroundVisible;
   floorTop.visible = true;
@@ -20235,11 +20287,16 @@ window.addEventListener('keydown', (e) => {
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
  * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
  * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
- * der Kamera), die Bühne der Geschichte das Feld verdeckt oder das Menü offen ist (ausser der Blick hebt sich gerade).
+ * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Steht der Blick im Himmel (Menü, Übersicht), 10
+ * (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
  */
 const frameRate = {
   activeFps: 60,
   idleFps: 30,
+  // Menü und Übersicht offen, der Blick steht im Himmel: Dort bewegt sich nur noch wenig und langsam (Funkeln der
+  // Sterne, Schweben der Kamera; Bestandsaufnahme Ticket 06 der Leistung: je Bild höchstens 5/255 auf unter 0,1 % der
+  // Pixel), 10 Bilder/s reichen
+  skyFps: 10,
   activeUntil: 0,     // performance.now(), bis wann eine Eingabe als "aktiv" gilt
   vsync: 1000 / 60,   // Bildschirmtakt: kürzester rAF-Abstand im letzten Messfenster (übersprungene Bilder sind billig
                       // und kommen genau im Takt; gerenderte können länger dauern)
@@ -20249,6 +20306,8 @@ const frameRate = {
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
+  /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne. */
+  skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length; },
   busy(ts) {
     // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
     if (story.covered || story.choosing && !story.tweens.length) return false;
@@ -20279,7 +20338,7 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
-    const fps = this.busy(ts) ? this.activeFps : this.idleFps;
+    const fps = this.busy(ts) ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
     const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
@@ -20292,8 +20351,8 @@ const frameRate = {
 for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
 }
-// Eingaben wecken die Hauptschleife (sceneLoop; Ziehen bewegt erst ab pointermove, das Drücken weckt schon)
-for (const type of ['pointerdown', 'wheel', 'keydown', 'touchstart']) {
+// Eingaben wecken die Hauptschleife (sceneLoop): Drücken, Ziehen und Hover (pointermove), Loslassen, Rad, Tasten
+for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => sceneLoop.wake(), { passive: true, capture: true });
 }
 window.addEventListener('resize', () => { frameRate.poke(500); sceneLoop.wake(true); }); // Render-Targets neu: aufwärmen
@@ -20335,11 +20394,14 @@ function frame(ts) {
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
   const dt = loop.last === null ? 1 / 60 : Math.min((ts - loop.last) / 1000, MAX_DT);
   loop.last = ts;
-  loop.still = 0;
+  if (loop.ambient() || loop.pending()) loop.still = 0; else loop.still++;
   const t0 = leistung.bildBeginn(); // Messwerkzeug: CPU-Zeit von frame() und Zeichenzeit (nur mit ?perf)
   animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
   window.__prisma.ticks++;
   draw(dt, t0);
+  // nichts bewegt sich mehr: ruhen, bis wake() (das letzte Bild bleibt stehen; die Bilder bis hierher zeigen auch, was
+  // ohne Weckruf geändert wurde)
+  if (loop.still >= REST_STEPS) { loop.awake = false; return; }
   requestAnimationFrame(frame);
 }
 
@@ -20411,6 +20473,7 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
+    sceneLoop.wake(true); // ruht die Schleife (mit ?t= steht die Szene), den neuen Stand zeichnen
   },
   zeige(index) {
     if (!(index >= 0 && index < LEVELS.length)) throw new Error(`zeige: kein Level ${index}`);
