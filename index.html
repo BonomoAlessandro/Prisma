@@ -7948,7 +7948,7 @@ const LEVELS_3D = [
 /**
  * Noas Geschichte (Spec .scratch/noa-geschichte/, «Daten»): je Grad die 6 Welten in der Reihenfolge der Kapitel
  * (STORY_CHAPTERS: Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne), je mit den Schlüsseln (name) ihrer 10 Level in der
- * Reihenfolge der Reise. Die Level stehen in LEVELS, mit dem Titel, den das Spiel zeigt (titel). Zwischen
+ * Reihenfolge des Durchgangs. Die Level stehen in LEVELS, mit dem Titel, den das Spiel zeigt (titel). Zwischen
  * GESCHICHTE:BEGIN und GESCHICHTE:END schreibt tools/geschichte.mjs spiel (aus tools/geschichte/wahl.json).
  */
 const STORY_LEVELS = {
@@ -8681,7 +8681,7 @@ function satelliteFrame(m, center, { turn, up, axes, angle }, wide) {
 }
 
 /* =====================================================================
-   SONNENSYSTEM — zweiter Hintergrund (umschaltbar, siehe skyTheme)
+   SONNENSYSTEM — Hintergrund der Planeten (aus dem Code, siehe skyTheme)
    Das Brett schwebt über der Sonne, die Planeten kreisen um beide. Grössen und Abstände sind gestaucht (sonst wären
    die inneren Planeten winzige Punkte und Neptun weit ausserhalb des Bildes), die Umlaufzeiten gestaffelt wie in
    echt, aber zusammengestaucht (Wurzel der echten Verhältnisse). Die äusseren Bahnen liegen tiefer: So ziehen alle
@@ -8710,7 +8710,7 @@ const SOLAR = {
 
 const solarUniforms = {
   uSun: { value: new THREE.Vector3(0, SOLAR.sunY, 0) },
-  uFade: { value: 0 },  // 0 … 1 beim Umschalten (skyTheme)
+  uFade: { value: 0 },  // 0 … 1 beim Überblenden (skyTheme)
   uTime: { value: 0 },
 };
 
@@ -8928,11 +8928,12 @@ const solar = (() => {
 scene.add(solar.group);
 
 /* =====================================================================
-   SKYBOX AUS BLENDER — Hintergründe, die in Blender (Cycles) als Panorama entstehen (tools/blender/, umschaltbar, siehe
-   skyTheme). Jede steht mit einem Manifest im Register backgrounds/skies.js (erzeugt von tools/blender/pack.mjs, Felder
-   in tools/sky-schema.mjs). Ihre Bilder liegen als Skripte mit Data-URLs in backgrounds/<id>/, weil Chrome Bilder aus
-   file:// nicht in WebGL-Texturen lässt, und laden erst bei der Wahl: base (ganzes Equirect, Tiefe, Daten der Ebenen,
-   jedes Gerät) und auf dem Desktop bands (hoch aufgelöste Streifen für den Blick nach unten).
+   SKYBOX AUS BLENDER — Hintergründe, die in Blender (Cycles) als Panorama entstehen (tools/blender/; welchen das Spiel
+   zeigt, bestimmt die Welt, siehe skyTheme). Jede steht mit einem Manifest im Register backgrounds/skies.js (erzeugt
+   von tools/blender/pack.mjs, Felder in tools/sky-schema.mjs). Ihre Bilder liegen als Skripte mit Data-URLs in
+   backgrounds/<id>/, weil Chrome Bilder aus file:// nicht in WebGL-Texturen lässt, und laden erst bei der Wahl: base
+   (ganzes Equirect, Tiefe, Daten der Ebenen, jedes Gerät) und auf dem Desktop bands (hoch aufgelöste Streifen für den
+   Blick nach unten).
    Parallaxe: Das Panorama ist von einem Punkt über dem Brett aus gerendert (center). Es liegt nicht auf einer Kugel um
    die Kamera, sondern auf einem Netz um diesen Punkt, jede Ecke so weit draussen wie die Szene in Blender (Tiefe im
    Log-Raum geglättet, sonst rissen Kanten auf). Der Shader rechnet die Richtung vom Mittelpunkt zum Punkt auf dem Netz
@@ -15385,7 +15386,7 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
 /**
  * Speicherstand von Noas Geschichte (Spec .scratch/noa-geschichte/, «Speicherstand»): je Grad unter prisma.noa.<grad>
  * (Leerzeichen als Bindestrich: prisma.noa.sehr-schwer) ein JSON { platz, geloest, gesehen, geschafft }. platz: das
- * Level, das dran ist (0 … 59 in der Reise des Grads); geloest: die gelösten Level (Namen, nicht Plätze); gesehen: die
+ * Level, das dran ist (0 … 59 im Durchgang des Grads); geloest: die gelösten Level (Namen, nicht Plätze); gesehen: die
  * Momente, die nur beim ersten Mal kommen (prolog, angebot, dorf und die Einstiege in die Welten unter der Kennung
  * ihrer Station, etwa meer); geschafft: das Finale ist gesehen. Weitere Felder bleiben beim Speichern erhalten
  * (gespielt; dorf, das Kapitel «Im Dorf», prüft story.setGrade über storyDorfStand). Die Bestwerte je Level liegen
@@ -15398,7 +15399,7 @@ const progress = {
   lastKey: 'prisma.noa.zuletzt',
   read(key) { try { return localStorage.getItem(key); } catch { return null; } },
   write(key, value) { try { localStorage.setItem(key, value); } catch { /* privates Fenster o. Ä. */ } },
-  /** Stand eines Grads (count: Zahl der Level seiner Reise); fehlt er oder ist er unlesbar, von vorn. */
+  /** Stand eines Grads (count: Zahl der Level seines Durchgangs); fehlt er oder ist er unlesbar, von vorn. */
   load(grad, count) {
     let s = null;
     try { s = JSON.parse(this.read(this.keyOf(grad)) || 'null'); } catch { /* von vorn */ }
@@ -15477,10 +15478,9 @@ function changeLevel(index) {
   adaptiveResolution.hold(FLOW.outDuration + waveLength() + 0.2); // Schatten-Updates jeden Frame
 }
 
-/** Relativ blättern; während des Versinkens zählt das bereits gewählte Ziel-Level. */
-function stepLevel(delta) {
-  const target = (flow.state === 'out' ? flow.next : game.levelIndex) + delta;
-  changeLevel(target);
+/** Level neu starten (Knopf, R); während des Versinkens zählt das bereits gewählte Ziel-Level. */
+function restartLevel() {
+  changeLevel(flow.state === 'out' ? flow.next : game.levelIndex);
 }
 
 /** Neues Level aufbauen und als Welle herauswachsen lassen. */
@@ -15599,7 +15599,7 @@ const ui = {
   canStart: false, // Hintergrund hinter dem Startbildschirm geladen (siehe init)
 
   init() {
-    $('btn-restart').addEventListener('click', () => stepLevel(0));
+    $('btn-restart').addEventListener('click', () => restartLevel());
     this.sound.addEventListener('click', () => this.toggleSound());
     $('btn-menu').addEventListener('click', () => story.toMenu());
     this.overview.addEventListener('click', () => story.toOverview());
@@ -16319,8 +16319,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   /** Alle Welten untereinander (Desktop), sonst eine Welt je Seite. Die Grenze steht nur hier: das CSS richtet sich
    * nach data-modus am root */
   const ALLE = matchMedia('(min-width: 1180px) and (min-height: 600px)');
-  /** Wischen und Blättern wie in der bisherigen Levelauswahl (INPUT.swipeMin, swipeSlope, dragThresholdTouch,
-   * PAGE_SLIDE im Spiel) */
+  /** Wischen und Blättern mit den Werten der früheren Levelauswahl (bis Ticket 04 im Spiel) */
   const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
   /** wie GRAD_ANZEIGE im Spiel */
   const GRADE = {
@@ -16842,8 +16841,8 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
    10 Leveln). Am Kapitelende steigen die Strahlen der Ziele zu einem Punkt am Himmel, ein Träger nimmt ihn mit in die
    nächste Welt (travel). Ganz oben antwortet der Polarstern: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn
    blinken (Epilog auf der Bühne, createStoryScene).
-   Nach dem Startbildschirm wählt der Spieler im Menü einen Grad (createMenu, Ticket 05); jeder Grad hat seine eigene
-   Reise (STORY_LEVELS) und seinen eigenen Stand (progress, prisma.noa.*): Platz, gelöste Level, gesehene Momente.
+   Nach dem Startbildschirm wählt der Spieler im Menü einen Grad (createMenu, Ticket 05); jeder Grad hat seinen eigenen
+   Durchgang (STORY_LEVELS) und seinen eigenen Stand (progress, prisma.noa.*): Platz, gelöste Level, gesehene Momente.
    Prolog und Einstiege in die Welten kommen je Grad nur beim ersten Mal. Nach dem Prolog wählt der Spieler «Üben»
    (Kapitel «Im Dorf», das Tutorial, STORY_DORF) oder «Gleich los». Prolog, Kapitel «Im Dorf» und Einstiege lassen
    sich überspringen, die Reisen nicht (Entscheide 10, 28). Neuladen setzt dort fort, wo der Grad steht.
@@ -17422,7 +17421,7 @@ const story = {
   replay: false,      // Wiederholen (Entscheid 16): gelöste Level ohne Einstieg, Reise und Untertitel; der Platz
                       // im Speicherstand bleibt, bis wieder ein ungelöstes Level dran ist
   outside: false,     // ein Level ausserhalb der Geschichte (Testschnittstelle zeige): ohne Stand und Kopfzeile
-  steps: [],          // je Level der Reise des Grads { c: Kapitel, index: Platz in LEVELS }
+  steps: [],          // je Level des Durchgangs im Grad { c: Kapitel, index: Platz in LEVELS }
   step: 0,            // Level, das gerade läuft (der Platz im Speicherstand)
   inDorf: false,      // eine Übung «Im Dorf» läuft (Ticket 07), dann ist uebung das Level statt steps[step]; mit
                       // replay als Wiederholen aus der Übersicht
@@ -17516,9 +17515,9 @@ const story = {
   },
   seen(moment) { return this.stand.gesehen.includes(moment); },
   /**
-   * Ein Level der Reise ist gelöst (beim Lösen, updateFlow; stats: flow.solveStats): gelöst merken und die Bestwerte
-   * nachführen, auch beim Wiederholen. Zurück, was besser wurde ({ neueBestzeit, wenigerDrehungen }, für «Gelöst»),
-   * ausserhalb der Geschichte null.
+   * Ein Level des Durchgangs ist gelöst (beim Lösen, updateFlow; stats: flow.solveStats): gelöst merken und die
+   * Bestwerte nachführen, auch beim Wiederholen. Zurück, was besser wurde ({ neueBestzeit, wenigerDrehungen }, für
+   * «Gelöst»), ausserhalb der Geschichte null.
    */
   markSolved(index, stats) {
     if (!this.drives(index)) return null;
@@ -17567,10 +17566,11 @@ const story = {
   },
   /**
    * Stand je Grad für das Menü (createMenu): neu, begonnen (ab dem Prolog; Welt des Platzes, vor dem Bergwald das Dorf,
-   * gelöste Level der Reise) oder geschafft. «Weiter» (Entscheid 25) führt zum zuletzt gespielten unter den begonnenen
-   * Graden: dem zuletzt gewählten, wenn er begonnen ist, sonst dem mit dem jüngsten Speichern (gespielt; ohne Zeit
-   * zählt ein Stand als ältester). «Von vorn» und «geschafft» nehmen einen Grad aus dieser Wahl. hervorheben: direkt
-   * nach dem Epilog der nächstschwerere, noch nicht geschaffte Grad nach dem zuletzt gewählten (Entscheid 14).
+   * gelöste Level des Durchgangs) oder geschafft. «Weiter» (Entscheid 25) führt zum zuletzt gespielten unter den
+   * begonnenen Graden: dem zuletzt gewählten, wenn er begonnen ist, sonst dem mit dem jüngsten Speichern (gespielt;
+   * ohne Zeit zählt ein Stand als ältester). «Von vorn» und «geschafft» nehmen einen Grad aus dieser Wahl.
+   * hervorheben: direkt nach dem Epilog der nächstschwerere, noch nicht geschaffte Grad nach dem zuletzt gewählten
+   * (Entscheid 14).
    */
   menuStand(hervorheben = false) {
     const grade = {}, gespielt = {};
@@ -18871,7 +18871,7 @@ window.addEventListener('keydown', (e) => {
     e.preventDefault();
     ui.advance();
   } else if (e.code === 'KeyR') {
-    stepLevel(0);
+    restartLevel();
   } else if (e.code === 'KeyC') {
     if (flow.state !== 'play') return;
     const cycle = [7, 1, 2, 4, 3, 5, 6];
@@ -19174,9 +19174,11 @@ function animate(t, dt) {
   updateTargetGoals();
 }
 
+// Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die
+// Geschichte lässt kein Level überspringen, ADR 0005; Level ausserhalb zeigt __prismaDebug.zeige)
 window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
-  levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', goto: (i) => changeLevel(i),
-  start: () => ui.start(), celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
+  levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', start: () => ui.start(),
+  celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
   skyReady: () => skyTheme.ready };
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
