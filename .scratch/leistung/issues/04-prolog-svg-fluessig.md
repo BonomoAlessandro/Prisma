@@ -214,3 +214,50 @@ später auf das Werkzeug aus 01 umgestellt oder entfernt werden.
 Stil: Deutsch, «ss», Kommentare knapp und erklärend; README-Einträge (Messung, `chrome.mjs` mit `fenster`/`on`)
 passen. Tests nach dem Fix: `node tests/logic.test.mjs` (2032 bestanden), `node tests/golden.mjs`, `tests/geschichte-probe.mjs --grad leicht
 --finale leicht` mit GPU: bestanden, Konsole ohne Fehler, Epilog → Menü längste Lücke 19 ms.
+
+### 31.10.2026 – Nachbesserung nach Review
+
+**1. Hänger am Ende jeder Fahrt (behoben).** Ursache: Im Bild, in dem eine Fahrt endete, kam dreierlei zusammen.
+Die Animation der Ebenen war fertig, also rasterte Chrome jede Ebene in ihrer neuen (Ruhe-)Skalierung nach. `stelle()`
+setzte `--rs` neu, also mussten alle sechs Ebenen neu zeichnen. Und `vorbereiten(next)` legte die nächste Fahrt an,
+also noch einmal Rastern in deren grösster Skalierung. Alle sechs Ebenen auf einmal, genau beim Einblenden des
+Untertitels. Belegt dadurch, dass genau diese drei Dinge aus dem Endbild herausgenommen den Hänger beseitigen (Messung
+unten, «alt» gegen «neu»).
+Änderung (`createStoryScene`):
+- Eine Fahrt hält ihr Zielbild danach noch 10 min (`HALTEN`, letzter Keyframe), die Animation läuft also weiter und
+  Chrome rastert am Ende nicht nach. Wann die Fahrt fertig ist, sagt eine Animation ohne Ziel (`uhr`, mit Tempo).
+- Nach dem Halt `HALT_MS` = 400 ms warten, dann **je Ebene ein Schritt alle 90 ms** (`gestaffelt`, Reihenfolge so,
+  dass die teuren Ebenen nicht nebeneinander liegen): `--rs` dieser Ebene setzen und ihre vorbereitete Fahrt anlegen
+  (`ebeneAnlegen`; die alte Animation der Ebene gibt sie dabei ab). So rastert jedes Bild höchstens eine Ebene neu.
+  Tippt man vorher, legt `moveTo` die fehlenden Ebenen sofort an. Ohne nächste Einstellung (letzte) nur `--rs`,
+  ebenso gestaffelt.
+
+Gemessen mit dem Skript des Reviewers (`review04/mess.mjs`, Kopie mit `--seite`), sichtbares Fenster, jetzt mit
+`--force_high_performance_gpu` (Quadro T2000) aus Ticket 01; je zwei Läufe, Median; «Ende» = längste Lücke in den
+400 ms nach dem Ende einer Fahrt; vorher = 963177d, alt = 60afae5, neu = dieser Stand.
+
+| Lauf | Ende Median / Max vorher | alt | **neu** | Bilder > 33 ms vorher / alt / neu |
+|---|---|---|---|---|
+| Prolog Desktop 1920 × 953 | 50 / 50 | 117 / 200 | **17 / 17** | 750 / 31 / 9 |
+| Epilog Desktop | 34 / 100 | 67 / 184 | **17 / 17** | 340 / 12 / 8 |
+| Prolog Handy ×4 | 50 / 51 | 150 / 167 | **34 / 50** | 929 / 551 / 391 |
+| Epilog Handy ×4 | 50 / 67 | 117 / 151 | **50 / 50** | 390 / 304 / 320 |
+
+Desktop: Fahrtenden ohne Bild über 33 ms (alle 17 ms). Gedrosselt nicht schlechter als der Ausgangsstand. Was bleibt,
+ist das erste Bild der Bühne (100–270 ms, Rastern beim Einblenden, siehe Ticket 03) und gedrosselt einmal ein Start
+einer Epilog-Fahrt mit 117–133 ms (einer von zwei Läufen).
+
+**2. Linien werden beim Halt dünner (nicht geändert).** Mit der Staffelung werden sie jetzt 0,4–0,9 s nach dem Halt
+Ebene für Ebene dünn statt alle im Endbild. Das geometrische Mittel beim Start der Fahrt ginge nicht ohne Kosten: `--rs`
+zu ändern heisst Neurastern der Ebene, beim Start der Fahrt also genau der Hänger, den das Vorbereiten vermeidet; im
+Ruhepunkt gesetzt, stimmen die Linien dort nicht mehr. Offen für die Messrunde (Ticket 07), falls es auf dem Poco
+auffällt.
+
+**3. JS-Abschnitte gedrosselt (nicht geändert)**, bleibt für die Messrunde 07 (Ideen oben).
+
+Zusammengeführt: Ticket 01 (`9d02f3f`), Konflikt in `tools/chrome.mjs` vereint (`maximiert`, `Browser.setWindowBounds`,
+`--disable-background-timer-throttling`, `--force_high_performance_gpu`, `--window-position=0,0`, `gpu || fenster`
+aus 01; `--disable-features=CalculateNativeWinOcclusion` und `on(method, fn)` aus 04).
+
+Tests: `node tests/logic.test.mjs` (2033 bestanden), `node tests/golden.mjs`, `tests/geschichte-probe.mjs --grad leicht
+--finale leicht` (Desktop und `--handy`), `--quer --grad leicht`, `tests/offline.mjs`: alle grün, Konsole ohne Fehler.
