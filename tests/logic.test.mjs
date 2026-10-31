@@ -873,6 +873,11 @@ console.log('Offline');
     assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
     assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
   });
+  test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+    const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
+    assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
+    assert.equal(vm.runInContext('APP_VERSION', sw), seite);
+  });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
     const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));
     assert.equal(vm.runInContext('SKIES', sw), createHash('sha256').update(registry).digest('hex').slice(0, 8));
