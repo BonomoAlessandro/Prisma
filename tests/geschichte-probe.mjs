@@ -16,16 +16,19 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender]
-//   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --grad: die Grade des Durchgangs
+//           [--dorf-raender] [--ganz] [--groesse 360x640]
+//   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
+//   --handy, Bilder unter handy-<b>x<h>-…); --grad: die Grade des Durchgangs
 //   («sehr schwer» als sehr-schwer); --welten: so viele Welten je Durchgang (Vorgabe 2, mit der Reise in die nächste);
 //   --finale: dazu das Finale in diesem Grad; --menue: dazu der Ablauf im Menü; --start: nur das gehaltene Enter;
 //   --uebersicht: dazu Übersicht und Wiederholen; --dorf: dazu «Im Dorf»; --dorf-raender: Randfälle des Dorfs (Review
-//   Ticket 07, etwa 5 min). Ohne --grad, --finale, --menue, --start, --uebersicht, --dorf und --dorf-raender alle vier
-//   Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü etwa 3 min, die
-//   Übersicht etwa 4 min, das Dorf etwa 6 min. Zeitrahmen: jede
-//   Anfrage an Chrome höchstens 30 s, der ganze Lauf höchstens 14 min; dann schliesst die Probe Chrome und bricht mit
-//   Fehler ab.
+//   Ticket 07, etwa 5 min); --ganz: statt der ersten Welten der ganze Durchgang je Grad in einer Sitzung, vom Menü bis
+//   zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder Zwischenszene (Abnahme
+//   Ticket 08, siehe ganzerDurchgang; ohne --grad nur Leicht). Ohne --grad, --finale, --menue, --start, --uebersicht,
+//   --dorf, --dorf-raender und --ganz alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü etwa 3 min,
+//   die Übersicht etwa 4 min, das Dorf etwa 6 min, mit --ganz etwa 7 min je Grad. Zeitrahmen: jede Anfrage an Chrome
+//   höchstens 30 s, der ganze Lauf höchstens 14 min (mit --ganz 14 min je Grad); dann schliesst die Probe Chrome und
+//   bricht mit Fehler ab.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -47,19 +50,24 @@ const menue = args.includes('--menue');
 const uebersichtProbe = args.includes('--uebersicht');
 const dorfProbe = args.includes('--dorf');
 const dorfRaenderProbe = args.includes('--dorf-raender');
+const ganz = args.includes('--ganz');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
-  : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe ? [] : GRADE;
+  : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe ? [] : GRADE;
 const welten = +(wert('--welten') ?? 2);
+const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
 if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 && welten <= 5)
-  || args.includes('--handy') && args.includes('--quer')) {
-  console.error('Aufruf: node tests/geschichte-probe.mjs [--handy | --quer] [--grad leicht,mittel,…] [--welten 1–5] '
-    + '[--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]');
+  || args.includes('--handy') && args.includes('--quer') || ganz && args.includes('--welten')
+  || args.includes('--groesse') && !(groesse && args.includes('--handy'))) {
+  console.error('Aufruf: node tests/geschichte-probe.mjs [--handy [--groesse 360x640] | --quer] [--grad leicht,…] '
+    + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]');
   process.exit(1);
 }
 requireQuiet();
 
-const view = args.includes('--handy') ? { name: 'handy', width: 390, height: 844, dpr: 2, phone: true }
+const view = groesse ? { name: `handy-${groesse[1]}x${groesse[2]}`, width: +groesse[1], height: +groesse[2], dpr: 2,
+  phone: true }
+  : args.includes('--handy') ? { name: 'handy', width: 390, height: 844, dpr: 2, phone: true }
   : args.includes('--quer') ? { name: 'quer', width: 844, height: 390, dpr: 2, phone: true }
     : { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false };
 const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
@@ -70,7 +78,7 @@ const bildzeiten = []; // je Übergang: Name, längste Lücke, Lücken über 50 
 
 // Zeitrahmen: eine Anfrage, auf die Chrome nicht antwortet, bricht nach FRIST_MS ab; der ganze Lauf nach GESAMT_MS
 // (sonst hielte ein hängender Lauf die Sperre von leise.sh)
-const FRIST_MS = 30000, GESAMT_MS = 14 * 60000;
+const FRIST_MS = 30000, GESAMT_MS = 14 * (ganz ? grade.length : 1) * 60000;
 const chrome = await startChrome({ ...view, gpu: true });
 const { logs, close } = chrome;
 setTimeout(async () => {
@@ -111,14 +119,37 @@ const slug = (g) => g.replace(' ', '-');
 const stand = (g) => ev(`JSON.parse(localStorage.getItem('prisma.noa.${slug(g)}') || 'null')`);
 const karte = (g) => `#menue .menue-wahl[data-menue-fokus="wahl:${g}"]`;
 
-/** Klick (Desktop) bzw. Tippen mit dem Finger (Handy) auf die Mitte eines sichtbaren Elements. */
+/**
+ * Klick (Desktop) bzw. Tippen mit dem Finger (Handy) auf die Mitte eines sichtbaren Elements. Liegt es ausserhalb des
+ * Bildschirms (kleine Handys: «Schliessen» unter den Kacheln der Übersicht), scrollt die Probe erst dorthin wie ein
+ * Spieler: mit dem Finger wischen bzw. dem Mausrad, nie über die Seite selbst.
+ */
 async function tippe(selector, was = selector) {
   await until(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return false;
     const r = el.getBoundingClientRect(); return r.width > 0 && !el.closest('[inert]')
       && getComputedStyle(el).visibility !== 'hidden'; })()`, `${was} bereit`, 30);
-  const { x, y } = await ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)})
+  const mitte = () => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)})
     .getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+  let { x, y } = await mitte();
+  for (let n = 0; n < 6 && (y < 8 || y > view.height - 8); n++) {
+    const weg = Math.sign(y - view.height / 2) * Math.min(Math.abs(y - view.height / 2), view.height * 0.6);
+    await scrolle(view.width / 2, view.height / 2, weg);
+    ({ x, y } = await mitte());
+  }
+  pruefe(y >= 8 && y <= view.height - 8, `${was}: nicht auf den Bildschirm zu scrollen (y ${Math.round(y)})`);
   await tippeBei(x, y);
+}
+/** Inhalt unter (x, y) um dy Pixel nach oben schieben (dy > 0: weiter unten Liegendes kommt herauf). */
+async function scrolle(x, y, dy) {
+  if (view.phone) {
+    const zug = (type, yy) => send('Input.dispatchTouchEvent', { type,
+      touchPoints: type === 'touchEnd' ? [] : [{ x, y: yy }] });
+    const y0 = y + dy / 2;
+    await zug('touchStart', y0);
+    for (let k = 1; k <= 10; k++) { await zug('touchMove', y0 - dy * k / 10); await sleep(16); }
+    await zug('touchEnd');
+  } else await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x, y, deltaX: 0, deltaY: dy });
+  await sleep(700); // Ausrollen
 }
 async function tippeBei(x, y) {
   if (view.phone) {
@@ -315,7 +346,7 @@ async function angebot(was, wahl, { mitTaste = false, name = null } = {}) {
 }
 
 /** Ein Level spielen: warten, bis es läuft, Kopfzeile prüfen, lösen, warten auf «gelöst», Weiter. */
-async function level(g, platz, { bilder = false } = {}) {
+async function level(g, platz, { bilder = false, messen = false } = {}) {
   const w = Math.floor(platz / 10), k = platz % 10;
   await until(`${D}.story.step === ${platz} && window.__prisma.playing()`, `${g}: Level ${platz + 1} läuft`);
   await kopfzeile(g, platz);
@@ -323,6 +354,7 @@ async function level(g, platz, { bilder = false } = {}) {
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
   if (bilder || k === 9) { await sleep(600); await bild(`${slug(g)}-${platz + 1}-geloest`); }
+  if (messen) await messe(); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
 }
 async function kopfzeile(g, platz) {
@@ -467,6 +499,111 @@ async function finale(g) {
   await level(naechster, 0, { bilder: true });
   pruefe((await stand(naechster))?.gesehen?.join() === 'prolog,angebot,wald',
     `${naechster}: Stand nach dem ersten Level`);
+}
+
+/**
+ * Der ganze Durchgang eines Grads in einer Sitzung (--ganz, Abnahme Ticket 08): neuer Stand, Menü → Prolog (ohne die
+ * Ausnahme für das erste Zeichnen der Bühne), «Gleich los» → Einstieg in den Bergwald, alle 60 Level mit den fünf
+ * Reisen, mitten in der Wüste (vor Level 26) Neuladen und «Weiter» an denselben Platz ohne Einstieg, Finale, Epilog bis
+ * «Zum Menü» und ohne Neuladen ins Menü (der Grad geschafft, der nächstschwerere hervorgehoben). Gemessen wird jede
+ * Zwischenszene ab dem Klick, der sie auslöst, bis das nächste Level läuft (bzw. bis Angebot, Epilog, Knöpfe am Ende).
+ */
+async function ganzerDurchgang(g, erster) {
+  console.log(`${view.name}, ${g}: ganzer Durchgang`);
+  const naechster = GRADE[GRADE.indexOf(g) + 1] ?? null;
+  await laden();
+  if (erster) { await sleep(2500); await bild('menue-neu'); }
+  pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:leicht', `${g}: Fokus im neuen Menü`);
+  await messe();
+  await tippe(karte(g), `Karte ${g}`);
+  await sofortZu(`${g}: Beginnen`);
+  await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
+  await buehneDurch(`${slug(g)}-prolog`);
+  await ende(`${g}: Menü → Prolog bis zum Angebot`);
+  await messe();
+  await angebot(g, 'Gleich los');
+  await until(`${storyMode} === 'caption'`, `${g}: Einstieg`, 60);
+  pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
+    `${g}: Einstieg in den Bergwald`);
+  await sleep(1800);
+  await bild(`${slug(g)}-einstieg`);
+  await until(`${D}.story.step === 0 && window.__prisma.playing()`, `${g}: Level 1 läuft`);
+  await ende(`${g}: Gleich los → Einstieg Bergwald`);
+  for (let w = 0; w < 6; w++) {
+    for (let k = 0; k < 10; k++) {
+      if (w * 10 + k === 25) await neuladenMitten(g);
+      await level(g, w * 10 + k, { bilder: k === 0, messen: k === 9 });
+    }
+    if (w === 5) break;
+    await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
+      + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+    pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
+    await sleep(2500);
+    await bild(`${slug(g)}-reise-${w + 2}`);
+    await until(`${D}.story.step === ${(w + 1) * 10} && window.__prisma.playing()`, `${g}: in Welt ${w + 2}`, 90);
+    await ende(`${g}: Reise in Welt ${w + 2} (${WELT_MENUE[w + 1]})`);
+  }
+  // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
+  for (let n = 1; n <= 2; n++) {
+    await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `${g}: Finale, Satz ${n}`, 60);
+    pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe im Finale`);
+    await sleep(900);
+    await bild(`${slug(g)}-finale-${n}`);
+    await tippe('#story .caption .text', 'Untertitel');
+    await sleep(400);
+  }
+  await until(`${storyMode} === 'scene'`, `${g}: Epilog`, 60);
+  await ende(`${g}: Finale (Level 60 → Epilog)`);
+  await messe();
+  await sleep(2500);
+  await bild(`${slug(g)}-epilog`);
+  await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true });
+  await ende(`${g}: Epilog bis «Zum Menü»`);
+  const s = await stand(g);
+  pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
+  const knopf = await ev("[...document.querySelectorAll('#story .scene .actions button')].map(b => b.textContent)"
+    + '.join()');
+  pruefe(knopf === 'Zum Menü', `${g}: Knöpfe am Ende «${knopf}»`);
+  await ev('window.__ohneNeuladen = true');
+  await messe();
+  await tippe('#story .scene .actions button', 'Zum Menü');
+  await until(`${menueOffen} && ${storyMode} === false`, 'Menü nach dem Epilog', 10);
+  await sleep(2200);
+  await ende(`${g}: Epilog → Menü`);
+  pruefe(await ev('window.__ohneNeuladen === true'), `${g}: «Zum Menü» hat neu geladen`);
+  await bild(`${slug(g)}-zum-menue`);
+  const m = await ev(`(() => { const q = (s) => [...document.querySelectorAll(s)].map((e) => e.dataset.grad);
+    return { geschafft: q('#menue .menue-grad.menue-geschafft'), hervor: q('#menue .menue-grad.menue-hervor'),
+      fokus: document.activeElement?.dataset.menueFokus, kamera: ${D}.story.gaze }; })()`);
+  pruefe(JSON.stringify(m.geschafft) === JSON.stringify([g])
+    && JSON.stringify(m.hervor) === JSON.stringify(naechster ? [naechster] : []) && m.kamera === 1,
+  `${g}: Menü nach dem Epilog ${JSON.stringify(m)}`);
+}
+/** Mitten in der Wüste neu laden (25 Level gelöst): «Weiter» führt an denselben Platz, ohne Einstieg. */
+async function neuladenMitten(g) {
+  await ev('window.__vorher = true');
+  await send('Page.reload');
+  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await ev('document.fonts.ready.then(() => true)');
+  await geste(); // die erste Geste schaltet den Ton frei (gehört zum Start, nicht zum «Weiter»)
+  const fokus = await ev('document.activeElement?.dataset.menueFokus ?? null');
+  pruefe(fokus === 'weiter', `${g}: Fokus nach dem Neuladen auf ${fokus}`);
+  const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
+  pruefe(wohin === `${GRAD_TEXT[g]} · Wüste 25 / 60`, `${g}: Weiter nach dem Neuladen «${wohin}»`);
+  await sleep(1500);
+  await bild(`${slug(g)}-neuladen-menue`);
+  await messe();
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await sofortZu(`${g}: Weiter nach dem Neuladen`);
+  let einstieg = false;
+  for (let i = 0; i < 300 && !(await ev('window.__prisma.playing()')); i++) {
+    if (await ev(`${storyMode} === 'caption' || ${storyMode} === 'scene'`)) einstieg = true;
+    await sleep(100);
+  }
+  await ende(`${g}: Neuladen → Weiter (Wüste 26)`);
+  pruefe(!einstieg, `${g}: nach dem Neuladen ein Einstieg oder Prolog`);
+  const s = await stand(g);
+  pruefe(s?.platz === 25 && s.geloest.length === 25 && !s.geschafft, `${g}: Stand nach dem Neuladen ${JSON.stringify(s)}`);
 }
 
 /**
@@ -1464,7 +1601,7 @@ try {
   if (uebersichtProbe) await uebersichtAblauf();
   if (dorfProbe) await dorfAblauf();
   if (dorfRaenderProbe) await dorfRaender();
-  for (const [i, g] of grade.entries()) await durchgang(g, i === 0);
+  for (const [i, g] of grade.entries()) await (ganz ? ganzerDurchgang : durchgang)(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {
   pruefe(false, e.message);
