@@ -362,11 +362,20 @@
   #story .scene.prewarm { display: block; pointer-events: none; }
   #story .scene.prewarm .world { opacity: 0.002; }
   #story .scene.prewarm .sub, #story .scene.prewarm .skip { visibility: hidden; }
-  #story .scene .world { position: absolute; inset: 0; width: 100%; height: 100%; display: block; opacity: 0; transition: opacity 1.6s ease; }
+  #story .scene .world { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
   #story .scene.lit .world { opacity: 1; }
+  /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
+     Teile, die sich bewegen, drehen und skalieren um ihren Ort (left, top) */
+  #story .scene .ebene { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; transform: translateZ(0); }
+  #story .scene .ebene svg { position: absolute; display: block; overflow: visible; }
+  #story .scene .teil, #story .scene .atem, #story .scene .flacker { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+  #story .scene .bewegt { will-change: transform; }
+  /* funkelnde Sterne in Gruppen (matt und hell): eine Gruppe dunkelt bis auf etwa 0,12 der Helligkeit ihrer Sterne ab */
   #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
+  #story .scene .tw.hell { animation-name: story-twinkle-hell; }
   #story .scene .flk { animation: story-flicker 3.2s ease-in-out infinite; }
-  @keyframes story-twinkle { from { opacity: 0.12; } }
+  @keyframes story-twinkle { from { opacity: 0.26; } }
+  @keyframes story-twinkle-hell { from { opacity: 0.15; } }
   @keyframes story-flicker { 0%, 100% { opacity: 0.9; } 30% { opacity: 1; } 55% { opacity: 0.6; } 80% { opacity: 0.85; } }
   #story .scene .sub {
     position: absolute; left: 16px; right: 16px; bottom: max(7vh, calc(env(safe-area-inset-bottom) + 28px));
@@ -17186,6 +17195,17 @@ const STORY_EPILOG = [
  * vorbei als ferne (Parallaxe, p). Die Szene lebt: Sterne funkeln, Rauch steigt aus den Kaminen, Glühwürmchen
  * schwirren am Waldrand. Masse in der Ebene von Noa (p = 1): bei Zoom 1 ein Bild von 1600 × 900. Ohne SVG-Filter
  * (Unschärfe kostete bei jeder Kamerabewegung viel), Leuchten über radiale Verläufe.
+ *
+ * Gezeichnet wird so selten wie möglich (Ticket 04 von .scratch/leistung/): Jede Ebene ist eine eigene Ebene des
+ * Compositors (.ebene, ein SVG darin in Massen der Szene), die Kamera schiebt und skaliert sie per Web Animations
+ * (fahrt), ohne sie neu zu rastern. Gerastert wird eine Ebene je Fahrt einmal, in der grössten Skalierung der Fahrt
+ * (das macht Chrome für laufende Transform-Animationen so): Sie bleibt beim Zoom scharf. Damit das nicht beim Start der
+ * Fahrt geschieht, legt vorbereiten die nächste Fahrt schon beim Warten auf Tippen an (verzögert, im Startbild). Was
+ * sich klein bewegt (Glühwürmchen, Rauch, Schal, Atmen des Polarsterns, Flackern des Strahls), läuft als Animation von
+ * transform und opacity auf eigenen kleinen Ebenen, nach der Zeit der Bühne (time; mit speed schneller); funkelnde
+ * Sterne in wenigen Gruppen, flackernde Fenster einzeln per CSS. JavaScript läuft pro Bild (frame, höchstens 60-mal pro
+ * Sekunde) nur, solange es etwas bewegt: Tweens (Arm, Strahl, Blinken) und Glühwürmchen im Flug. Beim Warten auf
+ * Tippen läuft keins, ausgeblendet ruht alles.
  */
 function createStoryScene(host) {
   const rand = mulberry32(11);
@@ -17241,17 +17261,35 @@ function createStoryScene(host) {
     for (let x = x0; x < x1; x += r(s0, s1)) d += fir(x, base(x), r(h0, h1));
     return d;
   };
+  /**
+   * Strichbreite wie früher mit vector-effect non-scaling-stroke: in Pixeln, gleich bei jedem Zoom. Die Kamera skaliert
+   * die Ebenen jetzt im Compositor (ausserhalb des SVG); --rs ist ihre Skalierung im Ruhepunkt (stelle), während einer
+   * Fahrt wächst und schrumpft der Strich mit, im Ruhepunkt stimmt er wieder genau.
+   */
+  const strich = (w) => `stroke-width:calc(${w}px / var(--rs, 1))`;
   const rim = (pts, color, opacity, width = 1.2) =>
-    `<path d="${line(pts)}" fill="none" stroke="${color}" stroke-opacity="${opacity}" stroke-width="${width}" vector-effect="non-scaling-stroke"/>`;
+    `<path d="${line(pts)}" fill="none" stroke="${color}" stroke-opacity="${opacity}" style="${strich(width)}"/>`;
+  /** Ein Teil der Szene als eigenes SVG in Massen der Szene: Ausschnitt x, y, b, h (viewBox), dort auch platziert. */
+  const svg = (x, y, b, h, inhalt, cls = '', stil = '') =>
+    `<svg class="${cls}" width="${b}" height="${h}" viewBox="${x} ${y} ${b} ${h}" style="left:${x}px;top:${y}px;${stil}">${inhalt}</svg>`;
+  const BILD = (inhalt, cls = '', stil = '') => svg(0, 0, 1600, 900, inhalt, `bild ${cls}`, stil); // eine ganze Ebene (ragt über 1600 × 900 hinaus)
 
-  // Himmel: Verlauf, Milchstrasse, Sterne (einige funkeln), der Polarstern
+  // Himmel: Verlauf, Milchstrasse, Sterne (einige funkeln), der Polarstern. Die funkelnden Sterne liegen in acht
+  // Gruppen (je vier Takte, matte und helle getrennt), jede eine eigene kleine Ebene mit einer CSS-Animation, statt
+  // dutzender Animationen je Stern; ihr Takt richtet sich nach der Dauer, die der Stern früher hatte
+  const TW_TAKT = [[2.8, -0.4], [3.6, -2.9], [4.3, -1.6], [5.1, -4.4]]; // Dauer, Verzögerung (s)
+  const twinkle = TW_TAKT.flatMap(() => ['', '']);
   let stars = '', band = '';
   for (let i = 0; i < 300; i++) {
     const y = r(-950, 620);
     if (y > 420 && rand() < 0.6) continue; // zum Horizont hin dünner
-    const big = rand() < 0.07, twinkle = rand() < 0.25;
-    stars += `<circle cx="${n(r(-700, 2300))}" cy="${n(y)}" r="${(big ? r(1.3, 2.1) : r(0.4, 1.1)).toFixed(2)}" opacity="${r(0.3, 0.95).toFixed(2)}"` +
-      (twinkle ? ` class="tw" style="animation-delay:${(-r(0, 6)).toFixed(1)}s;animation-duration:${r(2.4, 5.5).toFixed(1)}s"` : '') + '/>';
+    const big = rand() < 0.07, twinkles = rand() < 0.25;
+    const cx = r(-700, 2300), radius = big ? r(1.3, 2.1) : r(0.4, 1.1), opacity = r(0.3, 0.95);
+    const circle = `<circle cx="${n(cx)}" cy="${n(y)}" r="${radius.toFixed(2)}" opacity="${opacity.toFixed(2)}"/>`;
+    if (!twinkles) { stars += circle; continue; }
+    r(0, 6); // früher die Verzögerung je Stern: gezogen bleibt sie, sonst verschöbe sich alles Weitere der Szene
+    const takt = Math.min(3, Math.floor((r(2.4, 5.5) - 2.4) / 3.1 * 4));
+    twinkle[takt * 2 + (opacity < 0.62 ? 0 : 1)] += circle;
   }
   for (let i = 0; i < 180; i++) {
     const x = r(-300, 2000), spread = (rand() + rand() + rand() - 1.5) * 110;
@@ -17282,10 +17320,13 @@ function createStoryScene(host) {
     [818, 54, 34, 22, [[-15, 12], [0, 12], [15, 12]], 1], [884, 40, 28, 18, [[-7, 10]], 1], [940, 30, 22, 15, [[0, 8]], 0],
     [1072, 48, 32, 21, [[-11, 12], [10, 12]], 1], [1128, 38, 26, 17, [[0, 10]], 0], [1174, 32, 22, 15, [], 1]];
   const chimneys = [];
-  let houses = '', glows = '';
+  let houses = '', glows = '', flicker = '';
   const windowAt = (x, y) => {
     if (rand() < 0.15) { houses += `<rect x="${n(x - 2.5)}" y="${n(y - 3)}" width="5" height="6" fill="#16162e"/>`; return; }
-    glows += `<circle cx="${n(x)}" cy="${n(y)}" r="17" fill="url(#s-win)"${rand() < 0.3 ? ` class="flk" style="animation-delay:${(-r(0, 3)).toFixed(1)}s"` : ''}/>`;
+    const glow = `<circle cx="${n(x)}" cy="${n(y)}" r="17" fill="url(#s-win)"/>`;
+    // flackernde Fenster: je ein eigenes kleines SVG mit der CSS-Animation (es sind nur wenige)
+    if (rand() < 0.3) flicker += svg(n(x) - 17, n(y) - 17, 34, 34, glow, 'flk', `animation-delay:${(-r(0, 3)).toFixed(1)}s`);
+    else glows += glow;
     houses += `<rect x="${n(x - 2.5)}" y="${n(y - 3)}" width="5" height="6" fill="#ffd28a"/>`;
   };
   for (const [x, w, h, roof, wins, chimney] of HOUSES) {
@@ -17296,14 +17337,14 @@ function createStoryScene(host) {
       chimneys.push([cx, cy - 10]);
     }
     houses += `<rect x="${x - w / 2}" y="${n(top)}" width="${w}" height="${h + 12}" fill="#0a0a1d"/><path d="${eave}Z" fill="#0d0d26"/>` +
-      `<path d="${eave}" fill="none" stroke="#3c4080" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+      `<path d="${eave}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>`;
     for (const [dx, dy] of wins) windowAt(x + dx, base - dy - 4);
   }
   { // Kirche: Turm mit Spitze und Kreuz, ein kleines Schiff daneben
     const base = yAt(hill, 1004) + 6, top = base - 76;
     houses += `<rect x="1015" y="${n(base - 30)}" width="26" height="42" fill="#0a0a1d"/><path d="M1013 ${n(base - 29)}L1028 ${n(base - 44)}L1043 ${n(base - 29)}Z" fill="#0d0d26"/>` +
       `<rect x="993" y="${n(top)}" width="22" height="88" fill="#0a0a1d"/><path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}Z" fill="#0d0d26"/>` +
-      `<path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}" fill="none" stroke="#3c4080" stroke-opacity="0.55" stroke-width="1" vector-effect="non-scaling-stroke"/>` +
+      `<path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>` +
       `<path d="M1004 ${n(top - 40)}v-11M999.5 ${n(top - 46)}h9" stroke="#0d0d26" stroke-width="2"/>`;
     glows += `<circle cx="1004" cy="${n(top + 20)}" r="15" fill="url(#s-win)"/>`;
     houses += `<circle cx="1004" cy="${n(top + 20)}" r="3.6" fill="#ffd28a"/>`;
@@ -17323,111 +17364,235 @@ function createStoryScene(host) {
     grass += `M${n(x - 6)} ${n(y)}L${n(x - 3)} ${n(y - r(8, 18))}L${n(x)} ${n(y)}L${n(x + 2)} ${n(y - r(10, 24))}L${n(x + 5)} ${n(y)}Z`;
   }
 
+  // ein Teil, der sich bewegt: Drehpunkt an (x, y), der Inhalt darum herum (Ausschnitt dx, dy, b, h um den Drehpunkt)
+  const teil = (cls, x, y, [dx, dy, b, h], inhalt, innen = '@') =>
+    `<div class="teil ${cls}" style="left:${x}px;top:${y}px">${innen.replace('@', svg(dx, dy, b, h, inhalt))}</div>`;
+  const twinkleSvgs = twinkle.map((s, i) => BILD(`<g fill="#fff">${s}</g>`, `tw${i % 2 ? ' hell' : ''}`,
+    `animation-duration:${TW_TAKT[i >> 1][0]}s;animation-delay:${TW_TAKT[i >> 1][1] - (i % 2) * 1.3}s`)).join('');
   host.insertAdjacentHTML('beforeend', `<div class="scene">
-    <svg class="world" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-      <defs>
-        <linearGradient id="s-sky" gradientUnits="userSpaceOnUse" x1="0" y1="-700" x2="0" y2="640"><stop offset="0" stop-color="#03040f"/><stop offset="0.45" stop-color="#080a24"/><stop offset="0.8" stop-color="#15163a"/><stop offset="1" stop-color="#28274f"/></linearGradient>
-        <radialGradient id="s-mw"><stop offset="0" stop-color="#c9cfff" stop-opacity="0.16"/><stop offset="1" stop-color="#c9cfff" stop-opacity="0"/></radialGradient>
-        <radialGradient id="s-ray" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="30"><stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="0.4" stop-color="#e8ecff" stop-opacity="0.35"/><stop offset="1" stop-color="#e8ecff" stop-opacity="0"/></radialGradient>
-        <radialGradient id="s-halo"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="0.08" stop-color="#eef0ff" stop-opacity="0.5"/><stop offset="0.25" stop-color="#cdd5ff" stop-opacity="0.16"/><stop offset="1" stop-color="#cdd5ff" stop-opacity="0"/></radialGradient>
-        <linearGradient id="s-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3070" stop-opacity="0"/><stop offset="0.5" stop-color="#2c3070" stop-opacity="0.5"/><stop offset="1" stop-color="#2c3070" stop-opacity="0"/></linearGradient>
-        <radialGradient id="s-win"><stop offset="0" stop-color="#ffb35a" stop-opacity="0.55"/><stop offset="0.4" stop-color="#ff9c3a" stop-opacity="0.16"/><stop offset="1" stop-color="#ff9c3a" stop-opacity="0"/></radialGradient>
-        <radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient>
-        <linearGradient id="s-beam" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff1cc" stop-opacity="0.42"/><stop offset="0.15" stop-color="#fff1cc" stop-opacity="0.2"/><stop offset="0.35" stop-color="#fff1cc" stop-opacity="0.07"/><stop offset="0.55" stop-color="#fff1cc" stop-opacity="0"/></linearGradient>
-        <linearGradient id="s-core" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffaf0" stop-opacity="0.95"/><stop offset="0.12" stop-color="#fffaf0" stop-opacity="0.4"/><stop offset="0.32" stop-color="#fffaf0" stop-opacity="0.06"/><stop offset="0.5" stop-color="#fffaf0" stop-opacity="0"/></linearGradient>
-        <radialGradient id="s-gw"><stop offset="0" stop-color="#e4ff8a" stop-opacity="0.9"/><stop offset="0.3" stop-color="#c2ff4a" stop-opacity="0.3"/><stop offset="1" stop-color="#c2ff4a" stop-opacity="0"/></radialGradient>
-        <radialGradient id="s-smoke"><stop offset="0" stop-color="#5c6190" stop-opacity="0.55"/><stop offset="0.6" stop-color="#5c6190" stop-opacity="0.2"/><stop offset="1" stop-color="#5c6190" stop-opacity="0"/></radialGradient>
-      </defs>
-      <g class="layer" data-p="0.06">
+    <div class="world" aria-hidden="true">
+      <div class="ebene" data-p="0.06">
+        ${BILD(`<defs>
+          <linearGradient id="s-sky" gradientUnits="userSpaceOnUse" x1="0" y1="-700" x2="0" y2="640"><stop offset="0" stop-color="#03040f"/><stop offset="0.45" stop-color="#080a24"/><stop offset="0.8" stop-color="#15163a"/><stop offset="1" stop-color="#28274f"/></linearGradient>
+          <radialGradient id="s-mw"><stop offset="0" stop-color="#c9cfff" stop-opacity="0.16"/><stop offset="1" stop-color="#c9cfff" stop-opacity="0"/></radialGradient>
+          <radialGradient id="s-ray" gradientUnits="userSpaceOnUse" cx="0" cy="0" r="30"><stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="0.4" stop-color="#e8ecff" stop-opacity="0.35"/><stop offset="1" stop-color="#e8ecff" stop-opacity="0"/></radialGradient>
+          <radialGradient id="s-halo"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="0.08" stop-color="#eef0ff" stop-opacity="0.5"/><stop offset="0.25" stop-color="#cdd5ff" stop-opacity="0.16"/><stop offset="1" stop-color="#cdd5ff" stop-opacity="0"/></radialGradient>
+          <linearGradient id="s-mist" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2c3070" stop-opacity="0"/><stop offset="0.5" stop-color="#2c3070" stop-opacity="0.5"/><stop offset="1" stop-color="#2c3070" stop-opacity="0"/></linearGradient>
+          <radialGradient id="s-win"><stop offset="0" stop-color="#ffb35a" stop-opacity="0.55"/><stop offset="0.4" stop-color="#ff9c3a" stop-opacity="0.16"/><stop offset="1" stop-color="#ff9c3a" stop-opacity="0"/></radialGradient>
+          <radialGradient id="s-gw"><stop offset="0" stop-color="#e4ff8a" stop-opacity="0.9"/><stop offset="0.3" stop-color="#c2ff4a" stop-opacity="0.3"/><stop offset="1" stop-color="#c2ff4a" stop-opacity="0"/></radialGradient>
+          <radialGradient id="s-smoke"><stop offset="0" stop-color="#5c6190" stop-opacity="0.55"/><stop offset="0.6" stop-color="#5c6190" stop-opacity="0.2"/><stop offset="1" stop-color="#5c6190" stop-opacity="0"/></radialGradient>
+        </defs>
         <rect x="-3000" y="-3000" width="7600" height="4400" fill="url(#s-sky)"/>
         <g transform="rotate(-16 900 150)">${milky}<g fill="#dfe3ff">${band}</g></g>
-        <g fill="#fff">${stars}</g>
-        <g class="polar"><circle r="64" fill="url(#s-halo)"/><g transform="rotate(12)" fill="url(#s-ray)"><path d="M0 -30L1.8 0L0 30L-1.8 0ZM-30 0L0 -1.8L30 0L0 1.8Z"/><path d="M0 -13L1 0L0 13L-1 0ZM-13 0L0 -1L13 0L0 1Z" transform="rotate(45)" opacity="0.6"/></g><circle r="3.4" fill="#fff"/></g>
-      </g>
-      <g class="layer" data-p="0.22">
-        <path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>${rim(far, '#8a90d8', 0.35)}
-        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>
-      </g>
-      <g class="layer" data-p="0.42">
-        <path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}
+        <g fill="#fff">${stars}</g>`)}
+        ${twinkleSvgs}
+        ${teil('polar', 1120, 150, [-64, -64, 128, 128], `<circle r="64" fill="url(#s-halo)"/><g transform="rotate(12)" fill="url(#s-ray)"><path d="M0 -30L1.8 0L0 30L-1.8 0ZM-30 0L0 -1.8L30 0L0 1.8Z"/><path d="M0 -13L1 0L0 13L-1 0ZM-13 0L0 -1L13 0L0 1Z" transform="rotate(45)" opacity="0.6"/></g><circle r="3.4" fill="#fff"/>`, '<div class="atem">@</div>')}
+      </div>
+      <div class="ebene" data-p="0.22">
+        ${BILD(`<path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>${rim(far, '#8a90d8', 0.35)}
+        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>`)}
+      </div>
+      <div class="ebene" data-p="0.42">
+        ${BILD(`<path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}
         <path d="${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}" fill="#101030"/>
-        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>
-      </g>
-      <g class="layer" data-p="0.68">
-        <path d="${area(hill)}" fill="#0d0d25"/>${rim(hill, '#2c3066', 0.5)}
+        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>`)}
+      </div>
+      <div class="ebene" data-p="0.68">
+        ${BILD(`<path d="${area(hill)}" fill="#0d0d25"/>${rim(hill, '#2c3066', 0.5)}
         <path d="${line(path)}" fill="none" stroke="#1b1b3b" stroke-width="3" stroke-linecap="round"/>
         <path d="${firRow(360, 650, [7, 15], [22, 52], (x) => yAt(hill, x) + 4)}${firRow(1215, 1580, [7, 14], [24, 58], (x) => yAt(hill, x) + 4)}${firRow(-700, 300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}${firRow(1600, 2300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}" fill="#0a0a1f"/>
-        <g>${glows}</g>${houses}${lanterns}
-        <g class="smoke"></g>
-      </g>
-      <g class="layer" data-p="1">
-        <path d="${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}" fill="#0a0a20"/>
+        <g>${glows}</g>`)}${flicker}${svg(450, 480, 780, 240, houses + lanterns)}
+        <div class="teil smoke"></div>
+      </div>
+      <div class="ebene" data-p="1">
+        ${BILD(`<path d="${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}" fill="#0a0a20"/>
         <path d="${area(ground)}" fill="#08081b"/>${rim(ground, '#2a2e62', 0.55, 1.5)}
         <path d="${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}" fill="#050515"/>
         <g fill="#05050f">${fence}</g>
-        <g class="noa" fill="#03030a">
+        <g fill="#03030a">
           <path d="M422.5 628L422 650Q421.5 653 418.8 655.4Q417.6 657.6 420.4 657.6L429 657.6L429.3 628Z"/>
           <path d="M431.2 628L431.5 657.6L440.6 657.6Q443.2 657.4 441.6 655.2Q439 653 438.8 650L438.2 628Z"/>
           <path d="M419.5 592Q430 585.5 440.5 592L443.6 610L447.6 634.5Q430 639 412.4 634.5L416.4 610Z"/>
           <circle cx="430" cy="576.5" r="9.4"/>
           <path d="M419.8 575Q419.2 559.5 430 558.4Q440.8 559.5 440.2 575Z"/><rect x="418.6" y="571.2" width="22.8" height="5.2" rx="2.6"/>
           <circle cx="430" cy="555.2" r="4.3"/>
-          <path class="scarf" d="M421.2 587Q430 591.5 438.8 587L440.2 591.6Q430 596 419.8 591.6ZM435.5 590L455 597Q449 602 441 595.6Z"/>
-          <path d="M437.2 568.5A9.4 9.4 0 0 1 438.6 581M440.8 592.6L443.9 610L447.6 634" fill="none" stroke="#4a4f98" stroke-opacity="0.75" stroke-width="1.1" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-          <g class="arm"><rect x="-2" y="-3" width="24" height="6" rx="3"/><circle cx="21.5" cy="0" r="3.8"/>
-            <rect x="22" y="-4.2" width="11.5" height="8.4" rx="2" fill="#22223c"/><rect x="32.4" y="-4.8" width="2.4" height="9.6" rx="1" fill="#3a3a60"/></g>
-        </g>
-        <g class="beam" opacity="0"><path class="cone" fill="url(#s-beam)"/><path class="core" fill="url(#s-core)"/><circle class="lamp" r="24" fill="url(#s-lamp)"/></g>
-        <g class="worms"></g>
-      </g>
-      <g class="layer" data-p="1.35">
-        <path d="${fir(-140, 905, 780)}${fir(60, 910, 520)}${fir(2060, 905, 720)}${fir(2200, 912, 460)}" fill="#020208"/>
-        <path d="${grass}" fill="#030309"/><rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>
-      </g>
-    </svg>
+        </g>`)}
+        ${teil('scarf', 437, 590, [-18, -4, 38, 18], '<path fill="#03030a" d="M-15.8 -3Q-7 1.5 1.8 -3L3.2 1.6Q-7 6 -17.2 1.6ZM-1.5 0L18 7Q12 12 4 5.6Z"/>')}
+        ${svg(436, 567, 13, 69, `<path d="M437.2 568.5A9.4 9.4 0 0 1 438.6 581M440.8 592.6L443.9 610L447.6 634" fill="none" stroke="#4a4f98" stroke-opacity="0.75" stroke-linecap="round" style="${strich(1.1)}"/>`)}
+        ${teil('arm bewegt', 440, 592, [-3, -5, 39, 10], '<g fill="#03030a"><rect x="-2" y="-3" width="24" height="6" rx="3"/><circle cx="21.5" cy="0" r="3.8"/></g><rect x="22" y="-4.2" width="11.5" height="8.4" rx="2" fill="#22223c"/><rect x="32.4" y="-4.8" width="2.4" height="9.6" rx="1" fill="#3a3a60"/>')}
+        <div class="teil beam" style="opacity:0"><div class="flacker">${BILD('<defs><radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient><linearGradient id="s-beam" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff1cc" stop-opacity="0.42"/><stop offset="0.15" stop-color="#fff1cc" stop-opacity="0.2"/><stop offset="0.35" stop-color="#fff1cc" stop-opacity="0.07"/><stop offset="0.55" stop-color="#fff1cc" stop-opacity="0"/></linearGradient><linearGradient id="s-core" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffaf0" stop-opacity="0.95"/><stop offset="0.12" stop-color="#fffaf0" stop-opacity="0.4"/><stop offset="0.32" stop-color="#fffaf0" stop-opacity="0.06"/><stop offset="0.5" stop-color="#fffaf0" stop-opacity="0"/></linearGradient></defs><path class="cone" fill="url(#s-beam)"/><path class="core" fill="url(#s-core)"/><circle class="lamp" r="24" fill="url(#s-lamp)"/>')}</div></div>
+        <div class="teil worms"></div>
+      </div>
+      <div class="ebene" data-p="1.35">
+        ${BILD(`<path d="${fir(-140, 905, 780)}${fir(60, 910, 520)}${fir(2060, 905, 720)}${fir(2200, 912, 460)}" fill="#020208"/>
+        <path d="${grass}" fill="#030309"/><rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>`)}
+      </div>
+    </div>
     <div class="sub"><div class="kicker"></div><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
     <button class="skip" type="button">Überspringen</button>
   </div>`);
 
   const el = host.lastElementChild, q = (s) => el.querySelector(s);
-  const layers = [...el.querySelectorAll('.layer')].map((g) => ({ g, p: +g.dataset.p }));
+  const layers = [...el.querySelectorAll('.ebene')].map((e) => ({ e, p: +e.dataset.p }));
   const arm = q('.arm'), beam = q('.beam'), cone = q('.cone'), core = q('.core'), lamp = q('.lamp'), polar = q('.polar');
   const beamGrads = [q('#s-beam'), q('#s-core')], lines = [...el.querySelectorAll('.line')];
-  const scarf = q('.scarf');
-  const SVG_NS = q('svg').namespaceURI; // nicht als Adresse im Quelltext (siehe Test „Offline“)
-  const make = (parent, tag, attrs) => {
-    const e = document.createElementNS(SVG_NS, tag);
-    for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
-    parent.appendChild(e);
-    return e;
+  const div = (parent, cls, style = '') => {
+    parent.insertAdjacentHTML('beforeend', `<div class="${cls}" style="${style}"></div>`);
+    return parent.lastElementChild;
   };
-  const smoke = chimneys.flatMap(([x, y], i) => [0, 1 / 3, 2 / 3].map((off) => ({ x, y, off: off + i * 0.13, el: make(q('.smoke'), 'ellipse', { fill: 'url(#s-smoke)' }) })));
+
+  /* ---- Bewegung im Compositor: Animationen nach der Zeit der Bühne ---- */
+  const SINUS = 'cubic-bezier(0.37, 0, 0.63, 1)'; // wie (1 − cos πu) / 2: hin und her wie ein Sinus
+  const umgebung = new Set(); // laufende Animationen, die der Zeit der Bühne folgen: { a, c(t) (s), periode (s) }
+  let scene = null;
+  const stellen = (u) => { if (u.a) u.a.currentTime = (((u.c(scene.time) % u.periode) + u.periode) % u.periode) * 1000; };
+  const folgt = (u) => { u.a.playbackRate = scene.speed; umgebung.add(u); if (!scene.running) u.a.pause(); stellen(u); return u; };
+  /**
+   * Schwingung mitte + amp · sin(ω t + φ) in der Zeit der Bühne t, als Animation zwischen mitte − amp und mitte + amp
+   * mit Sinus-Easing, hin und her (wert(v): der Keyframe zum Wert v). setze ändert sie, aus hält sie an.
+   */
+  const schwinger = (elem, wert) => {
+    const u = { a: null, c: null, periode: 1 };
+    u.setze = (amp, omega, phi, mitte = 0) => {
+      if (omega < 0) { omega = -omega; phi = Math.PI - phi; } // sin(−ω t + φ) = sin(ω t − φ + π)
+      const kf = [wert(mitte - amp), wert(mitte + amp)], timing = { duration: Math.PI / omega * 1000 };
+      if (u.a) { u.a.effect.setKeyframes(kf); u.a.effect.updateTiming(timing); }
+      else u.a = elem.animate(kf, { ...timing, iterations: Infinity, direction: 'alternate', easing: SINUS });
+      u.periode = 2 * Math.PI / omega;
+      u.c = (t) => t + (phi + Math.PI / 2) / omega; // Wert(c) = mitte − amp · cos(ω c) = mitte + amp · sin(ω c − π/2)
+      folgt(u);
+    };
+    u.aus = () => { if (u.a) { u.a.cancel(); u.a = null; umgebung.delete(u); } };
+    return u;
+  };
+  const translateX = (v) => ({ transform: `translateX(${v.toFixed(2)}px)` });
+  const translateY = (v) => ({ transform: `translateY(${v.toFixed(2)}px)` });
+
+  // Rauch aus den Kaminen: je Kamin drei Wolken nacheinander (k = Anteil des Wegs, alle 20 s von vorn), als Keyframes;
+  // das Wiegen schwingt zweimal je Weg (früher 0,6 rad/s, unabhängig vom Weg)
+  const smokeBox = q('.smoke');
+  chimneys.forEach(([x, y], i) => [0, 1 / 3, 2 / 3].forEach((off0) => {
+    const off = off0 + i * 0.13, puff = div(smokeBox, 'teil rauch', `left:${n(x)}px;top:${n(y)}px`);
+    puff.insertAdjacentHTML('beforeend', svg(-1.5, -1, 3, 2, '<ellipse rx="1.5" ry="1" fill="url(#s-smoke)"/>'));
+    const kf = Array.from({ length: 41 }, (_, j) => {
+      const k = j / 40, size = 3 + k * 10, dx = k * 34 + Math.sin(4 * Math.PI * k - 3 * off) * 3;
+      return { transform: `translate(${dx.toFixed(2)}px, ${(-k * 85).toFixed(2)}px) scale(${size.toFixed(3)})`,
+        opacity: (Math.sin(Math.PI * k) ** 1.5 * 0.5).toFixed(3) };
+    });
+    // die Animation steht bei Anteil k = (0,05 t + off) mod 1
+    const a = puff.animate(kf, { duration: 20000, iterations: Infinity, easing: 'linear' });
+    a.pause(); // läuft erst mit der Bühne (show)
+    umgebung.add({ a, c: (t) => t + off * 20, periode: 20 });
+  }));
+  const schal = schwinger(q('.scarf'), (v) => ({ transform: `rotate(${v.toFixed(3)}deg)` }));
+  const atem = schwinger(q('.atem'), (v) => ({ transform: `scale(${v.toFixed(4)})` }));
+  const flackern = schwinger(q('.flacker'), (v) => ({ opacity: v.toFixed(3) }));
+  // Glühwürmchen: Ort (JavaScript, nur im Flug) › Schwingen in x › in y › Grösse; das Blinken schwingt mit x
   const worms = Array.from({ length: 16 }, () => {
-    const g = make(q('.worms'), 'g', {});
-    make(g, 'circle', { r: 11, fill: 'url(#s-gw)' });
-    make(g, 'circle', { r: 1.9, fill: '#efffb0' });
-    return { el: g, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
+    const g = div(q('.worms'), 'teil bewegt'), wx = div(g, 'teil'), wy = div(wx, 'teil'), ws = div(wy, 'teil');
+    ws.insertAdjacentHTML('beforeend', svg(-11, -11, 22, 22, '<circle r="11" fill="url(#s-gw)"/><circle r="1.9" fill="#efffb0"/>'));
+    return { el: g, ws, x: schwinger(wx, translateX), y: schwinger(wy, translateY), blink: schwinger(wx, (v) => ({ opacity: v.toFixed(3) })),
+      modus: null, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
       ph: r(0, 6.3), fl: r(2, 5), spin: r(1.6, 2.6) * (rand() < 0.5 ? -1 : 1), ox: r(18, 44), oy: r(12, 30), delay: r(0, 1.6) };
   });
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
+  const WARTEN = 1e9; // ms: so lange wartet eine vorbereitete Fahrt im Startbild, bis moveTo sie startet
 
-  const scene = {
+  scene = {
     el, skip: q('.skip'),
-    time: 0, speed: 1, tweens: [], running: false, last: 0,
+    tweens: [], running: false,
+    uhr: { t0: performance.now(), s0: 0, tempo: 1 }, // Zeit der Bühne: läuft in echter Zeit, mal speed
+    letzte: 0,          // Zeit der Bühne beim letzten Bild der JS-Schleife
+    raf: 0, faellig: 0, // angefordertes Bild; frühestens dann zeichnet es wieder (höchstens 60 Hz)
     cam: { x: 800, y: 450, z: 1 },
     arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
     worms: 'idle', gatherAt: 0, carryAt: 0,
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
+    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { key, anims, from, to, seconds }
+    vorbereitet: null,  // die nächste Fahrt, schon angelegt (wartet im Startbild, siehe vorbereiten)
+    gezeichnet: {},     // was draw zuletzt gesetzt hat (Arm, Strahl, Stern): nur Änderungen schreiben
+
+    /** Zeit der Bühne (s); setzen stellt alle Animationen darauf. */
+    get time() { const u = this.uhr; return u.s0 + (performance.now() - u.t0) / 1000 * u.tempo; },
+    set time(v) { this.uhr = { t0: performance.now(), s0: v, tempo: this.uhr.tempo }; this.letzte = v; for (const u of umgebung) stellen(u); },
+    /** Tempo: Tippen (4) und Überspringen (60) beschleunigen Fahrt, Tweens und alles, was sich bewegt. */
+    get speed() { return this.uhr.tempo; },
+    set speed(v) {
+      if (v === this.uhr.tempo) return;
+      this.uhr = { t0: performance.now(), s0: this.time, tempo: v };
+      for (const u of umgebung) u.a.updatePlaybackRate(v);
+      for (const a of this.laufend?.anims ?? []) a.updatePlaybackRate(v);
+    },
+    /** Es läuft noch etwas, auf das man warten kann (Tween oder Fahrt). */
+    get laeuft() { return this.tweens.length > 0 || this.moving; },
 
     portrait() { return innerWidth / innerHeight < 0.9; },
-    /** Wo der Polarstern bei dieser Kamera im Bild steht (Anteil der Breite und Höhe), wie draw() rechnet. */
+    /** Wo der Polarstern bei dieser Kamera im Bild steht (Anteil der Breite und Höhe), wie pose() rechnet. */
     starAt(c) {
       const W = innerWidth, H = innerHeight, fit = Math.min(1, 900 * W / H / 820), p = layers[0].p;
       const z = (1 + (c.z - 1) * p) * fit, x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
-      const slice = Math.max(W / 1600, H / 900); // preserveAspectRatio slice
+      const slice = Math.max(W / 1600, H / 900); // wie preserveAspectRatio slice
       return [((1120 - x) * z) * slice / W + 0.5, ((150 - y) * z) * slice / H + 0.5];
+    },
+    /** Transform einer Ebene (Parallaxe p) bei der Kamera c: Szene in Pixeln, um die Mitte des Bildschirms. */
+    pose(c, p) {
+      const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
+      return `translateZ(0) scale(${this.skala(c, p).toFixed(5)}) translate(${(-x).toFixed(2)}px, ${(-y).toFixed(2)}px)`;
+    },
+    /** Pixel je Mass der Szene in der Ebene p bei der Kamera c (Hochformat: weiter weg; wie preserveAspectRatio slice). */
+    skala(c, p) {
+      const W = innerWidth, H = innerHeight, fit = Math.min(1, 900 * W / H / 820);
+      return (1 + (c.z - 1) * p) * fit * Math.max(W / 1600, H / 900);
+    },
+    /** Ziel einer Einstellung (im Hochformat camP) und Dauer ihrer Fahrt (s). */
+    ziel(shot) {
+      const seconds = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shot.move;
+      return [(this.portrait() && shot.camP) || shot.cam, seconds];
+    },
+    /**
+     * Fahrt der Kamera von from nach to als Animation je Ebene (Keyframes 30-mal pro Sekunde, darin schon die Kurve
+     * von storyEase; Zoom geometrisch). delay: wartet so lange im Startbild.
+     */
+    baueFahrt(from, to, seconds, delay) {
+      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
+      const schritte = Math.max(2, Math.ceil(seconds * 30));
+      const frames = (p) => Array.from({ length: schritte + 1 }, (_, i) => {
+        const k = storyEase(i / schritte);
+        return { transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) };
+      });
+      const anims = layers.map(({ e, p }) => e.animate(frames(p), { duration: seconds * 1000, delay, fill: 'both', easing: 'linear' }));
+      return { key, anims, frames, from, to, seconds };
+    },
+    /**
+     * Die Fahrt zur Einstellung shot schon jetzt anlegen, wartend im Startbild (die Kamera steht dort): Chrome rastert die
+     * Ebenen dann gleich in der grössten Skalierung der Fahrt, und moveTo startet sie ohne neues Rastern.
+     */
+    vorbereiten(shot) {
+      const [to, seconds] = this.ziel(shot), from = { ...this.cam };
+      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
+      if (this.vorbereitet?.key === key) return;
+      for (const a of this.vorbereitet?.anims ?? []) a.cancel();
+      this.vorbereitet = this.baueFahrt(from, to, seconds, WARTEN);
+      // die alte, fertige Fahrt hält das Bild nicht mehr (die neue zeigt dasselbe Startbild)
+      if (this.laufend && !this.moving) { for (const a of this.laufend.anims) a.cancel(); this.laufend = null; }
+    },
+    /** Kamera ohne Fahrt: die Ebenen stehen in der Einstellung cam. */
+    stelle() {
+      for (const { e, p } of layers) {
+        e.style.transform = this.pose(this.cam, p);
+        e.style.setProperty('--rs', this.skala(this.cam, p).toFixed(5)); // Striche (strich) im Ruhepunkt wieder genau
+      }
+    },
+    /** Bildschirm gedreht oder anders gross: Fahrten und Kamera neu rechnen (gleiche Zeit, gleicher Weg). */
+    anpassen() {
+      this.stelle();
+      for (const f of [this.laufend, this.vorbereitet]) {
+        if (!f) continue;
+        f.anims.forEach((a, i) => a.effect.setKeyframes(f.frames(layers[i].p)));
+        f.key = JSON.stringify([f.from, f.to, f.seconds, innerWidth, innerHeight]);
+      }
     },
     reset(shot) {
       this.tweens = [];
@@ -17437,16 +17602,47 @@ function createStoryScene(host) {
       this.beamLen = this.beamPower = this.starBoost = 0;
       this.worms = 'idle';
       this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
+      for (const a of this.laufend?.anims ?? []) a.cancel();
+      this.laufend = null;
+      // eine vorbereitete Fahrt, die genau hier beginnt, bleibt (vorwaermen: dieselbe erste Einstellung)
+      const [to, seconds] = this.ziel(shot);
+      if (this.vorbereitet && this.vorbereitet.key !== JSON.stringify([this.cam, to, seconds, innerWidth, innerHeight])) {
+        for (const a of this.vorbereitet.anims) a.cancel();
+        this.vorbereitet = null;
+      }
       this.say('');
       this.kicker('');
       q('.sub').classList.remove('angebot');
       this.hint(false);
       this.actions([]);
+      this.draw();
+    },
+    /**
+     * Unsichtbar vorwärmen für die erste Einstellung shot: Fahrt vorbereiten und alles zeichnen, dazu die Klasse prewarm
+     * (fast durchsichtig, aber gezeichnet und gerastert). playScene nimmt sie weg, ruhen ebenso.
+     */
+    vorwaermen(shot) {
+      this.reset(shot);
+      this.vorbereiten(shot);
+      el.classList.add('prewarm');
+    },
+    /** Ausgeblendet: Animationen anhalten, keine vorbereitete Fahrt, keine Schleife (nichts kostet mehr). */
+    ruhen() {
+      el.classList.remove('prewarm');
+      if (this.running) return;
+      for (const a of this.vorbereitet?.anims ?? []) a.cancel();
+      this.vorbereitet = null;
+      for (const u of umgebung) u.a.pause();
     },
     /** Einblenden und die Szene laufen lassen. */
     show() {
       el.classList.remove('lit');
-      if (!this.running) { this.running = true; this.last = performance.now(); requestAnimationFrame((t) => this.frame(t)); }
+      if (!this.running) {
+        this.running = true;
+        for (const u of umgebung) u.a.play();
+        this.time = this.time; // Animationen auf die Zeit der Bühne stellen
+        this.wecken();
+      }
       void el.offsetWidth;
       el.classList.add('lit');
     },
@@ -17454,24 +17650,42 @@ function createStoryScene(host) {
     async hide() {
       el.classList.remove('lit');
       await storySleep(1600);
-      if (!el.classList.contains('lit')) this.running = false;
+      if (!el.classList.contains('lit')) { this.running = false; this.ruhen(); }
     },
     tween(seconds, fn, ease = storyEase, delay = 0) {
-      return new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
+      const p = new Promise((resolve) => this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve }));
+      this.wecken();
+      return p;
     },
-    /** Kamerafahrt zur Einstellung (im Hochformat camP); Zoom geometrisch, damit er gleichmässig wirkt. */
-    moveTo(shot) {
-      const to = (this.portrait() && shot.camP) || shot.cam, from = { ...this.cam };
+    /**
+     * Kamerafahrt zur Einstellung (im Hochformat camP); Zoom geometrisch, damit er gleichmässig wirkt. next: die
+     * Einstellung danach, ihre Fahrt wird gleich vorbereitet (siehe vorbereiten).
+     */
+    moveTo(shot, next = null) {
+      const [to, seconds] = this.ziel(shot), from = { ...this.cam };
       if (this.speed < 10) this.speed = 1; // nach dem Beschleunigen wieder normal (ausser beim Überspringen)
-      const seconds = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shot.move;
       this.moving = true;
       this.movedAt = this.time;
-      return this.tween(seconds, (k) => {
-        this.cam = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k };
-      }).then(() => {
+      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
+      let f = this.vorbereitet;
+      this.vorbereitet = null;
+      if (f?.key === key) for (const a of f.anims) a.currentTime = WARTEN;
+      else {
+        for (const a of f?.anims ?? []) a.cancel();
+        f = this.baueFahrt(from, to, seconds, 0);
+      }
+      for (const a of f.anims) a.updatePlaybackRate(this.speed);
+      for (const a of this.laufend?.anims ?? []) a.cancel();
+      this.laufend = f;
+      return new Promise((resolve) => f.anims[0].finished.then(() => {
+        if (this.laufend !== f) return; // abgebrochen (reset): wie früher ein Tween, der nie fertig wird
+        this.cam = { ...to };
+        this.stelle();
         this.moving = false;
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
-      });
+        if (next) this.vorbereiten(next);
+        resolve();
+      }, () => {}));
     },
     /** Was in einer Einstellung geschieht. */
     act(name) {
@@ -17489,6 +17703,7 @@ function createStoryScene(host) {
         this.worms = 'gather';
         this.gatherAt = this.time + 0.6;
         for (let i = 0; i < 5; i++) audio.hit(2, 0.9 + i * 0.32, { octave: 2, gain: 0.018 });
+        this.wecken();
       } else if (name === 'carry') { // … und tragen das Licht in den Wald, die Lampe wird schwächer
         this.worms = 'carry';
         this.carryAt = this.time + 0.3;
@@ -17535,11 +17750,19 @@ function createStoryScene(host) {
       }
     },
 
+    /** Die JS-Schleife anstossen (Tween, Glühwürmchen im Flug), solange die Bühne läuft. */
+    wecken() {
+      if (!this.running || this.raf) return;
+      this.letzte = this.time;
+      this.raf = requestAnimationFrame((t) => this.frame(t));
+    },
     frame(now) {
+      this.raf = 0;
       if (!this.running) return;
-      const dt = Math.min(0.05, (now - this.last) / 1000) * this.speed;
-      this.last = now;
-      this.time += dt;
+      if (now < this.faellig - 2) { this.raf = requestAnimationFrame((t) => this.frame(t)); return; } // höchstens 60 Hz
+      this.faellig = Math.max(this.faellig + 1000 / 60, now);
+      const t = this.time, dt = Math.max(0, t - this.letzte);
+      this.letzte = t;
       for (const tw of this.tweens.slice()) {
         tw.t += dt;
         if (tw.t < 0) continue;
@@ -17547,20 +17770,25 @@ function createStoryScene(host) {
         tw.fn(tw.ease(k));
         if (k >= 1) { this.tweens.splice(this.tweens.indexOf(tw), 1); tw.resolve(); }
       }
-      this.draw();
-      requestAnimationFrame((t) => this.frame(t));
+      // nur weiter, solange JavaScript etwas bewegt: Tweens oder Glühwürmchen unterwegs
+      if (this.zeichne() || this.tweens.length) this.raf = requestAnimationFrame((t2) => this.frame(t2));
     },
+    /** Alles in den Stand der Bühne bringen (Kamera ohne Fahrt, Arm, Strahl, Stern, Glühwürmchen, Animationen). */
     draw() {
-      const t = this.time, c = this.cam, fit = Math.min(1, 900 * innerWidth / innerHeight / 820); // Hochformat: weiter weg
-      for (const { g, p } of layers) {
-        const z = (1 + (c.z - 1) * p) * fit, x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
-        g.setAttribute('transform', `translate(800 450) scale(${z.toFixed(4)}) translate(${(-x).toFixed(1)} ${(-y).toFixed(1)})`);
-      }
-      // Noa: Arm mit Lampe, Schal im Wind, der Strahl aus der Lampe
-      arm.setAttribute('transform', `translate(440 592) rotate(${this.arm.toFixed(2)})`);
-      scarf.setAttribute('transform', `rotate(${(Math.sin(t * 2.3) * 4).toFixed(2)} 437 590)`);
+      this.stelle();
+      this.gezeichnet = {};
+      for (const w of worms) w.modus = null;
+      this.zeichne();
+      for (const u of umgebung) stellen(u);
+    },
+    /** Was JavaScript bewegt, zur Zeit der Bühne setzen (nur Änderungen). Zurück: Glühwürmchen sind noch unterwegs. */
+    zeichne() {
+      const t = this.time, d = this.gezeichnet;
+      // Noa: Arm mit Lampe, der Strahl aus der Lampe (Schal, Flackern und Atmen des Sterns laufen als Animation)
+      if (d.arm !== this.arm) { arm.style.transform = `rotate(${this.arm.toFixed(2)}deg)`; d.arm = this.arm; }
       const a = this.arm * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), tx = 440 + 34 * ux, ty = 592 + 34 * uy;
-      if (this.beamPower > 0.002) {
+      const power = this.beamPower > 0.002 ? this.beamPower : 0;
+      if (power && (d.beamArm !== this.arm || d.beamLen !== this.beamLen)) {
         const len = 860 * this.beamLen, ex = tx + ux * len, ey = ty + uy * len;
         const cone2 = (w0, w1) => `M${n(tx - uy * w0)} ${n(ty + ux * w0)}L${n(ex - uy * w1)} ${n(ey + ux * w1)}L${n(ex + uy * w1)} ${n(ey - ux * w1)}L${n(tx + uy * w0)} ${n(ty - ux * w0)}Z`;
         cone.setAttribute('d', cone2(3, len * 0.04));
@@ -17572,38 +17800,54 @@ function createStoryScene(host) {
         }
         lamp.setAttribute('cx', n(tx));
         lamp.setAttribute('cy', n(ty));
-        beam.setAttribute('opacity', (this.beamPower * (0.93 + 0.07 * Math.sin(t * 23))).toFixed(3));
-      } else beam.setAttribute('opacity', '0');
-      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald
+        d.beamArm = this.arm;
+        d.beamLen = this.beamLen;
+      }
+      if (d.power !== power) { beam.style.opacity = power.toFixed(3); d.power = power; }
+      if (d.boost !== this.starBoost) { polar.style.transform = `scale(${(1 + 1.8 * this.starBoost).toFixed(3)})`; d.boost = this.starBoost; }
+      if (!d.schwingt) { // Schal im Wind, der Polarstern atmet, der Strahl flackert
+        schal.setze(4, 2.3, 0);
+        atem.setze(0.05, 1.7, 0, 1);
+        flackern.setze(0.07, 23, 0, 0.93);
+        d.schwingt = true;
+      }
+      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Ruhig (am Waldrand, um
+      // die Lampe, im Wald) schwingen sie als Animation, im Flug setzt JavaScript ihren Ort
+      let unterwegs = false;
       for (const w of worms) {
-        let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9, s = 1;
-        if (this.worms !== 'idle') {
-          const g = smooth01((t - this.gatherAt - w.delay) / 2.4), ang = t * w.spin + w.ph;
+        const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
+        const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
+        const s = this.worms === 'idle' ? 1 : 1 + 0.6 * g;
+        const modus = this.worms === 'idle' || (g <= 0 && k <= 0) ? 'idle' : g >= 1 && k <= 0 ? 'kreis'
+          : k >= 1 && (g >= 1 || g <= 0) ? 'park' : 'flug';
+        if (modus !== (this.worms === 'idle' ? 'idle' : this.worms === 'gather' ? 'kreis' : 'park')) unterwegs = true;
+        if (modus === 'flug') {
+          let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
+          const ang = t * w.spin + w.ph;
           x += (tx + Math.cos(ang) * w.ox - x) * g;
           y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
-          s += 0.6 * g;
           if (this.worms === 'carry') {
-            const k = smooth01((t - this.carryAt - w.delay * 0.7) / 3.6);
             x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
             y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
           }
+          if (w.modus !== 'flug') { w.x.aus(); w.y.aus(); w.modus = 'flug'; }
+          w.el.style.transform = `translate(${n(x)}px, ${n(y)}px)`;
+          w.ws.style.transform = `scale(${s.toFixed(2)})`;
+        } else if (w.modus !== modus) {
+          const [cx, cy] = modus === 'idle' ? [w.hx, w.hy] : modus === 'kreis' ? [tx, ty] : [w.dx, w.dy];
+          w.el.style.transform = `translate(${n(cx)}px, ${n(cy)}px)`;
+          w.ws.style.transform = `scale(${s.toFixed(2)})`;
+          if (modus === 'idle') { w.x.setze(16, w.a, w.ph); w.y.setze(9, w.b, w.ph + Math.PI / 2); }
+          else if (modus === 'kreis') { w.x.setze(w.ox, w.spin, w.ph + Math.PI / 2); w.y.setze(w.oy, w.spin, w.ph); }
+          else { w.x.setze(8, w.a, 0); w.y.setze(6, w.b, Math.PI / 2); }
+          w.modus = modus;
         }
-        w.el.setAttribute('transform', `translate(${n(x)} ${n(y)}) scale(${s.toFixed(2)})`);
-        w.el.setAttribute('opacity', (0.45 + 0.55 * Math.sin(t * w.fl + w.ph) ** 2).toFixed(2));
+        if (!w.blink.a) w.blink.setze(0.275, 2 * w.fl, 2 * w.ph - Math.PI / 2, 0.725); // 0,45 + 0,55 · sin²(fl t + ph)
       }
-      // Rauch aus den Kaminen
-      for (const p of smoke) {
-        const k = (t * 0.05 + p.off) % 1, size = 3 + k * 10;
-        p.el.setAttribute('cx', n(p.x + k * 34 + Math.sin(t * 0.6 + p.off * 9) * 3));
-        p.el.setAttribute('cy', n(p.y - k * 85));
-        p.el.setAttribute('rx', n(size * 1.5));
-        p.el.setAttribute('ry', n(size));
-        p.el.setAttribute('opacity', (Math.sin(Math.PI * k) ** 1.5 * 0.5).toFixed(2));
-      }
-      // der Polarstern atmet leicht; im Epilog blinkt er
-      polar.setAttribute('transform', `translate(1120 150) scale(${(1 + 0.05 * Math.sin(t * 1.7) + 1.8 * this.starBoost).toFixed(3)})`);
+      return unterwegs;
     },
   };
+  addEventListener('resize', () => scene.anpassen());
   return scene;
 }
 
@@ -18085,7 +18329,7 @@ const story = {
   async offer(sc) {
     const a = STORY_DORF.angebot;
     // übersprungen: Die Fahrt läuft im Zeitraffer zu Ende (sonst klickte die Lampe noch unter dem Angebot)
-    for (let t = 0; sc.tweens.length && t < 40; t++) await storySleep(50);
+    for (let t = 0; sc.laeuft && t < 40; t++) await storySleep(50);
     sc.speed = 1;
     sc.hint(false);
     sc.kicker(a.kicker);
@@ -18422,7 +18666,7 @@ const story = {
       sc.say(shot.text);
       sc.hint(false);
       if (shot.act) sc.act(shot.act);
-      await sc.moveTo(shot);
+      await sc.moveTo(shot, shots[shots.indexOf(shot) + 1]); // bereitet die Fahrt danach schon vor
       if (this.skipped) break;
       if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
       // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
@@ -18440,31 +18684,33 @@ const story = {
     return ueben;
   },
   /**
-   * Unter dem Startbildschirm die Bühne einmal unsichtbar zeichnen (erste Einstellung des Prologs), zwei Bilder lang:
-   * Ihr erstes Zeichnen hielt den Prolog bis 250 ms an (Review Ticket 05), danach nicht mehr. #story ist dabei da, aber
-   * leer und nicht bedienbar (inert). Nur, solange die Geschichte nichts zeigt.
+   * Vorwärmen der Bühne für den Prolog: Unter dem Startbildschirm die Bühne einmal unsichtbar zeichnen (erste
+   * Einstellung des Prologs mit ihrer vorbereiteten Fahrt), zwei Bilder lang: Ihr erstes Zeichnen hielt den Prolog bis
+   * 250 ms an (Review Ticket 05), danach nicht mehr. #story ist dabei da, aber leer und nicht bedienbar (inert). Nur,
+   * solange die Geschichte nichts zeigt; danach ruht die Bühne wieder (createStoryScene, ruhen). Zurück: ein Promise,
+   * erfüllt, sobald das Vorwärmen gezeichnet ist (Ticket 03 der Leistung plant es vor den Prolog).
    */
   vorwaermen() {
-    if (!this.el.classList.contains('hidden')) return;
+    if (!this.el.classList.contains('hidden')) return Promise.resolve();
     const sc = this.scene ??= this.makeScene();
-    if (sc.el.classList.contains('prewarm')) return;
+    if (sc.el.classList.contains('prewarm')) return Promise.resolve();
     this.prewarmScene(STORY_PROLOG[0]);
     this.el.classList.remove('hidden');
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (!this.el.inert) return; // inzwischen geöffnet (open): Das zeigt die Bühne selbst
-      this.el.classList.add('hidden');
-      sc.el.classList.remove('prewarm');
-    }));
+    return new Promise((fertig) => requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (this.el.inert) { // sonst inzwischen geöffnet (open): Das zeigt die Bühne selbst
+        this.el.classList.add('hidden');
+        sc.ruhen();
+      }
+      requestAnimationFrame(() => fertig());
+    })));
   },
   /**
-   * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot), bevor sie gebraucht wird: Das erste Zeichnen der
-   * grossen Szene dauerte über 100 ms. playScene nimmt die Klasse wieder weg.
+   * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot, ihre Fahrt schon vorbereitet), bevor sie gebraucht
+   * wird: Das erste Zeichnen der grossen Szene dauerte über 100 ms. playScene nimmt die Klasse wieder weg.
    */
   prewarmScene(shot) {
     const sc = this.scene ??= this.makeScene();
-    sc.reset(shot);
-    sc.draw();
-    sc.el.classList.add('prewarm');
+    sc.vorwaermen(shot);
   },
   makeScene() {
     const sc = createStoryScene(this.el);

@@ -164,7 +164,7 @@ async function messen() {
     c.on('Tracing.tracingComplete', () => fertigTrace());
     if (drossel > 1) await c.send('Emulation.setCPUThrottlingRate', { rate: drossel });
     await c.ev(`(() => { const b = window.__bz = { an: true, log: [] }; const loop = (ts) => { if (!b.an) return;
-      const sc = ${D}.story.scene; b.log.push({ ts, buehne: ${storyMode} === 'scene', fahrt: !!sc?.moving });
+      const sc = ${D}.story.scene; b.log.push({ ts, buehne: ${storyMode} === 'scene', fahrt: !!sc?.moving, js: !!(sc?.raf || sc?.tweens?.length) });
       requestAnimationFrame(loop); }; requestAnimationFrame(loop); return true; })()`);
     await c.send('Tracing.start', { transferMode: 'ReportEvents', traceConfig: { recordMode: 'recordContinuously',
       includedCategories: ['devtools.timeline', 'disabled-by-default-devtools.timeline',
@@ -190,11 +190,12 @@ async function messen() {
     const log = await c.ev('(() => { const b = window.__bz; b.an = false; return b.log; })()');
     const ab = log.findIndex((e) => e.buehne);
     const teil = log.slice(Math.max(1, ab));
-    const luecken = teil.map((e, i) => [e.ts - log[Math.max(1, ab) + i - 1].ts, e.fahrt]);
+    const luecken = teil.map((e, i) => [e.ts - log[Math.max(1, ab) + i - 1].ts, e.fahrt, e.js]);
     const gpu = await c.ev(`(() => { const gl = ${D}.renderer.getContext(), x = gl.getExtension('WEBGL_debug_renderer_info');
       return x ? gl.getParameter(x.UNMASKED_RENDERER_WEBGL) : '?'; })()`);
     const ergebnis = { name, view, drossel, fenster, gpu, ohneWebgl: args.includes('--ohne-webgl'), sekunden: +sekunden.toFixed(1),
       bilder: { alle: kurz(luecken.map(([d]) => d)), fahrt: kurz(luecken.filter(([, f]) => f).map(([d]) => d)),
+        mitJs: kurz(luecken.filter(([, , j]) => j).map(([d]) => d)), ohneJs: kurz(luecken.filter(([, , j]) => !j).map(([d]) => d)),
         warten: kurz(luecken.filter(([, f]) => !f).map(([d]) => d)) },
       trace: werteTraceAus(events, sekunden), konsole: c.logs.filter((l) => /error|exception/i.test(l)) };
     mkdirSync(OUT, { recursive: true });
