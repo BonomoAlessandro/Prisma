@@ -18,26 +18,31 @@ export const findChrome = () => [
 
 /**
  * Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), on(method, fn) (Ereignisse wie
- * Tracing.dataCollected), logs (Konsole), close() }. fenster: mit sichtbarem Fenster statt headless (echter
- * Bildschirmtakt für Messungen; nur mit gpu sinnvoll).
+ * Tracing.dataCollected), logs (Konsole), close() }.
+ * fenster: ein echtes, sichtbares Fenster statt headless (Messungen mit dem Messwerkzeug, Spec .scratch/leistung/:
+ * rAF im Takt des Bildschirms, Zeichnen auf der Grafikkarte, also immer mit gpu); maximiert: das Fenster füllt den
+ * Bildschirm (width und height gelten dann nicht). Verdeckt oder im Hintergrund drosselt Chrome es sonst.
  */
-export async function startChrome({ width, height, gpu = false, fenster = false }) {
+export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
   const port = 9300 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-'));
   const proc = spawn(chrome, [
-    // mit Fenster: auch zeichnen, wenn andere Fenster es verdecken (sonst hält Windows-Chrome das Bild an)
+    // im Fenster die schnellere Grafikkarte (Laptop mit zweien: sonst die eingebaute); auch zeichnen, wenn andere
+    // Fenster es verdecken (sonst hält Windows-Chrome das Bild an)
     ...(fenster ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
-      '--disable-features=CalculateNativeWinOcclusion'] : ['--headless=new']),
+      '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0',
+      '--disable-features=CalculateNativeWinOcclusion']
+      : ['--headless=new']),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
-    ...(gpu ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
+    ...(gpu || fenster ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
     '--ignore-gpu-blocklist',
     '--no-first-run',
     '--no-default-browser-check',
-    `--window-size=${width},${height}`,
+    maximiert ? '--start-maximized' : `--window-size=${width},${height}`,
     'about:blank',
   ], { stdio: 'ignore' });
 
@@ -78,6 +83,10 @@ export async function startChrome({ width, height, gpu = false, fenster = false 
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Page.enable');
+  if (maximiert) { // --start-maximized allein wirkte nicht verlässlich
+    const w = await send('Browser.getWindowForTarget');
+    if (w.result) await send('Browser.setWindowBounds', { windowId: w.result.windowId, bounds: { windowState: 'maximized' } });
+  }
 
   const close = async () => {
     ws.close();
