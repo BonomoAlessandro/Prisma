@@ -12142,12 +12142,16 @@ const skyTheme = {
    * nach, ein ausgeblendetes wartet aufs Freigeben. Lädt eines nur, weckt es die Schleife selbst (createPanoramaSky).
    */
   get busy() {
+    return this.moving || this.entries.some((e) => !(this.weight[e.id] > 0)
+      && e.id !== this.current && e.id !== this.ahead && e.module?.held);
+  },
+  /** Im Bild ändert sich der Himmel gerade (Überblenden, Vorschau, Einblenden, Schärfen); frameRate.skyOnly gilt dann nicht. */
+  get moving() {
     if (this.fading) return true;
     const bg = background.material.uniforms, shown = this.entries.find((e) => this.weight[e.id] > 0);
     const preview = shown?.module?.preview ?? null;
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
-    return this.entries.some((e) => (this.weight[e.id] > 0 ? e.module?.busy
-      : e.id !== this.current && e.id !== this.ahead && e.module?.held));
+    return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
   },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
@@ -20306,8 +20310,9 @@ const frameRate = {
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
-  /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne. */
-  skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length; },
+  /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
+   *  gerade ein, über oder schärft nach (skyTheme.moving: das liefe mit 10 Bildern/s stufig). */
+  skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length && !skyTheme.moving; },
   busy(ts) {
     // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
     if (story.covered || story.choosing && !story.tweens.length) return false;
