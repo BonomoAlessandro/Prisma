@@ -16,15 +16,21 @@ export const findChrome = () => [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].filter(Boolean).find(p => existsSync(p)) ?? null;
 
-/** Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), logs (Konsole), close() }. */
-export async function startChrome({ width, height, gpu = false }) {
+/**
+ * Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), on(method, fn) (Ereignisse wie
+ * Tracing.dataCollected), logs (Konsole), close() }. fenster: mit sichtbarem Fenster statt headless (echter
+ * Bildschirmtakt für Messungen; nur mit gpu sinnvoll).
+ */
+export async function startChrome({ width, height, gpu = false, fenster = false }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
   const port = 9300 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-'));
   const proc = spawn(chrome, [
-    '--headless=new',
+    // mit Fenster: auch zeichnen, wenn andere Fenster es verdecken (sonst hält Windows-Chrome das Bild an)
+    ...(fenster ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+      '--disable-features=CalculateNativeWinOcclusion'] : ['--headless=new']),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
     ...(gpu ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
@@ -50,9 +56,11 @@ export async function startChrome({ width, height, gpu = false }) {
   let msgId = 0;
   const pending = new Map();
   const logs = [];
+  const hoerer = new Map();
   ws.addEventListener('message', (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
+    for (const fn of hoerer.get(msg.method) ?? []) fn(msg.params);
     if (msg.method === 'Runtime.consoleAPICalled') {
       logs.push(`[${msg.params.type}] ` + msg.params.args.map(a => a.value ?? a.description ?? '').join(' '));
     } else if (msg.method === 'Runtime.exceptionThrown') {
@@ -77,7 +85,8 @@ export async function startChrome({ width, height, gpu = false }) {
     if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => proc.once('exit', r));
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien: bleibt im Temp-Ordner */ }
   };
-  return { send, logs, close };
+  const on = (method, fn) => hoerer.set(method, [...(hoerer.get(method) ?? []), fn]);
+  return { send, on, logs, close };
 }
 
 /** Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt. */

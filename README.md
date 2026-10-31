@@ -179,6 +179,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/buehne-messung.mjs [messen]
+    [--fenster] [--handy] [--drossel 4] [--ohne-webgl] [--epilog] [--seite datei] [--name x]` misst die Bühne von
+    Prolog und Epilog (Ticket 04 der Leistung, bis das Messwerkzeug aus Ticket 01 da ist): Chrome mit GPU (`--fenster`:
+    sichtbar statt headless), Bildabstände über `requestAnimationFrame` getrennt nach Kamerafahrt und Warten auf
+    Tippen, dazu ein Trace über das DevTools-Protokoll, ausgewertet nach Script, Style, Layout, Paint, Raster, GPU
+    (ms je Sekunde); `--handy` 393 × 873 mit Pixeldichte 2,75 und Touch, `--drossel` CPU-Drosselung, `--ohne-webgl`
+    ohne die 3D-Szene hinter der Bühne, `--seite` eine andere Fassung der Seite im selben Ordner (Vorher-Werte).
+    Ergebnis nach `tests/output/buehne/messung-<name>.json`. `… bilder <ordner> [--nur desktop,handy,quer,
+    handy-360x640]` legt an jedem Ruhepunkt von Prolog und Epilog ein eingefrorenes Bild nach
+    `tests/output/buehne/<ordner>/`, `node tests/buehne-messung.mjs vergleich <vorher> <nachher>` vergleicht zwei solche
+    Ordner (Anteil abweichender Pixel, Bilder nebeneinander nach `tests/output/buehne/vergleich/`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
   - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
@@ -418,7 +429,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
   lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
-  `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
+  `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
+  mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
   Modul mit einem Einstieg, `beurteile(level, { grad, teuer })` aus `index.mjs`. Es liefert Schwierigkeit, Spielwert,
   die Teilwerte zum Schliessen, Kernideen samt Haupt-Kernidee, Mischziele und Ausschlussgründe (je mit Glossarbegriff
