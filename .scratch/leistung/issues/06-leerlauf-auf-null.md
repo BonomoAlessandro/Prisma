@@ -220,3 +220,36 @@ und läuft mit `?t=` nicht. Zeitabhängig kann `pending()` beim Ruhen nur über 
 deckt das ab; sonst ändert sich nichts ohne Weckruf, Fehlalarme sind also nicht zu erwarten. `skippable()` hat keine
 Nebenwirkungen und gleicht sich in `story.update` in einem Schritt an, die verdeckte Schleife bleibt also nicht dauernd
 wach. `golden`, `hall` (6), `logic` (2033) grün.
+
+**Browser-Review (31.10.2026, Stand `ff7f764`, vorher `eb1be8f`).** Echtes Chrome im Fenster auf der GPU (Quadro
+T2000, 60 Hz), Desktop maximiert und Handy-Emulation (393 × 873, Pixeldichte 2,75, CPU 4× gedrosselt). Eigene Probe:
+Pixeländerung je gezeichnetem Bild (`readPixels`), Display-Abstände, gezeichnete Bilder, Spiegelung je Bild gegen
+eine unabhängige Prüfung «Platte im Bild» (Raster 11 × 11 projiziert), Reaktion je Eingabe. Urteil: **in Ordnung**,
+nichts geändert.
+
+| | vorher | nachher |
+|---|---|---|
+| Menü, gez/s (alle 6 Welten) | 30 | 10 |
+| Menü Desktop, Änderung je Bild (max) | 3–8/255 | 4–6/255 (Wald 21/255 auf 0,002 % der Pixel) |
+| Menü Handy, Änderung je Bild (max) | 6–8/255, dazu Umbauten der Auflösung (ganzes Bild) | 5–11/255 (Wald 78/255 auf ~7 Pixeln) |
+| Spiegelung fehlt, obwohl Platte im Bild (Menü↔Level, Übersicht, Feier; davon 10–52 Bilder mit Platte teilweise im Bild) | 0 | 0 |
+| Reaktion Klick/Taste → erstes gezeichnetes Bild | im nächsten Bild | im nächsten Bild |
+| Menü→Level Desktop, Display max | 33,4 / 18,4 ms | 33,5 / 33,3 ms |
+| Level→Menü Desktop, Display max | 17,2 ms | 32,6 / 33,4 ms |
+| Menü→Level erneut (erster Blick auf die Platte, Spiegelung wieder an) | 17,3 ms | 17,2 / 17,3 ms |
+| Referenzdurchlauf Desktop | adaptiv 1.00, Umbauten 0 | adaptiv 1.00, Umbauten 0 |
+| Referenzdurchlauf Desktop, max Spiel / Einstieg / Reise | 33,9 / 116,8 / 100,1 ms | 20,1 / 50,1 / 50,1 ms |
+| Referenzdurchlauf Handy 4× | adaptiv 1.00, Umbauten 2 | adaptiv 1.00, Umbauten 2 |
+
+- Optik: Im Menü und in der Übersicht ruckelt bei 10/s nichts sichtbar. Der einzige grössere Ausschlag (Wald, Handy)
+  ist ein einzelner Lichtpunkt, der mit etwa 1 Gerätepixel je 0,1 s wandert. Das ist keine Stufe, die man sieht.
+  Start→Menü (Frage a): Solange `skyTheme.moving` gilt, zeichnet das Menü mit 30/s, danach mit 10/s. Je Bild ändert
+  sich höchstens 23/255, auf weniger als 0,01 % der Pixel. Die Überblendung bleibt flüssig.
+- Spiegelung (Frage b): Sie fehlt in keinem Bild. Kehrt die Platte ins Bild zurück, entsteht kein langes Bild.
+- Konsole (Frage c): In keinem Lauf «Weckstelle fehlt» (Desktop und Handy, alle Übergänge), auch keine Fehler.
+- Umbauten 2 im gedrosselten Handy-Durchlauf gibt es vorher und nachher gleich. Ursache ist die 4×-Drosselung, nicht
+  Ticket 06. Abgenommen wird auf dem Poco.
+- Beobachtung, kein Fund: In der offenen Übersicht (10/s) fiel auf dem Desktop in 2 von 3 Läufen gelegentlich ein
+  einzelnes Display-Bild aus (33 ms, 1–3 in 3 s), vorher nie. Das Öffnen und Schliessen der Übersicht hängt vorher wie
+  nachher 50–100 ms (DOM, nicht 06). Vermutlich taktet die GPU bei wenig Last herunter. Sichtbar ist es nicht, weil
+  sich dahinter nichts bewegt. Für 07 im Auge behalten.
