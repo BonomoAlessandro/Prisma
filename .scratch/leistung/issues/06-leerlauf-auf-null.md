@@ -169,3 +169,32 @@ Tests: `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `node tests/
 nachher), `tests/geschichte-probe.mjs --start`, `--grad leicht --welten 2 --finale leicht` und `--handy`,
 `tools/ki-tester/shots.mjs` (Plätze 1 und 12, Desktop und Handy, mit `?t=`: Szene wird ruhig, Bilder gleich): alle
 grün. Offen: Review des Diffs, Merge nach `feature/leistung` (Koordinator).
+
+**Code-Review (31.10.2026, `git diff eb1be8f 71978ac`, ohne Browser-Optik).** Korrekt; ein kleiner Fund behoben, ein
+Hinweis an 02.
+
+- Weckpunkte: Sichtbar ruht die Schleife nur mit `?t=` (`ambient()` ist ohne feste Zeit immer wahr), im echten Spiel
+  kann sichtbar nichts einfrieren. Mit `?t=` alle Zustandsänderungen durchgesehen (Level, Drehen, Rückgängig/`C`,
+  Treffer/falsche Farbe/Bögen über `recomputeBeams`, Hover, Puls, Feier, Kamera inkl. Nachziehen nach dem Loslassen
+  über `cameraRig.settling`, Himmel, Grösse, `visibilitychange`, Bühne): keine Lücke gefunden; was ohne Weckruf per
+  Skript geändert wird, braucht `wake(true)` (so `shots.mjs`, `settle`).
+- `wake()`/`adaptiveResolution`: Die Pause wird nicht gewertet (`skip` ≥ 1, dazu `ms > 100`), `prevTs`/`skipped`
+  zurückgesetzt. In Ordnung.
+- `skyOnly()`: **behoben** (0dc642e). Lädt, schärft oder blendet der Himmel unter dem Menü ein bzw. über (etwa das
+  Panorama nach dem Start, das unter dem Menü fertig lädt), lief das mit 10 Bildern/s stufig. Neu `skyTheme.moving`
+  (Überblenden, Vorschau, Einblenden, Schärfen), `skyOnly` verlangt `!skyTheme.moving`; `skyTheme.busy` = `moving`
+  + Freigabe ausgeblendeter Hintergründe wie bisher.
+- `renderReflection`: `Frustum.intersectsBox` ist konservativ (nie falsch negativ), die Spiegelung liest nur
+  `floorTop` (Platte bei y = 0, unverschoben). Ohne Platte im Bild fällt auch `onBeforeRender` weg, das schadet nicht.
+  Nebenwirkung: Ist die Platte beim ersten Zeichnen nicht im Bild (Menü nach dem Start), wird das Render-Target der
+  Spiegelung erst beim Absenken des Blicks erstmals belegt; ein einzelner längerer Bild-Zeitpunkt mitten im Schwenk
+  ist möglich (Optik-Review/07 beobachten).
+- `cullInstances` (`Uint8Array`) und `renderReflection` (`reflectSave`): gleiches Ergebnis wie vorher.
+- Audio: `_shimmerResume` ohne doppelte Zeitgeber, ruht verborgen/stumm, `_sync` plant wieder. In Ordnung.
+- Hinweis zu 101443b (aus 02, hier gemergt): In `recomputeBeams` steht die Prüfung `sceneLoop.last === null` *vor*
+  `sceneLoop.wake()`. Ist `recomputeBeams` selbst der Weckruf (ruhende Schleife, kein Ereignis davor, etwa
+  `loadLevel` hinter der Bühne oder per Skript), ist `last` noch gesetzt und `beamView.time` wird nicht
+  nachgezogen. Robuster: erst `wake()`, dann prüfen (nach `wake()` ist `last` genau dann null, wenn die Schleife ruhte
+  oder seit dem Wecken noch keinen Schritt gemacht hat). Nicht selbst geändert, weil der Entwickler gerade in
+  `index.html` arbeitet.
+- Läufe: `logic` (2033), `golden`, `hall` (6) grün.
