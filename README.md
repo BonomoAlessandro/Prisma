@@ -178,11 +178,15 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leistung-probe.mjs [--handy] [--drossel 4]
-    [--fenster]` fährt den Referenzdurchlauf des Messwerkzeugs (Spec `.scratch/leistung/`, Ticket 01; etwa 2–3 min)
-    über die Knöpfe der Leistungsanzeige wie ein Spieler: erfundener echter Stand, «Referenzdurchlauf», «Klicken zum
+    [--fenster] [--ersatzmass] [--bilder]` fährt den Referenzdurchlauf des Messwerkzeugs (Spec `.scratch/leistung/`,
+    Ticket 01; etwa 2–3 min) über die Knöpfe der Leistungsanzeige wie ein Spieler: erfundener echter Stand,
+    «Referenzdurchlauf», Neuladen («Messung unterbrochen», «Neu beginnen»), «Abbrechen» fragt nach, «Klicken zum
     Starten», Leicht, Prolog Bild für Bild, «Gleich los», erstes Level (gelöst über `__prismaDebug.loese`), «Menü»,
     «Weiter zur Reise». Sie prüft Abschnitte und Werte der Ergebniskarte (`__prisma.leistung.ergebnis()`), dass der
-    echte Stand zurück ist und die Konsole sauber bleibt, und legt Karte und Daten unter `tests/output/leistung/` ab.
+    echte Stand zurück ist, die Anzeige weder Menü, Angebot, Werkzeugleiste noch «Weiter» verdeckt, die Karte auf dem
+    Handy ohne seitliches Wischen passt und die Konsole sauber bleibt, und legt Karte und Daten unter
+    `tests/output/leistung/` ab. `--ersatzmass` (Seite mit `?ersatzmass`): ohne GPU-Zeit wie viele Android-Geräte;
+    `--bilder`: ein Bild je Schritt (verfälscht die Werte).
     Headless ist das nur eine Regressionsprüfung (ohne GPU in Software, rAF virtuell getaktet). `--fenster` öffnet ein
     echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
     so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
@@ -267,13 +271,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leistung.markiere('laden')` bzw. `leistung.waehrend('laden', promise)`, es zählt nicht gegen die Grenzwerte). Dazu
   Hänger des Hauptthreads mit Ursache (`long-animation-frame`), die CPU-Zeit von `frame()` und die Zeichenzeit: GPU-Zeit
   über `EXT_disjoint_timer_query_webgl2`, ohne die Erweiterung im Referenzdurchlauf die Zeit bis nach einem
-  1-Pixel-`readPixels`. Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
+  1-Pixel-`readPixels` in jedem 10. gezeichneten Bild (der Abstand, in den es fällt, zählt nicht; die Karte vermerkt
+  das Ersatzmass deutlich; zum Ausprobieren `?ersatzmass`). Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
   **Referenzdurchlauf:** Seite mit `?perf` öffnen (auf dem Handy die Adresse auf Render mit `?perf`), in der Anzeige
-  unten links «Referenzdurchlauf» tippen. Der echte Spielstand wird gesichert (`prisma.leistung.sicherung`), die Seite
-  lädt mit frischem Stand neu. Dann normal durchklicken: «Klicken zum Starten», einen Grad wählen, den Prolog Bild für
-  Bild antippen, «Gleich los», das erste Level lösen, «Menü». Dort «Weiter zur Reise»: Das Spiel springt ans Ende der
-  ersten Welt, löst das Level selbst und reist ins Meer (Himmel frisch geladen); 6 s nach der Landung ist Schluss.
-  «Auswerten» endet ohne Reise, «Abbrechen» jederzeit. Danach ist der echte Stand zurück, die Seite lädt neu und zeigt
+  unten links (auf schmalem Bildschirm oben links, knappe Fassung) «Referenzdurchlauf» tippen. Der echte Spielstand
+  wird gesichert (`prisma.leistung.sicherung`), die Seite lädt mit frischem Stand neu. Dann normal durchklicken, die
+  Anzeige sagt jeweils, was dran ist: «Klicken zum Starten», «Leicht», den Prolog Bild für Bild antippen, «Gleich los»,
+  das erste Level lösen, ≡ (Menü). Dort «Weiter zur Reise»: Das Spiel springt ans Ende der ersten Welt, löst das Level
+  selbst und reist ins Meer (Himmel frisch geladen); 6 s nach der Landung ist Schluss. «Auswerten» endet ohne Reise,
+  «Abbrechen» (zweimal tippen) jederzeit. Lädt die Seite mitten im Durchlauf neu, sind die Werte weg: Die Anzeige
+  meldet «Messung unterbrochen» mit «Neu beginnen» und «Abbrechen». Danach ist der echte Stand zurück, die Seite lädt neu und zeigt
   die Ergebniskarte: je Abschnitt Bilder, p95, längstes Bild, Bilder über 33 ms, p95 der Zeichenzeit und der CPU-Zeit,
   gezeichnete Bilder je Sekunde, dazu Gerät, GPU, Bildschirm, Takt, Mass der Zeichenzeit, Hänger und **Version**.
   «Kopieren» legt sie in die Zwischenablage (sonst ein markiertes Textfeld), «Schliessen» vergisst sie. Proben lesen

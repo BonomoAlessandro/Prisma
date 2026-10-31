@@ -179,3 +179,31 @@ Offen, zur Entscheidung:
   Anzeige bietet «Abbrechen»), aber der Durchlauf läuft mit dem schon gespielten Stand weiter und misst nur ab dem
   Neuladen. Vorschlag: beim Laden mit Merker die Anzeige «Durchlauf unterbrochen: neu beginnen oder abbrechen».
 - Grenze «über 33 ms» (33,0 vs. 36,7 ms) wie in der Umsetzung notiert: Entscheid des Nutzers.
+
+**31.10.2026, Nachbesserung nach Review** (Handy-Bedienung für den Durchlauf auf dem Poco; `APP_VERSION`
+`2026-10-31 leistung-01b`):
+
+- **Anzeige auf schmalem Bildschirm** (unter 700 px, `#perf.schmal`): knappe Fassung oben links (sichtbare FPS/p95/max,
+  Abschnitt mit p95, >33 und Zeichenzeit, Version und Mass, die Anweisung), ohne GPU/MSAA/Draw-Calls, umbrechend,
+  höchstens bis 172 px vor dem rechten Rand, 10,5 px Schrift («Überspringen» bleibt frei). Angebot, «Gelöst»/«Weiter»,
+  Werkzeugleiste, «Überspringen» und die Karten des Menüs bleiben frei (die Probe prüft das). Sie deckt die Kopfzeile des Levels; das
+  ist im Durchlauf in Kauf genommen. Desktop unverändert unten links, mit `env(safe-area-inset-*)`.
+- **Knöpfe** mindestens 44 × 44 px, 14 px Schrift (Anzeige und Karte). «Abbrechen» abgesetzt (eigene Farbe, Abstand)
+  und zweistufig: Der erste Tipp zeigt 4 s lang «Wirklich abbrechen?», erst der zweite bricht ab. Kein Browser-Dialog.
+- **Ergebniskarte** deckend, mit Safe-Area; solange sie offen ist, ist die Anzeige weg. Auf schmalem Bildschirm eine
+  eigene Fassung (`kartenText(d, true)`, gespeichert als `schmal`): Tabelle in zwei Blöcken (Bilder/p95/max/>33, dann
+  Zeichnen/CPU/gez/s, je höchstens 41 Zeichen), übrige Zeilen umbrochen, kein seitliches Wischen. «Kopieren» legt
+  immer den vollen Text in die Zwischenablage.
+- **Ersatzmass** (ohne `EXT_disjoint_timer_query_webgl2`): `readPixels` nur in jedem 10. gezeichneten Bild
+  (`MESS_ERSATZ_JEDES`); der Bildabstand, in den es fällt, zählt nicht zu den sichtbaren (je Abschnitt `ohne`).
+  Anzeige («Ersatzmass») und Karte («ACHTUNG Ersatzmass aktiv …, n Bildabstände nicht gezählt») vermerken es.
+  `?ersatzmass` erzwingt es zum Prüfen auf dem Desktop (Probe `--ersatzmass`). `adaptiveResolution` sieht so höchstens
+  ein langsames Bild von zehn.
+- **Neuladen mitten im Durchlauf:** Der Merker trägt `geladen`; das erste Laden nach dem Start setzt es, jedes weitere
+  meldet «Messung unterbrochen (neu geladen): neu beginnen oder abbrechen» mit den Knöpfen «Neu beginnen» (frischer
+  Stand, die Sicherung bleibt) und «Abbrechen».
+- **Anweisung** je Schritt nur das, was dran ist: zum Starten tippen → «Leicht» wählen → Prolog weitertippen, dann
+  «Gleich los» → erstes Level lösen → «jetzt ≡ (Menü, unten rechts) tippen» → «Weiter zur Reise» (oder «Auswerten»).
+- Probe `tests/leistung-probe.mjs`: dazu Unterbrechen und «Neu beginnen», Nachfrage von «Abbrechen», Verdecken der
+  Bedienung, Breite der Karte auf dem Handy, `--ersatzmass`, `--bilder` (Bilder je Schritt, angesehen: Start,
+  Unterbrochen, Menü, Prolog, Angebot, Level, Gelöst, Menü mit «Weiter zur Reise», Reise, Karte).

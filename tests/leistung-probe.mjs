@@ -4,13 +4,16 @@
 // Einstieg → erstes Level (gelöst über __prismaDebug.loese) → «Menü» → «Weiter zur Reise» (Sprung ans Ende der ersten
 // Welt, Reise ins Meer) → Ergebniskarte nach dem Neuladen. Sie prüft die Abschnitte und Werte der Karte
 // (window.__prisma.leistung.ergebnis), dass der echte Stand wieder da ist und die Konsole ohne Fehler bleibt, und legt die
-// Karte unter tests/output/leistung/<name>.txt ab.
+// Karte unter tests/output/leistung/<name>.txt ab. Dazu (Review Ticket 01): Neuladen mitten im Durchlauf meldet
+// «Messung unterbrochen», «Neu beginnen» fängt frisch an; «Abbrechen» fragt erst nach; die Anzeige verdeckt weder Menü,
+// Angebot, Werkzeugleiste noch «Weiter»; auf dem Handy passt die Karte ohne seitliches Wischen.
 // Headless (tools/chrome.mjs, ohne GPU in Software, rAF virtuell getaktet) ist das nur eine Regressionsprüfung, die
 // Zeiten sind keine echten Messwerte. Echte Werte: --fenster (sichtbares Chrome-Fenster, maximiert, auf der
 // Grafikkarte), dazu --handy --drossel 4 für die Handy-Emulation der Spec. Das Fenster dabei nicht verdecken.
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leistung-probe.mjs [--handy] [--drossel 4]
-//           [--fenster]
-//   --handy: 393 × 873, Pixeldichte 2,75 (etwa das Poco F4 GT), Touch und Android-Kennung, bedient mit
+//           [--fenster] [--bilder]
+//   --bilder: ein Bild je Schritt nach tests/output/leistung/<name>-<schritt>.png (hält die Seite an: verfälscht die
+//   Werte); --handy: 393 × 873, Pixeldichte 2,75 (etwa das Poco F4 GT), Touch und Android-Kennung, bedient mit
 //   Input.dispatchTouchEvent (Mausereignisse kommen mit der Touch-Emulation nie zurück); --drossel n: CPU n-mal
 //   langsamer (Emulation.setCPUThrottlingRate); --fenster: echtes Fenster. Etwa 2 bis 3 min; Zeitrahmen 12 min.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -23,7 +26,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'tests', 'output', 'leistung');
 const args = process.argv.slice(2);
 const wert = (name) => { const i = args.indexOf(name); return i < 0 ? null : args[i + 1]; };
-const handy = args.includes('--handy'), fenster = args.includes('--fenster');
+const handy = args.includes('--handy'), fenster = args.includes('--fenster'), bilder = args.includes('--bilder');
 const drossel = wert('--drossel') === null ? 1 : Number(wert('--drossel'));
 if (!(drossel >= 1 && drossel <= 20)) {
   console.error('Aufruf: node tests/leistung-probe.mjs [--handy] [--drossel 4] [--fenster]');
@@ -32,8 +35,11 @@ if (!(drossel >= 1 && drossel <= 20)) {
 requireQuiet();
 
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
-const name = `${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`;
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?perf';
+const ersatzmass = args.includes('--ersatzmass');
+const name = `${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`
+  + (ersatzmass ? '-ersatzmass' : '');
+// --ersatzmass: ohne GPU-Zeit (wie viele Android-Geräte), Zeichenzeit über readPixels in jedem 10. Bild
+const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf');
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 
@@ -81,6 +87,26 @@ async function tippe(selector, was = selector) {
 async function neueSeite(expr, what, seconds = 120) {
   await until(`!window.__alteSeite && (${expr})`, what, seconds);
 }
+/** --bilder: Bild jedes Schritts nach tests/output/leistung/<name>-<schritt>.png (stört die Messung, nur zum Ansehen). */
+async function bild(schritt) {
+  if (!bilder) return;
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, `${name}-${schritt}.png`),
+    Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
+}
+/**
+ * Die Anzeige verdeckt keinen der Knöpfe des Spiels unter selector: auf dem Handy die ganze Anzeige, auf dem Desktop
+ * (dort bleibt die ausführliche Fassung unten links, Klicks gehen durch den Text) ihre Knöpfe.
+ */
+async function frei(selector, was) {
+  const ueber = await ev(`(() => { const p = document.querySelector(${JSON.stringify(handy ? '#perf' : '#perf .perf-knoepfe')})
+    .getBoundingClientRect();
+    return [...document.querySelectorAll(${JSON.stringify(selector)})].filter((el) => {
+      const r = el.getBoundingClientRect();
+      return r.width > 0 && r.left < p.right && r.right > p.left && r.top < p.bottom && r.bottom > p.top;
+    }).length; })()`);
+  pruefe(ueber === 0, `Anzeige verdeckt ${was}`);
+}
 const D = '__prismaDebug';
 const storyMode = `(!document.getElementById('story').classList.contains('hidden') && document.getElementById('story')`
   + '.dataset.mode)';
@@ -109,12 +135,28 @@ try {
   await neueSeite("window.__prisma?.leistung?.schritt() === 'teil1'", 'Durchlauf nach dem Neuladen');
   pruefe(await ev("localStorage.getItem('prisma.noa.mittel') === null && localStorage.getItem('prisma.muted') === null"),
     'frischer Stand im Durchlauf');
+  // Neuladen mitten im Durchlauf: «Messung unterbrochen», «Neu beginnen» fängt frisch an
+  await ev('window.__alteSeite = true; location.reload()');
+  await neueSeite("window.__prisma?.leistung?.schritt() === 'unterbrochen'", 'Messung unterbrochen');
+  await sleep(800);
+  await bild('unterbrochen');
+  await ev('window.__alteSeite = true');
+  await tippe('#perf [data-leistung="Neu beginnen"]', 'Neu beginnen');
+  await neueSeite("window.__prisma?.leistung?.schritt() === 'teil1'", 'Durchlauf nach «Neu beginnen»');
+  // «Abbrechen» fragt erst nach (zweistufig, ohne Dialog)
+  await tippe('#perf [data-leistung="Abbrechen"]', 'Abbrechen');
+  await sleep(300);
+  pruefe(await ev("document.querySelector('#perf [data-leistung=\"Abbrechen\"]').textContent === 'Wirklich abbrechen?'"
+    + " && window.__prisma.leistung.schritt() === 'teil1'"), 'Abbrechen ohne Nachfrage');
+  await bild('start');
 
   await until(`${D}.ui.canStart`, '«Klicken zum Starten»', 60);
   await sleep(1500); // wie ein Spieler: das Pulsieren einen Moment ansehen
   await tippe('#intro .start', 'Klicken zum Starten');
   await until(`${D}.menu.offen`, 'Menü', 30);
   await sleep(1500);
+  await bild('menue');
+  await frei('#menue .menue-wahl, #menue .menue-weiter', 'die Karten im Menü');
   await tippe('#menue .menue-wahl[data-menue-fokus="wahl:leicht"]', 'Leicht');
   await until(`${storyMode} === 'scene'`, 'Prolog', 30);
   for (let n = 1; ; n++) { // Prolog: jedes Bild nach der Fahrt kurz lesen, dann antippen
@@ -122,25 +164,47 @@ try {
       + '.length === 2', `Prolog: Bild ${n}`, 60);
     if (await ev(`${D}.story.waitTap === null`)) break;
     await sleep(1200);
+    if (n === 1) {
+      await bild('prolog');
+      await frei('#story .scene .skip', '«Überspringen»');
+    }
     await tippe('#story .scene .lines', 'Bühne');
     await sleep(300);
   }
   await sleep(1500);
+  await bild('angebot');
+  await frei('#story .scene .actions.angebot button', 'das Angebot');
   await tippe('#story .scene .actions.angebot button:nth-child(2)', 'Gleich los');
   await until(`${D}.story.step === 0 && window.__prisma.playing() && !${D}.story.running`, 'erstes Level', 90);
   await sleep(3000);
+  await bild('level');
+  await frei('#controls button', 'die Werkzeugleiste');
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', '«Gelöst»', 30);
   await sleep(2500);
+  await bild('geloest');
+  await frei('#btn-next', '«Weiter»');
   await tippe('#btn-menu', 'Menü');
   await until(`${D}.menu.offen`, 'Menü aus dem Spiel', 30);
   await sleep(1500);
+  await bild('menue-reise');
   await ev('window.__alteSeite = true');
   await tippe('#perf [data-leistung="Weiter zur Reise"]', 'Weiter zur Reise');
+  if (bilder) { // die Reise ansehen (ein Bild hält die Seite an: nur mit --bilder)
+    await sleep(9000);
+    await bild('reise');
+  }
   await neueSeite('(window.__prisma?.leistung?.ergebnis() ?? null) !== null', 'Ergebniskarte', 240);
 
   const d = await ev('window.__prisma.leistung.ergebnis()');
-  const text = await ev("document.querySelector('#leistung-karte pre').textContent");
+  const text = await ev("JSON.parse(localStorage.getItem('prisma.leistung.ergebnis')).text");
+  await sleep(500);
+  await bild('karte');
+  if (handy) { // auf dem Handy die schmale Fassung, ohne seitliches Wischen
+    pruefe(await ev(`(() => { const pre = document.querySelector('#leistung-karte pre');
+      return document.getElementById('leistung-karte').classList.contains('schmal')
+        && pre.scrollWidth <= pre.clientWidth + 1; })()`), 'Ergebniskarte auf dem Handy breiter als der Bildschirm');
+  }
   pruefe(await ev("!document.getElementById('leistung-karte').hidden"), 'Ergebniskarte nicht zu sehen');
   mkdirSync(OUT, { recursive: true });
   writeFileSync(join(OUT, `${name}.txt`), text + '\n');
@@ -157,6 +221,9 @@ try {
   const reise = d.abschnitte.find((a) => a.id === 'reise');
   pruefe(reise && reise.sekunden > 5 && reise.gezeichnet > 0, `Reise zu kurz oder ohne Bild: ${JSON.stringify(reise)}`);
   pruefe(d.gesamt.zeichnenP95 !== null && d.mass.length > 0, `Zeichenzeit nicht gemessen (${d.mass})`);
+  if (ersatzmass) { // Ersatzmass deutlich auf der Karte, die Abstände mit readPixels nicht gezählt
+    pruefe(d.ersatz && d.ohne > 0 && text.includes('Ersatzmass aktiv'), `Ersatzmass nicht vermerkt (${d.ohne})`);
+  }
   pruefe(d.version && text.includes(d.version) && text.includes(d.geraet.gpu), 'Version oder GPU fehlt auf der Karte');
   // der echte Stand ist zurück, vom Durchlauf bleibt nur das Ergebnis
   const nachher = await ev(`Object.fromEntries(Object.keys(localStorage).filter((k) => k.startsWith('prisma.'))

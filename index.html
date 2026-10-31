@@ -1061,30 +1061,42 @@
 
   #perf {
     /* z-index über Menü, Startbildschirm und Bühne: Die Knöpfe bleiben im ganzen Referenzdurchlauf erreichbar */
-    position: fixed; left: 12px; bottom: 12px; z-index: 9;
+    position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 9;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
     color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
     padding: 8px 10px; border-radius: 4px; white-space: pre; pointer-events: none;
     max-width: calc(100vw - 24px); overflow: hidden;
   }
-  #perf .perf-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; white-space: normal; }
+  /* Handy: knappe Fassung oben links (perfHud.schmal). Unten liegen Angebot, «Gelöst», Werkzeugleiste und die Karten
+     des Menüs, oben rechts «Überspringen»: Die bleiben frei */
+  #perf.schmal {
+    top: max(6px, env(safe-area-inset-top)); bottom: auto; left: max(6px, env(safe-area-inset-left));
+    max-width: calc(100vw - 172px); padding: 6px 8px; font-size: 10.5px; white-space: pre-wrap; background: rgba(0, 0, 0, 0.78);
+  }
+  #perf .perf-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; white-space: normal; }
   #perf .perf-knoepfe:empty { display: none; }
   #perf button { pointer-events: auto; } /* nur die Knöpfe: Daneben bleiben die Knöpfe des Spiels bedienbar */
   #perf button, #leistung-karte button {
-    font: inherit; color: #e8e6f0; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.3);
-    border-radius: 4px; padding: 5px 9px; cursor: pointer;
+    font: 14px/1.2 system-ui, sans-serif; color: #e8e6f0; background: rgba(255, 255, 255, 0.14);
+    border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 6px; min-width: 44px; min-height: 44px;
+    padding: 0 14px; cursor: pointer;
   }
-  /* Ergebniskarte des Referenzdurchlaufs: gross genug, um sie auf dem Handy abzulesen; Text markier- und kopierbar */
+  /* «Abbrechen» abgesetzt und anders gefärbt: nicht aus Versehen statt «Weiter zur Reise» */
+  #perf button.abseits { margin-left: 18px; border-color: rgba(255, 140, 120, 0.6); color: #ffcfc4; }
+  /* Ergebniskarte des Referenzdurchlaufs: deckend, gross genug, um sie auf dem Handy abzulesen; Text markierbar */
   #leistung-karte {
-    position: fixed; inset: max(10px, env(safe-area-inset-top)) 10px 10px; z-index: 10; display: flex;
-    flex-direction: column; gap: 10px; padding: 12px; border-radius: 6px; background: rgba(6, 6, 14, 0.95);
-    color: #e8e6f0; font: 12px/1.45 ui-monospace, Consolas, monospace; letter-spacing: 0;
+    position: fixed; z-index: 10; display: flex; flex-direction: column; gap: 10px; padding: 12px;
+    inset: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
+      max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
+    border-radius: 6px; background: #06060e; color: #e8e6f0;
+    font: 12px/1.45 ui-monospace, Consolas, monospace; letter-spacing: 0;
   }
   #leistung-karte[hidden] { display: none; }
+  body:has(#leistung-karte:not([hidden])) #perf { display: none; } /* die Karte allein, solange sie offen ist */
   #leistung-karte pre { flex: 1; margin: 0; overflow: auto; white-space: pre; user-select: text; -webkit-user-select: text; }
+  #leistung-karte.schmal pre { white-space: pre-wrap; overflow-wrap: anywhere; } /* schmale Fassung: kein Wischen */
   #leistung-karte textarea { flex: 1; font: inherit; color: inherit; background: #000; border: 1px solid #555; }
-  #leistung-karte .karte-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
-  #leistung-karte button { padding: 9px 14px; }
+  #leistung-karte .karte-knoepfe { display: flex; flex-wrap: wrap; gap: 10px; }
 </style>
 </head>
 <body>
@@ -1182,7 +1194,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-10-31 leistung-01';
+const APP_VERSION = '2026-10-31 leistung-01b';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19339,6 +19351,7 @@ const MESS_ABSCHNITTE = {
 // Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms
 const MESS_GRENZE = { p95: 18.3, bild: 33, zeichnen: 8 };
 const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
+const MESS_ERSATZ_JEDES = 10; // Ersatzmass der Zeichenzeit (ohne GPU-Zeit): readPixels nur in jedem 10. gezeichneten Bild
 // Speicher des Referenzdurchlaufs: laufend, Sicherung des echten Spielstands, Ergebnis für die Karte nach dem Neuladen
 const MESS_LAUF = 'prisma.leistung.lauf', MESS_SICHERUNG = 'prisma.leistung.sicherung';
 const MESS_ERGEBNIS = 'prisma.leistung.ergebnis';
@@ -19377,7 +19390,7 @@ const leistung = {
   haenger: [],        // die längsten long-animation-frames { ms, id, t, ursache }
   hudZeit: 0,
   gl: null, timer: null, abfragen: [], abfrageNeu: 0, abfrageAlt: 0, abfrageLaeuft: false, // GPU-Zeit
-  pixel: new Uint8Array(4),
+  pixel: new Uint8Array(4), pixelZeit: -1, // Ersatzmass: Puffer und Zeit des letzten readPixels
   modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
   lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
   schritt: null,      // im Durchlauf: 'teil1' (bis zum Menü), 'reise', 'fertig'
@@ -19399,7 +19412,9 @@ const leistung = {
     requestAnimationFrame(loop);
     if (this.gl) return; // eingerichtet beim ersten Start
     this.gl = renderer.getContext();
-    this.timer = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Probe des Ersatzmasses auf dem Desktop)
+    this.timer = new URLSearchParams(location.search).has('ersatzmass') ? null
+      : this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
     if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
     document.addEventListener('visibilitychange', () => { this.prev = null; });
     const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
@@ -19424,7 +19439,11 @@ const leistung = {
   /** Ein Display-Frame: den Abstand zum letzten dem Abschnitt an dessen Anfang zuschlagen. */
   tick(ts) {
     const id = this.abschnitt();
-    if (this.prev !== null && this.teil) this.abstand(this.teil, ts - this.prev, ts);
+    if (this.prev !== null && this.teil) {
+      // im Abstand lag ein readPixels des Ersatzmasses (bildEnde): nicht als sichtbaren Abstand zählen
+      if (this.pixelZeit >= this.prev && this.pixelZeit < ts) this.teil.ohne++;
+      else this.abstand(this.teil, ts - this.prev, ts);
+    }
     if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
     this.prev = ts;
     if (ts - this.hudZeit >= 500) {
@@ -19467,7 +19486,7 @@ const leistung = {
     let t = this.teile.get(id);
     if (!t) {
       t = { id, bild: this.reihe(), zeichnen: this.reihe(), cpu: this.reihe(), ueber: 0, gezeichnet: 0, haenger: 0,
-        haengerMax: 0, longtasks: 0 };
+        haengerMax: 0, longtasks: 0, ohne: 0 }; // ohne: Abstände mit readPixels, nicht gezählt
       this.teile.set(id, t);
     }
     return t;
@@ -19547,10 +19566,13 @@ const leistung = {
     if (this.abfrageLaeuft) {
       this.gl.endQuery(this.timer.TIME_ELAPSED_EXT);
       this.abfrageLaeuft = false;
-    } else if (!this.timer && this.lauf) {
+    } else if (!this.timer && this.lauf && teil.gezeichnet % MESS_ERSATZ_JEDES === 0) {
+      // Ersatzmass: hält die Pipeline an (Kachel-GPUs der Handys besonders), darum nur jedes n-te Bild; der Abstand,
+      // in den der Halt fällt, zählt nicht zu den sichtbaren (tick, pixelZeit)
       const gl = this.gl;
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
-      this.eintragen(teil.zeichnen, performance.now() - t0);
+      this.pixelZeit = performance.now();
+      this.eintragen(teil.zeichnen, this.pixelZeit - t0);
     }
   },
   /**
@@ -19571,7 +19593,9 @@ const leistung = {
   /** Welches Mass die Zeichenzeit ist. */
   mass() {
     if (this.timer) return 'GPU-Zeit (EXT_disjoint_timer_query_webgl2)';
-    return this.lauf || this.schritt ? 'Ersatz: frame() bis nach readPixels (1 px)' : 'keine (nur im Referenzdurchlauf)';
+    return this.lauf || this.schritt
+      ? `ERSATZMASS: frame() bis nach readPixels (1 px), jedes ${MESS_ERSATZ_JEDES}. Bild; der Abstand danach zählt nicht`
+      : 'keine (nur im Referenzdurchlauf)';
   },
 
   /** Kurzfassung der jüngsten Abstände für die Anzeige (seit dem letzten Aufruf): [fps, p95, max]. */
@@ -19599,7 +19623,7 @@ const leistung = {
         max: t.bild.max, ueber33: t.ueber, zeichnenP95, zeichnenMax: t.zeichnen.max, zeichnenN: t.zeichnen.n,
         cpuP95: q(t.cpu, 0.95), cpuMax: t.cpu.max, gezeichnet: t.gezeichnet,
         gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0, haenger: t.haenger,
-        haengerMax: t.haengerMax, longtasks: t.longtasks,
+        haengerMax: t.haengerMax, longtasks: t.longtasks, ohne: t.ohne,
         fluessig: laden ? null : t.bild.n === 0 || p95 <= MESS_GRENZE.p95 && t.ueber === 0,
         zeichnenOk: zeichnenP95 === null ? null : zeichnenP95 <= MESS_GRENZE.zeichnen };
     });
@@ -19621,6 +19645,7 @@ const leistung = {
     const median = q(alle, 0.5), size = renderer.getDrawingBufferSize(new THREE.Vector2());
     return {
       version: APP_VERSION, zeit: new Date().toISOString(), mass: this.mass(),
+      ersatz: !this.timer, ohne: [...this.teile.values()].reduce((s, t) => s + t.ohne, 0),
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
@@ -19634,8 +19659,11 @@ const leistung = {
       haenger: this.haenger.map((e) => ({ ...e, abschnitt: MESS_ABSCHNITTE[e.id][0] })),
     };
   },
-  /** Die Ergebniskarte als Text (auf dem Handy lesbar, zum Kopieren). */
-  kartenText(d) {
+  /**
+   * Die Ergebniskarte als Text (zum Kopieren in voller Breite). schmal: für die Anzeige auf dem Handy, die Tabelle in
+   * zwei Blöcken (Bildabstände, dann Zeichnen), höchstens 40 Zeichen breit; die übrigen Zeilen bricht die Karte um.
+   */
+  kartenText(d, schmal = false) {
     const z = (v, n = 6, k = 1) => (v === null || v === undefined ? '–' : v.toFixed(k)).padStart(n);
     const g = d.geraet, zeilen = [
       'PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)',
@@ -19649,18 +19677,28 @@ const leistung = {
         + `Umbauten ${g.umbauten})${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
+      ...(d.ersatz ? [`ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): ${d.ohne} Bildabstände mit readPixels nicht gezählt`]
+        : []),
       `Grenzen     p95 ≤ ${MESS_GRENZE.p95} ms, kein Bild > ${MESS_GRENZE.bild} ms; Zeichnen p95 ≤ ${MESS_GRENZE.zeichnen} ms (Handy)`,
       '',
-      `${'Abschnitt'.padEnd(15)}${'Bilder'.padStart(7)}${'p95'.padStart(7)}${'max'.padStart(7)}${'>33'.padStart(5)}`
-        + `${'Zeichn'.padStart(7)}${'CPU'.padStart(6)}${'gez/s'.padStart(6)}`,
     ];
-    const zeile = (name, a) => `${name.padEnd(15)}${String(a.bilder).padStart(7)}${z(a.p95, 7)}${z(a.max, 7)}`
-      + `${String(a.ueber33).padStart(5)}${z(a.zeichnenP95, 7)}${z(a.cpuP95)}${z(a.gezeichnetJeS, 6, 0)}`;
-    for (const a of d.abschnitte) zeilen.push(zeile(a.laden ? `${a.name}*` : a.name, a));
-    zeilen.push(`${'Gesamt'.padEnd(15)}${String(d.gesamt.bilder).padStart(7)}${z(d.gesamt.p95, 7)}${z(d.gesamt.max, 7)}`
-      + `${String(d.gesamt.ueber33).padStart(5)}${z(d.gesamt.zeichnenP95, 7)}`);
-    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je',
-      '  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.');
+    // Spalten: [Kopf, Breite, Wert]; schmal in zwei Blöcken
+    const bild = [['Bilder', 7, (a) => String(a.bilder)], ['p95', 7, (a) => z(a.p95, 0)], ['max', 7, (a) => z(a.max, 0)],
+      ['>33', 5, (a) => String(a.ueber33)]];
+    const zeichnen = [['Zeichn', 7, (a) => z(a.zeichnenP95, 0)],
+      ['CPU', 6, (a) => (a.cpuP95 === undefined ? '' : z(a.cpuP95, 0))],
+      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))]];
+    const gesamt = { ...d.gesamt, name: 'Gesamt', cpuP95: undefined, gezeichnetJeS: undefined };
+    const block = (spalten) => {
+      zeilen.push(`${'Abschnitt'.padEnd(15)}${spalten.map(([k, n]) => k.padStart(n)).join('')}`);
+      for (const a of [...d.abschnitte, gesamt]) {
+        const name = a.laden ? `${a.name}*` : a.name;
+        zeilen.push(`${name.padEnd(15)}${spalten.map(([, n, w]) => w(a).padStart(n)).join('')}`);
+      }
+    };
+    if (schmal) { block(bild); zeilen.push(''); block(zeichnen); } else block([...bild, ...zeichnen]);
+    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je'
+      + `${schmal ? ' ' : '\n  '}gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.`);
     const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
     const teuer = d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
     zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
@@ -19710,7 +19748,8 @@ const leistung = {
         localStorage.setItem(MESS_SICHERUNG, JSON.stringify(sicherung));
         neu = true;
       }
-      localStorage.setItem(MESS_LAUF, JSON.stringify({ seit: Date.now(), version: APP_VERSION }));
+      // geladen: false bis zum ersten Laden mit frischem Stand (pruefeLauf); ein zweites Laden heisst unterbrochen
+      localStorage.setItem(MESS_LAUF, JSON.stringify({ seit: Date.now(), version: APP_VERSION, geladen: false }));
     } catch (e) {
       if (neu) localStorage.removeItem(MESS_SICHERUNG);
       this.meldung = `Referenzdurchlauf geht nicht: kein Speicher (${e.message})`;
@@ -19742,11 +19781,26 @@ const leistung = {
     if (this.schritt === 'fertig') return;
     this.schritt = 'fertig';
     const daten = this.daten();
-    const text = this.kartenText(daten);
+    const ergebnis = { text: this.kartenText(daten), schmal: this.kartenText(daten, true), daten };
     this.wiederherstellen();
-    try { localStorage.setItem(MESS_ERGEBNIS, JSON.stringify({ text, daten })); } catch { /* Karte gleich zeigen */ }
-    if (localStorage.getItem(MESS_ERGEBNIS) === null) { this.zeigeKarte(text); return; }
+    try { localStorage.setItem(MESS_ERGEBNIS, JSON.stringify(ergebnis)); } catch { /* Karte gleich zeigen */ }
+    if (localStorage.getItem(MESS_ERGEBNIS) === null) { this.zeigeKarte(ergebnis); return; }
     location.replace(this.adresse());
+  },
+  /**
+   * Beim Laden mit laufendem Durchlauf: Das erste Laden nach dem Start ist der Durchlauf. Jedes weitere (Neuladen
+   * mitten drin, Absturz des Tabs) hat die bisherigen Messwerte verloren und den Stand nicht von vorn: Dann meldet die
+   * Anzeige «Messung unterbrochen» mit «Neu beginnen» und «Abbrechen».
+   */
+  pruefeLauf() {
+    if (!this.lauf) return;
+    if (this.lauf.geladen === false) {
+      this.schritt = 'teil1';
+      try { localStorage.setItem(MESS_LAUF, JSON.stringify({ ...this.lauf, geladen: true })); } catch { /* egal */ }
+    } else {
+      this.schritt = 'unterbrochen';
+      this.status = 'Messung unterbrochen (neu geladen): neu beginnen oder abbrechen';
+    }
   },
   /** Warten (alle 0,1 s), bis bedingung gilt; sonst nach sekunden Fehler mit was. */
   async warte(bedingung, sekunden, was) {
@@ -19792,37 +19846,63 @@ const leistung = {
   /** Alle 0,5 s im Durchlauf: Zustand und Knöpfe der Anzeige. */
   laufTick() {
     if (ui.solvedVisible()) this.geloest = true;
-    if (this.meldung) return;
-    if (this.schritt === 'reise') this.status = 'Referenzdurchlauf: Sprung ans Ende der ersten Welt, Reise …';
-    else if (this.schritt === 'teil1') {
-      this.status = !this.geloest ? 'Referenzdurchlauf: Starten → Prolog → erstes Level lösen → Menü'
-        : menu.offen ? 'Referenzdurchlauf: «Weiter zur Reise» oder auswerten'
-          : 'Referenzdurchlauf: jetzt «Menü» öffnen';
+    if (this.meldung || this.schritt === 'unterbrochen') return;
+    const tipp = IS_TOUCH ? 'tippen' : 'klicken';
+    if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
+    else if (this.schritt === 'teil1') { // je Schritt nur, was jetzt zu tun ist (kurz: die Anzeige bleibt klein)
+      const szene = story.el.dataset.mode === 'scene' && !story.el.classList.contains('hidden');
+      this.status = this.geloest ? (menu.offen ? 'Durchlauf: «Weiter zur Reise» (oder «Auswerten»)'
+        : `Durchlauf: jetzt ≡ (Menü, unten rechts) ${tipp}`)
+        : flow.state === 'intro' ? `Durchlauf: zum Starten ${tipp}`
+          : menu.offen ? 'Durchlauf: «Leicht» wählen'
+            : szene ? `Durchlauf: Prolog weiter${tipp}, dann «Gleich los»`
+              : 'Durchlauf: erstes Level lösen';
     }
   },
-  /** Knöpfe der Anzeige (nur neu gebaut, wenn sie sich ändern). */
+  /**
+   * Knöpfe der Anzeige (nur neu gebaut, wenn sie sich ändern). «Abbrechen» abgesetzt und zweistufig: Der erste Tipp
+   * fragt «Wirklich abbrechen?» (4 s lang), erst der zweite bricht ab. Kein Dialog des Browsers (hielte Proben an).
+   */
   knoepfe() {
+    const abbrechen = ['Abbrechen', () => this.abbrechen(), true];
     const liste = !this.lauf ? [['Referenzdurchlauf', () => this.starteDurchlauf()]]
       : this.schritt === 'fertig' ? []
-        : [...(this.schritt === 'teil1' && this.geloest && menu.offen
-          ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []),
-        ['Abbrechen', () => this.abbrechen()]];
+        : this.schritt === 'unterbrochen' ? [['Neu beginnen', () => this.starteDurchlauf()], abbrechen]
+          : [...(this.schritt === 'teil1' && this.geloest && menu.offen
+            ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []), abbrechen];
     const stand = liste.map(([name]) => name).join();
     if (stand === this.knoepfeStand) return;
     this.knoepfeStand = stand;
-    perfHud.knoepfe.replaceChildren(...liste.map(([name, tun]) => {
+    perfHud.knoepfe.replaceChildren(...liste.map(([name, tun, nachfragen]) => {
       const b = document.createElement('button');
       b.textContent = name;
       b.dataset.leistung = name;
-      b.addEventListener('click', (e) => { e.stopPropagation(); tun(); });
+      if (nachfragen) b.classList.add('abseits');
+      let bereit = 0; // nachfragen: bis dann (performance.now) gilt der zweite Tipp
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (nachfragen && performance.now() > bereit) {
+          bereit = performance.now() + 4000;
+          b.textContent = `Wirklich ${name.toLowerCase()}?`;
+          setTimeout(() => { if (performance.now() >= bereit) b.textContent = name; }, 4000);
+          return;
+        }
+        tun();
+      });
       return b;
     }));
   },
-  /** Ergebniskarte zeigen: Kopieren in die Zwischenablage, sonst markierbares Textfeld. Schliessen vergisst sie. */
-  zeigeKarte(text) {
+  /**
+   * Ergebniskarte zeigen (ergebnis: { text, schmal, daten }): auf schmalem Bildschirm die schmale Fassung ohne seitliches
+   * Wischen; «Kopieren» legt immer den vollen Text in die Zwischenablage, sonst ein markiertes Textfeld. «Schliessen»
+   * vergisst sie.
+   */
+  zeigeKarte({ text, schmal }) {
     const karte = document.getElementById('leistung-karte'), pre = karte.querySelector('pre');
     const feld = karte.querySelector('textarea'), kopieren = karte.querySelector('.kopieren');
-    pre.textContent = text;
+    const eng = innerWidth < 700 && !!schmal;
+    karte.classList.toggle('schmal', eng);
+    pre.textContent = eng ? schmal : text;
     karte.hidden = false;
     karte.addEventListener('keydown', (e) => e.stopPropagation()); // Tasten bedienen die Karte, nicht das Spiel
     const markieren = () => {
@@ -19879,6 +19959,16 @@ const perfHud = {
     this.samples.length = 0;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
     const f = leistung.fenster(), t = leistung.teil, q = (r) => leistung.quantil(r, 0.95)?.toFixed(1) ?? '–';
+    const zustand = leistung.meldung || leistung.status;
+    // schmal (Handy): knappe Fassung oben links (CSS #perf.schmal), die Bedienung des Spiels bleibt frei
+    this.el.classList.toggle('schmal', innerWidth < 700);
+    if (innerWidth < 700) {
+      this.text.textContent =
+        (f ? `${Math.round(f[0])} FPS p95 ${f[1].toFixed(1)} max ${f[2].toFixed(1)}\n` : '') +
+        (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} >33 ${t.ueber} Zeichn ${q(t.zeichnen)}\n` : '') +
+        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Ersatzmass'}` + (zustand ? `\n${zustand}` : '');
+      return;
+    }
     this.text.textContent =
       (f ? `Sichtbar ${Math.round(f[0])} FPS   p95 ${f[1].toFixed(1)} ms   max ${f[2].toFixed(1)} ms\n` : '') +
       (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} ms   max ${t.bild.max.toFixed(1)} ms   >33 ms ${t.ueber}   ` +
@@ -19888,7 +19978,7 @@ const perfHud = {
       `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
       `Draw-Calls ${this.calls}   Dreiecke ${this.triangles}\n` +
       `GPU ${this.gpu}\nZeichenzeit ${leistung.mass()}\nVersion ${APP_VERSION}` +
-      (leistung.meldung || leistung.status ? `\n${leistung.meldung || leistung.status}` : '');
+      (zustand ? `\n${zustand}` : '');
   },
   toggle() {
     this.visible = !this.visible;
@@ -19899,10 +19989,10 @@ const perfHud = {
   },
 };
 perfHud.el.hidden = !perfHud.visible;
-if (leistung.lauf) leistung.schritt = 'teil1';
+leistung.pruefeLauf();
 if (perfHud.visible) leistung.starte();
 // nach einem Referenzdurchlauf: die Ergebniskarte (bis «Schliessen»)
-if (!leistung.lauf && messLies(MESS_ERGEBNIS)?.text) leistung.zeigeKarte(messLies(MESS_ERGEBNIS).text);
+if (!leistung.lauf && messLies(MESS_ERGEBNIS)?.text) leistung.zeigeKarte(messLies(MESS_ERGEBNIS));
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
