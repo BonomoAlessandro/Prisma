@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Die Bühne von Prolog und Epilog (`createStoryScene`, `index.html` 17190–17608) läuft auf Desktop und
 Handy flüssig und kostet so wenig wie möglich. Sie sieht genau so aus wie heute.
