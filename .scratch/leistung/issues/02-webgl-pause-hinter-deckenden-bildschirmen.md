@@ -182,3 +182,42 @@ Tests: `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `node tests/
 Fenster `--handy --drossel 4`, `--ersatzmass`), `tests/geschichte-probe.mjs --start`, `--grad leicht --welten 1 --finale
 leicht` (Epilog → Menü: längste Lücke 33 ms, keine über 50 ms) und `--handy`: alle grün, Konsole ohne Fehler. Offen:
 Review des Diffs, Merge nach `feature/leistung` (Koordinator).
+
+**Review Code (31.10.2026).** Diff 00238ed + 8652165 (Vergleich `c7c005e..HEAD` ohne die Merges von 01/05) gegen
+`animate()` und alle Stellen durchgesehen, die Zustand fortschreiben.
+
+- **Hängenbleiben: keine fehlende Weckstelle für die verdeckten Phasen gefunden.** Alles, worauf die Geschichte wartet,
+  läuft über `story.tween` (weckt; damit `wait`, `gazeTo`, `skyOf`), über DOM/Timer (Bühne, `untilTap`, `storySleep`)
+  oder über Zustände in `pending()` (`flow` in/out samt `sinkTo`, Feier, Kamera, Strahlen, Drehung/Puls,
+  `skyTheme.busy`). Die Ladeschleifen auf `uFade`/`uReady` hängen an `nextFrame`, ihr Fortschritt an `skyTheme.busy`;
+  Vorschau, Netz, scharfes Bild, Streifen, Ende/Fehlschlag von `build` wecken. Aufdecken weckt immer (`ui.start`,
+  Setter `story.covered`, `open`/`close`), jedes Tippen auch. Ein verpasstes Wecken liesse also hinter der Bühne nur
+  Logik liegen, bis zum nächsten Tippen oder Aufdecken; ein Hänger des Spiels folgt daraus nicht. Ordnung in `frame`
+  stimmt: Weckt `animate` synchron (`enterLevel` aus `updateFlow`), setzt `still` zurück, bevor geruht wird; Weckungen
+  aus Promise-Fortsetzungen kommen nach `awake = false` und melden neu an.
+- **Behoben (Commit «Review Ticket 02»): Strahlen nach dem Ruhen mit veralteter Zeit.** `beamView.update` setzt Geburt
+  und Tod ab `beamView.time`, das nur `animate` nachführt. Lädt ein Level, während die Schleife ruht, stand die Zeit
+  beim letzten Schritt: Probe (Level über `zeige` nach 3 s Ruhe hinter dem Startbildschirm) Uhr 10,4 s, Zeit 7,4 s,
+  erste Geburt 8,4 s, also 2 s in der Vergangenheit: Strahlen ohne Wachsen, Entfallenes ohne Ausblenden. Jetzt setzt
+  `recomputeBeams` die Zeit nach dem Ruhen (`sceneLoop.last === null`; `awake` ist dort schon wahr, weil `close` und
+  `enterLevel` vorher wecken) auf die Uhr (ohne `?t=`): erste Geburt 11,5 s bei Uhr 10,5 s. In 02 erreicht man das nur
+  über `zeige`; **für 06 wichtig**, dort trifft es jede Drehung nach dem Ruhen.
+- **Offen, für 03/04/07 (nicht umgebaut): Bild vor dem Ruhen mitten in der Prolog-Fahrt.** Endet hinter der Bühne
+  etwas (Himmel blendet ein, Kamera steht), zeichnet die Szene 10 Schritte später einmal, zu einem beliebigen Moment
+  der SVG-Fahrt; auf dem Poco 137 ms Zeichenzeit, als Ruck in der Fahrt sichtbar möglich. Für die Bühne ist es
+  entbehrlich: Bei `covered = false` zeichnet die Szene ohnehin, solange `#story` noch deckt. Vorschlag: hinter der
+  Bühne erst beim Warten aufs Tippen zeichnen (wie die Upload-Regel in 03) oder nur beim Startbildschirm; im
+  Handy-Durchlauf 2 prüfen.
+- **Offen, für 06: Sicherheitsnetz.** Sichtbar ruhend wird ein verpasstes Wecken sichtbar (stehendes Bild). Billig:
+  solange die Schleife ruht, alle 250–500 ms `pending()` prüfen und dann wecken, in den Proben dabei warnen, damit
+  fehlende Weckstellen auffallen statt verdeckt zu werden. Für 02 nicht nötig (siehe oben).
+- Kleinigkeiten ohne Änderung: Wird `#story` geschlossen, während `story.covered` wahr bleibt (nur `zeige`), bleibt
+  `storyOpaque` stehen, eine spätere Bühne gälte schon beim Einblenden als deckend (Setter ohne Wechsel). Ein
+  gespeichertes altes Panorama hält hinter der Bühne bis 30 s Logik wach (`held`, Desktop `keep`), ohne zu zeichnen.
+- Geprüft und in Ordnung: Verdeckt erst nach den Transitionen von `#story` (`getAnimations` spült den Stil, auch im
+  Finale mit `slow`); `?nointro` (Start vor `sceneLoop.start`), Neuladen, Epilog → Menü (`covered = false` vor `close`);
+  Zeitbasis `clock`/`t` springt nicht, dt nach dem Ruhen 1/60; `adaptiveResolution` wertet verdeckte Bilder nicht
+  (`skip`), beim Aufdecken `hold(0.5)` und `frameRate` neu; `resize` kalt, `visibilitychange`, Eingaben;
+  Tests `frames` → `ticks` vollständig (übrige `frames` in `shots.mjs` und die Anzeige in `geschichte-probe.mjs` mit
+  Absicht). Stil (Deutsch, «ss», Kommentare) passt.
+- Tests nach dem Fix: `logic` (2033), `golden`, `hall` (6), `geschichte-probe --start` grün, Konsole ohne Fehler.

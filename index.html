@@ -14057,6 +14057,9 @@ function loadLevel(index, beamDelay = 0) {
 }
 
 function recomputeBeams(instant = false, delay = 0) {
+  // Ruhte die Schleife (geweckt, aber noch kein Schritt seither: last null), steht beamView.time noch beim letzten
+  // Schritt: Neue Strahlen wären sonst schon gewachsen, entfallene schon ausgeblendet (Geburt und Tod zählen ab time)
+  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = clock.getElapsedTime();
   sceneLoop.wake(); // Strahlen wachsen, Elemente drehen sich (auch hinter der Bühne fertig)
   game.result = traceBeams(game.board);
   beamView.update(game.result, instant, delay);
