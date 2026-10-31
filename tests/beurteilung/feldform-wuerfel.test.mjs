@@ -4,6 +4,7 @@
 // Aufruf: node tests/beurteilung/feldform-wuerfel.test.mjs (alle Tests: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
 import { L, setRot } from '../../tools/solver.mjs';
+import { ALLE } from '../../tools/lader.mjs';
 import { feldformVon } from '../../tools/beurteilung/feldform.mjs';
 import { test, miniLevel } from './helfer.mjs';
 import { AUFZUG, KERN } from '../wuerfel-handgebaut.mjs';
@@ -33,7 +34,7 @@ test('Zellen: Würfel mit 5 × 5 × 5 ohne Grössenangabe, sonst nach size, Schl
   assert.equal(f5.zellen.length, 125);
   assert.equal(new Set(f5.zellen).size, 125);
   assert.equal(feldformVon({ name: '3 × 3 × 3', dim: 3, size: 3, elements: [] }).zellen.length, 27);
-  for (const level of L.LEVELS_3D) {
+  for (const level of ALLE.LEVELS_3D) {
     const f = feldformVon(level);
     assert.ok(level.elements.every(e => f.zellen.includes(f.zelle(e))), level.name);
     const drehbar = level.elements.filter(e => f.stellungen(e).length).map(f.zelle);
@@ -237,7 +238,7 @@ test('Drehungen ohne Prisma mit waagrechter Achse: vier, viermal gedreht wieder 
 
 test('Drehungen: Aufzug (Prisma mit Achse x) und Kern (Achse z) haben je zwei, mit gleichem Strahlbild', () => {
   const zahl = {};
-  for (const level of [AUFZUG, KERN, ...L.LEVELS_3D]) {
+  for (const level of [AUFZUG, KERN, ...ALLE.LEVELS_3D]) {
     const d = feldformVon(level).drehungen(level);
     if (['Aufzug', 'Kern'].includes(level.name)) zahl[level.name] = d.map(g => vierteldrehungen(level, g));
     for (const g of d.slice(1)) gleichGedreht(level, g, level.name);
@@ -283,8 +284,8 @@ test('Ein Prisma mit waagrechter Achse lässt sich nicht darstellen, wenn eine D
 });
 
 test('Ein Level mit dim 3 hat auf dem Würfel-Branch die Würfel-Feldform', () => {
-  for (const level of L.LEVELS_3D) assert.equal(feldformVon(level).art, 'wuerfel', level.name);
-  assert.equal(feldformVon(L.LEVELS[0]).art, 'flach');
+  for (const level of ALLE.LEVELS_3D) assert.equal(feldformVon(level).art, 'wuerfel', level.name);
+  assert.equal(feldformVon(ALLE.LEVELS[0]).art, 'flach');
 });
 
 // Für den Generator (Ticket 22): dieselben Teile wie in der flachen Feldform (element, rahmen, Nachbartabelle, eine

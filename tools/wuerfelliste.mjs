@@ -15,9 +15,12 @@
 // - Verteilung der Grade (Spec, Tabelle): ZIEL nach GRUPPEN Gruppen, bestandNach(k) nach der Gruppe k.
 // - Seit 26.10.2026 (.scratch/wuerfel-7x7x5/, Dauerregel des Nutzers): jedes Würfel-Level im Quader 7 × 7 × 5
 //   (WUERFEL = QUADER) und nach der Ebenen-Regel (ebenenVerletzt); keine Ausnahme.
+// - Seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Regeln gelten für die Würfel-Level aus Spiel und
+//   Vorrat, in der Folge des gemeinsamen Laders (ALLE in lader.mjs, wie nach dem Zurückholen aller).
 import { GRADE } from './beurteilung/index.mjs';
 import { GRUENDE, ZAEHLENDE_WUERFEL_LAEUFE, reihenfolge } from './levelliste.mjs';
 import { L, keyOf, setRot } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 
 /**
  * Der Würfel aller Würfel-Level nach der Dauerregel des Nutzers vom 26.10.2026 (.scratch/wuerfel-7x7x5/): Grundfläche
@@ -112,8 +115,11 @@ export function senke(level, tief) {
     solution: Object.fromEntries(Object.entries(level.solution).map(([k, v]) => [zelle(k), v])) };
 }
 
-/** Die Würfel-Level im Spiel (LEVELS_3D, in ihrer Reihenfolge). */
-export const imSpiel = () => L.LEVELS_3D;
+/**
+ * Die Würfel-Level aus Spiel und Vorrat (ALLE im Lader), in ihrer Reihenfolge; der Name stammt aus der Zeit ohne
+ * Vorrat.
+ */
+export const imSpiel = () => ALLE.LEVELS_3D;
 
 /**
  * Würfel-Level unter „mittel“, für die die Häufungsregel wie ab „mittel“ zählt (HAUPT_KERNIDEE_JE_10_OBEN): Stockwerk

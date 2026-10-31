@@ -7,7 +7,7 @@
 // - flache Level als Würfel mit einer Ebene: Die Würfel-Feldform muss sie genau wie die flache beurteilen.
 // Aufruf: node tests/beurteilung/wuerfel.test.mjs (alle Tests der Beurteilung: node tests/beurteilung.test.mjs)
 import assert from 'node:assert/strict';
-import { L } from '../../tools/solver.mjs';
+import { ALLE } from '../../tools/lader.mjs';
 import { beurteile } from '../../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../../tools/beurteilung/parallel.mjs';
 import { MINDEST_SPIELWERT } from '../../tools/beurteilung/spielwert.mjs';
@@ -146,7 +146,7 @@ const asCube = (lvl) => ({
   solution: Object.fromEntries(Object.entries(lvl.solution).map(([k, v]) => [k.replace(',', ',0,'), v])),
 });
 const flach = (b) => JSON.parse(JSON.stringify(b).replace(/(\d+),0,(\d+)/g, '$1,$2'));
-const AUSWAHL = L.LEVELS.slice(L.TUTORIAL_COUNT).filter((_, i) => i % 10 === 0);
+const AUSWAHL = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).filter((_, i) => i % 10 === 0);
 let vergleich;
 try {
   const opts = { grad: 'mittel', teuer: true };

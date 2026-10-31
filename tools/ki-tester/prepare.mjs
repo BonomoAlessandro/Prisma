@@ -5,11 +5,12 @@
 // Aufträge liegen ausserhalb.
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--kandidaten <datei>]
 //         [--anker] [--ohne-bilder] [--ohne-zwischenspeicher]
-//   platz          Level zum Beurteilen, Platz in der Reihenfolge im Spiel (1–150, ohne Tutorial); ein Anker wird
-//                  dabei als Anker beurteilt
+//   platz          Level zum Beurteilen, Platz in der Reihenfolge (ohne Tutorial; die Reihe aus Spiel und Vorrat,
+//                  protocol.mjs); ein Anker wird dabei als Anker beurteilt
 //   --kandidaten   neue Level ohne Platz im Spiel (Austausch, Tickets 23–26; Läufe ersatz-…): eine JSON-Liste mit je
-//                  { formel, level }, etwa die Ausgabe von tools/ordne-level.mjs --austausch … --json (dort die
-//                  Einträge mit Leveldaten). formel ist der Platz, den das Level nach der Formel im Spiel bekäme; er
+//                  { formel, level }, etwa einst die Ausgabe von tools/ordne-level.mjs --austausch … --json (dort
+//                  die Einträge mit Leveldaten; den Austausch gibt es seit Ticket 08 von Noas Geschichte nicht mehr).
+//                  formel ist der Platz, den das Level nach der Formel im Spiel bekäme; er
 //                  und der Grad dort sind seine Referenz, wie levelliste.mjs (reihenfolge) sie für ein neues Level
 //                  rechnet, und der Grad des Levels muss derselbe sein. Ein Kandidat heisst im Protokoll „Kandidat
 //                  <Abdruck>“ (kandidatName in leveldaten.mjs), bis sein Name genehmigt ist. Seine Bilder kommen von
@@ -43,15 +44,19 @@
 // Platz nicht kennen. KI-Tester A beurteilt in einer gemischten Reihenfolge, KI-Tester B in der umgekehrten.
 // Zwischenspeicher der Anker-Bilder (tests/output/ki-tester/anker-bilder/, nicht versioniert): Die Bilder eines Ankers
 // werden nicht neu aufgenommen, wenn sich nichts geändert hat, was sie beeinflusst. Der Schlüssel umfasst den
-// Fingerabdruck des Ablaufs, den Inhalt von index.html, vendor/ und backgrounds/ (was die Seite lädt), von shots.mjs
-// und chrome.mjs, den Chrome selbst (Pfad, Grösse, Zeitstempel, Versionsordner), die Leveldaten und den Platz des
-// Ankers im Spiel und seine Kennung. Eine Aufnahme ist wiederholbar byte-gleich (Ticket 05), also auch das
+// Fingerabdruck des Ablaufs, den Inhalt von index.html, tools/vorrat/, vendor/ und backgrounds/ (was die Seite lädt),
+// von shots.mjs und chrome.mjs, den Chrome selbst (Pfad, Grösse, Zeitstempel, Versionsordner), die Leveldaten und den
+// Platz des Ankers im Spiel und seine Kennung. Eine Aufnahme ist wiederholbar byte-gleich (Ticket 05), also auch das
 // gespeicherte Bild.
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Reihenfolge im Spiel kommt aus dem gemeinsamen
+// Lader (ALLE in lader.mjs, die Level des Vorrats an ihrem Platz; protocol.mjs). Liegen Level im Vorrat, kommen alle
+// Bilder von einer Kopie von index.html mit allen Leveln aus Spiel und Vorrat (alleText im Lader, <lauf>/seite/ wie bei
+// den Kandidaten).
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createHash } from 'node:crypto';
-import { L } from '../solver.mjs';
+import { ALLE, VORRAT, alleText } from '../lader.mjs';
 import { findChrome } from '../chrome.mjs';
 import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../leveldaten.mjs';
 import {
@@ -79,7 +84,7 @@ if (roh.length && roh.some(x => x.wuerfel) !== wuerfel) {
   fail(wuerfel ? `${kandidatenDatei}: keine Würfel-Vorschau (wuerfel), ein Lauf wuerfel-… braucht eine`
     : `${kandidatenDatei}: Würfel-Vorschau nur in einem Lauf wuerfel-…`);
 }
-const IM_SPIEL = wuerfel ? WUERFEL_IM_SPIEL : L.LEVELS.slice(L.TUTORIAL_COUNT);
+const IM_SPIEL = wuerfel ? WUERFEL_IM_SPIEL : ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
 const [ABLAUF, ABDRUCK] = wuerfel ? [WUERFEL_VERSION, WUERFEL_FINGERPRINT] : [VERSION, FINGERPRINT];
 const referenz = wuerfel ? referenceWuerfel : reference;
 // Die Reihenfolge, in der Plätze, Grade und Anker rechnen: die im Spiel oder beim Ausbau die Vorschau (siehe Kopf)
@@ -150,23 +155,25 @@ for (const l of all) writeFileSync(join(input, `${l.id}.md`), fieldText(daten.ge
 if (wuerfel) writeFileSync(join(input, 'answer.schema.json'), JSON.stringify(schemaOf(ABLAUF), null, 2) + '\n');
 else copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
 // Die Kandidaten stehen für die Bilder am Ende von LEVELS (im Würfel von LEVELS_3D, unter ihrem Namen bei den
-// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Kopie von index.html (nicht in eingabe/)
+// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Kopie von index.html (nicht in eingabe/), mit
+// allen Leveln aus Spiel und Vorrat (siehe Kopf); liegen Level im Vorrat, kommen auch die übrigen Bilder von dort
 const imSpiel = all.filter(l => !l.kandidat), neu = all.filter(l => l.kandidat);
 const seite = join(dir, 'seite', 'index.html');
-if (neu.length) {
+const mitVorrat = VORRAT.flach.length + VORRAT.wuerfel.length > 0;
+if (neu.length || mitVorrat) {
   mkdirSync(dirname(seite), { recursive: true });
-  const html = readFileSync(join(root, 'index.html'), 'utf8'), basis = pathToFileURL(root).href + '/';
+  const html = alleText(), basis = pathToFileURL(root).href + '/';
   writeFileSync(seite, wuerfel ? seiteMitWuerfeln(html, neu.map(l => ({ ...daten.get(l.id), name: l.name })), basis)
     : seiteMitLeveln(html, neu.map(l => daten.get(l.id)), basis));
 }
-// Im Würfel: Index in LEVELS des Spiels ab CUBE_START (= Zahl der flachen Level), Bilder aus mehreren Blickwinkeln
+// Im Würfel: Index in LEVELS der Seite ab CUBE_START (= Zahl der flachen Level), Bilder aus mehreren Blickwinkeln
 const angles = wuerfel ? CUBE_ANGLES : null, images = imageNames('', angles);
 let seconds = null, reused = [];
 if (!flags.has('--ohne-bilder')) {
   const shots = imSpiel.map(l => ({
     l, label: l.id, file: join(input, 'bilder', l.id),
-    index: (wuerfel ? L.LEVELS.length + IM_SPIEL.indexOf(imSpielAuf(l.position))
-      : L.LEVELS.indexOf(imSpielAuf(l.position))),
+    index: (wuerfel ? ALLE.LEVELS.length + IM_SPIEL.indexOf(imSpielAuf(l.position))
+      : ALLE.LEVELS.indexOf(imSpielAuf(l.position))),
   }));
   // Zwischenspeicher der Anker-Bilder (siehe Kopf): je Anker, Bildschirm und Blickwinkel eine Datei
   // <Schlüssel>-<Bildschirm>[-<Blickwinkel>].png
@@ -180,14 +187,17 @@ if (!flags.has('--ohne-bilder')) {
     : shots.filter(s => s.l.anker && images.every(i => existsSync(cached(s, i))));
   for (const s of fromCache) for (const i of images) copyFileSync(cached(s, i), `${s.file}${i}.png`);
   const fresh = shots.filter(s => !fromCache.includes(s));
-  if (fresh.length) seconds = await takeShots(fresh.map(({ index, label, file }) => ({ index, label, file, angles })));
+  if (fresh.length) {
+    seconds = await takeShots(fresh.map(({ index, label, file }) => ({ index, label, file, angles })), console.log,
+      mitVorrat ? seitenUrl(seite) : undefined);
+  }
   mkdirSync(cache, { recursive: true });
   for (const s of fresh.filter(x => x.l.anker)) {
     for (const i of images) copyFileSync(`${s.file}${i}.png`, cached(s, i));
   }
   reused = fromCache.map(s => s.label);
   if (neu.length) {
-    const first = wuerfel ? L.LEVELS.length + IM_SPIEL.length : L.LEVELS.length;
+    const first = wuerfel ? ALLE.LEVELS.length + IM_SPIEL.length : ALLE.LEVELS.length;
     const mehr = await takeShots(neu.map((l, j) => ({ index: first + j, label: l.id,
       file: join(input, 'bilder', l.id), angles })), console.log, seitenUrl(seite));
     seconds = Object.fromEntries(Object.keys(mehr).map(v => [v, [...(seconds?.[v] ?? []), ...mehr[v]]]));
@@ -293,7 +303,8 @@ function ladeKandidaten(roh, datei) {
 function environmentHash() {
   const h = createHash('sha256');
   const walk = (p) => (statSync(p).isDirectory() ? readdirSync(p).sort().flatMap(f => walk(join(p, f))) : [p]);
-  for (const p of ['index.html', 'vendor', 'backgrounds', 'tools/ki-tester/shots.mjs', 'tools/chrome.mjs']) {
+  for (const p of ['index.html', 'tools/vorrat', 'vendor', 'backgrounds', 'tools/ki-tester/shots.mjs',
+    'tools/chrome.mjs']) {
     for (const f of walk(join(root, p))) h.update(slash(relative(root, f))).update(readFileSync(f));
   }
   const chrome = findChrome();

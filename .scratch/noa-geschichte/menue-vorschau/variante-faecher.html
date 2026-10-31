@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menü – Variante 2: Fächer</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  /* Variante 2: ein Fächer aus vier Sternkarten vor dem Nachthimmel. Vorn liegt der gewählte Grad, beim Öffnen das Ziel
+     von «Weiter»; die übrigen fächern sich dahinter auf. Wählen mit Wischen, den Pfeilen oder den Reitern darunter
+     (dort steht jeder Grad mit seinem Zeichen). Der Hauptknopf gilt immer der vorderen Karte. */
+  .menue {
+    display: grid; grid-template-rows: auto 1fr auto; grid-template-areas: "kopf" "buehne" "steuer";
+    justify-items: center; padding: 40px 16px 44px;
+  }
+  .kopf { grid-area: kopf; }
+  .kopf .titel { font-size: 26px; }
+  .buehne { grid-area: buehne; position: relative; width: 100%; min-height: 0; --w: 276px; --h: 410px; }
+  .steuer { grid-area: steuer; display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+  /* ---------- Karten ---------- */
+  .karte {
+    position: absolute; left: 50%; top: 50%;
+    width: var(--w); height: var(--h); margin: calc(var(--h) / -2) 0 0 calc(var(--w) / -2);
+    transform-origin: 50% 135%;
+    display: flex; flex-direction: column; align-items: center; text-align: center;
+    padding: 26px 20px 22px;
+    border: 1px solid rgba(232, 230, 240, 0.26); border-radius: 16px;
+    background: linear-gradient(180deg, #141329, #06060e);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+    transition: transform 0.5s cubic-bezier(0.3, 0.7, 0.2, 1);
+  }
+  /* innerer Rahmen wie bei einer Bildkarte */
+  .karte::before { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(232, 230, 240, 0.09); border-radius: 10px; pointer-events: none; }
+  /* hintere Karten abgedunkelt (als Schicht, damit der Hof der hervorgehobenen hell bleibt) */
+  .karte::after { content: ""; position: absolute; inset: -1px; border-radius: 16px; background: rgba(3, 3, 8, 0.55); opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
+  .karte.hinten::after { opacity: 1; }
+  .karte.vorn { border-color: rgba(255, 255, 255, 0.55); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(var(--glow), 0.22); }
+  .karte.hervor { border-color: rgba(255, 255, 255, 0.85); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 60px rgba(var(--glow), 0.6), 0 0 14px rgba(var(--glow), 0.5); }
+  .karte.hervor.hinten::after { opacity: 0.6; }
+  .karte .pips { color: var(--ink-dim); }
+  .karte.vorn .pips, .karte.hervor .pips { color: #fff; }
+  .karte .name { margin-top: 12px; font-size: 16px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; white-space: nowrap; }
+  .emblem { position: relative; width: 164px; height: 164px; margin: 26px 0 20px; display: grid; place-items: center; flex: none; }
+  .emblem .ring { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .emblem .ring circle { fill: none; }
+  .emblem .ring .grund { stroke: rgba(232, 230, 240, 0.16); stroke-width: 0.8; }
+  .emblem .ring .licht { stroke: #fff; stroke-width: 1.5; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9)); }
+  .emblem .ring .marke { stroke: rgba(232, 230, 240, 0.4); stroke-width: 0.8; }
+  .karte.neu .emblem .ring .grund { stroke-dasharray: 1.5 3.5; stroke: rgba(232, 230, 240, 0.3); }
+  .emblem .mitte { font-size: 54px; color: #fff; filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.6)); display: grid; }
+  .emblem .mitte .ico { stroke-width: 1; }
+  .karte.neu .emblem .mitte { font-size: 44px; color: rgba(232, 230, 240, 0.55); filter: none; }
+  .emblem .stern { width: 132px; height: 132px; }
+  .karte .ort { font-size: 16px; letter-spacing: 0.06em; }
+  .karte.neu .ort { color: var(--ink-dim); font-size: 14px; }
+  .karte .zahl { margin-top: 8px; font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--ink-dim); }
+  .karte .fusszeile { margin-top: auto; font-size: 9px; letter-spacing: 0.35em; padding-left: 0.35em; text-transform: uppercase; color: var(--ink-dim); }
+  .karte.vorn .fusszeile { color: var(--ink); }
+  /* Licht unter der vorderen Karte */
+  .buehne::before {
+    content: ""; position: absolute; left: 50%; top: 50%; width: 520px; height: 140px; transform: translate(-50%, calc(var(--h) / 2 - 30px));
+    background: radial-gradient(closest-side, rgba(var(--glow), 0.16), rgba(var(--glow), 0)); pointer-events: none;
+  }
+
+  /* ---------- Steuerung ---------- */
+  .wahl { display: flex; align-items: center; gap: 10px; }
+  .schritt { width: 44px; height: 44px; border: 1px solid var(--ink-faint); border-radius: 50%; display: grid; place-items: center; color: var(--ink-dim); font-size: 18px; }
+  .schritt:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .reiter { display: flex; gap: 4px; padding: 4px; border: 1px solid var(--ink-faint); border-radius: 999px; background: rgba(3, 3, 8, 0.5); }
+  .reiter button {
+    display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 14px 0 calc(14px + 0.25em);
+    border-radius: 999px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap;
+  }
+  .reiter button[aria-checked="true"] { color: var(--ink); background: rgba(255, 255, 255, 0.1); }
+  .reiter .stern { width: 18px; height: 18px; margin: -4px -2px; }
+  /* Zeichen je Grad: Polarstern geschafft, halb gefüllt begonnen, leer neu (hervorgehoben: leuchtend) */
+  .reiter .halb { width: 7px; height: 7px; border-radius: 50%; border: 1px solid currentColor; background: linear-gradient(90deg, currentColor 50%, transparent 50%); flex: none; }
+  .reiter .halb.leer { background: none; }
+  .reiter .halb.glimmt { border-color: #fff; box-shadow: 0 0 6px rgba(var(--glow), 1), 0 0 2px #fff; }
+  .aktionen { display: flex; align-items: center; gap: 14px; }
+
+  /* Handy hochkant: eine Karte gross, die Nachbarn schauen am Rand hervor */
+  @media (max-width: 600px) {
+    .menue { padding: max(22px, env(safe-area-inset-top)) 16px 24px; }
+    .kopf .titel { font-size: 21px; }
+    .kopf .unter { font-size: 9px; letter-spacing: 0.4em; }
+    .buehne { --w: 256px; --h: 392px; }
+    .emblem { width: 156px; height: 156px; margin: 22px 0 18px; }
+    .buehne::before { width: 360px; }
+    .steuer { width: 100%; gap: 14px; }
+    .wahl { width: 100%; justify-content: center; gap: 4px; }
+    .schritt { display: none; } /* gewischt wird auf der Karte, gewählt in den Reitern */
+    .reiter { width: 100%; justify-content: space-between; gap: 0; }
+    .reiter button { flex-direction: column; justify-content: center; gap: 5px; min-height: 48px; padding: 4px 6px; font-size: 8.5px; letter-spacing: 0.14em; flex: 1; }
+    .reiter .stern { margin: -6px 0 -5px; }
+    .aktionen { width: 100%; flex-direction: column; gap: 4px; }
+    .aktionen .pille.haupt { width: 100%; }
+  }
+  /* Handy quer: Fächer links, Titel und Steuerung rechts */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .menue {
+      grid-template-columns: 1fr 330px; grid-template-rows: auto 1fr; grid-template-areas: "buehne kopf" "buehne steuer";
+      padding: max(14px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(8px, env(safe-area-inset-left));
+      column-gap: 8px;
+    }
+    .kopf { align-self: end; margin-bottom: 18px; }
+    .kopf .titel { font-size: 19px; }
+    .kopf .unter { font-size: 8.5px; letter-spacing: 0.35em; }
+    .buehne { --w: 172px; --h: 262px; height: 100%; }
+    .buehne::before { width: 340px; height: 90px; }
+    .karte { padding: 16px 12px 14px; border-radius: 12px; }
+    .karte::before { inset: 6px; border-radius: 8px; }
+    .karte::after { border-radius: 12px; }
+    .karte .name { margin-top: 8px; font-size: 12.5px; letter-spacing: 0.3em; }
+    .emblem { width: 100px; height: 100px; margin: 12px 0 10px; }
+    .emblem .mitte { font-size: 36px; }
+    .karte.neu .emblem .mitte { font-size: 30px; }
+    .emblem .stern { width: 90px; height: 90px; }
+    .karte .ort { font-size: 13px; }
+    .karte.neu .ort { font-size: 12px; }
+    .karte .zahl { margin-top: 5px; font-size: 8.5px; letter-spacing: 0.25em; }
+    .karte .fusszeile { font-size: 7.5px; letter-spacing: 0.25em; }
+    .steuer { align-self: start; gap: 12px; width: 100%; }
+    .wahl { width: 100%; gap: 0; }
+    .schritt { display: none; }
+    .reiter { display: grid; grid-template-columns: 1fr 1fr; width: 100%; border-radius: 14px; gap: 2px; }
+    .reiter button { min-height: 36px; justify-content: center; padding: 0 8px; font-size: 9px; letter-spacing: 0.18em; border-radius: 10px; }
+    .aktionen { flex-direction: column; gap: 2px; width: 100%; }
+    .aktionen .pille.haupt { width: 100%; padding: 10px 20px 9px calc(20px + 0.45em); font-size: 12px; }
+    .vonvorn { min-height: 32px; padding: 4px 10px; }
+  }
+</style>
+</head>
+<body>
+<main class="menue">
+  <header class="kopf">
+    <h1 class="titel">PRISMA</h1>
+    <div class="unter">Ein Lichtsignal an die Sterne</div>
+  </header>
+  <div class="buehne" id="buehne" aria-roledescription="Kartenstapel" aria-label="Schwierigkeitsgrade"></div>
+  <div class="steuer">
+    <div class="wahl">
+      <button class="schritt" id="zurueck" aria-label="Leichterer Grad"></button>
+      <div class="reiter" id="reiter" role="radiogroup" aria-label="Grad wählen"></div>
+      <button class="schritt" id="vor" aria-label="Schwererer Grad"></button>
+    </div>
+    <div class="aktionen" id="aktionen"></div>
+  </div>
+</main>
+<script src="gemeinsam.js"></script>
+<script>
+  const RING = 2 * Math.PI * 46;
+  function emblem(g) {
+    const p = anteil(g);
+    const marken = [1, 2, 3, 4, 5, 6].map((k) => {
+      const a = (k / 6) * 2 * Math.PI - Math.PI / 2, c = Math.cos(a), s = Math.sin(a);
+      return `<line class="marke" x1="${50 + 43 * c}" y1="${50 + 43 * s}" x2="${50 + 49 * c}" y2="${50 + 49 * s}"/>`;
+    }).join('');
+    const ring = `<svg class="ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="grund" cx="50" cy="50" r="46"/>${marken}
+      ${p > 0 ? `<circle class="licht" cx="50" cy="50" r="46" stroke-dasharray="${p * RING} ${RING}" transform="rotate(-90 50 50)"/>` : ''}</svg>`;
+    const mitte = g.stand === 'geschafft' ? stern(true) : `<span class="mitte">${icon(g.stand === 'neu' ? 'dorf' : welt(g).id)}</span>`;
+    return `<div class="emblem">${ring}${mitte}</div>`;
+  }
+  const ort = (g) => (g.stand === 'geschafft' ? 'Polarstern erreicht' : g.stand === 'neu' ? 'noch nicht begonnen' : `Die ${welt(g).name}`);
+  const zahl = (g) => (g.stand === 'geschafft' ? '60 / 60 · geschafft' : g.stand === 'neu' ? 'Die Reise beginnt im Dorf' : `Level ${g.level} / 60`);
+  const fusszeile = (g) => (g.zuletzt ? 'Zuletzt gespielt' : g.hervor ? 'Nächste Herausforderung' : g.stand === 'geschafft' ? 'Alle sechs Welten' : '');
+
+  const buehne = document.getElementById('buehne');
+  buehne.innerHTML = GRADE.map((g) => `
+    <article class="karte ${g.stand} ${g.hervor ? 'hervor' : ''}" data-id="${g.id}" aria-label="${ariaKarte(g)}">
+      ${pips(g.punkte)}<div class="name">${g.name}</div>
+      ${emblem(g)}
+      <div class="ort">${ort(g)}</div><div class="zahl">${zahl(g)}</div>
+      <div class="fusszeile">${fusszeile(g)}</div>
+    </article>`).join('');
+  document.getElementById('zurueck').innerHTML = icon('links');
+  document.getElementById('vor').innerHTML = icon('pfeil');
+
+  const reiterZeichen = (g) => (g.stand === 'geschafft' ? stern(true) : g.stand === 'begonnen' ? '<span class="halb" aria-hidden="true"></span>'
+    : `<span class="halb leer ${g.hervor ? 'glimmt' : ''}" aria-hidden="true"></span>`);
+  let aktiv = GRADE.indexOf(WEITER ?? GRADE.find((g) => g.hervor) ?? GRADE[0]);
+
+  function zeige() {
+    const st = getComputedStyle(buehne);
+    const quer = matchMedia('(orientation: landscape) and (max-height: 500px)').matches;
+    const hoch = matchMedia('(max-width: 600px)').matches;
+    const rot = hoch ? 10 : quer ? 12 : 13, dx = hoch ? 26 : quer ? 34 : 70;
+    [...buehne.children].forEach((k, i) => {
+      const d = i - aktiv;
+      k.classList.toggle('vorn', d === 0);
+      k.classList.toggle('hinten', d !== 0);
+      k.style.zIndex = 10 - Math.abs(d);
+      k.style.transform = d === 0 ? 'translateY(-8px)' : `translateX(${d * dx}px) rotate(${d * rot}deg) scale(0.95)`;
+    });
+    document.getElementById('reiter').innerHTML = GRADE.map((g, i) => `<button role="radio" aria-checked="${i === aktiv}"
+      aria-label="${ariaKarte(g)}">${reiterZeichen(g)}<span>${g.name}</span></button>`).join('');
+    const g = GRADE[aktiv];
+    const haupt = g === WEITER ? `<span>Weiter</span><span class="wohin">${g.name} · ${welt(g).name} ${g.level} / 60</span>`
+      : `<span>${aktion(g)}</span><span class="wohin">${g.name} · ${g.stand === 'geschafft' ? 'Übersicht der Welten' : 'neuer Durchgang'}</span>`;
+    document.getElementById('aktionen').innerHTML = `<button class="pille haupt">${haupt}</button>${vonVorn(g)}`;
+  }
+  zeige();
+  addEventListener('resize', zeige);
+  document.getElementById('zurueck').onclick = () => { aktiv = Math.max(0, aktiv - 1); zeige(); };
+  document.getElementById('vor').onclick = () => { aktiv = Math.min(3, aktiv + 1); zeige(); };
+  document.getElementById('reiter').onclick = (e) => {
+    const b = e.target.closest('button'); if (!b) return;
+    aktiv = [...b.parentNode.children].indexOf(b); zeige();
+  };
+  fokusProbe();
+</script>
+</body>
+</html>

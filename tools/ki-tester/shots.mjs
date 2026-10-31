@@ -1,14 +1,17 @@
 // Screenshots der Startstellung für die KI-Tester, schnell und ruhig: Desktop (1440 × 900) und Handy (390 × 844,
 // Pixeldichte 2), je Bildschirm alle Level in einer Browser-Sitzung.
 // Aufruf: sh tools/leise.sh node tools/ki-tester/shots.mjs <ordner> <platz …> [--wuerfel]
-//   Platz 1–150 (ohne Tutorial), Bilder <ordner>/<platz>-desktop.png und -handy.png mit der Kopfzeile wie im Spiel.
-//   prepare.mjs nimmt dieselben Bilder mit der Kennung des Levels statt Nummer, Name und Grad auf.
-//   --wuerfel: Platz unter den Würfel-Leveln (LEVELS_3D), Bilder <ordner>/w<platz>-… aus den Blickwinkeln von
-//   CUBE_ANGLES (Desktop beim Start, von oben und seitlich, Handy beim Start).
-// Je Level: Level merken und neu laden (?t=12: Zeit steht, Zufall fest; nach einem Levelwechsel ohne Neuladen wüchsen
-// die Strahlen bei stehender Zeit nie), Herauswachsen und Aufleuchten mit __prismaDebug.settle vorspulen statt sie
-// über 150 s Bild für Bild abzuwarten, zwei Bilder rendern lassen und aufnehmen. Gültig ist eine Aufnahme erst, wenn
-// eine zweite nach weiterem Vorspulen byte-gleich ist: Dann ist die Szene ruhig.
+//   Platz im Spiel ab 1 (ohne Tutorial), Bilder <ordner>/<platz>-desktop.png und -handy.png mit der Kopfzeile, wie
+//   sie ein Level ausserhalb der Geschichte hat (Titel oder Name und Grad). prepare.mjs nimmt dieselben Bilder mit der
+//   Kennung des Levels statt Titel und Grad auf.
+//   --wuerfel: Platz unter den Würfel-Leveln (LEVELS_3D; seit Ticket 04 im Vorrat, erst zurückholen), Bilder
+//   <ordner>/w<platz>-… aus den Blickwinkeln von CUBE_ANGLES (Desktop beim Start, von oben und seitlich, Handy beim
+//   Start).
+// Je Level: neu laden (?t=12: Zeit steht, Zufall fest; nach einem Levelwechsel ohne Neuladen wüchsen die Strahlen bei
+// stehender Zeit nie) und das Level über die Testschnittstelle zeigen (__prismaDebug.zeige: ausserhalb von Noas
+// Geschichte, vor der Milchstrasse wie bisher, ?sky=milky), Herauswachsen und Aufleuchten mit __prismaDebug.settle
+// vorspulen statt sie über 150 s Bild für Bild abzuwarten, zwei Bilder rendern lassen und aufnehmen. Gültig ist eine
+// Aufnahme erst, wenn eine zweite nach weiterem Vorspulen byte-gleich ist: Dann ist die Szene ruhig.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -18,7 +21,8 @@ import { L } from '../solver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 /** Die Seite der Aufnahmen: index.html, oder eine Kopie mit weiteren Leveln (Kandidaten, prepare.mjs). */
-export const seitenUrl = (datei = join(root, 'index.html')) => pathToFileURL(datei).href + '?noadapt&nointro&t=12';
+export const seitenUrl = (datei = join(root, 'index.html')) => pathToFileURL(datei).href
+  + '?noadapt&nointro&t=12&sky=milky';
 const PAGE = seitenUrl();
 export const VIEWS = [
   { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false },
@@ -87,10 +91,12 @@ export async function takeShots(shots, log = console.log, page = PAGE) {
       seconds[view.name] = [];
       for (const shot of shots) {
         const start = Date.now();
-        await evaluate(send, `__prismaDebug.progress.save(${shot.index}); window.__before = true`);
+        await evaluate(send, 'window.__before = true');
         await send('Page.reload');
-        await until(send, `!window.__before && window.__prisma?.levelIndex() === ${shot.index} && ` +
-          'window.__prisma.frames > 2 && window.__prisma.skyReady()', `Level ${shot.index}`);
+        await until(send, '!window.__before && window.__prisma?.frames > 2', 'Seite neu geladen');
+        await evaluate(send, `__prismaDebug.zeige(${shot.index})`);
+        await until(send, `window.__prisma.levelIndex() === ${shot.index} && window.__prisma.frames > 2 && `
+          + 'window.__prisma.skyReady()', `Level ${shot.index}`);
         if (shot.label) {
           await evaluate(send, `document.getElementById('hud-title').textContent = ${JSON.stringify(shot.label)};
             document.getElementById('hud-tier').hidden = true;

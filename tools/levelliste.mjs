@@ -1,6 +1,8 @@
 // Regeln der Levelliste (Tickets 15, 16, 23, 24 und 26; Spec „Levelliste, Reihenfolge und Austausch“ und „Entscheide zu
 // den Tests“, Nahtstelle 3), gemeinsam für tools/ordne-level.mjs, das Reihenfolge und Grade schreibt, und den Test
-// tests/levelliste.test.mjs, der sie prüft:
+// tests/levelliste.test.mjs, der sie prüft. Seit Noas Geschichte (ADR 0005) gelten sie für die Reihe aus Spiel und
+// Vorrat, nicht mehr für den Ablauf des Spiels (siehe unten); die Würfel-Level (wuerfelliste.mjs), die Wahl der
+// Geschichte (tools/geschichte.mjs: Urteile, Duldungsgründe, behalten) und der Generator (GRUENDE) nutzen Teile davon:
 // - Reihenfolge (ordne): Die Level stehen nach ihrer Schwierigkeit, bei gleichem Wert in der heutigen Reihenfolge
 //   (beurteilung/heutige-reihenfolge.mjs). Verschiebungen bis MAX_WANDERN Plätze werden übernommen. Ein Level, das nach
 //   der Formel weiter wandern würde, steht auf der Prüfliste der KI-Tester und bleibt an seinem heutigen Platz, bis
@@ -29,10 +31,10 @@
 //   Schwelle erreicht. So sinkt der Grad nie, und ein Level am alten Platz zieht keine anderen mit. Die eigenen
 //   Korrekturen der KI-Tester bleiben im Abschnitt ihres Grads und ändern darum keinen Grad.
 // - Häufung der Haupt-Kernidee (entzerre, Entscheide des Nutzers vom 17.10.2026, Ticket 16): Kommt dieselbe
-//   Haupt-Kernidee auf einer Seite zu 10 Leveln öfter als HAUPT_KERNIDEE_JE_10-mal vor (im Ausbau unter Leveln ab
-//   „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt ohne die Level der
-//   Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im Ausbau
-//   MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
+//   Haupt-Kernidee auf einer Seite zu 10 Leveln (je 10 Level der Reihe) öfter als HAUPT_KERNIDEE_JE_10-mal vor (im
+//   Ausbau unter Leveln ab „mittel“ HAUPT_KERNIDEE_JE_10_OBEN-mal, Entscheide des Nutzers vom 22.10.2026), gezählt
+//   ohne die Level der Duldungsliste, rückt ein Level innerhalb seines Grads um höchstens MAX_ENTZERREN Plätze (im
+//   Ausbau MAX_ENTZERREN_AUSBAU, Entscheid des Nutzers vom 22.10.2026), so wenig wie nötig:
 //   zuerst eines der betroffenen, sonst ein anderes derselben oder einer Nachbarseite, dabei eines der Duldungsliste
 //   vor einem anderen; dann der kürzeste Zug, der spätere Platz, nach hinten. Löst kein einzelner Zug sie auf, gilt
 //   auch eine Folge von Zügen, die sie je verkleinern und am Ende auflösen (höchstens VORAUSSCHAU Stellungen). Kein Zug
@@ -60,9 +62,10 @@
 //   Spiel. Sie stehen weiter unter ihrem Grund auf der Duldungsliste (die Regel verletzen sie ja); nach dem Austausch
 //   eines Grads dürfen dort nur noch sie stehen. Die Gruppe wächst nie: ordne-level.mjs übernimmt sie, wie sie ist, und
 //   streicht nur Level, die es nicht mehr gibt. Dieselbe Regel gilt in „schwer“ (Entscheid vom 19.10.2026, Ticket 25).
-// - Je 10 Level (eine Seite der Levelauswahl): Das Mittel der Schwierigkeit fällt um höchstens TOLERANZ_MITTEL Punkte,
-//   und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne die Level der
-//   Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
+// - Je 10 Level (einst eine Seite der Levelauswahl, seit Noas Geschichte nur noch ein Abschnitt der Reihe; die
+//   Geschichte hat eigene Regeln der Vielfalt, tools/geschichte.mjs): Das Mittel der Schwierigkeit fällt um höchstens
+//   TOLERANZ_MITTEL Punkte, und dieselbe Haupt-Kernidee kommt höchstens HAUPT_KERNIDEE_JE_10-mal vor, gezählt ohne
+//   die Level der Duldungsliste (Entscheide des Nutzers vom 16.10.2026, Ticket 15).
 // - Neue Level aus dem Austausch (Tickets 23–26; Spec: „Die Formel ordnet jedes Ersatzlevel ein, die KI-Tester
 //   prüfen“): Sie haben keinen heutigen Platz (imSpiel), wandern also nicht und stehen nach der Formel wie die übrigen.
 //   Beurteilt werden sie in Läufen ersatz-… unter dem Namen aus ihren Leveldaten (kandidatName in leveldaten.mjs), bevor
@@ -82,8 +85,16 @@
 //   nicht mehr am Rand ihres Grads, wie es die Spec der KI-Tester für ihre Wahl verlangte; ein neues Level am Rand hat
 //   dann keinen Anker dahinter. Neue Anker hiessen eine neue Version des Ablaufs, und die Urteile früherer Läufe wären
 //   nicht mehr vergleichbar. Der Test der Anker rechnet darum unter dem Bestand.
+// - Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Regeln gelten für die flachen Level aus Spiel und
+//   Vorrat, in der Folge des gemeinsamen Laders (ALLE in lader.mjs, wie nach dem Zurückholen aller). Solange das Spiel
+//   seine Level in ihrer Folge lässt, ist das die Reihenfolge von vor dem Ablegen. Die Reihe ist seit Noas Geschichte
+//   (Ticket 04, ADR 0005) nicht mehr der Ablauf des Spiels, das der Geschichte folgt (STORY_LEVELS), sondern die Folge
+//   aller flachen Level: Referenz der KI-Tester, Platz im Vorrat, Massstab der Grade und der Ort, an dem neue Level
+//   ihren Grad bekommen. Der Austausch (Level ersetzen und entfernen) ist seit Ticket 08 weggefallen; die Regeln für
+//   die ausgetauschten Level gelten weiter. Was die Reihe als Ablauf des Spiels hatte (die Seiten der Levelauswahl,
+//   Ticket 04), gibt es nicht mehr; die Abschnitte zu 10 und die Häufungsregel halten die Reihe, wie sie ist.
 import { readFileSync } from 'node:fs';
-import { L } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { gradVon } from './beurteilung/grad.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
@@ -245,10 +256,11 @@ export const ausbauNamen = () => ladeLevelliste().ausbau ?? [];
  * Die Level im Spiel, wie die Regeln der Levelliste sie zählen (Tickets 15 und 23): zuerst die der heutigen
  * Reihenfolge, die noch im Spiel stehen, in dieser Reihenfolge, dann die neuen aus dem Austausch in der Reihenfolge im
  * Spiel, dann die des Ausbaus in der Reihenfolge der Namen in ausbau. main: die Level nach dem Tutorial (Vorgabe aus
- * LEVELS); ausbau: die Namen der Level des Ausbaus (Vorgabe aus levelliste.json). Rückgabe { levels, heute: je Level
- * sein heutiger Platz (1–150) oder null bei einem neuen, ausbau: je Level, ob es zum Ausbau gehört }.
+ * Spiel und Vorrat, ALLE im Lader); ausbau: die Namen der Level des Ausbaus (Vorgabe aus levelliste.json). Rückgabe
+ * { levels, heute: je Level sein heutiger Platz (1–150) oder null bei einem neuen, ausbau: je Level, ob es zum Ausbau
+ * gehört }.
  */
-export function imSpiel(main = L.LEVELS.slice(L.TUTORIAL_COUNT), ausbau = ausbauNamen()) {
+export function imSpiel(main = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT), ausbau = ausbauNamen()) {
   const alt = HEUTIGE_REIHENFOLGE.map(name => main.find(l => l.name === name)).filter(Boolean);
   const neu = main.filter(l => heutigerPlatz(l.name) === null && !ausbau.includes(l.name));
   const dazu = ausbau.map(name => main.find(l => l.name === name)).filter(Boolean);
@@ -679,6 +691,6 @@ export function festePlaetze(bisher, r, namen) {
   return { ...alt, ...Object.fromEntries(dazu.map(i => [namen[i], r.formel[i]])) };
 }
 
-/** Je 10 Level, also je Seite der Levelauswahl (PAGE_SIZE in index.html). */
+/** Je 10 Level der Reihe (bis Ticket 04 von Noas Geschichte je Seite der Levelauswahl). */
 export const zehner = (reihe) => Array.from({ length: Math.ceil(reihe.length / 10) },
   (_, k) => reihe.slice(10 * k, 10 * k + 10));

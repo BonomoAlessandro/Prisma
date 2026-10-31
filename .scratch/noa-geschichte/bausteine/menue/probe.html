@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Probe: Menü der Geschichte</title>
+<!--
+  Probe des Bausteins (Ticket 05) mit dem Nachthimmel als Hintergrund. Nicht Teil des Spiels.
+  ?stand=neu | mitte | leicht | epilog | alle | bunt | dorf   (Vorgabe: leicht)
+    neu     alles neu
+    mitte   Mittel begonnen (Wüste 23 / 60), zuletzt gespielt
+    leicht  Leicht geschafft, Mittel begonnen (Wüste 23 / 60)
+    epilog  direkt nach dem Epilog: Leicht geschafft, Mittel hervorgehoben
+    alle    alle vier geschafft
+    bunt    Leicht geschafft, Mittel 23, Schwer im Bergwald 4 / 60 und zuletzt gespielt (Weiter nah an der Lampe)
+    dorf    Leicht begonnen, das Licht noch im Dorf (Prolog, Tutorial)
+  &ohne-uebersicht   createMenu({ uebersicht: false }) wie bis Ticket 06: der geschaffte Grad fragt «Von vorn»
+  &aufnahme          ohne die Leiste der Probe (für die Bilder)
+  &start             erst «Klicken zum Starten» wie im Spiel; das Menü kommt nach Klick oder Enter (so zeigt der
+                     Browser den Fokusrahmen wie im Spiel: nach Tastatur ja, nach Klick nicht)
+  Die Aktionen spielt die Seite wie das Spiel nach: «Von vorn» setzt den Grad zurück und zeigt das Menü neu, die
+  übrigen blenden es aus («Zum Menü» bringt es zurück).
+-->
+<style>
+  /* wie im Spiel (index.html: @font-face, :root, html/body), damit der Baustein dieselbe Umgebung hat */
+  @font-face {
+    font-family: "Jost";
+    font-style: normal;
+    font-weight: 200 400;
+    font-display: swap;
+    src: url(../../../../vendor/jost/jost-latin.woff2) format("woff2");
+  }
+  :root {
+    --ink: #e8e6f0;
+    --ink-dim: rgba(232, 230, 240, 0.58);
+    --ink-faint: rgba(232, 230, 240, 0.14);
+    --bg: #030308;
+    --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+  }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg); color: var(--ink); font-family: var(--font); font-weight: 300;
+    -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:focus-visible { outline: 1px solid var(--ink-dim); outline-offset: 4px; }
+  html { touch-action: manipulation; }
+  /* Himmel aus dem Spiel je Format (menue-vorschau/aufnahme.mjs himmel); fehlt er, bleibt es dunkel */
+  body { background: var(--bg) url(../../menue-vorschau/hintergrund-desktop.png) center / cover no-repeat; }
+  @media (orientation: portrait) { body { background-image: url(../../menue-vorschau/hintergrund-hoch.png); } }
+  @media (orientation: landscape) and (max-height: 500px) { body { background-image: url(../../menue-vorschau/hintergrund-quer.png); } }
+
+  /* Leiste der Probe: oben rechts, klein (mit ?aufnahme weg) */
+  #probe {
+    position: fixed; right: 8px; top: 8px; z-index: 20; display: flex; flex-wrap: wrap; gap: 4px; justify-content: flex-end;
+    max-width: 60vw; font-size: 10px; letter-spacing: 0.08em;
+  }
+  #probe a, #probe span { padding: 4px 7px; border-radius: 6px; background: rgba(0, 0, 0, 0.6); color: var(--ink-dim); text-decoration: none; }
+  #probe a[aria-current] { color: #fff; outline: 1px solid var(--ink-dim); }
+  #probe #log { color: #fff; }
+  /* das «Spiel» hinter dem Menü: nur ein Hinweis, was es jetzt täte */
+  #spiel { position: fixed; inset: 0; display: grid; place-items: center; text-align: center; z-index: 1; }
+  #spiel[hidden] { display: none; }
+  #spiel p { margin: 0 0 18px; font-size: 13px; letter-spacing: 0.3em; text-transform: uppercase; }
+  #start { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; cursor: pointer; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--ink-dim); }
+  #start[hidden] { display: none; }
+  #spiel button { font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase; padding: 12px 26px 12px calc(26px + 0.4em); border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55); }
+</style>
+<link rel="stylesheet" href="menue.css">
+</head>
+<body>
+<div id="start" hidden>Klicken zum Starten</div>
+<div id="spiel" hidden><div><p id="spiel-text"></p><button id="zum-menue">Zum Menü</button></div></div>
+<div id="menue"></div>
+<nav id="probe" aria-label="Probe"></nav>
+<script src="menue.js"></script>
+<script>
+  'use strict';
+  const STAENDE = {
+    neu: { grade: {}, zuletzt: null },
+    mitte: { grade: { mittel: { stand: 'begonnen', welt: 'wueste', geloest: 23 } }, zuletzt: 'mittel' },
+    leicht: {
+      grade: { leicht: { stand: 'geschafft' }, mittel: { stand: 'begonnen', welt: 'wueste', geloest: 23 } },
+      zuletzt: 'mittel',
+    },
+    epilog: { grade: { leicht: { stand: 'geschafft' } }, zuletzt: 'leicht', hervorheben: true },
+    alle: {
+      grade: { leicht: { stand: 'geschafft' }, mittel: { stand: 'geschafft' }, schwer: { stand: 'geschafft' }, 'sehr schwer': { stand: 'geschafft' } },
+      zuletzt: 'sehr schwer',
+    },
+    bunt: {
+      grade: {
+        leicht: { stand: 'geschafft' }, mittel: { stand: 'begonnen', welt: 'wueste', geloest: 23 },
+        schwer: { stand: 'begonnen', welt: 'wald', geloest: 4 },
+      },
+      zuletzt: 'schwer',
+    },
+    dorf: { grade: { leicht: { stand: 'begonnen', welt: 'dorf', geloest: 0 } }, zuletzt: 'leicht' },
+  };
+  const q = new URLSearchParams(location.search);
+  const name = STAENDE[q.get('stand')] ? q.get('stand') : 'leicht';
+  let stand = structuredClone(STAENDE[name]);
+  const log = []; // für die Prüfung in aufnahme.mjs
+  const $ = (id) => document.getElementById(id);
+
+  const menu = createMenu({
+    root: $('menue'),
+    uebersicht: !q.has('ohne-uebersicht'),
+    onAction(a) {
+      log.push(a);
+      $('log').textContent = `${a.aktion} · ${a.grad}`;
+      if (a.aktion === 'vonvorn') { // wie das Spiel: nur diesen Grad löschen, Menü mit neuem Stand
+        delete stand.grade[a.grad];
+        if (stand.zuletzt === a.grad) stand.zuletzt = null;
+        stand.hervorheben = false;
+        menu.show(stand);
+        return;
+      }
+      $('spiel-text').textContent = { weiter: 'Weiter', beginnen: 'Neuer Durchgang', fortsetzen: 'Fortsetzung', uebersicht: 'Übersicht' }[a.aktion] + ': ' + a.grad;
+      menu.hide().then(() => { $('spiel').hidden = false; $('zum-menue').focus(); });
+    },
+  });
+  $('zum-menue').addEventListener('click', () => { $('spiel').hidden = true; menu.show(stand); });
+  // Tasten wie im Spiel: solange das Menü offen ist, gehören sie ihm (siehe LIESMICH.md)
+  addEventListener('keydown', (e) => { if (menu.offen) menu.keydown(e); });
+
+  // Leiste der Probe
+  const nav = $('probe');
+  if (q.has('aufnahme')) nav.remove();
+  else {
+    for (const k of Object.keys(STAENDE)) {
+      const a = document.createElement('a');
+      const p = new URLSearchParams(q);
+      p.set('stand', k);
+      a.href = `?${p}`;
+      a.textContent = k;
+      if (k === name) a.setAttribute('aria-current', 'page');
+      nav.append(a);
+    }
+    nav.insertAdjacentHTML('beforeend', '<span id="log" aria-live="polite">–</span>');
+  }
+  if (!$('log')) document.body.insertAdjacentHTML('beforeend', '<span id="log" hidden></span>');
+
+  window.__probe = { menu, log, get stand() { return stand; }, STAENDE };
+  if (q.has('start')) { // wie der Startbildschirm des Spiels: Klick, Enter oder Leertaste
+    const start = $('start');
+    start.hidden = false;
+    const los = () => { if (start.hidden) return; start.hidden = true; menu.show(stand); };
+    start.addEventListener('click', los);
+    addEventListener('keydown', (e) => { if (!start.hidden && (e.code === 'Enter' || e.code === 'Space')) { e.preventDefault(); los(); } });
+  } else menu.show(stand);
+</script>
+</body>
+</html>

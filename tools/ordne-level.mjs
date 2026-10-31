@@ -1,14 +1,18 @@
-// Reihenfolge und Grade der 150 Level (Ticket 15; Spec „Levelliste, Reihenfolge und Austausch“, „Beurteilung“ und
-// „Entscheide zu den Tests“, Nahtstelle 3): das Werkzeug, aus dem Reihenfolge, Grade, Duldungsliste und Prüfliste
-// entstehen. Es beurteilt die Level (beurteilung/parallel.mjs), rechnet nach den Regeln in levelliste.mjs und
-// berichtet; mit --schreiben trägt es das Ergebnis in index.html und levelliste.json ein.
+// Reihenfolge und Grade der flachen Level in der Reihe aus Spiel und Vorrat (Ticket 15; Spec „Levelliste, Reihenfolge
+// und Austausch“, „Beurteilung“ und „Entscheide zu den Tests“, Nahtstelle 3; seit Noas Geschichte ADR 0005): das
+// Werkzeug, aus dem Reihenfolge, Grade, Duldungsliste und Prüfliste entstehen und mit dem neue Level in die Reihe
+// kommen (--ausbau). Es beurteilt die Level (beurteilung/parallel.mjs), rechnet nach den Regeln in levelliste.mjs und
+// berichtet; mit --schreiben trägt es das Ergebnis in index.html, den Vorrat und levelliste.json ein.
+// Die Reihe ist seit Noas Geschichte nicht mehr der Ablauf des Spiels (das Spiel folgt STORY_LEVELS), aber weiter die
+// Folge aller flachen Level: Referenz der KI-Tester (Platz und Grad), Platz eines Levels im Vorrat und Massstab der
+// Grade; ein neues Level bekommt in ihr seinen Platz und Grad (ADR 0005, „Folgen“).
 // - Reihenfolge: nach der Schwierigkeit, Verschiebungen bis MAX_WANDERN Plätze, weiter wandernde Level bleiben an ihrem
 //   heutigen Platz (Prüfliste für Ticket 16). Gerechnet wird immer von der heutigen Reihenfolge aus
 //   (beurteilung/heutige-reihenfolge.mjs), nicht von der in index.html; ein zweiter Lauf ändert darum nichts.
 // - Urteile der KI-Tester (Ticket 16): die zählenden Einträge des Protokolls (Ablauf 2, Läufe pruefung-…; zu neuen
-//   Leveln ersatz-…, siehe Austausch unten). Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide
-//   zustimmen, sonst bleibt es; dazu die eigenen Korrekturen und die Ablehnungen (reihenfolge in levelliste.mjs). Der
-//   Bericht zeigt je Level der Prüfliste den Entscheid.
+//   Leveln ersatz-… und ausbau-…). Ein Level der Prüfliste kommt auf den Platz der Formel, wenn beide zustimmen, sonst
+//   bleibt es; dazu die eigenen Korrekturen und die Ablehnungen (reihenfolge in levelliste.mjs). Der Bericht zeigt je
+//   Level der Prüfliste den Entscheid.
 // - Grade: feste SCHWELLEN (beurteilung/grad.mjs); ein Level am heutigen Platz bekommt den Grad seines Abschnitts. Der
 //   Bericht zeigt die Herleitung der Schwellen aus der vorläufigen Aufteilung (VORLAEUFIG), die Level, deren Grad nicht
 //   der Schwelle folgt, und zum Vergleich zwei andere Regeln.
@@ -22,52 +26,53 @@
 //   Eindeutigkeit der Lösung, Korrekturen der KI-Tester (höchstens MAX_SHIFT Plätze vom Platz davor, nach den
 //   Korrekturen und am Ende; zuWeitKorrigiert in levelliste.mjs; im Ausbau entfällt das, zuWeitGilt); dazu die Anker
 //   der KI-Tester und der Zusammenhang von Spielwert und Schwierigkeit.
-// - Austausch (Tickets 23–26): Neue Level haben keinen heutigen Platz und stehen nach der Formel (imSpiel und reihenfolge
-//   in levelliste.mjs), dazu die Urteile der KI-Tester aus den Läufen ersatz-…. Mit --austausch rechnet das Skript, als
-//   wären die Kandidaten schon im Spiel und die ersetzten Level entfernt: wo jeder einordnet, mit welchem Grad, ob die
-//   Regeln halten. So werden Kandidaten vor dem Lauf der KI-Tester geprüft, und mit --schreiben kommen sie ins Spiel.
-// Aufruf: sh tools/leise.sh node tools/ordne-level.mjs [--austausch <datei>] [--schreiben] [--json <datei>]
+// - Neue Level haben keinen heutigen Platz und stehen nach der Formel (imSpiel und reihenfolge in levelliste.mjs): die
+//   aus dem Austausch (Tickets 23–26, Läufe ersatz-…) und die des Ausbaus (ausbau in levelliste.json, Läufe ausbau-…).
+//   Den Austausch selbst (--austausch: ein Level durch ein neues ersetzen und das alte entfernen) gibt es seit Ticket 08
+//   von Noas Geschichte nicht mehr: Ein Level, das nicht in die Geschichte kommt, liegt im Vorrat und wird nicht
+//   entfernt (ADR 0005). Die ausgetauschten Level, die entfernten Namen und ihre feste Kopie für die Eichung bleiben.
+// Aufruf: sh tools/leise.sh node tools/ordne-level.mjs [--ausbau <datei>] [--schreiben] [--json <datei>]
 //         (etwa 40 s, vier Threads)
-//   --austausch: eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { ersetzt, level, name, auftrag, seed,
-//                schwierigkeit }: ersetzt ist der Name eines Levels im Spiel, level die Leveldaten des neuen (wie von
-//                tools/generiere.mjs), name der genehmigte Name; ohne name heisst es wie bei den KI-Testern „Kandidat
-//                <Abdruck>“ (kandidatName in leveldaten.mjs). auftrag, seed und schwierigkeit (die Ziel-Schwierigkeit
-//                [von, bis] des Auftrags) sind wahlweise; sie stehen als Herkunft im Kommentar des Levels in
-//                index.html, damit generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit VON,BIS es nachbaut.
-//   --schreiben: ordnet die Level in index.html (zwischen LEVELS:BEGIN und LEVELS:END) und setzt ihren Grad (Feld
-//                grad); schreibt in levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche
-//                Duldungsliste, die entfernten Namen und die Plätze der Formel beim Entscheid über die Level der
-//                Prüfliste (prueflisteFormel, Ticket 26) bleiben, wie sie sind, ebenso die Gruppe „behalten nach
-//                Urteil der KI-Tester“ (behalten, Ticket 24; ohne Level, die es nicht mehr gibt); ein Level der
-//                Prüfliste mit neuem Urteil kommt mit seinem Platz der Formel von heute dazu (festePlaetze); fehlt
-//                die Datei, ist die ursprüngliche die heutige. Einmal, in Ticket 16, wächst die ursprüngliche Liste um
-//                begründete Ergänzungen (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln
-//                festhält (ergaenzt).
+//   --schreiben: ordnet die flachen Level in der ganzen Folge aus Spiel und Vorrat (inGanzerFolge in vorrat.mjs) und
+//                setzt ihren Grad (Feld grad); welche Level im Spiel stehen und welche im Vorrat, bleibt. Schreibt in
+//                levelliste.json die Duldungsliste und die Prüfliste. Die ursprüngliche Duldungsliste, die entfernten
+//                Namen und die Plätze der Formel beim Entscheid über die Level der Prüfliste (prueflisteFormel,
+//                Ticket 26) bleiben, wie sie sind, ebenso die Gruppe „behalten nach Urteil der KI-Tester“ (behalten,
+//                Ticket 24; ohne Level, die es nicht mehr gibt); ein Level der Prüfliste mit neuem Urteil kommt mit
+//                seinem Platz der Formel von heute dazu (festePlaetze); fehlt die Datei, ist die ursprüngliche die
+//                heutige. Einmal, in Ticket 16, wuchs die ursprüngliche Liste um begründete Ergänzungen
+//                (ergaenzungBegruendet in levelliste.mjs), die levelliste.json auch einzeln festhält (ergaenzt).
 //                Es schreibt nicht, solange eine Häufung der Haupt-Kernidee offen bleibt oder ein von den KI-Testern
-//                korrigiertes Level mehr als MAX_SHIFT Plätze von seinem Platz davor steht, auch mit --austausch.
-//                Mit --austausch setzt es dazu die neuen Level mit ihrem Namen ein und nimmt die ersetzten heraus:
-//                ihre Namen kommen auf entfernteNamen, ihre Leveldaten in die feste Kopie für die Eichung
-//                (beurteilung/entfernte-level.json). Das geht nur, wenn jedes neue Level einen genehmigten Namen und
-//                ein zählendes Urteil der KI-Tester hat, das es nicht ablehnt.
-//   --ausbau:    eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit } wie
-//                beim Austausch, aber ohne ersetzt: neue Level für den Ausbau auf 500 Level (.scratch/500-level/,
-//                Kopf von levelliste.mjs). Sie kommen nach der Formel zum Bestand dazu; ohne name heissen sie
-//                „Kandidat <Abdruck>“. Mit --schreiben stehen sie danach mit ihrem Namen im Spiel und in levelliste.json
-//                unter ausbau; das geht nur, wenn jedes einen Namen und ein zählendes Urteil der KI-Tester aus einem Lauf
-//                ausbau-… hat, das es nicht ablehnt. Der Name braucht keine Genehmigung (Entscheid des Nutzers vom
-//                20.10.2026). --austausch und --ausbau gehen auch zusammen.
+//                korrigiertes Level mehr als MAX_SHIFT Plätze von seinem Platz davor steht.
+//   --ausbau:    eine JSON-Liste (oder eine JSON-Zeile je Eintrag) { level, name, auftrag, seed, schwierigkeit }:
+//                level die Leveldaten (wie von tools/generiere.mjs), name der Schlüssel; ohne name heisst es wie bei
+//                den KI-Testern „Kandidat <Abdruck>“ (kandidatName in leveldaten.mjs). auftrag, seed und
+//                schwierigkeit (die Ziel-Schwierigkeit [von, bis] des Auftrags) sind wahlweise; sie stehen als
+//                Herkunft im Kommentar des Levels, damit generiere.mjs <auftrag> --seed S --anzahl 1 --schwierigkeit
+//                VON,BIS es nachbaut. Die Level kommen nach der Formel zum Bestand dazu (Kopf von levelliste.mjs;
+//                einst für den Ausbau auf 500 Level, .scratch/500-level/, seit Noas Geschichte für neue Level der
+//                Geschichte, etwa aus tools/geschichte.mjs ausbau). Mit --schreiben stehen sie danach mit ihrem Namen
+//                im Vorrat (liegen keine flachen Level im Vorrat, im Spiel; in die Geschichte bringt sie
+//                tools/geschichte.mjs spiel) und in levelliste.json unter ausbau; das geht nur, wenn jedes einen Namen
+//                und ein zählendes Urteil der KI-Tester aus einem Lauf ausbau-… hat, das es nicht ablehnt. Der Name
+//                braucht keine Genehmigung (Entscheid des Nutzers vom 20.10.2026).
 //   --json:      schreibt das Ergebnis je Level (heutiger und neuer Platz, Grad, Gründe; bei einem neuen Level dazu
 //                der Name bei den KI-Testern und die Leveldaten, beim Ausbau ausbau: true) in die Datei;
-//                tools/ki-tester/prepare.mjs nimmt sie mit --kandidaten.
+//                tools/ki-tester/prepare.mjs nimmt sie mit --kandidaten (Vorschau für einen Lauf ausbau-…).
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Tickets 02 und 08): Gerechnet wird mit allen flachen Leveln aus
+// Spiel und Vorrat in der Folge des gemeinsamen Laders (ALLE in lader.mjs), „im Spiel“ heisst hier beides; ein neuer
+// Name und ein neues Level dürfen auch im Vorrat nicht vorkommen.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
-import { L, solve, period } from './solver.mjs';
+import { solve, period } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { beurteileAlle } from './beurteilung/parallel.mjs';
 import { SCHWELLEN, gradVon } from './beurteilung/grad.mjs';
-import { ENTFERNTE, HEUTIGE_REIHENFOLGE, entfernteLevel } from './beurteilung/heutige-reihenfolge.mjs';
+import { HEUTIGE_REIHENFOLGE } from './beurteilung/heutige-reihenfolge.mjs';
 import { rangkorrelation } from './beurteilung/schwierigkeit-eichung.mjs';
 import { MAX_SHIFT, provisionalGradeOf, loadAnchors } from './ki-tester/protocol.mjs';
 import { kandidatName, levelCode } from './leveldaten.mjs';
+import { ARTEN, INDEX, inGanzerFolge, lese } from './vorrat.mjs';
 import {
   DATEI, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_WANDERN, alleUrteile, ausbauNamen,
   ergaenzungBegruendet, festePlaetze, imSpiel, ladeLevelliste, maxEntzerren, obenIn, reihenfolge, stark,
@@ -87,12 +92,11 @@ const GRENZFAELLE = {
   'Zerfall mit zweiter Gruppe aus 2 Elementen': [36, 37, 43, 80, 101],
   'Scheinmischung (b) nicht direkt oder zerlegt': [76, 100, 117, 118],
 };
-const INDEX = new URL('../index.html', import.meta.url);
 
 const zahl = (x, n = 1) => x.toFixed(n).replace('.', ',');
-/** Eine Zahl wie angegeben, mit Dezimalkomma (die Ziel-Schwierigkeit aus der Austausch-Datei, etwa 36,65). */
+/** Eine Zahl wie angegeben, mit Dezimalkomma (die Ziel-Schwierigkeit aus der Datei des Ausbaus, etwa 36,65). */
 const dezimal = (x) => String(x).replace('.', ',');
-/** Die Ziel-Schwierigkeit eines Eintrags im Austausch als Text, etwa „36,7–37,5“. */
+/** Die Ziel-Schwierigkeit eines Eintrags im Ausbau als Text, etwa „36,7–37,5“. */
 const zielText = (a) => a.schwierigkeit.map(dezimal).join('–');
 const mittel = (a) => a.reduce((s, x) => s + x, 0) / a.length;
 const rang = (grad) => GRADE.indexOf(grad);
@@ -101,14 +105,17 @@ const argument = (name) => (process.argv.includes(name) ? process.argv[process.a
 const schreiben = process.argv.includes('--schreiben');
 const jsonDatei = argument('--json');
 const start = Date.now();
-// Die Level im Spiel, mit dem Austausch und dem Ausbau: zuerst die der heutigen Reihenfolge, dann die neuen, dann die
-// des Ausbaus (imSpiel)
-const austausch = argument('--austausch') ? ladeAustausch(argument('--austausch')) : [];
-const ersetzt = austausch.map(a => a.ersetzt);
+if (process.argv.includes('--austausch')) {
+  console.error('--austausch gibt es seit Ticket 08 von Noas Geschichte nicht mehr: Level, die nicht in die Geschichte '
+    + 'kommen, liegen im Vorrat (tools/vorrat.mjs), neue kommen mit --ausbau dazu.');
+  process.exit(1);
+}
+// Die Level aus Spiel und Vorrat, mit dem Ausbau: zuerst die der heutigen Reihenfolge, dann die neuen, dann die des
+// Ausbaus (imSpiel)
 const ausbauDazu = argument('--ausbau') ? ladeAusbau(argument('--ausbau')) : [];
 const bisherAusbau = existsSync(DATEI) ? ausbauNamen() : [];
-const { levels, heute, ausbau } = imSpiel([...L.LEVELS.slice(L.TUTORIAL_COUNT).filter(l => !ersetzt.includes(l.name)),
-  ...austausch.map(a => a.level), ...ausbauDazu.map(a => a.level)],
+const { levels, heute, ausbau } = imSpiel([
+  ...ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT), ...ausbauDazu.map(a => a.level)],
 [...bisherAusbau, ...ausbauDazu.map(a => a.level.name)]);
 const n = levels.length;
 /** Bei einem neuen Level der Name, unter dem die KI-Tester es beurteilen (Läufe ersatz-… und ausbau-…). */
@@ -195,9 +202,9 @@ if (neue.length) {
     + `${neue.filter(i => ausbau[i]).length} (neu in diesem Lauf ${ausbauDazu.length})`);
 }
 for (const i of [...neue].sort((x, y) => platz[x] - platz[y])) {
-  const a = [...austausch, ...ausbauDazu].find(x => x.level === levels[i]);
+  const a = ausbauDazu.find(x => x.level === levels[i]);
   const ziel = a?.schwierigkeit ? `, Ziel ${zielText(a)}` : '';
-  const herkunft = a ? `${a.ersetzt ? `ersetzt ${a.ersetzt}` : 'Ausbau'}`
+  const herkunft = a ? 'Ausbau'
     + `${a.auftrag ? `, ${a.auftrag} Seed ${a.seed}${ziel}` : ''}; ` : '';
   console.log(`    ${levels[i].name}${levels[i].name === kandidat[i] ? '' : ` (${kandidat[i]})`}: ${herkunft}Platz `
     + `${platzWieFormel(i)}, Formel ${formel[i]}, Schwierigkeit ${zahl(werte[i], 2)}, ${grad[i]}, Haupt-Kernidee `
@@ -369,9 +376,9 @@ for (let a = 0; a + 10 <= n; a++) {
   if (Object.values(zahlJe).some(x => x > 2)) gleitend++;
 }
 console.log(`    zum Vergleich in gleitenden Fenstern zu 10 Leveln, alle: verletzt in ${gleitend} von ${n - 9}`);
-const namen = [...L.LEVELS.slice(0, L.TUTORIAL_COUNT), ...levels].map(l => l.name);
+const namen = [...ALLE.LEVELS.slice(0, ALLE.TUTORIAL_COUNT), ...levels].map(l => l.name);
 const bisherEntfernt = existsSync(DATEI) ? ladeLevelliste().entfernteNamen : [];
-const wiederVergeben = namen.filter(x => bisherEntfernt.includes(x) || ersetzt.includes(x));
+const wiederVergeben = namen.filter(x => bisherEntfernt.includes(x));
 console.log(`  Namen eindeutig: ${new Set(namen).size === namen.length ? 'ja' : 'nein'}; entfernte Namen wieder `
   + `vergeben: ${wiederVergeben.join(', ') || 'keine'}`);
 const mehrdeutig = levels.map((level, i) => [i, level, solve(level, { unique: true })]).filter(([, level, r]) => {
@@ -419,7 +426,7 @@ const korrelation = [['alle', () => true], ...GRADE.map(g => [g, i => grad[i] ==
 console.log(`\nRangkorrelation von Spielwert und Schwierigkeit: ${korrelation.join(', ')}`);
 
 // Stand der Leveldaten und der Levelliste
-const reihe = L.LEVELS.slice(L.TUTORIAL_COUNT);
+const reihe = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
 const imSpielGleich = folge.every((i, k) => reihe[k]?.name === levels[i].name && reihe[k].grad === grad[i]);
 const bisher = existsSync(DATEI) ? ladeLevelliste() : null;
 // Die ursprüngliche Liste wuchs einmal, in Ticket 16, um begründete Ergänzungen (ergaenzungBegruendet): Level, die
@@ -452,14 +459,13 @@ const listenGleich = bisher && ['duldung', 'pruefliste', 'prueflisteErledigt']
   && !ausbauDazu.length;
 console.log(`\nindex.html: Reihenfolge und Grade ${imSpielGleich ? 'stimmen' : 'weichen ab'}; levelliste.json: `
   + `${!bisher ? 'fehlt' : listenGleich ? 'Duldungsliste und Prüfliste stimmen' : 'weicht ab'}`);
-// Mit dem Austausch nur, wenn jedes neue Level seinen genehmigten Namen und ein zählendes Urteil hat, das es nicht
-// ablehnt (Lehnen beide KI-Tester ab, kommt ein neuer Kandidat; Tickets 23–26)
-const austauschOffen = [...austausch, ...ausbauDazu].flatMap((a) => {
+// Mit dem Ausbau nur, wenn jedes neue Level einen Namen und ein zählendes Urteil hat, das es nicht ablehnt (Lehnen
+// beide KI-Tester ab, kommt ein anderer Kandidat)
+const ausbauOffen = ausbauDazu.flatMap((a) => {
   const i = levels.indexOf(a.level), u = ki.get(i);
   return [
-    ...(a.level.name === kandidat[i] ? [a.ersetzt ? `${a.ersetzt}: Der Ersatz hat noch keinen genehmigten Namen`
-      : `${kandidat[i]}: Das Level des Ausbaus hat noch keinen Namen`] : []),
-    ...(!u ? [`${levels[i].name}: noch kein Urteil der KI-Tester (Lauf ${a.ersetzt ? 'ersatz' : 'ausbau'}-…)`] : []),
+    ...(a.level.name === kandidat[i] ? [`${kandidat[i]}: Das Level des Ausbaus hat noch keinen Namen`] : []),
+    ...(!u ? [`${levels[i].name}: noch kein Urteil der KI-Tester (Lauf ausbau-…)`] : []),
     ...(u?.abgelehnt ? [`${levels[i].name}: von beiden KI-Testern abgelehnt (${u.gruende.join(', ')})`] : []),
   ];
 });
@@ -473,22 +479,28 @@ if (schreiben && (ordnung.offen.length || zuWeit.length)) {
       + `seinem Platz davor (oben): ${zuWeit.map(v => name(v.i)).join(', ')}`);
   }
   process.exitCode = 1;
-} else if (schreiben && (austauschOffen.length || wiederVergeben.length)) {
-  console.log(`  nicht geschrieben: ${[...austauschOffen, ...wiederVergeben.map(x => `${x}: entfernter Name`)]
+} else if (schreiben && (ausbauOffen.length || wiederVergeben.length)) {
+  console.log(`  nicht geschrieben: ${[...ausbauOffen, ...wiederVergeben.map(x => `${x}: entfernter Name`)]
     .join('; ')}`);
   process.exitCode = 1;
 } else if (schreiben) {
-  if (!imSpielGleich) schreibeLevels();
+  let wohin = '';
+  if (!imSpielGleich) {
+    // in Spiel und Vorrat (Ticket 08): die ganze Folge geordnet, neue Level in den Vorrat; zuerst der Vorrat, dann
+    // index.html, wie beim Ablegen (vorrat.mjs)
+    const r = inGanzerFolge(lese(), 'flach', ordneLevels, ausbauDazu.map(a => a.level.name));
+    writeFileSync(ARTEN.flach.datei, r.flach);
+    writeFileSync(INDEX, r.spiel);
+    wohin = 'index.html, tools/vorrat/flach.js und ';
+  }
   const urspruenglich = Object.fromEntries(Object.keys(GRUENDE).map(grund => [grund,
     bisher ? [...new Set([...bisherIn(grund), ...ergaenzt[grund]])] : listen.duldung[grund]]));
-  const entfernteNamen = [...new Set([...(bisher?.entfernteNamen ?? []), ...ersetzt])];
+  const entfernteNamen = bisher?.entfernteNamen ?? [];
   writeFileSync(DATEI, levellisteText({
     ...listen, urspruenglich, ergaenzt, entfernteNamen, prueflisteFormel, behalten,
     ausbau: [...bisherAusbau.filter(x => levels.some(l => l.name === x)), ...ausbauDazu.map(a => a.level.name)],
   }));
-  if (austausch.length) schreibeEntfernte();
-  console.log(`  geschrieben: ${imSpielGleich ? '' : 'index.html und '}levelliste.json`
-    + `${austausch.length ? ' und beurteilung/entfernte-level.json' : ''}`);
+  console.log(`  geschrieben: ${wohin}levelliste.json`);
 }
 
 if (jsonDatei) {
@@ -515,46 +527,19 @@ function folgeNamen(liste) {
 }
 
 /**
- * Liest den Austausch (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag. Jeder Eintrag ersetzt ein anderes
- * Level im Spiel; das neue Level heisst wie genehmigt (name) oder „Kandidat <Abdruck>“. Rückgabe: je Eintrag
- * { ersetzt, auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad; schwierigkeit ist die
- * Ziel-Schwierigkeit [von, bis] des Auftrags oder null.
- */
-function ladeAustausch(datei) {
-  const text = readFileSync(datei, 'utf8').trim();
-  const liste = text.startsWith('[') ? JSON.parse(text)
-    : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-  const main = L.LEVELS.slice(L.TUTORIAL_COUNT);
-  return liste.map((a, k) => {
-    const wo = `${datei}, Eintrag ${k + 1}`;
-    if (!main.some(l => l.name === a.ersetzt)) throw new Error(`${wo}: kein Level „${a.ersetzt}“ im Spiel`);
-    if (liste.filter(x => x.ersetzt === a.ersetzt).length > 1) throw new Error(`${wo}: „${a.ersetzt}“ zweimal`);
-    if (!Array.isArray(a.level?.elements) || !a.level.solution || !GRADE.includes(a.level.grad)) {
-      throw new Error(`${wo}: Leveldaten mit elements, solution und grad nötig`);
-    }
-    const ziel = a.schwierigkeit ?? null;
-    if (ziel && !(Array.isArray(ziel) && ziel.length === 2 && ziel.every(Number.isFinite) && ziel[0] <= ziel[1])) {
-      throw new Error(`${wo}: schwierigkeit muss [von, bis] sein, nicht ${JSON.stringify(ziel)}`);
-    }
-    const { name: _, ...daten } = a.level;
-    return { ersetzt: a.ersetzt, auftrag: a.auftrag ?? null, seed: a.seed ?? null, schwierigkeit: ziel,
-      level: { name: a.name || kandidatName(daten), ...daten } };
-  });
-}
-
-/**
- * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag, wie beim Austausch, aber ohne
- * ersetzt. Ein Name darf weder im Spiel noch auf der Liste der entfernten Namen stehen, kein Name und kein Level
- * doppelt. Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad.
+ * Liest den Ausbau (siehe Kopf): eine JSON-Liste oder eine JSON-Zeile je Eintrag. Ein Name darf weder in Spiel oder
+ * Vorrat (flach oder im Würfel) noch auf der Liste der entfernten Namen stehen, kein Name und kein Level doppelt.
+ * Rückgabe: je Eintrag { auftrag, seed, schwierigkeit, level } mit den Leveldaten samt Name und Grad.
  */
 function ladeAusbau(datei) {
   const text = readFileSync(datei, 'utf8').trim();
   const liste = text.startsWith('[') ? JSON.parse(text)
     : text.split('\n').filter(l => l.trim()).map(l => JSON.parse(l));
-  const vergeben = [...L.LEVELS.map(l => l.name), ...(existsSync(DATEI) ? ladeLevelliste().entfernteNamen : [])];
+  const vergeben = [...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => l.name)
+    .concat(existsSync(DATEI) ? ladeLevelliste().entfernteNamen : []);
   const eintraege = liste.map((a, k) => {
     const wo = `${datei}, Eintrag ${k + 1}`;
-    if (a.ersetzt !== undefined) throw new Error(`${wo}: Ein Level des Ausbaus ersetzt keines (--austausch)`);
+    if (a.ersetzt !== undefined) throw new Error(`${wo}: Ein Level des Ausbaus ersetzt keines (Austausch entfällt)`);
     if (!Array.isArray(a.level?.elements) || !a.level.solution) {
       throw new Error(`${wo}: Leveldaten mit elements und solution nötig`);
     }
@@ -573,38 +558,26 @@ function ladeAusbau(datei) {
   const doppelt = namen.filter((x, k) => namen.indexOf(x) !== k);
   if (doppelt.length) throw new Error(`${datei}: doppelt: ${[...new Set(doppelt)].join(', ')}`);
   // Dieselben Leveldaten (gleicher Abdruck) unter anderem Namen, in der Datei oder schon im Spiel
-  const abdrucke = eintraege.map(a => kandidatName(a.level)), imSpielSchon = new Set(L.LEVELS.map(kandidatName));
+  const abdrucke = eintraege.map(a => kandidatName(a.level)), imSpielSchon = new Set(ALLE.LEVELS.map(kandidatName));
   const gleich = eintraege.filter((a, k) => abdrucke.indexOf(abdrucke[k]) !== k || imSpielSchon.has(abdrucke[k]));
   if (gleich.length) throw new Error(`${datei}: Leveldaten doppelt: ${gleich.map(a => a.level.name).join(', ')}`);
   return eintraege;
 }
 
 /**
- * Hängt die Leveldaten der ersetzten Level an die feste Kopie für die Eichung an (beurteilung/entfernte-level.json,
- * siehe heutige-reihenfolge.mjs), so wie sie im Spiel standen; ein Level je Zeile.
+ * Ordnet die Level in index.html (html: der Text mit allen flachen Leveln, inGanzerFolge in vorrat.mjs) zwischen den
+ * Markierungen LEVELS:BEGIN und LEVELS:END nach der neuen Reihenfolge und setzt je Level das Feld grad hinter den Namen
+ * (statt der alten Markierung difficulty). Jedes Level steht dort als Block von „  {“ bis „  },“; der Text eines Blocks
+ * bleibt sonst unverändert. Die Level des Ausbaus kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar).
+ * Rückgabe: der neue Text.
  */
-function schreibeEntfernte() {
-  // nur Level der heutigen Reihenfolge; ein ersetztes neues Level ist nicht Teil des Massstabs
-  const neu = ersetzt.filter(x => HEUTIGE_REIHENFOLGE.includes(x))
-    .map(x => L.LEVELS.find(l => l.name === x && !l.tutorial));
-  const alle = [...entfernteLevel().filter(l => !ersetzt.includes(l.name)), ...neu];
-  writeFileSync(ENTFERNTE, '{\n'
-    + '  "kommentar": "Entfernte Level der heutigen Reihenfolge, wie sie zuletzt im Spiel standen: feste Kopie für die '
-    + 'Eichung (heutige-reihenfolge.mjs, Tickets 23–26).",\n'
-    + `  "level": [\n${alle.map(l => `    ${JSON.stringify(l)}`).join(',\n')}\n  ]\n}\n`);
-}
-
-/**
- * Ordnet die Level in index.html zwischen den Markierungen LEVELS:BEGIN und LEVELS:END nach der neuen Reihenfolge und
- * setzt je Level das Feld grad hinter den Namen (statt der alten Markierung difficulty). Jedes Level steht dort als
- * Block von „  {“ bis „  },“; der Text eines Blocks bleibt sonst unverändert. Mit dem Austausch fallen die Blöcke der
- * ersetzten Level weg, und die neuen kommen dazu (levelCode in leveldaten.mjs, mit Herkunft im Kommentar).
- */
-function schreibeLevels() {
-  const html = readFileSync(INDEX, 'utf8'), nl = html.includes('\r\n') ? '\r\n' : '\n';
+function ordneLevels(html) {
+  const nl = html.includes('\r\n') ? '\r\n' : '\n';
   const a = html.indexOf('/* LEVELS:BEGIN */'), e = html.indexOf('/* LEVELS:END */');
   if (a < 0 || e < a) throw new Error('index.html: Markierungen LEVELS:BEGIN/END fehlen');
   const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  // mit Titel wie bei levelCode (Spec .scratch/noa-geschichte/), wenn ein Level einen hat
+  const NAMENSZEILE = /^( {4}name: '([^']+)'(?:, titel: '(?:[^'\\]|\\.)*')?)(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/;
   const bloecke = new Map();
   let block = null;
   for (const zeile of html.slice(von, bis).split(nl).slice(0, -1)) {
@@ -612,25 +585,15 @@ function schreibeLevels() {
     else if (!block) throw new Error(`index.html: Zeile ausserhalb eines Levels: ${zeile}`);
     else block.push(zeile);
     if (zeile === '  },') {
-      const m = block.map(z => z.match(/^ {4}name: '([^']+)'(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/))
-        .find(Boolean);
+      const m = block.map(z => z.match(NAMENSZEILE)).find(Boolean);
       if (!m) throw new Error(`index.html: Level ohne Namenszeile: ${block.slice(0, 3).join(' ')}`);
-      bloecke.set(m[1], block);
+      bloecke.set(m[2], block);
       block = null;
     }
   }
-  for (const x of ersetzt) bloecke.delete(x);
-  for (const a of austausch) {
-    // Herkunft im Kommentar, so dass generiere.mjs das Level nachbaut: Auftrag, Seed und Ziel-Schwierigkeit (die alte
-    // Zeile „Wertung …“ der übrigen Level gibt es für neue nicht)
-    const teile = [a.seed !== null && `Seed ${a.seed}`,
-      a.schwierigkeit && `Ziel ${zielText(a)}`];
-    const herkunft = a.auftrag ? `Generator ${[a.auftrag, ...teile.filter(Boolean)].join(', ')} · ` : '';
-    const kommentar = [`${herkunft}ersetzt ${a.ersetzt} (Austausch „${grad[levels.indexOf(a.level)]}“)`];
-    bloecke.set(a.level.name, levelCode(a.level, kommentar).split('\n'));
-  }
   for (const a of ausbauDazu) {
-    // Herkunft wie beim Austausch, statt „ersetzt …“ der Ausbau mit dem Grad
+    // Herkunft im Kommentar, so dass generiere.mjs das Level nachbaut: Auftrag, Seed und Ziel-Schwierigkeit, dazu der
+    // Ausbau mit dem Grad (wie bei den Leveln aus dem Austausch „ersetzt …“)
     const teile = [a.seed !== null && `Seed ${a.seed}`, a.schwierigkeit && `Ziel ${zielText(a)}`];
     const herkunft = a.auftrag ? `Generator ${[a.auftrag, ...teile.filter(Boolean)].join(', ')} · ` : '';
     const kommentar = [`${herkunft}Ausbau „${grad[levels.indexOf(a.level)]}“`];
@@ -640,10 +603,9 @@ function schreibeLevels() {
   const text = folge.map((i) => {
     const neu = bloecke.get(levels[i].name);
     if (!neu) throw new Error(`index.html: Level „${levels[i].name}“ fehlt`);
-    return neu.map(z => z.replace(/^( {4}name: '[^']+')(?:, difficulty: '[a-z ]+')?(?:, grad: '[a-z ]+')?,$/,
-      `$1, grad: '${grad[i]}',`)).join(nl);
+    return neu.map(z => z.replace(NAMENSZEILE, `$1, grad: '${grad[i]}',`)).join(nl);
   }).join(nl) + nl;
-  writeFileSync(INDEX, html.slice(0, von) + text + html.slice(bis));
+  return html.slice(0, von) + text + html.slice(bis);
 }
 
 /** levelliste.json mit Namenslisten zu höchstens 120 Zeichen je Zeile. */

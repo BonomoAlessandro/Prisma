@@ -1,0 +1,261 @@
+  /* ---------- Menü der Geschichte (Ticket 05): «Lichtwege zum Polarstern» ----------
+     Je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad gekommen ist; Punkte teilen
+     ihn in die sechs Welten. Alle Klassen beginnen mit «menue-», die Wurzel trägt «menue» (createMenu setzt sie).
+     Schrift und Farben aus den Variablen des Spiels (--ink, --font), mit Ersatzwerten für die Probe.
+     Desktop und Handy quer: Lampen links untereinander, die Beschriftung links davon, der Stern rechts oben, «Weiter»
+     am Kopf des Lichts. Handy hoch: die Grade als Zeilen unten; die Wege steigen gestaffelt am linken Rand auf (der
+     schwerste ganz aussen, er ist der längste) und biegen im Fächer zum Stern rechts oben ab, so kreuzt kein Weg eine
+     Beschriftung; «Weiter» ganz unten in Reichweite des Daumens.
+     Die Bedingungen für hoch und quer stehen gleich in menue.js (HOCH, QUER): beide zusammen ändern. */
+  .menue {
+    --menue-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel und den Strahl des Startbildschirms */
+    --menue-ink: var(--ink, #e8e6f0);
+    --menue-dim: rgba(232, 230, 240, 0.66); /* etwas heller als --ink-dim: kleine Schrift auf dem Himmel */
+    --menue-linie: rgba(232, 230, 240, 0.3);
+    position: fixed; inset: 0; z-index: var(--menue-z, 7);
+    overflow: hidden;
+    color: var(--menue-ink);
+    font-family: var(--font, "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif);
+    font-weight: 300;
+    -webkit-font-smoothing: antialiased;
+    user-select: none; -webkit-user-select: none;
+    transition: opacity 0.8s ease;
+  }
+  .menue[hidden] { display: none; }
+  .menue.menue-aus { opacity: 0; pointer-events: none; }
+  .menue *, .menue *::before, .menue *::after { box-sizing: border-box; }
+  /* leicht abgedunkelt, zum Rand hin mehr: der Himmel bleibt sichtbar, die Schrift lesbar */
+  .menue::before {
+    content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 50%, rgba(3, 3, 8, 0.12), rgba(3, 3, 8, 0.66) 92%);
+  }
+  :where(.menue) button { /* schwach (:where), damit die Klassen der Knöpfe gelten */
+    font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer;
+    text-align: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  /* Tastaturfokus: heller und mit Hof (der Rahmen des Spiels, 1 px in --ink-dim, ist auf dem Himmel zu schwach) */
+  .menue button:focus-visible {
+    outline: 1.5px solid #fff; outline-offset: 4px;
+    box-shadow: 0 0 20px rgba(var(--menue-glow), 0.55);
+  }
+  /* zuletzt mit Zeiger oder Finger bedient: kein Rahmen (der Fokus liegt trotzdem dort, die nächste Taste zeigt ihn) */
+  .menue.menue-zeiger button:focus-visible { outline: none; box-shadow: none; }
+  .menue.menue-zeiger .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+  .menue-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+  .menue-inhalt { position: absolute; inset: 0; }
+  .menue-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .menue-ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+  /* Kopf: Titel wie der Startbildschirm, klein */
+  .menue-kopf { position: absolute; left: 7%; top: 56px; }
+  .menue-titel {
+    margin: 0; font-size: 24px; font-weight: 200; letter-spacing: 0.5em; text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35);
+  }
+  .menue-unter { margin: 8px 0 0; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--menue-dim); }
+
+  /* Polarstern: weicher Hof mit vier Strahlen (wie der Lichtpunkt am Himmel im Spiel) */
+  .menue-ziel { position: absolute; left: 79%; top: 23%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
+  .menue-stern { display: inline-block; flex: none; }
+  .menue-stern svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .menue-ziel .menue-stern { width: 150px; height: 150px; }
+  /* über dem Stern: die Wege kommen immer von unten links und liefen sonst durch das Wort */
+  .menue-wort {
+    position: absolute; bottom: calc(100% - 4px); font-size: 9px; letter-spacing: 0.5em; padding-left: 0.5em;
+    text-transform: uppercase; color: var(--menue-dim); white-space: nowrap;
+  }
+
+  /* Grade: Desktop eine Spalte links, die Beschriftung rechtsbündig vor der Lampe */
+  .menue-grade {
+    list-style: none; margin: 0; padding: 0;
+    position: absolute; left: 7%; top: 27%; bottom: 9%; width: 330px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .menue-grad { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "wahl lampe" "neu ."; align-items: center; column-gap: 20px; }
+  .menue-wahl {
+    grid-area: wahl; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; text-align: right;
+    min-height: 44px; padding: 6px 4px 6px 12px; border-radius: 10px;
+    transition: background-color 0.25s ease;
+  }
+  .menue-wahl:hover { background: rgba(255, 255, 255, 0.04); }
+  .menue-zeile1 { display: flex; align-items: center; gap: 12px; }
+  .menue-pips { display: inline-flex; gap: 4px; color: var(--menue-dim); }
+  .menue-pips i { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+  .menue-pips i.menue-on { background: currentColor; border-color: transparent; } /* volle und leere: Form, nicht Farbe */
+  .menue-name { font-size: 16px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; white-space: nowrap; }
+  .menue-stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
+  .menue-neu .menue-stand { color: var(--menue-dim); }
+  .menue-stand .menue-stern { width: 24px; height: 24px; margin: -5px 0; }
+  .menue-zahl { font-variant-numeric: tabular-nums; }
+  .menue-aktion {
+    display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.38em; margin-right: -0.38em;
+    text-transform: uppercase; color: var(--menue-dim);
+  }
+  .menue-aktion .menue-ico { font-size: 12px; }
+  .menue-zuletzt .menue-aktion { color: var(--menue-ink); }
+  /* «Von vorn»: klein und zurückhaltend, mit dem Zeichen von «Level neu starten» */
+  .menue-vonvorn {
+    grid-area: neu; justify-self: end; display: inline-flex; align-items: center; gap: 0.7em;
+    min-height: 36px; padding: 8px 10px; margin: 2px -0.3em 0 0; border-radius: 999px;
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+    transition: color 0.25s ease;
+  }
+  .menue-vonvorn .menue-ico { font-size: 14px; }
+  .menue-vonvorn:hover { color: var(--menue-ink); }
+
+  /* Lampe: Anfang des Wegs; leuchtet, sobald das Licht im Grad unterwegs ist */
+  .menue-lampe { grid-area: lampe; position: relative; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.45); }
+  .menue-begonnen .menue-lampe, .menue-geschafft .menue-lampe {
+    background: #fff; border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(var(--menue-glow), 0.7);
+  }
+  /* hervorgehoben (direkt nach dem Epilog der nächstschwerere Grad): Ring um die Lampe, Schrift hell */
+  .menue-hervor .menue-lampe { border-color: #fff; box-shadow: 0 0 10px rgba(var(--menue-glow), 0.9); }
+  .menue-hervor .menue-lampe::after {
+    content: ""; position: absolute; inset: -11px; border-radius: 50%;
+    border: 1px solid rgba(var(--menue-glow), 0.6); box-shadow: 0 0 16px rgba(var(--menue-glow), 0.45);
+    animation: menue-puls 2.4s ease-in-out infinite;
+  }
+  .menue-hervor .menue-name, .menue-hervor .menue-pips, .menue-hervor .menue-aktion { color: #fff; }
+  @keyframes menue-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* «Weiter»: Pille wie «Weiter» im Feld «Gelöst», heller und mit Hof; Desktop am Kopf des Lichts (Lage aus menue.js) */
+  .menue-weiter {
+    position: absolute; z-index: 2; transform: translate(-50%, -50%); white-space: nowrap;
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    padding: 13px 34px 12px calc(34px + 0.45em);
+    font-size: 13px; letter-spacing: 0.45em; text-transform: uppercase; text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px;
+    background: rgba(10, 10, 24, 0.92); /* deckend: die Wege dahinter scheinen nicht durch */
+    box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease;
+  }
+  .menue-weiter[hidden] { display: none; }
+  .menue-weiter:hover { border-color: #fff; box-shadow: 0 0 34px rgba(var(--menue-glow), 0.45), inset 0 0 14px rgba(255, 255, 255, 0.1); }
+  .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.6), inset 0 0 14px rgba(255, 255, 255, 0.07); }
+  .menue-wohin { font-size: 10px; letter-spacing: 0.22em; text-transform: none; color: var(--menue-dim); }
+
+  /* Wege (SVG, menue.js zeichnet sie bei jeder Grössenänderung neu) */
+  .menue-wege { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .menue-wege polyline, .menue-wege line { fill: none; }
+  .menue-grund { stroke: rgba(232, 230, 240, 0.22); stroke-width: 1; transition: stroke 0.25s ease; }
+  .menue-weg.menue-neu .menue-grund { stroke-dasharray: 2 7; stroke: rgba(232, 230, 240, 0.34); }
+  .menue-weg.menue-hervor .menue-grund { stroke: rgba(var(--menue-glow), 0.8); stroke-width: 1.2; }
+  .menue-weg.menue-an .menue-grund { stroke: rgba(232, 230, 240, 0.6); } /* Zeiger oder Fokus auf dem Grad */
+  .menue-hof { stroke: rgba(var(--menue-glow), 0.22); stroke-width: 9; stroke-linecap: round; }
+  .menue-licht { stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+  .menue-station { fill: rgba(3, 3, 8, 0.9); stroke: rgba(232, 230, 240, 0.45); stroke-width: 1; }
+  .menue-station.menue-an { fill: #fff; stroke: none; }
+  .menue-welt { color: rgba(232, 230, 240, 0.4); }
+  .menue-welt.menue-an { color: rgba(232, 230, 240, 0.85); }
+  .menue-welt.menue-jetzt { color: #fff; }
+  .menue-welt svg { overflow: visible; }
+  .menue-scheibe { fill: rgba(5, 5, 14, 0.9); } /* hochkant: das Zeichen sitzt auf dem Weg, die Scheibe unterbricht ihn */
+  .menue-faden { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; } /* vom Kopf des Lichts zu «Weiter» */
+
+  /* Einblenden: das Licht wächst von der Lampe bis zu seinem Kopf, die Punkte gehen an, wenn es sie erreicht
+     (--d: Verzögerung, --dur: Dauer je Element; --menue-vorbei: schon vergangene Zeit beim Neuzeichnen) */
+  .menue-wachsen .menue-hof, .menue-wachsen .menue-licht {
+    stroke-dasharray: var(--len) 100000;
+    animation: menue-wachsen var(--dur) cubic-bezier(0.33, 1, 0.68, 1) calc(var(--d) - var(--menue-vorbei, 0s)) both;
+  }
+  .menue-wachsen .menue-auf { animation: menue-auf 0.5s ease calc(var(--d) - var(--menue-vorbei, 0s)) both; }
+  @keyframes menue-wachsen { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+  @keyframes menue-auf { from { opacity: 0; } }
+  .menue-weiter.menue-auf { animation: menue-auf 0.8s ease 0.5s both; }
+  @media (prefers-reduced-motion: reduce) {
+    .menue-wachsen .menue-hof, .menue-wachsen .menue-licht, .menue-wachsen .menue-auf, .menue-weiter.menue-auf,
+    .menue-hervor .menue-lampe::after { animation: none; }
+  }
+
+  /* Rückfrage vor «Von vorn» */
+  .menue-frage {
+    position: absolute; inset: 0; z-index: 3; display: grid; place-items: center; padding: 16px;
+    background: rgba(3, 3, 8, 0.62); transition: opacity 0.3s ease;
+  }
+  .menue-frage[hidden] { display: none; }
+  .menue-frage.menue-aus { opacity: 0; pointer-events: none; }
+  .menue-frage-box {
+    width: min(430px, 100%); padding: 30px 26px 24px; text-align: center;
+    border: 1px solid var(--menue-linie); border-radius: 16px; background: rgba(8, 8, 22, 0.94);
+    box-shadow: 0 0 40px rgba(var(--menue-glow), 0.18);
+  }
+  .menue-frage-titel { margin: 0 0 14px; font-size: 13px; font-weight: 300; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; color: #fff; }
+  .menue-frage-text { margin: 0 0 24px; font-size: 14px; line-height: 1.7; letter-spacing: 0.03em; color: var(--menue-dim); }
+  .menue-frage-knoepfe { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .menue-pille {
+    min-height: 44px; padding: 12px 24px 12px calc(24px + 0.4em);
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    border: 1px solid var(--menue-linie); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  .menue-pille:hover { border-color: var(--menue-dim); background: rgba(40, 40, 60, 0.6); }
+  .menue-pille-ja { border-color: rgba(255, 255, 255, 0.72); }
+
+  /* ---------- Handy hoch: die Grade als Zeilen, die Wege am linken Rand ---------- */
+  @media (max-width: 600px) and (orientation: portrait) {
+    .menue-kopf { left: 0; right: 0; top: max(22px, env(safe-area-inset-top)); text-align: center; }
+    .menue-titel { font-size: 19px; padding-left: 0.5em; }
+    .menue-unter { margin-top: 6px; font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; }
+    .menue-ziel { left: calc(100% - 96px); top: 24%; }
+    .menue-ziel .menue-stern { width: 112px; height: 112px; }
+    .menue-wort { bottom: calc(100% - 8px); font-size: 8.5px; }
+    .menue-grade {
+      left: 0; right: max(10px, env(safe-area-inset-right)); top: auto; width: auto;
+      bottom: max(28px, env(safe-area-inset-bottom)); justify-content: flex-end; gap: 8px;
+    }
+    .menue-mit-weiter .menue-grade { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 86px); }
+    /* Spalte der Lampen 104 px: je Grad eine Bahn zu 22 px, Leicht innen, Sehr schwer aussen (--menue-i: 0 … 3) */
+    .menue-grad { grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: "lampe wahl neu"; column-gap: 4px; }
+    .menue-lampe { justify-self: start; align-self: start; margin: 13px 0 0 calc(16px + (3 - var(--menue-i)) * 22px); }
+    .menue-wahl { align-items: flex-start; text-align: left; gap: 5px; padding: 7px 6px 7px 8px; }
+    .menue-zeile1 { gap: 10px; }
+    .menue-name { font-size: 13.5px; letter-spacing: 0.26em; margin-right: 0; }
+    .menue-stand { font-size: 12.5px; gap: 7px; }
+    .menue-stand .menue-stern { width: 20px; height: 20px; margin: -4px -2px; }
+    .menue-aktion { font-size: 8.5px; letter-spacing: 0.3em; margin-right: 0; }
+    .menue-vonvorn {
+      grid-area: neu; justify-self: end; flex-direction: column; gap: 5px; min-width: 56px; min-height: 52px;
+      padding: 6px 4px; margin: 0; border-radius: 12px; font-size: 8px; letter-spacing: 0.2em;
+    }
+    .menue-vonvorn .menue-ico { font-size: 16px; }
+    .menue-weiter {
+      left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
+      top: auto; bottom: max(20px, env(safe-area-inset-bottom)); transform: none;
+    }
+    .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
+    .menue-frage-box { padding: 26px 20px 20px; }
+  }
+  /* kleine Handys hoch (z. B. 360 × 640): Aktion auf der Zeile nicht, die Zeile selbst ist der Knopf */
+  @media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
+    .menue-ziel { top: 22%; }
+    .menue-ziel .menue-stern { width: 92px; height: 92px; }
+    .menue-aktion { display: none; }
+    .menue-grade { gap: 4px; }
+    .menue-vonvorn { min-height: 46px; }
+    .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
+    .menue-mit-weiter .menue-grade { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
+  }
+
+  /* ---------- Handy quer: wie Desktop, enger ---------- */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .menue-kopf { left: max(20px, env(safe-area-inset-left)); top: 14px; display: flex; align-items: baseline; gap: 16px; }
+    .menue-titel { font-size: 16px; }
+    .menue-unter { margin: 0; font-size: 8px; letter-spacing: 0.35em; }
+    .menue-ziel { left: 84%; top: 27%; }
+    .menue-ziel .menue-stern { width: 96px; height: 96px; }
+    .menue-wort { bottom: calc(100% - 2px); font-size: 8px; }
+    .menue-grade { left: max(14px, env(safe-area-inset-left)); top: 46px; bottom: max(8px, env(safe-area-inset-bottom)); width: 262px; }
+    .menue-grad { column-gap: 14px; }
+    .menue-wahl { gap: 3px; padding: 3px 4px 2px 8px; }
+    .menue-name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
+    .menue-stand { font-size: 11.5px; }
+    .menue-stand .menue-stern { width: 20px; height: 20px; }
+    .menue-aktion { display: none; } /* die Zeile selbst ist der Knopf */
+    .menue-vonvorn { min-height: 28px; padding: 3px 8px; margin-top: 0; font-size: 8.5px; letter-spacing: 0.22em; }
+    .menue-lampe { width: 10px; height: 10px; }
+    .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
+    .menue-wohin { font-size: 9px; }
+    .menue-frage-box { padding: 20px 22px 18px; }
+    .menue-frage-titel { margin-bottom: 10px; }
+    .menue-frage-text { margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
+  }

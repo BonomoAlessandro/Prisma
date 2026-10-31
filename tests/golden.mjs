@@ -17,10 +17,13 @@
 //                  für alle Level
 // Bis Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung fest (`score` aus metrics in solver.mjs), und
 // diese Einträge bestimmten, für welche Level der normale Lauf den Löser vergleicht. Beides entfällt mit der alten
-// Wertung. Jetzt vergleicht der normale Lauf den Löser für eine Stichprobe nach dem Platz im Spiel: das Tutorial und
-// jedes 10. Level danach (Platz 1, 11, …, 141), ebenso jedes 10. Würfel-Level (Platz 1, 11, … unter ihnen). Die
-// Referenz hat die Löserdaten aller Level, also passt jede Stichprobe, auch nachdem tools/ordne-level.mjs oder
-// tools/ordne-wuerfel.mjs die Level neu geordnet hat. Die Namen sind über flache und Würfel-Level eindeutig.
+// Wertung. Jetzt vergleicht der normale Lauf den Löser für eine Stichprobe aus Spiel und Vorrat (seit Ticket 08 von
+// Noas Geschichte nicht mehr nach dem Platz in der Reihe): das Tutorial, je Grad der Geschichte jedes 10. Level
+// (STORY_LEVELS, Platz 1, 11, …, 51, also das erste jeder Welt), jedes 10. flache Level des Vorrats (in der Folge seiner
+// Datei) und jedes 10. Würfel-Level (Platz 1, 11, … unter ihnen, Spiel und Vorrat). Die Referenz hat die Löserdaten
+// aller Level, also passt jede Stichprobe, auch nachdem tools/ordne-level.mjs, tools/ordne-wuerfel.mjs oder
+// tools/geschichte.mjs spiel Level neu geordnet oder zwischen Spiel und Vorrat verschoben hat. Die Namen sind über
+// flache und Würfel-Level eindeutig.
 // Verglichen wird je Level nach Namen, gleich auf welchem Platz es steht (seit Ticket 15 ordnet tools/ordne-level.mjs
 // die Level neu), Wert für Wert und exakt; nur Kommazahlen (Endpunkte, Normalen, Längen, Abstände) dürfen um höchstens
 // 1e-9 abweichen, damit Rundungsreste keinen Umbau der Strahlregel blockieren (ADR 0003). Eine Gegenprobe prüft den
@@ -28,10 +31,15 @@
 // Laufzeit (über leise.sh, Stand Ticket 21): Strahlbilder aller Level wenige ms, Löser für alle 159 Level etwa 20–25 s
 // (fast alles in den 30 schwersten Leveln). Der normale Lauf rechnet den Löser deshalb nur für die Stichprobe (etwa
 // 2 s); --voll und --write rechnen ihn für alle.
+// Alle Level heisst seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): aus Spiel und Vorrat, über den
+// gemeinsamen Lader (tools/lader.mjs), in der Folge wie nach dem Zurückholen aller; so fehlt keines in der Referenz.
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { L, setRot, keyOf, solve } from '../tools/solver.mjs';
+import { ALLE as SPIEL_UND_VORRAT, VORRAT } from '../tools/lader.mjs';
+
+const { LEVELS, TUTORIAL_COUNT, LEVELS_3D } = SPIEL_UND_VORRAT;
 
 const file = join(dirname(fileURLToPath(import.meta.url)), 'golden.json');
 const write = process.argv.includes('--write');
@@ -51,13 +59,19 @@ const snap = (r) => ({
 });
 
 const golden = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null;
-// Den Löser rechnet der normale Lauf für die Stichprobe: das Tutorial und jedes 10. Level danach im Spiel (Platz 1, 11,
-// …, 141). Verglichen wird auch sie nach Namen: Ein neu geordnetes Level hat dieselben Strahlbilder und
-// Löserergebnisse.
-const STICHPROBE = new Set([...L.LEVELS.filter((_, i) => i < L.TUTORIAL_COUNT || (i - L.TUTORIAL_COUNT) % 10 === 0),
-  ...L.LEVELS_3D.filter((_, i) => i % 10 === 0)].map(l => l.name));
-/** Alle Level, flach und im Würfel. */
-const ALLE = [...L.LEVELS, ...L.LEVELS_3D];
+// Den Löser rechnet der normale Lauf für die Stichprobe (siehe Kopf): das Tutorial, je Grad der Geschichte jedes 10.
+// Level, jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level. Verglichen wird auch sie nach Namen: Ein neu
+// geordnetes Level hat dieselben Strahlbilder und Löserergebnisse.
+const jedesZehnte = (liste) => liste.filter((_, i) => i % 10 === 0);
+const STICHPROBE = new Set([...LEVELS.slice(0, TUTORIAL_COUNT).map(l => l.name),
+  ...Object.values(L.STORY_LEVELS).flatMap(welten => jedesZehnte(welten.flat())),
+  ...jedesZehnte(VORRAT.flach).map(l => l.name), ...jedesZehnte(LEVELS_3D).map(l => l.name)]);
+{
+  const fremd = [...STICHPROBE].filter(x => !LEVELS.some(l => l.name === x) && !LEVELS_3D.some(l => l.name === x));
+  if (fremd.length) { console.error(`Stichprobe: nicht in Spiel und Vorrat: ${fremd.join(', ')}`); process.exit(1); }
+}
+/** Alle Level, flach und im Würfel, aus Spiel und Vorrat. */
+const ALLE = [...LEVELS, ...LEVELS_3D];
 const inStichprobe = (level) => STICHPROBE.has(level.name);
 
 // Strahlbilder in Start- und Lösungsstellung, gerechnet mit `logic` (L oder die veränderte Logik der Gegenprobe)
@@ -142,7 +156,7 @@ const gold = (level) => golden.find(g => g.name === level.name);
 let failed = false;
 const report = (ok, text) => { if (ok) console.log('  ok  ', text); else { console.error('  FAIL', text); failed = true; } };
 
-// Die Stichprobe richtet sich nach dem Platz im Spiel; dafür braucht die Referenz die Löserdaten jedes Levels
+// Die Stichprobe richtet sich nach Spiel und Vorrat; dafür braucht die Referenz die Löserdaten jedes Levels
 const ohneLoeser = golden.filter(g => !g.solver).map(g => g.name);
 report(!ohneLoeser.length, ohneLoeser.length ? `Referenz ohne Löserdaten: ${ohneLoeser.join(', ')} (mit --write neu)`
   : `Referenz: Löserdaten für alle ${golden.length} Level`);
@@ -184,9 +198,9 @@ if (umgestellt) {
   console.log(`  ok   ${umgestellt} Level stehen an einem anderen Platz als in golden.json, verglichen nach Namen`);
 }
 const scope = quick ? 'nur Strahlbilder (--schnell), ohne Löser'
-  : full ? 'Löser für alle Level' : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Platz 1, 11, …), `
-    + '--voll für alle';
-const wuerfel = current.filter(c => L.LEVELS_3D.some(l => l.name === c.name)).length;
+  : full ? 'Löser für alle Level'
+    : `Löser für die Stichprobe (${STICHPROBE.size} Level: Tutorial, Geschichte, Vorrat, Würfel), --voll für alle`;
+const wuerfel = current.filter(c => LEVELS_3D.some(l => l.name === c.name)).length;
 if (diffs.length) console.error(`${diffs.length} Abweichung(en) in ${current.length} Leveln (${ms} ms)`);
 else console.log(`  ok   alle ${current.length} Level (davon ${wuerfel} Würfel) wie in golden.json, ${scope} (${ms} ms)`);
 if (failed || diffs.length) process.exit(1);

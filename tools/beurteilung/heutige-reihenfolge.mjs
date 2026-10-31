@@ -6,9 +6,10 @@
 // Platz.
 // Entfernte Level (Austausch, Tickets 23–26) bleiben Teil des Massstabs: Ihre Leveldaten stehen, wie sie zuletzt im
 // Spiel waren, als feste Kopie in entfernte-level.json (geschrieben von tools/ordne-level.mjs beim Austausch). So
-// bleiben Eichung, Eichmenge und die Tests der Beurteilung an den 150 heutigen Leveln gleich.
+// bleiben Eichung, Eichmenge und die Tests der Beurteilung an den 150 heutigen Leveln gleich. Ebenso Level im Vorrat
+// (Spec .scratch/noa-geschichte/): Sie kommen über den gemeinsamen Lader (lader.mjs) aus Spiel oder Vorrat.
 import { existsSync, readFileSync } from 'node:fs';
-import { L } from '../solver.mjs';
+import { ALLE } from '../lader.mjs';
 
 const DATEI = new URL('./heutige-reihenfolge.json', import.meta.url);
 /** Die feste Kopie der entfernten Level (Tickets 23–26), { kommentar, level: [Leveldaten wie in LEVELS] }. */
@@ -26,15 +27,15 @@ export const heutigerPlatz = (name) => {
 export const entfernteLevel = () => (existsSync(ENTFERNTE) ? JSON.parse(readFileSync(ENTFERNTE, 'utf8')).level : []);
 
 /**
- * Die 150 Level der heutigen Reihenfolge: aus dem Spiel (LEVELS), ein entferntes aus der festen Kopie; wirft, wenn
- * eines an beiden Orten fehlt oder an beiden steht.
+ * Die 150 Level der heutigen Reihenfolge: aus Spiel oder Vorrat (ALLE im Lader), ein entferntes aus der festen Kopie;
+ * wirft, wenn eines an beiden Orten fehlt oder an beiden steht.
  */
 export function inHeutigerReihenfolge() {
   const kopie = entfernteLevel();
   return HEUTIGE_REIHENFOLGE.map((name) => {
-    const level = L.LEVELS.find(l => l.name === name && !l.tutorial), entfernt = kopie.find(l => l.name === name);
+    const level = ALLE.LEVELS.find(l => l.name === name && !l.tutorial), entfernt = kopie.find(l => l.name === name);
     if (level && entfernt) throw new Error(`Heutige Reihenfolge: „${name}“ steht im Spiel und unter den entfernten`);
-    if (!level && !entfernt) throw new Error(`Heutige Reihenfolge: kein Level „${name}“ im Spiel`);
+    if (!level && !entfernt) throw new Error(`Heutige Reihenfolge: kein Level „${name}“ in Spiel oder Vorrat`);
     return level ?? entfernt;
   });
 }

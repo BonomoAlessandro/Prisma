@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Übersicht des Grads – Probe des Bausteins</title>
+<link rel="stylesheet" href="uebersicht.css">
+<style>
+  /* Probe des Bausteins (nicht Teil des Spiels): Schrift und Farben wie index.html (:root), dahinter der Himmel aus
+     dem Spiel (menue-vorschau/hintergrund-*.png, dort mit aufnahme.mjs himmel gemacht). Stände: ?stand=anfang |
+     mitte | geschafft | dorf; ?welt=dorf|0…5 öffnet bei dieser Welt. Geschlossen zeigt die Seite das letzte
+     Ereignis (onPlay, onClose) und öffnet mit dem Knopf wieder. */
+  @font-face {
+    font-family: "Jost"; font-style: normal; font-weight: 200 400; font-display: swap;
+    src: url(../../../../vendor/jost/jost-latin.woff2) format("woff2");
+  }
+  :root {
+    --ink: #e8e6f0;
+    --ink-dim: rgba(232, 230, 240, 0.58);
+    --ink-faint: rgba(232, 230, 240, 0.14);
+    --bg: #030308;
+    --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+  }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: var(--bg) url(../../menue-vorschau/hintergrund-desktop.png) center / cover no-repeat;
+    color: var(--ink); font-family: var(--font); font-weight: 300;
+  }
+  @media (orientation: portrait) { body { background-image: url(../../menue-vorschau/hintergrund-hoch.png); } }
+  @media (orientation: landscape) and (max-height: 500px) { body { background-image: url(../../menue-vorschau/hintergrund-quer.png); } }
+  button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+  button:focus-visible { outline: 1px solid var(--ink-dim); outline-offset: 4px; } /* wie im Spiel */
+  .probe {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+    padding: 24px; text-align: center; font-size: 13px; letter-spacing: 0.04em;
+  }
+  /* offen deckt die Übersicht die Seite ganz (im Spiel blendet der Aufrufer Menü bzw. Kopfzeile aus) */
+  body:has(.ueb:not(.ueb-zu)) .probe { visibility: hidden; }
+  .probe h1 { margin: 0; font-weight: 200; font-size: 20px; letter-spacing: 0.4em; text-transform: uppercase; }
+  .probe nav { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+  .probe a { color: var(--ink); padding: 8px 14px; border: 1px solid var(--ink-faint); border-radius: 999px; text-decoration: none; }
+  .probe a[aria-current] { border-color: #fff; }
+  .probe output { min-height: 2.6em; max-width: 34em; color: var(--ink-dim); line-height: 1.6; }
+  .probe .oeffnen {
+    font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase; padding: 13px 26px 13px calc(26px + 0.4em);
+    border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+  }
+</style>
+</head>
+<body>
+<main class="probe">
+  <h1>Übersicht · Probe</h1>
+  <nav aria-label="Stand"></nav>
+  <output id="ereignis" aria-live="polite"></output>
+  <button class="oeffnen" id="oeffnen">Übersicht öffnen</button>
+</main>
+<div id="uebersicht"></div>
+<script src="uebersicht.js"></script>
+<script>
+  'use strict';
+  // Zeichen der Stationen wie STORY_ICONS im Spiel (HEAD:index.html)
+  const STORY_ICONS = {
+    dorf: '<path d="M4.5 19.5v-7.5l7.5-6 7.5 6v7.5z"/><path d="M10 19.5V15h4v4.5"/>',
+    wald: '<path d="M12 3.5l-5 7h3l-4.5 6.5h13L14 10.5h3z"/><path d="M12 17v3.5"/>',
+    meer: '<path d="M2.5 10c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/><path d="M2.5 15.5c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/>',
+    wueste: '<path d="M2.5 19.5l7-11 7 11z"/><path d="M9.5 8.5l2.2 11"/><circle cx="18.2" cy="6" r="2.2"/>',
+    vulkan: '<path d="M2.5 19.5l5.5-9h2.2l1.8 2 1.8-2h2.2l5.5 9z"/><path d="M11 7.5c-.6-1.6.6-2.6 0-4.2M14 7.5c.8-1.2 1.8-1.6 2.6-1.2"/>',
+    planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
+    sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
+  };
+  const WELTEN = [['Bergwald', 'wald'], ['Meer', 'meer'], ['Wüste', 'wueste'], ['Vulkan', 'vulkan'], ['Planeten', 'planeten'], ['Sterne', 'sterne']];
+  // echte Titel der Wahl (tools/geschichte/wahl.json), je Grad 6 × 10 in der Reihenfolge der Reise
+  const TITEL = {
+    'leicht': [
+      ['Moospolster', 'Farnwedel', 'Tannenzapfen', 'Waldweg', 'Lichtung', 'Pilzkreis', 'Heidelbeere', 'Eichhörnchen', 'Laubdach', 'Waldmeister'],
+      ['Sandbank', 'Muschelschale', 'Strandkorb', 'Sandburg', 'Möwe', 'Seegras', 'Krabbe', 'Strandgut', 'Treibholz', 'Seebrise'],
+      ['Sandkorn', 'Dattelpalme', 'Kamel', 'Dromedar', 'Sandrose', 'Palmenhain', 'Wasserloch', 'Ziehbrunnen', 'Sandspur', 'Wüstenfuchs'],
+      ['Lava', 'Asche', 'Rauchfahne', 'Glutnest', 'Bimsstein', 'Basalt', 'Kraterrand', 'Schwefel', 'Dampfwolke', 'Glutschein'],
+      ['Mondaufgang', 'Mondphase', 'Sonnensystem', 'Planetenbahn', 'Mondkrater', 'Erdaufgang', 'Raumsonde', 'Trabant', 'Zwergplanet', 'Ringplanet'],
+      ['Grosser Wagen', 'Kleiner Wagen', 'Grosser Bär', 'Kleiner Bär', 'Sternenzelt', 'Sternkarte', 'Sternenhimmel', 'Funkeln', 'Abendhimmel', 'Nachthimmel'],
+    ],
+    'mittel': [
+      ['Fichtennadel', 'Baumkrone', 'Wurzelwerk', 'Harztropfen', 'Rehkitz', 'Waldkauz', 'Sauerklee', 'Bärlauch', 'Arvenwald', 'Buchenhain'],
+      ['Gezeiten', 'Gischt', 'Dünung', 'Wellenkamm', 'Schaumkrone', 'Klippe', 'Bucht', 'Riff', 'Seepferdchen', 'Qualle'],
+      ['Wanderdüne', 'Dünenkamm', 'Sandsturm', 'Skarabäus', 'Hieroglyphe', 'Grabkammer', 'Sonnenbarke', 'Beduinenzelt', 'Wadi', 'Salzsee'],
+      ['Lavastrom', 'Lavasee', 'Magma', 'Glutofen', 'Obsidian', 'Tuffstein', 'Fumarole', 'Geysir', 'Aschewolke', 'Ascheregen'],
+      ['Io', 'Triton', 'Charon', 'Pluto', 'Ceres', 'Vesta', 'Polkappe', 'Marsstaub', 'Roter Fleck', 'Erdschatten'],
+      ['Schwan', 'Adler', 'Drache', 'Pegasus', 'Perseus', 'Herkules', 'Fuhrmann', 'Bärenhüter', 'Einhorn', 'Phönix'],
+    ],
+    'sehr schwer': [
+      ['Nebelwald', 'Bachtobel', 'Urwald', 'Baumriese', 'Waldgeist', 'Dunkler Tann', 'Hochmoor', 'Johanniswürmchen', 'Waldnacht', 'Felsschlucht'],
+      ['Tiefsee', 'Walgesang', 'Brecher', 'Springflut', 'Mahlstrom', 'Riesenwelle', 'Meeresgrund', 'Korallenriff', 'Atoll', 'Albatros'],
+      ['Sonnentempel', 'Pharao', 'Mumie', 'Sandviper', 'Skorpion', 'Schirokko', 'Samum', 'Dünenmeer', 'Weisse Wüste', 'Königskammer'],
+      ['Feuersee', 'Flammenmeer', 'Feuersturm', 'Glutkern', 'Erdfeuer', 'Feuerzunge', 'Ausbruch', 'Eruption', 'Feuerschlund', 'Feuerring'],
+      ['Saturnring', 'Asteroidengürtel', 'Gasriese', 'Eisriese', 'Ringschatten', 'Planetenparade', 'Bahnresonanz', 'Perihel', 'Aphel', 'Oortsche Wolke'],
+      ['Firmament', 'Sternwiege', 'Dunkelwolke', 'Himmelspol', 'Fixstern', 'Nova', 'Sternenmeer', 'Sternhaufen', 'Südliches Kreuz', 'Sternenstrom'],
+    ],
+  };
+  // die 9 Übungen «Im Dorf» (Tutorial im Spiel)
+  const DORF = ['Erstes Licht', 'Umweg', 'Sperre', 'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung'];
+
+  /** feste Zufallszahl 0…1 je Level (die Bilder sollen bei jedem Lauf gleich sein) */
+  const zufall = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  /** Bestwerte: je weiter hinten und je schwerer, desto länger und mehr Drehungen */
+  const bestwert = (grad, w, l) => {
+    const g = { leicht: 0, mittel: 1, schwer: 2, 'sehr schwer': 3 }[grad];
+    return {
+      bestzeit: Math.round(28 + g * 30 + w * 9 + l * 4 + zufall(w, l) * 70 + (zufall(l, w) > 0.9 ? 180 : 0)),
+      drehungen: Math.round(4 + g * 3 + w + l / 2 + zufall(l + 3, w) * 6),
+    };
+  };
+  /** Stand mit so vielen gelösten Level (vom Anfang der Reise an) */
+  function stand(grad, geloest, extra = {}) {
+    return {
+      grad,
+      welten: WELTEN.map(([name, icon], w) => ({
+        name, icon,
+        level: TITEL[grad][w].map((titel, l) => {
+          const fertig = w * 10 + l < geloest;
+          return { name: `schluessel-${w}-${l}`, titel, geloest: fertig, ...(fertig ? bestwert(grad, w, l) : { bestzeit: null, drehungen: null }) };
+        }),
+      })),
+      ...extra,
+    };
+  }
+  const STAENDE = {
+    // zwei Level im Bergwald gelöst, das dritte offen
+    anfang: () => stand('mittel', 2),
+    // wie im Menü: Mittel, Wüste 23 / 60 (Bergwald und Meer fertig, in der Wüste zwei gelöst)
+    mitte: () => stand('mittel', 22),
+    // Leicht geschafft: alle 60 gelöst, Polarstern, Summe aller Bestzeiten
+    geschafft: () => stand('leicht', 60),
+    // Sehr schwer mit dem Dorf: 6 von 9 Übungen gelöst, dann übersprungen (Übung 2 ohne Bestwerte, etwa weil vor dem
+    // Speichern der Bestwerte gelöst); im Bergwald 7 gelöst, das achte («Johanniswürmchen») offen
+    dorf: () => stand('sehr schwer', 7, {
+      dorf: { name: 'Im Dorf', icon: 'dorf', level: DORF.map((titel, l) => l < 6
+        ? { name: titel, titel, geloest: true, ...(l === 1 ? { bestzeit: null, drehungen: null } : { bestzeit: 14 + l * 9, drehungen: 1 + l }) }
+        : { name: titel, titel, geloest: false, bestzeit: null, drehungen: null }) },
+    }),
+  };
+
+  const q = new URLSearchParams(location.search);
+  const name = STAENDE[q.get('stand')] ? q.get('stand') : 'mitte';
+  const daten = STAENDE[name]();
+  const welt = q.get('welt');
+  const wahl = welt === null ? {} : { fokus: { welt: welt === 'dorf' ? 'dorf' : +welt, level: 0 } };
+
+  document.querySelector('.probe nav').innerHTML = Object.keys(STAENDE)
+    .map((s) => `<a href="?stand=${s}"${s === name ? ' aria-current="page"' : ''}>${s}</a>`).join('');
+  const ereignis = document.getElementById('ereignis'), oeffnen = document.getElementById('oeffnen');
+  const ueb = createUebersicht({
+    root: document.getElementById('uebersicht'),
+    icons: STORY_ICONS,
+    onPlay: (a) => {
+      const reihe = a.welt === 'dorf' ? 'Im Dorf' : daten.welten[a.welt].name;
+      ereignis.textContent = `onPlay: ${reihe}, ${a.welt === 'dorf' ? 'Übung' : 'Level'} ${a.level + 1} «${a.eintrag.titel}»` +
+        (a.wiederholen ? ' – wiederholen (ohne Zwischenszenen)' : ' – normaler Ablauf');
+      ueb.hide();
+      oeffnen.focus();
+    },
+    onClose: () => { ereignis.textContent = 'onClose'; ueb.hide(); oeffnen.focus(); },
+  });
+  oeffnen.addEventListener('click', () => ueb.show(daten, wahl));
+  ueb.show(daten, wahl);
+  window.__ueb = ueb; // für aufnahme.mjs
+</script>
+</body>
+</html>

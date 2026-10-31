@@ -3,8 +3,9 @@
 // versionierten Protokolls (protocol.jsonl, eine JSON-Zeile je Level und Lauf). Genutzt von prepare.mjs, merge.mjs und
 // tests/ki-tester.test.mjs.
 //
-// Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge im Spiel (1–150, ohne Tutorial) und sein Grad aus den
-// Leveldaten (grad). Die Grenzen eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
+// Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge (ohne Tutorial; bis Ticket 26 die 150 im Spiel, seit
+// Noas Geschichte die Reihe aus Spiel und Vorrat, ADR 0005) und sein Grad aus den Leveldaten (grad). Die Grenzen
+// eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
 // prepare.mjs hält die Referenz jedes Levels und die Plätze der Anker bei der Vorbereitung in lauf.json fest, und
 // merge.mjs rechnet mit diesen, auch wenn sich die Reihenfolge seither geändert hat. Ablauf 1 rechnete mit den Plätzen
 // der heutigen Reihenfolge (feste Namensliste, beurteilung/heutige-reihenfolge.mjs) und den vorläufigen Graden; seine
@@ -34,9 +35,13 @@
 // Ankern der Version, schemaFor) und die Regel des Zusammenführens sind dieselben. Eine neue Auswahl der Anker ist eine
 // neue Version in anchors-wuerfel.json mit einem Eintrag in WUERFEL_FINGERPRINTS; die Einträge einer früheren bleiben
 // gültig, denn ihre Kennungen stehen weiter in der Datei.
+//
+// Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Reihenfolge im Spiel und die der Würfel kommen aus
+// dem gemeinsamen Lader (ALLE in lader.mjs), mit den Leveln des Vorrats an ihrem Platz. So finden Anker und
+// Fingerabdruck ihre Level, und Plätze und Grade bleiben, wie die Urteile sie kennen, auch wenn Level im Vorrat liegen.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { L } from '../solver.mjs';
+import { ALLE } from '../lader.mjs';
 import { fieldText } from './field.mjs';
 
 const read = (file) => readFileSync(new URL(file, import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -63,15 +68,15 @@ export const PROVISIONAL_GRADES = [
 ];
 export const provisionalGradeOf = (position) => PROVISIONAL_GRADES.find(g => position >= g.from && position <= g.to);
 const GRADE_NAMES = PROVISIONAL_GRADES.map(g => g.name);
-const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
-/** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial). */
+const MAIN = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
+/** Das Level auf einem Platz der Reihenfolge (ohne Tutorial; die Reihe aus Spiel und Vorrat, siehe Kopf). */
 export const levelAt = (position) => MAIN[position - 1];
 /**
  * Die Grade in einer Reihenfolge, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der Reihenfolge
  * (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150). Weil der Grad entlang der
  * Reihenfolge nie sinkt (Test der Levelliste), ist jeder Grad ein Abschnitt. reihe: je Platz ein Level mit name und
- * grad, Vorgabe die Reihenfolge im Spiel; beim Ausbau auf 500 Level (.scratch/500-level/) die Vorschau aus
- * tools/ordne-level.mjs --ausbau --json, in der die Kandidaten schon stehen.
+ * grad, Vorgabe die Reihe aus Spiel und Vorrat; beim Ausbau (.scratch/500-level/, seit Noas Geschichte neue Level für
+ * sie) die Vorschau aus tools/ordne-level.mjs --ausbau --json, in der die Kandidaten schon stehen.
  */
 export const gradesIn = (reihe = MAIN) => GRADE_NAMES.map((name) => {
   const at = reihe.flatMap((l, k) => (l.grad === name ? [k + 1] : []));
@@ -89,8 +94,11 @@ export const reference = (position, reihe = MAIN) => {
 };
 const sameGrade = (r, g) => !!g && r.grad === g.name && r.von === g.from && r.bis === g.to;
 
-/** Die Würfel-Level im Spiel in ihrer Reihenfolge (LEVELS_3D; Platz 1 = erstes Würfel-Level). */
-export const WUERFEL_IM_SPIEL = L.LEVELS_3D;
+/**
+ * Die Würfel-Level in ihrer Reihenfolge (LEVELS_3D; Platz 1 = erstes Würfel-Level), mit denen im Vorrat an ihrem Platz
+ * (siehe Kopf).
+ */
+export const WUERFEL_IM_SPIEL = ALLE.LEVELS_3D;
 export const WUERFEL_REFERENZ = 'Reihenfolge der Würfel';
 /** Referenz eines Würfel-Levels: Platz in der Reihenfolge der Würfel-Level (reihe), sein Grad und dessen Grenzen. */
 export const referenceWuerfel = (position, reihe = WUERFEL_IM_SPIEL) => {
@@ -277,8 +285,9 @@ export function fingerprint() {
   for (const file of ['./anchors.json', './answer.schema.json']) hash.update(read(file));
   hash.update(glossary());
   for (const a of anchors) {
-    // Name und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des Grads difficulty)
-    const { name, difficulty, grad, ...data } = levelAt(a.position);
+    // Name, Titel (Noas Geschichte, Ticket 04) und Grad sehen die KI-Tester nicht (bis Ticket 15 hiess das Feld des
+    // Grads difficulty)
+    const { name, titel, difficulty, grad, ...data } = levelAt(a.position);
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);
@@ -300,7 +309,7 @@ export function fingerprintWuerfel(version = WUERFEL_VERSION) {
   hash.update(JSON.stringify(WUERFEL_ANKER[version]) + JSON.stringify(schemaOf(version)));
   hash.update(glossary());
   for (const a of anchors) {
-    const { name, difficulty, grad, ...data } = WUERFEL_IM_SPIEL[a.position - 1];
+    const { name, titel, difficulty, grad, ...data } = WUERFEL_IM_SPIEL[a.position - 1];
     hash.update(fieldText(data, a.id) + JSON.stringify(data));
   }
   return hash.digest('hex').slice(0, 16);

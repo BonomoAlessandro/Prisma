@@ -42,10 +42,11 @@ Regeln:
 
 ## Grafik (wichtigster Teil)
 Szene & Licht:
-- Fast schwarzer Hintergrund mit leichtem blau-violettem Farbverlauf und Fog; darauf wahlweise ein Sternenhimmel
-  mit Milchstrasse, ein Sonnensystem, in dem das Brett über der Sonne schwebt, ein nächtlicher Nadelwald, über dessen
-  bewaldeter Kuppe es schwebt, oder Meer und Küste bei Sonnenuntergang, vor der es über einer Lagune schwebt
-  (umschaltbar, Wahl gespeichert).
+- Fast schwarzer Hintergrund mit leichtem blau-violettem Farbverlauf und Fog; darauf ein Sternenhimmel mit
+  Milchstrasse, ein Sonnensystem, in dem das Brett über der Sonne schwebt, ein nächtlicher Nadelwald, über dessen
+  bewaldeter Kuppe es schwebt, Meer und Küste bei Sonnenuntergang, vor der es über einer Lagune schwebt, eine Wüste
+  mit Oase und Pyramiden oder ein Vulkan. Welchen das Spiel zeigt, bestimmt die Welt in Noas Geschichte; der Spieler
+  wählt ihn nicht selbst (ADR 0005, bis Oktober 2026 umschaltbar).
 - Spielfeld als dunkle, leicht spiegelnde Steinplatte (geringe Roughness),
   damit sich Strahlen und Kristalle darin spiegeln.
 - Environment-Map über PMREMGenerator für realistische Reflexionen.
@@ -97,8 +98,9 @@ Das muss richtig befriedigend sein:
 
 ## UI
 - Minimalistisch, schmale elegante Schrift, viel Leerraum.
-- Oben: Levelnummer und Name (z. B. "III – Brechung").
-- Kleine Buttons: Level neu starten, Ton an/aus, Levelauswahl.
+- Oben: Welt und Titel des Levels (z. B. «Das Meer – Brandung»), darunter Grad, Kapitel und Level.
+- Kleine Buttons: Level neu starten, Ton an/aus, Übersicht des Grads, Menü (die Übersicht ersetzt seit Noas
+  Geschichte die Levelauswahl, ADR 0005).
 - Kurzer Startbildschirm mit Titel "PRISMA", der aus einem Lichtstrahl entsteht.
 
 ## Vorgehen in Phasen

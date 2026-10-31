@@ -1,0 +1,63 @@
+{
+ "kommentar": "Titel der 240 Level von Noas Geschichte (Spec .scratch/noa-geschichte/, «Namen der Welten»; Ticket 03), je Welt und Grad 10 in der Reihenfolge der Plätze: Der Titel auf Platz k gehört dem Level auf Platz k der Welt in tools/geschichte/wahl.json. Nach einer Änderung hier ordnet «node tools/geschichte.mjs titel» neu zu und prüft: ein oder zwei Wörter, «ss» statt «ß», eindeutig über alle Titel und alle Namen in Spiel, Vorrat und der neuen Level (Gross- und Kleinschreibung egal), keiner von der Liste entfernter Level.",
+ "Bergwald": {
+  "leicht": ["Moospolster", "Farnwedel", "Tannenzapfen", "Waldweg", "Lichtung",
+   "Pilzkreis", "Heidelbeere", "Eichhörnchen", "Laubdach", "Waldmeister"],
+  "mittel": ["Fichtennadel", "Baumkrone", "Wurzelwerk", "Harztropfen", "Rehkitz",
+   "Waldkauz", "Sauerklee", "Bärlauch", "Arvenwald", "Buchenhain"],
+  "schwer": ["Bergpfad", "Totholz", "Hexenring", "Fuchsbau", "Ameisenhügel",
+   "Waldquelle", "Holzsteg", "Köhlerhütte", "Buntspecht", "Hirschkäfer"],
+  "sehr schwer": ["Nebelwald", "Bachtobel", "Urwald", "Baumriese", "Waldgeist",
+   "Dunkler Tann", "Hochmoor", "Johanniswürmchen", "Waldnacht", "Felsschlucht"]
+ },
+ "Meer": {
+  "leicht": ["Sandbank", "Muschelschale", "Strandkorb", "Sandburg", "Möwe",
+   "Seegras", "Krabbe", "Strandgut", "Treibholz", "Seebrise"],
+  "mittel": ["Gezeiten", "Gischt", "Dünung", "Wellenkamm", "Schaumkrone",
+   "Klippe", "Bucht", "Riff", "Seepferdchen", "Qualle"],
+  "schwer": ["Steilküste", "Felsenbucht", "Seehund", "Austernbank", "Kielwasser",
+   "Meerenge", "Priel", "Wattenmeer", "Sturmflut", "Seenebel"],
+  "sehr schwer": ["Tiefsee", "Walgesang", "Brecher", "Springflut", "Mahlstrom",
+   "Riesenwelle", "Meeresgrund", "Korallenriff", "Atoll", "Albatros"]
+ },
+ "Wüste": {
+  "leicht": ["Sandkorn", "Dattelpalme", "Kamel", "Dromedar", "Sandrose",
+   "Palmenhain", "Wasserloch", "Ziehbrunnen", "Sandspur", "Wüstenfuchs"],
+  "mittel": ["Wanderdüne", "Dünenkamm", "Sandsturm", "Skarabäus", "Hieroglyphe",
+   "Grabkammer", "Sonnenbarke", "Beduinenzelt", "Wadi", "Salzsee"],
+  "schwer": ["Königsgrab", "Sarkophag", "Tempelruine", "Felsbogen", "Steinwüste",
+   "Sandmeer", "Hitzeflimmern", "Luftspiegelung", "Karawanserei", "Salzpfanne"],
+  "sehr schwer": ["Sonnentempel", "Pharao", "Mumie", "Sandviper", "Skorpion",
+   "Schirokko", "Samum", "Dünenmeer", "Weisse Wüste", "Königskammer"]
+ },
+ "Vulkan": {
+  "leicht": ["Lava", "Asche", "Rauchfahne", "Glutnest", "Bimsstein",
+   "Basalt", "Kraterrand", "Schwefel", "Dampfwolke", "Glutschein"],
+  "mittel": ["Lavastrom", "Lavasee", "Magma", "Glutofen", "Obsidian",
+   "Tuffstein", "Fumarole", "Geysir", "Aschewolke", "Ascheregen"],
+  "schwer": ["Magmakammer", "Schlot", "Lavabombe", "Basaltsäule", "Lavatunnel",
+   "Feuerberg", "Rotglut", "Glutfluss", "Schwefeldampf", "Erdbeben"],
+  "sehr schwer": ["Feuersee", "Flammenmeer", "Feuersturm", "Glutkern", "Erdfeuer",
+   "Feuerzunge", "Ausbruch", "Eruption", "Feuerschlund", "Feuerring"]
+ },
+ "Planeten": {
+  "leicht": ["Mondaufgang", "Mondphase", "Sonnensystem", "Planetenbahn", "Mondkrater",
+   "Erdaufgang", "Raumsonde", "Trabant", "Zwergplanet", "Ringplanet"],
+  "mittel": ["Io", "Triton", "Charon", "Pluto", "Ceres",
+   "Vesta", "Polkappe", "Marsstaub", "Roter Fleck", "Erdschatten"],
+  "schwer": ["Enceladus", "Titania", "Oberon", "Miranda", "Rhea",
+   "Dione", "Tethys", "Mimas", "Kuipergürtel", "Halbschatten"],
+  "sehr schwer": ["Saturnring", "Asteroidengürtel", "Gasriese", "Eisriese", "Ringschatten",
+   "Planetenparade", "Bahnresonanz", "Perihel", "Aphel", "Oortsche Wolke"]
+ },
+ "Sterne": {
+  "leicht": ["Grosser Wagen", "Kleiner Wagen", "Grosser Bär", "Kleiner Bär", "Sternenzelt",
+   "Sternkarte", "Sternenhimmel", "Funkeln", "Abendhimmel", "Nachthimmel"],
+  "mittel": ["Schwan", "Adler", "Drache", "Pegasus", "Perseus",
+   "Herkules", "Fuhrmann", "Bärenhüter", "Einhorn", "Phönix"],
+  "schwer": ["Orionnebel", "Krebsnebel", "Ringnebel", "Adlernebel", "Lagunennebel",
+   "Pferdekopfnebel", "Eulennebel", "Schleiernebel", "Hantelnebel", "Trifidnebel"],
+  "sehr schwer": ["Firmament", "Sternwiege", "Dunkelwolke", "Himmelspol", "Fixstern",
+   "Nova", "Sternenmeer", "Sternhaufen", "Südliches Kreuz", "Sternenstrom"]
+ }
+}

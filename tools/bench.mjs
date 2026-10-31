@@ -15,7 +15,8 @@
 //              den alten Generator nach Profilen samt Härten (--generator alt) und seine Abnahme (--accept alt);
 //              seine Ausgangszahlen in tools/bench-baseline.json bleiben für --compare.
 //   trace      mittlere CPU-Zeit je Aufruf von traceBeams auf zufälligen Stellungen aller Level (Tutorial und
-//              Hauptlevel, --positions je Level, Zufall aus --seed), Median aus 10 Runden. Dazu eine Prüfsumme aus
+//              Hauptlevel aus Spiel und Vorrat, über lader.mjs, damit die Menge mit dem Vorrat gleich bleibt;
+//              --positions je Level, Zufall aus --seed), Median aus 10 Runden. Dazu eine Prüfsumme aus
 //              einem eigenen, nicht gemessenen Durchgang über dieselben Stellungen (siehe picture). Sie zeigt, dass
 //              dieselben Strahlbilder entstehen, ersetzt aber nicht den Golden-Test: Normalen, Längen, Abstände und
 //              die Lage der Ereignisse fehlen, und ein Rundungsrest genau an einer Rundungsgrenze kann sie kippen.
@@ -44,6 +45,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
 import { L, solve, period, setRot } from './solver.mjs';
+import { ALLE } from './lader.mjs';
 import { maxCpu, gedeckelt, deckelText } from './deckel.mjs';
 
 /**
@@ -268,7 +270,7 @@ function picture(r) {
  */
 function benchTrace({ positions, seed }) {
   const int = randomInt(seed);
-  const setups = L.LEVELS.map(level => {
+  const setups = ALLE.LEVELS.map(level => {
     const board = L.createBoard(level);
     const rot = board.elements.filter(L.isRotatable);
     const pos = new Int8Array(positions * rot.length).map((_, i) => int(0, period(rot[i % rot.length]) - 1));
@@ -323,8 +325,8 @@ function benchSolver({ unique }) {
     });
     return { levels: runs.length, cpu: runs.reduce((s, r) => s + r.cpu, 0), nodes: runs.reduce((s, r) => s + r.nodes, 0), runs };
   };
-  const all = run(L.LEVELS);
-  const unblocked = run(L.LEVELS.filter(l => l.elements.some(e => e.type === 'blocker'))
+  const all = run(ALLE.LEVELS);
+  const unblocked = run(ALLE.LEVELS.filter(l => l.elements.some(e => e.type === 'blocker'))
     .map(l => ({ ...l, elements: l.elements.filter(e => e.type !== 'blocker') })));
   return {
     unique, levels: all.levels, cpuSeconds: seconds(all.cpu), nodes: all.nodes,

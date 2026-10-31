@@ -1,4 +1,6 @@
-// Würfel-Level für Screenshots einstellen: Level laden, optional Lösung setzen, Kamera neigen.
+// Würfel-Level für Screenshots einstellen: Level laden, optional Lösung setzen, Kamera neigen. Seit Noas Geschichte
+// (Ticket 04) liegen die Würfel-Level im Vorrat: vorher zurückholen (node tools/vorrat.mjs zurueckholen <name>,
+// danach wieder ablegen); gezeigt wird es über die Testschnittstelle (__prismaDebug.zeige), ausserhalb der Geschichte.
 // Vorher (im selben Ausdruck) Variablen setzen, z. B. (Index und Lösung von „Kern“, bis zum 25.10.2026 im Spiel;
 // für ein heutiges Würfel-Level Index und Lösung aus index.html nehmen):
 //   node tests/screenshot.mjs cube2 1440 900 25000 "window.CUBE_INDEX=510;
@@ -10,7 +12,7 @@
 (async () => {
   const P = window.__prisma, D = window.__prismaDebug;
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-  P.goto(window.CUBE_INDEX);
+  D.zeige(window.CUBE_INDEX);
   for (let i = 0; i < 200 && !(P.playing() && P.levelIndex() === window.CUBE_INDEX); i++) await sleep(300);
   if (window.CUBE_SOLVE) for (const el of D.game.board.elements) {
     const want = window.CUBE_SOLVE[el.x + ',' + el.y + ',' + el.z];

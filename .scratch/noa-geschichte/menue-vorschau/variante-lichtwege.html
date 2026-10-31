@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menü – Variante 3: Lichtwege zum Polarstern</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  /* Variante 3: jeder Grad ist ein Lichtweg von Noas Lampe zum Polarstern, je schwerer, desto länger. Hell ist er, so
+     weit das Licht in diesem Grad gekommen ist; Punkte teilen ihn in die sechs Welten. «Weiter» sitzt am Kopf des
+     Lichts (Handy hochkant: unten, in Reichweite des Daumens). Die Beschriftung an der Lampe ist der Knopf des Grads,
+     «Von vorn» steht darunter. Desktop und quer: Lampen links, Stern rechts oben; hochkant: Lampen unten, Stern oben. */
+  .menue { position: relative; }
+  .wege { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+  .kopf { position: absolute; left: 7vw; top: 56px; text-align: left; }
+  .kopf .titel { font-size: 24px; padding-left: 0; }
+  .kopf .unter { padding-left: 0; }
+
+  .ziel { position: absolute; left: 79vw; top: 23vh; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; }
+  .ziel .stern { width: 150px; height: 150px; }
+  .ziel .wort { position: absolute; top: calc(100% - 22px); font-size: 9px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap; }
+
+  .grade { list-style: none; margin: 0; padding: 0; position: absolute; left: 7vw; top: 27vh; bottom: 9vh; width: 330px; display: flex; flex-direction: column; justify-content: space-between; }
+  .grad { display: grid; grid-template-columns: 1fr auto; grid-template-areas: "wahl lampe" "neu ."; align-items: center; column-gap: 20px; }
+  .grad .wahl { grid-area: wahl; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; text-align: right; padding: 6px 2px 6px 10px; border-radius: 10px; }
+  .grad .zeile1 { display: flex; align-items: center; gap: 12px; }
+  .grad .pips { color: var(--ink-dim); }
+  .grad .name { font-size: 16px; letter-spacing: 0.38em; text-transform: uppercase; white-space: nowrap; margin-right: -0.38em; }
+  .grad .stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.06em; }
+  .grad.neu .stand { color: var(--ink-dim); }
+  .grad .stand .stern { width: 24px; height: 24px; margin: -5px 0; }
+  .grad .aktion { display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.38em; text-transform: uppercase; color: var(--ink-dim); margin-right: -0.38em; }
+  .grad .aktion .ico { font-size: 12px; }
+  .grad .vonvorn { grid-area: neu; justify-self: end; margin-top: 2px; margin-right: -0.3em; }
+  .grad .wahl:hover { background: rgba(255, 255, 255, 0.04); }
+  /* Lampe: Anfang des Wegs */
+  .lampe { grid-area: lampe; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.45); position: relative; }
+  .grad.geschafft .lampe, .grad.begonnen .lampe { background: #fff; border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(var(--glow), 0.7); }
+  .grad.hervor .lampe { border-color: #fff; box-shadow: 0 0 10px rgba(var(--glow), 0.9); }
+  .grad.hervor .lampe::after { content: ""; position: absolute; inset: -11px; border-radius: 50%; border: 1px solid rgba(var(--glow), 0.55); box-shadow: 0 0 16px rgba(var(--glow), 0.45); }
+  .grad.hervor .name, .grad.hervor .pips, .grad.hervor .aktion { color: #fff; }
+  .grad.zuletzt .aktion { color: var(--ink); }
+
+  /* «Weiter» am Kopf des Lichts (Lage setzt zeichne()) */
+  .weiter { position: absolute; transform: translate(-50%, -50%); white-space: nowrap; z-index: 2; }
+  .weiter.pille.haupt { background: rgba(10, 10, 24, 0.92); } /* deckend: Wege dahinter scheinen nicht durch */
+
+  /* Wege (SVG) */
+  .wege .grund { stroke: rgba(232, 230, 240, 0.2); stroke-width: 1; }
+  .wege .grund.neu { stroke-dasharray: 2 7; stroke: rgba(232, 230, 240, 0.32); }
+  .wege .grund.hervor { stroke: rgba(var(--glow), 0.75); stroke-width: 1.2; }
+  .wege .hof { stroke: rgba(var(--glow), 0.22); stroke-width: 9; stroke-linecap: round; }
+  .wege .licht { stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
+  .wege .station { fill: rgba(3, 3, 8, 0.9); stroke: rgba(232, 230, 240, 0.45); stroke-width: 1; }
+  .wege .station.an { fill: #fff; stroke: none; }
+  .wege .welt { color: rgba(232, 230, 240, 0.35); }
+  .wege .welt.an { color: rgba(232, 230, 240, 0.85); }
+  .wege .welt.jetzt { color: #fff; }
+  .wege .welt svg { overflow: visible; }
+  .wege .zeiger { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; }
+
+  /* Handy hochkant: Stern oben, Lampen unten nebeneinander, «Weiter» ganz unten */
+  @media (max-width: 600px) {
+    .kopf { left: 0; right: 0; top: max(22px, env(safe-area-inset-top)); text-align: center; }
+    .kopf .titel { font-size: 19px; padding-left: 0.5em; }
+    .kopf .unter { font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; margin-top: 6px; }
+    .ziel { left: 50%; top: 22vh; }
+    .ziel .stern { width: 120px; height: 120px; }
+    .ziel .wort { top: auto; bottom: calc(100% - 4px); }
+    .grade { left: 6px; right: 6px; top: auto; bottom: 104px; width: auto; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+    .grad { flex: 1 1 0; min-width: 0; grid-template-columns: 1fr; grid-template-areas: "lampe" "wahl" "neu"; justify-items: center; row-gap: 12px; }
+    .grad .wahl { align-items: center; text-align: center; gap: 6px; padding: 6px 2px; width: 100%; }
+    .grad .zeile1 { flex-direction: column; gap: 7px; }
+    .grad .name { font-size: 12.5px; letter-spacing: 0.2em; margin-right: -0.2em; white-space: normal; line-height: 1.35; min-height: 2.7em; display: flex; align-items: flex-start; justify-content: center; }
+    .grad .stand { flex-direction: column; gap: 3px; font-size: 12px; letter-spacing: 0.03em; line-height: 1.3; min-height: 3.2em; }
+    .grad .stand .stern { margin: -4px 0 -2px; }
+    .grad .aktion { font-size: 8.5px; letter-spacing: 0.2em; margin-right: -0.2em; }
+    .grad .vonvorn { justify-self: center; margin: -6px 0 0; padding: 6px 4px; font-size: 8.5px; letter-spacing: 0.18em; gap: 0.5em; }
+    .lampe { justify-self: center; }
+    .weiter { left: 16px !important; right: 16px; top: auto !important; bottom: max(24px, env(safe-area-inset-bottom)); transform: none; }
+  }
+  /* Handy quer: wie Desktop, enger */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .kopf { left: max(20px, env(safe-area-inset-left)); top: 14px; display: flex; align-items: baseline; gap: 16px; }
+    .kopf .titel { font-size: 16px; }
+    .kopf .unter { margin: 0; font-size: 8px; letter-spacing: 0.35em; }
+    .ziel { left: 84vw; top: 27vh; }
+    .ziel .stern { width: 96px; height: 96px; }
+    .ziel .wort { top: calc(100% - 16px); font-size: 8px; }
+    .grade { left: max(14px, env(safe-area-inset-left)); top: 46px; bottom: 8px; width: 262px; }
+    .grad { column-gap: 14px; }
+    .grad .wahl { gap: 3px; padding: 3px 2px 2px 8px; flex-direction: column; }
+    .grad .name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
+    .grad .stand { font-size: 11.5px; }
+    .grad .stand .stern { width: 20px; height: 20px; }
+    .grad .aktion { display: none; } /* die Zeile selbst ist der Knopf */
+    .grad .vonvorn { min-height: 26px; padding: 2px 6px; margin-top: 0; font-size: 8.5px; letter-spacing: 0.22em; }
+    .lampe { width: 10px; height: 10px; }
+    .weiter.pille.haupt { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
+    .weiter.pille.haupt .wohin { font-size: 9px; }
+  }
+</style>
+</head>
+<body>
+<main class="menue">
+  <svg class="wege" id="wege" aria-hidden="true"></svg>
+  <header class="kopf">
+    <h1 class="titel">PRISMA</h1>
+    <div class="unter">Ein Lichtsignal an die Sterne</div>
+  </header>
+  <div class="ziel" id="ziel"><span class="wort">Polarstern</span></div>
+  <ol class="grade" id="grade" aria-label="Schwierigkeitsgrade"></ol>
+  <button class="pille haupt weiter" id="weiter" hidden></button>
+</main>
+<script src="gemeinsam.js"></script>
+<script>
+  document.getElementById('ziel').insertAdjacentHTML('afterbegin', stern(true));
+  document.getElementById('grade').innerHTML = GRADE.map((g) => `
+    <li class="grad ${g.stand} ${g.hervor ? 'hervor' : ''} ${g.zuletzt ? 'zuletzt' : ''}">
+      <button class="wahl" aria-label="${ariaKarte(g)}">
+        <span class="zeile1">${pips(g.punkte)}<span class="name">${g.name}</span></span>
+        <span class="stand">${g.stand === 'geschafft' ? stern(true) : ''}${g.stand === 'begonnen'
+          ? `<span>${welt(g).name}</span><span class="trenn">·</span><span>${g.level} / 60</span>` : g.stand === 'neu'
+          ? '<span>noch nicht</span> <span>begonnen</span>' : '<span>Geschafft</span>'}</span>
+        <span class="aktion">${aktion(g)} ${icon('pfeil')}</span>
+      </button>
+      <span class="lampe" data-lampe="${g.id}" aria-hidden="true"></span>
+      ${vonVorn(g)}
+    </li>`).join('');
+  const weiter = document.getElementById('weiter');
+  if (WEITER) {
+    weiter.hidden = false;
+    weiter.setAttribute('aria-label', `Weiter: ${ariaKarte(WEITER)}`);
+    weiter.innerHTML = `<span>Weiter</span><span class="wohin">${WEITER.name} · ${welt(WEITER).name} ${WEITER.level} / 60</span>`;
+  }
+
+  const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+  const f = (n) => n.toFixed(1);
+  function zeichne() {
+    const hoch = matchMedia('(max-width: 600px)').matches;
+    // «Geschafft» hochkant auf eine Zeile, die übrigen Stände in zwei
+    document.querySelectorAll('.trenn').forEach((t) => { t.style.display = hoch ? 'none' : ''; });
+    const svg = document.getElementById('wege');
+    const W = innerWidth, H = innerHeight;
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    const Z = mitte(document.querySelector('#ziel .stern'));
+    let unten = '', oben = '';
+    for (const g of GRADE) {
+      const A = mitte(document.querySelector(`[data-lampe="${g.id}"]`));
+      const P = (t) => ({ x: A.x + (Z.x - A.x) * t, y: A.y + (Z.y - A.y) * t });
+      const p = anteil(g), K = P(p);
+      unten += `<line class="grund ${g.stand} ${g.hervor ? 'hervor' : ''}" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(Z.x)}" y2="${f(Z.y)}"/>`;
+      if (p > 0) {
+        unten += `<line class="hof" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(K.x)}" y2="${f(K.y)}"/>`;
+        unten += `<line class="licht" filter="url(#leuchten)" x1="${f(A.x)}" y1="${f(A.y)}" x2="${f(K.x)}" y2="${f(K.y)}"/>`;
+      }
+      // Grenzen der sechs Welten
+      for (let k = 1; k < 6; k++) {
+        const S = P(k / 6);
+        oben += `<circle class="station ${k / 6 <= p ? 'an' : ''}" cx="${f(S.x)}" cy="${f(S.y)}" r="${k / 6 <= p ? 2.6 : 2.4}"/>`;
+      }
+      // Welten als Zeichen neben dem Weg, dessen Licht «Weiter» fortsetzt; dazu der Kopf des Lichts
+      if (g === WEITER) {
+        const len = Math.hypot(Z.x - A.x, Z.y - A.y), dx = (Z.x - A.x) / len, dy = (Z.y - A.y) / len;
+        const n = hoch ? { x: dy, y: -dx } : { x: dy, y: -dx }; // links der Richtung zum Stern
+        const jetzt = WELTEN.indexOf(welt(g));
+        WELTEN.forEach((w, i) => {
+          const M = P((i + 0.5) / 6), s = hoch ? 15 : 17, o = hoch ? 15 : 19;
+          const cls = i < jetzt ? 'an' : i === jetzt ? 'jetzt' : '';
+          oben += `<g class="welt ${cls}" ${i === jetzt ? 'filter="url(#leuchten)"' : ''}><svg x="${f(M.x + n.x * o - s / 2)}" y="${f(M.y + n.y * o - s / 2)}" width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${ICONS[w.id]}</svg></g>`;
+        });
+        oben += `<circle cx="${f(K.x)}" cy="${f(K.y)}" r="20" fill="url(#kopf)"/><circle cx="${f(K.x)}" cy="${f(K.y)}" r="3.6" fill="#fff"/>`;
+        // «Weiter» unter dem Kopf (auf der Seite ohne Zeichen), mit feiner Linie zum Licht
+        if (!hoch) {
+          const r = weiter.getBoundingClientRect(), u = n.y < 0 ? { x: -n.x, y: -n.y } : n, ab = r.height / 2 + 26;
+          const B = { x: K.x + u.x * ab, y: K.y + u.y * ab };
+          weiter.style.left = `${B.x}px`; weiter.style.top = `${B.y}px`;
+          oben += `<line class="zeiger" x1="${f(K.x + u.x * 6)}" y1="${f(K.y + u.y * 6)}" x2="${f(B.x - u.x * (r.height / 2))}" y2="${f(B.y - u.y * (r.height / 2))}"/>`;
+        }
+      }
+    }
+    svg.innerHTML = `<defs>
+        <filter id="leuchten" filterUnits="userSpaceOnUse" x="0" y="0" width="${W}" height="${H}">
+          <feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <radialGradient id="kopf"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.35" stop-color="#cdd4ff" stop-opacity="0.25"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
+      </defs>${unten}${oben}`;
+  }
+  document.fonts.ready.then(zeichne);
+  zeichne();
+  addEventListener('resize', zeichne);
+  fokusProbe();
+</script>
+</body>
+</html>

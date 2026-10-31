@@ -3,7 +3,7 @@
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/generiere.mjs leicht --anzahl 3 | node tools/show.mjs
 //                                  JSON-Zeilen von generiere.mjs, mit der Beurteilung des Generators
 //         node tools/show.mjs --level 15        Level aus index.html: Platz in LEVELS ab 1, das Tutorial mitgezählt,
-//                                               oder der Name des Levels
+//                                               oder der Name eines flachen Levels in Spiel oder Vorrat (lader.mjs)
 //         … --beurteilen                        beurteilt Level ohne mitgegebene Beurteilung (alle Regeln, mit ihrem
 //                                               Grad; je Level bis einige Sekunden) und zeigt dazu die Ausschlussgründe
 import { readFileSync } from 'node:fs';
@@ -48,10 +48,11 @@ if (process.argv[1] && process.argv[1].endsWith('show.mjs')) {
   const beurteilen = args.includes('--beurteilen');
   let items;
   if (i >= 0) {
-    const was = args[i + 1];
-    const level = /^\d+$/.test(was ?? '') ? L.LEVELS[+was - 1] : L.LEVELS.find(l => l.name === was);
+    const was = args[i + 1], { ALLE } = await import('./lader.mjs');
+    const level = /^\d+$/.test(was ?? '') ? L.LEVELS[+was - 1] : ALLE.LEVELS.find(l => l.name === was);
     if (!level) {
-      console.error(`Kein Level „${was}“: Platz 1–${L.LEVELS.length} in LEVELS (das Tutorial mitgezählt) oder Name`);
+      console.error(`Kein Level „${was}“: Platz 1–${L.LEVELS.length} in LEVELS (das Tutorial mitgezählt) oder Name `
+        + '(Spiel oder Vorrat)');
       process.exit(1);
     }
     items = [{ level }];

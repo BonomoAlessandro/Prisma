@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Menü – Variante 1: Vier Karten</title>
+<link rel="stylesheet" href="gemeinsam.css">
+<style>
+  /* Variante 1: alle vier Grade gleichzeitig als Karten, «Weiter» darüber. Desktop und quer in einer Reihe, hochkant
+     als Raster 2 × 2. Eine Karte ist ein Knopf (Fortsetzen, Übersicht oder Beginnen), «Von vorn» sitzt im Fuss. */
+  .menue {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 42px;
+    padding: 24px 16px;
+  }
+  .kopf .titel { font-size: 34px; }
+  .karten {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(4, 232px); gap: 20px; justify-content: center;
+  }
+  .karte {
+    position: relative; display: flex; flex-direction: column;
+    border: 1px solid var(--ink-faint); border-radius: 12px;
+    background: rgba(6, 6, 16, 0.6);
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+  }
+  .karte .flaeche {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 16px;
+    padding: 20px 14px 20px; text-align: center; border-radius: 11px 11px 0 0;
+  }
+  .karte .kicker { height: 12px; font-size: 9px; letter-spacing: 0.35em; padding-left: 0.35em; text-transform: uppercase; color: var(--ink-dim); white-space: nowrap; }
+  .karte .grad { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .karte .pips { color: var(--ink-dim); }
+  .karte .name { font-size: 17px; letter-spacing: 0.35em; padding-left: 0.35em; text-transform: uppercase; white-space: nowrap; }
+  .karte .stand { font-size: 13px; letter-spacing: 0.08em; min-height: 18px; display: flex; align-items: center; gap: 8px; }
+  .karte.neu .stand { color: var(--ink-dim); }
+  .karte .aktion { margin-top: auto; display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase; color: var(--ink-dim); }
+  .karte .aktion .ico { font-size: 13px; }
+  .karte .fuss { border-top: 1px solid var(--ink-faint); min-height: 50px; display: flex; align-items: center; justify-content: center; }
+  .karte .fuss .leer { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(232, 230, 240, 0.22); }
+
+  /* Weg der Welten wie in den Untertiteln der Geschichte (#story .path) */
+  .weg { display: flex; align-items: center; height: 26px; }
+  .weg .st { display: grid; place-items: center; font-size: 18px; color: rgba(232, 230, 240, 0.3); }
+  .weg .st.done { color: rgba(232, 230, 240, 0.8); }
+  .weg .st.now { color: #fff; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.85)); }
+  .weg .ln { width: 8px; height: 1px; background: rgba(232, 230, 240, 0.16); }
+  .weg .ln.done { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  .weg .ziel { width: 32px; height: 32px; margin: -3px -4px -3px -2px; }
+
+  /* Stand: zuletzt gespielt (Ziel von «Weiter»), geschafft (Licht des Polarsterns), hervorgehoben (nächster Grad) */
+  .karte.zuletzt { border-color: var(--ink-line); }
+  .karte.zuletzt .kicker { color: var(--ink); }
+  .karte.geschafft { background: radial-gradient(ellipse at 50% 0%, rgba(var(--glow), 0.16), rgba(6, 6, 16, 0.6) 62%); }
+  .karte.geschafft .stand .stern { width: 26px; height: 26px; margin: -4px 0; }
+  .karte.hervor {
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: 0 0 36px rgba(var(--glow), 0.3), inset 0 0 26px rgba(var(--glow), 0.08);
+  }
+  .karte.hervor .aktion, .karte.hervor .pips { color: #fff; }
+  .karte .flaeche:hover { background: rgba(255, 255, 255, 0.04); }
+
+  /* Handy hochkant: Raster 2 × 2, alles etwas kleiner */
+  @media (max-width: 600px) {
+    .menue { gap: 26px; justify-content: center; padding: max(20px, env(safe-area-inset-top)) 16px 20px; }
+    .kopf .titel { font-size: 24px; }
+    .kopf .unter { font-size: 9px; letter-spacing: 0.4em; }
+    .weiter-zeile, .weiter-zeile .pille { width: 100%; }
+    .karten { width: 100%; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .karte .flaeche { gap: 12px; padding: 14px 8px 14px; }
+    .karte .kicker { font-size: 8px; letter-spacing: 0.25em; padding-left: 0.25em; }
+    .karte .grad { gap: 8px; }
+    .karte .name { font-size: 14px; letter-spacing: 0.24em; padding-left: 0.24em; }
+    .weg .st { font-size: 15px; }
+    .weg .ln { width: 4px; }
+    .weg .ziel { width: 26px; height: 26px; margin: -3px -3px -3px -2px; }
+    .karte .stand { font-size: 12px; letter-spacing: 0.04em; }
+    .karte .aktion { font-size: 9px; letter-spacing: 0.3em; }
+    .karte .fuss { min-height: 46px; }
+    .vonvorn { letter-spacing: 0.22em; }
+  }
+  /* Handy quer: Kopf und «Weiter» in einer Zeile, die Karten darunter in einer Reihe */
+  @media (orientation: landscape) and (max-height: 500px) {
+    .menue {
+      display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-items: center; align-content: center;
+      gap: 22px 16px; padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
+    }
+    .kopf { text-align: left; display: flex; align-items: baseline; gap: 18px; }
+    .kopf .titel { font-size: 18px; }
+    .kopf .unter { margin: 0; font-size: 9px; letter-spacing: 0.35em; }
+    .pille.haupt { flex-direction: row; gap: 14px; padding: 10px 22px 10px calc(22px + 0.45em); font-size: 11px; }
+    .karten { grid-column: 1 / -1; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .karte .flaeche { gap: 9px; padding: 12px 6px 10px; }
+    .karte .kicker { font-size: 8px; letter-spacing: 0.22em; }
+    .karte .grad { gap: 6px; }
+    .karte .name { font-size: 14px; letter-spacing: 0.24em; }
+    .weg .st { font-size: 15px; }
+    .weg .ln { width: 4px; }
+    .weg .ziel { width: 26px; height: 26px; margin: -3px -3px -3px -2px; }
+    .karte .stand { font-size: 12px; letter-spacing: 0.04em; }
+    .karte .aktion { font-size: 9px; letter-spacing: 0.3em; }
+    .karte .fuss { min-height: 40px; }
+    .vonvorn { min-height: 32px; padding: 4px 8px; }
+  }
+</style>
+</head>
+<body>
+<main class="menue">
+  <header class="kopf">
+    <h1 class="titel">PRISMA</h1>
+    <div class="unter">Ein Lichtsignal an die Sterne</div>
+  </header>
+  <div class="weiter-zeile" id="weiter-zeile"></div>
+  <ul class="karten" id="karten" aria-label="Schwierigkeitsgrade"></ul>
+</main>
+<script src="gemeinsam.js"></script>
+<script>
+  if (WEITER) document.getElementById('weiter-zeile').innerHTML = `<button class="pille haupt" aria-label="Weiter: ${ariaKarte(WEITER)}">
+      <span>Weiter</span><span class="wohin">${WEITER.name} · ${welt(WEITER).name} ${WEITER.level} / 60</span></button>`;
+  document.getElementById('karten').innerHTML = GRADE.map((g) => `
+    <li class="karte ${g.stand} ${g.zuletzt ? 'zuletzt' : ''} ${g.hervor ? 'hervor' : ''}">
+      <button class="flaeche" aria-label="${ariaKarte(g)}">
+        <span class="kicker">${g.zuletzt ? 'Zuletzt gespielt' : g.stand === 'geschafft' ? 'Polarstern erreicht' : ''}</span>
+        <span class="grad">${pips(g.punkte)}<span class="name">${g.name}</span></span>
+        ${wegLeiste(g)}
+        <span class="stand">${g.stand === 'geschafft' ? stern(true) : ''}${standText(g)}</span>
+        <span class="aktion">${aktion(g)} ${icon('pfeil')}</span>
+      </button>
+      <div class="fuss">${g.stand === 'neu' ? '<span class="leer" aria-hidden="true">·</span>' : vonVorn(g)}</div>
+    </li>`).join('');
+  document.querySelector('.karte.begonnen .vonvorn')?.setAttribute('data-fokus', '');
+  fokusProbe();
+</script>
+</body>
+</html>

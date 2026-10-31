@@ -1,0 +1,6064 @@
+{
+ "kommentar": "35 beurteilte, nicht abgelehnte sehr schwere Kandidaten aus Ticket 01 der Spec .scratch/noa-geschichte/ (Lauf ausbau-noa-1 der KI-Tester), die nicht im Spiel stehen; die 15 gewählten stehen in sehr-schwer-neu.json und im Spiel. Vorrat für Ticket 09 (Wahl von «sehr schwer» nach Bewertung, siehe Comments dort). Herkunft: tools/ausbau.mjs pool mit den sieben Aufträgen «sehr schwer», Auftrag und Seed je Level; Seeds 40001–43000 ohne Ziel-Schwierigkeit, Seeds 50001–52000 mit --schwierigkeit 96,112. Die Pools von Ticket 01 waren verloren und wurden am 30.10.2026 mit denselben Aufträgen und Seeds nachgebaut (Ticket 09, Stufe 1); der Abdruck jedes Levels (kandidatName in tools/leveldaten.mjs) ist geprüft. Schwierigkeit, Haupt-Kernidee und Spielwert aus der Beurteilung vom 30.10.2026; Urteile der KI-Tester im Protokoll (tools/ki-tester/protocol.jsonl) unter dem Kandidatennamen. Kandidat 525422a7 hat Gefühl 2,5 und nur bei einem Aha (kommt in Ticket 09 nicht in Frage). Sortiert nach Schwierigkeit. level.name: der Schlüssel der 23, die die Wahl von «sehr schwer» in Ticket 09 nimmt (Sternnamen wie die übrigen sehr schweren, eindeutig in jeder Schreibung, namenFehler in tools/geschichte.mjs; so gewählt, dass die Reihenfolge bei gleicher Bewertung, gleichem Spielwert und gleicher Schwierigkeit wie unter dem Kandidatennamen bleibt und die Wahl dieselbe ist), leer bei den übrigen.",
+ "level": [
+  {
+   "kandidat": "Kandidat 0a93f026",
+   "grad": "sehr schwer",
+   "schwierigkeit": 87.93,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 91.77,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 41641,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 5,
+      "z": 6,
+      "dir": 6,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 6,
+      "dir": 6,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 1,
+      "rot": 4
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 0,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 5
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 2
+     }
+    ],
+    "solution": {
+     "5,4": 3,
+     "4,1": 3,
+     "4,5": 3,
+     "0,5": 3,
+     "1,1": 1,
+     "0,6": 1,
+     "1,0": 3,
+     "2,0": 1,
+     "1,6": 3,
+     "5,0": 3,
+     "0,4": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat aad8ee01",
+   "grad": "sehr schwer",
+   "schwierigkeit": 87.98,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 92.71,
+   "auftrag": "sehr schwer-abzaehlen",
+   "seed": 41595,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Albireo",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 6,
+      "dir": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "white"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 6,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 5,
+      "z": 0,
+      "dir": 2,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 5,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 0,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 6,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "3,5": 1,
+     "3,2": 1,
+     "6,2": 3,
+     "6,5": 1,
+     "5,4": 3,
+     "2,4": 1,
+     "2,0": 1,
+     "0,0": 3,
+     "3,1": 1,
+     "4,1": 3,
+     "1,5": 7,
+     "1,3": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat dd52f00a",
+   "grad": "sehr schwer",
+   "schwierigkeit": 88.53,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 92.66,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 41786,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Alioth",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 5,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 4
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 2,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 4,
+      "dir": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 1,
+      "rot": 5
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 0,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "1,5": 3,
+     "5,1": 1,
+     "5,0": 1,
+     "6,6": 3,
+     "6,3": 5,
+     "1,3": 3,
+     "5,4": 3,
+     "0,5": 3,
+     "2,1": 6,
+     "2,0": 1,
+     "1,0": 3,
+     "0,3": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat b15759ab",
+   "grad": "sehr schwer",
+   "schwierigkeit": 88.63,
+   "hauptKernidee": "Sammelstelle",
+   "spielwert": 95.25,
+   "auftrag": "sehr schwer",
+   "seed": 41243,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Ankaa",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 4,
+      "color": "red"
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 1,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 2,
+      "rot": 5
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 3,
+      "color": "red"
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 4,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "1,1": 5,
+     "1,4": 3,
+     "3,5": 3,
+     "3,4": 3,
+     "5,4": 1,
+     "5,5": 4,
+     "1,2": 4,
+     "2,0": 1,
+     "3,2": 0,
+     "6,2": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 7bad0b0c",
+   "grad": "sehr schwer",
+   "schwierigkeit": 88.66,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 91.97,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 40895,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Diphda",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 2,
+      "rot": 4
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 3,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 2,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 3,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 4,
+      "dir": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 0,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 3,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 5,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "fixed": true,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 3,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "5,2": 1,
+     "5,0": 1,
+     "5,6": 1,
+     "6,6": 3,
+     "1,4": 2,
+     "3,6": 0,
+     "4,2": 3,
+     "1,5": 1,
+     "0,2": 3,
+     "0,5": 2
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 4d11a993",
+   "grad": "sehr schwer",
+   "schwierigkeit": 88.76,
+   "hauptKernidee": "Sammelstelle",
+   "spielwert": 95.38,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 40911,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Hamal",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 7
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 0,
+      "dir": 1,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 1,
+      "color": "cyan"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 7,
+      "color": "magenta"
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "blue"
+     },
+     {
+      "type": "blocker",
+      "x": 6,
+      "z": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 1,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "3,1": 3,
+     "5,5": 1,
+     "5,6": 3,
+     "2,6": 6,
+     "4,2": 5,
+     "4,1": 3,
+     "6,1": 3,
+     "6,0": 1,
+     "5,0": 3,
+     "4,4": 2,
+     "1,1": 0
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat f09bb21b",
+   "grad": "sehr schwer",
+   "schwierigkeit": 88.87,
+   "hauptKernidee": "Falle",
+   "spielwert": 92.28,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 42721,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Dubhe",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 5,
+      "dir": 5,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 5,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 0
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 3,
+      "dir": 4
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 0,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "3,2": 3,
+     "4,2": 3,
+     "2,6": 7,
+     "4,6": 3,
+     "5,2": 1,
+     "5,5": 3,
+     "2,3": 1,
+     "0,3": 3,
+     "2,1": 3,
+     "3,1": 6,
+     "3,0": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 239dd03f",
+   "grad": "sehr schwer",
+   "schwierigkeit": 89.12,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 90.7,
+   "auftrag": "sehr schwer-abzaehlen",
+   "seed": 40654,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 2,
+      "dir": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 4,
+      "dir": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 1,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 7,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 5,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "1,2": 1,
+     "1,4": 1,
+     "3,4": 1,
+     "3,2": 1,
+     "4,2": 0,
+     "5,3": 0,
+     "6,2": 2,
+     "4,0": 0,
+     "1,5": 7,
+     "5,5": 1,
+     "5,4": 5,
+     "4,3": 2
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 7c2319ec",
+   "grad": "sehr schwer",
+   "schwierigkeit": 89.39,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 93.4,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 41581,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Alhena",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 6,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 3,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 5,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 6,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 3,
+      "rot": 7
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 1,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 2
+     }
+    ],
+    "solution": {
+     "4,3": 1,
+     "5,5": 0,
+     "6,4": 5,
+     "2,4": 3,
+     "3,1": 0,
+     "0,4": 2,
+     "2,6": 3,
+     "0,6": 1,
+     "6,3": 5,
+     "4,1": 3,
+     "6,0": 1,
+     "1,0": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 2b606bcd",
+   "grad": "sehr schwer",
+   "schwierigkeit": 89.92,
+   "hauptKernidee": "Falle",
+   "spielwert": 92.23,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 41432,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 4,
+      "dir": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 4,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 0
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 2,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 6,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "1,3": 3,
+     "3,3": 1,
+     "5,5": 7,
+     "5,3": 1,
+     "3,2": 1,
+     "1,2": 1,
+     "0,1": 1,
+     "3,6": 0,
+     "6,3": 6,
+     "6,5": 1,
+     "6,6": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 0dc0739b",
+   "grad": "sehr schwer",
+   "schwierigkeit": 90.87,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 94.61,
+   "auftrag": "sehr schwer-lockvogel",
+   "seed": 40912,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Enif",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 7,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 5,
+      "z": 6,
+      "dir": 6,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 1,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 4,
+      "rot": 4
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 3,
+      "rot": 6
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 5,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 0,
+      "dir": 4,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 2
+     }
+    ],
+    "solution": {
+     "3,2": 2,
+     "6,3": 1,
+     "5,1": 3,
+     "1,4": 0,
+     "1,3": 1,
+     "5,5": 7,
+     "4,4": 1,
+     "4,5": 3,
+     "2,5": 0,
+     "0,0": 3,
+     "0,1": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 2fb3afb5",
+   "grad": "sehr schwer",
+   "schwierigkeit": 90.95,
+   "hauptKernidee": "Falle",
+   "spielwert": 92.63,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 40142,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Kochab",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 2,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 1
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 4,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 1,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 2,
+      "rot": 5
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 5,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 0,
+      "color": "blue"
+     },
+     {
+      "type": "blocker",
+      "x": 2,
+      "z": 6
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "3,2": 1,
+     "1,4": 1,
+     "5,4": 1,
+     "2,5": 2,
+     "1,6": 0,
+     "1,2": 3,
+     "6,5": 1,
+     "0,2": 6,
+     "3,6": 1,
+     "1,3": 1,
+     "0,1": 3,
+     "6,1": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat be9c3fb2",
+   "grad": "sehr schwer",
+   "schwierigkeit": 91.12,
+   "hauptKernidee": "Falle",
+   "spielwert": 94.1,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 42703,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Menkar",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 4,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 1,
+      "dir": 0
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 3,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "5,3": 1,
+     "5,6": 3,
+     "4,4": 1,
+     "3,4": 3,
+     "2,4": 5,
+     "1,4": 3,
+     "1,5": 3,
+     "0,5": 3,
+     "0,6": 1,
+     "2,0": 1,
+     "1,0": 3,
+     "6,1": 7,
+     "6,0": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 928f2230",
+   "grad": "sehr schwer",
+   "schwierigkeit": 91.47,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 96.44,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 42412,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Merak",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 0,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 3,
+      "dir": 3,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "cyan"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 6,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 0,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "5,6": 7,
+     "4,5": 2,
+     "3,1": 2,
+     "5,3": 1,
+     "3,2": 0,
+     "0,4": 2,
+     "5,0": 0,
+     "1,5": 0,
+     "4,2": 3,
+     "2,4": 2
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat f4e9da8e",
+   "grad": "sehr schwer",
+   "schwierigkeit": 91.65,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 93.4,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 42120,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Sadr",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 2,
+      "z": 0,
+      "dir": 2,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 0,
+      "dir": 2,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 2,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 1,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 6,
+      "color": "yellow"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "red"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 6,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "2,2": 1,
+     "1,3": 1,
+     "4,3": 3,
+     "0,1": 1,
+     "4,1": 3,
+     "4,0": 3,
+     "3,4": 2,
+     "0,5": 1,
+     "5,5": 1,
+     "6,6": 3,
+     "2,6": 5,
+     "6,3": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 8cde63f2",
+   "grad": "sehr schwer",
+   "schwierigkeit": 91.76,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 96.77,
+   "auftrag": "sehr schwer",
+   "seed": 40343,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Mintaka",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 3,
+      "rot": 5
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 2,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "rot": 3,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 3,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 3,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 6,
+      "rot": 4
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 0,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 3
+     }
+    ],
+    "solution": {
+     "4,3": 3,
+     "2,3": 3,
+     "2,4": 3,
+     "2,0": 5,
+     "5,2": 5,
+     "6,0": 1,
+     "4,6": 1,
+     "5,6": 3,
+     "3,6": 5,
+     "3,2": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat ac0fd637",
+   "grad": "sehr schwer",
+   "schwierigkeit": 91.84,
+   "hauptKernidee": "Sammelstelle",
+   "spielwert": 95.38,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 40656,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Izar",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 1,
+      "rot": 5
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 5,
+      "dir": 5,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 2,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 5,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 5
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 5,
+      "rot": 4
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 5,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 6,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "0,1": 1,
+     "1,0": 0,
+     "3,5": 6,
+     "5,3": 0,
+     "6,4": 2,
+     "3,1": 1,
+     "6,1": 5,
+     "2,4": 0,
+     "5,0": 0,
+     "1,4": 2,
+     "3,0": 3,
+     "4,0": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 330805ef",
+   "grad": "sehr schwer",
+   "schwierigkeit": 92.33,
+   "hauptKernidee": "Lockvogel",
+   "spielwert": 88.37,
+   "auftrag": "sehr schwer",
+   "seed": 42941,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Nunki",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 0,
+      "z": 2,
+      "dir": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 3,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 2,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 6,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 6,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "blocker",
+      "x": 3,
+      "z": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "combiner",
+      "x": 5,
+      "z": 3,
+      "dir": 4
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 2,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 6,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "1,2": 2,
+     "1,4": 3,
+     "5,4": 5,
+     "0,4": 1,
+     "4,1": 3,
+     "1,5": 1,
+     "6,1": 3,
+     "6,0": 1,
+     "0,0": 3,
+     "0,1": 1,
+     "2,1": 1,
+     "5,3": 7,
+     "0,3": 3,
+     "2,5": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 192e9bb4",
+   "grad": "sehr schwer",
+   "schwierigkeit": 92.4,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 93.38,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 42851,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Saiph",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 0,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 2,
+      "dir": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 4,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 0,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 6
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "filter",
+      "x": 0,
+      "z": 4,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 1,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 1,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 6,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 1,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "6,0": 1,
+     "6,4": 3,
+     "1,2": 1,
+     "4,3": 5,
+     "2,6": 3,
+     "2,3": 1,
+     "4,2": 1,
+     "1,1": 1,
+     "0,3": 3,
+     "0,5": 1,
+     "2,1": 3,
+     "6,6": 3,
+     "5,6": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 7d2b8d12",
+   "grad": "sehr schwer",
+   "schwierigkeit": 92.71,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 93.4,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 40538,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Markab",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 3,
+      "z": 6,
+      "dir": 6,
+      "color": "red"
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 0,
+      "dir": 2,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 2,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 3,
+      "dir": 4
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 1,
+      "rot": 1,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 1,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 2,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 0,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "3,2": 1,
+     "5,3": 3,
+     "5,4": 3,
+     "4,4": 2,
+     "4,6": 1,
+     "6,5": 1,
+     "4,3": 7,
+     "5,1": 1,
+     "1,5": 1,
+     "1,1": 1,
+     "4,2": 3,
+     "3,0": 3,
+     "4,0": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat a6700df9",
+   "grad": "sehr schwer",
+   "schwierigkeit": 93.84,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 95.54,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 40816,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Megrez",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 3,
+      "rot": 5
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 5,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 3,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 5
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 5,
+      "dir": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 2,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "1,3": 4,
+     "5,3": 0,
+     "3,1": 3,
+     "3,6": 3,
+     "2,6": 1,
+     "2,1": 1,
+     "1,1": 1,
+     "1,0": 1,
+     "0,0": 3,
+     "5,6": 0,
+     "4,5": 5
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat fd747d28",
+   "grad": "sehr schwer",
+   "schwierigkeit": 93.92,
+   "hauptKernidee": "Falle",
+   "spielwert": 96.71,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 41293,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 4,
+      "dir": 5,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 0,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 4,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 2,
+      "rot": 5
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 6,
+      "rot": 5
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 0,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "fixed": true,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 3,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "3,1": 6,
+     "3,3": 3,
+     "5,2": 4,
+     "1,6": 7,
+     "2,5": 0,
+     "1,4": 3,
+     "3,6": 0,
+     "4,4": 3,
+     "5,6": 0,
+     "6,5": 2,
+     "1,0": 0
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat f043193d",
+   "grad": "sehr schwer",
+   "schwierigkeit": 94.79,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 96.66,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 42558,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 2,
+      "rot": 6
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 1,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 5,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 5,
+      "color": "cyan"
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 2,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 1,
+      "rot": 7
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 3,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "combiner",
+      "x": 4,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "2,2": 1,
+     "0,4": 2,
+     "6,3": 3,
+     "6,1": 1,
+     "5,1": 5,
+     "2,5": 1,
+     "4,1": 1,
+     "1,2": 1,
+     "0,2": 1,
+     "0,1": 0,
+     "4,0": 4
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 12a1b927",
+   "grad": "sehr schwer",
+   "schwierigkeit": 94.96,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 94.13,
+   "auftrag": "sehr schwer-abzaehlen",
+   "seed": 42430,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Schedir",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 6,
+      "dir": 6,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 5,
+      "dir": 4,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 1,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 5,
+      "color": "white"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 6,
+      "color": "blue"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 6,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 4,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 1,
+      "color": "red"
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 5
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 4,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "3,2": 3,
+     "1,2": 1,
+     "1,5": 1,
+     "3,5": 3,
+     "4,4": 3,
+     "5,4": 3,
+     "5,2": 1,
+     "0,2": 3,
+     "3,1": 1,
+     "6,1": 3,
+     "6,0": 1,
+     "4,0": 3,
+     "5,5": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat cff39df8",
+   "grad": "sehr schwer",
+   "schwierigkeit": 96.09,
+   "hauptKernidee": "Sammelstelle",
+   "spielwert": 94.73,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 41667,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 5,
+      "rot": 6
+     },
+     {
+      "type": "source",
+      "x": 5,
+      "z": 0,
+      "dir": 3,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 0,
+      "dir": 2,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "cyan"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 6,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 3,
+      "color": "red"
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 4,
+      "rot": 7
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 4
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "filter",
+      "x": 5,
+      "z": 2,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 0
+     }
+    ],
+    "solution": {
+     "0,5": 1,
+     "4,4": 1,
+     "2,6": 1,
+     "4,6": 3,
+     "3,4": 3,
+     "3,5": 1,
+     "6,5": 3,
+     "6,3": 1,
+     "2,4": 3,
+     "2,2": 1,
+     "2,0": 1,
+     "1,0": 3
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 24d655cd",
+   "grad": "sehr schwer",
+   "schwierigkeit": 96.22,
+   "hauptKernidee": "Sammelstelle",
+   "spielwert": 93.98,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 51827,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Wezen",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 1,
+      "dir": 0,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 6,
+      "dir": 5
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 7
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 0,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 2,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 6,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "5,1": 2,
+     "5,5": 4,
+     "0,5": 1,
+     "0,4": 3,
+     "1,4": 3,
+     "5,4": 1,
+     "1,0": 1,
+     "6,4": 1,
+     "4,6": 0,
+     "2,2": 1,
+     "2,3": 5,
+     "4,4": 2
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 0bad3327",
+   "grad": "sehr schwer",
+   "schwierigkeit": 96.31,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 92.92,
+   "auftrag": "sehr schwer",
+   "seed": 40807,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 6,
+      "z": 6,
+      "dir": 5
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 0,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 7,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 0,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 6,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 0
+     }
+    ],
+    "solution": {
+     "2,2": 6,
+     "6,3": 1,
+     "2,1": 3,
+     "6,4": 3,
+     "0,4": 3,
+     "0,6": 1,
+     "4,1": 1,
+     "3,5": 7,
+     "4,5": 1,
+     "4,6": 1,
+     "1,6": 3,
+     "6,2": 2,
+     "0,2": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat b2fa2853",
+   "grad": "sehr schwer",
+   "schwierigkeit": 96.32,
+   "hauptKernidee": "Falle",
+   "spielwert": 92.12,
+   "auftrag": "sehr schwer-mischziel",
+   "seed": 50243,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 5,
+      "z": 6,
+      "dir": 6,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 4,
+      "dir": 4,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 5,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 1,
+      "rot": 4
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 0,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 2,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 2,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 3,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 6,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "5,5": 1,
+     "4,4": 3,
+     "1,1": 3,
+     "0,1": 1,
+     "0,2": 2,
+     "3,5": 2,
+     "2,6": 0,
+     "0,4": 2,
+     "4,2": 1,
+     "0,0": 3,
+     "5,0": 1,
+     "5,2": 1,
+     "6,2": 1,
+     "6,5": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 25582948",
+   "grad": "sehr schwer",
+   "schwierigkeit": 96.43,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 91.62,
+   "auftrag": "sehr schwer",
+   "seed": 50918,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     3
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 0,
+      "color": "red"
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 5,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 6
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 0,
+      "dir": 2,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 0,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "rot": 3,
+      "fixed": true
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 5,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 6,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 1,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 0,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "combiner",
+      "x": 3,
+      "z": 4,
+      "dir": 1
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "yellow"
+     }
+    ],
+    "solution": {
+     "4,1": 3,
+     "5,5": 3,
+     "6,3": 3,
+     "3,1": 5,
+     "1,4": 3,
+     "0,1": 3,
+     "5,6": 5,
+     "4,6": 1,
+     "6,2": 1,
+     "2,6": 3,
+     "1,6": 1,
+     "3,4": 7
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat af87cceb",
+   "grad": "sehr schwer",
+   "schwierigkeit": 97.41,
+   "hauptKernidee": "Mischziel aus zwei Quellen",
+   "spielwert": 88.83,
+   "auftrag": "sehr schwer",
+   "seed": 51435,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     2
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 6,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 5,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 2,
+      "fixed": true,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 6,
+      "dir": 5,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 2,
+      "dir": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 6,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 5,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "blue"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 1,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 0,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "6,1": 3,
+     "1,6": 0,
+     "0,5": 2,
+     "2,1": 0,
+     "5,3": 2,
+     "5,5": 4,
+     "0,3": 2,
+     "6,4": 3,
+     "1,1": 2,
+     "2,0": 0,
+     "2,6": 0,
+     "4,1": 1,
+     "3,6": 0,
+     "4,0": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 929badef",
+   "grad": "sehr schwer",
+   "schwierigkeit": 99.58,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 95.54,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 42541,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     5,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Alpheratz",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 0,
+      "dir": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 4,
+      "dir": 5,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 2,
+      "z": 4,
+      "color": "yellow"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 6,
+      "dir": 6
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "prism",
+      "x": 6,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 5,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 3,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 3,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 1,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 6,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "2,0": 3,
+     "0,2": 2,
+     "4,5": 3,
+     "6,5": 1,
+     "6,6": 4,
+     "5,6": 1,
+     "5,2": 3,
+     "4,4": 0,
+     "2,6": 0,
+     "1,5": 0,
+     "6,2": 1,
+     "1,2": 7,
+     "5,1": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 3e415b77",
+   "grad": "sehr schwer",
+   "schwierigkeit": 101.03,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 97.3,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 50122,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     4
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 1,
+      "rot": 1
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 7,
+      "color": "yellow"
+     },
+     {
+      "type": "source",
+      "x": 4,
+      "z": 0,
+      "dir": 1,
+      "color": "blue"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 0,
+      "color": "red"
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 1,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 1,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 2,
+      "z": 2,
+      "rot": 6
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 1,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 1
+     },
+     {
+      "type": "prism",
+      "x": 1,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 4,
+      "rot": 1
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "green"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 1,
+      "color": "blue"
+     }
+    ],
+    "solution": {
+     "5,1": 7,
+     "1,2": 1,
+     "2,2": 7,
+     "3,1": 2,
+     "2,0": 0,
+     "0,2": 2,
+     "1,3": 2,
+     "1,6": 7,
+     "6,2": 1,
+     "6,4": 3,
+     "4,6": 3,
+     "4,4": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 525422a7",
+   "grad": "sehr schwer",
+   "schwierigkeit": 102.2,
+   "hauptKernidee": "Lockvogel",
+   "spielwert": 84.85,
+   "auftrag": "sehr schwer",
+   "seed": 40925,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     3,
+     2
+    ],
+    "aha": [
+     true,
+     false
+    ]
+   },
+   "level": {
+    "name": "",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 6
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 3
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 2,
+      "rot": 4
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 3,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 3,
+      "fixed": true,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 5,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 3
+     },
+     {
+      "type": "filter",
+      "x": 2,
+      "z": 4,
+      "color": "green"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 2,
+      "color": "yellow"
+     },
+     {
+      "type": "target",
+      "x": 0,
+      "z": 4,
+      "color": "green"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 5,
+      "dir": 1,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "blocker",
+      "x": 4,
+      "z": 2
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 5,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "2,0": 3,
+     "5,2": 2,
+     "4,3": 2,
+     "6,3": 1,
+     "6,5": 3,
+     "3,5": 3,
+     "3,6": 1,
+     "4,6": 3,
+     "4,4": 1,
+     "1,4": 1,
+     "1,6": 0,
+     "1,0": 0,
+     "3,0": 1,
+     "0,1": 2
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat 69d92fd5",
+   "grad": "sehr schwer",
+   "schwierigkeit": 102.42,
+   "hauptKernidee": "Abschalten",
+   "spielwert": 96.77,
+   "auftrag": "sehr schwer-sammelstelle",
+   "seed": 50914,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Alkaid",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "source",
+      "x": 6,
+      "z": 1,
+      "dir": 4,
+      "color": "red"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 6,
+      "dir": 7,
+      "color": "cyan"
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 3,
+      "z": 4,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 1,
+      "z": 3,
+      "color": "white"
+     },
+     {
+      "type": "source",
+      "x": 5,
+      "z": 6,
+      "dir": 6
+     },
+     {
+      "type": "prism",
+      "x": 5,
+      "z": 3,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 1,
+      "rot": 1,
+      "fixed": true
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 2,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 5,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "fixed": true,
+      "rot": 3
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "cyan"
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 5
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 4,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 0,
+      "rot": 1
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 6,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 1,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 5,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 4,
+      "color": "green"
+     }
+    ],
+    "solution": {
+     "3,1": 3,
+     "4,2": 2,
+     "5,3": 5,
+     "5,2": 3,
+     "6,2": 1,
+     "6,5": 3,
+     "0,4": 6,
+     "2,0": 3,
+     "3,6": 1,
+     "0,1": 3,
+     "2,5": 1
+    }
+   }
+  },
+  {
+   "kandidat": "Kandidat aa669d97",
+   "grad": "sehr schwer",
+   "schwierigkeit": 106.82,
+   "hauptKernidee": "Farben abzählen",
+   "spielwert": 91.38,
+   "auftrag": "sehr schwer",
+   "seed": 40862,
+   "kiTester": {
+    "lauf": "ausbau-noa-1",
+    "gefuehl": [
+     4,
+     5
+    ],
+    "aha": [
+     true,
+     true
+    ]
+   },
+   "level": {
+    "name": "Mirfak",
+    "grad": "sehr schwer",
+    "elements": [
+     {
+      "type": "source",
+      "x": 3,
+      "z": 0,
+      "dir": 2
+     },
+     {
+      "type": "prism",
+      "x": 3,
+      "z": 1,
+      "rot": 7
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 0,
+      "rot": 3
+     },
+     {
+      "type": "source",
+      "x": 3,
+      "z": 6,
+      "dir": 7
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 5,
+      "rot": 7
+     },
+     {
+      "type": "mirror",
+      "x": 5,
+      "z": 1,
+      "fixed": true,
+      "rot": 0
+     },
+     {
+      "type": "target",
+      "x": 6,
+      "z": 0,
+      "color": "magenta"
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 5,
+      "color": "magenta"
+     },
+     {
+      "type": "source",
+      "x": 0,
+      "z": 1,
+      "dir": 7
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 0,
+      "rot": 2
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 2,
+      "rot": 3
+     },
+     {
+      "type": "mirror",
+      "x": 4,
+      "z": 6,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 3,
+      "z": 3,
+      "fixed": true,
+      "rot": 2
+     },
+     {
+      "type": "target",
+      "x": 4,
+      "z": 1,
+      "color": "yellow"
+     },
+     {
+      "type": "mirror",
+      "x": 6,
+      "z": 6,
+      "rot": 1
+     },
+     {
+      "type": "source",
+      "x": 2,
+      "z": 6,
+      "dir": 6
+     },
+     {
+      "type": "mirror",
+      "x": 2,
+      "z": 2,
+      "rot": 0
+     },
+     {
+      "type": "mirror",
+      "x": 0,
+      "z": 2,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 0,
+      "z": 3,
+      "rot": 4
+     },
+     {
+      "type": "mirror",
+      "x": 1,
+      "z": 4,
+      "rot": 2
+     },
+     {
+      "type": "prism",
+      "x": 4,
+      "z": 3,
+      "rot": 7
+     },
+     {
+      "type": "target",
+      "x": 5,
+      "z": 3,
+      "color": "red"
+     }
+    ],
+    "solution": {
+     "3,1": 0,
+     "4,0": 0,
+     "4,5": 1,
+     "1,0": 0,
+     "4,2": 2,
+     "4,6": 1,
+     "6,6": 3,
+     "2,2": 1,
+     "0,2": 3,
+     "0,3": 2,
+     "1,4": 0,
+     "4,3": 1
+    }
+   }
+  }
+ ]
+}

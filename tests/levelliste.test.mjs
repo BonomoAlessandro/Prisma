@@ -10,12 +10,23 @@
 // (.scratch/500-level/) die Level des Ausbaus: nach der Formel zum Bestand eingefügt, mit Urteil der KI-Tester, keinem
 // anderen Level zu ähnlich. Plätze der Regeln für den Bestand zählen unter dem Bestand (levelliste.mjs, Kopf).
 // Beurteilt werden die 150 einmal mit allen Regeln und ihrem Grad, auf den Threads von tools/beurteilung/parallel.mjs.
+// Seit dem Vorrat (Spec .scratch/noa-geschichte/, Ticket 02) gelten Reihenfolge, Grade, Urteile, Duldungsliste, Namen
+// und Lösungen für die flachen Level aus Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, in der Folge wie
+// nach dem Zurückholen aller; die Herkunft im Kommentar aus alleText); die Anzeige der Grade prüft das Spiel selbst
+// (L). Seit Noas Geschichte (Ticket 04) ist das Spiel die Geschichte: Die Seiten der Levelauswahl gibt es nicht mehr,
+// und statt des alten Fortschritts prüft der Test den Speicherstand je Grad (progress in index.html, prisma.noa.*).
+// Seit Ticket 08 setzt kein Test mehr eine feste Reihe von 500 Leveln im Spiel voraus: Die Reihe ist die Folge aller
+// flachen Level aus Spiel und Vorrat (ADR 0005, „Folgen“), mit dem Bestand der heutigen Reihenfolge und den Leveln
+// des Ausbaus, wie viele es auch werden; die Wahl der Geschichte prüft tests/geschichte.test.mjs. Weggefallen sind mit
+// dem Ausbau auf 500 Level der Bedarf je Gruppe (ausbau.mjs wahl und bedarf) und der Austausch (ordne-level.mjs
+// --austausch); die Level, die damals ins Spiel kamen, prüft der Test weiter.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { isDeepStrictEqual } from 'node:util';
 import { L, solve, period, setRot, keyOf } from '../tools/solver.mjs';
+import { ALLE, alleText } from '../tools/lader.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { beurteileAlle } from '../tools/beurteilung/parallel.mjs';
 import { HEUTIGE_REIHENFOLGE, entfernteLevel } from '../tools/beurteilung/heutige-reihenfolge.mjs';
@@ -23,7 +34,6 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
-import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
@@ -39,7 +49,7 @@ function test(name, fn) {
 }
 process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
-const MAIN = L.LEVELS.slice(L.TUTORIAL_COUNT);
+const MAIN = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
 const liste = ladeLevelliste();
 const gueltig = (grad) => (GRADE.includes(grad) ? grad : null);
 const t0 = Date.now();
@@ -75,79 +85,28 @@ const duldung = Object.values(liste.duldung).flat();
 console.log('Grade');
 test('Jedes Level nach dem Tutorial trägt einen der vier Grade im Feld grad, das Tutorial keinen', () => {
   assert.deepEqual(MAIN.filter(l => !GRADE.includes(l.grad)).map(l => `${l.name}: ${l.grad}`), []);
-  assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => 'grad' in l).map(l => l.name), []);
-  assert.deepEqual(L.LEVELS.filter(l => 'difficulty' in l).map(l => l.name), [], 'alte Markierung difficulty');
+  assert.deepEqual(ALLE.LEVELS.slice(0, ALLE.TUTORIAL_COUNT).filter(l => 'grad' in l).map(l => l.name), []);
+  assert.deepEqual(ALLE.LEVELS.filter(l => 'difficulty' in l).map(l => l.name), [], 'alte Markierung difficulty');
 });
 test('Entlang der Reihenfolge sinkt der Grad nie', () => {
   const sinkt = MAIN.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(MAIN[i - 1].grad));
   assert.deepEqual(sinkt.map(l => `${MAIN.indexOf(l) + 1} ${l.name}`), []);
 });
-// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE und die Seiten der Levelauswahl, Ticket 17); wie Kachel, Kopfzeile
-// und Seitentitel aussehen, prüfen die Screenshot-Proben. Auf dem Würfel-Branch hängen die Würfel-Level im Spiel ab
-// CUBE_START hinter LEVELS; ohne Angabe gibt es keine, CUBE_START ist das Ende der Level (wie auch beim Fortschritt
-// unten). Dazu die Abschnitte der Levelauswahl (SECTIONS) je Spielart.
-const anzeige = (levels, tutorialCount, cubeStart = levels.length) => {
+// Die Daten der Anzeige aus index.html (GRAD_ANZEIGE, Ticket 17); wie Kopfzeile und Menü aussehen, prüfen
+// die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der Levelauswahl gibt es seit Ticket 04 nicht mehr.
+const anzeige = () => {
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
-  const code = ['levelNumber', 'GRAD_PUNKTE', 'GRAD_ANZEIGE', 'PAGE_SIZE'].map(konstante).join('\n') + '\n' +
-    html.match(/^const PAGES = [\s\S]*?^\}\)\(\);/m)[0] + '\n' +
-    html.match(/^const SECTIONS = [\s\S]*?^ {2}\.filter\(s => s\.indices\.length\);/m)[0] +
-    '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE, PAGES, SECTIONS };';
-  return new Function('LEVELS', 'TUTORIAL_COUNT', 'CUBE_START', code)(levels, tutorialCount, cubeStart);
+  const code = ['GRAD_PUNKTE', 'GRAD_ANZEIGE'].map(konstante).join('\n') + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE };';
+  return new Function(code)();
 };
 test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das Tutorial ohne Grad', () => {
-  const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
+  const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige();
   assert.deepEqual(Object.keys(GRAD_ANZEIGE), GRADE);
   const punkte = (d) => '●'.repeat(d.punkte) + '○'.repeat(GRAD_PUNKTE - d.punkte);
   assert.deepEqual(GRADE.map(g => `${punkte(GRAD_ANZEIGE[g])} ${GRAD_ANZEIGE[g].label}`),
     ['●○○○ Leicht', '●●○○ Mittel', '●●●○ Schwer', '●●●● Sehr schwer']);
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => GRAD_ANZEIGE[l.grad]).map(l => l.name), []);
-});
-test('Der Seitentitel nennt den Grad der Seite, auf einer gemischten den Bereich, das Tutorial keinen', () => {
-  // von Hand: 2 Tutorial-Level, eine leichte Seite, zwei gemischte (zwei und drei Grade) und eine angefangene sehr
-  // schwere
-  const reihe = (grad, n) => Array.from({ length: n }, (_, k) => ({ name: `${grad} ${k}`, grad }));
-  const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true },
-    ...reihe('leicht', 15), ...reihe('mittel', 8), ...reihe('schwer', 4), ...reihe('sehr schwer', 6)];
-  assert.deepEqual(anzeige(hand, 2).PAGES.map(p => p.title),
-    ['Tutorial · die Mechaniken', 'Level 1 – 10 · Leicht', 'Level 11 – 20 · Leicht bis Mittel',
-      'Level 21 – 30 · Mittel bis Sehr schwer', 'Level 31 – 33 · Sehr schwer']);
-  // im Spiel: Jeder Titel endet auf den Grad, den alle Level der Seite haben, sonst auf den Bereich vom leichtesten bis
-  // zum schwersten; ohne Grad (Tutorial) nennt er keinen
-  const { GRAD_ANZEIGE, PAGES } = anzeige(L.LEVELS, L.TUTORIAL_COUNT);
-  const falsch = PAGES.filter((p) => {
-    const grade = GRADE.filter(g => p.indices.some(i => L.LEVELS[i].grad === g)).map(g => GRAD_ANZEIGE[g].label);
-    const soll = grade.length > 1 ? ` · ${grade[0]} bis ${grade.at(-1)}` : grade.length ? ` · ${grade[0]}` : '';
-    const genannt = Object.values(GRAD_ANZEIGE).some(d => p.title.includes(d.label));
-    return soll ? !p.title.endsWith(soll) : genannt;
-  });
-  assert.deepEqual(falsch.map(p => p.title), []);
-});
-test('Die Würfel-Level haben eigene Seiten zu 10 und Abschnitte nach Grad, ohne Tutorial', () => {
-  // von Hand: 2 Tutorial-Level, 12 flache, dahinter 23 Würfel-Level (5 leicht, 18 mittel, kein schwerer)
-  const reihe = (grad, n, dim) => Array.from({ length: n },
-    (_, k) => ({ name: `${dim ?? ''}${grad} ${k}`, grad, dim }));
-  const hand = [{ name: 'T1', tutorial: true }, { name: 'T2', tutorial: true }, ...reihe('leicht', 12),
-    ...reihe('leicht', 5, 3), ...reihe('mittel', 18, 3)];
-  const { PAGES, SECTIONS } = anzeige(hand, 2, 14);
-  assert.deepEqual(PAGES.map(p => `${p.mode} ${p.id}: ${p.title}`),
-    ['2d T: Tutorial · die Mechaniken', '2d 1: Level 1 – 10 · Leicht', '2d 11: Level 11 – 12 · Leicht',
-      '3d W1: Würfel 1 – 10 · Leicht bis Mittel', '3d W11: Würfel 11 – 20 · Mittel',
-      '3d W21: Würfel 21 – 23 · Mittel']);
-  assert.deepEqual(PAGES.flatMap(p => p.indices), hand.map((_, i) => i), 'jedes Level auf genau einer Seite');
-  assert.deepEqual(SECTIONS.map(s => `${s.mode} ${s.label} ${s.indices.length}`),
-    ['2d Tutorial 2', '2d Leicht 12', '3d Leicht 5', '3d Mittel 18']);
-  assert.equal(new Set(SECTIONS.map(s => s.id)).size, SECTIONS.length, 'Kennungen der Abschnitte eindeutig');
-  // im Spiel mit den heutigen Würfel-Leveln: jedes trägt einen Grad, der Grad sinkt nie, jedes steht auf einer Seite
-  const imSpiel = [...L.LEVELS, ...L.LEVELS_3D];
-  const spiel = anzeige(imSpiel, L.TUTORIAL_COUNT, L.LEVELS.length);
-  assert.deepEqual(L.LEVELS_3D.filter(l => !GRADE.includes(l.grad)).map(l => l.name), []);
-  assert.deepEqual(L.LEVELS_3D.filter((l, i) => i && GRADE.indexOf(l.grad) < GRADE.indexOf(L.LEVELS_3D[i - 1].grad))
-    .map(l => l.name), []);
-  assert.deepEqual(spiel.PAGES.filter(p => p.mode === '3d').flatMap(p => p.indices),
-    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k));
-  assert.deepEqual(spiel.SECTIONS.filter(s => s.mode === '3d').flatMap(s => s.indices).sort((a, b) => a - b),
-    L.LEVELS_3D.map((_, k) => L.LEVELS.length + k), 'jedes Würfel-Level in genau einem Abschnitt');
 });
 
 console.log('Reihenfolge');
@@ -250,7 +209,7 @@ test('Neue Level (Austausch): jedes mit zählendem Urteil (ersatz-…), keines v
 test('Neue Level: Der Kommentar nennt Auftrag, Seed und Ziel-Schwierigkeit zum Nachbauen', () => {
   // Ohne die Ziel-Schwierigkeit entsteht aus Auftrag und Seed ein anderes Level (Review Ticket 23, M1). Der Auftrag
   // heisst <grad> oder <grad>-<kernidee>, auch „sehr schwer-…“ (Ticket 26)
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const html = alleText().replaceAll('\r\n', '\n');
   const herkunft = (name) => new RegExp('\\n {4}// Generator (?:sehr )?[a-z]+(?:-[a-z]+)?, Seed \\d+, '
     + `Ziel \\d+(,\\d+)?–\\d+(,\\d+)? · `
     + `ersetzt [^\\n]+\\n {4}name: '${name}'`);
@@ -269,7 +228,7 @@ test('Entfernte Level: nicht im Spiel, Name auf der Liste, Leveldaten als feste 
   assert.equal(platzHeute.filter((p, i) => p === null && !ausbauHeute[i]).length, kopie.length, 'neue Level');
 });
 
-console.log('Ausbau auf 500 Level');
+console.log('Ausbau (einst auf 500 Level, seit Noas Geschichte neue Level der Geschichte)');
 test('Die Level des Ausbaus: in levelliste.json, jedes im Spiel, ohne heutigen Platz, keines doppelt', () => {
   const namen = liste.ausbau ?? [];
   assert.equal(new Set(namen).size, namen.length, 'doppelt');
@@ -280,7 +239,7 @@ test('Die Level des Ausbaus: in levelliste.json, jedes im Spiel, ohne heutigen P
     + `${namen.filter(x => nach.get(x).level.grad === g).length}`).join(', ')}`);
 });
 test('Die Level des Ausbaus: jedes mit zählendem Urteil (ausbau-…), keines abgelehnt, Herkunft im Kommentar', () => {
-  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
+  const html = alleText().replaceAll('\r\n', '\n');
   const herkunft = (name) => new RegExp('\\n {4}// Generator (?:sehr )?[a-z]+(?:-[a-z]+)?, Seed \\d+'
     + `(?:, Ziel \\d+(,\\d+)?–\\d+(,\\d+)?)? · Ausbau „[a-z ]+“\\n {4}name: '${name}'`);
   const dazu = heute.flatMap((l, i) => (ausbauHeute[i] ? [i] : []));
@@ -294,8 +253,8 @@ test('Die Level des Ausbaus: jedes mit zählendem Urteil (ausbau-…), keines ab
 test(`Kein Level des Ausbaus ist einem anderen Level zu ähnlich (ab ${AEHNLICH_AB})`, () => {
   const dazu = new Set(liste.ausbau ?? []);
   const zuNah = [];
-  for (const a of L.LEVELS.filter(l => dazu.has(l.name))) {
-    for (const b of L.LEVELS.filter(l => l !== a)) {
+  for (const a of ALLE.LEVELS.filter(l => dazu.has(l.name))) {
+    for (const b of ALLE.LEVELS.filter(l => l !== a)) {
       const wert = aehnlichkeit(a, b);
       if (wert >= AEHNLICH_AB) zuNah.push(`${a.name} – ${b.name} ${wert}`);
     }
@@ -335,11 +294,6 @@ test('Ähnlichkeit: gedreht und gespiegelt dasselbe, Stellung egal, Gegenprobe m
     const wert = aehnlichkeit(level, anders);
     assert.ok(wert >= einsAnders && wert < 1, `${text}: ${wert}`);
   }
-});
-test('Bedarf je Gruppe (ausbau.mjs): der Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
-  const tabelle = ['31/74/32/13', '37/93/39/16', '42/112/47/19', '47/131/54/23', '53/150/61/26', '58/170/68/29',
-    '63/189/76/32', '69/208/83/35', '74/227/90/39', '79/246/98/42', '85/265/105/45'];
-  assert.deepEqual(tabelle.map((_, k) => GRADE.map(g => bestandNach(k)[g]).join('/')), tabelle);
 });
 test('zuWeitKorrigiert mit dem Ausbau: der Bestand zählt unter sich, ein Level des Ausbaus ab dem Platz beim Einfügen',
   () => {
@@ -824,9 +778,9 @@ test('Abdruck: hängt nur an dem, was das Spiel aus den Daten macht, nicht an Na
   assert.equal(new Set(MAIN.map(abdruck)).size, MAIN.length, 'jedes Level im Spiel hat einen eigenen Abdruck');
 });
 
-console.log('Namen, Lösung und Fortschritt');
+console.log('Namen, Lösung und Speicherstand');
 test('Die Namen sind eindeutig, und keiner steht auf der Liste der entfernten Namen', () => {
-  const namen = L.LEVELS.map(l => l.name);
+  const namen = ALLE.LEVELS.map(l => l.name);
   assert.deepEqual(namen.filter((x, i) => namen.indexOf(x) !== i), [], 'doppelt');
   assert.ok(Array.isArray(liste.entfernteNamen), 'Liste der entfernten Namen fehlt');
   assert.deepEqual(namen.filter(x => liste.entfernteNamen.includes(x)), []);
@@ -848,7 +802,7 @@ test('Kein Level wird umbenannt: Jeder Name der heutigen Reihenfolge steht im Sp
   assert.deepEqual(umbenannt(neu, [...liste.entfernteNamen, alt]), [], 'Gegenprobe: ersetzt');
   assert.equal(MAIN.length, 150 + ausbauZahl);
   // Die Migration alter Spielstände entfernt ein Präfix „II:“ o. Ä.; ein Name darf so nicht beginnen
-  assert.deepEqual(L.LEVELS.map(l => l.name).filter(x => /^[IVX]+:/.test(x)), [], 'wie ein alter Speicherschlüssel');
+  assert.deepEqual(ALLE.LEVELS.map(l => l.name).filter(x => /^[IVX]+:/.test(x)), [], 'wie ein alter Speicherschlüssel');
 });
 
 /**
@@ -882,7 +836,7 @@ test('Kein Filter gibt in der Lösung eine fremde Farbe ab (etwa Cyan durch eine
       ], solution: {},
     };
     assert.deepEqual(fremdeFilterfarben(gegenprobe), ['yellow-Filter (4,3): cyan → green']);
-    assert.deepEqual(L.LEVELS.flatMap(l => fremdeFilterfarben(l).map(t => `${l.name}: ${t}`)), []);
+    assert.deepEqual(ALLE.LEVELS.flatMap(l => fremdeFilterfarben(l).map(t => `${l.name}: ${t}`)), []);
   });
 test('Jedes Level hat genau eine Lösung, die notierte', () => {
   const falsch = MAIN.filter((level) => {
@@ -895,30 +849,90 @@ test('Jedes Level hat genau eine Lösung, die notierte', () => {
   });
   assert.deepEqual(falsch.map(l => l.name), []);
 });
-test('Der Fortschritt hängt am Namen: Gelöste Level und das aktuelle bleiben beim Umordnen erhalten', () => {
-  // Der Speicherstand aus index.html (progress) mit einer Attrappe von localStorage, einmal mit den Leveln in der
-  // heutigen Reihenfolge (vor Ticket 15) und einmal in der neuen
+test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*, gelöste Level nach Namen, der zuletzt '
+  + 'gespielte Grad; unlesbar oder fremd von vorn, weitere Felder bleiben, die alten Schlüssel liest das Spiel nicht; '
+  + 'Bestwerte je Level (Ticket 06) je für sich, überleben «Von vorn»; Stand des Dorfs (Ticket 07)',
+() => {
+  // progress aus index.html mit einer Attrappe von localStorage
   const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
   const von = html.indexOf('const progress = {'), bis = html.indexOf('\n};', von) + 3;
-  // die Schlüssel aus FLOW (storageKey gibt es auch beim Himmel und beim Ton)
-  const schluessel = (k) => html.slice(html.indexOf('const FLOW = {')).match(new RegExp(`${k}: '([^']+)'`))[1];
-  const FLOW = { storageKey: schluessel('storageKey'), solvedKey: schluessel('solvedKey') };
   const speicher = new Map();
-  const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)) };
-  const code = `${html.slice(von, bis)}\nreturn progress;`;
-  const fortschritt = (levels) => new Function('LEVELS', 'FLOW', 'localStorage', 'CUBE_START', code)(levels, FLOW,
-    localStorage, levels.length);
-  const vorher = [...L.LEVELS.slice(0, L.TUTORIAL_COUNT), ...heute];
-  // ein Tutorial-Level und vier Level, die heute an einem anderen Platz stehen; das letzte ist das aktuelle
-  const gewandert = vorher.map((_, i) => i).filter(i => L.LEVELS[i] !== vorher[i]);
-  const geloest = [2, ...gewandert.filter((_, k) => k % 30 === 0)], aktuell = geloest.at(-1);
-  assert.ok(geloest.length >= 4, 'zu wenige Level an einem anderen Platz');
-  const alt = fortschritt(vorher);
-  alt.load();
-  for (const i of geloest) alt.markSolved(i);
-  alt.save(aktuell);
-  const neu = fortschritt(L.LEVELS);
-  assert.equal(L.LEVELS[neu.load()].name, vorher[aktuell].name, 'aktuelles Level');
-  assert.deepEqual(L.LEVELS.filter((_, i) => neu.isSolved(i)).map(l => l.name).sort(),
-    geloest.map(i => vorher[i].name).sort(), 'gelöste Level');
+  const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),
+    removeItem: k => speicher.delete(k) };
+  const progress = new Function('localStorage', 'STORY_LEVELS', `${html.slice(von, bis)}\nreturn progress;`)(
+    localStorage, L.STORY_LEVELS);
+  // neu: von vorn
+  assert.deepEqual(progress.load('sehr schwer', 60), { platz: 0, geloest: [], gesehen: [], geschafft: false });
+  assert.equal(progress.last(), null);
+  // je Grad für sich, unter seinem Schlüssel; weitere Felder (etwa gespielt, Ticket 05) bleiben
+  const stand = { platz: 12, geloest: ['Kastor', 'Mira'], gesehen: ['prolog', 'wald', 'meer'], geschafft: false,
+    gespielt: 1761800000000 };
+  progress.save('sehr schwer', stand);
+  progress.setLast('sehr schwer');
+  assert.deepEqual([...speicher.keys()].sort(), ['prisma.noa.sehr-schwer', 'prisma.noa.zuletzt']);
+  assert.deepEqual(progress.load('sehr schwer', 60), stand);
+  assert.equal(progress.load('mittel', 60).platz, 0, 'ein anderer Grad');
+  assert.equal(progress.last(), 'sehr schwer');
+  // unlesbar, fremd oder ausserhalb der Reise: von vorn bzw. ohne die fremden Einträge
+  speicher.set('prisma.noa.mittel', '{kaputt');
+  assert.deepEqual(progress.load('mittel', 60), { platz: 0, geloest: [], gesehen: [], geschafft: false });
+  speicher.set('prisma.noa.mittel', JSON.stringify({ platz: 60, geloest: ['Kastor', 3, null], gesehen: 'prolog',
+    geschafft: 'ja' }));
+  assert.deepEqual(progress.load('mittel', 60), { platz: 0, geloest: ['Kastor'], gesehen: [], geschafft: false });
+  speicher.set('prisma.noa.zuletzt', 'mittelschwer');
+  assert.equal(progress.last(), null);
+  // Bestwerte (Ticket 06, Entscheide 24 und 27): je Grad unter prisma.noa.<grad>.bestwerte, Zeit in ganzen Sekunden,
+  // Bestzeit und wenigste Drehungen je für sich; gemeldet nur eine Verbesserung eines schon vorhandenen Werts
+  assert.deepEqual(progress.best('sehr schwer'), {});
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 31.9, turns: 9 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'erstes Lösen: keine Meldung');
+  assert.equal(speicher.get('prisma.noa.sehr-schwer.bestwerte'), '{"Kastor":{"zeit":31,"drehungen":9}}');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 31.2, turns: 9 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'gleiche Werte (in ganzen Sekunden): keine Meldung');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 40, turns: 7 }),
+    { neueBestzeit: false, wenigerDrehungen: true }, 'nur weniger Drehungen');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 25.5, turns: 12 }),
+    { neueBestzeit: true, wenigerDrehungen: false }, 'nur schneller');
+  assert.deepEqual(progress.best('sehr schwer'), { Kastor: { zeit: 25, drehungen: 7 } }, 'je für sich aus zwei Läufen');
+  assert.deepEqual(progress.noteBest('sehr schwer', 'Kastor', { seconds: 3, turns: 2 }),
+    { neueBestzeit: true, wenigerDrehungen: true }, 'beides besser');
+  assert.deepEqual(progress.best('mittel'), {}, 'ein anderer Grad');
+  // «Von vorn» (remove) löscht nur den Stand, die Bestwerte bleiben (Entscheid 27)
+  progress.remove('sehr schwer');
+  assert.equal(speicher.has('prisma.noa.sehr-schwer'), false);
+  assert.deepEqual(progress.best('sehr schwer'), { Kastor: { zeit: 3, drehungen: 2 } });
+  // unlesbar: keine; kaputte Einträge fallen weg, gültige Teile bleiben
+  speicher.set('prisma.noa.mittel.bestwerte', '{kaputt');
+  assert.deepEqual(progress.best('mittel'), {});
+  speicher.set('prisma.noa.mittel.bestwerte', JSON.stringify([1, 2]));
+  assert.deepEqual(progress.best('mittel'), {});
+  speicher.set('prisma.noa.mittel.bestwerte', JSON.stringify({ Mira: { zeit: -1, drehungen: 4 }, Wega: null,
+    Atlas: { zeit: '12', drehungen: 1.5 }, Rigel: { zeit: Infinity }, Deneb: 'schnell',
+    Vega: { zeit: 0, drehungen: 0 } }));
+  assert.deepEqual(progress.best('mittel'), { Mira: { drehungen: 4 }, Atlas: { drehungen: 1.5 },
+    Vega: { zeit: 0, drehungen: 0 } });
+  assert.deepEqual(progress.noteBest('mittel', 'Mira', { seconds: 50, turns: 5 }),
+    { neueBestzeit: false, wenigerDrehungen: false }, 'Zeit fehlte: keine Meldung');
+  assert.deepEqual(progress.best('mittel').Mira, { zeit: 50, drehungen: 4 });
+  // Stand des Dorfs (Ticket 07): progress lässt das Feld dorf stehen, storyDorfStand prüft es (Unlesbares: null)
+  const dorfStand = { platz: 0, geloest: ['Umweg'], gesehen: ['prolog', 'angebot', 'dorf'], geschafft: false,
+    dorf: { platz: 3, ende: null } };
+  progress.save('leicht', dorfStand);
+  assert.deepEqual(progress.load('leicht', 60), dorfStand);
+  const vonD = html.indexOf('const storyDorfStand = '), bisD = html.indexOf(': null);', vonD) + 8;
+  const storyDorfStand = new Function('TUTORIAL_COUNT', `${html.slice(vonD, bisD)}\nreturn storyDorfStand;`)(
+    L.TUTORIAL_COUNT);
+  assert.equal(L.TUTORIAL_COUNT, 9);
+  assert.deepEqual(storyDorfStand({ platz: 3, ende: null }), { platz: 3, ende: null });
+  assert.deepEqual(storyDorfStand({ platz: 8, ende: 'gespielt', mehr: 1 }), { platz: 8, ende: 'gespielt' });
+  assert.deepEqual(storyDorfStand({ platz: 0 }), { platz: 0, ende: null }, 'ohne ende: das Kapitel läuft');
+  assert.deepEqual(storyDorfStand({ platz: 5, ende: 'uebersprungen' }), { platz: 5, ende: 'uebersprungen' });
+  for (const kaputt of [undefined, null, 'dorf', 3, [], {}, { platz: 9, ende: null }, { platz: -1, ende: null },
+    { platz: 1.5, ende: null }, { platz: '2', ende: null }, { platz: 2, ende: 'fertig' }, { platz: 2, ende: true }]) {
+    assert.equal(storyDorfStand(kaputt), null, JSON.stringify(kaputt));
+  }
+  // die alten Schlüssel stehen im Spiel nirgends mehr als Text im Code (nur noch im Kommentar)
+  const alt = ['prisma.solvedLevels', 'prisma.current', 'prisma.sky', 'prisma.signal', 'prisma.signal.seen'];
+  const spiel = html.slice(html.indexOf('/* LOGIC:END'));
+  assert.deepEqual(alt.filter(k => new RegExp(`['\`]${k.replaceAll('.', '\\.')}['\`]`).test(spiel)), []);
 });
