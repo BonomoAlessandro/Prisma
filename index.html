@@ -17760,7 +17760,9 @@ function createStoryScene(host) {
       this.raf = 0;
       if (!this.running) return;
       if (now < this.faellig - 2) { this.raf = requestAnimationFrame((t) => this.frame(t)); return; } // höchstens 60 Hz
-      this.faellig = Math.max(this.faellig + 1000 / 60, now);
+      // nicht weiter als ein Bild voraus: Sonst liefe die Frist bei Bildschirmen knapp über 60 Hz davon und liesse
+      // alle paar Sekunden ein Bild aus
+      this.faellig = Math.min(Math.max(this.faellig + 1000 / 60, now), now + 1000 / 60 + 1);
       const t = this.time, dt = Math.max(0, t - this.letzte);
       this.letzte = t;
       for (const tw of this.tweens.slice()) {

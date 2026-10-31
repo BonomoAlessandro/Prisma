@@ -158,3 +158,59 @@ Tests: `node tests/logic.test.mjs` (2032 bestanden), `node tests/golden.mjs`, `t
 leicht --finale leicht` (Desktop und `--handy`, Prolog und Epilog), `--quer --grad leicht`, `tests/offline.mjs`: alle
 grün, Bildzeiten Epilog → Menü längste Lücke 19 ms. Commit auf `leistung/04-prolog-svg` (von `feature/leistung`,
 Zusammenführen macht der Koordinator).
+
+### 31.10.2026 – Review Code
+
+Diff 963177d..0fe5e75 gelesen; Kamerafahrt, Tippen/Überspringen, Abbruch, Epilog, Wiederholen, Drehen und Ruhen
+durchgegangen. Gut: Zeit der Bühne in echter Zeit × `speed`, dieselbe Basis wie die Web Animations (auch bei
+verborgenem Tab laufen beide gleich weiter, `finished` löst nach der Rückkehr aus); `speed` setzt Uhr und
+`playbackRate` im selben Moment; `reset` bricht die laufende Fahrt ab (Promise bleibt offen wie früher ein Tween);
+`anpassen` rechnet Keyframes von laufender und vorbereiteter Fahrt neu, eine nach dem Drehen falsche vorbereitete Fahrt
+fällt über `key` in `moveTo` heraus; ausgeblendet pausiert `ruhen` alle Animationen der Umgebung, die CSS-Animationen
+hält `#story.hidden .scene *`. Die Schwingungen (Schal, Glühwürmchen an allen drei Orten, Blinken als sin², Flackern
+als Faktor im eigenen Element) sind exakt umgerechnet.
+
+Behoben (Commit `fix(geschichte): …`):
+
+- **60-Hz-Bremse liess Bilder aus:** `faellig` lief bei Bildschirmen knapp über 60 Hz davon (60,05 Hz: alle 22 s,
+  60,24 Hz: alle 5 s ein JS-Bild ausgelassen, also 33 ms Lücke im Flug der Glühwürmchen oder am Arm). Jetzt höchstens
+  ein Bild voraus (`min(…, now + 1000/60 + 1)`); simuliert für 59,94–165 Hz: bei 60–61 Hz kein Aussetzer mehr, bei
+  75–165 Hz weiter 60 Hz.
+
+Offen, klein (kein Umbau nötig, zur Kenntnis):
+
+- **Atmen des Polarsterns beim Blinken:** früher additiv `1 + 0,05 sin + 1,8 boost`, jetzt verschachtelt
+  `(1 + 1,8 boost) · (1 ± 0,05)`: auf dem Gipfel eines Blinkens ±0,14 statt ±0,05. Ein Blinken dauert 0,9 s, das Atmen
+  3,7 s; kaum sichtbar. Exakt ginge mit `atem.setze(0.05 / (1 + 1.8 * starBoost), …)` bei jeder Änderung von `boost`.
+- **Rauch:** Das Wiegen hat jetzt ω = 0,628 statt 0,6 rad/s (zweimal je 20-s-Weg), bei 3 px Ausschlag unsichtbar.
+  Exakt bräuchte je Wolke eine eigene Schwingung (15 Animationen mehr); lohnt nicht.
+- **Strichbreite `calc(w / var(--rs))`:** Chrome und Firefox rechnen `calc()` mit Division durch eine Zahl in
+  `stroke-width` (CSS-Eigenschaft im `style`, nicht als Attribut) und erben `--rs` von der `.ebene`. Ob ältere
+  Safari `calc()` in SVG-Eigenschaften können, ist ungeprüft; geht es nicht, ist der Wert «ungültig zur
+  Berechnungszeit» und `stroke-width` fällt auf den geerbten Anfangswert 1 zurück (nicht auf ein Attribut), also Grate
+  etwa so breit wie heute, mit dem Zoom etwas dicker. Kein Bruch, kein Fallback nötig (iOS wird nicht geprüft).
+- `ruhen` hält die zuletzt gelaufene Fahrt (`laufend`, fertig, `fill: both`) stehen: kostet nichts. Wird die Bühne
+  mitten in einer Fahrt ausgeblendet, läuft diese zu Ende und legt mit `vorbereiten(next)` danach noch eine neue Fahrt
+  an (wartend, im ausgeblendeten Element). Kommt heute nicht vor (Überspringen wartet über `sc.laeuft`); früher hing in
+  dem Fall der Tween.
+- `story.vorwaermen()` erfüllt sein Promise erst nach drei `requestAnimationFrame`; bei verborgenem Tab also erst nach
+  der Rückkehr. Für Ticket 03, falls es darauf wartet: mit Zeitgrenze verbinden.
+- Strahl (`.beam`) und Polarstern ändern Opacity bzw. Transform per Stil ohne eigene Ebene (`bewegt`); die Kinder sind
+  durch ihre Animationen ohnehin eigene Ebenen, die Messung zeigt kein Neurastern der grossen Ebene. Falls das Poco beim
+  Blinken im Epilog hakt: `will-change` dort prüfen.
+- Safari rastert animierte Transforms vermutlich nicht in der grössten Skalierung der Fahrt (Unschärfe beim Zoom
+  möglich); ungeprüft, iOS ist nicht Abnahme.
+
+Mittel/gross: keine.
+
+Zusammenführen `tools/chrome.mjs` mit Ticket 01 (gleiche Option `fenster`): beide Fassungen vereinen. Aus 01:
+`maximiert`, `--disable-background-timer-throttling`, `--force_high_performance_gpu` (Quadro statt Intel UHD 630!),
+`--window-position=0,0`, `gpu || fenster`, das Maximieren über `Browser.setWindowBounds`. Aus 04:
+`--disable-features=CalculateNativeWinOcclusion` dazunehmen, `on(method, fn)` mit `hoerer` im Nachrichten-Handler und
+in der Rückgabe. Doku-Kommentar beider zusammenlegen. Folge: Die Werte dieses Tickets sind auf der Intel UHD 630
+gemessen und nicht direkt mit Läufen des Messwerkzeugs aus 01 (Quadro) vergleichbar; `tests/buehne-messung.mjs` kann
+später auf das Werkzeug aus 01 umgestellt oder entfernt werden.
+
+Stil: Deutsch, «ss», Kommentare knapp und erklärend; README-Einträge (Messung, `chrome.mjs` mit `fenster`/`on`)
+passen. Tests nach dem Fix: `node tests/logic.test.mjs` (2032 bestanden), `node tests/golden.mjs`, `tests/geschichte-probe.mjs --grad leicht
+--finale leicht` mit GPU: bestanden, Konsole ohne Fehler, Epilog → Menü längste Lücke 19 ms.
