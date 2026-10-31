@@ -17719,6 +17719,8 @@ function createStoryScene(host) {
       if (this.running) return;
       this.verwerfen();
       for (const u of umgebung) u.a.pause();
+      // die zuletzt gelaufene Fahrt hielte ihr Zielbild sonst noch bis HALTEN als laufende Animation (Compositor tickt)
+      if (!this.moving) for (const a of this.laufend?.anims ?? []) if (a?.playState === 'running') a.finish();
     },
     /** Einblenden und die Szene laufen lassen. */
     show() {

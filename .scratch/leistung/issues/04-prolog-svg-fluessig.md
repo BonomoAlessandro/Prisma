@@ -261,3 +261,25 @@ aus 01; `--disable-features=CalculateNativeWinOcclusion` und `on(method, fn)` au
 
 Tests: `node tests/logic.test.mjs` (2033 bestanden), `node tests/golden.mjs`, `tests/geschichte-probe.mjs --grad leicht
 --finale leicht` (Desktop und `--handy`), `--quer --grad leicht`, `tests/offline.mjs`: alle grün, Konsole ohne Fehler.
+
+### 31.10.2026 – Review der Nachbesserung (d246d73)
+
+**Urteil: abnahmefähig** (mit dem kleinen Fix unten).
+
+- Code: Tippen während der Staffelung (fehlende Ebenen legt `moveTo` an, alte Fahrt erst danach abgebrochen), Tempo
+  (`uhr` mit), Überspringen (Staffelung läuft fertig, `ruhen` verwirft), `reset`/`verwerfen`, Grössenänderung (Lücken in
+  `anims`) und Epilog geprüft: korrekt, keine liegengebliebenen Zeitgeber.
+- **Fund (klein, behoben):** Nach dem Ausblenden liefen die sechs Ebenen-Animationen der letzten Fahrt noch bis zu
+  10 min (`HALTEN`) weiter, `#story.hidden` ist nur `opacity: 0` (gemessen: Epilog → Menü 6 laufende `.ebene`-
+  Animationen, vorher 0). Widerspricht «ruht, kostet nichts» (Ticket 06). Fix: `ruhen` beendet sie mit `finish()`
+  (gleiches Zielbild, `fill: both`, wie vor der Nachbesserung). Danach 0 laufende.
+- Rest, unverändert: Wer innerhalb von 0,85 s nach dem Halt tippt, fährt auf den noch nicht gestaffelten Ebenen mit dem
+  `--rs` des vorherigen Ruhepunkts (Striche minim anders breit); nicht sichtbar, kein Handlungsbedarf.
+- Optik (echtes Chrome-Fenster 1920 × 953, Quadro, Prolog und Epilog, Bilder am Fahrtende, +0,55 s, +1 s, +2 s; vorher
+  963177d gegen d246d73): kein Sprung der Linienstärke, kein Flackern, keine falsche Ebene während der Staffelung.
+  Die Änderungen nach dem Halt sind bei 3-facher Vergrösserung nicht zu sehen (Pixeldifferenz im Mittel < 1,2 Stufen,
+  sonst nur Rauch, Glühwürmchen, Sternschein wie vorher).
+- Kontrollmessung Desktop (mess.mjs, 2 Läufe Prolog, 1 Epilog): Fahrtenden 17 ms, je einmal 33 ms (Prolog Lauf 1,
+  Epilog); Bilder > 33 ms 10 / 12 / 11 (Entwickler 9 / 8): bestätigt. Auffällig für 07: Start der 3. Prolog-Fahrt
+  in beiden Läufen 133 ms (ein Bild), Start 1. Fahrt einmal 117 ms; nicht Teil dieser Nachbesserung.
+- Tests: `logic.test.mjs` (2033), `golden.mjs` grün.
