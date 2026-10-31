@@ -20766,9 +20766,9 @@ const frameRate = {
   // Pixel), 10 Bilder/s reichen
   skyFps: 10,
   activeUntil: 0,     // performance.now(), bis wann eine Eingabe als "aktiv" gilt
-  vsync: 1000 / 60,   // Bildschirmtakt: kürzester rAF-Abstand im letzten Messfenster (übersprungene Bilder sind billig
+  vsync: 1000 / 60,   // Bildschirmtakt: 10-%-Quantil der rAF-Abstände im letzten Messfenster (übersprungene Bilder sind billig
                       // und kommen genau im Takt; gerenderte können länger dauern)
-  windowMin: Infinity, windowCount: 0,
+  windowD: new Float32Array(90), windowN: 0, windowCount: 0, // rAF-Abstände im Messfenster (due)
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
@@ -20800,10 +20800,14 @@ const frameRate = {
   due(ts) {
     if (this.prevTs !== null) {
       const d = ts - this.prevTs;
-      if (d > 2 && d < 100) this.windowMin = Math.min(this.windowMin, d);
+      if (d > 2 && d < 100) this.windowD[this.windowN++] = d;
       if (++this.windowCount >= 90) {
-        if (this.windowMin < Infinity) this.vsync = this.windowMin;
-        this.windowMin = Infinity; this.windowCount = 0;
+        // nicht der kürzeste Abstand, sondern das 10-%-Quantil: Nach einem langen Bild holt rAF auf (z. B. 21 und dann
+        // 12 ms bei 60 Hz). Der kürzeste hielt dann 12 ms für den Takt, k wurde 3 statt 2 (20 statt 30 Bilder/s), und
+        // adaptiveResolution wertete jedes Bild als langsam (50 ms bei einem Budget von 3 × 12 ms): Absenkung im ersten
+        // Level ohne ein langes sichtbares Bild (Ticket 03 der Leistung)
+        if (this.windowN) this.vsync = this.windowD.subarray(0, this.windowN).sort()[Math.floor(this.windowN * 0.1)];
+        this.windowN = 0; this.windowCount = 0;
       }
     }
     this.prevTs = ts;

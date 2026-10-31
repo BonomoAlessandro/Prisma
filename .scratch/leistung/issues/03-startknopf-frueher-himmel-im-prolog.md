@@ -182,6 +182,10 @@ Offen, zur Entscheidung:
 
 - Absenkung `adaptiv 0,88` auf dem Desktop (oben), Ursache suchen.
 - `.go` nach dem Vorwärmen (Desktop 1,7–2,1 s statt ≤ 0,8 s) gegen Hänger von 650–870 ms im Startbildschirm oder Menü.
+  **Entscheid Koordinator (31.10.2026): vorerst so, bewusst.** Das Ziel der Spec (Knopf ≤ 3,9 s) ist erreicht, der
+  Knopf kommt insgesamt 2 s früher, und Hänger von 650–870 ms wären schlimmer. Nach dem Poco-Durchlauf 2 neu bewerten;
+  die Checkbox bleibt offen.
+- Gröbere Stücke auf dem Handy: nach dem Poco-Durchlauf 2 (Entscheid Koordinator).
 - Schwache Geräte: Der Aufbau des Himmels in den Pausen des Prologs ist bei 4× gedrosselter CPU zu grob (einzelne
   Schritte 100–300 ms). Möglich: Konstruktoren der Ebenen und `skyWarmDraw` feiner teilen, nur in Pausen ab 2 s laden,
   oder auf schwachen Geräten mehr davon vor `.go` (Laden). Nach dem Poco-Durchlauf 2 entscheiden.
