@@ -92,6 +92,8 @@ async function lauf(fall, nr) {
     const z = await ev('window.__startZeiten');
     out.go = z.go; out.knopf = z.ready; out.knopfNachGo = z.ready - z.go;
     out.shownBeimKnopf = z.shown !== null;
+    // Spec (Ticket 03): «Klicken zum Starten» spätestens 3,9 s nach Beginn der Enthüllung
+    pruefe(out.knopfNachGo <= 3900, `${fall} ${nr}: Knopf ${Math.round(out.knopfNachGo)} ms nach .go (höchstens 3900)`);
     if (fall === 'neu') {
       await sleep(6000); // Startbildschirm ruhig: was lädt jetzt?
       const z2 = await ev('window.__startZeiten');
@@ -119,6 +121,9 @@ async function lauf(fall, nr) {
     }
   } catch (e) { pruefe(false, `${fall} ${nr}: ${e.message}`); }
   for (const l of logs.filter((l) => /\[exception\]|\[error\]/.test(l))) pruefe(false, `Konsole: ${l}`);
+  // Sicherheitsnetz der Hauptschleife (sceneLoop.guard): Sie ruhte, obwohl etwas anstand – eine Weckstelle fehlt
+  const weckstellen = logs.filter((l) => /Weckstelle fehlt/.test(l));
+  if (weckstellen.length) console.log(`  WARNUNG ${fall} ${nr}: ${weckstellen.length}× fehlende Weckstelle:\n    ${weckstellen.join('\n    ')}`);
   await close();
   return out;
 }
