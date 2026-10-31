@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Wenn sich im Spiel nichts sichtbar bewegt, wird nicht gezeichnet. Bewegt sich nur wenig, wird nur so
 oft gezeichnet, wie die Bewegung braucht, und zwar so billig wie möglich. Optisch ändert sich nichts. Ziel ist, dass
