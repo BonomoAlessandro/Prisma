@@ -87,13 +87,13 @@ export async function takeShots(shots, log = console.log, page = PAGE) {
     try {
       await emulate(send, view);
       await send('Page.navigate', { url: page });
-      await until(send, 'window.__prisma?.frames > 2', 'Spiel startet');
+      await until(send, 'window.__prisma?.ticks > 2', 'Spiel startet');
       seconds[view.name] = [];
       for (const shot of shots) {
         const start = Date.now();
         await evaluate(send, 'window.__before = true');
         await send('Page.reload');
-        await until(send, '!window.__before && window.__prisma?.frames > 2', 'Seite neu geladen');
+        await until(send, '!window.__before && window.__prisma?.ticks > 2', 'Seite neu geladen');
         await evaluate(send, `__prismaDebug.zeige(${shot.index})`);
         await until(send, `window.__prisma.levelIndex() === ${shot.index} && window.__prisma.frames > 2 && `
           + 'window.__prisma.skyReady()', `Level ${shot.index}`);

@@ -95,7 +95,7 @@ try {
     for (let i = 0; i < tries; i++) { if (await evaluate(expression)) return; await sleep(200); }
     throw new Error('Zeitüberschreitung: ' + what);
   }
-  const sceneRuns = '(window.__prisma?.frames ?? 0) > 2';
+  const sceneRuns = '(window.__prisma?.ticks ?? 0) > 2'; // Hauptschleife läuft (verdeckt ohne Zeichnen)
   const fontReady = 'document.fonts.ready.then(() => document.fonts.check("300 16px Jost"))';
   const relevantErrors = () => errors.filter(e => !/GPU stall|swiftshader|WebGL-|Automatic fallback/i.test(e));
 

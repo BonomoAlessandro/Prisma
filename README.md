@@ -261,9 +261,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
-  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
-  Geschichte, Menü). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
-  72 bzw. 29).
+  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Menü, Bühne
+  der Geschichte, während sie einblendet). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
+  (144 Hz → 72 bzw. 29). Liegt die Szene ganz verdeckt (Startbildschirm, eingeblendete Bühne von Prolog und Epilog),
+  wird sie nicht gezeichnet (`sceneLoop`): Nur die Logik läuft, solange etwas ansteht (Tweens, Einblenden des Himmels,
+  Kamera), dann ruht die Hauptschleife ohne rAF, bis `sceneLoop.wake()` sie weckt; vor dem Ruhen ein Bild zum
+  Aufwärmen. `__prisma.frames` zählt gezeichnete Bilder, `__prisma.ticks` Schritte der Logik (darauf warten die
+  Proben), `__prisma.ruht()` und `__prisma.verdeckt()` zeigen den Zustand.
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
   **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
   eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten

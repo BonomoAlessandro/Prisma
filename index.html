@@ -8123,6 +8123,85 @@ renderer.domElement.addEventListener('webglcontextlost', (e) => {
 const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
 /**
+ * Hauptschleife (frame): Logik (animate) und Zeichnen getrennt. Deckt eine Ebene die Szene ganz zu (covered: der
+ * Startbildschirm, die Bühne von Prolog und Epilog, sobald sie ganz eingeblendet ist), läuft nur die Logik, gezeichnet
+ * wird nicht. Steht dann auch keine Logik an (pending: Tweens der Geschichte, Überblenden und Einblenden eines
+ * Hintergrunds, Kamera, Feld, Feier), ruht die Schleife ohne rAF, bis wake() sie weckt (Tweens, Hintergründe, Level,
+ * Aufdecken, Grösse, Sichtbarkeit, Eingaben). Vor dem Ruhen einmal zeichnen, wenn sich seit dem letzten Bild etwas
+ * geändert hat: Das wärmt Programme, Uploads und Render-Targets vor dem Aufdecken auf, und die Leinwand zeigt den Stand
+ * von jetzt. Die Uhr (clock) läuft weiter, die Zeitbasis springt beim Aufdecken also nicht. Sichtbar ruht die Schleife
+ * nie (Leerlauf: Ticket 06 der Leistung, mit demselben wake).
+ */
+const REST_STEPS = 10; // so viele Schritte in Folge ohne anstehende Logik, dann ruhen
+const sceneLoop = {
+  started: false,     // Shader des Starts übersetzt, die Schleife läuft (start)
+  awake: false,       // ein rAF für frame ist angemeldet (oder frame läuft)
+  last: null,         // rAF-Zeitstempel des letzten Schritts (null: nach dem Ruhen ein normaler Schritt)
+  still: 0,           // Schritte in Folge ohne anstehende Logik
+  dirty: true,        // seit dem letzten Bild geändert (vor dem Ruhen zeichnen)
+  warm: false,        // schon einmal gezeichnet (aufwaermen bzw. frame)
+  calm: false,        // Startbildschirm ruhig (introCalm): vorher kein Bild hinter der Enthüllung
+  storyOpaque: false, // die Bühne ist ganz eingeblendet (coverStory)
+  storyRun: 0,
+  wasCovered: false,  // im letzten Schritt verdeckt (Aufdecken erkennen)
+
+  /** Szene ganz zugedeckt: Startbildschirm (deckend, bis der Klick ihn ausblendet) oder die eingeblendete Bühne. */
+  get covered() {
+    if (flow.state === 'intro') return true;
+    return this.storyOpaque && story.covered && story.el.dataset.mode === 'scene'
+      && !story.el.classList.contains('hidden');
+  },
+  /**
+   * Die Bühne deckt (story.covered) bzw. nicht mehr: Ganz zu ist sie erst, wenn #story fertig eingeblendet ist (0,8 s,
+   * im Finale 1,8 s); bis dahin sieht man die Szene noch durch.
+   */
+  coverStory(on) {
+    const run = ++this.storyRun;
+    this.storyOpaque = false;
+    this.wake();
+    if (!on) return;
+    const fades = story.el.getAnimations?.().filter((a) => a.transitionProperty) ?? null;
+    const done = () => { if (run === this.storyRun) this.storyOpaque = true; };
+    if (fades) Promise.all(fades.map((a) => a.finished.catch(() => {}))).then(done);
+    else setTimeout(done, 1900); // ohne getAnimations: länger als das längste Einblenden
+  },
+  /** Steht Logik an, die fortschreiten muss? (Nur verdeckt gefragt; sichtbar läuft die Schleife immer.) */
+  pending() {
+    if (story.tweens.length || story.carrier?.kind || story.blend) return true;
+    if (flow.state === 'in' || flow.state === 'out' || celebration.active || celebration.rain.alive > 0) return true;
+    if (skyTheme.busy || cameraRig.homing || cameraRig.settling > 1e-3) return true;
+    if (beamView.time < beamView.settleAt + 1.2) return true;
+    for (const obj of game.objects.values()) if (obj.userData.rotation || obj.userData.pulseT > -100) return true;
+    return false;
+  },
+  /** Weckt die ruhende Schleife (cold: Render-Targets oder Ähnliches geändert, vor dem nächsten Ruhen zeichnen). */
+  wake(cold = false) {
+    if (cold) this.dirty = true;
+    this.still = 0;
+    if (this.awake || !this.started) return;
+    this.awake = true;
+    this.last = null;
+    requestAnimationFrame(frame);
+  },
+  start() {
+    this.started = true;
+    this.wake();
+    markSceneStarted();
+  },
+  /** Darf verdeckt gezeichnet werden? Nicht während der Enthüllung des Startbildschirms (ausser das allererste Bild). */
+  mayDraw() {
+    return !this.warm || flow.state !== 'intro' || this.calm || !ui.intro.classList.contains('go');
+  },
+  /** Jetzt einmal zeichnen, ohne sichtbar zu sein (vor der Enthüllung des Startbildschirms, siehe ui.init). */
+  aufwaermen() {
+    if (!this.started || this.warm) return;
+    const t0 = leistung.bildBeginn();
+    animate(FIXED_TIME ?? clock.getElapsedTime(), 0); // Kamera und Uniforms auf den Stand, ohne Zeit vorzuspulen
+    draw(1 / 60, t0, false);
+  },
+};
+
+/**
  * Arbeit in Häppchen: führt einen Generator aus, der zwischendurch yield sagt, und gibt nach SLICE_MS ans nächste Bild
  * ab (yield NEXT_FRAME: sofort). So laufen Intro und Spiel flüssig weiter, während eine Skybox aufgebaut wird.
  * Ergebnis: der Rückgabewert.
@@ -11705,6 +11784,7 @@ function createPanoramaSky(m) {
       streaming.delete(tex);
       if (my !== token) { tex.dispose(); dropImages(); return; }
       preview = tex;
+      sceneLoop.wake(); // Vorschau einblenden (skyTheme.update)
     }
     await sceneReady; // erst nach dem ersten Bild der Szene: Seine Shader übersetzten sonst gleichzeitig, das Intro begänne später
     if (my !== token) { dropImages(); return; }
@@ -11804,6 +11884,7 @@ function createPanoramaSky(m) {
     if (!preview) streaming.delete(full); // ohne Vorschau oben schon hochgeladen
     group.add(...parts);
     mesh = sky;
+    sceneLoop.wake(); // einblenden (update, skyTheme.update), auch hinter dem Startbildschirm
     adaptiveResolution.hold(); // Einblenden (doppelt gezeichnet) nicht als Überlast werten
     // Grosse Texturen erst, wenn die Skybox ganz eingeblendet ist: Das erste Schreiben in eine neue grosse Textur hält
     // den Grafikprozess kurz an (30–80 ms), das sah man im Intro und in der Überblendung als Ruck. Ebenso während einer
@@ -11821,6 +11902,7 @@ function createPanoramaSky(m) {
       sky.material.uniforms.uSoft.value = preview;
       mySharpen.on.value = 1;
       mySharpen.age = 0;
+      sceneLoop.wake();
     }
     // Was die Ebenen erst nach dem Einblenden rechnen (ctx.later), dann die Streifen nachladen, je hochgeladen weich
     // über dem ganzen Bild einblenden (update, uOn)
@@ -11837,6 +11919,7 @@ function createPanoramaSky(m) {
       if (my !== token) { tex.dispose(); continue; }
       sky.material.uniforms[`uBand${i}`].value = tex;
       myBands[i].age = 0;
+      sceneLoop.wake();
     }
   }
 
@@ -11898,13 +11981,21 @@ function createPanoramaSky(m) {
     get settled() { return mesh !== null || failed; },
     /** ganz eingeblendet, vielleicht noch mit der Vorschau statt des scharfen Bilds und ohne Streifen; oder gescheitert */
     get shown() { return mesh !== null && uniforms.uReady.value >= 1 || failed; },
+    /** update blendet noch ein (Netz, scharfes Bild, Streifen); wer das anstösst, weckt die Schleife (sceneLoop) */
+    get busy() {
+      return mesh !== null && (uniforms.uReady.value < 1 || sharpen?.age != null && !sharpen.done
+        || bands.some((b) => b.age !== null && !b.done));
+    },
+    /** geladen oder lädt: release gibt etwas frei */
+    get held() { return loading !== null; },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
     prepare() {
       if (loading) return;
       const my = token;
-      loading = build(my).catch((e) => { if (my === token) failed = true; console.error(`${m.name}: ${e.message}`); });
+      loading = build(my).catch((e) => { if (my === token) failed = true; console.error(`${m.name}: ${e.message}`); })
+        .finally(() => sceneLoop.wake()); // gescheitert: der bisherige Hintergrund blendet aus (skyTheme.update)
     },
     setFade(k) {
       uniforms.uFade.value = k;
@@ -12007,6 +12098,18 @@ const skyTheme = {
   get ready() { return !this.fading && (this.byId.get(this.current).module?.ready ?? true); },
   /** Gewählter Hintergrund steht (Startbildschirm): wie ready, aber scharfes Bild und Streifen dürfen noch fehlen */
   get shown() { return !this.fading && (this.byId.get(this.current).module?.shown ?? true); },
+  /**
+   * update hat noch zu tun (sceneLoop.pending): Überblenden, Vorschau einblenden, ein Panorama blendet ein oder schärft
+   * nach, ein ausgeblendetes wartet aufs Freigeben. Lädt eines nur, weckt es die Schleife selbst (createPanoramaSky).
+   */
+  get busy() {
+    if (this.fading) return true;
+    const bg = background.material.uniforms, shown = this.entries.find((e) => this.weight[e.id] > 0);
+    const preview = shown?.module?.preview ?? null;
+    if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
+    return this.entries.some((e) => (this.weight[e.id] > 0 ? e.module?.busy
+      : e.id !== this.current && e.id !== this.ahead && e.module?.held));
+  },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
@@ -12017,6 +12120,7 @@ const skyTheme = {
     this.byId.get(id).module?.prepare?.(); // vor dem Ausblenden: sonst stockte die Überblendung
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     this.apply();
+    sceneLoop.wake();
   },
   /**
    * Einen Hintergrund schon laden, ohne ihn zu zeigen (die Geschichte: die nächste Welt, solange «Gelöst» steht). Sein
@@ -12028,6 +12132,7 @@ const skyTheme = {
     this.ahead = id;
     this.hidden[id] = 0;
     this.byId.get(id).module?.prepare?.();
+    sceneLoop.wake(); // das bisher vorgeladene gibt update frei
   },
   update(dt, t) {
     // Lädt der gewählte Hintergrund noch, bleibt der bisherige so lange stehen (sonst sähe man nur die Platzhalterfarben) –
@@ -12936,6 +13041,7 @@ const cameraRig = {
   tilt: 0,                // zusätzliche Neigung (Würfel: CUBE.cameraTilt, flacher – die Höhe wird lesbar)
   turn: 0,                // zusätzlicher Azimut (Würfel: CUBE.cameraTurn, schräg auf eine Kante)
   wide: 1,                // 0 = Hochformat … 1 = Querformat (fitCameraDistance)
+  settling: 0,            // Abstand aller weich nachgeführten Werte zu ihrem Ziel (updateCamera, sceneLoop)
 };
 
 function fitCameraDistance() {
@@ -12999,12 +13105,18 @@ function updateCamera(t, dt) {
 
   // Würfel-Level: Blick auf die Würfelmitte, etwas weiter weg (weich übergeblendet, auch beim Levelwechsel)
   const cube = cameraRig.cube;
-  cameraRig.lift += ((cube ? cameraRig.cubeHeight * CELL / 2 : 0) - cameraRig.lift) * k;
+  const lift = cube ? cameraRig.cubeHeight * CELL / 2 : 0;
+  cameraRig.lift += (lift - cameraRig.lift) * k;
   // Hochformat: Das 2D-Feld füllt die Breite, der schmalere Würfel darf näher heran
   const zoom = cube ? THREE.MathUtils.lerp(CUBE.cameraZoomNarrow, CUBE.cameraZoom, cameraRig.wide) * cube / CUBE.cameraSize : 1;
   cameraRig.zoom += (zoom - cameraRig.zoom) * k;
-  cameraRig.tilt += ((cube ? CUBE.cameraTilt : 0) - cameraRig.tilt) * k;
-  cameraRig.turn += ((cube ? CUBE.cameraTurn : 0) - cameraRig.turn) * k;
+  const tilt = cube ? CUBE.cameraTilt : 0, turn = cube ? CUBE.cameraTurn : 0;
+  cameraRig.tilt += (tilt - cameraRig.tilt) * k;
+  cameraRig.turn += (turn - cameraRig.turn) * k;
+  // wie weit die Kamera noch von ihrem Ziel ist (sceneLoop: hinter der Bühne ruht die Schleife erst, wenn sie steht)
+  const c = cameraRig;
+  c.settling = Math.abs(c.goalTheta - c.userTheta) + Math.abs(c.goalPhi - c.userPhi) + Math.abs(c.goalZoom - c.userZoom)
+    + Math.abs(lift - c.lift) + Math.abs(zoom - c.zoom) + Math.abs(tilt - c.tilt) + Math.abs(turn - c.turn);
 
   const theta = cameraRig.baseTheta + cameraRig.turn + cameraRig.userTheta + Math.sin(t * 0.13) * 0.035;
   const phi = cameraRig.basePhi + cameraRig.tilt + cameraRig.userPhi + Math.sin(t * 0.21 + 1.3) * 0.018;
@@ -13933,6 +14045,7 @@ function loadLevel(index, beamDelay = 0) {
 }
 
 function recomputeBeams(instant = false, delay = 0) {
+  sceneLoop.wake(); // Strahlen wachsen, Elemente drehen sich (auch hinter der Bühne fertig)
   game.result = traceBeams(game.board);
   beamView.update(game.result, instant, delay);
   // Ein Ziel leuchtet erst auf, wenn der letzte seiner Strahlen sichtbar angekommen ist.
@@ -15759,6 +15872,7 @@ function changeLevel(index) {
   if (flow.state === 'story' && !story.holdEnter) return; // die Geschichte führt gerade (story.sinkTo darf)
   flow.next = index;
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
+  sceneLoop.wake();
   flow.state = 'out';
   flow.t = 0;
   flow.solved = false;
@@ -15788,6 +15902,7 @@ function restartLevel() {
 
 /** Neues Level aufbauen und als Welle herauswachsen lassen. */
 function enterLevel(index) {
+  sceneLoop.wake();
   flow.state = 'in';
   flow.t = 0;
   flow.solved = false;
@@ -15877,10 +15992,13 @@ function setShown(el, shown) {
   if (!shown && el.contains(document.activeElement)) document.activeElement.blur();
 }
 
-/** Szene bereit: erstes Bild gezeichnet (darauf wartet das Intro, siehe ui.init und frame). Eine Skybox lädt danach in
- * Häppchen weiter und blendet ein, sobald sie da ist. */
+/** Szene bereit: erstes Bild gezeichnet, sichtbar oder zum Aufwärmen hinter dem Startbildschirm (draw, sceneLoop). Eine
+ * Skybox lädt danach in Häppchen weiter und blendet ein, sobald sie da ist. */
 let markSceneReady;
 const sceneReady = new Promise((resolve) => { markSceneReady = resolve; });
+/** Shader des Starts übersetzt, die Hauptschleife läuft (sceneLoop.start): Darauf wartet das Intro, siehe ui.init. */
+let markSceneStarted;
+const sceneStarted = new Promise((resolve) => { markSceneStarted = resolve; });
 
 /**
  * Intro ruhig: Strahl, Schriftzug, Farbfächer und Texte sind eingeblendet (CSS #intro: „Klicken zum Starten“ endet
@@ -15910,14 +16028,18 @@ const ui = {
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
     this.updateSound();
-    // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s) und das erste Bild steht (spätestens
-    // nach 5 s; die Shader dafür übersetzt compileParallel im Hintergrund)
+    // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s) und die Shader der Szene übersetzt
+    // sind (spätestens nach 5 s; compileParallel im Hintergrund). Kein sichtbares Bild: Die Szene liegt hinter dem
+    // deckenden Startbildschirm und wird davor nur einmal gezeichnet (aufwaermen; was das erste Bild bei three
+    // einrichtet, hielte sonst die Enthüllung an)
     const until = (promise, ms) => Promise.race([promise, new Promise((r) => setTimeout(r, ms))]);
-    Promise.all([until(document.fonts?.ready, 800), until(sceneReady, 5000)]).then(() => {
+    Promise.all([until(document.fonts?.ready, 800), until(sceneStarted, 5000)]).then(() => {
+      sceneLoop.aufwaermen();
       this.intro.classList.add('go');
       // reduzierte Bewegung: die Animationen sind gleich fertig (CSS), also nicht warten
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches, revealed = performance.now();
       setTimeout(markIntroCalm, still ? 0 : INTRO_REVEAL_MS);
+      introCalm.then(() => { sceneLoop.calm = true; sceneLoop.wake(); }); // was liegen blieb, jetzt zeichnen
       // „Klicken zum Starten“ frühestens nach der Enthüllung (2,9 s) und erst, wenn der Hintergrund dahinter steht
       // (skyTheme.shown: Auf scharfes Bild und Streifen warten kostete gut 5 s; sie laden unter dem Menü fertig); lädt
       // er nicht (Fehler, sehr langsames Netz), nach 15 s trotzdem, damit das Spiel nicht hängen bleibt
@@ -16050,6 +16172,7 @@ const ui = {
     // nach dem Ausblenden ganz entfernen (die Puls-Animation liefe sonst endlos weiter)
     setTimeout(() => { this.intro.style.display = 'none'; }, 1200);
     story.start();
+    sceneLoop.wake(); // aufgedeckt: die Szene zeichnet wieder
   },
 };
 ui.init();
@@ -17789,7 +17912,14 @@ const story = {
   tweens: [],
   waitTap: null,
   scene: null,        // Bühne für Prolog und Epilog (createStoryScene), beim ersten Gebrauch gebaut
-  covered: false,     // die Bühne deckt das Spiel ganz zu (frameRate: 30 Bilder/s reichen)
+  _covered: false,
+  /** Die Bühne deckt das Spiel ganz zu: frameRate 30 Bilder/s, sobald sie ganz eingeblendet ist gar keine (sceneLoop) */
+  get covered() { return this._covered; },
+  set covered(on) {
+    if (on === this._covered) return;
+    this._covered = on;
+    sceneLoop.coverStory(on);
+  },
   blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
   skipped: false,     // Prolog übersprungen
 
@@ -18889,10 +19019,12 @@ const story = {
   open(mode) {
     this.el.dataset.mode = mode;
     setShown(this.el, true);
+    sceneLoop.wake(); // deckt die Bühne nicht mehr (Modus), zeichnet die Szene wieder
   },
   close() {
     const fokus = this.el.contains(document.activeElement);
     setShown(this.el, false);
+    sceneLoop.wake(); // aufgedeckt
     if (fokus) this.keepFocus();
   },
   /**
@@ -18960,6 +19092,7 @@ const story = {
 
   /** mark: Marke für dropTweens (Flug und Fall eines Einstiegs: sein Zustand entering). */
   tween(seconds, fn, ease = storyEase, delay = 0, mark = null) {
+    sceneLoop.wake(); // ruht die Schleife hinter der Bühne, liefe der Tween nie
     return new Promise((resolve) => {
       this.tweens.push({ t: -delay, s: Math.max(seconds, 1e-6), fn, ease, resolve, mark });
     });
@@ -20063,30 +20196,73 @@ const frameRate = {
 for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
 }
-window.addEventListener('resize', () => frameRate.poke(500));
+// Eingaben wecken die Hauptschleife (sceneLoop; Ziehen bewegt erst ab pointermove, das Drücken weckt schon)
+for (const type of ['pointerdown', 'wheel', 'keydown', 'touchstart']) {
+  window.addEventListener(type, () => sceneLoop.wake(), { passive: true, capture: true });
+}
+window.addEventListener('resize', () => { frameRate.poke(500); sceneLoop.wake(true); }); // Render-Targets neu: aufwärmen
+document.addEventListener('visibilitychange', () => sceneLoop.wake());
 
 const MAX_DT = 0.05; // längster Zeitschritt je Bild: Animationen springen nach einem Ruckler nicht
 
-let lastFrameTs = null;
+/**
+ * Ein Durchgang der Hauptschleife (sceneLoop): Logik, und nur wenn die Szene zu sehen ist, auch Zeichnen. Verdeckt
+ * läuft die Logik in jedem rAF, solange etwas ansteht; danach ruht die Schleife (vorher ein Bild, falls sich etwas
+ * geändert hat).
+ */
 function frame(ts) {
+  const loop = sceneLoop;
+  if (loop.covered) {
+    loop.wasCovered = true;
+    if (loop.pending()) { loop.still = 0; loop.dirty = true; } else loop.still++;
+    const dt = loop.last === null ? 1 / 60 : Math.min((ts - loop.last) / 1000, MAX_DT);
+    loop.last = ts;
+    const t0 = leistung.bildBeginn();
+    animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+    window.__prisma.ticks++;
+    if (loop.still >= REST_STEPS) {
+      if (loop.dirty && loop.mayDraw()) draw(dt, t0, false); // aufwärmen und den Stand von jetzt auf die Leinwand
+      loop.awake = false; // ruhen, bis wake()
+      return;
+    }
+    requestAnimationFrame(frame);
+    return;
+  }
+  if (loop.wasCovered) {
+    // aufgedeckt: gleich zeichnen; die Pause ist kein langsames Bild (adaptiveResolution lernt aus ihr nichts)
+    loop.wasCovered = false;
+    frameRate.skipped = Infinity;
+    frameRate.prevTs = null;
+    adaptiveResolution.hold(0.5);
+  }
   if (!frameRate.due(ts)) { requestAnimationFrame(frame); return; }
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
-  const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, MAX_DT);
-  lastFrameTs = ts;
+  const dt = loop.last === null ? 1 / 60 : Math.min((ts - loop.last) / 1000, MAX_DT);
+  loop.last = ts;
+  loop.still = 0;
   const t0 = leistung.bildBeginn(); // Messwerkzeug: CPU-Zeit von frame() und Zeichenzeit (nur mit ?perf)
   animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+  window.__prisma.ticks++;
+  draw(dt, t0);
+  requestAnimationFrame(frame);
+}
 
+/**
+ * Ein Bild zeichnen. t0: Beginn des Durchgangs (leistung.bildBeginn, für die Messung); learn: adaptiveResolution wertet
+ * es (nicht verdeckt und nicht beim Aufwärmen).
+ */
+function draw(dt, t0, learn = true) {
   leistung.gpuBeginn();
   renderReflection();
   composer.render(dt);
   leistung.bildEnde(t0);
 
-  adaptiveResolution.tick(frameRate.gap);
+  if (learn) adaptiveResolution.tick(frameRate.gap);
   perfHud.tick();
   renderer.info.reset();
   window.__prisma.frames++;
-  if (markSceneReady) { markSceneReady(); markSceneReady = null; }
-  requestAnimationFrame(frame);
+  sceneLoop.dirty = false;
+  if (!sceneLoop.warm) { sceneLoop.warm = true; markSceneReady(); }
 }
 
 /** Ein Zeitschritt aller Animationen, ohne zu rendern. */
@@ -20112,8 +20288,11 @@ function animate(t, dt) {
 }
 
 // Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die
-// Geschichte lässt kein Level überspringen, ADR 0005; Level ausserhalb zeigt __prismaDebug.zeige)
-window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
+// Geschichte lässt kein Level überspringen, ADR 0005; Level ausserhalb zeigt __prismaDebug.zeige). frames: gezeichnete
+// Bilder (hinter Startbildschirm und Bühne kaum welche), ticks: Schritte der Logik (die Schleife läuft; darauf warten
+// die Proben), ruht(): die Hauptschleife ruht, verdeckt(): die Szene ist ganz zugedeckt (sceneLoop)
+window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !sceneLoop.awake,
+  verdeckt: () => sceneLoop.covered, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', start: () => ui.start(),
   celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
@@ -20208,10 +20387,11 @@ function passScene() {
   for (const mat of mats) s.add(new THREE.Mesh(quad, mat));
   return s;
 }
-// Das erste Bild erst, wenn die Shader übersetzt sind (im Hintergrund, compileParallel): Sonst stünde es so lange, und
-// mit ihm das Intro. Nicht gewählte Hintergründe aus dem Code (Sonnensystem) übersetzt warmupShaders später.
+// Die Hauptschleife und das erste Bild erst, wenn die Shader übersetzt sind (im Hintergrund, compileParallel): Sonst
+// stünde es so lange, und mit ihm das Intro. Nicht gewählte Hintergründe aus dem Code (Sonnensystem) übersetzt
+// warmupShaders später.
 compileParallel([scene, passScene()], { skip: skyTheme.idleGroups })
-  .catch((e) => console.error(e)).finally(() => requestAnimationFrame(frame));
+  .catch((e) => console.error(e)).finally(() => sceneLoop.start());
 </script>
 </body>
 </html>
