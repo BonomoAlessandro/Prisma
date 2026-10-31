@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Der erste Klick friert die Seite nicht mehr ein, und der Ton klingt genau gleich wie heute.
 
@@ -63,7 +63,8 @@ geschieht beides jetzt **vorab, ohne Geste, solange der Startbildschirm still st
 - Klick vor der Vorbereitung (etwa während der Enthüllung oder mit `?nointro` vor dem ersten Bild): Der Kontext entsteht
   dann im Klick (wie früher, unvermeidlich), der Hall nicht: `wet` startet bei 0 und blendet mit `setTargetAtTime`
   (Zeitkonstante 0,4 s) auf 0,55, sobald der Puffer hängt. Geprüft, indem die Probe den vorbereiteten Kontext verwirft
-  und dann klickt: `wet` 0 → 0,20 → 0,36 → 0,45 → 0,50 → 0,54 in Schritten von 0,25 s.
+  und dann klickt: `wet` 0 → 0,20 → 0,36 → 0,45 → 0,50 → 0,54 in Schritten von 0,25 s. Steht der Kontext beim
+  Eintreffen des Puffers noch still (`resume` ausstehend), wird 0,55 sofort gesetzt; dann klingt noch nichts.
 - Ohne Geste angelegt, warnt Chrome im echten Fenster einmal in der Konsole («AudioContext was not allowed to start»);
   Headless blieb die Konsole still. Die Proben zählen Warnungen nicht als Fehler.
 
@@ -126,3 +127,25 @@ Offen, mittel (nicht umgebaut):
   `suspend()` aus `prepare` greift, sieht `_sync` noch «running» und weckt nicht; der Kontext bleibt bis zur nächsten
   Geste stumm (jede weitere `pointerdown` ruft `_sync`). Fenster von Millisekunden, darum nicht geändert. Die
   48-kHz-Daten bleiben bei 44,1-kHz-Kontext im Cache (1,2 MB); egal.
+
+**Review Spielerlebnis (31.10.2026).** Headless mit `GPU=1`, `?noadapt`, je Fall 6 Läufe (vorher/nachher
+abwechselnd), Median (Min–Max):
+
+| Fall | erster Klick, längstes Bild vorher → nachher | `.go` vorher → nachher | Knopf vorher → nachher |
+|---|---|---|---|
+| Desktop, Klick 1,5 s nach Knopf | 111 (88–143) → 24 (19–36) ms | 2,60 → 2,28 s | 7,95 → 7,67 s |
+| Handy, CPU 4×, Tipp 1,5 s danach | 463 (409–500) → 91 (72–108) ms | 5,75 → 5,94 s | 11,54 → 11,77 s |
+| Handy, CPU 4×, Tipp sofort | 401 (338–484) → 63 (36–90) ms | 5,67 → 5,37 s | 11,44 → 11,42 s |
+| Desktop, CPU 4×, Enter sofort | 436 (268–480) → 81 (54–144) ms | 5,61 → 5,67 s | 11,69 → 11,67 s |
+
+Die Enthüllung bekommt keine neuen Lücken (längste Lücke vorher wie nachher 300–780 ms, vom Himmel und der Szene).
+`.go` und Knopf verschieben sich nicht systematisch (±0,3 s, Rauschen). In allen 48 Läufen `wet` = 0,55, Puffer
+gesetzt, Kontext `running`. Urteil: ok.
+
+Für Ticket 03 (notiert, nicht geändert):
+- `_quiet` prüft nur `.go`. Ist der Hall bei `.go` noch nicht da (heute praktisch nie, der Worker ist weit vorher
+  fertig), wartet er auf `introCalm` (4,2 s). Kommt der Knopf nach Ticket 03 früher, kann ein Klick zwischen Knopf und
+  `introCalm` das Setzen des Convolvers (gedrosselt 110–216 ms) in den Wechsel ins Menü bzw. den Prolog legen. Dann
+  `_quiet` auf eine ruhige Stelle warten lassen (Ruhe-Mechanismus aus Ticket 02).
+- Wird die Phase vor `.go` kurz, kann das Anlegen des Kontexts (bis ~0,4 s gedrosselt) den Beginn der Enthüllung
+  verschieben; mit dem Werkzeug aus Ticket 01 nachmessen.
