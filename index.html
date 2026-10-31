@@ -686,6 +686,15 @@
     .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
     .menue-mit-weiter .menue-grade { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
   }
+  /* sehr schmale Handys hoch (320 px): «Sehr schwer» lief 40 px unter «Von vorn» (Abnahme Ticket 08); Name, Punkte und
+     «Von vorn» enger */
+  @media (max-width: 340px) and (orientation: portrait) {
+    .menue-zeile1 { gap: 7px; }
+    .menue-pips { gap: 3px; }
+    .menue-pips i { width: 5px; height: 5px; }
+    .menue-name { font-size: 11.5px; letter-spacing: 0.16em; }
+    .menue-vonvorn { min-width: 50px; letter-spacing: 0.12em; }
+  }
 
   /* ---------- Handy quer: wie Desktop, enger ---------- */
   @media (orientation: landscape) and (max-height: 500px) {
