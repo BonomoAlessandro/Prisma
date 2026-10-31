@@ -213,3 +213,10 @@ Hinweis an 02.
   `skippable()` vom angezeigten Stand abweicht oder die Pause nach dem Einstieg ins Dorf (`skipRuhe`, endlich) läuft.
   Andere DOM-Zustände aus `animate`: «Gelöst» kommt aus der Feier (ansteht), `updateFlow` blendet nur in `in`/`out`
   (ansteht), Treffer-Töne über die Strahlen (ansteht). Keine weitere Lücke.
+
+**Review Nachtrag (31.10.2026, `git diff 5109561 1caaacd`).** In Ordnung, nichts geändert. `recomputeBeams` weckt
+jetzt zuerst, damit ist der Hinweis zu 101443b erledigt. `guard()` beendet seine Kette, sobald die Schleife wach ist,
+und läuft mit `?t=` nicht. Zeitabhängig kann `pending()` beim Ruhen nur über `skipRuhe` wahr werden, und diese Zeile
+deckt das ab; sonst ändert sich nichts ohne Weckruf, Fehlalarme sind also nicht zu erwarten. `skippable()` hat keine
+Nebenwirkungen und gleicht sich in `story.update` in einem Schritt an, die verdeckte Schleife bleibt also nicht dauernd
+wach. `golden`, `hall` (6), `logic` (2033) grün.
