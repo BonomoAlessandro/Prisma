@@ -24,8 +24,8 @@ Hochladen hielt sie bis 110 ms an», Review Ticket 07 der Geschichte). Diese Reg
 
 - [ ] **Enthüllung ohne lange Wartezeit:** Sie beginnt, sobald die Schrift geladen ist (höchstens 0,8 s wie heute),
       nicht erst nach einem WebGL-Bild. Die Zeit vom Laden der Seite bis zum Knopf wird gemessen und im Ticket notiert.
-- [ ] Der Knopf erscheint nach Ende der Enthüllung, spätestens aber bei 3,9 s, **ohne** auf den Himmel zu warten.
-- [ ] **Wo die grossen Uploads hindürfen:** Bestandsaufnahme aller GPU-Uploads und Shader-Kompilierungen von Seitenstart
+- [x] Der Knopf erscheint nach Ende der Enthüllung, spätestens aber bei 3,9 s, **ohne** auf den Himmel zu warten.
+- [x] **Wo die grossen Uploads hindürfen:** Bestandsaufnahme aller GPU-Uploads und Shader-Kompilierungen von Seitenstart
       bis Spielbeginn: Vorschau, Netz, Tiefe, scharfes Bild, Streifen, Ebenen, Vorwärmen. Für jede wird festgelegt, wann
       sie läuft:
       - nur an Stellen, an denen nichts Sichtbares animiert: die Enthüllung ist fertig und nur das Pulsieren läuft
@@ -34,21 +34,21 @@ Hochladen hielt sie bis 110 ms an», Review Ticket 07 der Geschichte). Diese Reg
       - oder in Stücken, die klein genug sind, dass keiner den Grafikprozess über einen Frame anhält, z. B. kleinere
         `texSubImage2D`-Streifen.
       Das Ergebnis als Tabelle ins Ticket schreiben.
-- [ ] **Neue Spieler (mit Prolog):** Was für den Spielbeginn nötig ist (Vorschau und Netz, also `skyTheme.shown`), ist
+- [x] **Neue Spieler (mit Prolog):** Was für den Spielbeginn nötig ist (Vorschau und Netz, also `skyTheme.shown`), ist
       bis zum Ende des Prologs fertig. Hochgeladen wird nur in den Warte-Phasen nach der Regel oben. Ist es am Ende
       trotzdem nicht fertig, gibt es eine weiche Überblendung, bis der Himmel steht. Dieses Laden wird im Messwerkzeug
       markiert.
 - [ ] **Spieler ohne Prolog** (Neuladen mitten im Spiel, «Weiter»): Nach dem Klick folgt eine kurze, weiche
       Überblendung, bis der Himmel steht. Kein schwarzer Blitz und kein Hänger über 33 ms ausserhalb der markierten
       Ladephase. Wie lange das auf dem Arbeitsrechner gedrosselt dauert, wird gemessen und im Ticket notiert.
-- [ ] **Vorwärmen:** Was heute an `introCalm` hängt, nach derselben Regel planen. Das Vorwärmen der Prolog-Bühne (so,
+- [x] **Vorwärmen:** Was heute an `introCalm` hängt, nach derselben Regel planen. Das Vorwärmen der Prolog-Bühne (so,
       wie Ticket 04 sie umgebaut hat) muss vor dem Prolog fertig sein, sonst ruckelt ihr erstes Bild (bekannt:
       103–249 ms, Ticket 08 der Geschichte). Das Menü-SVG mit Blur kann warten, bis der Prolog vorbei ist.
-- [ ] Ruckelt der Startbildschirm selbst noch, wird das hier mitbehoben. In Frage kommen die CSS-Animationen (223–301:
+- [x] Ruckelt der Startbildschirm selbst noch, wird das hier mitbehoben. In Frage kommen die CSS-Animationen (223–301:
       `clip-path`-Reveal mit `text-shadow` 60 px, Strahl mit `box-shadow`) und der SVG-Fächer mit `feGaussianBlur` und
       `stroke-dashoffset` im Markup (um 1120–1124). Die Optik bleibt gleich, z. B. durch compositor-fähige Eigenschaften
       (transform/opacity) oder vorgerenderten Glow statt Live-Filter.
-- [ ] Messen: Abschnitte Startbildschirm und Prolog sowie Übergang ins Spiel vorher und nachher, ungedrosselt und
+- [x] Messen: Abschnitte Startbildschirm und Prolog sowie Übergang ins Spiel vorher und nachher, ungedrosselt und
       gedrosselt; dazu die Zeit bis zum Erscheinen des Knopfs.
 - [ ] Tests grün (Start-, Geschichte- und Offline-Tests anpassen, wo sie auf `skyTheme.shown` vor dem Start bauen),
       Review des Diffs, Commit auf `feature/leistung`.
@@ -56,7 +56,7 @@ Hochladen hielt sie bis 110 ms an», Review Ticket 07 der Geschichte). Diese Reg
 ## Comments
 
 **31.10.2026, Umsetzung** (Branch `leistung/03-startknopf`: `eb1be8f` = Ticket 02 mit 01 und 05, darin `1242082` =
-Ticket 04 gemergt, ohne Konflikte, weil 04 schon 01 enthielt; nachgezogen `d246d73` von 04 und `101443b` von 02).
+Ticket 04 gemergt, ohne Konflikte, weil 04 schon 01 enthielt; nachgezogen `d246d73` von 04, `101443b` von 02 und `6e2e4a0` von `feature/leistung` mit dem Endstand von 02, 04, 05, 06).
 
 - **`ruhe`** (`index.html`, gleich nach `sliced`): ruhige Stellen. `ruhe.jetzt(klein)` ist wahr vor der Enthüllung
   (Seite lädt), nach ihr (`introCalm`, nur das Pulsieren läuft), auf der Bühne nur beim Warten auf Tippen und beim
@@ -118,64 +118,80 @@ Ticket 04 gemergt, ohne Konflikte, weil 04 schon 01 enthielt; nachgezogen `d246d
 | Elemente-Shader (`warmupShaders`) | Übersetzen | nach dem ersten Level | unverändert |
 
 **Messung** (Rechner der Agenten: Quadro T2000, 4K mit 250 %, Chrome 156, `leise.sh`; andere Agenten massen
-gleichzeitig, die Last schwankte stark; echtes Fenster). Vorher = `30b697f` (02 und 04 zusammengebaut), nachher =
-`3c70252`. Rohdaten lokal (Scratchpad), Karten wie in Ticket 01.
+gleichzeitig; echtes Fenster). Vorher = `6e2e4a0` (`feature/leistung` mit 02, 04, 05, 06), nachher = `5af32cb` (dieser
+Branch mit `6e2e4a0` gemergt); vorher und nachher abwechselnd gefahren. Eine erste Runde auf dem Stand vor 06
+(`30b697f` gegen `3c70252`) ergab dasselbe Bild.
 
 Zeit bis «Klicken zum Starten» (`tests/start-probe.mjs --fenster`, je 4 Läufe: 2 × frisch, 2 × «Weiter»):
 
 | | `.go` nach Laden, vorher → nachher | Knopf nach `.go` | Knopf nach Laden |
 |---|---|---|---|
-| Desktop | 1,36–1,49 → 1,61–2,27 s | 5,26–5,80 → **2,90–2,91 s** | 6,62–7,19 → **4,51–5,18 s** |
-| Handy-Emulation, CPU 4× | 4,31–4,86 → 4,32–4,64 s | 5,84–6,11 → **2,90–2,93 s** | 10,29–10,97 → **7,25–7,55 s** |
+| Desktop | 1,29–1,57 → 1,69–2,07 s | 5,25–5,78 → **2,90–2,91 s** | 6,54–7,31 → **4,60–4,97 s** |
+| Handy-Emulation, CPU 4× | 4,36–4,84 → 4,06–4,38 s | 5,80–6,21 → **2,91–2,92 s** | 10,42–10,91 → **6,99–7,29 s** |
 
-`.go` kommt nicht mehr nach den Shadern der Szene, aber nach dem Vorwärmen von Menü und Bühne (Desktop rund 0,5–1 s,
-im Seitenstart, also Laden). Das ist bewusst: Ihr erstes Rastern hielt vorher bei `introCalm` den Startbildschirm
-700–830 ms an, jetzt fällt es ins Laden. **«Höchstens 0,8 s» bis zur Enthüllung hält das auf dem Desktop nicht ein**
-(Schrift ≤ 0,8 s, danach das Vorwärmen); bitte entscheiden, ob das Vorwärmen vor `.go` so bleibt.
+`.go` wartet nicht mehr auf die Shader der Szene, aber auf das Vorwärmen von Menü und Bühne (Desktop rund 0,5–1 s im
+Seitenstart, also Laden). Das ist bewusst: Ihr erstes Rastern hielt vorher bei `introCalm` den Startbildschirm 700–870
+ms an, jetzt fällt es ins Laden. **«Höchstens 0,8 s» bis zur Enthüllung hält das auf dem Desktop nicht ein** (Schrift
+≤ 0,8 s, danach das Vorwärmen); bitte entscheiden, ob das Vorwärmen vor `.go` so bleibt.
 
-Referenzdurchlauf (`tests/leistung-probe.mjs`), je zwei Läufe; p95 / max / Bilder > 33 ms:
+Startbildschirm mit frischem Stand (Start-Probe, max / Bilder > 33 ms, je 2 Läufe): Desktop vorher 217 / 5, 134 / 4,
+nachher 83 / 6, 67 / 5; Seitenstart-Hänger vorher 807–1027 ms, nachher 534–617 ms. Handy ×4 vorher 517 / 14, 551 / 14,
+nachher 250 / 33, 284 / 36; Seitenstart vorher 3,5–4,1 s, nachher 1,5–1,7 s.
+
+Referenzdurchlauf (`tests/leistung-probe.mjs --fenster` bzw. `--fenster --handy --drossel 4`), je zwei Läufe; p95 / max /
+Bilder > 33 ms:
 
 | Abschnitt | Desktop vorher | Desktop nachher | Handy ×4 vorher | Handy ×4 nachher |
 |---|---|---|---|---|
-| Seitenstart (Laden), max | 777; 856 | 437; 1034 | 3153; 2520 | 1201; 1201 |
-| Startbildschirm | 17,1 / 701 / 5; 17,1 / 818 / 5 | 19,4 / 267 / 5; 17,6 / 183 / 7 | 16,9 / 751 / 14; 16,9 / 534 / 8 | 33,4 / 300 / 22; 33,4 / 334 / 15 |
-| Menü | 17,1 / 250 / 1; 17,0 / 234 / 1 | 16,9 / 33,5 / 1; 16,9 / 33,3 / 2 | 50,2 / 284 / 38; 50,0 / 250 / 26 | 66,9 / 150 / 49; 50,2 / 167 / 54 |
-| Prolog | 17,1 / 67 / 13; 17,1 / 83 / 11 | 16,9 / 100 / 8; 16,9 / 83 / 8 | 33,5 / 183 / 376; 33,5 / 167 / 272 | 50,1 / 234 / 663; 50,1 / 200 / 537 |
-| Einstieg | 17,1 / 33 / 4; 17,1 / 50 / 3 | 16,9 / 67 / 3; 16,9 / 67 / 3 | 50,1 / 167 / 43; 50,1 / 184 / 46 | 66,7 / 217 / 87; 50,1 / 250 / 52 |
-| Spiel (unberührt, zum Vergleich) | 17,1 / 33 / 1; 17,0 / 17 / 0 | 16,9 / 33 / 1; 16,9 / 33 / 1 | 50,2 / 150 / 305; 50,1 / 150 / 305 | 66,9 / 200 / 322; 66,8 / 167 / 326 |
-| Laden | – | – (Himmel nach dem Prolog fertig) | – | – |
-| adaptiv / Umbauten | 1,00 / 0 | 1,00 / 0 | 1,00 / 2 | 1,00 / 2 |
+| Seitenstart (Laden), max | 942; 879 | 338; 362 | 3270; 3436 | 1051; 1134 |
+| Startbildschirm | 16,9 / 868 / 6; 16,9 / 867 / 6 | 17,1 / 184 / 4; 17,4 / 217 / 7 | 16,9 / 684 / 11; 17,0 / 701 / 13 | 33,4 / 234 / 20; 16,9 / 267 / 5 |
+| Menü | 16,9 / 300 / 1; 16,9 / 267 / 1 | 16,9 / 33 / 1; 16,9 / 50 / 2 | 66,8 / 334 / 27; 66,6 / 284 / 26 | 66,9 / 184 / 32; 50,2 / 150 / 37 |
+| Prolog | 16,9 / 67 / 6; 16,9 / 67 / 5 | 16,9 / 83 / 7; 16,9 / 67 / 8 | 50,1 / 167 / 538; 50,1 / 184 / 579 | 50,1 / 167 / 656; 33,6 / 200 / 493 |
+| Einstieg | 16,9 / 50 / 2; 16,9 / 67 / 1 | 16,9 / 67 / 2; 16,9 / 67 / 2 | 50,1 / 217 / 45; 50,1 / 200 / 44 | 50,2 / 250 / 48; 50,1 / 183 / 37 |
+| Spiel | 16,9 / 20 / 0; 16,9 / 20 / 0 | 16,9 / 33 / 1; 16,9 / 17 / 0 | 50,2 / 150 / 308; 50,2 / 117 / 326 | 66,7 / 150 / 308; 50,1 / 133 / 295 |
+| Reise | 16,9 / 100 / 9; 16,9 / 50 / 9 | 16,9 / 50 / 9; 16,9 / 83 / 9 | – | – |
+| Laden | – | – (Himmel am Ende des Prologs fertig) | – | – |
+| adaptiv / Umbauten | 1,00 / 0; 1,00 / 0 | **0,88 / 1; 0,88 / 1** | 1,00 / 2; 1,00 / 2 | 1,00 / 2; 1,00 / 2 |
 
 Befund:
 
-- **Desktop:** Der Hänger bei `introCalm` (700–830 ms) ist weg (Startbildschirm max 183–267 ms, nach der Enthüllung),
-  das Menü hat keinen Hänger mehr (max 33 statt 234–250 ms), der Prolog bleibt gleich (8 statt 11–13 Bilder > 33 ms).
-  Neue Spieler: Der Himmel war in beiden Läufen am Ende des Prologs fertig (kein Abschnitt Laden).
-- **Handy ×4:** Knopf 3 s früher, Seitenstart halb so lang. Startbildschirm, Menü und Prolog sind aber schlechter: Was
-  vorher im langen Seitenstart und in den 6 s Startbildschirm lag (Aufbau des Himmels, Übersetzen, Uploads), fällt jetzt
-  in die Zeit nach der Enthüllung und in die Pausen des Prologs. Einzelne Schritte (Konstruktor einer Ebene, Anstossen
-  der Shader, `skyWarmDraw` eines Teils) dauern bei 4× gedrosselter CPU 100–300 ms und laufen über den Beginn der
-  nächsten Fahrt, wenn der Spieler nach 1,2 s tippt. Nach der Enthüllung pulsiert nur noch eine Opacity im Compositor;
-  sichtbar ist das dort vermutlich nicht, gezählt wird es. Achtung Last: Lauf 1 nachher lief mit Median 33 ms (30 Hz),
-  auch das unberührte «Spiel» ist nachher schlechter (p95 66,8 statt 50,1); die Handy-Werte sind darum nur bedingt
-  vergleichbar. Massgebend ist der Handy-Durchlauf 2 auf dem Poco.
+- **Desktop:** Der Hänger bei `introCalm` (870 ms) ist weg, der Startbildschirm hat höchstens 184–217 ms (nach der
+  Enthüllung, beim Aufbau des Himmels), das Menü keinen Hänger mehr (33–50 statt 267–300 ms), Prolog und Einstieg
+  gleich. Neue Spieler: Der Himmel war in allen Läufen am Ende des Prologs fertig (kein Abschnitt Laden).
+- **Neu und offen: `adaptiv 0,88, Umbauten 1` auf dem Desktop** in beiden Läufen (und in einer dritten Probe), vorher nie.
+  Eine Probe (Zeit jeder Änderung) zeigt die Absenkung bei 54 s im ersten Level (`flow.state` play, Himmel fertig),
+  ohne dass ein sichtbares Bild lang war (Spiel max 17,7 ms). `adaptiveResolution` wertet die Abstände der gezeichneten
+  Bilder (über 20 ms = langsam); die Ursache ist noch nicht gefunden. Das muss vor dem Handy-Durchlauf 2 geklärt sein
+  (Abnahme: `adaptiv 1.00, Umbauten 0`).
+- **Handy ×4:** Knopf 3,4–3,6 s früher, Seitenstart weniger als halb so lang, Menü kürzer angehalten (150–184 statt
+  284–334 ms). Startbildschirm (1 von 2 Läufen) und Prolog haben mehr Bilder über 33 ms: Was vorher im langen
+  Seitenstart und in den 6 s Startbildschirm lag (Aufbau des Himmels, Übersetzen, Uploads), fällt jetzt in die Zeit nach
+  der Enthüllung und in die Pausen des Prologs. Einzelne Schritte (Konstruktor einer Ebene, Anstossen der Shader,
+  `skyWarmDraw` eines Teils) dauern bei 4× gedrosselter CPU 100–300 ms und laufen in den Beginn der nächsten Fahrt, wenn
+  nach 1,2 s getippt wird. Nach der Enthüllung pulsiert nur eine Opacity im Compositor; dort vermutlich unsichtbar, aber
+  gezählt. Die Streuung zwischen Läufen ist gross (Prolog nachher 493–656, vorher 538–579).
 
 **Fall «Weiter» ohne Prolog** (Stand mitten im Wald, Klick 1,5 s nach dem Knopf, nach 1,5 s im Menü «Weiter»):
-Desktop vorher stand der Himmel schon vor dem Klick (der Knopf wartete darauf), Level nach 2,25 s; nachher markiertes
-Laden bis der Himmel steht 1,46–1,49 s, Level nach 5,6 s; im Laden max 40–67 ms (1 Bild > 33 ms), Menü max 66 ms
-(Klick ins Menü), Spiel danach max 39–67 ms. Handy ×4 nachher: Himmel steht 4,6–5,3 s nach «Weiter», Level nach
-8,5–9,2 s; Laden p95 33,5, max 166 ms (zählt als Laden), Menü p95 33,5, max 117–250 ms. Kein Schwarz: Die Vorschau
-steht im Menü schon (klein, ruhig).
+Vorher stand der Himmel schon vor dem Klick (der Knopf wartete darauf): Menü und Spiel ohne Bild über 33 ms (Desktop),
+Level nach 2,2 s. Nachher markiertes Laden: Desktop Himmel steht 1,37–1,43 s nach «Weiter», Level nach 5,4–5,5 s; im
+Laden max 42 ms (1 Bild über 33 ms), Menü max 50 ms (Bild des Klicks, der Aufbau lief gerade), Spiel danach max 31–34
+ms. Handy ×4: Himmel nach 3,1–3,3 s, Level nach 6,4–6,6 s; Laden p95 33,3–33,4, max 117–134 ms (zählt als Laden), Menü
+max 84–117 ms. Kein Schwarz: Die Vorschau steht im Menü schon (klein, ruhig), Netz und scharfes Bild blenden darüber.
 
 Offen, zur Entscheidung:
 
-- `.go` nach dem Vorwärmen (Desktop 1,6–2,3 s statt ≤ 0,8 s) gegen Hänger von 650–830 ms im Startbildschirm oder Menü.
-- Schwache Geräte: Der Aufbau des Himmels in den Pausen des Prologs ist für 4× gedrosselte CPU zu grob (einzelne
+- Absenkung `adaptiv 0,88` auf dem Desktop (oben), Ursache suchen.
+- `.go` nach dem Vorwärmen (Desktop 1,7–2,1 s statt ≤ 0,8 s) gegen Hänger von 650–870 ms im Startbildschirm oder Menü.
+- Schwache Geräte: Der Aufbau des Himmels in den Pausen des Prologs ist bei 4× gedrosselter CPU zu grob (einzelne
   Schritte 100–300 ms). Möglich: Konstruktoren der Ebenen und `skyWarmDraw` feiner teilen, nur in Pausen ab 2 s laden,
-  oder auf schwachen Geräten mehr davon vor `.go` (Laden). Erst nach dem Poco-Durchlauf 2 entscheiden.
+  oder auf schwachen Geräten mehr davon vor `.go` (Laden). Nach dem Poco-Durchlauf 2 entscheiden.
 - Startbildschirm-CSS (Reveal mit `clip-path` und 60-px-Schein, Fächer mit Blur) ungeändert, siehe oben.
+- Beim Bau des Ausgangsstands entpackte ich eine Kopie in `scratchpad/base`; dort lagen Dateien eines anderen Agenten
+  (Messkopie vom Vormittag), sie sind teils überschrieben.
 
-Tests: `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `node tests/hall.test.mjs` (6),
+Tests (auf `5af32cb`): `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `node tests/hall.test.mjs` (6),
 `tests/geschichte-probe.mjs --start`, `--grad leicht --welten 2 --finale leicht`, `--handy`, `--quer`,
-`tests/leistung-probe.mjs` (headless Desktop und `--handy`, Fenster Desktop und `--handy --drossel 4`),
-`tests/start-probe.mjs`, `tests/screenshot.mjs`, `tests/offline.mjs`: siehe Bericht unten.
+`tests/leistung-probe.mjs` (headless Desktop und `--handy`; Fenster Desktop und `--handy --drossel 4`, je 2 Läufe),
+`tests/start-probe.mjs` (headless und Fenster), `tests/leerlauf-probe.mjs`, `tests/screenshot.mjs`,
+`tests/offline.mjs`: alle grün, keine Warnung «Weckstelle fehlt». (`offline.mjs` lief einmal in eine Zeitüberschreitung
+beim Strand unter Last, danach zweimal grün.)
