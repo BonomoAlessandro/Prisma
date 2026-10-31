@@ -158,3 +158,14 @@ Zeichenzeit hängt am Drehen und Ziehen). Die erste Reaktion kam in allen Läufe
 Ereignis (`pointerdown`/`pointerup`/`pointermove` → nächstes gezeichnetes Bild, 0 übersprungene); gedrosselt dauert der
 Weg bis zum Zeichnen 40–120 ms, vorher wie nachher (die gedrosselte CPU). Mit `?t=` (`--still`): Menü und Level 0 Bilder
 in 3 s, die Schleife ruht; Hover, Drehen und Ziehen wecken sie, Reaktion im nächsten Bild.
+
+**Verborgener Tab** (eigene Probe, headless; `document.hidden` per Skript gesetzt, `visibilitychange`): sichtbar läuft
+der Zeitgeber des Glitzerns, Kontext `running`; 8 s verborgen: kein Zeitgeber, Kontext `suspended`; wieder sichtbar:
+Zeitgeber und Kontext laufen. Stumm 8 s: kein Zeitgeber; Ton an: läuft wieder. Konsole sauber.
+
+Tests: `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `node tests/hall.test.mjs` (6), `tests/offline.mjs`,
+`tests/screenshot.mjs` (Bild wie vorher), `tests/leistung-probe.mjs` (headless Desktop und `--handy`),
+`tests/leerlauf-probe.mjs` (headless, `--still --handy`, Fenster Desktop und `--handy --drossel 4`, je vorher und
+nachher), `tests/geschichte-probe.mjs --start`, `--grad leicht --welten 2 --finale leicht` und `--handy`,
+`tools/ki-tester/shots.mjs` (Plätze 1 und 12, Desktop und Handy, mit `?t=`: Szene wird ruhig, Bilder gleich): alle
+grün. Offen: Review des Diffs, Merge nach `feature/leistung` (Koordinator).
