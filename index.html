@@ -19365,7 +19365,8 @@ const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) ||
  */
 const leistung = {
   aktiv: false,
-  prev: null,         // rAF-Zeitstempel des letzten Display-Frames (null: neu anfangen, etwa nach verstecktem Tab)
+  schleife: 0,        // Nummer der laufenden Messschleife (starte, stoppe)
+  prev: null,        // rAF-Zeitstempel des letzten Display-Frames (null: neu anfangen, etwa nach verstecktem Tab)
   teil: null,         // Messwerte des Abschnitts ab dem letzten Frame (neuerTeil)
   teile: new Map(),   // Kennung → Messwerte, in der Reihenfolge des ersten Auftretens
   wechsel: [],        // [Zeit, Kennung] je Abschnittswechsel: Hänger kommen erst später an (teilBei)
@@ -19388,24 +19389,37 @@ const leistung = {
   starte() {
     if (this.aktiv) return;
     this.aktiv = true;
+    this.prev = null;
+    // je Start eine eigene Schleife: Eine alte, die nach stoppe noch ein Bild wartet, endet dort
+    const nr = ++this.schleife, loop = (ts) => {
+      if (nr !== this.schleife) return;
+      this.tick(ts);
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop);
+    if (this.gl) return; // eingerichtet beim ersten Start
     this.gl = renderer.getContext();
     this.timer = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
     if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
-    const loop = (ts) => { this.tick(ts); requestAnimationFrame(loop); };
-    requestAnimationFrame(loop);
     document.addEventListener('visibilitychange', () => { this.prev = null; });
     const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
     if (typen.includes('long-animation-frame')) {
-      new PerformanceObserver((l) => l.getEntries().forEach((e) => this.haenger1(e)))
+      new PerformanceObserver((l) => { if (this.aktiv) l.getEntries().forEach((e) => this.haenger1(e)); })
         .observe({ type: 'long-animation-frame', buffered: true });
     }
     if (typen.includes('longtask')) {
-      new PerformanceObserver((l) => l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; }))
+      new PerformanceObserver((l) => { if (this.aktiv) l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; }); })
         .observe({ type: 'longtask', buffered: true });
     }
     navigator.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion'])
       .then((d) => { this.modell = [d.platform, d.platformVersion, d.model].filter(Boolean).join(' '); })
       .catch(() => {});
+  },
+  /** Taste F blendet die Anzeige aus: Ausser im Referenzdurchlauf ruht dann auch die Messung (keine Kosten). */
+  stoppe() {
+    if (this.lauf) return;
+    this.aktiv = false;
+    this.schleife++;
   },
   /** Ein Display-Frame: den Abstand zum letzten dem Abschnitt an dessen Anfang zuschlagen. */
   tick(ts) {
@@ -19539,13 +19553,17 @@ const leistung = {
       this.eintragen(teil.zeichnen, performance.now() - t0);
     }
   },
-  /** Fertige GPU-Abfragen der Reihe nach auslesen (disjunkt: Takt der GPU gestört, Ergebnis verwerfen). */
+  /**
+   * Fertige GPU-Abfragen der Reihe nach auslesen. Disjunkt (Takt der GPU gestört): Die Ergebnisse aller Abfragen
+   * unterwegs sind unbrauchbar, auch die noch nicht fertigen; das Lesen setzt die Meldung zurück, darum gleich alle.
+   */
   abfragenLesen() {
-    const gl = this.gl, n = this.abfragen.length, disjunkt = gl.getParameter(this.timer.GPU_DISJOINT_EXT);
+    const gl = this.gl, n = this.abfragen.length;
+    if (gl.getParameter(this.timer.GPU_DISJOINT_EXT)) for (const a of this.abfragen) a.teil = null;
     for (let k = 0; k < n; k++) {
       const a = this.abfragen[this.abfrageAlt];
       if (!a.offen || !gl.getQueryParameter(a.q, gl.QUERY_RESULT_AVAILABLE)) return;
-      if (!disjunkt) this.eintragen(a.teil.zeichnen, gl.getQueryParameter(a.q, gl.QUERY_RESULT) / 1e6);
+      if (a.teil) this.eintragen(a.teil.zeichnen, gl.getQueryParameter(a.q, gl.QUERY_RESULT) / 1e6);
       a.offen = false;
       this.abfrageAlt = (this.abfrageAlt + 1) % n;
     }
@@ -19682,25 +19700,32 @@ const leistung = {
    * der echte Stand), mit frischem Stand neu laden.
    */
   starteDurchlauf() {
+    // Sicherung und Merker des Durchlaufs, bevor etwas gelöscht wird: Eine Sicherung ohne Merker spielte nie jemand
+    // zurück (und ein späterer Durchlauf hielte sie für den echten Stand)
+    let neu = false;
     try {
       if (localStorage.getItem(MESS_SICHERUNG) === null) {
         const sicherung = {};
         for (const k of this.spielSchluessel()) sicherung[k] = localStorage.getItem(k);
         localStorage.setItem(MESS_SICHERUNG, JSON.stringify(sicherung));
+        neu = true;
       }
-      for (const k of this.spielSchluessel()) localStorage.removeItem(k);
-      localStorage.removeItem(MESS_ERGEBNIS);
       localStorage.setItem(MESS_LAUF, JSON.stringify({ seit: Date.now(), version: APP_VERSION }));
     } catch (e) {
+      if (neu) localStorage.removeItem(MESS_SICHERUNG);
       this.meldung = `Referenzdurchlauf geht nicht: kein Speicher (${e.message})`;
       return;
     }
+    for (const k of this.spielSchluessel()) localStorage.removeItem(k);
+    localStorage.removeItem(MESS_ERGEBNIS);
     location.replace(this.adresse());
   },
   /** Den echten Stand zurückspielen; dieses Spiel speichert danach nichts mehr (die Seite lädt gleich neu). */
   wiederherstellen() {
     progress.write = progress.remove = () => {};
     const sicherung = messLies(MESS_SICHERUNG);
+    // unlesbar: nichts löschen, Sicherung und Durchlauf bleiben (nie den echten Stand verlieren)
+    if (!sicherung && localStorage.getItem(MESS_SICHERUNG) !== null) return;
     if (sicherung) {
       for (const k of this.spielSchluessel()) localStorage.removeItem(k);
       for (const [k, v] of Object.entries(sicherung)) localStorage.setItem(k, v);
@@ -19870,6 +19895,7 @@ const perfHud = {
     this.el.hidden = !this.visible;
     this.samples.length = 0;
     if (this.visible) leistung.starte();
+    else leistung.stoppe();
   },
 };
 perfHud.el.hidden = !perfHud.visible;

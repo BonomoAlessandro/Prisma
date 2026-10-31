@@ -157,3 +157,25 @@ Notizen zu den Werten:
   33,3 ms und zählt damit schon. Ist «höchstens ein Bild ausgelassen» gemeint, wäre die Grenze 36,7 ms (33 ms + 10 %);
   bitte entscheiden (eine Zeile, `MESS_GRENZE.bild`).
 - Headless (`GPU=1`, Intel, rAF virtuell): Durchlauf grün; Werte nur zur Regression.
+
+**31.10.2026, Review Code** (Diff 963177d..c7c0e39): Aufbau gut, Schnittstelle `markiere`/`waehrend` taugt für 02/03,
+die Messschleife hängt nicht an `frame()`. Ohne Messung kostet `frame()` nur zwei Abfragen von `aktiv`. Behoben
+(eigener Commit):
+
+- Taste F aus beendet jetzt auch die Messschleife (ausser im Referenzdurchlauf; `stoppe`, Schleifennummer gegen
+  doppelte Schleifen bei schnellem Umschalten); Einrichten (Abfragen, Observer) nur beim ersten Start.
+- GPU-Zeit: Das Lesen von `GPU_DISJOINT_EXT` setzt die Meldung zurück. Bisher galten danach Abfragen, die beim Lesen
+  noch unterwegs waren, als gültig; jetzt werden bei «disjunkt» alle Abfragen unterwegs verworfen.
+- Sicherung: Merker `prisma.leistung.lauf` wird vor dem Löschen geschrieben (schlug er bei vollem Speicher fehl, lag
+  der Stand nur noch in einer Sicherung, die niemand zurückspielt und die ein späterer Durchlauf für den echten Stand
+  gehalten hätte). Eine unlesbare Sicherung wird nicht mehr gelöscht.
+
+Offen, zur Entscheidung:
+
+- **Karte auf 393 px:** Die Tabellenzeilen sind 60 Zeichen breit, bei 12 px Monospace etwa 430 px; auf dem Poco
+  muss man waagrecht scrollen. Vorschlag: Spalten schmaler (Name 13, Zahlen 6) und auf schmalen Bildschirmen 11 px,
+  oder je Abschnitt zwei Zeilen. Der Reviewer im Browser prüft das.
+- **Neuladen mitten im Durchlauf** (oder Tab zu, später wieder auf): Der Stand ist sicher (Sicherung bleibt, die
+  Anzeige bietet «Abbrechen»), aber der Durchlauf läuft mit dem schon gespielten Stand weiter und misst nur ab dem
+  Neuladen. Vorschlag: beim Laden mit Merker die Anzeige «Durchlauf unterbrochen: neu beginnen oder abbrechen».
+- Grenze «über 33 ms» (33,0 vs. 36,7 ms) wie in der Umsetzung notiert: Entscheid des Nutzers.
