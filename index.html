@@ -1194,7 +1194,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-10-31 leistung-01b';
+const APP_VERSION = '2026-10-31 leistung-01c';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19469,6 +19469,8 @@ const adaptiveResolution = {
   calm: 0, cooldown: 1.5, last: performance.now(),
   probe: null,          // läuft gerade eine Absenkung zur Probe?
   locked: false,        // Absenken bringt nichts (z. B. 30-Hz-Sparmodus, CPU-Engpass)
+  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: readPixels des Ersatzmasses und das Bild danach;
+                        // verdeckt gezeichnete Bilder, siehe draw)
   // ?noadapt: feste Auflösung (für Screenshot-Tests im langsamen Software-Rendering)
   disabled: new URLSearchParams(location.search).has('noadapt'),
 
@@ -19476,8 +19478,6 @@ const adaptiveResolution = {
 
   /** Kurze Schonfrist, z. B. nach Levelstart (Shader-Kompilierung erzeugt einzelne lange Frames). */
   hold(seconds = 1.5) { this.cooldown = Math.max(this.cooldown, seconds); this.window = this.slow = this.frames = 0; },
-  /** Dieses Bild nicht werten (verdeckt, Aufwärmen): der nächste Abstand zählt erst ab jetzt. */
-  skip() { this.last = performance.now(); },
 
   /** gap: angestrebter Abstand zweier Bilder in ms (frameRate) – bei 30 Bildern/s ist ein Bild nach 33 ms nicht zu langsam. */
   tick(gap = 1000 / 60) {
@@ -19485,6 +19485,7 @@ const adaptiveResolution = {
     const now = performance.now();
     const ms = now - this.last;
     this.last = now;
+    if (this.skip > 0) { this.skip--; return; } // weder Fenster noch Zähler, Schonfrist oder Ruhe: wie ohne Messung
     if (ms > 100) return; // Tab war im Hintergrund
     const sec = ms / 1000;
     if (this.cooldown > 0) { this.cooldown -= sec; return; }
@@ -19801,6 +19802,9 @@ const leistung = {
       gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
       this.pixelZeit = performance.now();
       this.eintragen(teil.zeichnen, this.pixelZeit - t0);
+      // Der Halt fällt in dieses Bild, der Abstand danach kann auch gestört sein: Beide wertet die adaptive Auflösung
+      // nicht (Handy-Durchlauf 1: sonst senkte sie im Durchlauf auf halbe Auflösung, ohne ?perf nicht)
+      adaptiveResolution.skip = 2;
     }
   },
   /**
@@ -20349,8 +20353,8 @@ function draw(dt, t0, learn = true) {
   composer.render(dt);
   leistung.bildEnde(t0);
 
-  if (learn) adaptiveResolution.tick(frameRate.gap);
-  else adaptiveResolution.skip();
+  if (!learn) adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 1); // nur die Zeit nehmen (tick)
+  adaptiveResolution.tick(frameRate.gap);
   perfHud.tick();
   renderer.info.reset();
   window.__prisma.frames++;

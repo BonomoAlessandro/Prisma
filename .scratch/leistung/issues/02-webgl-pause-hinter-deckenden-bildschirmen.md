@@ -97,9 +97,9 @@ später `feature/leistung` ac56593 nachgezogen).**
   der Bühne blendet 1,6 s aus, `#story` danach 0,8 s). Für Ticket 03: Die Wartezeit vor der Enthüllung hängt jetzt an
   `sceneStarted`, nicht mehr an einem gezeichneten Bild.
 - **`adaptiveResolution`** lernt nichts aus verdeckten Phasen: Verdeckte Bilder (Aufwärmen, Bild vor dem Ruhen) gehen
-  über `adaptiveResolution.skip()` (neu, führt nur `last` nach), beim Aufdecken `hold(0.5)`, und `frameRate` setzt neu
-  an (erstes Bild sofort). Das Ersatzmass (readPixels) nimmt der Koordinator auf `leistung/01-messwerkzeug` heraus,
-  hier nicht.
+  über denselben Weg wie das Ersatzmass aus 01c (`adaptiveResolution.skip` ≥ 1: `tick` nimmt nur die Zeit), beim
+  Aufdecken `hold(0.5)`, und `frameRate` setzt neu an (erstes Bild sofort). Den Teil für das Ersatzmass (readPixels)
+  brachte 2455277 von `leistung/01-messwerkzeug` (hier gemergt).
 - **`__prisma.frames`** zählt nur noch gezeichnete Bilder, `__prisma.fps()`/`perfHud.avgMs` ebenso (hinter der Bühne
   bleibt der letzte Wert stehen). Umgestellt auf `__prisma.ticks > 2`: `tests/geschichte-probe.mjs` (alle acht
   Stellen), `tests/offline.mjs` (`sceneRuns`), `tests/screenshot.mjs` (Warten und Prüfung), `tools/ki-tester/shots.mjs`
