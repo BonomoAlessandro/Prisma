@@ -9870,14 +9870,20 @@ function* bakedMesh(ctx, opt) {
     }
     while (!done) yield NEXT_FRAME;
     let strips = null;
-    if (bitmap && color && renderer.capabilities.isWebGL2) {
-      const { width: w, height: h } = bitmap, ys = [];
-      for (let y = 0; y < h; y += ZEILEN) ys.push(y);
-      let fertig = false;
-      Promise.all(ys.map((y) => createImageBitmap(bitmap, 0, y, w, Math.min(ZEILEN, h - y), BITMAP)))
-        .then((bs) => { strips = bs.map((b, i) => ({ level: 0, y: ys[i], bitmap: b })); }, () => {})
-        .finally(() => { fertig = true; });
-      while (!fertig) yield NEXT_FRAME;
+    if (bitmap && color && renderer.capabilities.isWebGL2 && typeof OffscreenCanvas === 'function') {
+      // Streifen über ein OffscreenCanvas wie in skyBitmaps, je einer in einem Häppchen: Einen mit
+      // createImageBitmap(bitmap, 0, y, …) zugeschnittenen lädt Firefox ohne den Zuschnitt in WebGL (deckende JPEGs:
+      // das vormultiplizierte Canvas ändert nichts). Ohne OffscreenCanvas das ganze Bild in einem Stück.
+      const { width: w, height: h } = bitmap, list = [];
+      try {
+        for (let y = 0; y < h; y += ZEILEN) {
+          const c = new OffscreenCanvas(w, Math.min(ZEILEN, h - y));
+          c.getContext('2d', { willReadFrequently: true }).drawImage(bitmap, 0, -y);
+          list.push({ level: 0, y, bitmap: c.transferToImageBitmap() });
+          yield;
+        }
+        strips = list;
+      } catch { for (const s of list) s.bitmap.close(); }
     }
     const img = strips ? { width: bitmap.width, height: bitmap.height } : bitmap ?? new Image();
     const tex = new THREE.Texture(img);
