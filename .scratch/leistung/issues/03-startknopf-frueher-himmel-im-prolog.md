@@ -199,3 +199,28 @@ Tests (auf `5af32cb`): `node tests/logic.test.mjs` (2033), `node tests/golden.mj
 `tests/start-probe.mjs` (headless und Fenster), `tests/leerlauf-probe.mjs`, `tests/screenshot.mjs`,
 `tests/offline.mjs`: alle grün, keine Warnung «Weckstelle fehlt». (`offline.mjs` lief einmal in eine Zeitüberschreitung
 beim Strand unter Last, danach zweimal grün.)
+
+**31.10.2026, Absenkung `adaptiv 0,88` behoben (`134a552`).** Eine Probe zeichnete jeden `tick` von
+`adaptiveResolution` auf (Abstand, Budget, Zustand, Zeit seit dem letzten Stück an einer ruhigen Stelle). Ergebnis: Im
+Spiel lief kein Ladestück (alle Stücke des Himmels lagen im Startbildschirm und in den Pausen des Prologs, das letzte bei
+20 s). Bei 53,6–54,3 s, «Gelöst» stand (`frameRate` ruhig, 30 Bilder/s), kamen die Bilder alle 50 ms bei einem Budget
+von 36 ms: `frameRate.due` hatte den Bildschirmtakt als kürzesten rAF-Abstand im Fenster gemessen, und ein Aufhol-Bild
+nach einem langen (etwa 21, dann 12 ms) ergab 12 ms. Damit war k = 3 statt 2, gezeichnet wurde mit 20 statt 30 Bildern/s,
+und jedes Bild galt als langsam (50 > 1,25 × 36 ms). Sichtbar war kein Bild lang. Fix: Takt aus dem 10-%-Quantil der
+Abstände im Fenster. Zwei Läufe Desktop danach: `adaptiv 1.00, Umbauten 0`.
+
+**Review Ticket 03 umgesetzt (`4da7be3`):** Die Bühne wird nur hinter dem Startbildschirm gehalten (mit `?nointro` und
+`zeige()` blieb sie sonst für immer `gehalten`). Wer Prolog und Angebot gesehen hat, bekommt sie vor `.go` nicht
+vorgewärmt; `.go` kommt dann bei 0,8–0,9 s (Desktop). Die Übersicht wartet auf die nächste verdeckte oder ladende
+ruhige Stelle (`ruhe.laden` zählt). Der Grund unter Wasser (`ctx.later`) wird ruhig dekodiert und gerechnet. Die
+Prolog-Pause ist erst nach dem gestaffelten Vorbereiten der nächsten Fahrt ruhig (`sc.ruheNachHalt` = 400 + 6 × 90 ms,
+`story.stillAb`).
+
+**Messung auf `4da7be3`** (je 2 Läufe, Fenster): Desktop `adaptiv 1.00, Umbauten 0` (beide); Startbildschirm max 184–234
+ms; Menü max 33 ms; Prolog max 50–100 ms, 3–5 Bilder > 33 ms (vorher, also `6e2e4a0`, 5–6). Handy ×4: Prolog p95 33,5,
+**295 / 295 Bilder > 33 ms** (vorher 538 / 579); Startbildschirm max 150–167 ms; Menü p95 50, max 133 ms; Seitenstart
+918–984 ms; Karte `adaptiv 1.00 / 2 Umbauten` und einmal `0,50 / 2` (gedrosselt im Spiel, CPU-gebunden, wie in Ticket 02
+beschrieben; vorher `1,00 / 2`). Knopf (Start-Probe): Desktop frisch 4,36–4,37 s nach Laden, wiederkehrend 3,75–3,77 s,
+immer 2,91 s nach `.go`; Handy ×4 frisch 6,53–6,54 s, wiederkehrend 5,84–5,95 s. «Weiter» Desktop: Laden 1,36–1,39 s,
+max 24–34 ms; Handy ×4: Laden 2,6–2,8 s, aber Menü max 450 ms beim Klick (der Himmel des wiederkehrenden Spielers lädt
+nach der Enthüllung, der Klick 1,5 s nach dem Knopf trifft ein laufendes Stück); offen für den Poco-Durchlauf 2.
