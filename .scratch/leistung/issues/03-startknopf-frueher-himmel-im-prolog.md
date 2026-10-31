@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 04 (04 baut die Prolog-Bühne und ihr Vorwärmen um, dieses Ticket plant die Ladearbeit darum herum)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** «Klicken/Tippen zum Starten» erscheint **spätestens 3,9 s** nach Beginn der Enthüllung, auch auf dem
 Handy und bei langsamem Laden. Die schwere Ladearbeit für den Himmel kollidiert weder mit den Animationen des
