@@ -215,3 +215,15 @@ Durchlauf den Ausgangswert misst. `APP_VERSION` = `2026-10-31 leistung-01b`.
 **Bereit für Handy-Durchlauf 1 (Ausgangswert), bitte auf Render deployen.** Danach offen (Nutzer): Ergebniskarte vom
 Poco hier eintragen; Ausgangswerte am Arbeitsrechner (RTX 3070) ungedrosselt und mit Handy-Emulation + 4× Drosselung
 nachtragen.
+
+**Fix nach Handy-Durchlauf 1 (01c, 31.10.2026).** Die Poco-Karte endete mit `adaptiv 0.50, Umbauten 2`, verpixelt nur
+mit `?perf`. Ursache: Das Ersatzmass (`readPixels` jedes 10. Bild in `bildEnde`) lag in den Bildzeiten von
+`adaptiveResolution.tick` (performance.now() von Aufruf zu Aufruf, direkt nach `bildEnde`): Das Bild mit dem Halt und oft
+das danach gelten als langsam, also rund 0,2 Überlast als Sockel. Zusammen mit wenigen echten langsamen Bildern über 0,3
+→ Absenkung, und die Probe «hat es geholfen?» besteht, weil der Sockel bleibt; wieder hinauf (Überlast < 0,05) geht mit
+dem Sockel nie. Die Annahme oben («höchstens ein langsames Bild von zehn») war zu knapp. Headless (`--handy --drossel 4`,
+mit und ohne `--ersatzmass`) ist das nicht nachzustellen: beide `adaptiv 1.00, Umbauten 2` (virtueller rAF-Takt).
+Fix: `bildEnde` setzt nach dem `readPixels` `adaptiveResolution.skip = 2`; `tick` nimmt dann nur die Zeit (`last`) und
+wertet die beiden Bilder nicht, weder Fenster und Zähler noch Schonfrist und Ruhe. Sonst reagiert die Absenkung wie ohne
+Messung. `APP_VERSION` = `2026-10-31 leistung-01c`. Handy-Durchlauf 1 wird mit 01c wiederholt: Die Spiel-Abschnitte
+liefen mit halber Auflösung, die Werte taugen nicht als Ausgangswert. Abnahme: Karte am Ende `adaptiv 1.00, Umbauten 0`.

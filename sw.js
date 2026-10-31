@@ -16,7 +16,7 @@
 // Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigen Leistungsanzeige und
 // Ergebniskarte; ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die neue.
 
-const APP_VERSION = '2026-10-31 leistung-01b';
+const APP_VERSION = '2026-10-31 leistung-01c';
 const CACHE = 'prisma-v1';
 const SKIES = 'fc13f328';
 const FILES = [
