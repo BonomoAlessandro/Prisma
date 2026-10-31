@@ -19476,6 +19476,8 @@ const adaptiveResolution = {
 
   /** Kurze Schonfrist, z. B. nach Levelstart (Shader-Kompilierung erzeugt einzelne lange Frames). */
   hold(seconds = 1.5) { this.cooldown = Math.max(this.cooldown, seconds); this.window = this.slow = this.frames = 0; },
+  /** Dieses Bild nicht werten (verdeckt, Aufwärmen): der nächste Abstand zählt erst ab jetzt. */
+  skip() { this.last = performance.now(); },
 
   /** gap: angestrebter Abstand zweier Bilder in ms (frameRate) – bei 30 Bildern/s ist ein Bild nach 33 ms nicht zu langsam. */
   tick(gap = 1000 / 60) {
@@ -20348,6 +20350,7 @@ function draw(dt, t0, learn = true) {
   leistung.bildEnde(t0);
 
   if (learn) adaptiveResolution.tick(frameRate.gap);
+  else adaptiveResolution.skip();
   perfHud.tick();
   renderer.info.reset();
   window.__prisma.frames++;
@@ -20400,7 +20403,7 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht,
+window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
