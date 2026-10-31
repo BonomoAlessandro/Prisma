@@ -295,3 +295,20 @@ Merge.
 - **Tests** (Stand 2fff6e0): Strahlregel 2032, Golden 847 Level, Vorrat 18, Levelliste 54, Würfelliste 20, KI-Tester 84,
   Beurteilung 206, Geschichte 35, Generator 31, Offline, Bedienung (Konsole leer), `shots.mjs` Platz 1 und 240: alle
   bestanden; nach `9a6272b` Strahlregel, Golden, Vorrat, Levelliste und Geschichte erneut bestanden.
+
+**Nachprüfung Reise in die Wüste (31.10.2026):** Die Lücke von 71–105 ms gleich nach «Weiter» (Schleier, noch Strand)
+kam nicht vom Träger und nicht von den Felsbildern, sondern vom ersten Zeichnen des Kugelnetzes der Wüste (vorgeladen
+unter «Gelöst», fertig etwa beim Klick): Ihr feines Netz (1024 × 512 statt 512 × 256) hat 6,3 MB Ecken und 12,6 MB
+Dreiecke, die three in `skyWarmDraw` in einem Stück hochlud; `bufferData` wartete dabei 80 ms auf den Grafikprozess
+(gemessen mit umwickelten WebGL-Aufrufen und Chrome-Trace: `WaitForToken` im rAF). Jetzt lädt `skyBufferUpload` Puffer
+über 4 MB vor dem ersten Zeichnen in Stücken zu 2 MB je Bild in eigene WebGL-Puffer (`GLBufferAttribute`); kleinere
+Netze (Wald, Strand, Vulkan) wie bisher (in Stücken war das Angebot des Walds einmal 88 statt 53 ms). Bild bitgleich
+(Bildschirm Wüste, Strand, Wald alt/neu: 0 Pixel verschieden; Felsbilder `bitgleich/run.mjs`: alle gleich).
+- Reise → Wüste, längste Lücke: Desktop Mittel vorher 88 ms (Grad Mittel, frisch), nachher 53 / 53 / 36 / 50 / 54 ms;
+  Handy Schwer vorher 71–89 ms, nachher 72 (einmal, bei der Landung) / 36 / 50 / 50 / 54 ms. Die Lücke nach «Weiter» ist
+  weg (höchstens 53 ms wie bei den anderen Reisen).
+- Alle Reisen nachher (Desktop / Handy, je höchstens): Meer 59 / 56, Wüste 54 / 72, Vulkan 53 / 53, Planeten 37 / 71,
+  Sterne 37 / 36; übrige Übergänge des Durchgangs höchstens 72 ms (Prolog, Wald schon bereit, wie früher 71). `--dorf`
+  höchstens 54 ms (HEAD daneben 53/54).
+- Tests: `--ganz` Mittel (Desktop) und Schwer (Handy) je dreimal, `--dorf`, `tests/offline.mjs`, `tests/logic.test.mjs`
+  (2032): alle bestanden, Konsole ohne Fehler.

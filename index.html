@@ -9340,6 +9340,47 @@ function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV])
 }
 
 /**
+ * Ecken und Dreiecke des Kugelnetzes in Stücken hochladen (Generator für sliced), je Stück ein Bild: Beim ersten
+ * Zeichnen lud three sie in einem Stück hoch; beim feinen Netz der Wüste (1024 × 512: 6,3 MB Ecken, 12,6 MB Dreiecke)
+ * hielt das ein Bild 70–105 ms an (der Puffer zum Grafikprozess lief voll und wartete), gleich nach «Weiter» auf der
+ * Reise dorthin. Danach je ein eigener WebGL-Puffer (GLBufferAttribute: three bindet ihn nur und gibt ihn mit dem Netz
+ * frei; die Hüllkugel vorher, sie liesse sich daraus nicht mehr rechnen). Puffer bis 4 MB (die Netze 512 × 256 der
+ * übrigen Skyboxen) und ohne WebGL2 wie bisher: In Stücken war beim Wald das erste Bild des Angebots nach dem Prolog
+ * länger (gemessen bis 88 statt 53 ms).
+ */
+const SKY_BUFFER_CHUNK = 1 << 21, SKY_BUFFER_WHOLE = 1 << 22; // 2 MB je Bild, ab über 4 MB
+function* skyBufferUpload(geo) {
+  if (!renderer.capabilities.isWebGL2) return;
+  const gl = renderer.getContext();
+  for (const name of ['position', 'index']) {
+    const attr = name === 'index' ? geo.index : geo.getAttribute(name), array = attr?.array;
+    if (!array || array.byteLength <= SKY_BUFFER_WHOLE) continue;
+    if (name === 'position') geo.computeBoundingSphere(); // aus einem eigenen Puffer rechnete three sie nicht mehr
+    const target = name === 'index' ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, buffer = gl.createBuffer();
+    geo.addEventListener('dispose', () => gl.deleteBuffer(buffer)); // auch, wenn three das Netz nie gezeichnet hat
+    // ohne das Vertex Array Objekt, das three gerade gebunden hat (es merkte sich sonst diesen Puffer der Dreiecke)
+    const upload = (fn) => {
+      const vao = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+      gl.bindVertexArray(null);
+      gl.bindBuffer(target, buffer);
+      fn();
+      gl.bindBuffer(target, null);
+      gl.bindVertexArray(vao);
+      gl.flush();
+    };
+    upload(() => gl.bufferData(target, array.byteLength, gl.STATIC_DRAW));
+    const per = SKY_BUFFER_CHUNK / array.BYTES_PER_ELEMENT, bytes = array.BYTES_PER_ELEMENT;
+    for (let at = 0; at < array.length; at += per) {
+      yield NEXT_FRAME;
+      upload(() => gl.bufferSubData(target, at * bytes, array, at, Math.min(per, array.length - at)));
+    }
+    const type = array instanceof Float32Array ? gl.FLOAT : array instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+    const own = new THREE.GLBufferAttribute(buffer, type, attr.itemSize, bytes, attr.count);
+    if (name === 'index') geo.setIndex(own); else geo.setAttribute(name, own);
+  }
+}
+
+/**
  * bands: [{ u, v, tex, on }] – on: Anteil des Streifens (0 = noch nicht geladen, das ganze Bild zeigt sich; Uniform
  * uOn). material.userData.setDepthRule({ uniforms, glsl }): Das Netz schreibt dann als Tiefe skyDepth(vWorld) (glsl
  * definiert sie; für eine Ebene, die das Netz anders als nach seiner Lage verdecken soll, siehe waterSurface).
@@ -11711,6 +11752,7 @@ function createPanoramaSky(m) {
         }
       });
       const uploads = sliced((function* () {
+        yield* skyBufferUpload(sky.geometry); // vor dem ersten Zeichnen (skyWarmDraw), sonst lädt es three in einem Stück
         for (const t of textures) {
           if (my !== token) return;
           yield* skyUpload(t);
