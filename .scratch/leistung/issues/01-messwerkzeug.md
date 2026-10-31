@@ -207,3 +207,11 @@ Offen, zur Entscheidung:
 - Probe `tests/leistung-probe.mjs`: dazu Unterbrechen und «Neu beginnen», Nachfrage von «Abbrechen», Verdecken der
   Bedienung, Breite der Karte auf dem Handy, `--ersatzmass`, `--bilder` (Bilder je Schritt, angesehen: Start,
   Unterbrochen, Menü, Prolog, Angebot, Level, Gelöst, Menü mit «Weiter zur Reise», Reise, Karte).
+
+**Stand für Handy-Durchlauf 1 (31.10.2026).** Beide Reviews (Code, Bedienung/Messgüte) eingearbeitet, Tests grün.
+Gepusht ist nur dieses Ticket auf dem Ausgangsstand 963177d, ohne die Verbesserungen der übrigen Tickets, damit der
+Durchlauf den Ausgangswert misst. `APP_VERSION` = `2026-10-31 leistung-01b`.
+
+**Bereit für Handy-Durchlauf 1 (Ausgangswert), bitte auf Render deployen.** Danach offen (Nutzer): Ergebniskarte vom
+Poco hier eintragen; Ausgangswerte am Arbeitsrechner (RTX 3070) ungedrosselt und mit Handy-Emulation + 4× Drosselung
+nachtragen.
