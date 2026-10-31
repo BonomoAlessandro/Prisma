@@ -4,7 +4,7 @@
 
 **Blocked by:** –
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Ein Messwerkzeug, das misst, was man **sieht**, nicht nur die WebGL-Bilder. Ausserdem einen festen
 Referenzdurchlauf, an dessen Ende eine Ergebniskarte steht, die sich ohne Kabel auf dem Handy ablesen und kopieren
@@ -215,3 +215,64 @@ Durchlauf den Ausgangswert misst. `APP_VERSION` = `2026-10-31 leistung-01b`.
 **Bereit für Handy-Durchlauf 1 (Ausgangswert), bitte auf Render deployen.** Danach offen (Nutzer): Ergebniskarte vom
 Poco hier eintragen; Ausgangswerte am Arbeitsrechner (RTX 3070) ungedrosselt und mit Handy-Emulation + 4× Drosselung
 nachtragen.
+
+**Handy-Durchlauf 1 (Ausgangswert), Poco F4 GT, 31.10.2026, vom Nutzer:**
+
+```
+PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)
+Version     2026-10-31 leistung-01b
+Zeit        31.10.2026, 15:07:21
+Gerät       Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36
+Modell      Android 13.0.0 21121210G
+GPU         ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+Bildschirm  393×873, Fenster 392×739, Pixelverhältnis 2.75
+Rendern     392×739 (Pixelverhältnis 1.00, adaptiv 0.50, Umbauten 2), Handy
+Takt        60 Hz (Median der Bildabstände 16.60 ms)
+Zeichenzeit ERSATZMASS: frame() bis nach readPixels (1 px), jedes 10. Bild; der Abstand danach zählt nicht
+ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): 434 Bildabstände mit readPixels nicht gezählt
+Grenzen     p95 ≤ 18.3 ms, kein Bild > 33 ms; Zeichnen p95 ≤ 8 ms (Handy)
+
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s
+Seitenstart*         1  921.1  921.1    1      –  30.8     1
+Startbildschirm    752   32.9  115.2    7   32.9   5.2    63
+Menü               357   16.6   49.4    1   23.4   5.8    41
+Prolog            1535   65.9  180.7  343  136.2   3.2    19
+Einstieg           323   16.6   65.7    2   28.5   8.4    66
+Spiel             1084   16.6   49.4    2   26.1   9.2    61
+Reise              724   16.6  493.3    3   25.3   7.7    64
+Spiel n. Reise     333   16.6   49.4    1   33.7  11.2    39
+Gesamt            5108   49.5  493.3  359   93.2
+* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je
+  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.
+
+Flüssig:    nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+Zeichnen ≤ 8 ms: nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+
+Längste Bilder:
+   921.1 ms  Seitenstart bei 0.2 s
+   493.3 ms  Reise bei 96.2 s
+   180.7 ms  Prolog bei 22.3 s
+   131.6 ms  Prolog bei 37.5 s
+   131.6 ms  Prolog bei 49.1 s
+   131.6 ms  Prolog bei 50.3 s
+   131.6 ms  Prolog bei 58.5 s
+   115.2 ms  Startbildschirm bei 5.3 s
+
+Hänger des Hauptthreads (long-animation-frame):
+     931 ms  Seitenstart bei 0.2 s: https://prisma-5d09.onrender.com/?perf=: Script 890 ms, Rendern 34 ms
+     507 ms  Reise bei 96.2 s: FrameRequestCallback: Script 502 ms, Rendern 506 ms
+     219 ms  Prolog bei 22.3 s: FrameRequestCallback → frame: Script 174 ms, Rendern 178 ms
+     209 ms  Prolog bei 37.4 s: FrameRequestCallback → frame: Script 136 ms, Rendern 141 ms
+     207 ms  Prolog bei 56.0 s: FrameRequestCallback → frame: Script 138 ms, Rendern 146 ms
+     204 ms  Prolog bei 42.5 s: FrameRequestCallback → frame: Script 140 ms, Rendern 145 ms
+     199 ms  Prolog bei 50.2 s: FrameRequestCallback → frame: Script 135 ms, Rendern 140 ms
+     198 ms  Prolog bei 57.2 s: FrameRequestCallback → frame: Script 139 ms, Rendern 143 ms
+```
+
+Beobachtung des Nutzers: Im Spiel sahen Spiegel und Skybox (z. B. die Fische) verpixelt aus; so darf es im fertigen
+Spiel nicht sein. Die Karte zeigt den Grund: `adaptiv 0.50, Umbauten 2`, die automatische Absenkung hat die Auflösung
+zweimal halbiert (Rendern 392×739 statt 784×1478). Wahrscheinliche Ursachen: Sie lernt aus dem Prolog, in dem die
+verdeckte Szene weiterzeichnet (Zeichnen p95 136 ms; Ticket 02), und möglicherweise aus dem Ersatzmass (`readPixels`,
+das Poco hat kein `EXT_disjoint_timer_query_webgl2`). Weiteres: Startbildschirm p95 32,9 ms (Tickets 02/03), Prolog
+p95 65,9 ms mit 343 Bildern über 33 ms (Tickets 02/04), Seitenstart-Hänger 931 ms Script, Hänger in der Reise 507 ms
+(Messrunde 07). Takt 60 Hz, obwohl das Poco 120 Hz kann.
