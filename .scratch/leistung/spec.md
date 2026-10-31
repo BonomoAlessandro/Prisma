@@ -58,6 +58,11 @@ Ursachen laut Untersuchung vom 31.10.2026 (Stellen in `index.html`):
 
 ## Abnahme
 
+- **Keine sichtbare Absenkung (Nutzer, 31.10.2026, nach Handy-Durchlauf 1):** Im Spiel dürfen Spiegel und Skybox
+  nicht verpixelt aussehen. Im Handy-Durchlauf 1 hatte `adaptiveResolution` die Auflösung auf dem Poco zweimal halbiert
+  (`adaptiv 0.50, Umbauten 2`). Abnahme auf dem Poco und dem Arbeitsrechner: Die Ergebniskarte zeigt am Ende
+  `adaptiv 1.00, Umbauten 0`, auch nach dem Prolog, und das Ersatzmass des Messwerkzeugs darf die Absenkung nicht
+  auslösen.
 - **Pro Ticket:** Vorher- und Nachher-Werte mit dem Messwerkzeug aus Ticket 01 im echten Chrome mit Fenster und GPU auf
   dem Arbeitsrechner, einmal ungedrosselt und einmal mit DevTools-Handy-Emulation und 4× CPU-Drosselung. Die Werte
   kommen unter `## Comments` ins Ticket. Headless-Läufe (`tools/chrome.mjs`) sichern nur gegen Rückschritte ab; ohne
