@@ -15191,7 +15191,7 @@ const audio = {
     // der Puffer des Convolvers kostet für sich mehr als die ganze Berechnung
     hallData(ctx.sampleRate).then((data) => this._quiet(() => {
       const buf = ctx.createBuffer(2, data[0].length, ctx.sampleRate);
-      data.forEach((d, ch) => buf.copyToChannel(d, ch));
+      data.forEach((d, ch) => buf.getChannelData(ch).set(d)); // copyToChannel fehlt dem alten webkitAudioContext
       reverb.buffer = buf;
       // Klick vor dem Hall: weich dazublenden (Töne, die schon klingen, kommen allmählich in den Hall)
       if (ctx.state === 'running') this.wet.gain.setTargetAtTime(HALL_WET, ctx.currentTime, 0.4);

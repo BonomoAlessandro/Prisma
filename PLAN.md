@@ -17,8 +17,8 @@ Entscheid in ADR 0005.
   - [x] Erster Klick: `audio.unlock` hält das Bild 350–430 ms an (Hall mit 3,2 s Rauschen); Hall später oder kürzer.
     Erledigt in Ticket 05 von `.scratch/leistung/`: Teuer war vor allem das Anlegen des AudioContext, dazu der Puffer
     des Convolvers; beides geschieht jetzt beim Laden, solange der Startbildschirm still steht, die Impulsantwort
-    rechnet ein Worker (Klang bitgleich). Erster Klick Desktop 19–23 ms statt 90–350, Handy-Emulation 4× gedrosselt
-    72–125 ms statt 425–606 (der Rest ist der Start des Prologs, nicht der Ton).
+    rechnet ein Worker (Klang bitgleich). Erster Klick Desktop 19–36 ms statt 90–367, Handy-Emulation 4× gedrosselt
+    54–125 ms statt 424–606 (der Rest ist der Start des Prologs, nicht der Ton).
   - [ ] Desktop «Spiel → Übersicht» 87–88 ms (einmal 106).
   - [ ] Übersicht auf kleinen Handys (360 × 640, 320 × 568): «Schliessen» liegt unter den Kacheln ausserhalb des
     Bildschirms, der Kopf ist weggescrollt.

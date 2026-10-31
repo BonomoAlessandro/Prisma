@@ -94,3 +94,35 @@ Sekunde Ton, also knapp 5 % eines Desktop-Kerns. Im Echtzeitbetrieb rechnet Chro
 Hintergrund-Thread, der Audio-Thread nur die kurzen. Weil das Glitzern alle 2,5–6,5 s einen Ton mit 3,5–5 s Abklingen
 und 3,2 s Nachhall bringt, ist der Convolver praktisch immer aktiv. Auf dem Poco grob geschätzt 10–15 % eines Kerns;
 messen in Ticket 07 per Remote-DevTools (Performance-Aufnahme, Audio-Threads). Nicht geändert.
+
+**Review Code (31.10.2026).** Diff `963177d..64aa021` gelesen, `node tests/hall.test.mjs` (6) und
+`node tests/logic.test.mjs` (2032) grün. Der Worker-/Leerlauf-Pfad ist sauber: CSP oder fehlender Worker (Ausnahme
+im Konstruktor) und ein Fehler im Worker (`onerror` → `reject`) fallen beide auf die Stücke im Leerlauf zurück; der
+Blob-Worker braucht kein Netz, also offline wie die Skybox. Abtastrate je Kontext, ohne Resampling. `_sync` und
+`setMuted` sehen den vorbereiteten Kontext nicht (`ctx` bleibt bis zur Geste leer), `visibilitychange` weckt ihn also
+nicht zu früh. `?nointro`: `#intro` bekommt nie `.go`, `_quiet` läuft sofort. Der Test liest die echte
+`hallImpulse` aus `index.html`, keine Kopie. Autoplay: `resume` geschieht synchron in der Geste (`click` auf
+`#intro` bzw. `pointerdown`/`keydown` mit `userActivation`); auf iOS ist erst der `click` nach `touchend` eine
+Aktivierung, dort weckt also `ui.start` den Kontext, wie früher das Anlegen. Firefox zeigt in der Adresszeile das Symbol
+«Autoplay blockiert», solange der Kontext ohne Geste steht; harmlos.
+
+Selbst behoben (eigener Commit): `copyToChannel` → `getChannelData(ch).set(d)` (bitgleich; `copyToChannel` fehlt dem
+`webkitAudioContext` von Safari vor 14.1, den der Code ausdrücklich unterstützt, dort wäre der Hall still geblieben);
+PLAN.md an die Messwerte oben angeglichen (Desktop 19–36 statt 19–23 ms, Handy 54–125 statt 72–125 ms); überlange
+Kommentarzeile in `tests/geschichte-probe.mjs` umbrochen.
+
+Offen, mittel (nicht umgebaut):
+- **Platzierung vor der Enthüllung.** `prepare` läuft beim ersten Bild, also in der Ladephase, in der `sceneReady`
+  (erstes Bild der Szene) und die Schrift noch ausstehen. Kontext (gedrosselt bis 432 ms) und Puffer (bis 222 ms) sind
+  lange Aufgaben auf dem Hauptthread und können `sceneReady` und damit `.go` direkt verschieben – genau das, was
+  Ticket 03 verkürzen will. Erst nach `introCalm` wäre zu spät: «Klicken zum Starten» erscheint schon 2,9 s nach der
+  Enthüllung, `introCalm` erst nach 4,2 s, ein früher Klick trüge dann wieder die alten Kosten. Vertretbar ist die
+  heutige Platzierung, weil die Phase ohnehin Lücken von Sekunden hat und kein Bild der Enthüllung trifft. Vorschlag:
+  Ticket 03 misst mit dem Werkzeug aus 01 `.go` mit und ohne `prepare` (etwa `?noaudio`-Schalter in der Probe); zeigt
+  sich eine Verschiebung, `prepare` an `sceneReady` hängen (nach dem ersten Bild der Szene, vor `.go`) bzw. die Lücke
+  zwischen `sceneReady` und Schrift nutzen, und `canStart` zusätzlich auf den fertigen Ton warten lassen (höchstens
+  bis zur 15-s-Grenze), damit der Klick nie die Kosten trägt.
+- **Klein, nur notiert:** Läuft der Kontext ohne Geste schon (`state === 'running'`) und kommt der Klick, bevor das
+  `suspend()` aus `prepare` greift, sieht `_sync` noch «running» und weckt nicht; der Kontext bleibt bis zur nächsten
+  Geste stumm (jede weitere `pointerdown` ruft `_sync`). Fenster von Millisekunden, darum nicht geändert. Die
+  48-kHz-Daten bleiben bei 44,1-kHz-Kontext im Cache (1,2 MB); egal.
