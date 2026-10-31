@@ -8322,7 +8322,7 @@ const ruhe = {
     if (flow.state === 'intro') return !ui.intro.classList.contains('go') || this.calm;
     if (story.choosing) return klein || RUHE_OHNE_START;
     if (!story.el.inert && story.el.dataset.mode === 'scene') { // die Bühne ist da (nicht nur vorgewärmt)
-      return story.stillBild && !story.scene?.laeuft;
+      return story.stillBild && performance.now() >= story.stillAb && !story.scene?.laeuft;
     }
     return true;
   },
@@ -11380,12 +11380,13 @@ function* waterSurface(ctx, opt) {
   // Panorama überall direkt); bricht ab, wenn sie inzwischen freigegeben ist
   ctx.later.push(async (alive) => {
     try {
+      await ruhe.warte(); // wie der übrige Aufbau nur an ruhigen Stellen, auch das Dekodieren (nicht in Fahrten)
       const image = await loadSkyImage(w.map);
       const steps = groundShift({ ext, range: w.depthRange, level: w.level, image }, ctx.pano.depth, ctx.pano.center);
       const done = await sliced((function* () {
         for (let s = steps.next(); alive(); s = steps.next()) { if (s.done) return s.value; yield; }
         return null;
-      })());
+      })(), true);
       if (!done || !alive()) return;
       const old = material.uniforms.uGround.value;
       material.uniforms.uGround.value = groundTexture(done.data, done.n);
@@ -18040,6 +18041,8 @@ function createStoryScene(host) {
       };
       this.staffel = setTimeout(() => weiter(0), HALT_MS);
     },
+    /** ms nach dem Halt, bis das gestaffelte Neurastern durch ist: erst danach ist die Pause ruhig (story.stillBild) */
+    ruheNachHalt: HALT_MS + 6 * STAFFEL_MS,
     /** Eine vorbereitete Fahrt verwerfen (die Ebenen hält dann wieder die alte Fahrt bzw. stelle). */
     verwerfen() {
       clearTimeout(this.staffel);
@@ -18361,14 +18364,23 @@ async function vorwaermenVorStart() {
     menu.vorwaermen(story.menuStand());
     await nextFrame(); await nextFrame(); await nextFrame();
   }
-  await Promise.race([story.vorwaermen(!story.stand?.gesehen.includes('prolog')), storySleep(1000)]);
+  // wer Prolog und Angebot schon gesehen hat, bekommt keinen Prolog mehr (ausser in einem neuen Grad): keine Bühne;
+  // gehalten nur hinter dem Startbildschirm (mit ?nointro und zeige() käme sonst nie ein Prolog, der sie freigibt)
+  const gesehen = story.stand?.gesehen ?? [];
+  if (gesehen.includes('prolog') && gesehen.includes('angebot')) return;
+  await Promise.race([story.vorwaermen(flow.state === 'intro' && !gesehen.includes('prolog')), storySleep(1000)]);
 }
-// Die Übersicht (~100 ms beim ersten Öffnen) wird erst aus Menü oder Spiel gebraucht: nach der Enthüllung an einer
-// ruhigen Stelle hinter dem Startbildschirm oder der wartenden Bühne (ruhe); im sichtbaren Spiel kostete es selbst ein Bild
+// Die Übersicht (~100 ms beim ersten Öffnen) wird erst aus Menü oder Spiel gebraucht: nach der Enthüllung an der
+// nächsten ruhigen Stelle, die nichts Sichtbares zeigt (Startbildschirm, wartende Bühne) oder ohnehin lädt (ruhe.laden,
+// Überblendung nach «Weiter»); im sichtbaren Spiel kostete es selbst ein Bild
 introCalm.then(async () => {
-  await ruhe.warte();
-  const verdeckt = flow.state === 'intro' || story.stillBild || RUHE_OHNE_START && story.choosing;
-  if (verdeckt && !uebersicht.offen) uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
+  for (;;) {
+    await ruhe.warte();
+    if (uebersicht.offen) return;
+    if (flow.state === 'intro' || story.stillBild || ruhe.laden || RUHE_OHNE_START && story.choosing) break;
+    await storySleep(500);
+  }
+  uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
 });
 
 const story = {
@@ -18411,7 +18423,8 @@ const story = {
   },
   blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
   skipped: false,     // Prolog übersprungen
-  stillBild: false,   // die Bühne wartet auf Tippen oder steht mit dem Angebot: eine ruhige Stelle (ruhe)
+  stillBild: false,   // die Bühne wartet auf Tippen oder steht mit dem Angebot: eine ruhige Stelle (ruhe) ab stillAb
+  stillAb: 0,         // performance.now(), ab wann (nach dem gestaffelten Vorbereiten der nächsten Fahrt)
   buehneWarm: false,  // die Bühne des Prologs ist vorgewärmt und bleibt bis zum Prolog gerastert (vorwaermen)
   ersterHimmel: true, // noch keiner seit dem Start abgewartet (skyOf): Fehlt er, ist das Laden markiert (ruhe.lade)
 
@@ -18842,6 +18855,7 @@ const story = {
     // Spieler liest. So ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht
     // mehr gewählt und lädt nicht weiter (Review Ticket 07)
     this.stillBild = true;
+    this.stillAb = performance.now();
     sceneLoop.wake(); // was hinter der Bühne liegen blieb, jetzt zeichnen (mayDraw)
     const ueben = await new Promise((resolve) => {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
@@ -19192,8 +19206,11 @@ const story = {
       // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
       if (angebot && shot === shots.at(-1) && !shot.text) break;
       sc.hint(true);
-      this.stillBild = true; // ruhige Stelle: hier darf geladen und die Szene dahinter gezeichnet werden (ruhe)
-      sceneLoop.wake();
+      // ruhige Stelle: hier darf geladen und die Szene dahinter gezeichnet werden (ruhe), aber erst, wenn die Bühne die
+      // nächste Fahrt gestaffelt vorbereitet hat (ruheNachHalt; sonst raste beides zugleich)
+      this.stillBild = true;
+      this.stillAb = performance.now() + sc.ruheNachHalt;
+      setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
       await this.untilTap();
       this.stillBild = false;
     }
