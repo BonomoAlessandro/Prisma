@@ -246,9 +246,10 @@ async function laden(storage = {}) {
 }
 /**
  * Eine erste Geste wie der Klick auf «Klicken zum Starten», der mit ?nointro fehlt: ins Leere des Menüs (unten rechts).
- * Sie schaltet den Ton frei (audio.unlock); das hält die Seite einmal 0,2–0,3 s an und gehört im Spiel zum Start, nicht
- * zu den Übergängen des Menüs. Der Tipp ins Leere nimmt den Fokus weg; danach bekommt ihn der Knopf zurück, der ihn
- * hatte (im Spiel setzt das Menü den Fokus erst nach dem Start).
+ * Sie schaltet den Ton frei (audio.unlock); das hielt die Seite bis Ticket 05 von .scratch/leistung/ einmal 0,2–0,3 s an
+ * (seither steht der Ton beim Laden bereit) und gehört im Spiel zum Start, nicht zu den Übergängen des Menüs. Der Tipp
+ * ins Leere nimmt den Fokus weg; danach bekommt ihn der Knopf zurück, der ihn hatte (im Spiel setzt das Menü den Fokus
+ * erst nach dem Start).
  */
 async function geste() {
   const fokus = await ev('document.activeElement?.dataset?.menueFokus ?? null');

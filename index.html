@@ -15084,23 +15084,97 @@ const TONE_HZ = {
 };
 const GLASS_HZ = [1760, 1975.5, 2217.5, 2637.0, 2960.0]; // A6 … F#7 (Pentatonik)
 const SHIMMER_HZ = [1318.5, 1480.0, 1760, 1975.5, 2217.5]; // E6 … C#7: Hintergrund-Glitzern, etwas tiefer und weicher
+const HALL_SECONDS = 3.2; // Länge des Nachhalls
+const HALL_WET = 0.55;    // Lautstärke des Halls
+
+/* HALL:BEGIN – reine Berechnung, auch für tests/hall.test.mjs */
+/**
+ * Impulsantwort des Halls: Rauschen mit exponentiellem Abklingen, links/rechts verschieden (fester Samen, also bei
+ * jedem Laden dieselbe Kurve). Unabhängig vom AudioContext, es zählt nur die Abtastrate. Als Generator in Stücken:
+ * Nach je step Abtastwerten gibt er die Kontrolle ab, am Ende liefert er [links, rechts] als Float32Array. Bitgleich
+ * mit der früheren Berechnung direkt im AudioBuffer (Float32 wie getChannelData).
+ */
+function* hallImpulse(rate, seconds = HALL_SECONDS, step = 8192) {
+  const len = Math.floor(rate * seconds), rand = mulberry32(5);
+  const data = [new Float32Array(len), new Float32Array(len)];
+  for (const d of data) {
+    for (let i0 = 0; i0 < len; i0 += step) {
+      for (let i = i0, end = Math.min(len, i0 + step); i < end; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+      yield;
+    }
+  }
+  return data;
+}
+/* HALL:END */
+
+// im Leerlauf (Safari kennt requestIdleCallback nicht)
+const whenIdle = window.requestIdleCallback ? (f) => requestIdleCallback(f, { timeout: 200 }) : (f) => setTimeout(f, 16);
+
+/**
+ * Impulsantwort je Abtastrate, einmal berechnet (Promise auf [links, rechts]): in einem Worker, damit der Hauptthread
+ * frei bleibt; ohne Worker in Stücken von etwa 4 ms im Leerlauf.
+ */
+const hallData = (() => {
+  const cache = new Map();
+  const inPieces = (rate) => new Promise((resolve) => {
+    const steps = hallImpulse(rate, HALL_SECONDS);
+    const step = () => {
+      const t = performance.now();
+      let r;
+      do r = steps.next(); while (!r.done && performance.now() - t < 4);
+      if (r.done) resolve(r.value); else whenIdle(step);
+    };
+    whenIdle(step);
+  });
+  const inWorker = (rate) => new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(new Blob([`${mulberry32}\n${hallImpulse}
+      onmessage = ({ data: rate }) => {
+        const steps = hallImpulse(rate, ${HALL_SECONDS});
+        let r;
+        do r = steps.next(); while (!r.done);
+        postMessage(r.value, r.value.map((d) => d.buffer));
+        close();
+      };`], { type: 'text/javascript' }));
+    const worker = new Worker(url);
+    worker.onmessage = ({ data }) => { URL.revokeObjectURL(url); resolve(data); };
+    worker.onerror = (e) => { e.preventDefault(); URL.revokeObjectURL(url); reject(e); };
+    worker.postMessage(rate);
+  });
+  return (rate) => {
+    if (!cache.has(rate)) {
+      let p;
+      try { p = inWorker(rate).catch(() => inPieces(rate)); } catch { p = inPieces(rate); }
+      cache.set(rate, p);
+    }
+    return cache.get(rate);
+  };
+})();
+// gleich beim Laden, auf Verdacht für die häufigste Abtastrate (Windows, Android, iOS); prepare verlangt die des Kontexts
+hallData(48000);
 
 const audio = {
-  ctx: null,
+  ctx: null,     // erst nach der ersten Geste (unlock); vorher liegt der Kontext angehalten in _ctx bereit
   master: null,  // Gesamtlautstärke (Ton an/aus)
   dry: null,     // direkter Weg
   wet: null,     // Hall
   muted: false,
   storageKey: 'prisma.muted',
+  _ctx: null,    // vorab angelegt (prepare)
 
-  /** Beim ersten Klick/Tastendruck: Kontext anlegen und das Hintergrund-Glitzern starten. */
-  unlock() {
-    // Ohne echte Nutzergeste verweigert der Browser den Ton (und warnt) – dann später erneut
-    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
-    if (this.ctx) { this._sync(); return; }
+  /**
+   * Vorab, ohne Geste: Kontext angehalten anlegen, Knoten aufbauen und die Impulsantwort des Halls (hallData, seit dem
+   * Laden im Worker berechnet) an den Convolver hängen. Das alles hielt früher beim ersten Klick die Seite an (Desktop
+   * etwa 0,1 s, mit kaltem Audiogerät 0,4 s; Handy-Emulation mit 4× gedrosselter CPU 0,4–0,6 s), meist genau beim
+   * Übergang in den Prolog. Anlegen des Kontexts und Puffer des Convolvers lassen sich nicht teilen (auf langsamen
+   * Geräten je 0,1–0,2 s), darum beides nur, solange der Startbildschirm still steht (_quiet, Aufruf unten). Der
+   * Browser warnt in der Konsole, dass der Kontext ohne Geste nicht startet; unlock weckt ihn.
+   */
+  prepare() {
+    if (this._ctx) return;
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    const ctx = this.ctx = new AC();
+    const ctx = this._ctx = new AC();
+    if (ctx.state === 'running') ctx.suspend(); // darf er ohne Geste laufen: bis zum ersten Klick trotzdem ruhen
     const comp = ctx.createDynamicsCompressor(); // fängt Spitzen ab, wenn viele Töne zusammenkommen
     comp.threshold.value = -14; comp.ratio.value = 3;
     comp.connect(ctx.destination);
@@ -15110,24 +15184,41 @@ const audio = {
     this.dry = ctx.createGain();
     this.dry.connect(this.master);
     const reverb = ctx.createConvolver();
-    reverb.buffer = this._impulse(3.2);
     this.wet = ctx.createGain();
-    this.wet.gain.value = 0.55;
+    this.wet.gain.value = 0; // bis der Hall da ist (ein Convolver ohne Puffer schweigt)
     this.wet.connect(reverb);
     reverb.connect(this.master);
+    // der Puffer des Convolvers kostet für sich mehr als die ganze Berechnung
+    hallData(ctx.sampleRate).then((data) => this._quiet(() => {
+      const buf = ctx.createBuffer(2, data[0].length, ctx.sampleRate);
+      data.forEach((d, ch) => buf.getChannelData(ch).set(d)); // copyToChannel fehlt dem alten webkitAudioContext
+      reverb.buffer = buf;
+      // Klick vor dem Hall: weich dazublenden (Töne, die schon klingen, kommen allmählich in den Hall)
+      if (ctx.state === 'running') this.wet.gain.setTargetAtTime(HALL_WET, ctx.currentTime, 0.4);
+      else this.wet.gain.value = HALL_WET;
+    }));
+  },
+
+  /** Beim ersten Klick/Tastendruck: den vorbereiteten Kontext wecken und das Hintergrund-Glitzern starten. */
+  unlock() {
+    // Ohne echte Nutzergeste verweigert der Browser den Ton (und warnt) – dann später erneut
+    if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return;
+    if (this.ctx) { this._sync(); return; }
+    this.prepare(); // Klick vor der Vorbereitung: Kontext jetzt, der Hall kommt nach
+    if (!this._ctx) return;
+    this.ctx = this._ctx;
+    this.master.gain.value = this.muted ? 0 : 0.9;
+    this._sync(); // in der Geste wecken (stumm: bleibt angehalten, bis der Ton angeht)
     this._startShimmer();
   },
 
-  /** Nachhall: Rauschen mit exponentiellem Abklingen, links/rechts verschieden. */
-  _impulse(seconds) {
-    const rate = this.ctx.sampleRate, len = Math.floor(rate * seconds);
-    const buf = this.ctx.createBuffer(2, len, rate);
-    const rand = mulberry32(5);
-    for (let ch = 0; ch < 2; ch++) {
-      const d = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (rand() * 2 - 1) * Math.pow(1 - i / len, 3.2);
-    }
-    return buf;
+  /**
+   * Was die Seite länger anhält, nur, solange der Startbildschirm still steht: vor seiner Enthüllung (wartet auf
+   * Schrift und Szene) oder, läuft sie schon, nach ihr (introCalm), dann im Leerlauf. Ohne Startbildschirm sofort.
+   */
+  _quiet(f) {
+    if (!ui.intro.classList.contains('go')) f();
+    else introCalm.then(() => whenIdle(f));
   },
 
   /**
@@ -15235,6 +15326,8 @@ const audio = {
 };
 try { audio.muted = localStorage.getItem(audio.storageKey) === '1'; } catch { /* Standard: Ton an */ }
 document.addEventListener('visibilitychange', () => audio._sync());
+// Vorbereiten, sobald das erste Bild steht (ui und introCalm gibt es dann)
+requestAnimationFrame(() => setTimeout(() => audio._quiet(() => audio.prepare()), 0));
 
 /* =====================================================================
    LÖSUNGSMOMENT — die Ziele leuchten nacheinander auf (mit ihren Tönen),

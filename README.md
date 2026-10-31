@@ -34,6 +34,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
+  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse`, Bereich HALL:BEGIN … HALL:END in
+    `index.html`; Ticket 05 von `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten
+    Berechnung beim ersten Klick (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32`
+    mit festem Samen), unabhängig von der Stückgrösse, und ihr Quelltext läuft für sich wie im Worker (unter 1 s).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
