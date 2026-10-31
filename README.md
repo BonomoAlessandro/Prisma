@@ -195,6 +195,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
     so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
     langsamer) wie in der Spec verlangt.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/start-probe.mjs [--fenster] [--handy]
+    [--drossel 4] [--laeufe 2] [--nur neu|weiter] [--seite datei]` misst den Start (Ticket 03 der Leistung), je Lauf
+    ein frischer Chrome mit `?perf`: frischer Stand (Zeit bis zur Enthüllung, bis «Klicken zum Starten» und bis der
+    Himmel steht, längste Lücken im Startbildschirm) und Stand mitten in der ersten Welt («Weiter» im Menü ohne Prolog:
+    Abschnitte des Messwerkzeugs mit dem markierten Laden, Zeit bis Himmel und Level). Ergebnis nach
+    `tests/output/leistung/start-*.json`; `--seite` misst eine andere Fassung (Vorher-Werte).
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
     [--drossel 4] [--sky forest] [--seite <index.html>] [--still]` misst den Leerlauf (Ticket 06 der Leistung, etwa
     1 min): Menü ohne Eingabe, erstes Level ohne Eingabe («Ruhe»), dann Hover, Drehen und Ziehen («Eingabe»); je
@@ -294,6 +300,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Liegt die Platte nicht im Bild (Menü, Übersicht: Blick im Himmel), entfällt die Spiegelung. Eingaben (auch
   `pointermove`), Drehen, Puls, Hover, Feier wecken. `__prisma.frames` zählt gezeichnete Bilder, `__prisma.ticks` Schritte der Logik (darauf warten die
   Proben), `__prisma.ruht()` und `__prisma.verdeckt()` zeigen den Zustand.
+  **Ruhige Stellen** (`ruhe`, Ticket 03 der Leistung): Was Hauptthread oder Grafikprozess länger anhält (Shader und
+  Uploads einer Skybox, ihr erstes Zeichnen, Vorwärmen von Menü, Bühne und Übersicht, Ton), läuft nur, wenn nichts
+  Sichtbares animiert: vor und nach der Enthüllung des Startbildschirms, im Prolog beim Warten auf Tippen und beim
+  Angebot, hinter der Überblendung nach «Weiter» (`ruhe.lade`, im Messwerkzeug als Laden markiert) und im Spiel; nicht
+  während der Enthüllung, im Menü und während einer Fahrt der Bühne (Generatoren melden das mit `yield RUHIG`).
+  «Klicken zum Starten» kommt am Ende der Enthüllung (2,9 s) und wartet nicht auf den Himmel.
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
   **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
   eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten

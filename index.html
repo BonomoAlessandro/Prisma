@@ -277,7 +277,7 @@
     animation: intro-fade 1.2s ease 2.3s forwards;
   }
   #intro .sub { margin-top: 8px; }
-  /* „Klicken zum Starten“ erst, wenn der Hintergrund dahinter geladen ist (ui.init setzt .ready), vorher startet nichts */
+  /* „Klicken zum Starten“ erst am Ende der Enthüllung (ui.init setzt .ready), vorher startet nichts */
   #intro .start { margin-top: 64px; animation: none; }
   #intro.ready .start { animation: intro-fade 1.2s ease forwards; }
   #intro:not(.ready) { cursor: default; }
@@ -362,6 +362,9 @@
   #story .scene.prewarm { display: block; pointer-events: none; }
   #story .scene.prewarm .world { opacity: 0.002; }
   #story .scene.prewarm .sub, #story .scene.prewarm .skip { visibility: hidden; }
+  /* vorgewärmt (story.vorwaermen), für neue Spieler bis zum Prolog gehalten: gezeichnet wie oben, aber weiter hidden
+     und inert */
+  #story.hidden.gehalten { opacity: 1 !important; transition: none; }
   #story .scene .world { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
   #story .scene.lit .world { opacity: 1; }
   /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
@@ -8252,11 +8255,17 @@ const sceneLoop = {
   start() {
     this.started = true;
     this.wake();
-    markSceneStarted();
   },
-  /** Darf verdeckt gezeichnet werden? Nicht während der Enthüllung des Startbildschirms (ausser das allererste Bild). */
+  /**
+   * Darf verdeckt gezeichnet werden? Nicht während der Enthüllung des Startbildschirms, auch nicht das allererste Bild
+   * (waren die Shader bei ihrem Beginn noch nicht übersetzt, wärmt die Szene erst danach auf, introCalm). Hinter der
+   * eingeblendeten Bühne nur an einer ruhigen Stelle (ruhe: beim Warten auf Tippen, beim Angebot), nie mitten in einer
+   * Fahrt: Das Bild kostete auf dem Poco 137 ms (Review Ticket 02); was liegen blieb, zeichnet sie dann (story.stillBild
+   * weckt).
+   */
   mayDraw() {
-    return !this.warm || flow.state !== 'intro' || this.calm || !ui.intro.classList.contains('go');
+    if (flow.state === 'intro') return this.calm || !ui.intro.classList.contains('go');
+    return !this.storyOpaque || ruhe.jetzt();
   },
   /** Jetzt einmal zeichnen, ohne sichtbar zu sein (vor der Enthüllung des Startbildschirms, siehe ui.init). */
   aufwaermen() {
@@ -8274,13 +8283,64 @@ const sceneLoop = {
  */
 const SLICE_MS = 6;
 const NEXT_FRAME = Symbol('nächstes Bild');
-async function sliced(steps) {
+/** yield RUHIG: erst weiter an einer ruhigen Stelle (ruhe), yield RUHIG_KLEIN: ebenso, für kleine Uploads (ruhe.jetzt) */
+const RUHIG = Symbol('ruhige Stelle'), RUHIG_KLEIN = Symbol('ruhige Stelle, klein');
+async function sliced(steps, ruhig = false) {
+  if (ruhig) await ruhe.warte();
   for (let t = performance.now(); ;) {
     const { done, value } = steps.next();
     if (done) return value;
-    if (value === NEXT_FRAME || performance.now() - t > SLICE_MS) { await nextFrame(); t = performance.now(); }
+    if (value === RUHIG || value === RUHIG_KLEIN) {
+      if (!ruhe.jetzt(value === RUHIG_KLEIN)) { await ruhe.warte(value === RUHIG_KLEIN); t = performance.now(); }
+    } else if (value === NEXT_FRAME || performance.now() - t > SLICE_MS) {
+      await nextFrame();
+      if (ruhig) await ruhe.warte(); // ruhig: auch jedes Häppchen Rechnen nur an ruhigen Stellen (Aufbau einer Skybox)
+      t = performance.now();
+    }
   }
 }
+
+/**
+ * Ruhige Stellen (Ticket 03 der Leistung): Was den Hauptthread oder den Grafikprozess länger anhält, läuft nur, wenn
+ * nichts Sichtbares animiert: eine Skybox aufbauen (Netz und Ebenen in Häppchen, sliced mit ruhig), ihre Shader
+ * übersetzen, ihre Netze und Texturen hochladen, ihr erstes Zeichnen
+ * (skyWarmDraw), Vorwärmen von Menü, Bühne und Übersicht, Ton vorbereiten. WebGL anhalten genügt nicht: Das erste
+ * Schreiben in eine grosse Textur hält den Grafikprozess 30–80 ms an, und über ihn laufen auch CSS und SVG.
+ * Ruhig ist: vor der Enthüllung des Startbildschirms (die Seite lädt) und nach ihr (introCalm: nur «Klicken zum
+ * Starten» pulsiert), auf der Bühne beim Warten auf Tippen und beim Angebot (nicht während einer Fahrt, nicht beim Ein-
+ * und Ausblenden), ein markiertes Laden hinter einer Überblendung (lade: story.skyOf) und das Spiel selbst (dort regeln
+ * skyTheme.quiet und preload, wann eine Skybox lädt). Nicht ruhig: die Enthüllung, Menü und Übersicht (ausser mit
+ * ?nointro, den Tests ohne Startbildschirm: dort wie bisher), die Bühne sonst. klein: Uploads, die keinen Frame kosten
+ * (Vorschau einer Skybox, 1024 Pixel breit), dürfen auch unter Menü und Übersicht.
+ */
+const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
+const ruhe = {
+  calm: false,    // Startbildschirm ruhig (introCalm)
+  laden: 0,       // markiertes Laden hinter einer Überblendung (lade)
+  jetzt(klein = false) {
+    if (this.laden) return true;
+    if (flow.state === 'intro') return !ui.intro.classList.contains('go') || this.calm;
+    if (story.choosing) return klein || RUHE_OHNE_START;
+    if (!story.el.inert && story.el.dataset.mode === 'scene') { // die Bühne ist da (nicht nur vorgewärmt)
+      return story.stillBild && performance.now() >= story.stillAb && !story.scene?.laeuft;
+    }
+    return true;
+  },
+  /** Promise, erfüllt an der nächsten ruhigen Stelle (alle 50 ms gefragt: kein rAF, die Szene darf ruhen) */
+  warte(klein = false) {
+    if (this.jetzt(klein)) return Promise.resolve();
+    return new Promise((weiter) => {
+      const frage = () => (this.jetzt(klein) ? weiter() : setTimeout(frage, 50));
+      setTimeout(frage, 50);
+    });
+  },
+  /** Laden hinter einer Überblendung, bis promise erledigt ist: ruhig, im Messwerkzeug als Laden markiert */
+  lade(promise) {
+    this.laden++;
+    const ende = leistung.markiere('laden');
+    return promise.finally(() => { this.laden--; ende(); });
+  },
+};
 
 /**
  * Shader übersetzen, ohne den Hauptthread anzuhalten. three 0.147 übersetzt ein Programm beim ersten Zeichnen (oder in
@@ -8414,8 +8474,49 @@ function makeNoise2D(seed) {
  * geäderter Schiefer. Nur die weichen, grossflächigen Strukturen stecken in
  * der Textur – scharfe Details (Rasterlinien, Intarsie, Mikrokörnung) rechnet
  * der Boden-Shader analytisch, damit sie in jeder Auflösung scharf bleiben.
+ * Gerechnet in einem Worker (stoneData, Blob wie beim Dekodieren der Skybox): Im Hauptthread kostete das gut die Hälfte
+ * des Hängers beim Laden der Seite (Ticket 03 der Leistung; 1024² Pixel mit je 16 Oktaven Rauschen). Bis die Daten da
+ * sind, sind die Texturen leer (nie hochgeladen); die Szene liegt dann noch hinter dem Startbildschirm. Danach lädt das
+ * nächste Bild sie hoch (sceneLoop.wake, nicht während der Enthüllung). Ohne Worker wie früher im Hauptthread.
  */
 function createStoneTextures(size) {
+  const n = size * size * 4;
+  const toTex = (srgb) => {
+    const tex = new THREE.DataTexture(new Uint8ClampedArray(n), size, size, THREE.RGBAFormat);
+    tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    tex.flipY = false;
+    return tex;
+  };
+  const out = { map: toTex(true), roughnessMap: toTex(false), normalMap: toTex(false) };
+  let filled = false;
+  const fill = (d) => {
+    if (filled) return;
+    filled = true;
+    for (const [tex, data] of [[out.map, d.color], [out.roughnessMap, d.rough], [out.normalMap, d.normal]]) {
+      tex.image.data.set(data);
+      tex.needsUpdate = true;
+    }
+    sceneLoop.wake(true);
+  };
+  try {
+    const url = URL.createObjectURL(new Blob([`${mulberry32}\n${makeNoise2D}\n${stoneData}
+      onmessage = ({ data }) => { const d = stoneData(data); postMessage(d, [d.color.buffer, d.rough.buffer, d.normal.buffer]); };`],
+    { type: 'text/javascript' }));
+    const worker = new Worker(url);
+    URL.revokeObjectURL(url);
+    worker.onmessage = ({ data }) => { worker.terminate(); fill(data); };
+    worker.onerror = () => { worker.terminate(); fill(stoneData(size)); }; // Worker nicht ladbar (CSP): im Hauptthread
+    worker.postMessage(size);
+  } catch { fill(stoneData(size)); }
+  return out;
+}
+
+/** Farbe, Rauheit und Normalen der Steinplatte (createStoneTextures), ohne Bezug auf das übrige Spiel (Worker). */
+function stoneData(size) {
   const noise = makeNoise2D(7);
   // Jede Oktave gedreht (~37°) und versetzt, damit sich Strukturen nicht in mehreren Grössen wiederholen
   const ROT_C = Math.cos(0.65), ROT_S = Math.sin(0.65);
@@ -8481,23 +8582,7 @@ function createStoneTextures(size) {
     }
   }
 
-  const toTex = (data, srgb) => {
-    const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
-    tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    tex.flipY = false;
-    tex.needsUpdate = true;
-    return tex;
-  };
-
-  return {
-    map: toTex(color, true),
-    roughnessMap: toTex(rough, false),
-    normalMap: toTex(normal, false),
-  };
+  return { color, rough, normal };
 }
 
 
@@ -9356,6 +9441,7 @@ function* skyWarmDraw(staging, parts, sky, alive) {
   };
   try {
     for (const part of parts) {
+      yield RUHIG;
       if (!alive()) return;
       if (part === sky) { // beim Einblenden durchsichtig (applyFade), danach nicht: beide Fassungen
         for (const transparent of [true, false]) {
@@ -9401,8 +9487,9 @@ function skyTexture(img, wrapU) {
  * Einstellungen wie three; three bindet sie dann nur noch (properties.__webglTexture; needsUpdate nie gesetzt, also lädt
  * three selbst nichts hoch). Sonst renderer.initTexture in einem Stück.
  */
-function* skyUpload(t) {
-  const strips = t.userData.strips;
+function* skyUpload(t, klein = false) {
+  const strips = t.userData.strips, ruhig = klein ? RUHIG_KLEIN : RUHIG; // jedes Stück an einer ruhigen Stelle (ruhe)
+  yield ruhig;
   if (!strips || !renderer.capabilities.isWebGL2) { renderer.initTexture(t); if (strips) closeSkyImage(t); return; }
   const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
   const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
@@ -9416,6 +9503,8 @@ function* skyUpload(t) {
   // sein Puffer voll, und der nächste wartete (gemessen bis 100 ms)
   for (const { level, y, bitmap } of strips) {
     // inzwischen freigegeben: release hat die Bilder geschlossen (das Panorama liest auch eine Szene in offscreen)
+    if (t.userData.strips !== strips) { gl.deleteTexture(tex); return; }
+    yield ruhig;
     if (t.userData.strips !== strips) { gl.deleteTexture(tex); return; }
     bind();
     gl.texSubImage2D(gl.TEXTURE_2D, level, 0, y, bitmap.width, bitmap.height, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
@@ -9543,10 +9632,12 @@ function* skyBufferUpload(geo) {
       gl.bindVertexArray(vao);
       gl.flush();
     };
+    yield RUHIG;
     upload(() => gl.bufferData(target, array.byteLength, gl.STATIC_DRAW));
     const per = SKY_BUFFER_CHUNK / array.BYTES_PER_ELEMENT, bytes = array.BYTES_PER_ELEMENT;
     for (let at = 0; at < array.length; at += per) {
       yield NEXT_FRAME;
+      yield RUHIG;
       upload(() => gl.bufferSubData(target, at * bytes, array, at, Math.min(per, array.length - at)));
     }
     const type = array instanceof Float32Array ? gl.FLOAT : array instanceof Uint32Array ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
@@ -11289,12 +11380,13 @@ function* waterSurface(ctx, opt) {
   // Panorama überall direkt); bricht ab, wenn sie inzwischen freigegeben ist
   ctx.later.push(async (alive) => {
     try {
+      await ruhe.warte(); // wie der übrige Aufbau nur an ruhigen Stellen, auch das Dekodieren (nicht in Fahrten)
       const image = await loadSkyImage(w.map);
       const steps = groundShift({ ext, range: w.depthRange, level: w.level, image }, ctx.pano.depth, ctx.pano.center);
       const done = await sliced((function* () {
         for (let s = steps.next(); alive(); s = steps.next()) { if (s.done) return s.value; yield; }
         return null;
-      })());
+      })(), true);
       if (!done || !alive()) return;
       const old = material.uniforms.uGround.value;
       material.uniforms.uGround.value = groundTexture(done.data, done.n);
@@ -11845,14 +11937,15 @@ function createPanoramaSky(m) {
     // Vorschau: die Stufe des ganzen Bilds mit höchstens 1024 Pixel Breite, als eigene kleine Textur ohne Mipmaps
     // (kopiert: die Streifen braucht das ganze Bild noch), rund 2 MB. Damit steht die Skybox gleich, nur unscharf: auf
     // der Himmelskugel (panoSky), sobald sie dekodiert ist, auf dem Netz, sobald es steht. Das scharfe Bild kommt nach
-    // der Enthüllung des Intros (unten); vorher hielte sein Hochladen den Grafikprozess an.
+    // der Enthüllung des Intros (unten); vorher hielte sein Hochladen den Grafikprozess an. Die Vorschau ist klein genug
+    // für Menü und Übersicht (ruhe, klein), nicht aber für die Enthüllung des Startbildschirms.
     const small = fullImg.strips ? Math.ceil(Math.log2(fullImg.width / 1024)) : 0;
     const smallStrips = small > 0 ? fullImg.strips.filter((s) => s.level === small) : [];
     if (smallStrips.length) {
       const strips = await Promise.all(smallStrips.map(async ({ y, bitmap }) => ({ level: 0, y, bitmap: await createImageBitmap(bitmap) })));
       const tex = skyTexture({ width: fullImg.width >> small, height: fullImg.height >> small, strips }, true);
       streaming.add(tex);
-      await sliced(skyUpload(tex));
+      await sliced(skyUpload(tex, true));
       streaming.delete(tex);
       if (my !== token) { tex.dispose(); dropImages(); return; }
       preview = tex;
@@ -11863,10 +11956,11 @@ function createPanoramaSky(m) {
     const full = skyTexture(fullImg, true);
     streaming.add(full); // bis es hochgeladen ist: release schliesst seine Streifen
     const dropFull = () => { streaming.delete(full); closeSkyImage(full); full.dispose(); };
-    // Netz in Häppchen (sliced): Tiefe glätten, Ecken setzen
+    // Netz in Häppchen (sliced): Tiefe glätten, Ecken setzen. Wie alles Weitere nur an ruhigen Stellen (ruhe): Schon die
+    // Häppchen von 6 ms liessen das Menü und die Fahrten des Prologs auf dem gedrosselten Handy Bilder auslassen
     const center = new THREE.Vector3().fromArray(m.panorama.center);
-    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log, m.panorama.depth.blur));
-    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center, m.panorama.depth.mesh)) : null;
+    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log, m.panorama.depth.blur), true);
+    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center, m.panorama.depth.mesh), true) : null;
     if (my !== token) { dropFull(); dropBands(); geo?.dispose(); return; }
     const soft = preview ?? full; // so lange auf dem Netz und in den Ebenen (Spiegelung im Wasser)
     const sky = new THREE.Mesh(geo, skyPanoramaMaterial(uniforms, center, soft, rects.map((b) => ({ ...b, tex: null, on: 0 }))));
@@ -11893,12 +11987,13 @@ function createPanoramaSky(m) {
     // Ebenen je ab einem neuen Bild; wer viel rechnet (Wasser, Bäume), ist ein Generator und läuft in Häppchen
     for (const layer of [...m.layers ?? [], null]) {
       await nextFrame();
+      await ruhe.warte();
       if (my !== token) { for (const root of [...parts, ...ctx.offscreen]) releaseTree(root); dropFull(); dropBands(); return; }
       if (!layer) break;
       try {
         if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
         const made = SKY_LAYERS[layer.type](ctx, layer);
-        const part = made.isObject3D ? made : await sliced(made);
+        const part = made.isObject3D ? made : await sliced(made, true);
         if (layer.brush && m.brush) painted = paint(part) || painted;
         parts.push(part);
       } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
@@ -11906,10 +12001,11 @@ function createPanoramaSky(m) {
     if (pano.depthRule) sky.material.userData.setDepthRule(pano.depthRule);
     // Nicht in der Bodenspiegelung (dort wird auch die Himmelskugel ausgeblendet), nicht anklickbar
     for (const p of parts) p.traverse((o) => { o.layers.set(LAYER_NO_REFLECT); o.raycast = () => {}; });
-    // Übersetzen, Hochladen und erstes Zeichnen erst nach der Enthüllung des Intros (introCalm): Mit leerem Shader-Cache
-    // (erster Besuch) hielt das den Grafikprozess mitten in der Enthüllung bis 300 ms an. Bis dahin zeigt die
-    // Himmelskugel die Vorschau.
-    await introCalm;
+    // Übersetzen, Hochladen und erstes Zeichnen nur an ruhigen Stellen (ruhe; jedes Stück fragt neu): Mit leerem
+    // Shader-Cache (erster Besuch) hielt das den Grafikprozess mitten in der Enthüllung bis 300 ms an. Neue Spieler laden
+    // so nach der Enthüllung oder in den Pausen des Prologs, wer weiterspielt, nach der Enthüllung oder hinter der
+    // Überblendung nach «Weiter» (story.skyOf). Bis dahin zeigt die Himmelskugel die Vorschau.
+    await ruhe.warte();
     if (my !== token) { for (const root of [...parts, ...ctx.offscreen]) releaseTree(root); dropFull(); dropBands(); return; }
     offscreen = ctx.offscreen;
     // Vor dem ersten Bild des Einblendens übersetzen und hochladen, ohne das laufende Bild anzuhalten: Shader im
@@ -11960,7 +12056,8 @@ function createPanoramaSky(m) {
     adaptiveResolution.hold(); // Einblenden (doppelt gezeichnet) nicht als Überlast werten
     // Grosse Texturen erst, wenn die Skybox ganz eingeblendet ist: Das erste Schreiben in eine neue grosse Textur hält
     // den Grafikprozess kurz an (30–80 ms), das sah man im Intro und in der Überblendung als Ruck. Ebenso während einer
-    // Zwischenszene der Geschichte (skyTheme.quiet): Dort fliegt das Licht, und jeder Ruck fiele auf.
+    // Zwischenszene der Geschichte (skyTheme.quiet): Dort fliegt das Licht, und jeder Ruck fiele auf. Jedes Stück
+    // wartet dazu auf eine ruhige Stelle (skyUpload, ruhe): im Prolog nur beim Warten auf Tippen.
     const shown = () => uniforms.uFade.value >= 1 && uniforms.uReady.value >= 1 && !skyTheme.quiet;
     if (preview) {
       while (my === token && !shown()) await nextFrame();
@@ -15439,12 +15536,13 @@ const audio = {
   },
 
   /**
-   * Was die Seite länger anhält, nur, solange der Startbildschirm still steht: vor seiner Enthüllung (wartet auf
-   * Schrift und Szene) oder, läuft sie schon, nach ihr (introCalm), dann im Leerlauf. Ohne Startbildschirm sofort.
+   * Was die Seite länger anhält, nur an einer ruhigen Stelle (ruhe): vor der Enthüllung des Startbildschirms (wartet auf
+   * die Schrift) gleich, sonst an der nächsten (nach der Enthüllung, im Prolog beim Warten auf Tippen …), dann im
+   * Leerlauf. Ohne Startbildschirm sofort.
    */
   _quiet(f) {
-    if (!ui.intro.classList.contains('go')) f();
-    else introCalm.then(() => whenIdle(f));
+    if (!ui.intro.classList.contains('go') && flow.state === 'intro') f();
+    else ruhe.warte().then(() => whenIdle(() => (ruhe.jetzt() ? f() : this._quiet(f))));
   },
 
   /**
@@ -16091,16 +16189,13 @@ function setShown(el, shown) {
  * Skybox lädt danach in Häppchen weiter und blendet ein, sobald sie da ist. */
 let markSceneReady;
 const sceneReady = new Promise((resolve) => { markSceneReady = resolve; });
-/** Shader des Starts übersetzt, die Hauptschleife läuft (sceneLoop.start): Darauf wartet das Intro, siehe ui.init. */
-let markSceneStarted;
-const sceneStarted = new Promise((resolve) => { markSceneStarted = resolve; });
 
 /**
  * Intro ruhig: Strahl, Schriftzug, Farbfächer und Texte sind eingeblendet (CSS #intro: „Klicken zum Starten“ endet
- * 2,9 + 1,2 s nach Beginn der Enthüllung, danach pulsiert es nur noch langsam). Bis dahin wartet eine Skybox mit dem
- * Übersetzen, Hochladen und ersten Zeichnen (siehe createPanoramaSky): Schon ein einzelnes ausgelassenes Bild sah man
- * als Ruck in der langsamen Enthüllung. Vorher laufen Dekodieren (Worker), Vorschau auf der Himmelskugel, Netz und
- * Ebenen in Häppchen. Ohne Intro (?nointro) sofort.
+ * 2,9 + 1,2 s nach Beginn der Enthüllung, danach pulsiert es nur noch langsam). Bis dahin ist keine Stelle ruhig (ruhe):
+ * Eine Skybox wartet mit dem Übersetzen, Hochladen und ersten Zeichnen (siehe createPanoramaSky), ebenso das Vorwärmen
+ * von Menü und Bühne und der Ton: Schon ein einzelnes ausgelassenes Bild sah man als Ruck in der langsamen Enthüllung.
+ * Vorher laufen Dekodieren (Worker), Netz und Ebenen in Häppchen. Ohne Intro (?nointro) sofort.
  */
 const INTRO_REVEAL_MS = 4200;
 let markIntroCalm;
@@ -16112,7 +16207,7 @@ const ui = {
   solved: $('solved'), solvedMsg: $('solved-msg'), solvedBest: $('solved-best'), solvedStats: $('solved-stats'),
   next: $('btn-next'), overview: $('btn-overview'),
   intro: $('intro'),
-  canStart: false, // Hintergrund hinter dem Startbildschirm geladen (siehe init)
+  canStart: false, // „Klicken zum Starten“ ist da (siehe init)
 
   init() {
     $('btn-restart').addEventListener('click', () => restartLevel());
@@ -16123,29 +16218,28 @@ const ui = {
     this.intro.addEventListener('click', () => this.start());
     this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
     this.updateSound();
-    // Enthüllung erst starten, wenn die Schrift geladen ist (spätestens nach 0,8 s) und die Shader der Szene übersetzt
-    // sind (spätestens nach 5 s; compileParallel im Hintergrund). Kein sichtbares Bild: Die Szene liegt hinter dem
-    // deckenden Startbildschirm und wird davor nur einmal gezeichnet (aufwaermen; was das erste Bild bei three
-    // einrichtet, hielte sonst die Enthüllung an)
+    // Enthüllung starten, sobald die Schrift geladen ist (spätestens nach 0,8 s), ohne auf die Szene zu warten (Ticket 03
+    // der Leistung). Kein sichtbares Bild: Die Szene liegt hinter dem deckenden Startbildschirm und wird davor nur einmal
+    // gezeichnet (aufwaermen; was das erste Bild bei three einrichtet, hielte sonst die Enthüllung an). Sind ihre Shader
+    // dann noch nicht übersetzt (compileParallel im Hintergrund), zeichnet sie erst nach der Enthüllung (introCalm,
+    // sceneLoop.mayDraw)
     const until = (promise, ms) => Promise.race([promise, new Promise((r) => setTimeout(r, ms))]);
-    Promise.all([until(document.fonts?.ready, 800), until(sceneStarted, 5000)]).then(() => {
+    // (nach zwei Bildern: Ist die Schrift schon da, ehe die Seite fertig geladen hat, fiele der lange erste Frame sonst
+    // in die Enthüllung; davor Menü und Bühne vorwärmen, vorwaermenVorStart)
+    until(document.fonts?.ready, 800).then(nextFrame).then(nextFrame)
+      .then(() => vorwaermenVorStart().catch((e) => console.error(e))).then(() => {
       sceneLoop.aufwaermen();
       this.intro.classList.add('go');
       // reduzierte Bewegung: die Animationen sind gleich fertig (CSS), also nicht warten
-      const still = matchMedia('(prefers-reduced-motion: reduce)').matches, revealed = performance.now();
+      const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
       setTimeout(markIntroCalm, still ? 0 : INTRO_REVEAL_MS);
-      introCalm.then(() => { sceneLoop.calm = true; sceneLoop.wake(); }); // was liegen blieb, jetzt zeichnen
-      // „Klicken zum Starten“ frühestens nach der Enthüllung (2,9 s) und erst, wenn der Hintergrund dahinter steht
-      // (skyTheme.shown: Auf scharfes Bild und Streifen warten kostete gut 5 s; sie laden unter dem Menü fertig); lädt
-      // er nicht (Fehler, sehr langsames Netz), nach 15 s trotzdem, damit das Spiel nicht hängen bleibt
-      const check = () => {
-        const waited = performance.now() - revealed;
-        if (waited >= (still ? 0 : 2900) && (skyTheme.shown || waited > 15000)) {
-          this.canStart = true;
-          this.intro.classList.add('ready');
-        } else setTimeout(check, 100);
-      };
-      check();
+      introCalm.then(() => { sceneLoop.calm = ruhe.calm = true; sceneLoop.wake(); }); // was liegen blieb, jetzt
+      // „Klicken zum Starten“ am Ende der Enthüllung (2,9 s: der Strahl ist verglüht), ohne auf den Himmel dahinter zu
+      // warten: Er ist hinter dem deckenden Startbildschirm nicht zu sehen und lädt an ruhigen Stellen fertig (ruhe)
+      setTimeout(() => {
+        this.canStart = true;
+        this.intro.classList.add('ready');
+      }, still ? 0 : 2900);
     });
     // Ton freischalten, sobald der Spieler irgendwo interagiert (Autoplay-Regeln der Browser)
     const unlock = (e) => { if (e.isTrusted) audio.unlock(); }; // synthetische Ereignisse (Tests) zählen nicht als Geste
@@ -17947,6 +18041,8 @@ function createStoryScene(host) {
       };
       this.staffel = setTimeout(() => weiter(0), HALT_MS);
     },
+    /** ms nach dem Halt, bis das gestaffelte Neurastern durch ist: erst danach ist die Pause ruhig (story.stillBild) */
+    ruheNachHalt: HALT_MS + 6 * STAFFEL_MS,
     /** Eine vorbereitete Fahrt verwerfen (die Ebenen hält dann wieder die alte Fahrt bzw. stelle). */
     verwerfen() {
       clearTimeout(this.staffel);
@@ -18254,12 +18350,37 @@ const uebersicht = createUebersicht({
   onPlay: (wahl) => story.playFromOverview(wahl),
   onClose: () => story.closeOverview(),
 });
-// einmal unsichtbar zeichnen, solange der Startbildschirm ruhig steht (sonst stand beim ersten Öffnen ein Bild
-// ~100 ms); ebenso das Menü mit den Lichtwegen und die Bühne des Prologs (Review Ticket 05: bis gut 400 bzw. 250 ms)
-introCalm.then(() => {
-  if (!uebersicht.offen) uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
-  if (!menu.offen) menu.vorwaermen(story.menuStand());
-  story.vorwaermen();
+/**
+ * Menü und Bühne einmal unsichtbar zeichnen, noch vor der Enthüllung des Startbildschirms (ui.init; die Seite lädt, nichts
+ * Sichtbares animiert): Beim ersten Öffnen stand sonst ein Bild bis gut 400 ms (Menü mit den Lichtwegen) bzw. 250 ms
+ * (Bühne des Prologs, Review Ticket 05). Nach der Enthüllung (introCalm) wäre zu spät: «Klicken zum Starten» kommt schon
+ * nach 2,9 s, und ein Klick vor dem Vorwärmen brachte das Menü kalt (gemessen 650 ms). Die Bühne bleibt für neue Spieler
+ * bis zum Prolog gehalten (story.vorwaermen). Ihr Promise erfüllt sich erst nach drei Bildern, bei verborgenem Tab erst
+ * nach der Rückkehr: höchstens 1 s warten. Mit ?nointro steht statt des Startbildschirms gleich das Menü.
+ */
+async function vorwaermenVorStart() {
+  if (flow.state !== 'intro' && !(RUHE_OHNE_START && story.choosing)) return;
+  if (!menu.offen) {
+    menu.vorwaermen(story.menuStand());
+    await nextFrame(); await nextFrame(); await nextFrame();
+  }
+  // wer Prolog und Angebot schon gesehen hat, bekommt keinen Prolog mehr (ausser in einem neuen Grad): keine Bühne;
+  // gehalten nur hinter dem Startbildschirm (mit ?nointro und zeige() käme sonst nie ein Prolog, der sie freigibt)
+  const gesehen = story.stand?.gesehen ?? [];
+  if (gesehen.includes('prolog') && gesehen.includes('angebot')) return;
+  await Promise.race([story.vorwaermen(flow.state === 'intro' && !gesehen.includes('prolog')), storySleep(1000)]);
+}
+// Die Übersicht (~100 ms beim ersten Öffnen) wird erst aus Menü oder Spiel gebraucht: nach der Enthüllung an der
+// nächsten ruhigen Stelle, die nichts Sichtbares zeigt (Startbildschirm, wartende Bühne) oder ohnehin lädt (ruhe.laden,
+// Überblendung nach «Weiter»); im sichtbaren Spiel kostete es selbst ein Bild
+introCalm.then(async () => {
+  for (;;) {
+    await ruhe.warte();
+    if (uebersicht.offen) return;
+    if (flow.state === 'intro' || story.stillBild || ruhe.laden || RUHE_OHNE_START && story.choosing) break;
+    await storySleep(500);
+  }
+  uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
 });
 
 const story = {
@@ -18302,6 +18423,10 @@ const story = {
   },
   blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
   skipped: false,     // Prolog übersprungen
+  stillBild: false,   // die Bühne wartet auf Tippen oder steht mit dem Angebot: eine ruhige Stelle (ruhe) ab stillAb
+  stillAb: 0,         // performance.now(), ab wann (nach dem gestaffelten Vorbereiten der nächsten Fahrt)
+  buehneWarm: false,  // die Bühne des Prologs ist vorgewärmt und bleibt bis zum Prolog gerastert (vorwaermen)
+  ersterHimmel: true, // noch keiner seit dem Start abgewartet (skyOf): Fehlt er, ist das Laden markiert (ruhe.lade)
 
   init() {
     // der Hintergrund der Welt, in der es im zuletzt gespielten Grad weitergeht (sonst der ersten): Er lädt schon
@@ -18638,6 +18763,7 @@ const story = {
    */
   async resume(p) {
     this.running = true;
+    this.buehneFrei();
     // beide Zeitpunkte verschieben: Kam der Lösungsmoment der letzten Drehung vor dem Menü erst danach, zählte sonst
     // die Zeit im Menü ab (unter dem Menü gibt es keine Drehung, lastTurnAt liegt immer davor)
     const st = game.stats, pause = performance.now() - p.at;
@@ -18667,6 +18793,7 @@ const story = {
     if (this.replay || this.seen(this.inDorf ? STORY_DORF.einstieg.moment : storyChapterId(ch))) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
       // ist (sonst sähe man ein leeres Brett, solange ihr Himmel lädt), dann senkt sich der Blick, und das Level wächst
+      this.buehneFrei(); // kein Prolog: eine gehaltene Bühne ruht
       await this.skyOf(ch);
       await sunk;
       setShown(ui.controls, true);
@@ -18676,15 +18803,14 @@ const story = {
     }
     // das Angebot nur vor dem ersten Level des Grads (ein älterer Stand ohne «angebot» bekommt es nicht mitten im Wald)
     const angebot = !this.inDorf && !this.seen('angebot') && !this.seen(storyChapterId(STORY_CHAPTERS[0]));
+    if (this.seen('prolog') && !angebot) this.buehneFrei(); // kein Prolog: die gehaltene Bühne ruht
     if (!this.seen('prolog') || angebot) {
-      this.setSky(ch.sky, true); // lädt hinter der Bühne
+      // lädt hinter der Bühne, aber nur beim Warten auf Tippen und beim Angebot, nie während einer Fahrt (ruhe; das
+      // Hochladen von scharfem Bild und Streifen hielt sie bis 110 ms an, Review Ticket 07)
+      this.setSky(ch.sky, true);
       // nach einem Neuladen zwischen Prolog und Wahl: nur das Angebot, auf dem letzten Bild des Prologs, ohne Fahrt
       const shots = this.seen('prolog') ? [{ ...STORY_PROLOG.at(-1), text: '', act: null, move: 0 }] : STORY_PROLOG;
-      // scharfes Bild und Streifen des Walds nicht während der Fahrt des Prologs (ihr Hochladen hielt sie bis 110 ms
-      // an), sondern sobald das Angebot steht (offer); ohne Angebot nach der Bühne (Review Ticket 07)
-      skyTheme.quiet = true;
       const ueben = await this.playScene(shots, { skippable: !this.seen('prolog'), angebot });
-      skyTheme.quiet = false;
       this.see('prolog');
       if (ueben) { this.inDorf = true; this.uebung = 0; index = this.currentIndex(); ch = STORY_DORF; }
     }
@@ -18725,14 +18851,17 @@ const story = {
     sc.kicker(a.kicker);
     sc.say(a.text);
     this.see('prolog'); // schon jetzt: Ein Neuladen vor der Wahl bringt nur noch das Angebot (begin)
+    // jetzt lädt der Wald fertig (ruhe), was in den Pausen des Prologs nicht fertig wurde: Die Fahrt ist vorbei, der
+    // Spieler liest. So ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht
+    // mehr gewählt und lädt nicht weiter (Review Ticket 07)
+    this.stillBild = true;
+    this.stillAb = performance.now();
+    sceneLoop.wake(); // was hinter der Bühne liegen blieb, jetzt zeichnen (mayDraw)
     const ueben = await new Promise((resolve) => {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
       sc.el.querySelector('.actions button').focus({ preventScroll: true });
-      // jetzt lädt der Wald fertig (scharfes Bild, Streifen): Die Fahrt des Prologs ist vorbei, der Spieler liest. So
-      // ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war), und in der Kamerafahrt lädt nichts mehr.
-      // Nach «Üben» ist er nicht mehr gewählt und lädt nicht weiter (Review Ticket 07)
-      skyTheme.quiet = false;
     });
+    this.stillBild = false;
     sc.actions([]); // nur eine Wahl (Doppelklick)
     this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
@@ -18755,7 +18884,12 @@ const story = {
       const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
       this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
     }
-    for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1);
+    // Steht der erste Himmel nach dem Start noch nicht (wer weiterspielt und gleich «Weiter» wählt; im Prolog nicht
+    // fertig geworden): Laden hinter der Überblendung, ruhig und im Messwerkzeug markiert (ruhe.lade). Die Kamera
+    // schaut in den Himmel, die Vorschau steht schon, das Netz und das scharfe Bild blenden weich darüber ein
+    const warte = async () => { for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1); };
+    await (skyTheme.ready || !this.ersterHimmel ? warte() : ruhe.lade(warte()));
+    this.ersterHimmel = false;
     skyTheme.fadeTime = fadeTime;
     this.blend = null;
   },
@@ -19037,7 +19171,17 @@ const story = {
   async playScene(shots, { skippable = false, actions = null, soft = false, angebot = false } = {}) {
     const sc = this.scene ??= this.makeScene();
     sc.reset(shots[0]);
+    // eine bis hier gehaltene Bühne (vorwaermen) zeigt sich jetzt, schon gerastert, und blendet wie sonst aus 0 ein
+    // (vor dem Wegnehmen von prewarm: bis open gilt sonst kein Modus, und die Ebenen fielen weg)
+    if (this.buehneWarm) {
+      this.el.style.transition = 'none';
+      this.el.classList.remove('gehalten');
+      void this.el.offsetWidth;
+      this.el.style.transition = '';
+      this.buehneWarm = false;
+    }
     sc.el.classList.remove('prewarm');
+    this.stillBild = false;
     sc.skip.hidden = !skippable;
     this.skipped = false;
     // soft: Die Welt dahinter versinkt langsam in der Nacht, während die Bühne einblendet (CSS #story.slow); erst
@@ -19062,7 +19206,13 @@ const story = {
       // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
       if (angebot && shot === shots.at(-1) && !shot.text) break;
       sc.hint(true);
+      // ruhige Stelle: hier darf geladen und die Szene dahinter gezeichnet werden (ruhe), aber erst, wenn die Bühne die
+      // nächste Fahrt gestaffelt vorbereitet hat (ruheNachHalt; sonst raste beides zugleich)
+      this.stillBild = true;
+      this.stillAb = performance.now() + sc.ruheNachHalt;
+      setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
       await this.untilTap();
+      this.stillBild = false;
     }
     sc.skip.hidden = true; // Escape wirkt nur im Prolog (sonst ginge damit später eine Karte weiter)
     const ueben = angebot ? await this.offer(sc) : false;
@@ -19077,22 +19227,29 @@ const story = {
    * Vorwärmen der Bühne für den Prolog: Unter dem Startbildschirm die Bühne einmal unsichtbar zeichnen (erste
    * Einstellung des Prologs mit ihrer vorbereiteten Fahrt), zwei Bilder lang: Ihr erstes Zeichnen hielt den Prolog bis
    * 250 ms an (Review Ticket 05), danach nicht mehr. #story ist dabei da, aber leer und nicht bedienbar (inert). Nur,
-   * solange die Geschichte nichts zeigt; danach ruht die Bühne wieder (createStoryScene, ruhen). Zurück: ein Promise,
-   * erfüllt, sobald das Vorwärmen gezeichnet ist (Ticket 03 der Leistung plant es vor den Prolog).
+   * solange die Geschichte nichts zeigt; danach ruht die Bühne wieder (createStoryScene, ruhen). halten (neue Spieler,
+   * Ticket 03 der Leistung): Sie bleibt fast durchsichtig stehen und damit gerastert, bis der Prolog sie zeigt (sonst
+   * rasterte sein erstes Bild sie neu, 90–130 ms) oder feststeht, dass keiner kommt (buehneFrei). Zurück: ein Promise,
+   * erfüllt, sobald das Vorwärmen gezeichnet ist.
    */
-  vorwaermen() {
+  vorwaermen(halten = false) {
     if (!this.el.classList.contains('hidden')) return Promise.resolve();
     const sc = this.scene ??= this.makeScene();
     if (sc.el.classList.contains('prewarm')) return Promise.resolve();
     this.prewarmScene(STORY_PROLOG[0]);
-    this.el.classList.remove('hidden');
+    this.el.classList.add('gehalten'); // da, obwohl hidden (CSS): Wer «hidden» prüft, sieht weiter keine Bühne
+    this.buehneWarm = true;
     return new Promise((fertig) => requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (this.el.inert) { // sonst inzwischen geöffnet (open): Das zeigt die Bühne selbst
-        this.el.classList.add('hidden');
-        sc.ruhen();
-      }
+      if (!halten) this.buehneFrei();
       requestAnimationFrame(() => fertig());
     })));
+  },
+  /** Die vorgewärmte Bühne ausblenden und ruhen lassen (vorwaermen; als Nächstes kommt kein Prolog). */
+  buehneFrei() {
+    if (!this.buehneWarm) return;
+    this.buehneWarm = false;
+    this.el.classList.remove('gehalten');
+    if (this.el.inert) this.scene.ruhen(); // sonst inzwischen geöffnet (open): Das zeigt die Bühne selbst
   },
   /**
    * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot, ihre Fahrt schon vorbereitet), bevor sie gebraucht
@@ -20626,9 +20783,9 @@ const frameRate = {
   // Pixel), 10 Bilder/s reichen
   skyFps: 10,
   activeUntil: 0,     // performance.now(), bis wann eine Eingabe als "aktiv" gilt
-  vsync: 1000 / 60,   // Bildschirmtakt: kürzester rAF-Abstand im letzten Messfenster (übersprungene Bilder sind billig
+  vsync: 1000 / 60,   // Bildschirmtakt: 10-%-Quantil der rAF-Abstände im letzten Messfenster (übersprungene Bilder sind billig
                       // und kommen genau im Takt; gerenderte können länger dauern)
-  windowMin: Infinity, windowCount: 0,
+  windowD: new Float32Array(90), windowN: 0, windowCount: 0, // rAF-Abstände im Messfenster (due)
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
@@ -20660,10 +20817,14 @@ const frameRate = {
   due(ts) {
     if (this.prevTs !== null) {
       const d = ts - this.prevTs;
-      if (d > 2 && d < 100) this.windowMin = Math.min(this.windowMin, d);
+      if (d > 2 && d < 100) this.windowD[this.windowN++] = d;
       if (++this.windowCount >= 90) {
-        if (this.windowMin < Infinity) this.vsync = this.windowMin;
-        this.windowMin = Infinity; this.windowCount = 0;
+        // nicht der kürzeste Abstand, sondern das 10-%-Quantil: Nach einem langen Bild holt rAF auf (z. B. 21 und dann
+        // 12 ms bei 60 Hz). Der kürzeste hielt dann 12 ms für den Takt, k wurde 3 statt 2 (20 statt 30 Bilder/s), und
+        // adaptiveResolution wertete jedes Bild als langsam (50 ms bei einem Budget von 3 × 12 ms): Absenkung im ersten
+        // Level ohne ein langes sichtbares Bild (Ticket 03 der Leistung)
+        if (this.windowN) this.vsync = this.windowD.subarray(0, this.windowN).sort()[Math.floor(this.windowN * 0.1)];
+        this.windowN = 0; this.windowCount = 0;
       }
     }
     this.prevTs = ts;
