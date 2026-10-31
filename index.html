@@ -53,6 +53,7 @@
     touch-action: none;
     -webkit-touch-callout: none;
   }
+  canvas:focus, #story:focus { outline: none; } /* nur Ziel des Fokus (story.keepFocus), kein Bedienelement */
   button {
     font: inherit;
     color: inherit;
@@ -469,6 +470,8 @@
   }
   .menue[hidden] { display: none; }
   .menue.menue-aus { opacity: 0; pointer-events: none; }
+  /* einmal unsichtbar zeichnen (createMenu vorwaermen): fast durchsichtig, aber gezeichnet */
+  .menue.menue-aus.menue-vorwaermen { opacity: 0.002; transition: none; }
   .menue *, .menue *::before, .menue *::after { box-sizing: border-box; }
   /* leicht abgedunkelt, zum Rand hin mehr: der Himmel bleibt sichtbar, die Schrift lesbar */
   .menue::before {
@@ -671,11 +674,13 @@
     .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
     .menue-frage-box { padding: 26px 20px 20px; }
   }
-  /* kleine Handys hoch (z. B. 360 × 640): Aktion auf der Zeile nicht, die Zeile selbst ist der Knopf */
+  /* kleine Handys hoch (z. B. 360 × 640): alles enger; die Aktion bleibt, kleiner (Review Ticket 06: ohne sie sah man
+     nicht, wohin eine Karte führt, etwa «Übersicht» beim geschafften Grad) */
   @media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
     .menue-ziel { top: 22%; }
     .menue-ziel .menue-stern { width: 92px; height: 92px; }
-    .menue-aktion { display: none; }
+    .menue-wahl { gap: 3px; padding-top: 5px; padding-bottom: 5px; }
+    .menue-aktion { font-size: 8px; }
     .menue-grade { gap: 4px; }
     .menue-vonvorn { min-height: 46px; }
     .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
@@ -864,6 +869,7 @@
   /* ---------- Fuss: Schliessen wie «Weiter» im Feld «Gelöst» ---------- */
   .ueb-fuss { grid-area: fuss; display: flex; justify-content: center; }
   .ueb-schliessen {
+    min-height: 44px; /* Ziel für den Finger (Review Ticket 06) */
     font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
     padding: 13px 26px 13px calc(26px + 0.4em);
     border: 1px solid var(--ueb-rand); border-radius: 999px;
@@ -881,6 +887,10 @@
     opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
   }
   .ueb-hinweis.ueb-da { opacity: 1; }
+  /* alle Welten untereinander: an der Kachel (sage setzt left und top, die Mitte des Hinweises über der Kachel) */
+  .ueb[data-modus="alle"] .ueb-hinweis.ueb-bei {
+    right: auto; bottom: auto; margin: 0; max-width: calc(100vw - 32px); transform: translateX(-50%);
+  }
 
   /* ---------- Stationen und Pfeile (nur Seiten) ---------- */
   .ueb-stationen { grid-area: stationen; display: none; justify-content: center; align-items: center; }
@@ -1078,7 +1088,7 @@
   <button id="btn-next">Weiter</button>
 </div>
 
-<div id="story" class="hidden" inert aria-live="polite">
+<div id="story" class="hidden" inert aria-live="polite" tabindex="-1">
   <div class="caption">
     <div class="kicker"></div>
     <p class="text"></p>
@@ -8051,6 +8061,8 @@ renderer.shadowMap.autoUpdate = false;
 renderer.shadowMap.needsUpdate = true;
 function markShadowsDirty() { renderer.shadowMap.needsUpdate = true; }
 document.body.appendChild(renderer.domElement);
+renderer.domElement.tabIndex = -1; // Ziel des Fokus, wenn ein Knopf verschwindet (story.keepFocus), statt body
+renderer.domElement.setAttribute('aria-label', 'Spielfeld');
 
 // In HalfFloat rendern braucht explizit eine color_buffer-Extension (WebGL1 und WebGL2).
 const HDR_SUPPORTED = renderer.capabilities.isWebGL2
@@ -9765,16 +9777,34 @@ function* paintedInstances(ctx, opt) {
 function* bakedMesh(ctx, opt) {
   const set = ctx.data[opt.data];
   const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
-  const q = new Int16Array(bytes(set.pos16)), uv = new Uint16Array(bytes(set.uv16)), rock = new Uint8Array(bytes(set.rock8));
+  // je Feld ein Häppchen (sliced): zusammen hielt das Entpacken ein Bild 30–40 ms an
+  const q = new Int16Array(bytes(set.pos16));
+  yield;
+  const uv = new Uint16Array(bytes(set.uv16));
+  yield;
+  const rock = new Uint8Array(bytes(set.rock8));
+  yield;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(Float32Array.from(q, (v) => v / set.scale), 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(Float32Array.from(uv, (v) => v / 65535), 2));
   geo.setAttribute('aRock', new THREE.Float32BufferAttribute(Float32Array.from(rock, (v) => v / 255), 1));
+  yield;
   geo.setIndex(new THREE.BufferAttribute(set.idx16 ? new Uint16Array(bytes(set.idx16)) : new Uint32Array(bytes(set.idx32)), 1));
   // Bild aus einer Data-URL, dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread
   // (siehe loadSkyImage). color: Farbbild (sRGB, Mipmaps), sonst Daten (nächster Nachbar, ohne Mipmaps)
+  // Als ImageBitmap ohne Farbumrechnung, im Hintergrund dekodiert: Ein dekodiertes Bild (img.decode) dekodierte der
+  // Browser beim Hochladen noch einmal im Hauptthread, weil three die Farbumrechnung abschaltet (das grosse Bild der
+  // Felsen am Strand, 2662 × 1706: über 100 ms in einem Bild, Ticket 08). Wo das nicht geht, wie bisher als Bild.
   const image = function* (url, color) {
-    const img = new Image(), tex = new THREE.Texture(img);
+    let bitmap = null, done = typeof createImageBitmap !== 'function';
+    if (!done) {
+      fetch(url).then((r) => r.blob())
+        .then((blob) => createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' }))
+        .then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
+    }
+    while (!done) yield NEXT_FRAME;
+    const img = bitmap ?? new Image(), tex = new THREE.Texture(img);
+    if (bitmap) tex.addEventListener('dispose', () => bitmap.close());
     tex.flipY = false; // Zeile 0 oben wie die Bilder und die UV-Karte aus Blender (v nach oben): im Shader 1 − v
     if (color) {
       tex.encoding = THREE.sRGBEncoding;
@@ -9783,11 +9813,13 @@ function* bakedMesh(ctx, opt) {
       tex.minFilter = tex.magFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
     }
-    let decoded = null;
-    img.src = url;
-    img.decode().then(() => { decoded = true; }, () => { decoded = false; });
-    while (decoded === null) yield NEXT_FRAME;
-    if (!decoded || !img.naturalWidth) throw new Error('Bild der Felsen nicht lesbar');
+    if (!bitmap) {
+      let decoded = null;
+      img.src = url;
+      img.decode().then(() => { decoded = true; }, () => { decoded = false; });
+      while (decoded === null) yield NEXT_FRAME;
+      if (!decoded || !img.naturalWidth) throw new Error('Bild der Felsen nicht lesbar');
+    }
     tex.needsUpdate = true;
     return tex;
   };
@@ -11805,6 +11837,7 @@ const skyTheme = {
   // andere gewählt ist: zwei Panoramen zugleich im Grafikspeicher nur, solange das neue lädt und das alte noch steht.
   keep: IS_MOBILE ? 0 : 30,
   hidden: {},      // s ausgeblendet, je Hintergrund
+  ahead: null,     // vorgeladen, noch nicht gewählt (preload): wird nicht freigegeben, bis ein anderer gewählt ist
   goal(id) { return id === this.current ? 1 : 0; },
   get fading() { return this.order.some((id) => this.weight[id] !== this.goal(id)); },
   /** Gewählter Hintergrund ganz eingeblendet (Tests) */
@@ -11814,10 +11847,22 @@ const skyTheme = {
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
   set(id, animate = true) {
     this.current = id;
+    this.ahead = null;
     this.hidden[id] = 0;                   // gewählt: die Frist fürs Freigeben beginnt erst beim Wegschalten
     this.byId.get(id).module?.prepare?.(); // vor dem Ausblenden: sonst stockte die Überblendung
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     this.apply();
+  },
+  /**
+   * Einen Hintergrund schon laden, ohne ihn zu zeigen (die Geschichte: die nächste Welt, solange «Gelöst» steht). Sein
+   * Aufbau (Netze, Hochladen der Bilder) hielt sonst einzelne Bilder 50–120 ms an, mitten in der Reise oder beim
+   * Überblenden an einer Weltgrenze (Review Ticket 06); so geschieht er vorher auf dem stillen Bild.
+   */
+  preload(id) {
+    if (id === this.current || !this.byId.has(id)) return;
+    this.ahead = id;
+    this.hidden[id] = 0;
+    this.byId.get(id).module?.prepare?.();
   },
   update(dt, t) {
     // Lädt der gewählte Hintergrund noch, bleibt der bisherige so lange stehen (sonst sähe man nur die Platzhalterfarben) –
@@ -11839,7 +11884,7 @@ const skyTheme = {
     const otherPanorama = this.byId.get(this.current).module?.panorama;
     for (const e of this.entries) {
       if (this.weight[e.id] > 0) { e.module?.update(t, dt); this.hidden[e.id] = 0; continue; }
-      if (e.id === this.current || !e.module?.release) continue;
+      if (e.id === this.current || e.id === this.ahead || !e.module?.release) continue;
       this.hidden[e.id] = (this.hidden[e.id] ?? 0) + dt;
       if (otherPanorama || this.hidden[e.id] >= this.keep) e.module.release();
     }
@@ -15715,6 +15760,7 @@ const ui = {
     if (inStory) [this.solvedMsg.textContent, this.next.textContent] = story.solvedText();
     else this.solvedMsg.textContent = 'Level gelöst';
     this.next.hidden = !inStory;
+    if (inStory) story.preloadNext();
     setShown(this.solved, true);
     document.body.classList.add('is-solved'); // Handy quer: Meldung ersetzt die Kopfzeile
   },
@@ -15760,6 +15806,7 @@ ui.init();
      menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus bleibt beim Grad)
      menu.hide();        // ausblenden; Promise, erfüllt, wenn es ganz weg ist (hide(true): sofort, Testschnittstelle)
      menu.offen;         // true, solange es offen ist
+     menu.vorwaermen(stand); // einmal unsichtbar zeichnen, solange es zu ist (Startbildschirm)
      menu.keydown(e);    // aus dem Tastatur-Handler des Spiels: true, wenn das Menü die Taste genommen hat
 
    stand = { grade: { leicht: { stand: 'neu' | 'begonnen' | 'geschafft', welt, geloest }, mittel, schwer,
@@ -15937,6 +15984,7 @@ const createMenu = (() => {
     let frageVon = null;    // Knopf, der sie geöffnet hat (bekommt den Fokus zurück)
     let aktiv = null;       // Grad unter Zeiger oder Fokus: sein Weg heller
     let wachsenSeit = -Infinity; // Zeit des Einblendens (performance.now) für die Bewegung der Wege
+    let warm = false;       // vorwaermen zeichnet gerade unsichtbar
     let zeitAus = 0, zeitFrage = 0, plan = 0;
 
     /* ---------- Aufbau der Grade ---------- */
@@ -15997,7 +16045,7 @@ const createMenu = (() => {
     /* ---------- Wege zeichnen (bei jeder Grössenänderung neu) ---------- */
 
     function zeichne() {
-      if (!offen) return;
+      if (!offen && !warm) return;
       const R = root.getBoundingClientRect(), W = R.width, H = R.height;
       if (!W || !H) return;
       const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: r.left - R.left + r.width / 2, y: r.top - R.top + r.height / 2 }; };
@@ -16254,6 +16302,26 @@ const createMenu = (() => {
           zeichne();
           if (key) fokussiere(key) || fokussiere(startFokus());
         }
+      },
+      /**
+       * Einmal unsichtbar zeichnen (fast durchsichtig, nicht bedienbar, ohne Fokus), solange es zu ist: Das erste
+       * Zeichnen der Lichtwege mit ihrem Leuchten (feGaussianBlur) hielt das Bild beim ersten Öffnen bis gut 400 ms an,
+       * danach nicht mehr (Review Ticket 05). Die Wege stehen dabei schon ganz (ohne Wachsen); show() zeichnet neu.
+       */
+      vorwaermen(stand = {}) {
+        if (offen || warm) return;
+        warm = true;
+        daten = lies(stand, uebersicht);
+        render();
+        root.hidden = false;
+        root.classList.add('menue-vorwaermen');
+        wachsenSeit = -Infinity;
+        zeichne();
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          warm = false;
+          root.classList.remove('menue-vorwaermen');
+          if (!offen) root.hidden = true;
+        }));
       },
       /** Ausblenden; erfüllt, wenn es ganz weg ist (dann hidden). sofort: ohne Überblenden (Testschnittstelle). */
       hide(sofort = false) {
@@ -16629,8 +16697,19 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   }
 
   // ---------- Hinweis (gesperrte Kachel) ----------
-  function sage(text) {
+  /** Hinweis kurz zeigen; mit allen Welten untereinander (Desktop) über der Kachel nahe (sonst darunter), auf Seiten
+   * über dem Fuss (Review Ticket 06: unten in der Mitte war er weit weg von der Kachel, die man angeklickt hatte) */
+  function sage(text, nahe = null) {
     hinweis.textContent = text;
+    const bei = !!nahe && modus === 'alle';
+    hinweis.classList.toggle('ueb-bei', bei);
+    hinweis.style.left = hinweis.style.top = '';
+    if (bei) {
+      const r = nahe.getBoundingClientRect(), w = hinweis.offsetWidth, h = hinweis.offsetHeight, ab = 10;
+      const x = Math.min(Math.max(r.left + r.width / 2, 16 + w / 2), innerWidth - 16 - w / 2);
+      hinweis.style.left = `${x}px`;
+      hinweis.style.top = `${r.top - ab - h >= 8 ? r.top - ab - h : r.bottom + ab}px`;
+    }
     hinweis.classList.add('ueb-da');
     clearTimeout(hinweisUhr);
     hinweisUhr = setTimeout(() => hinweis.classList.remove('ueb-da'), 2800);
@@ -16645,7 +16724,8 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     if (z === 'gesperrt') {
       const o = offeneKachel(re.art);
       const vor = o && reihen[o[0]];
-      sage(vor ? `Gesperrt – erst «${vor.level[o[1]].titel ?? vor.level[o[1]].name ?? ''}» (${vor.name} ${o[1] + 1}) lösen` : 'Gesperrt');
+      const titel = vor ? vor.level[o[1]].titel ?? vor.level[o[1]].name ?? '' : '';
+      sage(vor ? `Gesperrt – erst «${titel}» (${vor.name} ${o[1] + 1}) lösen` : 'Gesperrt', k);
       return;
     }
     onPlay({ welt: re.schluessel, level: l, wiederholen: z === 'geloest', eintrag: re.level[l] });
@@ -16663,7 +16743,9 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   /**
    * Tasten (solange offen, vor dem Spiel abgefangen): Pfeile über die Kacheln (links/rechts in der Reihenfolge, auch
    * über die Grenze der Welt; hoch/runter eine Reihe), Pos1/Ende Anfang und Ende der Welt (mit Strg: ganz), Bild↑/↓
-   * vorige und nächste Welt, Escape schliesst, Tab bleibt im Dialog. Ausserhalb der Kacheln blättern ←/→ (Seiten).
+   * vorige und nächste Welt, Escape schliesst, Tab bleibt im Dialog. Ausserhalb der Kacheln blättern ←/→ (Seiten);
+   * sonst holen die Pfeile den Fokus auf die Kacheln zurück (auf die, die Tab erreicht), und Pos1/Ende wirken wie von
+   * ihr aus (Review Ticket 06: mit dem Fokus auf «Schliessen» taten sie nichts).
    */
   function taste(e) {
     if (!offen || e.altKey || e.metaKey || (e.ctrlKey && e.key !== 'Home' && e.key !== 'End')) return;
@@ -16706,11 +16788,14 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       blaettere(seite + (k === 'ArrowRight' || k === 'PageDown' ? 1 : -1));
       return;
     }
-    if (!root.contains(an) || an === root) { // Fokus verloren (Klick auf den Hintergrund): zurück auf die Kacheln
-      nimm();
-      const t = spur.querySelector('.ueb-kachel[tabindex="0"]');
-      if (t && !t.closest('[inert]')) t.focus();
-    }
+    // Fokus auf «Schliessen», einem Pfeil der Seiten oder verloren (Klick auf den Hintergrund): zurück auf die Kacheln
+    nimm();
+    const t = spur.querySelector('.ueb-kachel[tabindex="0"]');
+    if (!t || t.closest('[inert]')) return;
+    if (k === 'Home' || k === 'End') {
+      const r = +t.closest('.ueb-welt').dataset.reihe, z = e.ctrlKey ? (k === 'Home' ? 0 : reihen.length - 1) : r;
+      fokussiere(z, k === 'Home' ? 0 : reihen[z].level.length - 1);
+    } else t.focus();
   }
   /** Tab und Umschalt+Tab bleiben im Dialog */
   function falle(e) {
@@ -17407,8 +17492,13 @@ const uebersicht = createUebersicht({
   onPlay: (wahl) => story.playFromOverview(wahl),
   onClose: () => story.closeOverview(),
 });
-// einmal unsichtbar zeichnen, solange der Startbildschirm ruhig steht (sonst stand beim ersten Öffnen ein Bild ~100 ms)
-introCalm.then(() => { if (!uebersicht.offen) uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht')); });
+// einmal unsichtbar zeichnen, solange der Startbildschirm ruhig steht (sonst stand beim ersten Öffnen ein Bild
+// ~100 ms); ebenso das Menü mit den Lichtwegen und die Bühne des Prologs (Review Ticket 05: bis gut 400 bzw. 250 ms)
+introCalm.then(() => {
+  if (!uebersicht.offen) uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
+  if (!menu.offen) menu.vorwaermen(story.menuStand());
+  story.vorwaermen();
+});
 
 const story = {
   el: $('story'),
@@ -17454,11 +17544,11 @@ const story = {
     }
     this.el.addEventListener('click', () => this.tap());
     this.skipBtn = $('btn-skip');
-    this.skipBtn.addEventListener('click', (e) => { e.stopPropagation(); this.skip(); });
+    this.skipBtn.addEventListener('click', (e) => { e.stopPropagation(); this.skip(); this.keepFocus(this.skipBtn); });
     this.buildScene();
   },
   /**
-   * Grad setzen: seine Reise aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet, ebenso eine Übung im
+   * Grad setzen: sein Durchgang aus STORY_LEVELS, sein Stand, sein Platz (ein Wiederholen endet, ebenso eine Übung im
    * Dorf: begin setzt sie fort). Den Stand des Dorfs prüft erst dieser Schritt (progress kennt das Tutorial nicht).
    */
   setGrade(grade) {
@@ -17833,6 +17923,18 @@ const story = {
     else await this.enter(index, ch, sunk);
     this.done();
   },
+  /**
+   * «Gelöst» steht, und «Weiter» führt in eine andere Welt (Reise, beim Wiederholen die Weltgrenze): deren Himmel
+   * gleich schon laden (skyTheme.preload; die Feier ist dann vorbei), nicht erst im Flug. Er braucht gut 2 s.
+   */
+  preloadNext() {
+    const cur = !this.inDorf && this.steps[this.step], next = cur && this.steps[this.step + 1];
+    if (!next || next.c === cur.c) return;
+    const sky = STORY_CHAPTERS[next.c].sky, index = game.levelIndex;
+    setTimeout(() => {
+      if (ui.solvedVisible() && game.levelIndex === index && !this.choosing && !this.running) skyTheme.preload(sky);
+    }, 300);
+  },
   /** Eine Zwischenszene ist zu Ende; wartet ein «Überspringen» des Dorfs (skip), kommt es jetzt. */
   done() {
     this.running = false;
@@ -17862,6 +17964,7 @@ const story = {
       skyTheme.quiet = false;
     });
     sc.actions([]); // nur eine Wahl (Doppelklick)
+    this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
     if (ueben) {
       this.stand.dorf = { platz: 0, ende: null };
@@ -18200,6 +18303,23 @@ const story = {
     return ueben;
   },
   /**
+   * Unter dem Startbildschirm die Bühne einmal unsichtbar zeichnen (erste Einstellung des Prologs), zwei Bilder lang:
+   * Ihr erstes Zeichnen hielt den Prolog bis 250 ms an (Review Ticket 05), danach nicht mehr. #story ist dabei da, aber
+   * leer und nicht bedienbar (inert). Nur, solange die Geschichte nichts zeigt.
+   */
+  vorwaermen() {
+    if (!this.el.classList.contains('hidden')) return;
+    const sc = this.scene ??= this.makeScene();
+    if (sc.el.classList.contains('prewarm')) return;
+    this.prewarmScene(STORY_PROLOG[0]);
+    this.el.classList.remove('hidden');
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (!this.el.inert) return; // inzwischen geöffnet (open): Das zeigt die Bühne selbst
+      this.el.classList.add('hidden');
+      sc.el.classList.remove('prewarm');
+    }));
+  },
+  /**
    * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot), bevor sie gebraucht wird: Das erste Zeichnen der
    * grossen Szene dauerte über 100 ms. playScene nimmt die Klasse wieder weg.
    */
@@ -18232,7 +18352,9 @@ const story = {
   },
   /**
    * Die Strahlen der Ziele steigen zu einem Lichtpunkt am Himmel, die Kamera schaut ihnen nach; der Punkt blitzt auf,
-   * wenn sie ankommen. star: Es ist der Polarstern, er leuchtet schon vorher schwach und bleibt danach stehen.
+   * wenn sie ankommen. star: Es ist der Polarstern, er leuchtet schon vorher schwach und bleibt danach stehen. Reise
+   * und Finale beginnen hier: Die Knöpfe gehen weg, «Menü» und «Neu starten» wirken dort nicht (Review Ticket 05); sie
+   * kommen mit dem nächsten Level wieder (fall, begin).
    */
   async ascend(elevation, star = false) {
     this.running = true;
@@ -18240,6 +18362,7 @@ const story = {
     this.fast = 1;
     ui.hideSolved();
     ui.hideHud();
+    setShown(ui.controls, false);
     setHovered(null);
     adaptiveResolution.hold(6);
     this.open('veil');
@@ -18357,7 +18480,7 @@ const story = {
         setShown(ui.controls, true); // nach dem Menü wieder da
         this.see(moment); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
       }
-      if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise
+      if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise oder des Einstiegs
     }, storyEase, 0, e);
     if (!entered) { await this.land(index, moment); return; } // übersprungen, bevor das Level wuchs
     fl.visible = false;
@@ -18506,7 +18629,21 @@ const story = {
     this.el.dataset.mode = mode;
     setShown(this.el, true);
   },
-  close() { setShown(this.el, false); },
+  close() {
+    const fokus = this.el.contains(document.activeElement);
+    setShown(this.el, false);
+    if (fokus) this.keepFocus();
+  },
+  /**
+   * Der Fokus fiele auf body, weil sein Knopf eben verschwand (weg; Wahl im Angebot, «Überspringen») oder die
+   * Geschichte ausblendet (Review Ticket 07): Er geht auf die Geschichte, solange sie zu sehen ist (Enter tippt, Tab
+   * führt zu «Überspringen»), sonst aufs Spielfeld. Ein anderer Fokus bleibt.
+   */
+  keepFocus(weg = null) {
+    const a = document.activeElement;
+    if (a && a !== document.body && a !== weg && a.isConnected && !a.closest('[inert]')) return;
+    (this.el.classList.contains('hidden') ? renderer.domElement : this.el).focus({ preventScroll: true });
+  },
   untilTap() { return new Promise((resolve) => { this.waitTap = resolve; }); },
   /** Tippen/Klicken auf die Geschichte (oder Enter): Karte weiter, in einer Zwischenszene schneller. */
   tap() {

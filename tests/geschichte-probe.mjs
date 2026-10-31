@@ -309,6 +309,9 @@ async function angebot(was, wahl, { mitTaste = false, name = null } = {}) {
     await taste('Enter');
   } else await tippe(`${ANGEBOT}:nth-child(${wahl === 'Üben' ? 1 : 2})`, wahl);
   await until(`document.querySelectorAll('${ANGEBOT}').length === 0`, `${was}: ${wahl} gewählt`, 5);
+  // die Knöpfe sind weg: der Fokus geht auf die Geschichte, nicht auf body (Ticket 08)
+  const fokus = await ev('document.activeElement?.id || document.activeElement?.tagName');
+  pruefe(fokus === 'story', `${was}: Fokus nach «${wahl}» auf ${fokus}`);
 }
 
 /** Ein Level spielen: warten, bis es läuft, Kopfzeile prüfen, lösen, warten auf «gelöst», Weiter. */
@@ -357,6 +360,8 @@ async function durchgang(g, erster) {
     for (let k = 0; k < 10; k++) await level(g, w * 10 + k, { bilder: k === 0 });
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
       + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+    // «Menü» und «Neu starten» wirken auf der Reise nicht: Die Knöpfe sind weg (Ticket 08)
+    pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
     await bild(`${slug(g)}-reise-${w + 2}`);
   }
@@ -408,6 +413,7 @@ async function finale(g) {
   // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
   for (let n = 1; n <= 2; n++) {
     await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `${g}: Finale, Satz ${n}`, 60);
+    pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe im Finale`);
     await sleep(900);
     await bild(`${slug(g)}-finale-${n}`);
     await tippe('#story .caption .text', 'Untertitel');
@@ -760,9 +766,27 @@ async function uebersichtAblauf() {
     pruefe(r.flow === 'play' && r.index === vorher.index && r.offen && r.muted !== muted,
       `R und M unter der Übersicht ${JSON.stringify(r)}`);
     await taste('KeyM');
+    // Fokus auf «Schliessen» (Ticket 08): Pfeile holen ihn auf die Kacheln zurück, Pos1/Ende wirken wie von dort
+    const schliessen = `document.querySelector('${UEB} .ueb-schliessen')`;
+    await ev(`${schliessen}.focus()`);
+    await taste('ArrowDown');
+    pruefe(JSON.stringify((await uebStand()).fokus) === '[1,2]', 'Pfeil mit dem Fokus auf «Schliessen»');
+    await ev(`${schliessen}.focus()`);
+    await taste('End');
+    pruefe(JSON.stringify((await uebStand()).fokus) === '[1,9]', 'Ende mit dem Fokus auf «Schliessen»');
+    // Hinweis zu einer gesperrten Kachel an der Kachel, nicht unten in der Mitte (Ticket 08)
+    await tippe(kachel(3, 4), 'gesperrte Kachel Vulkan 5');
+    await sleep(400);
+    const h = await ev(`(() => { const h = document.querySelector('${UEB} .ueb-hinweis').getBoundingClientRect(),
+      k = document.querySelector(${JSON.stringify(kachel(3, 4))}).getBoundingClientRect();
+      return { abstand: Math.round(Math.max(k.top - h.bottom, h.top - k.bottom)),
+        mitte: Math.round(Math.abs((h.left + h.right) / 2 - (k.left + k.right) / 2)) }; })()`);
+    pruefe(h.abstand >= 0 && h.abstand <= 20 && h.mitte < 2, `Hinweis an der Kachel ${JSON.stringify(h)}`);
     await taste('Home', { strg: true });
     pruefe(JSON.stringify((await uebStand()).fokus) === '[0,0]', 'Strg+Pos1 in der Übersicht');
   }
+  const hoehe = await ev(`Math.round(document.querySelector('${UEB} .ueb-schliessen').getBoundingClientRect().height)`);
+  pruefe(hoehe >= 44, `«Schliessen» ${hoehe} px hoch (mindestens 44)`);
   await messe();
   if (view.phone) await tippe(kachel(0, 0), 'Kachel Bergwald 1');
   else await taste('Enter');
@@ -1045,6 +1069,9 @@ async function einstiegWeg(g, was, moment, { esc = false, sky } = {}) {
     requestAnimationFrame(schau); })(); true`);
   await until(`window.__prisma.playing() && !${D}.story.running`, `${g}: ${was}: Level steht`, 40);
   pruefe(!(await ev('window.__skipLandung')), `${g}: ${was}: «Überspringen» während der Landung zu sehen`);
+  // der Knopf ist weg, der Untertitel zu: der Fokus liegt auf dem Spielfeld, nicht auf body (Ticket 08)
+  const fokus = await ev('document.activeElement?.tagName');
+  pruefe(esc || fokus === 'CANVAS', `${g}: ${was}: Fokus nach «Überspringen» auf ${fokus}`);
   await sleep(1200);
   const log = await ende(`${g}: ${was} übersprungen`);
   const n = wachsen(log);
