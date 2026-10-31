@@ -11,7 +11,7 @@
 // Stand setzt die Probe in localStorage. Sie prüft Kopfzeile, Speicherstand, Menü (Stand je Grad, «Weiter», Fokus,
 // Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt bereit
 // ist (kein leeres Brett), und misst die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken
-// über 100 ms sind Fehler, ausser während eines Bilds der Probe und beim ersten Zeichnen der Bühne, siehe ende).
+// über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -192,21 +192,13 @@ async function messe() {
     requestAnimationFrame(loop); })()`);
 }
 /**
- * buehne: Der Übergang zeigt die Bühne zum ersten Mal (Prolog). Ihr erstes Zeichnen hält die Seite einmal an, auf dem
- * Handy 180–230 ms, gleich wie vor dem Menü (Ticket 04, gemessen gegen HEAD); diese eine Lücke gleich zu Beginn (in den
- * ersten 400 ms, höchstens 300 ms) zählt nicht als neu, sie wird nur gemeldet.
+ * Bildzeiten auswerten. Die frühere Ausnahme für das erste Zeichnen der Bühne (Prolog) ist weg: Seit die Bühne unter dem
+ * Startbildschirm vorgewärmt wird (story.vorwaermen, Ticket 08), trat sie in der Abnahme nie mehr auf.
  */
-async function ende(name, { buehne = false } = {}) {
+async function ende(name) {
   const log = await ev('(() => { const b = window.__bz; b.an = false; return b.log; })()');
   const foto = (i) => fotos.some(([a, b]) => log[i].ts < b && log[i + 1].ts > a);
-  let erstesBild = buehne;
-  const art = log.slice(1).map((e, i) => {
-    const d = e.ts - log[i].ts;
-    if (foto(i)) return 'Bild der Probe';
-    if (!erstesBild || d <= 100 || d > 300 || log[i].ts - log[0].ts >= 400) return '';
-    erstesBild = false;
-    return 'erstes Zeichnen der Bühne';
-  });
+  const art = log.slice(1).map((_, i) => (foto(i) ? 'Bild der Probe' : ''));
   fotos = null;
   const luecken = log.slice(1).map((e, i) => (art[i] ? 0 : e.ts - log[i].ts));
   const max = Math.max(0, ...luecken), ueber = (ms) => luecken.filter((d) => d > ms).length;
@@ -502,8 +494,8 @@ async function finale(g) {
 }
 
 /**
- * Der ganze Durchgang eines Grads in einer Sitzung (--ganz, Abnahme Ticket 08): neuer Stand, Menü → Prolog (ohne die
- * Ausnahme für das erste Zeichnen der Bühne), «Gleich los» → Einstieg in den Bergwald, alle 60 Level mit den fünf
+ * Der ganze Durchgang eines Grads in einer Sitzung (--ganz, Abnahme Ticket 08): neuer Stand, Menü → Prolog bis zum
+ * Angebot, «Gleich los» → Einstieg in den Bergwald, alle 60 Level mit den fünf
  * Reisen, mitten in der Wüste (vor Level 26) Neuladen und «Weiter» an denselben Platz ohne Einstieg, Finale, Epilog bis
  * «Zum Menü» und ohne Neuladen ins Menü (der Grad geschafft, der nächstschwerere hervorgehoben). Gemessen wird jede
  * Zwischenszene ab dem Klick, der sie auslöst, bis das nächste Level läuft (bzw. bis Angebot, Epilog, Knöpfe am Ende).
@@ -758,7 +750,7 @@ async function menueAblauf() {
   await until(`${storyMode} === 'scene'`, 'Schwer: Prolog', 30);
   await until(`${D}.flow.state === 'story' && !${D}.story.holdEnter`, 'Schwer: altes Brett versunken', 30);
   await sleep(1500);
-  await ende('Menü → Prolog (neuer Grad, das Brett versinkt)', { buehne: true });
+  await ende('Menü → Prolog (neuer Grad, das Brett versinkt)');
   await tippe('#story .scene .skip', 'Überspringen');
   await angebot('schwer', 'Gleich los');
   await until(`${storyMode} === 'caption'`, 'Schwer: Einstieg', 60);
@@ -1252,7 +1244,7 @@ async function dorfAblauf() {
   await tippe(karte('leicht'), 'Karte Leicht');
   await prologWeg('leicht');
   await sleep(400);
-  await ende('Leicht: Menü → Prolog → Überspringen', { buehne: true });
+  await ende('Leicht: Menü → Prolog → Überspringen');
   // solange das Angebot steht, lädt der Wald fertig (quiet aus): keine Lücke über 100 ms, er ist danach bereit
   await messe();
   await until(`document.querySelectorAll('${ANGEBOT}').length === 2`, 'Leicht: Angebot', 60);
