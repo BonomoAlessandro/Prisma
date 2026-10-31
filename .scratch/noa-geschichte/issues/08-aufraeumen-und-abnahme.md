@@ -4,7 +4,7 @@
 
 **Blocked by:** 05, 06, 07, 09
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Was die 500er-Reihe brauchte und nicht mehr gebraucht wird, ist weg; Begriffe und Entscheide sind
 festgehalten; ein ganzer Durchgang je Grad ist im Browser geprüft. Danach ist der Stand bereit für den Merge, den der
@@ -17,7 +17,7 @@ Nutzer auslöst.
       umgestellt; README und Kopfkommentare angepasst.
 - [x] `CONTEXT.md`: Begriffe Geschichte, Durchgang, Welt, Vorrat, Übersicht, Titel; ADR «Die Geschichte ersetzt die
       feste Reihenfolge» unter `docs/adr/`.
-- [ ] PLAN.md 0 auf erledigt, offene Punkte nachgetragen (eigene Skybox «Im Dorf», Würfel als Teil 2).
+- [x] PLAN.md 0 auf erledigt, offene Punkte nachgetragen (eigene Skybox «Im Dorf», Würfel als Teil 2).
 - [x] Abnahme im Browser: je Grad ein ganzer Durchgang (automatisch gelöst) vom Menü bis zum Epilog, dazu Wiederholen,
       «Von vorn», Neuladen mitten in einer Welt; Desktop und Handy; Messung der Bildzeiten in den Zwischenszenen wie
       vor dem Umbau.
@@ -310,5 +310,10 @@ Netze (Wald, Strand, Vulkan) wie bisher (in Stücken war das Angebot des Walds e
 - Alle Reisen nachher (Desktop / Handy, je höchstens): Meer 59 / 56, Wüste 54 / 72, Vulkan 53 / 53, Planeten 37 / 71,
   Sterne 37 / 36; übrige Übergänge des Durchgangs höchstens 72 ms (Prolog, Wald schon bereit, wie früher 71). `--dorf`
   höchstens 54 ms (HEAD daneben 53/54).
-- Tests: `--ganz` Mittel (Desktop) und Schwer (Handy) je dreimal, `--dorf`, `tests/offline.mjs`, `tests/logic.test.mjs`
+- Tests: `--ganz` Mittel (Desktop) und Schwer (Handy) je fünfmal, `--dorf`, `tests/offline.mjs`, `tests/logic.test.mjs`
   (2032): alle bestanden, Konsole ohne Fehler.
+
+**Abschluss (31.10.2026, Koordinator):** Werkzeug-Teil (`noa/08-werkzeuge`) und Review-Fix (`noa/08-spiel-review`, Felsbilder
+über `OffscreenCanvas`) zusammengeführt; «Reihe» in `CONTEXT.md` nachgeführt (KI-Tester 84 bestanden); Nachprüfung der
+Reise in die Wüste mit `cbbc8c6` bestanden. PLAN.md 0 auf erledigt, die kleinen offenen Punkte der Abnahme dort
+nachgetragen. Lokal nach main gemergt auf Wunsch des Nutzers (kein Push).

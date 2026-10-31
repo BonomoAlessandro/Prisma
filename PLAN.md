@@ -1,20 +1,28 @@
 # PRISMA – Plan und offene Punkte
 
-## 0. Als Nächstes: Schwierigkeit wählen, dann Noas Geschichte
+## 0. Erledigt (31.10.2026): Schwierigkeit wählen, dann Noas Geschichte
 
 Wunsch des Nutzers (28.10.2026), als Nächstes anzugehen. Grundlage ist der Prototyp «Ein Lichtsignal an die Sterne»
-(Branch `feature/lichtsignal-prototyp`, Start mit `?signal`): Prolog im Bergdorf, sechs Welten mit je eigener Skybox
+(Branch `feature/lichtsignal-prototyp`): Prolog im Bergdorf, sechs Welten mit je eigener Skybox
 (Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne) und Reisen dazwischen, Finale beim Polarstern, Epilog bei Noa.
-Entscheide aus dem Grilling vom 29.10.2026, Spec und Tickets: `.scratch/noa-geschichte/` (Tickets 02–09), Stand und
-Übergabe in `STAND.md` dort. Begriffe in `CONTEXT.md` (Abschnitte «Noas Geschichte» und «Level der Geschichte»),
+Entscheide aus dem Grilling vom 29.10.2026, Spec und Tickets: `.scratch/noa-geschichte/` (Tickets 01–09). Begriffe in `CONTEXT.md` (Abschnitte «Noas Geschichte» und «Level der Geschichte»),
 Entscheid in ADR 0005.
 
-- **Stand 30.10.2026** (Branch `feature/lichtsignal-prototyp`, noch nicht auf main): Vorrat und Lader (02), Wahl der
-  240 Level und Titel (03), die Geschichte je Grad im Spiel (04), Menü mit den vier Graden (05) und Übersicht mit
-  Bestwerten und Wiederholen (06) sind gebaut und abgenommen. In Arbeit: Kapitel «Im Dorf» mit überspringbaren
-  Einstiegen (07) und der Einbau der neuen sehr schweren Level statt der Platzhalter (09; die Wahl dafür liegt auf
-  `feature/noa-09-wahl`). Danach Aufräumen und Abnahme (08); von 08 sind Begriffe und ADR geschrieben. Nach main erst,
-  wenn der Nutzer es sagt.
+- **Stand 31.10.2026:** Alle Tickets 01–09 gebaut, reviewt und abgenommen (ganzer Durchgang je Grad auf Desktop
+  und Handy, Bildzeiten der Zwischenszenen, Ticket 08), lokal nach main gemergt. Vorrat und Lader (02), Wahl der
+  240 Level und Titel (03), die Geschichte je Grad (04), Menü mit den vier Graden (05), Übersicht mit Bestwerten und
+  Wiederholen (06), Kapitel «Im Dorf» (07), Werkzeuge ohne feste Reihe und Aufräumen (08), 23 neue sehr schwere Level
+  statt der Platzhalter (09).
+- **Offen aus der Abnahme (Ticket 08, klein):**
+  - [ ] Erster Klick: `audio.unlock` hält das Bild 350–430 ms an (Hall mit 3,2 s Rauschen); Hall später oder kürzer.
+  - [ ] Desktop «Spiel → Übersicht» 87–88 ms (einmal 106).
+  - [ ] Übersicht auf kleinen Handys (360 × 640, 320 × 568): «Schliessen» liegt unter den Kacheln ausserhalb des
+    Bildschirms, der Kopf ist weggescrollt.
+  - [ ] Kopfzeile der Reise («Kapitel 3 · Die Wüste») auf hellem Himmel kaum lesbar; etwas heller.
+  - [ ] `.menue-aktion` auf kleinen Handys 8 px; 9 px oder die Karte anders kürzen.
+  - [ ] Felsbilder in Streifen (OffscreenCanvas) in einem echten Firefox gegenprüfen (Strand, Wüste).
+  - [ ] Baustein der Übersicht in `.scratch/noa-geschichte/bausteine/` kennt Tasten, Hinweis an der Kachel und 44 px
+    nicht (das Spiel ist massgebend).
 - **Offen, nicht Teil der Spec:**
   - [ ] Eigene Skybox für «Im Dorf» (macht der Nutzer; vorerst die Milchstrasse, an einer Stelle austauschbar),
     vielleicht zusammen mit dem Dorf aus 1.2.
@@ -22,7 +30,7 @@ Entscheid in ADR 0005.
     zurückzuholen (`tools/vorrat.mjs`); ob und wie sie wiederkommen, ist offen.
   - [ ] Zwischenszenen innerhalb einer Welt (vorerst bewusst keine, Entscheid 7 der Spec).
 
-- [ ] **0.1 Neuer Spielablauf:** Keine feste Reihe von 500 Leveln mehr. Im Menü wählt der Spieler die Schwierigkeit
+- [x] **0.1 Neuer Spielablauf:** Keine feste Reihe von 500 Leveln mehr. Im Menü wählt der Spieler die Schwierigkeit
   (leicht, mittel, schwer, sehr schwer); danach spielt er Noas Geschichte mit genau 10 Leveln je Skybox, also
   60 Leveln je Schwierigkeit.
   - **Wahl der Level (Wunsch des Nutzers, 28.10.2026):** Je Welt und Grad kommen die 10 am besten bewerteten Level
@@ -40,14 +48,14 @@ Entscheid in ADR 0005.
     Prolog und Einstiege beim ersten Durchgang je Grad; Würfel-Level vorerst in den Vorrat.
   - **Entschieden (30.10.2026):** Die Bestwerte überleben «Von vorn»; die Reisen zwischen den Welten laufen ganz und
     sind nicht überspringbar (überspringbar bleiben Prolog, Angebot, «Im Dorf» und die Einstiege in die Welten).
-- [ ] **0.2 Nicht mehr gebrauchte Level zur Seite legen:** Was in keiner Welt mehr vorkommt, nicht löschen, sondern in
+- [x] **0.2 Nicht mehr gebrauchte Level zur Seite legen:** Was in keiner Welt mehr vorkommt, nicht löschen, sondern in
   einen Vorrat verschieben, damit es später wieder verwendet werden kann (Leveldaten samt Herkunft und Urteil der
   KI-Tester). Die Tests, die heute Reihenfolge, Grade und Namen festhalten (`tests/levelliste.test.mjs`,
   `tests/golden.mjs`, `entfernteNamen`), an den neuen Ablauf anpassen.
   - Vorrat (`tools/vorrat/`, `tools/vorrat.mjs`) und Lader (`tools/lader.mjs`) stehen seit Ticket 02; 275 flache und
-    alle 300 Würfel-Level liegen dort. Offen bis Ticket 08: Werkzeuge und Tests nur der Reihe entfernen oder auf den
-    Vorrat umstellen.
-- [ ] **0.3 Fehlende Level generieren:** Je Grad braucht es 60 Level. Heute gibt es in der Fläche 85 leichte,
+    alle 300 Würfel-Level liegen dort. Seit Ticket 08 schreiben `ordne-level`/`ordne-wuerfel` in Spiel und Vorrat;
+    Austausch und Bedarf je Gruppe sind entfernt.
+- [x] **0.3 Fehlende Level generieren:** Je Grad braucht es 60 Level. Heute gibt es in der Fläche 85 leichte,
   265 mittlere, 105 schwere und 45 sehr schwere; für «sehr schwer» fehlen also mindestens 15 (Generator und KI-Tester
   wie beim Ausbau auf 500).
   - [x] **Sehr schwer (29.10.2026):** 15 neue Level beurteilt und gewählt, noch nicht im Spiel, in
@@ -55,9 +63,8 @@ Entscheid in ADR 0005.
     Mit den 45 im Spiel sind es 60 (je Haupt-Kernidee höchstens 12, dazu ein Lockvogel).
   - **Entschieden (29.10.2026, Spec):** Die 240 Level bekommen Titel, die zu ihrer Welt passen; der bisherige Name
     bleibt der Schlüssel für Werkzeuge und Protokoll.
-  - In «sehr schwer» geht die Vielfalt mit den vorhandenen Leveln nicht ganz auf; dort stehen vorerst Platzhalter.
-    Ticket 09 ersetzt sie durch neue Level (Wahl auf `feature/noa-09-wahl`: 23 neue statt 23 Platzhalter, ohne
-    Verstoss; Einbau offen).
+  - [x] **Platzhalter ersetzt (Ticket 09, 30.10.2026):** 23 neue sehr schwere Level statt der 23 Platzhalter, die
+    Vielfalt geht ganz auf; die ersetzten liegen im Vorrat.
 
 ## 1. Aussehen
 
