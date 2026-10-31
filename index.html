@@ -11866,6 +11866,8 @@ function createPanoramaSky(m) {
     /** geladen (blendet ab jetzt ein; Streifen kommen danach) oder gescheitert: bis dahin bleibt der bisherige Hintergrund
      * stehen (skyTheme.update) */
     get settled() { return mesh !== null || failed; },
+    /** ganz eingeblendet, vielleicht noch mit der Vorschau statt des scharfen Bilds und ohne Streifen; oder gescheitert */
+    get shown() { return mesh !== null && uniforms.uReady.value >= 1 || failed; },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
@@ -11973,6 +11975,8 @@ const skyTheme = {
   get fading() { return this.order.some((id) => this.weight[id] !== this.goal(id)); },
   /** Gewählter Hintergrund ganz eingeblendet (Tests) */
   get ready() { return !this.fading && (this.byId.get(this.current).module?.ready ?? true); },
+  /** Gewählter Hintergrund steht (Startbildschirm): wie ready, aber scharfes Bild und Streifen dürfen noch fehlen */
+  get shown() { return !this.fading && (this.byId.get(this.current).module?.shown ?? true); },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
@@ -15791,11 +15795,12 @@ const ui = {
       // reduzierte Bewegung: die Animationen sind gleich fertig (CSS), also nicht warten
       const still = matchMedia('(prefers-reduced-motion: reduce)').matches, revealed = performance.now();
       setTimeout(markIntroCalm, still ? 0 : INTRO_REVEAL_MS);
-      // „Klicken zum Starten“ frühestens nach der Enthüllung (2,9 s) und erst, wenn der Hintergrund dahinter ganz geladen
-      // ist; lädt er nicht (Fehler, sehr langsames Netz), nach 15 s trotzdem, damit das Spiel nicht hängen bleibt
+      // „Klicken zum Starten“ frühestens nach der Enthüllung (2,9 s) und erst, wenn der Hintergrund dahinter steht
+      // (skyTheme.shown: Auf scharfes Bild und Streifen warten kostete gut 5 s; sie laden unter dem Menü fertig); lädt
+      // er nicht (Fehler, sehr langsames Netz), nach 15 s trotzdem, damit das Spiel nicht hängen bleibt
       const check = () => {
         const waited = performance.now() - revealed;
-        if (waited >= (still ? 0 : 2900) && (skyTheme.ready || waited > 15000)) {
+        if (waited >= (still ? 0 : 2900) && (skyTheme.shown || waited > 15000)) {
           this.canStart = true;
           this.intro.classList.add('ready');
         } else setTimeout(check, 100);
@@ -18392,8 +18397,8 @@ const story = {
   /**
    * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
    * während einer Fahrt macht sie schneller. actions: Knöpfe nach der letzten Einstellung (Epilog), die Bühne bleibt
-   * dann stehen; sonst blendet sie aus. angebot: nach der letzten Einstellung oder dem Überspringen das Angebot
-   * (offer), danach blendet sie aus; zurück die Wahl (true: «Üben»), sonst false.
+   * dann stehen; sonst blendet sie aus. angebot: nach dem Tippen auf die letzte Einstellung oder dem Überspringen das
+   * Angebot (offer), danach blendet sie aus; zurück die Wahl (true: «Üben»), sonst false.
    */
   async playScene(shots, { skippable = false, actions = null, soft = false, angebot = false } = {}) {
     const sc = this.scene ??= this.makeScene();
@@ -18420,7 +18425,8 @@ const story = {
       await sc.moveTo(shot);
       if (this.skipped) break;
       if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
-      if (angebot && shot === shots.at(-1)) break; // statt «Tippen» gleich das Angebot
+      // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
+      if (angebot && shot === shots.at(-1) && !shot.text) break;
       sc.hint(true);
       await this.untilTap();
     }
