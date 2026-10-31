@@ -195,6 +195,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
     so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
     langsamer) wie in der Spec verlangt.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
+    [--drossel 4] [--sky forest] [--seite <index.html>] [--still]` misst den Leerlauf (Ticket 06 der Leistung, etwa
+    1 min): Menü ohne Eingabe, erstes Level ohne Eingabe («Ruhe»), dann Hover, Drehen und Ziehen («Eingabe»); je
+    Abschnitt gezeichnete Bilder je Sekunde, Zeichenzeit (p95, Mittel, GPU-ms je Sekunde), und je Eingabe, ob das
+    erste Bild im nächsten Bildschirmbild kommt (Prüfung). `--still` (Seite mit `?t=12`) prüft, dass die stehende
+    Szene nichts mehr zeichnet; `--seite` misst eine andere Fassung (etwa den Stand vorher als Kopie). Daten unter
+    `tests/output/leistung/leerlauf-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
@@ -266,8 +273,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
   60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
-  Geschichte, Menü). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
-  72 bzw. 29).
+  Geschichte, während sie einblendet), mit dem Blick im Himmel (Menü, Übersicht) 10. Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
+  (144 Hz → 72 bzw. 29). Liegt die Szene ganz verdeckt (Startbildschirm, eingeblendete Bühne von Prolog und Epilog),
+  wird sie nicht gezeichnet (`sceneLoop`): Nur die Logik läuft, solange etwas ansteht (Tweens, Einblenden des Himmels,
+  Kamera), dann ruht die Hauptschleife ohne rAF, bis `sceneLoop.wake()` sie weckt; vor dem Ruhen ein Bild zum
+  Aufwärmen. Sichtbar ruht sie ebenso, sobald sich nichts mehr bewegt (`sceneLoop.ambient()`/`pending()`): Weil im
+  Spiel die Umgebung immer lebt (Kamera schwebt, Strahlen fliessen, Ziele drehen sich, Himmel), passiert das nur mit
+  `?t=` (Zeit steht: Bilder der Tests und KI-Tester; dort weckt `settle` bzw. `sceneLoop.wake(true)` für neue Bilder).
+  Liegt die Platte nicht im Bild (Menü, Übersicht: Blick im Himmel), entfällt die Spiegelung. Eingaben (auch
+  `pointermove`), Drehen, Puls, Hover, Feier wecken. `__prisma.frames` zählt gezeichnete Bilder, `__prisma.ticks` Schritte der Logik (darauf warten die
+  Proben), `__prisma.ruht()` und `__prisma.verdeckt()` zeigen den Zustand.
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
   **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
   eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten

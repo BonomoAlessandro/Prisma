@@ -240,7 +240,7 @@ const setzen = (storage) => Object.entries(storage).map(([k, v]) => `localStorag
 async function laden(storage = {}) {
   await ev(`localStorage.clear(); ${setzen(storage)} window.__vorher = true`);
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü');
   await ev('document.fonts.ready.then(() => true)');
   await geste();
 }
@@ -297,7 +297,7 @@ async function gehaltenesEnter() {
     }
   }
   await send('Page.navigate', { url: PAGE });
-  await until('window.__prisma?.frames > 2', 'Spiel startet');
+  await until('window.__prisma?.ticks > 2', 'Spiel startet');
 }
 
 /** Tippen, bis die Bühne fertig ist (Prolog: bis sie ausblendet; Epilog: bis die Knöpfe am Ende stehen). */
@@ -402,7 +402,7 @@ async function durchgang(g, erster) {
   // Neuladen: «Weiter» zu diesem Grad, dieselbe Welt ohne Einstieg, dasselbe Level
   await ev('window.__vorher = true');
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
   const fokus = await ev('document.activeElement?.dataset.menueFokus ?? null');
   pruefe(fokus === 'weiter', `${g}: Fokus nach dem Neuladen auf ${fokus}`);
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
@@ -576,7 +576,7 @@ async function ganzerDurchgang(g, erster) {
 async function neuladenMitten(g) {
   await ev('window.__vorher = true');
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
   await ev('document.fonts.ready.then(() => true)');
   await geste(); // die erste Geste schaltet den Ton frei (gehört zum Start, nicht zum «Weiter»)
   const fokus = await ev('document.activeElement?.dataset.menueFokus ?? null');
@@ -1280,7 +1280,7 @@ async function dorfAblauf() {
   // Neuladen: «Weiter» führt in Übung 4, ohne Prolog, Angebot und Einstieg
   await ev('window.__vorher = true');
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
   await geste();
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
   const karteStand = await ev(`document.querySelector('${karte('leicht')} .menue-stand').textContent`);
@@ -1446,7 +1446,7 @@ async function dorfAblauf() {
   pruefe((await stand('mittel'))?.gesehen.join() === 'prolog', 'Mittel: Prolog gesehen, sobald das Angebot steht');
   await ev('window.__vorher = true');
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
   await geste();
   await tippe(karte('mittel'), 'Karte Mittel');
   await until(`${storyMode} === 'scene'`, 'Mittel nach dem Neuladen: Bühne', 30);
@@ -1518,7 +1518,7 @@ async function dorfRaender() {
   await until(`${storyMode} === 'caption' && ${D}.story.entering`, 'c: Einstieg ins Dorf', 30);
   await ev('window.__vorher = true');
   await send('Page.reload');
-  await until(`!window.__vorher && window.__prisma?.frames > 2 && ${menueOffen}`, 'c: Menü nach dem Neuladen');
+  await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'c: Menü nach dem Neuladen');
   await geste();
   s = await stand('schwer');
   pruefe(JSON.stringify(s.dorf) === '{"platz":0,"ende":null}' && s.gesehen.join() === 'prolog,angebot',
@@ -1587,7 +1587,7 @@ async function uebungLaeuft(n) {
 try {
   await emulate(send, view);
   await send('Page.navigate', { url: PAGE });
-  await until('window.__prisma?.frames > 2', 'Spiel startet');
+  await until('window.__prisma?.ticks > 2', 'Spiel startet');
   reise = await ev('STORY_LEVELS');
   if (startTaste && !view.phone) await gehaltenesEnter();
   if (menue) await menueAblauf();
@@ -1606,6 +1606,9 @@ const konsole = logs.filter(l => /\[exception\]|\[error\]|THREE\.WebGLProgram/.t
 const warnungen = logs.filter(l => /\[warn/.test(l));
 for (const l of konsole) pruefe(false, `Konsole: ${l}`);
 if (warnungen.length) console.log(`Warnungen:\n  ${warnungen.join('\n  ')}`);
+// Sicherheitsnetz der Hauptschleife (sceneLoop.guard): Sie ruhte, obwohl etwas anstand – eine Weckstelle fehlt
+const weckstellen = warnungen.filter(l => /Weckstelle fehlt/.test(l));
+if (weckstellen.length) console.log(`\nWARNUNG: ${weckstellen.length}× fehlende Weckstelle (siehe oben, sceneLoop.guard)`);
 if (bildzeiten.length) {
   console.log('\nBildzeiten (Lücken zwischen zwei Bildern des Browsers):');
   for (const b of bildzeiten) {

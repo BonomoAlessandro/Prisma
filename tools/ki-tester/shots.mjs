@@ -66,8 +66,11 @@ async function until(send, expression, what, seconds = 300) {
   throw new Error(`Zeitüberschreitung: ${what}`);
 }
 const frames = (send) => evaluate(send, 'window.__prisma.frames');
+/** n neue Bilder abwarten. Mit ?t= steht die Szene, die Hauptschleife ruht bald (sceneLoop): wecken, dann zeichnet sie
+ *  wieder ein paar Bilder (REST_STEPS), bevor sie erneut ruht. */
 async function rendered(send, n) {
   const f = await frames(send);
+  await evaluate(send, '__prismaDebug.sceneLoop.wake(true)');
   await until(send, `window.__prisma.frames >= ${f + n}`, `${n} Bilder`);
 }
 const capture = async (send) => (await send('Page.captureScreenshot', { format: 'png' })).result.data;
@@ -87,13 +90,13 @@ export async function takeShots(shots, log = console.log, page = PAGE) {
     try {
       await emulate(send, view);
       await send('Page.navigate', { url: page });
-      await until(send, 'window.__prisma?.frames > 2', 'Spiel startet');
+      await until(send, 'window.__prisma?.ticks > 2', 'Spiel startet');
       seconds[view.name] = [];
       for (const shot of shots) {
         const start = Date.now();
         await evaluate(send, 'window.__before = true');
         await send('Page.reload');
-        await until(send, '!window.__before && window.__prisma?.frames > 2', 'Seite neu geladen');
+        await until(send, '!window.__before && window.__prisma?.ticks > 2', 'Seite neu geladen');
         await evaluate(send, `__prismaDebug.zeige(${shot.index})`);
         await until(send, `window.__prisma.levelIndex() === ${shot.index} && window.__prisma.frames > 2 && `
           + 'window.__prisma.skyReady()', `Level ${shot.index}`);
