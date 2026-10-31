@@ -17,7 +17,8 @@ export const findChrome = () => [
 ].filter(Boolean).find(p => existsSync(p)) ?? null;
 
 /**
- * Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), logs (Konsole), close() }.
+ * Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), on(method, fn) (Ereignisse wie
+ * Tracing.dataCollected), logs (Konsole), close() }.
  * fenster: ein echtes, sichtbares Fenster statt headless (Messungen mit dem Messwerkzeug, Spec .scratch/leistung/:
  * rAF im Takt des Bildschirms, Zeichnen auf der Grafikkarte, also immer mit gpu); maximiert: das Fenster füllt den
  * Bildschirm (width und height gelten dann nicht). Verdeckt oder im Hintergrund drosselt Chrome es sonst.
@@ -29,9 +30,11 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
   const port = 9300 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-'));
   const proc = spawn(chrome, [
-    // im Fenster die schnellere Grafikkarte (Laptop mit zweien: sonst die eingebaute)
+    // im Fenster die schnellere Grafikkarte (Laptop mit zweien: sonst die eingebaute); auch zeichnen, wenn andere
+    // Fenster es verdecken (sonst hält Windows-Chrome das Bild an)
     ...(fenster ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
-      '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0']
+      '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0',
+      '--disable-features=CalculateNativeWinOcclusion']
       : ['--headless=new']),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
@@ -58,9 +61,11 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
   let msgId = 0;
   const pending = new Map();
   const logs = [];
+  const hoerer = new Map();
   ws.addEventListener('message', (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
+    for (const fn of hoerer.get(msg.method) ?? []) fn(msg.params);
     if (msg.method === 'Runtime.consoleAPICalled') {
       logs.push(`[${msg.params.type}] ` + msg.params.args.map(a => a.value ?? a.description ?? '').join(' '));
     } else if (msg.method === 'Runtime.exceptionThrown') {
@@ -89,7 +94,8 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
     if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => proc.once('exit', r));
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien: bleibt im Temp-Ordner */ }
   };
-  return { send, logs, close };
+  const on = (method, fn) => hoerer.set(method, [...(hoerer.get(method) ?? []), fn]);
+  return { send, on, logs, close };
 }
 
 /** Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt. */
