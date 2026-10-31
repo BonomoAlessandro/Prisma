@@ -17540,6 +17540,8 @@ function createStoryScene(host) {
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
   const WARTEN = 1e9; // ms: so lange wartet eine vorbereitete Fahrt im Startbild, bis moveTo sie startet
+  const HALTEN = 600000; // ms: so lange hält eine Fahrt danach ihr Zielbild (die Ebenen bleiben in ihrer Skalierung)
+  const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, stelle)
 
   scene = {
     el, skip: q('.skip'),
@@ -17552,7 +17554,8 @@ function createStoryScene(host) {
     worms: 'idle', gatherAt: 0, carryAt: 0,
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
-    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { key, anims, from, to, seconds }
+    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { key, anims, uhr, from, to, seconds }
+    staffel: 0,         // Zeitgeber der gestaffelten Schritte nach einem Halt
     vorbereitet: null,  // die nächste Fahrt, schon angelegt (wartet im Startbild, siehe vorbereiten)
     gezeichnet: {},     // was draw zuletzt gesetzt hat (Arm, Strahl, Stern): nur Änderungen schreiben
 
@@ -17565,7 +17568,7 @@ function createStoryScene(host) {
       if (v === this.uhr.tempo) return;
       this.uhr = { t0: performance.now(), s0: this.time, tempo: v };
       for (const u of umgebung) u.a.updatePlaybackRate(v);
-      for (const a of this.laufend?.anims ?? []) a.updatePlaybackRate(v);
+      for (const a of [...(this.laufend?.anims ?? []), this.laufend?.uhr]) a?.updatePlaybackRate(v);
     },
     /** Es läuft noch etwas, auf das man warten kann (Tween oder Fahrt). */
     get laeuft() { return this.tweens.length > 0 || this.moving; },
@@ -17595,36 +17598,80 @@ function createStoryScene(host) {
     },
     /**
      * Fahrt der Kamera von from nach to als Animation je Ebene (Keyframes 30-mal pro Sekunde, darin schon die Kurve
-     * von storyEase; Zoom geometrisch). delay: wartet so lange im Startbild.
+     * von storyEase; Zoom geometrisch). Danach hält die Animation das Zielbild noch HALTEN lang: Sie läuft also weiter,
+     * und Chrome rastert die Ebene am Ende der Fahrt nicht in der neuen Skalierung nach (das hielt das Bild am Ende
+     * jeder Fahrt 50–280 ms an, Review Ticket 04). Wann die Fahrt fertig ist, sagt eine Animation ohne Ziel (uhr).
+     * Die Ebenen legt ebeneAnlegen an (vorbereiten: eine nach der anderen).
      */
-    baueFahrt(from, to, seconds, delay) {
-      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
-      const schritte = Math.max(2, Math.ceil(seconds * 30));
-      const frames = (p) => Array.from({ length: schritte + 1 }, (_, i) => {
+    neueFahrt(from, to, seconds) {
+      const d = seconds * 1000, schritte = Math.max(2, Math.ceil(seconds * 30)), anteil = d / (d + HALTEN);
+      const frames = (p) => [...Array.from({ length: schritte + 1 }, (_, i) => {
         const k = storyEase(i / schritte);
-        return { transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) };
-      });
-      const anims = layers.map(({ e, p }) => e.animate(frames(p), { duration: seconds * 1000, delay, fill: 'both', easing: 'linear' }));
-      return { key, anims, frames, from, to, seconds };
+        return { offset: anteil * i / schritte,
+          transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) };
+      }), { offset: 1, transform: this.pose(to, p) }];
+      return { key: JSON.stringify([from, to, seconds, innerWidth, innerHeight]), from, to, seconds, frames,
+        anims: [], uhr: new Animation(new KeyframeEffect(null, null, { duration: d }), document.timeline), delay: 0 };
+    },
+    /** Animation der Ebene i für die Fahrt f (mit ihrer Verzögerung); eine alte Fahrt gibt die Ebene dabei ab. */
+    ebeneAnlegen(f, i) {
+      const { e, p } = layers[i];
+      f.anims[i] = e.animate(f.frames(p), { duration: f.seconds * 1000 + HALTEN, delay: f.delay, fill: 'both', easing: 'linear' });
+      if (this.laufend && this.laufend !== f && !this.moving) this.laufend.anims[i]?.cancel();
+    },
+    /** Fahrt starten (vorbereitet: am Ende ihrer Verzögerung) und bei Tempo speed laufen lassen. */
+    starteFahrt(f) {
+      for (let i = 0; i < layers.length; i++) if (!f.anims[i]) this.ebeneAnlegen(f, i);
+      for (const a of f.anims) { if (f.delay) a.currentTime = f.delay; a.updatePlaybackRate(this.speed); }
+      f.uhr.play();
+      f.uhr.updatePlaybackRate(this.speed);
     },
     /**
      * Die Fahrt zur Einstellung shot schon jetzt anlegen, wartend im Startbild (die Kamera steht dort): Chrome rastert die
-     * Ebenen dann gleich in der grössten Skalierung der Fahrt, und moveTo startet sie ohne neues Rastern.
+     * Ebenen dann gleich in der grössten Skalierung der Fahrt, und moveTo startet sie ohne neues Rastern. gestaffelt: nach
+     * einer Fahrt erst eine Weile nach dem Halt und eine Ebene nach der anderen (jede rastert dabei neu, mit ihren
+     * Strichen für den Ruhepunkt, siehe stelle), damit kein einzelnes Bild alles auf einmal rastert.
      */
-    vorbereiten(shot) {
+    vorbereiten(shot, gestaffelt = false) {
+      clearTimeout(this.staffel);
       const [to, seconds] = this.ziel(shot), from = { ...this.cam };
       const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
       if (this.vorbereitet?.key === key) return;
-      for (const a of this.vorbereitet?.anims ?? []) a.cancel();
-      this.vorbereitet = this.baueFahrt(from, to, seconds, WARTEN);
-      // die alte, fertige Fahrt hält das Bild nicht mehr (die neue zeigt dasselbe Startbild)
-      if (this.laufend && !this.moving) { for (const a of this.laufend.anims) a.cancel(); this.laufend = null; }
+      this.verwerfen();
+      const f = this.vorbereitet = this.neueFahrt(from, to, seconds);
+      f.delay = WARTEN;
+      if (!gestaffelt) { this.stelle(); for (let i = 0; i < layers.length; i++) this.ebeneAnlegen(f, i); }
+      else this.gestaffelt((i) => { if (this.vorbereitet === f) { this.stelle(i); this.ebeneAnlegen(f, i); } });
     },
-    /** Kamera ohne Fahrt: die Ebenen stehen in der Einstellung cam. */
-    stelle() {
-      for (const { e, p } of layers) {
+    /**
+     * Nach einem Halt: HALT_MS warten, dann je Ebene schritt(i), eine nach der anderen alle STAFFEL_MS, die teuren
+     * (Berge, Bergwald, Noas Hügel) nicht nebeneinander. Bricht ab, sobald eine Fahrt beginnt.
+     */
+    gestaffelt(schritt) {
+      clearTimeout(this.staffel);
+      const folge = [4, 0, 2, 5, 1, 3];
+      const weiter = (n) => {
+        if (this.moving || !this.running) return;
+        schritt(folge[n]);
+        if (n + 1 < folge.length) this.staffel = setTimeout(() => weiter(n + 1), STAFFEL_MS);
+      };
+      this.staffel = setTimeout(() => weiter(0), HALT_MS);
+    },
+    /** Eine vorbereitete Fahrt verwerfen (die Ebenen hält dann wieder die alte Fahrt bzw. stelle). */
+    verwerfen() {
+      clearTimeout(this.staffel);
+      for (const a of this.vorbereitet?.anims ?? []) a?.cancel();
+      this.vorbereitet = null;
+    },
+    /**
+     * Kamera ohne Fahrt: die Ebenen stehen in der Einstellung cam, die Striche (strich) haben ihre Breite für diesen
+     * Ruhepunkt. i: nur diese Ebene.
+     */
+    stelle(i = null) {
+      for (const [j, { e, p }] of layers.entries()) {
+        if (i !== null && j !== i) continue;
         e.style.transform = this.pose(this.cam, p);
-        e.style.setProperty('--rs', this.skala(this.cam, p).toFixed(5)); // Striche (strich) im Ruhepunkt wieder genau
+        e.style.setProperty('--rs', this.skala(this.cam, p).toFixed(5));
       }
     },
     /** Bildschirm gedreht oder anders gross: Fahrten und Kamera neu rechnen (gleiche Zeit, gleicher Weg). */
@@ -17632,7 +17679,7 @@ function createStoryScene(host) {
       this.stelle();
       for (const f of [this.laufend, this.vorbereitet]) {
         if (!f) continue;
-        f.anims.forEach((a, i) => a.effect.setKeyframes(f.frames(layers[i].p)));
+        f.anims.forEach((a, i) => a?.effect.setKeyframes(f.frames(layers[i].p)));
         f.key = JSON.stringify([f.from, f.to, f.seconds, innerWidth, innerHeight]);
       }
     },
@@ -17644,14 +17691,12 @@ function createStoryScene(host) {
       this.beamLen = this.beamPower = this.starBoost = 0;
       this.worms = 'idle';
       this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
-      for (const a of this.laufend?.anims ?? []) a.cancel();
+      for (const a of this.laufend?.anims ?? []) a?.cancel();
+      this.laufend?.uhr.cancel();
       this.laufend = null;
       // eine vorbereitete Fahrt, die genau hier beginnt, bleibt (vorwaermen: dieselbe erste Einstellung)
       const [to, seconds] = this.ziel(shot);
-      if (this.vorbereitet && this.vorbereitet.key !== JSON.stringify([this.cam, to, seconds, innerWidth, innerHeight])) {
-        for (const a of this.vorbereitet.anims) a.cancel();
-        this.vorbereitet = null;
-      }
+      if (this.vorbereitet?.key !== JSON.stringify([this.cam, to, seconds, innerWidth, innerHeight])) this.verwerfen();
       this.say('');
       this.kicker('');
       q('.sub').classList.remove('angebot');
@@ -17672,8 +17717,7 @@ function createStoryScene(host) {
     ruhen() {
       el.classList.remove('prewarm');
       if (this.running) return;
-      for (const a of this.vorbereitet?.anims ?? []) a.cancel();
-      this.vorbereitet = null;
+      this.verwerfen();
       for (const u of umgebung) u.a.pause();
     },
     /** Einblenden und die Szene laufen lassen. */
@@ -17701,31 +17745,33 @@ function createStoryScene(host) {
     },
     /**
      * Kamerafahrt zur Einstellung (im Hochformat camP); Zoom geometrisch, damit er gleichmässig wirkt. next: die
-     * Einstellung danach, ihre Fahrt wird gleich vorbereitet (siehe vorbereiten).
+     * Einstellung danach, ihre Fahrt wird nach dem Halt vorbereitet (siehe vorbereiten).
      */
     moveTo(shot, next = null) {
       const [to, seconds] = this.ziel(shot), from = { ...this.cam };
       if (this.speed < 10) this.speed = 1; // nach dem Beschleunigen wieder normal (ausser beim Überspringen)
-      this.moving = true;
-      this.movedAt = this.time;
-      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
+      clearTimeout(this.staffel);
       let f = this.vorbereitet;
       this.vorbereitet = null;
-      if (f?.key === key) for (const a of f.anims) a.currentTime = WARTEN;
-      else {
-        for (const a of f?.anims ?? []) a.cancel();
-        f = this.baueFahrt(from, to, seconds, 0);
+      if (f?.key !== JSON.stringify([from, to, seconds, innerWidth, innerHeight])) {
+        for (const a of f?.anims ?? []) a?.cancel();
+        f = this.neueFahrt(from, to, seconds);
       }
-      for (const a of f.anims) a.updatePlaybackRate(this.speed);
-      for (const a of this.laufend?.anims ?? []) a.cancel();
+      this.moving = true;
+      this.movedAt = this.time;
+      this.starteFahrt(f);
+      const alt = this.laufend;
       this.laufend = f;
-      return new Promise((resolve) => f.anims[0].finished.then(() => {
+      alt?.uhr.cancel();
+      for (const a of alt?.anims ?? []) a?.cancel();
+      return new Promise((resolve) => f.uhr.finished.then(() => {
         if (this.laufend !== f) return; // abgebrochen (reset): wie früher ein Tween, der nie fertig wird
         this.cam = { ...to };
-        this.stelle();
         this.moving = false;
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
-        if (next) this.vorbereiten(next);
+        // die Ebenen halten das Zielbild weiter (HALTEN); Striche und die nächste Fahrt kommen gestaffelt nach dem Halt
+        if (next) this.vorbereiten(next, true);
+        else this.gestaffelt((i) => this.stelle(i));
         resolve();
       }, () => {}));
     },
