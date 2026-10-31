@@ -18,10 +18,10 @@ Nutzer auslöst.
 - [x] `CONTEXT.md`: Begriffe Geschichte, Durchgang, Welt, Vorrat, Übersicht, Titel; ADR «Die Geschichte ersetzt die
       feste Reihenfolge» unter `docs/adr/`.
 - [ ] PLAN.md 0 auf erledigt, offene Punkte nachgetragen (eigene Skybox «Im Dorf», Würfel als Teil 2).
-- [ ] Abnahme im Browser: je Grad ein ganzer Durchgang (automatisch gelöst) vom Menü bis zum Epilog, dazu Wiederholen,
+- [x] Abnahme im Browser: je Grad ein ganzer Durchgang (automatisch gelöst) vom Menü bis zum Epilog, dazu Wiederholen,
       «Von vorn», Neuladen mitten in einer Welt; Desktop und Handy; Messung der Bildzeiten in den Zwischenszenen wie
       vor dem Umbau.
-- [ ] Alle Tests grün; Review nach dem Ticket. Kein Merge, bis der Nutzer es sagt.
+- [x] Alle Tests grün; Review nach dem Ticket. Kein Merge, bis der Nutzer es sagt.
 
 ## Comments
 
@@ -248,3 +248,50 @@ Merge.
   und kostet nichts. Er ist aber eine Falle, seit es Level des Ausbaus gibt (der Kopf von `prepare.mjs` warnt: ohne
   Vorschau zählt `formel` im ganzen Spiel, `ordne-level` unter dem Bestand). Für neue flache Level darum immer mit
   Vorschau aus `ordne-level.mjs --ausbau … --json`.
+
+**Abnahme (31.10.2026)** – Stand `2fff6e0` (alles zusammengeführt), Headless-Chrome auf der Grafikkarte, alle Läufe über
+`leise.sh` (`LEISE_MAX_CPU=100 LEISE_CPU=100`). Urteil: **bestanden**.
+
+- **Probe erweitert** (`9d1162a`): `--ganz` spielt je Grad den ganzen Durchgang in einer Sitzung (Menü → Prolog →
+  Angebot «Gleich los» → Einstieg → 60 Level mit fünf Reisen → Finale → Epilog → «Zum Menü» ohne Neuladen; geschafft,
+  nächster Grad hervorgehoben), mit Neuladen mitten in der Wüste (25 gelöst: «Weiter» an Wüste 26, ohne Einstieg, Stand
+  richtig) und den Bildzeiten jeder Zwischenszene; etwa 7–8 min je Grad. `--groesse 360x640` für kleine Handys; `tippe`
+  scrollt ein Element ausserhalb des Bildschirms erst wie ein Spieler herbei (Finger bzw. Mausrad). Die Ausnahme «erstes
+  Zeichnen der Bühne» trat in keinem Lauf mehr auf und ist entfernt (`6785368`).
+- **Durchgänge:** je Grad ganz auf Desktop (1440 × 900) und Handy hoch (390 × 844), quer (844 × 390) Leicht und Sehr
+  schwer: 10 Läufe bestanden, Konsole leer. Dazu `--menue` («Von vorn» mit Rückfrage), `--uebersicht` (Wiederholen,
+  Weltgrenze, Bestwerte) und `--dorf` (Einstieg ins Dorf) auf Desktop, Handy und quer; `--menue`, `--uebersicht` und ein
+  Grad mit einer Welt auf 360 × 640 und 320 × 568: bestanden.
+- **Längste Lücke je Szene** (ms, höchster Wert über die Grade; Desktop / Handy hoch / quer):
+
+  | Szene | Desktop | Handy | quer |
+  |---|---|---|---|
+  | Menü → Prolog bis zum Angebot | 71 | 54 | 55 |
+  | «Gleich los» → Einstieg Bergwald | 36 | 71 | 53 |
+  | Einstieg ins Dorf («Üben» → Übung 1, `--dorf`) | 54 | 53 | 71 |
+  | Reise → Meer | 54 | 54 | 54 |
+  | Reise → Wüste | 89 | 89 | 89 |
+  | Reise → Vulkan | 54 | 55 | 53 |
+  | Reise → Planeten | 37 | 54 (Ausreisser 459) | 54 |
+  | Reise → Sterne | 37 | 37 | 37 |
+  | Neuladen → «Weiter» (Wüste 26) | 37 | 52 | 53 |
+  | Finale (Level 60 → Epilog) | 42 | 37 | 37 |
+  | Epilog bis «Zum Menü» | 53 | 36 | 37 |
+  | Epilog → Menü | 20 | 20 | 19 |
+
+  Übrige Übergänge (Menü, Übersicht, Dorf): höchstens 87 ms (Desktop «Spiel → Übersicht», bekannt) und 70 ms.
+- **Ausreisser:** Handy Mittel, Reise → Planeten einmal 459 ms, rund 300 ms nach einem Bild der Probe; zwei frische
+  Läufe 53 / 53 ms, in den übrigen 10 Planeten-Reisen höchstens 54. Ebenso 320 × 568 `--menue` einmal 414 ms im ersten
+  Bild der Messung, direkt nach einem Bild der Probe; zwei frische Läufe 19 / 24 ms. Beide Male nach
+  `Page.captureScreenshot` auf dem Handy, nicht im Spiel.
+- **Beobachtung:** Reise Meer → Wüste hat in jedem Lauf und auf jedem Gerät eine Lücke von 71–89 ms gleich nach dem
+  Klick auf «Weiter» (Schleier, noch Strand), also unter der Grenze, aber knapp und immer. Vermutlich der Träger
+  `spray` oder das Freigeben/Laden am Strand; mit einem Profil ansehen.
+- **Bilder** (`tests/output/geschichte/`): Texte, Knöpfe und Übergänge stimmen auf allen Grössen. Behoben (`9a6272b`):
+  auf 320 × 568 lief «SEHR SCHWER» im Menü 40 px unter das Zeichen von «Von vorn»; unter 340 px sind Name, Punkte und
+  «Von vorn» enger (gemessen: 6 px Abstand; 360 × 640 und grösser unverändert). Offen: Auf 360 × 640 und 320 × 568
+  steht «Schliessen» der Übersicht unter den Kacheln ausserhalb des Bildschirms (man muss scrollen, der Kopf ist beim
+  Öffnen weggescrollt); der Kicker «Kapitel 3 · Die Wüste» ist auf dem hellen Himmel der Reise kaum lesbar.
+- **Tests** (Stand 2fff6e0): Strahlregel 2032, Golden 847 Level, Vorrat 18, Levelliste 54, Würfelliste 20, KI-Tester 84,
+  Beurteilung 206, Geschichte 35, Generator 31, Offline, Bedienung (Konsole leer), `shots.mjs` Platz 1 und 240: alle
+  bestanden; nach `9a6272b` Strahlregel, Golden, Vorrat, Levelliste und Geschichte erneut bestanden.
