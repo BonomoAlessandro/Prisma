@@ -177,6 +177,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`<bildschirm>-<name>.png`, `«sehr schwer»` als `sehr-schwer`).
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leistung-probe.mjs [--handy] [--drossel 4]
+    [--fenster]` fährt den Referenzdurchlauf des Messwerkzeugs (Spec `.scratch/leistung/`, Ticket 01; etwa 2–3 min)
+    über die Knöpfe der Leistungsanzeige wie ein Spieler: erfundener echter Stand, «Referenzdurchlauf», «Klicken zum
+    Starten», Leicht, Prolog Bild für Bild, «Gleich los», erstes Level (gelöst über `__prismaDebug.loese`), «Menü»,
+    «Weiter zur Reise». Sie prüft Abschnitte und Werte der Ergebniskarte (`__prisma.leistung.ergebnis()`), dass der
+    echte Stand zurück ist und die Konsole sauber bleibt, und legt Karte und Daten unter `tests/output/leistung/` ab.
+    Headless ist das nur eine Regressionsprüfung (ohne GPU in Software, rAF virtuell getaktet). `--fenster` öffnet ein
+    echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
+    so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
+    langsamer) wie in der Spec verlangt.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
@@ -251,6 +261,28 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Geschichte, Menü). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
   72 bzw. 29).
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
+  **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
+  eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten
+  (Startbildschirm, Prolog, Menü, Einstieg, Spiel, Reise usw.; Laden hinter einer Überblendung markiert der Code mit
+  `leistung.markiere('laden')` bzw. `leistung.waehrend('laden', promise)`, es zählt nicht gegen die Grenzwerte). Dazu
+  Hänger des Hauptthreads mit Ursache (`long-animation-frame`), die CPU-Zeit von `frame()` und die Zeichenzeit: GPU-Zeit
+  über `EXT_disjoint_timer_query_webgl2`, ohne die Erweiterung im Referenzdurchlauf die Zeit bis nach einem
+  1-Pixel-`readPixels`. Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
+  **Referenzdurchlauf:** Seite mit `?perf` öffnen (auf dem Handy die Adresse auf Render mit `?perf`), in der Anzeige
+  unten links «Referenzdurchlauf» tippen. Der echte Spielstand wird gesichert (`prisma.leistung.sicherung`), die Seite
+  lädt mit frischem Stand neu. Dann normal durchklicken: «Klicken zum Starten», einen Grad wählen, den Prolog Bild für
+  Bild antippen, «Gleich los», das erste Level lösen, «Menü». Dort «Weiter zur Reise»: Das Spiel springt ans Ende der
+  ersten Welt, löst das Level selbst und reist ins Meer (Himmel frisch geladen); 6 s nach der Landung ist Schluss.
+  «Auswerten» endet ohne Reise, «Abbrechen» jederzeit. Danach ist der echte Stand zurück, die Seite lädt neu und zeigt
+  die Ergebniskarte: je Abschnitt Bilder, p95, längstes Bild, Bilder über 33 ms, p95 der Zeichenzeit und der CPU-Zeit,
+  gezeichnete Bilder je Sekunde, dazu Gerät, GPU, Bildschirm, Takt, Mass der Zeichenzeit, Hänger und **Version**.
+  «Kopieren» legt sie in die Zwischenablage (sonst ein markiertes Textfeld), «Schliessen» vergisst sie. Proben lesen
+  dasselbe über `window.__prisma.leistung` (`tests/leistung-probe.mjs`).
+  **Version prüfen, sonst neu laden:** `APP_VERSION` (Datum und Ticketstand) steht gleich in `index.html` und `sw.js`
+  (ein Test prüft das) und wird mit jedem Stand für einen Handy-Durchlauf nachgeführt. Anzeige und Ergebniskarte
+  zeigen sie. Steht dort nach dem Deploy noch die alte (Render startete kalt, und der Service Worker antwortete nach 3 s
+  aus dem Speicher), die Seite einmal neu laden: Der Speicher ist inzwischen nachgeführt, und die geänderte `sw.js`
+  installiert sich neu.
 - **Skyboxen aus Blender** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Hintergründe, die
   in Blender als Panorama entstehen; im Spiel zeichnet sie ein allgemeines Modul (`createPanoramaSky`, Abschnitt SKYBOX
   in `index.html`) aus ihrem Manifest. Register `backgrounds/skies.js`, Daten in `backgrounds/<id>/` (Stand im

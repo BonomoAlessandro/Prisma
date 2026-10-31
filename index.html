@@ -1060,15 +1060,40 @@
   }
 
   #perf {
-    position: fixed; left: 12px; bottom: 12px; z-index: 5;
+    /* z-index über Menü, Startbildschirm und Bühne: Die Knöpfe bleiben im ganzen Referenzdurchlauf erreichbar */
+    position: fixed; left: 12px; bottom: 12px; z-index: 9;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
     color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
     padding: 8px 10px; border-radius: 4px; white-space: pre; pointer-events: none;
+    max-width: calc(100vw - 24px); overflow: hidden;
   }
+  #perf .perf-knoepfe { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; white-space: normal; }
+  #perf .perf-knoepfe:empty { display: none; }
+  #perf button { pointer-events: auto; } /* nur die Knöpfe: Daneben bleiben die Knöpfe des Spiels bedienbar */
+  #perf button, #leistung-karte button {
+    font: inherit; color: #e8e6f0; background: rgba(255, 255, 255, 0.12); border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 4px; padding: 5px 9px; cursor: pointer;
+  }
+  /* Ergebniskarte des Referenzdurchlaufs: gross genug, um sie auf dem Handy abzulesen; Text markier- und kopierbar */
+  #leistung-karte {
+    position: fixed; inset: max(10px, env(safe-area-inset-top)) 10px 10px; z-index: 10; display: flex;
+    flex-direction: column; gap: 10px; padding: 12px; border-radius: 6px; background: rgba(6, 6, 14, 0.95);
+    color: #e8e6f0; font: 12px/1.45 ui-monospace, Consolas, monospace; letter-spacing: 0;
+  }
+  #leistung-karte[hidden] { display: none; }
+  #leistung-karte pre { flex: 1; margin: 0; overflow: auto; white-space: pre; user-select: text; -webkit-user-select: text; }
+  #leistung-karte textarea { flex: 1; font: inherit; color: inherit; background: #000; border: 1px solid #555; }
+  #leistung-karte .karte-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; }
+  #leistung-karte button { padding: 9px 14px; }
 </style>
 </head>
 <body>
-<div id="perf" hidden></div>
+<div id="perf" hidden><div class="perf-text"></div><div class="perf-knoepfe"></div></div>
+<div id="leistung-karte" hidden role="dialog" aria-label="Ergebnis des Referenzdurchlaufs">
+  <pre></pre>
+  <textarea readonly hidden aria-label="Ergebnis zum Kopieren"></textarea>
+  <div class="karte-knoepfe"><button class="kopieren">Kopieren</button><button class="schliessen">Schliessen</button></div>
+</div>
 <div id="hud" class="hidden">
   <div class="title"><span id="hud-title">Prisma</span><span class="tier" id="hud-tier" hidden></span></div>
   <div class="goal" id="hud-goal"></div>
@@ -1153,6 +1178,11 @@
 /* =====================================================================
    KONFIGURATION
    ===================================================================== */
+
+// Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
+// Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
+// das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
+const APP_VERSION = '2026-10-31 leistung-01';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -18055,8 +18085,9 @@ const story = {
       this.see('prolog');
       if (ueben) { this.inDorf = true; this.uebung = 0; index = this.currentIndex(); ch = STORY_DORF; }
     }
-    if (this.inDorf) await this.enter(index, ch, sunk, STORY_DORF.einstieg);
-    else await this.enter(index, ch, sunk);
+    // Abschnitte des Messwerkzeugs (leistung.waehrend): Einstieg, Reise, Weltwechsel und Finale
+    if (this.inDorf) await leistung.waehrend('einstieg', this.enter(index, ch, sunk, STORY_DORF.einstieg));
+    else await leistung.waehrend('einstieg', this.enter(index, ch, sunk));
     this.done();
   },
   /**
@@ -18149,17 +18180,17 @@ const story = {
       if (next && this.stand.geloest.includes(LEVELS[next.index].name)) {
         this.step++;
         if (next.c === cur.c) changeLevel(next.index);
-        else this.replayWorld(next);
+        else leistung.waehrend('weltwechsel', this.replayWorld(next));
         return;
       }
       this.replay = false;
     }
-    if (next?.c !== cur.c && STORY_CHAPTERS[cur.c].finale) { this.finale(); return; }
+    if (next?.c !== cur.c && STORY_CHAPTERS[cur.c].finale) { leistung.waehrend('finale', this.finale()); return; }
     if (!next) { this.ending(); return; }
     this.step++;
     this.save();
     if (next.c === cur.c) changeLevel(next.index);
-    else this.chapterEnd(next);
+    else leistung.waehrend('reise', this.chapterEnd(next));
   },
   /**
    * «Weiter» im Dorf: die nächste Übung, nach der letzten das Ende des Kapitels (dorfEnde). Beim Wiederholen nach dem
@@ -18214,7 +18245,7 @@ const story = {
     await this.untilTap();
     this.el.querySelector('.caption .tap').textContent = ''; // getippt: die Aufforderung geht sofort
     await wald;
-    await this.enter(index, STORY_CHAPTERS[0], sunk);
+    await leistung.waehrend('einstieg', this.enter(index, STORY_CHAPTERS[0], sunk));
     this.done();
   },
   async chapterEnd(next) {
@@ -19294,48 +19325,558 @@ function renderReflection() {
   floorTop.visible = true;
 }
 
+/* ---------- Messwerkzeug (Spec .scratch/leistung/, Ticket 01) ---------- */
+
+// Abschnitte der Messung: Kennung → [Name auf der Karte, Laden (zählt nicht gegen die Grenzwerte)]
+const MESS_ABSCHNITTE = {
+  seitenstart: ['Seitenstart', true], // bis die Enthüllung des Startbildschirms beginnt: Die Seite lädt
+  laden: ['Laden', true],             // Laden hinter einer Überblendung, vom Code markiert (leistung.markiere('laden'))
+  start: ['Startbildschirm'], menue: ['Menü'], uebersicht: ['Übersicht'], prolog: ['Prolog'], einstieg: ['Einstieg'],
+  spiel: ['Spiel'], reise: ['Reise'], weltwechsel: ['Weltwechsel'], ankunft: ['Spiel n. Reise'], finale: ['Finale'],
+  epilog: ['Epilog'],
+};
+// Grenzwerte der Spec: p95 der sichtbaren Bildabstände ≤ 16,7 ms mit 10 % Toleranz (rAF-Zeitstempel schwanken), kein
+// Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms
+const MESS_GRENZE = { p95: 18.3, bild: 33, zeichnen: 8 };
+const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
+// Speicher des Referenzdurchlaufs: laufend, Sicherung des echten Spielstands, Ergebnis für die Karte nach dem Neuladen
+const MESS_LAUF = 'prisma.leistung.lauf', MESS_SICHERUNG = 'prisma.leistung.sicherung';
+const MESS_ERGEBNIS = 'prisma.leistung.ergebnis';
+const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } };
+
+/**
+ * Misst, was man sieht, nicht nur die WebGL-Bilder (perfHud): Eine eigene, leichte rAF-Schleife (starte) misst den
+ * Abstand aufeinanderfolgender Display-Frames, unabhängig von frameRate und frame(); ruht die Szene, misst sie weiter. Sie
+ * läuft nur mit ?perf, nach Taste F oder im Referenzdurchlauf. Getrennt nach Abschnitten (abschnitt: Startbildschirm,
+ * Prolog, Menü, Spiel, Reise …): Ein Abstand zählt zum Abschnitt an seinem Anfang (der Hänger nach dem Klick auf
+ * «Klicken zum Starten» gehört zum Startbildschirm). Einstieg, Reise, Weltwechsel und Finale markiert die Geschichte
+ * (waehrend), Laden hinter einer Überblendung markiert der Code mit markiere('laden') bzw. waehrend('laden', promise):
+ * Es wird getrennt ausgewiesen und zählt nicht gegen die Grenzwerte. Die Messung verfälscht nichts merklich: Histogramme
+ * mit festen Fächern (genaue p95 ohne Liste aller Abstände) und ein Ringpuffer für die Anzeige, keine Allokationen pro
+ * Bild. Dazu Hänger des Hauptthreads mit Ursache (PerformanceObserver: long-animation-frame, longtask).
+ * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
+ * fehlt die Erweiterung (viele Android-Geräte), im Referenzdurchlauf die Zeit von Beginn frame() bis nach einem
+ * 1-Pixel-readPixels. readPixels wartet sicher auf das fertige Bild (gl.finish nicht in jedem Browser) und hält dafür die
+ * Pipeline an, darum nur dort. Dazu die CPU-Zeit von frame() und die gezeichneten Bilder je Sekunde.
+ * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
+ * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
+ * und misst die Reise in die zweite Welt samt ihrem frisch geladenen Himmel. Danach kommt der echte Stand zurück, die
+ * Seite lädt neu und zeigt die Ergebniskarte (auch per window.__prisma.leistung).
+ */
+const leistung = {
+  aktiv: false,
+  prev: null,         // rAF-Zeitstempel des letzten Display-Frames (null: neu anfangen, etwa nach verstecktem Tab)
+  teil: null,         // Messwerte des Abschnitts ab dem letzten Frame (neuerTeil)
+  teile: new Map(),   // Kennung → Messwerte, in der Reihenfolge des ersten Auftretens
+  wechsel: [],        // [Zeit, Kennung] je Abschnittswechsel: Hänger kommen erst später an (teilBei)
+  marken: [],         // Abschnitte, die der Code markiert (markiere), der jüngste gilt
+  ladend: 0,          // markiertes Laden hinter einer Überblendung (geht allen Abschnitten vor)
+  ring: new Float32Array(256), ringPos: 0, ringNeu: 0, sortiert: new Float32Array(256), // Anzeige: jüngste Abstände
+  schlimmste: [],     // die längsten Abstände { ms, id, t }
+  haenger: [],        // die längsten long-animation-frames { ms, id, t, ursache }
+  hudZeit: 0,
+  gl: null, timer: null, abfragen: [], abfrageNeu: 0, abfrageAlt: 0, abfrageLaeuft: false, // GPU-Zeit
+  pixel: new Uint8Array(4),
+  modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
+  lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
+  schritt: null,      // im Durchlauf: 'teil1' (bis zum Menü), 'reise', 'fertig'
+  geloest: false,     // im Durchlauf: ein Level ist gelöst («Weiter zur Reise» im Menü)
+  status: '',         // Zustand des Durchlaufs (Anzeige)
+  meldung: '',        // Fehler des Durchlaufs (Anzeige, statt status)
+  knoepfeStand: '',   // Namen der Knöpfe in der Anzeige (knoepfe)
+
+  starte() {
+    if (this.aktiv) return;
+    this.aktiv = true;
+    this.gl = renderer.getContext();
+    this.timer = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
+    const loop = (ts) => { this.tick(ts); requestAnimationFrame(loop); };
+    requestAnimationFrame(loop);
+    document.addEventListener('visibilitychange', () => { this.prev = null; });
+    const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
+    if (typen.includes('long-animation-frame')) {
+      new PerformanceObserver((l) => l.getEntries().forEach((e) => this.haenger1(e)))
+        .observe({ type: 'long-animation-frame', buffered: true });
+    }
+    if (typen.includes('longtask')) {
+      new PerformanceObserver((l) => l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; }))
+        .observe({ type: 'longtask', buffered: true });
+    }
+    navigator.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion'])
+      .then((d) => { this.modell = [d.platform, d.platformVersion, d.model].filter(Boolean).join(' '); })
+      .catch(() => {});
+  },
+  /** Ein Display-Frame: den Abstand zum letzten dem Abschnitt an dessen Anfang zuschlagen. */
+  tick(ts) {
+    const id = this.abschnitt();
+    if (this.prev !== null && this.teil) this.abstand(this.teil, ts - this.prev, ts);
+    if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
+    this.prev = ts;
+    if (ts - this.hudZeit >= 500) {
+      this.hudZeit = ts;
+      if (this.lauf) this.laufTick();
+      perfHud.zeige();
+    }
+  },
+  /** Welcher Abschnitt gerade zu sehen ist (nur Lesen von Zuständen, je Display-Frame). */
+  abschnitt() {
+    if (this.ladend) return 'laden';
+    if (flow.state === 'intro') return ui.intro.classList.contains('go') ? 'start' : 'seitenstart';
+    if (story.choosing) return uebersicht.offen ? 'uebersicht' : 'menue';
+    // die Bühne: Prolog (mit Angebot) oder Epilog (der Grad ist dann schon geschafft, ending)
+    if (story.el.dataset.mode === 'scene' && !story.el.classList.contains('hidden')) {
+      return story.stand?.geschafft ? 'epilog' : 'prolog';
+    }
+    return this.marken.length ? this.marken[this.marken.length - 1] : 'spiel';
+  },
+  /** Abschnitt id markieren, bis die zurückgegebene Funktion aufgerufen wird ('laden': Laden hinter Überblendung). */
+  markiere(id) {
+    let aus = false;
+    if (id === 'laden') {
+      this.ladend++;
+      return () => { if (!aus) { aus = true; this.ladend--; } };
+    }
+    this.marken.push(id);
+    return () => {
+      if (aus) return;
+      aus = true;
+      const i = this.marken.lastIndexOf(id);
+      if (i >= 0) this.marken.splice(i, 1);
+    };
+  },
+  /** Abschnitt id markieren, bis promise erledigt ist; zurück das Promise (wartet wie das ursprüngliche). */
+  waehrend(id, promise) { return promise.finally(this.markiere(id)); },
+
+  reihe: () => ({ fach: new Uint32Array(MESS_FAECHER), n: 0, summe: 0, max: 0 }),
+  neuerTeil(id) {
+    let t = this.teile.get(id);
+    if (!t) {
+      t = { id, bild: this.reihe(), zeichnen: this.reihe(), cpu: this.reihe(), ueber: 0, gezeichnet: 0, haenger: 0,
+        haengerMax: 0, longtasks: 0 };
+      this.teile.set(id, t);
+    }
+    return t;
+  },
+  eintragen(r, ms) {
+    r.fach[Math.min(MESS_FAECHER - 1, Math.floor(ms / MESS_FACH))]++;
+    r.n++;
+    r.summe += ms;
+    if (ms > r.max) r.max = ms;
+  },
+  /** Quantil q einer Reihe (obere Kante des Fachs, höchstens max); leer: null. */
+  quantil(r, q) {
+    if (!r.n) return null;
+    const ziel = Math.ceil(r.n * q);
+    for (let i = 0, s = 0; i < MESS_FAECHER; i++) {
+      s += r.fach[i];
+      if (s >= ziel) return i === MESS_FAECHER - 1 ? r.max : Math.min((i + 1) * MESS_FACH, r.max);
+    }
+    return r.max;
+  },
+  abstand(teil, ms, ts) {
+    this.eintragen(teil.bild, ms);
+    this.ring[this.ringPos] = ms;
+    this.ringPos = (this.ringPos + 1) % this.ring.length;
+    this.ringNeu++;
+    if (ms <= MESS_GRENZE.bild) return;
+    teil.ueber++;
+    this.bestenliste(this.schlimmste, { ms, id: teil.id, t: ts - ms });
+  },
+  /** liste: die 8 längsten Einträge (nach ms) behalten. */
+  bestenliste(liste, eintrag) {
+    liste.push(eintrag);
+    liste.sort((a, b) => b.ms - a.ms);
+    if (liste.length > 8) liste.length = 8;
+  },
+  /** Abschnitt zur Zeit t (performance.now) aus den Wechseln; davor der erste. */
+  teilBei(t) {
+    for (let i = this.wechsel.length - 1; i >= 0; i--) if (this.wechsel[i][0] <= t) return this.teile.get(this.wechsel[i][1]);
+    return this.teile.get(this.wechsel[0]?.[1]) ?? this.neuerTeil(this.abschnitt());
+  },
+  /** Ein long-animation-frame (über 50 ms): zählen und mit Ursache merken (längstes Script, sonst Stil und Layout). */
+  haenger1(e) {
+    const teil = this.teilBei(e.startTime);
+    teil.haenger++;
+    teil.haengerMax = Math.max(teil.haengerMax, e.duration);
+    const s = [...(e.scripts ?? [])].sort((a, b) => b.duration - a.duration)[0];
+    const render = e.renderStart > 0 ? e.startTime + e.duration - e.renderStart : 0;
+    const datei = (s?.sourceURL || '').replace(/[?#].*$/, '').split('/').pop();
+    const ursache = s
+      ? `${s.invoker || s.invokerType}${s.sourceFunctionName ? ` → ${s.sourceFunctionName}` : ''}`
+        + `${datei ? ` (${datei}${s.sourceCharPosition >= 0 ? `:${s.sourceCharPosition}` : ''})` : ''}`
+        + `: Script ${Math.round(s.duration)} ms, Rendern ${Math.round(render)} ms`
+      : `ohne Script, Rendern ${Math.round(render)} ms`;
+    this.bestenliste(this.haenger, { ms: e.duration, id: teil.id, t: e.startTime, ursache });
+  },
+
+  /** Beginn eines gerenderten Bilds in frame(): Startzeit (0: Messung aus). */
+  bildBeginn() { return this.aktiv ? performance.now() : 0; },
+  /** Vor dem ersten Zeichnen in frame(): GPU-Zeit messen (fertige Abfragen vorher auslesen). */
+  gpuBeginn() {
+    if (!this.aktiv || !this.timer || !this.teil) return;
+    this.abfragenLesen();
+    const a = this.abfragen[this.abfrageNeu];
+    if (a.offen) return; // alle Abfragen noch unterwegs: dieses Bild nicht
+    this.gl.beginQuery(this.timer.TIME_ELAPSED_EXT, a.q);
+    a.offen = true;
+    a.teil = this.teil;
+    this.abfrageLaeuft = true;
+    this.abfrageNeu = (this.abfrageNeu + 1) % this.abfragen.length;
+  },
+  /** Ende eines gerenderten Bilds (t0 aus bildBeginn): CPU-Zeit, GPU-Abfrage schliessen bzw. Ersatzmass. */
+  bildEnde(t0) {
+    if (!t0 || !this.teil) return;
+    const teil = this.teil;
+    this.eintragen(teil.cpu, performance.now() - t0);
+    teil.gezeichnet++;
+    if (this.abfrageLaeuft) {
+      this.gl.endQuery(this.timer.TIME_ELAPSED_EXT);
+      this.abfrageLaeuft = false;
+    } else if (!this.timer && this.lauf) {
+      const gl = this.gl;
+      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
+      this.eintragen(teil.zeichnen, performance.now() - t0);
+    }
+  },
+  /** Fertige GPU-Abfragen der Reihe nach auslesen (disjunkt: Takt der GPU gestört, Ergebnis verwerfen). */
+  abfragenLesen() {
+    const gl = this.gl, n = this.abfragen.length, disjunkt = gl.getParameter(this.timer.GPU_DISJOINT_EXT);
+    for (let k = 0; k < n; k++) {
+      const a = this.abfragen[this.abfrageAlt];
+      if (!a.offen || !gl.getQueryParameter(a.q, gl.QUERY_RESULT_AVAILABLE)) return;
+      if (!disjunkt) this.eintragen(a.teil.zeichnen, gl.getQueryParameter(a.q, gl.QUERY_RESULT) / 1e6);
+      a.offen = false;
+      this.abfrageAlt = (this.abfrageAlt + 1) % n;
+    }
+  },
+  /** Welches Mass die Zeichenzeit ist. */
+  mass() {
+    if (this.timer) return 'GPU-Zeit (EXT_disjoint_timer_query_webgl2)';
+    return this.lauf || this.schritt ? 'Ersatz: frame() bis nach readPixels (1 px)' : 'keine (nur im Referenzdurchlauf)';
+  },
+
+  /** Kurzfassung der jüngsten Abstände für die Anzeige (seit dem letzten Aufruf): [fps, p95, max]. */
+  fenster() {
+    const n = Math.min(this.ringNeu, this.ring.length);
+    this.ringNeu = 0;
+    if (!n) return null;
+    let summe = 0;
+    for (let i = 0; i < n; i++) {
+      const v = this.ring[(this.ringPos - 1 - i + this.ring.length) % this.ring.length];
+      this.sortiert[i] = v;
+      summe += v;
+    }
+    const s = this.sortiert.subarray(0, n).sort();
+    return [1000 * n / summe, s[Math.min(n - 1, Math.floor(n * 0.95))], s[n - 1]];
+  },
+
+  /** Alle Messwerte als Daten (Karte, Testschnittstelle). */
+  daten() {
+    const q = (r, x) => this.quantil(r, x);
+    const abschnitte = [...this.teile.values()].filter((t) => t.bild.n || t.gezeichnet).map((t) => {
+      const [name, laden = false] = MESS_ABSCHNITTE[t.id];
+      const p95 = q(t.bild, 0.95), zeichnenP95 = q(t.zeichnen, 0.95);
+      return { id: t.id, name, laden, bilder: t.bild.n, sekunden: t.bild.summe / 1000, p50: q(t.bild, 0.5), p95,
+        max: t.bild.max, ueber33: t.ueber, zeichnenP95, zeichnenMax: t.zeichnen.max, zeichnenN: t.zeichnen.n,
+        cpuP95: q(t.cpu, 0.95), cpuMax: t.cpu.max, gezeichnet: t.gezeichnet,
+        gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0, haenger: t.haenger,
+        haengerMax: t.haengerMax, longtasks: t.longtasks,
+        fluessig: laden ? null : t.bild.n === 0 || p95 <= MESS_GRENZE.p95 && t.ueber === 0,
+        zeichnenOk: zeichnenP95 === null ? null : zeichnenP95 <= MESS_GRENZE.zeichnen };
+    });
+    // alle Abschnitte ausser Laden zusammen, und der Takt aus dem Median aller Abstände
+    const gesamt = this.reihe(), alle = this.reihe(), zeichnen = this.reihe();
+    let ueber = 0;
+    for (const t of this.teile.values()) {
+      for (let i = 0; i < MESS_FAECHER; i++) {
+        alle.fach[i] += t.bild.fach[i];
+        if (!MESS_ABSCHNITTE[t.id][1]) { gesamt.fach[i] += t.bild.fach[i]; zeichnen.fach[i] += t.zeichnen.fach[i]; }
+      }
+      alle.n += t.bild.n;
+      if (MESS_ABSCHNITTE[t.id][1]) continue;
+      gesamt.n += t.bild.n; gesamt.summe += t.bild.summe; gesamt.max = Math.max(gesamt.max, t.bild.max);
+      zeichnen.n += t.zeichnen.n; zeichnen.max = Math.max(zeichnen.max, t.zeichnen.max);
+      ueber += t.ueber;
+    }
+    alle.max = Math.max(...[...this.teile.values()].map((t) => t.bild.max), 0);
+    const median = q(alle, 0.5), size = renderer.getDrawingBufferSize(new THREE.Vector2());
+    return {
+      version: APP_VERSION, zeit: new Date().toISOString(), mass: this.mass(),
+      geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
+        bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
+        pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
+        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
+        kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
+        takt: median ? Math.round(1000 / median) : null, medianMs: median },
+      abschnitte,
+      gesamt: { bilder: gesamt.n, p95: q(gesamt, 0.95), max: gesamt.max, ueber33: ueber, zeichnenP95: q(zeichnen, 0.95),
+        zeichnenMax: zeichnen.max },
+      schlimmste: this.schlimmste.map((e) => ({ ...e, abschnitt: MESS_ABSCHNITTE[e.id][0] })),
+      haenger: this.haenger.map((e) => ({ ...e, abschnitt: MESS_ABSCHNITTE[e.id][0] })),
+    };
+  },
+  /** Die Ergebniskarte als Text (auf dem Handy lesbar, zum Kopieren). */
+  kartenText(d) {
+    const z = (v, n = 6, k = 1) => (v === null || v === undefined ? '–' : v.toFixed(k)).padStart(n);
+    const g = d.geraet, zeilen = [
+      'PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)',
+      `Version     ${d.version}`,
+      `Zeit        ${new Date(d.zeit).toLocaleString('de-CH')}`,
+      `Gerät       ${g.ua}`,
+      ...(g.modell ? [`Modell      ${g.modell}`] : []),
+      `GPU         ${g.gpu}`,
+      `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
+      `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
+        + `Umbauten ${g.umbauten})${g.mobil ? ', Handy' : ''}`,
+      `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
+      `Zeichenzeit ${d.mass}`,
+      `Grenzen     p95 ≤ ${MESS_GRENZE.p95} ms, kein Bild > ${MESS_GRENZE.bild} ms; Zeichnen p95 ≤ ${MESS_GRENZE.zeichnen} ms (Handy)`,
+      '',
+      `${'Abschnitt'.padEnd(15)}${'Bilder'.padStart(7)}${'p95'.padStart(7)}${'max'.padStart(7)}${'>33'.padStart(5)}`
+        + `${'Zeichn'.padStart(7)}${'CPU'.padStart(6)}${'gez/s'.padStart(6)}`,
+    ];
+    const zeile = (name, a) => `${name.padEnd(15)}${String(a.bilder).padStart(7)}${z(a.p95, 7)}${z(a.max, 7)}`
+      + `${String(a.ueber33).padStart(5)}${z(a.zeichnenP95, 7)}${z(a.cpuP95)}${z(a.gezeichnetJeS, 6, 0)}`;
+    for (const a of d.abschnitte) zeilen.push(zeile(a.laden ? `${a.name}*` : a.name, a));
+    zeilen.push(`${'Gesamt'.padEnd(15)}${String(d.gesamt.bilder).padStart(7)}${z(d.gesamt.p95, 7)}${z(d.gesamt.max, 7)}`
+      + `${String(d.gesamt.ueber33).padStart(5)}${z(d.gesamt.zeichnenP95, 7)}`);
+    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je',
+      '  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.');
+    const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
+    const teuer = d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
+    zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
+      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
+        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}`);
+    if (d.schlimmste.length) {
+      zeilen.push('', 'Längste Bilder:');
+      for (const e of d.schlimmste) zeilen.push(`  ${z(e.ms, 6)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s`);
+    }
+    if (d.haenger.length) {
+      zeilen.push('', 'Hänger des Hauptthreads (long-animation-frame):');
+      for (const e of d.haenger) zeilen.push(`  ${z(e.ms, 6, 0)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s: ${e.ursache}`);
+    }
+    return zeilen.join('\n');
+  },
+
+  /* Referenzdurchlauf */
+
+  /** Spielstände (prisma.*, ohne die des Messwerkzeugs). */
+  spielSchluessel() {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k.startsWith('prisma.') && !k.startsWith('prisma.leistung.')) keys.push(k);
+    }
+    return keys;
+  },
+  /** Die Seite für den Durchlauf: mit Startbildschirm und Messung, ohne Parameter der Tests (?nointro, ?t=, ?sky=). */
+  adresse() {
+    const u = new URL(location.href);
+    for (const p of ['nointro', 't', 'sky']) u.searchParams.delete(p);
+    u.searchParams.set('perf', '');
+    return u.href;
+  },
+  /**
+   * Knopf «Referenzdurchlauf»: den echten Stand sichern (eine Sicherung aus einem abgebrochenen Durchlauf bleibt, sie ist
+   * der echte Stand), mit frischem Stand neu laden.
+   */
+  starteDurchlauf() {
+    try {
+      if (localStorage.getItem(MESS_SICHERUNG) === null) {
+        const sicherung = {};
+        for (const k of this.spielSchluessel()) sicherung[k] = localStorage.getItem(k);
+        localStorage.setItem(MESS_SICHERUNG, JSON.stringify(sicherung));
+      }
+      for (const k of this.spielSchluessel()) localStorage.removeItem(k);
+      localStorage.removeItem(MESS_ERGEBNIS);
+      localStorage.setItem(MESS_LAUF, JSON.stringify({ seit: Date.now(), version: APP_VERSION }));
+    } catch (e) {
+      this.meldung = `Referenzdurchlauf geht nicht: kein Speicher (${e.message})`;
+      return;
+    }
+    location.replace(this.adresse());
+  },
+  /** Den echten Stand zurückspielen; dieses Spiel speichert danach nichts mehr (die Seite lädt gleich neu). */
+  wiederherstellen() {
+    progress.write = progress.remove = () => {};
+    const sicherung = messLies(MESS_SICHERUNG);
+    if (sicherung) {
+      for (const k of this.spielSchluessel()) localStorage.removeItem(k);
+      for (const [k, v] of Object.entries(sicherung)) localStorage.setItem(k, v);
+    }
+    localStorage.removeItem(MESS_SICHERUNG);
+    localStorage.removeItem(MESS_LAUF);
+  },
+  abbrechen() {
+    this.wiederherstellen();
+    location.replace(this.adresse());
+  },
+  /** Ende des Durchlaufs: Ergebnis speichern, echten Stand zurück, neu laden; dann zeigt die Seite die Karte. */
+  auswerten() {
+    if (this.schritt === 'fertig') return;
+    this.schritt = 'fertig';
+    const daten = this.daten();
+    const text = this.kartenText(daten);
+    this.wiederherstellen();
+    try { localStorage.setItem(MESS_ERGEBNIS, JSON.stringify({ text, daten })); } catch { /* Karte gleich zeigen */ }
+    if (localStorage.getItem(MESS_ERGEBNIS) === null) { this.zeigeKarte(text); return; }
+    location.replace(this.adresse());
+  },
+  /** Warten (alle 0,1 s), bis bedingung gilt; sonst nach sekunden Fehler mit was. */
+  async warte(bedingung, sekunden, was) {
+    for (let t = 0; !bedingung(); t += 0.1) {
+      if (t > sekunden) throw new Error(`${was}: Zeitüberschreitung`);
+      await storySleep(100);
+    }
+  },
+  /**
+   * «Weiter zur Reise» (im Menü, nach dem ersten Level): Mit frischem Stand käme man nicht schnell in eine andere Welt.
+   * Der Stand springt ans letzte Level der ersten Welt (davor alles gelöst, Prolog, Angebot und Einstieg gesehen), das
+   * Menü wählt den Grad, das Level wird gelöst (Testschnittstelle loese), nach «Gelöst» geht es weiter: Reise in die
+   * zweite Welt, deren Himmel frisch lädt. Danach noch 6 s im neuen Level (scharfes Bild und Streifen laden nach der
+   * Landung, Abschnitt «Spiel n. Reise»), dann auswerten.
+   */
+  async reise() {
+    if (this.schritt !== 'teil1' || !menu.offen || !story.grade) return;
+    this.schritt = 'reise';
+    try {
+      const g = story.grade, ziel = story.steps.findIndex((s) => s.c > 0) - 1;
+      const stand = progress.load(g, story.steps.length);
+      stand.platz = ziel;
+      stand.geloest = story.steps.slice(0, ziel).map((s) => LEVELS[s.index].name);
+      stand.gesehen = [...new Set([...stand.gesehen, 'prolog', 'angebot', storyChapterId(STORY_CHAPTERS[0])])];
+      delete stand.dorf;
+      progress.save(g, stand);
+      story.paused = null; // nicht zurück ins Level von vorhin: choose liest den neuen Stand (ohne Einstieg)
+      story.choose(g);
+      await this.warte(() => flow.state === 'play' && story.step === ziel && !story.running, 60, 'Letztes Level');
+      window.__prismaDebug.loese();
+      await this.warte(() => ui.solvedVisible(), 30, '«Gelöst»');
+      await storySleep(2000); // wie ein Spieler, der «Gelöst» liest: Der Himmel der zweiten Welt beginnt zu laden
+      ui.advance();
+      await this.warte(() => story.step === ziel + 1 && !story.running && flow.state === 'play'
+        && !this.marken.includes('reise'), 120, 'Ankunft in der zweiten Welt');
+      await this.waehrend('ankunft', storySleep(6000));
+      this.auswerten();
+    } catch (e) {
+      this.meldung = `Referenzdurchlauf: ${e.message}`;
+      console.error(e);
+    }
+  },
+  /** Alle 0,5 s im Durchlauf: Zustand und Knöpfe der Anzeige. */
+  laufTick() {
+    if (ui.solvedVisible()) this.geloest = true;
+    if (this.meldung) return;
+    if (this.schritt === 'reise') this.status = 'Referenzdurchlauf: Sprung ans Ende der ersten Welt, Reise …';
+    else if (this.schritt === 'teil1') {
+      this.status = !this.geloest ? 'Referenzdurchlauf: Starten → Prolog → erstes Level lösen → Menü'
+        : menu.offen ? 'Referenzdurchlauf: «Weiter zur Reise» oder auswerten'
+          : 'Referenzdurchlauf: jetzt «Menü» öffnen';
+    }
+  },
+  /** Knöpfe der Anzeige (nur neu gebaut, wenn sie sich ändern). */
+  knoepfe() {
+    const liste = !this.lauf ? [['Referenzdurchlauf', () => this.starteDurchlauf()]]
+      : this.schritt === 'fertig' ? []
+        : [...(this.schritt === 'teil1' && this.geloest && menu.offen
+          ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []),
+        ['Abbrechen', () => this.abbrechen()]];
+    const stand = liste.map(([name]) => name).join();
+    if (stand === this.knoepfeStand) return;
+    this.knoepfeStand = stand;
+    perfHud.knoepfe.replaceChildren(...liste.map(([name, tun]) => {
+      const b = document.createElement('button');
+      b.textContent = name;
+      b.dataset.leistung = name;
+      b.addEventListener('click', (e) => { e.stopPropagation(); tun(); });
+      return b;
+    }));
+  },
+  /** Ergebniskarte zeigen: Kopieren in die Zwischenablage, sonst markierbares Textfeld. Schliessen vergisst sie. */
+  zeigeKarte(text) {
+    const karte = document.getElementById('leistung-karte'), pre = karte.querySelector('pre');
+    const feld = karte.querySelector('textarea'), kopieren = karte.querySelector('.kopieren');
+    pre.textContent = text;
+    karte.hidden = false;
+    karte.addEventListener('keydown', (e) => e.stopPropagation()); // Tasten bedienen die Karte, nicht das Spiel
+    const markieren = () => {
+      pre.hidden = true;
+      feld.hidden = false;
+      feld.value = text;
+      feld.focus();
+      feld.select();
+      kopieren.textContent = 'Markiert: jetzt kopieren';
+    };
+    kopieren.addEventListener('click', () => {
+      if (navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(text).then(() => { kopieren.textContent = 'Kopiert'; }, markieren);
+      } else markieren();
+    });
+    karte.querySelector('.schliessen').addEventListener('click', () => {
+      karte.hidden = true;
+      try { localStorage.removeItem(MESS_ERGEBNIS); } catch { /* egal */ }
+    });
+  },
+};
+
 /* ---------- Leistungsanzeige (Taste F oder ?perf) ---------- */
 
 const perfHud = {
   el: document.getElementById('perf'),
-  visible: new URLSearchParams(location.search).has('perf'),
-  samples: [], acc: 0, last: performance.now(),
+  text: document.querySelector('#perf .perf-text'),
+  knoepfe: document.querySelector('#perf .perf-knoepfe'),
+  visible: new URLSearchParams(location.search).has('perf') || !!leistung.lauf,
+  samples: [], last: performance.now(), calls: 0, triangles: 0,
   gpu: (() => {
     const gl = renderer.getContext();
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
   })(),
+  /** Je gerendertem WebGL-Bild (frame): Abstand merken; die Anzeige schreibt zeige (Messschleife, alle 0,5 s). */
   tick() {
     const now = performance.now();
     const ms = now - this.last;
     this.last = now;
     if (ms < 250) this.avgMs = this.avgMs ? this.avgMs * 0.95 + ms * 0.05 : ms; // für __prisma.fps()
     if (!this.visible) return;
-    if (ms < 250) this.samples.push(ms);
-    this.acc += ms;
-    if (this.acc < 500) return;
-    this.acc = 0;
+    if (ms < 250 && this.samples.length < 1000) this.samples.push(ms);
+    this.calls = renderer.info.render.calls;
+    this.triangles = renderer.info.render.triangles;
+  },
+  zeige() {
+    leistung.knoepfe();
+    if (!this.visible) return;
     const sorted = this.samples.slice().sort((a, b) => a - b);
     const avg = sorted.reduce((a, b) => a + b, 0) / Math.max(1, sorted.length);
     const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
     const max = sorted[sorted.length - 1] || 0;
     this.samples.length = 0;
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    this.el.textContent =
-      `${Math.round(1000 / avg)} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
+    const f = leistung.fenster(), t = leistung.teil, q = (r) => leistung.quantil(r, 0.95)?.toFixed(1) ?? '–';
+    this.text.textContent =
+      (f ? `Sichtbar ${Math.round(f[0])} FPS   p95 ${f[1].toFixed(1)} ms   max ${f[2].toFixed(1)} ms\n` : '') +
+      (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} ms   max ${t.bild.max.toFixed(1)} ms   >33 ms ${t.ueber}   ` +
+        `Zeichnen p95 ${q(t.zeichnen)} ms   CPU p95 ${q(t.cpu)} ms\n` : '') +
+      `WebGL ${sorted.length ? Math.round(1000 / avg) : 0} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
       `MSAA ${composer.renderTarget1.samples}×   Spiegelung ${QUALITY.reflectionScale} (MSAA ${reflector.getRenderTarget().samples}×)\n` +
       `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
-      `Draw-Calls ${renderer.info.render.calls}   Dreiecke ${renderer.info.render.triangles}\n` +
-      `GPU ${this.gpu}`;
+      `Draw-Calls ${this.calls}   Dreiecke ${this.triangles}\n` +
+      `GPU ${this.gpu}\nZeichenzeit ${leistung.mass()}\nVersion ${APP_VERSION}` +
+      (leistung.meldung || leistung.status ? `\n${leistung.meldung || leistung.status}` : '');
   },
   toggle() {
     this.visible = !this.visible;
     this.el.hidden = !this.visible;
     this.samples.length = 0;
-    this.acc = 0;
+    if (this.visible) leistung.starte();
   },
 };
 perfHud.el.hidden = !perfHud.visible;
+if (leistung.lauf) leistung.schritt = 'teil1';
+if (perfHud.visible) leistung.starte();
+// nach einem Referenzdurchlauf: die Ergebniskarte (bis «Schliessen»)
+if (!leistung.lauf && messLies(MESS_ERGEBNIS)?.text) leistung.zeigeKarte(messLies(MESS_ERGEBNIS).text);
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -19413,10 +19954,13 @@ function frame(ts) {
   // dt aus dem rAF-Zeitstempel: gleichmässiger als eine eigene Uhr beim Callback-Start
   const dt = lastFrameTs === null ? 1 / 60 : Math.min((ts - lastFrameTs) / 1000, MAX_DT);
   lastFrameTs = ts;
+  const t0 = leistung.bildBeginn(); // Messwerkzeug: CPU-Zeit von frame() und Zeichenzeit (nur mit ?perf)
   animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
 
+  leistung.gpuBeginn();
   renderReflection();
   composer.render(dt);
+  leistung.bildEnde(t0);
 
   adaptiveResolution.tick(frameRate.gap);
   perfHud.tick();
@@ -19454,7 +19998,12 @@ window.__prisma = { frames: 0, ready: true, level: () => game.board?.name, solve
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', start: () => ui.start(),
   celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
-  skyReady: () => skyTheme.ready };
+  skyReady: () => skyTheme.ready,
+  // Messwerkzeug (Spec .scratch/leistung/): daten() die Messwerte bisher (nur mit ?perf bzw. im Referenzdurchlauf),
+  // ergebnis() die des letzten Referenzdurchlaufs (bis die Karte geschlossen ist), schritt() wo der Durchlauf steht
+  // (null, 'teil1', 'reise', 'fertig'). Den Durchlauf fahren Proben über die Knöpfe der Anzeige (tests/leistung-probe.mjs)
+  leistung: { daten: () => leistung.daten(), ergebnis: () => messLies(MESS_ERGEBNIS)?.daten ?? null,
+    schritt: () => leistung.schritt } };
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
 // rendern (Screenshots der KI-Tester). zeige(index): LEVELS[index] ausserhalb der Geschichte zeigen, gleich nach dem
