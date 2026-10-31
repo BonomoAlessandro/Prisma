@@ -7,6 +7,8 @@
 // wie in L. Gerechnet wird auf Kopien der Texte im Speicher; die Dateien bleiben unberührt. Seit dem Umbau zu Noas
 // Geschichte (Ticket 04): Jedes Level von vorher (tests/vor-dem-umbau.json) steht im Spiel oder im Vorrat, unverändert;
 // dazu kommen nur die 15 neuen sehr schweren (Ticket 04) und die 23 Kandidaten mit Schlüssel (Ticket 09).
+// Seit Ticket 08: inGanzerFolge, mit dem ordne-level.mjs und ordne-wuerfel.mjs in Spiel und Vorrat schreiben (ohne
+// Änderung byte-gleich, neu geordnet, ein neues Level in den Vorrat oder ohne Vorrat ins Spiel).
 // Aufruf: node tests/vorrat.test.mjs   (wenige Sekunden)
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -17,7 +19,7 @@ import { L } from '../tools/solver.mjs';
 import { GRADE } from '../tools/beurteilung/index.mjs';
 import { levelCode } from '../tools/leveldaten.mjs';
 import {
-  ARTEN, ablegen, auswahl, einfuegen, inhalt, lese, leveldaten, mitAllen, namenImSpiel, zurueckholen,
+  ARTEN, ablegen, auswahl, einfuegen, inGanzerFolge, inhalt, lese, leveldaten, mitAllen, namenImSpiel, zurueckholen,
 } from '../tools/vorrat.mjs';
 import { ALLE, VORRAT, alleText, ort } from '../tools/lader.mjs';
 
@@ -138,6 +140,63 @@ test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, index.html
     const z = zurueckholen(x, null);
     assert.ok(z.spiel === T.spiel && z.flach === f(T.flach) && z.wuerfel === f(T.wuerfel), 'zurück');
   }
+});
+
+console.log('Die ganze Folge ändern (inGanzerFolge, Ticket 08)');
+/**
+ * Ändert die Blöcke einer Art in index.html (zwischen ihren Markierungen) wie ordne-level.mjs und ordne-wuerfel.mjs:
+ * f bekommt die Blöcke als Zeilenlisten und gibt die neuen zurück.
+ */
+const bloeckeAendern = (art, f) => (html) => {
+  const nl = html.includes('\r\n') ? '\r\n' : '\n';
+  const a = html.indexOf(ARTEN[art].anfang), e = html.indexOf(ARTEN[art].ende);
+  const von = html.indexOf(nl, a) + nl.length, bis = html.lastIndexOf(nl, e) + nl.length;
+  const bloecke = [];
+  for (const z of html.slice(von, bis).split(nl).slice(0, -1)) {
+    if (z === '  {') bloecke.push([z]);
+    else bloecke.at(-1).push(z);
+  }
+  return html.slice(0, von) + f(bloecke).flat().map(z => z + nl).join('') + html.slice(bis);
+};
+/** Ein neues Level als Block: eine Kopie des Blocks b unter dem Namen name. */
+const neuerBlock = (b, name) => b.map(z => z.replace(/^( {4}name: )'(?:[^'\\]|\\.)*'/, `$1'${name}'`));
+const imVorratJe = (r) => Object.fromEntries(Object.keys(ARTEN).map(art => [art, inhalt(r[art], art).map(e => e.name)]));
+test('Ändert nichts: Spiel und Vorrat byte-gleich, flach und im Würfel', () => {
+  for (const art of Object.keys(ARTEN)) {
+    const r = inGanzerFolge(A, art, x => x);
+    for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(r[k] === A[k], `${art}: ${k} anders`);
+    assert.deepEqual(r.abgelegt[art], A.abgelegt[art]);
+  }
+  // auch mit einem Vorrat, dessen Datei nicht in der Folge liegt (ein spätes Level vor einem frühen abgelegt)
+  const B = ablegen(ablegen(T, [FLACH[200]]), [FLACH[3]]);
+  const r = inGanzerFolge(B, 'flach', x => x);
+  for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(r[k] === B[k], `ausser der Folge: ${k} anders`);
+});
+test('Neu geordnet: die ganze Folge wie geordnet, im Spiel und im Vorrat dieselben Level', () => {
+  // umgekehrt, wie ein Werkzeug, das die ganze Reihe neu ordnet
+  for (const art of Object.keys(ARTEN)) {
+    const umgekehrt = bloeckeAendern(art, b => [...b].reverse());
+    const r = inGanzerFolge(A, art, umgekehrt);
+    assert.equal(mitAllen(r), umgekehrt(T.spiel), `${art}: ganze Folge`);
+    // im Vorrat in der neuen Folge (ablegen hängt in der Reihenfolge im Spiel an)
+    const sortiert = (je) => Object.fromEntries(Object.entries(je).map(([k, v]) => [k, [...v].sort()]));
+    assert.deepEqual(sortiert(imVorratJe(r)), sortiert(imVorratJe(A)), `${art}: Vorrat`);
+    const spiel = namenImSpiel(A.spiel, art);
+    assert.deepEqual(namenImSpiel(r.spiel, art), [...spiel].reverse(), `${art}: Spiel`);
+  }
+});
+test('Ein neues Level kommt in den Vorrat an seinen Platz; ohne Level seiner Art im Vorrat bleibt es im Spiel', () => {
+  // nach dem 50. flachen Level eingereiht, wie ordne-level.mjs --ausbau
+  const dazu = bloeckeAendern('flach', b => [...b.slice(0, 50), neuerBlock(b[50], 'Probestern'), ...b.slice(50)]);
+  const r = inGanzerFolge(A, 'flach', dazu, ['Probestern']);
+  assert.equal(mitAllen(r), dazu(T.spiel), 'ganze Folge');
+  assert.deepEqual(namenImSpiel(r.spiel, 'flach'), namenImSpiel(A.spiel, 'flach'), 'Spiel unverändert');
+  assert.deepEqual(imVorratJe(r).flach.sort(), [...A.abgelegt.flach, 'Probestern'].sort(), 'im Vorrat');
+  assert.equal(inhalt(r.flach, 'flach').find(e => e.name === 'Probestern').nach, FLACH[49]);
+  assert.ok(r.wuerfel === A.wuerfel, 'Würfel unberührt');
+  // leerer Vorrat (etwa nach zurueckholen --alle): wie vor Ticket 08 ins Spiel
+  const s = inGanzerFolge(T, 'flach', dazu, ['Probestern']);
+  assert.ok(s.spiel === dazu(T.spiel) && s.flach === T.flach, 'ohne Vorrat');
 });
 
 console.log('Format');

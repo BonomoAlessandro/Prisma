@@ -18,6 +18,8 @@
 //   Gruppierung und Reihenfolge und über mehrere Schritte (tests/vorrat.test.mjs). Ordnet ein Werkzeug die Level im
 //   Spiel um, während andere im Vorrat liegen, kommt ein Level hinter seinen Vorgänger, wo der dann steht.
 // - liste: zeigt den Vorrat je Art und Grad.
+// - inGanzerFolge: für Werkzeuge, die die ganze Folge einer Art ordnen oder ergänzen (ordne-level.mjs,
+//   ordne-wuerfel.mjs; Ticket 08): Sie schreiben in Spiel und Vorrat, ohne dass vorher alles zurückgeholt werden muss.
 // Der gemeinsame Lader (lader.mjs) liest Spiel und Vorrat zusammen, in der Folge wie nach dem Zurückholen aller Level
 // (mitAllen). Die Funktionen rechnen auf Texten (index.html und die Dateien des Vorrats); geschrieben wird nur über die
 // Kommandozeile. Zeilenenden wie in der jeweiligen Datei (index.html LF, der Vorrat nach core.autocrlf auch CRLF).
@@ -231,6 +233,28 @@ export function zurueckholen(texte, namen = null) {
  * index.html mit allen Leveln des Vorrats an ihrem Platz (texte wie bei lese): so, wie zurueckholen --alle schriebe.
  */
 export const mitAllen = (texte) => zurueckholen(texte).spiel;
+
+/**
+ * Ändert die ganze Folge einer Art (Spiel und Vorrat zusammen; Ticket 08), etwa wenn tools/ordne-level.mjs die Reihe
+ * neu ordnet oder ein neues Level einreiht: Holt alle Level der Art aus dem Vorrat zurück, wendet aendere auf
+ * index.html an (Text → Text, mit allen Leveln der Art zwischen ihren Markierungen) und legt danach die Level wieder ab,
+ * die vorher im Vorrat lagen. neu: Namen von Leveln, die aendere dazugebracht hat; sie kommen in den Vorrat, solange
+ * dort Level ihrer Art liegen (das Spiel ist die Geschichte, in sie bringt sie erst tools/geschichte.mjs spiel), sonst
+ * bleiben sie im Spiel wie die übrigen. Rückgabe: die neuen Texte (wie bei lese) und die abgelegten Namen je Art.
+ * Ändert aendere nichts, sind die Texte byte-gleich (hin und zurück wie oben). Ein Level, das aendere weglässt, fehlt
+ * danach in Spiel und Vorrat: Ablegen wirft dann.
+ */
+export function inGanzerFolge(texte, art, aendere, neu = []) {
+  const vorher = inhalt(texte[art], art).map(b => b.name);
+  const geholt = vorher.length ? zurueckholen(texte, vorher) : { ...texte };
+  const spiel = aendere(geholt.spiel);
+  const weg = vorher.length ? [...vorher, ...neu] : [];
+  if (!weg.length) return { ...geholt, spiel, abgelegt: Object.fromEntries(Object.keys(ARTEN).map(a => [a, []])) };
+  const r = ablegen({ ...geholt, spiel }, weg);
+  // Ohne Änderung die Texte wie vorher, auch wenn die Datei des Vorrats nicht in der Folge liegt (nach einzelnem
+  // Ablegen): ablegen hängt alle in der Folge an, ein Lauf ohne Änderung ordnete sonst die Datei um (Review Ticket 08)
+  return spiel === geholt.spiel && !neu.length ? { ...texte, abgelegt: r.abgelegt } : r;
+}
 
 /**
  * Die Namen einer Auswahl (siehe Kopf) unter den Leveln { name, grad } je Art: einzelne Namen, die Arten (leer: keine

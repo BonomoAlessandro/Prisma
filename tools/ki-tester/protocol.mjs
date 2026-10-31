@@ -3,8 +3,9 @@
 // versionierten Protokolls (protocol.jsonl, eine JSON-Zeile je Level und Lauf). Genutzt von prepare.mjs, merge.mjs und
 // tests/ki-tester.test.mjs.
 //
-// Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge im Spiel (1–150, ohne Tutorial) und sein Grad aus den
-// Leveldaten (grad). Die Grenzen eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
+// Referenz (Ablauf 2): der Platz eines Levels in der Reihenfolge (ohne Tutorial; bis Ticket 26 die 150 im Spiel, seit
+// Noas Geschichte die Reihe aus Spiel und Vorrat, ADR 0005) und sein Grad aus den Leveldaten (grad). Die Grenzen
+// eines Grads gibt die Reihenfolge vor; sie verschieben sich mit jeder Verschiebung.
 // prepare.mjs hält die Referenz jedes Levels und die Plätze der Anker bei der Vorbereitung in lauf.json fest, und
 // merge.mjs rechnet mit diesen, auch wenn sich die Reihenfolge seither geändert hat. Ablauf 1 rechnete mit den Plätzen
 // der heutigen Reihenfolge (feste Namensliste, beurteilung/heutige-reihenfolge.mjs) und den vorläufigen Graden; seine
@@ -68,14 +69,14 @@ export const PROVISIONAL_GRADES = [
 export const provisionalGradeOf = (position) => PROVISIONAL_GRADES.find(g => position >= g.from && position <= g.to);
 const GRADE_NAMES = PROVISIONAL_GRADES.map(g => g.name);
 const MAIN = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT);
-/** Das Level auf einem Platz der Reihenfolge im Spiel (1–150, ohne Tutorial; mit dem Vorrat, siehe Kopf). */
+/** Das Level auf einem Platz der Reihenfolge (ohne Tutorial; die Reihe aus Spiel und Vorrat, siehe Kopf). */
 export const levelAt = (position) => MAIN[position - 1];
 /**
  * Die Grade in einer Reihenfolge, je { name, from, to }: der Grad aus den Leveldaten, die Grenzen aus der Reihenfolge
  * (seit Ticket 16 leicht 1–31, mittel 32–105, schwer 106–137, sehr schwer 138–150). Weil der Grad entlang der
  * Reihenfolge nie sinkt (Test der Levelliste), ist jeder Grad ein Abschnitt. reihe: je Platz ein Level mit name und
- * grad, Vorgabe die Reihenfolge im Spiel; beim Ausbau auf 500 Level (.scratch/500-level/) die Vorschau aus
- * tools/ordne-level.mjs --ausbau --json, in der die Kandidaten schon stehen.
+ * grad, Vorgabe die Reihe aus Spiel und Vorrat; beim Ausbau (.scratch/500-level/, seit Noas Geschichte neue Level für
+ * sie) die Vorschau aus tools/ordne-level.mjs --ausbau --json, in der die Kandidaten schon stehen.
  */
 export const gradesIn = (reihe = MAIN) => GRADE_NAMES.map((name) => {
   const at = reihe.flatMap((l, k) => (l.grad === name ? [k + 1] : []));

@@ -5,11 +5,12 @@
 // Aufträge liegen ausserhalb.
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/ki-tester/prepare.mjs <lauf> [platz …] [--kandidaten <datei>]
 //         [--anker] [--ohne-bilder] [--ohne-zwischenspeicher]
-//   platz          Level zum Beurteilen, Platz in der Reihenfolge im Spiel (1–150, ohne Tutorial); ein Anker wird
-//                  dabei als Anker beurteilt
+//   platz          Level zum Beurteilen, Platz in der Reihenfolge (ohne Tutorial; die Reihe aus Spiel und Vorrat,
+//                  protocol.mjs); ein Anker wird dabei als Anker beurteilt
 //   --kandidaten   neue Level ohne Platz im Spiel (Austausch, Tickets 23–26; Läufe ersatz-…): eine JSON-Liste mit je
-//                  { formel, level }, etwa die Ausgabe von tools/ordne-level.mjs --austausch … --json (dort die
-//                  Einträge mit Leveldaten). formel ist der Platz, den das Level nach der Formel im Spiel bekäme; er
+//                  { formel, level }, etwa einst die Ausgabe von tools/ordne-level.mjs --austausch … --json (dort
+//                  die Einträge mit Leveldaten; den Austausch gibt es seit Ticket 08 von Noas Geschichte nicht mehr).
+//                  formel ist der Platz, den das Level nach der Formel im Spiel bekäme; er
 //                  und der Grad dort sind seine Referenz, wie levelliste.mjs (reihenfolge) sie für ein neues Level
 //                  rechnet, und der Grad des Levels muss derselbe sein. Ein Kandidat heisst im Protokoll „Kandidat
 //                  <Abdruck>“ (kandidatName in leveldaten.mjs), bis sein Name genehmigt ist. Seine Bilder kommen von

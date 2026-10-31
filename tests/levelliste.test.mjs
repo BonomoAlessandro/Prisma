@@ -15,6 +15,11 @@
 // nach dem Zurückholen aller; die Herkunft im Kommentar aus alleText); die Anzeige der Grade prüft das Spiel selbst
 // (L). Seit Noas Geschichte (Ticket 04) ist das Spiel die Geschichte: Die Seiten der Levelauswahl gibt es nicht mehr,
 // und statt des alten Fortschritts prüft der Test den Speicherstand je Grad (progress in index.html, prisma.noa.*).
+// Seit Ticket 08 setzt kein Test mehr eine feste Reihe von 500 Leveln im Spiel voraus: Die Reihe ist die Folge aller
+// flachen Level aus Spiel und Vorrat (ADR 0005, „Folgen“), mit dem Bestand der heutigen Reihenfolge und den Leveln
+// des Ausbaus, wie viele es auch werden; die Wahl der Geschichte prüft tests/geschichte.test.mjs. Weggefallen sind mit
+// dem Ausbau auf 500 Level der Bedarf je Gruppe (ausbau.mjs wahl und bedarf) und der Austausch (ordne-level.mjs
+// --austausch); die Level, die damals ins Spiel kamen, prüft der Test weiter.
 // Aufruf: node tests/levelliste.test.mjs   (über leise.sh etwa 25 s)
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -29,7 +34,6 @@ import { gradVon } from '../tools/beurteilung/grad.mjs';
 import { AGENT, MAX_SHIFT, WUERFEL_VERSION, entry } from '../tools/ki-tester/protocol.mjs';
 import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
-import { bestandNach } from '../tools/ausbau.mjs';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
@@ -224,7 +228,7 @@ test('Entfernte Level: nicht im Spiel, Name auf der Liste, Leveldaten als feste 
   assert.equal(platzHeute.filter((p, i) => p === null && !ausbauHeute[i]).length, kopie.length, 'neue Level');
 });
 
-console.log('Ausbau auf 500 Level');
+console.log('Ausbau (einst auf 500 Level, seit Noas Geschichte neue Level der Geschichte)');
 test('Die Level des Ausbaus: in levelliste.json, jedes im Spiel, ohne heutigen Platz, keines doppelt', () => {
   const namen = liste.ausbau ?? [];
   assert.equal(new Set(namen).size, namen.length, 'doppelt');
@@ -290,11 +294,6 @@ test('Ähnlichkeit: gedreht und gespiegelt dasselbe, Stellung egal, Gegenprobe m
     const wert = aehnlichkeit(level, anders);
     assert.ok(wert >= einsAnders && wert < 1, `${text}: ${wert}`);
   }
-});
-test('Bedarf je Gruppe (ausbau.mjs): der Bestand nach jeder Gruppe wie in der Tabelle der Spec', () => {
-  const tabelle = ['31/74/32/13', '37/93/39/16', '42/112/47/19', '47/131/54/23', '53/150/61/26', '58/170/68/29',
-    '63/189/76/32', '69/208/83/35', '74/227/90/39', '79/246/98/42', '85/265/105/45'];
-  assert.deepEqual(tabelle.map((_, k) => GRADE.map(g => bestandNach(k)[g]).join('/')), tabelle);
 });
 test('zuWeitKorrigiert mit dem Ausbau: der Bestand zählt unter sich, ein Level des Ausbaus ab dem Platz beim Einfügen',
   () => {

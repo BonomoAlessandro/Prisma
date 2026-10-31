@@ -78,10 +78,11 @@
 //   GESCHICHTE:BEGIN und GESCHICHTE:END (STORY_LEVELS in index.html) schreibt es je Grad die 6 Welten mit den
 //   Schlüsseln ihrer 10 Level in der Reihenfolge der Reise; daraus liest das Spiel seine Kapitel (STORY_CHAPTERS). Die
 //   Level im Spiel ordnet es nicht um: So setzt der Lader die Reihe der flachen Level und die der Würfel-Level
-//   unverändert wieder zusammen. Ein Level der Wahl, das weder im Spiel noch im Vorrat steht, muss zuerst ins Spiel
-//   (neue Level über ordne-level.mjs --ausbau, mit allen flachen Leveln im Spiel); dann bricht es ab. Ein zweiter Lauf
-//   ändert nichts. Nach einer neuen Wahl oder neuen Titeln: wahl bzw. titel, dann spiel. Neue Kandidaten aus
-//   sehr-schwer-kandidaten.json bringt der Befehl ausbau in die Form für ordne-level.mjs --ausbau (ausbauListe).
+//   unverändert wieder zusammen. Ein Level der Wahl, das weder im Spiel noch im Vorrat steht, muss zuerst in die Reihe
+//   (ordne-level.mjs --ausbau --schreiben, das neue Level seit Ticket 08 in den Vorrat einreiht, ohne dass vorher alle
+//   flachen Level zurückgeholt werden); sonst bricht es ab. Ein zweiter Lauf ändert nichts. Nach einer neuen Wahl oder
+//   neuen Titeln: wahl bzw. titel, dann spiel. Neue Kandidaten aus sehr-schwer-kandidaten.json bringt der Befehl ausbau
+//   in die Form für ordne-level.mjs --ausbau (ausbauListe).
 // Aufruf: LEISE_CPU=50 sh tools/leise.sh node tools/geschichte.mjs wahl [--trocken]   (etwa 75 s, davon die Suche in
 //           «sehr schwer» etwa 50 s; --trocken: nur der Bericht, ohne wahl.json zu schreiben; ohne --trocken bricht es
 //           ab, solange ein gewählter Kandidat keinen Schlüssel hat)
