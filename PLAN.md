@@ -69,9 +69,11 @@ Entscheid in ADR 0005.
   entschieden; der Nutzer arbeitet ihn später aus). Heute erklärt die Geschichte nicht, warum Noas Licht nicht direkt
   zum Polarstern geht. Idee: Der Polarstern ist die Spitze der Deichsel des Kleinen Wagens (7 Sterne). Die sechs
   anderen Sterne schlafen; jeder wacht über einen Ort der Welt und erwacht erst, wenn dort das Licht leuchtet. Dann
-  zeigt er den Weg zum nächsten Ort. Sechs Welten wecken sechs Sterne, das Finale ist der siebte, der Polarstern.
+  zeigt er den Weg zum nächsten Ort. Sechs Welten wecken sechs Sterne (die ersten fünf erwachen auf den Reisen danach,
+  der sechste im Finale), der siebte ist der Polarstern.
   Dazu der Weg nach oben: Jede Welt trägt das Licht ein Stück höher, das erklärt die Reihenfolge.
-  - **Texte (Entwurf, gleiche Zahl Einstellungen und Aktionen wie heute):**
+  - **Texte (Entwurf; Prolog und Epilog mit gleicher Zahl Einstellungen und Aktionen wie heute, das Finale mit einer
+    Zeile mehr):**
     - `STORY_PROLOG` 2: «Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an
       der Deichsel des Kleinen Wagens.» 3 (lamp): «Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die
       Taschenlampe leuchtet auf.» 4 (reach): «Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen
@@ -85,7 +87,9 @@ Entscheid in ADR 0005.
       Wellen trägt das Licht bis an den Rand der Wüste.» · Vulkan «Über den Dünen funkelt der dritte Stern. Ein Wirbel
       aus Sand trägt das Licht dorthin, wo die Erde rot glüht.» · Planeten «Der vierte Stern erwacht, hoch über allen
       Wolken. Der Vulkan bricht aus und schleudert das Licht zu ihm hinauf.» · Sterne «Fünf Sterne leuchten, nur einer
-      schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.»
+      schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.» Die heutigen Nachsätze zum
+      Spiel («Lenke es zwischen den Bäumen hindurch», «Dort springt es von Welle zu Welle» …) fehlen im Entwurf noch;
+      beim Ausarbeiten entscheiden, ob sie bleiben.
     - `done` bleibt, ausser bei den Sternen: «Der Wagen ist wach» statt «Ganz oben».
     - `STORY_FINALE`: «Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.» / «Über
       die Deichsel läuft das Licht bis zum Polarstern.» / «Er hat das Zeichen gesehen. Und er antwortet.»
