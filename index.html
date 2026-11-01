@@ -8133,6 +8133,16 @@ const HDR_SUPPORTED = renderer.capabilities.isWebGL2
   : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
 const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
 
+/**
+ * Tiefe (und Stencil) des gerade gebundenen Ziels target verwerfen, wenn sie niemand mehr liest (Ticket 11): Kachel-GPUs
+ * (Handy) schreiben sonst jede Kachel samt Tiefe in den Speicher zurück. Nur WebGL2 und ohne MSAA (dort löst three auf
+ * und bindet dabei andere Puffer; für die Spiegelung siehe renderReflection).
+ */
+function discardDepth(r, target) {
+  if (!r.capabilities.isWebGL2 || !target?.depthBuffer || target.samples > 0 || r.getRenderTarget() !== target) return;
+  const gl = r.getContext();
+  gl.invalidateFramebuffer(gl.FRAMEBUFFER, [target.stencilBuffer ? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT]);
+}
 // Was vor dem Zeichnen der Szene in ein eigenes Ziel muss, (renderer, camera, Ziel der Szene, scene) => …: im Pass der
 // Szene vorab, damit ihr Ziel nicht mittendrin wechselt (waterSurface, Ticket 11)
 const SCENE_PREPASSES = new Set();
@@ -11431,6 +11441,7 @@ function* waterSurface(ctx, opt) {
     r.state.buffers.color.setMask(true);
     r.clear();
     r.render(under.scene, cam);
+    discardDepth(r, under.target); // die Tiefe der Fische braucht danach niemand
     r.setRenderTarget(before);
     r.setClearColor(clearColor, clearAlpha);
     material.uniforms.uUnder.value = under.target.texture;
@@ -13100,6 +13111,12 @@ function createComposer() {
   // Pinsel über gemalten Ebenen der Skyboxen: vor dem Leuchten, das danach über das gemalte Bild geht
   const brush = createBrushPass(QUALITY.brush);
   comp.addPass(brush);
+  // Danach liest niemand mehr Tiefe und Stencil des Szenenbilds (der Pinsel brauchte den Stencil; das nächste Bild
+  // löscht sie): verwerfen statt speichern (Kachel-GPUs, Ticket 11)
+  const discard = new THREE.Pass();
+  discard.needsSwap = false;
+  discard.render = (r, writeBuffer, readBuffer) => discardDepth(r, readBuffer);
+  comp.addPass(discard);
 
   const bloom = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
@@ -20131,6 +20148,10 @@ function renderReflection() {
     u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
     u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
   }
+  // Beim Auflösen des MSAA nur die Farbe kopieren, Tiefe und Stencil verwerfen (three: __ignoreDepthValues): Gelesen
+  // wird nur die Farbe, Kachel-GPUs sparen das Speichern und Kopieren der Tiefe (Ticket 11). Je Bild, weil setSize das
+  // Ziel neu anlegt und dabei die Eigenschaften vergisst
+  renderer.properties.get(reflector.getRenderTarget()).__ignoreDepthValues = true;
   reflector.onBeforeRender(renderer, scene, camera);
   for (const u of _reflectDimmed) {
     u.core.material.color.copy(u.reflectSave.core);
