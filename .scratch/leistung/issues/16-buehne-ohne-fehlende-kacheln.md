@@ -233,3 +233,64 @@ Offen (gemeldet, nicht behoben, der Umbau der Folge kommt ohnehin):
 
 Tests auf `6beecda`: `logic.test` (2033), `golden`, `geschichte-probe --grad leicht --welten 2 --finale leicht`: grün,
 ohne Warnung «Weckstelle fehlt». `--handy` und `--quer` nicht mehr gefahren (Umbau der Folge kommt).
+
+### 01.11.2026 – Speicher der Grafik begrenzt (Fund aus dem Optik-Review)
+
+**Ursache bestätigt und zerlegt** (echtes Chrome, Fenster, Quadro; Desktop maximiert 4K, Handy-Emulation ×4; ohne
+`?perf`). `used_bytes` (Belegung des Renderers im GPU-Prozess) einmal mit dem normalen Budget (Desktop etwa 900 MB, dort
+liegt auch vorher die Belegung) und einmal mit `--force-gpu-mem-available-mb=8192`, damit der eigentliche Bedarf zu
+sehen ist. Drei Treiber:
+1. **Eine Animation für die ganze Folge** hielt jede nahe Ebene im ganzen Prolog in Zoom 2,2.
+2. **Die Keile des Strahls** (Dreieck 100 × 100 mit Matrix bis 8,6×): Chrome rasterte jeden Keil in der grössten
+   Skalierung der Matrix, rund 860 × 860 Masse je Keil in voller Auflösung; zusammen mehrere 100 MB, ab Einstellung 3.
+   Dazu die **Maske** des Strahls über eine Box von 1564 × 300 Massen (Chrome rastert eine Maske ganz).
+3. **Die Linien** als eigene Ebenen mit geteiltem Bild darüber («oben»): rund 200–280 MB Bedarf (Desktop).
+
+**Änderungen:**
+- **Abschnitte statt einer Animation je Folge** (`abschnitteFuer`, `abschnittAnlegen`, `abschnittWechseln`): je Ebene
+  eine Animation für eine Reihe von Fahrten ähnlicher Skalierung; ein Abschnitt wächst nur, solange an keinem seiner
+  Ruhepunkte mehr als 1,15 × das gerastert wird, was dort ohnehin nötig ist (Ruhepunkt oder nächste Fahrt, also wie
+  vorher). Gewechselt wird nur in Ruhepunkten, gestaffelt mit den Linien. Prolog: Himmel, ferne Berge in einem
+  Abschnitt, die nahen Ebenen wechseln nach Fahrt 1, 3 und 4 – **nicht in der Noa-Szene (Ruhepunkt 2)**.
+- **Keil in voller Länge** (Dreieck STRAHL_L × 100, Matrix längs 1): Rasterfläche ein Achtel. **Maske** nur so gross wie
+  der Strahl (Länge STRAHL_L, der Verlauf reicht per `mask-size` darüber hinaus; Höhe für den Hals ab s = 0,25).
+- **Linien unter dem Bild** (Grate von Bergen, Bergwald, Dorfhügel): die Linien-Ebene liegt unter dem einen Bild der Ebene,
+  doppelt breit, die Fläche deckt die untere Hälfte, also bleibt dieselbe Linie über der Kante sichtbar, Bäume darüber
+  wie vorher. Kein zweites Bild «oben» mehr; nur Noas Hügel (Bäume dahinter, Rand davor) bleibt geteilt.
+- Aus dem Code-Review: Halt unbegrenzt (`haltWachen`: alle `HALTEN / 3` zurück an den Anfang des Halts, ein Sprung
+  rastert nichts neu); `frame` ruft `zeichne` nicht mehr pro Bild; `offer` setzt `stillAb` erst nach dem Tausch der Linien.
+
+**Messung `used_bytes`, Bedarf (Budget 8 GB), MB:**
+
+| Lauf | max | Einstellung 2 | 4 | 5 | 6 |
+|---|---|---|---|---|---|
+| Desktop vorher (`eb8105e`) | 1681 | 723 | 1116–1681 (Fahrt) | 829 | 1041 |
+| Desktop 77e0e22 (Review) | 1850 | | | | |
+| Desktop Abschnitte (`x-neu7`) | 1591 | 1131 | 1012 | 1459 | 1591 |
+| Desktop jetzt (`x-neu9`) | **1089** | 1063 | 1062 | 1048 | – |
+| Handy ×4 vorher | 417 | 412 | 334 | 409 | – |
+| Handy ×4 jetzt | **522** | 507 | 444 | 469 | – |
+
+Mit normalem Budget liegt die Belegung auf dem Desktop vorher wie jetzt am Budget (max 910 / 912 MB); Handy ×4 jetzt max
+520 MB (vorher 416, 77e0e22 725).
+
+**Bild (Screencast, jeder Ruhepunkt 1,8 s nach dem Halt und das Angebot, vorher gegen jetzt; Anteil Pixel > 24/255
+anders):** Desktop 0,24 / 0,01 / 0,03 / 0,06 / 0,90 / 0,63 / 0,77 %, Handy ×4 0,08 / 0,02 / 0,03 / 0,04 / 0,71 / 1,04 /
+1,08 % (der Rest sind Glühwürmchen an anderer Stelle). Kein Bild weicht in der Helligkeit von beiden Nachbarn ab (alle
+Bilder des Prologs, Desktop 2720, Handy 2782). Zwischenstände zum Vergleich: mit Abschnitten, aber alten Keilen fehlten
+auf dem Desktop in Ruhepunkt 5 Bergflächen und Wald (15 % anders), dazu ein Bild ohne Hügel und Untertitel am Start von
+Fahrt 6. `buehne-messung bilder` Desktop und Handy, Prolog und Epilog: höchstens 0,88 % (Ruhepunkte 6/7, Glühwürmchen).
+Bilder: `scratchpad/16-15/out/ruhe-desk9/`, `ruhe-handy9/`, `tests/output/buehne/vergleich/` (lokal).
+
+**Flackern Einstellung 2:** Handy ×4 kein Bild mit fehlenden Kacheln in Ruhepunkt 2 (jetzt 24 im ganzen Prolog, fast alle
+am Start von Fahrten); kein Abschnittswechsel in Ruhepunkt 2.
+
+**Offen:** Handy ×4 braucht etwa 25 % mehr als vorher (522 gegen 417 MB). Der Rest steckt in den eigenen Ebenen (Linien,
+Strahl, geteilter Dorfhügel); weiter senken ginge nur mit weniger Ebenen. Desktop 4K bleibt wie vorher am Budget. Das
+Stehen von etwa 350 ms beim Öffnen (×4) ist nicht angegangen.
+
+**Tests:** logic (2033), golden, `geschichte-probe --start`, `--grad leicht --welten 2 --finale leicht`, `--handy`,
+`--quer --grad leicht`, `leistung-probe --handy`, `start-probe`, `leerlauf-probe` grün, keine Warnung «Weckstelle fehlt».
+`geschichte-probe --uebersicht --dorf` scheitert unter der Last der parallelen Läufe an Lücken in Spiel ↔ Übersicht
+(jetzt 2 Fehler, längste 150 ms); derselbe Lauf direkt danach auf `dabcd1a` ohne diese Änderung scheitert gleich
+(3 Fehler, längste 367 ms), also nicht von der Bühne.
