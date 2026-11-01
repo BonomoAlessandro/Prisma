@@ -85,10 +85,26 @@ Ursachen laut Untersuchung vom 31.10.2026 (Stellen in `index.html`):
 | 05 | Hall vorab berechnen | 01 |
 | 06 | Leerlauf auf 0 | 02 |
 | 07 | Handy-Durchlauf 2, Messrunde ganze App, erzeugt weitere Tickets | 02, 03, 04, 05, 06 |
+| 08 | Zeichenzeit ohne Halt messen (Dauerlast) und auf dem Poco zerlegen | 07 |
+| 09 | Keine langen Einzelbilder beim Aufbau des Himmels und bei der Ankunft im Level | 07 |
+| 10 | Seitenstart in Stücken | 07 |
+| 11 | Zeichenzeit unter die Marge (Spiegelung, Bloom, Panorama-Netz) | 08 (mit Zahlen vom Poco) |
+| 12 | Leuchtfilter im Menü auf die Umgebung der Linien begrenzen (Safari) | 07 |
+| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12 und die Tickets aus den Beobachtungen vom Poco |
 
-## Notizen für die Messrunde (Ticket 07), noch keine Tickets
+Empfohlene Reihenfolge (Messrunde 07): 08 und 09 parallel, dann 10 (berührt wie 09 `compileParallel`), Handy-Durchlauf
+2b mit dem Mass aus 08 (Empfehlung, Entscheid Koordinator), 11 nach dessen Zahlen, 12 jederzeit, 13 zuletzt.
 
-Ob und wie diese Punkte angegangen werden, entscheiden die Zahlen vom Poco:
+## Notizen für die Messrunde (Ticket 07)
+
+**Ausgewertet in der Messrunde 07** (Urteile und Zahlen dort unter `## Comments`): Bloom, Spiegelung und das
+Panorama-Netz der Wüste gehen in 11; das erste Zeichnen einer frisch geladenen Skybox in 09; der Menü-Blur für Safari in
+12. Verworfen: Pinsel (0,15–0,2 ms), HD-Himmel in Chrome (nur Desktop), Staub, Startbildschirm-CSS (Poco max 17 ms),
+«Spiel → Übersicht» (jetzt 17–50 ms), Hall-Convolver (Audio-Thread, nirgends sichtbar). `cullInstances` und die
+Allokationen der Spiegelung sind in 06 erledigt. Das Ersatzmass der Zeichenzeit bildet die GPU-Arbeit nicht ab und wird
+in 08 durch die Dauerlast ersetzt. Safari-Risiken stehen in 07.
+
+Die ursprünglichen Notizen:
 
 - Bloom: High-Pass-Shader (um 12794–12812) mit 8 × 8 = 64 Abtastungen auf dem Desktop (`bloomDiv` 2), 4 × 4 = 16 auf
   dem Handy (`bloomDiv` 1, dafür Pixelverhältnis 2), Upsampling über B-Splines.
