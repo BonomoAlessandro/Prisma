@@ -20269,6 +20269,21 @@ function reflectionInView() {
   return _reflectFrustum.intersectsBox(_reflectPlate);
 }
 
+/**
+ * Mipmaps der Spiegelung nur bis zur Stufe, die der Boden liest (Ticket 11): Er tastet mit Stufe 1 … 2,2 plus log2 des
+ * Pixelverhältnisses ab; weil die Textur kleiner als das Bild ist, landet das auf etwa 0,5 … 1,7 (Handy) bzw. −0,7 … 0,5
+ * (Desktop). Bis Stufe 4 bleibt also alles gleich; die fünf, sechs kleinsten Stufen erzeugte jedes Bild umsonst (auf
+ * Kachel-GPUs je ein eigener Durchgang). Je Bild, weil setSize das Ziel neu anlegt.
+ */
+const REFLECT_MAX_MIP = 4;
+function limitReflectionMips() {
+  const tex = renderer.properties.get(reflector.getRenderTarget().texture).__webglTexture;
+  if (!tex || !renderer.capabilities.isWebGL2) return; // noch nicht angelegt (erstes Bild: ganze Kette wie bisher)
+  const gl = renderer.getContext();
+  renderer.state.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, REFLECT_MAX_MIP);
+}
+
 function renderReflection() {
   if (!reflectionInView()) return;
   floorTop.updateMatrixWorld();
@@ -20299,6 +20314,7 @@ function renderReflection() {
   // wird nur die Farbe, Kachel-GPUs sparen das Speichern und Kopieren der Tiefe (Ticket 11). Je Bild, weil setSize das
   // Ziel neu anlegt und dabei die Eigenschaften vergisst
   renderer.properties.get(reflector.getRenderTarget()).__ignoreDepthValues = true;
+  limitReflectionMips();
   reflector.onBeforeRender(renderer, scene, camera);
   for (const u of _reflectDimmed) {
     u.core.material.color.copy(u.reflectSave.core);
