@@ -4,7 +4,7 @@
 
 **Blocked by:** 14
 
-**Status:** ready-for-human
+**Status:** ready-for-agent (Review des Takts ausstehend)
 
 **What to build:** Die Fische am Strand bewegen sich auf dem Handy gleichmässig. Beobachtung des Nutzers im
 Handy-Durchlauf 2b (Poco F4 GT, Stand `leistung-07b`): «Die Fische waren glatt, aber ruckelig.» Seit Ticket 14 sind die
@@ -15,7 +15,9 @@ weder gleichmässig 60 noch 30.
       und 4×, Stand jetzt gegen 01c.
 - [x] Zeitbasis: `t` aus dem rAF-Zeitstempel statt aus der Uhr beim Start des Callbacks (gebaut, siehe Comments).
 - [ ] Abnahme auf dem Poco im nächsten Handy-Durchlauf: Fische bei normalem Abstand ohne Ruckeln, auch beim Tippen.
-- [ ] Entscheid zum Takt im Level (30 ↔ 60, siehe «Vorschlag»), wenn das Ruckeln auf dem Poco bleibt.
+- [x] Takt im Level (Entscheid Koordinator 01.11.2026, siehe «Takt je Welt» unter Comments): kein sichtbarer Wechsel
+      30 ↔ 60, solange etwas im Bild ist, dem das Auge folgt; stetig 60 in Strand, Wald, Vulkan, Sonnensystem.
+- [ ] Review des Takts, Tests grün.
 
 ## Diagnose
 
@@ -76,7 +78,7 @@ Zu den Kandidaten:
    Im halb so grossen `under.target` sprangen die Fischkanten in Treppen von 2,75 Gerätepixeln, das überdeckte die
    kleinen ungleichen Schritte; mit glatten Kanten sieht man sie.
 
-## Vorschlag (falls das Ruckeln auf dem Poco nach dem Fix bleibt)
+## Vorschlag (falls das Ruckeln auf dem Poco nach dem Fix bleibt; umgesetzt, siehe «Takt je Welt»)
 
 Den Wechsel 30 ↔ 60 im Level am Strand vermeiden: Solange Fische im Bild sind, auch ohne Eingabe 60 Bilder/s (etwa ein
 Merkmal je Skybox, das `frameRate` als `idleFps` 60 liest). Das widerspricht dem Entscheid aus 06 («30 bleibt») und
@@ -119,3 +121,92 @@ aller 9 Eingaben im nächsten Bild) und `--still --handy` (0 Bilder in Ruhe), `g
 
 Berührungspunkte: Ticket 11 (Unterwasser-Pass, GPU-Last; bei 60/s in Ruhe am Strand doppelt), Ticket 09 (Einschwimmen
 beim Neubeginn: `createFishSim` unverändert, `t` läuft jetzt aus `ts`, nie rückwärts).
+
+**Takt je Welt, 01.11.2026 (Auftrag Koordinator: kein sichtbarer Wechsel 30 ↔ 60 im Level, solange etwas im Bild ist,
+dem das Auge folgt).**
+
+Methode (`welten.mjs`): echtes Chrome mit Fenster, T2000, Handy-Emulation 393 × 873, DPR 2,75, `?nointro&sky=<welt>`,
+Level 0, 8 s warten, Hauptschleife anhalten, dann an 6 Zeitpunkten je ein Bild bei T und T + 0,2 s rendern (`animate`
+wie im Spiel, mit Kamera). Blöcke von 8 × 8 CSS-px mit Änderung und Muster werden im zweiten Bild gesucht (± 20 px,
+kleinste Summe der Helligkeitsunterschiede; nur wenn die Verschiebung die Änderung mindestens halbiert, sonst ist es
+Flackern). Tempo = Versatz / 0,2 s; die Auflösung ist 5 CSS-px/s (1 px), über 100 px/s liegt am Suchrand. Ortsangaben
+aus dem Raster (`welten-orte.mjs`). Schritt je Bild = Tempo / Bilder je s; auf dem Poco 2,75 Gerätepixel je CSS-px.
+
+| Welt | Was bewegt sich (Ort) | bewegte Blöcke (6 Paare) | ≥ 20 / ≥ 40 px/s | schnellstes (p99) | Schritt bei 30/s | Entscheid |
+|---|---|---|---|---|---|---|
+| Strand | Wasser und Fische (oberes Drittel, 30–54 px/s im Median) | 566 | 477 / 270 | 108 px/s | 3,6 CSS-px = 10 Gerätepx | **stetig 60** (Fische, Auslöser) |
+| Wald | Glühwürmchen (oben und rechts unten, 56–112 px/s), Nebel langsam (10–20) | 61 | 21 / 15 | 112 px/s | 3,7 CSS-px | **stetig 60** |
+| Vulkan | Funken und Spritzer (bis über 100 px/s), Lava-Platten langsam (Median 5–11) | 2841 | 609 / 180 | 95 px/s (18 am Suchrand) | 3,2 CSS-px | **stetig 60** |
+| Sonnensystem | Planeten auf ihren Bahnen, Monde, Korona (oben bis 127 px/s) | 494 | 111 / 43 | 100 px/s | 3,3 CSS-px | **stetig 60** |
+| Wüste | nur das Schweben der Kamera (5–15 px/s) | 45 | 5 / 2 | 75 px/s (2 Einzelblöcke, Fehlzuordnung) | Kamera 0,2–0,5 CSS-px | **30 wie bisher** |
+| Milchstrasse | nur das Schweben der Kamera (5 px/s), Funkeln der Sterne | 282 | 3 / 2 | 25 px/s | 0,2–0,8 CSS-px | **30 wie bisher** |
+
+Rechnerisch dazu (Shader und Code): Fische 0,55–0,7 m/s, Glühwürmchen bis etwa 0,5 m/s im Ring 7–28 m (kurz an,
+lange aus, von 50 sind ständig einige an), Funken steigen mit 1,1–5,6 m/s, Spritzer mit 4,6–6,6 m/s, Planeten
+0,24–0,8 m/s (Merkur 7,6 m Bahn in 60 s, Erde 0,55 m/s). In Strand, Wald, Vulkan und Sonnensystem bewegt sich also ständig
+etwas mindestens so schnell wie die Fische, deren Schritt von 2,5 Gerätepixeln bei 30/s der Nutzer gesehen hat; dort
+gilt **stetig 60** (`activeFps`). In Wüste und Milchstrasse bewegt sich nur die Kamera, mit 5 px/s ist ihr Schritt bei
+30/s unter einem Gerätepixel: Weder die 30/s noch der Wechsel auf 60 bei Eingaben springen dort sichtbar. Dort bleibt
+es bei 30 in Ruhe und 60 bei Eingabe (Ziehen und Drehen brauchen die 60 ohnehin).
+
+Umsetzung: Merkmal `userData.fluid` je Ebene (`fishSchools`, `glowParticles`, `lavaPool`), `fluid: true` im Modul des
+Sonnensystems; das Panorama meldet `fluid`, sobald es steht und eine Ebene das Merkmal trägt, `skyTheme.fluid` fragt
+den gewählten Himmel. `frameRate.fluid()` = nicht hinter der Bühne, nicht unter Menü oder Übersicht
+(`story.choosing`), nicht im Startbildschirm, und `skyTheme.fluid`; `due` nimmt dann `activeFps`. Menü und Übersicht
+(10/s) bleiben unverändert.
+
+Nachher (`takt.mjs`, ungedrosselt, gez/s und Abstände der gezeichneten Bilder in Display-Frames, still / Tippen alle
+0,4 s / Tippen alle 3 s):
+
+| Welt | still | tippen | wechsel |
+|---|---|---|---|
+| Strand | 57,8, fast alle 1 | 58,9 | 58,7, kein Wechsel auf 2 |
+| Wald | 59,0 | 58,6 | 58,1 |
+| Vulkan (2. Lauf) | 60,0, 1: 600 | 60,0 | 60,0, 1: 899 |
+| Sonnensystem (2. Lauf) | 59,4 | 60,0 | 60,0, 1: 900 |
+| Wüste | 29,6, 2: 288 | 57,4 | 44,8 (1: 461, 2: 196; gewollt) |
+| Milchstrasse | 30,0, 2: 298 | 59,9 | 45,6 (1: 468, 2: 215; gewollt) |
+
+Im ersten Lauf von Strand, Wald, Vulkan und Sonnensystem kamen einzelne Aussetzer der Maschine dazu (rAF bis 80–400 ms,
+andere Agenten); der zweite Lauf von Vulkan und Sonnensystem ist sauber (keine Lücke, adaptiv 1). Das Sonnensystem
+sank im ersten, gestörten Lauf auf `adaptiv 0.75`, im zweiten und in allen Referenzdurchläufen nicht.
+
+Leerlauf-Probe (`--fenster --handy`): Wald Menü 10 / Ruhe **60** / Eingabe 60 gez/s; Strand 10 / **60** / 60; Wüste
+10 / **30** / 60; Desktop (Wald) 10 / **60** / 60. Reaktion aller Eingaben im nächsten Bild. GPU-Last in Ruhe
+(Mittel × gez/s) steigt damit z. B. im Wald (Handy-Emulation) auf 555 ms je s, Zeichenzeit je Bild gleich.
+
+Referenzdurchlauf `--fenster --handy` (GPU-Zeit), je 2 Läufe, vorher = `3fcafa0` (Kopie), nachher = dieser Branch:
+
+| | vorher 1 / 2 | nachher 1 / 2 |
+|---|---|---|
+| Rendern | adaptiv 1.00, Umbauten 0 | adaptiv 1.00, Umbauten 0 |
+| «Spiel» gez/s (ruhig) | 56 (56) / 56 (56) | **60 (60) / 60 (60)** |
+| «Spiel n. Reise» gez/s (ruhig) | 37 (31) / 37 (31) | **60 (60) / 60 (60)** |
+| «Spiel n. Reise» Zeichn p95 | 14,8 / 13,6 ms | 15,5 / 15,0 ms |
+| «Menü» gez/s (ruhig) | 35 (9) / 35 (10) | 36 (10) / 36 (10) |
+
+Dauerlast (`--fenster --handy --ersatzmass`, ms je Bild, «ganz»), je 2 Läufe:
+
+| Messpunkt | vorher 1 / 2 | nachher 1 / 2 |
+|---|---|---|
+| Spiel (1. Level) | 4,3 / 4,3 | 4,3 / 4,5 |
+| Menü still | 1,1 / 1,2 | 1,1 / 1,0 |
+| **Spiel n. Reise** | **5,2 / 5,8** | **5,4 / 5,4** |
+
+Die Last je Bild bleibt gleich (Unterschiede in der Streuung), nur die Bilder je Sekunde steigen. Karte überall
+`adaptiv 1.00, Umbauten 0`. (Die gez/s im Durchlauf mit Dauerlast zählen deren Probebilder mit: «Spiel n. Reise» 57/58
+vorher, 74 nachher.)
+
+Risiko: Auf dem Poco zeichnet das Spiel in diesen vier Welten jetzt auch in Ruhe 60/s bei 8,6–13,4 ms Dauerlast je Bild
+(Durchlauf 2b). Hält es den Takt nicht, misst `adaptiveResolution` gegen 16,7 ms statt 33 ms und könnte absenken; mit
+Eingaben lief es dort schon so (Karte 2b «Spiel» 53 gez/s, `adaptiv 1.00`). Abnahme im nächsten Handy-Durchlauf:
+Fische, Glühwürmchen, Funken und Planeten ohne Ruckeln, Karte `adaptiv 1.00, Umbauten 0`; Ticket 11 senkt die Last je
+Bild.
+
+Daten: `out/welt-*.json`, `out/takt-*.json`, `out/takt2-*.json`, `out/leistung-*.log`, `out/dauer-*.log` im Scratchpad
+(Pfad oben). `tests/leerlauf-probe.mjs` prüft jetzt im Fenster ungedrosselt den Takt: Menü ≤ 12 gez/s, Level in Ruhe
+60 ± 3 mit `frameRate.fluid()`, sonst 30 ± 3.
+
+Tests (Takt): `logic` (2033), `golden`, `screenshot` (Konsole ohne Meldungen), `leerlauf-probe` headless und
+`--still --handy`, im Fenster `--handy` mit Wald, Strand, Wüste und Desktop (Takt geprüft), `geschichte-probe --start`
+und `--handy`, `leistung-probe --handy` headless, `--fenster --handy` und `--ersatzmass` je zweimal: grün.

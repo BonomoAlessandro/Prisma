@@ -5,7 +5,8 @@
 // gezeichnete Bilder je Sekunde, Zeichenzeit (GPU-Zeit, wo messbar) p95 und Mittel, GPU-Last je Sekunde (Mittel ×
 // gez/s), CPU-Zeit von frame(); dazu je Eingabe, wie viele Bildschirmbilder nach dem Ereignis das erste gezeichnete
 // Bild kam (0 = im nächsten), und die Bildabstände des sichtbaren Bilds (p95, max). Prüft: Reaktion immer im nächsten
-// Bild, Konsole ohne Fehler; mit ?t= (--still) ruht die sichtbare Szene ganz (0 gezeichnete Bilder).
+// Bild, Konsole ohne Fehler; mit ?t= (--still) ruht die sichtbare Szene ganz (0 gezeichnete Bilder). Im Fenster
+// ungedrosselt dazu der Takt (Ticket 17): Menü 10 Bilder/s, Level in Ruhe 30, mit Fischen im Bild (--sky beach) 60.
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
 //           [--drossel 4] [--sky forest] [--seite <index.html>] [--still]
 //   --fenster: echtes Fenster (Messwerte; sonst headless, nur Regression); --handy: 393 × 873, Pixeldichte 2,75, Touch;
@@ -145,7 +146,15 @@ try {
   ergebnis.ruhe = JSON.parse(await ev(LIES)).ruhe;
   ergebnis.ruhe.bilderGesamt = await ev(`window.__prisma.frames - ${f1}`);
   ergebnis.ruhe.ruht = await ev('window.__prisma.ruht?.() ?? null');
+  ergebnis.ruhe.fluid = await ev('frameRate.fluid()');
   console.log('Ruhe', JSON.stringify(ergebnis.ruhe));
+  // Takt in Ruhe (Ticket 17): Zeigt der Himmel Bewegung, der das Auge folgt (Fische am Strand), stetig 60 Bilder/s,
+  // sonst 30. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU den Takt nicht)
+  if (!still && fenster && drossel === 1) {
+    const soll = ergebnis.ruhe.fluid ? 60 : 30;
+    pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (fluid ${ergebnis.ruhe.fluid})`);
+    pruefe(ergebnis.menue.gezJeS <= 12, `Menü: ${ergebnis.menue.gezJeS} gez/s statt 10`);
+  }
   if (still) {
     pruefe(ergebnis.menue.bilderGesamt === 0, `Menü mit stehender Zeit: ${ergebnis.menue.bilderGesamt} Bilder statt 0`);
     pruefe(ergebnis.ruhe.bilderGesamt === 0 && ergebnis.ruhe.ruht, `Level mit stehender Zeit: ${ergebnis.ruhe.bilderGesamt} Bilder, ruht ${ergebnis.ruhe.ruht}`);

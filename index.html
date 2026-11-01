@@ -9182,6 +9182,9 @@ const solar = (() => {
 
   return {
     group, corona, planets, lineMat,
+    // Die Planeten ziehen um das Brett (Merkur 0,8 m/s, Erde 0,55 m/s), so schnell wie die Fische am Strand: im Level
+    // stetig 60 Bilder/s (frameRate.fluid, Ticket 17 der Leistung)
+    fluid: true,
     setFade(k) {
       solarUniforms.uFade.value = k;
       lineMat.opacity = 0.12 * k;
@@ -10349,6 +10352,9 @@ function glowParticles(ctx, opt) {
   }));
   points.frustumCulled = false;
   points.renderOrder = 6;
+  // Die Glühwürmchen ziehen etwa so schnell wie die Fische am Strand, das Auge folgt ihnen: im Level stetig 60 Bilder/s
+  // (frameRate.fluid, Ticket 17 der Leistung)
+  points.userData.fluid = true;
   return points;
 }
 
@@ -10580,6 +10586,9 @@ function lavaPool(ctx, opt) {
   drops.frustumCulled = false;
   drops.renderOrder = 6;
   out.add(drops);
+  // Funken steigen mit 1–6 m/s, Spritzer fliegen im Bogen: mit 30 Bildern/s sprangen sie sichtbar (Ticket 17 der
+  // Leistung: bis 100 CSS-px/s), im Level darum stetig 60 (frameRate.fluid)
+  out.userData.fluid = true;
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
@@ -11868,6 +11877,9 @@ function fishSchools(ctx, opt) {
   under.scene.add(shadowMesh, fishMesh);
 
   const holder = new THREE.Group();
+  // Die Fische ziehen gleichmässig, das Auge folgt ihnen: mit 30 Bildern/s (und dem Wechsel auf 60 bei Eingaben)
+  // ruckelten sie sichtbar, im Level darum stetig 60 (frameRate.fluid; Ticket 17 der Leistung)
+  holder.userData.fluid = true;
   const s = new Float64Array(10);
   holder.userData.update = (t) => {
     const alpha = sim.advance(t);
@@ -12158,6 +12170,8 @@ function createPanoramaSky(m) {
     },
     /** geladen oder lädt: release gibt etwas frei */
     get held() { return loading !== null; },
+    /** Eine Ebene zeigt Bewegung, der das Auge folgt (userData.fluid, etwa die Fische): im Level stetig 60 Bilder/s (frameRate.fluid) */
+    get fluid() { return mesh !== null && group.children.some((p) => p.userData.fluid); },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
@@ -12284,6 +12298,8 @@ const skyTheme = {
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
     return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
   },
+  /** Der gewählte Hintergrund zeigt Bewegung, der das Auge folgt (Modul fluid): im Level stetig 60 Bilder/s (frameRate) */
+  get fluid() { return !!this.byId.get(this.current).module?.fluid; },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
@@ -21008,7 +21024,8 @@ window.addEventListener('keydown', (e) => {
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
  * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
  * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
- * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Steht der Blick im Himmel (Menü, Übersicht), 10
+ * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Zeigt der Himmel im Level Bewegung, der das Auge folgt
+ * (fluid: die Fische am Strand), stetig 60, ohne Wechsel bei Eingaben. Steht der Blick im Himmel (Menü, Übersicht), 10
  * (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
  */
 const frameRate = {
@@ -21030,6 +21047,13 @@ const frameRate = {
   /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
    *  gerade ein, über oder schärft nach (skyTheme.moving: das liefe mit 10 Bildern/s stufig). */
   skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length && !skyTheme.moving; },
+  /**
+   * Im Level (auch beim Ein- und Ausblenden des Felds) zeigt der Himmel Bewegung, der das Auge folgt (skyTheme.fluid,
+   * etwa die Fische am Strand): dann stetig activeFps, auch ohne Eingabe. Mit 30 Bildern/s in Ruhe und 60 nach jeder
+   * Eingabe wechselte ihr Schritt je Bild beim Spielen alle paar Sekunden zwischen einfach und doppelt, das sah man
+   * (Ticket 17 der Leistung). Nicht hinter der Bühne und nicht unter dem Menü (wie busy).
+   */
+  fluid() { return !story.covered && !story.choosing && flow.state !== 'intro' && skyTheme.fluid; },
   busy(ts) {
     // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
     if (story.covered || story.choosing && !story.tweens.length) return false;
@@ -21064,7 +21088,7 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
-    const fps = this.busy(ts) ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
+    const fps = this.busy(ts) || this.fluid() ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
     const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
