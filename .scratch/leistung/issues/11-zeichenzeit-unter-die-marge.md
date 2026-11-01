@@ -298,3 +298,78 @@ T2000 waren ANGLE/D3D11-spezifisch (MSAA-Tiefe), Load/Store-Ersparnis auf dem Ad
 und Staub ~0; Wald: Himmel 2,0, Bloom 1,9, Spiegelung 1,2, Final 0,5, Netz 0,3, Rest (Brett, Elemente) ~2,9; Menü:
 Bloom 2,4 von 4,8. Fische in voller Auflösung (Ticket 14) kosten nichts Messbares. «stetige 60 aus» erscheint nicht,
 `adaptiv 1.00`. Ticket 11 bleibt offen.
+
+**02.11.2026, zweite Runde «11b»** (Branch `leistung/11b-poco` ab `68640a5`, eine Massnahme je Commit, `APP_VERSION`
+unverändert). Nur Einsparungen, die auf jeder GPU wirken: weniger Fragment-Arbeit, weniger Texturzugriffe, weniger
+Abtastungen und Durchgänge. Kein Treiberkniff, keine Auflösung gesenkt, kein Grafikschalter.
+
+*Messung:* T2000 im echten Chrome mit Fenster, Handy-Emulation in der Grösse des Poco (392 × 739, gerendert 784 × 1478),
+Desktop 1536 × 729. GPU-Zeit (Timer) je Durchgang und je Objekt (Netz, Wasser: Abfrage um ihr Zeichnen), A/B in
+derselben Sitzung (jede Massnahme zur Laufzeit zurückgeschaltet, 4 × abwechselnd, Median), weil die T2000 zwischen zwei
+Taktstufen springt (dieselbe Messung schwankt sonst um den Faktor 2). *API-unabhängig:* Der Shader von Netz und Wasser
+zählt jeden Texturzugriff mit (Hilfsfunktionen statt `texture2D`/`textureLod`/`textureGrad`, mit allen Verzweigungen,
+verworfene Fragmente bis zum `discard`) und schreibt die Zahl additiv in ein Float-Ziel: Fragment-Aufrufe und
+Texturzugriffe je Bild. Bloom: Abtastungen je Bild aus Shader und Zielgrössen, der Hochpass mit dem gemessenen Anteil
+heller 2 × 2-Gruppen im Szenenbild. Skripte und Rohdaten im Scratchpad unter `11b/` (`probe.mjs`, `zeiten.js`,
+`zaehle.js`, `var2.js`, `bloomzahl.js`, `lauf*.log`).
+
+Am Strand (Handy, Level) bedeckt das Netz 100 % des Bilds (Überzeichnung 1,0), das Wasser 55,6 %, die Platte rund 35 %;
+im Wald die Platte 44 %. Der Hochpass findet im Menü und im Wald fast keine hellen Gruppen (Wald 0,8 %), am Strand 48 %
+(helles Wasser: Summe von 4 Bildpunkten ≥ 1).
+
+| Massnahme (Commit) | API-unabhängig (Handy) | T2000 GPU, A/B | Poco geschätzt |
+|---|---|---|---|
+| Wasser: Brandung, Auflaufen, Schaum, Rinnen nur, wo sie wirken; Rauschen 2D (`05c153d`) | Texturzugriffe 13,9 → 10,3 Mio. je Bild (21,5 → 15,9 je Pixel) | Wasser 0,84 → 0,68 ms (Handy), 0,45 → 0,36 (Desktop) | Strand −0,6 bis −0,8 ms |
+| Netz rechnet hinter der Platte nichts (`636dc25`) | Strand 6,0 → 3,5 Mio., Wald 1,16 → 0,65 Mio. Zugriffe | Netz Strand 0,49 → 0,31, Wald 0,27 → 0,20 ms | Strand −0,8 bis −1,0, Wald −0,1 |
+| Tiefenregel: zwei Matrix-Vektor- statt Matrix-Matrix-Produkt (`c5ceb4f`) | 48 Multiply-Adds weniger je Netz-Pixel am Strand | Netz −0,03 ms | Strand −0,1 bis −0,2 |
+| Bloom-Hochpass prüft je 2 × 2 Bildpunkte vorab (`5730854`) | 4,6 → 1,2 Mio. Abtastungen (Menü, Wald), 3,4 Mio. (Strand) | in der Streuung (Bloom 0,3–0,6 ms) | Menü/Wald −0,3 bis −0,5, Strand −0,1 bis −0,2 |
+| Spiegelung: Mipmaps nur bis Stufe 4 (`a52547a`) | 5–6 kleine Durchgänge weniger je Bild | in der Streuung | −0,05 bis −0,15 (Wald, Strand) |
+| Bloom: paarweise Weichzeichnen mit bilinearer Abtastung (`b1965b7`) | 4,9 → 3,3 Mio. Abtastungen | in der Streuung | −0,15 bis −0,3 überall |
+| Bloom: Stufen in zwei Schritten zusammensetzen (`ee00e02`) | 4,9 → 2,4 Mio. Abtastungen, ein Durchgang (0,07 Mpx) mehr | in der Streuung | −0,2 bis −0,4 überall |
+
+Bloom zusammen (ohne das Auftragen im letzten Bildschritt): 14,4 → 6,9 Mio. Abtastungen je Bild im Menü und im Wald,
+→ 9,1 Mio. am Strand. Begründungen der Gleichheit stehen in den Kommentaren am Code: Was übersprungen wird, ist dort
+genau 0 (Gewicht `smoothstep(1.8, 0.9, Tiefe)`, `share = 0` ab 0,7 m, Schaumdichte 0, `hug = 0` ohne Fels, Summe der
+Helligkeiten unter der Schwelle). Die Platte ist undurchsichtig, steht fest und wird nach dem Netz gezeichnet; das Netz
+verwirft nur Pixel, deren Strahl die Platte (um 1 cm kleiner) vor dem Netz trifft, nach den Ableitungen.
+
+**Poco erwartet zusammen** (aus seinen Anteilen): Strand 13,5 → etwa 10,5–11,5 ms, Wald 8,5 → etwa 7,2–7,8 ms, Menü
+still 4,8 → etwa 3,8–4,2 ms. **≤ 8 ms am Strand ohne sichtbaren Unterschied ist damit nicht realistisch.** Was dort
+bleibt: Wasser ~2,7, Netz ~1,4, Spiegelung ~1,6, Bloom ~1,8, Final 0,8, Pinsel 0,6, Szene ~2. Massnahmen mit kleinem,
+aber sichtbarem Unterschied (Entscheid Nutzer), geschätzt am Strand:
+- Bloom auf dem Handy ab Viertelauflösung (`bloomDiv` 2 wie Desktop): −0,8 bis −1,2 ms, überall. Risiko: Leuchten
+  dünner Strahlen zerfällt wieder in Perlen (der Grund für `bloomDiv` 1), weicheres Glühen.
+- Pinsel auf dem Handy aus: −0,6 ms (nur Strand), Palmen weniger gemalt.
+- Spiegelung auf dem Handy ohne MSAA: −0,1 bis −0,3 ms, Kanten im Spiegelbild etwas härter.
+- Wasser in halber Auflösung mit kantenerhaltendem Vergrössern: −1,2 bis −1,8 ms, Glitzern und Schaumkanten weicher.
+Erst alle vier zusammen kämen am Strand voraussichtlich in die Nähe von 8 ms. Noch unsichtbar möglich, aber nicht
+gebaut: die Spiegelung nur im Bildausschnitt der Platte rendern (Scissor mit Rand für die Mipmaps), geschätzt −0,2 bis
+−0,4 ms.
+
+*Vergleich* (feste Zeit `?t=12`, `11r/det.mjs`, vorher `68640a5`, nachher `ee00e02`; Handy 393 × 873 und Desktop):
+Menü (Wald, Strand, Vulkan), Übersicht, alle sechs Welten im Level, Aufleuchten, Puls, Feier, Drehen, Grössenänderung.
+Menü, Übersicht: 0/255. Strand: Wasser und Ufer max 1/255, um die Platte nichts. Leuchten am Strahl 3×: max 9/255 auf
+0,6 % der Pixel (Handy), 5/255 (Desktop), keine Perlen, kein Banding. Grössere Abweichungen nur an Echtzeit-Anteilen:
+schwebendes Ziel, Funken der Feier, Lava des Vulkans (dieselbe Fassung gegen sich selbst weicht dort gleich stark ab:
+7,3 % der Pixel). Bilder unter `11b/bilder/` (Einzelbilder) und `11b/bilder/v/` (`…-nebeneinander.png`,
+`…-diff8.png`, Ausschnitte `handy-beach-level-strahl3x`, `-wasser`, `-ufer`, `-platte`). Konsole leer.
+
+*Tests* (Stand `ee00e02`, `GPU=1`, `leise.sh` 100 %): logic (2033), golden, hall, screenshot (Konsole leer), offline,
+`leistung-probe` headless Desktop und `--handy`, im Fenster `--fenster --ersatzmass` und `--fenster --handy
+--ersatzmass` («in Ordnung», `adaptiv 1.00, Umbauten 0`, Dauerlast ganz Handy 2,6 / 0,9 / 2,8 ms, Desktop 1,8 / 0,9 /
+2,5 ms), `geschichte-probe --start` und `--handy`, `leerlauf-probe`: alle grün. Die Karten zeigen «Flüssig: nein» mit
+p95 18,4–18,6 ms und Hängern «ohne Script» (Prolog, Menü), der Rechner war durch parallele Läufe belastet; die GPU-Zeit
+ist dort klein.
+
+*Berührungspunkte:* `skyPanoramaMaterial` (Fragment-Shader des Netzes: Plattentest vor dem Abtasten; nicht `build`,
+nicht `sliced`), Tiefenregel in `waterSurface` (`cutAt`), Fragment-Shader des Wassers, `createComposer` (Hochpass,
+`bloom.render`, neue Materialien `pairBlur`, `compositeCoarse`, `compositeFine`; `renderTargetsHorizontal[1]` dient
+jetzt als Zwischenbild), `renderReflection` (`limitReflectionMips`). Für 09 (Aufbau des Himmels): Die neuen
+Bloom-Programme übersetzen beim ersten Bild mit Bloom, wie vorher das Zusammensetzen; wer Programme vorab übersetzt,
+sollte sie mitnehmen.
+
+*Risiken:* Plattentest setzt voraus, dass die Platte (`floorTop`, `plateSides`) fest steht, undurchsichtig ist und
+gezeichnet wird; wer sie bewegt, ausblendet oder durchsichtig macht, muss `PLATE_LO/HI` anpassen. Der Hochpass setzt
+nicht-negative Farben im Szenenbild voraus (geprüft: keine). `TEXTURE_MAX_LEVEL` der Spiegelung wird je Bild gesetzt;
+liest der Boden einmal tiefer als Stufe 4, bleibt er bei Stufe 4. Die Poco-Gewinne sind Schätzungen; die
+Load/Store-Seite des Adreno zeigt erst der nächste Handy-Durchlauf.
