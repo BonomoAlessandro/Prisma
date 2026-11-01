@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 08 (und dessen Zahlen vom Poco, siehe Hinweis in 08)
+**Blocked by:** 08 (erledigt, Zahlen vom Poco liegen vor)
 
 **Status:** ready-for-agent
 
@@ -68,3 +68,44 @@ Dauerlast «ganz» ≤ 5–6 ms → Ticket 11 `wontfix` (Reserve für tieferen T
 Zerlegung, voraussichtlich Spiegelung zuerst.
 
 **bereit für Handy-Durchlauf 2b, bitte auf Render deployen**
+
+**Handy-Durchlauf 2b, Poco F4 GT, 01.11.2026, vom Nutzer:**
+
+```
+Version     2026-11-01 leistung-07b
+Rendern     784×1478 (Pixelverhältnis 2.00, adaptiv 1.00, Umbauten 0), Handy
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s ruhig
+Seitenstart*         8  428.2  428.2    4      –  19.9     1     1
+Startbildschirm    205   16.6  131.6    2      –     –     0     0
+Menü               446   16.6   65.9    1      –   6.8    23    11
+Prolog            2460   16.6   82.3    9      –   5.0     1     1
+Einstieg           374   16.6   49.5    2      –   8.6    60     –
+Spiel             1339   16.6  197.5    3      –   9.3    53    52
+Reise              813   16.6   49.3    1      –   6.6    60     –
+Spiel n. Reise     122   16.6   49.4    1      –  11.8    56     –
+Gesamt            5759   16.6  197.5   19      –
+
+Zeichnen (Dauerlast, K = 20, Median aus 5), ms je Bild:
+Messpunkt            ganz  -Spieg  -Bloom   -Netz -Pinsel     CPU
+Spiel (1. Level)      8.6     8.3     6.4     8.5       –     2.7
+Menü still            4.6       –     2.3     4.9       –     0.8
+Spiel n. Reise       13.4    12.4    11.1    11.6    13.1     3.4
+Zeichnen ≤ 8 ms: nein (Spiel (1. Level) 8.6 ms, Spiel n. Reise 13.4 ms) (Dauerlast ganz)
+
+Längste Bilder / Hänger:
+   428.2 ms  Seitenstart bei 0.8 s (490 ms ohne Script, Rendern 3 ms)
+   312.3 ms  Seitenstart bei 0.3 s (Script 303 ms)
+   197.5 ms  Spiel bei 86.8 s (FrameRequestCallback: Script 201 ms, Rendern 207 ms)
+   131.6 ms  Startbildschirm bei 1.2 s
+    82.3 ms  Prolog bei 35.3 s (ohne Script, Rendern 8 ms)
+    82.2 ms  Prolog bei 23.6 s (FrameRequestCallback: Script 86 ms)
+      69 ms  Einstieg bei 53.8 s (→ frame: Script 63 ms); 67 ms Reise bei 93.2 s (→ frame: Script 56 ms)
+```
+
+**Entscheid (Koordinator):** Ticket 11 wird gebaut. Dauerlast «ganz» 8,6 ms (Wald) und 13,4 ms (Strand) liegen über
+der Marge, und die Dauerlast misst laut Review 08 eher zu tief. Auf dem Adreno ist die Rangfolge anders als auf der
+T2000: **Bloom** 2,2–2,3 ms (auch im stillen Menü), **Netz** 1,8 ms am Strand, **Spiegelung** 0,3–1,0 ms, Pinsel 0,3 ms.
+Am Strand bleiben rund 8 ms, die keine Spalte erklärt (Szene, Wasser, Unterwasser-Pass aus Ticket 14 in voller
+Grösse, Himmel). Zuerst die Zerlegung um diese Teile erweitern, dann in der Reihenfolge der Poco-Anteile vorgehen.
+Ziel: «ganz» ≤ 6 ms an allen Messpunkten auf dem Poco (Reserve für tieferen Takt und Compositing), Abnahme in
+Handy-Durchlauf 3; ohne sichtbaren Unterschied, Auflösung nicht senken, Fische bleiben glatt.
