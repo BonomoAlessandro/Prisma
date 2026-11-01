@@ -233,3 +233,28 @@ ebenso (`lit`). *Hinweis:* «-Final» zeichnet nichts auf den Bildschirm; ob das
 Offscreen-Pässe wartet, hängt am Treiber (Spalte -Fi auf dem Poco mit Vorsicht lesen). *Seitenstart:* `3fcafa0` im
 Fensterlauf `--handy` (T2000, Rechner belastet) GPU-p95 37,9 ms im Seitenstart, also nicht neu durch 11 (Laden,
 wenige Bilder); Vergleichslauf des neuen Stands blieb in der Sperre hängen.
+
+**Review (01.11.2026, Browser und Optik):** Echtes Chrome mit Fenster und GPU (T2000), Desktop maximiert und
+Handy-Emulation 393 × 873, DPR 2,75, Android; `3fcafa0` gegen HEAD (ab den Reisen, Proben und den Wiederholungen auf
+`11f4073`). Skripte, Bilder und Logs im Scratchpad unter `11r/`. *Feste Zeit* (`?t=12`, gleiche Zustände, Pixelvergleich):
+Menü (Wald, Strand, Vulkan), Übersicht, alle sechs Welten im Level, Aufleuchten nach dem Start (0,9 s, 1,5 s), Bloom-Puls,
+Feier (`celebration.start`, 0,25–3 s), Grössenänderung (Desktop 1100 × 650 und zurück), Drehen des Handys (quer und
+zurück). Bei gleichem Zustand höchstens 1/255 (Handy) bzw. 2–4/255 (Desktop). Am Strand auf dem Desktop 0,05 % einzelne
+Pixel bis 7/255 im Rotkanal am linken Rand (Aberration), im Ausschnitt 3× nicht zu sehen. Glüh-Ausschnitte 3× (Strahl am
+Sender, Ziel, Puls; Handy und Desktop, auch auf `11f4073`): max 1–2/255, kein Banding, keine Perlen. Grössere Abweichungen
+stammen nur aus Echtzeit-Anteilen, die zwischen den Aufnahmen weiterlaufen: Funken und Ring der Feier, wachsende Elemente,
+Laden der Vulkan-Skybox auf dem Handy (mit 8 s Wartezeit 0/255). *Echtzeit* mit einem Bildwächter (jedes Bild nach dem
+letzten Bildschritt 9 Zeilen auslesen, Flackern = ein Bild deutlich dunkler oder heller als seine Nachbarn): Reise durch
+alle Welten (Strand → Wüste → Vulkan → Planeten → Sterne → Wald), Handy und Desktop, vorher wie nachher 0 Flackern,
+0 schwarze Bilder. `geschichte-probe` im Fenster (Handy: Prolog → Spiel → Wald → Reise ins Meer; `--finale leicht`
+Handy und Desktop: Sterne, Feier, Epilog → Menü → Mittel mit Prolog) ohne Flackern. Die schwarzen Bilder im Finale (642
+nachher, 645 vorher) zeigen den dunklen Sternhimmel hinter dem Menü. Bestanden, Konsole ohne Meldung (kein
+`INVALID_OPERATION`, kein `invalidateFramebuffer`, keine «Weckstelle fehlt»). Ein Lauf `--finale` Desktop mit 371 ms Lücke
+Epilog → Menü: Vorher hatte er dasselbe (497 ms). Die Lücke liegt ohne WebGL-Bild in der Lücke, der Rechner war belastet.
+Die Wiederholung auf `11f4073` lief grün (89 ms). *Referenzdurchlauf* `--fenster --ersatzmass`: nachher 2× Desktop, 2×
+Handy, vorher je 2×. Alle Karten zeigen `adaptiv 1.00, Umbauten 0`. Bilder > 33 ms gesamt: Handy nachher 15/15, vorher
+22/20; Desktop nachher 20/22, vorher 17/20. Das liegt in der Streuung, die Hänger bis 500 ms («ohne Script») gibt es in
+beiden Fassungen. Dauerlast «ganz»: Handy 2,0–2,3 / 1,0 / 3,0 ms (vorher 3,9 / 1,2 / 5,4), Desktop 2,2–2,3 / 1,0 /
+2,9–3,0 ms (vorher 4,0 / 1,0 / 4,8). Die zweite Zerlegungszeile `-Hi -Wa -Un -St -Fi` ist auf 393 px lesbar und passt
+ohne seitliches Wischen (`11r/lp/nachher/fenster-handy-ersatzmass-1-karte1.png`). **Urteil: ja**, bei normalem Abstand
+kein Unterschied; keine Funde, nichts geändert.
