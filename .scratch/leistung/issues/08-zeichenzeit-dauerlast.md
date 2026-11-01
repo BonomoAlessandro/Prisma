@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Ein Mass für die Zeichenzeit, das auf dem Poco (ohne `EXT_disjoint_timer_query_webgl2`) die
 **GPU-Arbeit je Bild** abbildet und nicht die Wartezeit der Pipeline. Dazu eine Zerlegung nach Durchgängen, die auf dem
