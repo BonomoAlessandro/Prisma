@@ -59,3 +59,12 @@ Durchlauf 2b), Karte `adaptiv 1.00, Umbauten 0`; Bilder vorher/nachher nebeneina
 Kandidat mit Vergleich, und Abbruch, sobald die Marge erreicht ist.
 
 ## Comments
+
+**Handy-Durchlauf 2b (Koordinator, 01.11.2026):** Stand `leistung-07b` = 07 + Ticket 08 (Dauerlast) + Ticket 14 (Fische
+voll). Tests grün (logic, golden, hall, beurteilung, geschichte, ki-tester, levelliste, vorrat, wuerfelliste, generator,
+offline, screenshot, start-probe, geschichte-probe `--start`/`--handy`, leerlauf-probe, leistung-probe headless und
+`--fenster --handy --ersatzmass`: `adaptiv 1.00, Umbauten 0`, Dauerlast ganz 4,0 / 5,5 ms). Entscheid nach der Poco-Karte:
+Dauerlast «ganz» ≤ 5–6 ms → Ticket 11 `wontfix` (Reserve für tieferen Takt und Compositing, Review 08); darüber nach der
+Zerlegung, voraussichtlich Spiegelung zuerst.
+
+**bereit für Handy-Durchlauf 2b, bitte auf Render deployen**
