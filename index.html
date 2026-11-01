@@ -13203,6 +13203,7 @@ function createComposer() {
   const bloomRatio = 2 * bloomDiv; // Bildpunkte je Bloom-Pixel und Richtung
   const taps = Array.from({ length: 2 * bloomRatio }, (_, i) => i - bloomRatio + 0.5);
   const glslNum = (x) => x.toFixed(1);
+  const quads = Array.from({ length: bloomRatio }, (_, q) => [2 * q, 2 * q + 1]); // je zwei benachbarte Abtastungen
   // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos. Die Abtastungen rasten auf
   // Bildpunktmitten ein, die Gewichte rechnen mit dem echten Abstand zur Mitte des Bloom-Pixels: Geht die Bildgrösse
   // nicht in ganzen Bloom-Pixeln auf (krumme Fenstergrösse, adaptive Auflösung), wandert dessen Mitte gegen die
@@ -13220,13 +13221,22 @@ function createComposer() {
       float alpha = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, v);
       return min(texel * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4)), vec3(2.5)) * alpha;
     }
+    // Kann einer der vier Bildpunkte um die Ecke q über der Schwelle liegen? Eine bilineare Abtastung genau auf der Ecke
+    // mittelt sie; liegt die Summe ihrer Helligkeiten (alle ≥ 0) unter der Schwelle, liegt es jeder einzelne auch, und
+    // ihr Überschuss ist 0. Dann entfallen ihre vier Abtastungen (Ticket 11: der grösste Teil des Bilds blüht nicht).
+    // 2 % Reserve für die Rechengenauigkeit des Filters.
+    bool bright(vec2 q) {
+      return 4.0 * dot(texture2D(tDiffuse, q / uSrcSize).rgb, vec3(0.299, 0.587, 0.114)) >= luminosityThreshold * 0.98;
+    }
     void main() {
       vec2 c = vUv * uSrcSize, b = floor(c + 0.5), d = c - b; // Mitte des Bloom-Pixels, nächste Bildpunktecke, Rest
       ${taps.map((p, i) => `float wx${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.x), ` +
         `wy${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.y);`).join('\n      ')}
       vec3 e = vec3(0.0);
-      ${taps.flatMap((px, i) => taps.map((py, j) =>
-        `e += excess(b + vec2(${glslNum(px)}, ${glslNum(py)})) * (wx${i} * wy${j});`)).join('\n      ')}
+      ${quads.flatMap(([i0, i1]) => quads.map(([j0, j1]) => `if (bright(b + vec2(${glslNum((taps[i0] + taps[i1]) / 2)}, ${glslNum((taps[j0] + taps[j1]) / 2)}))) {
+        ${[[i0, j0], [i1, j0], [i0, j1], [i1, j1]].map(([i, j]) =>
+          `e += excess(b + vec2(${glslNum(taps[i])}, ${glslNum(taps[j])})) * (wx${i} * wy${j});`).join('\n        ')}
+      }`)).join('\n      ')}
       gl_FragColor = vec4(e / ${glslNum(bloomRatio ** 4)}, 1.0);
     }`;
   bloom.highPassUniforms.smoothWidth.value = 0.6;
