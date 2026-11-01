@@ -18033,16 +18033,32 @@ function createStoryScene(host) {
   }));
   const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(3)})` })]]);
   const spuren = [armSpur, kraft, laenge, stern];
-  // Glühwürmchen: Ort (JavaScript, nur im Flug) › Schwingen in x › in y › Grösse; das Blinken schwingt mit x
+  // Glühwürmchen: Ort › Schwingen in x › in y › Grösse; das Blinken schwingt mit x. Ruhig (am Waldrand, um die Lampe,
+  // im Wald) steht der Ort, im Flug läuft er als vorab berechnete Animation (flugAnlegen), das Schwingen läuft weiter
   const worms = Array.from({ length: 16 }, () => {
     const g = div(q('.worms'), 'teil bewegt'), wx = div(g, 'teil'), wy = div(wx, 'teil'), ws = div(wy, 'teil');
     ws.insertAdjacentHTML('beforeend', svg(-11, -11, 22, 22, '<circle r="11" fill="url(#s-gw)"/><circle r="1.9" fill="#efffb0"/>'));
     return { el: g, ws, x: schwinger(wx, translateX), y: schwinger(wy, translateY), blink: schwinger(wx, (v) => ({ opacity: v.toFixed(3) })),
-      modus: null, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
+      modus: null, ort: null, flug: null, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
       ph: r(0, 6.3), fl: r(2, 5), spin: r(1.6, 2.6) * (rand() < 0.5 ? -1 : 1), ox: r(18, 44), oy: r(12, 30), delay: r(0, 1.6) };
   });
+  /** Ruhige Orte der Glühwürmchen: Mitte und Schwingen (Waldrand, um die Lampe, im Wald); [tx, ty]: Spitze der Lampe. */
+  const RUHIG = {
+    idle: { mitte: (w) => [w.hx, w.hy], schwingen: (w, t) => [Math.sin(t * w.a + w.ph) * 16, Math.cos(t * w.b + w.ph) * 9],
+      setze: (w) => { w.x.setze(16, w.a, w.ph); w.y.setze(9, w.b, w.ph + Math.PI / 2); } },
+    kreis: { mitte: (w, [tx, ty]) => [tx, ty], schwingen: (w, t) => [Math.cos(t * w.spin + w.ph) * w.ox, Math.sin(t * w.spin + w.ph) * w.oy],
+      setze: (w) => { w.x.setze(w.ox, w.spin, w.ph + Math.PI / 2); w.y.setze(w.oy, w.spin, w.ph); } },
+    park: { mitte: (w) => [w.dx, w.dy], schwingen: (w, t) => [Math.sin(t * w.a) * 8, Math.cos(t * w.b) * 6],
+      setze: (w) => { w.x.setze(8, w.a, 0); w.y.setze(6, w.b, Math.PI / 2); } },
+  };
+  /** Flug eines Glühwürmchens beenden: Animationen weg (Ort und Grösse setzt dann der ruhige Ort). */
+  const flugAus = (w) => {
+    for (const u of w.flug?.teile ?? []) { u.a.cancel(); umgebung.delete(u); }
+    w.flug = null;
+  };
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
+  const NACHLAUF = 2; // s: so lange nach der Ankunft reicht der Flug eines Glühwürmchens (bis umgestellt ist; länger als jede Fahrt nach der Ankunft)
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen)
   const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, Linien)
   const LINIEN_MS = 200; // so lange rastert eine verborgene Linie (bereit), bevor sie die sichtbare ablöst
@@ -18056,6 +18072,7 @@ function createStoryScene(host) {
     cam: { x: 800, y: 450, z: 1 },
     arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
     worms: 'idle', gatherAt: 0, carryAt: 0,
+    wurmZeit: 0,        // Zeitgeber: das nächste Glühwürmchen kommt an (Ende seines Flugs, dann ruhig; zeichne)
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
     laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { anims, uhr }
@@ -18082,6 +18099,7 @@ function createStoryScene(host) {
       if (v === this.uhr.tempo) return;
       this.uhr = { t0: performance.now(), s0: this.time, tempo: v };
       for (const u of umgebung) u.a.updatePlaybackRate(v);
+      if (this.wurmZeit && this.running) this.zeichne(); // Ankunft der Glühwürmchen neu stellen
       for (const a of [...(this.laufend?.anims ?? []), this.laufend?.uhr]) a?.updatePlaybackRate(v);
     },
     /** Es läuft noch etwas, auf das man warten kann (Tween oder Fahrt). */
@@ -18266,6 +18284,8 @@ function createStoryScene(host) {
       if (this.running) return;
       clearTimeout(this.staffel);
       for (const u of umgebung) u.a.pause();
+      clearTimeout(this.wurmZeit);
+      this.wurmZeit = 0;
       // die Folge hielte ihr Bild sonst als laufende Animation (Compositor tickt, die Ebenen blieben eigene Ebenen): weg
       // damit, die Ebenen stehen per stelle in der Kamera (ausser in einer Fahrt: die läuft zu Ende). Ausgeblendet darf neu
       // gerastert werden; die nächste Folge legt reset wieder an
@@ -18311,6 +18331,8 @@ function createStoryScene(host) {
       if (this.speed < 10) this.speed = 1; // nach dem Beschleunigen wieder normal (ausser beim Überspringen)
       clearTimeout(this.staffel);
       this.linienAbbrechen();
+      clearTimeout(this.wurmZeit); // Glühwürmchen stellen erst nach der Fahrt um (zeichne)
+      this.wurmZeit = 0;
       const i = this.folge?.indexOf(shot) ?? -1;
       if (i < 0) throw new Error('moveTo: Einstellung nicht in der Folge');
       if (this.folgeZeit?.key !== this.folgeKey()) this.anpassen();
@@ -18329,6 +18351,7 @@ function createStoryScene(host) {
         this.cam = { ...this.folgeZeit.kameras[i] }; // (nach einer Drehung in der Fahrt die neue)
         this.moving = false;
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
+        if (this.worms !== 'idle') this.zeichne(); // angekommene Glühwürmchen umstellen (in der Fahrt nicht)
         // die Folge hält das Ziel weiter (Halt); die Striche kommen gestaffelt nach dem Halt
         this.gestaffelt((j) => this.linienTauschen(j));
         resolve();
@@ -18359,10 +18382,11 @@ function createStoryScene(host) {
         this.worms = 'gather';
         this.gatherAt = this.time + 0.6;
         for (let i = 0; i < 5; i++) audio.hit(2, 0.9 + i * 0.32, { octave: 2, gain: 0.018 });
-        this.wecken();
+        this.zeichne(); // Flüge jetzt anlegen, im selben Commit wie der Start der Fahrt (nicht mitten in ihr)
       } else if (name === 'carry') { // … und tragen das Licht in den Wald, die Lampe wird schwächer
         this.worms = 'carry';
         this.carryAt = this.time + 0.3;
+        this.zeichne(); // Flüge jetzt anlegen (siehe gather)
         this.tween(3.2, (k) => { this.beamPower = 1 - 0.75 * k; }, storyEase, 0.5);
         const e = eben(t + 0.5, 3.2, storyEase);
         kraft.dazu(t + 0.5, 3.2, (x) => 1 - 0.75 * e(x));
@@ -18444,7 +18468,7 @@ function createStoryScene(host) {
     draw() {
       this.stelle();
       this.gezeichnet = {};
-      for (const w of worms) w.modus = null;
+      for (const w of worms) w.modus = w.ort = null;
       this.zeichne();
       for (const u of umgebung) stellen(u);
     },
@@ -18460,40 +18484,84 @@ function createStoryScene(host) {
         flackern.setze(0.07, 23, 0, 0.93);
         d.schwingt = true;
       }
-      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Ruhig (am Waldrand, um
-      // die Lampe, im Wald) schwingen sie als Animation, im Flug setzt JavaScript ihren Ort
-      let unterwegs = false;
+      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Jedes schwingt immer als
+      // Animation um einen ruhigen Ort; im Flug (und schon davor, bis es losfliegt) läuft der Ort als vorab berechnete
+      // Animation (flugAnlegen). JavaScript stellt nur um, wenn eines angekommen ist (wurmZeit), nie pro Bild und nie
+      // während einer Kamerafahrt (jeder Commit liess Chrome dann die bewegten Ebenen neu rastern, Ticket 16)
+      clearTimeout(this.wurmZeit);
+      this.wurmZeit = 0;
+      let ankunft = Infinity;
       for (const w of worms) {
-        const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
-        const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
-        const s = this.worms === 'idle' ? 1 : 1 + 0.6 * g;
-        const modus = this.worms === 'idle' || (g <= 0 && k <= 0) ? 'idle' : g >= 1 && k <= 0 ? 'kreis'
-          : k >= 1 && (g >= 1 || g <= 0) ? 'park' : 'flug';
-        if (modus !== (this.worms === 'idle' ? 'idle' : this.worms === 'gather' ? 'kreis' : 'park')) unterwegs = true;
-        if (modus === 'flug') {
-          let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
-          const ang = t * w.spin + w.ph;
-          x += (tx + Math.cos(ang) * w.ox - x) * g;
-          y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
-          if (this.worms === 'carry') {
-            x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
-            y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
-          }
-          if (w.modus !== 'flug') { w.x.aus(); w.y.aus(); w.modus = 'flug'; }
-          w.el.style.transform = `translate(${n(x)}px, ${n(y)}px)`;
-          w.ws.style.transform = `scale(${s.toFixed(2)})`;
-        } else if (w.modus !== modus) {
-          const [cx, cy] = modus === 'idle' ? [w.hx, w.hy] : modus === 'kreis' ? [tx, ty] : [w.dx, w.dy];
+        const plan = this.wurmPlan(w, this.moving);
+        if (w.modus !== plan.modus) { RUHIG[plan.modus].setze(w); w.modus = plan.modus; }
+        if (plan.flug) {
+          const key = JSON.stringify([plan.modus, plan.flug, this.worms, this.gatherAt, this.carryAt, n(tx), n(ty)]);
+          if (w.flug?.key !== key) { flugAus(w); w.flug = this.flugAnlegen(w, plan, [tx, ty], key); }
+          ankunft = Math.min(ankunft, plan.flug.te);
+        } else if (w.flug || w.ort !== plan.modus) {
+          const [cx, cy] = RUHIG[plan.modus].mitte(w, [tx, ty]);
           w.el.style.transform = `translate(${n(cx)}px, ${n(cy)}px)`;
-          w.ws.style.transform = `scale(${s.toFixed(2)})`;
-          if (modus === 'idle') { w.x.setze(16, w.a, w.ph); w.y.setze(9, w.b, w.ph + Math.PI / 2); }
-          else if (modus === 'kreis') { w.x.setze(w.ox, w.spin, w.ph + Math.PI / 2); w.y.setze(w.oy, w.spin, w.ph); }
-          else { w.x.setze(8, w.a, 0); w.y.setze(6, w.b, Math.PI / 2); }
-          w.modus = modus;
+          w.ws.style.transform = `scale(${this.wurmOrt(w, t, tx, ty)[2].toFixed(2)})`;
+          flugAus(w);
         }
+        w.ort = plan.flug ? 'flug' : plan.modus;
         if (!w.blink.a) w.blink.setze(0.275, 2 * w.fl, 2 * w.ph - Math.PI / 2, 0.725); // 0,45 + 0,55 · sin²(fl t + ph)
       }
-      return unterwegs;
+      // angekommen: umstellen, sobald die Kamera steht (sonst nach der Fahrt, moveTo)
+      if (ankunft < Infinity && this.running && !this.moving) {
+        this.wurmZeit = setTimeout(() => { this.wurmZeit = 0; if (this.running) this.zeichne(); },
+          Math.max(0, ankunft - t) / this.speed * 1000 + 30);
+      }
+      return false;
+    },
+    /**
+     * Wo ein Glühwürmchen zur Zeit t ist (x, y, Grösse s; tx, ty: Spitze der Lampe), samt Schwingen: zur Lampe (gather,
+     * Anteil g), von dort in den Wald (carry, k), unterwegs im Bogen nach oben.
+     */
+    wurmOrt(w, t, tx, ty) {
+      const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
+      const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
+      let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
+      const ang = t * w.spin + w.ph;
+      x += (tx + Math.cos(ang) * w.ox - x) * g;
+      y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
+      if (this.worms === 'carry') {
+        x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
+        y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
+      }
+      return [x, y, this.worms === 'idle' ? 1 : 1 + 0.6 * g];
+    },
+    /**
+     * Was ein Glühwürmchen jetzt tut: modus, um welchen ruhigen Ort es schwingt (RUHIG); flug { ta, te }: es fliegt von
+     * ta bis te (Zeit der Bühne) oder wird es noch, mit diesem Schwingen. halten: angekommen, aber die Kamera fährt
+     * noch, also weiter als Flug (die Animation reicht über te hinaus).
+     */
+    wurmPlan(w, halten = false) {
+      if (this.worms === 'idle') return { modus: 'idle' };
+      const t = this.time, g0 = this.gatherAt + w.delay, gEnde = g0 + 2.4;
+      if (this.worms === 'gather') return t < gEnde || halten ? { modus: 'idle', flug: { ta: g0, te: gEnde } } : { modus: 'kreis' };
+      const k0 = this.carryAt + w.delay * 0.7, kEnde = k0 + 3.6, vomKreis = gEnde <= k0; // war beim Aufbruch an der Lampe
+      const te = vomKreis ? kEnde : Math.max(kEnde, gEnde);
+      return t < te || halten ? { modus: vomKreis ? 'kreis' : 'idle', flug: { ta: vomKreis ? k0 : g0, te } } : { modus: 'park' };
+    },
+    /**
+     * Flug als Animation des Orts (und der Grösse, wenn sie sich ändert): Keyframes 30-mal pro Sekunde von ta bis NACHLAUF
+     * nach te (bis umgestellt ist, auch wenn eine Fahrt das verschiebt), je der Ort aus wurmOrt ohne das Schwingen von
+     * plan.modus, das weiterläuft. Vor ta steht es so an der Mitte des ruhigen Orts. Folgt der Zeit der Bühne (umgebung).
+     */
+    flugAnlegen(w, { modus, flug: { ta, te } }, spitze, key) {
+      const dauer = te + NACHLAUF - ta, schritte = Math.max(2, Math.ceil(dauer * 30)), ort = [], groesse = [];
+      for (let i = 0; i <= schritte; i++) {
+        const t = ta + dauer * i / schritte, [x, y, s] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t);
+        ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
+        groesse.push({ transform: `scale(${s.toFixed(3)})` });
+      }
+      const timing = { duration: dauer * 1000, fill: 'both', easing: 'linear' };
+      const teile = [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
+      if (groesse.some((g) => g.transform !== groesse[0].transform)) teile.push({ a: w.ws.animate(groesse, timing), c: (t) => t - ta, periode: Infinity });
+      else w.ws.style.transform = groesse[0].transform;
+      teile.forEach(folgt);
+      return { key, teile };
     },
   };
   addEventListener('resize', () => scene.anpassen());

@@ -25,3 +25,59 @@ Hauptthread). Optik gleich: dieselben Bahnen, dasselbe Leuchten, nebeneinander v
 - [ ] Tests grün (`geschichte-probe` Desktop und `--handy`), Review, Commit auf `feature/leistung`.
 
 ## Comments
+
+### 01.11.2026 – Umsetzung (Branch `leistung/16-15-buehne`, auf Ticket 16)
+
+**Umbau** (`createStoryScene`, `zeichne`, `act`): Jedes Glühwürmchen schwingt immer als Animation um einen ruhigen Ort
+(Waldrand, um die Lampe, im Wald: `RUHIG`). Fliegt es (oder wird es gleich), läuft sein Ort als **vorab berechnete Web
+Animation** (`flugAnlegen`): Keyframes 30-mal pro Sekunde, je der Ort nach derselben Formel wie früher pro Bild
+(`wurmOrt`), weniger das Schwingen, das weiterläuft; die Grösse ebenso, wenn sie sich ändert. Vor dem Abflug steht es
+so an der Mitte des ruhigen Orts, also kein Umschalten beim Abflug. Die Animationen folgen der Zeit der Bühne (Tempo
+beim Tippen und Überspringen, Anhalten beim Ausblenden, Sprung der Zeit). Angelegt werden sie in `act` («gather»,
+«carry»), im selben Commit wie der Start der Fahrt. JavaScript stellt nur bei der Ankunft um (ein Zeitgeber,
+`wurmZeit`), nie pro Bild und **nie während einer Kamerafahrt** (jeder Commit liess Chrome dort die bewegten Ebenen neu
+rastern, Ticket 16): Kommt eines in einer Fahrt an, läuft sein Flug weiter (die Keyframes reichen 2 s über die Ankunft,
+`NACHLAUF`, länger als jede Fahrt nach einer Ankunft), und `moveTo` stellt nach der Fahrt um.
+
+**Messung** (wie Ticket 16: echtes Chrome, Fenster, Quadro, Handy-Emulation 393 × 873, 2,75, CPU 4×, ohne `?perf`).
+Flug = 5 s ab Beginn der Fahrt (Sammeln in 5, Tragen in 6). «gezeigt» = Abstand der Bilder des Compositors
+(`PipelineReporter`); «rAF» = Abstand der rAF-Schleife des Messskripts im Hauptthread.
+
+| Handy ×4 | Layerize p50 / p95 | BeginMainFrame p50 / p95 | Bildabstand gezeigt max | rAF längster |
+|---|---|---|---|---|
+| vorher, Einstellung 1 | 0,00 / 0,20 ms | 15,1 / 31,0 ms | 133 ms (Öffnen) | 133 ms |
+| vorher, Einstellung 5 (Sammeln) | 5,09 / 14,38 ms | 25,1 / 59,8 ms | 17,4 ms | 83 ms |
+| vorher, Einstellung 6 (Tragen) | 6,08 / 14,64 ms | 32,5 / 55,3 ms | 17,4 ms | 67 ms |
+| nur 16, Einstellung 5 | 9,01 / 23,07 ms | 43,0 / 77,5 ms | 17,4 ms | 117 ms |
+| nur 16, Einstellung 6 | 10,85 / 20,85 ms | 45,3 / 80,6 ms | 17,7 ms | 117 ms |
+| **nach 15**, Einstellung 1 | 0,01 / 0,41 ms | 24,4 / 46,2 ms | 150 ms (Öffnen) | 200 ms |
+| **nach 15**, Einstellung 5 | 0,01 / 7,72 ms | 29,5 / 54,9 ms | **17,7 ms** | 83 ms |
+| **nach 15**, Einstellung 6 | 0,01 / **0,38** ms | 27,8 / 50,1 ms | **17,4 ms** | 83 ms |
+
+- Layerize: im Flug p50 0,01 ms. p95 in Einstellung 6 0,38 ms (erfüllt), in Einstellung 5 7,7 ms: Die 5 s dort
+  enthalten das Ende der 4-s-Fahrt (Umstellen der angekommenen Glühwürmchen) und das Anlegen der Flüge am Start; ein
+  Zwischenstand (Flüge im Bild danach angelegt, 8 s Nachlauf) hatte 0,20 / 0,20 ms. In Einstellung 5 also knapp nicht
+  erfüllt; die Ausreisser vermutlich dort (nicht einzeln zugeordnet).
+- Gezeigte Bilder im Flug: kein Abstand über 50 ms (max 17,7 ms): erfüllt. Die Glühwürmchen ziehen jetzt mit dem
+  Compositor; vorher kam ihr Ort nur mit jedem Hauptbild (p50 25–33 ms, bis 83 ms), auch wenn die Bilder glatt kamen.
+- Nicht erfüllt, wenn man den Hauptthread misst: Die rAF-Schleife des Messskripts hat im Flug Abstände bis 83 ms (wie
+  vorher), BeginMainFrame liegt im Flug etwas über Einstellung 1 (29,5/27,8 gegen 24,4 ms). Diese Hauptbilder erzwingt
+  die Messung; ohne sie läuft im Flug kein JavaScript pro Bild, das etwas zeigt (nur die Tweens von Arm und Kraft des
+  Strahls rechnen ihren Stand, ohne DOM). Teuer ist die Stilberechnung der rund 90 laufenden Animationen je Hauptbild.
+- Poco-Stelle 50,4 s / Durchlauf 2b 23,6 s («FrameRequestCallback: Script 86 ms»): In der Emulation gibt es nach
+  15 in den Fahrten 5/6 keine Script-Aufgabe über 30 ms mehr (vorher 1× 34 ms; ein Zwischenstand mit 8 s Nachlauf und
+  Anlegen im nächsten Bild hatte 470/334 ms, deshalb jetzt 2 s und Anlegen in `act`). Das Script in den Pausen (bis
+  130 ms bei 4×, Ruhe 3/4) ist das Laden des Himmels (Ticket 03/09).
+- Fehlende Kacheln in den Fahrten 5/6, Desktop 4K: nur 16 105/120, nach 15 2/0 (siehe Ticket 16). Handy ×4 ganzer
+  Prolog nach 16+15: 12 Bilder, Desktop 111 (Lauf `x-neu5`).
+
+**Aussehen:** Dieselbe Formel, als Keyframes 30-mal pro Sekunde (linear dazwischen; bei höchstens 115 px/s
+Abweichung unter 0,1 px), das Schwingen über die Sinus-Kurve der Animation statt `Math.sin` (wie schon am Waldrand und
+um die Lampe). Ruhepunkte im Vergleich vorher/nachher unverändert (Ticket 16). Reduzierte Bewegung (Fahrten 0 s,
+Flug läuft im Ruhepunkt weiter, Bild `scratchpad/16-15/out/debug-wenig-r6.png`), Überspringen (Tempo 60) und Tempo 4
+laufen über die Zeit der Bühne; `geschichte-probe` mit Prolog, Überspringen und Epilog grün.
+
+Tests (`leise.sh` 100 %): `node tests/logic.test.mjs` (2033), `node tests/golden.mjs`, `tests/geschichte-probe.mjs
+--start`, `--grad leicht --welten 2 --finale leicht`, `--handy`, `--quer --grad leicht`, `--uebersicht --dorf` (dieses Mal
+grün, siehe Ticket 16), `tests/leistung-probe.mjs --handy`, `tests/start-probe.mjs`, `tests/leerlauf-probe.mjs`: alle grün,
+keine Warnung «Weckstelle fehlt». Offen: Poco (Handy-Durchlauf 3, max ≤ 33 ms in Einstellung 6).
