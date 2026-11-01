@@ -13122,9 +13122,11 @@ function createComposer() {
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     LOOK.bloomStrength, LOOK.bloomRadius, LOOK.bloomThreshold
   );
-  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten.
+  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten. Ohne Tiefenpuffer (three legt
+  // sonst je Ziel einen an): Die Vollbild-Pässe brauchen keinen, und Kachel-GPUs löschten und speicherten ihn in jedem
+  // der zwölf Pässe mit (Ticket 11). Gesetzt, bevor three die Ziele beim ersten Zeichnen anlegt.
   [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]
-    .forEach(t => { t.texture.type = HDR_TYPE; });
+    .forEach(t => { t.texture.type = HDR_TYPE; t.depthBuffer = false; });
   // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
   // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
   // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
