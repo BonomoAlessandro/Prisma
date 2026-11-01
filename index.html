@@ -13273,18 +13273,23 @@ function createComposer() {
       if (uBloom <= 0.0) return vec3(0.0);
       vec4 b = bspline(tBloom, uv, uBloomSize);
       return b.rgb * (b.a * uBloom);
+    }
+    // Szenenbild mit Leuchten; ohne HDR (8 Bit) auf 1 begrenzt wie früher beim Auftragen ins 8-Bit-Szenenbild
+    vec3 lit(vec3 c, vec2 uv) {
+      c += glow(uv);
+      return ${HDR_SUPPORTED ? 'c' : 'min(c, 1.0)'};
     }`)
     .replace(`col.r = texture2D(tDiffuse, vUv - off).r;
       col.g = base.g;
-      col.b = texture2D(tDiffuse, vUv + off).b;`, `base.rgb += glow(vUv);
+      col.b = texture2D(tDiffuse, vUv + off).b;`, `base.rgb = lit(base.rgb, vUv);
       col.g = base.g;
       if (off == vec2(0.0)) {
         col.rb = base.rb;
       } else {
-        col.r = texture2D(tDiffuse, vUv - off).r + glow(vUv - off).r;
-        col.b = texture2D(tDiffuse, vUv + off).b + glow(vUv + off).b;
+        col.r = lit(texture2D(tDiffuse, vUv - off).rgb, vUv - off).r;
+        col.b = lit(texture2D(tDiffuse, vUv + off).rgb, vUv + off).b;
       }`);
-  if (!finalPass.material.fragmentShader.includes('glow(vUv - off)')) throw new Error('FinalShader: Leuchten nicht eingesetzt');
+  if (!finalPass.material.fragmentShader.includes('lit(texture2D(tDiffuse, vUv - off).rgb')) throw new Error('FinalShader: Leuchten nicht eingesetzt');
   const renderFinal = finalPass.render;
   finalPass.render = function (...args) {
     bloomUniforms.uBloom.value = bloom.applied ? bloom.copyUniforms.opacity.value : 0;
