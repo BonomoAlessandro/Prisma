@@ -11366,19 +11366,25 @@ function* waterSurface(ctx, opt) {
           vec3 d = normalize(world - uCenter), ray = normalize(world - cameraPosition);
           if (d.y > 0.0 || ray.y > -0.001) return gl_FragCoord.z; // Himmel; Strahl ohne Wasserfläche
           float tP = (cameraPosition.y - CUT_LEVEL) / -ray.y;
-          float dT = panoDist(d);
-          vec3 T = uCenter + d * dT;
+          #define CUT_BEHIND max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR))) // hinter P
           // Wasser: nach der Maske, so fein wie das Bild (die Tiefe ist gröber: um ferne Palmen blieb ein Saum ohne
           // Spielwasser), sonst nach der Tiefe. Etwas hinter dem Wasser: nur nah (Felsen, die das geglättete Netz vor
-          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben)
-          bool water = T.y < CUT_LEVEL + 0.03;
+          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben).
+          // Zeigt die Maske Wasser, steht das Ergebnis ohne die Tiefe des Panoramas fest (Ticket 11: das Wasser deckt am
+          // Strand den grössten Teil des Bilds; das Lesen der Tiefe ist dort das Teuerste)
+          bool masked = false, water = false;
           #ifdef CUT_MASK
             float below = degrees(asin(clamp(-d.y, -1.0, 1.0))) / ${glf(maskDeg)};
-            if (below < 1.0) water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+            if (below < 1.0) {
+              masked = true;
+              water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+              if (water) return CUT_BEHIND;
+            }
           #endif
-          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) {
-            return max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR)));
-          }
+          float dT = panoDist(d);
+          vec3 T = uCenter + d * dT;
+          if (!masked) water = T.y < CUT_LEVEL + 0.03;
+          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) return CUT_BEHIND;
           // Fels, den das Panorama zeigt (nicht die nahen Felsgruppen: Die zeichnet das Spiel, das Panorama zeigt dort
           // flachen Boden, der sie sonst verdeckte)
           vec2 uv = vec2((T.x + CUT_EXT) / (2.0 * CUT_EXT), 1.0 - (T.z + CUT_EXT) / (2.0 * CUT_EXT));
