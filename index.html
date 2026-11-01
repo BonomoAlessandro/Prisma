@@ -11904,7 +11904,10 @@ function createFishSim(opt) {
     },
     advance(t) {
       if (!field) return null;
-      if (simT === null || t < simT - 1e-6) { simT = Math.max(0, t - WARM); reset(simT); }
+      // Ein wenig zurück (warm nach der Uhr, das erste Bild nach dem Zeitstempel des Bilds, der früher liegen kann):
+      // stehen lassen, nicht neu einschwimmen (das hielt das Bild sonst wieder 150 Schritte an); erst weiter zurück neu
+      if (simT === null || t < simT - CATCH) { simT = Math.max(0, t - WARM); reset(simT); }
+      else if (t < simT) return 0;
       // nach einer Pause (ausgeblendet, die Zeit sprang): vom letzten Stand weiter, nicht neu einschwimmen und nicht alles
       // nachrechnen; höchstens CATCH s je Bild (die Plätze sind ohnehin zufällig, das fällt nicht auf)
       else if (t - simT > CATCH) simT = t - CATCH;
