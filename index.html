@@ -13192,23 +13192,48 @@ function createComposer() {
   composite.fragmentShader = composite.fragmentShader
     .replace('void main() {', `uniform vec2 uSize2, uSize3, uSize4, uSize5;${BSPLINE_GLSL}\nvoid main() {`)
     .replace(/texture2D\(blurTexture([2-5]), vUv\)/g, 'bspline(blurTexture$1, vUv, uSize$1)');
-  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline. Leuchten additiv aufs Bild legen wie bisher,
-  // aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
-  bloom.copyUniforms.uSrcSize = { value: new THREE.Vector2() };
-  Object.assign(bloom.materialCopy, {
-    fragmentShader: `
-      uniform float opacity;
-      uniform sampler2D tDiffuse;
-      uniform vec2 uSrcSize;
-      varying vec2 vUv;
-      ${BSPLINE_GLSL}
-      void main() {
-        gl_FragColor = bspline(tDiffuse, vUv, uSrcSize);
-        gl_FragColor.a *= opacity;
-      }`,
-    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor,
-    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-  });
+  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline, additiv, Alpha unverändert (Alpha 0 = Himmel, siehe
+  // FinalShader), gewichtet mit dem Alpha der zusammengesetzten Stufen (wie früher die Mischung SrcAlpha, One). Im
+  // letzten Bildschritt statt in einem eigenen Pass (Ticket 11): Der las und schrieb das ganze Szenenbild (HalfFloat)
+  // samt Tiefe nur, um das Leuchten dazuzulegen; auf Kachel-GPUs (Handy) ein Laden und Speichern des ganzen Bilds.
+  const bloomOut = bloom.renderTargetsHorizontal[0]; // zusammengesetzt (composite)
+  const bloomUniforms = { tBloom: { value: bloomOut.texture }, uBloomSize: { value: new THREE.Vector2(1, 1) }, uBloom: { value: 0 } };
+  bloom.applied = false; // in diesem Bild zusammengesetzt (der letzte Bildschritt legt es dann auf)
+  // wie UnrealBloomPass.render, ohne das Auftragen (und ohne renderToScreen und Maske, beides nie benutzt)
+  bloom.render = function (r, writeBuffer, readBuffer) {
+    r.getClearColor(this._oldClearColor);
+    this.oldClearAlpha = r.getClearAlpha();
+    const oldAutoClear = r.autoClear;
+    r.autoClear = false;
+    r.setClearColor(this.clearColor, 0);
+    const pass = (material, target) => {
+      this.fsQuad.material = material;
+      r.setRenderTarget(target);
+      r.clear(); // auf Kachel-GPUs: nichts laden
+      this.fsQuad.render(r);
+    };
+    this.highPassUniforms.tDiffuse.value = readBuffer.texture;
+    this.highPassUniforms.luminosityThreshold.value = this.threshold;
+    pass(this.materialHighPassFilter, this.renderTargetBright);
+    let input = this.renderTargetBright;
+    for (let i = 0; i < this.nMips; i++) {
+      const blur = this.separableBlurMaterials[i];
+      blur.uniforms.colorTexture.value = input.texture;
+      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionX;
+      pass(blur, this.renderTargetsHorizontal[i]);
+      blur.uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
+      pass(blur, this.renderTargetsVertical[i]);
+      input = this.renderTargetsVertical[i];
+    }
+    this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
+    this.compositeMaterial.uniforms.bloomRadius.value = this.radius;
+    this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors;
+    pass(this.compositeMaterial, bloomOut);
+    this.applied = true;
+    r.setClearColor(this._oldClearColor, this.oldClearAlpha);
+    r.autoClear = oldAutoClear;
+  };
   // Original-Gauss endet bei 1 Sigma -> sichtbare eckige Halos. Engeres Sigma = runde Halos.
   bloom.separableBlurMaterials.forEach(m => {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
@@ -13222,12 +13247,42 @@ function createComposer() {
       const t = bloom.renderTargetsVertical[i - 1];
       composite.uniforms['uSize' + i].value.set(t.width, t.height);
     }
-    bloom.copyUniforms.uSrcSize.value.set(bloom.renderTargetsHorizontal[0].width, bloom.renderTargetsHorizontal[0].height);
+    bloomUniforms.uBloomSize.value.set(bloomOut.width, bloomOut.height);
   };
   bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
   const finalPass = new THREE.ShaderPass(FinalShader);
+  // Leuchten dazulegen (siehe oben), wo der Bildschritt das Szenenbild liest, auch an den Stellen der Aberration
+  Object.assign(finalPass.uniforms, bloomUniforms);
+  finalPass.material.fragmentShader = FinalShader.fragmentShader
+    .replace('varying vec2 vUv;', `varying vec2 vUv;
+    uniform sampler2D tBloom;
+    uniform vec2 uBloomSize;
+    uniform float uBloom; // 0: ohne Leuchten (in diesem Bild nicht gerechnet)
+    ${BSPLINE_GLSL}
+    vec3 glow(vec2 uv) {
+      if (uBloom <= 0.0) return vec3(0.0);
+      vec4 b = bspline(tBloom, uv, uBloomSize);
+      return b.rgb * (b.a * uBloom);
+    }`)
+    .replace(`col.r = texture2D(tDiffuse, vUv - off).r;
+      col.g = base.g;
+      col.b = texture2D(tDiffuse, vUv + off).b;`, `base.rgb += glow(vUv);
+      col.g = base.g;
+      if (off == vec2(0.0)) {
+        col.rb = base.rb;
+      } else {
+        col.r = texture2D(tDiffuse, vUv - off).r + glow(vUv - off).r;
+        col.b = texture2D(tDiffuse, vUv + off).b + glow(vUv + off).b;
+      }`);
+  if (!finalPass.material.fragmentShader.includes('glow(vUv - off)')) throw new Error('FinalShader: Leuchten nicht eingesetzt');
+  const renderFinal = finalPass.render;
+  finalPass.render = function (...args) {
+    bloomUniforms.uBloom.value = bloom.applied ? bloom.copyUniforms.opacity.value : 0;
+    bloom.applied = false;
+    return renderFinal.apply(this, args);
+  };
   // Rendert direkt auf den Bildschirm: ohne Swap wird der zweite Composer-Puffer nie gebunden
   // und belegt daher keinen Grafikspeicher.
   finalPass.needsSwap = false;
