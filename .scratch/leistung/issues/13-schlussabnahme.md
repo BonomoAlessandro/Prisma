@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 08, 09, 10, 11, 12 und die Tickets, die der Koordinator aus den Beobachtungen vom Poco anlegt
+**Blocked by:** 08, 09, 10, 11, 12, 14, 15, 16
 (Fische pixelig?, Glühwürmchen beim Einflug in den Wald, Flackern in der ersten Noa-Szene)
 
 **Status:** ready-for-agent

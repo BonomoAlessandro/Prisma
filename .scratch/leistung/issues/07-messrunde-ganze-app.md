@@ -4,7 +4,7 @@
 
 **Blocked by:** 02, 03, 04, 05, 06
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Ein Handy-Durchlauf auf dem Stand nach 02–06 und eine Messung der ganzen App, die festlegt, was dann
 noch zu tun ist. Ergebnis sind neue Tickets (`08-…` usw.) in diesem Ordner, je Hotspot eines. Selbst gebaut wird in
@@ -363,3 +363,7 @@ Bild «ohne Script» kann also Script im Hauptthread sein oder Rastern im GPU-Pr
      - Poco: kein Flackern in den Einstellungen 1–2, Prolog max ≤ 33 ms.
      - Bleibt das Flackern auf dem Poco danach bestehen: dort über `chrome://inspect` mit Screencast nachfilmen (in der
        Emulation nicht nachstellbar).
+
+**Abschluss (Koordinator, 01.11.2026):** Aus den Beobachtungen vom Poco die Tickets 14 (Fische), 15 (Glühwürmchen-Flug)
+und 16 (fehlende Kacheln der Bühne) angelegt; 13 hängt jetzt an 08–12 und 14–16. Handy-Durchlauf 2b (vom Nutzer
+bestätigt) nach 08 und 14, damit 11 auf der echten Zeichenzeit samt den Kosten der Fische entschieden wird.

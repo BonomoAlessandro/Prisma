@@ -90,7 +90,10 @@ Ursachen laut Untersuchung vom 31.10.2026 (Stellen in `index.html`):
 | 10 | Seitenstart in Stücken | 07 |
 | 11 | Zeichenzeit unter die Marge (Spiegelung, Bloom, Panorama-Netz) | 08 (mit Zahlen vom Poco) |
 | 12 | Leuchtfilter im Menü auf die Umgebung der Linien begrenzen (Safari) | 07 |
-| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12 und die Tickets aus den Beobachtungen vom Poco |
+| 14 | Fische auf dem Handy ohne Treppen (`under.target` voll) | 07 |
+| 15 | Flug der Glühwürmchen als Web Animation | 07 |
+| 16 | Prolog-Bühne ohne fehlende Kacheln (Flackern) | 07, nicht parallel zu 15 |
+| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12, 14–16 |
 
 Empfohlene Reihenfolge (Messrunde 07): 08 und 09 parallel, dann 10 (berührt wie 09 `compileParallel`), Handy-Durchlauf
 2b mit dem Mass aus 08 (Empfehlung, Entscheid Koordinator), 11 nach dessen Zahlen, 12 jederzeit, 13 zuletzt.
