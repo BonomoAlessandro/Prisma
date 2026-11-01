@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Die Fische unter der Wasseroberfläche (Welt Strand) sehen auf dem Handy nicht mehr pixelig aus.
 Beobachtung des Nutzers im Handy-Durchlauf 2: «bei den Fischen nicht ganz sicher, ob sie ein wenig pixelig waren».
@@ -80,3 +80,8 @@ Tests: `logic` (2033), `golden`, `screenshot` (Konsole ohne Meldungen), `leistun
 
 Offen: Abnahme auf dem Poco (Fische bei normalem Abstand nicht pixelig, Karte `adaptiv 1.00, Umbauten 0`) im nächsten
 Handy-Durchlauf.
+
+**Review (Koordinator, 01.11.2026):** Diff in `waterSurface` geprüft: `under.target` folgt weiter der Grösse des
+Ziels (also auch einer allfälligen Absenkung), ganzzahlig durch die Quelle (Render-Target bzw. Drawing Buffer), MSAA auf
+dem Handy wie das Hauptbild aus. Kosten +0,16 ms (Pass allein), Bilder ohne Treppen. Abnahme auf dem Poco im
+Handy-Durchlauf 2b. Der Abbruch von `leistung-probe --handy` headless ohne GPU besteht schon auf `eb8105e`.
