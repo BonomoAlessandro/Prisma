@@ -121,3 +121,122 @@ Vergleich mit Durchlauf 1 (01c): Gesamt p95 49,3 → 16,6 ms, Bilder über 33 ms
 `adaptiv 1.00, Umbauten 0` gehalten. Offen: Zeichnen (Ersatzmass) p95 31–59 ms überall ausser Prolog, Marge 8 ms weit
 verfehlt; Menü 31 gezeichnete Bilder/s statt 10; einzelne Bilder 50–100 ms in Prolog (21,4 s, «ohne Script»), Einstieg
 und Reise.
+
+**Beobachtungen Handy-Durchlauf 2 (Diagnose, 01.11.2026, Branch `leistung/07-beobachtungen` ab `c42423e`):**
+
+Gemessen im echten Chrome mit Fenster und GPU (Quadro T2000) in Handy-Emulation (393 × 873, DPR 2,75, Android-Kennung,
+Touch), ungedrosselt und 4× gedrosselt, dazu auf dem Desktop maximiert. Vorher = 01c (`2455277`), nachher = `c42423e`.
+`index.html` blieb unverändert. Ein Skript vor dem Laden protokolliert grosse WebGL-Uploads (`texStorage2D`,
+`texSubImage2D` mit Zeit), gezeichnete WebGL-Bilder, rAF-Abstände über 25 ms, long-animation-frames und den Zustand
+der Bühne (`stillBild`, `waitTap`, Fahrt, Klassen von `#story`). Dazu kommen ein Trace (GPU-Prozess,
+`FrameSequenceTrackerV3` mit fehlenden Kacheln) und ein Screencast jedes Bildes. Je Bild werden Helligkeit, Änderung
+und «anders als beide Nachbarn» gemessen. Gefahren wie ein neuer Spieler: Start, Menü, Leicht, dann der Prolog mit
+2,5 s Lesezeit je Bild bis zum Angebot. «P» = Sekunden ab dem Öffnen der Bühne. Skripte und Bilder liegen im Scratchpad
+des Agenten (`07-beob/`: `prolog.mjs`, `auswerten.mjs`, `gpu-stalls.mjs`, `checker.mjs`, `fenster.mjs`, `fische.mjs`,
+`blatt.mjs`).
+
+Zuordnung der Poco-Zeiten: Seitenstart, Startbildschirm (253 Bilder) und Menü (257) ergeben einen Prolog-Beginn bei
+9–10 s. Damit liegt 21,4 s bei P ≈ 12, in Einstellung 2 «Jeden Abend steigt Noa …», der ersten mit Noa. 50,4 s liegt
+bei P ≈ 41, am Ende von Einstellung 6 «Denn Licht lässt sich weitergeben …», wo die Glühwürmchen das Licht in den Wald
+tragen. Die Lesezeit des Nutzers ist unbekannt, die Zuordnung stimmt also nur auf ±1 Einstellung.
+
+Wichtig für die Karte: **«ohne Script» belegt nicht, dass der Grafikprozess hängt.** Im Trace dauern die gestaffelten
+Schritte der Bühne (`setTimeout` → `stelle`/`ebeneAnlegen`) bei 4× als `TimerFire`/`FunctionCall` 30–70 ms. Der
+long-animation-frame dazu meldet trotzdem `scripts: []`, weil Chrome die Timer des Modul-Skripts nicht zuordnet. Ein
+Bild «ohne Script» kann also Script im Hauptthread sein oder Rastern im GPU-Prozess.
+
+1. **Fische «ein wenig pixelig»: ein alter Mangel, nicht durch dieses Vorhaben.**
+   - **Ursache:** Was unter Wasser schwimmt, zeichnet `waterSurface` vorher in ein eigenes Bild (`under.target`). Auf
+     dem Handy ist es halb so gross wie das Bild und ohne MSAA (`size.multiplyScalar(IS_MOBILE ? 0.5 : 1)`,
+     `samples: … !IS_MOBILE`, seit `7c78158` vom 15.10.). Auf dem Poco (Rendern 784 × 1478) sind das 392 × 739 Pixel,
+     ein Texel deckt 2,75 × 2,75 Bildschirmpixel. An den Kanten der schmalen Fische entstehen Treppen, die
+     Schwanzlinien zerfallen in Punkte.
+   - **Beleg:** Strand mit `?t=12` und `zeige(0)` in der Handy-Emulation, gleiche Stelle. 01c und `c42423e` sind
+     **pixelgleich** (mittlere und grösste Abweichung 0, im ganzen Bild und im Ausschnitt der Fische). Beide rendern mit
+     786 × 1746, Pixelverhältnis 2 und `adaptiv 1`.
+   - **Kandidaten aus dem Vorhaben scheiden aus:** Ticket 03 betrifft nur scharfes Bild und Streifen des Panoramas. Die
+     Fische sind 3D, liegen über dem Grund und hängen nicht an der Vorschau. Ticket 06 ändert an `renderReflection` nur,
+     dass die Spiegelung ohne Platte im Bild entfällt, und zeichnet nur im Menü mit 10/s. Im Spiel ohne Bewegung
+     zeichnet die Szene wie vorher mit 30/s (`idleFps`; «Spiel n. Reise» 38 gez/s).
+   - **Gegenprobe:** eine Kopie mit vollem `under.target` auf dem Handy. Die Kanten sind glatt, die Schwanzlinien
+     durchgehend. Unterschiede gibt es nur im Ausschnitt der Fische (2,1 % der Pixel > 8), sonst ist das Bild gleich
+     (0,06 %).
+   - **Vorschlag:** `under.target` auf dem Handy in voller Grösse (oder 0,75), weiter ohne MSAA. Unter Wasser liegen
+     nur die Fische, der Pass ist billig.
+   - **Abnahme:**
+     - Ausschnitt der Fische in der Handy-Emulation nebeneinander ohne Treppen (wie die Gegenprobe).
+     - Zeichenzeit im Abschnitt «Spiel n. Reise» (Handy ×4, Ersatzmass) höchstens 0,5 ms über vorher.
+     - Auf dem Poco sind die Fische bei normalem Abstand nicht pixelig, die Karte zeigt `adaptiv 1.00, Umbauten 0`.
+
+2. **Glühwürmchen: kurzer Moment, als sie in den Wald flogen.**
+   - **Ursache:** Die Flüge der Glühwürmchen laufen als JavaScript pro Bild (`zeichne` setzt den Ort jedes
+     Glühwürmchens im Flug). Seit Ticket 04 ist jedes Glühwürmchen ein eigener kleiner Compositor-Layer. Jede Änderung
+     kostet deshalb im Hauptthread Style, Paint und vor allem **Layerize** (`PaintArtifactCompositor::Update`).
+   - **Messung:** Hauptthread pro Bild je Einstellung, Handy ×4:
+
+     | Einstellung | `BeginMainFrame` p50 / p95 | Layerize p50 |
+     |---|---|---|
+     | 1 «Hoch oben in den Bergen …» | 13,7 / 28,0 ms | 0,0 ms |
+     | 5 «Da blinkt es …» (Sammeln) | 24,5 / 49,3 ms | 5,1 ms |
+     | **6 «Denn Licht …» (Tragen in den Wald)** | **29,1 / 52,8 ms** | **6,3 ms** (p95 14,2) |
+
+     Nach dem Halt von Einstellung 6, solange die Glühwürmchen noch einparken, gibt es Ausreisser bis 133 ms.
+     Ungedrosselt ist Layerize dort p50 0,7 ms und p95 1,7 ms, in den anderen Einstellungen 0. Die Bilder über 33 ms des
+     4×-Laufs ballen sich in P 30–43 (Einstellungen 5 und 6). Dazu passt das Bild von 49,5 ms bei 50,4 s auf dem Poco.
+   - **Seit wann:** In 01c war jedes Bild teuer und überall gleich (Einstellung 6 p50 39,3 ms, Layerize 8,8 ms). Seit
+     Ticket 04 ist der Flug der Glühwürmchen die teuerste Stelle des Prologs, darum fällt er jetzt auf.
+   - **Laden in den Pausen ist es nicht:** Die grossen Uploads (scharfes Bild 4096 × 2048, 16 Streifen) fallen in die
+     Pausen nach den Einstellungen 1–3 (ungedrosselt bei P 8, ×4 bei P 15–20). Beim Sammeln und Tragen laufen keine
+     Uploads mehr, und hinter der Bühne zeichnet WebGL in den Pausen 4–6 nichts.
+   - **Vorschlag:** Den Flug der Glühwürmchen wie die Kamerafahrt als Web Animation vorab berechnen: Keyframes je
+     Glühwürmchen für Sammeln und Tragen, nach der Zeit der Bühne mit `speed`. Dann laufen im Flug weder JavaScript noch
+     Layerize pro Bild. Alternative: Im Flug alle Glühwürmchen in einem gemeinsamen Layer bewegen.
+   - **Abnahme:**
+     - Handy ×4, Einstellungen 5 und 6: `BeginMainFrame` p50 nicht über dem Wert von Einstellung 1, Layerize p95 unter
+       1 ms, kein rAF-Abstand über 50 ms im Flug.
+     - Bahnen nebeneinander gleich (Screencast).
+     - Poco: Prolog max ≤ 33 ms in Einstellung 6.
+
+3. **Kurzes Flackern des ganzen Bildes in der ersten Noa-Szene.**
+   - **Im Screencast nicht nachgestellt:** Kein Bild weicht von beiden Nachbarn ab, kein Helligkeitssprung, weder Handy
+     ungedrosselt (2614 Bilder) noch Handy ×4 (2652) noch Desktop (2735). Die Überblendung Menü → Bühne verläuft stetig
+     (Helligkeit 32 → 18 → 21, siehe Kontaktbogen).
+   - **Ausgeschlossen:** Kein Umbau (`adaptiv 1`), also kein schwarzes Bild. WebGL zeichnet hinter der gedeckten Bühne
+     nur in den Pausen (10–21 Aufrufe) und ist dabei verdeckt. `gehalten` und `buehneFrei` blenden sauber aus 0 ein.
+   - **Wahrscheinlichste Ursache: fehlende Kacheln der Bühnen-Ebenen** («checkerboarding»). Seit Ticket 04 fahren die
+     sechs grossen Ebenen als Transform-Animation im Compositor. Während einer solchen Animation zeigt Chrome ein Bild
+     auch dann, wenn eine Ebene nach einer neuen Skalierung noch nicht fertig gerastert ist. Neu skaliert wird beim
+     Start einer Fahrt und beim gestaffelten Neurastern mit neuen Strichbreiten `--rs` nach dem Halt. An diesen Stellen
+     fehlt die Ebene für ein oder mehrere Bilder.
+   - **Beleg aus dem Trace** (`FrameSequenceTrackerV3`, Feld `checkerboarded`):
+     - 01c, Handy ×4: **0 Bilder mit fehlenden Kacheln** im ganzen Prolog.
+     - `c42423e`, Handy ×4: gehäuft beim Öffnen der Bühne (P 0,03–0,8: 9, 3, 3 und 3 Bilder), in den Einstellungen 1–3
+       je 1–4 Bilder pro Fenster.
+     - `c42423e`, Desktop 4K: in jeder Fahrt und Pause, 19–24 Bilder je 5-s-Fenster in den Einstellungen 1–2, bis 275 in
+       den Einstellungen 5–6.
+   - **Raster-Hänger im GPU-Prozess** (`RasterDecoderImpl::DoEndRasterCHROMIUM`): 25–36 ms beim Öffnen der Bühne,
+     25–31 ms beim gestaffelten Neurastern 0,8–0,9 s nach dem Halt von Einstellung 1, bis 43 ms in den Fahrten der
+     Einstellungen 2–3. Gemessen ist das auf dem Quadro. Das Adreno 730 rastert die gleiche Pixelzahl (DPR 2,75)
+     deutlich langsamer.
+   - **Folgerung für das Poco:** Dort fehlt öfter und länger eine ganze Ebene (Himmel, Berge, Hügel). Vor dem fast
+     schwarzen Hintergrund der Bühne (`#020208`) sieht das wie ein Flackern des ganzen Bildes aus. Der Raster-Hänger
+     erklärt auch das Bild von 98,8 ms bei 21,4 s (Einstellung 2, «ohne Script, Rendern 4 ms»: der Hauptthread wartet
+     auf das Bild).
+   - **Seit wann:** Die Hänger beim Öffnen der Bühne gab es schon in 01c (27–47 ms). Die fehlenden Kacheln sind neu durch
+     Ticket 04. Auf dem Desktop sieht man sie im Screencast nicht, weil sie dort im dunklen Himmel liegen.
+   - **Vorschlag ohne Qualitätsverlust:** Solange eine Ebene sichtbar fährt oder steht, nie ihre Rasterskala ändern
+     und sie nicht neu zeichnen lassen. Dafür gibt es zwei Wege:
+     - Das Neurastern (nächste Fahrt vorbereiten, Strichbreiten des Ruhepunkts) in einer unsichtbaren Kopie der Ebene
+       erledigen und erst tauschen, wenn sie gerastert ist (zwei Bilder später).
+     - Die Strichbreiten nicht je Ruhepunkt ändern, sondern in der Rasterskala der Fahrt festhalten. Dann wird nach dem
+       Halt nichts neu gerastert.
+
+     Beim Öffnen der Bühne die gehaltene Ebene genau in der Skalierung der ersten Fahrt halten. Heute rastert sie beim
+     Öffnen 25–47 ms nach.
+   - **Abnahme:**
+     - Trace des Prologs (Handy ×4 und Desktop): `checkerboarded` = 0 in allen `FrameSequenceTrackerV3`-Fenstern.
+     - Kein `DoEndRasterCHROMIUM` über 16 ms während einer Fahrt oder in den ersten 2 s nach dem Halt.
+     - Screencast weiterhin ohne Ausreisser.
+     - Poco: kein Flackern in den Einstellungen 1–2, Prolog max ≤ 33 ms.
+     - Bleibt das Flackern auf dem Poco danach bestehen: dort über `chrome://inspect` mit Screencast nachfilmen (in der
+       Emulation nicht nachstellbar).
