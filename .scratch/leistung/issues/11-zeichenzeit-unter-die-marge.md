@@ -258,3 +258,43 @@ beiden Fassungen. Dauerlast «ganz»: Handy 2,0–2,3 / 1,0 / 3,0 ms (vorher 3,9
 2,9–3,0 ms (vorher 4,0 / 1,0 / 4,8). Die zweite Zerlegungszeile `-Hi -Wa -Un -St -Fi` ist auf 393 px lesbar und passt
 ohne seitliches Wischen (`11r/lp/nachher/fenster-handy-ersatzmass-1-karte1.png`). **Urteil: ja**, bei normalem Abstand
 kein Unterschied; keine Funde, nichts geändert.
+
+**Handy-Durchlauf 2c, Poco F4 GT, 01.11.2026, vom Nutzer (Stand `leistung-07c` = 07b + 11 + 17):**
+
+```
+Rendern     784×1478 (Pixelverhältnis 2.00, adaptiv 1.00, Umbauten 0), Handy
+Takt        61 Hz (Median der Bildabstände 16.50 ms)
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s ruhig
+Seitenstart*         8  427.6  427.6    3      –  39.2     1     1
+Startbildschirm    232   16.6   33.4    1      –     –     0     0
+Menü               485   16.6   49.4    1      –   6.3    23    11
+Prolog            2244   16.6   82.3    6      –   4.4     1     1
+Einstieg           373   16.6   82.3    2      –   8.5    59     –
+Spiel             1367   16.6  197.3    1      –   8.7    62    62
+Reise              810   16.6   49.4    2      –   6.7    60     –
+Spiel n. Reise     122   16.6   49.4    1      –  12.0    84     –
+Gesamt            5633   16.6  197.3   14      –
+
+Messpunkt            ganz  -Spieg  -Bloom   -Netz -Pinsel     CPU
+Spiel (1. Level)      8.5     7.3     6.6     8.2       –     2.9
+Menü still            4.8       –     2.4     4.4       –     0.8
+Spiel n. Reise       13.5    11.8    11.1    10.9    12.9     4.1
+Messpunkt         -Himmel -Wasser  -Unter  -Staub  -Final
+Spiel (1. Level)      6.5       –       –     8.7     8.0
+Menü still            3.9       –       –     5.0     4.4
+Spiel n. Reise        6.8    10.0    13.8    13.4    12.7
+Zeichnen ≤ 8 ms: nein (Spiel (1. Level) 8.5 ms, Spiel n. Reise 13.5 ms)
+
+Längste Bilder / Hänger:
+   427.6 ms  Seitenstart bei 0.2 s (Script 431 ms)
+   197.3 ms  Spiel bei 88.9 s (FrameRequestCallback: Script 191 ms) – Ticket 09 nicht in diesem Stand
+   102 ms    Einstieg bei 51.0 s (→ frame: Script 94 ms)
+    84 ms    Prolog bei 34.5 s (ohne Script)
+```
+
+**Auswertung (Koordinator):** Ticket 11 wirkt auf dem Poco nicht (8,6 → 8,5 ms, 13,4 → 13,5 ms); die Gewinne auf der
+T2000 waren ANGLE/D3D11-spezifisch (MSAA-Tiefe), Load/Store-Ersparnis auf dem Adreno nicht messbar. Anteile auf dem Poco
+(ms): Strand: Himmel 6,7 (davon Wasser 3,5, Netz 2,6), Bloom 2,4, Spiegelung 1,7, Final 0,8, Pinsel 0,6, Unterwasser
+und Staub ~0; Wald: Himmel 2,0, Bloom 1,9, Spiegelung 1,2, Final 0,5, Netz 0,3, Rest (Brett, Elemente) ~2,9; Menü:
+Bloom 2,4 von 4,8. Fische in voller Auflösung (Ticket 14) kosten nichts Messbares. «stetige 60 aus» erscheint nicht,
+`adaptiv 1.00`. Ticket 11 bleibt offen.
