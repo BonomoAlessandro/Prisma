@@ -11397,7 +11397,8 @@ function* waterSurface(ctx, opt) {
   plane.frustumCulled = false;
   plane.renderOrder = 4;
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
-  // gerade gezeichnet wird (auf dem Handy halb so gross; Fische sind klein, das Bild darf weich sein)
+  // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
+  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14)
   const clearColor = new THREE.Color(), size = new THREE.Vector2();
   plane.onBeforeRender = (r, scene, cam) => {
     const on = under.scene.children.some((o) => o.visible);
@@ -11405,7 +11406,7 @@ function* waterSurface(ctx, opt) {
     if (!on) return;
     const into = r.getRenderTarget();
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
-    size.multiplyScalar(IS_MOBILE ? 0.5 : 1).round().max(new THREE.Vector2(1, 1));
+    size.max(new THREE.Vector2(1, 1));
     if (!under.target) {
       under.target = new THREE.WebGLRenderTarget(size.x, size.y, {
         type: HDR_TYPE, samples: r.capabilities.isWebGL2 && !IS_MOBILE ? (into?.samples ?? 0) : 0,
