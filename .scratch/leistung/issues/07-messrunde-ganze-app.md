@@ -58,3 +58,66 @@ Geräten; Wartezeit vor der Enthüllung auf dem Desktop 1,7–2,1 s für neue Sp
 ausfallendes Bild in der offenen Übersicht (10/s); Spiegelung im Level nur jedes zweite Bild (Kandidat aus 06).
 
 **bereit für Handy-Durchlauf 2, bitte auf Render deployen**
+
+**Handy-Durchlauf 2, Poco F4 GT, 01.11.2026, vom Nutzer:**
+
+```
+PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)
+Version     2026-11-01 leistung-07
+Zeit        1.11.2026, 08:14:18
+Gerät       Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36
+Modell      Android 13.0.0 21121210G
+GPU         ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+Bildschirm  393×873, Fenster 392×739, Pixelverhältnis 2.75
+Rendern     784×1478 (Pixelverhältnis 2.00, adaptiv 1.00, Umbauten 0), Handy
+Takt        60 Hz (Median der Bildabstände 16.60 ms)
+Zeichenzeit ERSATZMASS: frame() bis nach readPixels (1 px), jedes 10. Bild; der Abstand danach zählt nicht
+ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): 240 Bildabstände mit readPixels nicht gezählt
+Grenzen     p95 ≤ 18.3 ms, kein Bild > 33 ms; Zeichnen p95 ≤ 8 ms (Handy)
+
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s
+Seitenstart*         9  345.4  345.4    3      –  33.0     1
+Startbildschirm    253   16.6   17.0    0      –     –     0
+Menü               257   16.6   49.5    1   57.7   7.4    31
+Prolog            2898   16.6   98.8    5   12.1   3.8     1
+Einstieg           325   16.6   65.8    3   58.6   8.4    65
+Spiel              822   16.6   49.5    2   33.0   9.4    66
+Reise              699   16.6   98.8    2   31.1   7.4    66
+Spiel n. Reise     326   16.7   49.4    1   45.8  11.4    38
+Gesamt            5580   16.6   98.8   14   39.6            
+* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je
+  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.
+
+Flüssig:    nein (Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+Zeichnen ≤ 8 ms: nein (Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+
+Längste Bilder:
+   345.4 ms  Seitenstart bei 0.2 s
+   214.0 ms  Seitenstart bei 0.8 s
+   114.6 ms  Seitenstart bei 0.6 s
+    98.8 ms  Reise bei 80.0 s
+    98.8 ms  Prolog bei 21.4 s
+    65.8 ms  Einstieg bei 60.7 s
+    65.8 ms  Reise bei 85.9 s
+    49.5 ms  Prolog bei 50.4 s
+
+Hänger des Hauptthreads (long-animation-frame):
+     342 ms  Seitenstart bei 0.2 s: https://prisma-5d09.onrender.com/?perf=: Script 332 ms, Rendern 4 ms
+     173 ms  Seitenstart bei 0.8 s: ohne Script, Rendern 2 ms
+     120 ms  Seitenstart bei 0.6 s: FrameRequestCallback: Script 77 ms, Rendern 97 ms
+     118 ms  Reise bei 80.0 s: FrameRequestCallback: Script 104 ms, Rendern 110 ms
+     101 ms  Prolog bei 21.4 s: ohne Script, Rendern 4 ms
+      87 ms  Einstieg bei 60.7 s: FrameRequestCallback → frame: Script 72 ms, Rendern 75 ms
+      75 ms  Reise bei 85.9 s: FrameRequestCallback → frame: Script 60 ms, Rendern 61 ms
+      72 ms  Einstieg bei 55.9 s: FrameRequestCallback → frame: Script 59 ms, Rendern 60 ms
+```
+
+Der Nutzer: Grafik im Spiel «eigentlich ganz gut», bei den **Fischen nicht ganz sicher, ob sie ein wenig pixelig
+waren**. Glühwürmchen «super», ausser **einem kurzen Moment, als sie in den Wald flogen**. **Kurzes Flackern des Bildes in
+der ersten Noa-Szene.** Erster Klick ins Menü sauber.
+
+Vergleich mit Durchlauf 1 (01c): Gesamt p95 49,3 → 16,6 ms, Bilder über 33 ms 334 → 14; Prolog p95 65,9 → 16,6, über
+33 ms 320 → 5, gezeichnet 22/s → 1/s; Startbildschirm max 98,7 → 17,0, 0 gezeichnet; Seitenstart-Hänger 807 → 342 ms;
+`adaptiv 1.00, Umbauten 0` gehalten. Offen: Zeichnen (Ersatzmass) p95 31–59 ms überall ausser Prolog, Marge 8 ms weit
+verfehlt; Menü 31 gezeichnete Bilder/s statt 10; einzelne Bilder 50–100 ms in Prolog (21,4 s, «ohne Script»), Einstieg
+und Reise.
