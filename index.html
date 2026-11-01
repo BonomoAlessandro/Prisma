@@ -18073,9 +18073,10 @@ function createStoryScene(host) {
     arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
     worms: 'idle', gatherAt: 0, carryAt: 0,
     wurmZeit: 0,        // Zeitgeber: das nächste Glühwürmchen kommt an (Ende seines Flugs, dann ruhig; zeichne)
+    klickAt: 0,         // Zeit der Bühne, zu der die Lampe klickt (act lamp; Überspringen davor: kein Strahl)
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
-    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { anims, uhr }
+    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { uhr }
     folge: null,        // die Einstellungen, die die Bühne zeigt (Prolog oder Epilog)
     folgeFuer: null,    // für diese Folge sind folgeAnims angelegt
     folgeAnims: [],     // je Ebene eine Animation der ganzen Folge (folgeAnlegen)
@@ -18100,7 +18101,10 @@ function createStoryScene(host) {
       this.uhr = { t0: performance.now(), s0: this.time, tempo: v };
       for (const u of umgebung) u.a.updatePlaybackRate(v);
       if (this.wurmZeit && this.running) this.zeichne(); // Ankunft der Glühwürmchen neu stellen
-      for (const a of [...(this.laufend?.anims ?? []), this.laufend?.uhr]) a?.updatePlaybackRate(v);
+      // übersprungen vor dem Klick der Lampe: kein Strahl (wie der Tween in act; die Spur zeigte ihn sonst kurz)
+      if (v >= 10 && this.time < this.klickAt) { kraft.zurueck(0); laenge.zurueck(0); }
+      // folgeAnims (nicht die beim Start der Fahrt): anpassen (Drehen mitten in einer Fahrt) legt die Folge neu an
+      for (const a of [...this.folgeAnims, this.laufend?.uhr]) a?.updatePlaybackRate(v);
     },
     /** Es läuft noch etwas, auf das man warten kann (Tween oder Fahrt). */
     get laeuft() { return this.tweens.length > 0 || this.moving; },
@@ -18337,7 +18341,7 @@ function createStoryScene(host) {
       if (i < 0) throw new Error('moveTo: Einstellung nicht in der Folge');
       if (this.folgeZeit?.key !== this.folgeKey()) this.anpassen();
       const { zeiten } = this.folgeZeit, [, seconds] = this.ziel(shot);
-      const f = { uhr: new Animation(new KeyframeEffect(null, null, { duration: seconds * 1000 }), document.timeline), anims: this.folgeAnims };
+      const f = { uhr: new Animation(new KeyframeEffect(null, null, { duration: seconds * 1000 }), document.timeline) };
       this.moving = true;
       this.fahrtIndex = i;
       this.movedAt = this.time;
@@ -18350,6 +18354,7 @@ function createStoryScene(host) {
         if (this.laufend !== f) return; // abgebrochen (reset): wie früher ein Tween, der nie fertig wird
         this.cam = { ...this.folgeZeit.kameras[i] }; // (nach einer Drehung in der Fahrt die neue)
         this.moving = false;
+        if (!this.running) { this.ruhen(); resolve(); return; } // in der Fahrt ausgeblendet: jetzt ganz ruhen (Folge weg)
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
         if (this.worms !== 'idle') this.zeichne(); // angekommene Glühwürmchen umstellen (in der Fahrt nicht)
         // die Folge hält das Ziel weiter (Halt); die Striche kommen gestaffelt nach dem Halt
@@ -18370,6 +18375,7 @@ function createStoryScene(host) {
         });
         const e = eben(t + 0.4, 1.1, storyEase);
         armSpur.dazu(t + 0.4, 1.1, (x) => 75 + (RAISED - 75) * e(x));
+        this.klickAt = t + 1.5;
         kraft.dazu(t + 1.5, 0, () => 1);
         const w = eben(t + 1.5, 1.8, (k) => 1 - (1 - k) ** 3);
         laenge.dazu(t + 1.5, 1.8, (x) => 0.3 * w(x));
