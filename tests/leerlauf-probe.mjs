@@ -151,8 +151,11 @@ try {
   // Takt in Ruhe (Ticket 17): Zeigt der Himmel Bewegung, der das Auge folgt (Fische am Strand), stetig 60 Bilder/s,
   // sonst 30. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU den Takt nicht)
   if (!still && fenster && drossel === 1) {
-    const soll = ergebnis.ruhe.fluid ? 60 : 30;
-    pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (fluid ${ergebnis.ruhe.fluid})`);
+    // Soll am gemessenen Bildschirmtakt (frameRate.vsync): Die T2000 lief im Review mit 56,7 Hz statt 60, das Level dann
+    // mit 56,7 bzw. 28,4 Bildern/s (jedes bzw. jedes zweite Bildschirmbild, wie frameRate.due rechnet)
+    const hz = 1000 / await ev('frameRate.vsync'), fps = ergebnis.ruhe.fluid ? 60 : 30;
+    const soll = +(hz / Math.max(1, Math.floor(hz / fps + 0.34))).toFixed(1);
+    pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (fluid ${ergebnis.ruhe.fluid}, Takt ${hz.toFixed(1)} Hz)`);
     pruefe(ergebnis.menue.gezJeS <= 12, `Menü: ${ergebnis.menue.gezJeS} gez/s statt 10`);
   }
   if (still) {

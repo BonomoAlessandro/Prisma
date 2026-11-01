@@ -20064,6 +20064,10 @@ const adaptiveResolution = {
     const overload = this.slow / this.frames; // Anteil Frames über Budget in der letzten Sekunde
     this.window = this.slow = this.frames = 0;
 
+    // Stetige 60 Bilder/s nur wegen des bewegten Himmels (frameRate.fluid, Ticket 17 der Leistung) und das Gerät hält sie
+    // nicht: zuerst darauf verzichten (in Ruhe wieder 30 wie vorher), die Auflösung bleibt. Erst wenn es danach noch zu
+    // langsam ist, greift die Absenkung wie bisher (Spec: keine sichtbare Absenkung)
+    if (overload > 0.3 && !this.probe && frameRate.fluid()) { frameRate.fluidAus = true; this.hold(); return; }
     if (this.probe) {
       // Hat die letzte Absenkung geholfen? Sonst zurück und Absenken sperren.
       if (overload > this.probe.overload * 0.8) { this.locked = true; this.set(this.probe.from); }
@@ -20627,7 +20631,7 @@ const leistung = {
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
-        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
+        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0, fluidAus: frameRate.fluidAus,
         kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
@@ -20652,7 +20656,7 @@ const leistung = {
       `GPU         ${g.gpu}`,
       `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
       `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
-        + `Umbauten ${g.umbauten})${g.mobil ? ', Handy' : ''}`,
+        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''})${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
       ...(d.ohne ? [`Proben      ${d.ohne} Bildabstände mit einer Probe der Dauerlast nicht gezählt`] : []),
@@ -20996,7 +21000,7 @@ const perfHud = {
         `Zeichnen p95 ${q(t.zeichnen)} ms   CPU p95 ${q(t.cpu)} ms\n` : '') +
       `WebGL ${sorted.length ? Math.round(1000 / avg) : 0} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
       `MSAA ${composer.renderTarget1.samples}×   Spiegelung ${QUALITY.reflectionScale} (MSAA ${reflector.getRenderTarget().samples}×)\n` +
-      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
+      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}${frameRate.fluidAus ? '   stetige 60 aus' : ''}\n` +
       `Draw-Calls ${this.calls}   Dreiecke ${this.triangles}\n` +
       `GPU ${this.gpu}\nZeichenzeit ${leistung.mass()}\nVersion ${APP_VERSION}` +
       (zustand ? `\n${zustand}` : '');
@@ -21042,6 +21046,7 @@ const frameRate = {
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
+  fluidAus: false,    // das Gerät hielt die stetigen 60 (fluid) nicht: bis zum Neuladen nicht mehr (adaptiveResolution)
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
@@ -21053,7 +21058,7 @@ const frameRate = {
    * Eingabe wechselte ihr Schritt je Bild beim Spielen alle paar Sekunden zwischen einfach und doppelt, das sah man
    * (Ticket 17 der Leistung). Nicht hinter der Bühne und nicht unter dem Menü (wie busy).
    */
-  fluid() { return !story.covered && !story.choosing && flow.state !== 'intro' && skyTheme.fluid; },
+  fluid() { return !this.fluidAus && !story.covered && !story.choosing && flow.state !== 'intro' && skyTheme.fluid; },
   busy(ts) {
     // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
     if (story.covered || story.choosing && !story.tweens.length) return false;

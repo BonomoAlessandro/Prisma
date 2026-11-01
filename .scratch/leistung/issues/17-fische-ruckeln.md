@@ -4,7 +4,7 @@
 
 **Blocked by:** 14
 
-**Status:** ready-for-agent (Review des Takts ausstehend)
+**Status:** ready-for-human (Review erledigt, Abnahme auf dem Poco in Handy-Durchlauf 2c)
 
 **What to build:** Die Fische am Strand bewegen sich auf dem Handy gleichmässig. Beobachtung des Nutzers im
 Handy-Durchlauf 2b (Poco F4 GT, Stand `leistung-07b`): «Die Fische waren glatt, aber ruckelig.» Seit Ticket 14 sind die
@@ -17,7 +17,7 @@ weder gleichmässig 60 noch 30.
 - [ ] Abnahme auf dem Poco im nächsten Handy-Durchlauf: Fische bei normalem Abstand ohne Ruckeln, auch beim Tippen.
 - [x] Takt im Level (Entscheid Koordinator 01.11.2026, siehe «Takt je Welt» unter Comments): kein sichtbarer Wechsel
       30 ↔ 60, solange etwas im Bild ist, dem das Auge folgt; stetig 60 in Strand, Wald, Vulkan, Sonnensystem.
-- [ ] Review des Takts, Tests grün.
+- [x] Review des Takts, Tests grün.
 
 ## Diagnose
 
@@ -210,3 +210,28 @@ Daten: `out/welt-*.json`, `out/takt-*.json`, `out/takt2-*.json`, `out/leistung-*
 Tests (Takt): `logic` (2033), `golden`, `screenshot` (Konsole ohne Meldungen), `leerlauf-probe` headless und
 `--still --handy`, im Fenster `--handy` mit Wald, Strand, Wüste und Desktop (Takt geprüft), `geschichte-probe --start`
 und `--handy`, `leistung-probe --handy` headless, `--fenster --handy` und `--ersatzmass` je zweimal: grün.
+
+**Review Takt, 01.11.2026 (Reviewer):** Code in Ordnung: `sceneTime.at` nie rückwärts (`Math.max`, `clock.startTime`
+aus `performance.now`, gleiche Zeitbasis wie rAF), `?t=`, `aufwaermen`, `recomputeBeams`, Ruhen/Wecken, verdeckt,
+Tab, Proben der Dauerlast unberührt; `fluid` nur mit Fischen/Glühwürmchen/Lava als Ebene oder Sonnensystem, Wüste und
+Milchstrasse `false`, Menü/Übersicht 10, Bühne/Startbildschirm nicht. Optik (Handy-Emulation, Screencast jedes Bilds):
+Strand still/tippen/Tippen alle 3 s und Wald still alle Abstände 1 Display-Frame, Gleichmass der Fische 1,00/1,00;
+Wüste→Strand 30 → 60 ohne Taktwechsel, nur ein Aufbaubild von 36 ms beim ersten Unterwasser-Pass (Ticket 09).
+
+Absenkung unter GPU-Last (Kopie mit Vollbild-Pass je Bild, Strand, 90 s je Stufe, Tippen alle 3 s in jedem dritten
+10-s-Stück; GPU-Zeit per Timer, Mittel): 13,5–14,3 ms und 15,5–16,4 ms: Anteil langsamer Bilder je 2-s-Fenster
+0–16 %, keine Absenkung; 19,2 ms: 51 gez/s, 2–27 %, keine Absenkung; doppelt so viel Last: 100 % im ersten Fenster →
+`adaptiv 0.75`. Referenzdurchlauf `--fenster --handy` mit Last (Spiel 17,5 / Spiel n. Reise 16,5 ms p95): `adaptiv
+1.00, Umbauten 0`. Die Absenkung greift also erst, wenn über 30 % der Bilder einen Bildschirmtakt verpassen; auf der
+T2000 ist das ein Kipppunkt weit über 16,7 ms.
+
+Abhilfe gebaut (klein): Hält das Gerät die stetigen 60 nicht (Überlast > 0,3, `frameRate.fluid()`), verzichtet
+`adaptiveResolution` zuerst auf sie (`frameRate.fluidAus`, bis zum Neuladen; in Ruhe wieder 30 wie vor 17) statt die
+Auflösung zu senken; erst danach senkt sie wie bisher. Karte und Anzeige zeigen «stetige 60 aus». Mit doppelter Last:
+erst `fluidAus`, Absenkung erst später beim Tippen (60/s wie vor 17). `leerlauf-probe`: Soll am gemessenen
+Bildschirmtakt (die T2000 lief zeitweise mit 56,7 Hz, die feste 60/30-Prüfung schlug fehl).
+
+Tests nach der Abhilfe: `logic` (2033), `golden`, `screenshot`, `leerlauf-probe` im Fenster `--handy` Wald/Strand/Wüste
+(60/60/30 in Ruhe), headless und `--still --handy`, `leistung-probe --fenster --handy` und zweimal `--ersatzmass`
+(`adaptiv 1.00, Umbauten 0`, Dauerlast ganz 4,1–4,6 / 5,1–5,4 ms), `geschichte-probe --start`: grün. Auf dem Poco auf
+der Karte prüfen: kein «stetige 60 aus»; steht es da, hielt das Poco die 60 nicht (Ticket 11).
