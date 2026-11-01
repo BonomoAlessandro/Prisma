@@ -9704,6 +9704,9 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
         ${decl}
         varying vec3 vWorld;
         const float PI = 3.141592653589793;
+        // Steinplatte (floorTop und plateSides), je 1 cm kleiner
+        const vec3 PLATE_LO = ${glv([-PLATE / 2 + 0.01, -PLATE_THICK - 0.03 + 0.01, -PLATE / 2 + 0.01])};
+        const vec3 PLATE_HI = ${glv([PLATE / 2 - 0.01, -0.01, PLATE / 2 - 0.01])};
         ${rule?.glsl ?? ''}
         void main() {
           vec3 g = normalize(vWorld - uCenter);
@@ -9715,6 +9718,17 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
           vec2 dx = dFdx(vec2(u, v)), dy = dFdy(vec2(u, v));
           dx.x -= floor(dx.x + 0.5); dy.x -= floor(dy.x + 0.5);
           vec2 gx = vec2(dx.x, -dx.y), gy = vec2(dy.x, -dy.y);
+          // Hinter der Steinplatte (undurchsichtig, steht fest, wird danach gezeichnet und deckt das Netz dort zu):
+          // nichts weiter rechnen. Im Level deckt sie gut ein Drittel des Bilds; das Netz schreibt am Strand seine Tiefe
+          // selbst, der Tiefentest kann es dort also nicht vorher verwerfen (Ticket 11). Quader um 1 cm kleiner, damit
+          // am Rand kein Pixel ohne Netz und ohne Platte bleibt.
+          {
+            vec3 eye = vWorld - cameraPosition, inv = 1.0 / eye;
+            vec3 t0 = (PLATE_LO - cameraPosition) * inv, t1 = (PLATE_HI - cameraPosition) * inv;
+            vec3 tn = min(t0, t1), tf = max(t0, t1);
+            float tIn = max(max(tn.x, tn.y), tn.z), tOut = min(min(tf.x, tf.y), tf.z);
+            if (tIn <= tOut && tIn > 0.0 && tIn < 1.0) discard; // eye läuft bis zum Netz: t = 1 dort
+          }
           vec3 col = vec3(0.0);
           bool hit = false;
           ${pick}
