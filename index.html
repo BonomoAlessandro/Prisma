@@ -8109,7 +8109,9 @@ const STORY_LEVELS = {
    RENDERER
    ===================================================================== */
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+// Auf den Bildschirm zeichnet nur der letzte Bildschritt (ein Rechteck übers ganze Bild): ohne Tiefe und Stencil, die
+// Szene hat beides in ihrem eigenen Ziel (createComposer). Spart auf Kachel-GPUs Löschen und Speichern je Bild (Ticket 11)
+const renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
 renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -8132,6 +8134,20 @@ const HDR_SUPPORTED = renderer.capabilities.isWebGL2
   ? (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'))
   : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
 const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
+
+/**
+ * Tiefe (und Stencil) des gerade gebundenen Ziels target verwerfen, wenn sie niemand mehr liest (Ticket 11): Kachel-GPUs
+ * (Handy) schreiben sonst jede Kachel samt Tiefe in den Speicher zurück. Nur WebGL2 und ohne MSAA (dort löst three auf
+ * und bindet dabei andere Puffer; für die Spiegelung siehe renderReflection).
+ */
+function discardDepth(r, target) {
+  if (!r.capabilities.isWebGL2 || !target?.depthBuffer || target.samples > 0 || r.getRenderTarget() !== target) return;
+  const gl = r.getContext();
+  gl.invalidateFramebuffer(gl.FRAMEBUFFER, [target.stencilBuffer ? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT]);
+}
+// Was vor dem Zeichnen der Szene in ein eigenes Ziel muss, (renderer, camera, Ziel der Szene, scene) => …: im Pass der
+// Szene vorab, damit ihr Ziel nicht mittendrin wechselt (waterSurface, Ticket 11)
+const SCENE_PREPASSES = new Set();
 if (!HDR_SUPPORTED) {
   // Fallback ohne HDR: Bloom-Schwelle unter 1 (sonst blüht nichts), Spiegelung aus
   // (der Reflector rendert intern immer in HalfFloat).
@@ -11352,19 +11368,25 @@ function* waterSurface(ctx, opt) {
           vec3 d = normalize(world - uCenter), ray = normalize(world - cameraPosition);
           if (d.y > 0.0 || ray.y > -0.001) return gl_FragCoord.z; // Himmel; Strahl ohne Wasserfläche
           float tP = (cameraPosition.y - CUT_LEVEL) / -ray.y;
-          float dT = panoDist(d);
-          vec3 T = uCenter + d * dT;
+          #define CUT_BEHIND max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR))) // hinter P
           // Wasser: nach der Maske, so fein wie das Bild (die Tiefe ist gröber: um ferne Palmen blieb ein Saum ohne
           // Spielwasser), sonst nach der Tiefe. Etwas hinter dem Wasser: nur nah (Felsen, die das geglättete Netz vor
-          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben)
-          bool water = T.y < CUT_LEVEL + 0.03;
+          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben).
+          // Zeigt die Maske Wasser, steht das Ergebnis ohne die Tiefe des Panoramas fest (Ticket 11: das Wasser deckt am
+          // Strand den grössten Teil des Bilds; das Lesen der Tiefe ist dort das Teuerste)
+          bool masked = false, water = false;
           #ifdef CUT_MASK
             float below = degrees(asin(clamp(-d.y, -1.0, 1.0))) / ${glf(maskDeg)};
-            if (below < 1.0) water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+            if (below < 1.0) {
+              masked = true;
+              water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+              if (water) return CUT_BEHIND;
+            }
           #endif
-          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) {
-            return max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR)));
-          }
+          float dT = panoDist(d);
+          vec3 T = uCenter + d * dT;
+          if (!masked) water = T.y < CUT_LEVEL + 0.03;
+          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) return CUT_BEHIND;
           // Fels, den das Panorama zeigt (nicht die nahen Felsgruppen: Die zeichnet das Spiel, das Panorama zeigt dort
           // flachen Boden, der sie sonst verdeckte)
           vec2 uv = vec2((T.x + CUT_EXT) / (2.0 * CUT_EXT), 1.0 - (T.z + CUT_EXT) / (2.0 * CUT_EXT));
@@ -11396,15 +11418,19 @@ function* waterSurface(ctx, opt) {
   const plane = new THREE.Mesh(geo, material);
   plane.frustumCulled = false;
   plane.renderOrder = 4;
+  plane.userData.under = under; // für das Messwerkzeug (Dauerlast «ohne Wasser», «ohne Unterwasser-Pass»)
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
   // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
-  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14)
+  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14).
+  // Im Bild des Spiels schon vor der Szene (SCENE_PREPASSES, Ticket 11): Mitten in der Szene das Ziel zu wechseln hiess
+  // auf Kachel-GPUs (Handy), das halb gezeichnete Szenenbild samt Tiefe in den Speicher zu schreiben und danach wieder
+  // zu laden. Sonst (Aufwärmen, Übersetzen) wie bisher in onBeforeRender.
   const clearColor = new THREE.Color(), size = new THREE.Vector2();
-  plane.onBeforeRender = (r, scene, cam) => {
+  let ready = null; // Kamera, für die das Bild unter der Oberfläche in diesem Bild schon steht (Vorlauf)
+  const drawUnder = (r, cam, into) => {
     const on = under.scene.children.some((o) => o.visible);
     material.uniforms.uUnderOn.value = on ? 1 : 0;
     if (!on) return;
-    const into = r.getRenderTarget();
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
     size.max(new THREE.Vector2(1, 1));
     if (!under.target) {
@@ -11412,6 +11438,7 @@ function* waterSurface(ctx, opt) {
         type: HDR_TYPE, samples: r.capabilities.isWebGL2 && !IS_MOBILE ? (into?.samples ?? 0) : 0,
       });
     } else if (under.target.width !== size.x || under.target.height !== size.y) under.target.setSize(size.x, size.y);
+    const before = r.getRenderTarget();
     r.getClearColor(clearColor);
     const clearAlpha = r.getClearAlpha();
     r.setRenderTarget(under.target);
@@ -11422,12 +11449,26 @@ function* waterSurface(ctx, opt) {
     r.state.buffers.color.setMask(true);
     r.clear();
     r.render(under.scene, cam);
-    r.setRenderTarget(into);
+    discardDepth(r, under.target); // die Tiefe der Fische braucht danach niemand
+    r.setRenderTarget(before);
     r.setClearColor(clearColor, clearAlpha);
     material.uniforms.uUnder.value = under.target.texture;
     material.uniforms.uUnderView.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   };
-  plane.userData.dispose = () => under.target?.dispose();
+  const prepass = (r, cam, into, root) => {
+    ready = null;
+    let o = plane;
+    for (; o.parent; o = o.parent) if (!o.visible) return; // wird nicht gezeichnet
+    if (o !== root || !o.visible) return;
+    drawUnder(r, cam, into);
+    ready = cam;
+  };
+  SCENE_PREPASSES.add(prepass);
+  plane.onBeforeRender = (r, scene, cam) => {
+    if (ready === cam) ready = null; // schon im Vorlauf gezeichnet
+    else drawUnder(r, cam, r.getRenderTarget());
+  };
+  plane.userData.dispose = () => { SCENE_PREPASSES.delete(prepass); under.target?.dispose(); };
   return plane;
 }
 
@@ -13067,18 +13108,33 @@ function createComposer() {
     stencilBuffer: true,
   });
   const comp = new THREE.EffectComposer(renderer, rt);
-  comp.addPass(new THREE.RenderPass(scene, camera));
+  const scenePass = new THREE.RenderPass(scene, camera);
+  // Eigene Ziele (SCENE_PREPASSES, etwa die Fische unter dem Wasser) vorab, dann die Szene in einem Zug
+  const renderScene = scenePass.render;
+  scenePass.render = function (r, writeBuffer, readBuffer, ...rest) {
+    for (const prepass of SCENE_PREPASSES) prepass(r, this.camera, this.renderToScreen ? null : readBuffer, this.scene);
+    return renderScene.call(this, r, writeBuffer, readBuffer, ...rest);
+  };
+  comp.addPass(scenePass);
   // Pinsel über gemalten Ebenen der Skyboxen: vor dem Leuchten, das danach über das gemalte Bild geht
   const brush = createBrushPass(QUALITY.brush);
   comp.addPass(brush);
+  // Danach liest niemand mehr Tiefe und Stencil des Szenenbilds (der Pinsel brauchte den Stencil; das nächste Bild
+  // löscht sie): verwerfen statt speichern (Kachel-GPUs, Ticket 11)
+  const discard = new THREE.Pass();
+  discard.needsSwap = false;
+  discard.render = (r, writeBuffer, readBuffer) => discardDepth(r, readBuffer);
+  comp.addPass(discard);
 
   const bloom = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     LOOK.bloomStrength, LOOK.bloomRadius, LOOK.bloomThreshold
   );
-  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten.
+  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten. Ohne Tiefenpuffer (three legt
+  // sonst je Ziel einen an): Die Vollbild-Pässe brauchen keinen, und Kachel-GPUs löschten und speicherten ihn in jedem
+  // der zwölf Pässe mit (Ticket 11). Gesetzt, bevor three die Ziele beim ersten Zeichnen anlegt.
   [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]
-    .forEach(t => { t.texture.type = HDR_TYPE; });
+    .forEach(t => { t.texture.type = HDR_TYPE; t.depthBuffer = false; });
   // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
   // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
   // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
@@ -13144,23 +13200,48 @@ function createComposer() {
   composite.fragmentShader = composite.fragmentShader
     .replace('void main() {', `uniform vec2 uSize2, uSize3, uSize4, uSize5;${BSPLINE_GLSL}\nvoid main() {`)
     .replace(/texture2D\(blurTexture([2-5]), vUv\)/g, 'bspline(blurTexture$1, vUv, uSize$1)');
-  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline. Leuchten additiv aufs Bild legen wie bisher,
-  // aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
-  bloom.copyUniforms.uSrcSize = { value: new THREE.Vector2() };
-  Object.assign(bloom.materialCopy, {
-    fragmentShader: `
-      uniform float opacity;
-      uniform sampler2D tDiffuse;
-      uniform vec2 uSrcSize;
-      varying vec2 vUv;
-      ${BSPLINE_GLSL}
-      void main() {
-        gl_FragColor = bspline(tDiffuse, vUv, uSrcSize);
-        gl_FragColor.a *= opacity;
-      }`,
-    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor,
-    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-  });
+  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline, additiv, Alpha unverändert (Alpha 0 = Himmel, siehe
+  // FinalShader), gewichtet mit dem Alpha der zusammengesetzten Stufen (wie früher die Mischung SrcAlpha, One). Im
+  // letzten Bildschritt statt in einem eigenen Pass (Ticket 11): Der las und schrieb das ganze Szenenbild (HalfFloat)
+  // samt Tiefe nur, um das Leuchten dazuzulegen; auf Kachel-GPUs (Handy) ein Laden und Speichern des ganzen Bilds.
+  const bloomOut = bloom.renderTargetsHorizontal[0]; // zusammengesetzt (composite)
+  const bloomUniforms = { tBloom: { value: bloomOut.texture }, uBloomSize: { value: new THREE.Vector2(1, 1) }, uBloom: { value: 0 } };
+  bloom.applied = false; // in diesem Bild zusammengesetzt (der letzte Bildschritt legt es dann auf)
+  // wie UnrealBloomPass.render, ohne das Auftragen (und ohne renderToScreen und Maske, beides nie benutzt)
+  bloom.render = function (r, writeBuffer, readBuffer) {
+    r.getClearColor(this._oldClearColor);
+    this.oldClearAlpha = r.getClearAlpha();
+    const oldAutoClear = r.autoClear;
+    r.autoClear = false;
+    r.setClearColor(this.clearColor, 0);
+    const pass = (material, target) => {
+      this.fsQuad.material = material;
+      r.setRenderTarget(target);
+      r.clear(); // auf Kachel-GPUs: nichts laden
+      this.fsQuad.render(r);
+    };
+    this.highPassUniforms.tDiffuse.value = readBuffer.texture;
+    this.highPassUniforms.luminosityThreshold.value = this.threshold;
+    pass(this.materialHighPassFilter, this.renderTargetBright);
+    let input = this.renderTargetBright;
+    for (let i = 0; i < this.nMips; i++) {
+      const blur = this.separableBlurMaterials[i];
+      blur.uniforms.colorTexture.value = input.texture;
+      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionX;
+      pass(blur, this.renderTargetsHorizontal[i]);
+      blur.uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
+      pass(blur, this.renderTargetsVertical[i]);
+      input = this.renderTargetsVertical[i];
+    }
+    this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
+    this.compositeMaterial.uniforms.bloomRadius.value = this.radius;
+    this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors;
+    pass(this.compositeMaterial, bloomOut);
+    this.applied = true;
+    r.setClearColor(this._oldClearColor, this.oldClearAlpha);
+    r.autoClear = oldAutoClear;
+  };
   // Original-Gauss endet bei 1 Sigma -> sichtbare eckige Halos. Engeres Sigma = runde Halos.
   bloom.separableBlurMaterials.forEach(m => {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
@@ -13174,15 +13255,51 @@ function createComposer() {
       const t = bloom.renderTargetsVertical[i - 1];
       composite.uniforms['uSize' + i].value.set(t.width, t.height);
     }
-    bloom.copyUniforms.uSrcSize.value.set(bloom.renderTargetsHorizontal[0].width, bloom.renderTargetsHorizontal[0].height);
+    bloomUniforms.uBloomSize.value.set(bloomOut.width, bloomOut.height);
   };
   bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
   const finalPass = new THREE.ShaderPass(FinalShader);
+  // Leuchten dazulegen (siehe oben), wo der Bildschritt das Szenenbild liest, auch an den Stellen der Aberration
+  Object.assign(finalPass.uniforms, bloomUniforms);
+  finalPass.material.fragmentShader = FinalShader.fragmentShader
+    .replace('varying vec2 vUv;', `varying vec2 vUv;
+    uniform sampler2D tBloom;
+    uniform vec2 uBloomSize;
+    uniform float uBloom; // 0: ohne Leuchten (in diesem Bild nicht gerechnet)
+    ${BSPLINE_GLSL}
+    vec3 glow(vec2 uv) {
+      if (uBloom <= 0.0) return vec3(0.0);
+      vec4 b = bspline(tBloom, uv, uBloomSize);
+      return b.rgb * (b.a * uBloom);
+    }
+    // Szenenbild mit Leuchten; ohne HDR (8 Bit) auf 1 begrenzt wie früher beim Auftragen ins 8-Bit-Szenenbild
+    vec3 lit(vec3 c, vec2 uv) {
+      c += glow(uv);
+      return ${HDR_SUPPORTED ? 'c' : 'min(c, 1.0)'};
+    }`)
+    .replace(`col.r = texture2D(tDiffuse, vUv - off).r;
+      col.g = base.g;
+      col.b = texture2D(tDiffuse, vUv + off).b;`, `base.rgb = lit(base.rgb, vUv);
+      col.g = base.g;
+      if (off == vec2(0.0)) {
+        col.rb = base.rb;
+      } else {
+        col.r = lit(texture2D(tDiffuse, vUv - off).rgb, vUv - off).r;
+        col.b = lit(texture2D(tDiffuse, vUv + off).rgb, vUv + off).b;
+      }`);
+  if (!finalPass.material.fragmentShader.includes('lit(texture2D(tDiffuse, vUv - off).rgb')) throw new Error('FinalShader: Leuchten nicht eingesetzt');
+  const renderFinal = finalPass.render;
+  finalPass.render = function (...args) {
+    bloomUniforms.uBloom.value = bloom.applied ? bloom.copyUniforms.opacity.value : 0;
+    bloom.applied = false;
+    return renderFinal.apply(this, args);
+  };
   // Rendert direkt auf den Bildschirm: ohne Swap wird der zweite Composer-Puffer nie gebunden
-  // und belegt daher keinen Grafikspeicher.
+  // und belegt daher keinen Grafikspeicher. Ohne Tiefentest (der Bildschirm hat keine Tiefe, siehe renderer).
   finalPass.needsSwap = false;
+  finalPass.material.depthTest = finalPass.material.depthWrite = false;
   comp.addPass(finalPass);
   return { comp, bloom, finalPass, brush };
 }
@@ -20102,6 +20219,10 @@ function renderReflection() {
     u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
     u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
   }
+  // Beim Auflösen des MSAA nur die Farbe kopieren, Tiefe und Stencil verwerfen (three: __ignoreDepthValues): Gelesen
+  // wird nur die Farbe, Kachel-GPUs sparen das Speichern und Kopieren der Tiefe (Ticket 11). Je Bild, weil setSize das
+  // Ziel neu anlegt und dabei die Eigenschaften vergisst
+  renderer.properties.get(reflector.getRenderTarget()).__ignoreDepthValues = true;
   reflector.onBeforeRender(renderer, scene, camera);
   for (const u of _reflectDimmed) {
     u.core.material.color.copy(u.reflectSave.core);
@@ -20151,7 +20272,8 @@ const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) ||
  * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
  * fehlt die Erweiterung (viele Android-Geräte), misst der Referenzdurchlauf an festen, ruhigen Messpunkten die
  * Dauerlast (dauerlast: K Bilder in einer Aufgabe zwischen zwei readPixels, Zeit je Bild, GPU voll hochgetaktet) und
- * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas und Pinsel. Dazu die CPU-Zeit von frame() und
+ * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas, Pinsel, Himmel, Wasser, Unterwasser-Pass, Staub
+ * und letztem Bildschritt. Dazu die CPU-Zeit von frame() und
  * die gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels).
  * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
  * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
@@ -20396,19 +20518,36 @@ const leistung = {
    * (createPanoramaSky); ohne es zeigt die Himmelskugel dahinter das Vorschaubild.
    */
   dauerlastTeile() {
-    const netze = () => skyTheme.entries.flatMap((e) => (e.module?.panorama && e.module.group.visible
-      ? e.module.group.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible) : []));
+    const panoramen = () => skyTheme.entries.filter((e) => e.module?.panorama && e.module.group.visible).map((e) => e.module.group);
+    const netze = () => panoramen().flatMap((g) => g.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible));
+    // Wasser einer Skybox (waterSurface: userData.under, die Szene unter der Oberfläche) und was darunter schwimmt
+    const wasser = () => panoramen().flatMap((g) => g.children.filter((o) => o.userData.under && o.visible));
+    const unter = () => wasser().flatMap((o) => o.userData.under.scene.children.filter((c) => c.visible));
+    const himmel = () => [background, stars, solar.group, ...panoramen()].filter((o) => o.visible);
     const schalter = (an, setze) => () => { const vorher = an(); setze(false); return () => setze(vorher); };
+    // Objekte unsichtbar, danach wieder sichtbar
+    const verstecke = (liste) => () => {
+      const aus = liste();
+      for (const o of aus) o.visible = false;
+      return () => { for (const o of aus) o.visible = true; };
+    };
     return [
       ['ganz', () => true, () => () => {}],
       ['spiegelung', reflectionInView, schalter(() => QUALITY.reflections, (v) => { QUALITY.reflections = v; })],
       ['bloom', () => bloomPass.enabled, schalter(() => bloomPass.enabled, (v) => { bloomPass.enabled = v; })],
-      ['netz', () => netze().length > 0, () => {
-        const aus = netze();
-        for (const o of aus) o.visible = false;
-        return () => { for (const o of aus) o.visible = true; };
-      }],
+      ['netz', () => netze().length > 0, verstecke(netze)],
       ['pinsel', () => !!brushPass.painting?.(), schalter(() => brushPass.enabled, (v) => { brushPass.enabled = v; })],
+      // zweite Zeile der Karte (Ticket 11): der ganze Himmel (Kugel, Sterne, Planeten, Skybox mit allen Ebenen), davon
+      // das Wasser samt Unterwasser-Pass, davon nur der Pass (Fische), der Staub über dem Brett und der letzte Bildschritt
+      ['himmel', () => himmel().length > 0, verstecke(himmel)],
+      ['wasser', () => wasser().length > 0, verstecke(wasser)],
+      ['unter', () => unter().length > 0, verstecke(unter)],
+      ['staub', () => beamView.dust.visible, verstecke(() => [beamView.dust])],
+      ['final', () => finalPass.enabled, () => { // gar nicht zeichnen (die Probe liest danach nur einen Bildpunkt)
+        const eigen = Object.hasOwn(finalPass, 'render'), render = finalPass.render;
+        finalPass.render = () => {};
+        return () => { if (eigen) finalPass.render = render; else delete finalPass.render; };
+      }],
     ];
   },
   /**
@@ -20652,20 +20791,31 @@ const leistung = {
     // Dauerlast je Messpunkt: ganz und ohne je einen Teil, CPU je Bild der Probe; mit Timer (?ersatzmass) die GPU-Zeit
     const dl = d.dauerlast ?? [];
     if (dl.length) {
-      const teile = [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'],
-        ['netz', '-Netz', '-Nz'], ['pinsel', '-Pinsel', '-Pi']];
+      // zwei Blöcke, damit die Karte auf dem Handy 40 Zeichen breit bleibt: erst ganz, Spiegelung, Bloom, Netz, Pinsel
+      // und CPU; dann (Ticket 11) Himmel, Wasser, Unterwasser-Pass, Staub und letzter Bildschritt
+      const bloecke = [
+        [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'], ['netz', '-Netz', '-Nz'],
+          ['pinsel', '-Pinsel', '-Pi']],
+        [['himmel', '-Himmel', '-Hi'], ['wasser', '-Wasser', '-Wa'], ['unter', '-Unter', '-Un'], ['staub', '-Staub', '-St'],
+          ['final', '-Final', '-Fi']],
+      ];
       const breite = schmal ? 5 : 8, namen = schmal ? 9 : 17; // schmal: 9 + 6 × 5 + «!» = 40 Zeichen
       const zahl = (v) => (v === null || v === undefined ? '–' : v.toFixed(v >= 100 ? 0 : 1)).padStart(breite);
-      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`,
-        `${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
-          + 'CPU'.padStart(breite));
-      for (const p of dl) {
-        zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
-          + `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`);
-        if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
-      }
-      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel; Anteil`
-        + `${umbruch}eines Teils = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
+      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`);
+      bloecke.forEach((teile, b) => {
+        if (b) zeilen.push('');
+        zeilen.push(`${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
+          + (b ? '' : 'CPU'.padStart(breite)));
+        for (const p of dl) {
+          zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
+            + (b ? '' : `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`));
+          if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
+        }
+      });
+      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel;`
+        + `${umbruch}${schmal ? '-Hi/-Wa/-Un/-St/-Fi' : ''}${schmal ? ': ' : ''}ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),`
+        + `${umbruch}Wasser (mit Unterwasser-Pass), Unterwasser-Pass (Fische), Staub bzw. letzten`
+        + `${umbruch}Bildschritt. Anteil = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
         + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
           + ' Die GPU braucht höchstens so lange.' : '')
         + (dl.some((p) => p.gestoert) ? `${umbruch}? während der Messung getippt (auch beim zweiten Versuch): Werte unsicher.` : '')

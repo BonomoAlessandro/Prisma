@@ -109,3 +109,152 @@ Am Strand bleiben rund 8 ms, die keine Spalte erklärt (Szene, Wasser, Unterwass
 Grösse, Himmel). Zuerst die Zerlegung um diese Teile erweitern, dann in der Reihenfolge der Poco-Anteile vorgehen.
 Ziel: «ganz» ≤ 6 ms an allen Messpunkten auf dem Poco (Reserve für tieferen Takt und Compositing), Abnahme in
 Handy-Durchlauf 3; ohne sichtbaren Unterschied, Auflösung nicht senken, Fische bleiben glatt.
+
+**01.11.2026, Umsetzung** (Branch `leistung/11-zeichenzeit` ab `3fcafa0`, eine Massnahme je Commit, `APP_VERSION`
+unverändert). Messung auf der T2000 im echten Chrome mit Fenster, `leise.sh` 100 %, Seite
+`?perf&ersatzmass&nointro&noadapt`, Stand vor dem letzten Level der Welt, 4 s Ruhe, dann `leistung.dauerlast` (K = 20,
+Median aus 5) mit GPU-Zeit (Timer) derselben Bilder; Handy-Emulation 393 × 873, DPR 2,75, Android-Kennung (gerendert
+786 × 1746). Fassungen als Kopien (`_m11-a` = nur Messwerkzeug, `_m11-b` … `_m11-g` je eine Massnahme mehr), Skripte
+und Rohdaten im Scratchpad des Agenten unter `11/` (`vergleich.mjs`/`.js`, `bilder.mjs`, `vergleiche.mjs`,
+`out/*.json`).
+
+*Vorsicht beim Lesen:* Die T2000 ist keine Kachel-GPU. Was auf dem Adreno Laden und Speichern von Kacheln spart, zeigt
+sich hier kaum; dafür emuliert ANGLE/D3D11 das Auflösen von MSAA-Tiefe teuer (siehe 3). Die Poco-Zahlen sind
+Schätzungen aus der Bandbreite (Adreno 730, 784 × 1478 = 1,16 Mio. Pixel; ein Vollbild RGBA16F + D24S8 laden und
+speichern ≈ 28 MB ≈ 0,6–0,9 ms) und müssen in Handy-Durchlauf 3 bestätigt werden.
+
+1. **Zerlegung erweitert** (`d575a06`): Dauerlast zusätzlich ohne Himmel (Kugel, Sterne, Planeten, Skybox mit allen
+   Ebenen), ohne Wasser (samt Unterwasser-Pass), ohne Unterwasser-Pass (Fische), ohne Staub, ohne letzten Bildschritt.
+   Karte: zweiter Block `-Himmel -Wasser -Unter -Staub -Final` (schmal `-Hi -Wa -Un -St -Fi`, 40 Zeichen); die Probe
+   prüft die Werte. Pro Messpunkt jetzt 50 statt 25 Proben (Poco geschätzt 6–14 s statt 3–7 s). T2000,
+   Handy-Emulation, GPU-Zeit (Timer) «ganz» und Anteile (ganz − ohne) vor den Massnahmen (Lauf a1, a2/a3 ähnlich):
+
+   | Messpunkt | ganz | Spiegelung | Bloom | Netz | Himmel | Wasser | Unter | Staub | Final |
+   |---|---|---|---|---|---|---|---|---|---|
+   | Wald, Level | 3,8 | 2,1 | 0,9 | 0,2 | 1,0 | – | – | 0,0 | 0,5 |
+   | Strand, Level | 4,9 | 2,0 | 0,8 | 0,7 | 2,0 | 1,1 | 0,3 | 0,1 | 0,4 |
+   | Menü (Wald) | 0,86 | – | 0,43 | 0,09 | 0,27 | – | – | 0,0 | 0,16 |
+
+   Am Strand ist der Himmel (Skybox mit Netz, Wasser, Palmen, Fischen) nach der Spiegelung der grösste Block, das
+   Wasser allein ~1 ms. Auf dem Poco ordnet der nächste Durchlauf die ~8 ms damit zu.
+2. **Unterwasser-Pass vor der Szene** (`d3ab55f`): Er lief in `onBeforeRender` des Wassers, also *mitten* im Pass der
+   Szene. Auf einer Kachel-GPU heisst das: halbes Szenenbild samt Tiefe/Stencil speichern, Fische zeichnen, Szenenbild
+   wieder laden. Jetzt zeichnet der Pass der Szene die Fische vorab (`SCENE_PREPASSES`); ausserhalb des Composers
+   (Aufwärmen) wie bisher. T2000 (GPU, ganz): Strand 4,6–4,9 → 4,7 ms (in der Streuung, erwartet). **Poco
+   (geschätzt): −0,5 bis −1 ms am Strand** (ein Speichern und Laden des Vollbilds weniger).
+3. **Tiefe und Stencil verwerfen** (`ec5e9e4`): `invalidateFramebuffer` für das Szenenbild nach Szene und Pinsel und für
+   das Unterwasser-Bild; die Spiegelung löst beim MSAA nur noch die Farbe auf (`__ignoreDepthValues`). T2000: Wald
+   4,5 (b) → 1,84 ms, Strand 4,67 → 2,83 ms; der Anteil der Spiegelung fällt von ~2 auf ~0,2 ms (ANGLE/D3D11 löst
+   MSAA-Tiefe per Shader auf), auch das Leuchten wird billiger (0,7–0,9 → 0,1–0,5 ms). **Poco (geschätzt): −0,2 bis
+   −0,5 ms** (Tiefe des Szenenbilds 4,6 MB nicht speichern, Spiegelung ohne Auflösen der MSAA-Tiefe; die Spiegelung
+   kostete dort nur 0,3–1,0 ms, der grosse Gewinn der T2000 ist ANGLE-spezifisch, hilft aber Windows-Rechnern).
+4. **Ziele des Leuchtens ohne Tiefenpuffer** (`715a274`): three legte für alle elf Ziele einen an, gelöscht und
+   gespeichert in jedem der zwölf Pässe. T2000: Wald 1,84 → 1,90, Strand 2,83 → 2,81 ms (gleich). **Poco: −0,05 bis
+   −0,15 ms**, dazu ~2 MB Grafikspeicher.
+5. **Leuchten im letzten Bildschritt** (`963a548`): Der Kopier-Pass von UnrealBloom las und schrieb das ganze
+   Szenenbild (HalfFloat, mit Tiefe/Stencil), nur um das Leuchten additiv dazuzulegen. Jetzt liest `FinalShader` das
+   zusammengesetzte Leuchten selbst (gleicher B-Spline, gleiche Gewichtung mit dem Alpha der Stufen, auch an den Stellen
+   der Aberration). T2000: Menü 0,83 → 0,83 ms (Final-Anteil 0,7 → 0,6 ms), Wald 1,90 → 1,91, Strand 2,81 → 2,77 ms.
+   **Poco (geschätzt): −0,6 bis −1,0 ms an allen Messpunkten, auch im stillen Menü** (ein Vollbild laden und speichern
+   weniger, ein Pass weniger); von den 2,2–2,3 ms des Leuchtens der grösste Einzelposten.
+6. **Tiefenregel des Netzes am Strand** (`2b34b06`): Am Strand schreibt das Netz `gl_FragDepth` mit einer teuren Regel
+   (vier Abtastungen der Tiefe, atan/acos/exp). Zeigt die Wassermaske Wasser, steht das Ergebnis fest; dort entfällt das
+   Lesen der Tiefe. Gleiches Ergebnis. T2000: Anteil Netz am Strand 0,51 (e) → 0,50 ms, gegenüber vorher (a) 0,65 ms.
+   **Poco (geschätzt): −0,3 bis −0,8 ms am Strand** (Netz dort 1,8 ms, im Wald mit gleich vielen Ecken 0,1 ms: Es ist
+   die Regel, nicht die Geometrie).
+7. **Bildschirm ohne Tiefe/Stencil** (`db9a402`): Auf den Bildschirm zeichnet nur der letzte Bildschritt (Rechteck,
+   jetzt ohne Tiefentest). T2000 gleich (Wald 1,86 → 1,77–1,84, Strand 2,76 → 2,73–2,77). **Poco: −0,05 bis −0,2 ms**,
+   4,6 MB Grafikspeicher.
+
+**Zusammen** T2000, Handy-Emulation, GPU-Zeit «ganz» (a1–a3 → g1–g3): Wald 3,5–3,8 → 1,75–1,84 ms, Strand 4,6–4,9 →
+2,73–2,77 ms, Menü 0,86 → 0,79 ms; Dauerlast «ganz» Wald 3,8–4,1 → 2,2–2,5 ms (jetzt CPU-gebunden, CPU 2,0 ms), Strand
+4,9–5,6 → 3,0–3,1 ms. Desktop 1536 × 729 (a1/a2 → g1/g2): Wald 3,4–3,7 → 1,8 ms, Strand 4,4–4,5 → 2,7 ms, Menü 0,77 →
+0,77 ms. **Poco erwartet zusammen:** Wald 8,6 → etwa 7–7,5 ms, Strand 13,4 → etwa 10–11,5 ms, Menü 4,6 → etwa
+3,6–4 ms. Die Marge von 6 ms ist damit **voraussichtlich noch nicht** erreicht; was fehlt, zeigt der zweite Block der
+Karte in Handy-Durchlauf 3 (Himmel, Wasser, Final auf dem Adreno).
+
+*Geprüft und verworfen:*
+- **Leuchten in `R11F_G11F_B10F`** (Versuch `_m11-x`): three r147 legt `RGBFormat` nicht mehr an (`glTexImage2D:
+  Invalid combination of format, type and internalFormat`), ginge nur mit eigenem `texStorage2D`; dazu 5–6 Bit Mantisse
+  (Blau 5) in einem weichen Verlauf, Gefahr von Stufen im Glühen. Gewinn höchstens ~0,2–0,4 ms. Nicht gebaut.
+- **Weniger Stufen, kleinere untere Stufen, weniger Abtastungen im Hochpass:** ändern Radius bzw. lassen das Leuchten
+  dünner Strahlen wieder in Perlen zerfallen (Kommentar in `createComposer`), also sichtbar. Nicht gebaut.
+- **Panorama-Netz gröber oder einseitig:** Im Wald kostet das Netz auf dem Poco 0,1 ms bei gleich vielen Ecken wie am
+  Strand; der Gewinn wäre klein, Kämme und Ränder an Tiefensprüngen würden sich ändern. Nicht gebaut.
+- **Unterwasser-Pass nur mit Fischen im Bild:** Die Fische schwimmen in der Lagune ums Brett und sind im Spiel fast
+  immer im Bild; der Pass kostet ~0,1–0,3 ms (T2000). Ein Hüllquader über Fische, Schatten und Versatz der Wellen wäre
+  fehleranfällig (Fische, die am Rand aufploppen). Nicht gebaut.
+
+*Vergleichsbilder* (`?t=12`, Menü, Wald Level 0, Strand Level 0 mit Fischen, Spiegelung und Leuchten des Strahls;
+Handy-Emulation und Desktop; links vorher `_m11-a`, rechts nachher `_m11-g`) im Scratchpad des Agenten unter
+`11/bilder/` (`C:\Users\admin\AppData\Local\Temp\claude\C--workspace-Prisma\8b5e7724-0d5f-485c-bc5c-024f93a38529\scratchpad\11\bilder\`):
+`v-{handy,desktop}-{menue,wald,strand}-nebeneinander.png`, Differenz ×8 `…-diff8.png`, Einzelbilder
+`{handy,desktop}-{menue,wald,strand}-{vorher,nachher}.png`. Alle sechs Paare: 0,000 % der Pixel mit Abweichung > 2,
+höchstens 1/255 (Rundung HalfFloat gegen float beim Auftragen des Leuchtens). Konsole ohne WebGL-Warnung.
+
+*Berührungspunkte mit 09/16/15:* `waterSurface` (Unterwasser-Pass, `onBeforeRender`, `userData.dispose` meldet den
+Vorlauf ab; Tiefenregel `skyDepth`), `createComposer` (Pass der Szene, Verwerfen, Bloom, `FinalShader`),
+Renderer-Optionen (`depth: false, stencil: false`), `renderReflection`. Nicht berührt: `createPanoramaSky.build`,
+`sliced`, `renderer.compile`, `loadLevel`, Prolog-Bühne. `skyWarmDraw` zeichnet das Wasser weiter über
+`onBeforeRender` (andere Kamera) wie bisher.
+
+*Risiken:* `invalidateFramebuffer` nur WebGL2 und ohne MSAA (`discardDepth` prüft das); wer künftig nach dem Pinsel
+Tiefe oder Stencil des Szenenbilds braucht, muss den Pass `discard` verschieben. Ein neuer Pass zwischen Bloom und
+Final, der das Szenenbild liest, sähe das Leuchten nicht mehr (es kommt erst im Final dazu). Der Bildschirm hat keine
+Tiefe mehr: Wer direkt auf den Bildschirm in 3D zeichnen will, braucht ein eigenes Ziel. Die geschätzten Poco-Gewinne
+sind nicht gemessen.
+
+*Tests* (Stand `db9a402`, `GPU=1`, `leise.sh` 100 %): logic (2033), golden, hall, screenshot (Konsole ohne Meldungen),
+offline, `leistung-probe` headless Desktop und `--handy`, im Fenster `--fenster`, `--fenster --handy`, je mit und ohne
+`--ersatzmass`, `geschichte-probe --start` und `--handy`, `leerlauf-probe`: alle grün. Alle vier Fensterläufe
+`adaptiv 1.00, Umbauten 0`. Karte `--fenster --handy --ersatzmass` (Dauerlast «ganz»): Spiel 2,3 ms (CPU-gebunden,
+CPU 2,2), Menü still 1,0 ms, Spiel n. Reise 3,1 ms (08: 3,8–4,1 / 1,0–1,1 / 5,1–5,5 ms); zweiter Block mit `-Himmel …
+-Final` vorhanden, Karte schmal 40 Zeichen. Beobachtung: Im Lauf `--fenster --handy` mit GPU-Zeit steht «Zeichnen ≤ 8 ms:
+nein (Seitenstart)» (GPU p95 21,8 ms im Abschnitt Seitenstart, Laden); die Probe prüft das nicht, auf dem Poco gilt das
+Urteil aus der Dauerlast. Nicht gegen den Stand vor 11 verglichen.
+
+Scratchpad-Kopien der Fassungen (`_m11-a.html` … `_m11-g.html`, `_m11-x.html`) liegen unter `11/fassungen/` (zum
+Messen in den Worktree kopieren, sie laden `vendor/` und `backgrounds/` relativ).
+
+Offen für den Koordinator: Review; Handy-Durchlauf 3 mit `APP_VERSION` nachgeführt; dort die Spalten des zweiten
+Blocks lesen, um den Rest bis 6 ms zuzuordnen (Himmel/Wasser am Strand, Final und Szene im Wald).
+
+**Review (01.11.2026, Code):** `git diff 3fcafa0 HEAD` geprüft; logic (2033), golden, hall, screenshot (Konsole leer)
+grün. Korrekt: Nach `discard` liest niemand Tiefe/Stencil des Szenenbilds (Pinsel davor, Bloom/Final nur Farbe, das
+nächste Bild löscht); WebGL1/MSAA übergeht `discardDepth`, `__ignoreDepthValues` greift nur beim MSAA-Auflösen (nur
+WebGL2). Auf den Bildschirm zeichnet nur `finalPass` (EffectComposer bindet am Ende wieder `null`, die `readPixels` der
+Dauerlast lesen also den Bildschirm); kein Kontext-Neustart-Pfad. Bloom-`render` deckt sich mit r147 ohne Kopier-Pass;
+Leuchten im Final = alte Mischung (SrcAlpha·opacity, Alpha unverändert, Aberration-Versatz aus unverändertem Alpha),
+Desktop und Handy über `bloomOut`-Grösse; Bloom aus bzw. «-Bloom» → `uBloom = 0`. Vorlauf: Grösse = `readBuffer`,
+Kamera-Matrix aktuell (render aktualisiert sie, Kamera ohne Eltern), Schattenkarte unberührt (Unterwasser-Szene ohne
+Licht), Abmelden über `releaseTree` auch bei Abbruch; ohne Wasser kein Eintrag. Tiefenregel Strand logisch gleich.
+*Gefixt* (`11f4073`): Ohne HDR (8-Bit-Ziele) begrenzte das alte Auftragen Szene + Leuchten auf 1, jetzt im Final
+ebenso (`lit`). *Hinweis:* «-Final» zeichnet nichts auf den Bildschirm; ob das `readPixels` dann auch auf die
+Offscreen-Pässe wartet, hängt am Treiber (Spalte -Fi auf dem Poco mit Vorsicht lesen). *Seitenstart:* `3fcafa0` im
+Fensterlauf `--handy` (T2000, Rechner belastet) GPU-p95 37,9 ms im Seitenstart, also nicht neu durch 11 (Laden,
+wenige Bilder); Vergleichslauf des neuen Stands blieb in der Sperre hängen.
+
+**Review (01.11.2026, Browser und Optik):** Echtes Chrome mit Fenster und GPU (T2000), Desktop maximiert und
+Handy-Emulation 393 × 873, DPR 2,75, Android; `3fcafa0` gegen HEAD (ab den Reisen, Proben und den Wiederholungen auf
+`11f4073`). Skripte, Bilder und Logs im Scratchpad unter `11r/`. *Feste Zeit* (`?t=12`, gleiche Zustände, Pixelvergleich):
+Menü (Wald, Strand, Vulkan), Übersicht, alle sechs Welten im Level, Aufleuchten nach dem Start (0,9 s, 1,5 s), Bloom-Puls,
+Feier (`celebration.start`, 0,25–3 s), Grössenänderung (Desktop 1100 × 650 und zurück), Drehen des Handys (quer und
+zurück). Bei gleichem Zustand höchstens 1/255 (Handy) bzw. 2–4/255 (Desktop). Am Strand auf dem Desktop 0,05 % einzelne
+Pixel bis 7/255 im Rotkanal am linken Rand (Aberration), im Ausschnitt 3× nicht zu sehen. Glüh-Ausschnitte 3× (Strahl am
+Sender, Ziel, Puls; Handy und Desktop, auch auf `11f4073`): max 1–2/255, kein Banding, keine Perlen. Grössere Abweichungen
+stammen nur aus Echtzeit-Anteilen, die zwischen den Aufnahmen weiterlaufen: Funken und Ring der Feier, wachsende Elemente,
+Laden der Vulkan-Skybox auf dem Handy (mit 8 s Wartezeit 0/255). *Echtzeit* mit einem Bildwächter (jedes Bild nach dem
+letzten Bildschritt 9 Zeilen auslesen, Flackern = ein Bild deutlich dunkler oder heller als seine Nachbarn): Reise durch
+alle Welten (Strand → Wüste → Vulkan → Planeten → Sterne → Wald), Handy und Desktop, vorher wie nachher 0 Flackern,
+0 schwarze Bilder. `geschichte-probe` im Fenster (Handy: Prolog → Spiel → Wald → Reise ins Meer; `--finale leicht`
+Handy und Desktop: Sterne, Feier, Epilog → Menü → Mittel mit Prolog) ohne Flackern. Die schwarzen Bilder im Finale (642
+nachher, 645 vorher) zeigen den dunklen Sternhimmel hinter dem Menü. Bestanden, Konsole ohne Meldung (kein
+`INVALID_OPERATION`, kein `invalidateFramebuffer`, keine «Weckstelle fehlt»). Ein Lauf `--finale` Desktop mit 371 ms Lücke
+Epilog → Menü: Vorher hatte er dasselbe (497 ms). Die Lücke liegt ohne WebGL-Bild in der Lücke, der Rechner war belastet.
+Die Wiederholung auf `11f4073` lief grün (89 ms). *Referenzdurchlauf* `--fenster --ersatzmass`: nachher 2× Desktop, 2×
+Handy, vorher je 2×. Alle Karten zeigen `adaptiv 1.00, Umbauten 0`. Bilder > 33 ms gesamt: Handy nachher 15/15, vorher
+22/20; Desktop nachher 20/22, vorher 17/20. Das liegt in der Streuung, die Hänger bis 500 ms («ohne Script») gibt es in
+beiden Fassungen. Dauerlast «ganz»: Handy 2,0–2,3 / 1,0 / 3,0 ms (vorher 3,9 / 1,2 / 5,4), Desktop 2,2–2,3 / 1,0 /
+2,9–3,0 ms (vorher 4,0 / 1,0 / 4,8). Die zweite Zerlegungszeile `-Hi -Wa -Un -St -Fi` ist auf 393 px lesbar und passt
+ohne seitliches Wischen (`11r/lp/nachher/fenster-handy-ersatzmass-1-karte1.png`). **Urteil: ja**, bei normalem Abstand
+kein Unterschied; keine Funde, nichts geändert.
