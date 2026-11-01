@@ -235,3 +235,12 @@ Tests nach der Abhilfe: `logic` (2033), `golden`, `screenshot`, `leerlauf-probe`
 (60/60/30 in Ruhe), headless und `--still --handy`, `leistung-probe --fenster --handy` und zweimal `--ersatzmass`
 (`adaptiv 1.00, Umbauten 0`, Dauerlast ganz 4,1–4,6 / 5,1–5,4 ms), `geschichte-probe --start`: grün. Auf dem Poco auf
 der Karte prüfen: kein «stetige 60 aus»; steht es da, hielt das Poco die 60 nicht (Ticket 11).
+
+**Handy-Durchlauf 2c (Koordinator, 01.11.2026):** Stand `leistung-07c` = 07b + Ticket 11 (Zeichenzeit) + Ticket 17
+(Zeitbasis, stetige 60). Nicht dabei: 09, 10, 12, 15, 16 (Schlussdurchlauf). Tests grün (alle Unit-Tests, generator,
+offline, screenshot, start-probe, geschichte-probe `--start`/`--handy`/`--grad leicht --welten 2 --finale leicht`,
+leerlauf-probe headless und `--fenster --handy`, leistung-probe headless und `--fenster --handy --ersatzmass`:
+`adaptiv 1.00, Umbauten 0`, Dauerlast ganz 2,5 / 3,0 ms in der Emulation). Auf dem Poco prüfen: Fische ohne Ruckeln
+(auch beim Tippen), Karte ohne «stetige 60 aus», Dauerlast «ganz» ≤ 6 ms (Ticket 11), Zerlegung `-Hi -Wa -Un -St -Fi`.
+
+**bereit für Handy-Durchlauf 2c, bitte auf Render deployen**
