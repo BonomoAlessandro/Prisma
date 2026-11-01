@@ -8132,6 +8132,10 @@ const HDR_SUPPORTED = renderer.capabilities.isWebGL2
   ? (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'))
   : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
 const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
+
+// Was vor dem Zeichnen der Szene in ein eigenes Ziel muss, (renderer, camera, Ziel der Szene, scene) => …: im Pass der
+// Szene vorab, damit ihr Ziel nicht mittendrin wechselt (waterSurface, Ticket 11)
+const SCENE_PREPASSES = new Set();
 if (!HDR_SUPPORTED) {
   // Fallback ohne HDR: Bloom-Schwelle unter 1 (sonst blüht nichts), Spiegelung aus
   // (der Reflector rendert intern immer in HalfFloat).
@@ -11399,13 +11403,16 @@ function* waterSurface(ctx, opt) {
   plane.userData.under = under; // für das Messwerkzeug (Dauerlast «ohne Wasser», «ohne Unterwasser-Pass»)
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
   // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
-  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14)
+  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14).
+  // Im Bild des Spiels schon vor der Szene (SCENE_PREPASSES, Ticket 11): Mitten in der Szene das Ziel zu wechseln hiess
+  // auf Kachel-GPUs (Handy), das halb gezeichnete Szenenbild samt Tiefe in den Speicher zu schreiben und danach wieder
+  // zu laden. Sonst (Aufwärmen, Übersetzen) wie bisher in onBeforeRender.
   const clearColor = new THREE.Color(), size = new THREE.Vector2();
-  plane.onBeforeRender = (r, scene, cam) => {
+  let ready = null; // Kamera, für die das Bild unter der Oberfläche in diesem Bild schon steht (Vorlauf)
+  const drawUnder = (r, cam, into) => {
     const on = under.scene.children.some((o) => o.visible);
     material.uniforms.uUnderOn.value = on ? 1 : 0;
     if (!on) return;
-    const into = r.getRenderTarget();
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
     size.max(new THREE.Vector2(1, 1));
     if (!under.target) {
@@ -11413,6 +11420,7 @@ function* waterSurface(ctx, opt) {
         type: HDR_TYPE, samples: r.capabilities.isWebGL2 && !IS_MOBILE ? (into?.samples ?? 0) : 0,
       });
     } else if (under.target.width !== size.x || under.target.height !== size.y) under.target.setSize(size.x, size.y);
+    const before = r.getRenderTarget();
     r.getClearColor(clearColor);
     const clearAlpha = r.getClearAlpha();
     r.setRenderTarget(under.target);
@@ -11423,12 +11431,25 @@ function* waterSurface(ctx, opt) {
     r.state.buffers.color.setMask(true);
     r.clear();
     r.render(under.scene, cam);
-    r.setRenderTarget(into);
+    r.setRenderTarget(before);
     r.setClearColor(clearColor, clearAlpha);
     material.uniforms.uUnder.value = under.target.texture;
     material.uniforms.uUnderView.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   };
-  plane.userData.dispose = () => under.target?.dispose();
+  const prepass = (r, cam, into, root) => {
+    ready = null;
+    let o = plane;
+    for (; o.parent; o = o.parent) if (!o.visible) return; // wird nicht gezeichnet
+    if (o !== root || !o.visible) return;
+    drawUnder(r, cam, into);
+    ready = cam;
+  };
+  SCENE_PREPASSES.add(prepass);
+  plane.onBeforeRender = (r, scene, cam) => {
+    if (ready === cam) ready = null; // schon im Vorlauf gezeichnet
+    else drawUnder(r, cam, r.getRenderTarget());
+  };
+  plane.userData.dispose = () => { SCENE_PREPASSES.delete(prepass); under.target?.dispose(); };
   return plane;
 }
 
@@ -13068,7 +13089,14 @@ function createComposer() {
     stencilBuffer: true,
   });
   const comp = new THREE.EffectComposer(renderer, rt);
-  comp.addPass(new THREE.RenderPass(scene, camera));
+  const scenePass = new THREE.RenderPass(scene, camera);
+  // Eigene Ziele (SCENE_PREPASSES, etwa die Fische unter dem Wasser) vorab, dann die Szene in einem Zug
+  const renderScene = scenePass.render;
+  scenePass.render = function (r, writeBuffer, readBuffer, ...rest) {
+    for (const prepass of SCENE_PREPASSES) prepass(r, this.camera, this.renderToScreen ? null : readBuffer, this.scene);
+    return renderScene.call(this, r, writeBuffer, readBuffer, ...rest);
+  };
+  comp.addPass(scenePass);
   // Pinsel über gemalten Ebenen der Skyboxen: vor dem Leuchten, das danach über das gemalte Bild geht
   const brush = createBrushPass(QUALITY.brush);
   comp.addPass(brush);
