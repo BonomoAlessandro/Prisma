@@ -11396,6 +11396,7 @@ function* waterSurface(ctx, opt) {
   const plane = new THREE.Mesh(geo, material);
   plane.frustumCulled = false;
   plane.renderOrder = 4;
+  plane.userData.under = under; // für das Messwerkzeug (Dauerlast «ohne Wasser», «ohne Unterwasser-Pass»)
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
   // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
   // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14)
@@ -20151,7 +20152,8 @@ const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) ||
  * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
  * fehlt die Erweiterung (viele Android-Geräte), misst der Referenzdurchlauf an festen, ruhigen Messpunkten die
  * Dauerlast (dauerlast: K Bilder in einer Aufgabe zwischen zwei readPixels, Zeit je Bild, GPU voll hochgetaktet) und
- * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas und Pinsel. Dazu die CPU-Zeit von frame() und
+ * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas, Pinsel, Himmel, Wasser, Unterwasser-Pass, Staub
+ * und letztem Bildschritt. Dazu die CPU-Zeit von frame() und
  * die gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels).
  * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
  * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
@@ -20396,19 +20398,36 @@ const leistung = {
    * (createPanoramaSky); ohne es zeigt die Himmelskugel dahinter das Vorschaubild.
    */
   dauerlastTeile() {
-    const netze = () => skyTheme.entries.flatMap((e) => (e.module?.panorama && e.module.group.visible
-      ? e.module.group.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible) : []));
+    const panoramen = () => skyTheme.entries.filter((e) => e.module?.panorama && e.module.group.visible).map((e) => e.module.group);
+    const netze = () => panoramen().flatMap((g) => g.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible));
+    // Wasser einer Skybox (waterSurface: userData.under, die Szene unter der Oberfläche) und was darunter schwimmt
+    const wasser = () => panoramen().flatMap((g) => g.children.filter((o) => o.userData.under && o.visible));
+    const unter = () => wasser().flatMap((o) => o.userData.under.scene.children.filter((c) => c.visible));
+    const himmel = () => [background, stars, solar.group, ...panoramen()].filter((o) => o.visible);
     const schalter = (an, setze) => () => { const vorher = an(); setze(false); return () => setze(vorher); };
+    // Objekte unsichtbar, danach wieder sichtbar
+    const verstecke = (liste) => () => {
+      const aus = liste();
+      for (const o of aus) o.visible = false;
+      return () => { for (const o of aus) o.visible = true; };
+    };
     return [
       ['ganz', () => true, () => () => {}],
       ['spiegelung', reflectionInView, schalter(() => QUALITY.reflections, (v) => { QUALITY.reflections = v; })],
       ['bloom', () => bloomPass.enabled, schalter(() => bloomPass.enabled, (v) => { bloomPass.enabled = v; })],
-      ['netz', () => netze().length > 0, () => {
-        const aus = netze();
-        for (const o of aus) o.visible = false;
-        return () => { for (const o of aus) o.visible = true; };
-      }],
+      ['netz', () => netze().length > 0, verstecke(netze)],
       ['pinsel', () => !!brushPass.painting?.(), schalter(() => brushPass.enabled, (v) => { brushPass.enabled = v; })],
+      // zweite Zeile der Karte (Ticket 11): der ganze Himmel (Kugel, Sterne, Planeten, Skybox mit allen Ebenen), davon
+      // das Wasser samt Unterwasser-Pass, davon nur der Pass (Fische), der Staub über dem Brett und der letzte Bildschritt
+      ['himmel', () => himmel().length > 0, verstecke(himmel)],
+      ['wasser', () => wasser().length > 0, verstecke(wasser)],
+      ['unter', () => unter().length > 0, verstecke(unter)],
+      ['staub', () => beamView.dust.visible, verstecke(() => [beamView.dust])],
+      ['final', () => finalPass.enabled, () => { // gar nicht zeichnen (die Probe liest danach nur einen Bildpunkt)
+        const eigen = Object.hasOwn(finalPass, 'render'), render = finalPass.render;
+        finalPass.render = () => {};
+        return () => { if (eigen) finalPass.render = render; else delete finalPass.render; };
+      }],
     ];
   },
   /**
@@ -20652,20 +20671,31 @@ const leistung = {
     // Dauerlast je Messpunkt: ganz und ohne je einen Teil, CPU je Bild der Probe; mit Timer (?ersatzmass) die GPU-Zeit
     const dl = d.dauerlast ?? [];
     if (dl.length) {
-      const teile = [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'],
-        ['netz', '-Netz', '-Nz'], ['pinsel', '-Pinsel', '-Pi']];
+      // zwei Blöcke, damit die Karte auf dem Handy 40 Zeichen breit bleibt: erst ganz, Spiegelung, Bloom, Netz, Pinsel
+      // und CPU; dann (Ticket 11) Himmel, Wasser, Unterwasser-Pass, Staub und letzter Bildschritt
+      const bloecke = [
+        [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'], ['netz', '-Netz', '-Nz'],
+          ['pinsel', '-Pinsel', '-Pi']],
+        [['himmel', '-Himmel', '-Hi'], ['wasser', '-Wasser', '-Wa'], ['unter', '-Unter', '-Un'], ['staub', '-Staub', '-St'],
+          ['final', '-Final', '-Fi']],
+      ];
       const breite = schmal ? 5 : 8, namen = schmal ? 9 : 17; // schmal: 9 + 6 × 5 + «!» = 40 Zeichen
       const zahl = (v) => (v === null || v === undefined ? '–' : v.toFixed(v >= 100 ? 0 : 1)).padStart(breite);
-      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`,
-        `${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
-          + 'CPU'.padStart(breite));
-      for (const p of dl) {
-        zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
-          + `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`);
-        if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
-      }
-      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel; Anteil`
-        + `${umbruch}eines Teils = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
+      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`);
+      bloecke.forEach((teile, b) => {
+        if (b) zeilen.push('');
+        zeilen.push(`${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
+          + (b ? '' : 'CPU'.padStart(breite)));
+        for (const p of dl) {
+          zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
+            + (b ? '' : `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`));
+          if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
+        }
+      });
+      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel;`
+        + `${umbruch}${schmal ? '-Hi/-Wa/-Un/-St/-Fi' : ''}${schmal ? ': ' : ''}ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),`
+        + `${umbruch}Wasser (mit Unterwasser-Pass), Unterwasser-Pass (Fische), Staub bzw. letzten`
+        + `${umbruch}Bildschritt. Anteil = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
         + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
           + ' Die GPU braucht höchstens so lange.' : '')
         + (dl.some((p) => p.gestoert) ? `${umbruch}? während der Messung getippt (auch beim zweiten Versuch): Werte unsicher.` : '')

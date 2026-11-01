@@ -318,7 +318,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   über `EXT_disjoint_timer_query_webgl2`; ohne die Erweiterung (Poco) misst der Referenzdurchlauf die **Dauerlast**
   (Ticket 08) an drei ruhigen Messpunkten (erstes Level nach 3 s Ruhe, Menü still, Spiel nach der Reise): 20 Bilder
   hintereinander zwischen zwei 1-Pixel-`readPixels`, Zeit je Bild, Median aus 5, dazu dieselbe Last ohne Spiegelung,
-  Bloom, Netz des Panoramas bzw. Pinsel (Anteil eines Teils = ganz − ohne) und die CPU-Zeit je Bild der Probe. Die
+  Bloom, Netz des Panoramas bzw. Pinsel, in einem zweiten Block ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),
+  Wasser, Unterwasser-Pass, Staub bzw. letzten Bildschritt (Ticket 11; Anteil eines Teils = ganz − ohne) und die
+  CPU-Zeit je Bild der Probe. Die
   Abstände und Hänger der Proben zählen nicht, die automatische Absenkung wertet sie nicht; die Anzeige bittet währenddessen,
   kurz nichts zu tippen (zum Ausprobieren `?ersatzmass`). Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
   **Referenzdurchlauf:** Seite mit `?perf` öffnen (auf dem Handy die Adresse auf Render mit `?perf`), in der Anzeige

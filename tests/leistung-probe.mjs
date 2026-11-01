@@ -241,7 +241,12 @@ try {
       pruefe(!p.fehler && p.ms.ganz > 0 && p.cpu > 0 && p.ms.bloom > 0, `Dauerlast ${p.name}: ${JSON.stringify(p)}`);
       // Spiegelung nur, wo die Platte im Bild ist (im Menü schaut der Blick in den Himmel)
       pruefe((p.id === 'menue') === (p.ms.spiegelung === null), `Dauerlast ${p.name}: Spiegelung ${p.ms.spiegelung}`);
+      // zweiter Block (Ticket 11): Himmel, Staub (nur über dem Brett) und letzter Bildschritt; Wasser nur am Strand
+      pruefe(p.ms.himmel > 0 && p.ms.final > 0 && (p.id === 'menue' || p.ms.staub > 0),
+        `Dauerlast ${p.name}: Himmel ${p.ms.himmel}, Staub ${p.ms.staub}, Final ${p.ms.final}`);
+      pruefe(p.ms.unter === null || p.ms.wasser > 0, `Dauerlast ${p.name}: Unterwasser ohne Wasser`);
     }
+    pruefe(text.includes('-Himmel') || text.includes('-Hi'), 'Zeile -Himmel/-Wasser/… fehlt');
     pruefe(/Zeichnen ≤ 8 ms: (ja|nein \(.*\)) \(Dauerlast ganz\)/.test(text), 'Urteil der Zeichenzeit nicht aus der Dauerlast');
   }
   if (fenster && drossel === 1) { // die Messung löst die Absenkung nicht aus (Fehler 01b)
