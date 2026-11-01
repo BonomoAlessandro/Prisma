@@ -8387,7 +8387,9 @@ const compileParallel = (() => {
   /** Anstossen: batch = [[Wurzel, Objekte]], je Fassung (variants: setzt sie, null = wie es ist) */
   function run(batch, variants, programs) {
     const check = renderer.debug.checkShaderErrors;
-    renderer.debug.checkShaderErrors = false; // diese Prüfung im Konstruktor fragte sofort ab (und wartete)
+    // diese Prüfung im Konstruktor fragte sofort ab (und wartete); ohne die Erweiterung wartet three ohnehin, dann
+    // bleibt sie (sonst fehlte dort jede Meldung über einen fehlerhaften Shader)
+    if (ext) renderer.debug.checkShaderErrors = false;
     issued = ext ? programs : null;
     try {
       for (const variant of variants) {
@@ -8419,9 +8421,13 @@ const compileParallel = (() => {
    * Häppchen über mehrere Bilder anstossen (je etwa SLICE_MS, ein Material und eine Fassung je Aufruf):
    * three erzeugt den Code jedes Programms synchron, über die ganze Szene hielt das beim Aufbau einer Skybox ein Bild
    * auf dem gedrosselten Handy 230 ms an (Ticket 09 der Leistung). Dann gelten die Fassungen nur je Häppchen; zwischen
-   * den Bildern bleibt die letzte eingestellt, sofern sie nichts zurückgibt.
+   * den Bildern bleibt die letzte eingestellt, sofern sie nichts zurückgibt. alive (mit slices): falsch, sobald das
+   * Übersetzen nicht mehr gebraucht wird (Abbruch des Aufbaus); ebenso fällt aus, was inzwischen nicht mehr unter seiner
+   * Wurzel hängt (entfernt, womöglich schon freigegeben: three legte sonst neue Programme für entsorgte Materialien an).
    */
-  return async function compileParallel(roots, { skip = [], variants = [null], slices = false } = {}) {
+  return async function compileParallel(roots, {
+    skip = [], variants = [null], slices = false, alive = () => true,
+  } = {}) {
     const omit = new Set(skip), programs = [];
     const lists = roots.map((r) => [r, collect(r, omit)]);
     if (!slices) run(lists, variants, programs);
@@ -8432,8 +8438,16 @@ const compileParallel = (() => {
           const part = [];
           // je Material und Fassung einzeln: Ein grosses Programm kostet allein bis 30 ms bei 4×, und wo der Treiber nicht
           // wirklich parallel übersetzt, wartet schon das Anstossen (die Abfrage in getProgramParameter) darauf
-          for (let n = 0; i < objects.length && n < 1;) { const o = objects[i++]; part.push(o); if (o.material) n++; }
+          for (let n = 0; i < objects.length && n < 1;) {
+            const o = objects[i++];
+            let top = o;
+            while (top.parent) top = top.parent;
+            if (top !== root) continue;
+            part.push(o);
+            if (o.material) n++;
+          }
           for (const variant of variants) {
+            if (!alive()) return;
             run([[root, part]], [variant], programs);
             if (performance.now() - t > SLICE_MS) { await nextFrame(); t = performance.now(); }
           }
@@ -9416,15 +9430,20 @@ const skyBitmaps = (() => {
       return d.getImageData(0, 0, 1, 1).data[2] > 128; // oben jetzt blau
     })().catch(() => false), new Promise((resolve) => setTimeout(resolve, 10000, null))]);
   }
-  return async (url, alive) => {
+  /** kippt createImageBitmap mit imageOrientation 'flipY' wirklich (ältere Browser übergehen die Option still) */
+  const flipsOk = async () => {
     const ok = await (flips ??= start());
     if (ok === null) flips = null; // keine Antwort in 10 s: die nächste Skybox prüft neu
+    return !!ok;
+  };
+  return Object.assign(async (url, alive) => {
+    const ok = await flipsOk();
     if (!ok) return null;
     const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive);
     if (Math.max(r.width, r.height) <= renderer.capabilities.maxTextureSize) return r;
     for (const s of r.strips) s.bitmap.close(); // zu gross für diese Grafik: ein Bild, three verkleinert es
     return null;
-  };
+  }, { flipsOk });
 })();
 
 /** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild (schon dekodiert: sonst täte es
@@ -9536,13 +9555,25 @@ function* skyUpload(t, klein = false) {
     // wie three es täte) und das hochladen; danach gilt wieder das Bild (für ein späteres Neuladen durch three).
     if (!strips && renderer.capabilities.isWebGL2 && img instanceof HTMLImageElement && img.complete && img.naturalWidth
       && img.src.startsWith('data:') && typeof createImageBitmap === 'function') {
-      let bitmap = null, done = false;
-      fetch(img.src).then((r) => r.blob()).then((blob) => createImageBitmap(blob, {
-        imageOrientation: t.flipY ? 'flipY' : 'from-image', premultiplyAlpha: t.premultiplyAlpha ? 'premultiply' : 'none',
-        colorSpaceConversion: 'none',
-      })).then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
-      while (!done) yield NEXT_FRAME;
-      yield ruhig;
+      // gekippt nur, wo der Browser die Option wirklich anwendet (skyBitmaps prüft es; sonst stünde die Tiefe Kopf)
+      let bitmap = null, done = false, gone = false;
+      const drop = () => { gone = true; }; // inzwischen freigegeben (Abbruch des Aufbaus): nicht mehr hochladen
+      t.addEventListener('dispose', drop);
+      (t.flipY ? skyBitmaps.flipsOk() : Promise.resolve(true)).then((ok) => (!ok ? null
+        : fetch(img.src).then((r) => r.blob()).then((blob) => createImageBitmap(blob, {
+          imageOrientation: t.flipY ? 'flipY' : 'from-image',
+          premultiplyAlpha: t.premultiplyAlpha ? 'premultiply' : 'none', colorSpaceConversion: 'none',
+        })))).then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
+      let waited = false;
+      try {
+        while (!done) yield NEXT_FRAME;
+        yield ruhig;
+        waited = true;
+      } finally {
+        t.removeEventListener('dispose', drop);
+        if (gone || !waited) bitmap?.close(); // !waited: der Aufbau gab den Generator auf
+      }
+      if (gone) return;
       if (bitmap) {
         const flipY = t.flipY;
         t.image = bitmap;
@@ -12240,8 +12271,9 @@ function createPanoramaSky(m) {
       const roots = [scene, ...offscreen], compiled = [];
       const skip = [...skyTheme.idleGroups, ...scene.children.filter((c) => c !== staging)];
       const variants = [true, false].map((transparent) => () => { sky.material.transparent = transparent; });
-      compiled.push(compileParallel(roots, { skip, variants, slices: true }));
-      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true }));
+      const alive = () => my === token;
+      compiled.push(compileParallel(roots, { skip, variants, slices: true, alive }));
+      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true, alive }));
       const textures = new Set();
       for (const root of [staging, ...offscreen]) root.traverse((o) => {
         for (const mat of [o.material ?? []].flat()) {

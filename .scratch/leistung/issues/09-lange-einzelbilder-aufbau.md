@@ -165,3 +165,31 @@ in Häppchen), `node tests/golden.mjs`, `node tests/hall.test.mjs`, `tests/offli
 `tests/leistung-probe.mjs` (`--fenster`, `--handy`; Fenster Desktop und Handy 4× mehrfach),
 `tests/geschichte-probe.mjs` (`--start`, `--grad leicht --welten 2 --finale leicht`, `--handy`),
 `tests/leerlauf-probe.mjs`, `tests/start-probe.mjs`: grün, keine Warnung «Weckstelle fehlt».
+
+**01.11.2026, Review** (`ea64fbd`). Korrekt im Kern: Häppchen liefern dieselben Daten (Normalen, Hüllkugel, Index des
+Wassers, Base64 geprüft gegen three bzw. vorher), Lichter beim Teil-Übersetzen über `traverseVisible` der ganzen Szene,
+`prepareLevel` rein (`createBoard` und Fabriken ohne globalen Zustand ausser `game.board`/`hitProxies`, die
+`buildElements` tauscht), ein nicht passendes vorbereitetes Level wird in `loadLevel` freigegeben, das alte Feld in den
+nächsten Bildern. Ohne `KHR_parallel_shader_compile` keine Schleife (`if (!ext) return`). Selbst behoben:
+
+- `compileParallel` mit `slices` lief nach einem Abbruch des Aufbaus weiter und übersetzte über die von `release`
+  schon entsorgten Materialien in `offscreen` (Szene unter dem Wasser): three legte für sie neue Programme an, die nie
+  mehr frei wurden. Ebenso `warmupShaders`, wenn das Level während der Häppchen wechselt. Neu `alive` (Skybox:
+  `my === token`) und nur noch Objekte, die noch unter ihrer Wurzel hängen.
+- Ohne die Erweiterung schaltete `run` jetzt `checkShaderErrors` ab (vorher nicht): Fehler im Shader blieben dort
+  stumm. Wieder nur mit der Erweiterung.
+- `skyUpload` (ImageBitmap): `imageOrientation: 'flipY'` übergehen ältere Browser still (darum prüft `skyBitmaps` das
+  mit einem 1×2-Bild); ohne Prüfung stünde dort die Tiefe Kopf. Jetzt nur gekippt, wo `skyBitmaps.flipsOk()` es
+  bestätigt, sonst wie bisher als Bild. Dazu: Textur während des Wartens freigegeben → nicht mehr hochladen (sonst
+  GL-Textur ohne Besitzer) und das ImageBitmap schliessen.
+
+Offen bzw. Hinweis: Ein vorbereitetes, nie geladenes Level (etwa zurück ins Menü und dort bleiben) bleibt bis zum
+nächsten `prepareLevel`/`loadLevel` im Speicher (nur CPU, nie gezeichnet), höchstens eines. Beim Merge mit 17: in
+`fishSchools` `sim.warm(…)` besser mit `sceneTime.at()` statt `clock.getElapsedTime()` (dieselbe Zeitbasis wie
+`animate`; heute unkritisch, weil das erste `advance` Bilder später kommt und `sceneTime` nie rückwärts läuft). Testmerge
+`feature/leistung` + 09 + 11 + 17: ohne Konflikte, `logic` grün; `SCENE_PREPASSES` (11) meldet sich am Ende des
+Generators `waterSurface` an und bei `releaseTree` ab, passt zum Abbruch. Tests: `logic` (2035), `hall`, `golden`,
+`geschichte-probe --grad leicht --welten 2 --finale leicht` grün (ohne `?t=`, also mit
+`prepareLevel`). `--uebersicht --dorf`: einzig «Spiel → Übersicht» mit 2 Lücken über 100 ms (134 ms), ebenso am
+Ausgangsstand `eb8105e` (117 ms) im selben Takt; ein erster Lauf bei belastetem Rechner hatte 7 solche Abschnitte, auch
+in Menü ↔ Übersicht ohne jeden Aufbau.
