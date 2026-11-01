@@ -193,3 +193,43 @@ nachher 11 / 18; max vorher 83,9 / 89,9 ms, nachher 133,4 (beim Öffnen) / 183,4
 Auswertungen, also unsicher). `adaptiv 1.00, Umbauten 0` in allen Läufen, keine Meldung «Weckstelle fehlt».
 
 **Urteil: nicht bereit für Handy-Durchlauf 2c**, solange Ebenen wegen des GPU-Speichers fehlen können.
+
+### 01.11.2026 – Review Code (Stand `77e0e22`, Fix `6beecda`)
+
+Diff `eb8105e..77e0e22` gelesen, dazu eine Szenen-Probe (Headless, GPU): Tippen und Grössenänderung (quer → hoch →
+quer) mitten in Fahrt 2, Tippen ≈ 900 ms nach dem Halt (während der Linien-Ablösung), Überspringen in Fahrt 3 vor dem
+Klick der Lampe, Epilog mit «Zum Menü», Prolog dreimal hintereinander.
+
+Behoben (`6beecda`):
+- **Tempo nach Drehen in einer Fahrt:** `anpassen` legt die Folge neu an, `speed` setzte aber `laufend.anims` (die
+  verworfenen Animationen). Nach einer Drehung mitten in der Fahrt lief das Tippen (4×) nur noch auf der Uhr: Probe auf
+  `77e0e22` Folge 1×, Uhr 4×; die Fahrt galt als fertig, während die Kamera noch fuhr (Hinweis, Linien-Tausch und Laden
+  mitten in der Bewegung). Jetzt setzt `speed` `this.folgeAnims`; Probe: Folge 4×, nach der Fahrt im Halt.
+- **Überspringen vor dem Klick der Lampe:** Die Spuren von Kraft und Länge liefen bis zum Klick weiter, erst der Tween
+  nahm sie zurück (bei Tempo 60 ein Bild Strahl möglich). `klickAt`: `speed ≥ 10` davor setzt beide sofort zurück.
+- **Ausgeblendet mitten in einer Fahrt:** `ruhen` lässt die Folge dann stehen (`moving`), danach lief sie als
+  Compositor-Animation weiter. Jetzt ruht `moveTo` am Ende, wenn die Bühne nicht mehr läuft.
+
+Geprüft, in Ordnung: Linien – jedes Paar zeigt immer genau eine Linie, Tippen in der Ablösung lässt keine `bereit`
+stehen; Drehen im Halt bleibt im Halt mit richtiger Kamera; nach Prolog und Epilog **0 laufende Animationen der Bühne**
+(alle 75–78 pausiert, Folge 0, `will-change` an `#story` `auto`; die eine laufende CSS-Animation nach dem Epilog liegt
+nicht in der Bühne); dreimal Prolog: immer 77 Animationen, kein Wachsen; keine Konsolenmeldung, keine Warnung
+«Weckstelle fehlt». `ruheNachHalt` (400 + 5·90 + 200 ms) passt zum letzten Linien-Tausch, `stillAb`/Wecken wie bisher.
+`will-change` an `.world`/`.linie` bleibt im DOM, ist aber unter dem ausgeblendeten `#story` (Deckkraft 0, ohne
+`will-change`) nicht gezeichnet, ausserhalb des Modus `scene` `display: none`. Tannen- und Graspfade: gleiche Zufallsfolge,
+deckende Füllung, also gleich; die Dachkanten liegen jetzt über allen Häusern, berühren aber kein Nachbarhaus.
+
+Offen (gemeldet, nicht behoben, der Umbau der Folge kommt ohnehin):
+- **`HALTEN` = 1e7 ms ist endlich:** Steht der Prolog länger als 2,8 h (Tab im Hintergrund über Nacht; die Zeit der
+  Animationen läuft weiter), fährt die Kamera von selbst in die nächste Einstellung, der Satz bleibt; das nächste
+  Tippen springt zurück. Beim Umbau: Halt unbegrenzt (pausieren ohne Neurastern, oder viel grösser, falls Chrome das
+  genau genug rechnet).
+- Nach dem Überspringen setzt `offer` `stillAb = now`, obwohl die Linien noch ~1 s getauscht werden (gab es schon vorher).
+- `frame` ruft während Tweens weiter jedes Bild `zeichne` (16 × `JSON.stringify`, keine DOM-Änderung); unnötig, klein.
+
+**`--uebersicht --dorf` (Frage aus der Umsetzung):** nicht von diesem Ticket. Je zweimal abwechselnd: `77e0e22`
+«Spiel → Übersicht» 133 / 117 ms, `eb8105e` 117 / 134 ms; beide scheitern dort und je einmal bei einem anderen Übergang
+(Schliessen 117 ms bzw. Weltgrenze 100 ms). Die Grenze ist auf diesem Rechner schon vorher knapp.
+
+Tests auf `6beecda`: `logic.test` (2033), `golden`, `geschichte-probe --grad leicht --welten 2 --finale leicht`: grün,
+ohne Warnung «Weckstelle fehlt». `--handy` und `--quer` nicht mehr gefahren (Umbau der Folge kommt).

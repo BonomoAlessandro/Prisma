@@ -95,3 +95,12 @@ BeginMainFrame p50 2,2 ms; Handy ×4 Einstellung 5/6 Layerize p95 0,52 / 0,20 ms
 **Überspringen** während 6 setzt sie sofort an ihren Platz, das Angebot erscheint korrekt. **Epilog** ohne Auffälligkeiten
 (keine Ausreisser im Screencast). Die Ebenen, die auf dem Desktop fehlen (siehe Ticket 16), kommen schon mit `c9d5532`,
 nicht von diesem Ticket; der Flug selbst ist in Ordnung.
+
+### 01.11.2026 – Review Code (Stand `77e0e22`)
+
+Flug gelesen (`wurmPlan`, `flugAnlegen`, `zeichne`, `wurmZeit`): Ort aus derselben Formel minus Schwingen des ruhigen
+Orts, vor dem Abflug an dessen Mitte, Tempo und Ausblenden über `umgebung`, Ankunft nur ausserhalb von Fahrten
+umgestellt. `NACHLAUF` reicht: Sammeln te ≥ Start + 3,0 s (+2 s > Fahrt 4 s), Tragen te ≥ Start + 3,9 s (+2 s > 5,5 s,
+knapp). Ein späterer Arm-Tween während eines Flugs würde den Flug neu anlegen (Schlüssel mit `tx`, `ty`), kommt in der
+Geschichte nicht vor. Kein Fehler gefunden; die Fixe in `6beecda` (siehe Ticket 16) betreffen Tempo und Strahl, nicht den
+Flug. Mehrfacher Prolog: Zahl der Animationen bleibt gleich (Flüge werden ersetzt, nicht angehäuft).
