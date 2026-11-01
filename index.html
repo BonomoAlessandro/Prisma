@@ -12949,9 +12949,13 @@ function createBrushPass(quality) {
     if (sized) size(sized);
   };
 
+  const activeSources = () => [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
+  /** Malt der Pass gerade etwas (eine gemalte Ebene ist zu sehen)? Für das Messwerkzeug (Dauerlast «ohne Pinsel»). */
+  pass.painting = () => pass.supported && pass.enabled && activeSources().length > 0;
+
   pass.render = (renderer, writeBuffer, readBuffer) => {
     if (!pass.supported) return;
-    const active = [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
+    const active = activeSources();
     if (!active.length) return;
     const b = active[0].brush;
     level = forced !== undefined ? forced
@@ -19996,8 +20000,8 @@ const adaptiveResolution = {
   calm: 0, cooldown: 1.5, last: performance.now(),
   probe: null,          // läuft gerade eine Absenkung zur Probe?
   locked: false,        // Absenken bringt nichts (z. B. 30-Hz-Sparmodus, CPU-Engpass)
-  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: readPixels des Ersatzmasses und das Bild danach;
-                        // verdeckt gezeichnete Bilder, siehe draw)
+  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: das Bild nach einer Probe der Dauerlast und das
+                        // danach; verdeckt gezeichnete Bilder, siehe draw)
   // ?noadapt: feste Auflösung (für Screenshot-Tests im langsamen Software-Rendering)
   disabled: new URLSearchParams(location.search).has('noadapt'),
 
@@ -20063,11 +20067,16 @@ const _reflectFrustum = new THREE.Frustum(), _reflectViewProj = new THREE.Matrix
 const _reflectPlate = new THREE.Box3(new THREE.Vector3(-PLATE / 2, -0.01, -PLATE / 2), new THREE.Vector3(PLATE / 2, 0.01, PLATE / 2));
 const _reflectDimmed = []; // gedämpfte Ziele (userData) dieses Bilds; ihre Werte in userData.reflectSave (ohne Allokation)
 
-function renderReflection() {
-  if (!QUALITY.reflections) return;
+/** Zeichnet renderReflection gerade etwas (eingeschaltet und die Platte im Bild)? Auch für das Messwerkzeug (Dauerlast). */
+function reflectionInView() {
+  if (!QUALITY.reflections) return false;
   camera.updateMatrixWorld();
   _reflectFrustum.setFromProjectionMatrix(_reflectViewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  if (!_reflectFrustum.intersectsBox(_reflectPlate)) return;
+  return _reflectFrustum.intersectsBox(_reflectPlate);
+}
+
+function renderReflection() {
+  if (!reflectionInView()) return;
   floorTop.updateMatrixWorld();
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
@@ -20117,7 +20126,12 @@ const MESS_ABSCHNITTE = {
 // Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms
 const MESS_GRENZE = { p95: 18.3, bild: 33, zeichnen: 8 };
 const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
-const MESS_ERSATZ_JEDES = 10; // Ersatzmass der Zeichenzeit (ohne GPU-Zeit): readPixels nur in jedem 10. gezeichneten Bild
+// Dauerlast (Ticket 08), die Zeichenzeit ohne GPU-Zeit: k Bilder hintereinander in einer Aufgabe zwischen zwei
+// readPixels, Zeit je Bild; je Teil so viele Wiederholungen, davon der Median. Ein Halt je Bild (das alte Ersatzmass,
+// readPixels jedes 10. Bild) mass vor allem die Wartezeit der Pipeline, auf dem Poco 3- bis 6-mal zu viel (Messrunde 07)
+const MESS_DAUERLAST = { k: 20, wiederholungen: 5, cpuGebunden: 0.8 };
+// Messpunkte der Dauerlast im Referenzdurchlauf: Kennung → [Name auf der Karte, schmale Fassung]
+const MESS_PUNKTE = { spiel: ['Spiel (1. Level)', 'Spiel'], menue: ['Menü still', 'Menü'], ankunft: ['Spiel n. Reise', 'n. Reise'] };
 // Speicher des Referenzdurchlaufs: laufend, Sicherung des echten Spielstands, Ergebnis für die Karte nach dem Neuladen
 const MESS_LAUF = 'prisma.leistung.lauf', MESS_SICHERUNG = 'prisma.leistung.sicherung';
 const MESS_ERGEBNIS = 'prisma.leistung.ergebnis';
@@ -20134,9 +20148,10 @@ const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) ||
  * mit festen Fächern (genaue p95 ohne Liste aller Abstände) und ein Ringpuffer für die Anzeige, keine Allokationen pro
  * Bild. Dazu Hänger des Hauptthreads mit Ursache (PerformanceObserver: long-animation-frame, longtask).
  * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
- * fehlt die Erweiterung (viele Android-Geräte), im Referenzdurchlauf die Zeit von Beginn frame() bis nach einem
- * 1-Pixel-readPixels. readPixels wartet sicher auf das fertige Bild (gl.finish nicht in jedem Browser) und hält dafür die
- * Pipeline an, darum nur dort. Dazu die CPU-Zeit von frame() und die gezeichneten Bilder je Sekunde.
+ * fehlt die Erweiterung (viele Android-Geräte), misst der Referenzdurchlauf an festen, ruhigen Messpunkten die
+ * Dauerlast (dauerlast: K Bilder in einer Aufgabe zwischen zwei readPixels, Zeit je Bild, GPU voll hochgetaktet) und
+ * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas und Pinsel. Dazu die CPU-Zeit von frame() und
+ * die gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels).
  * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
  * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
  * und misst die Reise in die zweite Welt samt ihrem frisch geladenen Himmel. Danach kommt der echte Stand zurück, die
@@ -20156,7 +20171,13 @@ const leistung = {
   haenger: [],        // die längsten long-animation-frames { ms, id, t, ursache }
   hudZeit: 0,
   gl: null, timer: null, abfragen: [], abfrageNeu: 0, abfrageAlt: 0, abfrageLaeuft: false, // GPU-Zeit
-  pixel: new Uint8Array(4), pixelZeit: -1, // Ersatzmass: Puffer und Zeit des letzten readPixels
+  vergleich: null,    // ?ersatzmass auf einem Gerät mit Timer: die Dauerlast zum Vergleich auch als GPU-Zeit messen
+  pixel: new Uint8Array(4), // Dauerlast: Puffer für readPixels
+  proben: [],         // [Beginn, Ende] je Probe der Dauerlast: Abstände (tick) und Hänger (haenger1) darin zählen nicht
+  punkte: {},         // Dauerlast je Messpunkt (MESS_PUNKTE), sobald gemessen
+  misst: null,        // die Dauerlast misst gerade an diesem Messpunkt
+  wartet: null,       // ein Messpunkt wartet auf Ruhe: { id, seit, ruhig } (messpunkte)
+  ruhig: false,       // beim letzten Display-Frame: keine Tweens, der Himmel blendet nicht ein (gez/s ruhig)
   modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
   lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
   schritt: null,      // im Durchlauf: 'teil1' (bis zum Menü), 'reise', 'fertig'
@@ -20178,9 +20199,12 @@ const leistung = {
     requestAnimationFrame(loop);
     if (this.gl) return; // eingerichtet beim ersten Start
     this.gl = renderer.getContext();
-    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Probe des Ersatzmasses auf dem Desktop)
-    this.timer = new URLSearchParams(location.search).has('ersatzmass') ? null
-      : this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Dauerlast statt GPU-Zeit, Probe auf dem Desktop); hat das Gerät
+    // sie doch, misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
+    const ext = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    const ersatz = new URLSearchParams(location.search).has('ersatzmass');
+    this.timer = ersatz ? null : ext;
+    this.vergleich = ersatz ? ext : null;
     if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
     document.addEventListener('visibilitychange', () => { this.prev = null; });
     const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
@@ -20189,7 +20213,9 @@ const leistung = {
         .observe({ type: 'long-animation-frame', buffered: true });
     }
     if (typen.includes('longtask')) {
-      new PerformanceObserver((l) => { if (this.aktiv) l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; }); })
+      new PerformanceObserver((l) => {
+        if (this.aktiv) l.getEntries().forEach((e) => { if (!this.inProbe(e)) this.teilBei(e.startTime).longtasks++; });
+      })
         .observe({ type: 'longtask', buffered: true });
     }
     navigator.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion'])
@@ -20206,12 +20232,18 @@ const leistung = {
   tick(ts) {
     const id = this.abschnitt();
     if (this.prev !== null && this.teil) {
-      // im Abstand lag ein readPixels des Ersatzmasses (bildEnde): nicht als sichtbaren Abstand zählen
-      if (this.pixelZeit >= this.prev && this.pixelZeit < ts) this.teil.ohne++;
-      else this.abstand(this.teil, ts - this.prev, ts);
+      // im Abstand lag eine Probe der Dauerlast: nicht als sichtbaren Abstand zählen
+      if (this.probeIn(this.prev, ts)) this.teil.ohne++;
+      else {
+        this.abstand(this.teil, ts - this.prev, ts);
+        if (this.ruhig) this.teil.ruhigMs += ts - this.prev;
+      }
     }
     if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
     this.prev = ts;
+    // ruhig: Es läuft keine Fahrt (Tween) und der Himmel blendet nicht ein oder über (gez/s ruhig: wie viel die Szene
+    // zeichnet, wenn sich nichts tut; das Menü zeichnet beim Hineinfahren 60/s, beim Einblenden des Himmels 30/s)
+    this.ruhig = !story.tweens.length && !skyTheme.moving;
     if (ts - this.hudZeit >= 500) {
       this.hudZeit = ts;
       if (this.lauf) this.laufTick();
@@ -20252,7 +20284,8 @@ const leistung = {
     let t = this.teile.get(id);
     if (!t) {
       t = { id, bild: this.reihe(), zeichnen: this.reihe(), cpu: this.reihe(), ueber: 0, gezeichnet: 0, haenger: 0,
-        haengerMax: 0, longtasks: 0, ohne: 0 }; // ohne: Abstände mit readPixels, nicht gezählt
+        haengerMax: 0, longtasks: 0, ohne: 0, // ohne: Abstände mit einer Probe der Dauerlast, nicht gezählt
+        ruhigMs: 0, gezRuhig: 0 }; // Zeit und gezeichnete Bilder, solange es ruhig war (tick)
       this.teile.set(id, t);
     }
     return t;
@@ -20293,8 +20326,22 @@ const leistung = {
     for (let i = this.wechsel.length - 1; i >= 0; i--) if (this.wechsel[i][0] <= t) return this.teile.get(this.wechsel[i][1]);
     return this.teile.get(this.wechsel[0]?.[1]) ?? this.neuerTeil(this.abschnitt());
   },
+  /**
+   * Überschneidet der Abstand zwischen den Display-Frames a und b eine Probe der Dauerlast? Dann ist er (auch) ihr Halt.
+   * Nicht nur das Ende prüfen: Der Zeitstempel des Frames nach einem langen Task ist der letzte Vsync, er kann vor dem
+   * Ende der Probe liegen (headless gesehen). Die jüngsten Proben genügen (eine je Display-Frame).
+   */
+  probeIn(a, b) {
+    for (let i = this.proben.length - 1; i >= 0 && i >= this.proben.length - 3; i--) {
+      if (this.proben[i][0] < b && this.proben[i][1] > a) return true;
+    }
+    return false;
+  },
+  /** Fällt der Eintrag e (startTime, duration) in eine Probe der Dauerlast? */
+  inProbe(e) { return this.proben.some(([a, b]) => e.startTime < b && e.startTime + e.duration > a); },
   /** Ein long-animation-frame (über 50 ms): zählen und mit Ursache merken (längstes Script, sonst Stil und Layout). */
   haenger1(e) {
+    if (this.inProbe(e)) return; // die Dauerlast selbst: zählt wie ihre Bildabstände nicht
     const teil = this.teilBei(e.startTime);
     teil.haenger++;
     teil.haengerMax = Math.max(teil.haengerMax, e.duration);
@@ -20323,25 +20370,138 @@ const leistung = {
     this.abfrageLaeuft = true;
     this.abfrageNeu = (this.abfrageNeu + 1) % this.abfragen.length;
   },
-  /** Ende eines gerenderten Bilds (t0 aus bildBeginn): CPU-Zeit, GPU-Abfrage schliessen bzw. Ersatzmass. */
+  /** Ende eines gerenderten Bilds (t0 aus bildBeginn): CPU-Zeit, GPU-Abfrage schliessen. */
   bildEnde(t0) {
     if (!t0 || !this.teil) return;
     const teil = this.teil;
     this.eintragen(teil.cpu, performance.now() - t0);
     teil.gezeichnet++;
+    if (this.ruhig) teil.gezRuhig++;
     if (this.abfrageLaeuft) {
       this.gl.endQuery(this.timer.TIME_ELAPSED_EXT);
       this.abfrageLaeuft = false;
-    } else if (!this.timer && this.lauf && teil.gezeichnet % MESS_ERSATZ_JEDES === 0) {
-      // Ersatzmass: hält die Pipeline an (Kachel-GPUs der Handys besonders), darum nur jedes n-te Bild; der Abstand,
-      // in den der Halt fällt, zählt nicht zu den sichtbaren (tick, pixelZeit)
-      const gl = this.gl;
-      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
-      this.pixelZeit = performance.now();
-      this.eintragen(teil.zeichnen, this.pixelZeit - t0);
-      // Der Halt fällt in dieses Bild, der Abstand danach kann auch gestört sein: Beide wertet die adaptive Auflösung
-      // nicht (Handy-Durchlauf 1: sonst senkte sie im Durchlauf auf halbe Auflösung, ohne ?perf nicht)
-      adaptiveResolution.skip = 2;
+    }
+  },
+
+  /**
+   * Teile der Dauerlast: [Kennung, zeichnet er hier etwas (sonst «–»), weglassen (gibt das Zurücksetzen zurück)].
+   * Das Netz des Panoramas ist das Mesh mit renderOrder -1000 in der Gruppe einer eingeblendeten Skybox aus Blender
+   * (createPanoramaSky); ohne es zeigt die Himmelskugel dahinter das Vorschaubild.
+   */
+  dauerlastTeile() {
+    const netze = () => skyTheme.entries.flatMap((e) => (e.module?.panorama && e.module.group.visible
+      ? e.module.group.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible) : []));
+    const schalter = (an, setze) => () => { const vorher = an(); setze(false); return () => setze(vorher); };
+    return [
+      ['ganz', () => true, () => () => {}],
+      ['spiegelung', reflectionInView, schalter(() => QUALITY.reflections, (v) => { QUALITY.reflections = v; })],
+      ['bloom', () => bloomPass.enabled, schalter(() => bloomPass.enabled, (v) => { bloomPass.enabled = v; })],
+      ['netz', () => netze().length > 0, () => {
+        const aus = netze();
+        for (const o of aus) o.visible = false;
+        return () => { for (const o of aus) o.visible = true; };
+      }],
+      ['pinsel', () => !!brushPass.painting?.(), schalter(() => brushPass.enabled, (v) => { brushPass.enabled = v; })],
+    ];
+  },
+  /**
+   * Dauerlast am Messpunkt id (MESS_PUNKTE), im Referenzdurchlauf ohne GPU-Zeit: Je Probe (eine Aufgabe, nach einem
+   * Display-Frame) ein readPixels (die Pipeline ist leer), dann K Bilder hintereinander (Spiegelung und composer), wieder
+   * readPixels; Zeit / K ist die Zeichenzeit je Bild bei voll hochgetakteter GPU, ohne die Wartezeit eines Halts je Bild.
+   * Dazu die CPU-Zeit je Bild der Schleife (liegt sie nahe an der Zeit je Bild, ist die Probe CPU-gebunden und die GPU
+   * höchstens so langsam). Ebenso ohne Spiegelung, Bloom, Netz und Pinsel (Zerlegung: ganz − ohne = Anteil des Teils),
+   * abwechselnd, je MESS_DAUERLAST.wiederholungen Mal, Median. Nach jeder Probe alles zurück und ein normales Bild (auf dem
+   * Schirm steht nie eine Probe). Die Abstände und Hänger der Proben zählen nicht zu den sichtbaren; die adaptive
+   * Auflösung wertet das Bild danach nicht (skip; der Fehler von 01b: Sie senkte wegen der Messung). Mit vergleich
+   * (?ersatzmass, Timer vorhanden) dazu je Probe K Bilder mit GPU-Zeit je Bild (Abnahme auf der T2000).
+   */
+  async dauerlast(id) {
+    if (this.misst || this.punkte[id] || !this.gl) return;
+    this.misst = id;
+    const gl = this.gl, ext = this.vergleich, { k: K, wiederholungen } = MESS_DAUERLAST;
+    const teile = this.dauerlastTeile().filter(([, gilt]) => gilt());
+    const roh = Object.fromEntries(teile.map(([t]) => [t, { zeit: [], cpu: [] }]));
+    const abfragen = []; // [Teil, Abfrage] der GPU-Zeit zum Vergleich
+    const bild = () => { renderReflection(); composer.render(0); };
+    const lies = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
+    const median = (v) => { if (!v.length) return null; const s = [...v].sort((a, b) => a - b); return s[s.length >> 1]; };
+    try {
+      for (let w = 0; w < wiederholungen; w++) {
+        for (const [t, , weglassen] of teile) {
+          await new Promise((r) => requestAnimationFrame(r));
+          const beginn = performance.now(), zurueck = weglassen();
+          try {
+            lies();
+            const t0 = performance.now();
+            let cpu = 0;
+            for (let i = 0; i < K; i++) { const c = performance.now(); bild(); cpu += performance.now() - c; }
+            lies();
+            roh[t].zeit.push((performance.now() - t0) / K);
+            roh[t].cpu.push(cpu / K);
+            for (let i = 0; ext && i < K; i++) {
+              const q = gl.createQuery();
+              gl.beginQuery(ext.TIME_ELAPSED_EXT, q);
+              bild();
+              gl.endQuery(ext.TIME_ELAPSED_EXT);
+              abfragen.push([t, q]);
+            }
+          } finally { zurueck(); }
+          bild();
+          renderer.info.reset(); // die Anzeige zählt die Draw-Calls eines Bilds
+          this.proben.push([beginn, performance.now()]);
+          adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 2);
+        }
+      }
+      let gpu = null;
+      if (ext) { // GPU-Zeit je Bild zum Vergleich (Median aller Bilder je Teil); disjunkt: unbrauchbar
+        for (let i = 0; i < 120 && abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)); i++) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+        const fertig = !abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE));
+        if (fertig && !gl.getParameter(ext.GPU_DISJOINT_EXT)) {
+          gpu = Object.fromEntries(teile.map(([t]) => [t, median(abfragen.filter(([a]) => a === t)
+            .map(([, q]) => gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6))]));
+        }
+        for (const [, q] of abfragen) gl.deleteQuery(q);
+      }
+      const ms = Object.fromEntries(this.dauerlastTeile().map(([t]) => [t, roh[t] ? median(roh[t].zeit) : null]));
+      const cpu = median(roh.ganz.cpu);
+      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms, cpu,
+        cpuGebunden: cpu >= MESS_DAUERLAST.cpuGebunden * ms.ganz, gpu };
+    } catch (e) { // gemessen, aber ohne Werte (die Karte zeigt «–»; der Durchlauf geht weiter)
+      console.error(e);
+      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms: {}, cpu: null, cpuGebunden: false,
+        gpu: null, fehler: e.message };
+    } finally {
+      this.misst = null;
+    }
+  },
+  /** Bis bedingung gilt (alle 0,1 s), höchstens sekunden lang; zurück, ob sie gilt. */
+  async bis(bedingung, sekunden) {
+    for (let t = 0; !bedingung(); t += 0.1) {
+      if (t > sekunden) return false;
+      await storySleep(100);
+    }
+    return true;
+  },
+  /**
+   * Im Durchlauf ohne GPU-Zeit (laufTick, alle 0,5 s): die Dauerlast an den Messpunkten des ersten Teils, sobald es dort
+   * ruhig ist. Erstes Level: 3 s ruhig (ohne Fahrt, Himmel steht, nichts gezogen), Menü: 1 s still (frameRate.skyOnly);
+   * bleibt es nie ruhig, nach 15 s trotzdem. Den dritten (Spiel n. Reise) misst reise.
+   */
+  messpunkte() {
+    if (this.timer || this.misst || this.meldung || this.schritt !== 'teil1') { this.wartet = null; return; }
+    const id = !this.geloest && !this.punkte.spiel && flow.state === 'play' && !story.choosing && !story.running
+      && !this.marken.length && !sceneLoop.covered && !ui.solvedVisible() ? 'spiel'
+      : this.geloest && menu.offen && !this.punkte.menue ? 'menue' : null;
+    if (!id) { this.wartet = null; return; }
+    const jetzt = performance.now();
+    const w = this.wartet?.id === id ? this.wartet : (this.wartet = { id, seit: jetzt, ruhig: null });
+    const still = id === 'menue' ? frameRate.skyOnly() : this.ruhig && !drag.active && !input.pointer;
+    w.ruhig = still ? w.ruhig ?? jetzt : null;
+    if (w.ruhig !== null && jetzt - w.ruhig >= (id === 'menue' ? 1000 : 3000) || jetzt - w.seit > 15000) {
+      this.wartet = null;
+      this.dauerlast(id);
     }
   },
   /**
@@ -20363,8 +20523,8 @@ const leistung = {
   mass() {
     if (this.timer) return 'GPU-Zeit (EXT_disjoint_timer_query_webgl2)';
     return this.lauf || this.schritt
-      ? `ERSATZMASS: frame() bis nach readPixels (1 px), jedes ${MESS_ERSATZ_JEDES}. Bild; der Abstand danach zählt nicht`
-      : 'keine (nur im Referenzdurchlauf)';
+      ? `Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen} (an Messpunkten, siehe unten)`
+      : 'keine GPU-Zeit (Dauerlast nur im Referenzdurchlauf)';
   },
 
   /** Kurzfassung der jüngsten Abstände für die Anzeige (seit dem letzten Aufruf): [fps, p95, max]. */
@@ -20391,7 +20551,10 @@ const leistung = {
       return { id: t.id, name, laden, bilder: t.bild.n, sekunden: t.bild.summe / 1000, p50: q(t.bild, 0.5), p95,
         max: t.bild.max, ueber33: t.ueber, zeichnenP95, zeichnenMax: t.zeichnen.max, zeichnenN: t.zeichnen.n,
         cpuP95: q(t.cpu, 0.95), cpuMax: t.cpu.max, gezeichnet: t.gezeichnet,
-        gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0, haenger: t.haenger,
+        gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0,
+        // ruhig: erst ab einer halben Sekunde Ruhe im Abschnitt (sonst «–»)
+        ruhigSekunden: t.ruhigMs / 1000, gezeichnetRuhigJeS: t.ruhigMs >= 500 ? t.gezRuhig / t.ruhigMs * 1000 : null,
+        haenger: t.haenger,
         haengerMax: t.haengerMax, longtasks: t.longtasks, ohne: t.ohne,
         fluessig: laden ? null : t.bild.n === 0 || p95 <= MESS_GRENZE.p95 && t.ueber === 0,
         zeichnenOk: zeichnenP95 === null ? null : zeichnenP95 <= MESS_GRENZE.zeichnen };
@@ -20415,6 +20578,7 @@ const leistung = {
     return {
       version: APP_VERSION, zeit: new Date().toISOString(), mass: this.mass(),
       ersatz: !this.timer, ohne: [...this.teile.values()].reduce((s, t) => s + t.ohne, 0),
+      dauerlast: Object.keys(MESS_PUNKTE).filter((id) => this.punkte[id]).map((id) => this.punkte[id]),
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
@@ -20446,8 +20610,7 @@ const leistung = {
         + `Umbauten ${g.umbauten})${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
-      ...(d.ersatz ? [`ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): ${d.ohne} Bildabstände mit readPixels nicht gezählt`]
-        : []),
+      ...(d.ohne ? [`Proben      ${d.ohne} Bildabstände mit einer Probe der Dauerlast nicht gezählt`] : []),
       `Grenzen     p95 ≤ ${MESS_GRENZE.p95} ms, kein Bild > ${MESS_GRENZE.bild} ms; Zeichnen p95 ≤ ${MESS_GRENZE.zeichnen} ms (Handy)`,
       '',
     ];
@@ -20456,8 +20619,10 @@ const leistung = {
       ['>33', 5, (a) => String(a.ueber33)]];
     const zeichnen = [['Zeichn', 7, (a) => z(a.zeichnenP95, 0)],
       ['CPU', 6, (a) => (a.cpuP95 === undefined ? '' : z(a.cpuP95, 0))],
-      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))]];
+      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))],
+      ['ruhig', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetRuhigJeS, 0, 0))]];
     const gesamt = { ...d.gesamt, name: 'Gesamt', cpuP95: undefined, gezeichnetJeS: undefined };
+    const umbruch = schmal ? ' ' : '\n  ';
     const block = (spalten) => {
       zeilen.push(`${'Abschnitt'.padEnd(15)}${spalten.map(([k, n]) => k.padStart(n)).join('')}`);
       for (const a of [...d.abschnitte, gesamt]) {
@@ -20466,13 +20631,38 @@ const leistung = {
       }
     };
     if (schmal) { block(bild); zeilen.push(''); block(zeichnen); } else block([...bild, ...zeichnen]);
-    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je'
-      + `${schmal ? ' ' : '\n  '}gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.`);
+    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn: p95 der GPU-Zeit'
+      + `${umbruch}je gezeichnetem Bild (ohne Timer –, dafür die Dauerlast); CPU: p95 der CPU-Zeit von frame(); gez/s:`
+      + `${umbruch}gezeichnete WebGL-Bilder je Sekunde, ruhig: nur solange keine Fahrt läuft und der Himmel steht.`);
+    // Dauerlast je Messpunkt: ganz und ohne je einen Teil, CPU je Bild der Probe; mit Timer (?ersatzmass) die GPU-Zeit
+    const dl = d.dauerlast ?? [];
+    if (dl.length) {
+      const teile = [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'],
+        ['netz', '-Netz', '-Nz'], ['pinsel', '-Pinsel', '-Pi']];
+      const breite = schmal ? 5 : 8, namen = schmal ? 9 : 17; // schmal: 9 + 6 × 5 + «!» = 40 Zeichen
+      const zahl = (v) => (v === null || v === undefined ? '–' : v.toFixed(v >= 100 ? 0 : 1)).padStart(breite);
+      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`,
+        `${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
+          + 'CPU'.padStart(breite));
+      for (const p of dl) {
+        zeilen.push(`${(schmal ? p.kurz : p.name).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
+          + `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`);
+        if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
+      }
+      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel; Anteil`
+        + `${umbruch}eines Teils = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
+        + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
+          + ' Die GPU braucht höchstens so lange.' : '')
+        + (dl.some((p) => p.gpu) ? `${umbruch}GPU (Timer): GPU-Zeit derselben Bilder zum Vergleich (?ersatzmass).` : ''));
+    }
     const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
-    const teuer = d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
+    // Urteil der Zeichenzeit: aus der Dauerlast «ganz» je Messpunkt, sonst aus der GPU-Zeit (p95) je Abschnitt
+    const teuer = dl.length
+      ? dl.filter((p) => p.ms.ganz > MESS_GRENZE.zeichnen).map((p) => `${schmal ? p.kurz : p.name} ${p.ms.ganz.toFixed(1)} ms`)
+      : d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
     zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
-      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
-        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}`);
+      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${!dl.length && d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
+        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}${dl.length ? ' (Dauerlast ganz)' : ''}`);
     if (d.schlimmste.length) {
       zeilen.push('', 'Längste Bilder:');
       for (const e of d.schlimmste) zeilen.push(`  ${z(e.ms, 6)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s`);
@@ -20605,7 +20795,14 @@ const leistung = {
       ui.advance();
       await this.warte(() => story.step === ziel + 1 && !story.running && flow.state === 'play'
         && !this.marken.includes('reise'), 120, 'Ankunft in der zweiten Welt');
-      await this.waehrend('ankunft', storySleep(6000));
+      await this.waehrend('ankunft', (async () => {
+        const t0 = performance.now();
+        if (!this.timer) { // Dauerlast, sobald der neue Himmel ganz steht (scharf, mit Streifen) und es ruhig ist
+          await this.bis(() => skyTheme.ready && this.ruhig, 10);
+          await this.dauerlast('ankunft');
+        }
+        await storySleep(Math.max(0, 6000 - (performance.now() - t0)));
+      })());
       this.auswerten();
     } catch (e) {
       this.meldung = `Referenzdurchlauf: ${e.message}`;
@@ -20616,8 +20813,10 @@ const leistung = {
   laufTick() {
     if (ui.solvedVisible()) this.geloest = true;
     if (this.meldung || this.schritt === 'unterbrochen') return;
+    this.messpunkte();
     const tipp = IS_TOUCH ? 'tippen' : 'klicken';
-    if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
+    if (this.misst || this.wartet) this.status = 'Durchlauf: Zeichenzeit messen, kurz nichts tippen';
+    else if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
     else if (this.schritt === 'teil1') { // je Schritt nur, was jetzt zu tun ist (kurz: die Anzeige bleibt klein)
       const szene = story.el.dataset.mode === 'scene' && !story.el.classList.contains('hidden');
       this.status = this.geloest ? (menu.offen ? 'Durchlauf: «Weiter zur Reise» (oder «Auswerten»)'
@@ -20637,7 +20836,8 @@ const leistung = {
     const liste = !this.lauf ? [['Referenzdurchlauf', () => this.starteDurchlauf()]]
       : this.schritt === 'fertig' ? []
         : this.schritt === 'unterbrochen' ? [['Neu beginnen', () => this.starteDurchlauf()], abbrechen]
-          : [...(this.schritt === 'teil1' && this.geloest && menu.offen
+          // ohne GPU-Zeit erst, wenn die Dauerlast im Menü gemessen ist (messpunkte)
+          : [...(this.schritt === 'teil1' && this.geloest && menu.offen && (this.timer || this.punkte.menue)
             ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []), abbrechen];
     const stand = liste.map(([name]) => name).join();
     if (stand === this.knoepfeStand) return;
@@ -20735,7 +20935,7 @@ const perfHud = {
       this.text.textContent =
         (f ? `${Math.round(f[0])} FPS p95 ${f[1].toFixed(1)} max ${f[2].toFixed(1)}\n` : '') +
         (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} >33 ${t.ueber} Zeichn ${q(t.zeichnen)}\n` : '') +
-        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Ersatzmass'}` + (zustand ? `\n${zustand}` : '');
+        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Dauerlast'}` + (zustand ? `\n${zustand}` : '');
       return;
     }
     this.text.textContent =
