@@ -6,7 +6,10 @@
 // (window.__prisma.leistung.ergebnis), dass der echte Stand wieder da ist und die Konsole ohne Fehler bleibt, und legt die
 // Karte unter tests/output/leistung/<name>.txt ab. Dazu (Review Ticket 01): Neuladen mitten im Durchlauf meldet
 // «Messung unterbrochen», «Neu beginnen» fängt frisch an; «Abbrechen» fragt erst nach; die Anzeige verdeckt weder Menü,
-// Angebot, Werkzeugleiste noch «Weiter»; auf dem Handy passt die Karte ohne seitliches Wischen.
+// Angebot, Werkzeugleiste noch «Weiter»; auf dem Handy passt die Karte ohne seitliches Wischen. --ersatzmass (Ticket 08):
+// ohne GPU-Zeit misst der Durchlauf die Dauerlast an drei Messpunkten (erstes Level, Menü still, Spiel n. Reise); die
+// Probe wartet darauf und prüft die Zeilen «Zeichnen (Dauerlast)» und dass die Proben nicht als sichtbare Bildabstände
+// zählen. Immer: Spalte «gez/s ruhig»; im Fenster ungedrosselt zeigt die Karte `adaptiv 1.00, Umbauten 0`.
 // Headless (tools/chrome.mjs, ohne GPU in Software, rAF virtuell getaktet) ist das nur eine Regressionsprüfung, die
 // Zeiten sind keine echten Messwerte. Echte Werte: --fenster (sichtbares Chrome-Fenster, maximiert, auf der
 // Grafikkarte), dazu --handy --drossel 4 für die Handy-Emulation der Spec. Das Fenster dabei nicht verdecken.
@@ -38,7 +41,8 @@ const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { wid
 const ersatzmass = args.includes('--ersatzmass');
 const name = `${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`
   + (ersatzmass ? '-ersatzmass' : '');
-// --ersatzmass: ohne GPU-Zeit (wie viele Android-Geräte), Zeichenzeit über readPixels in jedem 10. Bild
+// --ersatzmass: ohne GPU-Zeit (wie viele Android-Geräte), Zeichenzeit als Dauerlast an Messpunkten; hat das Gerät den
+// Timer doch (T2000), misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
 const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf');
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
@@ -177,6 +181,10 @@ try {
   await tippe('#story .scene .actions.angebot button:nth-child(2)', 'Gleich los');
   await until(`${D}.story.step === 0 && window.__prisma.playing() && !${D}.story.running`, 'erstes Level', 90);
   await sleep(3000);
+  const punkt = (id) => `window.__prisma.leistung.daten().dauerlast.some((p) => p.id === '${id}')`;
+  // ohne Timer (--ersatzmass, oder Software-Rendern ohne die Erweiterung): auf die Dauerlast warten
+  const dauerlast = await ev('window.__prisma.leistung.daten().ersatz');
+  if (dauerlast) await until(punkt('spiel'), 'Dauerlast im ersten Level', 300);
   await bild('level');
   await frei('#controls button', 'die Werkzeugleiste');
   await ev(`${D}.loese()`);
@@ -187,6 +195,7 @@ try {
   await tippe('#btn-menu', 'Menü');
   await until(`${D}.menu.offen`, 'Menü aus dem Spiel', 30);
   await sleep(1500);
+  if (dauerlast) await until(punkt('menue'), 'Dauerlast im Menü', 300);
   await bild('menue-reise');
   await ev('window.__alteSeite = true');
   await tippe('#perf [data-leistung="Weiter zur Reise"]', 'Weiter zur Reise');
@@ -220,9 +229,24 @@ try {
   }
   const reise = d.abschnitte.find((a) => a.id === 'reise');
   pruefe(reise && reise.sekunden > 5 && reise.gezeichnet > 0, `Reise zu kurz oder ohne Bild: ${JSON.stringify(reise)}`);
-  pruefe(d.gesamt.zeichnenP95 !== null && d.mass.length > 0, `Zeichenzeit nicht gemessen (${d.mass})`);
-  if (ersatzmass) { // Ersatzmass deutlich auf der Karte, die Abstände mit readPixels nicht gezählt
-    pruefe(d.ersatz && d.ohne > 0 && text.includes('Ersatzmass aktiv'), `Ersatzmass nicht vermerkt (${d.ohne})`);
+  pruefe(d.mass.length > 0 && (d.ersatz || d.gesamt.zeichnenP95 !== null), `Zeichenzeit nicht gemessen (${d.mass})`);
+  pruefe(text.includes(' gez/s ruhig') && d.abschnitte.every((a) => 'gezeichnetRuhigJeS' in a), 'Spalte «gez/s ruhig» fehlt');
+  pruefe(!ersatzmass || d.ersatz, '?ersatzmass ohne Wirkung');
+  if (d.ersatz) { // Dauerlast an drei Messpunkten, die Proben nicht als sichtbare Abstände gezählt
+    pruefe(d.ersatz && d.ohne > 0 && d.mass.startsWith('Dauerlast') && text.includes('Zeichnen (Dauerlast, K = 20'),
+      `Dauerlast nicht vermerkt (${d.mass}, ${d.ohne})`);
+    pruefe(d.abschnitte.every((a) => a.zeichnenP95 === null), 'Spalte «Zeichn» ohne GPU-Zeit nicht leer');
+    pruefe(d.dauerlast.map((p) => p.id).join() === 'spiel,menue,ankunft', `Messpunkte: ${d.dauerlast.map((p) => p.id)}`);
+    for (const p of d.dauerlast) {
+      pruefe(!p.fehler && p.ms.ganz > 0 && p.cpu > 0 && p.ms.bloom > 0, `Dauerlast ${p.name}: ${JSON.stringify(p)}`);
+      // Spiegelung nur, wo die Platte im Bild ist (im Menü schaut der Blick in den Himmel)
+      pruefe((p.id === 'menue') === (p.ms.spiegelung === null), `Dauerlast ${p.name}: Spiegelung ${p.ms.spiegelung}`);
+    }
+    pruefe(/Zeichnen ≤ 8 ms: (ja|nein \(.*\)) \(Dauerlast ganz\)/.test(text), 'Urteil der Zeichenzeit nicht aus der Dauerlast');
+  }
+  if (fenster && drossel === 1) { // die Messung löst die Absenkung nicht aus (Fehler 01b)
+    pruefe(d.geraet.adaptiv === 1 && d.geraet.umbauten === 0,
+      `Absenkung: adaptiv ${d.geraet.adaptiv}, Umbauten ${d.geraet.umbauten}`);
   }
   pruefe(d.version && text.includes(d.version) && text.includes(d.geraet.gpu), 'Version oder GPU fehlt auf der Karte');
   // der echte Stand ist zurück, vom Durchlauf bleibt nur das Ergebnis
