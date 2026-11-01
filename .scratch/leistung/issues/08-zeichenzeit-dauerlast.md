@@ -143,3 +143,26 @@ Tests grün: logic (2033), golden, hall, `geschichte-probe --start`, `leistung-p
 GPU-Zeit ändert sich nur die Spalte «ruhig» (Menü gez/s 35–36, ruhig 10); `adaptiv 1.00, Umbauten 0` in allen vier
 Fensterläufen. Headless senkt die Auflösung wie bisher (virtueller rAF-Takt, Ticket 01). Offen für den Review: die
 schmale Karte auf dem Poco ansehen (Probe prüft die Breite); Durchlauf 2b auf dem Poco (Entscheid Koordinator).
+
+**01.11.2026, Review (Code und Browser, T2000, `leise.sh` 100 %).** Ohne `?perf` ändert sich nichts: `reflectionInView()`
+ist der alte Kopf von `renderReflection` (gleicher Sichtfeld-Test, gleiche Rückkehr), `brushPass.painting()` nutzt
+denselben Filter wie `render`. Nach jeder Probe ist alles zurück (Spiegelung, Bloom, Pinsel, Netz, Render-Target `null`,
+`skip` wieder 0, Pixelverhältnis 2, Schleife wach), im Bild nichts Halbes; die dunklen Ringe danach zeigt auch ein Lauf
+ohne Dauerlast (das Aufleuchten nach dem Levelstart ist vorbei). Karte auf 393 px (Handy-Emulation, 12 px): kein
+seitliches Wischen, Block «Zeichnen (Dauerlast)» 40 Zeichen, gut lesbar. Selbst behoben:
+- **Abstand nach der letzten Probe** zählte als sichtbar: in jedem Lauf mit Dauerlast ein Bild von 33,3–33,4 ms in
+  «Spiel n. Reise» (und wohl «Menü»), auf dem Poco hätte das «Flüssig» dort auf «nein» gekippt. `tick` zählt jetzt auch
+  den Abstand nach einer Probe nicht (`nachProbe`). Danach «Spiel n. Reise» `>33` 0 in drei Läufen (vorher 1/1/1).
+  Im «Menü» bleibt in Läufen mit Dauerlast oft ein Bild von 33,4 ms; das kommt auch ohne Dauerlast vor (2 von 4 Läufen).
+- **Tippen während einer Probe** (z. B. «≡»: das Menü öffnete mitten in der Messung «Spiel», gemessen wurde dann der
+  Himmel ohne Spiegelung, still übernommen): `dauerlast` merkt `pointerdown`/`keydown`/`wheel`, verwirft die Messung
+  einmal und misst neu, sobald es wieder ruhig ist (Ankunft: einmal nachmessen); beim zweiten Mal bleibt sie mit «?» und
+  Fussnote. Geprüft mit Tipp aufs Feld während der Probe (3× gedrosselt): erster Versuch verworfen, zweiter sauber.
+- Urteil «Zeichnen ≤ 8 ms» wertete einen Messpunkt ohne Wert (Fehler der Probe) still als «ja»; jetzt «nein (… ohne Wert)».
+
+Läufe: logic (2033) und golden grün; `leistung-probe --fenster` und `--fenster --handy` je 2× grün, alle
+`adaptiv 1.00, Umbauten 0`; mit `--ersatzmass` (Weg des Poco) `--fenster --handy` 4×, `--fenster` 2× grün,
+`adaptiv 1.00, Umbauten 0`, Dauerlast «ganz» Desktop 3,5–3,6 / 0,9 / 5,0–5,1 ms, Handy-Emulation 3,8–4,1 / 1,0–1,1 /
+5,1–5,5 ms (Spiel / Menü / n. Reise), Timer 3–14 % darunter. Hinweise zum Lesen der Poco-Zahlen im Bericht an den
+Koordinator. Vor dem Push für 2b `APP_VERSION` (index.html und sw.js) nachführen, sonst ist der Stand auf der Karte nicht
+von Durchlauf 2 zu unterscheiden.

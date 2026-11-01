@@ -20175,8 +20175,10 @@ const leistung = {
   pixel: new Uint8Array(4), // Dauerlast: Puffer für readPixels
   proben: [],         // [Beginn, Ende] je Probe der Dauerlast: Abstände (tick) und Hänger (haenger1) darin zählen nicht
   punkte: {},         // Dauerlast je Messpunkt (MESS_PUNKTE), sobald gemessen
+  wiederholt: {},     // Messpunkte, deren erste Messung eine Eingabe störte (dauerlast)
   misst: null,        // die Dauerlast misst gerade an diesem Messpunkt
   wartet: null,       // ein Messpunkt wartet auf Ruhe: { id, seit, ruhig } (messpunkte)
+  nachProbe: false,   // der letzte Abstand überschnitt eine Probe: den nächsten auch nicht zählen (tick)
   ruhig: false,       // beim letzten Display-Frame: keine Tweens, der Himmel blendet nicht ein (gez/s ruhig)
   modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
   lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
@@ -20232,12 +20234,16 @@ const leistung = {
   tick(ts) {
     const id = this.abschnitt();
     if (this.prev !== null && this.teil) {
-      // im Abstand lag eine Probe der Dauerlast: nicht als sichtbaren Abstand zählen
-      if (this.probeIn(this.prev, ts)) this.teil.ohne++;
+      // im Abstand lag eine Probe der Dauerlast, oder sie lag im Abstand davor (das Bild nach der letzten Probe kann
+      // noch auf die Grafik warten: in jedem Lauf mit Dauerlast ein Abstand von 33 ms in «Menü» und «Spiel n. Reise»,
+      // Review Ticket 08): nicht als sichtbaren Abstand zählen
+      const probe = this.probeIn(this.prev, ts);
+      if (probe || this.nachProbe) this.teil.ohne++;
       else {
         this.abstand(this.teil, ts - this.prev, ts);
         if (this.ruhig) this.teil.ruhigMs += ts - this.prev;
       }
+      this.nachProbe = probe;
     }
     if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
     this.prev = ts;
@@ -20418,6 +20424,12 @@ const leistung = {
   async dauerlast(id) {
     if (this.misst || this.punkte[id] || !this.gl) return;
     this.misst = id;
+    // Tippt oder klickt jemand während der Messung (Menü, Drehen), misst sie einen anderen Zustand: einmal wiederholen,
+    // beim zweiten Mal mit «?» auf der Karte (Review Ticket 08)
+    let gestoert = false;
+    const stoer = () => { gestoert = true; };
+    const eingaben = ['pointerdown', 'keydown', 'wheel'];
+    for (const e of eingaben) window.addEventListener(e, stoer, { capture: true, passive: true });
     const gl = this.gl, ext = this.vergleich, { k: K, wiederholungen } = MESS_DAUERLAST;
     const teile = this.dauerlastTeile().filter(([, gilt]) => gilt());
     const roh = Object.fromEntries(teile.map(([t]) => [t, { zeit: [], cpu: [] }]));
@@ -20466,14 +20478,16 @@ const leistung = {
       }
       const ms = Object.fromEntries(this.dauerlastTeile().map(([t]) => [t, roh[t] ? median(roh[t].zeit) : null]));
       const cpu = median(roh.ganz.cpu);
+      if (gestoert && !this.wiederholt[id]) { this.wiederholt[id] = true; return; } // noch einmal (messpunkte, reise)
       this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms, cpu,
-        cpuGebunden: cpu >= MESS_DAUERLAST.cpuGebunden * ms.ganz, gpu };
+        cpuGebunden: cpu >= MESS_DAUERLAST.cpuGebunden * ms.ganz, gpu, gestoert };
     } catch (e) { // gemessen, aber ohne Werte (die Karte zeigt «–»; der Durchlauf geht weiter)
       console.error(e);
       this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms: {}, cpu: null, cpuGebunden: false,
         gpu: null, fehler: e.message };
     } finally {
       this.misst = null;
+      for (const e of eingaben) window.removeEventListener(e, stoer, { capture: true });
     }
   },
   /** Bis bedingung gilt (alle 0,1 s), höchstens sekunden lang; zurück, ob sie gilt. */
@@ -20645,7 +20659,7 @@ const leistung = {
         `${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
           + 'CPU'.padStart(breite));
       for (const p of dl) {
-        zeilen.push(`${(schmal ? p.kurz : p.name).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
+        zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
           + `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`);
         if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
       }
@@ -20653,12 +20667,15 @@ const leistung = {
         + `${umbruch}eines Teils = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
         + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
           + ' Die GPU braucht höchstens so lange.' : '')
+        + (dl.some((p) => p.gestoert) ? `${umbruch}? während der Messung getippt (auch beim zweiten Versuch): Werte unsicher.` : '')
         + (dl.some((p) => p.gpu) ? `${umbruch}GPU (Timer): GPU-Zeit derselben Bilder zum Vergleich (?ersatzmass).` : ''));
     }
     const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
     // Urteil der Zeichenzeit: aus der Dauerlast «ganz» je Messpunkt, sonst aus der GPU-Zeit (p95) je Abschnitt
     const teuer = dl.length
-      ? dl.filter((p) => p.ms.ganz > MESS_GRENZE.zeichnen).map((p) => `${schmal ? p.kurz : p.name} ${p.ms.ganz.toFixed(1)} ms`)
+      // ohne Wert (Fehler der Probe) nicht still als «ja» werten
+      ? dl.filter((p) => !(p.ms.ganz <= MESS_GRENZE.zeichnen))
+        .map((p) => `${schmal ? p.kurz : p.name} ${p.ms.ganz == null ? 'ohne Wert' : `${p.ms.ganz.toFixed(1)} ms`}`)
       : d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
     zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
       `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${!dl.length && d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
@@ -20800,6 +20817,10 @@ const leistung = {
         if (!this.timer) { // Dauerlast, sobald der neue Himmel ganz steht (scharf, mit Streifen) und es ruhig ist
           await this.bis(() => skyTheme.ready && this.ruhig, 10);
           await this.dauerlast('ankunft');
+          if (!this.punkte.ankunft) { // gestört: noch einmal, sobald es wieder ruhig ist
+            await this.bis(() => this.ruhig && !drag.active && !input.pointer, 5);
+            await this.dauerlast('ankunft');
+          }
         }
         await storySleep(Math.max(0, 6000 - (performance.now() - t0)));
       })());
