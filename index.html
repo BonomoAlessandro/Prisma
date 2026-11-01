@@ -8356,53 +8356,91 @@ const compileParallel = (() => {
   const gl = renderer.getContext();
   const ext = gl.getExtension('KHR_parallel_shader_compile');
   const PENDING = Symbol('Programm noch nicht fertig');
-  // compile() geht mit root.traverse über die Materialien, auch über unsichtbare: Teilbäume in skip auslassen und
-  // PENDING je Objekt abfangen, damit compile zu Ende läuft
-  function issue(root, skip) {
+  // compile() geht mit root.traverse über die Materialien, auch über unsichtbare: nur über objects (ohne die Teilbäume in
+  // skip, siehe collect) und PENDING je Objekt abfangen, damit compile zu Ende läuft
+  function issue(root, objects) {
     root.traverse = function (cb) {
-      const walk = (o) => {
-        if (skip.has(o)) return;
-        try { cb(o); } catch (e) { if (e !== PENDING) throw e; }
-        for (const c of o.children) walk(c);
-      };
-      walk(this);
+      for (const o of objects) { try { cb(o); } catch (e) { if (e !== PENDING) throw e; } }
     };
     try { renderer.compile(root, camera); } finally { delete root.traverse; }
   }
-  if (!ext) return async (roots, { skip = [] } = {}) => { for (const r of roots) issue(r, new Set(skip)); };
-  const getParam = gl.getProgramParameter.bind(gl), link = gl.linkProgram.bind(gl), del = gl.deleteProgram.bind(gl);
+  function collect(root, skip) {
+    const list = [];
+    const walk = (o) => { if (skip.has(o)) return; list.push(o); for (const c of o.children) walk(c); };
+    walk(root);
+    return list;
+  }
   let issued = null; // während des Anstossens: die neu gelinkten Programme
   const deleted = new WeakSet();
-  gl.linkProgram = (p) => { link(p); issued?.push(p); };
-  gl.deleteProgram = (p) => { deleted.add(p); del(p); };
-  gl.getProgramParameter = (p, name) => {
-    if (issued && name === gl.ACTIVE_UNIFORMS && !getParam(p, ext.COMPLETION_STATUS_KHR)) throw PENDING;
-    return getParam(p, name);
-  };
+  const getParam = gl.getProgramParameter.bind(gl);
+  if (ext) {
+    const link = gl.linkProgram.bind(gl), del = gl.deleteProgram.bind(gl);
+    gl.linkProgram = (p) => { link(p); issued?.push(p); };
+    gl.deleteProgram = (p) => { deleted.add(p); del(p); };
+    gl.getProgramParameter = (p, name) => {
+      if (issued && name === gl.ACTIVE_UNIFORMS && !getParam(p, ext.COMPLETION_STATUS_KHR)) throw PENDING;
+      return getParam(p, name);
+    };
+  }
   // Jede Abfrage geht zum Grafikprozess und wartet, bis er seine Warteschlange abgearbeitet hat: nur nötige stellen
   const done = (p) => deleted.has(p) || gl.isContextLost() || getParam(p, ext.COMPLETION_STATUS_KHR);
-  /** skip: Teilbäume, die (noch) nicht gebraucht werden, etwa ein gerade nicht gezeigter Hintergrund */
-  return async function compileParallel(roots, { skip = [] } = {}) {
-    const omit = new Set(skip);
-    // Durchsichtig und beidseitig: three übersetzt Rück- und Vorderseite nacheinander und stellt side dazwischen um.
-    // Wirft die erste, bliebe side verstellt und die zweite fehlte – darum beide Seiten einzeln anstossen.
-    const both = new Set();
-    for (const r of roots) r.traverse((o) => {
-      for (const m of [o.material ?? []].flat()) if (m.transparent && m.side === THREE.DoubleSide) both.add(m);
-    });
+  /** Anstossen: batch = [[Wurzel, Objekte]], je Fassung (variants: setzt sie, null = wie es ist) */
+  function run(batch, variants, programs) {
     const check = renderer.debug.checkShaderErrors;
     renderer.debug.checkShaderErrors = false; // diese Prüfung im Konstruktor fragte sofort ab (und wartete)
-    const programs = issued = [];
+    issued = ext ? programs : null;
     try {
-      for (const side of both.size ? [THREE.BackSide, THREE.FrontSide] : [null]) {
-        if (side !== null) for (const m of both) m.side = side;
-        for (const r of roots) issue(r, omit);
+      for (const variant of variants) {
+        const undo = variant?.();
+        // Durchsichtig und beidseitig: three übersetzt Rück- und Vorderseite nacheinander und stellt side dazwischen um.
+        // Wirft die erste, bliebe side verstellt und die zweite fehlte – darum beide Seiten einzeln anstossen.
+        const both = new Set();
+        for (const [, objects] of batch) for (const o of objects) {
+          for (const m of [o.material ?? []].flat()) if (m.transparent && m.side === THREE.DoubleSide) both.add(m);
+        }
+        try {
+          for (const side of both.size ? [THREE.BackSide, THREE.FrontSide] : [null]) {
+            if (side !== null) for (const m of both) m.side = side;
+            for (const [root, objects] of batch) issue(root, objects);
+          }
+        } finally {
+          for (const m of both) m.side = THREE.DoubleSide;
+          undo?.();
+        }
       }
     } finally {
       issued = null;
       renderer.debug.checkShaderErrors = check;
-      for (const m of both) m.side = THREE.DoubleSide;
     }
+  }
+  /**
+   * skip: Teilbäume, die (noch) nicht gebraucht werden, etwa ein gerade nicht gezeigter Hintergrund. variants: Fassungen
+   * (Funktionen, die sie einstellen und optional eine zurück zum vorigen Zustand geben), je anzustossen. slices: in
+   * Häppchen über mehrere Bilder anstossen (je etwa SLICE_MS, ein Material und eine Fassung je Aufruf):
+   * three erzeugt den Code jedes Programms synchron, über die ganze Szene hielt das beim Aufbau einer Skybox ein Bild
+   * auf dem gedrosselten Handy 230 ms an (Ticket 09 der Leistung). Dann gelten die Fassungen nur je Häppchen; zwischen
+   * den Bildern bleibt die letzte eingestellt, sofern sie nichts zurückgibt.
+   */
+  return async function compileParallel(roots, { skip = [], variants = [null], slices = false } = {}) {
+    const omit = new Set(skip), programs = [];
+    const lists = roots.map((r) => [r, collect(r, omit)]);
+    if (!slices) run(lists, variants, programs);
+    else {
+      let t = performance.now();
+      for (const [root, objects] of lists) {
+        for (let i = 0; i < objects.length;) {
+          const part = [];
+          // je Material und Fassung einzeln: Ein grosses Programm kostet allein bis 30 ms bei 4×, und wo der Treiber nicht
+          // wirklich parallel übersetzt, wartet schon das Anstossen (die Abfrage in getProgramParameter) darauf
+          for (let n = 0; i < objects.length && n < 1;) { const o = objects[i++]; part.push(o); if (o.material) n++; }
+          for (const variant of variants) {
+            run([[root, part]], [variant], programs);
+            if (performance.now() - t > SLICE_MS) { await nextFrame(); t = performance.now(); }
+          }
+        }
+      }
+    }
+    if (!ext) return; // ohne die Erweiterung hat three schon gewartet
     // je Bild bis zum ersten unfertigen (sie werden etwa der Reihe nach fertig); höchstens rund 10 s, falls ein Treiber
     // nie fertig meldet – dann wartet three eben beim ersten Zeichnen
     let ready = 0;
@@ -8410,7 +8448,7 @@ const compileParallel = (() => {
       await nextFrame();
       while (ready < programs.length && done(programs[ready])) ready++;
     }
-    if (check && !gl.isContextLost()) {
+    if (renderer.debug.checkShaderErrors && !gl.isContextLost()) {
       for (const p of programs.slice(0, ready)) { // nur fertige: eine Abfrage an einem unfertigen wartete
         if (deleted.has(p) || getParam(p, gl.LINK_STATUS)) continue;
         const logs = (gl.getAttachedShaders(p) ?? []).map((s) => (gl.getShaderInfoLog(s) ?? '').trim()).filter(Boolean);
@@ -9490,7 +9528,33 @@ function skyTexture(img, wrapU) {
 function* skyUpload(t, klein = false) {
   const strips = t.userData.strips, ruhig = klein ? RUHIG_KLEIN : RUHIG; // jedes Stück an einer ruhigen Stelle (ruhe)
   yield ruhig;
-  if (!strips || !renderer.capabilities.isWebGL2) { renderer.initTexture(t); if (strips) closeSkyImage(t); return; }
+  if (!strips || !renderer.capabilities.isWebGL2) {
+    const img = t.image;
+    // Ein Bild (Tiefe, Wassermaske, Karten des Wassers) dekodierte der Browser beim Hochladen noch einmal im Hauptthread,
+    // weil three die Farbumrechnung abschaltet: die Tiefe des Strands hielt so ein Bild auf dem gedrosselten Handy
+    // 50 ms an (Ticket 09). Darum aus denselben Daten als ImageBitmap ohne Umrechnung (im Hintergrund dekodiert, gekippt
+    // wie three es täte) und das hochladen; danach gilt wieder das Bild (für ein späteres Neuladen durch three).
+    if (!strips && renderer.capabilities.isWebGL2 && img instanceof HTMLImageElement && img.complete && img.naturalWidth
+      && img.src.startsWith('data:') && typeof createImageBitmap === 'function') {
+      let bitmap = null, done = false;
+      fetch(img.src).then((r) => r.blob()).then((blob) => createImageBitmap(blob, {
+        imageOrientation: t.flipY ? 'flipY' : 'from-image', premultiplyAlpha: t.premultiplyAlpha ? 'premultiply' : 'none',
+        colorSpaceConversion: 'none',
+      })).then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
+      while (!done) yield NEXT_FRAME;
+      yield ruhig;
+      if (bitmap) {
+        const flipY = t.flipY;
+        t.image = bitmap;
+        t.flipY = false;
+        try { renderer.initTexture(t); } finally { t.image = img; t.flipY = flipY; bitmap.close(); }
+        return;
+      }
+    }
+    renderer.initTexture(t);
+    if (strips) closeSkyImage(t);
+    return;
+  }
   const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
   const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
   bind();
@@ -9532,7 +9596,13 @@ function* skyLogDepth(img, depthLog, blurDeg = PANO.blurDeg) {
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0);
-  const px = ctx.getImageData(0, 0, w, h).data;
+  yield;
+  // in Streifen auslesen (in einem Stück hielt das ein Bild auf dem gedrosselten Handy 40–60 ms an, Ticket 09)
+  const px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y += 64) {
+    px.set(ctx.getImageData(0, y, w, Math.min(64, h - y)).data, y * w * 4);
+    yield;
+  }
   const la = Math.log(depthLog[0]), lb = Math.log(depthLog[1]), lmin = Math.log(PANO.dMin), lmax = Math.log(PANO.dMax);
   let src = new Float32Array(w * h);
   for (let x = 0; x < w; x++) {
@@ -9593,9 +9663,12 @@ function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV])
     yield;
   }
   const index = new Uint32Array(segU * segV * 6);
-  for (let i = 0, n = 0; i < segV; i++) for (let j = 0; j < segU; j++) {
-    const a = i * (segU + 1) + j, b = a + 1, c = a + segU + 1, d = c + 1;
-    index[n++] = a; index[n++] = c; index[n++] = b; index[n++] = b; index[n++] = c; index[n++] = d;
+  for (let i = 0, n = 0; i < segV; i++) {
+    for (let j = 0; j < segU; j++) {
+      const a = i * (segU + 1) + j, b = a + 1, c = a + segU + 1, d = c + 1;
+      index[n++] = a; index[n++] = c; index[n++] = b; index[n++] = b; index[n++] = c; index[n++] = d;
+    }
+    yield; // je Zeile (Wüste 1024 × 512: in einem Stück 54 ms auf dem gedrosselten Handy, Ticket 09)
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -9613,13 +9686,37 @@ function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV])
  * länger (gemessen bis 88 statt 53 ms).
  */
 const SKY_BUFFER_CHUNK = 1 << 21, SKY_BUFFER_WHOLE = 1 << 22; // 2 MB je Bild, ab über 4 MB
+/** Hüllkugel von Ecken (x, y, z je Ecke) wie BufferGeometry.computeBoundingSphere, Generator (yield je 64k Ecken) */
+function* boundingSphereSteps(a, per = 1 << 16) {
+  const box = new THREE.Box3();
+  for (let s = 0; s < a.length; s += per * 3) {
+    for (let i = s, e = Math.min(a.length, s + per * 3); i < e; i += 3) {
+      const x = a[i], y = a[i + 1], z = a[i + 2];
+      if (x < box.min.x) box.min.x = x; if (y < box.min.y) box.min.y = y; if (z < box.min.z) box.min.z = z;
+      if (x > box.max.x) box.max.x = x; if (y > box.max.y) box.max.y = y; if (z > box.max.z) box.max.z = z;
+    }
+    yield;
+  }
+  const c = box.getCenter(new THREE.Vector3());
+  let maxSq = 0;
+  for (let s = 0; s < a.length; s += per * 3) {
+    for (let i = s, e = Math.min(a.length, s + per * 3); i < e; i += 3) {
+      const dx = a[i] - c.x, dy = a[i + 1] - c.y, dz = a[i + 2] - c.z;
+      maxSq = Math.max(maxSq, dx * dx + dy * dy + dz * dz);
+    }
+    yield;
+  }
+  return new THREE.Sphere(c, Math.sqrt(maxSq));
+}
 function* skyBufferUpload(geo) {
   if (!renderer.capabilities.isWebGL2) return;
   const gl = renderer.getContext();
   for (const name of ['position', 'index']) {
     const attr = name === 'index' ? geo.index : geo.getAttribute(name), array = attr?.array;
     if (!array || array.byteLength <= SKY_BUFFER_WHOLE) continue;
-    if (name === 'position') geo.computeBoundingSphere(); // aus einem eigenen Puffer rechnete three sie nicht mehr
+    // aus einem eigenen Puffer rechnete three sie nicht mehr; wie computeBoundingSphere, aber in Häppchen (in einem
+    // Stück beim Netz der Wüste 75 ms auf dem gedrosselten Handy, Ticket 09)
+    if (name === 'position') geo.boundingSphere = yield* boundingSphereSteps(array);
     const target = name === 'index' ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, buffer = gl.createBuffer();
     geo.addEventListener('dispose', () => gl.deleteBuffer(buffer)); // auch, wenn three das Netz nie gezeichnet hat
     // ohne das Vertex Array Objekt, das three gerade gebunden hat (es merkte sich sonst diesen Puffer der Dreiecke)
@@ -9741,6 +9838,70 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
  * Neues kommt als weiterer Typ dazu; tools/sky-schema.mjs liest die Namen aus der Zeile `const SKY_LAYERS = { … }`.
  */
 
+/**
+ * Base64 zu Bytes (ArrayBuffer), Generator für sliced: in Stücken von B64_CHUNK Zeichen, yield nach jedem. Mit
+ * Uint8Array.fromBase64, wo es das gibt, sonst atob und eine Schleife (Uint8Array.from mit Rückruf je Zeichen war
+ * mehrfach langsamer; ein grosses Feld hielt auf dem gedrosselten Handy ein Bild 50–60 ms an, Ticket 09 der Leistung).
+ */
+const B64_CHUNK = 1 << 18; // Zeichen, durch 4 teilbar
+function* b64Bytes(s) {
+  const pad = s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0;
+  const out = new Uint8Array(Math.floor((s.length * 3) / 4) - pad);
+  let o = 0;
+  for (let i = 0; i < s.length; i += B64_CHUNK) {
+    const part = s.slice(i, i + B64_CHUNK);
+    if (Uint8Array.fromBase64) {
+      const b = Uint8Array.fromBase64(part);
+      out.set(b, o);
+      o += b.length;
+    } else {
+      const bin = atob(part);
+      for (let k = 0; k < bin.length; k++) out[o + k] = bin.charCodeAt(k);
+      o += bin.length;
+    }
+    yield;
+  }
+  return o === out.length ? out.buffer : out.slice(0, o).buffer;
+}
+
+/** Float32Array.from(src, fn) in Häppchen (Generator für sliced, yield je per Werte), dasselbe Ergebnis */
+function* mappedFloats(src, fn, per = 1 << 16) {
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i += per) {
+    for (let k = i, e = Math.min(src.length, i + per); k < e; k++) out[k] = fn(src[k]);
+    yield;
+  }
+  return out;
+}
+
+/** BufferGeometry.computeVertexNormals (three 0.147, mit Index) in Häppchen: Generator für sliced, dasselbe Ergebnis;
+ *  ein Baum am Strand brauchte in einem Stück auf dem gedrosselten Handy 40 ms (Ticket 09) */
+function* vertexNormalsSteps(geo, per = 1 << 13) {
+  const index = geo.index, pos = geo.getAttribute('position');
+  if (!index || !pos) { geo.computeVertexNormals(); return; }
+  const normal = new THREE.Float32BufferAttribute(new Float32Array(3 * pos.count), 3);
+  geo.setAttribute('normal', normal);
+  const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
+  const nA = new THREE.Vector3(), nB = new THREE.Vector3(), nC = new THREE.Vector3();
+  const cb = new THREE.Vector3(), ab = new THREE.Vector3();
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
+    pA.fromBufferAttribute(pos, a); pB.fromBufferAttribute(pos, b); pC.fromBufferAttribute(pos, c);
+    cb.subVectors(pC, pB); ab.subVectors(pA, pB); cb.cross(ab);
+    nA.fromBufferAttribute(normal, a); nB.fromBufferAttribute(normal, b); nC.fromBufferAttribute(normal, c);
+    nA.add(cb); nB.add(cb); nC.add(cb);
+    normal.setXYZ(a, nA.x, nA.y, nA.z); normal.setXYZ(b, nB.x, nB.y, nB.z); normal.setXYZ(c, nC.x, nC.y, nC.z);
+    if (i % (per * 3) === per * 3 - 3) yield;
+  }
+  yield;
+  for (let i = 0; i < normal.count; i++) {
+    nA.fromBufferAttribute(normal, i).normalize();
+    normal.setXYZ(i, nA.x, nA.y, nA.z);
+    if (i % (per * 4) === per * 4 - 1) yield;
+  }
+  normal.needsUpdate = true;
+}
+
 /** Modell als Felder: unverändert (pos, nrm, col, idx) oder kompakt aus Base64 (pos16: Int16 / 8192, col8: Uint8,
  *  Wurzel der Farbe; idx16: Uint16; ohne Normalen), wie es der Export des Strands schreibt. Dazu dort (game_models):
  *  prims: Blätter und Fiedern je Form noch kompakter (pack_prims): je Blatt erste Ecke base16 (Int16 / 8192), die
@@ -9748,16 +9909,18 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
  *  ihre Ecken (Laub scheint durch, paintedInstances). tubes: Röhren (pack_tubes): je Röhre Ringe n8 und Ecken je Ring
  *  s8, je Ring Mitte c16 (Int16 / 8192), Radius r16 (Uint16 / 2¹⁸), Farbe col8; die Ringe wie tube() in pflanzen.py
  *  (Querachse mitgeführt, Anfang senkrecht zu oben bzw. zu x, wenn die Röhre senkrecht beginnt). self8 je Ecke, Blatt
- *  bzw. Ring: Licht durch die eigene Krone (self_light), entpackt als self [Himmel, a0, a1, b1] je Ecke. */
-function unpackModel(m) {
+ *  bzw. Ring: Licht durch die eigene Krone (self_light), entpackt als self [Himmel, a0, a1, b1] je Ecke.
+ *  Generator (sliced): yield je Feld und alle paar Röhren bzw. Blätter – in einem Stück hielt ein Baum ein Bild auf dem
+ *  gedrosselten Handy bis 90 ms an (Ticket 09 der Leistung). */
+function* unpackModel(m) {
   if (m.pos16 === undefined) return m; // leer ('') bei Bäumen ohne Früchte: alles in prims und tubes
-  const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer;
-  const pos = Float32Array.from(new Int16Array(bytes(m.pos16)), (v) => v / 8192);
-  const col = Float32Array.from(new Uint8Array(bytes(m.col8)), (v) => (v / 255) ** 2);
-  const idx = new Uint16Array(bytes(m.idx16));
+  const bytes = b64Bytes;
+  const pos = yield* mappedFloats(new Int16Array(yield* bytes(m.pos16)), (v) => v / 8192);
+  const col = yield* mappedFloats(new Uint8Array(yield* bytes(m.col8)), (v) => (v / 255) ** 2);
+  const idx = new Uint16Array(yield* bytes(m.idx16));
   if (!m.prims && !m.tubes) return { pos, col, idx };
   const prims = m.prims ?? [], t = m.tubes;
-  const rings = t ? new Uint8Array(bytes(t.n8)) : [], sides = t ? new Uint8Array(bytes(t.s8)) : [];
+  const rings = t ? new Uint8Array(yield* bytes(t.n8)) : [], sides = t ? new Uint8Array(yield* bytes(t.s8)) : [];
   let nv = pos.length / 3, ni = idx.length;
   for (const p of prims) { nv += p.count * p.k; ni += p.count * p.tri.length; }
   rings.forEach((n, j) => { nv += n * sides[j]; ni += (n - 1) * sides[j] * 6; });
@@ -9776,18 +9939,19 @@ function unpackModel(m) {
     const q = [s8[g * 4] / 255, s8[g * 4 + 1] / 255, (s8[g * 4 + 2] - 128) / 127, (s8[g * 4 + 3] - 128) / 127];
     for (let e = 0; e < k; e++) S.set(q, (v0 + e) * 4);
   };
-  const s8 = m.self8 ? new Uint8Array(bytes(m.self8)) : null;
+  const s8 = m.self8 ? new Uint8Array(yield* bytes(m.self8)) : null;
   for (let e = 0; e < pos.length / 3; e++) setSelf(s8, e, e, 1);
   let v = pos.length / 3, i = idx.length;
   if (t) {
-    const c = Float32Array.from(new Int16Array(bytes(t.c16)), (x) => x / 8192);
-    const r = Float32Array.from(new Uint16Array(bytes(t.r16)), (x) => x / 2 ** 18);
-    const rc = new Uint8Array(bytes(t.col8)), rs = t.self8 ? new Uint8Array(bytes(t.self8)) : null;
+    const c = yield* mappedFloats(new Int16Array(yield* bytes(t.c16)), (x) => x / 8192);
+    const r = yield* mappedFloats(new Uint16Array(yield* bytes(t.r16)), (x) => x / 2 ** 18);
+    const rc = new Uint8Array(yield* bytes(t.col8)), rs = t.self8 ? new Uint8Array(yield* bytes(t.self8)) : null;
     const at = (k) => new THREE.Vector3(c[k * 3], c[k * 3 + 1], c[k * 3 + 2]);
     const tan = new THREE.Vector3(), u = new THREE.Vector3(), w = new THREE.Vector3();
     let k0 = 0;
-    rings.forEach((n, j) => {
-      const s = sides[j];
+    for (let j = 0; j < rings.length; j++) {
+      const n = rings[j], s = sides[j];
+      if (j % 64 === 63) yield;
       for (let k = 0; k < n; k++) {
         // Richtung wie np.gradient: in der Mitte zentral, an den Enden einseitig
         tan.subVectors(at(k0 + Math.min(k + 1, n - 1)), at(k0 + Math.max(k - 1, 0))).normalize();
@@ -9814,12 +9978,14 @@ function unpackModel(m) {
       }
       v += n * s;
       k0 += n;
-    });
+    }
   }
   for (const p of prims) {
-    const base = new Int16Array(bytes(p.base16)), d = new Int8Array(bytes(p.d8)), c = new Uint8Array(bytes(p.col8));
-    const ps = p.self8 ? new Uint8Array(bytes(p.self8)) : null;
+    const base = new Int16Array(yield* bytes(p.base16)), d = new Int8Array(yield* bytes(p.d8));
+    const c = new Uint8Array(yield* bytes(p.col8));
+    const ps = p.self8 ? new Uint8Array(yield* bytes(p.self8)) : null;
     for (let j = 0; j < p.count; j++, v += p.k) {
+      if (j % 1024 === 1023) yield;
       for (let e = 0; e < p.k; e++) {
         for (let a = 0; a < 3; a++) {
           P[(v + e) * 3 + a] = base[j * 3 + a] / 8192 + (e ? d[(j * (p.k - 1) + e - 1) * 3 + a] * p.dscale : 0);
@@ -9845,7 +10011,7 @@ function* instancedModels(set, material, colored) {
   const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   const meshes = [];
   for (const [k, packed] of set.models.entries()) {
-    const model = unpackModel(packed);
+    const model = yield* unpackModel(packed);
     yield;
     const list = set.instances.filter((t) => t[6] === k);
     const geo = new THREE.BufferGeometry();
@@ -9856,7 +10022,8 @@ function* instancedModels(set, material, colored) {
     if (model.shape) geo.setAttribute('aShape', new THREE.Float32BufferAttribute(model.shape, 2));
     geo.setIndex(ArrayBuffer.isView(model.idx) ? new THREE.BufferAttribute(model.idx, 1) : model.idx);
     if (model.nrm) geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
-    else geo.computeVertexNormals();
+    else yield* vertexNormalsSteps(geo);
+    yield;
     geo.computeBoundingBox();
     const info = new Float32Array(list.length * 4), all = new Float32Array(list.length * 16);
     const mesh = new THREE.InstancedMesh(geo, material, list.length);
@@ -10153,20 +10320,17 @@ function* paintedInstances(ctx, opt) {
  */
 function* bakedMesh(ctx, opt) {
   const set = ctx.data[opt.data];
-  const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
-  // je Feld ein Häppchen (sliced): zusammen hielt das Entpacken ein Bild 30–40 ms an
-  const q = new Int16Array(bytes(set.pos16));
-  yield;
-  const uv = new Uint16Array(bytes(set.uv16));
-  yield;
-  const rock = new Uint8Array(bytes(set.rock8));
-  yield;
+  // je Feld und Stück ein Häppchen (sliced, b64Bytes): zusammen hielt das Entpacken ein Bild 30–40 ms an, ein grosses
+  // Feld allein auf dem gedrosselten Handy noch 50–60 ms (Ticket 09 der Leistung)
+  const q = new Int16Array(yield* b64Bytes(set.pos16));
+  const uv = new Uint16Array(yield* b64Bytes(set.uv16));
+  const rock = new Uint8Array(yield* b64Bytes(set.rock8));
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(Float32Array.from(q, (v) => v / set.scale), 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(Float32Array.from(uv, (v) => v / 65535), 2));
-  geo.setAttribute('aRock', new THREE.Float32BufferAttribute(Float32Array.from(rock, (v) => v / 255), 1));
-  yield;
-  geo.setIndex(new THREE.BufferAttribute(set.idx16 ? new Uint16Array(bytes(set.idx16)) : new Uint32Array(bytes(set.idx32)), 1));
+  geo.setAttribute('position', new THREE.BufferAttribute(yield* mappedFloats(q, (v) => v / set.scale), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(yield* mappedFloats(uv, (v) => v / 65535), 2));
+  geo.setAttribute('aRock', new THREE.BufferAttribute(yield* mappedFloats(rock, (v) => v / 255), 1));
+  const idx = set.idx16 ? new Uint16Array(yield* b64Bytes(set.idx16)) : new Uint32Array(yield* b64Bytes(set.idx32));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
   // Bild aus einer Data-URL, dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread
   // (siehe loadSkyImage). color: Farbbild (sRGB, Mipmaps), sonst Daten (nächster Nachbar, ohne Mipmaps)
   // Als ImageBitmap ohne Farbumrechnung, im Hintergrund dekodiert: Ein dekodiertes Bild (img.decode) dekodierte der
@@ -10782,6 +10946,7 @@ function* groundShift(water, depth, center) {
       let t = 0;
       while (t < 12 && seen(t) === 2) t += 0.25;
       rim[i] = r + t + 0.5; // etwas weiter: Die Farben haben am Rand des Lochs noch vom Himmel
+      if (col % 8 === 7) yield; // eine Zeile im Loch dauerte allein über 10 ms (Ticket 09)
     }
     yield;
   }
@@ -10837,37 +11002,49 @@ function* groundShift(water, depth, center) {
 
 /**
  * Gitter fürs Wasser in der Ebene y = 0: n × n Felder über ±half, darum Ringe (das Quadrat vergrössert, je um 12 %) bis
- * far. Die Ringe brauchen keine feinen Felder: Weit draussen rechnet der Shader den Ort aus dem Strahl.
+ * far. Die Ringe brauchen keine feinen Felder: Weit draussen rechnet der Shader den Ort aus dem Strahl. Generator
+ * (sliced: yield je Zeile bzw. Ring; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 58 ms an, Ticket 09
+ * der Leistung), gleich in die fertigen Felder geschrieben.
  */
-function waterGeometry(half, n, far) {
-  const pos = [], index = [];
-  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) pos.push(-half + (2 * half * j) / n, 0, -half + (2 * half * i) / n);
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const a = i * (n + 1) + j, b = a + 1, c = a + n + 1, d = c + 1;
-      index.push(a, c, b, b, c, d);
-    }
-  }
+function* waterGeometry(half, n, far) {
   // Rand des Gitters gegen den Uhrzeigersinn (von oben), dann je Ring dieselben Punkte weiter draussen
   const rim = [];
   for (let j = 0; j < n; j++) rim.push([j, 0]);
   for (let i = 0; i < n; i++) rim.push([n, i]);
   for (let j = n; j > 0; j--) rim.push([j, n]);
   for (let i = n; i > 0; i--) rim.push([0, i]);
-  const m = rim.length, first = pos.length / 3;
-  let scale = 1, k = 0;
-  for (; scale < far / half; k++, scale *= 1.12) {
-    for (const [j, i] of rim) pos.push((-half + (2 * half * j) / n) * scale, 0, (-half + (2 * half * i) / n) * scale);
+  const m = rim.length, first = (n + 1) * (n + 1);
+  let k = 0;
+  for (let scale = 1; scale < far / half; k++, scale *= 1.12);
+  const count = first + k * m;
+  const pos = new Float32Array(count * 3);
+  const index = new (count - 1 >= 65535 ? Uint32Array : Uint16Array)(6 * n * n + 6 * m * Math.max(0, k - 1));
+  let p = 0, x = 0;
+  for (let i = 0; i <= n; i++) {
+    for (let j = 0; j <= n; j++) { pos[p++] = -half + (2 * half * j) / n; pos[p++] = 0; pos[p++] = -half + (2 * half * i) / n; }
+    yield;
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const a = i * (n + 1) + j, b = a + 1, c = a + n + 1, d = c + 1;
+      index[x++] = a; index[x++] = c; index[x++] = b; index[x++] = b; index[x++] = c; index[x++] = d;
+    }
+    yield;
+  }
+  for (let r = 0, scale = 1; r < k; r++, scale *= 1.12) {
+    for (const [j, i] of rim) { pos[p++] = (-half + (2 * half * j) / n) * scale; pos[p++] = 0; pos[p++] = (-half + (2 * half * i) / n) * scale; }
+    yield;
   }
   for (let r = 0; r + 1 < k; r++) {
     for (let q = 0; q < m; q++) {
       const a = first + r * m + q, b = first + r * m + ((q + 1) % m), c = a + m, d = b + m;
-      index.push(a, b, c, b, d, c);
+      index[x++] = a; index[x++] = b; index[x++] = c; index[x++] = b; index[x++] = d; index[x++] = c;
     }
+    yield;
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setIndex(index);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
 }
 
@@ -10941,7 +11118,7 @@ function* waterSurface(ctx, opt) {
   // Tiefenregel für das Netz (unten) braucht gl_FragDepth; ohne sie (WebGL1 ohne EXT_frag_depth) wie vor 2.36: Schnitt
   // am Fels vom Mittelpunkt aus, Blende bis fade[1]
   const cut = renderer.capabilities.isWebGL2 || renderer.extensions.has('EXT_frag_depth');
-  const geo = waterGeometry(ext, Math.round(2 * ext), cut ? WATER_FAR : ext);
+  const geo = yield* waterGeometry(ext, Math.round(2 * ext), cut ? WATER_FAR : ext);
   // Abstand der Szene vom Mittelpunkt in Richtung d, aus der Tiefe des Panoramas (log, bilinear; ohne Treffer fern);
   // im Wasser und in der Tiefenregel des Netzes
   const depthGLSL = (sampler) => `
@@ -11468,36 +11645,49 @@ function createFishGeometry() {
  * Wo Fische schwimmen dürfen, als Abstandsfeld (m): positiv im offenen Wasser – mindestens minDepth tief, kein Fels –
  * mit dem Abstand zur nächsten Stelle, die das nicht ist, dort negativ. Karte: Tiefe und Fels je Zelle (Zeile 0 bei
  * z = −extent). Abstand nach Chamfer (Schritte 1 und √2 in zwei Durchläufen, auf etwa 8 % genau); sdf und depth lesen
- * bilinear an (x, z) (Spiel). Ohne three.js (tools/blender/out/arbeit/fischtest.mjs prüft es in Node).
+ * bilinear an (x, z) (Spiel). Ohne three.js (tools/blender/out/arbeit/fischtest.mjs prüft es in Node). steps: statt
+ * des Felds ein Generator für sliced (yield je Zeile; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 70 ms
+ * an, Ticket 09 der Leistung), dasselbe Ergebnis.
  */
-function fishField(depth, rock, size, extent, minDepth) {
+function fishField(depth, rock, size, extent, minDepth, steps = false) {
   const cell = (2 * extent) / size, n = size * size;
-  const dist = (inside) => {
+  const dist = function* (inside) {
     const d = new Float32Array(n);
     for (let i = 0; i < n; i++) d[i] = inside(i) ? 1e9 : 0;
     const relax = (i, j, w) => { if (d[j] + w < d[i]) d[i] = d[j] + w; };
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const i = y * size + x;
-      if (x > 0) relax(i, i - 1, 1);
-      if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, Math.SQRT2); if (x < size - 1) relax(i, i - size + 1, Math.SQRT2); }
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        if (x > 0) relax(i, i - 1, 1);
+        if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, Math.SQRT2); if (x < size - 1) relax(i, i - size + 1, Math.SQRT2); }
+      }
+      yield;
     }
-    for (let y = size - 1; y >= 0; y--) for (let x = size - 1; x >= 0; x--) {
-      const i = y * size + x;
-      if (x < size - 1) relax(i, i + 1, 1);
-      if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, Math.SQRT2); if (x > 0) relax(i, i + size - 1, Math.SQRT2); }
+    for (let y = size - 1; y >= 0; y--) {
+      for (let x = size - 1; x >= 0; x--) {
+        const i = y * size + x;
+        if (x < size - 1) relax(i, i + 1, 1);
+        if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, Math.SQRT2); if (x > 0) relax(i, i + size - 1, Math.SQRT2); }
+      }
+      yield;
     }
     return d;
   };
   const open = (i) => depth[i] >= minDepth && rock[i] < 0.01;
-  const toShallow = dist(open), toOpen = dist((i) => !open(i));
-  const sdf = new Float32Array(n);
-  for (let i = 0; i < n; i++) sdf[i] = (open(i) ? toShallow[i] - 0.5 : 0.5 - toOpen[i]) * cell;
-  const bilinear = (f, x, z) => {
-    const u = Math.min(Math.max((x + extent) / cell - 0.5, 0), size - 1.001), v = Math.min(Math.max((z + extent) / cell - 0.5, 0), size - 1.001);
-    const i = Math.floor(u), j = Math.floor(v), a = u - i, b = v - j, k = j * size + i;
-    return (f[k] * (1 - a) + f[k + 1] * a) * (1 - b) + (f[k + size] * (1 - a) + f[k + size + 1] * a) * b;
+  const build = function* () {
+    const toShallow = yield* dist(open), toOpen = yield* dist((i) => !open(i));
+    const sdf = new Float32Array(n);
+    for (let i = 0; i < n; i++) sdf[i] = (open(i) ? toShallow[i] - 0.5 : 0.5 - toOpen[i]) * cell;
+    const bilinear = (f, x, z) => {
+      const u = Math.min(Math.max((x + extent) / cell - 0.5, 0), size - 1.001), v = Math.min(Math.max((z + extent) / cell - 0.5, 0), size - 1.001);
+      const i = Math.floor(u), j = Math.floor(v), a = u - i, b = v - j, k = j * size + i;
+      return (f[k] * (1 - a) + f[k + 1] * a) * (1 - b) + (f[k + size] * (1 - a) + f[k + size + 1] * a) * b;
+    };
+    return { sdf: (x, z) => bilinear(sdf, x, z), depth: (x, z) => bilinear(depth, x, z) };
   };
-  return { sdf: (x, z) => bilinear(sdf, x, z), depth: (x, z) => bilinear(depth, x, z) };
+  const g = build();
+  if (steps) return g;
+  for (;;) { const { done, value } = g.next(); if (done) return value; }
 }
 
 /**
@@ -11512,16 +11702,18 @@ function fishField(depth, rock, size, extent, minDepth) {
  * Nie ins Flache: Wer doch zu nahe kommt, wird zurückgeschoben.
  * opt: seed, area (Mitte x, z, Halbachsen: Reichweite), keepOut (halbe Kante des Bretts samt Abstand), schools (count,
  * length, speed, depth). setField(fishField) – vorher steht alles still (advance gibt null). advance(t) rechnet in
- * festen Schritten bis t und gibt den Anteil des nächsten Schritts; neu begonnen (erstes Bild, Zeit zurück, Lücke über
- * WARM s) wird WARM s vor t, das Ergebnis hängt so nur von t ab (Vergleichsbilder mit angehaltener Zeit, ?t=).
+ * festen Schritten bis t und gibt den Anteil des nächsten Schritts; neu begonnen (erstes Bild, Zeit zurück) wird WARM s
+ * vor t, das erste Bild hängt so nur von t ab (Vergleichsbilder mit angehaltener Zeit, ?t=); warm(t) nimmt das beim
+ * Aufbau vorweg. Nach einer Lücke über CATCH s geht es vom letzten Stand weiter.
  * sample(k, alpha, out): Fisch k,
  * zwischen den letzten zwei Schritten gemischt – x, z, Richtung (Winkel, von +x nach +z), Tempo, Tiefe unter der
  * Oberfläche, Biegung (Krümmung × Länge), Phase und Stärke des Schwanzschlags, Neigung, Drehrate.
  */
 function createFishSim(opt) {
   // WARM: Vorlauf nach einem Neubeginn (s). Vorher wurde ab Sekunde 0 nachgerechnet – bis zu 3600 Schritte in einem
-  // Bild, ein Ruck beim Wählen des Hintergrunds; 5 s sind 150 Schritte, die Schwärme sind dann schon unterwegs
-  const H = 1 / 30, TAU = Math.PI * 2, F = 10, WARM = 5;
+  // Bild, ein Ruck beim Wählen des Hintergrunds; 5 s sind 150 Schritte, die Schwärme sind dann schon unterwegs (warm:
+  // beim Aufbau in Häppchen). CATCH: so viel wird nach einer Pause höchstens in einem Bild nachgerechnet (s)
+  const H = 1 / 30, TAU = Math.PI * 2, F = 10, WARM = 5, CATCH = 0.25;
   const [cx, cz, rx, rz] = opt.area, B = opt.keepOut;
   const wrap = (a) => a - TAU * Math.floor((a + Math.PI) / TAU);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -11562,10 +11754,13 @@ function createFishSim(opt) {
 
   // Neubeginn zur Zeit start: Startplätze je nach start verschieden (sonst begänne jede Wahl gleich), aber nur von ihm
   // abhängig
-  function reset(start) {
+  // Generator (yield je Schwarm: die Suche nach dem Start kostet je bis 300 Abfragen des Felds); reset in einem Stück
+  const reset = (start) => { for (const _ of resetSteps(start)); };
+  function* resetSteps(start) {
     const rand = mulberry32(opt.seed + 101 + Math.floor(start));
-    lead.forEach((L, k) => {
-      const sc = schools[k];
+    for (let k = 0; k < lead.length; k++) {
+      const L = lead[k], sc = schools[k];
+      if (k) yield;
       // Start: frei genug, nahe am Brett, möglichst weit weg von den übrigen Schwärmen; entlang der Kante
       let best = [0, B + 3], bestScore = -Infinity;
       for (let tries = 0; tries < 300; tries++) {
@@ -11579,7 +11774,7 @@ function createFishSim(opt) {
       L.dir = k % 2 ? 1 : -1;
       const [gx, gz] = grad(board, L.x, L.z);
       Object.assign(L, { a: Math.atan2(gx * L.dir, -gz * L.dir), w: 0, v: sc.cruise, avoid: 0, against: 0 });
-    });
+    }
     fish.forEach((f, i) => {
       const L = lead[f.school], sc = schools[f.school], o = i * F;
       const c = Math.cos(L.a), s = Math.sin(L.a), fx = f.slot[0] * sc.radius, fz = f.slot[1] * sc.radius;
@@ -11668,9 +11863,20 @@ function createFishSim(opt) {
   return {
     count: N, fish,
     setField(f) { field = f; simT = null; },
+    /** Neubeginn zur Zeit t vorwegnehmen (Generator für sliced, yield je Schritt): wie das erste advance(t), aber beim
+     *  Aufbau statt im ersten Bild (dort hielten die 150 Schritte es auf dem gedrosselten Handy 170 ms an, Ticket 09) */
+    *warm(t) {
+      const start = Math.max(0, t - WARM);
+      yield* resetSteps(start);
+      simT = start;
+      while (simT + H <= t + 1e-9) { step(simT); simT += H; yield; }
+    },
     advance(t) {
       if (!field) return null;
-      if (simT === null || t < simT - 1e-6 || t - simT > WARM) { simT = Math.max(0, t - WARM); reset(simT); }
+      if (simT === null || t < simT - 1e-6) { simT = Math.max(0, t - WARM); reset(simT); }
+      // nach einer Pause (ausgeblendet, die Zeit sprang): vom letzten Stand weiter, nicht neu einschwimmen und nicht alles
+      // nachrechnen; höchstens CATCH s je Bild (die Plätze sind ohnehin zufällig, das fällt nicht auf)
+      else if (t - simT > CATCH) simT = t - CATCH;
       while (simT + H <= t + 1e-9) { step(simT); simT += H; }
       return clamp((t - simT) / H, 0, 1);
     },
@@ -11695,23 +11901,35 @@ function createFishSim(opt) {
  * Szene unter der Oberfläche (ctx.under, von waterSurface): Das Wasser legt sie als Grund unter seine Oberfläche, mit
  * Brechung, Spiegelung, Schaum und Glitzern darüber – über allem gezeichnet sahen die Fische aus, als flögen sie.
  */
-function fishSchools(ctx, opt) {
+function* fishSchools(ctx, opt) {
   const w = ctx.data[opt.data], under = ctx.under;
   if (!under) throw new Error('braucht waterSurface davor');
   const sim = createFishSim({ ...opt, keepOut: PLATE / 2 + 0.3 });
-  loadSkyImage(w.map).then((img) => {
+  // Wasserkarte lesen, Abstandsfeld rechnen und das Einschwimmen vorwegnehmen, alles beim Aufbau in Häppchen (sliced):
+  // im Rückruf des Bilds bzw. im ersten Bild hielt das ein Bild auf dem gedrosselten Handy 70 bzw. 170 ms an (Ticket 09)
+  const readField = function* () {
+    let img = null, failed = null;
+    loadSkyImage(w.map).then((i) => { img = i; }, (e) => { failed = e; });
+    while (!img && !failed) yield NEXT_FRAME;
+    if (failed) throw failed;
     const canvas = document.createElement('canvas');
     canvas.width = img.width; canvas.height = img.height;
     const g = canvas.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0);
     const px = g.getImageData(0, 0, img.width, img.height).data, m = img.width * img.height;
+    yield;
     const depth = new Float32Array(m), rock = new Float32Array(m), [d0, d1] = w.depthRange;
     for (let i = 0; i < m; i++) {
       depth[i] = d0 + ((d1 - d0) * (px[4 * i] * 256 + px[4 * i + 1])) / 65535;
       rock[i] = px[4 * i + 2] / 255;
     }
-    sim.setField(fishField(depth, rock, img.width, w.extent, opt.minDepth));
-  }).catch((e) => console.warn(`Fische: Wasserkarte nicht lesbar (${e.message})`));
+    yield;
+    return yield* fishField(depth, rock, img.width, w.extent, opt.minDepth, true);
+  };
+  try {
+    sim.setField(yield* readField());
+    yield* sim.warm(FIXED_TIME ?? (clock.running ? clock.getElapsedTime() : 0)); // die Uhr nicht hier starten
+  } catch (e) { console.warn(`Fische: Wasserkarte nicht lesbar (${e.message})`); }
 
   const PAT = { tang: 0, bands: 1, plain: 2 };
   const n = sim.count;
@@ -12017,12 +12235,13 @@ function createPanoramaSky(m) {
     staging.add(...parts);
     scene.add(staging);
     try {
+      // nur die neuen Teile (staging, offscreen), in Häppchen: Der Rest der Szene ist schon übersetzt, und three erzeugte
+      // sonst den Code aller ihrer Programme in einem Stück (Ticket 09). Die Szene bleibt Wurzel (Licht, Nebel, Umgebung)
       const roots = [scene, ...offscreen], compiled = [];
-      for (const transparent of [true, false]) {
-        sky.material.transparent = transparent;
-        compiled.push(compileParallel(roots, { skip: skyTheme.idleGroups }));
-      }
-      if (painted) compiled.push(compileParallel([brushPass.programs()]));
+      const skip = [...skyTheme.idleGroups, ...scene.children.filter((c) => c !== staging)];
+      const variants = [true, false].map((transparent) => () => { sky.material.transparent = transparent; });
+      compiled.push(compileParallel(roots, { skip, variants, slices: true }));
+      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true }));
       const textures = new Set();
       for (const root of [staging, ...offscreen]) root.traverse((o) => {
         for (const mat of [o.material ?? []].flat()) {
@@ -14182,27 +14401,86 @@ const cubeView = {
 };
 boardGroup.add(cubeView.group);
 
+/**
+ * Die Elemente eines Felds bauen (Generator, yield je Element), noch nicht in der Szene: objects bekommt [el, obj],
+ * proxies die Trefferflächen. Während eines Schritts gelten board und proxies als die des Spiels (inCube,
+ * makeInteractive lesen sie), danach wieder die alten: So lässt sich das nächste Level bauen, während das alte noch steht.
+ */
+function* buildElements(board, objects, proxies) {
+  for (const el of board.elements) {
+    const factory = ELEMENT_FACTORIES[el.type];
+    if (!factory) continue;
+    const saved = [game.board, game.hitProxies];
+    game.board = board;
+    game.hitProxies = proxies;
+    try {
+      const obj = factory(el);
+      if (board.dim === 3) placeInCube(obj, el, board.size);
+      else gridToWorld(el.x, el.z, 0, obj.position);
+      obj.userData.element = el;
+      if (isRotatable(el)) makeInteractive(obj);
+      objects.push([el, obj]);
+    } finally {
+      [game.board, game.hitProxies] = saved;
+    }
+    yield;
+  }
+}
+
+/**
+ * Das nächste Level vorab bauen (Ticket 09 der Leistung): Beim Abstieg ins Level baute loadLevel alle Elemente in
+ * einem Bild, das hielt es auf dem gedrosselten Handy 135 ms an (Poco rund 40 ms). Sobald feststeht, welches Level
+ * kommt (changeLevel, Einstieg der Geschichte), entstehen sie in Häppchen an ruhigen Stellen (sliced, ruhe), während
+ * das alte Feld versinkt oder der Blick im Himmel ist; loadLevel nimmt sie dann nur noch. Was bis dahin nicht fertig
+ * ist, baut loadLevel wie bisher im selben Bild zu Ende. Mit ?t= (Tests, KI-Tester) nicht: Dort zieht Math.random eine
+ * feste Folge, die Reihenfolge der Züge bliebe so wie bisher.
+ */
+const levelPrep = { level: null, board: null, objects: null, proxies: null, steps: null };
+function prepareLevel(index) {
+  const level = LEVELS[index];
+  if (FIXED_TIME !== null || !level || levelPrep.level === level) return;
+  dropPreparedLevel();
+  try {
+    levelPrep.board = createBoard(level);
+  } catch { return; } // ein fehlerhaftes Level meldet loadLevel
+  levelPrep.level = level;
+  levelPrep.objects = [];
+  levelPrep.proxies = [];
+  const steps = levelPrep.steps = buildElements(levelPrep.board, levelPrep.objects, levelPrep.proxies);
+  sliced(steps, true).catch((e) => { if (levelPrep.steps === steps) dropPreparedLevel(); console.warn(`Level vorab: ${e.message}`); });
+}
+function dropPreparedLevel() {
+  for (const [, obj] of levelPrep.objects ?? []) disposeTree(obj);
+  levelPrep.steps?.return();
+  Object.assign(levelPrep, { level: null, board: null, objects: null, proxies: null, steps: null });
+}
+
 /** Baut ein Level auf; beamDelay = Sekunden, bis die Strahlen von den Quellen aus loswachsen. */
 function loadLevel(index, beamDelay = 0) {
   game.levelIndex = index;
-  game.board = createBoard(LEVELS[index]);
+  // vorab gebaut (prepareLevel): den Rest jetzt; sonst alles jetzt
+  const prep = levelPrep.level === LEVELS[index] ? { ...levelPrep } : null;
+  if (prep) Object.assign(levelPrep, { level: null, board: null, objects: null, proxies: null, steps: null });
+  else dropPreparedLevel();
+  const board = prep?.board ?? createBoard(LEVELS[index]);
+  const objects = prep?.objects ?? [], proxies = prep?.proxies ?? [];
+  const steps = prep?.steps ?? buildElements(board, objects, proxies);
+  for (let r = steps.next(); !r.done; r = steps.next());
+  game.board = board;
   game.stats = { turns: 0, startedAt: null, lastTurnAt: null };
-  for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
+  // das alte Feld: aus der Szene, freigeben erst in den nächsten Bildern (sliced; es kostete das Bild des Abstiegs
+  // auf dem gedrosselten Handy weitere 14 ms)
+  const old = [...game.objects.values()];
+  for (const obj of old) boardGroup.remove(obj);
+  if (old.length) sliced((function* () { for (const obj of old) { disposeTree(obj); yield; } })());
   game.objects.clear();
-  game.hitProxies = [];
+  game.hitProxies = proxies;
   setHovered(null);
   clearTimeout(input.longPressTimer);
   if (input.pointer) input.pointer.el = null;
-  for (const el of game.board.elements) {
-    const factory = ELEMENT_FACTORIES[el.type];
-    if (!factory) continue;
-    const obj = factory(el);
-    if (game.board.dim === 3) placeInCube(obj, el, game.board.size);
-    else gridToWorld(el.x, el.z, 0, obj.position);
-    obj.userData.element = el;
+  for (const [el, obj] of objects) {
     boardGroup.add(obj);
     game.objects.set(el.id, obj);
-    if (isRotatable(el)) makeInteractive(obj);
   }
   game.targets = [...game.objects.values()].filter(o => o.userData.element.type === 'target');
   cubeView.build(game.board);
@@ -16064,6 +16342,7 @@ function changeLevel(index) {
   if (flow.state === 'intro' || index < 0 || index >= LEVELS.length) return;
   if (flow.state === 'story' && !story.holdEnter) return; // die Geschichte führt gerade (story.sinkTo darf)
   flow.next = index;
+  prepareLevel(index); // die Elemente schon während des Versinkens bauen
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   sceneLoop.wake();
   flow.state = 'out';
@@ -16114,13 +16393,19 @@ function warmupShaders() {
   if (shadersWarm) return;
   shadersWarm = true;
   const obj = [...game.objects.values()].find(o => o.userData.warmup);
-  obj?.userData.warmup(true);
-  celebration.rain.points.visible = true;
-  compileParallel([scene]); // stösst sofort an (übersetzt im Hintergrund): der Zustand oben gilt nur dafür
-  obj?.userData.warmup(false);
+  // stösst in Häppchen an (übersetzt im Hintergrund; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 95 ms
+  // an, Ticket 09): der Zustand gilt nur je Häppchen, dazwischen ist er wie vorher
+  const warm = () => {
+    obj?.userData.warmup(true);
+    celebration.rain.points.visible = true;
+    return () => {
+      obj?.userData.warmup(false);
+      celebration.rain.points.visible = celebration.rain.alive > 0;
+    };
+  };
+  compileParallel([scene], { variants: [warm], slices: true });
   // die unsichtbaren Vorwärm-Elemente jeder Art (am Ende, vor compileParallel) bleiben: Sonst übersetzte das erste
   // Level mit einer neuen Art seine Shader mitten im Fall des Lichts (ein Ruck)
-  celebration.rain.points.visible = celebration.rain.alive > 0;
 }
 
 /** Pro Frame: Übergänge animieren und den Lösungsmoment auslösen bzw. zurücknehmen. */
@@ -18789,6 +19074,7 @@ const story = {
     flow.state = 'story';
     if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = this.stand.dorf.platz; }
     let index = this.currentIndex(), ch = this.inDorf ? STORY_DORF : this.chapter();
+    prepareLevel(index); // ohne altes Feld (sinkTo): die Elemente in den Pausen des Prologs bzw. während der Blick oben ist
     const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
     if (this.replay || this.seen(this.inDorf ? STORY_DORF.einstieg.moment : storyChapterId(ch))) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
@@ -19343,6 +19629,7 @@ const story = {
    * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
    */
   async enter(index, ch, sunk, wie = {}) {
+    prepareLevel(index); // nach «Üben» ein anderes als in begin
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
     const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
       traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;

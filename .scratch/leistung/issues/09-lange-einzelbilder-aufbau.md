@@ -38,20 +38,20 @@ nichts: dieselben Ebenen, dieselben Fische, dasselbe Level, nur anders auf Bilde
 
 **Vorschlag (ohne sichtbare Änderung):**
 
-- [ ] `compileParallel` beim Aufbau einer Skybox: nur die neuen Teile anstossen (Szene mit allen übrigen Kindern in
+- [x] `compileParallel` beim Aufbau einer Skybox: nur die neuen Teile anstossen (Szene mit allen übrigen Kindern in
       `skip`, die Lichter der Szene bleiben), und je Wurzel bzw. je etwa 10 Materialien ein Häppchen (yield). Prüfen,
       ob die Programme danach im Cache sind (kein Übersetzen im ersten Bild, `skyWarmDraw` misst das).
-- [ ] Fische: Das Einschwimmen (5 s, 150 Schritte) in Häppchen von `sliced` während des Aufbaus vorrechnen, nicht im
+- [x] Fische: Das Einschwimmen (5 s, 150 Schritte) in Häppchen von `sliced` während des Aufbaus vorrechnen, nicht im
       ersten Bild. Nach einer Pause (Himmel ausgeblendet, `t` springt) nicht neu einschwimmen, sondern vom letzten
       Stand weiterrechnen bzw. in Häppchen nachholen; die Plätze sind ohnehin zufällig, das fällt nicht auf.
-- [ ] `fishField`, `bakedMesh`/`unpackModel` (Base64 dekodieren), `waterGeometry`: in kleinere Schritte teilen (yield
+- [x] `fishField`, `bakedMesh`/`unpackModel` (Base64 dekodieren), `waterGeometry`: in kleinere Schritte teilen (yield
       in den Schleifen) oder in den Worker, der schon die Bilder dekodiert. Ziel: kein Schritt über 6 ms auf dem
       Desktop bzw. 15 ms bei 4×.
-- [ ] `loadLevel` beim Abstieg ins Level: die Elemente über mehrere Bilder bauen (sie wachsen ohnehin nacheinander ein)
+- [x] `loadLevel` beim Abstieg ins Level: die Elemente über mehrere Bilder bauen (sie wachsen ohnehin nacheinander ein)
       oder schon während der Fahrt vorbereiten, solange der Blick im Himmel ist; das erste sichtbare Bild bleibt gleich.
-- [ ] Erneut profilieren (Reise Wald → Meer und Meer → Wüste, Einstieg nach dem Prolog), Handy-Emulation 4×: kein
+- [x] Erneut profilieren (Reise Wald → Meer und Meer → Wüste, Einstieg nach dem Prolog), Handy-Emulation 4×: kein
       zusammenhängendes Script-Stück über 60 ms (entspricht ~18 ms auf dem Poco), ungedrosselt keins über 20 ms.
-- [ ] Referenzdurchlauf Desktop und Handy 4× vorher/nachher; Bilder der Reise und des Strands nebeneinander (gleich).
+- [x] Referenzdurchlauf Desktop und Handy 4× vorher/nachher; Bilder der Reise und des Strands nebeneinander (gleich).
 - [ ] Tests grün (`geschichte-probe` mit Reisen, `leistung-probe`, `golden`, Screenshots), Review, Commit.
 
 **Abnahmekriterium:** Handy-Emulation 4×: Reise und Einstieg ohne Hänger über 100 ms und ohne Script-Stück über
@@ -64,3 +64,104 @@ oder Rastern der Bühne); es gehört zur parallelen Klärung der Beobachtungen v
 Flackern in der ersten Noa-Szene).
 
 ## Comments
+
+**01.11.2026, Umsetzung** (Branch `leistung/09-einzelbilder` ab `eb8105e`). Optisch gleich: dieselben Daten, nur auf
+mehr Bilder verteilt; Bilder mit angehaltener Zeit (`?t=12`, Strand, Wald, Wüste, Vulkan, GPU) vorher/nachher
+pixelgleich (grösste Abweichung 0/255).
+
+- **`compileParallel`** bekommt `variants` (Fassungen, je Aufruf eingestellt und optional zurückgestellt) und
+  `slices` (Anstossen in Häppchen über mehrere Bilder, je ein Material und eine Fassung, ein neues Bild nach etwa
+  `SLICE_MS`). Der Aufbau einer Skybox stösst nur noch die neuen Teile an (die Szene bleibt Wurzel für Licht, Nebel
+  und Umgebung, alle übrigen Kinder in `skip`), beide Fassungen des Panoramas als `variants`, den Pinsel ebenfalls in
+  Häppchen. `warmupShaders` nach dem ersten Level ebenso (der Vorwärm-Zustand gilt nur je Häppchen). `skyWarmDraw`
+  übersetzt danach nichts mehr (im Profil kein `acquireProgram` darunter). **Für Ticket 10:** Seitenstart
+  (`compileParallel([scene, passScene()], …)`) unverändert ohne `slices`, also in einem Stück; 10 kann dort
+  `slices: true` setzen. Ohne `KHR_parallel_shader_compile` läuft jetzt derselbe Weg, nur ohne das Warten auf
+  Fertigmeldungen.
+- **Fische:** `fishSchools` ist ein Generator des Aufbaus: Wasserkarte lesen, Abstandsfeld (`fishField(…, true)`, je
+  Zeile) und das Einschwimmen (`sim.warm(t)`, je Schritt, Startsuche je Schwarm), vorher im Rückruf des Bilds bzw.
+  im ersten Bild. Nach einer Pause rechnet `advance` höchstens `CATCH` = 0,25 s nach und geht vom letzten Stand
+  weiter, statt neu einzuschwimmen. Mit `?t=` bleibt das erste Bild gleich (Test in `logic.test.mjs`).
+- **In Häppchen:** Base64 (`b64Bytes`, 256 k Zeichen je Stück, `Uint8Array.fromBase64` wo vorhanden), Umrechnung der
+  Felder (`mappedFloats`), `unpackModel` (Generator, auch Röhren und Blätter), Normalen (`vertexNormalsSteps`,
+  dasselbe Ergebnis wie three, geprüft), `bakedMesh`, `waterGeometry` (Generator, Felder direkt; geprüft gleich),
+  Index des Kugelnetzes (`skyProxyGeometry`) und seine Hüllkugel (`boundingSphereSteps`), Auslesen der Tiefe
+  (`skyLogDepth`, Streifen), Zeilen von `groundShift`.
+- **Tiefe, Wassermaske und Karten** (`skyUpload` ohne Streifen): als ImageBitmap ohne Farbumrechnung aus denselben
+  Daten hochgeladen (im Hintergrund dekodiert, gekippt wie three); ein Bild dekodierte der Browser sonst beim
+  Hochladen im Hauptthread neu (Tiefe des Strands 48 ms schon ungedrosselt headless).
+- **Level vorab:** `prepareLevel(index)` baut die Elemente (`buildElements`, je Element ein Häppchen, an ruhigen
+  Stellen), sobald das nächste Level feststeht (`changeLevel`, also auch `story.sinkTo`; `story.begin`,
+  `story.enter`). `loadLevel` nimmt sie und baut nur den Rest; das alte Feld wird in den nächsten Bildern freigegeben.
+  Mit `?t=` nicht (dort zieht `Math.random` eine feste Folge; Golden- und Bildtests unverändert).
+
+**Messung** (Quadro T2000, Chrome 156, echtes Fenster, `leise.sh` 100 %; andere Agenten arbeiteten gleichzeitig).
+Vorher = `eb8105e`, nachher = dieser Branch. Profile mit `profil.mjs` aus 07 (Handy-Emulation 4×; nachher mit
+`--sofort`: Profil schon vor dem Lösen, «Weiter» 0,4 s nach «Gelöst», damit der ganze Aufbau der neuen Welt drin
+ist).
+
+Längste Script-Stücke aus diesem Ticket (4×, ohne das Zeichnen im selben Bild):
+
+| Stelle | vorher | nachher |
+|---|---|---|
+| `compileParallel` beim Aufbau (ganze Szene) | 188–232 ms in einem Stück | ≤ 25 ms je Häppchen |
+| Einschwimmen der Fische (erstes Bild) | 172 ms | ~1 ms je Schritt beim Aufbau |
+| `fishField` (Rückruf des Bilds) | 87 ms | je Zeile |
+| `bakedMesh` (Base64, Felder) | 120–183 ms | ≤ 50–65 ms (Streifen des Bilds über OffscreenCanvas) |
+| `unpackModel` / `paintedInstances` | 50–61 ms | ≤ 45 ms (Normalen in Häppchen) |
+| `waterGeometry` | 58–78 ms | je Zeile bzw. Ring |
+| `skyBufferUpload` (Hüllkugel Wüste) | 75 ms | je 64 k Ecken |
+| `skyUpload` → `initTexture` (Tiefe des Strands) | 48–79 ms | ImageBitmap, wenige ms |
+| `enterLevel` → `loadLevel` im Bild des Abstiegs | 120–149 ms | 19–41 ms (Elemente vorab; Rest: Strahlen, Würfel) |
+| `warmupShaders` | 95 ms | in Häppchen |
+
+Hänger (long-animation-frame) im Abschnitt Reise der Profilläufe, 4×: vorher Wald → Meer 271 ms (Script 261 ms),
+224 ms, 175 ms; Meer → Wüste 201 ms, 198 ms (Script 189 ms). Nachher (je zwei Läufe): kein Hänger über 100 ms mit
+Script; einmal 133 ms «Script 10 ms, Rendern 130 ms».
+
+Referenzdurchlauf (`tests/leistung-probe.mjs --fenster` bzw. `--fenster --handy --drossel 4`), p95 / max / Bilder >
+33 ms; vorher 1 Lauf, nachher die Läufe der letzten zwei Runden:
+
+| Abschnitt | Desktop vorher | Desktop nachher | Handy 4× vorher | Handy 4× nachher |
+|---|---|---|---|---|
+| Einstieg | 17,1 / 33,4 / 2 | 16,9 / 66,8 / 5; 17,1 / 50,0 / 4; 17,1 / 50,1 / 3 | 50,1 / 166,7 / 35 | 50,1 / 183,6 / 39; 50,1 / 150,2 / 35; 66,7 / 166,8 / 34 |
+| Spiel | 17,1 / 18,2 / 0 | 16,9 / 50,1 / 5; 17,1 / 33,5 / 2; 17,0 / 33,4 / 2 | 50,1 / 133,5 / 295 | 66,7 / 116,8 / 294; 66,8 / 116,8 / 318; 66,9 / 133,4 / 313 |
+| Reise | 17,2 / 83,4 / 9 | 16,9 / 66,7 / 3; 17,1 / 32,3 / 0; 17,1 / 40,9 / 8 | 33,6 / **333,6** / 141 | 33,9 / **84,0** / 189; 33,6 / **83,4** / 226; 50,1 / 116,7 / 333 |
+| Spiel n. Reise | 17,1 / 17,7 / 0 | 16,9 / 33,4 / 1; 17,1 / 33,4 / 1; 17,1 / 33,3 / 1 | 33,5 / 66,7 / 72 | 66,7 / 100,1 / 84; 50,2 / 66,8 / 103; 50,2 / 83,5 / 85 |
+| Hänger Reise | 80 ms (Script 13), 72 ms (Script 59) | keiner | 328 ms (Script 318), 234 ms (ohne Script) | keiner |
+| adaptiv / Umbauten | 1,00 / 0 | 1,00 / 0 (alle) | 1,00 / 2 | 1,00 / 2; 1,00 / 2; 0,75 / 3 |
+
+Handy 4× hatte schon vorher Umbauten (Streuung, CPU-gebunden, siehe 03); `0,75 / 3` im dritten Lauf, als der
+Rechner sichtbar belastet war (auch Menü und Prolog langsamer). Eine Zwischenrunde mit Häppchen zu 8 Materialien und
+beiden Fassungen hatte noch 165–193 ms Script in der Reise bei 4×; seit je ein Material und eine Fassung kein solcher
+Hänger mehr.
+
+Ungedrosselt, Messprobe der Bereiche aus 07 (Desktop, alle sechs Reisen, Ausgangsstand und Branch direkt
+nacheinander): Reisen W3–W6 max 20–24 ms (vorher 19–27 ms), Reise → W2 einmal 476 ms «ohne Script» (vorher 36 ms).
+Stockungen von 380–430 ms «ohne Script» zeigte in diesem Lauf auch der Ausgangsstand («nach Reise» W2, W3, W5), der
+Branch an anderen Stellen; in einem früheren Lauf lagen sie bei «Reise → W6». Das ist Grafikprozess bzw. System
+(belasteter Rechner), kein Script dieses Tickets; Karte stets `adaptiv 1.00, Umbauten 0`.
+
+Befund und offen:
+
+- **Abnahme 4×, Reise:** ohne Hänger über 100 ms und ohne eigenes Script-Stück über 60 ms: erfüllt. Die längsten
+  Bilder (83–117 ms) sind Bilder, deren Zeichnen bei 4× allein 50–100 ms kostet (Ticket 11). Mehr Bilder über 33 ms
+  (141 → 189–333): die Arbeit liegt in vielen kurzen Stücken statt in wenigen langen, bei Zeichnen von 30–60 ms je Bild.
+- **Einstieg 4×:** Script kürzer (`loadLevel` 130 → 19–33 ms), aber die längsten Bilder bleiben 146–170 ms «ohne
+  Script» (Grafikprozess beim ersten Zeichnen der neuen Elemente); vorher 155–217 ms. Nicht durch Teilen von Script zu
+  lösen; für 11 bzw. die Schlussabnahme notiert. Ungedrosselt hat der Einstieg einzelne Bilder von 50–67 ms «ohne
+  Script» (vorher 33 ms), ebenfalls Grafikprozess, Streuung nicht ausgeschlossen.
+- **Ein Element** (`makeSource`, erstes Mal) kostet im Vorab-Bau bei 4× bis 66 ms in einem Häppchen (Geometrien,
+  kalter Code), während der Reise, nicht im Bild des Abstiegs. Feiner ginge es nur innerhalb der Fabriken.
+- **Poco, Handy-Durchlauf 2b** (Koordinator: Spiel 197,5 ms «Script 201 ms» kurz vor der Reise, Einstieg 69 ms,
+  Reise 67 ms): In diesem Fenster läuft das Vorladen der nächsten Welt. Bei 4× auf der T2000 kam der Abschnitt Spiel
+  davor nie über 133 ms (Script nie über 67 ms); 201 ms Script auf dem Poco entsprächen rund 680 ms bei 4×.
+  Wahrscheinlich wartet dort Script auf den Grafikprozess (Abfrage in `getProgramParameter`, wenn der Treiber nicht
+  wirklich parallel übersetzt; vorher die ganze Szene in beiden Fassungen auf einmal). Jetzt stösst jedes Häppchen nur
+  ein Material und eine Fassung an, und nur die neuen Teile. Ob das die 197,5 ms ganz abdeckt, zeigt erst das Poco.
+
+Tests: `node tests/logic.test.mjs` (2035; neu: Fische nach einer Pause, `warm` gleich dem ersten Bild, Abstandsfeld
+in Häppchen), `node tests/golden.mjs`, `node tests/hall.test.mjs`, `tests/offline.mjs`, `tests/screenshot.mjs`,
+`tests/leistung-probe.mjs` (`--fenster`, `--handy`; Fenster Desktop und Handy 4× mehrfach),
+`tests/geschichte-probe.mjs` (`--start`, `--grad leicht --welten 2 --finale leicht`, `--handy`),
+`tests/leerlauf-probe.mjs`, `tests/start-probe.mjs`: grün, keine Warnung «Weckstelle fehlt».
