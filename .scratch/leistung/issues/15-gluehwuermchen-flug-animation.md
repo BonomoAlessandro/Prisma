@@ -81,3 +81,17 @@ Tests (`leise.sh` 100 %): `node tests/logic.test.mjs` (2033), `node tests/golden
 --start`, `--grad leicht --welten 2 --finale leicht`, `--handy`, `--quer --grad leicht`, `--uebersicht --dorf` (dieses Mal
 grün, siehe Ticket 16), `tests/leistung-probe.mjs --handy`, `tests/start-probe.mjs`, `tests/leerlauf-probe.mjs`: alle grün,
 keine Warnung «Weckstelle fehlt». Offen: Poco (Handy-Durchlauf 3, max ≤ 33 ms in Einstellung 6).
+
+### 01.11.2026 – Browser-Review (`77e0e22`)
+
+Echtes Chrome mit Fenster und GPU, Handy-Emulation ungedrosselt und ×4, Trace und Screencast jedes Bildes (Scratchpad
+`rev1615/`, `flug2.mjs`). **Flug flüssig:** Handy ×1 Einstellung 6 gezeigte Bilder max 21,7 ms, Layerize p95 0,01 ms,
+BeginMainFrame p50 2,2 ms; Handy ×4 Einstellung 5/6 Layerize p95 0,52 / 0,20 ms (vorher 17,1 / 15,9), gezeigt max
+33,4 / 50,1 ms (vorher 18,7 / 33,3); der eine Abstand von 50 ms in 6 fällt in eine Folge langer Hauptbilder
+(BeginMainFrame 34–63 ms, Stil der laufenden Animationen) bei P + 0,7 s. **Tempo** (Tippen 0,4 s nach dem Start von 5 und
+6): erste Probe stark gestört (bis 327 ms), Wiederholung ruhig bis auf je eine Lücke von etwa 90 ms am Start der Fahrten
+5 und 6 (vorher max 53 / 35 ms). Vermutlich das Anlegen der Flüge im Bild des Starts; auf dem Poco beobachten.
+**Reduzierte Bewegung:** Schnitt in den Wald, die Glühwürmchen fliegen im Ruhepunkt ins Bild (`out/c-wenig.png`);
+**Überspringen** während 6 setzt sie sofort an ihren Platz, das Angebot erscheint korrekt. **Epilog** ohne Auffälligkeiten
+(keine Ausreisser im Screencast). Die Ebenen, die auf dem Desktop fehlen (siehe Ticket 16), kommen schon mit `c9d5532`,
+nicht von diesem Ticket; der Flug selbst ist in Ordnung.

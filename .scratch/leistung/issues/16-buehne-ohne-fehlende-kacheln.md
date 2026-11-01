@@ -145,3 +145,51 @@ eigenen Ebenen mehr, nichts tickt); `will-change` an `#story` nur, solange die B
 Läufe 133, 117, 184 ms (der letzte dazu «Wiederholen: Weiter über die Weltgrenze» 140 ms); derselbe Lauf auf `eb8105e`
 dazwischen 100 ms (knapp an der Grenze). Die Bühne ist dort ausgeblendet; ob die Lücke von diesem Ticket kommt oder von
 der Last paralleler Läufe (die Werte streuen stark), ist nicht geklärt. Bitte im Review prüfen.
+
+### 01.11.2026 – Browser- und Optik-Review (`77e0e22`, mit Ticket 15)
+
+Echtes Chrome mit Fenster und GPU (Quadro T2000), Prolog wie ein neuer Spieler mit Trace und Screencast jedes Bildes,
+vorher `eb8105e`, nachher `77e0e22`, dazu `c9d5532` (nur 16). Skripte und Bilder im Scratchpad unter `rev1615/`
+(`rev.mjs`, `kacheln.mjs`, `blatt.mjs`, `mem.mjs`, Bilder in `rev1615/out/`).
+
+**Gross, blockiert: Auf dem Desktop fehlen ganze Ebenen über Sekunden.** Ab Fahrt 4–6 bis zum Tippen auf das
+Angebot fehlen Bergflächen (nur die Gratlinie bleibt), Noas Hügel, Teile des Walds (mit harter senkrechter Kante),
+der Polarstern und sogar die Knöpfe des Angebots; die Helligkeit springt von 24 auf 33. Dazu ein fast schwarzes Bild
+am Start von Fahrt 6. Dreimal reproduziert (maximiert 4K und `buehne-messung bilder` 1440 × 900): `desktop-prolog-7`
+33,8 % der Pixel anders, Ruhepunkte 4–6 im Screencast (`out/c-f6.png`, `c-f6c.png`, `blatt-nd-f6.png`, `c-desk2.png`,
+`nachher/tests/output/buehne/vergleich/desktop-prolog-7.png`). Vorher nie. Auch `c9d5532` (nur 16) zeigt es
+(`out/c-n16.png`). **Ursache: GPU-Speicher.** Die Belegung des Renderers (`GPUTask.used_bytes`) liegt nachher vom
+Öffnen an an der Grenze von etwa 0,9 GB, vorher nur zeitweise. Mit `--force-gpu-mem-available-mb=8192` fehlt nichts
+mehr, die Belegung steigt dann aber auf 1,85 GB (`out/c-deskmem.png`). Chrome lässt die Kacheln, die nicht mehr ins
+Budget passen, einfach weg. Grund: Jede Ebene wird in der grössten Skalierung der ganzen Folge gerastert (eine
+Animation je Folge), dazu kommen die Linienkopien. **`has_missing_content` sieht das nicht** (nur 67–106 Bilder, obwohl
+die Ebenen sekundenlang fehlen); die Zählung der fehlenden Kacheln taugt allein nicht als Abnahme.
+**Handy:** In der Emulation (Desktop-Budget) ist alles korrekt, aber die Belegung steigt von 414 MB (vorher) auf
+725 MB (Handy ×4). Chrome auf Android hat ein kleineres Budget als der Desktop, also dasselbe Risiko auf dem Poco,
+dort wohl schon früher im Prolog. Abhilfe (Vorschlag): die Rasterskala begrenzen, statt die ganze Folge in einer
+Animation zu halten, z. B. eine Animation je Abschnitt ähnlicher Skalierung oder die Folge an den Zoomwechseln
+teilen. Die riesigen Ebenen (19000 × 11000, 8000 × 6500 Masse) auf das zuschneiden, was die Kamera je zeigt. Das Budget
+mit `used_bytes` im Trace prüfen (Ziel deutlich unter dem bisherigen Stand, auch auf dem Handy) und **jeden Ruhepunkt
+im Screencast gegen vorher vergleichen**, nicht nur die fehlenden Kacheln zählen.
+
+**Flackern in Einstellung 2 / fehlende Kacheln (sonst):** Handy ×4 vorher 25 Bilder mit fehlenden Kacheln, nachher 10:
+je 1 Bild am Start der Fahrten 2–6, 5 beim Öffnen; in den Ruhepunkten keins mehr (vorher 12, auch in Ruhe 2). Im
+Screencast ist keins davon zu sehen: kein Bild weicht von beiden Nachbarn ab, keine Helligkeitssprünge in Einstellung 2
+(`out/blatt-n4-9.png`). Das Flackern in Einstellung 2 aus Durchlauf 2b ist nach Trace und Screencast behoben. Beim
+Öffnen (Menü → Bühne) steht das Bild bei ×4 etwa 350 ms (vorher 200 ms), danach springt die Überblendung (Helligkeit
+35 → 25, `out/blatt-n4-oeffnen.png`). Das ist ein Hänger, kein Flackern; für Spieler sichtbar, aber auch vorher schon da.
+Abhilfe: die Bühne beim Halten einmal komplett rastern (kurz mit Deckkraft über die ganze erste Fahrt).
+
+**Optik (Ruhepunkte, Handy 1081 × 2401 je 0,1 s und 1,8 s nach dem Halt):** Linienstärke, Tausch der Linien (der Sprung
+von alter auf neue Breite ist gleich wie vorher), Umriss von Noa, Grate, Tannen, Gras gleich (`out/c-noa2.png`,
+`c-grat2.png`). Strahl bei normalem Abstand gleich (`out/c-strahl-h.png`); im Zoom ab 2× mit erhöhtem Kontrast leicht
+treppige Kanten und ein stufiger Verlauf am Ende (`c-strahl-h3.png`, `c-strahl4.png`), bei normalem Abstand nicht zu
+sehen. `buehne-messung bilder` (Handy, quer, Desktop): Ruhepunkte 1–5 ≤ 0,02 %, Ruhepunkt 6/7 Handy und quer
+0,3–0,8 % (Glühwürmchen an anderer Stelle, weil das Einfrieren die Flüge nicht auf dieselbe Zeit stellt), Desktop 7
+siehe oben.
+
+**Referenzdurchlauf** `leistung-probe --fenster --handy --ersatzmass`, zwei Paare: Prolog > 33 ms vorher 22 / 17,
+nachher 11 / 18; max vorher 83,9 / 89,9 ms, nachher 133,4 (beim Öffnen) / 183,4 ms (das zweite Paar lief neben meinen
+Auswertungen, also unsicher). `adaptiv 1.00, Umbauten 0` in allen Läufen, keine Meldung «Weckstelle fehlt».
+
+**Urteil: nicht bereit für Handy-Durchlauf 2c**, solange Ebenen wegen des GPU-Speichers fehlen können.
