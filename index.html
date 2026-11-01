@@ -8109,7 +8109,9 @@ const STORY_LEVELS = {
    RENDERER
    ===================================================================== */
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+// Auf den Bildschirm zeichnet nur der letzte Bildschritt (ein Rechteck übers ganze Bild): ohne Tiefe und Stencil, die
+// Szene hat beides in ihrem eigenen Ziel (createComposer). Spart auf Kachel-GPUs Löschen und Speichern je Bild (Ticket 11)
+const renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
 renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -13290,8 +13292,9 @@ function createComposer() {
     return renderFinal.apply(this, args);
   };
   // Rendert direkt auf den Bildschirm: ohne Swap wird der zweite Composer-Puffer nie gebunden
-  // und belegt daher keinen Grafikspeicher.
+  // und belegt daher keinen Grafikspeicher. Ohne Tiefentest (der Bildschirm hat keine Tiefe, siehe renderer).
   finalPass.needsSwap = false;
+  finalPass.material.depthTest = finalPass.material.depthWrite = false;
   comp.addPass(finalPass);
   return { comp, bloom, finalPass, brush };
 }
