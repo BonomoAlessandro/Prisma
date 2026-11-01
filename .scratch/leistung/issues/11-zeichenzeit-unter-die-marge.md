@@ -218,3 +218,18 @@ Messen in den Worktree kopieren, sie laden `vendor/` und `backgrounds/` relativ)
 
 Offen für den Koordinator: Review; Handy-Durchlauf 3 mit `APP_VERSION` nachgeführt; dort die Spalten des zweiten
 Blocks lesen, um den Rest bis 6 ms zuzuordnen (Himmel/Wasser am Strand, Final und Szene im Wald).
+
+**Review (01.11.2026, Code):** `git diff 3fcafa0 HEAD` geprüft; logic (2033), golden, hall, screenshot (Konsole leer)
+grün. Korrekt: Nach `discard` liest niemand Tiefe/Stencil des Szenenbilds (Pinsel davor, Bloom/Final nur Farbe, das
+nächste Bild löscht); WebGL1/MSAA übergeht `discardDepth`, `__ignoreDepthValues` greift nur beim MSAA-Auflösen (nur
+WebGL2). Auf den Bildschirm zeichnet nur `finalPass` (EffectComposer bindet am Ende wieder `null`, die `readPixels` der
+Dauerlast lesen also den Bildschirm); kein Kontext-Neustart-Pfad. Bloom-`render` deckt sich mit r147 ohne Kopier-Pass;
+Leuchten im Final = alte Mischung (SrcAlpha·opacity, Alpha unverändert, Aberration-Versatz aus unverändertem Alpha),
+Desktop und Handy über `bloomOut`-Grösse; Bloom aus bzw. «-Bloom» → `uBloom = 0`. Vorlauf: Grösse = `readBuffer`,
+Kamera-Matrix aktuell (render aktualisiert sie, Kamera ohne Eltern), Schattenkarte unberührt (Unterwasser-Szene ohne
+Licht), Abmelden über `releaseTree` auch bei Abbruch; ohne Wasser kein Eintrag. Tiefenregel Strand logisch gleich.
+*Gefixt* (`11f4073`): Ohne HDR (8-Bit-Ziele) begrenzte das alte Auftragen Szene + Leuchten auf 1, jetzt im Final
+ebenso (`lit`). *Hinweis:* «-Final» zeichnet nichts auf den Bildschirm; ob das `readPixels` dann auch auf die
+Offscreen-Pässe wartet, hängt am Treiber (Spalte -Fi auf dem Poco mit Vorsicht lesen). *Seitenstart:* `3fcafa0` im
+Fensterlauf `--handy` (T2000, Rechner belastet) GPU-p95 37,9 ms im Seitenstart, also nicht neu durch 11 (Laden,
+wenige Bilder); Vergleichslauf des neuen Stands blieb in der Sperre hängen.
