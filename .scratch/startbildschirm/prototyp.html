@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Prisma – drei Startbildschirme (Prototyp)</title>
+<style>
+  @font-face { font-family: "Jost"; font-weight: 200 400; src: url("../../vendor/jost/jost-latin.woff2") format("woff2"); }
+  :root { --ink: #e8e6f0; --ink-dim: rgba(232, 230, 240, 0.58); }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #030308; color: var(--ink); font-family: "Jost", "Segoe UI Light", sans-serif; overflow: hidden; }
+  .screen { position: fixed; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at 50% 55%, #0e0c1e, #030308 70%); }
+  .screen.on { display: flex; }
+  .sub, .start { opacity: 0; font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim);
+    background: none; border: 0; font-family: inherit; animation: fade 1.2s ease forwards; }
+  .start { margin-top: 64px; }
+  .start span { display: inline-block; animation: pulse 2.4s ease-in-out infinite; }
+  @keyframes fade { to { opacity: 1; } }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  /* ========== 1: Spektrum im Wort ========== */
+  #v1 .stage { position: relative; width: min(720px, 92vw); height: 140px; display: grid; place-items: center; }
+  #v1 .beam { position: absolute; left: 0; top: 50%; height: 2px; width: 100%; transform-origin: left; transform: scaleX(0);
+    background: linear-gradient(90deg, transparent, #fff 30%, #fff 70%, transparent);
+    box-shadow: 0 0 14px 2px rgba(255,255,255,.6); animation: v1beam 2.2s cubic-bezier(.5,0,.3,1) .3s forwards; }
+  @keyframes v1beam { 0% { transform: scaleX(0); opacity: 1 } 60% { transform: scaleX(1); opacity: 1 } 100% { transform: scaleX(1); opacity: 0 } }
+  #v1 h1 { margin: 0; font-weight: 200; font-size: clamp(40px, 10vw, 84px); letter-spacing: .45em; padding-left: .45em; position: relative; }
+  #v1 h1 span { display: inline-block; color: transparent; animation: v1ignite 1.6s ease-out forwards; animation-delay: calc(.45s + var(--i) * .2s); }
+  @keyframes v1ignite {
+    0% { color: transparent; text-shadow: none; transform: translateY(6px) }
+    14% { color: var(--c); text-shadow: 0 0 18px var(--c), 0 0 46px var(--c); transform: none }
+    100% { color: #fff; text-shadow: -2.5px 0 rgba(255,60,90,.75), 2.5px 0 rgba(70,130,255,.75), 0 0 22px rgba(255,255,255,.35); transform: none }
+  }
+  #v1 .rule { position: absolute; left: 50%; bottom: 8px; width: min(440px, 70vw); height: 2px; transform: translateX(-50%) scaleX(0);
+    background: linear-gradient(90deg, transparent, #ff3b4e, #ffe14a, #4dff8a, #3fd8ff, #a24dff, transparent);
+    filter: blur(.4px) drop-shadow(0 0 6px rgba(255,255,255,.5)); animation: v1rule 1.2s ease-out 2.2s forwards; }
+  @keyframes v1rule { to { transform: translateX(-50%) scaleX(1) } }
+  #v1 .sub { margin-top: 18px; animation-delay: 2.6s; }
+  #v1 .start { animation-delay: 3.2s; }
+
+  /* ========== 2: Spiegelweg ========== */
+  #v2 svg { width: min(760px, 94vw); height: auto; overflow: visible; }
+  #v2 .seg { fill: none; stroke-width: 3; stroke-linecap: round; stroke-dasharray: 1; stroke-dashoffset: 1; filter: url(#glow2);
+    animation: v2draw .3s linear forwards, v2dim 1.5s ease 3.4s forwards; animation-delay: calc(.4s + var(--i) * .3s), 3.4s; }
+  @keyframes v2draw { to { stroke-dashoffset: 0 } }
+  @keyframes v2dim { to { opacity: .28 } }
+  #v2 .mir { stroke: #cfd5ff; stroke-width: 4; stroke-linecap: round; opacity: .35; animation: v2hit .7s ease-out forwards; animation-delay: calc(.4s + var(--i) * .3s); }
+  @keyframes v2hit { 0% { opacity: .35 } 20% { opacity: 1; stroke: #fff; filter: drop-shadow(0 0 8px #fff) } 100% { opacity: .6 } }
+  #v2 text { font-weight: 200; font-size: 70px; fill: transparent; text-anchor: middle; dominant-baseline: central;
+    animation: v2letter 1.4s ease-out forwards; animation-delay: calc(.55s + var(--i) * .3s); }
+  @keyframes v2letter { 0% { fill: transparent } 15% { fill: var(--c); filter: drop-shadow(0 0 14px var(--c)) } 100% { fill: #fff; filter: drop-shadow(0 0 10px rgba(255,255,255,.35)) } }
+  #v2 .src { fill: #fff; filter: url(#glow2); }
+  #v2 .gem { fill: #a24dff; stroke: #fff; stroke-width: 2.5; opacity: .25; transform-box: fill-box; transform-origin: center;
+    animation: v2gem 1s ease-out 2.5s forwards, v2gempulse 2.4s ease-in-out 3.5s infinite; }
+  @keyframes v2gem { 0% { opacity: .25; transform: scale(1) } 30% { opacity: 1; transform: scale(1.5); filter: drop-shadow(0 0 18px #c58bff) } 100% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 10px #c58bff) } }
+  @keyframes v2gempulse { 50% { filter: drop-shadow(0 0 20px #c58bff) } }
+  #v2 .sub { margin-top: 10px; animation-delay: 3s; }
+  #v2 .start { animation-delay: 3.6s; }
+
+  /* ========== 3: Sternbild über Noas Dorf ========== */
+  #v3 { background: linear-gradient(#020212 0%, #0a0d2c 55%, #241a4a 100%); justify-content: flex-start; }
+  #v3 .stars { position: absolute; inset: 0; }
+  #v3 .stars i { position: absolute; width: 2px; height: 2px; border-radius: 50%; background: #fff; opacity: .5; animation: twinkle 3s ease-in-out infinite; }
+  @keyframes twinkle { 50% { opacity: .15 } }
+  #v3 .hills { position: absolute; left: 0; bottom: 0; width: 100%; height: 30vh; }
+  #v3 .village { position: absolute; left: 50%; bottom: 24vh; width: 10px; height: 10px; margin: 0 0 -5px -5px; border-radius: 50%;
+    background: #ffe6a8; box-shadow: 0 0 12px 4px rgba(255,220,150,.8), 0 0 40px 10px rgba(255,190,110,.35); animation: flicker 1.8s ease-in-out infinite; }
+  @keyframes flicker { 50% { opacity: .8 } }
+  #v3 .beam { position: absolute; left: 50%; width: 2px; margin-left: -1px; top: 16vh; bottom: 24vh; transform-origin: bottom; transform: scaleY(0);
+    background: linear-gradient(to top, #fff4d6, #fff 60%, rgba(255,255,255,.9));
+    box-shadow: 0 0 12px 2px rgba(255,255,255,.5); animation: v3beam 1.6s cubic-bezier(.6,0,.3,1) .6s forwards, v3fade 2s ease 2.4s forwards; }
+  @keyframes v3beam { to { transform: scaleY(1) } }
+  @keyframes v3fade { to { opacity: .12 } }
+  #v3 .polaris { position: absolute; left: 50%; top: 16vh; width: 90px; height: 90px; margin: -45px 0 0 -45px; opacity: 0; transform: scale(.2) rotate(-30deg);
+    animation: v3star 1.4s cubic-bezier(.2,1.4,.4,1) 2.1s forwards; }
+  @keyframes v3star { to { opacity: 1; transform: none } }
+  #v3 .polaris svg { width: 100%; height: 100%; overflow: visible; animation: v3spark 4s ease-in-out 3.5s infinite; }
+  @keyframes v3spark { 50% { transform: scale(1.12) rotate(8deg) } }
+  #v3 .word { position: absolute; top: 31vh; left: 50%; transform: translateX(-50%); width: min(560px, 86vw); }
+  #v3 .word svg { width: 100%; height: auto; overflow: visible; }
+  #v3 .ln { fill: none; stroke: #c9d4ff; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; opacity: .75;
+    stroke-dasharray: 1; stroke-dashoffset: 1; animation: v2draw .9s ease-in-out forwards; animation-delay: calc(2.7s + var(--i) * .16s); }
+  #v3 .dot { fill: #fff; opacity: 0; filter: url(#glow3); animation: v3dot .6s ease-out forwards; animation-delay: calc(2.6s + var(--i) * .16s); }
+  @keyframes v3dot { 0% { opacity: 0 } 40% { opacity: 1; r: 6 } 100% { opacity: 1 } }
+  #v3 .below { position: absolute; top: 31vh; left: 0; right: 0; margin-top: calc(min(560px, 86vw) * 148 / 588 + 34px); display: flex; flex-direction: column; align-items: center; }
+  #v3 .sub { animation-delay: 4.1s; }
+  #v3 .start { margin-top: 40px; animation-delay: 4.6s; }
+
+  /* Umschalter */
+  #pick { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 9; display: flex; gap: 6px; }
+  #pick button { font: 400 12px "Jost", sans-serif; letter-spacing: .08em; color: var(--ink); background: rgba(40,40,70,.6);
+    border: 1px solid rgba(255,255,255,.18); border-radius: 18px; padding: 6px 14px; cursor: pointer; }
+  #pick button.on { background: #fff; color: #000; }
+  body.shot #pick { display: none; }
+</style>
+</head>
+<body>
+<div id="pick">
+  <button data-v="1">1 · Spektrum im Wort</button>
+  <button data-v="2">2 · Spiegelweg</button>
+  <button data-v="3">3 · Sternbild</button>
+  <button data-v="r" title="Nochmals abspielen">↻</button>
+</div>
+
+<!-- 1: Der Strahl zieht durch, jeder Buchstabe leuchtet in seiner Spektralfarbe auf und wird zu Weiss mit Farbsaum -->
+<section class="screen" id="v1">
+  <div class="stage">
+    <div class="beam"></div>
+    <h1><span style="--i:0;--c:#ff3b4e">P</span><span style="--i:1;--c:#ff8a2a">R</span><span style="--i:2;--c:#ffe14a">I</span><span style="--i:3;--c:#4dff8a">S</span><span style="--i:4;--c:#3fd8ff">M</span><span style="--i:5;--c:#a24dff">A</span></h1>
+    <div class="rule"></div>
+  </div>
+  <div class="sub">Ein Lichtsignal an die Sterne</div>
+  <button class="start"><span>Tippen zum Starten</span></button>
+</section>
+
+<!-- 2: Ein Strahl springt zwischen zwei Spiegelreihen im Zickzack; wo er kreuzt, entsteht ein Buchstabe; am Ende leuchtet ein Kristall -->
+<section class="screen" id="v2">
+  <svg viewBox="-20 0 780 260">
+    <defs><filter id="glow2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+    <circle class="src" cx="10" cy="130" r="6"/>
+    <g>
+      <path class="mir" style="--i:1" d="M38 32 H82"/><path class="mir" style="--i:2" d="M138 228 H182"/><path class="mir" style="--i:3" d="M238 32 H282"/>
+      <path class="mir" style="--i:4" d="M338 228 H382"/><path class="mir" style="--i:5" d="M438 32 H482"/><path class="mir" style="--i:6" d="M538 228 H582"/>
+      <path class="mir" style="--i:7" d="M638 32 H682"/>
+    </g>
+    <g>
+      <path class="seg" pathLength="1" style="--i:0;stroke:#fff" d="M10 130 L60 40"/>
+      <path class="seg" pathLength="1" style="--i:1;stroke:#ff3b4e" d="M60 40 L160 220"/>
+      <path class="seg" pathLength="1" style="--i:2;stroke:#ff8a2a" d="M160 220 L260 40"/>
+      <path class="seg" pathLength="1" style="--i:3;stroke:#ffe14a" d="M260 40 L360 220"/>
+      <path class="seg" pathLength="1" style="--i:4;stroke:#4dff8a" d="M360 220 L460 40"/>
+      <path class="seg" pathLength="1" style="--i:5;stroke:#3fd8ff" d="M460 40 L560 220"/>
+      <path class="seg" pathLength="1" style="--i:6;stroke:#a24dff" d="M560 220 L660 40"/>
+      <path class="seg" pathLength="1" style="--i:7;stroke:#a24dff" d="M660 40 L710 130"/>
+    </g>
+    <text x="110" y="130" style="--i:1;--c:#ff3b4e">P</text><text x="210" y="130" style="--i:2;--c:#ff8a2a">R</text>
+    <text x="310" y="130" style="--i:3;--c:#ffe14a">I</text><text x="410" y="130" style="--i:4;--c:#4dff8a">S</text>
+    <text x="510" y="130" style="--i:5;--c:#3fd8ff">M</text><text x="610" y="130" style="--i:6;--c:#a24dff">A</text>
+    <path class="gem" d="M716 130 L730 114 L744 130 L730 146 Z"/>
+  </svg>
+  <div class="sub">Ein Lichtsignal an die Sterne</div>
+  <button class="start"><span>Tippen zum Starten</span></button>
+</section>
+
+<!-- 3: Aus Noas Dorf steigt ein Strahl zum Polarstern; dann zeichnet sich PRISMA als Sternbild -->
+<section class="screen" id="v3">
+  <div class="stars"></div>
+  <svg class="hills" viewBox="0 0 1000 300" preserveAspectRatio="none">
+    <path d="M0 300 V170 L140 110 L260 160 L380 90 L500 60 L620 110 L720 70 L860 150 L1000 100 V300 Z" fill="#0b0b26"/>
+    <path d="M0 300 V230 L180 180 L330 220 L500 175 L700 225 L880 190 L1000 215 V300 Z" fill="#05051a"/>
+  </svg>
+  <div class="beam"></div>
+  <div class="village"></div>
+  <div class="polaris"><svg viewBox="-50 -50 100 100">
+    <defs><radialGradient id="halo"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#dfe6ff" stop-opacity=".55"/><stop offset="1" stop-color="#9fb4ff" stop-opacity="0"/></radialGradient></defs>
+    <circle r="48" fill="url(#halo)"/>
+    <path d="M0 -44 L6 -6 L44 0 L6 6 L0 44 L-6 6 L-44 0 L-6 -6 Z" fill="#fff"/>
+  </svg></div>
+  <div class="word"><svg id="constellation" viewBox="-14 -14 588 148">
+    <defs><filter id="glow3" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+  </svg></div>
+  <div class="below">
+    <div class="sub">Ein Lichtsignal an die Sterne</div>
+    <button class="start"><span>Tippen zum Starten</span></button>
+  </div>
+</section>
+
+<script>
+// Sternbild-Buchstaben: Linienzüge auf einem Raster 60 × 120 (Punkte = Sterne)
+const LETTERS = {
+  P: [[[0,120],[0,0],[42,0],[60,18],[60,44],[42,62],[0,62]]],
+  R: [[[0,120],[0,0],[42,0],[60,18],[60,44],[42,62],[0,62]], [[24,62],[60,120]]],
+  I: [[[30,0],[30,60],[30,120]]],
+  S: [[[60,14],[44,0],[16,0],[0,16],[0,42],[16,58],[44,58],[60,76],[60,104],[44,120],[16,120],[0,106]]],
+  M: [[[0,120],[0,0],[30,66],[60,0],[60,120]]],
+  A: [[[0,120],[30,0],[60,120]], [[13,72],[47,72]]],
+};
+const NS = 'http://www.w3.org/2000/svg', svgC = document.getElementById('constellation');
+let k = 0;
+[...'PRISMA'].forEach((ch, n) => {
+  const ox = n * 100;
+  for (const line of LETTERS[ch]) {
+    const p = document.createElementNS(NS, 'polyline');
+    p.setAttribute('points', line.map(([x, y]) => `${x + ox},${y}`).join(' '));
+    p.setAttribute('pathLength', '1'); p.setAttribute('class', 'ln'); p.style.setProperty('--i', k);
+    svgC.appendChild(p);
+    for (const [x, y] of line) {
+      const c = document.createElementNS(NS, 'circle');
+      c.setAttribute('cx', x + ox); c.setAttribute('cy', y); c.setAttribute('r', 3); c.setAttribute('class', 'dot');
+      c.style.setProperty('--i', k);
+      svgC.appendChild(c);
+    }
+    k++;
+  }
+});
+// Hintergrundsterne (fest gesät, damit es jedes Mal gleich aussieht)
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const stars = document.querySelector('#v3 .stars');
+for (let i = 0; i < 110; i++) {
+  const s = document.createElement('i');
+  s.style.left = rnd() * 100 + '%'; s.style.top = rnd() * 70 + '%';
+  s.style.animationDelay = -rnd() * 3 + 's'; s.style.opacity = 0.2 + rnd() * 0.6;
+  if (rnd() < 0.15) s.style.width = s.style.height = '3px';
+  stars.appendChild(s);
+}
+
+const params = new URLSearchParams(location.search);
+let current = params.get('v') || '1';
+function show(v) {
+  current = v;
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'v' + v));
+  document.querySelectorAll('#pick button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  const el = document.getElementById('v' + v);
+  el.replaceWith(el.cloneNode(true)); // Animationen von vorn
+}
+document.getElementById('pick').addEventListener('click', e => {
+  const v = e.target.dataset.v; if (!v) return;
+  show(v === 'r' ? current : v);
+});
+addEventListener('keydown', e => { if ('123'.includes(e.key)) show(e.key); if (e.key === 'r') show(current); });
+show(current);
+// Für Standbilder: ?shot&t=1500 hält alle Animationen bei 1500 ms an
+if (params.has('shot')) {
+  document.body.classList.add('shot');
+  const t = +(params.get('t') || 99999);
+  requestAnimationFrame(() => document.getAnimations().forEach(a => { a.pause(); a.currentTime = t; }));
+}
+</script>
+</body>
+</html>

@@ -79,6 +79,25 @@ Entscheid in ADR 0005.
   - [ ] Eis oder Gletscher (Storyline: Cyan)
   - [ ] Blütental in der Dämmerung, z. B. Lavendel oder Kirschblüten (Storyline: Magenta)
   - [ ] Idyllisches Dorf, umgeben von Bergen (Storyline: Finale)
+- [ ] **1.3 Neuer Startbildschirm «Sternbild über Noas Dorf»** (vom Nutzer gewählt, 01.11.2026): ersetzt das heutige
+  Intro (`#intro` in `index.html`: Strahl, Schriftzug, Farbfächer hinter dem A). Prototyp mit allen drei geprüften
+  Varianten in `.scratch/startbildschirm/prototyp.html` (Variante 3; im Browser öffnen, Taste 3, Taste r spielt nochmals ab).
+  Ablauf:
+  - **Bild:** eigener Nachthimmel (Verlauf von fast Schwarz oben zu Violett am Horizont), rund 110 feste, leise
+    funkelnde Sterne, unten zwei Bergketten als Silhouette. Auf dem mittleren Gipfel brennt Noas Dorf als warmes
+    Licht, das leicht flackert.
+  - **0,6 s:** Aus dem Dorf steigt ein weisser Strahl senkrecht auf (1,6 s), bis zum Polarstern oben in der Mitte.
+  - **2,1 s:** Der Polarstern (vierzackig, mit Hof) blitzt auf und dreht sich ein; danach pulsiert er sanft. Der
+    Strahl verblasst auf etwa 12 %, bleibt aber als feine Linie stehen.
+  - **2,6 s:** «PRISMA» zeichnet sich als **Sternbild**: Die Buchstaben sind Linienzüge, an jedem Knick ein leuchtender
+    Stern. Linie für Linie, je 0,16 s versetzt, erscheinen zuerst die Sterne, dann ziehen sich die Verbindungen.
+  - **4,1 s / 4,6 s:** «Ein Lichtsignal an die Sterne» und «Tippen zum Starten» blenden ein, wie heute.
+  - Beim Einbau beachten: Die Enthüllung dauert länger als heute (bis etwa 5,8 s statt 2,9 s). `INTRO_REVEAL_MS`
+    (heute 4200, gibt `introCalm` frei) und die Mindestwartezeit vor `.ready` (heute 2900 ms) müssen mitwachsen,
+    sonst erscheint «Tippen zum Starten», während das Sternbild noch entsteht. Die Regel für
+    `prefers-reduced-motion` zählt heute die alten Elemente einzeln auf und ist für die neuen neu zu schreiben.
+    Weiter gilt: Animation erst mit `.go`; auf dem Handy messen (Ruckler beim ersten Zeichnen von Filtern, vgl. das
+    Vorab-Zeichnen des Farbfächers).
 
 ## 2. Würfel-Level (3D)
 
