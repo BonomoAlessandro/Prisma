@@ -13296,7 +13296,9 @@ function createComposer() {
     this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
     this.compositeMaterial.uniforms.bloomRadius.value = this.radius;
     this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors;
-    pass(this.compositeMaterial, bloomOut);
+    // in zwei Schritten (compositeCoarse, compositeFine), siehe dort
+    pass(compositeCoarse, this.renderTargetsHorizontal[1]);
+    pass(compositeFine, bloomOut);
     this.applied = true;
     r.setClearColor(this._oldClearColor, this.oldClearAlpha);
     r.autoClear = oldAutoClear;
@@ -13336,7 +13338,47 @@ function createComposer() {
         }`,
     });
   });
-  for (const m of pairBlur) { m.depthTest = m.depthWrite = false; }
+  // Zusammensetzen in zwei Schritten (Ticket 11): erst die Stufen 2–5 in der Grösse der Stufe 2 (sie selbst ohne
+  // Vergrössern, 3–5 als B-Spline), dann Stufe 1 und dieses Zwischenbild als B-Spline in der Grösse der Stufe 1. Stufe 2
+  // ergibt genau dasselbe wie vorher; 3–5 bekommen zusätzlich einen B-Spline von einem Texel der Stufe 2 dazu (Sigma
+  // etwa 2 Bildpunkte, ihre eigene Unschärfe ist über zehnmal so breit). Statt 17 Abtastungen je Pixel der Stufe 1
+  // 5 dort und 13 je Pixel der viermal kleineren Stufe 2.
+  const compositeUniforms = (extra) => ({
+    ...Object.fromEntries(['bloomStrength', 'bloomRadius', 'bloomFactors', 'bloomTintColors'].map((k) => [k, composite.uniforms[k]])),
+    ...extra,
+  });
+  const COMPOSITE_HEAD = `
+    varying vec2 vUv;
+    uniform float bloomStrength, bloomRadius;
+    uniform float bloomFactors[5];
+    uniform vec3 bloomTintColors[5];
+    float lerpBloomFactor(const in float factor) { return mix(factor, 1.2 - factor, bloomRadius); }
+    #define level(i, t) (lerpBloomFactor(bloomFactors[i]) * vec4(bloomTintColors[i], 1.0) * (t))
+    ${BSPLINE_GLSL}`;
+  const compositeCoarse = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms(Object.fromEntries([2, 3, 4, 5].flatMap((i) => [
+      [`blurTexture${i}`, composite.uniforms[`blurTexture${i}`]], [`uSize${i}`, composite.uniforms[`uSize${i}`]]]))),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture2, blurTexture3, blurTexture4, blurTexture5;
+    uniform vec2 uSize2, uSize3, uSize4, uSize5;
+    void main() {
+      gl_FragColor = bloomStrength * (level(1, texture2D(blurTexture2, vUv)) + level(2, bspline(blurTexture3, vUv, uSize3))
+        + level(3, bspline(blurTexture4, vUv, uSize4)) + level(4, bspline(blurTexture5, vUv, uSize5)));
+    }`,
+  });
+  const compositeFine = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms({ blurTexture1: composite.uniforms.blurTexture1, tCoarse: { value: bloom.renderTargetsHorizontal[1].texture },
+      uSize2: composite.uniforms.uSize2 }),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture1, tCoarse;
+    uniform vec2 uSize2;
+    void main() {
+      gl_FragColor = bloomStrength * level(0, texture2D(blurTexture1, vUv)) + bspline(tCoarse, vUv, uSize2);
+    }`,
+  });
+  for (const m of [...pairBlur, compositeCoarse, compositeFine]) { m.depthTest = m.depthWrite = false; }
   const bloomSetSize = bloom.setSize.bind(bloom);
   bloom.setSize = (w, h) => {
     bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
