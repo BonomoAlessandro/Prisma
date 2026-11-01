@@ -8271,7 +8271,7 @@ const sceneLoop = {
   aufwaermen() {
     if (!this.started || this.warm) return;
     const t0 = leistung.bildBeginn();
-    animate(FIXED_TIME ?? clock.getElapsedTime(), 0); // Kamera und Uniforms auf den Stand, ohne Zeit vorzuspulen
+    animate(FIXED_TIME ?? sceneTime.at(), 0); // Kamera und Uniforms auf den Stand, ohne Zeit vorzuspulen
     draw(1 / 60, t0, false);
   },
 };
@@ -14227,7 +14227,7 @@ function recomputeBeams(instant = false, delay = 0) {
   // Ruhte die Schleife (geweckt, auch eben durch wake oben, aber noch kein Schritt seither: last null), steht
   // beamView.time noch beim letzten Schritt: Neue Strahlen wären sonst schon gewachsen, entfallene schon ausgeblendet
   // (Geburt und Tod zählen ab time). Darum erst wecken, dann prüfen.
-  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = clock.getElapsedTime();
+  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = sceneTime.at();
   game.result = traceBeams(game.board);
   beamView.update(game.result, instant, delay);
   // Ein Ziel leuchtet erst auf, wenn der letzte seiner Strahlen sichtbar angekommen ist.
@@ -19987,6 +19987,20 @@ window.addEventListener('resize', onResize);
 onResize();
 
 const clock = new THREE.Clock();
+/**
+ * Zeit der Animationen (s) zu einem rAF-Zeitstempel ts (frame): Die Uhr beim Start des Callbacks lief um den Verzug
+ * des Callbacks nach dem Bildschirmtakt verschieden weit (andere Arbeit davor, auf dem Handy mehrere ms), bewegte
+ * Dinge wie die Fische machten dann ungleiche Schritte (Spec .scratch/leistung/, Ticket 17). Der Zeitstempel des
+ * Bildschirmbilds ist gleichmässig. Ohne ts (Aufwärmen, Wecken der Strahlen) gilt die Uhr; nie rückwärts, sonst
+ * begänne etwa die Simulation der Fische neu (createFishSim).
+ */
+const sceneTime = {
+  t: 0,
+  at(ts = performance.now()) {
+    clock.getElapsedTime(); // startet die Uhr beim ersten Aufruf (startTime)
+    return (this.t = Math.max(this.t, (ts - clock.startTime) / 1000));
+  },
+};
 
 /**
  * Adaptive Auflösung: misst die echte Frame-Zeit und senkt die Renderauflösung, sobald 60 FPS
@@ -21085,7 +21099,7 @@ function frame(ts) {
     const dt = loop.last === null ? 1 / 60 : Math.min((ts - loop.last) / 1000, MAX_DT);
     loop.last = ts;
     const t0 = leistung.bildBeginn();
-    animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+    animate(FIXED_TIME ?? sceneTime.at(ts), dt);
     window.__prisma.ticks++;
     if (loop.still >= REST_STEPS) {
       if (loop.dirty && loop.mayDraw()) draw(dt, t0, false); // aufwärmen und den Stand von jetzt auf die Leinwand
@@ -21109,7 +21123,7 @@ function frame(ts) {
   loop.last = ts;
   if (loop.ambient() || loop.pending()) loop.still = 0; else loop.still++;
   const t0 = leistung.bildBeginn(); // Messwerkzeug: CPU-Zeit von frame() und Zeichenzeit (nur mit ?perf)
-  animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+  animate(FIXED_TIME ?? sceneTime.at(ts), dt);
   window.__prisma.ticks++;
   draw(dt, t0);
   // nichts bewegt sich mehr: ruhen, bis wake() (das letzte Bild bleibt stehen; die Bilder bis hierher zeigen auch, was
