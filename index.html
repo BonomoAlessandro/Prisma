@@ -13283,13 +13283,14 @@ function createComposer() {
     pass(this.materialHighPassFilter, this.renderTargetBright);
     let input = this.renderTargetBright;
     for (let i = 0; i < this.nMips; i++) {
-      const blur = this.separableBlurMaterials[i];
+      // gleich grosse Quelle: paarweise (pairBlur); verkleinernd (waagrecht ab Stufe 1): wie UnrealBloom
+      const blur = i === 0 ? pairBlur[i] : this.separableBlurMaterials[i];
       blur.uniforms.colorTexture.value = input.texture;
       blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionX;
       pass(blur, this.renderTargetsHorizontal[i]);
-      blur.uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
-      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
-      pass(blur, this.renderTargetsVertical[i]);
+      pairBlur[i].uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      pairBlur[i].uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
+      pass(pairBlur[i], this.renderTargetsVertical[i]);
       input = this.renderTargetsVertical[i];
     }
     this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
@@ -13305,6 +13306,37 @@ function createComposer() {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
+  // Weichzeichnen, wo Quelle und Ziel gleich gross sind (alle senkrechten Durchgänge, auf Stufe 0 auch der waagrechte):
+  // derselbe Gauss wie UnrealBloom, aber je zwei benachbarte Texel mit einer bilinearen Abtastung zwischen ihnen, nach
+  // ihren Gewichten versetzt (Ticket 11: 3 statt 5 Abtastungen auf der grössten Stufe, 11 statt 21 auf der kleinsten).
+  // Verkleinert ein Durchgang (waagrecht ab Stufe 1), mittelt jede seiner Abtastungen schon 2 × 2 Texel der Quelle: dort
+  // wie UnrealBloom.
+  const pairBlur = bloom.separableBlurMaterials.map((m) => {
+    const radius = m.defines.KERNEL_RADIUS, sigma = parseFloat(m.defines.SIGMA);
+    const w = Array.from({ length: radius }, (_, x) => Math.exp(-0.5 * x * x / (sigma * sigma)));
+    const sum = w[0] + 2 * w.slice(1).reduce((a, b) => a + b, 0);
+    const taps = [];
+    for (let x = 1; x < radius; x += 2) {
+      const wa = w[x], wb = x + 1 < radius ? w[x + 1] : 0;
+      taps.push([(x * wa + (x + 1) * wb) / (wa + wb), (wa + wb) / sum]);
+    }
+    return new THREE.ShaderMaterial({
+      uniforms: { colorTexture: { value: null }, texSize: m.uniforms.texSize, direction: { value: new THREE.Vector2() } },
+      vertexShader: m.vertexShader,
+      fragmentShader: `
+        varying vec2 vUv;
+        uniform sampler2D colorTexture;
+        uniform vec2 texSize;
+        uniform vec2 direction;
+        void main() {
+          vec2 stp = direction / texSize;
+          vec3 s = texture2D(colorTexture, vUv).rgb * ${(w[0] / sum).toFixed(8)};
+          ${taps.map(([o, wt]) => `s += (texture2D(colorTexture, vUv + stp * ${o.toFixed(8)}).rgb + texture2D(colorTexture, vUv - stp * ${o.toFixed(8)}).rgb) * ${wt.toFixed(8)};`).join('\n          ')}
+          gl_FragColor = vec4(s, 1.0);
+        }`,
+    });
+  });
+  for (const m of pairBlur) { m.depthTest = m.depthWrite = false; }
   const bloomSetSize = bloom.setSize.bind(bloom);
   bloom.setSize = (w, h) => {
     bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
