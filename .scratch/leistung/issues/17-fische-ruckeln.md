@@ -4,7 +4,7 @@
 
 **Blocked by:** 14
 
-**Status:** ready-for-human (Review erledigt, Abnahme auf dem Poco in Handy-Durchlauf 2c)
+**Status:** resolved (Poco, Durchlauf 3: «Die Fische sind ruhig und glatt»)
 
 **What to build:** Die Fische am Strand bewegen sich auf dem Handy gleichmässig. Beobachtung des Nutzers im
 Handy-Durchlauf 2b (Poco F4 GT, Stand `leistung-07b`): «Die Fische waren glatt, aber ruckelig.» Seit Ticket 14 sind die
