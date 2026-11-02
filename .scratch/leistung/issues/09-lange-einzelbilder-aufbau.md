@@ -193,3 +193,29 @@ Generators `waterSurface` an und bei `releaseTree` ab, passt zum Abbruch. Tests:
 `prepareLevel`). `--uebersicht --dorf`: einzig «Spiel → Übersicht» mit 2 Lücken über 100 ms (134 ms), ebenso am
 Ausgangsstand `eb8105e` (117 ms) im selben Takt; ein erster Lauf bei belastetem Rechner hatte 7 solche Abschnitte, auch
 in Menü ↔ Übersicht ohne jeden Aufbau.
+
+**02.11.2026, Browser-Review** (Testmerge `leistung/09-einzelbilder` auf `feature/leistung` `7549329`, ohne Konflikte;
+verglichen mit `7549329`; echtes Chrome-Fenster, T2000, `leise.sh` 100 %; der Rechner war durch andere Läufe stark
+belastet, Takt zeitweise 56 Hz). Urteil: **in Ordnung**, ein kleiner Fund selbst behoben.
+
+- **Optik:** alle 5 Reisen und 6 Einstiege per Screencast, Desktop und Handy (393 × 873, DPR 2,75): Helligkeit und
+  Schärfe je Bild vorher/nachher gleich (dunkle Strecken nur in Planeten/Sterne, gleich lang), nichts ploppt, Elemente
+  wachsen wie vorher ein, Strahlen und Lösung korrekt. Fische sind beim Einblenden des Meers schon als Schwarm im Wasser.
+  `?t=12` mit Level vor Strand und Wüste (Desktop, Strand auch Handy): pixelgleich, der Weg über ImageBitmap ist dabei
+  aktiv (`flipsOk` true, 6 Uploads als ImageBitmap), Ufer und Wasserkante stehen richtig.
+- **Bildzeiten** (Referenzdurchlauf, je 2× abwechselnd; Reise max / >33): Handy ungedrosselt vorher 39,1/4 und
+  443,3/2, nachher 37,6/5 und 25,5/0; Desktop vorher 109,3/8 und 19,9/0, nachher 512,0/5 und 43,5/2. Hänger mit Script
+  in Reise/Spiel nur vorher (129 ms «Script 113 ms» Reise, 81 ms «Script 68 ms» Spiel), nachher keiner über 10 ms
+  Script; die Stockungen von 200–920 ms «ohne Script» kamen in beiden Ständen und in allen Abschnitten vor (auch Prolog,
+  Startbildschirm), also Last des Rechners. Karte stets `adaptiv 1.00, Umbauten 0` (Handy 4×: beide 0,50 / 2, CPU-Last).
+- **Randfälle** (Desktop und Handy, je vorher/nachher): Menü bei «Gelöst» während des Vorladens, Esc während der Reise
+  (ignoriert wie vorher), schnell Menü/Weiter, Esc gleich nach «Weiter» (Level wird vorab gebaut), Übersicht → anderes
+  Level, während eines vorbereitet ist (`levelPrep` danach leer, Elemente vollständig), Tab während des Aufbaus 4 s
+  verborgen, Neuladen mitten im Aufbau: nichts hängt, keine Konsolenmeldung, keine «Weckstelle fehlt». Speicher nach
+  3 Reisen Meer ↔ Wald: Geometrien 140, Texturen 37/38, Programme 60 unverändert; Heap stabil 11,2–11,5 MB (vorher
+  10,2–10,4 MB).
+- **Selbst behoben** (`8572b87`): Mit Ticket 17 rechnet `animate` mit `sceneTime.at(ts)` (Zeitstempel des Bilds),
+  `sim.warm` aber nach der Uhr; liegt das erste Bild nach `warm` etwas davor, begann `advance` neu und rechnete die
+  150 Schritte doch im ersten Bild. Jetzt bleibt ein Rücksprung bis `CATCH` stehen (Test in `logic.test.mjs`).
+- Tests auf dem Testmerge samt Fix: `logic` (2036), `golden`, `geschichte-probe --grad leicht --welten 2 --finale
+  leicht` und `--handy`, `offline`: grün.
