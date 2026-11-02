@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Auf der Reise in eine neue Welt, beim Einstieg und bei der Ankunft im Level hält kein Stück Arbeit
 auf dem Hauptthread ein Bild über 33 ms an (Poco). Heute sind es einzelne Bilder von 50–100 ms. Optisch ändert sich
