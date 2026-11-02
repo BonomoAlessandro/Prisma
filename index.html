@@ -8373,10 +8373,17 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * der Lampe (mit ihm zeichnet der Compositor je Bild fünf Zwischenflächen mehr: Kraft, Flackern, zwei Masken);
  * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
- * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt).
+ * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite2: Massstab der Seite
+ * 2 / devicePixelRatio (siehe unten).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
+// seite2: Massstab der Seite 2 / devicePixelRatio (wie das Spiel mit Pixelverhältnis 2); die Bühne füllt den Bildschirm
+// trotzdem (rechnet mit der grösseren Breite), kleiner gerastert werden nur Ebenen an der Obergrenze (nur zum Messen)
+if (DIAG.has('seite2') && devicePixelRatio > 2) {
+  const s = (2 / devicePixelRatio).toFixed(4);
+  document.querySelector('meta[name="viewport"]').content = `width=device-width, initial-scale=${s}, minimum-scale=${s}, maximum-scale=${s}, user-scalable=no, viewport-fit=cover`;
+}
 const ruhe = {
   calm: false,    // Startbildschirm ruhig (introCalm)
   laden: 0,       // markiertes Laden hinter einer Überblendung (lade)
@@ -18494,6 +18501,8 @@ function createStoryScene(host) {
    * (keine Nähte), den Verlauf gibt eine Maske des Ganzen, die mitskaliert.
    */
   const STRAHL_L = 860, STRAHL_MIN = 0.02; // kürzer (Anteil von STRAHL_L) zeichnet er nicht (Kraft 0 oder kaum sichtbar)
+  // Höhe der Box eines Keils: kleiner rastert weniger, aber beim Wachsen (s klein, quer gestreckt) grösser (keilMatrix)
+  const KEIL_H = 25;
   const STRAHL_TEILE = [
     { w0: 3, k: 0.04, farbe: '#fff1cc', stopps: [[0.42, 0], [0.2, 15], [0.07, 35], [0, 55]] },
     { w0: 1.4, k: 0.011, farbe: '#fffaf0', stopps: [[0.95, 0], [0.4, 12], [0.06, 32], [0, 50]] },
@@ -18503,8 +18512,10 @@ function createStoryScene(host) {
     // wie der Strahl (der Verlauf reicht über die Box hinaus) und hoch genug für den Hals ab s = 0,25 (kürzer deckt ihn
     // die Lampe)
     const h = k * STRAHL_L, hb = Math.max(h, w0 / 0.25), maske = `linear-gradient(to right, ${stopps.map(([a, p]) => `rgba(0,0,0,${a}) ${p}%`).join(', ')})`;
-    // Keil in voller Länge (Massstab 1 längs: Chrome rastert ihn nicht in einer riesigen Skalierung)
-    const keil = `<div class="teil keil">${svg(0, 0, STRAHL_L, 100, `<path d="M0 0L0 100L${STRAHL_L} 0Z" fill="${farbe}"/>`)}</div>`;
+    // Keil in voller Länge (Massstab 1 längs: Chrome rastert ihn nicht in einer riesigen Skalierung), quer KEIL_H hoch:
+    // Chrome rastert die ganze Box, zu sehen ist nur ein Streifen (mit 100 vier Keile gut 10 MB Speicher der Grafik,
+    // Poco, Ticket 18)
+    const keil = `<div class="teil keil">${svg(0, 0, STRAHL_L, KEIL_H, `<path d="M0 0L0 ${KEIL_H}L${STRAHL_L} 0Z" fill="${farbe}"/>`)}</div>`;
     return `<div class="strahl" style="top:${n(-hb)}px;width:${STRAHL_L}px;height:${n(2 * hb)}px;-webkit-mask-image:${maske};mask-image:${maske};-webkit-mask-size:${n(100 / 0.55)}% 100%;mask-size:${n(100 / 0.55)}% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat">`
       + `<div class="teil" style="top:${n(hb)}px">${svg(0, -h, STRAHL_L, 2 * h, `<path d="M0 ${-w0}L${STRAHL_L} ${n(-h)}L${STRAHL_L} ${n(h)}L0 ${w0}Z" fill="${farbe}"/>`)}${keil}${keil}</div></div>`;
   }).join('')}${svg(-24, -24, 48, 48, '<defs><radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient></defs><circle r="24" fill="url(#s-lamp)"/>')}</div></div>`;
@@ -18737,11 +18748,11 @@ function createStoryScene(host) {
   // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns als Spuren (spur)
   const armSpur = spur(75, [[arm, (v) => ({ transform: `rotate(${v.toFixed(3)}deg)` }), true]]);
   const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(6) }), true]]);
-  /** Keil (Dreieck 0 0, 0 100, STRAHL_L 0) über dem Rand des skalierten Kegels: Hals w0 an der Lampe, sg: oben 1, unten −1 */
+  /** Keil (Dreieck 0 0, 0 KEIL_H, STRAHL_L 0) über dem Rand des skalierten Kegels: Hals w0 an der Lampe, sg: oben 1, unten −1 */
   const keilMatrix = (w0, k, s, sg) => {
     const innen = w0 / 2; // überlappt den Kegel (einfarbig: keine Naht)
     return `matrix(1, ${(sg * (k * STRAHL_L - innen) / STRAHL_L).toFixed(6)}, 0, `
-      + `${(sg * (w0 / s - innen) / 100).toFixed(5)}, 0, ${sg * innen})`;
+      + `${(sg * (w0 / s - innen) / KEIL_H).toFixed(5)}, 0, ${sg * innen})`;
   };
   const laenge = spur(0, strahlen.flatMap(({ s: elem, keile }, i) => {
     const { w0, k } = STRAHL_TEILE[i], s = (v) => Math.max(v, STRAHL_MIN);
