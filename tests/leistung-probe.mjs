@@ -40,10 +40,12 @@ requireQuiet();
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
 const ersatzmass = args.includes('--ersatzmass');
 const name = `${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`
-  + (ersatzmass ? '-ersatzmass' : '');
+  + (ersatzmass ? '-ersatzmass' : '') + (args.includes('--takt30') ? '-takt30' : '');
 // --ersatzmass: ohne GPU-Zeit (wie viele Android-Geräte), Zeichenzeit als Dauerlast an Messpunkten; hat das Gerät den
 // Timer doch (T2000), misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
-const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf');
+// --takt30: mit ?takt=30 (höchstens 30 Bilder/s, Vergleich für den Strand)
+const takt30 = args.includes('--takt30');
+const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf') + (takt30 ? '&takt=30' : '');
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 

@@ -1217,7 +1217,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-02 leistung-08';
+const APP_VERSION = '2026-11-02 leistung-08b';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -21618,7 +21618,7 @@ const leistung = {
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
         adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0, fluidAus: frameRate.fluidAus,
-        kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
+        aktivFps: frameRate.activeFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
       gesamt: { bilder: gesamt.n, p95: q(gesamt, 0.95), max: gesamt.max, ueber33: ueber, zeichnenP95: q(zeichnen, 0.95),
@@ -21642,7 +21642,8 @@ const leistung = {
       `GPU         ${g.gpu}`,
       `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
       `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
-        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''})${g.mobil ? ', Handy' : ''}`,
+        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''}${g.aktivFps !== 60 ? `, höchstens ${g.aktivFps}/s` : ''})`
+        + `${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
       ...(d.ohne ? [`Proben      ${d.ohne} Bildabstände mit einer Probe der Dauerlast nicht gezählt`] : []),
@@ -22100,6 +22101,9 @@ const frameRate = {
     return true;
   },
 };
+// ?takt=30: höchstens 30 Bilder/s, auch bei Bewegung und Eingaben (Vergleich auf dem Handy, ob stetige 30 im Level
+// genügen; Ticket 13 der Leistung, Strand über 8 ms)
+if (new URLSearchParams(location.search).get('takt') === '30') frameRate.activeFps = 30;
 for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
 }
