@@ -16910,8 +16910,8 @@ const createMenu = (() => {
       // grossem σ in Gerätepixeln (Handy) rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der
       // Fläche (Handy ohne: bis 4/255 anders, mit: bis 2/255; Desktop mit ganzen Pixeln gleich)
       let filter = '', nFilter = 0;
-      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4), R = dpr > 1 ? 8 : 1;
-      const rasterAb = (v) => Math.floor(v * dpr / R) * R, rasterAuf = (v) => Math.ceil(v * dpr / R) * R;
+      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4), raster = dpr > 1 ? 8 : 1;
+      const rasterAb = (v) => Math.floor(v * dpr / raster) * raster, rasterAuf = (v) => Math.ceil(v * dpr / raster) * raster;
       const leuchten = (pts, r) => {
         const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), rand = r + LEUCHTEN_RAND;
         const x0 = rasterAb(Math.min(...xs) - rand), y0 = rasterAb(Math.min(...ys) - rand);
