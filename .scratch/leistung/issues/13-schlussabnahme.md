@@ -136,3 +136,6 @@ Verhalten her. Grenze der Zeichenzeit bei 30 Bildern/s: 16 ms (gleiche Reserve).
 (Reaktion im nächsten *gezeichneten* Bild), leistung-probe (`--takt60`, Urteil ≤ 8 bzw. 16 ms). Grün: logic, offline,
 screenshot, start-probe, leerlauf-probe (headless, `--fenster`, `--fenster --handy`), geschichte-probe `--start` und
 `--handy`, leistung-probe `--handy` und `--fenster --handy --ersatzmass`.
+
+Poco, `leistung-09`: «Das Spiel mit 30 fps läuft super und glatt. Nur hatte ich in den Noa-Szenen noch immer ein paar
+Ruckler.» → Ticket 18 (Bühne der Geschichte, bei 60).
