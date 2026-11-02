@@ -365,7 +365,11 @@
   /* vorgewärmt (story.vorwaermen), für neue Spieler bis zum Prolog gehalten: gezeichnet wie oben, aber weiter hidden
      und inert */
   #story.hidden.gehalten { opacity: 1 !important; transition: none; }
-  #story .scene .world { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; }
+  /* Ein- und Ausblenden der Bühne ohne neues Rastern ihrer Ebenen (siehe .world) */
+  #story[data-mode="scene"]:not(.hidden), #story.gehalten { will-change: opacity; }
+  /* will-change hier und an #story: Beginn und Ende des Einblendens liessen Chrome sonst alle Ebenen der Bühne neu
+     rastern (fehlende Kacheln, Ticket 16) */
+  #story .scene .world { position: absolute; inset: 0; opacity: 0; transition: opacity 1.6s ease; pointer-events: none; will-change: opacity; }
   #story .scene.lit .world { opacity: 1; }
   /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
      Teile, die sich bewegen, drehen und skalieren um ihren Ort (left, top) */
@@ -373,6 +377,13 @@
   #story .scene .ebene svg { position: absolute; display: block; overflow: visible; }
   #story .scene .teil, #story .scene .atem, #story .scene .flacker { position: absolute; left: 0; top: 0; width: 0; height: 0; }
   #story .scene .bewegt { will-change: transform; }
+  /* Linien je zweimal (createStoryScene, linie): die eine zu sehen, die andere nur beim Rastern da (bereit), sonst ganz
+     weg (Speicher der Grafik: auch durchsichtig hielt Chrome sie im Speicher) */
+  #story .scene .linie { will-change: opacity; }
+  #story .scene .linie.aus { opacity: 0; display: none; }
+  #story .scene .linie.aus.bereit { opacity: 0.002; display: block; }
+  /* Kegel und Kern des Strahls (createStoryScene, STRAHL): Ursprung links in der Mitte, dort skaliert er (laenge) */
+  #story .scene .strahl { position: absolute; left: 0; transform-origin: 0 50%; }
   /* funkelnde Sterne in Gruppen (matt und hell): eine Gruppe dunkelt bis auf etwa 0,12 der Helligkeit ihrer Sterne ab */
   #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
   #story .scene .tw.hell { animation-name: story-twinkle-hell; }
@@ -18256,14 +18267,15 @@ const STORY_EPILOG = [
  *
  * Gezeichnet wird so selten wie möglich (Ticket 04 von .scratch/leistung/): Jede Ebene ist eine eigene Ebene des
  * Compositors (.ebene, ein SVG darin in Massen der Szene), die Kamera schiebt und skaliert sie per Web Animations
- * (fahrt), ohne sie neu zu rastern. Gerastert wird eine Ebene je Fahrt einmal, in der grössten Skalierung der Fahrt
- * (das macht Chrome für laufende Transform-Animationen so): Sie bleibt beim Zoom scharf. Damit das nicht beim Start der
- * Fahrt geschieht, legt vorbereiten die nächste Fahrt schon beim Warten auf Tippen an (verzögert, im Startbild). Was
- * sich klein bewegt (Glühwürmchen, Rauch, Schal, Atmen des Polarsterns, Flackern des Strahls), läuft als Animation von
- * transform und opacity auf eigenen kleinen Ebenen, nach der Zeit der Bühne (time; mit speed schneller); funkelnde
- * Sterne in wenigen Gruppen, flackernde Fenster einzeln per CSS. JavaScript läuft pro Bild (frame, höchstens 60-mal pro
- * Sekunde) nur, solange es etwas bewegt: Tweens (Arm, Strahl, Blinken) und Glühwürmchen im Flug. Beim Warten auf
- * Tippen läuft keins, ausgeblendet ruht alles.
+ * (fahrt), ohne sie neu zu rastern. Gerastert wird eine Ebene einmal je Folge (Prolog oder Epilog), in der grössten
+ * Skalierung der Folge (das macht Chrome für laufende Transform-Animationen so; eine Animation je Ebene für die ganze
+ * Folge, folgeAnlegen): Sie bleibt beim Zoom scharf, und keine sichtbare Ebene rastert neu (sonst zeigte sie dabei
+ * fehlende Kacheln, Flackern, Ticket 16). Was sich klein bewegt (Glühwürmchen, Rauch, Schal, Atmen des
+ * Polarsterns, Flackern des Strahls), läuft als Animation von transform und opacity auf eigenen kleinen Ebenen, nach
+ * der Zeit der Bühne (time; mit speed schneller); Arm, Strahl und Blinken als vorab berechnete Spuren (spur); funkelnde
+ * Sterne in wenigen Gruppen, flackernde Fenster einzeln per CSS. Während einer Fahrt ändert JavaScript nichts am DOM:
+ * Jeder Commit liess Chrome die bewegten Ebenen neu rastern. Die Linien (linie) bekommen ihre Breite je Ruhepunkt in
+ * einer verborgenen Kopie. Beim Warten auf Tippen läuft keine Schleife, ausgeblendet ruht alles.
  */
 function createStoryScene(host) {
   const rand = mulberry32(11);
@@ -18314,15 +18326,29 @@ function createStoryScene(host) {
     const side = (s) => FIR.map(([dx, dy]) => `L${n(x + s * dx * w)} ${n(y - dy * h)}`);
     return `M${n(x + lean)} ${n(y - h)}${side(-1).join('')}${side(1).reverse().join('')}Z`;
   };
+  /**
+   * Grosse Flächen aus vielen Teilen (Tannenreihen, Gras) in Stücken von STUECK Massen, je ein eigener Pfad ('|' trennt,
+   * pfade): Skia rastert jede Kachel nur mit den Pfaden, die sie berührt. Ein Pfad mit Hunderten Tannen kostete jede
+   * Kachel der Ebene ganz (Raster-Hänger bis 80 ms im GPU-Prozess, Ticket 16).
+   */
+  const STUECK = 150;
+  const pfade = (d, attr) => d.split('|').filter(Boolean).map((s) => `<path d="${s}" ${attr}/>`).join('');
   const firRow = (x0, x1, [s0, s1], [h0, h1], base) => {
     let d = '';
-    for (let x = x0; x < x1; x += r(s0, s1)) d += fir(x, base(x), r(h0, h1));
-    return d;
+    let stueck = null;
+    for (let x = x0; x < x1; x += r(s0, s1)) {
+      const s = Math.floor(x / STUECK);
+      if (stueck !== null && s !== stueck) d += '|';
+      stueck = s;
+      d += fir(x, base(x), r(h0, h1));
+    }
+    return d + '|';
   };
   /**
    * Strichbreite wie früher mit vector-effect non-scaling-stroke: in Pixeln, gleich bei jedem Zoom. Die Kamera skaliert
-   * die Ebenen jetzt im Compositor (ausserhalb des SVG); --rs ist ihre Skalierung im Ruhepunkt (stelle), während einer
-   * Fahrt wächst und schrumpft der Strich mit, im Ruhepunkt stimmt er wieder genau.
+   * die Ebenen jetzt im Compositor (ausserhalb des SVG); --rs ist ihre Skalierung im Ruhepunkt (stelle, linienTauschen;
+   * je Linie gesetzt, siehe linie), während einer Fahrt wächst und schrumpft der Strich mit, im Ruhepunkt stimmt er wieder.
+   * Ausnahme die fernen Ebenen (.fest): --rs aus Zoom 1, der Strich wird beim Zoomen etwas breiter (stelle).
    */
   const strich = (w) => `stroke-width:calc(${w}px / var(--rs, 1))`;
   const rim = (pts, color, opacity, width = 1.2) =>
@@ -18331,6 +18357,17 @@ function createStoryScene(host) {
   const svg = (x, y, b, h, inhalt, cls = '', stil = '') =>
     `<svg class="${cls}" width="${b}" height="${h}" viewBox="${x} ${y} ${b} ${h}" style="left:${x}px;top:${y}px;${stil}">${inhalt}</svg>`;
   const BILD = (inhalt, cls = '', stil = '') => svg(0, 0, 1600, 900, inhalt, `bild ${cls}`, stil); // eine ganze Ebene (ragt über 1600 × 900 hinaus)
+  /**
+   * Linien mit strich (Grate, Dachkanten, Umriss von Noa) zweimal, als eigene Ebenen des Compositors (.linie): Die
+   * Breite für einen neuen Ruhepunkt bekommt die verborgene, die erst nach dem Rastern sichtbar wird (linienTauschen).
+   * Sonst rasterte die sichtbare Ebene neu und zeigte dabei fehlende Kacheln (Flackern, Ticket 16). Die verborgene gibt
+   * es nur für den Tausch (CSS .linie.aus). f(inhalt, cls): SVG. Jede Linie kostet Speicher der Grafik (Kacheln längs
+   * der ganzen Linie, Handy: Review 16): die Grate der fernen Berge und des Bergwalds, die im Prolog höchstens um 1,26
+   * und 1,5 zoomen, liegen darum im Bild ihrer Ebene, mit fester Breite (.fest). Die Grate von Dorfhügel und Noas Hügel
+   * liegen unter dem Bild, doppelt so breit (die Fläche deckt die untere Hälfte): Eine Linie mitten im Bild teilte es in
+   * weitere Ebenen.
+   */
+  const linie = (f, inhalt) => f(inhalt, 'linie') + f(inhalt, 'linie aus');
 
   // Himmel: Verlauf, Milchstrasse, Sterne (einige funkeln), der Polarstern. Die funkelnden Sterne liegen in acht
   // Gruppen (je vier Takte, matte und helle getrennt), jede eine eigene kleine Ebene mit einer CSS-Animation, statt
@@ -18378,7 +18415,7 @@ function createStoryScene(host) {
     [818, 54, 34, 22, [[-15, 12], [0, 12], [15, 12]], 1], [884, 40, 28, 18, [[-7, 10]], 1], [940, 30, 22, 15, [[0, 8]], 0],
     [1072, 48, 32, 21, [[-11, 12], [10, 12]], 1], [1128, 38, 26, 17, [[0, 10]], 0], [1174, 32, 22, 15, [], 1]];
   const chimneys = [];
-  let houses = '', glows = '', flicker = '';
+  let houses = '', eaves = '', glows = '', flicker = '';
   const windowAt = (x, y) => {
     if (rand() < 0.15) { houses += `<rect x="${n(x - 2.5)}" y="${n(y - 3)}" width="5" height="6" fill="#16162e"/>`; return; }
     const glow = `<circle cx="${n(x)}" cy="${n(y)}" r="17" fill="url(#s-win)"/>`;
@@ -18394,16 +18431,16 @@ function createStoryScene(host) {
       houses += `<rect x="${n(cx - 3)}" y="${n(cy - 9)}" width="6" height="14" fill="#0a0a1c"/>`;
       chimneys.push([cx, cy - 10]);
     }
-    houses += `<rect x="${x - w / 2}" y="${n(top)}" width="${w}" height="${h + 12}" fill="#0a0a1d"/><path d="${eave}Z" fill="#0d0d26"/>` +
-      `<path d="${eave}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>`;
+    houses += `<rect x="${x - w / 2}" y="${n(top)}" width="${w}" height="${h + 12}" fill="#0a0a1d"/><path d="${eave}Z" fill="#0d0d26"/>`;
+    eaves += `<path d="${eave}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>`;
     for (const [dx, dy] of wins) windowAt(x + dx, base - dy - 4);
   }
   { // Kirche: Turm mit Spitze und Kreuz, ein kleines Schiff daneben
     const base = yAt(hill, 1004) + 6, top = base - 76;
     houses += `<rect x="1015" y="${n(base - 30)}" width="26" height="42" fill="#0a0a1d"/><path d="M1013 ${n(base - 29)}L1028 ${n(base - 44)}L1043 ${n(base - 29)}Z" fill="#0d0d26"/>` +
       `<rect x="993" y="${n(top)}" width="22" height="88" fill="#0a0a1d"/><path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}Z" fill="#0d0d26"/>` +
-      `<path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>` +
       `<path d="M1004 ${n(top - 40)}v-11M999.5 ${n(top - 46)}h9" stroke="#0d0d26" stroke-width="2"/>`;
+    eaves += `<path d="M990 ${n(top + 1)}L1004 ${n(top - 40)}L1018 ${n(top + 1)}" fill="none" stroke="#3c4080" stroke-opacity="0.55" style="${strich(1)}"/>`;
     glows += `<circle cx="1004" cy="${n(top + 20)}" r="15" fill="url(#s-win)"/>`;
     houses += `<circle cx="1004" cy="${n(top + 20)}" r="3.6" fill="#ffd28a"/>`;
   }
@@ -18417,7 +18454,9 @@ function createStoryScene(host) {
     `<path d="${line(posts.map(([x, y]) => [x, y - 13]))}${line(posts.map(([x, y]) => [x, y - 6]))}" fill="none" stroke="#05050f" stroke-width="2"/>`;
   // Vordergrund: Grasbüschel
   let grass = '';
-  for (let x = -900; x < 2500; x += r(12, 28)) {
+  for (let x = -900, s = null; x < 2500; x += r(12, 28)) {
+    if (s !== null && Math.floor(x / STUECK) !== s) grass += '|';
+    s = Math.floor(x / STUECK);
     const y = 884 + r(-6, 6);
     grass += `M${n(x - 6)} ${n(y)}L${n(x - 3)} ${n(y - r(8, 18))}L${n(x)} ${n(y)}L${n(x + 2)} ${n(y - r(10, 24))}L${n(x + 5)} ${n(y)}Z`;
   }
@@ -18425,6 +18464,28 @@ function createStoryScene(host) {
   // ein Teil, der sich bewegt: Drehpunkt an (x, y), der Inhalt darum herum (Ausschnitt dx, dy, b, h um den Drehpunkt)
   const teil = (cls, x, y, [dx, dy, b, h], inhalt, innen = '@') =>
     `<div class="teil ${cls}" style="left:${x}px;top:${y}px">${innen.replace('@', svg(dx, dy, b, h, inhalt))}</div>`;
+  /*
+   * Strahl der Taschenlampe, im Arm (dreht mit ihm, Ursprung an der Spitze der Lampe): Kegel und Kern, je ein Trapez mit
+   * Hals w0 an der Lampe und Breite k · Länge am Ende, darauf ein Verlauf über Länge / 0,55. Er wächst als Animation im
+   * Compositor (laenge): Die Form der vollen Länge STRAHL_L wird mit s = Länge / STRAHL_L skaliert, zwei Keile (je ein
+   * Dreieck mit eigener Matrix) geben dem Hals wieder die Breite w0. Kegel und Keile sind einfarbig und überlappen sich
+   * (keine Nähte), den Verlauf gibt eine Maske des Ganzen, die mitskaliert.
+   */
+  const STRAHL_L = 860, STRAHL_MIN = 0.02; // kürzer (Anteil von STRAHL_L) zeichnet er nicht (Kraft 0 oder kaum sichtbar)
+  const STRAHL_TEILE = [
+    { w0: 3, k: 0.04, farbe: '#fff1cc', stopps: [[0.42, 0], [0.2, 15], [0.07, 35], [0, 55]] },
+    { w0: 1.4, k: 0.011, farbe: '#fffaf0', stopps: [[0.95, 0], [0.4, 12], [0.06, 32], [0, 50]] },
+  ];
+  const STRAHL = `<div class="teil beam" style="left:34px;opacity:0"><div class="flacker">${STRAHL_TEILE.map(({ w0, k, farbe, stopps }) => {
+    // die Maske wirkt nur in der Box, und Chrome rastert sie ganz (Speicher der Grafik): so klein wie möglich, so lang
+    // wie der Strahl (der Verlauf reicht über die Box hinaus) und hoch genug für den Hals ab s = 0,25 (kürzer deckt ihn
+    // die Lampe)
+    const h = k * STRAHL_L, hb = Math.max(h, w0 / 0.25), maske = `linear-gradient(to right, ${stopps.map(([a, p]) => `rgba(0,0,0,${a}) ${p}%`).join(', ')})`;
+    // Keil in voller Länge (Massstab 1 längs: Chrome rastert ihn nicht in einer riesigen Skalierung)
+    const keil = `<div class="teil keil">${svg(0, 0, STRAHL_L, 100, `<path d="M0 0L0 100L${STRAHL_L} 0Z" fill="${farbe}"/>`)}</div>`;
+    return `<div class="strahl" style="top:${n(-hb)}px;width:${STRAHL_L}px;height:${n(2 * hb)}px;-webkit-mask-image:${maske};mask-image:${maske};-webkit-mask-size:${n(100 / 0.55)}% 100%;mask-size:${n(100 / 0.55)}% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat">`
+      + `<div class="teil" style="top:${n(hb)}px">${svg(0, -h, STRAHL_L, 2 * h, `<path d="M0 ${-w0}L${STRAHL_L} ${n(-h)}L${STRAHL_L} ${n(h)}L0 ${w0}Z" fill="${farbe}"/>`)}${keil}${keil}</div></div>`;
+  }).join('')}${svg(-24, -24, 48, 48, '<defs><radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient></defs><circle r="24" fill="url(#s-lamp)"/>')}</div></div>`;
   const twinkleSvgs = twinkle.map((s, i) => BILD(`<g fill="#fff">${s}</g>`, `tw${i % 2 ? ' hell' : ''}`,
     `animation-duration:${TW_TAKT[i >> 1][0]}s;animation-delay:${TW_TAKT[i >> 1][1] - (i % 2) * 1.3}s`)).join('');
   host.insertAdjacentHTML('beforeend', `<div class="scene">
@@ -18448,24 +18509,22 @@ function createStoryScene(host) {
       </div>
       <div class="ebene" data-p="0.22">
         ${BILD(`<path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>${rim(far, '#8a90d8', 0.35)}
-        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>`)}
+        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>`, 'fest')}
       </div>
       <div class="ebene" data-p="0.42">
-        ${BILD(`<path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}
-        <path d="${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}" fill="#101030"/>
-        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>`)}
+        ${BILD(`<path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}${pfade(`${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}`, 'fill="#101030"')}
+        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>`, 'fest')}
       </div>
       <div class="ebene" data-p="0.68">
-        ${BILD(`<path d="${area(hill)}" fill="#0d0d25"/>${rim(hill, '#2c3066', 0.5)}
-        <path d="${line(path)}" fill="none" stroke="#1b1b3b" stroke-width="3" stroke-linecap="round"/>
-        <path d="${firRow(360, 650, [7, 15], [22, 52], (x) => yAt(hill, x) + 4)}${firRow(1215, 1580, [7, 14], [24, 58], (x) => yAt(hill, x) + 4)}${firRow(-700, 300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}${firRow(1600, 2300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}" fill="#0a0a1f"/>
-        <g>${glows}</g>`)}${flicker}${svg(450, 480, 780, 240, houses + lanterns)}
+        ${linie(BILD, rim(hill, '#2c3066', 0.5, 2.4))}${BILD(`<path d="${area(hill)}" fill="#0d0d25"/><path d="${line(path)}" fill="none" stroke="#1b1b3b" stroke-width="3" stroke-linecap="round"/>
+        ${pfade(`${firRow(360, 650, [7, 15], [22, 52], (x) => yAt(hill, x) + 4)}${firRow(1215, 1580, [7, 14], [24, 58], (x) => yAt(hill, x) + 4)}${firRow(-700, 300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}${firRow(1600, 2300, [10, 22], [26, 60], (x) => yAt(hill, x) + 4)}`, 'fill="#0a0a1f"')}
+        <g>${glows}</g>`)}${flicker}${svg(450, 480, 780, 240, houses + lanterns)}${linie((inhalt, cls) => svg(450, 480, 780, 240, inhalt, cls), eaves)}
         <div class="teil smoke"></div>
       </div>
       <div class="ebene" data-p="1">
-        ${BILD(`<path d="${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}" fill="#0a0a20"/>
-        <path d="${area(ground)}" fill="#08081b"/>${rim(ground, '#2a2e62', 0.55, 1.5)}
-        <path d="${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}" fill="#050515"/>
+        ${linie(BILD, rim(ground, '#2a2e62', 0.55, 3))}${BILD(`${pfade(`${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}`, 'fill="#0a0a20"')}
+        <path d="${area(ground)}" fill="#08081b"/>
+        ${pfade(`${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}`, 'fill="#050515"')}
         <g fill="#05050f">${fence}</g>
         <g fill="#03030a">
           <path d="M422.5 628L422 650Q421.5 653 418.8 655.4Q417.6 657.6 420.4 657.6L429 657.6L429.3 628Z"/>
@@ -18476,14 +18535,13 @@ function createStoryScene(host) {
           <circle cx="430" cy="555.2" r="4.3"/>
         </g>`)}
         ${teil('scarf', 437, 590, [-18, -4, 38, 18], '<path fill="#03030a" d="M-15.8 -3Q-7 1.5 1.8 -3L3.2 1.6Q-7 6 -17.2 1.6ZM-1.5 0L18 7Q12 12 4 5.6Z"/>')}
-        ${svg(436, 567, 13, 69, `<path d="M437.2 568.5A9.4 9.4 0 0 1 438.6 581M440.8 592.6L443.9 610L447.6 634" fill="none" stroke="#4a4f98" stroke-opacity="0.75" stroke-linecap="round" style="${strich(1.1)}"/>`)}
-        ${teil('arm bewegt', 440, 592, [-3, -5, 39, 10], '<g fill="#03030a"><rect x="-2" y="-3" width="24" height="6" rx="3"/><circle cx="21.5" cy="0" r="3.8"/></g><rect x="22" y="-4.2" width="11.5" height="8.4" rx="2" fill="#22223c"/><rect x="32.4" y="-4.8" width="2.4" height="9.6" rx="1" fill="#3a3a60"/>')}
-        <div class="teil beam" style="opacity:0"><div class="flacker">${BILD('<defs><radialGradient id="s-lamp"><stop offset="0" stop-color="#fffaf0" stop-opacity="1"/><stop offset="0.25" stop-color="#fff1cc" stop-opacity="0.45"/><stop offset="1" stop-color="#fff1cc" stop-opacity="0"/></radialGradient><linearGradient id="s-beam" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff1cc" stop-opacity="0.42"/><stop offset="0.15" stop-color="#fff1cc" stop-opacity="0.2"/><stop offset="0.35" stop-color="#fff1cc" stop-opacity="0.07"/><stop offset="0.55" stop-color="#fff1cc" stop-opacity="0"/></linearGradient><linearGradient id="s-core" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fffaf0" stop-opacity="0.95"/><stop offset="0.12" stop-color="#fffaf0" stop-opacity="0.4"/><stop offset="0.32" stop-color="#fffaf0" stop-opacity="0.06"/><stop offset="0.5" stop-color="#fffaf0" stop-opacity="0"/></linearGradient></defs><path class="cone" fill="url(#s-beam)"/><path class="core" fill="url(#s-core)"/><circle class="lamp" r="24" fill="url(#s-lamp)"/>')}</div></div>
+        ${linie((inhalt, cls) => svg(436, 567, 13, 69, inhalt, cls), `<path d="M437.2 568.5A9.4 9.4 0 0 1 438.6 581M440.8 592.6L443.9 610L447.6 634" fill="none" stroke="#4a4f98" stroke-opacity="0.75" stroke-linecap="round" style="${strich(1.1)}"/>`)}
+        ${teil('arm bewegt', 440, 592, [-3, -5, 39, 10], '<g fill="#03030a"><rect x="-2" y="-3" width="24" height="6" rx="3"/><circle cx="21.5" cy="0" r="3.8"/></g><rect x="22" y="-4.2" width="11.5" height="8.4" rx="2" fill="#22223c"/><rect x="32.4" y="-4.8" width="2.4" height="9.6" rx="1" fill="#3a3a60"/>', `@${STRAHL}`)}
         <div class="teil worms"></div>
       </div>
       <div class="ebene" data-p="1.35">
         ${BILD(`<path d="${fir(-140, 905, 780)}${fir(60, 910, 520)}${fir(2060, 905, 720)}${fir(2200, 912, 460)}" fill="#020208"/>
-        <path d="${grass}" fill="#030309"/><rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>`)}
+        ${pfade(`${grass}`, 'fill="#030309"')}<rect x="-3000" y="884" width="7600" height="1800" fill="#030309"/>`)}
       </div>
     </div>
     <div class="sub"><div class="kicker"></div><div class="lines"><p class="line"></p><p class="line"></p></div><div class="hint"><span></span></div><div class="actions"></div></div>
@@ -18492,8 +18550,15 @@ function createStoryScene(host) {
 
   const el = host.lastElementChild, q = (s) => el.querySelector(s);
   const layers = [...el.querySelectorAll('.ebene')].map((e) => ({ e, p: +e.dataset.p }));
-  const arm = q('.arm'), beam = q('.beam'), cone = q('.cone'), core = q('.core'), lamp = q('.lamp'), polar = q('.polar');
-  const beamGrads = [q('#s-beam'), q('#s-core')], lines = [...el.querySelectorAll('.line')];
+  // je Ebene die Paare ihrer Linien (linie): [sichtbar, verborgen]
+  const linien = layers.map(({ e }) => {
+    const l = [...e.querySelectorAll(':scope > .linie')];
+    return Array.from({ length: l.length / 2 }, (_, i) => [l[2 * i], l[2 * i + 1]]);
+  });
+  // Bilder mit Linien fester Breite (.fest, ferne Ebenen): --rs aus Zoom 1 (stelle)
+  const fest = layers.map(({ e }) => [...e.querySelectorAll(':scope > .fest')]);
+  const arm = q('.arm'), beam = q('.beam'), polar = q('.polar'), lines = [...el.querySelectorAll('.line')];
+  const strahlen = [...el.querySelectorAll('.strahl')].map((s) => ({ s, keile: [...s.querySelectorAll('.keil')] }));
   const div = (parent, cls, style = '') => {
     parent.insertAdjacentHTML('beforeend', `<div class="${cls}" style="${style}"></div>`);
     return parent.lastElementChild;
@@ -18501,9 +18566,14 @@ function createStoryScene(host) {
 
   /* ---- Bewegung im Compositor: Animationen nach der Zeit der Bühne ---- */
   const SINUS = 'cubic-bezier(0.37, 0, 0.63, 1)'; // wie (1 − cos πu) / 2: hin und her wie ein Sinus
-  const umgebung = new Set(); // laufende Animationen, die der Zeit der Bühne folgen: { a, c(t) (s), periode (s) }
+  // laufende Animationen, die der Zeit der Bühne folgen: { a, c(t) (s), periode (s; Infinity: einmal, c(t) ab Beginn) }
+  const umgebung = new Set();
   let scene = null;
-  const stellen = (u) => { if (u.a) u.a.currentTime = (((u.c(scene.time) % u.periode) + u.periode) % u.periode) * 1000; };
+  const stellen = (u) => {
+    if (!u.a) return;
+    const c = u.c(scene.time);
+    u.a.currentTime = (u.periode === Infinity ? c : ((c % u.periode) + u.periode) % u.periode) * 1000;
+  };
   const folgt = (u) => { u.a.playbackRate = scene.speed; umgebung.add(u); if (!scene.running) u.a.pause(); stellen(u); return u; };
   /**
    * Schwingung mitte + amp · sin(ω t + φ) in der Zeit der Bühne t, als Animation zwischen mitte − amp und mitte + amp
@@ -18522,6 +18592,50 @@ function createStoryScene(host) {
     };
     u.aus = () => { if (u.a) { u.a.cancel(); u.a = null; umgebung.delete(u); } };
     return u;
+  };
+  /**
+   * Ein Wert der Bühne, der sich in Stücken ändert (wie die Tweens; Arm, Kraft und Länge des Strahls, Blinken des Sterns):
+   * Stücke { t0, t1, f(t) } in der Zeit der Bühne, ein späteres gilt ab seinem Beginn und hält danach seinen letzten
+   * Wert. Zu sehen ist er als vorab berechnete Animation je Ziel ([Element, Wert → Keyframe]), nicht als JavaScript pro
+   * Bild: Jeder Commit während einer Fahrt liess Chrome die bewegten Ebenen neu rastern (fehlende Kacheln, Ticket 16).
+   */
+  const spur = (basis, ziele) => {
+    const s = { basis, stuecke: [], anims: [], ab: 0 }; // ab: Zeit der Bühne am Anfang der Animation
+    s.wert = (t) => {
+      let v = s.basis;
+      for (const st of s.stuecke) if (t >= st.t0) v = st.f(Math.min(t, st.t1));
+      return v;
+    };
+    const aus = () => { for (const u of s.anims) { u.a.cancel(); umgebung.delete(u); } s.anims = []; };
+    /** ohne Animation: die Ziele im Wert jetzt */
+    s.stelle = () => {
+      aus();
+      const v = s.wert(scene.time);
+      for (const [elem, kf] of ziele) Object.assign(elem.style, kf(v));
+    };
+    /** die Animation vom jetzt bis zum Ende des letzten Stücks (30 Keyframes je Sekunde, Sprünge genau) */
+    s.laufen = () => {
+      const t = scene.time, ende = Math.max(t, ...s.stuecke.map((st) => st.t1));
+      if (ende - t < 1e-3) { s.stelle(); return; }
+      const zeiten = new Set();
+      for (let i = 0, nz = Math.ceil((ende - t) * 30); i <= nz; i++) zeiten.add(t + (ende - t) * i / nz);
+      for (const st of s.stuecke) for (const z of [st.t0 - 1e-3, st.t0, st.t1]) if (z > t && z < ende) zeiten.add(z);
+      const folge = [...zeiten].sort((a, b) => a - b);
+      aus();
+      s.ab = t;
+      for (const [elem, kf] of ziele) {
+        const keyframes = folge.map((z) => ({ offset: (z - t) / (ende - t), ...kf(s.wert(z)) }));
+        s.anims.push(folgt({ a: elem.animate(keyframes, { duration: (ende - t) * 1000, fill: 'both', easing: 'linear' }),
+          c: (x) => x - s.ab, periode: Infinity }));
+      }
+    };
+    /** Die Zeit der Bühne springt um d (time = …): Die Stücke rücken mit, zu sehen bleibt dasselbe. */
+    s.verschiebe = (d) => { for (const st of s.stuecke) { st.t0 += d; st.t1 += d; } s.ab += d; };
+    /** ein Stück dazu: ab t0 für dauer Sekunden der Wert f(t) */
+    s.dazu = (t0, dauer, f) => { s.stuecke.push({ t0, t1: t0 + dauer, f }); s.laufen(); };
+    /** von vorn: steht auf basis */
+    s.zurueck = (b) => { s.basis = b; s.stuecke = []; s.stelle(); };
+    return s;
   };
   const translateX = (v) => ({ transform: `translateX(${v.toFixed(2)}px)` });
   const translateY = (v) => ({ transform: `translateY(${v.toFixed(2)}px)` });
@@ -18545,19 +18659,53 @@ function createStoryScene(host) {
   const schal = schwinger(q('.scarf'), (v) => ({ transform: `rotate(${v.toFixed(3)}deg)` }));
   const atem = schwinger(q('.atem'), (v) => ({ transform: `scale(${v.toFixed(4)})` }));
   const flackern = schwinger(q('.flacker'), (v) => ({ opacity: v.toFixed(3) }));
-  // Glühwürmchen: Ort (JavaScript, nur im Flug) › Schwingen in x › in y › Grösse; das Blinken schwingt mit x
+  // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns als Spuren (spur)
+  const armSpur = spur(75, [[arm, (v) => ({ transform: `rotate(${v.toFixed(2)}deg)` })]]);
+  const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(3) })]]);
+  /** Keil (Dreieck 0 0, 0 100, STRAHL_L 0) über dem Rand des skalierten Kegels: Hals w0 an der Lampe, sg: oben 1, unten −1 */
+  const keilMatrix = (w0, k, s, sg) => {
+    const innen = w0 / 2; // überlappt den Kegel (einfarbig: keine Naht)
+    return `matrix(1, ${(sg * (k * STRAHL_L - innen) / STRAHL_L).toFixed(6)}, 0, `
+      + `${(sg * (w0 / s - innen) / 100).toFixed(5)}, 0, ${sg * innen})`;
+  };
+  const laenge = spur(0, strahlen.flatMap(({ s: elem, keile }, i) => {
+    const { w0, k } = STRAHL_TEILE[i], s = (v) => Math.max(v, STRAHL_MIN);
+    return [[elem, (v) => ({ transform: `scale(${s(v).toFixed(5)})` })],
+      ...keile.map((keil, j) => [keil, (v) => ({ transform: keilMatrix(w0, k, s(v), j ? -1 : 1) })])];
+  }));
+  const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(3)})` })]]);
+  const spuren = [armSpur, kraft, laenge, stern];
+  // Glühwürmchen: Ort › Schwingen in x › in y › Grösse; das Blinken schwingt mit x. Ruhig (am Waldrand, um die Lampe,
+  // im Wald) steht der Ort, im Flug läuft er als vorab berechnete Animation (flugAnlegen), das Schwingen läuft weiter
   const worms = Array.from({ length: 16 }, () => {
     const g = div(q('.worms'), 'teil bewegt'), wx = div(g, 'teil'), wy = div(wx, 'teil'), ws = div(wy, 'teil');
     ws.insertAdjacentHTML('beforeend', svg(-11, -11, 22, 22, '<circle r="11" fill="url(#s-gw)"/><circle r="1.9" fill="#efffb0"/>'));
     return { el: g, ws, x: schwinger(wx, translateX), y: schwinger(wy, translateY), blink: schwinger(wx, (v) => ({ opacity: v.toFixed(3) })),
-      modus: null, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
+      modus: null, ort: null, flug: null, hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665), a: r(0.5, 1.3), b: r(0.6, 1.5),
       ph: r(0, 6.3), fl: r(2, 5), spin: r(1.6, 2.6) * (rand() < 0.5 ? -1 : 1), ox: r(18, 44), oy: r(12, 30), delay: r(0, 1.6) };
   });
+  /** Ruhige Orte der Glühwürmchen: Mitte und Schwingen (Waldrand, um die Lampe, im Wald); [tx, ty]: Spitze der Lampe. */
+  const RUHIG = {
+    idle: { mitte: (w) => [w.hx, w.hy], schwingen: (w, t) => [Math.sin(t * w.a + w.ph) * 16, Math.cos(t * w.b + w.ph) * 9],
+      setze: (w) => { w.x.setze(16, w.a, w.ph); w.y.setze(9, w.b, w.ph + Math.PI / 2); } },
+    kreis: { mitte: (w, [tx, ty]) => [tx, ty], schwingen: (w, t) => [Math.cos(t * w.spin + w.ph) * w.ox, Math.sin(t * w.spin + w.ph) * w.oy],
+      setze: (w) => { w.x.setze(w.ox, w.spin, w.ph + Math.PI / 2); w.y.setze(w.oy, w.spin, w.ph); } },
+    park: { mitte: (w) => [w.dx, w.dy], schwingen: (w, t) => [Math.sin(t * w.a) * 8, Math.cos(t * w.b) * 6],
+      setze: (w) => { w.x.setze(8, w.a, 0); w.y.setze(6, w.b, Math.PI / 2); } },
+  };
+  /** Flug eines Glühwürmchens beenden: Animationen weg (Ort und Grösse setzt dann der ruhige Ort). */
+  const flugAus = (w) => {
+    for (const u of w.flug?.teile ?? []) { u.a.cancel(); umgebung.delete(u); }
+    w.flug = null;
+  };
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
-  const WARTEN = 1e9; // ms: so lange wartet eine vorbereitete Fahrt im Startbild, bis moveTo sie startet
-  const HALTEN = 600000; // ms: so lange hält eine Fahrt danach ihr Zielbild (die Ebenen bleiben in ihrer Skalierung)
-  const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, stelle)
+  const NACHLAUF = 2; // s: so lange nach der Ankunft reicht der Flug eines Glühwürmchens (bis umgestellt ist; länger als jede Fahrt nach der Ankunft)
+  const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
+  const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
+  const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, Linien)
+  const LINIEN_MS = 200; // so lange rastert eine verborgene Linie (bereit), bevor sie die sichtbare ablöst
+  const LINIEN_TOLERANZ = 1.1; // getauscht wird erst, wenn die Strichbreite sonst um mehr als 10 % abwiche
 
   scene = {
     el, skip: q('.skip'),
@@ -18568,23 +18716,40 @@ function createStoryScene(host) {
     cam: { x: 800, y: 450, z: 1 },
     arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
     worms: 'idle', gatherAt: 0, carryAt: 0,
+    wurmZeit: 0,        // Zeitgeber: das nächste Glühwürmchen kommt an (Ende seines Flugs, dann ruhig; zeichne)
+    klickAt: 0,         // Zeit der Bühne, zu der die Lampe klickt (act lamp; Überspringen davor: kein Strahl)
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
-    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { key, anims, uhr, from, to, seconds }
+    laufend: null,      // Fahrt der Kamera, die läuft oder zuletzt lief: { uhr }
+    folge: null,        // die Einstellungen, die die Bühne zeigt (Prolog oder Epilog)
+    folgeFuer: null,    // für diese Folge sind folgeAnims angelegt
+    folgeAnims: [],     // je Ebene eine Animation der ganzen Folge (folgeAnlegen)
+    folgeZeit: null,    // { start, zeiten, kameras, key } der Folge
+    fahrtIndex: -1,     // Einstellung der Fahrt, die läuft oder zuletzt lief
     staffel: 0,         // Zeitgeber der gestaffelten Schritte nach einem Halt
-    vorbereitet: null,  // die nächste Fahrt, schon angelegt (wartet im Startbild, siehe vorbereiten)
+    haltZeit: 0,        // Zeitgeber: der Halt bleibt unbegrenzt (haltWachen)
+    linienZeit: [],     // Zeitgeber der Linien, die gerade verborgen rastern (linienTauschen)
     gezeichnet: {},     // was draw zuletzt gesetzt hat (Arm, Strahl, Stern): nur Änderungen schreiben
 
     /** Zeit der Bühne (s); setzen stellt alle Animationen darauf. */
     get time() { const u = this.uhr; return u.s0 + (performance.now() - u.t0) / 1000 * u.tempo; },
-    set time(v) { this.uhr = { t0: performance.now(), s0: v, tempo: this.uhr.tempo }; this.letzte = v; for (const u of umgebung) stellen(u); },
+    set time(v) {
+      for (const s of spuren) s.verschiebe(v - this.time);
+      this.uhr = { t0: performance.now(), s0: v, tempo: this.uhr.tempo };
+      this.letzte = v;
+      for (const u of umgebung) stellen(u);
+    },
     /** Tempo: Tippen (4) und Überspringen (60) beschleunigen Fahrt, Tweens und alles, was sich bewegt. */
     get speed() { return this.uhr.tempo; },
     set speed(v) {
       if (v === this.uhr.tempo) return;
       this.uhr = { t0: performance.now(), s0: this.time, tempo: v };
       for (const u of umgebung) u.a.updatePlaybackRate(v);
-      for (const a of [...(this.laufend?.anims ?? []), this.laufend?.uhr]) a?.updatePlaybackRate(v);
+      if (this.wurmZeit && this.running) this.zeichne(); // Ankunft der Glühwürmchen neu stellen
+      // übersprungen vor dem Klick der Lampe: kein Strahl (wie der Tween in act; die Spur zeigte ihn sonst kurz)
+      if (v >= 10 && this.time < this.klickAt) { kraft.zurueck(0); laenge.zurueck(0); }
+      // folgeAnims (nicht die beim Start der Fahrt): anpassen (Drehen mitten in einer Fahrt) legt die Folge neu an
+      for (const a of [...this.folgeAnims, this.laufend?.uhr]) a?.updatePlaybackRate(v);
     },
     /** Es läuft noch etwas, auf das man warten kann (Tween oder Fahrt). */
     get laeuft() { return this.tweens.length > 0 || this.moving; },
@@ -18613,51 +18778,124 @@ function createStoryScene(host) {
       return [(this.portrait() && shot.camP) || shot.cam, seconds];
     },
     /**
-     * Fahrt der Kamera von from nach to als Animation je Ebene (Keyframes 30-mal pro Sekunde, darin schon die Kurve
-     * von storyEase; Zoom geometrisch). Danach hält die Animation das Zielbild noch HALTEN lang: Sie läuft also weiter,
-     * und Chrome rastert die Ebene am Ende der Fahrt nicht in der neuen Skalierung nach (das hielt das Bild am Ende
-     * jeder Fahrt 50–280 ms an, Review Ticket 04). Wann die Fahrt fertig ist, sagt eine Animation ohne Ziel (uhr).
-     * Die Ebenen legt ebeneAnlegen an (vorbereiten: eine nach der anderen).
+     * Die ganze Folge (Prolog oder Epilog) als je eine Animation pro Ebene: vor jeder Fahrt ein Halt (HALTEN lang, die
+     * Kamera steht), dann die Fahrt (Keyframes 30-mal pro Sekunde, darin schon die Kurve von storyEase; Zoom
+     * geometrisch). moveTo springt nur an den Beginn der nächsten Fahrt (currentTime). So legt die Bühne während der
+     * Folge keine Animation neu an, und Chrome rastert keine Ebene neu: Eine neue Animation (auch eine vorbereitete,
+     * wartende) liess die sichtbare Ebene neu rastern und dabei Kacheln fehlen (Flackern, Ticket 16); ein Sprung oder ein
+     * anderes Tempo nicht. Gerastert wird jede Ebene in der grössten Skalierung der Folge, sie bleibt beim Zoom scharf.
+     * zeiten[i]: Beginn der Fahrt zur Einstellung i (ms in der Animation), kameras[i]: ihr Ziel.
      */
-    neueFahrt(from, to, seconds) {
-      const d = seconds * 1000, schritte = Math.max(2, Math.ceil(seconds * 30)), anteil = d / (d + HALTEN);
-      const frames = (p) => [...Array.from({ length: schritte + 1 }, (_, i) => {
-        const k = storyEase(i / schritte);
-        return { offset: anteil * i / schritte,
-          transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) };
-      }), { offset: 1, transform: this.pose(to, p) }];
-      return { key: JSON.stringify([from, to, seconds, innerWidth, innerHeight]), from, to, seconds, frames,
-        anims: [], uhr: new Animation(new KeyframeEffect(null, null, { duration: d }), document.timeline), delay: 0 };
-    },
-    /** Animation der Ebene i für die Fahrt f (mit ihrer Verzögerung); eine alte Fahrt gibt die Ebene dabei ab. */
-    ebeneAnlegen(f, i) {
-      const { e, p } = layers[i];
-      f.anims[i] = e.animate(f.frames(p), { duration: f.seconds * 1000 + HALTEN, delay: f.delay, fill: 'both', easing: 'linear' });
-      if (this.laufend && this.laufend !== f && !this.moving) this.laufend.anims[i]?.cancel();
-    },
-    /** Fahrt starten (vorbereitet: am Ende ihrer Verzögerung) und bei Tempo speed laufen lassen. */
-    starteFahrt(f) {
-      for (let i = 0; i < layers.length; i++) if (!f.anims[i]) this.ebeneAnlegen(f, i);
-      for (const a of f.anims) { if (f.delay) a.currentTime = f.delay; a.updatePlaybackRate(this.speed); }
-      f.uhr.play();
-      f.uhr.updatePlaybackRate(this.speed);
+    folgeAnlegen() {
+      for (const a of this.folgeAnims) a.cancel();
+      const shots = this.folge, hoch = this.portrait();
+      let c = { ...((hoch && shots[0].fromP) || shots[0].from || shots[0].cam) };
+      const stuecke = [], zeiten = [], kameras = [];
+      let t = HALTEN;
+      for (const shot of shots) {
+        const [to, seconds] = this.ziel(shot), d = seconds * 1000;
+        stuecke.push({ from: c, to, t, d });
+        zeiten.push(t);
+        kameras.push(to);
+        t += d + HALTEN;
+        c = to;
+      }
+      this.folgeZeit = { start: { ...stuecke[0].from }, zeiten, kameras, stuecke, ende: t, key: this.folgeKey() };
+      this.abschnitte = layers.map(({ p }) => this.abschnitteFuer(p, stuecke));
+      // je Ebene der Abschnitt mit der nächsten (in einer Fahrt: dieser) Fahrt
+      const n = Math.min(stuecke.length - 1, Math.max(0, this.moving ? this.fahrtIndex : this.fahrtIndex + 1));
+      this.folgeAnims = layers.map((_, i) => this.abschnittAnlegen(i, this.abschnitte[i].find(([a, b]) => a <= n && n <= b)));
     },
     /**
-     * Die Fahrt zur Einstellung shot schon jetzt anlegen, wartend im Startbild (die Kamera steht dort): Chrome rastert die
-     * Ebenen dann gleich in der grössten Skalierung der Fahrt, und moveTo startet sie ohne neues Rastern. gestaffelt: nach
-     * einer Fahrt erst eine Weile nach dem Halt und eine Ebene nach der anderen (jede rastert dabei neu, mit ihren
-     * Strichen für den Ruhepunkt, siehe stelle), damit kein einzelnes Bild alles auf einmal rastert.
+     * Der Halt ist unbegrenzt: Die Folge hält je Ruhepunkt HALTEN lang; steht die Bühne länger (Tab über Nacht), springt
+     * sie alle HALTEN / 3 zurück an den Anfang des Halts ab (ms in der Animation; ein Sprung rastert nichts neu).
      */
-    vorbereiten(shot, gestaffelt = false) {
-      clearTimeout(this.staffel);
-      const [to, seconds] = this.ziel(shot), from = { ...this.cam };
-      const key = JSON.stringify([from, to, seconds, innerWidth, innerHeight]);
-      if (this.vorbereitet?.key === key) return;
-      this.verwerfen();
-      const f = this.vorbereitet = this.neueFahrt(from, to, seconds);
-      f.delay = WARTEN;
-      if (!gestaffelt) { this.stelle(); for (let i = 0; i < layers.length; i++) this.ebeneAnlegen(f, i); }
-      else this.gestaffelt((i) => { if (this.vorbereitet === f) { this.stelle(i); this.ebeneAnlegen(f, i); } });
+    haltWachen(ab) {
+      clearTimeout(this.haltZeit);
+      this.haltZeit = setTimeout(() => {
+        if (this.moving) return;
+        for (const a of this.folgeAnims) if (a.currentTime > ab) a.currentTime = ab;
+        this.haltWachen(ab);
+      }, HALTEN / 3);
+    },
+    /**
+     * Abschnitte der Folge für die Ebene p (Fahrten [von, bis]): Eine Animation hält die grösste Skalierung ihrer Fahrten,
+     * und so rastert Chrome die Ebene auch im Ruhepunkt davor (Speicher der Grafik: die ganze Folge in einer Animation
+     * hielt jede nahe Ebene im ganzen Prolog in Zoom 2,2; auf dem Desktop fehlten dann ganze Ebenen, Review Ticket 16).
+     * Ein Abschnitt wächst, solange an keinem seiner Ruhepunkte mehr als ABSCHNITT_MARGE × die Skalierung gerastert wird,
+     * die dort ohnehin nötig ist (Ruhepunkt oder nächste Fahrt). Ferne Ebenen bleiben so in einem Abschnitt; die nahen
+     * wechseln nur an Ruhepunkten mit grossem Zoomwechsel (Prolog: nach Fahrt 1, 3 und 4, nicht in der Noa-Szene 2).
+     */
+    abschnitteFuer(p, stuecke) {
+      const s = (c) => this.skala(c, p), noetig = stuecke.map(({ from, to }) => Math.max(s(from), s(to)));
+      // Ruhepunkt k (nach Fahrt k; −1: Anfang): was dort ohnehin gerastert ist, mal Marge
+      const erlaubt = (k) => ABSCHNITT_MARGE * Math.max(s(k < 0 ? stuecke[0].from : stuecke[k].to), noetig[k + 1] ?? 0);
+      const abschnitte = [];
+      for (let a = 0; a < stuecke.length;) {
+        let b = a, max = noetig[a];
+        while (b + 1 < stuecke.length) {
+          const m = Math.max(max, noetig[b + 1]);
+          let passt = true;
+          for (let k = a - 1; k <= b + 1; k++) if (m > erlaubt(k)) passt = false;
+          if (!passt) break;
+          b++;
+          max = m;
+        }
+        abschnitte.push([a, b]);
+        a = b + 1;
+      }
+      return abschnitte;
+    },
+    /**
+     * Animation der Ebene i für den Abschnitt [a, b] der Folge, auf derselben Zeitachse wie die ganze Folge (zeiten): vor
+     * Fahrt a steht sie im Start von a, nach Fahrt b im Ziel von b.
+     */
+    abschnittAnlegen(i, [a, b]) {
+      const { stuecke, ende } = this.folgeZeit, { e, p } = layers[i];
+      const kf = [{ offset: 0, transform: this.pose(stuecke[a].from, p) }];
+      for (const { from, to, t: t0, d } of stuecke.slice(a, b + 1)) {
+        const schritte = Math.max(1, Math.ceil(d / 1000 * 30));
+        for (let j = 0; j <= schritte; j++) {
+          const k = storyEase(j / schritte);
+          kf.push({ offset: (t0 + d * j / schritte) / ende,
+            transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) });
+        }
+      }
+      kf.push({ offset: 1, transform: this.pose(stuecke[b].to, p) });
+      const anim = e.animate(kf, { duration: ende, fill: 'both', easing: 'linear' });
+      anim.abschnitt = [a, b];
+      anim.updatePlaybackRate(this.speed);
+      return anim;
+    },
+    /**
+     * Die Ebene i in den Abschnitt mit Fahrt n wechseln (gleiche Zeit, gleiches Bild): eine neue Animation, die Chrome
+     * neu rastern lässt. Darum nur in Ruhepunkten, gestaffelt (eine Ebene je Schritt), und nur, wo der Abschnitt wechselt.
+     */
+    abschnittWechseln(i, n) {
+      const alt = this.folgeAnims[i];
+      if (!alt || n >= this.folgeZeit.stuecke.length) return;
+      const [a, b] = alt.abschnitt;
+      if (a <= n && n <= b) return;
+      const neu = this.abschnittAnlegen(i, this.abschnitte[i].find(([x, y]) => x <= n && n <= y));
+      neu.currentTime = alt.currentTime;
+      if (alt.playState === 'paused') neu.pause();
+      alt.cancel();
+      this.folgeAnims[i] = neu;
+    },
+    /** Kennung der Keyframes der Folge (Bildschirm, Hochformat, reduzierte Bewegung) */
+    folgeKey() {
+      return JSON.stringify([innerWidth, innerHeight, matchMedia('(prefers-reduced-motion: reduce)').matches]);
+    },
+    /** Die Animationen der Folge stehen am Anfang (im Halt vor der ersten Fahrt); neu angelegt nur, wenn nötig. */
+    folgeStart(folge) {
+      if (folge) this.folge = folge;
+      if (!this.folge) return;
+      if (folge && folge !== this.folgeFuer || this.folgeZeit?.key !== this.folgeKey() || !this.folgeAnims.length) {
+        this.folgeFuer = this.folge;
+        this.folgeAnlegen();
+      }
+      for (const a of this.folgeAnims) { a.currentTime = 0; a.play(); }
+      this.haltWachen(0);
     },
     /**
      * Nach einem Halt: HALT_MS warten, dann je Ebene schritt(i), eine nach der anderen alle STAFFEL_MS, die teuren
@@ -18673,48 +18911,76 @@ function createStoryScene(host) {
       };
       this.staffel = setTimeout(() => weiter(0), HALT_MS);
     },
-    /** ms nach dem Halt, bis das gestaffelte Neurastern durch ist: erst danach ist die Pause ruhig (story.stillBild) */
-    ruheNachHalt: HALT_MS + 6 * STAFFEL_MS,
-    /** Eine vorbereitete Fahrt verwerfen (die Ebenen hält dann wieder die alte Fahrt bzw. stelle). */
-    verwerfen() {
-      clearTimeout(this.staffel);
-      for (const a of this.vorbereitet?.anims ?? []) a?.cancel();
-      this.vorbereitet = null;
+    /** ms nach dem Halt, bis die Linien ihre neue Breite haben: erst danach ist die Pause ruhig (story.stillBild) */
+    ruheNachHalt: HALT_MS + 5 * STAFFEL_MS + LINIEN_MS,
+    /**
+     * Kamera ohne Fahrt: die Ebenen stehen in der Einstellung cam (ohne Animationen der Folge), die Striche (strich)
+     * haben ihre Breite für diesen Ruhepunkt.
+     */
+    stelle() {
+      this.linienAbbrechen();
+      for (const [j, { e, p }] of layers.entries()) {
+        e.style.transform = this.pose(this.cam, p);
+        const rs = this.skala(this.cam, p).toFixed(5);
+        for (const paar of linien[j]) for (const l of paar) l.style.setProperty('--rs', rs);
+        // feste Breite: hängt nur vom Bildschirm ab (gleich gesetzt rastert nichts neu)
+        for (const f of fest[j]) f.style.setProperty('--rs', this.skala({ z: 1 }, p).toFixed(5));
+      }
     },
     /**
-     * Kamera ohne Fahrt: die Ebenen stehen in der Einstellung cam, die Striche (strich) haben ihre Breite für diesen
-     * Ruhepunkt. i: nur diese Ebene.
+     * Die Linien der Ebene i bekommen ihre Breite für den Ruhepunkt cam, ohne dass eine sichtbare Ebene neu rastert: Die
+     * verborgene Kopie rastert fast durchsichtig (bereit) und löst nach LINIEN_MS die sichtbare ab.
      */
-    stelle(i = null) {
-      for (const [j, { e, p }] of layers.entries()) {
-        if (i !== null && j !== i) continue;
-        e.style.transform = this.pose(this.cam, p);
-        e.style.setProperty('--rs', this.skala(this.cam, p).toFixed(5));
-      }
+    linienTauschen(i) {
+      const rs = this.skala(this.cam, layers[i].p).toFixed(5);
+      // nur, wo die Breite merklich anders wäre: jeder Tausch rastert eine Linie neu und hält kurz beide im Speicher
+      const anders = (an) => { const alt = parseFloat(an.style.getPropertyValue('--rs')); return !(alt > 0) || Math.max(rs / alt, alt / rs) > LINIEN_TOLERANZ; };
+      const paare = linien[i].filter(([an]) => anders(an));
+      if (!paare.length) return;
+      for (const [, aus] of paare) { aus.style.setProperty('--rs', rs); aus.classList.add('bereit'); }
+      const z = setTimeout(() => {
+        this.linienZeit = this.linienZeit.filter((x) => x !== z);
+        for (const paar of paare) {
+          const [an, aus] = paar;
+          aus.classList.remove('aus', 'bereit');
+          an.classList.add('aus');
+          paar.reverse();
+        }
+      }, LINIEN_MS);
+      this.linienZeit.push(z);
     },
-    /** Bildschirm gedreht oder anders gross: Fahrten und Kamera neu rechnen (gleiche Zeit, gleicher Weg). */
+    /** Linien, die noch rastern, bleiben verborgen (eine Fahrt beginnt: kein Tausch mitten in der Fahrt). */
+    linienAbbrechen() {
+      for (const z of this.linienZeit) clearTimeout(z);
+      this.linienZeit = [];
+      for (const paare of linien) for (const [, aus] of paare) aus.classList.remove('bereit');
+    },
+    /** Bildschirm gedreht oder anders gross: Folge und Kamera neu rechnen (gleiche Zeit, gleicher Weg). */
     anpassen() {
+      if (!this.folgeAnims.length) { this.stelle(); return; }
+      const zeit = this.folgeAnims[0].currentTime, lief = this.folgeAnims[0].playState === 'running';
+      this.folgeAnlegen();
+      // die Kamera steht im Ziel der letzten fertigen Fahrt (in einer Fahrt: in dem davor)
+      const { kameras, start } = this.folgeZeit, i = this.moving ? this.fahrtIndex - 1 : this.fahrtIndex;
+      this.cam = { ...(i >= 0 ? kameras[i] : start) };
+      for (const a of this.folgeAnims) { a.currentTime = zeit; if (!lief) a.pause(); }
       this.stelle();
-      for (const f of [this.laufend, this.vorbereitet]) {
-        if (!f) continue;
-        f.anims.forEach((a, i) => a?.effect.setKeyframes(f.frames(layers[i].p)));
-        f.key = JSON.stringify([f.from, f.to, f.seconds, innerWidth, innerHeight]);
-      }
     },
-    reset(shot) {
+    /** Auf den Anfang der Einstellung shot stellen; folge: die Einstellungen, die kommen (Prolog oder Epilog). */
+    reset(shot, folge = null) {
       this.tweens = [];
       this.speed = 1;
       this.moving = false;
-      this.arm = 75;
-      this.beamLen = this.beamPower = this.starBoost = 0;
-      this.worms = 'idle';
-      this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
-      for (const a of this.laufend?.anims ?? []) a?.cancel();
+      this.fahrtIndex = -1;
       this.laufend?.uhr.cancel();
       this.laufend = null;
-      // eine vorbereitete Fahrt, die genau hier beginnt, bleibt (vorwaermen: dieselbe erste Einstellung)
-      const [to, seconds] = this.ziel(shot);
-      if (this.vorbereitet?.key !== JSON.stringify([this.cam, to, seconds, innerWidth, innerHeight])) this.verwerfen();
+      this.arm = 75;
+      this.beamLen = this.beamPower = this.starBoost = 0;
+      armSpur.zurueck(75);
+      for (const s of [kraft, laenge, stern]) s.zurueck(0);
+      this.worms = 'idle';
+      this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
+      this.folgeStart(folge);
       this.say('');
       this.kicker('');
       q('.sub').classList.remove('angebot');
@@ -18723,22 +18989,33 @@ function createStoryScene(host) {
       this.draw();
     },
     /**
-     * Unsichtbar vorwärmen für die erste Einstellung shot: Fahrt vorbereiten und alles zeichnen, dazu die Klasse prewarm
-     * (fast durchsichtig, aber gezeichnet und gerastert). playScene nimmt sie weg, ruhen ebenso.
+     * Unsichtbar vorwärmen für die erste Einstellung shot der folge: die Folge anlegen und alles zeichnen, dazu die
+     * Klasse prewarm (fast durchsichtig, aber gezeichnet und gerastert). playScene nimmt sie weg, ruhen ebenso.
      */
-    vorwaermen(shot) {
-      this.reset(shot);
-      this.vorbereiten(shot);
+    vorwaermen(shot, folge = null) {
+      this.reset(shot, folge);
       el.classList.add('prewarm');
     },
-    /** Ausgeblendet: Animationen anhalten, keine vorbereitete Fahrt, keine Schleife (nichts kostet mehr). */
+    /** Ausgeblendet: Animationen anhalten, keine Schleife (nichts kostet mehr). */
     ruhen() {
       el.classList.remove('prewarm');
       if (this.running) return;
-      this.verwerfen();
+      clearTimeout(this.staffel);
+      clearTimeout(this.haltZeit);
       for (const u of umgebung) u.a.pause();
-      // die zuletzt gelaufene Fahrt hielte ihr Zielbild sonst noch bis HALTEN als laufende Animation (Compositor tickt)
-      if (!this.moving) for (const a of this.laufend?.anims ?? []) if (a?.playState === 'running') a.finish();
+      clearTimeout(this.wurmZeit);
+      this.wurmZeit = 0;
+      // die Folge hielte ihr Bild sonst als laufende Animation (Compositor tickt, die Ebenen blieben eigene Ebenen): weg
+      // damit, die Ebenen stehen per stelle in der Kamera (ausser in einer Fahrt: die läuft zu Ende). Ausgeblendet darf neu
+      // gerastert werden; die nächste Folge legt reset wieder an
+      if (!this.moving && this.folgeAnims.length) {
+        for (const a of this.folgeAnims) a.cancel();
+        this.folgeAnims = [];
+        this.folgeFuer = null;
+        this.laufend?.uhr.cancel();
+        this.laufend = null;
+        this.stelle();
+      }
     },
     /** Einblenden und die Szene laufen lassen. */
     show() {
@@ -18746,6 +19023,7 @@ function createStoryScene(host) {
       if (!this.running) {
         this.running = true;
         for (const u of umgebung) u.a.play();
+        for (const a of this.folgeAnims) a.play();
         this.time = this.time; // Animationen auf die Zeit der Bühne stellen
         this.wecken();
       }
@@ -18764,69 +19042,97 @@ function createStoryScene(host) {
       return p;
     },
     /**
-     * Kamerafahrt zur Einstellung (im Hochformat camP); Zoom geometrisch, damit er gleichmässig wirkt. next: die
-     * Einstellung danach, ihre Fahrt wird nach dem Halt vorbereitet (siehe vorbereiten).
+     * Kamerafahrt zur Einstellung shot (der Folge; im Hochformat camP): Die Animationen der Folge springen an den Beginn
+     * ihrer Fahrt und laufen mit speed. Wann sie fertig ist, sagt eine Animation ohne Ziel (uhr, mit Tempo). Danach
+     * hält die Folge das Ziel (Halt), die Linien bekommen gestaffelt ihre Breite.
      */
-    moveTo(shot, next = null) {
-      const [to, seconds] = this.ziel(shot), from = { ...this.cam };
+    moveTo(shot) {
       if (this.speed < 10) this.speed = 1; // nach dem Beschleunigen wieder normal (ausser beim Überspringen)
       clearTimeout(this.staffel);
-      let f = this.vorbereitet;
-      this.vorbereitet = null;
-      if (f?.key !== JSON.stringify([from, to, seconds, innerWidth, innerHeight])) {
-        for (const a of f?.anims ?? []) a?.cancel();
-        f = this.neueFahrt(from, to, seconds);
-      }
+      clearTimeout(this.haltZeit);
+      this.linienAbbrechen();
+      clearTimeout(this.wurmZeit); // Glühwürmchen stellen erst nach der Fahrt um (zeichne)
+      this.wurmZeit = 0;
+      const i = this.folge?.indexOf(shot) ?? -1;
+      if (i < 0) throw new Error('moveTo: Einstellung nicht in der Folge');
+      if (this.folgeZeit?.key !== this.folgeKey()) this.anpassen();
+      const { zeiten } = this.folgeZeit, [, seconds] = this.ziel(shot);
+      const f = { uhr: new Animation(new KeyframeEffect(null, null, { duration: seconds * 1000 }), document.timeline) };
       this.moving = true;
+      this.fahrtIndex = i;
       this.movedAt = this.time;
-      this.starteFahrt(f);
-      const alt = this.laufend;
+      // Abschnitt schon gewechselt (gestaffelt im Ruhepunkt davor); hat man vorher getippt, jetzt
+      for (let j = 0; j < layers.length; j++) this.abschnittWechseln(j, i);
+      for (const a of this.folgeAnims) { a.currentTime = zeiten[i]; a.play(); a.updatePlaybackRate(this.speed); }
+      f.uhr.play();
+      f.uhr.updatePlaybackRate(this.speed);
+      this.laufend?.uhr.cancel();
       this.laufend = f;
-      alt?.uhr.cancel();
-      for (const a of alt?.anims ?? []) a?.cancel();
       return new Promise((resolve) => f.uhr.finished.then(() => {
         if (this.laufend !== f) return; // abgebrochen (reset): wie früher ein Tween, der nie fertig wird
-        this.cam = { ...to };
+        this.cam = { ...this.folgeZeit.kameras[i] }; // (nach einer Drehung in der Fahrt die neue)
         this.moving = false;
+        if (!this.running) { this.ruhen(); resolve(); return; } // in der Fahrt ausgeblendet: jetzt ganz ruhen (Folge weg)
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
-        // die Ebenen halten das Zielbild weiter (HALTEN); Striche und die nächste Fahrt kommen gestaffelt nach dem Halt
-        if (next) this.vorbereiten(next, true);
-        else this.gestaffelt((i) => this.stelle(i));
+        if (this.worms !== 'idle') this.zeichne(); // angekommene Glühwürmchen umstellen (in der Fahrt nicht)
+        // die Folge hält das Ziel weiter (Halt); die Striche kommen gestaffelt nach dem Halt
+        this.gestaffelt((j) => { this.linienTauschen(j); this.abschnittWechseln(j, i + 1); });
+        this.haltWachen(zeiten[i] + seconds * 1000);
         resolve();
       }, () => {}));
     },
     /** Was in einer Einstellung geschieht. */
     act(name) {
+      // was sich bewegt, rechnet der Tween (Stand für die Logik) und zeigt die Spur (Animation, ab jetzt vorab berechnet)
+      const t = this.time, eben = (t0, d, ease) => (x) => ease(Math.min(1, Math.max(0, (x - t0) / d)));
       if (name === 'lamp') { // Arm hoch, Klick, der Strahl wächst zum Himmel
         this.tween(1.1, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.4).then(() => {
-          if (this.speed >= 10) return; // übersprungen: kein Klick mehr über dem Ausblenden
+          if (this.speed >= 10) { kraft.zurueck(0); laenge.zurueck(0); return; } // übersprungen: kein Klick über dem Ausblenden
           audio.rotate();
           this.beamPower = 1;
           this.tween(1.8, (k) => { this.beamLen = 0.3 * k; }, (k) => 1 - (1 - k) ** 3); // nah: nur ein Stück, sonst reicht er bis zum Stern
         });
+        const e = eben(t + 0.4, 1.1, storyEase);
+        armSpur.dazu(t + 0.4, 1.1, (x) => 75 + (RAISED - 75) * e(x));
+        this.klickAt = t + 1.5;
+        kraft.dazu(t + 1.5, 0, () => 1);
+        const w = eben(t + 1.5, 1.8, (k) => 1 - (1 - k) ** 3);
+        laenge.dazu(t + 1.5, 1.8, (x) => 0.3 * w(x));
       } else if (name === 'reach') { // beim Blick nach oben streckt sich der Strahl und verblasst vor den Sternen
         const from = this.beamLen;
         this.tween(3.5, (k) => { this.beamLen = from + (1 - from) * k; }, storyEase, 0.3);
+        const von = laenge.wert(t), e = eben(t + 0.3, 3.5, storyEase);
+        laenge.dazu(t + 0.3, 3.5, (x) => von + (1 - von) * e(x));
       } else if (name === 'gather') { // Glühwürmchen fliegen zur Lampe und umkreisen sie
         this.worms = 'gather';
         this.gatherAt = this.time + 0.6;
         for (let i = 0; i < 5; i++) audio.hit(2, 0.9 + i * 0.32, { octave: 2, gain: 0.018 });
-        this.wecken();
+        this.zeichne(); // Flüge jetzt anlegen, im selben Commit wie der Start der Fahrt (nicht mitten in ihr)
       } else if (name === 'carry') { // … und tragen das Licht in den Wald, die Lampe wird schwächer
         this.worms = 'carry';
         this.carryAt = this.time + 0.3;
+        this.zeichne(); // Flüge jetzt anlegen (siehe gather)
         this.tween(3.2, (k) => { this.beamPower = 1 - 0.75 * k; }, storyEase, 0.5);
+        const e = eben(t + 0.5, 3.2, storyEase);
+        kraft.dazu(t + 0.5, 3.2, (x) => 1 - 0.75 * e(x));
       } else if (name === 'blink') { // Epilog: der Polarstern blinkt dreimal
         for (let i = 0; i < 3; i++) {
           this.tween(0.9, (k) => { this.starBoost = Math.sin(Math.PI * k); }, storyLinear, 1.4 + i * 1.1);
           audio.hit(7, 1.6 + i * 1.1, { octave: 2, gain: 0.05 });
+          const e = eben(t + 1.4 + i * 1.1, 0.9, storyLinear);
+          stern.dazu(t + 1.4 + i * 1.1, 0.9, (x) => Math.sin(Math.PI * e(x)));
         }
       } else if (name === 'answer') { // Noa hebt die Lampe und blinkt dreimal zurück
         this.beamLen = 0.55;
+        laenge.zurueck(0.55);
         this.tween(1.0, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.3);
+        const e = eben(t + 0.3, 1.0, storyEase);
+        armSpur.dazu(t + 0.3, 1.0, (x) => 75 + (RAISED - 75) * e(x));
         for (let i = 0; i < 3; i++) {
           this.tween(0.8, (k) => { this.beamPower = Math.sin(Math.PI * k); }, storyLinear, 1.6 + i * 1.0);
           audio.hit(7, 1.8 + i * 1.0, { gain: 0.03 });
+          const b = eben(t + 1.6 + i, 0.8, storyLinear);
+          kraft.dazu(t + 1.6 + i, 0.8, (x) => Math.sin(Math.PI * b(x)));
         }
       }
     },
@@ -18881,80 +19187,107 @@ function createStoryScene(host) {
         if (k >= 1) { this.tweens.splice(this.tweens.indexOf(tw), 1); tw.resolve(); }
       }
       // nur weiter, solange JavaScript etwas bewegt: Tweens oder Glühwürmchen unterwegs
-      if (this.zeichne() || this.tweens.length) this.raf = requestAnimationFrame((t2) => this.frame(t2));
+      // nur Tweens (ihr Stand für die Logik; zeigen tun die Spuren, die Glühwürmchen stellt act und die Ankunft um)
+      if (this.tweens.length) this.raf = requestAnimationFrame((t2) => this.frame(t2));
     },
     /** Alles in den Stand der Bühne bringen (Kamera ohne Fahrt, Arm, Strahl, Stern, Glühwürmchen, Animationen). */
     draw() {
       this.stelle();
       this.gezeichnet = {};
-      for (const w of worms) w.modus = null;
+      for (const w of worms) w.modus = w.ort = null;
       this.zeichne();
       for (const u of umgebung) stellen(u);
     },
     /** Was JavaScript bewegt, zur Zeit der Bühne setzen (nur Änderungen). Zurück: Glühwürmchen sind noch unterwegs. */
     zeichne() {
       const t = this.time, d = this.gezeichnet;
-      // Noa: Arm mit Lampe, der Strahl aus der Lampe (Schal, Flackern und Atmen des Sterns laufen als Animation)
-      if (d.arm !== this.arm) { arm.style.transform = `rotate(${this.arm.toFixed(2)}deg)`; d.arm = this.arm; }
-      const a = this.arm * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a), tx = 440 + 34 * ux, ty = 592 + 34 * uy;
-      const power = this.beamPower > 0.002 ? this.beamPower : 0;
-      if (power && (d.beamArm !== this.arm || d.beamLen !== this.beamLen)) {
-        const len = 860 * this.beamLen, ex = tx + ux * len, ey = ty + uy * len;
-        const cone2 = (w0, w1) => `M${n(tx - uy * w0)} ${n(ty + ux * w0)}L${n(ex - uy * w1)} ${n(ey + ux * w1)}L${n(ex + uy * w1)} ${n(ey - ux * w1)}L${n(tx + uy * w0)} ${n(ty - ux * w0)}Z`;
-        cone.setAttribute('d', cone2(3, len * 0.04));
-        core.setAttribute('d', cone2(1.4, len * 0.011));
-        for (const g of beamGrads) {
-          g.setAttribute('x1', n(tx)); g.setAttribute('y1', n(ty));
-          // Verlauf mit der Länge: der Strahl verblasst immer vor seiner Spitze (Stopps enden bei 0,55)
-          g.setAttribute('x2', n(tx + ux * len / 0.55)); g.setAttribute('y2', n(ty + uy * len / 0.55));
-        }
-        lamp.setAttribute('cx', n(tx));
-        lamp.setAttribute('cy', n(ty));
-        d.beamArm = this.arm;
-        d.beamLen = this.beamLen;
-      }
-      if (d.power !== power) { beam.style.opacity = power.toFixed(3); d.power = power; }
-      if (d.boost !== this.starBoost) { polar.style.transform = `scale(${(1 + 1.8 * this.starBoost).toFixed(3)})`; d.boost = this.starBoost; }
+      // Noa: Arm mit Lampe und Strahl, Blinken des Sterns zeigen die Spuren (act); Schal, Flackern und Atmen des Sterns
+      // laufen als Animation. Hier nur die Spitze der Lampe (dorthin fliegen die Glühwürmchen)
+      const a = this.arm * Math.PI / 180, tx = 440 + 34 * Math.cos(a), ty = 592 + 34 * Math.sin(a);
       if (!d.schwingt) { // Schal im Wind, der Polarstern atmet, der Strahl flackert
         schal.setze(4, 2.3, 0);
         atem.setze(0.05, 1.7, 0, 1);
         flackern.setze(0.07, 23, 0, 0.93);
         d.schwingt = true;
       }
-      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Ruhig (am Waldrand, um
-      // die Lampe, im Wald) schwingen sie als Animation, im Flug setzt JavaScript ihren Ort
-      let unterwegs = false;
+      // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Jedes schwingt immer als
+      // Animation um einen ruhigen Ort; im Flug (und schon davor, bis es losfliegt) läuft der Ort als vorab berechnete
+      // Animation (flugAnlegen). JavaScript stellt nur um, wenn eines angekommen ist (wurmZeit), nie pro Bild und nie
+      // während einer Kamerafahrt (jeder Commit liess Chrome dann die bewegten Ebenen neu rastern, Ticket 16)
+      clearTimeout(this.wurmZeit);
+      this.wurmZeit = 0;
+      let ankunft = Infinity;
       for (const w of worms) {
-        const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
-        const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
-        const s = this.worms === 'idle' ? 1 : 1 + 0.6 * g;
-        const modus = this.worms === 'idle' || (g <= 0 && k <= 0) ? 'idle' : g >= 1 && k <= 0 ? 'kreis'
-          : k >= 1 && (g >= 1 || g <= 0) ? 'park' : 'flug';
-        if (modus !== (this.worms === 'idle' ? 'idle' : this.worms === 'gather' ? 'kreis' : 'park')) unterwegs = true;
-        if (modus === 'flug') {
-          let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
-          const ang = t * w.spin + w.ph;
-          x += (tx + Math.cos(ang) * w.ox - x) * g;
-          y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
-          if (this.worms === 'carry') {
-            x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
-            y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
-          }
-          if (w.modus !== 'flug') { w.x.aus(); w.y.aus(); w.modus = 'flug'; }
-          w.el.style.transform = `translate(${n(x)}px, ${n(y)}px)`;
-          w.ws.style.transform = `scale(${s.toFixed(2)})`;
-        } else if (w.modus !== modus) {
-          const [cx, cy] = modus === 'idle' ? [w.hx, w.hy] : modus === 'kreis' ? [tx, ty] : [w.dx, w.dy];
+        const plan = this.wurmPlan(w, this.moving);
+        if (w.modus !== plan.modus) { RUHIG[plan.modus].setze(w); w.modus = plan.modus; }
+        if (plan.flug) {
+          const key = JSON.stringify([plan.modus, plan.flug, this.worms, this.gatherAt, this.carryAt, n(tx), n(ty)]);
+          if (w.flug?.key !== key) { flugAus(w); w.flug = this.flugAnlegen(w, plan, [tx, ty], key); }
+          ankunft = Math.min(ankunft, plan.flug.te);
+        } else if (w.flug || w.ort !== plan.modus) {
+          const [cx, cy] = RUHIG[plan.modus].mitte(w, [tx, ty]);
           w.el.style.transform = `translate(${n(cx)}px, ${n(cy)}px)`;
-          w.ws.style.transform = `scale(${s.toFixed(2)})`;
-          if (modus === 'idle') { w.x.setze(16, w.a, w.ph); w.y.setze(9, w.b, w.ph + Math.PI / 2); }
-          else if (modus === 'kreis') { w.x.setze(w.ox, w.spin, w.ph + Math.PI / 2); w.y.setze(w.oy, w.spin, w.ph); }
-          else { w.x.setze(8, w.a, 0); w.y.setze(6, w.b, Math.PI / 2); }
-          w.modus = modus;
+          w.ws.style.transform = `scale(${this.wurmOrt(w, t, tx, ty)[2].toFixed(2)})`;
+          flugAus(w);
         }
+        w.ort = plan.flug ? 'flug' : plan.modus;
         if (!w.blink.a) w.blink.setze(0.275, 2 * w.fl, 2 * w.ph - Math.PI / 2, 0.725); // 0,45 + 0,55 · sin²(fl t + ph)
       }
-      return unterwegs;
+      // angekommen: umstellen, sobald die Kamera steht (sonst nach der Fahrt, moveTo)
+      if (ankunft < Infinity && this.running && !this.moving) {
+        this.wurmZeit = setTimeout(() => { this.wurmZeit = 0; if (this.running) this.zeichne(); },
+          Math.max(0, ankunft - t) / this.speed * 1000 + 30);
+      }
+      return false;
+    },
+    /**
+     * Wo ein Glühwürmchen zur Zeit t ist (x, y, Grösse s; tx, ty: Spitze der Lampe), samt Schwingen: zur Lampe (gather,
+     * Anteil g), von dort in den Wald (carry, k), unterwegs im Bogen nach oben.
+     */
+    wurmOrt(w, t, tx, ty) {
+      const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
+      const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
+      let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
+      const ang = t * w.spin + w.ph;
+      x += (tx + Math.cos(ang) * w.ox - x) * g;
+      y += (ty + Math.sin(ang) * w.oy - y) * g - Math.sin(Math.PI * g) * 50;
+      if (this.worms === 'carry') {
+        x += (w.dx + Math.sin(t * w.a) * 8 - x) * k;
+        y += (w.dy + Math.cos(t * w.b) * 6 - y) * k - Math.sin(Math.PI * k) * 70;
+      }
+      return [x, y, this.worms === 'idle' ? 1 : 1 + 0.6 * g];
+    },
+    /**
+     * Was ein Glühwürmchen jetzt tut: modus, um welchen ruhigen Ort es schwingt (RUHIG); flug { ta, te }: es fliegt von
+     * ta bis te (Zeit der Bühne) oder wird es noch, mit diesem Schwingen. halten: angekommen, aber die Kamera fährt
+     * noch, also weiter als Flug (die Animation reicht über te hinaus).
+     */
+    wurmPlan(w, halten = false) {
+      if (this.worms === 'idle') return { modus: 'idle' };
+      const t = this.time, g0 = this.gatherAt + w.delay, gEnde = g0 + 2.4;
+      if (this.worms === 'gather') return t < gEnde || halten ? { modus: 'idle', flug: { ta: g0, te: gEnde } } : { modus: 'kreis' };
+      const k0 = this.carryAt + w.delay * 0.7, kEnde = k0 + 3.6, vomKreis = gEnde <= k0; // war beim Aufbruch an der Lampe
+      const te = vomKreis ? kEnde : Math.max(kEnde, gEnde);
+      return t < te || halten ? { modus: vomKreis ? 'kreis' : 'idle', flug: { ta: vomKreis ? k0 : g0, te } } : { modus: 'park' };
+    },
+    /**
+     * Flug als Animation des Orts (und der Grösse, wenn sie sich ändert): Keyframes 30-mal pro Sekunde von ta bis NACHLAUF
+     * nach te (bis umgestellt ist, auch wenn eine Fahrt das verschiebt), je der Ort aus wurmOrt ohne das Schwingen von
+     * plan.modus, das weiterläuft. Vor ta steht es so an der Mitte des ruhigen Orts. Folgt der Zeit der Bühne (umgebung).
+     */
+    flugAnlegen(w, { modus, flug: { ta, te } }, spitze, key) {
+      const dauer = te + NACHLAUF - ta, schritte = Math.max(2, Math.ceil(dauer * 30)), ort = [], groesse = [];
+      for (let i = 0; i <= schritte; i++) {
+        const t = ta + dauer * i / schritte, [x, y, s] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t);
+        ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
+        groesse.push({ transform: `scale(${s.toFixed(3)})` });
+      }
+      const timing = { duration: dauer * 1000, fill: 'both', easing: 'linear' };
+      const teile = [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
+      if (groesse.some((g) => g.transform !== groesse[0].transform)) teile.push({ a: w.ws.animate(groesse, timing), c: (t) => t - ta, periode: Infinity });
+      else w.ws.style.transform = groesse[0].transform;
+      teile.forEach(folgt);
+      return { key, teile };
     },
   };
   addEventListener('resize', () => scene.anpassen());
@@ -19488,7 +19821,9 @@ const story = {
     // Spieler liest. So ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht
     // mehr gewählt und lädt nicht weiter (Review Ticket 07)
     this.stillBild = true;
-    this.stillAb = performance.now();
+    // erst wenn die Linien des letzten Halts getauscht sind (nach dem Überspringen kommt das Angebot gleich danach)
+    this.stillAb = performance.now() + sc.ruheNachHalt;
+    setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
     sceneLoop.wake(); // was hinter der Bühne liegen blieb, jetzt zeichnen (mayDraw)
     const ueben = await new Promise((resolve) => {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
@@ -19737,7 +20072,7 @@ const story = {
    */
   async finale() {
     await this.ascend(0.5, true);
-    this.prewarmScene(STORY_EPILOG[0]); // die Kamera steht still: jetzt fällt ein langes Bild nicht auf
+    this.prewarmScene(STORY_EPILOG); // die Kamera steht still: jetzt fällt ein langes Bild nicht auf
     for (const line of STORY_FINALE) await this.caption(line);
     const cap = this.el.querySelector('.caption');
     cap.classList.add('swap');
@@ -19803,7 +20138,7 @@ const story = {
    */
   async playScene(shots, { skippable = false, actions = null, soft = false, angebot = false } = {}) {
     const sc = this.scene ??= this.makeScene();
-    sc.reset(shots[0]);
+    sc.reset(shots[0], shots);
     // eine bis hier gehaltene Bühne (vorwaermen) zeigt sich jetzt, schon gerastert, und blendet wie sonst aus 0 ein
     // (vor dem Wegnehmen von prewarm: bis open gilt sonst kein Modus, und die Ebenen fielen weg)
     if (this.buehneWarm) {
@@ -19833,14 +20168,14 @@ const story = {
       sc.say(shot.text);
       sc.hint(false);
       if (shot.act) sc.act(shot.act);
-      await sc.moveTo(shot, shots[shots.indexOf(shot) + 1]); // bereitet die Fahrt danach schon vor
+      await sc.moveTo(shot);
       if (this.skipped) break;
       if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
       // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
       if (angebot && shot === shots.at(-1) && !shot.text) break;
       sc.hint(true);
       // ruhige Stelle: hier darf geladen und die Szene dahinter gezeichnet werden (ruhe), aber erst, wenn die Bühne die
-      // nächste Fahrt gestaffelt vorbereitet hat (ruheNachHalt; sonst raste beides zugleich)
+      // Linien gestaffelt neu gerastert hat (ruheNachHalt; sonst raste beides zugleich)
       this.stillBild = true;
       this.stillAb = performance.now() + sc.ruheNachHalt;
       setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
@@ -19858,7 +20193,7 @@ const story = {
   },
   /**
    * Vorwärmen der Bühne für den Prolog: Unter dem Startbildschirm die Bühne einmal unsichtbar zeichnen (erste
-   * Einstellung des Prologs mit ihrer vorbereiteten Fahrt), zwei Bilder lang: Ihr erstes Zeichnen hielt den Prolog bis
+   * Einstellung des Prologs, die Folge schon angelegt), zwei Bilder lang: Ihr erstes Zeichnen hielt den Prolog bis
    * 250 ms an (Review Ticket 05), danach nicht mehr. #story ist dabei da, aber leer und nicht bedienbar (inert). Nur,
    * solange die Geschichte nichts zeigt; danach ruht die Bühne wieder (createStoryScene, ruhen). halten (neue Spieler,
    * Ticket 03 der Leistung): Sie bleibt fast durchsichtig stehen und damit gerastert, bis der Prolog sie zeigt (sonst
@@ -19869,7 +20204,7 @@ const story = {
     if (!this.el.classList.contains('hidden')) return Promise.resolve();
     const sc = this.scene ??= this.makeScene();
     if (sc.el.classList.contains('prewarm')) return Promise.resolve();
-    this.prewarmScene(STORY_PROLOG[0]);
+    this.prewarmScene(STORY_PROLOG);
     this.el.classList.add('gehalten'); // da, obwohl hidden (CSS): Wer «hidden» prüft, sieht weiter keine Bühne
     this.buehneWarm = true;
     return new Promise((fertig) => requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -19885,12 +20220,12 @@ const story = {
     if (this.el.inert) this.scene.ruhen(); // sonst inzwischen geöffnet (open): Das zeigt die Bühne selbst
   },
   /**
-   * Die Bühne einmal unsichtbar zeichnen lassen (Einstellung shot, ihre Fahrt schon vorbereitet), bevor sie gebraucht
+   * Die Bühne einmal unsichtbar zeichnen lassen (erste Einstellung der Folge shots, die Folge schon angelegt), bevor sie gebraucht
    * wird: Das erste Zeichnen der grossen Szene dauerte über 100 ms. playScene nimmt die Klasse wieder weg.
    */
-  prewarmScene(shot) {
+  prewarmScene(shots) {
     const sc = this.scene ??= this.makeScene();
-    sc.vorwaermen(shot);
+    sc.vorwaermen(shots[0], shots);
   },
   makeScene() {
     const sc = createStoryScene(this.el);
