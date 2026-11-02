@@ -16906,12 +16906,12 @@ const createMenu = (() => {
       // Kantenglättung), nicht über das ganze Menü; Safari rechnet SVG-Filter auf der CPU, im Wachsen in jedem Bild
       // (Ticket 12 von .scratch/leistung/). userSpaceOnUse, weil objectBoundingBox bei waagrechten oder senkrechten
       // Wegen (Höhe bzw. Breite 0) nichts zeichnet.
-      // Ecken auf ganze Gerätepixel, bei Pixeldichte über 1 auf ein Raster von 8 wie die alte Fläche ab (0, 0): Bei
-      // grossem σ in Gerätepixeln (Handy) rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der
-      // Fläche (Handy ohne: bis 4/255 anders, mit: bis 2/255; Desktop mit ganzen Pixeln gleich)
+      // Ecken auf ein Raster von 8 Gerätepixeln wie die alte Fläche ab (0, 0): Bei grossem σ in Gerätepixeln (Handy)
+      // rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der Fläche (Handy ohne: bis 4/255
+      // anders, mit: bis 2/255; Desktop gleich)
       let filter = '', nFilter = 0;
-      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4), raster = dpr > 1 ? 8 : 1;
-      const rasterAb = (v) => Math.floor(v * dpr / raster) * raster, rasterAuf = (v) => Math.ceil(v * dpr / raster) * raster;
+      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4);
+      const rasterAb = (v) => Math.floor(v * dpr / 8) * 8, rasterAuf = (v) => Math.ceil(v * dpr / 8) * 8;
       const leuchten = (pts, r) => {
         const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), rand = r + LEUCHTEN_RAND;
         const x0 = rasterAb(Math.min(...xs) - rand), y0 = rasterAb(Math.min(...ys) - rand);
