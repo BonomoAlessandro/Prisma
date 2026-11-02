@@ -16556,6 +16556,8 @@ const createMenu = (() => {
   const STILL = '(prefers-reduced-motion: reduce)';
   const AUS_MS = 800, FRAGE_MS = 300; // Ausblenden des Menüs bzw. der Rückfrage (Transition im CSS des Menüs)
   const WACHSEN = { start: 0.35, grund: 0.5, je: 1.3 }; // Einblenden: Beginn (s), Dauer = grund + je · Anteil des Wegs
+  // Leuchten der Lichtwege (feGaussianBlur): σ, und der Rand des Filters um das Element (Kern 3 σ, 1 px Glättung)
+  const LEUCHTEN_SIGMA = 2.4, LEUCHTEN_RAND = Math.ceil(3 * LEUCHTEN_SIGMA) + 1;
   let zaehler = 0;
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -16784,14 +16786,35 @@ const createMenu = (() => {
 
       // die sechs Welten als Zeichen: auf dem Weg von «Weiter», sonst des hervorgehobenen, ganz neu auf dem leichten
       const haupt = daten.weiter ?? daten.hervor ?? (daten.grade.every((g) => g.art === 'neu') ? daten.grade[0] : null);
+      // Leuchten: je Element ein eigener Filter über sein Hüllrechteck plus Rand (3 σ des Blurs, halbe Strichbreite,
+      // Kantenglättung), nicht über das ganze Menü; Safari rechnet SVG-Filter auf der CPU, im Wachsen in jedem Bild
+      // (Ticket 12 von .scratch/leistung/). userSpaceOnUse, weil objectBoundingBox bei waagrechten oder senkrechten
+      // Wegen (Höhe bzw. Breite 0) nichts zeichnet.
+      // Ecken auf ganze Gerätepixel, bei Pixeldichte über 1 auf ein Raster von 8 wie die alte Fläche ab (0, 0): Bei
+      // grossem σ in Gerätepixeln (Handy) rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der
+      // Fläche (Handy ohne: bis 4/255 anders, mit: bis 2/255; Desktop mit ganzen Pixeln gleich)
+      let filter = '', nFilter = 0;
+      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4), R = dpr > 1 ? 8 : 1;
+      const rasterAb = (v) => Math.floor(v * dpr / R) * R, rasterAuf = (v) => Math.ceil(v * dpr / R) * R;
+      const leuchten = (pts, r) => {
+        const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), rand = r + LEUCHTEN_RAND;
+        const x0 = rasterAb(Math.min(...xs) - rand), y0 = rasterAb(Math.min(...ys) - rand);
+        const x1 = rasterAuf(Math.max(...xs) + rand), y1 = rasterAuf(Math.max(...ys) + rand);
+        const id = `${uid}-leuchten-${nFilter++}`;
+        filter += `<filter id="${id}" filterUnits="userSpaceOnUse" x="${px(x0)}" y="${px(y0)}" width="${px(x1 - x0)}" height="${px(y1 - y0)}">`
+          + `<feGaussianBlur stdDeviation="${LEUCHTEN_SIGMA}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+        return `filter="url(#${id})"`;
+      };
       let unten = '', oben = '';
       daten.grade.forEach((g, i) => {
         const w = wege[i], p = g.anteil, s = p * w.L;
         const cls = ['menue-weg', `menue-${g.art}`, g === daten.hervor && 'menue-hervor', g.id === aktiv && 'menue-an'].filter(Boolean).join(' ');
         let teil = `<polyline class="menue-grund" points="${punkte(w.pts)}"/>`;
         if (p > 0) {
-          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(stueck(w, s))}"`;
-          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" filter="url(#${uid}-leuchten)" ${z}/>`;
+          const pts = stueck(w, s);
+          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(pts)}"`;
+          // Rand: halbe Strichbreite von .menue-licht (1,8)
+          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" ${leuchten(pts, 0.9)} ${z}/>`;
         }
         unten += `<g class="${cls}" data-grad="${g.id}">${teil}</g>`;
         // Grenzen der Welten
@@ -16808,7 +16831,8 @@ const createMenu = (() => {
             const x = M.x + n.x * o, yy = M.y + n.y * o;
             const zcls = k < g.welt ? 'menue-an' : k === g.welt ? 'menue-jetzt' : '';
             const auf = y <= p ? ` menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s` : '';
-            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` filter="url(#${uid}-leuchten)"` : ''}>`
+            // Rand: die Scheibe (hochkant, Radius s2/2 + 3) bzw. das Zeichen (s2/2) mit Strich
+            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` ${leuchten([{ x, y: yy }], s2 / 2 + 3)}` : ''}>`
               + (hoch ? `<circle class="menue-scheibe" cx="${f(x)}" cy="${f(yy)}" r="${s2 / 2 + 3}"/>` : '')
               + `<svg x="${f(x - s2 / 2)}" y="${f(yy - s2 / 2)}" width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${ICO[welt.id]}</svg></g>`;
           });
@@ -16852,10 +16876,7 @@ const createMenu = (() => {
       }
 
       svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
-      svg.innerHTML = `<defs>
-          <filter id="${uid}-leuchten" filterUnits="userSpaceOnUse" x="0" y="0" width="${f(W)}" height="${f(H)}">
-            <feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
+      svg.innerHTML = `<defs>${filter}
           <radialGradient id="${uid}-kopf"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.35" stop-color="#cdd4ff" stop-opacity="0.25"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
         </defs>${unten}${oben}`;
     }
