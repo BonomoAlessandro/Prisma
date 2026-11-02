@@ -235,3 +235,43 @@ vom Gerät, darum Analyse der Arbeit im Grafikprozess und Schalter zum Vergleich
 Vorschlag für den Nutzer: Prolog dreimal, je neu geladen: `?diag=ohnestrahl`, `?diag=ohnevorbereitung`,
 `?diag=ohneleuchten`, und sagen, wo die Glühwürmchen bzw. die erste Noa-Szene ruhig werden. Ist es der Strahl, baue ich
 ihn mit weniger Zwischenflächen (z. B. Kraft und Flackern in einer Animation, Verlauf ohne Maske), Optik verglichen.
+
+### 02.11.2026 – Poco `leistung-09c`: Strahl und Vorbereitung sind es nicht; glatter Flug
+
+Nutzer: mit `ohnestrahl` und `ohnevorbereitung` ruckeln die Glühwürmchen weiter, mit `ohneleuchten` «nur noch ein wenig,
+vielleicht etwas besser». Vorgeschichte: vor Ticket 15 (Flug je Bild in JavaScript) «super, bis auf einen kurzen Moment»,
+nach 15 «stocken ein wenig beim Einflug», jetzt beim Flug zu Noa und in den Wald.
+
+**1. Bewegung selbst – Befund.** Nachgerechnet (`bahn.mjs`): Position je Bild bei 60 Hz für 16 Glühwürmchen mit den Werten
+aus `createStoryScene`, genau (Formel je Bild wie vor 15) gegen den Stand (Flug linear zwischen 30 Keyframes je Sekunde,
+dazu das Schwingen als CSS-Animation). Kennzahl Ruck = zweite Differenz der Position je Bild (Mass/Bild²):
+
+| | genau (vor 15) | Keyframes 30/s linear | nur Sinus-Näherung des Schwingens |
+|---|---|---|---|
+| Sammeln RMS / max | 0,127 / 0,300 | 0,181 / 0,660 | 0,127 / 0,300 |
+| Tragen RMS / max | 0,084 / 0,206 | 0,116 / 0,399 | 0,084 / 0,205 |
+
+Die Knicke an jedem Keyframe verdoppeln den grössten Ruck (Geschwindigkeit springt alle zwei Bilder), die Lage weicht
+dabei nur 0,1–0,2 Mass ab. Das Runden auf 0,1 ist es nicht (mit 0,001 gleich), die Näherung des Sinus im Schwingen auch
+nicht. Mit 15 Keyframes je Sekunde wäre es noch doppelt so schlimm. Das passt zur Vorgeschichte (vor 15 genau je Bild).
+
+**Fix (Standard):** `flugGlatt`: x (an `transform`) und y (an der Eigenschaft `translate`) je als eigene Animation desselben
+Elements, 10 Keyframes je Sekunde, jeder Abschnitt ein kubisches Hermite-Stück (Ort und Geschwindigkeit an beiden Enden aus
+derselben Formel), genau als `cubic-bezier(1/3, m₀h/3Δ, 2/3, 1 − m₁h/3Δ)` dargestellt. Abweichung von der Formel höchstens
+0,001 px (geprüft), also derselbe Ruck wie vor 15, Bahn unverändert; ein Drittel weniger Keyframes. Beide Animationen laufen
+im Compositor (im Trace keine weiteren `compositeFailed` als die sechs Uhren der Fahrten). Im Screencast fliegen alle wie
+vorher (`out/flug5-neu.png`, `flug6-neu.png`).
+
+**2. Staffel aus 18:** Später angelegte Flüge können nicht springen, solange sie vor dem Abflug angelegt sind (bis dahin
+steht auch der Flug an der Mitte). Abflug frühestens 0,3 s (Tragen) bzw. 0,6 s (Sammeln) nach dem Tippen, angelegt in den
+drei Bildern danach. Springen könnte nur, wer gleich nach dem Tippen nochmals tippt (Tempo 4: Abflug schon nach 75 ms).
+
+**3. Animiertes Element:** HTML-`div` (`.teil`, eigene Ebene mit `will-change: transform`), nicht Kinder im SVG; das SVG
+liegt unbewegt darin. Keine Animation fällt in den Hauptthread.
+
+**Schalter zum Vergleich** (neben den bisherigen): `?diag=knickflug`: Flug wie bis jetzt (linear zwischen 30 Keyframes je
+Sekunde); `?diag=altflug`: Flug wie vor Ticket 15 (Ort je Bild in JavaScript, Schwingen aus). Ohne Schalter: glatter Flug.
+Vorschlag für den Nutzer: ohne Schalter, mit `?diag=knickflug`, mit `?diag=altflug` und mit `?diag=ohneleuchten`.
+
+**Tests:** logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `--grad leicht --welten 2 --finale leicht`,
+`leistung-probe --fenster --handy --ersatzmass`: exit 0, keine Warnung «Weckstelle fehlt».

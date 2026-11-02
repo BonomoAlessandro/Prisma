@@ -8370,7 +8370,9 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * Diagnose-Schalter für den Vergleich auf dem Handy (Ticket 18), ?diag=a,b: je Schalter genau eine Ursache weg.
  * ohnevorbereitung: solange die Bühne zu sehen ist, keine ruhige Stelle (ruhe.jetzt), also kein Laden, Vorwärmen und
  * Zeichnen von WebGL dahinter; ohneleuchten: Glühwürmchen ohne ihren Lichthof (nur der Kern); ohnestrahl: kein Strahl
- * der Lampe (mit ihm zeichnet der Compositor je Bild fünf Zwischenflächen mehr: Kraft, Flackern, zwei Masken).
+ * der Lampe (mit ihm zeichnet der Compositor je Bild fünf Zwischenflächen mehr: Kraft, Flackern, zwei Masken);
+ * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
+ * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
@@ -18729,6 +18731,7 @@ function createStoryScene(host) {
   };
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
+  const KNICKFLUG = DIAG.has('knickflug'); // ?diag=knickflug: Flug wie bis Ticket 18 (linear zwischen 30 Keyframes je Sekunde)
   const NACHLAUF = 2; // s: so lange nach der Ankunft reicht der Flug eines Glühwürmchens (bis umgestellt ist; länger als jede Fahrt nach der Ankunft)
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
@@ -18750,6 +18753,7 @@ function createStoryScene(host) {
     wurmZeit: 0,        // Zeitgeber: das nächste Glühwürmchen kommt an (Ende seines Flugs, dann ruhig; zeichne)
     wurmRaf: 0,         // angefordertes Bild der gestaffelten Umstellung nach dem Halt (wurmStaffel)
     flugRaf: 0,         // angefordertes Bild der gestaffelt angelegten Flüge beim Tippen (flugStaffel)
+    altflug: new Set(), // ?diag=altflug: Glühwürmchen, deren Ort frame je Bild setzt (wie vor Ticket 15)
     klickAt: 0,         // Zeit der Bühne, zu der die Lampe klickt (act lamp; Überspringen davor: kein Strahl)
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
@@ -19267,7 +19271,15 @@ function createStoryScene(host) {
       }
       // nur weiter, solange JavaScript etwas bewegt: Tweens oder Glühwürmchen unterwegs
       // nur Tweens (ihr Stand für die Logik; zeigen tun die Spuren, die Glühwürmchen stellt act und die Ankunft um)
-      if (this.tweens.length) this.raf = requestAnimationFrame((t2) => this.frame(t2));
+      if (this.altflug.size) { // ?diag=altflug (zeichne)
+        const a = this.arm * Math.PI / 180, tx = 440 + 34 * Math.cos(a), ty = 592 + 34 * Math.sin(a);
+        for (const w of this.altflug) {
+          const [x, y, s] = this.wurmOrt(w, t, tx, ty);
+          w.el.style.transform = `translate(${n(x)}px, ${n(y)}px)`;
+          w.ws.style.transform = `scale(${s.toFixed(2)})`;
+        }
+      }
+      if (this.tweens.length || this.altflug.size) this.raf = requestAnimationFrame((t2) => this.frame(t2));
     },
     /** Alles in den Stand der Bühne bringen (Kamera ohne Fahrt, Arm, Strahl, Stern, Glühwürmchen, Animationen). */
     draw() {
@@ -19299,6 +19311,14 @@ function createStoryScene(host) {
       for (const w of worms) {
         const plan = this.wurmPlan(w, this.moving);
         if (nur && !nur.has(w)) { if (plan.flug) ankunft = Math.min(ankunft, plan.flug.te); continue; } // später (wurmStaffel)
+        if (DIAG.has('altflug') && plan.flug) { // wie vor Ticket 15: Ort je Bild in frame, ohne Schwingen als Animation
+          if (w.modus !== 'alt') { w.x.aus(); w.y.aus(); flugAus(w); w.modus = 'alt'; }
+          this.altflug.add(w);
+          ankunft = Math.min(ankunft, plan.flug.te);
+          w.ort = 'flug';
+          continue;
+        }
+        this.altflug.delete(w);
         if (w.modus !== plan.modus) { RUHIG[plan.modus].setze(w); w.modus = plan.modus; }
         if (plan.flug) {
           const key = JSON.stringify([plan.modus, plan.flug, this.worms, this.gatherAt, this.carryAt, n(tx), n(ty)]);
@@ -19313,6 +19333,7 @@ function createStoryScene(host) {
         w.ort = plan.flug ? 'flug' : plan.modus;
         if (!w.blink.a) w.blink.setze(0.275, 2 * w.fl, 2 * w.ph - Math.PI / 2, 0.725); // 0,45 + 0,55 · sin²(fl t + ph)
       }
+      if (this.altflug.size) this.wecken(); // ?diag=altflug: frame setzt den Ort je Bild
       // angekommen: umstellen, sobald die Kamera steht (sonst nach der Fahrt, moveTo)
       if (ankunft < Infinity && this.running && !this.moving) {
         this.wurmZeit = setTimeout(() => { this.wurmZeit = 0; if (this.running) this.zeichne(); },
@@ -19383,8 +19404,8 @@ function createStoryScene(host) {
       return t < te || halten ? { modus: vomKreis ? 'kreis' : 'idle', flug: { ta: vomKreis ? k0 : g0, te } } : { modus: 'park' };
     },
     /**
-     * Flug als Animation des Orts (und der Grösse, wenn sie sich ändert): Keyframes 30-mal pro Sekunde von ta bis NACHLAUF
-     * nach te (bis umgestellt ist, auch wenn eine Fahrt das verschiebt), je der Ort aus wurmOrt ohne das Schwingen von
+     * Flug als Animation des Orts (flugGlatt; mit ?diag=knickflug wie bis Ticket 18 linear zwischen 30 Keyframes je
+     * Sekunde) und der Grösse, wenn sie sich ändert, von ta bis NACHLAUF nach te (bis umgestellt ist, auch wenn eine Fahrt das verschiebt), je der Ort aus wurmOrt ohne das Schwingen von
      * plan.modus, das weiterläuft. Vor ta steht es so an der Mitte des ruhigen Orts. Folgt der Zeit der Bühne (umgebung).
      */
     flugAnlegen(w, { modus, flug: { ta, te } }, spitze, key) {
@@ -19393,19 +19414,50 @@ function createStoryScene(host) {
       // cubic-bezier(1/3, 0, 2/3, 1) (das ist 3u² − 2u³). Jeder Keyframe kostet beim Tippen (Anlegen und Start im
       // Compositor, Ticket 18), so ist es die Hälfte
       const g0 = this.gatherAt + w.delay, glatt = this.worms !== 'idle' && ta === g0 && 2.4 < dauer;
-      for (let i = 0; i <= schritte; i++) {
+      if (KNICKFLUG || !glatt) for (let i = 0; i <= schritte; i++) {
         const t = ta + dauer * i / schritte, [x, y, s] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t);
-        ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
+        if (KNICKFLUG) ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
         if (!glatt) groesse.push({ transform: `scale(${s.toFixed(3)})` });
       }
       if (glatt) groesse.push({ offset: 0, transform: 'scale(1.000)', easing: 'cubic-bezier(0.3333, 0, 0.6667, 1)' },
         { offset: 2.4 / dauer, transform: 'scale(1.600)' }, { offset: 1, transform: 'scale(1.600)' });
       const timing = { duration: dauer * 1000, fill: 'both', easing: 'linear' };
-      const teile = [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
+      const teile = !KNICKFLUG ? this.flugGlatt(w, modus, ta, dauer, spitze, timing)
+        : [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
       if (groesse.some((g) => g.transform !== groesse[0].transform)) teile.push({ a: w.ws.animate(groesse, timing), c: (t) => t - ta, periode: Infinity });
       else w.ws.style.transform = groesse[0].transform;
       teile.forEach(folgt);
       return { key, teile };
+    },
+    /**
+     * Ort im Flug ohne Knicke (Ticket 18): x (transform) und y (translate) an el je als eigene Animation mit 10
+     * Keyframes je Sekunde; jeder Abschnitt ist ein kubisches Hermite-Stück (Ort und Geschwindigkeit an beiden Enden aus
+     * derselben Formel), als cubic-bezier(1/3, m₀h/3Δ, 2/3, 1 − m₁h/3Δ) genau darstellbar. Linear zwischen 30
+     * Keyframes je Sekunde wechselte die Geschwindigkeit an jedem Keyframe sprunghaft (Ruck je Bild bis doppelt so gross
+     * wie die Bahn selbst, auf dem Poco als Ruckeln gesehen); so ist die Bahn auf 0,001 px genau und glatt.
+     */
+    flugGlatt(w, modus, ta, dauer, spitze, timing) {
+      const f = (t) => { const [x, y] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t); return [x - sx, y - sy]; };
+      const schritte = Math.max(2, Math.ceil(dauer * 10)), h = dauer / schritte, d = 1e-3;
+      const p = [], m = [];
+      for (let i = 0; i <= schritte; i++) {
+        const t = ta + h * i, a = f(t - d), b = f(t + d);
+        p.push(f(t));
+        m.push([(b[0] - a[0]) / (2 * d), (b[1] - a[1]) / (2 * d)]);
+      }
+      const kurve = (k, fmt, prop = 'transform') => p.map((q, i) => {
+        const kf = { offset: i / schritte, [prop]: fmt(q[k]) };
+        if (i < schritte) {
+          const delta = p[i + 1][k] - q[k];
+          kf.easing = Math.abs(delta) < 1e-4 ? 'linear'
+            : `cubic-bezier(0.33333, ${(m[i][k] * h / (3 * delta)).toFixed(5)}, 0.66667, ${(1 - m[i + 1][k] * h / (3 * delta)).toFixed(5)})`;
+        }
+        return kf;
+      });
+      return [
+        { a: w.el.animate(kurve(0, (v) => `translateX(${v.toFixed(2)}px)`), timing), c: (t) => t - ta, periode: Infinity },
+        { a: w.el.animate(kurve(1, (v) => `0px ${v.toFixed(2)}px`, 'translate'), timing), c: (t) => t - ta, periode: Infinity },
+      ];
     },
   };
   addEventListener('resize', () => scene.anpassen());
