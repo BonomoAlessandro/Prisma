@@ -8371,6 +8371,7 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * ohnevorbereitung: solange die Bühne zu sehen ist, keine ruhige Stelle (ruhe.jetzt), also kein Laden, Vorwärmen und
  * Zeichnen von WebGL dahinter; ohneleuchten: Glühwürmchen ohne ihren Lichthof (nur der Kern); ohnestrahl: kein Strahl
  * der Lampe (mit ihm zeichnet der Compositor je Bild fünf Zwischenflächen mehr: Kraft, Flackern, zwei Masken);
+ * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
  * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt).
  */
@@ -8385,7 +8386,10 @@ const ruhe = {
     if (story.choosing) return klein || RUHE_OHNE_START;
     if (!story.el.inert && story.el.dataset.mode === 'scene') { // die Bühne ist da (nicht nur vorgewärmt)
       if (DIAG.has('ohnevorbereitung')) return false;
-      return story.stillBild && performance.now() >= story.stillAb && !story.scene?.laeuft;
+      // nicht im Ruhepunkt vor einem Flug der Glühwürmchen (ladeSperre, ausser Kleinem): Die Arbeit lief auf dem Adreno
+      // noch in die Fahrt hinein, wenn getippt wurde, und die Glühwürmchen stockten (Poco, Ticket 18; ?diag=ruhepunkte: wie bisher)
+      return story.stillBild && (klein || !story.ladeSperre || DIAG.has('ruhepunkte')) && performance.now() >= story.stillAb
+        && !story.scene?.laeuft;
     }
     return true;
   },
@@ -18600,16 +18604,32 @@ function createStoryScene(host) {
   // laufende Animationen, die der Zeit der Bühne folgen: { a, c(t) (s), periode (s; Infinity: einmal, c(t) ab Beginn) }
   const umgebung = new Set();
   let scene = null;
+  /*
+   * Läuft die Animation, wird ihre Startzeit auf der Zeitachse des Dokuments gesetzt statt der aktuellen Zeit: Mit
+   * currentTime begann sie im Compositor erst beim nächsten Commit und lag so um diese Verzögerung hinter der Zeit der
+   * Bühne, je Animation verschieden (Flug gegen Schwingen eines Glühwürmchens, neues Schwingen nach dem Umstellen): ein
+   * geplanter Versatz bis einige Pixel, der beim Umstellen als Sprung sichtbar wurde (Ticket 18).
+   */
   const stellen = (u) => {
     if (!u.a) return;
-    const c = u.c(scene.time);
-    u.a.currentTime = (u.periode === Infinity ? c : ((c % u.periode) + u.periode) % u.periode) * 1000;
+    const zeit = (t) => { const c = u.c(t); return (u.periode === Infinity ? c : ((c % u.periode) + u.periode) % u.periode) * 1000; };
+    const tl = document.timeline.currentTime, rate = u.a.playbackRate;
+    if (u.a.playState === 'running' && tl != null && rate > 0) u.a.startTime = tl - zeit(scene.zeitBei(tl)) / rate;
+    else u.a.currentTime = zeit(scene.time);
   };
   const folgt = (u) => { u.a.playbackRate = scene.speed; umgebung.add(u); if (!scene.running) u.a.pause(); stellen(u); return u; };
   /**
    * Schwingung mitte + amp · sin(ω t + φ) in der Zeit der Bühne t, als Animation zwischen mitte − amp und mitte + amp
    * mit Sinus-Easing, hin und her (wert(v): der Keyframe zum Wert v). setze ändert sie, aus hält sie an.
    */
+  /** die Kurve SINUS (cubic-bezier(0.37, 0, 0.63, 1)) wie im Browser: zu p in [0, 1] der Wert */
+  const sinusKurve = (p) => {
+    const bx = (s) => 3 * (1 - s) ** 2 * s * 0.37 + 3 * (1 - s) * s * s * 0.63 + s ** 3;
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 30; i++) { const m = (lo + hi) / 2; if (bx(m) < p) lo = m; else hi = m; }
+    const s = (lo + hi) / 2;
+    return 3 * (1 - s) * s * s + s ** 3; // y: 0, 0, 1, 1
+  };
   const schwinger = (elem, wert) => {
     const u = { a: null, c: null, periode: 1 };
     u.setze = (amp, omega, phi, mitte = 0) => {
@@ -18619,6 +18639,9 @@ function createStoryScene(host) {
       else u.a = elem.animate(kf, { ...timing, iterations: Infinity, direction: 'alternate', easing: SINUS });
       u.periode = 2 * Math.PI / omega;
       u.c = (t) => t + (phi + Math.PI / 2) / omega; // Wert(c) = mitte − amp · cos(ω c) = mitte + amp · sin(ω c − π/2)
+      // was die Animation zur Zeit der Bühne t zeigt (mit der Kurve SINUS, nicht genau sin): Der Flug zieht genau das ab
+      u.wert = (t) => { const halb = Math.PI / omega, c = u.c(t), n = Math.floor(c / halb), p = c / halb - n;
+        return mitte - amp + 2 * amp * sinusKurve(n % 2 === 0 ? p : 1 - p); };
       folgt(u);
     };
     u.aus = () => { if (u.a) { u.a.cancel(); u.a = null; umgebung.delete(u); } };
@@ -18648,14 +18671,31 @@ function createStoryScene(host) {
     s.laufen = () => {
       const t = scene.time, ende = Math.max(t, ...s.stuecke.map((st) => st.t1));
       if (ende - t < 1e-3) { s.stelle(); return; }
-      const zeiten = new Set();
-      for (let i = 0, nz = Math.ceil((ende - t) * 30); i <= nz; i++) zeiten.add(t + (ende - t) * i / nz);
-      for (const st of s.stuecke) for (const z of [st.t0 - 1e-3, st.t0, st.t1]) if (z > t && z < ende) zeiten.add(z);
-      const folge = [...zeiten].sort((a, b) => a - b);
+      // Zeiten je je Sekunde, dazu Anfang und Ende jedes Stücks (Sprünge genau)
+      const zeitenBei = (je) => {
+        const zeiten = new Set();
+        for (let i = 0, nz = Math.ceil((ende - t) * je); i <= nz; i++) zeiten.add(t + (ende - t) * i / nz);
+        for (const st of s.stuecke) for (const z of [st.t0 - 1e-3, st.t0, st.t1]) if (z > t && z < ende) zeiten.add(z);
+        return [...zeiten].sort((a, b) => a - b);
+      };
+      const folge = zeitenBei(30), glattFolge = zeitenBei(10);
       aus();
       s.ab = t;
-      for (const [elem, kf] of ziele) {
-        const keyframes = folge.map((z) => ({ offset: (z - t) / (ende - t), ...kf(s.wert(z)) }));
+      for (const [elem, kf, glatt] of ziele) {
+        // glatt (der Wert geht linear in die Eigenschaft ein: Drehung, Skala, Deckkraft): je Abschnitt ein kubisches
+        // Hermite-Stück aus Wert und Steigung an beiden Enden (cubic-bezier, wie flugGlatt), ohne Knicke; sonst linear
+        // zwischen 30 Keyframes je Sekunde (Keile: Matrix)
+        const zs = glatt ? glattFolge : folge;
+        const keyframes = zs.map((z, i) => {
+          const k = { offset: (z - t) / (ende - t), ...kf(s.wert(z)) };
+          if (glatt && i + 1 < zs.length) {
+            const z1 = zs[i + 1], h = z1 - z, d = Math.min(1e-4, h / 100), delta = s.wert(z1) - s.wert(z);
+            const m0 = (s.wert(z + d) - s.wert(z)) / d, m1 = (s.wert(z1) - s.wert(z1 - d)) / d;
+            k.easing = h < 5e-3 || Math.abs(delta) < 1e-7 ? 'linear'
+              : `cubic-bezier(0.33333, ${(m0 * h / (3 * delta)).toFixed(5)}, 0.66667, ${(1 - m1 * h / (3 * delta)).toFixed(5)})`;
+          }
+          return k;
+        });
         s.anims.push(folgt({ a: elem.animate(keyframes, { duration: (ende - t) * 1000, fill: 'both', easing: 'linear' }),
           c: (x) => x - s.ab, periode: Infinity }));
       }
@@ -18691,8 +18731,8 @@ function createStoryScene(host) {
   const atem = schwinger(q('.atem'), (v) => ({ transform: `scale(${v.toFixed(4)})` }));
   const flackern = schwinger(q('.flacker'), (v) => ({ opacity: v.toFixed(3) }));
   // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns als Spuren (spur)
-  const armSpur = spur(75, [[arm, (v) => ({ transform: `rotate(${v.toFixed(2)}deg)` })]]);
-  const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(3) })]]);
+  const armSpur = spur(75, [[arm, (v) => ({ transform: `rotate(${v.toFixed(3)}deg)` }), true]]);
+  const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(4) }), true]]);
   /** Keil (Dreieck 0 0, 0 100, STRAHL_L 0) über dem Rand des skalierten Kegels: Hals w0 an der Lampe, sg: oben 1, unten −1 */
   const keilMatrix = (w0, k, s, sg) => {
     const innen = w0 / 2; // überlappt den Kegel (einfarbig: keine Naht)
@@ -18701,10 +18741,10 @@ function createStoryScene(host) {
   };
   const laenge = spur(0, strahlen.flatMap(({ s: elem, keile }, i) => {
     const { w0, k } = STRAHL_TEILE[i], s = (v) => Math.max(v, STRAHL_MIN);
-    return [[elem, (v) => ({ transform: `scale(${s(v).toFixed(5)})` })],
+    return [[elem, (v) => ({ transform: `scale(${s(v).toFixed(5)})` }), true],
       ...keile.map((keil, j) => [keil, (v) => ({ transform: keilMatrix(w0, k, s(v), j ? -1 : 1) })])];
   }));
-  const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(3)})` })]]);
+  const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(4)})` }), true]]);
   const spuren = [armSpur, kraft, laenge, stern];
   // Glühwürmchen: Ort › Schwingen in x › in y › Grösse; das Blinken schwingt mit x. Ruhig (am Waldrand, um die Lampe,
   // im Wald) steht der Ort, im Flug läuft er als vorab berechnete Animation (flugAnlegen), das Schwingen läuft weiter
@@ -18771,6 +18811,8 @@ function createStoryScene(host) {
 
     /** Zeit der Bühne (s); setzen stellt alle Animationen darauf. */
     get time() { const u = this.uhr; return u.s0 + (performance.now() - u.t0) / 1000 * u.tempo; },
+    /** Zeit der Bühne zum Zeitpunkt ms (performance.now, auch die Zeitachse des Dokuments) */
+    zeitBei(ms) { const u = this.uhr; return u.s0 + (ms - u.t0) / 1000 * u.tempo; },
     set time(v) {
       for (const s of spuren) s.verschiebe(v - this.time);
       this.uhr = { t0: performance.now(), s0: v, tempo: this.uhr.tempo };
@@ -19455,7 +19497,8 @@ function createStoryScene(host) {
      * wie die Bahn selbst, auf dem Poco als Ruckeln gesehen); so ist die Bahn auf 0,001 px genau und glatt.
      */
     flugGlatt(w, modus, ta, dauer, spitze, timing) {
-      const f = (t) => { const [x, y] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t); return [x - sx, y - sy]; };
+      // abgezogen wird das Schwingen, wie seine Animation es zeigt (wert, mit der Kurve SINUS): zusammen genau wurmOrt
+      const f = (t) => { const [x, y] = this.wurmOrt(w, t, ...spitze); return [x - w.x.wert(t), y - w.y.wert(t)]; };
       const schritte = Math.max(2, Math.ceil(dauer * 10)), h = dauer / schritte, d = 1e-3;
       const p = [], m = [];
       for (let i = 0; i <= schritte; i++) {
@@ -19577,6 +19620,7 @@ const story = {
   blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
   skipped: false,     // Prolog übersprungen
   stillBild: false,   // die Bühne wartet auf Tippen oder steht mit dem Angebot: eine ruhige Stelle (ruhe) ab stillAb
+  ladeSperre: false,  // Ruhepunkt vor einem Flug der Glühwürmchen: dort lädt nichts Grosses hinter der Bühne (ruhe)
   stillAb: 0,         // performance.now(), ab wann (nach dem gestaffelten Vorbereiten der nächsten Fahrt)
   buehneWarm: false,  // die Bühne des Prologs ist vorgewärmt und bleibt bis zum Prolog gerastert (vorwaermen)
   ersterHimmel: true, // noch keiner seit dem Start abgewartet (skyOf): Fehlt er, ist das Laden markiert (ruhe.lade)
@@ -20010,6 +20054,7 @@ const story = {
     // Spieler liest. So ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht
     // mehr gewählt und lädt nicht weiter (Review Ticket 07)
     this.stillBild = true;
+    this.ladeSperre = false;
     // erst wenn die Linien des letzten Halts getauscht sind (nach dem Überspringen kommt das Angebot gleich danach)
     this.stillAb = performance.now() + sc.ruheNachHalt;
     setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
@@ -20018,8 +20063,12 @@ const story = {
       sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
       sc.el.querySelector('.actions button').focus({ preventScroll: true });
     });
-    this.stillBild = false;
     sc.actions([]); // nur eine Wahl (Doppelklick)
+    this.keepFocus(); // der Knopf ist weg: Fokus gleich zurück (nicht erst nach dem Warten unten)
+    // «Gleich los», der Wald aber noch nicht da (vor den Flügen der Glühwürmchen lädt er nicht, Ticket 18): die Bühne
+    // bleibt stehen, bis er da ist (höchstens 8 s), statt schwarz
+    if (!ueben) for (let t = 0; !skyTheme.ready && t < 80; t++) await storySleep(100);
+    this.stillBild = false;
     this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
     if (ueben) {
@@ -20371,6 +20420,7 @@ const story = {
       // was die nächste Einstellung beim Tippen neu rastern liesse, jetzt (sc.vorbereiten)
       // (nur in diesem Ruhepunkt: schnell getippt, könnte schon der nächste stehen)
       const hier = shots.indexOf(shot), naechste = shots[hier + 1];
+      this.ladeSperre = ['gather', 'carry'].includes(naechste?.act);
       if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;

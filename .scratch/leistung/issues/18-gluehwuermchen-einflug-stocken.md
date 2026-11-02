@@ -273,5 +273,58 @@ liegt unbewegt darin. Keine Animation fällt in den Hauptthread.
 Sekunde); `?diag=altflug`: Flug wie vor Ticket 15 (Ort je Bild in JavaScript, Schwingen aus). Ohne Schalter: glatter Flug.
 Vorschlag für den Nutzer: ohne Schalter, mit `?diag=knickflug`, mit `?diag=altflug` und mit `?diag=ohneleuchten`.
 
+### 02.11.2026 – Poco `leistung-09d`: Vorbereitung ist die Ursache; geplante Stocker behoben
+
+Nutzer, Flug in den Wald: `?diag=altflug` ruckelt auch, `?diag=ohnevorbereitung` «mit Abstand am gleichmässigsten».
+
+**Auftrag 1, Vorbereitung.** Im Trace (Handy ×4) läuft während Fahrt 6 im Grafikprozess nur Zusammensetzen und etwas
+Raster (Summe 73 ms, grösste Aufgabe 8,5 ms), keine WebGL-Arbeit, kein Upload, kein Shader. Die Vorbereitung des Walds
+(6 Programme, Puffer, Textur 11 MPx in 15 Teilen) läuft hier in Ruhe 1 und 2. Auf dem Poco dauert sie länger, läuft also
+in spätere Ruhepunkte, und was beim Tippen schon an die Grafik gegeben ist (Upload, Übersetzen), läuft in die Fahrt hinein.
+Das lässt sich beim Tippen nicht zurückholen; darum:
+- **Fix (Standard):** Im Ruhepunkt vor einem Flug der Glühwürmchen (vor «Da blinkt» und «Denn Licht», `ladeSperre`) lädt
+  nichts Grosses hinter der Bühne (`ruhe.jetzt`); erlaubt bleibt Kleines (Vorschau eines Himmels). In den übrigen
+  Ruhepunkten und beim Angebot wie bisher, in Häppchen, nach `ruheNachHalt`, mit dem Tippen sofort beendet.
+- Wählt man «Gleich los», bevor der Wald da ist, bleibt die Bühne mit dem Angebot stehen, bis er da ist (höchstens 8 s),
+  statt schwarz.
+- Ladezeit: Ein erster Versuch (Laden nur beim Angebot) machte den Wald erst 2,8 s (×1) bzw. 5,3 s (×4) nach dem Angebot
+  bereit, «Gleich los» nach 1 s gab 4,7 s Schwarz (×4) – verworfen. Mit der Sperre nur vor den Flügen: «Gleich los» 1 s
+  nach dem Angebot, Himmel beim Klick bereit, kurz dunkel 0,7–0,9 s wie vorher (0,8 s, Überblendung), Handy ×1 und ×4
+  (`los.mjs`, `out/los-z.png`, `los-z1.png`). Auf dem Poco hängt es davon ab, ob die Ruhepunkte 1–3 reichen; sonst wartet
+  die Bühne beim «Gleich los», statt schwarz zu werden.
+- `?diag=ruhepunkte`: Laden wieder in allen Ruhepunkten (Vergleich).
+
+**Auftrag 2, geplante Stocker** (Ruck = zweite Differenz der Lage je Bild bei 60 Hz, Gerätepixel, Handy hoch):
+- **Flug** (09d): linear zwischen 30 Keyframes/s → Hermite-Stücke, Ruck max 0,66 → 0,30 (Sammeln), 0,40 → 0,21 (Tragen), in
+  Mass der Szene (Gerätepixel etwa doppelt).
+- **Versatz zwischen Animationen:** Mit `currentTime` begann jede Animation im Compositor erst beim nächsten Commit, je
+  Animation verschieden spät. Flug und Schwingen eines Glühwürmchens lagen so um die Commit-Verzögerung gegeneinander
+  (Poco grob 30–100 ms): ein Versatz von Geschwindigkeit des Schwingens × Verzögerung, beim Tragen (Kreis, bis 114 Mass/s)
+  bis etwa 3 Mass, der beim Umstellen nach dem Halt als Sprung von einigen Pixeln kam. Fix: Laufende Animationen bekommen
+  ihre **Startzeit** auf der Zeitachse des Dokuments (`stellen`, `zeitBei`); alle folgen genau der Zeit der Bühne.
+- **Schwingen im Flug:** Der Flug zog das genaue `sin` ab, die Animation zeigt aber die Kurve `SINUS` (bis 0,2 % der
+  Spannweite daneben). Jetzt zieht er genau das ab, was die Animation zeigt (`schwinger.wert`, `sinusKurve`): im Flug genau
+  `wurmOrt`, beim Umstellen höchstens 0,03 Mass Unterschied (vorher bis 0,2).
+- **Spuren** (Arm, Kraft und Länge des Strahls, Blinken des Sterns): ebenfalls Hermite-Stücke statt linear (10 Keyframes je
+  Sekunde, Sprünge an den Stücken genau). Ruck Spitze der Lampe beim Heben max 0,63 → 0,55, Ende des Strahls 0,34 → 0,27
+  und 0,41 → 0,33 Gerätepixel (`spurruck.mjs`). Die Keile des Strahls (Matrix) bleiben linear (30/s), Abweichung < 0,1 Mass.
+- **Tweens** liefen per rAF jedes Bild (Fahrten 3, 4, 6, Epilog); jetzt per Zeitgeber zum nächsten Ende (`tweenWecker`):
+  kein Hauptbild je Bild mehr (rAF je Hauptbild in Fahrt 6 1,69 → 1,05; der Rest ist die Probe).
+- **Kamera** (`kamera.mjs`): Ruck der Ebenen zwischen den Keyframes (30/s) höchstens 0,03–0,07 Gerätepixel über der Bahn
+  selbst (Wald, Fahrten 1–6; Himmel 0), Anfahren und Anhalten ohne Sprung (storyEase beginnt und endet mit 0). Nicht
+  umgebaut: genau ginge es nur mit getrennten Eigenschaften `scale`, `translate`, `transform` je Ebene, und das berührt, wie
+  Chrome die Ebenen rastert (Speicher, Ticket 16). Unter einem Zehntel Pixel, als Restpunkt notiert.
+- **Blinken, Grösse, Schwingen in Ruhe:** Sinus-Kurve ohne Knick; Grösse genau (smooth01 als cubic-bezier). Tempowechsel
+  (Tippen, `updatePlaybackRate`) hält die Lage; die Geschwindigkeit springt gewollt auf das Vierfache.
+
+**Frage 3, bessere Methode?** Eine Leinwand (Canvas 2D oder WebGL) mit allen 16 und der Bahn je Bild aus der Formel wäre
+genau, braucht aber je Bild den Hauptthread (rAF): Bei Last (Laden, Stil, GC) ruckelt sie wie `altflug`, und auf dem Adreno
+kommt das Hochladen der Leinwand oder ein zweiter WebGL-Kontext neben der Welt dazu. Web Animations im Compositor laufen
+unabhängig vom Hauptthread; die Glühwürmchen sind 16 × 4 winzige Ebenen ohne Zwischenflächen (gemessen), billig.
+Empfehlung: dabei bleiben, mit genauen Bahnen und Startzeiten wie jetzt; eine Leinwand nur, wenn die Zahl der Ebenen stört.
+
+**Prüfung:** Prolog und Epilog Handy ×4 mit Screencast ohne auffälliges Bild (`out/z-*.png`), gezeigte Bilder in den Fahrten
+5/6 max 18,7 ms, alle Animationen im Compositor (keine weiteren `compositeFailed` als die sechs Uhren der Fahrten).
+
 **Tests:** logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `--grad leicht --welten 2 --finale leicht`,
 `leistung-probe --fenster --handy --ersatzmass`: exit 0, keine Warnung «Weckstelle fehlt».
