@@ -124,3 +124,49 @@ beim Tippen aus dem Bild nehmen: Flüge und Spuren der nächsten Einstellung im 
 (angehalten), beim Tippen nur starten. (3) Den Halt entlasten (Umstellen der Glühwürmchen später, ausserhalb der ersten
 Sekunde). (4) Kapitelszenen, Finale und Epilog mit derselben Probe (`prolog.mjs --epilog`, Kapitel noch zu bauen) Handy ×4
 durchsuchen. Nicht erledigt in diesem Stand: Kapitelszenen, Finale, Epilog; Bild-Dekodierung und Shader im GPU-Prozess.
+
+### 02.11.2026 – Review 396b4b5 und Ruckler, Zwischenstand 2 (`35f16dc`)
+
+**Aus dem Review:** Kommentar in `massstab` richtiggestellt (im Himmel liegen die eigenen Ebenen von Funkeln und
+Polarstern, keine aus Überlappung). k ändert erst, wenn es um mehr als 5 % abwiche (`MASSSTAB_TOLERANZ`): Adressleiste
+ein/aus im Querformat malt die fernen Inhalte nicht mehr neu.
+
+**1. Tippen.** Gemessen, wohin die Zeit geht (Wrapper um `act`, `moveTo`, `zeichne`, `flugAnlegen`; Mikromessung je
+fünfmal, Median, Drossel 4): Beim Tippen in Einstellung 5/6 legt `zeichne` 16 Flüge an, je bis 180 Keyframes für Ort und
+Grösse; zwei Drittel davon ist `element.animate` (Keyframes einlesen), der Rest das Rechnen. Das erste Bild danach startet
+diese Animationen im Compositor (Malphase 46–72 ms). Vorbereiten im Ruhepunkt davor geht nicht genau: Die Keyframes hängen
+über das Schwingen von der Zeit des Tippens ab, eine Verschiebung gäbe beim Halt einen Sprung. Stattdessen:
+- **Grösse im Flug** als ein Keyframe-Paar mit `cubic-bezier(1/3, 0, 2/3, 1)`, das ist genau 3u² − 2u³ (`smooth01`), statt
+  30 Keyframes je Sekunde: halbiert die Keyframes beim Sammeln.
+- **Flüge gestaffelt** (`flugStaffel`): beim Tippen nur die vier mit dem frühesten Abflug, die übrigen je vier pro Bild.
+  Genau gleich, weil keines vor 0,3 s (Tragen) bzw. 0,6 s (Sammeln) abfliegt und ein Flug bis zum Abflug ohnehin an der
+  Mitte seines ruhigen Orts steht. Im Screencast fliegen alle wie vorher (`out/blatt6-t-m1.png`).
+- Mikromessung `act` (ms, Drossel 4, je zweimal): Sammeln 86 / 108 → 15 / 17, Tragen 105 / 116 → 25 / 26, Lampe 20 / 23 →
+  17 / 19. Die übrige Arbeit verteilt sich auf die nächsten drei Bilder (je etwa 25 ms bei 4×).
+- Ganzer Prolog mit Trace (Trace kostet bei Script viel; Aufgabe beim Tippen, ms): vorher Einstellung 5 332 / 430, 6 261 /
+  270; nachher 74 / 80 im ruhigen Lauf (ein zweiter Lauf neben fremder Last: 222 / 130, dort waren auch die unveränderten
+  Einstellungen 1–4 doppelt so lang). Der Compositor zeigt in den Fahrten 5/6 weiter jedes Bild (max 18,7 ms).
+- Nicht erreicht: kein langes Bild mehr nach dem Tippen. Das erste Bild nach dem Tippen bleibt 30–90 ms (4×). Es startet
+  die Fahrt der Ebenen im Compositor (`currentTime` der Folge, je Ebene Hunderte Keyframes) und die ersten Flüge. Weniger
+  ginge nur mit weniger Keyframes der Kamerafahrt (Translate liesse sich mit den Kurven von `storyEase` genau in drei
+  Keyframes je Fahrt fassen, der Zoom nicht; dafür bräuchte jede Ebene eine zweite animierte Ebene darin). Noch nicht
+  gebaut.
+
+**2. Halt.** Nach jeder Fahrt stellte `zeichne` alle 16 Glühwürmchen in einem Bild um (Flug weg, Schwingen neu, Ort).
+Jetzt `wurmStaffel`: vier je Bild (die Flüge reichen `NACHLAUF` über die Ankunft). Längstes Hauptbild im Halt bis 0,6 s
+danach, Drossel 4, je zwei Läufe: Einstellung 5 vorher 43 / 85, nachher 33 / 41 (bzw. 73 neben Last); 6 vorher 44 / 48,
+nachher 40 / 58. Ziel ≤ 50 ms im ruhigen Lauf erreicht, unter Last nicht immer.
+
+**3. Öffnen der Bühne** (dreimal vorher und nachher im Wechsel, Handy ×4, `oeffnen.mjs`): in beiden Ständen gleich:
+GPU-Raster 35–64 ms beim ersten Bild, in einem von drei Läufen ein Present-Hänger im GPU-Prozess von 250–290 ms
+(`DXGISwapChainImageBacking::Present`, die Grafikkarte ist mit dem ersten Rastern und Zeichnen der ganzen Bühne beschäftigt).
+Sichtbar? Im Screencast steht das Menü bis 0,37 s nach dem Satz, dann folgt ein Stand von 300 ms, dann erscheint die Bühne
+(Helligkeit 37 → 20 in einem Schritt). Der Hänger liegt also vor dem ersten Bild der Bühne. Zu sehen ist er als
+verzögertes Öffnen (das Menü bleibt stehen), nicht als Ruckeln einer Fahrt. Nicht behoben. Vorschlag: Prüfen, ob der
+Übergang Menü → Bühne (Leuchtfilter des Menüs aus Ticket 12 über der einblendenden Bühne) die Grafikkarte so belastet.
+
+**Tests** (`35f16dc`): logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `leistung-probe --fenster --handy
+--ersatzmass`: exit 0, keine Warnung «Weckstelle fehlt». Bildschirmfotos je Ruhepunkt vorher/nachher (Handy, echter
+Prolog): Ruhepunkte 1–4 ≤ 0,05 % der Pixel anders, mittel ≤ 0,46; 5/6 ≤ 0,71 % (Glühwürmchen, Rauch zu anderer Zeit).
+
+**Offen:** 4. Kapitelszenen, Finale, Epilog; das erste Bild nach dem Tippen; Öffnen.
