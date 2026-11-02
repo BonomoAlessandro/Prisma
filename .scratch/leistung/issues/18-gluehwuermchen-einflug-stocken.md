@@ -4,7 +4,7 @@
 
 **Blocked by:** 15 (Flug als Web Animation), 16 (Bühne in Abschnitten, Linien)
 
-**Status:** in Arbeit (fehlender Hintergrund behoben, Ruckler: Zwischenstand mit Diagnose und Vorschlag)
+**Status:** bereit für den Handy-Durchlauf (Poco); offen: Öffnen der Bühne, erstes Bild nach dem Tippen
 
 **What to build:** Zwei Befunde des Nutzers auf dem Poco F4 GT:
 
@@ -28,10 +28,11 @@ kleinem Budget der Grafik (`--force-gpu-mem-available-mb` 512, 384 und kleiner),
 `leistung-07c` (`68640a5`).
 
 - [x] Ursache des fehlenden Hintergrunds belegt (Trace, Einzelbilder) und behoben, ohne die Optik zu ändern.
-- [ ] Ruckler der Bühne (Prolog, Kapitelszenen, Finale, Epilog) mit Trace Handy ×4 gesucht: Compositor-Ausfälle,
+- [x] Ruckler der Bühne (Prolog, Kapitelszenen, Finale, Epilog) mit Trace Handy ×4 gesucht: Compositor-Ausfälle,
       Raster, Neuaufbau von Ebenen, Style/Layout, Hänger wie `DIV#story.onclick`, Bild-Dekodierung, Shader im GPU-Prozess.
-- [ ] Ursache des Stockens belegt und behoben, ohne die Optik zu ändern; Vorher/Nachher-Einzelbilder und Trace.
-- [ ] Desktop und Handy auch mit `--force-gpu-mem-available-mb=512`: keine Ebene fehlt, kein Flackern.
+- [x] Ursache des Stockens belegt und behoben, ohne die Optik zu ändern; Vorher/Nachher-Einzelbilder und Trace.
+- [ ] Desktop und Handy auch mit `--force-gpu-mem-available-mb=512`: keine Ebene fehlt, kein Flackern. (Handy erfüllt;
+      Desktop maximiert 4K hält 512 MB weder vorher noch nachher, sein normales Budget ist 1024 MB.)
 - [x] Tests grün: logic, golden, screenshot, `geschichte-probe --start` und `--handy`,
       `leistung-probe --fenster --handy --ersatzmass`; keine Warnung «Weckstelle fehlt».
 - [ ] Poco (nächster Handy-Durchlauf): Einstellungen 5 und 6 ohne fehlenden Hintergrund, Glühwürmchen ruhig.
@@ -170,3 +171,33 @@ verzögertes Öffnen (das Menü bleibt stehen), nicht als Ruckeln einer Fahrt. N
 Prolog): Ruhepunkte 1–4 ≤ 0,05 % der Pixel anders, mittel ≤ 0,46; 5/6 ≤ 0,71 % (Glühwürmchen, Rauch zu anderer Zeit).
 
 **Offen:** 4. Kapitelszenen, Finale, Epilog; das erste Bild nach dem Tippen; Öffnen.
+
+### 02.11.2026 – Epilog und Abschluss
+
+**Umfang (Reviewer):** Die Bühne nutzen nur Prolog und Epilog (`playScene`); Kapitelszenen und Finale nicht. Geprüft
+also der Epilog, Handy ×4 mit Trace (`prolog.mjs --epilog`, vorher `e-v`, nachher `e-n…`).
+
+**Befund:** Im Epilog fliegen keine Glühwürmchen (sie bleiben am Waldrand), Tippen und Halt sind klein (Aufgabe beim
+Tippen 35–130 ms bei 4× unter Trace, Halt 20–51 ms). Auffällig war eine andere Stelle: Am Start der dritten Fahrt
+(«Noa lacht …», `act answer`) hielt das Rastern im Grafikprozess die Anzeige 85–93 ms an (vorher und nach dem Fix des
+Hintergrunds gleich, Viz-Lücke 77–96 ms). Ursache: Der Strahl (Kegel, Keile, Maske) wurde erst mit der Animation seiner
+Kraft beim Tippen eine eigene Ebene und dann ganz gerastert. Die Länge zu setzen allein half nicht, und eine ganz
+durchsichtige Ebene rastert Chrome nicht.
+
+**Fix:** `sc.vorbereiten(name)`, aufgerufen von `playScene` im Ruhepunkt vor der Einstellung (nach `ruheNachHalt`):
+Für `answer` bekommt der Strahl dort schon seine Länge und wird mit `.vor` (`will-change: opacity`) eine eigene Ebene mit
+Deckkraft 0,002 (wie `.linie.bereit`). `act` und `reset` setzen die Kraft wie bisher über die Spur. Danach liegt das
+Rastern (86–94 ms) im Ruhepunkt, wo nichts fährt; am Start der dritten Fahrt kein Raster über 18 ms und keine Viz-Lücke
+mehr (zwei Läufe). Im Prolog hat die Lampe (Einstellung 3) dasselbe Muster schwächer (GPU-Raster 30–43 ms am Start der
+Fahrt). Dort wächst der Strahl aus 0, eine Vorbereitung ginge nur mit anderer Optik am Anfang; nicht angefasst.
+
+**Tests** (Stand mit Epilog-Fix): logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `--grad leicht
+--welten 2 --finale leicht` (bis in den Epilog), `leistung-probe --fenster --handy --ersatzmass`: alle exit 0, keine
+Warnung «Weckstelle fehlt».
+
+**Offene Punkte (bewusst nicht jetzt):** Öffnen der Bühne (Present-Hänger vor dem ersten Bild, vermutlich Leuchtfilter des
+Menüs über der einblendenden Bühne); das erste Bild nach dem Tippen (Start der Kamerafahrt im Compositor, nur mit
+zerlegter Fahrt kleiner, vom Koordinator zurückgestellt); Lampe im Prolog (siehe oben).
+
+**Für den Nutzer auf dem Poco:** Einstellung 5 («Da blinkt …») ohne fehlenden Hintergrund, Glühwürmchen beim Flug zu Noa
+und in den Wald ruhig, Noa-Szenen ohne Ruckler beim Tippen und im Halt, Epilog «Noa lacht …» ohne Stocken am Start.

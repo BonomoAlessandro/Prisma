@@ -387,6 +387,8 @@
   #story .scene .linie.aus.bereit { opacity: 0.002; display: block; }
   /* Kegel und Kern des Strahls (createStoryScene, STRAHL): Ursprung links in der Mitte, dort skaliert er (laenge) */
   #story .scene .strahl { position: absolute; left: 0; transform-origin: 0 50%; }
+  /* Strahl schon im Ruhepunkt als eigene Ebene gerastert (createStoryScene, vorbereiten; Ticket 18) */
+  #story .scene .beam.vor { will-change: opacity; }
   /* funkelnde Sterne in Gruppen (matt und hell): eine Gruppe dunkelt bis auf etwa 0,12 der Helligkeit ihrer Sterne ab */
   #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
   #story .scene .tw.hell { animation-name: story-twinkle-hell; }
@@ -19012,6 +19014,7 @@ function createStoryScene(host) {
     },
     /** Auf den Anfang der Einstellung shot stellen; folge: die Einstellungen, die kommen (Prolog oder Epilog). */
     reset(shot, folge = null) {
+      beam.classList.remove('vor');
       this.tweens = [];
       this.speed = 1;
       this.moving = false;
@@ -19127,6 +19130,21 @@ function createStoryScene(host) {
         this.haltWachen(zeiten[i] + seconds * 1000);
         resolve();
       }, () => {}));
+    },
+    /**
+     * Im Ruhepunkt vor der Einstellung mit act name vorbereiten, was sonst beim Tippen eine Ebene neu rastern liesse.
+     * answer: Der Strahl bekommt seine Länge und wird eine eigene, fast durchsichtige Ebene (.vor), solange er aus ist
+     * (Kraft 0; act und reset setzen die Kraft wieder über die Spur). Beim
+     * Tippen wurde er erst mit der Animation seiner Kraft eine Ebene, und das Rastern von Kegel und Maske hielt den
+     * Grafikprozess am Start der Fahrt 70–93 ms an (Epilog, Drossel 4, Ticket 18).
+     */
+    vorbereiten(name) {
+      if (name === 'answer' && kraft.wert(this.time) === 0) {
+        this.beamLen = 0.55;
+        laenge.zurueck(0.55);
+        beam.classList.add('vor');
+        beam.style.opacity = '0.002'; // fast durchsichtig: ganz durchsichtig rastert Chrome nicht (wie .linie.bereit)
+      }
     },
     /** Was in einer Einstellung geschieht. */
     act(name) {
@@ -20266,6 +20284,9 @@ const story = {
       this.stillBild = true;
       this.stillAb = performance.now() + sc.ruheNachHalt;
       setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
+      // was die nächste Einstellung beim Tippen neu rastern liesse, jetzt (sc.vorbereiten)
+      const naechste = shots[shots.indexOf(shot) + 1];
+      if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;
     }
