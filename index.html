@@ -374,6 +374,9 @@
   /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
      Teile, die sich bewegen, drehen und skalieren um ihren Ort (left, top) */
   #story .scene .ebene { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; transform: translateZ(0); }
+  /* Inhalt der Ebene, verkleinert um k (createStoryScene, massstab): so rastert Chrome sie in der Auflösung, in der sie
+     zu sehen ist (Ticket 18) */
+  #story .scene .inhalt { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
   #story .scene .ebene svg { position: absolute; display: block; overflow: visible; }
   #story .scene .teil, #story .scene .atem, #story .scene .flacker { position: absolute; left: 0; top: 0; width: 0; height: 0; }
   #story .scene .bewegt { will-change: transform; }
@@ -384,6 +387,8 @@
   #story .scene .linie.aus.bereit { opacity: 0.002; display: block; }
   /* Kegel und Kern des Strahls (createStoryScene, STRAHL): Ursprung links in der Mitte, dort skaliert er (laenge) */
   #story .scene .strahl { position: absolute; left: 0; transform-origin: 0 50%; }
+  /* Strahl schon im Ruhepunkt als eigene Ebene gerastert (createStoryScene, vorbereiten; Ticket 18) */
+  #story .scene .beam.vor { will-change: opacity; }
   /* funkelnde Sterne in Gruppen (matt und hell): eine Gruppe dunkelt bis auf etwa 0,12 der Helligkeit ihrer Sterne ab */
   #story .scene .tw { animation: story-twinkle 4s ease-in-out infinite alternate; }
   #story .scene .tw.hell { animation-name: story-twinkle-hell; }
@@ -18549,14 +18554,27 @@ function createStoryScene(host) {
   </div>`);
 
   const el = host.lastElementChild, q = (s) => el.querySelector(s);
-  const layers = [...el.querySelectorAll('.ebene')].map((e) => ({ e, p: +e.dataset.p }));
+  /*
+   * Je Ebene: e (Ebene des Compositors, ihre Animation fährt die Kamera), p (Parallaxe), inhalt (alles darin, verkleinert
+   * um k, massstab). Chrome rastert eine Ebene mit laufender Animation von transform nie unter Massstab 1 (in Pixeln des
+   * Geräts je Pixel der Ebene). Ohne inhalt hiess das 1 Pixel je Mass, auch wo die Ebene viel kleiner zu sehen ist: Der
+   * Himmel (im Hochformat etwa 0,48) kostete so gut viermal den Speicher der Grafik, den er braucht; mit knappem Speicher
+   * (Poco) fehlten Teile des Hintergrunds (Ticket 18). Verkleinert werden nur die fernen Ebenen (MASSSTAB_P).
+   */
+  const layers = [...el.querySelectorAll('.ebene')].map((e) => {
+    const inhalt = document.createElement('div');
+    inhalt.className = 'inhalt';
+    inhalt.append(...e.childNodes);
+    e.append(inhalt);
+    return { e, p: +e.dataset.p, inhalt, k: 1 };
+  });
   // je Ebene die Paare ihrer Linien (linie): [sichtbar, verborgen]
-  const linien = layers.map(({ e }) => {
-    const l = [...e.querySelectorAll(':scope > .linie')];
+  const linien = layers.map(({ inhalt }) => {
+    const l = [...inhalt.querySelectorAll(':scope > .linie')];
     return Array.from({ length: l.length / 2 }, (_, i) => [l[2 * i], l[2 * i + 1]]);
   });
   // Bilder mit Linien fester Breite (.fest, ferne Ebenen): --rs aus Zoom 1 (stelle)
-  const fest = layers.map(({ e }) => [...e.querySelectorAll(':scope > .fest')]);
+  const fest = layers.map(({ inhalt }) => [...inhalt.querySelectorAll(':scope > .fest')]);
   const arm = q('.arm'), beam = q('.beam'), polar = q('.polar'), lines = [...el.querySelectorAll('.line')];
   const strahlen = [...el.querySelectorAll('.strahl')].map((s) => ({ s, keile: [...s.querySelectorAll('.keil')] }));
   const div = (parent, cls, style = '') => {
@@ -18706,6 +18724,8 @@ function createStoryScene(host) {
   const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, Linien)
   const LINIEN_MS = 200; // so lange rastert eine verborgene Linie (bereit), bevor sie die sichtbare ablöst
   const LINIEN_TOLERANZ = 1.1; // getauscht wird erst, wenn die Strichbreite sonst um mehr als 10 % abwiche
+  const MASSSTAB_P = 0.5; // Ebenen mit kleinerer Parallaxe (Himmel, ferne Berge, Bergwald) rastern in ihrer Auflösung (massstab)
+  const MASSSTAB_TOLERANZ = 1.05; // k ändert erst, wenn es sonst um mehr als 5 % abwiche (massstab)
 
   scene = {
     el, skip: q('.skip'),
@@ -18717,6 +18737,8 @@ function createStoryScene(host) {
     arm: 75, beamLen: 0, beamPower: 0, starBoost: 0,
     worms: 'idle', gatherAt: 0, carryAt: 0,
     wurmZeit: 0,        // Zeitgeber: das nächste Glühwürmchen kommt an (Ende seines Flugs, dann ruhig; zeichne)
+    wurmRaf: 0,         // angefordertes Bild der gestaffelten Umstellung nach dem Halt (wurmStaffel)
+    flugRaf: 0,         // angefordertes Bild der gestaffelt angelegten Flüge beim Tippen (flugStaffel)
     klickAt: 0,         // Zeit der Bühne, zu der die Lampe klickt (act lamp; Überspringen davor: kein Strahl)
     moving: false,      // eine Kamerafahrt läuft (nur sie wird durch Tippen schneller)
     movedAt: 0,         // Beginn der Fahrt (Zeit der Bühne): ein Doppeltipp beschleunigt die nächste nicht gleich
@@ -18762,10 +18784,33 @@ function createStoryScene(host) {
       const slice = Math.max(W / 1600, H / 900); // wie preserveAspectRatio slice
       return [((1120 - x) * z) * slice / W + 0.5, ((150 - y) * z) * slice / H + 0.5];
     },
-    /** Transform einer Ebene (Parallaxe p) bei der Kamera c: Szene in Pixeln, um die Mitte des Bildschirms. */
-    pose(c, p) {
+    /**
+     * Transform einer Ebene (Parallaxe p) bei der Kamera c: Szene in Pixeln, um die Mitte des Bildschirms. k: ihr Inhalt
+     * ist um k verkleinert (massstab), die Ebene skaliert um so viel mehr.
+     */
+    pose(c, p, k = 1) {
       const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
-      return `translateZ(0) scale(${this.skala(c, p).toFixed(5)}) translate(${(-x).toFixed(2)}px, ${(-y).toFixed(2)}px)`;
+      return `translateZ(0) scale(${(this.skala(c, p) / k).toFixed(5)}) translate(${(-x * k).toFixed(2)}px, ${(-y * k).toFixed(2)}px)`;
+    },
+    /**
+     * Inhalt der fernen Ebenen um k verkleinern, die kleinste Skalierung der Folge (höchstens 1): Die Animation der Ebene
+     * skaliert dann nie unter 1, und Chrome rastert sie in der grössten Skalierung, in der sie zu sehen ist, statt in
+     * 1 Pixel je Mass (Ticket 18). Ein neues k malt den Inhalt neu: nur beim Anlegen der Folge (verborgen oder gedreht).
+     */
+    massstab(stuecke) {
+      for (const l of layers) {
+        let k = 1;
+        // nur Himmel, ferne Berge, Bergwald (zusammen über die Hälfte des Speichers; darin keine Teil-Ebenen aus
+        // Überlappung, nur im Himmel die eigenen Ebenen von Funkeln und Polarstern mit eigener Animation): In den nahen
+        // Ebenen rasterte Chrome sonst die Teil-Ebenen (Überlappung) bei jedem Zoom einer Fahrt neu
+        if (l.p < MASSSTAB_P) for (const { from, to } of stuecke) k = Math.min(k, this.skala(from, l.p), this.skala(to, l.p));
+        k = Math.floor(k * 1000) / 1000;
+        // ein neues k malt den Inhalt neu: nicht für wenige Prozent (Adressleiste ein und aus, anpassen); die Animation
+        // reicht dann knapp unter oder über 1, gerastert wird weiter in ihrer grössten Skalierung
+        if (k === l.k || (k < 1 && l.k < 1 && Math.max(k / l.k, l.k / k) <= MASSSTAB_TOLERANZ)) continue;
+        l.k = k;
+        l.inhalt.style.transform = k < 1 ? `scale(${k})` : '';
+      }
     },
     /** Pixel je Mass der Szene in der Ebene p bei der Kamera c (Hochformat: weiter weg; wie preserveAspectRatio slice). */
     skala(c, p) {
@@ -18801,6 +18846,7 @@ function createStoryScene(host) {
         c = to;
       }
       this.folgeZeit = { start: { ...stuecke[0].from }, zeiten, kameras, stuecke, ende: t, key: this.folgeKey() };
+      this.massstab(stuecke);
       this.abschnitte = layers.map(({ p }) => this.abschnitteFuer(p, stuecke));
       // je Ebene der Abschnitt mit der nächsten (in einer Fahrt: dieser) Fahrt
       const n = Math.min(stuecke.length - 1, Math.max(0, this.moving ? this.fahrtIndex : this.fahrtIndex + 1));
@@ -18851,17 +18897,17 @@ function createStoryScene(host) {
      * Fahrt a steht sie im Start von a, nach Fahrt b im Ziel von b.
      */
     abschnittAnlegen(i, [a, b]) {
-      const { stuecke, ende } = this.folgeZeit, { e, p } = layers[i];
-      const kf = [{ offset: 0, transform: this.pose(stuecke[a].from, p) }];
+      const { stuecke, ende } = this.folgeZeit, { e, p, k: m } = layers[i];
+      const kf = [{ offset: 0, transform: this.pose(stuecke[a].from, p, m) }];
       for (const { from, to, t: t0, d } of stuecke.slice(a, b + 1)) {
         const schritte = Math.max(1, Math.ceil(d / 1000 * 30));
         for (let j = 0; j <= schritte; j++) {
           const k = storyEase(j / schritte);
           kf.push({ offset: (t0 + d * j / schritte) / ende,
-            transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) });
+            transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p, m) });
         }
       }
-      kf.push({ offset: 1, transform: this.pose(stuecke[b].to, p) });
+      kf.push({ offset: 1, transform: this.pose(stuecke[b].to, p, m) });
       const anim = e.animate(kf, { duration: ende, fill: 'both', easing: 'linear' });
       anim.abschnitt = [a, b];
       anim.updatePlaybackRate(this.speed);
@@ -18919,8 +18965,8 @@ function createStoryScene(host) {
      */
     stelle() {
       this.linienAbbrechen();
-      for (const [j, { e, p }] of layers.entries()) {
-        e.style.transform = this.pose(this.cam, p);
+      for (const [j, { e, p, k }] of layers.entries()) {
+        e.style.transform = this.pose(this.cam, p, k);
         const rs = this.skala(this.cam, p).toFixed(5);
         for (const paar of linien[j]) for (const l of paar) l.style.setProperty('--rs', rs);
         // feste Breite: hängt nur vom Bildschirm ab (gleich gesetzt rastert nichts neu)
@@ -18968,6 +19014,7 @@ function createStoryScene(host) {
     },
     /** Auf den Anfang der Einstellung shot stellen; folge: die Einstellungen, die kommen (Prolog oder Epilog). */
     reset(shot, folge = null) {
+      beam.classList.remove('vor');
       this.tweens = [];
       this.speed = 1;
       this.moving = false;
@@ -19005,6 +19052,8 @@ function createStoryScene(host) {
       for (const u of umgebung) u.a.pause();
       clearTimeout(this.wurmZeit);
       this.wurmZeit = 0;
+      cancelAnimationFrame(this.wurmRaf);
+      cancelAnimationFrame(this.flugRaf);
       // die Folge hielte ihr Bild sonst als laufende Animation (Compositor tickt, die Ebenen blieben eigene Ebenen): weg
       // damit, die Ebenen stehen per stelle in der Kamera (ausser in einer Fahrt: die läuft zu Ende). Ausgeblendet darf neu
       // gerastert werden; die nächste Folge legt reset wieder an
@@ -19052,6 +19101,7 @@ function createStoryScene(host) {
       clearTimeout(this.haltZeit);
       this.linienAbbrechen();
       clearTimeout(this.wurmZeit); // Glühwürmchen stellen erst nach der Fahrt um (zeichne)
+      cancelAnimationFrame(this.wurmRaf);
       this.wurmZeit = 0;
       const i = this.folge?.indexOf(shot) ?? -1;
       if (i < 0) throw new Error('moveTo: Einstellung nicht in der Folge');
@@ -19074,12 +19124,27 @@ function createStoryScene(host) {
         this.moving = false;
         if (!this.running) { this.ruhen(); resolve(); return; } // in der Fahrt ausgeblendet: jetzt ganz ruhen (Folge weg)
         if (this.speed < 10) this.speed = 1; // sonst liefen Rauch, Glühwürmchen und Schal beim Warten weiter im Zeitraffer
-        if (this.worms !== 'idle') this.zeichne(); // angekommene Glühwürmchen umstellen (in der Fahrt nicht)
+        if (this.worms !== 'idle') this.wurmStaffel(); // angekommene Glühwürmchen umstellen (in der Fahrt nicht)
         // die Folge hält das Ziel weiter (Halt); die Striche kommen gestaffelt nach dem Halt
         this.gestaffelt((j) => { this.linienTauschen(j); this.abschnittWechseln(j, i + 1); });
         this.haltWachen(zeiten[i] + seconds * 1000);
         resolve();
       }, () => {}));
+    },
+    /**
+     * Im Ruhepunkt vor der Einstellung mit act name vorbereiten, was sonst beim Tippen eine Ebene neu rastern liesse.
+     * answer: Der Strahl bekommt seine Länge und wird eine eigene, fast durchsichtige Ebene (.vor), solange er aus ist
+     * (Kraft 0; act und reset setzen die Kraft wieder über die Spur). Beim
+     * Tippen wurde er erst mit der Animation seiner Kraft eine Ebene, und das Rastern von Kegel und Maske hielt den
+     * Grafikprozess am Start der Fahrt 70–93 ms an (Epilog, Drossel 4, Ticket 18).
+     */
+    vorbereiten(name) {
+      if (name === 'answer' && kraft.wert(this.time) === 0) {
+        this.beamLen = 0.55;
+        laenge.zurueck(0.55);
+        beam.classList.add('vor');
+        beam.style.opacity = '0.002'; // fast durchsichtig: ganz durchsichtig rastert Chrome nicht (wie .linie.bereit)
+      }
     },
     /** Was in einer Einstellung geschieht. */
     act(name) {
@@ -19107,11 +19172,11 @@ function createStoryScene(host) {
         this.worms = 'gather';
         this.gatherAt = this.time + 0.6;
         for (let i = 0; i < 5; i++) audio.hit(2, 0.9 + i * 0.32, { octave: 2, gain: 0.018 });
-        this.zeichne(); // Flüge jetzt anlegen, im selben Commit wie der Start der Fahrt (nicht mitten in ihr)
+        this.flugStaffel(); // Flüge jetzt anlegen (die ersten im selben Commit wie der Start der Fahrt)
       } else if (name === 'carry') { // … und tragen das Licht in den Wald, die Lampe wird schwächer
         this.worms = 'carry';
         this.carryAt = this.time + 0.3;
-        this.zeichne(); // Flüge jetzt anlegen (siehe gather)
+        this.flugStaffel(); // Flüge jetzt anlegen (siehe gather)
         this.tween(3.2, (k) => { this.beamPower = 1 - 0.75 * k; }, storyEase, 0.5);
         const e = eben(t + 0.5, 3.2, storyEase);
         kraft.dazu(t + 0.5, 3.2, (x) => 1 - 0.75 * e(x));
@@ -19199,7 +19264,7 @@ function createStoryScene(host) {
       for (const u of umgebung) stellen(u);
     },
     /** Was JavaScript bewegt, zur Zeit der Bühne setzen (nur Änderungen). Zurück: Glühwürmchen sind noch unterwegs. */
-    zeichne() {
+    zeichne(nur = null) {
       const t = this.time, d = this.gezeichnet;
       // Noa: Arm mit Lampe und Strahl, Blinken des Sterns zeigen die Spuren (act); Schal, Flackern und Atmen des Sterns
       // laufen als Animation. Hier nur die Spitze der Lampe (dorthin fliegen die Glühwürmchen)
@@ -19219,6 +19284,7 @@ function createStoryScene(host) {
       let ankunft = Infinity;
       for (const w of worms) {
         const plan = this.wurmPlan(w, this.moving);
+        if (nur && !nur.has(w)) { if (plan.flug) ankunft = Math.min(ankunft, plan.flug.te); continue; } // später (wurmStaffel)
         if (w.modus !== plan.modus) { RUHIG[plan.modus].setze(w); w.modus = plan.modus; }
         if (plan.flug) {
           const key = JSON.stringify([plan.modus, plan.flug, this.worms, this.gatherAt, this.carryAt, n(tx), n(ty)]);
@@ -19239,6 +19305,38 @@ function createStoryScene(host) {
           Math.max(0, ankunft - t) / this.speed * 1000 + 30);
       }
       return false;
+    },
+    /**
+     * Nach dem Halt die Glühwürmchen umstellen, vier je Bild statt alle in einem: Alle 16 auf einmal (Flug weg, Schwingen
+     * neu, Ort) machten das erste Bild im Halt bis 107 ms lang (Drossel 4, Ticket 18). Die Flüge reichen NACHLAUF über
+     * die Ankunft, die vier Bilder fallen darin nicht auf. Eine neue Fahrt bricht ab (moveTo, act stellt alle um).
+     */
+    wurmStaffel() {
+      cancelAnimationFrame(this.wurmRaf);
+      const rest = [...worms];
+      const schritt = () => {
+        this.wurmRaf = 0;
+        if (this.moving || !this.running) return;
+        this.zeichne(new Set(rest.splice(0, 4)));
+        if (rest.length) this.wurmRaf = requestAnimationFrame(schritt);
+      };
+      this.wurmRaf = requestAnimationFrame(schritt);
+    },
+    /**
+     * Flüge beim Tippen (act gather, carry) anlegen, vier je Bild, die mit dem frühesten Abflug zuerst (gleich, im Tippen):
+     * Alle 16 in einem kosteten das Tippen bei Drossel 4 über 100 ms (Keyframes anlegen, Ticket 18). Genau bleibt es, weil
+     * keines vor 0,3 s abfliegt und bis dahin auch sein Flug an der Mitte seines ruhigen Orts stünde.
+     */
+    flugStaffel() {
+      cancelAnimationFrame(this.flugRaf);
+      const rest = worms.map((w) => [w, this.wurmPlan(w, true).flug?.ta ?? Infinity]).sort((a, b) => a[1] - b[1]).map(([w]) => w);
+      const schritt = () => {
+        this.flugRaf = 0;
+        if (!this.running) return;
+        this.zeichne(new Set(rest.splice(0, 4)));
+        if (rest.length) this.flugRaf = requestAnimationFrame(schritt);
+      };
+      schritt();
     },
     /**
      * Wo ein Glühwürmchen zur Zeit t ist (x, y, Grösse s; tx, ty: Spitze der Lampe), samt Schwingen: zur Lampe (gather,
@@ -19277,11 +19375,17 @@ function createStoryScene(host) {
      */
     flugAnlegen(w, { modus, flug: { ta, te } }, spitze, key) {
       const dauer = te + NACHLAUF - ta, schritte = Math.max(2, Math.ceil(dauer * 30)), ort = [], groesse = [];
+      // Grösse 1 + 0,6 · smooth01((t − g0) / 2,4) (wurmOrt): fliegt es ab g0 los, genau als ein Keyframe-Paar mit
+      // cubic-bezier(1/3, 0, 2/3, 1) (das ist 3u² − 2u³). Jeder Keyframe kostet beim Tippen (Anlegen und Start im
+      // Compositor, Ticket 18), so ist es die Hälfte
+      const g0 = this.gatherAt + w.delay, glatt = this.worms !== 'idle' && ta === g0 && 2.4 < dauer;
       for (let i = 0; i <= schritte; i++) {
         const t = ta + dauer * i / schritte, [x, y, s] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t);
         ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
-        groesse.push({ transform: `scale(${s.toFixed(3)})` });
+        if (!glatt) groesse.push({ transform: `scale(${s.toFixed(3)})` });
       }
+      if (glatt) groesse.push({ offset: 0, transform: 'scale(1.000)', easing: 'cubic-bezier(0.3333, 0, 0.6667, 1)' },
+        { offset: 2.4 / dauer, transform: 'scale(1.600)' }, { offset: 1, transform: 'scale(1.600)' });
       const timing = { duration: dauer * 1000, fill: 'both', easing: 'linear' };
       const teile = [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
       if (groesse.some((g) => g.transform !== groesse[0].transform)) teile.push({ a: w.ws.animate(groesse, timing), c: (t) => t - ta, periode: Infinity });
@@ -20180,6 +20284,9 @@ const story = {
       this.stillBild = true;
       this.stillAb = performance.now() + sc.ruheNachHalt;
       setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
+      // was die nächste Einstellung beim Tippen neu rastern liesse, jetzt (sc.vorbereiten)
+      const naechste = shots[shots.indexOf(shot) + 1];
+      if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;
     }
