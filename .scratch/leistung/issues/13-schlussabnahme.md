@@ -113,3 +113,7 @@ wenig beim Einflug in den Wald.»
 - Fische (14, 17): bestätigt → 17 `resolved`. Erste Noa-Szene (16): kein Flackern mehr.
 - Glühwürmchen beim Einflug in den Wald stocken noch (15) → Ticket 18.
 - Hänger mit Script: Seitenstart 338 ms in einem Bild (2c: 431), Reise bei 120,7 s 128 ms (neu sichtbar).
+
+**Vorgabe des Nutzers (02.11.2026):** Die Geschichte (Bühne der Noa-Szenen, Glühwürmchen) wird immer mit 60 Bildern/s
+gezeigt. `?takt=30` (Vergleich Variante B) wirkt nur auf das WebGL-Bild (Level, Menü, Reisen); der Versuch in
+`leistung-08c`, auch die Browser-Animationen in 30er-Schritten zu stellen, ist zurückgenommen (`leistung-08d`).
