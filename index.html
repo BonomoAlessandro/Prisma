@@ -18613,7 +18613,9 @@ function createStoryScene(host) {
   const stellen = (u) => {
     if (!u.a) return;
     const zeit = (t) => { const c = u.c(t); return (u.periode === Infinity ? c : ((c % u.periode) + u.periode) % u.periode) * 1000; };
-    const tl = document.timeline.currentTime, rate = u.a.playbackRate;
+    // Tempo der Bühne, nicht u.a.playbackRate: Nach updatePlaybackRate (speed) zeigt das bis zum nächsten Bild noch das
+    // alte, das Setzen der Startzeit wendet aber das neue an (Review Ticket 18)
+    const tl = document.timeline.currentTime, rate = scene.speed;
     if (u.a.playState === 'running' && tl != null && rate > 0) u.a.startTime = tl - zeit(scene.zeitBei(tl)) / rate;
     else u.a.currentTime = zeit(scene.time);
   };
@@ -18691,7 +18693,9 @@ function createStoryScene(host) {
           if (glatt && i + 1 < zs.length) {
             const z1 = zs[i + 1], h = z1 - z, d = Math.min(1e-4, h / 100), delta = s.wert(z1) - s.wert(z);
             const m0 = (s.wert(z + d) - s.wert(z)) / d, m1 = (s.wert(z1) - s.wert(z1 - d)) / d;
-            k.easing = h < 5e-3 || Math.abs(delta) < 1e-7 ? 'linear'
+            // unter 1e-4 linear: Die Keyframes sind gerundet, und ein Abschnitt mit Umkehrpunkt und fast gleichen Enden
+            // schösse sonst um gerundet / genau Δ über (Review Ticket 18; Kraft und Stern dafür genauer)
+            k.easing = h < 5e-3 || Math.abs(delta) < 1e-4 ? 'linear'
               : `cubic-bezier(0.33333, ${(m0 * h / (3 * delta)).toFixed(5)}, 0.66667, ${(1 - m1 * h / (3 * delta)).toFixed(5)})`;
           }
           return k;
@@ -18732,7 +18736,7 @@ function createStoryScene(host) {
   const flackern = schwinger(q('.flacker'), (v) => ({ opacity: v.toFixed(3) }));
   // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns als Spuren (spur)
   const armSpur = spur(75, [[arm, (v) => ({ transform: `rotate(${v.toFixed(3)}deg)` }), true]]);
-  const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(4) }), true]]);
+  const kraft = spur(0, [[beam, (v) => ({ opacity: (v > 0.002 ? v : 0).toFixed(6) }), true]]);
   /** Keil (Dreieck 0 0, 0 100, STRAHL_L 0) über dem Rand des skalierten Kegels: Hals w0 an der Lampe, sg: oben 1, unten −1 */
   const keilMatrix = (w0, k, s, sg) => {
     const innen = w0 / 2; // überlappt den Kegel (einfarbig: keine Naht)
@@ -18744,7 +18748,7 @@ function createStoryScene(host) {
     return [[elem, (v) => ({ transform: `scale(${s(v).toFixed(5)})` }), true],
       ...keile.map((keil, j) => [keil, (v) => ({ transform: keilMatrix(w0, k, s(v), j ? -1 : 1) })])];
   }));
-  const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(4)})` }), true]]);
+  const stern = spur(0, [[polar, (v) => ({ transform: `scale(${(1 + 1.8 * v).toFixed(6)})` }), true]]);
   const spuren = [armSpur, kraft, laenge, stern];
   // Glühwürmchen: Ort › Schwingen in x › in y › Grösse; das Blinken schwingt mit x. Ruhig (am Waldrand, um die Lampe,
   // im Wald) steht der Ort, im Flug läuft er als vorab berechnete Animation (flugAnlegen), das Schwingen läuft weiter
@@ -19506,18 +19510,22 @@ function createStoryScene(host) {
         p.push(f(t));
         m.push([(b[0] - a[0]) / (2 * d), (b[1] - a[1]) / (2 * d)]);
       }
+      // Δ aus den gerundeten Werten der Keyframes: Mit dem genauen Δ schösse ein Abschnitt mit Umkehrpunkt und fast
+      // gleichen Enden um gerundet / genau Δ über (bis viele Pixel); so stimmt die Geschwindigkeit an beiden Enden
+      // (Review Ticket 18). Gleich gerundet: linear (Fehler höchstens etwa |m| h / 4, unter 0,3 Mass)
+      const r = (v) => Math.round(v * 1000) / 1000;
       const kurve = (k, fmt, prop = 'transform') => p.map((q, i) => {
-        const kf = { offset: i / schritte, [prop]: fmt(q[k]) };
+        const kf = { offset: i / schritte, [prop]: fmt(r(q[k])) };
         if (i < schritte) {
-          const delta = p[i + 1][k] - q[k];
-          kf.easing = Math.abs(delta) < 1e-4 ? 'linear'
+          const delta = r(p[i + 1][k]) - r(q[k]);
+          kf.easing = delta === 0 ? 'linear'
             : `cubic-bezier(0.33333, ${(m[i][k] * h / (3 * delta)).toFixed(5)}, 0.66667, ${(1 - m[i + 1][k] * h / (3 * delta)).toFixed(5)})`;
         }
         return kf;
       });
       return [
-        { a: w.el.animate(kurve(0, (v) => `translateX(${v.toFixed(2)}px)`), timing), c: (t) => t - ta, periode: Infinity },
-        { a: w.el.animate(kurve(1, (v) => `0px ${v.toFixed(2)}px`, 'translate'), timing), c: (t) => t - ta, periode: Infinity },
+        { a: w.el.animate(kurve(0, (v) => `translateX(${v.toFixed(3)}px)`), timing), c: (t) => t - ta, periode: Infinity },
+        { a: w.el.animate(kurve(1, (v) => `0px ${v.toFixed(3)}px`, 'translate'), timing), c: (t) => t - ta, periode: Infinity },
       ];
     },
   };
@@ -20067,7 +20075,9 @@ const story = {
     this.keepFocus(); // der Knopf ist weg: Fokus gleich zurück (nicht erst nach dem Warten unten)
     // «Gleich los», der Wald aber noch nicht da (vor den Flügen der Glühwürmchen lädt er nicht, Ticket 18): die Bühne
     // bleibt stehen, bis er da ist (höchstens 8 s), statt schwarz
-    if (!ueben) for (let t = 0; !skyTheme.ready && t < 80; t++) await storySleep(100);
+    // (nach der Uhr, nicht gezählt: Zeitgeber in einem verborgenen Tab sind gedrosselt)
+    const bis = performance.now() + 8000;
+    if (!ueben) while (!skyTheme.ready && performance.now() < bis) await storySleep(100);
     this.stillBild = false;
     this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
