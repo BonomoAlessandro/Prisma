@@ -201,3 +201,37 @@ zerlegter Fahrt kleiner, vom Koordinator zurückgestellt); Lampe im Prolog (sieh
 
 **Für den Nutzer auf dem Poco:** Einstellung 5 («Da blinkt …») ohne fehlenden Hintergrund, Glühwürmchen beim Flug zu Noa
 und in den Wald ruhig, Noa-Szenen ohne Ruckler beim Tippen und im Halt, Epilog «Noa lacht …» ohne Stocken am Start.
+
+### 02.11.2026 – Poco `leistung-09b`: Ruckler bleiben, Diagnose-Schalter
+
+Nutzer: Hintergrund vollständig (erledigt). Erste Noa-Szene «zu Beginn kurz ruckelig»; Glühwürmchen ruckeln weiter beim
+Flug zu Noa und in den Wald. In der Emulation zeigt der Compositor jedes Bild; auf dem Adreno offenbar nicht. Kein Trace
+vom Gerät, darum Analyse der Arbeit im Grafikprozess und Schalter zum Vergleich mit den Augen.
+
+**Analyse** (Handy ×4, je Abschnitt; `passes.mjs`, `webgl.mjs`, Läufe `d-*`):
+- **Zwischenflächen des Compositors je Bild** (`DrawRenderPass` je `DrawFrame`): Einstellung 1–2 sechs, ab Einstellung 3
+  (Strahl an) elf. Ohne Strahl auch dort sechs, und die Zeit des Grafikprozesses je Bild sinkt von 1,8–2,5 auf 1,3–1,5 ms
+  (Quadro): Der Strahl macht ein Drittel der Arbeit beim Zusammensetzen. Er braucht fünf eigene Zwischenflächen (Kraft und
+  Flackern als Deckkraft über mehreren Ebenen, zwei Masken für den Verlauf). Auf einer Kachel-GPU wie dem Adreno ist jede
+  Zwischenfläche ein eigener Durchgang durch den Speicher, also teuer. Die Flüge in 5 und 6 laufen beide mit Strahl:
+  stärkster Kandidat für das Ruckeln der Glühwürmchen. Hochgerechnet (Adreno grob 5–10× langsamer als die Quadro beim
+  Zusammensetzen): 9–25 ms je Bild, also über dem Bildtakt von 16,7 ms.
+- **Glühwürmchen selbst:** kein Filter, kein Schatten, kein Mischmodus; ein radialer Verlauf als SVG je Glühwürmchen.
+  Ohne den Lichthof keine Änderung bei Zwischenflächen oder Zeit (Emulation).
+- **Arbeit im Grafikprozess durch WebGL** (Protokoll der Probe): während der Fahrten 2–6 keine. In den Ruhepunkten 1 und 2
+  (Ruhe 2 = erste Noa-Szene) lädt der Wald hinter der Bühne: 6 Programme, Puffer, und in Ruhe 2 eine Textur von 11 MPx
+  in 15 Teilen (131 ms Hauptthread bei 4×, im Grafikprozess auf der Quadro unauffällig). Auf dem Adreno dauert das
+  Hochladen deutlich länger: Kandidat für «erste Noa-Szene zu Beginn kurz ruckelig». In Fahrt 1 zeichnet die Welt noch,
+  bis die Bühne deckt (Einblenden).
+- `will-change: opacity` an `#story` und `.world` erzeugt keine Zwischenfläche (geprüft, ohne Wirkung).
+
+**Schalter** (`?diag=…`, mehrere mit Komma; ohne Schalter unverändert; `DIAG` im zweiten Script):
+- `ohnevorbereitung`: Solange die Bühne zu sehen ist, gibt es keine ruhige Stelle (`ruhe.jetzt` falsch): kein Laden,
+  Hochladen, Vorwärmen und Zeichnen von WebGL hinter der Bühne (geprüft: im Prolog danach kein gl-Aufruf mehr ausser dem
+  Zeichnen beim Einblenden). Der Wald lädt dann erst nach der Bühne (kurz schwarz möglich).
+- `ohnestrahl`: Strahl der Lampe ausgeblendet (`.beam { display: none }`): fünf Zwischenflächen je Bild weniger.
+- `ohneleuchten`: Glühwürmchen nur mit hellem Kern, ohne Lichthof.
+
+Vorschlag für den Nutzer: Prolog dreimal, je neu geladen: `?diag=ohnestrahl`, `?diag=ohnevorbereitung`,
+`?diag=ohneleuchten`, und sagen, wo die Glühwürmchen bzw. die erste Noa-Szene ruhig werden. Ist es der Strahl, baue ich
+ihn mit weniger Zwischenflächen (z. B. Kraft und Flackern in einer Animation, Verlauf ohne Maske), Optik verglichen.
