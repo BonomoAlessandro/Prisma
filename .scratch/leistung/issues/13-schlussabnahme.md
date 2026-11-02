@@ -139,3 +139,24 @@ screenshot, start-probe, leerlauf-probe (headless, `--fenster`, `--fenster --han
 
 Poco, `leistung-09`: «Das Spiel mit 30 fps läuft super und glatt. Nur hatte ich in den Noa-Szenen noch immer ein paar
 Ruckler.» → Ticket 18 (Bühne der Geschichte, bei 60).
+
+### `leistung-09b`: Ticket 18 gemergt, bereit für Handy-Durchlauf 4, bitte auf Render deployen
+
+Ticket 18 umfasst:
+- Bühne ohne fehlenden Hintergrund: ferne Ebenen in der Auflösung, in der sie zu sehen sind; Kachelspeicher 97–137
+  statt 163–216 MB.
+- Tippen und Halt gestaffelt.
+- Strahl im Epilog vorbereitet.
+
+Review ohne Befund, zwei kleine Lücken behoben (`2b3e01c`).
+
+Tests auf dem Merge, alle exit 0 ohne «Weckstelle fehlt»: die ganze Reihe wie oben (logic … leistung-probe `--fenster
+--handy --drossel 4`), nach dem Review-Fix nochmals geschichte-probe `--start`, `--handy`, `--grad leicht --welten 2
+--finale leicht`, `--quer --grad leicht`. Ausnahme wie bisher: `--uebersicht --dorf` (älter als 08).
+
+Für den Nutzer auf dem Poco:
+- Einstellung 5 («Da blinkt …») ohne fehlenden Hintergrund.
+- Glühwürmchen beim Flug zu Noa und in den Wald.
+- Noa-Szenen ohne Ruckler.
+- Epilog «Noa lacht …».
+- Spiel weiter glatt mit 30.
