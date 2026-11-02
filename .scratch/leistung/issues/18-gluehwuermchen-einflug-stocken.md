@@ -380,8 +380,11 @@ wieder mit Vorrat (127 MB), die Abbrüche bleiben im Rahmen der Streuung (7/2/15
 den alten Satz behält Chrome, solange er zwischen gesehenem und neuem Massstab liegt (Vordergrund 1,0 und 0,865, Noas
 Hügel 1,0 und 0,765, Teil-Ebenen mit 2–3 Sätzen). Umbau der Abschnitte zurückgestellt.
 
-**Obergrenze 2 statt 2,75:** Mit k lässt sich nicht unter die Auflösung des Bildschirms rastern (Chrome rastert die
-Ebene trotz k in der gesehenen Auflösung; Probe in der Emulation: Speicher wie ohne). Über den Massstab der Seite
+**Obergrenze 2 statt 2,75:** Unter die gesehene Auflösung rastert Chrome eine Ebene weder mit k noch mit dem Massstab
+der Seite; kleiner wird nur, was heute an der Obergrenze (devicePixelRatio je Pixel des Inhalts) rastert, also die
+nahen Ebenen im Zoom. `?diag=raster2` (k mal 2/devicePixelRatio): Emulation Fahrt 5 124,5 → 110,7 MB, Fahrt 6
+125,4 → 113,2 MB, aber Ruhepunkt 1 139 → 161 MB (die nahen Ebenen bekommen mit k < 1 Teil-Ebenen, die anfangs in
+1,0 rastern); Schrift unverändert. Über den Massstab der Seite
 (`?diag=seite2`, Meta-Viewport 2/devicePixelRatio) rechnet die Bühne mit der grösseren Breite und füllt den Bildschirm
 weiter; kleiner gerastert werden nur Ebenen an der Obergrenze (Noas Hügel 1,0 → 0,77, Vordergrund 1,0 → 0,87, Linien
 2,5 → 1,8–1,9). Emulation (DPR 2,75, 8 GB): Fahrt 5 124,5 → 116,3 MB, Fahrt 6 125,4 → 112,4 MB, Ruhepunkt 6 129,6 →

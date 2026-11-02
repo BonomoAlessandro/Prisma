@@ -8374,7 +8374,7 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
  * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite2: Massstab der Seite
- * 2 / devicePixelRatio (siehe unten).
+ * 2 / devicePixelRatio (siehe unten); raster2: k der Bühne mal 2 / devicePixelRatio (massstab).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
@@ -18878,6 +18878,9 @@ function createStoryScene(host) {
         // Überlappung, nur im Himmel die eigenen Ebenen von Funkeln und Polarstern mit eigener Animation): In den nahen
         // Ebenen rasterte Chrome sonst die Teil-Ebenen (Überlappung) bei jedem Zoom einer Fahrt neu
         if (l.p < MASSSTAB_P) for (const { from, to } of stuecke) k = Math.min(k, this.skala(from, l.p), this.skala(to, l.p));
+        // Diagnose raster2: k mal 2 / devicePixelRatio (Chrome rastert eine Ebene mit Animation höchstens in
+        // devicePixelRatio je Pixel ihres Inhalts: die nahen Ebenen dann in höchstens 2)
+        if (DIAG.has('raster2')) k *= Math.min(1, 2 / devicePixelRatio);
         k = Math.floor(k * 1000) / 1000;
         // ein neues k malt den Inhalt neu: nicht für wenige Prozent (Adressleiste ein und aus, anpassen); die Animation
         // reicht dann knapp unter oder über 1, gerastert wird weiter in ihrer grössten Skalierung
