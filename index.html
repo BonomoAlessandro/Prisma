@@ -377,10 +377,11 @@
   #story .scene .ebene svg { position: absolute; display: block; overflow: visible; }
   #story .scene .teil, #story .scene .atem, #story .scene .flacker { position: absolute; left: 0; top: 0; width: 0; height: 0; }
   #story .scene .bewegt { will-change: transform; }
-  /* Linien je zweimal (createStoryScene, linie): die eine zu sehen, die andere aus oder gerade beim Rastern (bereit) */
+  /* Linien je zweimal (createStoryScene, linie): die eine zu sehen, die andere nur beim Rastern da (bereit), sonst ganz
+     weg (Speicher der Grafik: auch durchsichtig hielt Chrome sie im Speicher) */
   #story .scene .linie { will-change: opacity; }
-  #story .scene .linie.aus { opacity: 0; }
-  #story .scene .linie.aus.bereit { opacity: 0.002; }
+  #story .scene .linie.aus { opacity: 0; display: none; }
+  #story .scene .linie.aus.bereit { opacity: 0.002; display: block; }
   /* Kegel und Kern des Strahls (createStoryScene, STRAHL): Ursprung links in der Mitte, dort skaliert er (laenge) */
   #story .scene .strahl { position: absolute; left: 0; transform-origin: 0 50%; }
   /* funkelnde Sterne in Gruppen (matt und hell): eine Gruppe dunkelt bis auf etwa 0,12 der Helligkeit ihrer Sterne ab */
@@ -17715,6 +17716,7 @@ function createStoryScene(host) {
    * Strichbreite wie früher mit vector-effect non-scaling-stroke: in Pixeln, gleich bei jedem Zoom. Die Kamera skaliert
    * die Ebenen jetzt im Compositor (ausserhalb des SVG); --rs ist ihre Skalierung im Ruhepunkt (stelle, linienTauschen;
    * je Linie gesetzt, siehe linie), während einer Fahrt wächst und schrumpft der Strich mit, im Ruhepunkt stimmt er wieder.
+   * Ausnahme die fernen Ebenen (.fest): --rs aus Zoom 1, der Strich wird beim Zoomen etwas breiter (stelle).
    */
   const strich = (w) => `stroke-width:calc(${w}px / var(--rs, 1))`;
   const rim = (pts, color, opacity, width = 1.2) =>
@@ -17726,7 +17728,12 @@ function createStoryScene(host) {
   /**
    * Linien mit strich (Grate, Dachkanten, Umriss von Noa) zweimal, als eigene Ebenen des Compositors (.linie): Die
    * Breite für einen neuen Ruhepunkt bekommt die verborgene, die erst nach dem Rastern sichtbar wird (linienTauschen).
-   * Sonst rasterte die sichtbare Ebene neu und zeigte dabei fehlende Kacheln (Flackern, Ticket 16). f(inhalt, cls): SVG.
+   * Sonst rasterte die sichtbare Ebene neu und zeigte dabei fehlende Kacheln (Flackern, Ticket 16). Die verborgene gibt
+   * es nur für den Tausch (CSS .linie.aus). f(inhalt, cls): SVG. Jede Linie kostet Speicher der Grafik (Kacheln längs
+   * der ganzen Linie, Handy: Review 16): die Grate der fernen Berge und des Bergwalds, die im Prolog höchstens um 1,26
+   * und 1,5 zoomen, liegen darum im Bild ihrer Ebene, mit fester Breite (.fest). Die Grate von Dorfhügel und Noas Hügel
+   * liegen unter dem Bild, doppelt so breit (die Fläche deckt die untere Hälfte): Eine Linie mitten im Bild teilte es in
+   * weitere Ebenen.
    */
   const linie = (f, inhalt) => f(inhalt, 'linie') + f(inhalt, 'linie aus');
 
@@ -17869,12 +17876,12 @@ function createStoryScene(host) {
         ${teil('polar', 1120, 150, [-64, -64, 128, 128], `<circle r="64" fill="url(#s-halo)"/><g transform="rotate(12)" fill="url(#s-ray)"><path d="M0 -30L1.8 0L0 30L-1.8 0ZM-30 0L0 -1.8L30 0L0 1.8Z"/><path d="M0 -13L1 0L0 13L-1 0ZM-13 0L0 -1L13 0L0 1Z" transform="rotate(45)" opacity="0.6"/></g><circle r="3.4" fill="#fff"/>`, '<div class="atem">@</div>')}
       </div>
       <div class="ebene" data-p="0.22">
-        ${linie(BILD, rim(far, '#8a90d8', 0.35, 2.4))}${BILD(`<path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>
-        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>`)}
+        ${BILD(`<path d="${area(far)}" fill="#1f1f4a"/><path d="${snow(far, 425)}" fill="#8b92d6" opacity="0.2"/>${rim(far, '#8a90d8', 0.35)}
+        <rect x="-3000" y="470" width="7600" height="170" fill="url(#s-mist)"/>`, 'fest')}
       </div>
       <div class="ebene" data-p="0.42">
-        ${linie(BILD, rim(mid, '#4f539e', 0.35, 2.4))}${BILD(`<path d="${area(mid)}" fill="#15153a"/>${pfade(`${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}`, 'fill="#101030"')}
-        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>`)}
+        ${BILD(`<path d="${area(mid)}" fill="#15153a"/>${rim(mid, '#4f539e', 0.35)}${pfade(`${firRow(-800, 2400, [6, 12], [10, 26], (x) => yAt(mid, x) + r(2, 7))}`, 'fill="#101030"')}
+        <rect x="-3000" y="612" width="7600" height="120" fill="url(#s-mist)" opacity="0.8"/>`, 'fest')}
       </div>
       <div class="ebene" data-p="0.68">
         ${linie(BILD, rim(hill, '#2c3066', 0.5, 2.4))}${BILD(`<path d="${area(hill)}" fill="#0d0d25"/><path d="${line(path)}" fill="none" stroke="#1b1b3b" stroke-width="3" stroke-linecap="round"/>
@@ -17883,9 +17890,9 @@ function createStoryScene(host) {
         <div class="teil smoke"></div>
       </div>
       <div class="ebene" data-p="1">
-        ${BILD(`${pfade(`${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}`, 'fill="#0a0a20"')}
-        <path d="${area(ground)}" fill="#08081b"/>`)}${linie(BILD, rim(ground, '#2a2e62', 0.55, 1.5))}
-        ${BILD(`${pfade(`${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}`, 'fill="#050515"')}
+        ${linie(BILD, rim(ground, '#2a2e62', 0.55, 3))}${BILD(`${pfade(`${firRow(1110, 2200, [22, 40], [170, 330], (x) => yAt(ground, x) + r(0, 8))}${firRow(-700, 230, [26, 48], [120, 260], (x) => yAt(ground, x) + r(0, 8))}`, 'fill="#0a0a20"')}
+        <path d="${area(ground)}" fill="#08081b"/>
+        ${pfade(`${firRow(1150, 2200, [30, 60], [120, 240], (x) => yAt(ground, x) + 12)}${firRow(-700, 160, [40, 70], [110, 210], (x) => yAt(ground, x) + 12)}`, 'fill="#050515"')}
         <g fill="#05050f">${fence}</g>
         <g fill="#03030a">
           <path d="M422.5 628L422 650Q421.5 653 418.8 655.4Q417.6 657.6 420.4 657.6L429 657.6L429.3 628Z"/>
@@ -17916,6 +17923,8 @@ function createStoryScene(host) {
     const l = [...e.querySelectorAll(':scope > .linie')];
     return Array.from({ length: l.length / 2 }, (_, i) => [l[2 * i], l[2 * i + 1]]);
   });
+  // Bilder mit Linien fester Breite (.fest, ferne Ebenen): --rs aus Zoom 1 (stelle)
+  const fest = layers.map(({ e }) => [...e.querySelectorAll(':scope > .fest')]);
   const arm = q('.arm'), beam = q('.beam'), polar = q('.polar'), lines = [...el.querySelectorAll('.line')];
   const strahlen = [...el.querySelectorAll('.strahl')].map((s) => ({ s, keile: [...s.querySelectorAll('.keil')] }));
   const div = (parent, cls, style = '') => {
@@ -18064,6 +18073,7 @@ function createStoryScene(host) {
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
   const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, Linien)
   const LINIEN_MS = 200; // so lange rastert eine verborgene Linie (bereit), bevor sie die sichtbare ablöst
+  const LINIEN_TOLERANZ = 1.1; // getauscht wird erst, wenn die Strichbreite sonst um mehr als 10 % abwiche
 
   scene = {
     el, skip: q('.skip'),
@@ -18281,6 +18291,8 @@ function createStoryScene(host) {
         e.style.transform = this.pose(this.cam, p);
         const rs = this.skala(this.cam, p).toFixed(5);
         for (const paar of linien[j]) for (const l of paar) l.style.setProperty('--rs', rs);
+        // feste Breite: hängt nur vom Bildschirm ab (gleich gesetzt rastert nichts neu)
+        for (const f of fest[j]) f.style.setProperty('--rs', this.skala({ z: 1 }, p).toFixed(5));
       }
     },
     /**
@@ -18289,7 +18301,9 @@ function createStoryScene(host) {
      */
     linienTauschen(i) {
       const rs = this.skala(this.cam, layers[i].p).toFixed(5);
-      const paare = linien[i].filter(([an]) => an.style.getPropertyValue('--rs') !== rs);
+      // nur, wo die Breite merklich anders wäre: jeder Tausch rastert eine Linie neu und hält kurz beide im Speicher
+      const anders = (an) => { const alt = parseFloat(an.style.getPropertyValue('--rs')); return !(alt > 0) || Math.max(rs / alt, alt / rs) > LINIEN_TOLERANZ; };
+      const paare = linien[i].filter(([an]) => anders(an));
       if (!paare.length) return;
       for (const [, aus] of paare) { aus.style.setProperty('--rs', rs); aus.classList.add('bereit'); }
       const z = setTimeout(() => {
