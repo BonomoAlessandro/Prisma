@@ -1217,9 +1217,19 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-01 leistung-07';
+const APP_VERSION = '2026-11-01 leistung-07c';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+/** Deterministischer Zufall (Folge aus seed); hier oben, weil FIXED_TIME ihn schon beim Laden braucht */
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
 
 // ?t=12: Zeit der Animationen anhalten, Zufall fest (Vergleichsbilder: zwei Aufnahmen fallen gleich aus). Überblenden
 // und Einblenden laufen weiter, sie zählen dt.
@@ -8115,12 +8125,22 @@ const STORY_LEVELS = {
 };
 
 /* LOGIC:END ============================================================ */
+</script>
+<script>
+'use strict';
+// Seitenstart in Stücken (Ticket 10 der Leistung): Konfiguration, Logik und Leveldaten oben sind ein eigenes Script, die
+// Darstellung hier ein zweites, Kamera, Spiel und Oberfläche ein drittes. So übersetzt und startet der Browser sie in
+// eigenen Aufgaben statt in einer; Konstanten und Funktionen der Scripts davor gelten wie bisher (gemeinsamer globaler
+// Bereich). Weil Funktionsdeklarationen nur innerhalb ihres Scripts vorgezogen werden, ruft ein Script beim Laden
+// nichts aus einem späteren auf (mulberry32 steht darum oben bei FIXED_TIME).
 
 /* =====================================================================
    RENDERER
    ===================================================================== */
 
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
+// Auf den Bildschirm zeichnet nur der letzte Bildschritt (ein Rechteck übers ganze Bild): ohne Tiefe und Stencil, die
+// Szene hat beides in ihrem eigenen Ziel (createComposer). Spart auf Kachel-GPUs Löschen und Speichern je Bild (Ticket 11)
+const renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
 renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -8143,6 +8163,20 @@ const HDR_SUPPORTED = renderer.capabilities.isWebGL2
   ? (renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'))
   : (renderer.extensions.has('OES_texture_half_float') && renderer.extensions.has('EXT_color_buffer_half_float'));
 const HDR_TYPE = HDR_SUPPORTED ? THREE.HalfFloatType : THREE.UnsignedByteType;
+
+/**
+ * Tiefe (und Stencil) des gerade gebundenen Ziels target verwerfen, wenn sie niemand mehr liest (Ticket 11): Kachel-GPUs
+ * (Handy) schreiben sonst jede Kachel samt Tiefe in den Speicher zurück. Nur WebGL2 und ohne MSAA (dort löst three auf
+ * und bindet dabei andere Puffer; für die Spiegelung siehe renderReflection).
+ */
+function discardDepth(r, target) {
+  if (!r.capabilities.isWebGL2 || !target?.depthBuffer || target.samples > 0 || r.getRenderTarget() !== target) return;
+  const gl = r.getContext();
+  gl.invalidateFramebuffer(gl.FRAMEBUFFER, [target.stencilBuffer ? gl.DEPTH_STENCIL_ATTACHMENT : gl.DEPTH_ATTACHMENT]);
+}
+// Was vor dem Zeichnen der Szene in ein eigenes Ziel muss, (renderer, camera, Ziel der Szene, scene) => …: im Pass der
+// Szene vorab, damit ihr Ziel nicht mittendrin wechselt (waterSurface, Ticket 11)
+const SCENE_PREPASSES = new Set();
 if (!HDR_SUPPORTED) {
   // Fallback ohne HDR: Bloom-Schwelle unter 1 (sonst blüht nichts), Spiegelung aus
   // (der Reflector rendert intern immer in HalfFloat).
@@ -8282,7 +8316,7 @@ const sceneLoop = {
   aufwaermen() {
     if (!this.started || this.warm) return;
     const t0 = leistung.bildBeginn();
-    animate(FIXED_TIME ?? clock.getElapsedTime(), 0); // Kamera und Uniforms auf den Stand, ohne Zeit vorzuspulen
+    animate(FIXED_TIME ?? sceneTime.at(), 0); // Kamera und Uniforms auf den Stand, ohne Zeit vorzuspulen
     draw(1 / 60, t0, false);
   },
 };
@@ -8367,53 +8401,110 @@ const compileParallel = (() => {
   const gl = renderer.getContext();
   const ext = gl.getExtension('KHR_parallel_shader_compile');
   const PENDING = Symbol('Programm noch nicht fertig');
-  // compile() geht mit root.traverse über die Materialien, auch über unsichtbare: Teilbäume in skip auslassen und
-  // PENDING je Objekt abfangen, damit compile zu Ende läuft
-  function issue(root, skip) {
+  // compile() geht mit root.traverse über die Materialien, auch über unsichtbare: nur über objects (ohne die Teilbäume in
+  // skip, siehe collect) und PENDING je Objekt abfangen, damit compile zu Ende läuft
+  function issue(root, objects) {
     root.traverse = function (cb) {
-      const walk = (o) => {
-        if (skip.has(o)) return;
-        try { cb(o); } catch (e) { if (e !== PENDING) throw e; }
-        for (const c of o.children) walk(c);
-      };
-      walk(this);
+      for (const o of objects) { try { cb(o); } catch (e) { if (e !== PENDING) throw e; } }
     };
     try { renderer.compile(root, camera); } finally { delete root.traverse; }
   }
-  if (!ext) return async (roots, { skip = [] } = {}) => { for (const r of roots) issue(r, new Set(skip)); };
-  const getParam = gl.getProgramParameter.bind(gl), link = gl.linkProgram.bind(gl), del = gl.deleteProgram.bind(gl);
+  function collect(root, skip) {
+    const list = [];
+    const walk = (o) => { if (skip.has(o)) return; list.push(o); for (const c of o.children) walk(c); };
+    walk(root);
+    return list;
+  }
   let issued = null; // während des Anstossens: die neu gelinkten Programme
   const deleted = new WeakSet();
-  gl.linkProgram = (p) => { link(p); issued?.push(p); };
-  gl.deleteProgram = (p) => { deleted.add(p); del(p); };
-  gl.getProgramParameter = (p, name) => {
-    if (issued && name === gl.ACTIVE_UNIFORMS && !getParam(p, ext.COMPLETION_STATUS_KHR)) throw PENDING;
-    return getParam(p, name);
-  };
+  const getParam = gl.getProgramParameter.bind(gl);
+  if (ext) {
+    const link = gl.linkProgram.bind(gl), del = gl.deleteProgram.bind(gl);
+    gl.linkProgram = (p) => { link(p); issued?.push(p); };
+    gl.deleteProgram = (p) => { deleted.add(p); del(p); };
+    gl.getProgramParameter = (p, name) => {
+      if (issued && name === gl.ACTIVE_UNIFORMS && !getParam(p, ext.COMPLETION_STATUS_KHR)) throw PENDING;
+      return getParam(p, name);
+    };
+  }
   // Jede Abfrage geht zum Grafikprozess und wartet, bis er seine Warteschlange abgearbeitet hat: nur nötige stellen
   const done = (p) => deleted.has(p) || gl.isContextLost() || getParam(p, ext.COMPLETION_STATUS_KHR);
-  /** skip: Teilbäume, die (noch) nicht gebraucht werden, etwa ein gerade nicht gezeigter Hintergrund */
-  return async function compileParallel(roots, { skip = [] } = {}) {
-    const omit = new Set(skip);
-    // Durchsichtig und beidseitig: three übersetzt Rück- und Vorderseite nacheinander und stellt side dazwischen um.
-    // Wirft die erste, bliebe side verstellt und die zweite fehlte – darum beide Seiten einzeln anstossen.
-    const both = new Set();
-    for (const r of roots) r.traverse((o) => {
-      for (const m of [o.material ?? []].flat()) if (m.transparent && m.side === THREE.DoubleSide) both.add(m);
-    });
+  /** Anstossen: batch = [[Wurzel, Objekte]], je Fassung (variants: setzt sie, null = wie es ist) */
+  function run(batch, variants, programs) {
     const check = renderer.debug.checkShaderErrors;
-    renderer.debug.checkShaderErrors = false; // diese Prüfung im Konstruktor fragte sofort ab (und wartete)
-    const programs = issued = [];
+    // diese Prüfung im Konstruktor fragte sofort ab (und wartete); ohne die Erweiterung wartet three ohnehin, dann
+    // bleibt sie (sonst fehlte dort jede Meldung über einen fehlerhaften Shader)
+    if (ext) renderer.debug.checkShaderErrors = false;
+    issued = ext ? programs : null;
     try {
-      for (const side of both.size ? [THREE.BackSide, THREE.FrontSide] : [null]) {
-        if (side !== null) for (const m of both) m.side = side;
-        for (const r of roots) issue(r, omit);
+      for (const variant of variants) {
+        const undo = variant?.();
+        // Durchsichtig und beidseitig: three übersetzt Rück- und Vorderseite nacheinander und stellt side dazwischen um.
+        // Wirft die erste, bliebe side verstellt und die zweite fehlte – darum beide Seiten einzeln anstossen.
+        const both = new Set();
+        for (const [, objects] of batch) for (const o of objects) {
+          for (const m of [o.material ?? []].flat()) if (m.transparent && m.side === THREE.DoubleSide) both.add(m);
+        }
+        try {
+          for (const side of both.size ? [THREE.BackSide, THREE.FrontSide] : [null]) {
+            if (side !== null) for (const m of both) m.side = side;
+            for (const [root, objects] of batch) issue(root, objects);
+          }
+        } finally {
+          for (const m of both) m.side = THREE.DoubleSide;
+          undo?.();
+        }
       }
     } finally {
       issued = null;
       renderer.debug.checkShaderErrors = check;
-      for (const m of both) m.side = THREE.DoubleSide;
     }
+  }
+  /**
+   * skip: Teilbäume, die (noch) nicht gebraucht werden, etwa ein gerade nicht gezeigter Hintergrund. variants: Fassungen
+   * (Funktionen, die sie einstellen und optional eine zurück zum vorigen Zustand geben), je anzustossen. slices: in
+   * Häppchen über mehrere Bilder anstossen (je etwa SLICE_MS, ein Material und eine Fassung je Aufruf):
+   * three erzeugt den Code jedes Programms synchron, über die ganze Szene hielt das beim Aufbau einer Skybox ein Bild
+   * auf dem gedrosselten Handy 230 ms an (Ticket 09 der Leistung). Dann gelten die Fassungen nur je Häppchen; zwischen
+   * den Bildern bleibt die letzte eingestellt, sofern sie nichts zurückgibt. alive (mit slices): falsch, sobald das
+   * Übersetzen nicht mehr gebraucht wird (Abbruch des Aufbaus); ebenso fällt aus, was inzwischen nicht mehr unter seiner
+   * Wurzel hängt (entfernt, womöglich schon freigegeben: three legte sonst neue Programme für entsorgte Materialien an).
+   * sliceMs: Länge eines Häppchens (Seitenstart: länger, dort animiert noch nichts), pause: was zwischen zwei Häppchen
+   * abwartet (Seitenstart: nur eine neue Aufgabe). issued: wird gerufen, sobald alles angestossen ist (das Übersetzen
+   * läuft dann noch im Hintergrund).
+   */
+  return async function compileParallel(roots, {
+    skip = [], variants = [null], slices = false, alive = () => true, sliceMs = SLICE_MS, issued: onIssued = null,
+    pause = nextFrame,
+  } = {}) {
+    const omit = new Set(skip), programs = [];
+    const lists = roots.map((r) => [r, collect(r, omit)]);
+    if (!slices) run(lists, variants, programs);
+    else {
+      let t = performance.now();
+      for (const [root, objects] of lists) {
+        for (let i = 0; i < objects.length;) {
+          const part = [];
+          // je Material und Fassung einzeln: Ein grosses Programm kostet allein bis 30 ms bei 4×, und wo der Treiber nicht
+          // wirklich parallel übersetzt, wartet schon das Anstossen (die Abfrage in getProgramParameter) darauf
+          for (let n = 0; i < objects.length && n < 1;) {
+            const o = objects[i++];
+            let top = o;
+            while (top.parent) top = top.parent;
+            if (top !== root) continue;
+            part.push(o);
+            if (o.material) n++;
+          }
+          for (const variant of variants) {
+            if (!alive()) return;
+            run([[root, part]], [variant], programs);
+            if (performance.now() - t > sliceMs) { await pause(); t = performance.now(); }
+          }
+        }
+      }
+    }
+    onIssued?.();
+    if (!ext) return; // ohne die Erweiterung hat three schon gewartet
     // je Bild bis zum ersten unfertigen (sie werden etwa der Reihe nach fertig); höchstens rund 10 s, falls ein Treiber
     // nie fertig meldet – dann wartet three eben beim ersten Zeichnen
     let ready = 0;
@@ -8421,7 +8512,7 @@ const compileParallel = (() => {
       await nextFrame();
       while (ready < programs.length && done(programs[ready])) ready++;
     }
-    if (check && !gl.isContextLost()) {
+    if (renderer.debug.checkShaderErrors && !gl.isContextLost()) {
       for (const p of programs.slice(0, ready)) { // nur fertige: eine Abfrage an einem unfertigen wartete
         if (deleted.has(p) || getParam(p, gl.LINK_STATUS)) continue;
         const logs = (gl.getAttachedShaders(p) ?? []).map((s) => (gl.getShaderInfoLog(s) ?? '').trim()).filter(Boolean);
@@ -8447,15 +8538,7 @@ camera.layers.enable(LAYER_NO_REFLECT);
    PROZEDURALE TEXTUREN
    ===================================================================== */
 
-// Deterministischer Zufall, damit die Steinplatte bei jedem Laden gleich aussieht.
-function mulberry32(seed) {
-  return function () {
-    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
-    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  };
-}
+// Deterministischer Zufall (mulberry32, oben bei FIXED_TIME), damit die Steinplatte bei jedem Laden gleich aussieht.
 
 function makeNoise2D(seed) {
   const rand = mulberry32(seed);
@@ -8651,7 +8734,8 @@ const ENV_ROOM = {
   mirror: { floor: [0.07, 0.075, 0.10], low: [0.09, 0.09, 0.13], high: [0.05, 0.05, 0.09] },
 };
 
-function buildEnvironment(roomColors = ENV_ROOM.scene) {
+/** pmrem: ein PMREMGenerator für beide Räume (sein Blur-Shader wird so nur einmal übersetzt), gibt der Aufrufer frei */
+function buildEnvironment(roomColors, pmrem) {
   const envScene = new THREE.Scene();
 
   const room = new THREE.Mesh(
@@ -8689,14 +8773,11 @@ function buildEnvironment(roomColors = ENV_ROOM.scene) {
   panel(10, 2.5, new THREE.Vector3(0, 4, -16), 0x9a90e0, 0.5);   // Hinterkante
   panel(6, 2, new THREE.Vector3(4, 2, 15), 0xffe2c8, 0.6);       // warmes Fülllicht vorne
 
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  const envRT = pmrem.fromScene(envScene, 0.035);
-  pmrem.dispose();
-  return envRT.texture;
+  return pmrem.fromScene(envScene, 0.035).texture;
 }
 
-scene.environment = buildEnvironment();
-const mirrorEnvironment = buildEnvironment(ENV_ROOM.mirror);
+// Beide Umgebungen (scene.environment, MAT.mirror.envMap) baut der Seitenstart in eigenen Aufgaben (seitenstart, am Ende
+// des Scripts), vor dem Anstossen der Programme: Bis dahin zeichnet und übersetzt nichts die Szene.
 
 /* =====================================================================
    HINTERGRUND — Sternenhimmel mit Milchstrasse
@@ -8873,8 +8954,6 @@ scene.add(background);
  * funkeln leicht. Die Drehung ins Weltsystem setzt updateSky.
  */
 function createStars() {
-  const rand = mulberry32(31);
-  const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
   // Zuerst die Kappe um die Bandmitte, wie für die Ausgangsansicht entworfen; danach der übrige Himmel (Band und
   // Rest) gleich dicht – die Kamera kreist frei ums Feld. Die Kappe zieht dieselben Zufallszahlen wie zuvor allein.
   const capCos = Math.cos(THREE.MathUtils.degToRad(SKY.capDeg));
@@ -8882,31 +8961,45 @@ function createStars() {
   const band = Math.round(cap * SKY.bandStars * (Math.PI / SKY.bandArc - 1));
   const n = cap + band + Math.round(cap * (1 - SKY.bandStars) * (1 + capCos) / (1 - capCos));
   const pos = new Float32Array(n * 3), col = new Float32Array(n * 3), info = new Float32Array(n * 4);
-  // Sternfarben von bläulich über weiss bis warm, mit Häufigkeit
-  const TINTS = [[0.70, 0.80, 1.0, 0.2], [0.86, 0.91, 1.0, 0.3], [1.0, 1.0, 1.0, 0.25], [1.0, 0.91, 0.78, 0.17], [1.0, 0.76, 0.6, 0.08]];
-  const d = new THREE.Vector3();
-  for (let i = 0; i < n; i++) {
-    const inCap = i < cap;
-    if (inCap ? rand() < SKY.bandStars : i < cap + band) {
-      // entlang des Bands (in der Kappe bis ±bandArc, sonst der Rest des Kreises), Breite normalverteilt
-      const u = rand() * 2 - 1;
-      const s = inCap ? u * SKY.bandArc : Math.sign(u) * (SKY.bandArc + Math.abs(u) * (Math.PI - SKY.bandArc));
-      const lat = gauss() * 0.055;
-      d.set(Math.sin(s) * Math.cos(lat), Math.sin(lat), Math.cos(s) * Math.cos(lat));
-    } else {
-      do d.set(gauss(), gauss(), gauss()).normalize(); while (inCap ? d.z < capCos : d.z >= capCos);
-    }
-    d.toArray(pos, i * 3);
-    const b = 0.05 + 0.85 * Math.pow(rand(), 8);          // die meisten schwach, wenige hell
-    let r = rand(), t = 0;
-    while (t < TINTS.length - 1 && r > TINTS[t][3]) r -= TINTS[t++][3];
-    col.set(TINTS[t].slice(0, 3), i * 3);
-    info.set([b, 1.1 + b * 2.6, rand(), b > 0.25 ? 1 : 0.25], i * 4); // Helligkeit, Grösse (px), Phase, Funkeln
-  }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo.setAttribute('aColor', new THREE.BufferAttribute(col, 3));
   geo.setAttribute('aStar', new THREE.BufferAttribute(info, 4));
+  // Die Sterne selbst zieht fill, ein Generator mit yield je 2048 Sternen (der Seitenstart in Häppchen, vor dem ersten
+  // Bild: am Stück 200 ms auf dem gedrosselten Handy; Ticket 10 der Leistung). Gerechnet wird in zieh, einer gewöhnlichen
+  // Funktion: Eine Schleife im Generator selbst optimiert V8 nicht, sie lief zwei- bis dreimal langsamer.
+  const rand = mulberry32(31);
+  const gauss = () => Math.sqrt(-2 * Math.log(rand() + 1e-9)) * Math.cos(2 * Math.PI * rand());
+  // Sternfarben von bläulich über weiss bis warm, mit Häufigkeit
+  const TINTS = [[0.70, 0.80, 1.0, 0.2], [0.86, 0.91, 1.0, 0.3], [1.0, 1.0, 1.0, 0.25], [1.0, 0.91, 0.78, 0.17], [1.0, 0.76, 0.6, 0.08]];
+  const d = new THREE.Vector3();
+  const zieh = (from, to) => {
+    for (let i = from; i < to; i++) {
+      const inCap = i < cap;
+      if (inCap ? rand() < SKY.bandStars : i < cap + band) {
+        // entlang des Bands (in der Kappe bis ±bandArc, sonst der Rest des Kreises), Breite normalverteilt
+        const u = rand() * 2 - 1;
+        const s = inCap ? u * SKY.bandArc : Math.sign(u) * (SKY.bandArc + Math.abs(u) * (Math.PI - SKY.bandArc));
+        const lat = gauss() * 0.055;
+        d.set(Math.sin(s) * Math.cos(lat), Math.sin(lat), Math.cos(s) * Math.cos(lat));
+      } else {
+        do d.set(gauss(), gauss(), gauss()).normalize(); while (inCap ? d.z < capCos : d.z >= capCos);
+      }
+      d.toArray(pos, i * 3);
+      const b = 0.05 + 0.85 * Math.pow(rand(), 8);          // die meisten schwach, wenige hell
+      let r = rand(), t = 0;
+      while (t < TINTS.length - 1 && r > TINTS[t][3]) r -= TINTS[t++][3];
+      col.set(TINTS[t].slice(0, 3), i * 3);
+      info.set([b, 1.1 + b * 2.6, rand(), b > 0.25 ? 1 : 0.25], i * 4); // Helligkeit, Grösse (px), Phase, Funkeln
+    }
+  };
+  const fill = function* () {
+    for (let i = 0; i < n; i += 2048) {
+      zieh(i, Math.min(n, i + 2048));
+      yield;
+    }
+    for (const a of Object.values(geo.attributes)) a.needsUpdate = true;
+  };
   const mat = new THREE.ShaderMaterial({
     uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 }, uHorizon: { value: 0 } },
     vertexShader: `
@@ -8941,6 +9034,7 @@ function createStars() {
   points.renderOrder = -99;
   points.layers.set(LAYER_NO_REFLECT);
   points.raycast = () => {};
+  points.userData.fill = fill;
   return points;
 }
 const stars = createStars();
@@ -9193,6 +9287,9 @@ const solar = (() => {
 
   return {
     group, corona, planets, lineMat,
+    // Die Planeten ziehen um das Brett (Merkur 0,8 m/s, Erde 0,55 m/s), so schnell wie die Fische am Strand: im Level
+    // stetig 60 Bilder/s (frameRate.fluid, Ticket 17 der Leistung)
+    fluid: true,
     setFade(k) {
       solarUniforms.uFade.value = k;
       lineMat.opacity = 0.12 * k;
@@ -9380,24 +9477,30 @@ const skyBitmaps = (() => {
       };
     } catch { /* ohne Worker */ }
     return Promise.race([(async () => {
-      const c = Object.assign(document.createElement('canvas'), { width: 1, height: 2 }), g = c.getContext('2d');
-      g.fillStyle = '#f00'; g.fillRect(0, 0, 1, 1); g.fillStyle = '#00f'; g.fillRect(0, 1, 1, 1);
-      const { strips } = await run(c.toDataURL('image/png'), 2);
+      // 1 × 2 Pixel, oben rot, unten blau, als fertiges PNG: Mit einer Leinwand und toDataURL las der Browser sie aus
+      // dem Grafikprozess zurück und wartete dabei, bis dieser die Shader des Seitenstarts übersetzt hatte (Hauptthread
+      // bis 2 s angehalten, ohne Script; Ticket 10 der Leistung)
+      const { strips } = await run('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAACCAIAAAAW4yFwAAAADUlEQVR4nGP4zwAC/wEIAAH/2ZC7NQAAAABJRU5ErkJggg==', 2);
       const d = Object.assign(document.createElement('canvas'), { width: 1, height: 2 }).getContext('2d', { willReadFrequently: true });
       d.drawImage(strips[0].bitmap, 0, 0);
       for (const s of strips) s.bitmap.close();
       return d.getImageData(0, 0, 1, 1).data[2] > 128; // oben jetzt blau
     })().catch(() => false), new Promise((resolve) => setTimeout(resolve, 10000, null))]);
   }
-  return async (url, alive) => {
+  /** kippt createImageBitmap mit imageOrientation 'flipY' wirklich (ältere Browser übergehen die Option still) */
+  const flipsOk = async () => {
     const ok = await (flips ??= start());
     if (ok === null) flips = null; // keine Antwort in 10 s: die nächste Skybox prüft neu
+    return !!ok;
+  };
+  return Object.assign(async (url, alive) => {
+    const ok = await flipsOk();
     if (!ok) return null;
     const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive);
     if (Math.max(r.width, r.height) <= renderer.capabilities.maxTextureSize) return r;
     for (const s of r.strips) s.bitmap.close(); // zu gross für diese Grafik: ein Bild, three verkleinert es
     return null;
-  };
+  }, { flipsOk });
 })();
 
 /** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild (schon dekodiert: sonst täte es
@@ -9501,7 +9604,45 @@ function skyTexture(img, wrapU) {
 function* skyUpload(t, klein = false) {
   const strips = t.userData.strips, ruhig = klein ? RUHIG_KLEIN : RUHIG; // jedes Stück an einer ruhigen Stelle (ruhe)
   yield ruhig;
-  if (!strips || !renderer.capabilities.isWebGL2) { renderer.initTexture(t); if (strips) closeSkyImage(t); return; }
+  if (!strips || !renderer.capabilities.isWebGL2) {
+    const img = t.image;
+    // Ein Bild (Tiefe, Wassermaske, Karten des Wassers) dekodierte der Browser beim Hochladen noch einmal im Hauptthread,
+    // weil three die Farbumrechnung abschaltet: die Tiefe des Strands hielt so ein Bild auf dem gedrosselten Handy
+    // 50 ms an (Ticket 09). Darum aus denselben Daten als ImageBitmap ohne Umrechnung (im Hintergrund dekodiert, gekippt
+    // wie three es täte) und das hochladen; danach gilt wieder das Bild (für ein späteres Neuladen durch three).
+    if (!strips && renderer.capabilities.isWebGL2 && img instanceof HTMLImageElement && img.complete && img.naturalWidth
+      && img.src.startsWith('data:') && typeof createImageBitmap === 'function') {
+      // gekippt nur, wo der Browser die Option wirklich anwendet (skyBitmaps prüft es; sonst stünde die Tiefe Kopf)
+      let bitmap = null, done = false, gone = false;
+      const drop = () => { gone = true; }; // inzwischen freigegeben (Abbruch des Aufbaus): nicht mehr hochladen
+      t.addEventListener('dispose', drop);
+      (t.flipY ? skyBitmaps.flipsOk() : Promise.resolve(true)).then((ok) => (!ok ? null
+        : fetch(img.src).then((r) => r.blob()).then((blob) => createImageBitmap(blob, {
+          imageOrientation: t.flipY ? 'flipY' : 'from-image',
+          premultiplyAlpha: t.premultiplyAlpha ? 'premultiply' : 'none', colorSpaceConversion: 'none',
+        })))).then((b) => { bitmap = b; }, () => {}).finally(() => { done = true; });
+      let waited = false;
+      try {
+        while (!done) yield NEXT_FRAME;
+        yield ruhig;
+        waited = true;
+      } finally {
+        t.removeEventListener('dispose', drop);
+        if (gone || !waited) bitmap?.close(); // !waited: der Aufbau gab den Generator auf
+      }
+      if (gone) return;
+      if (bitmap) {
+        const flipY = t.flipY;
+        t.image = bitmap;
+        t.flipY = false;
+        try { renderer.initTexture(t); } finally { t.image = img; t.flipY = flipY; bitmap.close(); }
+        return;
+      }
+    }
+    renderer.initTexture(t);
+    if (strips) closeSkyImage(t);
+    return;
+  }
   const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
   const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
   bind();
@@ -9543,7 +9684,13 @@ function* skyLogDepth(img, depthLog, blurDeg = PANO.blurDeg) {
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0);
-  const px = ctx.getImageData(0, 0, w, h).data;
+  yield;
+  // in Streifen auslesen (in einem Stück hielt das ein Bild auf dem gedrosselten Handy 40–60 ms an, Ticket 09)
+  const px = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y += 64) {
+    px.set(ctx.getImageData(0, y, w, Math.min(64, h - y)).data, y * w * 4);
+    yield;
+  }
   const la = Math.log(depthLog[0]), lb = Math.log(depthLog[1]), lmin = Math.log(PANO.dMin), lmax = Math.log(PANO.dMax);
   let src = new Float32Array(w * h);
   for (let x = 0; x < w; x++) {
@@ -9604,9 +9751,12 @@ function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV])
     yield;
   }
   const index = new Uint32Array(segU * segV * 6);
-  for (let i = 0, n = 0; i < segV; i++) for (let j = 0; j < segU; j++) {
-    const a = i * (segU + 1) + j, b = a + 1, c = a + segU + 1, d = c + 1;
-    index[n++] = a; index[n++] = c; index[n++] = b; index[n++] = b; index[n++] = c; index[n++] = d;
+  for (let i = 0, n = 0; i < segV; i++) {
+    for (let j = 0; j < segU; j++) {
+      const a = i * (segU + 1) + j, b = a + 1, c = a + segU + 1, d = c + 1;
+      index[n++] = a; index[n++] = c; index[n++] = b; index[n++] = b; index[n++] = c; index[n++] = d;
+    }
+    yield; // je Zeile (Wüste 1024 × 512: in einem Stück 54 ms auf dem gedrosselten Handy, Ticket 09)
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -9624,13 +9774,37 @@ function* skyProxyGeometry(depth, center, [segU, segV] = [PANO.segU, PANO.segV])
  * länger (gemessen bis 88 statt 53 ms).
  */
 const SKY_BUFFER_CHUNK = 1 << 21, SKY_BUFFER_WHOLE = 1 << 22; // 2 MB je Bild, ab über 4 MB
+/** Hüllkugel von Ecken (x, y, z je Ecke) wie BufferGeometry.computeBoundingSphere, Generator (yield je 64k Ecken) */
+function* boundingSphereSteps(a, per = 1 << 16) {
+  const box = new THREE.Box3();
+  for (let s = 0; s < a.length; s += per * 3) {
+    for (let i = s, e = Math.min(a.length, s + per * 3); i < e; i += 3) {
+      const x = a[i], y = a[i + 1], z = a[i + 2];
+      if (x < box.min.x) box.min.x = x; if (y < box.min.y) box.min.y = y; if (z < box.min.z) box.min.z = z;
+      if (x > box.max.x) box.max.x = x; if (y > box.max.y) box.max.y = y; if (z > box.max.z) box.max.z = z;
+    }
+    yield;
+  }
+  const c = box.getCenter(new THREE.Vector3());
+  let maxSq = 0;
+  for (let s = 0; s < a.length; s += per * 3) {
+    for (let i = s, e = Math.min(a.length, s + per * 3); i < e; i += 3) {
+      const dx = a[i] - c.x, dy = a[i + 1] - c.y, dz = a[i + 2] - c.z;
+      maxSq = Math.max(maxSq, dx * dx + dy * dy + dz * dz);
+    }
+    yield;
+  }
+  return new THREE.Sphere(c, Math.sqrt(maxSq));
+}
 function* skyBufferUpload(geo) {
   if (!renderer.capabilities.isWebGL2) return;
   const gl = renderer.getContext();
   for (const name of ['position', 'index']) {
     const attr = name === 'index' ? geo.index : geo.getAttribute(name), array = attr?.array;
     if (!array || array.byteLength <= SKY_BUFFER_WHOLE) continue;
-    if (name === 'position') geo.computeBoundingSphere(); // aus einem eigenen Puffer rechnete three sie nicht mehr
+    // aus einem eigenen Puffer rechnete three sie nicht mehr; wie computeBoundingSphere, aber in Häppchen (in einem
+    // Stück beim Netz der Wüste 75 ms auf dem gedrosselten Handy, Ticket 09)
+    if (name === 'position') geo.boundingSphere = yield* boundingSphereSteps(array);
     const target = name === 'index' ? gl.ELEMENT_ARRAY_BUFFER : gl.ARRAY_BUFFER, buffer = gl.createBuffer();
     geo.addEventListener('dispose', () => gl.deleteBuffer(buffer)); // auch, wenn three das Netz nie gezeichnet hat
     // ohne das Vertex Array Objekt, das three gerade gebunden hat (es merkte sich sonst diesen Puffer der Dreiecke)
@@ -9696,6 +9870,9 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
         ${decl}
         varying vec3 vWorld;
         const float PI = 3.141592653589793;
+        // Steinplatte (floorTop und plateSides), je 1 cm kleiner
+        const vec3 PLATE_LO = ${glv([-PLATE / 2 + 0.01, -PLATE_THICK - 0.03 + 0.01, -PLATE / 2 + 0.01])};
+        const vec3 PLATE_HI = ${glv([PLATE / 2 - 0.01, -0.01, PLATE / 2 - 0.01])};
         ${rule?.glsl ?? ''}
         void main() {
           vec3 g = normalize(vWorld - uCenter);
@@ -9707,6 +9884,17 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
           vec2 dx = dFdx(vec2(u, v)), dy = dFdy(vec2(u, v));
           dx.x -= floor(dx.x + 0.5); dy.x -= floor(dy.x + 0.5);
           vec2 gx = vec2(dx.x, -dx.y), gy = vec2(dy.x, -dy.y);
+          // Hinter der Steinplatte (undurchsichtig, steht fest, wird danach gezeichnet und deckt das Netz dort zu):
+          // nichts weiter rechnen. Im Level deckt sie gut ein Drittel des Bilds; das Netz schreibt am Strand seine Tiefe
+          // selbst, der Tiefentest kann es dort also nicht vorher verwerfen (Ticket 11). Quader um 1 cm kleiner, damit
+          // am Rand kein Pixel ohne Netz und ohne Platte bleibt.
+          {
+            vec3 eye = vWorld - cameraPosition, inv = 1.0 / eye;
+            vec3 t0 = (PLATE_LO - cameraPosition) * inv, t1 = (PLATE_HI - cameraPosition) * inv;
+            vec3 tn = min(t0, t1), tf = max(t0, t1);
+            float tIn = max(max(tn.x, tn.y), tn.z), tOut = min(min(tf.x, tf.y), tf.z);
+            if (tIn <= tOut && tIn > 0.0 && tIn < 1.0) discard; // eye läuft bis zum Netz: t = 1 dort
+          }
           vec3 col = vec3(0.0);
           bool hit = false;
           ${pick}
@@ -9752,6 +9940,70 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
  * Neues kommt als weiterer Typ dazu; tools/sky-schema.mjs liest die Namen aus der Zeile `const SKY_LAYERS = { … }`.
  */
 
+/**
+ * Base64 zu Bytes (ArrayBuffer), Generator für sliced: in Stücken von B64_CHUNK Zeichen, yield nach jedem. Mit
+ * Uint8Array.fromBase64, wo es das gibt, sonst atob und eine Schleife (Uint8Array.from mit Rückruf je Zeichen war
+ * mehrfach langsamer; ein grosses Feld hielt auf dem gedrosselten Handy ein Bild 50–60 ms an, Ticket 09 der Leistung).
+ */
+const B64_CHUNK = 1 << 18; // Zeichen, durch 4 teilbar
+function* b64Bytes(s) {
+  const pad = s.endsWith('==') ? 2 : s.endsWith('=') ? 1 : 0;
+  const out = new Uint8Array(Math.floor((s.length * 3) / 4) - pad);
+  let o = 0;
+  for (let i = 0; i < s.length; i += B64_CHUNK) {
+    const part = s.slice(i, i + B64_CHUNK);
+    if (Uint8Array.fromBase64) {
+      const b = Uint8Array.fromBase64(part);
+      out.set(b, o);
+      o += b.length;
+    } else {
+      const bin = atob(part);
+      for (let k = 0; k < bin.length; k++) out[o + k] = bin.charCodeAt(k);
+      o += bin.length;
+    }
+    yield;
+  }
+  return o === out.length ? out.buffer : out.slice(0, o).buffer;
+}
+
+/** Float32Array.from(src, fn) in Häppchen (Generator für sliced, yield je per Werte), dasselbe Ergebnis */
+function* mappedFloats(src, fn, per = 1 << 16) {
+  const out = new Float32Array(src.length);
+  for (let i = 0; i < src.length; i += per) {
+    for (let k = i, e = Math.min(src.length, i + per); k < e; k++) out[k] = fn(src[k]);
+    yield;
+  }
+  return out;
+}
+
+/** BufferGeometry.computeVertexNormals (three 0.147, mit Index) in Häppchen: Generator für sliced, dasselbe Ergebnis;
+ *  ein Baum am Strand brauchte in einem Stück auf dem gedrosselten Handy 40 ms (Ticket 09) */
+function* vertexNormalsSteps(geo, per = 1 << 13) {
+  const index = geo.index, pos = geo.getAttribute('position');
+  if (!index || !pos) { geo.computeVertexNormals(); return; }
+  const normal = new THREE.Float32BufferAttribute(new Float32Array(3 * pos.count), 3);
+  geo.setAttribute('normal', normal);
+  const pA = new THREE.Vector3(), pB = new THREE.Vector3(), pC = new THREE.Vector3();
+  const nA = new THREE.Vector3(), nB = new THREE.Vector3(), nC = new THREE.Vector3();
+  const cb = new THREE.Vector3(), ab = new THREE.Vector3();
+  for (let i = 0; i < index.count; i += 3) {
+    const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
+    pA.fromBufferAttribute(pos, a); pB.fromBufferAttribute(pos, b); pC.fromBufferAttribute(pos, c);
+    cb.subVectors(pC, pB); ab.subVectors(pA, pB); cb.cross(ab);
+    nA.fromBufferAttribute(normal, a); nB.fromBufferAttribute(normal, b); nC.fromBufferAttribute(normal, c);
+    nA.add(cb); nB.add(cb); nC.add(cb);
+    normal.setXYZ(a, nA.x, nA.y, nA.z); normal.setXYZ(b, nB.x, nB.y, nB.z); normal.setXYZ(c, nC.x, nC.y, nC.z);
+    if (i % (per * 3) === per * 3 - 3) yield;
+  }
+  yield;
+  for (let i = 0; i < normal.count; i++) {
+    nA.fromBufferAttribute(normal, i).normalize();
+    normal.setXYZ(i, nA.x, nA.y, nA.z);
+    if (i % (per * 4) === per * 4 - 1) yield;
+  }
+  normal.needsUpdate = true;
+}
+
 /** Modell als Felder: unverändert (pos, nrm, col, idx) oder kompakt aus Base64 (pos16: Int16 / 8192, col8: Uint8,
  *  Wurzel der Farbe; idx16: Uint16; ohne Normalen), wie es der Export des Strands schreibt. Dazu dort (game_models):
  *  prims: Blätter und Fiedern je Form noch kompakter (pack_prims): je Blatt erste Ecke base16 (Int16 / 8192), die
@@ -9759,16 +10011,18 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
  *  ihre Ecken (Laub scheint durch, paintedInstances). tubes: Röhren (pack_tubes): je Röhre Ringe n8 und Ecken je Ring
  *  s8, je Ring Mitte c16 (Int16 / 8192), Radius r16 (Uint16 / 2¹⁸), Farbe col8; die Ringe wie tube() in pflanzen.py
  *  (Querachse mitgeführt, Anfang senkrecht zu oben bzw. zu x, wenn die Röhre senkrecht beginnt). self8 je Ecke, Blatt
- *  bzw. Ring: Licht durch die eigene Krone (self_light), entpackt als self [Himmel, a0, a1, b1] je Ecke. */
-function unpackModel(m) {
+ *  bzw. Ring: Licht durch die eigene Krone (self_light), entpackt als self [Himmel, a0, a1, b1] je Ecke.
+ *  Generator (sliced): yield je Feld und alle paar Röhren bzw. Blätter – in einem Stück hielt ein Baum ein Bild auf dem
+ *  gedrosselten Handy bis 90 ms an (Ticket 09 der Leistung). */
+function* unpackModel(m) {
   if (m.pos16 === undefined) return m; // leer ('') bei Bäumen ohne Früchte: alles in prims und tubes
-  const bytes = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0)).buffer;
-  const pos = Float32Array.from(new Int16Array(bytes(m.pos16)), (v) => v / 8192);
-  const col = Float32Array.from(new Uint8Array(bytes(m.col8)), (v) => (v / 255) ** 2);
-  const idx = new Uint16Array(bytes(m.idx16));
+  const bytes = b64Bytes;
+  const pos = yield* mappedFloats(new Int16Array(yield* bytes(m.pos16)), (v) => v / 8192);
+  const col = yield* mappedFloats(new Uint8Array(yield* bytes(m.col8)), (v) => (v / 255) ** 2);
+  const idx = new Uint16Array(yield* bytes(m.idx16));
   if (!m.prims && !m.tubes) return { pos, col, idx };
   const prims = m.prims ?? [], t = m.tubes;
-  const rings = t ? new Uint8Array(bytes(t.n8)) : [], sides = t ? new Uint8Array(bytes(t.s8)) : [];
+  const rings = t ? new Uint8Array(yield* bytes(t.n8)) : [], sides = t ? new Uint8Array(yield* bytes(t.s8)) : [];
   let nv = pos.length / 3, ni = idx.length;
   for (const p of prims) { nv += p.count * p.k; ni += p.count * p.tri.length; }
   rings.forEach((n, j) => { nv += n * sides[j]; ni += (n - 1) * sides[j] * 6; });
@@ -9787,18 +10041,19 @@ function unpackModel(m) {
     const q = [s8[g * 4] / 255, s8[g * 4 + 1] / 255, (s8[g * 4 + 2] - 128) / 127, (s8[g * 4 + 3] - 128) / 127];
     for (let e = 0; e < k; e++) S.set(q, (v0 + e) * 4);
   };
-  const s8 = m.self8 ? new Uint8Array(bytes(m.self8)) : null;
+  const s8 = m.self8 ? new Uint8Array(yield* bytes(m.self8)) : null;
   for (let e = 0; e < pos.length / 3; e++) setSelf(s8, e, e, 1);
   let v = pos.length / 3, i = idx.length;
   if (t) {
-    const c = Float32Array.from(new Int16Array(bytes(t.c16)), (x) => x / 8192);
-    const r = Float32Array.from(new Uint16Array(bytes(t.r16)), (x) => x / 2 ** 18);
-    const rc = new Uint8Array(bytes(t.col8)), rs = t.self8 ? new Uint8Array(bytes(t.self8)) : null;
+    const c = yield* mappedFloats(new Int16Array(yield* bytes(t.c16)), (x) => x / 8192);
+    const r = yield* mappedFloats(new Uint16Array(yield* bytes(t.r16)), (x) => x / 2 ** 18);
+    const rc = new Uint8Array(yield* bytes(t.col8)), rs = t.self8 ? new Uint8Array(yield* bytes(t.self8)) : null;
     const at = (k) => new THREE.Vector3(c[k * 3], c[k * 3 + 1], c[k * 3 + 2]);
     const tan = new THREE.Vector3(), u = new THREE.Vector3(), w = new THREE.Vector3();
     let k0 = 0;
-    rings.forEach((n, j) => {
-      const s = sides[j];
+    for (let j = 0; j < rings.length; j++) {
+      const n = rings[j], s = sides[j];
+      if (j % 64 === 63) yield;
       for (let k = 0; k < n; k++) {
         // Richtung wie np.gradient: in der Mitte zentral, an den Enden einseitig
         tan.subVectors(at(k0 + Math.min(k + 1, n - 1)), at(k0 + Math.max(k - 1, 0))).normalize();
@@ -9825,12 +10080,14 @@ function unpackModel(m) {
       }
       v += n * s;
       k0 += n;
-    });
+    }
   }
   for (const p of prims) {
-    const base = new Int16Array(bytes(p.base16)), d = new Int8Array(bytes(p.d8)), c = new Uint8Array(bytes(p.col8));
-    const ps = p.self8 ? new Uint8Array(bytes(p.self8)) : null;
+    const base = new Int16Array(yield* bytes(p.base16)), d = new Int8Array(yield* bytes(p.d8));
+    const c = new Uint8Array(yield* bytes(p.col8));
+    const ps = p.self8 ? new Uint8Array(yield* bytes(p.self8)) : null;
     for (let j = 0; j < p.count; j++, v += p.k) {
+      if (j % 1024 === 1023) yield;
       for (let e = 0; e < p.k; e++) {
         for (let a = 0; a < 3; a++) {
           P[(v + e) * 3 + a] = base[j * 3 + a] / 8192 + (e ? d[(j * (p.k - 1) + e - 1) * 3 + a] * p.dscale : 0);
@@ -9856,7 +10113,7 @@ function* instancedModels(set, material, colored) {
   const out = new THREE.Group(), mtx = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
   const meshes = [];
   for (const [k, packed] of set.models.entries()) {
-    const model = unpackModel(packed);
+    const model = yield* unpackModel(packed);
     yield;
     const list = set.instances.filter((t) => t[6] === k);
     const geo = new THREE.BufferGeometry();
@@ -9867,7 +10124,8 @@ function* instancedModels(set, material, colored) {
     if (model.shape) geo.setAttribute('aShape', new THREE.Float32BufferAttribute(model.shape, 2));
     geo.setIndex(ArrayBuffer.isView(model.idx) ? new THREE.BufferAttribute(model.idx, 1) : model.idx);
     if (model.nrm) geo.setAttribute('normal', new THREE.Float32BufferAttribute(model.nrm, 3));
-    else geo.computeVertexNormals();
+    else yield* vertexNormalsSteps(geo);
+    yield;
     geo.computeBoundingBox();
     const info = new Float32Array(list.length * 4), all = new Float32Array(list.length * 16);
     const mesh = new THREE.InstancedMesh(geo, material, list.length);
@@ -10164,20 +10422,17 @@ function* paintedInstances(ctx, opt) {
  */
 function* bakedMesh(ctx, opt) {
   const set = ctx.data[opt.data];
-  const bytes = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)).buffer;
-  // je Feld ein Häppchen (sliced): zusammen hielt das Entpacken ein Bild 30–40 ms an
-  const q = new Int16Array(bytes(set.pos16));
-  yield;
-  const uv = new Uint16Array(bytes(set.uv16));
-  yield;
-  const rock = new Uint8Array(bytes(set.rock8));
-  yield;
+  // je Feld und Stück ein Häppchen (sliced, b64Bytes): zusammen hielt das Entpacken ein Bild 30–40 ms an, ein grosses
+  // Feld allein auf dem gedrosselten Handy noch 50–60 ms (Ticket 09 der Leistung)
+  const q = new Int16Array(yield* b64Bytes(set.pos16));
+  const uv = new Uint16Array(yield* b64Bytes(set.uv16));
+  const rock = new Uint8Array(yield* b64Bytes(set.rock8));
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(Float32Array.from(q, (v) => v / set.scale), 3));
-  geo.setAttribute('uv', new THREE.Float32BufferAttribute(Float32Array.from(uv, (v) => v / 65535), 2));
-  geo.setAttribute('aRock', new THREE.Float32BufferAttribute(Float32Array.from(rock, (v) => v / 255), 1));
-  yield;
-  geo.setIndex(new THREE.BufferAttribute(set.idx16 ? new Uint16Array(bytes(set.idx16)) : new Uint32Array(bytes(set.idx32)), 1));
+  geo.setAttribute('position', new THREE.BufferAttribute(yield* mappedFloats(q, (v) => v / set.scale), 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(yield* mappedFloats(uv, (v) => v / 65535), 2));
+  geo.setAttribute('aRock', new THREE.BufferAttribute(yield* mappedFloats(rock, (v) => v / 255), 1));
+  const idx = set.idx16 ? new Uint16Array(yield* b64Bytes(set.idx16)) : new Uint32Array(yield* b64Bytes(set.idx32));
+  geo.setIndex(new THREE.BufferAttribute(idx, 1));
   // Bild aus einer Data-URL, dekodiert, nicht nur geladen: Sonst dekodierte es texImage2D beim Hochladen im Hauptthread
   // (siehe loadSkyImage). color: Farbbild (sRGB, Mipmaps), sonst Daten (nächster Nachbar, ohne Mipmaps)
   // Als ImageBitmap ohne Farbumrechnung, im Hintergrund dekodiert: Ein dekodiertes Bild (img.decode) dekodierte der
@@ -10360,6 +10615,9 @@ function glowParticles(ctx, opt) {
   }));
   points.frustumCulled = false;
   points.renderOrder = 6;
+  // Die Glühwürmchen ziehen etwa so schnell wie die Fische am Strand, das Auge folgt ihnen: im Level stetig 60 Bilder/s
+  // (frameRate.fluid, Ticket 17 der Leistung)
+  points.userData.fluid = true;
   return points;
 }
 
@@ -10591,6 +10849,9 @@ function lavaPool(ctx, opt) {
   drops.frustumCulled = false;
   drops.renderOrder = 6;
   out.add(drops);
+  // Funken steigen mit 1–6 m/s, Spritzer fliegen im Bogen: mit 30 Bildern/s sprangen sie sichtbar (Ticket 17 der
+  // Leistung: bis 100 CSS-px/s), im Level darum stetig 60 (frameRate.fluid)
+  out.userData.fluid = true;
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
@@ -10793,6 +11054,7 @@ function* groundShift(water, depth, center) {
       let t = 0;
       while (t < 12 && seen(t) === 2) t += 0.25;
       rim[i] = r + t + 0.5; // etwas weiter: Die Farben haben am Rand des Lochs noch vom Himmel
+      if (col % 8 === 7) yield; // eine Zeile im Loch dauerte allein über 10 ms (Ticket 09)
     }
     yield;
   }
@@ -10848,37 +11110,49 @@ function* groundShift(water, depth, center) {
 
 /**
  * Gitter fürs Wasser in der Ebene y = 0: n × n Felder über ±half, darum Ringe (das Quadrat vergrössert, je um 12 %) bis
- * far. Die Ringe brauchen keine feinen Felder: Weit draussen rechnet der Shader den Ort aus dem Strahl.
+ * far. Die Ringe brauchen keine feinen Felder: Weit draussen rechnet der Shader den Ort aus dem Strahl. Generator
+ * (sliced: yield je Zeile bzw. Ring; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 58 ms an, Ticket 09
+ * der Leistung), gleich in die fertigen Felder geschrieben.
  */
-function waterGeometry(half, n, far) {
-  const pos = [], index = [];
-  for (let i = 0; i <= n; i++) for (let j = 0; j <= n; j++) pos.push(-half + (2 * half * j) / n, 0, -half + (2 * half * i) / n);
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const a = i * (n + 1) + j, b = a + 1, c = a + n + 1, d = c + 1;
-      index.push(a, c, b, b, c, d);
-    }
-  }
+function* waterGeometry(half, n, far) {
   // Rand des Gitters gegen den Uhrzeigersinn (von oben), dann je Ring dieselben Punkte weiter draussen
   const rim = [];
   for (let j = 0; j < n; j++) rim.push([j, 0]);
   for (let i = 0; i < n; i++) rim.push([n, i]);
   for (let j = n; j > 0; j--) rim.push([j, n]);
   for (let i = n; i > 0; i--) rim.push([0, i]);
-  const m = rim.length, first = pos.length / 3;
-  let scale = 1, k = 0;
-  for (; scale < far / half; k++, scale *= 1.12) {
-    for (const [j, i] of rim) pos.push((-half + (2 * half * j) / n) * scale, 0, (-half + (2 * half * i) / n) * scale);
+  const m = rim.length, first = (n + 1) * (n + 1);
+  let k = 0;
+  for (let scale = 1; scale < far / half; k++, scale *= 1.12);
+  const count = first + k * m;
+  const pos = new Float32Array(count * 3);
+  const index = new (count - 1 >= 65535 ? Uint32Array : Uint16Array)(6 * n * n + 6 * m * Math.max(0, k - 1));
+  let p = 0, x = 0;
+  for (let i = 0; i <= n; i++) {
+    for (let j = 0; j <= n; j++) { pos[p++] = -half + (2 * half * j) / n; pos[p++] = 0; pos[p++] = -half + (2 * half * i) / n; }
+    yield;
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const a = i * (n + 1) + j, b = a + 1, c = a + n + 1, d = c + 1;
+      index[x++] = a; index[x++] = c; index[x++] = b; index[x++] = b; index[x++] = c; index[x++] = d;
+    }
+    yield;
+  }
+  for (let r = 0, scale = 1; r < k; r++, scale *= 1.12) {
+    for (const [j, i] of rim) { pos[p++] = (-half + (2 * half * j) / n) * scale; pos[p++] = 0; pos[p++] = (-half + (2 * half * i) / n) * scale; }
+    yield;
   }
   for (let r = 0; r + 1 < k; r++) {
     for (let q = 0; q < m; q++) {
       const a = first + r * m + q, b = first + r * m + ((q + 1) % m), c = a + m, d = b + m;
-      index.push(a, b, c, b, d, c);
+      index[x++] = a; index[x++] = b; index[x++] = c; index[x++] = b; index[x++] = d; index[x++] = c;
     }
+    yield;
   }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  geo.setIndex(index);
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
 }
 
@@ -10952,7 +11226,7 @@ function* waterSurface(ctx, opt) {
   // Tiefenregel für das Netz (unten) braucht gl_FragDepth; ohne sie (WebGL1 ohne EXT_frag_depth) wie vor 2.36: Schnitt
   // am Fels vom Mittelpunkt aus, Blende bis fade[1]
   const cut = renderer.capabilities.isWebGL2 || renderer.extensions.has('EXT_frag_depth');
-  const geo = waterGeometry(ext, Math.round(2 * ext), cut ? WATER_FAR : ext);
+  const geo = yield* waterGeometry(ext, Math.round(2 * ext), cut ? WATER_FAR : ext);
   // Abstand der Szene vom Mittelpunkt in Richtung d, aus der Tiefe des Panoramas (log, bilinear; ohne Treffer fern);
   // im Wasser und in der Tiefenregel des Netzes
   const depthGLSL = (sampler) => `
@@ -11034,6 +11308,13 @@ function* waterSurface(ctx, opt) {
         uniform mat4 uUnderView;
         varying vec3 vPos, vRay;
         ${GLSL_NOISE}
+        // noise(vec3(q, 0.0)): bei z = 0 wiegt die zweite Lage 0, also nur die erste (gleiches Ergebnis, halb so viel)
+        float noiseFlat(vec2 q) {
+          vec3 i = vec3(floor(q), 0.0);
+          vec2 f = fract(q);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y);
+        }
         ${ctx.lightGLSL}
         const float CELL = ${glf(2 * ext / w.size)};
         const vec2 FADE = ${glv(w.fade)};
@@ -11215,17 +11496,24 @@ function* waterSurface(ctx, opt) {
           // aufs Ufer zu: Gefälle des Abstands, nach vorn genommen (zwei Abfragen statt vier: fürs Handy)
           vec2 dir = normalize(vec2(at(p + vec2(CELL, 0.0)).y - shore, at(p + vec2(0.0, CELL)).y - shore) + vec2(1e-6));
           // Wellen: Fronten parallel zum Ufer, entlang des Ufers leicht versetzt (wob), in Gruppen höher und niedriger
-          float wob = (noise(vec3(p * 0.045, 0.0)) - 0.5) * 6.0;
+          float wob = (noiseFlat(p * 0.045) - 0.5) * 6.0;
           // Wellengruppen; zum Rand der Karte hin ohne Dünung (draussen gälte überall derselbe Abstand zum Ufer),
           // rundum gleich weit
           float env = swellSetAt(p, uTime) * (1.0 - smoothstep(EXT * 0.55, EXT * 0.95, length(p)));
           float sharp = mix(7.0, 3.0, smoothstep(15.0, 50.0, dist)); // Front der Walze in der Ferne weicher
           float along = p.x;
-          float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = breakGaps(ph, bedD, along);
+          // Was nur im Flachen wirkt, nur dort rechnen (Ticket 11, Handy): Ab 1,8 m Tiefe bricht keine Welle (jede
+          // Verwendung von brk ist mit smoothstep(1.8, 0.9, Tiefe) = 0 gewichtet), ab 0,7 m läuft nichts auf (share = 0,
+          // das Wasser ist dort mindestens 0,39 m dick, der Sand nie frei). Das Bild bleibt genau gleich.
+          float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = bedD < 1.8 ? breakGaps(ph, bedD, along) : 1.0;
           float cyc = (uTime * SWELL_W - wob * SWELL_K) / 6.28319; // so viele Walzen haben die Wasserlinie erreicht
           float u = fract(cyc), n = floor(cyc);
-          float reach = swashReach(n, along) * waveEnv(p, n, wob), reachPrev = swashReach(n - 1.0, along) * waveEnv(p, n - 1.0, wob);
-          float swash = swashLevel(u, reach), share = swashShare(bedD);
+          float share = swashShare(bedD), reach = 0.0, reachPrev = 0.0, swash = 0.0;
+          if (bedD < 0.7) {
+            reach = swashReach(n, along) * waveEnv(p, n, wob);
+            reachPrev = swashReach(n - 1.0, along) * waveEnv(p, n - 1.0, wob);
+            swash = swashLevel(u, reach);
+          }
           float thick = mix(swellHeight(x, bedD, env, sharp, brk), swash, share) + bedD; // Wasser über dem Grund
           float var;
           vec2 lowN; // Neigung der langen Wellen (wie N.xz, ohne Kräuselwellen)
@@ -11294,10 +11582,12 @@ function* waterSurface(ctx, opt) {
             // Streifen in Fliessrichtung, die mit ihm seewärts gleiten
             float down = max(u - SWASH_UP, 0.0);
             vec2 rq = vec2(dot(p, vec2(-dir.y, dir.x)), dot(p, dir) + down * down * 6.0);
-            float rill = texture2D(uWaves, rq * vec2(1.3, 0.38)).a * 0.6 + texture2D(uWaves, rq * vec2(3.1, 0.9) + 0.4).a * 0.4;
             float thin = smoothstep(0.12, 0.01, depth);   // im dünnen Film deutlicher
-            col *= 1.0 - 0.08 * back * thin * smoothstep(0.5, 0.72, rill);
-            col += refl * 0.08 * back * thin * smoothstep(0.55, 0.78, 1.0 - rill);
+            if (back * thin > 0.0) { // sonst ändert es nichts (Ticket 11: Texturzugriffe nur, wo sie wirken)
+              float rill = texture2D(uWaves, rq * vec2(1.3, 0.38)).a * 0.6 + texture2D(uWaves, rq * vec2(3.1, 0.9) + 0.4).a * 0.4;
+              col *= 1.0 - 0.08 * back * thin * smoothstep(0.5, 0.72, rill);
+              col += refl * 0.08 * back * thin * smoothstep(0.55, 0.78, 1.0 - rill);
+            }
             // Vor der brechenden Front ihre steile, beschattete Seite: ein dunkler Streifen; die dünne Lippe leuchtet
             // türkis im Gegenlicht (draussen ebenso die Kämme)
             col *= 1.0 - 0.25 * breaking * smoothstep(0.0, 0.06, x) * smoothstep(0.4, 0.12, x) * (1.0 - share);
@@ -11318,19 +11608,21 @@ function* waterSurface(ctx, opt) {
             dens *= 1.0 - 0.55 * smoothstep(0.3, 0.8, rock); // über flachem Fels kein Teppich
             // auf dem Film: hinauf eine Schaumrolle vorn; hinab zerrissene Schaumreste, in Fliessrichtung gezogen
             dens = max(dens, share * (0.1 + 0.6 * rising * smoothstep(0.12, 0.01, depth)) + back * 0.22 * smoothstep(0.2, 0.03, depth));
-            float foam = foamDissolve(p, dens, dir, share * swash * 8.0 + uTime * 0.05 - back * down * 2.0);
+            // ohne Dichte kein Schaum (foamDissolve ist dann 0)
+            float foam = dens > 0.0 ? foamDissolve(p, dens, dir, share * swash * 8.0 + uTime * 0.05 - back * down * 2.0) : 0.0;
             foam = max(foam, smoothstep(0.03, 0.004, depth) * share * rising * (0.6 + 0.4 * fn)); // helle Kante nur hinauf
             // an den Felsen: Brandung im Takt der Wellen – kommt eine an, schäumt es am Fels auf, dann zerfällt der
             // Schaum zu Fäden und läuft ab; dicht am Fels (flach) immer etwas Schaum
             float surge = smoothstep(-0.5, 0.6, cos(x + 0.4)) * env, d0 = depth - bedD + bed0;
             // am Fuss ein Saum, mal breiter, mal unterbrochen; kommt eine Welle an, schäumt es auf
-            float gaps = texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r;
+            // (nur am Fels: ohne ihn sind hug und lace 0)
+            float gaps = hug > 0.0 ? texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r : 0.0;
             float lace = max(hug * mix(smoothstep(0.25, 0.7, gaps), 1.0, surge), 0.5 * surge * smoothstep(0.4, 0.9, rock) * smoothstep(0.9, 0.2, d0) * (1.0 - 0.75 * near));
-            foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
+            if (lace > 0.0) foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
             col = mix(col, FOAM * (0.86 + 0.16 * fn), clamp(foam, 0.0, 1.0) * mix(0.75, 0.95, smoothstep(0.4, 0.9, dens)));
             // Rand des Films: hinauf eine klare Kante, hinab versickert das Wasser fleckig (die Stellen, wo der Sand
             // schon frei liegt, wandern nicht als Linie zurück)
-            float seep = back * 0.03 * texture2D(uFoam, p * 0.35).r;
+            float seep = back > 0.0 ? back * 0.03 * texture2D(uFoam, p * 0.35).r : 0.0;
             a = smoothstep(0.0, 0.012 + 0.02 * back, depth - seep) * seen;
             rgb = col * a;
           }
@@ -11356,26 +11648,32 @@ function* waterSurface(ctx, opt) {
         #define LOD0(t, p) texture2D(t, p) // ohne Mipmaps
         ${depthGLSL('uCutDepth')}
         float cutAt(vec3 w) {
-          vec4 q = projectionMatrix * viewMatrix * vec4(w, 1.0);
+          vec4 q = projectionMatrix * (viewMatrix * vec4(w, 1.0)); // zwei Matrix-Vektor-Produkte statt Matrix mal Matrix je Pixel
           return clamp(q.z / q.w * 0.5 + 0.5, 0.0, 1.0);
         }
         float skyDepth(vec3 world) {
           vec3 d = normalize(world - uCenter), ray = normalize(world - cameraPosition);
           if (d.y > 0.0 || ray.y > -0.001) return gl_FragCoord.z; // Himmel; Strahl ohne Wasserfläche
           float tP = (cameraPosition.y - CUT_LEVEL) / -ray.y;
-          float dT = panoDist(d);
-          vec3 T = uCenter + d * dT;
+          #define CUT_BEHIND max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR))) // hinter P
           // Wasser: nach der Maske, so fein wie das Bild (die Tiefe ist gröber: um ferne Palmen blieb ein Saum ohne
           // Spielwasser), sonst nach der Tiefe. Etwas hinter dem Wasser: nur nah (Felsen, die das geglättete Netz vor
-          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben)
-          bool water = T.y < CUT_LEVEL + 0.03;
+          // das Wasser zieht); weiter weg gälte es auch, wo das Netz Fernes nur tiefer zeigt (Inseln, Küste von oben).
+          // Zeigt die Maske Wasser, steht das Ergebnis ohne die Tiefe des Panoramas fest (Ticket 11: das Wasser deckt am
+          // Strand den grössten Teil des Bilds; das Lesen der Tiefe ist dort das Teuerste)
+          bool masked = false, water = false;
           #ifdef CUT_MASK
             float below = degrees(asin(clamp(-d.y, -1.0, 1.0))) / ${glf(maskDeg)};
-            if (below < 1.0) water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+            if (below < 1.0) {
+              masked = true;
+              water = texture2D(uCutMask, vec2(0.5 + atan(d.x, -d.z) / (2.0 * PI), below)).r > 0.5;
+              if (water) return CUT_BEHIND;
+            }
           #endif
-          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) {
-            return max(gl_FragCoord.z, cutAt(cameraPosition + ray * min(tP + 0.5, CUT_FAR)));
-          }
+          float dT = panoDist(d);
+          vec3 T = uCenter + d * dT;
+          if (!masked) water = T.y < CUT_LEVEL + 0.03;
+          if (water || (dT < 60.0 && length(T - cameraPosition) > tP + 0.3)) return CUT_BEHIND;
           // Fels, den das Panorama zeigt (nicht die nahen Felsgruppen: Die zeichnet das Spiel, das Panorama zeigt dort
           // flachen Boden, der sie sonst verdeckte)
           vec2 uv = vec2((T.x + CUT_EXT) / (2.0 * CUT_EXT), 1.0 - (T.z + CUT_EXT) / (2.0 * CUT_EXT));
@@ -11407,21 +11705,27 @@ function* waterSurface(ctx, opt) {
   const plane = new THREE.Mesh(geo, material);
   plane.frustumCulled = false;
   plane.renderOrder = 4;
+  plane.userData.under = under; // für das Messwerkzeug (Dauerlast «ohne Wasser», «ohne Unterwasser-Pass»)
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
-  // gerade gezeichnet wird (auf dem Handy halb so gross; Fische sind klein, das Bild darf weich sein)
+  // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
+  // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14).
+  // Im Bild des Spiels schon vor der Szene (SCENE_PREPASSES, Ticket 11): Mitten in der Szene das Ziel zu wechseln hiess
+  // auf Kachel-GPUs (Handy), das halb gezeichnete Szenenbild samt Tiefe in den Speicher zu schreiben und danach wieder
+  // zu laden. Sonst (Aufwärmen, Übersetzen) wie bisher in onBeforeRender.
   const clearColor = new THREE.Color(), size = new THREE.Vector2();
-  plane.onBeforeRender = (r, scene, cam) => {
+  let ready = null; // Kamera, für die das Bild unter der Oberfläche in diesem Bild schon steht (Vorlauf)
+  const drawUnder = (r, cam, into) => {
     const on = under.scene.children.some((o) => o.visible);
     material.uniforms.uUnderOn.value = on ? 1 : 0;
     if (!on) return;
-    const into = r.getRenderTarget();
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
-    size.multiplyScalar(IS_MOBILE ? 0.5 : 1).round().max(new THREE.Vector2(1, 1));
+    size.max(new THREE.Vector2(1, 1));
     if (!under.target) {
       under.target = new THREE.WebGLRenderTarget(size.x, size.y, {
         type: HDR_TYPE, samples: r.capabilities.isWebGL2 && !IS_MOBILE ? (into?.samples ?? 0) : 0,
       });
     } else if (under.target.width !== size.x || under.target.height !== size.y) under.target.setSize(size.x, size.y);
+    const before = r.getRenderTarget();
     r.getClearColor(clearColor);
     const clearAlpha = r.getClearAlpha();
     r.setRenderTarget(under.target);
@@ -11432,12 +11736,26 @@ function* waterSurface(ctx, opt) {
     r.state.buffers.color.setMask(true);
     r.clear();
     r.render(under.scene, cam);
-    r.setRenderTarget(into);
+    discardDepth(r, under.target); // die Tiefe der Fische braucht danach niemand
+    r.setRenderTarget(before);
     r.setClearColor(clearColor, clearAlpha);
     material.uniforms.uUnder.value = under.target.texture;
     material.uniforms.uUnderView.value.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
   };
-  plane.userData.dispose = () => under.target?.dispose();
+  const prepass = (r, cam, into, root) => {
+    ready = null;
+    let o = plane;
+    for (; o.parent; o = o.parent) if (!o.visible) return; // wird nicht gezeichnet
+    if (o !== root || !o.visible) return;
+    drawUnder(r, cam, into);
+    ready = cam;
+  };
+  SCENE_PREPASSES.add(prepass);
+  plane.onBeforeRender = (r, scene, cam) => {
+    if (ready === cam) ready = null; // schon im Vorlauf gezeichnet
+    else drawUnder(r, cam, r.getRenderTarget());
+  };
+  plane.userData.dispose = () => { SCENE_PREPASSES.delete(prepass); under.target?.dispose(); };
   return plane;
 }
 
@@ -11479,36 +11797,49 @@ function createFishGeometry() {
  * Wo Fische schwimmen dürfen, als Abstandsfeld (m): positiv im offenen Wasser – mindestens minDepth tief, kein Fels –
  * mit dem Abstand zur nächsten Stelle, die das nicht ist, dort negativ. Karte: Tiefe und Fels je Zelle (Zeile 0 bei
  * z = −extent). Abstand nach Chamfer (Schritte 1 und √2 in zwei Durchläufen, auf etwa 8 % genau); sdf und depth lesen
- * bilinear an (x, z) (Spiel). Ohne three.js (tools/blender/out/arbeit/fischtest.mjs prüft es in Node).
+ * bilinear an (x, z) (Spiel). Ohne three.js (tools/blender/out/arbeit/fischtest.mjs prüft es in Node). steps: statt
+ * des Felds ein Generator für sliced (yield je Zeile; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 70 ms
+ * an, Ticket 09 der Leistung), dasselbe Ergebnis.
  */
-function fishField(depth, rock, size, extent, minDepth) {
+function fishField(depth, rock, size, extent, minDepth, steps = false) {
   const cell = (2 * extent) / size, n = size * size;
-  const dist = (inside) => {
+  const dist = function* (inside) {
     const d = new Float32Array(n);
     for (let i = 0; i < n; i++) d[i] = inside(i) ? 1e9 : 0;
     const relax = (i, j, w) => { if (d[j] + w < d[i]) d[i] = d[j] + w; };
-    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-      const i = y * size + x;
-      if (x > 0) relax(i, i - 1, 1);
-      if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, Math.SQRT2); if (x < size - 1) relax(i, i - size + 1, Math.SQRT2); }
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        const i = y * size + x;
+        if (x > 0) relax(i, i - 1, 1);
+        if (y > 0) { relax(i, i - size, 1); if (x > 0) relax(i, i - size - 1, Math.SQRT2); if (x < size - 1) relax(i, i - size + 1, Math.SQRT2); }
+      }
+      yield;
     }
-    for (let y = size - 1; y >= 0; y--) for (let x = size - 1; x >= 0; x--) {
-      const i = y * size + x;
-      if (x < size - 1) relax(i, i + 1, 1);
-      if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, Math.SQRT2); if (x > 0) relax(i, i + size - 1, Math.SQRT2); }
+    for (let y = size - 1; y >= 0; y--) {
+      for (let x = size - 1; x >= 0; x--) {
+        const i = y * size + x;
+        if (x < size - 1) relax(i, i + 1, 1);
+        if (y < size - 1) { relax(i, i + size, 1); if (x < size - 1) relax(i, i + size + 1, Math.SQRT2); if (x > 0) relax(i, i + size - 1, Math.SQRT2); }
+      }
+      yield;
     }
     return d;
   };
   const open = (i) => depth[i] >= minDepth && rock[i] < 0.01;
-  const toShallow = dist(open), toOpen = dist((i) => !open(i));
-  const sdf = new Float32Array(n);
-  for (let i = 0; i < n; i++) sdf[i] = (open(i) ? toShallow[i] - 0.5 : 0.5 - toOpen[i]) * cell;
-  const bilinear = (f, x, z) => {
-    const u = Math.min(Math.max((x + extent) / cell - 0.5, 0), size - 1.001), v = Math.min(Math.max((z + extent) / cell - 0.5, 0), size - 1.001);
-    const i = Math.floor(u), j = Math.floor(v), a = u - i, b = v - j, k = j * size + i;
-    return (f[k] * (1 - a) + f[k + 1] * a) * (1 - b) + (f[k + size] * (1 - a) + f[k + size + 1] * a) * b;
+  const build = function* () {
+    const toShallow = yield* dist(open), toOpen = yield* dist((i) => !open(i));
+    const sdf = new Float32Array(n);
+    for (let i = 0; i < n; i++) sdf[i] = (open(i) ? toShallow[i] - 0.5 : 0.5 - toOpen[i]) * cell;
+    const bilinear = (f, x, z) => {
+      const u = Math.min(Math.max((x + extent) / cell - 0.5, 0), size - 1.001), v = Math.min(Math.max((z + extent) / cell - 0.5, 0), size - 1.001);
+      const i = Math.floor(u), j = Math.floor(v), a = u - i, b = v - j, k = j * size + i;
+      return (f[k] * (1 - a) + f[k + 1] * a) * (1 - b) + (f[k + size] * (1 - a) + f[k + size + 1] * a) * b;
+    };
+    return { sdf: (x, z) => bilinear(sdf, x, z), depth: (x, z) => bilinear(depth, x, z) };
   };
-  return { sdf: (x, z) => bilinear(sdf, x, z), depth: (x, z) => bilinear(depth, x, z) };
+  const g = build();
+  if (steps) return g;
+  for (;;) { const { done, value } = g.next(); if (done) return value; }
 }
 
 /**
@@ -11523,16 +11854,18 @@ function fishField(depth, rock, size, extent, minDepth) {
  * Nie ins Flache: Wer doch zu nahe kommt, wird zurückgeschoben.
  * opt: seed, area (Mitte x, z, Halbachsen: Reichweite), keepOut (halbe Kante des Bretts samt Abstand), schools (count,
  * length, speed, depth). setField(fishField) – vorher steht alles still (advance gibt null). advance(t) rechnet in
- * festen Schritten bis t und gibt den Anteil des nächsten Schritts; neu begonnen (erstes Bild, Zeit zurück, Lücke über
- * WARM s) wird WARM s vor t, das Ergebnis hängt so nur von t ab (Vergleichsbilder mit angehaltener Zeit, ?t=).
+ * festen Schritten bis t und gibt den Anteil des nächsten Schritts; neu begonnen (erstes Bild, Zeit zurück) wird WARM s
+ * vor t, das erste Bild hängt so nur von t ab (Vergleichsbilder mit angehaltener Zeit, ?t=); warm(t) nimmt das beim
+ * Aufbau vorweg. Nach einer Lücke über CATCH s geht es vom letzten Stand weiter.
  * sample(k, alpha, out): Fisch k,
  * zwischen den letzten zwei Schritten gemischt – x, z, Richtung (Winkel, von +x nach +z), Tempo, Tiefe unter der
  * Oberfläche, Biegung (Krümmung × Länge), Phase und Stärke des Schwanzschlags, Neigung, Drehrate.
  */
 function createFishSim(opt) {
   // WARM: Vorlauf nach einem Neubeginn (s). Vorher wurde ab Sekunde 0 nachgerechnet – bis zu 3600 Schritte in einem
-  // Bild, ein Ruck beim Wählen des Hintergrunds; 5 s sind 150 Schritte, die Schwärme sind dann schon unterwegs
-  const H = 1 / 30, TAU = Math.PI * 2, F = 10, WARM = 5;
+  // Bild, ein Ruck beim Wählen des Hintergrunds; 5 s sind 150 Schritte, die Schwärme sind dann schon unterwegs (warm:
+  // beim Aufbau in Häppchen). CATCH: so viel wird nach einer Pause höchstens in einem Bild nachgerechnet (s)
+  const H = 1 / 30, TAU = Math.PI * 2, F = 10, WARM = 5, CATCH = 0.25;
   const [cx, cz, rx, rz] = opt.area, B = opt.keepOut;
   const wrap = (a) => a - TAU * Math.floor((a + Math.PI) / TAU);
   const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
@@ -11573,10 +11906,13 @@ function createFishSim(opt) {
 
   // Neubeginn zur Zeit start: Startplätze je nach start verschieden (sonst begänne jede Wahl gleich), aber nur von ihm
   // abhängig
-  function reset(start) {
+  // Generator (yield je Schwarm: die Suche nach dem Start kostet je bis 300 Abfragen des Felds); reset in einem Stück
+  const reset = (start) => { for (const _ of resetSteps(start)); };
+  function* resetSteps(start) {
     const rand = mulberry32(opt.seed + 101 + Math.floor(start));
-    lead.forEach((L, k) => {
-      const sc = schools[k];
+    for (let k = 0; k < lead.length; k++) {
+      const L = lead[k], sc = schools[k];
+      if (k) yield;
       // Start: frei genug, nahe am Brett, möglichst weit weg von den übrigen Schwärmen; entlang der Kante
       let best = [0, B + 3], bestScore = -Infinity;
       for (let tries = 0; tries < 300; tries++) {
@@ -11590,7 +11926,7 @@ function createFishSim(opt) {
       L.dir = k % 2 ? 1 : -1;
       const [gx, gz] = grad(board, L.x, L.z);
       Object.assign(L, { a: Math.atan2(gx * L.dir, -gz * L.dir), w: 0, v: sc.cruise, avoid: 0, against: 0 });
-    });
+    }
     fish.forEach((f, i) => {
       const L = lead[f.school], sc = schools[f.school], o = i * F;
       const c = Math.cos(L.a), s = Math.sin(L.a), fx = f.slot[0] * sc.radius, fz = f.slot[1] * sc.radius;
@@ -11679,9 +12015,23 @@ function createFishSim(opt) {
   return {
     count: N, fish,
     setField(f) { field = f; simT = null; },
+    /** Neubeginn zur Zeit t vorwegnehmen (Generator für sliced, yield je Schritt): wie das erste advance(t), aber beim
+     *  Aufbau statt im ersten Bild (dort hielten die 150 Schritte es auf dem gedrosselten Handy 170 ms an, Ticket 09) */
+    *warm(t) {
+      const start = Math.max(0, t - WARM);
+      yield* resetSteps(start);
+      simT = start;
+      while (simT + H <= t + 1e-9) { step(simT); simT += H; yield; }
+    },
     advance(t) {
       if (!field) return null;
-      if (simT === null || t < simT - 1e-6 || t - simT > WARM) { simT = Math.max(0, t - WARM); reset(simT); }
+      // Ein wenig zurück (warm nach der Uhr, das erste Bild nach dem Zeitstempel des Bilds, der früher liegen kann):
+      // stehen lassen, nicht neu einschwimmen (das hielt das Bild sonst wieder 150 Schritte an); erst weiter zurück neu
+      if (simT === null || t < simT - CATCH) { simT = Math.max(0, t - WARM); reset(simT); }
+      else if (t < simT) return 0;
+      // nach einer Pause (ausgeblendet, die Zeit sprang): vom letzten Stand weiter, nicht neu einschwimmen und nicht alles
+      // nachrechnen; höchstens CATCH s je Bild (die Plätze sind ohnehin zufällig, das fällt nicht auf)
+      else if (t - simT > CATCH) simT = t - CATCH;
       while (simT + H <= t + 1e-9) { step(simT); simT += H; }
       return clamp((t - simT) / H, 0, 1);
     },
@@ -11706,23 +12056,35 @@ function createFishSim(opt) {
  * Szene unter der Oberfläche (ctx.under, von waterSurface): Das Wasser legt sie als Grund unter seine Oberfläche, mit
  * Brechung, Spiegelung, Schaum und Glitzern darüber – über allem gezeichnet sahen die Fische aus, als flögen sie.
  */
-function fishSchools(ctx, opt) {
+function* fishSchools(ctx, opt) {
   const w = ctx.data[opt.data], under = ctx.under;
   if (!under) throw new Error('braucht waterSurface davor');
   const sim = createFishSim({ ...opt, keepOut: PLATE / 2 + 0.3 });
-  loadSkyImage(w.map).then((img) => {
+  // Wasserkarte lesen, Abstandsfeld rechnen und das Einschwimmen vorwegnehmen, alles beim Aufbau in Häppchen (sliced):
+  // im Rückruf des Bilds bzw. im ersten Bild hielt das ein Bild auf dem gedrosselten Handy 70 bzw. 170 ms an (Ticket 09)
+  const readField = function* () {
+    let img = null, failed = null;
+    loadSkyImage(w.map).then((i) => { img = i; }, (e) => { failed = e; });
+    while (!img && !failed) yield NEXT_FRAME;
+    if (failed) throw failed;
     const canvas = document.createElement('canvas');
     canvas.width = img.width; canvas.height = img.height;
     const g = canvas.getContext('2d', { willReadFrequently: true });
     g.drawImage(img, 0, 0);
     const px = g.getImageData(0, 0, img.width, img.height).data, m = img.width * img.height;
+    yield;
     const depth = new Float32Array(m), rock = new Float32Array(m), [d0, d1] = w.depthRange;
     for (let i = 0; i < m; i++) {
       depth[i] = d0 + ((d1 - d0) * (px[4 * i] * 256 + px[4 * i + 1])) / 65535;
       rock[i] = px[4 * i + 2] / 255;
     }
-    sim.setField(fishField(depth, rock, img.width, w.extent, opt.minDepth));
-  }).catch((e) => console.warn(`Fische: Wasserkarte nicht lesbar (${e.message})`));
+    yield;
+    return yield* fishField(depth, rock, img.width, w.extent, opt.minDepth, true);
+  };
+  try {
+    sim.setField(yield* readField());
+    yield* sim.warm(FIXED_TIME ?? (clock.running ? clock.getElapsedTime() : 0)); // die Uhr nicht hier starten
+  } catch (e) { console.warn(`Fische: Wasserkarte nicht lesbar (${e.message})`); }
 
   const PAT = { tang: 0, bands: 1, plain: 2 };
   const n = sim.count;
@@ -11878,6 +12240,9 @@ function fishSchools(ctx, opt) {
   under.scene.add(shadowMesh, fishMesh);
 
   const holder = new THREE.Group();
+  // Die Fische ziehen gleichmässig, das Auge folgt ihnen: mit 30 Bildern/s (und dem Wechsel auf 60 bei Eingaben)
+  // ruckelten sie sichtbar, im Level darum stetig 60 (frameRate.fluid; Ticket 17 der Leistung)
+  holder.userData.fluid = true;
   const s = new Float64Array(10);
   holder.userData.update = (t) => {
     const alpha = sim.advance(t);
@@ -12028,12 +12393,14 @@ function createPanoramaSky(m) {
     staging.add(...parts);
     scene.add(staging);
     try {
+      // nur die neuen Teile (staging, offscreen), in Häppchen: Der Rest der Szene ist schon übersetzt, und three erzeugte
+      // sonst den Code aller ihrer Programme in einem Stück (Ticket 09). Die Szene bleibt Wurzel (Licht, Nebel, Umgebung)
       const roots = [scene, ...offscreen], compiled = [];
-      for (const transparent of [true, false]) {
-        sky.material.transparent = transparent;
-        compiled.push(compileParallel(roots, { skip: skyTheme.idleGroups }));
-      }
-      if (painted) compiled.push(compileParallel([brushPass.programs()]));
+      const skip = [...skyTheme.idleGroups, ...scene.children.filter((c) => c !== staging)];
+      const variants = [true, false].map((transparent) => () => { sky.material.transparent = transparent; });
+      const alive = () => my === token;
+      compiled.push(compileParallel(roots, { skip, variants, slices: true, alive }));
+      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true, alive }));
       const textures = new Set();
       for (const root of [staging, ...offscreen]) root.traverse((o) => {
         for (const mat of [o.material ?? []].flat()) {
@@ -12168,6 +12535,8 @@ function createPanoramaSky(m) {
     },
     /** geladen oder lädt: release gibt etwas frei */
     get held() { return loading !== null; },
+    /** Eine Ebene zeigt Bewegung, der das Auge folgt (userData.fluid, etwa die Fische): im Level stetig 60 Bilder/s (frameRate.fluid) */
+    get fluid() { return mesh !== null && group.children.some((p) => p.userData.fluid); },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
@@ -12294,6 +12663,8 @@ const skyTheme = {
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
     return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
   },
+  /** Der gewählte Hintergrund zeigt Bewegung, der das Auge folgt (Modul fluid): im Level stetig 60 Bilder/s (frameRate) */
+  get fluid() { return !!this.byId.get(this.current).module?.fluid; },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
@@ -12960,9 +13331,13 @@ function createBrushPass(quality) {
     if (sized) size(sized);
   };
 
+  const activeSources = () => [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
+  /** Malt der Pass gerade etwas (eine gemalte Ebene ist zu sehen)? Für das Messwerkzeug (Dauerlast «ohne Pinsel»). */
+  pass.painting = () => pass.supported && pass.enabled && activeSources().length > 0;
+
   pass.render = (renderer, writeBuffer, readBuffer) => {
     if (!pass.supported) return;
-    const active = [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
+    const active = activeSources();
     if (!active.length) return;
     const b = active[0].brush;
     level = forced !== undefined ? forced
@@ -13073,18 +13448,33 @@ function createComposer() {
     stencilBuffer: true,
   });
   const comp = new THREE.EffectComposer(renderer, rt);
-  comp.addPass(new THREE.RenderPass(scene, camera));
+  const scenePass = new THREE.RenderPass(scene, camera);
+  // Eigene Ziele (SCENE_PREPASSES, etwa die Fische unter dem Wasser) vorab, dann die Szene in einem Zug
+  const renderScene = scenePass.render;
+  scenePass.render = function (r, writeBuffer, readBuffer, ...rest) {
+    for (const prepass of SCENE_PREPASSES) prepass(r, this.camera, this.renderToScreen ? null : readBuffer, this.scene);
+    return renderScene.call(this, r, writeBuffer, readBuffer, ...rest);
+  };
+  comp.addPass(scenePass);
   // Pinsel über gemalten Ebenen der Skyboxen: vor dem Leuchten, das danach über das gemalte Bild geht
   const brush = createBrushPass(QUALITY.brush);
   comp.addPass(brush);
+  // Danach liest niemand mehr Tiefe und Stencil des Szenenbilds (der Pinsel brauchte den Stencil; das nächste Bild
+  // löscht sie): verwerfen statt speichern (Kachel-GPUs, Ticket 11)
+  const discard = new THREE.Pass();
+  discard.needsSwap = false;
+  discard.render = (r, writeBuffer, readBuffer) => discardDepth(r, readBuffer);
+  comp.addPass(discard);
 
   const bloom = new THREE.UnrealBloomPass(
     new THREE.Vector2(window.innerWidth, window.innerHeight),
     LOOK.bloomStrength, LOOK.bloomRadius, LOOK.bloomThreshold
   );
-  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten.
+  // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten. Ohne Tiefenpuffer (three legt
+  // sonst je Ziel einen an): Die Vollbild-Pässe brauchen keinen, und Kachel-GPUs löschten und speicherten ihn in jedem
+  // der zwölf Pässe mit (Ticket 11). Gesetzt, bevor three die Ziele beim ersten Zeichnen anlegt.
   [bloom.renderTargetBright, ...bloom.renderTargetsHorizontal, ...bloom.renderTargetsVertical]
-    .forEach(t => { t.texture.type = HDR_TYPE; });
+    .forEach(t => { t.texture.type = HDR_TYPE; t.depthBuffer = false; });
   // Desktop: Bloom zusätzlich in halber Auflösung (UnrealBloom halbiert intern schon einmal) – optisch kaum
   // ein Unterschied, spart rund 70 % seiner Kosten. Nicht auf dem Handy: Dort sind helle Linien (Strahlen,
   // Glanzkante der Platte) im Verhältnis zu den Pixeln dünn, und im Viertel der Auflösung wurden sie nur
@@ -13105,6 +13495,7 @@ function createComposer() {
   const bloomRatio = 2 * bloomDiv; // Bildpunkte je Bloom-Pixel und Richtung
   const taps = Array.from({ length: 2 * bloomRatio }, (_, i) => i - bloomRatio + 0.5);
   const glslNum = (x) => x.toFixed(1);
+  const quads = Array.from({ length: bloomRatio }, (_, q) => [2 * q, 2 * q + 1]); // je zwei benachbarte Abtastungen
   // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos. Die Abtastungen rasten auf
   // Bildpunktmitten ein, die Gewichte rechnen mit dem echten Abstand zur Mitte des Bloom-Pixels: Geht die Bildgrösse
   // nicht in ganzen Bloom-Pixeln auf (krumme Fenstergrösse, adaptive Auflösung), wandert dessen Mitte gegen die
@@ -13122,13 +13513,22 @@ function createComposer() {
       float alpha = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, v);
       return min(texel * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4)), vec3(2.5)) * alpha;
     }
+    // Kann einer der vier Bildpunkte um die Ecke q über der Schwelle liegen? Eine bilineare Abtastung genau auf der Ecke
+    // mittelt sie; liegt die Summe ihrer Helligkeiten (alle ≥ 0) unter der Schwelle, liegt es jeder einzelne auch, und
+    // ihr Überschuss ist 0. Dann entfallen ihre vier Abtastungen (Ticket 11: der grösste Teil des Bilds blüht nicht).
+    // 2 % Reserve für die Rechengenauigkeit des Filters.
+    bool bright(vec2 q) {
+      return 4.0 * dot(texture2D(tDiffuse, q / uSrcSize).rgb, vec3(0.299, 0.587, 0.114)) >= luminosityThreshold * 0.98;
+    }
     void main() {
       vec2 c = vUv * uSrcSize, b = floor(c + 0.5), d = c - b; // Mitte des Bloom-Pixels, nächste Bildpunktecke, Rest
       ${taps.map((p, i) => `float wx${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.x), ` +
         `wy${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.y);`).join('\n      ')}
       vec3 e = vec3(0.0);
-      ${taps.flatMap((px, i) => taps.map((py, j) =>
-        `e += excess(b + vec2(${glslNum(px)}, ${glslNum(py)})) * (wx${i} * wy${j});`)).join('\n      ')}
+      ${quads.flatMap(([i0, i1]) => quads.map(([j0, j1]) => `if (bright(b + vec2(${glslNum((taps[i0] + taps[i1]) / 2)}, ${glslNum((taps[j0] + taps[j1]) / 2)}))) {
+        ${[[i0, j0], [i1, j0], [i0, j1], [i1, j1]].map(([i, j]) =>
+          `e += excess(b + vec2(${glslNum(taps[i])}, ${glslNum(taps[j])})) * (wx${i} * wy${j});`).join('\n        ')}
+      }`)).join('\n      ')}
       gl_FragColor = vec4(e / ${glslNum(bloomRatio ** 4)}, 1.0);
     }`;
   bloom.highPassUniforms.smoothWidth.value = 0.6;
@@ -13150,28 +13550,127 @@ function createComposer() {
   composite.fragmentShader = composite.fragmentShader
     .replace('void main() {', `uniform vec2 uSize2, uSize3, uSize4, uSize5;${BSPLINE_GLSL}\nvoid main() {`)
     .replace(/texture2D\(blurTexture([2-5]), vUv\)/g, 'bspline(blurTexture$1, vUv, uSize$1)');
-  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline. Leuchten additiv aufs Bild legen wie bisher,
-  // aber Alpha unverändert lassen (Alpha 0 = Himmel, siehe FinalShader)
-  bloom.copyUniforms.uSrcSize = { value: new THREE.Vector2() };
-  Object.assign(bloom.materialCopy, {
-    fragmentShader: `
-      uniform float opacity;
-      uniform sampler2D tDiffuse;
-      uniform vec2 uSrcSize;
-      varying vec2 vUv;
-      ${BSPLINE_GLSL}
-      void main() {
-        gl_FragColor = bspline(tDiffuse, vUv, uSrcSize);
-        gl_FragColor.a *= opacity;
-      }`,
-    blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneFactor,
-    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
-  });
+  // Auftragen aufs Bild in voller Auflösung, ebenfalls als B-Spline, additiv, Alpha unverändert (Alpha 0 = Himmel, siehe
+  // FinalShader), gewichtet mit dem Alpha der zusammengesetzten Stufen (wie früher die Mischung SrcAlpha, One). Im
+  // letzten Bildschritt statt in einem eigenen Pass (Ticket 11): Der las und schrieb das ganze Szenenbild (HalfFloat)
+  // samt Tiefe nur, um das Leuchten dazuzulegen; auf Kachel-GPUs (Handy) ein Laden und Speichern des ganzen Bilds.
+  const bloomOut = bloom.renderTargetsHorizontal[0]; // zusammengesetzt (composite)
+  const bloomUniforms = { tBloom: { value: bloomOut.texture }, uBloomSize: { value: new THREE.Vector2(1, 1) }, uBloom: { value: 0 } };
+  bloom.applied = false; // in diesem Bild zusammengesetzt (der letzte Bildschritt legt es dann auf)
+  // wie UnrealBloomPass.render, ohne das Auftragen (und ohne renderToScreen und Maske, beides nie benutzt)
+  bloom.render = function (r, writeBuffer, readBuffer) {
+    r.getClearColor(this._oldClearColor);
+    this.oldClearAlpha = r.getClearAlpha();
+    const oldAutoClear = r.autoClear;
+    r.autoClear = false;
+    r.setClearColor(this.clearColor, 0);
+    const pass = (material, target) => {
+      this.fsQuad.material = material;
+      r.setRenderTarget(target);
+      r.clear(); // auf Kachel-GPUs: nichts laden
+      this.fsQuad.render(r);
+    };
+    this.highPassUniforms.tDiffuse.value = readBuffer.texture;
+    this.highPassUniforms.luminosityThreshold.value = this.threshold;
+    pass(this.materialHighPassFilter, this.renderTargetBright);
+    let input = this.renderTargetBright;
+    for (let i = 0; i < this.nMips; i++) {
+      // gleich grosse Quelle: paarweise (pairBlur); verkleinernd (waagrecht ab Stufe 1): wie UnrealBloom
+      const blur = i === 0 ? pairBlur[i] : this.separableBlurMaterials[i];
+      blur.uniforms.colorTexture.value = input.texture;
+      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionX;
+      pass(blur, this.renderTargetsHorizontal[i]);
+      pairBlur[i].uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      pairBlur[i].uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
+      pass(pairBlur[i], this.renderTargetsVertical[i]);
+      input = this.renderTargetsVertical[i];
+    }
+    this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
+    this.compositeMaterial.uniforms.bloomRadius.value = this.radius;
+    this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors;
+    // in zwei Schritten (compositeCoarse, compositeFine), siehe dort
+    pass(compositeCoarse, this.renderTargetsHorizontal[1]);
+    pass(compositeFine, bloomOut);
+    this.applied = true;
+    r.setClearColor(this._oldClearColor, this.oldClearAlpha);
+    r.autoClear = oldAutoClear;
+  };
   // Original-Gauss endet bei 1 Sigma -> sichtbare eckige Halos. Engeres Sigma = runde Halos.
   bloom.separableBlurMaterials.forEach(m => {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
+  // Weichzeichnen, wo Quelle und Ziel gleich gross sind (alle senkrechten Durchgänge, auf Stufe 0 auch der waagrechte):
+  // derselbe Gauss wie UnrealBloom, aber je zwei benachbarte Texel mit einer bilinearen Abtastung zwischen ihnen, nach
+  // ihren Gewichten versetzt (Ticket 11: 3 statt 5 Abtastungen auf der grössten Stufe, 11 statt 21 auf der kleinsten).
+  // Verkleinert ein Durchgang (waagrecht ab Stufe 1), mittelt jede seiner Abtastungen schon 2 × 2 Texel der Quelle: dort
+  // wie UnrealBloom.
+  const pairBlur = bloom.separableBlurMaterials.map((m) => {
+    const radius = m.defines.KERNEL_RADIUS, sigma = parseFloat(m.defines.SIGMA);
+    const w = Array.from({ length: radius }, (_, x) => Math.exp(-0.5 * x * x / (sigma * sigma)));
+    const sum = w[0] + 2 * w.slice(1).reduce((a, b) => a + b, 0);
+    const taps = [];
+    for (let x = 1; x < radius; x += 2) {
+      const wa = w[x], wb = x + 1 < radius ? w[x + 1] : 0;
+      taps.push([(x * wa + (x + 1) * wb) / (wa + wb), (wa + wb) / sum]);
+    }
+    return new THREE.ShaderMaterial({
+      uniforms: { colorTexture: { value: null }, texSize: m.uniforms.texSize, direction: { value: new THREE.Vector2() } },
+      vertexShader: m.vertexShader,
+      fragmentShader: `
+        varying vec2 vUv;
+        uniform sampler2D colorTexture;
+        uniform vec2 texSize;
+        uniform vec2 direction;
+        void main() {
+          vec2 stp = direction / texSize;
+          vec3 s = texture2D(colorTexture, vUv).rgb * ${(w[0] / sum).toFixed(8)};
+          ${taps.map(([o, wt]) => `s += (texture2D(colorTexture, vUv + stp * ${o.toFixed(8)}).rgb + texture2D(colorTexture, vUv - stp * ${o.toFixed(8)}).rgb) * ${wt.toFixed(8)};`).join('\n          ')}
+          gl_FragColor = vec4(s, 1.0);
+        }`,
+    });
+  });
+  // Zusammensetzen in zwei Schritten (Ticket 11): erst die Stufen 2–5 in der Grösse der Stufe 2 (sie selbst ohne
+  // Vergrössern, 3–5 als B-Spline), dann Stufe 1 und dieses Zwischenbild als B-Spline in der Grösse der Stufe 1. Stufe 2
+  // ergibt genau dasselbe wie vorher; 3–5 bekommen zusätzlich einen B-Spline von einem Texel der Stufe 2 dazu (Sigma
+  // etwa 2 Bildpunkte, ihre eigene Unschärfe ist über zehnmal so breit). Statt 17 Abtastungen je Pixel der Stufe 1
+  // 5 dort und 13 je Pixel der viermal kleineren Stufe 2.
+  const compositeUniforms = (extra) => ({
+    ...Object.fromEntries(['bloomStrength', 'bloomRadius', 'bloomFactors', 'bloomTintColors'].map((k) => [k, composite.uniforms[k]])),
+    ...extra,
+  });
+  const COMPOSITE_HEAD = `
+    varying vec2 vUv;
+    uniform float bloomStrength, bloomRadius;
+    uniform float bloomFactors[5];
+    uniform vec3 bloomTintColors[5];
+    float lerpBloomFactor(const in float factor) { return mix(factor, 1.2 - factor, bloomRadius); }
+    #define level(i, t) (lerpBloomFactor(bloomFactors[i]) * vec4(bloomTintColors[i], 1.0) * (t))
+    ${BSPLINE_GLSL}`;
+  const compositeCoarse = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms(Object.fromEntries([2, 3, 4, 5].flatMap((i) => [
+      [`blurTexture${i}`, composite.uniforms[`blurTexture${i}`]], [`uSize${i}`, composite.uniforms[`uSize${i}`]]]))),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture2, blurTexture3, blurTexture4, blurTexture5;
+    uniform vec2 uSize2, uSize3, uSize4, uSize5;
+    void main() {
+      gl_FragColor = bloomStrength * (level(1, texture2D(blurTexture2, vUv)) + level(2, bspline(blurTexture3, vUv, uSize3))
+        + level(3, bspline(blurTexture4, vUv, uSize4)) + level(4, bspline(blurTexture5, vUv, uSize5)));
+    }`,
+  });
+  const compositeFine = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms({ blurTexture1: composite.uniforms.blurTexture1, tCoarse: { value: bloom.renderTargetsHorizontal[1].texture },
+      uSize2: composite.uniforms.uSize2 }),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture1, tCoarse;
+    uniform vec2 uSize2;
+    void main() {
+      gl_FragColor = bloomStrength * level(0, texture2D(blurTexture1, vUv)) + bspline(tCoarse, vUv, uSize2);
+    }`,
+  });
+  for (const m of [...pairBlur, compositeCoarse, compositeFine]) { m.depthTest = m.depthWrite = false; }
   const bloomSetSize = bloom.setSize.bind(bloom);
   bloom.setSize = (w, h) => {
     bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
@@ -13180,15 +13679,51 @@ function createComposer() {
       const t = bloom.renderTargetsVertical[i - 1];
       composite.uniforms['uSize' + i].value.set(t.width, t.height);
     }
-    bloom.copyUniforms.uSrcSize.value.set(bloom.renderTargetsHorizontal[0].width, bloom.renderTargetsHorizontal[0].height);
+    bloomUniforms.uBloomSize.value.set(bloomOut.width, bloomOut.height);
   };
   bloom.setSize(size.x, size.y);
   comp.addPass(bloom);
 
   const finalPass = new THREE.ShaderPass(FinalShader);
+  // Leuchten dazulegen (siehe oben), wo der Bildschritt das Szenenbild liest, auch an den Stellen der Aberration
+  Object.assign(finalPass.uniforms, bloomUniforms);
+  finalPass.material.fragmentShader = FinalShader.fragmentShader
+    .replace('varying vec2 vUv;', `varying vec2 vUv;
+    uniform sampler2D tBloom;
+    uniform vec2 uBloomSize;
+    uniform float uBloom; // 0: ohne Leuchten (in diesem Bild nicht gerechnet)
+    ${BSPLINE_GLSL}
+    vec3 glow(vec2 uv) {
+      if (uBloom <= 0.0) return vec3(0.0);
+      vec4 b = bspline(tBloom, uv, uBloomSize);
+      return b.rgb * (b.a * uBloom);
+    }
+    // Szenenbild mit Leuchten; ohne HDR (8 Bit) auf 1 begrenzt wie früher beim Auftragen ins 8-Bit-Szenenbild
+    vec3 lit(vec3 c, vec2 uv) {
+      c += glow(uv);
+      return ${HDR_SUPPORTED ? 'c' : 'min(c, 1.0)'};
+    }`)
+    .replace(`col.r = texture2D(tDiffuse, vUv - off).r;
+      col.g = base.g;
+      col.b = texture2D(tDiffuse, vUv + off).b;`, `base.rgb = lit(base.rgb, vUv);
+      col.g = base.g;
+      if (off == vec2(0.0)) {
+        col.rb = base.rb;
+      } else {
+        col.r = lit(texture2D(tDiffuse, vUv - off).rgb, vUv - off).r;
+        col.b = lit(texture2D(tDiffuse, vUv + off).rgb, vUv + off).b;
+      }`);
+  if (!finalPass.material.fragmentShader.includes('lit(texture2D(tDiffuse, vUv - off).rgb')) throw new Error('FinalShader: Leuchten nicht eingesetzt');
+  const renderFinal = finalPass.render;
+  finalPass.render = function (...args) {
+    bloomUniforms.uBloom.value = bloom.applied ? bloom.copyUniforms.opacity.value : 0;
+    bloom.applied = false;
+    return renderFinal.apply(this, args);
+  };
   // Rendert direkt auf den Bildschirm: ohne Swap wird der zweite Composer-Puffer nie gebunden
-  // und belegt daher keinen Grafikspeicher.
+  // und belegt daher keinen Grafikspeicher. Ohne Tiefentest (der Bildschirm hat keine Tiefe, siehe renderer).
   finalPass.needsSwap = false;
+  finalPass.material.depthTest = finalPass.material.depthWrite = false;
   comp.addPass(finalPass);
   return { comp, bloom, finalPass, brush };
 }
@@ -13196,6 +13731,11 @@ function createComposer() {
 const { comp: composer, bloom: bloomPass, finalPass, brush: brushPass } = createComposer();
 // Mit eigenem RenderTarget setzt der Composer sein Pixelverhältnis auf 1 – für HiDPI korrigieren.
 composer.setPixelRatio(renderer.getPixelRatio());
+</script>
+<script>
+'use strict';
+// Drittes Script (Seitenstart in Stücken, siehe oben nach LOGIC:END): Kamera, Spiel, Oberfläche und Geschichte. Oben ruft
+// beim Laden keine Funktion von hier auf (Funktionsdeklarationen gelten erst ab ihrem Script).
 
 /* =====================================================================
    KAMERA — schräg von oben, schwebt sanft, frei ums Feld drehbar (Neigung begrenzt)
@@ -13401,7 +13941,7 @@ const MAT = {
     color: 0xb9bac4, metalness: 1, roughness: 0.3, roughnessMap: brushedTex, envMapIntensity: 1.25,
   }),
   mirror: new THREE.MeshStandardMaterial({
-    color: 0xf2f4ff, metalness: 1, roughness: 0.03, envMap: mirrorEnvironment, envMapIntensity: 1.7,
+    color: 0xf2f4ff, metalness: 1, roughness: 0.03, envMap: null, envMapIntensity: 1.7, // envMap: seitenstart
     emissive: 0xdfe6ff, emissiveIntensity: 0.22, emissiveMap: makeMirrorStreakTexture(),
   }),
   // Rahmen des Spiegels: schwarz lackiert, leichter Glanz
@@ -14193,27 +14733,86 @@ const cubeView = {
 };
 boardGroup.add(cubeView.group);
 
+/**
+ * Die Elemente eines Felds bauen (Generator, yield je Element), noch nicht in der Szene: objects bekommt [el, obj],
+ * proxies die Trefferflächen. Während eines Schritts gelten board und proxies als die des Spiels (inCube,
+ * makeInteractive lesen sie), danach wieder die alten: So lässt sich das nächste Level bauen, während das alte noch steht.
+ */
+function* buildElements(board, objects, proxies) {
+  for (const el of board.elements) {
+    const factory = ELEMENT_FACTORIES[el.type];
+    if (!factory) continue;
+    const saved = [game.board, game.hitProxies];
+    game.board = board;
+    game.hitProxies = proxies;
+    try {
+      const obj = factory(el);
+      if (board.dim === 3) placeInCube(obj, el, board.size);
+      else gridToWorld(el.x, el.z, 0, obj.position);
+      obj.userData.element = el;
+      if (isRotatable(el)) makeInteractive(obj);
+      objects.push([el, obj]);
+    } finally {
+      [game.board, game.hitProxies] = saved;
+    }
+    yield;
+  }
+}
+
+/**
+ * Das nächste Level vorab bauen (Ticket 09 der Leistung): Beim Abstieg ins Level baute loadLevel alle Elemente in
+ * einem Bild, das hielt es auf dem gedrosselten Handy 135 ms an (Poco rund 40 ms). Sobald feststeht, welches Level
+ * kommt (changeLevel, Einstieg der Geschichte), entstehen sie in Häppchen an ruhigen Stellen (sliced, ruhe), während
+ * das alte Feld versinkt oder der Blick im Himmel ist; loadLevel nimmt sie dann nur noch. Was bis dahin nicht fertig
+ * ist, baut loadLevel wie bisher im selben Bild zu Ende. Mit ?t= (Tests, KI-Tester) nicht: Dort zieht Math.random eine
+ * feste Folge, die Reihenfolge der Züge bliebe so wie bisher.
+ */
+const levelPrep = { level: null, board: null, objects: null, proxies: null, steps: null };
+function prepareLevel(index) {
+  const level = LEVELS[index];
+  if (FIXED_TIME !== null || !level || levelPrep.level === level) return;
+  dropPreparedLevel();
+  try {
+    levelPrep.board = createBoard(level);
+  } catch { return; } // ein fehlerhaftes Level meldet loadLevel
+  levelPrep.level = level;
+  levelPrep.objects = [];
+  levelPrep.proxies = [];
+  const steps = levelPrep.steps = buildElements(levelPrep.board, levelPrep.objects, levelPrep.proxies);
+  sliced(steps, true).catch((e) => { if (levelPrep.steps === steps) dropPreparedLevel(); console.warn(`Level vorab: ${e.message}`); });
+}
+function dropPreparedLevel() {
+  for (const [, obj] of levelPrep.objects ?? []) disposeTree(obj);
+  levelPrep.steps?.return();
+  Object.assign(levelPrep, { level: null, board: null, objects: null, proxies: null, steps: null });
+}
+
 /** Baut ein Level auf; beamDelay = Sekunden, bis die Strahlen von den Quellen aus loswachsen. */
 function loadLevel(index, beamDelay = 0) {
   game.levelIndex = index;
-  game.board = createBoard(LEVELS[index]);
+  // vorab gebaut (prepareLevel): den Rest jetzt; sonst alles jetzt
+  const prep = levelPrep.level === LEVELS[index] ? { ...levelPrep } : null;
+  if (prep) Object.assign(levelPrep, { level: null, board: null, objects: null, proxies: null, steps: null });
+  else dropPreparedLevel();
+  const board = prep?.board ?? createBoard(LEVELS[index]);
+  const objects = prep?.objects ?? [], proxies = prep?.proxies ?? [];
+  const steps = prep?.steps ?? buildElements(board, objects, proxies);
+  for (let r = steps.next(); !r.done; r = steps.next());
+  game.board = board;
   game.stats = { turns: 0, startedAt: null, lastTurnAt: null };
-  for (const obj of game.objects.values()) { boardGroup.remove(obj); disposeTree(obj); }
+  // das alte Feld: aus der Szene, freigeben erst in den nächsten Bildern (sliced; es kostete das Bild des Abstiegs
+  // auf dem gedrosselten Handy weitere 14 ms)
+  const old = [...game.objects.values()];
+  for (const obj of old) boardGroup.remove(obj);
+  if (old.length) sliced((function* () { for (const obj of old) { disposeTree(obj); yield; } })());
   game.objects.clear();
-  game.hitProxies = [];
+  game.hitProxies = proxies;
   setHovered(null);
   clearTimeout(input.longPressTimer);
   if (input.pointer) input.pointer.el = null;
-  for (const el of game.board.elements) {
-    const factory = ELEMENT_FACTORIES[el.type];
-    if (!factory) continue;
-    const obj = factory(el);
-    if (game.board.dim === 3) placeInCube(obj, el, game.board.size);
-    else gridToWorld(el.x, el.z, 0, obj.position);
-    obj.userData.element = el;
+  for (const [el, obj] of objects) {
     boardGroup.add(obj);
     game.objects.set(el.id, obj);
-    if (isRotatable(el)) makeInteractive(obj);
   }
   game.targets = [...game.objects.values()].filter(o => o.userData.element.type === 'target');
   cubeView.build(game.board);
@@ -14233,7 +14832,7 @@ function recomputeBeams(instant = false, delay = 0) {
   // Ruhte die Schleife (geweckt, auch eben durch wake oben, aber noch kein Schritt seither: last null), steht
   // beamView.time noch beim letzten Schritt: Neue Strahlen wären sonst schon gewachsen, entfallene schon ausgeblendet
   // (Geburt und Tod zählen ab time). Darum erst wecken, dann prüfen.
-  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = clock.getElapsedTime();
+  if (sceneLoop.started && sceneLoop.last === null && FIXED_TIME === null) beamView.time = sceneTime.at();
   game.result = traceBeams(game.board);
   beamView.update(game.result, instant, delay);
   // Ein Ziel leuchtet erst auf, wenn der letzte seiner Strahlen sichtbar angekommen ist.
@@ -16075,6 +16674,7 @@ function changeLevel(index) {
   if (flow.state === 'intro' || index < 0 || index >= LEVELS.length) return;
   if (flow.state === 'story' && !story.holdEnter) return; // die Geschichte führt gerade (story.sinkTo darf)
   flow.next = index;
+  prepareLevel(index); // die Elemente schon während des Versinkens bauen
   if (flow.state === 'out') return; // versinkt schon – nur das Ziel-Level ändert sich
   sceneLoop.wake();
   flow.state = 'out';
@@ -16125,13 +16725,19 @@ function warmupShaders() {
   if (shadersWarm) return;
   shadersWarm = true;
   const obj = [...game.objects.values()].find(o => o.userData.warmup);
-  obj?.userData.warmup(true);
-  celebration.rain.points.visible = true;
-  compileParallel([scene]); // stösst sofort an (übersetzt im Hintergrund): der Zustand oben gilt nur dafür
-  obj?.userData.warmup(false);
+  // stösst in Häppchen an (übersetzt im Hintergrund; in einem Stück hielt es ein Bild auf dem gedrosselten Handy 95 ms
+  // an, Ticket 09): der Zustand gilt nur je Häppchen, dazwischen ist er wie vorher
+  const warm = () => {
+    obj?.userData.warmup(true);
+    celebration.rain.points.visible = true;
+    return () => {
+      obj?.userData.warmup(false);
+      celebration.rain.points.visible = celebration.rain.alive > 0;
+    };
+  };
+  compileParallel([scene], { variants: [warm], slices: true });
   // die unsichtbaren Vorwärm-Elemente jeder Art (am Ende, vor compileParallel) bleiben: Sonst übersetzte das erste
   // Level mit einer neuen Art seine Shader mitten im Fall des Lichts (ein Ruck)
-  celebration.rain.points.visible = celebration.rain.alive > 0;
 }
 
 /** Pro Frame: Übergänge animieren und den Lösungsmoment auslösen bzw. zurücknehmen. */
@@ -16200,6 +16806,10 @@ function setShown(el, shown) {
  * Skybox lädt danach in Häppchen weiter und blendet ein, sobald sie da ist. */
 let markSceneReady;
 const sceneReady = new Promise((resolve) => { markSceneReady = resolve; });
+/** Der Seitenstart (seitenstart, am Ende des Scripts) hat alles aufgebaut und die Programme der Szene angestossen: Erst
+ * dann beginnt die Enthüllung (ui.init), seine Stücke fielen sonst als Rucke in sie */
+let markSeitenstart;
+const seitenstartAngestossen = new Promise((resolve) => { markSeitenstart = resolve; });
 
 /**
  * Intro ruhig: Strahl, Schriftzug, Farbfächer und Texte sind eingeblendet (CSS #intro: „Klicken zum Starten“ endet
@@ -16236,8 +16846,9 @@ const ui = {
     // sceneLoop.mayDraw)
     const until = (promise, ms) => Promise.race([promise, new Promise((r) => setTimeout(r, ms))]);
     // (nach zwei Bildern: Ist die Schrift schon da, ehe die Seite fertig geladen hat, fiele der lange erste Frame sonst
-    // in die Enthüllung; davor Menü und Bühne vorwärmen, vorwaermenVorStart)
-    until(document.fonts?.ready, 800).then(nextFrame).then(nextFrame)
+    // in die Enthüllung; davor Menü und Bühne vorwärmen, vorwaermenVorStart). Der Seitenstart läuft in Stücken (Ticket 10
+    // der Leistung): auch auf ihn warten
+    Promise.all([until(document.fonts?.ready, 800), seitenstartAngestossen]).then(nextFrame).then(nextFrame)
       .then(() => vorwaermenVorStart().catch((e) => console.error(e))).then(() => {
       sceneLoop.aufwaermen();
       this.intro.classList.add('go');
@@ -16429,6 +17040,8 @@ const createMenu = (() => {
   const STILL = '(prefers-reduced-motion: reduce)';
   const AUS_MS = 800, FRAGE_MS = 300; // Ausblenden des Menüs bzw. der Rückfrage (Transition im CSS des Menüs)
   const WACHSEN = { start: 0.35, grund: 0.5, je: 1.3 }; // Einblenden: Beginn (s), Dauer = grund + je · Anteil des Wegs
+  // Leuchten der Lichtwege (feGaussianBlur): σ, und der Rand des Filters um das Element (Kern 3 σ, 1 px Glättung)
+  const LEUCHTEN_SIGMA = 2.4, LEUCHTEN_RAND = Math.ceil(3 * LEUCHTEN_SIGMA) + 1;
   let zaehler = 0;
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -16657,14 +17270,35 @@ const createMenu = (() => {
 
       // die sechs Welten als Zeichen: auf dem Weg von «Weiter», sonst des hervorgehobenen, ganz neu auf dem leichten
       const haupt = daten.weiter ?? daten.hervor ?? (daten.grade.every((g) => g.art === 'neu') ? daten.grade[0] : null);
+      // Leuchten: je Element ein eigener Filter über sein Hüllrechteck plus Rand (3 σ des Blurs, halbe Strichbreite,
+      // Kantenglättung), nicht über das ganze Menü; Safari rechnet SVG-Filter auf der CPU, im Wachsen in jedem Bild
+      // (Ticket 12 von .scratch/leistung/). userSpaceOnUse, weil objectBoundingBox bei waagrechten oder senkrechten
+      // Wegen (Höhe bzw. Breite 0) nichts zeichnet.
+      // Ecken auf ein Raster von 8 Gerätepixeln wie die alte Fläche ab (0, 0): Bei grossem σ in Gerätepixeln (Handy)
+      // rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der Fläche (Handy ohne: bis 4/255
+      // anders, mit: bis 2/255; Desktop gleich)
+      let filter = '', nFilter = 0;
+      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4);
+      const rasterAb = (v) => Math.floor(v * dpr / 8) * 8, rasterAuf = (v) => Math.ceil(v * dpr / 8) * 8;
+      const leuchten = (pts, r) => {
+        const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), rand = r + LEUCHTEN_RAND;
+        const x0 = rasterAb(Math.min(...xs) - rand), y0 = rasterAb(Math.min(...ys) - rand);
+        const x1 = rasterAuf(Math.max(...xs) + rand), y1 = rasterAuf(Math.max(...ys) + rand);
+        const id = `${uid}-leuchten-${nFilter++}`;
+        filter += `<filter id="${id}" filterUnits="userSpaceOnUse" x="${px(x0)}" y="${px(y0)}" width="${px(x1 - x0)}" height="${px(y1 - y0)}">`
+          + `<feGaussianBlur stdDeviation="${LEUCHTEN_SIGMA}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
+        return `filter="url(#${id})"`;
+      };
       let unten = '', oben = '';
       daten.grade.forEach((g, i) => {
         const w = wege[i], p = g.anteil, s = p * w.L;
         const cls = ['menue-weg', `menue-${g.art}`, g === daten.hervor && 'menue-hervor', g.id === aktiv && 'menue-an'].filter(Boolean).join(' ');
         let teil = `<polyline class="menue-grund" points="${punkte(w.pts)}"/>`;
         if (p > 0) {
-          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(stueck(w, s))}"`;
-          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" filter="url(#${uid}-leuchten)" ${z}/>`;
+          const pts = stueck(w, s);
+          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(pts)}"`;
+          // Rand: halbe Strichbreite von .menue-licht (1,8)
+          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" ${leuchten(pts, 0.9)} ${z}/>`;
         }
         unten += `<g class="${cls}" data-grad="${g.id}">${teil}</g>`;
         // Grenzen der Welten
@@ -16681,7 +17315,8 @@ const createMenu = (() => {
             const x = M.x + n.x * o, yy = M.y + n.y * o;
             const zcls = k < g.welt ? 'menue-an' : k === g.welt ? 'menue-jetzt' : '';
             const auf = y <= p ? ` menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s` : '';
-            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` filter="url(#${uid}-leuchten)"` : ''}>`
+            // Rand: die Scheibe (hochkant, Radius s2/2 + 3) bzw. das Zeichen (s2/2) mit Strich
+            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` ${leuchten([{ x, y: yy }], s2 / 2 + 3)}` : ''}>`
               + (hoch ? `<circle class="menue-scheibe" cx="${f(x)}" cy="${f(yy)}" r="${s2 / 2 + 3}"/>` : '')
               + `<svg x="${f(x - s2 / 2)}" y="${f(yy - s2 / 2)}" width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${ICO[welt.id]}</svg></g>`;
           });
@@ -16725,10 +17360,7 @@ const createMenu = (() => {
       }
 
       svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
-      svg.innerHTML = `<defs>
-          <filter id="${uid}-leuchten" filterUnits="userSpaceOnUse" x="0" y="0" width="${f(W)}" height="${f(H)}">
-            <feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-          </filter>
+      svg.innerHTML = `<defs>${filter}
           <radialGradient id="${uid}-kopf"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.35" stop-color="#cdd4ff" stop-opacity="0.25"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
         </defs>${unten}${oben}`;
     }
@@ -19122,6 +19754,7 @@ const story = {
     flow.state = 'story';
     if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = this.stand.dorf.platz; }
     let index = this.currentIndex(), ch = this.inDorf ? STORY_DORF : this.chapter();
+    prepareLevel(index); // ohne altes Feld (sinkTo): die Elemente in den Pausen des Prologs bzw. während der Blick oben ist
     const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
     if (this.replay || this.seen(this.inDorf ? STORY_DORF.einstieg.moment : storyChapterId(ch))) {
       // in dieser Welt hat schon ein Level begonnen: ohne Einstieg. Die Kamera bleibt im Himmel, bis die Welt bereit
@@ -19678,6 +20311,7 @@ const story = {
    * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
    */
   async enter(index, ch, sunk, wie = {}) {
+    prepareLevel(index); // nach «Üben» ein anderes als in begin
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
     const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
       traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
@@ -20317,6 +20951,20 @@ window.addEventListener('resize', onResize);
 onResize();
 
 const clock = new THREE.Clock();
+/**
+ * Zeit der Animationen (s) zu einem rAF-Zeitstempel ts (frame): Die Uhr beim Start des Callbacks lief um den Verzug
+ * des Callbacks nach dem Bildschirmtakt verschieden weit (andere Arbeit davor, auf dem Handy mehrere ms), bewegte
+ * Dinge wie die Fische machten dann ungleiche Schritte (Spec .scratch/leistung/, Ticket 17). Der Zeitstempel des
+ * Bildschirmbilds ist gleichmässig. Ohne ts (Aufwärmen, Wecken der Strahlen) gilt die Uhr; nie rückwärts, sonst
+ * begänne etwa die Simulation der Fische neu (createFishSim).
+ */
+const sceneTime = {
+  t: 0,
+  at(ts = performance.now()) {
+    clock.getElapsedTime(); // startet die Uhr beim ersten Aufruf (startTime)
+    return (this.t = Math.max(this.t, (ts - clock.startTime) / 1000));
+  },
+};
 
 /**
  * Adaptive Auflösung: misst die echte Frame-Zeit und senkt die Renderauflösung, sobald 60 FPS
@@ -20331,8 +20979,8 @@ const adaptiveResolution = {
   calm: 0, cooldown: 1.5, last: performance.now(),
   probe: null,          // läuft gerade eine Absenkung zur Probe?
   locked: false,        // Absenken bringt nichts (z. B. 30-Hz-Sparmodus, CPU-Engpass)
-  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: readPixels des Ersatzmasses und das Bild danach;
-                        // verdeckt gezeichnete Bilder, siehe draw)
+  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: das Bild nach einer Probe der Dauerlast und das
+                        // danach; verdeckt gezeichnete Bilder, siehe draw)
   // ?noadapt: feste Auflösung (für Screenshot-Tests im langsamen Software-Rendering)
   disabled: new URLSearchParams(location.search).has('noadapt'),
 
@@ -20364,6 +21012,10 @@ const adaptiveResolution = {
     const overload = this.slow / this.frames; // Anteil Frames über Budget in der letzten Sekunde
     this.window = this.slow = this.frames = 0;
 
+    // Stetige 60 Bilder/s nur wegen des bewegten Himmels (frameRate.fluid, Ticket 17 der Leistung) und das Gerät hält sie
+    // nicht: zuerst darauf verzichten (in Ruhe wieder 30 wie vorher), die Auflösung bleibt. Erst wenn es danach noch zu
+    // langsam ist, greift die Absenkung wie bisher (Spec: keine sichtbare Absenkung)
+    if (overload > 0.3 && !this.probe && frameRate.fluid()) { frameRate.fluidAus = true; this.hold(); return; }
     if (this.probe) {
       // Hat die letzte Absenkung geholfen? Sonst zurück und Absenken sperren.
       if (overload > this.probe.overload * 0.8) { this.locked = true; this.set(this.probe.from); }
@@ -20398,11 +21050,31 @@ const _reflectFrustum = new THREE.Frustum(), _reflectViewProj = new THREE.Matrix
 const _reflectPlate = new THREE.Box3(new THREE.Vector3(-PLATE / 2, -0.01, -PLATE / 2), new THREE.Vector3(PLATE / 2, 0.01, PLATE / 2));
 const _reflectDimmed = []; // gedämpfte Ziele (userData) dieses Bilds; ihre Werte in userData.reflectSave (ohne Allokation)
 
-function renderReflection() {
-  if (!QUALITY.reflections) return;
+/** Zeichnet renderReflection gerade etwas (eingeschaltet und die Platte im Bild)? Auch für das Messwerkzeug (Dauerlast). */
+function reflectionInView() {
+  if (!QUALITY.reflections) return false;
   camera.updateMatrixWorld();
   _reflectFrustum.setFromProjectionMatrix(_reflectViewProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  if (!_reflectFrustum.intersectsBox(_reflectPlate)) return;
+  return _reflectFrustum.intersectsBox(_reflectPlate);
+}
+
+/**
+ * Mipmaps der Spiegelung nur bis zur Stufe, die der Boden liest (Ticket 11): Er tastet mit Stufe 1 … 2,2 plus log2 des
+ * Pixelverhältnisses ab; weil die Textur kleiner als das Bild ist, landet das auf etwa 0,5 … 1,7 (Handy) bzw. −0,7 … 0,5
+ * (Desktop). Bis Stufe 4 bleibt also alles gleich; die fünf, sechs kleinsten Stufen erzeugte jedes Bild umsonst (auf
+ * Kachel-GPUs je ein eigener Durchgang). Je Bild, weil setSize das Ziel neu anlegt.
+ */
+const REFLECT_MAX_MIP = 4;
+function limitReflectionMips() {
+  const tex = renderer.properties.get(reflector.getRenderTarget().texture).__webglTexture;
+  if (!tex || !renderer.capabilities.isWebGL2) return; // noch nicht angelegt (erstes Bild: ganze Kette wie bisher)
+  const gl = renderer.getContext();
+  renderer.state.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, REFLECT_MAX_MIP);
+}
+
+function renderReflection() {
+  if (!reflectionInView()) return;
   floorTop.updateMatrixWorld();
   reflector.matrixWorld.copy(floorTop.matrixWorld);
 
@@ -20427,6 +21099,11 @@ function renderReflection() {
     u.core.material.color.multiplyScalar(REFLECT_GLOW_DIM);
     u.gem.material.emissiveIntensity *= REFLECT_GLOW_DIM;
   }
+  // Beim Auflösen des MSAA nur die Farbe kopieren, Tiefe und Stencil verwerfen (three: __ignoreDepthValues): Gelesen
+  // wird nur die Farbe, Kachel-GPUs sparen das Speichern und Kopieren der Tiefe (Ticket 11). Je Bild, weil setSize das
+  // Ziel neu anlegt und dabei die Eigenschaften vergisst
+  renderer.properties.get(reflector.getRenderTarget()).__ignoreDepthValues = true;
+  limitReflectionMips();
   reflector.onBeforeRender(renderer, scene, camera);
   for (const u of _reflectDimmed) {
     u.core.material.color.copy(u.reflectSave.core);
@@ -20452,7 +21129,12 @@ const MESS_ABSCHNITTE = {
 // Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms
 const MESS_GRENZE = { p95: 18.3, bild: 33, zeichnen: 8 };
 const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
-const MESS_ERSATZ_JEDES = 10; // Ersatzmass der Zeichenzeit (ohne GPU-Zeit): readPixels nur in jedem 10. gezeichneten Bild
+// Dauerlast (Ticket 08), die Zeichenzeit ohne GPU-Zeit: k Bilder hintereinander in einer Aufgabe zwischen zwei
+// readPixels, Zeit je Bild; je Teil so viele Wiederholungen, davon der Median. Ein Halt je Bild (das alte Ersatzmass,
+// readPixels jedes 10. Bild) mass vor allem die Wartezeit der Pipeline, auf dem Poco 3- bis 6-mal zu viel (Messrunde 07)
+const MESS_DAUERLAST = { k: 20, wiederholungen: 5, cpuGebunden: 0.8 };
+// Messpunkte der Dauerlast im Referenzdurchlauf: Kennung → [Name auf der Karte, schmale Fassung]
+const MESS_PUNKTE = { spiel: ['Spiel (1. Level)', 'Spiel'], menue: ['Menü still', 'Menü'], ankunft: ['Spiel n. Reise', 'n. Reise'] };
 // Speicher des Referenzdurchlaufs: laufend, Sicherung des echten Spielstands, Ergebnis für die Karte nach dem Neuladen
 const MESS_LAUF = 'prisma.leistung.lauf', MESS_SICHERUNG = 'prisma.leistung.sicherung';
 const MESS_ERGEBNIS = 'prisma.leistung.ergebnis';
@@ -20469,9 +21151,11 @@ const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) ||
  * mit festen Fächern (genaue p95 ohne Liste aller Abstände) und ein Ringpuffer für die Anzeige, keine Allokationen pro
  * Bild. Dazu Hänger des Hauptthreads mit Ursache (PerformanceObserver: long-animation-frame, longtask).
  * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
- * fehlt die Erweiterung (viele Android-Geräte), im Referenzdurchlauf die Zeit von Beginn frame() bis nach einem
- * 1-Pixel-readPixels. readPixels wartet sicher auf das fertige Bild (gl.finish nicht in jedem Browser) und hält dafür die
- * Pipeline an, darum nur dort. Dazu die CPU-Zeit von frame() und die gezeichneten Bilder je Sekunde.
+ * fehlt die Erweiterung (viele Android-Geräte), misst der Referenzdurchlauf an festen, ruhigen Messpunkten die
+ * Dauerlast (dauerlast: K Bilder in einer Aufgabe zwischen zwei readPixels, Zeit je Bild, GPU voll hochgetaktet) und
+ * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas, Pinsel, Himmel, Wasser, Unterwasser-Pass, Staub
+ * und letztem Bildschritt. Dazu die CPU-Zeit von frame() und
+ * die gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels).
  * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
  * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
  * und misst die Reise in die zweite Welt samt ihrem frisch geladenen Himmel. Danach kommt der echte Stand zurück, die
@@ -20491,7 +21175,15 @@ const leistung = {
   haenger: [],        // die längsten long-animation-frames { ms, id, t, ursache }
   hudZeit: 0,
   gl: null, timer: null, abfragen: [], abfrageNeu: 0, abfrageAlt: 0, abfrageLaeuft: false, // GPU-Zeit
-  pixel: new Uint8Array(4), pixelZeit: -1, // Ersatzmass: Puffer und Zeit des letzten readPixels
+  vergleich: null,    // ?ersatzmass auf einem Gerät mit Timer: die Dauerlast zum Vergleich auch als GPU-Zeit messen
+  pixel: new Uint8Array(4), // Dauerlast: Puffer für readPixels
+  proben: [],         // [Beginn, Ende] je Probe der Dauerlast: Abstände (tick) und Hänger (haenger1) darin zählen nicht
+  punkte: {},         // Dauerlast je Messpunkt (MESS_PUNKTE), sobald gemessen
+  wiederholt: {},     // Messpunkte, deren erste Messung eine Eingabe störte (dauerlast)
+  misst: null,        // die Dauerlast misst gerade an diesem Messpunkt
+  wartet: null,       // ein Messpunkt wartet auf Ruhe: { id, seit, ruhig } (messpunkte)
+  nachProbe: false,   // der letzte Abstand überschnitt eine Probe: den nächsten auch nicht zählen (tick)
+  ruhig: false,       // beim letzten Display-Frame: keine Tweens, der Himmel blendet nicht ein (gez/s ruhig)
   modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
   lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
   schritt: null,      // im Durchlauf: 'teil1' (bis zum Menü), 'reise', 'fertig'
@@ -20513,9 +21205,12 @@ const leistung = {
     requestAnimationFrame(loop);
     if (this.gl) return; // eingerichtet beim ersten Start
     this.gl = renderer.getContext();
-    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Probe des Ersatzmasses auf dem Desktop)
-    this.timer = new URLSearchParams(location.search).has('ersatzmass') ? null
-      : this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Dauerlast statt GPU-Zeit, Probe auf dem Desktop); hat das Gerät
+    // sie doch, misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
+    const ext = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
+    const ersatz = new URLSearchParams(location.search).has('ersatzmass');
+    this.timer = ersatz ? null : ext;
+    this.vergleich = ersatz ? ext : null;
     if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
     document.addEventListener('visibilitychange', () => { this.prev = null; });
     const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
@@ -20524,7 +21219,9 @@ const leistung = {
         .observe({ type: 'long-animation-frame', buffered: true });
     }
     if (typen.includes('longtask')) {
-      new PerformanceObserver((l) => { if (this.aktiv) l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; }); })
+      new PerformanceObserver((l) => {
+        if (this.aktiv) l.getEntries().forEach((e) => { if (!this.inProbe(e)) this.teilBei(e.startTime).longtasks++; });
+      })
         .observe({ type: 'longtask', buffered: true });
     }
     navigator.userAgentData?.getHighEntropyValues?.(['model', 'platformVersion'])
@@ -20541,12 +21238,22 @@ const leistung = {
   tick(ts) {
     const id = this.abschnitt();
     if (this.prev !== null && this.teil) {
-      // im Abstand lag ein readPixels des Ersatzmasses (bildEnde): nicht als sichtbaren Abstand zählen
-      if (this.pixelZeit >= this.prev && this.pixelZeit < ts) this.teil.ohne++;
-      else this.abstand(this.teil, ts - this.prev, ts);
+      // im Abstand lag eine Probe der Dauerlast, oder sie lag im Abstand davor (das Bild nach der letzten Probe kann
+      // noch auf die Grafik warten: in jedem Lauf mit Dauerlast ein Abstand von 33 ms in «Menü» und «Spiel n. Reise»,
+      // Review Ticket 08): nicht als sichtbaren Abstand zählen
+      const probe = this.probeIn(this.prev, ts);
+      if (probe || this.nachProbe) this.teil.ohne++;
+      else {
+        this.abstand(this.teil, ts - this.prev, ts);
+        if (this.ruhig) this.teil.ruhigMs += ts - this.prev;
+      }
+      this.nachProbe = probe;
     }
     if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
     this.prev = ts;
+    // ruhig: Es läuft keine Fahrt (Tween) und der Himmel blendet nicht ein oder über (gez/s ruhig: wie viel die Szene
+    // zeichnet, wenn sich nichts tut; das Menü zeichnet beim Hineinfahren 60/s, beim Einblenden des Himmels 30/s)
+    this.ruhig = !story.tweens.length && !skyTheme.moving;
     if (ts - this.hudZeit >= 500) {
       this.hudZeit = ts;
       if (this.lauf) this.laufTick();
@@ -20587,7 +21294,8 @@ const leistung = {
     let t = this.teile.get(id);
     if (!t) {
       t = { id, bild: this.reihe(), zeichnen: this.reihe(), cpu: this.reihe(), ueber: 0, gezeichnet: 0, haenger: 0,
-        haengerMax: 0, longtasks: 0, ohne: 0 }; // ohne: Abstände mit readPixels, nicht gezählt
+        haengerMax: 0, longtasks: 0, ohne: 0, // ohne: Abstände mit einer Probe der Dauerlast, nicht gezählt
+        ruhigMs: 0, gezRuhig: 0 }; // Zeit und gezeichnete Bilder, solange es ruhig war (tick)
       this.teile.set(id, t);
     }
     return t;
@@ -20628,8 +21336,22 @@ const leistung = {
     for (let i = this.wechsel.length - 1; i >= 0; i--) if (this.wechsel[i][0] <= t) return this.teile.get(this.wechsel[i][1]);
     return this.teile.get(this.wechsel[0]?.[1]) ?? this.neuerTeil(this.abschnitt());
   },
+  /**
+   * Überschneidet der Abstand zwischen den Display-Frames a und b eine Probe der Dauerlast? Dann ist er (auch) ihr Halt.
+   * Nicht nur das Ende prüfen: Der Zeitstempel des Frames nach einem langen Task ist der letzte Vsync, er kann vor dem
+   * Ende der Probe liegen (headless gesehen). Die jüngsten Proben genügen (eine je Display-Frame).
+   */
+  probeIn(a, b) {
+    for (let i = this.proben.length - 1; i >= 0 && i >= this.proben.length - 3; i--) {
+      if (this.proben[i][0] < b && this.proben[i][1] > a) return true;
+    }
+    return false;
+  },
+  /** Fällt der Eintrag e (startTime, duration) in eine Probe der Dauerlast? */
+  inProbe(e) { return this.proben.some(([a, b]) => e.startTime < b && e.startTime + e.duration > a); },
   /** Ein long-animation-frame (über 50 ms): zählen und mit Ursache merken (längstes Script, sonst Stil und Layout). */
   haenger1(e) {
+    if (this.inProbe(e)) return; // die Dauerlast selbst: zählt wie ihre Bildabstände nicht
     const teil = this.teilBei(e.startTime);
     teil.haenger++;
     teil.haengerMax = Math.max(teil.haengerMax, e.duration);
@@ -20658,25 +21380,163 @@ const leistung = {
     this.abfrageLaeuft = true;
     this.abfrageNeu = (this.abfrageNeu + 1) % this.abfragen.length;
   },
-  /** Ende eines gerenderten Bilds (t0 aus bildBeginn): CPU-Zeit, GPU-Abfrage schliessen bzw. Ersatzmass. */
+  /** Ende eines gerenderten Bilds (t0 aus bildBeginn): CPU-Zeit, GPU-Abfrage schliessen. */
   bildEnde(t0) {
     if (!t0 || !this.teil) return;
     const teil = this.teil;
     this.eintragen(teil.cpu, performance.now() - t0);
     teil.gezeichnet++;
+    if (this.ruhig) teil.gezRuhig++;
     if (this.abfrageLaeuft) {
       this.gl.endQuery(this.timer.TIME_ELAPSED_EXT);
       this.abfrageLaeuft = false;
-    } else if (!this.timer && this.lauf && teil.gezeichnet % MESS_ERSATZ_JEDES === 0) {
-      // Ersatzmass: hält die Pipeline an (Kachel-GPUs der Handys besonders), darum nur jedes n-te Bild; der Abstand,
-      // in den der Halt fällt, zählt nicht zu den sichtbaren (tick, pixelZeit)
-      const gl = this.gl;
-      gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
-      this.pixelZeit = performance.now();
-      this.eintragen(teil.zeichnen, this.pixelZeit - t0);
-      // Der Halt fällt in dieses Bild, der Abstand danach kann auch gestört sein: Beide wertet die adaptive Auflösung
-      // nicht (Handy-Durchlauf 1: sonst senkte sie im Durchlauf auf halbe Auflösung, ohne ?perf nicht)
-      adaptiveResolution.skip = 2;
+    }
+  },
+
+  /**
+   * Teile der Dauerlast: [Kennung, zeichnet er hier etwas (sonst «–»), weglassen (gibt das Zurücksetzen zurück)].
+   * Das Netz des Panoramas ist das Mesh mit renderOrder -1000 in der Gruppe einer eingeblendeten Skybox aus Blender
+   * (createPanoramaSky); ohne es zeigt die Himmelskugel dahinter das Vorschaubild.
+   */
+  dauerlastTeile() {
+    const panoramen = () => skyTheme.entries.filter((e) => e.module?.panorama && e.module.group.visible).map((e) => e.module.group);
+    const netze = () => panoramen().flatMap((g) => g.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible));
+    // Wasser einer Skybox (waterSurface: userData.under, die Szene unter der Oberfläche) und was darunter schwimmt
+    const wasser = () => panoramen().flatMap((g) => g.children.filter((o) => o.userData.under && o.visible));
+    const unter = () => wasser().flatMap((o) => o.userData.under.scene.children.filter((c) => c.visible));
+    const himmel = () => [background, stars, solar.group, ...panoramen()].filter((o) => o.visible);
+    const schalter = (an, setze) => () => { const vorher = an(); setze(false); return () => setze(vorher); };
+    // Objekte unsichtbar, danach wieder sichtbar
+    const verstecke = (liste) => () => {
+      const aus = liste();
+      for (const o of aus) o.visible = false;
+      return () => { for (const o of aus) o.visible = true; };
+    };
+    return [
+      ['ganz', () => true, () => () => {}],
+      ['spiegelung', reflectionInView, schalter(() => QUALITY.reflections, (v) => { QUALITY.reflections = v; })],
+      ['bloom', () => bloomPass.enabled, schalter(() => bloomPass.enabled, (v) => { bloomPass.enabled = v; })],
+      ['netz', () => netze().length > 0, verstecke(netze)],
+      ['pinsel', () => !!brushPass.painting?.(), schalter(() => brushPass.enabled, (v) => { brushPass.enabled = v; })],
+      // zweite Zeile der Karte (Ticket 11): der ganze Himmel (Kugel, Sterne, Planeten, Skybox mit allen Ebenen), davon
+      // das Wasser samt Unterwasser-Pass, davon nur der Pass (Fische), der Staub über dem Brett und der letzte Bildschritt
+      ['himmel', () => himmel().length > 0, verstecke(himmel)],
+      ['wasser', () => wasser().length > 0, verstecke(wasser)],
+      ['unter', () => unter().length > 0, verstecke(unter)],
+      ['staub', () => beamView.dust.visible, verstecke(() => [beamView.dust])],
+      ['final', () => finalPass.enabled, () => { // gar nicht zeichnen (die Probe liest danach nur einen Bildpunkt)
+        const eigen = Object.hasOwn(finalPass, 'render'), render = finalPass.render;
+        finalPass.render = () => {};
+        return () => { if (eigen) finalPass.render = render; else delete finalPass.render; };
+      }],
+    ];
+  },
+  /**
+   * Dauerlast am Messpunkt id (MESS_PUNKTE), im Referenzdurchlauf ohne GPU-Zeit: Je Probe (eine Aufgabe, nach einem
+   * Display-Frame) ein readPixels (die Pipeline ist leer), dann K Bilder hintereinander (Spiegelung und composer), wieder
+   * readPixels; Zeit / K ist die Zeichenzeit je Bild bei voll hochgetakteter GPU, ohne die Wartezeit eines Halts je Bild.
+   * Dazu die CPU-Zeit je Bild der Schleife (liegt sie nahe an der Zeit je Bild, ist die Probe CPU-gebunden und die GPU
+   * höchstens so langsam). Ebenso ohne Spiegelung, Bloom, Netz und Pinsel (Zerlegung: ganz − ohne = Anteil des Teils),
+   * abwechselnd, je MESS_DAUERLAST.wiederholungen Mal, Median. Nach jeder Probe alles zurück und ein normales Bild (auf dem
+   * Schirm steht nie eine Probe). Die Abstände und Hänger der Proben zählen nicht zu den sichtbaren; die adaptive
+   * Auflösung wertet das Bild danach nicht (skip; der Fehler von 01b: Sie senkte wegen der Messung). Mit vergleich
+   * (?ersatzmass, Timer vorhanden) dazu je Probe K Bilder mit GPU-Zeit je Bild (Abnahme auf der T2000).
+   */
+  async dauerlast(id) {
+    if (this.misst || this.punkte[id] || !this.gl) return;
+    this.misst = id;
+    // Tippt oder klickt jemand während der Messung (Menü, Drehen), misst sie einen anderen Zustand: einmal wiederholen,
+    // beim zweiten Mal mit «?» auf der Karte (Review Ticket 08)
+    let gestoert = false;
+    const stoer = () => { gestoert = true; };
+    const eingaben = ['pointerdown', 'keydown', 'wheel'];
+    for (const e of eingaben) window.addEventListener(e, stoer, { capture: true, passive: true });
+    const gl = this.gl, ext = this.vergleich, { k: K, wiederholungen } = MESS_DAUERLAST;
+    const teile = this.dauerlastTeile().filter(([, gilt]) => gilt());
+    const roh = Object.fromEntries(teile.map(([t]) => [t, { zeit: [], cpu: [] }]));
+    const abfragen = []; // [Teil, Abfrage] der GPU-Zeit zum Vergleich
+    const bild = () => { renderReflection(); composer.render(0); };
+    const lies = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
+    const median = (v) => { if (!v.length) return null; const s = [...v].sort((a, b) => a - b); return s[s.length >> 1]; };
+    try {
+      for (let w = 0; w < wiederholungen; w++) {
+        for (const [t, , weglassen] of teile) {
+          await new Promise((r) => requestAnimationFrame(r));
+          const beginn = performance.now(), zurueck = weglassen();
+          try {
+            lies();
+            const t0 = performance.now();
+            let cpu = 0;
+            for (let i = 0; i < K; i++) { const c = performance.now(); bild(); cpu += performance.now() - c; }
+            lies();
+            roh[t].zeit.push((performance.now() - t0) / K);
+            roh[t].cpu.push(cpu / K);
+            for (let i = 0; ext && i < K; i++) {
+              const q = gl.createQuery();
+              gl.beginQuery(ext.TIME_ELAPSED_EXT, q);
+              bild();
+              gl.endQuery(ext.TIME_ELAPSED_EXT);
+              abfragen.push([t, q]);
+            }
+          } finally { zurueck(); }
+          bild();
+          renderer.info.reset(); // die Anzeige zählt die Draw-Calls eines Bilds
+          this.proben.push([beginn, performance.now()]);
+          adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 2);
+        }
+      }
+      let gpu = null;
+      if (ext) { // GPU-Zeit je Bild zum Vergleich (Median aller Bilder je Teil); disjunkt: unbrauchbar
+        for (let i = 0; i < 120 && abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)); i++) {
+          await new Promise((r) => requestAnimationFrame(r));
+        }
+        const fertig = !abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE));
+        if (fertig && !gl.getParameter(ext.GPU_DISJOINT_EXT)) {
+          gpu = Object.fromEntries(teile.map(([t]) => [t, median(abfragen.filter(([a]) => a === t)
+            .map(([, q]) => gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6))]));
+        }
+        for (const [, q] of abfragen) gl.deleteQuery(q);
+      }
+      const ms = Object.fromEntries(this.dauerlastTeile().map(([t]) => [t, roh[t] ? median(roh[t].zeit) : null]));
+      const cpu = median(roh.ganz.cpu);
+      if (gestoert && !this.wiederholt[id]) { this.wiederholt[id] = true; return; } // noch einmal (messpunkte, reise)
+      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms, cpu,
+        cpuGebunden: cpu >= MESS_DAUERLAST.cpuGebunden * ms.ganz, gpu, gestoert };
+    } catch (e) { // gemessen, aber ohne Werte (die Karte zeigt «–»; der Durchlauf geht weiter)
+      console.error(e);
+      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms: {}, cpu: null, cpuGebunden: false,
+        gpu: null, fehler: e.message };
+    } finally {
+      this.misst = null;
+      for (const e of eingaben) window.removeEventListener(e, stoer, { capture: true });
+    }
+  },
+  /** Bis bedingung gilt (alle 0,1 s), höchstens sekunden lang; zurück, ob sie gilt. */
+  async bis(bedingung, sekunden) {
+    for (let t = 0; !bedingung(); t += 0.1) {
+      if (t > sekunden) return false;
+      await storySleep(100);
+    }
+    return true;
+  },
+  /**
+   * Im Durchlauf ohne GPU-Zeit (laufTick, alle 0,5 s): die Dauerlast an den Messpunkten des ersten Teils, sobald es dort
+   * ruhig ist. Erstes Level: 3 s ruhig (ohne Fahrt, Himmel steht, nichts gezogen), Menü: 1 s still (frameRate.skyOnly);
+   * bleibt es nie ruhig, nach 15 s trotzdem. Den dritten (Spiel n. Reise) misst reise.
+   */
+  messpunkte() {
+    if (this.timer || this.misst || this.meldung || this.schritt !== 'teil1') { this.wartet = null; return; }
+    const id = !this.geloest && !this.punkte.spiel && flow.state === 'play' && !story.choosing && !story.running
+      && !this.marken.length && !sceneLoop.covered && !ui.solvedVisible() ? 'spiel'
+      : this.geloest && menu.offen && !this.punkte.menue ? 'menue' : null;
+    if (!id) { this.wartet = null; return; }
+    const jetzt = performance.now();
+    const w = this.wartet?.id === id ? this.wartet : (this.wartet = { id, seit: jetzt, ruhig: null });
+    const still = id === 'menue' ? frameRate.skyOnly() : this.ruhig && !drag.active && !input.pointer;
+    w.ruhig = still ? w.ruhig ?? jetzt : null;
+    if (w.ruhig !== null && jetzt - w.ruhig >= (id === 'menue' ? 1000 : 3000) || jetzt - w.seit > 15000) {
+      this.wartet = null;
+      this.dauerlast(id);
     }
   },
   /**
@@ -20698,8 +21558,8 @@ const leistung = {
   mass() {
     if (this.timer) return 'GPU-Zeit (EXT_disjoint_timer_query_webgl2)';
     return this.lauf || this.schritt
-      ? `ERSATZMASS: frame() bis nach readPixels (1 px), jedes ${MESS_ERSATZ_JEDES}. Bild; der Abstand danach zählt nicht`
-      : 'keine (nur im Referenzdurchlauf)';
+      ? `Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen} (an Messpunkten, siehe unten)`
+      : 'keine GPU-Zeit (Dauerlast nur im Referenzdurchlauf)';
   },
 
   /** Kurzfassung der jüngsten Abstände für die Anzeige (seit dem letzten Aufruf): [fps, p95, max]. */
@@ -20726,7 +21586,10 @@ const leistung = {
       return { id: t.id, name, laden, bilder: t.bild.n, sekunden: t.bild.summe / 1000, p50: q(t.bild, 0.5), p95,
         max: t.bild.max, ueber33: t.ueber, zeichnenP95, zeichnenMax: t.zeichnen.max, zeichnenN: t.zeichnen.n,
         cpuP95: q(t.cpu, 0.95), cpuMax: t.cpu.max, gezeichnet: t.gezeichnet,
-        gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0, haenger: t.haenger,
+        gezeichnetJeS: t.bild.summe ? t.gezeichnet / t.bild.summe * 1000 : 0,
+        // ruhig: erst ab einer halben Sekunde Ruhe im Abschnitt (sonst «–»)
+        ruhigSekunden: t.ruhigMs / 1000, gezeichnetRuhigJeS: t.ruhigMs >= 500 ? t.gezRuhig / t.ruhigMs * 1000 : null,
+        haenger: t.haenger,
         haengerMax: t.haengerMax, longtasks: t.longtasks, ohne: t.ohne,
         fluessig: laden ? null : t.bild.n === 0 || p95 <= MESS_GRENZE.p95 && t.ueber === 0,
         zeichnenOk: zeichnenP95 === null ? null : zeichnenP95 <= MESS_GRENZE.zeichnen };
@@ -20750,10 +21613,11 @@ const leistung = {
     return {
       version: APP_VERSION, zeit: new Date().toISOString(), mass: this.mass(),
       ersatz: !this.timer, ohne: [...this.teile.values()].reduce((s, t) => s + t.ohne, 0),
+      dauerlast: Object.keys(MESS_PUNKTE).filter((id) => this.punkte[id]).map((id) => this.punkte[id]),
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
-        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
+        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0, fluidAus: frameRate.fluidAus,
         kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
@@ -20778,11 +21642,10 @@ const leistung = {
       `GPU         ${g.gpu}`,
       `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
       `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
-        + `Umbauten ${g.umbauten})${g.mobil ? ', Handy' : ''}`,
+        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''})${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
-      ...(d.ersatz ? [`ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): ${d.ohne} Bildabstände mit readPixels nicht gezählt`]
-        : []),
+      ...(d.ohne ? [`Proben      ${d.ohne} Bildabstände mit einer Probe der Dauerlast nicht gezählt`] : []),
       `Grenzen     p95 ≤ ${MESS_GRENZE.p95} ms, kein Bild > ${MESS_GRENZE.bild} ms; Zeichnen p95 ≤ ${MESS_GRENZE.zeichnen} ms (Handy)`,
       '',
     ];
@@ -20791,8 +21654,10 @@ const leistung = {
       ['>33', 5, (a) => String(a.ueber33)]];
     const zeichnen = [['Zeichn', 7, (a) => z(a.zeichnenP95, 0)],
       ['CPU', 6, (a) => (a.cpuP95 === undefined ? '' : z(a.cpuP95, 0))],
-      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))]];
+      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))],
+      ['ruhig', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetRuhigJeS, 0, 0))]];
     const gesamt = { ...d.gesamt, name: 'Gesamt', cpuP95: undefined, gezeichnetJeS: undefined };
+    const umbruch = schmal ? ' ' : '\n  ';
     const block = (spalten) => {
       zeilen.push(`${'Abschnitt'.padEnd(15)}${spalten.map(([k, n]) => k.padStart(n)).join('')}`);
       for (const a of [...d.abschnitte, gesamt]) {
@@ -20801,13 +21666,52 @@ const leistung = {
       }
     };
     if (schmal) { block(bild); zeilen.push(''); block(zeichnen); } else block([...bild, ...zeichnen]);
-    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je'
-      + `${schmal ? ' ' : '\n  '}gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.`);
+    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn: p95 der GPU-Zeit'
+      + `${umbruch}je gezeichnetem Bild (ohne Timer –, dafür die Dauerlast); CPU: p95 der CPU-Zeit von frame(); gez/s:`
+      + `${umbruch}gezeichnete WebGL-Bilder je Sekunde, ruhig: nur solange keine Fahrt läuft und der Himmel steht.`);
+    // Dauerlast je Messpunkt: ganz und ohne je einen Teil, CPU je Bild der Probe; mit Timer (?ersatzmass) die GPU-Zeit
+    const dl = d.dauerlast ?? [];
+    if (dl.length) {
+      // zwei Blöcke, damit die Karte auf dem Handy 40 Zeichen breit bleibt: erst ganz, Spiegelung, Bloom, Netz, Pinsel
+      // und CPU; dann (Ticket 11) Himmel, Wasser, Unterwasser-Pass, Staub und letzter Bildschritt
+      const bloecke = [
+        [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'], ['netz', '-Netz', '-Nz'],
+          ['pinsel', '-Pinsel', '-Pi']],
+        [['himmel', '-Himmel', '-Hi'], ['wasser', '-Wasser', '-Wa'], ['unter', '-Unter', '-Un'], ['staub', '-Staub', '-St'],
+          ['final', '-Final', '-Fi']],
+      ];
+      const breite = schmal ? 5 : 8, namen = schmal ? 9 : 17; // schmal: 9 + 6 × 5 + «!» = 40 Zeichen
+      const zahl = (v) => (v === null || v === undefined ? '–' : v.toFixed(v >= 100 ? 0 : 1)).padStart(breite);
+      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`);
+      bloecke.forEach((teile, b) => {
+        if (b) zeilen.push('');
+        zeilen.push(`${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
+          + (b ? '' : 'CPU'.padStart(breite)));
+        for (const p of dl) {
+          zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
+            + (b ? '' : `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`));
+          if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
+        }
+      });
+      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel;`
+        + `${umbruch}${schmal ? '-Hi/-Wa/-Un/-St/-Fi' : ''}${schmal ? ': ' : ''}ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),`
+        + `${umbruch}Wasser (mit Unterwasser-Pass), Unterwasser-Pass (Fische), Staub bzw. letzten`
+        + `${umbruch}Bildschritt. Anteil = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
+        + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
+          + ' Die GPU braucht höchstens so lange.' : '')
+        + (dl.some((p) => p.gestoert) ? `${umbruch}? während der Messung getippt (auch beim zweiten Versuch): Werte unsicher.` : '')
+        + (dl.some((p) => p.gpu) ? `${umbruch}GPU (Timer): GPU-Zeit derselben Bilder zum Vergleich (?ersatzmass).` : ''));
+    }
     const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
-    const teuer = d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
+    // Urteil der Zeichenzeit: aus der Dauerlast «ganz» je Messpunkt, sonst aus der GPU-Zeit (p95) je Abschnitt
+    const teuer = dl.length
+      // ohne Wert (Fehler der Probe) nicht still als «ja» werten
+      ? dl.filter((p) => !(p.ms.ganz <= MESS_GRENZE.zeichnen))
+        .map((p) => `${schmal ? p.kurz : p.name} ${p.ms.ganz == null ? 'ohne Wert' : `${p.ms.ganz.toFixed(1)} ms`}`)
+      : d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
     zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
-      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
-        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}`);
+      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${!dl.length && d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
+        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}${dl.length ? ' (Dauerlast ganz)' : ''}`);
     if (d.schlimmste.length) {
       zeilen.push('', 'Längste Bilder:');
       for (const e of d.schlimmste) zeilen.push(`  ${z(e.ms, 6)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s`);
@@ -20940,7 +21844,18 @@ const leistung = {
       ui.advance();
       await this.warte(() => story.step === ziel + 1 && !story.running && flow.state === 'play'
         && !this.marken.includes('reise'), 120, 'Ankunft in der zweiten Welt');
-      await this.waehrend('ankunft', storySleep(6000));
+      await this.waehrend('ankunft', (async () => {
+        const t0 = performance.now();
+        if (!this.timer) { // Dauerlast, sobald der neue Himmel ganz steht (scharf, mit Streifen) und es ruhig ist
+          await this.bis(() => skyTheme.ready && this.ruhig, 10);
+          await this.dauerlast('ankunft');
+          if (!this.punkte.ankunft) { // gestört: noch einmal, sobald es wieder ruhig ist
+            await this.bis(() => this.ruhig && !drag.active && !input.pointer, 5);
+            await this.dauerlast('ankunft');
+          }
+        }
+        await storySleep(Math.max(0, 6000 - (performance.now() - t0)));
+      })());
       this.auswerten();
     } catch (e) {
       this.meldung = `Referenzdurchlauf: ${e.message}`;
@@ -20951,8 +21866,10 @@ const leistung = {
   laufTick() {
     if (ui.solvedVisible()) this.geloest = true;
     if (this.meldung || this.schritt === 'unterbrochen') return;
+    this.messpunkte();
     const tipp = IS_TOUCH ? 'tippen' : 'klicken';
-    if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
+    if (this.misst || this.wartet) this.status = 'Durchlauf: Zeichenzeit messen, kurz nichts tippen';
+    else if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
     else if (this.schritt === 'teil1') { // je Schritt nur, was jetzt zu tun ist (kurz: die Anzeige bleibt klein)
       const szene = story.el.dataset.mode === 'scene' && !story.el.classList.contains('hidden');
       this.status = this.geloest ? (menu.offen ? 'Durchlauf: «Weiter zur Reise» (oder «Auswerten»)'
@@ -20972,7 +21889,8 @@ const leistung = {
     const liste = !this.lauf ? [['Referenzdurchlauf', () => this.starteDurchlauf()]]
       : this.schritt === 'fertig' ? []
         : this.schritt === 'unterbrochen' ? [['Neu beginnen', () => this.starteDurchlauf()], abbrechen]
-          : [...(this.schritt === 'teil1' && this.geloest && menu.offen
+          // ohne GPU-Zeit erst, wenn die Dauerlast im Menü gemessen ist (messpunkte)
+          : [...(this.schritt === 'teil1' && this.geloest && menu.offen && (this.timer || this.punkte.menue)
             ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []), abbrechen];
     const stand = liste.map(([name]) => name).join();
     if (stand === this.knoepfeStand) return;
@@ -21070,7 +21988,7 @@ const perfHud = {
       this.text.textContent =
         (f ? `${Math.round(f[0])} FPS p95 ${f[1].toFixed(1)} max ${f[2].toFixed(1)}\n` : '') +
         (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} >33 ${t.ueber} Zeichn ${q(t.zeichnen)}\n` : '') +
-        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Ersatzmass'}` + (zustand ? `\n${zustand}` : '');
+        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Dauerlast'}` + (zustand ? `\n${zustand}` : '');
       return;
     }
     this.text.textContent =
@@ -21079,7 +21997,7 @@ const perfHud = {
         `Zeichnen p95 ${q(t.zeichnen)} ms   CPU p95 ${q(t.cpu)} ms\n` : '') +
       `WebGL ${sorted.length ? Math.round(1000 / avg) : 0} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
       `MSAA ${composer.renderTarget1.samples}×   Spiegelung ${QUALITY.reflectionScale} (MSAA ${reflector.getRenderTarget().samples}×)\n` +
-      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}\n` +
+      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}${frameRate.fluidAus ? '   stetige 60 aus' : ''}\n` +
       `Draw-Calls ${this.calls}   Dreiecke ${this.triangles}\n` +
       `GPU ${this.gpu}\nZeichenzeit ${leistung.mass()}\nVersion ${APP_VERSION}` +
       (zustand ? `\n${zustand}` : '');
@@ -21107,7 +22025,8 @@ window.addEventListener('keydown', (e) => {
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
  * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
  * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
- * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Steht der Blick im Himmel (Menü, Übersicht), 10
+ * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Zeigt der Himmel im Level Bewegung, der das Auge folgt
+ * (fluid: die Fische am Strand), stetig 60, ohne Wechsel bei Eingaben. Steht der Blick im Himmel (Menü, Übersicht), 10
  * (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
  */
 const frameRate = {
@@ -21124,11 +22043,19 @@ const frameRate = {
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
+  fluidAus: false,    // das Gerät hielt die stetigen 60 (fluid) nicht: bis zum Neuladen nicht mehr (adaptiveResolution)
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
    *  gerade ein, über oder schärft nach (skyTheme.moving: das liefe mit 10 Bildern/s stufig). */
   skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length && !skyTheme.moving; },
+  /**
+   * Im Level (auch beim Ein- und Ausblenden des Felds) zeigt der Himmel Bewegung, der das Auge folgt (skyTheme.fluid,
+   * etwa die Fische am Strand): dann stetig activeFps, auch ohne Eingabe. Mit 30 Bildern/s in Ruhe und 60 nach jeder
+   * Eingabe wechselte ihr Schritt je Bild beim Spielen alle paar Sekunden zwischen einfach und doppelt, das sah man
+   * (Ticket 17 der Leistung). Nicht hinter der Bühne und nicht unter dem Menü (wie busy).
+   */
+  fluid() { return !this.fluidAus && !story.covered && !story.choosing && flow.state !== 'intro' && skyTheme.fluid; },
   busy(ts) {
     // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
     if (story.covered || story.choosing && !story.tweens.length) return false;
@@ -21163,7 +22090,7 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
-    const fps = this.busy(ts) ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
+    const fps = this.busy(ts) || this.fluid() ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
     const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
@@ -21198,7 +22125,7 @@ function frame(ts) {
     const dt = loop.last === null ? 1 / 60 : Math.min((ts - loop.last) / 1000, MAX_DT);
     loop.last = ts;
     const t0 = leistung.bildBeginn();
-    animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+    animate(FIXED_TIME ?? sceneTime.at(ts), dt);
     window.__prisma.ticks++;
     if (loop.still >= REST_STEPS) {
       if (loop.dirty && loop.mayDraw()) draw(dt, t0, false); // aufwärmen und den Stand von jetzt auf die Leinwand
@@ -21222,7 +22149,7 @@ function frame(ts) {
   loop.last = ts;
   if (loop.ambient() || loop.pending()) loop.still = 0; else loop.still++;
   const t0 = leistung.bildBeginn(); // Messwerkzeug: CPU-Zeit von frame() und Zeichenzeit (nur mit ?perf)
-  animate(FIXED_TIME ?? clock.getElapsedTime(), dt);
+  animate(FIXED_TIME ?? sceneTime.at(ts), dt);
   window.__prisma.ticks++;
   draw(dt, t0);
   // nichts bewegt sich mehr: ruhen, bis wake() (das letzte Bild bleibt stehen; die Bilder bis hierher zeigen auch, was
@@ -21335,8 +22262,10 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
  * Bild der Welle nach dem Klick (gemessen bis 0,7 s Stillstand). Dazu je eines jeder übrigen Art. Sie bleiben (siehe
  * warmupShaders): Ein späteres Level mit einer neuen Art übersetzte sonst mitten im Fall des Lichts.
  */
-(() => {
+function vorwaermElemente() {
   const group = new THREE.Group(), types = new Set();
+  const proxies = game.hitProxies; // läuft im Seitenstart: ein schon geladenes Level behielte seine Trefferzylinder
+  game.hitProxies = [];
   group.visible = false;
   // drehbare mit Trefferzylinder, Lichtrand und Leuchtringen (makeInteractive): Deren Shader übersetzte sonst das erste
   // Bild, in dem ein drehbares Element herauswächst (70–140 ms Stillstand beim ersten Level, Review Ticket 07)
@@ -21363,8 +22292,8 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
   const beams = [beamMaterial, floorGlowMaterial].map((mat) => new THREE.Mesh(buildBeamGeometry([]), mat));
   group.add(...beams);
   boardGroup.add(group);
-  game.hitProxies = []; // makeInteractive trägt die Trefferzylinder der Vorwärm-Elemente ein: Sie sind nie zu treffen
-})();
+  game.hitProxies = proxies; // makeInteractive trägt die Trefferzylinder der Vorwärm-Elemente ein: Sie sind nie zu treffen
+}
 
 /** Materialien der Bildschritte (Bloom, letzter Schritt) in einer Szene ohne Licht: so übersetzt three sie wie im Vollbild */
 function passScene() {
@@ -21373,11 +22302,63 @@ function passScene() {
   for (const mat of mats) s.add(new THREE.Mesh(quad, mat));
   return s;
 }
-// Die Hauptschleife und das erste Bild erst, wenn die Shader übersetzt sind (im Hintergrund, compileParallel): Sonst
-// stünde es so lange, und mit ihm das Intro. Nicht gewählte Hintergründe aus dem Code (Sonnensystem) übersetzt
-// warmupShaders später.
-compileParallel([scene, passScene()], { skip: skyTheme.idleGroups })
-  .catch((e) => console.error(e)).finally(() => sceneLoop.start());
+/**
+ * Seitenstart in Stücken (Ticket 10 der Leistung): Was nach dem Nötigsten (Renderer, Szene, Startbildschirm) kommt,
+ * läuft in eigenen Aufgaben statt im Hauptscript am Stück (das hielt die Seite auf dem gedrosselten Handy 1,4 s, auf
+ * dem Poco 340 ms an). Die Reihenfolge bleibt: Umgebungen vor dem Anstossen der Programme (sie bestimmen deren Code).
+ * Bis zum Ende zeichnet nichts die Szene (sceneLoop.start), die Enthüllung wartet darauf (seitenstartAngestossen).
+ * Zwischen den Stücken nur eine neue Aufgabe, kein Bild abwarten: Der Browser zeichnet dazwischen, wenn ein Bild fällig
+ * ist, aber der Aufbau wartet nicht auf den Grafikprozess (er übersetzt in dieser Zeit Shader und hält dabei Bilder an;
+ * mit nextFrame kam die Enthüllung so auf dem Desktop bis 0,5 s später).
+ */
+const SEITENSTART_MS = 50; // je Aufgabe; Poco: bis gut 100 ms (ein Schritt kann die Grenze überschreiten)
+const neueAufgabe = () => new Promise((weiter) => {
+  const kanal = new MessageChannel();
+  kanal.port1.onmessage = () => weiter();
+  kanal.port2.postMessage(0);
+});
+async function seitenstart() {
+  // Schritte, zwischen denen eine neue Aufgabe beginnen darf (yield); je Aufgabe etwa SEITENSTART_MS. Ein schneller
+  // Rechner schafft so mehrere in einer Aufgabe. yield NEXT_FRAME vor einem grossen Schritt: der beginnt eine eigene
+  // Aufgabe (bei 4× gedrosselt je 100–250 ms)
+  function* aufbau() {
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = buildEnvironment(ENV_ROOM.scene, pmrem);
+    yield NEXT_FRAME;
+    MAT.mirror.envMap = buildEnvironment(ENV_ROOM.mirror, pmrem);
+    MAT.mirror.needsUpdate = true;
+    pmrem.dispose();
+    yield;
+    yield* stars.userData.fill();
+    yield NEXT_FRAME;
+    vorwaermElemente();
+  }
+  try {
+    for (const steps = aufbau(); ;) {
+      await neueAufgabe();
+      let step = {};
+      for (const t = performance.now(); performance.now() - t <= SEITENSTART_MS;) {
+        step = steps.next();
+        if (step.done || step.value === NEXT_FRAME) break;
+      }
+      if (step.done) break;
+    }
+    await neueAufgabe();
+    // Die Hauptschleife und das erste Bild erst, wenn die Shader übersetzt sind (im Hintergrund, compileParallel): Sonst
+    // stünde es so lange, und mit ihm das Intro. Angestossen in Häppchen (three erzeugt den Code jedes Programms
+    // synchron, am Stück 400 ms bei 4×), länger als im Spiel: Vor der Enthüllung animiert nichts. Nicht gewählte
+    // Hintergründe aus dem Code (Sonnensystem) übersetzt warmupShaders später.
+    await compileParallel([scene, passScene()], {
+      skip: skyTheme.idleGroups, slices: true, sliceMs: SEITENSTART_MS, pause: neueAufgabe, issued: markSeitenstart,
+    });
+  } catch (e) {
+    console.error(e);
+  } finally {
+    markSeitenstart();
+    sceneLoop.start();
+  }
+}
+seitenstart();
 </script>
 </body>
 </html>

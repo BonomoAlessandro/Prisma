@@ -93,7 +93,8 @@ Ursachen laut Untersuchung vom 31.10.2026 (Stellen in `index.html`):
 | 14 | Fische auf dem Handy ohne Treppen (`under.target` voll) | 07 |
 | 15 | Flug der Glühwürmchen als Web Animation | 07 |
 | 16 | Prolog-Bühne ohne fehlende Kacheln (Flackern) | 07, nicht parallel zu 15 |
-| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12, 14–16 |
+| 17 | Fische ohne Ruckeln (Zeitbasis aus rAF, stetige 60 in bewegten Welten) | 07 |
+| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12, 14–17 |
 
 Empfohlene Reihenfolge (Messrunde 07): 08 und 09 parallel, dann 10 (berührt wie 09 `compileParallel`), Handy-Durchlauf
 2b mit dem Mass aus 08 (Empfehlung, Entscheid Koordinator), 11 nach dessen Zahlen, 12 jederzeit, 13 zuletzt.

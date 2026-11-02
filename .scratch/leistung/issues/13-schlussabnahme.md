@@ -2,8 +2,8 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 08, 09, 10, 11, 12, 14, 15, 16
-(Fische pixelig?, Glühwürmchen beim Einflug in den Wald, Flackern in der ersten Noa-Szene)
+**Blocked by:** 08, 09, 10, 11, 12, 14, 15, 16, 17
+(Fische pixelig?, Glühwürmchen beim Einflug in den Wald, Flackern in der ersten Noa-Szene, Fische ruckeln)
 
 **Status:** ready-for-agent
 
@@ -23,6 +23,14 @@ nachgeführt. Gebaut wird nichts Neues.
 - [ ] Ergebniskarte vom Poco (Nutzer). Abnahme laut Spec: p95 ≤ 18,3 ms und kein Bild über 33 ms ausser markiertem
       Laden; Zeichnen (Dauerlast, 08) ≤ 8 ms; `adaptiv 1.00, Umbauten 0`; Spiegel und Skybox scharf (Nutzer).
       Dazu im Blick: Seitenstart (10), Reise und Einstieg (09), Menü «gez/s ruhig» 10.
+      Nutzer achtet auf: Fische glatt **und ruhig** (14, 17 – 17 wird erst damit `resolved`), kein Flackern in der
+      ersten Noa-Szene (16), Glühwürmchen beim Einflug in den Wald (15), auf der Karte kein «stetige 60 aus».
+- [ ] Zeichnen am Strand (11): reicht es auf dem Poco nicht auf 8 ms, dem Nutzer Variante A (kleiner sichtbarer
+      Abstrich: Bloom ab Viertelauflösung, Wasser in halber Auflösung, Pinsel bzw. Spiegel-MSAA auf dem Handy aus;
+      Liste in Ticket 11, zweite Runde) gegen Variante B (stetige 30 im Level) mit Bildern nebeneinander vorlegen.
+- [ ] Bekannte Lücken vom Arbeitsrechner prüfen und je als eigenes Ticket oder `wontfix` festhalten:
+      `geschichte-probe --uebersicht --dorf` scheitert an «Spiel → Übersicht» > 100 ms (schon vor 08–17);
+      Menü aus dem Spiel öffnen: Hänger 200–250 ms «ohne Script», vorher wie nachher (Befund Ticket 12).
 - [ ] README (Messwerkzeug, Dauerlast-Mass) und PLAN.md nachführen; Tabelle der Tickets in `spec.md` mit dem Endstand.
 - [ ] **Kein Merge nach `main`**, bis der Nutzer es sagt.
 

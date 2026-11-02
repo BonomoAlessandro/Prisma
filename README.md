@@ -189,8 +189,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     «Weiter zur Reise». Sie prüft Abschnitte und Werte der Ergebniskarte (`__prisma.leistung.ergebnis()`), dass der
     echte Stand zurück ist, die Anzeige weder Menü, Angebot, Werkzeugleiste noch «Weiter» verdeckt, die Karte auf dem
     Handy ohne seitliches Wischen passt und die Konsole sauber bleibt, und legt Karte und Daten unter
-    `tests/output/leistung/` ab. `--ersatzmass` (Seite mit `?ersatzmass`): ohne GPU-Zeit wie viele Android-Geräte;
-    `--bilder`: ein Bild je Schritt (verfälscht die Werte).
+    `tests/output/leistung/` ab. `--ersatzmass` (Seite mit `?ersatzmass`): ohne GPU-Zeit wie viele Android-Geräte,
+    also mit der Dauerlast an den drei Messpunkten (Ticket 08; die Probe wartet darauf und prüft die Zeilen
+    «Zeichnen (Dauerlast)»); hat das Gerät den Timer doch, steht die GPU-Zeit derselben Bilder zum Vergleich darunter.
+    Im Fenster ungedrosselt verlangt sie `adaptiv 1.00, Umbauten 0`. `--bilder`: ein Bild je Schritt (verfälscht die
+    Werte).
     Headless ist das nur eine Regressionsprüfung (ohne GPU in Software, rAF virtuell getaktet). `--fenster` öffnet ein
     echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
     so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
@@ -312,9 +315,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   (Startbildschirm, Prolog, Menü, Einstieg, Spiel, Reise usw.; Laden hinter einer Überblendung markiert der Code mit
   `leistung.markiere('laden')` bzw. `leistung.waehrend('laden', promise)`, es zählt nicht gegen die Grenzwerte). Dazu
   Hänger des Hauptthreads mit Ursache (`long-animation-frame`), die CPU-Zeit von `frame()` und die Zeichenzeit: GPU-Zeit
-  über `EXT_disjoint_timer_query_webgl2`, ohne die Erweiterung im Referenzdurchlauf die Zeit bis nach einem
-  1-Pixel-`readPixels` in jedem 10. gezeichneten Bild (der Abstand, in den es fällt, zählt nicht; die Karte vermerkt
-  das Ersatzmass deutlich; zum Ausprobieren `?ersatzmass`). Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
+  über `EXT_disjoint_timer_query_webgl2`; ohne die Erweiterung (Poco) misst der Referenzdurchlauf die **Dauerlast**
+  (Ticket 08) an drei ruhigen Messpunkten (erstes Level nach 3 s Ruhe, Menü still, Spiel nach der Reise): 20 Bilder
+  hintereinander zwischen zwei 1-Pixel-`readPixels`, Zeit je Bild, Median aus 5, dazu dieselbe Last ohne Spiegelung,
+  Bloom, Netz des Panoramas bzw. Pinsel, in einem zweiten Block ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),
+  Wasser, Unterwasser-Pass, Staub bzw. letzten Bildschritt (Ticket 11; Anteil eines Teils = ganz − ohne) und die
+  CPU-Zeit je Bild der Probe. Die
+  Abstände und Hänger der Proben zählen nicht, die automatische Absenkung wertet sie nicht; die Anzeige bittet währenddessen,
+  kurz nichts zu tippen (zum Ausprobieren `?ersatzmass`). Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
   **Referenzdurchlauf:** Seite mit `?perf` öffnen (auf dem Handy die Adresse auf Render mit `?perf`), in der Anzeige
   unten links (auf schmalem Bildschirm oben links, knappe Fassung) «Referenzdurchlauf» tippen. Der echte Spielstand
   wird gesichert (`prisma.leistung.sicherung`), die Seite lädt mit frischem Stand neu. Dann normal durchklicken, die
@@ -323,8 +331,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   selbst und reist ins Meer (Himmel frisch geladen); 6 s nach der Landung ist Schluss. «Auswerten» endet ohne Reise,
   «Abbrechen» (zweimal tippen) jederzeit. Lädt die Seite mitten im Durchlauf neu, sind die Werte weg: Die Anzeige
   meldet «Messung unterbrochen» mit «Neu beginnen» und «Abbrechen». Danach ist der echte Stand zurück, die Seite lädt neu und zeigt
-  die Ergebniskarte: je Abschnitt Bilder, p95, längstes Bild, Bilder über 33 ms, p95 der Zeichenzeit und der CPU-Zeit,
-  gezeichnete Bilder je Sekunde, dazu Gerät, GPU, Bildschirm, Takt, Mass der Zeichenzeit, Hänger und **Version**.
+  die Ergebniskarte: je Abschnitt Bilder, p95, längstes Bild, Bilder über 33 ms, p95 der GPU-Zeit (ohne Timer «–»)
+  und der CPU-Zeit, gezeichnete Bilder je Sekunde, auch nur in ruhigen Zeiten («ruhig»: keine Fahrt, der Himmel
+  blendet nicht ein), die Zeilen «Zeichnen (Dauerlast)» je Messpunkt, dazu Gerät, GPU, Bildschirm, Takt, Mass der Zeichenzeit, Hänger und **Version**.
   «Kopieren» legt sie in die Zwischenablage (sonst ein markiertes Textfeld), «Schliessen» vergisst sie. Proben lesen
   dasselbe über `window.__prisma.leistung` (`tests/leistung-probe.mjs`).
   **Version prüfen, sonst neu laden:** `APP_VERSION` (Datum und Ticketstand) steht gleich in `index.html` und `sw.js`
