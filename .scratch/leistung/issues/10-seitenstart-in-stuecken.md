@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Das Hauptscript läuft beim Laden nicht mehr als eine einzige lange Aufgabe. Auf dem Poco soll keine
 Aufgabe des Seitenstarts länger als 100 ms dauern (heute 342 ms Script). Optisch ändert sich nichts, der Startknopf
