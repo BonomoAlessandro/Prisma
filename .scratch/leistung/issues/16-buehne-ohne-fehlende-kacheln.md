@@ -294,3 +294,67 @@ Stehen von etwa 350 ms beim Öffnen (×4) ist nicht angegangen.
 `geschichte-probe --uebersicht --dorf` scheitert unter der Last der parallelen Läufe an Lücken in Spiel ↔ Übersicht
 (jetzt 2 Fehler, längste 150 ms); derselbe Lauf direkt danach auf `dabcd1a` ohne diese Änderung scheitert gleich
 (3 Fehler, längste 367 ms), also nicht von der Bühne.
+
+### 02.11.2026 – Handy: Speicher der Grafik auf den Stand vorher
+
+Auftrag (Koordinator): Handy ×4 höchstens etwa 450 MB (vorher 417 + 8 %), Messung auch mit einem Budget wie auf dem
+Gerät (`--force-gpu-mem-available-mb=512`), im Screencast keine fehlende Ebene; Ruhepunkt 2 ohne Wechsel, Linien bei
+normalem Abstand gleich scharf.
+
+**Wo der Speicher lag** (Handy ×4, Schnappschuss des Compositors je Ruhepunkt mit `disabled-by-default-cc.debug`,
+Speicher-Dump mit memory-infra, und Varianten): Ohne alle Linien-Ebenen liegt die Bühne auf dem Stand vorher (416 MB);
+der Mehrbedarf steckte also ganz in den Linien:
+- Die **verborgene Kopie** jeder Linie (`opacity: 0`, `will-change: opacity`) hielt Chrome mit im Speicher: etwa 60 MB.
+- Jede **sichtbare Linie** kostet Kacheln längs der ganzen Linie (Chrome rastert alles Animierte dieser Bühne in 1 CSS-Pixel
+  je Mass, auf dem Handy 2,5 Pixel je Mass; ein Grat über 3200 Masse sind so 8000 Pixel): am meisten der Grat der fernen
+  Berge (13,5 MB Kacheln, der höchste Streifen), dann Bergwald, Dorfhügel, Noas Hügel.
+- Noas Hügel war um seine Linie **geteilt** (Bäume davor, Zaun, Noa als eigenes Bild über der Linie): zwei weitere Ebenen
+  (etwa 8 MB).
+- Versucht und verworfen: die Linien in halber Dichte (SVG halb so gross, per transform wieder ganz) – Chrome malt die
+  Skalierung ins Bild der Ebene ein, die Dichte bleibt (auch mit eigenem Knoten, translateZ).
+
+**Änderungen:**
+- Die verborgene Kopie einer Linie gibt es nur noch für den Tausch (`.linie.aus { display: none }`, mit `bereit` da).
+- Die Grate der fernen Berge und des Bergwalds liegen wieder im Bild ihrer Ebene (wie vor Ticket 16), mit fester Breite
+  aus Zoom 1 (`.fest`, `stelle`): Diese Ebenen zoomen im Prolog höchstens um 1,26 und 1,5, der Strich wird dort so viel
+  breiter; bei Zoom 1 ist er wie vorher. Kein Tausch, keine eigene Ebene.
+- Der Grat von Noas Hügel liegt unter dem einen Bild der Ebene (doppelt so breit, die Fläche deckt die untere Hälfte, wie
+  beim Dorfhügel): kein geteiltes Bild mehr. Hinter den Stämmen der hinteren Tannen am Waldrand ist er nun verdeckt
+  (vorher lief er über ihren Fuss).
+- Getauscht wird eine Linie nur, wenn ihre Breite sonst um mehr als 10 % abwiche (`LINIEN_TOLERANZ`): im Prolog nicht mehr
+  in Ruhepunkt 1 (nahe Ebenen) und 6.
+
+**Messung auf dem gemergten Stand** (`6d776e1`: feature/leistung `eb0043f` mit 09, 10, 11b, 12 gemergt; «vorher» ist
+`eb0043f` ohne diesen Branch). `used_bytes` in MB, je Ruhepunkt der Wert im Halt, Handy ×4:
+
+| Lauf | R0 | R1 | R2 | R3 | R4 | R5 | Angebot | max |
+|---|---|---|---|---|---|---|---|---|
+| vorher (`eb0043f`), Budget 8 GB | 431 | 412 | 374 | 336 | 406 | 380 | 403 | 431 |
+| Stand `2e78cf5` (`x-neu9`), 8 GB | 456 | 507 | 441 | 444 | 469 | 449 | 522 | 522 |
+| jetzt, 8 GB | 415 | 455 | 403 | 387 | 425 | 405 | 479 | 479 |
+| jetzt, Budget 512 MB | 410 | 453 | 406 | 389 | 424 | 410 | 472 | 472 |
+
+Die Ruhepunkte liegen damit vorher +0 bis +50 MB (Ziel etwa 450: R1 455, sonst ≤ 425). **Nicht erreicht ist das Ziel
+beim Angebot** (479 gegen 403). Über 8 s nach dem Angebot gemessen bleibt es (472 gegen 402), kein kurzer Ausschlag. Die
+Kacheln der Bühne sind dort nur 14 MB mehr als vorher, die Render-Flächen im GPU-Prozess 17 MB; auch ohne alle Linien
+springt die Belegung beim Angebot um etwa 50 MB (vorher +10 bis +23). Vermutung, nicht belegt: Der Wald lädt hinter der
+Bühne jetzt erst nach dem Tausch der Linien (`ruheNachHalt`) und so zum grösseren Teil beim Angebot.
+Desktop (Fenster 1536 × 729, normales Budget): jetzt 898, vorher 921 MB.
+
+**Budget 512 MB, Screencast** (jeder Ruhepunkt 1,8 s nach dem Halt und das Angebot, vorher gegen jetzt, Anteil Pixel
+> 24/255 anders): Handy ×4 0,03 / 0,01 / 0,00 / 0,01 / 0,75 / 0,86 / 0,97 %, keine fehlende Ebene, der Rest sind
+Glühwürmchen an anderer Stelle; 8 Bilder mit fehlenden Kacheln im ganzen Prolog (vorher 23), keines in Ruhepunkt 2; keine
+Ausreisser der Helligkeit (2707 Bilder). Desktop (normales Budget): 0,11 / 0,00 / 0,01 / 0,04 / 0,78 / 1,48 / 1,66 %
+(Glühwürmchen), 180 Bilder mit fehlenden Kacheln (vorher 1208). Bilder: `scratchpad/16-15/out/ruhe-merge-512/`,
+`ruhe-merge-desk/` (lokal).
+
+**Flackern Einstellung 2:** kein Abschnittswechsel und kein Tausch in Ruhepunkt 2, kein Bild mit fehlenden Kacheln dort
+(alle Läufe Handy ×4, mit 8 GB und mit 512 MB).
+
+**Tests** (gemergt): logic (2036), golden, `geschichte-probe --start`, `--grad leicht --welten 2 --finale leicht`,
+`--handy`, `--quer --grad leicht`, `leistung-probe --handy`, `start-probe`, `leerlauf-probe` grün, keine Warnung
+«Weckstelle fehlt». `--uebersicht --dorf` scheitert wie zuvor (auch auf `dabcd1a`) an Lücken in Menü/Spiel ↔ Übersicht
+unter der Last der parallelen Läufe.
+
+**Offen:** Angebot +76 MB gegen vorher (siehe oben). Nicht angegangen: das Stehen beim Öffnen und die Teilung von
+`createStoryScene` im Seitenstart.
