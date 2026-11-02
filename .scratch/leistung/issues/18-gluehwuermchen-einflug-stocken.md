@@ -328,3 +328,37 @@ Empfehlung: dabei bleiben, mit genauen Bahnen und Startzeiten wie jetzt; eine Le
 
 **Tests:** logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `--grad leicht --welten 2 --finale leicht`,
 `leistung-probe --fenster --handy --ersatzmass`: exit 0, keine Warnung «Weckstelle fehlt».
+
+### 02.11.2026 – Messung auf dem Poco selbst (`leistung-09e`, Chrome 156, CDP über WLAN)
+
+**Aufbau:** lokaler Server, `adb reverse`, nur der Prisma-Tab über CDP (frischer Stand je Lauf nur für den Ursprung
+localhost), Tippen per `Input.dispatchTouchEvent`, Zustand alle 100 ms abgefragt (keine rAF-Schleife in der Seite), Trace
+über den Browser-Endpunkt (`viz`, `gpu`, `cc`, `benchmark`, `devtools.timeline(.frame)`, `blink.animations`), ohne
+Screencast (er kostete je Bild 20 ms `CopyOutput`). Skripte `poco.mjs`, `poco-aus.mjs`, `poco-kachel.mjs`,
+`poco-speicher.mjs`, `poco-stufen.mjs` im Scratchpad `18/`.
+
+**Befund (mehrere Läufe, Prolog):**
+- Gezeigte Bilder: Fahrten 1–3 und alle Ruhepunkte 58–60/s, Fahrt 4 ~57/s, **Fahrt 5 54/s, Fahrt 6 55/s**. In den
+  Lücken läuft keine lange Aufgabe; alle Stufen je Bild sind kurz (Compositor 1,8 ms, Viz 2 ms, Raster p50 0,4 ms).
+  WebGL, Hochladen und Shader gibt es in den Fahrten nicht mehr.
+- **Ursache der Lücken:** Der Compositor bricht das Bild ab (`TileBasedLayerImpl::AppendQuads checkerboard`,
+  `draw_result 2` = abgebrochen wegen fehlender Kachel bei Animation, danach `SendDidNotProduceFrame`). Abgebrochene
+  Bilder je Fahrt 1–6: 7–9 / 3 / 7–13 / 23–26 / 23–25 / **40–46**, in Ruhepunkten 0–8.
+- **Warum Kacheln fehlen:** Der Kachelspeicher liegt auf dem Poco dauernd an der weichen Grenze (128 MB von 256 MB,
+  `ALLOW_PREPAINT_ONLY`). In 85–100 % aller `PrepareTiles` (ab Einstellung 3 immer) konnte Chrome nicht alle nötigen
+  Kacheln einplanen (`all_tiles_that_need_to_be_rasterized_are_scheduled: false`). Schon das Sichtbare braucht fast den
+  ganzen Speicher, also gibt es keinen Rand auf Vorrat, und jede Kachel, die eine Fahrt freilegt, wird erst gerastert,
+  wenn sie gebraucht wird: ein Bild fällt aus. Schnappschuss auf dem Poco (je Ruhepunkt und Fahrt 125–128 MB): Himmel
+  18–24 MB, Noas Hügel mit Wald 14–30 MB, Teil-Ebene des Dorfhügels (Überlappung, 8800 × 7150) 12–29 MB, ferne Berge
+  11–14 MB, Strahl 4 × 3 MB, Linien je 3–5 MB.
+- **Gegenproben:** Ohne das Himmelsbild (`ohnehimmelbild`): Fahrt 4/5/6 7/13/37 Abbrüche; ohne die ganze Himmelsebene
+  5/4/30 (statt 25/24/45). Ohne Funkeln oder Polarstern, mit `pin` (Strahl und Glühwürmchen mit festem Rastermass),
+  mit k auch für die nahen Ebenen (`nahk`) oder mit Beschnitt der Ebenen auf die Reichweite der Kamera: keine Änderung
+  (verworfen, nicht im Code). Mit `nahk` fehlt die Ersparnis, weil die grossen Teil-Ebenen aus Überlappung (Dorfhügel,
+  Noas Hügel) trotz k in Massstab 1 rastern: Chrome klammert jede Ebene mit animiertem Vorfahren an 1.
+
+**Vorschlag (nicht gebaut):** Die Teil-Ebenen aus Überlappung loswerden, damit die nahen Ebenen in ihrer Auflösung
+rastern können: Die Linien von Dorfhügel und Noas Hügel, die unter dem Bild liegen müssen, kommen in eine eigene Ebene
+hinter der Ebene (gleiche Fahrt, eigene Animation, gleiche Startzeit); dann liegt das Bild in der Ebene selbst, und k gilt
+auch dort. Erwartet: nahe Ebenen etwa die Hälfte, insgesamt deutlich unter 128 MB, damit Vorrat für die Fahrten.
+Zusätzlich möglich: Strahl in weniger Ebenen. Messziel: auf dem Poco keine `checkerboard`-Abbrüche in den Fahrten.
