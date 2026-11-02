@@ -4,7 +4,7 @@
 
 **Blocked by:** 07; nicht parallel zu 15 (beide in `createStoryScene`)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Kein Flackern in der Prolog-Bühne. Beobachtung des Nutzers im Handy-Durchlauf 2: «ein kurzes Flackern
 des Bildes in der ersten Noa-Szene».
@@ -358,3 +358,7 @@ unter der Last der parallelen Läufe.
 
 **Offen:** Angebot +76 MB gegen vorher (siehe oben). Nicht angegangen: das Stehen beim Öffnen und die Teilung von
 `createStoryScene` im Seitenstart.
+
+**Abschluss (Koordination):** Angenommen. Massgebend ist, dass auch mit 512 MB Budget keine Ebene fehlt und Einstellung 2
+ohne fehlende Kacheln bleibt; beides erfüllt. Die +76 MB beim Angebot bleiben als Beobachtung für Handy-Durchlauf 3
+(Ticket 13): Flackert dort nichts, ist es erledigt.

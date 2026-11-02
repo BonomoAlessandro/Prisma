@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Der Flug der Glühwürmchen in den Wald (Prolog, Einstellung 6, «… tragen das Licht in den Wald»)
 läuft auf dem Poco ohne Stocken. Beobachtung des Nutzers im Handy-Durchlauf 2: Glühwürmchen «super, abgesehen von einem
