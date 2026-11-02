@@ -117,6 +117,11 @@ Entscheid in ADR 0005.
   - [ ] Eis oder Gletscher (Storyline: Cyan)
   - [ ] Blütental in der Dämmerung, z. B. Lavendel oder Kirschblüten (Storyline: Magenta)
   - [ ] Idyllisches Dorf, umgeben von Bergen (Storyline: Finale)
+  - [x] Noas Dorf bei Nacht für das Kapitel «Im Dorf» (Skybox `village`, 02.11.2026): hinter Noas Haus, Dorf mit
+    Kirche am Hang, Gipfel mit Schnee, Sternenhimmel; Noas Haus, Zaun, Hochbeet und drei Nachbarhäuser als 3D-Modelle
+    im Spiel. Gepackt und im Register (lädt erst beim Gebrauch, `vorab: false`), aber **noch nicht eingebaut**:
+    `STORY_DORF.sky` steht weiter auf `milky`. Zum Einbauen dort `'village'` setzen (dazu die zwei Erwartungen
+    `milky` in `tests/geschichte-probe.mjs`). Szene `tools/blender/szenen/village/szene.py`.
 - [ ] **1.3 Neuer Startbildschirm «Sternbild über Noas Dorf»** (vom Nutzer gewählt, 01.11.2026): ersetzt das heutige
   Intro (`#intro` in `index.html`: Strahl, Schriftzug, Farbfächer hinter dem A). Prototyp mit allen drei geprüften
   Varianten in `.scratch/startbildschirm/prototyp.html` (Variante 3; im Browser öffnen, Taste 3, Taste r spielt nochmals ab).
