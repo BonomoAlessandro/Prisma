@@ -127,3 +127,12 @@ Bild (ohne Takt 30: 338), Prolog 44 ms (`DIV#story.onclick`).
 
 Nutzer: «In der Szene, als die Glühwürmchen zu Noa fliegen, fehlten Teile des Hintergrunds.» → Ticket 18 (Vorrang vor
 dem Stocken). Urteil über 30 gegen 60 im Level steht noch aus.
+
+### Entscheid: stetige 30 im Spiel (ADR 0006), `leistung-09`
+
+Nutzer nach dem Spielen am Strand mit `?takt=30&sky=beach`: «läuft sauber». Gewählt: fest 30 Bilder/s im Level, im
+Menü und auf Reisen; die Geschichte bleibt bei 60. Variante A entfällt. `?takt=60` stellt zum Vergleich das frühere
+Verhalten her. Grenze der Zeichenzeit bei 30 Bildern/s: 16 ms (gleiche Reserve). Tests angepasst: leerlauf-probe
+(Reaktion im nächsten *gezeichneten* Bild), leistung-probe (`--takt60`, Urteil ≤ 8 bzw. 16 ms). Grün: logic, offline,
+screenshot, start-probe, leerlauf-probe (headless, `--fenster`, `--fenster --handy`), geschichte-probe `--start` und
+`--handy`, leistung-probe `--handy` und `--fenster --handy --ersatzmass`.

@@ -39,13 +39,13 @@ requireQuiet();
 
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
 const ersatzmass = args.includes('--ersatzmass');
+// --takt60: mit ?takt=60 (60 Bilder/s wie vor dem Entscheid für stetige 30, zum Vergleich)
+const takt60 = args.includes('--takt60');
 const name = `${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`
-  + (ersatzmass ? '-ersatzmass' : '') + (args.includes('--takt30') ? '-takt30' : '');
+  + (ersatzmass ? '-ersatzmass' : '') + (takt60 ? '-takt60' : '');
 // --ersatzmass: ohne GPU-Zeit (wie viele Android-Geräte), Zeichenzeit als Dauerlast an Messpunkten; hat das Gerät den
 // Timer doch (T2000), misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
-// --takt30: mit ?takt=30 (höchstens 30 Bilder/s, Vergleich für den Strand)
-const takt30 = args.includes('--takt30');
-const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf') + (takt30 ? '&takt=30' : '');
+const PAGE = pathToFileURL(join(root, 'index.html')).href + (ersatzmass ? '?perf&ersatzmass' : '?perf') + (takt60 ? '&takt=60' : '');
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 
@@ -249,7 +249,7 @@ try {
       pruefe(p.ms.unter === null || p.ms.wasser > 0, `Dauerlast ${p.name}: Unterwasser ohne Wasser`);
     }
     pruefe(text.includes('-Himmel') || text.includes('-Hi'), 'Zeile -Himmel/-Wasser/… fehlt');
-    pruefe(/Zeichnen ≤ 8 ms: (ja|nein \(.*\)) \(Dauerlast ganz\)/.test(text), 'Urteil der Zeichenzeit nicht aus der Dauerlast');
+    pruefe(/Zeichnen ≤ (8|16) ms: (ja|nein \(.*\)) \(Dauerlast ganz\)/.test(text), 'Urteil der Zeichenzeit nicht aus der Dauerlast');
   }
   if (fenster && drossel === 1) { // die Messung löst die Absenkung nicht aus (Fehler 01b)
     pruefe(d.geraet.adaptiv === 1 && d.geraet.umbauten === 0,

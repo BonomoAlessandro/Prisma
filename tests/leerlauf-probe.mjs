@@ -148,12 +148,13 @@ try {
   ergebnis.ruhe.ruht = await ev('window.__prisma.ruht?.() ?? null');
   ergebnis.ruhe.fluid = await ev('frameRate.fluid()');
   console.log('Ruhe', JSON.stringify(ergebnis.ruhe));
-  // Takt in Ruhe (Ticket 17): Zeigt der Himmel Bewegung, der das Auge folgt (Fische am Strand), stetig 60 Bilder/s,
-  // sonst 30. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU den Takt nicht)
+  // Takt in Ruhe (Ticket 17): Zeigt der Himmel Bewegung, der das Auge folgt (Fische am Strand), stetig activeFps (30, mit
+  // ?takt=60: 60), sonst 30. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU
+  // den Takt nicht)
   if (!still && fenster && drossel === 1) {
     // Soll am gemessenen Bildschirmtakt (frameRate.vsync): Die T2000 lief im Review mit 56,7 Hz statt 60, das Level dann
     // mit 56,7 bzw. 28,4 Bildern/s (jedes bzw. jedes zweite Bildschirmbild, wie frameRate.due rechnet)
-    const hz = 1000 / await ev('frameRate.vsync'), fps = ergebnis.ruhe.fluid ? 60 : 30;
+    const hz = 1000 / await ev('frameRate.vsync'), fps = ergebnis.ruhe.fluid ? await ev('frameRate.activeFps') : 30;
     const soll = +(hz / Math.max(1, Math.floor(hz / fps + 0.34))).toFixed(1);
     pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (fluid ${ergebnis.ruhe.fluid}, Takt ${hz.toFixed(1)} Hz)`);
     pruefe(ergebnis.menue.gezJeS <= 12, `Menü: ${ergebnis.menue.gezJeS} gez/s statt 10`);
@@ -180,11 +181,14 @@ try {
   ergebnis.reaktion = e.reaktion;
   ergebnis.adaptiv = e.adaptiv;
   console.log('Eingabe', JSON.stringify(ergebnis.eingabe));
-  const spaet = e.reaktion.filter((r) => r.frames > 0);
+  // Mit stetigen 30 Bildern/s (ADR 0006) zeichnet die Schleife nur jedes zweite Bildschirmbild: Die Reaktion kommt im
+  // nächsten gezeichneten Bild, also höchstens ein Bildschirmbild später (mit ?takt=60 im nächsten)
+  const erlaubt = Math.max(0, Math.round(60 / await ev("frameRate.activeFps")) - 1);
+  const spaet = e.reaktion.filter((r) => r.frames > erlaubt);
   console.log(`Reaktion: ${e.reaktion.length} Eingaben, erstes Bild nach ${JSON.stringify(e.reaktion.map((r) => r.frames))} `
     + `Bildschirmbildern (0 = im nächsten), ${JSON.stringify(e.reaktion.map((r) => r.ms))} ms`);
   pruefe(e.reaktion.length >= 3, `zu wenige Eingaben gemessen (${e.reaktion.length})`);
-  pruefe(spaet.length === 0, `Reaktion nicht im nächsten Bild: ${JSON.stringify(spaet)}`);
+  pruefe(spaet.length === 0, `Reaktion nicht im nächsten gezeichneten Bild: ${JSON.stringify(spaet)}`);
 } catch (err) {
   fehler.push(err.message);
   console.log(`  FEHLER ${err.message}`);
