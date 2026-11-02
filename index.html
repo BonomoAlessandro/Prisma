@@ -374,6 +374,9 @@
   /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
      Teile, die sich bewegen, drehen und skalieren um ihren Ort (left, top) */
   #story .scene .ebene { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; transform: translateZ(0); }
+  /* Inhalt der Ebene, verkleinert um k (createStoryScene, massstab): so rastert Chrome sie in der Auflösung, in der sie
+     zu sehen ist (Ticket 18) */
+  #story .scene .inhalt { position: absolute; left: 0; top: 0; width: 0; height: 0; transform-origin: 0 0; }
   #story .scene .ebene svg { position: absolute; display: block; overflow: visible; }
   #story .scene .teil, #story .scene .atem, #story .scene .flacker { position: absolute; left: 0; top: 0; width: 0; height: 0; }
   #story .scene .bewegt { will-change: transform; }
@@ -18549,14 +18552,27 @@ function createStoryScene(host) {
   </div>`);
 
   const el = host.lastElementChild, q = (s) => el.querySelector(s);
-  const layers = [...el.querySelectorAll('.ebene')].map((e) => ({ e, p: +e.dataset.p }));
+  /*
+   * Je Ebene: e (Ebene des Compositors, ihre Animation fährt die Kamera), p (Parallaxe), inhalt (alles darin, verkleinert
+   * um k, massstab). Chrome rastert eine Ebene mit laufender Animation von transform nie unter Massstab 1 (in Pixeln des
+   * Geräts je Pixel der Ebene). Ohne inhalt hiess das 1 Pixel je Mass, auch wo die Ebene viel kleiner zu sehen ist: Der
+   * Himmel (im Hochformat etwa 0,48) kostete so gut viermal den Speicher der Grafik, den er braucht; mit knappem Speicher
+   * (Poco) fehlten Teile des Hintergrunds (Ticket 18). Verkleinert werden nur die fernen Ebenen (MASSSTAB_P).
+   */
+  const layers = [...el.querySelectorAll('.ebene')].map((e) => {
+    const inhalt = document.createElement('div');
+    inhalt.className = 'inhalt';
+    inhalt.append(...e.childNodes);
+    e.append(inhalt);
+    return { e, p: +e.dataset.p, inhalt, k: 1 };
+  });
   // je Ebene die Paare ihrer Linien (linie): [sichtbar, verborgen]
-  const linien = layers.map(({ e }) => {
-    const l = [...e.querySelectorAll(':scope > .linie')];
+  const linien = layers.map(({ inhalt }) => {
+    const l = [...inhalt.querySelectorAll(':scope > .linie')];
     return Array.from({ length: l.length / 2 }, (_, i) => [l[2 * i], l[2 * i + 1]]);
   });
   // Bilder mit Linien fester Breite (.fest, ferne Ebenen): --rs aus Zoom 1 (stelle)
-  const fest = layers.map(({ e }) => [...e.querySelectorAll(':scope > .fest')]);
+  const fest = layers.map(({ inhalt }) => [...inhalt.querySelectorAll(':scope > .fest')]);
   const arm = q('.arm'), beam = q('.beam'), polar = q('.polar'), lines = [...el.querySelectorAll('.line')];
   const strahlen = [...el.querySelectorAll('.strahl')].map((s) => ({ s, keile: [...s.querySelectorAll('.keil')] }));
   const div = (parent, cls, style = '') => {
@@ -18706,6 +18722,7 @@ function createStoryScene(host) {
   const HALT_MS = 400, STAFFEL_MS = 90; // nach dem Halt: Wartezeit, dann je Ebene ein Schritt (vorbereiten, Linien)
   const LINIEN_MS = 200; // so lange rastert eine verborgene Linie (bereit), bevor sie die sichtbare ablöst
   const LINIEN_TOLERANZ = 1.1; // getauscht wird erst, wenn die Strichbreite sonst um mehr als 10 % abwiche
+  const MASSSTAB_P = 0.5; // Ebenen mit kleinerer Parallaxe (Himmel, ferne Berge, Bergwald) rastern in ihrer Auflösung (massstab)
 
   scene = {
     el, skip: q('.skip'),
@@ -18762,10 +18779,30 @@ function createStoryScene(host) {
       const slice = Math.max(W / 1600, H / 900); // wie preserveAspectRatio slice
       return [((1120 - x) * z) * slice / W + 0.5, ((150 - y) * z) * slice / H + 0.5];
     },
-    /** Transform einer Ebene (Parallaxe p) bei der Kamera c: Szene in Pixeln, um die Mitte des Bildschirms. */
-    pose(c, p) {
+    /**
+     * Transform einer Ebene (Parallaxe p) bei der Kamera c: Szene in Pixeln, um die Mitte des Bildschirms. k: ihr Inhalt
+     * ist um k verkleinert (massstab), die Ebene skaliert um so viel mehr.
+     */
+    pose(c, p, k = 1) {
       const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
-      return `translateZ(0) scale(${this.skala(c, p).toFixed(5)}) translate(${(-x).toFixed(2)}px, ${(-y).toFixed(2)}px)`;
+      return `translateZ(0) scale(${(this.skala(c, p) / k).toFixed(5)}) translate(${(-x * k).toFixed(2)}px, ${(-y * k).toFixed(2)}px)`;
+    },
+    /**
+     * Inhalt der fernen Ebenen um k verkleinern, die kleinste Skalierung der Folge (höchstens 1): Die Animation der Ebene
+     * skaliert dann nie unter 1, und Chrome rastert sie in der grössten Skalierung, in der sie zu sehen ist, statt in
+     * 1 Pixel je Mass (Ticket 18). Ein neues k malt den Inhalt neu: nur beim Anlegen der Folge (verborgen oder gedreht).
+     */
+    massstab(stuecke) {
+      for (const l of layers) {
+        let k = 1;
+        // nur Himmel, ferne Berge, Bergwald (je ein Bild ohne Teil-Ebenen darin, zusammen über die Hälfte des Speichers):
+        // In den nahen Ebenen rasterte Chrome sonst die Teil-Ebenen (Überlappung) bei jedem Zoom einer Fahrt neu
+        if (l.p < MASSSTAB_P) for (const { from, to } of stuecke) k = Math.min(k, this.skala(from, l.p), this.skala(to, l.p));
+        k = Math.floor(k * 1000) / 1000;
+        if (k === l.k) continue;
+        l.k = k;
+        l.inhalt.style.transform = k < 1 ? `scale(${k})` : '';
+      }
     },
     /** Pixel je Mass der Szene in der Ebene p bei der Kamera c (Hochformat: weiter weg; wie preserveAspectRatio slice). */
     skala(c, p) {
@@ -18801,6 +18838,7 @@ function createStoryScene(host) {
         c = to;
       }
       this.folgeZeit = { start: { ...stuecke[0].from }, zeiten, kameras, stuecke, ende: t, key: this.folgeKey() };
+      this.massstab(stuecke);
       this.abschnitte = layers.map(({ p }) => this.abschnitteFuer(p, stuecke));
       // je Ebene der Abschnitt mit der nächsten (in einer Fahrt: dieser) Fahrt
       const n = Math.min(stuecke.length - 1, Math.max(0, this.moving ? this.fahrtIndex : this.fahrtIndex + 1));
@@ -18851,17 +18889,17 @@ function createStoryScene(host) {
      * Fahrt a steht sie im Start von a, nach Fahrt b im Ziel von b.
      */
     abschnittAnlegen(i, [a, b]) {
-      const { stuecke, ende } = this.folgeZeit, { e, p } = layers[i];
-      const kf = [{ offset: 0, transform: this.pose(stuecke[a].from, p) }];
+      const { stuecke, ende } = this.folgeZeit, { e, p, k: m } = layers[i];
+      const kf = [{ offset: 0, transform: this.pose(stuecke[a].from, p, m) }];
       for (const { from, to, t: t0, d } of stuecke.slice(a, b + 1)) {
         const schritte = Math.max(1, Math.ceil(d / 1000 * 30));
         for (let j = 0; j <= schritte; j++) {
           const k = storyEase(j / schritte);
           kf.push({ offset: (t0 + d * j / schritte) / ende,
-            transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p) });
+            transform: this.pose({ x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k }, p, m) });
         }
       }
-      kf.push({ offset: 1, transform: this.pose(stuecke[b].to, p) });
+      kf.push({ offset: 1, transform: this.pose(stuecke[b].to, p, m) });
       const anim = e.animate(kf, { duration: ende, fill: 'both', easing: 'linear' });
       anim.abschnitt = [a, b];
       anim.updatePlaybackRate(this.speed);
@@ -18919,8 +18957,8 @@ function createStoryScene(host) {
      */
     stelle() {
       this.linienAbbrechen();
-      for (const [j, { e, p }] of layers.entries()) {
-        e.style.transform = this.pose(this.cam, p);
+      for (const [j, { e, p, k }] of layers.entries()) {
+        e.style.transform = this.pose(this.cam, p, k);
         const rs = this.skala(this.cam, p).toFixed(5);
         for (const paar of linien[j]) for (const l of paar) l.style.setProperty('--rs', rs);
         // feste Breite: hängt nur vom Bildschirm ab (gleich gesetzt rastert nichts neu)
