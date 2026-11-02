@@ -362,3 +362,30 @@ rastern können: Die Linien von Dorfhügel und Noas Hügel, die unter dem Bild l
 hinter der Ebene (gleiche Fahrt, eigene Animation, gleiche Startzeit); dann liegt das Bild in der Ebene selbst, und k gilt
 auch dort. Erwartet: nahe Ebenen etwa die Hälfte, insgesamt deutlich unter 128 MB, damit Vorrat für die Fahrten.
 Zusätzlich möglich: Strahl in weniger Ebenen. Messziel: auf dem Poco keine `checkerboard`-Abbrüche in den Fahrten.
+
+### Umbau nach dem Vorschlag, Strahl, Obergrenze 2 (Poco und Emulation, 02.11.)
+
+**Schritt 1, Linien-Ebenen (gebaut, gemessen, zurückgebaut):** Die Grate von Dorfhügel und Noas Hügel lagen je in
+einer eigenen Ebene hinter ihrer Ebene, und k galt für alle Ebenen. Auf dem Poco keine Besserung: Abbrüche je Fahrt 1–6
+7/2/12/24/24/38 und 8/4/11/23/23/42. Auf dem Poco bleiben Bergwald, Dorfhügel, Noa und ein Dunststreifen Teil-Ebenen
+aus Überlappung, anders als in der Emulation. Zurückgebaut (Entscheid: bringt nichts, macht die Bühne komplizierter).
+
+**Strahl:** Ohne Strahl (`ohnestrahl`) sinken die Abbrüche in Fahrt 4 von 23 auf 4 und in Fahrt 6 von 42 auf 21. Die
+vier Keile hatten eine Box von 860 × 100, Chrome rasterte sie ganz (2,7 MB je Keil). Jetzt ist die Box 25 hoch
+(`KEIL_H`, c18b33a). Speicher in Ruhepunkt 3 109 → 101 MB, in Fahrt 4 122 → 113 MB; in Fahrt 6 füllt Chrome den Platz
+wieder mit Vorrat (127 MB), die Abbrüche bleiben im Rahmen der Streuung (7/2/15/24/22/40). Bilder aller Ruhepunkte
+(Desktop, Handy hoch und quer, kleines Handy): gleich, Abweichungen nur bei den Glühwürmchen (≤ 0,3 %).
+
+**Liegengebliebene Kachelsätze:** Wechselt eine Ebene in den nächsten Abschnitt, rastert sie in einem neuen Massstab;
+den alten Satz behält Chrome, solange er zwischen gesehenem und neuem Massstab liegt (Vordergrund 1,0 und 0,865, Noas
+Hügel 1,0 und 0,765, Teil-Ebenen mit 2–3 Sätzen). Umbau der Abschnitte zurückgestellt.
+
+**Obergrenze 2 statt 2,75:** Mit k lässt sich nicht unter die Auflösung des Bildschirms rastern (Chrome rastert die
+Ebene trotz k in der gesehenen Auflösung; Probe in der Emulation: Speicher wie ohne). Über den Massstab der Seite
+(`?diag=seite2`, Meta-Viewport 2/devicePixelRatio) rechnet die Bühne mit der grösseren Breite und füllt den Bildschirm
+weiter; kleiner gerastert werden nur Ebenen an der Obergrenze (Noas Hügel 1,0 → 0,77, Vordergrund 1,0 → 0,87, Linien
+2,5 → 1,8–1,9). Emulation (DPR 2,75, 8 GB): Fahrt 5 124,5 → 116,3 MB, Fahrt 6 125,4 → 112,4 MB, Ruhepunkt 6 129,6 →
+121,3 MB, Ruhepunkt 1 139 → 140 MB (die Wurzel der Seite kommt mit 8,7 MB dazu). Keine Halbierung. Schärfe von Sternen,
+Graten und Noa: gleich. Aber Schrift und Knöpfe werden um 27 % kleiner (die ganze Seite), so nicht brauchbar. Ein Lauf
+auf dem Poco: Fahrt 1–6 39/1/12/9/8/9 Abbrüche, 58,5/60,3/55,6/57,7/57,1/58,1 Bilder/s (ohne: 8/6/6/22/23/43,
+53–54/s in Fahrt 5 und 6). Messung mit je zwei Läufen im Wechsel steht bereit (`poco-morgen.sh`).
