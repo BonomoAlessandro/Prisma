@@ -19015,6 +19015,9 @@ function createStoryScene(host) {
     /** Auf den Anfang der Einstellung shot stellen; folge: die Einstellungen, die kommen (Prolog oder Epilog). */
     reset(shot, folge = null) {
       beam.classList.remove('vor');
+      cancelAnimationFrame(this.wurmRaf); // gestaffelt Angelegtes der vorigen Folge: draw stellt alle neu
+      cancelAnimationFrame(this.flugRaf);
+      this.wurmRaf = this.flugRaf = 0;
       this.tweens = [];
       this.speed = 1;
       this.moving = false;
@@ -20285,8 +20288,9 @@ const story = {
       this.stillAb = performance.now() + sc.ruheNachHalt;
       setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
       // was die nächste Einstellung beim Tippen neu rastern liesse, jetzt (sc.vorbereiten)
-      const naechste = shots[shots.indexOf(shot) + 1];
-      if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
+      // (nur in diesem Ruhepunkt: schnell getippt, könnte schon der nächste stehen)
+      const hier = shots.indexOf(shot), naechste = shots[hier + 1];
+      if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;
     }
