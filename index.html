@@ -1217,7 +1217,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-02 leistung-08b';
+const APP_VERSION = '2026-11-02 leistung-08c';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -22103,7 +22103,67 @@ const frameRate = {
 };
 // ?takt=30: höchstens 30 Bilder/s, auch bei Bewegung und Eingaben (Vergleich auf dem Handy, ob stetige 30 im Level
 // genügen; Ticket 13 der Leistung, Strand über 8 ms)
-if (new URLSearchParams(location.search).get('takt') === '30') frameRate.activeFps = 30;
+if (new URLSearchParams(location.search).get('takt') === '30') {
+  frameRate.activeFps = 30;
+  // Auch die Animationen des Browsers (Bühne der Geschichte, Glühwürmchen, Übergänge im CSS) nur in Schritten von 30/s:
+  // Jede laufende Animation wird angehalten und hier alle 1/30 s auf ihre Zeit gestellt. pause/play, currentTime und
+  // die Geschwindigkeit bleiben für den übrigen Code wie gewohnt (eigene Uhr je Animation); am Ende finish(), damit
+  // `finished` und transitionend kommen. Nur zum Vergleich, kostet Hauptthread.
+  const P = Animation.prototype, orig = { pause: P.pause, play: P.play, finish: P.finish, update: P.updatePlaybackRate,
+    zeit: Object.getOwnPropertyDescriptor(P, 'currentTime'), rate: Object.getOwnPropertyDescriptor(P, 'playbackRate') };
+  const uhren = new Map(); // Animation → { t0, n0, rate, halt }
+  const jetzt = () => performance.now();
+  const zeitVon = (u) => u.t0 + (jetzt() - u.n0) * u.rate;
+  const neuBasis = (a, u, t) => { u.t0 = t; u.n0 = jetzt(); };
+  const fuehren = (a, halt) => {
+    let u = uhren.get(a);
+    const t = orig.zeit.get.call(a) ?? 0;
+    if (!u) { u = { t0: t, n0: jetzt(), rate: orig.rate.get.call(a), halt }; uhren.set(a, u); }
+    else { neuBasis(a, u, u.halt ? t : zeitVon(u)); u.halt = halt; }
+    return u;
+  };
+  P.pause = function () {
+    const u = uhren.get(this);
+    if (u && !u.halt) { neuBasis(this, u, zeitVon(u)); orig.zeit.set.call(this, u.t0); }
+    if (u) u.halt = true;
+    return orig.pause.call(this);
+  };
+  P.play = function () {
+    // play() setzt eine fertige Animation zurück und legt ein neues `finished` an; dann gleich wieder anhalten
+    orig.play.call(this); orig.pause.call(this);
+    const u = fuehren(this, false);
+    neuBasis(this, u, orig.zeit.get.call(this) ?? 0);
+  };
+  P.finish = function () { uhren.delete(this); orig.play.call(this); return orig.finish.call(this); };
+  P.updatePlaybackRate = function (v) {
+    const u = uhren.get(this);
+    if (u) { neuBasis(this, u, u.halt ? u.t0 : zeitVon(u)); u.rate = v; }
+    return orig.update.call(this, v);
+  };
+  Object.defineProperty(P, 'currentTime', { configurable: true, get() { return orig.zeit.get.call(this); },
+    set(v) { const u = uhren.get(this); if (u) neuBasis(this, u, v); orig.zeit.set.call(this, v); } });
+  Object.defineProperty(P, 'playbackRate', { configurable: true, get() { return orig.rate.get.call(this); },
+    set(v) { const u = uhren.get(this); if (u) { neuBasis(this, u, u.halt ? u.t0 : zeitVon(u)); u.rate = v; }
+      orig.rate.set.call(this, v); } });
+  let schritt = -1;
+  const takt = (ts) => {
+    requestAnimationFrame(takt);
+    const s = Math.floor(ts / (1000 / 30) + 0.25);
+    if (s === schritt) return;
+    schritt = s;
+    for (const a of document.getAnimations()) {
+      if (a.playState === 'running' && !uhren.has(a)) { fuehren(a, false); orig.pause.call(a); }
+    }
+    for (const [a, u] of uhren) {
+      if (a.playState === 'idle') { uhren.delete(a); continue; }
+      if (u.halt) continue;
+      const t = zeitVon(u), ende = a.effect?.getComputedTiming().endTime ?? Infinity;
+      if (u.rate >= 0 ? t >= ende : t <= 0) { uhren.delete(a); orig.play.call(a); orig.finish.call(a); }
+      else orig.zeit.set.call(a, t);
+    }
+  };
+  requestAnimationFrame(takt);
+}
 for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
 }
