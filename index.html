@@ -1217,7 +1217,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-02 leistung-08d';
+const APP_VERSION = '2026-11-02 leistung-08e';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19440,7 +19440,8 @@ const story = {
   },
   chapter() { return STORY_CHAPTERS[this.steps[this.step].c]; },
   /** Hintergrund des Kapitels; fehlt die Skybox (z. B. skies.js nicht geladen): Milchstrasse. */
-  setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate); },
+  // ?sky=…: dieser Hintergrund bleibt auch in den Levels und auf Reisen (Vergleich auf dem Handy)
+  setSky(id, animate) { skyTheme.set(skyTheme.byId.has(urlSky) ? urlSky : skyTheme.byId.has(id) ? id : 'milky', animate); },
   /** Das Level, das die Geschichte gerade spielt: im Dorf die Übung, sonst das Level des Platzes (Platz in LEVELS). */
   currentIndex() { return this.inDorf ? this.uebung : this.steps[this.step]?.index; },
   /** Die Geschichte führt das Level index (sonst: ausserhalb, Testschnittstelle zeige). */
