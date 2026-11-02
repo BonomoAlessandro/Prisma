@@ -4,7 +4,7 @@
 
 **Blocked by:** 15 (Flug als Web Animation), 16 (Bühne in Abschnitten, Linien)
 
-**Status:** ready-for-agent
+**Status:** in Arbeit (fehlender Hintergrund behoben, Ruckler: Zwischenstand mit Diagnose und Vorschlag)
 
 **What to build:** Zwei Befunde des Nutzers auf dem Poco F4 GT:
 
@@ -13,6 +13,9 @@
    rAF-Messung der Karte sieht ein Stocken dort womöglich nicht.
 2. Nachtrag (`leistung-08d`, höherer Vorrang, weil sichtbar): «In der Szene, als die Glühwürmchen zu Noa fliegen,
    fehlten Teile des Hintergrunds.» (Einstellung 5, «Da blinkt …», Fahrt 4 s.)
+3. Nachtrag (`leistung-09`): «Das Spiel mit 30 fps läuft super und glatt. Nur hatte ich in den Noa-Szenen noch immer ein
+   paar Ruckler.» Gemeint ist die Bühne allgemein (60/s): ganzer Prolog, Kapitelszenen zwischen den Welten, Finale,
+   Epilog. Reihenfolge: zuerst der fehlende Hintergrund, dann die Ruckler.
 
 Karte Durchlauf 3, Prolog: Hänger 106 ms bei 15,9 s («FrameRequestCallback → frame: Script 5 ms, Rendern 8 ms»),
 66 ms bei 22,9 s, 69 ms bei 28,2 s («ohne Script, Rendern 63 ms»); Startbildschirm 101 ms bei 6,9 s (ohne Script).
@@ -24,11 +27,100 @@ beim Einflug, Tausch der Linien (`ruheNachHalt`, `.linie.aus`). Für den fehlend
 kleinem Budget der Grafik (`--force-gpu-mem-available-mb` 512, 384 und kleiner), Screencast-Einzelbilder, Vergleich mit
 `leistung-07c` (`68640a5`).
 
-- [ ] Ursache des fehlenden Hintergrunds belegt (Trace, Einzelbilder) und behoben, ohne die Optik zu ändern.
+- [x] Ursache des fehlenden Hintergrunds belegt (Trace, Einzelbilder) und behoben, ohne die Optik zu ändern.
+- [ ] Ruckler der Bühne (Prolog, Kapitelszenen, Finale, Epilog) mit Trace Handy ×4 gesucht: Compositor-Ausfälle,
+      Raster, Neuaufbau von Ebenen, Style/Layout, Hänger wie `DIV#story.onclick`, Bild-Dekodierung, Shader im GPU-Prozess.
 - [ ] Ursache des Stockens belegt und behoben, ohne die Optik zu ändern; Vorher/Nachher-Einzelbilder und Trace.
 - [ ] Desktop und Handy auch mit `--force-gpu-mem-available-mb=512`: keine Ebene fehlt, kein Flackern.
-- [ ] Tests grün: logic, golden, screenshot, `geschichte-probe --start` und `--handy`,
+- [x] Tests grün: logic, golden, screenshot, `geschichte-probe --start` und `--handy`,
       `leistung-probe --fenster --handy --ersatzmass`; keine Warnung «Weckstelle fehlt».
 - [ ] Poco (nächster Handy-Durchlauf): Einstellungen 5 und 6 ohne fehlenden Hintergrund, Glühwürmchen ruhig.
 
 ## Comments
+
+### 02.11.2026 – Fehlender Hintergrund (Branch `leistung/18-gluehwuermchen`, Fix `396b4b5`)
+
+**Messaufbau:** echtes Chrome im Fenster, Quadro T2000, Handy-Emulation 393 × 873 (2,75, Android-Kennung), CPU 4×, ohne
+`?perf`, Prolog wie ein neuer Spieler (2,5 s Lesezeit), Trace samt Screencast jedes Bildes; Budget der Grafik über
+`--force-gpu-mem-available-mb`; «vorher» = `562995f`, Vergleich `leistung-07c` (`68640a5`). Skripte und Bilder im
+Scratchpad unter `18/` (`prolog.mjs`, `fahrten.mjs`, `blatt2.mjs`, `schicht.mjs`, `achse.mjs`, Bilder in `18/out/`).
+
+**Nachstellen:** Mit 512, 384, 256 und 192 MB fehlt in der Emulation in Einstellung 5 nichts, weder vorher noch in 07c
+(auch nicht mit Software-Raster oder gemeldetem Speicherdruck). Erst mit 128 MB kommt genau das Bild des Nutzers: Im Flug
+zu Noa fehlen ganze Rechtecke von Himmel und Bergwald (`out/blatt5-v-m128.png`), vorher sogar im Halt über Sekunden; 07c
+bricht dort ebenso ein (`blatt5-c-m128.png`). Chrome auf Android gibt der Seite höchstens 256 MB für Kacheln und nutzt
+davon im Normalfall nur einen Teil; Speicherdruck anderer Apps drückt das weiter. Die Bühne lag also auf dem Poco nahe an
+dieser Grenze, und wann sie darüber kommt, hängt vom Gerät ab (in `08` nicht gesehen, in `08d` schon).
+
+**Ursache, belegt mit Schnappschüssen des Compositors** (`schicht.mjs`, Kachelspeicher je Ebene): Chrome rastert eine
+Ebene mit laufender transform-Animation nie unter Massstab 1, also in 1 Gerätepixel je Mass der Szene. Im Hochformat sind
+die fernen Ebenen aber viel kleiner zu sehen (Himmel etwa 0,48, ferne Berge 0,5–0,6): Der Himmel allein belegte
+56–67 MB (sichtbar nötig gut ein Viertel), die fernen Berge 28–44 MB. Kachelspeicher der Bühne Handy ×4: vorher
+163–216 MB, 07c 151–213 MB.
+
+**Fix:** Der Inhalt jeder Ebene liegt in `.inhalt`; für Himmel, ferne Berge und Bergwald (`MASSSTAB_P` = 0,5) ist er um
+k verkleinert (kleinste Skalierung der Folge, `massstab`), und die Animation der Ebene skaliert um 1/k mehr (`pose`). Die
+Animation fällt so nie unter 1, und Chrome rastert diese Ebenen in der grössten Auflösung, in der sie zu sehen sind. k
+wird nur beim Anlegen der Folge gesetzt (verborgen oder nach Drehen). Die nahen Ebenen bleiben wie bisher: Mit k rasterte
+Chrome dort die Teil-Ebenen (Überlappung) bei jedem Zoom einer Fahrt neu (Zwischenstand mit allen Ebenen: fehlende Kacheln
+in den Fahrten Handy ×4 4–17 statt 1–5).
+
+**Messung Handy ×4** (Kachelspeicher je Ruhepunkt R und mitten in der Fahrt F, MB):
+
+| | R1 | F2 | R2 | F3 | R3 | F4 | R4 | F5 | R5 | F6 | R6 | Angebot |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| vorher | 215 | 216 | 164 | 184 | 173 | 183 | 202 | 202 | 182 | 202 | 203 | 203 |
+| 07c | 210 | 213 | 159 | 155 | 151 | 166 | 192 | 192 | 176 | 192 | 194 | 194 |
+| nachher | 127 | 124 | 97 | 122 | 108 | 107 | 126 | 126 | 113 | 137 | 114 | 114 |
+
+Ganzer Speicher der Grafik (`used_bytes`) mit normalem Budget: vorher 390–469 MB, nachher 236–331 MB. Gerasterte Kacheln
+in Fahrt 5/6: vorher 187/174, nachher 130/222; Bilder mit fehlenden Kacheln je Fahrt wie vorher (0–5).
+
+**Budget 128 MB, Einstellung 5** (Screencast, `out/blatt5-*-m128.png`): vorher 65 gezeigte Bilder in der Fahrt, Himmel
+und Bergwald fehlen über Sekunden, auch im Halt; nachher 230 Bilder, ganzes Bild bis auf einzelne Bilder am Start der
+Fahrt. (128 MB liegt knapp unter dem, was die Bühne jetzt braucht; die Läufe streuen dort stark.)
+**Budget 512 MB:** Handy ×4 alle sechs Einstellungen ohne auffälliges Bild (kein Bild dunkler als beide Nachbarn,
+`out/blatt-n-h512-*.png`). Desktop maximiert (1536 × 729, 2,5; normales Budget dort 1024 MB) hält 512 MB weder vorher
+noch nachher: vorher brechen Fahrt 2 und 5 ein (105 bzw. 60 Bilder), nachher Fahrt 6 (64 Bilder). Auf dem Desktop bringt
+der Fix wenig (quer ist die Skalierung nahe 1), dort ändert sich nichts Wesentliches.
+
+**Aussehen:** `buehne-messung bilder` (Ruhepunkte eingefroren, Desktop, Handy, quer, klein) vorher/nachher: höchstens
+0,17 % der Pixel > 24/255 anders, mittlere Abweichung ≤ 0,36 (Ruhepunkte 6/7: Glühwürmchen); im echten Prolog
+(Bildschirmfotos je Ruhepunkt nach dem Halt und 1,7 s danach, Handy, Fahrt mit Animation) Ruhepunkte 1–4 ≤ 0,12 %,
+mittel ≤ 0,47; 5/6 bis 1,1 % (Glühwürmchen, Rauch, Funkeln zu anderer Zeit). Mit dreifachem Kontrast vergrössert
+(`out/crop-1b.png`, `crop-4b.png`): Die kleinsten Sterne sind minimal weicher (vorher aus doppelter Auflösung
+verkleinert, mit leichtem Treppenmuster in der Milchstrasse, das jetzt fehlt); bei normalem Abstand nicht zu sehen.
+
+**Verworfen** (gemessen, ohne Nutzen): Satz und Hinweis dauerhaft als eigene Ebene (`will-change`), Flug der
+Glühwürmchen schon ab dem Tippen aktiv statt ab dem Abflug. Die gemalten Bilder mitten in den Fahrten (0,6/0,9/1,7 s,
+Ende der Übergänge von Satz und Hinweis) blieben, und die Kacheln dort sind das normale Nachrastern neuer Fläche.
+
+**Tests** (gemergt mit `leistung-09`, `01e7447`): logic, golden, screenshot, `geschichte-probe --start`, `--handy`,
+`leistung-probe --fenster --handy --ersatzmass`: alle exit 0, keine Warnung «Weckstelle fehlt».
+
+### 02.11.2026 – Ruckler: Zwischenstand (Diagnose, Vorschlag)
+
+**Glühwürmchen im Flug (Handy ×4, Trace):** Der Compositor zeigt in den Fahrten 5 und 6 jedes Bild (Abstand max 17,5 ms
+vorher, 18,7 ms nachher, kein Abstand > 50 ms); keine Animation der Bühne fällt in den Hauptthread (einzige
+`compositeFailed` sind die Uhren der Fahrten ohne Ziel). Im Hauptthread läuft jedes Bild ein BeginMainFrame (rAF des
+Messwerkzeugs bzw. der Probe und die Tweens in `frame`): Stil der rund 90 laufenden Animationen, p50 22 ms vorher, 14 ms
+nachher bei 4×; die meisten ohne Commit, für den Compositor folgenlos. In der Emulation ist also kein Stocken des Flugs zu
+sehen; auf dem Poco dürfte es der Grafikprozess sein (Rastern auf dem Adreno neben dem Zeichnen), den dieser Fix entlastet
+(Rasterfläche der fernen Ebenen etwa ein Viertel).
+
+**Stellen mit Last, die auch auf dem Poco sichtbar sein können:**
+- **Tippen** (`DIV#story.onclick`, Poco 44 ms Script bei 37,6 s in 08d): Satz, `act` (Flüge der 16 Glühwürmchen als
+  Keyframes, Spuren des Strahls) und `moveTo` in einer Aufgabe, bei 4× 460–630 ms; das erste Bild danach malt 46–72 ms
+  (4×) und zeigt Bilder mit fehlenden Kacheln. Die Fahrt beginnt also verspätet und mit einem dicken Commit.
+- **Halt** jeder Fahrt: Umstellen der Glühwürmchen und gestaffelte Linien/Abschnitte, Hauptbild bis 107 ms (4×, Paint 47).
+- **Öffnen** der Bühne: GPU-Raster 54 ms und eine Lücke bis 350 ms beim ersten Bild (bekannt aus Ticket 16).
+- Poco-Hänger aus Durchlauf 3: Der Prolog begann nach rund 691 Bildern Startbildschirm, etwa bei 12,5 s; 15,9 / 22,9 /
+  28,2 s liegen so etwa 3,4 / 10,4 / 15,7 s danach, also in den Einstellungen 1–3, nicht im Einflug (Fahrt 6 beginnt bei
+  normalem Lesen frühestens nach etwa 25 s). Der Hänger im Startbildschirm (6,9 s) liegt vor dem Prolog.
+
+**Vorschlag (nächste Schritte):** (1) Auf dem Poco selbst messen: `chrome://inspect` → Performance-Trace eines Prologs
+(Fahrten 1, 5, 6, Kapitelszene, Epilog), weil die Emulation auf der Quadro keine Ausfälle des Compositors zeigt. (2) Arbeit
+beim Tippen aus dem Bild nehmen: Flüge und Spuren der nächsten Einstellung im Ruhepunkt davor gestaffelt vorbereiten
+(angehalten), beim Tippen nur starten. (3) Den Halt entlasten (Umstellen der Glühwürmchen später, ausserhalb der ersten
+Sekunde). (4) Kapitelszenen, Finale und Epilog mit derselben Probe (`prolog.mjs --epilog`, Kapitel noch zu bauen) Handy ×4
+durchsuchen. Nicht erledigt in diesem Stand: Kapitelszenen, Finale, Epilog; Bild-Dekodierung und Shader im GPU-Prozess.
