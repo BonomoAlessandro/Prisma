@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Der Leuchtfilter des Menüs (`feGaussianBlur` 2,4, `index.html` um 16719) rechnet nur noch dort, wo
 Licht ist, nicht über die ganze Fläche des Menüs. Das Bild bleibt pixelgleich. Gedacht für Safari (iOS rechnet
