@@ -35,3 +35,27 @@ nachgeführt. Gebaut wird nichts Neues.
 - [ ] **Kein Merge nach `main`**, bis der Nutzer es sagt.
 
 ## Comments
+
+### Stand 02.11.2026: bereit für Handy-Durchlauf 3 (Schluss), bitte auf Render deployen
+
+`APP_VERSION '2026-11-02 leistung-08'`. Alle Tickets 08–12, 14–16 `resolved` und gemergt; 17 gemergt, `resolved` erst mit
+der Bestätigung «Fische ruhig» vom Poco. 11 (Strand ≤ 8 ms) entscheidet sich erst an der Poco-Karte (Schätzung nach der
+zweiten Runde 10,5–11,5 ms; sonst Variante A gegen B, siehe oben).
+
+**Tests auf dem Gesamtstand** (`GPU=1`, `leise.sh` 100 %), alle exit 0, nirgends «Weckstelle fehlt»: logic (2036), golden,
+hall, beurteilung, ki-tester, levelliste, vorrat, wuerfelliste, generator, geschichte (35), offline, screenshot,
+start-probe, leerlauf-probe (headless und `--fenster --handy`), geschichte-probe `--start`, `--grad leicht --welten 2
+--finale leicht`, `--handy`, `--ganz`, leistung-probe headless Desktop und `--handy`, `--fenster --ersatzmass`, `--fenster
+--handy --ersatzmass`, `--fenster --handy --drossel 4`. Fensterläufe `adaptiv 1.00, Umbauten 0`.
+
+**Ausnahme:** `geschichte-probe --uebersicht --dorf` scheitert (Lücken > 100 ms bei Spiel/Menü ↔ Übersicht, längste
+438–477 ms). Gegenprobe auf `leistung-07c` (68640a5) scheitert gleich (Menü → Übersicht 473 ms, Übersicht → Spiel 280 ms):
+nicht durch 08–17 entstanden, bleibt offener Punkt (siehe Checkliste).
+
+**Handy-Emulation im Fenster, `--ersatzmass`, je 2 Läufe im Wechsel gegen 07c** (T2000, Takt 56 Hz): Dauerlast «ganz»
+Spiel 1,9–2,0 (07c 2,1–2,2), Menü still 0,9–1,0 (1,0–1,1), Spiel n. Reise 2,6–2,7 (3,0) ms; Menü ruhig 10 gez/s. Hänger
+«ohne Script» von 250–480 ms im Prolog, Spiel und Startbildschirm in **beiden** Ständen (Grafikprozess dieses Rechners);
+kein Rückschritt erkennbar.
+
+**Für den Nutzer auf dem Poco:** Karte einfügen; achten auf Fische (glatt und ruhig), kein Flackern in der ersten
+Noa-Szene, Glühwürmchen beim Einflug in den Wald, auf der Karte kein «stetige 60 aus».
