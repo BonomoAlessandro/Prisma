@@ -996,6 +996,16 @@ console.log('Fische');
       const jump = Math.max(...after.map((f, k) => Math.hypot(f[0] - before[k][0], f[1] - before[k][1])));
       assert.ok(jump < 2, `Sprung ${jump.toFixed(2)} m`);
     });
+    test(`Fische (${sky.id}): erstes Bild etwas vor dem Ende von warm: kein Neubeginn`, () => {
+      // warm nach der Uhr, das erste Bild nach dem Zeitstempel des Bilds (Ticket 17), der bis zu einem Bild früher liegt
+      let n = 0;
+      const counted = { sdf: (x, z) => { n++; return field.sdf(x, z); }, depth: field.depth };
+      const sim = newSim(counted);
+      for (const _ of sim.warm(10));
+      n = 0;
+      assert.equal(sim.advance(10 - 0.05), 0);
+      assert.equal(n, 0, `${n} Abfragen: neu eingeschwommen`);
+    });
     test(`Fische (${sky.id}): Abstandsfeld in Häppchen gleich wie in einem Stück`, () => {
       const steps = fishField(depth, rock, img.w, w.extent, layer.minDepth, true);
       let r, yields = 0;

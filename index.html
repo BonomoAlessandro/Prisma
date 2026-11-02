@@ -9859,6 +9859,9 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
         ${decl}
         varying vec3 vWorld;
         const float PI = 3.141592653589793;
+        // Steinplatte (floorTop und plateSides), je 1 cm kleiner
+        const vec3 PLATE_LO = ${glv([-PLATE / 2 + 0.01, -PLATE_THICK - 0.03 + 0.01, -PLATE / 2 + 0.01])};
+        const vec3 PLATE_HI = ${glv([PLATE / 2 - 0.01, -0.01, PLATE / 2 - 0.01])};
         ${rule?.glsl ?? ''}
         void main() {
           vec3 g = normalize(vWorld - uCenter);
@@ -9870,6 +9873,17 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
           vec2 dx = dFdx(vec2(u, v)), dy = dFdy(vec2(u, v));
           dx.x -= floor(dx.x + 0.5); dy.x -= floor(dy.x + 0.5);
           vec2 gx = vec2(dx.x, -dx.y), gy = vec2(dy.x, -dy.y);
+          // Hinter der Steinplatte (undurchsichtig, steht fest, wird danach gezeichnet und deckt das Netz dort zu):
+          // nichts weiter rechnen. Im Level deckt sie gut ein Drittel des Bilds; das Netz schreibt am Strand seine Tiefe
+          // selbst, der Tiefentest kann es dort also nicht vorher verwerfen (Ticket 11). Quader um 1 cm kleiner, damit
+          // am Rand kein Pixel ohne Netz und ohne Platte bleibt.
+          {
+            vec3 eye = vWorld - cameraPosition, inv = 1.0 / eye;
+            vec3 t0 = (PLATE_LO - cameraPosition) * inv, t1 = (PLATE_HI - cameraPosition) * inv;
+            vec3 tn = min(t0, t1), tf = max(t0, t1);
+            float tIn = max(max(tn.x, tn.y), tn.z), tOut = min(min(tf.x, tf.y), tf.z);
+            if (tIn <= tOut && tIn > 0.0 && tIn < 1.0) discard; // eye läuft bis zum Netz: t = 1 dort
+          }
           vec3 col = vec3(0.0);
           bool hit = false;
           ${pick}
@@ -11283,6 +11297,13 @@ function* waterSurface(ctx, opt) {
         uniform mat4 uUnderView;
         varying vec3 vPos, vRay;
         ${GLSL_NOISE}
+        // noise(vec3(q, 0.0)): bei z = 0 wiegt die zweite Lage 0, also nur die erste (gleiches Ergebnis, halb so viel)
+        float noiseFlat(vec2 q) {
+          vec3 i = vec3(floor(q), 0.0);
+          vec2 f = fract(q);
+          f = f * f * (3.0 - 2.0 * f);
+          return mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y);
+        }
         ${ctx.lightGLSL}
         const float CELL = ${glf(2 * ext / w.size)};
         const vec2 FADE = ${glv(w.fade)};
@@ -11464,17 +11485,24 @@ function* waterSurface(ctx, opt) {
           // aufs Ufer zu: Gefälle des Abstands, nach vorn genommen (zwei Abfragen statt vier: fürs Handy)
           vec2 dir = normalize(vec2(at(p + vec2(CELL, 0.0)).y - shore, at(p + vec2(0.0, CELL)).y - shore) + vec2(1e-6));
           // Wellen: Fronten parallel zum Ufer, entlang des Ufers leicht versetzt (wob), in Gruppen höher und niedriger
-          float wob = (noise(vec3(p * 0.045, 0.0)) - 0.5) * 6.0;
+          float wob = (noiseFlat(p * 0.045) - 0.5) * 6.0;
           // Wellengruppen; zum Rand der Karte hin ohne Dünung (draussen gälte überall derselbe Abstand zum Ufer),
           // rundum gleich weit
           float env = swellSetAt(p, uTime) * (1.0 - smoothstep(EXT * 0.55, EXT * 0.95, length(p)));
           float sharp = mix(7.0, 3.0, smoothstep(15.0, 50.0, dist)); // Front der Walze in der Ferne weicher
           float along = p.x;
-          float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = breakGaps(ph, bedD, along);
+          // Was nur im Flachen wirkt, nur dort rechnen (Ticket 11, Handy): Ab 1,8 m Tiefe bricht keine Welle (jede
+          // Verwendung von brk ist mit smoothstep(1.8, 0.9, Tiefe) = 0 gewichtet), ab 0,7 m läuft nichts auf (share = 0,
+          // das Wasser ist dort mindestens 0,39 m dick, der Sand nie frei). Das Bild bleibt genau gleich.
+          float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = bedD < 1.8 ? breakGaps(ph, bedD, along) : 1.0;
           float cyc = (uTime * SWELL_W - wob * SWELL_K) / 6.28319; // so viele Walzen haben die Wasserlinie erreicht
           float u = fract(cyc), n = floor(cyc);
-          float reach = swashReach(n, along) * waveEnv(p, n, wob), reachPrev = swashReach(n - 1.0, along) * waveEnv(p, n - 1.0, wob);
-          float swash = swashLevel(u, reach), share = swashShare(bedD);
+          float share = swashShare(bedD), reach = 0.0, reachPrev = 0.0, swash = 0.0;
+          if (bedD < 0.7) {
+            reach = swashReach(n, along) * waveEnv(p, n, wob);
+            reachPrev = swashReach(n - 1.0, along) * waveEnv(p, n - 1.0, wob);
+            swash = swashLevel(u, reach);
+          }
           float thick = mix(swellHeight(x, bedD, env, sharp, brk), swash, share) + bedD; // Wasser über dem Grund
           float var;
           vec2 lowN; // Neigung der langen Wellen (wie N.xz, ohne Kräuselwellen)
@@ -11543,10 +11571,12 @@ function* waterSurface(ctx, opt) {
             // Streifen in Fliessrichtung, die mit ihm seewärts gleiten
             float down = max(u - SWASH_UP, 0.0);
             vec2 rq = vec2(dot(p, vec2(-dir.y, dir.x)), dot(p, dir) + down * down * 6.0);
-            float rill = texture2D(uWaves, rq * vec2(1.3, 0.38)).a * 0.6 + texture2D(uWaves, rq * vec2(3.1, 0.9) + 0.4).a * 0.4;
             float thin = smoothstep(0.12, 0.01, depth);   // im dünnen Film deutlicher
-            col *= 1.0 - 0.08 * back * thin * smoothstep(0.5, 0.72, rill);
-            col += refl * 0.08 * back * thin * smoothstep(0.55, 0.78, 1.0 - rill);
+            if (back * thin > 0.0) { // sonst ändert es nichts (Ticket 11: Texturzugriffe nur, wo sie wirken)
+              float rill = texture2D(uWaves, rq * vec2(1.3, 0.38)).a * 0.6 + texture2D(uWaves, rq * vec2(3.1, 0.9) + 0.4).a * 0.4;
+              col *= 1.0 - 0.08 * back * thin * smoothstep(0.5, 0.72, rill);
+              col += refl * 0.08 * back * thin * smoothstep(0.55, 0.78, 1.0 - rill);
+            }
             // Vor der brechenden Front ihre steile, beschattete Seite: ein dunkler Streifen; die dünne Lippe leuchtet
             // türkis im Gegenlicht (draussen ebenso die Kämme)
             col *= 1.0 - 0.25 * breaking * smoothstep(0.0, 0.06, x) * smoothstep(0.4, 0.12, x) * (1.0 - share);
@@ -11567,19 +11597,21 @@ function* waterSurface(ctx, opt) {
             dens *= 1.0 - 0.55 * smoothstep(0.3, 0.8, rock); // über flachem Fels kein Teppich
             // auf dem Film: hinauf eine Schaumrolle vorn; hinab zerrissene Schaumreste, in Fliessrichtung gezogen
             dens = max(dens, share * (0.1 + 0.6 * rising * smoothstep(0.12, 0.01, depth)) + back * 0.22 * smoothstep(0.2, 0.03, depth));
-            float foam = foamDissolve(p, dens, dir, share * swash * 8.0 + uTime * 0.05 - back * down * 2.0);
+            // ohne Dichte kein Schaum (foamDissolve ist dann 0)
+            float foam = dens > 0.0 ? foamDissolve(p, dens, dir, share * swash * 8.0 + uTime * 0.05 - back * down * 2.0) : 0.0;
             foam = max(foam, smoothstep(0.03, 0.004, depth) * share * rising * (0.6 + 0.4 * fn)); // helle Kante nur hinauf
             // an den Felsen: Brandung im Takt der Wellen – kommt eine an, schäumt es am Fels auf, dann zerfällt der
             // Schaum zu Fäden und läuft ab; dicht am Fels (flach) immer etwas Schaum
             float surge = smoothstep(-0.5, 0.6, cos(x + 0.4)) * env, d0 = depth - bedD + bed0;
             // am Fuss ein Saum, mal breiter, mal unterbrochen; kommt eine Welle an, schäumt es auf
-            float gaps = texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r;
+            // (nur am Fels: ohne ihn sind hug und lace 0)
+            float gaps = hug > 0.0 ? texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r : 0.0;
             float lace = max(hug * mix(smoothstep(0.25, 0.7, gaps), 1.0, surge), 0.5 * surge * smoothstep(0.4, 0.9, rock) * smoothstep(0.9, 0.2, d0) * (1.0 - 0.75 * near));
-            foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
+            if (lace > 0.0) foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
             col = mix(col, FOAM * (0.86 + 0.16 * fn), clamp(foam, 0.0, 1.0) * mix(0.75, 0.95, smoothstep(0.4, 0.9, dens)));
             // Rand des Films: hinauf eine klare Kante, hinab versickert das Wasser fleckig (die Stellen, wo der Sand
             // schon frei liegt, wandern nicht als Linie zurück)
-            float seep = back * 0.03 * texture2D(uFoam, p * 0.35).r;
+            float seep = back > 0.0 ? back * 0.03 * texture2D(uFoam, p * 0.35).r : 0.0;
             a = smoothstep(0.0, 0.012 + 0.02 * back, depth - seep) * seen;
             rgb = col * a;
           }
@@ -11605,7 +11637,7 @@ function* waterSurface(ctx, opt) {
         #define LOD0(t, p) texture2D(t, p) // ohne Mipmaps
         ${depthGLSL('uCutDepth')}
         float cutAt(vec3 w) {
-          vec4 q = projectionMatrix * viewMatrix * vec4(w, 1.0);
+          vec4 q = projectionMatrix * (viewMatrix * vec4(w, 1.0)); // zwei Matrix-Vektor-Produkte statt Matrix mal Matrix je Pixel
           return clamp(q.z / q.w * 0.5 + 0.5, 0.0, 1.0);
         }
         float skyDepth(vec3 world) {
@@ -11982,7 +12014,10 @@ function createFishSim(opt) {
     },
     advance(t) {
       if (!field) return null;
-      if (simT === null || t < simT - 1e-6) { simT = Math.max(0, t - WARM); reset(simT); }
+      // Ein wenig zurück (warm nach der Uhr, das erste Bild nach dem Zeitstempel des Bilds, der früher liegen kann):
+      // stehen lassen, nicht neu einschwimmen (das hielt das Bild sonst wieder 150 Schritte an); erst weiter zurück neu
+      if (simT === null || t < simT - CATCH) { simT = Math.max(0, t - WARM); reset(simT); }
+      else if (t < simT) return 0;
       // nach einer Pause (ausgeblendet, die Zeit sprang): vom letzten Stand weiter, nicht neu einschwimmen und nicht alles
       // nachrechnen; höchstens CATCH s je Bild (die Plätze sind ohnehin zufällig, das fällt nicht auf)
       else if (t - simT > CATCH) simT = t - CATCH;
@@ -13449,6 +13484,7 @@ function createComposer() {
   const bloomRatio = 2 * bloomDiv; // Bildpunkte je Bloom-Pixel und Richtung
   const taps = Array.from({ length: 2 * bloomRatio }, (_, i) => i - bloomRatio + 0.5);
   const glslNum = (x) => x.toFixed(1);
+  const quads = Array.from({ length: bloomRatio }, (_, q) => [2 * q, 2 * q + 1]); // je zwei benachbarte Abtastungen
   // Nur der Überschuss über der Schwelle blüht (weiches Knie), begrenzt gegen eckige Halos. Die Abtastungen rasten auf
   // Bildpunktmitten ein, die Gewichte rechnen mit dem echten Abstand zur Mitte des Bloom-Pixels: Geht die Bildgrösse
   // nicht in ganzen Bloom-Pixeln auf (krumme Fenstergrösse, adaptive Auflösung), wandert dessen Mitte gegen die
@@ -13466,13 +13502,22 @@ function createComposer() {
       float alpha = smoothstep(luminosityThreshold, luminosityThreshold + smoothWidth, v);
       return min(texel * (max(v - luminosityThreshold, 0.0) / max(v, 1e-4)), vec3(2.5)) * alpha;
     }
+    // Kann einer der vier Bildpunkte um die Ecke q über der Schwelle liegen? Eine bilineare Abtastung genau auf der Ecke
+    // mittelt sie; liegt die Summe ihrer Helligkeiten (alle ≥ 0) unter der Schwelle, liegt es jeder einzelne auch, und
+    // ihr Überschuss ist 0. Dann entfallen ihre vier Abtastungen (Ticket 11: der grösste Teil des Bilds blüht nicht).
+    // 2 % Reserve für die Rechengenauigkeit des Filters.
+    bool bright(vec2 q) {
+      return 4.0 * dot(texture2D(tDiffuse, q / uSrcSize).rgb, vec3(0.299, 0.587, 0.114)) >= luminosityThreshold * 0.98;
+    }
     void main() {
       vec2 c = vUv * uSrcSize, b = floor(c + 0.5), d = c - b; // Mitte des Bloom-Pixels, nächste Bildpunktecke, Rest
       ${taps.map((p, i) => `float wx${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.x), ` +
         `wy${i} = ${glslNum(bloomRatio)} - abs(${glslNum(p)} - d.y);`).join('\n      ')}
       vec3 e = vec3(0.0);
-      ${taps.flatMap((px, i) => taps.map((py, j) =>
-        `e += excess(b + vec2(${glslNum(px)}, ${glslNum(py)})) * (wx${i} * wy${j});`)).join('\n      ')}
+      ${quads.flatMap(([i0, i1]) => quads.map(([j0, j1]) => `if (bright(b + vec2(${glslNum((taps[i0] + taps[i1]) / 2)}, ${glslNum((taps[j0] + taps[j1]) / 2)}))) {
+        ${[[i0, j0], [i1, j0], [i0, j1], [i1, j1]].map(([i, j]) =>
+          `e += excess(b + vec2(${glslNum(taps[i])}, ${glslNum(taps[j])})) * (wx${i} * wy${j});`).join('\n        ')}
+      }`)).join('\n      ')}
       gl_FragColor = vec4(e / ${glslNum(bloomRatio ** 4)}, 1.0);
     }`;
   bloom.highPassUniforms.smoothWidth.value = 0.6;
@@ -13519,19 +13564,22 @@ function createComposer() {
     pass(this.materialHighPassFilter, this.renderTargetBright);
     let input = this.renderTargetBright;
     for (let i = 0; i < this.nMips; i++) {
-      const blur = this.separableBlurMaterials[i];
+      // gleich grosse Quelle: paarweise (pairBlur); verkleinernd (waagrecht ab Stufe 1): wie UnrealBloom
+      const blur = i === 0 ? pairBlur[i] : this.separableBlurMaterials[i];
       blur.uniforms.colorTexture.value = input.texture;
       blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionX;
       pass(blur, this.renderTargetsHorizontal[i]);
-      blur.uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
-      blur.uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
-      pass(blur, this.renderTargetsVertical[i]);
+      pairBlur[i].uniforms.colorTexture.value = this.renderTargetsHorizontal[i].texture;
+      pairBlur[i].uniforms.direction.value = THREE.UnrealBloomPass.BlurDirectionY;
+      pass(pairBlur[i], this.renderTargetsVertical[i]);
       input = this.renderTargetsVertical[i];
     }
     this.compositeMaterial.uniforms.bloomStrength.value = this.strength;
     this.compositeMaterial.uniforms.bloomRadius.value = this.radius;
     this.compositeMaterial.uniforms.bloomTintColors.value = this.bloomTintColors;
-    pass(this.compositeMaterial, bloomOut);
+    // in zwei Schritten (compositeCoarse, compositeFine), siehe dort
+    pass(compositeCoarse, this.renderTargetsHorizontal[1]);
+    pass(compositeFine, bloomOut);
     this.applied = true;
     r.setClearColor(this._oldClearColor, this.oldClearAlpha);
     r.autoClear = oldAutoClear;
@@ -13541,6 +13589,77 @@ function createComposer() {
     m.defines.SIGMA = (m.defines.KERNEL_RADIUS / 2.4).toFixed(3);
     m.needsUpdate = true;
   });
+  // Weichzeichnen, wo Quelle und Ziel gleich gross sind (alle senkrechten Durchgänge, auf Stufe 0 auch der waagrechte):
+  // derselbe Gauss wie UnrealBloom, aber je zwei benachbarte Texel mit einer bilinearen Abtastung zwischen ihnen, nach
+  // ihren Gewichten versetzt (Ticket 11: 3 statt 5 Abtastungen auf der grössten Stufe, 11 statt 21 auf der kleinsten).
+  // Verkleinert ein Durchgang (waagrecht ab Stufe 1), mittelt jede seiner Abtastungen schon 2 × 2 Texel der Quelle: dort
+  // wie UnrealBloom.
+  const pairBlur = bloom.separableBlurMaterials.map((m) => {
+    const radius = m.defines.KERNEL_RADIUS, sigma = parseFloat(m.defines.SIGMA);
+    const w = Array.from({ length: radius }, (_, x) => Math.exp(-0.5 * x * x / (sigma * sigma)));
+    const sum = w[0] + 2 * w.slice(1).reduce((a, b) => a + b, 0);
+    const taps = [];
+    for (let x = 1; x < radius; x += 2) {
+      const wa = w[x], wb = x + 1 < radius ? w[x + 1] : 0;
+      taps.push([(x * wa + (x + 1) * wb) / (wa + wb), (wa + wb) / sum]);
+    }
+    return new THREE.ShaderMaterial({
+      uniforms: { colorTexture: { value: null }, texSize: m.uniforms.texSize, direction: { value: new THREE.Vector2() } },
+      vertexShader: m.vertexShader,
+      fragmentShader: `
+        varying vec2 vUv;
+        uniform sampler2D colorTexture;
+        uniform vec2 texSize;
+        uniform vec2 direction;
+        void main() {
+          vec2 stp = direction / texSize;
+          vec3 s = texture2D(colorTexture, vUv).rgb * ${(w[0] / sum).toFixed(8)};
+          ${taps.map(([o, wt]) => `s += (texture2D(colorTexture, vUv + stp * ${o.toFixed(8)}).rgb + texture2D(colorTexture, vUv - stp * ${o.toFixed(8)}).rgb) * ${wt.toFixed(8)};`).join('\n          ')}
+          gl_FragColor = vec4(s, 1.0);
+        }`,
+    });
+  });
+  // Zusammensetzen in zwei Schritten (Ticket 11): erst die Stufen 2–5 in der Grösse der Stufe 2 (sie selbst ohne
+  // Vergrössern, 3–5 als B-Spline), dann Stufe 1 und dieses Zwischenbild als B-Spline in der Grösse der Stufe 1. Stufe 2
+  // ergibt genau dasselbe wie vorher; 3–5 bekommen zusätzlich einen B-Spline von einem Texel der Stufe 2 dazu (Sigma
+  // etwa 2 Bildpunkte, ihre eigene Unschärfe ist über zehnmal so breit). Statt 17 Abtastungen je Pixel der Stufe 1
+  // 5 dort und 13 je Pixel der viermal kleineren Stufe 2.
+  const compositeUniforms = (extra) => ({
+    ...Object.fromEntries(['bloomStrength', 'bloomRadius', 'bloomFactors', 'bloomTintColors'].map((k) => [k, composite.uniforms[k]])),
+    ...extra,
+  });
+  const COMPOSITE_HEAD = `
+    varying vec2 vUv;
+    uniform float bloomStrength, bloomRadius;
+    uniform float bloomFactors[5];
+    uniform vec3 bloomTintColors[5];
+    float lerpBloomFactor(const in float factor) { return mix(factor, 1.2 - factor, bloomRadius); }
+    #define level(i, t) (lerpBloomFactor(bloomFactors[i]) * vec4(bloomTintColors[i], 1.0) * (t))
+    ${BSPLINE_GLSL}`;
+  const compositeCoarse = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms(Object.fromEntries([2, 3, 4, 5].flatMap((i) => [
+      [`blurTexture${i}`, composite.uniforms[`blurTexture${i}`]], [`uSize${i}`, composite.uniforms[`uSize${i}`]]]))),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture2, blurTexture3, blurTexture4, blurTexture5;
+    uniform vec2 uSize2, uSize3, uSize4, uSize5;
+    void main() {
+      gl_FragColor = bloomStrength * (level(1, texture2D(blurTexture2, vUv)) + level(2, bspline(blurTexture3, vUv, uSize3))
+        + level(3, bspline(blurTexture4, vUv, uSize4)) + level(4, bspline(blurTexture5, vUv, uSize5)));
+    }`,
+  });
+  const compositeFine = new THREE.ShaderMaterial({
+    uniforms: compositeUniforms({ blurTexture1: composite.uniforms.blurTexture1, tCoarse: { value: bloom.renderTargetsHorizontal[1].texture },
+      uSize2: composite.uniforms.uSize2 }),
+    vertexShader: composite.vertexShader,
+    fragmentShader: `${COMPOSITE_HEAD}
+    uniform sampler2D blurTexture1, tCoarse;
+    uniform vec2 uSize2;
+    void main() {
+      gl_FragColor = bloomStrength * level(0, texture2D(blurTexture1, vUv)) + bspline(tCoarse, vUv, uSize2);
+    }`,
+  });
+  for (const m of [...pairBlur, compositeCoarse, compositeFine]) { m.depthTest = m.depthWrite = false; }
   const bloomSetSize = bloom.setSize.bind(bloom);
   bloom.setSize = (w, h) => {
     bloomSetSize(Math.max(1, Math.round(w / bloomDiv)), Math.max(1, Math.round(h / bloomDiv)));
@@ -20583,6 +20702,21 @@ function reflectionInView() {
   return _reflectFrustum.intersectsBox(_reflectPlate);
 }
 
+/**
+ * Mipmaps der Spiegelung nur bis zur Stufe, die der Boden liest (Ticket 11): Er tastet mit Stufe 1 … 2,2 plus log2 des
+ * Pixelverhältnisses ab; weil die Textur kleiner als das Bild ist, landet das auf etwa 0,5 … 1,7 (Handy) bzw. −0,7 … 0,5
+ * (Desktop). Bis Stufe 4 bleibt also alles gleich; die fünf, sechs kleinsten Stufen erzeugte jedes Bild umsonst (auf
+ * Kachel-GPUs je ein eigener Durchgang). Je Bild, weil setSize das Ziel neu anlegt.
+ */
+const REFLECT_MAX_MIP = 4;
+function limitReflectionMips() {
+  const tex = renderer.properties.get(reflector.getRenderTarget().texture).__webglTexture;
+  if (!tex || !renderer.capabilities.isWebGL2) return; // noch nicht angelegt (erstes Bild: ganze Kette wie bisher)
+  const gl = renderer.getContext();
+  renderer.state.bindTexture(gl.TEXTURE_2D, tex);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, REFLECT_MAX_MIP);
+}
+
 function renderReflection() {
   if (!reflectionInView()) return;
   floorTop.updateMatrixWorld();
@@ -20613,6 +20747,7 @@ function renderReflection() {
   // wird nur die Farbe, Kachel-GPUs sparen das Speichern und Kopieren der Tiefe (Ticket 11). Je Bild, weil setSize das
   // Ziel neu anlegt und dabei die Eigenschaften vergisst
   renderer.properties.get(reflector.getRenderTarget()).__ignoreDepthValues = true;
+  limitReflectionMips();
   reflector.onBeforeRender(renderer, scene, camera);
   for (const u of _reflectDimmed) {
     u.core.material.color.copy(u.reflectSave.core);
