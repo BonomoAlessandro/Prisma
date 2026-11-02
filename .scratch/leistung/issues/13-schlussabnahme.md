@@ -117,3 +117,13 @@ wenig beim Einflug in den Wald.»
 **Vorgabe des Nutzers (02.11.2026):** Die Geschichte (Bühne der Noa-Szenen, Glühwürmchen) wird immer mit 60 Bildern/s
 gezeigt. `?takt=30` (Vergleich Variante B) wirkt nur auf das WebGL-Bild (Level, Menü, Reisen); der Versuch in
 `leistung-08c`, auch die Browser-Animationen in 30er-Schritten zu stellen, ist zurückgenommen (`leistung-08d`).
+
+### Poco, `leistung-08d` mit `?perf&takt=30` (02.11.2026 07:40)
+
+`höchstens 30/s`, `adaptiv 1.00, Umbauten 0`. p95 überall 16,6 ms, Bilder > 33 ausserhalb des Ladens 8 (ohne Takt 30:
+14). gez/s: Einstieg 30, Spiel 31, Reise 30, Spiel n. Reise 42. Zeichnen (Dauerlast) unverändert: Wald 7,7, Menü 4,0,
+Strand 10,9 ms (die Probe misst die Zeichenzeit je Bild, nicht den Takt). Hänger mit Script: Seitenstart 246 ms in einem
+Bild (ohne Takt 30: 338), Prolog 44 ms (`DIV#story.onclick`).
+
+Nutzer: «In der Szene, als die Glühwürmchen zu Noa fliegen, fehlten Teile des Hintergrunds.» → Ticket 18 (Vorrang vor
+dem Stocken). Urteil über 30 gegen 60 im Level steht noch aus.
