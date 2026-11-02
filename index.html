@@ -1220,7 +1220,7 @@
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-02 leistung-08b';
+const APP_VERSION = '2026-11-02 leistung-09';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19478,7 +19478,8 @@ const story = {
   },
   chapter() { return STORY_CHAPTERS[this.steps[this.step].c]; },
   /** Hintergrund des Kapitels; fehlt die Skybox (z. B. skies.js nicht geladen): Milchstrasse. */
-  setSky(id, animate) { skyTheme.set(skyTheme.byId.has(id) ? id : 'milky', animate); },
+  // ?sky=…: dieser Hintergrund bleibt auch in den Levels und auf Reisen (Vergleich auf dem Handy)
+  setSky(id, animate) { skyTheme.set(skyTheme.byId.has(urlSky) ? urlSky : skyTheme.byId.has(id) ? id : 'milky', animate); },
   /** Das Level, das die Geschichte gerade spielt: im Dorf die Übung, sonst das Level des Platzes (Platz in LEVELS). */
   currentIndex() { return this.inDorf ? this.uebung : this.steps[this.step]?.index; },
   /** Die Geschichte führt das Level index (sonst: ausserhalb, Testschnittstelle zeige). */
@@ -21164,8 +21165,9 @@ const MESS_ABSCHNITTE = {
   epilog: ['Epilog'],
 };
 // Grenzwerte der Spec: p95 der sichtbaren Bildabstände ≤ 16,7 ms mit 10 % Toleranz (rAF-Zeitstempel schwanken), kein
-// Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms
-const MESS_GRENZE = { p95: 18.3, bild: 33, zeichnen: 8 };
+// Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms bei 60 Bildern/s, bei stetigen 30 (frameRate,
+// Entscheid des Nutzers nach Handy-Durchlauf 3) dieselbe Reserve: ≤ 16 ms
+const MESS_GRENZE = { p95: 18.3, bild: 33, get zeichnen() { return frameRate.activeFps <= 30 ? 16 : 8; } };
 const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
 // Dauerlast (Ticket 08), die Zeichenzeit ohne GPU-Zeit: k Bilder hintereinander in einer Aufgabe zwischen zwei
 // readPixels, Zeit je Bild; je Teil so viele Wiederholungen, davon der Median. Ein Halt je Bild (das alte Ersatzmass,
@@ -21680,7 +21682,7 @@ const leistung = {
       `GPU         ${g.gpu}`,
       `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
       `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
-        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''}${g.aktivFps !== 60 ? `, höchstens ${g.aktivFps}/s` : ''})`
+        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''}, Takt ${g.aktivFps}/s)`
         + `${g.mobil ? ', Handy' : ''}`,
       `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
       `Zeichenzeit ${d.mass}`,
@@ -22062,14 +22064,15 @@ window.addEventListener('keydown', (e) => {
 
 /**
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
- * Last; die Logik kostet unter 0,1 ms. Höchstens 60 Bilder/s, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen
- * sonst doppelt so viele), und 30, wenn nur noch die ruhige Umgebung lebt (Staub, Atmen der Ziele, leichtes Schweben
- * der Kamera) oder die Bühne der Geschichte das Feld verdeckt. Zeigt der Himmel im Level Bewegung, der das Auge folgt
- * (fluid: die Fische am Strand), stetig 60, ohne Wechsel bei Eingaben. Steht der Blick im Himmel (Menü, Übersicht), 10
- * (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
+ * Last; die Logik kostet unter 0,1 ms. Das WebGL-Bild läuft stetig mit 30 Bildern/s, auch bei Bewegung und Eingaben
+ * (Entscheid des Nutzers nach Handy-Durchlauf 3 der Leistung: am Strand brauchte das Poco 10,9 ms je Bild, mit 30
+ * sauber und ohne sichtbaren Abstrich; die Bühne der Geschichte läuft im Browser und bleibt bei 60). ?takt=60: wie
+ * früher 60, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen sonst doppelt so viele), 30 in Ruhe, stetig 60,
+ * wo der Himmel im Level Bewegung zeigt, der das Auge folgt (fluid: die Fische am Strand). Steht der Blick im Himmel
+ * (Menü, Übersicht), 10 (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
  */
 const frameRate = {
-  activeFps: 60,
+  activeFps: new URLSearchParams(location.search).get('takt') === '60' ? 60 : 30,
   idleFps: 30,
   // Menü und Übersicht offen, der Blick steht im Himmel: Dort bewegt sich nur noch wenig und langsam (Funkeln der
   // Sterne, Schweben der Kamera; Bestandsaufnahme Ticket 06 der Leistung: je Bild höchstens 5/255 auf unter 0,1 % der
@@ -22139,9 +22142,6 @@ const frameRate = {
     return true;
   },
 };
-// ?takt=30: höchstens 30 Bilder/s, auch bei Bewegung und Eingaben (Vergleich auf dem Handy, ob stetige 30 im Level
-// genügen; Ticket 13 der Leistung, Strand über 8 ms)
-if (new URLSearchParams(location.search).get('takt') === '30') frameRate.activeFps = 30;
 for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
 }

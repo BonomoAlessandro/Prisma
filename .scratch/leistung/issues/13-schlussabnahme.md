@@ -113,3 +113,29 @@ wenig beim Einflug in den Wald.»
 - Fische (14, 17): bestätigt → 17 `resolved`. Erste Noa-Szene (16): kein Flackern mehr.
 - Glühwürmchen beim Einflug in den Wald stocken noch (15) → Ticket 18.
 - Hänger mit Script: Seitenstart 338 ms in einem Bild (2c: 431), Reise bei 120,7 s 128 ms (neu sichtbar).
+
+**Vorgabe des Nutzers (02.11.2026):** Die Geschichte (Bühne der Noa-Szenen, Glühwürmchen) wird immer mit 60 Bildern/s
+gezeigt. `?takt=30` (Vergleich Variante B) wirkt nur auf das WebGL-Bild (Level, Menü, Reisen); der Versuch in
+`leistung-08c`, auch die Browser-Animationen in 30er-Schritten zu stellen, ist zurückgenommen (`leistung-08d`).
+
+### Poco, `leistung-08d` mit `?perf&takt=30` (02.11.2026 07:40)
+
+`höchstens 30/s`, `adaptiv 1.00, Umbauten 0`. p95 überall 16,6 ms, Bilder > 33 ausserhalb des Ladens 8 (ohne Takt 30:
+14). gez/s: Einstieg 30, Spiel 31, Reise 30, Spiel n. Reise 42. Zeichnen (Dauerlast) unverändert: Wald 7,7, Menü 4,0,
+Strand 10,9 ms (die Probe misst die Zeichenzeit je Bild, nicht den Takt). Hänger mit Script: Seitenstart 246 ms in einem
+Bild (ohne Takt 30: 338), Prolog 44 ms (`DIV#story.onclick`).
+
+Nutzer: «In der Szene, als die Glühwürmchen zu Noa fliegen, fehlten Teile des Hintergrunds.» → Ticket 18 (Vorrang vor
+dem Stocken). Urteil über 30 gegen 60 im Level steht noch aus.
+
+### Entscheid: stetige 30 im Spiel (ADR 0006), `leistung-09`
+
+Nutzer nach dem Spielen am Strand mit `?takt=30&sky=beach`: «läuft sauber». Gewählt: fest 30 Bilder/s im Level, im
+Menü und auf Reisen; die Geschichte bleibt bei 60. Variante A entfällt. `?takt=60` stellt zum Vergleich das frühere
+Verhalten her. Grenze der Zeichenzeit bei 30 Bildern/s: 16 ms (gleiche Reserve). Tests angepasst: leerlauf-probe
+(Reaktion im nächsten *gezeichneten* Bild), leistung-probe (`--takt60`, Urteil ≤ 8 bzw. 16 ms). Grün: logic, offline,
+screenshot, start-probe, leerlauf-probe (headless, `--fenster`, `--fenster --handy`), geschichte-probe `--start` und
+`--handy`, leistung-probe `--handy` und `--fenster --handy --ersatzmass`.
+
+Poco, `leistung-09`: «Das Spiel mit 30 fps läuft super und glatt. Nur hatte ich in den Noa-Szenen noch immer ein paar
+Ruckler.» → Ticket 18 (Bühne der Geschichte, bei 60).
