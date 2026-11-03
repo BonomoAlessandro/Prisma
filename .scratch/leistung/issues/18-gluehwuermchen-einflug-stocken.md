@@ -328,3 +328,157 @@ Empfehlung: dabei bleiben, mit genauen Bahnen und Startzeiten wie jetzt; eine Le
 
 **Tests:** logic, golden, screenshot, `geschichte-probe --start`, `--handy`, `--grad leicht --welten 2 --finale leicht`,
 `leistung-probe --fenster --handy --ersatzmass`: exit 0, keine Warnung «Weckstelle fehlt».
+
+### 02.11.2026 – Messung auf dem Poco selbst (`leistung-09e`, Chrome 156, CDP über WLAN)
+
+**Aufbau:** lokaler Server, `adb reverse`, nur der Prisma-Tab über CDP (frischer Stand je Lauf nur für den Ursprung
+localhost), Tippen per `Input.dispatchTouchEvent`, Zustand alle 100 ms abgefragt (keine rAF-Schleife in der Seite), Trace
+über den Browser-Endpunkt (`viz`, `gpu`, `cc`, `benchmark`, `devtools.timeline(.frame)`, `blink.animations`), ohne
+Screencast (er kostete je Bild 20 ms `CopyOutput`). Skripte `poco.mjs`, `poco-aus.mjs`, `poco-kachel.mjs`,
+`poco-speicher.mjs`, `poco-stufen.mjs` im Scratchpad `18/`.
+
+**Befund (mehrere Läufe, Prolog):**
+- Gezeigte Bilder: Fahrten 1–3 und alle Ruhepunkte 58–60/s, Fahrt 4 ~57/s, **Fahrt 5 54/s, Fahrt 6 55/s**. In den
+  Lücken läuft keine lange Aufgabe; alle Stufen je Bild sind kurz (Compositor 1,8 ms, Viz 2 ms, Raster p50 0,4 ms).
+  WebGL, Hochladen und Shader gibt es in den Fahrten nicht mehr.
+- **Ursache der Lücken:** Der Compositor bricht das Bild ab (`TileBasedLayerImpl::AppendQuads checkerboard`,
+  `draw_result 2` = abgebrochen wegen fehlender Kachel bei Animation, danach `SendDidNotProduceFrame`). Abgebrochene
+  Bilder je Fahrt 1–6: 7–9 / 3 / 7–13 / 23–26 / 23–25 / **40–46**, in Ruhepunkten 0–8.
+- **Warum Kacheln fehlen:** Der Kachelspeicher liegt auf dem Poco dauernd an der weichen Grenze (128 MB von 256 MB,
+  `ALLOW_PREPAINT_ONLY`). In 85–100 % aller `PrepareTiles` (ab Einstellung 3 immer) konnte Chrome nicht alle nötigen
+  Kacheln einplanen (`all_tiles_that_need_to_be_rasterized_are_scheduled: false`). Schon das Sichtbare braucht fast den
+  ganzen Speicher, also gibt es keinen Rand auf Vorrat, und jede Kachel, die eine Fahrt freilegt, wird erst gerastert,
+  wenn sie gebraucht wird: ein Bild fällt aus. Schnappschuss auf dem Poco (je Ruhepunkt und Fahrt 125–128 MB): Himmel
+  18–24 MB, Noas Hügel mit Wald 14–30 MB, Teil-Ebene des Dorfhügels (Überlappung, 8800 × 7150) 12–29 MB, ferne Berge
+  11–14 MB, Strahl 4 × 3 MB, Linien je 3–5 MB.
+- **Gegenproben:** Ohne das Himmelsbild (`ohnehimmelbild`): Fahrt 4/5/6 7/13/37 Abbrüche; ohne die ganze Himmelsebene
+  5/4/30 (statt 25/24/45). Ohne Funkeln oder Polarstern, mit `pin` (Strahl und Glühwürmchen mit festem Rastermass),
+  mit k auch für die nahen Ebenen (`nahk`) oder mit Beschnitt der Ebenen auf die Reichweite der Kamera: keine Änderung
+  (verworfen, nicht im Code). Mit `nahk` fehlt die Ersparnis, weil die grossen Teil-Ebenen aus Überlappung (Dorfhügel,
+  Noas Hügel) trotz k in Massstab 1 rastern: Chrome klammert jede Ebene mit animiertem Vorfahren an 1.
+
+**Vorschlag (nicht gebaut):** Die Teil-Ebenen aus Überlappung loswerden, damit die nahen Ebenen in ihrer Auflösung
+rastern können: Die Linien von Dorfhügel und Noas Hügel, die unter dem Bild liegen müssen, kommen in eine eigene Ebene
+hinter der Ebene (gleiche Fahrt, eigene Animation, gleiche Startzeit); dann liegt das Bild in der Ebene selbst, und k gilt
+auch dort. Erwartet: nahe Ebenen etwa die Hälfte, insgesamt deutlich unter 128 MB, damit Vorrat für die Fahrten.
+Zusätzlich möglich: Strahl in weniger Ebenen. Messziel: auf dem Poco keine `checkerboard`-Abbrüche in den Fahrten.
+
+### Umbau nach dem Vorschlag, Strahl, Obergrenze 2 (Poco und Emulation, 02.11.)
+
+**Schritt 1, Linien-Ebenen (gebaut, gemessen, zurückgebaut):** Die Grate von Dorfhügel und Noas Hügel lagen je in
+einer eigenen Ebene hinter ihrer Ebene, und k galt für alle Ebenen. Auf dem Poco keine Besserung: Abbrüche je Fahrt 1–6
+7/2/12/24/24/38 und 8/4/11/23/23/42. Auf dem Poco bleiben Bergwald, Dorfhügel, Noa und ein Dunststreifen Teil-Ebenen
+aus Überlappung, anders als in der Emulation. Zurückgebaut (Entscheid: bringt nichts, macht die Bühne komplizierter).
+
+**Strahl:** Ohne Strahl (`ohnestrahl`) sinken die Abbrüche in Fahrt 4 von 23 auf 4 und in Fahrt 6 von 42 auf 21. Die
+vier Keile hatten eine Box von 860 × 100, Chrome rasterte sie ganz (2,7 MB je Keil). Jetzt ist die Box 25 hoch
+(`KEIL_H`, c18b33a). Speicher in Ruhepunkt 3 109 → 101 MB, in Fahrt 4 122 → 113 MB; in Fahrt 6 füllt Chrome den Platz
+wieder mit Vorrat (127 MB), die Abbrüche bleiben im Rahmen der Streuung (7/2/15/24/22/40). Bilder aller Ruhepunkte
+(Desktop, Handy hoch und quer, kleines Handy): gleich, Abweichungen nur bei den Glühwürmchen (≤ 0,3 %).
+
+**Liegengebliebene Kachelsätze:** Wechselt eine Ebene in den nächsten Abschnitt, rastert sie in einem neuen Massstab;
+den alten Satz behält Chrome, solange er zwischen gesehenem und neuem Massstab liegt (Vordergrund 1,0 und 0,865, Noas
+Hügel 1,0 und 0,765, Teil-Ebenen mit 2–3 Sätzen). Umbau der Abschnitte zurückgestellt.
+
+**Obergrenze 2 statt 2,75:** Unter die gesehene Auflösung rastert Chrome eine Ebene weder mit k noch mit dem Massstab
+der Seite; kleiner wird nur, was heute an der Obergrenze (devicePixelRatio je Pixel des Inhalts) rastert, also die
+nahen Ebenen im Zoom. `?diag=raster2` (k mal 2/devicePixelRatio): Emulation Fahrt 5 124,5 → 110,7 MB, Fahrt 6
+125,4 → 113,2 MB, aber Ruhepunkt 1 139 → 161 MB (die nahen Ebenen bekommen mit k < 1 Teil-Ebenen, die anfangs in
+1,0 rastern); Schrift unverändert. Über den Massstab der Seite
+(`?diag=seite2`, Meta-Viewport 2/devicePixelRatio) rechnet die Bühne mit der grösseren Breite und füllt den Bildschirm
+weiter; kleiner gerastert werden nur Ebenen an der Obergrenze (Noas Hügel 1,0 → 0,77, Vordergrund 1,0 → 0,87, Linien
+2,5 → 1,8–1,9). Emulation (DPR 2,75, 8 GB): Fahrt 5 124,5 → 116,3 MB, Fahrt 6 125,4 → 112,4 MB, Ruhepunkt 6 129,6 →
+121,3 MB, Ruhepunkt 1 139 → 140 MB (die Wurzel der Seite kommt mit 8,7 MB dazu). Keine Halbierung. Schärfe von Sternen,
+Graten und Noa: gleich. Aber Schrift und Knöpfe werden um 27 % kleiner (die ganze Seite), so nicht brauchbar. Ein Lauf
+auf dem Poco: Fahrt 1–6 39/1/12/9/8/9 Abbrüche, 58,5/60,3/55,6/57,7/57,1/58,1 Bilder/s (ohne: 8/6/6/22/23/43,
+53–54/s in Fahrt 5 und 6). Messung mit je zwei Läufen im Wechsel steht bereit (`poco-morgen.sh`).
+
+### 03.11.2026 – Massstab der Seite 2 als Standard, Oberfläche gleich gross (Emulation; Poco steht aus)
+
+**Ziel:** die Wirkung von `?diag=seite2` (Seite rastert mit 2 statt 2,75 Gerätepixeln je Pixel) als Standard, ohne
+dass Schrift, Knöpfe und Bedienelemente kleiner werden. Desktop und Geräte mit Pixeldichte ≤ 2: unverändert.
+
+**Wege:**
+- (a) Massstab nur während der Bühne: Chrome übernimmt einen geänderten Meta-Viewport sofort (geprüft: innerWidth und
+  `visualViewport.scale` stimmen schon im selben Skript, auch im `<head>`). Aber jeder Wechsel legt die ganze Seite neu
+  aus und rastert sie neu, das Canvas ändert die Grösse (onResize baut Composer, Spiegelung und Bloom neu), die Bühne
+  bekommt ein `resize` (anpassen). Den Ausgleich der Texte der Bühne (Untertitel, «Überspringen», Angebot, Einstieg)
+  und der Medienabfragen bräuchte es trotzdem, nur zeitweise. Dazu ein Wechsel nur in einem schwarzen Moment, an
+  zwei Enden (Prolog, Epilog, Einstiege), und Android-Verhalten beim Wechsel unprüfbar ohne Gerät. Mehr Risiko, kaum
+  weniger Arbeit.
+- (b) dauerhaft, gewählt: ein fester Zustand ab dem ersten Bild, genau der, den das Poco mit `seite2` schon gemessen
+  hat; der Ausgleich ist mechanisch und auf dem Desktop wirkungslos.
+
+**Umbau (b)** (`SEITE` im `<head>`, nach dem Stil):
+- Nur bei `devicePixelRatio > 2`, CSS `zoom` nach dem Standard (`currentCSSZoom`: Chrome ≥ 128, Firefox ≥ 126), nicht
+  iOS (`-webkit-touch-callout`), und nur wenn der Browser den Meta-Viewport übernimmt (`visualViewport.scale` = 2/dpr
+  nach dem Setzen; Desktop: nein, dann bleibt alles wie vorher). `?diag=seite275`: ohne, wie bisher (zum Messen).
+- Meta-Viewport `initial-scale = minimum-scale = maximum-scale = 2/dpr`; `body { zoom: dpr/2 }` (Poco 1,375): alles
+  im body ist so gross und so scharf wie vorher (1 Pixel der Oberfläche = 2,75 Gerätepixel). Die Bühne nimmt es
+  zurück (`#story .scene .world { zoom: 1/SEITE }`) und rastert mit 2, rechnet wie mit `seite2` (innerWidth). Ihre
+  Texte (`.sub`, `.skip`, Angebot, Untertitel im Einstieg) liegen ausserhalb von `.world`: gleich gross.
+- Ausgleich: vw/vh/dvh im vergrösserten Teil durch `var(--seite)` (17 Stellen); Medienabfragen mit px im Stil beim
+  Laden mal SEITE (`CSSMediaRule.media`), in JavaScript `seiteMedia()` (HOCH im Menü, ALLE der Übersicht).
+  Koordinaten: clientX/getBoundingClientRect in Pixeln des Layouts → durch SEITE (Leucht-SVG des Menüs, «Weiter» daran,
+  Hinweis und Wischen der Übersicht, Ziehen der Kamera, Schwellen beim Tippen und `touchSlop`); Karte und Messwerkzeug
+  «schmal» nach Pixeln der Oberfläche.
+- WebGL: Canvas im body (vergrössert), Grösse in Pixeln der Oberfläche (`seiteBreite()`, aus `visualViewport`,
+  aufgerundet), `setPixelRatio` unverändert: Puffer 786 × 1746 wie vorher, devicePixelRatio bleibt 2,75,
+  `adaptiveResolution` unverändert. Raycast über das Rechteck des Canvas (gleiches Mass wie clientX).
+- `env(safe-area-inset-*)`: im vergrösserten Teil wie vorher (Emulation mit `setSafeAreaInsetsOverride`: 110 Gerätepixel
+  vorher und nachher); auf dem Gerät nicht geprüft.
+- Probe-Werkzeuge: `emulate({ mobile })` (Handy quer braucht mobile ausdrücklich), `geschichte-probe --dpr 2.75`,
+  `buehne-messung bilder --nur handy-275,quer-275`; Tippen ins Leere und Ziehen in `geschichte-probe`, `buehne-messung`,
+  `leerlauf-probe` an Ecken des Layouts statt des Bildschirms (mit SEITE grösser; Eingabe von CDP kommt in Pixeln des
+  Layouts an, geprüft).
+
+**Zoomen:** schon vorher gesperrt (`maximum-scale=1, user-scalable=no`), jetzt min = max = 2/dpr, also gleich. iOS
+lässt trotz `user-scalable=no` zoomen; dort bleibt alles wie vorher (kein Massstab). Android mit «Zoom erzwingen» in
+der Bedienungshilfe: Pinch wie vorher möglich, die Oberfläche bleibt dabei richtig.
+
+**Belege (Emulation, Chrome 156, alle Bereiche vorher = HEAD gegen nachher):** Bilder und Hüllrechtecke aller sichtbaren
+Elemente in Gerätepixeln (`getBoundingClientRect × dpr × visualViewport.scale`, Schrift `font-size × currentCSSZoom ×
+dpr × scale`) für Startbildschirm, Menü mit Leucht-SVG, Rückfrage «Von vorn», Spiel-HUD, Übersicht, Feier, Prolog
+(Text, «Überspringen»), Angebot, Einstieg, `?perf` und Karte; Handy hoch 393 × 873 und quer 873 × 393 je @2,75
+(Android-Kennung, mobil), Desktop 1440 × 900 @1 und @2,5. Skripte und Bilder im Scratchpad `18b/` (`ui.mjs`, `vergl.mjs`,
+`out/vergleich/<ansicht>-<zustand>.png` links vorher, rechts nachher; Zahlen `out/vergl.txt`).
+- Desktop @1 und @2,5: alle Rechtecke und Schriften auf 0,00 Gerätepixel gleich (SEITE = 1, Meta-Viewport unbeachtet).
+- Handy hoch und quer: Schriftgrössen gleich (Abweichung ≤ 0,07 Gerätepixel, also Rundung). Lage und Grösse der
+  Rechtecke: meist < 1,5 Gerätepixel; die grössten Abweichungen 2–6,5 Gerätepixel (≤ 2,4 Pixel der Oberfläche) in der
+  Höhe, wo sich mehrere Textzeilen stapeln (Feier, Angebot): Chrome rundet die Zeilenhöhe `normal` in Pixeln des Layouts
+  statt der Oberfläche, je Zeile bis 1 Gerätepixel anders. Knöpfe gleich breit (≤ 2,5 Gerätepixel), «Weiter» im Menü
+  184 → 181 Gerätepixel hoch (1,6 %). Mit dem Auge nicht zu unterscheiden (Bilder).
+- Bühne (`buehne-messung bilder --nur handy-275,quer-275,desktop`, eingefroren): Desktop gleich (0,00 %, nur die
+  Glühwürmchen ≤ 0,08 %), Handy @2,75 0,5–1,6 % der Pixel um > 24 anders (Kanten der Ebenen, die jetzt mit 2 rastern,
+  und die Zeilen der Texte; die Glühwürmchen in 6 und 7 streuen schon von Lauf zu Lauf um 0,8 %). Schärfe von Noa,
+  Graten, Strahl und Sternen in Ausschnitten gleich (`out/schaerfe-prolog2.png`, `schaerfe-prolog3.png`), Bilder
+  `out/buehne-vergleich/`.
+- Speicher der Grafik je Ruhepunkt und Fahrt (`raster2.sh`, Handy ×4, 8 GB), neu / `seite275`: Fahrt 5 116,1 / 123,0 MB,
+  Fahrt 6 113,7 / 122,9, Ruhepunkt 6 124,8 / 130,5, Fahrt 4 107,8 / 100,5, Ruhepunkt 1 152,9 / 145,0 (wie mit `seite2`:
+  die Wurzel der Seite kommt dazu).
+- WebGL: Puffer 786 × 1746, Pixelverhältnis 2, devicePixelRatio 2,75 (wie vorher); Ziehen der Kamera und Tippen in
+  Pixeln der Oberfläche (gleiche Drehung je Fingerweg wie vorher).
+- Kosten beim Laden: der Block im Kopf braucht 4–5 ms (Desktop-CPU, Emulation: Layout für `visualViewport` und 22
+  Medienabfragen); `leistung-probe` Seitenstart neu 124 und 89 ms, vorher 106 ms (Streuung). Im echten Fenster rundet Chrome den
+  Massstab anders: Puffer 788 × 1746 (ein Pixel der Oberfläche mehr, deckt sicher).
+
+**Tests** (alle `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node …`): logic, golden,
+screenshot, offline, start-probe (Desktop und `--handy`), geschichte-probe `--start`, `--handy`, `--quer --grad leicht`,
+`--grad leicht --welten 2 --finale leicht`, leistung-probe `--fenster --handy --ersatzmass`, leerlauf-probe `--fenster
+--handy`: exit 0, keine Warnung «Weckstelle fehlt». Zusätzlich mit `--dpr 2.75` (Massstab aktiv): `--quer --grad leicht
+--dorf` und `--handy --grad leicht --welten 1 --finale leicht` bestanden; `--handy --grad leicht --menue --uebersicht`
+mit 4 Lücken > 100 ms in Übergängen (142–374 ms) – der Stand vorher (HEAD) hat bei @2,75 genauso 4 (178–340 ms): die
+Probe misst ihre Grenze für Pixeldichte 2, headless @2,75 liegt sie darüber, nicht wegen des Umbaus. Inhaltlich (Menü,
+Übersicht, Fokus, Stand) alles bestanden.
+
+**Poco:** `poco-morgen.sh` misst jetzt neu (ohne Schalter) gegen alt (`?diag=seite275`), je zwei Läufe im Wechsel, und
+bricht ab, wenn der Massstab nicht wie erwartet gilt (Zeile «Massstab» je Lauf: `seite`, Breite, `visualViewport.scale`,
+Puffer). Probelauf `EMU=1`: läuft durch, neu `seite 1.375, breite 541, vv 0.7276, puffer 786×1746`, alt `seite 1, 393,
+vv 1`; in der Emulation keine Abbrüche (wie bisher, sie zeigt jedes Bild). Offen: Messung auf dem Poco (Abbrüche je
+Fahrt, Bilder/s) und ein Blick des Nutzers auf Schrift und Knöpfe auf dem Gerät.
+
+**Risiken:** (1) Android-Chrome übernimmt den Meta-Viewport im Kopf vielleicht nicht im selben Skript wie die
+Emulation: dann gilt SEITE = 1 und alles bleibt wie vorher (sicher, nur ohne Gewinn; die Messung zeigt es in der Zeile
+«Massstab»). (2) `env(safe-area-inset-*)` auf dem Gerät (Vollbild als App mit Aussparung) nur in der Emulation geprüft.
+(3) Neue Stellen, die mit clientX, getBoundingClientRect, innerWidth oder vw/vh Oberfläche bauen, müssen SEITE kennen
+(Kommentar bei SEITE). (4) Firefox Android (zoom nach Standard) nicht geprüft.

@@ -16,9 +16,11 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--groesse 360x640]
+//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
-//   --handy, Bilder unter handy-<b>x<h>-…); --grad: die Grade des Durchgangs
+//   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
+//   mit dem Massstab der Seite, Ticket 18 von .scratch/leistung/; Bilder unter <bildschirm>-dpr<n>-…); --grad: die
+//   Grade des Durchgangs
 //   («sehr schwer» als sehr-schwer); --welten: so viele Welten je Durchgang (Vorgabe 2, mit der Reise in die nächste);
 //   --finale: dazu das Finale in diesem Grad; --menue: dazu der Ablauf im Menü; --start: nur das gehaltene Enter;
 //   --uebersicht: dazu Übersicht und Wiederholen; --dorf: dazu «Im Dorf»; --dorf-raender: Randfälle des Dorfs (Review
@@ -56,11 +58,13 @@ const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
   : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe ? [] : GRADE;
 const welten = +(wert('--welten') ?? 2);
 const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
+const dpr = wert('--dpr') === null ? null : +wert('--dpr');
 if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 && welten <= 5)
   || args.includes('--handy') && args.includes('--quer') || ganz && args.includes('--welten')
-  || args.includes('--groesse') && !(groesse && args.includes('--handy'))) {
+  || args.includes('--groesse') && !(groesse && args.includes('--handy'))
+  || dpr !== null && !(dpr >= 1 && dpr <= 4 && (args.includes('--handy') || args.includes('--quer')))) {
   console.error('Aufruf: node tests/geschichte-probe.mjs [--handy [--groesse 360x640] | --quer] [--grad leicht,…] '
-    + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender]');
+    + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender] [--dpr n]');
   process.exit(1);
 }
 requireQuiet();
@@ -70,6 +74,8 @@ const view = groesse ? { name: `handy-${groesse[1]}x${groesse[2]}`, width: +groe
   : args.includes('--handy') ? { name: 'handy', width: 390, height: 844, dpr: 2, phone: true }
   : args.includes('--quer') ? { name: 'quer', width: 844, height: 390, dpr: 2, phone: true }
     : { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false };
+// andere Pixeldichte: ein Handy quer gilt dann ausdrücklich als mobil (Meta-Viewport, Massstab der Seite)
+if (dpr !== null) Object.assign(view, { name: `${view.name}-dpr${String(dpr).replace('.', '')}`, dpr, mobile: true });
 const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
 const PAGE_START = pathToFileURL(join(root, 'index.html')).href + '?noadapt'; // mit Startbildschirm
 const fehler = [];
@@ -119,6 +125,8 @@ const slug = (g) => g.replace(' ', '-');
 const stand = (g) => ev(`JSON.parse(localStorage.getItem('prisma.noa.${slug(g)}') || 'null')`);
 const karte = (g) => `#menue .menue-wahl[data-menue-fokus="wahl:${g}"]`;
 
+/** Breite und Höhe des Layouts (Koordinaten der Eingabe): mit dem Massstab der Seite (SEITE) grösser als der Bildschirm. */
+const layout = () => ev('({ w: innerWidth, h: innerHeight })');
 /**
  * Klick (Desktop) bzw. Tippen mit dem Finger (Handy) auf die Mitte eines sichtbaren Elements. Liegt es ausserhalb des
  * Bildschirms (kleine Handys: «Schliessen» unter den Kacheln der Übersicht), scrollt die Probe erst dorthin wie ein
@@ -131,12 +139,13 @@ async function tippe(selector, was = selector) {
   const mitte = () => ev(`(() => { const r = document.querySelector(${JSON.stringify(selector)})
     .getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
   let { x, y } = await mitte();
-  for (let n = 0; n < 6 && (y < 8 || y > view.height - 8); n++) {
-    const weg = Math.sign(y - view.height / 2) * Math.min(Math.abs(y - view.height / 2), view.height * 0.6);
-    await scrolle(view.width / 2, view.height / 2, weg);
+  const L = await layout();
+  for (let n = 0; n < 6 && (y < 8 || y > L.h - 8); n++) {
+    const weg = Math.sign(y - L.h / 2) * Math.min(Math.abs(y - L.h / 2), L.h * 0.6);
+    await scrolle(L.w / 2, L.h / 2, weg);
     ({ x, y } = await mitte());
   }
-  pruefe(y >= 8 && y <= view.height - 8, `${was}: nicht auf den Bildschirm zu scrollen (y ${Math.round(y)})`);
+  pruefe(y >= 8 && y <= L.h - 8, `${was}: nicht auf den Bildschirm zu scrollen (y ${Math.round(y)})`);
   await tippeBei(x, y);
 }
 /** Inhalt unter (x, y) um dy Pixel nach oben schieben (dy > 0: weiter unten Liegendes kommt herauf). */
@@ -255,7 +264,8 @@ async function geste() {
   const fokus = await ev('document.activeElement?.dataset?.menueFokus ?? null');
   // mit dem Finger gilt die Geste erst ab dem Loslassen, freigeschaltet wird beim Aufsetzen: dann ein zweites Mal
   for (let n = 0; n < 3 && !(await ev(`!!${D}.audio.ctx`)); n++) {
-    await tippeBei(view.width - 4, view.height - 4);
+    const L = await layout();
+    await tippeBei(L.w - 4, L.h - 4);
     await sleep(200);
   }
   await until(`!!${D}.audio.ctx`, 'Ton freigeschaltet', 5);

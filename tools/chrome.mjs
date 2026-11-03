@@ -98,9 +98,13 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
   return { send, on, logs, close };
 }
 
-/** Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt. */
-export async function emulate(send, { width, height, dpr = 1, phone = false }) {
-  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: width < 800 });
+/**
+ * Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt.
+ * mobile: Chrome als mobiler Browser (der Meta-Viewport gilt); Vorgabe bei Breiten unter 800, ein Handy quer braucht
+ * es ausdrücklich (Massstab der Seite, Ticket 18 von .scratch/leistung/).
+ */
+export async function emulate(send, { width, height, dpr = 1, phone = false, mobile = width < 800 }) {
+  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile });
   if (phone) {
     await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
     await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
