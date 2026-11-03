@@ -18,7 +18,8 @@ Jede Korrektur behebt eine Stelle, und die nächste taucht auf.
 
 ## Entscheid
 
-- **Darstellung:** Die Bühne wird in WebGL (three.js, derselbe Renderer wie das Spiel) gezeichnet.
+- **Darstellung:** Die Bühne wird in WebGL (three.js) gezeichnet. Umgesetzt mit einer eigenen Leinwand und einem
+  eigenen WebGL-Kontext in `#story .scene` statt dem Renderer des Spiels (siehe Nachtrag).
 - **Ebenen:** Jede SVG-Ebene wird beim Laden einmal zu einer Textur gerastert und steht als flache Tafel
   (Billboard) in der Tiefe. Die Parallaxe kommt von der Kamera.
 - **Detailstufen:** Die Auflösung der Textur richtet sich nach der grössten Skalierung, in der die Ebene zu sehen
@@ -38,3 +39,17 @@ Jede Korrektur behebt eine Stelle, und die nächste taucht auf.
 - Die Ebenen müssen vor dem ersten Zeigen fertig gerastert und hochgeladen sein, sonst hakt der Anfang.
 - Die Tests der Geschichte (`geschichte-probe`) prüfen die neue Bühne. Die Stellen, die heute DOM-Elemente der Bühne
   abfragen, werden angepasst.
+
+## Nachtrag (03.11.2026, Stufe 1)
+
+Die Bühne zeichnet nicht mit dem Renderer des Spiels, sondern in einer eigenen Leinwand mit eigenem WebGL-Kontext in
+`#story .scene` (an der Stelle der früheren Ebenen in `.world`), in vollen Gerätepixeln und mit eigener rAF-Schleife:
+- **Schärfe:** Der Renderer des Spiels zeichnet höchstens 2 Pixel je Pixel der Oberfläche. Auf dem Poco wären das 1746
+  statt 2400 Pixel Breite, unschärfer als die Bühne vorher.
+- **Übergänge:** Die Überblendungen in CSS (Finale → Epilog, Epilog → Menü, Ein- und Ausblenden der Bühne) und
+  `sceneLoop.coverStory` bleiben unverändert; Spiel und Bühne müssen nicht in einem Bild gemischt werden.
+- **Takt:** Die Schleife der Bühne ist von `frameRate` unabhängig. Die Reisen im WebGL-Bild des Spiels laufen über
+  `frameRate.geschichte()` mit 60 Bildern/s.
+
+Die Texturen sind begrenzt: höchstens etwa 116 MB bei 2400 × 1080 (Poco quer), gerastert in Kacheln von 512 px im
+Ruhepunkt vor einer Fahrt. Abgenommen vom Nutzer auf `leistung-15` (Ticket 13).

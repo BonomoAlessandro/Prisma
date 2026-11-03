@@ -1,6 +1,6 @@
 # Leistung: flüssig auf Desktop und Handy
 
-**Status:** ready-for-agent
+**Status:** vom Nutzer abgenommen (03.11.2026, `leistung-15`); Merge nach `main` auf sein Go
 
 **Branch:** `feature/leistung` (von `main` abgezweigt). Merge nach `main` erst nach der Schlussabnahme, auf Ansage des
 Nutzers.
@@ -94,7 +94,16 @@ Ursachen laut Untersuchung vom 31.10.2026 (Stellen in `index.html`):
 | 15 | Flug der Glühwürmchen als Web Animation | 07 |
 | 16 | Prolog-Bühne ohne fehlende Kacheln (Flackern) | 07, nicht parallel zu 15 |
 | 17 | Fische ohne Ruckeln (Zeitbasis aus rAF, stetige 60 in bewegten Welten) | 07 |
-| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12, 14–17 |
+| 18 | Glühwürmchen ohne Stocken, Bühne ohne fehlenden Hintergrund, Seitenmassstab 2 | 15, 16 |
+| 19 | Bühne der Geschichte in WebGL (ADR 0007) | 18 |
+| 13 | Schlussabnahme (Handy-Durchlauf 3) | 08–12, 14–19 |
+
+**Endstand (03.11.2026):** alle Tickets resolved, 15 und 16 durch 19 abgelöst. Entscheide unterwegs:
+- Das Spiel zeichnet stetig 30 Bilder/s, die Geschichte 60 (ADR 0006, ADR 0007). Die Grenze der Zeichenzeit hält
+  dieselbe Reserve: 16 ms je Bild bei 30 Bildern/s. `?takt=60` stellt zum Vergleich das frühere Verhalten her.
+- Auf Android-Chromium mit Pixeldichte über 2 rastert die Seite mit Massstab 2, Schrift und Knöpfe bleiben gleich gross
+  (Ticket 18, SEITE). Das spart Kachelspeicher; der Compositor brach auf dem Poco sonst Bilder ab.
+- Die Bühne von Prolog und Epilog zeichnet in einer eigenen WebGL-Leinwand statt als Ebenen des Compositors (Ticket 19).
 
 Empfohlene Reihenfolge (Messrunde 07): 08 und 09 parallel, dann 10 (berührt wie 09 `compileParallel`), Handy-Durchlauf
 2b mit dem Mass aus 08 (Empfehlung, Entscheid Koordinator), 11 nach dessen Zahlen, 12 jederzeit, 13 zuletzt.

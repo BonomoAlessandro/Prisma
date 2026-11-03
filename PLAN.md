@@ -70,6 +70,18 @@ Entscheid in ADR 0005.
   - [x] **Platzhalter ersetzt (Ticket 09, 30.10.2026):** 23 neue sehr schwere Level statt der 23 Platzhalter, die
     Vielfalt geht ganz auf; die ersetzten liegen im Vorrat.
 
+## 0a. Erledigt (03.11.2026): Leistung
+
+Spec und Tickets: `.scratch/leistung/` (Tickets 01–19), Entscheide in ADR 0006 und 0007. Abgenommen vom Nutzer auf
+dem Poco F4 GT und am Arbeitsrechner (`leistung-15`, Ticket 13): Startbildschirm, Prolog und Spiel flüssig, das Spiel
+stetig mit 30 Bildern/s, die Geschichte mit 60, die Bühne von Prolog und Epilog in WebGL, Seitenmassstab 2 auf
+Android-Chromium.
+
+- [ ] `leistung-16`: alte DOM-Bühne entfernt (Stufe 3 von Ticket 19); kurzer Blick des Nutzers, dann Merge nach `main`
+  auf sein Go.
+- [ ] Ohne Befund, nur zur Kenntnis: Die erste Fahrt nach dem Öffnen der Bühne hakt am Arbeitsrechner manchmal
+  (Bildschirm aus), mitten in starken Zoomfahrten ist das Bild etwas weicher, Firefox auf Android ist ungeprüft.
+
 ## 1. Aussehen
 
 - [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am

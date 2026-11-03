@@ -4,7 +4,7 @@
 
 **Blocked by:** 07
 
-**Status:** resolved
+**Status:** resolved; abgelöst durch Ticket 19 (Bühne in WebGL, 03.11.2026)
 
 **What to build:** Der Flug der Glühwürmchen in den Wald (Prolog, Einstellung 6, «… tragen das Licht in den Wald»)
 läuft auf dem Poco ohne Stocken. Beobachtung des Nutzers im Handy-Durchlauf 2: Glühwürmchen «super, abgesehen von einem
@@ -104,3 +104,6 @@ umgestellt. `NACHLAUF` reicht: Sammeln te ≥ Start + 3,0 s (+2 s > Fahrt 4 s), 
 knapp). Ein späterer Arm-Tween während eines Flugs würde den Flug neu anlegen (Schlüssel mit `tx`, `ty`), kommt in der
 Geschichte nicht vor. Kein Fehler gefunden; die Fixe in `6beecda` (siehe Ticket 16) betreffen Tempo und Strahl, nicht den
 Flug. Mehrfacher Prolog: Zahl der Animationen bleibt gleich (Flüge werden ersetzt, nicht angehäuft).
+
+**Abgelöst (03.11.2026):** Seit `leistung-14` zeichnet die Bühne in WebGL (Ticket 19, ADR 0007); den Flug der Glühwürmchen als Web Animation gibt es nur
+noch bis zum Aufräumen (`leistung-16`) hinter `?buehne=dom`.

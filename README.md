@@ -291,9 +291,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   laufende Level Drehung für Drehung, `menu` ist das Menü (`story.choose(grad)` wählt einen Grad, solange es offen
   ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
-  Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
-  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
-  Geschichte, während sie einblendet), mit dem Blick im Himmel (Menü, Übersicht) 10. Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
+  Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): im Level und
+  im Menü stetig 30 Bilder/s, auch bei Bewegung und Eingaben (ADR 0006; `?takt=60` zum Vergleich wie früher: 60,
+  solange sich etwas bewegt), mit dem Blick im Himmel (Menü, Übersicht) 10, in den Szenen der Geschichte im WebGL-Bild
+  (Aufstieg, Reise, Einstieg, Finale) stetig 60 (`frameRate.geschichte()`, ADR 0007). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
   (144 Hz → 72 bzw. 29). Liegt die Szene ganz verdeckt (Startbildschirm, eingeblendete Bühne von Prolog und Epilog),
   wird sie nicht gezeichnet (`sceneLoop`): Nur die Logik läuft, solange etwas ansteht (Tweens, Einblenden des Himmels,
   Kamera), dann ruht die Hauptschleife ohne rAF, bis `sceneLoop.wake()` sie weckt; vor dem Ruhen ein Bild zum
@@ -310,6 +311,19 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   während der Enthüllung, im Menü und während einer Fahrt der Bühne (Generatoren melden das mit `yield RUHIG`).
   «Klicken zum Starten» kommt am Ende der Enthüllung (2,9 s) und wartet nicht auf den Himmel.
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
+  **Bühne der Geschichte** (Prolog und Epilog; Ticket 19 der Leistung, ADR 0007): eine eigene WebGL-Leinwand in
+  `#story .scene` mit eigenem Kontext und eigener rAF-Schleife, stetig 60 Bilder/s. Die SVG-Ebenen werden im Ruhepunkt
+  vor einer Fahrt in Kacheln zu Texturen gerastert (je Abschnitt der Folge in der grössten Skalierung, dazu scharfe
+  Stufen für die Ruhepunkte; auf dem Poco höchstens etwa 116 MB). Kamera, Arm, Strahl (Shader mit weichem Rand),
+  Glühwürmchen, Rauch, Fenster und Sterne rechnet jedes Bild aus der Zeit. Untertitel, Hinweise und Knöpfe bleiben DOM
+  darüber. `__prisma.buehne` liefert Bildabstände (`bilder()`) und Grafikspeicher (`speicher()`) für die Proben.
+  **Seitenmassstab** (`SEITE`, Ticket 18): Auf Android-Chromium mit Pixeldichte über 2 rastert die Seite mit Massstab 2
+  (Meta-Viewport), `body { zoom }` hält Schrift und Knöpfe gleich gross. Das spart Kachelspeicher; auf dem Poco brach
+  der Compositor sonst Bilder ab. Neue Stellen, die mit `clientX`, `getBoundingClientRect`, `innerWidth` oder vw/vh
+  Oberfläche bauen, müssen `SEITE` kennen.
+  **Diagnose-Schalter** `?diag=a,b` (zum Messen auf dem Handy, je Schalter eine Ursache weg): `seite275` (ohne
+  Seitenmassstab), `ohnevorbereitung` (kein Laden hinter der Bühne), `ruhepunkte` (Laden in jedem Ruhepunkt, auch vor
+  den Flügen der Glühwürmchen), `ohneleuchten`, `ohnestrahl`.
   **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
   eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten
   (Startbildschirm, Prolog, Menü, Einstieg, Spiel, Reise usw.; Laden hinter einer Überblendung markiert der Code mit

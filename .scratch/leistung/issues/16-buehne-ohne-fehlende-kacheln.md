@@ -4,7 +4,7 @@
 
 **Blocked by:** 07; nicht parallel zu 15 (beide in `createStoryScene`)
 
-**Status:** resolved
+**Status:** resolved; abgelöst durch Ticket 19 (Bühne in WebGL, 03.11.2026)
 
 **What to build:** Kein Flackern in der Prolog-Bühne. Beobachtung des Nutzers im Handy-Durchlauf 2: «ein kurzes Flackern
 des Bildes in der ersten Noa-Szene».
@@ -362,3 +362,6 @@ unter der Last der parallelen Läufe.
 **Abschluss (Koordination):** Angenommen. Massgebend ist, dass auch mit 512 MB Budget keine Ebene fehlt und Einstellung 2
 ohne fehlende Kacheln bleibt; beides erfüllt. Die +76 MB beim Angebot bleiben als Beobachtung für Handy-Durchlauf 3
 (Ticket 13): Flackert dort nichts, ist es erledigt.
+
+**Abgelöst (03.11.2026):** Seit `leistung-14` zeichnet die Bühne in WebGL (Ticket 19, ADR 0007); die Abschnitte und Linien der DOM-Bühne gibt es nur
+noch bis zum Aufräumen (`leistung-16`) hinter `?buehne=dom`.
