@@ -160,3 +160,26 @@ Für den Nutzer auf dem Poco:
 - Noa-Szenen ohne Ruckler.
 - Epilog «Noa lacht …».
 - Spiel weiter glatt mit 30.
+
+### `leistung-10`: Ticket 18 vollständig gemergt, bereit für den Test des Nutzers auf Render
+
+Inhalt seit `leistung-09b`:
+- glatte Flugbahn der Glühwürmchen
+- Ladesperre vor den Flügen
+- Startzeiten auf der Zeitachse des Dokuments
+- glatte Spuren
+- Keile des Strahls in kleinerer Box
+- **Massstab der Seite 2 auf Android-Chromium mit DPR > 2**, UI gleich gross über `body { zoom }`
+
+Gemessen auf dem Poco (WLAN-Debugging, nur der Prisma-Tab), abgebrochene Bilder in F5/F6:
+- bisher 23/45
+- mit Seitenmassstab 2: 7/1–4, also 59–60 Bilder/s
+
+Reviews ohne Befund, nur Chromium als Einschränkung nachgetragen.
+
+Ganze Testreihe grün, ausser:
+- `geschichte-probe --uebersicht --dorf` (älter)
+- `--quer --dorf --dpr 2.75`: scheitert auf `leistung-09e` gleich
+- `--ganz`: Lücken an wechselnden Stellen, neu 2 von 4 Läufen grün, alt 2 von 3
+
+Das sind Hänger des Grafikprozesses auf dem Arbeitsrechner und kein Rückschritt.
