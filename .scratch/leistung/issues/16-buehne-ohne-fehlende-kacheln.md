@@ -364,4 +364,4 @@ ohne fehlende Kacheln bleibt; beides erfüllt. Die +76 MB beim Angebot bleiben a
 (Ticket 13): Flackert dort nichts, ist es erledigt.
 
 **Abgelöst (03.11.2026):** Seit `leistung-14` zeichnet die Bühne in WebGL (Ticket 19, ADR 0007); die Abschnitte und Linien der DOM-Bühne gibt es nur
-noch bis zum Aufräumen (`leistung-16`) hinter `?buehne=dom`.
+bis `leistung-15` hinter `?buehne=dom`, mit `leistung-16` entfernt.

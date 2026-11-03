@@ -106,4 +106,4 @@ Geschichte nicht vor. Kein Fehler gefunden; die Fixe in `6beecda` (siehe Ticket 
 Flug. Mehrfacher Prolog: Zahl der Animationen bleibt gleich (Flüge werden ersetzt, nicht angehäuft).
 
 **Abgelöst (03.11.2026):** Seit `leistung-14` zeichnet die Bühne in WebGL (Ticket 19, ADR 0007); den Flug der Glühwürmchen als Web Animation gibt es nur
-noch bis zum Aufräumen (`leistung-16`) hinter `?buehne=dom`.
+bis `leistung-15` hinter `?buehne=dom`, mit `leistung-16` entfernt.
