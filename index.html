@@ -374,6 +374,9 @@
   #story .scene.lit .world { opacity: 1; }
   /* Diagnose (DIAG, Ticket 18) */
   .diag-ohnestrahl #story .scene .beam { display: none; }
+  /* Bühne in WebGL (?buehne=gl, Ticket 19): eine Leinwand im .world statt der Ebenen */
+  html.buehne-gl #story .scene .ebene { display: none; }
+  #story .scene .gl-buehne { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; }
   /* je Ebene eine Ebene des Compositors um die Mitte des Bildschirms, darin Pixel = Masse der Szene (createStoryScene);
      Teile, die sich bewegen, drehen und skalieren um ihren Ort (left, top) */
   #story .scene .ebene { position: absolute; left: 50%; top: 50%; width: 0; height: 0; transform-origin: 0 0; transform: translateZ(0); }
@@ -1286,7 +1289,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-12';
+const APP_VERSION = '2026-11-03 leistung-13';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8440,6 +8443,9 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * altkurve: Fahrten mit der steilen Kurve und Flüge der Glühwürmchen in der Dauer wie bis Ticket 19 (storyEase, FLUG_ZU).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
+/** ?buehne=gl: die Bühne von Prolog und Epilog in WebGL statt als Ebenen des Compositors (Ticket 19, ADR 0007; Stufe 1) */
+const BUEHNE_GL = new URLSearchParams(location.search).get('buehne') === 'gl';
+if (BUEHNE_GL) document.documentElement.classList.add('buehne-gl');
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
 const ruhe = {
   calm: false,    // Startbildschirm ruhig (introCalm)
@@ -18743,6 +18749,7 @@ function createStoryScene(host) {
     };
     /** die Animation vom jetzt bis zum Ende des letzten Stücks (30 Keyframes je Sekunde, Sprünge genau) */
     s.laufen = () => {
+      if (BUEHNE_GL) return; // gezeichnet aus wert (glBuehne)
       const t = scene.time, ende = Math.max(t, ...s.stuecke.map((st) => st.t1));
       if (ende - t < 1e-3) { s.stelle(); return; }
       // Zeiten je je Sekunde, dazu Anfang und Ende jedes Stücks (Sprünge genau)
@@ -18845,6 +18852,617 @@ function createStoryScene(host) {
     for (const u of w.flug?.teile ?? []) { u.a.cancel(); umgebung.delete(u); }
     w.flug = null;
   };
+  /* ---- Bühne in WebGL (Ticket 19, ADR 0007; ?buehne=gl) ---- */
+  /**
+   * Dieselbe Bühne, gezeichnet in WebGL statt vom Compositor: Die Logik oben (Folge, Fahrten, Spuren, Schwinger, Orte
+   * der Glühwürmchen) bleibt, die Ebenen (.ebene) fallen weg (CSS html.buehne-gl). Jedes Bild zeichnet die eigene
+   * Schleife aus der Zeit: Kamera aus der Folge (folgeZeit, die Uhr ist die Animation der Folge, folgeAnims), Arm, Kraft,
+   * Länge und Stern aus den Spuren, Schal, Atmen und Flackern aus den Schwingern, die Glühwürmchen aus wurmOrt (genau,
+   * ohne Animationen). Was steht, ist je Ebene und Abschnitt der Folge (abschnitteFuer, wie die Ebenen des Compositors)
+   * ein Bild aus demselben SVG, nur so gross wie das, was man darin sieht, in der grössten Skalierung des Abschnitts
+   * (darüber hinaus eine Grundstufe und scharfe Stufen je Ruhepunkt, stufen), in Kacheln je eine Textur, ganz
+   * durchsichtige fallen weg; gerastert wird im Ruhepunkt davor, ein paar Kacheln je Bild. Linien (linie) bekommen wie
+   * oben ihre Breite je Ruhepunkt. Eine eigene Leinwand im .world (dessen Ein- und Ausblenden bleibt), ein eigener
+   * WebGL-Kontext ohne Tiefe und Kantenglättung, in Gerätepixeln (mit dem Massstab der Seite, SEITE); der des Spiels
+   * zeichnet mit höchstens 2 Pixeln je CSS-Pixel der Oberfläche (QUALITY), auf dem Poco unschärfer als die Bühne bisher.
+   * Gemessen (Ticket 19): Fahrten des Prologs ohne Lücke über 25 ms, Texturen höchstens etwa 116 MB bei 2400 × 1080.
+   */
+  const glBuehne = () => {
+    const leinwand = document.createElement('canvas');
+    leinwand.className = 'gl-buehne';
+    q('.world').prepend(leinwand);
+    const r3 = new THREE.WebGLRenderer({ canvas: leinwand, antialias: false, alpha: false, depth: false, stencil: false,
+      premultipliedAlpha: true, powerPreference: 'high-performance' });
+    r3.setPixelRatio(1);
+    r3.setClearColor(0x020208, 1);
+    r3.sortObjects = false;
+    const MAX_TEX = Math.min(8192, r3.capabilities.maxTextureSize);
+    const KACHEL = 512; // px je Kachel (eine Textur; ganz durchsichtige fallen weg, rastern)
+    const kamera = new THREE.OrthographicCamera(0, 1, 0, 1, -1, 1);
+    const welt = new THREE.Scene();
+    const quad = new THREE.BufferGeometry();
+    quad.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0], 3));
+    quad.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 1, 1, 0, 1], 2));
+    quad.setIndex([0, 1, 2, 0, 2, 3]);
+    // vormultipliertes Alpha wie im Compositor: Texturen vormultipliert hochgeladen, gemischt mit 1, 1 − α
+    const mischen = { transparent: true, depthTest: false, depthWrite: false, side: THREE.DoubleSide,
+      blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+      blendSrcAlpha: THREE.OneFactor, blendDstAlpha: THREE.OneMinusSrcAlphaFactor };
+    // uvRect: der Teil der Textur ohne ihren Rand (1 Pixel der Nachbarn, gegen Nähte beim Filtern, rastern)
+    const VS = 'uniform vec4 uvRect; varying vec2 vUv; void main() { vUv = uvRect.xy + uv * uvRect.zw; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+    const bildMaterial = () => new THREE.ShaderMaterial({ ...mischen,
+      uniforms: { map: { value: null }, opacity: { value: 1 }, uvRect: { value: new THREE.Vector4(0, 0, 1, 1) } },
+      vertexShader: VS,
+      fragmentShader: 'uniform sampler2D map; uniform float opacity; varying vec2 vUv; void main() { gl_FragColor = texture2D(map, vUv) * opacity; }' });
+    /** Mesh über dem Einheitsquadrat stellen: box [x, y, b, h] in Massen des Teils, m (a, b, c, d, e, f) vom Teil in
+     *  die Ebene, pose { s, ox, oy } von der Ebene in Pixel der Leinwand */
+    const setze = (mesh, { s, ox, oy }, [bx, by, bw, bh], [a, b, c, d, e, f] = [1, 0, 0, 1, 0, 0]) => {
+      mesh.matrix.set(s * a * bw, s * c * bh, 0, s * (a * bx + c * by + e) + ox,
+        s * b * bw, s * d * bh, 0, s * (b * bx + d * by + f) + oy, 0, 0, 1, 0, 0, 0, 0, 1);
+      mesh.matrixWorldNeedsUpdate = true;
+    };
+    const dreh = (grad, x = 0, y = 0, sk = 1) => {
+      const r = grad * Math.PI / 180, co = Math.cos(r) * sk, si = Math.sin(r) * sk;
+      return [co, si, -si, co, x, y];
+    };
+    const mal = ([a1, b1, c1, d1, e1, f1], [a2, b2, c2, d2, e2, f2]) => // erst m2, dann m1
+      [a1 * a2 + c1 * b2, b1 * a2 + d1 * b2, a1 * c2 + c1 * d2, b1 * c2 + d1 * d2, a1 * e2 + c1 * f2 + e1, b1 * e2 + d1 * f2 + f1];
+
+    /* -- SVG aus den Ebenen: was steht, als Markup in Massen der Szene (verschachtelte svg mit x, y statt left, top) -- */
+    const defs = new XMLSerializer().serializeToString(q('defs'));
+    const markup = (svgEl) => {
+      const k = svgEl.cloneNode(true);
+      k.setAttribute('x', parseFloat(svgEl.style.left) || 0);
+      k.setAttribute('y', parseFloat(svgEl.style.top) || 0);
+      k.removeAttribute('style');
+      k.removeAttribute('class');
+      k.setAttribute('overflow', 'visible');
+      return new XMLSerializer().serializeToString(k);
+    };
+    const boxVon = (svgEl) => svgEl.getAttribute('viewBox').split(' ').map(Number);
+    const svgDoc = (inhalt, [x, y, w, h], pw, ph, rs) => '<svg xmlns="http://www.w3.org/2000/svg" '
+      + `width="${pw}" height="${ph}" viewBox="${x} ${y} ${w} ${h}" preserveAspectRatio="none" style="--rs:${rs}">${defs}${inhalt}</svg>`;
+    /** Grenzen einer Linie: die Punkte ihres Pfads (nur M und L), sonst die Box ihres SVG; dazu Rand für den Strich */
+    const linienBox = (svgEl) => {
+      const d = [...svgEl.querySelectorAll('path')].map((p) => p.getAttribute('d')).join(' ');
+      if (/[AQCSHVaqcshv]/.test(d)) { const [x, y, b, h] = boxVon(svgEl); return [x - 4, y - 4, x + b + 4, y + h + 4]; }
+      const z = d.match(/-?\d*\.?\d+/g).map(Number);
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i + 1 < z.length; i += 2) { x0 = Math.min(x0, z[i]); x1 = Math.max(x1, z[i]); y0 = Math.min(y0, z[i + 1]); y1 = Math.max(y1, z[i + 1]); }
+      return [x0 - 6, y0 - 6, x1 + 6, y1 + 6];
+    };
+
+    /* -- Teile je Ebene in der Reihenfolge des DOM: stehend (gruppe), linie, sterne, flk, polar, rauch, schal, arm, wuermer -- */
+    const teile = layers.map(({ inhalt, p }, ebene) => {
+      const liste = [];
+      let gruppe = null;
+      for (const kind of inhalt.children) {
+        const cl = kind.classList;
+        if (kind.tagName.toLowerCase() === 'svg' && !cl.contains('linie') && !cl.contains('tw') && !cl.contains('flk')) {
+          if (!gruppe) liste.push(gruppe = { art: 'gruppe', ebene, p, teile: [], box: [Infinity, Infinity, -Infinity, -Infinity],
+            rs: cl.contains('fest') ? 'fest' : 1 });
+          gruppe.teile.push(markup(kind));
+          if (cl.contains('fest')) gruppe.rs = 'fest';
+          // ein ganzes Bild (BILD) ragt über seine Box hinaus (Himmel, Flächen bis 2600 hinab): ohne Grenze
+          const [x, y, b, h] = boxVon(kind), ganz = cl.contains('bild');
+          const g = gruppe.box;
+          gruppe.box = ganz ? [-Infinity, -Infinity, Infinity, Infinity]
+            : [Math.min(g[0], x), Math.min(g[1], y), Math.max(g[2], x + b), Math.max(g[3], y + h)];
+          continue;
+        }
+        gruppe = null;
+        if (cl.contains('linie')) { if (!cl.contains('aus')) liste.push({ art: 'linie', ebene, p, inhalt: markup(kind), box: linienBox(kind) }); }
+        else if (cl.contains('tw')) {
+          const st = kind.style, dauer = parseFloat(st.animationDuration), verz = parseFloat(st.animationDelay);
+          let sterne = liste.find((x) => x.art === 'sterne');
+          if (!sterne) liste.push(sterne = { art: 'sterne', ebene, p, punkte: [] });
+          for (const c of kind.querySelectorAll('circle')) {
+            sterne.punkte.push([+c.getAttribute('cx'), +c.getAttribute('cy'), +c.getAttribute('r'), +(c.getAttribute('opacity') ?? 1),
+              dauer, verz, cl.contains('hell') ? 0.15 : 0.26]);
+          }
+        } else if (cl.contains('flk')) {
+          liste.push({ art: 'flk', ebene, p, inhalt: markup(kind), box: boxVon(kind),
+            verz: parseFloat(kind.style.animationDelay) || 0 });
+        } else if (cl.contains('polar')) liste.push({ art: 'polar', ebene, p, ...teilVon(kind, kind.querySelector('svg')) });
+        else if (cl.contains('smoke')) liste.push({ art: 'rauch', ebene, p });
+        else if (cl.contains('scarf')) liste.push({ art: 'schal', ebene, p, ...teilVon(kind, kind.querySelector('svg')) });
+        else if (cl.contains('arm')) liste.push({ art: 'arm', ebene, p, ...teilVon(kind, kind.querySelector(':scope > svg')) });
+        else if (cl.contains('worms')) liste.push({ art: 'wuermer', ebene, p });
+      }
+      return liste;
+    });
+    /** Teil (div.teil) um seinen Ort (left, top) und sein SVG (Box um den Ort) */
+    function teilVon(div, svgEl) {
+      return { ort: [parseFloat(div.style.left) || 0, parseFloat(div.style.top) || 0], box: boxVon(svgEl),
+        inhalt: markup(svgEl) };
+    }
+
+    /* -- Rastern: SVG → Kacheln (je eine Textur), eine je Bild gezeichnet und hochgeladen, abbrechbar -- */
+    let plan = 0; // Nummer des Plans (neue Folge, anderer Bildschirm): ältere Arbeit bricht ab
+    const nachBild = () => new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const RASTER_MS = 4; // so viel Arbeit des Hauptthreads je Bild beim Rastern im Ruhepunkt
+    let wartet = false; // eine Fahrt wartet auf ihre Texturen (bereit): mehr je Bild
+    let kette = Promise.resolve(); // Rastern nacheinander (ein Stück je Bild)
+    const statistik = { kacheln: 0, leer: 0, ms: 0, laengste: 0, texturen: 0, log: [] };
+    const g3 = r3.getContext(), kachel = document.createElement('canvas'), kctx = kachel.getContext('2d');
+    const probe = document.createElement('canvas');
+    probe.width = probe.height = 32;
+    const pctx = probe.getContext('2d', { willReadFrequently: true });
+    /** Die Kachel ist ganz durchsichtig (Probe in 32 × 32): keine Textur (der Himmel der nahen Ebenen, Speicher der Grafik) */
+    const durchsichtig = (img, x, y, w, h) => {
+      pctx.clearRect(0, 0, 32, 32);
+      pctx.drawImage(img, x, y, w, h, 0, 0, 32, 32);
+      const d = pctx.getImageData(0, 0, 32, 32).data;
+      for (let i = 3; i < d.length; i += 4) if (d[i]) return false;
+      return true;
+    };
+    /**
+     * Textur aus der Leinwand der Kachel, als THREE.Texture, die three nur bindet (Version 0: lädt nichts selbst hoch):
+     * Eine ganze Leinwand auf einmal hielt den Hauptthread bis 320 ms an (das SVG wird erst beim Hochladen gerastert).
+     */
+    const textur = (quelle) => {
+      const wt = g3.createTexture();
+      r3.state.bindTexture(g3.TEXTURE_2D, wt);
+      g3.pixelStorei(g3.UNPACK_FLIP_Y_WEBGL, false);
+      g3.pixelStorei(g3.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+      g3.texImage2D(g3.TEXTURE_2D, 0, g3.RGBA, g3.RGBA, g3.UNSIGNED_BYTE, quelle);
+      for (const [k, v] of [[g3.TEXTURE_MIN_FILTER, g3.LINEAR], [g3.TEXTURE_MAG_FILTER, g3.LINEAR],
+        [g3.TEXTURE_WRAP_S, g3.CLAMP_TO_EDGE], [g3.TEXTURE_WRAP_T, g3.CLAMP_TO_EDGE]]) g3.texParameteri(g3.TEXTURE_2D, k, v);
+      const tex = new THREE.Texture();
+      r3.properties.get(tex).__webglTexture = wt;
+      return { tex, frei: () => { g3.deleteTexture(wt); r3.properties.remove(tex); } };
+    };
+    /**
+     * SVG inhalt im Ausschnitt [x0, y0, x1, y1] (Massen) mit S Pixeln je Mass rastern, in Kacheln von KACHEL Pixeln, je
+     * eine eigene Textur mit 1 Pixel Rand der Nachbarn (keine Nähte beim Filtern); ganz durchsichtige fallen weg. Zurück
+     * ein Bild { obj (Gruppe der Meshes), kacheln [{ mesh, box }], frei(), bytes }, oder null (abgebrochen).
+     */
+    const rastern = (inhalt, [x0, y0, x1, y1], S, rs, eilig = () => false) => {
+      const job = kette.then(async () => {
+        const meinPlan = plan;
+        let pw = Math.max(1, Math.ceil((x1 - x0) * S)), ph = Math.max(1, Math.ceil((y1 - y0) * S));
+        const f = Math.min(1, MAX_TEX / pw, MAX_TEX / ph);
+        if (f < 1) { S *= f; pw = Math.min(MAX_TEX, Math.ceil((x1 - x0) * S)); ph = Math.min(MAX_TEX, Math.ceil((y1 - y0) * S)); }
+        const url = URL.createObjectURL(new Blob([svgDoc(inhalt, [x0, y0, pw / S, ph / S], pw, ph, rs)], { type: 'image/svg+xml' }));
+        const kacheln = [], frei = () => { for (const k of kacheln) k.frei(); };
+        let ab = performance.now(); // Beginn der Arbeit in diesem Bild
+        try {
+          const img = new Image();
+          img.src = url;
+          await img.decode();
+          for (let ty = 0; ty < ph; ty += KACHEL) for (let tx = 0; tx < pw; tx += KACHEL) {
+            // im Ruhepunkt ein Stück je Bild; in einer Fahrt nur, was gebraucht wird (sonst wartet es)
+            while (scene.moving && !eilig() && meinPlan === plan) await nachBild();
+            if (meinPlan !== plan) { frei(); return null; }
+            const t0 = performance.now(), w = Math.min(KACHEL, pw - tx), h = Math.min(KACHEL, ph - ty);
+            if (pw * ph > KACHEL * KACHEL && durchsichtig(img, tx, ty, w, h)) { statistik.leer++; continue; }
+            const ax = Math.max(0, tx - 1), ay = Math.max(0, ty - 1), kw = Math.min(pw, tx + w + 1) - ax, kh = Math.min(ph, ty + h + 1) - ay;
+            if (kachel.width !== kw || kachel.height !== kh) { kachel.width = kw; kachel.height = kh; } else kctx.clearRect(0, 0, kw, kh);
+            kctx.drawImage(img, ax, ay, kw, kh, 0, 0, kw, kh);
+            const t = textur(kachel), mesh = new THREE.Mesh(quad, bildMaterial());
+            mesh.matrixAutoUpdate = false;
+            mesh.frustumCulled = false;
+            mesh.material.uniforms.map.value = t.tex;
+            mesh.material.uniforms.uvRect.value.set((tx - ax) / kw, (ty - ay) / kh, w / kw, h / kh);
+            kacheln.push({ mesh, box: [x0 + tx / S, y0 + ty / S, w / S, h / S], frei: t.frei, bytes: kw * kh * 4 });
+            const ms = performance.now() - t0;
+            statistik.kacheln++; statistik.ms += ms; statistik.laengste = Math.max(statistik.laengste, ms);
+            if (statistik.log.length < 3000) statistik.log.push([Math.round(t0), +ms.toFixed(1), kw * kh]);
+            // weiter im nächsten Bild, sobald dieses RASTER_MS Arbeit hatte (wartet eine Fahrt darauf: mehr)
+            if (!eilig() && performance.now() - ab > (wartet ? 12 : RASTER_MS)) { await nachBild(); ab = performance.now(); }
+          }
+          statistik.texturen++;
+          const obj = new THREE.Group();
+          for (const k of kacheln) obj.add(k.mesh);
+          return { obj, kacheln, frei, bytes: kacheln.reduce((x, k) => x + k.bytes, 0), groesse: [pw, ph] };
+        } finally { URL.revokeObjectURL(url); }
+      });
+      kette = job.catch(() => null);
+      return job;
+    };
+    /** Bild in die Ebene (pose), m: vom Teil in die Ebene, alpha: Deckkraft */
+    const zeigBild = (bild, pose, m, alpha = 1) => {
+      for (const k of bild.kacheln) { setze(k.mesh, pose, k.box, m); k.mesh.material.uniforms.opacity.value = alpha; }
+    };
+
+    /* -- Plan je Folge und Bildschirm: Ansichten je Ebene und Abschnitt, daraus Ausschnitte und Skalierungen -- */
+    const q2 = () => (window.visualViewport?.scale ?? 1) * (window.devicePixelRatio || 1); // Gerätepixel je CSS-Pixel der Bühne
+    // höchstens so viele Bildschirme an Pixeln je Textur (Speicher der Grafik): darüber bekommt ein Abschnitt eine
+    // Grundstufe über alles, was man sieht, und schärfere Stufen für die Ruhepunkte (stufen)
+    const BUDGET = 1.6;
+    /** Ansichten der Ebene p in den Fahrten a … b, je 24 Schritte: Rechteck in Massen, Skalierung, ende (Ruhepunkt) */
+    const ansichten = (stuecke, p, a, b) => {
+      const W = innerWidth, H = innerHeight, aus = [];
+      for (const [i, { from, to }] of stuecke.slice(a, b + 1).entries()) for (let j = i ? 1 : 0; j <= 24; j++) {
+        const k = j / 24, c = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k };
+        const s = scene.skala(c, p), X = 800 + (c.x - 800) * p, Y = 450 + (c.y - 450) * p;
+        aus.push({ box: [X - W / 2 / s - 4, Y - H / 2 / s - 4, X + W / 2 / s + 4, Y + H / 2 / s + 4], s, ende: j === 0 || j === 24 });
+      }
+      return aus;
+    };
+    const huelle = (l) => [Math.min(...l.map((x) => x.box[0])), Math.min(...l.map((x) => x.box[1])),
+      Math.max(...l.map((x) => x.box[2])), Math.max(...l.map((x) => x.box[3]))];
+    const schnitt = (a, b) => [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.min(a[2], b[2]), Math.min(a[3], b[3])];
+    const leer = (b) => !(b[2] > b[0] && b[3] > b[1]);
+    const inhaltVon = (b) => (b[2] - b[0]) * (b[3] - b[1]);
+    const weiter = ([x0, y0, x1, y1], f) => { const dx = (x1 - x0) * f, dy = (y1 - y0) * f; return [x0 - dx, y0 - dy, x1 + dx, y1 + dy]; };
+    /**
+     * Stufen einer Gruppe im Abschnitt [a, b] der Folge: eine Grundstufe über alles, was man darin sieht (Skalierung die
+     * grösste, höchstens BUDGET Bildschirme an Pixeln), dazu je Ruhepunkt, den die Grundstufe um mehr als 15 % zu grob
+     * zeigt, eine scharfe Stufe über seine Ansicht (in einer Zoomfahrt ist die Mitte so etwas weicher, im Halt nie)
+     */
+    const stufen = (p, [a, b], grenze) => {
+      const q = q2(), budget = BUDGET * innerWidth * innerHeight * q * q, v = ansichten(stand.stuecke, p, a, b);
+      const box = schnitt(huelle(v), grenze);
+      if (leer(box)) return [];
+      const S = Math.min(Math.max(...v.map((x) => x.s)) * q, Math.sqrt(budget / inhaltVon(box))), aus = [{ box, S }];
+      for (const x of v) {
+        if (!x.ende || x.s * q <= S * 1.15) continue;
+        const bx = schnitt(weiter(x.box, 0.04), grenze);
+        if (leer(bx) || aus.some((y) => y.box.join() === bx.join())) continue;
+        aus.push({ box: bx, S: Math.min(x.s * q, Math.sqrt(budget / inhaltVon(bx))) });
+      }
+      return aus;
+    };
+
+    // Texturen der stehenden Gruppen: je Gruppe { Abschnitt → { job, teile (Stufen mit Mesh), fertig } }; Linien je
+    // Ruhepunkt; Teile (Sprites)
+    const gruppen = teile.flat().filter((x) => x.art === 'gruppe');
+    const linienT = teile.flat().filter((x) => x.art === 'linie');
+    for (const g of gruppen) { g.obj = new THREE.Group(); welt.add(g.obj); g.tex = new Map(); }
+    for (const l of linienT) { l.obj = new THREE.Group(); welt.add(l.obj); }
+    let stand = null; // { stuecke, abschnitte, key }
+    const freiAlle = (e) => { for (const bild of e?.teile ?? []) bild.frei(); };
+    /** Textur der Gruppe g für den Abschnitt [a, b] (anlegen, falls nicht da); eilig: in einer Fahrt sofort rastern */
+    const gruppeTex = (g, ab, eilig = false) => {
+      const key = ab.join('-');
+      let e = g.tex.get(key);
+      if (!e) {
+        e = { teile: null, eilig, fertig: false };
+        g.tex.set(key, e);
+        const rs = g.rs === 'fest' ? scene.skala({ z: 1 }, g.p).toFixed(5) : 1;
+        e.job = Promise.all(stufen(g.p, ab, g.box).map(({ box, S }) => rastern(g.teile.join(''), box, S, rs, () => e.eilig)))
+          .then((bilder) => {
+            if (bilder.some((x) => !x)) { for (const x of bilder) x?.frei(); return null; } // abgebrochen (neuer Plan)
+            e.teile = bilder;
+            e.fertig = true;
+            einmal();
+            return e;
+          });
+      }
+      if (eilig) e.eilig = true;
+      return e;
+    };
+    /** Linie l im Ruhepunkt: Breite aus der Kamera c, gerastert für die nächste Fahrt n (Ausschnitt der ganzen Folge) */
+    const linieTex = (l, c, n) => {
+      const rs = scene.skala(c, l.p), aktuell = l.aktuell;
+      if (aktuell && Math.max(rs / aktuell.rs, aktuell.rs / rs) <= LINIEN_TOLERANZ) return;
+      if (l.wird && Math.max(rs / l.wird.rs, l.wird.rs / rs) <= LINIEN_TOLERANZ) return;
+      const anzahl = stand.stuecke.length, q = q2();
+      const aus = schnitt(huelle(ansichten(stand.stuecke, l.p, 0, anzahl - 1)), l.box);
+      if (leer(aus)) return;
+      const smax = Math.max(...ansichten(stand.stuecke, l.p, Math.max(0, n - 1), Math.min(n, anzahl - 1)).map((x) => x.s));
+      const S = Math.min(smax * q, Math.sqrt(BUDGET * innerWidth * innerHeight * q * q / inhaltVon(aus)));
+      const e = l.wird = { rs, bild: null };
+      e.job = rastern(l.inhalt, aus, S, rs.toFixed(5)).then((bild) => {
+        if (l.wird !== e || !bild) { bild?.frei(); return; }
+        l.wird = null;
+        l.aktuell?.bild?.frei();
+        e.bild = bild;
+        l.aktuell = e;
+        l.obj.clear();
+        l.obj.add(bild.obj);
+      });
+    };
+
+    /* -- Teile, die sich bewegen: kleine Texturen einmal je Plan, je ein Mesh -- */
+    const sprites = [];
+    const sprite = (x, inhalt, box, extra = 1) => {
+      const s = { obj: new THREE.Group(), box, inhalt, extra, p: x.p, bild: null };
+      welt.add(s.obj);
+      sprites.push(s);
+      return s;
+    };
+    const flks = [], rauch = [], wuermer = [];
+    let polarT = null, schalT = null, armT = null, sterne = null, strahl = null;
+    for (const x of teile.flat()) {
+      if (x.art === 'flk') flks.push({ ...x, s: sprite(x, x.inhalt, x.box) });
+      else if (x.art === 'polar') polarT = { ...x, s: sprite(x, x.inhalt, x.box, 2.8) };
+      else if (x.art === 'schal') schalT = { ...x, s: sprite(x, x.inhalt, x.box) };
+      else if (x.art === 'arm') {
+        armT = { ...x, s: sprite(x, x.inhalt, x.box) };
+        strahl = strahlMesh();
+      } else if (x.art === 'rauch') {
+        const inhalt = '<ellipse rx="1.5" ry="1" fill="url(#s-smoke)"/>';
+        chimneys.forEach(([cx, cy], i) => [0, 1 / 3, 2 / 3].forEach((off0) =>
+          rauch.push({ ort: [n(cx), n(cy)], off: off0 + i * 0.13, s: sprite(x, inhalt, [-1.5, -1, 3, 2], 13) })));
+      } else if (x.art === 'wuermer') {
+        const inhalt = (DIAG.has('ohneleuchten') ? '' : '<circle r="11" fill="url(#s-gw)"/>') + '<circle r="1.9" fill="#efffb0"/>';
+        for (const w of worms) wuermer.push({ w, s: sprite(x, inhalt, [-11, -11, 22, 22], 1.6) });
+      } else if (x.art === 'sterne') sterne = { ...x, mesh: sternMesh(x.punkte) };
+    }
+    // gezeichnet wird in der Reihenfolge des DOM (Ebene für Ebene, darin wie die Kinder von .inhalt)
+    {
+      const reihe = [];
+      for (const x of teile.flat()) {
+        if (x.art === 'gruppe') reihe.push(x.obj);
+        else if (x.art === 'linie') reihe.push(x.obj);
+        else if (x.art === 'sterne') reihe.push(sterne.mesh);
+        else if (x.art === 'flk') reihe.push(flks.find((f) => f.box === x.box).s.obj);
+        else if (x.art === 'polar') reihe.push(polarT.s.obj);
+        else if (x.art === 'schal') reihe.push(schalT.s.obj);
+        else if (x.art === 'arm') reihe.push(armT.s.obj, strahl);
+        else if (x.art === 'rauch') reihe.push(...rauch.map((r) => r.s.obj));
+        else if (x.art === 'wuermer') reihe.push(...wuermer.map((w) => w.s.obj));
+      }
+      for (const m of reihe) welt.remove(m);
+      for (const m of reihe) welt.add(m);
+    }
+    // alle Shader jetzt übersetzen: Der Strahl erscheint erst beim Klick der Lampe und übersetzte dann im ersten Bild (88 ms)
+    {
+      const vor = new THREE.Mesh(quad, bildMaterial());
+      welt.add(vor);
+      for (const o of welt.children) o.visible = true;
+      r3.compile(welt, kamera);
+      welt.remove(vor);
+    }
+
+    /** Funkelnde Sterne als Punkte: Deckkraft je Gruppe wie die CSS-Animation (ease-in-out, hin und her) */
+    function sternMesh(punkte) {
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(punkte.flatMap(([x, y]) => [x, y, 0]), 3));
+      g.setAttribute('stern', new THREE.Float32BufferAttribute(punkte.flatMap(([, , r, o]) => [r, o]), 2));
+      g.setAttribute('takt', new THREE.Float32BufferAttribute(punkte.flatMap(([, , , , d, v, von]) => [d, v, von]), 3));
+      const m = new THREE.Points(g, new THREE.ShaderMaterial({ ...mischen,
+        uniforms: { uPose: { value: new THREE.Vector3(1, 0, 0) }, uZeit: { value: 0 }, uAufl: { value: new THREE.Vector2(1, 1) } },
+        vertexShader: `uniform vec3 uPose; uniform float uZeit; uniform vec2 uAufl; attribute vec2 stern; attribute vec3 takt;
+          varying float vR; varying float vA;
+          float kurve(float x) { // ease-in-out (cubic-bezier(0.42, 0, 0.58, 1)), genähert
+            return x * x * (3.0 - 2.0 * x); }
+          void main() {
+            vec2 px = position.xy * uPose.x + uPose.yz;
+            gl_Position = vec4(px / uAufl * vec2(2.0, -2.0) + vec2(-1.0, 1.0), 0.0, 1.0);
+            vR = stern.x * uPose.x;
+            float u = mod((uZeit - takt.y) / takt.x, 2.0); // hin und her (alternate)
+            float k = kurve(u < 1.0 ? u : 2.0 - u);
+            vA = stern.y * mix(takt.z, 1.0, k);
+            gl_PointSize = 2.0 * vR + 3.0;
+          }`,
+        fragmentShader: `varying float vR; varying float vA;
+          void main() {
+            float d = length(gl_PointCoord - 0.5) * (2.0 * vR + 3.0);
+            // Fläche wie beim Rastern einer kleinen Scheibe: Kante 1 Pixel weich, sehr kleine nach ihrer Fläche
+            float a = clamp(vR + 0.5 - d, 0.0, 1.0) * min(1.0, vR * vR * 3.14159 / 0.785);
+            gl_FragColor = vec4(1.0) * a * vA;
+          }` }));
+      m.frustumCulled = false;
+      welt.add(m);
+      return m;
+    }
+    /**
+     * Strahl: Kegel und Kern (STRAHL_TEILE) als ein Trapez je Teil mit Hals w0 und Breite k · L am Ende, deckend in seiner
+     * Farbe mal dem Verlauf (Maske: Stopps über L / 0,55), der Kern über dem Kegel, darüber das Leuchten der Lampe (s-lamp);
+     * alles zusammen mal Kraft und Flackern (wie die Deckkraft der Gruppe im DOM). In Massen des Arms, Ursprung an der
+     * Spitze der Lampe (left 34).
+     */
+    function strahlMesh() {
+      const farbe = (h) => new THREE.Vector3(...[1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255));
+      const stopps = (st) => st.map(([a, p]) => new THREE.Vector2(p / 100, a));
+      const [kegel, kern] = STRAHL_TEILE;
+      const m = new THREE.Mesh(quad, new THREE.ShaderMaterial({ ...mischen,
+        uniforms: { uL: { value: 1 }, uS: { value: 1 }, uO: { value: 0 }, uPx: { value: 1 },
+          uW0: { value: new THREE.Vector2(kegel.w0, kern.w0) }, uK: { value: new THREE.Vector2(kegel.k, kern.k) },
+          uHb: { value: new THREE.Vector2(...STRAHL_TEILE.map(({ w0, k }) => Math.max(k * STRAHL_L, w0 / 0.25))) },
+          uF0: { value: farbe(kegel.farbe) }, uF1: { value: farbe(kern.farbe) },
+          uS0: { value: stopps(kegel.stopps) }, uS1: { value: stopps(kern.stopps) }, uBox: { value: new THREE.Vector4() } },
+        vertexShader: 'uniform vec4 uBox; varying vec2 vP; void main() { vP = uBox.xy + uv * uBox.zw; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform float uL; uniform float uS; uniform float uO; uniform float uPx; uniform vec2 uW0; uniform vec2 uK; uniform vec2 uHb;
+          uniform vec3 uF0; uniform vec3 uF1; uniform vec2 uS0[4]; uniform vec2 uS1[4]; varying vec2 vP;
+          float verlauf(vec2 s[4], float u) { // Maske: Stopps (Anteil, Alpha) über die Länge L / 0,55
+            if (u <= s[0].x) return s[0].y;
+            for (int i = 1; i < 4; i++) if (u <= s[i].x) return mix(s[i - 1].y, s[i].y, (u - s[i - 1].x) / (s[i].x - s[i - 1].x));
+            return s[3].y; }
+          float teil(float w0, float k, float hb) {
+            float halb = w0 + (k * uL - w0) * vP.x / uL; // Hals w0, am Ende k · L (Kegel und Keile zusammen)
+            float rand = min(halb, uS * hb); // die Box der Maske (Höhe 2 hb, mitskaliert)
+            float a = clamp((rand - abs(vP.y)) / uPx + 0.5, 0.0, 1.0);
+            return a * clamp(vP.x / uPx + 0.5, 0.0, 1.0) * clamp((uL - vP.x) / uPx + 0.5, 0.0, 1.0); }
+          void main() {
+            float u = vP.x / (uL / 0.55);
+            float a0 = teil(uW0.x, uK.x, uHb.x) * verlauf(uS0, u), a1 = teil(uW0.y, uK.y, uHb.y) * verlauf(uS1, u);
+            vec4 c = vec4(uF0 * a0, a0);
+            c = vec4(uF1 * a1, a1) + c * (1.0 - a1);
+            float r = length(vP) / 24.0; // Leuchten der Lampe (s-lamp, r 24)
+            float al = r < 0.25 ? mix(1.0, 0.45, r / 0.25) : mix(0.45, 0.0, clamp((r - 0.25) / 0.75, 0.0, 1.0));
+            vec3 fl = r < 0.25 ? mix(vec3(1.0, 250.0 / 255.0, 240.0 / 255.0), vec3(1.0, 241.0 / 255.0, 204.0 / 255.0), r / 0.25) : vec3(1.0, 241.0 / 255.0, 204.0 / 255.0);
+            c = vec4(fl * al, al) + c * (1.0 - al);
+            gl_FragColor = c * uO;
+          }` }));
+      m.matrixAutoUpdate = false;
+      m.frustumCulled = false;
+      welt.add(m);
+      return m;
+    }
+
+    /* -- Kamera aus der Folge: die Uhr ist die Animation der Folge (Tippen, Tempo, Halt wie im DOM) -- */
+    const kameraBei = () => {
+      const a = scene.folgeAnims[0], fz = scene.folgeZeit;
+      if (!a || !fz || a.currentTime == null) return scene.cam;
+      const ms = a.currentTime;
+      let c = fz.start;
+      for (const { from, to, t, d } of fz.stuecke) {
+        if (ms < t) return from;
+        if (ms <= t + d) {
+          const k = storyEase((ms - t) / d);
+          return { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, z: from.z * (to.z / from.z) ** k };
+        }
+        c = to;
+      }
+      return c;
+    };
+    /** CSS-Animationen (Funkeln, Flackern): ease-in-out zwischen Keyframes, wie im Browser genähert */
+    const sanft = (x) => x * x * (3 - 2 * x);
+    const FLK = [[0, 0.9], [0.3, 1], [0.55, 0.6], [0.8, 0.85], [1, 0.9]];
+    const flackernBei = (zeit, verz) => {
+      const u = (((zeit - verz) / 3.2) % 1 + 1) % 1;
+      for (let i = 1; i < FLK.length; i++) if (u <= FLK[i][0]) return FLK[i - 1][1] + (FLK[i][1] - FLK[i - 1][1]) * sanft((u - FLK[i - 1][0]) / (FLK[i][0] - FLK[i - 1][0]));
+      return 0.9;
+    };
+
+    /* -- je Bild -- */
+    const bilder = new Float64Array(4096); // Zeitstempel der eigenen Bilder (Ring), für die Proben
+    let bildN = 0, raf = 0, breite = 0, hoehe = 0;
+    const neuePlan = () => {
+      const fz = scene.folgeZeit;
+      if (!fz) return;
+      plan++;
+      stand = { stuecke: fz.stuecke, abschnitte: scene.abschnitte, key: fz.key };
+      // was noch rastert, bricht ab und gibt sich selbst frei (plan)
+      for (const g of gruppen) { for (const e of g.tex.values()) freiAlle(e); g.tex.clear(); g.zeigt = null; g.obj.clear(); }
+      for (const l of linienT) { l.aktuell?.bild?.frei(); l.aktuell = l.wird = null; }
+      // Teile: klein, gleich rastern (Skalierung: die grösste der Folge in ihrer Ebene, mal extra)
+      for (const s of sprites) {
+        const smax = Math.max(...ansichten(stand.stuecke, s.p, 0, stand.stuecke.length - 1).map((v) => v.s)), [x, y, b, h] = s.box;
+        rastern(s.inhalt, [x, y, x + b, y + h], Math.min(smax * q2() * s.extra, 512 / Math.max(b, h)), 1, () => true)
+          .then((bild) => { if (!bild) return; s.bild?.frei(); s.bild = bild; s.obj.clear(); s.obj.add(bild.obj); });
+      }
+      nachfuehren();
+    };
+    /** Welche Texturen jetzt gebraucht werden: anlegen, was fehlt; im Ruhepunkt auch die der nächsten Fahrt */
+    const nachfuehren = () => {
+      if (!stand) return;
+      const anzahl = stand.stuecke.length;
+      const n = Math.max(0, Math.min(anzahl - 1, scene.moving ? scene.fahrtIndex : scene.fahrtIndex + 1));
+      for (const g of gruppen) {
+        const ab = stand.abschnitte[g.ebene].find(([a, b]) => a <= n && n <= b);
+        const e = gruppeTex(g, ab, scene.moving && !g.zeigt);
+        if (e.fertig && g.zeigt !== e) {
+          g.zeigt = e;
+          g.obj.clear();
+          for (const bild of e.teile) g.obj.add(bild.obj);
+          // andere Abschnitte frei (ausser einer, der gerade noch rastert)
+          for (const [k, x] of g.tex) if (x !== e && x.fertig) { freiAlle(x); g.tex.delete(k); }
+        }
+      }
+      if (!scene.moving) for (const l of linienT) linieTex(l, scene.cam, n);
+    };
+    const pose = (c, p, q) => {
+      const s = scene.skala(c, p) * q, X = 800 + (c.x - 800) * p, Y = 450 + (c.y - 450) * p;
+      return { s, ox: innerWidth * q / 2 - s * X, oy: innerHeight * q / 2 - s * Y };
+    };
+    const zeichnen = (ts = performance.now()) => {
+      const q = q2(), bw = Math.round(innerWidth * q), bh = Math.round(innerHeight * q);
+      if (bw !== breite || bh !== hoehe) {
+        breite = bw; hoehe = bh;
+        r3.setSize(bw, bh, false);
+        kamera.right = bw; kamera.bottom = bh; kamera.updateProjectionMatrix();
+      }
+      const t = scene.zeitBei(ts), c = kameraBei(), posen = layers.map(({ p }) => pose(c, p, q)), echt = ts / 1000;
+      for (const g of gruppen) {
+        for (const bild of g.zeigt?.teile ?? []) zeigBild(bild, posen[g.ebene]);
+      }
+      for (const l of linienT) {
+        if (l.aktuell?.bild) zeigBild(l.aktuell.bild, posen[l.ebene]);
+      }
+      const zeig = (s, m, alpha = 1, ebene = layers.findIndex((l) => l.p === s.p)) => {
+        s.obj.visible = !!s.bild && alpha > 0.001;
+        if (s.obj.visible) zeigBild(s.bild, posen[ebene], m, alpha);
+      };
+      if (sterne) {
+        const u = sterne.mesh.material.uniforms, ps = posen[sterne.ebene];
+        u.uPose.value.set(ps.s, ps.ox, ps.oy); u.uZeit.value = echt; u.uAufl.value.set(bw, bh);
+      }
+      for (const f of flks) zeig(f.s, [1, 0, 0, 1, 0, 0], flackernBei(echt, f.verz), f.ebene);
+      if (polarT) zeig(polarT.s, dreh(0, ...polarT.ort, (1 + 1.8 * stern.wert(t)) * (atem.wert?.(t) ?? 1)), 1, polarT.ebene);
+      for (const r of rauch) {
+        const k = (((t + r.off * 20) % 20) + 20) % 20 / 20, size = 3 + k * 10, dx = k * 34 + Math.sin(4 * Math.PI * k - 3 * r.off) * 3;
+        zeig(r.s, [size, 0, 0, size, r.ort[0] + dx, r.ort[1] - k * 85], Math.sin(Math.PI * k) ** 1.5 * 0.5, layers.findIndex((l) => l.p === r.s.p));
+      }
+      if (schalT) zeig(schalT.s, dreh(schal.wert?.(t) ?? 0, ...schalT.ort), 1, schalT.ebene);
+      const armGrad = armSpur.wert(t);
+      if (armT) {
+        const m = dreh(armGrad, ...armT.ort);
+        zeig(armT.s, m, 1, armT.ebene);
+        const v = kraft.wert(t), o = (v > 0.002 ? v : 0) * (flackern.wert?.(t) ?? 1);
+        strahl.visible = o > 0.001 && !DIAG.has('ohnestrahl');
+        if (strahl.visible) {
+          const sL = Math.max(laenge.wert(t), STRAHL_MIN), L = sL * STRAHL_L, H = Math.max(24, ...STRAHL_TEILE.map(({ w0, k }) => Math.max(w0, k * L))) + 2;
+          const box = [-24, -H, L + 24, 2 * H], u = strahl.material.uniforms, ps = posen[armT.ebene];
+          setze(strahl, ps, box, mal(m, [1, 0, 0, 1, 34, 0]));
+          u.uBox.value.set(...box); u.uL.value = L; u.uS.value = sL; u.uO.value = o; u.uPx.value = 1 / ps.s;
+        }
+      }
+      if (wuermer.length) {
+        const a = armGrad * Math.PI / 180, tx = 440 + 34 * Math.cos(a), ty = 592 + 34 * Math.sin(a);
+        for (const { w, s } of wuermer) {
+          const [x, y, g] = scene.worms === 'idle' ? [w.hx + Math.sin(t * w.a + w.ph) * 16, w.hy + Math.cos(t * w.b + w.ph) * 9, 1]
+            : scene.wurmOrt(w, t, tx, ty), blink = 0.45 + 0.55 * Math.sin(w.fl * t + w.ph) ** 2;
+          zeig(s, [g, 0, 0, g, x, y], blink);
+        }
+      }
+      r3.render(welt, kamera);
+      bilder[bildN++ % bilder.length] = ts;
+    };
+    let einmalRaf = 0;
+    const einmal = () => { if (!raf && !einmalRaf) einmalRaf = requestAnimationFrame((ts) => { einmalRaf = 0; if (!raf && stand) { nachfuehren(); zeichnen(ts); } }); };
+    const schleife = (ts) => {
+      raf = 0;
+      if (!scene.running) return;
+      zeichnen(ts);
+      raf = requestAnimationFrame(schleife);
+      // nach dem Bild: was fehlt, anstossen (rastert dann ein Stück je Bild)
+      if (!scene.moving) nachfuehren();
+    };
+    return {
+      leinwand,
+      neuePlan,
+      /** einmal zeichnen (vorwärmen: Shader und Texturen), ohne Schleife */
+      zeichnen: () => { nachfuehren(); zeichnen(); },
+      start() { if (!raf) raf = requestAnimationFrame(schleife); },
+      stop() { cancelAnimationFrame(raf); raf = 0; },
+      /** Fahrt n kann beginnen, sobald ihre Texturen da sind (Tippen im Ruhepunkt, bevor sie fertig gerastert sind) */
+      async bereit(n) {
+        if (!stand) return;
+        const jobs = gruppen.map((g) => gruppeTex(g, stand.abschnitte[g.ebene].find(([a, b]) => a <= n && n <= b)).job);
+        wartet = true;
+        try { await Promise.all(jobs); } finally { wartet = false; }
+        nachfuehren();
+      },
+      /** ausgeblendet: Texturen frei (Speicher der Grafik), die Leinwand klein; die nächste Folge plant neu */
+      freigeben() {
+        plan++;
+        stand = null;
+        for (const g of gruppen) { for (const e of g.tex.values()) freiAlle(e); g.tex.clear(); g.zeigt = null; g.obj.clear(); }
+        for (const l of linienT) { l.aktuell?.bild?.frei(); l.aktuell = l.wird = null; }
+        for (const s of sprites) { s.bild?.frei(); s.bild = null; }
+        breite = hoehe = 1;
+        r3.setSize(1, 1, false);
+      },
+      /** Abstände der eigenen Bilder (ms), die letzten n */
+      bilder(nur = 4096) {
+        const k = Math.min(bildN, bilder.length, nur), aus = [];
+        for (let i = bildN - k + 1; i < bildN; i++) aus.push(bilder[i % bilder.length] - bilder[(i - 1) % bilder.length]);
+        return aus;
+      },
+      /** Bytes der Texturen (stehend, Linien, Teile) */
+      speicher() {
+        let b = 0;
+        for (const g of gruppen) for (const e of g.tex.values()) for (const bild of e.teile ?? []) b += bild.bytes;
+        for (const l of linienT) b += (l.aktuell?.bild?.bytes ?? 0) + (l.wird?.bild?.bytes ?? 0);
+        for (const s of sprites) b += s.bild?.bytes ?? 0;
+        return b;
+      },
+      statistik,
+      /** Bilder einzeln: [Art, Ebene, Breite × Höhe in Pixeln, Kacheln, MB] */
+      liste() {
+        const aus = [];
+        for (const g of gruppen) for (const [k, e] of g.tex) for (const bild of e.teile ?? []) aus.push(['gruppe ' + k, g.ebene, bild.groesse.join('×'), bild.kacheln.length, +(bild.bytes / 1048576).toFixed(1)]);
+        for (const l of linienT) if (l.aktuell?.bild) aus.push(['linie', l.ebene, l.aktuell.bild.groesse.join('×'), l.aktuell.bild.kacheln.length, +(l.aktuell.bild.bytes / 1048576).toFixed(1)]);
+        return aus;
+      },
+    };
+  };
+  const gl = BUEHNE_GL ? glBuehne() : null;
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
   const KNICKFLUG = DIAG.has('knickflug'); // ?diag=knickflug: Flug wie bis Ticket 18 (linear zwischen 30 Keyframes je Sekunde)
@@ -18860,7 +19478,7 @@ function createStoryScene(host) {
   const MASSSTAB_TOLERANZ = 1.05; // k ändert erst, wenn es sonst um mehr als 5 % abwiche (massstab)
 
   scene = {
-    el, skip: q('.skip'),
+    el, skip: q('.skip'), gl,
     tweens: [], running: false,
     uhr: { t0: performance.now(), s0: 0, tempo: 1 }, // Zeit der Bühne: läuft in echter Zeit, mal speed
     letzte: 0,          // Zeit der Bühne beim letzten Bild der JS-Schleife
@@ -18991,6 +19609,7 @@ function createStoryScene(host) {
       // je Ebene der Abschnitt mit der nächsten (in einer Fahrt: dieser) Fahrt
       const n = Math.min(stuecke.length - 1, Math.max(0, this.moving ? this.fahrtIndex : this.fahrtIndex + 1));
       this.folgeAnims = layers.map((_, i) => this.abschnittAnlegen(i, this.abschnitte[i].find(([a, b]) => a <= n && n <= b)));
+      gl?.neuePlan();
     },
     /**
      * Der Halt ist unbegrenzt: Die Folge hält je Ruhepunkt HALTEN lang; steht die Bühne länger (Tab über Nacht), springt
@@ -19058,6 +19677,7 @@ function createStoryScene(host) {
      * neu rastern lässt. Darum nur in Ruhepunkten, gestaffelt (eine Ebene je Schritt), und nur, wo der Abschnitt wechselt.
      */
     abschnittWechseln(i, n) {
+      if (BUEHNE_GL) return; // die Abschnitte wechselt glBuehne (Texturen)
       const alt = this.folgeAnims[i];
       if (!alt || n >= this.folgeZeit.stuecke.length) return;
       const [a, b] = alt.abschnitt;
@@ -19118,6 +19738,7 @@ function createStoryScene(host) {
      * verborgene Kopie rastert fast durchsichtig (bereit) und löst nach LINIEN_MS die sichtbare ab.
      */
     linienTauschen(i) {
+      if (BUEHNE_GL) return; // Linien rastert glBuehne je Ruhepunkt
       const rs = this.skala(this.cam, layers[i].p).toFixed(5);
       // nur, wo die Breite merklich anders wäre: jeder Tausch rastert eine Linie neu und hält kurz beide im Speicher
       const anders = (an) => { const alt = parseFloat(an.style.getPropertyValue('--rs')); return !(alt > 0) || Math.max(rs / alt, alt / rs) > LINIEN_TOLERANZ; };
@@ -19190,6 +19811,7 @@ function createStoryScene(host) {
     ruhen() {
       el.classList.remove('prewarm');
       if (this.running) return;
+      gl?.stop();
       clearTimeout(this.staffel);
       clearTimeout(this.haltZeit);
       for (const u of umgebung) u.a.pause();
@@ -19207,6 +19829,7 @@ function createStoryScene(host) {
         this.laufend?.uhr.cancel();
         this.laufend = null;
         this.stelle();
+        gl?.freigeben(); // ausgeblendet: Texturen frei, die nächste Folge plant neu (folgeAnlegen)
       }
     },
     /** Einblenden und die Szene laufen lassen. */
@@ -19219,6 +19842,7 @@ function createStoryScene(host) {
         this.time = this.time; // Animationen auf die Zeit der Bühne stellen
         this.wecken();
       }
+      gl?.start();
       void el.offsetWidth;
       el.classList.add('lit');
     },
@@ -19452,6 +20076,7 @@ function createStoryScene(host) {
         flackern.setze(0.07, 23, 0, 0.93);
         d.schwingt = true;
       }
+      if (BUEHNE_GL) return false; // Glühwürmchen: glBuehne aus wurmOrt, ohne Animationen
       // Glühwürmchen: schwirren am Waldrand, fliegen zur Lampe, tragen das Licht in den Wald. Jedes schwingt immer als
       // Animation um einen ruhigen Ort; im Flug (und schon davor, bis es losfliegt) läuft der Ort als vorab berechnete
       // Animation (flugAnlegen). JavaScript stellt nur um, wenn eines angekommen ist (wurmZeit), nie pro Bild und nie
@@ -19498,6 +20123,7 @@ function createStoryScene(host) {
      * die Ankunft, die vier Bilder fallen darin nicht auf. Eine neue Fahrt bricht ab (moveTo, act stellt alle um).
      */
     wurmStaffel() {
+      if (BUEHNE_GL) return; // Glühwürmchen aus wurmOrt je Bild (glBuehne)
       cancelAnimationFrame(this.wurmRaf);
       const rest = [...worms];
       const schritt = () => {
@@ -19514,6 +20140,7 @@ function createStoryScene(host) {
      * keines vor 0,3 s abfliegt und bis dahin auch sein Flug an der Mitte seines ruhigen Orts stünde.
      */
     flugStaffel() {
+      if (BUEHNE_GL) return;
       cancelAnimationFrame(this.flugRaf);
       const rest = worms.map((w) => [w, this.wurmPlan(w, true).flug?.ta ?? Infinity]).sort((a, b) => a[1] - b[1]).map(([w]) => w);
       const schritt = () => {
@@ -20512,6 +21139,7 @@ const story = {
     this.covered = true;
     for (const shot of shots) {
       if (this.skipped) break;
+      if (sc.gl) await sc.gl.bereit(shots.indexOf(shot)); // WebGL: Texturen der Fahrt fertig (meist schon im Ruhepunkt)
       sc.say(shot.text);
       sc.hint(false);
       if (shot.act) sc.act(shot.act);
@@ -22570,6 +23198,11 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
   // (null, 'teil1', 'reise', 'fertig'). Den Durchlauf fahren Proben über die Knöpfe der Anzeige (tests/leistung-probe.mjs)
   leistung: { daten: () => leistung.daten(), ergebnis: () => messLies(MESS_ERGEBNIS)?.daten ?? null,
     schritt: () => leistung.schritt } };
+// Bühne der Geschichte (Ticket 19): modus dom oder gl; bilder(): Abstände der eigenen Bilder (ms), speicher(): Bytes der
+// Texturen, statistik: Rastern (Kacheln, ms, längste, Hochladen)
+window.__prisma.buehne = { modus: BUEHNE_GL ? 'gl' : 'dom', bilder: (n) => story.scene?.gl?.bilder(n) ?? [],
+  speicher: () => story.scene?.gl?.speicher() ?? 0, statistik: () => story.scene?.gl?.statistik ?? null,
+  liste: () => story.scene?.gl?.liste() ?? [] };
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
 // rendern (Screenshots der KI-Tester). zeige(index): LEVELS[index] ausserhalb der Geschichte zeigen, gleich nach dem
