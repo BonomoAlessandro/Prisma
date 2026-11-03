@@ -40,3 +40,24 @@ Stufen:
 - [ ] Der Grafikspeicher der Ebenen auf dem Handy ist gemessen und begrenzt.
 - [ ] `geschichte-probe` (Standard und `--quer`) ist grün, die übrigen Proben bleiben wie bisher.
 - [ ] Der Nutzer nimmt den Prolog auf dem Poco und am Computer ab.
+
+## Comments
+
+**Plan Stufe 2 (03.11.):**
+- Nur Prolog und Epilog nutzen die DOM-Bühne. Die Kapitelszenen, die Reisen und das Finale laufen schon in der
+  3D-Szene des Spiels, für sie heisst Stufe 2 nur «mit 60 Bildern/s».
+- Vorgabe für Stufe 1:
+  - generisch je Folge, mit Spuren für Kamera, Arm, Strahl und Stern
+  - dieselbe Schnittstelle wie `createStoryScene`
+  - Wahl allein in `story.makeScene()` über `?buehne=`
+  - Untertitel-DOM und SVG-Erzeugung geteilt
+  - eigenes Canvas in `#story .scene` als Ersatz für `.world`, die CSS-Übergänge bleiben
+  - `__prisma.buehne` mit `bilder()` und `speicher()` für die Proben
+- Arbeitspakete nach Stufe 1:
+  - WP-0: Schnittstelle und Schalter
+  - danach parallel:
+    - WP-A: Epilog-Akte `blink` und `answer`
+    - WP-B: Übergänge Finale → Epilog und Epilog → Menü, `starAt`
+    - WP-C: Reisen mit 60 Bildern/s, Zweig `leistung/19-reisen-60`
+    - WP-E: Proben mit `--buehne`
+  - WP-D nach WP-A: Drehen, Seitenmassstab, reduzierte Bewegung, verborgener Tab, Ruhe-Politik, Speicher auf dem Handy
