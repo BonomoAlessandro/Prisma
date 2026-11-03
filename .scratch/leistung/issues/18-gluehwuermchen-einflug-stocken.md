@@ -392,3 +392,92 @@ weiter; kleiner gerastert werden nur Ebenen an der Obergrenze (Noas Hügel 1,0 �
 Graten und Noa: gleich. Aber Schrift und Knöpfe werden um 27 % kleiner (die ganze Seite), so nicht brauchbar. Ein Lauf
 auf dem Poco: Fahrt 1–6 39/1/12/9/8/9 Abbrüche, 58,5/60,3/55,6/57,7/57,1/58,1 Bilder/s (ohne: 8/6/6/22/23/43,
 53–54/s in Fahrt 5 und 6). Messung mit je zwei Läufen im Wechsel steht bereit (`poco-morgen.sh`).
+
+### 03.11.2026 – Massstab der Seite 2 als Standard, Oberfläche gleich gross (Emulation; Poco steht aus)
+
+**Ziel:** die Wirkung von `?diag=seite2` (Seite rastert mit 2 statt 2,75 Gerätepixeln je Pixel) als Standard, ohne
+dass Schrift, Knöpfe und Bedienelemente kleiner werden. Desktop und Geräte mit Pixeldichte ≤ 2: unverändert.
+
+**Wege:**
+- (a) Massstab nur während der Bühne: Chrome übernimmt einen geänderten Meta-Viewport sofort (geprüft: innerWidth und
+  `visualViewport.scale` stimmen schon im selben Skript, auch im `<head>`). Aber jeder Wechsel legt die ganze Seite neu
+  aus und rastert sie neu, das Canvas ändert die Grösse (onResize baut Composer, Spiegelung und Bloom neu), die Bühne
+  bekommt ein `resize` (anpassen). Den Ausgleich der Texte der Bühne (Untertitel, «Überspringen», Angebot, Einstieg)
+  und der Medienabfragen bräuchte es trotzdem, nur zeitweise. Dazu ein Wechsel nur in einem schwarzen Moment, an
+  zwei Enden (Prolog, Epilog, Einstiege), und Android-Verhalten beim Wechsel unprüfbar ohne Gerät. Mehr Risiko, kaum
+  weniger Arbeit.
+- (b) dauerhaft, gewählt: ein fester Zustand ab dem ersten Bild, genau der, den das Poco mit `seite2` schon gemessen
+  hat; der Ausgleich ist mechanisch und auf dem Desktop wirkungslos.
+
+**Umbau (b)** (`SEITE` im `<head>`, nach dem Stil):
+- Nur bei `devicePixelRatio > 2`, CSS `zoom` nach dem Standard (`currentCSSZoom`: Chrome ≥ 128, Firefox ≥ 126), nicht
+  iOS (`-webkit-touch-callout`), und nur wenn der Browser den Meta-Viewport übernimmt (`visualViewport.scale` = 2/dpr
+  nach dem Setzen; Desktop: nein, dann bleibt alles wie vorher). `?diag=seite275`: ohne, wie bisher (zum Messen).
+- Meta-Viewport `initial-scale = minimum-scale = maximum-scale = 2/dpr`; `body { zoom: dpr/2 }` (Poco 1,375): alles
+  im body ist so gross und so scharf wie vorher (1 Pixel der Oberfläche = 2,75 Gerätepixel). Die Bühne nimmt es
+  zurück (`#story .scene .world { zoom: 1/SEITE }`) und rastert mit 2, rechnet wie mit `seite2` (innerWidth). Ihre
+  Texte (`.sub`, `.skip`, Angebot, Untertitel im Einstieg) liegen ausserhalb von `.world`: gleich gross.
+- Ausgleich: vw/vh/dvh im vergrösserten Teil durch `var(--seite)` (17 Stellen); Medienabfragen mit px im Stil beim
+  Laden mal SEITE (`CSSMediaRule.media`), in JavaScript `seiteMedia()` (HOCH im Menü, ALLE der Übersicht).
+  Koordinaten: clientX/getBoundingClientRect in Pixeln des Layouts → durch SEITE (Leucht-SVG des Menüs, «Weiter» daran,
+  Hinweis und Wischen der Übersicht, Ziehen der Kamera, Schwellen beim Tippen und `touchSlop`); Karte und Messwerkzeug
+  «schmal» nach Pixeln der Oberfläche.
+- WebGL: Canvas im body (vergrössert), Grösse in Pixeln der Oberfläche (`seiteBreite()`, aus `visualViewport`,
+  aufgerundet), `setPixelRatio` unverändert: Puffer 786 × 1746 wie vorher, devicePixelRatio bleibt 2,75,
+  `adaptiveResolution` unverändert. Raycast über das Rechteck des Canvas (gleiches Mass wie clientX).
+- `env(safe-area-inset-*)`: im vergrösserten Teil wie vorher (Emulation mit `setSafeAreaInsetsOverride`: 110 Gerätepixel
+  vorher und nachher); auf dem Gerät nicht geprüft.
+- Probe-Werkzeuge: `emulate({ mobile })` (Handy quer braucht mobile ausdrücklich), `geschichte-probe --dpr 2.75`,
+  `buehne-messung bilder --nur handy-275,quer-275`; Tippen ins Leere und Ziehen in `geschichte-probe`, `buehne-messung`,
+  `leerlauf-probe` an Ecken des Layouts statt des Bildschirms (mit SEITE grösser; Eingabe von CDP kommt in Pixeln des
+  Layouts an, geprüft).
+
+**Zoomen:** schon vorher gesperrt (`maximum-scale=1, user-scalable=no`), jetzt min = max = 2/dpr, also gleich. iOS
+lässt trotz `user-scalable=no` zoomen; dort bleibt alles wie vorher (kein Massstab). Android mit «Zoom erzwingen» in
+der Bedienungshilfe: Pinch wie vorher möglich, die Oberfläche bleibt dabei richtig.
+
+**Belege (Emulation, Chrome 156, alle Bereiche vorher = HEAD gegen nachher):** Bilder und Hüllrechtecke aller sichtbaren
+Elemente in Gerätepixeln (`getBoundingClientRect × dpr × visualViewport.scale`, Schrift `font-size × currentCSSZoom ×
+dpr × scale`) für Startbildschirm, Menü mit Leucht-SVG, Rückfrage «Von vorn», Spiel-HUD, Übersicht, Feier, Prolog
+(Text, «Überspringen»), Angebot, Einstieg, `?perf` und Karte; Handy hoch 393 × 873 und quer 873 × 393 je @2,75
+(Android-Kennung, mobil), Desktop 1440 × 900 @1 und @2,5. Skripte und Bilder im Scratchpad `18b/` (`ui.mjs`, `vergl.mjs`,
+`out/vergleich/<ansicht>-<zustand>.png` links vorher, rechts nachher; Zahlen `out/vergl.txt`).
+- Desktop @1 und @2,5: alle Rechtecke und Schriften auf 0,00 Gerätepixel gleich (SEITE = 1, Meta-Viewport unbeachtet).
+- Handy hoch und quer: Schriftgrössen gleich (Abweichung ≤ 0,07 Gerätepixel, also Rundung). Lage und Grösse der
+  Rechtecke: meist < 1,5 Gerätepixel; die grössten Abweichungen 2–6,5 Gerätepixel (≤ 2,4 Pixel der Oberfläche) in der
+  Höhe, wo sich mehrere Textzeilen stapeln (Feier, Angebot): Chrome rundet die Zeilenhöhe `normal` in Pixeln des Layouts
+  statt der Oberfläche, je Zeile bis 1 Gerätepixel anders. Knöpfe gleich breit (≤ 2,5 Gerätepixel), «Weiter» im Menü
+  184 → 181 Gerätepixel hoch (1,6 %). Mit dem Auge nicht zu unterscheiden (Bilder).
+- Bühne (`buehne-messung bilder --nur handy-275,quer-275,desktop`, eingefroren): Desktop gleich (0,00 %, nur die
+  Glühwürmchen ≤ 0,08 %), Handy @2,75 0,5–1,6 % der Pixel um > 24 anders (Kanten der Ebenen, die jetzt mit 2 rastern,
+  und die Zeilen der Texte; die Glühwürmchen in 6 und 7 streuen schon von Lauf zu Lauf um 0,8 %). Schärfe von Noa,
+  Graten, Strahl und Sternen in Ausschnitten gleich (`out/schaerfe-prolog2.png`, `schaerfe-prolog3.png`), Bilder
+  `out/buehne-vergleich/`.
+- Speicher der Grafik je Ruhepunkt und Fahrt (`raster2.sh`, Handy ×4, 8 GB), neu / `seite275`: Fahrt 5 116,1 / 123,0 MB,
+  Fahrt 6 113,7 / 122,9, Ruhepunkt 6 124,8 / 130,5, Fahrt 4 107,8 / 100,5, Ruhepunkt 1 152,9 / 145,0 (wie mit `seite2`:
+  die Wurzel der Seite kommt dazu).
+- WebGL: Puffer 786 × 1746, Pixelverhältnis 2, devicePixelRatio 2,75 (wie vorher); Ziehen der Kamera und Tippen in
+  Pixeln der Oberfläche (gleiche Drehung je Fingerweg wie vorher).
+- Kosten beim Laden: der Block im Kopf braucht 4–5 ms (Desktop-CPU, Emulation: Layout für `visualViewport` und 22
+  Medienabfragen); `leistung-probe` Seitenstart 124 statt 106 ms (je ein Lauf, im Rahmen).
+
+**Tests** (alle `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node …`): logic, golden,
+screenshot, offline, start-probe (Desktop und `--handy`), geschichte-probe `--start`, `--handy`, `--quer --grad leicht`,
+`--grad leicht --welten 2 --finale leicht`, leistung-probe `--fenster --handy --ersatzmass`, leerlauf-probe `--fenster
+--handy`: exit 0, keine Warnung «Weckstelle fehlt». Zusätzlich mit `--dpr 2.75` (Massstab aktiv): `--quer --grad leicht
+--dorf` und `--handy --grad leicht --welten 1 --finale leicht` bestanden; `--handy --grad leicht --menue --uebersicht`
+mit 4 Lücken > 100 ms in Übergängen (142–374 ms) – der Stand vorher (HEAD) hat bei @2,75 genauso 4 (178–340 ms): die
+Probe misst ihre Grenze für Pixeldichte 2, headless @2,75 liegt sie darüber, nicht wegen des Umbaus. Inhaltlich (Menü,
+Übersicht, Fokus, Stand) alles bestanden.
+
+**Poco:** `poco-morgen.sh` misst jetzt neu (ohne Schalter) gegen alt (`?diag=seite275`), je zwei Läufe im Wechsel, und
+bricht ab, wenn der Massstab nicht wie erwartet gilt (Zeile «Massstab» je Lauf: `seite`, Breite, `visualViewport.scale`,
+Puffer). Probelauf `EMU=1`: läuft durch, neu `seite 1.375, breite 541, vv 0.7276, puffer 786×1746`, alt `seite 1, 393,
+vv 1`; in der Emulation keine Abbrüche (wie bisher, sie zeigt jedes Bild). Offen: Messung auf dem Poco (Abbrüche je
+Fahrt, Bilder/s) und ein Blick des Nutzers auf Schrift und Knöpfe auf dem Gerät.
+
+**Risiken:** (1) Android-Chrome übernimmt den Meta-Viewport im Kopf vielleicht nicht im selben Skript wie die
+Emulation: dann gilt SEITE = 1 und alles bleibt wie vorher (sicher, nur ohne Gewinn; die Messung zeigt es in der Zeile
+«Massstab»). (2) `env(safe-area-inset-*)` auf dem Gerät (Vollbild als App mit Aussparung) nur in der Emulation geprüft.
+(3) Neue Stellen, die mit clientX, getBoundingClientRect, innerWidth oder vw/vh Oberfläche bauen, müssen SEITE kennen
+(Kommentar bei SEITE). (4) Firefox Android (zoom nach Standard) nicht geprüft.

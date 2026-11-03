@@ -174,7 +174,9 @@ try {
     if (!view.phone) { await tippe(p.x, p.y, 'hover'); await sleep(400); }
     if (p.dreh) { await tippe(p.x, p.y); await sleep(900); }
   }
-  await ziehe(view.width * 0.15, view.height * 0.8, view.width * 0.2);
+  // im Layout (Eingabe in dessen Pixeln; mit dem Massstab der Seite grösser als der Bildschirm, Ticket 18)
+  const L = await ev('({ w: innerWidth, h: innerHeight })');
+  await ziehe(L.w * 0.15, L.h * 0.8, L.w * 0.2);
   await sleep(1500);
   const e = JSON.parse(await ev(LIES));
   ergebnis.eingabe = e.eingabe;

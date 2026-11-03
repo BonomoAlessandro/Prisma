@@ -5,12 +5,13 @@
 // und GPU (ms je Sekunde Prolog).
 // Aufruf: LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/buehne-messung.mjs
 //           [messen] [--handy] [--drossel 4] [--fenster] [--epilog] [--name x]
-//         … node tests/buehne-messung.mjs bilder <ordner> [--fenster]
+//         … node tests/buehne-messung.mjs bilder <ordner> [--fenster] [--nur handy,handy-275,…]
 //   messen (Vorgabe): ein Prolog (bzw. mit --epilog ein Epilog) mit Tippen nach 1,5 s Warten je Einstellung, Ergebnis
 //   nach tests/output/buehne/messung-<name>.json. Desktop 1920 × 953, --handy 393 × 873 mit Pixeldichte 2,75 und
 //   Touch (wie das Poco F4 GT); --drossel: CPU-Drosselung (Emulation.setCPUThrottlingRate).
 //   bilder: an jedem Ruhepunkt von Prolog und Epilog ein Bild, eingefroren auf dieselbe Zeit (Rauch, Glühwürmchen,
-//   Funkeln), in Desktop, Handy hoch und quer und kleinem Handy, nach tests/output/buehne/<ordner>/.
+//   Funkeln), in Desktop, Handy hoch und quer und kleinem Handy, nach tests/output/buehne/<ordner>/; mit --nur nur
+//   diese Ansichten, dazu handy-275 und quer-275 (Pixeldichte 2,75 wie das Poco, Massstab der Seite).
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
@@ -66,7 +67,9 @@ async function oeffne(view) {
   await ev('document.fonts.ready.then(() => true)');
   // erste Geste (Ton freischalten) ins Leere des Menüs, wie die Geschichte-Probe
   for (let n = 0; n < 3 && !(await ev(`!!${D}.audio.ctx`)); n++) {
-    await tippeBei(view.width - 4, view.height - 4);
+    // Ecke des Layouts (mit dem Massstab der Seite grösser als der Bildschirm, Ticket 18)
+    const L = await ev('({ w: innerWidth, h: innerHeight })');
+    await tippeBei(L.w - 4, L.h - 4);
     await sleep(200);
   }
   // der Himmel ist geladen und alles vorgewärmt: gemessen wird die Bühne, nicht das Laden
@@ -229,8 +232,11 @@ async function bilder() {
   const VIEWS = [{ name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false },
     { name: 'handy', width: 390, height: 844, dpr: 2, phone: true },
     { name: 'quer', width: 844, height: 390, dpr: 2, phone: true },
-    { name: 'handy-360x640', width: 360, height: 640, dpr: 2, phone: true }];
-  for (const view of VIEWS.filter((v) => !wert('--nur') || wert('--nur').split(',').includes(v.name))) {
+    { name: 'handy-360x640', width: 360, height: 640, dpr: 2, phone: true },
+    // nur mit --nur: Pixeldichte 2,75 wie das Poco F4 GT, mit dem Massstab der Seite (Ticket 18 von .scratch/leistung/)
+    { name: 'handy-275', width: 393, height: 873, dpr: 2.75, phone: true, extra: true },
+    { name: 'quer-275', width: 873, height: 393, dpr: 2.75, phone: true, mobile: true, extra: true }];
+  for (const view of VIEWS.filter((v) => (wert('--nur') ? wert('--nur').split(',').includes(v.name) : !v.extra))) {
     for (const epilog of [false, true]) {
       const c = await oeffne(view);
       try {

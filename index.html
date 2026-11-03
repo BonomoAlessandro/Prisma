@@ -118,7 +118,7 @@
   #hud { isolation: isolate; } /* eigener Stapel: der Hof (z-index -1) bleibt vor der Szene */
   #hud::before {
     content: ""; position: absolute; z-index: -1; pointer-events: none;
-    left: 50%; top: 50%; width: min(960px, 100vw + 120px); height: calc(100% + 90px);
+    left: 50%; top: 50%; width: min(960px, 100vw / var(--seite) + 120px); height: calc(100% + 90px);
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
   }
@@ -172,7 +172,7 @@
   /* weicher dunkler Hof hinter Meldung, Statistik und Button: lesbar auch vor hellen Hintergründen (Strand, Wald) */
   #solved::before {
     content: ""; position: absolute; z-index: -1; pointer-events: none;
-    left: 50%; top: 50%; width: min(560px, 100vw); height: calc(100% + 90px);
+    left: 50%; top: 50%; width: min(560px, 100vw / var(--seite)); height: calc(100% + 90px);
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
   }
@@ -215,7 +215,7 @@
     #solved .stats { margin-top: 0; gap: 18px; }
     #solved .stats .num { font-size: 16px; }
     #solved .stats .unit { letter-spacing: 0.2em; }
-    #solved::before { width: min(900px, 100vw); height: calc(100% + 90px); }
+    #solved::before { width: min(900px, 100vw / var(--seite)); height: calc(100% + 90px); }
     #solved button { padding: 8px 16px 8px calc(16px + 0.4em); }
     body.is-solved #hud { opacity: 0; }
   }
@@ -229,7 +229,7 @@
     cursor: pointer;
     transition: opacity 1.1s ease;
   }
-  #intro .stage { position: relative; width: min(720px, 92vw); height: 120px; display: grid; place-items: center; }
+  #intro .stage { position: relative; width: min(720px, 92vw / var(--seite)); height: 120px; display: grid; place-items: center; }
   #intro .beam {
     position: absolute; left: 0; top: 50%;
     height: 2px; width: 100%;
@@ -239,7 +239,7 @@
     box-shadow: 0 0 12px 2px rgba(255, 255, 255, 0.55), 0 0 40px 6px rgba(170, 180, 255, 0.25);
     animation: intro-beam 2.6s cubic-bezier(0.6, 0, 0.2, 1) 0.3s forwards;
   }
-  #intro .word { position: relative; font-size: clamp(38px, 9vw, 76px); }
+  #intro .word { position: relative; font-size: clamp(38px, 9vw / var(--seite), 76px); }
   #intro .title {
     margin: 0;
     font-size: 1em;
@@ -255,7 +255,7 @@
   /* Geglättete SVG-Linien: gedrehte 1-px-Elemente würden treppig wirken */
   #intro .spectrum {
     position: absolute; left: calc(100% - 0.42em); top: 50%;
-    width: min(2.4em, 14vw); height: auto;
+    width: min(2.4em, 14vw / var(--seite)); height: auto;
     transform: translateY(-50%);
     overflow: visible;
   }
@@ -316,7 +316,7 @@
   #story .swap { opacity: 0; }
   #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
   #story .kicker:empty { display: none; }
-  #story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw, 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
+  #story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw / var(--seite), 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
   #story .path { display: flex; align-items: center; gap: 0; margin-top: 30px; }
   #story .path:empty { display: none; }
   #story .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; color: rgba(232, 230, 240, 0.3); }
@@ -340,11 +340,11 @@
     border: 1px solid rgba(232, 230, 240, 0.3); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
   }
   #story .actions button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
-  #story .caption { position: absolute; left: 16px; right: 16px; bottom: max(14vh, 70px); }
+  #story .caption { position: absolute; left: 16px; right: 16px; bottom: max(14vh / var(--seite), 70px); }
   /* dunkler Verlauf über die ganze Breite bis zum unteren Rand, wie bei Untertiteln im Film: auch vor hellem Himmel
      (Wüste, Strand) lesbar, ohne dass ein Fleck um den Text entsteht */
   #story .caption::before {
-    content: ""; position: absolute; z-index: -1; left: 50%; width: 100vw; top: -70px; bottom: -40vh;
+    content: ""; position: absolute; z-index: -1; left: 50%; width: calc(100vw / var(--seite)); top: -70px; bottom: calc(-40vh / var(--seite));
     transform: translateX(-50%);
     background: linear-gradient(to top, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
   }
@@ -399,18 +399,18 @@
   @keyframes story-twinkle-hell { from { opacity: 0.15; } }
   @keyframes story-flicker { 0%, 100% { opacity: 0.9; } 30% { opacity: 1; } 55% { opacity: 0.6; } 80% { opacity: 0.85; } }
   #story .scene .sub {
-    position: absolute; left: 16px; right: 16px; bottom: max(7vh, calc(env(safe-area-inset-bottom) + 28px));
+    position: absolute; left: 16px; right: 16px; bottom: max(7vh / var(--seite), calc(env(safe-area-inset-bottom) + 28px));
     display: flex; flex-direction: column; align-items: center; pointer-events: none;
     isolation: isolate; /* eigene Ebene: sonst läge der Hof (z-index -1) unter dem Bild der Bühne */
   }
   #story .scene .sub::before { /* dunkler Hof: der Text bleibt vor hellen Fenstern und dem Strahl lesbar */
-    content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(980px, 100vw + 80px); height: calc(100% + 140px);
+    content: ""; position: absolute; z-index: -1; left: 50%; top: 50%; width: min(980px, 100vw / var(--seite) + 80px); height: calc(100% + 140px);
     transform: translate(-50%, -50%);
     background: radial-gradient(closest-side, rgba(2, 2, 8, 0.7), rgba(2, 2, 8, 0.4) 55%, rgba(2, 2, 8, 0));
   }
   /* beide Sätze in derselben Zelle, unten bündig: Ein langer Satz wächst nach oben, ohne die Zeile darüber (Angebot:
      «Im Dorf») zu überdecken; mindestens zwei Zeilen hoch, damit der Hinweis darunter stillsteht */
-  #story .scene .lines { position: relative; display: grid; width: min(780px, 100%); min-height: 3.6em; font-size: clamp(16px, 2.2vw, 22px); }
+  #story .scene .lines { position: relative; display: grid; width: min(780px, 100%); min-height: 3.6em; font-size: clamp(16px, 2.2vw / var(--seite), 22px); }
   /* der alte Satz blendet aus, der neue danach ein (kein Übereinander zweier Sätze) */
   #story .scene .line {
     grid-area: 1 / 1; align-self: end; margin: 0;
@@ -750,7 +750,7 @@
        Karte darüber) füllen sie bei 390 px Höhe die Liste genau, auf niedrigeren Handys bleibt es kleiner (ohne dvh 28) */
     .menue-vonvorn {
       min-height: 28px; padding: 3px 8px; margin-top: 0; font-size: 8.5px; letter-spacing: 0.22em;
-      min-height: clamp(28px, calc((100dvh - 46px - max(8px, env(safe-area-inset-bottom))) / 4 - 44px), 40px);
+      min-height: clamp(28px, calc((100dvh / var(--seite) - 46px - max(8px, env(safe-area-inset-bottom))) / 4 - 44px), 40px);
     }
     .menue-lampe { width: 10px; height: 10px; }
     .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
@@ -928,7 +928,7 @@
   .ueb-hinweis.ueb-da { opacity: 1; }
   /* alle Welten untereinander: an der Kachel (sage setzt left und top, die Mitte des Hinweises über der Kachel) */
   .ueb[data-modus="alle"] .ueb-hinweis.ueb-bei {
-    right: auto; bottom: auto; margin: 0; max-width: calc(100vw - 32px); transform: translateX(-50%);
+    right: auto; bottom: auto; margin: 0; max-width: calc(100vw / var(--seite) - 32px); transform: translateX(-50%);
   }
 
   /* ---------- Stationen und Pfeile (nur Seiten) ---------- */
@@ -1081,7 +1081,7 @@
     .ueb[data-modus="seiten"] .ueb-seitentitel { flex-direction: row; justify-content: center; gap: 18px; }
     .ueb[data-modus="seiten"] .ueb-seitenname { font-size: 16px; gap: 10px; }
     .ueb[data-modus="seiten"] .ueb-seitenname .ueb-welt-name { font-size: 13px; }
-    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 0; height: clamp(76px, calc((100vh - 128px) / 2), 116px); }
+    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 0; height: clamp(76px, calc((100vh / var(--seite) - 128px) / 2), 116px); }
     .ueb[data-modus="seiten"] .ueb-hinweis { bottom: max(12px, env(safe-area-inset-bottom)); }
   }
 
@@ -1095,13 +1095,13 @@
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
     color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
     padding: 8px 10px; border-radius: 4px; white-space: pre; pointer-events: none;
-    max-width: calc(100vw - 24px); overflow: hidden;
+    max-width: calc(100vw / var(--seite) - 24px); overflow: hidden;
   }
   /* Handy: knappe Fassung oben links (perfHud.schmal). Unten liegen Angebot, «Gelöst», Werkzeugleiste und die Karten
      des Menüs, oben rechts «Überspringen»: Die bleiben frei */
   #perf.schmal {
     top: max(6px, env(safe-area-inset-top)); bottom: auto; left: max(6px, env(safe-area-inset-left));
-    max-width: calc(100vw - 172px); padding: 6px 8px; font-size: 10.5px; white-space: pre-wrap; background: rgba(0, 0, 0, 0.78);
+    max-width: calc(100vw / var(--seite) - 172px); padding: 6px 8px; font-size: 10.5px; white-space: pre-wrap; background: rgba(0, 0, 0, 0.78);
   }
   #perf .perf-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; white-space: normal; }
   #perf .perf-knoepfe:empty { display: none; }
@@ -1127,7 +1127,65 @@
   #leistung-karte.schmal pre { white-space: pre-wrap; overflow-wrap: anywhere; } /* schmale Fassung: kein Wischen */
   #leistung-karte textarea { flex: 1; font: inherit; color: inherit; background: #000; border: 1px solid #555; }
   #leistung-karte .karte-knoepfe { display: flex; flex-wrap: wrap; gap: 10px; }
+
+  /* Massstab der Seite (Ticket 18 von .scratch/leistung/, siehe SEITE): Die Seite rastert mit 2 Gerätepixeln je Pixel
+     des Layouts, alles ausser der Bühne wird um SEITE vergrössert und sieht aus wie vorher. Längen aus dem Viewport
+     (vw, vh, dvh) sind im vergrösserten Teil darum durch --seite geteilt. */
+  :root { --seite: 1; }
+  html.seite body { zoom: var(--seite); }
+  html.seite #story .scene .world { zoom: calc(1 / var(--seite)); } /* die Bühne selbst: Massstab der Seite */
 </style>
+<script>
+/**
+ * Massstab der Seite (Ticket 18 von .scratch/leistung/): Auf Handys mit mehr als 2 Gerätepixeln je CSS-Pixel rastert
+ * die Seite mit 2 (Meta-Viewport mit initial-scale 2 / devicePixelRatio, wie das Spiel mit Pixelverhältnis höchstens 2).
+ * Die Bühne der Geschichte rastert so ihre grossen Ebenen kleiner: Auf dem Poco F4 GT (2,75) fehlten in den Fahrten
+ * sonst Kacheln, und der Compositor brach Bilder ab. Alles übrige (Schrift, Knöpfe, Spiel) ist um SEITE vergrössert
+ * (CSS zoom am body, die Bühne nimmt es zurück) und sieht genau aus wie vorher, auch gleich scharf.
+ * SEITE: Pixel des Layouts je Pixel der Oberfläche (1 ohne Massstab). Pixel der Oberfläche sind die der Stile; in
+ * Pixeln des Layouts rechnen innerWidth, innerHeight, clientX/clientY und getBoundingClientRect, die Bühne und
+ * Medienabfragen. Medienabfragen mit px im Stil rechnet dieser Block um; in JavaScript seiteMedia().
+ * Nur wo der Browser den Meta-Viewport übernimmt (Android; nicht Desktop, dort prüft visualViewport.scale) und CSS
+ * zoom nach dem Standard rechnet (currentCSSZoom: Chrome ab 128, Firefox ab 126); nicht auf iOS (Safari lässt dort
+ * trotz maximum-scale zoomen, und das Abbrechen von Bildern ist ein Befund von Chrome). ?diag=seite275: ohne, wie bis
+ * Ticket 18 (zum Messen).
+ */
+const SEITE = (() => {
+  const dpr = window.devicePixelRatio || 1;
+  const diag = (new URLSearchParams(location.search).get('diag') ?? '').split(',');
+  if (dpr <= 2 || diag.includes('seite275') || !('currentCSSZoom' in Element.prototype)
+    || CSS.supports('-webkit-touch-callout', 'none') || !window.visualViewport) return 1;
+  const meta = document.querySelector('meta[name="viewport"]'), vorher = meta.content, s = 2 / dpr;
+  meta.content = `width=device-width, initial-scale=${s}, minimum-scale=${s}, maximum-scale=${s}, user-scalable=no, viewport-fit=cover`;
+  // der Browser übernimmt den Massstab sofort (Chrome: mit dem Layout, das innerWidth anstösst), oder gar nicht
+  // (Desktop): dann wie vorher
+  void window.innerWidth;
+  if (Math.abs(visualViewport.scale - s) > 0.01) { meta.content = vorher; return 1; }
+  return dpr / 2;
+})();
+/**
+ * Breite und Höhe des Bildschirms in Pixeln der Oberfläche; ohne Massstab genau innerWidth, innerHeight. Mit Massstab
+ * aus visualViewport (das Layout ist nicht ganzzahlig gross, Chrome rundet den Massstab, innerWidth ist gerundet; die
+ * Seite scrollt nie, der Massstab steht), aufgerundet, damit das Bild des Spiels auch den letzten Gerätepixel deckt
+ * (Emulation 393 × 873: 786 × 1746 wie ohne Massstab, je nach Rundung ein Pixel der Oberfläche mehr).
+ */
+const seiteBreite = () => SEITE === 1 ? window.innerWidth : Math.ceil(visualViewport.width / SEITE - 0.01);
+const seiteHoehe = () => SEITE === 1 ? window.innerHeight : Math.ceil(visualViewport.height / SEITE - 0.01);
+/** Medienabfrage mit Längen in Pixeln der Oberfläche, für matchMedia (Pixel mal SEITE). */
+const seiteMedia = (text) => SEITE === 1 ? text
+  : text.replace(/(\d*\.?\d+)px/g, (_, v) => `${+(v * SEITE).toFixed(3)}px`);
+if (SEITE !== 1) {
+  document.documentElement.classList.add('seite');
+  document.documentElement.style.setProperty('--seite', SEITE);
+  const umrechnen = (regeln) => {
+    for (const r of regeln) {
+      if (r instanceof CSSMediaRule) r.media.mediaText = seiteMedia(r.media.mediaText);
+      if (r.cssRules) umrechnen(r.cssRules);
+    }
+  };
+  for (const blatt of document.styleSheets) umrechnen(blatt.cssRules);
+}
+</script>
 </head>
 <body>
 <div id="perf" hidden><div class="perf-text"></div><div class="perf-knoepfe"></div></div>
@@ -8150,7 +8208,7 @@ const STORY_LEVELS = {
 const renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
 renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
-renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setSize(seiteBreite(), seiteHoehe()); // in Pixeln der Oberfläche (SEITE)
 // Tone Mapping (ACES Filmic) und sRGB-Wandlung passieren im finalen Post-Pass,
 // damit Bloom auf echten HDR-Werten arbeitet.
 renderer.toneMapping = THREE.NoToneMapping;
@@ -8373,17 +8431,11 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * der Lampe (mit ihm zeichnet der Compositor je Bild fünf Zwischenflächen mehr: Kraft, Flackern, zwei Masken);
  * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
- * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite2: Massstab der Seite
- * 2 / devicePixelRatio (siehe unten); raster2: k der Bühne mal 2 / devicePixelRatio (massstab).
+ * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite275: Massstab
+ * der Seite wie bis Ticket 18 (SEITE, im Kopf der Seite); raster2: k der Bühne mal 2 / devicePixelRatio (massstab).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
-// seite2: Massstab der Seite 2 / devicePixelRatio (wie das Spiel mit Pixelverhältnis 2); die Bühne füllt den Bildschirm
-// trotzdem (rechnet mit der grösseren Breite), kleiner gerastert werden nur Ebenen an der Obergrenze (nur zum Messen)
-if (DIAG.has('seite2') && devicePixelRatio > 2) {
-  const s = (2 / devicePixelRatio).toFixed(4);
-  document.querySelector('meta[name="viewport"]').content = `width=device-width, initial-scale=${s}, minimum-scale=${s}, maximum-scale=${s}, user-scalable=no, viewport-fit=cover`;
-}
 const ruhe = {
   calm: false,    // Startbildschirm ruhig (introCalm)
   laden: 0,       // markiertes Laden hinter einer Überblendung (lade)
@@ -13496,7 +13548,7 @@ function createComposer() {
   comp.addPass(discard);
 
   const bloom = new THREE.UnrealBloomPass(
-    new THREE.Vector2(window.innerWidth, window.innerHeight),
+    new THREE.Vector2(seiteBreite(), seiteHoehe()),
     LOOK.bloomStrength, LOOK.bloomRadius, LOOK.bloomThreshold
   );
   // Bloom-Puffer auf HDR umstellen, sonst werden helle Strahlen auf 1.0 abgeschnitten. Ohne Tiefenpuffer (three legt
@@ -15698,7 +15750,7 @@ function pickElement(clientX, clientY, slop = 0) {
   raycaster.setFromCamera(pointerNdc, camera);
   const hits = raycaster.intersectObjects(game.hitProxies, false);
   if (hits.length) return hits[0].object.userData.element;
-  let best = null, bestD = slop;
+  let best = null, bestD = slop * SEITE; // Abstände hier in Pixeln des Layouts (clientX, Rechteck)
   for (const proxy of game.hitProxies) {
     proxy.getWorldPosition(_pickPos).project(camera);
     const d = Math.hypot((_pickPos.x + 1) / 2 * rect.width + rect.left - clientX,
@@ -15882,8 +15934,9 @@ function makeInteractive(obj) {
 
 /* ---------- Zeiger-Ereignisse ---------- */
 
+/** dx, dy in Pixeln der Oberfläche (SEITE) */
 function dragCamera(dx, dy) {
-  const s = 2.4 / Math.max(window.innerWidth, 600);
+  const s = 2.4 / Math.max(window.innerWidth / SEITE, 600);
   cameraRig.homing = null;
   cameraRig.goalTheta -= dx * s;
   // Nach einer ganzen Runde beide Winkel um 2π zurücknehmen (gleiches Bild): Der Rückflug beim Levelwechsel
@@ -15983,13 +16036,13 @@ canvasEl.addEventListener('pointermove', (e) => {
   if (p.done) return;
   if (!p.moved) {
     const threshold = p.type === 'mouse' ? INPUT.dragThresholdMouse : INPUT.dragThresholdTouch;
-    if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) < threshold) return;
+    if (Math.hypot(e.clientX - p.x0, e.clientY - p.y0) / SEITE < threshold) return;
     p.moved = true;
     clearTimeout(input.longPressTimer);
     drag.active = true;
     setHovered(null);
   }
-  dragCamera(e.clientX - p.x, e.clientY - p.y);
+  dragCamera((e.clientX - p.x) / SEITE, (e.clientY - p.y) / SEITE);
   p.x = e.clientX;
   p.y = e.clientY;
 });
@@ -16016,7 +16069,7 @@ canvasEl.addEventListener('lostpointercapture', (e) => { if (!endPinch(e) && inp
 // skalierte sonst die ganze Seite
 canvasEl.addEventListener('wheel', (e) => {
   e.preventDefault();
-  const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight : 1) * (e.ctrlKey ? 10 : 1);
+  const px = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? window.innerHeight / SEITE : 1) * (e.ctrlKey ? 10 : 1);
   zoomCamera(Math.exp(THREE.MathUtils.clamp(px, -INPUT.wheelStep, INPUT.wheelStep) * INPUT.wheelZoom));
   adaptiveResolution.hold(1); // wie beim Ziehen: währenddessen die Auflösung nicht umbauen
 }, { passive: false });
@@ -17270,14 +17323,15 @@ const createMenu = (() => {
 
     function zeichne() {
       if (!offen && !warm) return;
-      const R = root.getBoundingClientRect(), W = R.width, H = R.height;
+      // in Pixeln der Oberfläche: getBoundingClientRect misst in Pixeln des Layouts (SEITE)
+      const R = root.getBoundingClientRect(), W = R.width / SEITE, H = R.height / SEITE;
       if (!W || !H) return;
-      const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: r.left - R.left + r.width / 2, y: r.top - R.top + r.height / 2 }; };
-      const hoch = matchMedia(HOCH).matches;
+      const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: (r.left - R.left + r.width / 2) / SEITE, y: (r.top - R.top + r.height / 2) / SEITE }; };
+      const hoch = matchMedia(seiteMedia(HOCH)).matches;
       const S = mitte(sternEl);
       const lis = [...liste.children];
       const lampen = lis.map((li) => mitte(li.querySelector('.menue-lampe')));
-      const listeOben = lis.length ? lis[0].getBoundingClientRect().top - R.top : H;
+      const listeOben = lis.length ? (lis[0].getBoundingClientRect().top - R.top) / SEITE : H;
       // hochkant: senkrecht vor der Lampe hinauf bis über die Zeilen, dort zum Stern; je schwerer, desto höher biegt er
       // ab (Leicht innen und am tiefsten): so kreuzen sich die Wege nie, und keiner läuft über eine Beschriftung
       const abstand = clamp((listeOben - 12 - (S.y + 50)) / 4, 6, 22);
@@ -17367,7 +17421,7 @@ const createMenu = (() => {
         const w = wege[wg.i], K = punkt(w, wg.anteil * w.L);
         let u = { x: -K.dy, y: K.dx }; // rechts der Richtung: beim Weg nach rechts oben ist das unten
         if (u.y < 0) u = { x: -u.x, y: -u.y };
-        const r = weiterBtn.getBoundingClientRect(), bw = r.width, bh = r.height;
+        const r = weiterBtn.getBoundingClientRect(), bw = r.width / SEITE, bh = r.height / SEITE;
         const ab = bh / 2 + 26, rand = 16;
         if (K.y + u.y * ab + bh / 2 > H - rand) u = { x: -u.x, y: -u.y }; // unten kein Platz: über den Weg
         const links = Math.max(...lampen.map((a) => a.x)) + 28 + bw / 2;
@@ -17629,7 +17683,7 @@ const createMenu = (() => {
 function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () => {} }) {
   /** Alle Welten untereinander (Desktop), sonst eine Welt je Seite. Die Grenze steht nur hier: das CSS richtet sich
    * nach data-modus am root */
-  const ALLE = matchMedia('(min-width: 1180px) and (min-height: 600px)');
+  const ALLE = matchMedia(seiteMedia('(min-width: 1180px) and (min-height: 600px)'));
   /** Wischen und Blättern mit den Werten der früheren Levelauswahl (bis Ticket 04 im Spiel) */
   const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
   /** wie GRAD_ANZEIGE im Spiel */
@@ -17796,7 +17850,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     // (Raster zu 10 Plätzen; «Im Dorf» hat 9, der Rest bleibt frei)
     const k = re.zustand.includes('offen') ? re.zustand.indexOf('offen') : re.zustand.lastIndexOf('geloest');
     const rest = Math.max(0, 10 - re.level.length), platz = (n) => `(100% - 9 * var(--ueb-luecke)) / 10 * ${n} + ${n} * var(--ueb-luecke)`;
-    const licht = re.lage === 'fertig' ? `calc(100% - ${platz(rest)})` : k < 0 ? '-100vw' : `calc(${platz(k)} + (100% - 9 * var(--ueb-luecke)) / 20)`;
+    const licht = re.lage === 'fertig' ? `calc(100% - ${platz(rest)})` : k < 0 ? 'calc(-100vw / var(--seite))' : `calc(${platz(k)} + (100% - 9 * var(--ueb-luecke)) / 20)`;
     return `<section class="ueb-welt ueb-${re.lage}" data-reihe="${r}" role="group" aria-label="${esc(standText(re))}">
       <div class="ueb-welt-kopf" aria-hidden="true">
         <span class="ueb-welt-text"><span class="ueb-welt-name">${esc(re.name)}</span><span class="ueb-welt-stand">${standHtml(re)}</span></span>
@@ -17948,8 +18002,10 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     hinweis.classList.toggle('ueb-bei', bei);
     hinweis.style.left = hinweis.style.top = '';
     if (bei) {
-      const r = nahe.getBoundingClientRect(), w = hinweis.offsetWidth, h = hinweis.offsetHeight, ab = 10;
-      const x = Math.min(Math.max(r.left + r.width / 2, 16 + w / 2), innerWidth - 16 - w / 2);
+      // in Pixeln der Oberfläche (SEITE)
+      const b = nahe.getBoundingClientRect(), r = { left: b.left / SEITE, width: b.width / SEITE, top: b.top / SEITE, bottom: b.bottom / SEITE };
+      const w = hinweis.offsetWidth, h = hinweis.offsetHeight, ab = 10;
+      const x = Math.min(Math.max(r.left + r.width / 2, 16 + w / 2), innerWidth / SEITE - 16 - w / 2);
       hinweis.style.left = `${x}px`;
       hinweis.style.top = `${r.top - ab - h >= 8 ? r.top - ab - h : r.bottom + ab}px`;
     }
@@ -18063,7 +18119,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     wisch = null;
     if (!w.waagrecht) return;
     gewischtUm = performance.now();
-    const dx = e.clientX - w.x, schritt = dx < 0 ? 1 : -1;
+    const dx = (e.clientX - w.x) / SEITE, schritt = dx < 0 ? 1 : -1; // Pixel der Oberfläche
     if (!abgebrochen && Math.abs(dx) >= WISCH.min && reihen[seite + schritt]) blaettere(seite + schritt, { von: w.gezeigt });
     else if (w.gezeigt) zurueck(w.gezeigt);
   }
@@ -18080,7 +18136,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     const w = wisch;
     if (w?.id !== e.pointerId) return;
     if (!w.waagrecht) {
-      const dx = e.clientX - w.x, dy = e.clientY - w.y;
+      const dx = (e.clientX - w.x) / SEITE, dy = (e.clientY - w.y) / SEITE;
       if (Math.hypot(dx, dy) < WISCH.schwelle) return;
       if (Math.abs(dy) > Math.abs(dx) * WISCH.steigung) { wisch = null; return; } // senkrecht: kein Wischen
       w.waagrecht = true;
@@ -18088,7 +18144,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       return;
     }
     if (still()) return;
-    const dx = e.clientX - w.griff;
+    const dx = (e.clientX - w.griff) / SEITE;
     w.gezeigt = reihen[seite + (dx < 0 ? 1 : -1)] ? dx : dx * WISCH.gummi; // am Anfang und Ende nur zögernd
     schiebe(w.gezeigt);
   });
@@ -21199,7 +21255,8 @@ if (new URLSearchParams(location.search).has('nointro')) { ui.canStart = true; u
    ===================================================================== */
 
 function onResize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  // Grösse des Bilds in Pixeln der Oberfläche: das Canvas liegt im vergrösserten body (SEITE); Pixelverhältnis wie vorher
+  const w = seiteBreite(), h = seiteHoehe();
   camera.aspect = w / h;
   camera.fov = camera.aspect < 1 ? 44 : 32; // Hochformat: weiteres Sichtfeld statt riesiger Distanz
   camera.updateProjectionMatrix();
@@ -21883,7 +21940,7 @@ const leistung = {
       ersatz: !this.timer, ohne: [...this.teile.values()].reduce((s, t) => s + t.ohne, 0),
       dauerlast: Object.keys(MESS_PUNKTE).filter((id) => this.punkte[id]).map((id) => this.punkte[id]),
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
-        bildschirm: `${screen.width}×${screen.height}`, fenster: `${innerWidth}×${innerHeight}`,
+        bildschirm: `${screen.width}×${screen.height}`, fenster: `${Math.round(innerWidth / SEITE)}×${Math.round(innerHeight / SEITE)}`, seite: SEITE,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
         adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0, fluidAus: frameRate.fluidAus,
         aktivFps: frameRate.activeFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
@@ -22191,7 +22248,7 @@ const leistung = {
   zeigeKarte({ text, schmal }) {
     const karte = document.getElementById('leistung-karte'), pre = karte.querySelector('pre');
     const feld = karte.querySelector('textarea'), kopieren = karte.querySelector('.kopieren');
-    const eng = innerWidth < 700 && !!schmal;
+    const eng = innerWidth / SEITE < 700 && !!schmal;
     karte.classList.toggle('schmal', eng);
     pre.textContent = eng ? schmal : text;
     karte.hidden = false;
@@ -22252,8 +22309,8 @@ const perfHud = {
     const f = leistung.fenster(), t = leistung.teil, q = (r) => leistung.quantil(r, 0.95)?.toFixed(1) ?? '–';
     const zustand = leistung.meldung || leistung.status;
     // schmal (Handy): knappe Fassung oben links (CSS #perf.schmal), die Bedienung des Spiels bleibt frei
-    this.el.classList.toggle('schmal', innerWidth < 700);
-    if (innerWidth < 700) {
+    this.el.classList.toggle('schmal', innerWidth / SEITE < 700);
+    if (innerWidth / SEITE < 700) {
       this.text.textContent =
         (f ? `${Math.round(f[0])} FPS p95 ${f[1].toFixed(1)} max ${f[2].toFixed(1)}\n` : '') +
         (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} >33 ${t.ueber} Zeichn ${q(t.zeichnen)}\n` : '') +
