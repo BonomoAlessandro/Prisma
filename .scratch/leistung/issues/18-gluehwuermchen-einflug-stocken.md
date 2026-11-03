@@ -459,7 +459,8 @@ dpr × scale`) für Startbildschirm, Menü mit Leucht-SVG, Rückfrage «Von vorn
 - WebGL: Puffer 786 × 1746, Pixelverhältnis 2, devicePixelRatio 2,75 (wie vorher); Ziehen der Kamera und Tippen in
   Pixeln der Oberfläche (gleiche Drehung je Fingerweg wie vorher).
 - Kosten beim Laden: der Block im Kopf braucht 4–5 ms (Desktop-CPU, Emulation: Layout für `visualViewport` und 22
-  Medienabfragen); `leistung-probe` Seitenstart 124 statt 106 ms (je ein Lauf, im Rahmen).
+  Medienabfragen); `leistung-probe` Seitenstart neu 124 und 89 ms, vorher 106 ms (Streuung). Im echten Fenster rundet Chrome den
+  Massstab anders: Puffer 788 × 1746 (ein Pixel der Oberfläche mehr, deckt sicher).
 
 **Tests** (alle `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node …`): logic, golden,
 screenshot, offline, start-probe (Desktop und `--handy`), geschichte-probe `--start`, `--handy`, `--quer --grad leicht`,
