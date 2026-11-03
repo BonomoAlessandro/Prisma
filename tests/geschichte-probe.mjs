@@ -1265,7 +1265,7 @@ async function dorfAblauf() {
   await angebot('leicht', 'Üben', { name: 'dorf-angebot', mitTaste: !view.phone });
   await messe();
   await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg ins Dorf', 30);
-  pruefe(await kicker() === 'Im Dorf · Erstes Licht' && await ev(`${D}.skyTheme.current`) === 'milky',
+  pruefe(await kicker() === 'Im Dorf · Erstes Licht' && await ev(`${D}.skyTheme.current`) === 'village',
     `Leicht: Einstieg ins Dorf «${await kicker()}», Himmel ${await ev(`${D}.skyTheme.current`)}`);
   await sleep(1500);
   await bild('dorf-einstieg');
@@ -1295,7 +1295,7 @@ async function dorfAblauf() {
   const wohin = await ev("document.querySelector('#menue .menue-wohin').textContent");
   const karteStand = await ev(`document.querySelector('${karte('leicht')} .menue-stand').textContent`);
   pruefe(wohin === 'Leicht · Dorf 0 / 60', `Leicht nach dem Neuladen: Weiter «${wohin}», Karte «${karteStand}»`);
-  pruefe(await ev(`${D}.skyTheme.current`) === 'milky', 'Leicht: Himmel hinter dem Menü nicht der des Dorfs');
+  pruefe(await ev(`${D}.skyTheme.current`) === 'village', 'Leicht: Himmel hinter dem Menü nicht der des Dorfs');
   await messe();
   await tippe('#menue .menue-weiter', 'Weiter');
   let zwischen = false;

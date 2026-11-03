@@ -1262,7 +1262,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-16';
+const APP_VERSION = '2026-11-03 dorf-himmel';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -18258,9 +18258,9 @@ const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
  * angebot: nach dem Prolog auf der Bühne (auch nach «Überspringen»), beim ersten Durchgang je Grad; einstieg: der
  * Untertitel, wenn das Licht ins Dorf kommt (ohne Träger: Es ist schon bei Noa); ende: nach der letzten Übung oder
  * «Überspringen», danach tragen die Glühwürmchen das Licht in den Bergwald. done/next: «Gelöst» nach der letzten Übung.
- * sky: der Hintergrund, die Stelle für eine eigene Skybox des Dorfs (fehlt sie, nimmt setSky die Milchstrasse).
+ * sky: der Hintergrund, die Skybox «Noas Dorf bei Nacht» (village; fehlt sie, nimmt setSky die Milchstrasse).
  */
-const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'milky',
+const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'village',
   angebot: { kicker: 'Im Dorf', ueben: 'Üben', los: 'Gleich los',
     text: 'Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit Noa im Dorf üben?' },
   einstieg: { kicker: 'Im Dorf · Erstes Licht', traeger: null, moment: 'dorf', path: 0,

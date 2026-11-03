@@ -14,6 +14,7 @@
 #   textur      Obergrenze eines Kanals in der Textur (anime.py TEX_MAX, Standard 0.91); spitze bleibt darunter
 #   jpeg        Qualität des ganzen Bilds (anime.py pano, Standard 90; die Streifen bleiben bei 90)
 #   himmel      'mondnacht': gemalter Nachthimmel mit Mond, Wolken und Sternen statt des gerenderten (Himmelsmaske);
+#               'sterne': gemalter Sternenhimmel ohne Mond (Noas Dorf);
 #               None: der gerenderte Himmel bleibt und wird wie alles andere gemalt
 #   streifen    Oberkante der hoch aufgelösten Streifen in Grad über dem Horizont (wald_export.py LAT_TOP, Standard 10);
 #               höher, wenn nahe Formen weit hinaufragen (Wüste: Dünenkämme), kostet Grafikspeicher
@@ -83,6 +84,22 @@ STILE = {
         'jpeg': 85,
         'textur': 0.88,
         'streifen': 22.0,   # die nahen Dünen ragen bis 19° hinauf (szene.py _fit_view)
+    },
+    # Noas Dorf in einer klaren Nacht wie die Bühne des Prologs: tiefes Indigo, Schatten blauviolett, die Fenster und
+    # Laternen leuchten warm; der Himmel gemalt mit Sternen, ohne Mond
+    'village': {
+        'belichtung': 6.0,
+        'saettigung': 1.15,
+        'schatten': (0.018, 0.020, 0.062),
+        'glut': (1.0, 0.70, 0.40),
+        'himmel': 'sterne',
+        'knie': 0.7,
+        'spitze': 0.85,
+        'rauschen': 0.012,
+        'volumen': 1,
+        'jpeg': 85,
+        'textur': 0.88,
+        'pinsel': 0.2,
     },
 }
 
