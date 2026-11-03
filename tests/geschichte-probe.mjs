@@ -16,9 +16,7 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75] [--buehne dom|gl]
-//   --buehne dom|gl: die Bühne von Prolog und Epilog (Standard WebGL; dom: die Ebenen wie bis Ticket 19; ?buehne=, Ticket 19 von .scratch/leistung/; Bilder unter
-//   <bildschirm>-gl-…)
+//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
 //   mit dem Massstab der Seite, Ticket 18 von .scratch/leistung/; Bilder unter <bildschirm>-dpr<n>-…); --grad: die
@@ -78,10 +76,8 @@ const view = groesse ? { name: `handy-${groesse[1]}x${groesse[2]}`, width: +groe
     : { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false };
 // andere Pixeldichte: ein Handy quer gilt dann ausdrücklich als mobil (Meta-Viewport, Massstab der Seite)
 if (dpr !== null) Object.assign(view, { name: `${view.name}-dpr${String(dpr).replace('.', '')}`, dpr, mobile: true });
-const buehne = wert('--buehne');
-if (buehne) view.name += '-' + buehne;
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro' + (buehne ? '&buehne=' + buehne : '');
-const PAGE_START = pathToFileURL(join(root, 'index.html')).href + '?noadapt' + (buehne ? '&buehne=' + buehne : ''); // mit Startbildschirm
+const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
+const PAGE_START = pathToFileURL(join(root, 'index.html')).href + '?noadapt'; // mit Startbildschirm
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 const bildzeiten = []; // je Übergang: Name, längste Lücke, Lücken über 50 und 100 ms

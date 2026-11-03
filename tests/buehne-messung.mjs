@@ -209,9 +209,9 @@ async function messen() {
 
 /**
  * Bühne einfrieren: Zeit der Bühne und alle Animationen auf feste Werte, damit vorher und nachher gleich sind (CSS-
- * Animationen auf 1,5 s; die Animationen der Bühne stellt draw auf die Zeit der Bühne; fertige Fahrten bleiben).
+ * Animationen auf 1,5 s; die WebGL-Bühne zeichnet ihr Bild zur Zeit der Bühne, scene.einfrieren; fertige Fahrten bleiben).
  */
-const einfrieren = `(() => { const sc = ${D}.story.scene; sc.running = false; sc.time = 12.5; sc.draw();
+const einfrieren = `(() => { const sc = ${D}.story.scene; sc.einfrieren(12.5);
   for (const a of document.getAnimations()) {
     if (a.playState === 'finished') continue;
     a.pause();
@@ -220,8 +220,7 @@ const einfrieren = `(() => { const sc = ${D}.story.scene; sc.running = false; sc
   return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))); })()`;
 const auftauen = `(() => { const sc = ${D}.story.scene;
   for (const a of document.getAnimations()) if (a.playState === 'paused') a.play();
-  sc.running = true;
-  if (sc.wecken) sc.wecken(); else { sc.last = performance.now(); requestAnimationFrame((t) => sc.frame(t)); }
+  sc.auftauen();
   return true; })()`;
 
 async function bilder() {

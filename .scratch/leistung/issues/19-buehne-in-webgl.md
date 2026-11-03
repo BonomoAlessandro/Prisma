@@ -121,3 +121,15 @@ Offen:
 - Bewegungen wieder im Tempo vom Anfang: Die Kurve und die Flugdauern aus `leistung-11` sind zurückgenommen.
 - Stufe 1 ist damit angenommen. Seit `leistung-14` ist die WebGL-Bühne Standard, die alte Bühne gibt es noch über
   `?buehne=dom`.
+
+**Stufe 3 (03.11., `leistung-16`): alte Bühne entfernt.**
+- Weg sind `?buehne=dom`, die Animationen des Compositors je Ebene (Folge, Abschnitte, Linien doppelt, Massstab k),
+  der DOM-Strahl mit Keilen und Maske, die Flüge, das Schwingen und Blinken der Glühwürmchen als Web Animations, der
+  Rauch und die CSS der Ebenen. Dazu die Schalter `altflug`, `knickflug` und `raster2`.
+- Die Ebenen (SVG) bleiben als Quelle der Texturen, unsichtbar.
+- Die Uhr der Folge ist eine Animation ohne Ziel (`folgeUhr`), Schwinger und Spuren sind reine Werte.
+- `scene.einfrieren(t)` und `auftauen()` gibt es für Vergleichsbilder (`tests/buehne-messung.mjs bilder`).
+- `index.html` ist 527 Zeilen kürzer (689 entfernt, 157 neu).
+- Vorher und nachher am Computer (Prolog quer, dpr 2,75): Bilder gleich bis auf die Glühwürmchen (0,02–0,6/255), Fahrten 1–5 ohne Lücke über 25 ms.
+- Alle Proben und Unit-Tests sind grün, auch `--uebersicht --dorf`.
+- Behoben: Der Offline-Test schlug seit Stufe 1 an. Grund war die Adresse des SVG-Namensraums im Text, jetzt kommt sie aus dem DOM.
