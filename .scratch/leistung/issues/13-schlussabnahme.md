@@ -5,7 +5,8 @@
 **Blocked by:** 08, 09, 10, 11, 12, 14, 15, 16, 17
 (Fische pixelig?, Glühwürmchen beim Einflug in den Wald, Flackern in der ersten Noa-Szene, Fische ruckeln)
 
-**Status:** ready-for-agent
+**Status:** vom Nutzer abgenommen (03.11.2026, `leistung-15`); offen: kurzer Blick des Nutzers auf `leistung-16`
+(alte Bühne entfernt), dann Merge nach `main` auf sein Go
 
 **What to build:** Der Abschluss des Vorhabens Leistung: alles geprüft, der Stand auf dem Poco gemessen, die Doku
 nachgeführt. Gebaut wird nichts Neues.
@@ -193,3 +194,33 @@ Das sind Hänger des Grafikprozesses auf dem Arbeitsrechner und kein Rückschrit
 
 Nächster Schritt: alle Szenen der Geschichte auf dem Poco messen (nicht nur die Prolog-Flüge), Bild für Bild mit Trace,
 und die übrigen Abbrüche und ungleichen Bildabstände je Szene zuordnen (Ticket 18).
+
+### Vom Glätten der Bühne zum Umbau auf WebGL (03.11., Tickets 18 und 19)
+
+- `leistung-11`: Kamerakurve flacher, Glühwürmchen langsamer. Nutzer: «einen grossen Unterschied macht das nicht»,
+  auch am Computer (60 Hz) ungleichmässig. Die Messung Bild für Bild am Computer fand keine schlechte Kurve, sondern
+  ausgelassene Bilder an festen Stellen (Untertitel nach 1,7 s, neuer Satz am Fahrtbeginn, kalter Strahl).
+- `leistung-12`: diese Stellen vorbereitet. Nutzer: «besser, aber noch immer nicht so, wie ich es erwarte».
+- Entscheid des Nutzers: Bühne der Geschichte in WebGL (ADR 0007, Ticket 19).
+- `leistung-12b`: Reisen, Einstieg und Finale im WebGL-Bild stetig mit 60 Bildern/s, das Spiel bleibt bei 30.
+- `leistung-13`: WebGL-Bühne für Prolog und Epilog hinter `?buehne=gl`. Nutzer: «Es ist nun viel besser! … Auch auf
+  dem Handy ist es nun sauber.» Wunsch: das Tempo wieder wie am Anfang.
+- `leistung-14`: WebGL-Bühne als Standard (`?buehne=dom` als Rückfall), Kurve und Flugdauern wie vor `leistung-11`.
+- `leistung-15`: Strahl der Taschenlampe mit weichem Rand und fliessendem Verlauf (Nutzer: «der äussere Rand ist
+  teilweise ein wenig eckig»). Nutzer: «Nun sieht alles super aus.»
+
+### Schlussabnahme (03.11.2026)
+
+Abgenommen vom Nutzer auf dem Poco und am Computer, Stand `leistung-15`:
+- Spiel mit stetigen 30 Bildern/s «super und glatt» (ADR 0006).
+- Fische ruhig und glatt (Ticket 17).
+- Schrift, Knöpfe und Schärfe mit dem Seitenmassstab 2 «super» (Ticket 18).
+- Bühne der Geschichte in WebGL «viel besser», «auf dem Handy sauber», Strahl und Tempo «super» (Ticket 19).
+
+Offen:
+- `leistung-16`: die alte DOM-Bühne entfernt (Stufe 3 von Ticket 19); ein kurzer Blick des Nutzers, ob durch das
+  Aufräumen nichts fehlt.
+- Merge nach `main` erst auf das Go des Nutzers.
+- Kleinigkeiten ohne Befund des Nutzers: Die erste Fahrt nach dem Öffnen der Bühne hakt am Arbeitsrechner manchmal
+  (Present des Grafikprozesses bei ausgeschaltetem Bildschirm); mitten in einer starken Zoomfahrt ist das Bild etwas
+  weicher (Grundstufe der Textur), im Halt nie; Firefox auf Android ist nicht geprüft.

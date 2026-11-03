@@ -4,7 +4,7 @@
 
 **Blocked by:** 15 (Flug als Web Animation), 16 (Bühne in Abschnitten, Linien)
 
-**Status:** bereit für den Handy-Durchlauf (Poco); offen: Öffnen der Bühne, erstes Bild nach dem Tippen
+**Status:** resolved (03.11.2026): Seitenmassstab 2 und Ladesperre bleiben; die Bühne selbst ersetzt Ticket 19 (WebGL)
 
 **What to build:** Zwei Befunde des Nutzers auf dem Poco F4 GT:
 
@@ -482,3 +482,10 @@ Emulation: dann gilt SEITE = 1 und alles bleibt wie vorher (sicher, nur ohne Gew
 «Massstab»). (2) `env(safe-area-inset-*)` auf dem Gerät (Vollbild als App mit Aussparung) nur in der Emulation geprüft.
 (3) Neue Stellen, die mit clientX, getBoundingClientRect, innerWidth oder vw/vh Oberfläche bauen, müssen SEITE kennen
 (Kommentar bei SEITE). (4) Firefox Android (zoom nach Standard) nicht geprüft.
+
+**Abschluss (03.11.2026):** Vom Ticket bleiben der Seitenmassstab 2 (SEITE; Nutzer auf `leistung-10`: Schrift, Spiel
+und Schärfe «super») und die Ladesperre vor den Flügen. Die Mechanismen der DOM-Bühne (glatte Flugbahn als Web
+Animation, Startzeiten, Spuren, Keile des Strahls) ersetzt Ticket 19: Die Bühne zeichnet seit `leistung-14` in WebGL,
+abgenommen auf `leistung-15`. Offen, ohne Befund des Nutzers: Firefox Android, `env(safe-area)` auf dem Gerät, die
+erste Fahrt nach dem Öffnen der Bühne am Arbeitsrechner (Present bei ausgeschaltetem Bildschirm), etwas weicheres Bild
+mitten in starken Zoomfahrten.
