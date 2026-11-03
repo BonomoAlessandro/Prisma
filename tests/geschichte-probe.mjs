@@ -16,8 +16,8 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75] [--buehne gl]
-//   --buehne gl: die Bühne von Prolog und Epilog in WebGL (?buehne=gl, Ticket 19 von .scratch/leistung/; Bilder unter
+//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75] [--buehne dom|gl]
+//   --buehne dom|gl: die Bühne von Prolog und Epilog (Standard WebGL; dom: die Ebenen wie bis Ticket 19; ?buehne=, Ticket 19 von .scratch/leistung/; Bilder unter
 //   <bildschirm>-gl-…)
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:

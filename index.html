@@ -1289,7 +1289,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-13';
+const APP_VERSION = '2026-11-03 leistung-14';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8439,12 +8439,14 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
  * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite275: Massstab
- * der Seite wie bis Ticket 18 (SEITE, im Kopf der Seite); raster2: k der Bühne mal 2 / devicePixelRatio (massstab);
- * altkurve: Fahrten mit der steilen Kurve und Flüge der Glühwürmchen in der Dauer wie bis Ticket 19 (storyEase, FLUG_ZU).
+ * der Seite wie bis Ticket 18 (SEITE, im Kopf der Seite); raster2: k der Bühne mal 2 / devicePixelRatio (massstab).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
-/** ?buehne=gl: die Bühne von Prolog und Epilog in WebGL statt als Ebenen des Compositors (Ticket 19, ADR 0007; Stufe 1) */
-const BUEHNE_GL = new URLSearchParams(location.search).get('buehne') === 'gl';
+/**
+ * Die Bühne von Prolog und Epilog in WebGL statt als Ebenen des Compositors (Ticket 19, ADR 0007), seit dem Ja des
+ * Nutzers zu Stufe 1 der Standard; ?buehne=dom: die Ebenen wie bis Ticket 19 (Rückfall bis zur Abnahme)
+ */
+const BUEHNE_GL = new URLSearchParams(location.search).get('buehne') !== 'dom';
 if (BUEHNE_GL) document.documentElement.classList.add('buehne-gl');
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
 const ruhe = {
@@ -19466,8 +19468,7 @@ function createStoryScene(host) {
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
   const KNICKFLUG = DIAG.has('knickflug'); // ?diag=knickflug: Flug wie bis Ticket 18 (linear zwischen 30 Keyframes je Sekunde)
-  // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald (langsamer seit Ticket 19: weniger Weg je Bild)
-  const [FLUG_ZU, FLUG_WALD] = DIAG.has('altkurve') ? [2.4, 3.6] : [3.2, 4.8];
+  const [FLUG_ZU, FLUG_WALD] = [2.4, 3.6]; // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald
   const NACHLAUF = 2; // s: so lange nach der Ankunft reicht der Flug eines Glühwürmchens (bis umgestellt ist; länger als jede Fahrt nach der Ankunft)
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
@@ -20247,19 +20248,9 @@ function createStoryScene(host) {
   return scene;
 }
 
-/**
- * Kurve der Fahrten und Tweens der Geschichte (Bühne, Reisen): gleichmässig in der Mitte, sanft an- und auslaufend
- * (das Tempo steigt über FAHRT_RAMPE der Dauer mit einem halben Kosinus an, bleibt stehen und fällt ebenso). Spitze
- * 1 / (1 − r) = 1,43 × das mittlere Tempo; die kubische Kurve davor (wie der Rückflug der Kamera, ?diag=altkurve)
- * erreichte das Dreifache, und die Kamera wirkte mitten in der Fahrt mal schnell, mal langsam (Nutzer, Ticket 19).
- */
-const FAHRT_RAMPE = 0.3;
-const storyEase = DIAG.has('altkurve') ? (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2) : (k) => {
-  const r = FAHRT_RAMPE, v = 1 / (1 - r), an = (x) => v * (x / 2 - r / (2 * Math.PI) * Math.sin(Math.PI * x / r));
-  if (k <= 0) return 0;
-  if (k >= 1) return 1;
-  return k < r ? an(k) : k > 1 - r ? 1 - an(1 - k) : v * (r / 2 + k - r);
-};
+// wie der Rückflug der Kamera; die flachere Kurve aus leistung-11 ist zurückgenommen (Ursache der Ruckler war die
+// DOM-Bühne, Nutzer: Tempo wieder wie am Anfang, Ticket 19)
+const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2);
 const storyLinear = (k) => k;
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 

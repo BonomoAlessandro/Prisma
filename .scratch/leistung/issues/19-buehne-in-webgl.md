@@ -115,3 +115,9 @@ Offen:
   die Animationen im Compositor weiter. Auf dem Poco messen.
 - **Zoomfahrten:** In Fahrten mit grossem Zoom ist die Mitte der Fahrt etwas weicher (Grundstufe), im Halt nie.
 - **Uhr:** Die Uhr der Bühne läuft bei verborgenem Tab weiter, wie bisher.
+
+**Test des Nutzers auf `leistung-13` (03.11.):**
+- «Es ist nun viel besser! … Auch auf dem Handy ist es nun sauber.»
+- Bewegungen wieder im Tempo vom Anfang: Die Kurve und die Flugdauern aus `leistung-11` sind zurückgenommen.
+- Stufe 1 ist damit angenommen. Seit `leistung-14` ist die WebGL-Bühne Standard, die alte Bühne gibt es noch über
+  `?buehne=dom`.
