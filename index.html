@@ -1147,13 +1147,13 @@
  * Medienabfragen. Medienabfragen mit px im Stil rechnet dieser Block um; in JavaScript seiteMedia().
  * Nur wo der Browser den Meta-Viewport übernimmt (Android; nicht Desktop, dort prüft visualViewport.scale) und CSS
  * zoom nach dem Standard rechnet (currentCSSZoom: Chrome ab 128, Firefox ab 126); nicht auf iOS (Safari lässt dort
- * trotz maximum-scale zoomen, und das Abbrechen von Bildern ist ein Befund von Chrome). ?diag=seite275: ohne, wie bis
- * Ticket 18 (zum Messen).
+ * trotz maximum-scale zoomen, und das Abbrechen von Bildern ist ein Befund von Chrome). Nur Chromium (Firefox Android
+ * ungeprüft, Review Ticket 18). ?diag=seite275: ohne, wie bis Ticket 18 (zum Messen).
  */
 const SEITE = (() => {
   const dpr = window.devicePixelRatio || 1;
   const diag = (new URLSearchParams(location.search).get('diag') ?? '').split(',');
-  if (dpr <= 2 || diag.includes('seite275') || !('currentCSSZoom' in Element.prototype)
+  if (dpr <= 2 || diag.includes('seite275') || !('currentCSSZoom' in Element.prototype) || !/Chrome\//.test(navigator.userAgent)
     || CSS.supports('-webkit-touch-callout', 'none') || !window.visualViewport) return 1;
   const meta = document.querySelector('meta[name="viewport"]'), vorher = meta.content, s = 2 / dpr;
   meta.content = `width=device-width, initial-scale=${s}, minimum-scale=${s}, maximum-scale=${s}, user-scalable=no, viewport-fit=cover`;
@@ -1282,7 +1282,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-02 leistung-09e';
+const APP_VERSION = '2026-11-02 leistung-10';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
