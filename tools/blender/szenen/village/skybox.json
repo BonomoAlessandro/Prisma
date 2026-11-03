@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "id": "village",
+  "name": "Dorf",
+  "order": 25,
+  "daten": "sky/village",
+  "vorab": false,
+  "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "layers": [
+    { "type": "bakedMesh", "data": "house" },
+    { "type": "bakedMesh", "data": "neighbors" },
+    {
+      "type": "glowParticles", "data": "glow", "count": 40, "seed": 17, "ring": [7, 40], "aboveFog": 0,
+      "spread": 2, "lift": [0.4, 1.8], "yMax": -1.2, "ceiling": -1.0, "size": 9,
+      "color": [0.85, 1.0, 0.35], "halo": [0.35, 0.6, 0.15]
+    }
+  ]
+}

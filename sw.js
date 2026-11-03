@@ -18,7 +18,7 @@
 
 const APP_VERSION = '2026-11-03 leistung-16';
 const CACHE = 'prisma-v1';
-const SKIES = 'fc13f328';
+const SKIES = 'e9e69a90';
 const FILES = [
   'index.html',
   'manifest.webmanifest',

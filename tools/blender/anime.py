@@ -239,7 +239,8 @@ def blend_sky(disp, uu, vv, px_per_deg, mask, stars):
     """Himmel (Maske 0) durch den gemalten ersetzen; nahe am Horizont bleibt der Dunst aus dem Rendering"""
     lat = np.pi / 2 - vv * np.pi
     w = (1 - mask) * smoothstep_np(np.radians(0.3), np.radians(4.0), lat)
-    return gamut(shoulder(disp * (1 - w[..., None]) + anime_sky(uu, vv, px_per_deg, stars) * w[..., None]))
+    paint = stern_sky if S['himmel'] == 'sterne' else anime_sky
+    return gamut(shoulder(disp * (1 - w[..., None]) + paint(uu, vv, px_per_deg, stars) * w[..., None]))
 
 
 def star_layer(u, v, px_per_deg, sky):
@@ -249,7 +250,12 @@ def star_layer(u, v, px_per_deg, sky):
     z = rng.uniform(0.02, 1.0, STAR_COUNT) ** 0.8          # über dem Horizont, zum Horizont hin etwas dichter
     a = rng.uniform(-np.pi, np.pi, STAR_COUNT)
     b = np.minimum(rng.pareto(2.2, STAR_COUNT) * 0.18 + 0.12, 1.0)
-    su, sv = 0.5 + a / (2 * np.pi), np.arccos(z) / np.pi
+    return draw_stars(0.5 + a / (2 * np.pi), np.arccos(z) / np.pi, b, u, v, px_per_deg) * sky
+
+
+def draw_stars(su, sv, b, u, v, px_per_deg, size=0.45):
+    """Punkte an den Equirect-Lagen su, sv mit Helligkeit b ins Raster u, v (Gauss, size: Halbmesser in Pixeln bei
+    30 Pixeln je Grad)"""
     h, w = u.shape
     u0, v0 = u[0, 0], v[0, 0]
     du, dv = (u[0, -1] - u0) / max(w - 1, 1), (v[-1, 0] - v0) / max(h - 1, 1)
@@ -257,7 +263,7 @@ def star_layer(u, v, px_per_deg, sky):
     inside = (x > -2) & (x < w + 1) & (y > -2) & (y < h + 1)
     x, y, b = x[inside], y[inside], b[inside]
     lay = np.zeros((h, w))
-    r = 0.45 * max(px_per_deg / 30.0, 0.5)                  # Punktgrösse in Pixeln
+    r = size * max(px_per_deg / 30.0, 0.5)                  # Punktgrösse in Pixeln
     xi, yi = np.round(x).astype(int), np.round(y).astype(int)
     for ox in range(-2, 3):
         for oy in range(-2, 3):
@@ -265,7 +271,26 @@ def star_layer(u, v, px_per_deg, sky):
             ok = (px >= 0) & (px < w) & (py >= 0) & (py < h)
             g = b * np.exp(-((px - x) ** 2 + (py - y) ** 2) / (2 * r * r))
             np.add.at(lay, (py[ok], px[ok]), g[ok])
-    return np.clip(lay, 0, 1) * sky
+    return np.clip(lay, 0, 1)
+
+
+# Sternenhimmel ohne Mond (stile.py himmel 'sterne', Noas Dorf): Verlauf wie die Bühne des Prologs (fast Schwarz oben,
+# zum Horizont Violett), etwas heller, damit Berge und Wald sich abheben
+STERN_STOPS = [   # nach Höhe über dem Horizont (0 … 1 = sin der Höhe), Anzeige-Farben
+    (0.00, (0.250, 0.235, 0.420)),
+    (0.03, (0.185, 0.178, 0.350)),
+    (0.10, (0.112, 0.112, 0.250)),
+    (0.25, (0.058, 0.062, 0.160)),
+    (0.55, (0.028, 0.032, 0.095)),
+    (1.00, (0.016, 0.019, 0.062)),
+]
+
+
+def stern_sky(uu, vv, px_per_deg, stars):
+    """Gemalter Sternenhimmel ohne Mond: Verlauf und Sterne (Anzeige-Farben)"""
+    lat = np.pi / 2 - vv * np.pi
+    col = gradient_map(np.clip(np.sin(lat), 0, 1), STERN_STOPS)
+    return np.clip(col + stars[..., None] * (1 - col) * np.array([0.92, 0.96, 1.0]), 0, 1)
 
 
 def gradient_map(t, stops):
@@ -379,7 +404,7 @@ if __name__ == '__main__':
         v, u = np.mgrid[0:h, 0:w]
         uu, vv = (u + 0.5) / w, (v + 0.5) / h
         disp = stylize(lin, w / 360.0, sample(field, uu, vv), wrap=True)
-        if S['himmel'] == 'mondnacht':
+        if S['himmel'] in ('mondnacht', 'sterne'):
             stars = star_layer(uu, vv, w / 360.0, 1.0)
             mask = load_exr(os.path.join(OUT, argv[3] + '.exr'))[..., 0] if len(argv) > 3 else 1 - sample(sky_mask(), uu, vv)
             disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
@@ -415,7 +440,7 @@ if __name__ == '__main__':
         v, u = np.mgrid[0:h, 0:w]
         uu, vv = (u + 0.5) / w, vt + (v + 0.5) / h * (1 - vt)
         disp = stylize(lin, w / 360.0, sample(field, uu, vv), wrap=True)
-        if S['himmel'] == 'mondnacht':
+        if S['himmel'] in ('mondnacht', 'sterne'):
             stars = star_layer(uu, vv, w / 360.0, 1.0)
             mask = np.concatenate([load_exr(os.path.join(OUT, 'mask_band_%d.exr' % i))[..., 0] for i in range(n)], 1)
             disp = blend_sky(disp, uu, vv, w / 360.0, np.clip(mask, 0, 1), stars)
