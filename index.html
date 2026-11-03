@@ -311,7 +311,8 @@
     background-color: transparent; /* Zwischenszene (veil) und Untertitel: die Szene bleibt sichtbar */
     transition: opacity 0.8s ease, background-color 0.8s ease;
   }
-  #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; }
+  /* will-change: eigene Ebene auch nach dem Ein- und Ausblenden (sonst neu gerastert, wie .line, Ticket 20) */
+  #story .caption { display: none; flex-direction: column; align-items: center; text-align: center; transition: opacity 0.35s ease; will-change: opacity; }
   #story[data-mode="caption"] .caption { display: flex; }
   #story .swap { opacity: 0; }
   #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
@@ -417,9 +418,12 @@
     line-height: 1.7; letter-spacing: 0.03em; text-align: center; color: #f2f0fa;
     text-shadow: 0 0 14px rgba(2, 2, 8, 0.95), 0 0 4px rgba(2, 2, 8, 0.9);
     opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease;
+    /* immer eine eigene Ebene: Am Ende des Einblendens (1,7 s nach dem Tippen) legte Chrome sie sonst zurück in die
+       Ebene darunter und rasterte neu, in jeder Fahrt ein Bild zu spät (Ticket 20) */
+    will-change: opacity, transform;
   }
   #story .scene .line.on { opacity: 1; transform: none; transition-duration: 1.2s; transition-delay: 0.5s; }
-  #story .scene .hint { margin-top: 16px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); opacity: 0; transition: opacity 0.8s ease; }
+  #story .scene .hint { margin-top: 16px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); opacity: 0; transition: opacity 0.8s ease; will-change: opacity; }
   #story .scene .hint.on { opacity: 1; }
   #story .scene .hint span { display: inline-block; animation: intro-pulse 2.4s ease-in-out infinite; }
   #story .scene .actions { pointer-events: auto; margin-top: 22px; }
@@ -1282,7 +1286,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-11';
+const APP_VERSION = '2026-11-03 leistung-12';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19278,9 +19282,11 @@ function createStoryScene(host) {
      * Grafikprozess am Start der Fahrt 70–93 ms an (Epilog, Drossel 4, Ticket 18).
      */
     vorbereiten(name) {
-      if (name === 'answer' && kraft.wert(this.time) === 0) {
-        this.beamLen = 0.55;
-        laenge.zurueck(0.55);
+      // vor dem Klick der Lampe (lamp) ebenso: Der Strahl erschien sonst kalt (Rastern und Shader am Klick, Ticket 20)
+      if ((name === 'answer' || name === 'lamp') && kraft.wert(this.time) === 0) {
+        const l = name === 'lamp' ? 0.3 : 0.55;
+        this.beamLen = l;
+        laenge.zurueck(l);
         beam.classList.add('vor');
         beam.style.opacity = '0.002'; // fast durchsichtig: ganz durchsichtig rastert Chrome nicht (wie .linie.bereit)
       }
@@ -19345,8 +19351,16 @@ function createStoryScene(host) {
       const [a, b] = lines, cur = a.classList.contains('on') ? a : b, next = cur === a ? b : a;
       cur.classList.remove('on');
       if (!text) return;
-      next.textContent = text;
+      if (next.textContent !== text) next.textContent = text; // schon gesetzt und gerastert (vorSagen)
       next.classList.add('on');
+    },
+    /**
+     * Den nächsten Satz schon im Ruhepunkt in die verborgene Zeile setzen: Chrome rastert ihn dann jetzt und nicht beim
+     * Tippen, wo er mit dem Beginn der Fahrt ein bis zwei Bilder kostete (Ticket 20). say nimmt ihn so, wie er steht.
+     */
+    vorSagen(text) {
+      const next = lines.find((l) => !l.classList.contains('on'));
+      if (text && next && next.textContent !== text) next.textContent = text;
     },
     hint(on) { q('.hint').classList.toggle('on', on); },
     /** Zeile über dem Untertitel (Angebot nach dem Prolog: «Im Dorf»); leer: blendet aus. */
@@ -20516,7 +20530,7 @@ const story = {
       // (nur in diesem Ruhepunkt: schnell getippt, könnte schon der nächste stehen)
       const hier = shots.indexOf(shot), naechste = shots[hier + 1];
       this.ladeSperre = ['gather', 'carry'].includes(naechste?.act);
-      if (naechste?.act) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) sc.vorbereiten(naechste.act); }, sc.ruheNachHalt);
+      if (naechste) setTimeout(() => { if (this.stillBild && sc.running && sc.fahrtIndex === hier) { sc.vorSagen(naechste.text); if (naechste.act) sc.vorbereiten(naechste.act); } }, sc.ruheNachHalt);
       await this.untilTap();
       this.stillBild = false;
     }
