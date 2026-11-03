@@ -1282,7 +1282,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-10';
+const APP_VERSION = '2026-11-03 leistung-11';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8432,7 +8432,8 @@ const RUHE_OHNE_START = new URLSearchParams(location.search).has('nointro');
  * ruhepunkte: hinter der Bühne laden wie bis Ticket 18 in jedem Ruhepunkt (sonst nicht vor den Flügen der Glühwürmchen);
  * altflug: Flug der Glühwürmchen wie vor Ticket 15 (Ort je Bild in JavaScript); knickflug: Flug als Animation wie bis
  * Ticket 18 (linear zwischen 30 Keyframes je Sekunde, statt glatter Kurven, flugGlatt); seite275: Massstab
- * der Seite wie bis Ticket 18 (SEITE, im Kopf der Seite); raster2: k der Bühne mal 2 / devicePixelRatio (massstab).
+ * der Seite wie bis Ticket 18 (SEITE, im Kopf der Seite); raster2: k der Bühne mal 2 / devicePixelRatio (massstab);
+ * altkurve: Fahrten mit der steilen Kurve und Flüge der Glühwürmchen in der Dauer wie bis Ticket 19 (storyEase, FLUG_ZU).
  */
 const DIAG = new Set((new URLSearchParams(location.search).get('diag') ?? '').split(',').filter(Boolean));
 for (const d of DIAG) document.documentElement.classList.add('diag-' + d);
@@ -18843,6 +18844,8 @@ function createStoryScene(host) {
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
   const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
   const KNICKFLUG = DIAG.has('knickflug'); // ?diag=knickflug: Flug wie bis Ticket 18 (linear zwischen 30 Keyframes je Sekunde)
+  // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald (langsamer seit Ticket 19: weniger Weg je Bild)
+  const [FLUG_ZU, FLUG_WALD] = DIAG.has('altkurve') ? [2.4, 3.6] : [3.2, 4.8];
   const NACHLAUF = 2; // s: so lange nach der Ankunft reicht der Flug eines Glühwürmchens (bis umgestellt ist; länger als jede Fahrt nach der Ankunft)
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
@@ -19512,8 +19515,8 @@ function createStoryScene(host) {
      * Anteil g), von dort in den Wald (carry, k), unterwegs im Bogen nach oben.
      */
     wurmOrt(w, t, tx, ty) {
-      const g = smooth01((t - this.gatherAt - w.delay) / 2.4);
-      const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / 3.6) : 0;
+      const g = smooth01((t - this.gatherAt - w.delay) / FLUG_ZU);
+      const k = this.worms === 'carry' ? smooth01((t - this.carryAt - w.delay * 0.7) / FLUG_WALD) : 0;
       let x = w.hx + Math.sin(t * w.a + w.ph) * 16, y = w.hy + Math.cos(t * w.b + w.ph) * 9;
       const ang = t * w.spin + w.ph;
       x += (tx + Math.cos(ang) * w.ox - x) * g;
@@ -19531,9 +19534,9 @@ function createStoryScene(host) {
      */
     wurmPlan(w, halten = false) {
       if (this.worms === 'idle') return { modus: 'idle' };
-      const t = this.time, g0 = this.gatherAt + w.delay, gEnde = g0 + 2.4;
+      const t = this.time, g0 = this.gatherAt + w.delay, gEnde = g0 + FLUG_ZU;
       if (this.worms === 'gather') return t < gEnde || halten ? { modus: 'idle', flug: { ta: g0, te: gEnde } } : { modus: 'kreis' };
-      const k0 = this.carryAt + w.delay * 0.7, kEnde = k0 + 3.6, vomKreis = gEnde <= k0; // war beim Aufbruch an der Lampe
+      const k0 = this.carryAt + w.delay * 0.7, kEnde = k0 + FLUG_WALD, vomKreis = gEnde <= k0; // war beim Aufbruch an der Lampe
       const te = vomKreis ? kEnde : Math.max(kEnde, gEnde);
       return t < te || halten ? { modus: vomKreis ? 'kreis' : 'idle', flug: { ta: vomKreis ? k0 : g0, te } } : { modus: 'park' };
     },
@@ -19544,17 +19547,17 @@ function createStoryScene(host) {
      */
     flugAnlegen(w, { modus, flug: { ta, te } }, spitze, key) {
       const dauer = te + NACHLAUF - ta, schritte = Math.max(2, Math.ceil(dauer * 30)), ort = [], groesse = [];
-      // Grösse 1 + 0,6 · smooth01((t − g0) / 2,4) (wurmOrt): fliegt es ab g0 los, genau als ein Keyframe-Paar mit
+      // Grösse 1 + 0,6 · smooth01((t − g0) / FLUG_ZU) (wurmOrt): fliegt es ab g0 los, genau als ein Keyframe-Paar mit
       // cubic-bezier(1/3, 0, 2/3, 1) (das ist 3u² − 2u³). Jeder Keyframe kostet beim Tippen (Anlegen und Start im
       // Compositor, Ticket 18), so ist es die Hälfte
-      const g0 = this.gatherAt + w.delay, glatt = this.worms !== 'idle' && ta === g0 && 2.4 < dauer;
+      const g0 = this.gatherAt + w.delay, glatt = this.worms !== 'idle' && ta === g0 && FLUG_ZU < dauer;
       if (KNICKFLUG || !glatt) for (let i = 0; i <= schritte; i++) {
         const t = ta + dauer * i / schritte, [x, y, s] = this.wurmOrt(w, t, ...spitze), [sx, sy] = RUHIG[modus].schwingen(w, t);
         if (KNICKFLUG) ort.push({ transform: `translate(${n(x - sx)}px, ${n(y - sy)}px)` });
         if (!glatt) groesse.push({ transform: `scale(${s.toFixed(3)})` });
       }
       if (glatt) groesse.push({ offset: 0, transform: 'scale(1.000)', easing: 'cubic-bezier(0.3333, 0, 0.6667, 1)' },
-        { offset: 2.4 / dauer, transform: 'scale(1.600)' }, { offset: 1, transform: 'scale(1.600)' });
+        { offset: FLUG_ZU / dauer, transform: 'scale(1.600)' }, { offset: 1, transform: 'scale(1.600)' });
       const timing = { duration: dauer * 1000, fill: 'both', easing: 'linear' };
       const teile = !KNICKFLUG ? this.flugGlatt(w, modus, ta, dauer, spitze, timing)
         : [{ a: w.el.animate(ort, timing), c: (t) => t - ta, periode: Infinity }];
@@ -19603,7 +19606,19 @@ function createStoryScene(host) {
   return scene;
 }
 
-const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2); // wie der Rückflug der Kamera
+/**
+ * Kurve der Fahrten und Tweens der Geschichte (Bühne, Reisen): gleichmässig in der Mitte, sanft an- und auslaufend
+ * (das Tempo steigt über FAHRT_RAMPE der Dauer mit einem halben Kosinus an, bleibt stehen und fällt ebenso). Spitze
+ * 1 / (1 − r) = 1,43 × das mittlere Tempo; die kubische Kurve davor (wie der Rückflug der Kamera, ?diag=altkurve)
+ * erreichte das Dreifache, und die Kamera wirkte mitten in der Fahrt mal schnell, mal langsam (Nutzer, Ticket 19).
+ */
+const FAHRT_RAMPE = 0.3;
+const storyEase = DIAG.has('altkurve') ? (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2) : (k) => {
+  const r = FAHRT_RAMPE, v = 1 / (1 - r), an = (x) => v * (x / 2 - r / (2 * Math.PI) * Math.sin(Math.PI * x / r));
+  if (k <= 0) return 0;
+  if (k >= 1) return 1;
+  return k < r ? an(k) : k > 1 - r ? 1 - an(1 - k) : v * (r / 2 + k - r);
+};
 const storyLinear = (k) => k;
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 
