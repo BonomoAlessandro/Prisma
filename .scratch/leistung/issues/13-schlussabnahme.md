@@ -183,3 +183,13 @@ Ganze Testreihe grün, ausser:
 - `--ganz`: Lücken an wechselnden Stellen, neu 2 von 4 Läufen grün, alt 2 von 3
 
 Das sind Hänger des Grafikprozesses auf dem Arbeitsrechner und kein Rückschritt.
+
+### Test des Nutzers auf `leistung-10` (03.11. Abend, Render, ohne Zusatz)
+
+- Glühwürmchen: ruckeln noch ein wenig, aber deutlich besser als vorher.
+- Erste Noa-Szene: noch nicht ganz glatt.
+- Andere Szenen: ganz kleine Stellen, die nicht ganz gleichmässig wirken.
+- Schrift, Spiel und Schärfe: «super». Der Seitenmassstab 2 ist damit für Schrift und Schärfe abgenommen.
+
+Nächster Schritt: alle Szenen der Geschichte auf dem Poco messen (nicht nur die Prolog-Flüge), Bild für Bild mit Trace,
+und die übrigen Abbrüche und ungleichen Bildabstände je Szene zuordnen (Ticket 18).
