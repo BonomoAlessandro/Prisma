@@ -1289,7 +1289,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 leistung-14';
+const APP_VERSION = '2026-11-03 leistung-15';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -18572,6 +18572,7 @@ function createStoryScene(host) {
   const STRAHL_L = 860, STRAHL_MIN = 0.02; // kürzer (Anteil von STRAHL_L) zeichnet er nicht (Kraft 0 oder kaum sichtbar)
   // Höhe der Box eines Keils: kleiner rastert weniger, aber beim Wachsen (s klein, quer gestreckt) grösser (keilMatrix)
   const KEIL_H = 25;
+  const STRAHL_WEICH = 0.8; // Breite des weichen Rands des Kegels in der WebGL-Bühne (teil im Shader; der Kern 0,5)
   const STRAHL_TEILE = [
     { w0: 3, k: 0.04, farbe: '#fff1cc', stopps: [[0.42, 0], [0.2, 15], [0.07, 35], [0, 55]] },
     { w0: 1.4, k: 0.011, farbe: '#fffaf0', stopps: [[0.95, 0], [0.4, 12], [0.06, 32], [0, 50]] },
@@ -19260,18 +19261,24 @@ function createStoryScene(host) {
         vertexShader: 'uniform vec4 uBox; varying vec2 vP; void main() { vP = uBox.xy + uv * uBox.zw; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
         fragmentShader: `uniform float uL; uniform float uS; uniform float uO; uniform float uPx; uniform vec2 uW0; uniform vec2 uK; uniform vec2 uHb;
           uniform vec3 uF0; uniform vec3 uF1; uniform vec2 uS0[4]; uniform vec2 uS1[4]; varying vec2 vP;
-          float verlauf(vec2 s[4], float u) { // Maske: Stopps (Anteil, Alpha) über die Länge L / 0,55
+          // Maske: Stopps (Anteil, Alpha) über die Länge L / 0,55, zwischen ihnen weich (smoothstep statt linear: keine
+          // Knicke im Verlauf, die als Stufen zu sehen waren)
+          float verlauf(vec2 s[4], float u) {
             if (u <= s[0].x) return s[0].y;
-            for (int i = 1; i < 4; i++) if (u <= s[i].x) return mix(s[i - 1].y, s[i].y, (u - s[i - 1].x) / (s[i].x - s[i - 1].x));
+            for (int i = 1; i < 4; i++) if (u <= s[i].x) return mix(s[i - 1].y, s[i].y, smoothstep(s[i - 1].x, s[i].x, u));
             return s[3].y; }
-          float teil(float w0, float k, float hb) {
+          // weich: so breit (Anteil der halben Breite) blendet der Rand aus, je zur Hälfte innen und aussen (die Menge
+          // Licht bleibt gleich, mindestens ein Pixel); mit dem harten Rand wie im DOM wirkte der Strahl aussen eckig
+          // (Nutzer, Ticket 19)
+          float teil(float w0, float k, float hb, float weich) {
             float halb = w0 + (k * uL - w0) * vP.x / uL; // Hals w0, am Ende k · L (Kegel und Keile zusammen)
             float rand = min(halb, uS * hb); // die Box der Maske (Höhe 2 hb, mitskaliert)
-            float a = clamp((rand - abs(vP.y)) / uPx + 0.5, 0.0, 1.0);
+            float b = max(uPx, weich * rand);
+            float a = smoothstep(-0.5 * b, 0.5 * b, rand - abs(vP.y));
             return a * clamp(vP.x / uPx + 0.5, 0.0, 1.0) * clamp((uL - vP.x) / uPx + 0.5, 0.0, 1.0); }
           void main() {
             float u = vP.x / (uL / 0.55);
-            float a0 = teil(uW0.x, uK.x, uHb.x) * verlauf(uS0, u), a1 = teil(uW0.y, uK.y, uHb.y) * verlauf(uS1, u);
+            float a0 = teil(uW0.x, uK.x, uHb.x, ${STRAHL_WEICH.toFixed(2)}) * verlauf(uS0, u), a1 = teil(uW0.y, uK.y, uHb.y, 0.5) * verlauf(uS1, u);
             vec4 c = vec4(uF0 * a0, a0);
             c = vec4(uF1 * a1, a1) + c * (1.0 - a1);
             float r = length(vP) / 24.0; // Leuchten der Lampe (s-lamp, r 24)
@@ -19388,7 +19395,7 @@ function createStoryScene(host) {
         const v = kraft.wert(t), o = (v > 0.002 ? v : 0) * (flackern.wert?.(t) ?? 1);
         strahl.visible = o > 0.001 && !DIAG.has('ohnestrahl');
         if (strahl.visible) {
-          const sL = Math.max(laenge.wert(t), STRAHL_MIN), L = sL * STRAHL_L, H = Math.max(24, ...STRAHL_TEILE.map(({ w0, k }) => Math.max(w0, k * L))) + 2;
+          const sL = Math.max(laenge.wert(t), STRAHL_MIN), L = sL * STRAHL_L, H = Math.max(24, ...STRAHL_TEILE.map(({ w0, k }) => Math.max(w0, k * L) * (1 + STRAHL_WEICH / 2))) + 2;
           const box = [-24, -H, L + 24, 2 * H], u = strahl.material.uniforms, ps = posen[armT.ebene];
           setze(strahl, ps, box, mal(m, [1, 0, 0, 1, 34, 0]));
           u.uBox.value.set(...box); u.uL.value = L; u.uS.value = sL; u.uO.value = o; u.uPx.value = 1 / ps.s;
