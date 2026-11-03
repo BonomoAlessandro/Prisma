@@ -22383,10 +22383,13 @@ window.addEventListener('keydown', (e) => {
  * sauber und ohne sichtbaren Abstrich; die Bühne der Geschichte läuft im Browser und bleibt bei 60). ?takt=60: wie
  * früher 60, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen sonst doppelt so viele), 30 in Ruhe, stetig 60,
  * wo der Himmel im Level Bewegung zeigt, der das Auge folgt (fluid: die Fische am Strand). Steht der Blick im Himmel
- * (Menü, Übersicht), 10 (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop).
+ * (Menü, Übersicht), 10 (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop). Die Folgen
+ * der Geschichte im WebGL-Bild (Einstieg, Reise, Finale) laufen dagegen stetig mit 60 (storyFps, geschichte; ADR 0007):
+ * Neben der Bühne mit 60 wirkte die Reise mit 30 sichtbar weniger flüssig.
  */
 const frameRate = {
   activeFps: new URLSearchParams(location.search).get('takt') === '60' ? 60 : 30,
+  storyFps: 60,
   idleFps: 30,
   // Menü und Übersicht offen, der Blick steht im Himmel: Dort bewegt sich nur noch wenig und langsam (Funkeln der
   // Sterne, Schweben der Kamera; Bestandsaufnahme Ticket 06 der Leistung: je Bild höchstens 5/255 auf unter 0,1 % der
@@ -22400,6 +22403,13 @@ const frameRate = {
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
   fluidAus: false,    // das Gerät hielt die stetigen 60 (fluid) nicht: bis zum Neuladen nicht mehr (adaptiveResolution)
+  /**
+   * Eine Folge der Geschichte im WebGL-Bild läuft (flow.state 'story': Aufstieg, Reise, Fall, Einstieg, Finale, Satz
+   * zum Ende des Dorfs), nicht im Menü oder in der Übersicht (choosing) und nicht hinter der Bühne (covered, dort steht
+   * nur der Himmel). Am Zustand statt an den Promises der Folgen: Ein abgebrochener Tween (dropTweens, reset) wird nie
+   * fertig, ein Zähler bliebe dann stehen und das Spiel bei 60. Ab enterLevel (flow.state 'in') gilt der Takt des Spiels.
+   */
+  geschichte() { return flow.state === 'story' && !story.choosing && !story.covered; },
   /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
   poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
@@ -22446,7 +22456,8 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
-    const fps = this.busy(ts) || this.fluid() ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
+    const fps = this.geschichte() ? Math.max(this.storyFps, this.activeFps)
+      : this.busy(ts) || this.fluid() ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
     const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.

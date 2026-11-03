@@ -26,6 +26,9 @@ Der Nutzer hat beide Takte auf dem Poco gespielt. Dafür gab es die Schalter `?t
   (`MESS_GRENZE.zeichnen`).
 - `?takt=60` stellt zum Vergleich das frühere Verhalten her (60, solange sich etwas bewegt; stetig 60 bei Fischen am
   Strand).
+- Nachtrag 03.11.2026 (ADR 0007): Die Folgen der Geschichte im WebGL-Bild (Einstieg, Reise zwischen den Welten,
+  Finale) gehören zur Geschichte und laufen stetig mit 60 Bildern/s (`frameRate.storyFps`, `frameRate.geschichte()`).
+  Ab dem Einstieg ins Level gelten wieder 30.
 
 ## Folgen
 
@@ -33,3 +36,5 @@ Der Nutzer hat beide Takte auf dem Poco gespielt. Dafür gab es die Schalter `?t
   adaptive Auflösung greifen nur noch auf deutlich schwächeren Geräten.
 - Weniger Bilder je Sekunde schonen Akku und Wärme.
 - Bewegungen im Spiel sind weniger flüssig als mit 60. Der Nutzer hat sie am Strand als sauber beurteilt.
+- Auf Reisen zeichnet das Poco wieder 60 Bilder/s (Strand 10,9 ms je Bild, unter 16,7 ms). Schafft ein Gerät das
+  nicht, senkt die adaptive Auflösung wie vor ADR 0006.
