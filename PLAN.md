@@ -14,7 +14,11 @@ Entscheid in ADR 0005.
   Wiederholen (06), Kapitel «Im Dorf» (07), Werkzeuge ohne feste Reihe und Aufräumen (08), 23 neue sehr schwere Level
   statt der Platzhalter (09).
 - **Offen aus der Abnahme (Ticket 08, klein):**
-  - [ ] Erster Klick: `audio.unlock` hält das Bild 350–430 ms an (Hall mit 3,2 s Rauschen); Hall später oder kürzer.
+  - [x] Erster Klick: `audio.unlock` hält das Bild 350–430 ms an (Hall mit 3,2 s Rauschen); Hall später oder kürzer.
+    Erledigt in Ticket 05 von `.scratch/leistung/`: Teuer war vor allem das Anlegen des AudioContext, dazu der Puffer
+    des Convolvers; beides geschieht jetzt beim Laden, solange der Startbildschirm still steht, die Impulsantwort
+    rechnet ein Worker (Klang bitgleich). Erster Klick Desktop 19–36 ms statt 90–367, Handy-Emulation 4× gedrosselt
+    54–125 ms statt 424–606 (der Rest ist der Start des Prologs, nicht der Ton).
   - [ ] Desktop «Spiel → Übersicht» 87–88 ms (einmal 106).
   - [ ] Übersicht auf kleinen Handys (360 × 640, 320 × 568): «Schliessen» liegt unter den Kacheln ausserhalb des
     Bildschirms, der Kopf ist weggescrollt.
@@ -103,6 +107,18 @@ Entscheid in ADR 0005.
     sehen, nur der Polarstern hell.
   - **Mögliche zweite Ebene:** Jede Welt gibt dem Licht ihre Farbe; erst alle zusammen ergeben das weisse Licht, auf
     das der Polarstern antwortet (Finale als Mischziel).
+
+## 0a. Erledigt (03.11.2026): Leistung
+
+Spec und Tickets: `.scratch/leistung/` (Tickets 01–19), Entscheide in ADR 0006 und 0007. Abgenommen vom Nutzer auf
+dem Poco F4 GT und am Arbeitsrechner (`leistung-15`, Ticket 13): Startbildschirm, Prolog und Spiel flüssig, das Spiel
+stetig mit 30 Bildern/s, die Geschichte mit 60, die Bühne von Prolog und Epilog in WebGL, Seitenmassstab 2 auf
+Android-Chromium.
+
+- [ ] `leistung-16`: alte DOM-Bühne entfernt (Stufe 3 von Ticket 19); kurzer Blick des Nutzers, dann Merge nach `main`
+  auf sein Go.
+- [ ] Ohne Befund, nur zur Kenntnis: Die erste Fahrt nach dem Öffnen der Bühne hakt am Arbeitsrechner manchmal
+  (Bildschirm aus), mitten in starken Zoomfahrten ist das Bild etwas weicher, Firefox auf Android ist ungeprüft.
 
 ## 1. Aussehen
 

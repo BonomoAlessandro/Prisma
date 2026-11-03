@@ -25,7 +25,7 @@ let state = null;
 for (let i = 0; i < 100; i++) {
   const r = await send('Runtime.evaluate', { expression: 'JSON.stringify(window.__prisma || null)', returnByValue: true });
   state = JSON.parse(r.result?.result?.value ?? 'null');
-  if (state && state.frames > 2) break;
+  if (state && state.ticks > 2) break; // die Hauptschleife läuft (hinter dem Startbildschirm ohne Zeichnen)
   await sleep(200);
 }
 // Hintergrund fertig geladen und eingeblendet (der Wald lädt seine Bilder erst bei der Wahl)
@@ -54,6 +54,6 @@ console.log(relevant.length ? 'Konsole:\n  ' + relevant.join('\n  ') : 'Konsole:
 
 await close();
 // Fehlschlag melden: Exceptions, Shader-Fehler oder keine laufende Render-Schleife
-const failed = relevant.some(l => /\[exception\]|\[script-exception\]|\[error\]|THREE\.WebGLProgram/.test(l)) || !state || state.frames < 3;
+const failed = relevant.some(l => /\[exception\]|\[script-exception\]|\[error\]|THREE\.WebGLProgram/.test(l)) || !state || state.ticks < 3;
 if (failed) console.error('FEHLGESCHLAGEN');
 process.exit(failed ? 1 : 0);

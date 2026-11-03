@@ -34,6 +34,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
+  - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse`, Bereich HALL:BEGIN … HALL:END in
+    `index.html`; Ticket 05 von `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten
+    Berechnung beim ersten Klick (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32`
+    mit festem Samen), unabhängig von der Stückgrösse, und ihr Quelltext läuft für sich wie im Worker (unter 1 s).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -177,8 +181,49 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`<bildschirm>-<name>.png`, `«sehr schwer»` als `sehr-schwer`).
   - Golden-Test, Strahlregel, Beurteilung samt Eichung, Levelliste, Würfelliste und KI-Tester lesen die Level aus Spiel
     und Vorrat über den Lader (`tools/lader.mjs`), die Anzeige der Grade und die Proben im Browser nur das Spiel.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leistung-probe.mjs [--handy] [--drossel 4]
+    [--fenster] [--ersatzmass] [--bilder]` fährt den Referenzdurchlauf des Messwerkzeugs (Spec `.scratch/leistung/`,
+    Ticket 01; etwa 2–3 min) über die Knöpfe der Leistungsanzeige wie ein Spieler: erfundener echter Stand,
+    «Referenzdurchlauf», Neuladen («Messung unterbrochen», «Neu beginnen»), «Abbrechen» fragt nach, «Klicken zum
+    Starten», Leicht, Prolog Bild für Bild, «Gleich los», erstes Level (gelöst über `__prismaDebug.loese`), «Menü»,
+    «Weiter zur Reise». Sie prüft Abschnitte und Werte der Ergebniskarte (`__prisma.leistung.ergebnis()`), dass der
+    echte Stand zurück ist, die Anzeige weder Menü, Angebot, Werkzeugleiste noch «Weiter» verdeckt, die Karte auf dem
+    Handy ohne seitliches Wischen passt und die Konsole sauber bleibt, und legt Karte und Daten unter
+    `tests/output/leistung/` ab. `--ersatzmass` (Seite mit `?ersatzmass`): ohne GPU-Zeit wie viele Android-Geräte,
+    also mit der Dauerlast an den drei Messpunkten (Ticket 08; die Probe wartet darauf und prüft die Zeilen
+    «Zeichnen (Dauerlast)»); hat das Gerät den Timer doch, steht die GPU-Zeit derselben Bilder zum Vergleich darunter.
+    Im Fenster ungedrosselt verlangt sie `adaptiv 1.00, Umbauten 0`. `--bilder`: ein Bild je Schritt (verfälscht die
+    Werte).
+    Headless ist das nur eine Regressionsprüfung (ohne GPU in Software, rAF virtuell getaktet). `--fenster` öffnet ein
+    echtes, maximiertes Chrome-Fenster auf der Grafikkarte (`tools/chrome.mjs`, Option `fenster`; nicht verdecken):
+    so entstehen Messwerte, ungedrosselt und mit `--handy --drossel 4` (393 × 873, Pixeldichte 2,75, Touch, CPU 4×
+    langsamer) wie in der Spec verlangt.
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/start-probe.mjs [--fenster] [--handy]
+    [--drossel 4] [--laeufe 2] [--nur neu|weiter] [--seite datei]` misst den Start (Ticket 03 der Leistung), je Lauf
+    ein frischer Chrome mit `?perf`: frischer Stand (Zeit bis zur Enthüllung, bis «Klicken zum Starten» und bis der
+    Himmel steht, längste Lücken im Startbildschirm) und Stand mitten in der ersten Welt («Weiter» im Menü ohne Prolog:
+    Abschnitte des Messwerkzeugs mit dem markierten Laden, Zeit bis Himmel und Level). Ergebnis nach
+    `tests/output/leistung/start-*.json`; `--seite` misst eine andere Fassung (Vorher-Werte).
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
+    [--drossel 4] [--sky forest] [--seite <index.html>] [--still]` misst den Leerlauf (Ticket 06 der Leistung, etwa
+    1 min): Menü ohne Eingabe, erstes Level ohne Eingabe («Ruhe»), dann Hover, Drehen und Ziehen («Eingabe»); je
+    Abschnitt gezeichnete Bilder je Sekunde, Zeichenzeit (p95, Mittel, GPU-ms je Sekunde), und je Eingabe, ob das
+    erste Bild im nächsten Bildschirmbild kommt (Prüfung). `--still` (Seite mit `?t=12`) prüft, dass die stehende
+    Szene nichts mehr zeichnet; `--seite` misst eine andere Fassung (etwa den Stand vorher als Kopie). Daten unter
+    `tests/output/leistung/leerlauf-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/buehne-messung.mjs [messen]
+    [--fenster] [--handy] [--drossel 4] [--ohne-webgl] [--epilog] [--seite datei] [--name x]` misst die Bühne von
+    Prolog und Epilog (Ticket 04 der Leistung, bis das Messwerkzeug aus Ticket 01 da ist): Chrome mit GPU (`--fenster`:
+    sichtbar statt headless), Bildabstände über `requestAnimationFrame` getrennt nach Kamerafahrt und Warten auf
+    Tippen, dazu ein Trace über das DevTools-Protokoll, ausgewertet nach Script, Style, Layout, Paint, Raster, GPU
+    (ms je Sekunde); `--handy` 393 × 873 mit Pixeldichte 2,75 und Touch, `--drossel` CPU-Drosselung, `--ohne-webgl`
+    ohne die 3D-Szene hinter der Bühne, `--seite` eine andere Fassung der Seite im selben Ordner (Vorher-Werte).
+    Ergebnis nach `tests/output/buehne/messung-<name>.json`. `… bilder <ordner> [--nur desktop,handy,quer,
+    handy-360x640]` legt an jedem Ruhepunkt von Prolog und Epilog ein eingefrorenes Bild nach
+    `tests/output/buehne/<ordner>/`, `node tests/buehne-messung.mjs vergleich <vorher> <nachher>` vergleicht zwei solche
+    Ordner (Anteil abweichender Pixel, Bilder nebeneinander nach `tests/output/buehne/vergleich/`).
   - `node tests/screenshot.mjs` rendert Screenshots per Headless-Chrome nach `tests/output/`.
   - `node tests/screenshot.mjs perf 1280 800 200 "$(cat tests/perf-probe.js)"` vergleicht die Kosten der Renderstufen.
   - `node tests/screenshot.mjs interaction 1440 900 800 "$(cat tests/interaction-probe.js)"` simuliert Klick,
@@ -246,11 +291,70 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   laufende Level Drehung für Drehung, `menu` ist das Menü (`story.choose(grad)` wählt einen Grad, solange es offen
   ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
-  Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): höchstens
-  60 Bilder/s, solange sich etwas bewegt oder bis 1,5 s nach einer Eingabe, sonst 30 (ruhige Umgebung, Bühne der
-  Geschichte, Menü). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt (144 Hz →
-  72 bzw. 29).
+  Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): im Level und
+  im Menü stetig 30 Bilder/s, auch bei Bewegung und Eingaben (ADR 0006; `?takt=60` zum Vergleich wie früher: 60,
+  solange sich etwas bewegt), mit dem Blick im Himmel (Menü, Übersicht) 10, in den Szenen der Geschichte im WebGL-Bild
+  (Aufstieg, Reise, Einstieg, Finale) stetig 60 (`frameRate.geschichte()`, ADR 0007). Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
+  (144 Hz → 72 bzw. 29). Liegt die Szene ganz verdeckt (Startbildschirm, eingeblendete Bühne von Prolog und Epilog),
+  wird sie nicht gezeichnet (`sceneLoop`): Nur die Logik läuft, solange etwas ansteht (Tweens, Einblenden des Himmels,
+  Kamera), dann ruht die Hauptschleife ohne rAF, bis `sceneLoop.wake()` sie weckt; vor dem Ruhen ein Bild zum
+  Aufwärmen. Sichtbar ruht sie ebenso, sobald sich nichts mehr bewegt (`sceneLoop.ambient()`/`pending()`): Weil im
+  Spiel die Umgebung immer lebt (Kamera schwebt, Strahlen fliessen, Ziele drehen sich, Himmel), passiert das nur mit
+  `?t=` (Zeit steht: Bilder der Tests und KI-Tester; dort weckt `settle` bzw. `sceneLoop.wake(true)` für neue Bilder).
+  Liegt die Platte nicht im Bild (Menü, Übersicht: Blick im Himmel), entfällt die Spiegelung. Eingaben (auch
+  `pointermove`), Drehen, Puls, Hover, Feier wecken. `__prisma.frames` zählt gezeichnete Bilder, `__prisma.ticks` Schritte der Logik (darauf warten die
+  Proben), `__prisma.ruht()` und `__prisma.verdeckt()` zeigen den Zustand.
+  **Ruhige Stellen** (`ruhe`, Ticket 03 der Leistung): Was Hauptthread oder Grafikprozess länger anhält (Shader und
+  Uploads einer Skybox, ihr erstes Zeichnen, Vorwärmen von Menü, Bühne und Übersicht, Ton), läuft nur, wenn nichts
+  Sichtbares animiert: vor und nach der Enthüllung des Startbildschirms, im Prolog beim Warten auf Tippen und beim
+  Angebot, hinter der Überblendung nach «Weiter» (`ruhe.lade`, im Messwerkzeug als Laden markiert) und im Spiel; nicht
+  während der Enthüllung, im Menü und während einer Fahrt der Bühne (Generatoren melden das mit `yield RUHIG`).
+  «Klicken zum Starten» kommt am Ende der Enthüllung (2,9 s) und wartet nicht auf den Himmel.
   Dazu passt die Auflösung sich an, wenn Bilder zu lange dauern (`adaptiveResolution`, Budget je nach Bildrate).
+  **Bühne der Geschichte** (Prolog und Epilog; Ticket 19 der Leistung, ADR 0007): eine eigene WebGL-Leinwand in
+  `#story .scene` mit eigenem Kontext und eigener rAF-Schleife, stetig 60 Bilder/s. Die SVG-Ebenen werden im Ruhepunkt
+  vor einer Fahrt in Kacheln zu Texturen gerastert (je Abschnitt der Folge in der grössten Skalierung, dazu scharfe
+  Stufen für die Ruhepunkte; auf dem Poco höchstens etwa 116 MB). Kamera, Arm, Strahl (Shader mit weichem Rand),
+  Glühwürmchen, Rauch, Fenster und Sterne rechnet jedes Bild aus der Zeit. Untertitel, Hinweise und Knöpfe bleiben DOM
+  darüber. `__prisma.buehne` liefert Bildabstände (`bilder()`) und Grafikspeicher (`speicher()`) für die Proben.
+  **Seitenmassstab** (`SEITE`, Ticket 18): Auf Android-Chromium mit Pixeldichte über 2 rastert die Seite mit Massstab 2
+  (Meta-Viewport), `body { zoom }` hält Schrift und Knöpfe gleich gross. Das spart Kachelspeicher; auf dem Poco brach
+  der Compositor sonst Bilder ab. Neue Stellen, die mit `clientX`, `getBoundingClientRect`, `innerWidth` oder vw/vh
+  Oberfläche bauen, müssen `SEITE` kennen.
+  **Diagnose-Schalter** `?diag=a,b` (zum Messen auf dem Handy, je Schalter eine Ursache weg): `seite275` (ohne
+  Seitenmassstab), `ohnevorbereitung` (kein Laden hinter der Bühne), `ruhepunkte` (Laden in jedem Ruhepunkt, auch vor
+  den Flügen der Glühwürmchen), `ohneleuchten`, `ohnestrahl`.
+  **Messwerkzeug** (Spec `.scratch/leistung/`, Ticket 01; `leistung` in `index.html`): Mit `?perf` (oder Taste F) misst
+  eine eigene rAF-Schleife die sichtbaren Bildabstände, auch wenn die Szene nicht rendert, getrennt nach Abschnitten
+  (Startbildschirm, Prolog, Menü, Einstieg, Spiel, Reise usw.; Laden hinter einer Überblendung markiert der Code mit
+  `leistung.markiere('laden')` bzw. `leistung.waehrend('laden', promise)`, es zählt nicht gegen die Grenzwerte). Dazu
+  Hänger des Hauptthreads mit Ursache (`long-animation-frame`), die CPU-Zeit von `frame()` und die Zeichenzeit: GPU-Zeit
+  über `EXT_disjoint_timer_query_webgl2`; ohne die Erweiterung (Poco) misst der Referenzdurchlauf die **Dauerlast**
+  (Ticket 08) an drei ruhigen Messpunkten (erstes Level nach 3 s Ruhe, Menü still, Spiel nach der Reise): 20 Bilder
+  hintereinander zwischen zwei 1-Pixel-`readPixels`, Zeit je Bild, Median aus 5, dazu dieselbe Last ohne Spiegelung,
+  Bloom, Netz des Panoramas bzw. Pinsel, in einem zweiten Block ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),
+  Wasser, Unterwasser-Pass, Staub bzw. letzten Bildschritt (Ticket 11; Anteil eines Teils = ganz − ohne) und die
+  CPU-Zeit je Bild der Probe. Die
+  Abstände und Hänger der Proben zählen nicht, die automatische Absenkung wertet sie nicht; die Anzeige bittet währenddessen,
+  kurz nichts zu tippen (zum Ausprobieren `?ersatzmass`). Grenzwerte: p95 der Bildabstände ≤ 18,3 ms, kein Bild über 33 ms, Zeichenzeit p95 ≤ 8 ms (Poco).
+  **Referenzdurchlauf:** Seite mit `?perf` öffnen (auf dem Handy die Adresse auf Render mit `?perf`), in der Anzeige
+  unten links (auf schmalem Bildschirm oben links, knappe Fassung) «Referenzdurchlauf» tippen. Der echte Spielstand
+  wird gesichert (`prisma.leistung.sicherung`), die Seite lädt mit frischem Stand neu. Dann normal durchklicken, die
+  Anzeige sagt jeweils, was dran ist: «Klicken zum Starten», «Leicht», den Prolog Bild für Bild antippen, «Gleich los»,
+  das erste Level lösen, ≡ (Menü). Dort «Weiter zur Reise»: Das Spiel springt ans Ende der ersten Welt, löst das Level
+  selbst und reist ins Meer (Himmel frisch geladen); 6 s nach der Landung ist Schluss. «Auswerten» endet ohne Reise,
+  «Abbrechen» (zweimal tippen) jederzeit. Lädt die Seite mitten im Durchlauf neu, sind die Werte weg: Die Anzeige
+  meldet «Messung unterbrochen» mit «Neu beginnen» und «Abbrechen». Danach ist der echte Stand zurück, die Seite lädt neu und zeigt
+  die Ergebniskarte: je Abschnitt Bilder, p95, längstes Bild, Bilder über 33 ms, p95 der GPU-Zeit (ohne Timer «–»)
+  und der CPU-Zeit, gezeichnete Bilder je Sekunde, auch nur in ruhigen Zeiten («ruhig»: keine Fahrt, der Himmel
+  blendet nicht ein), die Zeilen «Zeichnen (Dauerlast)» je Messpunkt, dazu Gerät, GPU, Bildschirm, Takt, Mass der Zeichenzeit, Hänger und **Version**.
+  «Kopieren» legt sie in die Zwischenablage (sonst ein markiertes Textfeld), «Schliessen» vergisst sie. Proben lesen
+  dasselbe über `window.__prisma.leistung` (`tests/leistung-probe.mjs`).
+  **Version prüfen, sonst neu laden:** `APP_VERSION` (Datum und Ticketstand) steht gleich in `index.html` und `sw.js`
+  (ein Test prüft das) und wird mit jedem Stand für einen Handy-Durchlauf nachgeführt. Anzeige und Ergebniskarte
+  zeigen sie. Steht dort nach dem Deploy noch die alte (Render startete kalt, und der Service Worker antwortete nach 3 s
+  aus dem Speicher), die Seite einmal neu laden: Der Speicher ist inzwischen nachgeführt, und die geänderte `sw.js`
+  installiert sich neu.
 - **Skyboxen aus Blender** (`tools/blender/`, nur für die Entwicklung, braucht Blender 5.2 mit GPU): Hintergründe, die
   in Blender als Panorama entstehen; im Spiel zeichnet sie ein allgemeines Modul (`createPanoramaSky`, Abschnitt SKYBOX
   in `index.html`) aus ihrem Manifest. Register `backgrounds/skies.js`, Daten in `backgrounds/<id>/` (Stand im
@@ -418,7 +522,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
   lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
   Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
-  `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester).
+  `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
+  mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein
   Modul mit einem Einstieg, `beurteile(level, { grad, teuer })` aus `index.mjs`. Es liefert Schwierigkeit, Spielwert,
   die Teilwerte zum Schliessen, Kernideen samt Haupt-Kernidee, Mischziele und Ausschlussgründe (je mit Glossarbegriff

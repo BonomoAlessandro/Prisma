@@ -16,22 +16,33 @@ export const findChrome = () => [
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].filter(Boolean).find(p => existsSync(p)) ?? null;
 
-/** Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), logs (Konsole), close() }. */
-export async function startChrome({ width, height, gpu = false }) {
+/**
+ * Startet Chrome mit einer leeren Seite. Rückgabe: { send(method, params), on(method, fn) (Ereignisse wie
+ * Tracing.dataCollected), logs (Konsole), close() }.
+ * fenster: ein echtes, sichtbares Fenster statt headless (Messungen mit dem Messwerkzeug, Spec .scratch/leistung/:
+ * rAF im Takt des Bildschirms, Zeichnen auf der Grafikkarte, also immer mit gpu); maximiert: das Fenster füllt den
+ * Bildschirm (width und height gelten dann nicht). Verdeckt oder im Hintergrund drosselt Chrome es sonst.
+ */
+export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
   const port = 9300 + Math.floor(Math.random() * 500);
   const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-'));
   const proc = spawn(chrome, [
-    '--headless=new',
+    // im Fenster die schnellere Grafikkarte (Laptop mit zweien: sonst die eingebaute); auch zeichnen, wenn andere
+    // Fenster es verdecken (sonst hält Windows-Chrome das Bild an)
+    ...(fenster ? ['--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding',
+      '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0',
+      '--disable-features=CalculateNativeWinOcclusion']
+      : ['--headless=new']),
     `--remote-debugging-port=${port}`,
     `--user-data-dir=${profile}`,
-    ...(gpu ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
+    ...(gpu || fenster ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
     '--ignore-gpu-blocklist',
     '--no-first-run',
     '--no-default-browser-check',
-    `--window-size=${width},${height}`,
+    maximiert ? '--start-maximized' : `--window-size=${width},${height}`,
     'about:blank',
   ], { stdio: 'ignore' });
 
@@ -50,9 +61,11 @@ export async function startChrome({ width, height, gpu = false }) {
   let msgId = 0;
   const pending = new Map();
   const logs = [];
+  const hoerer = new Map();
   ws.addEventListener('message', (ev) => {
     const msg = JSON.parse(ev.data);
     if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
+    for (const fn of hoerer.get(msg.method) ?? []) fn(msg.params);
     if (msg.method === 'Runtime.consoleAPICalled') {
       logs.push(`[${msg.params.type}] ` + msg.params.args.map(a => a.value ?? a.description ?? '').join(' '));
     } else if (msg.method === 'Runtime.exceptionThrown') {
@@ -70,6 +83,10 @@ export async function startChrome({ width, height, gpu = false }) {
   await send('Runtime.enable');
   await send('Log.enable');
   await send('Page.enable');
+  if (maximiert) { // --start-maximized allein wirkte nicht verlässlich
+    const w = await send('Browser.getWindowForTarget');
+    if (w.result) await send('Browser.setWindowBounds', { windowId: w.result.windowId, bounds: { windowState: 'maximized' } });
+  }
 
   const close = async () => {
     ws.close();
@@ -77,12 +94,17 @@ export async function startChrome({ width, height, gpu = false }) {
     if (proc.exitCode === null && proc.signalCode === null) await new Promise((r) => proc.once('exit', r));
     try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien: bleibt im Temp-Ordner */ }
   };
-  return { send, logs, close };
+  const on = (method, fn) => hoerer.set(method, [...(hoerer.get(method) ?? []), fn]);
+  return { send, on, logs, close };
 }
 
-/** Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt. */
-export async function emulate(send, { width, height, dpr = 1, phone = false }) {
-  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile: width < 800 });
+/**
+ * Bildschirm einstellen; phone: als Smartphone ausgeben (Mobil-Kennung und Touch), damit das Spiel IS_MOBILE erkennt.
+ * mobile: Chrome als mobiler Browser (der Meta-Viewport gilt); Vorgabe bei Breiten unter 800, ein Handy quer braucht
+ * es ausdrücklich (Massstab der Seite, Ticket 18 von .scratch/leistung/).
+ */
+export async function emulate(send, { width, height, dpr = 1, phone = false, mobile = width < 800 }) {
+  await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: dpr, mobile });
   if (phone) {
     await send('Emulation.setUserAgentOverride', { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1' });
     await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });

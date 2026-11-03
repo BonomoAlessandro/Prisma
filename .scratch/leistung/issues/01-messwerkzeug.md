@@ -1,0 +1,349 @@
+# 01: Messwerkzeug, Referenzdurchlauf, Ergebniskarte mit Version
+
+**Spec:** ../spec.md
+
+**Blocked by:** –
+
+**Status:** resolved
+
+**What to build:** Ein Messwerkzeug, das misst, was man **sieht**, nicht nur die WebGL-Bilder. Ausserdem einen festen
+Referenzdurchlauf, an dessen Ende eine Ergebniskarte steht, die sich ohne Kabel auf dem Handy ablesen und kopieren
+lässt. Alle weiteren Tickets messen damit vorher und nachher.
+
+Arbeit auf dem Branch `feature/leistung`: von `main` abzweigen, falls es ihn noch nicht gibt, sonst den gepushten Stand
+holen.
+
+Heute misst der HUD (`perfHud`, `index.html` um 19299, `?perf` oder Taste **F**) nur die Abstände der *gerenderten*
+WebGL-Bilder in `frame()`. Ist die Bildrate gedrosselt (30 fps hinter dem Prolog), zeigt er 30 FPS, egal wie flüssig
+CSS- und SVG-Animationen laufen. Ruckler im Startbildschirm und im Prolog sieht er nicht.
+
+- [x] **Sichtbare Bildabstände:** eine eigene, leichte rAF-Messschleife, die nur bei `?perf` läuft und unabhängig von
+      `frameRate` und `frame()` ist. Ticket 02 lässt `frame()` ruhen, die Messung muss trotzdem weiterlaufen. Sie misst
+      den Abstand aufeinanderfolgender Display-Frames, Grenzwerte wie in der Spec (p95 ≤ 18,3 ms inklusive Toleranz,
+      kein Bild über 33 ms). Wo verfügbar, kommen `PerformanceObserver` für `long-animation-frame` und `longtask` dazu,
+      um Hänger des Hauptthreads mit Ursache (Script-Quelle) zu sehen. Die Messung selbst darf das Ergebnis nicht
+      merklich verfälschen: keine Allokationen pro Bild, Ringpuffer.
+- [x] **Zeichenzeit, eindeutig definiert:** Wo `EXT_disjoint_timer_query_webgl2` verfügbar ist, gilt die GPU-Zeit pro
+      gerendertem Bild. Auf vielen Android-Geräten fehlt die Erweiterung. Dann gilt als Ersatzmass die Zeit von Beginn
+      `frame()` bis nach einem `gl.finish()` (bzw. einem 1-Pixel-`readPixels`, falls `finish` nicht blockiert). Das
+      läuft **nur während des Referenzdurchlaufs**, weil es die Pipeline anhält. Die Karte zeigt, welches Mass
+      verwendet wurde. Die 8-ms-Marge der Spec bezieht sich auf diese Zeichenzeit. Zusätzlich wird die CPU-Zeit von
+      `frame()` ausgewiesen.
+- [x] **Abschnitte:** Die Messung wird automatisch nach Abschnitten getrennt: Startbildschirm, Prolog, Spiel (erstes
+      Level), Menü, Weltwechsel bzw. Reise. Laden hinter einer Überblendung wird als solches markiert und getrennt
+      ausgewiesen. Es zählt nicht gegen die Grenzwerte, aber die Werte werden trotzdem gezeigt.
+- [x] **Referenzdurchlauf:** Im HUD gibt es einen Knopf «Referenzdurchlauf». Er setzt einen frischen Spielstand
+      **ohne den echten zu löschen** (eigener Speicherschlüssel oder Sicherung und Rückspielen) und lädt die Seite neu.
+      Danach klickt man normal durch: Startbildschirm → Prolog → erstes Level lösen → Menü. Weil man mit frischem Stand
+      nicht schnell in eine andere Welt kommt, bietet der Durchlauf danach einen Knopf «Weiter zur Reise». Er springt
+      über die vorhandene Debug- bzw. Testschnittstelle (`__prismaDebug`, `zeige()`, Übersicht) an das Ende der
+      ersten Welt, sodass die Reise in die zweite Welt mit frisch geladener Skybox gemessen wird. Am Ende wird der echte
+      Spielstand wiederhergestellt.
+- [x] **Ergebniskarte** am Ende, gut lesbar auf dem Handy. Sie zeigt pro Abschnitt p95, den schlimmsten Frame, die
+      Zahl der Frames über 33 ms und die p95 der Zeichenzeit samt Mass. Dazu Gerät bzw. User-Agent, GPU, Bildschirm,
+      Pixelverhältnis, Bildschirmtakt und die **Version** der laufenden Fassung. Ein Knopf «Kopieren» legt alles als
+      Text in die Zwischenablage. Fallback ohne Clipboard-API: markierbares Textfeld.
+- [x] **Version sichtbar:** Es gibt keinen Build-Schritt. `sw.js` (Cache `prisma-v1`) lädt online zuerst vom Netz und
+      antwortet nur aus dem Speicher, wenn das Netz länger als `NETWORK_WAIT` = 3 s braucht. Eine alte Fassung droht
+      also vor allem, wenn Render kalt startet. Einführen: eine Versionskennung, die bei jedem Handy-Commit nachgeführt
+      wird (z. B. `APP_VERSION` mit Datum und Ticketstand) und in HUD und Ergebniskarte erscheint. Ein Neuladen holt
+      sicher die neue Fassung. Den Ablauf im README im Wurzelordner festhalten («Version prüfen, sonst neu laden»).
+- [x] **Testschnittstelle:** Die Ergebnisse sind auch per `window.__prisma` abrufbar. So können Headless-Tests
+      (`tools/chrome.mjs`, `tests/*.mjs`) den Durchlauf als Regressionsprüfung fahren (Klicks per Script, `--handy`).
+      Ihre Zeiten sind keine echten Messwerte, ohne GPU rendern sie in Software. Im README im Wurzelordner ist
+      beschrieben, wie man den Durchlauf startet.
+- [ ] **Ausgangswerte** im echten Chrome mit Fenster und GPU auf dem Arbeitsrechner erheben, einmal ungedrosselt und
+      einmal mit DevTools-Handy-Emulation und 4× CPU-Drosselung, und unter `## Comments` eintragen. Fährt der Agent den
+      Durchlauf selbst, dann über `tools/chrome.mjs` mit `GPU=1` und sichtbarem Fenster, falls das geht. Sonst ist das
+      ein Schritt für den Nutzer am Arbeitsrechner, und das Ticket sagt das.
+- [ ] Tests grün, Review des Diffs. Dann committen und auf `feature/leistung` pushen, Ticket mit **«bereit für
+      Handy-Durchlauf 1 (Ausgangswert), bitte auf Render deployen»** abschliessen. Der Nutzer trägt die Ergebniskarte
+      vom Poco nach.
+
+## Comments
+
+**31.10.2026, Umsetzung (Branch `leistung/01-messwerkzeug`, von 963177d):**
+
+- **Messwerkzeug** `leistung` in `index.html` (Abschnitt «Messwerkzeug» direkt vor der Leistungsanzeige `perfHud`):
+  eigene rAF-Schleife (`starte`, `tick`), unabhängig von `frameRate` und `frame()`; sie läuft mit `?perf`, nach Taste F
+  und im Referenzdurchlauf. Je Abschnitt Histogramme in Fächern zu 0,1 ms bis 200 ms (genaue p95, keine Allokationen pro
+  Bild), Ringpuffer für die Anzeige. Ein Abstand zählt zum Abschnitt an seinem **Anfang** (der Hänger nach dem Klick
+  auf «Klicken zum Starten» gehört so zum Startbildschirm, nicht zum Menü). `long-animation-frame` und `longtask` per
+  `PerformanceObserver`, die längsten mit Ursache (längstes Script: Aufrufer, Funktion, Datei:Zeichen; sonst «ohne
+  Script» mit Renderzeit).
+- **Zeichenzeit:** GPU-Zeit je gerendertem Bild über `EXT_disjoint_timer_query_webgl2` (8 Abfragen im Kreis, disjunkte
+  verworfen). Ohne Erweiterung im Referenzdurchlauf die Zeit von Beginn `frame()` bis nach einem 1-Pixel-`readPixels`
+  (gewählt statt `gl.finish`, weil `readPixels` sicher auf das fertige Bild wartet). Die Karte nennt das Mass. Dazu die
+  CPU-Zeit von `frame()` und die gezeichneten WebGL-Bilder je Sekunde («gez/s», für 02 und 06). Haken: Hält
+  `readPixels` die Pipeline an, kann `adaptiveResolution` das als langsames Bild werten; die Karte zeigt «adaptiv» und
+  «Umbauten».
+- **Abschnitte** (`abschnitt()`, liest nur Zustände): Seitenstart (bis die Enthüllung beginnt; zählt wie Laden nicht),
+  Startbildschirm, Menü, Übersicht, Prolog (mit Angebot), Epilog, sonst der zuletzt markierte oder Spiel. Die
+  Geschichte markiert über `leistung.waehrend(id, promise)`: Einstieg (`enter`), Reise (`chapterEnd`), Weltwechsel
+  (`replayWorld`), Finale. **Schnittstelle für 02/03:** `const ende = leistung.markiere('laden')` … `ende()` bzw.
+  `leistung.waehrend('laden', promise)` markiert Laden hinter einer Überblendung; es geht allen Abschnitten vor, steht
+  getrennt auf der Karte und zählt nicht gegen die Grenzwerte.
+- **Referenzdurchlauf:** Knöpfe in der Anzeige (`#perf .perf-knoepfe`). «Referenzdurchlauf» sichert alle `prisma.*`
+  nach `prisma.leistung.sicherung` (eine vorhandene Sicherung aus einem abgebrochenen Lauf bleibt, sie ist der echte
+  Stand), löscht sie, setzt `prisma.leistung.lauf` und lädt mit `?perf`, ohne `?nointro`/`?t=`/`?sky=`, neu. Nach dem
+  ersten gelösten Level und «Menü»: «Weiter zur Reise» (Stand auf das 10. Level der ersten Welt, davor alles gelöst,
+  Prolog/Angebot/Einstieg gesehen; `story.choose`, `__prismaDebug.loese`, nach 2 s «Weiter»; danach 6 s «Spiel n.
+  Reise», weil scharfes Bild und Streifen erst 1,2 s nach der Landung laden) oder «Auswerten». «Abbrechen» jederzeit.
+  Am Ende: Ergebnis nach `prisma.leistung.ergebnis`, echter Stand zurück (`progress.write` danach still), Neuladen,
+  Karte.
+- **Ergebniskarte** `#leistung-karte`: Version, Zeit, User-Agent, Modell (`userAgentData`, auf Android das Gerät), GPU,
+  Bildschirm, Fenster, Pixelverhältnis, Renderauflösung, Takt (Median der Abstände), Mass der Zeichenzeit; je Abschnitt
+  Bilder, p95, max, Bilder über 33 ms, p95 Zeichenzeit, p95 CPU, gez/s; Urteil, längste Bilder, Hänger mit Ursache.
+  «Kopieren» (Clipboard-API, sonst markiertes Textfeld), «Schliessen» vergisst sie.
+- **Version:** `APP_VERSION = '2026-10-31 leistung-01'` in `index.html` (KONFIGURATION) und `sw.js`, gleich (Test in
+  `tests/logic.test.mjs`). Anzeige und Karte zeigen sie. README: «Version prüfen, sonst neu laden».
+- **Testschnittstelle:** `window.__prisma.leistung` (`daten()`, `ergebnis()`, `schritt()`). Probe
+  `tests/leistung-probe.mjs [--handy] [--drossel 4] [--fenster]` fährt den Durchlauf über die Knöpfe (README).
+- **`tools/chrome.mjs`:** Optionen `fenster` (sichtbares Fenster, ohne Drosselung im Hintergrund, schnellere
+  Grafikkarte über `--force_high_performance_gpu`) und `maximiert` (`Browser.setWindowBounds`).
+
+**Ausgangswerte (vor allen Umbauten), vom Agenten im echten Chrome-Fenster per Script gefahren** (`--fenster`).
+Achtung: **nicht der Arbeitsrechner** der Spec (RTX 3070, 1920 × 953), sondern der Rechner der Agenten: Laptop mit
+NVIDIA Quadro T2000 (Chrome über `--force_high_performance_gpu`) und Intel UHD 630, Bildschirm 4K mit 250 %
+(1536 × 864 CSS-Pixel), Chrome 156, Prozesse mit tiefer Priorität (`leise.sh`). Der gemessene Takt lag bei 56 Hz
+(Median 17,8 ms), nicht bei 60. **Die Werte vom Arbeitsrechner trägt der Nutzer nach** (Seite mit `?perf`,
+«Referenzdurchlauf», oder `node tests/leistung-probe.mjs --fenster` bzw. `--fenster --handy --drossel 4`).
+
+Ungedrosselt, Fenster maximiert (1536 × 729, Rendern 1536 × 729), Zeichenzeit = GPU-Zeit:
+
+| Abschnitt | Bilder | p95 ms | max ms | > 33 ms | Zeichnen p95 ms | CPU p95 ms | gez/s | Hänger (max ms) |
+|---|---|---|---|---|---|---|---|---|
+| Seitenstart (Laden) | 11 | – | 668,0 | 3 | 16,9 | 15,8 | 1 | 1 (683) |
+| Startbildschirm | 381 | 18,3 | 620,6 | 6 | 9,8 | 2,1 | 49 | 4 (638) |
+| Menü | 164 | 18,7 | 176,0 | 1 | 10,5 | 2,7 | 39 | 1 (180) |
+| Prolog | 1396 | **53,7** | 474,5 | **568** | 15,7 | 1,7 | 17 | 85 (486) |
+| Einstieg | 348 | 18,6 | 37,9 | 2 | 8,2 | 2,8 | 56 | 0 |
+| Spiel (erstes Level) | 879 | 18,5 | 48,0 | 2 | 12,2 | 3,1 | 53 | 0 |
+| Reise | 758 | 18,6 | 34,7 | 1 | 9,0 | 3,7 | 56 | 1 (54) |
+| Spiel nach der Reise | 339 | 18,6 | 18,8 | 0 | 12,0 | 6,0 | 35 | 0 |
+| Gesamt (ohne Laden) | 4265 | 52,7 | 620,6 | 580 | 12,2 | | | |
+
+Handy-Emulation (393 × 873, Pixeldichte 2,75, Touch, Android-Kennung; Rendern 786 × 1746) und CPU 4× gedrosselt:
+
+| Abschnitt | Bilder | p95 ms | max ms | > 33 ms | Zeichnen p95 ms | CPU p95 ms | gez/s | Hänger (max ms) |
+|---|---|---|---|---|---|---|---|---|
+| Seitenstart (Laden) | 3 | – | 2186 | 3 | 32,4 | 97,7 | 0 | 3 (2312) |
+| Startbildschirm | 370 | 18,6 | 499,4 | 15 | 16,7 | 13,3 | 46 | 6 (525) |
+| Menü | 145 | 36,1 | 244,4 | 22 | 18,2 | 36,4 | 30 | 4 (249) |
+| Prolog | 1473 | **52,7** | 439,5 | **721** | 18,8 | 12,2 | 18 | 1 (444) |
+| Einstieg | 307 | 52,3 | 159,2 | 34 | 14,9 | 37,9 | 46 | 8 (178) |
+| Spiel (erstes Level) | 521 | 52,9 | 457,7 | 273 | 32,8 | 44,2 | 30 | 23 (445) |
+| Reise | 814 | 36,1 | 323,9 | 170 | 23,5 | 27,9 | 43 | 18 (327) |
+| Spiel nach der Reise | 175 | 53,2 | 402,9 | 74 | 34,9 | 46,5 | 18 | 20 (405) |
+| Gesamt (ohne Laden) | 3805 | 52,6 | 499,4 | 1309 | 26,0 | | | |
+
+Karten und Daten: `tests/output/leistung/fenster-*.txt` bzw. `.json` (nicht versioniert). Die p95 des Seitenstarts
+fehlt, weil alle Abstände dort über 200 ms lagen (seither gibt `quantil` dafür max an).
+
+Notizen zu den Werten:
+
+- **Prolog** ist der klare Ausreisser, auch ungedrosselt: p95 53,7 ms, 40 % der Abstände über 33 ms, 85 Hänger. Sie
+  sind fast alle «ohne Script, Rendern 80–100 ms» (Stil, Layout, Paint der SVG-Bühne), dazu 430–490 ms ohne Script und
+  fast ohne Rendern beim Antippen eines Bilds (Ticket 04).
+- **Startbildschirm:** ein Hänger von 400–640 ms bei etwa 5 s Seitenzeit, ohne Script, also im Grafikprozess bzw. beim
+  Übersetzen und Hochladen um `introCalm` (Tickets 02/03). Mit der Intel-Grafik allein (erster Versuch im Fenster,
+  1038 × 703) waren es 389 ms. Der Hänger beim ersten Klick (Hall, Ticket 05) fällt in dieselbe Zeile.
+- **Zeichenzeit:** ungedrosselt p95 8–16 ms auf der T2000, im Prolog 15,7 ms, obwohl man die Szene dort nicht sieht
+  (Ticket 02). Für die 8-ms-Marge der Spec zählen nur die Werte vom Poco.
+- **Messartefakt möglich:** Mit der NVIDIA-Karte (das Bild geht über die Intel-Grafik auf den Bildschirm) traten Hänger
+  von 380–490 ms «ohne Script» auf, mit der Intel-Grafik allein höchstens 107 ms ausserhalb von Seitenstart und
+  Startbildschirm. Diese Laptop-Werte sind darum nur ein Anhalt; massgebend sind Arbeitsrechner und Poco.
+- **Grenzwert «über 33 ms»** ist wörtlich umgesetzt (> 33,0 ms). Ein einzelnes ausgelassenes Bild bei 60 Hz ergibt
+  33,3 ms und zählt damit schon. Ist «höchstens ein Bild ausgelassen» gemeint, wäre die Grenze 36,7 ms (33 ms + 10 %);
+  bitte entscheiden (eine Zeile, `MESS_GRENZE.bild`).
+- Headless (`GPU=1`, Intel, rAF virtuell): Durchlauf grün; Werte nur zur Regression.
+
+**31.10.2026, Review Code** (Diff 963177d..c7c0e39): Aufbau gut, Schnittstelle `markiere`/`waehrend` taugt für 02/03,
+die Messschleife hängt nicht an `frame()`. Ohne Messung kostet `frame()` nur zwei Abfragen von `aktiv`. Behoben
+(eigener Commit):
+
+- Taste F aus beendet jetzt auch die Messschleife (ausser im Referenzdurchlauf; `stoppe`, Schleifennummer gegen
+  doppelte Schleifen bei schnellem Umschalten); Einrichten (Abfragen, Observer) nur beim ersten Start.
+- GPU-Zeit: Das Lesen von `GPU_DISJOINT_EXT` setzt die Meldung zurück. Bisher galten danach Abfragen, die beim Lesen
+  noch unterwegs waren, als gültig; jetzt werden bei «disjunkt» alle Abfragen unterwegs verworfen.
+- Sicherung: Merker `prisma.leistung.lauf` wird vor dem Löschen geschrieben (schlug er bei vollem Speicher fehl, lag
+  der Stand nur noch in einer Sicherung, die niemand zurückspielt und die ein späterer Durchlauf für den echten Stand
+  gehalten hätte). Eine unlesbare Sicherung wird nicht mehr gelöscht.
+
+Offen, zur Entscheidung:
+
+- **Karte auf 393 px:** Die Tabellenzeilen sind 60 Zeichen breit, bei 12 px Monospace etwa 430 px; auf dem Poco
+  muss man waagrecht scrollen. Vorschlag: Spalten schmaler (Name 13, Zahlen 6) und auf schmalen Bildschirmen 11 px,
+  oder je Abschnitt zwei Zeilen. Der Reviewer im Browser prüft das.
+- **Neuladen mitten im Durchlauf** (oder Tab zu, später wieder auf): Der Stand ist sicher (Sicherung bleibt, die
+  Anzeige bietet «Abbrechen»), aber der Durchlauf läuft mit dem schon gespielten Stand weiter und misst nur ab dem
+  Neuladen. Vorschlag: beim Laden mit Merker die Anzeige «Durchlauf unterbrochen: neu beginnen oder abbrechen».
+- Grenze «über 33 ms» (33,0 vs. 36,7 ms) wie in der Umsetzung notiert: Entscheid des Nutzers.
+
+**31.10.2026, Nachbesserung nach Review** (Handy-Bedienung für den Durchlauf auf dem Poco; `APP_VERSION`
+`2026-10-31 leistung-01b`):
+
+- **Anzeige auf schmalem Bildschirm** (unter 700 px, `#perf.schmal`): knappe Fassung oben links (sichtbare FPS/p95/max,
+  Abschnitt mit p95, >33 und Zeichenzeit, Version und Mass, die Anweisung), ohne GPU/MSAA/Draw-Calls, umbrechend,
+  höchstens bis 172 px vor dem rechten Rand, 10,5 px Schrift («Überspringen» bleibt frei). Angebot, «Gelöst»/«Weiter»,
+  Werkzeugleiste, «Überspringen» und die Karten des Menüs bleiben frei (die Probe prüft das). Sie deckt die Kopfzeile des Levels; das
+  ist im Durchlauf in Kauf genommen. Desktop unverändert unten links, mit `env(safe-area-inset-*)`.
+- **Knöpfe** mindestens 44 × 44 px, 14 px Schrift (Anzeige und Karte). «Abbrechen» abgesetzt (eigene Farbe, Abstand)
+  und zweistufig: Der erste Tipp zeigt 4 s lang «Wirklich abbrechen?», erst der zweite bricht ab. Kein Browser-Dialog.
+- **Ergebniskarte** deckend, mit Safe-Area; solange sie offen ist, ist die Anzeige weg. Auf schmalem Bildschirm eine
+  eigene Fassung (`kartenText(d, true)`, gespeichert als `schmal`): Tabelle in zwei Blöcken (Bilder/p95/max/>33, dann
+  Zeichnen/CPU/gez/s, je höchstens 41 Zeichen), übrige Zeilen umbrochen, kein seitliches Wischen. «Kopieren» legt
+  immer den vollen Text in die Zwischenablage.
+- **Ersatzmass** (ohne `EXT_disjoint_timer_query_webgl2`): `readPixels` nur in jedem 10. gezeichneten Bild
+  (`MESS_ERSATZ_JEDES`); der Bildabstand, in den es fällt, zählt nicht zu den sichtbaren (je Abschnitt `ohne`).
+  Anzeige («Ersatzmass») und Karte («ACHTUNG Ersatzmass aktiv …, n Bildabstände nicht gezählt») vermerken es.
+  `?ersatzmass` erzwingt es zum Prüfen auf dem Desktop (Probe `--ersatzmass`). `adaptiveResolution` sieht so höchstens
+  ein langsames Bild von zehn.
+- **Neuladen mitten im Durchlauf:** Der Merker trägt `geladen`; das erste Laden nach dem Start setzt es, jedes weitere
+  meldet «Messung unterbrochen (neu geladen): neu beginnen oder abbrechen» mit den Knöpfen «Neu beginnen» (frischer
+  Stand, die Sicherung bleibt) und «Abbrechen».
+- **Anweisung** je Schritt nur das, was dran ist: zum Starten tippen → «Leicht» wählen → Prolog weitertippen, dann
+  «Gleich los» → erstes Level lösen → «jetzt ≡ (Menü, unten rechts) tippen» → «Weiter zur Reise» (oder «Auswerten»).
+- Probe `tests/leistung-probe.mjs`: dazu Unterbrechen und «Neu beginnen», Nachfrage von «Abbrechen», Verdecken der
+  Bedienung, Breite der Karte auf dem Handy, `--ersatzmass`, `--bilder` (Bilder je Schritt, angesehen: Start,
+  Unterbrochen, Menü, Prolog, Angebot, Level, Gelöst, Menü mit «Weiter zur Reise», Reise, Karte).
+
+**Stand für Handy-Durchlauf 1 (31.10.2026).** Beide Reviews (Code, Bedienung/Messgüte) eingearbeitet, Tests grün.
+Gepusht ist nur dieses Ticket auf dem Ausgangsstand 963177d, ohne die Verbesserungen der übrigen Tickets, damit der
+Durchlauf den Ausgangswert misst. `APP_VERSION` = `2026-10-31 leistung-01b`.
+
+**Bereit für Handy-Durchlauf 1 (Ausgangswert), bitte auf Render deployen.** Danach offen (Nutzer): Ergebniskarte vom
+Poco hier eintragen; Ausgangswerte am Arbeitsrechner (RTX 3070) ungedrosselt und mit Handy-Emulation + 4× Drosselung
+nachtragen.
+
+**Handy-Durchlauf 1 (Ausgangswert), Poco F4 GT, 31.10.2026, vom Nutzer:**
+
+```
+PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)
+Version     2026-10-31 leistung-01b
+Zeit        31.10.2026, 15:07:21
+Gerät       Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36
+Modell      Android 13.0.0 21121210G
+GPU         ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+Bildschirm  393×873, Fenster 392×739, Pixelverhältnis 2.75
+Rendern     392×739 (Pixelverhältnis 1.00, adaptiv 0.50, Umbauten 2), Handy
+Takt        60 Hz (Median der Bildabstände 16.60 ms)
+Zeichenzeit ERSATZMASS: frame() bis nach readPixels (1 px), jedes 10. Bild; der Abstand danach zählt nicht
+ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): 434 Bildabstände mit readPixels nicht gezählt
+Grenzen     p95 ≤ 18.3 ms, kein Bild > 33 ms; Zeichnen p95 ≤ 8 ms (Handy)
+
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s
+Seitenstart*         1  921.1  921.1    1      –  30.8     1
+Startbildschirm    752   32.9  115.2    7   32.9   5.2    63
+Menü               357   16.6   49.4    1   23.4   5.8    41
+Prolog            1535   65.9  180.7  343  136.2   3.2    19
+Einstieg           323   16.6   65.7    2   28.5   8.4    66
+Spiel             1084   16.6   49.4    2   26.1   9.2    61
+Reise              724   16.6  493.3    3   25.3   7.7    64
+Spiel n. Reise     333   16.6   49.4    1   33.7  11.2    39
+Gesamt            5108   49.5  493.3  359   93.2
+* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je
+  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.
+
+Flüssig:    nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+Zeichnen ≤ 8 ms: nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+
+Längste Bilder:
+   921.1 ms  Seitenstart bei 0.2 s
+   493.3 ms  Reise bei 96.2 s
+   180.7 ms  Prolog bei 22.3 s
+   131.6 ms  Prolog bei 37.5 s
+   131.6 ms  Prolog bei 49.1 s
+   131.6 ms  Prolog bei 50.3 s
+   131.6 ms  Prolog bei 58.5 s
+   115.2 ms  Startbildschirm bei 5.3 s
+
+Hänger des Hauptthreads (long-animation-frame):
+     931 ms  Seitenstart bei 0.2 s: https://prisma-5d09.onrender.com/?perf=: Script 890 ms, Rendern 34 ms
+     507 ms  Reise bei 96.2 s: FrameRequestCallback: Script 502 ms, Rendern 506 ms
+     219 ms  Prolog bei 22.3 s: FrameRequestCallback → frame: Script 174 ms, Rendern 178 ms
+     209 ms  Prolog bei 37.4 s: FrameRequestCallback → frame: Script 136 ms, Rendern 141 ms
+     207 ms  Prolog bei 56.0 s: FrameRequestCallback → frame: Script 138 ms, Rendern 146 ms
+     204 ms  Prolog bei 42.5 s: FrameRequestCallback → frame: Script 140 ms, Rendern 145 ms
+     199 ms  Prolog bei 50.2 s: FrameRequestCallback → frame: Script 135 ms, Rendern 140 ms
+     198 ms  Prolog bei 57.2 s: FrameRequestCallback → frame: Script 139 ms, Rendern 143 ms
+```
+
+Beobachtung des Nutzers: Im Spiel sahen Spiegel und Skybox (z. B. die Fische) verpixelt aus; so darf es im fertigen
+Spiel nicht sein. Die Karte zeigt den Grund: `adaptiv 0.50, Umbauten 2`, die automatische Absenkung hat die Auflösung
+zweimal halbiert (Rendern 392×739 statt 784×1478). Wahrscheinliche Ursachen: Sie lernt aus dem Prolog, in dem die
+verdeckte Szene weiterzeichnet (Zeichnen p95 136 ms; Ticket 02), und möglicherweise aus dem Ersatzmass (`readPixels`,
+das Poco hat kein `EXT_disjoint_timer_query_webgl2`). Weiteres: Startbildschirm p95 32,9 ms (Tickets 02/03), Prolog
+p95 65,9 ms mit 343 Bildern über 33 ms (Tickets 02/04), Seitenstart-Hänger 931 ms Script, Hänger in der Reise 507 ms
+(Messrunde 07). Takt 60 Hz, obwohl das Poco 120 Hz kann.
+
+**Fix nach Handy-Durchlauf 1 (01c, 31.10.2026).** Die Poco-Karte endete mit `adaptiv 0.50, Umbauten 2`, verpixelt nur
+mit `?perf`. Ursache: Das Ersatzmass (`readPixels` jedes 10. Bild in `bildEnde`) lag in den Bildzeiten von
+`adaptiveResolution.tick` (performance.now() von Aufruf zu Aufruf, direkt nach `bildEnde`): Das Bild mit dem Halt und oft
+das danach gelten als langsam, also rund 0,2 Überlast als Sockel. Zusammen mit wenigen echten langsamen Bildern über 0,3
+→ Absenkung, und die Probe «hat es geholfen?» besteht, weil der Sockel bleibt; wieder hinauf (Überlast < 0,05) geht mit
+dem Sockel nie. Die Annahme oben («höchstens ein langsames Bild von zehn») war zu knapp. Headless (`--handy --drossel 4`,
+mit und ohne `--ersatzmass`) ist das nicht nachzustellen: beide `adaptiv 1.00, Umbauten 2` (virtueller rAF-Takt).
+Fix: `bildEnde` setzt nach dem `readPixels` `adaptiveResolution.skip = 2`; `tick` nimmt dann nur die Zeit (`last`) und
+wertet die beiden Bilder nicht, weder Fenster und Zähler noch Schonfrist und Ruhe. Sonst reagiert die Absenkung wie ohne
+Messung. `APP_VERSION` = `2026-10-31 leistung-01c`. Handy-Durchlauf 1 wird mit 01c wiederholt: Die Spiel-Abschnitte
+liefen mit halber Auflösung, die Werte taugen nicht als Ausgangswert. Abnahme: Karte am Ende `adaptiv 1.00, Umbauten 0`.
+
+**Handy-Durchlauf 1 wiederholt mit 01c (massgebender Ausgangswert), Poco F4 GT, 31.10.2026, vom Nutzer:**
+
+```
+PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)
+Version     2026-10-31 leistung-01c
+Zeit        31.10.2026, 15:51:09
+Gerät       Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36
+Modell      Android 13.0.0 21121210G
+GPU         ANGLE (Qualcomm, Adreno (TM) 730, OpenGL ES 3.2)
+Bildschirm  393×873, Fenster 392×739, Pixelverhältnis 2.75
+Rendern     784×1478 (Pixelverhältnis 2.00, adaptiv 1.00, Umbauten 0), Handy
+Takt        60 Hz (Median der Bildabstände 16.60 ms)
+Zeichenzeit ERSATZMASS: frame() bis nach readPixels (1 px), jedes 10. Bild; der Abstand danach zählt nicht
+ACHTUNG     Ersatzmass aktiv (keine GPU-Zeit): 477 Bildabstände mit readPixels nicht gezählt
+Grenzen     p95 ≤ 18.3 ms, kein Bild > 33 ms; Zeichnen p95 ≤ 8 ms (Handy)
+
+Abschnitt       Bilder    p95    max  >33 Zeichn   CPU gez/s
+Seitenstart*         1  790.3  790.3    1      –  23.8     1
+Startbildschirm    260   16.7   98.7    5   40.0   4.6    62
+Menü               673   16.6   32.9    0   28.0   6.6    42
+Prolog            2235   65.9  148.0  320  137.3   3.4    22
+Einstieg           319   16.6  115.0    2   46.3   9.2    65
+Spiel             1697   16.6   49.4    3   37.6  10.4    54
+Reise              695   16.6  131.6    2   32.6   8.0    66
+Spiel n. Reise     327   16.6   49.4    2   45.6  11.1    38
+Gesamt            6206   49.3  148.0  334   62.2
+* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn/CPU: p95 je
+  gezeichnetem Bild (Zeichenzeit, CPU-Zeit von frame()); gez/s: gezeichnete WebGL-Bilder je Sekunde.
+
+Flüssig:    nein (Startbildschirm, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+Zeichnen ≤ 8 ms: nein (Startbildschirm, Menü, Prolog, Einstieg, Spiel, Reise, Spiel n. Reise)
+
+Längste Bilder:
+   790.3 ms  Seitenstart bei 0.2 s
+   148.0 ms  Prolog bei 43.7 s
+   132.0 ms  Prolog bei 46.2 s
+   131.6 ms  Reise bei 115.9 s
+   131.6 ms  Prolog bei 11.4 s
+   131.6 ms  Prolog bei 13.6 s
+   131.6 ms  Prolog bei 21.6 s
+   131.6 ms  Prolog bei 60.3 s
+
+Hänger des Hauptthreads (long-animation-frame):
+     807 ms  Seitenstart bei 0.2 s: https://prisma-5d09.onrender.com/?perf=: Script 764 ms, Rendern 26 ms
+     227 ms  Prolog bei 51.1 s: FrameRequestCallback → frame: Script 163 ms, Rendern 168 ms
+     223 ms  Prolog bei 43.7 s: FrameRequestCallback → frame: Script 145 ms, Rendern 149 ms
+     221 ms  Prolog bei 52.5 s: FrameRequestCallback → frame: Script 137 ms, Rendern 142 ms
+     214 ms  Prolog bei 57.8 s: FrameRequestCallback → frame: Script 150 ms, Rendern 155 ms
+     210 ms  Prolog bei 59.0 s: FrameRequestCallback → frame: Script 148 ms, Rendern 151 ms
+     196 ms  Prolog bei 20.4 s: FrameRequestCallback → frame: Script 137 ms, Rendern 141 ms
+     196 ms  Prolog bei 14.8 s: FrameRequestCallback → frame: Script 135 ms, Rendern 139 ms
+```
+
+Der Nutzer: «diesmal war die Grafik gut». `adaptiv 1.00, Umbauten 0`, volle Auflösung (Pixelverhältnis 2). Befund:
+Spiel, Menü und Reise p95 16,6 ms (sichtbar flüssig), aber Zeichnen (Ersatzmass) p95 33–46 ms, weit über der Marge
+von 8 ms (Messrunde 07; das Ersatzmass enthält den Halt von `readPixels`, auf einer Kachel-GPU eher zu hoch).
+Prolog p95 65,9 ms, 320 Bilder über 33 ms, verdeckte Szene zeichnet mit 22/s bei 137 ms (Tickets 02/04).
+Seitenstart-Hänger 807 ms Script (Messrunde 07).

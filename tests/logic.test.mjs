@@ -873,6 +873,11 @@ console.log('Offline');
     assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
     assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
   });
+  test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+    const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
+    assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
+    assert.equal(vm.runInContext('APP_VERSION', sw), seite);
+  });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
     const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));
     assert.equal(vm.runInContext('SKIES', sw), createHash('sha256').update(registry).digest('hex').slice(0, 8));
@@ -968,8 +973,48 @@ console.log('Fische');
     test(`Fische (${sky.id}): Ergebnis hängt nur von t ab (?t= bleibt pixelgleich)`, () => {
       const a = newSim(), b = newSim(), fresh = all(a, 47.3);
       assert.deepEqual(all(b, 47.3), fresh);
-      all(b, 10); // Zeit zurück: neu begonnen
+      all(b, 60); // Zeit zurück: neu begonnen
       assert.deepEqual(all(b, 47.3), fresh);
+      // beim Aufbau vorweggenommen (warm, in Häppchen): dasselbe erste Bild
+      const c = newSim();
+      for (const _ of c.warm(47.3));
+      assert.deepEqual(all(c, 47.3), fresh);
+    });
+    test(`Fische (${sky.id}): nach einer Pause vom letzten Stand weiter, wenige Schritte je Bild (Ticket 09)`, () => {
+      let n = 0;
+      const counted = { sdf: (x, z) => { n++; return field.sdf(x, z); }, depth: field.depth };
+      const sim = newSim(counted);
+      for (const _ of sim.warm(10));
+      const before = all(sim, 10);
+      n = 0;
+      sim.advance(10 + 1 / 30);
+      const one = n;
+      n = 0;
+      const after = all(sim, 70); // eine Minute ausgeblendet
+      assert.ok(n <= 10 * one, `${n} Abfragen nach der Pause, ${one} für einen Schritt`);
+      // weiter vom letzten Stand: kein Fisch springt
+      const jump = Math.max(...after.map((f, k) => Math.hypot(f[0] - before[k][0], f[1] - before[k][1])));
+      assert.ok(jump < 2, `Sprung ${jump.toFixed(2)} m`);
+    });
+    test(`Fische (${sky.id}): erstes Bild etwas vor dem Ende von warm: kein Neubeginn`, () => {
+      // warm nach der Uhr, das erste Bild nach dem Zeitstempel des Bilds (Ticket 17), der bis zu einem Bild früher liegt
+      let n = 0;
+      const counted = { sdf: (x, z) => { n++; return field.sdf(x, z); }, depth: field.depth };
+      const sim = newSim(counted);
+      for (const _ of sim.warm(10));
+      n = 0;
+      assert.equal(sim.advance(10 - 0.05), 0);
+      assert.equal(n, 0, `${n} Abfragen: neu eingeschwommen`);
+    });
+    test(`Fische (${sky.id}): Abstandsfeld in Häppchen gleich wie in einem Stück`, () => {
+      const steps = fishField(depth, rock, img.w, w.extent, layer.minDepth, true);
+      let r, yields = 0;
+      while (!(r = steps.next()).done) yields++;
+      assert.ok(yields >= img.w, `${yields} Häppchen`);
+      for (const [x, z] of [[0, 0], [7.3, -4.1], [-12.5, 9.9], [20, 3]]) {
+        assert.equal(r.value.sdf(x, z), field.sdf(x, z));
+        assert.equal(r.value.depth(x, z), field.depth(x, z));
+      }
     });
     test(`Fische (${sky.id}): erstes Bild rechnet gleich viel, egal wie spät der Strand gewählt wird`, () => {
       // vorher wurde ab Sekunde 0 nachgerechnet: nach 2 Minuten 3600 Schritte in einem Bild
