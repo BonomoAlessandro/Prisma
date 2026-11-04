@@ -153,3 +153,6 @@ Lichtpunkt deutlich darüber. Im Katalog nachgebaut und neu veröffentlicht (Ver
 
 **04.11.2026, dritte Anpassung:** Der Lichtpunkt steht so weit über dem Text wie der Wagen darunter (gleiche Abstände,
 im Katalog nach dem Umbruch des Texts gemessen, `lichtSetzen`). Version 4 veröffentlicht.
+
+**04.11.2026, vierte Anpassung (gilt):** Der Lichtpunkt steht in der Mitte des freien Raums zwischen oberem Rand und
+Text, nicht mit gleichen Abständen. Version 5 veröffentlicht.

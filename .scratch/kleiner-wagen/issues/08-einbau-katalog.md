@@ -44,9 +44,9 @@ Ticket 02; ohne diese Wahl nicht beginnen.
   Bestwerten. Auf dem Handy wird der ganze Haufen gewählt, nicht das einzelne Level.
 - **Leiste C** «Zeichen im Wagen», mit Anpassung des Nutzers: Kicker und Untertitel **senkrecht in der Mitte** des
   Bildschirms; der Wagen mit den Zeichen der Welten bleibt **unten am Rand**, wo die Leiste heute steht (Nutzer: «Das
-  Sternzeichen sollte noch immer wie am Anfang am unteren Rand bleiben»); das getragene Licht (Lichtpunkt) über dem Text,
-  **mit demselben Abstand zum Text wie der Wagen darunter** (Nutzer: «der Abstand zwischen dem Sternzeichen und dem Text
-  und dem Lichtpunkt und dem Text sollten gleich gross sein»). Gilt für die Untertitel bei der Ankunft in einer Welt (die mit Leiste). Im Spiel
+  Sternzeichen sollte noch immer wie am Anfang am unteren Rand bleiben»); das getragene Licht (Lichtpunkt) **in der Mitte
+  des freien Raums zwischen oberem Rand und Text** (Nutzer: «der Lichtpunkt sollte ebenfalls im freien Platz zwischen
+  oberem Rand und dem Text zentriert sein»; ersetzt den Zwischenstand mit gleichen Abständen). Gilt für die Untertitel bei der Ankunft in einer Welt (die mit Leiste). Im Spiel
   heisst das auch: Während dieser Untertitel steht, bleibt der Lichtpunkt im oberen Teil des Bilds (Kamera bzw. Flug
   aus Ticket 05 entsprechend).
 - Vorlage ist der Katalog (`katalog/katalog.html`, Varianten F, C, C); das Spiel ist massgebend für Bedienung,

@@ -44,6 +44,6 @@ fliegt am nächsten schlafenden Stern vorbei in die nächste Welt; jeder Einstie
 ## Comments
 
 **04.11.2026, Hinweis aus der Wahl des Nutzers (Ticket 02, Leiste C):** Der Untertitel bei der Ankunft in einer Welt
-steht künftig senkrecht in der Mitte des Bildschirms (Einbau in Ticket 08). Der Lichtpunkt soll dabei darüber stehen,
-mit demselben Abstand zum Text wie der Wagen der Leiste darunter. Den Flug und den Blick der Kamera so anlegen, dass das
+steht künftig senkrecht in der Mitte des Bildschirms (Einbau in Ticket 08). Der Lichtpunkt soll dabei in der Mitte des
+freien Raums zwischen oberem Rand und Text stehen. Den Flug und den Blick der Kamera so anlegen, dass das
 möglich ist.

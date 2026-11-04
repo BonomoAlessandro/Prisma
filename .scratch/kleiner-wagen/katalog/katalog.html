@@ -1245,7 +1245,7 @@
 
   /**
    * mitte (Wahl des Nutzers, Leiste C): Text senkrecht in der Mitte, der Wagen unten am Rand, wo die Leiste heute steht,
-   * das Licht darüber mit demselben Abstand zum Text wie der Wagen darunter (lichtSetzen). oben: Abstand vom oberen Rand
+   * das Licht in der Mitte des freien Raums darüber (lichtSetzen). oben: Abstand vom oberen Rand
    * des Wagen-Bilds bis zu seinem obersten Stern (px).
    */
   function leisteBild(ctx, pfad, mitte = false, oben = 0) {
@@ -1259,13 +1259,11 @@
     return `<div class="licht" style="left:${W / 2}px;top:${f1(fmt === 'quer' ? 56 : H * (fmt === 'hoch' ? 0.36 : 0.4))}px"></div>`
       + `<div class="cap" style="bottom:${unten}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p><div class="pfad">${pfad}</div></div>`;
   }
-  /** Leiste C: Licht so hoch über dem Text, wie der Wagen unter ihm steht (gemessen nach dem Umbruch des Texts). */
+  /** Leiste C: Licht in der Mitte des freien Raums zwischen oberem Rand und Text (gemessen nach dem Umbruch des Texts). */
   function lichtSetzen(bs) {
-    const cap = bs.querySelector('.cap.mitte'), pf = bs.querySelector('.pfad.unten'), li = bs.querySelector('.licht');
-    if (!cap || !pf || !li) return;
-    const halb = cap.offsetHeight / 2, textOben = cap.offsetTop - halb, textUnten = cap.offsetTop + halb;
-    const abstand = Math.max(12, pf.offsetTop + +pf.dataset.oben - textUnten);
-    li.style.top = `${f1(textOben - abstand - 8)}px`; // 8: der helle Kern des Lichts, nicht seine Mitte, hält den Abstand
+    const cap = bs.querySelector('.cap.mitte'), li = bs.querySelector('.licht');
+    if (!cap || !li) return;
+    li.style.top = `${f1((cap.offsetTop - cap.offsetHeight / 2) / 2)}px`;
   }
   const LEISTE = [
     {
