@@ -120,6 +120,10 @@ Android-Chromium.
 - [x] Nachtrag 04.11.2026 (ADR 0008): Das Spiel zeichnet wieder stetig 60 Bilder/s (`?takt=30` zum Vergleich), die
   Leistungsanzeige (Taste F) zeigt effektive Bildrate und Ziel, der Referenzdurchlauf ist entfernt. Branch
   `feature/takt-60`.
+- [x] Nachtrag 04.11.2026: Ladezeichen «Kleiner Wagen», solange die Geschichte auf einen Himmel wartet (nach «Üben»
+  waren es bei 20 Mbit/s rund 4 s Schwarz). Gewählt aus sechs Varianten (Prototyp auf Branch `prototyp/ladeindikator`).
+  Nicht gemacht: den Himmel des Dorfs schon während des Angebots vorladen (würde die Lücke kürzen, kostet
+  Grafikspeicher auf dem Poco).
 - [ ] Ohne Befund, nur zur Kenntnis: Die erste Fahrt nach dem Öffnen der Bühne hakt am Arbeitsrechner manchmal
   (Bildschirm aus), mitten in starken Zoomfahrten ist das Bild etwas weicher, Firefox auf Android ist ungeprüft.
 
