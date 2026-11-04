@@ -433,6 +433,26 @@
     transition: color 0.25s ease, opacity 0.6s ease;
   }
   #btn-skip:hover { color: var(--ink); }
+  /* Ladezeichen (ladeZeichen): Die sieben Sterne des Kleinen Wagens leuchten nacheinander auf, solange die Geschichte
+     auf einen Himmel wartet. Über der Bühne (im Dokument danach), unter Menü und Übersicht. Nur Deckkraft und
+     Transform: Das rechnet der Compositor, so läuft der Wagen auch, während das Laden den Hauptthread anhält. Lage,
+     Grösse und Zeitplan der Sterne und Linien setzt ladeZeichen (aus einer Tabelle). */
+  #lade {
+    position: fixed; left: 50%; top: 30%; z-index: 7; pointer-events: none;
+    transform: translate(-50%, -50%); opacity: 0; transition: opacity 0.5s ease;
+  }
+  #lade.an { opacity: 1; transition-duration: 0.4s; }
+  #lade .stern { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.16;
+    background: radial-gradient(circle closest-side, #f4f6ff 0 15%, rgba(210, 220, 255, 0.5) 22%, rgba(210, 220, 255, 0.12) 55%, rgba(210, 220, 255, 0)); }
+  #lade .kante { position: absolute; height: 0; transform-origin: 0 0; }
+  #lade .kante i { position: absolute; left: 0; top: -0.5px; width: 100%; height: 1px; background: rgba(200, 210, 255, 0.07); }
+  #lade .kante i + i { background: rgba(200, 210, 255, 0.32); transform-origin: 0 50%; transform: scaleX(0); opacity: 0; }
+  #lade:not(.laeuft) * { animation: none !important; }
+  @media (prefers-reduced-motion: reduce) {
+    #lade * { animation: none !important; }
+    #lade .stern { opacity: 1; }
+    #lade .kante i + i { transform: none; opacity: 1; }
+  }
   @media (max-width: 520px) {
     /* «Dorf überspringen» in zwei kurzen Zeilen: neben den vier Knöpfen unten rechts ist auch bei 360 px Platz */
     #btn-skip {
@@ -1182,6 +1202,7 @@ if (SEITE !== 1) {
   </div>
 </div>
 <button id="btn-skip" class="hidden" type="button" inert>Überspringen</button>
+<div id="lade" aria-hidden="true"></div> <!-- Ladezeichen: der Kleine Wagen, solange die Geschichte auf einen Himmel wartet (ladeZeichen) -->
 
 <div id="menue"></div> <!-- Menü der Geschichte (createMenu füllt es) -->
 <div id="uebersicht"></div> <!-- Übersicht des Grads (createUebersicht füllt sie) -->
@@ -1233,7 +1254,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-04 takt-60';
+const APP_VERSION = '2026-11-04 ladezeichen';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19741,6 +19762,71 @@ introCalm.then(async () => {
   uebersicht.vorwaermen(story.overviewData(story.grade ?? 'leicht'));
 });
 
+/**
+ * Ladezeichen: Wartet die Geschichte auf den Himmel einer Welt (story.skyOf: Einstieg nach «Üben», Fortsetzen, erster
+ * Himmel nach dem Start; story.offer: «Gleich los», solange der Wald fehlt), zeichnet sich nach 0,4 s der Kleine Wagen:
+ * Stern für Stern vom Polarstern bis zur Schale, dann blenden alle aus, und er beginnt von vorn. Gewählt vom Nutzer aus
+ * dem Prototyp (Branch prototyp/ladeindikator, .scratch/ladeindikator/). Die Wartestellen melden etwa alle 0,1 s mit
+ * warte(true), ob sie noch warten, am Ende warte(false). Unter Menü und Übersicht nicht (dann warte(false)). Versteckt
+ * laufen keine Animationen.
+ */
+const ladeZeichen = (() => {
+  const el = document.getElementById('lade');
+  // Sterne des Kleinen Wagens (px, Polarstern zuerst) und Linien [von, nach, Beginn in s]: Jede Linie wächst in 0,25 s
+  // zum nächsten Stern, sobald er aufleuchtet; die letzte schliesst die Schale
+  const S = 1.2, RAND = 15, TAKT = 0.32, AN = 0.25, HALTEN = 0.8, AUS = 0.7;
+  const P = [[-64, -34], [-38, -24], [-14, -12], [8, 2], [14, 26], [48, 30], [44, 4]];
+  const K = [[0, 1, TAKT], [1, 2, 2 * TAKT], [2, 3, 3 * TAKT], [3, 4, 4 * TAKT], [4, 5, 5 * TAKT], [5, 6, 6 * TAKT], [6, 3, 6 * TAKT + AN]];
+  const ende = P.length * TAKT + HALTEN, zyklus = ende + AUS, pz = (s) => `${(s / zyklus * 100).toFixed(2)}%`;
+  const xs = P.map(([x]) => x * S), ys = P.map(([, y]) => y * S), x0 = Math.min(...xs) - RAND, y0 = Math.min(...ys) - RAND;
+  el.style.width = `${Math.max(...xs) - x0 + RAND}px`;
+  el.style.height = `${Math.max(...ys) - y0 + RAND}px`;
+  const ort = (i) => [xs[i] - x0, ys[i] - y0];
+  let css = '';
+  for (const [i, j, t] of K) {
+    const [ax, ay] = ort(i), [bx, by] = ort(j), k = document.createElement('div');
+    k.className = 'kante';
+    k.style.cssText = `left:${ax}px;top:${ay}px;width:${Math.hypot(bx - ax, by - ay)}px;transform:rotate(${Math.atan2(by - ay, bx - ax)}rad)`;
+    k.innerHTML = `<i></i><i style="animation:lade-k${i}${j} ${zyklus}s linear infinite"></i>`;
+    el.append(k);
+    css += `@keyframes lade-k${i}${j}{0%,${pz(t)}{transform:scaleX(0);opacity:0}${pz(t + AN)}{transform:scaleX(1);opacity:1}`
+      + `${pz(ende)}{transform:scaleX(1);opacity:1}100%{transform:scaleX(1);opacity:0}}`;
+  }
+  P.forEach((_, i) => {
+    const [x, y] = ort(i), d = i === 0 ? 30 : 18, s = document.createElement('div');
+    s.className = 'stern';
+    s.style.cssText = `left:${x}px;top:${y}px;width:${d}px;height:${d}px;animation:lade-s${i} ${zyklus}s linear infinite`;
+    el.append(s);
+    css += `@keyframes lade-s${i}{0%,${pz(i * TAKT)}{opacity:0.16}${pz(i * TAKT + AN)},${pz(ende)}{opacity:1}100%{opacity:0.16}}`;
+  });
+  const stil = document.createElement('style');
+  stil.textContent = css;
+  document.head.append(stil);
+
+  let seit = 0, an = false, stopp = 0;
+  const setze = (ja) => {
+    if (ja === an) return;
+    an = ja;
+    clearTimeout(stopp);
+    if (ja) { // von vorn: zuerst der Polarstern (laufen die Animationen noch vom Ausblenden, erst neu anstossen)
+      if (el.classList.contains('laeuft')) { el.classList.remove('laeuft'); void el.offsetWidth; }
+      el.classList.add('laeuft', 'an');
+    } else {
+      el.classList.remove('an');
+      stopp = setTimeout(() => el.classList.remove('laeuft'), 600); // nach dem Ausblenden: Animationen aus
+    }
+  };
+  return {
+    /** Wartet die Stelle noch (ja)? Nach 0,4 s Warten zeigen, sonst weich ausblenden. */
+    warte(ja) {
+      if (!ja) { seit = 0; setze(false); return; }
+      const jetzt = performance.now();
+      if (!seit) seit = jetzt;
+      setze(jetzt - seit >= 400);
+    },
+  };
+})();
+
 const story = {
   el: $('story'),
   grade: null,        // gewählter Grad (Schlüssel in STORY_LEVELS), bis zur Wahl der zuletzt gespielte oder null
@@ -20231,7 +20317,9 @@ const story = {
     // bleibt stehen, bis er da ist (höchstens 8 s), statt schwarz
     // (nach der Uhr, nicht gezählt: Zeitgeber in einem verborgenen Tab sind gedrosselt)
     const bis = performance.now() + 8000;
-    if (!ueben) while (!skyTheme.ready && performance.now() < bis) await storySleep(100);
+    if (!ueben) while (!skyTheme.ready && performance.now() < bis) { ladeZeichen.warte(true); await storySleep(100); }
+    // nach 8 s ohne Wald wartet gleich der Einstieg weiter (skyOf): Der Wagen bleibt stehen, statt aus- und einzublenden
+    if (ueben || skyTheme.ready) ladeZeichen.warte(false);
     this.stillBild = false;
     this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
@@ -20256,8 +20344,13 @@ const story = {
     }
     // Steht der erste Himmel nach dem Start noch nicht (wer weiterspielt und gleich «Weiter» wählt; im Prolog nicht
     // fertig geworden): Laden hinter der Überblendung, ruhig und im Messwerkzeug markiert (ruhe.lade). Die Kamera
-    // schaut in den Himmel, die Vorschau steht schon, das Netz und das scharfe Bild blenden weich darüber ein
-    const warte = async () => { for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) await this.wait(0.1); };
+    // schaut in den Himmel, die Vorschau steht schon, das Netz und das scharfe Bild blenden weich darüber ein. Solange
+    // der Himmel fehlt, zeichnet sich der Kleine Wagen (ladeZeichen; unter Menü und Übersicht nicht)
+    const warte = async () => {
+      // nicht, solange ein Satz auf Tippen wartet (Ende des Dorfs: Der Wald lädt schon, während man liest)
+      for (let t = 0; !skyTheme.ready && t < 8; t += 0.1) { ladeZeichen.warte(!this.choosing && !this.waitTap); await this.wait(0.1); }
+      ladeZeichen.warte(false);
+    };
     await (skyTheme.ready || !this.ersterHimmel ? warte() : ruhe.lade(warte()));
     this.ersterHimmel = false;
     skyTheme.fadeTime = fadeTime;

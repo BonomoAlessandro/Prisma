@@ -266,6 +266,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   gewählte Grad unter `prisma.noa.zuletzt`; Neuladen setzt dort fort. Die alten Schlüssel (`prisma.solvedLevels`,
   `prisma.current`, `prisma.sky`, `prisma.signal`, `prisma.signal.seen`) liest das Spiel nicht mehr. Das Tutorial
   steht im Spiel, kommt im Ablauf aber erst mit dem Kapitel «Im Dorf» (Ticket 07).
+  **Ladezeichen** (`ladeZeichen`, `#lade`): Wartet die Geschichte auf den Himmel einer Welt (Einstieg nach «Üben»,
+  «Weiter» in eine Welt, deren Himmel noch fehlt, «Gleich los», solange der Wald lädt), zeichnet sich nach 0,4 s der
+  Kleine Wagen Stern für Stern im oberen Drittel; steht der Himmel, blendet er aus. Unter Menü und Übersicht nicht,
+  und nicht, solange ein Satz auf Tippen wartet (am Ende des Dorfs lädt der Wald schon, während man liest).
+  Nur Deckkraft und Transform in CSS, damit er auch läuft, während das Laden den Hauptthread anhält. Gewählt aus dem
+  Prototyp mit sechs Varianten (Branch `prototyp/ladeindikator`, `.scratch/ladeindikator/prototyp.html`).
   Kopfzeile nach Entscheid 20: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter Grad,
   Kapitel und Level («●○○○ Leicht · Kapitel 2 / 6 · Level 1 / 10») und die Bedienung. Sie zählt die
   Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
