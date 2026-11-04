@@ -150,3 +150,6 @@ neu veröffentlicht. Damit ist die Wahl vollständig; Ticket 08 ist frei, sobald
 **04.11.2026, zweite Anpassung:** Der Wagen bleibt unten am Rand wie im ersten Entwurf (Nutzer: «Das Sternzeichen
 sollte noch immer wie am Anfang am unteren Rand bleiben»); nur Kicker und Untertitel stehen in der Mitte, der
 Lichtpunkt deutlich darüber. Im Katalog nachgebaut und neu veröffentlicht (Version 3).
+
+**04.11.2026, dritte Anpassung:** Der Lichtpunkt steht so weit über dem Text wie der Wagen darunter (gleiche Abstände,
+im Katalog nach dem Umbruch des Texts gemessen, `lichtSetzen`). Version 4 veröffentlicht.

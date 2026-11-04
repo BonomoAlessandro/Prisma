@@ -1243,16 +1243,29 @@
 
   /* ---------- Leiste unter dem Untertitel ---------- */
 
-  function leisteBild(ctx, pfad, mitte = false) {
+  /**
+   * mitte (Wahl des Nutzers, Leiste C): Text senkrecht in der Mitte, der Wagen unten am Rand, wo die Leiste heute steht,
+   * das Licht darüber mit demselben Abstand zum Text wie der Wagen darunter (lichtSetzen). oben: Abstand vom oberen Rand
+   * des Wagen-Bilds bis zu seinem obersten Stern (px).
+   */
+  function leisteBild(ctx, pfad, mitte = false, oben = 0) {
     const { fmt, W, H, S } = ctx, unten = fmt === 'quer' ? 70 : Math.round(0.14 * H);
-    if (mitte) { // Wahl des Nutzers (Leiste C): Text senkrecht in der Mitte, der Wagen unten am Rand, das Licht deutlich darüber
-      const licht = { desktop: 0.17, hoch: 0.15, quer: 0.12 }[fmt] * H, wagenUnten = fmt === 'quer' ? 12 : unten;
-      return `<div class="licht" style="left:${W / 2}px;top:${f1(licht)}px"></div>`
+    if (mitte) {
+      const wagenUnten = fmt === 'quer' ? 12 : unten;
+      return `<div class="licht" style="left:${W / 2}px;top:${f1(0.15 * H)}px"></div>`
         + `<div class="cap mitte" style="top:${H / 2}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p></div>`
-        + `<div class="pfad unten" style="bottom:${wagenUnten}px">${pfad}</div>`;
+        + `<div class="pfad unten" data-oben="${f1(oben)}" style="bottom:${wagenUnten}px">${pfad}</div>`;
     }
     return `<div class="licht" style="left:${W / 2}px;top:${f1(fmt === 'quer' ? 56 : H * (fmt === 'hoch' ? 0.36 : 0.4))}px"></div>`
       + `<div class="cap" style="bottom:${unten}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p><div class="pfad">${pfad}</div></div>`;
+  }
+  /** Leiste C: Licht so hoch über dem Text, wie der Wagen unter ihm steht (gemessen nach dem Umbruch des Texts). */
+  function lichtSetzen(bs) {
+    const cap = bs.querySelector('.cap.mitte'), pf = bs.querySelector('.pfad.unten'), li = bs.querySelector('.licht');
+    if (!cap || !pf || !li) return;
+    const halb = cap.offsetHeight / 2, textOben = cap.offsetTop - halb, textUnten = cap.offsetTop + halb;
+    const abstand = Math.max(12, pf.offsetTop + +pf.dataset.oben - textUnten);
+    li.style.top = `${f1(textOben - abstand - 8)}px`; // 8: der helle Kern des Lichts, nicht seine Mitte, hält den Abstand
   }
   const LEISTE = [
     {
@@ -1316,9 +1329,11 @@
           const [x, y] = pts[k], sc = ic / 24;
           icons += `<g class="lz-ico" data-k="${k}" transform="translate(${f1(x - ic / 2)} ${f1(y - ic / 2)}) scale(${sc.toFixed(3)})"><circle class="lz-disc" cx="12" cy="12" r="14"/>${ICON[WELTEN[k - 1].id]}</g>`;
         }
-        return leisteBild(ctx, wagenSVG(w, h, o, icons), true);
+        // oberster Stern ist der Polarstern (P[0], 32 Einheiten über der Mitte des Wagens), dazu sein Kern
+        return leisteBild(ctx, wagenSVG(w, h, o, icons), true, h / 2 - 32 * s - 3);
       },
       nach(bs) {
+        lichtSetzen(bs);
         const icons = [...bs.querySelectorAll('.lz-ico')];
         return {
           setze(v) {
