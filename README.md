@@ -268,7 +268,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   steht im Spiel, kommt im Ablauf aber erst mit dem Kapitel «Im Dorf» (Ticket 07).
   **Ladezeichen** (`ladeZeichen`, `#lade`): Wartet die Geschichte auf den Himmel einer Welt (Einstieg nach «Üben»,
   «Weiter» in eine Welt, deren Himmel noch fehlt, «Gleich los», solange der Wald lädt), zeichnet sich nach 0,4 s der
-  Kleine Wagen Stern für Stern im oberen Viertel (auf dem Handy rund 135 px breit, auf grossen Bildschirmen bis
+  Kleine Wagen Stern für Stern, etwas über der Mitte, über der Bühne oben im Himmel (auf dem Handy rund 135 px breit, auf grossen Bildschirmen bis
   2,2-mal so gross, `?wagen=<faktor>` setzt die Grösse fest zum Ausprobieren); steht der Himmel, blendet er aus. Unter Menü und Übersicht nicht,
   und nicht, solange ein Satz auf Tippen wartet (am Ende des Dorfs lädt der Wald schon, während man liest).
   Nur Deckkraft und Transform in CSS, damit er auch läuft, während das Laden den Hauptthread anhält. Gewählt aus dem

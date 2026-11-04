@@ -438,10 +438,12 @@
      Transform: Das rechnet der Compositor, so läuft der Wagen auch, während das Laden den Hauptthread anhält. Lage,
      Grösse und Zeitplan der Sterne und Linien setzt ladeZeichen (aus einer Tabelle). */
   #lade {
-    position: fixed; left: 50%; top: 25%; z-index: 7; pointer-events: none;
+    position: fixed; left: 50%; top: 42%; z-index: 7; pointer-events: none;
     transform: translate(-50%, -50%) scale(var(--gross, 1)); opacity: 0; transition: opacity 0.5s ease;
   }
   #lade.an { opacity: 1; transition-duration: 0.4s; }
+  /* über der Bühne («Gleich los»): oben im Nachthimmel, in der Mitte lägen Berge und Dorf */
+  #lade.oben { top: 25%; }
   #lade .stern { position: absolute; border-radius: 50%; transform: translate(-50%, -50%); opacity: 0.16;
     background: radial-gradient(circle closest-side, #f4f6ff 0 15%, rgba(210, 220, 255, 0.5) 22%, rgba(210, 220, 255, 0.12) 55%, rgba(210, 220, 255, 0)); }
   #lade .kante { position: absolute; height: 0; transform-origin: 0 0; }
@@ -19811,12 +19813,13 @@ const ladeZeichen = (() => {
   groesse();
   window.addEventListener('resize', groesse);
 
-  let seit = 0, an = false, stopp = 0;
+  let seit = 0, an = false, stopp = 0, obenGewuenscht = false;
   const setze = (ja) => {
     if (ja === an) return;
     an = ja;
     clearTimeout(stopp);
     if (ja) { // von vorn: zuerst der Polarstern (laufen die Animationen noch vom Ausblenden, erst neu anstossen)
+      el.classList.toggle('oben', obenGewuenscht);
       if (el.classList.contains('laeuft')) { el.classList.remove('laeuft'); void el.offsetWidth; }
       el.classList.add('laeuft', 'an');
     } else {
@@ -19825,8 +19828,12 @@ const ladeZeichen = (() => {
     }
   };
   return {
-    /** Wartet die Stelle noch (ja)? Nach 0,4 s Warten zeigen, sonst weich ausblenden. */
-    warte(ja) {
+    /**
+     * Wartet die Stelle noch (ja)? Nach 0,4 s Warten zeigen, sonst weich ausblenden. oben: über der Bühne (oben im
+     * Himmel statt in der Mitte); gilt ab dem nächsten Einblenden, ein stehender Wagen springt nicht.
+     */
+    warte(ja, oben = false) {
+      obenGewuenscht = oben;
       if (!ja) { seit = 0; setze(false); return; }
       const jetzt = performance.now();
       if (!seit) seit = jetzt;
@@ -20325,7 +20332,7 @@ const story = {
     // bleibt stehen, bis er da ist (höchstens 8 s), statt schwarz
     // (nach der Uhr, nicht gezählt: Zeitgeber in einem verborgenen Tab sind gedrosselt)
     const bis = performance.now() + 8000;
-    if (!ueben) while (!skyTheme.ready && performance.now() < bis) { ladeZeichen.warte(true); await storySleep(100); }
+    if (!ueben) while (!skyTheme.ready && performance.now() < bis) { ladeZeichen.warte(true, true); await storySleep(100); }
     // nach 8 s ohne Wald wartet gleich der Einstieg weiter (skyOf): Der Wagen bleibt stehen, statt aus- und einzublenden
     if (ueben || skyTheme.ready) ladeZeichen.warte(false);
     this.stillBild = false;
