@@ -1,5 +1,8 @@
 # Das Spiel zeichnet stetig 30 Bilder pro Sekunde, die Geschichte bleibt bei 60
 
+**Für den Takt abgelöst durch ADR 0008** (Das Spiel zeichnet wieder stetig 60 Bilder pro Sekunde): Seit dem
+04.11.2026 läuft das Spiel stetig mit 60, `?takt=30` stellt diesen Stand zum Vergleich her.
+
 Entschieden vom Nutzer am 02.11.2026 nach Handy-Durchlauf 3 des Vorhabens Leistung (Spec und Tickets in
 `.scratch/leistung/`, Ticket 13), umgesetzt in `leistung-09` auf `feature/leistung`.
 

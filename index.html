@@ -1070,7 +1070,7 @@
   }
 
   #perf {
-    /* z-index über Menü, Startbildschirm und Bühne: Die Knöpfe bleiben im ganzen Referenzdurchlauf erreichbar */
+    /* z-index über Menü, Startbildschirm und Bühne: Die Bildrate ist überall abzulesen */
     position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 9;
     font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
     color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
@@ -1083,30 +1083,6 @@
     top: max(6px, env(safe-area-inset-top)); bottom: auto; left: max(6px, env(safe-area-inset-left));
     max-width: calc(100vw / var(--seite) - 172px); padding: 6px 8px; font-size: 10.5px; white-space: pre-wrap; background: rgba(0, 0, 0, 0.78);
   }
-  #perf .perf-knoepfe { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; white-space: normal; }
-  #perf .perf-knoepfe:empty { display: none; }
-  #perf button { pointer-events: auto; } /* nur die Knöpfe: Daneben bleiben die Knöpfe des Spiels bedienbar */
-  #perf button, #leistung-karte button {
-    font: 14px/1.2 system-ui, sans-serif; color: #e8e6f0; background: rgba(255, 255, 255, 0.14);
-    border: 1px solid rgba(255, 255, 255, 0.35); border-radius: 6px; min-width: 44px; min-height: 44px;
-    padding: 0 14px; cursor: pointer;
-  }
-  /* «Abbrechen» abgesetzt und anders gefärbt: nicht aus Versehen statt «Weiter zur Reise» */
-  #perf button.abseits { margin-left: 18px; border-color: rgba(255, 140, 120, 0.6); color: #ffcfc4; }
-  /* Ergebniskarte des Referenzdurchlaufs: deckend, gross genug, um sie auf dem Handy abzulesen; Text markierbar */
-  #leistung-karte {
-    position: fixed; z-index: 10; display: flex; flex-direction: column; gap: 10px; padding: 12px;
-    inset: max(10px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right))
-      max(10px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left));
-    border-radius: 6px; background: #06060e; color: #e8e6f0;
-    font: 12px/1.45 ui-monospace, Consolas, monospace; letter-spacing: 0;
-  }
-  #leistung-karte[hidden] { display: none; }
-  body:has(#leistung-karte:not([hidden])) #perf { display: none; } /* die Karte allein, solange sie offen ist */
-  #leistung-karte pre { flex: 1; margin: 0; overflow: auto; white-space: pre; user-select: text; -webkit-user-select: text; }
-  #leistung-karte.schmal pre { white-space: pre-wrap; overflow-wrap: anywhere; } /* schmale Fassung: kein Wischen */
-  #leistung-karte textarea { flex: 1; font: inherit; color: inherit; background: #000; border: 1px solid #555; }
-  #leistung-karte .karte-knoepfe { display: flex; flex-wrap: wrap; gap: 10px; }
 
   /* Massstab der Seite (Ticket 18 von .scratch/leistung/, siehe SEITE): Die Seite rastert mit 2 Gerätepixeln je Pixel
      des Layouts, alles ausser der Bühne wird um SEITE vergrössert und sieht aus wie vorher. Längen aus dem Viewport
@@ -1168,12 +1144,7 @@ if (SEITE !== 1) {
 </script>
 </head>
 <body>
-<div id="perf" hidden><div class="perf-text"></div><div class="perf-knoepfe"></div></div>
-<div id="leistung-karte" hidden role="dialog" aria-label="Ergebnis des Referenzdurchlaufs">
-  <pre></pre>
-  <textarea readonly hidden aria-label="Ergebnis zum Kopieren"></textarea>
-  <div class="karte-knoepfe"><button class="kopieren">Kopieren</button><button class="schliessen">Schliessen</button></div>
-</div>
+<div id="perf" hidden></div>
 <div id="hud" class="hidden">
   <div class="title"><span id="hud-title">Prisma</span><span class="tier" id="hud-tier" hidden></span></div>
   <div class="goal" id="hud-goal"></div>
@@ -1259,10 +1230,10 @@ if (SEITE !== 1) {
    KONFIGURATION
    ===================================================================== */
 
-// Fassung, die gerade läuft (Leistungsanzeige und Ergebniskarte des Messwerkzeugs, Spec .scratch/leistung/): Datum und
+// Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-03 dorf-himmel';
+const APP_VERSION = '2026-11-04 takt-60';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8187,7 +8158,6 @@ const STORY_LEVELS = {
 // Szene hat beides in ihrem eigenen Ziel (createComposer). Spart auf Kachel-GPUs Löschen und Speichern je Bild (Ticket 11)
 const renderer = new THREE.WebGLRenderer({ antialias: false, depth: false, stencil: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(QUALITY.pixelRatio);
-renderer.info.autoReset = false; // Zählung über alle Passes eines Frames (Reset am Frame-Ende)
 renderer.setSize(seiteBreite(), seiteHoehe()); // in Pixeln der Oberfläche (SEITE)
 // Tone Mapping (ACES Filmic) und sRGB-Wandlung passieren im finalen Post-Pass,
 // damit Bloom auf echten HDR-Werten arbeitet.
@@ -9344,9 +9314,6 @@ const solar = (() => {
 
   return {
     group, corona, planets, lineMat,
-    // Die Planeten ziehen um das Brett (Merkur 0,8 m/s, Erde 0,55 m/s), so schnell wie die Fische am Strand: im Level
-    // stetig 60 Bilder/s (frameRate.fluid, Ticket 17 der Leistung)
-    fluid: true,
     setFade(k) {
       solarUniforms.uFade.value = k;
       lineMat.opacity = 0.12 * k;
@@ -10672,9 +10639,6 @@ function glowParticles(ctx, opt) {
   }));
   points.frustumCulled = false;
   points.renderOrder = 6;
-  // Die Glühwürmchen ziehen etwa so schnell wie die Fische am Strand, das Auge folgt ihnen: im Level stetig 60 Bilder/s
-  // (frameRate.fluid, Ticket 17 der Leistung)
-  points.userData.fluid = true;
   return points;
 }
 
@@ -10906,9 +10870,6 @@ function lavaPool(ctx, opt) {
   drops.frustumCulled = false;
   drops.renderOrder = 6;
   out.add(drops);
-  // Funken steigen mit 1–6 m/s, Spritzer fliegen im Bogen: mit 30 Bildern/s sprangen sie sichtbar (Ticket 17 der
-  // Leistung: bis 100 CSS-px/s), im Level darum stetig 60 (frameRate.fluid)
-  out.userData.fluid = true;
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
@@ -11762,7 +11723,6 @@ function* waterSurface(ctx, opt) {
   const plane = new THREE.Mesh(geo, material);
   plane.frustumCulled = false;
   plane.renderOrder = 4;
-  plane.userData.under = under; // für das Messwerkzeug (Dauerlast «ohne Wasser», «ohne Unterwasser-Pass»)
   // Kurz bevor das Wasser gezeichnet wird: die Szene unter der Oberfläche in ein eigenes Bild, so gross wie das, in das
   // gerade gezeichnet wird, auch auf dem Handy: Halb so gross deckte dort ein Texel 2,75 × 2,75 Bildschirmpixel, die
   // schmalen Fische bekamen Treppen und die Schwanzlinien zerfielen in Punkte (Spec .scratch/leistung/, Ticket 14).
@@ -12297,9 +12257,6 @@ function* fishSchools(ctx, opt) {
   under.scene.add(shadowMesh, fishMesh);
 
   const holder = new THREE.Group();
-  // Die Fische ziehen gleichmässig, das Auge folgt ihnen: mit 30 Bildern/s (und dem Wechsel auf 60 bei Eingaben)
-  // ruckelten sie sichtbar, im Level darum stetig 60 (frameRate.fluid; Ticket 17 der Leistung)
-  holder.userData.fluid = true;
   const s = new Float64Array(10);
   holder.userData.update = (t) => {
     const alpha = sim.advance(t);
@@ -12592,8 +12549,6 @@ function createPanoramaSky(m) {
     },
     /** geladen oder lädt: release gibt etwas frei */
     get held() { return loading !== null; },
-    /** Eine Ebene zeigt Bewegung, der das Auge folgt (userData.fluid, etwa die Fische): im Level stetig 60 Bilder/s (frameRate.fluid) */
-    get fluid() { return mesh !== null && group.children.some((p) => p.userData.fluid); },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
@@ -12720,8 +12675,6 @@ const skyTheme = {
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
     return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
   },
-  /** Der gewählte Hintergrund zeigt Bewegung, der das Auge folgt (Modul fluid): im Level stetig 60 Bilder/s (frameRate) */
-  get fluid() { return !!this.byId.get(this.current).module?.fluid; },
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
@@ -13389,8 +13342,6 @@ function createBrushPass(quality) {
   };
 
   const activeSources = () => [...sources].filter((s) => s.uniforms.uFade.value * s.uniforms.uReady.value > 0 && shown(s.root));
-  /** Malt der Pass gerade etwas (eine gemalte Ebene ist zu sehen)? Für das Messwerkzeug (Dauerlast «ohne Pinsel»). */
-  pass.painting = () => pass.supported && pass.enabled && activeSources().length > 0;
 
   pass.render = (renderer, writeBuffer, readBuffer) => {
     if (!pass.supported) return;
@@ -15532,7 +15483,7 @@ const beamView = {
     this.segRecords = nextSegs;
     this.eventRecords = nextEvents;
     this.maxEnd = Math.max(0, ...nextSegs.map(r => r.end));
-    // bis hierhin wachsen Strahlen oder blenden aus (für die Bildrate, siehe frameRate)
+    // bis hierhin wachsen Strahlen oder blenden aus (so lange bleibt die Hauptschleife wach, siehe sceneLoop.pending)
     const grow = instant ? 0 : Math.max(0, this.maxEnd - Math.min(freshStart, this.maxEnd)) / BEAM.revealSpeed;
     this.settleAt = Math.max(this.settleAt, now + delay + grow + BEAM.fadeOut);
     this._rebuild();
@@ -19256,6 +19207,12 @@ function createStoryScene(host) {
         for (let i = bildN - k + 1; i < bildN; i++) aus.push(bilder[i % bilder.length] - bilder[(i - 1) % bilder.length]);
         return aus;
       },
+      /** Zeitstempel der eigenen Bilder seit t (performance.now, aufsteigend), für die Leistungsanzeige */
+      zeitenSeit(t) {
+        const aus = [];
+        for (let i = Math.max(0, bildN - bilder.length); i < bildN; i++) if (bilder[i % bilder.length] >= t) aus.push(bilder[i % bilder.length]);
+        return aus;
+      },
       /** Bytes der Texturen (stehend, Linien, Teile) */
       speicher() {
         let b = 0;
@@ -19815,7 +19772,7 @@ const story = {
   waitTap: null,
   scene: null,        // Bühne für Prolog und Epilog (createStoryScene), beim ersten Gebrauch gebaut
   _covered: false,
-  /** Die Bühne deckt das Spiel ganz zu: frameRate 30 Bilder/s, sobald sie ganz eingeblendet ist gar keine (sceneLoop) */
+  /** Die Bühne deckt das Spiel zu: Es zeichnet höchstens 30 Bilder/s (frameRate.fps), sobald sie ganz eingeblendet ist gar nicht mehr (sceneLoop) */
   get covered() { return this._covered; },
   set covered(on) {
     if (on === this._covered) return;
@@ -19937,7 +19894,7 @@ const story = {
   /**
    * Menü oder Übersicht öffnet: Kopfzeile, Knöpfe und «Gelöst» gehen weg, der Blick hebt sich vom Brett in den Himmel
    * (sofort: unter dem Startbildschirm). Bis zur Wahl oder zum Schliessen ist choosing gesetzt: Dann erscheinen
-   * Kopfzeile und «Gelöst» nicht (ui), Tippen wirkt nicht (tap), 30 Bilder/s reichen (frameRate).
+   * Kopfzeile und «Gelöst» nicht (ui), Tippen wirkt nicht (tap), steht der Blick im Himmel, reichen 10 Bilder/s (frameRate).
    */
   lift(sofort = false) {
     this.choosing = true;
@@ -21431,8 +21388,7 @@ const adaptiveResolution = {
   calm: 0, cooldown: 1.5, last: performance.now(),
   probe: null,          // läuft gerade eine Absenkung zur Probe?
   locked: false,        // Absenken bringt nichts (z. B. 30-Hz-Sparmodus, CPU-Engpass)
-  skip: 0,              // so viele Bilder nicht werten (Messwerkzeug: das Bild nach einer Probe der Dauerlast und das
-                        // danach; verdeckt gezeichnete Bilder, siehe draw)
+  skip: 0,              // so viele Bilder nicht werten (verdeckt gezeichnete Bilder, das erste nach dem Ruhen, siehe draw)
   // ?noadapt: feste Auflösung (für Screenshot-Tests im langsamen Software-Rendering)
   disabled: new URLSearchParams(location.search).has('noadapt'),
 
@@ -21464,10 +21420,6 @@ const adaptiveResolution = {
     const overload = this.slow / this.frames; // Anteil Frames über Budget in der letzten Sekunde
     this.window = this.slow = this.frames = 0;
 
-    // Stetige 60 Bilder/s nur wegen des bewegten Himmels (frameRate.fluid, Ticket 17 der Leistung) und das Gerät hält sie
-    // nicht: zuerst darauf verzichten (in Ruhe wieder 30 wie vorher), die Auflösung bleibt. Erst wenn es danach noch zu
-    // langsam ist, greift die Absenkung wie bisher (Spec: keine sichtbare Absenkung)
-    if (overload > 0.3 && !this.probe && frameRate.fluid()) { frameRate.fluidAus = true; this.hold(); return; }
     if (this.probe) {
       // Hat die letzte Absenkung geholfen? Sonst zurück und Absenken sperren.
       if (overload > this.probe.overload * 0.8) { this.locked = true; this.set(this.probe.from); }
@@ -21502,7 +21454,7 @@ const _reflectFrustum = new THREE.Frustum(), _reflectViewProj = new THREE.Matrix
 const _reflectPlate = new THREE.Box3(new THREE.Vector3(-PLATE / 2, -0.01, -PLATE / 2), new THREE.Vector3(PLATE / 2, 0.01, PLATE / 2));
 const _reflectDimmed = []; // gedämpfte Ziele (userData) dieses Bilds; ihre Werte in userData.reflectSave (ohne Allokation)
 
-/** Zeichnet renderReflection gerade etwas (eingeschaltet und die Platte im Bild)? Auch für das Messwerkzeug (Dauerlast). */
+/** Zeichnet renderReflection gerade etwas (eingeschaltet und die Platte im Bild)? */
 function reflectionInView() {
   if (!QUALITY.reflections) return false;
   camera.updateMatrixWorld();
@@ -21578,41 +21530,26 @@ const MESS_ABSCHNITTE = {
   epilog: ['Epilog'],
 };
 // Grenzwerte der Spec: p95 der sichtbaren Bildabstände ≤ 16,7 ms mit 10 % Toleranz (rAF-Zeitstempel schwanken), kein
-// Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms bei 60 Bildern/s, bei stetigen 30 (frameRate,
-// Entscheid des Nutzers nach Handy-Durchlauf 3) dieselbe Reserve: ≤ 16 ms
-const MESS_GRENZE = { p95: 18.3, bild: 33, get zeichnen() { return frameRate.activeFps <= 30 ? 16 : 8; } };
+// Bild über 33 ms; auf dem Handy (Poco) p95 der Zeichenzeit ≤ 8 ms bei 60 Bildern/s, mit ?takt=30 (stetige 30 wie unter
+// ADR 0006) dieselbe Reserve: ≤ 16 ms
+const MESS_GRENZE = { p95: 18.3, bild: 33, get zeichnen() { return frameRate.spielFps <= 30 ? 16 : 8; } };
 const MESS_FACH = 0.1, MESS_FAECHER = 2000; // Histogramm: Fächer zu 0,1 ms bis 200 ms, darüber im letzten (max genau)
-// Dauerlast (Ticket 08), die Zeichenzeit ohne GPU-Zeit: k Bilder hintereinander in einer Aufgabe zwischen zwei
-// readPixels, Zeit je Bild; je Teil so viele Wiederholungen, davon der Median. Ein Halt je Bild (das alte Ersatzmass,
-// readPixels jedes 10. Bild) mass vor allem die Wartezeit der Pipeline, auf dem Poco 3- bis 6-mal zu viel (Messrunde 07)
-const MESS_DAUERLAST = { k: 20, wiederholungen: 5, cpuGebunden: 0.8 };
-// Messpunkte der Dauerlast im Referenzdurchlauf: Kennung → [Name auf der Karte, schmale Fassung]
-const MESS_PUNKTE = { spiel: ['Spiel (1. Level)', 'Spiel'], menue: ['Menü still', 'Menü'], ankunft: ['Spiel n. Reise', 'n. Reise'] };
-// Speicher des Referenzdurchlaufs: laufend, Sicherung des echten Spielstands, Ergebnis für die Karte nach dem Neuladen
-const MESS_LAUF = 'prisma.leistung.lauf', MESS_SICHERUNG = 'prisma.leistung.sicherung';
-const MESS_ERGEBNIS = 'prisma.leistung.ergebnis';
-const messLies = (key) => { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } };
 
 /**
  * Misst, was man sieht, nicht nur die WebGL-Bilder (perfHud): Eine eigene, leichte rAF-Schleife (starte) misst den
  * Abstand aufeinanderfolgender Display-Frames, unabhängig von frameRate und frame(); ruht die Szene, misst sie weiter. Sie
- * läuft nur mit ?perf, nach Taste F oder im Referenzdurchlauf. Getrennt nach Abschnitten (abschnitt: Startbildschirm,
+ * läuft nur mit ?perf oder nach Taste F. Getrennt nach Abschnitten (abschnitt: Startbildschirm,
  * Prolog, Menü, Spiel, Reise …): Ein Abstand zählt zum Abschnitt an seinem Anfang (der Hänger nach dem Klick auf
  * «Klicken zum Starten» gehört zum Startbildschirm). Einstieg, Reise, Weltwechsel und Finale markiert die Geschichte
  * (waehrend), Laden hinter einer Überblendung markiert der Code mit markiere('laden') bzw. waehrend('laden', promise):
  * Es wird getrennt ausgewiesen und zählt nicht gegen die Grenzwerte. Die Messung verfälscht nichts merklich: Histogramme
  * mit festen Fächern (genaue p95 ohne Liste aller Abstände) und ein Ringpuffer für die Anzeige, keine Allokationen pro
  * Bild. Dazu Hänger des Hauptthreads mit Ursache (PerformanceObserver: long-animation-frame, longtask).
- * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2;
- * fehlt die Erweiterung (viele Android-Geräte), misst der Referenzdurchlauf an festen, ruhigen Messpunkten die
- * Dauerlast (dauerlast: K Bilder in einer Aufgabe zwischen zwei readPixels, Zeit je Bild, GPU voll hochgetaktet) und
- * zerlegt sie durch Weglassen von Spiegelung, Bloom, Netz des Panoramas, Pinsel, Himmel, Wasser, Unterwasser-Pass, Staub
- * und letztem Bildschritt. Dazu die CPU-Zeit von frame() und
- * die gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels).
- * Referenzdurchlauf (Knopf in der Anzeige): sichert den Spielstand, lädt mit frischem Stand neu; man klickt durch
- * Startbildschirm → Prolog → erstes Level → Menü, «Weiter zur Reise» springt ans Ende der ersten Welt, löst das Level
- * und misst die Reise in die zweite Welt samt ihrem frisch geladenen Himmel. Danach kommt der echte Stand zurück, die
- * Seite lädt neu und zeigt die Ergebniskarte (auch per window.__prisma.leistung).
+ * Zeichenzeit (bildBeginn … bildEnde in frame()): die GPU-Zeit je gerendertem Bild über EXT_disjoint_timer_query_webgl2
+ * (fehlt die Erweiterung, wie auf vielen Android-Geräten, bleibt sie leer). Dazu die CPU-Zeit von frame() und die
+ * gezeichneten Bilder je Sekunde, auch nur in ruhigen Zeiten (ohne Tweens, ohne Einblenden des Himmels). Die Proben
+ * lesen die Werte über window.__prisma.leistung.daten(). Den Referenzdurchlauf mit Ergebniskarte und Dauerlast (Tickets
+ * 01 und 08 der Leistung) gibt es nicht mehr (ADR 0008).
  */
 const leistung = {
   aktiv: false,
@@ -21623,27 +21560,13 @@ const leistung = {
   wechsel: [],        // [Zeit, Kennung] je Abschnittswechsel: Hänger kommen erst später an (teilBei)
   marken: [],         // Abschnitte, die der Code markiert (markiere), der jüngste gilt
   ladend: 0,          // markiertes Laden hinter einer Überblendung (geht allen Abschnitten vor)
-  ring: new Float32Array(256), ringPos: 0, ringNeu: 0, sortiert: new Float32Array(256), // Anzeige: jüngste Abstände
+  ring: new Float32Array(256), ringPos: 0, ringN: 0, sortiert: new Float32Array(256), // Anzeige: jüngste Abstände (Takt)
   schlimmste: [],     // die längsten Abstände { ms, id, t }
   haenger: [],        // die längsten long-animation-frames { ms, id, t, ursache }
   hudZeit: 0,
   gl: null, timer: null, abfragen: [], abfrageNeu: 0, abfrageAlt: 0, abfrageLaeuft: false, // GPU-Zeit
-  vergleich: null,    // ?ersatzmass auf einem Gerät mit Timer: die Dauerlast zum Vergleich auch als GPU-Zeit messen
-  pixel: new Uint8Array(4), // Dauerlast: Puffer für readPixels
-  proben: [],         // [Beginn, Ende] je Probe der Dauerlast: Abstände (tick) und Hänger (haenger1) darin zählen nicht
-  punkte: {},         // Dauerlast je Messpunkt (MESS_PUNKTE), sobald gemessen
-  wiederholt: {},     // Messpunkte, deren erste Messung eine Eingabe störte (dauerlast)
-  misst: null,        // die Dauerlast misst gerade an diesem Messpunkt
-  wartet: null,       // ein Messpunkt wartet auf Ruhe: { id, seit, ruhig } (messpunkte)
-  nachProbe: false,   // der letzte Abstand überschnitt eine Probe: den nächsten auch nicht zählen (tick)
   ruhig: false,       // beim letzten Display-Frame: keine Tweens, der Himmel blendet nicht ein (gez/s ruhig)
   modell: '',         // Gerät laut navigator.userAgentData (Android: Modell), sobald bekannt
-  lauf: messLies(MESS_LAUF), // Referenzdurchlauf läuft (nach dem Neuladen mit frischem Stand)
-  schritt: null,      // im Durchlauf: 'teil1' (bis zum Menü), 'reise', 'fertig'
-  geloest: false,     // im Durchlauf: ein Level ist gelöst («Weiter zur Reise» im Menü)
-  status: '',         // Zustand des Durchlaufs (Anzeige)
-  meldung: '',        // Fehler des Durchlaufs (Anzeige, statt status)
-  knoepfeStand: '',   // Namen der Knöpfe in der Anzeige (knoepfe)
 
   starte() {
     if (this.aktiv) return;
@@ -21658,12 +21581,7 @@ const leistung = {
     requestAnimationFrame(loop);
     if (this.gl) return; // eingerichtet beim ersten Start
     this.gl = renderer.getContext();
-    // ?ersatzmass: wie ein Gerät ohne die Erweiterung (Dauerlast statt GPU-Zeit, Probe auf dem Desktop); hat das Gerät
-    // sie doch, misst die Dauerlast zum Vergleich auch die GPU-Zeit derselben Bilder
-    const ext = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
-    const ersatz = new URLSearchParams(location.search).has('ersatzmass');
-    this.timer = ersatz ? null : ext;
-    this.vergleich = ersatz ? ext : null;
+    this.timer = this.gl.getExtension('EXT_disjoint_timer_query_webgl2');
     if (this.timer) for (let i = 0; i < 8; i++) this.abfragen.push({ q: this.gl.createQuery(), teil: null, offen: false });
     document.addEventListener('visibilitychange', () => { this.prev = null; });
     const typen = window.PerformanceObserver?.supportedEntryTypes ?? [];
@@ -21673,7 +21591,7 @@ const leistung = {
     }
     if (typen.includes('longtask')) {
       new PerformanceObserver((l) => {
-        if (this.aktiv) l.getEntries().forEach((e) => { if (!this.inProbe(e)) this.teilBei(e.startTime).longtasks++; });
+        if (this.aktiv) l.getEntries().forEach((e) => { this.teilBei(e.startTime).longtasks++; });
       })
         .observe({ type: 'longtask', buffered: true });
     }
@@ -21681,9 +21599,8 @@ const leistung = {
       .then((d) => { this.modell = [d.platform, d.platformVersion, d.model].filter(Boolean).join(' '); })
       .catch(() => {});
   },
-  /** Taste F blendet die Anzeige aus: Ausser im Referenzdurchlauf ruht dann auch die Messung (keine Kosten). */
+  /** Taste F blendet die Anzeige aus: Dann ruht auch die Messung (keine Kosten). */
   stoppe() {
-    if (this.lauf) return;
     this.aktiv = false;
     this.schleife++;
   },
@@ -21691,25 +21608,16 @@ const leistung = {
   tick(ts) {
     const id = this.abschnitt();
     if (this.prev !== null && this.teil) {
-      // im Abstand lag eine Probe der Dauerlast, oder sie lag im Abstand davor (das Bild nach der letzten Probe kann
-      // noch auf die Grafik warten: in jedem Lauf mit Dauerlast ein Abstand von 33 ms in «Menü» und «Spiel n. Reise»,
-      // Review Ticket 08): nicht als sichtbaren Abstand zählen
-      const probe = this.probeIn(this.prev, ts);
-      if (probe || this.nachProbe) this.teil.ohne++;
-      else {
-        this.abstand(this.teil, ts - this.prev, ts);
-        if (this.ruhig) this.teil.ruhigMs += ts - this.prev;
-      }
-      this.nachProbe = probe;
+      this.abstand(this.teil, ts - this.prev, ts);
+      if (this.ruhig) this.teil.ruhigMs += ts - this.prev;
     }
     if (this.teil?.id !== id) { this.teil = this.neuerTeil(id); this.wechsel.push([ts, id]); }
     this.prev = ts;
     // ruhig: Es läuft keine Fahrt (Tween) und der Himmel blendet nicht ein oder über (gez/s ruhig: wie viel die Szene
-    // zeichnet, wenn sich nichts tut; das Menü zeichnet beim Hineinfahren 60/s, beim Einblenden des Himmels 30/s)
+    // zeichnet, wenn sich nichts tut; das Menü zeichnet beim Hineinfahren und beim Einblenden des Himmels 60/s, still 10/s)
     this.ruhig = !story.tweens.length && !skyTheme.moving;
     if (ts - this.hudZeit >= 500) {
       this.hudZeit = ts;
-      if (this.lauf) this.laufTick();
       perfHud.zeige();
     }
   },
@@ -21747,7 +21655,7 @@ const leistung = {
     let t = this.teile.get(id);
     if (!t) {
       t = { id, bild: this.reihe(), zeichnen: this.reihe(), cpu: this.reihe(), ueber: 0, gezeichnet: 0, haenger: 0,
-        haengerMax: 0, longtasks: 0, ohne: 0, // ohne: Abstände mit einer Probe der Dauerlast, nicht gezählt
+        haengerMax: 0, longtasks: 0,
         ruhigMs: 0, gezRuhig: 0 }; // Zeit und gezeichnete Bilder, solange es ruhig war (tick)
       this.teile.set(id, t);
     }
@@ -21773,7 +21681,7 @@ const leistung = {
     this.eintragen(teil.bild, ms);
     this.ring[this.ringPos] = ms;
     this.ringPos = (this.ringPos + 1) % this.ring.length;
-    this.ringNeu++;
+    this.ringN++;
     if (ms <= MESS_GRENZE.bild) return;
     teil.ueber++;
     this.bestenliste(this.schlimmste, { ms, id: teil.id, t: ts - ms });
@@ -21789,22 +21697,8 @@ const leistung = {
     for (let i = this.wechsel.length - 1; i >= 0; i--) if (this.wechsel[i][0] <= t) return this.teile.get(this.wechsel[i][1]);
     return this.teile.get(this.wechsel[0]?.[1]) ?? this.neuerTeil(this.abschnitt());
   },
-  /**
-   * Überschneidet der Abstand zwischen den Display-Frames a und b eine Probe der Dauerlast? Dann ist er (auch) ihr Halt.
-   * Nicht nur das Ende prüfen: Der Zeitstempel des Frames nach einem langen Task ist der letzte Vsync, er kann vor dem
-   * Ende der Probe liegen (headless gesehen). Die jüngsten Proben genügen (eine je Display-Frame).
-   */
-  probeIn(a, b) {
-    for (let i = this.proben.length - 1; i >= 0 && i >= this.proben.length - 3; i--) {
-      if (this.proben[i][0] < b && this.proben[i][1] > a) return true;
-    }
-    return false;
-  },
-  /** Fällt der Eintrag e (startTime, duration) in eine Probe der Dauerlast? */
-  inProbe(e) { return this.proben.some(([a, b]) => e.startTime < b && e.startTime + e.duration > a); },
   /** Ein long-animation-frame (über 50 ms): zählen und mit Ursache merken (längstes Script, sonst Stil und Layout). */
   haenger1(e) {
-    if (this.inProbe(e)) return; // die Dauerlast selbst: zählt wie ihre Bildabstände nicht
     const teil = this.teilBei(e.startTime);
     teil.haenger++;
     teil.haengerMax = Math.max(teil.haengerMax, e.duration);
@@ -21847,152 +21741,6 @@ const leistung = {
   },
 
   /**
-   * Teile der Dauerlast: [Kennung, zeichnet er hier etwas (sonst «–»), weglassen (gibt das Zurücksetzen zurück)].
-   * Das Netz des Panoramas ist das Mesh mit renderOrder -1000 in der Gruppe einer eingeblendeten Skybox aus Blender
-   * (createPanoramaSky); ohne es zeigt die Himmelskugel dahinter das Vorschaubild.
-   */
-  dauerlastTeile() {
-    const panoramen = () => skyTheme.entries.filter((e) => e.module?.panorama && e.module.group.visible).map((e) => e.module.group);
-    const netze = () => panoramen().flatMap((g) => g.children.filter((o) => o.isMesh && o.renderOrder === -1000 && o.visible));
-    // Wasser einer Skybox (waterSurface: userData.under, die Szene unter der Oberfläche) und was darunter schwimmt
-    const wasser = () => panoramen().flatMap((g) => g.children.filter((o) => o.userData.under && o.visible));
-    const unter = () => wasser().flatMap((o) => o.userData.under.scene.children.filter((c) => c.visible));
-    const himmel = () => [background, stars, solar.group, ...panoramen()].filter((o) => o.visible);
-    const schalter = (an, setze) => () => { const vorher = an(); setze(false); return () => setze(vorher); };
-    // Objekte unsichtbar, danach wieder sichtbar
-    const verstecke = (liste) => () => {
-      const aus = liste();
-      for (const o of aus) o.visible = false;
-      return () => { for (const o of aus) o.visible = true; };
-    };
-    return [
-      ['ganz', () => true, () => () => {}],
-      ['spiegelung', reflectionInView, schalter(() => QUALITY.reflections, (v) => { QUALITY.reflections = v; })],
-      ['bloom', () => bloomPass.enabled, schalter(() => bloomPass.enabled, (v) => { bloomPass.enabled = v; })],
-      ['netz', () => netze().length > 0, verstecke(netze)],
-      ['pinsel', () => !!brushPass.painting?.(), schalter(() => brushPass.enabled, (v) => { brushPass.enabled = v; })],
-      // zweite Zeile der Karte (Ticket 11): der ganze Himmel (Kugel, Sterne, Planeten, Skybox mit allen Ebenen), davon
-      // das Wasser samt Unterwasser-Pass, davon nur der Pass (Fische), der Staub über dem Brett und der letzte Bildschritt
-      ['himmel', () => himmel().length > 0, verstecke(himmel)],
-      ['wasser', () => wasser().length > 0, verstecke(wasser)],
-      ['unter', () => unter().length > 0, verstecke(unter)],
-      ['staub', () => beamView.dust.visible, verstecke(() => [beamView.dust])],
-      ['final', () => finalPass.enabled, () => { // gar nicht zeichnen (die Probe liest danach nur einen Bildpunkt)
-        const eigen = Object.hasOwn(finalPass, 'render'), render = finalPass.render;
-        finalPass.render = () => {};
-        return () => { if (eigen) finalPass.render = render; else delete finalPass.render; };
-      }],
-    ];
-  },
-  /**
-   * Dauerlast am Messpunkt id (MESS_PUNKTE), im Referenzdurchlauf ohne GPU-Zeit: Je Probe (eine Aufgabe, nach einem
-   * Display-Frame) ein readPixels (die Pipeline ist leer), dann K Bilder hintereinander (Spiegelung und composer), wieder
-   * readPixels; Zeit / K ist die Zeichenzeit je Bild bei voll hochgetakteter GPU, ohne die Wartezeit eines Halts je Bild.
-   * Dazu die CPU-Zeit je Bild der Schleife (liegt sie nahe an der Zeit je Bild, ist die Probe CPU-gebunden und die GPU
-   * höchstens so langsam). Ebenso ohne Spiegelung, Bloom, Netz und Pinsel (Zerlegung: ganz − ohne = Anteil des Teils),
-   * abwechselnd, je MESS_DAUERLAST.wiederholungen Mal, Median. Nach jeder Probe alles zurück und ein normales Bild (auf dem
-   * Schirm steht nie eine Probe). Die Abstände und Hänger der Proben zählen nicht zu den sichtbaren; die adaptive
-   * Auflösung wertet das Bild danach nicht (skip; der Fehler von 01b: Sie senkte wegen der Messung). Mit vergleich
-   * (?ersatzmass, Timer vorhanden) dazu je Probe K Bilder mit GPU-Zeit je Bild (Abnahme auf der T2000).
-   */
-  async dauerlast(id) {
-    if (this.misst || this.punkte[id] || !this.gl) return;
-    this.misst = id;
-    // Tippt oder klickt jemand während der Messung (Menü, Drehen), misst sie einen anderen Zustand: einmal wiederholen,
-    // beim zweiten Mal mit «?» auf der Karte (Review Ticket 08)
-    let gestoert = false;
-    const stoer = () => { gestoert = true; };
-    const eingaben = ['pointerdown', 'keydown', 'wheel'];
-    for (const e of eingaben) window.addEventListener(e, stoer, { capture: true, passive: true });
-    const gl = this.gl, ext = this.vergleich, { k: K, wiederholungen } = MESS_DAUERLAST;
-    const teile = this.dauerlastTeile().filter(([, gilt]) => gilt());
-    const roh = Object.fromEntries(teile.map(([t]) => [t, { zeit: [], cpu: [] }]));
-    const abfragen = []; // [Teil, Abfrage] der GPU-Zeit zum Vergleich
-    const bild = () => { renderReflection(); composer.render(0); };
-    const lies = () => gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.pixel);
-    const median = (v) => { if (!v.length) return null; const s = [...v].sort((a, b) => a - b); return s[s.length >> 1]; };
-    try {
-      for (let w = 0; w < wiederholungen; w++) {
-        for (const [t, , weglassen] of teile) {
-          await new Promise((r) => requestAnimationFrame(r));
-          const beginn = performance.now(), zurueck = weglassen();
-          try {
-            lies();
-            const t0 = performance.now();
-            let cpu = 0;
-            for (let i = 0; i < K; i++) { const c = performance.now(); bild(); cpu += performance.now() - c; }
-            lies();
-            roh[t].zeit.push((performance.now() - t0) / K);
-            roh[t].cpu.push(cpu / K);
-            for (let i = 0; ext && i < K; i++) {
-              const q = gl.createQuery();
-              gl.beginQuery(ext.TIME_ELAPSED_EXT, q);
-              bild();
-              gl.endQuery(ext.TIME_ELAPSED_EXT);
-              abfragen.push([t, q]);
-            }
-          } finally { zurueck(); }
-          bild();
-          renderer.info.reset(); // die Anzeige zählt die Draw-Calls eines Bilds
-          this.proben.push([beginn, performance.now()]);
-          adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 2);
-        }
-      }
-      let gpu = null;
-      if (ext) { // GPU-Zeit je Bild zum Vergleich (Median aller Bilder je Teil); disjunkt: unbrauchbar
-        for (let i = 0; i < 120 && abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE)); i++) {
-          await new Promise((r) => requestAnimationFrame(r));
-        }
-        const fertig = !abfragen.some(([, q]) => !gl.getQueryParameter(q, gl.QUERY_RESULT_AVAILABLE));
-        if (fertig && !gl.getParameter(ext.GPU_DISJOINT_EXT)) {
-          gpu = Object.fromEntries(teile.map(([t]) => [t, median(abfragen.filter(([a]) => a === t)
-            .map(([, q]) => gl.getQueryParameter(q, gl.QUERY_RESULT) / 1e6))]));
-        }
-        for (const [, q] of abfragen) gl.deleteQuery(q);
-      }
-      const ms = Object.fromEntries(this.dauerlastTeile().map(([t]) => [t, roh[t] ? median(roh[t].zeit) : null]));
-      const cpu = median(roh.ganz.cpu);
-      if (gestoert && !this.wiederholt[id]) { this.wiederholt[id] = true; return; } // noch einmal (messpunkte, reise)
-      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms, cpu,
-        cpuGebunden: cpu >= MESS_DAUERLAST.cpuGebunden * ms.ganz, gpu, gestoert };
-    } catch (e) { // gemessen, aber ohne Werte (die Karte zeigt «–»; der Durchlauf geht weiter)
-      console.error(e);
-      this.punkte[id] = { id, name: MESS_PUNKTE[id][0], kurz: MESS_PUNKTE[id][1], ms: {}, cpu: null, cpuGebunden: false,
-        gpu: null, fehler: e.message };
-    } finally {
-      this.misst = null;
-      for (const e of eingaben) window.removeEventListener(e, stoer, { capture: true });
-    }
-  },
-  /** Bis bedingung gilt (alle 0,1 s), höchstens sekunden lang; zurück, ob sie gilt. */
-  async bis(bedingung, sekunden) {
-    for (let t = 0; !bedingung(); t += 0.1) {
-      if (t > sekunden) return false;
-      await storySleep(100);
-    }
-    return true;
-  },
-  /**
-   * Im Durchlauf ohne GPU-Zeit (laufTick, alle 0,5 s): die Dauerlast an den Messpunkten des ersten Teils, sobald es dort
-   * ruhig ist. Erstes Level: 3 s ruhig (ohne Fahrt, Himmel steht, nichts gezogen), Menü: 1 s still (frameRate.skyOnly);
-   * bleibt es nie ruhig, nach 15 s trotzdem. Den dritten (Spiel n. Reise) misst reise.
-   */
-  messpunkte() {
-    if (this.timer || this.misst || this.meldung || this.schritt !== 'teil1') { this.wartet = null; return; }
-    const id = !this.geloest && !this.punkte.spiel && flow.state === 'play' && !story.choosing && !story.running
-      && !this.marken.length && !sceneLoop.covered && !ui.solvedVisible() ? 'spiel'
-      : this.geloest && menu.offen && !this.punkte.menue ? 'menue' : null;
-    if (!id) { this.wartet = null; return; }
-    const jetzt = performance.now();
-    const w = this.wartet?.id === id ? this.wartet : (this.wartet = { id, seit: jetzt, ruhig: null });
-    const still = id === 'menue' ? frameRate.skyOnly() : this.ruhig && !drag.active && !input.pointer;
-    w.ruhig = still ? w.ruhig ?? jetzt : null;
-    if (w.ruhig !== null && jetzt - w.ruhig >= (id === 'menue' ? 1000 : 3000) || jetzt - w.seit > 15000) {
-      this.wartet = null;
-      this.dauerlast(id);
-    }
-  },
-  /**
    * Fertige GPU-Abfragen der Reihe nach auslesen. Disjunkt (Takt der GPU gestört): Die Ergebnisse aller Abfragen
    * unterwegs sind unbrauchbar, auch die noch nicht fertigen; das Lesen setzt die Meldung zurück, darum gleich alle.
    */
@@ -22007,30 +21755,22 @@ const leistung = {
       this.abfrageAlt = (this.abfrageAlt + 1) % n;
     }
   },
-  /** Welches Mass die Zeichenzeit ist. */
-  mass() {
-    if (this.timer) return 'GPU-Zeit (EXT_disjoint_timer_query_webgl2)';
-    return this.lauf || this.schritt
-      ? `Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen} (an Messpunkten, siehe unten)`
-      : 'keine GPU-Zeit (Dauerlast nur im Referenzdurchlauf)';
+
+  /**
+   * Bildschirmtakt (Hz) aus den jüngsten Abständen der Display-Frames (für die Anzeige): der Median. frameRate.vsync
+   * misst nur, solange das Spiel zeichnet, und nimmt das 10-%-Quantil (schätzt bei 60 Hz eher 61). Hält die Grafik
+   * den Takt dauernd nicht, ruft der Browser rAF seltener auf: Dann ist das der erreichte Takt, nicht der des
+   * Bildschirms (das Ziel der Anzeige rechnet darum nicht damit, perfHud.ziel). null: noch zu wenige Abstände.
+   */
+  bildschirmHz() {
+    const n = Math.min(this.ringN, this.ring.length);
+    if (n < 10) return null;
+    const s = this.sortiert.subarray(0, n);
+    s.set(this.ring.subarray(0, n));
+    return 1000 / s.sort()[n >> 1];
   },
 
-  /** Kurzfassung der jüngsten Abstände für die Anzeige (seit dem letzten Aufruf): [fps, p95, max]. */
-  fenster() {
-    const n = Math.min(this.ringNeu, this.ring.length);
-    this.ringNeu = 0;
-    if (!n) return null;
-    let summe = 0;
-    for (let i = 0; i < n; i++) {
-      const v = this.ring[(this.ringPos - 1 - i + this.ring.length) % this.ring.length];
-      this.sortiert[i] = v;
-      summe += v;
-    }
-    const s = this.sortiert.subarray(0, n).sort();
-    return [1000 * n / summe, s[Math.min(n - 1, Math.floor(n * 0.95))], s[n - 1]];
-  },
-
-  /** Alle Messwerte als Daten (Karte, Testschnittstelle). */
+  /** Alle Messwerte als Daten (Testschnittstelle). */
   daten() {
     const q = (r, x) => this.quantil(r, x);
     const abschnitte = [...this.teile.values()].filter((t) => t.bild.n || t.gezeichnet).map((t) => {
@@ -22043,7 +21783,7 @@ const leistung = {
         // ruhig: erst ab einer halben Sekunde Ruhe im Abschnitt (sonst «–»)
         ruhigSekunden: t.ruhigMs / 1000, gezeichnetRuhigJeS: t.ruhigMs >= 500 ? t.gezRuhig / t.ruhigMs * 1000 : null,
         haenger: t.haenger,
-        haengerMax: t.haengerMax, longtasks: t.longtasks, ohne: t.ohne,
+        haengerMax: t.haengerMax, longtasks: t.longtasks,
         fluessig: laden ? null : t.bild.n === 0 || p95 <= MESS_GRENZE.p95 && t.ueber === 0,
         zeichnenOk: zeichnenP95 === null ? null : zeichnenP95 <= MESS_GRENZE.zeichnen };
     });
@@ -22064,14 +21804,12 @@ const leistung = {
     alle.max = Math.max(...[...this.teile.values()].map((t) => t.bild.max), 0);
     const median = q(alle, 0.5), size = renderer.getDrawingBufferSize(new THREE.Vector2());
     return {
-      version: APP_VERSION, zeit: new Date().toISOString(), mass: this.mass(),
-      ersatz: !this.timer, ohne: [...this.teile.values()].reduce((s, t) => s + t.ohne, 0),
-      dauerlast: Object.keys(MESS_PUNKTE).filter((id) => this.punkte[id]).map((id) => this.punkte[id]),
+      version: APP_VERSION, zeit: new Date().toISOString(), gpuZeit: !!this.timer, // Zeichenzeit gemessen (Timer)
       geraet: { ua: navigator.userAgent, modell: this.modell, gpu: perfHud.gpu, mobil: IS_MOBILE,
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${Math.round(innerWidth / SEITE)}×${Math.round(innerHeight / SEITE)}`, seite: SEITE,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
-        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0, fluidAus: frameRate.fluidAus,
-        aktivFps: frameRate.activeFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
+        adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
+        spielFps: frameRate.spielFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
       gesamt: { bilder: gesamt.n, p95: q(gesamt, 0.95), max: gesamt.max, ueber33: ueber, zeichnenP95: q(zeichnen, 0.95),
@@ -22080,395 +21818,91 @@ const leistung = {
       haenger: this.haenger.map((e) => ({ ...e, abschnitt: MESS_ABSCHNITTE[e.id][0] })),
     };
   },
-  /**
-   * Die Ergebniskarte als Text (zum Kopieren in voller Breite). schmal: für die Anzeige auf dem Handy, die Tabelle in
-   * zwei Blöcken (Bildabstände, dann Zeichnen), höchstens 40 Zeichen breit; die übrigen Zeilen bricht die Karte um.
-   */
-  kartenText(d, schmal = false) {
-    const z = (v, n = 6, k = 1) => (v === null || v === undefined ? '–' : v.toFixed(k)).padStart(n);
-    const g = d.geraet, zeilen = [
-      'PRISMA · Referenzdurchlauf (Spec .scratch/leistung/)',
-      `Version     ${d.version}`,
-      `Zeit        ${new Date(d.zeit).toLocaleString('de-CH')}`,
-      `Gerät       ${g.ua}`,
-      ...(g.modell ? [`Modell      ${g.modell}`] : []),
-      `GPU         ${g.gpu}`,
-      `Bildschirm  ${g.bildschirm}, Fenster ${g.fenster}, Pixelverhältnis ${+g.pixelverhaeltnis.toFixed(2)}`,
-      `Rendern     ${g.render} (Pixelverhältnis ${g.renderPixel.toFixed(2)}, adaptiv ${g.adaptiv.toFixed(2)}, `
-        + `Umbauten ${g.umbauten}${g.fluidAus ? ', stetige 60 aus' : ''}, Takt ${g.aktivFps}/s)`
-        + `${g.mobil ? ', Handy' : ''}`,
-      `Takt        ${g.takt ?? '?'} Hz (Median der Bildabstände ${z(g.medianMs, 0, 2)} ms)`,
-      `Zeichenzeit ${d.mass}`,
-      ...(d.ohne ? [`Proben      ${d.ohne} Bildabstände mit einer Probe der Dauerlast nicht gezählt`] : []),
-      `Grenzen     p95 ≤ ${MESS_GRENZE.p95} ms, kein Bild > ${MESS_GRENZE.bild} ms; Zeichnen p95 ≤ ${MESS_GRENZE.zeichnen} ms (Handy)`,
-      '',
-    ];
-    // Spalten: [Kopf, Breite, Wert]; schmal in zwei Blöcken
-    const bild = [['Bilder', 7, (a) => String(a.bilder)], ['p95', 7, (a) => z(a.p95, 0)], ['max', 7, (a) => z(a.max, 0)],
-      ['>33', 5, (a) => String(a.ueber33)]];
-    const zeichnen = [['Zeichn', 7, (a) => z(a.zeichnenP95, 0)],
-      ['CPU', 6, (a) => (a.cpuP95 === undefined ? '' : z(a.cpuP95, 0))],
-      ['gez/s', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetJeS, 0, 0))],
-      ['ruhig', 6, (a) => (a.gezeichnetJeS === undefined ? '' : z(a.gezeichnetRuhigJeS, 0, 0))]];
-    const gesamt = { ...d.gesamt, name: 'Gesamt', cpuP95: undefined, gezeichnetJeS: undefined };
-    const umbruch = schmal ? ' ' : '\n  ';
-    const block = (spalten) => {
-      zeilen.push(`${'Abschnitt'.padEnd(15)}${spalten.map(([k, n]) => k.padStart(n)).join('')}`);
-      for (const a of [...d.abschnitte, gesamt]) {
-        const name = a.laden ? `${a.name}*` : a.name;
-        zeilen.push(`${name.padEnd(15)}${spalten.map(([, n, w]) => w(a).padStart(n)).join('')}`);
-      }
-    };
-    if (schmal) { block(bild); zeilen.push(''); block(zeichnen); } else block([...bild, ...zeichnen]);
-    zeilen.push('* Laden: zählt nicht gegen die Grenzwerte. p95/max: sichtbare Bildabstände; Zeichn: p95 der GPU-Zeit'
-      + `${umbruch}je gezeichnetem Bild (ohne Timer –, dafür die Dauerlast); CPU: p95 der CPU-Zeit von frame(); gez/s:`
-      + `${umbruch}gezeichnete WebGL-Bilder je Sekunde, ruhig: nur solange keine Fahrt läuft und der Himmel steht.`);
-    // Dauerlast je Messpunkt: ganz und ohne je einen Teil, CPU je Bild der Probe; mit Timer (?ersatzmass) die GPU-Zeit
-    const dl = d.dauerlast ?? [];
-    if (dl.length) {
-      // zwei Blöcke, damit die Karte auf dem Handy 40 Zeichen breit bleibt: erst ganz, Spiegelung, Bloom, Netz, Pinsel
-      // und CPU; dann (Ticket 11) Himmel, Wasser, Unterwasser-Pass, Staub und letzter Bildschritt
-      const bloecke = [
-        [['ganz', 'ganz', 'ganz'], ['spiegelung', '-Spieg', '-Sp'], ['bloom', '-Bloom', '-Bl'], ['netz', '-Netz', '-Nz'],
-          ['pinsel', '-Pinsel', '-Pi']],
-        [['himmel', '-Himmel', '-Hi'], ['wasser', '-Wasser', '-Wa'], ['unter', '-Unter', '-Un'], ['staub', '-Staub', '-St'],
-          ['final', '-Final', '-Fi']],
-      ];
-      const breite = schmal ? 5 : 8, namen = schmal ? 9 : 17; // schmal: 9 + 6 × 5 + «!» = 40 Zeichen
-      const zahl = (v) => (v === null || v === undefined ? '–' : v.toFixed(v >= 100 ? 0 : 1)).padStart(breite);
-      zeilen.push('', `Zeichnen (Dauerlast, K = ${MESS_DAUERLAST.k}, Median aus ${MESS_DAUERLAST.wiederholungen}), ms je Bild:`);
-      bloecke.forEach((teile, b) => {
-        if (b) zeilen.push('');
-        zeilen.push(`${'Messpunkt'.padEnd(namen)}${teile.map(([, l, s]) => (schmal ? s : l).padStart(breite)).join('')}`
-          + (b ? '' : 'CPU'.padStart(breite)));
-        for (const p of dl) {
-          zeilen.push(`${((schmal ? p.kurz : p.name) + (p.gestoert ? '?' : '')).padEnd(namen)}${teile.map(([t]) => zahl(p.ms[t])).join('')}`
-            + (b ? '' : `${zahl(p.cpu)}${p.cpuGebunden ? '!' : ''}`));
-          if (p.gpu) zeilen.push(`${(schmal ? ' GPU' : '  GPU (Timer)').padEnd(namen)}${teile.map(([t]) => zahl(p.gpu[t])).join('')}`);
-        }
-      });
-      zeilen.push(`${schmal ? '-Sp/-Bl/-Nz/-Pi' : '-Teil'}: ohne Spiegelung, Bloom, Netz des Panoramas bzw. Pinsel;`
-        + `${umbruch}${schmal ? '-Hi/-Wa/-Un/-St/-Fi' : ''}${schmal ? ': ' : ''}ohne Himmel (Kugel, Sterne, Skybox mit allen Ebenen),`
-        + `${umbruch}Wasser (mit Unterwasser-Pass), Unterwasser-Pass (Fische), Staub bzw. letzten`
-        + `${umbruch}Bildschritt. Anteil = ganz − ohne; –: hier nicht im Bild. CPU: CPU-Zeit je Bild der Probe.`
-        + (dl.some((p) => p.cpuGebunden) ? `${umbruch}! CPU-gebunden (CPU ≥ ${MESS_DAUERLAST.cpuGebunden * 100} % der Zeit je Bild):`
-          + ' Die GPU braucht höchstens so lange.' : '')
-        + (dl.some((p) => p.gestoert) ? `${umbruch}? während der Messung getippt (auch beim zweiten Versuch): Werte unsicher.` : '')
-        + (dl.some((p) => p.gpu) ? `${umbruch}GPU (Timer): GPU-Zeit derselben Bilder zum Vergleich (?ersatzmass).` : ''));
-    }
-    const nicht = d.abschnitte.filter((a) => a.fluessig === false).map((a) => a.name);
-    // Urteil der Zeichenzeit: aus der Dauerlast «ganz» je Messpunkt, sonst aus der GPU-Zeit (p95) je Abschnitt
-    const teuer = dl.length
-      // ohne Wert (Fehler der Probe) nicht still als «ja» werten
-      ? dl.filter((p) => !(p.ms.ganz <= MESS_GRENZE.zeichnen))
-        .map((p) => `${schmal ? p.kurz : p.name} ${p.ms.ganz == null ? 'ohne Wert' : `${p.ms.ganz.toFixed(1)} ms`}`)
-      : d.abschnitte.filter((a) => a.zeichnenOk === false).map((a) => a.name);
-    zeilen.push('', `Flüssig:    ${nicht.length ? `nein (${nicht.join(', ')})` : 'ja'}`,
-      `Zeichnen ≤ ${MESS_GRENZE.zeichnen} ms: ${!dl.length && d.gesamt.zeichnenP95 === null ? 'nicht gemessen'
-        : teuer.length ? `nein (${teuer.join(', ')})` : 'ja'}${dl.length ? ' (Dauerlast ganz)' : ''}`);
-    if (d.schlimmste.length) {
-      zeilen.push('', 'Längste Bilder:');
-      for (const e of d.schlimmste) zeilen.push(`  ${z(e.ms, 6)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s`);
-    }
-    if (d.haenger.length) {
-      zeilen.push('', 'Hänger des Hauptthreads (long-animation-frame):');
-      for (const e of d.haenger) zeilen.push(`  ${z(e.ms, 6, 0)} ms  ${e.abschnitt} bei ${(e.t / 1000).toFixed(1)} s: ${e.ursache}`);
-    }
-    return zeilen.join('\n');
-  },
-
-  /* Referenzdurchlauf */
-
-  /** Spielstände (prisma.*, ohne die des Messwerkzeugs). */
-  spielSchluessel() {
-    const keys = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const k = localStorage.key(i);
-      if (k.startsWith('prisma.') && !k.startsWith('prisma.leistung.')) keys.push(k);
-    }
-    return keys;
-  },
-  /** Die Seite für den Durchlauf: mit Startbildschirm und Messung, ohne Parameter der Tests (?nointro, ?t=, ?sky=). */
-  adresse() {
-    const u = new URL(location.href);
-    for (const p of ['nointro', 't', 'sky']) u.searchParams.delete(p);
-    u.searchParams.set('perf', '');
-    return u.href;
-  },
-  /**
-   * Knopf «Referenzdurchlauf»: den echten Stand sichern (eine Sicherung aus einem abgebrochenen Durchlauf bleibt, sie ist
-   * der echte Stand), mit frischem Stand neu laden.
-   */
-  starteDurchlauf() {
-    // Sicherung und Merker des Durchlaufs, bevor etwas gelöscht wird: Eine Sicherung ohne Merker spielte nie jemand
-    // zurück (und ein späterer Durchlauf hielte sie für den echten Stand)
-    let neu = false;
-    try {
-      if (localStorage.getItem(MESS_SICHERUNG) === null) {
-        const sicherung = {};
-        for (const k of this.spielSchluessel()) sicherung[k] = localStorage.getItem(k);
-        localStorage.setItem(MESS_SICHERUNG, JSON.stringify(sicherung));
-        neu = true;
-      }
-      // geladen: false bis zum ersten Laden mit frischem Stand (pruefeLauf); ein zweites Laden heisst unterbrochen
-      localStorage.setItem(MESS_LAUF, JSON.stringify({ seit: Date.now(), version: APP_VERSION, geladen: false }));
-    } catch (e) {
-      if (neu) localStorage.removeItem(MESS_SICHERUNG);
-      this.meldung = `Referenzdurchlauf geht nicht: kein Speicher (${e.message})`;
-      return;
-    }
-    for (const k of this.spielSchluessel()) localStorage.removeItem(k);
-    localStorage.removeItem(MESS_ERGEBNIS);
-    location.replace(this.adresse());
-  },
-  /** Den echten Stand zurückspielen; dieses Spiel speichert danach nichts mehr (die Seite lädt gleich neu). */
-  wiederherstellen() {
-    progress.write = progress.remove = () => {};
-    const sicherung = messLies(MESS_SICHERUNG);
-    // unlesbar: nichts löschen, Sicherung und Durchlauf bleiben (nie den echten Stand verlieren)
-    if (!sicherung && localStorage.getItem(MESS_SICHERUNG) !== null) return;
-    if (sicherung) {
-      for (const k of this.spielSchluessel()) localStorage.removeItem(k);
-      for (const [k, v] of Object.entries(sicherung)) localStorage.setItem(k, v);
-    }
-    localStorage.removeItem(MESS_SICHERUNG);
-    localStorage.removeItem(MESS_LAUF);
-  },
-  abbrechen() {
-    this.wiederherstellen();
-    location.replace(this.adresse());
-  },
-  /** Ende des Durchlaufs: Ergebnis speichern, echten Stand zurück, neu laden; dann zeigt die Seite die Karte. */
-  auswerten() {
-    if (this.schritt === 'fertig') return;
-    this.schritt = 'fertig';
-    const daten = this.daten();
-    const ergebnis = { text: this.kartenText(daten), schmal: this.kartenText(daten, true), daten };
-    this.wiederherstellen();
-    try { localStorage.setItem(MESS_ERGEBNIS, JSON.stringify(ergebnis)); } catch { /* Karte gleich zeigen */ }
-    if (localStorage.getItem(MESS_ERGEBNIS) === null) { this.zeigeKarte(ergebnis); return; }
-    location.replace(this.adresse());
-  },
-  /**
-   * Beim Laden mit laufendem Durchlauf: Das erste Laden nach dem Start ist der Durchlauf. Jedes weitere (Neuladen
-   * mitten drin, Absturz des Tabs) hat die bisherigen Messwerte verloren und den Stand nicht von vorn: Dann meldet die
-   * Anzeige «Messung unterbrochen» mit «Neu beginnen» und «Abbrechen».
-   */
-  pruefeLauf() {
-    if (!this.lauf) return;
-    if (this.lauf.geladen === false) {
-      this.schritt = 'teil1';
-      try { localStorage.setItem(MESS_LAUF, JSON.stringify({ ...this.lauf, geladen: true })); } catch { /* egal */ }
-    } else {
-      this.schritt = 'unterbrochen';
-      this.status = 'Messung unterbrochen (neu geladen): neu beginnen oder abbrechen';
-    }
-  },
-  /** Warten (alle 0,1 s), bis bedingung gilt; sonst nach sekunden Fehler mit was. */
-  async warte(bedingung, sekunden, was) {
-    for (let t = 0; !bedingung(); t += 0.1) {
-      if (t > sekunden) throw new Error(`${was}: Zeitüberschreitung`);
-      await storySleep(100);
-    }
-  },
-  /**
-   * «Weiter zur Reise» (im Menü, nach dem ersten Level): Mit frischem Stand käme man nicht schnell in eine andere Welt.
-   * Der Stand springt ans letzte Level der ersten Welt (davor alles gelöst, Prolog, Angebot und Einstieg gesehen), das
-   * Menü wählt den Grad, das Level wird gelöst (Testschnittstelle loese), nach «Gelöst» geht es weiter: Reise in die
-   * zweite Welt, deren Himmel frisch lädt. Danach noch 6 s im neuen Level (scharfes Bild und Streifen laden nach der
-   * Landung, Abschnitt «Spiel n. Reise»), dann auswerten.
-   */
-  async reise() {
-    if (this.schritt !== 'teil1' || !menu.offen || !story.grade) return;
-    this.schritt = 'reise';
-    try {
-      const g = story.grade, ziel = story.steps.findIndex((s) => s.c > 0) - 1;
-      const stand = progress.load(g, story.steps.length);
-      stand.platz = ziel;
-      stand.geloest = story.steps.slice(0, ziel).map((s) => LEVELS[s.index].name);
-      stand.gesehen = [...new Set([...stand.gesehen, 'prolog', 'angebot', storyChapterId(STORY_CHAPTERS[0])])];
-      delete stand.dorf;
-      progress.save(g, stand);
-      story.paused = null; // nicht zurück ins Level von vorhin: choose liest den neuen Stand (ohne Einstieg)
-      story.choose(g);
-      await this.warte(() => flow.state === 'play' && story.step === ziel && !story.running, 60, 'Letztes Level');
-      window.__prismaDebug.loese();
-      await this.warte(() => ui.solvedVisible(), 30, '«Gelöst»');
-      await storySleep(2000); // wie ein Spieler, der «Gelöst» liest: Der Himmel der zweiten Welt beginnt zu laden
-      ui.advance();
-      await this.warte(() => story.step === ziel + 1 && !story.running && flow.state === 'play'
-        && !this.marken.includes('reise'), 120, 'Ankunft in der zweiten Welt');
-      await this.waehrend('ankunft', (async () => {
-        const t0 = performance.now();
-        if (!this.timer) { // Dauerlast, sobald der neue Himmel ganz steht (scharf, mit Streifen) und es ruhig ist
-          await this.bis(() => skyTheme.ready && this.ruhig, 10);
-          await this.dauerlast('ankunft');
-          if (!this.punkte.ankunft) { // gestört: noch einmal, sobald es wieder ruhig ist
-            await this.bis(() => this.ruhig && !drag.active && !input.pointer, 5);
-            await this.dauerlast('ankunft');
-          }
-        }
-        await storySleep(Math.max(0, 6000 - (performance.now() - t0)));
-      })());
-      this.auswerten();
-    } catch (e) {
-      this.meldung = `Referenzdurchlauf: ${e.message}`;
-      console.error(e);
-    }
-  },
-  /** Alle 0,5 s im Durchlauf: Zustand und Knöpfe der Anzeige. */
-  laufTick() {
-    if (ui.solvedVisible()) this.geloest = true;
-    if (this.meldung || this.schritt === 'unterbrochen') return;
-    this.messpunkte();
-    const tipp = IS_TOUCH ? 'tippen' : 'klicken';
-    if (this.misst || this.wartet) this.status = 'Durchlauf: Zeichenzeit messen, kurz nichts tippen';
-    else if (this.schritt === 'reise') this.status = 'Durchlauf: Sprung ans Ende der ersten Welt, Reise … (nichts tippen)';
-    else if (this.schritt === 'teil1') { // je Schritt nur, was jetzt zu tun ist (kurz: die Anzeige bleibt klein)
-      const szene = story.el.dataset.mode === 'scene' && !story.el.classList.contains('hidden');
-      this.status = this.geloest ? (menu.offen ? 'Durchlauf: «Weiter zur Reise» (oder «Auswerten»)'
-        : `Durchlauf: jetzt ≡ (Menü, unten rechts) ${tipp}`)
-        : flow.state === 'intro' ? `Durchlauf: zum Starten ${tipp}`
-          : menu.offen ? 'Durchlauf: «Leicht» wählen'
-            : szene ? `Durchlauf: Prolog weiter${tipp}, dann «Gleich los»`
-              : 'Durchlauf: erstes Level lösen';
-    }
-  },
-  /**
-   * Knöpfe der Anzeige (nur neu gebaut, wenn sie sich ändern). «Abbrechen» abgesetzt und zweistufig: Der erste Tipp
-   * fragt «Wirklich abbrechen?» (4 s lang), erst der zweite bricht ab. Kein Dialog des Browsers (hielte Proben an).
-   */
-  knoepfe() {
-    const abbrechen = ['Abbrechen', () => this.abbrechen(), true];
-    const liste = !this.lauf ? [['Referenzdurchlauf', () => this.starteDurchlauf()]]
-      : this.schritt === 'fertig' ? []
-        : this.schritt === 'unterbrochen' ? [['Neu beginnen', () => this.starteDurchlauf()], abbrechen]
-          // ohne GPU-Zeit erst, wenn die Dauerlast im Menü gemessen ist (messpunkte)
-          : [...(this.schritt === 'teil1' && this.geloest && menu.offen && (this.timer || this.punkte.menue)
-            ? [['Weiter zur Reise', () => this.reise()], ['Auswerten', () => this.auswerten()]] : []), abbrechen];
-    const stand = liste.map(([name]) => name).join();
-    if (stand === this.knoepfeStand) return;
-    this.knoepfeStand = stand;
-    perfHud.knoepfe.replaceChildren(...liste.map(([name, tun, nachfragen]) => {
-      const b = document.createElement('button');
-      b.textContent = name;
-      b.dataset.leistung = name;
-      if (nachfragen) b.classList.add('abseits');
-      let bereit = 0; // nachfragen: bis dann (performance.now) gilt der zweite Tipp
-      b.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (nachfragen && performance.now() > bereit) {
-          bereit = performance.now() + 4000;
-          b.textContent = `Wirklich ${name.toLowerCase()}?`;
-          setTimeout(() => { if (performance.now() >= bereit) b.textContent = name; }, 4000);
-          return;
-        }
-        tun();
-      });
-      return b;
-    }));
-  },
-  /**
-   * Ergebniskarte zeigen (ergebnis: { text, schmal, daten }): auf schmalem Bildschirm die schmale Fassung ohne seitliches
-   * Wischen; «Kopieren» legt immer den vollen Text in die Zwischenablage, sonst ein markiertes Textfeld. «Schliessen»
-   * vergisst sie.
-   */
-  zeigeKarte({ text, schmal }) {
-    const karte = document.getElementById('leistung-karte'), pre = karte.querySelector('pre');
-    const feld = karte.querySelector('textarea'), kopieren = karte.querySelector('.kopieren');
-    const eng = innerWidth / SEITE < 700 && !!schmal;
-    karte.classList.toggle('schmal', eng);
-    pre.textContent = eng ? schmal : text;
-    karte.hidden = false;
-    karte.addEventListener('keydown', (e) => e.stopPropagation()); // Tasten bedienen die Karte, nicht das Spiel
-    const markieren = () => {
-      pre.hidden = true;
-      feld.hidden = false;
-      feld.value = text;
-      feld.focus();
-      feld.select();
-      kopieren.textContent = 'Markiert: jetzt kopieren';
-    };
-    kopieren.addEventListener('click', () => {
-      if (navigator.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).then(() => { kopieren.textContent = 'Kopiert'; }, markieren);
-      } else markieren();
-    });
-    karte.querySelector('.schliessen').addEventListener('click', () => {
-      karte.hidden = true;
-      try { localStorage.removeItem(MESS_ERGEBNIS); } catch { /* egal */ }
-    });
-  },
 };
 
 /* ---------- Leistungsanzeige (Taste F oder ?perf) ---------- */
 
+/**
+ * Leistungsanzeige: wie viele Bilder je Sekunde wirklich gezeichnet werden (effektiv, gezählt über die letzte Sekunde)
+ * und wie viele das Bild gerade anstrebt (Ziel, mit dem Grund: Spiel, Menü, Himmel, Geschichte, Bühne), dazu der
+ * Bildschirmtakt, das p95 der Abstände der gezeichneten Bilder, die Auflösung und die Version. Gezählt werden die Bilder
+ * des Spiels (draw) und die der Bühne von Prolog und Epilog (eigene Leinwand, createStoryScene); es gilt die Leinwand,
+ * die mehr zeichnet (beim Überblenden zeichnen beide). Neu geschrieben alle 0,5 s aus der Messschleife (leistung.tick),
+ * die nur läuft, solange die Anzeige offen ist.
+ */
 const perfHud = {
   el: document.getElementById('perf'),
-  text: document.querySelector('#perf .perf-text'),
-  knoepfe: document.querySelector('#perf .perf-knoepfe'),
-  visible: new URLSearchParams(location.search).has('perf') || !!leistung.lauf,
-  samples: [], last: performance.now(), calls: 0, triangles: 0,
+  visible: new URLSearchParams(location.search).has('perf'),
+  last: performance.now(),
+  zeiten: new Float64Array(512), n: 0, // Zeitstempel der gezeichneten Bilder des Spiels (Ring)
   gpu: (() => {
     const gl = renderer.getContext();
     const ext = gl.getExtension('WEBGL_debug_renderer_info');
     return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
   })(),
-  /** Je gerendertem WebGL-Bild (frame): Abstand merken; die Anzeige schreibt zeige (Messschleife, alle 0,5 s). */
+  /** Je gerendertem WebGL-Bild (draw): Zeit merken; die Anzeige schreibt zeige. */
   tick() {
     const now = performance.now();
     const ms = now - this.last;
     this.last = now;
     if (ms < 250) this.avgMs = this.avgMs ? this.avgMs * 0.95 + ms * 0.05 : ms; // für __prisma.fps()
-    if (!this.visible) return;
-    if (ms < 250 && this.samples.length < 1000) this.samples.push(ms);
-    this.calls = renderer.info.render.calls;
-    this.triangles = renderer.info.render.triangles;
+    this.zeiten[this.n++ % this.zeiten.length] = now;
+  },
+  /** Zeitstempel der Bilder des Spiels seit t (aufsteigend). */
+  spielSeit(t) {
+    const aus = [];
+    for (let i = Math.max(0, this.n - this.zeiten.length); i < this.n; i++) {
+      const z = this.zeiten[i % this.zeiten.length];
+      if (z >= t) aus.push(z);
+    }
+    return aus;
+  },
+  /**
+   * Was das Bild gerade anstrebt: [Bilder/s, Grund]; Bilder/s null, wo kein WebGL-Bild gezeichnet wird. Fürs Spiel
+   * wie frameRate.due (jedes k-te Bildschirmbild, bei 144 Hz also 72), die Bühne zeichnet jedes Bildschirmbild. hz
+   * (bildschirmHz) sinkt, wenn die Grafik den Takt dauernd nicht hält: Das Ziel bleibt dann mindestens fps bzw. 60,
+   * sonst stünde dort, was erreicht wird, und man sähe den Rückstand nicht.
+   */
+  ziel(hz) {
+    if (story.scene?.running) return [Math.round(Math.max(60, hz)), 'Bühne'];
+    if (flow.state === 'intro') return [null, 'Startbildschirm (Animation des Browsers)'];
+    if (sceneLoop.covered) return [null, 'verdeckt'];
+    if (sceneLoop.started && !sceneLoop.awake) return [0, 'ruht (nichts bewegt sich)'];
+    const fps = frameRate.fps(), k = frameRate.teiler(fps);
+    return [Math.round(k > 1 ? hz / k : Math.max(fps, hz)), frameRate.grund()];
   },
   zeige() {
-    leistung.knoepfe();
     if (!this.visible) return;
-    const sorted = this.samples.slice().sort((a, b) => a - b);
-    const avg = sorted.reduce((a, b) => a + b, 0) / Math.max(1, sorted.length);
-    const p95 = sorted[Math.floor(sorted.length * 0.95)] || 0;
-    const max = sorted[sorted.length - 1] || 0;
-    this.samples.length = 0;
+    const seit = performance.now() - 1000;
+    const spiel = this.spielSeit(seit), buehne = story.scene?.gl?.zeitenSeit(seit) ?? [];
+    const bilder = buehne.length > spiel.length ? buehne : spiel;
+    const abstaende = bilder.slice(1).map((z, i) => z - bilder[i]).sort((a, b) => a - b);
+    const p95 = abstaende.length ? abstaende[Math.min(abstaende.length - 1, Math.floor(abstaende.length * 0.95))] : null;
+    const hz = leistung.bildschirmHz() ?? 1000 / frameRate.vsync;
+    const [ziel, grund] = this.ziel(hz);
     const size = renderer.getDrawingBufferSize(new THREE.Vector2());
-    const f = leistung.fenster(), t = leistung.teil, q = (r) => leistung.quantil(r, 0.95)?.toFixed(1) ?? '–';
-    const zustand = leistung.meldung || leistung.status;
+    const effektiv = ziel === null && !bilder.length ? '–' : bilder.length;
+    const abstand = p95 === null ? '–' : `${p95.toFixed(1)} ms`;
+    const adaptiv = `adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}`;
     // schmal (Handy): knappe Fassung oben links (CSS #perf.schmal), die Bedienung des Spiels bleibt frei
-    this.el.classList.toggle('schmal', innerWidth / SEITE < 700);
-    if (innerWidth / SEITE < 700) {
-      this.text.textContent =
-        (f ? `${Math.round(f[0])} FPS p95 ${f[1].toFixed(1)} max ${f[2].toFixed(1)}\n` : '') +
-        (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} >33 ${t.ueber} Zeichn ${q(t.zeichnen)}\n` : '') +
-        `${APP_VERSION} · ${leistung.timer ? 'GPU-Zeit' : 'Dauerlast'}` + (zustand ? `\n${zustand}` : '');
-      return;
-    }
-    this.text.textContent =
-      (f ? `Sichtbar ${Math.round(f[0])} FPS   p95 ${f[1].toFixed(1)} ms   max ${f[2].toFixed(1)} ms\n` : '') +
-      (t ? `${MESS_ABSCHNITTE[t.id][0]}: p95 ${q(t.bild)} ms   max ${t.bild.max.toFixed(1)} ms   >33 ms ${t.ueber}   ` +
-        `Zeichnen p95 ${q(t.zeichnen)} ms   CPU p95 ${q(t.cpu)} ms\n` : '') +
-      `WebGL ${sorted.length ? Math.round(1000 / avg) : 0} FPS   Ø ${avg.toFixed(1)} ms   p95 ${p95.toFixed(1)} ms   max ${max.toFixed(1)} ms\n` +
-      `MSAA ${composer.renderTarget1.samples}×   Spiegelung ${QUALITY.reflectionScale} (MSAA ${reflector.getRenderTarget().samples}×)\n` +
-      `Auflösung ${size.x}×${size.y}   Pixelverhältnis ${renderer.getPixelRatio().toFixed(2)}   adaptiv ${adaptiveResolution.scale.toFixed(2)}${adaptiveResolution.locked ? ' (gesperrt)' : ''}   Umbauten ${adaptiveResolution.changes || 0}${frameRate.fluidAus ? '   stetige 60 aus' : ''}\n` +
-      `Draw-Calls ${this.calls}   Dreiecke ${this.triangles}\n` +
-      `GPU ${this.gpu}\nZeichenzeit ${leistung.mass()}\nVersion ${APP_VERSION}` +
-      (zustand ? `\n${zustand}` : '');
+    const schmal = innerWidth / SEITE < 700;
+    this.el.classList.toggle('schmal', schmal);
+    this.el.textContent = schmal
+      ? `${effektiv} Bilder/s · Ziel ${ziel ?? '–'} · ${grund}\n${Math.round(hz)} Hz · p95 ${abstand} · ${adaptiv}\n${APP_VERSION}`
+      : `${effektiv} Bilder/s   Ziel ${ziel ?? '–'} · ${grund}\n`
+        + `Bildschirm ${Math.round(hz)} Hz · Abstand p95 ${abstand}\n`
+        + `Auflösung ${size.x}×${size.y} · ${adaptiv}\n`
+        + `Version ${APP_VERSION}`;
   },
   toggle() {
     this.visible = !this.visible;
     this.el.hidden = !this.visible;
-    this.samples.length = 0;
     if (this.visible) leistung.starte();
     else leistung.stoppe();
   },
 };
 perfHud.el.hidden = !perfHud.visible;
-leistung.pruefeLauf();
 if (perfHud.visible) leistung.starte();
-// nach einem Referenzdurchlauf: die Ergebniskarte (bis «Schliessen»)
-if (!leistung.lauf && messLies(MESS_ERGEBNIS)?.text) leistung.zeigeKarte(messLies(MESS_ERGEBNIS));
 
 window.addEventListener('keydown', (e) => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -22477,31 +21911,25 @@ window.addEventListener('keydown', (e) => {
 
 /**
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
- * Last; die Logik kostet unter 0,1 ms. Das WebGL-Bild läuft stetig mit 30 Bildern/s, auch bei Bewegung und Eingaben
- * (Entscheid des Nutzers nach Handy-Durchlauf 3 der Leistung: am Strand brauchte das Poco 10,9 ms je Bild, mit 30
- * sauber und ohne sichtbaren Abstrich; die Bühne der Geschichte läuft im Browser und bleibt bei 60). ?takt=60: wie
- * früher 60, solange sich etwas bewegt (auf 120/144-Hz-Bildschirmen sonst doppelt so viele), 30 in Ruhe, stetig 60,
- * wo der Himmel im Level Bewegung zeigt, der das Auge folgt (fluid: die Fische am Strand). Steht der Blick im Himmel
- * (Menü, Übersicht), 10 (skyFps). Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop). Die Folgen
- * der Geschichte im WebGL-Bild (Einstieg, Reise, Finale) laufen dagegen stetig mit 60 (storyFps, geschichte; ADR 0007):
- * Neben der Bühne mit 60 wirkte die Reise mit 30 sichtbar weniger flüssig.
+ * Last; die Logik kostet unter 0,1 ms. Das WebGL-Bild läuft stetig mit 60 Bildern/s (spielFps), im Level, im Menü und
+ * in den Folgen der Geschichte, auch in Ruhe (ADR 0008; von ADR 0006 bis dahin stetig 30). Steht der Blick im Himmel
+ * (Menü, Übersicht), 10 (skyFps); hinter der Bühne, solange sie einblendet, 30. Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop). ?takt=30: zum
+ * Vergleich wie unter ADR 0006, das Spiel stetig mit 30, die Folgen der Geschichte im WebGL-Bild (Einstieg, Reise,
+ * Finale) mit 60 (storyFps, geschichte; ADR 0007).
  */
 const frameRate = {
-  activeFps: new URLSearchParams(location.search).get('takt') === '60' ? 60 : 30,
+  spielFps: new URLSearchParams(location.search).get('takt') === '30' ? 30 : 60,
   storyFps: 60,
-  idleFps: 30,
   // Menü und Übersicht offen, der Blick steht im Himmel: Dort bewegt sich nur noch wenig und langsam (Funkeln der
   // Sterne, Schweben der Kamera; Bestandsaufnahme Ticket 06 der Leistung: je Bild höchstens 5/255 auf unter 0,1 % der
   // Pixel), 10 Bilder/s reichen
   skyFps: 10,
-  activeUntil: 0,     // performance.now(), bis wann eine Eingabe als "aktiv" gilt
   vsync: 1000 / 60,   // Bildschirmtakt: 10-%-Quantil der rAF-Abstände im letzten Messfenster (übersprungene Bilder sind billig
                       // und kommen genau im Takt; gerenderte können länger dauern)
   windowD: new Float32Array(90), windowN: 0, windowCount: 0, // rAF-Abstände im Messfenster (due)
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
-  fluidAus: false,    // das Gerät hielt die stetigen 60 (fluid) nicht: bis zum Neuladen nicht mehr (adaptiveResolution)
   /**
    * Eine Folge der Geschichte im WebGL-Bild läuft (flow.state 'story': Aufstieg, Reise, Fall, Einstieg, Finale, Satz
    * zum Ende des Dorfs), nicht im Menü oder in der Übersicht (choosing) und nicht hinter der Bühne (covered, dort steht
@@ -22509,38 +21937,34 @@ const frameRate = {
    * fertig, ein Zähler bliebe dann stehen und das Spiel bei 60. Ab enterLevel (flow.state 'in') gilt der Takt des Spiels.
    */
   geschichte() { return flow.state === 'story' && !story.choosing && !story.covered; },
-  /** Eingabe gesehen: eine Weile flüssig bleiben (Hover, Drehen, Kamera). */
-  poke(ms = 1500) { this.activeUntil = Math.max(this.activeUntil, performance.now() + ms); },
   /** Menü oder Übersicht offen, der Blick ganz im Himmel (story.lift), nicht hinter der Bühne; der Himmel blendet nicht
    *  gerade ein, über oder schärft nach (skyTheme.moving: das liefe mit 10 Bildern/s stufig). */
   skyOnly() { return story.choosing && story.gaze >= 1 && !story.covered && !story.tweens.length && !skyTheme.moving; },
   /**
-   * Im Level (auch beim Ein- und Ausblenden des Felds) zeigt der Himmel Bewegung, der das Auge folgt (skyTheme.fluid,
-   * etwa die Fische am Strand): dann stetig activeFps, auch ohne Eingabe. Mit 30 Bildern/s in Ruhe und 60 nach jeder
-   * Eingabe wechselte ihr Schritt je Bild beim Spielen alle paar Sekunden zwischen einfach und doppelt, das sah man
-   * (Ticket 17 der Leistung). Nicht hinter der Bühne und nicht unter dem Menü (wie busy).
+   * Angestrebte Bilder/s jetzt (due: je rAF, darum ohne Allokation). Hinter der Bühne, solange sie einblendet (danach
+   * zeichnet das Spiel gar nicht mehr, sceneLoop.covered), höchstens 30 wie vor ADR 0008: Bühne und Spiel zeichnen dann
+   * beide, und vom Spiel sieht man kaum noch etwas.
    */
-  fluid() { return !this.fluidAus && !story.covered && !story.choosing && flow.state !== 'intro' && skyTheme.fluid; },
-  busy(ts) {
-    // Feld hinter der Bühne bzw. unter dem Menü: dort steht nur der Himmel, solange sich der Blick nicht bewegt
-    if (story.covered || story.choosing && !story.tweens.length) return false;
-    if (flow.state !== 'play' || story.tweens.length || celebration.active || celebration.rain.alive > 0 || drag.active || input.pointer) return true;
-    if (ts < this.activeUntil || beamView.time < beamView.settleAt + 1.2) return true; // + Aufleuchten der Ziele
-    // Kamera folgt noch dem Ziehen oder fliegt zurück (steht sie nur verdreht still, reichen 30 Bilder/s)
-    const cam = Math.abs(cameraRig.goalTheta - cameraRig.userTheta) + Math.abs(cameraRig.goalPhi - cameraRig.userPhi)
-      + Math.abs(cameraRig.goalZoom - cameraRig.userZoom);
-    if (cam > 1e-3 || cameraRig.homing || skyTheme.fading) return true;
-    for (const obj of game.objects.values()) {
-      const u = obj.userData;
-      if (u.rotation || u.pulseT > -100) return true; // Drehung, Puls nach dem Einblenden
-    }
-    return false;
+  fps() {
+    if (story.covered) return Math.min(30, this.spielFps);
+    if (this.geschichte()) return Math.max(this.storyFps, this.spielFps);
+    if (this.skyOnly()) return this.skyFps;
+    return this.spielFps;
+  },
+  /** Der Grund zu fps (Leistungsanzeige). */
+  grund() {
+    if (story.covered) return 'hinter der Bühne';
+    if (this.geschichte()) return 'Geschichte';
+    if (this.skyOnly()) return 'Himmel (Menü)';
+    return story.choosing ? 'Menü' : 'Spiel';
   },
   /**
-   * true = dieses rAF-Ereignis rendern. Gerendert wird jedes k-te Bildschirmbild – so bleibt der Takt gleichmässig
-   * (kein Wechsel 14/21 ms). k nach Bildschirmtakt: 60 Hz → aktiv 60, ruhig 30; 75/90 Hz → aktiv alle Bilder;
-   * 120/144 Hz → aktiv 60/72; 165 Hz → 55. Schafft die Grafik den Takt nicht, kommen die rAF-Aufrufe ohnehin seltener.
+   * Jedes wievielte Bildschirmbild für fps gerendert wird (k). So bleibt der Takt gleichmässig (kein Wechsel 14/21 ms):
+   * 60 Bilder/s bei 60 Hz alle, bei 75/90 Hz ebenfalls alle, bei 120/144 Hz jedes zweite (60/72), bei 165 Hz jedes dritte
+   * (55). Schafft die Grafik den Takt nicht, kommen die rAF-Aufrufe ohnehin seltener.
    */
+  teiler(fps) { return Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34)); },
+  /** true = dieses rAF-Ereignis rendern (jedes k-te Bildschirmbild, teiler). */
   due(ts) {
     if (this.prevTs !== null) {
       const d = ts - this.prevTs;
@@ -22555,9 +21979,7 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
-    const fps = this.geschichte() ? Math.max(this.storyFps, this.activeFps)
-      : this.busy(ts) || this.fluid() ? this.activeFps : this.skyOnly() ? this.skyFps : this.idleFps;
-    const k = Math.max(1, Math.floor(1000 / this.vsync / fps + 0.34));
+    const fps = this.fps(), k = this.teiler(fps);
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
     this.gap = k > 1 ? k * this.vsync : 1000 / fps;
@@ -22566,14 +21988,11 @@ const frameRate = {
     return true;
   },
 };
-for (const type of ['pointermove', 'pointerdown', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
-  window.addEventListener(type, () => frameRate.poke(), { passive: true, capture: true });
-}
 // Eingaben wecken die Hauptschleife (sceneLoop): Drücken, Ziehen und Hover (pointermove), Loslassen, Rad, Tasten
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => sceneLoop.wake(), { passive: true, capture: true });
 }
-window.addEventListener('resize', () => { frameRate.poke(500); sceneLoop.wake(true); }); // Render-Targets neu: aufwärmen
+window.addEventListener('resize', () => sceneLoop.wake(true)); // Render-Targets neu: aufwärmen
 document.addEventListener('visibilitychange', () => sceneLoop.wake());
 
 const MAX_DT = 0.05; // längster Zeitschritt je Bild: Animationen springen nach einem Ruckler nicht
@@ -22637,7 +22056,6 @@ function draw(dt, t0, learn = true) {
   if (!learn) adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 1); // nur die Zeit nehmen (tick)
   adaptiveResolution.tick(frameRate.gap);
   perfHud.tick();
-  renderer.info.reset();
   window.__prisma.frames++;
   sceneLoop.dirty = false;
   if (!sceneLoop.warm) { sceneLoop.warm = true; markSceneReady(); }
@@ -22675,11 +22093,8 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
   celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
   skyReady: () => skyTheme.ready,
-  // Messwerkzeug (Spec .scratch/leistung/): daten() die Messwerte bisher (nur mit ?perf bzw. im Referenzdurchlauf),
-  // ergebnis() die des letzten Referenzdurchlaufs (bis die Karte geschlossen ist), schritt() wo der Durchlauf steht
-  // (null, 'teil1', 'reise', 'fertig'). Den Durchlauf fahren Proben über die Knöpfe der Anzeige (tests/leistung-probe.mjs)
-  leistung: { daten: () => leistung.daten(), ergebnis: () => messLies(MESS_ERGEBNIS)?.daten ?? null,
-    schritt: () => leistung.schritt } };
+  // Messwerkzeug (Spec .scratch/leistung/): daten() die Messwerte bisher (nur mit ?perf oder nach Taste F)
+  leistung: { daten: () => leistung.daten() } };
 // Bühne der Geschichte (Ticket 19): modus dom oder gl; bilder(): Abstände der eigenen Bilder (ms), speicher(): Bytes der
 // Texturen, statistik: Rastern (Kacheln, ms, längste, Hochladen)
 window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n) ?? [],
