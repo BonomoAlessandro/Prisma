@@ -146,3 +146,7 @@ Text gut ersichtlich ist.» Worauf sie sich bezieht, wird noch geklärt.
 Mitte des Bildschirms, der Wagen mit den Zeichen darunter wie im Katalog, der grosse Lichtpunkt (das getragene Licht)
 deutlich weiter oben, mit gut sichtbarem Abstand zum Text. Im Katalog nachgebaut (Leiste C, `leisteBild(…, true)`) und
 neu veröffentlicht. Damit ist die Wahl vollständig; Ticket 08 ist frei, sobald 07 fertig ist.
+
+**04.11.2026, zweite Anpassung:** Der Wagen bleibt unten am Rand wie im ersten Entwurf (Nutzer: «Das Sternzeichen
+sollte noch immer wie am Anfang am unteren Rand bleiben»); nur Kicker und Untertitel stehen in der Mitte, der
+Lichtpunkt deutlich darüber. Im Katalog nachgebaut und neu veröffentlicht (Version 3).
