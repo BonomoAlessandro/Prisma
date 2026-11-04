@@ -117,6 +117,9 @@ Android-Chromium.
 
 - [ ] `leistung-16`: alte DOM-Bühne entfernt (Stufe 3 von Ticket 19); kurzer Blick des Nutzers, dann Merge nach `main`
   auf sein Go.
+- [x] Nachtrag 04.11.2026 (ADR 0008): Das Spiel zeichnet wieder stetig 60 Bilder/s (`?takt=30` zum Vergleich), die
+  Leistungsanzeige (Taste F) zeigt effektive Bildrate und Ziel, der Referenzdurchlauf ist entfernt. Branch
+  `feature/takt-60`.
 - [ ] Ohne Befund, nur zur Kenntnis: Die erste Fahrt nach dem Öffnen der Bühne hakt am Arbeitsrechner manchmal
   (Bildschirm aus), mitten in starken Zoomfahrten ist das Bild etwas weicher, Firefox auf Android ist ungeprüft.
 

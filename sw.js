@@ -13,10 +13,10 @@
 // CACHE hochzählen, wenn vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
 // APP_VERSION (Datum und Ticketstand) ist dieselbe Kennung wie in index.html (ein Test prüft das) und wird mit jedem
 // Stand für einen Handy-Durchlauf nachgeführt: Die geänderte sw.js lässt jeden Browser beim nächsten Besuch einen neuen
-// Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigen Leistungsanzeige und
-// Ergebniskarte; ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die neue.
+// Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigt die Leistungsanzeige
+// (Taste F); ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die neue.
 
-const APP_VERSION = '2026-11-03 dorf-himmel';
+const APP_VERSION = '2026-11-04 takt-60';
 const CACHE = 'prisma-v1';
 const SKIES = 'e9e69a90';
 const FILES = [

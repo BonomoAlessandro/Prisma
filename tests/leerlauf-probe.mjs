@@ -6,7 +6,7 @@
 // gez/s), CPU-Zeit von frame(); dazu je Eingabe, wie viele Bildschirmbilder nach dem Ereignis das erste gezeichnete
 // Bild kam (0 = im nächsten), und die Bildabstände des sichtbaren Bilds (p95, max). Prüft: Reaktion immer im nächsten
 // Bild, Konsole ohne Fehler; mit ?t= (--still) ruht die sichtbare Szene ganz (0 gezeichnete Bilder). Im Fenster
-// ungedrosselt dazu der Takt (Ticket 17): Menü 10 Bilder/s, Level in Ruhe 30, mit Fischen im Bild (--sky beach) 60.
+// ungedrosselt dazu der Takt (ADR 0008): Menü 10 Bilder/s, Level in Ruhe stetig 60 (mit ?takt=30: 30).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
 //           [--drossel 4] [--sky forest] [--seite <index.html>] [--still]
 //   --fenster: echtes Fenster (Messwerte; sonst headless, nur Regression); --handy: 393 × 873, Pixeldichte 2,75, Touch;
@@ -146,17 +146,15 @@ try {
   ergebnis.ruhe = JSON.parse(await ev(LIES)).ruhe;
   ergebnis.ruhe.bilderGesamt = await ev(`window.__prisma.frames - ${f1}`);
   ergebnis.ruhe.ruht = await ev('window.__prisma.ruht?.() ?? null');
-  ergebnis.ruhe.fluid = await ev('frameRate.fluid()');
   console.log('Ruhe', JSON.stringify(ergebnis.ruhe));
-  // Takt in Ruhe (Ticket 17): Zeigt der Himmel Bewegung, der das Auge folgt (Fische am Strand), stetig activeFps (30, mit
-  // ?takt=60: 60), sonst 30. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU
-  // den Takt nicht)
+  // Takt in Ruhe (ADR 0008): stetig frameRate.spielFps (60, mit ?takt=30: 30), auch ohne Eingabe. Nur im Fenster
+  // ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU den Takt nicht)
   if (!still && fenster && drossel === 1) {
     // Soll am gemessenen Bildschirmtakt (frameRate.vsync): Die T2000 lief im Review mit 56,7 Hz statt 60, das Level dann
-    // mit 56,7 bzw. 28,4 Bildern/s (jedes bzw. jedes zweite Bildschirmbild, wie frameRate.due rechnet)
-    const hz = 1000 / await ev('frameRate.vsync'), fps = ergebnis.ruhe.fluid ? await ev('frameRate.activeFps') : 30;
-    const soll = +(hz / Math.max(1, Math.floor(hz / fps + 0.34))).toFixed(1);
-    pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (fluid ${ergebnis.ruhe.fluid}, Takt ${hz.toFixed(1)} Hz)`);
+    // mit 56,7 Bildern/s (jedes k-te Bildschirmbild, wie frameRate.teiler rechnet)
+    const hz = 1000 / await ev('frameRate.vsync'), fps = await ev('frameRate.spielFps');
+    const soll = +(hz / await ev(`frameRate.teiler(${fps})`)).toFixed(1);
+    pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (Takt ${hz.toFixed(1)} Hz)`);
     pruefe(ergebnis.menue.gezJeS <= 12, `Menü: ${ergebnis.menue.gezJeS} gez/s statt 10`);
   }
   if (still) {
@@ -183,9 +181,9 @@ try {
   ergebnis.reaktion = e.reaktion;
   ergebnis.adaptiv = e.adaptiv;
   console.log('Eingabe', JSON.stringify(ergebnis.eingabe));
-  // Mit stetigen 30 Bildern/s (ADR 0006) zeichnet die Schleife nur jedes zweite Bildschirmbild: Die Reaktion kommt im
-  // nächsten gezeichneten Bild, also höchstens ein Bildschirmbild später (mit ?takt=60 im nächsten)
-  const erlaubt = Math.max(0, Math.round(60 / await ev("frameRate.activeFps")) - 1);
+  // Die Reaktion kommt im nächsten gezeichneten Bild: mit stetigen 60 Bildern/s (ADR 0008) im nächsten Bildschirmbild,
+  // mit ?takt=30 (jedes zweite Bildschirmbild) höchstens eines später
+  const erlaubt = Math.max(0, Math.round(60 / await ev('frameRate.spielFps')) - 1);
   const spaet = e.reaktion.filter((r) => r.frames > erlaubt);
   console.log(`Reaktion: ${e.reaktion.length} Eingaben, erstes Bild nach ${JSON.stringify(e.reaktion.map((r) => r.frames))} `
     + `Bildschirmbildern (0 = im nächsten), ${JSON.stringify(e.reaktion.map((r) => r.ms))} ms`);
