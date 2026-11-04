@@ -16,7 +16,7 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--groesse 360x640] [--dpr 2.75]
+//           [--dorf-raender] [--ganz] [--wagen] [--groesse 360x640] [--dpr 2.75] [--messwerte <datei.json>]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
 //   mit dem Massstab der Seite, Ticket 18 von .scratch/leistung/; Bilder unter <bildschirm>-dpr<n>-…); --grad: die
@@ -27,10 +27,15 @@
 //   Ticket 07, etwa 5 min); --ganz: statt der ersten Welten der ganze Durchgang je Grad in einer Sitzung, vom Menü bis
 //   zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder Zwischenszene (Abnahme
 //   Ticket 08, siehe ganzerDurchgang; ohne --grad nur Leicht). Ohne --grad, --finale, --menue, --start, --uebersicht,
-//   --dorf, --dorf-raender und --ganz alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü etwa 3 min,
-//   die Übersicht etwa 4 min, das Dorf etwa 6 min, mit --ganz etwa 7 min je Grad. Zeitrahmen: jede Anfrage an Chrome
-//   höchstens 30 s, der ganze Lauf höchstens 14 min (mit --ganz 14 min je Grad); dann schliesst die Probe Chrome und
-//   bricht mit Fehler ab.
+//   --dorf, --dorf-raender, --ganz und --wagen alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü
+//   etwa 3 min, die Übersicht etwa 4 min, das Dorf etwa 6 min, mit --ganz etwa 7 min je Grad. Zeitrahmen: jede Anfrage
+//   an Chrome höchstens 30 s, der ganze Lauf höchstens 14 min (mit --ganz 14 min je Grad); dann schliesst die Probe
+//   Chrome und bricht mit Fehler ab. --messwerte: Bildzeiten und Dauern aller gemessenen Übergänge als JSON in diese
+//   Datei (Vorher-Lauf des Kleinen Wagens, .scratch/kleiner-wagen/vorher/). Mit --ganz und --finale misst die Probe
+//   dazu die Dauer jedes Einstiegs, jeder Reise und des Finales (vom Klick auf «Gleich los» bzw. «Weiter» bis zum
+//   spielbaren Level bzw. bis zum Epilog), ohne die Zeit, in der ein Satz auf Tippen wartet oder ein Bild der Probe die
+//   Seite anhält (siehe ende). --wagen: dazu der Stand des Kleinen Wagens (Ticket 01 von .scratch/kleiner-wagen/, siehe
+//   wagenAblauf, etwa 5 min).
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -53,18 +58,23 @@ const uebersichtProbe = args.includes('--uebersicht');
 const dorfProbe = args.includes('--dorf');
 const dorfRaenderProbe = args.includes('--dorf-raender');
 const ganz = args.includes('--ganz');
+const wagenProbe = args.includes('--wagen');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
-  : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe ? [] : GRADE;
+  : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe || wagenProbe ? []
+    : GRADE;
 const welten = +(wert('--welten') ?? 2);
 const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
 const dpr = wert('--dpr') === null ? null : +wert('--dpr');
+const messwerte = wert('--messwerte') && resolve(wert('--messwerte'));
 if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 && welten <= 5)
   || args.includes('--handy') && args.includes('--quer') || ganz && args.includes('--welten')
   || args.includes('--groesse') && !(groesse && args.includes('--handy'))
-  || dpr !== null && !(dpr >= 1 && dpr <= 4 && (args.includes('--handy') || args.includes('--quer')))) {
+  || dpr !== null && !(dpr >= 1 && dpr <= 4 && (args.includes('--handy') || args.includes('--quer')))
+  || args.includes('--messwerte') && !messwerte) {
   console.error('Aufruf: node tests/geschichte-probe.mjs [--handy [--groesse 360x640] | --quer] [--grad leicht,…] '
-    + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender] [--dpr n]');
+    + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender] '
+    + '[--wagen] [--dpr n] [--messwerte <datei.json>]');
   process.exit(1);
 }
 requireQuiet();
@@ -190,30 +200,74 @@ async function taste(key, { strg = false } = {}) {
  * auf. ende(name) gibt diese Liste zurück und meldet die längste Lücke. Ein Bild der Probe mitten in der Messung hält
  * die Seite an (auf dem Handy bis 0,5 s): Lücken über seinem Zeitfenster zählen nicht.
  */
-async function messe() {
+async function messe({ abKlick = false } = {}) {
   fotos = [];
-  await ev(`(() => { const b = window.__bz = { an: true, log: [] }; const loop = (ts) => { if (!b.an) return;
+  // abKlick: die Dauer zählt ab dem ersten Klick (bzw. Tippen) danach, etwa auf «Weiter» (sonst ab dem ersten Bild)
+  await ev(`(() => { const b = window.__bz = { an: true, log: [], ab: null }; const loop = (ts) => { if (!b.an) return;
     const s = ${D}.story, k = ${D}.skyTheme; b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current,
       ready: k.ready, settled: k.byId.get(k.current).module?.settled ?? true, menu: ${D}.menu.offen,
       ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames,
+      tippen: s.waitTap !== null, knoepfe: (document.querySelector('#story .scene .actions')?.children.length ?? 0) > 0,
       blick: ((m) => [-m[8], -m[9], -m[10]])(${D}.camera.matrixWorld.elements) });
       requestAnimationFrame(loop); };
+    ${abKlick ? "addEventListener('click', () => { b.ab ??= performance.now(); }, { capture: true, once: true });" : ''}
     requestAnimationFrame(loop); })()`);
 }
 /**
+ * Ende einer Zwischenszene im Log einer Messung (Dauer, ende(name, { bis })): spielt: das nächste Level ist spielbar
+ * (Zustand play nach einem anderen); buehne: die Bühne steht (Epilog); knoepfe: Knöpfe auf der Bühne (Angebot, «Zum
+ * Menü»).
+ */
+const BIS = {
+  spielt: (log) => {
+    const a = log.findIndex((e) => e.flow !== 'play');
+    return a < 0 ? -1 : log.findIndex((e, i) => i > a && e.flow === 'play');
+  },
+  buehne: (log) => log.findIndex((e) => e.story === 'scene'),
+  knoepfe: (log) => log.findIndex((e) => e.knoepfe),
+};
+/**
  * Bildzeiten auswerten. Die frühere Ausnahme für das erste Zeichnen der Bühne (Prolog) ist weg: Seit die Bühne unter dem
  * Startbildschirm vorgewärmt wird (story.vorwaermen, Ticket 08), trat sie in der Abnahme nie mehr auf.
+ * bis (siehe BIS): dazu die Dauer der Zwischenszene vom Klick (messe abKlick) bzw. vom ersten Bild bis zu diesem Ende,
+ * in Sekunden: dauer (Uhr), tippen (davon wartete ein Satz auf Tippen), fotos (davon hielt ein Bild der Probe die Seite
+ * an, über MAX_DT je Bild: Die Zeitachse der Geschichte rückt dann höchstens so weit vor) und netto (dauer ohne beides,
+ * die Länge der Szene).
  */
-async function ende(name) {
-  const log = await ev('(() => { const b = window.__bz; b.an = false; return b.log; })()');
+async function ende(name, { bis = null } = {}) {
+  const { log, ab } = await ev('(() => { const b = window.__bz; b.an = false; return { log: b.log, ab: b.ab }; })()');
   const foto = (i) => fotos.some(([a, b]) => log[i].ts < b && log[i + 1].ts > a);
   const art = log.slice(1).map((_, i) => (foto(i) ? 'Bild der Probe' : ''));
   fotos = null;
   const luecken = log.slice(1).map((e, i) => (art[i] ? 0 : e.ts - log[i].ts));
   const max = Math.max(0, ...luecken), ueber = (ms) => luecken.filter((d) => d > ms).length;
-  bildzeiten.push({ name, bilder: log.length, max: Math.round(max), ueber50: ueber(50), ueber100: ueber(100) });
+  const gezaehlt = luecken.filter((d) => d > 0);
+  const eintrag = { name, bilder: log.length, max: Math.round(max), ueber50: ueber(50), ueber100: ueber(100),
+    mittel: +(gezaehlt.reduce((a, d) => a + d, 0) / Math.max(1, gezaehlt.length)).toFixed(1) };
+  let dauerText = '';
+  if (bis) {
+    const z = BIS[bis](log), s = (ms) => +(ms / 1000).toFixed(2);
+    pruefe(z > 0, `${name}: Ende der Zwischenszene (${bis}) nicht im Log`);
+    if (z > 0) {
+      const t0 = ab ?? log[0].ts;
+      // ein Bild der Probe: Die Seite zeichnet währenddessen oft weiter, nur was über MAX_DT des Spiels (50 ms) liegt,
+      // hat sie angehalten (so weit rückt die Zeitachse der Geschichte je Bild höchstens vor)
+      let tippen = 0, angehalten = 0;
+      for (let i = 0; i < z; i++) {
+        const d = log[i + 1].ts - Math.max(t0, log[i].ts);
+        if (d <= 0) continue;
+        if (log[i].tippen) tippen += d; else if (art[i]) angehalten += Math.max(0, d - 50);
+      }
+      const dauer = log[z].ts - t0, netto = dauer - tippen - angehalten;
+      Object.assign(eintrag, { bis, abKlick: ab !== null, dauer: s(dauer), tippen: s(tippen), fotos: s(angehalten),
+        netto: s(netto) });
+      dauerText = `; Dauer ${s(dauer)} s (bis ${bis}${ab === null ? ', ab dem ersten Bild' : ''}), davon Tippen `
+        + `${s(tippen)} s, Bilder der Probe ${s(angehalten)} s, netto ${s(netto)} s`;
+    }
+  }
+  bildzeiten.push(eintrag);
   console.log(`  Bildzeiten ${name}: ${log.length} Bilder, längste Lücke ${Math.round(max)} ms, über 50 ms ${ueber(50)}`
-    + `, über 100 ms ${ueber(100)}`);
+    + `, über 100 ms ${ueber(100)}${dauerText}`);
   log.slice(1).forEach((e, i) => { // wo die langen Lücken liegen: Zeit seit Beginn und Zustand davor und danach
     const d = e.ts - log[i].ts;
     if (d <= 50) return;
@@ -357,7 +411,7 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
   if (bilder || k === 9) { await sleep(600); await bild(`${slug(g)}-${platz + 1}-geloest`); }
-  if (messen) await messe(); // die Zwischenszene danach messen, ab «Weiter»
+  if (messen) await messe({ abKlick: true }); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
 }
 async function kopfzeile(g, platz) {
@@ -439,12 +493,15 @@ async function finale(g) {
   const naechster = GRADE[GRADE.indexOf(g) + 1] ?? null, anderer = GRADE.find((x) => x !== g && x !== naechster);
   await laden({ 'prisma.noa.zuletzt': g, [`prisma.noa.${slug(g)}`]: standBis(g, 50, 4),
     [`prisma.noa.${slug(anderer)}`]: standBis(anderer, 33, 3) });
+  await messe({ abKlick: true });
   await tippe('#menue .menue-weiter', 'Weiter');
   await sofortZu(`${g}: Weiter`);
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg in die Sterne`, 60);
   await sleep(1800);
   await bild(`${slug(g)}-einstieg-sterne`);
-  for (let k = 0; k < 10; k++) await level(g, 50 + k, { bilder: k === 0 || k === 9 });
+  await until(`${D}.story.step === 50 && window.__prisma.playing()`, `${g}: Level 51 läuft`, 60);
+  await ende(`${g}: Weiter → Einstieg in die Sterne (Fortsetzen)`, { bis: 'spielt' });
+  for (let k = 0; k < 10; k++) await level(g, 50 + k, { bilder: k === 0 || k === 9, messen: k === 9 });
   // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
   for (let n = 1; n <= 2; n++) {
     await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `${g}: Finale, Satz ${n}`, 60);
@@ -455,6 +512,7 @@ async function finale(g) {
     await sleep(400);
   }
   await until(`${storyMode} === 'scene'`, `${g}: Epilog`, 60);
+  await ende(`${g}: Finale (Level 60 → Epilog)`, { bis: 'buehne' });
   await sleep(2500);
   await bild(`${slug(g)}-epilog`);
   await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true });
@@ -517,13 +575,13 @@ async function ganzerDurchgang(g, erster) {
   await laden();
   if (erster) { await sleep(2500); await bild('menue-neu'); }
   pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:leicht', `${g}: Fokus im neuen Menü`);
-  await messe();
+  await messe({ abKlick: true });
   await tippe(karte(g), `Karte ${g}`);
   await sofortZu(`${g}: Beginnen`);
   await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
   await buehneDurch(`${slug(g)}-prolog`);
-  await ende(`${g}: Menü → Prolog bis zum Angebot`);
-  await messe();
+  await ende(`${g}: Menü → Prolog bis zum Angebot`, { bis: 'knoepfe' });
+  await messe({ abKlick: true });
   await angebot(g, 'Gleich los');
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg`, 60);
   pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
@@ -531,7 +589,7 @@ async function ganzerDurchgang(g, erster) {
   await sleep(1800);
   await bild(`${slug(g)}-einstieg`);
   await until(`${D}.story.step === 0 && window.__prisma.playing()`, `${g}: Level 1 läuft`);
-  await ende(`${g}: Gleich los → Einstieg Bergwald`);
+  await ende(`${g}: Gleich los → Einstieg Bergwald`, { bis: 'spielt' });
   for (let w = 0; w < 6; w++) {
     for (let k = 0; k < 10; k++) {
       if (w * 10 + k === 25) await neuladenMitten(g);
@@ -544,7 +602,7 @@ async function ganzerDurchgang(g, erster) {
     await sleep(2500);
     await bild(`${slug(g)}-reise-${w + 2}`);
     await until(`${D}.story.step === ${(w + 1) * 10} && window.__prisma.playing()`, `${g}: in Welt ${w + 2}`, 90);
-    await ende(`${g}: Reise in Welt ${w + 2} (${WELT_MENUE[w + 1]})`);
+    await ende(`${g}: Reise in Welt ${w + 2} (${WELT_MENUE[w + 1]})`, { bis: 'spielt' });
   }
   // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
   for (let n = 1; n <= 2; n++) {
@@ -556,19 +614,19 @@ async function ganzerDurchgang(g, erster) {
     await sleep(400);
   }
   await until(`${storyMode} === 'scene'`, `${g}: Epilog`, 60);
-  await ende(`${g}: Finale (Level 60 → Epilog)`);
+  await ende(`${g}: Finale (Level 60 → Epilog)`, { bis: 'buehne' });
   await messe();
   await sleep(2500);
   await bild(`${slug(g)}-epilog`);
   await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true });
-  await ende(`${g}: Epilog bis «Zum Menü»`);
+  await ende(`${g}: Epilog bis «Zum Menü»`, { bis: 'knoepfe' }); // ab dem ersten Bild nach dem Finale
   const s = await stand(g);
   pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
   const knopf = await ev("[...document.querySelectorAll('#story .scene .actions button')].map(b => b.textContent)"
     + '.join()');
   pruefe(knopf === 'Zum Menü', `${g}: Knöpfe am Ende «${knopf}»`);
   await ev('window.__ohneNeuladen = true');
-  await messe();
+  await messe({ abKlick: true });
   await tippe('#story .scene .actions button', 'Zum Menü');
   await until(`${menueOffen} && ${storyMode} === false`, 'Menü nach dem Epilog', 10);
   await sleep(2200);
@@ -595,7 +653,7 @@ async function neuladenMitten(g) {
   pruefe(wohin === `${GRAD_TEXT[g]} · Wüste 25 / 60`, `${g}: Weiter nach dem Neuladen «${wohin}»`);
   await sleep(1500);
   await bild(`${slug(g)}-neuladen-menue`);
-  await messe();
+  await messe({ abKlick: true });
   await tippe('#menue .menue-weiter', 'Weiter');
   await sofortZu(`${g}: Weiter nach dem Neuladen`);
   let einstieg = false;
@@ -603,7 +661,7 @@ async function neuladenMitten(g) {
     if (await ev(`${storyMode} === 'caption' || ${storyMode} === 'scene'`)) einstieg = true;
     await sleep(100);
   }
-  await ende(`${g}: Neuladen → Weiter (Wüste 26)`);
+  await ende(`${g}: Neuladen → Weiter (Wüste 26)`, { bis: 'spielt' });
   pruefe(!einstieg, `${g}: nach dem Neuladen ein Einstieg oder Prolog`);
   const s = await stand(g);
   pruefe(s?.platz === 25 && s.geloest.length === 25 && !s.geschafft, `${g}: Stand nach dem Neuladen ${JSON.stringify(s)}`);
@@ -1594,6 +1652,149 @@ async function uebungLaeuft(n) {
   pruefe(r.dorf && r.uebung === n && r.index === n, `Übung ${n + 1} erwartet: ${JSON.stringify(r)}`);
 }
 
+/* ---------- Der Kleine Wagen (Spec .scratch/kleiner-wagen/, Ticket 01) ---------- */
+
+/** Linien des Wagens nach der Spec («Der Wagen»), in der Reihenfolge, in der sie sich ziehen: [von, nach]. */
+const WAGEN_LINIEN = [[1, 2], [2, 3], [3, 4], [4, 1], [4, 5], [5, 6], [6, 7]];
+/**
+ * Erwarteter Stand des Wagens mit n wachen Sternen (Stern 1 der Bergwald … 6 die Sterne; 7: ein geschaffter Grad, dazu
+ * der Polarstern): wach 1 … n, je erwachtem Stern k ≥ 2 die Linie von k − 1, mit Stern 4 die Schale (4 → 1), 6 → 7
+ * erst nach dem Finale; der nächste ist der erste schlafende.
+ */
+const wagenErwartet = (n) => ({ wach: Array.from({ length: n }, (_, i) => i + 1),
+  linien: WAGEN_LINIEN.slice(0, [0, 0, 1, 2, 4, 5, 6, 7][n]), naechster: n < 7 ? n + 1 : null });
+/** Stand des Wagens im Grad g, gelesen über das Objekt der Geschichte (keine eigene Schnittstelle), gegen n wache. */
+async function pruefeWagen(g, n, was) {
+  const ist = await ev(`${D}.story.wagenStand(${JSON.stringify(g)})`), soll = wagenErwartet(n);
+  pruefe(JSON.stringify(ist) === JSON.stringify(soll),
+    `Wagen ${was} (${g}): ${JSON.stringify(ist)} statt ${JSON.stringify(soll)}`);
+}
+/** Ein Level spielen, das gleich läuft (Platz platz im Grad g): lösen über die Testschnittstelle, «Gelöst» abwarten. */
+async function loeseLevel(g, platz) {
+  await until(`${D}.story.step === ${platz} && ${D}.story.grade === ${JSON.stringify(g)} && window.__prisma.playing()`
+    + ` && !${D}.story.running`, `${g}: Level ${platz + 1} läuft`, 90);
+  await ev(`${D}.loese()`);
+  await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
+}
+
+/**
+ * Der Kleine Wagen (--wagen, Ticket 01 von .scratch/kleiner-wagen/): sein Stand, gelesen über das Objekt der Geschichte
+ * (story.wagenStand), gespielt über das Menü und gelöst über die Testschnittstelle; einen Stand setzt die Probe wie
+ * sonst in localStorage. Geprüft: neu in jedem Grad alle Sterne schlafend; in Leicht nach jeder Welt (ab ihrem letzten
+ * Level über die Reise bis in die nächste bzw. über das Finale bis zum Epilog) die richtigen Sterne wach und Linien
+ * gezogen, mit der Schale nach dem Vulkan und dem ganzen Wagen nach dem Finale; derselbe Stand nach Neuladen mitten in
+ * einer Welt (im Menü und im Level), beim Fortsetzen mit Einstieg und nach einem Wechsel über das Menü; beim
+ * Wiederholen einer früheren Welt (auch «Weiter» über ihre Grenze) unverändert, ohne Reise; je Grad ein eigener Stand
+ * (Mittel daneben im Planeten); «Von vorn» lässt alle schlafen, die Bestwerte bleiben; ein geschaffter Grad zeigt den
+ * ganzen Wagen. Etwa 5 min.
+ */
+async function wagenAblauf() {
+  console.log(`${view.name}: Kleiner Wagen`);
+  await laden();
+  for (const g of GRADE) await pruefeWagen(g, 0, 'neu');
+  const mittel = standBis('mittel', 43, 4); // Planeten 44: Bergwald bis Vulkan geschafft, vier Sterne wach
+
+  // nach jeder Welt: ab ihrem letzten Level (Stand gesetzt, «Weiter» im Menü), gelöst, dann Reise bzw. Finale
+  for (let w = 0; w < 6; w++) {
+    const platz = w * 10 + 9;
+    await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', platz, w),
+      'prisma.noa.mittel': mittel });
+    await pruefeWagen('leicht', w, `vor dem letzten Level der Welt ${w + 1}`);
+    await tippe('#menue .menue-weiter', 'Weiter');
+    await loeseLevel('leicht', platz);
+    // der Stern ist wach, sobald das letzte Level seiner Welt gelöst ist (wer jetzt neu lädt, sieht ihn schon wach)
+    await pruefeWagen('leicht', w + 1, `nach dem letzten Level der Welt ${w + 1}`);
+    await tippe('#btn-next', 'Weiter');
+    if (w < 5) {
+      await until(`${D}.story.step === ${platz + 1} && window.__prisma.playing() && !${D}.story.running`,
+        `Leicht: Reise in Welt ${w + 2}`, 90);
+      await pruefeWagen('leicht', w + 1, `nach der Reise in Welt ${w + 2}`);
+    } else {
+      for (let n = 1; n <= 2; n++) {
+        await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `Leicht: Finale, Satz ${n}`, 60);
+        await pruefeWagen('leicht', 6, `im Finale, Satz ${n}`);
+        await tippe('#story .caption .text', 'Untertitel');
+        await sleep(400);
+      }
+      await until(`${storyMode} === 'scene'`, 'Leicht: Epilog', 60);
+      await pruefeWagen('leicht', 7, 'nach dem Finale');
+    }
+    await pruefeWagen('mittel', 4, `daneben, nach Welt ${w + 1} in Leicht`);
+  }
+
+  // Neuladen mitten in der Wüste: im Menü und im Level derselbe Stand (zwei Sterne)
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 25, 2),
+    'prisma.noa.mittel': mittel });
+  await pruefeWagen('leicht', 2, 'im Menü nach Neuladen mitten in der Wüste');
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await until(`${D}.story.step === 25 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 26 läuft', 60);
+  await pruefeWagen('leicht', 2, 'im Level nach Neuladen mitten in der Wüste');
+
+  // Fortsetzen: Leicht steht am Anfang des Vulkans, den es noch nicht gesehen hat (mit Einstieg); Mittel mit Bestwerten
+  const bestM = { [reise.mittel[0][0]]: { zeit: 50, drehungen: 9 }, [reise.mittel[1][2]]: { zeit: 70, drehungen: 11 } };
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 30, 2),
+    'prisma.noa.mittel': mittel, 'prisma.noa.mittel.bestwerte': bestM });
+  await pruefeWagen('leicht', 3, 'im Menü vor dem Fortsetzen im Vulkan');
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg in den Vulkan', 60);
+  await pruefeWagen('leicht', 3, 'beim Einstieg in den Vulkan');
+  // bis der Fall des Lichts zu Ende ist (vorher wirkt «Menü» nicht)
+  await until(`${D}.story.step === 30 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 31 läuft', 60);
+  await pruefeWagen('leicht', 3, 'nach dem Einstieg in den Vulkan');
+  await sleep(700);
+
+  // Wechsel über das Menü zu Mittel (Planeten 44): vier Sterne; Leicht bleibt bei drei
+  await tippe('#btn-menu', 'Menü');
+  await until(`${menueOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Menü', 10);
+  await sleep(800);
+  await tippe(karte('mittel'), 'Karte Mittel');
+  await until(`${D}.story.grade === 'mittel' && ${D}.story.step === 43 && window.__prisma.playing()`
+    + ` && !${D}.story.running`, 'Mittel 44 läuft', 60);
+  await pruefeWagen('mittel', 4, 'nach dem Wechsel über das Menü');
+  await pruefeWagen('leicht', 3, 'nach dem Wechsel zu Mittel');
+
+  // Wiederholen einer früheren Welt: Bergwald 10 aus der Übersicht, dann «Weiter» über die Grenze ins Meer
+  await tippe('#btn-overview', 'Übersicht');
+  await until(`${uebOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Übersicht', 10);
+  await sleep(600);
+  if (view.phone) { // eine Welt je Seite: zum Bergwald über seine Station
+    await tippe(`${UEB} .ueb-tab[data-reihe="0"]`, 'Station Bergwald');
+    await sleep(900);
+  }
+  await tippe(kachel(0, 9), 'Kachel Bergwald 10');
+  await loeseLevel('mittel', 9);
+  pruefe(await ev(`${D}.story.replay`) === true, 'Mittel: Bergwald 10 nicht als Wiederholen');
+  await pruefeWagen('mittel', 4, 'beim Wiederholen im Bergwald');
+  await messe();
+  await tippe('#btn-next', 'Weiter zum Meer');
+  await until(`${D}.story.step === 10 && window.__prisma.playing() && !${D}.story.running`, 'Mittel: Meer 1', 60);
+  ohneZwischenszene(await ende('Wagen: Wiederholen über die Grenze ins Meer'), 'Wiederholen über die Grenze ins Meer');
+  await pruefeWagen('mittel', 4, 'nach dem Wiederholen über die Grenze ins Meer');
+  pruefe((await stand('mittel'))?.platz === 43, 'Mittel: der Platz hat sich beim Wiederholen geändert');
+
+  // «Von vorn» für Mittel: alle Sterne schlafen, die Bestwerte bleiben; Leicht unverändert
+  const bestVorher = await besteWerte('mittel');
+  await tippe('#btn-menu', 'Menü');
+  await until(`${menueOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Menü', 10);
+  await sleep(1200);
+  await tippe('#menue [data-menue-fokus="vonvorn:mittel"]', 'Von vorn Mittel');
+  await until("!document.querySelector('#menue .menue-frage').hidden", 'Rückfrage', 5);
+  await sleep(500);
+  await tippe('#menue [data-menue-frage="ja"]', 'Von vorn bestätigen');
+  await sleep(600);
+  await pruefeWagen('mittel', 0, 'nach «Von vorn»');
+  await pruefeWagen('leicht', 3, 'nach «Von vorn» von Mittel');
+  const bestNachher = await besteWerte('mittel');
+  pruefe(Object.keys(bestVorher ?? {}).length >= 3 && JSON.stringify(bestNachher) === JSON.stringify(bestVorher),
+    `Mittel: Bestwerte nach «Von vorn» ${JSON.stringify(bestNachher)} statt ${JSON.stringify(bestVorher)}`);
+
+  // ein geschaffter Grad: der ganze Wagen wach, mit allen Linien
+  await laden({ 'prisma.noa.zuletzt': 'mittel', 'prisma.noa.mittel': standBis('mittel', 12, 1),
+    'prisma.noa.leicht': { ...standBis('leicht', 59, 5), geloest: reise.leicht.flat(), geschafft: true } });
+  await pruefeWagen('leicht', 7, 'geschafft');
+  await pruefeWagen('mittel', 1, 'neben dem geschafften Grad');
+}
+
 try {
   await emulate(send, view);
   await send('Page.navigate', { url: PAGE });
@@ -1604,6 +1805,7 @@ try {
   if (uebersichtProbe) await uebersichtAblauf();
   if (dorfProbe) await dorfAblauf();
   if (dorfRaenderProbe) await dorfRaender();
+  if (wagenProbe) await wagenAblauf();
   for (const [i, g] of grade.entries()) await (ganz ? ganzerDurchgang : durchgang)(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {
@@ -1623,8 +1825,14 @@ if (bildzeiten.length) {
   console.log('\nBildzeiten (Lücken zwischen zwei Bildern des Browsers):');
   for (const b of bildzeiten) {
     console.log(`  ${b.name}: ${b.bilder} Bilder, längste Lücke ${b.max} ms, über 50 ms ${b.ueber50}, `
-      + `über 100 ms ${b.ueber100}`);
+      + `über 100 ms ${b.ueber100}${b.dauer === undefined ? '' : `; Dauer ${b.dauer} s, netto ${b.netto} s`}`);
   }
+}
+if (messwerte) {
+  mkdirSync(dirname(messwerte), { recursive: true });
+  writeFileSync(messwerte, `${JSON.stringify({ zeit: new Date().toISOString(), aufruf: args.join(' '),
+    bildschirm: view, abschnitte: bildzeiten, fehler }, null, 1)}\n`);
+  console.log(`\nMesswerte nach ${messwerte}`);
 }
 console.log(fehler.length ? `\nProbe FEHLGESCHLAGEN (${fehler.length})` : '\nProbe bestanden, Konsole ohne Fehler.');
 process.exit(fehler.length ? 1 : 0);

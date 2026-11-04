@@ -455,6 +455,33 @@
     #lade .stern { opacity: 1; }
     #lade .kante i + i { transform: none; opacity: 1; }
   }
+  /* SZENEN (vorübergehend, Ticket 10 entfernt, Ausnahme von ADR 0005): Sprungbrett zur Abnahme, nur mit ?szenen (Block
+     «SZENEN» am Ende). Oben links, wo sonst nur die knappe Leistungsanzeige des Handys liegt; über Menü, Übersicht und
+     Bühne, während einer Zwischenszene weg. Die Schrift des Knopfs steht oben in seiner Fläche, über der Kopfzeile. */
+  #szenen {
+    position: fixed; z-index: 9; top: env(safe-area-inset-top); left: env(safe-area-inset-left);
+    display: flex; flex-direction: column; align-items: flex-start; transition: opacity 0.4s ease;
+  }
+  #szenen .szenen-knopf {
+    min-width: 44px; min-height: 44px; padding: 9px 12px 0 calc(12px + 0.3em); align-self: flex-start;
+    display: flex; align-items: flex-start; border-radius: 0 0 16px 0;
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(232, 230, 240, 0.72);
+    text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9);
+    transition: color 0.25s ease, background-color 0.25s ease;
+  }
+  #szenen .szenen-knopf:hover, #szenen .szenen-knopf[aria-expanded="true"] { color: var(--ink); background: rgba(255, 255, 255, 0.06); }
+  #szenen .szenen-liste {
+    display: flex; flex-direction: column; min-width: 15em; margin: 2px 0 0 6px; padding: 6px;
+    max-height: calc(100vh / var(--seite) - 60px); overflow-y: auto;
+    border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 10px; background: rgba(8, 8, 18, 0.92);
+  }
+  #szenen .szenen-liste[hidden] { display: none; }
+  #szenen .szenen-kopf { padding: 6px 10px 8px; font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink-dim); }
+  #szenen .szenen-liste button {
+    min-height: 40px; padding: 0 12px; border-radius: 6px; text-align: left;
+    font-size: 13px; letter-spacing: 0.04em; color: var(--ink);
+  }
+  #szenen .szenen-liste button:hover, #szenen .szenen-liste button:focus-visible { background: rgba(255, 255, 255, 0.09); }
   @media (max-width: 520px) {
     /* «Dorf überspringen» in zwei kurzen Zeilen: neben den vier Knöpfen unten rechts ist auch bei 360 px Platz */
     #btn-skip {
@@ -16645,11 +16672,22 @@ const waveLength = (b = game.board) => (2 * ((b.size || 7) - 1)
  * zuletzt gespielte Grad unter prisma.noa.zuletzt. Die alten Schlüssel (prisma.solvedLevels, prisma.current,
  * prisma.sky, prisma.signal, prisma.signal.seen) liest das Spiel nicht mehr und löscht sie nicht.
  */
+// SZENEN (vorübergehend, Ticket 10 entfernt, Ausnahme von ADR 0005): Mit ?szenen (Sprungbrett zur Abnahme, siehe den
+// Block «SZENEN» am Ende) schreibt das Spiel weder Stand noch Bestwerte. progress liest dann zuerst aus diesem Speicher
+// der Seite, sonst wie immer aus localStorage, und schreibt nur hierhin; nach dem Neuladen ohne ?szenen ist alles wie
+// vorher.
+const SZENEN_SPEICHER = new URLSearchParams(location.search).has('szenen') ? new Map() : null;
 const progress = {
   keyOf: (grad) => `prisma.noa.${grad.replaceAll(' ', '-')}`,
   lastKey: 'prisma.noa.zuletzt',
-  read(key) { try { return localStorage.getItem(key); } catch { return null; } },
-  write(key, value) { try { localStorage.setItem(key, value); } catch { /* privates Fenster o. Ä. */ } },
+  read(key) {
+    if (SZENEN_SPEICHER?.has(key)) return SZENEN_SPEICHER.get(key); // SZENEN (vorübergehend, Ticket 10 entfernt)
+    try { return localStorage.getItem(key); } catch { return null; }
+  },
+  write(key, value) {
+    if (SZENEN_SPEICHER) { SZENEN_SPEICHER.set(key, value); return; } // SZENEN (vorübergehend, Ticket 10 entfernt)
+    try { localStorage.setItem(key, value); } catch { /* privates Fenster o. Ä. */ }
+  },
   /** Stand eines Grads (count: Zahl der Level seines Durchgangs); fehlt er oder ist er unlesbar, von vorn. */
   load(grad, count) {
     let s = null;
@@ -16664,7 +16702,10 @@ const progress = {
    * «Von vorn» im Menü: den Stand nur dieses Grads löschen (Entscheid 19); der zuletzt gespielte Grad und die
    * Bestwerte bleiben (Entscheid 27).
    */
-  remove(grad) { try { localStorage.removeItem(this.keyOf(grad)); } catch { /* privates Fenster o. Ä. */ } },
+  remove(grad) {
+    if (SZENEN_SPEICHER) { SZENEN_SPEICHER.set(this.keyOf(grad), null); return; } // SZENEN (vorübergehend, Ticket 10 entfernt)
+    try { localStorage.removeItem(this.keyOf(grad)); } catch { /* privates Fenster o. Ä. */ }
+  },
   bestKeyOf(grad) { return `${this.keyOf(grad)}.bestwerte`; },
   /**
    * Bestwerte eines Grads (Entscheid 24): je Level (Name) { zeit, drehungen }, zeit in ganzen Sekunden, beide je für
@@ -18227,6 +18268,45 @@ const STORY_FINALE = ['Der Polarstern hat das Zeichen gesehen.', 'Und er antwort
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
 /**
+ * Der Kleine Wagen (Spec .scratch/kleiner-wagen/, «Der Wagen»): das Sternbild, an der Spitze seiner Deichsel der
+ * Polarstern. Jede der sechs Welten weckt einen seiner Sterne, in der Reihenfolge von STORY_CHAPTERS (Stern 1 der
+ * Bergwald … Stern 6 die Sterne, im Finale); der siebte ist der Polarstern, er wird nicht geweckt, er antwortet. Form,
+ * Reihenfolge des Erwachens, Linien und der Stand im Durchgang stehen hier an einer Stelle; Ladezeichen, Himmel, Bühne,
+ * Finale, Menü, Übersicht und Leiste nehmen sie von hier. (Der Parameter ?wagen=<faktor> gehört dem Ladezeichen.)
+ */
+const wagen = {
+  /**
+   * Form: je Stern in der Reihenfolge des Erwachens (Stern 1 … 7) sein Ort, in Einheiten des Ladezeichens (dort bei
+   * Grösse 1 knapp Pixel): x nach rechts, y nach unten. Der Polarstern (7) steht oben links an der Spitze der Deichsel
+   * (5, 6), die Schale (1–4) unten rechts; 1 aussen an der Schale, 2 unten aussen, 3 unten innen, 4 wo die Deichsel
+   * ansetzt.
+   */
+  form: [[44, 4], [48, 30], [14, 26], [8, 2], [-14, -12], [-38, -24], [-64, -34]],
+  /**
+   * Linien [von, nach] (Nummern der Sterne) in der Reihenfolge, in der sie sich ziehen: Erwacht Stern k (k ≥ 2), zieht
+   * sich eine von k − 1 zu ihm; mit Stern 4 dazu 4 → 1 (die Schale schliesst sich); 6 → 7 zieht der Puls im Finale.
+   */
+  linien: [[1, 2], [2, 3], [3, 4], [4, 1], [4, 5], [5, 6], [6, 7]],
+  polarstern: 7,
+  /**
+   * Stand des Wagens in einem Durchgang, ohne eigenes Feld im Speicherstand (stand: Stand eines Grads wie progress.load,
+   * welten: seine Level je Welt, STORY_LEVELS[grad]). Stern k ist wach, sobald das letzte Level der Welt k gelöst ist
+   * (bis «Von vorn»); ein geschaffter Grad (Finale gesehen) hat den ganzen Wagen wach, mit dem Polarstern. Eine Linie
+   * ist gezogen, wenn ihre beiden Sterne wach sind; das sind genau die Linien je erwachtem Stern. Zurück { wach:
+   * Nummern der wachen Sterne, linien: die gezogenen in ihrer Reihenfolge, naechster: der erste schlafende Stern (der
+   * Stern der Welt, die dran ist; nach der letzten Welt vor dem Finale der Polarstern), null, wenn alle wach sind }.
+   */
+  stand(stand, welten) {
+    const wach = [];
+    for (let k = 1; k <= this.form.length; k++) {
+      const letztes = k < this.polarstern ? welten?.[k - 1]?.at(-1) : undefined;
+      if (stand?.geschafft || letztes !== undefined && stand?.geloest?.includes(letztes)) wach.push(k);
+    }
+    return { wach, linien: this.linien.filter(([a, b]) => wach.includes(a) && wach.includes(b)).map((l) => [...l]),
+      naechster: this.form.map((_, i) => i + 1).find((k) => !wach.includes(k)) ?? null };
+  },
+};
+/**
  * Das Kapitel «Im Dorf» (Entscheide 3, 10, 18; Ticket 07): das Tutorial zwischen Prolog und Bergwald, keine der sechs
  * Welten. Seine Übungen sind LEVELS[0 … TUTORIAL_COUNT − 1] mit Name und Hinweis; sie zählen nicht zu den 60 des Grads.
  * angebot: nach dem Prolog auf der Bühne (auch nach «Überspringen»), beim ersten Durchgang je Grad; einstieg: der
@@ -19774,11 +19854,16 @@ introCalm.then(async () => {
  */
 const ladeZeichen = (() => {
   const el = document.getElementById('lade');
-  // Sterne des Kleinen Wagens (px, Polarstern zuerst) und Linien [von, nach, Beginn in s]: Jede Linie wächst in 0,25 s
-  // zum nächsten Stern, sobald er aufleuchtet; die letzte schliesst die Schale
+  // Sterne des Kleinen Wagens (Form aus wagen.form, px; hier Polarstern zuerst, umgekehrt zum Erwachen) und Linien
+  // [von, nach, Beginn in s] aus wagen.linien: Der Wagen zeichnet sich vom Polarstern die Deichsel hinab bis in die
+  // Schale. Jede Linie zwischen zwei Nachbarn wächst in 0,25 s zum nächsten Stern, sobald er aufleuchtet; die übrige
+  // (4 → 1 des Wagens) schliesst danach die Schale, von ihrem letzten Stern zurück
   const S = 1.2, RAND = 15, TAKT = 0.32, AN = 0.25, HALTEN = 0.8, AUS = 0.7;
-  const P = [[-64, -34], [-38, -24], [-14, -12], [8, 2], [14, 26], [48, 30], [44, 4]];
-  const K = [[0, 1, TAKT], [1, 2, 2 * TAKT], [2, 3, 3 * TAKT], [3, 4, 4 * TAKT], [4, 5, 5 * TAKT], [5, 6, 6 * TAKT], [6, 3, 6 * TAKT + AN]];
+  const P = wagen.form.slice().reverse(), stelle = (k) => P.length - k; // Stern k des Wagens an Stelle 7 − k
+  const K = wagen.linien.map(([a, b]) => {
+    const i = Math.min(stelle(a), stelle(b)), j = Math.max(stelle(a), stelle(b));
+    return j - i === 1 ? [i, j, j * TAKT] : [j, i, j * TAKT + AN];
+  }).sort((x, y) => x[2] - y[2]);
   const ende = P.length * TAKT + HALTEN, zyklus = ende + AUS, pz = (s) => `${(s / zyklus * 100).toFixed(2)}%`;
   const xs = P.map(([x]) => x * S), ys = P.map(([, y]) => y * S), x0 = Math.min(...xs) - RAND, y0 = Math.min(...ys) - RAND;
   el.style.width = `${Math.max(...xs) - x0 + RAND}px`;
@@ -19972,6 +20057,18 @@ const story = {
       this.save();
     }
     return record;
+  },
+  /**
+   * Stand des Kleinen Wagens im Grad grade (wagen.stand: wache Sterne, gezogene Linien, nächster Stern), abgeleitet aus
+   * seinem Durchgang; je Grad getrennt, nach «Von vorn» alle schlafend. Neuladen, Fortsetzen, Wiederholen, Menü und
+   * Übersicht zeigen denselben; nur das Erwachen selbst (Aufstieg, Reise, Finale) ändert ihn sichtbar. Proben lesen ihn
+   * über die Testschnittstelle (story).
+   */
+  wagenStand(grade = this.grade) {
+    const welten = STORY_LEVELS[grade];
+    if (!welten) return wagen.stand(null, null);
+    return wagen.stand(grade === this.grade && this.stand ? this.stand : progress.load(grade, welten.flat().length),
+      welten);
   },
 
   /* ---------- Ablauf ---------- */
@@ -22250,6 +22347,137 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
       if (delta) rotateElement(el, delta);
     }
   } };
+
+/* =====================================================================
+   SZENEN (vorübergehend, Ticket 10 entfernt, Ausnahme von ADR 0005) — Sprungbrett zur Abnahme des Kleinen Wagens
+   (Spec .scratch/kleiner-wagen/, «Sprungbrett zur Abnahme», Entscheide 24 und 25). Nur mit ?szenen: Der Knopf «Szenen»
+   oben links öffnet eine Liste der Szenen (Prolog, Einstieg ins Dorf und in den Bergwald, das Ende jeder Welt mit
+   Aufstieg und Reise, Finale, Epilog). Ein Sprung setzt den Grad, der gerade gewählt ist (sonst den zuletzt gespielten
+   bzw. Leicht), auf den Stand, den sein Durchgang an dieser Stelle hätte (vor dem Vulkan etwa drei Sterne wach), und
+   spielt die Szene von ihrem natürlichen Anfang: Prolog und Einstiege wie nach der Wahl im Menü (begin), das Ende einer
+   Welt ab ihrem letzten Level, das das Sprungbrett löst wie die Testschnittstelle (loese), dann «Weiter» (ui.advance),
+   der Epilog auf der Bühne (ending). Danach geht es normal weiter. Gespeichert wird nichts (SZENEN_SPEICHER bei
+   progress). Solange eine Zwischenszene läuft, ist der Knopf weg: Ein Sprung bricht keine ab. Kein Test benutzt es; vor
+   dem Merge nach main baut Ticket 10 es ganz aus (alle Stellen mit «SZENEN (vorübergehend»).
+   ===================================================================== */
+if (SZENEN_SPEICHER) (() => {
+  const kurz = (ch) => ch.title.replace(/^(Der|Die|Das) /, '');
+  // Ende der Welt w (0 … 5): welt-w; das der letzten ist das Finale
+  const LISTE = [['prolog', 'Prolog'], ['dorf', 'Einstieg ins Dorf'], ['wald', 'Einstieg in den Bergwald'],
+    ...STORY_CHAPTERS.slice(1).map((ch, w) => [`welt-${w}`, `${kurz(STORY_CHAPTERS[w])} → ${kurz(ch)}`]),
+    [`welt-${STORY_CHAPTERS.length - 1}`, 'Finale'], ['epilog', 'Epilog']];
+  const gradJetzt = () => story.grade ?? progress.last() ?? Object.keys(STORY_LEVELS)[0];
+  /** Stand des Durchgangs im Grad g an der Stelle der Szene id, wie ihn ein Spieler dort hätte. */
+  function standVor(g, id) {
+    const welten = STORY_LEVELS[g], namen = welten.flat();
+    const s = { platz: 0, geloest: [], gesehen: [], geschafft: false };
+    if (id === 'prolog') return s;
+    s.gesehen = ['prolog', 'angebot'];
+    if (id === 'dorf') return { ...s, dorf: { platz: 0, ende: null } }; // nach «Üben»
+    if (id === 'wald') return s; // nach «Gleich los»
+    // Ende der Welt w: ihr letztes Level ist dran, alle davor gelöst; im Epilog alle gelöst (geschafft setzt er selbst)
+    const w = id === 'epilog' ? welten.length - 1 : +id.slice(5), platz = welten.slice(0, w + 1).flat().length - 1;
+    return { ...s, platz, geloest: namen.slice(0, id === 'epilog' ? namen.length : platz),
+      gesehen: [...s.gesehen, ...STORY_CHAPTERS.slice(0, w + 1).map(storyChapterId)] };
+  }
+  /** Ein Sprung ist möglich: im Menü, in der Übersicht oder in einem Level, aber nicht in einer Zwischenszene. */
+  const frei = () => flow.state !== 'intro' && !story.running && !story.holdEnter
+    && (story.choosing || ['play', 'in', 'out'].includes(flow.state));
+
+  let lauf = 0; // jeder Sprung zählt hoch: Ein älterer, der noch auf sein Level wartet, hört dann auf
+  async function springe(id) {
+    if (!frei()) return;
+    const mein = ++lauf, g = gradJetzt();
+    zu();
+    // Menü und Übersicht gehen weg wie nach einer Wahl, ein Level darunter versinkt (begin)
+    if (uebersicht.offen) uebersicht.hide();
+    if (menu.offen) menu.hide();
+    Object.assign(story, { choosing: false, paused: null, overview: null, outside: false });
+    progress.save(g, standVor(g, id)); // nur im Speicher der Seite (SZENEN_SPEICHER)
+    progress.setLast(g);
+    story.setGrade(g);
+    if (id === 'epilog') {
+      if (celebration.active) celebration.panelShown = true; // «Gelöst» käme sonst noch unter die Bühne
+      setHovered(null);
+      setShown(ui.controls, false);
+      story.ending();
+      return;
+    }
+    story.begin();
+    if (!id.startsWith('welt-')) return;
+    // Ende einer Welt: ihr letztes Level wächst; lösen, «Gelöst» abwarten, dann «Weiter» (Aufstieg, Reise bzw. Finale)
+    const platz = story.step, index = story.steps[platz].index;
+    const steht = () => lauf === mein && story.grade === g && story.step === platz && game.levelIndex === index
+      && !story.choosing;
+    const bis = async (ok) => {
+      for (let t = 0; t < 600; t++) { if (ok()) return true; if (lauf !== mein) return false; await storySleep(100); }
+      return false;
+    };
+    if (!await bis(() => steht() && flow.state === 'play' && !story.running)) return;
+    window.__prismaDebug.loese();
+    if (!await bis(() => steht() && ui.solvedVisible())) return;
+    await storySleep(700);
+    if (steht() && ui.solvedVisible()) ui.advance();
+  }
+
+  const root = document.createElement('div');
+  root.id = 'szenen';
+  root.innerHTML = '<button type="button" class="szenen-knopf" aria-expanded="false" aria-controls="szenen-liste">'
+    + 'Szenen</button><div class="szenen-liste" id="szenen-liste" role="group" aria-label="Szenen" hidden>'
+    + '<div class="szenen-kopf"></div></div>';
+  const knopf = root.querySelector('.szenen-knopf'), liste = root.querySelector('.szenen-liste');
+  for (const [id, text] of LISTE) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.dataset.szene = id;
+    b.textContent = text;
+    b.addEventListener('click', () => springe(id));
+    liste.append(b);
+  }
+  setShown(root, false);
+  document.body.append(root);
+  const eintraege = () => [...liste.querySelectorAll('button')];
+  function auf() {
+    const g = gradJetzt();
+    liste.querySelector('.szenen-kopf').textContent = `Szenen · ${GRAD_ANZEIGE[g]?.label ?? g}`;
+    liste.hidden = false;
+    knopf.setAttribute('aria-expanded', 'true');
+    eintraege()[0].focus({ preventScroll: true });
+  }
+  /** Liste schliessen; fokus: zurück auf den Knopf (Esc, Knopf), sonst geht er weg. */
+  function zu(fokus = false) {
+    if (liste.hidden) return;
+    liste.hidden = true;
+    knopf.setAttribute('aria-expanded', 'false');
+    if (fokus) knopf.focus({ preventScroll: true });
+    else if (root.contains(document.activeElement)) document.activeElement.blur();
+  }
+  knopf.addEventListener('click', () => (liste.hidden ? auf() : zu(true)));
+  // Tasten im Sprungbrett gehören ihm, vor Spiel, Menü und Übersicht (die sonst Pfeile, Tab und Esc nehmen): Esc
+  // schliesst, Pfeile und Pos1/Ende wandern durch die Liste, Enter, Leertaste und Tab wirken wie im Browser
+  addEventListener('keydown', (e) => {
+    if (!root.contains(e.target)) return;
+    e.stopImmediatePropagation();
+    if (e.key === 'Escape') { e.preventDefault(); zu(true); return; }
+    const alle = eintraege(), i = alle.indexOf(e.target);
+    const ziel = { ArrowDown: i + 1, ArrowUp: i < 0 ? alle.length - 1 : i - 1, Home: 0, End: alle.length - 1 }[e.key];
+    if (ziel === undefined || liste.hidden) return;
+    e.preventDefault();
+    alle[Math.max(0, Math.min(alle.length - 1, ziel))].focus({ preventScroll: true });
+  }, true);
+  // daneben getippt oder mit Tab hinaus: Die Liste geht zu
+  addEventListener('pointerdown', (e) => { if (!root.contains(e.target)) zu(); }, true);
+  root.addEventListener('focusout', (e) => { if (e.relatedTarget && !root.contains(e.relatedTarget)) zu(); });
+  // nur, wenn ein Sprung möglich ist (frei); während einer Zwischenszene weg
+  let sichtbar = false;
+  setInterval(() => {
+    const ja = frei();
+    if (ja === sichtbar) return;
+    sichtbar = ja;
+    if (!ja) zu();
+    setShown(root, ja);
+  }, 200);
+})();
 
 /**
  * Elemente des ersten Levels, unsichtbar auf dem Brett: Der Start übersetzt ihre Shader mit, sonst täte es das erste
