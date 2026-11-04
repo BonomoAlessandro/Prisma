@@ -51,8 +51,8 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
 
 1. Ticket 01 fertig bauen (Rest laut Comments im Ticket), dann Review durch einen unabhängigen Agenten, dann Commit.
 2. Danach 03 → 04 → 05 → 06 → 07 → 08 → 09, jedes mit Review und Commit, nacheinander (alle ändern `index.html`).
-3. Offene Frage an den Nutzer (gestellt am 04.11., noch ohne Antwort): Nach Ticket 04 (Wagen am Himmel) und 05
-   (Erwachen auf der Reise) anhalten, bis er mit `?szenen` geschaut hat, oder bis 09 durchlaufen?
+3. Entschieden (Nutzer, 04.11. abends): 03 bis 09 ohne Halt durchziehen; Abnahme erst danach. (Frage war: nach 04 und 05
+   anhalten oder bis 09 durchlaufen?)
 4. Abnahme durch den Nutzer mit `?szenen` am Computer und auf dem Poco (Deploy des Feature-Branchs macht er selbst;
    pushen nur auf sein Wort), dabei Grösse und Helligkeit des Wagens festlegen. Dann Ticket 10, dann Merge nach main
    auf sein Wort.
@@ -65,6 +65,10 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
 - **Nie zwei Agenten zugleich in `index.html`.** Parallel nur, was andere Dateien betrifft (wie der Katalog).
 - **Schwere Läufe** (Chrome, Proben, Tests) nur über `LEISE_CPU=50 sh tools/leise.sh <befehl …>` (CPU-Deckel und Sperre,
   Läufe nacheinander). Der Nutzer arbeitet nebenher am selben Rechner.
+- **Tests aufteilen** (Nutzer, 04.11. abends, nur solange die Qualität nicht leidet): Der Umsetzer lässt nur die Läufe
+  laufen, die sein Ticket betreffen, der Reviewer den ganzen Satz. Innerhalb einer Sperre von `leise.sh` dürfen reine
+  Node-Tests ohne Browser parallel laufen. Browserläufe bleiben nacheinander, Läufe mit Bildzeiten und der Vergleich
+  mit `vorher/` immer allein.
 - **Chrome immer stumm** (`--mute-audio`; `tools/chrome.mjs` und `tests/offline.mjs` machen das seit diesem Branch). Der
   Nutzer hörte sonst die Töne des Spiels.
 - **Commits ohne jede Erwähnung von Claude** (keine Co-Authored-By- oder «Generated with»-Zeile).
