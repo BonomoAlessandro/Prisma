@@ -4,7 +4,7 @@
 
 **Blocked by:** –  (läuft parallel zu den übrigen Tickets ab Beginn)
 
-**Status:** ready-for-agent
+**Status:** resolved
 
 **What to build:** Ein Katalog von Varianten, wie der Kleine Wagen in Menü, Übersicht und die Leiste unter dem
 Untertitel kommt (Entscheide 9, 17, 21; Abschnitt «Skizzenkatalog» der Spec). Der Nutzer wählt daraus; eingebaut wird
@@ -136,3 +136,13 @@ Offen: Menü B dreht den Wagen (nur Leicht steht wie am Himmel); Wahl des Nutzer
 veröffentlicht: https://claude.ai/artifact/FPj7CsvjGuVnwEEYoCm1pf (aus einer Kopie ohne `<!doctype>`/`<html>`/`<head>`/
 `<body>`, sonst gleich wie `katalog/katalog.html`). Wartet auf die Wahl des Nutzers je Bereich (Menü, Übersicht,
 Leiste); erst dann `resolved` und Ticket 08 frei.
+
+**04.11.2026, Wahl des Nutzers:** Menü **F** (Sternkarte mit Reitern), Übersicht **C** (Sternhaufen), Leiste **C**
+(Zeichen im Wagen). Dazu eine Anpassung (Wortlaut): «Hier soll das Sternzeichen platziert sein wie auf dem Bild, der
+text jedoch zentriert auf der Seite und der Polarstern soll weiter oben sein, sodass ein Abstand zwischen Stern und
+Text gut ersichtlich ist.» Worauf sie sich bezieht, wird noch geklärt.
+
+**04.11.2026, Anpassung geklärt:** Sie gilt für Leiste C. Der Text (Kicker und Untertitel) steht senkrecht in der
+Mitte des Bildschirms, der Wagen mit den Zeichen darunter wie im Katalog, der grosse Lichtpunkt (das getragene Licht)
+deutlich weiter oben, mit gut sichtbarem Abstand zum Text. Im Katalog nachgebaut (Leiste C, `leisteBild(…, true)`) und
+neu veröffentlicht. Damit ist die Wahl vollständig; Ticket 08 ist frei, sobald 07 fertig ist.

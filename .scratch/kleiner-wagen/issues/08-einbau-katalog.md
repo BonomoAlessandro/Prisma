@@ -34,3 +34,18 @@ Ticket 02; ohne diese Wahl nicht beginnen.
 - Probe: `tests/geschichte-probe.mjs --menue`, `--uebersicht`.
 
 ## Comments
+
+**04.11.2026, Wahl des Nutzers (Ticket 02):**
+- **Menü F** «Sternkarte mit Reitern»: ein grosser Wagen wie auf einer Sternkarte (Kreise um den Polarstern, Namen der
+  Welten an ihren Sternen, Punktgrösse nach echter Helligkeit, noch fehlende Linien gestrichelt), die vier Grade als
+  Reiter daneben (Handy hoch: oben als Segmente), darunter Stand, Knopf (Beginnen/Fortsetzen/Übersicht) und «Von vorn».
+- **Übersicht C** «Sternhaufen»: um jeden Stern die zehn Level seiner Welt als kleine Sterne (gelöst hell, nächstes mit
+  Ring, gesperrt blass), «Im Dorf» als eigener Haufen; Tippen auf einen Haufen zeigt seine Level als Liste mit
+  Bestwerten. Auf dem Handy wird der ganze Haufen gewählt, nicht das einzelne Level.
+- **Leiste C** «Zeichen im Wagen», mit Anpassung des Nutzers: Kicker und Untertitel **senkrecht in der Mitte** des
+  Bildschirms, der Wagen mit den Zeichen der Welten darunter, das getragene Licht (Lichtpunkt) **deutlich weiter oben**,
+  mit gut sichtbarem Abstand zum Text. Gilt für die Untertitel bei der Ankunft in einer Welt (die mit Leiste). Im Spiel
+  heisst das auch: Während dieser Untertitel steht, bleibt der Lichtpunkt im oberen Teil des Bilds (Kamera bzw. Flug
+  aus Ticket 05 entsprechend).
+- Vorlage ist der Katalog (`katalog/katalog.html`, Varianten F, C, C); das Spiel ist massgebend für Bedienung,
+  Tastatur, Fokus und Texte.

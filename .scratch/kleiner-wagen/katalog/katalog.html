@@ -313,6 +313,11 @@
   .bs .cap .text { margin: 0; max-width: 30em; font-size: 18px; line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
   .bs .cap .kicker, .bs .cap .text { text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9); }
   .fmt-hoch .cap .text { font-size: 15px; }
+  /* Leiste C (Wahl des Nutzers): nur Kicker und Text bestimmen die Mitte, der Wagen hängt darunter */
+  .bs .cap.mitte { transform: translateY(-50%); }
+  .bs .cap.mitte::before { top: -50px; bottom: -50px; background: radial-gradient(ellipse 42% 50% at 50% 50%, rgba(3, 3, 8, 0.38), rgba(3, 3, 8, 0)); }
+  .bs .cap.mitte .kopfteil { display: flex; flex-direction: column; align-items: center; }
+  .bs .cap.mitte .pfad { position: absolute; left: 0; right: 0; top: 100%; }
   .bs .cap .pfad { margin-top: 18px; display: flex; flex-direction: column; align-items: center; }
   .fmt-quer .cap .pfad { margin-top: 14px; }
   .bs .path { display: flex; align-items: center; }
@@ -1238,8 +1243,13 @@
 
   /* ---------- Leiste unter dem Untertitel ---------- */
 
-  function leisteBild(ctx, pfad) {
+  function leisteBild(ctx, pfad, mitte = false) {
     const { fmt, W, H, S } = ctx, unten = fmt === 'quer' ? 70 : Math.round(0.14 * H);
+    if (mitte) { // Wahl des Nutzers (Leiste C): Text senkrecht in der Mitte, der Wagen darunter, das Licht deutlich darüber
+      const licht = { desktop: 0.17, hoch: 0.15, quer: 0.12 }[fmt] * H;
+      return `<div class="licht" style="left:${W / 2}px;top:${f1(licht)}px"></div>`
+        + `<div class="cap mitte" style="top:${H / 2}px"><div class="kopfteil"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p></div><div class="pfad">${pfad}</div></div>`;
+    }
     return `<div class="licht" style="left:${W / 2}px;top:${f1(fmt === 'quer' ? 56 : H * (fmt === 'hoch' ? 0.36 : 0.4))}px"></div>`
       + `<div class="cap" style="bottom:${unten}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p><div class="pfad">${pfad}</div></div>`;
   }
@@ -1294,7 +1304,7 @@
       id: 'C', name: 'Zeichen im Wagen',
       idee: 'Die Mischform: Die Zeichen der sechs Welten sitzen an den Sternen des Wagens, durch seine Linien verbunden; geweckte hell und mit Hof, die aktuelle pulsiert, spätere blass. An der Spitze der Polarstern.',
       bezug: 'Sternkarten mit Zeichen an den Sternen; die Zeichen der heutigen Leiste.',
-      achtung: 'Höher als heute (gut 120 px statt 40), der Untertitel rückt nach oben. Das Dorf fehlt auch hier.',
+      achtung: 'Höher als heute (gut 120 px statt 40). Gewählt, mit Anpassung des Nutzers: Text senkrecht in der Mitte, der Wagen darunter, das Licht deutlich darüber. Das Dorf fehlt auch hier.',
       bild(ctx) {
         const { fmt } = ctx, s = { desktop: 2.1, hoch: 1.75, quer: 1.4 }[fmt], ic = { desktop: 19, hoch: 17, quer: 15 }[fmt];
         const w = Math.round(112 * s + 44), h = Math.round(64 * s + 40);
@@ -1305,7 +1315,7 @@
           const [x, y] = pts[k], sc = ic / 24;
           icons += `<g class="lz-ico" data-k="${k}" transform="translate(${f1(x - ic / 2)} ${f1(y - ic / 2)}) scale(${sc.toFixed(3)})"><circle class="lz-disc" cx="12" cy="12" r="14"/>${ICON[WELTEN[k - 1].id]}</g>`;
         }
-        return leisteBild(ctx, wagenSVG(w, h, o, icons));
+        return leisteBild(ctx, wagenSVG(w, h, o, icons), true);
       },
       nach(bs) {
         const icons = [...bs.querySelectorAll('.lz-ico')];

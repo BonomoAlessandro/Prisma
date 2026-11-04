@@ -42,3 +42,7 @@ fliegt am nächsten schlafenden Stern vorbei in die nächste Welt; jeder Einstie
 - Ton: `audio.hit(color, when, { octave, gain })` und der Hall des Audio-Moduls.
 
 ## Comments
+
+**04.11.2026, Hinweis aus der Wahl des Nutzers (Ticket 02, Leiste C):** Der Untertitel bei der Ankunft in einer Welt
+steht künftig senkrecht in der Mitte des Bildschirms (Einbau in Ticket 08). Der Lichtpunkt soll dabei deutlich darüber
+bleiben, mit gut sichtbarem Abstand zum Text. Den Flug und den Blick der Kamera so anlegen, dass das möglich ist.
