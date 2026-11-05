@@ -37,3 +37,7 @@ Ende richtig im Bild steht.
 - `prewarmScene(STORY_EPILOG)` im Finale: Die Bühne wird vorgezeichnet, während die Kamera still steht.
 
 ## Comments
+
+**05.11.2026, Hinweis aus dem Review von Ticket 03:** Auf kleinen Handys (360 × 640, 320 × 568) hat das Finale in
+sechs von sechs Läufen eine einzelne Lücke von 286–445 ms gleich nach einem Tippen (Vorher-Lauf Handy: 234 ms an
+derselben Stelle, auf main nicht in jedem Lauf). Beim Umbau des Finales dort eigens messen.

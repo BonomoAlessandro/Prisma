@@ -18246,25 +18246,26 @@ const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest',
-    travel: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Lenke es zwischen den Bäumen hindurch.',
+    travel: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des Wagens.',
     carrier: 'glow', done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
   { station: 2, title: 'Das Meer', sky: 'beach',
-    travel: 'Die Glühwürmchen tragen das Licht aus dem Wald hinaus, über die Hügel bis ans Meer. Dort springt es von Welle zu Welle.',
+    travel: 'Über dem Wald erwacht der erste Stern und weist zum Meer. Die Glühwürmchen tragen das Licht über die Hügel bis an den Strand.',
     carrier: 'spray', done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
   { station: 3, title: 'Die Wüste', sky: 'desert',
-    travel: 'Der Wind über den Wellen nimmt das Licht mit, weit übers Meer, bis an den Rand der Wüste. Dort warten die Pyramiden.',
+    travel: 'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der Wüste.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
   { station: 4, title: 'Der Vulkan', sky: 'volcano', up: 1.0,
-    travel: 'Ein Wirbel aus Sand trägt das Licht über die Dünen, bis die Erde unter ihm rot zu glühen beginnt.',
+    travel: 'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
   { station: 5, title: 'Die Planeten', sky: 'solar',
-    travel: 'Der Vulkan bricht aus und schleudert das Licht hinauf, höher als alle Wolken, bis zu den Planeten.',
+    travel: 'Der vierte Stern erwacht, und die Schale des Wagens schliesst sich. Der Vulkan bricht aus und schleudert das Licht hinauf, höher als alle Wolken.',
     carrier: 'comet', done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
   { station: 6, title: 'Die Sterne', sky: 'milky', finale: true,
-    travel: 'Ein Komet nimmt das Licht mit, hinaus aus dem Sonnensystem, dorthin, wo nur noch Sterne sind.',
-    done: 'Ganz oben', next: 'Hinaufschauen' },
+    travel: 'Fünf Sterne leuchten, nur einer schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.',
+    done: 'Der Wagen ist wach', next: 'Hinaufschauen' },
 ];
-const STORY_FINALE = ['Der Polarstern hat das Zeichen gesehen.', 'Und er antwortet.'];
+const STORY_FINALE = ['Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.',
+  'Über die Deichsel läuft das Licht bis zum Polarstern.', 'Er hat das Zeichen gesehen. Und er antwortet.'];
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
 /**
@@ -18353,15 +18354,15 @@ const STORY_PROLOG = [
     camP: { x: 760, y: 470, z: 1 }, move: 6,
     text: 'Hoch oben in den Bergen, wo die Nächte klar und still sind, liegt ein kleines Dorf.' },
   { cam: { x: 520, y: 590, z: 2 }, move: 4.5,
-    text: 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht am Himmel den Polarstern, den einen Stern, der sich nie vom Fleck rührt.' },
+    text: 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an der Deichsel des Kleinen Wagens.' },
   { cam: { x: 560, y: 560, z: 2.2 }, move: 2.6, act: 'lamp',
     text: 'Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die Taschenlampe leuchtet auf.' },
   { cam: { x: 900, y: 300, z: 1.35 }, camP: { x: 760, y: 330, z: 1.3 }, move: 5, act: 'reach',
-    text: 'Doch der Himmel ist weit. Der Lichtstrahl verblasst, lange bevor er die Sterne erreicht.' },
+    text: 'Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen sollten, schlafen – der Kleine Wagen ist fast unsichtbar.' },
   { cam: { x: 760, y: 600, z: 1.55 }, camP: { x: 560, y: 600, z: 1.55 }, move: 4, act: 'gather',
     text: 'Da blinkt es am Waldrand. Glühwürmchen umschwirren die Lampe und fangen das Licht ein.' },
   { cam: { x: 1250, y: 560, z: 1.7 }, camP: { x: 1300, y: 590, z: 1.6 }, move: 5.5, act: 'carry',
-    text: 'Denn Licht lässt sich weitergeben: von Spiegel zu Spiegel, von Ort zu Ort. Hilf ihm, den weiten Weg zu den Sternen zu finden.' },
+    text: 'Jeder Stern des Wagens wacht über einen Ort der Welt und erwacht erst, wenn dort Licht leuchtet. Trag Noas Licht von Spiegel zu Spiegel, von Ort zu Ort – Stern für Stern bis zum Polarstern.' },
 ];
 const STORY_EPILOG = [
   { from: { x: 900, y: 120, z: 1.12 }, fromP: { x: 980, y: 160, z: 1.08 }, cam: { x: 760, y: 420, z: 1.25 },
@@ -18370,7 +18371,7 @@ const STORY_EPILOG = [
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
     text: 'Da blinkt der Polarstern: einmal, zweimal, dreimal.' },
   { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, move: 3, act: 'answer',
-    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Die Antwort ist angekommen.' },
+    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft mehr.' },
 ];
 
 /**

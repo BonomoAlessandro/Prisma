@@ -19,10 +19,10 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 
 | Ticket | Stand |
 |---|---|
-| 01 Gestalt, Stand, Sprungbrett, Vorher-Lauf | **Zwischenstand, ungeprüft** (siehe unten und Comments im Ticket) |
+| 01 Gestalt, Stand, Sprungbrett, Vorher-Lauf | erledigt, mit Review (ea15d24) |
 | 02 Skizzenkatalog | erledigt (resolved); Wahl des Nutzers: Menü F, Übersicht C, Leiste C mit Anpassungen (in Ticket 08) |
-| 03 Texte | offen, wartet auf 01 |
-| 04 Wagen am Himmel | offen |
+| 03 Texte | erledigt, mit Review |
+| 04 Wagen am Himmel | in Arbeit (05.11.) |
 | 05 Erwachen und Flug | offen (Hinweis aus der Wahl der Leiste in den Comments) |
 | 06 Finale | offen |
 | 07 Bühne, Überblendung Wagen in Wagen | offen |

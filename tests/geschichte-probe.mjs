@@ -11,7 +11,10 @@
 // Stand setzt die Probe in localStorage. Sie prüft Kopfzeile, Speicherstand, Menü (Stand je Grad, «Weiter», Fokus,
 // Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt bereit
 // ist (kein leeres Brett), und misst die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken
-// über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende).
+// über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende). Seit Ticket 03 von
+// .scratch/kleiner-wagen/ dazu die Sätze, die der Spieler liest (Prolog, Einstiege, Reisen, Finale, Epilog, «Gelöst» am
+// Ende jeder Welt), und dass jeder ganz im Bild steht, ohne mehr Zeilen als der längste Satz vor dem Kleinen Wagen (auf
+// der Bühne nur ein HINWEIS, siehe pruefeSatz).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -49,6 +52,44 @@ const GRAD_TEXT = { leicht: 'Leicht', mittel: 'Mittel', schwer: 'Schwer', 'sehr 
 const WELTEN = ['Der Bergwald', 'Das Meer', 'Die Wüste', 'Der Vulkan', 'Die Planeten', 'Die Sterne'];
 const WELT_MENUE = ['Bergwald', 'Meer', 'Wüste', 'Vulkan', 'Planeten', 'Sterne']; // so nennt sie das Menü
 const STATIONEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'];
+// Texte der Geschichte vom Kleinen Wagen (Spec .scratch/kleiner-wagen/, «Texte»; Ticket 03): so sieht sie der Spieler
+const PROLOG_SAETZE = [
+  'Hoch oben in den Bergen, wo die Nächte klar und still sind, liegt ein kleines Dorf.',
+  'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an der Deichsel des '
+    + 'Kleinen Wagens.',
+  'Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die Taschenlampe leuchtet auf.',
+  'Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen sollten, schlafen – der Kleine Wagen ist '
+    + 'fast unsichtbar.',
+  'Da blinkt es am Waldrand. Glühwürmchen umschwirren die Lampe und fangen das Licht ein.',
+  'Jeder Stern des Wagens wacht über einen Ort der Welt und erwacht erst, wenn dort Licht leuchtet. Trag Noas Licht '
+    + 'von Spiegel zu Spiegel, von Ort zu Ort – Stern für Stern bis zum Polarstern.'];
+/** Untertitel bei der Ankunft in einer Welt (Einstieg und Reise), je Welt. */
+const ANKUNFT = [
+  'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des Wagens.',
+  'Über dem Wald erwacht der erste Stern und weist zum Meer. Die Glühwürmchen tragen das Licht über die Hügel bis an '
+    + 'den Strand.',
+  'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der '
+    + 'Wüste.',
+  'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
+  'Der vierte Stern erwacht, und die Schale des Wagens schliesst sich. Der Vulkan bricht aus und schleudert das Licht '
+    + 'hinauf, höher als alle Wolken.',
+  'Fünf Sterne leuchten, nur einer schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.'];
+/** «Gelöst» nach dem letzten Level jeder Welt: Meldung und Knopf. */
+const WELT_GELOEST = [['Der Wald leuchtet', 'Weiter zum Meer'], ['Das Meer leuchtet', 'Weiter in die Wüste'],
+  ['Die Wüste leuchtet', 'Weiter zum Vulkan'], ['Der Vulkan glüht', 'Hinauf in den Himmel'],
+  ['Die Planeten leuchten', 'Weiter zu den Sternen'], ['Der Wagen ist wach', 'Hinaufschauen']];
+const FINALE_SAETZE = ['Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.',
+  'Über die Deichsel läuft das Licht bis zum Polarstern.', 'Er hat das Zeichen gesehen. Und er antwortet.'];
+const EPILOG_SAETZE = ['In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.',
+  'Da blinkt der Polarstern: einmal, zweimal, dreimal.',
+  'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft '
+    + 'mehr.'];
+// Massstab für die Zeilen: die längsten Sätze vor dem Kleinen Wagen, auf der Bühne (der alte Prolog 2) und im
+// Untertitel über der Welt (Einstieg ins Dorf, unverändert). Kein neuer Satz braucht mehr Zeilen als sie.
+const MASS_BUEHNE = 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht am Himmel den Polarstern, den '
+  + 'einen Stern, der sich nie vom Fleck rührt.';
+const MASS_UNTERTITEL = 'Hinter dem Haus übt Noa mit der Taschenlampe. Ein alter Spiegel, ein Stück buntes Glas – und '
+  + 'das Licht geht genau dorthin, wo Noa es haben will.';
 const args = process.argv.slice(2);
 const wert = (name) => { const i = args.indexOf(name); return i < 0 ? null : args[i + 1]; };
 const grad = (x) => x.replace('-', ' ');
@@ -364,14 +405,64 @@ async function gehaltenesEnter() {
   await until('window.__prisma?.ticks > 2', 'Spiel startet');
 }
 
-/** Tippen, bis die Bühne fertig ist (Prolog: bis sie ausblendet; Epilog: bis die Knöpfe am Ende stehen). */
-async function buehneDurch(name, { bisKnoepfe = false } = {}) {
+const SATZ_BUEHNE = '#story .scene .line.on', SATZ_UNTERTITEL = '#story .caption .text';
+/**
+ * Der Satz, den der Spieler gerade liest (sel: SATZ_BUEHNE oder SATZ_UNTERTITEL), gegen soll; dazu, dass er ganz im
+ * Bild steht (nichts abgeschnitten) und nicht mehr Zeilen braucht als der Massstab (MASS_BUEHNE bzw.
+ * MASS_UNTERTITEL, in derselben Breite und Schrift gesetzt). Zeilen: verschiedene Oberkanten der Zeilen des Texts.
+ */
+async function pruefeSatz(sel, soll, was) {
+  const mass = sel === SATZ_BUEHNE ? MASS_BUEHNE : MASS_UNTERTITEL;
+  const s = await ev(`(() => { const el = document.querySelector(${JSON.stringify(sel)}); if (!el) return null;
+    const zeilen = (e) => { const r = document.createRange(); r.selectNodeContents(e);
+      return new Set([...r.getClientRects()].map((q) => Math.round(q.top))).size; };
+    const cs = getComputedStyle(el), m = document.createElement('p');
+    m.style.cssText = 'position:fixed;left:-9999px;top:0;visibility:hidden;margin:0;padding:0;width:'
+      + Math.min(parseFloat(cs.maxWidth) || Infinity, el.parentElement.clientWidth) + 'px';
+    for (const k of ['fontFamily', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing', 'wordSpacing'])
+      m.style[k] = cs[k];
+    m.textContent = ${JSON.stringify(mass)};
+    document.body.append(m);
+    const masse = zeilen(m);
+    m.remove();
+    const b = el.getBoundingClientRect();
+    return { text: el.textContent, zeilen: zeilen(el), masse,
+      drin: b.top >= 0 && b.left >= 0 && b.bottom <= innerHeight && b.right <= innerWidth
+        && el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1 }; })()`);
+  pruefe(s?.text === soll, `${was}: Satz «${s?.text}» statt «${soll}»`);
+  if (!s) return;
+  pruefe(s.drin, `${was}: Satz nicht ganz im Bild`);
+  // auf der Bühne nur ein Hinweis: Prolog 6 steht wörtlich in der Spec (Entscheid 13) und braucht eine Zeile mehr als
+  // der alte Prolog 2; die Zeilen der Bühne wachsen nach oben (.lines), abgeschnitten wird nichts (drin)
+  const mehr = `${was}: ${s.zeilen} Zeilen, mehr als der längste Satz vor dem Wagen (${s.masse})`;
+  if (sel === SATZ_BUEHNE && s.zeilen > s.masse) console.log(`  HINWEIS ${mehr}`);
+  else pruefe(s.zeilen <= s.masse, mehr);
+  console.log(`  Satz ${was}: ${s.zeilen} Zeilen (Massstab ${s.masse})`);
+}
+
+/**
+ * Tippen, bis die Bühne fertig ist (Prolog: bis sie ausblendet; Epilog: bis die Knöpfe am Ende stehen). saetze: die
+ * Sätze der Einstellungen der Reihe nach (PROLOG_SAETZE, EPILOG_SAETZE), geprüft mit pruefeSatz.
+ */
+async function buehneDurch(name, { bisKnoepfe = false, saetze = null } = {}) {
   for (let n = 1; ; n++) {
     await until(`${D}.story.waitTap !== null || ${storyMode} !== 'scene' || ${knoepfe}`, `${name}: Einstellung ${n}`,
       60);
-    if (await ev(knoepfe)) { await bild(`${name}-ende`); return; }
-    if (!(await ev(`${D}.story.waitTap !== null`))) { pruefe(!bisKnoepfe, `${name}: ohne Knöpfe am Ende`); return; }
-    if (n === 1) { await sleep(800); await bild(`${name}-1`); }
+    if (saetze && n <= saetze.length && await ev(`${storyMode} === 'scene'`)) {
+      await pruefeSatz(SATZ_BUEHNE, saetze[n - 1], `${name}, Einstellung ${n}`);
+    }
+    // Knöpfe: am Ende des Epilogs mit dem letzten Satz, nach dem Prolog das Angebot (prüft angebot)
+    if (await ev(knoepfe)) {
+      pruefe(!saetze || n >= saetze.length, `${name}: Knöpfe nach ${n} statt ${saetze?.length} Einstellungen`);
+      await bild(`${name}-ende`); return;
+    }
+    if (!(await ev(`${D}.story.waitTap !== null`))) {
+      pruefe(!bisKnoepfe, `${name}: ohne Knöpfe am Ende`);
+      pruefe(!saetze || n > saetze.length, `${name}: zu Ende nach ${n - 1} statt ${saetze?.length} Einstellungen`);
+      return;
+    }
+    // dazu der letzte Satz mit Tippen (Prolog 6, der längste: Zeilen auf kleinen Handys, Review Ticket 03)
+    if (n === 1 || (saetze && n === saetze.length)) { await sleep(800); await bild(`${name}-${n}`); }
     await tippe('#story .scene .lines', 'Bühne');
     await sleep(300);
   }
@@ -411,6 +502,11 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
   if (bilder || k === 9) { await sleep(600); await bild(`${slug(g)}-${platz + 1}-geloest`); }
+  if (k === 9) { // «Gelöst» nach dem letzten Level der Welt: Meldung und Knopf (bei den Sternen «Der Wagen ist wach»)
+    const f = await geloestFeld();
+    pruefe(f.msg === WELT_GELOEST[w][0] && f.knopf === WELT_GELOEST[w][1],
+      `${g} ${platz + 1}: Gelöst ${JSON.stringify(f)}`);
+  }
   if (messen) await messe({ abKlick: true }); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
 }
@@ -433,7 +529,7 @@ async function durchgang(g, erster) {
   await tippe(karte(g), `Karte ${g}`);
   await sofortZu(`${g}: Beginnen`);
   await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
-  if (erster) await buehneDurch(`${slug(g)}-prolog`);
+  if (erster) await buehneDurch(`${slug(g)}-prolog`, { saetze: PROLOG_SAETZE });
   else {
     await sleep(2500);
     await bild(`${slug(g)}-prolog`);
@@ -445,10 +541,12 @@ async function durchgang(g, erster) {
   await bild(`${slug(g)}-einstieg`);
   pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
     `${g}: Einstieg in den Bergwald`);
+  await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
   for (let w = 0; w < welten; w++) {
     for (let k = 0; k < 10; k++) await level(g, w * 10 + k, { bilder: k === 0 });
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
       + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+    await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[w + 1], `${g}: Reise in Welt ${w + 2}`);
     // «Menü» und «Neu starten» wirken auf der Reise nicht: Die Knöpfe sind weg (Ticket 08)
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
@@ -497,14 +595,16 @@ async function finale(g) {
   await tippe('#menue .menue-weiter', 'Weiter');
   await sofortZu(`${g}: Weiter`);
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg in die Sterne`, 60);
+  await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[5], `${g}: Einstieg in die Sterne`);
   await sleep(1800);
   await bild(`${slug(g)}-einstieg-sterne`);
   await until(`${D}.story.step === 50 && window.__prisma.playing()`, `${g}: Level 51 läuft`, 60);
   await ende(`${g}: Weiter → Einstieg in die Sterne (Fortsetzen)`, { bis: 'spielt' });
   for (let k = 0; k < 10; k++) await level(g, 50 + k, { bilder: k === 0 || k === 9, messen: k === 9 });
-  // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
-  for (let n = 1; n <= 2; n++) {
+  // Finale: drei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
+  for (let n = 1; n <= FINALE_SAETZE.length; n++) {
     await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `${g}: Finale, Satz ${n}`, 60);
+    await pruefeSatz(SATZ_UNTERTITEL, FINALE_SAETZE[n - 1], `${g}: Finale, Satz ${n}`);
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe im Finale`);
     await sleep(900);
     await bild(`${slug(g)}-finale-${n}`);
@@ -515,7 +615,7 @@ async function finale(g) {
   await ende(`${g}: Finale (Level 60 → Epilog)`, { bis: 'buehne' });
   await sleep(2500);
   await bild(`${slug(g)}-epilog`);
-  await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true });
+  await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true, saetze: EPILOG_SAETZE });
   const s = await stand(g);
   pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
   const knopf = await ev("[...document.querySelectorAll('#story .scene .actions button')].map(b => b.textContent)"
@@ -579,13 +679,14 @@ async function ganzerDurchgang(g, erster) {
   await tippe(karte(g), `Karte ${g}`);
   await sofortZu(`${g}: Beginnen`);
   await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
-  await buehneDurch(`${slug(g)}-prolog`);
+  await buehneDurch(`${slug(g)}-prolog`, { saetze: PROLOG_SAETZE });
   await ende(`${g}: Menü → Prolog bis zum Angebot`, { bis: 'knoepfe' });
   await messe({ abKlick: true });
   await angebot(g, 'Gleich los');
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg`, 60);
   pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
     `${g}: Einstieg in den Bergwald`);
+  await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
   await sleep(1800);
   await bild(`${slug(g)}-einstieg`);
   await until(`${D}.story.step === 0 && window.__prisma.playing()`, `${g}: Level 1 läuft`);
@@ -598,15 +699,17 @@ async function ganzerDurchgang(g, erster) {
     if (w === 5) break;
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
       + `'Kapitel ${w + 2} · ${WELTEN[w + 1]}'`, `${g}: Reise in Welt ${w + 2}`, 60);
+    await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[w + 1], `${g}: Reise in Welt ${w + 2}`);
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
     await bild(`${slug(g)}-reise-${w + 2}`);
     await until(`${D}.story.step === ${(w + 1) * 10} && window.__prisma.playing()`, `${g}: in Welt ${w + 2}`, 90);
     await ende(`${g}: Reise in Welt ${w + 2} (${WELT_MENUE[w + 1]})`, { bis: 'spielt' });
   }
-  // Finale: zwei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
-  for (let n = 1; n <= 2; n++) {
+  // Finale: drei Sätze zum Tippen, dann die Antwort des Sterns und der Epilog
+  for (let n = 1; n <= FINALE_SAETZE.length; n++) {
     await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `${g}: Finale, Satz ${n}`, 60);
+    await pruefeSatz(SATZ_UNTERTITEL, FINALE_SAETZE[n - 1], `${g}: Finale, Satz ${n}`);
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe im Finale`);
     await sleep(900);
     await bild(`${slug(g)}-finale-${n}`);
@@ -618,7 +721,7 @@ async function ganzerDurchgang(g, erster) {
   await messe();
   await sleep(2500);
   await bild(`${slug(g)}-epilog`);
-  await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true });
+  await buehneDurch(`${slug(g)}-epilog`, { bisKnoepfe: true, saetze: EPILOG_SAETZE });
   await ende(`${g}: Epilog bis «Zum Menü»`, { bis: 'knoepfe' }); // ab dem ersten Bild nach dem Finale
   const s = await stand(g);
   pruefe(s?.geschafft === true && s.geloest.length === 60, `${g}: Stand nach dem Finale ${JSON.stringify(s)}`);
@@ -1122,7 +1225,8 @@ async function uebersichtAblauf() {
   await until('window.__prisma.solvedPanel()', 'Sterne 10 gelöst', 30);
   await sleep(700);
   f = await geloestFeld();
-  pruefe(f.msg === 'Ganz oben' && f.knopf === 'Zur Übersicht', `letztes Level im Wiederholen ${JSON.stringify(f)}`);
+  pruefe(f.msg === 'Der Wagen ist wach' && f.knopf === 'Zur Übersicht',
+    `letztes Level im Wiederholen ${JSON.stringify(f)}`);
   await bild('uebersicht-zur-uebersicht');
   await messe();
   await tippe('#btn-next', 'Zur Übersicht');
@@ -1710,7 +1814,7 @@ async function wagenAblauf() {
         `Leicht: Reise in Welt ${w + 2}`, 90);
       await pruefeWagen('leicht', w + 1, `nach der Reise in Welt ${w + 2}`);
     } else {
-      for (let n = 1; n <= 2; n++) {
+      for (let n = 1; n <= FINALE_SAETZE.length; n++) {
         await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `Leicht: Finale, Satz ${n}`, 60);
         await pruefeWagen('leicht', 6, `im Finale, Satz ${n}`);
         await tippe('#story .caption .text', 'Untertitel');
@@ -1737,6 +1841,7 @@ async function wagenAblauf() {
   await pruefeWagen('leicht', 3, 'im Menü vor dem Fortsetzen im Vulkan');
   await tippe('#menue .menue-weiter', 'Weiter');
   await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg in den Vulkan', 60);
+  await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[3], 'Leicht: Einstieg in den Vulkan');
   await pruefeWagen('leicht', 3, 'beim Einstieg in den Vulkan');
   // bis der Fall des Lichts zu Ende ist (vorher wirkt «Menü» nicht)
   await until(`${D}.story.step === 30 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 31 läuft', 60);
