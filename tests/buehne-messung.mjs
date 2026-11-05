@@ -11,7 +11,8 @@
 //   Touch (wie das Poco F4 GT); --drossel: CPU-Drosselung (Emulation.setCPUThrottlingRate).
 //   bilder: an jedem Ruhepunkt von Prolog und Epilog ein Bild, eingefroren auf dieselbe Zeit (Rauch, Glühwürmchen,
 //   Funkeln), in Desktop, Handy hoch und quer und kleinem Handy, nach tests/output/buehne/<ordner>/; mit --nur nur
-//   diese Ansichten, dazu handy-275 und quer-275 (Pixeldichte 2,75 wie das Poco, Massstab der Seite).
+//   diese Ansichten, dazu handy-275 und quer-275 (Pixeldichte 2,75 wie das Poco, Massstab der Seite). Dazu in Prolog 4
+//   die Andeutung der Linien des Kleinen Wagens mitten in der Fahrt (prolog-4-andeutung; Ticket 07 des Wagens).
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
@@ -250,6 +251,17 @@ async function bilder() {
           await c.ev(auftauen);
           if (!(await c.ev(wartetTippen))) break;
           await c.tippe('#story .scene .lines');
+          // Prolog 4: Die Linien des Kleinen Wagens zeichnen sich ab (Ticket 07 von .scratch/kleiner-wagen/), mitten in der
+          // Fahrt, wenn sie am hellsten sind
+          if (!epilog && n === 3) {
+            await c.until(`(() => { const sc = ${D}.story.scene;
+              return sc.wagenBei(sc.time).linie > 0.95 * BUEHNENWAGEN.andeutung.hell; })()`, 'Andeutung in Prolog 4', 20);
+            await c.ev(einfrieren);
+            const file = join(dir, `${view.name}-prolog-4-andeutung.png`);
+            writeFileSync(file, Buffer.from((await c.send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
+            console.log(`  Bild ${file}`);
+            await c.ev(auftauen);
+          }
         }
         const fehler = c.logs.filter((l) => /error|exception/i.test(l));
         if (fehler.length) console.log('  Konsole:', fehler.join('\n'));

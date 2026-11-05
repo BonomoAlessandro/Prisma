@@ -25,7 +25,7 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 04 Wagen am Himmel | erledigt, mit Review |
 | 05 Erwachen und Flug | erledigt, mit Review |
 | 06 Finale | erledigt, mit Review |
-| 07 Bühne, Überblendung Wagen in Wagen | im Review (05.11.) |
+| 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
 | 08 Einbau Katalog | in Arbeit (05.11., Worktree `.claude/worktrees/kw-08`) |
 | 09 Doku und KI-Tester | offen |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |

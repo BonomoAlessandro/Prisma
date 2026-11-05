@@ -18371,7 +18371,8 @@ const HIMMELSWAGEN = {
  * Geschichte: glanz (je Stern 0 … 6, je Linie 7 …: 0 … 1, Stern hell bis an die Bloom-Schwelle und grösser, Linie heller)
  * und anteil (je Linie wie wagen.linien: so weit ist sie vom ersten zum zweiten Stern gezogen, 0 … 1).
  * SZENEN (vorübergehend, Ticket 10 entfernt): ?himmel-groesse=, ?himmel-hell= und ?himmel-punkt= (Faktoren auf winkel,
- * alle hell bzw. punkt und breite) zum Abstimmen bei der Abnahme.
+ * alle hell bzw. punkt und breite) zum Abstimmen bei der Abnahme; Grösse, Helligkeit und Punkte gelten so auch für den
+ * Wagen der Bühne (abstimmung, BUEHNENWAGEN).
  */
 const himmelsWagen = (() => {
   const H = HIMMELSWAGEN, form = wagen.form, n = form.length, nL = wagen.linien.length;
@@ -18496,6 +18497,7 @@ const himmelsWagen = (() => {
     stand,
     glanz,
     anteil,
+    abstimmung: { hell, punkt }, // SZENEN (vorübergehend, Ticket 10 entfernt): gilt auch auf der Bühne (BUEHNENWAGEN)
     zeige(s, welt) {
       const wach = s?.wach ?? [], linien = s?.linien ?? [];
       if (JSON.stringify([wach, linien, welt]) === JSON.stringify([stand.wach, stand.linien, stand.welt])) return;
@@ -18596,14 +18598,35 @@ const STORY_FLUG = {
  * Ton, die Linie dazwischen leuchtet, während der Puls darauf läuft; nach (s) nach dem sechsten Stern ist er verklungen.
  * Zu Satz 2 springt er ab ab (s) über die Deichsel (story.deichsel): Die Linie 6 → 7 zieht sich in zug (s), dann
  * flammt der Polarstern auf, sein Schlusston klingt, in flamme (s) ist er still. Erst dann wartet der Satz auf Tippen.
- * Danach antwortet der Polarstern wie bisher; am Ende steht der ganze Wagen waagrecht mittig im Bild (wagenBlick, der
- * Polarstern so hoch wie möglich wie der der Bühne, scene.starAt). abstand: so weit vor der Kamera steht der Lichtpunkt
- * auf einem Stern (wie im Aufstieg).
+ * Danach antwortet der Polarstern wie bisher; am Ende steht der ganze Wagen waagrecht mittig im Bild, genau dort, wo
+ * ihn gleich die Bühne zeigt (story.wagenEnde, Wagen in Wagen; Ticket 07). abstand: so weit vor der Kamera steht der
+ * Lichtpunkt auf einem Stern (wie im Aufstieg).
  */
 const STORY_PULS = {
   blick: 1.2, rand: 0.07, abstand: 72,
   puls: { ab: 0.9, schritt: 0.26, glanz: 0.8, nach: 0.6 },
   deichsel: { ab: 0.35, zug: 0.7, flamme: 0.7 },
+};
+/**
+ * Der Kleine Wagen auf der Bühne von Prolog und Epilog (Spec .scratch/kleiner-wagen/, Entscheide 8, 15, Ablauf 1
+ * und 7; Ticket 07): Er steht im Himmel der Bühne um ihren Polarstern, in der Form von wagen.form. Wo und wie gross,
+ * folgt aus dem Ende des Finales (story.wagenEnde): Im ersten Bild des Epilogs steht er genau dort, wo der Wagen am
+ * Himmel der Welt zuletzt stand (Wagen in Wagen), in jedem Format; der Prolog zeigt ihn an derselben Stelle. feld:
+ * Platz, den er auf der Bühne hat (scene.wagenFeld), in jedem Bild des Epilogs und in Prolog 4: rand (Anteil der
+ * kürzeren Bildseite) vom Rand des Bilds und über den Graten der Berge; darin höchstens hoehe dieses Platzes hoch
+ * (sonst schaut das Finale am Ende weiter, mit grösserem Sichtfeld der Kamera).
+ * Prolog: die sechs Sterne blass wie die schwächsten Hintergrundsterne (schlaf: Helligkeit, Durchmesser in
+ * CSS-Pixeln), ohne Funkeln, ohne Linien; in Prolog 4 zeichnen sich die Linien einmal ab (andeutung: ab s nach dem
+ * Beginn der Einstellung, in auf s bis hell, in aus s wieder weg). Epilog: alle sieben wach wie am Himmel der Welten
+ * (HIMMELSWAGEN.wach, die Linien wie HIMMELSWAGEN.linie bei Nacht); sie glimmen nach: ab halten s nach dem Beginn in
+ * abklingen s auf glimmen, dann atmen sie (tiefe, periode s). Grösse und Helligkeit stimmt der Nutzer bei der
+ * Abnahme ab (hier und mit den Parametern von himmelsWagen, die auch hier gelten).
+ */
+const BUEHNENWAGEN = {
+  feld: { rand: 0.04, hoehe: 0.8 },
+  schlaf: { hell: 0.34, punkt: 1.6 },
+  andeutung: { hell: 0.11, ab: 1.4, auf: 1.3, aus: 2.1 },
+  nachglimmen: { halten: 2.6, abklingen: 4, glimmen: 0.11, tiefe: 0.3, periode: 5 },
 };
 /**
  * Prolog und Epilog: Einstellungen der Kamera über dem Dorf (Bühne siehe createStoryScene), je mit einem Satz.
@@ -18653,8 +18676,10 @@ const STORY_EPILOG = [
  * Sterne in wenigen Gruppen, flackernde Fenster einzeln per CSS. Während einer Fahrt ändert JavaScript nichts am DOM:
  * Jeder Commit liess Chrome die bewegten Ebenen neu rastern. Die Linien (linie) bekommen ihre Breite je Ruhepunkt in
  * einer verborgenen Kopie. Beim Warten auf Tippen läuft keine Schleife, ausgeblendet ruht alles.
+ * Am Himmel steht der Kleine Wagen um den Polarstern (BUEHNENWAGEN, Ticket 07 von .scratch/kleiner-wagen/); wo, sagt
+ * wagenLage(): die Orte seiner sieben Sterne im ersten Bild des Epilogs (Anteile von oben links; story.wagenEnde).
  */
-function createStoryScene(host) {
+function createStoryScene(host, { wagenLage = null } = {}) {
   const rand = mulberry32(11);
   const r = (a, b) => a + (b - a) * rand();
   const n = (v) => +v.toFixed(1);
@@ -18941,29 +18966,34 @@ function createStoryScene(host) {
   };
   /**
    * Ein Wert der Bühne, der sich in Stücken ändert (wie die Tweens; Arm, Kraft und Länge des Strahls, Blinken des Sterns):
-   * Stücke { t0, t1, f(t) } in der Zeit der Bühne, ein späteres gilt ab seinem Beginn und hält danach seinen letzten
-   * Wert. Gezeichnet wird wert(t) in jedem Bild (glBuehne).
+   * Stücke { t0, t1, f(t, u) } in der Zeit der Bühne (t wie beim Anlegen, auch wenn die Zeit seither gesprungen ist;
+   * u: so lange läuft das Stück schon), ein späteres gilt ab seinem Beginn und hält danach seinen letzten Wert.
+   * Gezeichnet wird wert(t) in jedem Bild (glBuehne).
    */
   const spur = (basis) => {
     const s = { basis, stuecke: [] };
     s.wert = (t) => {
       let v = s.basis;
-      for (const st of s.stuecke) if (t >= st.t0) v = st.f(Math.min(t, st.t1));
+      // f in der Zeit, in der das Stück angelegt wurde (verschoben: so weit ist die Zeit seither gesprungen)
+      for (const st of s.stuecke) {
+        if (t >= st.t0) v = st.f(Math.min(t, st.t1) - st.verschoben, Math.min(t, st.t1) - st.t0);
+      }
       return v;
     };
     /** Die Zeit der Bühne springt um d (time = …): Die Stücke rücken mit, zu sehen bleibt dasselbe. */
-    s.verschiebe = (d) => { for (const st of s.stuecke) { st.t0 += d; st.t1 += d; } };
+    s.verschiebe = (d) => { for (const st of s.stuecke) { st.t0 += d; st.t1 += d; st.verschoben += d; } };
     /** ein Stück dazu: ab t0 für dauer Sekunden der Wert f(t) */
-    s.dazu = (t0, dauer, f) => { s.stuecke.push({ t0, t1: t0 + dauer, f }); };
+    s.dazu = (t0, dauer, f) => { s.stuecke.push({ t0, t1: t0 + dauer, f, verschoben: 0 }); };
     /** von vorn: steht auf basis */
     s.zurueck = (b) => { s.basis = b; s.stuecke = []; };
     return s;
   };
   // Schal im Wind, der Polarstern atmet, der Strahl flackert
   const schal = schwinger(4, 2.3, 0), atem = schwinger(0.05, 1.7, 0, 1), flackern = schwinger(0.07, 23, 0, 0.93);
-  // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns als Spuren (spur)
-  const armSpur = spur(75), kraft = spur(0), laenge = spur(0), stern = spur(0);
-  const spuren = [armSpur, kraft, laenge, stern];
+  // Arm (Grad), Kraft und Länge des Strahls (Anteil von STRAHL_L), Blinken des Polarsterns, Helligkeit der Linien des
+  // Wagens (Andeutung in Prolog 4, Nachglimmen im Epilog; scene.wagenBei) als Spuren (spur)
+  const armSpur = spur(75), kraft = spur(0), laenge = spur(0), stern = spur(0), wagenLinien = spur(0);
+  const spuren = [armSpur, kraft, laenge, stern, wagenLinien];
   // Glühwürmchen: schwirren am Waldrand (hx, hy), fliegen zur Lampe und umkreisen sie (ox, oy, spin), tragen das Licht
   // in den Wald (dx, dy); wo sie sind, rechnet wurmOrt, ihr Blinken glBuehne
   const worms = Array.from({ length: 16 }, () => ({ hx: r(1070, 1250), hy: r(565, 705), dx: r(1390, 1570), dy: r(560, 665),
@@ -19299,6 +19329,7 @@ function createStoryScene(host) {
         for (const w of worms) wuermer.push({ w, s: sprite(x, inhalt, [-11, -11, 22, 22], 1.6) });
       } else if (x.art === 'sterne') sterne = { ...x, mesh: sternMesh(x.punkte) };
     }
+    const wagenM = wagenMesh();
     // gezeichnet wird in der Reihenfolge des DOM (Ebene für Ebene, darin wie ihre Kinder)
     {
       const reihe = [];
@@ -19307,7 +19338,7 @@ function createStoryScene(host) {
         else if (x.art === 'linie') reihe.push(x.obj);
         else if (x.art === 'sterne') reihe.push(sterne.mesh);
         else if (x.art === 'flk') reihe.push(flks.find((f) => f.box === x.box).s.obj);
-        else if (x.art === 'polar') reihe.push(polarT.s.obj);
+        else if (x.art === 'polar') reihe.push(wagenM, polarT.s.obj); // der Wagen hinter seinem Polarstern
         else if (x.art === 'schal') reihe.push(schalT.s.obj);
         else if (x.art === 'arm') reihe.push(armT.s.obj, strahl);
         else if (x.art === 'rauch') reihe.push(...rauch.map((r) => r.s.obj));
@@ -19356,6 +19387,78 @@ function createStoryScene(host) {
       m.frustumCulled = false;
       welt.add(m);
       return m;
+    }
+    /**
+     * Der Kleine Wagen (BUEHNENWAGEN): Sterne 1 … 6 und die sieben Linien als Rechtecke in Bildpixeln um ihre Orte im
+     * Himmel (scene.wagenOrte, wagenSetzen), gezeichnet wie der Wagen am Himmel der Welten (himmelsWagen: Kern mit
+     * Schein, Linien mit Lücke zu den Sternen); der Polarstern ist der Teil polar. Helligkeit und Grösse je Bild
+     * (zeichnen, scene.wagenBei).
+     */
+    function wagenMesh() {
+      const nS = wagen.polarstern - 1, nQ = nS + wagen.linien.length, index = [];
+      const ecke = new Float32Array(nQ * 8), art = new Float32Array(nQ * 4), nr = new Float32Array(nQ * 4);
+      for (let i = 0; i < nQ; i++) {
+        const linie = i >= nS;
+        (linie ? [[-1, 0], [1, 0], [1, 1], [-1, 1]] : [[-1, -1], [1, -1], [1, 1], [-1, 1]]).forEach((e, j) => {
+          ecke.set(e, (i * 4 + j) * 2);
+          art[i * 4 + j] = linie ? 1 : 0;
+          nr[i * 4 + j] = i;
+        });
+        index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+      }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(nQ * 12), 3)); // für three.js
+      g.setAttribute('aA', new THREE.Float32BufferAttribute(new Float32Array(nQ * 8), 2));
+      g.setAttribute('aB', new THREE.Float32BufferAttribute(new Float32Array(nQ * 8), 2));
+      g.setAttribute('aEcke', new THREE.Float32BufferAttribute(ecke, 2));
+      g.setAttribute('aArt', new THREE.Float32BufferAttribute(art, 1));
+      g.setAttribute('aNr', new THREE.Float32BufferAttribute(nr, 1));
+      g.setIndex(index);
+      const m = new THREE.Mesh(g, new THREE.ShaderMaterial({ ...mischen,
+        uniforms: { uPose: { value: new THREE.Vector3(1, 0, 0) }, uAufl: { value: new THREE.Vector2(1, 1) },
+          uHell: { value: new Float32Array(nQ) }, uGroesse: { value: new Float32Array(nQ) }, uLuecke: { value: 0 } },
+        vertexShader: `uniform vec3 uPose; uniform vec2 uAufl; uniform float uHell[${nQ}], uGroesse[${nQ}], uLuecke;
+          attribute vec2 aA, aB, aEcke; attribute float aArt, aNr;
+          varying vec2 vEcke; varying float vHell, vArt;
+          vec4 bild(vec2 px) { return vec4(px / uAufl * vec2(2.0, -2.0) + vec2(-1.0, 1.0), 0.0, 1.0); }
+          void main() {
+            int i = int(aNr + 0.5);
+            vHell = uHell[i]; vEcke = aEcke; vArt = aArt;
+            vec2 pa = aA * uPose.x + uPose.yz, pb = aB * uPose.x + uPose.yz; // Bildpixel
+            if (vHell <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; } // aus: nichts
+            if (aArt < 0.5) { gl_Position = bild(pa + aEcke * 0.75 * uGroesse[i]); return; } // Stern mit Schein
+            vec2 d = pb - pa;
+            float len = length(d);
+            if (len < 2.0 * uLuecke + 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+            d /= len;
+            gl_Position = bild(mix(pa, pb, aEcke.y) + vec2(-d.y, d.x) * aEcke.x * (0.5 * uGroesse[i] + 1.0)
+              + d * uLuecke * (1.0 - 2.0 * aEcke.y));
+          }`,
+        fragmentShader: `varying vec2 vEcke; varying float vHell, vArt;
+          void main() {
+            float a;
+            if (vArt < 0.5) {
+              float r = length(vEcke) * 1.5; // 1: Rand des Kerns
+              a = smoothstep(1.0, 0.45, r) + 0.22 * pow(max(0.0, 1.0 - r / 1.5), 2.0);
+            } else a = smoothstep(1.0, 0.35, abs(vEcke.x));
+            float h = min(vHell * a, 1.0);
+            gl_FragColor = vec4(vec3(h), h);
+          }` }));
+      m.frustumCulled = false;
+      welt.add(m);
+      return m;
+    }
+    /** Die Orte des Wagens (scene.wagenOrte, Massen der Szene im Himmel) in sein Netz, wenn sie neu sind. */
+    function wagenSetzen(orte) {
+      if (wagenM.userData.orte === orte) return;
+      wagenM.userData.orte = orte;
+      const nS = wagen.polarstern - 1, ga = wagenM.geometry.attributes.aA, gb = wagenM.geometry.attributes.aB;
+      const enden = [...orte.slice(0, nS).map((o) => [o, o]),
+        ...wagen.linien.map(([a, b]) => [orte[a - 1], orte[b - 1]])];
+      enden.forEach(([a, b], i) => {
+        for (let j = 0; j < 4; j++) { ga.array.set(a, (i * 4 + j) * 2); gb.array.set(b, (i * 4 + j) * 2); }
+      });
+      ga.needsUpdate = gb.needsUpdate = true;
     }
     /**
      * Strahl: Kegel und Kern (STRAHL_TEILE) als ein Trapez je Teil mit Hals w0 und Breite k · L am Ende, deckend in seiner
@@ -19499,7 +19602,20 @@ function createStoryScene(host) {
         u.uPose.value.set(ps.s, ps.ox, ps.oy); u.uZeit.value = echt; u.uAufl.value.set(bw, bh);
       }
       for (const f of flks) zeig(f.s, [1, 0, 0, 1, 0, 0], flackernBei(echt, f.verz), f.ebene);
-      if (polarT) zeig(polarT.s, dreh(0, ...polarT.ort, (1 + 1.8 * stern.wert(t)) * atem.wert(t)), 1, polarT.ebene);
+      { // der Kleine Wagen im Himmel (die Ebene des Polarsterns), sein Polarstern ist der Teil polar
+        const orte = scene.wagenOrte, w = scene.wagenBei(t), u = wagenM.material.uniforms, ps = posen[0];
+        const nS = wagen.polarstern - 1, f = himmelsWagen.abstimmung.punkt * q, H = HIMMELSWAGEN;
+        wagenM.visible = !!orte;
+        if (orte) {
+          wagenSetzen(orte);
+          u.uPose.value.set(ps.s, ps.ox, ps.oy); u.uAufl.value.set(bw, bh);
+          u.uHell.value.fill(w.hell, 0, nS).fill(w.linie, nS);
+          u.uGroesse.value.fill(w.punkt * q, 0, nS).fill(H.linie.breite * f, nS);
+          u.uLuecke.value = H.linie.luecke * f;
+        }
+      }
+      if (polarT) zeig(polarT.s, dreh(0, ...(scene.wagenOrte?.[wagen.polarstern - 1] ?? polarT.ort),
+        (1 + 1.8 * stern.wert(t)) * atem.wert(t)), 1, polarT.ebene);
       for (const r of rauch) {
         const k = (((t + r.off * 20) % 20) + 20) % 20 / 20, size = 3 + k * 10, dx = k * 34 + Math.sin(4 * Math.PI * k - 3 * r.off) * 3;
         zeig(r.s, [size, 0, 0, size, r.ort[0] + dx, r.ort[1] - k * 85], Math.sin(Math.PI * k) ** 1.5 * 0.5, layers.findIndex((l) => l.p === r.s.p));
@@ -19598,7 +19714,11 @@ function createStoryScene(host) {
   };
   const gl = glBuehne();
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
-  const RAISED = Math.atan2(170 - 592, 1120 - 440) * 180 / Math.PI; // Arm mit der Lampe zeigt zum Polarstern
+  // Arm mit der Lampe zeigt zum Polarstern (Grad; er steht an der Spitze des Wagens, scene.wagenOrte), wie bei Zoom 1
+  const erhoben = () => {
+    const [x, y] = scene.wagenOrte?.[wagen.polarstern - 1] ?? [1120, 150];
+    return Math.atan2(y + 20 - 592, x - 440) * 180 / Math.PI;
+  };
   const [FLUG_ZU, FLUG_WALD] = [2.4, 3.6]; // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
   const HALTEN = 1e7; // ms (fast 3 h): so lange hält die Folge vor jeder Fahrt ihr Bild (folgeAnlegen; länger: haltWachen)
@@ -19627,6 +19747,7 @@ function createStoryScene(host) {
     folgeZeit: null,    // { start, zeiten, kameras, key } der Folge
     fahrtIndex: -1,     // Einstellung der Fahrt, die läuft oder zuletzt lief
     haltZeit: 0,        // Zeitgeber: der Halt bleibt unbegrenzt (haltWachen)
+    wagenOrte: null,    // Orte der sieben Sterne des Wagens im Himmel, Massen der Szene (wagenLegen)
 
     /** Zeit der Bühne (s); setzen rückt die Spuren mit. */
     get time() { const u = this.uhr; return u.s0 + (performance.now() - u.t0) / 1000 * u.tempo; },
@@ -19653,11 +19774,74 @@ function createStoryScene(host) {
 
     portrait() { return innerWidth / innerHeight < 0.9; },
     /** Wo der Polarstern bei dieser Kamera im Bild steht (Anteil der Breite und Höhe), wie skala() rechnet. */
-    starAt(c) {
-      const W = innerWidth, H = innerHeight, fit = Math.min(1, 900 * W / H / 820), p = layers[0].p;
-      const z = (1 + (c.z - 1) * p) * fit, x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
-      const slice = Math.max(W / 1600, H / 900); // wie preserveAspectRatio slice
-      return [((1120 - x) * z) * slice / W + 0.5, ((150 - y) * z) * slice / H + 0.5];
+    starAt(c) { return this.wagenImBild(c)[wagen.polarstern - 1]; },
+    /** Wo die sieben Sterne des Wagens (wagenOrte) bei der Kamera c im Bild stehen (Anteile von oben links). */
+    wagenImBild(c) {
+      const W = innerWidth, H = innerHeight, p = layers[0].p, s = this.skala(c, p);
+      const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
+      return (this.wagenOrte ?? this.wagenLegen()).map(([ox, oy]) => [(ox - x) * s / W + 0.5, (oy - y) * s / H + 0.5]);
+    },
+    /** Kamera im ersten Bild des Epilogs (Beginn seiner ersten Fahrt; im Hochformat fromP) */
+    epilogStart() {
+      const f = STORY_EPILOG[0];
+      return (this.portrait() && f.fromP) || f.from;
+    },
+    /**
+     * Platz für den Wagen auf der Bühne (BUEHNENWAGEN.feld) als Anteile im ersten Bild des Epilogs { links, rechts,
+     * oben, unten }: so, dass er in jedem Bild des Epilogs (Anfang und jede Einstellung) und in Prolog 4 ganz zu sehen
+     * ist, rand vom Rand des Bilds und über dem höchsten Grat der fernen Berge und des Bergwalds, den man dort sieht.
+     * Gerechnet in der Ebene des Himmels (dort steht der Wagen fest).
+     */
+    wagenFeld() {
+      const W = innerWidth, H = innerHeight, rand = BUEHNENWAGEN.feld.rand * Math.min(W, H), p = layers[0].p;
+      const mitte = (c, q) => [800 + (c.x - 800) * q, 450 + (c.y - 450) * q];
+      const reach = STORY_PROLOG.find((s) => s.act === 'reach');
+      const kameras = [this.epilogStart(), ...STORY_EPILOG.map((s) => this.ziel(s)[0]), this.ziel(reach)[0]];
+      let x0 = -Infinity, x1 = Infinity, y0 = -Infinity, y1 = Infinity;
+      for (const c of kameras) {
+        const s = this.skala(c, p), [X, Y] = mitte(c, p);
+        let grat = H; // höchster Grat im Bild (Bildpixel von oben)
+        for (const [pts, q] of [[far, layers[1].p], [mid, layers[2].p]]) {
+          const sq = this.skala(c, q), [Xq, Yq] = mitte(c, q);
+          for (const [x, y] of pts) {
+            const bx = W / 2 + (x - Xq) * sq;
+            if (bx >= 0 && bx <= W) grat = Math.min(grat, H / 2 + (y - Yq) * sq);
+          }
+        }
+        x0 = Math.max(x0, X + (rand - W / 2) / s);
+        x1 = Math.min(x1, X + (W / 2 - rand) / s);
+        y0 = Math.max(y0, Y + (rand - H / 2) / s);
+        y1 = Math.min(y1, Y + (grat - rand - H / 2) / s);
+      }
+      const c = this.epilogStart(), s = this.skala(c, p), [X, Y] = mitte(c, p);
+      return { links: (x0 - X) * s / W + 0.5, rechts: (x1 - X) * s / W + 0.5, oben: (y0 - Y) * s / H + 0.5,
+        unten: (y1 - Y) * s / H + 0.5 };
+    },
+    /**
+     * Den Wagen in den Himmel legen: dorthin, wo ihn das Finale am Ende zeigt (wagenLage, Anteile im ersten Bild des
+     * Epilogs), in Massen der Szene in der Ebene des Himmels; ohne wagenLage dreimal so gross wie die Form um den
+     * Polarstern von früher. Zurück die Orte (wagenOrte), je Bildschirm neu (folgeAnlegen).
+     */
+    wagenLegen() {
+      const c = this.epilogStart(), p = layers[0].p, s = this.skala(c, p);
+      const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p, [px, py] = wagen.form[wagen.polarstern - 1];
+      this.wagenOrte = wagenLage
+        ? wagenLage().map(([fx, fy]) => [x + (fx - 0.5) * innerWidth / s, y + (fy - 0.5) * innerHeight / s])
+        : wagen.form.map(([fx, fy]) => [1120 + 3 * (fx - px), 150 + 3 * (fy - py)]);
+      return this.wagenOrte;
+    },
+    /**
+     * Was der Wagen der Bühne zur Zeit t zeigt (BUEHNENWAGEN; glBuehne zeichnet es): hell und punkt (Durchmesser in
+     * CSS-Pixeln) der Sterne 1 … 6, linie: Helligkeit der Linien. Im Epilog wach wie am Himmel der Welten, sonst
+     * schlafend; die Linien aus der Spur wagenLinien, im Epilog atmend, sobald sie nachglimmen.
+     */
+    wagenBei(t) {
+      const B = BUEHNENWAGEN, N = B.nachglimmen, H = HIMMELSWAGEN, { hell, punkt } = himmelsWagen.abstimmung;
+      const wach = this.folge === STORY_EPILOG, v = wagenLinien.wert(t), von = H.linie.hell[0];
+      const ruhig = wach ? THREE.MathUtils.clamp((von - v) / Math.max(1e-6, von - N.glimmen), 0, 1) : 0;
+      return { hell: (wach ? H.wach.hell[0] : B.schlaf.hell) * hell,
+        punkt: (wach ? H.wach.punkt[0] : B.schlaf.punkt) * punkt,
+        linie: v * hell * (1 + N.tiefe * ruhig * Math.sin(2 * Math.PI * t / N.periode)) };
     },
     /** Pixel je Mass der Szene in der Ebene p bei der Kamera c (Hochformat: weiter weg; wie preserveAspectRatio slice). */
     skala(c, p) {
@@ -19695,6 +19879,7 @@ function createStoryScene(host) {
       this.folgeUhr = new Animation(new KeyframeEffect(null, null, { duration: t, fill: 'both' }), document.timeline);
       this.folgeUhr.play();
       this.folgeUhr.updatePlaybackRate(this.speed);
+      this.wagenLegen(); // je Bildschirm (wie das Finale ihn am Ende zeigt)
       gl.neuePlan();
     },
     /**
@@ -19778,10 +19963,15 @@ function createStoryScene(host) {
       this.arm = 75;
       this.beamLen = this.beamPower = this.starBoost = 0;
       armSpur.zurueck(75);
-      for (const s of [kraft, laenge, stern]) s.zurueck(0);
+      for (const s of [kraft, laenge, stern, wagenLinien]) s.zurueck(0);
       this.worms = 'idle';
       this.cam = { ...((this.portrait() && shot.fromP) || shot.from || shot.cam) };
       this.folgeStart(folge);
+      if (this.folge === STORY_EPILOG) { // die Linien des Wagens kommen hell aus dem Finale und glimmen nach
+        const N = BUEHNENWAGEN.nachglimmen, von = HIMMELSWAGEN.linie.hell[0], t0 = this.time + N.halten;
+        wagenLinien.zurueck(von);
+        wagenLinien.dazu(t0, N.abklingen, (x, u) => von + (N.glimmen - von) * smooth01(u / N.abklingen));
+      }
       this.say('');
       this.kicker('');
       q('.sub').classList.remove('angebot');
@@ -19904,15 +20094,16 @@ function createStoryScene(host) {
     act(name) {
       // was sich bewegt, rechnet der Tween (Stand für die Logik) und zeigt die Spur (je Bild gezeichnet, glBuehne)
       const t = this.time, eben = (t0, d, ease) => (x) => ease(Math.min(1, Math.max(0, (x - t0) / d)));
+      const hoch = erhoben();
       if (name === 'lamp') { // Arm hoch, Klick, der Strahl wächst zum Himmel
-        this.tween(1.1, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.4).then(() => {
+        this.tween(1.1, (k) => { this.arm = 75 + (hoch - 75) * k; }, storyEase, 0.4).then(() => {
           if (this.speed >= 10) { kraft.zurueck(0); laenge.zurueck(0); return; } // übersprungen: kein Klick über dem Ausblenden
           audio.rotate();
           this.beamPower = 1;
           this.tween(1.8, (k) => { this.beamLen = 0.3 * k; }, (k) => 1 - (1 - k) ** 3); // nah: nur ein Stück, sonst reicht er bis zum Stern
         });
         const e = eben(t + 0.4, 1.1, storyEase);
-        armSpur.dazu(t + 0.4, 1.1, (x) => 75 + (RAISED - 75) * e(x));
+        armSpur.dazu(t + 0.4, 1.1, (x) => 75 + (hoch - 75) * e(x));
         this.klickAt = t + 1.5;
         kraft.dazu(t + 1.5, 0, () => 1);
         const w = eben(t + 1.5, 1.8, (k) => 1 - (1 - k) ** 3);
@@ -19922,6 +20113,10 @@ function createStoryScene(host) {
         this.tween(3.5, (k) => { this.beamLen = from + (1 - from) * k; }, storyEase, 0.3);
         const von = laenge.wert(t), e = eben(t + 0.3, 3.5, storyEase);
         laenge.dazu(t + 0.3, 3.5, (x) => von + (1 - von) * e(x));
+        // … und die Linien des Wagens zeichnen sich einmal für einen Atemzug ab (BUEHNENWAGEN.andeutung)
+        const A = BUEHNENWAGEN.andeutung;
+        wagenLinien.dazu(t + A.ab, A.auf + A.aus, (x, u) => A.hell * (u < A.auf ? smooth01(u / A.auf)
+          : 1 - smooth01((u - A.auf) / A.aus)));
       } else if (name === 'gather') { // Glühwürmchen fliegen zur Lampe und umkreisen sie
         this.worms = 'gather';
         this.gatherAt = this.time + 0.6;
@@ -19942,9 +20137,9 @@ function createStoryScene(host) {
       } else if (name === 'answer') { // Noa hebt die Lampe und blinkt dreimal zurück
         this.beamLen = 0.55;
         laenge.zurueck(0.55);
-        this.tween(1.0, (k) => { this.arm = 75 + (RAISED - 75) * k; }, storyEase, 0.3);
+        this.tween(1.0, (k) => { this.arm = 75 + (hoch - 75) * k; }, storyEase, 0.3);
         const e = eben(t + 0.3, 1.0, storyEase);
-        armSpur.dazu(t + 0.3, 1.0, (x) => 75 + (RAISED - 75) * e(x));
+        armSpur.dazu(t + 0.3, 1.0, (x) => 75 + (hoch - 75) * e(x));
         for (let i = 0; i < 3; i++) {
           this.tween(0.8, (k) => { this.beamPower = Math.sin(Math.PI * k); }, storyLinear, 1.6 + i * 1.0);
           audio.hit(7, 1.8 + i * 1.0, { gain: 0.03 });
@@ -21034,14 +21229,16 @@ const story = {
     for (const obj of game.targets) obj.userData.flash = 1;
     this.tween(1.4, (k) => { this.answer.material.uniforms.uStrength.value = 1 - k; }, storyLinear, 0.3);
     await this.wait(2.6);
-    // Blick hinauf, bis der ganze Wagen mittig im Bild steht, der Polarstern so hoch wie möglich wie der, den gleich
-    // das gezeichnete Dorf zeigt (Ticket 07 legt die Bühne dazu, Wagen in Wagen; bis dahin Stern in Stern ungefähr)
-    const sc = this.scene ??= this.makeScene(), first = STORY_EPILOG[0];
-    const view = this.wagenBlick(1, sc.starAt((sc.portrait() && first.fromP) || first.from)[1]), size = fl.scale.x;
+    // Blick hinauf, bis der ganze Wagen dort steht, wo ihn gleich das gezeichnete Dorf zeigt (Wagen in Wagen,
+    // wagenEnde; hat er dort weniger Platz, schaut die Kamera dabei weiter); der Lichtpunkt auf dem Polarstern wird so
+    // gross wie der gezeichnete Stern
+    const ende = this.wagenEnde(), fov0 = camera.fov, size = fl.scale.x, rad = THREE.MathUtils.degToRad;
+    const weiter = Math.tan(rad(ende.fov / 2)) / Math.tan(rad(fov0 / 2));
     this.tween(3.4, (k) => {
-      this.gazeDir.copy(view);
+      this.gazeDir.copy(ende.blick);
       this.gaze = k;
-      fl.scale.setScalar(size + (4.5 - size) * k); // etwa so gross wie der gezeichnete Stern
+      this.sichtfeld(fov0 + (ende.fov - fov0) * k);
+      fl.scale.setScalar(size + (4.5 * weiter - size) * k);
     });
     await this.wait(3.2);
     await this.ending(true);
@@ -21092,6 +21289,7 @@ const story = {
       this.el.classList.remove('slow');
       for (const o of [this.answer, this.flare]) o.visible = false;
       this.amStern = null;
+      this.sichtfeld(); // das Finale schaute am Ende weiter (wagenEnde)
     }
     this.covered = true;
     for (const shot of shots) {
@@ -21165,7 +21363,8 @@ const story = {
     sc.vorwaermen(shots[0], shots);
   },
   makeScene() {
-    const sc = createStoryScene(this.el);
+    // der Wagen am Himmel der Bühne steht, wo ihn das Finale am Ende zeigt (Wagen in Wagen)
+    const sc = createStoryScene(this.el, { wagenLage: () => this.wagenEnde().sterne });
     sc.skip.hidden = true; // nur im Prolog (playScene); sonst hielte skip ihn nach einem Neuladen für offen
     sc.skip.addEventListener('click', (e) => { e.stopPropagation(); this.skipProlog(); });
     return sc;
@@ -21293,14 +21492,15 @@ const story = {
    * STORY_PULS.rand Platz zu den Rändern; unten: so weit hinab (Anteil der Bildhöhe von oben) reicht der freie Platz
    * (über dem Untertitel). Waagrecht steht der Wagen immer in der Mitte: Er steht hoch am Himmel, und die Kamera hält
    * den Horizont waagrecht (updateCamera), seitlich davon stünde er schräg (bei 60° Höhe für ein Viertel der Bildbreite
-   * gut 20° gedreht). polar: so hoch soll der Polarstern im Bild stehen (Anteil der Höhe, wie scene.starAt), so weit der
-   * Wagen dabei ganz im Bild bleibt; ohne polar steht er mitten im freien Platz. Gerechnet mit einer Kopie der Kamera an
-   * ihrem Ort, in wenigen Schritten (die Projektion ist nicht linear). Zurück die Blickrichtung (für gazeDir).
+   * gut 20° gedreht); senkrecht mitten im freien Platz. feld (Ende des Finales, wagenEnde): statt dessen genau zwischen
+   * oben und unten (Anteile der Höhe), mit dem Sichtfeld fov (Grad). Gerechnet mit einer Kopie der Kamera an ihrem Ort
+   * (wagenKamera), in wenigen Schritten (die Projektion ist nicht linear). Zurück die Blickrichtung (für gazeDir).
    */
-  wagenBlick(unten = 1, polar = null) {
-    const H = himmelsWagen, cam = (this._wagenKamera ??= camera.clone(false)).copy(camera, false);
-    const Hb = innerHeight, r = STORY_PULS.rand * Math.min(innerWidth, Hb), y1 = 1 - 2 * r / Hb;
-    const y0 = Math.min(y1, 1 - 2 * (unten - r / Hb)); // Feld des Wagens im Bild (NDC, y nach oben)
+  wagenBlick(unten = 1, feld = null) {
+    const H = himmelsWagen, cam = this.wagenKamera(feld?.fov);
+    const Hb = innerHeight, r = STORY_PULS.rand * Math.min(innerWidth, Hb), y1 = 1 - 2 * (feld ? feld.oben : r / Hb);
+    // Feld des Wagens im Bild (NDC, y nach oben)
+    const y0 = Math.min(y1, 1 - 2 * (feld ? feld.unten : unten - r / Hb));
     const sterne = wagen.form.map((_, i) => H.richtung(i + 1, new THREE.Vector3()));
     const az = THREE.MathUtils.degToRad(HIMMELSWAGEN.azimut), p = new THREE.Vector3();
     const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
@@ -21311,14 +21511,57 @@ const story = {
       cam.updateMatrixWorld();
       const ys = sterne.map((d) => p.copy(cam.position).addScaledVector(d, H.mesh.material.uniforms.uAbstand.value)
         .project(cam).y);
-      const ly = Math.min(...ys), hy = Math.max(...ys), ziel = polar !== null ? 1 - 2 * polar - ys[wagen.polarstern - 1]
-        : (y0 + y1 - ly - hy) / 2;
-      // Verschiebung im Bild, so nah wie möglich am Ziel, der Wagen im Feld (passt er nicht: mittig)
-      const dy = hy - ly > y1 - y0 ? (y0 + y1 - ly - hy) / 2 : THREE.MathUtils.clamp(ziel, y0 - ly, y1 - hy);
+      const ly = Math.min(...ys), hy = Math.max(...ys), dy = (y0 + y1 - ly - hy) / 2; // Verschiebung: mitten ins Feld
       if (Math.abs(dy) < 1e-4) break;
       el -= Math.atan(dy * tanV); // das Bild hinauf schieben: Die Kamera senkt sich
     }
     return blick();
+  },
+  /** Kopie der Kamera an ihrem Ort (wagenBlick, wagenImBild), mit dem Sichtfeld fov (Grad), sonst ihrem. */
+  wagenKamera(fov = null) {
+    const cam = (this._wagenKamera ??= camera.clone(false)).copy(camera, false);
+    if (fov !== null && fov !== undefined) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    return cam;
+  },
+  /** Wo die sieben Sterne des Wagens am Himmel im Bild stehen, wenn die Kamera nach blick schaut (Sichtfeld fov, Grad):
+   *  Anteile [x, y] von oben links. */
+  wagenImBild(blick, fov) {
+    const H = himmelsWagen, cam = this.wagenKamera(fov), p = new THREE.Vector3(), d = new THREE.Vector3();
+    cam.lookAt(p.copy(cam.position).add(blick));
+    cam.updateMatrixWorld();
+    return wagen.form.map((_, i) => {
+      p.copy(cam.position).addScaledVector(H.richtung(i + 1, d), H.mesh.material.uniforms.uAbstand.value).project(cam);
+      return [(p.x + 1) / 2, (1 - p.y) / 2];
+    });
+  },
+  /**
+   * Ende des Finales, Wagen in Wagen (Ticket 07 von .scratch/kleiner-wagen/): Blick und Sichtfeld der Kamera (fov,
+   * Grad), in denen der ganze Wagen am Himmel dort steht, wo die Bühne Platz für ihn hat (scene.wagenFeld): waagrecht
+   * mittig, senkrecht mitten im Platz (wagenBlick), höchstens BUEHNENWAGEN.feld.hoehe des Platzes hoch und nicht
+   * breiter als der Platz. Ist er dafür mit dem Sichtfeld des Spiels (kameraSichtfeld) zu gross, schaut die Kamera am
+   * Ende weiter. sterne: wo seine sieben Sterne dann im Bild stehen (Anteile von oben links); genau dort legt die Bühne
+   * ihren Wagen hin (scene.wagenLegen), im ersten Bild des Epilogs.
+   */
+  wagenEnde() {
+    const sc = this.scene ??= this.makeScene(), feld = sc.wagenFeld(), fov0 = kameraSichtfeld(camera.aspect);
+    const masse = (sterne) => [0, 1].map((k) => {
+      const v = sterne.map((s) => s[k]);
+      return Math.max(...v) - Math.min(...v);
+    });
+    const [b0, h0] = masse(this.wagenImBild(this.wagenBlick(1, { ...feld, fov: fov0 }), fov0));
+    const platz = [2 * Math.min(0.5 - feld.links, feld.rechts - 0.5),
+      BUEHNENWAGEN.feld.hoehe * (feld.unten - feld.oben)];
+    // so viel weiter: Der Wagen wird kleiner, wie tan(fov / 2) wächst (nie enger, höchstens dreimal so weit)
+    const f = THREE.MathUtils.clamp(Math.max(b0 / platz[0], h0 / platz[1]), 1, 3) || 1;
+    const fov = 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(fov0 / 2)) * f));
+    const blick = this.wagenBlick(1, { ...feld, fov });
+    return { blick, fov, sterne: this.wagenImBild(blick, fov) };
+  },
+  /** Sichtfeld der Kamera (Grad; ohne: wie sonst in diesem Format, kameraSichtfeld), am Ende des Finales weiter. */
+  sichtfeld(fov = kameraSichtfeld(camera.aspect)) {
+    if (camera.fov === fov) return;
+    camera.fov = fov;
+    camera.updateProjectionMatrix();
   },
   /**
    * Satz 1 des Finales (STORY_PULS.puls): Ein Lichtpuls läuft Stern für Stern durch den Wagen, in der Reihenfolge des
@@ -22066,11 +22309,14 @@ if (new URLSearchParams(location.search).has('nointro')) { ui.canStart = true; u
    RESIZE & LOOP
    ===================================================================== */
 
+/** Sichtfeld der Kamera (Grad, senkrecht) im Format aspect: im Hochformat weiter statt riesiger Distanz. */
+function kameraSichtfeld(aspect) { return aspect < 1 ? 44 : 32; }
+
 function onResize() {
   // Grösse des Bilds in Pixeln der Oberfläche: das Canvas liegt im vergrösserten body (SEITE); Pixelverhältnis wie vorher
   const w = seiteBreite(), h = seiteHoehe();
   camera.aspect = w / h;
-  camera.fov = camera.aspect < 1 ? 44 : 32; // Hochformat: weiteres Sichtfeld statt riesiger Distanz
+  camera.fov = kameraSichtfeld(camera.aspect);
   camera.updateProjectionMatrix();
   fitCameraDistance();
   renderer.setSize(w, h);

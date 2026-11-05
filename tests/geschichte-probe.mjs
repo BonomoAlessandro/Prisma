@@ -1923,14 +1923,17 @@ function pruefeOhneErwachen(a, wach, was) {
 }
 /**
  * Finale (Ticket 06 von .scratch/kleiner-wagen/; Aufzeichnung a vom Klick auf «Hinaufschauen» bis zur Bühne des
- * Epilogs, polar: wo die Bühne ihren Polarstern zeigt, scene.starAt): Die Strahlen steigen zum sechsten Stern, er
+ * Epilogs; buehne: wo die Bühne die sieben Sterne ihres Wagens im ersten Bild des Epilogs zeigt, scene.wagenImBild,
+ * Anteile von oben links, dazu Breite b und Höhe h des Bilds): Die Strahlen steigen zum sechsten Stern, er
  * erwacht wie die übrigen (Blick und Licht bei ihm, Aufblitzen, Linie 5 → 6). Zu Satz 1 steht der ganze Wagen über
  * dem Untertitel im Bild, und ein Puls läuft Stern für Stern von 1 bis 6, mit den sechs Tönen; erst wenn er verklungen
  * ist, wartet der Satz auf Tippen. Zu Satz 2 zieht sich die Linie 6 → 7, erst dann ist der Polarstern wach, das Licht
  * steht auf ihm, er flammt auf und setzt den Schlusston (7); dann wartet der Satz. Töne genau 6, 1 … 6, 7. Am Ende
- * (letztes Bild vor der Bühne) steht der ganze Wagen im Bild, der Polarstern oben links, die Schale unten rechts.
+ * (letztes Bild vor der Bühne) steht der ganze Wagen im Bild, der Polarstern oben links, die Schale unten rechts,
+ * und jeder Stern genau dort, wo ihn die Bühne gleich zeigt (Wagen in Wagen, Ticket 07: höchstens WAGEN_IN_WAGEN px
+ * daneben).
  */
-function pruefeFinale(a, polar, was) {
+function pruefeFinale(a, buehne, was) {
   const { log } = a, i0 = log.findIndex((e) => e.wach === 6);
   pruefe(i0 > 0 && log.slice(0, i0).every((e) => e.wach === 5 && e.welt === 6),
     `${was}: vor dem Erwachen nicht 5 wach mit Stern 6 dieser Welt (Bild ${i0})`);
@@ -1984,10 +1987,20 @@ function pruefeFinale(a, polar, was) {
   pruefe(rest.every(([x, y]) => x > p[0] && y < p[1]) && schale(xs.indexOf(Math.max(...xs)))
     && schale(ys.indexOf(Math.min(...ys))),
     `${was}: am Ende nicht Polarstern oben links, Schale unten rechts ${JSON.stringify(e.bild)}`);
-  const da = [(p[0] + 1) / 2, (1 - p[1]) / 2];
+  const da = [(p[0] + 1) / 2, (1 - p[1]) / 2], polar = buehne.sterne[6];
   console.log(`  ${was}: Polarstern am Ende bei ${da.map((x) => x.toFixed(3)).join(' / ')} (Anteil von Breite / Höhe), `
     + `auf der Bühne bei ${polar.map((x) => x.toFixed(3)).join(' / ')}`);
+  // Wagen in Wagen: jeder Stern am Ende des Finales dort, wo ihn die Bühne im ersten Bild des Epilogs zeigt (Bildpixel)
+  const ab = e.bild.map(([x, y], i) => Math.hypot(((x + 1) / 2 - buehne.sterne[i][0]) * buehne.b,
+    ((1 - y) / 2 - buehne.sterne[i][1]) * buehne.h));
+  const k = ab.indexOf(Math.max(...ab));
+  console.log(`  ${was}: Wagen in Wagen, grösste Abweichung ${ab[k].toFixed(1)} px (Stern ${k + 1}), Wagen `
+    + `${(Math.max(...xs) - Math.min(...xs)) / 2 * 100 | 0} % der Breite`);
+  pruefe(ab[k] <= WAGEN_IN_WAGEN, `${was}: Wagen in Wagen nicht ohne Sprung: Stern ${k + 1} ${ab[k].toFixed(1)} px daneben `
+    + `(am Ende ${JSON.stringify(e.bild)}, Bühne ${JSON.stringify(buehne.sterne)})`);
 }
+/** So weit (CSS-Pixel) darf ein Stern des Wagens am Ende des Finales neben dem der Bühne stehen (Pruefung Wagen in Wagen). */
+const WAGEN_IN_WAGEN = 4;
 /** Ein Level spielen, das gleich läuft (Platz platz im Grad g): lösen über die Testschnittstelle, «Gelöst» abwarten. */
 async function loeseLevel(g, platz) {
   await until(`${D}.story.step === ${platz} && ${D}.story.grade === ${JSON.stringify(g)} && window.__prisma.playing()`
@@ -2014,8 +2027,10 @@ async function loeseLevel(g, platz) {
  * (pruefeOhneErwachen); Bilder wagen-welt<n>-aufstieg, -erwachen, -vorbeiflug und wagen-einstieg-<wald|vulkan>-vorbeiflug.
  * Seit Ticket 06 das Finale (pruefeFinale): Erwachen des sechsten Sterns, Puls Stern für Stern mit dem ganzen Wagen
  * über dem Untertitel, Linie 6 → 7 und Polarstern mit Schlusston, jeder Satz wartet erst danach auf Tippen, am Ende der
- * ganze Wagen im Bild; Bilder wagen-finale-puls, -polarstern, -endbild.
- * Etwa 4 min.
+ * ganze Wagen im Bild; Bilder wagen-finale-puls, -polarstern, -endbild. Seit Ticket 07 Wagen in Wagen: Am Ende
+ * steht jeder Stern dort, wo ihn die Bühne im ersten Bild des Epilogs zeigt; Bilder wagen-finale-ueberblendung und
+ * wagen-epilog-anfang.
+ * Etwa 4 min (mit Ticket 07 gemessen: 245–252 s in Desktop, Handy hoch und quer).
  */
 async function wagenAblauf() {
   console.log(`${view.name}: Kleiner Wagen`);
@@ -2088,13 +2103,21 @@ async function wagenAblauf() {
         await tippe('#story .caption .text', 'Untertitel');
         await sleep(400);
       }
-      // Endbild: Der Blick ist fast wieder oben (der Lichtpunkt schrumpft dabei auf die Grösse des gezeichneten Sterns)
-      await until(`${D}.story.flare.scale.x < 4.6`, 'Leicht: Blick hinauf zum Wagen', 60);
+      // Endbild: Der Blick ist fast wieder oben (nach dem Aufprall unten, dann hinauf zum Wagen; das Sichtfeld wird dabei
+      // seit Ticket 07 auch weiter, der Lichtpunkt schrumpft auf die Grösse des gezeichneten Sterns)
+      await until(`${D}.story.gaze < 0.2`, 'Leicht: Blick auf das Brett', 60);
+      await until(`${D}.story.gaze > 0.995`, 'Leicht: Blick hinauf zum Wagen', 60);
       await bild('wagen-finale-endbild');
       await until(`${storyMode} === 'scene'`, 'Leicht: Epilog', 60);
-      const polar = await ev(`(() => { const sc = ${D}.story.scene, f = STORY_EPILOG[0];
-        return sc.starAt((sc.portrait() && f.fromP) || f.from); })()`);
-      pruefeFinale(await himmelAuswerten(), polar, 'Finale');
+      // Wagen in Wagen (Ticket 07): wo die Bühne ihren Wagen zeigt; Bilder mitten in der Überblendung und an ihrem
+      // Ende, bevor die erste Fahrt des Epilogs beginnt
+      const buehne = await ev(`(() => { const sc = ${D}.story.scene;
+        return { sterne: sc.wagenImBild(sc.epilogStart()), b: innerWidth, h: innerHeight }; })()`);
+      await sleep(700);
+      await bild('wagen-finale-ueberblendung');
+      await until(`${D}.story.covered`, 'Leicht: Epilog überblendet', 30);
+      await bild('wagen-epilog-anfang');
+      pruefeFinale(await himmelAuswerten(), buehne, 'Finale');
       await pruefeWagen('leicht', 7, 'nach dem Finale');
       await pruefeHimmel(7, 6, 'nach dem Finale');
     }
