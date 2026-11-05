@@ -6,7 +6,9 @@
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
-//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, brush?, … }] }
+//     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }] }
+// starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
+// die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -212,6 +214,9 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
     const sky = s.sky ?? {};
     if (!Array.isArray(sky.rings) || sky.rings.length !== 9 || !sky.rings.every(isColor)) err('sky.rings: 9 Farben');
     for (const k of ['stars', 'milkyWay']) if (k in sky && !(isNum(sky[k]) && sky[k] >= 0 && sky[k] <= 1)) err(`sky.${k}: 0 … 1`);
+    if ('starsFrom' in sky && !(isNum(sky.starsFrom) && sky.starsFrom >= 0 && sky.starsFrom <= 60 && sky.starsAboveHorizon)) {
+      err('sky.starsFrom: 0 … 60 (Grad), nur mit starsAboveHorizon');
+    }
 
     for (const l of s.layers ?? []) {
       if (types && !types.includes(l.type)) err(`Ebene ${l.type}: im Spiel unbekannt`);

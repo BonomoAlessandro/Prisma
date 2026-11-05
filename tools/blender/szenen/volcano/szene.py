@@ -2,21 +2,23 @@
 # Strand. Über den Blender-MCP: wald_mcp.neu('volcano') baut sie und speichert tools/blender/volcano.blend; einzelne
 # Teile neu mit wald_mcp.scene('volcano').replace_…(). Ohne MCP headless mit denselben Skripten (wald_mcp.run).
 # Vorbilder: Nyiragongo (Lavasee aus dunkler Kruste mit glühenden Rissen) und Masaya (steile, waagrecht geschichtete
-# Kraterwände mit Absätzen und Überhängen, unten orange von der Lava angeleuchtet, oben kühl und heller verwittert);
-# gemalt wie eine Anime-Landschaft: grosse, klar begrenzte Flächen, kühle Schatten gegen warmes Licht.
-# Aufbau: Das Brett schwebt im Schlot über dem Lavasee (LAVA_Z). Am Ufer eine niedrige Schutthalde (TALUS), darüber
-# die Wand in zwei Stufen mit einem schmalen Absatz (TIER1) bis zum Rand (RIM), dahinter flach. Im Grundriss besteht
-# sie aus geraden Flächen (plan): Rippen und Buchten, dazu V-förmige Rinnen (GULLIES) mit Schuttkegeln darunter. In der
-# Höhe liegen Bänke (strata) mit eigenem Grundriss und eigener Neigung übereinander, unten unterschnitten, oben
-# abgeschrägt, darin dünne Lagen in eigener Farbe; auf den Bänken verkippte Felsflächen (facets), die an scharfen
-# Graten aneinanderstossen. Auf Halde und Absatz Felsblöcke wie am Strand (S.boulder, Material wie dort in
-# Vulkanfarben). Durch die Öffnung ein rauchiger Nachthimmel; im Krater nur leichter Dunst (Luftperspektive), keine
-# Dampfsäulen. Licht: die Lava von unten (Risse leuchten, dazu die Flächenlampe „Glut See“ und die Punktlampe „Glut
-# Mitte“, die die Wand von unten anleuchtet), kühl der Mond von oben (Hauptlicht „Oben“): jede Rippe hat so eine warme
-# und eine kühle Seite.
+# Kraterwände mit Absätzen und Überhängen, oben heller verwittert), Licht wie am Gaskrater Darvaza («Door to Hell»):
+# Nacht, die Glut leuchtet die Wand von unten an. Gemalt wie eine Anime-Landschaft: grosse, klar begrenzte Flächen,
+# fast schwarze Schatten gegen warmes Glutlicht.
+# Aufbau: Das Brett schwebt über dem Lavasee (LAVA_Z) eines weiten Kraters (FOOT). Am Ufer eine niedrige Schutthalde
+# (TALUS), darüber die Wand in zwei Stufen mit einem schmalen Absatz (TIER1) bis zum Rand (RIM), dahinter flach. Im
+# Grundriss besteht sie aus geraden Flächen (plan): Rippen und Buchten, dazu V-förmige Rinnen (GULLIES) mit
+# Schuttkegeln darunter. In der Höhe liegen Bänke (strata) mit eigenem Grundriss und eigener Neigung übereinander,
+# unten unterschnitten, oben abgeschrägt, darin dünne Lagen in eigener Farbe; auf den Bänken verkippte Felsflächen
+# (facets), die an scharfen Graten aneinanderstossen. Auf Halde und Absatz Felsblöcke wie am Strand (S.boulder,
+# Material wie dort in Vulkanfarben). Durch die Öffnung ein fast schwarzer Nachthimmel (die Sterne zeichnet das
+# Spiel); im Krater nur leichter Dunst (Luftperspektive), keine Dampfsäulen. Licht: Das Hauptlicht ist die Lava von
+# unten (Risse leuchten, dazu ein Ring Punktlampen „Glut Ufer“ knapp vor der Halde und schwach die Flächenlampe
+# „Glut See“): Halde und untere Wand glühen, nach oben wird es dunkel. Der Mond (Lampe „Oben“, im Spiel die Richtung
+# des Hauptlichts) gibt nur einen Hauch Kühle.
 # Das Spiel zeichnet selbst: den See bis LAVA_GAME, bewegt (lavaPool; Blender malt dort nur die Kruste), und ein
-# Dutzend Felsbrocken am Ufer (bakedMesh, wie die nahen Felsen am Strand: gebackenes Licht, gemalt; Sammlung „Spiel“,
-# für die Panoramakamera unsichtbar).
+# Dutzend Felsbrocken im See vor dem Ufer (bakedMesh, wie die nahen Felsen am Strand: gebackenes Licht, gemalt;
+# Sammlung „Spiel“, für die Panoramakamera unsichtbar).
 # Koordinaten: Blender (x, y, z) = Spiel (x, −z, y). Brett im Ursprung, Panorama-Mittelpunkt (0, 0, 3).
 import bpy, math, os, sys, time, importlib.util
 import numpy as np
@@ -48,20 +50,25 @@ def log(*a):
 
 PANO_CENTER = (0.0, 0.0, 3.0)
 LAVA_Z = -9.0         # Lavasee (Spiel: level der Ebenen)
-FOOT = 25.0           # mittlerer Radius, an dem die Schutthalde in den See taucht
-LAVA_GAME = 22.0      # bis hier zeichnet das Spiel den See (radius von lavaPool), voll deckend bis LAVA_GAME − 2.5
+# Weit genug, dass die Kamera nie hinter die Wand gerät: ganz herausgezoomt und flach geneigt steht sie bis 48 m von
+# der Mitte (Handy hochkant, 2D; Würfel 7 auf Desktop und Tablet bis 45 m), 8 … 26 m über der Lava; die Wand bleibt
+# dort überall gut 6 m dahinter. Nur der Würfel auf dem Handy hochkant (bis 64 m) fände keinen Platz.
+FOOT = 53.0           # mittlerer Radius, an dem die Schutthalde in den See taucht
+LAVA_GAME = 44.0      # bis hier zeichnet das Spiel den See (radius von lavaPool), voll deckend bis LAVA_GAME − 2.5
 TALUS = 0.72          # Neigung der Schutthalde (Höhe je Meter waagrecht, um 36°)
-TIER1 = 46.0          # Absatz zwischen den beiden Stufen der Wand (m über der Lava, je Richtung ±6 m)
-RIM = 94.0            # Rand über der Lava (je Richtung ±12 m, an Rinnen tiefer); dahinter flach
+TIER1 = 30.0          # Absatz zwischen den beiden Stufen der Wand (m über der Lava, je Richtung um ±2 m, an Rinnen tiefer)
+# Rand über der Lava (Bezug; je Richtung 37 … 70 m, meist 43 … 64, eine Seite höher, an Rinnen tiefer), vom Brett aus
+# 18 … 40° hoch, im Mittel gut 30°; dahinter flach
+RIM = 60.0
 LEAN = 0.14           # die Wand neigt sich nach hinten (m waagrecht je m Höhe)
-R_REF = 40.0          # Bezugsradius für Längen entlang der Wand (Rippen, Rinnen, Felsflächen)
+R_REF = 64.0          # Bezugsradius für Längen entlang der Wand (Rippen, Rinnen, Felsflächen): etwa ihr Radius
 SEG = 2048            # Spalten des Gitters rundum
 DH = 0.2              # Zeilenabstand der Wand (m), je Spalte gleich: Bänke und Lagen enden ohne Treppen
-DIP = 3.0             # die Bänke wellen rundum um bis zu so viel (m); die Zeilen des Gitters wellen mit
+DIP = 5.0             # die Bänke wellen rundum um bis zu so viel (m); die Zeilen des Gitters wellen mit
 EXTENT = 700.0
 TOP = Vector((-0.45, 0.52, 0.72)).normalized()   # kühles Licht von oben (Hauptlicht fürs Spiel)
 B1, B2 = Perlin(503), Perlin(509)
-G2, G3, G4, G5, G6, G7, G8 = (Perlin(s) for s in (523, 541, 547, 557, 563, 569, 571))
+G2, G3, G4, G5, G6, G7, G8, G9 = (Perlin(s) for s in (523, 541, 547, 557, 563, 569, 571, 577))
 
 
 def sc():
@@ -79,7 +86,7 @@ def link(name, data, coll=None):
 def foot_radius(th):
     """Fuss der Schutthalde je Richtung (Bogenmass, von +y über +x): Buchten und Vorsprünge"""
     c, s = np.cos(th), np.sin(th)
-    return FOOT + 2.5 * fbm(B1, c * 1.3 + 7, s * 1.3 - 4, 3) + 1.0 * fbm(B2, c * 4.0, s * 4.0, 2)
+    return FOOT + 4.0 * fbm(B1, c * 1.3 + 7, s * 1.3 - 4, 3) + 1.6 * fbm(B2, c * 4.0, s * 4.0, 2)
 
 
 def ring(P, th, f, octaves=3):
@@ -111,8 +118,8 @@ def plan(rng, spacing, amp, alternate=False, irregular=0.0):
     return np.concatenate([[u[-1] - Lu], u, [u[0] + Lu]]), np.concatenate([[o[-1]], o, [o[0]]])
 
 
-def _gullies(seed=37, n=8):
-    """Rinnen, unregelmässig verteilt (mindestens 14 m auseinander): Mitte (m entlang der Wand), halbe Breite links und
+def _gullies(seed=37, n=11):
+    """Rinnen, unregelmässig verteilt (mindestens 18 m auseinander): Mitte (m entlang der Wand), halbe Breite links und
     rechts, Tiefe (m), Ansatz über der Halde (m; manche beginnen erst weit oben und haben kaum Schutt darunter), Grösse
     und Breite ihres Schuttkegels"""
     rng = np.random.default_rng(seed)
@@ -120,9 +127,9 @@ def _gullies(seed=37, n=8):
     c = []
     while len(c) < n:
         x = rng.uniform(0, Lu)
-        if all(abs((x - y + Lu / 2) % Lu - Lu / 2) > 14.0 for y in c):
+        if all(abs((x - y + Lu / 2) % Lu - Lu / 2) > 18.0 for y in c):
             c.append(x)
-    start = np.where(rng.random(n) < 0.35, rng.uniform(12.0, 35.0, n), 0.0)
+    start = np.where(rng.random(n) < 0.35, rng.uniform(8.0, 24.0, n), 0.0)
     return dict(c=np.array(c), wl=rng.uniform(3.0, 12.0, n), wr=rng.uniform(3.0, 12.0, n), d=rng.uniform(3.0, 15.0, n),
                 start=start, cone=rng.uniform(0.3, 1.5, n) * np.where(start > 0, 0.3, 1.0), spread=rng.uniform(1.6, 3.4, n))
 
@@ -152,11 +159,15 @@ def columns(th):
     g, gd, gs, cone = gully(th)
     ht = np.maximum(1.0, 2.5 + 7.0 * cone + 4.0 * smoothstep(-0.3, 0.3, ring(G6, th, 1.3))
                     + 1.2 * ring(G2, th, 9.0, 2))
-    bay = 5.0 * ring(G7, th, 0.45, 2)                # grosse Buchten und Vorsprünge
+    bay = 8.0 * ring(G7, th, 0.45, 2)                # grosse Buchten und Vorsprünge
     rc = np.maximum(rf + ht / TALUS + np.interp(np.mod(th, 2 * np.pi) * R_REF, *PLAN) + bay, rf + 2.0)
-    h1 = TIER1 + 6.0 * ring(G3, th, 1.5) - 4.0 * g
+    h1 = TIER1 + 4.0 * ring(G3, th, 1.5) - 3.0 * g
     w1 = np.clip(1.0 + 7.0 * (0.5 + 0.5 * ring(G4, th, 2.5)), 0.6, 9.0)
-    h2 = RIM + 12.0 * ring(G5, th, 1.2) + 5.0 * ring(G5, th, 4.0, 2) - 16.0 * g
+    # Rand: eine Seite des Kraters höher als die andere (G9, wenige grosse Wellen), dazu Buckel und Zacken, damit die
+    # Kante vom Brett aus nicht wie eine Reihe gleich hoher Tafelberge wirkt; immer gut über dem Absatz. Die Werte von
+    # ring liegen meist in ±0,4: die Seiten um ±10 m, Buckel ±6 m, Zacken ±3 m und ±1,6 m, an Rinnen bis 12 m tiefer
+    h2 = np.maximum(RIM + 25.0 * ring(G9, th, 0.5, 2) + 15.0 * ring(G5, th, 1.2) + 8.0 * ring(G5, th, 4.0, 2)
+                    + 4.0 * ring(G2, th, 11.0, 2) - 12.0 * g, h1 + 10.0)
     return dict(rf=rf, g=g, gd=gd, gs=gs, ht=ht, rc=rc, h1=h1, w1=w1, h2=h2)
 
 
@@ -174,9 +185,10 @@ def talus_height(r, x, y, C):
     return C['ht'] * (r - C['rf']) / (C['rc'] - C['rf']) + 0.35 * fbm(G3, x * 0.18, y * 0.18, 3) * np.sin(np.pi * s)
 
 
-# Grundfarben der Bänke (linear): unten dunkel und rotbraun, nach oben grauer und heller verwittert
+# Grundfarben der Bänke (linear): unten dunkel und rotbraun, nach oben grauer und heller verwittert; hell und Asche
+# gedämpft, im Glutlicht wirkte der Rand sonst beige
 PAL = {'basalt': (0.048, 0.043, 0.045), 'braun': (0.085, 0.064, 0.056), 'schlacke': (0.115, 0.050, 0.034),
-       'asche': (0.150, 0.134, 0.124), 'hell': (0.255, 0.232, 0.212)}
+       'asche': (0.130, 0.110, 0.098), 'hell': (0.200, 0.172, 0.150)}
 PAL_NAMES = ('basalt', 'braun', 'schlacke', 'asche', 'hell')
 
 
@@ -342,8 +354,8 @@ def wall_mesh():
 
 def mat_wall():
     """Grundfarbe aus dem Gitter (albedo: Bänke, Lagen, Felsflächen, Schutt), gefleckt; an der Wand (cliff 1) leicht
-    rau, der Schutt (cliff 0) körnig, knapp über der Lava glüht er; Schatten nie ganz schwarz (bläuliches Grundlicht wie
-    bei den Blöcken)"""
+    rau, der Schutt (cliff 0) körnig, knapp über der Lava glüht er; Schatten fast schwarz mit einem Hauch Blau (Grundlicht wie bei
+    den Blöcken)"""
     m = bpy.data.materials.new('Wand'); m.use_nodes = True
     t = NT(m.node_tree)
     out = t.node('ShaderNodeOutputMaterial')
@@ -377,13 +389,13 @@ def mat_wall():
     return m
 
 
-ROCK_AMBIENT = 0.10   # Grundlicht der Blöcke (Anteil der eigenen Farbe, bläulich): Schatten nie ganz schwarz
+ROCK_AMBIENT = 0.02   # Grundlicht der Blöcke (Anteil der eigenen Farbe, bläulich): Schatten mit einem Hauch Blau
 
 
 def mat_rock():
     """Felsblock wie am Strand (szenen/beach mat_rock), in Vulkanfarben: dunkler Basalt, nach oben gewandte Flächen
-    heller, je Block anders getönt (tone), einzelne Risse; vereinzelt Rost und Schwefel. Das Kantenlicht kommt von der
-    Lava (unten warm) und vom Himmel (oben kühl)."""
+    heller, je Block anders getönt (tone), einzelne Risse; vereinzelt Rost und Schwefel. Das Licht kommt von der Lava
+    (unten warm); Mond und Himmel geben kaum etwas."""
     m = bpy.data.materials.new('Fels'); m.use_nodes = True
     t = NT(m.node_tree)
     out = t.node('ShaderNodeOutputMaterial')
@@ -432,7 +444,7 @@ def build_templates():
     return coll
 
 
-def boulder_points(n_talus=8000, n_base=1500, n_giant=30, n_bench=900, seed=71):
+def boulder_points(n_talus=16000, n_base=3000, n_giant=60, n_bench=1800, seed=71):
     """Blöcke auf der Schutthalde: in Gruppen (Dichte nach einem Rauschfeld), je Gegend grob (Bergsturz) oder fein, am
     Fuss grösser (grosse Blöcke rollen weiter), oben am Fuss der Wand frisch abgebrochene, dazu einzelne Riesenblöcke;
     auf dem Absatz kleinere. Lage (x, y, z Blender), Vorlage, Grösse je Achse (m), Drehung (Euler, leicht gekippt)"""
@@ -482,11 +494,14 @@ def build_wall():
     build_boulders()
 
 
-# Felsbrocken am Seeufer nahe am Brett, die das Spiel selbst zeichnet (bakedMesh): Winkel (Grad), Abstand vom Fuss
-# (m, negativ: im See), Grösse (m). Die meisten nach vorn (+y): In der Standardansicht liegt dort der obere Bildrand
+# Felsbrocken am Seeufer, die das Spiel selbst zeichnet (bakedMesh): Winkel (Grad), Abstand vom Fuss (m, negativ: im
+# See), Grösse (m). Die meisten nach vorn (+y): In der Standardansicht liegt dort der obere Bildrand
 RIM_ROCKS = [(-48, -1.2, 3.2), (-30, 0.5, 4.2), (-14, -0.8, 2.6), (2, 0.8, 3.8), (16, -1.5, 2.4), (31, 0.2, 4.6),
              (47, -0.6, 3.0), (64, 0.9, 3.6), (95, -1.0, 3.4), (140, 0.4, 4.0), (200, -0.8, 3.2), (250, 0.6, 3.8),
              (300, -1.2, 3.0)]
+# Seit der Krater doppelt so weit ist, liegen sie so weit vor der Halde im See (m, vor dem Ring der Glut am Ufer,
+# sonst überstrahlt er sie) und so viel grösser: Am Fuss steckten sie fast ganz in der gemalten Halde
+RIM_ROCK_OUT, RIM_ROCK_SCALE = 9.0, 1.4
 
 
 def build_rim_rocks():
@@ -503,7 +518,8 @@ def build_rim_rocks():
     tone = bm.verts.layers.float.new('tone')
     for deg, du, size in RIM_ROCKS:
         a = math.radians(deg)
-        r = float(foot_radius(np.array(a))) + du
+        r = float(foot_radius(np.array(a))) + du - RIM_ROCK_OUT
+        size *= RIM_ROCK_SCALE
         v = int(rng.integers(TEMPLATES))
         tpl = coll.objects['v%02d' % v].data
         s_ = (size * 1.3, size * 1.0, size * 0.75)
@@ -595,31 +611,42 @@ def build_lake():
 
 # ---------------------------------------------------------------- Himmel, Licht, Luft
 
+# Nacht wie am Gaskrater Darvaza («Door to Hell»): Hauptlicht ist die Lava, der Himmel fast schwarz mit Sternen (die
+# zeichnet das Spiel) bis hinunter zum Rand. Mond (Oben) und Himmel geben kaum Licht; die Wand glüht von unten
+# orange, nach oben wird es dunkel, der Rand steht dunkel vor dem Himmel.
 SKY_GAIN = 0.12
-SKY_LIGHT = 0.6
-AIR_DIST = 900.0      # Dunst im Schlot
+SKY_LIGHT = 0.08      # Himmel als Licht (für die Kamera SKY_GAIN): die weite Öffnung hellte die Wand sonst bis oben auf
+AIR_DIST = 900.0      # Dunst im Krater
 AIR_HEIGHT = 300.0
-GLOW_ENERGY = 1.1e4   # Widerschein der Lava (W): Flächenlampe knapp über dem See, nach oben
-GLOW_CORE = 6e4       # Glühen aus dem See (W): Punktlampe über der Mitte, leuchtet die Wand von unten an
-TOP_STRENGTH = 3.0
+GLUT = (1.0, 0.38, 0.08)   # Farbe der Lampen der Lava: sattes Orange
+GLOW_ENERGY = 3e3     # Widerschein der Lava (W): Flächenlampe knapp über dem See, nach oben, nur ein schwacher Schein
+# Glut am Ufer: ein Ring Punktlampen knapp vor der Halde (Anzahl, W je Lampe, m vor dem Fuss, m über der Lava); sie
+# tragen das Licht. Nah am Fuss fällt es nach oben stark ab: Halde und untere Wand glühen, der Rand bleibt dunkel.
+# Eine Lampe in der Mitte leuchtete die doppelt so weite Wand fast gleichmässig an.
+GLOW_SHORE = (24, 2.2e4, 2.0, 1.0)
+TOP_STRENGTH = 0.12
 TOP_COLOR = (0.55, 0.62, 1.0)
 
 
 def sky_group():
-    """Himmelsfarbe: oben rauchiges Nachtblau bis Violett, zum Rand der Öffnung hin rötlich angestrahlt (Rauch über dem
-    Glühen); unten (nur als Dunst der Luftperspektive) ein warmes Grau"""
+    """Himmelsfarbe: fast schwarzes Nachtblau mit einem Stich Petrol, bis hinunter zum Rand (die tiefsten Kerben liegen
+    vom Mittelpunkt aus bei z um 0,28): Ein warmer Schein über dem Rand wirkte wie ein Licht hinter dem Krater. Unter dem
+    Rand, nur als Dunst der Luftperspektive vor der Wand, ein dunkles Glutrot: das Leuchten des Sees. Rauchschwaden
+    knapp über dem Rand, dunkel und kaum sichtbar"""
     ng, t, gi, go = S._group('Himmelsfarbe', [('Richtung', 'NodeSocketVector'), ('Gain', 'NodeSocketFloat')],
                              [('Farbe', 'NodeSocketColor')])
     sep = t.node('ShaderNodeSeparateXYZ'); t.link(t.vmath('NORMALIZE', gi.outputs['Richtung']), sep.inputs[0])
     ramp = t.node('ShaderNodeValToRGB')
     cr = ramp.color_ramp; cr.interpolation = 'EASE'
-    cr.elements[0].position = 0.0; cr.elements[0].color = (0.16, 0.08, 0.10, 1)
-    cr.elements[1].position = 1.0; cr.elements[1].color = (0.020, 0.028, 0.085, 1)
-    for p, col in ((0.45, (0.12, 0.06, 0.16, 1)), (0.7, (0.05, 0.045, 0.15, 1))):
+    cr.elements[0].position = 0.0; cr.elements[0].color = (0.25, 0.08, 0.03, 1)
+    cr.elements[1].position = 1.0; cr.elements[1].color = (0.005, 0.012, 0.024, 1)
+    for p, col in ((0.22, (0.07, 0.025, 0.02, 1)), (0.32, (0.010, 0.016, 0.026, 1))):
         e = cr.elements.new(p); e.color = col
     t.link(t.math('MAXIMUM', sep.outputs['Z'], 0.0), ramp.inputs['Fac'])
     n = t.node('ShaderNodeTexNoise', in_Scale=2.5, in_Detail=5.0); t.link(gi.outputs['Richtung'], n.inputs['Vector'])
-    smoke = t.mix(t.math('MULTIPLY', t.maprange(n.outputs['Fac'], 0.45, 0.7), 0.6), ramp.outputs['Color'], (0.14, 0.10, 0.20, 1))
+    low = t.maprange(sep.outputs['Z'], 0.7, 0.4)    # Rauch nur knapp über dem Rand
+    smoke = t.mix(t.math('MULTIPLY', t.math('MULTIPLY', t.maprange(n.outputs['Fac'], 0.45, 0.7), 0.4), low),
+                  ramp.outputs['Color'], (0.026, 0.026, 0.034, 1))
     scl = t.node('ShaderNodeVectorMath'); scl.operation = 'SCALE'
     t.link(smoke, scl.inputs[0]); t.link(t.math('MULTIPLY', gi.outputs['Gain'], 6.0), scl.inputs['Scale'])
     t.link(scl.outputs['Vector'], go.inputs['Farbe'])
@@ -653,18 +680,23 @@ def lights():
     ob.rotation_euler = TOP.to_track_quat('Z', 'Y').to_euler()
     ob['hauptlicht'] = True
     ld = bpy.data.lights.new('Glut See', 'AREA'); ld.shape = 'DISK'; ld.size = 2 * FOOT
-    ld.energy = GLOW_ENERGY; ld.color = (1.0, 0.36, 0.10)
+    ld.energy = GLOW_ENERGY; ld.color = GLUT
     ob = link('Glut See', ld)
     ob.location = (0.0, 0.0, LAVA_Z + 0.4)
     ob.rotation_euler = (math.pi, 0, 0)   # Flächenlampen leuchten entlang ihrer −Z: hier nach oben
     ob.visible_camera = False
     ob.visible_glossy = False
-    ld = bpy.data.lights.new('Glut Mitte', 'POINT'); ld.shadow_soft_size = 10.0
-    ld.energy = GLOW_CORE; ld.color = (1.0, 0.36, 0.10)
-    ob = link('Glut Mitte', ld)
-    ob.location = (0.0, 0.0, LAVA_Z + 2.0)
-    ob.visible_camera = False
-    ob.visible_glossy = False
+    n, energy, inset, lift = GLOW_SHORE
+    for i in range(n):
+        a = 2 * math.pi * (i + 0.5) / n
+        r = float(foot_radius(np.array(a))) - inset
+        name = 'Glut Ufer %02d' % i
+        ld = bpy.data.lights.new(name, 'POINT'); ld.shadow_soft_size = 6.0
+        ld.energy = energy; ld.color = GLUT
+        ob = link(name, ld)
+        ob.location = (r * math.sin(a), r * math.cos(a), LAVA_Z + lift)
+        ob.visible_camera = False
+        ob.visible_glossy = False
 
 
 def cameras():
@@ -698,10 +730,13 @@ def _remove(names):
 
 
 def replace_crater():
+    """Wand, Blöcke, Felsbrocken und See neu; dazu das Licht (replace_world), denn der Ring „Glut Ufer“ und die
+    Flächenlampe richten sich nach dem Ufer"""
     _remove(['Kraterwand', 'Bloecke', 'Felsen nah', 'See'])
     build_wall()
     build_rim_rocks()
     build_lake()
+    replace_world()
 
 
 def replace_world():
@@ -709,7 +744,7 @@ def replace_world():
     world()
     if old:
         bpy.data.worlds.remove(old)
-    _remove(['Oben', 'Glut See', 'Glut Mitte'])
+    _remove(['Oben', 'Glut See', 'Glut Mitte'] + [o.name for o in bpy.data.objects if o.name.startswith('Glut Ufer')])
     lights()
 
 
