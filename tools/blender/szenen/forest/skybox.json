@@ -5,6 +5,7 @@
   "order": 30,
   "daten": "sky/anime",
   "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "board": { "type": "stone" },
   "air": { "haze": [0.087, 0.195, 0.40], "lit": [0.214, 0.365, 0.72], "density": 0.0015 },
   "layers": [
     {

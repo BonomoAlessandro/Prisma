@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
-import { loadSkies, checkSkies, layerTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
+import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -871,7 +871,31 @@ console.log('Offline');
   test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
     assert.ok(skies.length > 0, 'keine Skybox im Register');
     assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
-    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
+    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), boards: boardTypes(html), reserved: codeSkies(html) }), []);
+  });
+  // Brett je Himmel (Spec .scratch/brett-je-himmel/): Arten im Spielcode, Brett-Angabe im Register
+  test('Bretter: Arten im Spielcode gefunden (BOARD_TYPES in index.html), darunter das Steinbrett', () => {
+    assert.ok(boardTypes(html).includes('stone'), 'Zeile const BOARD_TYPES = { … }; nicht gefunden oder ohne stone: Format geändert?');
+  });
+  test('Bretter: die fünf Himmel aus Blender haben eine gültige Brett-Angabe, im Register wie in skybox.json', () => {
+    for (const id of ['beach', 'desert', 'forest', 'village', 'volcano']) {
+      const sky = skies.find((s) => s.id === id) ?? assert.fail(`Skybox ${id} fehlt im Register`);
+      assert.ok(boardTypes(html).includes(sky.board?.type), `${id}: Brett-Angabe fehlt oder Art unbekannt`);
+      const author = JSON.parse(readFileSync(join(root, 'tools', 'blender', 'szenen', id, 'skybox.json'), 'utf8'));
+      // das Register läuft in einem eigenen Kontext (runCode): über JSON vergleichen, nicht seine Objekte
+      assert.deepEqual(JSON.parse(JSON.stringify(sky.board)), author.board,
+        `${id}: Brett im Register nicht wie in skybox.json (node tools/blender/pack.mjs --brett ${id})`);
+    }
+  });
+  test('Bretter: Prüfung lehnt eine unbekannte Art und unbekannte Werte ab', () => {
+    const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
+    const errorsWith = (board) => checkSkies([{ ...beach, board }], { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({ type: 'stone' }), []);
+    assert.deepEqual(errorsWith(undefined), [], 'ohne Brett-Angabe (Steinbrett)');
+    assert.ok(errorsWith({ type: 'treibholz' }).some((e) => /treibholz/.test(e)), 'unbekannte Art');
+    assert.ok(errorsWith({ type: 'stone', farbe: [0.8, 0.7, 0.5] }).some((e) => /farbe/.test(e)), 'unbekannter Wert');
+    assert.ok(errorsWith({}).some((e) => /board/.test(e)), 'ohne Art');
+    assert.ok(errorsWith('stone').some((e) => /board/.test(e)), 'kein Objekt');
   });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
@@ -895,7 +919,7 @@ console.log('Offline');
     assert.ok(volcano, 'Skybox volcano fehlt im Register');
     const pool = volcano.layers.find((l) => l.type === 'lavaPool') ?? assert.fail('volcano ohne Ebene lavaPool');
     assert.ok(volcano.layers.some((l) => l.type === 'bakedMesh'), 'volcano ohne Felsbrocken (bakedMesh)');
-    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html) });
+    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html), boards: boardTypes(html) });
     assert.deepEqual(errorsWith({}), []);
     assert.ok(errorsWith({ heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom See');
     assert.ok(errorsWith({ spatter: { ...pool.spatter, color: [1.0, 0.9, 0.5] } }).some((e) => /spatter/.test(e)), 'Bloom Spritzer');

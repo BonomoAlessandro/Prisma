@@ -6,6 +6,7 @@
   "daten": "sky/village",
   "vorab": false,
   "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "board": { "type": "stone" },
   "layers": [
     { "type": "bakedMesh", "data": "house" },
     { "type": "bakedMesh", "data": "neighbors" },

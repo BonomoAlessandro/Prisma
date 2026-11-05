@@ -29,6 +29,20 @@ Der Weg eines Strahls von einer Quelle über Spiegel zu einem Ziel.
 Ein Ziel, dessen Farbe erst im Level gemischt wird, durch einen Kombinator oder durch mehrere Strahlen auf dem Ziel.
 Ein weisses Ziel, das sein Weiss direkt aus einer weissen Quelle bekommt, ist keines.
 
+**Brett**:
+Das 7×7-Feld mit Oberfläche, Seiten und Kante, auf dem die Elemente stehen: heute 9,8 × 9,8 m gross und 0,38 m dick,
+mit einem Rand von 0,7 m um das Feld. Es schwebt in jeder Welt und folgt dem Himmel: Jeder Himmel aus Blender nennt
+sein Brett in seiner Beschreibung (Brett-Angabe in `skybox.json`: Art und Werte); ohne Angabe gilt das Steinbrett.
+Drehteller, Sockel und der Teller des Prismas gehören nicht dazu, sie sehen überall gleich aus. Im Code `boardTheme`,
+die Arten in `BOARD_TYPES`; an älteren Stellen heisst es noch Platte (`PLATE`).
+_Vermeiden_: Plattform, Steinplatte (für jedes Brett), Spielfeld (das ist nur das 7×7-Feld)
+
+**Steinbrett**:
+Das Brett aus dunklem, fein geädertem Schiefer mit eingravierten Rasterlinien, einer hellen Einlegelinie, polierten
+Seiten und einer Metallkante. Es steht unter der Milchstrasse und dem Sonnensystem und überall, wo ein Himmel kein
+eigenes Brett nennt. Im Code die Art `stone`.
+_Vermeiden_: Steinplatte, Plattform
+
 ## Noas Geschichte
 
 **Geschichte**:

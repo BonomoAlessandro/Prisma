@@ -5,6 +5,7 @@
   "order": 50,
   "daten": "sky/volcano",
   "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "board": { "type": "stone" },
   "layers": [
     { "type": "bakedMesh", "data": "rocks" },
     {

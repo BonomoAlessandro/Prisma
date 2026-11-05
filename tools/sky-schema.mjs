@@ -6,7 +6,11 @@
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
-//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, brush?, … }] }
+//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, brush?, … }], board?: { type, … } }
+// board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
+// BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine). Ohne
+// Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte oder ungültige Werte sind Fehler.
+// pack.mjs übernimmt sie unverändert aus skybox.json (mit --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -42,6 +46,12 @@ export function loadSkies(root) {
 /** Ebenentypen, die index.html kennt (Schlüssel von SKY_LAYERS) */
 export function layerTypes(html) {
   const m = html.match(/^const SKY_LAYERS = \{([^}]*)\};/m);
+  return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
+}
+
+/** Arten von Brettern, die index.html kennt (Schlüssel von BOARD_TYPES) */
+export function boardTypes(html) {
+  const m = html.match(/^const BOARD_TYPES = \{([^}]*)\};/m);
   return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
 
@@ -126,11 +136,32 @@ const LAYER_PARAMS = {
   },
 };
 
+// Werte der Arten von Brettern (BOARD_TYPES in index.html): Feld -> Prüfung. Jede Art steht hier, auch ohne Werte;
+// ein Feld, das hier fehlt, ist ein unbekannter Wert
+const BOARD_PARAMS = {
+  stone: {},
+};
+
+/** Fehler der Brett-Angabe board (Liste von Texten); boards: Arten des Spiels (boardTypes), ohne: nicht geprüft */
+function boardErrors(board, boards) {
+  if (typeof board !== 'object' || board === null || Array.isArray(board)) return ['board: { type, …Werte }'];
+  const { type, ...values } = board;
+  if (typeof type !== 'string' || !type) return ['board: type fehlt'];
+  const errors = [];
+  if (boards && !boards.includes(type)) errors.push(`board: Art ${type} im Spiel unbekannt`);
+  const params = Object.hasOwn(BOARD_PARAMS, type) ? BOARD_PARAMS[type] : null;
+  if (!params) return [...errors, `board: Art ${type} ohne Werte in BOARD_PARAMS (tools/sky-schema.mjs)`];
+  for (const k of Object.keys(values)) if (!Object.hasOwn(params, k)) errors.push(`board ${type}: Wert ${k} unbekannt`);
+  for (const [k, ok] of Object.entries(params)) if (!ok(values[k])) errors.push(`board ${type}: ${k} fehlt oder ungültig`);
+  return errors;
+}
+
 /**
  * Fehler als Liste von Texten (leer = in Ordnung). root: Projektordner (Dateien prüfen); types: Ebenentypen des Spiels;
- * reserved: Hintergründe aus dem Code ({ id, order }); pending: Inhalt noch nicht geschriebener Teile (Datei -> Text)
+ * boards: Arten von Brettern im Spiel (boardTypes); reserved: Hintergründe aus dem Code ({ id, order }); pending:
+ * Inhalt noch nicht geschriebener Teile (Datei -> Text)
  */
-export function checkSkies(skies, { root, types, reserved = [], pending = {} } = {}) {
+export function checkSkies(skies, { root, types, boards, reserved = [], pending = {} } = {}) {
   const errors = [];
   const ids = new Set(reserved.map((r) => r.id)), orders = new Set(reserved.map((r) => r.order));
   let precache = 0;
@@ -228,6 +259,7 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
         err('Ebene fishSchools: braucht davor waterSurface');
       }
     }
+    if (s.board !== undefined) for (const e of boardErrors(s.board, boards)) err(e);
   }
   if (precache > BUDGET.precacheBytes) errors.push(`vorab gespeichert ${precache} Bytes > ${BUDGET.precacheBytes}`);
   return errors;

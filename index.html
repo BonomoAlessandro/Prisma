@@ -1256,7 +1256,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-04 ladezeichen';
+const APP_VERSION = '2026-11-05 brett-angabe';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -1298,7 +1298,7 @@ const QUALITY = {
 const GRID = 7;            // Spielfeld 7×7
 const CELL = 1.2;          // Weltgrösse einer Zelle
 const BOARD = GRID * CELL; // Kantenlänge des Spielfelds
-const PLATE = BOARD + 1.4; // Steinplatte inkl. Rand
+const PLATE = BOARD + 1.4; // Brett inkl. Rand (Umriss, siehe BOARD_TYPES)
 const PLATE_RIM = (PLATE - BOARD) / 2; // Plattenrand ausserhalb des Spielfelds
 const PLATE_THICK = 0.38;
 
@@ -8588,7 +8588,7 @@ camera.layers.enable(LAYER_NO_REFLECT);
    PROZEDURALE TEXTUREN
    ===================================================================== */
 
-// Deterministischer Zufall (mulberry32, oben bei FIXED_TIME), damit die Steinplatte bei jedem Laden gleich aussieht.
+// Deterministischer Zufall (mulberry32, oben bei FIXED_TIME), damit das Steinbrett bei jedem Laden gleich aussieht.
 
 function makeNoise2D(seed) {
   const rand = mulberry32(seed);
@@ -8614,7 +8614,7 @@ function makeNoise2D(seed) {
 }
 
 /**
- * Erzeugt Farb-, Rauheits- und Normal-Map der Steinplatte: dunkler, fein
+ * Erzeugt Farb-, Rauheits- und Normal-Map des Steinbretts: dunkler, fein
  * geäderter Schiefer. Nur die weichen, grossflächigen Strukturen stecken in
  * der Textur – scharfe Details (Rasterlinien, Intarsie, Mikrokörnung) rechnet
  * der Boden-Shader analytisch, damit sie in jeder Auflösung scharf bleiben.
@@ -8622,6 +8622,7 @@ function makeNoise2D(seed) {
  * des Hängers beim Laden der Seite (Ticket 03 der Leistung; 1024² Pixel mit je 16 Oktaven Rauschen). Bis die Daten da
  * sind, sind die Texturen leer (nie hochgeladen); die Szene liegt dann noch hinter dem Startbildschirm. Danach lädt das
  * nächste Bild sie hoch (sceneLoop.wake, nicht während der Enthüllung). Ohne Worker wie früher im Hauptthread.
+ * Rückgabe: { map, roughnessMap, normalMap, computed (die Daten sind da) } (stoneBoard).
  */
 function createStoneTextures(size) {
   const n = size * size * 4;
@@ -8635,11 +8636,10 @@ function createStoneTextures(size) {
     tex.flipY = false;
     return tex;
   };
-  const out = { map: toTex(true), roughnessMap: toTex(false), normalMap: toTex(false) };
-  let filled = false;
+  const out = { map: toTex(true), roughnessMap: toTex(false), normalMap: toTex(false), computed: false };
   const fill = (d) => {
-    if (filled) return;
-    filled = true;
+    if (out.computed) return;
+    out.computed = true;
     for (const [tex, data] of [[out.map, d.color], [out.roughnessMap, d.rough], [out.normalMap, d.normal]]) {
       tex.image.data.set(data);
       tex.needsUpdate = true;
@@ -8659,7 +8659,7 @@ function createStoneTextures(size) {
   return out;
 }
 
-/** Farbe, Rauheit und Normalen der Steinplatte (createStoneTextures), ohne Bezug auf das übrige Spiel (Worker). */
+/** Farbe, Rauheit und Normalen des Steinbretts (createStoneTextures), ohne Bezug auf das übrige Spiel (Worker). */
 function stoneData(size) {
   const noise = makeNoise2D(7);
   // Jede Oktave gedreht (~37°) und versetzt, damit sich Strukturen nicht in mehreren Grössen wiederholen
@@ -9879,12 +9879,19 @@ function* skyBufferUpload(geo) {
 }
 
 /**
+ * Plattentest im Panorama (skyPanoramaMaterial): der Kernquader des gezeigten Bretts, je 1 cm kleiner. Das Brett deckt
+ * ihn ganz und undurchsichtig, dahinter zeichnet der Himmel nichts. Gemeinsam für alle Panoramen; boardTheme setzt ihn
+ * mit dem Brett (die Kernquader der Arten stehen bei BOARD_TYPES).
+ */
+const BOARD_CORE = { uCoreLo: { value: new THREE.Vector3() }, uCoreHi: { value: new THREE.Vector3() } };
+
+/**
  * bands: [{ u, v, tex, on }] – on: Anteil des Streifens (0 = noch nicht geladen, das ganze Bild zeigt sich; Uniform
  * uOn). material.userData.setDepthRule({ uniforms, glsl }): Das Netz schreibt dann als Tiefe skyDepth(vWorld) (glsl
  * definiert sie; für eine Ebene, die das Netz anders als nach seiner Lage verdecken soll, siehe waterSurface).
  */
 function skyPanoramaMaterial(uniforms, center, full, bands) {
-  const u = { ...uniforms, uFull: { value: full }, uCenter: { value: center } };
+  const u = { ...uniforms, ...BOARD_CORE, uFull: { value: full }, uCenter: { value: center } };
   u.uSoft = { value: null }; // Vorschau, über die das scharfe Bild einblendet (uSoftOn 1 → 0, createPanoramaSky)
   u.uSoftOn = { value: 0 };
   bands.forEach((b, i) => {
@@ -9917,9 +9924,7 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
         ${decl}
         varying vec3 vWorld;
         const float PI = 3.141592653589793;
-        // Steinplatte (floorTop und plateSides), je 1 cm kleiner
-        const vec3 PLATE_LO = ${glv([-PLATE / 2 + 0.01, -PLATE_THICK - 0.03 + 0.01, -PLATE / 2 + 0.01])};
-        const vec3 PLATE_HI = ${glv([PLATE / 2 - 0.01, -0.01, PLATE / 2 - 0.01])};
+        uniform vec3 uCoreLo, uCoreHi; // Kernquader des gezeigten Bretts, je 1 cm kleiner (BOARD_CORE)
         ${rule?.glsl ?? ''}
         void main() {
           vec3 g = normalize(vWorld - uCenter);
@@ -9931,13 +9936,13 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
           vec2 dx = dFdx(vec2(u, v)), dy = dFdy(vec2(u, v));
           dx.x -= floor(dx.x + 0.5); dy.x -= floor(dy.x + 0.5);
           vec2 gx = vec2(dx.x, -dx.y), gy = vec2(dy.x, -dy.y);
-          // Hinter der Steinplatte (undurchsichtig, steht fest, wird danach gezeichnet und deckt das Netz dort zu):
-          // nichts weiter rechnen. Im Level deckt sie gut ein Drittel des Bilds; das Netz schreibt am Strand seine Tiefe
-          // selbst, der Tiefentest kann es dort also nicht vorher verwerfen (Ticket 11). Quader um 1 cm kleiner, damit
-          // am Rand kein Pixel ohne Netz und ohne Platte bleibt.
+          // Hinter dem Kernquader des Bretts (undurchsichtig, steht fest, wird danach gezeichnet und deckt das Netz dort
+          // zu): nichts weiter rechnen. Im Level deckt das Brett gut ein Drittel des Bilds; das Netz schreibt am Strand
+          // seine Tiefe selbst, der Tiefentest kann es dort also nicht vorher verwerfen (Ticket 11). Quader um 1 cm
+          // kleiner, damit am Rand kein Pixel ohne Netz und ohne Brett bleibt.
           {
             vec3 eye = vWorld - cameraPosition, inv = 1.0 / eye;
-            vec3 t0 = (PLATE_LO - cameraPosition) * inv, t1 = (PLATE_HI - cameraPosition) * inv;
+            vec3 t0 = (uCoreLo - cameraPosition) * inv, t1 = (uCoreHi - cameraPosition) * inv;
             vec3 tn = min(t0, t1), tf = max(t0, t1);
             float tIn = max(max(tn.x, tn.y), tn.z), tOut = min(min(tf.x, tf.y), tf.z);
             if (tIn <= tOut && tIn > 0.0 && tIn < 1.0) discard; // eye läuft bis zum Netz: t = 1 dort
@@ -12633,7 +12638,8 @@ function createPanoramaSky(m) {
  * alten. Darum ist immer höchstens einer eingeblendet, und Himmelskugel und Sterne mischen nur zwischen ihm und dem
  * Neutralzustand (dunkler Raum mit Sternen). sky: milkyWay (Anteil der Milchstrasse), stars (Helligkeit der Sterne),
  * starsAboveHorizon (Sterne nur über dem Horizont), rings (Platzhalter der Kugel, solange ein Panorama lädt oder
- * überblendet). Module: prepare, setFade, update, ready, settled, release (siehe createPanoramaSky).
+ * überblendet). Module: prepare, setFade, update, ready, settled, release (siehe createPanoramaSky). board: die
+ * Brett-Angabe der Skybox (Register), ohne sie das Steinbrett; das Brett folgt dem gewählten Hintergrund (boardTheme).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, rings: null };
 const SKY_ENTRIES = (() => {
@@ -12653,7 +12659,7 @@ const SKY_ENTRIES = (() => {
       if (!Array.isArray(rings) || rings.length !== 9 || !rings.every((c) => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))) {
         throw new Error('sky.rings: 9 Farben');
       }
-      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, module: createPanoramaSky(m) });
+      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, board: m.board, module: createPanoramaSky(m) });
       ids.add(m.id);
     } catch (e) { console.warn(`Skybox ${m?.id}: übersprungen (${e.message})`); }
   }
@@ -12706,6 +12712,7 @@ const skyTheme = {
     this.ahead = null;
     this.hidden[id] = 0;                   // gewählt: die Frist fürs Freigeben beginnt erst beim Wegschalten
     this.byId.get(id).module?.prepare?.(); // vor dem Ausblenden: sonst stockte die Überblendung
+    boardTheme.show(id, this.byId.get(id).board); // sein Brett, gleich (noch ohne Halten und Überblenden)
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     this.apply();
     sceneLoop.wake();
@@ -12764,27 +12771,21 @@ const skyTheme = {
     for (const e of this.entries) e.module?.setFade(e === a ? k : 0);
   },
 };
-// ?sky=forest: diesen Hintergrund zeigen statt dem der Welt (Tests); prisma.sky liest das Spiel nicht mehr
-// (Entscheid 26)
-const urlSky = new URLSearchParams(location.search).get('sky');
-if (skyTheme.order.includes(urlSky)) skyTheme.current = urlSky;
-skyTheme.set(skyTheme.current, false);
 
 /* =====================================================================
-   STEINPLATTE mit planarer Spiegelung
+   BRETT mit planarer Spiegelung (Spec .scratch/brett-je-himmel/)
    ===================================================================== */
 
-const stoneTex = createStoneTextures(QUALITY.textureSize);
-
-// Spiegelungs-Kamera: rendert die Szene gespiegelt in eine Textur,
-// die vom Bodenmaterial (je nach Rauheit leicht weichgezeichnet) gelesen wird.
+// Spiegelungs-Kamera: rendert die Szene gespiegelt in eine Textur, die die Oberfläche des Bretts (je nach Rauheit
+// leicht weichgezeichnet) liest. Eine für alle Bretter.
 const reflector = new THREE.Reflector(new THREE.PlaneGeometry(PLATE, PLATE), {
   textureWidth: 256,
   textureHeight: 256,
   clipBias: 0.002,
   multisample: 0, // MSAA wird unten über samples gesetzt (WebGL2)
 });
-// Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() vom Boden übernommen.
+// Hängt bewusst nicht im Szenengraph; seine Matrix wird in renderReflection() von der Oberfläche des gezeigten Bretts
+// übernommen.
 reflector.getRenderTarget().stencilBuffer = true; // 24 statt 16 Bit Tiefe (vor dem ersten Rendern setzen)
 // Kantenglättung in der Spiegelung: sonst bekommen Strahlen und Kristalle in der kleinen Textur
 // Treppenkanten. three.js löst MSAA vor dem Erzeugen der Mipmaps auf – beides lässt sich kombinieren.
@@ -12794,19 +12795,18 @@ if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Tex
   reflector.getRenderTarget().texture.generateMipmaps = true;
   reflector.getRenderTarget().texture.minFilter = THREE.LinearMipmapLinearFilter;
 }
+// Verschiebung der Mipmap-Stufe (Bias): Die automatische Stufe berücksichtigt die Texturgrösse schon; damit die
+// Unschärfe in CSS-Pixeln gleich bleibt, muss der Bias nur die Pixeldichte ausgleichen.
+const reflLodShift = { value: 0 };
 
-const floorMaterial = new THREE.MeshStandardMaterial({
-  color: 0xffffff,
-  map: stoneTex.map,
-  roughness: 1.0,
-  roughnessMap: stoneTex.roughnessMap,
-  metalness: 0.0,
-  normalMap: stoneTex.normalMap,
-  normalScale: new THREE.Vector2(0.12, 0.12), // nur ein Hauch Relief – sonst wirken Spiegelungen ölig-wellig
-  envMapIntensity: 0.22,
-});
+// Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt). Pflicht auf jedem Brett, je Art
+// in ihrem Material; die Farbe nutzt auch der Rahmen im Würfel
+const shockUniforms = {
+  uShock: { value: new THREE.Vector3(0, 0, 0.4) },
+  uShockColor: { value: new THREE.Color(1, 1, 1) },
+};
 
-// Analytische Details des Bodens (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
+// Analytische Details des Steinbretts (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
 const FLOOR_DETAIL_GLSL = `
   float floorGroove = 0.0, floorInlay = 0.0, floorBevel = 0.0;
   {
@@ -12837,36 +12837,45 @@ const FLOOR_DETAIL_GLSL = `
   }
 `;
 
-// Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt)
-const shockUniforms = {
-  uShock: { value: new THREE.Vector3(0, 0, 0.4) },
-  uShockColor: { value: new THREE.Color(1, 1, 1) },
-};
-
-// Verschiebung der Mipmap-Stufe (Bias): Die automatische Stufe berücksichtigt die Texturgrösse schon; damit die
-// Unschärfe in CSS-Pixeln gleich bleibt, muss der Bias nur die Pixeldichte ausgleichen.
-const reflLodShift = { value: 0 };
-floorMaterial.onBeforeCompile = (shader) => {
-  Object.assign(shader.uniforms, shockUniforms);
-  shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
-  shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
-  shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
-  shader.uniforms.uReflLodShift = reflLodShift;
-  shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
-    .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
-  shader.fragmentShader = shader.fragmentShader
-    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nuniform float uReflLodShift;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
-    .replace('#include <map_fragment>', `#include <map_fragment>
+/**
+ * Steinbrett (Art stone, ohne Werte): dunkler, fein geäderter Schiefer (Texturen aus dem Hintergrund-Thread,
+ * createStoneTextures) mit eingravierten Rasterlinien, heller Einlegelinie und Fase (FLOOR_DETAIL_GLSL), Spiegelung und
+ * Lichtwelle auf der Oberfläche, dazu polierte dunkle Seiten und eine schmale Metallkante. Das Brett von Milchstrasse
+ * und Sonnensystem und der Rückfall ohne Brett-Angabe. Rückgabe wie jede Art (BOARD_TYPES).
+ */
+function stoneBoard() {
+  const stoneTex = createStoneTextures(QUALITY.textureSize);
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: stoneTex.map,
+    roughness: 1.0,
+    roughnessMap: stoneTex.roughnessMap,
+    metalness: 0.0,
+    normalMap: stoneTex.normalMap,
+    normalScale: new THREE.Vector2(0.12, 0.12), // nur ein Hauch Relief – sonst wirken Spiegelungen ölig-wellig
+    envMapIntensity: 0.22,
+  });
+  floorMaterial.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shockUniforms);
+    shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
+    shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
+    shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+    shader.uniforms.uReflLodShift = reflLodShift;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
+      .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nuniform float uReflLodShift;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
+      .replace('#include <map_fragment>', `#include <map_fragment>
       ${FLOOR_DETAIL_GLSL}
       diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.16, 0.16, 0.18), floorInlay);
       diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * 2.2 + 0.012, floorBevel);`)
-    .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
       roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
       roughnessFactor = mix(roughnessFactor, 0.55, floorInlay);
       roughnessFactor = mix(roughnessFactor, 0.12, floorBevel);`)
-    .replace('#include <tonemapping_fragment>', `
+      .replace('#include <tonemapping_fragment>', `
       {
         vec2 ruv = vReflUv.xy / vReflUv.w;
         // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
@@ -12887,42 +12896,162 @@ floorMaterial.onBeforeCompile = (shader) => {
         gl_FragColor.rgb += uShockColor * (ring + trail) * uShock.y;
       }
       #include <tonemapping_fragment>`);
-  floorMaterial.userData.shader = shader;
-};
+    floorMaterial.userData.shader = shader;
+  };
 
-const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
-floorTop.rotation.x = -Math.PI / 2;
-floorTop.receiveShadow = true;
-scene.add(floorTop);
+  const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+  floorTop.rotation.x = -Math.PI / 2;
+  floorTop.receiveShadow = true;
 
-// Seitenkanten der Platte: poliert, damit sie Softbox-Licht fangen und sich vom Hintergrund lösen
-const plateSideMaterial = new THREE.MeshStandardMaterial({
-  color: 0x14141b,
-  roughness: 0.22,
-  metalness: 0.0,
-  envMapIntensity: 1.4,
-});
-const plateSides = new THREE.Mesh(new THREE.BoxGeometry(PLATE, PLATE_THICK, PLATE), plateSideMaterial);
-plateSides.position.y = -PLATE_THICK / 2 - 0.03; // Deckfläche deutlich unter dem Boden
-plateSides.receiveShadow = true;
-scene.add(plateSides);
+  // Seitenkanten: poliert, damit sie Softbox-Licht fangen und sich vom Hintergrund lösen
+  const plateSideMaterial = new THREE.MeshStandardMaterial({
+    color: 0x14141b,
+    roughness: 0.22,
+    metalness: 0.0,
+    envMapIntensity: 1.4,
+  });
+  const plateSides = new THREE.Mesh(new THREE.BoxGeometry(PLATE, PLATE_THICK, PLATE), plateSideMaterial);
+  plateSides.position.y = -PLATE_THICK / 2 - 0.03; // Deckfläche deutlich unter der Oberfläche
+  plateSides.receiveShadow = true;
 
-// Schmale Metallkante rund um die Platte (ausserhalb ihrer Fläche, minimal erhaben)
-// – klare Silhouette aus jedem Blickwinkel, ohne mit dem Boden zu überlappen.
-const plateTrim = new THREE.Group();
-{
+  // Alles in einer Gruppe, die Teile der Kante direkt darin: So entstehen genau so viele Objekte wie früher, als die
+  // Kante eine eigene Gruppe in der Szene war. three zieht für jede Kennung (uuid) Zufallszahlen; ein Objekt mehr
+  // verschöbe mit ?t= den festen Zufall, und Vergleichsbilder zeigten etwa die Ziele anders gedreht
+  const group = new THREE.Group();
+  group.add(floorTop, plateSides);
+  // Schmale Metallkante rundum (ausserhalb der Fläche, minimal erhaben)
+  // – klare Silhouette aus jedem Blickwinkel, ohne mit der Oberfläche zu überlappen.
   const trimMat = new THREE.MeshStandardMaterial({ color: 0x8d8e98, metalness: 1.0, roughness: 0.28, envMapIntensity: 1.3 });
-  const T = 0.024, H = 0.056, y = 0.003 - H / 2;
-  for (const sgn of [-1, 1]) {
-    const bx = new THREE.Mesh(new THREE.BoxGeometry(PLATE + 2 * T, H, T), trimMat);
-    bx.position.set(0, y, sgn * (PLATE / 2 + T / 2));
-    const bz = new THREE.Mesh(new THREE.BoxGeometry(T, H, PLATE), trimMat);
-    bz.position.set(sgn * (PLATE / 2 + T / 2), y, 0);
-    bx.receiveShadow = bz.receiveShadow = true;
-    plateTrim.add(bx, bz);
+  {
+    const T = 0.024, H = 0.056, y = 0.003 - H / 2;
+    for (const sgn of [-1, 1]) {
+      const bx = new THREE.Mesh(new THREE.BoxGeometry(PLATE + 2 * T, H, T), trimMat);
+      bx.position.set(0, y, sgn * (PLATE / 2 + T / 2));
+      const bz = new THREE.Mesh(new THREE.BoxGeometry(T, H, PLATE), trimMat);
+      bz.position.set(sgn * (PLATE / 2 + T / 2), y, 0);
+      bx.receiveShadow = bz.receiveShadow = true;
+      group.add(bx, bz);
+    }
   }
+
+  const textures = [stoneTex.map, stoneTex.roughnessMap, stoneTex.normalMap];
+  return {
+    group,
+    mirror: floorTop,
+    textures,
+    get computed() { return stoneTex.computed; },
+    dispose() {
+      group.traverse((o) => o.geometry?.dispose());
+      for (const m of [floorMaterial, plateSideMaterial, trimMat]) m.dispose();
+      for (const t of textures) t.dispose();
+    },
+  };
 }
-scene.add(plateTrim);
+
+/**
+ * Arten von Brettern (Spec .scratch/brett-je-himmel/), je { core, build(values) }. tools/sky-schema.mjs liest ihre Namen
+ * aus der Zeile `const BOARD_TYPES = { … }` und prüft die Werte der Brett-Angaben (BOARD_PARAMS dort).
+ * core: Kernquader { lo, hi } (Welt, m), den jedes Brett der Art sicher ganz und undurchsichtig deckt. Dahinter zeichnet
+ * der Himmel nichts (BOARD_CORE); füllt eine Form ihren Umriss nicht ganz, ist er kleiner, sonst entstehen Löcher im
+ * Himmel. Mehr als der Umriss von PLATE × PLATE darf er nicht sein.
+ * build(values): ein Brett aus den Werten der Brett-Angabe, { group (alles, was zum Brett gehört; kommt unsichtbar in die
+ * Szene, bis es gezeigt wird), mirror (spiegelnde Oberfläche in y = 0: renderReflection übernimmt ihre Matrix und
+ * blendet sie beim Spiegeln aus; null: spiegelt nicht), textures (im Spiel berechnet, hochgeladen beim ersten Zeichnen
+ * oder von boardTheme.upload), computed (die Texturen sind berechnet), dispose() (Grafikspeicher freigeben) }. Pflicht
+ * auf jedem Brett ist die Lichtwelle beim Lösen (shockUniforms).
+ */
+const stone = {
+  // Oberfläche (y = 0), Seiten (3 cm darunter, PLATE_THICK dick) und die Metallkante dazwischen decken den Umriss
+  core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
+  build: stoneBoard,
+};
+const BOARD_TYPES = { stone };
+
+/**
+ * Der Brett-Teil: baut Bretter aus den Brett-Angaben der Himmel (board im Register: { type, …Werte }; ohne Angabe, unter
+ * Milchstrasse und Sonnensystem das Steinbrett), teilt eines unter allen Himmeln mit gleicher Art und gleichen Werten (so
+ * liegt etwa das Steinbrett nur einmal im Grafikspeicher), meldet, wann eines bereit ist (Texturen berechnet und
+ * hochgeladen), und gibt es frei, wenn es niemand mehr braucht. Das Steinbrett bleibt immer gebaut (Rückfall). Gezeigt
+ * wird das Brett des gewählten Hintergrunds (skyTheme.set ruft show), sein Kernquader gilt im Plattentest des Panoramas.
+ * Noch ohne Halten und Überblenden, und das Bereitsein des Himmels schliesst das Brett noch nicht ein (Ticket 02).
+ */
+const boardTheme = {
+  built: new Map(), // Schlüssel aus Art und Werten -> { key, type, board, users, ready }
+  shown: null,      // gezeigt: { sky (id des Himmels, dem das Brett gehört), entry }
+
+  /** Brett zu einer Brett-Angabe (spec; ohne: das Steinbrett), schon gebaut oder neu; release gibt es wieder ab */
+  acquire(spec) {
+    let { type = 'stone', ...values } = spec ?? {};
+    if (!Object.hasOwn(BOARD_TYPES, type)) { // Register neuer als das Spiel: wie ohne Angabe
+      console.warn(`Brett: Art ${type} unbekannt, Steinbrett`);
+      type = 'stone';
+      values = {};
+    }
+    const key = JSON.stringify([type, Object.keys(values).sort().map((k) => [k, values[k]])]);
+    let entry = this.built.get(key);
+    if (!entry) {
+      const board = BOARD_TYPES[type].build(values);
+      board.group.visible = false;
+      scene.add(board.group);
+      entry = { key, type, board, users: 0, ready: false };
+      this.built.set(key, entry);
+    }
+    entry.users++;
+    return entry;
+  },
+  /** Brett abgeben (acquire); braucht es niemand mehr, wird es freigegeben */
+  release(entry) {
+    if (--entry.users > 0) return;
+    this.built.delete(entry.key);
+    scene.remove(entry.board.group);
+    entry.board.dispose();
+  },
+  /** Das Brett des Himmels sky zeigen (seine Brett-Angabe spec), samt seinem Kernquader */
+  show(sky, spec) {
+    const before = this.shown, entry = this.acquire(spec);
+    this.shown = { sky, entry };
+    if (before) {
+      if (before.entry !== entry) before.entry.board.group.visible = false;
+      this.release(before.entry);
+    }
+    entry.board.group.visible = true;
+    const { lo, hi } = BOARD_TYPES[entry.type].core;
+    BOARD_CORE.uCoreLo.value.fromArray(lo).addScalar(0.01);
+    BOARD_CORE.uCoreHi.value.fromArray(hi).addScalar(-0.01);
+  },
+  /** Textur im Stand ihrer Daten auf der Grafikkarte */
+  onGpu(t) { return t.version > 0 && renderer.properties.get(t).__version === t.version; },
+  /** Brett berechnet und auf der Grafikkarte (three lädt beim ersten Zeichnen hoch, sonst upload) */
+  isReady(entry) {
+    if (!entry.ready && entry.board.computed) entry.ready = entry.board.textures.every((t) => this.onGpu(t));
+    return entry.ready;
+  },
+  /**
+   * Je Bild (draw): die Texturen berechneter Bretter hochladen, die noch nicht auf der Grafikkarte sind, aber nur an
+   * einer ruhigen Stelle (ruhe). Sonst täte es erst das erste Bild, in dem das Brett liegt: Mit dem Blick im Himmel
+   * (Menü) wäre es nie bereit.
+   */
+  upload() {
+    for (const entry of this.built.values()) {
+      if (!entry.board.computed || this.isReady(entry) || !ruhe.jetzt()) continue;
+      for (const t of entry.board.textures) if (!this.onGpu(t)) renderer.initTexture(t);
+    }
+  },
+  /** spiegelnde Oberfläche des gezeigten Bretts (renderReflection); null: es spiegelt nicht */
+  get mirror() { return this.shown?.entry.board.mirror ?? null; },
+  /** Testschnittstelle (__prisma.brett): der Himmel, dessen Brett gezeigt wird, dessen Art und ob es bereit ist */
+  info() {
+    const s = this.shown;
+    return { himmel: s?.sky ?? null, art: s?.entry.type ?? null, bereit: !!s && this.isReady(s.entry) };
+  },
+};
+boardTheme.acquire(); // das Steinbrett bleibt immer gebaut: Milchstrasse, Sonnensystem und der Rückfall brauchen es
+
+// ?sky=forest: diesen Hintergrund zeigen statt dem der Welt (Tests); prisma.sky liest das Spiel nicht mehr
+// (Entscheid 26). Erst hier: set zeigt auch das Brett des Hintergrunds (boardTheme)
+const urlSky = new URLSearchParams(location.search).get('sky');
+if (skyTheme.order.includes(urlSky)) skyTheme.current = urlSky;
+skyTheme.set(skyTheme.current, false);
 
 /* =====================================================================
    BELEUCHTUNG — Museumsspot als Hauptlicht
@@ -21586,11 +21715,12 @@ function limitReflectionMips() {
 }
 
 function renderReflection() {
-  if (!reflectionInView()) return;
-  floorTop.updateMatrixWorld();
-  reflector.matrixWorld.copy(floorTop.matrixWorld);
+  const mirror = boardTheme.mirror; // spiegelnde Oberfläche des gezeigten Bretts (null: es spiegelt nicht)
+  if (!mirror || !reflectionInView()) return;
+  mirror.updateMatrixWorld();
+  reflector.matrixWorld.copy(mirror.matrixWorld);
 
-  floorTop.visible = false; // verhindert Feedback-Loop (Boden liest die Textur, in die gerendert wird)
+  mirror.visible = false; // verhindert Feedback-Loop (die Oberfläche liest die Textur, in die gerendert wird)
   const backgroundVisible = background.visible;
   background.visible = false; // gespiegelt nur ein bläulicher Fleck; ein dunkler Raum spiegelt sich schwarz
   // Gespiegelte Strahlen weich und ohne dünnen Kern: der würde in der niedrig aufgelösten
@@ -21624,7 +21754,7 @@ function renderReflection() {
   _reflectDimmed.length = 0;
   bu.uCore.value = core; bu.uGlow.value = glow; bu.uIntensity.value = intensity; bu.uCalm.value = 0;
   background.visible = backgroundVisible;
-  floorTop.visible = true;
+  mirror.visible = true;
 }
 
 /* ---------- Messwerkzeug (Spec .scratch/leistung/, Ticket 01) ---------- */
@@ -22157,6 +22287,7 @@ function frame(ts) {
  */
 function draw(dt, t0, learn = true) {
   leistung.gpuBeginn();
+  boardTheme.upload(); // Texturen eines berechneten Bretts, auch wenn es nicht im Bild liegt
   renderReflection();
   composer.render(dt);
   leistung.bildEnde(t0);
@@ -22194,13 +22325,14 @@ function animate(t, dt) {
 // Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die
 // Geschichte lässt kein Level überspringen, ADR 0005; Level ausserhalb zeigt __prismaDebug.zeige). frames: gezeichnete
 // Bilder (hinter Startbildschirm und Bühne kaum welche), ticks: Schritte der Logik (die Schleife läuft; darauf warten
-// die Proben), ruht(): die Hauptschleife ruht, verdeckt(): die Szene ist ganz zugedeckt (sceneLoop)
+// die Proben), ruht(): die Hauptschleife ruht, verdeckt(): die Szene ist ganz zugedeckt (sceneLoop), brett(): welches
+// Brett zu sehen ist, { himmel (id des Himmels, dem es gehört), art, bereit (berechnet und hochgeladen) } (boardTheme)
 window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !sceneLoop.awake,
   verdeckt: () => sceneLoop.covered, ready: true, level: () => game.board?.name, solved: () => !!game.result?.solved,
   levelIndex: () => game.levelIndex, playing: () => flow.state === 'play', start: () => ui.start(),
   celebrating: () => celebration.active, solvedPanel: () => ui.solvedVisible(),
   fps: () => (perfHud.avgMs ? Math.round(1000 / perfHud.avgMs) : 0), resolution: () => adaptiveResolution.scale,
-  skyReady: () => skyTheme.ready,
+  skyReady: () => skyTheme.ready, brett: () => boardTheme.info(),
   // Messwerkzeug (Spec .scratch/leistung/): daten() die Messwerte bisher (nur mit ?perf oder nach Taste F)
   leistung: { daten: () => leistung.daten() } };
 // Bühne der Geschichte (Ticket 19): modus dom oder gl; bilder(): Abstände der eigenen Bilder (ms), speicher(): Bytes der
@@ -22216,7 +22348,7 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
-window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
+window.__prismaDebug = { scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);

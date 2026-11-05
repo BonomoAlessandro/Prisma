@@ -5,6 +5,7 @@
   "order": 40,
   "daten": "sky/beach",
   "sky": { "stars": 0 },
+  "board": { "type": "stone" },
   "air": { "haze": [0.42, 0.46, 0.52], "lit": [0.62, 0.55, 0.46], "density": 0.004 },
   "brush": { "size": 0.28, "uniformity": 4, "sharpness": 0.8, "eccentricity": 1.0 },
   "layers": [
