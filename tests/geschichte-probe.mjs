@@ -40,9 +40,10 @@
 //   spielbaren Level bzw. bis zum Epilog), ohne die Zeit, in der ein Satz auf Tippen wartet oder ein Bild der Probe die
 //   Seite anhält (siehe ende). --wagen: dazu der Stand des Kleinen Wagens (Ticket 01 von .scratch/kleiner-wagen/), der
 //   Wagen am Himmel (Ticket 04: Stand, Helligkeit bei Tag und Nacht, Bilder <bildschirm>-wagen-…) und seit Ticket 05
-//   Erwachen, Vorbeiflug und Einstiege, siehe wagenAblauf, etwa 4 min. --vorher: die Dauern (netto) mit einem früheren
-//   Lauf mit --messwerte vergleichen (Vorher-Lauf .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe
-//   vergleicheVorher): jede Reise höchstens etwa 1 s länger, die Einstiege nicht länger, das Finale etwa 4 s.
+//   Erwachen, Vorbeiflug und Einstiege, seit Ticket 06 das Finale (Puls, Polarstern, Endbild), siehe wagenAblauf, etwa
+//   4 min. --vorher: die Dauern (netto) mit einem früheren Lauf mit --messwerte vergleichen (Vorher-Lauf
+//   .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe vergleicheVorher): jede Reise höchstens etwa 1 s länger,
+//   die Einstiege nicht länger, das Finale etwa 4 s.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -1836,8 +1837,10 @@ async function himmelBild(name, tag) {
  * Erwachen und Vorbeiflug aufzeichnen (Ticket 05 von .scratch/kleiner-wagen/): In der Seite schreibt ein eigener
  * requestAnimationFrame je Bild auf, was der Wagen am Himmel zeigt (wache Sterne, Stern dieser Welt), wie hell jeder
  * Stern gerade aufleuchtet (glanz) und wie weit jede Linie gezogen ist (anteil), dazu den Winkel (Grad) vom Blick der
- * Kamera und vom Lichtpunkt zu jedem Stern; dazu jeden Glockenton eines Sterns (audio.stern). Gelesen über das Objekt
- * der Geschichte (story.himmel) wie pruefeHimmel, keine eigene Schnittstelle; himmelAuswerten beendet die Aufzeichnung.
+ * Kamera und vom Lichtpunkt zu jedem Stern; dazu jeden Glockenton eines Sterns (audio.stern). Seit Ticket 06 auch, wo
+ * jeder Stern im Bild steht (bild: x, y von −1 bis 1, y nach oben), der Modus der Geschichte, ob ein Satz auf Tippen
+ * wartet, und die Oberkante des Untertitels (unten: Anteil der Bildhöhe). Gelesen über das Objekt der Geschichte
+ * (story.himmel) wie pruefeHimmel, keine eigene Schnittstelle; himmelAuswerten beendet die Aufzeichnung.
  */
 async function himmelAufzeichnen() {
   await ev(`(() => { const s = ${D}.story, H = s.himmel, cam = ${D}.camera, a = window.__himmel = { an: true, log: [],
@@ -1852,9 +1855,13 @@ async function himmelAufzeichnen() {
       if (!a.an) return;
       const e = cam.matrixWorld.elements, blick = cam.position.clone().set(-e[8], -e[9], -e[10]);
       const licht = s.flare.position.clone().sub(cam.position);
+      const cap = document.querySelector('#story .caption').getBoundingClientRect();
       a.log.push({ wach: H.stand.wach.length, welt: H.stand.welt, linien: H.stand.linien.length,
         glanz: [...H.glanz].map((x) => +x.toFixed(2)), anteil: [...H.anteil].map((x) => +x.toFixed(2)),
-        blick: sterne.map((d) => grad(blick, d)), licht: s.flare.visible ? sterne.map((d) => grad(licht, d)) : null });
+        blick: sterne.map((d) => grad(blick, d)), licht: s.flare.visible ? sterne.map((d) => grad(licht, d)) : null,
+        bild: sterne.map((d) => ((p) => [+p.x.toFixed(3), +p.y.toFixed(3)])(d.clone().multiplyScalar(70)
+          .add(cam.position).project(cam))), modus: ${storyMode}, tippen: s.waitTap !== null,
+        unten: cap.height > 0 ? +(cap.top / innerHeight).toFixed(3) : null });
       requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop); })()`);
@@ -1914,6 +1921,73 @@ function pruefeOhneErwachen(a, wach, was) {
     && e.anteil.every((x) => x === 1)), `${was}: ein Erwachen (${JSON.stringify(a.toene)}, `
     + `${JSON.stringify(a.log.find((e) => e.wach !== wach || e.glanz.some((x) => x) || e.anteil.some((x) => x < 1)))})`);
 }
+/**
+ * Finale (Ticket 06 von .scratch/kleiner-wagen/; Aufzeichnung a vom Klick auf «Hinaufschauen» bis zur Bühne des
+ * Epilogs, polar: wo die Bühne ihren Polarstern zeigt, scene.starAt): Die Strahlen steigen zum sechsten Stern, er
+ * erwacht wie die übrigen (Blick und Licht bei ihm, Aufblitzen, Linie 5 → 6). Zu Satz 1 steht der ganze Wagen über
+ * dem Untertitel im Bild, und ein Puls läuft Stern für Stern von 1 bis 6, mit den sechs Tönen; erst wenn er verklungen
+ * ist, wartet der Satz auf Tippen. Zu Satz 2 zieht sich die Linie 6 → 7, erst dann ist der Polarstern wach, das Licht
+ * steht auf ihm, er flammt auf und setzt den Schlusston (7); dann wartet der Satz. Töne genau 6, 1 … 6, 7. Am Ende
+ * (letztes Bild vor der Bühne) steht der ganze Wagen im Bild, der Polarstern oben links, die Schale unten rechts.
+ */
+function pruefeFinale(a, polar, was) {
+  const { log } = a, i0 = log.findIndex((e) => e.wach === 6);
+  pruefe(i0 > 0 && log.slice(0, i0).every((e) => e.wach === 5 && e.welt === 6),
+    `${was}: vor dem Erwachen nicht 5 wach mit Stern 6 dieser Welt (Bild ${i0})`);
+  if (i0 <= 0) return;
+  const e0 = log[i0];
+  pruefe(e0.blick[5] < 3 && e0.licht && e0.licht[5] < 1,
+    `${was}: beim Erwachen Blick ${e0.blick[5]}°, Licht ${e0.licht?.[5]}° vom Stern 6`);
+  const iP = log.findIndex((e, i) => i > i0 && e.glanz[0] > 0.5); // der Puls bei Stern 1
+  pruefe(Math.max(...log.slice(i0, iP < 0 ? undefined : iP).map((e) => e.glanz[5])) > 0.8,
+    `${was}: Stern 6 blitzt beim Erwachen nicht auf`);
+  const zug = log.slice(i0, iP < 0 ? undefined : iP).map((e) => e.anteil[5]);
+  pruefe(Math.min(...zug) < 0.2 && zug.at(-1) === 1, `${was}: Linie 5 → 6 zieht sich nicht vor dem Puls`);
+  pruefe(JSON.stringify(a.toene) === '[6,1,2,3,4,5,6,7]', `${was}: Glockentöne ${JSON.stringify(a.toene)} statt `
+    + '[6, 1 … 6, 7]');
+  pruefe(iP > 0, `${was}: kein Puls durch den Wagen`);
+  if (iP <= 0) return;
+  // Puls: Stern für Stern, der Wagen ganz im Bild und über dem Untertitel
+  const an = [1, 2, 3, 4, 5, 6].map((k) => log.findIndex((e, i) => i >= iP && e.glanz[k - 1] > 0.5));
+  pruefe(an.every((i, k) => i > 0 && (k === 0 || i > an[k - 1])), `${was}: Puls nicht Stern für Stern (Bilder `
+    + `${JSON.stringify(an)})`);
+  for (const i of an.slice(1).filter((x) => x > 0)) {
+    const e = log[i], unten = Math.max(...e.bild.map(([, y]) => (1 - y) / 2));
+    pruefe(e.modus === 'caption' && e.bild.every(([x, y]) => Math.abs(x) < 1 && Math.abs(y) < 1)
+      && e.unten !== null && unten < e.unten, `${was}: im Puls (Bild ${i}) nicht der ganze Wagen über dem Untertitel `
+      + `(unterster Stern ${unten.toFixed(3)}, Untertitel ${e.unten}, ${JSON.stringify(e.bild)})`);
+  }
+  const t1 = log.findIndex((e, i) => i > iP && e.tippen);
+  pruefe(t1 > an[5] && log[t1].glanz.every((x) => x === 0) && log[t1].linien === 6,
+    `${was}: Satz 1 wartet auf Tippen, bevor der Puls verklungen ist (Bild ${t1})`);
+  // über die Deichsel: Die Linie 6 → 7 zieht sich, dann flammt der Polarstern auf
+  const i7 = log.findIndex((e) => e.wach === 7), l7 = log.findIndex((e) => e.linien === 7);
+  pruefe(l7 > t1 && i7 > l7, `${was}: Linie 6 → 7 (Bild ${l7}) nicht nach Satz 1 und vor dem Polarstern (${i7})`);
+  if (i7 <= l7 || l7 < 0) return;
+  const deichsel = log.slice(l7, i7).map((e) => e.anteil[6]);
+  pruefe(Math.min(...deichsel) < 0.2 && log[i7].anteil[6] === 1,
+    `${was}: Linie 6 → 7 zieht sich nicht (${Math.min(...deichsel)} … ${log[i7].anteil[6]})`);
+  const t2 = log.findIndex((e, i) => i > i7 && e.tippen);
+  pruefe(Math.max(...log.slice(i7, t2 < 0 ? undefined : t2).map((e) => e.glanz[6])) > 0.8,
+    `${was}: Der Polarstern flammt nicht auf`);
+  pruefe(log.slice(i7 + 1, t2 < 0 ? undefined : t2).every((e) => e.licht && e.licht[6] < 1),
+    `${was}: Das Licht steht nicht auf dem Polarstern`);
+  pruefe(t2 > i7 && log[t2].glanz.every((x) => x === 0), `${was}: Satz 2 wartet auf Tippen, bevor der Polarstern ruht`);
+  // Endbild: der ganze Wagen im Bild, der Polarstern oben links, die Schale unten rechts
+  const iB = log.findIndex((e) => e.modus === 'scene') - 1, e = log[iB];
+  pruefe(iB > i7, `${was}: keine Bühne nach dem Finale`);
+  if (iB <= i7) return;
+  const p = e.bild[6], rest = e.bild.slice(0, 6);
+  pruefe(e.bild.every(([x, y]) => Math.abs(x) < 0.97 && Math.abs(y) < 0.97), `${was}: am Ende nicht der ganze Wagen `
+    + `im Bild ${JSON.stringify(e.bild)}`);
+  const xs = e.bild.map(([x]) => x), ys = e.bild.map(([, y]) => y), schale = (i) => i >= 0 && i < 4; // Sterne 1–4
+  pruefe(rest.every(([x, y]) => x > p[0] && y < p[1]) && schale(xs.indexOf(Math.max(...xs)))
+    && schale(ys.indexOf(Math.min(...ys))),
+    `${was}: am Ende nicht Polarstern oben links, Schale unten rechts ${JSON.stringify(e.bild)}`);
+  const da = [(p[0] + 1) / 2, (1 - p[1]) / 2];
+  console.log(`  ${was}: Polarstern am Ende bei ${da.map((x) => x.toFixed(3)).join(' / ')} (Anteil von Breite / Höhe), `
+    + `auf der Bühne bei ${polar.map((x) => x.toFixed(3)).join(' / ')}`);
+}
 /** Ein Level spielen, das gleich läuft (Platz platz im Grad g): lösen über die Testschnittstelle, «Gelöst» abwarten. */
 async function loeseLevel(g, platz) {
   await until(`${D}.story.step === ${platz} && ${D}.story.grade === ${JSON.stringify(g)} && window.__prisma.playing()`
@@ -1938,6 +2012,9 @@ async function loeseLevel(g, platz) {
  * Vorbeiflug am nächsten (pruefeErwachen), die Einstiege in den Bergwald nach dem Prolog und in den Vulkan beim
  * Fortsetzen am Stern ihrer Welt vorbei (pruefeEinstieg), beim Wiederholen über eine Weltgrenze kein Erwachen
  * (pruefeOhneErwachen); Bilder wagen-welt<n>-aufstieg, -erwachen, -vorbeiflug und wagen-einstieg-<wald|vulkan>-vorbeiflug.
+ * Seit Ticket 06 das Finale (pruefeFinale): Erwachen des sechsten Sterns, Puls Stern für Stern mit dem ganzen Wagen
+ * über dem Untertitel, Linie 6 → 7 und Polarstern mit Schlusston, jeder Satz wartet erst danach auf Tippen, am Ende der
+ * ganze Wagen im Bild; Bilder wagen-finale-puls, -polarstern, -endbild.
  * Etwa 4 min.
  */
 async function wagenAblauf() {
@@ -1974,7 +2051,7 @@ async function wagenAblauf() {
     // der Stern ist wach, sobald das letzte Level seiner Welt gelöst ist (wer jetzt neu lädt, sieht ihn schon wach)
     await pruefeWagen('leicht', w + 1, `nach dem letzten Level der Welt ${w + 1}`);
     await pruefeHimmel(w, w + 1, `nach dem letzten Level der Welt ${w + 1} (noch ohne Erwachen)`);
-    if (w < 5) await himmelAufzeichnen();
+    await himmelAufzeichnen();
     await tippe('#btn-next', 'Weiter');
     if (w < 5) {
       // Bilder: Aufstieg (die Strahlen auf halbem Weg zum Stern), Erwachen (die Linie zieht sich), Vorbeiflug
@@ -1996,13 +2073,28 @@ async function wagenAblauf() {
       await pruefeHimmel(w + 1, w + 2, `nach der Reise in Welt ${w + 2}`);
       await himmelBild(`wagen-welt${w + 2}-nach-reise`, w === 0 || w === 1);
     } else {
+      // Finale (Ticket 06): Bilder vom Puls (er hat Stern 2 erreicht), vom Polarstern, wenn er aufflammt, und vom
+      // Endbild vor der Bühne
+      const momente = [[`${D}.story.himmel.glanz[1] > 0.05`, 'puls'], [`${D}.story.himmel.glanz[6] > 0.1`, 'polarstern'],
+        [null, null]];
       for (let n = 1; n <= FINALE_SAETZE.length; n++) {
+        const [wann, name] = momente[n - 1];
+        if (wann) {
+          await until(wann, `Leicht: Finale, ${name}`, 60);
+          await bild(`wagen-finale-${name}`);
+        }
         await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `Leicht: Finale, Satz ${n}`, 60);
         await pruefeWagen('leicht', 6, `im Finale, Satz ${n}`);
         await tippe('#story .caption .text', 'Untertitel');
         await sleep(400);
       }
+      // Endbild: Der Blick ist fast wieder oben (der Lichtpunkt schrumpft dabei auf die Grösse des gezeichneten Sterns)
+      await until(`${D}.story.flare.scale.x < 4.6`, 'Leicht: Blick hinauf zum Wagen', 60);
+      await bild('wagen-finale-endbild');
       await until(`${storyMode} === 'scene'`, 'Leicht: Epilog', 60);
+      const polar = await ev(`(() => { const sc = ${D}.story.scene, f = STORY_EPILOG[0];
+        return sc.starAt((sc.portrait() && f.fromP) || f.from); })()`);
+      pruefeFinale(await himmelAuswerten(), polar, 'Finale');
       await pruefeWagen('leicht', 7, 'nach dem Finale');
       await pruefeHimmel(7, 6, 'nach dem Finale');
     }
