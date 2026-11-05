@@ -6,16 +6,22 @@
 
 **Status:** ready-for-agent
 
-**What to build:** Ein Brett für die Wüste in der Richtung, die am Strand gewählt wurde. Wir zeigen 2 bis 3 Varianten im
-Spiel, der Nutzer wählt eine, sie wird fertig gebaut und abgenommen.
+**What to build:** Ein Brett für die Wüste.
+Die Welt bekommt ihren eigenen Katalog mit 6 bis 8 völlig neuen Richtungen (wie Ticket 03), die dem
+Strand nicht ähneln müssen (Entscheid des Nutzers vom 05.11.2026). Der Nutzer wählt eine, sie wird im Spiel gebaut,
+fertig gemacht und abgenommen.
 
-- [ ] **Varianten:** 2 bis 3 Varianten innerhalb der gewählten Richtung, abgestimmt auf die Wüste (Material, Farben
-      im Licht der Wüste). Sie sind über den Schalter in der Adresse umschaltbar, wie in Ticket 04.
+- [ ] **Katalog:** Vorbilder suchen und eine Vorschauseite mit 6 bis 8 völlig verschiedenen Richtungen für die Wüste
+      bauen, wie in Ticket 03: echte Spielbilder mit zur Laufzeit eingesetztem Brett, je 4 Ansichten, Vorbilder mit
+      Link, Idee, Raster, Einlegelinie, Spiegelung, Lichtwelle und Kostenhinweise. Der Katalog darf vor Ticket 05
+      entstehen (er fasst `index.html` nicht an).
+- [ ] **Wahl aus dem Katalog:** Der Nutzer wählt eine Richtung, eventuell mit Änderungswünschen. Die Wahl steht unter
+      «Comments».
+- [ ] **Im Spiel:** Die gewählte Richtung wird eine Art von Brett, wie das Gezeitenbecken in Ticket 04. Der Nutzer gibt
+      an Bildern Rückmeldungen, bis sie sitzt.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Fall des Lichts beim Einstieg in die Wüste, Lösen). Dazu kommen die Messwerte
-      je Variante.
-- [ ] **Wahl des Nutzers:** Die Wahl steht unter «Comments». Danach wird die gewählte Variante fertig gebaut, und die
-      übrigen werden entfernt.
+      des Bretts, verglichen mit dem Steinbrett.
 - [ ] **Brett-Angabe:** Die Werte stehen in der Brett-Angabe der Wüste. Das Register wird nur in der Brett-Angabe
       nachgeführt, und das Prüfwerkzeug kennt die Werte.
 - [ ] **Übergänge:** Auf der Reise vom Meer in die Wüste und von der Wüste zum Vulkan (dieser vorerst mit Steinbrett)
@@ -34,3 +40,10 @@ Spiel, der Nutzer wählt eine, sie wird fertig gebaut und abgenommen.
   - Weiter weg liegen die Oase und die Pyramiden.
 - Die Wüste lädt ihr Bild erst beim Gebrauch (`vorab: false`). Eine Form aus Blender belastet deshalb die Grenze für
   das vorab Gespeicherte nicht, wohl aber das Budget der Skybox (sie liegt schon nahe an 300 MB Grafikspeicher).
+
+## Comments
+
+**Erste Runde, verworfen (05.11.2026):** Vier Varianten der Rinnen-Idee vom Strand (Wadi mit rieselndem Sand, Oase,
+Salzpfanne, Tempelbecken): https://claude.ai/artifact/UeqkywwPtPK2k2rDt7ccHq. Der Nutzer war nicht zufrieden und will
+für jede Welt etwas komplett Neues, das dem Strand nicht ähneln muss. Dateien in `katalog-wueste-rinne/`, nicht
+committet. Ein neuer Katalog mit 6 bis 8 Richtungen ist in Arbeit.

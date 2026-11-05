@@ -27,9 +27,11 @@ Sonnensystem behalten das heutige Brett, das **Steinbrett**.
 Das Brett wechselt mit dem Himmel. Der Spieler sieht dabei nie ein falsches oder vorläufiges Brett, denn die Geschichte
 wartet wie heute mit dem Kleinen Wagen, bis Himmel und Brett da sind.
 
-Gestaltet wird zuerst der Strand. Dafür gibt es einen Katalog mit 6 bis 8 deutlich verschiedenen Richtungen, danach 2 bis
-3 Richtungen im Spiel, und der Nutzer wählt eine. Diese Richtung wird dann auf Wüste, Wald, Dorf und Vulkan übertragen,
-jeweils mit 2 bis 3 Varianten zur Wahl. Am Ende hat jede Welt ein festes Brett, und es gibt keinen Schalter mehr.
+Gestaltet wird zuerst der Strand. Dafür gibt es einen Katalog mit 6 bis 8 deutlich verschiedenen Richtungen, und der
+Nutzer wählt eine. Am Strand war das am 05.11.2026 das Gezeitenbecken. **Jede weitere Welt bekommt ihren eigenen
+Katalog** mit 6 bis 8 völlig neuen Richtungen und eigenen Vorbildern. Sie muss dem Strand nicht ähneln (Entscheid des
+Nutzers vom 05.11.2026, nachdem ihm vier Wüsten-Varianten der Rinnen-Idee nicht gefielen). Am Ende hat jede Welt ein
+festes Brett, und es gibt keinen Schalter mehr.
 
 ## Nutzergeschichten
 
@@ -87,8 +89,8 @@ jeweils mit 2 bis 3 Varianten zur Wahl. Am Ende hat jede Welt ein festes Brett, 
     den heutigen Umriss hinausginge oder das Brett mit dem Grund verbände, damit ich weiss, was teurer wäre.
 27. Als Gestalter will ich 2 bis 3 gewählte Richtungen im Spiel umschalten können und sie als Bilder von Desktop und
     Handy bekommen, damit ich die eine Richtung im echten Spiel wähle.
-28. Als Gestalter will ich für Wüste, Wald, Dorf und Vulkan je 2 bis 3 Varianten innerhalb der gewählten Richtung im
-    Spiel sehen und wählen, ohne jedes Mal einen neuen grossen Katalog.
+28. Als Gestalter will ich für Wüste, Wald, Dorf und Vulkan je einen eigenen Katalog mit völlig neuen Richtungen
+    sehen, damit jede Welt ihr eigenes Brett bekommt und nicht eine Abwandlung des Strands.
 29. Als Gestalter will ich jeden Himmel abnehmen, bevor der nächste beginnt, damit Fehler der Richtung früh auffallen.
 30. Als Gestalter will ich, dass am Ende jede Welt genau ein festes Brett hat, dass die nicht gewählten Varianten aus dem
     Spiel entfernt sind und dass kein Schalter übrig bleibt.
@@ -225,10 +227,10 @@ Die Tickets liegen unter `issues/`:
 | 03 | Vorbilder und Skizzenkatalog am Strand (läuft gleichzeitig mit 01 und 02) | – | gewählt: Gezeitenbecken (05.11.) |
 | 04 | Strand: Gezeitenbecken im Spiel | 02 | Rückmeldung bis die Richtung sitzt |
 | 05 | Strand fertig, mit dem Übergang zwischen verschiedenen Formen | 04 | Abnahme |
-| 06 | Wüste | 05 | Wahl der Variante, Abnahme |
-| 07 | Bergwald | 06 | Wahl der Variante, Abnahme |
-| 08 | Dorf | 07 | Wahl der Variante, Abnahme |
-| 09 | Vulkan, erst wenn der neue Krater auf `main` ist | 08 | Wahl der Variante, Abnahme |
+| 06 | Wüste: eigener Katalog, dann im Spiel | 05 (der Katalog darf früher kommen) | Wahl aus dem Katalog, Abnahme |
+| 07 | Bergwald: eigener Katalog, dann im Spiel | 06 (Katalog früher möglich) | Wahl aus dem Katalog, Abnahme |
+| 08 | Dorf: eigener Katalog, dann im Spiel | 07 (Katalog früher möglich) | Wahl aus dem Katalog, Abnahme |
+| 09 | Vulkan: eigener Katalog, dann im Spiel | 08 (Katalog früher möglich) | Wahl aus dem Katalog, Abnahme |
 | 10 | Schluss: Schalter weg, ganze Prüfung, Poco, Merge | 09 | Poco-Test, Go für den Merge |
 
 Jedes Ticket prüft ein unabhängiger Reviewer, bevor das nächste beginnt. Jeder Himmel wird über eine Vorschauseite
