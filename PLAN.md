@@ -129,8 +129,10 @@ Android-Chromium.
 
 ## 1. Aussehen
 
-- [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am
-  Strand. Gilt für jede Skybox, auch für die neuen aus 1.2.
+- [ ] **1.1 Ein Brett je Himmel:** Das Brett nimmt das Material seiner Umgebung auf, z. B. sandig am Strand. Gilt für
+  die fünf Himmel aus Blender (Strand, Wüste, Wald, Dorf, Vulkan); Milchstrasse und Sonnensystem behalten das
+  Steinbrett. Die neuen Himmel aus 1.2 bringen ihr Brett später in ihrer `skybox.json` mit. Spec und Tickets:
+  `.scratch/brett-je-himmel/` (Grilling vom 05.11.2026), Branch `feature/brett-je-himmel`.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
