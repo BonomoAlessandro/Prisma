@@ -222,8 +222,8 @@ Die Tickets liegen unter `issues/`:
 |---|---|---|---|
 | 01 | Brett-Angabe im Register, Steinbrett als Art | – | – |
 | 02 | Das Brett wechselt mit dem Himmel: bereit, halten, überblenden | 01 | – |
-| 03 | Vorbilder und Skizzenkatalog am Strand (läuft gleichzeitig mit 01 und 02) | – | wählt 2 bis 3 Karten |
-| 04 | Strand: 2 bis 3 Richtungen im Spiel | 02, 03 | wählt eine Richtung |
+| 03 | Vorbilder und Skizzenkatalog am Strand (läuft gleichzeitig mit 01 und 02) | – | gewählt: Gezeitenbecken (05.11.) |
+| 04 | Strand: Gezeitenbecken im Spiel | 02 | Rückmeldung bis die Richtung sitzt |
 | 05 | Strand fertig, mit dem Übergang zwischen verschiedenen Formen | 04 | Abnahme |
 | 06 | Wüste | 05 | Wahl der Variante, Abnahme |
 | 07 | Bergwald | 06 | Wahl der Variante, Abnahme |
