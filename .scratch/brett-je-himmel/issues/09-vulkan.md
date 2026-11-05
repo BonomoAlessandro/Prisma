@@ -2,16 +2,15 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 08, dazu der neue Vulkan-Krater auf `main` (Branch `feature/vulkan-krater`, ausserhalb dieser Spec)
+**Blocked by:** 08 (der neue Vulkan-Krater ist seit 05.11.2026 auf `main`, 504adbb, und im Branch: Merge 0fc5cee)
 
 **Status:** ready-for-agent
 
 **What to build:** Ein Brett für den Vulkan in der Richtung, die am Strand gewählt wurde, auf dem fertigen neuen Krater.
 Wir zeigen 2 bis 3 Varianten im Spiel, der Nutzer wählt eine, sie wird fertig gebaut und abgenommen.
 
-- [ ] **Vorher main holen:** `main` mit dem neuen Krater wird in den Branch geholt. Die Brett-Angabe in der
-      `skybox.json` des Vulkans und das Register werden dabei zusammengeführt: Der Krater bringt neue Teile mit, die
-      Brett-Angabe bleibt `stone`. Danach müssen alle Tests grün sein.
+- [x] **Vorher main holen:** erledigt am 05.11.2026 (Merge 0fc5cee). Das Register enthält den neuen Krater (rev
+      584a34b8) mit der Brett-Angabe `stone`. Logiktests, Offline-Probe und Geschichte-Probe «leicht» waren grün.
 - [ ] **Varianten:** 2 bis 3 Varianten innerhalb der gewählten Richtung, abgestimmt auf Fels und Lava bei Nacht
       (Material, Farben im Licht der Lava). Sie sind über den Schalter in der Adresse umschaltbar, wie in Ticket 04.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
