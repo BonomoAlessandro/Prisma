@@ -903,6 +903,11 @@ console.log('Offline');
     assert.ok(errorsWith({ bursts: undefined }).some((e) => /bursts/.test(e)), 'Blasen');
     assert.ok(errorsWith({ plates: { ...pool.plates, crack: 0.7 } }).some((e) => /plates/.test(e)), 'Risse');
     assert.ok(errorsWith({ bursts: { ...pool.bursts, ring: [20, 10] } }).some((e) => /bursts/.test(e)), 'Blasenring');
+    // Sterne erst über dem Kraterrand (die obere Wand liegt weiter weg als die Sterne)
+    assert.ok(volcano.sky.starsFrom > 0 && volcano.sky.starsAboveHorizon, 'volcano: Sterne ab einer Höhe über dem Rand');
+    const skyErrors = (sky) => checkSkies([{ ...volcano, sky: { ...volcano.sky, ...sky } }], { types: layerTypes(html) });
+    assert.ok(skyErrors({ starsFrom: 75 }).some((e) => /starsFrom/.test(e)), 'starsFrom zu hoch');
+    assert.ok(skyErrors({ starsAboveHorizon: false }).some((e) => /starsFrom/.test(e)), 'starsFrom ohne starsAboveHorizon');
   });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
