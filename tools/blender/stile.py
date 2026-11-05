@@ -52,21 +52,22 @@ STILE = {
         'volumen': 4,
         'wasser': -3.0,   # Wasserspiegel (Blender z): wald_export schreibt dazu eine Wassermaske fürs Spiel
     },
-    # Vulkan von innen wie beim Strand gemalt: satt, Schatten kühl violettblau, die Lava glüht warm
+    # Vulkan von innen wie beim Strand gemalt: satt, Schatten fast schwarz mit einem Hauch Blau (Nacht wie am Gaskrater
+    # Darvaza: das Licht kommt von der Lava), die Lava glüht warm
     'volcano': {
         'belichtung': 1.0,
-        'saettigung': 1.2,
-        'schatten': (0.020, 0.018, 0.060),
+        'saettigung': 1.5,
+        'schatten': (0.006, 0.007, 0.018),
         'glut': (1.0, 0.58, 0.30),
         'himmel': None,
-        'licht': (1.0, 0.9, 0.8),
+        'licht': (1.0, 0.86, 0.72),
         'knie': 0.72,
         'spitze': 0.8,    # unter textur
         'rauschen': 0.008,
         'volumen': 1,     # Dampf im geschlossenen Krater: mehr Streuungen kosteten Stunden
         'jpeg': 82,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
         'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): das satte Orange bliebe sonst bei 255
-        'pinsel': 0.14,   # die Kraterwand ist nah: feinere Striche, die Schichten bleiben lesbar
+        'pinsel': 0.14,   # feinere Striche: die dünnen Lagen der Kraterwand bleiben lesbar
     },
     # Wüste am Nachmittag wie eine Anime-Landschaft: Sand golden, Schatten rosa-lila,
     # oben ein helles, klares Blau

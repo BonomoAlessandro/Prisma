@@ -6,7 +6,10 @@
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
-//     sky: { stars?, starsAboveHorizon?, milkyWay?, rings }, layers?: [{ type, brush?, … }], board?: { type, … } }
+//     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }],
+//     board?: { type, … } }
+// starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
+// die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
 // BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine). Ohne
 // Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte oder ungültige Werte sind Fehler.
@@ -243,6 +246,9 @@ export function checkSkies(skies, { root, types, boards, reserved = [], pending 
     const sky = s.sky ?? {};
     if (!Array.isArray(sky.rings) || sky.rings.length !== 9 || !sky.rings.every(isColor)) err('sky.rings: 9 Farben');
     for (const k of ['stars', 'milkyWay']) if (k in sky && !(isNum(sky[k]) && sky[k] >= 0 && sky[k] <= 1)) err(`sky.${k}: 0 … 1`);
+    if ('starsFrom' in sky && !(isNum(sky.starsFrom) && sky.starsFrom >= 0 && sky.starsFrom <= 60 && sky.starsAboveHorizon)) {
+      err('sky.starsFrom: 0 … 60 (Grad), nur mit starsAboveHorizon');
+    }
 
     for (const l of s.layers ?? []) {
       if (types && !types.includes(l.type)) err(`Ebene ${l.type}: im Spiel unbekannt`);
