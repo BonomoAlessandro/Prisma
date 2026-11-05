@@ -52,7 +52,7 @@ const port = 9300 + Math.floor(Math.random() * 500);
 const proc = spawn(chrome, [
   '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist',
-  '--no-first-run', '--no-default-browser-check', '--window-size=1000,700', 'about:blank',
+  '--no-first-run', '--no-default-browser-check', '--mute-audio', '--window-size=1000,700', 'about:blank',
 ], { stdio: 'ignore' });
 const chromeExited = new Promise(r => proc.on('exit', r));
 

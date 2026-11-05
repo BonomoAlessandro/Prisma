@@ -42,6 +42,7 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
     '--ignore-gpu-blocklist',
     '--no-first-run',
     '--no-default-browser-check',
+    '--mute-audio', // Proben und Tests bleiben stumm (Nutzer, 04.11.2026: hörte die Töne des Spiels)
     maximiert ? '--start-maximized' : `--window-size=${width},${height}`,
     'about:blank',
   ], { stdio: 'ignore' });
