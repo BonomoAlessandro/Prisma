@@ -37,8 +37,9 @@
 //   Datei (Vorher-Lauf des Kleinen Wagens, .scratch/kleiner-wagen/vorher/). Mit --ganz und --finale misst die Probe
 //   dazu die Dauer jedes Einstiegs, jeder Reise und des Finales (vom Klick auf «Gleich los» bzw. «Weiter» bis zum
 //   spielbaren Level bzw. bis zum Epilog), ohne die Zeit, in der ein Satz auf Tippen wartet oder ein Bild der Probe die
-//   Seite anhält (siehe ende). --wagen: dazu der Stand des Kleinen Wagens (Ticket 01 von .scratch/kleiner-wagen/, siehe
-//   wagenAblauf, etwa 5 min).
+//   Seite anhält (siehe ende). --wagen: dazu der Stand des Kleinen Wagens (Ticket 01 von .scratch/kleiner-wagen/) und
+//   der Wagen am Himmel (Ticket 04: Stand, Helligkeit bei Tag und Nacht, Bilder <bildschirm>-wagen-…), siehe
+//   wagenAblauf, etwa 7 min.
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -1773,6 +1774,58 @@ async function pruefeWagen(g, n, was) {
   pruefe(JSON.stringify(ist) === JSON.stringify(soll),
     `Wagen ${was} (${g}): ${JSON.stringify(ist)} statt ${JSON.stringify(soll)}`);
 }
+/**
+ * Was der Wagen am Himmel zeigt (Ticket 04 von .scratch/kleiner-wagen/), gelesen über das Objekt der Geschichte
+ * (story.himmel.stand): n wache Sterne mit ihren Linien wie wagenErwartet, welt der Stern dieser Welt (1 … 6, null über
+ * dem Dorf). Bis zum Erwachen beim Aufstieg (Ticket 05) zeigt er einen Stern erst nach der Reise wach.
+ */
+async function pruefeHimmel(n, welt, was) {
+  const ist = await ev(`${D}.story.himmel.stand`), soll = wagenErwartet(n);
+  pruefe(JSON.stringify(ist) === JSON.stringify({ wach: soll.wach, linien: soll.linien, welt }),
+    `Wagen am Himmel ${was}: ${JSON.stringify(ist)} statt ${n} wach, Stern der Welt ${welt}`);
+}
+/**
+ * Helligkeit des Wagens am Himmel nach der Tabelle der Spec («Der Wagen»; Review Ticket 04), gelesen aus den Uniforms,
+ * sobald der Himmel steht: tag (Meer, Wüste) heisst keine Hintergrundsterne (stars.uFade 0), Nacht etwa 0,3 oder mehr.
+ * Geweckte Sterne heller als der Polarstern, solange er nicht geantwortet hat (geschafft: alle gleich); der Stern
+ * dieser Welt bei Tag heller als er (Funke), bei Nacht dunkler (blass); übrige schlafende bei Tag aus, bei Nacht
+ * blasser als der Polarstern; nur gezogene Linien; nichts über der Bloom-Schwelle (uMax).
+ */
+async function pruefeHelligkeit(tag, was) {
+  await until('!skyTheme.fading', `Himmel steht (${was})`, 15);
+  const { hell, max, fade, s } = await ev(`(() => { const h = ${D}.story.himmel, u = h.mesh.material.uniforms;
+    return { hell: [...u.uHell.value], max: u.uMax.value, fade: stars.material.uniforms.uFade.value, s: h.stand };
+  })()`);
+  const zeile = `Helligkeit am Himmel ${was}: ${JSON.stringify(hell.map((h) => +h.toFixed(3)))}`;
+  pruefe(tag ? fade === 0 : fade > 0.29, `${zeile}, Hintergrundsterne ${fade} statt ${tag ? 'Tag' : 'Nacht'}`);
+  const polar = hell[6];
+  pruefe(hell.every((h) => h <= max), `${zeile}: über der Bloom-Schwelle ${max}`);
+  pruefe(s.wach.includes(7) || polar > 0 && s.wach.every((k) => hell[k - 1] > polar),
+    `${zeile}: Polarstern nicht dunkler als die wachen`);
+  for (let k = 1; k <= 6; k++) {
+    if (s.wach.includes(k)) continue;
+    const h = hell[k - 1];
+    if (k === s.welt) pruefe(h > 0 && (tag ? h > polar : h < polar), `${zeile}: Stern dieser Welt (${k})`);
+    else pruefe(tag ? h === 0 : h > 0 && h < polar, `${zeile}: schlafender Stern ${k}`);
+  }
+  (await ev('wagen.linien')).forEach(([a, b], i) => pruefe(
+    s.linien.some(([x, y]) => x === a && y === b) === hell[7 + i] > 0, `${zeile}: Linie ${a}–${b}`));
+}
+/**
+ * Bild des Wagens am Himmel: Im Spiel sieht die Kamera nie so hoch hinauf (er steht über der Kraterwand des Vulkans);
+ * für das Bild schaut sie kurz zur Mitte des Wagens (story.gazeDir, gaze) und danach zurück aufs Brett. Nur für Bilder,
+ * nicht während einer Messung der Bildzeiten. tag: Himmel von Meer oder Wüste (pruefeHelligkeit).
+ */
+async function himmelBild(name, tag) {
+  await ev(`(() => { const s = ${D}.story, m = new THREE.Vector3();
+    for (let k = 1; k <= 7; k++) m.add(s.himmel.richtung(k));
+    s.gazeRun++; s.gazeDir.copy(m.normalize()); s.gaze = 1; })()`);
+  await sleep(700);
+  await pruefeHelligkeit(tag, name);
+  await bild(name);
+  await ev(`(() => { ${D}.story.gazeRun++; ${D}.story.gaze = 0; })()`);
+  await sleep(300);
+}
 /** Ein Level spielen, das gleich läuft (Platz platz im Grad g): lösen über die Testschnittstelle, «Gelöst» abwarten. */
 async function loeseLevel(g, platz) {
   await until(`${D}.story.step === ${platz} && ${D}.story.grade === ${JSON.stringify(g)} && window.__prisma.playing()`
@@ -1790,7 +1843,9 @@ async function loeseLevel(g, platz) {
  * einer Welt (im Menü und im Level), beim Fortsetzen mit Einstieg und nach einem Wechsel über das Menü; beim
  * Wiederholen einer früheren Welt (auch «Weiter» über ihre Grenze) unverändert, ohne Reise; je Grad ein eigener Stand
  * (Mittel daneben im Planeten); «Von vorn» lässt alle schlafen, die Bestwerte bleiben; ein geschaffter Grad zeigt den
- * ganzen Wagen. Etwa 5 min.
+ * ganzen Wagen. Seit Ticket 04 dazu, was der Wagen am Himmel zeigt (pruefeHimmel: wache Sterne, Linien, Stern dieser
+ * Welt; über dem Dorf alle schlafend), und Bilder von ihm (himmelBild: je Welt, Tag und Nacht, verschiedene Stände,
+ * geschafft, über dem Dorf). Etwa 7 min.
  */
 async function wagenAblauf() {
   console.log(`${view.name}: Kleiner Wagen`);
@@ -1805,14 +1860,21 @@ async function wagenAblauf() {
       'prisma.noa.mittel': mittel });
     await pruefeWagen('leicht', w, `vor dem letzten Level der Welt ${w + 1}`);
     await tippe('#menue .menue-weiter', 'Weiter');
+    await until(`${D}.story.step === ${platz} && window.__prisma.playing() && !${D}.story.running`,
+      `Leicht: Level ${platz + 1} läuft`, 90);
+    await pruefeHimmel(w, w + 1, `im letzten Level der Welt ${w + 1}`);
+    await himmelBild(`wagen-welt${w + 1}-wach${w}`, w === 1 || w === 2);
     await loeseLevel('leicht', platz);
     // der Stern ist wach, sobald das letzte Level seiner Welt gelöst ist (wer jetzt neu lädt, sieht ihn schon wach)
     await pruefeWagen('leicht', w + 1, `nach dem letzten Level der Welt ${w + 1}`);
+    await pruefeHimmel(w, w + 1, `nach dem letzten Level der Welt ${w + 1} (noch ohne Erwachen)`);
     await tippe('#btn-next', 'Weiter');
     if (w < 5) {
       await until(`${D}.story.step === ${platz + 1} && window.__prisma.playing() && !${D}.story.running`,
         `Leicht: Reise in Welt ${w + 2}`, 90);
       await pruefeWagen('leicht', w + 1, `nach der Reise in Welt ${w + 2}`);
+      await pruefeHimmel(w + 1, w + 2, `nach der Reise in Welt ${w + 2}`);
+      await himmelBild(`wagen-welt${w + 2}-nach-reise`, w === 0 || w === 1);
     } else {
       for (let n = 1; n <= FINALE_SAETZE.length; n++) {
         await until(`${D}.story.waitTap !== null && ${storyMode} === 'caption'`, `Leicht: Finale, Satz ${n}`, 60);
@@ -1822,6 +1884,7 @@ async function wagenAblauf() {
       }
       await until(`${storyMode} === 'scene'`, 'Leicht: Epilog', 60);
       await pruefeWagen('leicht', 7, 'nach dem Finale');
+      await pruefeHimmel(7, 6, 'nach dem Finale');
     }
     await pruefeWagen('mittel', 4, `daneben, nach Welt ${w + 1} in Leicht`);
   }
@@ -1833,6 +1896,7 @@ async function wagenAblauf() {
   await tippe('#menue .menue-weiter', 'Weiter');
   await until(`${D}.story.step === 25 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 26 läuft', 60);
   await pruefeWagen('leicht', 2, 'im Level nach Neuladen mitten in der Wüste');
+  await pruefeHimmel(2, 3, 'im Level nach Neuladen mitten in der Wüste');
 
   // Fortsetzen: Leicht steht am Anfang des Vulkans, den es noch nicht gesehen hat (mit Einstieg); Mittel mit Bestwerten
   const bestM = { [reise.mittel[0][0]]: { zeit: 50, drehungen: 9 }, [reise.mittel[1][2]]: { zeit: 70, drehungen: 11 } };
@@ -1846,6 +1910,7 @@ async function wagenAblauf() {
   // bis der Fall des Lichts zu Ende ist (vorher wirkt «Menü» nicht)
   await until(`${D}.story.step === 30 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 31 läuft', 60);
   await pruefeWagen('leicht', 3, 'nach dem Einstieg in den Vulkan');
+  await pruefeHimmel(3, 4, 'nach dem Einstieg in den Vulkan');
   await sleep(700);
 
   // Wechsel über das Menü zu Mittel (Planeten 44): vier Sterne; Leicht bleibt bei drei
@@ -1856,6 +1921,7 @@ async function wagenAblauf() {
   await until(`${D}.story.grade === 'mittel' && ${D}.story.step === 43 && window.__prisma.playing()`
     + ` && !${D}.story.running`, 'Mittel 44 läuft', 60);
   await pruefeWagen('mittel', 4, 'nach dem Wechsel über das Menü');
+  await pruefeHimmel(4, 5, 'nach dem Wechsel zu Mittel über das Menü');
   await pruefeWagen('leicht', 3, 'nach dem Wechsel zu Mittel');
 
   // Wiederholen einer früheren Welt: Bergwald 10 aus der Übersicht, dann «Weiter» über die Grenze ins Meer
@@ -1870,11 +1936,13 @@ async function wagenAblauf() {
   await loeseLevel('mittel', 9);
   pruefe(await ev(`${D}.story.replay`) === true, 'Mittel: Bergwald 10 nicht als Wiederholen');
   await pruefeWagen('mittel', 4, 'beim Wiederholen im Bergwald');
+  await pruefeHimmel(4, 1, 'beim Wiederholen im Bergwald');
   await messe();
   await tippe('#btn-next', 'Weiter zum Meer');
   await until(`${D}.story.step === 10 && window.__prisma.playing() && !${D}.story.running`, 'Mittel: Meer 1', 60);
   ohneZwischenszene(await ende('Wagen: Wiederholen über die Grenze ins Meer'), 'Wiederholen über die Grenze ins Meer');
   await pruefeWagen('mittel', 4, 'nach dem Wiederholen über die Grenze ins Meer');
+  await pruefeHimmel(4, 2, 'nach dem Wiederholen über die Grenze ins Meer');
   pruefe((await stand('mittel'))?.platz === 43, 'Mittel: der Platz hat sich beim Wiederholen geändert');
 
   // «Von vorn» für Mittel: alle Sterne schlafen, die Bestwerte bleiben; Leicht unverändert
@@ -1888,6 +1956,7 @@ async function wagenAblauf() {
   await tippe('#menue [data-menue-frage="ja"]', 'Von vorn bestätigen');
   await sleep(600);
   await pruefeWagen('mittel', 0, 'nach «Von vorn»');
+  await pruefeHimmel(0, 1, 'nach «Von vorn» des Grads auf dem Brett');
   await pruefeWagen('leicht', 3, 'nach «Von vorn» von Mittel');
   const bestNachher = await besteWerte('mittel');
   pruefe(Object.keys(bestVorher ?? {}).length >= 3 && JSON.stringify(bestNachher) === JSON.stringify(bestVorher),
@@ -1898,6 +1967,31 @@ async function wagenAblauf() {
     'prisma.noa.leicht': { ...standBis('leicht', 59, 5), geloest: reise.leicht.flat(), geschafft: true } });
   await pruefeWagen('leicht', 7, 'geschafft');
   await pruefeWagen('mittel', 1, 'neben dem geschafften Grad');
+  await pruefeHimmel(1, 2, 'im Menü, Mittel im Meer');
+  // geschafft: der ganze Wagen am Himmel (Wiederholen aus der Übersicht, die die Karte im Menü öffnet: Sterne 9)
+  await tippe(karte('leicht'), 'Karte Leicht (geschafft)');
+  await until(`${uebOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Übersicht Leicht', 10);
+  await sleep(600);
+  if (view.phone) { // eine Welt je Seite: zu den Sternen über ihre Station
+    await tippe(`${UEB} .ueb-tab[data-reihe="5"]`, 'Station Sterne');
+    await sleep(900);
+  }
+  await tippe(kachel(5, 8), 'Kachel Sterne 9');
+  await until(`${D}.story.grade === 'leicht' && ${D}.story.replay && window.__prisma.playing() && !${D}.story.running`,
+    'Leicht: Sterne 9 (Wiederholen)', 60);
+  await pruefeHimmel(7, 6, 'geschafft, beim Wiederholen in den Sternen');
+  await himmelBild('wagen-geschafft', false);
+
+  // über dem Dorf (das Kapitel «Im Dorf» läuft, Übung 3): alle sechs Sterne schlafend, ohne Stern einer Welt
+  const dorf = await ev('LEVELS.slice(0, TUTORIAL_COUNT).map((l) => l.name)');
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': { platz: 0, geloest: dorf.slice(0, 2),
+    gesehen: ['prolog', 'angebot', 'dorf'], geschafft: false, dorf: { platz: 2, ende: null } } });
+  await pruefeHimmel(0, null, 'im Menü über dem Dorf');
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await until(`${D}.story.inDorf && ${D}.story.uebung === 2 && window.__prisma.playing() && !${D}.story.running`,
+    'Leicht: Übung 3 im Dorf', 60);
+  await pruefeHimmel(0, null, 'über dem Dorf');
+  await himmelBild('wagen-dorf', false);
 }
 
 try {

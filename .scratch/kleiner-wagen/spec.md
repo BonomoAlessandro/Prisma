@@ -231,8 +231,9 @@ Unverändert bleiben Prolog 1, 3 und 5, Epilog 1 und 2, das Angebot, die Texte d
     nicht verschwindet, nur weil es Tag ist.
 16. Als Spieler möchte ich am Taghimmel keine blassen Punkte sehen, die dort nicht hingehören, damit Meer und Wüste
     wie Tag aussehen.
-17. Als Spieler möchte ich während des Spiels den Wagen am Himmel finden können, ohne dass er sich in den Vordergrund
-    drängt, damit er mich beim Lösen nicht ablenkt.
+17. ~~Als Spieler möchte ich während des Spiels den Wagen am Himmel finden können, ohne dass er sich in den Vordergrund
+    drängt, damit er mich beim Lösen nicht ablenkt.~~ Entfällt (Nutzer, 05.11.2026): Es genügt, den Wagen beim Aufstieg zum
+    Himmel kurz zu sehen; im Spiel und im Menü ist er nicht im Bild (siehe Ticket 04).
 18. Als Spieler möchte ich, dass die Ankunftstexte erzählen, welcher Stern eben erwacht ist und wohin er weist, damit
     die Reise einen Sinn hat.
 19. Als Spieler möchte ich, dass die Reisen nicht spürbar länger werden, damit mich das Warten zwischen den Welten

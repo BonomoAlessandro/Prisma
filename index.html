@@ -18308,6 +18308,190 @@ const wagen = {
   },
 };
 /**
+ * Der Kleine Wagen am Himmel der Welten und des Dorfs (Spec .scratch/kleiner-wagen/, «Der Wagen», Entscheide 10, 11,
+ * 20; Ticket 04): Lage, Grösse und Helligkeit an einer Stelle. Er steht an einer festen Stelle in der Welt, nicht an
+ * der Skybox: hoehe und azimut sind die Richtung der Mitte seiner Form (wagen.form) von der Kamera aus, azimut 0
+ * geradeaus wie in der Ausgangsansicht (−z), positiv nach rechts. So hoch, dass der Stern des Vulkans über der
+ * Kraterwand steht (sie reicht geradeaus bis gut 50°); der ganze Wagen (112 × 64 Einheiten der Form) misst mit winkel
+ * 0,15 etwa 17° × 10° und passt so auch im Hochformat (gut 21° breit) ins Bild. Helligkeit je Zustand [Nacht, Tag]
+ * nach der Tabelle der Spec (linear, die Sterne weiss; alles bleibt unter der Bloom-Schwelle), Grösse der Sterne
+ * (punkt) und Breite der Linien in CSS-Pixeln. Grösse und Helligkeit stimmt der Nutzer bei der Abnahme ab (Parameter
+ * dazu siehe himmelsWagen).
+ */
+const HIMMELSWAGEN = {
+  hoehe: 60,                                  // Grad über dem Horizont
+  azimut: 0,                                  // Grad, positiv nach rechts
+  winkel: 0.15,                               // Grösse: Grad je Einheit der Form
+  abstand: 70,                                // von der Kamera, wie die Hintergrundsterne
+  wach: { hell: [0.85, 0.85], punkt: [6.5, 6.5] },  // geweckt: hell, auch bei Tag
+  linie: { hell: [0.17, 0.26], breite: 1.1, luecke: 7 }, // gezogene Linie; luecke: so viele px Abstand zu den Sternen
+  welt: { hell: [0.22, 0.7], punkt: [3.4, 2.6] },    // Stern dieser Welt, schläft noch: blass und atmend / feiner Funke
+  schlaf: { hell: [0.14, 0], punkt: [3, 3] },        // übrige schlafende: blass wie Hintergrundsterne / unsichtbar
+  polar: { hell: [0.5, 0.22], punkt: [4.6, 3.6] },   // Polarstern, bevor er antwortet: mittelhell / blass
+  atmen: { tiefe: 0.22, periode: 5 },                // Stern dieser Welt bei Nacht: kaum merklich (Anteil, s)
+};
+/**
+ * Der Wagen am Himmel (HIMMELSWAGEN): ein eigenes, leichtes Objekt um die Kamera (wie die Sterne, ohne Parallaxe), ein
+ * Netz aus sieben Sternen und sieben Linien in einem Zeichenaufruf. Sterne und Linien sind Rechtecke, die der
+ * Vertex-Shader in Bildpixeln aufspannt (die Linien zwischen den projizierten Sternen); gemischt wird über dem Himmel
+ * (Farbe vorgerechnet, Alpha des Ziels bleibt: Alpha 0 markiert den Himmel), nie heller als die Bloom-Schwelle: Der
+ * Wagen franst nicht aus. Er blendet mit keiner Skybox: Tag oder Nacht liest er aus dem Himmel (Helligkeit der
+ * Hintergrundsterne, stars.uFade, die beim Überblenden mitgleitet; keine = Tag). Landschaft vor ihm (Panorama, Brett,
+ * Planeten) deckt ihn über die Tiefe zu.
+ * zeige(stand, welt): was er zeigt (stand wie wagen.stand, null: alle schlafend; welt: Nummer des Sterns dieser Welt,
+ * null über dem Dorf). update(t): je Bild (animate). richtung(k): Richtung von Stern k (1 … 7) in der Welt, von der
+ * Kamera aus (Aufstieg und Finale, Tickets 05 und 06; Proben). stand: was er gerade zeigt { wach, linien, welt }.
+ * SZENEN (vorübergehend, Ticket 10 entfernt): ?himmel-groesse=, ?himmel-hell= und ?himmel-punkt= (Faktoren auf winkel,
+ * alle hell bzw. punkt und breite) zum Abstimmen bei der Abnahme.
+ */
+const himmelsWagen = (() => {
+  const H = HIMMELSWAGEN, form = wagen.form, n = form.length, nL = wagen.linien.length;
+  const abst = new URLSearchParams(location.search); // SZENEN (vorübergehend, Ticket 10 entfernt)
+  const faktor = (k) => Math.min(20, Math.abs(+abst.get(k)) || 1); // SZENEN (vorübergehend, Ticket 10 entfernt)
+  const groesse = faktor('himmel-groesse'), hell = faktor('himmel-hell'); // SZENEN (vorübergehend, Ticket 10 entfernt)
+  const punkt = faktor('himmel-punkt'); // SZENEN (vorübergehend, Ticket 10 entfernt)
+  // Richtungen: Mitte der Form in (hoehe, azimut), die Sterne in der Tangentialebene darum (rechts, oben im Bild)
+  const rad = THREE.MathUtils.degToRad, el = rad(H.hoehe), az = rad(H.azimut);
+  const mitte = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
+  const rechts = new THREE.Vector3().crossVectors(mitte, new THREE.Vector3(0, 1, 0)).normalize();
+  const oben = new THREE.Vector3().crossVectors(rechts, mitte).normalize();
+  const xs = form.map((p) => p[0]), ys = form.map((p) => p[1]);
+  const cx = (Math.min(...xs) + Math.max(...xs)) / 2, cy = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const je = Math.tan(rad(H.winkel * groesse));
+  const dirs = form.map(([x, y]) => mitte.clone().addScaledVector(rechts, (x - cx) * je)
+    .addScaledVector(oben, -(y - cy) * je).normalize());
+  // Netz: je Stern und je Linie ein Rechteck (4 Ecken); a, b: Richtungen der beiden Enden (beim Stern dieselbe),
+  // ecke: (quer, längs) −1 … 1 bzw. 0 … 1, art: 0 Stern, 1 Linie, nr: Platz in uHell/uGroesse
+  const nQ = n + nL, a = new Float32Array(nQ * 12), b = new Float32Array(nQ * 12), ecke = new Float32Array(nQ * 8);
+  const art = new Float32Array(nQ * 4), nr = new Float32Array(nQ * 4), index = [];
+  const quad = (i, pa, pb, istLinie) => {
+    const ecken = istLinie ? [[-1, 0], [1, 0], [1, 1], [-1, 1]] : [[-1, -1], [1, -1], [1, 1], [-1, 1]];
+    ecken.forEach((e, j) => {
+      const v = i * 4 + j;
+      pa.toArray(a, v * 3);
+      pb.toArray(b, v * 3);
+      ecke.set(e, v * 2);
+      art[v] = istLinie ? 1 : 0;
+      nr[v] = i;
+    });
+    index.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3);
+  };
+  dirs.forEach((d, i) => quad(i, d, d, false));
+  wagen.linien.forEach(([von, nach], i) => quad(n + i, dirs[von - 1], dirs[nach - 1], true));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(a, 3)); // für three.js; der Shader rechnet mit aA und aB
+  geo.setAttribute('aA', new THREE.BufferAttribute(a, 3));
+  geo.setAttribute('aB', new THREE.BufferAttribute(b, 3));
+  geo.setAttribute('aEcke', new THREE.BufferAttribute(ecke, 2));
+  geo.setAttribute('aArt', new THREE.BufferAttribute(art, 1));
+  geo.setAttribute('aNr', new THREE.BufferAttribute(nr, 1));
+  geo.setIndex(index);
+  const uniforms = {
+    uHell: { value: new Float32Array(nQ) },    // Helligkeit je Stern und Linie (update)
+    uGroesse: { value: new Float32Array(nQ) }, // Durchmesser je Stern bzw. Breite je Linie (Bildpixel)
+    uLuecke: { value: 0 },                     // Abstand der Linien zu den Sternen (Bildpixel)
+    uRes: { value: new THREE.Vector2(1, 1) },  // Grösse des Bilds (Bildpixel)
+    uAbstand: { value: H.abstand },
+    uMax: { value: 0.95 * LOOK.bloomThreshold }, // nie heller: kein Bloom
+  };
+  const mat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `
+      attribute vec3 aA, aB;
+      attribute vec2 aEcke;
+      attribute float aArt, aNr;
+      uniform float uHell[${nQ}], uGroesse[${nQ}], uLuecke, uAbstand;
+      uniform vec2 uRes;
+      varying vec2 vEcke;
+      varying float vHell, vArt;
+      void main() {
+        int i = int(aNr + 0.5);
+        vHell = uHell[i];
+        vEcke = aEcke;
+        vArt = aArt;
+        vec4 pa = projectionMatrix * modelViewMatrix * vec4(aA * uAbstand, 1.0);
+        vec4 pb = projectionMatrix * modelViewMatrix * vec4(aB * uAbstand, 1.0);
+        // hinter der Kamera oder ausgeschaltet: nichts (ausserhalb des Bilds)
+        if (pa.w <= 0.01 || pb.w <= 0.01 || vHell <= 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        vec2 px = 2.0 / uRes; // ein Bildpixel in NDC
+        if (aArt < 0.5) { // Stern: Quadrat um den projizierten Punkt, anderthalbmal so gross wie der Kern (Schein)
+          gl_Position = pa;
+          gl_Position.xy += aEcke * 0.75 * uGroesse[i] * px * pa.w;
+          return;
+        }
+        vec2 sa = pa.xy / pa.w, sb = pb.xy / pb.w, d = (sb - sa) / px;
+        float len = length(d);
+        if (len < 2.0 * uLuecke + 1.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); return; }
+        d /= len;
+        vec4 p = mix(pa, pb, aEcke.y);
+        vec2 off = vec2(-d.y, d.x) * aEcke.x * (0.5 * uGroesse[i] + 1.0) + d * uLuecke * (1.0 - 2.0 * aEcke.y);
+        p.xy += off * px * p.w;
+        gl_Position = p;
+      }`,
+    fragmentShader: `
+      uniform float uMax;
+      varying vec2 vEcke;
+      varying float vHell, vArt;
+      void main() {
+        float a;
+        if (vArt < 0.5) {
+          float r = length(vEcke) * 1.5; // 1: Rand des Kerns
+          a = smoothstep(1.0, 0.45, r) + 0.22 * pow(max(0.0, 1.0 - r / 1.5), 2.0);
+        } else a = smoothstep(1.0, 0.35, abs(vEcke.x));
+        float h = min(vHell * a, uMax);
+        gl_FragColor = vec4(vec3(h), h);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide, // die Rechtecke der Linien drehen je nach Richtung im Bild
+    // vorgerechnete Farbe über dem Himmel, Alpha des Ziels unverändert (Alpha 0 markiert den Himmel)
+    blending: THREE.CustomBlending,
+    blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    fog: false,
+  });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = -97; // nach den Sternen und der Korona der Sonne
+  mesh.layers.set(LAYER_NO_REFLECT);
+  mesh.raycast = () => {};
+  scene.add(mesh);
+
+  const mische = (paar, nacht) => paar[1] + (paar[0] - paar[1]) * nacht; // [Nacht, Tag]
+  const stand = { wach: [], linien: [], welt: null };
+  return {
+    mesh,
+    stand,
+    zeige(s, welt) {
+      const wach = s?.wach ?? [], linien = s?.linien ?? [];
+      if (JSON.stringify([wach, linien, welt]) === JSON.stringify([stand.wach, stand.linien, stand.welt])) return;
+      Object.assign(stand, { wach: [...wach], linien: linien.map((l) => [...l]), welt });
+      sceneLoop.wake(); // ruht die Schleife (mit ?t=): den neuen Stand zeichnen
+    },
+    richtung(k, ziel = new THREE.Vector3()) { return ziel.copy(dirs[k - 1]); },
+    update(t) {
+      mesh.position.copy(camera.position);
+      const pr = renderer.getPixelRatio();
+      renderer.getDrawingBufferSize(uniforms.uRes.value);
+      // Nacht: Der Himmel zeigt Hintergrundsterne (Welten bei Nacht 0,3, Sonnensystem und Milchstrasse 1), Tag: keine
+      const nacht = THREE.MathUtils.clamp(stars.material.uniforms.uFade.value / 0.3, 0, 1);
+      const atmen = 1 + H.atmen.tiefe * nacht * Math.sin(2 * Math.PI * t / H.atmen.periode);
+      const h = uniforms.uHell.value, g = uniforms.uGroesse.value;
+      for (let k = 1; k <= n; k++) {
+        const z = stand.wach.includes(k) ? H.wach : k === wagen.polarstern ? H.polar
+          : k === stand.welt ? H.welt : H.schlaf;
+        h[k - 1] = mische(z.hell, nacht) * hell * (z === H.welt ? atmen : 1);
+        g[k - 1] = mische(z.punkt, nacht) * punkt * pr;
+      }
+      wagen.linien.forEach(([von, nach], i) => {
+        h[n + i] = stand.linien.some(([x, y]) => x === von && y === nach) ? mische(H.linie.hell, nacht) * hell : 0;
+        g[n + i] = H.linie.breite * punkt * pr;
+      });
+      uniforms.uLuecke.value = H.linie.luecke * punkt * pr;
+    },
+  };
+})();
+/**
  * Das Kapitel «Im Dorf» (Entscheide 3, 10, 18; Ticket 07): das Tutorial zwischen Prolog und Bergwald, keine der sechs
  * Welten. Seine Übungen sind LEVELS[0 … TUTORIAL_COUNT − 1] mit Name und Hinweis; sie zählen nicht zu den 60 des Grads.
  * angebot: nach dem Prolog auf der Bühne (auch nach «Überspringen»), beim ersten Durchgang je Grad; einstieg: der
@@ -19967,6 +20151,7 @@ const story = {
     sceneLoop.coverStory(on);
   },
   blend: null,        // Reise zwischen zwei Welten auf der Erde: { from, to } der Hintergründe (blendSky)
+  himmel: himmelsWagen, // der Kleine Wagen am Himmel (Ticket 04 von .scratch/kleiner-wagen/; Proben lesen stand)
   skipped: false,     // Prolog übersprungen
   stillBild: false,   // die Bühne wartet auf Tippen oder steht mit dem Angebot: eine ruhige Stelle (ruhe) ab stillAb
   ladeSperre: false,  // Ruhepunkt vor einem Flug der Glühwürmchen: dort lädt nichts Grosses hinter der Bühne (ruhe)
@@ -20009,6 +20194,7 @@ const story = {
     const dorf = storyDorfStand(this.stand.dorf);
     if (dorf) this.stand.dorf = dorf;
     else delete this.stand.dorf;
+    this.himmelStand();
   },
   /** Das Kapitel «Im Dorf» ist begonnen und noch nicht zu Ende (gespielt oder übersprungen). */
   dorfLaeuft() { return this.stand?.dorf?.ende === null; },
@@ -20070,6 +20256,18 @@ const story = {
     if (!welten) return wagen.stand(null, null);
     return wagen.stand(grade === this.grade && this.stand ? this.stand : progress.load(grade, welten.flat().length),
       welten);
+  },
+  /**
+   * Der Wagen am Himmel (himmelsWagen) zeigt den Stand des Durchgangs im Grad auf dem Brett; über dem Dorf (Kapitel «Im
+   * Dorf», auch im Menü, solange es läuft) wie im Prolog alle sechs schlafend, ohne Stern einer Welt; sonst ist der
+   * Stern dieser Welt der des Kapitels auf dem Platz. Angeglichen bei jedem Wechsel von Grad oder Welt (setGrade,
+   * begin, enter, Reise, Wiederholen über eine Weltgrenze, Epilog), also bevor man ihn sieht; das Lösen des letzten
+   * Levels einer Welt weckt ihren Stern erst mit der Reise (das Erwachen beim Aufstieg kommt mit Ticket 05).
+   */
+  himmelStand() {
+    const c = this.steps[this.step]?.c;
+    if (this.grade === null || this.inDorf || !this.replay && this.dorfLaeuft()) himmelsWagen.zeige(null, null);
+    else himmelsWagen.zeige(this.wagenStand(), c === undefined ? null : c + 1);
   },
 
   /* ---------- Ablauf ---------- */
@@ -20347,6 +20545,7 @@ const story = {
     this.running = true;
     flow.state = 'story';
     if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = this.stand.dorf.platz; }
+    this.himmelStand();
     let index = this.currentIndex(), ch = this.inDorf ? STORY_DORF : this.chapter();
     prepareLevel(index); // ohne altes Feld (sinkTo): die Elemente in den Pausen des Prologs bzw. während der Blick oben ist
     const sunk = game.board ? this.sinkTo(index) : Promise.resolve(); // versinkt auch aus dem Herauswachsen
@@ -20585,6 +20784,7 @@ const story = {
     skyTheme.quiet = true; // grosse Texturen erst, wenn das Level steht (wie nach der Reise)
     skyTheme.fadeTime = 2.4;
     this.setSky(STORY_CHAPTERS[next.c].sky, true);
+    this.himmelStand(); // der Stern der neuen Welt; der Wagen bleibt stehen
     const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
     this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
     const mod = skyTheme.byId.get(skyTheme.current).module;
@@ -20622,6 +20822,7 @@ const story = {
     skyTheme.fadeTime = 3;
     skyTheme.quiet = true; // scharfes Bild und Streifen der neuen Welt erst nach der Landung (jeder Ruck fiele auf)
     this.setSky(ch.sky, true);
+    this.himmelStand(); // der eben gelöste Stern wach, der Stern der neuen Welt; der Wagen bleibt stehen
     const earth = (id) => skyTheme.byId.get(id)?.sky.rings;
     this.blend = earth(old) && earth(skyTheme.current) ? { from: old, to: skyTheme.current } : null;
     // Bogen über den Himmel, vom Standort der Kamera aus gesehen: seitwärts, abwechselnd links und rechts, und am Ende
@@ -20736,6 +20937,7 @@ const story = {
     ui.hideHud();
     this.stand.geschafft = true;
     this.save();
+    this.himmelStand(); // der ganze Wagen (dahinter, für das Menü nach dem Epilog)
     await this.playScene(STORY_EPILOG, { soft, actions: [['Zum Menü', () => this.afterEpilog()]] });
   },
   /**
@@ -20930,6 +21132,7 @@ const story = {
     const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
       traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
     const e = this.entering = { skip: false };
+    this.himmelStand(); // nach «Üben» das Dorf, nach dem Dorf der Bergwald
     this.fast = 1; // ein Tippen davor (Prolog, Bühne) beschleunigt den Einstieg nicht; Tippen während seiner schon
     await this.skyOf(ch); // übersprungen: trotzdem bis der Himmel da ist (kein leeres Brett unter einem fremden Himmel)
     if (e.skip) { await this.land(index, moment, sunk); return; }
@@ -22279,6 +22482,7 @@ function animate(t, dt) {
 
   updateFlow(dt);
   story.update(dt);
+  himmelsWagen.update(t); // nach story.update: Tag oder Nacht aus dem Himmel, wie ihn blendSky mischt
   celebration.update(dt, t);
   animateRotations(dt);
   for (const obj of game.objects.values()) {
@@ -22359,7 +22563,9 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
    Welt ab ihrem letzten Level, das das Sprungbrett löst wie die Testschnittstelle (loese), dann «Weiter» (ui.advance),
    der Epilog auf der Bühne (ending). Danach geht es normal weiter. Gespeichert wird nichts (SZENEN_SPEICHER bei
    progress). Solange eine Zwischenszene läuft, ist der Knopf weg: Ein Sprung bricht keine ab. Kein Test benutzt es; vor
-   dem Merge nach main baut Ticket 10 es ganz aus (alle Stellen mit «SZENEN (vorübergehend»).
+   dem Merge nach main baut Ticket 10 es ganz aus (alle Stellen mit «SZENEN (vorübergehend»). Dazu gehören die
+   Parameter zum Abstimmen des Wagens am Himmel (auch ohne ?szenen): ?himmel-groesse=, ?himmel-hell= und ?himmel-punkt=
+   (Faktoren, siehe himmelsWagen).
    ===================================================================== */
 if (SZENEN_SPEICHER) (() => {
   const kurz = (ch) => ch.title.replace(/^(Der|Die|Das) /, '');

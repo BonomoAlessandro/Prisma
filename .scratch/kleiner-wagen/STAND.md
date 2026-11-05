@@ -22,8 +22,8 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 01 Gestalt, Stand, Sprungbrett, Vorher-Lauf | erledigt, mit Review (ea15d24) |
 | 02 Skizzenkatalog | erledigt (resolved); Wahl des Nutzers: Menü F, Übersicht C, Leiste C mit Anpassungen (in Ticket 08) |
 | 03 Texte | erledigt, mit Review |
-| 04 Wagen am Himmel | in Arbeit (05.11.) |
-| 05 Erwachen und Flug | offen (Hinweis aus der Wahl der Leiste in den Comments) |
+| 04 Wagen am Himmel | erledigt, mit Review |
+| 05 Erwachen und Flug | in Arbeit (05.11., Worktree `.claude/worktrees/kw-05`) |
 | 06 Finale | offen |
 | 07 Bühne, Überblendung Wagen in Wagen | offen |
 | 08 Einbau Katalog | offen, Wahl steht in den Comments |
@@ -62,7 +62,10 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
 - **Ablauf je Ticket:** Umsetzer-Agent → unabhängiger Reviewer-Agent mit frischem Kontext (prüft gegen Ticket und Spec,
   lässt die Tests selbst laufen, behebt Kleinigkeiten selbst, Grundsätzliches geht zurück) → der Koordinator committet
   die Dateien des Tickets und nennt den Hash. Umsetzer und Reviewer committen nicht.
-- **Nie zwei Agenten zugleich in `index.html`.** Parallel nur, was andere Dateien betrifft (wie der Katalog).
+- **Nie zwei Agenten zugleich in derselben Arbeitskopie von `index.html`.** Seit 05.11. (Nutzer: «überall wo du dinge
+  parallel machen kannst, tue es») darf der Umsetzer des nächsten Tickets in einem eigenen Worktree beginnen, während
+  der Reviewer das vorige prüft; der Koordinator führt die Korrekturen des Reviews nach. Schwere Läufe bleiben über die
+  Sperre von `leise.sh` nacheinander.
 - **Schwere Läufe** (Chrome, Proben, Tests) nur über `LEISE_CPU=50 sh tools/leise.sh <befehl …>` (CPU-Deckel und Sperre,
   Läufe nacheinander). Der Nutzer arbeitet nebenher am selben Rechner.
 - **Tests aufteilen** (Nutzer, 04.11. abends, nur solange die Qualität nicht leidet): Der Umsetzer lässt nur die Läufe
