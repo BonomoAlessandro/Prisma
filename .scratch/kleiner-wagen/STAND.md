@@ -23,9 +23,9 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 02 Skizzenkatalog | erledigt (resolved); Wahl des Nutzers: Menü F, Übersicht C, Leiste C mit Anpassungen (in Ticket 08) |
 | 03 Texte | erledigt, mit Review |
 | 04 Wagen am Himmel | erledigt, mit Review |
-| 05 Erwachen und Flug | in Arbeit (05.11., Worktree `.claude/worktrees/kw-05`) |
-| 06 Finale | offen |
-| 07 Bühne, Überblendung Wagen in Wagen | offen |
+| 05 Erwachen und Flug | erledigt, mit Review |
+| 06 Finale | gebaut, Review offen (Worktree `.claude/worktrees/kw-06`) |
+| 07 Bühne, Überblendung Wagen in Wagen | in Arbeit (05.11., Worktree `.claude/worktrees/kw-07`) |
 | 08 Einbau Katalog | offen, Wahl steht in den Comments |
 | 09 Doku und KI-Tester | offen |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
@@ -66,6 +66,9 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
   parallel machen kannst, tue es») darf der Umsetzer des nächsten Tickets in einem eigenen Worktree beginnen, während
   der Reviewer das vorige prüft; der Koordinator führt die Korrekturen des Reviews nach. Schwere Läufe bleiben über die
   Sperre von `leise.sh` nacheinander.
+- **Vorrang an der Sperre** (Nutzer, 05.11.): Das früher begonnene Ticket hat Vorrang. Jeder Lauf setzt
+  `LEISE_VORRANG=<Ticketnummer>` (Umsetzer wie Reviewer); warten mehrere, geht die kleinere Zahl vor. Laufende Läufe
+  werden dafür nie abgebrochen.
 - **Schwere Läufe** (Chrome, Proben, Tests) nur über `LEISE_CPU=50 sh tools/leise.sh <befehl …>` (CPU-Deckel und Sperre,
   Läufe nacheinander). Der Nutzer arbeitet nebenher am selben Rechner.
 - **Tests aufteilen** (Nutzer, 04.11. abends, nur solange die Qualität nicht leidet): Der Umsetzer lässt nur die Läufe
