@@ -131,6 +131,11 @@ jeweils mit 2 bis 3 Varianten zur Wahl. Am Ende hat jede Welt ein festes Brett, 
   kennen den Umriss als festes Mass: Der Himmel blendet alles hinter dem Quader des Bretts aus, der Pinselfilter am
   Strand spart ihn aus, die Fische halten Abstand, und die Korona der Sonne steht dahinter. Deshalb ist alles, was
   darüber hinausgeht, nicht Teil dieser Spec.
+- **Kernquader:** Der Himmel zeichnet heute nichts hinter dem Quader des Bretts, weil das Steinbrett diesen Quader ganz
+  und undurchsichtig deckt. Eine freie Form deckt ihn vielleicht nicht ganz. Deshalb nennt jede Art ihren Kernquader,
+  also den Quader, den sie sicher undurchsichtig deckt, und nur dahinter verzichtet der Himmel aufs Zeichnen. Während
+  eines Überblendens gilt der Schnitt beider Kernquader, und dort muss jedes Pixel von einem der beiden Bretter gedeckt
+  sein. Sonst entstehen Löcher im Himmel.
 - **Das Brett schwebt weiter** in allen Welten wie heute: am Strand 3 m über dem Wasser, in Wüste und Dorf 4 m über dem
   Boden, am Vulkan über der Lava.
 - **Pflicht auf jedem Brett ist die Lichtwelle beim Lösen**, in einer Form, die zum Material passt.
@@ -211,19 +216,20 @@ jeweils mit 2 bis 3 Varianten zur Wahl. Am Ende hat jede Welt ein festes Brett, 
 
 ### Geplanter Ablauf
 
-Die einzelnen Tickets entstehen aus dieser Spec. Vorgesehen ist diese Reihenfolge:
+Die Tickets liegen unter `issues/`:
 
-1. **Grundlage** (für einen Agenten): der Teil für das Brett, mit dem Steinbrett als Art und als vorläufigem Brett aller
-   fünf Himmel. Dazu gehören die Brett-Angabe in der Beschreibung des Himmels mit Prüfung und Packen, das Bereitsein,
-   das Halten, das Überblenden, die Abfrage in der Testschnittstelle, die Proben und das Glossar. Dieses Ticket läuft
-   gleichzeitig mit dem Katalog.
-2. **Vorbilder und Skizzenkatalog am Strand** (der Nutzer wählt 2 bis 3 Karten).
-3. **Strand:** 2 bis 3 Richtungen im Spiel umschaltbar, mit Bildern von Desktop und Handy (der Nutzer wählt eine). Dann
-   den Strand fertig bauen, die übrigen Richtungen entfernen, die Leistung messen und das Ergebnis abnehmen lassen.
-4. **Wüste**, 5. **Wald**, 6. **Dorf:** je 2 bis 3 Varianten in der gewählten Richtung, die Wahl des Nutzers, fertig
-   bauen, Abnahme.
-7. **Vulkan:** erst wenn der neue Krater auf `main` ist. Vorher wird `main` in den Branch geholt.
-8. **Schluss:** Schalter entfernen, Leistung über alle Welten messen, Test des Nutzers auf dem Poco, Merge auf sein Go.
+| Nr. | Ticket | Blockiert durch | Entscheid des Nutzers |
+|---|---|---|---|
+| 01 | Brett-Angabe im Register, Steinbrett als Art | – | – |
+| 02 | Das Brett wechselt mit dem Himmel: bereit, halten, überblenden | 01 | – |
+| 03 | Vorbilder und Skizzenkatalog am Strand (läuft gleichzeitig mit 01 und 02) | – | wählt 2 bis 3 Karten |
+| 04 | Strand: 2 bis 3 Richtungen im Spiel | 02, 03 | wählt eine Richtung |
+| 05 | Strand fertig, mit dem Übergang zwischen verschiedenen Formen | 04 | Abnahme |
+| 06 | Wüste | 05 | Wahl der Variante, Abnahme |
+| 07 | Bergwald | 06 | Wahl der Variante, Abnahme |
+| 08 | Dorf | 07 | Wahl der Variante, Abnahme |
+| 09 | Vulkan, erst wenn der neue Krater auf `main` ist | 08 | Wahl der Variante, Abnahme |
+| 10 | Schluss: Schalter weg, ganze Prüfung, Poco, Merge | 09 | Poco-Test, Go für den Merge |
 
 Jedes Ticket prüft ein unabhängiger Reviewer, bevor das nächste beginnt. Jeder Himmel wird über eine Vorschauseite
 abgenommen, bevor er committet wird.
