@@ -141,6 +141,8 @@ Android-Chromium.
     **Lehmterrasse**, das Dach eines Lehmbaus wie in Djenné. Katalog: https://claude.ai/artifact/18PvQpJeqFYvQZbDkyDR8j.
   - Im Bergwald gewählt (06.11.2026): **Moospolster**, ein Stück Waldboden mit Moos, leuchtenden Pilzen und Farn.
     Katalog: https://claude.ai/artifact/NxHnBEMttQfErbf32u96zJ.
+  - Am Vulkan gewählt (06.11.2026): **Basaltsäulen** wie am Giant’s Causeway, Glut steigt bei der Lichtwelle in den
+    Fugen auf. Katalog: https://claude.ai/artifact/M9QffoMkGcgwSn2geoCjWv.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
