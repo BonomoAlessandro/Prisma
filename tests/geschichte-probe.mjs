@@ -14,7 +14,10 @@
 // über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende). Seit Ticket 03 von
 // .scratch/kleiner-wagen/ dazu die Sätze, die der Spieler liest (Prolog, Einstiege, Reisen, Finale, Epilog, «Gelöst» am
 // Ende jeder Welt), und dass jeder ganz im Bild steht, ohne mehr Zeilen als der längste Satz vor dem Kleinen Wagen (auf
-// der Bühne nur ein HINWEIS, siehe pruefeSatz).
+// der Bühne nur ein HINWEIS, siehe pruefeSatz). Seit Ticket 08 gewählt wird im Menü über Reiter und Knopf (waehle), die
+// Übersicht zeigt eine Welt je Seite unter dem Himmel mit den Sternhaufen (tippeKachel); geprüft dazu der Wagen auf der
+// Sternkarte je Grad (menueWagen), der Himmel der Übersicht (uebHimmel), die Leiste der Ankunft mit dem Licht darüber
+// (pruefeLeiste) und dass Menü und Übersicht ganz im Bild stehen (pruefeImBild).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -180,7 +183,77 @@ const knoepfe = "document.querySelector('#story .scene .actions').children.lengt
 const menueOffen = `${D}.menu.offen`;
 const slug = (g) => g.replace(' ', '-');
 const stand = (g) => ev(`JSON.parse(localStorage.getItem('prisma.noa.${slug(g)}') || 'null')`);
+/** Reiter eines Grads im Menü (Sternkarte mit Reitern, Ticket 08 von .scratch/kleiner-wagen/): wählt ihn nur. */
 const karte = (g) => `#menue .menue-wahl[data-menue-fokus="wahl:${g}"]`;
+/** Einen Grad im Menü wählen wie ein Spieler: seinen Reiter antippen, dann den Knopf darunter (Beginnen, Fortsetzen …). */
+async function waehle(g, was = `Grad ${g}`) {
+  await tippe(karte(g), `${was}: Reiter`);
+  await tippe('#menue .menue-weiter', `${was}: Knopf`);
+}
+/**
+ * Der Wagen auf der Sternkarte des Menüs (gewählter Reiter): wache Sterne (mit dem Polarstern), gezogene Linien, Ring
+ * am Stern der Welt, in der das Licht ist, und deren Name; Namen der Welten an ihren Sternen.
+ */
+const menueWagen = () => ev(`(() => { const q = (s) => document.querySelectorAll('#menue ' + s).length;
+  return { gewaehlt: document.querySelector('#menue .menue-grad.menue-an')?.dataset.grad ?? null,
+    wach: q('.menue-ks.menue-an'), linien: q('.menue-linie'), ring: q('.menue-ring'),
+    jetzt: document.querySelector('#menue .menue-etikett.menue-jetzt tspan')?.textContent ?? null,
+    welten: q('.menue-welt') }; })()`);
+/**
+ * Nichts abgeschnitten (Ticket 08): Knöpfe und Namen am Himmel von root ganz im Bild, auf dem Handy jedes Ziel
+ * mindestens 44 px (sichtbare, nicht träge Knöpfe).
+ */
+async function pruefeImBild(root, was) {
+  const r = await ev(`(() => { const aus = [], klein = [];
+    for (const el of document.querySelectorAll('${root} button, ${root} text')) {
+      const b = el.getBoundingClientRect();
+      if (!b.width || el.closest('[inert]') || el.closest('[hidden]')) continue;
+      const name = (el.getAttribute('aria-label') || el.textContent).trim().slice(0, 24);
+      if (b.left < -0.5 || b.top < -0.5 || b.right > innerWidth + 0.5 || b.bottom > innerHeight + 0.5) aus.push(name);
+      if (el.tagName === 'BUTTON' && Math.min(b.width, b.height) < 43.5) klein.push(name + ' ' + Math.round(b.width) + '×' + Math.round(b.height));
+    } return { aus, klein }; })()`);
+  pruefe(!r.aus.length, `${was}: nicht ganz im Bild: ${r.aus.join(', ')}`);
+  pruefe(!view.phone || !r.klein.length, `${was}: Ziele unter 44 px: ${r.klein.join(', ')}`);
+}
+/** Der Himmel der Übersicht: wache Sterne, gezogene Linien, Level (gelöst, offen), Haufen als Ziele im Himmel. */
+const uebHimmel = () => ev(`(() => { const u = document.getElementById('uebersicht'), q = (s) => u.querySelectorAll(s).length;
+  const h = u.querySelector('.ueb-stationen').getBoundingClientRect();
+  const tabs = [...u.querySelectorAll('.ueb-tab')].map((t) => t.getBoundingClientRect());
+  return { wach: q('.ueb-h-stern.ueb-an'), linien: q('.ueb-h-linie'), level: q('.ueb-l'), geloest: q('.ueb-l-schein'),
+    offen: q('.ueb-l-ring'), haufen: tabs.length, imHimmel: tabs.every((r) => r.left >= h.left - 1 && r.right <= h.right + 1
+      && r.top >= h.top - 1 && r.bottom <= h.bottom + 1), ziel: Math.round(Math.min(...tabs.map((r) => Math.min(r.width, r.height)))) }; })()`);
+/**
+ * Leiste der Ankunft in Station station (Leiste C, Ticket 08 von .scratch/kleiner-wagen/): die Sterne der Welten davor
+ * wach, der Stern dieser Welt mit Ring, spätere blass; Kicker und Text senkrecht in der Mitte, die Leiste unten am Rand,
+ * beides ganz im Bild und frei voneinander; das Licht in der Mitte des freien Raums über dem Kicker (lichtHoch, und
+ * dort im Bild, wenn der Blick ihm folgt).
+ */
+async function pruefeLeiste(station, was, { licht = true } = {}) {
+  const l = await ev(`(() => { const c = document.querySelector('#story .caption'), s = ${D}.story, cam = ${D}.camera;
+    const k = c.querySelector('.kicker').getBoundingClientRect(), t = c.querySelector('.text').getBoundingClientRect();
+    const p = c.querySelector('.path svg')?.getBoundingClientRect(), v = s.flare.position.clone().project(cam);
+    return { mitte: c.classList.contains('mitte'), st: [...c.querySelectorAll('.path [data-k]')]
+      .map((g) => (g.getAttribute('class') || '').replace(' neu', '')), oben: k.top, unten: t.bottom,
+      leiste: p ? [p.top, p.bottom, p.left, p.right] : null, H: innerHeight, W: innerWidth, hoch: s.lichtHoch(),
+      lichtY: (1 - v.y) / 2 * innerHeight, sichtbar: s.flare.visible && v.z < 1 }; })()`);
+  const soll = [1, 2, 3, 4, 5, 6].map((k) => (k < station ? 'wach' : k === station ? 'jetzt' : ''));
+  pruefe(l.mitte && JSON.stringify(l.st) === JSON.stringify(soll), `${was}: Leiste ${JSON.stringify(l.st)}`);
+  pruefe(Math.abs((l.oben + l.unten) / 2 - l.H / 2) < 6, `${was}: Text nicht in der Mitte ${JSON.stringify(l)}`);
+  pruefe(l.leiste && l.leiste[0] - l.unten >= 8 && l.leiste[1] <= l.H && l.leiste[2] >= 0 && l.leiste[3] <= l.W,
+    `${was}: Leiste nicht frei unter dem Text ${JSON.stringify(l)}`);
+  pruefe(Math.abs(l.hoch - (1 - l.oben / l.H)) < 0.01 && (!licht || !l.sichtbar || Math.abs(l.lichtY - l.oben / 2) < l.H * 0.04),
+    `${was}: Licht nicht in der Mitte des freien Raums ${JSON.stringify(l)}`);
+}
+/** Kachel der Übersicht antippen; zeigt die Übersicht eine andere Welt, erst deren Haufen am Himmel (Station). */
+async function tippeKachel(w, l, was) {
+  if (await ev(`!!document.querySelector(${JSON.stringify(kachel(w, l))})?.closest('[inert]')`)) {
+    await tippe(`#uebersicht .ueb-tab[data-reihe="${w}"]`, `${was}: Station`);
+    await until(`!document.querySelector(${JSON.stringify(kachel(w, l))}).closest('[inert]')
+      && !document.querySelector('#uebersicht .ueb-spur').getAnimations().length`, `${was}: Seite gezeigt`, 5);
+    await sleep(300);
+  }
+  await tippe(kachel(w, l), was);
+}
 
 /** Breite und Höhe des Layouts (Koordinaten der Eingabe): mit dem Massstab der Seite (SEITE) grösser als der Bildschirm. */
 const layout = () => ev('({ w: innerWidth, h: innerHeight })');
@@ -534,7 +607,7 @@ async function durchgang(g, erster) {
   await laden();
   if (erster) { await sleep(2500); await bild('menue-neu'); }
   pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:leicht', `${g}: Fokus im neuen Menü`);
-  await tippe(karte(g), `Karte ${g}`);
+  await waehle(g, `Karte ${g}`);
   await sofortZu(`${g}: Beginnen`);
   await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
   if (erster) await buehneDurch(`${slug(g)}-prolog`, { saetze: PROLOG_SAETZE });
@@ -550,6 +623,7 @@ async function durchgang(g, erster) {
   pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
     `${g}: Einstieg in den Bergwald`);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
+  await pruefeLeiste(1, `${g}: Einstieg in den Bergwald`, { licht: false });
   for (let w = 0; w < welten; w++) {
     for (let k = 0; k < 10; k++) await level(g, w * 10 + k, { bilder: k === 0 });
     await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
@@ -559,6 +633,7 @@ async function durchgang(g, erster) {
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
     await bild(`${slug(g)}-reise-${w + 2}`);
+    await pruefeLeiste(w + 2, `${g}: Reise in Welt ${w + 2}`);
   }
   await until(`${D}.story.step === ${welten * 10} && window.__prisma.playing()`, `${g}: angekommen`, 90);
   await sleep(1500);
@@ -604,6 +679,7 @@ async function finale(g) {
   await sofortZu(`${g}: Weiter`);
   await until(`${storyMode} === 'caption'`, `${g}: Einstieg in die Sterne`, 60);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[5], `${g}: Einstieg in die Sterne`);
+  await pruefeLeiste(6, `${g}: Einstieg in die Sterne`, { licht: false });
   await sleep(1800);
   await bild(`${slug(g)}-einstieg-sterne`);
   await until(`${D}.story.step === 50 && window.__prisma.playing()`, `${g}: Level 51 läuft`, 60);
@@ -657,7 +733,7 @@ async function finale(g) {
   }
   if (!naechster) return;
   // in den hervorgehobenen Grad: Prolog, das alte Brett versinkt darunter, Einstieg, erstes Level
-  await tippe(karte(naechster), `Karte ${naechster}`);
+  await waehle(naechster, `Karte ${naechster}`);
   await sofortZu(`${naechster}: Beginnen nach dem Epilog`);
   await until(`${storyMode} === 'scene' && ${D}.story.scene.skip.hidden === false`, `${naechster}: Prolog`, 30);
   await until(`${D}.flow.state === 'story' && !${D}.story.holdEnter`, `${naechster}: altes Brett versunken`, 30);
@@ -684,7 +760,7 @@ async function ganzerDurchgang(g, erster) {
   if (erster) { await sleep(2500); await bild('menue-neu'); }
   pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:leicht', `${g}: Fokus im neuen Menü`);
   await messe({ abKlick: true });
-  await tippe(karte(g), `Karte ${g}`);
+  await waehle(g, `Karte ${g}`);
   await sofortZu(`${g}: Beginnen`);
   await until(`${storyMode} === 'scene'`, `${g}: Prolog`);
   await buehneDurch(`${slug(g)}-prolog`, { saetze: PROLOG_SAETZE });
@@ -695,6 +771,7 @@ async function ganzerDurchgang(g, erster) {
   pruefe((await ev("document.querySelector('#story .caption .kicker').textContent")) === 'Kapitel 1 · Der Bergwald',
     `${g}: Einstieg in den Bergwald`);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[0], `${g}: Einstieg in den Bergwald`);
+  await pruefeLeiste(1, `${g}: Einstieg in den Bergwald`, { licht: false });
   await sleep(1800);
   await bild(`${slug(g)}-einstieg`);
   await until(`${D}.story.step === 0 && window.__prisma.playing()`, `${g}: Level 1 läuft`);
@@ -711,6 +788,7 @@ async function ganzerDurchgang(g, erster) {
     pruefe(await ev("document.getElementById('controls').inert"), `${g}: Knöpfe auf der Reise in Welt ${w + 2}`);
     await sleep(2500);
     await bild(`${slug(g)}-reise-${w + 2}`);
+    await pruefeLeiste(w + 2, `${g}: Reise in Welt ${w + 2}`);
     await until(`${D}.story.step === ${(w + 1) * 10} && window.__prisma.playing()`, `${g}: in Welt ${w + 2}`, 90);
     await ende(`${g}: Reise in Welt ${w + 2} (${WELT_MENUE[w + 1]})`, { bis: 'spielt' });
   }
@@ -805,6 +883,19 @@ async function menueAblauf() {
   pruefe(start.kamera === 1 && start.hud && start.knoepfe, `hinter dem Menü ${JSON.stringify(start)}`);
   pruefe(start.vonvorn === 'vonvorn:leicht,vonvorn:mittel,vonvorn:schwer,vonvorn:sehr schwer',
     `«Von vorn» bei ${start.vonvorn}`); // seit Ticket 06 auch beim geschafften (die Karte öffnet die Übersicht)
+  await pruefeImBild('#menue', 'Menü');
+  // der Wagen je Grad auf der Sternkarte (Ticket 08 von .scratch/kleiner-wagen/): mitten im Durchgang (Leicht im Meer,
+  // Mittel in der Wüste, Schwer im Bergwald) und geschafft; nicht begonnen nach «Von vorn» (unten)
+  const wagenSoll = { leicht: [1, 0, 'Meer'], schwer: [0, 0, 'Bergwald'], 'sehr schwer': [7, 7, null], mittel: [2, 1, 'Wüste'] };
+  for (const [g, [wach, linien, jetzt]] of Object.entries(wagenSoll)) {
+    await tippe(karte(g), `Reiter ${g}`);
+    await sleep(300);
+    const w = await menueWagen();
+    pruefe(w.gewaehlt === g && w.wach === wach && w.linien === linien && w.jetzt === jetzt && w.ring === (jetzt ? 1 : 0)
+      && w.welten === 6, `Wagen im Menü, ${g}: ${JSON.stringify(w)}`);
+    if (g !== 'mittel') await bild(`menue-wagen-${slug(g)}`);
+  }
+  pruefe(await ev("document.querySelector('#menue .menue-was').textContent") === 'Weiter', 'Knopf bei Mittel: nicht «Weiter»');
 
   // «Weiter»: dieselbe Welt (ihr Himmel ist schon da), ohne Einstieg
   await messe();
@@ -833,22 +924,27 @@ async function menueAblauf() {
     fokus: document.activeElement?.dataset.menueFokus, flow: ${D}.flow.state })`);
   pruefe(imMenue.hud && imMenue.knoepfe && !imMenue.geloest && imMenue.fokus === 'weiter' && imMenue.flow === 'play',
     `Menü im Spiel ${JSON.stringify(imMenue)}`);
-  // Tasten gehören dem Menü: R startet das Level darunter nicht neu
+  // Tasten gehören dem Menü: R startet das Level darunter nicht neu. Pfeil ab: vom Knopf auf den ersten Reiter, er
+  // ist gewählt (Karte und Knopf zeigen Leicht); noch einmal: Mittel (Ticket 08 von .scratch/kleiner-wagen/)
   if (!view.phone) {
     await taste('ArrowDown');
-    pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:leicht', 'Pfeil ab im Menü');
+    const pfeil = await ev(`({ fokus: document.activeElement?.dataset.menueFokus,
+      gewaehlt: document.querySelector('#menue .menue-grad.menue-an')?.dataset.grad,
+      knopf: document.querySelector('#menue .menue-wohin').textContent })`);
+    pruefe(pfeil.fokus === 'wahl:leicht' && pfeil.gewaehlt === 'leicht' && pfeil.knopf === 'Leicht · Meer 12 / 60',
+      `Pfeil ab im Menü ${JSON.stringify(pfeil)}`);
     await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'r', code: 'KeyR', windowsVirtualKeyCode: 82 });
     await sleep(300);
     pruefe(await ev(`${D}.flow.state`) === 'play', 'R im Menü startete das Level darunter neu');
-    await taste('ArrowUp');
+    await taste('ArrowDown');
   }
 
-  // zurück ins selbe Level: es steht noch da, die Drehung bleibt
+  // zurück ins selbe Level: es steht noch da, die Drehung bleibt (Desktop: Enter auf dem Reiter Mittel)
   await messe();
   if (view.phone) await tippe('#menue .menue-weiter', 'Weiter');
   else {
-    pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'weiter', 'Fokus vor Enter auf Weiter');
+    pruefe(await ev('document.activeElement?.dataset.menueFokus') === 'wahl:mittel', 'Fokus vor Enter auf Mittel');
     await taste('Enter');
   }
   await sofortZu('Weiter ins selbe Level');
@@ -878,7 +974,7 @@ async function menueAblauf() {
   }
   await sleep(1200);
   await messe();
-  await tippe(karte('schwer'), 'Karte Schwer');
+  await waehle('schwer', 'Karte Schwer');
   await sofortZu('Schwer');
   await sleep(1600);
   await bild('menue-wechsel-warten');
@@ -911,12 +1007,16 @@ async function menueAblauf() {
     mittel: !!localStorage.getItem('prisma.noa.mittel'), leicht: !!localStorage.getItem('prisma.noa.leicht'),
     karte: document.querySelector('#menue .menue-grad[data-grad="schwer"] .menue-stand').textContent,
     offen: ${menueOffen}, fokus: document.activeElement?.dataset.menueFokus,
-    weiter: document.querySelector('#menue .menue-weiter').hidden ? null
-      : document.querySelector('#menue .menue-wohin').textContent,
+    knopf: document.querySelector('#menue .menue-wohin').textContent,
+    weiter: document.querySelector('#menue .menue-grad.menue-zuletzt')?.dataset.grad ?? null,
     welten: document.querySelectorAll('#menue .menue-welt').length })`);
+  // der Reiter Schwer bleibt gewählt; «Weiter» gehört jetzt Mittel (zuletzt gespielt unter den begonnenen)
   pruefe(vonvorn.schwer === null && vonvorn.mittel && vonvorn.leicht && vonvorn.karte === 'noch nicht begonnen'
-    && vonvorn.offen && vonvorn.fokus === 'wahl:schwer' && vonvorn.weiter === 'Mittel · Wüste 23 / 60'
-    && vonvorn.welten === 6, `Von vorn ${JSON.stringify(vonvorn)}`);
+    && vonvorn.offen && vonvorn.fokus === 'wahl:schwer' && vonvorn.knopf === 'Schwer · noch nicht begonnen'
+    && vonvorn.weiter === 'mittel' && vonvorn.welten === 6, `Von vorn ${JSON.stringify(vonvorn)}`);
+  const neuW = await menueWagen();
+  pruefe(neuW.gewaehlt === 'schwer' && neuW.wach === 0 && neuW.linien === 0 && neuW.ring === 0 && neuW.jetzt === null,
+    `Wagen im Menü, Schwer nicht begonnen: ${JSON.stringify(neuW)}`);
   await bild('menue-von-vorn');
   if (!view.phone) { // das Level von Schwer gilt nicht mehr: Esc führt nicht dorthin zurück
     await taste('Escape');
@@ -925,7 +1025,7 @@ async function menueAblauf() {
 
   // ein neuer Grad aus dem Spiel heraus: Prolog, das alte Brett von Schwer versinkt darunter, Einstieg, erstes Level
   await messe();
-  await tippe(karte('schwer'), 'Karte Schwer');
+  await waehle('schwer', 'Karte Schwer');
   await sofortZu('Schwer beginnen');
   await until(`${storyMode} === 'scene'`, 'Schwer: Prolog', 30);
   await until(`${D}.flow.state === 'story' && !${D}.story.holdEnter`, 'Schwer: altes Brett versunken', 30);
@@ -1034,8 +1134,13 @@ async function uebersichtAblauf() {
   pruefe(u.geloest === 13 && u.offen === 1 && u.gesperrt === 46 && JSON.stringify(u.aktuell) === '[1,3]'
     && JSON.stringify(u.fokus) === '[1,3]' && u.kopf.includes('13 / 60') && !u.geschafft,
   `Übersicht aus dem Spiel ${JSON.stringify(u)}`);
-  pruefe(u.modus === (view.phone ? 'seiten' : 'alle') && (!view.phone || u.seite.startsWith('Meer: 3 von 10')),
+  pruefe(u.modus === 'seiten' && u.seite.startsWith('Meer: 3 von 10'),
     `Übersicht: Darstellung ${JSON.stringify(u)}`);
+  // Himmel (Ticket 08): Stern des Bergwalds wach, noch keine Linie, 13 Level gelöst, eines offen, sechs Haufen
+  const himmel = await uebHimmel();
+  pruefe(himmel.wach === 1 && himmel.linien === 0 && himmel.level === 60 && himmel.geloest === 13 && himmel.offen === 1
+    && himmel.haufen === 6 && himmel.imHimmel && himmel.ziel >= 44, `Himmel der Übersicht ${JSON.stringify(himmel)}`);
+  await pruefeImBild('#uebersicht', 'Übersicht aus dem Spiel');
   pruefe(unter.hud && unter.knoepfe && !unter.geloest && unter.flow === 'play' && !unter.menue,
     `unter der Übersicht ${JSON.stringify(unter)}`);
   const werteW1 = await kachelWerte(0, 0), werteM1 = await kachelWerte(1, 0), werteW2 = await kachelWerte(0, 1);
@@ -1084,7 +1189,7 @@ async function uebersichtAblauf() {
     await taste('End');
     pruefe(JSON.stringify((await uebStand()).fokus) === '[1,9]', 'Ende mit dem Fokus auf «Schliessen»');
     // Hinweis zu einer gesperrten Kachel an der Kachel, nicht unten in der Mitte (Ticket 08)
-    await tippe(kachel(3, 4), 'gesperrte Kachel Vulkan 5');
+    await tippeKachel(3, 4, 'gesperrte Kachel Vulkan 5');
     await sleep(400);
     const h = await ev(`(() => { const h = document.querySelector('${UEB} .ueb-hinweis').getBoundingClientRect(),
       k = document.querySelector(${JSON.stringify(kachel(3, 4))}).getBoundingClientRect();
@@ -1097,7 +1202,7 @@ async function uebersichtAblauf() {
   const hoehe = await ev(`Math.round(document.querySelector('${UEB} .ueb-schliessen').getBoundingClientRect().height)`);
   pruefe(hoehe >= 44, `«Schliessen» ${hoehe} px hoch (mindestens 44)`);
   await messe();
-  if (view.phone) await tippe(kachel(0, 0), 'Kachel Bergwald 1');
+  if (view.phone) await tippeKachel(0, 0, 'Kachel Bergwald 1');
   else await taste('Enter');
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 0 && !${D}.story.running`,
     'Bergwald 1 wiederholen', 30);
@@ -1121,7 +1226,7 @@ async function uebersichtAblauf() {
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Übersicht', 10);
   await sleep(500);
-  await tippe(kachel(0, 9), 'Kachel Bergwald 10');
+  await tippeKachel(0, 9, 'Kachel Bergwald 10');
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 9 && !${D}.story.running`,
     'Bergwald 10 wiederholen', 30);
   await ev(`${D}.loese()`);
@@ -1151,7 +1256,7 @@ async function uebersichtAblauf() {
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Übersicht', 10);
   await sleep(500);
-  await tippe(kachel(1, 2), 'Kachel Meer 3');
+  await tippeKachel(1, 2, 'Kachel Meer 3');
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 12 && !${D}.story.running`,
     'Meer 3 wiederholen', 30);
   await ev(`${D}.loese()`);
@@ -1176,13 +1281,15 @@ async function uebersichtAblauf() {
   await tippe('#btn-menu', 'Menü');
   await until(`${menueOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Menü', 10);
   await sleep(1200);
-  const aktion = await ev(`(() => { const a = document.querySelector('${karte('leicht')} .menue-aktion'),
+  await tippe(karte('leicht'), 'Reiter Leicht');
+  await sleep(400);
+  const aktion = await ev(`(() => { const a = document.querySelector('#menue .menue-weiter .menue-was'),
     r = a.getBoundingClientRect(); return { text: a.textContent, sichtbar: r.width > 0 && r.right <= innerWidth
       && r.bottom <= innerHeight && getComputedStyle(a).display !== 'none' }; })()`);
-  pruefe(aktion.text === 'Übersicht' && aktion.sichtbar, `Aktion der Karte Leicht ${JSON.stringify(aktion)}`);
+  pruefe(aktion.text === 'Übersicht' && aktion.sichtbar, `Knopf beim Reiter Leicht ${JSON.stringify(aktion)}`);
   await bild('uebersicht-menue');
   await messe();
-  await tippe(karte('leicht'), 'Karte Leicht');
+  await waehle('leicht', 'Karte Leicht');
   await until(`${uebOffen} && !${menueOffen}`, 'Übersicht aus dem Menü', 10);
   await sleep(1200);
   await ende('Menü → Übersicht');
@@ -1190,6 +1297,10 @@ async function uebersichtAblauf() {
   u = await uebStand();
   pruefe(u.geloest === 60 && u.offen === 0 && u.gesperrt === 0 && u.geschafft && u.aktuell === null
     && u.kopf.includes('Geschafft') && u.kopf.includes('49:30'), `Übersicht Leicht ${JSON.stringify(u)}`);
+  const himmelL = await uebHimmel();
+  pruefe(himmelL.wach === 7 && himmelL.linien === 7 && himmelL.level === 60 && himmelL.geloest === 60 && himmelL.offen === 0
+    && himmelL.imHimmel, `Himmel der Übersicht, Leicht geschafft ${JSON.stringify(himmelL)}`);
+  await pruefeImBild('#uebersicht', 'Übersicht aus dem Menü');
   if (view.phone) { // Blättern: Station, Pfeil, Wischen
     await tippe(`${UEB} .ueb-tab[data-reihe="5"]`, 'Station Sterne');
     await sleep(500);
@@ -1211,12 +1322,12 @@ async function uebersichtAblauf() {
   pruefe(await ev('document.activeElement?.dataset?.menueFokus') === 'wahl:leicht', 'Fokus nach der Übersicht');
 
   // Kachel im geschafften Grad: Wiederholen aus dem Menü (das Brett von Mittel versinkt), bis zum letzten Level
-  await tippe(karte('leicht'), 'Karte Leicht');
+  await waehle('leicht', 'Karte Leicht');
   await until(`${uebOffen}`, 'Übersicht aus dem Menü', 10);
   await sleep(600);
   if (view.phone) await tippe(`${UEB} .ueb-tab[data-reihe="5"]`, 'Station Sterne');
   await messe();
-  await tippe(kachel(5, 8), 'Kachel Sterne 9');
+  await tippeKachel(5, 8, 'Kachel Sterne 9');
   await until(`window.__prisma.playing() && ${D}.story.grade === 'leicht' && ${D}.story.step === 58 && `
     + `${D}.story.gaze === 0 && !${D}.story.running`, 'Leicht, Sterne 9', 30);
   log = await ende('Übersicht (Menü) → Wiederholen im geschafften Grad');
@@ -1261,6 +1372,7 @@ async function uebersichtAblauf() {
   await tippe('#btn-menu', 'Menü');
   await until(`${menueOffen} && ${D}.story.gaze === 1`, 'Menü', 10);
   await sleep(1000);
+  await tippe(karte('leicht'), 'Reiter Leicht');
   await tippe('#menue [data-menue-fokus="vonvorn:leicht"]', 'Von vorn Leicht');
   await until("!document.querySelector('#menue .menue-frage').hidden", 'Rückfrage', 5);
   await sleep(500);
@@ -1281,7 +1393,7 @@ async function uebersichtAblauf() {
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 10`, 'Schwer, Meer 1', 30);
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Übersicht', 10);
-  await tippe(kachel(0, 9), 'Kachel Bergwald 10');
+  await tippeKachel(0, 9, 'Kachel Bergwald 10');
   await until(`window.__prisma.playing() && ${D}.story.step === 9 && ${D}.story.gaze === 0 && !${D}.story.running`,
     'Schwer, Bergwald 10 wiederholen', 30);
   await ev(`${D}.loese()`);
@@ -1422,7 +1534,7 @@ async function dorfAblauf() {
   // Leicht: Üben, drei Übungen, Neuladen, Menü, Übersicht, Überspringen mitten in der Übung
   await laden();
   await messe();
-  await tippe(karte('leicht'), 'Karte Leicht');
+  await waehle('leicht', 'Karte Leicht');
   await prologWeg('leicht');
   await sleep(400);
   await ende('Leicht: Menü → Prolog → Überspringen');
@@ -1440,6 +1552,17 @@ async function dorfAblauf() {
   await sleep(1500);
   await bild('dorf-einstieg');
   pruefe(await skipSichtbar(), 'Leicht: «Überspringen» fehlt im Einstieg ins Dorf');
+  // Leiste C auch im Dorf (alle Zeichen blass), und das Licht steigt über den Untertitel in der Mitte (Review Ticket 08:
+  // es lag gut 3 s hinter dem Text)
+  await pruefeLeiste(0, 'Leicht: Einstieg ins Dorf', { licht: false });
+  let lichtOben = false;
+  for (let i = 0; i < 60 && !lichtOben; i++) {
+    lichtOben = await ev(`(() => { const s = ${D}.story, v = s.flare.position.clone().project(${D}.camera);
+      return s.flare.visible && (1 - v.y) / 2 * innerHeight
+        < document.querySelector('#story .caption .kicker').getBoundingClientRect().top; })()`);
+    if (!lichtOben) await sleep(100);
+  }
+  pruefe(lichtOben, 'Leicht: Einstieg ins Dorf: das Licht steigt nicht über den Untertitel');
   await until(`window.__prisma.playing() && ${D}.story.inDorf`, 'Leicht: Übung 1', 40);
   await sleep(800);
   const log = await ende('Leicht: Üben → Einstieg ins Dorf → Übung 1');
@@ -1535,7 +1658,7 @@ async function dorfAblauf() {
 
   // Mittel: Einstieg ins Dorf im Flug überspringen, das Dorf während des Herauswachsens, den Bergwald im Fall
   await laden();
-  await tippe(karte('mittel'), 'Karte Mittel');
+  await waehle('mittel', 'Karte Mittel');
   await prologWeg('mittel', { esc: !view.phone });
   await angebot('mittel', 'Üben');
   await until(`${D}.story.entering && ${D}.story.flare.visible && ${storyMode} === 'caption'`, 'Mittel: Flug', 30);
@@ -1558,7 +1681,7 @@ async function dorfAblauf() {
 
   // Schwer: «Gleich los», Einstieg gleich zu Beginn überspringen
   await laden();
-  await tippe(karte('schwer'), 'Karte Schwer');
+  await waehle('schwer', 'Karte Schwer');
   await prologWeg('schwer');
   await angebot('schwer', 'Gleich los', { mitTaste: !view.phone });
   await until(`${D}.story.entering`, 'Schwer: Einstieg beginnt', 30);
@@ -1573,7 +1696,7 @@ async function dorfAblauf() {
   // Sehr schwer: alle Übungen bis zum Ende, dann Übung 8 und 9 wiederholen
   const g = 'sehr schwer';
   await laden();
-  await tippe(karte(g), 'Karte Sehr schwer');
+  await waehle(g, 'Karte Sehr schwer');
   await prologWeg(g);
   await angebot(g, 'Üben');
   for (let n = 0; n < 9; n++) await uebung(g, n, { bilder: n === 8 });
@@ -1590,7 +1713,7 @@ async function dorfAblauf() {
     await sleep(700);
   }
   await messe();
-  await tippe(kachel(0, 7), 'Kachel Übung 8');
+  await tippeKachel(0, 7, 'Kachel Übung 8');
   await uebung(g, 7, { replay: true });
   await ende('Sehr schwer: Übersicht → Übung 8 wiederholen → Übung 9');
   await uebung(g, 8, { replay: true, weiter: false });
@@ -1604,7 +1727,7 @@ async function dorfAblauf() {
   // noch): «Gelöst» kommt nicht mehr über den Satz zum Ende. Ein älterer Stand mit Prolog ohne Angebot: nur das Angebot
   await laden({ 'prisma.noa.leicht': { platz: 0, geloest: uebungen.slice(0, 2), gesehen: ['prolog', 'angebot', 'dorf'],
     geschafft: false, dorf: { platz: 2, ende: null } } });
-  await tippe(karte('leicht'), 'Karte Leicht');
+  await waehle('leicht', 'Karte Leicht');
   await uebungLaeuft(2);
   await ev(`${D}.loese()`);
   await until(`window.__prisma.celebrating() && !window.__prisma.solvedPanel()`, 'Leicht: Übung 3 feiert', 10);
@@ -1620,7 +1743,7 @@ async function dorfAblauf() {
     `Leicht: «Gelöst» nach «Überspringen» in der Feier (Feier ohne «Gelöst» beim Tippen: ${feier})`);
   // Neuladen, während das Angebot steht: danach ohne Prolog nur das Angebot
   await laden();
-  await tippe(karte('mittel'), 'Karte Mittel');
+  await waehle('mittel', 'Karte Mittel');
   await prologWeg('mittel');
   await until(`document.querySelectorAll('${ANGEBOT}').length === 2`, 'Mittel: Angebot', 60);
   pruefe((await stand('mittel'))?.gesehen.join() === 'prolog', 'Mittel: Prolog gesehen, sobald das Angebot steht');
@@ -1628,7 +1751,7 @@ async function dorfAblauf() {
   await send('Page.reload');
   await until(`!window.__vorher && window.__prisma?.ticks > 2 && ${menueOffen}`, 'Menü nach dem Neuladen');
   await geste();
-  await tippe(karte('mittel'), 'Karte Mittel');
+  await waehle('mittel', 'Karte Mittel');
   await until(`${storyMode} === 'scene'`, 'Mittel nach dem Neuladen: Bühne', 30);
   pruefe(await ev(`${D}.story.scene.skip.hidden`), 'Mittel nach dem Neuladen: Prolog statt nur des Angebots');
   await angebot('mittel nach dem Neuladen', 'Gleich los');
@@ -1658,12 +1781,12 @@ async function dorfRaender() {
 
   // a) Übung 2 wiederholen, während das Kapitel bei Übung 4 steht
   await laden({ 'prisma.noa.leicht': imDorf(3, 3) });
-  await tippe(karte('leicht'), 'Karte Leicht');
+  await waehle('leicht', 'Karte Leicht');
   await uebungLaeuft(3);
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'a: Übersicht', 10);
   await zurDorfReihe(0);
-  await tippe(kachel(0, 1), 'Kachel Übung 2');
+  await tippeKachel(0, 1, 'Kachel Übung 2');
   await uebung('leicht', 1);
   await uebung('leicht', 2);
   await uebungLaeuft(3);
@@ -1681,7 +1804,7 @@ async function dorfRaender() {
   await ev(`window.__dorfSatz = false; (function schau() { if (document.querySelector('#story .caption .kicker')
     .textContent === 'Im Dorf' && ${storyMode} === 'caption') window.__dorfSatz = true;
     if (!window.__prisma.playing() || ${D}.story.inDorf) requestAnimationFrame(schau); })(); true`);
-  await tippe(kachel(1, 0), 'Kachel Bergwald 1');
+  await tippeKachel(1, 0, 'Kachel Bergwald 1');
   await until(`${storyMode} === 'caption' && document.querySelector('#story .caption .kicker').textContent === `
     + "'Kapitel 1 · Der Bergwald'", 'b: Einstieg in den Bergwald', 30);
   await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'b: Bergwald 1', 40);
@@ -1692,7 +1815,7 @@ async function dorfRaender() {
 
   // c) Neuladen während des Einstiegs ins Dorf
   await laden();
-  await tippe(karte('schwer'), 'Karte Schwer');
+  await waehle('schwer', 'Karte Schwer');
   await prologWeg('schwer');
   await angebot('schwer', 'Üben');
   await until(`${storyMode} === 'caption' && ${D}.story.entering`, 'c: Einstieg ins Dorf', 30);
@@ -1732,7 +1855,7 @@ async function dorfRaender() {
   await ev(`(() => { const s = ${D}.story, alt = s.sunk; let einmal = false;
     s.sunk = function () { if (einmal) return; einmal = true;
       setTimeout(() => { s.sunk = alt; alt.call(s); }, 12000); }; })()`);
-  await tippe(karte('mittel'), 'Karte Mittel');
+  await waehle('mittel', 'Karte Mittel');
   await prologWeg('mittel');
   await angebot('mittel', 'Gleich los');
   await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.flare.visible && !${D}.story.tweens.some(
@@ -1748,7 +1871,7 @@ async function dorfRaender() {
   await ev(`(() => { const s = ${D}.story, alt = s.sunk; let einmal = false;
     s.sunk = function () { if (einmal) return; einmal = true;
       setTimeout(() => { s.sunk = alt; alt.call(s); }, 12000); }; })()`);
-  await tippe(karte('sehr schwer'), 'Karte Sehr schwer');
+  await waehle('sehr schwer', 'Karte Sehr schwer');
   await prologWeg('sehr schwer');
   await angebot('sehr schwer', 'Üben');
   await until(`${D}.story.entering && ${D}.story.holdEnter && ${D}.story.tweens.some((t) => t.mark)`,
@@ -2039,7 +2162,7 @@ async function wagenAblauf() {
   const mittel = standBis('mittel', 43, 4); // Planeten 44: Bergwald bis Vulkan geschafft, vier Sterne wach
 
   // Einstieg in den Bergwald nach dem Prolog («Gleich los»): am schlafenden ersten Stern vorbei, ohne Erwachen
-  await tippe(karte('leicht'), 'Karte leicht');
+  await waehle('leicht', 'Karte leicht');
   await until(`${storyMode} === 'scene'`, 'Leicht: Prolog');
   await sleep(1500);
   await tippe('#story .scene .skip', 'Überspringen');
@@ -2142,6 +2265,7 @@ async function wagenAblauf() {
   await tippe('#menue .menue-weiter', 'Weiter');
   await until(`${storyMode} === 'caption'`, 'Leicht: Einstieg in den Vulkan', 60);
   await pruefeSatz(SATZ_UNTERTITEL, ANKUNFT[3], 'Leicht: Einstieg in den Vulkan');
+  await pruefeLeiste(4, 'Leicht: Einstieg in den Vulkan', { licht: false });
   await pruefeWagen('leicht', 3, 'beim Einstieg in den Vulkan');
   await until(`${D}.story.himmel.glanz[3] > 0.3`, 'Leicht: Einstieg am Stern 4 vorbei', 30);
   await bild('wagen-einstieg-vulkan-vorbeiflug');
@@ -2156,7 +2280,7 @@ async function wagenAblauf() {
   await tippe('#btn-menu', 'Menü');
   await until(`${menueOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Menü', 10);
   await sleep(800);
-  await tippe(karte('mittel'), 'Karte Mittel');
+  await waehle('mittel', 'Karte Mittel');
   await until(`${D}.story.grade === 'mittel' && ${D}.story.step === 43 && window.__prisma.playing()`
     + ` && !${D}.story.running`, 'Mittel 44 läuft', 60);
   await pruefeWagen('mittel', 4, 'nach dem Wechsel über das Menü');
@@ -2171,7 +2295,7 @@ async function wagenAblauf() {
     await tippe(`${UEB} .ueb-tab[data-reihe="0"]`, 'Station Bergwald');
     await sleep(900);
   }
-  await tippe(kachel(0, 9), 'Kachel Bergwald 10');
+  await tippeKachel(0, 9, 'Kachel Bergwald 10');
   await loeseLevel('mittel', 9);
   pruefe(await ev(`${D}.story.replay`) === true, 'Mittel: Bergwald 10 nicht als Wiederholen');
   await pruefeWagen('mittel', 4, 'beim Wiederholen im Bergwald');
@@ -2191,6 +2315,7 @@ async function wagenAblauf() {
   await tippe('#btn-menu', 'Menü');
   await until(`${menueOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Menü', 10);
   await sleep(1200);
+  await tippe(karte('mittel'), 'Reiter Mittel');
   await tippe('#menue [data-menue-fokus="vonvorn:mittel"]', 'Von vorn Mittel');
   await until("!document.querySelector('#menue .menue-frage').hidden", 'Rückfrage', 5);
   await sleep(500);
@@ -2210,14 +2335,14 @@ async function wagenAblauf() {
   await pruefeWagen('mittel', 1, 'neben dem geschafften Grad');
   await pruefeHimmel(1, 2, 'im Menü, Mittel im Meer');
   // geschafft: der ganze Wagen am Himmel (Wiederholen aus der Übersicht, die die Karte im Menü öffnet: Sterne 9)
-  await tippe(karte('leicht'), 'Karte Leicht (geschafft)');
+  await waehle('leicht', 'Karte Leicht (geschafft)');
   await until(`${uebOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, 'Übersicht Leicht', 10);
   await sleep(600);
   if (view.phone) { // eine Welt je Seite: zu den Sternen über ihre Station
     await tippe(`${UEB} .ueb-tab[data-reihe="5"]`, 'Station Sterne');
     await sleep(900);
   }
-  await tippe(kachel(5, 8), 'Kachel Sterne 9');
+  await tippeKachel(5, 8, 'Kachel Sterne 9');
   await until(`${D}.story.grade === 'leicht' && ${D}.story.replay && window.__prisma.playing() && !${D}.story.running`,
     'Leicht: Sterne 9 (Wiederholen)', 60);
   await pruefeHimmel(7, 6, 'geschafft, beim Wiederholen in den Sternen');

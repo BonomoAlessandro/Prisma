@@ -1,5 +1,10 @@
 # Übersicht des Grads – Baustein für Ticket 06
 
+> **Überholt (05.11.2026, Ticket 08 von `.scratch/kleiner-wagen/`):** Die Übersicht im Spiel ist jetzt der «Sternhaufen»
+> (Variante C des Skizzenkatalogs `.scratch/kleiner-wagen/katalog/katalog.html`): ein Himmel mit dem Kleinen Wagen, die
+> Level jeder Welt um ihren Stern, eine Welt je Seite als Liste (neue Option `wagen`). Massgebend ist `createUebersicht`
+> in `index.html`; dieser Baustein zeigt den früheren Stand mit Reihen und Lichtwegen und wird nicht mehr nachgeführt.
+
 Die Übersicht eines Grads (Spec `../../spec.md`, Entscheide 9, 16, 19, 24; Ticket `../../issues/06-uebersicht.md`),
 fertig zum Einsetzen in `index.html`. Sie ersetzt die bisherige Levelauswahl: je Welt eine Reihe mit Station, Name und
 Summe der Bestzeiten, je Level eine Kachel mit Nummer, Titel, gelöst, Bestzeit und wenigsten Drehungen. Gestalt wie das

@@ -318,22 +318,33 @@
   #story .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--ink-dim); margin-bottom: 16px; }
   #story .kicker:empty { display: none; }
   #story .text { margin: 0; max-width: 30em; font-size: clamp(15px, 2.2vw / var(--seite), 18px); line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
-  #story .path { display: flex; align-items: center; gap: 0; margin-top: 30px; }
+  /* Leiste bei der Ankunft in einer Welt (story.fillPath; Leiste C «Zeichen im Wagen», Ticket 08 von
+     .scratch/kleiner-wagen/): der Kleine Wagen mit den Zeichen der Welten an seinen Sternen, geweckte hell und verbunden,
+     die Welt, in die das Licht kommt, mit Ring und Puls, spätere blass; an der Spitze der Polarstern. Sie steht unten
+     am Rand (wie die frühere Leiste), Kicker und Text in der Mitte (.caption.mitte) */
+  #story .path { display: flex; justify-content: center; margin-top: 30px; pointer-events: none; }
   #story .path:empty { display: none; }
-  #story .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; color: rgba(232, 230, 240, 0.3); }
-  #story .path .st svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
-  #story .path .st span { font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; }
-  #story .path .st.done { color: rgba(232, 230, 240, 0.78); }
-  #story .path .st.now { color: #fff; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); animation: intro-pulse 2.4s ease-in-out infinite; }
-  #story .path .ln { width: 16px; height: 1px; margin-bottom: 14px; background: rgba(232, 230, 240, 0.15); }
-  #story .path .ln.done { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
-  @media (max-width: 480px) { /* Handy hochkant: sieben Stationen ohne Namen in einer Zeile */
-    #story .path .st { width: 34px; }
-    #story .path .st span { display: none; }
-    #story .path .ln { width: 8px; margin-bottom: 0; }
-  }
+  #story .path svg { display: block; width: 279px; height: auto; overflow: visible; }
+  #story .path .wl, #story .path .wgeist { stroke: #e3e7ff; stroke-width: 1.2; stroke-linecap: round; fill: none; }
+  #story .path .wl { opacity: 0.72; }
+  #story .path .wgeist { opacity: 0.22; }
+  #story .path .zeichen { color: rgba(232, 230, 240, 0.32); }
+  #story .path .scheibe { fill: rgba(3, 3, 8, 0.82); }
+  #story .path .zeichen :not(.scheibe) { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+  #story .path .hof, #story .path .ring { opacity: 0; }
+  #story .path .wach .zeichen { color: #fff; filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.75)); }
+  #story .path .wach .hof { opacity: 0.85; }
+  #story .path .jetzt .zeichen { color: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8)); animation: intro-pulse 2.4s ease-in-out infinite; }
+  #story .path .jetzt .ring { opacity: 0.8; fill: none; stroke: #fff; stroke-width: 1; }
+  /* eben erwacht (Reise): blitzt einmal auf, die neue Linie zieht sich zu ihm (--len: ihre Länge) */
+  #story .path .neu .zeichen { animation: story-blitz 1.6s ease-out 0.5s both; }
+  #story .path .wl.neu { stroke-dasharray: var(--len) 1000; animation: story-linie 0.7s ease 0.6s both; }
+  @keyframes story-blitz { 15% { filter: drop-shadow(0 0 12px #fff) drop-shadow(0 0 4px #fff); } }
+  @keyframes story-linie { from { stroke-dashoffset: var(--len); } }
+  @media (prefers-reduced-motion: reduce) { #story .path .neu .zeichen, #story .path .wl.neu { animation: none; } }
+  @media (max-width: 480px) { #story .path svg { width: 240px; } } /* Handy hochkant */
   #story .tap { margin-top: 34px; font-size: 9px; letter-spacing: 0.45em; padding-left: 0.45em; text-transform: uppercase; color: var(--ink-dim); animation: intro-pulse 2.4s ease-in-out infinite; }
-  #story.hidden .tap, #story.hidden .path .st.now { animation-play-state: paused; } /* ausgeblendet: Puls ruht im Spiel */
+  #story.hidden .tap, #story.hidden .path * { animation-play-state: paused; } /* ausgeblendet: Puls ruht im Spiel */
   #story .actions { display: flex; gap: 12px; margin-top: 30px; flex-wrap: wrap; justify-content: center; }
   #story .actions:empty { display: none; }
   #story .actions button {
@@ -355,6 +366,22 @@
   #story .caption .path { margin-top: 18px; }
   #story .tap:empty { display: none; } /* Reise: Untertitel ohne Aufforderung zum Tippen */
   #story .caption.warte .tap { visibility: hidden; } /* Finale: Der Satz wartet erst nach dem Puls auf Tippen */
+  /* Ankunft in einer Welt (mit Leiste; Wahl des Nutzers, Ticket 02 von .scratch/kleiner-wagen/): Kicker und Text
+     senkrecht in der Mitte, die Leiste unten am Rand, wo sie bisher stand (quer: knapp über dem Rand, sonst reicht der
+     Platz nicht); das Licht steht in der Mitte des freien Raums darüber (story.lichtHoch). Dahinter ein weicher Hof um
+     den Text und ein Verlauf vom unteren Rand (Wüste und Meer bei Tag) */
+  #story .caption.mitte { top: 0; bottom: 0; justify-content: center; }
+  #story .caption.mitte::before {
+    top: 0; bottom: 0;
+    background: radial-gradient(ellipse 46% 24% at 50% 50%, rgba(3, 3, 8, 0.5), rgba(3, 3, 8, 0)),
+      linear-gradient(to top, rgba(3, 3, 8, 0.6), rgba(3, 3, 8, 0) 34%);
+  }
+  #story .caption.mitte .path { position: absolute; left: 0; right: 0; bottom: max(14vh / var(--seite), 70px); margin: 0; }
+  /* kleine Handys hochkant (360 × 640, 320 × 568): kleiner und tiefer, sonst rückt er an einen langen Text */
+  @media (max-width: 480px) and (max-height: 700px) {
+    #story .path svg { width: 206px; }
+    #story .caption.mitte .path { bottom: max(9vh / var(--seite), 44px); }
+  }
   /* Bühne für Prolog und Epilog (createStoryScene): das Dorf über den ganzen Bildschirm, Untertitel darunter */
   #story[data-mode="scene"] { background-color: #020208; padding: 0; }
   #story.slow { transition: opacity 1.8s ease, background-color 1.8s ease; } /* Finale: Welt versinkt, Dorf taucht auf */
@@ -492,7 +519,8 @@
   }
   @media (max-height: 500px) { /* Handy quer: kleineres Bild, weniger Abstand */
     #solved .stats { display: none; } /* Platz für die längeren Meldungen („Weiter zu den Sternen“) */
-    #story .path { margin-top: 14px; }
+    #story .path svg { width: 176px; }
+    #story .caption.mitte .path { bottom: max(12px, env(safe-area-inset-bottom)); }
     #story .tap, #story .actions { margin-top: 14px; }
     #story .scene .sub { bottom: max(10px, env(safe-area-inset-bottom)); }
     #story .scene .lines { font-size: 15px; min-height: 3.5em; }
@@ -504,15 +532,13 @@
     #story .scene .hint { margin-top: 8px; }
   }
 
-  /* ---------- Menü der Geschichte (Ticket 05): «Lichtwege zum Polarstern» ----------
-     Je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad gekommen ist; Punkte teilen
-     ihn in die sechs Welten (createMenu, Baustein aus .scratch/noa-geschichte/bausteine/menue/). Alle Klassen beginnen
-     mit «menue-», die Wurzel #menue trägt «menue» (createMenu setzt sie). Über dem Spiel und der Bühne (gleiche Ebene
-     wie #story, danach im Dokument), unter dem Startbildschirm; hinter dem Menü schaut die Kamera in den Himmel.
-     Desktop und Handy quer: Lampen links untereinander, die Beschriftung links davon, der Stern rechts oben, «Weiter»
-     am Kopf des Lichts. Handy hoch: die Grade als Zeilen unten; die Wege steigen gestaffelt am linken Rand auf (der
-     schwerste ganz aussen, er ist der längste) und biegen im Fächer zum Stern rechts oben ab, so kreuzt kein Weg eine
-     Beschriftung; «Weiter» ganz unten in Reichweite des Daumens.
+  /* ---------- Menü der Geschichte (Ticket 05): «Sternkarte mit Reitern» (Ticket 08 von .scratch/kleiner-wagen/) ----------
+     Die vier Grade als Reiter; der gewählte zeigt seinen Kleinen Wagen wie auf einer Sternkarte (createMenu zeichnet
+     sie), darunter sein Knopf und «Von vorn». Alle Klassen beginnen mit «menue-», die Wurzel #menue trägt «menue»
+     (createMenu setzt sie). Über dem Spiel und der Bühne (gleiche Ebene wie #story, danach im Dokument), unter dem
+     Startbildschirm; hinter dem Menü schaut die Kamera in den Himmel.
+     Desktop und Handy quer: Reiter links untereinander, die Karte rechts daneben, der Knopf darunter. Handy hoch: die
+     Reiter oben als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens.
      Die Bedingung für hoch steht gleich in createMenu (HOCH): beide zusammen ändern. */
   .menue {
     --menue-glow: 170, 180, 255; /* bläulicher Hof wie um den Titel und den Strahl des Startbildschirms */
@@ -554,6 +580,8 @@
   .menue-inhalt { position: absolute; inset: 0; }
   .menue-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .menue-ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .menue-stern { display: inline-block; flex: none; }
+  .menue-stern svg { width: 100%; height: 100%; display: block; overflow: visible; }
 
   /* Kopf: Titel wie der Startbildschirm, klein */
   .menue-kopf { position: absolute; left: 7%; top: 56px; }
@@ -563,117 +591,92 @@
   }
   .menue-unter { margin: 8px 0 0; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--menue-dim); }
 
-  /* Polarstern: weicher Hof mit vier Strahlen (wie der Lichtpunkt am Himmel im Spiel) */
-  .menue-ziel { position: absolute; left: 79%; top: 23%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: none; }
-  .menue-stern { display: inline-block; flex: none; }
-  .menue-stern svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .menue-ziel .menue-stern { width: 150px; height: 150px; }
-  /* über dem Stern: die Wege kommen immer von unten links und liefen sonst durch das Wort */
-  .menue-wort {
-    position: absolute; bottom: calc(100% - 4px); font-size: 9px; letter-spacing: 0.5em; padding-left: 0.5em;
-    text-transform: uppercase; color: var(--menue-dim); white-space: nowrap;
-  }
-
-  /* Grade: Desktop eine Spalte links, die Beschriftung rechtsbündig vor der Lampe */
+  /* Reiter: Desktop eine Spalte links unter dem Kopf; der gewählte hell mit Strich am Rand */
   .menue-grade {
     list-style: none; margin: 0; padding: 0;
-    position: absolute; left: 7%; top: 27%; bottom: 9%; width: 330px;
-    display: flex; flex-direction: column; justify-content: space-between;
+    position: absolute; left: 7%; top: 27%; width: 290px;
+    display: flex; flex-direction: column; gap: 22px;
   }
-  .menue-grad { position: relative; display: grid; grid-template-columns: 1fr auto; grid-template-areas: "wahl lampe" "neu ."; align-items: center; column-gap: 20px; }
+  .menue-grad { position: relative; min-width: 0; }
   .menue-wahl {
-    grid-area: wahl; display: flex; flex-direction: column; align-items: flex-end; gap: 7px; text-align: right;
-    min-height: 44px; padding: 6px 4px 6px 12px; border-radius: 10px;
-    transition: background-color 0.25s ease;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 7px; width: 100%;
+    min-height: 44px; padding: 8px 12px 8px 18px; border-left: 2px solid transparent; border-radius: 0 10px 10px 0;
+    color: var(--menue-dim); transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
   }
-  .menue-wahl:hover { background: rgba(255, 255, 255, 0.04); }
+  .menue-wahl:hover { color: var(--menue-ink); background: rgba(255, 255, 255, 0.04); }
+  .menue-an .menue-wahl { color: #fff; border-color: #fff; }
+  .menue-an .menue-name { text-shadow: 0 0 12px rgba(var(--menue-glow), 0.8); }
   .menue-zeile1 { display: flex; align-items: center; gap: 12px; }
-  .menue-pips { display: inline-flex; gap: 4px; color: var(--menue-dim); }
+  .menue-pips { display: inline-flex; gap: 4px; }
   .menue-pips i { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
   .menue-pips i.menue-on { background: currentColor; border-color: transparent; } /* volle und leere: Form, nicht Farbe */
   .menue-name { font-size: 16px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; white-space: nowrap; }
-  .menue-stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
-  .menue-neu .menue-stand { color: var(--menue-dim); }
+  .menue-stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.05em; white-space: nowrap; }
   .menue-stand .menue-stern { width: 24px; height: 24px; margin: -5px 0; }
   .menue-zahl { font-variant-numeric: tabular-nums; }
-  .menue-aktion {
-    display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.38em; margin-right: -0.38em;
-    text-transform: uppercase; color: var(--menue-dim);
-  }
-  .menue-aktion .menue-ico { font-size: 12px; }
-  .menue-zuletzt .menue-aktion { color: var(--menue-ink); }
-  /* «Von vorn»: klein und zurückhaltend, mit dem Zeichen von «Level neu starten» */
-  .menue-vonvorn {
-    grid-area: neu; justify-self: end; display: inline-flex; align-items: center; gap: 0.7em;
-    min-height: 36px; padding: 8px 10px; margin: 2px -0.3em 0 0; border-radius: 999px;
-    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
-    transition: color 0.25s ease;
-  }
-  .menue-vonvorn .menue-ico { font-size: 14px; }
-  .menue-vonvorn:hover { color: var(--menue-ink); }
-
-  /* Lampe: Anfang des Wegs; leuchtet, sobald das Licht im Grad unterwegs ist */
-  .menue-lampe { grid-area: lampe; position: relative; width: 12px; height: 12px; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.45); }
-  .menue-begonnen .menue-lampe, .menue-geschafft .menue-lampe {
-    background: #fff; border-color: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, 0.9), 0 0 24px rgba(var(--menue-glow), 0.7);
-  }
-  /* hervorgehoben (direkt nach dem Epilog der nächstschwerere Grad): Ring um die Lampe, Schrift hell */
-  .menue-hervor .menue-lampe { border-color: #fff; box-shadow: 0 0 10px rgba(var(--menue-glow), 0.9); }
-  .menue-hervor .menue-lampe::after {
-    content: ""; position: absolute; inset: -11px; border-radius: 50%;
-    border: 1px solid rgba(var(--menue-glow), 0.6); box-shadow: 0 0 16px rgba(var(--menue-glow), 0.45);
-    animation: menue-puls 2.4s ease-in-out infinite;
-  }
-  .menue-hervor .menue-name, .menue-hervor .menue-pips, .menue-hervor .menue-aktion { color: #fff; }
+  /* hervorgehoben (direkt nach dem Epilog der nächstschwerere Grad): Name und Punkte hell, der Name atmet */
+  .menue-hervor .menue-name, .menue-hervor .menue-pips { color: #fff; }
+  .menue-hervor .menue-name { text-shadow: 0 0 12px rgba(var(--menue-glow), 0.9); animation: menue-puls 2.4s ease-in-out infinite; }
   @keyframes menue-puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
 
-  /* «Weiter»: Pille wie «Weiter» im Feld «Gelöst», heller und mit Hof; Desktop am Kopf des Lichts (Lage: createMenu) */
+  /* Sternkarte (SVG, createMenu zeichnet sie bei jeder Grössenänderung und Wahl neu) */
+  .menue-karte { position: absolute; left: calc(7% + 330px); right: 4%; top: 9%; bottom: calc(9% + 78px); }
+  .menue-sternkarte { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
+  .menue-netz circle, .menue-netz line { fill: none; stroke: rgba(200, 210, 255, 0.07); stroke-width: 1; }
+  .menue-netz line { stroke: rgba(200, 210, 255, 0.05); }
+  .menue-geist { stroke: rgba(200, 208, 255, 0.28); stroke-dasharray: 3 5; stroke-linecap: round; } /* noch nicht gezogen */
+  .menue-linie { stroke: rgba(227, 231, 255, 0.72); stroke-linecap: round; }
+  .menue-kern { fill: #fff; opacity: 0.3; }
+  .menue-ks.menue-an .menue-kern { opacity: 1; }
+  .menue-ks use { opacity: 0.75; } /* der Polarstern, bevor er antwortet */
+  .menue-ks.menue-an use { opacity: 1; }
+  /* der Stern der Welt, in der das Licht ist: ein feiner Ring, der atmet */
+  .menue-ring { fill: none; stroke: #fff; stroke-width: 1; opacity: 0.8; transform-box: fill-box; transform-origin: center; animation: menue-atmen 2.6s ease-in-out infinite; }
+  @keyframes menue-atmen { 50% { transform: scale(1.25); } }
+  .menue-etikett { font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; fill: var(--menue-dim); }
+  .menue-etikett .menue-klein { font-size: 10.5px; letter-spacing: 0.08em; text-transform: none; }
+  .menue-etikett.menue-an { fill: var(--menue-ink); }
+  .menue-etikett.menue-jetzt { fill: #fff; }
+  /* der Moment: seit dem letzten Zeigen erwacht (--d: Verzögerung), er blitzt auf, seine Linien ziehen sich, dann
+     wandert der Ring weiter */
+  .menue-erwacht { transform-box: fill-box; transform-origin: center; animation: menue-blitz 1.6s ease-out var(--d) both; }
+  @keyframes menue-blitz { 0% { opacity: 0.3; transform: scale(0.62); } 18% { opacity: 1; transform: scale(2.1); } }
+  .menue-zieht { stroke-dasharray: var(--len) 10000; animation: menue-zieht 0.7s ease var(--d) both; }
+  @keyframes menue-zieht { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+  .menue-ring.menue-spaeter { animation: menue-auf 0.5s ease var(--d) both, menue-atmen 2.6s ease-in-out calc(var(--d) + 0.5s) infinite; }
+  @keyframes menue-auf { from { opacity: 0; } }
+
+  /* Knopf und «Von vorn» unter der Karte */
+  .menue-knoepfe {
+    position: absolute; left: calc(7% + 330px); right: 4%; bottom: 9%;
+    display: flex; justify-content: center; align-items: center; gap: 28px;
+  }
+  /* Knopf (Weiter, Beginnen, Fortsetzen, Übersicht): Pille wie «Weiter» im Feld «Gelöst», heller und mit Hof */
   .menue-weiter {
-    position: absolute; z-index: 2; transform: translate(-50%, -50%); white-space: nowrap;
-    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; white-space: nowrap;
     padding: 13px 34px 12px calc(34px + 0.45em);
     font-size: 13px; letter-spacing: 0.45em; text-transform: uppercase; text-align: center;
     border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px;
-    background: rgba(10, 10, 24, 0.92); /* deckend: die Wege dahinter scheinen nicht durch */
+    background: rgba(10, 10, 24, 0.92);
     box-shadow: 0 0 28px rgba(var(--menue-glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07);
     transition: border-color 0.25s ease, box-shadow 0.25s ease;
   }
-  .menue-weiter[hidden] { display: none; }
   .menue-weiter:hover { border-color: #fff; box-shadow: 0 0 34px rgba(var(--menue-glow), 0.45), inset 0 0 14px rgba(255, 255, 255, 0.1); }
   .menue-weiter:focus-visible { box-shadow: 0 0 28px rgba(var(--menue-glow), 0.6), inset 0 0 14px rgba(255, 255, 255, 0.07); }
   .menue-wohin { font-size: 10px; letter-spacing: 0.22em; text-transform: none; color: var(--menue-dim); }
-
-  /* Wege (SVG, createMenu zeichnet sie bei jeder Grössenänderung neu) */
-  .menue-wege { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
-  .menue-wege polyline, .menue-wege line { fill: none; }
-  .menue-grund { stroke: rgba(232, 230, 240, 0.22); stroke-width: 1; transition: stroke 0.25s ease; }
-  .menue-weg.menue-neu .menue-grund { stroke-dasharray: 2 7; stroke: rgba(232, 230, 240, 0.34); }
-  .menue-weg.menue-hervor .menue-grund { stroke: rgba(var(--menue-glow), 0.8); stroke-width: 1.2; }
-  .menue-weg.menue-an .menue-grund { stroke: rgba(232, 230, 240, 0.6); } /* Zeiger oder Fokus auf dem Grad */
-  .menue-hof { stroke: rgba(var(--menue-glow), 0.22); stroke-width: 9; stroke-linecap: round; }
-  .menue-licht { stroke: #fff; stroke-width: 1.8; stroke-linecap: round; }
-  .menue-station { fill: rgba(3, 3, 8, 0.9); stroke: rgba(232, 230, 240, 0.45); stroke-width: 1; }
-  .menue-station.menue-an { fill: #fff; stroke: none; }
-  .menue-welt { color: rgba(232, 230, 240, 0.4); }
-  .menue-welt.menue-an { color: rgba(232, 230, 240, 0.85); }
-  .menue-welt.menue-jetzt { color: #fff; }
-  .menue-welt svg { overflow: visible; }
-  .menue-scheibe { fill: rgba(5, 5, 14, 0.9); } /* hochkant: das Zeichen sitzt auf dem Weg, die Scheibe unterbricht ihn */
-  .menue-faden { stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; } /* vom Kopf des Lichts zu «Weiter» */
-
-  /* Einblenden: das Licht wächst von der Lampe bis zu seinem Kopf, die Punkte gehen an, wenn es sie erreicht
-     (--d: Verzögerung, --dur: Dauer je Element; --menue-vorbei: schon vergangene Zeit beim Neuzeichnen) */
-  .menue-wachsen .menue-hof, .menue-wachsen .menue-licht {
-    stroke-dasharray: var(--len) 100000;
-    animation: menue-wachsen var(--dur) cubic-bezier(0.33, 1, 0.68, 1) calc(var(--d) - var(--menue-vorbei, 0s)) both;
-  }
-  .menue-wachsen .menue-auf { animation: menue-auf 0.5s ease calc(var(--d) - var(--menue-vorbei, 0s)) both; }
-  @keyframes menue-wachsen { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
-  @keyframes menue-auf { from { opacity: 0; } }
   .menue-weiter.menue-auf { animation: menue-auf 0.8s ease 0.5s both; }
+  /* «Von vorn»: klein und zurückhaltend, mit dem Zeichen von «Level neu starten» */
+  .menue-vonvorn {
+    display: inline-flex; align-items: center; gap: 0.7em; min-height: 44px; padding: 8px 12px; border-radius: 999px;
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+    transition: color 0.25s ease;
+  }
+  .menue-vonvorn[hidden] { display: none; }
+  .menue-vonvorn .menue-ico { font-size: 14px; }
+  .menue-vonvorn:hover { color: var(--menue-ink); }
+  .menue-info { display: none; } /* Stand des gewählten Grads unter der Karte: nur hoch (dort fehlt er im Reiter) */
   @media (prefers-reduced-motion: reduce) {
-    .menue-wachsen .menue-hof, .menue-wachsen .menue-licht, .menue-wachsen .menue-auf, .menue-weiter.menue-auf,
-    .menue-hervor .menue-lampe::after { animation: none; }
+    .menue-weiter.menue-auf, .menue-hervor .menue-name, .menue-ring, .menue-erwacht, .menue-zieht { animation: none; }
   }
 
   /* Rückfrage vor «Von vorn» */
@@ -700,89 +703,69 @@
   .menue-pille:hover { border-color: var(--menue-dim); background: rgba(40, 40, 60, 0.6); }
   .menue-pille-ja { border-color: rgba(255, 255, 255, 0.72); }
 
-  /* ---------- Handy hoch: die Grade als Zeilen, die Wege am linken Rand ---------- */
+  /* ---------- Handy hoch: Reiter oben als Segmente, Karte, Stand, unten der Knopf ---------- */
   @media (max-width: 600px) and (orientation: portrait) {
-    .menue-kopf { left: 0; right: 0; top: max(22px, env(safe-area-inset-top)); text-align: center; }
+    .menue-inhalt {
+      display: flex; flex-direction: column;
+      padding: max(22px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    }
+    .menue-kopf { position: static; text-align: center; }
     .menue-titel { font-size: 19px; padding-left: 0.5em; }
     .menue-unter { margin-top: 6px; font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; }
-    .menue-ziel { left: calc(100% - 96px); top: 24%; }
-    .menue-ziel .menue-stern { width: 112px; height: 112px; }
-    .menue-wort { bottom: calc(100% - 8px); font-size: 8.5px; }
-    .menue-grade {
-      left: 0; right: max(10px, env(safe-area-inset-right)); top: auto; width: auto;
-      bottom: max(28px, env(safe-area-inset-bottom)); justify-content: flex-end; gap: 8px;
+    .menue-grade { position: static; width: auto; flex-direction: row; gap: 0; margin-top: 18px; }
+    .menue-grad { flex: 1 1 0; }
+    .menue-wahl {
+      align-items: center; text-align: center; gap: 6px; min-height: 48px; padding: 6px 2px 9px;
+      border-left: 0; border-bottom: 2px solid rgba(232, 230, 240, 0.12); border-radius: 0;
     }
-    .menue-mit-weiter .menue-grade { bottom: calc(max(20px, env(safe-area-inset-bottom)) + 86px); }
-    /* Spalte der Lampen 104 px: je Grad eine Bahn zu 22 px, Leicht innen, Sehr schwer aussen (--menue-i: 0 … 3) */
-    .menue-grad { grid-template-columns: 104px minmax(0, 1fr) auto; grid-template-areas: "lampe wahl neu"; column-gap: 4px; }
-    .menue-lampe { justify-self: start; align-self: start; margin: 13px 0 0 calc(16px + (3 - var(--menue-i)) * 22px); }
-    .menue-wahl { align-items: flex-start; text-align: left; gap: 5px; padding: 7px 6px 7px 8px; }
-    .menue-zeile1 { gap: 10px; }
-    .menue-name { font-size: 13.5px; letter-spacing: 0.26em; margin-right: 0; }
-    .menue-stand { font-size: 12.5px; gap: 7px; }
-    .menue-stand .menue-stern { width: 20px; height: 20px; margin: -4px -2px; }
-    .menue-aktion { font-size: 8.5px; letter-spacing: 0.3em; margin-right: 0; }
-    .menue-vonvorn {
-      grid-area: neu; justify-self: end; flex-direction: column; gap: 5px; min-width: 56px; min-height: 52px;
-      padding: 6px 4px; margin: 0; border-radius: 12px; font-size: 8px; letter-spacing: 0.2em;
-    }
-    .menue-vonvorn .menue-ico { font-size: 16px; }
-    .menue-weiter {
-      left: max(16px, env(safe-area-inset-left)); right: max(16px, env(safe-area-inset-right));
-      top: auto; bottom: max(20px, env(safe-area-inset-bottom)); transform: none;
-    }
+    .menue-zeile1 { flex-direction: column; gap: 6px; }
+    .menue-name { font-size: 12px; letter-spacing: 0.06em; margin-right: 0; text-transform: none; }
+    .menue-wahl .menue-stand { display: none; }
+    .menue-karte { position: relative; inset: auto; flex: 1 1 auto; min-height: 120px; margin: 6px 0; }
+    .menue-etikett { font-size: 9px; letter-spacing: 0.16em; }
+    .menue-etikett .menue-klein { font-size: 9px; }
+    .menue-info { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+    .menue-info-name { font-size: 16px; letter-spacing: 0.38em; padding-left: 0.38em; text-transform: uppercase; }
+    .menue-fein { font-size: 12px; letter-spacing: 0.05em; color: var(--menue-dim); }
+    .menue-knoepfe { position: static; flex-direction: column-reverse; align-items: stretch; gap: 8px; margin-top: 12px; }
+    .menue-vonvorn { align-self: center; }
     .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
     .menue-frage-box { padding: 26px 20px 20px; }
   }
-  /* kleine Handys hoch (z. B. 360 × 640): alles enger; die Aktion bleibt, kleiner (Review Ticket 06: ohne sie sah man
-     nicht, wohin eine Karte führt, etwa «Übersicht» beim geschafften Grad) */
+  /* kleine Handys hoch (z. B. 360 × 640): alles enger */
   @media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
-    .menue-ziel { top: 22%; }
-    .menue-ziel .menue-stern { width: 92px; height: 92px; }
-    .menue-wahl { gap: 3px; padding-top: 5px; padding-bottom: 5px; }
-    .menue-aktion { font-size: 8px; }
-    .menue-grade { gap: 4px; }
-    .menue-vonvorn { min-height: 46px; }
+    .menue-grade { margin-top: 12px; }
+    .menue-wahl { min-height: 44px; gap: 4px; padding: 4px 2px 6px; }
+    .menue-zeile1 { gap: 4px; }
+    .menue-info { gap: 3px; }
+    .menue-info-name { font-size: 14px; }
+    .menue-fein { font-size: 11px; }
+    .menue-knoepfe { gap: 2px; margin-top: 6px; }
     .menue-weiter { padding-top: 11px; padding-bottom: 10px; }
-    .menue-mit-weiter .menue-grade { bottom: calc(max(16px, env(safe-area-inset-bottom)) + 76px); }
   }
-  /* sehr schmale Handys hoch (320 px): «Sehr schwer» lief 40 px unter «Von vorn» (Abnahme Ticket 08); Name, Punkte und
-     «Von vorn» enger */
+  /* sehr schmale Handys hoch (320 px): «Sehr schwer» passt sonst nicht ins Segment */
   @media (max-width: 340px) and (orientation: portrait) {
-    .menue-zeile1 { gap: 7px; }
     .menue-pips { gap: 3px; }
     .menue-pips i { width: 5px; height: 5px; }
-    .menue-name { font-size: 11.5px; letter-spacing: 0.16em; }
-    .menue-vonvorn { min-width: 50px; letter-spacing: 0.12em; }
+    .menue-name { font-size: 11px; letter-spacing: 0.02em; }
   }
 
-  /* ---------- Handy quer: wie Desktop, enger ---------- */
+  /* ---------- Handy quer: wie Desktop, enger; Knopf unten rechts ---------- */
   @media (orientation: landscape) and (max-height: 500px) {
     .menue-kopf { left: max(20px, env(safe-area-inset-left)); top: 14px; display: flex; align-items: baseline; gap: 16px; }
     .menue-titel { font-size: 16px; }
     .menue-unter { margin: 0; font-size: 8px; letter-spacing: 0.35em; }
-    .menue-ziel { left: 84%; top: 27%; }
-    .menue-ziel .menue-stern { width: 96px; height: 96px; }
-    .menue-wort { bottom: calc(100% - 2px); font-size: 8px; }
-    .menue-grade { left: max(14px, env(safe-area-inset-left)); top: 46px; bottom: max(8px, env(safe-area-inset-bottom)); width: 262px; }
-    .menue-grad { column-gap: 14px; }
-    .menue-wahl { gap: 3px; padding: 3px 4px 2px 8px; }
-    .menue-name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
+    .menue-grade { left: max(14px, env(safe-area-inset-left)); top: 48px; width: 232px; gap: 4px; }
+    .menue-wahl { gap: 3px; padding: 4px 8px 4px 14px; }
+    .menue-zeile1 { gap: 10px; }
+    .menue-name { font-size: 13px; letter-spacing: 0.3em; margin-right: -0.3em; }
     .menue-stand { font-size: 11.5px; }
     .menue-stand .menue-stern { width: 20px; height: 20px; }
-    /* die Aktion klein hinter dem Stand, in derselben Zeile (Ticket 06: ohne sie sah man nicht, wohin eine Karte führt,
-       etwa «Übersicht» beim geschafften Grad); Abweichung vom Baustein, der sie hier ausblendet */
-    .menue-wahl { flex-flow: row wrap; justify-content: flex-end; align-items: center; column-gap: 10px; }
-    .menue-zeile1 { flex: 0 0 100%; justify-content: flex-end; }
-    .menue-aktion { gap: 4px; font-size: 8px; letter-spacing: 0.26em; margin-right: -0.26em; }
-    .menue-aktion .menue-ico { font-size: 10px; }
-    /* «Von vorn» als Ziel für den Finger so hoch, wie es geht, bis 40 px: Mit vier Graden mit «Von vorn» (je 44 px
-       Karte darüber) füllen sie bei 390 px Höhe die Liste genau, auf niedrigeren Handys bleibt es kleiner (ohne dvh 28) */
-    .menue-vonvorn {
-      min-height: 28px; padding: 3px 8px; margin-top: 0; font-size: 8.5px; letter-spacing: 0.22em;
-      min-height: clamp(28px, calc((100dvh / var(--seite) - 46px - max(8px, env(safe-area-inset-bottom))) / 4 - 44px), 40px);
-    }
-    .menue-lampe { width: 10px; height: 10px; }
+    .menue-karte { left: calc(max(14px, env(safe-area-inset-left)) + 244px); right: max(10px, env(safe-area-inset-right)); top: 30px; bottom: 64px; }
+    .menue-etikett { font-size: 9px; letter-spacing: 0.16em; }
+    .menue-etikett .menue-klein { font-size: 9px; }
+    .menue-knoepfe { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); gap: 14px; }
+    .menue-vonvorn { order: -1; font-size: 8.5px; letter-spacing: 0.22em; }
     .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
     .menue-wohin { font-size: 9px; }
     .menue-frage-box { padding: 20px 22px 18px; }
@@ -790,12 +773,13 @@
     .menue-frage-text { margin-bottom: 16px; font-size: 13px; line-height: 1.6; }
   }
 
-  /* ---------- Übersicht des Grads (Ticket 06): Welten mit je 10 Kacheln, Bestwerte, Wiederholen ----------
-     Baustein aus .scratch/noa-geschichte/bausteine/uebersicht/ (createUebersicht, LIESMICH.md). Alles unter .ueb und
-     mit dem Präfix ueb-. Schrift, Farben und Knöpfe wie im Spiel (:root, #solved button, .tier .pips, #story .path) und
-     im Menü «Lichtwege zum Polarstern»: Nachthimmel, Licht, Welten als Stationen. data-modus="alle": alle Welten
-     untereinander (Desktop); "seiten": eine Welt je Seite. Beim Einbau dazu (auch im Baustein): die freien Übungen
-     «Im Dorf» (.ueb-frei, Ticket 07); nur im Spiel: Ebene 7 statt 6 (über dem ausblendenden Menü). */
+  /* ---------- Übersicht des Grads (Ticket 06): Welten mit je 10 Leveln, Bestwerte, Wiederholen ----------
+     Seit Ticket 08 von .scratch/kleiner-wagen/ «Sternhaufen» (createUebersicht): ein Himmel mit dem Kleinen Wagen, um
+     jeden Stern die Level seiner Welt, «Im Dorf» als eigener Haufen; die Level der gewählten Welt als Liste daneben
+     (Desktop, Handy quer) bzw. darunter (Handy hoch), eine Welt je Seite (data-modus="seiten"). Alles unter .ueb und
+     mit dem Präfix ueb-. Schrift, Farben und Knöpfe wie im Spiel (:root, #solved button, .tier .pips) und im Menü
+     «Sternkarte mit Reitern». Die freien Übungen «Im Dorf» (.ueb-frei, Ticket 07); nur im Spiel: Ebene 7 statt 6
+     (über dem ausblendenden Menü). Der Baustein .scratch/noa-geschichte/bausteine/uebersicht/ ist überholt. */
   .ueb {
     --ueb-ink: var(--ink, #e8e6f0);
     --ueb-dim: rgba(232, 230, 240, 0.64);
@@ -956,162 +940,150 @@
     opacity: 0; pointer-events: none; transition: opacity 0.3s ease;
   }
   .ueb-hinweis.ueb-da { opacity: 1; }
-  /* alle Welten untereinander: an der Kachel (sage setzt left und top, die Mitte des Hinweises über der Kachel) */
-  .ueb[data-modus="alle"] .ueb-hinweis.ueb-bei {
-    right: auto; bottom: auto; margin: 0; max-width: calc(100vw / var(--seite) - 32px); transform: translateX(-50%);
+  /* an der Kachel (sage setzt left und top, die Mitte des Hinweises über der Kachel) */
+  .ueb[data-modus] .ueb-hinweis.ueb-bei {
+    /* so breit wie der Text (max-content): am rechten Rand bräche er sonst um und läge auf der Kachel */
+    right: auto; bottom: auto; margin: 0; width: max-content; max-width: calc(100vw / var(--seite) - 32px); transform: translateX(-50%);
   }
 
-  /* ---------- Stationen und Pfeile (nur Seiten) ---------- */
-  .ueb-stationen { grid-area: stationen; display: none; justify-content: center; align-items: center; }
-  .ueb-tab { position: relative; width: 40px; height: 46px; display: grid; place-items: start center; padding-top: 2px; border-radius: 10px; }
-  .ueb-tab .ueb-station { width: 32px; height: 32px; font-size: 17px; }
-  /* gezeigte Welt: Punkt darunter und heller Rand */
-  .ueb-tab[aria-current="true"] .ueb-station { border-color: #fff; color: #fff; background: rgba(40, 40, 70, 0.9); }
-  .ueb-tab[aria-current="true"]::after {
-    content: ""; position: absolute; left: 50%; bottom: 3px; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%;
-    background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.9);
-  }
-  .ueb-weg { flex: 0 0 10px; height: 1px; margin-bottom: 10px; background: rgba(232, 230, 240, 0.18); }
-  .ueb-weg.ueb-an { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
-  .ueb-pager { grid-area: pager; display: none; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+  /* ---------- Himmel mit den Sternhaufen (zeichneHimmel) und die Stationen darüber ---------- */
+  .ueb-stationen { grid-area: stationen; position: relative; min-height: 0; }
+  /* eigene Ebene: einmal gerastert, auch wenn sich darüber und darunter etwas ändert (Ende des Blicks in den Himmel) */
+  .ueb-himmel { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; will-change: transform; }
+  .ueb-h-geist { stroke: rgba(200, 208, 255, 0.12); stroke-linecap: round; } /* noch nicht gezogen */
+  .ueb-h-linie { stroke: rgba(227, 231, 255, 0.72); stroke-linecap: round; }
+  .ueb-h-stern { fill: #fff; opacity: 0.3; }
+  .ueb-h-stern.ueb-an { opacity: 1; }
+  .ueb-h-ring { fill: none; stroke: rgba(255, 255, 255, 0.5); stroke-width: 1; }
+  .ueb-l { fill: #fff; }
+  .ueb-l-schein { fill: #dfe3ff; opacity: 0.16; } /* Hof eines gelösten Levels: schlicht (60 Verläufe kosteten beim Öffnen) */
+  .ueb-l-offen { opacity: 0.7; }
+  .ueb-l-ring { fill: none; stroke: #fff; stroke-width: 1; }
+  .ueb-l-frei { opacity: 0.55; }
+  .ueb-l-gesperrt { opacity: 0.28; }
+  .ueb-h-dorf { fill: none; stroke: rgba(232, 230, 240, 0.85); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  .ueb-h-name { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; fill: var(--ueb-dim); }
+  .ueb-h-name .ueb-h-zahl { font-size: 10px; letter-spacing: 0.05em; text-transform: none; }
+  .ueb-h-name.ueb-an { fill: var(--ueb-ink); }
+  .ueb-h-name.ueb-jetzt { fill: #fff; }
+  /* Station: ein rundes Ziel über ihrem Haufen; die gezeigte trägt einen Hof */
+  .ueb-tab { position: absolute; border-radius: 50%; }
+  .ueb-tab::before { content: ""; position: absolute; inset: 0; border-radius: 50%; transition: background-color 0.25s ease, border-color 0.25s ease; border: 1px solid transparent; }
+  .ueb-tab:hover::before { border-color: rgba(232, 230, 240, 0.3); }
+  .ueb-tab[aria-current="true"]::before { background: rgba(var(--ueb-glow), 0.12); border-color: rgba(255, 255, 255, 0.55); }
+  .ueb-pager { grid-area: pager; display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
   .ueb-schritt {
     width: 44px; height: 44px; display: grid; place-items: center; border-radius: 50%; font-size: 20px; color: var(--ueb-dim);
     border: 1px solid var(--ueb-faint); transition: border-color 0.25s ease, opacity 0.25s ease;
   }
   .ueb-schritt:hover { border-color: var(--ueb-dim); color: var(--ueb-ink); }
   .ueb-schritt:disabled { opacity: 0.25; cursor: default; }
-  .ueb-seitentitel { display: flex; flex-direction: column; align-items: center; gap: 7px; min-width: 0; }
-  .ueb-seitenname { display: inline-flex; align-items: center; gap: 12px; font-size: 18px; }
-  .ueb-seitenname .ueb-welt-name { font-size: 15px; margin-right: -0.34em; }
+  .ueb-seitentitel { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 4px 16px; min-width: 0; }
+  .ueb-seitenname { display: inline-flex; align-items: center; gap: 12px; font-size: 19px; }
+  .ueb-seitenname .ueb-welt-name { font-size: 15px; letter-spacing: 0.4em; margin-right: -0.4em; }
+  .ueb-schliessen .ueb-ico { display: none; font-size: 20px; }
 
-  /* ========== Alle Welten untereinander (Desktop) ========== */
-  .ueb[data-modus="alle"] .ueb-rahmen {
-    width: min(1360px, 100% - 80px);
-    height: 100%; min-height: 0; padding: max(32px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
-    grid-template-rows: auto minmax(0, 1fr) auto; grid-template-areas: "kopf" "fenster" "fuss"; row-gap: 22px; align-content: stretch;
-  }
-  .ueb[data-modus="alle"] .ueb-kopf { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; padding-left: 4px; }
-  .ueb[data-modus="alle"] .ueb-fenster {
-    grid-area: fenster; display: flex; flex-direction: column; min-height: 0;
-    overflow: hidden auto; padding: 6px; margin: -6px; /* Platz für den Fokusrahmen */
-    scrollbar-width: thin; scrollbar-color: rgba(232, 230, 240, 0.3) transparent;
-  }
-  .ueb[data-modus="alle"] .ueb-spur { flex: 1 0 auto; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
-  .ueb[data-modus="alle"] .ueb-welt {
-    /* füllt die Höhe bis 108 px, nie kleiner als ihr Inhalt (sonst lägen die Reihen übereinander); reicht die Höhe nicht,
-       scrollt das Fenster */
-    flex: 1 1 0; max-height: 108px;
-    display: grid; grid-template-columns: 176px minmax(0, 1fr); column-gap: 22px;
-  }
-  .ueb[data-modus="alle"] .ueb-welt-kopf { display: flex; align-items: center; justify-content: flex-end; gap: 14px; text-align: right; }
-  .ueb[data-modus="alle"] .ueb-welt-text { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-  .ueb[data-modus="alle"] .ueb-welt-name { margin-right: -0.34em; }
-  .ueb[data-modus="alle"] .ueb-spaeter .ueb-welt-name { color: var(--ueb-dim); }
-  .ueb[data-modus="alle"] .ueb-kacheln { grid-template-columns: repeat(10, minmax(0, 1fr)); }
-  /* Lichtweg durch die Reihe: von der Station bis zur offenen Kachel hell, danach fein gestrichelt */
-  .ueb[data-modus="alle"] .ueb-kacheln::before, .ueb[data-modus="alle"] .ueb-kacheln::after {
-    content: ""; position: absolute; z-index: -1; left: -22px; pointer-events: none;
-  }
-  /* --ueb-rest: freie Plätze am Ende der Reihe («Im Dorf» hat 9 Übungen), dort endet der Weg */
-  .ueb[data-modus="alle"] .ueb-kacheln::before {
-    top: 50%; right: calc((100% - 9 * var(--ueb-luecke)) / 10 * var(--ueb-rest, 0) + var(--ueb-luecke) * var(--ueb-rest, 0));
-    border-top: 1px dashed rgba(232, 230, 240, 0.26);
-  }
-  .ueb[data-modus="alle"] .ueb-kacheln::after {
-    top: calc(50% - 0.75px); height: 1.5px; width: max(0px, calc(22px + var(--ueb-licht)));
-    background: #fff; box-shadow: 0 0 6px rgba(255, 255, 255, 0.85), 0 0 16px rgba(var(--ueb-glow), 0.7);
-  }
-  .ueb[data-modus="alle"] .ueb-unten { gap: 2px 4px; }
-  .ueb[data-modus="alle"] .ueb-unten .ueb-wert { gap: 0.25em; }
-  .ueb[data-modus="alle"] .ueb-fuss { position: relative; }
-  .ueb[data-modus="alle"] .ueb-hinweis { bottom: 88px; }
-  /* schmalerer Desktop (Laptop): Namen der Welten enger, mehr Platz für die Kacheln */
-  @media (max-width: 1360px) {
-    .ueb[data-modus="alle"] .ueb-welt { grid-template-columns: 150px minmax(0, 1fr); }
-    .ueb[data-modus="alle"] .ueb-welt-name { font-size: 13px; letter-spacing: 0.28em; margin-right: -0.28em; }
-  }
-  /* niedriger Desktop (Laptop, 1536 × 730 bei 125 %): Kopf in einer Zeile, «Schliessen» oben rechts, Reihen enger */
-  @media (max-height: 820px) {
-    .ueb[data-modus="alle"] .ueb-rahmen {
-      padding: max(16px, env(safe-area-inset-top)) 0 max(14px, env(safe-area-inset-bottom)); row-gap: 14px;
-      grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr);
-      grid-template-areas: "kopf fuss" "fenster fenster";
-    }
-    .ueb[data-modus="alle"] .ueb-kopf { align-items: center; }
-    .ueb[data-modus="alle"] .ueb-kopftext { display: flex; align-items: baseline; gap: 28px; }
-    .ueb[data-modus="alle"] .ueb-grad { margin-top: 0; }
-    .ueb[data-modus="alle"] .ueb-fuss { margin-left: 28px; }
-    .ueb[data-modus="alle"] .ueb-schliessen { padding: 10px 18px 10px calc(18px + 0.4em); }
-    .ueb[data-modus="alle"] .ueb-spur { gap: 10px; }
-    .ueb[data-modus="alle"] .ueb-welt-text { gap: 5px; }
-    .ueb[data-modus="alle"] .ueb-kachel { padding: 7px 8px 6px; gap: 2px; }
-    .ueb[data-modus="alle"] .ueb-hinweis { bottom: 24px; }
-  }
-
-  /* ========== Eine Welt je Seite (Handy, Tablet, kleines Fenster) ========== */
+  /* ========== Rahmen: links der Himmel, rechts die Level der gewählten Welt (Desktop, Tablet) ========== */
   .ueb[data-modus="seiten"] .ueb-rahmen {
-    width: min(780px, 100% - 2 * var(--ueb-rand-x));
-    padding: max(22px, env(safe-area-inset-top)) 0 max(22px, env(safe-area-inset-bottom));
-    grid-template-rows: auto auto auto auto auto; grid-template-areas: "kopf" "stationen" "pager" "fenster" "fuss";
-    row-gap: 16px; align-content: center;
+    width: min(1360px, 100% - 2 * var(--ueb-rand-x));
+    padding: max(28px, env(safe-area-inset-top)) 0 max(24px, env(safe-area-inset-bottom));
+    grid-template-columns: minmax(0, 1fr) minmax(300px, 380px); grid-template-rows: auto auto minmax(0, 1fr);
+    grid-template-areas: "kopf fuss" "stationen pager" "stationen fenster";
+    column-gap: 40px; row-gap: 16px;
   }
-  .ueb[data-modus="seiten"] .ueb-kopf { display: flex; flex-direction: column; align-items: center; text-align: center; }
-  .ueb[data-modus="seiten"] .ueb-grad { justify-content: center; }
-  .ueb[data-modus="seiten"] .ueb-legende { justify-content: center; margin-top: 12px; }
-  .ueb[data-modus="seiten"] .ueb-stationen { display: flex; }
-  .ueb[data-modus="seiten"] .ueb-pager { display: grid; }
-  .ueb[data-modus="seiten"] .ueb-welt-kopf { display: none; } /* der Pager zeigt die Welt */
-  /* Fenster: Kacheln und Nachbarwelt fahren gemeinsam; der Rand lässt Platz für den Fokusrahmen. clip statt hidden:
-     kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite */
+  .ueb[data-modus="seiten"] .ueb-kopf { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 12px 36px; }
+  .ueb[data-modus="seiten"] .ueb-fuss { justify-content: flex-end; align-items: flex-start; }
+  .ueb[data-modus="seiten"] .ueb-stationen { min-height: 380px; }
+  .ueb[data-modus="seiten"] .ueb-welt-kopf { display: none; } /* der Titel über der Liste zeigt die Welt */
+  /* Fenster: die Level und die Nachbarwelt fahren gemeinsam; der Rand lässt Platz für den Fokusrahmen. clip statt
+     hidden: kein Scroll-Container, ein Fokus mitten im Gleiten scrollt das Fenster nicht zur Seite */
   .ueb[data-modus="seiten"] .ueb-fenster { grid-area: fenster; overflow: hidden; overflow: clip; padding: 6px; margin: -6px; }
   .ueb[data-modus="seiten"] .ueb-spur { display: flex; align-items: flex-start; gap: 32px; }
   .ueb[data-modus="seiten"] .ueb-welt { flex: 0 0 100%; min-width: 0; }
-  .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-  .ueb[data-modus="seiten"] .ueb-kachel { min-height: 112px; padding: 10px 11px 9px; }
-  .ueb[data-modus="seiten"] .ueb-fuss { margin-top: 10px; }
-  .ueb[data-modus="seiten"] .ueb-name { font-size: 15px; }
-  .ueb[data-modus="seiten"] .ueb-name.ueb-eng { font-size: 12.5px; }
-  .ueb[data-modus="seiten"] .ueb-unten { font-size: 12.5px; }
+  /* die Level als Liste: Nummer, Titel, Bestwerte in einer Zeile */
+  .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: minmax(0, 1fr); --ueb-luecke: 6px; }
+  .ueb[data-modus="seiten"] .ueb-kachel {
+    display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; column-gap: 8px;
+    min-height: 46px; padding: 6px 12px;
+  }
+  .ueb[data-modus="seiten"] .ueb-punkt { display: none; }
+  .ueb[data-modus="seiten"] .ueb-name { font-size: 13.5px; }
+  .ueb[data-modus="seiten"] .ueb-name.ueb-eng { font-size: 12px; }
+  .ueb[data-modus="seiten"] .ueb-unten { gap: 12px; font-size: 12px; justify-content: flex-end; }
   .ueb[data-modus="seiten"] .ueb-unten .ueb-ico { font-size: 13px; }
 
-  /* Handy hochkant: zwei Spalten, fünf Reihen; die Kacheln breit genug für Titel und beide Werte */
-  @media (max-width: 560px) {
+  /* ========== Handy hoch: Kopf, Himmel, darunter die Welt in zwei Spalten zu fünf Leveln ========== */
+  @media (max-width: 600px) and (orientation: portrait) {
+    .ueb[data-modus="seiten"] .ueb-rahmen {
+      width: calc(100% - 2 * var(--ueb-rand-x)); min-height: 100%;
+      padding: max(18px, env(safe-area-inset-top)) 0 max(16px, env(safe-area-inset-bottom));
+      grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(170px, 1fr) auto auto;
+      grid-template-areas: "kopf" "stationen" "pager" "fenster"; row-gap: 10px;
+    }
+    .ueb[data-modus="seiten"] .ueb-kopf { flex-direction: column; align-items: center; text-align: center; gap: 0; padding: 0 44px; } /* frei vom ✕ */
+    .ueb[data-modus="seiten"] .ueb-grad { justify-content: center; }
+    /* Name und Stand brechen nie in sich um, der Stand notfalls zwischen seinen Teilen (Review Ticket 08: «60 / 60» stand
+       bei 360 px in zwei, bei 320 px in drei Zeilen, «Sehr schwer» in zwei) */
+    .ueb[data-modus="seiten"] .ueb-gradname { white-space: nowrap; }
+    .ueb[data-modus="seiten"] .ueb-fortschritt { flex-wrap: wrap; justify-content: center; row-gap: 2px; white-space: nowrap; }
+    .ueb[data-modus="seiten"] .ueb-legende { justify-content: center; margin-top: 8px; font-size: 10.5px; gap: 4px 14px; }
+    .ueb[data-modus="seiten"] .ueb-fuss { position: absolute; right: -6px; top: max(10px, env(safe-area-inset-top)); }
+    .ueb[data-modus="seiten"] .ueb-stationen { min-height: 0; }
+    .ueb-h-name, .ueb-h-name .ueb-h-zahl { font-size: 8.5px; letter-spacing: 0.14em; }
+    .ueb-seitenname { font-size: 17px; }
+    .ueb-seitenname .ueb-welt-name { font-size: 13px; }
     .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 90px; }
-    .ueb[data-modus="seiten"] .ueb-rahmen { row-gap: 14px; }
-    .ueb[data-modus="seiten"] .ueb-legende { font-size: 10.5px; gap: 4px 14px; }
+    .ueb[data-modus="seiten"] .ueb-kachel { grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 4px; min-height: 52px; padding: 6px 9px; }
+    .ueb[data-modus="seiten"] .ueb-unten { grid-column: 2; justify-content: flex-start; font-size: 11.5px; gap: 10px; }
   }
-  @media (max-width: 380px) { /* schmale Handys: Stationen enger */
-    .ueb-tab { width: 36px; }
-    .ueb-tab .ueb-station { width: 30px; height: 30px; font-size: 16px; }
-    .ueb-weg { flex-basis: 6px; }
+  /* kleine Handys hoch (360 × 640, 320 × 568): enger, die Welt bleibt ganz im Bild */
+  @media (max-width: 600px) and (orientation: portrait) and (max-height: 700px) {
+    .ueb[data-modus="seiten"] .ueb-rahmen { grid-template-rows: auto minmax(130px, 1fr) auto auto; row-gap: 6px; padding-top: max(12px, env(safe-area-inset-top)); }
+    .ueb[data-modus="seiten"] .ueb-titel { display: none; }
+    .ueb[data-modus="seiten"] .ueb-grad { margin-top: 4px; }
+    .ueb[data-modus="seiten"] .ueb-gradname { font-size: 14px; letter-spacing: 0.26em; }
+    .ueb[data-modus="seiten"] .ueb-fortschritt { font-size: 12px; gap: 6px; }
+    .ueb[data-modus="seiten"] .ueb-legende { margin-top: 4px; }
+    .ueb[data-modus="seiten"] .ueb-fuss { top: max(2px, env(safe-area-inset-top)); }
+    .ueb[data-modus="seiten"] .ueb-kacheln { --ueb-luecke: 5px; }
+    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 44px; padding: 4px 8px; row-gap: 2px; }
+    .ueb[data-modus="seiten"] .ueb-name { font-size: 12.5px; }
+    .ueb[data-modus="seiten"] .ueb-name.ueb-eng { font-size: 11px; }
+    .ueb[data-modus="seiten"] .ueb-unten { font-size: 10.5px; }
+  }
+  /* Handy hoch und quer: «Schliessen» als runder Knopf mit ✕ oben rechts */
+  @media (max-width: 600px) and (orientation: portrait), (max-height: 500px) {
+    .ueb[data-modus="seiten"] .ueb-schliessen { display: grid; place-items: center; width: 44px; height: 44px; padding: 0; border-radius: 50%; }
+    .ueb[data-modus="seiten"] .ueb-schliessen .ueb-ico { display: block; }
+    .ueb[data-modus="seiten"] .ueb-schliessen span { display: none; }
   }
 
-  /* Handy quer: Kopf, Stationen und Schliessen in einer Zeile, darunter die Welt und zwei Reihen zu fünf Kacheln */
+  /* ========== Handy quer: links der Himmel, rechts die Welt in zwei Spalten zu fünf Leveln ========== */
   @media (max-height: 500px) {
     .ueb[data-modus="seiten"] .ueb-rahmen {
-      width: min(820px, 100% - 2 * var(--ueb-rand-x));
-      padding: max(8px, env(safe-area-inset-top)) 0 max(10px, env(safe-area-inset-bottom));
-      grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); grid-template-rows: auto auto auto;
-      grid-template-areas: "kopf stationen fuss" "pager pager pager" "fenster fenster fenster";
-      row-gap: 6px; column-gap: 12px; align-items: center;
+      width: calc(100% - 2 * var(--ueb-rand-x));
+      padding: max(6px, env(safe-area-inset-top)) 0 max(8px, env(safe-area-inset-bottom));
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); grid-template-rows: auto auto minmax(0, 1fr);
+      row-gap: 4px; column-gap: 16px;
     }
-    .ueb[data-modus="seiten"] .ueb-kopf { align-items: flex-start; text-align: left; }
-    .ueb[data-modus="seiten"] .ueb-titel { display: none; }
-    .ueb[data-modus="seiten"] .ueb-grad { justify-content: flex-start; margin-top: 0; gap: 4px 12px; }
+    .ueb[data-modus="seiten"] .ueb-kopf { align-items: center; }
+    .ueb[data-modus="seiten"] .ueb-titel, .ueb[data-modus="seiten"] .ueb-legende { display: none; }
+    .ueb[data-modus="seiten"] .ueb-grad { margin-top: 0; gap: 4px 12px; }
     .ueb[data-modus="seiten"] .ueb-gradname { font-size: 12.5px; letter-spacing: 0.24em; }
-    .ueb[data-modus="seiten"] .ueb-tab { width: 36px; }
-    .ueb[data-modus="seiten"] .ueb-weg { flex-basis: 8px; }
     .ueb[data-modus="seiten"] .ueb-fortschritt { font-size: 12px; gap: 8px; }
-    .ueb[data-modus="seiten"] .ueb-legende { display: none; }
-    .ueb[data-modus="seiten"] .ueb-fuss { justify-content: flex-end; }
-    .ueb[data-modus="seiten"] .ueb-schliessen { padding: 10px 16px 10px calc(16px + 0.4em); }
-    .ueb[data-modus="seiten"] .ueb-pager { grid-template-columns: 40px minmax(0, 1fr) 40px; }
-    .ueb[data-modus="seiten"] .ueb-schritt { width: 40px; height: 36px; border-radius: 18px; }
-    .ueb[data-modus="seiten"] .ueb-seitentitel { flex-direction: row; justify-content: center; gap: 18px; }
-    .ueb[data-modus="seiten"] .ueb-seitenname { font-size: 16px; gap: 10px; }
-    .ueb[data-modus="seiten"] .ueb-seitenname .ueb-welt-name { font-size: 13px; }
-    .ueb[data-modus="seiten"] .ueb-kachel { min-height: 0; height: clamp(76px, calc((100vh / var(--seite) - 128px) / 2), 116px); }
+    .ueb[data-modus="seiten"] .ueb-stationen { min-height: 0; }
+    .ueb-h-name, .ueb-h-name .ueb-h-zahl { font-size: 8.5px; letter-spacing: 0.14em; }
+    .ueb[data-modus="seiten"] .ueb-pager { grid-template-columns: 44px minmax(0, 1fr) 44px; }
+    .ueb-seitenname { font-size: 16px; gap: 10px; }
+    .ueb-seitenname .ueb-welt-name { font-size: 12.5px; letter-spacing: 0.3em; margin-right: -0.3em; }
+    .ueb[data-modus="seiten"] .ueb-kacheln { grid-template-columns: repeat(2, minmax(0, 1fr)); --ueb-luecke: 5px; }
+    .ueb[data-modus="seiten"] .ueb-kachel {
+      grid-template-columns: 20px minmax(0, 1fr); grid-template-rows: auto auto; row-gap: 2px;
+      min-height: 0; height: clamp(44px, calc((100vh / var(--seite) - 112px) / 5 - 5px), 58px); padding: 3px 8px;
+    }
+    .ueb[data-modus="seiten"] .ueb-name { font-size: 12.5px; }
+    .ueb[data-modus="seiten"] .ueb-name.ueb-eng { font-size: 11px; }
+    .ueb[data-modus="seiten"] .ueb-unten { grid-column: 2; justify-content: flex-start; font-size: 10.5px; gap: 10px; }
     .ueb[data-modus="seiten"] .ueb-hinweis { bottom: max(12px, env(safe-area-inset-bottom)); }
   }
 
@@ -17085,23 +17057,33 @@ const ui = {
 ui.init();
 
 /* =====================================================================
-   MENÜ DER GESCHICHTE (Ticket 05) — «Lichtwege zum Polarstern», Baustein aus .scratch/noa-geschichte/bausteine/menue/
-   (dort LIESMICH.md mit Schnittstelle und probe.html).
-   Je Grad ein Lichtweg von Noas Lampe zum Polarstern, hell so weit, wie das Licht im Grad gekommen ist; Punkte teilen
-   ihn in die sechs Welten. «Weiter» führt zum zuletzt gespielten, nicht geschafften Grad; ein geschaffter Grad trägt
-   den Polarstern; «Von vorn» je begonnenem oder geschafftem Grad, mit Rückfrage. Gestalt im Stil (Präfix menue-).
+   MENÜ DER GESCHICHTE (Ticket 05; seit Ticket 08 von .scratch/kleiner-wagen/ «Sternkarte mit Reitern», Variante F des
+   Skizzenkatalogs, gewählt vom Nutzer). Die vier Grade sind Reiter; der gewählte zeigt seinen Kleinen Wagen wie auf
+   einer Sternkarte: Kreise um den Polarstern, die Namen der Welten an ihren Sternen, die Grösse der Punkte nach der
+   echten Helligkeit, noch fehlende Linien gestrichelt, der Stern der Welt, in der das Licht ist, mit Ring. Darunter der
+   Knopf des Grads (Weiter, Beginnen, Fortsetzen, Übersicht) und «Von vorn» mit Rückfrage. «Weiter» heisst der Knopf des
+   zuletzt gespielten, nicht geschafften Grads; ihn zeigt das Menü beim Öffnen. Ist seit dem letzten Zeigen eines Grads
+   (in dieser Sitzung) ein Stern erwacht, blitzt er auf, und seine Linien ziehen sich (der Moment aus dem Katalog).
+   Desktop und Handy quer: Reiter links untereinander, die Karte daneben, der Knopf darunter; Handy hoch: Reiter oben
+   als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Gestalt im Stil (Präfix
+   menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
 
-     const menu = createMenu({ root, onAction });
-     menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus bleibt beim Grad)
+     const menu = createMenu({ root, onAction, wagen });
+     menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus und Reiter bleiben)
      menu.hide();        // ausblenden; Promise, erfüllt, wenn es ganz weg ist (hide(true): sofort, Testschnittstelle)
      menu.offen;         // true, solange es offen ist
      menu.vorwaermen(stand); // einmal unsichtbar zeichnen, solange es zu ist (Startbildschirm)
      menu.keydown(e);    // aus dem Tastatur-Handler des Spiels: true, wenn das Menü die Taste genommen hat
 
-   stand = { grade: { leicht: { stand: 'neu' | 'begonnen' | 'geschafft', welt, geloest }, mittel, schwer,
+   stand = { grade: { leicht: { stand: 'neu' | 'begonnen' | 'geschafft', welt, geloest, wach }, mittel, schwer,
              'sehr schwer' }, zuletzt: 'mittel', hervorheben: false }   (das Spiel: story.menuStand)
+   wach: so viele Sterne des Wagens sind in diesem Grad wach (0 … 7 mit dem Polarstern; das Spiel: wagen.stand); ohne
+   Angabe aus den gelösten Leveln.
+   wagen: Form und Linien des Kleinen Wagens { form, linien, polarstern } (im Spiel das Modul wagen).
    onAction({ aktion, grad }): 'weiter' | 'beginnen' | 'fortsetzen' | 'uebersicht' | 'vonvorn' (nach der Rückfrage).
-   Ohne Abhängigkeiten vom übrigen Spiel; die Zeichen der Welten gibt es mit (icons: STORY_ICONS).
+   Bedienung: Ein Reiter wählt seinen Grad (Klick, Tippen, Fokus); der Knopf und Enter auf einem Reiter führen die
+   Aktion des Grads aus. Pfeile: der Knopf, dann die Reiter von oben nach unten (Pos1, Ende). Ohne Abhängigkeiten vom
+   übrigen Spiel.
    ===================================================================== */
 
 const createMenu = (() => {
@@ -17112,32 +17094,36 @@ const createMenu = (() => {
     { id: 'schwer', name: 'Schwer', punkte: 3 },
     { id: 'sehr schwer', name: 'Sehr schwer', punkte: 4 },
   ];
-  /** Die sechs Welten eines Durchgangs (id wie in STORY_ICONS); vor der ersten Welt ist das Licht im Dorf. */
+  /** Die sechs Welten eines Durchgangs, Welt i weckt Stern i + 1; vor der ersten Welt ist das Licht im Dorf. */
   const WELTEN = [
     { id: 'wald', name: 'Bergwald' }, { id: 'meer', name: 'Meer' }, { id: 'wueste', name: 'Wüste' },
     { id: 'vulkan', name: 'Vulkan' }, { id: 'planeten', name: 'Planeten' }, { id: 'sterne', name: 'Sterne' },
   ];
   const JE_WELT = 10;
   const LEVEL = WELTEN.length * JE_WELT; // 60 je Grad
-  /** Zeichen wie STORY_ICONS im Spiel (createMenu({ icons: STORY_ICONS }) nimmt die des Spiels), dazu «neu starten». */
-  const ICONS = {
-    wald: '<path d="M12 3.5l-5 7h3l-4.5 6.5h13L14 10.5h3z"/><path d="M12 17v3.5"/>',
-    meer: '<path d="M2.5 10c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/><path d="M2.5 15.5c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/>',
-    wueste: '<path d="M2.5 19.5l7-11 7 11z"/><path d="M9.5 8.5l2.2 11"/><circle cx="18.2" cy="6" r="2.2"/>',
-    vulkan: '<path d="M2.5 19.5l5.5-9h2.2l1.8 2 1.8-2h2.2l5.5 9z"/><path d="M11 7.5c-.6-1.6.6-2.6 0-4.2M14 7.5c.8-1.2 1.8-1.6 2.6-1.2"/>',
-    planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
-    sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
-    neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>', // «Level neu starten» im Spiel
-    pfeil: '<path d="M9.5 5.5l6.5 6.5-6.5 6.5"/>',
-  };
+  /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel. */
+  const ICONS = { neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>' };
   const AKTION = { weiter: 'Weiter', beginnen: 'Beginnen', fortsetzen: 'Fortsetzen', uebersicht: 'Übersicht', vonvorn: 'Von vorn' };
   // gleich wie im CSS des Menüs
   const HOCH = '(max-width: 600px) and (orientation: portrait)';
   const STILL = '(prefers-reduced-motion: reduce)';
   const AUS_MS = 800, FRAGE_MS = 300; // Ausblenden des Menüs bzw. der Rückfrage (Transition im CSS des Menüs)
-  const WACHSEN = { start: 0.35, grund: 0.5, je: 1.3 }; // Einblenden: Beginn (s), Dauer = grund + je · Anteil des Wegs
-  // Leuchten der Lichtwege (feGaussianBlur): σ, und der Rand des Filters um das Element (Kern 3 σ, 1 px Glättung)
-  const LEUCHTEN_SIGMA = 2.4, LEUCHTEN_RAND = Math.ceil(3 * LEUCHTEN_SIGMA) + 1;
+  /**
+   * Sternkarte: echte Helligkeit (mag) der Sterne 1 … 7 (Kochab, Pherkad, η, ζ, ε, δ UMi, Polaris) für die Grösse der
+   * Punkte, wohin ihre Namen stehen (vom Stern nach aussen; hoch steht der von Stern 1 darüber, rechts fehlt der Platz).
+   * rand: Platz (px) um den Wagen für die Namen, je Seite; gross: höchstens so viele px je Einheit der Form; kreis:
+   * Abstand der Kreise um den Pol (Einheiten der Form), speiche: Winkel zwischen den Stundenlinien (°). moment: das
+   * Erwachen beim Öffnen beginnt nach ab s, je weiterer Stern schritt s später.
+   */
+  const KARTE = {
+    mag: [2.1, 3.0, 4.9, 4.3, 4.2, 4.3, 2.0],
+    richtung: [[1, -0.15], [0.3, 1], [-0.35, 1], [0.35, -1], [0.3, -1], [0.3, -1], [0, -1]],
+    richtungHoch: { 1: [0.25, -1] },
+    rand: { links: 24, rechts: 116, oben: 46, unten: 48 },
+    randHoch: { links: 46, rechts: 34, oben: 42, unten: 40 },
+    gross: 6, kreis: 23.3, speiche: 30,
+    moment: { ab: 0.7, schritt: 0.45 },
+  };
   let zaehler = 0;
 
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -17148,43 +17134,7 @@ const createMenu = (() => {
     if (text !== undefined) el.textContent = text;
     return el;
   };
-
-  /* ---------- Wege als Polylinien: Länge, Punkt und Richtung bei einer Länge, Stück bis zu einer Länge ---------- */
-
-  function weg(pts) {
-    const len = [0];
-    for (let k = 1; k < pts.length; k++) len.push(len[k - 1] + Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y));
-    return { pts, len, L: len[len.length - 1] };
-  }
-  /** Punkt bei Bogenlänge s, mit Richtung (dx, dy, Länge 1). */
-  function punkt(w, s) {
-    s = clamp(s, 0, w.L);
-    let k = 1;
-    while (k < w.pts.length - 1 && w.len[k] < s) k++;
-    const a = w.pts[k - 1], b = w.pts[k], l = w.len[k] - w.len[k - 1] || 1, t = (s - w.len[k - 1]) / l;
-    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, dx: (b.x - a.x) / l, dy: (b.y - a.y) / l };
-  }
-  function stueck(w, s) {
-    const out = [w.pts[0]];
-    for (let k = 1; k < w.pts.length && w.len[k] < s; k++) out.push(w.pts[k]);
-    out.push(punkt(w, s));
-    return out;
-  }
-  /** Von A über die Ecke C nach S, die Ecke mit Radius r gerundet (quadratische Kurve, in Stücken). */
-  function ecke(A, C, S, r) {
-    const ein = Math.hypot(A.x - C.x, A.y - C.y), aus = Math.hypot(S.x - C.x, S.y - C.y);
-    r = Math.min(r, ein * 0.9, aus * 0.5);
-    const P = { x: C.x + (A.x - C.x) / ein * r, y: C.y + (A.y - C.y) / ein * r };
-    const Q = { x: C.x + (S.x - C.x) / aus * r, y: C.y + (S.y - C.y) / aus * r };
-    const pts = [A, P];
-    for (let k = 1; k < 10; k++) {
-      const t = k / 10, u = 1 - t;
-      pts.push({ x: u * u * P.x + 2 * u * t * C.x + t * t * Q.x, y: u * u * P.y + 2 * u * t * C.y + t * t * Q.y });
-    }
-    pts.push(Q, S);
-    return pts;
-  }
-  const punkte = (pts) => pts.map((p) => `${f(p.x)},${f(p.y)}`).join(' ');
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
   /* ---------- Stand lesen ---------- */
 
@@ -17200,8 +17150,12 @@ const createMenu = (() => {
       if (art !== 'begonnen') welt = art === 'geschafft' ? WELTEN.length : -1;
       else if (dorf) welt = -1;
       else if (!(welt >= 0 && welt < WELTEN.length)) welt = Math.min(WELTEN.length - 1, Math.floor(geloest / JE_WELT));
+      // wache Sterne: geschafft alle sieben, begonnen höchstens die sechs der Welten
+      const wach = art === 'geschafft' ? WELTEN.length + 1 : art === 'neu' ? 0
+        : clamp(Math.floor(Number.isFinite(+s.wach) ? +s.wach : geloest / JE_WELT), 0, WELTEN.length);
+      const naechster = art === 'begonnen' && wach < WELTEN.length ? wach + 1 : 0; // Stern der Welt, in der das Licht ist
       const aktion = art === 'geschafft' ? (uebersicht ? 'uebersicht' : 'vonvorn') : art === 'neu' ? 'beginnen' : 'fortsetzen';
-      return { ...g, i, art, geloest, welt, dorf, aktion, anteil: geloest / LEVEL };
+      return { ...g, i, art, geloest, welt, dorf, wach, naechster, aktion };
     });
     const zuletzt = grade.find((g) => g.id === stand?.zuletzt) ?? null;
     const weiter = zuletzt?.art === 'begonnen' ? zuletzt : null;
@@ -17214,15 +17168,21 @@ const createMenu = (() => {
   const weltName = (g) => (g.dorf ? 'Dorf' : WELTEN[g.welt].name);
   const ariaStand = (g) => (g.art === 'geschafft' ? 'geschafft, Polarstern erreicht' : g.art === 'neu' ? 'noch nicht begonnen'
     : `begonnen, ${g.dorf ? 'im Dorf' : weltName(g)}, ${g.geloest} von ${LEVEL} Leveln gelöst`);
+  const wohin = (g) => (g.art === 'neu' ? `${g.name} · noch nicht begonnen` : g.art === 'geschafft' ? `${g.name} · geschafft`
+    : `${g.name} · ${weltName(g)} ${g.geloest} / ${LEVEL}`);
+  /** Was als Nächstes am Himmel des Grads geschieht (Handy hoch, unter der Karte). */
+  const fein = (g) => (g.art === 'geschafft' ? 'Alle sieben Sterne sind wach' : g.art === 'neu' ? 'Alle Sterne schlafen'
+    : g.naechster ? `Als Nächstes erwacht Stern ${g.naechster}: ${WELTEN[g.naechster - 1].name}`
+      : 'Nur der Polarstern wartet noch');
 
   /* ---------- Baustein ---------- */
 
-  return function createMenu({ root, onAction = () => {}, uebersicht = true, icons = {} } = {}) {
+  return function createMenu({ root, onAction = () => {}, uebersicht = true, wagen = null } = {}) {
     if (!root) throw new Error('createMenu: root fehlt');
     const uid = `menue-${++zaehler}`;
-    const ICO = { ...ICONS, ...icons };
-    const icon = (id) => `<svg class="menue-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICO[id]}</svg>`;
+    const icon = (id) => `<svg class="menue-ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false">${ICONS[id]}</svg>`;
     const stern = () => `<span class="menue-stern" aria-hidden="true"><svg viewBox="0 0 100 100" focusable="false"><use href="#${uid}-stern"/></svg></span>`;
+    const form = wagen?.form ?? [], linien = wagen?.linien ?? [], polar = wagen?.polarstern ?? form.length;
 
     root.classList.add('menue', 'menue-aus');
     root.hidden = true;
@@ -17234,6 +17194,7 @@ const createMenu = (() => {
       <svg class="menue-defs" aria-hidden="true" focusable="false"><defs>
         <radialGradient id="${uid}-hof"><stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="0.22" stop-color="#cdd4ff" stop-opacity="0.26"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
         <radialGradient id="${uid}-strahl"><stop offset="0" stop-color="#ffffff"/><stop offset="0.7" stop-color="#e6eaff" stop-opacity="0.5"/><stop offset="1" stop-color="#e6eaff" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${uid}-schein"><stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/><stop offset="0.22" stop-color="#dfe3ff" stop-opacity="0.32"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
         <symbol id="${uid}-stern" viewBox="-50 -50 100 100">
           <circle r="48" fill="url(#${uid}-hof)"/>
           <path d="M0-46L2.4-2.4 30 0 2.4 2.4 0 46-2.4 2.4-30 0-2.4-2.4z" fill="url(#${uid}-strahl)"/>
@@ -17242,11 +17203,13 @@ const createMenu = (() => {
         </symbol>
       </defs></svg>
       <div class="menue-inhalt">
-        <svg class="menue-wege" aria-hidden="true" focusable="false"></svg>
         <header class="menue-kopf"><h2 class="menue-titel">Prisma</h2><p class="menue-unter">Ein Lichtsignal an die Sterne</p></header>
-        <div class="menue-ziel" aria-hidden="true">${stern()}<span class="menue-wort">Polarstern</span></div>
-        <button type="button" class="menue-weiter" data-menue-fokus="weiter" hidden><span>Weiter</span><span class="menue-wohin"></span></button>
         <ol class="menue-grade" aria-label="Grade"></ol>
+        <div class="menue-karte" aria-hidden="true"><svg class="menue-sternkarte" focusable="false"></svg></div>
+        <div class="menue-info" aria-hidden="true"><span class="menue-info-name"></span><span class="menue-stand"></span><span class="menue-fein"></span></div>
+        <div class="menue-knoepfe">
+          <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
+        </div>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">
@@ -17264,8 +17227,9 @@ const createMenu = (() => {
     // den Startbildschirm) den Fokus setzt; mit Zeiger oder Finger bedient, bleibt er weg (CSS .menue-zeiger)
     addEventListener('pointerdown', () => root.classList.add('menue-zeiger'), true);
     addEventListener('keydown', () => root.classList.remove('menue-zeiger'), true);
-    const inhalt = $('.menue-inhalt'), svg = $('.menue-wege'), liste = $('.menue-grade'), weiterBtn = $('.menue-weiter');
-    const sternEl = $('.menue-ziel .menue-stern'), frageEl = $('.menue-frage'), sr = $('.menue-sr');
+    const inhalt = $('.menue-inhalt'), karte = $('.menue-karte'), svg = $('.menue-sternkarte'), liste = $('.menue-grade');
+    const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
+    const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
 
     let daten = lies({}, uebersicht);
@@ -17273,45 +17237,51 @@ const createMenu = (() => {
     let gesperrt = false;   // nach einer Aktion (ausser «Von vorn») bis zum nächsten show(): kein Doppelklick
     let frage = null;       // Grad der offenen Rückfrage
     let frageVon = null;    // Knopf, der sie geöffnet hat (bekommt den Fokus zurück)
-    let aktiv = null;       // Grad unter Zeiger oder Fokus: sein Weg heller
-    let wachsenSeit = -Infinity; // Zeit des Einblendens (performance.now) für die Bewegung der Wege
+    let wahlId = null;      // Grad des gewählten Reiters: seine Karte und sein Knopf
     let warm = false;       // vorwaermen zeichnet gerade unsichtbar
     let zeitAus = 0, zeitFrage = 0, plan = 0;
+    const gezeigt = new Map(); // je Grad: so viele Sterne waren beim letzten Zeigen wach (der Moment des Erwachens)
+    let gezeichnet = '';    // was die Karte zeigt (Grösse, Grad, Stand): dasselbe nicht neu zeichnen
+    let momentBis = 0;      // bis dahin läuft der Moment (performance.now); danach einmal ohne ihn neu zeichnen
 
-    /* ---------- Aufbau der Grade ---------- */
+    const gewaehlt = () => daten.grade.find((g) => g.id === wahlId) ?? daten.grade[0];
+    /** Reiter beim Öffnen: der Grad von «Weiter», sonst der hervorgehobene, der zuletzt gespielte, der erste begonnene. */
+    const startWahl = () => (daten.weiter ?? daten.hervor ?? daten.zuletzt ?? daten.grade.find((x) => x.art === 'begonnen')
+      ?? daten.grade[0]).id;
+    const aktionVon = (g) => (g === daten.weiter ? 'weiter' : g.aktion);
 
+    /* ---------- Aufbau: Reiter, Knopf, «Von vorn» ---------- */
+
+    function standEl(el, g) {
+      el.replaceChildren();
+      if (g.art === 'geschafft') { el.innerHTML = stern(); el.append(make('span', '', 'Geschafft')); }
+      else if (g.art === 'neu') el.textContent = 'noch nicht begonnen';
+      else el.append(make('span', '', weltName(g)), make('span', 'menue-trenn', '·'), make('span', 'menue-zahl', `${g.geloest} / ${LEVEL}`));
+    }
     function render() {
       liste.replaceChildren();
+      for (const b of knoepfe.querySelectorAll('.menue-vonvorn')) b.remove();
       for (const g of daten.grade) {
         const li = make('li', `menue-grad menue-${g.art}`);
         li.dataset.grad = g.id;
-        li.style.setProperty('--menue-i', g.i);
         if (g === daten.hervor) li.classList.add('menue-hervor');
         if (g === daten.weiter) li.classList.add('menue-zuletzt');
-
-        const lampe = make('span', 'menue-lampe');
-        lampe.setAttribute('aria-hidden', 'true');
-
         const wahl = make('button', 'menue-wahl');
         wahl.type = 'button';
         wahl.dataset.menueFokus = `wahl:${g.id}`;
-        wahl.setAttribute('aria-label', `${g.name}: ${ariaStand(g)}${g === daten.hervor ? ', als Nächstes empfohlen' : ''}. ${AKTION[g.aktion]}`);
-        if (g.aktion === 'vonvorn') wahl.setAttribute('aria-haspopup', 'dialog');
+        wahl.setAttribute('aria-label', `${g.name}: ${ariaStand(g)}${g === daten.hervor ? ', als Nächstes empfohlen' : ''}. ${AKTION[aktionVon(g)]}`);
         const zeile = make('span', 'menue-zeile1');
         const pips = make('span', 'menue-pips');
         for (let k = 1; k <= 4; k++) pips.append(make('i', k <= g.punkte ? 'menue-on' : ''));
         zeile.append(pips, make('span', 'menue-name', g.name));
         const stand = make('span', 'menue-stand');
-        if (g.art === 'geschafft') { stand.innerHTML = stern(); stand.append(make('span', '', 'Geschafft')); }
-        else if (g.art === 'neu') stand.textContent = 'noch nicht begonnen';
-        else stand.append(make('span', '', weltName(g)), make('span', 'menue-trenn', '·'), make('span', 'menue-zahl', `${g.geloest} / ${LEVEL}`));
-        const aktion = make('span', 'menue-aktion', AKTION[g.aktion]);
-        aktion.insertAdjacentHTML('beforeend', icon('pfeil'));
-        wahl.append(zeile, stand, aktion);
-        wahl.addEventListener('click', () => (g.aktion === 'vonvorn' ? oeffneFrage(g, wahl) : melde(g.aktion, g)));
-        li.append(wahl, lampe);
-
-        // «Von vorn» bei begonnenem oder geschafftem Grad (ohne Übersicht ist es beim geschafften schon die Karte)
+        standEl(stand, g);
+        wahl.append(zeile, stand);
+        wahl.addEventListener('click', () => waehle(g.id));
+        li.append(wahl);
+        liste.append(li);
+        // «Von vorn» bei begonnenem oder geschafftem Grad (ohne Übersicht ist es beim geschafften schon der Knopf),
+        // zu sehen beim gewählten
         if (g.art !== 'neu' && g.aktion !== 'vonvorn') {
           const vv = make('button', 'menue-vonvorn');
           vv.type = 'button';
@@ -17320,146 +17290,123 @@ const createMenu = (() => {
           vv.setAttribute('aria-haspopup', 'dialog');
           vv.innerHTML = `${icon('neu')}<span>Von vorn</span>`;
           vv.addEventListener('click', () => oeffneFrage(g, vv));
-          li.append(vv);
+          knoepfe.append(vv);
         }
-        liste.append(li);
       }
-      const w = daten.weiter;
-      weiterBtn.hidden = !w;
-      root.classList.toggle('menue-mit-weiter', !!w);
-      if (w) {
-        weiterBtn.querySelector('.menue-wohin').textContent = `${w.name} · ${weltName(w)} ${w.geloest} / ${LEVEL}`;
-        weiterBtn.setAttribute('aria-label', `Weiter: ${w.name}, ${w.dorf ? 'im Dorf' : weltName(w)}, ${w.geloest} von ${LEVEL} Leveln gelöst`);
+      setzeWahl();
+    }
+    /** Den gewählten Reiter zeigen: hervorgehoben, seine Karte, sein Knopf, sein «Von vorn», sein Stand (hoch). */
+    function setzeWahl() {
+      const g = gewaehlt();
+      for (const li of liste.children) {
+        const an = li.dataset.grad === g.id;
+        li.classList.toggle('menue-an', an);
+        li.firstChild.setAttribute('aria-current', an ? 'true' : 'false');
       }
+      for (const b of knoepfe.querySelectorAll('.menue-vonvorn')) b.hidden = b.dataset.menueFokus !== `vonvorn:${g.id}`;
+      const a = aktionVon(g);
+      knopf.querySelector('.menue-was').textContent = AKTION[a];
+      knopf.querySelector('.menue-wohin').textContent = wohin(g);
+      knopf.setAttribute('aria-label', `${AKTION[a]}: ${g.name}, ${ariaStand(g)}`);
+      if (a === 'vonvorn') knopf.setAttribute('aria-haspopup', 'dialog'); else knopf.removeAttribute('aria-haspopup');
+      info.querySelector('.menue-info-name').textContent = g.name;
+      standEl(info.querySelector('.menue-stand'), g);
+      info.querySelector('.menue-fein').textContent = fein(g);
+      zeichne();
+    }
+    function waehle(id) {
+      if (id === wahlId) return;
+      wahlId = id;
+      setzeWahl();
     }
 
-    /* ---------- Wege zeichnen (bei jeder Grössenänderung neu) ---------- */
+    /* ---------- Sternkarte zeichnen (bei jeder Grössenänderung und jeder Wahl neu) ---------- */
 
     function zeichne() {
-      if (!offen && !warm) return;
+      if (!offen && !warm || !form.length) return;
       // in Pixeln der Oberfläche: getBoundingClientRect misst in Pixeln des Layouts (SEITE)
-      const R = root.getBoundingClientRect(), W = R.width / SEITE, H = R.height / SEITE;
+      const R = karte.getBoundingClientRect(), W = R.width / SEITE, H = R.height / SEITE;
       if (!W || !H) return;
-      const mitte = (el) => { const r = el.getBoundingClientRect(); return { x: (r.left - R.left + r.width / 2) / SEITE, y: (r.top - R.top + r.height / 2) / SEITE }; };
-      const hoch = matchMedia(seiteMedia(HOCH)).matches;
-      const S = mitte(sternEl);
-      const lis = [...liste.children];
-      const lampen = lis.map((li) => mitte(li.querySelector('.menue-lampe')));
-      const listeOben = lis.length ? (lis[0].getBoundingClientRect().top - R.top) / SEITE : H;
-      // hochkant: senkrecht vor der Lampe hinauf bis über die Zeilen, dort zum Stern; je schwerer, desto höher biegt er
-      // ab (Leicht innen und am tiefsten): so kreuzen sich die Wege nie, und keiner läuft über eine Beschriftung
-      const abstand = clamp((listeOben - 12 - (S.y + 50)) / 4, 6, 22);
-      const wege = daten.grade.map((g, i) => {
-        const A = lampen[i];
-        const T = listeOben - 12 - i * abstand;
-        if (hoch && T < A.y - 2 && T > S.y + 20) return weg(ecke(A, { x: A.x, y: T }, S, Math.min(14, abstand * 0.7)));
-        return weg([A, S]);
-      });
+      const g = gewaehlt(), hoch = matchMedia(seiteMedia(HOCH)).matches, rand = hoch ? KARTE.randHoch : KARTE.rand;
+      // dasselbe Bild nicht noch einmal (ResizeObserver, Schriften, show mit gleichem Stand): ein laufender Moment bliebe
+      // sonst nicht stehen
+      const key = [W, H, hoch, g.id, g.art, g.wach, g.geloest].join();
+      if (key === gezeichnet && (!momentBis || performance.now() < momentBis)) return;
+      gezeichnet = key;
+      momentBis = 0;
+      const xs = form.map((p) => p[0]), ys = form.map((p) => p[1]);
+      const x0 = Math.min(...xs), y0 = Math.min(...ys), bw = Math.max(...xs) - x0, bh = Math.max(...ys) - y0;
+      const s = clamp(Math.min((W - rand.links - rand.rechts) / bw, (H - rand.oben - rand.unten) / bh), 0.8, KARTE.gross);
+      // der Wagen samt dem Platz für die Namen mittig in der Karte
+      const ox = rand.links + (W - rand.links - rand.rechts - bw * s) / 2 - x0 * s;
+      const oy = rand.oben + (H - rand.oben - rand.unten - bh * s) / 2 - y0 * s;
+      const P = (k) => [ox + form[k - 1][0] * s, oy + form[k - 1][1] * s];
+      const wach = (k) => (k === polar ? g.wach > WELTEN.length : k <= g.wach);
+      const da = ([a, b]) => wach(a) && wach(b);
+      // Moment: erst beim Zeigen, nicht beim Vorwärmen; was seit dem letzten Zeigen dieses Grads erwacht ist
+      const vorher = gezeigt.get(g.id), still = !offen || matchMedia(STILL).matches;
+      const ab = !still && vorher !== undefined && vorher < g.wach ? vorher : g.wach;
+      gezeigt.set(g.id, g.wach);
+      const warVorher = (k) => (k === polar ? ab > WELTEN.length : k <= ab);
+      const M = KARTE.moment, um = (k) => M.ab + M.schritt * (Math.min(k, WELTEN.length + 1) - ab - 1);
 
-      // Bewegung beim Einblenden: was schon vergangen ist, rechnet das CSS ab (Neuzeichnen mitten im Wachsen)
-      const vorbei = (performance.now() - wachsenSeit) / 1000;
-      const wachsen = vorbei < 3.2 && !matchMedia(STILL).matches;
-      svg.classList.toggle('menue-wachsen', wachsen);
-      svg.style.setProperty('--menue-vorbei', `${Math.max(0, vorbei).toFixed(3)}s`);
-      const dauer = (g) => WACHSEN.grund + WACHSEN.je * g.anteil;
-      // Zeitpunkt, an dem das Licht den Bruchteil y seines Wegs erreicht (Umkehrung von ease-out-cubic)
-      const bei = (g, y) => WACHSEN.start + dauer(g) * (1 - Math.cbrt(1 - clamp(y, 0, 1)));
-
-      // die sechs Welten als Zeichen: auf dem Weg von «Weiter», sonst des hervorgehobenen, ganz neu auf dem leichten
-      const haupt = daten.weiter ?? daten.hervor ?? (daten.grade.every((g) => g.art === 'neu') ? daten.grade[0] : null);
-      // Leuchten: je Element ein eigener Filter über sein Hüllrechteck plus Rand (3 σ des Blurs, halbe Strichbreite,
-      // Kantenglättung), nicht über das ganze Menü; Safari rechnet SVG-Filter auf der CPU, im Wachsen in jedem Bild
-      // (Ticket 12 von .scratch/leistung/). userSpaceOnUse, weil objectBoundingBox bei waagrechten oder senkrechten
-      // Wegen (Höhe bzw. Breite 0) nichts zeichnet.
-      // Ecken auf ein Raster von 8 Gerätepixeln wie die alte Fläche ab (0, 0): Bei grossem σ in Gerätepixeln (Handy)
-      // rechnet Skia den Blur verkleinert, das Raster dafür beginnt an der Ecke der Fläche (Handy ohne: bis 4/255
-      // anders, mit: bis 2/255; Desktop gleich)
-      let filter = '', nFilter = 0;
-      const dpr = devicePixelRatio || 1, px = (v) => +(v / dpr).toFixed(4);
-      const rasterAb = (v) => Math.floor(v * dpr / 8) * 8, rasterAuf = (v) => Math.ceil(v * dpr / 8) * 8;
-      const leuchten = (pts, r) => {
-        const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y), rand = r + LEUCHTEN_RAND;
-        const x0 = rasterAb(Math.min(...xs) - rand), y0 = rasterAb(Math.min(...ys) - rand);
-        const x1 = rasterAuf(Math.max(...xs) + rand), y1 = rasterAuf(Math.max(...ys) + rand);
-        const id = `${uid}-leuchten-${nFilter++}`;
-        filter += `<filter id="${id}" filterUnits="userSpaceOnUse" x="${px(x0)}" y="${px(y0)}" width="${px(x1 - x0)}" height="${px(y1 - y0)}">`
-          + `<feGaussianBlur stdDeviation="${LEUCHTEN_SIGMA}" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
-        return `filter="url(#${id})"`;
-      };
-      let unten = '', oben = '';
-      daten.grade.forEach((g, i) => {
-        const w = wege[i], p = g.anteil, s = p * w.L;
-        const cls = ['menue-weg', `menue-${g.art}`, g === daten.hervor && 'menue-hervor', g.id === aktiv && 'menue-an'].filter(Boolean).join(' ');
-        let teil = `<polyline class="menue-grund" points="${punkte(w.pts)}"/>`;
-        if (p > 0) {
-          const pts = stueck(w, s);
-          const z = `style="--len:${f(s)};--dur:${dauer(g).toFixed(2)}s;--d:${WACHSEN.start}s" points="${punkte(pts)}"`;
-          // Rand: halbe Strichbreite von .menue-licht (1,8)
-          teil += `<polyline class="menue-hof" ${z}/><polyline class="menue-licht" ${leuchten(pts, 0.9)} ${z}/>`;
-        }
-        unten += `<g class="${cls}" data-grad="${g.id}">${teil}</g>`;
-        // Grenzen der Welten
-        for (let k = 1; k < WELTEN.length; k++) {
-          const y = k / WELTEN.length, P = punkt(w, y * w.L), an = y <= p + 1e-9, c = `cx="${f(P.x)}" cy="${f(P.y)}"`;
-          oben += `<circle class="menue-station" ${c} r="2.4"/>`; // darüber geht er an, wenn das Licht ihn erreicht
-          if (an) oben += `<circle class="menue-station menue-an menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s" ${c} r="2.6"/>`;
-        }
-        if (g === haupt) {
-          const s2 = hoch ? 15 : 17, o = hoch ? 0 : 19; // hochkant auf dem Weg (die Bahnen liegen eng), sonst daneben
-          WELTEN.forEach((welt, k) => {
-            const y = (k + 0.5) / WELTEN.length, M = punkt(w, y * w.L);
-            const n = { x: M.dy, y: -M.dx }; // links der Richtung zum Stern
-            const x = M.x + n.x * o, yy = M.y + n.y * o;
-            const zcls = k < g.welt ? 'menue-an' : k === g.welt ? 'menue-jetzt' : '';
-            const auf = y <= p ? ` menue-auf" style="--d:${bei(g, y / p).toFixed(2)}s` : '';
-            // Rand: die Scheibe (hochkant, Radius s2/2 + 3) bzw. das Zeichen (s2/2) mit Strich
-            oben += `<g class="menue-welt ${zcls}${auf}"${k === g.welt ? ` ${leuchten([{ x, y: yy }], s2 / 2 + 3)}` : ''}>`
-              + (hoch ? `<circle class="menue-scheibe" cx="${f(x)}" cy="${f(yy)}" r="${s2 / 2 + 3}"/>` : '')
-              + `<svg x="${f(x - s2 / 2)}" y="${f(yy - s2 / 2)}" width="${s2}" height="${s2}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">${ICO[welt.id]}</svg></g>`;
-          });
-        }
-        // Kopf des Lichts: gross am Weg von «Weiter», klein bei den übrigen begonnenen
-        if (g.art === 'begonnen' && p > 0) {
-          const K = punkt(w, s), d = `style="--d:${(WACHSEN.start + dauer(g) * 0.85).toFixed(2)}s"`;
-          oben += g === daten.weiter
-            ? `<g class="menue-auf" ${d}><circle cx="${f(K.x)}" cy="${f(K.y)}" r="20" fill="url(#${uid}-kopf)"/><circle cx="${f(K.x)}" cy="${f(K.y)}" r="3.6" fill="#fff"/></g>`
-            : `<circle class="menue-auf" ${d} cx="${f(K.x)}" cy="${f(K.y)}" r="2.8" fill="#fff"/>`;
-        }
-      });
-
-      // «Weiter» (Desktop, quer) unter dem Kopf des Lichts, mit feiner Linie dorthin; nie über die Beschriftung der
-      // Grade, nie über den Rand; hochkant liegt es fest unten (CSS)
-      weiterBtn.style.left = weiterBtn.style.top = '';
-      const wg = daten.weiter;
-      if (wg && !hoch) {
-        const w = wege[wg.i], K = punkt(w, wg.anteil * w.L);
-        let u = { x: -K.dy, y: K.dx }; // rechts der Richtung: beim Weg nach rechts oben ist das unten
-        if (u.y < 0) u = { x: -u.x, y: -u.y };
-        const r = weiterBtn.getBoundingClientRect(), bw = r.width / SEITE, bh = r.height / SEITE;
-        const ab = bh / 2 + 26, rand = 16;
-        if (K.y + u.y * ab + bh / 2 > H - rand) u = { x: -u.x, y: -u.y }; // unten kein Platz: über den Weg
-        const links = Math.max(...lampen.map((a) => a.x)) + 28 + bw / 2;
-        const B = {
-          x: Math.max(links, Math.min(K.x + u.x * ab, W - rand - bw / 2)),
-          y: clamp(K.y + u.y * ab, rand + bh / 2, H - rand - bh / 2),
-        };
-        weiterBtn.style.left = `${f(B.x)}px`;
-        weiterBtn.style.top = `${f(B.y)}px`;
-        // Linie vom Kopf bis an den Rand der Pille
-        const v = { x: K.x - B.x, y: K.y - B.y }, t = Math.min(bw / 2 / Math.abs(v.x || 1e-6), bh / 2 / Math.abs(v.y || 1e-6));
-        if (t < 1) {
-          const E = { x: B.x + v.x * t, y: B.y + v.y * t }, l = Math.hypot(K.x - E.x, K.y - E.y);
-          if (l > 14) {
-            const a = { x: K.x + (E.x - K.x) / l * 7, y: K.y + (E.y - K.y) / l * 7 };
-            oben += `<line class="menue-faden menue-auf" style="--d:${(WACHSEN.start + dauer(wg) * 0.85).toFixed(2)}s" x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(E.x)}" y2="${f(E.y)}"/>`;
-          }
-        }
+      const kern = clamp(0.45 * s, 1.4, 2.7), ring = Math.max(7, 2.2 * s), breite = clamp(0.45 + 0.24 * s, 0.8, 1.7);
+      const abstand = clamp(2 * s + 8, 11, 20);
+      // Netz der Sternkarte: Kreise um den Pol, Stundenlinien, in der Karte
+      const [px, py] = P(polar), weit = Math.hypot(W, H) + Math.hypot(px, py);
+      let netz = '';
+      for (let r = KARTE.kreis * s; r < weit; r += KARTE.kreis * s) netz += `<circle cx="${f(px)}" cy="${f(py)}" r="${f(r)}"/>`;
+      for (let w = 0; w < 360; w += KARTE.speiche) {
+        const a = w * Math.PI / 180;
+        netz += `<line x1="${f(px)}" y1="${f(py)}" x2="${f(px + Math.cos(a) * weit)}" y2="${f(py + Math.sin(a) * weit)}"/>`;
       }
-
+      let teile = `<defs><clipPath id="${uid}-rand"><rect width="${f(W)}" height="${f(H)}" rx="24"/></clipPath></defs>`
+        + `<g class="menue-netz" clip-path="url(#${uid}-rand)">${netz}</g>`;
+      // Linien: noch fehlende gestrichelt, gezogene hell (eben gezogene ziehen sich vom ersten Stern zum zweiten)
+      for (const l of linien) {
+        const [ax, ay] = P(l[0]), [bx, by] = P(l[1]), xy = `x1="${f(ax)}" y1="${f(ay)}" x2="${f(bx)}" y2="${f(by)}"`;
+        teile += `<line class="menue-geist" ${xy} stroke-width="${f(breite)}"/>`;
+        if (!da(l)) continue;
+        const neu = !(warVorher(l[0]) && warVorher(l[1]));
+        teile += `<line class="menue-linie${neu ? ' menue-zieht' : ''}" ${xy} stroke-width="${f(breite)}"`
+          + (neu ? ` style="--len:${f(Math.hypot(bx - ax, by - ay) + 1)};--d:${um(Math.max(...l)) + 0.2}s"` : '') + '/>';
+      }
+      // Sterne: Punktgrösse nach der Helligkeit; wache mit Hof, schlafende klein und blass; der Polarstern mit Strahlen
+      let namen = '';
+      for (let k = 1; k <= form.length; k++) {
+        const [x, y] = P(k), m = 1 + (4.9 - KARTE.mag[k - 1]) * 0.3, an = wach(k), neu = an && !warVorher(k);
+        const r = kern * m * (an ? 1 : 0.62), d = neu ? ` style="--d:${um(k)}s"` : '';
+        teile += `<g transform="translate(${f(x)} ${f(y)})"><g class="menue-ks${an ? ' menue-an' : ''}${neu ? ' menue-erwacht' : ''}"${d}>`;
+        if (k === polar) {
+          const gr = kern * m * 4.6 / 46 * 100 * (an ? 1.25 : 1);
+          teile += `<use href="#${uid}-stern" x="${f(-gr / 2)}" y="${f(-gr / 2)}" width="${f(gr)}" height="${f(gr)}"/>`;
+        } else {
+          if (an) teile += `<circle class="menue-schein" r="${f(kern * 5.5 * m)}" fill="url(#${uid}-schein)"/>`;
+          teile += `<circle class="menue-kern" r="${f(r)}"/>`;
+        }
+        teile += '</g>';
+        if (k === g.naechster) {
+          teile += `<circle class="menue-ring${ab < g.wach ? ' menue-spaeter' : ''}" r="${f(ring)}"`
+            + (ab < g.wach ? ` style="--d:${um(g.wach) + 0.6}s"` : '') + '/>';
+        }
+        teile += '</g>';
+        // Name nach aussen, darunter bei geweckten und beim Stern der Welt die gelösten Level dieser Welt
+        const [dx0, dy0] = (hoch && KARTE.richtungHoch[k]) || KARTE.richtung[k - 1], n = Math.hypot(dx0, dy0);
+        const dx = dx0 / n, dy = dy0 / n, tx = x + dx * abstand, ty = y + dy * abstand;
+        const zahl = k === polar ? '' : an ? `${JE_WELT} / ${JE_WELT}`
+          : k === g.naechster ? `${clamp(g.geloest - (k - 1) * JE_WELT, 0, JE_WELT)} / ${JE_WELT}` : '';
+        const seit = Math.abs(dx) > Math.abs(dy), anker = seit ? (dx > 0 ? 'start' : 'end') : 'middle';
+        const lage = seit ? 'central' : dy > 0 ? 'hanging' : 'auto';
+        const [d1, d2] = !zahl ? ['0', '0'] : seit ? ['-0.6em', '1.25em'] : dy > 0 ? ['0', '1.3em'] : ['-1.15em', '1.3em'];
+        const cls = k === polar ? `menue-polar${an ? ' menue-an' : ''}`
+          : `menue-welt${an ? ' menue-an' : k === g.naechster ? ' menue-jetzt' : ''}`;
+        namen += `<text class="menue-etikett ${cls}" x="${f(tx)}" y="${f(ty)}" text-anchor="${anker}" dominant-baseline="${lage}">`
+          + `<tspan x="${f(tx)}" dy="${d1}">${esc(k === polar ? 'Polarstern' : WELTEN[k - 1].name)}</tspan>`
+          + (zahl ? `<tspan class="menue-klein" x="${f(tx)}" dy="${d2}">${zahl}</tspan>` : '') + '</text>';
+      }
       svg.setAttribute('viewBox', `0 0 ${f(W)} ${f(H)}`);
-      svg.innerHTML = `<defs>${filter}
-          <radialGradient id="${uid}-kopf"><stop offset="0" stop-color="#fff" stop-opacity="0.75"/><stop offset="0.35" stop-color="#cdd4ff" stop-opacity="0.25"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
-        </defs>${unten}${oben}`;
+      svg.innerHTML = teile + namen;
+      if (ab < g.wach) momentBis = performance.now() + (um(g.wach) + 2) * 1000;
     }
     /** Neu zeichnen im nächsten Bild (mehrere Anlässe zugleich: einmal). */
     function planen() {
@@ -17469,17 +17416,11 @@ const createMenu = (() => {
     const beobachter = typeof ResizeObserver === 'function' ? new ResizeObserver(planen) : null;
     addEventListener('resize', planen);
     document.fonts?.ready?.then(planen);
-
-    /** Zeiger oder Fokus auf einem Grad: sein Weg heller. */
-    function setzeAktiv(id) {
-      if (id === aktiv) return;
-      aktiv = id;
-      for (const el of svg.querySelectorAll('.menue-weg')) el.classList.toggle('menue-an', el.dataset.grad === id);
-    }
-    const gradVon = (el) => (el === weiterBtn ? daten.weiter?.id ?? null : el?.closest?.('.menue-grad')?.dataset.grad ?? null);
-    inhalt.addEventListener('pointerover', (e) => setzeAktiv(gradVon(e.target)));
-    inhalt.addEventListener('pointerleave', () => setzeAktiv(gradVon(document.activeElement)));
-    inhalt.addEventListener('focusin', (e) => setzeAktiv(gradVon(e.target)));
+    // Fokus auf einem Reiter (Tab, Pfeile, Rückkehr aus der Übersicht): er ist gewählt
+    inhalt.addEventListener('focusin', (e) => {
+      const li = e.target.classList?.contains('menue-wahl') ? e.target.closest('.menue-grad') : null;
+      if (li) waehle(li.dataset.grad);
+    });
 
     /* ---------- Fokus ---------- */
 
@@ -17487,16 +17428,12 @@ const createMenu = (() => {
     function fokussiere(key) {
       const el = ziel(key);
       if (el && !el.hidden) el.focus({ preventScroll: true });
-      return !!el;
+      return !!el && !el.hidden;
     }
-    /** Wohin der Fokus beim Öffnen geht: «Weiter», sonst der hervorgehobene, der zuletzt gespielte, der erste Grad. */
-    function startFokus() {
-      if (daten.weiter) return 'weiter';
-      const g = daten.hervor ?? daten.zuletzt ?? daten.grade.find((x) => x.art === 'begonnen') ?? daten.grade[0];
-      return `wahl:${g.id}`;
-    }
-    /** Haltepunkte der Pfeiltasten: «Weiter», dann die Grade von oben nach unten. */
-    const halte = () => [...(daten.weiter ? [weiterBtn] : []), ...liste.querySelectorAll('.menue-wahl')];
+    /** Wohin der Fokus beim Öffnen geht: «Weiter», sonst der Reiter des hervorgehobenen, zuletzt gespielten, ersten Grads. */
+    const startFokus = () => (daten.weiter ? 'weiter' : `wahl:${startWahl()}`);
+    /** Haltepunkte der Pfeiltasten: der Knopf, dann die Reiter von oben nach unten. */
+    const halte = () => [knopf, ...liste.querySelectorAll('.menue-wahl')];
 
     /* ---------- Aktionen und Rückfrage ---------- */
 
@@ -17505,7 +17442,9 @@ const createMenu = (() => {
       if (aktion !== 'vonvorn') gesperrt = true; // das Spiel blendet das Menü aus; show() gibt es wieder frei
       onAction({ aktion, grad: g.id });
     }
-    weiterBtn.addEventListener('click', () => { if (daten.weiter) melde('weiter', daten.weiter); });
+    /** Die Aktion des Grads g (Knopf oder Enter auf seinem Reiter); von: der Knopf, der sie auslöst. */
+    const handle = (g, von) => (g.aktion === 'vonvorn' ? oeffneFrage(g, von) : melde(aktionVon(g), g));
+    knopf.addEventListener('click', () => handle(gewaehlt(), knopf));
 
     function oeffneFrage(g, von) {
       if (!offen || gesperrt) return;
@@ -17563,13 +17502,18 @@ const createMenu = (() => {
         }
         return false;
       }
+      const akt = document.activeElement;
+      // Enter auf einem Reiter: die Aktion seines Grads (Klick und Leertaste wählen ihn nur); gehalten: nichts
+      if (e.key === 'Enter' && akt?.classList?.contains('menue-wahl') && root.contains(akt)) {
+        const g = daten.grade.find((x) => x.id === akt.closest('.menue-grad').dataset.grad);
+        if (g && !e.repeat) { waehle(g.id); handle(g, akt); }
+        return true;
+      }
       const schritt = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
       if (!schritt && e.key !== 'Home' && e.key !== 'End') return false;
       const stopps = halte();
-      if (!stopps.length) return false;
-      const akt = document.activeElement;
       let i = stopps.indexOf(akt);
-      if (i < 0 && akt?.closest?.('.menue-grad')) i = stopps.indexOf(akt.closest('.menue-grad').querySelector('.menue-wahl'));
+      if (i < 0 && akt?.classList?.contains('menue-vonvorn')) i = 0; // «Von vorn» gehört zum Knopf
       let el;
       if (e.key === 'Home') el = stopps[0];
       else if (e.key === 'End') el = stopps[stopps.length - 1];
@@ -17587,13 +17531,14 @@ const createMenu = (() => {
 
     return {
       get offen() { return offen; },
-      /** Einblenden mit dem Stand des Spiels; ist das Menü schon offen, neu aufbauen (Fokus bleibt beim selben Knopf). */
+      /** Einblenden mit dem Stand des Spiels; ist das Menü schon offen, neu aufbauen (Fokus und Reiter bleiben). */
       show(stand = {}) {
         daten = lies(stand, uebersicht);
         gesperrt = false;
         const war = offen;
         const key = war && root.contains(document.activeElement) ? document.activeElement.dataset?.menueFokus : null;
         if (war && frage) schliesseFrage(false, true);
+        if (!war) wahlId = startWahl();
         render();
         if (!war) {
           offen = true;
@@ -17602,32 +17547,25 @@ const createMenu = (() => {
           root.inert = false;
           void root.offsetWidth; // erst sichtbar setzen, dann einblenden
           root.classList.remove('menue-aus');
-          weiterBtn.classList.toggle('menue-auf', !matchMedia(STILL).matches);
-          wachsenSeit = performance.now();
-          aktiv = null;
-          beobachter?.observe(root);
-          beobachter?.observe(liste);
+          knopf.classList.toggle('menue-auf', !matchMedia(STILL).matches);
+          beobachter?.observe(karte);
           zeichne();
           fokussiere(startFokus());
-        } else {
-          zeichne();
-          if (key) fokussiere(key) || fokussiere(startFokus());
-        }
+        } else if (key) fokussiere(key) || fokussiere(startFokus());
       },
       /**
        * Einmal unsichtbar zeichnen (fast durchsichtig, nicht bedienbar, ohne Fokus), solange es zu ist: Das erste
-       * Zeichnen der Lichtwege mit ihrem Leuchten (feGaussianBlur) hielt das Bild beim ersten Öffnen bis gut 400 ms an,
-       * danach nicht mehr (Review Ticket 05). Die Wege stehen dabei schon ganz (ohne Wachsen); show() zeichnet neu.
+       * Zeichnen hielt das Bild beim ersten Öffnen an (Review Ticket 05, damals mit dem Leuchten der Lichtwege bis gut
+       * 400 ms). show() zeichnet neu.
        */
       vorwaermen(stand = {}) {
         if (offen || warm) return;
         warm = true;
         daten = lies(stand, uebersicht);
-        render();
+        wahlId = startWahl();
         root.hidden = false;
         root.classList.add('menue-vorwaermen');
-        wachsenSeit = -Infinity;
-        zeichne();
+        render();
         requestAnimationFrame(() => requestAnimationFrame(() => {
           warm = false;
           root.classList.remove('menue-vorwaermen');
@@ -17638,6 +17576,7 @@ const createMenu = (() => {
       hide(sofort = false) {
         if (!offen) return Promise.resolve();
         offen = false;
+        if (momentBis) momentBis = 1; // ein unterbrochener Moment spielt beim nächsten Öffnen nicht noch einmal
         schliesseFrage(false, true);
         if (root.contains(document.activeElement)) document.activeElement.blur();
         root.inert = true;
@@ -17676,10 +17615,13 @@ const createMenu = (() => {
    Ersetzt die Levelauswahl: je Welt eine Reihe mit Station, Name und Summe der Bestzeiten, je Level eine Kachel mit
    Nummer, Titel, gelöst, Bestzeit und wenigsten Drehungen. Gelöste Level sind wieder spielbar, das nächste ungelöste
    ist offen, spätere sind gesperrt (sichtbar, nicht wählbar). «Im Dorf» als eigene Reihe, wenn es gespielt wurde.
-   Desktop (breit und hoch genug): alle Welten untereinander, durch jede Reihe ein Lichtweg wie im Menü. Sonst (Handy
-   hoch und quer, Tablet, kleines Fenster): eine Welt je Seite, Blättern mit den Stationen, den Pfeilen oder Wischen
-   über die Kacheln (mit Bewegung, wie die bisherige Levelauswahl). Den Stand liefert story.overviewData, die Wahl
-   nimmt story.playFromOverview.
+   Seit Ticket 08 von .scratch/kleiner-wagen/ als «Sternhaufen» (Variante C des Skizzenkatalogs, gewählt vom Nutzer):
+   Die Übersicht ist ein Himmel mit dem Kleinen Wagen im Stand des Grads; um jeden Stern stehen die zehn Level seiner
+   Welt als kleine Sterne (gelöst hell, das nächste mit Ring, gesperrt blass), «Im Dorf» als eigener Haufen. Ein Haufen
+   ist die Station seiner Welt: Antippen zeigt ihre Level daneben (Desktop, Handy quer) bzw. darunter (Handy hoch) als
+   Liste mit Bestwerten, eine Welt je Seite; blättern auch mit den Pfeilen oder Wischen über die Liste (mit Bewegung,
+   wie die bisherige Levelauswahl). Den Stand liefert story.overviewData, die Wahl nimmt story.playFromOverview. Der
+   Baustein in .scratch/noa-geschichte/bausteine/uebersicht/ (Reihen und Lichtwege) ist damit überholt.
    Beim Einbau geändert (im Baustein nachgeführt): Trennung erst vor einem Rest von vier Buchstaben (Asteroiden-gürtel
    statt Asteroidengür-tel); daten.geschafft (Finale gesehen) statt «alle gelöst» für den Kopf; daten.dorf.frei (nach
    «Überspringen» sind alle Übungen spielbar, Ticket 07).
@@ -17689,15 +17631,32 @@ const createMenu = (() => {
  * Baut die Übersicht in root (ein leeres Element, z. B. <div id="uebersicht">) und gibt { show, hide, vorwaermen,
  * offen } zurück.
  * icons: Zeichen der Stationen (im Spiel STORY_ICONS: dorf, wald, meer, …), Inhalt eines SVG mit viewBox 0 0 24 24.
+ * wagen: Form und Linien des Kleinen Wagens { form, linien, polarstern } (im Spiel das Modul wagen); Welt i hat Stern
+ * i + 1, er ist wach, sobald alle Level der Welt gelöst sind, der Polarstern, wenn der Grad geschafft ist.
  * onPlay({ welt, level, wiederholen, eintrag }): eine offene, freie oder gelöste Kachel gewählt; welt ist der Index in
  * daten.welten oder 'dorf', level der Index in der Reihe, wiederholen true bei einem gelösten Level, eintrag das
  * Objekt aus den Daten. onClose(): Escape, «Schliessen» oder Klick neben die Kacheln. Beide schliessen nicht selbst;
  * der Aufrufer ruft hide().
  */
-function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () => {} }) {
-  /** Alle Welten untereinander (Desktop), sonst eine Welt je Seite. Die Grenze steht nur hier: das CSS richtet sich
-   * nach data-modus am root */
-  const ALLE = matchMedia(seiteMedia('(min-width: 1180px) and (min-height: 600px)'));
+function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, onClose = () => {} }) {
+  /** Handy hoch (Liste unter dem Himmel; gleich wie im CSS der Übersicht) */
+  const HOCH = '(max-width: 600px) and (orientation: portrait)';
+  /**
+   * Himmel der Übersicht: echte Helligkeit (mag) der Sterne 1 … 7 für die Grösse der Punkte (wie die Sternkarte im
+   * Menü), wohin ihre Namen stehen (hoch steht der von Stern 1 darüber); dorf: Lage des Haufens «Im Dorf» in Einheiten
+   * der Form (unter der Deichsel, wo der Wagen frei lässt); rand: Platz (px) um den Wagen für Haufen und Namen;
+   * gross: höchstens so viele px je Einheit der Form; haufen: Radius des Kreises der Level (Einheiten der Form).
+   */
+  const HIMMEL = {
+    mag: [2.1, 3.0, 4.9, 4.3, 4.2, 4.3, 2.0],
+    richtung: [[1, -0.15], [0.3, 1], [-0.35, 1], [0.35, -1], [0.3, -1], [0.3, -1], [0, -1]],
+    richtungHoch: { 1: [0.25, -1] },
+    dorf: [-50, 21],
+    rand: { links: 46, rechts: 132, oben: 74, unten: 70 },
+    randKlein: { links: 22, rechts: 52, oben: 42, unten: 40 },
+    gross: 6.3, haufen: 5.4,
+  };
+  const form = wagen?.form ?? [], linien = wagen?.linien ?? [], polar = wagen?.polarstern ?? form.length;
   /** Wischen und Blättern mit den Werten der früheren Levelauswahl (bis Ticket 04 im Spiel) */
   const WISCH = { min: 50, schwelle: 10, steigung: 0.6, gummi: 0.3, ms: 280, easing: 'cubic-bezier(0.25, 0.8, 0.3, 1)' };
   /** wie GRAD_ANZEIGE im Spiel */
@@ -17712,6 +17671,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     schloss: '<rect x="6" y="11" width="12" height="8.5" rx="1.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/>',
     links: '<path d="M14.5 5.5L8 12l6.5 6.5"/>',
     rechts: '<path d="M9.5 5.5l6.5 6.5-6.5 6.5"/>',
+    zu: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
   };
 
   const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
@@ -17787,7 +17747,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
         <button class="ueb-schritt" data-schritt="1" aria-label="Nächste Welt">${ico(Z.rechts)}</button>
       </div>
       <div class="ueb-fenster"><div class="ueb-spur"></div></div>
-      <footer class="ueb-fuss"><button class="ueb-schliessen">Schliessen</button></footer>
+      <footer class="ueb-fuss"><button class="ueb-schliessen" aria-label="Schliessen">${ico(Z.zu)}<span>Schliessen</span></button></footer>
     </div>
     <p class="ueb-hinweis" role="status"></p>`;
   const $ = (sel) => root.querySelector(sel);
@@ -17795,7 +17755,12 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   const fenster = $('.ueb-fenster'), spur = $('.ueb-spur'), hinweis = $('.ueb-hinweis');
   const schritte = [...root.querySelectorAll('.ueb-schritt')];
 
-  let daten = null, reihen = [], seite = 0, modus = '', offen = false;
+  let daten = null, reihen = [], seite = 0, modus = 'seiten', offen = false;
+  root.dataset.modus = modus; // vor dem ersten Messen (zeichneHimmel): das CSS richtet sich danach
+  const himmelMass = { fenster: '', W: 0, H: 0 }; // Grösse des Himmels (zeichneHimmel) bei dieser Grösse des Fensters
+  let himmelWas = '';   // was der Himmel zeigt: dasselbe nicht neu zeichnen
+  let datenWas = '';    // mit welchen Daten Kopf und Kacheln gezeichnet sind (zeichne)
+  let himmelPlan = 0;   // Himmel im nächsten Bild (himmelBald)
   let wisch = null, gewischtUm = -Infinity, gezeigtUm = -Infinity, fahrt = null, hinweisUhr = 0;
 
   /**
@@ -17859,22 +17824,20 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   }
 
   function reiheHtml(re, r) {
-    // Licht im Weg der Reihe (nur alle Welten untereinander): von der Station bis zur Mitte der offenen Kachel bzw. der
-    // letzten gelösten, bei einer fertigen Welt ganz durch (die Kacheln decken es zu, es scheint in den Lücken)
-    // (Raster zu 10 Plätzen; «Im Dorf» hat 9, der Rest bleibt frei)
-    const k = re.zustand.includes('offen') ? re.zustand.indexOf('offen') : re.zustand.lastIndexOf('geloest');
-    const rest = Math.max(0, 10 - re.level.length), platz = (n) => `(100% - 9 * var(--ueb-luecke)) / 10 * ${n} + ${n} * var(--ueb-luecke)`;
-    const licht = re.lage === 'fertig' ? `calc(100% - ${platz(rest)})` : k < 0 ? 'calc(-100vw / var(--seite))' : `calc(${platz(k)} + (100% - 9 * var(--ueb-luecke)) / 20)`;
     return `<section class="ueb-welt ueb-${re.lage}" data-reihe="${r}" role="group" aria-label="${esc(standText(re))}">
       <div class="ueb-welt-kopf" aria-hidden="true">
         <span class="ueb-welt-text"><span class="ueb-welt-name">${esc(re.name)}</span><span class="ueb-welt-stand">${standHtml(re)}</span></span>
         <span class="ueb-station">${ico(icons[re.icon])}</span>
       </div>
-      <ol class="ueb-kacheln" style="--ueb-licht: ${licht}; --ueb-rest: ${rest}">${re.level.map((_, l) => kachelHtml(re, l)).join('')}</ol>
+      <ol class="ueb-kacheln">${re.level.map((_, l) => kachelHtml(re, l)).join('')}</ol>
     </section>`;
   }
 
   function zeichne() {
+    // derselbe Stand wie beim letzten Zeigen: Kopf und Kacheln stehen schon (das Öffnen braucht dann kein neues Layout)
+    const was = JSON.stringify(daten);
+    if (was === datenWas) return;
+    datenWas = was;
     const g = (typeof daten.grad === 'string' ? GRADE[daten.grad] : daten.grad) ?? { name: String(daten.grad ?? ''), punkte: 0 };
     const welten = reihen.filter((re) => re.art === 'welt');
     const geloest = welten.reduce((s, re) => s + re.geloest, 0), gesamt = welten.reduce((s, re) => s + re.level.length, 0);
@@ -17888,9 +17851,106 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       `<span class="ueb-sr">${esc(g.name)}, ${geschafft ? 'geschafft, ' : ''}${geloest} von ${gesamt} Level gelöst` +
       `${geschafft && alleZeiten ? `, Summe der Bestzeiten ${sprichZeit(summe)}` : ''}</span>`;
     root.classList.toggle('ueb-geschafft', geschafft);
-    stationen.innerHTML = reihen.map((re, r) => (r ? `<span class="ueb-weg${re.lage !== 'spaeter' ? ' ueb-an' : ''}" aria-hidden="true"></span>` : '') +
-      `<button class="ueb-tab ueb-${re.lage}" data-reihe="${r}" aria-label="${esc(standText(re))}"><span class="ueb-station">${ico(icons[re.icon])}</span></button>`).join('');
     spur.innerHTML = reihen.map(reiheHtml).join('');
+  }
+
+  /**
+   * Der Himmel der Übersicht: der Kleine Wagen im Stand des Grads (wache Sterne hell und verbunden, noch fehlende
+   * Linien blass, ein Ring um den Stern der Welt, die dran ist), um jeden Stern die Level seiner Welt als kleine Sterne
+   * (gelöst hell, offen mit Ring, frei klein, gesperrt blass), «Im Dorf» als eigener Haufen mit seinem Zeichen; daneben
+   * Name und Stand. Die Stationen (ueb-tab) liegen als Ziele über den Haufen. In Pixeln von .ueb-stationen; ihre Grösse
+   * hängt nur am Fenster und am Kopf und wird je Fenster und Kopf einmal gemessen (sonst hielte jedes Öffnen für ein
+   * Layout an).
+   * Zeigt er schon dasselbe (gleicher Stand, gleiche Grösse), bleibt er stehen. true: neu gezeichnet.
+   */
+  function zeichneHimmel() {
+    if (!form.length) return false;
+    const fenster = `${innerWidth}x${innerHeight}:${gradEl.textContent}`;
+    if (himmelMass.fenster !== fenster) {
+      const R = stationen.getBoundingClientRect();
+      Object.assign(himmelMass, { fenster, W: R.width / SEITE, H: R.height / SEITE });
+    }
+    const { W, H } = himmelMass;
+    if (!W || !H) { himmelMass.fenster = ''; return false; }
+    const was = [W, H, root.classList.contains('ueb-geschafft'), ...reihen.map((re) => `${re.name}:${re.zustand.join()}:${re.summe}`)].join('|');
+    if (was === himmelWas) return false;
+    himmelWas = was;
+    const klein = W < 640 || H < 420, rand = klein ? HIMMEL.randKlein : HIMMEL.rand, hoch = matchMedia(seiteMedia(HOCH)).matches;
+    const xs = form.map((p) => p[0]), ys = form.map((p) => p[1]);
+    const x0 = Math.min(...xs), y0 = Math.min(...ys), bw = Math.max(...xs) - x0, bh = Math.max(...ys) - y0;
+    const s = Math.max(0.8, Math.min((W - rand.links - rand.rechts) / bw, (H - rand.oben - rand.unten) / bh, HIMMEL.gross));
+    const ox = rand.links + (W - rand.links - rand.rechts - bw * s) / 2 - x0 * s;
+    const oy = rand.oben + (H - rand.oben - rand.unten - bh * s) / 2 - y0 * s;
+    const P = (k) => [ox + form[k - 1][0] * s, oy + form[k - 1][1] * s];
+    const welten = reihen.filter((re) => re.art === 'welt'), dorf = reihen.find((re) => re.art === 'dorf');
+    const geschafft = root.classList.contains('ueb-geschafft');
+    const wach = (k) => (k === polar ? geschafft : welten[k - 1]?.lage === 'fertig');
+    const naechster = geschafft ? 0 : welten.findIndex((re) => re.lage !== 'fertig') + 1;
+    const f = (v) => v.toFixed(1), r = HIMMEL.haufen * s, punkt = Math.max(1.4, Math.min(2.4, 0.38 * s));
+    const kern = Math.max(1.6, Math.min(3.6, 0.57 * s)), breite = Math.max(0.8, Math.min(1.7, 0.45 + 0.24 * s));
+    let haufen = '', wagenTeil = '', namen = '';
+    const kreis = (cx, cy, re, rr) => re.zustand.forEach((z, j) => {
+      const a = -Math.PI / 2 + j * 2 * Math.PI / re.zustand.length, x = f(cx + Math.cos(a) * rr), y = f(cy + Math.sin(a) * rr);
+      if (z === 'geloest') haufen += `<circle class="ueb-l-schein" cx="${x}" cy="${y}" r="${f(punkt * 2.6)}"/><circle class="ueb-l" cx="${x}" cy="${y}" r="${f(punkt)}"/>`;
+      else if (z === 'offen') haufen += `<circle class="ueb-l ueb-l-offen" cx="${x}" cy="${y}" r="${f(punkt * 0.8)}"/><circle class="ueb-l-ring" cx="${x}" cy="${y}" r="${f(punkt * 2.2)}"/>`;
+      else haufen += `<circle class="ueb-l ueb-l-${z}" cx="${x}" cy="${y}" r="${f(punkt * (z === 'frei' ? 0.8 : 0.6))}"/>`;
+    });
+    const name = (x, y, dir, ab, text, zahl, cls) => {
+      const n = Math.hypot(dir[0], dir[1]), dx = dir[0] / n, dy = dir[1] / n, tx = f(x + dx * ab), ty = f(y + dy * ab);
+      const seit = Math.abs(dx) > Math.abs(dy), anker = seit ? (dx > 0 ? 'start' : 'end') : 'middle';
+      const lage = seit ? 'central' : dy > 0 ? 'hanging' : 'auto';
+      const [d1, d2] = !zahl ? ['0', '0'] : seit ? ['-0.6em', '1.25em'] : dy > 0 ? ['0', '1.3em'] : ['-1.15em', '1.3em'];
+      namen += `<text class="ueb-h-name ${cls}" x="${tx}" y="${ty}" text-anchor="${anker}" dominant-baseline="${lage}">`
+        + `<tspan x="${tx}" dy="${d1}">${esc(text)}</tspan>${zahl ? `<tspan class="ueb-h-zahl" x="${tx}" dy="${d2}">${zahl}</tspan>` : ''}</text>`;
+    };
+    const ziele = []; // je Reihe ihre Station, in der Reihenfolge der Reihen (Tab und Pfeile)
+    const ziel = (re, x, y, rr) => {
+      const d = Math.max(44, 2 * (rr + punkt * 3) + 4);
+      ziele[reihen.indexOf(re)] = `<button class="ueb-tab ueb-${re.lage}" data-reihe="${reihen.indexOf(re)}" aria-label="${esc(standText(re))}"`
+        + ` style="left:${f(x - d / 2)}px;top:${f(y - d / 2)}px;width:${f(d)}px;height:${f(d)}px"></button>`;
+    };
+    welten.forEach((re, i) => {
+      const k = i + 1;
+      if (k >= polar) return;
+      const [x, y] = P(k);
+      kreis(x, y, re, r);
+      ziel(re, x, y, r);
+      name(x, y, (hoch && HIMMEL.richtungHoch[k]) || HIMMEL.richtung[k - 1], r + Math.max(9, 3 * s), re.name,
+        `${re.geloest} / ${re.level.length}`, wach(k) ? 'ueb-an' : k === naechster ? 'ueb-jetzt' : '');
+    });
+    if (dorf) {
+      const x = ox + HIMMEL.dorf[0] * s, y = oy + HIMMEL.dorf[1] * s, rr = r * 0.8, z = Math.max(14, 2.2 * s);
+      kreis(x, y, dorf, rr);
+      ziel(dorf, x, y, rr);
+      haufen += `<svg class="ueb-h-dorf" x="${f(x - z / 2)}" y="${f(y - z / 2)}" width="${f(z)}" height="${f(z)}" viewBox="0 0 24 24">${icons[dorf.icon] ?? ''}</svg>`;
+      name(x, y, [1, 0], rr + Math.max(9, 3 * s), dorf.name, `${dorf.geloest} / ${dorf.level.length}`, dorf.lage === 'fertig' ? 'ueb-an' : '');
+    }
+    for (const l of linien) {
+      const [ax, ay] = P(l[0]), [bx, by] = P(l[1]), xy = `x1="${f(ax)}" y1="${f(ay)}" x2="${f(bx)}" y2="${f(by)}"`;
+      wagenTeil += `<line class="${wach(l[0]) && wach(l[1]) ? 'ueb-h-linie' : 'ueb-h-geist'}" ${xy} stroke-width="${f(breite)}"/>`;
+    }
+    for (let k = 1; k <= form.length; k++) {
+      const [x, y] = P(k), m = 1 + (4.9 - HIMMEL.mag[k - 1]) * 0.3, an = wach(k);
+      if (an || k === polar) wagenTeil += `<circle class="ueb-h-schein" fill="url(#${uid}-schein)" cx="${f(x)}" cy="${f(y)}" r="${f(kern * 5.5 * m * (an ? 1 : 0.6))}"/>`;
+      wagenTeil += `<circle class="ueb-h-stern${an ? ' ueb-an' : ''}" cx="${f(x)}" cy="${f(y)}" r="${f(kern * m * (an ? 1 : 0.62))}"/>`;
+      if (k === naechster) wagenTeil += `<circle class="ueb-h-ring" cx="${f(x)}" cy="${f(y)}" r="${f(r + 6)}"/>`;
+    }
+    const [px, py] = P(polar);
+    name(px, py, HIMMEL.richtung[polar - 1], Math.max(12, 4 * s), 'Polarstern', '', geschafft ? 'ueb-an' : '');
+    stationen.innerHTML = `<svg class="ueb-himmel" viewBox="0 0 ${f(W)} ${f(H)}" aria-hidden="true" focusable="false">`
+      + `<defs><radialGradient id="${uid}-schein"><stop offset="0" stop-color="#fff" stop-opacity="0.8"/>`
+      + `<stop offset="0.22" stop-color="#dfe3ff" stop-opacity="0.32"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/>`
+      + `</radialGradient></defs>${haufen}${wagenTeil}${namen}</svg>${ziele.join('')}`;
+    return true;
+  }
+
+  /**
+   * Den Himmel im nächsten Bild zeichnen (beim Öffnen; die Übersicht blendet da erst ein): show misst dann kein Layout,
+   * es fällt ins Layout des Bilds. Die Stationen bekommen danach ihre gezeigte Welt (zeigeSeitenkopf).
+   */
+  function himmelBald() {
+    cancelAnimationFrame(himmelPlan);
+    himmelPlan = requestAnimationFrame(() => { himmelPlan = 0; if (offen && zeichneHimmel()) zeigeSeitenkopf(); });
   }
 
   const kacheln = (r) => [...(spur.children[r]?.querySelectorAll('.ueb-kachel') ?? [])];
@@ -17926,9 +17986,9 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   }
 
   // ---------- Seiten: eine Welt je Seite, Blättern mit Bewegung ----------
+  /** Eine Welt je Seite (seit dem Himmel der Übersicht immer; früher auf dem Desktop alle untereinander) */
   function setzeModus() {
-    const neu = ALLE.matches ? 'alle' : 'seiten';
-    if (neu !== modus) { modus = neu; root.dataset.modus = neu; }
+    if (modus !== 'seiten') { modus = 'seiten'; root.dataset.modus = modus; }
     ordne();
   }
   /** Seiten in Ruhe: nur die gezeigte ist bedienbar (die übrigen liegen daneben, beim Wischen sichtbar) */
@@ -17940,7 +18000,9 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   const schrittweite = () => spur.clientWidth + (parseFloat(getComputedStyle(spur).columnGap) || 0);
   /** Spur in Ruhe (dx 0) oder um dx px aus der Ruhe (beim Wischen) */
   function schiebe(dx) {
-    spur.style.transform = modus === 'seiten' && (seite || dx) ? `translateX(${-seite * schrittweite() + dx}px)` : '';
+    // in Ruhe in Anteilen der Breite (ohne zu messen: das Öffnen braucht so kein Layout), beim Wischen in px
+    spur.style.transform = modus !== 'seiten' || !(seite || dx) ? '' : dx ? `translateX(${-seite * schrittweite() + dx}px)`
+      : `translateX(calc(${-seite} * (100% + ${parseFloat(getComputedStyle(spur).columnGap) || 0}px)))`;
   }
   function fahre(von, nach) {
     const anim = spur.animate([{ transform: `translateX(${von}px)` }, { transform: `translateX(${nach}px)` }],
@@ -18008,11 +18070,11 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
   }
 
   // ---------- Hinweis (gesperrte Kachel) ----------
-  /** Hinweis kurz zeigen; mit allen Welten untereinander (Desktop) über der Kachel nahe (sonst darunter), auf Seiten
-   * über dem Fuss (Review Ticket 06: unten in der Mitte war er weit weg von der Kachel, die man angeklickt hatte) */
+  /** Hinweis kurz zeigen: über der Kachel nahe (ohne Platz darüber darunter), ohne Kachel über dem Fuss (Review
+   * Ticket 06: unten in der Mitte war er weit weg von der Kachel, die man angeklickt hatte) */
   function sage(text, nahe = null) {
     hinweis.textContent = text;
-    const bei = !!nahe && modus === 'alle';
+    const bei = !!nahe;
     hinweis.classList.toggle('ueb-bei', bei);
     hinweis.style.left = hinweis.style.top = '';
     if (bei) {
@@ -18077,7 +18139,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
       else if (k === 'ArrowLeft') ziel = l > 0 ? [r, l - 1] : r > 0 ? [r - 1, letzte(r - 1)] : null;
       else if (k === 'Home') ziel = e.ctrlKey ? [0, 0] : [r, 0];
       else if (k === 'End') ziel = e.ctrlKey ? [reihen.length - 1, letzte(reihen.length - 1)] : [r, n - 1];
-      else if (k === 'PageUp' || k === 'PageDown' || modus === 'alle') {
+      else if (k === 'PageUp' || k === 'PageDown') {
         const z = r + (k === 'PageDown' || k === 'ArrowDown' ? 1 : -1);
         if (z >= 0 && z < reihen.length) ziel = [z, Math.min(l, letzte(z))];
       } else { // Seite: hoch und runter im Raster der Welt
@@ -18170,7 +18232,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     const jetzt = performance.now(), gleich = jetzt - gewischtUm < 400 || e.detail > 0 && jetzt - gezeigtUm < 400;
     if (gleich && root.contains(e.target)) { e.stopPropagation(); e.preventDefault(); }
   }, true);
-  addEventListener('resize', () => { if (offen) { setzeModus(); passeTitelAn(); } });
+  addEventListener('resize', () => { if (offen) { zeichneHimmel(); setzeModus(); zeigeSeitenkopf(); passeTitelAn(); } });
 
   /**
    * Zeigt die Übersicht mit diesen Daten (jedes Mal neu gezeichnet) und setzt den Fokus: wahl.fokus { welt, level },
@@ -18188,6 +18250,7 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     addEventListener('keydown', taste, true);
     const [r, l] = startZiel(wahl);
     seite = r;
+    himmelBald();
     setzeModus();
     zeigeSeitenkopf();
     passeTitelAn();
@@ -18222,10 +18285,11 @@ function createUebersicht({ root, icons = {}, onPlay = () => {}, onClose = () =>
     reihen = baueReihen(d);
     zeichne();
     seite = 0;
+    root.classList.add('ueb-vorwaermen');
+    zeichneHimmel();
     setzeModus();
     zeigeSeitenkopf();
     passeTitelAn();
-    root.classList.add('ueb-vorwaermen');
     requestAnimationFrame(() => requestAnimationFrame(() => root.classList.remove('ueb-vorwaermen')));
   }
 
@@ -18258,9 +18322,15 @@ const STORY_ICONS = {
   planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
   sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
 };
-/** Stationen des Wegs (Leiste auf den Karten): das Dorf, dann je Kapitel eine. */
+/** Stationen des Wegs: das Dorf, dann je Kapitel eine (Station k ist Stern k des Kleinen Wagens). */
 const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
   ['planeten', 'Planeten'], ['sterne', 'Sterne']];
+/**
+ * Leiste unter dem Untertitel der Ankunft (story.fillPath, Leiste C aus dem Skizzenkatalog von .scratch/kleiner-wagen/):
+ * massstab: CSS-Pixel je Einheit von wagen.form (bei voller Breite, Desktop), rand: Platz um die Form [x, y] (px),
+ * zeichen: Grösse der Zeichen der Welten (px). Auf dem Handy setzt das CSS sie kleiner.
+ */
+const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
 /**
  * Kapitel: Station auf dem Weg, Hintergrund, Meldung und Knopf nach dem letzten Level; die Level je Grad stehen in
  * STORY_LEVELS (dieselbe Reihenfolge der Welten). travel: Untertitel, wenn das Licht hier ankommt (nach dem Prolog,
@@ -18573,8 +18643,9 @@ const STORY_CARRIERS = {
  * Glockenton), dann fliegt der Träger in einem Bogen (story.bogen) am nächsten, noch schlafenden Stern vorbei, der kurz
  * aufzuckt (story.zucke), und hinab, so hoch, wie man in der neuen Welt hinaufschaut. Ein Einstieg in eine Welt kommt
  * von der Seite am Stern dieser Welt vorbei. Gleich lang wie der frühere seitliche Bogen.
- * licht: Solange der Untertitel steht, liegt der Lichtpunkt so weit über der Mitte des Bilds (Anteil der halben
- * Bildhöhe; story.look), damit der Untertitel darunter Platz hat. vorbei: so weit (Grad) zieht das Licht neben dem Stern
+ * Solange der Untertitel der Ankunft steht (Kicker und Text in der Mitte, Ticket 08), liegt der Lichtpunkt in der
+ * Mitte des freien Raums darüber (story.lichtHoch, gemessen); licht: so weit über der Mitte des Bilds (Anteil der
+ * halben Bildhöhe; story.look), wo nichts zu messen ist. vorbei: so weit (Grad) zieht das Licht neben dem Stern
  * vorbei, nach aussen vom Wagen. reise: Flug der Reise (s), am Stern beim Anteil amStern des Wegs, das Ende seitwaerts
  * (rad) vom Stern. einstieg: Flug des Einstiegs (s), Start von (rad) seitlich und hoeher (rad) als der Stern, an ihm beim
  * Anteil amStern. Erwachen: blitz (s) des Sterns, linie (s) je Linie, die sich zieht, dann klingt ihr Glanz in nach (s)
@@ -20253,11 +20324,11 @@ const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Überg
 
 /**
  * Das Menü der Geschichte (createMenu); den Stand liefert story.menuStand, die Aktionen nimmt story.pick. Ein
- * geschaffter Grad öffnet seine Übersicht (Entscheid 19).
+ * geschaffter Grad öffnet seine Übersicht (Entscheid 19). Die Form des Kleinen Wagens auf der Sternkarte: wagen.
  */
 const menu = createMenu({
   root: $('menue'),
-  icons: STORY_ICONS,
+  wagen,
   uebersicht: true,
   onAction: (a) => story.pick(a),
 });
@@ -20265,6 +20336,7 @@ const menu = createMenu({
 const uebersicht = createUebersicht({
   root: $('uebersicht'),
   icons: STORY_ICONS,
+  wagen,
   onPlay: (wahl) => story.playFromOverview(wahl),
   onClose: () => story.closeOverview(),
 });
@@ -20431,6 +20503,8 @@ const story = {
   stillAb: 0,         // performance.now(), ab wann (nach dem gestaffelten Vorbereiten der nächsten Fahrt)
   buehneWarm: false,  // die Bühne des Prologs ist vorgewärmt und bleibt bis zum Prolog gerastert (vorwaermen)
   ersterHimmel: true, // noch keiner seit dem Start abgewartet (skyOf): Fehlt er, ist das Laden markiert (ruhe.lade)
+  licht: null,        // Höhe des Lichts über dem Untertitel, gemessen (lichtHoch); null: neu messen
+  lichtBei: 0,        // bei dieser Höhe des Fensters gemessen
 
   init() {
     // der Hintergrund der Welt, in der es im zuletzt gespielten Grad weitergeht (sonst der ersten): Er lädt schon
@@ -20581,7 +20655,7 @@ const story = {
   },
   /**
    * Stand je Grad für das Menü (createMenu): neu, begonnen (ab dem Prolog; Welt des Platzes, vor dem Bergwald das Dorf,
-   * gelöste Level des Durchgangs) oder geschafft. «Weiter» (Entscheid 25) führt zum zuletzt gespielten unter den
+   * gelöste Level des Durchgangs, wache Sterne des Wagens) oder geschafft. «Weiter» (Entscheid 25) führt zum zuletzt gespielten unter den
    * begonnenen Graden: dem zuletzt gewählten, wenn er begonnen ist, sonst dem mit dem jüngsten Speichern (gespielt;
    * ohne Zeit zählt ein Stand als ältester). «Von vorn» und «geschafft» nehmen einen Grad aus dieser Wahl.
    * hervorheben: direkt nach dem Epilog der nächstschwerere, noch nicht geschaffte Grad nach dem zuletzt gewählten
@@ -20591,13 +20665,13 @@ const story = {
     const grade = {}, gespielt = {};
     for (const [g, welten] of Object.entries(STORY_LEVELS)) {
       const namen = new Set(welten.flat()), s = progress.load(g, namen.size);
-      if (s.geschafft) { grade[g] = { stand: 'geschafft' }; continue; }
+      if (s.geschafft) { grade[g] = { stand: 'geschafft', wach: wagen.form.length }; continue; }
       if (!s.gesehen.length && !s.geloest.length && !s.platz) continue; // neu (auch ein unlesbarer Stand)
       let c = 0;
       for (let rest = s.platz; c < welten.length - 1 && rest >= welten[c].length; c++) rest -= welten[c].length;
       const welt = storyChapterId(STORY_CHAPTERS[c]);
       grade[g] = { stand: 'begonnen', welt: c === 0 && !s.gesehen.includes(welt) ? 'dorf' : welt,
-        geloest: s.geloest.filter((n) => namen.has(n)).length };
+        geloest: s.geloest.filter((n) => namen.has(n)).length, wach: wagen.stand(s, welten).wach.length };
       gespielt[g] = Number.isFinite(s.gespielt) ? s.gespielt : 0;
     }
     const last = progress.last(), order = Object.keys(STORY_LEVELS), begonnen = Object.keys(gespielt);
@@ -21078,13 +21152,13 @@ const story = {
    * und hinab, und die Kamera folgt ihm (Ticket 05 von .scratch/kleiner-wagen/; STORY_FLUG). Die neue Welt lädt schon
    * beim Abflug; sobald sie da ist, blendet die alte über einen kurzen Moment Nacht in sie hinein, der Wagen bleibt
    * stehen. Unbemerkt versinkt darunter das alte Feld. Zuletzt fällt das Licht aufs neue Brett. Unten steht dazu, wohin
-   * die Reise geht; darüber steht das Licht (STORY_FLUG.licht).
+   * die Reise geht; darüber steht das Licht (lichtHoch).
    */
   async travel(from, ch, index) {
     const fl = this.flare, carrier = this.carrier, n = STORY_CHAPTERS.indexOf(ch) + 1, F = STORY_FLUG;
     carrier.start(from.carrier, fl.position);
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: `Kapitel ${n} · ${ch.title}`, text: ch.travel, path: ch.station }));
+      { kicker: `Kapitel ${n} · ${ch.title}`, text: ch.travel, path: ch.station, neu: true }));
     // Der geweckte Stern ist Stern n − 1, der nächste Stern n (der der neuen Welt). Das Licht bleibt bei ihm, während
     // der Träger es aufnimmt; der Blick senkt sich dabei so weit, dass es über dem Untertitel steht
     const dist = fl.position.distanceTo(camera.position), stern = himmelsWagen.richtung(n - 1);
@@ -21096,7 +21170,7 @@ const story = {
       for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k;
     });
     await this.tween(1.0, (k) => {
-      hoch = F.licht * k;
+      hoch = this.lichtHoch() * k;
       fl.position.copy(camera.position).addScaledVector(stern, dist);
       carrier.orb.copy(fl.position);
       this.look(fl.position, hoch);
@@ -21442,7 +21516,7 @@ const story = {
   },
   /**
    * Blick in den Himmel auf einen Punkt richten (gaze bestimmt, wie weit). hoch: der Punkt steht so weit über der Mitte
-   * des Bilds (Anteil der halben Bildhöhe, STORY_FLUG.licht), der Blick also etwas tiefer.
+   * des Bilds (Anteil der halben Bildhöhe, lichtHoch), der Blick also etwas tiefer.
    */
   look(point, hoch = 0) {
     const d = this.gazeDir.copy(point).sub(camera.position).normalize();
@@ -21673,10 +21747,11 @@ const story = {
     this.gazeRun++; // ein weicher Blickwechsel (gazeTo) endet hier
     this.aimGaze(up);
     // in eine Welt: von der Seite heran am schlafenden Stern dieser Welt vorbei, der kurz aufzuckt (zucke), und hinab
-    // vor die Kamera (STORY_FLUG.einstieg); das Licht steht über dem Untertitel (STORY_FLUG.licht). Ins Dorf (ohne
-    // Stern): tief über dem Horizont heran und erst vor der Kamera etwas höher
+    // vor die Kamera (STORY_FLUG.einstieg); das Licht steht über dem Untertitel (lichtHoch). Ins Dorf (ohne
+    // Stern): tief über dem Horizont heran und erst vor der Kamera etwas höher; auch dort steht das Licht über dem
+    // Untertitel in der Mitte (Review Ticket 08: mit hoch 0 lag es gut 3 s hinter dem Text)
     const az1 = Math.atan2(this.gazeDir.x, this.gazeDir.z), side = c % 2 ? 1 : -1, el1 = Math.max(0.2, up - 0.15);
-    const F = STORY_FLUG, stern = c >= 0 ? c + 1 : null, hoch = stern ? F.licht : 0;
+    const F = STORY_FLUG, stern = c >= 0 ? c + 1 : null, hoch = () => this.lichtHoch();
     let weg;
     if (stern) {
       const [azS, elS] = this.winkel(himmelsWagen.richtung(stern, _storyDir), az1);
@@ -21696,7 +21771,7 @@ const story = {
     carrier.strength = 1;
     // aus dem Himmel (Menü): erst noch dorthin, wohin die Kamera schon schaut, dann folgt sie dem Licht
     const follow = (k) => {
-      this.look(fl.position, hoch);
+      this.look(fl.position, hoch());
       if (from) this.gazeDir.lerp(from, 1 - THREE.MathUtils.smoothstep(k, 0, 0.6)).normalize();
     };
     follow(0);
@@ -21712,7 +21787,7 @@ const story = {
     if (e.skip) { await this.land(index, moment, sunk); return; }
     await sunk;
     if (e.skip) { await this.land(index, moment, sunk); return; }
-    await this.fall(index, fl.position.clone(), moment, e, hoch);
+    await this.fall(index, fl.position.clone(), moment, e, hoch());
   },
   /**
    * Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst, der
@@ -21864,12 +21939,33 @@ const story = {
     cap.classList.remove('warte');
     await this.untilTap();
   },
-  /** Untertitel füllen: Kapitel darüber, Weg darunter (beides nur bei der Ankunft in einer Welt), Aufforderung zum Tippen. */
-  fillCaption(el, { kicker = '', text, path, tap = '' }) {
+  /**
+   * Untertitel füllen: Kapitel darüber, Leiste unten am Rand (beides nur bei der Ankunft in einer Welt; dann stehen
+   * Kicker und Text in der Mitte, .mitte), Aufforderung zum Tippen. neu: auf der Reise (die Leiste zeigt das Erwachen).
+   */
+  fillCaption(el, { kicker = '', text, path, tap = '', neu = false }) {
     el.querySelector('.kicker').textContent = kicker;
     el.querySelector('.text').textContent = text;
-    this.fillPath(el.querySelector('.path'), path);
+    el.classList.toggle('mitte', path !== undefined);
+    this.fillPath(el.querySelector('.path'), path, neu);
     el.querySelector('.tap').textContent = tap;
+    this.licht = null; // neu messen (lichtHoch)
+  },
+  /**
+   * So weit über der Mitte des Bilds steht das Licht, solange der Untertitel steht (Anteil der halben Bildhöhe, wie
+   * look): bei der Ankunft in einer Welt in der Mitte des freien Raums zwischen oberem Rand und Kicker (Wahl des
+   * Nutzers, Ticket 02 von .scratch/kleiner-wagen/), einmal je Untertitel und Grösse des Bilds gemessen; sonst
+   * STORY_FLUG.licht.
+   */
+  lichtHoch() {
+    const cap = this.el.querySelector('.caption');
+    if (this.el.dataset.mode !== 'caption' || !cap.classList.contains('mitte')) return STORY_FLUG.licht;
+    if (this.licht === null || this.lichtBei !== innerHeight) {
+      const oben = (cap.querySelector('.kicker:not(:empty)') ?? cap.querySelector('.text')).getBoundingClientRect().top;
+      this.licht = THREE.MathUtils.clamp(1 - oben / innerHeight, 0, 0.9);
+      this.lichtBei = innerHeight;
+    }
+    return this.licht;
   },
   /** Untertitel zeigen; ein schon offener wechselt seinen Inhalt mit kurzem Überblenden. */
   async present(mode, el, fill) {
@@ -21880,22 +21976,47 @@ const story = {
     el.classList.remove('swap');
     await storySleep(shown ? 350 : 800);
   },
-  /** Leiste der Stationen: bis now erreicht, now leuchtet; now ≥ Zahl der Stationen: alle erreicht. */
-  fillPath(el, now) {
+  /**
+   * Leiste der Ankunft (Leiste C «Zeichen im Wagen», Ticket 08 von .scratch/kleiner-wagen/): der Kleine Wagen in der
+   * Form von wagen.form, an den Sternen der Welten ihre Zeichen (STORY_ICONS), an der Spitze der Polarstern. now:
+   * Station, in die das Licht kommt (STORY_STATIONS; Station k ist Stern k, das Dorf 0 hat keinen): die Sterne davor
+   * wach und verbunden, der Stern der Welt now mit Ring und Puls, spätere blass. neu (Reise): Der eben geweckte Stern
+   * now − 1 blitzt auf, seine Linie(n) ziehen sich. Masse: STORY_LEISTE (CSS-Pixel, die Breite setzt das CSS).
+   */
+  fillPath(el, now, neu = false) {
     el.replaceChildren();
     if (now === undefined) return;
-    STORY_STATIONS.forEach(([icon, name], i) => {
-      if (i) {
-        const ln = document.createElement('i');
-        ln.className = 'ln' + (i <= now ? ' done' : '');
-        el.append(ln);
+    const { massstab: s, rand, zeichen: ic } = STORY_LEISTE, form = wagen.form;
+    const x0 = Math.min(...form.map((p) => p[0])), y0 = Math.min(...form.map((p) => p[1]));
+    const w = (Math.max(...form.map((p) => p[0])) - x0) * s + 2 * rand[0];
+    const h = (Math.max(...form.map((p) => p[1])) - y0) * s + 2 * rand[1];
+    const P = (k) => [rand[0] + (form[k - 1][0] - x0) * s, rand[1] + (form[k - 1][1] - y0) * s];
+    const f = (v) => v.toFixed(1), polar = wagen.polarstern, eben = neu && now > 1 ? now - 1 : 0;
+    const wach = (k) => k < now && k !== polar;
+    let svg = `<defs><radialGradient id="story-hof"><stop offset="0" stop-color="#fff" stop-opacity="0.8"/>`
+      + `<stop offset="0.22" stop-color="#dfe3ff" stop-opacity="0.32"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/>`
+      + '</radialGradient></defs>';
+    for (const [a, b] of wagen.linien) {
+      const [ax, ay] = P(a), [bx, by] = P(b), xy = `x1="${f(ax)}" y1="${f(ay)}" x2="${f(bx)}" y2="${f(by)}"`;
+      svg += `<line class="wgeist" ${xy}/>`;
+      if (wach(a) && wach(b)) {
+        const istNeu = a === eben || b === eben, len = Math.hypot(bx - ax, by - ay);
+        svg += `<line class="wl${istNeu ? ' neu' : ''}"${istNeu ? ` style="--len:${f(len + 1)}"` : ''} ${xy}/>`;
       }
-      const st = document.createElement('div');
-      st.className = 'st' + (i < now ? ' done' : i === now ? ' now' : '');
-      st.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${STORY_ICONS[icon]}</svg><span></span>`;
-      st.querySelector('span').textContent = name;
-      el.append(st);
+    }
+    const [px, py] = P(polar), r = ic * 0.3;
+    svg += `<g transform="translate(${f(px)} ${f(py)})" opacity="0.7"><circle r="${f(ic * 0.9)}" fill="url(#story-hof)" opacity="0.6"/>`
+      + `<path d="M0 ${f(-2 * r)}L${f(r * 0.15)} ${f(-r * 0.15)} ${f(r * 1.4)} 0 ${f(r * 0.15)} ${f(r * 0.15)} 0 ${f(2 * r)} ${f(-r * 0.15)} ${f(r * 0.15)} ${f(-r * 1.4)} 0 ${f(-r * 0.15)} ${f(-r * 0.15)}z" fill="#fff"/>`
+      + '<circle r="1.6" fill="#fff"/></g>';
+    STORY_STATIONS.slice(1).forEach(([icon], i) => {
+      const k = i + 1, [x, y] = P(k);
+      const cls = wach(k) ? `wach${k === eben ? ' neu' : ''}` : k === now ? 'jetzt' : '';
+      svg += `<g class="${cls}" data-k="${k}" transform="translate(${f(x)} ${f(y)})">`
+        + `<circle class="hof" r="${f(ic * 1.15)}" fill="url(#story-hof)"/><circle class="ring" r="${f(ic * 0.82)}"/>`
+        + `<g class="zeichen" transform="translate(${f(-ic / 2)} ${f(-ic / 2)}) scale(${(ic / 24).toFixed(3)})">`
+        + `<circle class="scheibe" cx="12" cy="12" r="14"/>${STORY_ICONS[icon]}</g></g>`;
     });
+    el.innerHTML = `<svg viewBox="0 0 ${f(w)} ${f(h)}" width="${f(w)}" height="${f(h)}" aria-hidden="true">${svg}</svg>`;
   },
   open(mode) {
     this.el.dataset.mode = mode;

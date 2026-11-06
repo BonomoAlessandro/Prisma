@@ -26,8 +26,8 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 05 Erwachen und Flug | erledigt, mit Review |
 | 06 Finale | erledigt, mit Review |
 | 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
-| 08 Einbau Katalog | in Arbeit (05.11., Worktree `.claude/worktrees/kw-08`) |
-| 09 Doku und KI-Tester | offen |
+| 08 Einbau Katalog | erledigt, mit Review |
+| 09 Doku und KI-Tester | im Review (06.11.) |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
 
 ### Ticket 01, Zwischenstand
@@ -81,8 +81,13 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
 - **Pushen und nach main mergen nur auf Wort des Nutzers.**
 - **Neue Dateien, die das Spiel lädt,** müssen in die Liste des Builds auf Render (Build Command im Render-Dashboard
   kopiert eine feste Liste); geplant ist keine.
-- **Agenten im Blick behalten:** Ein Umsetzer von Ticket 01 blieb über eine Stunde im Leerlauf, weil er auf Läufe
-  wartete, die längst fertig waren. Nach jedem «warte auf …» nachsehen, ob wirklich noch etwas läuft.
+- **Agenten im Blick behalten** (Nutzer, 06.11.: «Stelle sicher, dass solche Hänger bemerkt werden»): Agenten geben
+  oft mit «warte auf Hintergrundarbeit» zurück und wachen nicht wieder auf (Ticket 01: über 1 h, Ticket 06: Läufe
+  wartend, Ticket 08: 01:18–07:30). Darum läuft im Koordinator immer eine Wache im Hintergrund (Skript wache.sh im
+  Scratchpad der Sitzung): Sie meldet, wenn das Transkript eines aktiven Agenten (Liste wache.liste, «name agentid»)
+  über 10 min still ist und an der Sperre nichts läuft oder wartet, wenn eine Sperre über 90 min gehalten wird oder
+  wenn das Wachhalten stockt. Nach jeder Meldung nachsehen, den Agenten anstossen und die Wache neu starten; jeden
+  neuen Agenten in die Liste eintragen, fertige austragen. In neuen Sitzungen die Wache neu anlegen.
 - **Gestaltung:** Bei offenen Fragen breit streuen und Vorbilder zeigen (Skizzenkatalog), bevor viel gebaut wird.
 - Texte und Kommentare auf Deutsch, Schweizer Schreibung («ss» statt «ß»).
 

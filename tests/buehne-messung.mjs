@@ -79,10 +79,12 @@ async function oeffne(view) {
   return { ...chrome, ev, until, tippe, tippeBei };
 }
 
-/** Bühne starten: Prolog über die Karte «Leicht» im Menü, Epilog direkt über playScene. */
+/** Bühne starten: Prolog über den Reiter «Leicht» im Menü und seinen Knopf «Beginnen», Epilog direkt über playScene. */
 async function starte(c, epilog) {
-  if (!epilog) await c.tippe(`#menue .menue-wahl[data-menue-fokus="wahl:leicht"]`);
-  else {
+  if (!epilog) {
+    await c.tippe(`#menue .menue-wahl[data-menue-fokus="wahl:leicht"]`);
+    await c.tippe('#menue .menue-weiter');
+  } else {
     await c.ev(`(() => { const s = ${D}.story; ${D}.menu.hide(); s.choosing = false; s.running = true;
       s.playScene(STORY_EPILOG, { actions: [['Zum Menü', () => {}]] }); return true; })()`);
   }
