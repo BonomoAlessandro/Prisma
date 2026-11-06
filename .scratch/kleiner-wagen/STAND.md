@@ -27,7 +27,7 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 06 Finale | erledigt, mit Review |
 | 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
 | 08 Einbau Katalog | erledigt, mit Review |
-| 09 Doku und KI-Tester | im Review (06.11.) |
+| 09 Doku und KI-Tester | erledigt, mit Review |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
 
 ### Ticket 01, Zwischenstand
@@ -56,6 +56,22 @@ laufen lassen, Vergleich des Ladezeichens vorher/nachher. Dann das Review von Ti
 4. Abnahme durch den Nutzer mit `?szenen` am Computer und auf dem Poco (Deploy des Feature-Branchs macht er selbst;
    pushen nur auf sein Wort), dabei Grösse und Helligkeit des Wagens festlegen. Dann Ticket 10, dann Merge nach main
    auf sein Wort.
+
+## Für die Abnahme (Stand 06.11., nach Ticket 09)
+
+Tickets 01–09 fertig, je mit Review. Offen für den Entscheid des Nutzers (gesammelt aus den Reviews):
+
+- Länge von Prolog 6.
+- Grösse und Helligkeit des Wagens (am Himmel und auf der Bühne: Desktop 18 %, quer 11 % der Breite).
+- Neues Herauszoomen am Ende des Finales (Desktop 32° → 55°, quer bis 68°) für Wagen in Wagen.
+- Am Desktop läuft der Lampenstrahl in Prolog 4 knapp links am Polarstern vorbei (hoch/quer trifft er).
+- Menü in zwei Schritten (Reiter wählt, Knopf führt aus), Abweichung von «Bedienung unverändert» in Ticket 08.
+- Desktop-Übersicht zeigt eine Welt neben dem Himmel statt aller untereinander.
+- Quer kommt der Wagen beim Vorbeiflug dem mittigen Text nahe; 320 × 568: vier Namen am Himmel der Übersicht eng.
+- Kicker mittig über hellem Taghimmel (Wüste, Meer) schwach lesbar.
+- Beobachten am Computer: Menü → Übersicht stockt gelegentlich 270–420 ms (neu 6 von 36, vorher 1 von 36; Ursache offen).
+
+Danach Ticket 10 (Werte des Nutzers fest übernehmen, Sprungbrett entfernen), dann Merge nach main auf sein Wort.
 
 ## Arbeitsregeln (vom Nutzer, gelten weiter)
 

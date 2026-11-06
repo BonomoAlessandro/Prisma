@@ -33,8 +33,8 @@ Ein weisses Ziel, das sein Weiss direkt aus einer weissen Quelle bekommt, ist ke
 
 **Geschichte**:
 «Ein Lichtsignal an die Sterne», der einzige Ablauf des Spiels: Noa will aus einem Bergdorf dem Polarstern ein
-Zeichen schicken, und der Spieler gibt das Licht Welt für Welt weiter. Sie ersetzt die Reihe (ADR 0005). Im Code
-`story`.
+Zeichen schicken, und der Spieler gibt das Licht Welt für Welt weiter; jede Welt weckt dabei einen Stern des Kleinen
+Wagens. Sie ersetzt die Reihe (ADR 0005). Im Code `story`.
 _Vermeiden_: Storyline, Story-Modus, Signal (Namen aus der Zeit, als sie ein Prototyp neben der Reihe war)
 
 **Grad**:
@@ -43,12 +43,15 @@ Grad hat seine eigenen 60 Level und seinen eigenen Stand. Im Code `grad`.
 _Vermeiden_: Schwierigkeit (das ist das Mass, aus dem der Grad folgt), Modus
 
 **Menü**:
-Was nach dem Startbildschirm kommt und wohin «Menü» (Knopf, Esc) im Spiel und «Zum Menü» nach dem Epilog führen: je
-Grad eine Karte mit seinem Stand («Wüste · 23 / 60», «noch nicht begonnen», geschafft mit dem Polarstern), darüber
-«Weiter» zum zuletzt gespielten, nicht geschafften Grad; gibt es keinen, fehlt «Weiter». Die Karte setzt einen
-begonnenen Grad fort, öffnet bei einem geschafften die Übersicht und beginnt sonst einen Durchgang. «Von vorn» (mit
-Rückfrage) löscht den Stand eines Grads, nicht seine Bestwerte. Kommt das Menü aus dem Spiel, wartet das Level
-darunter; die Zeit im Menü zählt nicht.
+Was nach dem Startbildschirm kommt und wohin «Menü» (Knopf, Esc) im Spiel und «Zum Menü» nach dem Epilog führen: die
+vier Grade als Reiter, je mit seinem Stand («Wüste · 23 / 60», «noch nicht begonnen», geschafft mit dem Polarstern).
+Der gewählte Grad zeigt seinen Kleinen Wagen wie auf einer Sternkarte: die Namen der Welten an ihren Sternen, wache
+Sterne hell, fehlende Linien gestrichelt, der Stern der Welt, in der das Licht ist, mit Ring; ist seit dem letzten
+Zeigen ein Stern erwacht, blitzt er auf. Darunter sein Knopf: «Weiter» beim zuletzt gespielten, nicht geschafften Grad
+(ihn wählt das Menü beim Öffnen), sonst «Fortsetzen», «Beginnen» oder bei einem geschafften «Übersicht». Ein Reiter
+wählt nur; ausgeführt wird mit dem Knopf (oder Enter auf dem Reiter). «Von vorn» (mit Rückfrage) löscht den Stand des
+gewählten Grads, nicht seine Bestwerte. Kommt das Menü aus dem Spiel, wartet das Level darunter; die Zeit im Menü
+zählt nicht.
 _Vermeiden_: Wahl (das ist die Wahl der Level, siehe unten), Levelauswahl
 
 **Durchgang**:
@@ -61,11 +64,44 @@ _Vermeiden_: Reise (für die 60 Level eines Grads in ihrer Reihenfolge; im Code 
 
 **Welt**:
 Eine der sechs Stationen eines Durchgangs, in dieser Reihenfolge: Bergwald, Meer, Wüste, Vulkan, Planeten, Sterne. Je
-Grad hat sie genau 10 Level; die Schwierigkeit steigt von Welt zu Welt. Im Spiel und im Code heisst sie Kapitel
-(«Kapitel 2 / 6», `STORY_CHAPTERS`), in den Werkzeugen Welt (`WELTEN`). Abgrenzung: Die Welt bestimmt ihre Skybox, ist
-aber mehr als der Hintergrund; dieselbe Skybox kann an mehreren Orten stehen (die Milchstrasse vorerst auch
-«Im Dorf»). «Im Dorf» ist ein Kapitel der Geschichte, aber keine Welt und hat keine Nummer.
+Grad hat sie genau 10 Level; die Schwierigkeit steigt von Welt zu Welt, und jede weckt ihren Stern des Kleinen
+Wagens. Im Spiel und im Code heisst sie Kapitel («Kapitel 2 / 6», `STORY_CHAPTERS`), in den Werkzeugen Welt
+(`WELTEN`). Abgrenzung: Die Welt bestimmt ihre Skybox, ist aber mehr als der Hintergrund; dieselbe Skybox kann an
+mehreren Orten stehen. «Im Dorf» ist ein Kapitel der Geschichte, aber keine Welt und hat keine Nummer.
 _Vermeiden_: Skybox, Hintergrund (für die Welt)
+
+**Kleiner Wagen**:
+Das Sternbild aus sieben Sternen, an der Spitze seiner Deichsel der Polarstern; der Grund, warum das Licht durch alle
+sechs Welten muss. Die sechs übrigen Sterne schlafen, bis jede Welt ihren weckt, zuerst die Schale, dann die Deichsel
+hinauf; der Polarstern wird nicht geweckt, er antwortet im Finale. Er hat überall dieselbe Form (die des
+Ladezeichens: Polarstern oben links, Schale unten rechts) und steht an einer festen Stelle hoch am Himmel jeder Welt
+und des Dorfs; wechselt die Welt, bleibt er stehen. Zu sehen ist er, wenn die Kamera hinaufschaut (Einstieg, Ende
+einer Welt, Reise, Finale), nicht im Spiel und nicht hinter dem Menü (Entscheid des Nutzers). Wache Sterne und ihre
+Linien leuchten hell, auch bei Tag (Meer, Wüste); schlafende sind bei Nacht blasse Punkte und bei Tag unsichtbar, nur
+der Stern der Welt bleibt ein feiner Funke. Im Prolog schlafen alle sechs, in Prolog 4 zeichnen sich die Linien einmal
+schwach ab; am Ende des Finales blendet der Wagen am Himmel in den über dem Dorf (Wagen in Wagen; die Kamera schaut
+dafür weiter, damit er über die Berge der Bühne passt), und im Epilog leuchten alle sieben. Menü, Übersicht und die
+Leiste unter dem Untertitel der Ankunft zeigen ihn im Stand des Grads. Im Code `wagen` (Form, Linien, Stand), am
+Himmel der Welten `himmelsWagen`.
+_Vermeiden_: Sternzeichen (das ist ein Zeichen des Tierkreises), Planeten (für seine Sterne; Planeten heisst eine Welt)
+
+**Stern einer Welt**:
+Der Stern des Kleinen Wagens, den eine Welt weckt: Bergwald Stern 1 (aussen an der Schale), Meer 2, Wüste 3, Vulkan 4
+(wo die Deichsel ansetzt), Planeten 5, Sterne 6 (neben dem Polarstern). Solange er schläft, atmet er bei Nacht kaum
+merklich und ist bei Tag ein feiner Funke. Der Einstieg in eine Welt und die Reise dorthin führen das Licht an ihm
+vorbei, er zuckt kurz auf; am Ende der Welt steigen die Strahlen der Ziele zu ihm, und er erwacht. «Im Dorf» hat
+keinen Stern.
+
+**Erwachen**:
+Ein Stern des Kleinen Wagens wird wach, am Ende seiner Welt nach «Gelöst» und «Weiter»: Die Strahlen der Ziele steigen
+zu ihm, er blitzt auf und bleibt hell, die Linie vom vorigen Stern zieht sich (mit dem Vulkan auch die zum Bergwald:
+die Schale schliesst sich), und ein Glockenton klingt, von Stern zu Stern höher. Der sechste erwacht im Finale; dann
+läuft ein Lichtpuls mit allen sechs Tönen durch den Wagen und über die Deichsel zum Polarstern, der den Schlusston setzt
+und antwortet. Wach ist ein Stern, sobald das letzte Level seiner Welt im Durchgang gelöst ist, bis «Von vorn»; jeder
+Grad hat seinen eigenen Wagen, ein geschaffter zeigt alle sieben wach. Neuladen, Fortsetzen, Menü, Übersicht und
+Wiederholen zeigen diesen Stand ohne Erwachen (im Menü blitzt ein seit dem letzten Zeigen erwachter Stern nur auf);
+wer nach dem letzten Level einer Welt neu lädt, sieht den Stern schon wach. Der Stand folgt aus den gelösten Leveln,
+ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.stand`.
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
@@ -78,10 +114,10 @@ Glühwürmchen das Licht in den Bergwald wie nach «Gleich los». Es ist ein Kap
 Nummer, sein Einstieg ohne Träger, und die Übungen zählen nicht zu den 60 Leveln des Grads (im Menü steht der Grad dort
 auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar; Neuladen setzt an der Übung fort. Die Übersicht
 zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle Übungen frei, und eine Übung aus der
-Übersicht führt nach der 9. zurück in die Übersicht. Hintergrund vorerst die Milchstrasse, bis der Nutzer eine eigene
-Skybox macht (`STORY_DORF.sky`, die eine Stelle dafür). Im Code `STORY_DORF` (Texte, Himmel), `story.inDorf` und
-`story.uebung` (die laufende Übung), im Stand `prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder
-übersprungen), nur nach «Üben».
+Übersicht führt nach der 9. zurück in die Übersicht. Hintergrund ist Noas Dorf bei Nacht (Skybox `village`,
+`STORY_DORF.sky`); an seinem Himmel steht der Kleine Wagen wie im Prolog, alle sechs Sterne schlafend. Im Code
+`STORY_DORF` (Texte, Himmel), `story.inDorf` und `story.uebung` (die laufende Übung), im Stand
+`prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder übersprungen), nur nach «Üben».
 _Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
 
@@ -94,7 +130,8 @@ hat kein eigenes Überspringen: «Gleich los» ist es. Im Code `story.offer`, Te
 
 **Einstieg ins Dorf**:
 Das Licht kommt nach «Üben» ins Dorf: ein Untertitel «Im Dorf · Erstes Licht» (Noa übt hinter dem Haus mit der
-Taschenlampe), der Lichtpunkt fällt ohne Träger aufs Brett, und die erste Übung wächst. Danach ist der Moment `dorf`
+Taschenlampe) in der Mitte wie bei der Ankunft in einer Welt, die Leiste darunter mit allen Zeichen blass; der
+Lichtpunkt fällt ohne Träger aufs Brett, und die erste Übung wächst. Danach ist der Moment `dorf`
 gesehen; er kommt je Grad nur einmal. Überspringbar wie der Einstieg in eine Welt. Abgrenzung: kein Einstieg in eine
 Welt, das Dorf ist keine.
 
@@ -107,33 +144,44 @@ _Vermeiden_: Überspringen für Level (gibt es nicht), Abbrechen
 
 **Einstieg in eine Welt**:
 Das Licht kommt zum ersten Mal je Grad in einer Welt an, ohne Reise davor (nach dem Prolog oder «Im Dorf», beim
-Fortsetzen): Ein Träger bringt es, ein Untertitel nennt die Welt, dann fällt es aufs Brett. Kommt je Grad nur einmal
-und lässt sich überspringen wie der Prolog; das Licht landet dann ohne Schnitt auf dem Brett. «Im Dorf» hat einen
-eigenen Einstieg, ohne Träger. Abgrenzung: Die Reise lässt sich nicht überspringen. Ein Einstieg im Level ist ein
+Fortsetzen): Ein Träger bringt es am schlafenden Stern dieser Welt vorbei, der kurz aufzuckt, ein Untertitel nennt die
+Welt (derselbe wie auf der Reise dorthin), dann fällt es aufs Brett. Kommt je Grad nur einmal und lässt sich
+überspringen wie der Prolog; das Licht landet dann ohne Schnitt auf dem Brett. «Im Dorf» hat einen eigenen Einstieg,
+ohne Träger und ohne Stern. Abgrenzung: Die Reise lässt sich nicht überspringen. Ein Einstieg im Level ist ein
 kurzer Strang, den ein anderer Strahl an einem seiner Spiegel trifft (siehe Füllteil).
 
 **Reise**:
-Der Übergang von einer Welt in die nächste: Die Strahlen der Ziele steigen zu einem Lichtpunkt auf, ein Träger nimmt
-ihn mit, ein Untertitel sagt, wohin es geht. Sie läuft immer ganz und lässt sich nicht überspringen (Entscheid des
-Nutzers), nur durch Tippen beschleunigen. Beim Wiederholen gibt es keine; dann blendet nur der Hintergrund. Im Code
+Der Übergang von einer Welt in die nächste: Die Strahlen der Ziele steigen zum Stern dieser Welt auf, er erwacht; ein
+Träger nimmt das Licht und fliegt am nächsten, noch schlafenden Stern vorbei, der kurz aufzuckt, hinab in die nächste
+Welt. Der Kleine Wagen bleibt dabei stehen, nur die Welt darunter blendet über. Der Untertitel in der Mitte nennt
+Kapitel und Welt und erzählt, welcher Stern erwacht ist und wohin er weist, das Licht steht darüber; die Leiste am
+unteren Rand zeigt den Wagen mit den Zeichen der Welten, der eben geweckte Stern blitzt darin auf. Sie läuft immer
+ganz und lässt sich nicht überspringen (Entscheid des Nutzers), nur durch Tippen beschleunigen. Beim Wiederholen gibt
+es keine; dann blendet nur der Hintergrund. Nach den Sternen kommt statt einer Reise das Finale. Im Code
 `story.travel`.
 _Vermeiden_: Reise für den Durchgang (die 60 Level eines Grads in ihrer Reihenfolge) und für den Einstieg in eine Welt
 
 **Träger**:
-Was das Licht auf der Reise in die nächste Welt trägt, je Welt eines: Glühwürmchen, Gischt, Sand, Glut, Komet.
+Was das Licht vom eben geweckten Stern in die nächste Welt trägt, je Welt eines: Glühwürmchen, Gischt, Sand, Glut,
+Komet; die Sterne haben keinen, nach ihnen kommt das Finale. Beim Einstieg in eine Welt bringt es der Träger der Welt
+davor, in den Bergwald die Glühwürmchen des Prologs.
 
 **Übersicht**:
-Die Level eines Grads nach Welten, dazu «Im Dorf», sobald es gespielt wurde: gelöste wieder spielbar (Wiederholen),
-das nächste ungelöste offen, spätere gesperrt, je gelöstes Level die Bestwerte. Aus dem Spiel (Knopf «Übersicht»,
-Taste L) wartet das Level darunter wie beim Menü; aus dem Menü öffnet sie die Karte eines geschafften Grads.
+Die Level eines Grads als Himmel mit seinem Kleinen Wagen: um den Stern jeder Welt ihre 10 Level als kleine Sterne
+(gelöst hell, das nächste ungelöste mit Ring, spätere blass), dazu «Im Dorf» als eigener Haufen, sobald es gespielt
+wurde. Ein gewählter Haufen zeigt seine Level daneben (auf dem Handy hoch darunter) als Liste, eine Welt zur Zeit:
+gelöste wieder spielbar (Wiederholen), das nächste ungelöste offen, spätere gesperrt, je gelöstes Level die
+Bestwerte. Aus dem Spiel (Knopf «Übersicht», Taste L) wartet das Level darunter wie beim Menü; aus dem Menü öffnet sie
+der Knopf «Übersicht» eines geschafften Grads.
 Abgrenzung: Das Menü zeigt die vier Grade mit ihrem Stand, die Übersicht die Level eines Grads.
 _Vermeiden_: Levelauswahl (abgelöst, siehe unten)
 
 **Wiederholen**:
-Ein gelöstes Level aus der Übersicht noch einmal spielen. Es kommt ohne Einstieg, Reise und Finale; «Weiter» führt zum
-nächsten Level, über eine Weltgrenze blendet nur der Hintergrund. Erst beim nächsten ungelösten Level gilt wieder der
-normale Ablauf mit Reise und Finale. Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level
-zurück in die Übersicht, ebenso die 9. Übung im Dorf. Im Code `story.replay`.
+Ein gelöstes Level aus der Übersicht noch einmal spielen. Es kommt ohne Einstieg, Reise und Finale, also ohne
+Erwachen; der Kleine Wagen zeigt den Stand des Durchgangs. «Weiter» führt zum nächsten Level, über eine Weltgrenze
+blendet nur der Hintergrund. Erst beim nächsten ungelösten Level gilt wieder der normale Ablauf mit Reise und Finale.
+Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level zurück in die Übersicht, ebenso die 9.
+Übung im Dorf. Im Code `story.replay`.
 _Vermeiden_: Neu starten (setzt das Level auf dem Brett zurück), Von vorn (löscht den Stand eines Grads)
 
 **Bestwerte**:

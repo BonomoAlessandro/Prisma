@@ -854,7 +854,7 @@
   /* ---------- Kacheln ---------- */
   .ueb-kacheln {
     list-style: none; padding: 0;
-    position: relative; isolation: isolate; /* der Lichtweg (z-index −1) liegt hinter den Kacheln */
+    position: relative; isolation: isolate; /* eigene Stapelebene der Kacheln */
     display: grid; gap: var(--ueb-luecke);
   }
   .ueb-kacheln > li { display: flex; min-width: 0; }
@@ -902,7 +902,7 @@
   /* das laufende Level (aus dem Spiel geöffnet) */
   .ueb-kachel[aria-current="true"]:not(.ueb-offen) { border-color: #fff; }
 
-  /* Station einer Welt: Zeichen im Kreis wie die Stationen der Lichtwege; fertig hell, die jetzige mit Hof */
+  /* Zeichen der Welt im Kreis, im Kopf ihrer Liste (wie in der Leiste der Ankunft); fertig hell, die jetzige mit Hof */
   .ueb-station {
     box-sizing: border-box; display: grid; place-items: center; flex: none;
     width: 34px; height: 34px; border-radius: 50%; font-size: 18px;
@@ -18300,9 +18300,11 @@ function createUebersicht({ root, icons = {}, wagen = null, onPlay = () => {}, o
    NOAS GESCHICHTE — «Ein Lichtsignal an die Sterne», der Ablauf des Spiels (Spec .scratch/noa-geschichte/).
    Noa will aus einem Bergdorf dem Polarstern ein Zeichen schicken. Eine Taschenlampe reicht nicht so weit, doch Licht
    lässt sich weitergeben: Der Spieler reicht es Welt für Welt weiter (ein Kapitel = eine Welt mit ihrer Skybox und
-   10 Leveln). Am Kapitelende steigen die Strahlen der Ziele zu einem Punkt am Himmel, ein Träger nimmt ihn mit in die
-   nächste Welt (travel). Ganz oben antwortet der Polarstern: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn
-   blinken (Epilog auf der Bühne, createStoryScene).
+   10 Leveln). Jede Welt weckt dabei einen Stern des Kleinen Wagens (wagen, Spec .scratch/kleiner-wagen/): Am
+   Kapitelende steigen die Strahlen der Ziele zum Stern dieser Welt, er erwacht (erwache), und ein Träger nimmt das
+   Licht am nächsten Stern vorbei mit in die nächste Welt (travel). Im Finale erwacht der sechste, das Licht läuft über
+   die Deichsel zum Polarstern, und er antwortet: Sein Strahl fällt zurück, und im Dorf sieht Noa ihn blinken (Epilog
+   auf der Bühne, createStoryScene).
    Nach dem Startbildschirm wählt der Spieler im Menü einen Grad (createMenu, Ticket 05); jeder Grad hat seinen eigenen
    Durchgang (STORY_LEVELS) und seinen eigenen Stand (progress, prisma.noa.*): Platz, gelöste Level, gesehene Momente.
    Prolog und Einstiege in die Welten kommen je Grad nur beim ersten Mal. Nach dem Prolog wählt der Spieler «Üben»
@@ -18335,7 +18337,9 @@ const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
  * Kapitel: Station auf dem Weg, Hintergrund, Meldung und Knopf nach dem letzten Level; die Level je Grad stehen in
  * STORY_LEVELS (dieselbe Reihenfolge der Welten). travel: Untertitel, wenn das Licht hier ankommt (nach dem Prolog,
  * auf der Reise, beim Fortsetzen); carrier: was das Licht von hier in die nächste Welt trägt (STORY_CARRIERS). up:
- * Blick in den Himmel steiler (Vulkan: über die Kraterwand). finale: danach antwortet der Stern, und der Epilog folgt.
+ * so hoch schaut man in dieser Welt in den Himmel, wenn das Licht ankommt (Einstieg, Ende des Flugs, Menü), steiler
+ * beim Vulkan (über die Kraterwand); der Aufstieg am Ende der Welt schaut zu ihrem Stern. finale: danach antwortet der
+ * Stern, und der Epilog folgt.
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest',
@@ -20629,8 +20633,8 @@ const story = {
   /**
    * Menü öffnen (Entscheide 8, 14, 17): nach dem Startbildschirm, mit «Menü» im Spiel und am Ende des Epilogs.
    * Kopfzeile, Knöpfe und «Gelöst» sind solange weg; dahinter schaut die Kamera in den Himmel, damit das Brett nicht
-   * hinter den Wegen steht (vom Brett hebt sich der Blick weich, sofort: unter dem Startbildschirm). hervorheben: direkt
-   * nach dem Epilog der nächstschwerere Grad (Entscheid 14).
+   * hinter der Sternkarte steht (vom Brett hebt sich der Blick weich, sofort: unter dem Startbildschirm). hervorheben:
+   * direkt nach dem Epilog der nächstschwerere Grad (Entscheid 14).
    */
   openMenu({ sofort = false, hervorheben = false } = {}) {
     this.lift(sofort);
@@ -21151,8 +21155,8 @@ const story = {
    * eben geweckten Stern, er fliegt in einem Bogen am nächsten, noch schlafenden Stern vorbei (der kurz aufzuckt, zucke)
    * und hinab, und die Kamera folgt ihm (Ticket 05 von .scratch/kleiner-wagen/; STORY_FLUG). Die neue Welt lädt schon
    * beim Abflug; sobald sie da ist, blendet die alte über einen kurzen Moment Nacht in sie hinein, der Wagen bleibt
-   * stehen. Unbemerkt versinkt darunter das alte Feld. Zuletzt fällt das Licht aufs neue Brett. Unten steht dazu, wohin
-   * die Reise geht; darüber steht das Licht (lichtHoch).
+   * stehen. Unbemerkt versinkt darunter das alte Feld. Zuletzt fällt das Licht aufs neue Brett. In der Mitte steht
+   * dazu, wohin die Reise geht, die Leiste am Rand; darüber steht das Licht (lichtHoch).
    */
   async travel(from, ch, index) {
     const fl = this.flare, carrier = this.carrier, n = STORY_CHAPTERS.indexOf(ch) + 1, F = STORY_FLUG;
@@ -21257,8 +21261,9 @@ const story = {
    * er erwacht. Satz 1: Der Blick geht zum ganzen Wagen, ein Lichtpuls läuft Stern für Stern durch ihn (puls). Satz 2:
    * Er springt über die Deichsel, der Polarstern flammt auf (deichsel). Satz 3, dann antwortet der Polarstern: Sein
    * Strahl fällt zurück aufs Brett, die Kamera folgt ihm. Der Aufprall klingt aus (Lichtwelle, Funkenregen, die Ziele
-   * blitzen), dann geht der Blick noch einmal hinauf, bis der ganze Wagen im Bild steht, und während die Welt in der
-   * Nacht versinkt, taucht das Dorf auf, in dem Noa wartet (Epilog).
+   * blitzen), dann geht der Blick noch einmal hinauf, bis der ganze Wagen dort im Bild steht, wo die Bühne ihn zeigt
+   * (wagenEnde, wenn nötig mit weiterem Sichtfeld), und während die Welt in der Nacht versinkt, taucht das Dorf auf, in
+   * dem Noa wartet (Epilog; Wagen in Wagen, Ticket 07).
    */
   async finale() {
     const P = STORY_PULS, fl = this.flare, sechster = this.steps[this.step].c + 1;
@@ -21725,12 +21730,11 @@ const story = {
    * In eine Welt hinein ohne Reise davor (nach dem Prolog, beim Fortsetzen): Der Träger, der das Licht hierher bringt
    * (im ersten Kapitel die Glühwürmchen des Prologs, sonst der der Welt davor), fliegt mit ihm von der Seite heran, am
    * schlafenden Stern dieser Welt vorbei, der kurz aufzuckt (Ticket 05 von .scratch/kleiner-wagen/), und es fällt aufs
-   * Brett; ins Dorf ohne Träger und ohne Stern, tief über dem Horizont. Dazu der Untertitel mit Kapitel und Weg wie auf
-   * der Reise. Bis der
-   * Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im Himmel der Welt davor); schaut sie
-   * schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin). wie: was der Welt
-   * ch sonst entnommen wird (Einstieg ins Dorf: STORY_DORF.einstieg, ohne Träger): kicker, text, path (Station),
-   * traeger (STORY_CARRIERS oder null), moment (gesehen, sobald das Level wächst).
+   * Brett; ins Dorf ohne Träger und ohne Stern, tief über dem Horizont. Dazu der Untertitel mit Kapitel und Leiste wie
+   * auf der Reise. Bis der Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im Himmel der Welt
+   * davor); schaut sie schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin).
+   * wie: was der Welt ch sonst entnommen wird (Einstieg ins Dorf: STORY_DORF.einstieg, ohne Träger): kicker, text, path
+   * (Station), traeger (STORY_CARRIERS oder null), moment (gesehen, sobald das Level wächst).
    * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
    */
   async enter(index, ch, sunk, wie = {}) {
@@ -22295,9 +22299,9 @@ const story = {
     beam.visible = true;
   },
   /**
-   * Lichtpunkt am Himmel (Ziel der Strahlen, im Finale der Polarstern): weicher Hof mit vier kurzen Strahlen, die sich
-   * zur Spitze hin verjüngen, dazwischen vier schwache; leicht gedreht. Feine Linien quer durchs Bild wirkten wie ein
-   * Fadenkreuz.
+   * Lichtpunkt am Himmel (Ziel der Strahlen beim Stern der Welt, dann das getragene Licht, im Finale zuletzt auf dem
+   * Polarstern): weicher Hof mit vier kurzen Strahlen, die sich zur Spitze hin verjüngen, dazwischen vier schwache;
+   * leicht gedreht. Feine Linien quer durchs Bild wirkten wie ein Fadenkreuz.
    */
   makeFlare() {
     const size = 256, h = size / 2, c = document.createElement('canvas');

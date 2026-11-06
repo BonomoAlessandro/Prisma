@@ -23,13 +23,12 @@ Entscheid in ADR 0005.
   - [ ] Übersicht auf kleinen Handys (360 × 640, 320 × 568): «Schliessen» liegt unter den Kacheln ausserhalb des
     Bildschirms, der Kopf ist weggescrollt.
   - [ ] Kopfzeile der Reise («Kapitel 3 · Die Wüste») auf hellem Himmel kaum lesbar; etwas heller.
-  - [ ] `.menue-aktion` auf kleinen Handys 8 px; 9 px oder die Karte anders kürzen.
+  - [x] `.menue-aktion` auf kleinen Handys 8 px: entfallen, das Menü ist seit 0.4 (Ticket 08) neu gebaut.
   - [ ] Felsbilder in Streifen (OffscreenCanvas) in einem echten Firefox gegenprüfen (Strand, Wüste).
   - [ ] Baustein der Übersicht in `.scratch/noa-geschichte/bausteine/` kennt Tasten, Hinweis an der Kachel und 44 px
     nicht (das Spiel ist massgebend).
 - **Offen, nicht Teil der Spec:**
-  - [ ] Eigene Skybox für «Im Dorf» (macht der Nutzer; vorerst die Milchstrasse, an einer Stelle austauschbar),
-    vielleicht zusammen mit dem Dorf aus 1.2.
+  - [x] Eigene Skybox für «Im Dorf»: Noas Dorf bei Nacht (`village`), seit 03.11.2026 eingebaut (siehe 1.2).
   - [ ] Würfel-Level als Teil 2 der Geschichte: Alle 300 liegen im Vorrat, ohne Zugang im Spiel, mit einem Befehl
     zurückzuholen (`tools/vorrat.mjs`); ob und wie sie wiederkommen, ist offen.
   - [ ] Zwischenszenen innerhalb einer Welt (vorerst bewusst keine, Entscheid 7 der Spec).
@@ -69,44 +68,23 @@ Entscheid in ADR 0005.
     bleibt der Schlüssel für Werkzeuge und Protokoll.
   - [x] **Platzhalter ersetzt (Ticket 09, 30.10.2026):** 23 neue sehr schwere Level statt der 23 Platzhalter, die
     Vielfalt geht ganz auf; die ersetzten liegen im Vorrat.
-- [ ] **0.4 Warum das Licht durch alle Welten muss: der Kleine Wagen** (Vorschlag vom 01.11.2026, noch nicht
-  entschieden; der Nutzer arbeitet ihn später aus). Heute erklärt die Geschichte nicht, warum Noas Licht nicht direkt
-  zum Polarstern geht. Idee: Der Polarstern ist die Spitze der Deichsel des Kleinen Wagens (7 Sterne). Die sechs
-  anderen Sterne schlafen; jeder wacht über einen Ort der Welt und erwacht erst, wenn dort das Licht leuchtet. Dann
-  zeigt er den Weg zum nächsten Ort. Sechs Welten wecken sechs Sterne (die ersten fünf erwachen auf den Reisen danach,
-  der sechste im Finale), der siebte ist der Polarstern.
-  Dazu der Weg nach oben: Jede Welt trägt das Licht ein Stück höher, das erklärt die Reihenfolge.
-  - **Texte (Entwurf; Prolog und Epilog mit gleicher Zahl Einstellungen und Aktionen wie heute, das Finale mit einer
-    Zeile mehr):**
-    - `STORY_PROLOG` 2: «Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an
-      der Deichsel des Kleinen Wagens.» 3 (lamp): «Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die
-      Taschenlampe leuchtet auf.» 4 (reach): «Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen
-      sollten, schlafen – der Kleine Wagen ist fast unsichtbar.» 6 (carry): «Jeder Stern des Wagens wacht über einen
-      Ort der Welt und erwacht erst, wenn dort Licht leuchtet. Trag Noas Licht von Ort zu Ort – Stern für Stern bis
-      zum Polarstern.» 1 und 5 bleiben.
-    - `travel` je Welt (der eben erwachte Stern weist zur nächsten):
-      Bergwald «Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des
-      Wagens.» · Meer «Über dem Wald erwacht der erste Stern und weist zum Meer. Die Glühwürmchen tragen das Licht über
-      die Hügel bis an den Strand.» · Wüste «Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den
-      Wellen trägt das Licht bis an den Rand der Wüste.» · Vulkan «Über den Dünen funkelt der dritte Stern. Ein Wirbel
-      aus Sand trägt das Licht dorthin, wo die Erde rot glüht.» · Planeten «Der vierte Stern erwacht, hoch über allen
-      Wolken. Der Vulkan bricht aus und schleudert das Licht zu ihm hinauf.» · Sterne «Fünf Sterne leuchten, nur einer
-      schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.» Die heutigen Nachsätze zum
-      Spiel («Lenke es zwischen den Bäumen hindurch», «Dort springt es von Welle zu Welle» …) fehlen im Entwurf noch;
-      beim Ausarbeiten entscheiden, ob sie bleiben.
-    - `done` bleibt, ausser bei den Sternen: «Der Wagen ist wach» statt «Ganz oben».
-    - `STORY_FINALE`: «Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.» / «Über
-      die Deichsel läuft das Licht bis zum Polarstern.» / «Er hat das Zeichen gesehen. Und er antwortet.»
-    - `STORY_EPILOG` 3 (answer): «Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt
-      sieben Sterne, und keiner schläft mehr.»
-  - **Im Bild (nach Wirkung):** 1. Auf jeder Reise ist der Kleine Wagen schwach am Himmel zu sehen, sein nächster
-    Stern zündet, bevor der Träger losfliegt (macht den Fortschritt sichtbar; ohne das tragen die Texte wenig).
-    2. Im Finale zieht sich eine Linie Stern für Stern durch den Wagen bis zum Polarstern (passt zum Sternbild des
-    Startbildschirms, 1.3). 3. Die Karte im Menü zeigt einen kleinen Wagen mit so vielen leuchtenden Sternen, wie
-    Welten geschafft sind. 4. Im Prolog (Einstellung 4) ist der Wagen als sieben blasse Punkte am Himmel der Bühne zu
-    sehen, nur der Polarstern hell.
-  - **Mögliche zweite Ebene:** Jede Welt gibt dem Licht ihre Farbe; erst alle zusammen ergeben das weisse Licht, auf
-    das der Polarstern antwortet (Finale als Mischziel).
+- [x] **0.4 Warum das Licht durch alle Welten muss: der Kleine Wagen** (Vorschlag vom 01.11.2026, entschieden im
+  Grilling vom 04.11.2026). Spec und Tickets: `.scratch/kleiner-wagen/` (Tickets 01–10, Stand in `STAND.md`). Begriffe
+  in `CONTEXT.md` («Kleiner Wagen», «Stern einer Welt», «Erwachen»). Der Polarstern sitzt an der Spitze der Deichsel des
+  Kleinen Wagens; die sechs anderen Sterne schlafen, jede Welt weckt einen (zuerst die Schale, dann die Deichsel
+  hinauf), der siebte ist der Polarstern.
+  - **Gebaut (Tickets 01–09, Branch `feature/kleiner-wagen`):** Form, Linien und Stand des Wagens an einer Stelle
+    (`wagen`, die Form des Ladezeichens); Texte von Prolog, Reisen, Finale und Epilog nach der Spec; der Wagen an einer
+    festen Stelle am Himmel jeder Welt und des Dorfs (hell, was wach ist, auch bei Tag); Erwachen am Ende jeder Welt mit
+    Aufblitzen, Linien und Glockenton, Flug am nächsten Stern vorbei, Einstiege am Stern der Welt; Finale mit dem
+    sechsten Stern, Puls durch den Wagen und über die Deichsel zum Polarstern; Bühne mit dem Wagen (Prolog schlafend,
+    Epilog wach) und Überblendung Wagen in Wagen; Menü «Sternkarte mit Reitern», Übersicht «Sternhaufen» und Leiste
+    «Zeichen im Wagen» aus dem Skizzenkatalog (Ticket 02, Wahl des Nutzers).
+  - [ ] Abnahme durch den Nutzer mit `?szenen` am Computer und auf dem Poco, dabei Grösse und Helligkeit des Wagens
+    abstimmen; dann Ticket 10 (Sprungbrett ausbauen) und Merge nach main auf sein Wort.
+  - [ ] **Offene Idee, nicht Teil der Spec (Entscheid 3):** Jede Welt gibt dem Licht ihre Farbe; erst alle zusammen
+    ergeben das weisse Licht, auf das der Polarstern antwortet (Finale als Mischziel). Auch nicht in einer leichten
+    Fassung mit farbigen Sternen; die Sterne leuchten weiss.
 
 ## 0a. Erledigt (03.11.2026): Leistung
 
