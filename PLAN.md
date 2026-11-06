@@ -137,6 +137,8 @@ Android-Chromium.
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem
     Grund und wäre teurer.
+  - Jede Welt bekommt ihren eigenen Katalog (Entscheid vom 05.11.2026). In der Wüste gewählt (06.11.2026):
+    **Lehmterrasse**, das Dach eines Lehmbaus wie in Djenné. Katalog: https://claude.ai/artifact/18PvQpJeqFYvQZbDkyDR8j.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
