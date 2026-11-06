@@ -24,6 +24,10 @@ Vulkan.
       - Geprüft wird auf der Reise vom Bergwald ans Meer und vom Meer in die Wüste, wo der Wald und die Wüste noch
         vorläufig das Steinbrett haben, und beim Wiederholen über die Weltgrenze, wo der Blick auf dem Brett bleibt.
 - [ ] **Varianten entfernen:** Die nicht gewählten Varianten verschwinden aus dem Code. Der Schalter in der Adresse
+      - Befund aus Ticket 06 (06.11.2026): Beim Überblenden vom Steinbrett zur Lehmterrasse steckt deren eingezogene
+        Wand mit den Balken hinter den dunklen Seiten des Steinbretts und erscheint erst im letzten Bild. Der Nutzer
+        will das hier für alle Formen lösen, nicht einzeln je Brett. Das gilt auch für Moospolster (Erdscholle,
+        Wurzeln), Hochbeet und Basaltsäulen (hängende Säulen), sobald sie da sind.
       bleibt bis Ticket 10, weil die übrigen Himmel ihn noch brauchen.
 - [ ] **Leistung:**
       - Die Bildzeit steigt gegenüber dem Steinbrett nicht messbar (Desktop und Handy-Ansicht).
