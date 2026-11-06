@@ -140,7 +140,10 @@ festes Brett, und es gibt keinen Schalter mehr.
   sein. Sonst entstehen Löcher im Himmel.
 - **Das Brett schwebt weiter** in allen Welten wie heute: am Strand 3 m über dem Wasser, in Wüste und Dorf 4 m über dem
   Boden, am Vulkan über der Lava.
-- **Pflicht auf jedem Brett ist die Lichtwelle beim Lösen**, in einer Form, die zum Material passt.
+- **Jedes Brett hat seine eigene Lichtwelle beim Lösen**, aus seiner Welt (Wunsch des Nutzers vom 06.11.2026). Wo der
+  Ring vorbeizieht, passiert etwas auf dem Brett und kommt danach wieder zur Ruhe. Beim Moospolster blühen zum Beispiel
+  kleine weisse Blumen auf und welken wieder, und die Pilze leuchten. Ein heller Ring oder eine Tönung allein reicht
+  nicht. Zur Abnahme wird sie als Bildfolge oder kurzes Video gezeigt.
 - **Frei je Richtung** sind die eingravierten Rasterlinien, die Einlegelinie und die Spiegelung von Elementen und
   Strahlen. Braucht ein Brett keine Spiegelung, darf ihr Zeichnen für dieses Brett entfallen.
 - **Licht:** Es bleibt unverändert, also Hauptlicht, Grundlicht, der dunkle Raum für die Spiegelungen und der Nebel. Die

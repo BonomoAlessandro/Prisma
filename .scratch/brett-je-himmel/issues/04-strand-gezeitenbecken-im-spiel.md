@@ -38,7 +38,9 @@ So sieht es aus (Karte 6 im Katalog, Hauptbild):
 - [ ] **Spiegelung nur in der Rinne:** Die planare Spiegelung bleibt, wirkt aber nur in der Rinne, etwa über Rauheit
       oder eine Maske. Ist das auf dem Handy zu teuer, wird gemessen und der Nutzer gefragt.
 - [ ] **Pflicht und Grenzen:**
-      - Die Lichtwelle beim Lösen ist da, in der Form der Karte.
+      - Das Brett hat seine eigene Lichtwelle, wie in der Karte: Licht läuft über den Stein, und in der Rinne zieht ein
+        Schwall mit Schaum rundum, der danach wieder still wird. Sie kommt als Bildfolge oder kurzes Video auf die
+        Vorschauseite (Wunsch des Nutzers vom 06.11.2026).
       - Das 7×7-Feld bleibt eben, gleich gross und an derselben Stelle.
       - Die Form bleibt innerhalb des Umrisses, und das Brett schwebt.
       - Die Art nennt ihren Kernquader. Mit flacher und ganz herausgezoomter Kamera hat der Himmel keine Löcher.

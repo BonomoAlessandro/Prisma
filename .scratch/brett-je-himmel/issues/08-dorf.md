@@ -19,6 +19,10 @@ fertig gemacht und abgenommen.
       «Comments».
 - [ ] **Im Spiel:** Die gewählte Richtung wird eine Art von Brett, wie das Gezeitenbecken in Ticket 04. Der Nutzer gibt
       an Bildern Rückmeldungen, bis sie sitzt.
+- [ ] **Eigene Lichtwelle:** Das Brett bekommt seine eigene Lichtwelle aus seiner Welt, wie die Blumen beim
+      Moospolster: Wo der Ring vorbeizieht, passiert etwas auf dem Brett und kommt danach wieder zur Ruhe.
+      Sie steht auf der gewählten Karte des Dorf-Katalogs.
+      Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Einstieg ins Dorf nach «Üben», Lösen einer Übung). Dazu kommen die Messwerte
       des Bretts, verglichen mit dem Steinbrett.

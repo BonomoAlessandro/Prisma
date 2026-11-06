@@ -19,6 +19,12 @@ fertig gemacht und abgenommen.
       «Comments».
 - [ ] **Im Spiel:** Die gewählte Richtung wird eine Art von Brett, wie das Gezeitenbecken in Ticket 04. Der Nutzer gibt
       an Bildern Rückmeldungen, bis sie sitzt.
+- [ ] **Eigene Lichtwelle:** Das Brett bekommt seine eigene Lichtwelle aus seiner Welt, wie die Blumen beim
+      Moospolster: Wo der Ring vorbeizieht, passiert etwas auf dem Brett und kommt danach wieder zur Ruhe.
+      Die Karte hatte nur warmes Abendlicht, das in den Rillen mitläuft. Das reicht nicht. Zeig dem Nutzer
+      Vorschläge, zum Beispiel: Die Strausseneier auf den Türmchen glühen auf, Staub rieselt aus den Rillen, die
+      Palmholzbalken werfen kurz lange Schatten, oder ein Schwarm Schwalben steigt auf.
+      Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Fall des Lichts beim Einstieg in die Wüste, Lösen). Dazu kommen die Messwerte
       des Bretts, verglichen mit dem Steinbrett.

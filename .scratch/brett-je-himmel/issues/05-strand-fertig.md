@@ -29,7 +29,7 @@ Vulkan.
       - Die Bildzeit steigt gegenüber dem Steinbrett nicht messbar (Desktop und Handy-Ansicht).
       - Der Grafikspeicher bleibt etwa wie heute.
       - Gerechnet wird beim Laden, und beim Wechsel ruckelt nichts (Bildzeiten der Geschichte-Probe).
-- [ ] **Abnahme:** Eine Vorschauseite zeigt die Bilder wie in Ticket 04, dazu den Übergang als Bildfolge oder kurzes
+- [ ] **Abnahme:** Eine Vorschauseite zeigt die Bilder wie in Ticket 04, dazu die Lichtwelle und den Übergang als Bildfolge oder kurzes
       Video. Der Nutzer nimmt ab, erst dann wird committet.
 - [ ] **Tests:** Logiktest für die Werte des Strands. Die Geschichte-Probe und die Offline-Probe zeigen das Brett des
       Strands am Meer.
