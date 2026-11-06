@@ -12,8 +12,8 @@
 // die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
 // BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
-// Farben und Lage der Rinne). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte,
-// fehlende oder ungültige Werte sind Fehler.
+// Farben und Lage der Rinne, clay die Farben der Lehmterrasse in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett
+// (stone). Eine unbekannte Art und unbekannte, fehlende oder ungültige Werte sind Fehler.
 // pack.mjs übernimmt sie unverändert aus skybox.json (mit --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
@@ -79,6 +79,9 @@ const isRange = (v) => isVec(v, 2) && v[0] > 0 && v[1] >= v[0];
 /** Farbe, die nicht aufblüht (jeder Kanal unter der Bloom-Schwelle); isGlow(n): n solche */
 const isBright = (v) => isColor(v) && Math.max(...v) < BLOOM_THRESHOLD;
 const isGlow = (n) => (v) => Array.isArray(v) && v.length === n && v.every(isBright);
+/** Farbe in sRGB 0 … 1 (Farben eines Bretts); isSrgbPair: zwei Töne */
+const isSrgb = (v) => isVec(v) && v.every((x) => x >= 0 && x <= 1);
+const isSrgbPair = (v) => Array.isArray(v) && v.length === 2 && v.every(isSrgb);
 /** Pinsel der Skybox (createBrushPass): Felder optional, in ihrem Bereich */
 const BRUSH_RANGES = { size: [0.01, 2], uniformity: [0, 50], sharpness: [0, 1], eccentricity: [0, 2] };
 const isBrush = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -153,6 +156,13 @@ const BOARD_PARAMS = {
   tidePool: {
     stone: isColorPair, water: isColorPair, rock: isColorPair,
     channel: (v) => isVec(v, 2) && v[0] > BOARD_FIELD && v[1] - v[0] >= 0.1 && v[1] <= BOARD_PLATE - 0.05,
+  },
+  // Lehmterrasse der Wüste (clayBoard): Farben sRGB 0 … 1. plaster und brick je zwei Töne (Putz, Ziegel), straw
+  // Strohhalme im Putz, joint Fugen, gully Regenrinnen in der Wand, inlay Kalklinie (Einlegelinie), wood Balken aus
+  // Palmholz, egg Strausseneier, sand Sandzungen der Lichtwelle
+  clay: {
+    plaster: isSrgbPair, straw: isSrgb, brick: isSrgbPair, joint: isSrgb, gully: isSrgb, inlay: isSrgb, wood: isSrgb,
+    egg: isSrgb, sand: isSrgb,
   },
 };
 

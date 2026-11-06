@@ -1256,7 +1256,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-06 brett-strand';
+const APP_VERSION = '2026-11-06 brett-strand-wueste';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -13404,6 +13404,433 @@ function tidePoolBoard(values) {
   };
 }
 
+/* ---------- Lehmterrasse (Art clay): das Brett der Wüste (Ticket 06) ---------- */
+
+// Masse der Lehmterrasse (m). Das Brett ist das Dach eines Lehmbaus wie der Moschee von Djenné: Unter einem Gesims über
+// die ganze Breite steht eine eingezogene Wand, aus der Balken aus Palmholz ragen (Torons, je 22 cm); auf den Ecken des
+// Rands stehen Spitztürmchen mit einem Straussenei. Lehm ist matt: keine Spiegelung
+const CLAY = {
+  cornice: 0.09,          // Gesims über die ganze Breite (PLATE), 3 mm unter der Oberfläche
+  wall: 9.3, wallH: 0.34, // eingezogene Wand unter dem Gesims: Breite, Höhe
+  wallTex: [1024, 128],   // Textur von Gesims, Wand und Türmchen (u über PLATE, v über die Höhe einer Seite)
+  turret: 4.55,           // Mitte der Türmchen (x und z)
+  grains: 2600,           // Körner, die mit der Fahne über den Putz hüpfen (Lichtwelle)
+  falls: [44, 8],         // je Seite so viele Strähnen zu so vielen Körnern, die über das Gesims rieseln
+  waveEnd: 3.2,           // so lange (s nach dem Start des Rings) sind Körner unterwegs, danach nicht gezeichnet
+};
+// Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
+const CLAY_VALUES = ['plaster', 'straw', 'brick', 'joint', 'gully', 'inlay', 'wood', 'egg', 'sand'];
+
+/**
+ * Farbe und Normalen der Lehmterrasse (createClayTextures), ohne Bezug auf das übrige Spiel (Worker). Formeln und Farben
+ * aus dem Katalog (katalog-wueste, 2-lehm.js), die Höhen ungerundet. Feld size² über das ganze Brett (Zeile j bei
+ * uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): glatter Lehmputz in zwei Tönen (plaster) mit Kellenstrichen
+ * und Strohhalmen (straw), im Rand (ab half + 0,26 m) stellenweise abgeplatzt, dort Ziegel (brick, zwei Töne) mit Fugen
+ * (joint). Wand wallW × wallH: Putz mit Regenrinnen (gully). Farben sRGB 0 … 1 (v: Werte der Brett-Angabe).
+ */
+function clayData({ size, plate, half, wallW, wallH, v }) {
+  const hash = (x, y, s) => {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  const noise = (x, y, s) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
+  };
+  const fbm = (x, y, oct, s) => {
+    let sum = 0, amp = 0.5, f = 1, n = 0;
+    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
+    return sum / n;
+  };
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
+
+  const n = size * size, texel = plate / size;
+  const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
+  for (let j = 0; j < size; j++) {
+    const z = plate / 2 - (j + 0.5) * texel;
+    for (let i = 0; i < size; i++) {
+      const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
+      const g = fbm(x * 0.4, z * 0.4, 4, 82), straw = noise(x * 160, z * 160, 83);
+      // Kellenstriche: flache Bögen
+      const sw = Math.sin(Math.hypot(x - Math.round(x / 0.9) * 0.9, z - Math.round(z / 0.9) * 0.9 + 0.4) * 22 + g * 4);
+      let c = mix(v.plaster[0], v.plaster[1], smooth(0.3, 0.75, g));
+      if (straw > 0.9) c = mix(c, v.straw, 0.5);
+      let h = sw * 0.0004 + (straw - 0.5) * 0.0004;
+      if (box > half + 0.26) { // Rand: Putz stellenweise abgeplatzt, Ziegel sichtbar
+        const off = smooth(0.52, 0.56, fbm(x * 1.6, z * 1.6, 3, 84));
+        const bx = (Math.abs(x) > Math.abs(z) ? z : x) / 0.32, by = box / 0.12, row = Math.floor(by);
+        const joint = Math.abs(by - row - 0.5) > 0.42 || Math.abs((((bx + row * 0.5) % 1) + 1) % 1 - 0.5) > 0.45;
+        const brick = mix(v.brick[0], v.brick[1], noise(Math.floor(bx + row * 0.5), row, 85));
+        c = mix(c, joint ? v.joint : brick, off);
+        h -= off * 0.004 + (joint ? off * 0.002 : 0);
+      }
+      put(color, k * 4, c);
+      height[k] = h;
+    }
+  }
+  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
+  const normal = new Uint8ClampedArray(n * 4);
+  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
+      const l = Math.hypot(nx, ny, 1);
+      put(normal, (j * size + i) * 4, [(nx / l) * 0.5 + 0.5, (ny / l) * 0.5 + 0.5, (1 / l) * 0.5 + 0.5]);
+    }
+  }
+  const wall = new Uint8ClampedArray(wallW * wallH * 4);
+  for (let j = 0; j < wallH; j++) {
+    const y = 1 - (j + 0.5) / wallH; // 0 oben … 1 unten (Zeile 0 liegt unten)
+    for (let i = 0; i < wallW; i++) {
+      const u = ((i + 0.5) / wallW) * plate;
+      const g = fbm(u * 1.5, y * 2, 3, 86), gully = smooth(0.62, 0.8, fbm(u * 9, y * 0.5, 2, 87));
+      put(wall, (j * wallW + i) * 4, mix(mix(v.plaster[0], v.plaster[1], g), v.gully, gully * 0.6));
+    }
+  }
+  return { color, normal, wall };
+}
+
+/**
+ * Texturen der Lehmterrasse, im Hintergrund-Thread berechnet wie die des Steinbretts (createStoneTextures; ohne Worker
+ * im Hauptthread): { map (Feld, sRGB), normalMap (Feld), wallMap (Wand, sRGB, wiederholt), computed (Promise) }.
+ * Rauheit braucht es keine: Der Putz ist überall gleich matt.
+ */
+function createClayTextures(v) {
+  const size = QUALITY.textureSize, [wallW, wallH] = CLAY.wallTex;
+  const toTex = (w, h, srgb, repeat = false) => {
+    const tex = new THREE.DataTexture(new Uint8ClampedArray(w * h * 4), w, h, THREE.RGBAFormat);
+    tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    tex.flipY = false;
+    if (repeat) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    return tex;
+  };
+  let done = false, fertig, gescheitert;
+  const out = {
+    map: toTex(size, size, true), normalMap: toTex(size, size, false), wallMap: toTex(wallW, wallH, true, true),
+    computed: new Promise((ja, nein) => { fertig = ja; gescheitert = nein; }),
+  };
+  const fill = (d) => {
+    if (done) return;
+    done = true;
+    for (const [tex, data] of [[out.map, d.color], [out.normalMap, d.normal], [out.wallMap, d.wall]]) {
+      tex.image.data.set(data);
+      tex.needsUpdate = true;
+    }
+    fertig();
+  };
+  const arg = { size, plate: PLATE, half: BOARD / 2, wallW, wallH, v };
+  const sicher = (f) => { try { f(); } catch (e) { gescheitert(e); } }; // gescheitert: das Steinbrett als Notfall
+  const hier = () => sicher(() => fill(clayData(arg)));
+  try {
+    const url = URL.createObjectURL(new Blob([`${clayData}
+      onmessage = ({ data }) => {
+        const d = clayData(data);
+        postMessage(d, [d.color.buffer, d.normal.buffer, d.wall.buffer]);
+      };`],
+    { type: 'text/javascript' }));
+    const worker = new Worker(url);
+    URL.revokeObjectURL(url);
+    worker.onmessage = ({ data }) => { worker.terminate(); sicher(() => fill(data)); };
+    worker.onerror = () => { worker.terminate(); hier(); }; // Worker nicht ladbar (CSP): im Hauptthread
+    worker.postMessage(arg);
+  } catch { hier(); }
+  return out;
+}
+
+// Rauschen der Sandverwehung (GLSL): Hash, Wertrauschen, drei Oktaven
+const CLAY_NOISE_GLSL = `
+  float wHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float wNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), u.x),
+      mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+  float wFbm(vec2 p) { return wNoise(p) * 0.55 + wNoise(p * 2.07 + 13.1) * 0.3 + wNoise(p * 4.3 + 7.7) * 0.15; }`;
+/** Schlieren in Windrichtung (GLSL-Ausdruck): Rauschen bei q, über n Schritte längs wDir nach innen gemittelt */
+const clayStreak = (q, n, step, freq) => `(${Array.from({ length: n }, (_, i) =>
+  `wNoise((${q} - wDir * ${(i * step).toFixed(3)}) * ${freq.toFixed(1)})`).join(' + ')}) / ${n.toFixed(1)}`;
+
+/**
+ * Körner der Sandverwehung als Billboards (Instanzen eines Vierecks), bewegt ganz im Vertex-Shader nach der Uhr der
+ * Lichtwelle (uWave). rows: je Korn acht Zahlen (a0, a1); vertex: GLSL, setzt pos (Welt), size (Halbmass, m), alpha und
+ * col. uK: Anteil des Bretts beim Überblenden. Unsichtbar, bis die Uhr läuft (clayBoard, tick).
+ */
+function clayGrains(rows, vertex, uniforms) {
+  const g = new THREE.InstancedBufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  const a0 = new Float32Array(rows.length * 4), a1 = new Float32Array(rows.length * 4);
+  rows.forEach((r, i) => { a0.set(r.slice(0, 4), i * 4); a1.set(r.slice(4, 8), i * 4); });
+  g.setAttribute('a0', new THREE.InstancedBufferAttribute(a0, 4));
+  g.setAttribute('a1', new THREE.InstancedBufferAttribute(a1, 4));
+  g.instanceCount = rows.length;
+  const material = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: `uniform vec4 uWave;
+      uniform float uK;
+      attribute vec4 a0, a1;
+      varying vec2 vC;
+      varying float vA;
+      varying vec3 vCol;
+      ${CLAY_NOISE_GLSL}
+      void main() {
+        vec3 pos = vec3(0.0), col = vec3(1.0);
+        float size = 0.02, alpha = 0.0;
+        ${vertex}
+        vec4 mv = modelViewMatrix * vec4(pos, 1.0);
+        mv.xy += position.xy * size;
+        gl_Position = alpha > 0.003 ? projectionMatrix * mv : vec4(0.0, 0.0, 2.0, 1.0); // sonst ausserhalb des Bilds
+        vC = position.xy;
+        vA = alpha * uK;
+        vCol = col;
+      }`,
+    fragmentShader: `varying vec2 vC;
+      varying float vA;
+      varying vec3 vCol;
+      void main() {
+        float r = length(vC);
+        if (r > 1.0) discard;
+        gl_FragColor = vec4(vCol, (1.0 - smoothstep(0.3, 1.0, r)) * vA);
+      }`,
+    transparent: true,
+    depthWrite: false,
+  });
+  const mesh = new THREE.Mesh(g, material);
+  mesh.frustumCulled = false;
+  mesh.renderOrder = 5;
+  mesh.visible = false;
+  return mesh;
+}
+
+/**
+ * Lehmterrasse (Art clay, Wüste): glatter Lehmputz im Feld mit feinen Rillen als Raster und einer hellen Kalklinie als
+ * Einlegelinie (FLOOR_DETAIL_GLSL, breiter), im Rand Ziegel, wo der Putz abgeplatzt ist (Texturen aus dem
+ * Hintergrund-Thread, createClayTextures). Darunter Gesims und eingezogene Wand mit Balken aus Palmholz, auf den Ecken
+ * Spitztürmchen mit Straussenei (Balken, Türmchen und Eier je als Instanzen). Lehm ist matt: keine Spiegelung (mirror
+ * null, renderReflection entfällt). Lichtwelle «Sandverwehung»: Mit dem Ring treibt eine Fahne aus Sand in Schlieren
+ * nach aussen, Körner hüpfen mit; dahinter bleiben Sandzungen liegen, in den Rillen länger, und wehen fleckig fort. Am
+ * Gesims rieselt Sand in dünnen Strähnen hinunter. v: Werte der Brett-Angabe (CLAY_VALUES, sRGB 0 … 1).
+ */
+function clayBoard(v) {
+  for (const k of CLAY_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
+  const srgb = (c, f = 1) => new THREE.Color().setRGB(c[0] * f, c[1] * f, c[2] * f, THREE.SRGBColorSpace);
+  const tex = createClayTextures(v);
+
+  // Uhr der Lichtwelle (uWave): x Sekunden seit dem Start des Rings (99: Ruhe), y frei laufend (s), z 1 / Tempo des
+  // Rings. Alles richtet sich nach seiner Ankunft (x − Abstand · z), nicht nach seiner Stärke: Die fällt bis zum Rand auf
+  // fast nichts (0,82 bei 0,7 m, 0,16 bei 4,3 m). Solange er läuft, folgt die Uhr seinem Radius (so auch dem langsameren
+  // Ring der Geschichte, story.shock); danach läuft sie in Sekunden weiter, und die Verwehung klingt in eigener Zeit aus.
+  // Gestellt, bevor die Oberfläche zeichnet (onBeforeRender): nur, solange das Brett zu sehen ist
+  const uWave = { value: new THREE.Vector4(99, 0, 0, 0) }, uK = { value: 1 };
+  let waveStart = null;
+  const tick = () => {
+    const s = shockUniforms.uShock.value, now = performance.now() / 1000, speed = CELEBRATE.shockSpeed;
+    if (s.y > 0) waveStart = now - s.x / speed;
+    const age = waveStart === null ? 99 : Math.min(99, now - waveStart);
+    uWave.value.set(age, now % 600, 1 / speed, 0);
+    grains.visible = falls.visible = age < CLAY.waveEnd; // wirkt ab dem nächsten Bild; ihre ersten Körner kommen später
+  };
+
+  // Oberfläche: Putz mit Rillen und Kalklinie, Sandzungen und Fahne der Lichtwelle
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: tex.map, normalMap: tex.normalMap, normalScale: new THREE.Vector2(1, 1), roughness: 0.92,
+    metalness: 0, envMapIntensity: 0.4,
+  });
+  const uInlay = { value: srgb(v.inlay) }, uSand = { value: srgb(v.sand) };
+  floorMaterial.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shockUniforms, { uWave, uInlay, uSand });
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      uniform vec3 uShock, uShockColor, uInlay, uSand;
+      uniform vec4 uWave;
+      ${CLAY_NOISE_GLSL}`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      ${FLOOR_DETAIL_GLSL.replace('float iw = 0.011;', 'float iw = 0.02;')}
+      diffuseColor.rgb *= 1.0 - floorGroove * 0.55;
+      diffuseColor.rgb = mix(diffuseColor.rgb, uInlay, floorInlay);
+      // Lichtwelle: Wo der Ring ankam (vor wAge s), bleiben Sandzungen in Windrichtung liegen, in den Rillen länger, und
+      // wehen fleckig fort
+      vec2 wp = (vUv - 0.5) * ${PLATE.toFixed(4)};
+      float wd = length(wp), wAge = uWave.x - wd * uWave.z;
+      vec2 wDir = wp / max(wd, 1e-3);
+      if (uWave.x < 3.6 && wAge > -0.05 && wAge < 2.5) { // spätestens 2,5 s nach der Ankunft ist der Sand fort
+        float gone = 0.8 + wFbm(wp * 1.1 + 3.0) + floorGroove * 0.7;
+        float tongue = smoothstep(0.4, 0.62, ${clayStreak('wp', 5, 0.09, 9)});
+        float sand = smoothstep(0.0, 0.1, wAge) * (1.0 - smoothstep(gone - 0.45, gone, wAge)) * (0.25 + 0.75 * tongue);
+        diffuseColor.rgb = mix(diffuseColor.rgb, uSand * (0.8 + wNoise(wp * 150.0) * 0.4), sand * 0.8);
+      }`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
+      roughnessFactor = mix(roughnessFactor, 0.55, floorInlay);`)
+      .replace('#include <tonemapping_fragment>', `
+      // der Ring selbst nur als warmer Hauch: die Form trägt der Sand
+      if (uShock.y > 0.0) {
+        float ring = exp(-pow((wd - uShock.x) / uShock.z, 2.0));
+        gl_FragColor.rgb += (uShockColor * 0.5 + vec3(0.4, 0.26, 0.12)) * ring * 0.5 * min(1.0, uShock.y * 3.0);
+      }
+      // Fahne an der Front: Schlieren, die etwas schneller als der Ring nach aussen treiben (~1,2 m lang), hell im Licht
+      if (uWave.x < 1.5 && wAge > -0.05 && wAge < 0.4) {
+        vec2 q = wp - wDir * uWave.x * 7.6;
+        float st = smoothstep(0.38, 0.66, ${clayStreak('q', 6, 0.07, 14)});
+        float band = smoothstep(-0.03, 0.005, wAge) * (1.0 - smoothstep(0.05, 0.22, wAge));
+        vec3 lit = gl_FragColor.rgb * vec3(1.32, 1.42, 1.25) + vec3(0.07, 0.045, 0.01);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 0.82, band * (1.0 - st) * 0.5);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, lit, band * st * 0.9);
+      }
+      #include <tonemapping_fragment>`);
+  };
+  const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+  floorTop.rotation.x = -Math.PI / 2;
+  floorTop.receiveShadow = true;
+  floorTop.onBeforeRender = tick;
+
+  // Gesims, Wand und Türmchen: matter Lehmputz. Im Spiel fällt kaum Licht auf senkrechte Flächen; ein Teil der Farbe
+  // leuchtet selbst, sonst stünden sie schwarz im Bild
+  const lehm = () => new THREE.MeshStandardMaterial({ map: tex.wallMap, emissiveMap: tex.wallMap,
+    emissive: new THREE.Color(0.34, 0.34, 0.34), roughness: 0.95, envMapIntensity: 1.2 });
+  const wallMat = lehm(), turretMat = lehm();
+  const cornice = new THREE.Mesh(new THREE.BoxGeometry(PLATE, CLAY.cornice, PLATE), wallMat);
+  cornice.position.y = -0.003 - CLAY.cornice / 2;
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(CLAY.wall, CLAY.wallH, CLAY.wall), wallMat);
+  wall.position.y = -0.003 - CLAY.cornice - CLAY.wallH / 2;
+  cornice.receiveShadow = wall.receiveShadow = true;
+
+  // Torons: Balken aus Palmholz in zwei versetzten Reihen, 22 cm aus der Wand
+  const rnd = mulberry32(81), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3();
+  const one = new THREE.Vector3(1, 1, 1), up = new THREE.Vector3(0, 1, 0), out = CLAY.wall / 2 + 0.07, spots = [];
+  for (const y of [-0.2, -0.34]) {
+    for (let t = -4.4; t <= 4.41; t += 0.55) {
+      const tt = t + (y < -0.3 ? 0.27 : 0);
+      if (Math.abs(tt) > 4.45) continue;
+      spots.push([out, y, tt, 0], [-out, y, tt, Math.PI], [tt, y, out, -Math.PI / 2], [tt, y, -out, Math.PI / 2]);
+    }
+  }
+  const woodMat = new THREE.MeshStandardMaterial({ color: srgb(v.wood), roughness: 0.9, emissive: srgb(v.wood, 0.33) });
+  const torons = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.028, 0.032, 0.3, 6).rotateZ(Math.PI / 2), woodMat,
+    spots.length);
+  spots.forEach(([x, y, z, a], i) => torons.setMatrixAt(i, m4.compose(p.set(x, y, z),
+    q.setFromAxisAngle(up, a + (rnd() - 0.5) * 0.1), one)));
+
+  // Spitztürmchen mit Straussenei auf den Ecken des Rands
+  const eggMat = new THREE.MeshStandardMaterial({ color: srgb(v.egg), roughness: 0.4, emissive: srgb(v.egg, 0.26) });
+  const turrets = new THREE.InstancedMesh(new THREE.LatheGeometry([0, 0.3, 0.28, 0.22, 0.12, 0.04, 0]
+    .map((r, i) => new THREE.Vector2(r, i * 0.09)), 12), turretMat, 4);
+  const eggs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.055, 12, 8).scale(1, 1.3, 1), eggMat, 4);
+  [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz], i) => {
+    turrets.setMatrixAt(i, m4.makeTranslation(sx * CLAY.turret, 0, sz * CLAY.turret));
+    eggs.setMatrixAt(i, m4.makeTranslation(sx * CLAY.turret, 0.6, sz * CLAY.turret));
+  });
+  turrets.receiveShadow = true;
+  // three 0.147 prüft bei Instanzen nur die Kugel um die Form am Ursprung: nie aussortieren
+  torons.frustumCulled = turrets.frustumCulled = eggs.frustumCulled = false;
+
+  // Körner der Fahne: hüpfen mit der Front nach aussen, bleiben zurück und legen sich; helle und dunkle, einige blitzen
+  const r2 = mulberry32(601), edge = PLATE / 2, rows = [];
+  for (let i = 0; i < CLAY.grains; i++) {
+    let x, z, bx;
+    do {
+      x = (r2() * 2 - 1) * (edge - 0.05);
+      z = (r2() * 2 - 1) * (edge - 0.05);
+      bx = Math.max(Math.abs(x), Math.abs(z));
+    } while (bx < 0.3);
+    rows.push([x, z, r2() * 0.05, 0.25 + r2() * 0.35, 6.5 * (0.6 + r2() * 0.5), 0.02 + r2() * 0.1, 18 + r2() * 20, r2()]);
+  }
+  const uniforms = { uWave, uK };
+  // a0: x, z, Verzug, Lebenszeit (s); a1: Tempo (m/s), Sprunghöhe (m), Sprungtakt, Zufall
+  const grains = clayGrains(rows, `
+        float age = uWave.x - (length(a0.xy) * uWave.z + a0.z);
+        if (age > 0.0 && age < a0.w) {
+          float u = age / a0.w;
+          vec2 dir = normalize(a0.xy + 1e-4), side = vec2(-dir.y, dir.x);
+          vec2 xz = a0.xy + dir * a1.x * age * (1.0 - 0.5 * u) + side * (a1.w - 0.5) * 0.3 * age;
+          float hop = abs(sin(age * a1.z + a1.w * 6.28)) * a1.y * (1.0 - u);
+          pos = vec3(xz.x, 0.015 + hop, xz.y);
+          float bx = max(abs(xz.x), abs(xz.y));
+          alpha = smoothstep(0.0, 0.04, age) * (1.0 - smoothstep(0.55, 1.0, u))
+            * (1.0 - smoothstep(${(edge - 0.05).toFixed(2)}, ${(edge + 0.05).toFixed(2)}, bx));
+          size = 0.014 + 0.012 * fract(a1.w * 7.0);
+          float tw = pow(wHash(vec2(a1.w * 97.0, floor(uWave.y * 20.0))), 24.0);
+          col = fract(a1.w * 13.0) < 0.5 ? vec3(0.42, 0.21, 0.08) : vec3(1.15, 0.78, 0.42);
+          col += vec3(2.6, 2.1, 1.4) * tw;
+        }`, uniforms);
+  // Rieseln über das Gesims: an der Kante, sobald die Fahne ankommt, in dünnen Strähnen
+  const fallRows = [], [strands, per] = CLAY.falls;
+  for (let s = 0; s < 4; s++) {
+    const nx = [1, -1, 0, 0][s], nz = [0, 0, 1, -1][s];
+    for (let k = 0; k < strands; k++) {
+      const t = (r2() * 2 - 1) * (edge - 0.1), x = nx ? nx * (edge - 0.03) : t, z = nz ? nz * (edge - 0.03) : t;
+      for (let j = 0; j < per; j++) {
+        fallRows.push([x + (nz ? (r2() - 0.5) * 0.05 : 0), z + (nx ? (r2() - 0.5) * 0.05 : 0), r2(), 0.7 + r2() * 0.3,
+          nx, nz, 0.12 + r2() * 0.3, r2()]);
+      }
+    }
+  }
+  // a0: x, z, Verzug, Lebenszeit (s); a1: Richtung nach aussen (x, z), Tempo nach aussen (m/s), Zufall
+  const falls = clayGrains(fallRows, `
+        float age = uWave.x - (length(a0.xy) * uWave.z + 0.05 + a0.z);
+        if (age > 0.0 && age < a0.w) {
+          vec2 xz = a0.xy + a1.xy * (0.03 + a1.z * age);
+          pos = vec3(xz.x, 0.005 - 4.905 * age * age, xz.y);
+          alpha = smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.4, 0.9, -pos.y));
+          size = 0.016 + 0.01 * a1.w;
+          col = a1.w < 0.5 ? vec3(0.5, 0.26, 0.1) : vec3(1.1, 0.74, 0.4);
+        }`, uniforms);
+
+  const group = new THREE.Group();
+  group.add(floorTop, cornice, wall, torons, turrets, eggs, grains, falls);
+
+  // Überblenden (setFade) wie beim Steinbrett: Das hinzukommende liegt oben, durchsichtig, ohne Tiefe, um einen Hauch
+  // davor (polygonOffset), gleich nach dem Himmel (renderOrder −1). Liegt es unten, bleiben Oberfläche, Gesims und Wand
+  // deckend, bis es ganz weg ist (sie decken den Kernquader); Türmchen, Eier und Balken liegen ausserhalb und blenden
+  // aus. Die durchsichtigen Programme übersetzt boardTheme vorab (fadeVariants)
+  const body = [floorMaterial, wallMat], extras = [turretMat, woodMat, eggMat], all = [...body, ...extras];
+  const meshes = [floorTop, cornice, wall, torons, turrets, eggs];
+  let state = 'fest'; // fest, oben (kommt hinzu), unten (geht)
+  const look = (s) => {
+    if (s === state) return;
+    state = s;
+    for (const m of all) {
+      const on = s === 'oben' || (s === 'unten' && extras.includes(m));
+      if (m.transparent !== on) m.needsUpdate = true; // durchsichtig: eigene Programme (ohne OPAQUE)
+      m.transparent = on;
+      m.depthWrite = !on;
+      m.polygonOffset = s === 'oben';
+      m.polygonOffsetFactor = m.polygonOffsetUnits = s === 'oben' ? -1 : 0;
+      if (!on) m.opacity = 1;
+    }
+    for (const o of meshes) o.renderOrder = s === 'oben' ? -1 : 0;
+  };
+
+  const textures = [tex.map, tex.normalMap, tex.wallMap];
+  return {
+    group,
+    mirror: null,
+    textures,
+    computed: tex.computed,
+    setFade(k, upper) {
+      group.visible = k > 0;
+      look(k > 0 && k < 1 ? (upper ? 'oben' : 'unten') : 'fest');
+      if (state !== 'fest') for (const m of state === 'oben' ? all : extras) m.opacity = k;
+      uK.value = k;
+    },
+    fadeVariants: [() => { const was = state; look('oben'); return () => look(was); }],
+    dispose() {
+      group.traverse((o) => { o.geometry?.dispose(); if (o.isInstancedMesh) o.dispose(); });
+      for (const m of [...all, grains.material, falls.material]) m.dispose();
+      for (const t of textures) t.dispose();
+    },
+  };
+}
+
 /**
  * Arten von Brettern (Spec .scratch/brett-je-himmel/), je { core, build(values) }. tools/sky-schema.mjs liest ihre Namen
  * aus der Zeile `const BOARD_TYPES = { … }` und prüft die Werte der Brett-Angaben (BOARD_PARAMS dort).
@@ -13435,7 +13862,15 @@ const tidePool = {
   core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
   build: tidePoolBoard,
 };
-const BOARD_TYPES = { stone, tidePool };
+const clay = {
+  // Oberfläche (y = 0) über Gesims (ganze Breite) und eingezogener Wand: Sicher gedeckt ist nur der Quader der Wand
+  core: {
+    lo: [-CLAY.wall / 2, -0.003 - CLAY.cornice - CLAY.wallH, -CLAY.wall / 2],
+    hi: [CLAY.wall / 2, 0, CLAY.wall / 2],
+  },
+  build: clayBoard,
+};
+const BOARD_TYPES = { stone, tidePool, clay };
 // ?brett=<art>: unter jedem Himmel diese Art statt seiner Brett-Angabe, mit den Werten des ersten Himmels, der sie hat
 // (boardTheme.prepare); nur für Vergleichsbilder während der Gestaltung (Tickets 04 bis 09), fällt mit Ticket 10 weg
 const BOARD_URL = new URLSearchParams(location.search).get('brett');
