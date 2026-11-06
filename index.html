@@ -1256,7 +1256,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-06 brett-wechsel';
+const APP_VERSION = '2026-11-06 brett-strand';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8622,54 +8622,62 @@ function makeNoise2D(seed) {
 }
 
 /**
- * Erzeugt Farb-, Rauheits- und Normal-Map des Steinbretts: dunkler, fein
- * geäderter Schiefer. Nur die weichen, grossflächigen Strukturen stecken in
- * der Textur – scharfe Details (Rasterlinien, Intarsie, Mikrokörnung) rechnet
- * der Boden-Shader analytisch, damit sie in jeder Auflösung scharf bleiben.
- * Gerechnet in einem Worker (stoneData, Blob wie beim Dekodieren der Skybox): Im Hauptthread kostete das gut die Hälfte
- * des Hängers beim Laden der Seite (Ticket 03 der Leistung; 1024² Pixel mit je 16 Oktaven Rauschen). Bis die Daten da
- * sind, sind die Texturen leer (nie hochgeladen). Hochgeladen werden sie danach in Häppchen an ruhigen Stellen
- * (boardTheme.load, boardTextureUpload). Ohne Worker wie früher im Hauptthread.
- * Rückgabe: { map, roughnessMap, normalMap, computed (Promise: erfüllt, sobald die Daten da sind; abgelehnt, wenn das
- * Rechnen scheitert) } (stoneBoard).
+ * Texturen eines Bretts, im Spiel berechnet: in einem Worker (Blob wie beim Dekodieren der Skybox). Im Hauptthread
+ * kostete das Steinbrett gut die Hälfte des Hängers beim Laden der Seite (Ticket 03 der Leistung; 1024² Pixel mit je 16
+ * Oktaven Rauschen). Bis die Daten da sind, sind die Texturen leer (nie hochgeladen). Hochgeladen werden sie danach in
+ * Häppchen an ruhigen Stellen (boardTheme.load, boardTextureUpload). Ohne Worker wie früher im Hauptthread.
+ * specs: { name: [Breite, Höhe, sRGB] } der RGBA-Texturen (Mipmaps, Zeile 0 bei uv.y = 0); compute(arg) rechnet
+ * { name: Uint8ClampedArray } und kennt nur sich selbst und helpers (Funktionen, die mit in den Worker kommen).
+ * Rückgabe: { name: DataTexture, …, computed (Promise: erfüllt, sobald die Daten da sind; abgelehnt, wenn das Rechnen
+ * scheitert) }.
  */
-function createStoneTextures(size) {
-  const n = size * size * 4;
-  const toTex = (srgb) => {
-    const tex = new THREE.DataTexture(new Uint8ClampedArray(n), size, size, THREE.RGBAFormat);
+function boardTextures(specs, compute, arg, helpers = []) {
+  const out = {};
+  for (const [name, [w, h, srgb]] of Object.entries(specs)) {
+    const tex = out[name] = new THREE.DataTexture(new Uint8ClampedArray(w * h * 4), w, h, THREE.RGBAFormat);
     tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
     tex.generateMipmaps = true;
     tex.minFilter = THREE.LinearMipmapLinearFilter;
     tex.magFilter = THREE.LinearFilter;
     tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     tex.flipY = false;
-    return tex;
-  };
+  }
   let done = false, fertig, gescheitert;
-  const out = { map: toTex(true), roughnessMap: toTex(false), normalMap: toTex(false),
-    computed: new Promise((ja, nein) => { fertig = ja; gescheitert = nein; }) };
+  out.computed = new Promise((ja, nein) => { fertig = ja; gescheitert = nein; });
   const fill = (d) => {
     if (done) return;
     done = true;
-    for (const [tex, data] of [[out.map, d.color], [out.roughnessMap, d.rough], [out.normalMap, d.normal]]) {
-      tex.image.data.set(data);
-      tex.needsUpdate = true;
+    for (const name of Object.keys(specs)) {
+      out[name].image.data.set(d[name]);
+      out[name].needsUpdate = true;
     }
     fertig();
   };
   const sicher = (f) => { try { f(); } catch (e) { gescheitert(e); } }; // gescheitert: das Steinbrett als Notfall
-  const hier = () => sicher(() => fill(stoneData(size))); // im Hauptthread
+  const hier = () => sicher(() => fill(compute(arg))); // im Hauptthread
   try {
-    const url = URL.createObjectURL(new Blob([`${mulberry32}\n${makeNoise2D}\n${stoneData}
-      onmessage = ({ data }) => { const d = stoneData(data); postMessage(d, [d.color.buffer, d.rough.buffer, d.normal.buffer]); };`],
+    const url = URL.createObjectURL(new Blob([`${helpers.join('\n')}\n${compute}
+      onmessage = ({ data }) => { const d = ${compute.name}(data); postMessage(d, Object.values(d).map((a) => a.buffer)); };`],
     { type: 'text/javascript' }));
     const worker = new Worker(url);
     URL.revokeObjectURL(url);
     worker.onmessage = ({ data }) => { worker.terminate(); sicher(() => fill(data)); };
     worker.onerror = () => { worker.terminate(); hier(); }; // Worker nicht ladbar (CSP): im Hauptthread
-    worker.postMessage(size);
+    worker.postMessage(arg);
   } catch { hier(); }
   return out;
+}
+
+/**
+ * Erzeugt Farb-, Rauheits- und Normal-Map des Steinbretts: dunkler, fein
+ * geäderter Schiefer. Nur die weichen, grossflächigen Strukturen stecken in
+ * der Textur – scharfe Details (Rasterlinien, Intarsie, Mikrokörnung) rechnet
+ * der Boden-Shader analytisch, damit sie in jeder Auflösung scharf bleiben.
+ * Rückgabe: { map, roughnessMap, normalMap, computed } (boardTextures, stoneBoard).
+ */
+function createStoneTextures(size) {
+  return boardTextures({ map: [size, size, true], roughnessMap: [size, size, false], normalMap: [size, size, false] },
+    stoneData, size, [mulberry32, makeNoise2D]);
 }
 
 /** Farbe, Rauheit und Normalen des Steinbretts (createStoneTextures), ohne Bezug auf das übrige Spiel (Worker). */
@@ -8739,7 +8747,110 @@ function stoneData(size) {
     }
   }
 
-  return { color, rough, normal };
+  return { map: color, roughnessMap: rough, normalMap: normal };
+}
+
+/**
+ * Farbe, Rauheit, Normalen und Seiten des Gezeitenbeckens (tidePoolBoard), ohne Bezug auf das übrige Spiel (Worker).
+ * Formeln und Farben aus Karte 6 des Skizzenkatalogs (.scratch/brett-je-himmel/katalog/bretter/varianten/6-wasserrand.js):
+ * Feld aus hellem Sandstein in Schichten, am Rand zum Wasser dunkel und nass; in der Rinne klares Wasser über Sand mit
+ * Lichtnetz, Schaum an beiden Kanten und leichten Wellen; aussen eine Felslippe. Seiten: nasser Fels mit Rinnsalen,
+ * unten Algen. a: { size (Oberfläche size², Seiten size × sideH), sideH, plate (Umriss, m), stone, water, rock (je zwei
+ * Farben, sRGB 0 … 1), channel ([innen, aussen], Kastenabstand von der Mitte in m) }.
+ */
+function tidePoolData(a) {
+  // Wertrauschen wie im Katalog: Gitter aus Hash-Werten, je Oktave mit eigenem Samen
+  const hash = (x, y, s) => {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  const noise = (x, y, s) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), v = yf * yf * (3 - 2 * yf);
+    const p = hash(xi, yi, s), q = hash(xi + 1, yi, s), r = hash(xi, yi + 1, s), t = hash(xi + 1, yi + 1, s);
+    return p + (q - p) * u + (r - p) * v + (p - q - r + t) * u * v;
+  };
+  const fbm = (x, y, oct, s) => {
+    let sum = 0, amp = 0.5, f = 1, n = 0;
+    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
+    return sum / n;
+  };
+  const clamp = (v) => Math.min(1, Math.max(0, v));
+  const smooth = (e0, e1, v) => { const t = clamp((v - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+  const mix = (p, q, t) => p + (q - p) * t;
+  const mix3 = (p, q, t) => [mix(p[0], q[0], t), mix(p[1], q[1], t), mix(p[2], q[2], t)];
+  const N = a.size, P = a.plate, [IN, OUT] = a.channel, [stone, stone2] = a.stone;
+  const [water, water2] = a.water, [lip, lip2] = a.rock;
+
+  const map = new Uint8ClampedArray(N * N * 4), roughnessMap = new Uint8ClampedArray(N * N * 4);
+  const height = new Float32Array(N * N);
+  for (let j = 0; j < N; j++) {
+    const z = (0.5 - (j + 0.5) / N) * P; // Zeile 0 bei uv.y = 0, also vorn (z = +P / 2)
+    for (let i = 0; i < N; i++) {
+      const x = ((i + 0.5) / N - 0.5) * P, k = j * N + i;
+      const box = Math.max(Math.abs(x), Math.abs(z));
+      const g = fbm(x * 0.5, z * 0.5, 5, 81), layer = fbm(x * 0.15 + g, z * 2.5, 3, 82), fine = noise(x * 150, z * 150, 83);
+      let c, r, h;
+      if (box < IN) {
+        // Sandstein in Schichten, feines Korn; zum Wasser hin dunkel und nass
+        c = mix3(stone, stone2, smooth(0.3, 0.75, layer));
+        c = mix3(c, [c[0] * 0.92, c[1] * 0.9, c[2] * 0.9], fine * 0.5);
+        const wetEdge = smooth(IN - 0.12, IN, box);
+        c = mix3(c, [c[0] * 0.72, c[1] * 0.7, c[2] * 0.7], wetEdge);
+        r = 0.86 - wetEdge * 0.4;
+        h = (layer - 0.5) * 0.002 + (fine - 0.5) * 0.0005;
+      } else if (box < OUT) {
+        // Wasser: Grund (Sand, Kiesel) türkis getönt, Lichtnetz (Kaustik), Schaum an den Kanten
+        const cx = Math.abs(fbm(x * 2.2 + 3, z * 2.2, 3, 84) - 0.5), cz = Math.abs(fbm(x * 2.2, z * 2.2 + 7, 3, 85) - 0.5);
+        const caustic = Math.pow(Math.max(0, 1 - Math.min(cx, cz) * 4.2), 6);
+        c = mix3(water, water2, g);
+        c = mix3(c, [0.86, 0.97, 0.92], clamp(caustic) * 0.55);
+        const foamIn = smooth(IN + 0.07 + (noise(x * 9, z * 9, 86) - 0.5) * 0.06, IN, box);
+        const foamOut = smooth(OUT - 0.05 + (noise(x * 11, z * 11, 87) - 0.5) * 0.04, OUT, box) * 0.6;
+        const foam = clamp(foamIn + foamOut) * (0.6 + 0.4 * noise(x * 40, z * 40, 88));
+        c = mix3(c, [0.95, 0.97, 0.95], foam);
+        r = mix(0.03, 0.7, foam);
+        h = -0.004 + Math.sin((x * 0.7 + z * 0.7) * 22 + fbm(x, z, 2, 89) * 6) * 0.0012
+          + (noise(x * 30, z * 30, 90) - 0.5) * 0.0008;
+      } else {
+        c = mix3(lip, lip2, fbm(x * 3, z * 3, 3, 91)); // Felslippe
+        r = 0.7;
+        h = 0.006 + (fine - 0.5) * 0.002;
+      }
+      map[k * 4] = c[0] * 255; map[k * 4 + 1] = c[1] * 255; map[k * 4 + 2] = c[2] * 255; map[k * 4 + 3] = 255;
+      roughnessMap[k * 4] = roughnessMap[k * 4 + 1] = roughnessMap[k * 4 + 2] = r * 255; // three liest G
+      roughnessMap[k * 4 + 3] = 255;
+      height[k] = h;
+    }
+  }
+  // Normalen aus den Höhen (Tangentenraum: x nach rechts, uv.y nach hinten)
+  const normalMap = new Uint8ClampedArray(N * N * 4), texel = P / N;
+  const H = (i, j) => height[Math.min(N - 1, Math.max(0, j)) * N + Math.min(N - 1, Math.max(0, i))];
+  for (let j = 0; j < N; j++) {
+    for (let i = 0; i < N; i++) {
+      const dx = (H(i + 1, j) - H(i - 1, j)) / (2 * texel), dv = (H(i, j + 1) - H(i, j - 1)) / (2 * texel);
+      const l = Math.hypot(dx, dv, 1), k = (j * N + i) * 4;
+      normalMap[k] = (-dx / l * 0.5 + 0.5) * 255;
+      normalMap[k + 1] = (-dv / l * 0.5 + 0.5) * 255;
+      normalMap[k + 2] = (1 / l * 0.5 + 0.5) * 255;
+      normalMap[k + 3] = 255;
+    }
+  }
+  // Seiten (Box-UV, je Seite u über die ganze Länge, v 0 oben … 1 unten): nasser Fels, dunkle Rinnsale, unten Algen
+  const SH = a.sideH, side = new Uint8ClampedArray(N * SH * 4);
+  for (let j = 0; j < SH; j++) {
+    const v = 1 - (j + 0.5) / SH;
+    for (let i = 0; i < N; i++) {
+      const u = (i + 0.5) / N * P, k = (j * N + i) * 4;
+      const g = fbm(u * 1.4, v * 3, 4, 92), streak = fbm(u * 18, v * 0.6, 3, 93);
+      let c = mix3(lip, lip2, smooth(0.3, 0.7, g));
+      c = mix3(c, [0.22, 0.20, 0.22], smooth(0.55, 0.75, streak) * 0.7);
+      c = mix3(c, [0.28, 0.34, 0.22], smooth(0.7, 1, v) * 0.6);
+      side[k] = c[0] * 255; side[k + 1] = c[1] * 255; side[k + 2] = c[2] * 255; side[k + 3] = 255;
+    }
+  }
+  return { map, roughnessMap, normalMap, side };
 }
 
 
@@ -12839,11 +12950,64 @@ if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Tex
 const reflLodShift = { value: 0 };
 
 // Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt). Pflicht auf jedem Brett, je Art
-// in ihrem Material; die Farbe nutzt auch der Rahmen im Würfel
+// in ihrem Material; die Farbe nutzt auch der Rahmen im Würfel. uShockT: Sekunden seit dem Start des Rings (shockClock;
+// 99 in Ruhe)
+const SHOCK_SPEED = 6.5; // m/s, Tempo des Rings (CELEBRATE.shockSpeed)
 const shockUniforms = {
   uShock: { value: new THREE.Vector3(0, 0, 0.4) },
   uShockColor: { value: new THREE.Color(1, 1, 1) },
+  uShockT: { value: 99 },
 };
+const SHOCK_REST_S = 8; // so lange nach dem Start wirkt eine Lichtwelle auf einem Brett höchstens nach
+/**
+ * Uhr der Lichtwelle (uShockT), je Bild nach Feier und Geschichte (animate): Solange der Ring läuft, ist sie genau seine
+ * Zeit (Radius / SHOCK_SPEED), danach läuft sie mit dt weiter, bis die Wirkung auf dem Brett vorbei ist, dann 99 (Ruhe).
+ * Beim Fall des Lichts (story.shock) läuft der Ring langsamer (rund 4,7 m/s), die Uhr also auch: Die Front bleibt am
+ * Ring. Bretter mit eigener Lichtwelle (tidePool) richten sich nach der Ankunft des Rings (uShockT − Abstand /
+ * SHOCK_SPEED), nicht nach seiner Stärke: Die fällt bis zum Rand auf fast nichts (0,82 bei 0,7 m, 0,16 bei 4,3 m), dort
+ * kämen Wasser und Schaum sonst ohne Kraft an.
+ */
+function shockClock(dt) {
+  const u = shockUniforms.uShockT, s = shockUniforms.uShock.value;
+  if (s.y > 0) u.value = s.x / SHOCK_SPEED;
+  else if (u.value < SHOCK_REST_S) u.value += dt;
+  else u.value = 99;
+}
+
+/**
+ * Spiegelung auf der Oberfläche eines Bretts (onBeforeCompile): Uniforms, Vertex-Code und Deklarationen für die
+ * Spiegeltextur des reflector; den Beitrag rechnet boardReflectGlsl
+ */
+function addBoardReflection(shader) {
+  shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
+  shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
+  shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+  shader.uniforms.uReflLodShift = reflLodShift;
+  shader.vertexShader = shader.vertexShader
+    .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
+    .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
+  shader.fragmentShader = shader.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nuniform float uReflLodShift;\nvarying vec4 vReflUv;');
+}
+/**
+ * GLSL der Spiegelung vor dem Tonemapping (addBoardReflection): weichgezeichnet nach Rauheit, Fresnel, nur wo es glänzt.
+ * strength: Anteil der Spiegelung (Text, GLSL); warp: GLSL, das ruv verschieben darf (etwa Kräuseln)
+ */
+function boardReflectGlsl(strength, warp = '') {
+  return `
+      {
+        vec2 ruv = vReflUv.xy / vReflUv.w;${warp}
+        // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
+        // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
+        // Die Strahlen werden für die Spiegelung ohnehin breit und weich gezeichnet (renderReflection).
+        // uReflLodShift: höhere Pixeldichte (Handy) → entsprechend tiefere Stufe, gleiche Unschärfe wie am Desktop
+        vec3 refl = texture2D(tReflect, ruv, min(1.0 + roughnessFactor * 2.0, 2.2) + uReflLodShift).rgb;
+        float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
+        float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
+        float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
+        gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * ${strength};
+      }`;
+}
 
 // Analytische Details des Steinbretts (Plattenkoordinaten in Welteinheiten), kantengeglättet über fwidth.
 const FLOOR_DETAIL_GLSL = `
@@ -12896,15 +13060,9 @@ function stoneBoard() {
   });
   floorMaterial.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, shockUniforms);
-    shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
-    shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
-    shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
-    shader.uniforms.uReflLodShift = reflLodShift;
-    shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
-      .replace('#include <project_vertex>', '#include <project_vertex>\nvReflUv = uReflMatrix * vec4(position, 1.0);');
+    addBoardReflection(shader);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform sampler2D tReflect;\nuniform float uReflStrength;\nuniform float uReflLodShift;\nvarying vec4 vReflUv;\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
+      .replace('#include <common>', '#include <common>\nuniform vec3 uShock;\nuniform vec3 uShockColor;')
       .replace('#include <map_fragment>', `#include <map_fragment>
       ${FLOOR_DETAIL_GLSL}
       diffuseColor.rgb *= 1.0 - floorGroove * 0.6;
@@ -12914,19 +13072,7 @@ function stoneBoard() {
       roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
       roughnessFactor = mix(roughnessFactor, 0.55, floorInlay);
       roughnessFactor = mix(roughnessFactor, 0.12, floorBevel);`)
-      .replace('#include <tonemapping_fragment>', `
-      {
-        vec2 ruv = vReflUv.xy / vReflUv.w;
-        // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
-        // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
-        // Die Strahlen werden für die Spiegelung ohnehin breit und weich gezeichnet (renderReflection).
-        // uReflLodShift: höhere Pixeldichte (Handy) → entsprechend tiefere Stufe, gleiche Unschärfe wie am Desktop
-        vec3 refl = texture2D(tReflect, ruv, min(1.0 + roughnessFactor * 2.0, 2.2) + uReflLodShift).rgb;
-        float ndv = clamp(dot(normalize(vViewPosition), normal), 0.0, 1.0);
-        float fresnel = 0.22 + 0.78 * pow(1.0 - ndv, 4.0);
-        float gloss = 1.0 - smoothstep(0.15, 0.7, roughnessFactor);
-        gl_FragColor.rgb += refl * fresnel * gloss * uReflStrength * 0.42;
-      }
+      .replace('#include <tonemapping_fragment>', `${boardReflectGlsl('0.42')}
       if (uShock.y > 0.0) {
         // Ring um die Feldmitte, dahinter ein schwacher Nachschein
         float sd = length((vUv - 0.5) * ${PLATE.toFixed(4)});
@@ -13014,6 +13160,250 @@ function stoneBoard() {
   };
 }
 
+// Lichtwelle «Brandung» des Gezeitenbeckens (tidePoolBoard), GLSL. Rauschen: Hash, Wertrauschen, drei Oktaven
+const TIDE_NOISE_GLSL = `
+  float wHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }
+  float wNoise(vec2 p) {
+    vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(wHash(i), wHash(i + vec2(1.0, 0.0)), u.x), mix(wHash(i + vec2(0.0, 1.0)), wHash(i + vec2(1.0, 1.0)), u.x), u.y);
+  }
+  float wFbm(vec2 p) { return wNoise(p) * 0.55 + wNoise(p * 2.07 + 13.1) * 0.3 + wNoise(p * 4.3 + 7.7) * 0.15; }
+  float wBell(float x) { return exp(-x * x); } // Glocke; pow(x, 2.0) ist für x < 0 in GLSL nicht festgelegt
+`;
+// nach der Farbe (sieht floorGroove): wp Ort (m), wd Abstand zur Mitte, wbx Kastenabstand, wAge Sekunden, seit der Ring
+// hier ankam (< 0: noch nicht), wChan Rinne, wFld Feld samt nassem Rand; der Stein wird hinter der Front nass und
+// trocknet fleckig (in den Rillen zuletzt)
+const TIDE_WAVE_PRE = `
+      vec2 wp = (vUv - 0.5) * ${PLATE.toFixed(4)};
+      float wd = length(wp), wbx = max(abs(wp.x), abs(wp.y));
+      float wAge = uShockT - wd / ${SHOCK_SPEED.toFixed(2)};
+      float wChan = smoothstep(uChannel.x - 0.01, uChannel.x + 0.01, wbx) * (1.0 - smoothstep(uChannel.y - 0.01, uChannel.y + 0.01, wbx));
+      float wFld = 1.0 - smoothstep(uChannel.x - 0.02, uChannel.x + 0.01, wbx);
+      float wWet = 0.0;
+      if (uShockT < ${SHOCK_REST_S.toFixed(1)} && wAge > -0.05) {
+        float dry = 0.75 + wFbm(wp * 1.3) + floorGroove * 0.6;
+        wWet = smoothstep(-0.01, 0.03, wAge) * (1.0 - smoothstep(dry - 0.4, dry, wAge)) * wFld;
+        diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * diffuseColor.rgb * 0.9, wWet * 0.8);
+      }`;
+// in der Spiegelung (boardReflectGlsl): Sie kräuselt sich in der Rinne, wenn die Welle ankommt
+const TIDE_RIPPLE_GLSL = `
+        if (uShockT < ${SHOCK_REST_S.toFixed(1)} && wAge > 0.0) {
+          float rp = sin(wd * 26.0 - uShockT * 15.0 + wbx * 9.0) * exp(-wAge * 1.2) * wChan;
+          ruv += vec2(rp * 0.012, rp * 0.007);
+        }`;
+// vor dem Tonemapping: Schaumkrone an der Front (~25 cm), zerrissen, dahinter Schaumfäden, die zerfallen, und eine
+// dünne, klare Wasserschicht; ganz vorn ein Lichtsaum in der Farbe der Welle; Glitzern auf dem nassen Stein. In der
+// Rinne schlägt die Welle an und Schaum treibt rundum, mit eigener Stärke
+const TIDE_WAVE_GLSL = `
+      if (uShockT < ${SHOCK_REST_S.toFixed(1)} && wAge > -0.05) {
+        float fa = wAge;
+        float crest = wBell((fa - 0.022) / 0.03) * wFld;
+        float lace = 0.0, foam = 0.0;
+        if (fa < 0.45) {
+          float fn = wFbm(wp * 9.0 + vec2(uShockT * 1.4, -uShockT));
+          foam = smoothstep(0.42, 0.62, crest * (0.45 + fn * 0.95));
+          float ln = abs(wNoise(wp * 6.0 + vec2(uShockT * 0.6, 0.3)) - 0.5);
+          float lpatch = smoothstep(0.45, 0.72, wNoise(wp * 2.3 + 4.0));
+          lace = (1.0 - smoothstep(0.0, 0.045, ln)) * lpatch * wBell((fa - 0.09) / 0.07) * wFld;
+        }
+        float sheet = smoothstep(0.02, 0.05, fa) * exp(-max(fa - 0.05, 0.0) * 6.0) * wFld;
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * vec3(0.6, 0.88, 0.88) + vec3(0.02, 0.07, 0.07), sheet * 0.6);
+        float glint = wBell((fa + 0.006) / 0.012) * wFld;
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0, 1.08, 1.08), clamp(foam * 0.92 + lace * 0.6, 0.0, 1.0));
+        gl_FragColor.rgb += (uShockColor + vec3(0.3, 0.4, 0.4)) * glint * 0.9;
+        gl_FragColor.rgb += vec3(1.3, 1.45, 1.45) * step(0.993, wHash(floor(wp * 60.0) + floor(uShockT * 10.0))) * wWet;
+        if (wChan > 0.0) {
+          float ca = smoothstep(-0.02, 0.05, fa) * exp(-max(fa, 0.0) * 1.3) * wChan;
+          float cf = smoothstep(0.45, 0.72, wFbm(wp * 8.0 + vec2(uShockT * 0.9, -uShockT * 0.6)));
+          float swell = wBell((fa - 0.05) / 0.08) * wChan;
+          gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.05, 1.12, 1.12), clamp(cf * ca * 0.95 + swell * 0.75, 0.0, 1.0));
+          gl_FragColor.rgb += vec3(0.2, 0.45, 0.42) * ca * 0.35;
+        }
+      }`;
+const TIDE_DROPS_S = 2; // so lange nach dem Start des Rings fliegen Tropfen (der letzte landet nach 1,9 s)
+
+/**
+ * Tropfen der Brandung (tidePoolBoard): 760 Vierecke als Instanzen, Flug ganz im Vertex-Shader nach der Ankunft des Rings
+ * (uShockT). An der Krone über dem Feld flach und mit der Welle nach aussen, an der Rinne hoch (Gischt an Innen- und
+ * Aussenkante). Additiv hell, ohne das Alpha des Bilds zu ändern (Pinselfilter, Farbsaum im letzten Bildschritt).
+ * uFade: Anteil beim Überblenden.
+ */
+function tideDrops(IN, OUT) {
+  const r = mulberry32(501), a0 = [], a1 = [];
+  // Zufallspunkt im Kastenring lo ≤ max(|x|, |z|) ≤ hi, gleich verteilt
+  const ring = (lo, hi) => {
+    let x, z, b;
+    do { x = (r() * 2 - 1) * hi; z = (r() * 2 - 1) * hi; b = Math.max(Math.abs(x), Math.abs(z)); } while (b < lo || b > hi);
+    return [x, z];
+  };
+  for (let i = 0; i < 420; i++) {
+    const [x, z] = ring(0.4, IN - 0.05), up = 0.9 + r() * 1.3;
+    a0.push(x, z, r() * 0.04, up);
+    a1.push(SHOCK_SPEED * (0.8 + r() * 0.3), 0.022 + r() * 0.024, r());
+  }
+  for (let i = 0; i < 340; i++) {
+    const outer = r() < 0.3, [x, z] = ring(outer ? OUT - 0.04 : IN - 0.02, outer ? OUT + 0.02 : IN + 0.1), up = 1.8 + r() * 1.6;
+    a0.push(x, z, 0.01 + r() * 0.12, up);
+    a1.push(0.4 + r() * 1.4, 0.022 + r() * 0.03, r());
+  }
+  const g = new THREE.InstancedBufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  g.setAttribute('a0', new THREE.InstancedBufferAttribute(new Float32Array(a0), 4));
+  g.setAttribute('a1', new THREE.InstancedBufferAttribute(new Float32Array(a1), 3));
+  g.instanceCount = a0.length / 4;
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uShockT: shockUniforms.uShockT, uFade: { value: 1 } },
+    vertexShader: `
+      uniform float uShockT;
+      attribute vec4 a0; // x, z, Verzug (s), Anfangstempo nach oben (m/s)
+      attribute vec3 a1; // Tempo nach aussen (m/s), Grösse (m), Zufall
+      varying vec2 vC;
+      varying float vA;
+      void main() {
+        float age = uShockT - (length(a0.xy) / ${SHOCK_SPEED.toFixed(2)} + a0.z), life = 2.0 * a0.w / 9.81;
+        vC = position.xy;
+        vA = 0.0;
+        gl_Position = vec4(0.0, 0.0, 2.0, 1.0); // ausserhalb des Bilds
+        if (age > 0.0 && age < life) {
+          vec2 dir = normalize(a0.xy + 1e-4), side = vec2(-dir.y, dir.x);
+          vec2 xz = a0.xy + dir * a1.x * age + side * (a1.z - 0.5) * 0.8 * age;
+          vec4 mv = modelViewMatrix * vec4(xz.x, 0.02 + a0.w * age - 4.905 * age * age, xz.y, 1.0);
+          mv.xy += position.xy * a1.y * (1.0 - 0.4 * age / life);
+          gl_Position = projectionMatrix * mv;
+          vA = smoothstep(0.0, 0.03, age) * (1.0 - smoothstep(life * 0.7, life, age)) * 0.9;
+        }
+      }`,
+    fragmentShader: `
+      uniform float uFade;
+      varying vec2 vC;
+      varying float vA;
+      void main() {
+        float d = length(vC);
+        if (d > 1.0 || vA <= 0.003) discard;
+        gl_FragColor = vec4(1.15, 1.3, 1.32, (1.0 - smoothstep(0.3, 1.0, d)) * vA * uFade);
+      }`,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.CustomBlending, // wie NormalBlending, aber das Alpha des Bilds bleibt
+    blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+  });
+  const mesh = new THREE.Mesh(g, material);
+  mesh.frustumCulled = false;
+  return mesh;
+}
+
+/**
+ * Gezeitenbecken (Art tidePool, das Brett des Strands; Ticket 04, aus dem Katalog gewählt: Karte 6): Feld aus hellem
+ * Sandstein mit eingravierten Rasterlinien, im Rand eine flache Rinne mit klarem Wasser (Lichtnetz am Grund, Schaum an den
+ * Kanten; die Wasserkante ersetzt die Einlegelinie), aussen eine schmale Felslippe. Die Seiten sind nasser Fels mit
+ * Rinnsalen. Gespiegelt wird nur in der Rinne, dort stark: über die Rauheit (Wasser glatt, Stein und Fels matt). Form wie
+ * das Steinbrett ohne Metallkante: Oberfläche in y = 0, die Seiten bündig darunter. Texturen im Hintergrund-Thread
+ * (tidePoolData) in der Grösse des Steinbretts (QUALITY.textureSize), dazu die Seiten (1024 × 64).
+ * Lichtwelle «Brandung» (Vorschau in .scratch/brett-je-himmel/lichtwelle/, Variante A): Eine Welle mit Schaumkrone rollt
+ * mit dem Ring über den Stein, Tropfen spritzen (tideDrops). Dahinter ist der Stein nass, glänzt und trocknet fleckig. In
+ * der Rinne steigt Gischt auf, Schaum treibt rundum, die Spiegelung kräuselt sich. Alles folgt der Ankunft des Rings
+ * (shockClock), nicht seiner Stärke.
+ * values: { stone, water, rock (je zwei Farben sRGB 0 … 1: hell, dunkel), channel ([innen, aussen], Kastenabstand von der
+ * Mitte in m) } (BOARD_PARAMS in tools/sky-schema.mjs). Rückgabe wie jede Art (BOARD_TYPES).
+ */
+function tidePoolBoard(values) {
+  for (const k of ['stone', 'water', 'rock', 'channel']) if (!values[k]) throw new Error(`Gezeitenbecken ohne ${k}`);
+  const N = QUALITY.textureSize, SIDE_H = 64, [IN, OUT] = values.channel;
+  const tex = boardTextures(
+    { map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false], side: [N, SIDE_H, true] }, tidePoolData,
+    { size: N, sideH: SIDE_H, plate: PLATE, stone: values.stone, water: values.water, rock: values.rock, channel: [IN, OUT] });
+  const channel = { value: new THREE.Vector2(IN, OUT) };
+
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff,
+    map: tex.map,
+    roughness: 1.0,
+    roughnessMap: tex.roughnessMap,
+    metalness: 0.0,
+    normalMap: tex.normalMap,
+    envMapIntensity: 0.9,
+  });
+  floorMaterial.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shockUniforms, { uChannel: channel });
+    addBoardReflection(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nuniform vec3 uShockColor;\nuniform float uShockT;\nuniform vec2 uChannel;\n${TIDE_NOISE_GLSL}`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      ${FLOOR_DETAIL_GLSL}
+      diffuseColor.rgb *= 1.0 - floorGroove * 0.5;
+      ${TIDE_WAVE_PRE}`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
+      roughnessFactor = mix(roughnessFactor, 0.1, wWet * 0.9);`)
+      .replace('#include <tonemapping_fragment>', `${boardReflectGlsl('0.85', TIDE_RIPPLE_GLSL)}
+      ${TIDE_WAVE_GLSL}
+      #include <tonemapping_fragment>`);
+  };
+  const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+  floorTop.rotation.x = -Math.PI / 2;
+  floorTop.receiveShadow = true;
+
+  // Seiten: matt und nass; im Spiel fällt kaum Licht auf senkrechte Flächen, darum leuchtet ein Teil der Farbe selbst
+  // (Licht des Strands), sonst stünden sie bei flachem Blick schwarz im Bild. Ohne Deckfläche: Die Oberfläche liegt
+  // bündig darauf (keine Fuge, kein Flimmern)
+  const sideMaterial = new THREE.MeshStandardMaterial({
+    map: tex.side, roughness: 0.5, envMapIntensity: 1.6, emissiveMap: tex.side, emissive: new THREE.Color().setScalar(0.28),
+  });
+  const H = PLATE_THICK + 0.03, sideGeo = new THREE.BoxGeometry(PLATE, H, PLATE);
+  const top = sideGeo.groups[2], idx = Array.from(sideGeo.index.array); // Gruppen +x, −x, +y, −y, +z, −z
+  idx.splice(top.start, top.count);
+  sideGeo.setIndex(idx);
+  sideGeo.clearGroups();
+  const sides = new THREE.Mesh(sideGeo, sideMaterial);
+  sides.position.y = -H / 2;
+  sides.receiveShadow = true;
+
+  const drops = tideDrops(IN, OUT);
+  const group = new THREE.Group();
+  group.add(floorTop, sides, drops);
+
+  // Überblenden wie beim Steinbrett (gleiche Form): Mischen im Material, das hinzukommende liegt oben (stoneBoard)
+  const materials = [floorMaterial, sideMaterial];
+  let oben = false;
+  const look = (on) => {
+    if (on === oben) return;
+    oben = on;
+    for (const m of materials) {
+      m.transparent = on;
+      m.depthWrite = !on;
+      m.polygonOffset = on;
+      m.polygonOffsetFactor = m.polygonOffsetUnits = on ? -1 : 0;
+      if (!on) m.opacity = 1;
+      m.needsUpdate = true;
+    }
+    floorTop.renderOrder = sides.renderOrder = on ? -1 : 0;
+  };
+
+  const textures = [tex.map, tex.roughnessMap, tex.normalMap, tex.side];
+  return {
+    group,
+    mirror: floorTop,
+    textures,
+    computed: tex.computed,
+    setFade(k, upper) {
+      group.visible = k > 0;
+      look(upper && k < 1);
+      if (oben) for (const m of materials) m.opacity = k;
+      drops.material.uniforms.uFade.value = k;
+      // je Bild (boardTheme.render): Tropfen nur zeichnen, solange die Lichtwelle sie wirft
+      drops.visible = shockUniforms.uShockT.value < TIDE_DROPS_S;
+    },
+    fadeVariants: [() => { const was = oben; look(true); return () => look(was); }],
+    dispose() {
+      group.traverse((o) => o.geometry?.dispose());
+      for (const m of [...materials, drops.material]) m.dispose();
+      for (const t of textures) t.dispose();
+    },
+  };
+}
+
 /**
  * Arten von Brettern (Spec .scratch/brett-je-himmel/), je { core, build(values) }. tools/sky-schema.mjs liest ihre Namen
  * aus der Zeile `const BOARD_TYPES = { … }` und prüft die Werte der Brett-Angaben (BOARD_PARAMS dort).
@@ -13026,21 +13416,29 @@ function stoneBoard() {
  *   null: spiegelt nicht),
  * - textures: im Spiel berechnete Texturen (boardTheme lädt sie in Häppchen hoch, boardTextureUpload),
  * - computed: Promise, erfüllt, sobald die Texturen berechnet sind (im Hintergrund-Thread); abgelehnt: gescheitert,
- * - setFade(k, upper): Anteil k (0 … 1) des Bretts im Bild, 0 unsichtbar. Beim Überblenden bekommt das bisherige 1 − k
- *   und upper = false, das neue k und upper = true. Im Schnitt ihrer Kernquader muss jedes Pixel von einem der beiden
- *   deckend gezeichnet sein. Gleiche Form: Mischen im Material (stoneBoard); wie verschiedene Formen ineinander
- *   übergehen, legt die Arbeit am Strand fest (Ticket 05),
+ * - setFade(k, upper), je Bild (boardTheme.render): Anteil k (0 … 1) des Bretts im Bild, 0 unsichtbar. Beim
+ *   Überblenden bekommt das bisherige 1 − k und upper = false, das neue k und upper = true. Im Schnitt ihrer Kernquader
+ *   muss jedes Pixel von einem der beiden deckend gezeichnet sein. Gleiche Form: Mischen im Material (stoneBoard); wie
+ *   verschiedene Formen ineinander übergehen, legt die Arbeit am Strand fest (Ticket 05),
  * - fadeVariants: Fassungen der Materialien, die setFade beim Überblenden braucht, je eine Funktion für compileParallel
  *   (stellt sie ein, gibt eine zurück, die sie zurückstellt); vorab übersetzt, sobald es mehr als ein Brett gibt,
  * - dispose(): Grafikspeicher freigeben }.
- * Pflicht auf jedem Brett ist die Lichtwelle beim Lösen (shockUniforms).
+ * Pflicht auf jedem Brett ist die Lichtwelle beim Lösen (shockUniforms; eine eigene richtet sich nach shockClock).
  */
 const stone = {
   // Oberfläche (y = 0), Seiten (3 cm darunter, PLATE_THICK dick) und die Metallkante dazwischen decken den Umriss
   core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
   build: stoneBoard,
 };
-const BOARD_TYPES = { stone };
+const tidePool = {
+  // Oberfläche (y = 0) und die bündigen Seiten darunter decken den Umriss
+  core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
+  build: tidePoolBoard,
+};
+const BOARD_TYPES = { stone, tidePool };
+// ?brett=<art>: unter jedem Himmel diese Art statt seiner Brett-Angabe, mit den Werten des ersten Himmels, der sie hat
+// (boardTheme.prepare); nur für Vergleichsbilder während der Gestaltung (Tickets 04 bis 09), fällt mit Ticket 10 weg
+const BOARD_URL = new URLSearchParams(location.search).get('brett');
 
 /**
  * Textur eines Bretts in Häppchen hochladen (Generator für sliced), an three vorbei wie skyUpload: eigene WebGL-Textur
@@ -13215,8 +13613,13 @@ const boardTheme = {
     }).catch((e) => console.warn(`Brett ${entry.type}: Überblenden nicht vorab übersetzt (${e?.message ?? e})`))
       .then(() => { entry.obenBereit = true; sceneLoop.wake(); });
   },
-  /** Das Brett des Himmels sky (seine Brett-Angabe) bauen und bereit machen; es bleibt, bis der Himmel frei wird */
+  /**
+   * Das Brett des Himmels sky (seine Brett-Angabe) bauen und bereit machen; es bleibt, bis der Himmel frei wird. Mit
+   * ?brett=<art> (nur für Vergleichsbilder während der Arbeit, Ticket 10 entfernt ihn) unter jedem Himmel diese Art,
+   * mit den Werten des ersten Himmels, der sie hat
+   */
   prepare(sky, angabe) {
+    if (BOARD_URL) angabe = skyTheme.entries.find((e) => e.board?.type === BOARD_URL)?.board ?? { type: BOARD_URL };
     if (!this.skies.has(sky)) this.skies.set(sky, this.acquire(angabe));
   },
   /** Mit dem Himmel sky freigeben (skyTheme.update); gezeigt bleibt es, bis sein Überblenden vorbei ist */
@@ -16768,7 +17171,7 @@ const CELEBRATE = {
   chordPause: 0.12,   // nach dem letzten Ziel bis zum Akkord
   panelDelay: 1.2,    // nach dem Akkord bis "Level gelöst"
   bloomBoost: 1.1,    // Bloom-Stärke steigt kurz um diesen Faktor
-  shockSpeed: 6.5,    // Welteinheiten pro Sekunde
+  shockSpeed: SHOCK_SPEED, // Welteinheiten pro Sekunde
   shockWidth: 0.16,
   shockReach: PLATE * 0.72, // läuft bis über die Plattenecken
   shellReach: 1.1,    // Würfel: Kugelschale bis 1.1 × Kantenlänge (über die Ecken bei 0.87)
@@ -22628,6 +23031,7 @@ function animate(t, dt) {
   updateFlow(dt);
   story.update(dt);
   celebration.update(dt, t);
+  shockClock(dt); // nach Feier und Geschichte, die den Ring setzen
   animateRotations(dt);
   for (const obj of game.objects.values()) {
     if (obj.userData.update) obj.userData.update(t, dt);

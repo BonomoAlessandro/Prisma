@@ -10,11 +10,13 @@
 // Touch-Emulation nie zurück). Gelöst wird über die Testschnittstelle (__prismaDebug.loese, Drehung für Drehung), einen
 // Stand setzt die Probe in localStorage. Sie prüft Kopfzeile, Speicherstand, Menü (Stand je Grad, «Weiter», Fokus,
 // Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt samt
-// ihrem Brett bereit ist (kein leeres Brett), dass das Brett in jeder Welt und im Dorf zum Himmel passt, unter einem
-// Himmel aus Blender nie ein fremdes Brett oder das Steinbrett als Notfall steht und es beim Wiederholen über eine
-// Weltgrenze mit dem Himmel wechselt (Spec .scratch/brett-je-himmel/), und misst die Bildzeiten der Übergänge (Lücken
-// zwischen zwei requestAnimationFrame; Lücken über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende).
-// Das Protokoll je Bild enthält das Brett (__prisma.brett: Himmel, bereit, von, Anteil, Notfall).
+// ihrem Brett bereit ist (kein leeres Brett), dass das Brett in jeder Welt und im Dorf zum Himmel passt (auch in der Art
+// seiner Brett-Angabe im Register), unter einem Himmel aus Blender nie ein fremdes Brett oder das Steinbrett als Notfall
+// steht und es beim Wiederholen über eine Weltgrenze mit dem Himmel wechselt (Spec .scratch/brett-je-himmel/), und misst
+// die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken über 100 ms sind Fehler, ausser
+// während eines Bilds der Probe, siehe ende).
+// Das Protokoll je Bild enthält das Brett (__prisma.brett: Himmel, Art, bereit, von, Anteil, Notfall; soll: Art der
+// Brett-Angabe seines Himmels).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -191,8 +193,9 @@ async function taste(key, { strg = false } = {}) {
  * Bildzeiten eines Übergangs messen: In der Seite zählt ein eigener requestAnimationFrame jedes Bild des Browsers
  * (das Spiel selbst rendert im Ruhezustand nur jedes zweite) und schreibt dazu Blick, Zustand des Ablaufs, Himmel
  * (gewählt, gezeigt mit Anteil, überblendet er, bereit, geladen samt Brett) und Brett (__prisma.brett: Himmel, Art,
- * bereit, von, Anteil, Notfall) auf. ende(name) gibt diese Liste zurück und meldet die längste Lücke. Ein Bild der
- * Probe mitten in der Messung hält die Seite an (auf dem Handy bis 0,5 s): Lücken über seinem Zeitfenster zählen nicht.
+ * bereit, von, Anteil, Notfall; soll: Art der Brett-Angabe seines Himmels) auf. ende(name) gibt diese Liste zurück und
+ * meldet die längste Lücke. Ein Bild der Probe mitten in der Messung hält die Seite an (auf dem Handy bis 0,5 s): Lücken
+ * über seinem Zeitfenster zählen nicht.
  */
 async function messe() {
   fotos = [];
@@ -200,7 +203,9 @@ async function messe() {
     const s = ${D}.story, k = ${D}.skyTheme, a = k.entries.find((e) => k.weight[e.id] > 0);
     b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current, ready: k.ready, settled: k.settled,
       shown: a?.id ?? null, w: a ? k.weight[a.id] : 0, blender: !!a?.module?.panorama, fading: k.fading,
-      brett: window.__prisma.brett(), menu: ${D}.menu.offen,
+      brett: ((br) => ({ ...br, soll: br.himmel && (k.byId.get(br.himmel)?.board?.type ?? 'stone') }))(
+        window.__prisma.brett()),
+      menu: ${D}.menu.offen,
       ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames,
       blick: ((m) => [-m[8], -m[9], -m[10]])(${D}.camera.matrixWorld.elements) });
       requestAnimationFrame(loop); };
@@ -235,11 +240,12 @@ async function ende(name) {
  * Unter einem Himmel aus Blender steht nie das Brett eines anderen Himmels oder das Steinbrett als Notfall (Spec
  * .scratch/brett-je-himmel/), wo man das Brett sieht (Blick unter 0,6, weder Menü, Übersicht noch Bühne): ohne
  * Überblenden das Brett des gezeigten Himmels, beim Überblenden (nur während der Himmel überblendet) das neue des
- * gewählten.
+ * gewählten, und zwar in der Art seiner Brett-Angabe im Register (soll; ohne Angabe das Steinbrett).
  */
 function brettPasst(log, was) {
   const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && !e.ueb && e.story !== 'scene'
-    && (e.brett.notfall || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.sky)));
+    && (e.brett.notfall || e.brett.art !== e.brett.soll
+      || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.sky)));
   pruefe(!falsch, `${was}: unter einem Himmel aus Blender ein fremdes Brett oder das Steinbrett`
     + (falsch ? ` (${JSON.stringify({ ...falsch, blick: undefined })})` : ''));
 }
@@ -384,11 +390,16 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   if (messen) await messe(); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
 }
-/** Das Brett passt zum Himmel der Welt (bzw. des Dorfs): sein Himmel, bereit, kein Notfall. */
+/**
+ * Das Brett passt zum Himmel der Welt (bzw. des Dorfs): sein Himmel, in der Art seiner Brett-Angabe im Register (soll),
+ * bereit, kein Notfall.
+ */
 async function brettDerWelt(was) {
-  const r = await ev(`(() => { const s = ${D}.story; return { welt: s.inDorf ? STORY_DORF.sky
-    : STORY_CHAPTERS[s.steps[s.step].c].sky, sky: ${D}.skyTheme.current, brett: window.__prisma.brett() }; })()`);
-  pruefe(r.sky === r.welt && r.brett.himmel === r.welt && r.brett.bereit && !r.brett.notfall,
+  const r = await ev(`(() => { const s = ${D}.story;
+    const welt = s.inDorf ? STORY_DORF.sky : STORY_CHAPTERS[s.steps[s.step].c].sky;
+    return { welt, sky: ${D}.skyTheme.current, brett: window.__prisma.brett(),
+      soll: ${D}.skyTheme.byId.get(welt)?.board?.type ?? 'stone' }; })()`);
+  pruefe(r.sky === r.welt && r.brett.himmel === r.welt && r.brett.art === r.soll && r.brett.bereit && !r.brett.notfall,
     `${was}: Himmel und Brett passen nicht zur Welt ${JSON.stringify(r)}`);
 }
 async function kopfzeile(g, platz) {

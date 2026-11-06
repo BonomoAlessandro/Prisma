@@ -897,6 +897,23 @@ console.log('Offline');
     assert.ok(errorsWith({}).some((e) => /board/.test(e)), 'ohne Art');
     assert.ok(errorsWith('stone').some((e) => /board/.test(e)), 'kein Objekt');
   });
+  test('Bretter: Prüfung lehnt ungültige Werte des Gezeitenbeckens ab (Farben, Lage der Rinne, fehlende Werte)', () => {
+    const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
+    assert.equal(beach.board?.type, 'tidePool', 'der Strand hat das Gezeitenbecken');
+    const errorsWith = (change) => checkSkies([{ ...beach, board: { ...beach.board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    const fehler = (change, wert, was) => assert.ok(errorsWith(change).some((e) => e.includes(`tidePool: ${wert}`)), was);
+    fehler({ stone: [[0.82, 0.7, 0.56]] }, 'stone', 'nur eine Farbe');
+    fehler({ water: [[0.33, 0.6, 0.58], [1.2, 0.7, 0.64]] }, 'water', 'Kanal über 1 (sRGB)');
+    fehler({ rock: [[0.62, 0.46], [0.48, 0.38, 0.38]] }, 'rock', 'Farbe mit zwei Kanälen');
+    fehler({ channel: [4.1, 4.7] }, 'channel', 'Rinne im 7×7-Feld');
+    fehler({ channel: [4.4, 4.45] }, 'channel', 'Rinne schmaler als 10 cm');
+    fehler({ channel: [4.32, 4.88] }, 'channel', 'keine Felslippe mehr');
+    fehler({ channel: [4.77, 4.32] }, 'channel', 'innen und aussen vertauscht');
+    fehler({ water: undefined }, 'water', 'fehlender Wert');
+    fehler({ glanz: 0.5 }, 'Wert glanz unbekannt', 'unbekannter Wert');
+  });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
     assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');

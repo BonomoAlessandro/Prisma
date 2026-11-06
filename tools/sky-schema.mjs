@@ -11,8 +11,9 @@
 // starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
 // die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
-// BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine). Ohne
-// Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte oder ungültige Werte sind Fehler.
+// BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
+// Farben und Lage der Rinne). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte,
+// fehlende oder ungültige Werte sind Fehler.
 // pack.mjs übernimmt sie unverändert aus skybox.json (mit --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
@@ -141,8 +142,18 @@ const LAYER_PARAMS = {
 
 // Werte der Arten von Brettern (BOARD_TYPES in index.html): Feld -> Prüfung. Jede Art steht hier, auch ohne Werte;
 // ein Feld, das hier fehlt, ist ein unbekannter Wert
+const BOARD_FIELD = 4.2, BOARD_PLATE = 4.9; // halbe Kante des 7×7-Felds und des Umrisses (BOARD, PLATE in index.html)
+/** zwei Farben in sRGB, je Kanal 0 … 1 (Texturen des Bretts) */
+const isColorPair = (v) => Array.isArray(v) && v.length === 2 && v.every((c) => isVec(c) && c.every((x) => x >= 0 && x <= 1));
 const BOARD_PARAMS = {
   stone: {},
+  // Gezeitenbecken (Strand): Sandstein des Felds, Wasser in der Rinne (Grund), Fels der Lippe und Seiten, je [hell,
+  // dunkel]; channel: Rinne von innen bis aussen (Kastenabstand von der Mitte, m), ausserhalb des Felds, mindestens 10 cm
+  // breit, aussen mindestens 5 cm Felslippe
+  tidePool: {
+    stone: isColorPair, water: isColorPair, rock: isColorPair,
+    channel: (v) => isVec(v, 2) && v[0] > BOARD_FIELD && v[1] - v[0] >= 0.1 && v[1] <= BOARD_PLATE - 0.05,
+  },
 };
 
 /** Fehler der Brett-Angabe board (Liste von Texten); boards: Arten des Spiels (boardTypes), ohne: nicht geprüft */
