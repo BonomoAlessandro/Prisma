@@ -139,6 +139,8 @@ Android-Chromium.
     Grund und wäre teurer.
   - Jede Welt bekommt ihren eigenen Katalog (Entscheid vom 05.11.2026). In der Wüste gewählt (06.11.2026):
     **Lehmterrasse**, das Dach eines Lehmbaus wie in Djenné. Katalog: https://claude.ai/artifact/18PvQpJeqFYvQZbDkyDR8j.
+  - Im Bergwald gewählt (06.11.2026): **Moospolster**, ein Stück Waldboden mit Moos, leuchtenden Pilzen und Farn.
+    Katalog: https://claude.ai/artifact/NxHnBEMttQfErbf32u96zJ.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
