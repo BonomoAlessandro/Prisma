@@ -9,9 +9,12 @@
 // (Input.dispatchMouseEvent), auf dem Handy mit dem Finger (Input.dispatchTouchEvent; Mausereignisse kommen mit der
 // Touch-Emulation nie zurück). Gelöst wird über die Testschnittstelle (__prismaDebug.loese, Drehung für Drehung), einen
 // Stand setzt die Probe in localStorage. Sie prüft Kopfzeile, Speicherstand, Menü (Stand je Grad, «Weiter», Fokus,
-// Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt bereit
-// ist (kein leeres Brett), und misst die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken
-// über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende).
+// Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt samt
+// ihrem Brett bereit ist (kein leeres Brett), dass das Brett in jeder Welt und im Dorf zum Himmel passt, unter einem
+// Himmel aus Blender nie ein fremdes Brett oder das Steinbrett als Notfall steht und es beim Wiederholen über eine
+// Weltgrenze mit dem Himmel wechselt (Spec .scratch/brett-je-himmel/), und misst die Bildzeiten der Übergänge (Lücken
+// zwischen zwei requestAnimationFrame; Lücken über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende).
+// Das Protokoll je Bild enthält das Brett (__prisma.brett: Himmel, bereit, von, Anteil, Notfall).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -186,15 +189,18 @@ async function taste(key, { strg = false } = {}) {
 
 /**
  * Bildzeiten eines Übergangs messen: In der Seite zählt ein eigener requestAnimationFrame jedes Bild des Browsers
- * (das Spiel selbst rendert im Ruhezustand nur jedes zweite) und schreibt dazu Blick, Zustand des Ablaufs und Himmel
- * auf. ende(name) gibt diese Liste zurück und meldet die längste Lücke. Ein Bild der Probe mitten in der Messung hält
- * die Seite an (auf dem Handy bis 0,5 s): Lücken über seinem Zeitfenster zählen nicht.
+ * (das Spiel selbst rendert im Ruhezustand nur jedes zweite) und schreibt dazu Blick, Zustand des Ablaufs, Himmel
+ * (gewählt, gezeigt mit Anteil, überblendet er, bereit, geladen samt Brett) und Brett (__prisma.brett: Himmel, Art,
+ * bereit, von, Anteil, Notfall) auf. ende(name) gibt diese Liste zurück und meldet die längste Lücke. Ein Bild der
+ * Probe mitten in der Messung hält die Seite an (auf dem Handy bis 0,5 s): Lücken über seinem Zeitfenster zählen nicht.
  */
 async function messe() {
   fotos = [];
   await ev(`(() => { const b = window.__bz = { an: true, log: [] }; const loop = (ts) => { if (!b.an) return;
-    const s = ${D}.story, k = ${D}.skyTheme; b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current,
-      ready: k.ready, settled: k.byId.get(k.current).module?.settled ?? true, menu: ${D}.menu.offen,
+    const s = ${D}.story, k = ${D}.skyTheme, a = k.entries.find((e) => k.weight[e.id] > 0);
+    b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current, ready: k.ready, settled: k.settled,
+      shown: a?.id ?? null, w: a ? k.weight[a.id] : 0, blender: !!a?.module?.panorama, fading: k.fading,
+      brett: window.__prisma.brett(), menu: ${D}.menu.offen,
       ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames,
       blick: ((m) => [-m[8], -m[9], -m[10]])(${D}.camera.matrixWorld.elements) });
       requestAnimationFrame(loop); };
@@ -222,7 +228,20 @@ async function ende(name) {
     console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`);
   });
   pruefe(ueber(100) === 0, `${name}: ${ueber(100)} Lücken über 100 ms (längste ${Math.round(max)} ms)`);
+  brettPasst(log, name);
   return log;
+}
+/**
+ * Unter einem Himmel aus Blender steht nie das Brett eines anderen Himmels oder das Steinbrett als Notfall (Spec
+ * .scratch/brett-je-himmel/), wo man das Brett sieht (Blick unter 0,6, weder Menü, Übersicht noch Bühne): ohne
+ * Überblenden das Brett des gezeigten Himmels, beim Überblenden (nur während der Himmel überblendet) das neue des
+ * gewählten.
+ */
+function brettPasst(log, was) {
+  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && !e.ueb && e.story !== 'scene'
+    && (e.brett.notfall || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.sky)));
+  pruefe(!falsch, `${was}: unter einem Himmel aus Blender ein fremdes Brett oder das Steinbrett`
+    + (falsch ? ` (${JSON.stringify({ ...falsch, blick: undefined })})` : ''));
 }
 /** Nach einer Wahl im Menü: Es ist sofort weg (blendet aus), nicht erst, wenn die Welt bereit ist. */
 async function sofortZu(was) {
@@ -230,8 +249,9 @@ async function sofortZu(was) {
   pruefe(zu, `${was}: das Menü blendet nach der Wahl nicht sofort aus`);
 }
 /**
- * Kein leeres Brett: Solange der Blick noch im Himmel ist, kommt der Himmel der Welt; erst wenn er ganz da ist, senkt
- * sich der Blick, und sieht man das Brett (Blick unter 0,6), wächst dort schon das Level.
+ * Kein leeres Brett: Solange der Blick noch im Himmel ist, kommt der Himmel der Welt; erst wenn er samt seinem Brett ganz
+ * da ist, senkt sich der Blick, und sieht man das Brett (Blick unter 0,6), wächst dort schon das Level. Unter einem
+ * Himmel aus Blender steht dabei nie ein fremdes Brett oder das Steinbrett als Notfall (das prüft jede Messung, ende).
  */
 function ohneLeeresBrett(log, sky, was) {
   const ab = log.findIndex((e) => !e.menu && e.gaze < 0.98);
@@ -239,6 +259,9 @@ function ohneLeeresBrett(log, sky, was) {
   if (ab < 0) return;
   pruefe(log[ab].sky === sky && log[ab].ready, `${was}: der Blick senkt sich, bevor ${sky} bereit ist `
     + `(${log[ab].sky}, bereit ${log[ab].ready})`);
+  const b = log[ab].brett;
+  pruefe(b.himmel === sky && b.bereit && b.anteil === 1 && !b.notfall,
+    `${was}: der Blick senkt sich, bevor das Brett von ${sky} bereit ist (${JSON.stringify(b)})`);
   const leer = log.slice(ab).find((e) => e.gaze < 0.6 && !['in', 'play'].includes(e.flow));
   pruefe(!leer, `${was}: leeres Brett im Blick (${JSON.stringify(leer)})`);
 }
@@ -353,12 +376,20 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   const w = Math.floor(platz / 10), k = platz % 10;
   await until(`${D}.story.step === ${platz} && window.__prisma.playing()`, `${g}: Level ${platz + 1} läuft`);
   await kopfzeile(g, platz);
+  await brettDerWelt(`${g} ${platz + 1}`);
   if (bilder) { await sleep(2200); await bild(`${slug(g)}-${platz + 1}`); }
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
   if (bilder || k === 9) { await sleep(600); await bild(`${slug(g)}-${platz + 1}-geloest`); }
   if (messen) await messe(); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
+}
+/** Das Brett passt zum Himmel der Welt (bzw. des Dorfs): sein Himmel, bereit, kein Notfall. */
+async function brettDerWelt(was) {
+  const r = await ev(`(() => { const s = ${D}.story; return { welt: s.inDorf ? STORY_DORF.sky
+    : STORY_CHAPTERS[s.steps[s.step].c].sky, sky: ${D}.skyTheme.current, brett: window.__prisma.brett() }; })()`);
+  pruefe(r.sky === r.welt && r.brett.himmel === r.welt && r.brett.bereit && !r.brett.notfall,
+    `${was}: Himmel und Brett passen nicht zur Welt ${JSON.stringify(r)}`);
 }
 async function kopfzeile(g, platz) {
   const w = Math.floor(platz / 10), k = platz % 10;
@@ -969,8 +1000,19 @@ async function uebersichtAblauf() {
   ohneZwischenszene(log, 'Weiter ins Meer');
   const blick = Math.max(...log.map((e) => e.gaze)), sinkt = log.find((e) => e.flow === 'out');
   pruefe(blick < 0.01, `Weiter ins Meer: der Blick hob sich (${blick})`);
-  pruefe(sinkt?.sky === 'beach' && sinkt.settled, `Weiter ins Meer: das Level versinkt, bevor der Himmel geladen ist `
-    + `(${JSON.stringify(sinkt)})`);
+  pruefe(sinkt?.sky === 'beach' && sinkt.settled, `Weiter ins Meer: das Level versinkt, bevor Himmel und Brett geladen `
+    + `sind (${JSON.stringify(sinkt)})`);
+  // das Brett wechselt mit: vom Wald direkt ins Meer, gleichzeitig mit dem Himmel (Beginn und Ende je höchstens ein Bild
+  // auseinander), steigend, am Ende das Brett des Meers
+  const bf = log.filter((e) => e.brett.von === 'forest' && e.brett.himmel === 'beach');
+  const a0 = log.indexOf(bf[0]), a1 = log.indexOf(bf.at(-1)) + 1;
+  const h0 = log.findIndex((e) => !(e.shown === 'forest' && e.w === 1)), h1 = log.findIndex((e) => e.shown === 'beach' && e.w === 1);
+  const steigt = bf.every((e, i) => i === 0 || e.brett.anteil >= bf[i - 1].brett.anteil);
+  pruefe(bf.length > 10 && steigt && bf.every((e) => e.fading) && Math.abs(a0 - h0) <= 1 && Math.abs(a1 - h1) <= 1
+    && log.at(-1).brett.himmel === 'beach' && log.at(-1).brett.anteil === 1,
+  `Weiter ins Meer: das Brett wechselt nicht mit dem Himmel (Brett Bild ${a0}–${a1}, Himmel ${h0}–${h1}, `
+    + `${bf.length} Bilder, steigend ${steigt}, am Ende ${JSON.stringify(log.at(-1).brett)})`);
+  console.log(`  Weiter ins Meer: Brett und Himmel blenden über ${((log[h1]?.ts - log[h0]?.ts) / 1000).toFixed(2)} s`);
   const danach = await ev(`({ replay: ${D}.story.replay, blend: ${D}.story.blend, sky: ${D}.skyTheme.current,
     quiet: ${D}.skyTheme.quiet, fade: ${D}.skyTheme.fadeTime })`);
   pruefe(danach.replay && danach.blend === null && danach.sky === 'beach' && !danach.quiet && danach.fade === 0.9
@@ -1162,6 +1204,7 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false } = 
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
   pruefe(k.sub.startsWith(`${GRAD_TEXT[g]} · Übung ${n + 1} / 9`) && k.hinweis?.length > 10
     && !/[{}]/.test(k.hinweis), `${g}, Übung ${n + 1}: Unterzeile «${k.sub}»`);
+  await brettDerWelt(`${g}, Übung ${n + 1}`);
   // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
   const skipText = !replay ? await warteSkip(true) : null;
   pruefe(k.uebersicht && (replay ? !k.skip : skipText === 'Dorf überspringen'),
