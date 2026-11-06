@@ -28,6 +28,11 @@ fertig gemacht und abgenommen.
       Wunsch des Nutzers (06.11.2026): Die Lichtwelle soll **nach Sand aussehen**. Zum Beispiel zieht eine Sandwelle oder
       Verwehung über das Feld, Körner wirbeln im Licht auf und rieseln zurück, oder Rippel entstehen und glätten sich
       wieder. Zeig ihm 2 bis 3 Varianten als Bildfolge.
+      **Gewählt (06.11.2026): Sandverwehung** (Variante A der Vorschau https://claude.ai/artifact/JpN1KG6cNopn4wGAZrYJ8v).
+      Eine Sandfahne treibt in Schlieren nach aussen und lässt Sandzungen zurück, die fortwehen. Am Gesims rieselt Sand
+      hinunter. Gesteuert wird alles über die Ankunft des Rings, nicht über seine Stärke. Rund 4000 Körner, geschätzt
+      0,6 bis 1,2 ms je Bild auf dem Handy, das wird gemessen. Vorlage: `lichtwelle/varianten/w1-verwehung.js` mit
+      `1-welle.js` und `lichtwelle/bretter.js`. Die Ideen mit Strausseneiern, Schatten und Schwalben fallen weg.
       Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Fall des Lichts beim Einstieg in die Wüste, Lösen). Dazu kommen die Messwerte

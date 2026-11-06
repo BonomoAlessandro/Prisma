@@ -145,6 +145,8 @@ Android-Chromium.
     Fugen auf. Katalog: https://claude.ai/artifact/M9QffoMkGcgwSn2geoCjWv.
   - Im Dorf gewählt (06.11.2026): **Hochbeet** aus Noas Garten, bei der Lichtwelle steigen Glühwürmchen auf.
     Katalog: https://claude.ai/artifact/6tyN2oGW1VJRwVB3CXNTEG.
+  - Jedes Brett hat seine eigene Lichtwelle. Strand: **Brandung**, Wüste: **Sandverwehung** (06.11.2026, Vorschau
+    https://claude.ai/artifact/JpN1KG6cNopn4wGAZrYJ8v); Dorf, Wald und Vulkan wie in ihren Katalogen.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen

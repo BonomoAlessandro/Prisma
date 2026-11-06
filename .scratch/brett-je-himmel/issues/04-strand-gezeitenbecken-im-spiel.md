@@ -49,6 +49,12 @@ So sieht es aus (Karte 6 im Katalog, Hauptbild):
       - Wunsch des Nutzers (06.11.2026): Die Lichtwelle soll nach **Wasser oder Seifenblasen** aussehen, zumindest ein
         wenig. Zum Beispiel rollt eine kleine Welle mit Gischt über das Feld, oder schillernde Seifenblasen steigen dort
         auf, wo der Ring vorbeizieht, und zerplatzen. Zeig ihm 2 bis 3 Varianten als Bildfolge.
+      - **Gewählt (06.11.2026): Brandung** (Variante A der Vorschau https://claude.ai/artifact/JpN1KG6cNopn4wGAZrYJ8v).
+        Eine Welle mit Schaumkrone rollt über den Stein, Tropfen spritzen. Dahinter ist der Stein nass, glitzert und
+        trocknet fleckig. In der Rinne steigt Gischt auf, und Schaum treibt rundum. Gesteuert wird alles über die
+        Ankunft des Rings (Zeit seit dem Start minus Abstand / 6,5), nicht über seine Stärke, damit die Rinne die volle
+        Wirkung bekommt. Rund 760 Tropfen, geschätzt 0,5 bis 1 ms je Bild auf dem Handy, das wird gemessen. Vorlage:
+        `lichtwelle/varianten/s1-brandung.js` mit `1-welle.js` und `lichtwelle/bretter.js`.
       - Das 7×7-Feld bleibt eben, gleich gross und an derselben Stelle.
       - Die Form bleibt innerhalb des Umrisses, und das Brett schwebt.
       - Die Art nennt ihren Kernquader. Mit flacher und ganz herausgezoomter Kamera hat der Himmel keine Löcher.
