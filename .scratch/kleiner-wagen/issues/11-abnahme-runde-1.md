@@ -166,3 +166,56 @@ Offen / zur Abnahme:
 - «Klicken» steht wie der Kicker über hellen Bergen (Bergwald) schwach.
 - Werte zum Abstimmen: `BUEHNENWAGEN.feld.lage` / `.breite`, `STORY_FLUG.halt` / `.anlauf`.
 - Review (anderer Agent), dann Commit durch den Koordinator.
+
+**06.11.2026, Review** (unabhängiger Agent, Stand 73e476e = 458145d + Ticket 11; gekürzt auf Wunsch des Nutzers)
+
+Der ganze Testsatz ist **auf Wunsch des Nutzers in das Review von Ticket 12 verschoben** (Ticket 12 ändert dieselben
+Stellen, dessen Review lässt alles auf dem gemeinsamen Stand laufen). Darum bleibt das letzte Häkchen offen.
+
+Code geprüft, ohne Fund, der eine Änderung im Spiel verlangt:
+
+- Halt (`anhalten`): Tippen, Klick, Enter und Leertaste lösen über `tap`/`waitTap`; gehaltene Tasten wirken nicht
+  (`e.repeat` im Tastenhandler); ein Tippen in den ersten 0,3 s löst die Schleife nicht (galt dem Flug). Esc und
+  «Überspringen» beenden im Einstieg auch den Halt (`e.halt`, dann `land`); Reisen sind nicht überspringbar, «Menü»
+  und Übersicht wirken während Einstieg und Reise nicht (`running`). Kein Zeitablauf, kein `setTimeout`, keine neuen
+  Listener (nur Promises; ein liegengebliebenes `untilTap` nach Esc ist ohne Folgen, `waitTap` wird geleert).
+  Kleinigkeit: Ein Tippen in der Schonfrist spielt den Ton von `tap` (`audio.rotate`), ohne dass etwas geschieht.
+- Fall (`storyFall`): stetig, 10 % Anlauf, danach linear; gemessen gleichmässig (±3 %).
+- Stern beim Erwachen (`ascend` mit `ende`, `captionVorab`): Die verborgene Kopie misst auch bei ausgeblendeter
+  Geschichte richtig (`#story.hidden` ist nur durchsichtig); Duplikat der SVG-`id` nur für die Messung.
+- Bühne / `seit`: Die Drehung um die eigene Hochachse verschiebt den Himmel seitlich, der Wagen bleibt aufrecht;
+  `seit` wird nur im Finale gesetzt und beim Übergang in den Epilog auf 0 gestellt (das Finale ist nicht
+  unterbrechbar, das Sprungbrett ist dort verborgen). Wagen in Wagen stimmt (Bilder unten).
+- Strahlen aus, kein Schwenk (`antwortBlick`): stetig, ohne Ruck; gemessen 0,00°.
+- Wagen nur einmal (`himmelsWagen.blendet`/`sofort`): Eingaben wecken die Schleife, das Ausblenden läuft also auch
+  aus der Ruhe. Nach Neuladen blendet er beim ersten Öffnen des Menüs in 0,4 s aus.
+- `?szenen`: Sprünge nur ausserhalb von Zwischenszenen (`frei`), also nie mitten im Halt; der Sprung in den Epilog
+  läuft ohne Finale mit `seit` 0.
+
+Behoben im Review: `tests/geschichte-probe.mjs`, `pruefeErwachen`: Der Kicker der Reise wurde nur in den 2,2 s nach
+dem Erwachen gesucht; hält dort ein Bild der Probe (`wagen-welt<n>-erwachen`) die Seite an, fehlt er (Handy:
+«Kicker undefined» in Welt 3, Stern selbst richtig bei 0,219). Jetzt der erste Kicker nach dem Erwachen. Nicht neu
+laufen gelassen (Läufe gestoppt), nur `node --check`.
+
+Läufe (alle über `LEISE_VORRANG=11 GPU=1 LEISE_CPU=100 LEISE_MAX_CPU=100 sh tools/leise.sh`, Chrome stumm):
+
+| Lauf | Ergebnis |
+|---|---|
+| Node: alle `tests/*.test.mjs` parallel, `golden.mjs` | grün (logic 2036, beurteilung 206, levelliste 54, generator 31, ki-tester 84, vorrat 18, wuerfelliste 20, hall 6, geschichte 35; golden 847) |
+| `--wagen` Desktop / quer dpr 2,75 | bestanden (Wagen in Wagen 1,5 / 0,5 px, Mitte des Wagens 0,71 / 0,73, Strahlen aus nach 795–799 ms, Schwenk 0,00°) |
+| `--wagen --handy --dpr 2.75` | rot nur an der Prüfung des Kickers (Fehler der Probe, oben behoben); sonst alles grün (Wagen in Wagen 1,1 px, Mitte 0,575) |
+| `--ganz` Desktop `--vorher` | bestanden; Einstieg +0,22, Reisen +0,18 … +0,24 (Grenze +1,2), Finale +3,67, Epilog −0,01, Neuladen +0,42 (wie Review 08) |
+| `--ganz --handy --dpr 2.75 --vorher` | Dauern: Einstieg +0,14, Reisen −0,30 … +0,57, Finale +3,65; rot an zwei Lücken 229/206 ms zu Beginn der Reise in die Wüste (Himmel noch Meer, Untertitel steht); einmalig, nicht wiederholt (Läufe gestoppt), in quer und Desktop nicht |
+| `--ganz --quer --dpr 2.75` | bestanden, keine Lücke über 50 ms |
+| `--finale leicht` Desktop / Handy dpr 2,75 `--vorher` / quer dpr 2,75 | bestanden; Fortsetzen +0,16 / +0,22, Finale +3,68 / +3,34; Menü nach dem Epilog ohne Wagen am Himmel |
+| `--menue` Desktop / Handy dpr 2,75 / quer dpr 2,75 | bestanden |
+
+Nicht gelaufen (verschoben ins Review von Ticket 12): `--menue` 360 × 640 und 320 × 568, `--uebersicht`, `--dorf`,
+Probe ohne Argumente, `buehne-messung` (messen, bilder), `offline`, sowie die Wiederholung von `--wagen --handy` und
+`--ganz --handy`.
+
+Bilder angesehen: Ende des Finales und erstes Bild des Epilogs in drei Formaten decken sich; Epilog 3 Desktop: Strahl
+trifft den Polarstern; Menü nach dem Epilog und nach Neuladen nur ein Wagen. Zur Abnahme (zusätzlich zu den Punkten
+des Umsetzers): Im Hochformat steht der Polarstern am Ende links der Bildmitte (0,31), in Epilog 3 leuchtet Noa leicht
+über die Senkrechte hinaus (93°); dort gewinnt «weiter rechts» wenig. Auch die Reise hält an (Entscheid des Umsetzers,
+Wortlaut des Nutzers nennt nur das Einfliegen in die Welt): vom Nutzer bestätigen lassen.

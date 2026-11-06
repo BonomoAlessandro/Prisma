@@ -28,7 +28,8 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
 | 08 Einbau Katalog | erledigt, mit Review |
 | 09 Doku und KI-Tester | erledigt, mit Review |
-| 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | in Arbeit (06.11.) |
+| 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | Zwischenstand 73e476e gepusht, Review läuft |
+| 12 Abnahme, Runde 2 (Rückmeldungen zu 73e476e) | in Arbeit (06.11., Worktree `.claude/worktrees/kw12`) |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
 
 ### Ticket 01, Zwischenstand

@@ -2155,7 +2155,9 @@ function pruefeErwachen(a, k, was) {
   const bleibt = log.slice(i0).filter((e) => e.ts <= e0.ts + 2200);
   const px = ([x, y], [u, v]) => Math.hypot((x - u) / 2 * a.W, (y - v) / 2 * a.H);
   const weg = Math.max(...bleibt.map((e) => px(e.bild[k - 1], e0.bild[k - 1])));
-  const mitText = bleibt.findLast((e) => e.modus === 'caption' && e.kicker !== null);
+  // der Kicker der Reise: der erste nach dem Erwachen (nicht nur in bleibt: ein Bild der Probe hält die Seite dort an,
+  // dann fehlt er in diesen 2,2 s; Review Ticket 11, Handy)
+  const mitText = log.slice(i0).find((e) => e.modus === 'caption' && e.kicker !== null);
   const oben = (1 - e0.bild[k - 1][1]) / 2, mitte = (e0.bild[k - 1][0] + 1) / 2;
   console.log(`  ${was}: Stern ${k} beim Erwachen bei ${mitte.toFixed(3)} / ${oben.toFixed(3)} (Breite / Höhe), `
     + `Kicker der Reise bei ${mitText?.kicker}, danach höchstens ${weg.toFixed(1)} px verschoben`);
