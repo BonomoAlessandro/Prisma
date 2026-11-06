@@ -21,12 +21,15 @@
 // Licht bei jeder Ankunft in einer Welt über dem Untertitel an und wartet auf Tippen: Die Probe prüft den Halt bei den
 // Einstiegen und Reisen ihrer Abläufe (halt) und tippt sonst beim Warten darauf wie ein Spieler (until); dazu der
 // gleichmässige Fall danach (pruefeFall), der Stand des Sterns nach dem Erwachen (pruefeErwachen), die Antwort des
-// Polarsterns ohne Schwenk, der Wagen rechts der Mitte (pruefeFinale) und Noas Arm zum Polarstern (pruefeArm).
+// Polarsterns ohne Schwenk, der Wagen rechts der Mitte (pruefeFinale) und Noas Arm zum Polarstern (pruefeArm). Seit
+// Ticket 12: der Fall gleichmässig im Bild und die Kamera ruhig (pruefeFallImBild, Schnelltest --fall), die Strahlen
+// im Finale laufen aus und der Aufprall der Antwort ist weich (pruefeFinale), kein Text der Bühne rückt, solange er zu
+// sehen ist (pruefeTexteRuhig), und am Ende einer Welt beginnt nichts vor «Weiter» (pruefeWartetAufWeiter).
 // Bilder der wichtigen Momente nach tests/output/geschichte/<bildschirm>-<name>.png. Sie scheitert bei einem falschen
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--wagen] [--groesse 360x640] [--dpr 2.75] [--messwerte <datei.json>]
+//           [--dorf-raender] [--ganz] [--wagen] [--fall] [--groesse 360x640] [--dpr 2.75] [--messwerte <datei.json>]
 //           [--vorher <datei.json>]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
@@ -38,19 +41,20 @@
 //   Ticket 07, etwa 5 min); --ganz: statt der ersten Welten der ganze Durchgang je Grad in einer Sitzung, vom Menü bis
 //   zum Epilog und zurück ins Menü, mit Neuladen mitten in der Wüste und den Bildzeiten jeder Zwischenszene (Abnahme
 //   Ticket 08, siehe ganzerDurchgang; ohne --grad nur Leicht). Ohne --grad, --finale, --menue, --start, --uebersicht,
-//   --dorf, --dorf-raender, --ganz und --wagen alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das Menü
-//   etwa 3 min, die Übersicht etwa 4 min, das Dorf etwa 6 min, mit --ganz etwa 7 min je Grad. Zeitrahmen: jede Anfrage
-//   an Chrome höchstens 30 s, der ganze Lauf höchstens 14 min (mit --ganz 14 min je Grad); dann schliesst die Probe
-//   Chrome und bricht mit Fehler ab. --messwerte: Bildzeiten und Dauern aller gemessenen Übergänge als JSON in diese
-//   Datei (Vorher-Lauf des Kleinen Wagens, .scratch/kleiner-wagen/vorher/). Mit --ganz und --finale misst die Probe
-//   dazu die Dauer jedes Einstiegs, jeder Reise und des Finales (vom Klick auf «Gleich los» bzw. «Weiter» bis zum
+//   --dorf, --dorf-raender, --ganz, --wagen und --fall alle vier Grade. Etwa 3 min je Grad, das Finale gut 4 min, das
+//   Menü etwa 3 min, die Übersicht etwa 4 min, das Dorf etwa 6 min, mit --ganz etwa 7 min je Grad. Zeitrahmen: jede
+//   Anfrage an Chrome höchstens 30 s, der ganze Lauf höchstens 14 min (mit --ganz 14 min je Grad); dann schliesst die
+//   Probe Chrome und bricht mit Fehler ab. --messwerte: Bildzeiten und Dauern aller gemessenen Übergänge als JSON in
+//   diese Datei (Vorher-Lauf des Kleinen Wagens, .scratch/kleiner-wagen/vorher/). Mit --ganz und --finale misst die
+//   Probe dazu die Dauer jedes Einstiegs, jeder Reise und des Finales (vom Klick auf «Gleich los» bzw. «Weiter» bis zum
 //   spielbaren Level bzw. bis zum Epilog), ohne die Zeit, in der ein Satz auf Tippen wartet oder ein Bild der Probe die
 //   Seite anhält (siehe ende). --wagen: dazu der Stand des Kleinen Wagens (Ticket 01 von .scratch/kleiner-wagen/), der
 //   Wagen am Himmel (Ticket 04: Stand, Helligkeit bei Tag und Nacht, Bilder <bildschirm>-wagen-…) und seit Ticket 05
 //   Erwachen, Vorbeiflug und Einstiege, seit Ticket 06 das Finale (Puls, Polarstern, Endbild), siehe wagenAblauf, etwa
-//   4 min. --vorher: die Dauern (netto) mit einem früheren Lauf mit --messwerte vergleichen (Vorher-Lauf
-//   .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe vergleicheVorher): jede Reise höchstens etwa 1 s länger,
-//   die Einstiege nicht länger, das Finale etwa 4 s.
+//   4 min. --fall: nur Einstieg in den Vulkan und Reise ins Meer, je mit dem Fall aufs Brett im Bild (Abnahme Ticket
+//   12, siehe fallAblauf), gut 1 min. --vorher: die Dauern (netto) mit einem früheren Lauf mit --messwerte vergleichen
+//   (Vorher-Lauf .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe vergleicheVorher): jede Reise höchstens etwa
+//   1 s länger, die Einstiege nicht länger, das Finale etwa 4 s.
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -112,9 +116,11 @@ const dorfProbe = args.includes('--dorf');
 const dorfRaenderProbe = args.includes('--dorf-raender');
 const ganz = args.includes('--ganz');
 const wagenProbe = args.includes('--wagen');
+const fallProbe = args.includes('--fall');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
-  : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe || wagenProbe ? []
+  : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe || wagenProbe
+    || fallProbe ? []
     : GRADE;
 const welten = +(wert('--welten') ?? 2);
 const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
@@ -128,7 +134,7 @@ if ([...grade, finaleGrad].some(g => g && !GRADE.includes(g)) || !(welten >= 1 &
   || args.includes('--messwerte') && !messwerte || args.includes('--vorher') && !vorherDatei) {
   console.error('Aufruf: node tests/geschichte-probe.mjs [--handy [--groesse 360x640] | --quer] [--grad leicht,…] '
     + '[--welten 1–5 | --ganz] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf] [--dorf-raender] '
-    + '[--wagen] [--dpr n] [--messwerte <datei.json>] [--vorher <datei.json>]');
+    + '[--wagen] [--fall] [--dpr n] [--messwerte <datei.json>] [--vorher <datei.json>]');
   process.exit(1);
 }
 requireQuiet();
@@ -596,7 +602,57 @@ async function pruefeArm(act, was) {
   pruefe(Math.abs(r.arm - r.soll) < 0.5, `${was}: Noas Arm zeigt nicht zum Polarstern (${r.arm.toFixed(1)}° statt `
     + `${r.soll.toFixed(1)}°)`);
 }
+/**
+ * Texte der Bühne in jedem Bild aufzeichnen (Abnahme Ticket 12): je Zeile (.line), «Im Dorf» (.kicker) und Knöpfe
+ * (.actions) Text, Deckkraft und Oberkante im Fluss (ohne das eigene Ein- und Ausgleiten über transform).
+ */
+async function texteAufzeichnen() {
+  // gleich in der Seite ausgewertet (je Element das laufende Stück mit demselben Text): Eine lange Aufzeichnung am Ende
+  // zu holen, hielte die Seite an
+  await ev(`(() => { const a = window.__texte = { an: true, n: 0, laeufe: {}, schlimmst: { weg: 0 } };
+    const oben = (el) => { const m = new DOMMatrix(getComputedStyle(el).transform);
+      return el.getBoundingClientRect().top - m.m42; };
+    const loop = (ts) => {
+      if (!a.an) return;
+      const sc = document.querySelector('#story .scene');
+      if (sc) {
+        a.n++;
+        const els = [...sc.querySelectorAll('.sub .line'), sc.querySelector('.sub .kicker'),
+          sc.querySelector('.actions')];
+        els.forEach((el, i) => {
+          const k = el.className.split(' ')[0] + i, text = el.textContent, cs = getComputedStyle(el);
+          const o = el.childElementCount && el.classList.contains('actions')
+            ? Math.min(+cs.opacity, +getComputedStyle(el.firstElementChild).opacity) : +cs.opacity;
+          const sichtbar = text && o > 0.02 && cs.visibility === 'visible' && el.getClientRects().length > 0;
+          if (!sichtbar || a.laeufe[k]?.text !== text) delete a.laeufe[k];
+          if (!sichtbar) return;
+          const top = oben(el), m = a.laeufe[k] ??= { text, lo: top, hi: top, ts };
+          m.lo = Math.min(m.lo, top);
+          m.hi = Math.max(m.hi, top);
+          if (m.hi - m.lo > a.schlimmst.weg) {
+            a.schlimmst = { weg: +(m.hi - m.lo).toFixed(2), k, text: text.slice(0, 40), ms: Math.round(ts - m.ts) };
+          }
+        });
+      }
+      requestAnimationFrame(loop);
+    };
+    requestAnimationFrame(loop); })()`);
+}
+/**
+ * Kein Text der Bühne verschiebt sich, solange er zu sehen ist (Abnahme Ticket 12: im Epilog rückte der letzte Satz für
+ * «Zum Menü» hinauf, im Prolog sprang der vorletzte Satz, als das Angebot mit seinen Knöpfen kam): je Element (Zeilen,
+ * «Im Dorf», Knöpfe) und Text höchstens 0,5 px Unterschied der Oberkante im Fluss (ohne das eigene Ein- und Ausgleiten
+ * über transform) über alle Bilder mit Deckkraft über 0,02 (texteAufzeichnen).
+ */
+async function pruefeTexteRuhig(was) {
+  const { n, schlimmst } = await ev('(() => { const a = window.__texte; a.an = false; return a; })()');
+  console.log(`  ${was}: ${n} Bilder, Texte verschieben sich, solange sie zu sehen sind, höchstens `
+    + `${schlimmst.weg.toFixed(1)} px${schlimmst.k ? ` (${schlimmst.k} «${schlimmst.text}…»)` : ''}`);
+  pruefe(n > 50 && schlimmst.weg <= 0.5, `${was}: Text verschiebt sich nach dem Erscheinen `
+    + JSON.stringify(schlimmst));
+}
 async function buehneDurch(name, { bisKnoepfe = false, saetze = null } = {}) {
+  if (saetze) await texteAufzeichnen();
   for (let n = 1; ; n++) {
     await until(`${D}.story.waitTap !== null || ${storyMode} !== 'scene' || ${knoepfe}`, `${name}: Einstellung ${n}`,
       60);
@@ -606,9 +662,12 @@ async function buehneDurch(name, { bisKnoepfe = false, saetze = null } = {}) {
     // Knöpfe: am Ende des Epilogs mit dem letzten Satz, nach dem Prolog das Angebot (prüft angebot)
     if (await ev(knoepfe)) {
       pruefe(!saetze || n >= saetze.length, `${name}: Knöpfe nach ${n} statt ${saetze?.length} Einstellungen`);
-      await bild(`${name}-ende`); return;
+      await bild(`${name}-ende`);
+      if (saetze) { await sleep(2500); await pruefeTexteRuhig(name); } // bis Knöpfe und Satz ganz eingeblendet sind
+      return;
     }
     if (!(await ev(`${D}.story.waitTap !== null`))) {
+      if (saetze) await pruefeTexteRuhig(name);
       pruefe(!bisKnoepfe, `${name}: ohne Knöpfe am Ende`);
       pruefe(!saetze || n > saetze.length, `${name}: zu Ende nach ${n - 1} statt ${saetze?.length} Einstellungen`);
       return;
@@ -2064,14 +2123,18 @@ async function himmelAufzeichnen() {
     }
     const sterne = [1, 2, 3, 4, 5, 6, 7].map((k) => H.richtung(k)), grad = (v, d) => +(v.angleTo(d) * 180 / Math.PI)
       .toFixed(1);
-    const loop = () => {
+    const loop = (bildZeit) => { // Zeit des Bilds (rAF), nicht des Aufrufs: unter Last gleichmässiger
       if (!a.an) return;
       const e = cam.matrixWorld.elements, blick = cam.position.clone().set(-e[8], -e[9], -e[10]);
       const licht = s.flare.position.clone().sub(cam.position);
       const cap = document.querySelector('#story .caption').getBoundingClientRect();
       const kick = document.querySelector('#story .caption.mitte .kicker:not(:empty)')?.getBoundingClientRect();
       const strahlen = s.beams.filter((b) => b.visible).map((b) => b.material.uniforms.uStrength.value);
-      a.log.push({ ts: performance.now(), wach: H.stand.wach.length, welt: H.stand.welt, linien: H.stand.linien.length,
+      // wie viel der Strahlen noch leuchtet: Stärke mal der Teil, den ihr Ende noch nicht freigegeben hat (uTail ab
+      // Ticket 12, sein weiches Stück 0,2 lang)
+      const rest = (b) => { const u = b.material.uniforms; return u.uStrength.value
+        * Math.max(0, Math.min(1, 1 - ((u.uTail?.value ?? 0) - 0.1) / 1.1)); };
+      a.log.push({ ts: bildZeit, wach: H.stand.wach.length, welt: H.stand.welt, linien: H.stand.linien.length,
         glanz: [...H.glanz].map((x) => +x.toFixed(2)), anteil: [...H.anteil].map((x) => +x.toFixed(2)),
         blick: sterne.map((d) => grad(blick, d)), licht: s.flare.visible ? sterne.map((d) => grad(licht, d)) : null,
         bild: sterne.map((d) => ((p) => [+p.x.toFixed(4), +p.y.toFixed(4)])(d.clone().multiplyScalar(70)
@@ -2080,6 +2143,11 @@ async function himmelAufzeichnen() {
         kicker: kick?.height > 0 ? +(kick.top / innerHeight).toFixed(4) : null,
         kam: [-e[8], -e[9], -e[10]].map((x) => +x.toFixed(5)), lp: s.flare.position.toArray().map((x) => +x.toFixed(3)),
         strahlen: strahlen.length ? +Math.max(...strahlen).toFixed(3) : 0,
+        rest: +Math.max(0, ...s.beams.filter((b) => b.visible).map(rest)).toFixed(3),
+        antwortRest: s.answer.visible ? +rest(s.answer).toFixed(3) : null, bloom: +bloomPass.strength.toFixed(3),
+        schock: +shockUniforms.uShock.value.y.toFixed(3),
+        lb: s.flare.visible ? ((p) => [+((p.x + 1) / 2 * innerWidth).toFixed(2), +((1 - p.y) / 2 * innerHeight)
+          .toFixed(2)])(s.flare.position.clone().project(cam)) : null, lo: +s.flare.material.opacity.toFixed(3),
         antwort: s.answer.visible ? +s.answer.material.uniforms.uHead.value.toFixed(3) : null });
       requestAnimationFrame(loop);
     };
@@ -2108,17 +2176,68 @@ function pruefeFall(a, was) {
     pruefe(false, `${was}: Fall zu kurz aufgezeichnet (${fall.length} Bilder)`);
     return;
   }
+  // Weg in der Welt je Sekunde (nur zum Ablesen; massgebend ist seit Ticket 12 das Bild)
   const v = ([u0, u1]) => {
     const f = fall.filter((e) => e.ts >= t0 + u0 * d && e.ts <= t0 + u1 * d);
     const weg = f.slice(1).reduce((s, e, i) => s + Math.hypot(...e.lp.map((x, j) => x - f[i].lp[j])), 0);
     return weg / ((f.at(-1).ts - f[0].ts) / 1000);
   };
-  const [v1, v2, v3] = [[0.2, 0.35], [0.5, 0.65], [0.8, 0.95]].map(v);
-  console.log(`  ${was}: Fall ${(d / 1000).toFixed(2)} s, Geschwindigkeit `
-    + `${[v1, v2, v3].map((x) => x.toFixed(1)).join(' / ')} (Anfang / Mitte / Ende)`);
-  pruefe(Math.abs(v2 / v1 - 1) < 0.15 && Math.abs(v3 / v1 - 1) < 0.15, `${was}: Das Licht fällt nicht gleichmässig `
-    + `(${[v1, v2, v3].map((x) => x.toFixed(1)).join(' / ')})`);
+  console.log(`  ${was}: Fall ${(d / 1000).toFixed(2)} s, in der Welt ${[[0.2, 0.35], [0.5, 0.65], [0.8, 0.95]].map(v)
+    .map((x) => x.toFixed(1)).join(' / ')} je s (Anfang / Mitte / Ende)`);
+  pruefeFallImBild(fall, d, was);
 }
+/**
+ * Der Fall im Bild (Abnahme Ticket 12; fall: Bilder der Aufzeichnung vom Beginn des Falls, solange das Licht zu sehen
+ * ist, d: seine Dauer in ms): Massgebend ist, wie das Licht über den Bildschirm fällt (CSS-Pixel je Bild bei 60
+ * Bildern/s, gemittelt über je FALL_FENSTER ms). Nach dem Anlauf (erste 12 % der Zeit) bis es ausblendet (Deckkraft
+ * unter 0,5) weicht seine Geschwindigkeit höchstens FALL_STREUUNG vom Mittel ab: kein Beschleunigen, Abbremsen und
+ * wieder Beschleunigen. Die Kamera folgt ruhig: Ihre Drehung (Grad je Bild) steigt bis zu einem Höchstwert und fällt
+ * danach, ohne zweiten Anstieg (je höchstens FALL_KAMERA über dem tiefsten Wert davor bzw. danach). Die Werte je Bild
+ * schreibt die Probe nach tests/output/geschichte/<bildschirm>-fall-<was>.json. Gezählt werden nur Bilder, die das
+ * Spiel gezeichnet hat (Licht oder Blick anders als im Bild davor): Lässt es unter Last eines aus, sähe die
+ * Aufzeichnung sonst einmal Stillstand und dann den doppelten Schritt.
+ */
+function pruefeFallImBild(alle, d, was) {
+  const gleich = (a, b) => JSON.stringify([a.lb, a.kam]) === JSON.stringify([b.lb, b.kam]);
+  const fall = alle.filter((e, i) => i === 0 || !gleich(e, alle[i - 1])), t0 = fall[0].ts;
+  const proBild = (f, weg) => (f.length < 2 ? 0 : f.slice(1).reduce((s, e, i) => s + weg(f[i], e), 0)
+    / (f.at(-1).ts - f[0].ts) * 1000 / 60);
+  const px = (a, b) => (a.lb && b.lb ? Math.hypot(b.lb[0] - a.lb[0], b.lb[1] - a.lb[1]) : 0);
+  const reihe = (weg, u0, u1) => {
+    const r = [];
+    for (let t = t0 + u0 * d; t + FALL_FENSTER <= t0 + u1 * d; t += FALL_FENSTER / 2) {
+      r.push(proBild(fall.filter((e) => e.ts >= t && e.ts <= t + FALL_FENSTER), weg));
+    }
+    return r;
+  };
+  const sichtbar = fall.findIndex((e) => e.lo < 0.5), bis = sichtbar > 0 ? (fall[sichtbar].ts - t0) / d : 1;
+  const licht = reihe(px, 0.12, bis), kamera = reihe((a, b) => zwischen(a.kam, b.kam), 0, 1);
+  const mittel = licht.reduce((s, x) => s + x, 0) / Math.max(1, licht.length);
+  const streut = Math.max(...licht.map((x) => Math.abs(x / mittel - 1)));
+  const z = (r) => r.map((x) => x.toFixed(2)).join(' ');
+  console.log(`  ${was}: Licht im Bild (px je Bild, je ${FALL_FENSTER} ms, nach dem Anlauf bis zum Ausblenden bei `
+    + `${(bis * 100).toFixed(0)} %): ${z(licht)}; Mittel ${mittel.toFixed(2)}, grösste Abweichung `
+    + `${(streut * 100).toFixed(0)} %`);
+  console.log(`  ${was}: Kamera (Grad je Bild über den ganzen Fall): ${z(kamera)}`);
+  const iMax = kamera.indexOf(Math.max(...kamera));
+  // grösster Rückschritt (Anteil des Höchstwerts): vor ihm ein Abfall und wieder Anstieg, nach ihm ein neuer Anstieg
+  let zurueck = 0;
+  for (let i = 0; i < iMax; i++) {
+    zurueck = Math.max(zurueck, (kamera[i] - Math.min(...kamera.slice(i, iMax + 1))) / kamera[iMax]);
+  }
+  for (let i = iMax + 1; i < kamera.length; i++) {
+    zurueck = Math.max(zurueck, (kamera[i] - Math.min(...kamera.slice(iMax, i + 1))) / kamera[iMax]);
+  }
+  mkdirSync(OUT, { recursive: true });
+  writeFileSync(join(OUT, `${view.name}-fall-${was.replace(/[^\wäöü]+/gi, '-').toLowerCase()}.json`),
+    JSON.stringify({ d, bis, licht, kamera, bilder: fall.map((e) => ({ ts: +(e.ts - t0).toFixed(1), lb: e.lb, lo: e.lo,
+      kam: e.kam, lp: e.lp })) }));
+  pruefe(licht.length >= 4 && streut <= FALL_STREUUNG, `${was}: Das Licht fällt im Bild nicht gleichmässig `
+    + `(grösste Abweichung ${(streut * 100).toFixed(0)} % vom Mittel ${mittel.toFixed(2)} px je Bild: ${z(licht)})`);
+  pruefe(zurueck <= FALL_KAMERA, `${was}: Die Kamera folgt nicht ruhig (zweiter Anstieg bzw. Abfall der Drehung um `
+    + `${(zurueck * 100).toFixed(0)} % ihres Höchstwerts: ${z(kamera)})`);
+}
+const FALL_FENSTER = 200, FALL_STREUUNG = 0.15, FALL_KAMERA = 0.15;
 const himmelAuswerten = () => ev('(() => { const a = window.__himmel; a.an = false; return a; })()');
 /**
  * Der Wagen nur einmal (Abnahme Ticket 11, Nachtrag): Hinter Menü und Übersicht ist der Wagen am Himmel aus (ihre
@@ -2230,11 +2349,19 @@ function pruefeFinale(a, buehne, was) {
     const dreh = Math.max(...log.slice(i0, iP + 1).map((e) => zwischen(e.kam, e0.kam)));
     pruefe(dreh < 0.3, `${was}: Der Blick verschiebt sich nach dem Erwachen noch um ${dreh.toFixed(2)}°`);
     const aus = log.findIndex((e, i) => i > i0 && e.strahlen === 0);
-    pruefe(aus > 0 && log[aus].ts - e0.ts < 1000 && log.slice(aus, iP + 1).every((e) => e.strahlen === 0),
-      `${was}: Die Strahlen gehen nach dem Erwachen nicht aus (${aus > 0 ? Math.round(log[aus].ts - e0.ts) : '–'} `
-      + 'ms)');
+    pruefe(aus > 0 && log.slice(aus, iP + 1).every((e) => e.strahlen === 0),
+      `${was}: Die Strahlen gehen nach dem Erwachen nicht vor dem Puls aus (${aus > 0 ? Math.round(log[aus].ts - e0.ts)
+        : '–'} ms)`);
+    // Abnahme Ticket 12: nicht abrupt, sie laufen aus. Was von ihnen leuchtet (rest), nimmt über mindestens
+    // AUSLAUFEN_MS ab, in keinem Bild um mehr als AUSLAUFEN_SPRUNG (je Bild bei 60 Bildern/s)
+    const lauf = log.slice(i0, aus > 0 ? aus + 1 : iP), ab = lauf.findIndex((e) => (e.rest ?? e.strahlen) < 0.99);
+    const sprung = auslaufSprung(lauf);
+    const dauer = ab >= 0 ? lauf.at(-1).ts - lauf[ab].ts : 0;
     console.log(`  ${was}: nach dem Erwachen dreht der Blick ${dreh.toFixed(2)}°, Strahlen aus nach `
-      + `${aus > 0 ? Math.round(log[aus].ts - e0.ts) : '–'} ms`);
+      + `${aus > 0 ? Math.round(log[aus].ts - e0.ts) : '–'} ms, laufen ${Math.round(dauer)} ms aus, grösster Schritt `
+      + `${sprung.toFixed(3)} je Bild`);
+    pruefe(dauer >= AUSLAUFEN_MS && sprung <= AUSLAUFEN_SPRUNG, `${was}: Die Strahlen verschwinden abrupt (in `
+      + `${Math.round(dauer)} ms, grösster Schritt ${sprung.toFixed(3)} je Bild)`);
   }
   pruefe(Math.max(...log.slice(i0, iP < 0 ? undefined : iP).map((e) => e.glanz[5])) > 0.8,
     `${was}: Stern 6 blitzt beim Erwachen nicht auf`);
@@ -2280,6 +2407,25 @@ function pruefeFinale(a, buehne, was) {
       + `(${frueh.length} Bilder)`);
     pruefe(frueh.length > 5 && dreh < 0.3,
       `${was}: Die Kamera schwenkt vor dem Strahl des Polarsterns (${dreh.toFixed(2)}°)`);
+    // weicher Aufprall (Abnahme Ticket 12): Das Brett glüht schon, bevor die Spitze ankommt, der Schein (bloom) steigt
+    // danach weich an (in keinem Bild um mehr als AUFPRALL_SCHEIN der Grundhelligkeit), und der Strahl läuft aus
+    const iH = log.findIndex((e, i) => i > iA && e.antwort !== null && e.antwort >= 0.999);
+    if (iH > 0) {
+      const vorher = log[iH - 1].schock ?? 0, grund = log[iH - 1].bloom;
+      const nach = log.slice(iH, iH + 90), schein = Math.max(0, ...nach.slice(1).map((e, i) => (e.bloom - nach[i].bloom)
+        / grund / Math.max(1, (e.ts - nach[i].ts) / (1000 / 60))));
+      const rest = log.slice(iH).filter((e) => e.antwortRest !== null && e.antwortRest !== undefined);
+      const sprung = auslaufSprung(rest.map((e) => ({ ts: e.ts, rest: e.antwortRest })));
+      const weg = rest.findIndex((e) => e.antwortRest < 0.01), an = rest.findIndex((e) => e.antwortRest < 0.99);
+      const dauer = weg > an && an >= 0 ? rest[weg].ts - rest[an].ts : 0;
+      console.log(`  ${was}: Aufprall der Antwort: Brett glüht davor ${vorher}, Schein steigt höchstens `
+        + `${(schein * 100).toFixed(1)} % je Bild, Strahl läuft ${Math.round(dauer)} ms aus (grösster Schritt `
+        + `${sprung.toFixed(3)})`);
+      pruefe(vorher > 0.1 && schein <= AUFPRALL_SCHEIN && dauer >= AUSLAUFEN_MS && sprung <= AUSLAUFEN_SPRUNG,
+        `${was}: Der Aufprall der Antwort ist hart (Glut davor ${vorher}, Schein ${(schein * 100).toFixed(1)} % `
+        + 'je Bild, '
+        + `Auslaufen ${Math.round(dauer)} ms, Schritt ${sprung.toFixed(3)})`);
+    } else pruefe(false, `${was}: Die Antwort erreicht das Brett nicht`);
   } else pruefe(false, `${was}: keine Antwort des Polarsterns aufgezeichnet`);
   // Endbild: der ganze Wagen im Bild, der Polarstern oben links, die Schale unten rechts
   const iB = log.findIndex((e) => e.modus === 'scene') - 1, e = log[iB];
@@ -2308,6 +2454,54 @@ function pruefeFinale(a, buehne, was) {
   pruefe(ab[k] <= WAGEN_IN_WAGEN, `${was}: Wagen in Wagen nicht ohne Sprung: Stern ${k + 1} ${ab[k].toFixed(1)} px daneben `
     + `(am Ende ${JSON.stringify(e.bild)}, Bühne ${JSON.stringify(buehne.sterne)})`);
 }
+/**
+ * Nach dem letzten Level einer Welt (Abnahme Ticket 12): Strahlen, Aufstieg und Erwachen kommen erst mit «Weiter zum …»
+ * (bzw. «Hinaufschauen» vor dem Finale). Nach dem Lösen steht «Gelöst» mit dem Knopf, und 3 s lang beginnt nichts:
+ * keine Zwischenszene, kein Strahl, kein Blick in den Himmel, der Stern schläft noch.
+ */
+async function pruefeWartetAufWeiter(was) {
+  const s = await ev(`(() => { const s = ${D}.story, r = [];
+    return new Promise((fertig) => { const ab = performance.now(); const schau = () => {
+      r.push({ laeuft: s.running, strahl: s.beams.some((b) => b.visible), blick: s.gaze, gelöst: window.__prisma
+        .solvedPanel(), wach: s.himmel.stand.wach.length });
+      if (performance.now() - ab < 3000) setTimeout(schau, 100); else fertig(r); };
+    schau(); }); })()`);
+  const wach = s[0].wach, falsch = s.find((e) => e.laeuft || e.strahl || e.blick > 0 || !e.gelöst || e.wach !== wach);
+  console.log(`  ${was}: nach dem Lösen ${falsch ? 'beginnt die Szene ohne «Weiter»'
+    : '3 s lang «Gelöst», nichts sonst'}`);
+  pruefe(!falsch, `${was}: Strahlen bzw. Aufstieg ohne Klick auf «Weiter» ${JSON.stringify(falsch)}`);
+}
+/**
+ * Nur der Fall aufs Brett (--fall, Abnahme Ticket 12, gut 1 min): der Einstieg in den Vulkan beim Fortsetzen und die
+ * Reise vom Bergwald ins Meer, je mit Halt und dem Fall danach im Bild (pruefeFall), dazu, dass das Ende des Bergwalds
+ * auf «Weiter» wartet (pruefeWartetAufWeiter).
+ */
+async function fallAblauf() {
+  console.log(`${view.name}: Fall aufs Brett`);
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 30, 2) });
+  await himmelAufzeichnen();
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await halt('Leicht: Einstieg in den Vulkan', { station: 4 });
+  await until(`${D}.story.step === 30 && window.__prisma.playing() && !${D}.story.running`, 'Leicht 31 läuft', 60);
+  pruefeEinstieg(await himmelAuswerten(), 4, 3, 'Einstieg in den Vulkan');
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 9, 0) });
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await loeseLevel('leicht', 9);
+  await pruefeWartetAufWeiter('Ende der Welt 1');
+  await himmelAufzeichnen();
+  await tippe('#btn-next', 'Weiter');
+  await halt('Leicht: Reise in Welt 2', { station: 2 });
+  await until(`${D}.story.step === 10 && window.__prisma.playing() && !${D}.story.running`, 'Leicht: Meer 1', 90);
+  await sleep(300);
+  pruefeErwachen(await himmelAuswerten(), 1, 'Reise in Welt 2');
+}
+/** Grösster Rückgang dessen, was von Strahlen leuchtet (rest bzw. strahlen der Aufzeichnung), je Bild (60 je s). */
+const auslaufSprung = (lauf) => Math.max(0, ...lauf.slice(1).map((e, i) => ((lauf[i].rest ?? lauf[i].strahlen)
+  - (e.rest ?? e.strahlen)) / Math.max(1, (e.ts - lauf[i].ts) / (1000 / 60))));
+/** Auslaufen der Strahlen im Finale (Abnahme Ticket 12): mindestens so lange (ms), je Bild höchstens so viel weg. */
+const AUSLAUFEN_MS = 1000, AUSLAUFEN_SPRUNG = 0.05;
+/** Aufprall der Antwort: So viel (Anteil der Grundhelligkeit) darf der Schein je Bild höchstens steigen. */
+const AUFPRALL_SCHEIN = 0.12;
 /** So weit (CSS-Pixel) darf ein Stern des Wagens am Ende des Finales neben dem der Bühne stehen (Pruefung Wagen in Wagen). */
 const WAGEN_IN_WAGEN = 4;
 /** Ein Level spielen, das gleich läuft (Platz platz im Grad g): lösen über die Testschnittstelle, «Gelöst» abwarten. */
@@ -2377,6 +2571,7 @@ async function wagenAblauf() {
     await pruefeHimmel(w, w + 1, `im letzten Level der Welt ${w + 1}`);
     await himmelBild(`wagen-welt${w + 1}-wach${w}`, w === 1 || w === 2);
     await loeseLevel('leicht', platz);
+    await pruefeWartetAufWeiter(`Ende der Welt ${w + 1}`);
     // der Stern ist wach, sobald das letzte Level seiner Welt gelöst ist (wer jetzt neu lädt, sieht ihn schon wach)
     await pruefeWagen('leicht', w + 1, `nach dem letzten Level der Welt ${w + 1}`);
     await pruefeHimmel(w, w + 1, `nach dem letzten Level der Welt ${w + 1} (noch ohne Erwachen)`);
@@ -2591,6 +2786,7 @@ try {
   if (dorfProbe) await dorfAblauf();
   if (dorfRaenderProbe) await dorfRaender();
   if (wagenProbe) await wagenAblauf();
+  if (fallProbe) await fallAblauf();
   for (const [i, g] of grade.entries()) await (ganz ? ganzerDurchgang : durchgang)(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {

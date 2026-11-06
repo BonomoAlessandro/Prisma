@@ -39,7 +39,7 @@ jeweils in Anführung; danach, was das im Spiel heisst.
       Hintergrunds dort nicht zusätzlich. Auch nach Neuladen mit fertigem Stand prüfen.
 - [x] Probe nachführen (Warten auf Tippen beim Einstieg, Stand des Sterns nach dem Erwachen, Bühne), Dauer der
       Reisen und des Finales gegen `vorher/` neu einordnen (das Warten auf Tippen zählt nicht als Dauer).
-- [ ] Alle betroffenen Tests grün; Review nach dem Ticket.
+- [x] Alle betroffenen Tests grün; Review nach dem Ticket.
 
 ## Comments
 
@@ -219,3 +219,11 @@ trifft den Polarstern; Menü nach dem Epilog und nach Neuladen nur ein Wagen. Zu
 des Umsetzers): Im Hochformat steht der Polarstern am Ende links der Bildmitte (0,31), in Epilog 3 leuchtet Noa leicht
 über die Senkrechte hinaus (93°); dort gewinnt «weiter rechts» wenig. Auch die Reise hält an (Entscheid des Umsetzers,
 Wortlaut des Nutzers nennt nur das Einfliegen in die Welt): vom Nutzer bestätigen lassen.
+
+**06.11.2026, Nachtrag aus dem Review von Ticket 12:** Der verschobene ganze Testsatz lief dort, auf dem gemeinsamen
+Stand der Tickets 11 und 12 (Tabelle in Ticket 12). Ergebnis: alle Prüfungen grün, auch die hier nicht gelaufenen
+(`--menue` 360 × 640 / 320 × 568, `--uebersicht`, `--dorf`, Probe ohne Argumente, `buehne-messung`, `offline`); die
+Korrektur der Probe (`pruefeErwachen`) hält (`--wagen --handy` zweimal grün). Rot nur an Lücken: Artefakte nach Bildern
+der Probe und bekannte, auf dem Stand davor ebenso vorhandene Stellen («Menü → Prolog (neuer Grad)», Übersicht,
+«Übung 8 wiederholen → Übung 9»). Die zwei Lücken in der Reise in die Wüste (229/206 ms) kamen in fünf Läufen
+`--ganz --handy` (drei auf diesem Stand, zwei auf 0c25b4a) nicht wieder. Darum ist das letzte Häkchen gesetzt.

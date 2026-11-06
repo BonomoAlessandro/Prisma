@@ -28,8 +28,8 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
 | 08 Einbau Katalog | erledigt, mit Review |
 | 09 Doku und KI-Tester | erledigt, mit Review |
-| 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | Zwischenstand 73e476e gepusht, Review läuft |
-| 12 Abnahme, Runde 2 (Rückmeldungen zu 73e476e) | in Arbeit (06.11., Worktree `.claude/worktrees/kw12`) |
+| 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | erledigt, mit Review; ganzer Testsatz im Review 12 |
+| 12 Abnahme, Runde 2 (Rückmeldungen zu 73e476e) | erledigt, mit Review und ganzem Testsatz für 11 und 12 (06.11.) |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
 
 ### Ticket 01, Zwischenstand
@@ -72,6 +72,16 @@ Tickets 01–09 fertig, je mit Review. Offen für den Entscheid des Nutzers (ges
 - Quer kommt der Wagen beim Vorbeiflug dem mittigen Text nahe; 320 × 568: vier Namen am Himmel der Übersicht eng.
 - Kicker mittig über hellem Taghimmel (Wüste, Meer) schwach lesbar.
 - Beobachten am Computer: Menü → Übersicht stockt gelegentlich 270–420 ms (neu 6 von 36, vorher 1 von 36; Ursache offen).
+
+Nach Runde 2 (Tickets 11 und 12, Stand 06.11. abends) zusätzlich offen:
+
+- Halt bis zum Tippen auch bei der Reise (Entscheid des Umsetzers, der Nutzer nannte nur den Einflug): bestätigen.
+- Strahlen am Ende der Welten 1–5 laufen noch nicht weich aus wie im Finale: auf Wunsch gleich machen.
+- Fall aufs Brett: Licht sinkt im Bild nur ruhig, das Fallen zeigt die Kamera; abstimmen über `STORY_FLUG.fall`.
+- Hochformat: Noa leuchtet trotz Wagen weiter rechts steil (Prolog 4 75°, Epilog 3 93°); quer Wagen am Ende des
+  Finales klein oben rechts (Drehung `seit`).
+- «Im Dorf» auf dem ersten Bild des Angebots heller als Satz und Knöpfe (evtl. nur Bild der Probe); Lücke am
+  Prologanfang (auch vorher, etwas häufiger) auf dem Poco beobachten.
 
 Danach Ticket 10 (Werte des Nutzers fest übernehmen, Sprungbrett entfernen), dann Merge nach main auf sein Wort.
 

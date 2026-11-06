@@ -434,6 +434,7 @@
   #story .scene .hint.on { opacity: 1; }
   #story .scene .hint span { display: inline-block; animation: intro-pulse 2.4s ease-in-out infinite; }
   #story .scene .actions { pointer-events: auto; margin-top: 22px; }
+  #story .scene .actions.platz { display: flex; } /* Platz für Knöpfe, die gleich kommen (scene.platzFuer) */
   /* Angebot nach dem Prolog (Ticket 07): «Im Dorf» über dem Satz, die Knöpfe blenden mit ihm ein */
   #story .scene .kicker {
     margin-bottom: 12px; font-size: 12px; color: rgba(232, 230, 240, 0.86);
@@ -442,6 +443,9 @@
   }
   #story .scene .kicker.on { opacity: 1; visibility: visible; transition: opacity 1.2s ease 0.5s, visibility 0s; }
   #story .scene .actions.angebot { animation: story-angebot 1.2s ease 0.5s both; }
+  /* nach dem Umbau (scene.say mit umbau): Der alte Satz ist schon aus, der neue kommt mit allem um ihn gleich */
+  #story .scene .sub.sofort .line.on, #story .scene .sub.sofort .kicker.on { transition-delay: 0s; }
+  #story .scene .sub.sofort .actions.angebot { animation-delay: 0s; }
   /* im Angebot gibt es kein «Tippen»: seine leere Zeile fällt weg, die Frage steht tiefer, unter Noa und den Häusern */
   #story .scene .sub.angebot .hint { display: none; }
   @keyframes story-angebot { from { opacity: 0; transform: translateY(6px); } }
@@ -18677,12 +18681,14 @@ const STORY_CARRIERS = {
  * die nächste Welt lädt.
  * Abnahme Ticket 11: Am Ende von Einstieg und Reise hält das Licht über dem Untertitel an und wartet auf Tippen, ohne
  * Zeitablauf (story.anhalten); ein Tippen in den ersten halt s danach galt noch dem Flug und zählt nicht. Dann fällt
- * es gleichmässig aufs Brett (storyFall: nach einem Anlauf über den Anteil anlauf des Wegs gleich schnell, ohne
- * Abbremsen).
+ * es gleichmässig aufs Brett (storyFall: nach einem Anlauf über den Anteil anlauf der Zeit gleich schnell, ohne
+ * Abbremsen). Abnahme Ticket 12: gleichmässig im Bild (story.fall); fall: dauer (s), kamera: Anlauf und Abbremsen
+ * der Kamera (Anteile der Zeit, storyRampe), dazwischen dreht sie gleich schnell.
  */
 const STORY_FLUG = {
   licht: 0.3,
   halt: 0.3, anlauf: 0.1,
+  fall: { dauer: 2.8, kamera: [0.15, 0.35] },
   vorbei: 1.0,
   reise: { dauer: 6, amStern: 0.32, seitwaerts: 0.45 },
   einstieg: { dauer: 3.4, amStern: 0.45, von: 0.55, hoeher: 0.06 },
@@ -18692,20 +18698,24 @@ const STORY_FLUG = {
 };
 /**
  * Finale (Spec .scratch/kleiner-wagen/, Ablauf 6; Ticket 06): Die Strahlen steigen zum sechsten Stern, er erwacht
- * (ascend, erwache), und sie gehen aus. Die Kamera kommt dabei schon dort an, wo der ganze Wagen über dem Untertitel
- * steht (story.wagenBlick; rand: so viel freier Platz um ihn, Anteil der kürzeren Bildseite; Abnahme Ticket 11), zu
- * Satz 1 gleitet sie in blick (s) nur noch nach, falls der Untertitel anders steht. Ab ab (s) läuft ein Puls
- * Stern für Stern durch ihn (story.puls): schritt (s) von Stern zu Stern, jeder leuchtet bis glanz auf und mit seinem
- * Ton, die Linie dazwischen leuchtet, während der Puls darauf läuft; nach (s) nach dem sechsten Stern ist er verklungen.
- * Zu Satz 2 springt er ab ab (s) über die Deichsel (story.deichsel): Die Linie 6 → 7 zieht sich in zug (s), dann
- * flammt der Polarstern auf, sein Schlusston klingt, in flamme (s) ist er still. Erst dann wartet der Satz auf Tippen.
- * Danach antwortet der Polarstern: Sein Strahl fällt aus dem Bild, das steht (story.antwortBlick, ohne Blick zu ihm);
- * am Ende steht der ganze Wagen im Bild, genau dort, wo ihn gleich die Bühne zeigt (story.wagenEnde, Wagen in Wagen;
- * Ticket 07; seit Ticket 11 rechts der Mitte, die Kamera dafür seitlich gedreht). abstand: so weit vor der Kamera
- * steht der Lichtpunkt auf einem Stern (wie im Aufstieg).
+ * (ascend, erwache), und sie laufen in auslaufen (s) in ihn aus (story.auslaufen, Abnahme Ticket 12). Die Kamera
+ * kommt dabei schon dort an, wo der ganze Wagen über dem Untertitel steht (story.wagenBlick; rand: so viel freier
+ * Platz um ihn, Anteil der kürzeren Bildseite; Abnahme Ticket 11), zu Satz 1 gleitet sie in blick (s) nur noch nach,
+ * falls der Untertitel anders steht. Ab ab (s) läuft ein Puls Stern für Stern durch ihn (story.puls): schritt (s) von
+ * Stern zu Stern, jeder leuchtet bis glanz auf und mit seinem Ton, die Linie dazwischen leuchtet, während der Puls
+ * darauf läuft; nach (s) nach dem sechsten Stern ist er verklungen. Zu Satz 2 springt er ab ab (s) über die Deichsel
+ * (story.deichsel): Die Linie 6 → 7 zieht sich in zug (s), dann flammt der Polarstern auf, sein Schlusston klingt, in
+ * flamme (s) ist er still. Erst dann wartet der Satz auf Tippen. Danach antwortet der Polarstern: Sein Strahl fällt aus
+ * dem Bild, das steht (story.antwortBlick, ohne Blick zu ihm); am Ende steht der ganze Wagen im Bild, genau dort, wo
+ * ihn gleich die Bühne zeigt (story.wagenEnde, Wagen in Wagen; Ticket 07; seit Ticket 11 rechts der Mitte, die Kamera
+ * dafür seitlich gedreht). Der Aufprall auf dem Brett weich (Abnahme Ticket 12, antwort): Kommt die Spitze ins letzte
+ * Stück vorglut (Anteil des Wegs), glüht das Brett unter ihr auf (bis glut), daraus läuft die Lichtwelle (story.shock),
+ * die in anstieg (s) erst ganz hell wird, ebenso der Schein (story.pulse); der Strahl läuft nach ab (s) in aus (s) ins
+ * Brett aus. abstand: so weit vor der Kamera steht der Lichtpunkt auf einem Stern (wie im Aufstieg).
  */
 const STORY_PULS = {
-  blick: 1.2, rand: 0.07, abstand: 72,
+  blick: 1.2, rand: 0.07, abstand: 72, auslaufen: 1.6,
+  antwort: { vorglut: 0.3, glut: 0.45, anstieg: 0.35, ab: 0.15, aus: 2.0 },
   puls: { ab: 0.9, schritt: 0.26, glanz: 0.8, nach: 0.6 },
   deichsel: { ab: 0.35, zug: 0.7, flamme: 0.7 },
 };
@@ -19839,6 +19849,7 @@ function createStoryScene(host, { wagenLage = null } = {}) {
   // ms nach dem Halt, bis die Pause ruhig ist (story.stillBild): Bis dahin rastert die Bühne Linien und die Texturen der
   // nächsten Fahrt (glBuehne, nachfuehren); so lang wie bis Ticket 19 (Wartezeit, gestaffelte Ebenen, Tausch der Linien)
   const RUHE_NACH_HALT = 1050;
+  const ZEILE_AUS_MS = 600; // so lange blendet ein Satz der Bühne aus (CSS #story .scene .line; Rückfall in say)
 
   scene = {
     el, skip: q('.skip'), gl,
@@ -20087,7 +20098,7 @@ function createStoryScene(host, { wagenLage = null } = {}) {
       }
       this.say('');
       this.kicker('');
-      q('.sub').classList.remove('angebot');
+      q('.sub').classList.remove('angebot', 'sofort');
       this.hint(false);
       this.actions([]);
     },
@@ -20261,13 +20272,42 @@ function createStoryScene(host, { wagenLage = null } = {}) {
         }
       }
     },
-    /** Untertitel: der alte blendet aus, der neue danach ein (CSS .line.on). */
-    say(text) {
+    /**
+     * Untertitel: der alte blendet aus, der neue danach ein (CSS .line.on). umbau: ändert, was um den Satz steht
+     * (Angebot: «Im Dorf» und die Knöpfe; Epilog: Platz für «Zum Menü»), und läuft erst, wenn der alte Satz ganz
+     * ausgeblendet ist; dann kommt der neue mit allem gleich (sofort). So steht jeder Satz von Anfang an dort, wo er
+     * bleibt, und keiner rückt, solange man ihn sieht (Abnahme Ticket 12: Die Bühne ist unten bündig, Knöpfe darunter
+     * schoben den Satz hinauf). Zurück dann: erfüllt nach dem Umbau.
+     */
+    say(text, { umbau = null } = {}) {
+      this.umbauLos?.(false);
       const [a, b] = lines, cur = a.classList.contains('on') ? a : b, next = cur === a ? b : a;
+      const sichtbar = cur.classList.contains('on') && cur.textContent;
       cur.classList.remove('on');
-      if (!text) return;
-      if (next.textContent !== text) next.textContent = text; // schon gesetzt und gerastert (vorSagen)
-      next.classList.add('on');
+      if (text && next.textContent !== text) next.textContent = text; // schon gesetzt und gerastert (vorSagen)
+      if (!umbau) { if (text) next.classList.add('on'); return; }
+      return new Promise((fertig) => {
+        // ja: umbauen und den Satz zeigen; nein (reset oder ein neuer Satz davor): nichts mehr
+        const los = this.umbauLos = (ja = true) => {
+          if (this.umbauLos !== los) return;
+          clearTimeout(this.umbauZeit);
+          this.umbauLos = null;
+          if (ja) {
+            umbau();
+            q('.sub').classList.add('sofort');
+            if (text) next.classList.add('on');
+          }
+          fertig();
+        };
+        if (!sichtbar) { los(); return; }
+        // erst am Ende seines Ausblendens (Review Ticket 12): Nach einer festen Zeit ab hier rückte er noch, wenn das
+        // nächste Bild spät kam (Rechner beschäftigt; 200–400 ms später schob der Umbau den halb sichtbaren Satz
+        // 34–42 px). Rückfall nach der vierfachen Zeit (im verborgenen Tab ruhen die Transitionen)
+        void getComputedStyle(cur).opacity; // die Transition jetzt anlegen
+        const aus = cur.getAnimations?.().filter((an) => an.transitionProperty === 'opacity') ?? [];
+        Promise.all(aus.map((an) => an.finished)).then(() => los(), () => los());
+        this.umbauZeit = setTimeout(los, 4 * ZEILE_AUS_MS);
+      });
     },
     /**
      * Den nächsten Satz schon im Ruhepunkt in die verborgene Zeile setzen: Chrome rastert ihn dann jetzt und nicht beim
@@ -20289,12 +20329,24 @@ function createStoryScene(host, { wagenLage = null } = {}) {
       const box = q('.actions');
       box.classList.toggle('angebot', angebot);
       box.replaceChildren();
+      if (!list.length) { box.classList.remove('platz'); box.style.minHeight = ''; }
       for (const [label, fn] of list) {
         const b = document.createElement('button');
         b.textContent = label;
         b.addEventListener('click', (e) => { e.stopPropagation(); fn(); });
         box.append(b);
       }
+    },
+    /**
+     * Platz für die Knöpfe list schon jetzt, ohne sie (Epilog: «Zum Menü» kommt erst nach der Fahrt, der letzte Satz
+     * steht aber schon dort, wo er dann bleibt; Abnahme Ticket 12): so hoch wie mit ihnen, bis actions sie bringt.
+     */
+    platzFuer(list) {
+      const box = q('.actions');
+      this.actions(list);
+      box.style.minHeight = `${box.offsetHeight}px`;
+      box.classList.add('platz');
+      box.replaceChildren();
     },
 
     /**
@@ -20362,11 +20414,21 @@ function createStoryScene(host, { wagenLage = null } = {}) {
 // DOM-Bühne, Nutzer: Tempo wieder wie am Anfang, Ticket 19)
 const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2);
 const storyLinear = (k) => k;
-/** Fall des Lichts aufs Brett (story.fall; Abnahme Ticket 11): kurzer Anlauf (STORY_FLUG.anlauf), dann gleichmässig. */
-const storyFall = (k) => {
-  const a = STORY_FLUG.anlauf;
-  return (k < a ? k * k / (2 * a) : k - a / 2) / (1 - a / 2);
+/** Zügig los, dann immer langsamer (Strahl des Polarsterns läuft ins Brett aus, story.auslaufen). */
+const storyAuslauf = (k) => 1 - (1 - k) ** 3;
+/**
+ * Weg mit gleichmässig steigender Geschwindigkeit über den Anteil a der Zeit, dann gleich schnell, zuletzt über den
+ * Anteil b gleichmässig abbremsend (b 0: ohne Abbremsen).
+ */
+const storyRampe = (a, b = 0) => (k) => {
+  const ganz = 1 - a / 2 - b / 2;
+  if (k < a) return k * k / (2 * a) / ganz;
+  if (k <= 1 - b) return (k - a / 2) / ganz;
+  return 1 - (1 - k) ** 2 / (2 * b) / ganz;
 };
+/** Fall des Lichts aufs Brett im Bild (story.fall; Abnahme Ticket 11, 12): kurzer Anlauf (STORY_FLUG.anlauf), dann
+ * gleichmässig. */
+const storyFall = (k) => storyRampe(STORY_FLUG.anlauf)(k);
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 
 /**
@@ -21006,22 +21068,30 @@ const story = {
     for (let t = 0; sc.laeuft && t < 40; t++) await storySleep(50);
     sc.speed = 1;
     sc.hint(false);
-    sc.kicker(a.kicker);
-    sc.say(a.text);
+    // «Im Dorf» und die Knöpfe erst, wenn der letzte Satz des Prologs aus ist (Abnahme Ticket 12: Sie schoben ihn
+    // sonst noch im Ausblenden hinauf); dann steht der Satz des Angebots gleich dort, wo er bleibt
+    let knoepfe;
+    const umgebaut = sc.say(a.text, { umbau: () => {
+      sc.kicker(a.kicker);
+      knoepfe = new Promise((resolve) => {
+        sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
+      });
+    } });
     this.see('prolog'); // schon jetzt: Ein Neuladen vor der Wahl bringt nur noch das Angebot (begin)
-    // jetzt lädt der Wald fertig (ruhe), was in den Pausen des Prologs nicht fertig wurde: Die Fahrt ist vorbei, der
-    // Spieler liest. So ist er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht
-    // mehr gewählt und lädt nicht weiter (Review Ticket 07)
+    await umgebaut;
+    sc.el.querySelector('.actions button')?.focus({ preventScroll: true });
+    // sobald das Angebot steht (wie bis Ticket 12, nicht schon, während der letzte Satz ausblendet), lädt der Wald
+    // fertig (ruhe), was in den Pausen des Prologs nicht fertig wurde: Die Fahrt ist vorbei, der Spieler liest. So ist
+    // er nach «Gleich los» bereit (sonst Schwarz, bis er geladen war). Nach «Üben» ist er nicht mehr gewählt und lädt
+    // nicht weiter (Review Ticket 07)
     this.stillBild = true;
     this.ladeSperre = false;
     // erst wenn die Linien des letzten Halts getauscht sind (nach dem Überspringen kommt das Angebot gleich danach)
     this.stillAb = performance.now() + sc.ruheNachHalt;
     setTimeout(() => sceneLoop.wake(), sc.ruheNachHalt + 20);
     sceneLoop.wake(); // was hinter der Bühne liegen blieb, jetzt zeichnen (mayDraw)
-    const ueben = await new Promise((resolve) => {
-      sc.actions([[a.ueben, () => resolve(true)], [a.los, () => resolve(false)]], { angebot: true });
-      sc.el.querySelector('.actions button').focus({ preventScroll: true });
-    });
+    // (ohne Knöpfe: Der Umbau entfiel, weil die Bühne inzwischen neu begann; dann wie bis Ticket 12 keine Wahl mehr)
+    const ueben = await (knoepfe ?? new Promise(() => {}));
     sc.actions([]); // nur eine Wahl (Doppelklick)
     this.keepFocus(); // der Knopf ist weg: Fokus gleich zurück (nicht erst nach dem Warten unten)
     // «Gleich los», der Wald aber noch nicht da (vor den Flügen der Glühwürmchen lädt er nicht, Ticket 18): die Bühne
@@ -21283,7 +21353,7 @@ const story = {
       }, storyLinear);
       az += side * 0.03;
     }
-    await this.fall(index, fl.position.clone(), undefined, null, hoch);
+    await this.fall(index, fl.position.clone());
     skyTheme.fadeTime = fadeTime; // erst jetzt: sonst blendete der Rest der neuen Welt plötzlich schneller ein
     this.blend = null;
     this.wait(1.2).then(() => { skyTheme.quiet = false; }); // erst, wenn das Level steht
@@ -21318,7 +21388,7 @@ const story = {
   async finale() {
     const P = STORY_PULS, fl = this.flare, sechster = this.steps[this.step].c + 1;
     // er erwacht schon im Blick auf den ganzen Wagen, wie ihn Satz 1 zeigt (Abnahme Ticket 11: kein Nachschieben),
-    // und die Strahlen gehen aus, sobald er wach ist
+    // und die Strahlen laufen aus, sobald er wach ist (Abnahme Ticket 12: in ihn hinein, nicht abrupt)
     const oben = this.captionVorab({ text: STORY_FINALE[0], tap: IS_TOUCH ? 'Tippen' : 'Klicken' }).cap;
     await this.ascend(sechster, { ende: () => this.wagenBlick(oben / innerHeight), aus: true });
     // Satz 1: Das Licht geht im sechsten Stern auf, der Blick gleitet zum ganzen Wagen über dem Untertitel
@@ -21346,20 +21416,25 @@ const story = {
     audio.hit(7, 0.3, { gain: 0.05 });
     // der Strahl fällt immer schneller aus dem Bild, das gerade steht (Abnahme Ticket 11: kein Blick zum Polarstern
     // davor); erst wenn seine Spitze tief unter die Mitte kommt, folgt ihr die Kamera bis aufs Brett (antwortBlick)
-    const folge = this.antwortBlick(blick);
+    const folge = this.antwortBlick(blick), A = P.antwort;
+    // weicher Aufprall (Abnahme Ticket 12): Das Brett glüht unter der Spitze schon auf, bevor sie ankommt (Lichtwelle
+    // mit Halbmesser 0)
+    shockUniforms.uShockColor.value.copy(WHITE).multiplyScalar(0.6);
+    const glut = (u) => A.glut * THREE.MathUtils.smoothstep(u, 1 - A.vorglut, 1) ** 2;
     await this.tween(2.4, (k) => {
       const u = k * k;
       this.answer.material.uniforms.uHead.value = u;
       folge(_storyHead.copy(star).lerp(hit, u));
       this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.8, 1);
+      shockUniforms.uShock.value.set(0, glut(u), CELEBRATE.shockWidth);
     }, storyLinear);
     this.endAscent();
-    this.shock(WHITE);
-    this.pulse();
+    this.shock(WHITE, { von: glut(1), anstieg: A.anstieg });
+    this.pulse(A.anstieg);
     audio.chord([1, 2, 4, 7], 0);
     celebration.rain.burst([7, 7, 4, 2, 1]);
     for (const obj of game.targets) obj.userData.flash = 1;
-    this.tween(1.4, (k) => { this.answer.material.uniforms.uStrength.value = 1 - k; }, storyLinear, 0.3);
+    this.wait(A.ab).then(() => this.auslaufen([this.answer], A.aus, storyAuslauf)); // der Strahl läuft ins Brett aus
     await this.wait(2.6);
     // Blick hinauf, bis der ganze Wagen dort steht, wo ihn gleich das gezeichnete Dorf zeigt (Wagen in Wagen,
     // wagenEnde; hat er dort weniger Platz, schaut die Kamera dabei weiter); der Lichtpunkt auf dem Polarstern wird so
@@ -21429,12 +21504,16 @@ const story = {
     for (const shot of shots) {
       if (this.skipped) break;
       if (sc.gl) await sc.gl.bereit(shots.indexOf(shot)); // WebGL: Texturen der Fahrt fertig (meist schon im Ruhepunkt)
-      sc.say(shot.text);
+      // vor dem letzten Satz des Epilogs schon der Platz für «Zum Menü» (er rückt dann nicht mehr, Abnahme Ticket 12)
+      if (actions && shot === shots.at(-1)) sc.say(shot.text, { umbau: () => sc.platzFuer(actions) });
+      else sc.say(shot.text);
       sc.hint(false);
       if (shot.act) sc.act(shot.act);
       await sc.moveTo(shot);
       if (this.skipped) break;
-      if (actions && shot === shots.at(-1)) { sc.actions(actions); return; }
+      // (war die Fahrt kürzer als das Ausblenden des vorigen Satzes, jetzt gleich umbauen: sonst nähme der Umbau die
+      // Knöpfe danach wieder weg)
+      if (actions && shot === shots.at(-1)) { sc.umbauLos?.(); sc.actions(actions); return; }
       // nach einem Neuladen (letztes Bild ohne Satz) gleich das Angebot, sonst erst nach dem Tippen wie jedes Bild
       if (angebot && shot === shots.at(-1) && !shot.text) break;
       sc.hint(true);
@@ -21528,7 +21607,7 @@ const story = {
    * ende(punkt): Blickrichtung, in der die Kamera ankommt (Abnahme Ticket 11): Der Stern steht beim Erwachen schon
    * dort, wo ihn der folgende Untertitel braucht (Reise: über ihm, lichtFuer; Finale: der ganze Wagen, wagenBlick); auf
    * dem Weg hinauf gleitet der Blick von der Spitze der Strahlen dorthin. Ohne: genau auf den Stern. aus: Die Strahlen
-   * gehen aus, sobald er wach ist (Finale; am Ende einer Welt nimmt sie der Träger, travel).
+   * laufen aus, sobald er wach ist (auslaufen; Finale; am Ende einer Welt nimmt sie der Träger, travel).
    */
   async ascend(stern, { ende = null, aus = false } = {}) {
     this.running = true;
@@ -21569,10 +21648,7 @@ const story = {
     audio.chord(colors, 0);
     this.pulse();
     this.erwache(stern);
-    if (aus) {
-      this.tween(0.8, (k) => { for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k; }, storyLinear)
-        .then(() => this.endAscent());
-    }
+    if (aus) this.auslaufen(this.beams.filter((b) => b.visible)).then(() => this.endAscent());
     await this.tween(1.3, (k) => {
       // am Stern: Er steht in der Richtung von der Kamera aus, die sich leise bewegt (sonst wanderte das Licht von ihm weg)
       fl.position.copy(camera.position).addScaledVector(ziel, dist);
@@ -21585,10 +21661,34 @@ const story = {
     for (const b of this.beams) b.visible = false;
   },
   /**
+   * Strahlen laufen aus (Abnahme Ticket 12: nicht abrupt weg): Ihr Ende rückt in dauer s zur Spitze (uTail mit
+   * einem weichen Stück, makeBeam), auf dem Weg weg (Anteil der Länge über der Zeit), und in der zweiten Hälfte werden
+   * sie dazu schwächer. Im Finale die Strahlen zum sechsten Stern ins Licht beim Stern (erst langsam, dann zügig, weich
+   * ankommend) und der Strahl des Polarsterns ins Brett (zügig durch das ferne Stück, das im Bild kurz ist, dann immer
+   * langsamer durch das nahe; storyAuslauf). Zurück: erfüllt, wenn nichts mehr leuchtet (sichtbar bleiben sie;
+   * wegnehmen wie endAscent).
+   */
+  auslaufen(strahlen, dauer = STORY_PULS.auslaufen, weg = storyEase) {
+    return this.tween(dauer, (k) => {
+      for (const b of strahlen) {
+        b.material.uniforms.uTail.value = 1.2 * weg(k);
+        b.material.uniforms.uStrength.value = 1 - THREE.MathUtils.smoothstep(k, 0.5, 1);
+      }
+    }, storyLinear);
+  },
+  /**
    * Blick in den Himmel auf einen Punkt richten (gaze bestimmt, wie weit). hoch: der Punkt steht so weit über der Mitte
    * des Bilds (Anteil der halben Bildhöhe, lichtHoch), der Blick also etwas tiefer.
    */
   look(point, hoch = 0) { this.blickAuf(point, hoch, this.gazeDir); },
+  /**
+   * Die Kamera gleich in Richtung d drehen (wie updateCamera mit gaze 1 im nächsten Bild), damit dieses Bild so
+   * gezeichnet wird, wie fall den Lichtpunkt ins Bild rechnet (sonst hinkte der Blick ein Bild nach).
+   */
+  kameraNach(d) {
+    camera.lookAt(_gazeLook.copy(camera.position).add(d));
+    camera.updateMatrixWorld();
+  },
   /** Die Blickrichtung von look, ohne den Blick zu setzen (in d). */
   blickAuf(point, hoch = 0, d = new THREE.Vector3()) {
     d.copy(point).sub(camera.position).normalize();
@@ -21894,28 +21994,51 @@ const story = {
     if (e.skip) { await this.land(index, moment, sunk); return; }
     await sunk;
     if (e.skip) { await this.land(index, moment, sunk); return; }
-    await this.fall(index, fl.position.clone(), moment, e, hoch());
+    await this.fall(index, fl.position.clone(), moment, e);
   },
   /**
    * Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst, der
    * Moment (Einstieg in eine Welt, ins Dorf; sonst die Welt des Platzes) ist gesehen. e: im Einstieg (enter) dessen
-   * Zustand: Bis das Level wächst, lässt er sich überspringen (land). hoch: so weit stand das Licht bisher über der
-   * Mitte des Bilds (look); es kommt im Fallen in die Mitte. Es fällt gleichmässig, ohne vor dem Brett abzubremsen
-   * (storyFall, Abnahme Ticket 11).
+   * Zustand: Bis das Level wächst, lässt er sich überspringen (land). from: wo das Licht steht (über dem Untertitel).
+   * Massgebend ist die Bewegung im Bild (Abnahme Ticket 12): Das Licht fällt dort gleich schnell (nach dem kurzen
+   * Anlauf, storyFall; ohne Abbremsen vor dem Brett, Abnahme Ticket 11) von seinem Platz bis dorthin, wo das Brett
+   * im Bild steht. Die Kamera dreht sich derweil auf dem Grosskreis vom Himmel aufs Brett, ruhig: anlaufen,
+   * gleichmässig, sanft ankommen (STORY_FLUG.fall.kamera). Den Ort des Lichts in der Welt ergeben beide: auf dem Strahl
+   * der Kamera durch seinen Punkt im Bild, im Abstand, der von dem am Halt zu dem des Bretts geht (im Kehrwert
+   * gleichmässig, wie die Tiefe im Bild). Bis Ticket 11 fiel es in der Welt gleichmässig und die Kamera folgte ihm:
+   * Im Bild beschleunigte es, bremste und beschleunigte wieder (gemessen in der Probe, pruefeFallImBild).
    */
-  async fall(index, from, moment = storyChapterId(this.chapter()), e = null, hoch = 0) {
+  async fall(index, from, moment = storyChapterId(this.chapter()), e = null) {
     const fl = this.flare, carrier = this.carrier, to = new THREE.Vector3(0, BEAM_Y, 0), size = fl.scale.x;
+    const F = STORY_FLUG.fall, kamera = storyRampe(...F.kamera), cam = camera.position;
     fl.visible = true;
     fl.material.opacity = 1;
+    // Anfang: Blick und Ort im Bild am Halt (die Kamera genau so ausgerichtet, wie gleich gezeichnet wird)
+    const von = this.gaze > 0 ? this.gazeDir.clone() : _gazeLook.copy(cameraRig.target).sub(cam).normalize().clone();
+    this.gazeRun++; // ein weicher Blickwechsel (gazeTo) endet hier
+    this.gaze = 1;
+    this.gazeDir.copy(von);
+    this.kameraNach(von);
+    const s0 = from.clone().project(camera), r0 = from.distanceTo(cam), s1 = new THREE.Vector3();
+    const brett = new THREE.Vector3(), dreh = new THREE.Quaternion(), q = new THREE.Quaternion(), keine = q.clone();
     let entered = false, closed = false;
-    await this.tween(2.8, (k) => {
-      fl.position.lerpVectors(from, to, k);
+    await this.tween(F.dauer, (t) => {
+      const k = storyFall(t), c = kamera(t);
+      // wo das Brett im Bild steht, wenn die Kamera ganz unten ist (sie wiegt sich leise, darum je Bild)
+      brett.copy(cameraRig.target).sub(cam).normalize();
+      this.kameraNach(brett);
+      s1.copy(to).project(camera);
+      // der Blick dieses Bilds, und das Licht auf dem Strahl durch seinen Punkt im Bild
+      dreh.setFromUnitVectors(von, brett);
+      this.gazeDir.copy(von).applyQuaternion(q.slerpQuaternions(keine, dreh, c)).normalize();
+      this.kameraNach(this.gazeDir);
+      const r = 1 / (1 / r0 + (1 / to.distanceTo(cam) - 1 / r0) * k);
+      fl.position.lerpVectors(s0, s1, k).setZ(0.5).unproject(camera).sub(cam).normalize().multiplyScalar(r).add(cam);
       fl.scale.setScalar(size + (2 - size) * k);
       fl.material.opacity = 1 - THREE.MathUtils.smoothstep(k, 0.72, 0.95);
       carrier.orb.copy(fl.position);
       carrier.strength = Math.min(carrier.strength, 1 - THREE.MathUtils.smoothstep(k, 0.55, 0.95));
-      this.look(fl.position, hoch * (1 - THREE.MathUtils.smoothstep(k, 0.1, 0.6)));
-      this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.7, 1);
+      if (t >= 1) this.gaze = 0; // genau aufs Brett (der Blick ist dort angekommen)
       if (!entered && k > 0.6) {
         entered = true;
         if (e && this.entering === e) { // ab hier nicht mehr zu überspringen
@@ -21927,7 +22050,7 @@ const story = {
         this.see(moment); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
       }
       if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise oder des Einstiegs
-    }, storyFall, 0, e);
+    }, storyLinear, 0, e);
     if (!entered) { await this.land(index, moment); return; } // übersprungen, bevor das Level wuchs
     fl.visible = false;
     carrier.stop();
@@ -22017,18 +22140,24 @@ const story = {
     resolve?.();
   },
   /** Bloom kurz hochziehen wie beim Lösen. */
-  pulse() {
+  pulse(anstieg = null) {
+    // anstieg: in so vielen s weich am hellsten (Aufprall des Polarsterns, Abnahme Ticket 12), sonst gleich
+    const a = anstieg ? anstieg / 1.6 : 0.08;
     return this.tween(1.6, (k) => {
-      const env = k < 0.08 ? k / 0.08 : Math.exp(-(k - 0.08) * 4);
+      const env = k < a ? (anstieg ? THREE.MathUtils.smoothstep(k, 0, a) : k / a) : Math.exp(-(k - a) * 4);
       bloomPass.strength = LOOK.bloomStrength * (1 + 1.3 * env * (1 - k));
     }, storyLinear);
   },
-  /** Lichtwelle über die Platte (wie beim Lösen, siehe celebration). */
-  shock(color) {
+  /**
+   * Lichtwelle über die Platte (wie beim Lösen, siehe celebration). von, anstieg (Aufprall des Polarsterns, Abnahme
+   * Ticket 12): Sie beginnt so hell, wie das Brett schon glüht (von), und wird erst in anstieg s ganz hell.
+   */
+  shock(color, { von = 1, anstieg = 0 } = {}) {
     shockUniforms.uShockColor.value.copy(color).multiplyScalar(0.6);
     return this.tween(1.5, (k) => {
       const r = k * CELEBRATE.shockReach, fade = 1 - k;
-      shockUniforms.uShock.value.set(r, k < 1 ? fade * fade : 0, CELEBRATE.shockWidth * (1 + r * 0.12));
+      const hell = anstieg ? von + (1 - von) * THREE.MathUtils.smoothstep(k, 0, anstieg / 1.5) : 1;
+      shockUniforms.uShock.value.set(r, k < 1 ? fade * fade * hell : 0, CELEBRATE.shockWidth * (1 + r * 0.12));
     }, storyLinear);
   },
 
@@ -22407,7 +22536,8 @@ const story = {
   /** Strahl als leuchtende Röhre (Kern und Hof aus dem Blickwinkel); wächst bis uHead (0 … 1 seiner Länge). */
   makeBeam(geo) {
     const mat = new THREE.ShaderMaterial({
-      uniforms: { uColor: { value: new THREE.Color() }, uHead: { value: 0 }, uStrength: { value: 1 } },
+      uniforms: { uColor: { value: new THREE.Color() }, uHead: { value: 0 }, uTail: { value: 0 },
+        uStrength: { value: 1 } },
       vertexShader: `
         varying vec3 vN;
         varying vec3 vV;
@@ -22425,13 +22555,16 @@ const story = {
       fragmentShader: `
         uniform vec3 uColor;
         uniform float uHead;
+        uniform float uTail;
         uniform float uStrength;
         varying vec3 vN;
         varying vec3 vV;
         varying vec3 vAxis;
         varying float vY;
         void main() {
-          if (vY > uHead) discard;
+          // auslaufen (story.auslaufen): Das Ende uTail rückt zur Spitze, weich über ein Stück der Länge
+          float tail = smoothstep(uTail - 0.2, uTail, vY);
+          if (vY > uHead || tail <= 0.0) discard;
           vec3 v = normalize(vV), axis = normalize(vAxis);
           vec3 across = v - axis * dot(v, axis);
           float l = length(across);
@@ -22439,7 +22572,7 @@ const story = {
           float profile = pow(f, 18.0) * 3.2 + pow(f, 4.0) * 0.4;
           vec3 color = mix(uColor, vec3(1.0), pow(f, 30.0) * 0.75); // weisslicher Kern
           float head = 1.0 + 3.0 * exp(-(uHead - vY) * 60.0);
-          gl_FragColor = vec4(color * profile * head * smoothstep(0.0, 0.01, vY) * uStrength, 1.0);
+          gl_FragColor = vec4(color * profile * head * smoothstep(0.0, 0.01, vY) * tail * uStrength, 1.0);
         }`,
       transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
     });
@@ -22460,6 +22593,7 @@ const story = {
     u.uColor.value.copy(color);
     u.uHead.value = 0;
     u.uStrength.value = 1;
+    u.uTail.value = 0;
     beam.visible = true;
   },
   /**
@@ -23413,12 +23547,12 @@ window.__prismaDebug = { scene, camera, renderer, floorMaterial, bloomPass, brus
    Aufstieg und Reise, Finale, Epilog). Ein Sprung setzt den Grad, der gerade gewählt ist (sonst den zuletzt gespielten
    bzw. Leicht), auf den Stand, den sein Durchgang an dieser Stelle hätte (vor dem Vulkan etwa drei Sterne wach), und
    spielt die Szene von ihrem natürlichen Anfang: Prolog und Einstiege wie nach der Wahl im Menü (begin), das Ende einer
-   Welt ab ihrem letzten Level, das das Sprungbrett löst wie die Testschnittstelle (loese), dann «Weiter» (ui.advance),
-   der Epilog auf der Bühne (ending). Danach geht es normal weiter. Gespeichert wird nichts (SZENEN_SPEICHER bei
-   progress). Solange eine Zwischenszene läuft, ist der Knopf weg: Ein Sprung bricht keine ab. Kein Test benutzt es; vor
-   dem Merge nach main baut Ticket 10 es ganz aus (alle Stellen mit «SZENEN (vorübergehend»). Dazu gehören die
-   Parameter zum Abstimmen des Wagens am Himmel (auch ohne ?szenen): ?himmel-groesse=, ?himmel-hell= und ?himmel-punkt=
-   (Faktoren, siehe himmelsWagen).
+   Welt ab ihrem letzten Level, das das Sprungbrett löst wie die Testschnittstelle (loese; «Weiter zum …» tippt der
+   Spieler, Abnahme Ticket 12), der Epilog auf der Bühne (ending). Danach geht es normal weiter. Gespeichert wird nichts
+   (SZENEN_SPEICHER bei progress). Solange eine Zwischenszene läuft, ist der Knopf weg: Ein Sprung bricht keine ab. Kein
+   Test benutzt es; vor dem Merge nach main baut Ticket 10 es ganz aus (alle Stellen mit «SZENEN (vorübergehend»). Dazu
+   gehören die Parameter zum Abstimmen des Wagens am Himmel (auch ohne ?szenen): ?himmel-groesse=, ?himmel-hell= und
+   ?himmel-punkt= (Faktoren, siehe himmelsWagen).
    ===================================================================== */
 if (SZENEN_SPEICHER) (() => {
   const kurz = (ch) => ch.title.replace(/^(Der|Die|Das) /, '');
@@ -23465,7 +23599,8 @@ if (SZENEN_SPEICHER) (() => {
     }
     story.begin();
     if (!id.startsWith('welt-')) return;
-    // Ende einer Welt: ihr letztes Level wächst; lösen, «Gelöst» abwarten, dann «Weiter» (Aufstieg, Reise bzw. Finale)
+    // Ende einer Welt: ihr letztes Level wächst und wird gelöst; «Gelöst» wartet dann auf «Weiter zum …» des Spielers
+    // (Aufstieg, Reise bzw. Finale erst danach, Abnahme Ticket 12; bis dahin tippte das Sprungbrett nach 0,7 s selbst)
     const platz = story.step, index = story.steps[platz].index;
     const steht = () => lauf === mein && story.grade === g && story.step === platz && game.levelIndex === index
       && !story.choosing;
@@ -23475,9 +23610,6 @@ if (SZENEN_SPEICHER) (() => {
     };
     if (!await bis(() => steht() && flow.state === 'play' && !story.running)) return;
     window.__prismaDebug.loese();
-    if (!await bis(() => steht() && ui.solvedVisible())) return;
-    await storySleep(700);
-    if (steht() && ui.solvedVisible()) ui.advance();
   }
 
   const root = document.createElement('div');
