@@ -67,7 +67,7 @@ Skripte liegen in `katalog-dorf/`, die Vorbilder in `vorbilder/dorf.md`.
 - Es gibt keine Spiegelung, Erde ist matt.
 - Lichtwelle: Glühwürmchen steigen aus Erde und Kräutern auf, wo der Ring vorbeizieht, und schweben nach. In Version 2
   des Katalogs (nach der Wahl veröffentlicht) keimen dazu Reihen von Sämlingen neben den Schnüren und ziehen sich
-  hinter dem Ring zurück, rund 1200 Keimlinge im Shader. Der Nutzer sagt, ob er die Keimlinge will.
+  hinter dem Ring zurück, rund 1200 Keimlinge im Shader. Der Nutzer will diese Version 2 (06.11.2026).
 - Kosten: rund 1800 Halme, Blätter und Blüten und 420 Glühwürmchen. Auf dem Handy zu messen, eventuell gröber. Mit
   kleinen Formen aus Blender wären Kräuter und Blüten deutlich schöner.
 - Lesbarkeit: Das Dorf ist für neue Spieler das erste Brett. Die dunkle Erde gibt den Strahlen guten Kontrast,

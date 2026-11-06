@@ -67,7 +67,7 @@ Weltposition für Instanzen richtig, in den Katalogen von Wüste und Wald ist da
 - Leichte Spiegelung, der Basalt ist geschliffen.
 - Lichtwelle: Glut steigt in den Fugen auf, und die Köpfe der Randsäulen leuchten nacheinander auf. In Version 2 des
   Katalogs (nach der Wahl veröffentlicht) heben sich dazu die Säulen des Felds eine Handbreit, ihre Flanken glühen
-  orange, und hinter dem Ring sinken sie zurück und die Fugen verglimmen. Der Nutzer sagt, ob er das Heben will.
+  orange, und hinter dem Ring sinken sie zurück und die Fugen verglimmen. Der Nutzer will diese Version 2 (06.11.2026).
 - Kosten: rund 940 Säulen als ein Körper mit Instanzen, auf dem Handy zu messen. Der stufige Rand verkleinert den
   Kernquader etwas.
 - Vorlage: `katalog-vulkan/bretter/varianten-vulkan/2-basalt.js` mit `0-hilfe.js` und `bretter.js` aus demselben Ordner.
