@@ -15,11 +15,18 @@
 //             mitten in der Wüste, wie im Spiel über den Startbildschirm: «Tippen zum Starten» und «Weiter» je sofort.
 //             Der Kleine Wagen wartet, der Blick senkt sich erst, wenn Himmel und Brett der Wüste bereit sind (oder
 //             nach 8 s), und unter einem Himmel aus Blender steht nie ein fremdes Brett oder ein Steinbrett als Notfall.
+//             Die Wüste lädt dabei ihr eigenes Brett (die Art ihrer Brett-Angabe, Lehmterrasse, Ticket 06).
+// Die Prüfung «unter einem Himmel aus Blender nur sein Brett» (brettPasst) vergleicht auch die Art mit der Brett-Angabe
+// des Himmels im Register.
 //   menue:    Desktop über den Startbildschirm (ohne ?nointro, unter dem Menü lädt nichts Grosses). Im Menü springt der
 //             Himmel zum Dorf mit einem eigenen Brett, das nicht bereit wird: Die Frist des Notfalls zählt dort nicht,
 //             nach 10 s steht weder ein Steinbrett als Notfall da noch eine Warnung in der Konsole.
-// Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue]
-// Etwa 2 min. Scheitert bei einem falschen Wert oder einer Meldung [error] bzw. einer Ausnahme in der Konsole.
+//   reise:    Desktop, Stand am Ende des Bergwalds, ohne Vorladen (wie «Weiter» gleich nach dem Lösen): Auf der Reise ans
+//             Meer wird das echte Brett des Strands (Gezeitenbecken) berechnet und hochgeladen, während skyTheme.quiet
+//             gilt. Der Blick senkt sich auf dieses Brett, bereit und ohne Notfall, und die Reise hat keine Lücke über
+//             100 ms.
+// Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise]
+// Etwa 3 min. Scheitert bei einem falschen Wert oder einer Meldung [error] bzw. einer Ausnahme in der Konsole.
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
@@ -30,8 +37,8 @@ import { requireQuiet } from '../tools/ki-tester/shots.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const nur = args.includes('--nur') ? args[args.indexOf('--nur') + 1] : null;
-if (nur !== null && !['mechanik', 'netz', 'menue'].includes(nur)) {
-  console.error('Aufruf: node tests/brett-probe.mjs [--nur mechanik|netz|menue]');
+if (nur !== null && !['mechanik', 'netz', 'menue', 'reise'].includes(nur)) {
+  console.error('Aufruf: node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise]');
   process.exit(1);
 }
 requireQuiet();
@@ -54,15 +61,16 @@ async function browser(view) {
 }
 
 // je Bild (eigenes requestAnimationFrame): gewählter und gezeigter Himmel (mit Anteil), Überblenden, bereit, das Brett
-// (__prisma.brett) und welche Bretter sichtbar sind; dazu Blick (gaze), Kleiner Wagen, Zustand. Läuft auch schon vor dem
-// Spiel (Netz: ab dem Laden der Seite)
+// (__prisma.brett, dazu soll: die Art der Brett-Angabe seines Himmels im Register) und welche Bretter sichtbar sind; dazu
+// Blick (gaze), Kleiner Wagen, Zustand. Läuft auch schon vor dem Spiel (Netz: ab dem Laden der Seite)
 const PROTOKOLL = `(() => { const b = window.__bl = { an: true, log: [] };
   const loop = (ts) => { if (!b.an) return; requestAnimationFrame(loop);
     const D = window.__prismaDebug, k = D?.skyTheme; if (!k || !window.__prisma?.brett) return;
-    const shown = k.entries.find((e) => k.weight[e.id] > 0);
+    const shown = k.entries.find((e) => k.weight[e.id] > 0), br = window.__prisma.brett();
     b.log.push({ ts, cur: k.current, shown: shown?.id ?? null, w: shown ? k.weight[shown.id] : 0,
       blender: !!shown?.module?.panorama, fading: k.fading, holding: k.holding, ready: k.ready,
-      brett: window.__prisma.brett(), sichtbar: [...D.boardTheme.built.values()].filter((e) => e.board?.group.visible)
+      brett: { ...br, soll: br.himmel && (k.byId.get(br.himmel)?.board?.type ?? 'stone') },
+      sichtbar: [...D.boardTheme.built.values()].filter((e) => e.board?.group.visible)
         .map((e) => e.key), gaze: D.story.gaze, menu: D.menu.offen, flow: D.flow.state,
       wagen: document.getElementById('lade').classList.contains('an') }); };
   requestAnimationFrame(loop); return true; })()`;
@@ -71,10 +79,11 @@ const protokollAus = (ev) => ev('(() => { const b = window.__bl; b.an = false; r
 /**
  * Unter einem Himmel aus Blender steht nie das Brett eines anderen Himmels oder ein Steinbrett als Notfall: ohne
  * Überblenden das Brett des gezeigten Himmels, beim Überblenden (nur während der Himmel überblendet) das neue des
- * gewählten. Nur, wo man das Brett sieht (Blick unter 0,6, kein Menü).
+ * gewählten, und zwar in der Art seiner Brett-Angabe im Register (soll). Nur, wo man das Brett sieht (Blick unter 0,6,
+ * kein Menü).
  */
 function brettPasst(log, was) {
-  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && (e.brett.notfall
+  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && (e.brett.notfall || e.brett.art !== e.brett.soll
     || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.cur)));
   pruefe(!falsch, `${was}: unter einem Himmel aus Blender nur sein Brett${falsch ? ` (${JSON.stringify(falsch)})` : ''}`);
 }
@@ -315,8 +324,9 @@ async function netz() {
     const wagen = log.slice(0, sinkt).filter((e) => e.wagen).length;
     console.log(`  Blick senkt sich ${warten.toFixed(1)} s nach «Weiter», Kleiner Wagen in ${wagen} von ${sinkt} Bildern`
       + `, dann ${JSON.stringify({ ready: s.ready, brett: s.brett, shown: s.shown })}`);
-    pruefe(s.cur === 'desert' && s.brett.himmel === 'desert' && s.brett.bereit && !s.brett.notfall && s.brett.anteil === 1
-      && (s.ready || warten >= 8), `Netz: der Blick senkt sich erst, wenn Himmel und Brett der Wüste bereit sind (oder nach 8 s)`);
+    pruefe(s.cur === 'desert' && s.brett.himmel === 'desert' && s.brett.art === s.brett.soll && s.brett.bereit
+      && !s.brett.notfall && s.brett.anteil === 1 && (s.ready || warten >= 8),
+    `Netz: der Blick senkt sich erst, wenn Himmel und Brett der Wüste (${s.brett.soll}) bereit sind (oder nach 8 s)`);
     pruefe(warten < 1 || wagen > 0, 'Netz: der Kleine Wagen zeigt das Warten');
     brettPasst(log, 'Netz');
   } catch (e) {
@@ -365,8 +375,81 @@ async function menue() {
   await b.close();
 }
 
+/* ---------- Reise ohne Vorladen ---------- */
+
+// Stand am Ende des Bergwalds, «Weiter» ans Meer, bevor Himmel und Brett des Meers vorgeladen sind (das Vorladen, solange
+// «Gelöst» steht, ist abgeschaltet). Das Gezeitenbecken wird dann erst auf der Reise berechnet, übersetzt und hochgeladen,
+// während skyTheme.quiet gilt (Abweichung aus Ticket 02): Der Träger wartet darauf, der Blick senkt sich auf das bereite
+// Brett des Meers, und das Laden ruckelt nicht
+async function reise() {
+  console.log('Reise ohne Vorladen ans Meer (Desktop 1280 × 800)');
+  const b = await browser({ width: 1280, height: 800, dpr: 1, phone: false });
+  const { ev, until, send, logs } = b;
+  const seite = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
+  const klicke = async (sel) => {
+    const { x, y } = await ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y });
+    for (const type of ['mousePressed', 'mouseReleased']) {
+      await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+    }
+  };
+  try {
+    // Stand: Bergwald 1–9 gelöst, das letzte Level des Bergwalds steht an
+    await send('Page.navigate', { url: seite });
+    await until('window.__prisma?.ticks > 2', 'Seite', 60);
+    await ev(`(() => { localStorage.clear(); localStorage.setItem('prisma.noa.zuletzt', 'leicht');
+      localStorage.setItem('prisma.noa.leicht', JSON.stringify({ platz: 9, geloest: STORY_LEVELS.leicht.flat().slice(0, 9),
+        gesehen: ['prolog', 'angebot', 'wald'], geschafft: false })); return true; })()`);
+    await send('Page.navigate', { url: seite });
+    await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady() && __prismaDebug.menu.offen', 'Menü', 120);
+    await until("!!document.querySelector('#menue .menue-weiter') && !document.querySelector('#menue .menue-weiter').hidden",
+      'Weiter im Menü', 10);
+    await klicke('#menue .menue-weiter');
+    await until('window.__prisma.playing() && __prismaDebug.story.step === 9 && __prismaDebug.story.gaze === 0',
+      'Bergwald 10', 60);
+    const strand = await ev(`__prismaDebug.skyTheme.byId.get('beach').board?.type ?? 'stone'`);
+    await ev('(() => { __prismaDebug.skyTheme.preload = () => {}; return true; })()'); // kein Vorladen
+    await ev('__prismaDebug.loese(); true');
+    await until('window.__prisma.solvedPanel()', 'Bergwald 10 gelöst', 30);
+    await sleep(800); // länger als die 300 ms, nach denen sonst das Vorladen begänne
+    const gebaut = await ev('[...__prismaDebug.boardTheme.built.values()].map((e) => e.type)');
+    pruefe(strand === 'tidePool' && !gebaut.includes(strand),
+      `Reise: das Brett des Meers (${strand}) ist vor «Weiter» nicht gebaut (gebaut: ${gebaut.join(' ')})`);
+    await ev(PROTOKOLL);
+    const klickT = await ev('performance.now()');
+    await klicke('#btn-next');
+    await until('window.__prisma.playing() && __prismaDebug.story.step === 10 && __prismaDebug.story.gaze === 0',
+      'Meer 1', 90);
+    await sleep(500);
+    const log = (await protokollAus(ev)).filter((e) => e.ts >= klickT);
+    // das Brett des Meers erscheint (es beginnt überzublenden), der Blick senkt sich zuletzt aufs Brett
+    // Warten: ab dem Abflug (der Himmel des Meers ist gewählt, story.travel) bis das Brett erscheint; so lange schwebt
+    // der Träger fast still, höchstens 8 s
+    const gewaehlt = log.find((e) => e.cur === 'beach'), da = log.find((e) => e.brett.himmel === 'beach');
+    const s = log.findLastIndex((e, i) => i > 0 && log[i - 1].gaze >= 0.98 && e.gaze < 0.98);
+    const sinkt = log[s];
+    console.log(`  Himmel des Meers gewählt ${((gewaehlt?.ts - klickT) / 1000).toFixed(1)} s nach «Weiter», sein Brett im `
+      + `Bild ${((da?.ts - klickT) / 1000).toFixed(1)} s nach «Weiter» (Warten ${((da?.ts - gewaehlt?.ts) / 1000).toFixed(1)}`
+      + ` s, höchstens 8), Blick senkt sich nach ${((sinkt?.ts - klickT) / 1000).toFixed(1)} s ${JSON.stringify(sinkt?.brett)}`);
+    pruefe(sinkt?.cur === 'beach' && sinkt.brett.himmel === 'beach' && sinkt.brett.art === strand && sinkt.brett.bereit
+      && sinkt.brett.anteil === 1 && !sinkt.brett.notfall, 'Reise: der Blick senkt sich auf das bereite Brett des Meers');
+    const ruck = luecke(log);
+    pruefe(ruck.max <= 100, `Reise: längste Lücke ${Math.round(ruck.max)} ms bei ${((ruck.bei - klickT) / 1000).toFixed(1)} s`
+      + ` (höchstens 100), ${ruck.ueber50} über 50 ms`);
+    brettPasst(log, 'Reise ans Meer');
+  } catch (e) {
+    pruefe(false, `Reise: ${e.message}`);
+  }
+  const warnungen = konsole(logs, 'Reise');
+  pruefe(!warnungen.some((w) => /Steinbrett/.test(w)), 'Reise: keine Warnung zum Notfall'
+    + ` (${warnungen.filter((w) => /Brett/.test(w)).join(' | ') || 'keine zum Brett'})`);
+  await b.close();
+}
+
 if (!nur || nur === 'mechanik') await mechanik();
 if (!nur || nur === 'netz') await netz();
 if (!nur || nur === 'menue') await menue();
+if (!nur || nur === 'reise') await reise();
 console.log(fehler.length ? `\n${fehler.length} Fehler` : '\nBrett: in Ordnung');
 process.exit(fehler.length ? 1 : 0);
