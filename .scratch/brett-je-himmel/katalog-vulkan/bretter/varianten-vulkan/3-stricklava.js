@@ -106,5 +106,19 @@ __katalog.varianten.stricklava = async (L) => {
   const side = new T.Mesh(geo, sideMat);
   side.receiveShadow = true;
   D.scene.add(side);
+  // Lichtwelle: die Kruste bricht auf, glühende Blasen quellen hervor und Funken steigen; dahinter erkalten die Blasen
+  {
+    const q = rng(421);
+    const bg = new T.SphereGeometry(1, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2);
+    const blobs = V.streu(900, q, (x, z, box, w) => { const s = 0.06 + w() * 0.1; return { p: [x, -0.012, z], r: [0, w() * 6.3, 0], s: [s, s * (0.5 + w() * 0.4), s * (0.8 + w() * 0.4)] }; }, pts);
+    const bm = new T.MeshStandardMaterial({ color: 0x0c0908, roughness: 0.5 });
+    D.scene.add(V.koerper(bg, bm, blobs, { mode: 'grow', width: 1.8, keep: 0.55, tail: 1.8, glow: `
+      float heat = clamp(vGrow * (1.0 - vPhase * 0.8), 0.0, 1.0);
+      vec3 hot = mix(vec3(0.35, 0.04, 0.01), vec3(1.2, 0.55, 0.12), smoothstep(0.35, 1.0, heat));
+      gl_FragColor.rgb = gl_FragColor.rgb * 0.4 + hot * smoothstep(0.1, 0.6, heat);` }));
+    const sp = V.streu(700, q, (x, z, box, w) => ({ p: [x, 0.02, z], r: [w() * 3, w() * 3, 0], s: 0.014 + w() * 0.014 }), pts);
+    D.scene.add(V.koerper(new T.OctahedronGeometry(1), new T.MeshBasicMaterial({ color: 0xffffff }), sp, { mode: 'rise', tail: 1.5, lift: 0.8, drift: 0.15, glow: `
+      gl_FragColor.rgb = mix(vec3(1.5, 1.0, 0.45), vec3(1.0, 0.25, 0.04), vPhase) * (1.0 - vPhase * 0.5);` }));
+  }
   return 'Stricklava';
 };

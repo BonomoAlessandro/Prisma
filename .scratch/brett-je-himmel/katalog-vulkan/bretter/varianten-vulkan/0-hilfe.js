@@ -149,5 +149,84 @@ __katalog.vk = (() => {
   }
   /** Textur für hullGeo (Zeile 0 der Leinwand = oberster Ring, v = 0) */
   function htex(c, srgb = true) { const t = L.tex(c, srgb); t.flipY = false; return t; }
-  return { slab, clip, roundedSquare, inside, hullGeo, faceColors, cells, mask, maskFn, unter, lavaMat, LAVA, htex };
+  /**
+   * Körper der Lichtwelle (wie die Blumen im Moospolster des Wald-Katalogs): unsichtbar in Ruhe, erscheinen nur, wenn
+   * der Ring vorbeizieht. list: [{ p: [x, y, z], r: [rx, ry, rz], s: Zahl oder [sx, sy, sz], c: [r, g, b] }].
+   * mode 'grow': wachsen im Ring (axis 'y': nur in die Höhe), keep: Anteil, der hinter dem Ring bleibt und über tail
+   *   (m) vergeht. 'rise': erscheinen, wenn der Ring sie erreicht, steigen über tail (m) um lift (m) auf und treiben um
+   *   drift (m) nach aussen; size: GLSL-Ausdruck der Grösse aus ph (0..1). 'hop': springen um lift hoch, drehen sich um
+   *   spin (rad) und fallen zurück.
+   * glow: GLSL vor dem Tonemapping, sieht vGrow (0..1, Stärke), vPhase (0 Ring … 1 Ende), vRnd (0..1 je Körper).
+   * Liefert ein InstancedMesh (ohne Schatten; das Netz steht im Ursprung).
+   */
+  function koerper(geo, mat, list, o = {}) {
+    const { mode = 'grow', width = 2.5, keep = 0, tail = 1.2, lift = 0.4, drift = 0, spin = 0, jitter = 0.4, axis = 'all',
+      size = '(1.0 - ph)', glow = '' } = o;
+    const f = (v) => Number(v).toFixed(3);
+    const key = 'katalog-koerper-' + Math.random();
+    let body;
+    if (mode === 'grow') {
+      body = `vGrow = clamp(max(ringv, ${f(keep)} * step(0.0, rel) * (1.0 - vPhase)) * on, 0.0, 1.0);
+        ${axis === 'y' ? 'transformed.y *= vGrow;' : 'transformed *= vGrow;'}`;
+    } else if (mode === 'rise') {
+      body = `float ph = vPhase, act = step(0.0, rel) * step(rel, ${f(tail)}) * on;
+        vGrow = act * (1.0 - ph);
+        transformed *= act * max(0.0, ${size});
+        vec2 dir = normalize(ic.xz + vec2(1e-4));
+        vLift = vec3(dir.x * ${f(drift)} * ph, ${f(lift)} * (1.0 - (1.0 - ph) * (1.0 - ph)) * (0.6 + 0.6 * vRnd), dir.y * ${f(drift)} * ph);`;
+    } else {
+      body = `float ph = clamp((rel + 0.3) / ${f(tail)}, 0.0, 1.0), act = step(0.0, rel + 0.3) * step(rel + 0.3, ${f(tail)}) * on;
+        vPhase = ph; vGrow = act * sin(3.1416 * ph);
+        float a = ${f(spin)} * ph * (vRnd > 0.5 ? 1.0 : -1.0);
+        transformed.yz = mat2(cos(a), sin(a), -sin(a), cos(a)) * transformed.yz;
+        transformed *= act * smoothstep(0.0, 0.12, ph) * smoothstep(1.0, 0.85, ph);
+        vLift = vec3(0.0, ${f(lift)} * sin(3.1416 * ph) * (0.6 + 0.6 * vRnd), 0.0);`;
+    }
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, L.shock);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uShock;\nvarying float vGrow;\nvarying float vPhase;\nvarying float vRnd;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          vec3 vLift = vec3(0.0);
+          vec3 ic = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+          vRnd = fract(sin(dot(ic.xz, vec2(12.9898, 78.233))) * 43758.5453);
+          float d = length(ic.xz) + (vRnd - 0.5) * ${f(jitter)};
+          float on = step(0.001, uShock.y) * min(1.0, uShock.y * 3.0);
+          float ringv = exp(-pow((d - uShock.x) / (uShock.z * ${f(width)}), 2.0));
+          float rel = uShock.x - d;
+          vPhase = clamp(rel / ${f(tail)}, 0.0, 1.0);
+          ${body}`)
+        .replace('#include <project_vertex>', `vec4 mvPosition = vec4(transformed, 1.0);
+          mvPosition = instanceMatrix * mvPosition;
+          mvPosition.xyz += vLift;
+          mvPosition = modelViewMatrix * mvPosition;
+          gl_Position = projectionMatrix * mvPosition;`);
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vGrow;\nvarying float vPhase;\nvarying float vRnd;')
+        .replace('#include <tonemapping_fragment>', `${glow}\n#include <tonemapping_fragment>`);
+    };
+    mat.customProgramCacheKey = () => key;
+    const inst = new T.InstancedMesh(geo, mat, list.length);
+    const M = new T.Matrix4(), Q = new T.Quaternion(), S = new T.Vector3(), P = new T.Vector3(), E = new T.Euler(), C = new T.Color();
+    list.forEach((it, i) => {
+      P.set(...it.p); Q.setFromEuler(E.set(...(it.r ?? [0, 0, 0])));
+      if (Array.isArray(it.s)) S.set(...it.s); else S.setScalar(it.s ?? 1);
+      inst.setMatrixAt(i, M.compose(P, Q, S));
+      if (it.c) { C.setRGB(...it.c); inst.setColorAt(i, C); }
+    });
+    inst.frustumCulled = false; inst.castShadow = false; inst.receiveShadow = false;
+    return inst;
+  }
+  /** Gleich verteilte Punkte auf der Platte (im Umriss pts, wenn gegeben); fn(x, z, box, r) → Eintrag oder null */
+  function streu(n, r, fn, pts) {
+    const out = [];
+    for (let k = 0; out.length < n && k < n * 20; k++) {
+      const x = (r() * 2 - 1) * (HP - 0.06), z = (r() * 2 - 1) * (HP - 0.06);
+      if (pts && !inside(pts, x, z)) continue;
+      const e = fn(x, z, Math.max(Math.abs(x), Math.abs(z)), r);
+      if (e) out.push(e);
+    }
+    return out;
+  }
+  return { slab, clip, roundedSquare, inside, hullGeo, faceColors, cells, mask, maskFn, unter, lavaMat, LAVA, htex, koerper, streu };
 })();

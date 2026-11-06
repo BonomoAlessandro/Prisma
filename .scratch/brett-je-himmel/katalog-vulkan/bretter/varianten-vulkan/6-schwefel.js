@@ -93,5 +93,17 @@ __katalog.varianten.schwefel = async (L) => {
   });
   inst.castShadow = true;
   D.scene.add(inst);
+  // Lichtwelle: gelbe Schwefelkristalle wachsen, blaue Flammen züngeln an ihnen hoch; dahinter zerfallen die Kristalle
+  {
+    const q = rng(721);
+    const cg = new T.OctahedronGeometry(1); cg.translate(0, 0.75, 0);
+    const cr = V.streu(1100, q, (x, z, box, w) => ({ p: [x, -0.01, z], r: [(w() - 0.5) * 0.9, w() * 6.3, (w() - 0.5) * 0.9], s: [0.035 + w() * 0.03, 0.08 + w() * 0.12, 0.035 + w() * 0.03], c: (w() < 0.8 ? [0.9, 0.72, 0.08] : [0.75, 0.85, 0.2]) }));
+    D.scene.add(V.koerper(cg, new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35, flatShading: true, emissive: new T.Color(0.25, 0.2, 0.02) }), cr, { mode: 'grow', width: 2.0, keep: 0.4, tail: 1.2 }));
+    const fg = new T.ConeGeometry(1, 1, 7, 1, true); fg.translate(0, 0.5, 0);
+    const fl = V.streu(600, q, (x, z, box, w) => ({ p: [x, 0.0, z], r: [0, w() * 6.3, 0], s: [0.04 + w() * 0.04, 0.2 + w() * 0.3, 0.04 + w() * 0.04] }));
+    const fmat = new T.MeshBasicMaterial({ color: 0xffffff, transparent: true, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide });
+    D.scene.add(V.koerper(fg, fmat, fl, { mode: 'grow', width: 1.4, glow: `
+      gl_FragColor = vec4(vec3(0.12, 0.35, 1.25) * vGrow * (0.6 + 0.4 * vRnd), 1.0);` }));
+  }
   return `Schwefelquelle (${spots.length} Schlote)`;
 };

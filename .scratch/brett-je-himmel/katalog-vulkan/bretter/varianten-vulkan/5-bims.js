@@ -69,5 +69,12 @@ __katalog.varianten.bims = async (L) => {
         gl_FragColor.rgb += vec3(0.7, 0.45, 0.2) * wide * min(1.0, uShock.y * 3.0) * 0.5;`));
   body.receiveShadow = true;
   D.scene.add(body);
+  // Lichtwelle: aus den Poren steigen glühende Gasblasen, werden grösser und zerplatzen
+  {
+    const q = rng(621);
+    const list = V.streu(550, q, (x, z, box, w) => ({ p: [x, 0.0, z], s: 0.045 + w() * 0.05 }), pts);
+    D.scene.add(V.koerper(new T.SphereGeometry(1, 10, 8), new T.MeshBasicMaterial({ color: 0xffffff }), list, { mode: 'rise', tail: 1.4, lift: 0.5, size: '((0.5 + ph) * (1.0 - smoothstep(0.85, 1.0, ph)))', glow: `
+      gl_FragColor.rgb = mix(vec3(1.8, 1.1, 0.42), vec3(1.3, 0.45, 0.1), vPhase) * (1.0 - vPhase * 0.3);` }));
+  }
   return 'Bimsfloss';
 };

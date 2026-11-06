@@ -112,5 +112,14 @@ __katalog.varianten.obsidian = async (L) => {
   keel.material.vertexColors = true;
   keel.material.onBeforeCompile = ((orig) => (sh, rr) => { orig(sh, rr); sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', ''); })(keel.material.onBeforeCompile);
   D.scene.add(keel);
+  // Lichtwelle: schwarze Glassplitter mit Regenbogenkanten schiessen aus dem Glas und sinken hinter dem Ring zurück
+  {
+    const sg = new T.ConeGeometry(1, 1, 4, 1); sg.translate(0, 0.5, 0);
+    const list = V.streu(900, rng(211), (x, z, box, q) => ({ p: [x, -0.01, z], r: [(q() - 0.5) * 0.8, q() * 6.3, (q() - 0.5) * 0.8], s: [0.04 + q() * 0.035, 0.18 + q() * 0.26, 0.04 + q() * 0.035] }), pts);
+    const m = new T.MeshStandardMaterial({ color: 0x060608, roughness: 0.08, metalness: 0.2, flatShading: true, envMapIntensity: 2.5 });
+    D.scene.add(V.koerper(sg, m, list, { mode: 'grow', width: 1.8, glow: `
+      vec3 irid = 0.5 + 0.5 * cos(6.2832 * (vRnd + dot(normal, vec3(0.7, 0.4, 0.6)) * 0.8 + vec3(0.0, 0.33, 0.67)));
+      gl_FragColor.rgb += irid * vGrow * 0.85;` }));
+  }
   return 'Obsidian';
 };

@@ -122,5 +122,13 @@ __katalog.varianten.amboss = async (L) => {
   const barM = new T.Mesh(barGeo, barMat);
   barM.position.set((bar.x0 + bar.x1) / 2, 0.055, bar.z); barM.rotation.y = 0.04; barM.castShadow = true;
   D.scene.add(barM);
+  // Lichtwelle: Funken springen aus dem Ring hoch und nach aussen und verglühen im Flug
+  {
+    const q = rng(521);
+    const sg = new T.BoxGeometry(0.012, 0.012, 0.1);
+    const sp = V.streu(1400, q, (x, z, box, w) => ({ p: [x, 0.01, z], r: [w() * 6.3, w() * 6.3, w() * 6.3], s: 0.7 + w() * 0.8 }));
+    D.scene.add(V.koerper(sg, new T.MeshBasicMaterial({ color: 0xffffff }), sp, { mode: 'rise', tail: 1.3, lift: 0.9, drift: 0.7, size: '(1.0 - ph * ph)', glow: `
+      gl_FragColor.rgb = mix(vec3(1.6, 1.3, 0.8), vec3(1.2, 0.3, 0.03), vPhase);` }));
+  }
   return 'Amboss';
 };

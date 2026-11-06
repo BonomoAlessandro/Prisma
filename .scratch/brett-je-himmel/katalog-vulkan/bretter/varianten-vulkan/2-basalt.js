@@ -87,5 +87,16 @@ __katalog.varianten.basalt = async (L) => {
   });
   inst.castShadow = true; inst.receiveShadow = true;
   D.scene.add(inst);
+  // Lichtwelle: die Säulen des Felds heben sich im Ring, ihre Flanken glühen frisch; dahinter sinken sie zurück
+  {
+    const cg = new T.CylinderGeometry(R * 0.95, R * 0.95, 1, 6, 1); cg.translate(0, 0.5, 0);
+    const q = rng(311), list = [];
+    for (const c of cols) if (c.field && q() < 0.5) list.push({ p: [c.cx, -0.02, c.cz], s: [1, 0.08 + Math.pow(q(), 2) * 0.22, 1] });
+    const m = new T.MeshStandardMaterial({ color: 0x0b0a0a, roughness: 0.6, flatShading: true });
+    D.scene.add(V.koerper(cg, m, list, { mode: 'grow', axis: 'y', width: 2.2, keep: 0.25, tail: 1.0, glow: `
+      vec3 wN = inverseTransformDirection(normal, viewMatrix);
+      float side = 1.0 - smoothstep(0.6, 0.9, wN.y);
+      gl_FragColor.rgb += vec3(1.0, 0.36, 0.07) * side * vGrow * 0.85;` }));
+  }
   return `Basaltsäulen (${cols.length} Säulen)`;
 };

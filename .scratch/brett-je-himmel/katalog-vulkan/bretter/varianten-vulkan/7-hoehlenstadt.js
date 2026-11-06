@@ -128,5 +128,17 @@ __katalog.varianten.hoehlenstadt = async (L) => {
     const c = new T.Mesh(lathe, chimMat); c.position.set(x, 0, z); c.scale.set(1, k, 1); c.castShadow = true; D.scene.add(c);
     const h = new T.Mesh(capG, capMat); h.position.set(x, 0.66 * k + 0.02, z); h.castShadow = true; D.scene.add(h);
   }
+  // Lichtwelle: kleine Heissluftballone steigen aus dem Ring auf wie morgens über Göreme und verblassen in der Höhe
+  {
+    const q = rng(821);
+    const env = new T.SphereGeometry(0.5, 16, 12); env.scale(1, 1.15, 1); env.translate(0, 0.62, 0);
+    const bk = new T.BoxGeometry(0.22, 0.16, 0.22);
+    const pal = [[0.85, 0.2, 0.12], [0.95, 0.6, 0.12], [0.2, 0.4, 0.8], [0.9, 0.85, 0.3], [0.55, 0.2, 0.55]];
+    const list = V.streu(55, q, (x, z, box, w) => ({ p: [x, 0.05, z], r: [0, w() * 6.3, 0], s: 0.3 + w() * 0.15, c: pal[Math.floor(w() * pal.length)] }));
+    const size = '(smoothstep(0.0, 0.1, ph) * (1.0 - smoothstep(0.8, 1.0, ph)))';
+    D.scene.add(V.koerper(env, new T.MeshStandardMaterial({ color: 0xffffff, roughness: 0.7 }), list, { mode: 'rise', tail: 2.6, lift: 1.3, size, glow: `
+      gl_FragColor.rgb += vColor * 0.25 * (1.0 - vPhase * 0.5) + vec3(1.0, 0.6, 0.2) * 0.12;` }));
+    D.scene.add(V.koerper(bk, new T.MeshStandardMaterial({ color: 0x5a3a22, roughness: 0.9 }), list.map((l) => ({ ...l, c: undefined })), { mode: 'rise', tail: 2.6, lift: 1.3, size }));
+  }
   return 'Höhlenstadt';
 };

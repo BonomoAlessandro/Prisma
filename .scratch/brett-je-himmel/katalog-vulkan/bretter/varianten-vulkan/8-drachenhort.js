@@ -142,5 +142,13 @@ __katalog.varianten.drachenhort = async (L) => {
     paw.scale.set(1.05, 0.32, 1.05); paw.position.set(sx * (H0 - 0.6), -0.62, sz * (H0 - 0.6));
     D.scene.add(paw);
   }
+  // Lichtwelle: Goldmünzen springen aus der Platte, drehen sich funkelnd und fallen hinter dem Ring zurück
+  {
+    const q = rng(921);
+    const hop = V.streu(1500, q, (x, z, box, w) => ({ p: [x, 0.02, z], r: [0, w() * 6.3, 0], s: 1.4 }), pts);
+    const hm = new T.MeshStandardMaterial({ color: 0xe0a83c, metalness: 0.85, roughness: 0.25, envMapIntensity: 2.4, flatShading: true });
+    D.scene.add(V.koerper(cg, hm, hop, { mode: 'hop', tail: 1.6, lift: 0.6, spin: 9.0, glow: `
+      gl_FragColor.rgb += vec3(1.2, 0.85, 0.3) * vGrow * (0.45 + 0.5 * step(0.65, fract(vRnd * 7.0 + vPhase * 3.0)));` }));
+  }
   return `Drachenhort (${coins.length} Münzen)`;
 };

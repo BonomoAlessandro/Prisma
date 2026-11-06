@@ -42,8 +42,8 @@ const karten = [
     raster: 'Matt geätzte, graue Linien.',
     einlage: 'Eine matte, hellgraue Linie.',
     spiegelung: 'Ja, stark: schwarzes, poliertes Glas.',
-    welle: 'Ein Regenbogenschimmer wie bei Regenbogenobsidian, der den Fliessbändern im Glas folgt.',
-    kosten: 'Alles berechnet, der Kiel ist ein Körper aus Ringen. Der ausgebogte Umriss deckt den heutigen Quader nicht ganz.',
+    welle: 'Wo der Ring vorbeizieht, schiessen schwarze Glassplitter mit Regenbogenkanten aus dem Feld, und das Glas schimmert in den Farben von Regenbogenobsidian. Hinter dem Ring sinken die Splitter wieder ins Glas, der Schimmer verlischt, und das Feld ist wieder schwarz und spiegelglatt.',
+    kosten: 'Alles berechnet, der Kiel ist ein Körper aus Ringen. Der ausgebogte Umriss deckt den heutigen Quader nicht ganz. Für die Welle rund 900 Splitter als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['kern', 'Ausgebogter Umriss: Der Kernquader wird kleiner. Der Kiel hängt 1,6 m unter das Brett, bleibt aber im Umriss.']],
     vorbilder: [['Obsidian', WP('Obsidian')], ['Muscheliger Bruch', EN('Conchoidal_fracture')], ['Steinschlagen', EN('Knapping')], ['Tezcatlipoca, der «rauchende Spiegel»', WP('Tezcatlipoca')], ['Obsidian Cliff', EN('Obsidian_Cliff')]],
   },
@@ -53,8 +53,8 @@ const karten = [
     raster: 'Feine, helle Linien über den Fugen.',
     einlage: 'Eine hellgraue Linie.',
     spiegelung: 'Leicht, der Basalt ist geschliffen.',
-    welle: 'Glut steigt in den Fugen der Säulen auf, und die Köpfe der Randsäulen leuchten nacheinander auf.',
-    kosten: 'Rund 940 Säulen als ein Körper mit Instanzen, das Muster im Feld ist berechnet.',
+    welle: 'Im Ring heben sich Säulen des Felds eine Handbreit aus dem Boden, ihre Flanken glühen orange wie frisch erstarrter Basalt, und in den Fugen steigt Glut auf. Hinter dem Ring sinken die Säulen zurück, die Fugen verglimmen, und das Feld ist wieder eben.',
+    kosten: 'Rund 940 Säulen als ein Körper mit Instanzen, das Muster im Feld ist berechnet. Für die Welle einige hundert Säulen mehr, in Ruhe unsichtbar.',
     hinweise: [['teile', 'Rund 940 Säulen (Instanzen, ein Zeichenaufruf). Auf dem Handy zu messen.'], ['kern', 'Stufiger Rand aus Sechsecken: Der Kernquader wird etwas kleiner.']],
     vorbilder: [['Giant’s Causeway', EN('Giant%27s_Causeway')], ['Fingalshöhle', WP('Fingalsh%C3%B6hle')], ['Säulenbasalt', WP('S%C3%A4ulenbasalt')], ['Svartifoss', EN('Svartifoss')], ['Devils Postpile', EN('Devils_Postpile_National_Monument')]],
   },
@@ -64,8 +64,8 @@ const karten = [
     raster: 'Feine Fugen, in denen es dunkelrot glimmt.',
     einlage: 'Eine silbrige Glaslinie.',
     spiegelung: 'Leicht, die glasige Haut glänzt.',
-    welle: 'Ein Hitzestoss: Fugen und Risse flammen gelb auf, wo der Ring vorbeizieht.',
-    kosten: 'Alles berechnet, die Seiten sind ein Körper aus Ringen.',
+    welle: 'Wo der Ring vorbeizieht, bricht die Kruste auf: Glühende Lavablasen quellen hervor, Funken steigen auf, und Fugen und Risse flammen gelb. Hinter dem Ring erkalten die Blasen von Gelb über Dunkelrot zu Kruste und sinken ein, die Funken verglühen in der Luft.',
+    kosten: 'Alles berechnet, die Seiten sind ein Körper aus Ringen. Für die Welle rund 900 Blasen und 700 Funken als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['kern', 'Runder Umriss mit Zehen: Der Kernquader wird kleiner.']],
     vorbilder: [['Stricklava', WP('Stricklava')], ['Kīlauea', WP('K%C4%ABlauea')], ['Erta Ale', WP('Erta_Ale')], ['Halemaʻumaʻu', EN('Halema%CA%BBuma%CA%BBu')]],
   },
@@ -75,8 +75,8 @@ const karten = [
     raster: 'Anreisslinien, fein und blank.',
     einlage: 'Eine Linie aus Messing.',
     spiegelung: 'Ja, der Stahl ist geschliffen.',
-    welle: 'Ein Hammerschlag: ein weissglühender Ring mit Funkenflug, dahinter kühlt der Stahl dunkelrot ab.',
-    kosten: 'Alles berechnet, Körper und Stab sind einfache Körper. Deckt den heutigen Quader wie heute.',
+    welle: 'Ein Hammerschlag: Ein weissglühender Ring läuft über die Bahn, aus ihm springen Funken hoch und nach aussen und verglühen im Flug von Gelbweiss zu Orange. Hinter dem Ring glüht der Stahl dunkelrot nach und kühlt wieder zu Grau ab.',
+    kosten: 'Alles berechnet, Körper und Stab sind einfache Körper. Deckt den heutigen Quader wie heute. Für die Welle rund 1400 Funken als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['ausblick', 'Ein echtes Horn ragte über den Umriss von 9,8 × 9,8 m hinaus, darum fehlt es hier.']],
     vorbilder: [['Amboss', WP('Amboss')], ['Velázquez: Apollo in der Schmiede des Vulkan', EN('Apollo_in_the_Forge_of_Vulcan')], ['Hephaistos', WP('Hephaistos')], ['Prinzessin Mononoke (Eisenhütte)', WP('Prinzessin_Mononoke')]],
   },
@@ -86,8 +86,8 @@ const karten = [
     raster: 'Feine, dunklere Rillen.',
     einlage: 'Eine dunkle Linie.',
     spiegelung: 'Keine, Bims ist matt.',
-    welle: 'Warmes Licht scheint aus den Poren, als wäre das Brett eine Laterne.',
-    kosten: 'Alles berechnet, der Körper ist ein Rumpf aus Ringen.',
+    welle: 'Aus den Poren steigen glühende Gasblasen, werden beim Steigen grösser und zerplatzen, und die Poren leuchten im Ring warm auf wie eine Laterne. Hinter dem Ring werden die Poren wieder dunkel, die letzten Blasen platzen über dem Brett.',
+    kosten: 'Alles berechnet, der Körper ist ein Rumpf aus Ringen. Für die Welle rund 550 Blasen als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['kern', 'Rundlicher Umriss: Der Kernquader wird kleiner.']],
     vorbilder: [['Bims', WP('Bims')], ['Bimssteinfloss', EN('Pumice_raft')], ['Lipari', WP('Lipari')], ['Laacher See', WP('Laacher_See')]],
   },
@@ -97,8 +97,8 @@ const karten = [
     raster: 'Feine Linien in Ocker.',
     einlage: 'Ein Band aus Schwefelgelb.',
     spiegelung: 'Leicht, nur die Becken glänzen.',
-    welle: 'Blaues Schwefelfeuer wie am Kawah Ijen läuft als flackernder Ring über das Brett, die Becken fangen das blaue Licht.',
-    kosten: 'Alles berechnet, die 13 Schlote sind einfache Körper. Deckt den heutigen Quader wie heute.',
+    welle: 'Im Ring wachsen gelbe Schwefelkristalle aus der Kruste, und blaue Flammen züngeln an ihnen hoch wie nachts am Kawah Ijen; die Becken fangen das blaue Licht. Hinter dem Ring erlöschen die Flammen, die Kristalle zerfallen wieder, und die Becken werden grün.',
+    kosten: 'Alles berechnet, die 13 Schlote sind einfache Körper. Deckt den heutigen Quader wie heute. Für die Welle rund 1100 Kristalle und 600 Flammen als Instanzen, in Ruhe unsichtbar.',
     hinweise: [],
     vorbilder: [['Dallol', WP('Dallol')], ['Kawah Ijen', WP('Kawah_Ijen')], ['Schwefel', WP('Schwefel')], ['Grand Prismatic Spring', EN('Grand_Prismatic_Spring')]],
   },
@@ -108,8 +108,8 @@ const karten = [
     raster: 'Gemeisselte Rillen.',
     einlage: 'Ein Band aus rotem Tuff.',
     spiegelung: 'Keine, Tuff ist matt.',
-    welle: 'Fenster für Fenster geht das Licht an, wo der Ring vorbeizieht. Oben läuft warmes Lampenlicht über den Tuff.',
-    kosten: 'Alles berechnet, der Kegel ist ein Körper aus Ringen, Fenster und Türen sind gemalt. Die Feenkamine sind einfache Körper.',
+    welle: 'Wo der Ring vorbeizieht, steigen kleine Heissluftballone auf wie morgens über Göreme, und am Kegel geht Fenster für Fenster das Licht an. Hinter dem Ring treiben die Ballone höher und verblassen, die Fenster dimmen wieder auf ihr ruhiges Lampenlicht.',
+    kosten: 'Alles berechnet, der Kegel ist ein Körper aus Ringen, Fenster und Türen sind gemalt. Die Feenkamine sind einfache Körper. Für die Welle 55 Ballone als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['blender', 'Vertiefte Fenster, Balkone und Treppen am Kegel wären aus Blender deutlich schöner.']],
     vorbilder: [['Göreme', WP('G%C3%B6reme')], ['Kappadokien', WP('Kappadokien')], ['Derinkuyu', WP('Derinkuyu')], ['Uçhisar', WP('U%C3%A7hisar')], ['Das Schloss im Himmel', WP('Das_Schloss_im_Himmel')]],
   },
@@ -119,8 +119,8 @@ const karten = [
     raster: 'Goldene Linien.',
     einlage: 'Eine breite Goldlinie.',
     spiegelung: 'Ja, die Bronze glänzt.',
-    welle: 'Das Gold funkelt Münze für Münze auf, die Ränder der Schuppen leuchten golden nach.',
-    kosten: 'Platte, Schuppen und Krallen berechnet, die Münzen sind rund 2200 Instanzen.',
+    welle: 'Wo der Ring vorbeizieht, springen Goldmünzen aus der Platte und drehen sich funkelnd in der Luft, die Ränder der Schuppen leuchten golden. Hinter dem Ring fallen die Münzen zurück und verschwinden im Hort, das Glühen der Schuppen klingt ab.',
+    kosten: 'Platte, Schuppen und Krallen berechnet, die Münzen sind rund 2200 Instanzen. Für die Welle rund 1500 springende Münzen als Instanzen, in Ruhe unsichtbar.',
     hinweise: [['teile', 'Rund 2200 Münzen (Instanzen, ein Zeichenaufruf). Auf dem Handy zu messen.'], ['blender', 'Krallen und Pranken wären aus Blender deutlich schöner.'], ['kern', 'Die Platte ist nur 9,24 m breit, damit die Krallen im Umriss bleiben: Der Kernquader wird kleiner.']],
     vorbilder: [['Fafnir', WP('Fafnir')], ['Nibelungenhort', WP('Nibelungenhort')], ['Smaug', WP('Smaug')], ['Beowulf', WP('Beowulf')]],
   },
@@ -291,9 +291,10 @@ const html = W(`<title>Vulkanbretter</title>
       <h1>Vulkanbretter</h1>
       <p class="lead">Acht Richtungen für das Brett über dem Lavasee am neuen Krater, bei Nacht und im Licht der Glut:
         Stoffe des Vulkans (Obsidian, Stricklava, Bims), andere Formen (Basaltsäulen, ein hängender Tuffkegel mit einer
-        Stadt darin), etwas Gebautes (ein Amboss), die Farben der Schwefelquellen von Dallol und ein Drachenhort. Jedes Bild
-        stammt aus dem Spiel, dasselbe Level, das Brett zur Laufzeit eingesetzt. Wähle eine Richtung, gern mit
-        Änderungswünschen.</p>
+        Stadt darin), etwas Gebautes (ein Amboss), die Farben der Schwefelquellen von Dallol und ein Drachenhort. Beim
+        Lösen passiert auf jedem Brett etwas Eigenes, das vierte Bild jeder Karte zeigt es: Splitter, Säulen, Lavablasen,
+        Funken, Gasblasen, Kristalle, Ballone oder Münzen. Jedes Bild stammt aus dem Spiel, dasselbe Level, das Brett zur
+        Laufzeit eingesetzt. Wähle eine Richtung, gern mit Änderungswünschen.</p>
     </div>
     <section class="grenzen" aria-labelledby="grenzen-titel">
       <h2 id="grenzen-titel">Bleibt in jeder Richtung gleich</h2>
