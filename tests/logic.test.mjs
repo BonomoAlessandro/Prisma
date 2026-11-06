@@ -897,6 +897,22 @@ console.log('Offline');
     assert.ok(errorsWith({}).some((e) => /board/.test(e)), 'ohne Art');
     assert.ok(errorsWith('stone').some((e) => /board/.test(e)), 'kein Objekt');
   });
+  test('Bretter: Wüste mit der Lehmterrasse (clay); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const desert = skies.find((s) => s.id === 'desert') ?? assert.fail('Skybox desert fehlt im Register');
+    const board = JSON.parse(JSON.stringify(desert.board));
+    assert.equal(board.type, 'clay', 'die Wüste hat die Lehmterrasse');
+    const errorsWith = (change) => checkSkies([{ ...desert, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ sand: [1.2, 0.8, 0.5] }).some((e) => /sand/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ inlay: [0.9, 0.8] }).some((e) => /inlay/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ wood: [0.5, -0.1, 0.3] }).some((e) => /wood/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ plaster: [0.83, 0.6, 0.42] }).some((e) => /plaster/.test(e)), 'Putz ohne zwei Töne');
+    assert.ok(errorsWith({ brick: [board.brick[0], board.brick[1], board.brick[0]] }).some((e) => /brick/.test(e)),
+      'Ziegel mit drei Tönen');
+    assert.ok(errorsWith({ egg: undefined }).some((e) => /egg/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ dach: [0.8, 0.7, 0.5] }).some((e) => /dach/.test(e)), 'unbekannter Wert');
+  });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
     assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');

@@ -15,6 +15,9 @@
 //             mitten in der Wüste, wie im Spiel über den Startbildschirm: «Tippen zum Starten» und «Weiter» je sofort.
 //             Der Kleine Wagen wartet, der Blick senkt sich erst, wenn Himmel und Brett der Wüste bereit sind (oder
 //             nach 8 s), und unter einem Himmel aus Blender steht nie ein fremdes Brett oder ein Steinbrett als Notfall.
+//             Die Wüste lädt dabei ihr eigenes Brett (die Art ihrer Brett-Angabe, Lehmterrasse, Ticket 06).
+// Die Prüfung «unter einem Himmel aus Blender nur sein Brett» (brettPasst) vergleicht auch die Art mit der Brett-Angabe
+// des Himmels im Register.
 //   menue:    Desktop über den Startbildschirm (ohne ?nointro, unter dem Menü lädt nichts Grosses). Im Menü springt der
 //             Himmel zum Dorf mit einem eigenen Brett, das nicht bereit wird: Die Frist des Notfalls zählt dort nicht,
 //             nach 10 s steht weder ein Steinbrett als Notfall da noch eine Warnung in der Konsole.
@@ -54,15 +57,16 @@ async function browser(view) {
 }
 
 // je Bild (eigenes requestAnimationFrame): gewählter und gezeigter Himmel (mit Anteil), Überblenden, bereit, das Brett
-// (__prisma.brett) und welche Bretter sichtbar sind; dazu Blick (gaze), Kleiner Wagen, Zustand. Läuft auch schon vor dem
-// Spiel (Netz: ab dem Laden der Seite)
+// (__prisma.brett, dazu soll: die Art der Brett-Angabe seines Himmels im Register) und welche Bretter sichtbar sind; dazu
+// Blick (gaze), Kleiner Wagen, Zustand. Läuft auch schon vor dem Spiel (Netz: ab dem Laden der Seite)
 const PROTOKOLL = `(() => { const b = window.__bl = { an: true, log: [] };
   const loop = (ts) => { if (!b.an) return; requestAnimationFrame(loop);
     const D = window.__prismaDebug, k = D?.skyTheme; if (!k || !window.__prisma?.brett) return;
-    const shown = k.entries.find((e) => k.weight[e.id] > 0);
+    const shown = k.entries.find((e) => k.weight[e.id] > 0), br = window.__prisma.brett();
     b.log.push({ ts, cur: k.current, shown: shown?.id ?? null, w: shown ? k.weight[shown.id] : 0,
       blender: !!shown?.module?.panorama, fading: k.fading, holding: k.holding, ready: k.ready,
-      brett: window.__prisma.brett(), sichtbar: [...D.boardTheme.built.values()].filter((e) => e.board?.group.visible)
+      brett: { ...br, soll: br.himmel && (k.byId.get(br.himmel)?.board?.type ?? 'stone') },
+      sichtbar: [...D.boardTheme.built.values()].filter((e) => e.board?.group.visible)
         .map((e) => e.key), gaze: D.story.gaze, menu: D.menu.offen, flow: D.flow.state,
       wagen: document.getElementById('lade').classList.contains('an') }); };
   requestAnimationFrame(loop); return true; })()`;
@@ -71,10 +75,11 @@ const protokollAus = (ev) => ev('(() => { const b = window.__bl; b.an = false; r
 /**
  * Unter einem Himmel aus Blender steht nie das Brett eines anderen Himmels oder ein Steinbrett als Notfall: ohne
  * Überblenden das Brett des gezeigten Himmels, beim Überblenden (nur während der Himmel überblendet) das neue des
- * gewählten. Nur, wo man das Brett sieht (Blick unter 0,6, kein Menü).
+ * gewählten, und zwar in der Art seiner Brett-Angabe im Register (soll). Nur, wo man das Brett sieht (Blick unter 0,6,
+ * kein Menü).
  */
 function brettPasst(log, was) {
-  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && (e.brett.notfall
+  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && (e.brett.notfall || e.brett.art !== e.brett.soll
     || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.cur)));
   pruefe(!falsch, `${was}: unter einem Himmel aus Blender nur sein Brett${falsch ? ` (${JSON.stringify(falsch)})` : ''}`);
 }
@@ -315,8 +320,9 @@ async function netz() {
     const wagen = log.slice(0, sinkt).filter((e) => e.wagen).length;
     console.log(`  Blick senkt sich ${warten.toFixed(1)} s nach «Weiter», Kleiner Wagen in ${wagen} von ${sinkt} Bildern`
       + `, dann ${JSON.stringify({ ready: s.ready, brett: s.brett, shown: s.shown })}`);
-    pruefe(s.cur === 'desert' && s.brett.himmel === 'desert' && s.brett.bereit && !s.brett.notfall && s.brett.anteil === 1
-      && (s.ready || warten >= 8), `Netz: der Blick senkt sich erst, wenn Himmel und Brett der Wüste bereit sind (oder nach 8 s)`);
+    pruefe(s.cur === 'desert' && s.brett.himmel === 'desert' && s.brett.art === s.brett.soll && s.brett.bereit
+      && !s.brett.notfall && s.brett.anteil === 1 && (s.ready || warten >= 8),
+    `Netz: der Blick senkt sich erst, wenn Himmel und Brett der Wüste (${s.brett.soll}) bereit sind (oder nach 8 s)`);
     pruefe(warten < 1 || wagen > 0, 'Netz: der Kleine Wagen zeigt das Warten');
     brettPasst(log, 'Netz');
   } catch (e) {
