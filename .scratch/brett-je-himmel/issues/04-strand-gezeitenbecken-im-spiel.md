@@ -46,6 +46,9 @@ So sieht es aus (Karte 6 im Katalog, Hauptbild):
         Mitte, kommt der Schwall deshalb fast ohne Kraft an. Die Rinne bekommt darum ihre eigene Zeit: Der Schwall
         startet, wenn der Ring ankommt, und läuft mit eigener Stärke rundum. Bildfolgen nimmt
         `lichtwelle/welle-folge.mjs` auf.
+      - Wunsch des Nutzers (06.11.2026): Die Lichtwelle soll nach **Wasser oder Seifenblasen** aussehen, zumindest ein
+        wenig. Zum Beispiel rollt eine kleine Welle mit Gischt über das Feld, oder schillernde Seifenblasen steigen dort
+        auf, wo der Ring vorbeizieht, und zerplatzen. Zeig ihm 2 bis 3 Varianten als Bildfolge.
       - Das 7×7-Feld bleibt eben, gleich gross und an derselben Stelle.
       - Die Form bleibt innerhalb des Umrisses, und das Brett schwebt.
       - Die Art nennt ihren Kernquader. Mit flacher und ganz herausgezoomter Kamera hat der Himmel keine Löcher.
