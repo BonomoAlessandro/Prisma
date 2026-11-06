@@ -28,6 +28,7 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 07 Bühne, Überblendung Wagen in Wagen | erledigt, mit Review |
 | 08 Einbau Katalog | erledigt, mit Review |
 | 09 Doku und KI-Tester | erledigt, mit Review |
+| 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | in Arbeit (06.11.) |
 | 10 Sprungbrett ausbauen | offen, erst nach der Abnahme durch den Nutzer |
 
 ### Ticket 01, Zwischenstand

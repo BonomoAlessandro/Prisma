@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 09 und die Abnahme durch den Nutzer
+**Blocked by:** 09, 11 und die Abnahme durch den Nutzer
 
 **Status:** ready-for-agent
 

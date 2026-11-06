@@ -377,6 +377,9 @@
       linear-gradient(to top, rgba(3, 3, 8, 0.6), rgba(3, 3, 8, 0) 34%);
   }
   #story .caption.mitte .path { position: absolute; left: 0; right: 0; bottom: max(14vh / var(--seite), 70px); margin: 0; }
+  /* die Aufforderung, sobald das Licht über dem Text anhält (story.anhalten, Abnahme Ticket 11): unter dem Text, ohne
+     Höhe im Fluss, sonst rückten Kicker und Text (und mit ihnen das Licht, lichtHoch) beim Erscheinen hinauf */
+  #story .caption.mitte .tap { margin-top: 0; height: 0; position: relative; top: 20px; }
   /* kleine Handys hochkant (360 × 640, 320 × 568): kleiner und tiefer, sonst rückt er an einen langen Text */
   @media (max-width: 480px) and (max-height: 700px) {
     #story .path svg { width: 206px; }
@@ -8287,6 +8290,7 @@ const sceneLoop = {
     if (flow.state === 'in' || flow.state === 'out') return `Feld (${flow.state})`;
     if (celebration.active || celebration.rain.alive > 0) return 'Feier';
     if (skyTheme.busy) return 'Himmel';
+    if (himmelsWagen.blendet) return 'Wagen am Himmel (Menü)';
     if (cameraRig.homing || cameraRig.settling > 1e-3) return 'Kamera';
     if (beamView.time < beamView.settleAt + 1.2) return 'Strahlen';
     for (const obj of game.objects.values()) {
@@ -13888,6 +13892,8 @@ function updateCamera(t, dt) {
   if (story.gaze > 0) {
     const d = _gazeLook.copy(cameraRig.target).sub(camera.position).normalize().lerp(story.gazeDir, story.gaze).normalize();
     camera.lookAt(d.add(camera.position));
+    // Ende des Finales: der Wagen rechts der Mitte und doch aufrecht (story.wagenEnde; den Horizont sieht man dort nicht)
+    if (story.seit) camera.rotateY(story.seit);
   }
   orbitKeyLight(cameraRig.baseTheta + cameraRig.userTheta);
 }
@@ -18454,6 +18460,9 @@ const himmelsWagen = (() => {
   const faktor = (k) => Math.min(20, Math.abs(+abst.get(k)) || 1); // SZENEN (vorübergehend, Ticket 10 entfernt)
   const groesse = faktor('himmel-groesse'), hell = faktor('himmel-hell'); // SZENEN (vorübergehend, Ticket 10 entfernt)
   const punkt = faktor('himmel-punkt'); // SZENEN (vorübergehend, Ticket 10 entfernt)
+  // hinter Menü und Übersicht aus (blendet): sicht 0 … 1, in AUSBLENDEN s
+  const AUSBLENDEN = 0.4, zielSicht = () => (menu.offen || uebersicht.offen ? 0 : 1);
+  let sicht = 1;
   // Richtungen: Mitte der Form in (hoehe, azimut), die Sterne in der Tangentialebene darum (rechts, oben im Bild)
   const rad = THREE.MathUtils.degToRad, el = rad(H.hoehe), az = rad(H.azimut);
   const mitte = new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
@@ -18579,8 +18588,18 @@ const himmelsWagen = (() => {
       sceneLoop.wake(); // ruht die Schleife (mit ?t=): den neuen Stand zeichnen
     },
     richtung(k, ziel = new THREE.Vector3()) { return ziel.copy(dirs[k - 1]); },
-    update(t) {
+    /**
+     * Offen sind Menü oder Übersicht: Ihre Sternkarte zeigt den Wagen schon; der am Himmel dahinter blendet aus (sicht
+     * 0, in AUSBLENDEN s), sonst stünde er doppelt da (Abnahme Ticket 11: nach dem Epilog der ganze Wagen zweimal).
+     */
+    get blendet() { return sicht !== zielSicht(); },
+    /** Ohne Ausblenden gleich so, wie es Menü und Übersicht verlangen (hinter der Bühne: Das sieht niemand). */
+    sofort() { sicht = zielSicht(); },
+    update(t, dt = 0) {
       mesh.position.copy(camera.position);
+      const ziel = zielSicht(), schritt = Math.min(dt, 0.1) / AUSBLENDEN;
+      sicht = sicht < ziel ? Math.min(ziel, sicht + schritt) : Math.max(ziel, sicht - schritt);
+      mesh.visible = sicht > 0;
       const pr = renderer.getPixelRatio();
       renderer.getDrawingBufferSize(uniforms.uRes.value);
       // Nacht: Der Himmel zeigt Hintergrundsterne (Welten bei Nacht 0,3, Sonnensystem und Milchstrasse 1), Tag: keine
@@ -18601,6 +18620,7 @@ const himmelsWagen = (() => {
         uniforms.uAnteil.value[n + i] = anteil[i];
       });
       uniforms.uLuecke.value = H.linie.luecke * punkt * pr;
+      if (sicht < 1) for (let i = 0; i < h.length; i++) h[i] *= sicht * sicht * (3 - 2 * sicht);
     },
   };
 })();
@@ -18655,9 +18675,14 @@ const STORY_CARRIERS = {
  * Anteil amStern. Erwachen: blitz (s) des Sterns, linie (s) je Linie, die sich zieht, dann klingt ihr Glanz in nach (s)
  * aus; zucken (s) des nächsten Sterns im Vorbeiflug; schweben: Kreis (Grad) des Lichts um den geweckten Stern, solange
  * die nächste Welt lädt.
+ * Abnahme Ticket 11: Am Ende von Einstieg und Reise hält das Licht über dem Untertitel an und wartet auf Tippen, ohne
+ * Zeitablauf (story.anhalten); ein Tippen in den ersten halt s danach galt noch dem Flug und zählt nicht. Dann fällt
+ * es gleichmässig aufs Brett (storyFall: nach einem Anlauf über den Anteil anlauf des Wegs gleich schnell, ohne
+ * Abbremsen).
  */
 const STORY_FLUG = {
   licht: 0.3,
+  halt: 0.3, anlauf: 0.1,
   vorbei: 1.0,
   reise: { dauer: 6, amStern: 0.32, seitwaerts: 0.45 },
   einstieg: { dauer: 3.4, amStern: 0.45, von: 0.55, hoeher: 0.06 },
@@ -18667,15 +18692,17 @@ const STORY_FLUG = {
 };
 /**
  * Finale (Spec .scratch/kleiner-wagen/, Ablauf 6; Ticket 06): Die Strahlen steigen zum sechsten Stern, er erwacht
- * (ascend, erwache). Zu Satz 1 gleitet der Blick in blick (s) dorthin, wo der ganze Wagen über dem Untertitel steht
- * (story.wagenBlick; rand: so viel freier Platz um ihn, Anteil der kürzeren Bildseite), und ab ab (s) läuft ein Puls
+ * (ascend, erwache), und sie gehen aus. Die Kamera kommt dabei schon dort an, wo der ganze Wagen über dem Untertitel
+ * steht (story.wagenBlick; rand: so viel freier Platz um ihn, Anteil der kürzeren Bildseite; Abnahme Ticket 11), zu
+ * Satz 1 gleitet sie in blick (s) nur noch nach, falls der Untertitel anders steht. Ab ab (s) läuft ein Puls
  * Stern für Stern durch ihn (story.puls): schritt (s) von Stern zu Stern, jeder leuchtet bis glanz auf und mit seinem
  * Ton, die Linie dazwischen leuchtet, während der Puls darauf läuft; nach (s) nach dem sechsten Stern ist er verklungen.
  * Zu Satz 2 springt er ab ab (s) über die Deichsel (story.deichsel): Die Linie 6 → 7 zieht sich in zug (s), dann
  * flammt der Polarstern auf, sein Schlusston klingt, in flamme (s) ist er still. Erst dann wartet der Satz auf Tippen.
- * Danach antwortet der Polarstern wie bisher; am Ende steht der ganze Wagen waagrecht mittig im Bild, genau dort, wo
- * ihn gleich die Bühne zeigt (story.wagenEnde, Wagen in Wagen; Ticket 07). abstand: so weit vor der Kamera steht der
- * Lichtpunkt auf einem Stern (wie im Aufstieg).
+ * Danach antwortet der Polarstern: Sein Strahl fällt aus dem Bild, das steht (story.antwortBlick, ohne Blick zu ihm);
+ * am Ende steht der ganze Wagen im Bild, genau dort, wo ihn gleich die Bühne zeigt (story.wagenEnde, Wagen in Wagen;
+ * Ticket 07; seit Ticket 11 rechts der Mitte, die Kamera dafür seitlich gedreht). abstand: so weit vor der Kamera
+ * steht der Lichtpunkt auf einem Stern (wie im Aufstieg).
  */
 const STORY_PULS = {
   blick: 1.2, rand: 0.07, abstand: 72,
@@ -18689,7 +18716,9 @@ const STORY_PULS = {
  * Himmel der Welt zuletzt stand (Wagen in Wagen), in jedem Format; der Prolog zeigt ihn an derselben Stelle. feld:
  * Platz, den er auf der Bühne hat (scene.wagenFeld), in jedem Bild des Epilogs und in Prolog 4: rand (Anteil der
  * kürzeren Bildseite) vom Rand des Bilds und über den Graten der Berge; darin höchstens hoehe dieses Platzes hoch
- * (sonst schaut das Finale am Ende weiter, mit grösserem Sichtfeld der Kamera).
+ * und breite so breit (sonst schaut das Finale am Ende weiter, mit grösserem Sichtfeld der Kamera), waagrecht bei
+ * lage (0 am linken, 1 am rechten Rand des Platzes; Abnahme Ticket 11: weiter rechts, damit Noa nicht so steil
+ * hinauf leuchtet; Noas Arm und Strahl zeigen zum Polarstern, erhoben).
  * Prolog: die sechs Sterne blass wie die schwächsten Hintergrundsterne (schlaf: Helligkeit, Durchmesser in
  * CSS-Pixeln), ohne Funkeln, ohne Linien; in Prolog 4 zeichnen sich die Linien einmal ab (andeutung: ab s nach dem
  * Beginn der Einstellung, in auf s bis hell, in aus s wieder weg). Epilog: alle sieben wach wie am Himmel der Welten
@@ -18698,7 +18727,7 @@ const STORY_PULS = {
  * Abnahme ab (hier und mit den Parametern von himmelsWagen, die auch hier gelten).
  */
 const BUEHNENWAGEN = {
-  feld: { rand: 0.04, hoehe: 0.8 },
+  feld: { rand: 0.04, hoehe: 0.8, breite: 0.6, lage: 0.8 },
   schlaf: { hell: 0.34, punkt: 1.6 },
   andeutung: { hell: 0.11, ab: 1.4, auf: 1.3, aus: 2.1 },
   nachglimmen: { halten: 2.6, abklingen: 4, glimmen: 0.11, tiefe: 0.3, periode: 5 },
@@ -19789,10 +19818,19 @@ function createStoryScene(host, { wagenLage = null } = {}) {
   };
   const gl = glBuehne();
   q('.hint span').textContent = IS_TOUCH ? 'Tippen zum Weitergehen' : 'Klicken zum Weitergehen';
-  // Arm mit der Lampe zeigt zum Polarstern (Grad; er steht an der Spitze des Wagens, scene.wagenOrte), wie bei Zoom 1
-  const erhoben = () => {
-    const [x, y] = scene.wagenOrte?.[wagen.polarstern - 1] ?? [1120, 150];
-    return Math.atan2(y + 20 - 592, x - 440) * 180 / Math.PI;
+  // Arm mit der Lampe zeigt zum Polarstern (Grad; er steht an der Spitze des Wagens, scene.wagenOrte), so wie man beide
+  // in der Einstellung sieht, in der Noa zu ihm hinauf leuchtet (Prolog 4 reach, schon beim Heben in lamp; Epilog 3
+  // answer), mit der Parallaxe von Himmel und Hügel (Abnahme Ticket 11; vorher wie bei Zoom 1, und der Strahl lief auf
+  // dem Desktop links am Polarstern vorbei). Noa steht in der Ebene p = 1, ihr Arm dreht um (440, 592).
+  const erhoben = (act) => {
+    const shot = scene.folge?.find((s) => s.act === (act === 'lamp' ? 'reach' : act));
+    if (!shot || !scene.wagenOrte) {
+      const [x, y] = scene.wagenOrte?.[wagen.polarstern - 1] ?? [1120, 150];
+      return Math.atan2(y + 20 - 592, x - 440) * 180 / Math.PI;
+    }
+    const c = scene.ziel(shot)[0], W = innerWidth, H = innerHeight, s = scene.skala(c, 1);
+    const [fx, fy] = scene.wagenImBild(c)[wagen.polarstern - 1];
+    return Math.atan2(fy * H - (H / 2 + (592 - c.y) * s), fx * W - (W / 2 + (440 - c.x) * s)) * 180 / Math.PI;
   };
   const [FLUG_ZU, FLUG_WALD] = [2.4, 3.6]; // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
@@ -20169,7 +20207,7 @@ function createStoryScene(host, { wagenLage = null } = {}) {
     act(name) {
       // was sich bewegt, rechnet der Tween (Stand für die Logik) und zeigt die Spur (je Bild gezeichnet, glBuehne)
       const t = this.time, eben = (t0, d, ease) => (x) => ease(Math.min(1, Math.max(0, (x - t0) / d)));
-      const hoch = erhoben();
+      const hoch = erhoben(name);
       if (name === 'lamp') { // Arm hoch, Klick, der Strahl wächst zum Himmel
         this.tween(1.1, (k) => { this.arm = 75 + (hoch - 75) * k; }, storyEase, 0.4).then(() => {
           if (this.speed >= 10) { kraft.zurueck(0); laenge.zurueck(0); return; } // übersprungen: kein Klick über dem Ausblenden
@@ -20324,6 +20362,11 @@ function createStoryScene(host, { wagenLage = null } = {}) {
 // DOM-Bühne, Nutzer: Tempo wieder wie am Anfang, Ticket 19)
 const storyEase = (k) => (k < 0.5 ? 4 * k ** 3 : 1 - (2 - 2 * k) ** 3 / 2);
 const storyLinear = (k) => k;
+/** Fall des Lichts aufs Brett (story.fall; Abnahme Ticket 11): kurzer Anlauf (STORY_FLUG.anlauf), dann gleichmässig. */
+const storyFall = (k) => {
+  const a = STORY_FLUG.anlauf;
+  return (k < a ? k * k / (2 * a) : k - a / 2) / (1 - a / 2);
+};
 const storySleep = (ms) => new Promise((r) => setTimeout(r, ms)); // für Übergänge im DOM (CSS läuft in echter Zeit)
 
 /**
@@ -20484,6 +20527,9 @@ const story = {
   gaze: 0,            // Blick in den Himmel, 0 … 1 (updateCamera)
   gazeDir: new THREE.Vector3(0, 1, 0),
   amStern: null,      // Finale: Der Lichtpunkt steht auf diesem Stern des Wagens (1 … 7; update)
+  seit: 0,            // Ende des Finales: Drehung der Kamera um ihre Hochachse (rad, updateCamera; wagenEnde)
+  halt: false,        // das Licht hält über dem Untertitel der Ankunft an und wartet auf Tippen (anhalten)
+  haltAuf: null,      // dabei: wo es von der Kamera aus steht (update hält es dort, auch wenn sie noch gleitet)
   gazeRun: 0,         // zählt die weichen Blickwechsel (gazeTo): ein neuer löst den laufenden ab
   holdEnter: false,   // updateFlow: nach dem Versinken auf die Geschichte warten (sunk)
   running: false,     // eine Zwischenszene läuft
@@ -20825,6 +20871,7 @@ const story = {
     this.running = false;
     this.covered = false; // dahinter der Himmel der Sterne, die Kamera schaut noch zum Polarstern
     this.openMenu({ hervorheben: true });
+    himmelsWagen.sofort(); // hinter der Bühne schon aus (die Sternkarte zeigt den Wagen), ohne Ausblenden
     this.close();
     this.scene.hide();
   },
@@ -21114,8 +21161,10 @@ const story = {
   },
   /** Ende einer Welt (1–5): Die Strahlen steigen zu ihrem Stern, er erwacht, dann die Reise in die nächste. */
   async chapterEnd(next) {
-    const c = this.steps[this.step - 1].c, from = STORY_CHAPTERS[c];
-    await this.ascend(c + 1);
+    const c = this.steps[this.step - 1].c, from = STORY_CHAPTERS[c], ch = STORY_CHAPTERS[next.c];
+    // der Stern erwacht schon dort, wo er gleich über dem Untertitel der Reise steht (Abnahme Ticket 11): Danach
+    // verschiebt sich das Bild nicht mehr
+    await this.ascend(c + 1, { ende: (p) => this.blickAuf(p, this.lichtFuer(this.ankunft(ch))) });
     await this.travel(from, STORY_CHAPTERS[next.c], next.index);
     this.running = false;
   },
@@ -21155,26 +21204,26 @@ const story = {
    * eben geweckten Stern, er fliegt in einem Bogen am nächsten, noch schlafenden Stern vorbei (der kurz aufzuckt, zucke)
    * und hinab, und die Kamera folgt ihm (Ticket 05 von .scratch/kleiner-wagen/; STORY_FLUG). Die neue Welt lädt schon
    * beim Abflug; sobald sie da ist, blendet die alte über einen kurzen Moment Nacht in sie hinein, der Wagen bleibt
-   * stehen. Unbemerkt versinkt darunter das alte Feld. Zuletzt fällt das Licht aufs neue Brett. In der Mitte steht
-   * dazu, wohin die Reise geht, die Leiste am Rand; darüber steht das Licht (lichtHoch).
+   * stehen. Unbemerkt versinkt darunter das alte Feld. In der Mitte steht dazu, wohin die Reise geht, die Leiste am
+   * Rand; darüber steht das Licht (lichtHoch). Am Ende des Bogens hält es dort an und wartet auf Tippen (anhalten,
+   * Abnahme Ticket 11), dann fällt es aufs neue Brett.
    */
   async travel(from, ch, index) {
     const fl = this.flare, carrier = this.carrier, n = STORY_CHAPTERS.indexOf(ch) + 1, F = STORY_FLUG;
     carrier.start(from.carrier, fl.position);
-    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: `Kapitel ${n} · ${ch.title}`, text: ch.travel, path: ch.station, neu: true }));
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, this.ankunft(ch)));
     // Der geweckte Stern ist Stern n − 1, der nächste Stern n (der der neuen Welt). Das Licht bleibt bei ihm, während
-    // der Träger es aufnimmt; der Blick senkt sich dabei so weit, dass es über dem Untertitel steht
+    // der Träger es aufnimmt; es steht schon über dem Untertitel (der Blick des Aufstiegs, chapterEnd)
     const dist = fl.position.distanceTo(camera.position), stern = himmelsWagen.richtung(n - 1);
     const place = (el, az) => fl.position.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el))
       .multiplyScalar(dist).add(camera.position);
-    let hoch = 0;
+    let hoch = this.lichtHoch();
     this.tween(0.9, (k) => {
       carrier.strength = k;
       for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k;
     });
-    await this.tween(1.0, (k) => {
-      hoch = this.lichtHoch() * k;
+    await this.tween(1.0, () => {
+      hoch = this.lichtHoch();
       fl.position.copy(camera.position).addScaledVector(stern, dist);
       carrier.orb.copy(fl.position);
       this.look(fl.position, hoch);
@@ -21222,6 +21271,7 @@ const story = {
       if (!gezuckt && k >= F.reise.amStern) { gezuckt = true; this.zucke(n, true); }
     });
     if (!gezuckt) this.zucke(n, true);
+    await this.anhalten(); // über dem Untertitel, bis der Spieler tippt (inzwischen versinkt das alte Feld)
     await sunk;
     // blendet die neue Welt noch ein, schwebt das Licht weiter (höchstens 8 s)
     let [az, el1] = ende;
@@ -21267,7 +21317,10 @@ const story = {
    */
   async finale() {
     const P = STORY_PULS, fl = this.flare, sechster = this.steps[this.step].c + 1;
-    await this.ascend(sechster);
+    // er erwacht schon im Blick auf den ganzen Wagen, wie ihn Satz 1 zeigt (Abnahme Ticket 11: kein Nachschieben),
+    // und die Strahlen gehen aus, sobald er wach ist
+    const oben = this.captionVorab({ text: STORY_FINALE[0], tap: IS_TOUCH ? 'Tippen' : 'Klicken' }).cap;
+    await this.ascend(sechster, { ende: () => this.wagenBlick(oben / innerHeight), aus: true });
     // Satz 1: Das Licht geht im sechsten Stern auf, der Blick gleitet zum ganzen Wagen über dem Untertitel
     this.amStern = sechster;
     await this.caption(STORY_FINALE[0], (cap) => {
@@ -21291,13 +21344,13 @@ const story = {
     this.aim(this.answer, star, hit, WHITE);
     audio.hit(7, 0, { octave: 2, gain: 0.06 });
     audio.hit(7, 0.3, { gain: 0.05 });
-    // der Strahl fällt immer schneller, die Kamera folgt seiner Spitze bis aufs Brett (vom Blick auf den ganzen Wagen
-    // weich zu ihr)
+    // der Strahl fällt immer schneller aus dem Bild, das gerade steht (Abnahme Ticket 11: kein Blick zum Polarstern
+    // davor); erst wenn seine Spitze tief unter die Mitte kommt, folgt ihr die Kamera bis aufs Brett (antwortBlick)
+    const folge = this.antwortBlick(blick);
     await this.tween(2.4, (k) => {
       const u = k * k;
       this.answer.material.uniforms.uHead.value = u;
-      this.look(_storyHead.copy(star).lerp(hit, u));
-      if (k < 0.3) this.gazeDir.lerp(blick, 1 - storyEase(k / 0.3)).normalize();
+      folge(_storyHead.copy(star).lerp(hit, u));
       this.gaze = 1 - THREE.MathUtils.smoothstep(k, 0.8, 1);
     }, storyLinear);
     this.endAscent();
@@ -21316,6 +21369,7 @@ const story = {
     this.tween(3.4, (k) => {
       this.gazeDir.copy(ende.blick);
       this.gaze = k;
+      this.seit = ende.seit * k;
       this.sichtfeld(fov0 + (ende.fov - fov0) * k);
       fl.scale.setScalar(size + (4.5 * weiter - size) * k);
     });
@@ -21368,7 +21422,8 @@ const story = {
       this.el.classList.remove('slow');
       for (const o of [this.answer, this.flare]) o.visible = false;
       this.amStern = null;
-      this.sichtfeld(); // das Finale schaute am Ende weiter (wagenEnde)
+      this.sichtfeld(); // das Finale schaute am Ende weiter und seitlich gedreht (wagenEnde)
+      this.seit = 0;
     }
     this.covered = true;
     for (const shot of shots) {
@@ -21470,8 +21525,12 @@ const story = {
    * Vulkan über der Kraterwand), und er erwacht, sobald die Strahlen ankommen (erwache). Reise und Finale beginnen hier:
    * Die Knöpfe gehen weg, «Menü» und «Neu starten» wirken dort nicht (Review Ticket 05); sie kommen mit dem nächsten
    * Level wieder (fall, begin).
+   * ende(punkt): Blickrichtung, in der die Kamera ankommt (Abnahme Ticket 11): Der Stern steht beim Erwachen schon
+   * dort, wo ihn der folgende Untertitel braucht (Reise: über ihm, lichtFuer; Finale: der ganze Wagen, wagenBlick); auf
+   * dem Weg hinauf gleitet der Blick von der Spitze der Strahlen dorthin. Ohne: genau auf den Stern. aus: Die Strahlen
+   * gehen aus, sobald er wach ist (Finale; am Ende einer Welt nimmt sie der Träger, travel).
    */
-  async ascend(stern) {
+  async ascend(stern, { ende = null, aus = false } = {}) {
     this.running = true;
     flow.state = 'story';
     this.fast = 1;
@@ -21484,6 +21543,7 @@ const story = {
     himmelsWagen.richtung(stern, this.gazeDir);
     const ziel = this.gazeDir.clone(), dist = 72;
     const fl = this.flare, point = fl.position.copy(camera.position).addScaledVector(ziel, dist);
+    const schluss = ende ? ende(point.clone()) : null;
     fl.visible = true;
     fl.material.opacity = 0;
     fl.scale.setScalar(1);
@@ -21498,9 +21558,10 @@ const story = {
       audio.hit(colors[i], 0.15 + i * step, { octave: 2, gain: 0.045 });
       this.tween(rise, (k) => { b.material.uniforms.uHead.value = k; }, storyEase, 0.15 + i * step);
     });
-    // die Kamera folgt der Spitze der mittleren Strahlen hinauf (am Anfang weich vom Brett weg)
+    // die Kamera folgt der Spitze der mittleren Strahlen hinauf (am Anfang weich vom Brett weg) und kommt in schluss an
     this.tween(rise, (k) => {
       this.look(_storyHead.copy(middle).lerp(point, storyEase(k)));
+      if (schluss) this.gazeDir.lerp(schluss, storyEase(k)).normalize();
       this.gaze = THREE.MathUtils.smoothstep(k, 0, 0.3);
     }, storyLinear, 0.15 + (targets.length - 1) * step / 2);
     await this.wait(0.15 + (targets.length - 1) * step + rise);
@@ -21508,6 +21569,10 @@ const story = {
     audio.chord(colors, 0);
     this.pulse();
     this.erwache(stern);
+    if (aus) {
+      this.tween(0.8, (k) => { for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - k; }, storyLinear)
+        .then(() => this.endAscent());
+    }
     await this.tween(1.3, (k) => {
       // am Stern: Er steht in der Richtung von der Kamera aus, die sich leise bewegt (sonst wanderte das Licht von ihm weg)
       fl.position.copy(camera.position).addScaledVector(ziel, dist);
@@ -21523,12 +21588,31 @@ const story = {
    * Blick in den Himmel auf einen Punkt richten (gaze bestimmt, wie weit). hoch: der Punkt steht so weit über der Mitte
    * des Bilds (Anteil der halben Bildhöhe, lichtHoch), der Blick also etwas tiefer.
    */
-  look(point, hoch = 0) {
-    const d = this.gazeDir.copy(point).sub(camera.position).normalize();
-    if (!hoch) return;
+  look(point, hoch = 0) { this.blickAuf(point, hoch, this.gazeDir); },
+  /** Die Blickrichtung von look, ohne den Blick zu setzen (in d). */
+  blickAuf(point, hoch = 0, d = new THREE.Vector3()) {
+    d.copy(point).sub(camera.position).normalize();
+    if (!hoch) return d;
     const el = Math.asin(d.y) - Math.atan(hoch * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     const waag = Math.hypot(d.x, d.z) || 1;
-    d.set(d.x / waag * Math.cos(el), Math.sin(el), d.z / waag * Math.cos(el));
+    return d.set(d.x / waag * Math.cos(el), Math.sin(el), d.z / waag * Math.cos(el));
+  },
+  /**
+   * Antwort des Polarsterns (Finale; Abnahme Ticket 11): Die Kamera bleibt im Blick blick, solange die Spitze seines
+   * Strahls nicht weiter als frei (Anteil der halben Bildhöhe) unter die Mitte fällt; dann senkt sie sich weich mit
+   * ihr, die Spitze bleibt höchstens tief unter der Mitte. Zurück eine Funktion, die zur Spitze (Punkt) den Blick
+   * setzt.
+   */
+  antwortBlick(blick, frei = 0.5, tief = 0.75) {
+    const [azB, elB] = this.winkel(blick), halb = THREE.MathUtils.degToRad(camera.fov / 2);
+    const a = frei * halb, r = (tief - frei) * halb, d = new THREE.Vector3();
+    return (spitze) => {
+      const [azH, elH] = this.winkel(d.copy(spitze).sub(camera.position).normalize(), azB);
+      const x = elB - elH - a; // so weit ist die Spitze unter der freien Zone
+      const senken = x <= 0 ? 0 : x - r * (1 - Math.exp(-x / r)); // stetig und ohne Ruck in der Neigung
+      const w = senken > 0 ? senken / (elB - elH) : 0, az = azB + (azH - azB) * w, el = elB - senken;
+      this.gazeDir.set(Math.sin(az) * Math.cos(el), Math.sin(el), Math.cos(az) * Math.cos(el));
+    };
   },
   /**
    * Stern k des Kleinen Wagens erwacht (Ende einer Welt, sobald die Strahlen ihn erreichen; Ticket 05 von
@@ -21572,11 +21656,12 @@ const story = {
    * (über dem Untertitel). Waagrecht steht der Wagen immer in der Mitte: Er steht hoch am Himmel, und die Kamera hält
    * den Horizont waagrecht (updateCamera), seitlich davon stünde er schräg (bei 60° Höhe für ein Viertel der Bildbreite
    * gut 20° gedreht); senkrecht mitten im freien Platz. feld (Ende des Finales, wagenEnde): statt dessen genau zwischen
-   * oben und unten (Anteile der Höhe), mit dem Sichtfeld fov (Grad). Gerechnet mit einer Kopie der Kamera an ihrem Ort
-   * (wagenKamera), in wenigen Schritten (die Projektion ist nicht linear). Zurück die Blickrichtung (für gazeDir).
+   * oben und unten (Anteile der Höhe), mit dem Sichtfeld fov (Grad) und der Kamera um seit (rad) um ihre Hochachse
+   * gedreht (wagenEnde). Gerechnet mit einer Kopie der Kamera an ihrem Ort (wagenKamera), in wenigen Schritten (die
+   * Projektion ist nicht linear). Zurück die Blickrichtung (für gazeDir).
    */
   wagenBlick(unten = 1, feld = null) {
-    const H = himmelsWagen, cam = this.wagenKamera(feld?.fov);
+    const H = himmelsWagen, cam = this.wagenKamera(feld?.fov), seit = feld?.seit ?? 0;
     const Hb = innerHeight, r = STORY_PULS.rand * Math.min(innerWidth, Hb), y1 = 1 - 2 * (feld ? feld.oben : r / Hb);
     // Feld des Wagens im Bild (NDC, y nach oben)
     const y0 = Math.min(y1, 1 - 2 * (feld ? feld.unten : unten - r / Hb));
@@ -21587,6 +21672,7 @@ const story = {
     const blick = () => new THREE.Vector3(Math.sin(az) * Math.cos(el), Math.sin(el), -Math.cos(az) * Math.cos(el));
     for (let schritt = 0; schritt < 8; schritt++) {
       cam.lookAt(p.copy(cam.position).add(blick()));
+      if (seit) cam.rotateY(seit);
       cam.updateMatrixWorld();
       const ys = sterne.map((d) => p.copy(cam.position).addScaledVector(d, H.mesh.material.uniforms.uAbstand.value)
         .project(cam).y);
@@ -21602,11 +21688,12 @@ const story = {
     if (fov !== null && fov !== undefined) { cam.fov = fov; cam.updateProjectionMatrix(); }
     return cam;
   },
-  /** Wo die sieben Sterne des Wagens am Himmel im Bild stehen, wenn die Kamera nach blick schaut (Sichtfeld fov, Grad):
-   *  Anteile [x, y] von oben links. */
-  wagenImBild(blick, fov) {
+  /** Wo die sieben Sterne des Wagens am Himmel im Bild stehen, wenn die Kamera nach blick schaut (Sichtfeld fov, Grad;
+   *  um seit rad um ihre Hochachse gedreht): Anteile [x, y] von oben links. */
+  wagenImBild(blick, fov, seit = 0) {
     const H = himmelsWagen, cam = this.wagenKamera(fov), p = new THREE.Vector3(), d = new THREE.Vector3();
     cam.lookAt(p.copy(cam.position).add(blick));
+    if (seit) cam.rotateY(seit);
     cam.updateMatrixWorld();
     return wagen.form.map((_, i) => {
       p.copy(cam.position).addScaledVector(H.richtung(i + 1, d), H.mesh.material.uniforms.uAbstand.value).project(cam);
@@ -21615,26 +21702,39 @@ const story = {
   },
   /**
    * Ende des Finales, Wagen in Wagen (Ticket 07 von .scratch/kleiner-wagen/): Blick und Sichtfeld der Kamera (fov,
-   * Grad), in denen der ganze Wagen am Himmel dort steht, wo die Bühne Platz für ihn hat (scene.wagenFeld): waagrecht
-   * mittig, senkrecht mitten im Platz (wagenBlick), höchstens BUEHNENWAGEN.feld.hoehe des Platzes hoch und nicht
-   * breiter als der Platz. Ist er dafür mit dem Sichtfeld des Spiels (kameraSichtfeld) zu gross, schaut die Kamera am
-   * Ende weiter. sterne: wo seine sieben Sterne dann im Bild stehen (Anteile von oben links); genau dort legt die Bühne
-   * ihren Wagen hin (scene.wagenLegen), im ersten Bild des Epilogs.
+   * Grad), in denen der ganze Wagen am Himmel dort steht, wo die Bühne Platz für ihn hat (scene.wagenFeld):
+   * senkrecht mitten im Platz (wagenBlick), höchstens BUEHNENWAGEN.feld.hoehe des Platzes hoch und breite so breit,
+   * waagrecht bei lage im Platz (Abnahme Ticket 11: weiter rechts, Noa leuchtet weniger steil). Ist er dafür mit dem
+   * Sichtfeld des Spiels (kameraSichtfeld) zu gross, schaut die Kamera am Ende weiter. Seitlich der Mitte stünde er
+   * schräg (wagenBlick): Darum dreht sich die Kamera dafür um ihre eigene Hochachse (seit, rad; updateCamera), dann
+   * bleibt er aufrecht. Den Horizont, der sich dabei neigte, sieht man am Ende des Finales nicht (die Kamera schaut hoch
+   * in den Himmel der Sterne). sterne: wo seine sieben Sterne dann im Bild stehen (Anteile von oben links); genau dort
+   * legt die Bühne ihren Wagen hin (scene.wagenLegen), im ersten Bild des Epilogs.
    */
   wagenEnde() {
     const sc = this.scene ??= this.makeScene(), feld = sc.wagenFeld(), fov0 = kameraSichtfeld(camera.aspect);
-    const masse = (sterne) => [0, 1].map((k) => {
+    const B = BUEHNENWAGEN.feld, breit = feld.rechts - feld.links, rad = THREE.MathUtils.degToRad;
+    const spanne = (sterne, k) => {
       const v = sterne.map((s) => s[k]);
-      return Math.max(...v) - Math.min(...v);
-    });
+      return [Math.min(...v), Math.max(...v)];
+    };
+    const masse = (sterne) => [0, 1].map((k) => ((a, b) => b - a)(...spanne(sterne, k)));
     const [b0, h0] = masse(this.wagenImBild(this.wagenBlick(1, { ...feld, fov: fov0 }), fov0));
-    const platz = [2 * Math.min(0.5 - feld.links, feld.rechts - 0.5),
-      BUEHNENWAGEN.feld.hoehe * (feld.unten - feld.oben)];
+    const platz = [B.breite * breit, B.hoehe * (feld.unten - feld.oben)];
     // so viel weiter: Der Wagen wird kleiner, wie tan(fov / 2) wächst (nie enger, höchstens dreimal so weit)
     const f = THREE.MathUtils.clamp(Math.max(b0 / platz[0], h0 / platz[1]), 1, 3) || 1;
-    const fov = 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(THREE.MathUtils.degToRad(fov0 / 2)) * f));
-    const blick = this.wagenBlick(1, { ...feld, fov });
-    return { blick, fov, sterne: this.wagenImBild(blick, fov) };
+    const fov = 2 * THREE.MathUtils.radToDeg(Math.atan(Math.tan(rad(fov0 / 2)) * f));
+    // waagrecht: die Kamera so weit um ihre Hochachse gedreht, dass die Mitte des Wagens bei lage im Platz steht (ein
+    // paar Schritte, die Projektion ist nicht linear; senkrecht danach neu eingepasst)
+    const tanH = Math.tan(rad(fov / 2)) * camera.aspect, ndc = (x) => Math.atan((2 * x - 1) * tanH);
+    let seit = 0, blick = this.wagenBlick(1, { ...feld, fov }), sterne = this.wagenImBild(blick, fov);
+    for (let schritt = 0; schritt < 4; schritt++) {
+      const [x0, x1] = spanne(sterne, 0), ziel = feld.links + (x1 - x0) / 2 + B.lage * (breit - (x1 - x0));
+      seit += ndc(ziel) - ndc((x0 + x1) / 2);
+      blick = this.wagenBlick(1, { ...feld, fov, seit });
+      sterne = this.wagenImBild(blick, fov, seit);
+    }
+    return { blick, fov, seit, sterne };
   },
   /** Sichtfeld der Kamera (Grad; ohne: wie sonst in diesem Format, kameraSichtfeld), am Ende des Finales weiter. */
   sichtfeld(fov = kameraSichtfeld(camera.aspect)) {
@@ -21679,9 +21779,7 @@ const story = {
     H.zeige({ wach: H.stand.wach, linien: alle }, H.stand.welt);
     await this.tween(D.zug, (x) => {
       H.anteil[i] = storyEase(x);
-      H.glanz[k - 2] = 0.6 * (1 - x); // am Fuss der Deichsel springt er ab
-      // das Licht verlässt den sechsten Stern: Die Strahlen der Ziele verblassen
-      for (const b of this.beams) b.material.uniforms.uStrength.value = 1 - x;
+      H.glanz[k - 2] = 0.6 * (1 - x); // am Fuss der Deichsel springt er ab (die Strahlen sind schon aus, ascend)
     }, storyLinear, D.ab);
     // der Polarstern flammt auf
     H.zeige({ wach: wagen.form.map((_, j) => j + 1), linien: alle }, null);
@@ -21731,8 +21829,10 @@ const story = {
    * (im ersten Kapitel die Glühwürmchen des Prologs, sonst der der Welt davor), fliegt mit ihm von der Seite heran, am
    * schlafenden Stern dieser Welt vorbei, der kurz aufzuckt (Ticket 05 von .scratch/kleiner-wagen/), und es fällt aufs
    * Brett; ins Dorf ohne Träger und ohne Stern, tief über dem Horizont. Dazu der Untertitel mit Kapitel und Leiste wie
-   * auf der Reise. Bis der Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im Himmel der Welt
-   * davor); schaut sie schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist versunken (begin).
+   * auf der Reise; über ihm hält das Licht an, bis der Spieler tippt (anhalten, Abnahme Ticket 11), und fällt dann
+   * gleichmässig aufs Brett. Bis der Himmel der Welt geladen ist, bleibt die Kamera, wo sie war (nach dem Menü im
+   * Himmel der Welt davor); schaut sie schon in den Himmel, schwenkt sie weich zum Licht. sunk: ein altes Feld ist
+   * versunken (begin).
    * wie: was der Welt ch sonst entnommen wird (Einstieg ins Dorf: STORY_DORF.einstieg, ohne Träger): kicker, text, path
    * (Station), traeger (STORY_CARRIERS oder null), moment (gesehen, sobald das Level wächst).
    * «Überspringen» oder Esc (Entscheid 10) bis dahin: weich landen (land), ohne Schnitt.
@@ -21780,7 +21880,8 @@ const story = {
     };
     follow(0);
     this.gaze = 1;
-    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el, { kicker, text, path }));
+    this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
+      { kicker, text, path, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: true }));
     let gezuckt = !stern;
     await this.tween(F.einstieg.dauer, (k) => {
       place(weg(k));
@@ -21788,6 +21889,8 @@ const story = {
       follow(k);
       if (!gezuckt && k >= F.einstieg.amStern) { gezuckt = true; this.zucke(stern); }
     }, storyEase, 0, e);
+    if (e.skip) { await this.land(index, moment, sunk); return; }
+    await this.anhalten(e); // über dem Untertitel, bis der Spieler tippt (Abnahme Ticket 11)
     if (e.skip) { await this.land(index, moment, sunk); return; }
     await sunk;
     if (e.skip) { await this.land(index, moment, sunk); return; }
@@ -21797,7 +21900,8 @@ const story = {
    * Der Lichtpunkt fällt von from aufs Brett, die Kamera folgt ihm; ein Träger zerstreut sich, das Level wächst, der
    * Moment (Einstieg in eine Welt, ins Dorf; sonst die Welt des Platzes) ist gesehen. e: im Einstieg (enter) dessen
    * Zustand: Bis das Level wächst, lässt er sich überspringen (land). hoch: so weit stand das Licht bisher über der
-   * Mitte des Bilds (look); es kommt im Fallen in die Mitte.
+   * Mitte des Bilds (look); es kommt im Fallen in die Mitte. Es fällt gleichmässig, ohne vor dem Brett abzubremsen
+   * (storyFall, Abnahme Ticket 11).
    */
   async fall(index, from, moment = storyChapterId(this.chapter()), e = null, hoch = 0) {
     const fl = this.flare, carrier = this.carrier, to = new THREE.Vector3(0, BEAM_Y, 0), size = fl.scale.x;
@@ -21823,7 +21927,7 @@ const story = {
         this.see(moment); // hier beginnt das erste Level dieser Welt: ihr Einstieg ist gesehen
       }
       if (!closed && k > 0.8) { closed = true; this.close(); } // Untertitel der Reise oder des Einstiegs
-    }, storyEase, 0, e);
+    }, storyFall, 0, e);
     if (!entered) { await this.land(index, moment); return; } // übersprungen, bevor das Level wuchs
     fl.visible = false;
     carrier.stop();
@@ -21883,6 +21987,7 @@ const story = {
       if (e.skip) return;
       e.skip = true;
       this.dropTweens(e); // Flug oder Fall halten an, wo sie sind; enter bzw. fall gehen zu land
+      e.halt?.(); // ebenso das Licht, das über dem Untertitel wartet (anhalten)
       return;
     }
     if (!taste && this.skippable()) this.dorfEnde('uebersprungen');
@@ -21936,9 +22041,8 @@ const story = {
    */
   async caption(text, waehrend = null) {
     const cap = this.el.querySelector('.caption');
-    cap.classList.toggle('warte', !!waehrend);
     const zeigen = this.present('caption', cap,
-      (el) => this.fillCaption(el, { text, tap: IS_TOUCH ? 'Tippen' : 'Klicken' }));
+      (el) => this.fillCaption(el, { text, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: !!waehrend }));
     await Promise.all([zeigen, waehrend?.(cap)]);
     cap.classList.remove('warte');
     await this.untilTap();
@@ -21946,14 +22050,46 @@ const story = {
   /**
    * Untertitel füllen: Kapitel darüber, Leiste unten am Rand (beides nur bei der Ankunft in einer Welt; dann stehen
    * Kicker und Text in der Mitte, .mitte), Aufforderung zum Tippen. neu: auf der Reise (die Leiste zeigt das Erwachen).
+   * warte: die Aufforderung bleibt verborgen (ihr Platz bleibt), bis das, worauf der Satz wartet, fertig ist (Finale)
+   * bzw. das Licht über ihm anhält (anhalten).
    */
-  fillCaption(el, { kicker = '', text, path, tap = '', neu = false }) {
+  fillCaption(el, { kicker = '', text, path, tap = '', neu = false, warte = false }) {
     el.querySelector('.kicker').textContent = kicker;
     el.querySelector('.text').textContent = text;
     el.classList.toggle('mitte', path !== undefined);
+    el.classList.toggle('warte', warte);
     this.fillPath(el.querySelector('.path'), path, neu);
     el.querySelector('.tap').textContent = tap;
     this.licht = null; // neu messen (lichtHoch)
+  },
+  /** Untertitel der Ankunft in der Welt ch auf der Reise (travel; fillCaption). */
+  ankunft(ch) {
+    return { kicker: `Kapitel ${STORY_CHAPTERS.indexOf(ch) + 1} · ${ch.title}`, text: ch.travel, path: ch.station,
+      neu: true, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: true };
+  },
+  /**
+   * Ankunft in einer Welt (Abnahme Ticket 11): Das Licht hält über dem Untertitel an, die Aufforderung zum Tippen
+   * erscheint, und es geht erst weiter, wenn der Spieler tippt, klickt oder Enter bzw. die Leertaste drückt; kein
+   * Zeitablauf. Ein Tippen in den ersten STORY_FLUG.halt s galt noch dem Flug (es machte ihn schneller) und zählt
+   * nicht. Das Licht bleibt dabei still im Bild (haltAuf, update). e: Zustand des Einstiegs (enter): «Überspringen»
+   * bzw. Esc beenden den Halt ebenso (skip, e.skip).
+   */
+  async anhalten(e = null) {
+    const cap = this.el.querySelector('.caption'), ab = performance.now();
+    this.halt = true;
+    this.haltAuf = this.flare.position.clone().sub(camera.position);
+    this.fast = 1;
+    cap.classList.remove('warte');
+    while (!e?.skip) {
+      const getippt = this.untilTap();
+      await (e ? Promise.race([getippt, new Promise((weiter) => { e.halt = weiter; })]) : getippt);
+      if (performance.now() - ab >= STORY_FLUG.halt * 1000) break;
+    }
+    if (e) e.halt = null;
+    this.waitTap = null;
+    this.halt = false;
+    this.haltAuf = null;
+    cap.querySelector('.tap').textContent = ''; // getippt: die Aufforderung geht sofort (ohne Höhe, nichts rückt)
   },
   /**
    * So weit über der Mitte des Bilds steht das Licht, solange der Untertitel steht (Anteil der halben Bildhöhe, wie
@@ -21965,12 +22101,35 @@ const story = {
     const cap = this.el.querySelector('.caption');
     if (this.el.dataset.mode !== 'caption' || !cap.classList.contains('mitte')) return STORY_FLUG.licht;
     if (this.licht === null || this.lichtBei !== innerHeight) {
-      const oben = (cap.querySelector('.kicker:not(:empty)') ?? cap.querySelector('.text')).getBoundingClientRect().top;
-      this.licht = THREE.MathUtils.clamp(1 - oben / innerHeight, 0, 0.9);
+      this.licht = this.lichtUeber(this.oberkante(cap).oben);
       this.lichtBei = innerHeight;
     }
     return this.licht;
   },
+  /** lichtHoch zu einem Kicker (bzw. Text) mit der Oberkante oben (px). */
+  lichtUeber(oben) { return THREE.MathUtils.clamp(1 - oben / innerHeight, 0, 0.9); },
+  /** Oberkante (px von oben) des Untertitels cap (cap) und seines Kickers bzw. Texts (oben). */
+  oberkante(cap) {
+    return { cap: cap.getBoundingClientRect().top,
+      oben: (cap.querySelector('.kicker:not(:empty)') ?? cap.querySelector('.text')).getBoundingClientRect().top };
+  },
+  /**
+   * Wo ein Untertitel mit inhalt (wie fillCaption) stünde, bevor er steht (oberkante), gemessen an einer verborgenen
+   * Kopie: Der Blick des Aufstiegs kommt schon so an, wie ihn der folgende Untertitel braucht (Abnahme Ticket 11).
+   */
+  captionVorab(inhalt) {
+    const kopie = this.el.querySelector('.caption').cloneNode(true), licht = this.licht;
+    this.fillCaption(kopie, inhalt);
+    this.licht = licht;
+    kopie.classList.remove('swap');
+    kopie.style.cssText = 'display: flex; visibility: hidden; pointer-events: none';
+    this.el.append(kopie);
+    const r = this.oberkante(kopie);
+    kopie.remove();
+    return r;
+  },
+  /** lichtHoch für den Untertitel mit inhalt, bevor er steht (captionVorab). */
+  lichtFuer(inhalt) { return this.lichtUeber(this.captionVorab(inhalt).oben); },
   /** Untertitel zeigen; ein schon offener wechselt seinen Inhalt mit kurzem Überblenden. */
   async present(mode, el, fill) {
     const shown = !this.el.classList.contains('hidden') && this.el.dataset.mode === mode;
@@ -22126,6 +22285,11 @@ const story = {
     if (this.amStern) {
       this.flare.position.copy(camera.position)
         .addScaledVector(himmelsWagen.richtung(this.amStern, _storyDir), STORY_PULS.abstand);
+    }
+    // im Halt über dem Untertitel ebenso: Es steht still im Bild, auch wenn die Kamera noch gleitet (anhalten)
+    if (this.haltAuf) {
+      this.flare.position.copy(camera.position).add(this.haltAuf);
+      this.carrier?.orb.copy(this.flare.position);
     }
     if (this.blend) this.blendSky();
     if (!this.tweens.length) return;
@@ -23171,7 +23335,7 @@ function animate(t, dt) {
 
   updateFlow(dt);
   story.update(dt);
-  himmelsWagen.update(t); // nach story.update: Tag oder Nacht aus dem Himmel, wie ihn blendSky mischt
+  himmelsWagen.update(t, dt); // nach story.update: Tag oder Nacht aus dem Himmel, wie ihn blendSky mischt
   celebration.update(dt, t);
   animateRotations(dt);
   for (const obj of game.objects.values()) {
