@@ -24,6 +24,7 @@ fertig gemacht und abgenommen.
       Die Karte hatte nur warmes Abendlicht, das in den Rillen mitläuft. Das reicht nicht. Zeig dem Nutzer
       Vorschläge, zum Beispiel: Die Strausseneier auf den Türmchen glühen auf, Staub rieselt aus den Rillen, die
       Palmholzbalken werfen kurz lange Schatten, oder ein Schwarm Schwalben steigt auf.
+      Die Bildfolge vom 06.11.2026 zeigt den heutigen Stand: https://claude.ai/artifact/SobbUb4scUxKp3dH7FVfqM.
       Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Fall des Lichts beim Einstieg in die Wüste, Lösen). Dazu kommen die Messwerte

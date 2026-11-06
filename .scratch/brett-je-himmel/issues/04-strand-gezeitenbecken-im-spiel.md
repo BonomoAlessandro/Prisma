@@ -41,6 +41,11 @@ So sieht es aus (Karte 6 im Katalog, Hauptbild):
       - Das Brett hat seine eigene Lichtwelle, wie in der Karte: Licht läuft über den Stein, und in der Rinne zieht ein
         Schwall mit Schaum rundum, der danach wieder still wird. Sie kommt als Bildfolge oder kurzes Video auf die
         Vorschauseite (Wunsch des Nutzers vom 06.11.2026).
+      - Befund aus der Bildfolge vom 06.11.2026 (https://claude.ai/artifact/SobbUb4scUxKp3dH7FVfqM): Der Ring wird
+        schwächer, je weiter er läuft (Stärke 0,82 bei 0,7 m, 0,16 bei 4,3 m). In der Rinne, 4,3 bis 4,8 m von der
+        Mitte, kommt der Schwall deshalb fast ohne Kraft an. Die Rinne bekommt darum ihre eigene Zeit: Der Schwall
+        startet, wenn der Ring ankommt, und läuft mit eigener Stärke rundum. Bildfolgen nimmt
+        `lichtwelle/welle-folge.mjs` auf.
       - Das 7×7-Feld bleibt eben, gleich gross und an derselben Stelle.
       - Die Form bleibt innerhalb des Umrisses, und das Brett schwebt.
       - Die Art nennt ihren Kernquader. Mit flacher und ganz herausgezoomter Kamera hat der Himmel keine Löcher.
