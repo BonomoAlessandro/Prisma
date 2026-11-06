@@ -133,6 +133,8 @@ Android-Chromium.
   die fünf Himmel aus Blender (Strand, Wüste, Wald, Dorf, Vulkan); Milchstrasse und Sonnensystem behalten das
   Steinbrett. Die neuen Himmel aus 1.2 bringen ihr Brett später in ihrer `skybox.json` mit. Spec und Tickets:
   `.scratch/brett-je-himmel/` (Grilling vom 05.11.2026), Branch `feature/brett-je-himmel`.
+  - **Stand 06.11.2026:** Tickets 01–04 und 06 fertig (Strand Gezeitenbecken, Wüste Lehmterrasse im Spiel), offen 05,
+    07–10. Übergabe für das Weiterarbeiten: `.scratch/brett-je-himmel/STAND.md`.
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem
