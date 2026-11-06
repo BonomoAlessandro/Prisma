@@ -1,0 +1,647 @@
+<title>Dorfbretter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Musterbuch: je Richtung ein Musterblatt, links das Spielbild mit drei Nebenansichten, rechts Idee und Folgen */
+  :root {
+    --bg: #edf2f0;        /* Meeresdunst */
+    --blatt: #f9fbfa;     /* Musterblatt */
+    --ink: #13292b;       /* tiefes Wasser */
+    --leise: #4f6567;
+    --linie: #c9d7d3;
+    --meer: #137a75;      /* Akzent: Türkis der Bucht */
+    --sand: #a5612f;      /* Hinweise */
+    --sand-grund: #f3e2d2;
+    --meer-grund: #d8ece9;
+    --wasser: #2b7c78;    /* Rand um die Aufsicht, wie das Meer ums Brett (beide Themen) */
+    --f-titel: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mass: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --s0: 0.8125rem; --s1: 0.9375rem; --s2: 1.0625rem; --s3: 1.375rem; --s4: 2rem; --s5: clamp(2.2rem, 5vw, 3.4rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+      --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+    --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font: 400 var(--s1)/1.55 var(--f-text);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .seite { max-width: 1240px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  a { color: var(--meer); text-underline-offset: 0.18em; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--meer); outline-offset: 3px; border-radius: 4px; }
+  .mass { font-family: var(--f-mass); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+
+  /* Kopf */
+  .einstieg { padding-top: 3rem; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: end; }
+  .einstieg h1 { font: 700 var(--s5)/1.02 var(--f-titel); letter-spacing: -0.02em; margin: 0.3rem 0 0; text-wrap: balance; }
+  .eyebrow { font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.08em; text-transform: uppercase; color: var(--meer); margin: 0; }
+  .einstieg p.lead { font-size: var(--s2); max-width: 62ch; margin: 0.9rem 0 0; }
+  .grenzen { margin: 0; padding: 1rem 1.1rem; border: 1px solid var(--linie); border-radius: 10px; background: var(--blatt); font-size: var(--s0); }
+  .grenzen h2 { font: 600 var(--s0)/1.3 var(--f-mass); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.5rem; color: var(--leise); }
+  .grenzen ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+  .legende { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 0.75rem 1.75rem; font-size: var(--s0); color: var(--leise); margin: 0; padding: 0; list-style: none; }
+  .legende li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.6rem; align-items: baseline; }
+  .legende .chip { justify-self: start; }
+  .inhalt { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .inhalt a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0.7rem; border: 1px solid var(--linie); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--blatt); font-size: var(--s0); }
+  .inhalt a b { font-family: var(--f-mass); font-weight: 500; color: var(--meer); }
+  .inhalt a:hover { border-color: var(--meer); }
+
+  /* Karten */
+  .karte { background: var(--blatt); border: 1px solid var(--linie); border-radius: 14px; padding: clamp(1rem, 2.5vw, 1.75rem);
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-areas: "kopf kopf" "bilder text"; gap: 1.1rem 1.75rem; scroll-margin-top: 1rem; }
+  .karte.heute { background: transparent; border-style: dashed; }
+  .kopf { grid-area: kopf; display: flex; gap: 1rem; align-items: center; }
+  .nr { font: 700 2.6rem/1 var(--f-titel); color: var(--meer); min-width: 1.4ch; text-align: center; }
+  .art { margin: 0; font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); }
+  .kopf h2 { margin: 0.15rem 0 0; font: 700 var(--s4)/1.1 var(--f-titel); letter-spacing: -0.01em; text-wrap: balance; }
+  .bilder { grid-area: bilder; display: grid; gap: 0.6rem; min-width: 0; }
+  .streifen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+  figure { margin: 0; display: grid; gap: 0.3rem; min-width: 0; }
+  figcaption { font-size: var(--s0); color: var(--leise); }
+  .zoom { all: unset; cursor: zoom-in; display: block; border-radius: 8px; overflow: hidden; background: var(--linie); }
+  .zoom img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.25s ease; }
+  .neben .zoom img { aspect-ratio: 16 / 10; }
+  .oben .zoom img { object-fit: contain; background: var(--wasser); }
+  .zoom:hover img { transform: scale(1.02); }
+  .text { grid-area: text; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+  .idee { margin: 0; font-size: var(--s2); }
+  .behaelt { margin: 0; display: grid; gap: 0.55rem; }
+  .behaelt div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.75rem; padding-top: 0.55rem; border-top: 1px solid var(--linie); }
+  .behaelt dt { font: 500 var(--s0)/1.5 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); }
+  .behaelt dd { margin: 0; }
+  .behaelt .welle dt { color: var(--meer); }
+  .hinweise { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; font-size: var(--s1); }
+  .chip { display: inline-block; font: 500 0.75rem/1.2 var(--f-mass); letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 5px;
+    color: var(--sand); background: var(--sand-grund); white-space: nowrap; }
+  .chip-pinsel, .chip-teile, .chip-mehr { color: var(--meer); background: var(--meer-grund); }
+  .vorbilder { margin: 0; font-size: var(--s0); line-height: 1.7; }
+  .label { font: 500 var(--s0)/1 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin-right: 0.35rem; }
+  .fuss { font-size: var(--s0); color: var(--leise); max-width: 75ch; }
+
+  /* Grossansicht */
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; }
+  dialog::backdrop { background: rgb(5 14 15 / 0.82); }
+  dialog figure { gap: 0.5rem; }
+  dialog img { max-width: 100%; max-height: 86vh; width: auto; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+  dialog figcaption { color: #e2ecea; text-align: center; }
+  dialog .zu { position: absolute; top: 0.5rem; right: 0.5rem; font: 600 var(--s1)/1 var(--f-text); background: rgb(13 24 25 / 0.75); color: #e2ecea;
+    border: 1px solid rgb(226 236 234 / 0.3); border-radius: 999px; padding: 0.45rem 0.8rem; cursor: pointer; }
+
+  @media (max-width: 860px) {
+    .einstieg { grid-template-columns: minmax(0, 1fr); padding-top: 2rem; }
+    .karte { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kopf" "bilder" "text"; }
+    .behaelt div { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .zoom img { transition: none; } .zoom:hover img { transform: none; } }
+</style>
+
+<div class="seite">
+  <header class="einstieg">
+    <div>
+      <p class="eyebrow">Prisma · Ein Brett je Himmel · Noas Dorf bei Nacht</p>
+      <h1>Dorfbretter</h1>
+      <p class="lead">Acht Richtungen aus Noas Welt, die weder dem Gezeitenbecken noch der Lehmterrasse ähneln:
+        gebaut (der Holzboden einer Laube, ein Dorfplatz nach dem Regen, ein Kachelofen), aus Noas Sachen (ein Quilt,
+        ein Hochbeet, eine alte Spieltruhe) und aus Licht (ein Kirchenfenster, eine Himmelslaterne). Im Dorf sehen neue
+        Spieler das Brett zum ersten Mal, achte deshalb besonders auf die Lesbarkeit. Jedes Bild stammt aus dem Spiel,
+        dasselbe Level, das Brett zur Laufzeit eingesetzt. Wähle eine Richtung, gern mit Änderungswünschen.</p>
+    </div>
+    <section class="grenzen" aria-labelledby="grenzen-titel">
+      <h2 id="grenzen-titel">Bleibt in jeder Richtung gleich</h2>
+      <ul>
+        <li>Das 7×7-Feld: eben, <span class="mass">8,4 × 8,4 m</span>, an derselben Stelle.</li>
+        <li>Form frei innerhalb von <span class="mass">9,8 × 9,8 m</span>; das Brett schwebt <span class="mass">4 m</span> über dem Grund.</li>
+        <li>Licht, Sockel, Drehteller und Prismenteller wie heute.</li>
+        <li>Lichtwelle beim Lösen auf jedem Brett.</li>
+      </ul>
+    </section>
+  </header>
+
+  <nav aria-label="Karten">
+    <ul class="inhalt">
+      <li><a href="#heute"><b>·</b> Heute</a></li>
+      <li><a href="#laube"><b>1</b> Laube</a></li>
+      <li><a href="#quilt"><b>2</b> Flickendecke</a></li>
+      <li><a href="#platz"><b>3</b> Dorfplatz nach dem Regen</a></li>
+      <li><a href="#hochbeet"><b>4</b> Hochbeet</a></li>
+      <li><a href="#glas"><b>5</b> Buntes Glas</a></li>
+      <li><a href="#laterne"><b>6</b> Himmelslaterne</a></li>
+      <li><a href="#ofen"><b>7</b> Kachelofen</a></li>
+      <li><a href="#spielbrett"><b>8</b> Altes Spielbrett</a></li>
+    </ul>
+  </nav>
+
+  <ul class="legende" aria-label="Hinweise auf den Karten">
+    <li><span class="chip chip-blender">Form aus Blender</span> <span>Die Richtung braucht eine Form aus Blender oder wird damit deutlich schöner.</span></li>
+    <li><span class="chip chip-kern">Kernquader kleiner</span> <span>Deckt den Quader des Bretts nicht ganz undurchsichtig. Der Himmel muss dahinter zeichnen (Kernquader, Ticket 01).</span></li>
+    <li><span class="chip chip-teile">Viele kleine Teile</span> <span>Bewuchs oder Halme aus vielen kleinen Körpern. Auf dem Handy zu messen.</span></li>
+    <li><span class="chip chip-mehr">Echt wäre teurer</span> <span>Das Bild täuscht einen Stoff vor, der echt gerechnet mehr kosten würde.</span></li>
+  </ul>
+
+  
+    <article class="karte heute" id="heute">
+      <header class="kopf">
+        
+        <div>
+          <p class="art">Heute</p>
+          <h2>Steinbrett im Dorf</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/stein-schraeg.jpg" data-text="Steinbrett im Dorf: Im Spiel" aria-label="Steinbrett im Dorf: Im Spiel gross zeigen">
+            <img src="bilder/stein-schraeg.jpg" alt="Steinbrett im Dorf: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/stein-oben.jpg" data-text="Steinbrett im Dorf: Aufsicht" aria-label="Steinbrett im Dorf: Aufsicht gross zeigen">
+            <img src="bilder/stein-oben.jpg" alt="Steinbrett im Dorf: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/stein-flach.jpg" data-text="Steinbrett im Dorf: Flacher Blick: Seiten und Kante" aria-label="Steinbrett im Dorf: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/stein-flach.jpg" alt="Steinbrett im Dorf: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/stein-welle.jpg" data-text="Steinbrett im Dorf: Lichtwelle beim Lösen" aria-label="Steinbrett im Dorf: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/stein-welle.jpg" alt="Steinbrett im Dorf: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das heutige Brett unter Noas Nachthimmel: dunkler Schiefer mit eingravierten Rasterlinien, heller Einlegelinie, polierten Seiten und Metallkante.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert, fein.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Helle, matte Linie knapp ausserhalb des Felds.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, poliert.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein heller Ring in der Mischfarbe der Ziele läuft von der Mitte bis über die Ecken.</dd></div>
+          
+        </dl>
+        
+        
+      </div>
+    </article>
+
+    <article class="karte" id="laube">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">1</span>
+        <div>
+          <p class="art">Variante 1 · Gebaut: Holzboden am Chalet</p>
+          <h2>Laube</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/laube-schraeg.jpg" data-text="Laube: Im Spiel" aria-label="Laube: Im Spiel gross zeigen">
+            <img src="bilder/laube-schraeg.jpg" alt="Laube: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/laube-oben.jpg" data-text="Laube: Aufsicht" aria-label="Laube: Aufsicht gross zeigen">
+            <img src="bilder/laube-oben.jpg" alt="Laube: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/laube-flach.jpg" data-text="Laube: Flacher Blick: Seiten und Kante" aria-label="Laube: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/laube-flach.jpg" alt="Laube: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/laube-welle.jpg" data-text="Laube: Lichtwelle beim Lösen" aria-label="Laube: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/laube-welle.jpg" alt="Laube: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist der Holzboden der Laube an einem Chalet wie Noas Haus. Breite Lärchendielen, je drei auf ein Feld, enden an den Feldgrenzen und sind dort genagelt. Im Rand liegt ein Rahmen aus Brettern auf Gehrung. Darunter hängt die Brüstung aus ausgesägten Brettern mit Herzen und Tulpen, aussen stehen Kisten mit roten Geranien wie unter Noas Fenstern.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die breiteren Fugen, wo die Dielen enden und wo jede dritte Diele anstösst.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, eine hellere Abschlussleiste rahmt das Feld.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, das Holz ist roh.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Warmes Lampenlicht der Stube scheint von unten durch die Fugen, das ganze Raster leuchtet auf.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet. Die Brüstung ist eine Textur mit ausgesägten Löchern, Balkenköpfe und Kisten sind einfache Körper.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Der Boden ist nur 6 cm dick, darunter sieht man durch die Brüstung. Der Kernquader wird flach.</li>
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 1300 Blätter und Blüten in acht Geranienkisten.</li>
+          <li><span class="chip chip-blender">Form aus Blender</span> Die Geranien sind Kugeln. Kleine Blattformen aus Blender wären schöner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Chalet" target="_blank" rel="noopener">Chalet</a> · <a href="https://de.wikipedia.org/wiki/Balkon" target="_blank" rel="noopener">Balkon</a> · <a href="https://de.wikipedia.org/wiki/Europ%C3%A4ische_L%C3%A4rche" target="_blank" rel="noopener">Europäische Lärche</a> · <a href="https://de.wikipedia.org/wiki/Laubs%C3%A4ge" target="_blank" rel="noopener">Laubsäge</a> · <a href="https://de.wikipedia.org/wiki/Pelargonien" target="_blank" rel="noopener">Pelargonien</a> · <a href="https://de.wikipedia.org/wiki/Heidi_(Anime)" target="_blank" rel="noopener">Heidi (Anime)</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="quilt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">2</span>
+        <div>
+          <p class="art">Variante 2 · Andere Form: Stoff</p>
+          <h2>Flickendecke</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/quilt-schraeg.jpg" data-text="Flickendecke: Im Spiel" aria-label="Flickendecke: Im Spiel gross zeigen">
+            <img src="bilder/quilt-schraeg.jpg" alt="Flickendecke: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/quilt-oben.jpg" data-text="Flickendecke: Aufsicht" aria-label="Flickendecke: Aufsicht gross zeigen">
+            <img src="bilder/quilt-oben.jpg" alt="Flickendecke: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/quilt-flach.jpg" data-text="Flickendecke: Flacher Blick: Seiten und Kante" aria-label="Flickendecke: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/quilt-flach.jpg" alt="Flickendecke: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/quilt-welle.jpg" data-text="Flickendecke: Lichtwelle beim Lösen" aria-label="Flickendecke: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/quilt-welle.jpg" alt="Flickendecke: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist Noas Quilt, über einen Kasten gelegt. Die 49 Flicken liegen in Rauten-Ringen um die Mitte wie beim Muster «Sunshine and Shadow», in verblichenen Farben und mit leisen Mustern: uni, Streublümchen, Vichy, Streifen. Jeder Flicken ist gesteppt. Eine weinrote Borte rahmt das Feld, die breite Aussenborte trägt ein gestepptes Kordelmuster. Der Stoff fällt in Falten über die Seiten, an den Ecken tiefer.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Nähte, mit hellem Zierstich.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, die schmale weinrote Borte ersetzt sie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, Stoff spiegelt nicht.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wie die Taschenlampe unter der Decke: Die Flicken leuchten von unten in ihrer eigenen Farbe durch.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, der Fall des Stoffs ist ein Körper aus Ringen. Das Feld bleibt eben, das Steppen ist nur schattiert.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Runde Ecken und ein offener Fall über einem kleineren Kasten: Der Kernquader wird etwas kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Quilt" target="_blank" rel="noopener">Quilt</a> · <a href="https://de.wikipedia.org/wiki/Patchwork" target="_blank" rel="noopener">Patchwork</a> · <a href="https://en.wikipedia.org/wiki/Quilts_of_Gee%27s_Bend" target="_blank" rel="noopener">Quilts of Gee’s Bend</a> · <a href="https://en.wikipedia.org/wiki/Kirby%27s_Epic_Yarn" target="_blank" rel="noopener">Kirby’s Epic Yarn</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="platz">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">3</span>
+        <div>
+          <p class="art">Variante 3 · Gebaut: Pflaster</p>
+          <h2>Dorfplatz nach dem Regen</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/platz-schraeg.jpg" data-text="Dorfplatz nach dem Regen: Im Spiel" aria-label="Dorfplatz nach dem Regen: Im Spiel gross zeigen">
+            <img src="bilder/platz-schraeg.jpg" alt="Dorfplatz nach dem Regen: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/platz-oben.jpg" data-text="Dorfplatz nach dem Regen: Aufsicht" aria-label="Dorfplatz nach dem Regen: Aufsicht gross zeigen">
+            <img src="bilder/platz-oben.jpg" alt="Dorfplatz nach dem Regen: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/platz-flach.jpg" data-text="Dorfplatz nach dem Regen: Flacher Blick: Seiten und Kante" aria-label="Dorfplatz nach dem Regen: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/platz-flach.jpg" alt="Dorfplatz nach dem Regen: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/platz-welle.jpg" data-text="Dorfplatz nach dem Regen: Lichtwelle beim Lösen" aria-label="Dorfplatz nach dem Regen: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/platz-welle.jpg" alt="Dorfplatz nach dem Regen: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Stück Dorfplatz, frisch vom Regen. Das Feld sind 49 Granitplatten, eine je Feld. Im Rand liegt Kopfsteinpflaster, aussen ein Randstein, die Seiten sind Bruchsteinmauer. Alles ist nass und spiegelt, in Senken stehen Pfützen. Hinten rechts steht eine Laterne, hinten links ein Brunnentrog mit Wasser.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die nassen Fugen zwischen den Platten.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Zeile heller Läufersteine.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Stark, die Steine sind nass, Pfützen spiegeln fast wie Glas.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Glanz wie Laternenlicht läuft über die nassen Steine und bleibt in Pfützen und Fugen stehen.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, Laterne und Brunnen sind einfache Körper. Die Laterne ist 3,2 m hoch, in der Spielansicht steht ihr Kopf über dem Bildrand.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-mehr">Echt wäre teurer</span> Die Laterne leuchtet nur selbst. Ihr Schein auf dem Pflaster ist gemalt und noch schwach; ein echtes Licht würde auch die Elemente anders beleuchten.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Kopfsteinpflaster" target="_blank" rel="noopener">Kopfsteinpflaster</a> · <a href="https://de.wikipedia.org/wiki/Granit" target="_blank" rel="noopener">Granit</a> · <a href="https://de.wikipedia.org/wiki/Gaslaterne" target="_blank" rel="noopener">Gaslaterne</a> · <a href="https://de.wikipedia.org/wiki/Dorfbrunnen" target="_blank" rel="noopener">Dorfbrunnen</a> · <a href="https://de.wikipedia.org/wiki/Caf%C3%A9terrasse_am_Abend" target="_blank" rel="noopener">Caféterrasse am Abend</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="hochbeet">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">4</span>
+        <div>
+          <p class="art">Variante 4 · Garten: Erde und Kräuter</p>
+          <h2>Hochbeet</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/hochbeet-schraeg.jpg" data-text="Hochbeet: Im Spiel" aria-label="Hochbeet: Im Spiel gross zeigen">
+            <img src="bilder/hochbeet-schraeg.jpg" alt="Hochbeet: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/hochbeet-oben.jpg" data-text="Hochbeet: Aufsicht" aria-label="Hochbeet: Aufsicht gross zeigen">
+            <img src="bilder/hochbeet-oben.jpg" alt="Hochbeet: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/hochbeet-flach.jpg" data-text="Hochbeet: Flacher Blick: Seiten und Kante" aria-label="Hochbeet: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/hochbeet-flach.jpg" alt="Hochbeet: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/hochbeet-welle.jpg" data-text="Hochbeet: Lichtwelle beim Lösen" aria-label="Hochbeet: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/hochbeet-welle.jpg" alt="Hochbeet: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist das Hochbeet aus Noas Garten. Im Feld liegt frisch gerechte, dunkle Erde, darüber sind Pflanzschnüre zwischen Holzpflöcken gespannt. Im Rand wachsen Kräuter: Schnittlauch mit lila Blüten, Thymian, Ringelblumen und Salat. Die Seiten sind Lärchenbohlen, oben liegt ein Abdeckbrett.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Helle Pflanzschnüre mit kleinem Schatten.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Reihe heller Kiesel.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, Erde ist matt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Glühwürmchen steigen aus Erde und Kräutern auf, wo der Ring vorbeizieht, und schweben nach.</dd></div>
+          <div><dt>Kosten</dt><dd>Erde und Schnüre berechnet; Kräuter und Pflöcke sind einfache Körper, die Glühwürmchen 420 Punkte. Das Abdeckbrett liegt 8 cm über der Erde.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 1800 Halme, Blätter und Blüten. Auf dem Handy zu messen, eventuell gröber.</li>
+          <li><span class="chip chip-blender">Form aus Blender</span> Kräuter und Blüten wären mit kleinen Formen aus Blender deutlich schöner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Hochbeet" target="_blank" rel="noopener">Hochbeet</a> · <a href="https://de.wikipedia.org/wiki/Bauerngarten" target="_blank" rel="noopener">Bauerngarten</a> · <a href="https://de.wikipedia.org/wiki/Schnittlauch" target="_blank" rel="noopener">Schnittlauch</a> · <a href="https://de.wikipedia.org/wiki/Ringelblumen" target="_blank" rel="noopener">Ringelblumen</a> · <a href="https://de.wikipedia.org/wiki/Leuchtk%C3%A4fer" target="_blank" rel="noopener">Leuchtkäfer</a> · <a href="https://en.wikipedia.org/wiki/Stardew_Valley" target="_blank" rel="noopener">Stardew Valley</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="glas">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">5</span>
+        <div>
+          <p class="art">Variante 5 · Kunst: Bleiglasfenster</p>
+          <h2>Buntes Glas</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/glas-schraeg.jpg" data-text="Buntes Glas: Im Spiel" aria-label="Buntes Glas: Im Spiel gross zeigen">
+            <img src="bilder/glas-schraeg.jpg" alt="Buntes Glas: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/glas-oben.jpg" data-text="Buntes Glas: Aufsicht" aria-label="Buntes Glas: Aufsicht gross zeigen">
+            <img src="bilder/glas-oben.jpg" alt="Buntes Glas: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/glas-flach.jpg" data-text="Buntes Glas: Flacher Blick: Seiten und Kante" aria-label="Buntes Glas: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/glas-flach.jpg" alt="Buntes Glas: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/glas-welle.jpg" data-text="Buntes Glas: Lichtwelle beim Lösen" aria-label="Buntes Glas: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/glas-welle.jpg" alt="Buntes Glas: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Bleiglasfenster der Kirche, flach gelegt und von unten erleuchtet, wie das «Stück buntes Glas», mit dem Noa übt. Im Feld liegen 49 Scheiben aus blassem Kathedralglas mit Schlieren und Blasen, eine je Feld. Im Rand läuft eine Borte aus Antikglas in Rubinrot und Kobaltblau mit aufgemalten Ranken, in den Ecken je ein Vierpass. Ein schmaler Eisenrahmen hält das Fenster, das nur 12 cm dick ist.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Bleiruten, mit Lötstellen an den Kreuzungen.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine doppelte Bleirute mit einem Bernsteinstreifen.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, das Glas glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wie Sonne, die durch ein Kirchenfenster bricht: Die Gläser flammen in ihrer Farbe auf und glimmen nach.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet. Das Leuchten ist eine Leuchtkarte, kein echtes Licht. Das Feld ist heller als heute, die Strahlen heben sich etwas weniger ab.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Nur 12 cm dick: Der Kernquader wird flach.</li>
+          <li><span class="chip chip-mehr">Echt wäre teurer</span> Echtes Glas mit Durchsicht und Brechung wäre deutlich teurer.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Bleiverglasung" target="_blank" rel="noopener">Bleiverglasung</a> · <a href="https://de.wikipedia.org/wiki/Kirchenfenster" target="_blank" rel="noopener">Kirchenfenster</a> · <a href="https://de.wikipedia.org/wiki/Fraum%C3%BCnster" target="_blank" rel="noopener">Fraumünster (Chagall-Fenster)</a> · <a href="https://de.wikipedia.org/wiki/Antikglas" target="_blank" rel="noopener">Antikglas</a> · <a href="https://de.wikipedia.org/wiki/Grisaille" target="_blank" rel="noopener">Grisaille</a> · <a href="https://de.wikipedia.org/wiki/Vierpass" target="_blank" rel="noopener">Vierpass</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="laterne">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">6</span>
+        <div>
+          <p class="art">Variante 6 · Andere Form: Papier und Licht</p>
+          <h2>Himmelslaterne</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/laterne-schraeg.jpg" data-text="Himmelslaterne: Im Spiel" aria-label="Himmelslaterne: Im Spiel gross zeigen">
+            <img src="bilder/laterne-schraeg.jpg" alt="Himmelslaterne: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/laterne-oben.jpg" data-text="Himmelslaterne: Aufsicht" aria-label="Himmelslaterne: Aufsicht gross zeigen">
+            <img src="bilder/laterne-oben.jpg" alt="Himmelslaterne: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/laterne-flach.jpg" data-text="Himmelslaterne: Flacher Blick: Seiten und Kante" aria-label="Himmelslaterne: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/laterne-flach.jpg" alt="Himmelslaterne: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/laterne-welle.jpg" data-text="Himmelslaterne: Lichtwelle beim Lösen" aria-label="Himmelslaterne: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/laterne-welle.jpg" alt="Himmelslaterne: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist der Deckel einer grossen Papierlaterne, die Noas Zeichen zu den Sternen trägt. Oben liegt warmes, von innen durchleuchtetes Papier, zur Mitte heller. Im Rand steht ein Scherenschnitt in Schwarz: Tannen, Häuser, Kühe und Herzen, in den Ecken ein Herz mit Lebensbaum. Die Seiten laufen nach unten zusammen und leuchten, mit dem Scherenschnitt des Dorfs samt Kirche und Noa mit der Lampe.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Schatten der Bambusrippen im Papier.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine schwarze Spitzenborte.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Die Flamme lodert auf: Vom Ring aus glüht das Papier heller, der Scherenschnitt bleibt schwarz, die ganze Laterne leuchtet nach.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, die Seiten sind ein Pyramidenstumpf mit Textur, 1,5 m hoch. Das Leuchten ist eine Leuchtkarte, kein echtes Licht.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Die Seiten laufen nach unten zusammen: Der Kernquader wird kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Himmelslaterne" target="_blank" rel="noopener">Himmelslaterne</a> · <a href="https://de.wikipedia.org/wiki/Scherenschnitt" target="_blank" rel="noopener">Scherenschnitt</a> · <a href="https://de.wikipedia.org/wiki/Johann_Jakob_Hauswirth" target="_blank" rel="noopener">Johann Jakob Hauswirth</a> · <a href="https://de.wikipedia.org/wiki/Pays-d%E2%80%99Enhaut" target="_blank" rel="noopener">Pays-d’Enhaut</a> · <a href="https://de.wikipedia.org/wiki/R%C3%A4beliechtli" target="_blank" rel="noopener">Räbeliechtli</a> · <a href="https://de.wikipedia.org/wiki/Lotte_Reiniger" target="_blank" rel="noopener">Lotte Reiniger</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="ofen">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">7</span>
+        <div>
+          <p class="art">Variante 7 · Gebaut: Stube</p>
+          <h2>Kachelofen</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/ofen-schraeg.jpg" data-text="Kachelofen: Im Spiel" aria-label="Kachelofen: Im Spiel gross zeigen">
+            <img src="bilder/ofen-schraeg.jpg" alt="Kachelofen: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/ofen-oben.jpg" data-text="Kachelofen: Aufsicht" aria-label="Kachelofen: Aufsicht gross zeigen">
+            <img src="bilder/ofen-oben.jpg" alt="Kachelofen: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/ofen-flach.jpg" data-text="Kachelofen: Flacher Blick: Seiten und Kante" aria-label="Kachelofen: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/ofen-flach.jpg" alt="Kachelofen: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/ofen-welle.jpg" data-text="Kachelofen: Lichtwelle beim Lösen" aria-label="Kachelofen: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/ofen-welle.jpg" alt="Kachelofen: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist die Sitzfläche eines Kachelofens in der Stube. Im Feld liegen 49 grün glasierte Blattkacheln, eine je Feld, mit gekehltem Rahmen. Die Glasur läuft in Spuren, sammelt sich dunkel in den Kehlen und wird auf den Graten hell. Im Rand liegt die Ofenbank aus Arvenholz. Die Seiten sind kleine Kacheln über einem dunklen Sockel.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Fugen aus grauem Ofenkitt, dazu der Rahmen jeder Kachel.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Reihe schmaler, gewölbter Gesimskacheln.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, die Glasur glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Die Kacheln werden heiss: In der Kehle jeder Kachel glimmt Glut auf, die Glasur wird warm.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet. Der Ofen ist 72 cm tief und deckt das Feld wie heute.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Kachelofen" target="_blank" rel="noopener">Kachelofen</a> · <a href="https://de.wikipedia.org/wiki/Ofenkachel" target="_blank" rel="noopener">Ofenkachel</a> · <a href="https://de.wikipedia.org/wiki/Hafner" target="_blank" rel="noopener">Hafner</a> · <a href="https://de.wikipedia.org/wiki/Craquel%C3%A9" target="_blank" rel="noopener">Craquelé</a> · <a href="https://de.wikipedia.org/wiki/Stube" target="_blank" rel="noopener">Stube</a> · <a href="https://de.wikipedia.org/wiki/Zirbelkiefer" target="_blank" rel="noopener">Zirbelkiefer (Arve)</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="spielbrett">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">8</span>
+        <div>
+          <p class="art">Variante 8 · Gefunden: Spieltruhe</p>
+          <h2>Altes Spielbrett</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/spielbrett-schraeg.jpg" data-text="Altes Spielbrett: Im Spiel" aria-label="Altes Spielbrett: Im Spiel gross zeigen">
+            <img src="bilder/spielbrett-schraeg.jpg" alt="Altes Spielbrett: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/spielbrett-oben.jpg" data-text="Altes Spielbrett: Aufsicht" aria-label="Altes Spielbrett: Aufsicht gross zeigen">
+            <img src="bilder/spielbrett-oben.jpg" alt="Altes Spielbrett: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/spielbrett-flach.jpg" data-text="Altes Spielbrett: Flacher Blick: Seiten und Kante" aria-label="Altes Spielbrett: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/spielbrett-flach.jpg" alt="Altes Spielbrett: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/spielbrett-welle.jpg" data-text="Altes Spielbrett: Lichtwelle beim Lösen" aria-label="Altes Spielbrett: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/spielbrett-welle.jpg" alt="Altes Spielbrett: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist der Deckel einer alten Spieltruhe. Im Feld liegen Intarsien: 49 Felder abwechselnd aus hellem Ahorn und dunklem Nussbaum, die Maserung quer zueinander. Im Rand liegen eine Kordeleinlage, Sterne in den Ecken und in der Mitte jeder Seite ein Mühlespiel mit ein paar Steinen. Schellack glänzt. Die Seiten der Truhe sind grün bemalt, mit Tulpen, Ranken und Rosetten wie in der Bauernmalerei, dazu Messingecken.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Entsteht aus dem Wechsel der Hölzer, mit feiner dunkler Fuge. Kräftiger als heute, die Felder treten stark hervor.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine helle Ahornader.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, der Schellack glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Kerzenschein gleitet über den Schellack, die hellen Felder glimmen warm nach.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet. Deckt das Feld wie heute.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Intarsie" target="_blank" rel="noopener">Intarsie</a> · <a href="https://de.wikipedia.org/wiki/M%C3%BChle_(Spiel)" target="_blank" rel="noopener">Mühle (Spiel)</a> · <a href="https://de.wikipedia.org/wiki/Bauernmalerei" target="_blank" rel="noopener">Bauernmalerei</a> · <a href="https://de.wikipedia.org/wiki/Schellack" target="_blank" rel="noopener">Schellack</a> · <a href="https://de.wikipedia.org/wiki/Truhe" target="_blank" rel="noopener">Truhe</a></p>
+      </div>
+    </article>
+
+  <p class="fuss">Bilder: Spiel im Stand <span class="mass">main 504adbb</span>, <span class="mass">?sky=village</span>,
+    Desktop <span class="mass">1440 × 900</span>, Chrome mit Grafikkarte. Die Bretter sind zur Laufzeit gebaut
+    (Texturen im Browser berechnet, Pflanzen und Beiwerk als einfache Körper), sie zeigen die Richtung, nicht die fertige
+    Gestaltung. Licht, Sockel und Teller sind wie heute; was leuchtet, leuchtet aus sich selbst. Die Skripte, die die
+    Bretter im Spiel bauen, liegen unter <span class="mass">katalog-dorf/bretter/</span>, die Vorbilder unter
+    <span class="mass">vorbilder/dorf.md</span>.</p>
+</div>
+
+<dialog id="gross" aria-label="Bild gross">
+  <figure>
+    <img id="gross-bild" alt="">
+    <figcaption id="gross-text"></figcaption>
+  </figure>
+  <button type="button" class="zu" id="gross-zu">Schliessen</button>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('gross'), img = document.getElementById('gross-bild'), txt = document.getElementById('gross-text');
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.zoom');
+    if (b) {
+      img.src = b.dataset.src; img.alt = b.dataset.text; txt.textContent = b.dataset.text;
+      if (typeof dlg.showModal === 'function') dlg.showModal(); else window.open(b.dataset.src, '_blank');
+      return;
+    }
+    if (e.target === dlg || e.target.id === 'gross-zu') dlg.close();
+  });
+</script>

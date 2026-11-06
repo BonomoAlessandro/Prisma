@@ -143,6 +143,8 @@ Android-Chromium.
     Katalog: https://claude.ai/artifact/NxHnBEMttQfErbf32u96zJ.
   - Am Vulkan gewählt (06.11.2026): **Basaltsäulen** wie am Giant’s Causeway, Glut steigt bei der Lichtwelle in den
     Fugen auf. Katalog: https://claude.ai/artifact/M9QffoMkGcgwSn2geoCjWv.
+  - Im Dorf gewählt (06.11.2026): **Hochbeet** aus Noas Garten, bei der Lichtwelle steigen Glühwürmchen auf.
+    Katalog: https://claude.ai/artifact/6tyN2oGW1VJRwVB3CXNTEG.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen
