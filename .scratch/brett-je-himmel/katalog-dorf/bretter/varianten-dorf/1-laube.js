@@ -146,6 +146,29 @@ __katalog.varianten.laube = async (L) => {
   g.add(V.inst(new T.BoxGeometry(1.7, 0.16, 0.16), kisteMat, kiste.map(([x, y, z, o]) => [x, y, z, o])));
   g.add(V.inst(new T.SphereGeometry(1, 8, 6), new T.MeshStandardMaterial({ color: 0x2c4a22, roughness: 0.8, emissive: 0x0b1608 }), leaf));
   g.add(V.inst(new T.IcosahedronGeometry(1, 0), new T.MeshStandardMaterial({ color: 0xc8243a, roughness: 0.7, emissive: 0x3a0a10 }), bloom));
+  // Lichtwelle: Lampenlicht bricht durch die Fugen; über den Fugen stehen Lichtbahnen, Staub glitzert darin
+  const shaft = L.canvas(64, 256), shx = shaft.getContext('2d');
+  const sgr = shx.createLinearGradient(0, 256, 0, 0);
+  sgr.addColorStop(0, 'rgba(255,205,130,1)'); sgr.addColorStop(0.3, 'rgba(255,180,100,0.5)'); sgr.addColorStop(1, 'rgba(255,170,90,0)');
+  shx.fillStyle = sgr; shx.fillRect(0, 0, 64, 256);
+  const sgh = shx.createLinearGradient(0, 0, 64, 0);
+  sgh.addColorStop(0, 'rgba(0,0,0,0)'); sgh.addColorStop(0.5, 'rgba(0,0,0,1)'); sgh.addColorStop(1, 'rgba(0,0,0,0)');
+  shx.globalCompositeOperation = 'destination-in'; shx.fillStyle = sgh; shx.fillRect(0, 0, 64, 256);
+  const shaftGeo = new T.PlaneGeometry(1, 1); shaftGeo.translate(0, 0.5, 0);
+  const shaftMat = V.waveMat(new T.MeshBasicMaterial({ map: L.tex(shaft), color: new T.Color(1.3, 0.95, 0.6), transparent: true, depthWrite: false, blending: T.AdditiveBlending, side: T.DoubleSide }),
+    { grow: 'max(ring, behind * (1.0 - age) * 0.45)', size: 'mix(0.25, 1.0, vGrow)', width: 3.0, len: 1.6, glow: 'gl_FragColor.rgb *= vGrow * 1.3;' });
+  const shafts = [];
+  for (let k2 = 0; k2 <= 7; k2++) for (let j = 0; j < 14; j++) {
+    const a = -HB + k2 * CELL, b = -HB + 0.3 + j * 0.6;
+    shafts.push([a, 0, b, { ry: Math.PI / 2, s: [0.6, 0.75, 1] }], [b, 0, a, { s: [0.6, 0.75, 1] }]);
+  }
+  g.add(V.waveInst(shaftGeo, shaftMat, shafts));
+  const dust = [];
+  for (let i = 0; i < 520; i++) {
+    const a = -HB + Math.floor(r() * 8) * CELL + (r() - 0.5) * 0.05, b = (r() * 2 - 1) * HB, y = 0.03 + r() * 0.35;
+    dust.push(r() < 0.5 ? [a, y, b, 1, 0.8, 0.5] : [b, y, a, 1, 0.8, 0.5]);
+  }
+  g.add(V.sparks(dust, { rise: 0.45, px: 9, width: 3, keep: 0.55 }));
   D.scene.add(g);
   return 'Laube';
 };

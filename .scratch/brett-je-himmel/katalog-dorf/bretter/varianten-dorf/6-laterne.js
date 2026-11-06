@@ -118,6 +118,14 @@ __katalog.varianten.laterne = async (L) => {
   }
   const flame = new T.Mesh(new T.SphereGeometry(0.22, 16, 10), new T.MeshBasicMaterial({ color: new T.Color(3, 1.8, 0.7) }));
   flame.position.y = -H + 0.1; flame.scale.y = 1.4; g.add(flame);
+  // Lichtwelle: wo der Ring vorbeizieht, lösen sich kleine Himmelslaternen und steigen auf; weiter hinten verlöschen sie
+  const lanG = new T.CylinderGeometry(0.075, 0.055, 0.14, 4, 1, false, Math.PI / 4); lanG.translate(0, 0.07, 0);
+  const lanMat = V.waveMat(new T.MeshStandardMaterial({ color: 0xffd8a0, roughness: 0.9, emissive: new T.Color(1.6, 0.68, 0.2) }),
+    { grow: 'max(ring, behind * (1.0 - age))', size: 'min(1.0, vGrow * 1.8)', lift: 'age * (1.4 + seed * 0.9) + ring * 0.05', width: 2.6, len: 2.7,
+      glow: 'gl_FragColor.rgb *= 0.45 + vGrow * 0.75;' });
+  const lan = [];
+  for (let i = 0; i < 190; i++) lan.push([(r() * 2 - 1) * (HP - 0.2), 0.01, (r() * 2 - 1) * (HP - 0.2), { ry: r() * 6.3, s: 1.1 + r() * 0.6 }]);
+  g.add(V.waveInst(lanG, lanMat, lan));
   D.scene.add(g);
   return 'Himmelslaterne';
 };

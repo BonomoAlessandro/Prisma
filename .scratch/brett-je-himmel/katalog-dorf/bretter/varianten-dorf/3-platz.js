@@ -123,6 +123,23 @@ __katalog.varianten.platz = async (L) => {
   add(new T.BoxGeometry(0.2, 1.15, 0.2), trogMat, TX, 0.575, TZ0 - 0.0 + 0.12);
   const pipe = add(new T.CylinderGeometry(0.018, 0.018, 0.34, 8), iron, TX, 0.86, TZ0 + 0.32);
   pipe.rotation.x = Math.PI / 2 - 0.15;
+  // Lichtwelle: ein kurzer Schauer zieht mit dem Ring; Tropfen schlagen auf, Ringe laufen aus und glänzen
+  const rip = L.canvas(128), rx2 = rip.getContext('2d');
+  rx2.clearRect(0, 0, 128, 128);
+  for (const [rr, a, w] of [[58, 0.9, 3], [44, 0.55, 2.4], [30, 0.3, 2]]) { rx2.strokeStyle = `rgba(255,236,205,${a})`; rx2.lineWidth = w; rx2.beginPath(); rx2.arc(64, 64, rr, 0, 7); rx2.stroke(); }
+  const ripG = new T.PlaneGeometry(1, 1); ripG.rotateX(-Math.PI / 2);
+  const A = 'clamp((uShock.x - d - seed * 1.1) / 0.8, 0.0, 1.0)';
+  const ripMat = V.waveMat(new T.MeshBasicMaterial({ map: L.tex(rip), color: new T.Color(1.1, 0.95, 0.8), transparent: true, depthWrite: false, blending: T.AdditiveBlending }),
+    { grow: `step(0.001, ${A}) * (1.0 - ${A}) * 1.6`, size: `mix(0.12, 1.0, ${A})`, glow: 'gl_FragColor.rgb *= vGrow;' });
+  const ripples = [], drops = [];
+  for (let i = 0; i < 900; i++) {
+    const x = (r() * 2 - 1) * (HP - 0.15), z = (r() * 2 - 1) * (HP - 0.15);
+    if (x < -4.2 && z < -2.9) continue; // Brunnentrog
+    ripples.push([x, 0.004, z, { s: 0.3 + r() * 0.35 }]);
+    if (i % 2) drops.push([x, 0.01, z, 0.85, 0.9, 1]);
+  }
+  g.add(V.waveInst(ripG, ripMat, ripples));
+  g.add(V.sparks(drops, { rise: 0.6, fall: 1.1, px: 7, width: 2.2, keep: 0.25 }));
   D.scene.add(g);
   return 'Dorfplatz nach dem Regen';
 };

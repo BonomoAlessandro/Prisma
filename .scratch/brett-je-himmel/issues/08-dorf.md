@@ -21,8 +21,9 @@ fertig gemacht und abgenommen.
       an Bildern Rückmeldungen, bis sie sitzt.
 - [ ] **Eigene Lichtwelle:** Das Brett bekommt seine eigene Lichtwelle aus seiner Welt, wie die Blumen beim
       Moospolster: Wo der Ring vorbeizieht, passiert etwas auf dem Brett und kommt danach wieder zur Ruhe.
-      Gewählt mit dem Brett: Glühwürmchen steigen aus Erde und Kräutern auf, wo der Ring vorbeizieht, und schweben
-      nach. Das passt zu den Glühwürmchen, die im Dorf ohnehin fliegen.
+      Gewählt mit dem Brett (Katalog Version 2): Wo der Ring vorbeizieht, keimen neben den Schnüren Reihen von
+      Sämlingen auf, und Glühwürmchen steigen aus Erde und Kräutern. Hinter dem Ring ziehen sich die Keimlinge in die
+      Erde zurück, die Glühwürmchen schweben noch kurz und verlöschen. Das passt zu den Glühwürmchen im Dorf.
       Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
 - [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Einstieg ins Dorf nach «Üben», Lösen einer Übung). Dazu kommen die Messwerte
@@ -64,9 +65,12 @@ Skripte liegen in `katalog-dorf/`, die Vorbilder in `vorbilder/dorf.md`.
 - Im Rand wachsen Kräuter: Schnittlauch mit lila Blüten, Thymian, Ringelblumen und Salat.
 - Die Seiten sind Lärchenbohlen, oben liegt ein Abdeckbrett, 8 cm über der Erde.
 - Es gibt keine Spiegelung, Erde ist matt.
-- Lichtwelle: Glühwürmchen steigen aus Erde und Kräutern auf, wo der Ring vorbeizieht, und schweben nach.
+- Lichtwelle: Glühwürmchen steigen aus Erde und Kräutern auf, wo der Ring vorbeizieht, und schweben nach. In Version 2
+  des Katalogs (nach der Wahl veröffentlicht) keimen dazu Reihen von Sämlingen neben den Schnüren und ziehen sich
+  hinter dem Ring zurück, rund 1200 Keimlinge im Shader. Der Nutzer sagt, ob er die Keimlinge will.
 - Kosten: rund 1800 Halme, Blätter und Blüten und 420 Glühwürmchen. Auf dem Handy zu messen, eventuell gröber. Mit
   kleinen Formen aus Blender wären Kräuter und Blüten deutlich schöner.
 - Lesbarkeit: Das Dorf ist für neue Spieler das erste Brett. Die dunkle Erde gibt den Strahlen guten Kontrast,
   die Pflanzschnüre müssen als Raster gut sichtbar bleiben.
-- Vorlage: `katalog-dorf/bretter/varianten-dorf/4-hochbeet.js` mit `0-hilfe.js`, `0b-dorf.js` und `bretter.js`.
+- Vorlage: `katalog-dorf/bretter/varianten-dorf/4-hochbeet.js` mit `0-hilfe.js`, `0b-dorf.js` (Hilfen `waveMat`,
+  `sparks`, `waveInst` für Körper, die nur in der Welle wachsen) und `bretter.js`.

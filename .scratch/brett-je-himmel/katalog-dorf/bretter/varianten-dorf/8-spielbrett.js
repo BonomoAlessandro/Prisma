@@ -120,6 +120,20 @@ __katalog.varianten.spielbrett = async (L) => {
   g.add(V.inst(new T.BoxGeometry(1, 1, 1), brass, parts));
   // Schlüsselschild vorne
   const esc = new T.Mesh(new T.BoxGeometry(0.16, 0.2, 0.01), brass); esc.position.set(0, -SH / 2, HP + 0.004); g.add(esc);
+  // Lichtwelle: Spielsteine aus Ahorn und Nussbaum springen auf Kreuzungen und Linien, hinter dem Ring versinken sie
+  const stoneG = new T.LatheGeometry([[0, 0], [0.085, 0], [0.098, 0.008], [0.1, 0.03], [0.092, 0.042], [0.06, 0.046], [0, 0.046]].map(([a, b]) => new T.Vector2(a, b)), 24);
+  const stoneOpt = { grow: 'max(ring, behind * (1.0 - age) * 0.35)', size: 'smoothstep(0.0, 0.55, vGrow)', lift: 'ring * (0.06 + seed * 0.1)', width: 2.8, len: 1.4,
+    glow: 'gl_FragColor.rgb *= 1.0 + vGrow * 0.5;' };
+  const lightM = V.waveMat(new T.MeshStandardMaterial({ color: 0xe0c898, roughness: 0.32, envMapIntensity: 1.4, emissive: 0x3a2c18 }), stoneOpt);
+  const darkM = V.waveMat(new T.MeshStandardMaterial({ color: 0x3a2416, roughness: 0.3, envMapIntensity: 1.6, emissive: 0x120a06 }), stoneOpt);
+  const lightS = [], darkS = [];
+  for (let i = 0; i <= 7; i++) for (let j = 0; j <= 7; j++) {
+    const x = -HB + i * CELL, z = -HB + j * CELL;
+    ((i + j) % 2 ? darkS : lightS).push([x, 0.002, z, {}]);
+    if (i < 7) ((i + j) % 2 ? lightS : darkS).push([x + CELL / 2, 0.002, z, {}]);
+    if (j < 7) ((i + j) % 2 ? lightS : darkS).push([x, 0.002, z + CELL / 2, {}]);
+  }
+  g.add(V.waveInst(stoneG, lightM, lightS), V.waveInst(stoneG, darkM, darkS));
   D.scene.add(g);
   return 'Altes Spielbrett';
 };

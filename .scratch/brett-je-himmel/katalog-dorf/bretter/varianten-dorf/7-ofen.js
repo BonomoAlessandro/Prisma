@@ -75,7 +75,12 @@ __katalog.varianten.ofen = async (L) => {
         float k = min(1.0, uShock.y * 3.0);
         gl_FragColor.rgb += (uShockColor * 0.4 + vec3(0.45, 0.2, 0.05)) * ring * k * 0.6;
         gl_FragColor.rgb += vec3(0.32, 0.09, 0.015) * (wide * 0.8 + trail * 7.0) * k;
-        gl_FragColor.rgb += vec3(2.6, 0.8, 0.16) * jm * (wide * 1.3 + trail * 14.0) * k * 1.4;`,
+        gl_FragColor.rgb += vec3(2.6, 0.8, 0.16) * jm * (wide * 1.3 + trail * 14.0) * k * 1.4;
+        float glazeM = smoothstep(0.0, 0.035, diffuseColor.g - diffuseColor.r);
+        float back = step(sd, uShock.x) * clamp(1.0 - (uShock.x - sd) / 2.2, 0.0, 1.0);
+        float heat = clamp(wide * 1.1 + back * 0.95, 0.0, 1.0) * k;
+        vec3 hotC = mix(vec3(0.75, 0.08, 0.02), vec3(1.7, 0.6, 0.12), clamp(wide * 1.3, 0.0, 1.0));
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, hotC * (0.45 + diffuseColor.g * 2.4), heat * glazeM * 0.9);`,
   });
   L.hide('plateSides', 'plateTrim');
   // Seiten: Brett der Bank (Stirn, 6 cm), darunter kleine Kacheln (0.3 × 0.24 m) und ein dunkler Sockel
@@ -91,6 +96,13 @@ __katalog.varianten.ofen = async (L) => {
   }), true, true);
   const g = new T.Group();
   g.add(V.box(HP, 0.0, SIDE_H, L.sideMat(side, { glow: 0.2, roughness: 0.3, env: 1.6 }), new T.MeshStandardMaterial({ color: 0x0a0908 })));
+  // Funken stieben aus den Fugen, fliegen im Bogen und verlöschen
+  const sp = [], rr = rng(733);
+  for (let i = 0; i < 560; i++) {
+    const a = -HB + Math.floor(rr() * 8) * CELL, b = (rr() * 2 - 1) * HB, c = rr() < 0.5 ? [1, 0.55, 0.15] : [1, 0.8, 0.35];
+    sp.push(rr() < 0.5 ? [a, 0.01, b, ...c] : [b, 0.01, a, ...c]);
+  }
+  g.add(V.sparks(sp, { rise: 1.3, fall: 1.2, px: 14, width: 2.2, keep: 0.7 }));
   D.scene.add(g);
   return 'Kachelofen';
 };

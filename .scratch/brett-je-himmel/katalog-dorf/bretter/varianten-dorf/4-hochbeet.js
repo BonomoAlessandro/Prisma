@@ -123,6 +123,20 @@ __katalog.varianten.hochbeet = async (L) => {
     else fly.push([(r() - 0.5) * 2 * HB, 0.03 + r() * 0.15, (r() - 0.5) * 2 * HB]);
   }
   g.add(V.fireflies(fly));
+  // Lichtwelle: neben den Schnüren keimen Sämlinge auf und ziehen sich hinter dem Ring wieder in die Erde zurück
+  const stemG = new T.CylinderGeometry(0.004, 0.005, 0.07, 4); stemG.translate(0, 0.035, 0);
+  const leafG = new T.SphereGeometry(1, 10, 6); leafG.scale(0.03, 0.006, 0.012);
+  const leaf2 = leafG.clone(); leafG.translate(0.026, 0.072, 0); leaf2.translate(-0.026, 0.072, 0);
+  leafG.rotateZ(0); const sprout = [];
+  for (let k2 = 0; k2 <= 7; k2++) for (const off of [-0.17, 0.17]) {
+    const z = -HB + k2 * CELL + off;
+    if (Math.abs(z) > HB - 0.04) continue;
+    for (let x = -HB + 0.06; x < HB - 0.04; x += 0.09 + r() * 0.03) sprout.push([x, 0, z + (r() - 0.5) * 0.03, { ry: r() * 6.3, s: 1.6 + r() * 0.7 }]);
+  }
+  const sproutOpt = { grow: 'max(ring, behind * (1.0 - age) * 0.7)', size: 'smoothstep(0.0, 0.8, vGrow)', width: 3.0, len: 1.8, glow: 'gl_FragColor.rgb *= 1.0 + vGrow * 0.7;' };
+  const sMat = V.waveMat(new T.MeshStandardMaterial({ color: 0x8cd05a, roughness: 0.7, emissive: 0x2a5014 }), sproutOpt);
+  const lMat = V.waveMat(new T.MeshStandardMaterial({ color: 0x9ce060, roughness: 0.6, emissive: 0x356a1a, side: T.DoubleSide }), sproutOpt);
+  g.add(V.waveInst(stemG, sMat, sprout), V.waveInst(leafG, lMat, sprout), V.waveInst(leaf2, lMat, sprout));
   D.scene.add(g);
   return 'Hochbeet';
 };

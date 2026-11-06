@@ -130,5 +130,80 @@ __katalog.dorf = (() => {
     const mesh = new T.Mesh(geo, mat); mesh.receiveShadow = true; mesh.castShadow = true;
     return mesh;
   }
-  return { inst, frame, box, sideCanvas, frustum, fireflies, figur, hullSmooth };
+  /**
+   * Material, dessen Instanzen auf die Lichtwelle antworten (wie growMat im Wald-Katalog). Im Vertex-Shader stehen je
+   * Instanz bereit: d (Abstand der Mitte), ring (0..1 im Ring), behind (0..1 hinter dem Ring), age (0 am Ring … 1 nach
+   * len m), k (Stärke), seed (0..1 je Instanz). grow → vGrow (Fragment), size → Faktor auf die Form, lift → Meter nach
+   * oben (Welt). glow: GLSL vor dem Tonemapping (vGrow, vAge). Schatten werfen diese Instanzen nicht.
+   */
+  function waveMat(mat, { grow = 'ring', size = 'vGrow', lift = '0.0', width = 2.5, len = 2.5, glow = '' } = {}) {
+    const key = 'katalog-wave-' + Math.random();
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, L.shock);
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uShock;\nvarying float vGrow;\nvarying float vAge;')
+        .replace('#include <begin_vertex>', `#include <begin_vertex>
+          {
+            vec3 ic = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+            float d = length(ic.xz);
+            float seed = fract(sin(dot(ic.xz, vec2(12.9898, 78.233))) * 43758.5453);
+            float ring = exp(-pow((d - uShock.x) / (uShock.z * ${width.toFixed(2)}), 2.0));
+            float behind = 1.0 - smoothstep(uShock.x - 0.15, uShock.x + 0.15, d);
+            float age = clamp((uShock.x - d) / ${len.toFixed(2)}, 0.0, 1.0);
+            float k = min(1.0, uShock.y * 3.0) * step(0.001, uShock.y);
+            vGrow = clamp((${grow}) * k, 0.0, 1.0);
+            vAge = age * behind;
+            float sy = length(instanceMatrix[1].xyz);
+            transformed *= max(${size}, 0.0);
+            transformed.y += (${lift}) * k / max(sy, 1e-4);
+          }`);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nvarying float vGrow;\nvarying float vAge;')
+        .replace('#include <tonemapping_fragment>', `${glow}\n#include <tonemapping_fragment>`);
+    };
+    mat.customProgramCacheKey = () => key;
+    return mat;
+  }
+  /** Leuchtpunkte zur Welle mit Farbe je Punkt: pts [[x, y, z, r, g, b], …]; rise m, px Grösse, width Ring */
+  function sparks(pts, { rise = 0.8, px = 16, width = 3, fall = 0, keep = 0.5 } = {}) {
+    const geo = new T.BufferGeometry(), r = L.rng(919);
+    geo.setAttribute('position', new T.Float32BufferAttribute(pts.flatMap((p) => p.slice(0, 3)), 3));
+    geo.setAttribute('color', new T.Float32BufferAttribute(pts.flatMap((p) => p.slice(3, 6)), 3));
+    geo.setAttribute('seed', new T.Float32BufferAttribute(pts.map(() => r()), 1));
+    const mat = new T.ShaderMaterial({
+      uniforms: { uShock: L.shock.uShock, uSize: { value: px * 10 * (D.renderer.getPixelRatio?.() ?? 1) } },
+      vertexShader: `
+        attribute float seed; attribute vec3 color; uniform vec3 uShock; uniform float uSize; varying float vA; varying vec3 vC;
+        void main() {
+          vec3 p = position;
+          float sd = length(p.xz);
+          float k = min(1.0, uShock.y * 3.0);
+          float age = clamp((uShock.x - sd) / 2.4, 0.0, 1.0);
+          float lit = exp(-pow((sd - uShock.x) / (uShock.z * ${width.toFixed(2)}), 2.0)) + step(0.001, age) * (1.0 - age) * ${keep.toFixed(2)};
+          float t = age * (0.5 + seed);
+          p.y += t * ${rise.toFixed(2)} - t * t * ${fall.toFixed(2)};
+          p.x += sin(seed * 40.0 + age * 5.0) * age * 0.1;
+          vA = lit * k; vC = color;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = uSize * (0.5 + seed * 0.7) / -mv.z * step(0.02, vA);
+        }`,
+      fragmentShader: `
+        varying float vA; varying vec3 vC;
+        void main() {
+          float d = length(gl_PointCoord - 0.5);
+          float halo = pow(smoothstep(0.5, 0.0, d), 2.0), core = smoothstep(0.14, 0.0, d);
+          gl_FragColor = vec4(vC * (halo * 0.8 + core * 2.2) * min(vA, 1.2), 1.0);
+        }`,
+      transparent: true, depthWrite: false, blending: T.AdditiveBlending,
+    });
+    const p = new T.Points(geo, mat); p.frustumCulled = false;
+    return p;
+  }
+  /** Instanzen ohne Schatten und ohne Frustum-Culling (sie wachsen erst im Shader) */
+  function waveInst(geo, mat, list) {
+    const m = inst(geo, mat, list, false); m.frustumCulled = false;
+    return m;
+  }
+  return { inst, frame, box, sideCanvas, frustum, fireflies, figur, hullSmooth, waveMat, sparks, waveInst };
 })();

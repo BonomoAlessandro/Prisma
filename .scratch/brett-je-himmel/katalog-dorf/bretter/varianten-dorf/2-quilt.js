@@ -75,7 +75,11 @@ __katalog.varianten.quilt = async (L) => {
         float k = min(1.0, uShock.y * 3.0);
         vec3 through = diffuseColor.rgb * vec3(2.6, 2.1, 1.5) + vec3(0.05, 0.04, 0.02);
         gl_FragColor.rgb += through * (wide * 1.6 + trail * 10.0) * k;
-        gl_FragColor.rgb += (uShockColor * 0.4 + vec3(0.3, 0.24, 0.15)) * ring * k * 0.5;`,
+        gl_FragColor.rgb += (uShockColor * 0.4 + vec3(0.3, 0.24, 0.15)) * ring * k * 0.5;
+        vec2 qq = abs(fract(((vUv - 0.5) * ${PLATE.toFixed(4)} + ${HB.toFixed(4)}) / ${CELL.toFixed(4)} + 0.5) - 0.5) * ${CELL.toFixed(4)};
+        vec2 pq = abs((vUv - 0.5) * ${PLATE.toFixed(4)});
+        float seamG = smoothstep(0.022, 0.004, min(qq.x, qq.y)) * step(max(pq.x, pq.y), ${(HB + 0.01).toFixed(4)});
+        gl_FragColor.rgb += vec3(1.3, 1.1, 0.8) * seamG * (wide * 0.8 + trail * 5.0) * k;`,
   });
   L.hide('plateSides', 'plateTrim');
   L.skyBehind();
@@ -99,5 +103,35 @@ __katalog.varianten.quilt = async (L) => {
   const hull = V.hullSmooth(W2.roundedSquare(HQ, 0.14, 480), rings, (y, x, z, k) => (k >= rings.length - 2 || k === 0 ? rust : indigo).map((v) => v * (1 + (noise(x * 2, z * 2, 224) - 0.5) * 0.2)), 0.22);
   hull.material.envMapIntensity = 0.25;
   D.scene.add(hull);
+  // Lichtwelle: auf den Nähten wachsen gestickte Blumen im Kreuzstich und lösen sich hinter dem Ring wieder auf
+  const stitch = (petal) => {
+    const c = L.canvas(128), x = c.getContext('2d'), P = 13, u = 128 / P;
+    x.clearRect(0, 0, 128, 128); x.lineWidth = u * 0.32; x.lineCap = 'round';
+    for (let j = 0; j < P; j++) for (let i = 0; i < P; i++) {
+      const dx = i - 6, dz = j - 6, rr = Math.hypot(dx, dz);
+      let col = null;
+      if (rr < 1.6) col = '#f2c84a';
+      else if ([[0, -3.2], [0, 3.2], [-3.2, 0], [3.2, 0]].some(([a, b]) => Math.hypot(dx - a, dz - b) < 1.9)) col = petal;
+      else if (Math.hypot(Math.abs(dx) - 4.2, dz - 4.4) < 1.3) col = '#5a8a3a';
+      if (!col) continue;
+      x.strokeStyle = col; x.beginPath();
+      x.moveTo(i * u + u * 0.18, j * u + u * 0.18); x.lineTo(i * u + u * 0.82, j * u + u * 0.82);
+      x.moveTo(i * u + u * 0.82, j * u + u * 0.18); x.lineTo(i * u + u * 0.18, j * u + u * 0.82); x.stroke();
+    }
+    return L.tex(c);
+  };
+  const flG = new T.PlaneGeometry(1, 1); flG.rotateX(-Math.PI / 2);
+  const rq = rng(229), spots = [[], [], []];
+  for (let k2 = 0; k2 <= 7; k2++) for (let j = 0; j < 28; j++) {
+    const a = -HB + k2 * CELL, b = -HB + 0.15 + j * 0.3, s = 0.36 + rq() * 0.1;
+    spots[Math.floor(rq() * 3)].push([a, 0.006, b, { ry: rq() * 6.3, s }]);
+    spots[Math.floor(rq() * 3)].push([b, 0.006, a, { ry: rq() * 6.3, s }]);
+  }
+  ['#e8504a', '#f4efe4', '#5a8ae0'].forEach((petal, i) => {
+    const t = stitch(petal);
+    const mat = V.waveMat(new T.MeshStandardMaterial({ map: t, alphaTest: 0.4, roughness: 0.9, emissiveMap: t, emissive: new T.Color(0.55, 0.55, 0.55) }),
+      { grow: 'ring', size: 'smoothstep(0.05, 0.6, vGrow)', width: 3.2, glow: 'gl_FragColor.rgb *= 1.0 + vGrow * 0.35;' });
+    D.scene.add(V.waveInst(flG, mat, spots[i]));
+  });
   return 'Flickendecke';
 };
