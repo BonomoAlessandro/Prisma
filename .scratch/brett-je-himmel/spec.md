@@ -168,9 +168,11 @@ festes Brett, und es gibt keinen Schalter mehr.
 - **Im Spiel berechnet:** Das Material wird im Spiel berechnet, wie heute die Textur des Steinbretts in einem
   Hintergrund-Thread. Dafür kommen keine Bilddateien dazu und keine neuen Bytes, die vorab gespeichert werden. Heute
   belegen die vorab gespeicherten Teile von Wald, Strand und Vulkan etwa 4,2 von 4,5 MB.
-- **Grafikspeicher:** Er bleibt etwa wie heute, wo das Steinbrett drei Texturen à 1024² belegt. Gleichzeitig im
-  Speicher stehen höchstens das gezeigte Brett und, während eines Wechsels, das bisherige. Die Texturen eines Bretts
-  werden mit denen seines Himmels freigegeben (auf dem Handy sofort, auf dem Desktop nach 30 s).
+- **Grafikspeicher:** Ein Brett belegt etwa so viel wie heute das Steinbrett, also drei Texturen à 1024² (rund
+  17 MB). Gleichzeitig im Speicher stehen höchstens drei Bretter: das Steinbrett, das immer bereitliegt (Milchstrasse,
+  Sonnensystem, Notfall), das gezeigte und, während eines Wechsels oder beim Vorladen der nächsten Welt, ein weiteres
+  (Entscheid des Nutzers vom 06.11.2026). Die Texturen eines Bretts werden mit denen seines Himmels freigegeben (auf
+  dem Handy sofort, auf dem Desktop nach 30 s), das Steinbrett nie.
 - **Formen aus Blender** gibt es nur, wenn eine gewählte Richtung eine Form verlangt, die sich nicht berechnen lässt (zum
   Beispiel Treibholz). Sie bleiben klein, laden mit ihrer Skybox und zählen zu deren Budget. Die Grenze von 4,5 MB für
   alles vorab Gespeicherte gilt weiter. Reicht der Platz nicht, entscheidet der Nutzer, wie damals bei der Wüste.
