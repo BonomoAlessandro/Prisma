@@ -207,3 +207,50 @@ Auflage für den Umsetzer: die Lücke beim Wiederholen über die Grenze ins Meer
     Satz zum Ende → Bergwald 1 53 ms.
   - Geschichte-Probe `--wagen`: **gescheitert**, nur an der Lücke von oben (107, 133, 106 ms; die Basis 89 und 88 ms).
     Alles andere ist grün.
+
+**Auflage aus dem Review: Lücke «Wiederholen über die Grenze ins Meer» (07.11.2026, Umsetzer)**
+
+Es gibt keinen Fix im Brett. Das Moospolster löst die Lücke nicht aus, verlängert sie aber.
+
+- **Spur der Probe** (`--wagen`, Tracing mit CPU-Profil und Spur des GPU-Prozesses, Moospolster gegen eine Kopie der Basis
+  50760cf):
+  - Im Bild vor der Lücke rechnet der Hauptthread nur 6,6 ms. Keine Aufgabe im Hauptthread dauert in diesem Abschnitt
+    über 30 ms, und es gibt keine Speicherbereinigung.
+  - Die Zeit geht im GPU-Prozess verloren: ein einziges `CommandBuffer::Flush` (WebGL) dauert 78 ms, in der Basis 48 ms.
+  - Die WebGL-Aufrufe dieser Bilder (in der Seite mitgezählt) sind gewöhnliche Bilder des Strands. Es gibt kein Hochladen,
+    keine neue Textur, kein neues Ziel, kein neues Programm und kein Übersetzen. Die Aufrufe sind dieselben wie in den
+    Bildern danach.
+- **Isoliert gemessen**: eigenes Skript, Wald → Meer mit vorgeladenem Meer und 2,4 s Überblenden wie beim Wiederholen,
+  Desktop, je ein frischer Chrome, längste Lücke in ms:
+
+  | Fall | längste Lücke (ms) |
+  |---|---|
+  | Moospolster | 117, 117, 117, 100, 133 |
+  | Steinbrett im Wald (wie die Basis) | 50, 117, 34, 84, 84 |
+  | Steinbrett und ein unbenutztes zweites Steinbrett gebaut | 84, 84, 83 |
+  | Steinbrett und ein unbenutztes Moospolster gebaut | 83, 84, 100 |
+  | Moospolster, alle Teile verborgen | 34, 150, 50, 67, 50, 34 |
+  | Moospolster ohne Oberfläche und Scholle | 117, 117, 117 |
+  | Moospolster ohne Polster, Pilze, Farn und Wurzeln | 50, 117, 84 |
+  | Moospolster ohne Texturdaten im JS-Speicher | 117, 117 |
+
+- **Befund:**
+  - Die Lücke liegt immer im selben Bild, beim Strand mit Anteil 0,07 bis 0,1, mit jedem Brett. Auch die Basis erreicht
+    117 ms, und das Review von 08 mass sie zweimal ohne Moospolster.
+  - Ausgelöst wird sie durch einmalige Arbeit im GPU-Prozess, wenn der Strand einblendet. Sie gehört zur Skybox des
+    Strands, nicht zum Brett.
+  - Wie lang sie wird, hängt von der Last auf der Grafikkarte ab. Jedes weitere Brett im Grafikspeicher hebt sie, auch ein
+    zweites Steinbrett (rund 84 ms). Ebenso tun es die Polster, Pilze, Farne und Wurzeln des Moospolsters, die beim
+    Überblenden durchsichtig mitgezeichnet werden. Zusammen sind das die 20 bis 40 ms aus dem Review.
+  - Die Speicherbereinigung (Texturdaten im JS-Speicher) ist es nicht.
+- **Nicht geändert:** Den Anteil des Bretts liesse sich nur senken, wenn Polster, Pilze, Farn und Wurzeln beim Ausblenden
+  sofort verschwinden statt auszublenden. Auch dann blieb die Lücke einmal bei 117 ms, weil die Ursache beim Strand
+  liegt. Beheben lässt sie sich dort, etwa wenn der Strand die Arbeit seines Einblendens beim Vorladen vorzieht. Das
+  gehört zu Ticket 05 oder 10 und gilt für alle Bretter. Welcher Teil des Strands die Arbeit auslöst, zeigt die Spur nicht:
+  Ohne Kategorien des GPU-Dienstes stehen dort keine Unterteile.
+- **Tests danach:**
+  - Logik: 2042 bestanden.
+  - `--wagen` zweimal: einmal gescheitert, nur an dieser Lücke (117 ms), einmal bestanden (100 ms).
+  - `brett-probe`: in Ordnung.
+  - Geschichte-Probe `--grad leicht --welten 3`: bestanden.
+  - «Alle Tests grün» bleibt offen, bis die Lücke des Strands behoben ist.
