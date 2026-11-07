@@ -11,6 +11,8 @@
 //             und Brett blenden ohne Halten über. Wüste mit einem Brett, dessen Berechnen scheitert: vom Dorf ins
 //             Steinbrett als Notfall, Warnung, kein Fehler. Vulkan ohne Überblenden (kein früheres Brett zum Halten):
 //             erst keines, nach 8 s das Steinbrett, dann gleitet es ins richtige.
+//             Der Wald zeigt beim Laden sein Moospolster (Ticket 07); danach nimmt die Mechanik ihm die Brett-Angabe,
+//             damit nur das Steinbrett und die Bretter der Probe gebaut sind.
 //   netz:     Handy-Ansicht über einen lokalen Server, Netz gedrosselt (300 KB/s, 150 ms) und CPU 4× langsamer, Stand
 //             mitten in der Wüste, wie im Spiel über den Startbildschirm: «Tippen zum Starten» und «Weiter» je sofort.
 //             Der Kleine Wagen wartet, der Blick senkt sich erst, wenn Himmel und Brett der Wüste bereit sind (oder
@@ -121,9 +123,14 @@ async function mechanik() {
   try {
     await b.send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro' });
     await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady()', 'Wald bereit', 120);
-    const start = await ev('__prisma.brett()');
-    pruefe(start.himmel === 'forest' && start.art === 'stone' && start.bereit && start.anteil === 1 && start.von === null
-      && !start.notfall, `Start: Brett des Waldes ${JSON.stringify(start)}`);
+    const start = await ev('__prisma.brett()'), wald = await ev(`__prismaDebug.skyTheme.byId.get('forest').board?.type`);
+    pruefe(start.himmel === 'forest' && start.art === wald && start.bereit && start.anteil === 1 && start.von === null
+      && !start.notfall, `Start: Brett des Waldes (${wald}) ${JSON.stringify(start)}`);
+    // Die Mechanik rechnet mit dem Steinbrett im Wald (nur das Steinbrett und das der Probe gebaut): Der Wald bekommt
+    // hier keine Brett-Angabe mehr, sein Moospolster wird frei (seit Ticket 07)
+    await ev(`(() => { const B = __prismaDebug.boardTheme; __prismaDebug.skyTheme.byId.get('forest').board = undefined;
+      B.free('forest'); B.prepare('forest', undefined); return true; })()`);
+    await until(`__prismaDebug.boardTheme.built.size === 1 && __prisma.brett().art === 'stone'`, 'Wald mit Steinbrett', 30);
     await ev('__prismaDebug.zeige(0); true');
     await until('window.__prisma.playing()', 'Level 0', 30);
     // eigene Arten, nur in dieser Seite: «probe» ist ein Steinbrett, dessen Berechnen die Probe freigibt (tor), mit

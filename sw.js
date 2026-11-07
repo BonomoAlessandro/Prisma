@@ -18,7 +18,7 @@
 
 const APP_VERSION = '2026-11-07 brett-uebergang';
 const CACHE = 'prisma-v1';
-const SKIES = 'bea532db';
+const SKIES = '0f024f9f';
 const FILES = [
   'index.html',
   'manifest.webmanifest',

@@ -946,6 +946,22 @@ console.log('Offline');
     assert.ok(errorsWith({ sprout: undefined }).some((e) => /sprout/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ tomate: [0.8, 0.2, 0.1] }).some((e) => /tomate/.test(e)), 'unbekannter Wert');
   });
+  test('Bretter: Bergwald mit dem Moospolster (moss); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const forest = skies.find((s) => s.id === 'forest') ?? assert.fail('Skybox forest fehlt im Register');
+    const board = JSON.parse(JSON.stringify(forest.board));
+    assert.equal(board.type, 'moss', 'der Bergwald hat das Moospolster');
+    const errorsWith = (change) => checkSkies([{ ...forest, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ glow: [1.2, 0.8, 0.6] }).some((e) => /glow/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ cap: [0.8, 0.85] }).some((e) => /cap/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ pebble: [0.4, -0.1, 0.4] }).some((e) => /pebble/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ moss: [0.24, 0.36, 0.17] }).some((e) => /moss: moss/.test(e)), 'Moos ohne zwei Töne');
+    assert.ok(errorsWith({ fern: [board.fern[0], board.fern[1], board.fern[0]] }).some((e) => /fern/.test(e)),
+      'Farn mit drei Tönen');
+    assert.ok(errorsWith({ flower: undefined }).some((e) => /flower/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ pilz: [0.8, 0.7, 0.5] }).some((e) => /pilz/.test(e)), 'unbekannter Wert');
+  });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
     assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
