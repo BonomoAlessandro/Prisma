@@ -144,3 +144,16 @@ Abnahme (Gestaltung, kein Fehler):
   Quer (873 × 393) sind sie deutlich dominanter: eine grosse schwarze Tanne nimmt das linke Fünftel ein, bis nahe an
   Noa; der Untertitel überdeckt wie vorher Noas Beine. Falls das stört: in Epilog 3 quer etwas näher zoomen (`cam.z`)
   oder die Tannen dort zurücknehmen – ein eigener Wunsch, nicht Teil dieses Tickets.
+
+**07.11.2026, Notiz des Schlussreviews** (zusammen mit Ticket 10; der ganze Testsatz, der oben aufgeschoben war;
+Einzelheiten und Tabelle der Läufe in Ticket 10)
+
+Urteil: **angenommen, auch mit Ticket 10 darüber.** Die Probe ohne Argumente (Prolog 4 in allen vier Graden) und
+`--finale leicht` in fünf Formaten: Epilog 3 = Prolog 4 (44,6 / 74,8 / 38,9 / 73,1 / 73,1°), Arm zum Polarstern.
+`buehne-messung bilder` in allen sieben Ansichten Unterschied 0,00°, `messen` Prolog und Epilog ohne Lücke über
+50 ms. `--wagen` in fünf Formaten: Wagen in Wagen 0,6–1,5 px. `--ganz` Desktop (mit `--vorher`), hoch dpr 2,75 (mit
+`--vorher`) und quer: Dauern in den Grenzen, rot nur an Artefakten und der bekannten Lücke am Prologanfang (auf
+56f5668 im Vergleich zweimal grün, in Review 12 auch auf älteren Ständen); `--menue`, `--uebersicht`, `--dorf`,
+`--fall`, `offline` und alle Node-Tests ohne neuen Befund. Die Kamera von Epilog 3 hängt nicht am Sprungbrett;
+Ticket 10 ändert daran nichts. Angesehen: `tests/output/buehne/r10/<ansicht>-prolog-4.png`, `-epilog-3.png`,
+`-epilog-3-strahl.png`; der Strahl trifft den Polarstern in jeder Ansicht.

@@ -69,7 +69,7 @@ Entscheid in ADR 0005.
   - [x] **Platzhalter ersetzt (Ticket 09, 30.10.2026):** 23 neue sehr schwere Level statt der 23 Platzhalter, die
     Vielfalt geht ganz auf; die ersetzten liegen im Vorrat.
 - [x] **0.4 Warum das Licht durch alle Welten muss: der Kleine Wagen** (Vorschlag vom 01.11.2026, entschieden im
-  Grilling vom 04.11.2026). Spec und Tickets: `.scratch/kleiner-wagen/` (Tickets 01–10, Stand in `STAND.md`). Begriffe
+  Grilling vom 04.11.2026). Spec und Tickets: `.scratch/kleiner-wagen/` (Tickets 01–13, Stand in `STAND.md`). Begriffe
   in `CONTEXT.md` («Kleiner Wagen», «Stern einer Welt», «Erwachen»). Der Polarstern sitzt an der Spitze der Deichsel des
   Kleinen Wagens; die sechs anderen Sterne schlafen, jede Welt weckt einen (zuerst die Schale, dann die Deichsel
   hinauf), der siebte ist der Polarstern.
@@ -80,8 +80,10 @@ Entscheid in ADR 0005.
     sechsten Stern, Puls durch den Wagen und über die Deichsel zum Polarstern; Bühne mit dem Wagen (Prolog schlafend,
     Epilog wach) und Überblendung Wagen in Wagen; Menü «Sternkarte mit Reitern», Übersicht «Sternhaufen» und Leiste
     «Zeichen im Wagen» aus dem Skizzenkatalog (Ticket 02, Wahl des Nutzers).
-  - [ ] Abnahme durch den Nutzer mit `?szenen` am Computer und auf dem Poco, dabei Grösse und Helligkeit des Wagens
-    abstimmen; dann Ticket 10 (Sprungbrett ausbauen) und Merge nach main auf sein Wort.
+  - [x] Abnahme durch den Nutzer am Computer und auf dem Poco (07.11.2026, nach drei Runden, Tickets 11 bis 13):
+    Grösse und Helligkeit des Wagens bleiben, wie sie waren, jetzt als feste Werte; das Sprungbrett zur Abnahme ist
+    ausgebaut (Ticket 10).
+  - [ ] Merge nach main auf Wort des Nutzers.
   - [ ] **Offene Idee, nicht Teil der Spec (Entscheid 3):** Jede Welt gibt dem Licht ihre Farbe; erst alle zusammen
     ergeben das weisse Licht, auf das der Polarstern antwortet (Finale als Mischziel). Auch nicht in einer leichten
     Fassung mit farbigen Sternen; die Sterne leuchten weiss.

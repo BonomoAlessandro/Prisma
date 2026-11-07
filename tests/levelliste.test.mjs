@@ -859,9 +859,8 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
   const speicher = new Map();
   const localStorage = { getItem: k => speicher.get(k) ?? null, setItem: (k, v) => speicher.set(k, String(v)),
     removeItem: k => speicher.delete(k) };
-  // SZENEN (vorübergehend, Ticket 10 entfernt): ohne ?szenen ist SZENEN_SPEICHER null, progress schreibt in localStorage
-  const progress = new Function('localStorage', 'STORY_LEVELS', 'SZENEN_SPEICHER',
-    `${html.slice(von, bis)}\nreturn progress;`)(localStorage, L.STORY_LEVELS, null);
+  const progress = new Function('localStorage', 'STORY_LEVELS',
+    `${html.slice(von, bis)}\nreturn progress;`)(localStorage, L.STORY_LEVELS);
   // neu: von vorn
   assert.deepEqual(progress.load('sehr schwer', 60), { platz: 0, geloest: [], gesehen: [], geschafft: false });
   assert.equal(progress.last(), null);
