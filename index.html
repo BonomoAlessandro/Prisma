@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-07 brett-dorf';
+const APP_VERSION = '2026-11-07 brett-uebergang';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8607,14 +8607,14 @@ function makeNoise2D(seed) {
  * kostete das Steinbrett gut die Hälfte des Hängers beim Laden der Seite (Ticket 03 der Leistung; 1024² Pixel mit je 16
  * Oktaven Rauschen). Bis die Daten da sind, sind die Texturen leer (nie hochgeladen). Hochgeladen werden sie danach in
  * Häppchen an ruhigen Stellen (boardTheme.load, boardTextureUpload). Ohne Worker wie früher im Hauptthread.
- * specs: { name: [Breite, Höhe, sRGB] } der RGBA-Texturen (Mipmaps, Zeile 0 bei uv.y = 0); compute(arg) rechnet
+ * specs: { name: [Breite, Höhe, sRGB, wiederholt] } der RGBA-Texturen (Mipmaps, Zeile 0 bei uv.y = 0); compute(arg) rechnet
  * { name: Uint8ClampedArray } und kennt nur sich selbst und helpers (Funktionen, die mit in den Worker kommen).
  * Rückgabe: { name: DataTexture, …, computed (Promise: erfüllt, sobald die Daten da sind; abgelehnt, wenn das Rechnen
  * scheitert) }.
  */
 function boardTextures(specs, compute, arg, helpers = []) {
   const out = {};
-  for (const [name, [w, h, srgb]] of Object.entries(specs)) {
+  for (const [name, [w, h, srgb, repeat]] of Object.entries(specs)) {
     const tex = out[name] = new THREE.DataTexture(new Uint8ClampedArray(w * h * 4), w, h, THREE.RGBAFormat);
     tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
     tex.generateMipmaps = true;
@@ -8622,6 +8622,7 @@ function boardTextures(specs, compute, arg, helpers = []) {
     tex.magFilter = THREE.LinearFilter;
     tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     tex.flipY = false;
+    if (repeat) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   }
   let done = false, fertig, gescheitert;
   out.computed = new Promise((ja, nein) => { fertig = ja; gescheitert = nein; });
@@ -9686,6 +9687,7 @@ async function loadSkyImage(url, bitmap = false, alive = () => true) {
 const SKY_WARM_LAYER = 30;
 function* skyWarmDraw(staging, parts, sky, alive) {
   const target = new THREE.WebGLRenderTarget(1, 1), cam = camera.clone(), lights = [];
+  target.prismaWarm = true; // eigene Ziele (SCENE_PREPASSES) schon in der Grösse des Spiels anlegen (waterSurface)
   cam.layers.set(SKY_WARM_LAYER);
   scene.traverse((o) => { if (o.isLight) { lights.push(o); o.layers.enable(SKY_WARM_LAYER); } });
   const draw = (part) => {
@@ -9988,7 +9990,7 @@ function* skyBufferUpload(geo) {
 
 /**
  * Plattentest im Panorama (skyPanoramaMaterial): der Kernquader des gezeigten Bretts, je 1 cm kleiner, während eines
- * Überblendens der Schnitt der Kernquader beider Bretter. Dort ist jedes Pixel von einem der beiden deckend gezeichnet,
+ * Überblendens der Schnitt der Kernquader aller gezeigten Bretter (boardBlend). Dort ist jedes Pixel von einem deckend gezeichnet,
  * dahinter zeichnet der Himmel nichts. Ohne gezeigtes Brett liegt er weit unter der Szene, wo ihn kein Blick trifft.
  * Gemeinsam für alle Panoramen; boardTheme setzt ihn (die Kernquader der Arten stehen bei BOARD_TYPES).
  */
@@ -11872,6 +11874,9 @@ function* waterSurface(ctx, opt) {
     const on = under.scene.children.some((o) => o.visible);
     material.uniforms.uUnderOn.value = on ? 1 : 0;
     if (!on) return;
+    // Aufwärmen (skyWarmDraw, 1 × 1): das Ziel gleich so gross und mit so vielen Proben wie im Spiel anlegen. Sonst legte
+    // es das erste Bild an, in dem der Strand einblendet; das hielt die Grafikkarte dort 50–80 ms an (Ticket 05)
+    if (into?.prismaWarm) into = composer.readBuffer;
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
     size.max(new THREE.Vector2(1, 1));
     if (!under.target) {
@@ -13021,6 +13026,142 @@ const FLOOR_DETAIL_GLSL = `
   }
 `;
 
+/* ---------- Übergang zwischen Brettern (Ticket 05): für alle Arten gleich, an einer Stelle ---------- */
+
+/**
+ * Wie zwei Bretter ineinander übergehen, auch verschiedener Form: Das neue wächst von der Mitte nach aussen über das
+ * bisherige, mit leuchtender, fransiger Front, über die ganze Dauer des Himmels (boardTheme). Beide zeichnen dabei
+ * undurchsichtig; jedes verwirft die Pixel, die gerade dem anderen gehören (discard). Welchem Brett ein Pixel gehört,
+ * entscheidet ein Wert n (0 … 1) des Sehstrahls durch dieses Pixel, nicht der Ort des Bretts: n hängt am Punkt, wo der
+ * Strahl in die Hülle aller Bretter tritt (Quader über den Umriss, von y = 0 bis BOARD_BLEND_HULL_Y), innen klein, aussen
+ * und unten gross, mit Rauschen. Beide Bretter rechnen für ein Pixel also dasselbe n; das neue zeichnet, wo n unter der
+ * Front liegt, das bisherige darüber (um BOARD_BLEND_EPS überlappend). So ist jedes Pixel, das beide decken (der Schnitt
+ * der Kernquader), in jedem Bild von einem der beiden gedeckt, und eingezogene oder hängende Teile des neuen kommen
+ * schon während des Übergangs zum Vorschein: Wo das bisherige verworfen wird, sieht man dahinter das neue. Ebenso gehen
+ * überstehende Teile des bisherigen nach und nach. Vorab übersetzt wird die Fassung mit BOARD_BLEND (variant).
+ * Wird ein Übergang umgelenkt, behält jedes Brett sein Stück, und das neue wächst darüber (bis zu vier Abschnitte von n
+ * je Brett). Netze mit eigenem ShaderMaterial (Funken, Tropfen, Körner) gehören nicht dazu: Sie blenden über den Anteil
+ * in setFade selbst aus.
+ */
+const BOARD_BLEND_HULL_Y = -2;  // Unterkante der Hülle (m); tiefer reicht kein Brett
+const BOARD_BLEND_EPS = 0.002;  // so weit überlappen die Stücke zweier Bretter (keine Lücke aus Rundung)
+const boardBlendHull = { value: new THREE.Vector2(PLATE / 2, BOARD_BLEND_HULL_Y) };
+const BOARD_BLEND_DECL = `
+#ifdef BOARD_BLEND
+  uniform vec4 uBoardBlend[2]; // Abschnitte von n [von, bis), in denen dieses Brett zeichnet (x, y und z, w)
+  uniform vec3 uBoardFront;    // Front des neuen Bretts: x n, y Stärke des Leuchtens (0: keines), z Breite in n
+  uniform vec2 uBoardHull;     // Hülle: x halbe Breite, y Unterkante
+  varying vec3 vBoardView;
+  float bbHash(vec3 p) { p = fract(p * vec3(0.1031, 0.1030, 0.0973)); p += dot(p, p.yxz + 33.33); return fract((p.x + p.y) * p.z); }
+  float bbNoise(vec3 x) {
+    vec3 i = floor(x), f = fract(x), u = f * f * (3.0 - 2.0 * f);
+    return mix(mix(mix(bbHash(i), bbHash(i + vec3(1.0, 0.0, 0.0)), u.x),
+                   mix(bbHash(i + vec3(0.0, 1.0, 0.0)), bbHash(i + vec3(1.0, 1.0, 0.0)), u.x), u.y),
+               mix(mix(bbHash(i + vec3(0.0, 0.0, 1.0)), bbHash(i + vec3(1.0, 0.0, 1.0)), u.x),
+                   mix(bbHash(i + vec3(0.0, 1.0, 1.0)), bbHash(i + vec3(1.0, 1.0, 1.0)), u.x), u.y), u.z);
+  }
+  // Eintritt des Strahls o + t·d in den Quader lo … hi (t ≥ 0)
+  bool bbBox(vec3 o, vec3 d, vec3 lo, vec3 hi, out float t) {
+    vec3 inv = 1.0 / (d + vec3(equal(d, vec3(0.0))) * 1e-7);
+    vec3 a = (lo - o) * inv, b = (hi - o) * inv, n = min(a, b), f = max(a, b);
+    float t0 = max(max(n.x, n.y), n.z), t1 = min(min(f.x, f.y), f.z);
+    t = max(t0, 0.0);
+    return t1 >= t;
+  }
+  // n des Sehstrahls durch dieses Pixel (Welt): wo er in die Hülle tritt (sonst in einen grösseren Quader, für Teile
+  // über dem Brett, oder sein Punkt nächst der Mitte). Innen klein, zum Rand und nach unten gross, dazu Rauschen
+  float boardBlendN() {
+    vec3 o = cameraPosition, d = normalize((vec4(vBoardView, 0.0) * viewMatrix).xyz), p;
+    float h = uBoardHull.x, t;
+    if (bbBox(o, d, vec3(-h, uBoardHull.y, -h), vec3(h, 0.0, h), t)) p = o + d * t;
+    else if (bbBox(o, d, vec3(-h - 0.6, uBoardHull.y, -h - 0.6), vec3(h + 0.6, 1.6, h + 0.6), t)) p = o + d * t;
+    else p = o + d * max(0.0, dot(-o, d));
+    float r = min(1.0, length(p.xz) / (h * 1.41421) + max(0.0, -p.y) * 0.1);
+    float g = bbNoise(p * 0.9) * 0.7 + bbNoise(p * 2.4 + 11.0) * 0.3;
+    return clamp(0.015 + 0.82 * r + 0.24 * (g - 0.5) * min(1.0, r * 4.0), 0.0, 1.0);
+  }
+#endif
+`;
+const BOARD_BLEND_START = `
+#ifdef BOARD_BLEND
+  float bbN = boardBlendN();
+  bool bbIn = false;
+  for (int i = 0; i < 2; i++) {
+    vec4 q = uBoardBlend[i];
+    bbIn = bbIn || (bbN >= q.x && bbN < q.y) || (bbN >= q.z && bbN < q.w);
+  }
+  if (!bbIn) discard;
+#endif
+`;
+const BOARD_BLEND_GLOW = `
+#ifdef BOARD_BLEND
+  if (uBoardFront.y > 0.0) { // die Front leuchtet warm, knapp innerhalb des neuen Bretts
+    float bbE = (uBoardFront.x - bbN) / uBoardFront.z;
+    if (bbE >= 0.0 && bbE < 1.0) gl_FragColor.rgb += vec3(1.0, 0.82, 0.55) * (1.0 - bbE) * (1.0 - bbE) * uBoardFront.y;
+  }
+#endif
+`;
+
+/**
+ * Das Überblenden eines Bretts (BOARD_BLEND_DECL): hängt sich an alle Materialien seiner Netze (ausser ShaderMaterial)
+ * und gibt { variant (Fassung mit BOARD_BLEND für compileParallel), set(ranges, front) } zurück. ranges: Abschnitte
+ * [von, bis) von n, in denen es zeichnet (höchstens vier, aufsteigend; [[0, 1]]: ganz, ohne Überblenden, die Programme
+ * wie ohne diesen Teil); front: [n, Stärke] der Front oder null. Je Bild aus boardTheme.render.
+ */
+function boardBlend(group) {
+  const parts = [new THREE.Vector4(), new THREE.Vector4()];
+  const uniforms = { uBoardBlend: { value: parts }, uBoardFront: { value: new THREE.Vector3(0, 0, 0.03) },
+    uBoardHull: boardBlendHull };
+  const materials = new Set();
+  group.traverse((o) => { if (o.isMesh) for (const m of [o.material].flat()) if (!m.isShaderMaterial) materials.add(m); });
+  for (const m of materials) {
+    // three unterscheidet Programme nach onBeforeCompile.toString(): Hier steht für alle Materialien dieselbe Hülle,
+    // also den Schlüssel des eigenen Codes behalten (BOARD_BLEND steht in defines und trennt die Fassungen)
+    const prev = m.onBeforeCompile, key = m.customProgramCacheKey();
+    m.customProgramCacheKey = () => key;
+    m.onBeforeCompile = (shader, r) => {
+      prev.call(m, shader, r);
+      Object.assign(shader.uniforms, uniforms); // auch ohne BOARD_BLEND: three nimmt die Uniforms der zuletzt gebauten
+      shader.vertexShader = shader.vertexShader
+        .replace('void main() {', '#ifdef BOARD_BLEND\nvarying vec3 vBoardView;\n#endif\nvoid main() {')
+        .replace('#include <project_vertex>', '#include <project_vertex>\n#ifdef BOARD_BLEND\nvBoardView = mvPosition.xyz;\n#endif');
+      shader.fragmentShader = shader.fragmentShader
+        .replace('void main() {', `${BOARD_BLEND_DECL}\nvoid main() {\n${BOARD_BLEND_START}`)
+        .replace('#include <tonemapping_fragment>', `${BOARD_BLEND_GLOW}\n#include <tonemapping_fragment>`);
+    };
+  }
+  let on = false;
+  const blend = (an) => {
+    if (an === on) return;
+    on = an;
+    for (const m of materials) {
+      m.defines ??= {};
+      if (an) m.defines.BOARD_BLEND = '';
+      else delete m.defines.BOARD_BLEND;
+      m.needsUpdate = true; // eigene Programme, beim Laden vorab übersetzt (variant)
+    }
+  };
+  return {
+    variant: () => { const was = on; blend(true); return () => blend(was); },
+    set(ranges, front) {
+      blend(!(ranges.length === 1 && ranges[0][0] <= 0 && ranges[0][1] >= 1));
+      if (!on) return;
+      const n = Math.min(ranges.length, 4);
+      for (let i = 0; i < 4; i++) {
+        let lo = 0, hi = 0; // leer
+        if (i < n) { // mehr als vier Abschnitte (mehrfach umgelenkt): der vierte reicht bis zum Ende des letzten
+          const von = ranges[i][0], bis = i === n - 1 ? ranges.at(-1)[1] : ranges[i][1];
+          lo = von <= 0 ? -1 : von - BOARD_BLEND_EPS;
+          hi = bis >= 1 ? 2 : bis;
+        }
+        const v = parts[i >> 1];
+        if (i & 1) { v.z = lo; v.w = hi; } else { v.x = lo; v.y = hi; }
+      }
+      uniforms.uBoardFront.value.set(front?.[0] ?? 0, front?.[1] ?? 0, 0.03);
+    },
+  };
+}
+
 /**
  * Steinbrett (Art stone, ohne Werte): dunkler, fein geäderter Schiefer (Texturen aus dem Hintergrund-Thread,
  * createStoneTextures) mit eingravierten Rasterlinien, heller Einlegelinie und Fase (FLOOR_DETAIL_GLSL), Spiegelung und
@@ -13100,39 +13241,15 @@ function stoneBoard() {
     }
   }
 
-  // Überblenden zweier Bretter gleicher Form (setFade): Mischen im Material. Das hinzukommende liegt oben und deckt mit
-  // seinem Anteil, das bisherige bleibt darunter deckend stehen, bis es ganz verschwunden ist. Oben ist es
-  // durchsichtig, schreibt keine Tiefe und liegt um einen Hauch davor (polygonOffset: dieselbe Geometrie wie darunter).
-  // Unter den durchsichtigen Teilen kommt es gleich nach Himmel, Sternen und Korona (renderOrder −1), sodass Strahlen
-  // und Glas darüber liegen
+  // Überblenden: boardBlend (für alle Arten gleich)
   const materials = [floorMaterial, plateSideMaterial, trimMat];
-  let oben = false;
-  const look = (on) => {
-    if (on === oben) return;
-    oben = on;
-    for (const m of materials) {
-      m.transparent = on;
-      m.depthWrite = !on;
-      m.polygonOffset = on;
-      m.polygonOffsetFactor = m.polygonOffsetUnits = on ? -1 : 0;
-      if (!on) m.opacity = 1;
-      m.needsUpdate = true; // durchsichtig: eigene Programme (ohne OPAQUE), beim Laden übersetzt (fadeVariants)
-    }
-    for (const o of group.children) o.renderOrder = on ? -1 : 0;
-  };
-
   const textures = [stoneTex.map, stoneTex.roughnessMap, stoneTex.normalMap];
   return {
     group,
     mirror: floorTop,
     textures,
     computed: stoneTex.computed,
-    setFade(k, upper) {
-      group.visible = k > 0;
-      look(upper && k < 1);
-      if (oben) for (const m of materials) m.opacity = k;
-    },
-    fadeVariants: [() => { const was = oben; look(true); return () => look(was); }],
+    setFade(k) { group.visible = k > 0; },
     dispose() {
       group.traverse((o) => o.geometry?.dispose());
       for (const m of materials) m.dispose();
@@ -13345,38 +13462,20 @@ function tidePoolBoard(values) {
   const group = new THREE.Group();
   group.add(floorTop, sides, drops);
 
-  // Überblenden wie beim Steinbrett (gleiche Form): Mischen im Material, das hinzukommende liegt oben (stoneBoard)
+  // Überblenden: boardBlend (für alle Arten gleich); die Tropfen blenden mit dem Anteil
   const materials = [floorMaterial, sideMaterial];
-  let oben = false;
-  const look = (on) => {
-    if (on === oben) return;
-    oben = on;
-    for (const m of materials) {
-      m.transparent = on;
-      m.depthWrite = !on;
-      m.polygonOffset = on;
-      m.polygonOffsetFactor = m.polygonOffsetUnits = on ? -1 : 0;
-      if (!on) m.opacity = 1;
-      m.needsUpdate = true;
-    }
-    floorTop.renderOrder = sides.renderOrder = on ? -1 : 0;
-  };
-
   const textures = [tex.map, tex.roughnessMap, tex.normalMap, tex.side];
   return {
     group,
     mirror: floorTop,
     textures,
     computed: tex.computed,
-    setFade(k, upper) {
+    setFade(k) {
       group.visible = k > 0;
-      look(upper && k < 1);
-      if (oben) for (const m of materials) m.opacity = k;
       drops.material.uniforms.uFade.value = k;
       // je Bild (boardTheme.render): Tropfen nur zeichnen, solange die Lichtwelle sie wirft
       drops.visible = shockUniforms.uShockT.value < TIDE_DROPS_S;
     },
-    fadeVariants: [() => { const was = oben; look(true); return () => look(was); }],
     dispose() {
       group.traverse((o) => o.geometry?.dispose());
       for (const m of [...materials, drops.material]) m.dispose();
@@ -13473,58 +13572,18 @@ function clayData({ size, plate, half, wallW, wallH, v }) {
       put(wall, (j * wallW + i) * 4, mix(mix(v.plaster[0], v.plaster[1], g), v.gully, gully * 0.6));
     }
   }
-  return { color, normal, wall };
+  return { map: color, normalMap: normal, wallMap: wall };
 }
 
 /**
- * Texturen der Lehmterrasse, im Hintergrund-Thread berechnet wie die des Steinbretts (createStoneTextures; ohne Worker
- * im Hauptthread): { map (Feld, sRGB), normalMap (Feld), wallMap (Wand, sRGB, wiederholt), computed (Promise) }.
- * Rauheit braucht es keine: Der Putz ist überall gleich matt.
+ * Texturen der Lehmterrasse, im Hintergrund-Thread berechnet wie die jedes Bretts (boardTextures): { map (Feld, sRGB),
+ * normalMap (Feld), wallMap (Wand, sRGB, wiederholt), computed (Promise) }. Rauheit braucht es keine: Der Putz ist
+ * überall gleich matt.
  */
 function createClayTextures(v) {
   const size = QUALITY.textureSize, [wallW, wallH] = CLAY.wallTex;
-  const toTex = (w, h, srgb, repeat = false) => {
-    const tex = new THREE.DataTexture(new Uint8ClampedArray(w * h * 4), w, h, THREE.RGBAFormat);
-    tex.encoding = srgb ? THREE.sRGBEncoding : THREE.LinearEncoding;
-    tex.generateMipmaps = true;
-    tex.minFilter = THREE.LinearMipmapLinearFilter;
-    tex.magFilter = THREE.LinearFilter;
-    tex.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    tex.flipY = false;
-    if (repeat) tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    return tex;
-  };
-  let done = false, fertig, gescheitert;
-  const out = {
-    map: toTex(size, size, true), normalMap: toTex(size, size, false), wallMap: toTex(wallW, wallH, true, true),
-    computed: new Promise((ja, nein) => { fertig = ja; gescheitert = nein; }),
-  };
-  const fill = (d) => {
-    if (done) return;
-    done = true;
-    for (const [tex, data] of [[out.map, d.color], [out.normalMap, d.normal], [out.wallMap, d.wall]]) {
-      tex.image.data.set(data);
-      tex.needsUpdate = true;
-    }
-    fertig();
-  };
-  const arg = { size, plate: PLATE, half: BOARD / 2, wallW, wallH, v };
-  const sicher = (f) => { try { f(); } catch (e) { gescheitert(e); } }; // gescheitert: das Steinbrett als Notfall
-  const hier = () => sicher(() => fill(clayData(arg)));
-  try {
-    const url = URL.createObjectURL(new Blob([`${clayData}
-      onmessage = ({ data }) => {
-        const d = clayData(data);
-        postMessage(d, [d.color.buffer, d.normal.buffer, d.wall.buffer]);
-      };`],
-    { type: 'text/javascript' }));
-    const worker = new Worker(url);
-    URL.revokeObjectURL(url);
-    worker.onmessage = ({ data }) => { worker.terminate(); sicher(() => fill(data)); };
-    worker.onerror = () => { worker.terminate(); hier(); }; // Worker nicht ladbar (CSP): im Hauptthread
-    worker.postMessage(arg);
-  } catch { hier(); }
-  return out;
+  return boardTextures({ map: [size, size, true], normalMap: [size, size, false], wallMap: [wallW, wallH, true, true] },
+    clayData, { size, plate: PLATE, half: BOARD / 2, wallW, wallH, v });
 }
 
 // Rauschen der Sandverwehung (GLSL): Hash, Wertrauschen, drei Oktaven
@@ -13769,41 +13828,18 @@ function clayBoard(v) {
   const group = new THREE.Group();
   group.add(floorTop, cornice, wall, torons, turrets, eggs, grains, falls);
 
-  // Überblenden (setFade) wie beim Steinbrett: Das hinzukommende liegt oben, durchsichtig, ohne Tiefe, um einen Hauch
-  // davor (polygonOffset), gleich nach dem Himmel (renderOrder −1). Liegt es unten, bleiben Oberfläche, Gesims und Wand
-  // deckend, bis es ganz weg ist (sie decken den Kernquader); Türmchen, Eier und Balken liegen ausserhalb und blenden
-  // aus. Die durchsichtigen Programme übersetzt boardTheme vorab (fadeVariants)
-  const body = [floorMaterial, wallMat], extras = [turretMat, woodMat, eggMat], all = [...body, ...extras];
-  const meshes = [floorTop, cornice, wall, torons, turrets, eggs];
-  let state = 'fest'; // fest, oben (kommt hinzu), unten (geht)
-  const look = (s) => {
-    if (s === state) return;
-    state = s;
-    for (const m of all) {
-      const on = s === 'oben' || (s === 'unten' && extras.includes(m));
-      if (m.transparent !== on) m.needsUpdate = true; // durchsichtig: eigene Programme (ohne OPAQUE)
-      m.transparent = on;
-      m.depthWrite = !on;
-      m.polygonOffset = s === 'oben';
-      m.polygonOffsetFactor = m.polygonOffsetUnits = s === 'oben' ? -1 : 0;
-      if (!on) m.opacity = 1;
-    }
-    for (const o of meshes) o.renderOrder = s === 'oben' ? -1 : 0;
-  };
-
+  // Überblenden: boardBlend (für alle Arten gleich); die Körner blenden mit dem Anteil (uK)
+  const all = [floorMaterial, wallMat, turretMat, woodMat, eggMat];
   const textures = [tex.map, tex.normalMap, tex.wallMap];
   return {
     group,
     mirror: null,
     textures,
     computed: tex.computed,
-    setFade(k, upper) {
+    setFade(k) {
       group.visible = k > 0;
-      look(k > 0 && k < 1 ? (upper ? 'oben' : 'unten') : 'fest');
-      if (state !== 'fest') for (const m of state === 'oben' ? all : extras) m.opacity = k;
       uK.value = k;
     },
-    fadeVariants: [() => { const was = state; look('oben'); return () => look(was); }],
     dispose() {
       group.traverse((o) => { o.geometry?.dispose(); if (o.isInstancedMesh) o.dispose(); });
       for (const m of [...all, grains.material, falls.material]) m.dispose();
@@ -14207,27 +14243,8 @@ function raisedBedBoard(v) {
   const group = new THREE.Group();
   group.add(floorTop, box, caps, pegMesh, stalkMesh, blobMesh, flowerMesh, sproutMesh, flies);
 
-  // Überblenden (setFade) wie bei der Lehmterrasse: Das hinzukommende liegt oben, durchsichtig, ohne Tiefe, um einen
-  // Hauch davor (polygonOffset), gleich nach dem Himmel (renderOrder −1). Liegt es unten, bleiben Erde und Kasten deckend,
-  // bis es ganz weg ist (sie decken den Kernquader); Abdeckbrett, Pflöcke und Kräuter liegen darüber und blenden aus.
-  // Die durchsichtigen Programme übersetzt boardTheme vorab (fadeVariants)
-  const body = [floorMaterial, sideMat], extras = [capMat, plantMat, sproutMat];
-  const all = [...body, ...extras], meshes = [floorTop, box, caps, pegMesh, stalkMesh, blobMesh, flowerMesh, sproutMesh];
-  let state = 'fest'; // fest, oben (kommt hinzu), unten (geht)
-  const look = (s) => {
-    if (s === state) return;
-    state = s;
-    for (const m of all) {
-      const on = s === 'oben' || (s === 'unten' && extras.includes(m));
-      if (m.transparent !== on) m.needsUpdate = true; // durchsichtig: eigene Programme (ohne OPAQUE)
-      m.transparent = on;
-      m.depthWrite = !on;
-      m.polygonOffset = s === 'oben';
-      m.polygonOffsetFactor = m.polygonOffsetUnits = s === 'oben' ? -1 : 0;
-      if (!on) m.opacity = 1;
-    }
-    for (const o of meshes) o.renderOrder = s === 'oben' ? -1 : 0;
-  };
+  // Überblenden: boardBlend (für alle Arten gleich); die Glühwürmchen blenden mit dem Anteil (uBed.x)
+  const all = [floorMaterial, sideMat, capMat, plantMat, sproutMat];
 
   const textures = [tex.map, tex.normalMap, tex.side, tex.cap];
   return {
@@ -14235,17 +14252,14 @@ function raisedBedBoard(v) {
     mirror: null,
     textures,
     computed: tex.computed,
-    setFade(k, upper) {
+    setFade(k) {
       group.visible = k > 0;
-      look(k > 0 && k < 1 ? (upper ? 'oben' : 'unten') : 'fest');
-      if (state !== 'fest') for (const m of state === 'oben' ? all : extras) m.opacity = k;
       // je Bild (boardTheme.render): Anfang der Welle, Pixeldichte; Sämlinge und Glühwürmchen nur, solange die Welle läuft
       const s = shockUniforms.uShock.value, t = shockUniforms.uShockT.value;
       uBed.value.set(k, s.y > 0 && s.x < 0.5 ? Math.min(1, s.y * 3) : 1, renderer.getPixelRatio(), 0);
       sproutMesh.visible = t < BED.sproutsEnd;
       flies.visible = t < BED.fliesEnd;
     },
-    fadeVariants: [() => { const was = state; look('oben'); return () => look(was); }],
     dispose() {
       group.traverse((o) => { o.geometry?.dispose(); if (o.isInstancedMesh) o.dispose(); });
       for (const m of [...all, flies.material]) m.dispose();
@@ -14266,12 +14280,10 @@ function raisedBedBoard(v) {
  *   null: spiegelt nicht),
  * - textures: im Spiel berechnete Texturen (boardTheme lädt sie in Häppchen hoch, boardTextureUpload),
  * - computed: Promise, erfüllt, sobald die Texturen berechnet sind (im Hintergrund-Thread); abgelehnt: gescheitert,
- * - setFade(k, upper), je Bild (boardTheme.render): Anteil k (0 … 1) des Bretts im Bild, 0 unsichtbar. Beim
- *   Überblenden bekommt das bisherige 1 − k und upper = false, das neue k und upper = true. Im Schnitt ihrer Kernquader
- *   muss jedes Pixel von einem der beiden deckend gezeichnet sein. Gleiche Form: Mischen im Material (stoneBoard); wie
- *   verschiedene Formen ineinander übergehen, legt die Arbeit am Strand fest (Ticket 05),
- * - fadeVariants: Fassungen der Materialien, die setFade beim Überblenden braucht, je eine Funktion für compileParallel
- *   (stellt sie ein, gibt eine zurück, die sie zurückstellt); vorab übersetzt, sobald es mehr als ein Brett gibt,
+ * - setFade(k), je Bild (boardTheme.render): Anteil k (0 … 1) des Bretts im Bild, 0 unsichtbar (group.visible). Das
+ *   Überblenden selbst macht boardBlend für alle Arten gleich, an den Materialien der Netze; eine Art blendet hier nur,
+ *   was eigene ShaderMaterials hat (Funken, Tropfen, Körner), mit k. Ihre Netze mit gewöhnlichen Materialien decken den
+ *   Kernquader und zeichnen undurchsichtig,
  * - dispose(): Grafikspeicher freigeben }.
  * Pflicht auf jedem Brett ist die Lichtwelle beim Lösen (shockUniforms; eine eigene richtet sich nach shockClock).
  */
@@ -14370,29 +14382,33 @@ function* boardTextureUpload(t, alive) {
  * - free(sky): Es wird mit seinem Himmel freigegeben (auf dem Handy sofort, sonst nach skyTheme.keep); gezeigt bleibt
  *   es, bis das Überblenden vorbei ist. Das Steinbrett bleibt immer gebaut (Milchstrasse, Sonnensystem, Rückfall).
  * - follow(dt), je Bild: Das gezeigte Brett folgt dem gezeigten Himmel. Ist das Brett des gewählten nicht bereit, hält
- *   skyTheme den bisherigen Himmel (holding, haelt), und dessen Brett bleibt stehen. Dann gleitet es gleichzeitig mit dem
- *   Himmel und über dessen ganze Dauer direkt ins neue (from → to, anteil), auch über die Nacht ohne Steinbrett
- *   dazwischen. Springt der Himmel (set ohne Überblenden), springt das Brett mit; ist es dann nicht bereit, steht
- *   keines da, bis es bereit ist.
+ *   skyTheme den bisherigen Himmel (holding, haelt), und dessen Brett bleibt stehen. Dann wächst das neue gleichzeitig
+ *   mit dem Himmel und über dessen ganze Dauer über das bisherige (boardBlend: von der Mitte nach aussen, für alle
+ *   Formen gleich), auch über die Nacht ohne Steinbrett dazwischen. Wird das umgelenkt, behält jedes gezeigte Brett sein
+ *   Stück (unter), und das nächste wächst darüber, in der Zeit, die der Himmel noch braucht. Springt der Himmel (set
+ *   ohne Überblenden), springt das Brett mit; ist es dann nicht bereit, steht keines da, bis es bereit ist.
  * - Notfall: Scheitert das Berechnen, steht das Steinbrett. Steht nach 8 s, in denen es laden durfte (ruhe: nicht unter
- *   dem Menü), noch kein Brett da (es gibt kein früheres zum Halten, etwa beim ersten Himmel nach dem Start), erscheint
- *   das Steinbrett, bis das richtige bereit ist, und blendet dann in skyTheme.fadeTime hinüber (fristStarten). Beides mit
- *   einer Warnung, nie einem Fehler.
+ *   dem Menü), noch kein Brett da (es gibt kein früheres zum Halten, etwa beim ersten Himmel nach dem Start), wächst
+ *   das Steinbrett in skyTheme.fadeTime ins Bild, bis das richtige bereit ist, und das wächst dann ebenso darüber
+ *   (fristStarten). Beides mit einer Warnung, nie einem Fehler.
  * skyTheme.ready schliesst das Brett ein (steht), skyTheme.settled ebenso (bereitFuer).
  */
 const BOARD_NOTFALL_S = 8;
 const _boardCore = new THREE.Vector3(), _boardMirrors = [];
 const boardTheme = {
   types: BOARD_TYPES, // Testschnittstelle: Proben legen hier eigene Arten an
-  built: new Map(),   // Schlüssel aus Art und Werten -> Eintrag { key, type, board, users, ready, failed, gone, … }
+  built: new Map(),   // Schlüssel aus Art und Werten -> Eintrag { key, type, board, blend, users, ready, failed, gone, … }
   skies: new Map(),   // id eines vorbereiteten Himmels -> Eintrag seines Bretts (prepare … free)
   stone: null,        // Eintrag des Steinbretts (dauerhaft)
-  // beim Überblenden das bisherige Brett: { sky (id des Himmels, dem es gehört), entry, notfall (das Steinbrett steht für
-  // ein gescheitertes Brett oder, mit frist, weil nach 8 s keines bereit war) }
-  from: null,
-  to: null,           // das gezeigte, beim Überblenden das neue Brett (wie from); null: keines
-  anteil: 1,          // Anteil von to, 0 … 1 (1 ohne Überblenden)
+  // das gezeigte, beim Überblenden das neue Brett: { sky (id des Himmels, dem es gehört), entry, notfall (das Steinbrett
+  // steht für ein gescheitertes Brett oder, mit frist, weil nach 8 s keines bereit war) }; null: keines
+  to: null,
+  anteil: 1,          // so weit ist to gewachsen, 0 … 1 (1 ohne Überblenden); sein Stück ist n < anteil (boardBlend)
+  // beim Überblenden die bisherigen Bretter, von innen nach aussen, je wie to mit bis: Ihr Stück reicht vom vorigen bis
+  // dahin (das äusserste bis 1; fehlt es, wächst to aus dem Nichts). Leer ohne Überblenden
+  unter: [],
   mitHimmel: false,   // das Überblenden folgt dem des Himmels (sonst eine eigene Uhr: aus dem Notfall)
+  p0: 0,              // mit dem Himmel: dessen Fortschritt (progress) beim Beginn dieses Überblendens
   ohne: null,         // kein Brett steht da: { ms (so lange, wie es laden durfte; nach 8 s der Notfall), uhr } (fristStarten)
 
   /** Brett zu einer Brett-Angabe (ohne: das Steinbrett), schon gebaut oder neu (es lädt gleich, load); release gibt es ab */
@@ -14406,19 +14422,20 @@ const boardTheme = {
     const key = JSON.stringify([type, Object.keys(values).sort().map((k) => [k, values[k]])]);
     let entry = this.built.get(key);
     if (!entry) {
-      entry = { key, type, board: null, users: 0, ready: false, failed: false, gone: false, loaded: null, oben: null,
-        obenBereit: false };
+      entry = { key, type, board: null, blend: null, users: 0, ready: false, failed: false, gone: false, loaded: null,
+        blendVorab: null, blendBereit: false };
       this.built.set(key, entry);
       try {
         entry.board = this.types[type].build(values);
-        entry.board.setFade(0, false);
+        entry.blend = boardBlend(entry.board.group);
+        entry.board.setFade(0);
         scene.add(entry.board.group);
         entry.loaded = this.load(entry);
       } catch (e) {
         entry.failed = true;
         console.warn(`Brett ${type}: ${e.message}, Steinbrett`);
       }
-      if (this.built.size > 1) for (const e of this.built.values()) this.needOben(e);
+      if (this.built.size > 1) for (const e of this.built.values()) this.needBlend(e);
     }
     entry.users++;
     return entry;
@@ -14464,17 +14481,18 @@ const boardTheme = {
       alive: () => !entry.gone });
   },
   /**
-   * Gibt es mehr als ein Brett, kann jedes beim Überblenden oben liegen: seine Fassungen dafür (fadeVariants) nach dem
-   * Laden vorab übersetzen. Bis dahin hält skyTheme den bisherigen Himmel (bereitFuer).
+   * Gibt es mehr als ein Brett, kann jedes überblenden: seine Fassung dafür (boardBlend, variant) nach dem Laden vorab
+   * übersetzen, sonst übersetzte three sie im ersten Bild des Wechsels (Ruck). Bis dahin hält skyTheme den bisherigen
+   * Himmel (bereitFuer).
    */
-  needOben(entry) {
-    if (entry.oben || !entry.loaded) return;
-    entry.oben = entry.loaded.then(async () => {
-      if (!entry.ready || entry.gone || !entry.board.fadeVariants?.length) return;
+  needBlend(entry) {
+    if (entry.blendVorab || !entry.loaded) return;
+    entry.blendVorab = entry.loaded.then(async () => {
+      if (!entry.ready || entry.gone) return;
       await ruhe.warte();
-      if (!entry.gone) await this.compile(entry, entry.board.fadeVariants);
+      if (!entry.gone) await this.compile(entry, [entry.blend.variant]);
     }).catch((e) => console.warn(`Brett ${entry.type}: Überblenden nicht vorab übersetzt (${e?.message ?? e})`))
-      .then(() => { entry.obenBereit = true; sceneLoop.wake(); });
+      .then(() => { entry.blendBereit = true; sceneLoop.wake(); });
   },
   /**
    * Das Brett des Himmels sky (seine Brett-Angabe) bauen und bereit machen; es bleibt, bis der Himmel frei wird. Mit
@@ -14497,15 +14515,17 @@ const boardTheme = {
     const entry = this.skies.get(sky);
     return entry && !entry.failed ? { entry, notfall: false } : { entry: this.stone, notfall: !!entry };
   },
-  /** was gerade überwiegt: beim Überblenden bis zur Hälfte das bisherige, sonst das gezeigte (oder null) */
-  get basis() { return this.from && this.anteil < 0.5 ? this.from : this.to; },
+  /** das äusserste der bisherigen Bretter (beim Überblenden das, von dem es ausging), sonst null */
+  get from() { return this.unter.at(-1) ?? null; },
+  /** Einträge aller gezeigten Bretter (to und unter) */
+  get gezeigt() { return [this.to, ...this.unter].filter(Boolean).map((l) => l.entry); },
   /**
-   * Das Brett des Himmels sky kann ins Bild: berechnet, übersetzt und hochgeladen, und muss es beim Überblenden über
-   * einem anderen liegen, auch dafür übersetzt (skyTheme hält bis dahin den bisherigen Himmel, holding)
+   * Das Brett des Himmels sky kann ins Bild: berechnet, übersetzt und hochgeladen, und muss es über ein anderes
+   * wachsen, sind beide auch dafür übersetzt (skyTheme hält bis dahin den bisherigen Himmel, holding)
    */
   bereitFuer(sky) {
-    const { entry } = this.target(sky), b = this.basis;
-    return entry.ready && (!b || b.entry === entry || entry.obenBereit);
+    const { entry } = this.target(sky), da = this.gezeigt;
+    return entry.ready && (da.every((e) => e === entry) || [entry, ...da].every((e) => e.blendBereit));
   },
   /**
    * Ein Brett steht, das bleiben muss, bis das des Himmels sky bereit ist: skyTheme hält so lange den bisherigen Himmel
@@ -14513,13 +14533,15 @@ const boardTheme = {
    * das Brett erscheint, sobald es bereit ist (nach 8 s das Steinbrett, follow).
    */
   haelt(sky) { return !!this.to && !this.bereitFuer(sky); },
-  /** Das Brett des Himmels sky steht ganz und bereit im Bild (skyTheme.ready); im Notfall nur, wenn es scheiterte */
-  steht(sky) {
+  /** to ist das Brett des Himmels sky, wie target es verlangt */
+  istZiel(sky) {
     const z = this.target(sky), to = this.to;
-    return !this.from && to?.sky === sky && to.entry === z.entry && to.notfall === z.notfall && to.entry.ready;
+    return to?.sky === sky && to.entry === z.entry && to.notfall === z.notfall;
   },
+  /** Das Brett des Himmels sky steht ganz und bereit im Bild (skyTheme.ready); im Notfall nur, wenn es scheiterte */
+  steht(sky) { return this.anteil === 1 && !this.unter.length && this.istZiel(sky) && this.to.entry.ready; },
   /** blendet mit eigener Uhr über (aus dem Notfall): skyTheme.busy */
-  get busy() { return !!this.from && !this.mitHimmel; },
+  get busy() { return this.anteil < 1 && !this.mitHimmel; },
   /**
    * Fortschritt des Himmels über sein ganzes Überblenden in den Himmel sky, 0 … 1: erst blendet der bisherige aus
    * (0 … 0,5), dann der neue ein (0,5 … 1); wie story.blendSky
@@ -14529,13 +14551,23 @@ const boardTheme = {
     if (!a) return 0.5;
     return a.id === sky ? 0.5 + 0.5 * s.weight[a.id] : 0.5 * (1 - s.weight[a.id]);
   },
-  /** Gezeigt werden from (beim Überblenden das bisherige, sonst null) und to mit dem Anteil anteil; beide gehalten */
-  show(from, to, anteil, mitHimmel) {
-    const vorher = [this.from?.entry, this.to?.entry];
-    for (const e of [from?.entry, to?.entry]) if (e) e.users++;
-    for (const e of vorher) if (e) this.release(e);
-    Object.assign(this, { from, to, anteil, mitHimmel });
+  /** Gezeigt werden to (ganz, anteil 1) und unter; alle gehalten (users), die bisher gezeigten abgegeben */
+  show(to, unter = []) {
+    const vorher = this.gezeigt;
+    for (const l of [to, ...unter]) if (l) l.entry.users++;
+    for (const e of vorher) this.release(e);
+    Object.assign(this, { to, unter, anteil: 1 });
     if (to && this.ohne) { clearInterval(this.ohne.uhr); this.ohne = null; }
+  },
+  /**
+   * ziel wächst über das, was gerade steht (boardBlend): Das bisher gezeigte behält sein Stück (n < anteil), die
+   * übrigen ebenso. mitHimmel: in der Zeit, die der Himmel noch zum Überblenden braucht (umgelenkt: der Rest), sonst in
+   * skyTheme.fadeTime. Steht nichts, wächst es aus dem Nichts.
+   */
+  blend(ziel, mitHimmel) {
+    const unter = this.to ? [{ ...this.to, bis: this.anteil }, ...this.unter].filter((l) => l.bis > 0) : [];
+    this.show(ziel, unter);
+    Object.assign(this, { anteil: 0, mitHimmel, p0: mitHimmel ? this.progress(ziel.sky) : 0 });
   },
   /**
    * Frist des Notfalls, solange kein Brett dasteht: Sie zählt nur die Zeit, in der das Brett laden darf (ruhe.jetzt),
@@ -14555,65 +14587,91 @@ const boardTheme = {
   /** Je Bild nach dem Himmel (skyTheme.update) und nach set: das gezeigte Brett dem gezeigten Himmel nachführen */
   follow(dt) {
     const sky = skyTheme.current, z = this.target(sky), to = this.to, fading = skyTheme.fading;
-    if (!(to?.sky === sky && to.entry === z.entry && to.notfall === z.notfall)) {
-      const ziel = { sky, entry: z.entry, notfall: z.notfall }, b = this.basis;
+    if (!this.istZiel(sky)) {
+      const ziel = { sky, entry: z.entry, notfall: z.notfall };
       if (this.bereitFuer(sky)) {
-        // mit dem Himmel, sobald er sich bewegt; nach 8 s ohne Brett mit eigener Uhr; sonst gleich (der Himmel sprang)
-        if (b && fading) { if (!skyTheme.holding) this.show(b, ziel, this.progress(sky), true); }
-        else if (b?.frist && b.entry !== z.entry) this.show(b, ziel, 0, false);
-        else this.show(null, ziel, 1, false);
+        // mit dem Himmel, sobald er sich bewegt; aus dem Notfall (oder während es mit eigener Uhr wächst) mit eigener
+        // Uhr; sonst gleich (der Himmel sprang)
+        if (to && fading) { if (!skyTheme.holding) this.blend(ziel, true); }
+        else if (to && (to.frist || this.anteil < 1)) this.blend(ziel, false);
+        else this.show(ziel);
       } else if (to?.frist) {
         to.sky = sky; // das Steinbrett nach 8 s ohne Brett steht weiter, nun für diesen Himmel
       } else if (!to || !skyTheme.holding) {
         // Der Himmel steht schon (er sprang), sein Brett aber nicht: kein falsches stehen lassen. Fehlt nach 8 s, in
-        // denen es laden durfte, jedes Brett, erscheint das Steinbrett, sobald es selbst bereit ist (sonst lüde three
-        // es beim ersten Zeichnen in einem Stück hoch)
-        if (to) this.show(null, null, 1, false);
+        // denen es laden durfte, jedes Brett, wächst das Steinbrett ins Bild, sobald es selbst bereit ist (sonst lüde
+        // three es beim ersten Zeichnen in einem Stück hoch)
+        if (to) this.show(null);
         if (!this.ohne) {
           if (sceneLoop.started) this.fristStarten(); // erst mit der Szene, nicht schon, während die Seite lädt
-        } else if (this.ohne.ms >= BOARD_NOTFALL_S * 1000 && this.stone.ready) {
+        } else if (this.ohne.ms >= BOARD_NOTFALL_S * 1000 && this.stone.ready && this.stone.blendBereit) {
           if (z.entry !== this.stone) console.warn(`Brett von ${sky}: nach ${BOARD_NOTFALL_S} s nicht bereit, Steinbrett`);
-          this.show(null, { sky, entry: this.stone, notfall: true, frist: true }, 1, false);
+          this.blend({ sky, entry: this.stone, notfall: true, frist: true }, false);
         }
       }
     }
-    if (this.from) {
+    if (this.anteil < 1) {
+      const p0 = this.p0;
       this.anteil = !this.mitHimmel ? Math.min(1, this.anteil + dt / skyTheme.fadeTime)
-        : fading ? this.progress(this.to.sky) : 1;
-      if (this.anteil >= 1) this.show(null, this.to, 1, false);
+        : fading && p0 < 0.999 ? THREE.MathUtils.clamp((this.progress(this.to.sky) - p0) / (1 - p0), 0, 1) : 1;
+      // ganz gewachsen: allein; ein bisheriges, dessen Stück es ganz bedeckt, abgeben
+      if (this.anteil >= 1) this.show(this.to);
+      else if (this.unter[0]?.bis <= this.anteil) {
+        const a = this.anteil;
+        this.show(this.to, this.unter.filter((l) => l.bis > a));
+        this.anteil = a;
+      }
     }
     this.render();
   },
-  /** Die Bretter ein- und ausblenden (setFade) und den Kernquader setzen (beim Überblenden der Schnitt beider) */
+  /**
+   * Die Bretter zeigen: je Brett sein Stück von n (boardBlend) und sein Anteil (setFade), dazu der Kernquader (beim
+   * Überblenden der Schnitt aller gezeigten; wächst eines aus dem Nichts, keiner)
+   */
   render() {
-    const from = this.from?.entry, to = this.to?.entry, k = this.anteil, fade = !!from && from !== to && k < 1;
+    const to = this.to, ganz = this.anteil >= 1 && !this.unter.length;
+    // Stücke von innen nach aussen: to bis anteil, dann jedes bisherige bis zu seinem bis
+    const stuecke = [];
+    let rand = 0;
+    if (to) {
+      stuecke.push([to.entry, 0, ganz ? 1 : this.anteil]);
+      rand = ganz ? 1 : this.anteil;
+      for (const l of this.unter) {
+        if (l.bis <= rand) continue;
+        const letztes = stuecke.at(-1);
+        if (letztes[0] === l.entry) letztes[2] = l.bis; // gleiches Brett: ein Stück
+        else stuecke.push([l.entry, rand, l.bis]);
+        rand = l.bis;
+      }
+    }
+    const front = to && stuecke[0][2] < 1
+      ? [this.anteil, Math.min(1, this.anteil * 6, (1 - this.anteil) * 6) * 1.6] : null;
     for (const e of this.built.values()) {
       if (!e.board) continue;
-      if (e === to) e.board.setFade(fade ? k : 1, fade);
-      else if (fade && e === from) e.board.setFade(1 - k, false);
-      else e.board.setFade(0, false);
+      const meine = stuecke.filter((s) => s[0] === e).map((s) => [s[1], s[2]]);
+      e.board.setFade(meine.reduce((a, [von, bis]) => a + bis - von, 0));
+      if (meine.length) e.blend.set(meine, e === to.entry ? front : null);
     }
     const lo = boardCoreUniforms.uCoreLo.value, hi = boardCoreUniforms.uCoreHi.value;
-    if (to) {
-      const core = this.types[to.type].core;
-      lo.fromArray(core.lo);
-      hi.fromArray(core.hi);
-      if (fade) {
-        const c = this.types[from.type].core;
-        lo.max(_boardCore.fromArray(c.lo));
-        hi.min(_boardCore.fromArray(c.hi));
+    if (to && rand >= 1) {
+      lo.set(-Infinity, -Infinity, -Infinity);
+      hi.set(Infinity, Infinity, Infinity);
+      for (const [e] of stuecke) {
+        const core = this.types[e.type].core;
+        lo.max(_boardCore.fromArray(core.lo));
+        hi.min(_boardCore.fromArray(core.hi));
       }
       lo.addScalar(0.01);
       hi.addScalar(-0.01);
     }
-    if (!to || lo.x > hi.x || lo.y > hi.y || lo.z > hi.z) hi.copy(lo.set(0, -1e4, 0)); // keines: weit unter der Szene
+    if (!to || rand < 1 || lo.x > hi.x || lo.y > hi.y || lo.z > hi.z) hi.copy(lo.set(0, -1e4, 0)); // keiner: weit unten
   },
   /** spiegelnde Oberflächen der gezeigten Bretter (renderReflection blendet beim Spiegeln alle aus; leer: keines) */
   get mirrors() {
     _boardMirrors.length = 0;
-    for (const s of [this.to, this.from]) {
-      const m = s?.entry.board?.mirror;
-      if (m && s.entry.board.group.visible && !_boardMirrors.includes(m)) _boardMirrors.push(m);
+    for (const e of this.gezeigt) {
+      const m = e.board?.mirror;
+      if (m && e.board.group.visible && !_boardMirrors.includes(m)) _boardMirrors.push(m);
     }
     return _boardMirrors;
   },
@@ -14621,14 +14679,18 @@ const boardTheme = {
   onGpu(t) { return t.version > 0 && renderer.properties.get(t).__version === t.version; },
   /**
    * Testschnittstelle (__prisma.brett): himmel (id des Himmels, dessen Brett zu sehen ist, beim Überblenden des neuen;
-   * null: keines), art, bereit (berechnet und hochgeladen), von (beim Überblenden der Himmel des bisherigen, sonst null),
-   * anteil (des neuen, 0 … 1; 1 ohne Überblenden), notfall (das Steinbrett steht für eines, das scheiterte oder nach 8 s
-   * nicht bereit war)
+   * null: keines), art, bereit (berechnet und hochgeladen), von (beim Überblenden der Himmel des bisherigen, von dem es
+   * ausging, sonst null; null auch, wenn es aus dem Nichts wächst), anteil (des neuen, 0 … 1; 1 ohne Überblenden),
+   * notfall (das Steinbrett steht für eines, das scheiterte oder nach 8 s nicht bereit war), stuecke (je gezeigtem Brett
+   * [Himmel, Art, von, bis] seines Stücks von n, von innen nach aussen; Proben)
    */
   info() {
     const to = this.to;
+    let rand = this.anteil;
+    const stuecke = to ? [[to.sky, to.entry.type, 0, this.anteil]] : [];
+    for (const l of this.unter) if (l.bis > rand) { stuecke.push([l.sky, l.entry.type, rand, l.bis]); rand = l.bis; }
     return { himmel: to?.sky ?? null, art: to?.entry.type ?? null, bereit: !!to?.entry.ready, von: this.from?.sky ?? null,
-      anteil: this.anteil, notfall: !!to?.notfall };
+      anteil: this.anteil, notfall: !!to?.notfall, stuecke };
   },
 };
 boardTheme.stone = boardTheme.acquire(); // bleibt immer gebaut: Milchstrasse, Sonnensystem und der Rückfall brauchen es
