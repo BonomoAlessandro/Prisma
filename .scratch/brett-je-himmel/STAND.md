@@ -103,5 +103,7 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   - `brett-probe` liest teils Interna.
   - Die Lücken-Prüfung «Brett laden und überblenden» ist wackelig (Ursache: Das Wasser des Strands rechnet beim ersten
     Bild des Panoramas `groundShift`, zu lange Häppchen). Das liegt am Strand-Himmel, nicht am Brett.
-- **Andere Branches:** Der Kleine Wagen (PLAN 0.4) läuft auf `feature/kleiner-wagen`, auf einem anderen Rechner. `main`
-  steht auf 504adbb (mit dem neuen Vulkan-Krater).
+- **main geholt (07.11.2026, Merge 8a424b2):** Der Kleine Wagen (PLAN 0.4) ist im Branch. Auf der Reise in eine neue
+  Welt gilt der Flug des Kleinen Wagens, das Licht wartet aber wie bisher auf Himmel und Brett (`skyTheme.settled`). Bei
+  jeder Ankunft hält das Licht an und wartet auf Tippen; `brett-probe` tippt dafür auf der Reise ans Meer.
+- **Vor Ticket 10** macht der Nutzer einen manuellen Test (Wunsch vom 07.11.2026); erst danach beginnt 10.
