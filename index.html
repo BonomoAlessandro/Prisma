@@ -11873,9 +11873,10 @@ function* waterSurface(ctx, opt) {
   const drawUnder = (r, cam, into) => {
     const on = under.scene.children.some((o) => o.visible);
     material.uniforms.uUnderOn.value = on ? 1 : 0;
-    if (!on) return;
-    // Aufwärmen (skyWarmDraw, 1 × 1): das Ziel gleich so gross und mit so vielen Proben wie im Spiel anlegen. Sonst legte
-    // es das erste Bild an, in dem der Strand einblendet; das hielt die Grafikkarte dort 50–80 ms an (Ticket 05)
+    // Aufwärmen (skyWarmDraw, 1 × 1): das Ziel gleich so gross und mit so vielen Proben wie im Spiel anlegen, auch wenn
+    // gerade nichts darunter schwimmt. Sonst legte es das erste Bild an, in dem der Strand einblendet; das hielt die
+    // Grafikkarte dort 50–80 ms an (Ticket 05)
+    if (!on && !into?.prismaWarm) return;
     if (into?.prismaWarm) into = composer.readBuffer;
     if (into) size.set(into.width, into.height); else r.getDrawingBufferSize(size);
     size.max(new THREE.Vector2(1, 1));
@@ -13033,7 +13034,8 @@ const FLOOR_DETAIL_GLSL = `
  * bisherige, mit leuchtender, fransiger Front, über die ganze Dauer des Himmels (boardTheme). Beide zeichnen dabei
  * undurchsichtig; jedes verwirft die Pixel, die gerade dem anderen gehören (discard). Welchem Brett ein Pixel gehört,
  * entscheidet ein Wert n (0 … 1) des Sehstrahls durch dieses Pixel, nicht der Ort des Bretts: n hängt am Punkt, wo der
- * Strahl in die Hülle aller Bretter tritt (Quader über den Umriss, von y = 0 bis BOARD_BLEND_HULL_Y), innen klein, aussen
+ * Strahl in die Hülle aller Bretter tritt (Quader über den Umriss, von y = 0 bis BOARD_BLEND_HULL_Y; Teile ausserhalb
+ * der Hülle über dem Brett nehmen ihren eigenen Ort), innen klein, aussen
  * und unten gross, mit Rauschen. Beide Bretter rechnen für ein Pixel also dasselbe n; das neue zeichnet, wo n unter der
  * Front liegt, das bisherige darüber (um BOARD_BLEND_EPS überlappend). So ist jedes Pixel, das beide decken (der Schnitt
  * der Kernquader), in jedem Bild von einem der beiden gedeckt, und eingezogene oder hängende Teile des neuen kommen
@@ -13068,15 +13070,16 @@ const BOARD_BLEND_DECL = `
     t = max(t0, 0.0);
     return t1 >= t;
   }
-  // n des Sehstrahls durch dieses Pixel (Welt): wo er in die Hülle tritt (sonst in einen grösseren Quader, für Teile
-  // über dem Brett, oder sein Punkt nächst der Mitte). Innen klein, zum Rand und nach unten gross, dazu Rauschen
+  // n dieses Pixels: Liegt das Stück des Bretts nicht über y = 0, zählt der Sehstrahl (wo er in die Hülle tritt; für alle
+  // Bretter gleich, darum decken sie dort lückenlos). Liegt es darüber (Polster, Türmchen, Kräuter), zählt
+  // sein eigener Ort: Sonst bekäme es den Eintritt seines Strahls weiter innen und erschiene zu früh. Den Kernquader
+  // deckt jedes Brett mit Stücken in der Hülle. Innen klein, zum Rand und nach unten gross, dazu Rauschen
   float boardBlendN() {
-    vec3 o = cameraPosition, d = normalize((vec4(vBoardView, 0.0) * viewMatrix).xyz), p;
-    float h = uBoardHull.x, t;
-    if (bbBox(o, d, vec3(-h, uBoardHull.y, -h), vec3(h, 0.0, h), t)) p = o + d * t;
-    else if (bbBox(o, d, vec3(-h - 0.6, uBoardHull.y, -h - 0.6), vec3(h + 0.6, 1.6, h + 0.6), t)) p = o + d * t;
-    else p = o + d * max(0.0, dot(-o, d));
-    float r = min(1.0, length(p.xz) / (h * 1.41421) + max(0.0, -p.y) * 0.1);
+    vec3 v = (vec4(vBoardView, 0.0) * viewMatrix).xyz, w = cameraPosition + v, d = normalize(v), p = w;
+    float h = uBoardHull.x + 0.005, t;
+    bool drin = w.y < 0.005; // über dem Brett: draussen (die Metallkante des Steinbretts etwa, bündig, zählt als drin)
+    if (drin && bbBox(cameraPosition, d, vec3(-h, uBoardHull.y, -h), vec3(h, 0.005, h), t)) p = cameraPosition + d * t;
+    float r = min(1.0, length(p.xz) / (uBoardHull.x * 1.41421) + max(0.0, -p.y) * 0.1);
     float g = bbNoise(p * 0.9) * 0.7 + bbNoise(p * 2.4 + 11.0) * 0.3;
     return clamp(0.015 + 0.82 * r + 0.24 * (g - 0.5) * min(1.0, r * 4.0), 0.0, 1.0);
   }

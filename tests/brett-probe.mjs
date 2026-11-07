@@ -264,7 +264,8 @@ async function mechanik() {
     const ein = log.slice(keinesBis).filter((e) => e.brett.notfall && e.brett.von === null && e.brett.anteil < 1);
     pruefe(ein.length > 3 && ein[0].brett.anteil < 0.1,
       `Vulkan: das Steinbrett wächst ins Bild (${ein.length} Bilder, erstes mit Anteil ${ein[0]?.brett.anteil.toFixed(3)})`);
-    const ueber = log.filter((e) => e.brett.von === 'volcano' && e.brett.himmel === 'volcano' && e.brett.anteil < 1);
+    // das richtige wächst über das Steinbrett (dessen Stück es nach und nach bedeckt; danach wächst es weiter aus dem Nichts)
+    const ueber = log.filter((e) => e.brett.art === 'probe' && e.brett.himmel === 'volcano' && e.brett.anteil < 1);
     const udauer = (ueber.at(-1)?.ts - ueber[0]?.ts) / 1000;
     pruefe(ueber.length > 20 && Math.abs(udauer - 2.4) < 0.35 && vulkan.art === 'probe' && !vulkan.notfall
       && vulkan.anteil === 1, `Vulkan: vom Notfall ins richtige Brett in ${udauer.toFixed(2)} s ${JSON.stringify(vulkan)}`);
@@ -476,7 +477,7 @@ async function reise() {
 
 // In der Seite, je Bild (eigenes requestAnimationFrame) nach dem Spiel: nur die gezeigten Bretter in ein kleines Bild
 // zeichnen (320 × 200, ohne Himmel und Elemente, ohne die Schatten neu zu rechnen) und dazu den Kernquader, hinter dem der
-// Himmel gerade nichts zeichnet (boardCoreUniforms). luecken: Pixel im Kernquader, die kein Brett deckt (dort sähe man
+// Himmel gerade nichts zeichnet (boardCoreUniforms). luecken: Pixel im Kernquader, in die kein Brett zeichnet (Alpha 0; dort sähe man
 // ein Loch im Himmel). schritt: Anteil der Pixel mit Brett, deren Farbe sich gegenüber dem vorigen Bild deutlich ändert
 // (ein Teil, der auf einmal erscheint oder verschwindet, gibt einen grossen Schritt). Kein Vergleich mit
 // Referenzbildern: geprüft werden nur Deckung und Sprünge.
@@ -509,7 +510,7 @@ const DECKUNG = `(() => { if (window.__dk) return true;
       renderer.clear();
       renderer.render(kernSzene, camera);
       renderer.readRenderTargetPixels(rt, 0, 0, W, H, maske);
-      for (let i = 0; i < W * H; i++) if (maske[i * 4] > 128) { kern++; if (px[i * 4 + 3] < 250) luecken++; }
+      for (let i = 0; i < W * H; i++) if (maske[i * 4] > 128) { kern++; if (px[i * 4 + 3] === 0) luecken++; }
     }
     renderer.setRenderTarget(vorher);
     renderer.setClearColor(farbe, alpha);
@@ -550,9 +551,10 @@ function uebergang(log) {
     stuecke: Math.max(0, ...fade.map((e) => e.stuecke)),
   };
 }
-// Anteil der Pixel mit Brett, die sich von einem Bild zum nächsten ändern: frei (Front samt Leuchten) und je Fortschritt
+// Anteil der Pixel mit Brett, die sich von einem Bild zum nächsten ändern: frei (Front samt Leuchten; flach gesehen
+// stehen Kräuter und Polster im Rand dicht, dort ändert die Front viele Pixel auf einmal) und je Fortschritt
 // des Anteils in diesem Bild; ins erste und ins letzte Bild höchstens LETZTER_MAX
-const SCHRITT_FREI = 0.06, SCHRITT_JE = 2, LETZTER_MAX = 0.03;
+const SCHRITT_FREI = 0.12, SCHRITT_JE = 2, LETZTER_MAX = 0.03;
 
 /** Euler-Weg durch alle geordneten Paare verschiedener Arten (vollständiger gerichteter Graph, Hierholzer) */
 function alleWege(arten) {
