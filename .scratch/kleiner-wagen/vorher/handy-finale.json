@@ -1,0 +1,52 @@
+{
+ "zeit": "2026-11-04T14:19:23.409Z",
+ "aufruf": "--finale leicht --handy --messwerte .scratch/kleiner-wagen/vorher/handy-finale.json",
+ "bildschirm": {
+  "name": "handy",
+  "width": 390,
+  "height": 844,
+  "dpr": 2,
+  "phone": true
+ },
+ "abschnitte": [
+  {
+   "name": "leicht: Weiter → Einstieg in die Sterne (Fortsetzen)",
+   "bilder": 355,
+   "max": 66,
+   "ueber50": 1,
+   "ueber100": 0,
+   "mittel": 16.9,
+   "bis": "spielt",
+   "abKlick": true,
+   "dauer": 6.33,
+   "tippen": 0,
+   "fotos": 0.4,
+   "netto": 5.93
+  },
+  {
+   "name": "leicht: Finale (Level 60 → Epilog)",
+   "bilder": 980,
+   "max": 234,
+   "ueber50": 4,
+   "ueber100": 2,
+   "mittel": 17.2,
+   "bis": "buehne",
+   "abKlick": true,
+   "dauer": 17.46,
+   "tippen": 3.15,
+   "fotos": 0,
+   "netto": 14.31
+  },
+  {
+   "name": "leicht: Epilog → Menü",
+   "bilder": 136,
+   "max": 17,
+   "ueber50": 0,
+   "ueber100": 0,
+   "mittel": 16.7
+  }
+ ],
+ "fehler": [
+  "leicht: Finale (Level 60 → Epilog): 2 Lücken über 100 ms (längste 234 ms)"
+ ]
+}

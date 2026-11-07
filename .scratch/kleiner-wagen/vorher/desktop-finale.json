@@ -1,0 +1,50 @@
+{
+ "zeit": "2026-11-04T14:17:20.646Z",
+ "aufruf": "--finale leicht --messwerte .scratch/kleiner-wagen/vorher/desktop-finale.json",
+ "bildschirm": {
+  "name": "desktop",
+  "width": 1440,
+  "height": 900,
+  "dpr": 1,
+  "phone": false
+ },
+ "abschnitte": [
+  {
+   "name": "leicht: Weiter → Einstieg in die Sterne (Fortsetzen)",
+   "bilder": 358,
+   "max": 83,
+   "ueber50": 1,
+   "ueber100": 0,
+   "mittel": 16.9,
+   "bis": "spielt",
+   "abKlick": true,
+   "dauer": 5.99,
+   "tippen": 0,
+   "fotos": 0,
+   "netto": 5.99
+  },
+  {
+   "name": "leicht: Finale (Level 60 → Epilog)",
+   "bilder": 1035,
+   "max": 18,
+   "ueber50": 0,
+   "ueber100": 0,
+   "mittel": 16.7,
+   "bis": "buehne",
+   "abKlick": true,
+   "dauer": 17.2,
+   "tippen": 3.2,
+   "fotos": 0,
+   "netto": 14
+  },
+  {
+   "name": "leicht: Epilog → Menü",
+   "bilder": 134,
+   "max": 33,
+   "ueber50": 0,
+   "ueber100": 0,
+   "mittel": 16.8
+  }
+ ],
+ "fehler": []
+}

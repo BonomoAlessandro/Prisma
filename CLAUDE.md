@@ -11,3 +11,8 @@ The five default labels, recorded as a `Status:` line in each issue file: `needs
 ### Domain docs
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Laufendes Vorhaben
+
+Auf `feature/kleiner-wagen`: PLAN 0.4 «Der Kleine Wagen». Übergabe, Stand und Arbeitsregeln in
+`.scratch/kleiner-wagen/STAND.md`; vor dem Weitermachen lesen.

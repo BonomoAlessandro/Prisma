@@ -419,8 +419,17 @@ async function reise() {
     await ev(PROTOKOLL);
     const klickT = await ev('performance.now()');
     await klicke('#btn-next');
-    await until('window.__prisma.playing() && __prismaDebug.story.step === 10 && __prismaDebug.story.gaze === 0',
-      'Meer 1', 90);
+    // Seit dem Kleinen Wagen wartet die Geschichte unterwegs auf Tippen (das Licht hält bei der Ankunft über dem
+    // Untertitel an): tippen wie ein Spieler, bis das erste Level des Meers spielt
+    for (let i = 0; ; i++) {
+      const z = await ev(`({ tippen: __prismaDebug.story.waitTap !== null, da: window.__prisma.playing()
+        && __prismaDebug.story.step === 10 && __prismaDebug.story.gaze === 0, flow: __prismaDebug.flow.state,
+        step: __prismaDebug.story.step, gaze: __prismaDebug.story.gaze })`);
+      if (z.da) break;
+      if (i >= 900) throw new Error(`Zeitüberschreitung: Meer 1 ${JSON.stringify(z)}`);
+      if (z.tippen) await klicke('#story .caption .text');
+      await sleep(100);
+    }
     await sleep(500);
     const log = (await protokollAus(ev)).filter((e) => e.ts >= klickT);
     // das Brett des Meers erscheint (es beginnt überzublenden), der Blick senkt sich zuletzt aufs Brett
