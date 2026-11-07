@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-04 ladezeichen';
+const APP_VERSION = '2026-11-05 vulkan-krater';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -9032,17 +9032,20 @@ function createStars() {
     for (const a of Object.values(geo.attributes)) a.needsUpdate = true;
   };
   const mat = new THREE.ShaderMaterial({
-    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 }, uHorizon: { value: 0 } },
+    uniforms: { uTime: { value: 0 }, uPixelRatio: { value: renderer.getPixelRatio() }, uFade: { value: 1 }, uHorizon: { value: 0 },
+      uFrom: { value: 0 } },
     vertexShader: `
       attribute vec3 aColor;
       attribute vec4 aStar;
-      uniform float uTime, uPixelRatio, uFade, uHorizon;
+      uniform float uTime, uPixelRatio, uFade, uHorizon, uFrom;
       varying vec3 vColor;
       void main() {
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position * 70.0, 1.0);
         float twinkle = 1.0 + aStar.w * 0.22 * sin(uTime * (0.6 + aStar.z * 1.4) + aStar.z * 40.0);
-        // nur über dem Horizont, wo eine Skybox es verlangt (sky.starsAboveHorizon: darunter liegen Gelände und Nebel)
-        float above = mix(1.0, smoothstep(0.0, 0.12, normalize(mat3(modelMatrix) * position).y), uHorizon);
+        // nur über dem Horizont, wo eine Skybox es verlangt (sky.starsAboveHorizon: darunter liegen Gelände und Nebel),
+        // und erst ab der Höhe uFrom (Sinus von sky.starsFrom): Die Sterne liegen 70 m um die Kamera, das Netz eines
+        // Panoramas verdeckt nur, was näher liegt; die obere Wand des Vulkans (70 … 99 m) bekäme sonst Sterne
+        float above = mix(1.0, smoothstep(uFrom, uFrom + 0.12, normalize(mat3(modelMatrix) * position).y), uHorizon);
         vColor = aColor * aStar.x * twinkle * uFade * above;
         gl_PointSize = aStar.y * uPixelRatio;
       }`,
@@ -12613,10 +12616,13 @@ function createPanoramaSky(m) {
  * Teile (Planeten, nahe 3D-Objekte einer Skybox) blenden aus Schwarz ein und lägen sonst als dunkle Flächen über dem
  * alten. Darum ist immer höchstens einer eingeblendet, und Himmelskugel und Sterne mischen nur zwischen ihm und dem
  * Neutralzustand (dunkler Raum mit Sternen). sky: milkyWay (Anteil der Milchstrasse), stars (Helligkeit der Sterne),
- * starsAboveHorizon (Sterne nur über dem Horizont), rings (Platzhalter der Kugel, solange ein Panorama lädt oder
- * überblendet). Module: prepare, setFade, update, ready, settled, release (siehe createPanoramaSky).
+ * starsAboveHorizon (Sterne nur über dem Horizont), starsFrom (mit starsAboveHorizon: erst ab dieser Höhe in Grad,
+ * Vulkan: über dem Kraterrand), rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module:
+ * prepare, setFade, update, ready, settled, release (siehe createPanoramaSky).
  */
-const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, rings: null };
+const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, starsFrom: 0, rings: null };
+/** Untergrenze der Sterne (sky.starsFrom, Grad) als Sinus für den Shader; ohne starsAboveHorizon 0 */
+const starsFromSin = (s) => (s.starsAboveHorizon ? Math.sin(THREE.MathUtils.degToRad(s.starsFrom ?? 0)) : 0);
 const SKY_ENTRIES = (() => {
   const code = [
     { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 } },
@@ -12738,6 +12744,7 @@ const skyTheme = {
     if (s.rings) s.rings.forEach((c, i) => bg.uRings.value[i].fromArray(c));
     stars.material.uniforms.uFade.value = mix('stars');
     stars.material.uniforms.uHorizon.value = s.starsAboveHorizon ? k : 0;
+    stars.material.uniforms.uFrom.value = starsFromSin(s);
     // Die Himmelskugel (Radius 80 um die Kamera, ohne Tiefe) zeichnet nach dem Netz eines Panoramas und deckte weiter
     // draussen liegende Teile zu. Mit 136 (vor camera.far = 140) liegt sie überall dahinter; sie rechnet nur mit der
     // Richtung, sieht also gleich aus.
@@ -18326,7 +18333,7 @@ const STORY_CHAPTERS = [
   { station: 3, title: 'Die Wüste', sky: 'desert',
     travel: 'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der Wüste.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
-  { station: 4, title: 'Der Vulkan', sky: 'volcano', up: 1.0,
+  { station: 4, title: 'Der Vulkan', sky: 'volcano', up: 0.65,
     travel: 'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
   { station: 5, title: 'Die Planeten', sky: 'solar',
@@ -21375,6 +21382,7 @@ const story = {
     bg.uPreviewOn.value = Math.min(bg.uPreviewOn.value, smooth(Math.max(wa, wb)));
     su.uFade.value = a.stars + (b.stars - a.stars) * p;
     su.uHorizon.value = (a.starsAboveHorizon ? 1 : 0) + ((b.starsAboveHorizon ? 1 : 0) - (a.starsAboveHorizon ? 1 : 0)) * p;
+    su.uFrom.value = starsFromSin(a) + (starsFromSin(b) - starsFromSin(a)) * p;
   },
   /**
    * Ende der letzten Welt (Ticket 06 von .scratch/kleiner-wagen/, STORY_PULS): Die Strahlen steigen zum sechsten Stern,

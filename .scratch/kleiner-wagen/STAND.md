@@ -31,7 +31,7 @@ auf dem anderen Rechner fehlen: zuerst hier lesen, dann Spec und Tickets.
 | 11 Abnahme, Runde 1 (Rückmeldungen vom 06.11.) | erledigt, mit Review; ganzer Testsatz im Review 12 |
 | 12 Abnahme, Runde 2 (Rückmeldungen zu 73e476e) | erledigt, mit Review und ganzem Testsatz für 11 und 12 (06.11.) |
 | 13 Epilog, Winkel wie im Prolog (Abnahme, Runde 3, 07.11.) | erledigt, mit Review (07.11.); ganzer Testsatz im Schlussreview mit 10 |
-| 10 Sprungbrett ausbauen | erledigt, mit Schlussreview und ganzem Testsatz für 10 und 13 (07.11.); bereit für main, Merge auf Wort des Nutzers |
+| 10 Sprungbrett ausbauen | erledigt, mit Schlussreview und ganzem Testsatz für 10 und 13 (07.11.); main (Vulkan-Krater) hereingeholt und geprüft; bereit für main, Merge auf Wort des Nutzers |
 
 ### Ticket 01, Zwischenstand
 
