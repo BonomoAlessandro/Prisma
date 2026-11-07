@@ -36,8 +36,8 @@ fertig gemacht und abgenommen.
       - beim Wiederholen über diese Weltgrenze.
 - [x] **Leistung:** Die Bildzeit steigt nicht messbar, und der Grafikspeicher bleibt etwa wie heute.
 - [ ] **Abnahme:** Der Nutzer nimmt über eine Vorschauseite ab, erst dann wird committet.
-- [ ] Alle Tests sind grün (Logik, offline, Geschichte-Probe auch mit `--dorf`), und das Review nach dem Ticket ist
-      gelaufen.
+- [ ] Alle Tests sind grün (Logik, offline, Geschichte-Probe auch mit `--dorf`). Offen: `--wagen`, siehe Review.
+- [x] **Review:** Das Review nach dem Ticket ist gelaufen.
 
 ## Hinweise
 
@@ -141,3 +141,69 @@ Läufe; Welle angehalten):
   Prolog, auf dem Poco messen (Ticket 10).
 - Überblenden vom Steinbrett («Im Dorf» → Bergwald): Polster, Farn und Wurzeln blenden mit ein, die Wurzeln hängen unter
   dem Steinbrett schon während des Überblendens (Ticket 05).
+
+**Entscheide des Nutzers (07.11.2026)** zu den Fragen des Umsetzers:
+
+- Die Farnwedel an den Ecken, die bis rund 0,7 m über den Umriss ragen, bleiben so, wie sie jetzt sind.
+- Die matteren Polster (Lambert statt MeshStandardMaterial) sehen so gut aus und bleiben.
+
+**Review (07.11.2026, unabhängig, fe12497 gegen 50760cf):** Der Code passt, keine Kleinigkeit zu beheben. Eine
+Auflage für den Umsetzer: die Lücke beim Wiederholen über die Grenze ins Meer (`--wagen`).
+
+- **Auflage: Lücke «Wagen: Wiederholen über die Grenze ins Meer»** (Geschichte-Probe `--wagen`, Desktop):
+  - Mit dem Moospolster scheiterte sie in drei von drei Läufen: 107, 133 und 106 ms. Die Basis 50760cf als Kopie (Wald
+    mit Steinbrett) bestand zweimal mit 89 und 88 ms. Gemessen wurde abwechselnd auf demselben Rechner.
+  - Die Lücke liegt in beiden Fassungen am selben Bild: Es ist das erste Bild des Strand-Panoramas (`shown` wechselt
+    auf `beach`, `w` 0,03 bis 0,045, `anteil` des Bretts 0,51 bis 0,52). Das ist die bekannte Stelle mit `groundShift`
+    im Wasser des Strands (Review Ticket 06). Das Moospolster legt dort gut 20 bis 40 ms drauf.
+  - Am Zeichnen der Polster, Pilze, Farne und Wurzeln liegt es nicht: In einer Kopie, die sie beim Ausblenden (`unten`)
+    ganz verbirgt, waren es 125 ms. Vermutlich liegt es am Hauptthread, etwa an einer Speicherbereinigung (rund 12 MB
+    Texturdaten bleiben im JS-Speicher, dazu die Listen der Instanzen) oder an etwas, das beim Ausblenden des
+    Moospolsters erst in diesem Bild anfällt.
+  - Vorschlag: In der Probe dieses Bild mit einem Profil aufzeichnen und mit der Basis vergleichen. Danach entscheiden,
+    ob es am Brett liegt oder ob die Stelle im Strand (`groundShift` in Häppchen) für alle Bretter behoben werden muss.
+- **Hinweis Bauzeit:** `mossBoard` baut alle Instanzen, Wurzeln und Blumen synchron in `acquire`, mit CPU 4× bis 47 ms
+  (Messung des Umsetzers). Beim Prolog fällt das beim Laden der Seite an, unkritisch. Beim Vorladen aus dem Dorf
+  (`--dorf`, «Gelöst») ist es ein Bild. Die Probe mass dort höchstens 53 ms, beim Laden des Walds hinter dem Angebot
+  88 ms. Auf dem Poco messen (Ticket 10). Sonst lassen sich die Listen im Worker rechnen.
+- **Geprüft, in Ordnung:**
+  - Steinbrett, Gezeitenbecken und Lehmterrasse sind unverändert, nur `BOARD_TYPES` ist erweitert. Der Kernquader ist
+    wie beim Steinbrett. Oberfläche (y = 0) und Erdscholle (Box ohne Deckfläche, Boden bleibt, ±PLATE/2,
+    y 0 … −PLATE_THICK − 0,03) decken ihn ganz.
+  - **Worker:** `mossData` ist in sich geschlossen (eigenes hash, noise, fbm, ohne helpers). Die Werte kommen ohne
+    `type` an. Die Schlüssel stimmen mit den specs von `boardTextures` überein. Die Normalen haben dieselbe Konvention
+    wie das Gezeitenbecken. Die Zeilen von Feld und Scholle passen zu den UVs von PlaneGeometry und BoxGeometry. Das Moos
+    der Polster ist periodisch (`repeat` 3 × 2, ganzzahlig über die Naht der Kugel), `RepeatWrapping` setzt der Bau vor
+    dem Hochladen, und `boardTextureUpload` übernimmt es.
+  - **Lichtwelle:**
+    - Blumen, Helmlinge und Schein richten sich nach der Ankunft (`uShockT − Abstand / SHOCK_SPEED`), auch beim
+      langsameren Ring der Geschichte.
+    - Das Viereck der Blumen zeigt nach oben (Vorderseite). Ausserhalb des Fensters liegt es hinter der Bildebene
+      (z = 2).
+    - In Ruhe sind die Blumen aus (`flowerEnd` 2,2 s, die letzte welkt bei rund 1,8 s). Schein und Helmlinge stehen
+      hinter einer Bedingung auf `uShockT`.
+    - `follow` läuft vor `shockClock`. Die Blumen gehen deshalb ein Bild später an und aus, das ist unsichtbar.
+  - **Übersetzen:** `compileParallel` übersetzt auch Unsichtbares (Blumen), die Fassung `oben` deckt auch die
+    durchsichtigen Teile von `unten`. Das Ersetzen der Rasterbreite wirft, statt still falsch zu zeichnen. Das wird ein
+    Notfall mit Warnung.
+  - **Freigeben:** Freigegeben werden alle Geometrien (auch Instanzen, Wurzeln und Blumen), sieben Materialien und das
+    der Blumen sowie vier Texturen samt den eigenen WebGL-Texturen.
+  - **Daten:**
+    - `MOSS_VALUES` und `BOARD_PARAMS.moss` nennen dieselben 13 Werte, alle werden benutzt.
+    - `pack.mjs --brett` neu gerechnet: `skies.js` und `SKIES` `37507eee` bleiben unverändert, neu ist nur `board` des
+      Walds. `APP_VERSION` ist an beiden Stellen gleich.
+    - Zeilenenden sind CRLF in der Arbeitskopie, `skies.js` bleibt LF (`-text`).
+  - Die `brett-probe` liest die Art des Walds aus dem Register und nimmt ihm danach die Brett-Angabe. Das Moospolster
+    wird frei, sobald das Steinbrett steht (`built.size === 1`).
+  - Kommentare und Stil passen zum Code um sie herum (Aufbau wie `clayBoard`).
+- **Tests im Review:**
+  - Node: Logik 2042, Geschichte 35, Levelliste 54, KI-Tester 84, Generator 31, Halle 6, Beurteilung 206, Vorrat 18,
+    Würfelliste 20, alle bestanden.
+  - Offline: bestanden, der Wald meldet online und offline `moss`.
+  - `brett-probe`: alle Teile bestanden. Start mit dem Moospolster. «Brett laden und überblenden» 35 ms, Reise ohne
+    Vorladen ans Meer 36 ms.
+  - Geschichte-Probe `--grad leicht --welten 3`, Desktop und `--handy`: beide bestanden, die Konsole ohne Fehler.
+  - Geschichte-Probe `--dorf`: bestanden. Das Angebot wartet, bis der Wald fertig geladen ist (längste Lücke 88 ms),
+    Satz zum Ende → Bergwald 1 53 ms.
+  - Geschichte-Probe `--wagen`: **gescheitert**, nur an der Lücke von oben (107, 133, 106 ms; die Basis 89 und 88 ms).
+    Alles andere ist grün.
