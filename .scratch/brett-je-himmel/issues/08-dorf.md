@@ -37,7 +37,7 @@ fertig gemacht und abgenommen.
       - beim Wiederholen einer Übung aus der Übersicht.
 - [x] **Leistung:** Die Bildzeit steigt nicht messbar, und der Grafikspeicher bleibt etwa wie heute.
 - [ ] **Abnahme:** Der Nutzer nimmt über eine Vorschauseite ab, erst dann wird committet.
-- [ ] Alle Tests sind grün (Logik, offline, Geschichte-Probe mit `--dorf` und `--uebersicht`), und das Review nach dem
+- [x] Alle Tests sind grün (Logik, offline, Geschichte-Probe mit `--dorf` und `--uebersicht`), und das Review nach dem
       Ticket ist gelaufen.
 
 ## Hinweise
@@ -162,3 +162,57 @@ Ticket 07 geteilt, Unterschiede unter etwa 1 ms nicht messbar). Zeichenzeit Mitt
 - Übersetzen der Programme ohne paralleles Übersetzen hält bei jedem neuen Brett ein Bild an (alle Bretter), das gehört
   in Ticket 05 oder 10.
 - Kräuter und Kasten werfen keinen Schatten (wie die Türmchen der Lehmterrasse).
+
+**Review (07.11.2026, unabhängig, gegen f6ecfff):** passt, keine Auflagen.
+
+- **Geprüft:**
+  - Das Steinbrett, das Gezeitenbecken und die Lehmterrasse sind unverändert, nur `BOARD_TYPES` ist erweitert.
+  - Kernquader ±4,9 m, y −0,6 … 0: Erde (Ebene in y = 0) und der Kasten ohne Deckfläche (Seiten und Boden) decken
+    ihn ganz. Das Abdeckbrett liegt mit seiner Unterseite auf der Erde. Die Unterseite zeigt nach unten und wird von
+    oben nicht gezeichnet, darum gibt es kein Flimmern.
+  - Überblenden wie bei der Lehmterrasse: «oben» alles durchsichtig, «unten» bleiben Erde und Kasten deckend. Die
+    durchsichtigen Programme übersetzt `fadeVariants` vorab, auch die unsichtbaren Sämlinge (`compileParallel`
+    geht über alle Objekte). Pflöcke, Kiesel und Kräuter haben alle eine Farbe je Instanz. Darum gibt es für `plantMat`
+    genau ein Programm, und `vColor` ist dort immer vorhanden.
+  - Freigeben: alle Geometrien (auch die Teile des Abdeckbretts schon beim Bauen), Instanzen samt Farben, sechs
+    Materialien und die Glühwürmchen, vier Texturen.
+  - Lichtwelle nach der Ankunft des Rings (`uShockT − Abstand / 6,5`). Die Sämlinge sind spätestens bei rund 1,4 s
+    fertig, die Glühwürmchen bei rund 3,9 s. Gezeichnet werden sie bis 1,9 bzw. 4,4 s, das reicht. Beim Fall des
+    Polarsterns ist `uBed.y = min(1, Glut · 3)`. Mit `glut(1) = 0,45` steht es schon vor dem Lauf des Rings auf 1, es
+    springt also nicht. `setFade` liest die Uhr ein Bild vor `shockClock` (Reihenfolge in `animate`). Die ersten
+    Sämlinge erscheinen deshalb ein Bild später, das ist ohne Folgen.
+  - Ausrichtung: Die Zeilen der Texturen, die Normalen (+v = −z) und `wp`/`pz` im Shader stimmen zueinander und
+    zur Platte.
+  - Register: `pack.mjs --brett` ergibt im Worktree dasselbe `skies.js` und `SKIES` `bea532db` (keine Änderung).
+    `skybox.json` des Dorfs hat CRLF wie die Wüste. `sky-schema.mjs` und der Logiktest decken alle 13 Werte ab.
+    `APP_VERSION` ist an beiden Stellen gleich.
+  - Lesbarkeit: In den Bildern der Probe (Übung 2 vor und nach dem Lösen) sind die Pflanzschnüre als Raster klar zu
+    sehen. Die Glühwürmchen nach dem Lösen verdecken nichts Wichtiges. Das Urteil darüber bleibt beim Nutzer.
+- **Behoben (cbfee2d):** In `BED_CORD_GLSL` glättete `span` das Ende der Schnüre mit der Breite der falschen
+  Richtung (`ap` statt `ap.yx`). Das fiel nur bei flachem Blick an den Pflöcken auf. Der Kommentar dazu sprach von
+  «Schnur längs x», gemeint ist die Schnur längs z.
+- **Bereitwerden nach dem Laden** (`?sky=village`, bis `brett().bereit` und `skyReady()`, je 3 Läufe abwechselnd,
+  GPU, Rechner ruhig bis auf das Review von 07): Desktop Hochbeet 10,4 · 10,7 · 10,7 s, Steinbrett 9,8 · 10,0 ·
+  10,0 s. Handy Hochbeet 8,8 · 8,8 · 9,3 s, Steinbrett 8,3 · 8,6 · 8,9 s. Das Hochbeet kostet also etwa 0,6 s
+  (Desktop) bzw. 0,3 s (Handy). Den grössten Teil der Zeit braucht der Himmel. Die 7,3 gegen 4,6 s der Vorschau
+  kamen vom geteilten Rechner.
+- **Hinweise (gehören nicht zu diesem Ticket):**
+  - Auch das Hochbeet beendet beim `dispose` einen noch rechnenden Worker nicht (wie die anderen, offener Punkt).
+  - Kräuter, Pflöcke und Abdeckbrett werfen keinen Schatten (die Vorlage hatte ihn am Abdeckbrett). Das ist gewollt
+    gleich wie bei der Lehmterrasse.
+- **Tests im Review** (je über `leise.sh` mit GPU, nacheinander):
+  - Node: Logik 2042, Geschichte 35, Levelliste 54, KI-Tester 84, Generator 31, Halle 6, Beurteilung 206, Vorrat 18,
+    Würfelliste 20, alle bestanden.
+  - `offline.mjs`: bestanden (das Dorf online und offline erst bereit mit `raisedBed`). `brett-probe.mjs`: in Ordnung
+    (die Lücke «Brett laden und überblenden» 52 ms).
+  - Geschichte-Probe `--grad leicht --welten 3` Desktop und Handy: bestanden.
+  - `--dorf` Desktop: **bestanden**. Wiederholen von Übung 8 aus der Übersicht höchstens 50 ms; die 421 ms des
+    Umsetzers kamen diesmal nicht. Die Kopie der Basis 50760cf hat ebenfalls bestanden. `--dorf --handy`: bestanden.
+  - `--uebersicht`: rot, eine Lücke von 100 ms bei «Wiederholen: Weiter über die Weltgrenze» (Wald → Meer). Die Basis
+    ist im selben Lauf an derselben Stelle rot (117 ms). Öffnen und Schliessen der Übersicht waren diesmal in beiden
+    grün.
+  - `--wagen`: rot in zwei Läufen, je 117 ms bei «Wiederholen über die Grenze ins Meer». Die Basis hatte dort einmal
+    83 ms und war grün. Die Lücke liegt in allen Fällen im ersten Bild, in dem das Panorama des Strands zu sehen ist
+    (Wald → Meer, Anteil 0,04). Das Dorf kommt in diesem Lauf nicht vor, das Hochbeet ist dort weder gebaut noch zu
+    sehen. Es ist die bekannte, streuende Lücke vom Wasser des Strands (`groundShift`, Review von Ticket 06: 61 bis
+    127 ms auf HEAD), nicht von diesem Ticket.
