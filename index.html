@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-07 brett-dorf';
+const APP_VERSION = '2026-11-07 brett-dorf-wald';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -14254,6 +14254,472 @@ function raisedBedBoard(v) {
   };
 }
 
+/* ---------- Moospolster (Art moss): das Brett des Bergwalds (Ticket 07) ---------- */
+
+// Masse und Mengen des Moospolsters. Das Brett ist ein Stück Waldboden, das sich gelöst hat: Im Rand liegen dicke
+// Moospolster mit Helmlingen, an den Ecken wächst Farn, die Seiten sind eine Erdscholle, darunter hängen Wurzeln
+const MOSS = {
+  sideTex: [2048, 128], // Erdscholle (u über PLATE, v über die Dicke)
+  cushionTex: 512,      // Moos der Polster (wiederholt)
+  cushions: 420,        // Polster im Rand
+  roots: 70,            // Wurzeln unter der Scholle
+  flowers: 1500,        // Blumen der Lichtwelle (Waldsauerklee), unsichtbar in Ruhe
+  flowerEnd: 2.2,       // so lange (s nach dem Start des Rings) blühen Blumen, danach nicht gezeichnet
+};
+// Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
+const MOSS_VALUES = ['moss', 'tip', 'gold', 'silver', 'litter', 'soil', 'pebble', 'thread', 'root', 'fern', 'cap', 'glow',
+  'flower'];
+
+/**
+ * Farbe und Normalen des Moospolsters, die Erdscholle und das Moos der Polster (mossBoard), ohne Bezug auf das übrige
+ * Spiel (Worker). Formeln und Farben aus dem Katalog (katalog-wald, 2-moos.js), die Höhen ungerundet. Feld size² über das
+ * ganze Brett (Zeile j bei z = plate/2 − (j + ½) · plate/size): kurzes Samtmoos in zwei Tönen (moss) mit hellen Spitzen
+ * (tip) und goldenen Flecken (gold), im Feld ruhiger; im Rand unter den Polstern Nadelstreu (litter). Seiten sideW ×
+ * sideH: Humus (soil) mit Steinen (pebble) und Wurzelfäden (thread), oben hängt Moos über die Kante. Polster cushion²:
+ * Moos, nahtlos wiederholbar. v: Werte der Brett-Angabe.
+ */
+function mossData({ size, plate, half, sideW, sideH, cushion, v }) {
+  const hash = (x, y, s) => {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  // Wertrauschen; mit p periodisch (Gitter modulo p), für das wiederholte Moos der Polster
+  const noise = (x, y, s, p = 0) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
+    const X = (i) => (p ? ((i % p) + p) % p : i);
+    const a = hash(X(xi), X(yi), s), b = hash(X(xi + 1), X(yi), s), c = hash(X(xi), X(yi + 1), s);
+    const d = hash(X(xi + 1), X(yi + 1), s);
+    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
+  };
+  const fbm = (x, y, oct, s) => {
+    let sum = 0, amp = 0.5, f = 1, n = 0;
+    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
+    return sum / n;
+  };
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
+
+  const n = size * size, texel = plate / size;
+  const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
+  for (let j = 0; j < size; j++) {
+    const z = plate / 2 - (j + 0.5) * texel;
+    for (let i = 0; i < size; i++) {
+      const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
+      const clump = fbm(x * 14, z * 14, 3, 302), tip = noise(x * 150, z * 150, 303), patch = fbm(x * 0.55, z * 0.55, 3, 304);
+      const inF = 1 - smooth(half, half + 0.12, box), a = smooth(0.28, 0.72, clump);
+      let c = mix(v.moss[0], v.moss[1], a + (0.55 + (clump - 0.5) * 0.5 - a) * inF); // im Feld ruhiger
+      c = mix(c, v.tip, tip * 0.35 * smooth(0.3, 0.8, clump));
+      c = mix(c, v.gold, smooth(0.5, 0.8, patch) * 0.3);
+      if (box > half + 0.12) { // Rand: unter den Polstern Nadelstreu
+        const nd = Math.abs(Math.sin(x * 60 + noise(x * 3, z * 3, 305) * 9) * Math.sin(z * 55 + noise(z * 3, x * 3, 306) * 9)) ** 8;
+        c = mix(c, v.litter, smooth(half + 0.12, half + 0.3, box) * (0.4 + nd * 0.5));
+      }
+      put(color, k * 4, c);
+      height[k] = (clump - 0.5) * 0.008 + (tip - 0.5) * 0.0015;
+    }
+  }
+  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
+  const normal = new Uint8ClampedArray(n * 4);
+  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
+      const l = Math.hypot(nx, ny, 1);
+      put(normal, (j * size + i) * 4, [(nx / l) * 0.5 + 0.5, (ny / l) * 0.5 + 0.5, (1 / l) * 0.5 + 0.5]);
+    }
+  }
+  // Erdscholle: oben Moos, das über die Kante hängt, darunter Humus mit Steinen und Wurzelfäden
+  const side = new Uint8ClampedArray(sideW * sideH * 4);
+  for (let j = 0; j < sideH; j++) {
+    const y = 1 - (j + 0.5) / sideH; // 0 oben … 1 unten (Zeile 0 liegt unten)
+    for (let i = 0; i < sideW; i++) {
+      const u = ((i + 0.5) / sideW) * plate;
+      const drip = 0.18 + fbm(u * 3, 0.5, 3, 307) * 0.22 + noise(u * 9, 1, 308) ** 4 * 0.25;
+      const stone = smooth(0.66, 0.72, fbm(u * 6, y * 2.2, 3, 309)), soil = fbm(u * 20, y * 6, 4, 310);
+      let c = mix(v.soil[0], v.soil[1], soil);
+      c = mix(c, v.pebble, stone * (0.7 + noise(u * 40, y * 10, 311) * 0.3));
+      const thread = 1 - smooth(0, 0.04, Math.abs(Math.sin(u * 7 + y * 3 + fbm(u * 2, y, 2, 312) * 6)));
+      c = mix(c, v.thread, thread * smooth(0.3, 0.5, y) * 0.5);
+      put(side, (j * sideW + i) * 4, mix(c, mix(v.moss[0], v.moss[1], noise(u * 30, y * 8, 313)),
+        1 - smooth(drip - 0.03, drip + 0.03, y)));
+    }
+  }
+  // Moos der Polster: grob und fein, im Gitter periodisch (nahtlos über die Kugel wiederholt)
+  const cush = new Uint8ClampedArray(cushion * cushion * 4), f1 = 180, f2 = 41; // Zellen über die Breite
+  for (let j = 0; j < cushion; j++) {
+    for (let i = 0; i < cushion; i++) {
+      const t = noise(i * f1 / cushion, j * f1 / cushion, 314, f1) * 0.6 + noise(i * f2 / cushion, j * f2 / cushion, 315, f2) * 0.4;
+      put(cush, (j * cushion + i) * 4, mix(v.moss[0], v.tip, t));
+    }
+  }
+  return { map: color, normalMap: normal, side, cushion: cush };
+}
+
+// Wurzeln unter der Scholle: verjüngte Röhren längs einer Catmull-Rom-Kurve, alle in einem Netz (Farbe je Wurzel)
+function mossRoots(r, half, y0, colors) {
+  const SEG = 12, RAD = 5, pos = [], nor = [], col = [], idx = [], P = new THREE.Vector3(), T = new THREE.Vector3();
+  const N = new THREE.Vector3(), B = new THREE.Vector3(), X = new THREE.Vector3(1, 0, 0);
+  for (let w = 0; w < MOSS.roots; w++) {
+    const edge = r() < 0.5, t = (r() * 2 - 1) * (half - 0.2), sgn = r() < 0.5 ? -1 : 1, inset = 0.1 + r() * 1.6;
+    const x0 = edge ? sgn * (half - inset) : t, z0 = edge ? t : sgn * (half - inset), len = 0.25 + r() * 0.8;
+    const pts = [new THREE.Vector3(x0, y0, z0)];
+    for (let k = 1; k <= 4; k++) pts.push(new THREE.Vector3(x0 + (r() - 0.5) * 0.18 * k, y0 - len * k / 4, z0 + (r() - 0.5) * 0.18 * k));
+    const curve = new THREE.CatmullRomCurve3(pts), r0 = 0.018 + r() * 0.015, c = colors(r()), base = pos.length / 3;
+    for (let i = 0; i <= SEG; i++) {
+      const u = i / SEG, rad = r0 + (0.003 - r0) * u ** 0.8;
+      curve.getPoint(u, P);
+      curve.getTangent(u, T);
+      N.crossVectors(T, X).normalize(); // Wurzeln hängen fast senkrecht: x steht nie längs
+      B.crossVectors(T, N);
+      for (let j = 0; j < RAD; j++) {
+        const a = (j / RAD) * Math.PI * 2, cx = Math.cos(a), sx = Math.sin(a);
+        const nx = N.x * cx + B.x * sx, ny = N.y * cx + B.y * sx, nz = N.z * cx + B.z * sx;
+        pos.push(P.x + nx * rad, P.y + ny * rad, P.z + nz * rad);
+        nor.push(nx, ny, nz);
+        col.push(c.r, c.g, c.b);
+      }
+    }
+    for (let i = 0; i < SEG; i++) {
+      for (let j = 0; j < RAD; j++) {
+        const a = base + i * RAD + j, b = base + i * RAD + (j + 1) % RAD, d = a + RAD, e = b + RAD;
+        idx.push(a, d, b, b, d, e);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  return g;
+}
+
+// Farnwedel (GLSL): Farbe und Deckung im Bild des Wedels (uv: x quer, y vom Stiel zur Spitze), Fiederblättchen in zwei
+// Tönen am Stiel, wie im Katalog gezeichnet (34 Paare, zur Spitze kürzer)
+const MOSS_FROND_GLSL = `
+  vec4 mossFrond(vec2 uv, vec3 leaf, vec3 stem) {
+    float s = abs(uv.x - 0.5);
+    if (s < 0.0117 && uv.y < 0.98) return vec4(stem, 1.0);
+    float k0 = floor((uv.y - 0.0586) / 0.02683);
+    for (int i = -1; i <= 1; i++) {
+      float k = k0 + float(i);
+      if (k < 0.0 || k > 33.0) continue;
+      float t = k / 34.0, L = (1.0 - 0.85 * t) * 0.46 * (t < 0.08 ? 0.6 : 1.0), q = s / L;
+      if (q > 1.0) continue;
+      float dy = uv.y - (0.0586 + t * 0.9121), tipY = 0.0137 + 0.0098 * t;
+      float up = 2.0 * q * (1.0 - q) * 0.0254 + q * q * tipY;
+      float lo = q * q * tipY - 2.0 * q * (1.0 - q) * 0.0078 - (1.0 - q) * (1.0 - q) * 0.0098;
+      if (dy > lo && dy < up) return vec4(leaf * (mod(k, 2.0) < 0.5 ? 1.08 : 1.0), 1.0);
+    }
+    return vec4(0.0);
+  }`;
+
+/**
+ * Blumen der Lichtwelle (mossBoard): Waldsauerklee, flach auf Moos und Polstern, als Instanzen eines Vierecks, Form im
+ * Fragment-Shader. Ganz nach der Ankunft des Rings (uShockT − Abstand / SHOCK_SPEED): Sie öffnen sich, wenn er ankommt,
+ * leuchten kurz und welken hinter ihm (schliessen sich, werden braun, verschwinden). In Ruhe nicht gezeichnet (setFade).
+ * list: je Blume [x, y, z, Grösse, Drehung, Verzug, Zufall]; petal, heart: Farben (linear).
+ */
+function mossFlowers(list, petal, heart) {
+  const g = new THREE.InstancedBufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0], 3));
+  g.setIndex([0, 1, 2, 0, 2, 3]);
+  const a0 = new Float32Array(list.length * 4), a1 = new Float32Array(list.length * 3);
+  list.forEach((f, i) => { a0.set(f.slice(0, 4), i * 4); a1.set(f.slice(4, 7), i * 3); });
+  g.setAttribute('a0', new THREE.InstancedBufferAttribute(a0, 4));
+  g.setAttribute('a1', new THREE.InstancedBufferAttribute(a1, 3));
+  g.instanceCount = list.length;
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uShockT: shockUniforms.uShockT, uPetal: { value: petal }, uHeart: { value: heart } },
+    vertexShader: `
+      uniform float uShockT;
+      attribute vec4 a0; // x, y, z, Halbmass (m)
+      attribute vec3 a1; // Drehung, Verzug (s), Zufall
+      varying vec2 vC;
+      varying float vWilt, vFresh, vRot;
+      void main() {
+        float age = uShockT - (length(a0.xz) / ${SHOCK_SPEED.toFixed(2)} + a1.y);
+        float open = smoothstep(-0.08, 0.06, age);
+        vWilt = smoothstep(0.14 + a1.z * 0.1, 0.45 + a1.z * 0.2, age);
+        vFresh = 1.0 - smoothstep(0.0, 0.25, age);
+        vRot = a1.x;
+        vC = position.xy;
+        float s = open * (1.0 - vWilt * 0.8);
+        gl_Position = vec4(0.0, 0.0, 2.0, 1.0); // ausserhalb des Bilds
+        if (s > 0.01 && vWilt < 0.999) {
+          vec2 q = position.xy * a0.w * s;
+          float c = cos(a1.x), sn = sin(a1.x);
+          q = vec2(c * q.x - sn * q.y, sn * q.x + c * q.y);
+          // das Viereck liegt in x, −z: Es zeigt nach oben (Vorderseite)
+          vec3 p = vec3(a0.x + q.x, a0.y - vWilt * 0.008 + q.y * (a1.z - 0.5) * 0.3, a0.z - q.y);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
+        }
+      }`,
+    fragmentShader: `
+      uniform vec3 uPetal, uHeart;
+      varying vec2 vC;
+      varying float vWilt, vFresh, vRot;
+      void main() {
+        float r = length(vC), th = atan(vC.y, vC.x);
+        float pa = (fract(th * ${(5 / (2 * Math.PI)).toFixed(5)} + 0.5) - 0.5) * ${(2 * Math.PI / 5).toFixed(5)};
+        float rho = r * cos(pa), tau = r * sin(pa);
+        float len = 0.48 * (1.0 - vWilt * 0.35), wid = 0.30 * (1.0 - vWilt * 0.55); // welkend schmal und kurz
+        float e = (rho - len) / len, f = tau / wid;
+        bool heart = r < 0.14;
+        if (!heart && e * e + f * f > 1.0) discard;
+        vec3 col = heart ? uHeart : mix(uPetal, vec3(0.515, 0.187, 0.351), 0.6 * (1.0 - smoothstep(0.02, 0.04, abs(tau)))
+          * step(0.16, r) * step(r, 0.76));
+        col = mix(col, col * vec3(0.62, 0.48, 0.32), vWilt);
+        gl_FragColor = vec4(col * (0.95 + 0.9 * vFresh), 1.0);
+      }`,
+  });
+  const mesh = new THREE.Mesh(g, material);
+  mesh.frustumCulled = false;
+  mesh.visible = false;
+  return mesh;
+}
+
+/**
+ * Moospolster (Art moss, Bergwald; Ticket 07, aus dem Katalog gewählt: Karte 2): Das Brett ist ein Stück Waldboden, das
+ * sich gelöst hat. Das Feld ist kurzes, samtiges Moos wie im Moostempel, das Raster Linien aus hellem Silbermoos
+ * (FLOOR_DETAIL_GLSL, breiter), ohne Einlegelinie (Texturen aus dem Hintergrund-Thread, mossData). Im Rand liegen dicke
+ * Moospolster mit leuchtenden Helmlingen, an den Ecken und vereinzelt am Rand wächst Farn (je als Instanzen). Die Seiten
+ * sind eine Erdscholle mit Steinen, bündig unter der Oberfläche; darunter hängen Wurzeln. Keine Spiegelung (mirror null).
+ * Lichtwelle wie der Waldgott in «Prinzessin Mononoke»: Wo der Ring vorbeizieht, blühen kleine weisse Blumen auf und
+ * welken hinter ihm wieder (mossFlowers), die Helmlinge leuchten auf, über das Moos läuft ein grünlich-goldener Schein.
+ * Alles folgt der Ankunft des Rings (shockClock), nicht seiner Stärke. v: Werte der Brett-Angabe (MOSS_VALUES, sRGB).
+ */
+function mossBoard(v) {
+  for (const k of MOSS_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
+  const lin = (c, f = 1) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace).multiplyScalar(f);
+  const HP = PLATE / 2, HB = BOARD / 2, N = QUALITY.textureSize, [SW, SH] = MOSS.sideTex, CT = MOSS.cushionTex;
+  const tex = boardTextures(
+    { map: [N, N, true], normalMap: [N, N, false], side: [SW, SH, true], cushion: [CT, CT, true] }, mossData,
+    { size: N, plate: PLATE, half: HB, sideW: SW, sideH: SH, cushion: CT, v });
+  tex.cushion.wrapS = tex.cushion.wrapT = THREE.RepeatWrapping;
+  tex.cushion.repeat.set(3, 2);
+
+  // Oberfläche: Moos, Raster aus Silbermoos; Lichtwelle als grünlich-goldener Schein an der Front, der nachglimmt
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: tex.map, normalMap: tex.normalMap, roughness: 1, metalness: 0, envMapIntensity: 0.35,
+  });
+  const detail = FLOOR_DETAIL_GLSL.replace(/float lw = [\d.]+;/, 'float lw = 0.0075;');
+  if (detail === FLOOR_DETAIL_GLSL) throw new Error('Rasterlinien: Breite nicht gefunden (FLOOR_DETAIL_GLSL)');
+  const uSilver = { value: lin(v.silver) };
+  floorMaterial.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shockUniforms, { uSilver });
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      uniform vec3 uShockColor, uSilver;
+      uniform float uShockT;
+      float wBell(float x) { return exp(-x * x); }`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      ${detail}
+      diffuseColor.rgb = mix(diffuseColor.rgb, uSilver, floorGroove * 0.6);`)
+      .replace('#include <tonemapping_fragment>', `
+      if (uShockT < 3.0) {
+        vec2 wp = (vUv - 0.5) * ${PLATE.toFixed(4)};
+        float wAge = uShockT - length(wp) / ${SHOCK_SPEED.toFixed(2)};
+        float front = wBell((wAge - 0.03) / 0.06), after = smoothstep(0.0, 0.08, wAge) * exp(-max(wAge, 0.0) * 2.2);
+        gl_FragColor.rgb += (uShockColor * 0.2 + vec3(0.25, 0.5, 0.12)) * (front * 0.4 + after * 0.1);
+      }
+      #include <tonemapping_fragment>`);
+  };
+  const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+  floorTop.rotation.x = -Math.PI / 2;
+  floorTop.receiveShadow = true;
+
+  // Erdscholle: bündig unter der Oberfläche, ohne Deckfläche (wie beim Gezeitenbecken). Im Spiel fällt kaum Licht auf
+  // senkrechte Flächen; ein Teil der Farbe leuchtet selbst, sonst stünde sie bei flachem Blick schwarz im Bild
+  const sideMaterial = new THREE.MeshStandardMaterial({ map: tex.side, emissiveMap: tex.side,
+    emissive: new THREE.Color().setScalar(0.3), roughness: 1, envMapIntensity: 1.2 });
+  const SIDE_H = PLATE_THICK + 0.03, sideGeo = new THREE.BoxGeometry(PLATE, SIDE_H, PLATE);
+  const top = sideGeo.groups[2], idx = Array.from(sideGeo.index.array); // Gruppen +x, −x, +y, −y, +z, −z
+  idx.splice(top.start, top.count);
+  sideGeo.setIndex(idx);
+  sideGeo.clearGroups();
+  const sides = new THREE.Mesh(sideGeo, sideMaterial);
+  sides.position.y = -SIDE_H / 2;
+  sides.receiveShadow = true;
+
+  const r = mulberry32(301), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler();
+  const p = new THREE.Vector3(), sc = new THREE.Vector3(), tint = new THREE.Color();
+  const scatter = (geo, mat, list) => {
+    const inst = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((o, i) => {
+      inst.setMatrixAt(i, m4.compose(p.fromArray(o.p), q.setFromEuler(e.set(...(o.r ?? [0, 0, 0]))),
+        Array.isArray(o.s) ? sc.fromArray(o.s) : sc.setScalar(o.s)));
+      if (o.c) inst.setColorAt(i, tint.setRGB(o.c[0], o.c[1], o.c[2]));
+    });
+    inst.receiveShadow = true;
+    inst.frustumCulled = false; // three 0.147 prüft bei Instanzen nur die Kugel um die Form am Ursprung
+    return inst;
+  };
+  const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const inRim = (a, b) => {
+    let x, z, box;
+    do { x = (r() * 2 - 1) * b; z = (r() * 2 - 1) * b; box = Math.max(Math.abs(x), Math.abs(z)); } while (box < a || box > b);
+    return [x, z, box];
+  };
+
+  // Polster im Rand: flache Kuppeln mit feiner Moosstruktur, höchstens 5 cm über den Umriss hinaus. Matt (Lambert) und
+  // ohne Schatten: Die Polster liegen mehrfach übereinander, als MeshStandardMaterial mit Schatten kosteten sie am Desktop
+  // rund 4 ms Zeichenzeit (gemessen, Ticket 07), so gut 1 ms
+  const cushionMat = new THREE.MeshLambertMaterial({ map: tex.cushion, emissiveMap: tex.cushion,
+    emissive: new THREE.Color(0.3, 0.33, 0.27) });
+  const cushionList = [];
+  for (let i = 0; i < MOSS.cushions; i++) {
+    const [x, z, box] = inRim(HB + 0.1, HP - 0.12), stretch = 1 + r() * 0.4, out = (box - HB) / (HP - HB);
+    const big = Math.min(0.14 + r() * 0.22, (HP + 0.05 - box) / stretch);
+    cushionList.push({ p: [x, -0.03, z], r: [0, r() * 6.3, 0], s: [big * stretch, (0.05 + r() * 0.08) * (1.2 - out * 0.5), big],
+      c: mix3([0.8, 0.95, 0.75], [1.15, 1.1, 0.8], r()) });
+  }
+  const cushions = scatter(new THREE.SphereGeometry(1, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), cushionMat, cushionList);
+  cushions.receiveShadow = false;
+
+  // Helmlinge in Grüppchen: Glockenhut auf dünnem Stiel, leuchten schwach grünlich; mit der Welle hell auf (Ankunft des
+  // Rings an der Instanz), dann klingt es ab
+  const capMat = new THREE.MeshStandardMaterial({ color: lin(v.cap), roughness: 0.6, emissive: lin(v.glow) });
+  capMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { uShockT: shockUniforms.uShockT });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vMossD;')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        { vec4 o4 = vec4(0.0, 0.0, 0.0, 1.0);
+        #ifdef USE_INSTANCING
+          o4 = instanceMatrix * o4;
+        #endif
+        vMossD = length((modelMatrix * o4).xz); }`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float uShockT;\nvarying float vMossD;')
+      .replace('#include <tonemapping_fragment>', `
+        if (uShockT < 5.0) {
+          float age = uShockT - vMossD / ${SHOCK_SPEED.toFixed(2)};
+          gl_FragColor.rgb += vec3(0.5, 1.4, 0.7) * smoothstep(-0.12, 0.0, age) * exp(-max(age, 0.0) * 1.4) * 1.6;
+        }
+        #include <tonemapping_fragment>`);
+  };
+  const stemMat = new THREE.MeshStandardMaterial({ color: lin(v.cap), roughness: 0.7, emissive: lin(v.glow, 0.45) });
+  const capList = [], stemList = [], tilt = new THREE.Vector3();
+  const spots = [[-4.55, -4.5], [4.5, -4.6], [4.6, 4.45], [-4.45, 4.6], [0.4, -4.6], [-4.6, 1.2], [4.62, -1.6], [-1.8, 4.62],
+    [2.4, 4.55], [-2.5, -4.62], [4.58, 2.1], [-4.6, -2.3]];
+  for (const [cx, cz] of spots) {
+    const n = 4 + Math.floor(r() * 5);
+    for (let i = 0; i < n; i++) {
+      const x = cx + (r() - 0.5) * 0.4, z = cz + (r() - 0.5) * 0.4, box = Math.max(Math.abs(x), Math.abs(z));
+      if (box > HP - 0.06 || box < HB + 0.08) continue;
+      const hgt = 0.1 + r() * 0.14, rad = 0.035 + r() * 0.035, rot = [(r() - 0.5) * 0.4, 0, (r() - 0.5) * 0.4];
+      stemList.push({ p: [x, 0.02, z], r: rot, s: [rad * 0.5, hgt, rad * 0.5] });
+      tilt.set(0, hgt, 0).applyEuler(e.set(...rot));
+      capList.push({ p: [x + tilt.x, 0.02 + tilt.y - rad * 0.3, z + tilt.z], r: rot, s: rad, c: mix3([0.85, 0.9, 0.75], [1, 1, 1], r()) });
+    }
+  }
+  const capGeo = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1, 1.1, 1);
+  const stemGeo = new THREE.CylinderGeometry(0.12, 0.16, 1, 6).translate(0, 0.5, 0);
+  const stems = scatter(stemGeo, stemMat, stemList), caps = scatter(capGeo, capMat, capList);
+
+  // Farn an den Ecken und vereinzelt am Rand: Wedel als gebogene Fläche, die aufsteigt und sich nach aussen überbiegt
+  const frondMat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.8,
+    emissive: new THREE.Color(0.35, 0.4, 0.3) });
+  const uLeaf = { value: lin(v.fern[0]) }, uStem = { value: lin(v.fern[1]) };
+  frondMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { uLeaf, uStem });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec2 vFrond;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFrond = uv;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\nuniform vec3 uLeaf, uStem;\nvarying vec2 vFrond;\n${MOSS_FROND_GLSL}`)
+      .replace('#include <map_fragment>', `vec4 frond = mossFrond(vFrond, uLeaf, uStem);
+        if (frond.a < 0.5) discard;
+        diffuseColor.rgb *= frond.rgb;`)
+      .replace('#include <emissivemap_fragment>', 'totalEmissiveRadiance *= frond.rgb;');
+  };
+  const frondGeo = new THREE.PlaneGeometry(0.32, 1, 1, 10);
+  { // Wedel: steigt auf und biegt sich nach aussen (+z) über
+    const pa = frondGeo.attributes.position;
+    for (let i = 0; i < pa.count; i++) {
+      const t = pa.getY(i) + 0.5;
+      let y = 0, zz = 0;
+      for (let k = 0; k < 20; k++) { const a = 1.15 - (t * k / 20) * 1.9; y += Math.sin(a) * t / 20; zz += Math.cos(a) * t / 20; }
+      pa.setXYZ(i, pa.getX(i) * (1 - t * 0.6), y - Math.abs(pa.getX(i)) * 0.25, zz);
+    }
+    frondGeo.computeVertexNormals();
+  }
+  const frondList = [];
+  const clumps = [[-4.45, -4.45, 11], [4.45, -4.45, 9], [4.45, 4.45, 11], [-4.45, 4.45, 9], [-4.62, -0.6, 5], [4.62, 0.9, 5],
+    [1.4, 4.62, 5], [-1.2, -4.62, 4]];
+  for (const [cx, cz, n] of clumps) {
+    const outA = Math.atan2(cx, cz); // nach aussen
+    for (let i = 0; i < n; i++) {
+      frondList.push({ p: [cx + (r() - 0.5) * 0.1, 0.02, cz + (r() - 0.5) * 0.1], r: [0, outA + (r() - 0.5) * (n > 5 ? 3.4 : 1.6), 0],
+        s: 0.95 + r() * 0.6 });
+    }
+  }
+  const fronds = scatter(frondGeo, frondMat, frondList);
+
+  // Wurzeln unter der Scholle (ein Netz)
+  const rootMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0.12, 0.09, 0.07) });
+  const r0 = lin(v.root[0]), r1 = lin(v.root[1]);
+  const roots = new THREE.Mesh(mossRoots(r, HP, -SIDE_H + 0.02, (t) => r0.clone().lerp(r1, t)), rootMat);
+
+  // Blumen der Lichtwelle: überall verstreut, im Rand höher (auf den Polstern)
+  const flowerList = [];
+  for (let i = 0; i < MOSS.flowers; i++) {
+    const x = (r() * 2 - 1) * (HP - 0.1), z = (r() * 2 - 1) * (HP - 0.1), box = Math.max(Math.abs(x), Math.abs(z));
+    flowerList.push([x, box > HB + 0.1 ? 0.06 + r() * 0.08 : 0.012, z, (0.11 + r() * 0.07) / 2, r() * 6.3, r() * 0.08, r()]);
+  }
+  const flowers = mossFlowers(flowerList, lin(v.flower[0]), lin(v.flower[1]));
+
+  const group = new THREE.Group();
+  group.add(floorTop, sides, cushions, stems, caps, fronds, roots, flowers);
+
+  // Überblenden (setFade) wie bei der Lehmterrasse: Das hinzukommende liegt oben, durchsichtig, ohne Tiefe, um einen
+  // Hauch davor (polygonOffset), gleich nach dem Himmel (renderOrder −1). Liegt es unten, bleiben Oberfläche und Scholle
+  // deckend, bis es ganz weg ist (sie decken den Kernquader); Polster, Pilze, Farn und Wurzeln blenden aus. Die Blumen
+  // stehen nur ohne Überblenden. Die durchsichtigen Programme übersetzt boardTheme vorab (fadeVariants)
+  const body = [floorMaterial, sideMaterial], extras = [cushionMat, capMat, stemMat, frondMat, rootMat];
+  const all = [...body, ...extras], meshes = [floorTop, sides, cushions, stems, caps, fronds, roots];
+  let state = 'fest'; // fest, oben (kommt hinzu), unten (geht)
+  const look = (s) => {
+    if (s === state) return;
+    state = s;
+    for (const m of all) {
+      const on = s === 'oben' || (s === 'unten' && extras.includes(m));
+      if (m.transparent !== on) m.needsUpdate = true; // durchsichtig: eigene Programme (ohne OPAQUE)
+      m.transparent = on;
+      m.depthWrite = !on;
+      m.polygonOffset = s === 'oben';
+      m.polygonOffsetFactor = m.polygonOffsetUnits = s === 'oben' ? -1 : 0;
+      if (!on) m.opacity = 1;
+    }
+    for (const o of meshes) o.renderOrder = s === 'oben' ? -1 : 0;
+  };
+
+  const textures = [tex.map, tex.normalMap, tex.side, tex.cushion];
+  return {
+    group,
+    mirror: null,
+    textures,
+    computed: tex.computed,
+    setFade(k, upper) {
+      group.visible = k > 0;
+      look(k > 0 && k < 1 ? (upper ? 'oben' : 'unten') : 'fest');
+      if (state !== 'fest') for (const m of state === 'oben' ? all : extras) m.opacity = k;
+      // je Bild (boardTheme.render): Blumen nur zeichnen, solange die Lichtwelle sie blühen lässt
+      flowers.visible = state === 'fest' && shockUniforms.uShockT.value < MOSS.flowerEnd;
+    },
+    fadeVariants: [() => { const was = state; look('oben'); return () => look(was); }],
+    dispose() {
+      group.traverse((o) => { o.geometry?.dispose(); if (o.isInstancedMesh) o.dispose(); });
+      for (const m of [...all, flowers.material]) m.dispose();
+      for (const t of textures) t.dispose();
+    },
+  };
+}
+
 /**
  * Arten von Brettern (Spec .scratch/brett-je-himmel/), je { core, build(values) }. tools/sky-schema.mjs liest ihre Namen
  * aus der Zeile `const BOARD_TYPES = { … }` und prüft die Werte der Brett-Angaben (BOARD_PARAMS dort).
@@ -14298,7 +14764,12 @@ const raisedBed = {
   core: { lo: [-PLATE / 2, -BED.depth, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
   build: raisedBedBoard,
 };
-const BOARD_TYPES = { stone, tidePool, clay, raisedBed };
+const moss = {
+  // Oberfläche (y = 0) und die bündige Erdscholle darunter decken den Umriss
+  core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
+  build: mossBoard,
+};
+const BOARD_TYPES = { stone, tidePool, clay, raisedBed, moss };
 // ?brett=<art>: unter jedem Himmel diese Art statt seiner Brett-Angabe, mit den Werten des ersten Himmels, der sie hat
 // (boardTheme.prepare); nur für Vergleichsbilder während der Gestaltung (Tickets 04 bis 09), fällt mit Ticket 10 weg
 const BOARD_URL = new URLSearchParams(location.search).get('brett');
