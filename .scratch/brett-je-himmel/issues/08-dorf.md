@@ -17,25 +17,25 @@ fertig gemacht und abgenommen.
       entstehen (er fasst `index.html` nicht an).
 - [x] **Wahl aus dem Katalog:** Der Nutzer wählt eine Richtung, eventuell mit Änderungswünschen. Die Wahl steht unter
       «Comments».
-- [ ] **Im Spiel:** Die gewählte Richtung wird eine Art von Brett, wie das Gezeitenbecken in Ticket 04. Der Nutzer gibt
+- [x] **Im Spiel:** Die gewählte Richtung wird eine Art von Brett, wie das Gezeitenbecken in Ticket 04. Der Nutzer gibt
       an Bildern Rückmeldungen, bis sie sitzt.
-- [ ] **Eigene Lichtwelle:** Das Brett bekommt seine eigene Lichtwelle aus seiner Welt, wie die Blumen beim
+- [x] **Eigene Lichtwelle:** Das Brett bekommt seine eigene Lichtwelle aus seiner Welt, wie die Blumen beim
       Moospolster: Wo der Ring vorbeizieht, passiert etwas auf dem Brett und kommt danach wieder zur Ruhe.
       Gewählt mit dem Brett (Katalog Version 2): Wo der Ring vorbeizieht, keimen neben den Schnüren Reihen von
       Sämlingen auf, und Glühwürmchen steigen aus Erde und Kräutern. Hinter dem Ring ziehen sich die Keimlinge in die
       Erde zurück, die Glühwürmchen schweben noch kurz und verlöschen. Das passt zu den Glühwürmchen im Dorf.
       Sie kommt als Bildfolge oder kurzes Video auf die Vorschauseite.
-- [ ] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
+- [x] **Bilder und Leistung:** eine Vorschauseite mit denselben Ansichten wie in Ticket 04 auf Desktop und Handy
       (Spielansicht, flach, ganz heraus, Einstieg ins Dorf nach «Üben», Lösen einer Übung). Dazu kommen die Messwerte
       des Bretts, verglichen mit dem Steinbrett.
-- [ ] **Brett-Angabe:** Die Werte stehen in der Brett-Angabe des Dorfs. Das Register wird nur in der Brett-Angabe
+- [x] **Brett-Angabe:** Die Werte stehen in der Brett-Angabe des Dorfs. Das Register wird nur in der Brett-Angabe
       nachgeführt, und das Prüfwerkzeug kennt die Werte.
-- [ ] **Übergänge:** Alles bleibt ohne Steinbrett unter dem Dorf, ohne Löcher und ohne Ruckeln:
+- [x] **Übergänge:** Alles bleibt ohne Steinbrett unter dem Dorf, ohne Löcher und ohne Ruckeln:
       - beim Einstieg ins Dorf nach «Üben» (davor die Milchstrasse mit Steinbrett),
       - beim Weg vom Dorf in den Bergwald, nach der 9. Übung und mit «Dorf überspringen»,
       - beim Fortsetzen nach dem Neuladen mitten im Dorf,
       - beim Wiederholen einer Übung aus der Übersicht.
-- [ ] **Leistung:** Die Bildzeit steigt nicht messbar, und der Grafikspeicher bleibt etwa wie heute.
+- [x] **Leistung:** Die Bildzeit steigt nicht messbar, und der Grafikspeicher bleibt etwa wie heute.
 - [ ] **Abnahme:** Der Nutzer nimmt über eine Vorschauseite ab, erst dann wird committet.
 - [ ] Alle Tests sind grün (Logik, offline, Geschichte-Probe mit `--dorf` und `--uebersicht`), und das Review nach dem
       Ticket ist gelaufen.
@@ -74,3 +74,91 @@ Skripte liegen in `katalog-dorf/`, die Vorbilder in `vorbilder/dorf.md`.
   die Pflanzschnüre müssen als Raster gut sichtbar bleiben.
 - Vorlage: `katalog-dorf/bretter/varianten-dorf/4-hochbeet.js` mit `0-hilfe.js`, `0b-dorf.js` (Hilfen `waveMat`,
   `sparks`, `waveInst` für Körper, die nur in der Welle wachsen) und `bretter.js`.
+
+**Umsetzung (07.11.2026, Worktree `prisma-brett-08`, Branch `feature/brett-08-dorf` von `feature/brett-je-himmel`
+50760cf)**
+
+- **Art `raisedBed`** (`index.html`, eigener Block «Hochbeet» im Brett-Teil nach der Lehmterrasse):
+  - `BOARD_TYPES = { stone, tidePool, clay, raisedBed }`. Masse in `BED`, Werte in `BED_VALUES`, gebaut von
+    `raisedBedBoard(v)`.
+  - Texturen im Hintergrund-Thread über `boardTextures` (`raisedBedData`, Formeln und Farben aus `4-hochbeet.js`):
+    Erde 1024² mit Farbe und Normalen (zwei Töne, Krumen, Spuren des Rechens im Feld, Mulch im Rand, Steinchen),
+    Lärchenbohlen der Seiten 1024 × 128 (Fugen, Schrauben), Abdeckbrett 1024 × 32. Keine Rauheitstextur, die Erde ist
+    überall gleich matt (0,97).
+  - Die Pflanzschnüre rechnet der Shader (`BED_CORD_GLSL`): helle Schnur mit schmalem Schatten, über `fwidth` geglättet,
+    mit Mindestkontrast, damit das Raster auch aus der Ferne lesbar bleibt. 32 Pflöcke an den Enden.
+  - Statt der Einlegelinie gut 500 Kiesel als Instanzen (flache Kugeln, Farbe je Kiesel), dahinter die Kräuter wie im
+    Katalog: Schnittlauch mit lila Blüten, Thymian, Ringelblumen, Salat (rund 1800 Halme, Kugeln und Blüten). Pflöcke,
+    Kiesel und Kräuter teilen sich ein Material mit Farbe je Instanz (ein Programm, siehe unten).
+  - Kasten aus Bohlen ohne Deckfläche, 0,6 m tief, bündig mit dem Umriss (±4,9 m), Oberkante in y = 0. Darauf das
+    Abdeckbrett (vier Bretter in einer Form, 8 cm hoch, von 4,77 m bis zum Umriss).
+  - Keine Spiegelung (`mirror: null`), Erde ist matt.
+  - **Kernquader:** der Kasten (±4,9 m, y −0,6 … 0).
+  - **Überblenden** wie bei der Lehmterrasse: Kommt das Hochbeet hinzu, liegt es oben, durchsichtig. Geht es, bleiben
+    Erde und Kasten deckend; Abdeckbrett, Pflöcke, Kiesel, Kräuter und Sämlinge blenden aus. Der untere Teil des Kastens
+    (−0,41 … −0,6 m) verschwindet dabei erst im letzten Bild, wie bei den eingezogenen Formen (Ticket 05).
+- **Lichtwelle** (Katalog Version 2), alles nach der Ankunft des Rings (`shockClock`, `uShockT − Abstand / 6,5`):
+  - Erde: Front ± 45 cm, dahinter ein kurzer Nachschein; die Schnüre leuchten an der Front mit.
+  - Sämlinge: rund 1100 in Reihen neben den Schnüren (je Stiel und zwei Keimblätter, 10 Dreiecke, eine Form, eine
+    Instanz). Kurz vor der Ankunft wächst der Stiel aus der Erde, dann öffnen sich die Keimblätter; 0,06 bis 0,4 s danach
+    ziehen sie sich zurück. Gezeichnet nur bis 1,9 s nach dem Start des Rings.
+  - Glühwürmchen: 420 Punkte (260 über den Kräutern, 160 über dem Feld), leuchten an der Front hell auf, steigen
+    0,3 bis 1,1 m, treiben und flackern, verlöschen nach 0,8 bis 2,8 s. Additiv, ohne das Alpha des Bilds zu ändern (wie
+    `glowParticles`). Gezeichnet nur bis 4,4 s.
+  - Beim Fall des Polarsterns (Glut mit Radius 0) richtet sich der Anfang nach der Stärke der Glut (`uBed.y`).
+- **Brett-Angabe:** `tools/blender/szenen/village/skybox.json` nennt `raisedBed` mit 13 Farben in sRGB 0 … 1 (`soil`
+  und `larch` je zwei Töne [hell, dunkel], `mulch`, `cord`, `pebble`, `peg`, `chive`, `thyme`, `lettuce`, `marigold`,
+  `blossom`, `sprout`, `firefly`). Register mit `node tools/blender/pack.mjs --brett village` (Register `bea532db` in
+  `sw.js`). `tools/sky-schema.mjs`: `BOARD_PARAMS.raisedBed`, Kopf nachgeführt.
+- `APP_VERSION` `2026-11-07 brett-dorf` (`index.html`, `sw.js`).
+- **Programme:** Beim ersten Bauen übersetzt das Hochbeet seine Programme (`boardTheme.compile`). Ohne paralleles
+  Übersetzen hielt das in der Geschichte-Probe ein Bild beim Überspringen des Prologs 423 ms an (dort lädt der Himmel
+  des Dorfs vor, auf HEAD 19 ms). Mit dem gemeinsamen Material für Pflöcke, Kiesel und Kräuter und dem Abdeckbrett im
+  Programm der Seiten (5 statt 7 Programme) blieb es im nächsten Lauf bei 24 ms. Gemessen im Menü beim Vorbereiten
+  allein: Hochbeet 165–197 ms Bildzeit beim ersten Übersetzen, Lehmterrasse 159–360 ms, Gezeitenbecken 151–480 ms
+  (headless, Rechner geteilt): Das Muster haben alle Bretter.
+
+**Vorschau (07.11.2026):** Die Artifact-Werkzeuge gingen in dieser Sitzung nicht. Die Seite liegt lokal unter
+`…\scratchpad\vorschau-08\index.html` (Desktop 1440 × 900 und Handy 390 × 844, je Spielansicht, flach, ganz heraus und
+beides, neben dem Steinbrett und dem Katalogbild; Lichtwelle als Film in Echtzeit mit 12 Bildern/s; Einstieg ins Dorf
+nach «Üben», Übungen mit Hinweis und gelöst aus der Geschichte-Probe; Messwerte).
+
+**Messwerte** (headless mit Grafikkarte, `?perf`, `?sky=village`, Level 12, Steinbrett über `&brett=stone`; Rechner mit
+Ticket 07 geteilt, Unterschiede unter etwa 1 ms nicht messbar). Zeichenzeit Mittel in ms:
+
+| Ansicht | Ruhe Hochbeet | Ruhe Stein | Welle Hochbeet (3 s) | Welle Stein |
+|---|---|---|---|---|
+| Desktop 1440 × 900 | 12,69 · 12,66 | 13,06 · 13,22 | 13,36 | 12,08 |
+| Handy 390 × 844, Dichte 2 | 12,76 · 12,61 | 13,45 · 13,37 | 12,05 | 12,83 |
+
+- In Ruhe zeichnet das Hochbeet eher schneller (keine Spiegelung), in der Welle auf dem Desktop gut 1 ms mehr für 3 s.
+- **Grafikspeicher:** Hochbeet 11,5 MB Texturen (mit Mipmaps) und 0,24 MB Netze samt Instanzen; Steinbrett 16 MB.
+- **Bauzeit:** Texturen 342 ms (Steinbrett 356 ms), im Hintergrund-Thread; Netze und Instanzen 5 ms im Hauptthread.
+- 9 Zeichenobjekte, in Ruhe 7 gezeichnet (Erde, Kasten, Abdeckbrett, Pflöcke, Halme, Kugeln, Ringelblumen).
+
+**Tests (07.11.2026, je über `leise.sh`, GPU, stumm, nacheinander):**
+
+- `node tests/logic.test.mjs`: 2042 bestanden. Neu: «Dorf mit dem Hochbeet (raisedBed); die Prüfung lehnt ungültige und
+  fehlende Farben ab» (Farbe über 1, unter 0, zwei Werte, Erde ohne zwei Töne, Bohlen mit drei Tönen, fehlende Farbe,
+  unbekannter Wert).
+- `tests/offline.mjs`: bestanden. Das Dorf ist online und offline erst bereit, wenn `raisedBed` bereit ist.
+- `tests/brett-probe.mjs`: in Ordnung, alle 33 Prüfungen (die Lücken-Prüfung «Brett laden und überblenden» 36 ms).
+- Geschichte-Probe `--dorf --handy`: bestanden.
+- Geschichte-Probe `--dorf` (Desktop): alle Prüfungen zum Brett grün (im Dorf immer `raisedBed`, kein Notfall), rot nur
+  eine Lücke beim Wiederholen von Übung 8 aus der Übersicht (421 ms, 700 ms nach dem Klick, der Himmel des Dorfs lädt
+  neu). Dieselbe Lücke hat eine Kopie von HEAD (415 ms): Sie kommt vom Himmel, nicht vom Brett. Im ersten Lauf kam die
+  Lücke beim Überspringen des Prologs (423 ms) dazu; sie kam vom Übersetzen der Programme und ist behoben (siehe
+  «Programme», danach 24 ms).
+- Geschichte-Probe `--uebersicht`: «Weiter ins Meer» blendet über 2,43 s, die Prüfungen zum Brett sind grün. Rot sind
+  Lücken über 100 ms beim Öffnen und Schliessen der Übersicht am Strand (zwei Läufe: 180 ms; 325, 249 und 163 ms). Eine
+  Kopie von HEAD scheitert im selben Lauf an denselben Stellen (149, 234 und 267 ms): nicht von diesem Ticket.
+
+**Offen:**
+
+- Abnahme durch den Nutzer an der Vorschauseite.
+- Die Lücken beim Wiederholen ins Dorf (Himmel) und um die Übersicht (auch auf HEAD) gehören nicht zu diesem Ticket, die
+  Proben bleiben dort rot.
+- Kosten auf dem echten Handy (Ticket 10): Welle mit 1100 Sämlingen und 420 Glühwürmchen, 1800 Kräuter in Ruhe.
+- Übersetzen der Programme ohne paralleles Übersetzen hält bei jedem neuen Brett ein Bild an (alle Bretter), das gehört
+  in Ticket 05 oder 10.
+- Kräuter und Kasten werfen keinen Schatten (wie die Türmchen der Lehmterrasse).
