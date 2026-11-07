@@ -930,6 +930,22 @@ console.log('Offline');
     assert.ok(errorsWith({ egg: undefined }).some((e) => /egg/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ dach: [0.8, 0.7, 0.5] }).some((e) => /dach/.test(e)), 'unbekannter Wert');
   });
+  test('Bretter: Dorf mit dem Hochbeet (raisedBed); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const village = skies.find((s) => s.id === 'village') ?? assert.fail('Skybox village fehlt im Register');
+    const board = JSON.parse(JSON.stringify(village.board));
+    assert.equal(board.type, 'raisedBed', 'das Dorf hat das Hochbeet');
+    const errorsWith = (change) => checkSkies([{ ...village, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ cord: [1.2, 0.8, 0.7] }).some((e) => /cord/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ pebble: [0.7, 0.6] }).some((e) => /pebble/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ firefly: [0.9, -0.1, 0.6] }).some((e) => /firefly/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ soil: [0.17, 0.12, 0.085] }).some((e) => /soil/.test(e)), 'Erde ohne zwei Töne');
+    assert.ok(errorsWith({ larch: [board.larch[0], board.larch[1], board.larch[0]] }).some((e) => /larch/.test(e)),
+      'Bohlen mit drei Tönen');
+    assert.ok(errorsWith({ sprout: undefined }).some((e) => /sprout/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ tomate: [0.8, 0.2, 0.1] }).some((e) => /tomate/.test(e)), 'unbekannter Wert');
+  });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
     assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
