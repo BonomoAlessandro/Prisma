@@ -3,8 +3,9 @@
 # (Vorgabe 20 % der ganzen Maschine, also gut 4 von 20 Kernen) und Priorität „Leerlauf“ (leise.ps1). Alle
 # Unterprozesse (node → Chrome mit SwiftShader) bleiben im Job; Kernmaske und Priorität allein setzte Chrome zurück.
 # Läufe warten aufeinander (Sperre /tmp/prisma-leise.lock), damit auch parallel arbeitende Agenten nie zwei schwere
-# Läufe gleichzeitig starten; ein Aufruf innerhalb eines Laufs (LEISE_AKTIV) läuft direkt.
-# leise.sh <befehl> [argumente …]   (Grenze ändern: LEISE_CPU=10 leise.sh …)
+# Läufe gleichzeitig starten; ein Aufruf innerhalb eines Laufs (LEISE_AKTIV) läuft direkt. Warten mehrere, geht die
+# kleinere Zahl LEISE_VORRANG vor (die Nummer des Tickets: das früher begonnene Ticket hat Vorrang; ohne Angabe 500).
+# leise.sh <befehl> [argumente …]   (Grenze ändern: LEISE_CPU=10 leise.sh …; Vorrang: LEISE_VORRANG=5 leise.sh …)
 [ -n "$LEISE_AKTIV" ] && exec "$@"
 # Obergrenze je Lauf: 50 % (Generator, Screenshots der KI-Tester). Weil Läufe nur nacheinander laufen, bleibt die Arbeit
 # an Tickets so insgesamt unter der Grenze des Nutzers von 70 %. Ein Rechner hebt sie lokal mit LEISE_MAX_CPU an
@@ -22,8 +23,32 @@ lebt() { [ -n "$h_pid" ] && [ "$(cat "/proc/$h_pid/winpid" 2>/dev/null)" = "$h_w
 alt() { [ -n "$(find "$1" -maxdepth 0 -mmin +1 2>/dev/null)" ]; }
 # Verwaist: Halter tot, oder seit über einer Minute keine pid-Datei (Absturz zwischen mkdir und echo).
 verwaist() { halter; if [ -n "$h_pid" ]; then ! lebt; else alt "$SPERRE"; fi; }
+# Wartende melden sich in $WARTE als „<vorrang>.<pid>“ mit „pid winpid“; wer eine kleinere Zahl lebend vor sich
+# sieht, lässt ihm die Sperre. Marken toter Wartender werden weggeräumt.
+VORRANG=${LEISE_VORRANG:-500}
+[ "$VORRANG" -ge 0 ] 2>/dev/null || { echo "leise: LEISE_VORRANG=$VORRANG muss eine ganze Zahl sein, Abbruch" >&2; exit 1; }
+WARTE=/tmp/prisma-leise.warte
+mkdir -p "$WARTE"
+MARKE="$WARTE/$VORRANG.$$"
+echo "$$ $WP" > "$MARKE"
+trap 'rm -f "$MARKE"' EXIT
+vortritt() {
+  for m in "$WARTE"/*.*; do
+    [ -f "$m" ] && [ "$m" != "$MARKE" ] || continue
+    n=${m##*/}; n=${n%%.*}
+    [ "$n" -lt "$VORRANG" ] 2>/dev/null || continue
+    read -r h_pid h_wp 2>/dev/null < "$m" || continue
+    if lebt; then v_pid=$h_pid; return 0; fi
+    rm -f "$m"
+  done
+  return 1
+}
 gemeldet=
-until mkdir "$SPERRE" 2>/dev/null; do
+until ! vortritt && mkdir "$SPERRE" 2>/dev/null; do
+  if [ -n "$v_pid" ]; then
+    [ -z "$gemeldet" ] && { echo "leise: lasse Lauf mit Vorrang vor (PID $v_pid)" >&2; gemeldet=1; }
+    v_pid=; sleep 2; continue
+  fi
   if verwaist; then
     alt "$SPERRE.uebernahme" && rm -rf "$SPERRE.uebernahme"
     # Übernahme selbst sperren und darin neu prüfen, sonst löscht ein Wartender die frische Sperre eines anderen.
@@ -37,6 +62,7 @@ until mkdir "$SPERRE" 2>/dev/null; do
   sleep 2
 done
 echo "$$ $WP" > "$SPERRE/pid"
+rm -f "$MARKE"
 trap 'halter; [ "$h_pid" = "$$" ] && rm -rf "$SPERRE"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM

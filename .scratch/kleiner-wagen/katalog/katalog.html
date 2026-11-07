@@ -1,0 +1,1584 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Skizzenkatalog Kleiner Wagen</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@200..400&display=swap">
+<style>
+  /* Skizzenkatalog (Ticket 02 von .scratch/kleiner-wagen/): wie der Kleine Wagen in Menü, Übersicht und die Leiste unter
+     dem Untertitel kommt. Zum Wählen, nicht Teil des Spiels. Jede Vorschau ist ein Bildschirm in echter Grösse
+     (Desktop 1440 × 900, Handy 390 × 844 und 844 × 390), verkleinert in einen Rahmen. Schrift, Farben und Knöpfe wie im
+     Spiel (index.html: :root, createMenu, createUebersicht, #story .path). */
+  :root {
+    --bg: #030308;
+    --panel: #0a0918;
+    --ink: #e8e6f0;
+    --dim: rgba(232, 230, 240, 0.62);
+    --faint: rgba(232, 230, 240, 0.14);
+    --line: rgba(232, 230, 240, 0.3);
+    --glow: 170, 180, 255;
+    --font: "Jost", "Helvetica Neue", "Segoe UI Light", "Segoe UI", system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font-family: var(--font); font-weight: 300; font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased;
+    padding: 28px max(16px, env(safe-area-inset-right, 0px)) 64px max(16px, env(safe-area-inset-left, 0px));
+    overflow-x: hidden;
+  }
+  .wrap { max-width: 1320px; margin: 0 auto; display: grid; gap: 26px; }
+  header.seite { display: grid; gap: 22px; grid-template-columns: minmax(0, 1fr); }
+  @media (min-width: 980px) { header.seite { grid-template-columns: minmax(0, 1fr) 380px; align-items: center; } }
+  .eyebrow { font-size: 11px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--dim); }
+  h1 { margin: 6px 0 12px; font-weight: 200; font-size: clamp(28px, 6vw, 48px); letter-spacing: 0.05em; line-height: 1.15; text-wrap: balance; }
+  header.seite p { margin: 0 0 8px; color: var(--dim); max-width: 64ch; }
+  header.seite p strong { color: var(--ink); font-weight: 400; }
+  .legende { position: relative; width: 100%; max-width: 380px; aspect-ratio: 380 / 230; margin: 0 auto; background: var(--panel); border-radius: 12px; overflow: hidden; }
+  .legende svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  .legende .lg-name { position: absolute; font-size: 12px; line-height: 1.25; white-space: nowrap; color: var(--ink); }
+  .legende .lg-name b { font-weight: 400; color: #fff; margin-right: 4px; }
+  .legende .lg-name span { color: var(--dim); }
+
+  .steuerung { display: grid; gap: 10px; padding: 14px 16px; background: var(--panel); border-radius: 12px; }
+  @media (min-width: 980px) { .steuerung { position: sticky; top: 8px; z-index: 5; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55); } }
+  .gruppe { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .gruppe > .lbl { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); min-width: 6.4em; }
+  .wahl {
+    font: inherit; font-size: 14px; letter-spacing: 0.04em; color: var(--dim); background: transparent; cursor: pointer;
+    border: 1px solid var(--faint); border-radius: 999px; padding: 6px 14px; min-height: 40px; touch-action: manipulation;
+  }
+  @media (pointer: coarse) { .wahl { min-height: 44px; } }
+  .wahl:hover { color: var(--ink); border-color: var(--line); }
+  .wahl[aria-pressed="true"] { color: var(--bg); background: var(--ink); border-color: var(--ink); }
+  .wahl kbd, .taste { font-family: inherit; font-size: 10px; letter-spacing: 0.08em; opacity: 0.6; margin-left: 6px; }
+  .abspielen { color: #fff; border-color: rgba(255, 255, 255, 0.7); box-shadow: 0 0 18px rgba(var(--glow), 0.3); }
+  .abspielen[disabled] { opacity: 0.4; box-shadow: none; cursor: default; }
+  .moment-text { font-size: 13.5px; color: var(--dim); flex: 1 1 18em; }
+  .moment-text b { color: var(--ink); font-weight: 400; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: 0 0 16px rgba(var(--glow), 0.6); }
+
+  .hinweis { font-size: 13.5px; color: var(--dim); margin: 0; }
+  .raster { display: grid; gap: 34px 26px; grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--karte, 520px)), 1fr)); }
+  .karte { display: grid; gap: 9px; align-content: start; min-width: 0; }
+  .rahmen {
+    position: relative; display: block; width: 100%; aspect-ratio: var(--ar, 1440 / 900); padding: 0; overflow: hidden;
+    border: 1px solid var(--faint); border-radius: 12px; background: #000; cursor: zoom-in; touch-action: manipulation;
+  }
+  .rahmen .bs { pointer-events: none; }
+  .karte h3 { margin: 4px 0 0; font-size: 19px; font-weight: 400; letter-spacing: 0.03em; display: flex; gap: 10px; align-items: baseline; }
+  .karte h3 .k { font-size: 12px; letter-spacing: 0.3em; color: var(--dim); }
+  .karte p { margin: 0; font-size: 14.5px; line-height: 1.55; }
+  .karte .bezug, .karte .achtung { color: var(--dim); font-size: 13.5px; }
+  .karte .bezug b, .karte .achtung b { color: var(--ink); font-weight: 400; }
+  .karte .abweichung { color: var(--ink); border-left: 2px solid var(--ink); padding-left: 10px; }
+  footer { color: var(--dim); font-size: 13.5px; display: grid; gap: 8px; max-width: 80ch; }
+  footer b { color: var(--ink); font-weight: 400; }
+
+  /* Grossbild */
+  #gross { position: fixed; inset: 0; z-index: 20; background: #000; display: grid; grid-template-rows: minmax(0, 1fr) auto; }
+  #gross[hidden] { display: none; }
+  #gross .buehne { position: relative; overflow: hidden; }
+  #gross .bs { pointer-events: auto; }
+  #gross .werkzeug {
+    display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px 8px;
+    padding: 8px max(10px, env(safe-area-inset-left, 0px)) calc(8px + env(safe-area-inset-bottom, 0px));
+    background: #0d0c1a; border-top: 1px solid var(--faint);
+  }
+  #gross .werkzeug .wahl { min-height: 44px; min-width: 44px; padding: 6px 12px; }
+  #gross .werkzeug .name { font-size: 14px; min-width: 12em; text-align: center; }
+  @media (max-width: 520px) { #gross .werkzeug .name { flex: 1 0 100%; order: -1; min-width: 0; font-size: 13px; } #gross .werkzeug .wahl { padding: 6px 10px; } }
+
+  /* Modi für Aufnahmen: ?nur (ein Bildschirm in echter Grösse), ?blatt (alle Varianten eines Bereichs) */
+  body.nur, body.blatt { padding: 0; }
+  body.nur .wrap, body.blatt .wrap { display: none; }
+  #einzel { position: relative; }
+  #blatt { display: flex; flex-wrap: wrap; gap: 28px; padding: 24px; align-items: flex-start; }
+  #blatt .bk { display: grid; gap: 8px; }
+  #blatt .bk h3 { margin: 0; font-size: 22px; font-weight: 400; letter-spacing: 0.04em; }
+  #blatt .bk h3 span { font-size: 13px; letter-spacing: 0.3em; color: var(--dim); margin-right: 10px; }
+  #blatt .bk .rahmen { cursor: default; }
+
+  /* ---------- Bildschirm (im Rahmen): wie im Spiel ---------- */
+  .bs {
+    position: absolute; left: 0; top: 0; overflow: hidden; transform-origin: 0 0;
+    background: #030308 center / 100% 100% no-repeat; color: var(--ink); font-family: var(--font); font-weight: 300;
+    font-size: 13px; line-height: 1.3; letter-spacing: 0; text-align: left; user-select: none; -webkit-user-select: none;
+  }
+  .bs * { box-sizing: border-box; }
+  .bs .schleier { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 50%, rgba(3, 3, 8, 0.12), rgba(3, 3, 8, 0.66) 92%); }
+  .bs .abs { position: absolute; }
+  .bs svg.ebene { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  .bs .ico { width: 1em; height: 1em; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+  .bs .pips { display: inline-flex; gap: 4px; color: var(--dim); flex: none; }
+  .bs .pips i { width: 6px; height: 6px; border: 1px solid currentColor; border-radius: 50%; }
+  .bs .pips i.on { background: currentColor; border-color: transparent; }
+  .bs .kopf .titel { font-size: 24px; font-weight: 200; letter-spacing: 0.5em; text-transform: uppercase; color: #fff; white-space: nowrap;
+    text-shadow: 0 0 18px rgba(255, 255, 255, 0.55), 0 0 60px rgba(160, 170, 255, 0.35); }
+  .bs .kopf .unter { margin-top: 8px; font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .fmt-hoch .kopf .titel { font-size: 19px; padding-left: 0.5em; }
+  .fmt-hoch .kopf .unter { margin-top: 6px; font-size: 8.5px; letter-spacing: 0.4em; padding-left: 0.4em; }
+  .fmt-quer .kopf { display: flex; align-items: baseline; gap: 24px; }
+  .fmt-quer .kopf .titel { font-size: 17px; }
+  .fmt-quer .kopf .unter { margin: 0; font-size: 8.5px; letter-spacing: 0.4em; }
+
+  .bs .grad { display: flex; flex-direction: column; gap: 7px; }
+  .bs .grad .z1 { display: flex; align-items: center; gap: 12px; }
+  .bs .grad .name { font-size: 16px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; white-space: nowrap; }
+  .bs .grad .stand { display: flex; align-items: center; gap: 8px; font-size: 13px; letter-spacing: 0.06em; white-space: nowrap; }
+  .bs .grad.neu .stand { color: var(--dim); }
+  .bs .grad .aktion { display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.38em; margin-right: -0.38em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .bs .grad .aktion .ico { font-size: 12px; }
+  .bs .grad.zuletzt .aktion { color: var(--ink); }
+  .bs .grad.hervor .name, .bs .grad.hervor .pips, .bs .grad.hervor .aktion { color: #fff; }
+  .bs .grad.hervor .name { text-shadow: 0 0 12px rgba(var(--glow), 0.9); }
+  .bs .grad .vonvorn { margin-top: 6px; }
+  .bs .grad.klein { gap: 4px; }
+  .bs .grad.klein .name { font-size: 13px; letter-spacing: 0.28em; margin-right: -0.28em; }
+  .bs .grad.klein .stand { font-size: 12px; }
+  .bs .vonvorn { display: inline-flex; align-items: center; gap: 0.7em; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .bs .vonvorn .ico { font-size: 14px; }
+  .bs .vonvorn.senkrecht { flex-direction: column; gap: 8px; font-size: 9px; letter-spacing: 0.25em; }
+  .bs .vonvorn.senkrecht .ico { font-size: 17px; }
+  .bs .polar-mini { width: 18px; height: 18px; margin: -4px 0; overflow: visible; }
+  .bs .weiter {
+    display: inline-flex; flex-direction: column; align-items: center; gap: 6px; white-space: nowrap;
+    padding: 13px 34px 12px calc(34px + 0.45em); font-size: 13px; letter-spacing: 0.45em; text-transform: uppercase;
+    border: 1px solid rgba(255, 255, 255, 0.72); border-radius: 999px; background: rgba(16, 16, 34, 0.62);
+    box-shadow: 0 0 28px rgba(var(--glow), 0.32), inset 0 0 14px rgba(255, 255, 255, 0.07);
+  }
+  .bs .weiter .wohin { font-size: 10px; letter-spacing: 0.22em; text-transform: none; color: var(--dim); padding: 0; }
+  .bs .weiter.breit { display: flex; }
+  .bs .weiter.knapp { padding: 9px 22px 9px calc(22px + 0.45em); font-size: 11px; gap: 4px; }
+  .bs .pille {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px; white-space: nowrap;
+    padding: 12px 26px 12px calc(26px + 0.4em); font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+    border: 1px solid var(--line); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+  }
+  .bs .rund { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); background: rgba(3, 3, 8, 0.5); font-size: 20px; color: var(--ink); cursor: pointer; }
+  .bs .polar { position: absolute; transform: translate(-50%, -50%); pointer-events: none; }
+  .bs .polar svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .bs .polar .wort { position: absolute; left: 50%; bottom: calc(100% - 6px); transform: translateX(-50%); font-size: 9px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .bs .klein-name { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+  .bs .klein-name.hell { color: var(--ink); }
+
+  /* Wagen (alle Varianten): Linien, Sterne, Ring um den Stern der Welt, in der das Licht gerade ist */
+  .wg .wl { stroke: #e3e7ff; stroke-linecap: round; fill: none; }
+  .wg .wgeist { stroke: #c8d0ff; stroke-linecap: round; fill: none; }
+  .wg .ring { transform-box: fill-box; transform-origin: center; animation: wg-atmen 2.6s ease-in-out infinite; }
+  @keyframes wg-atmen { 50% { transform: scale(1.25); } }
+  .bs .etikett { position: absolute; white-space: nowrap; pointer-events: none; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); line-height: 1.35; }
+  .bs .etikett small { display: block; font-size: 10.5px; letter-spacing: 0.08em; text-transform: none; color: var(--dim); }
+  .bs .etikett.wach { color: var(--ink); }
+  .bs .etikett.jetzt { color: #fff; text-shadow: 0 0 10px rgba(var(--glow), 0.9); }
+  .bs .etikett.jetzt small { color: var(--ink); }
+  .fmt-hoch .etikett, .fmt-quer .etikett { font-size: 9px; letter-spacing: 0.16em; }
+  .fmt-hoch .etikett small, .fmt-quer .etikett small { font-size: 9px; }
+
+  /* Lichtwege (heutiges Menü) */
+  .lw-rest { fill: none; stroke: rgba(232, 230, 240, 0.5); stroke-width: 1.5; stroke-dasharray: 0.01 7; stroke-linecap: round; }
+  .lw-rest.fokus { stroke: rgba(232, 230, 240, 0.32); stroke-width: 1; stroke-dasharray: none; }
+  .lw-hof { fill: none; stroke: rgba(200, 210, 255, 0.2); stroke-width: 10; stroke-linecap: round; stroke-linejoin: round; }
+  .lw-kern { fill: none; stroke: #fff; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+  .lw-kopf { fill: #fff; filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.9)); }
+  .lw-pkt { fill: rgba(3, 3, 8, 0.6); stroke: rgba(232, 230, 240, 0.5); stroke-width: 1; }
+  .lw-pkt.an { fill: #fff; stroke: none; }
+  .lw-lampe { fill: rgba(3, 3, 8, 0.5); stroke: rgba(232, 230, 240, 0.45); stroke-width: 1; }
+  .lw-lampe.an { fill: #fff; stroke: none; filter: drop-shadow(0 0 6px #fff); }
+  .lw-lampe.hervor { stroke: #fff; stroke-width: 1.5; filter: drop-shadow(0 0 8px rgba(170, 180, 255, 1)); }
+  .lw-ico { color: rgba(232, 230, 240, 0.7); }
+  .lw-ico .ico { width: 14px; height: 14px; }
+  .lw-disc { position: absolute; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(3, 3, 8, 0.75); transform: translate(-50%, -50%); color: var(--ink); }
+  .lw-disc .ico { width: 15px; height: 15px; }
+  .bs .wagen-name { font-size: 9px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+
+  /* Karten des Menüs (Variante D) */
+  .bs .gkarte {
+    position: absolute; display: flex; flex-direction: column; align-items: center; text-align: center;
+    border: 1px solid rgba(232, 230, 240, 0.18); border-radius: 18px; background: rgba(10, 10, 28, 0.55);
+  }
+  .bs .gkarte.zuletzt { border-color: rgba(255, 255, 255, 0.62); box-shadow: 0 0 26px rgba(var(--glow), 0.22), inset 0 0 18px rgba(255, 255, 255, 0.04); }
+  .bs .gkarte.hervor { border-color: #fff; box-shadow: 0 0 32px rgba(var(--glow), 0.5); }
+  .bs .gkarte svg { display: block; overflow: visible; flex: none; }
+  .bs .gkarte .grad { align-items: center; }
+  .bs .gkarte .unten { margin-top: auto; padding-bottom: 16px; }
+
+  /* Himmel zum Schwenken (Variante E) */
+  .bs .band { position: absolute; left: 0; top: 0; height: 100%; transition: transform 0.7s cubic-bezier(0.45, 0, 0.25, 1); }
+  .bs .hwagen { position: absolute; transition: transform 0.7s cubic-bezier(0.45, 0, 0.25, 1), opacity 0.7s ease; cursor: pointer; }
+  .bs .hwagen svg { display: block; overflow: visible; }
+  .bs .hwagen.aus { transform: scale(0.5); opacity: 0.5; }
+  .bs .hwagen .hw-name { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); font-size: 20px; letter-spacing: 0.4em; text-transform: uppercase; color: var(--dim); white-space: nowrap; opacity: 0; transition: opacity 0.5s ease; }
+  .bs .hwagen.aus .hw-name { opacity: 1; }
+  .bs .punkte { display: flex; gap: 12px; }
+  .bs .punkte i { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--dim); }
+  .bs .punkte i.an { background: #fff; border-color: #fff; box-shadow: 0 0 8px #fff; }
+
+  /* Sternkarte mit Reitern (Variante F) */
+  .bs .reiter { position: absolute; display: flex; flex-direction: column; gap: 6px; padding: 8px 0 8px 18px; border-left: 2px solid transparent; color: var(--dim); cursor: pointer; }
+  .bs .reiter .name { font-size: 16px; letter-spacing: 0.38em; text-transform: uppercase; white-space: nowrap; }
+  .bs .reiter .stand { font-size: 13px; letter-spacing: 0.05em; white-space: nowrap; display: flex; gap: 7px; align-items: center; }
+  .bs .reiter.an { color: #fff; border-left-color: #fff; }
+  .bs .reiter.an .name { text-shadow: 0 0 12px rgba(var(--glow), 0.8); }
+  .bs .reiter.seg { align-items: center; text-align: center; padding: 6px 2px 9px; border-left: 0; border-bottom: 2px solid rgba(232, 230, 240, 0.12); gap: 6px; }
+  .bs .reiter.seg .name { font-size: 12px; letter-spacing: 0.06em; text-transform: none; }
+  .bs .reiter.seg.an { border-bottom-color: #fff; }
+  .fmt-quer .reiter .name { font-size: 14px; letter-spacing: 0.3em; }
+  .fmt-quer .reiter .stand { font-size: 12px; }
+  .bs .karte-info { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+  .bs .karte-info .gross { font-size: 16px; letter-spacing: 0.38em; text-transform: uppercase; }
+  .bs .karte-info .fein { font-size: 12px; color: var(--dim); letter-spacing: 0.05em; }
+
+  /* Übersicht */
+  .bs .ueb-kopf .kicker { font-size: 10px; letter-spacing: 0.5em; text-transform: uppercase; color: var(--dim); }
+  .bs .ueb-kopf .titel { display: flex; align-items: center; gap: 14px; margin-top: 10px; }
+  .bs .ueb-kopf .titel .name { font-size: 18px; letter-spacing: 0.4em; text-transform: uppercase; }
+  .bs .ueb-kopf .titel .zahl { font-size: 15px; letter-spacing: 0.1em; margin-left: 10px; }
+  .bs .ueb-kopf.mitte { text-align: center; }
+  .bs .ueb-kopf.mitte .titel { justify-content: center; }
+  .bs .legende-k { display: flex; gap: 18px; font-size: 11px; color: var(--dim); white-space: nowrap; }
+  .bs .legende-k span { display: inline-flex; gap: 6px; align-items: center; }
+  .bs .legende-k .ico { font-size: 13px; }
+  .bs .lk {
+    position: absolute; display: grid; grid-template-rows: auto 1fr auto; padding: 9px 11px;
+    border: 1px solid rgba(232, 230, 240, 0.24); border-radius: 8px; background: rgba(14, 14, 34, 0.78);
+  }
+  .bs .lk .nr { font-size: 11px; color: var(--dim); }
+  .bs .lk .pt { position: absolute; right: 10px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 6px #fff; }
+  .bs .lk .ln { align-self: center; font-size: 13px; letter-spacing: 0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bs .lk .un { display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: var(--ink); }
+  .bs .lk .un span { display: inline-flex; gap: 4px; align-items: center; }
+  .bs .lk .weiter-k { font-size: 9px; letter-spacing: 0.3em; text-transform: uppercase; }
+  .bs .lk.offen { border-color: rgba(255, 255, 255, 0.85); background: rgba(26, 26, 54, 0.85); box-shadow: 0 0 18px rgba(var(--glow), 0.35); }
+  .bs .lk.gesperrt { border-style: dashed; border-color: rgba(232, 230, 240, 0.2); background: rgba(8, 8, 20, 0.45); color: rgba(232, 230, 240, 0.4); }
+  .bs .lk.gesperrt .un { color: rgba(232, 230, 240, 0.4); }
+  .bs .lk.zeile { grid-template-rows: none; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; column-gap: 8px; }
+  .bs .lk.zeile .pt { display: none; }
+  .bs .lk.eng { padding-top: 0; padding-bottom: 0; }
+  .bs .lk.zeile .un { gap: 12px; }
+  .fmt-hoch .lk .ln { font-size: 15px; }
+  .fmt-hoch .lk .nr { font-size: 12px; }
+  .fmt-hoch .lk .un { font-size: 13px; }
+  .fmt-hoch .lk.zeile .ln, .fmt-quer .lk.zeile .ln { font-size: 13px; }
+  .fmt-hoch .lk.zeile .un, .fmt-quer .lk.zeile .un { font-size: 11px; gap: 8px; }
+  .bs .welt-kopf { text-align: right; }
+  .bs .welt-kopf .wn { font-size: 15px; letter-spacing: 0.32em; text-transform: uppercase; white-space: nowrap; }
+  .bs .welt-kopf .wz { margin-top: 6px; font-size: 11px; color: var(--dim); display: flex; gap: 10px; justify-content: flex-end; white-space: nowrap; }
+  .bs .welt-kopf .wz span { display: inline-flex; gap: 5px; align-items: center; }
+  .bs .welt-kopf.links { text-align: left; }
+  .bs .welt-kopf.links .wz { justify-content: flex-start; }
+  .bs .welt-kopf.mitte { text-align: center; }
+  .bs .welt-kopf.mitte .wz { justify-content: center; }
+  .bs .welt-kopf .wn .ico { font-size: 17px; margin-right: 10px; vertical-align: -2px; }
+  .bs .welt-kopf.gesperrt .wn { color: var(--dim); }
+  .bs .kreis { position: absolute; display: grid; place-items: center; border-radius: 50%; border: 1px solid rgba(232, 230, 240, 0.3); background: rgba(3, 3, 8, 0.55); color: rgba(232, 230, 240, 0.4); transform: translate(-50%, -50%); }
+  .bs .kreis .ico { width: 52%; height: 52%; }
+  .bs .kreis.fertig { color: rgba(232, 230, 240, 0.85); border-color: rgba(232, 230, 240, 0.55); }
+  .bs .kreis.an { color: #fff; border-color: #fff; background: rgba(28, 28, 60, 0.85); box-shadow: 0 0 16px rgba(var(--glow), 0.6); }
+  .bs .tabline { position: absolute; height: 1px; background: rgba(232, 230, 240, 0.2); }
+  .bs .tabline.fertig { background: rgba(255, 255, 255, 0.7); }
+  .bs .rowline { position: absolute; height: 1px; background: rgba(232, 230, 240, 0.12); }
+  .bs .rowline i { position: absolute; left: 0; top: 0; height: 1px; background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  .bs .treffer { position: absolute; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; }
+  .bs .wahlhof { fill: rgba(var(--glow), 0.12); stroke: rgba(255, 255, 255, 0.55); stroke-width: 1; }
+  .bs .dorf-chip { position: absolute; display: inline-flex; gap: 10px; align-items: center; padding: 8px 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(3, 3, 8, 0.55); font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+  .bs .dorf-chip .ico { font-size: 15px; }
+  .bs .dorf-chip.an { border-color: #fff; box-shadow: 0 0 16px rgba(var(--glow), 0.5); color: #fff; }
+  .bs .panel-titel { display: flex; align-items: baseline; gap: 16px; white-space: nowrap; }
+  .bs .panel-titel .wn { font-size: 20px; letter-spacing: 0.4em; text-transform: uppercase; }
+  .bs .panel-titel .wn .ico { font-size: 19px; margin-right: 12px; vertical-align: -2px; }
+  .bs .panel-titel .wz { font-size: 13px; color: var(--dim); display: inline-flex; gap: 12px; }
+  .bs .panel-titel .wz span { display: inline-flex; gap: 5px; align-items: center; }
+  .fmt-hoch .panel-titel .wn, .fmt-quer .panel-titel .wn { font-size: 15px; letter-spacing: 0.32em; }
+  .fmt-hoch .panel-titel .wz, .fmt-quer .panel-titel .wz { font-size: 11px; }
+  .bs .haufen-name { position: absolute; white-space: nowrap; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--dim); line-height: 1.35; pointer-events: none; }
+  .bs .haufen-name small { display: block; font-size: 10px; letter-spacing: 0.05em; text-transform: none; }
+  .bs .haufen-name.an { color: #fff; text-shadow: 0 0 10px rgba(var(--glow), 0.8); }
+  .fmt-hoch .haufen-name, .fmt-quer .haufen-name { font-size: 8.5px; letter-spacing: 0.14em; }
+  .fmt-hoch .haufen-name small, .fmt-quer .haufen-name small { font-size: 8.5px; }
+
+  /* Leiste unter dem Untertitel (#story .caption) */
+  .bs .licht { position: absolute; width: 120px; height: 120px; transform: translate(-50%, -50%); pointer-events: none;
+    background: radial-gradient(circle, #fff 0 2.5%, rgba(255, 250, 238, 0.75) 5%, rgba(255, 244, 220, 0.2) 18%, rgba(255, 240, 210, 0) 50%); }
+  .bs .licht::before, .bs .licht::after { content: ""; position: absolute; left: 50%; top: 50%; width: 70px; height: 1.5px; transform: translate(-50%, -50%) rotate(-12deg);
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.9), transparent); }
+  .bs .licht::after { width: 1.5px; height: 60px; }
+  .bs .cap { position: absolute; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; text-align: center; z-index: 1; }
+  .bs .cap::before { content: ""; position: absolute; z-index: -1; left: -40px; right: -40px; top: -70px; bottom: -400px;
+    background: linear-gradient(to top, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0)); }
+  .bs .cap .kicker { font-size: 10px; letter-spacing: 0.5em; padding-left: 0.5em; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
+  .bs .cap .text { margin: 0; max-width: 30em; font-size: 18px; line-height: 1.75; letter-spacing: 0.04em; color: var(--ink); }
+  .bs .cap .kicker, .bs .cap .text { text-shadow: 0 0 12px rgba(2, 2, 8, 0.95), 0 0 3px rgba(2, 2, 8, 0.9); }
+  .fmt-hoch .cap .text { font-size: 15px; }
+  /* Leiste C (Wahl des Nutzers): Kicker und Text senkrecht in der Mitte, der Wagen bleibt unten am Rand, wo die Leiste
+     heute steht, das Licht deutlich über dem Text */
+  .bs .cap.mitte { transform: translateY(-50%); }
+  .bs .cap.mitte::before { top: -50px; bottom: -50px; background: radial-gradient(ellipse 42% 50% at 50% 50%, rgba(3, 3, 8, 0.38), rgba(3, 3, 8, 0)); }
+  .bs .pfad.unten { position: absolute; left: 16px; right: 16px; display: flex; flex-direction: column; align-items: center; z-index: 1; }
+  .bs .cap .pfad { margin-top: 18px; display: flex; flex-direction: column; align-items: center; }
+  .fmt-quer .cap .pfad { margin-top: 14px; }
+  .bs .path { display: flex; align-items: center; }
+  .bs .path .st { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 56px; color: rgba(232, 230, 240, 0.3); transition: color 0.3s ease; }
+  .bs .path .st svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+  .bs .path .st span { font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; }
+  .bs .path .st.done { color: rgba(232, 230, 240, 0.78); }
+  .bs .path .st.now { color: #fff; filter: drop-shadow(0 0 5px rgba(255, 255, 255, 0.8)); animation: puls 2.4s ease-in-out infinite; }
+  .bs .path .st.blitz { color: #fff; filter: drop-shadow(0 0 9px rgba(255, 255, 255, 1)); }
+  .bs .path .ln { width: 16px; height: 1px; margin-bottom: 14px; background: rgba(232, 230, 240, 0.15); }
+  .bs .path .ln.done { background: rgba(255, 255, 255, 0.75); box-shadow: 0 0 6px rgba(255, 255, 255, 0.8); }
+  .fmt-hoch .path .st { width: 34px; }
+  .fmt-hoch .path .st span { display: none; }
+  .fmt-hoch .path .ln { width: 8px; margin-bottom: 0; }
+  @keyframes puls { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+  .bs .pfad svg { display: block; overflow: visible; }
+  .bs .pfad .unterzeile { margin-top: 4px; display: flex; gap: 7px; align-items: center; font-size: 8px; letter-spacing: 0.2em; text-transform: uppercase; color: #fff; text-shadow: 0 0 6px rgba(255, 255, 255, 0.6); }
+  .bs .pfad .unterzeile .ico { font-size: 14px; }
+  .lz-ico { color: #fff; }
+  .lz-ico .lz-disc { fill: rgba(3, 3, 8, 0.82); stroke: none; }
+  .lz-ico path, .lz-ico circle:not(.lz-disc), .lz-ico ellipse { fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .wg .ring, .bs .path .st.now { animation: none; }
+    .bs .band, .bs .hwagen { transition: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <radialGradient id="g-hof"><stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/><stop offset="0.22" stop-color="#dfe3ff" stop-opacity="0.32"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g-strahl"><stop offset="0" stop-color="#ffffff"/><stop offset="0.7" stop-color="#e6eaff" stop-opacity="0.5"/><stop offset="1" stop-color="#e6eaff" stop-opacity="0"/></radialGradient>
+    <radialGradient id="g-polarhof"><stop offset="0" stop-color="#ffffff" stop-opacity="0.6"/><stop offset="0.22" stop-color="#cdd4ff" stop-opacity="0.26"/><stop offset="1" stop-color="#aab4ff" stop-opacity="0"/></radialGradient>
+    <!-- der Polarstern des Spiels (createMenu) -->
+    <symbol id="g-polar" viewBox="-50 -50 100 100" overflow="visible">
+      <circle r="48" fill="url(#g-polarhof)"/>
+      <path d="M0-46L2.4-2.4 30 0 2.4 2.4 0 46-2.4 2.4-30 0-2.4-2.4z" fill="url(#g-strahl)"/>
+      <path d="M0-16L1.2-1.2 16 0 1.2 1.2 0 16-1.2 1.2-16 0-1.2-1.2z" fill="#fff" transform="rotate(45)" opacity="0.55"/>
+      <circle r="4.2" fill="#fff"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="seite">
+    <div>
+      <div class="eyebrow">Prisma · Skizzenkatalog</div>
+      <h1>Der Kleine Wagen in Menü, Übersicht und Leiste</h1>
+      <p>Jede Welt weckt einen Stern des Kleinen Wagens, der siebte ist der Polarstern. Hier sind Varianten, wie der Wagen
+        ins <strong>Menü</strong> (6), in die <strong>Übersicht</strong> (3) und in die <strong>Leiste unter dem
+        Untertitel</strong> einer Reise (3) kommt. Je Bereich ist die erste Variante das heutige Spiel zum Vergleich.</p>
+      <p>Oben umschalten: Stand des Durchgangs, Format, und <strong>Moment</strong> spielt ab, wie ein Stern neu
+        aufleuchtet. Ein Tippen auf eine Vorschau zeigt sie gross; dort lassen sich manche Varianten bedienen (Grade,
+        Welten, Sterne antippen).</p>
+    </div>
+    <figure class="legende" aria-label="Der Wagen: Stern 1 Bergwald, 2 Meer, 3 Wüste, 4 Vulkan, 5 Planeten, 6 Sterne, 7 Polarstern" id="legende"></figure>
+  </header>
+
+  <nav class="steuerung" aria-label="Steuerung">
+    <div class="gruppe" role="group" aria-label="Bereich">
+      <span class="lbl">Bereich</span>
+      <button class="wahl" data-bereich="menue">Menü <kbd>M</kbd></button>
+      <button class="wahl" data-bereich="ueb">Übersicht <kbd>U</kbd></button>
+      <button class="wahl" data-bereich="leiste">Leiste <kbd>L</kbd></button>
+    </div>
+    <div class="gruppe" role="group" aria-label="Stand">
+      <span class="lbl">Stand</span>
+      <button class="wahl" data-stand="neu">nicht begonnen <kbd>1</kbd></button>
+      <button class="wahl" data-stand="wueste">in der Wüste <kbd>2</kbd></button>
+      <button class="wahl" data-stand="geschafft">geschafft <kbd>3</kbd></button>
+    </div>
+    <div class="gruppe" role="group" aria-label="Format">
+      <span class="lbl">Format</span>
+      <button class="wahl" data-format="desktop">Desktop <kbd>D</kbd></button>
+      <button class="wahl" data-format="hoch">Handy hoch <kbd>H</kbd></button>
+      <button class="wahl" data-format="quer">Handy quer <kbd>Q</kbd></button>
+    </div>
+    <div class="gruppe">
+      <span class="lbl">Moment</span>
+      <button class="wahl abspielen" id="abspielen">▶ Abspielen <kbd>P</kbd></button>
+      <span class="moment-text" id="moment-text" aria-live="polite"></span>
+    </div>
+  </nav>
+
+  <p class="hinweis" id="stand-text"></p>
+  <div class="raster" id="raster"></div>
+
+  <footer>
+    <div><b>Tasten:</b> M, U, L Bereich · 1, 2, 3 Stand · D, H, Q Format · P Moment abspielen · Enter auf einer Vorschau öffnet sie gross, dort ← → Variante, Esc schliesst.</div>
+    <div><b>Für alle Varianten gleich:</b> Der Wagen hat die Form des Ladezeichens, Polarstern oben links an der Deichsel, die Schale unten rechts. Geweckte Sterne leuchten weiss, schlafende sind blass, der Stern der Welt, in der das Licht gerade ist, trägt einen feinen Ring. Linien ziehen sich mit dem Erwachen; mit Stern 4 schliesst sich die Schale, die Linie zum Polarstern zieht erst das Finale.</div>
+    <div><b>Vorbilder:</b> Skyrim (Fähigkeiten als Sternbilder, die Kamera schwenkt zum gewählten), Ōkami (Sternbilder mit fehlenden Sternen, die erst ergänzt den Gott wecken), Sky: Children of the Light (je Reich ein Sternbild, gefundene Geister leuchten), Genshin Impact (Sternbild mit sechs Knoten als Bedienelement), GRIS (Lichter werden zu einem Sternbild, über das man aufsteigt), Bejeweled Stars (Level füllen Sternbilder), Sternkarten der IAU und von Sky &amp; Telescope (Ursa Minor; Punktgrösse nach Helligkeit, Namen an den Sternen), Stellarium und Star Walk 2 (Linien und Namen blenden einzeln weich ein), das Logbuch von Outer Wilds (Karten in Reihen je Planet).</div>
+    <div>Skizzen zum Wählen, nicht Teil des Spiels. Eingebaut wird erst, was gewählt ist (Ticket 08). Der Himmel ist gezeichnet; im Spiel liegt das Menü über dem Himmel der Welt, in der man gerade ist.</div>
+  </footer>
+</div>
+
+<div id="gross" hidden role="dialog" aria-modal="true" aria-label="Vorschau gross">
+  <div class="buehne" id="gross-buehne"></div>
+  <div class="werkzeug" role="toolbar" aria-label="Vorschau steuern">
+    <button class="wahl" id="g-zurueck" aria-label="Vorige Variante">←</button>
+    <span class="name" id="g-name"></span>
+    <button class="wahl" id="g-weiter" aria-label="Nächste Variante">→</button>
+    <button class="wahl" id="g-stand" aria-label="Stand wechseln"></button>
+    <button class="wahl" id="g-format" aria-label="Format wechseln"></button>
+    <button class="wahl abspielen" id="g-moment" aria-label="Moment abspielen">▶</button>
+    <button class="wahl" id="g-zu" aria-label="Schliessen">✕</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const RAD = Math.PI / 180;
+  const cl = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+  const ease = (x) => { x = cl(x); return x * x * (3 - 2 * x); };
+  const lerp = (a, b, t) => a + (b - a) * t;
+  /** 0 → 1 (a…b) → 1 (b…c) → 0 (c…d) */
+  const bump = (t, a, b, c, d) => (t <= a || t >= d ? 0 : t < b ? ease((t - a) / (b - a)) : t <= c ? 1 : 1 - ease((t - c) / (d - c)));
+  const f1 = (x) => Math.round(x * 10) / 10;
+  const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ---------- Daten ---------- */
+
+  const FMT = {
+    desktop: { w: 1440, h: 900, name: 'Desktop', karte: '540px' },
+    hoch: { w: 390, h: 844, name: 'Handy hoch', karte: '250px' },
+    quer: { w: 844, h: 390, name: 'Handy quer', karte: '420px' },
+  };
+  const ICON = {
+    dorf: '<path d="M4.5 19.5v-7.5l7.5-6 7.5 6v7.5z"/><path d="M10 19.5V15h4v4.5"/>',
+    wald: '<path d="M12 3.5l-5 7h3l-4.5 6.5h13L14 10.5h3z"/><path d="M12 17v3.5"/>',
+    meer: '<path d="M2.5 10c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/><path d="M2.5 15.5c2.4-2.2 4.6-2.2 7 0s4.6 2.2 7 0c1.4-1.3 3.6-1.8 5-1"/>',
+    wueste: '<path d="M2.5 19.5l7-11 7 11z"/><path d="M9.5 8.5l2.2 11"/><circle cx="18.2" cy="6" r="2.2"/>',
+    vulkan: '<path d="M2.5 19.5l5.5-9h2.2l1.8 2 1.8-2h2.2l5.5 9z"/><path d="M11 7.5c-.6-1.6.6-2.6 0-4.2M14 7.5c.8-1.2 1.8-1.6 2.6-1.2"/>',
+    planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
+    sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
+    neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>',
+    pfeil: '<path d="M9.5 5.5l6.5 6.5-6.5 6.5"/>',
+    links: '<path d="M14.5 5.5L8 12l6.5 6.5"/>',
+    uhr: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+    dreh: '<path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M17.3 3.6v3.6h-3.6"/>',
+    schloss: '<rect x="6" y="11" width="12" height="8.5" rx="1.5"/><path d="M8.5 11V8.5a3.5 3.5 0 0 1 7 0V11"/>',
+    zu: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  };
+  const ico = (id, cls = 'ico') => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg>`;
+
+  // Welten in der Reihenfolge der Reise; Welt i weckt Stern i + 1. Titel: Grad mittel (tools/geschichte/wahl.json)
+  const WELTEN = [
+    { id: 'wald', name: 'Bergwald', titel: ['Fichtennadel', 'Baumkrone', 'Wurzelwerk', 'Harztropfen', 'Rehkitz', 'Waldkauz', 'Sauerklee', 'Bärlauch', 'Arvenwald', 'Buchenhain'] },
+    { id: 'meer', name: 'Meer', titel: ['Gezeiten', 'Gischt', 'Dünung', 'Wellenkamm', 'Schaumkrone', 'Klippe', 'Bucht', 'Riff', 'Seepferdchen', 'Qualle'] },
+    { id: 'wueste', name: 'Wüste', titel: ['Wanderdüne', 'Dünenkamm', 'Sandsturm', 'Skarabäus', 'Hieroglyphe', 'Grabkammer', 'Sonnenbarke', 'Beduinenzelt', 'Wadi', 'Salzsee'] },
+    { id: 'vulkan', name: 'Vulkan', titel: ['Lavastrom', 'Lavasee', 'Magma', 'Glutofen', 'Obsidian', 'Tuffstein', 'Fumarole', 'Geysir', 'Aschewolke', 'Ascheregen'] },
+    { id: 'planeten', name: 'Planeten', titel: ['Io', 'Triton', 'Charon', 'Pluto', 'Ceres', 'Vesta', 'Polkappe', 'Marsstaub', 'Roter Fleck', 'Erdschatten'] },
+    { id: 'sterne', name: 'Sterne', titel: ['Schwan', 'Adler', 'Drache', 'Pegasus', 'Perseus', 'Herkules', 'Fuhrmann', 'Bärenhüter', 'Einhorn', 'Phönix'] },
+  ];
+  const DORF = ['Erstes Licht', 'Umweg', 'Sperre', 'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung'];
+  const STATIONEN = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'], ['planeten', 'Planeten'], ['sterne', 'Sterne']];
+  const GRADE = [{ id: 'leicht', name: 'Leicht', n: 1 }, { id: 'mittel', name: 'Mittel', n: 2 }, { id: 'schwer', name: 'Schwer', n: 3 }, { id: 'sehr', name: 'Sehr schwer', n: 4 }];
+  const AKTION = { neu: 'Beginnen', begonnen: 'Fortsetzen', geschafft: 'Übersicht' };
+
+  /** Stände des Katalogs. Im Menü gilt der Stand für Mittel (zuletzt gespielt), die übrigen Grade zeigen Vielfalt. */
+  const STAENDE = {
+    neu: {
+      name: 'nicht begonnen',
+      menue: { leicht: { art: 'neu' }, mittel: { art: 'neu' }, schwer: { art: 'neu' }, sehr: { art: 'neu' } }, zuletzt: null, hervor: null,
+      ueb: { art: 'begonnen', geloest: 0 }, dorf: false,
+      leiste: { art: 'begonnen', geloest: 0 }, now: 1, vorher: 0, himmel: 'wald',
+      kicker: 'Kapitel 1 · Der Bergwald', text: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des Wagens.',
+      text_menue: 'Menü: alle vier Grade noch nicht begonnen, kein «Weiter».',
+      text_ueb: 'Übersicht von Mittel gleich nach dem Prolog: 0 / 60, das erste Level offen, «Im Dorf» noch nicht gespielt.',
+      text_leiste: 'Einstieg in den Bergwald nach dem Prolog (Nachthimmel des Walds).',
+    },
+    wueste: {
+      name: 'in der Wüste',
+      menue: { leicht: { art: 'geschafft' }, mittel: { art: 'begonnen', geloest: 23 }, schwer: { art: 'begonnen', geloest: 4 }, sehr: { art: 'neu' } }, zuletzt: 'mittel', hervor: null,
+      ueb: { art: 'begonnen', geloest: 23 }, dorf: true,
+      leiste: { art: 'begonnen', geloest: 20 }, now: 3, vorher: 2, himmel: 'tag',
+      kicker: 'Kapitel 3 · Die Wüste', text: 'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der Wüste.',
+      text_menue: 'Menü: Mittel in der Wüste (23 / 60, zuletzt gespielt, «Weiter»), Leicht geschafft, Schwer im Bergwald (4 / 60), Sehr schwer neu.',
+      text_ueb: 'Übersicht von Mittel in der Wüste: 23 / 60, Bergwald und Meer geschafft, also Sterne 1 und 2 wach; «Im Dorf» gespielt.',
+      text_leiste: 'Reise vom Meer in die Wüste (Taghimmel der Wüste): Sterne 1 und 2 wach, der Ring beim Stern der Wüste.',
+    },
+    geschafft: {
+      name: 'geschafft',
+      menue: { leicht: { art: 'geschafft' }, mittel: { art: 'geschafft' }, schwer: { art: 'begonnen', geloest: 4 }, sehr: { art: 'neu' } }, zuletzt: 'mittel', hervor: 'schwer',
+      ueb: { art: 'geschafft' }, dorf: true,
+      leiste: { art: 'geschafft' }, now: 7, vorher: 7, himmel: 'all',
+      kicker: 'Finale', text: 'Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.',
+      text_menue: 'Menü direkt nach dem Epilog: Mittel und Leicht geschafft, Schwer (4 / 60) als Nächstes hervorgehoben, kein «Weiter».',
+      text_ueb: 'Übersicht von Mittel, geschafft: alle sieben Sterne wach, alle Linien gezogen.',
+      text_leiste: 'Im Finale steht heute keine Leiste; hier zum Vergleich, falls sein erster Satz sie bekommt.',
+    },
+  };
+  const MOMENT = {
+    andeutung: { dauer: 3.6, text: '<b>Andeutung:</b> Die Linien des Wagens zeichnen sich einen Atemzug lang ab und verlöschen (wie in Prolog 4).' },
+    zucken1: { dauer: 2.2, text: '<b>Einstieg:</b> Das Licht zieht am ersten Stern vorbei, er zuckt kurz auf und bekommt seinen Ring.' },
+    stern: { dauer: 2.9, text: '<b>Stern 2 erwacht</b> (Ende des Meers): Er blitzt auf, die Linie zu Stern 1 zieht sich, dann zuckt Stern 3 der Wüste.' },
+    finale: { dauer: 6.1, text: '<b>Finale:</b> Stern 6 erwacht, ein Puls läuft Stern für Stern durch den Wagen und über die Deichsel zum Polarstern, der aufflammt.' },
+  };
+  const momentArt = (bereich, stand) => (stand === 'neu' ? (bereich === 'leiste' ? 'zucken1' : 'andeutung') : stand === 'wueste' ? 'stern' : 'finale');
+
+  /** Stand eines Grads, wie ihn der Wagen braucht: wach (Zahl der geweckten Sterne), nächster Stern, geschafft. */
+  function zustand(d = { art: 'neu' }) {
+    const art = d.art;
+    const geloest = art === 'geschafft' ? 60 : art === 'begonnen' ? d.geloest ?? 0 : 0;
+    const wach = art === 'geschafft' ? 6 : art === 'begonnen' ? Math.min(6, Math.floor(geloest / 10)) : 0;
+    const welt = art === 'begonnen' ? Math.min(5, Math.floor(geloest / 10)) : art === 'geschafft' ? 5 : -1;
+    const naechster = art === 'begonnen' && wach < 6 ? wach + 1 : 0;
+    return { art, geloest, wach, welt, naechster, fertig: art === 'geschafft' };
+  }
+
+  /* ---------- Der Wagen: Form des Ladezeichens, Reihenfolge der Spec ---------- */
+
+  const P = [[-64, -34], [-38, -24], [-14, -12], [8, 2], [14, 26], [48, 30], [44, 4]]; // Polarstern zuerst
+  const PK = (k) => P[7 - k]; // Stern k (1 Bergwald … 6 Sterne, 7 Polarstern)
+  const MITTE = [-8, -2];
+  const LINIEN = [[1, 2], [2, 3], [3, 4], [4, 1], [4, 5], [5, 6], [6, 7]];
+  const linieDa = ([a, b], z) => (b === 7 ? z.fertig : a === 4 && b === 1 ? z.wach >= 4 : z.wach >= b);
+  const MAG = [0, 2.1, 3.0, 4.9, 4.3, 4.2, 4.3, 2.0]; // Kochab, Pherkad, η, ζ, ε, δ UMi, Polaris
+  const RICHTUNG = [null, [1, -0.15], [0.3, 1], [-0.35, 1], [0.35, -1], [0.3, -1], [0.3, -1], [0, -1]]; // wohin die Namen
+  /** Auf dem Handy hoch steht der Name von Stern 1 über ihm (rechts davon fehlt der Platz). */
+  const richtung = (k, fmt) => (k === 1 && fmt === 'hoch' ? [0.25, -1] : RICHTUNG[k]);
+  const LAENGE = Math.hypot(112, 64); // Polarstern → Stern 2
+  const BASIS = Math.atan2(64, 112);
+
+  function wagenPunkte({ x, y, s, anker = 'mitte', dreh = 0 }) {
+    const [ox, oy] = anker === 'polar' ? P[0] : MITTE, c = Math.cos(dreh), si = Math.sin(dreh), pts = [];
+    for (let k = 1; k <= 7; k++) {
+      const [px, py] = PK(k), dx = (px - ox) * s, dy = (py - oy) * s;
+      pts[k] = [x + dx * c - dy * si, y + dx * si + dy * c];
+    }
+    return pts;
+  }
+  const strahl = (L) => { const a = f1(L * 0.055), b = f1(L * 0.62), l = f1(L); return `M0 ${-l}L${a} ${-a} ${b} 0 ${a} ${a} 0 ${l} ${-a} ${a} ${-b} 0 ${-a} ${-a}z`; };
+
+  /**
+   * Der Wagen als SVG-Gruppe in Bildschirmpixeln. o: x, y, s (px je Einheit), anker 'mitte'|'polar', dreh (rad),
+   * grad (Stand aus ctx.zust; der Moment spielt bei 'mittel'), geist (Deckkraft der noch nicht gezogenen Linien),
+   * gestrichelt, mag (Punktgrösse nach Helligkeit), ohnePolar, ohneLinien, punkte (eigene Lage der Sterne), fokus (Stern
+   * einer Welt hervorheben), kern, hof, ringR, breite.
+   */
+  function wagenG(o) {
+    const pts = o.punkte ?? wagenPunkte(o);
+    const kern = o.kern ?? cl(0.75 + 0.55 * o.s, 1.25, 4.4);
+    const hof = o.hof ?? kern * 5.5;
+    const ringR = o.ringR ?? Math.max(4.6, kern * 3.4);
+    const breite = o.breite ?? cl(0.45 + 0.24 * o.s, 0.8, 1.7);
+    let s = `<g class="wg${o.klasse ? ' ' + o.klasse : ''}" data-grad="${o.grad ?? ''}" data-kern="${kern}" data-hof="${f1(hof)}"${o.fokus ? ` data-fokus="${o.fokus}"` : ''}>`;
+    const linie = (a, b, extra) => `x1="${f1(pts[a][0])}" y1="${f1(pts[a][1])}" x2="${f1(pts[b][0])}" y2="${f1(pts[b][1])}" stroke-width="${f1(breite)}" ${extra}`;
+    if (!o.ohneLinien) {
+      if (o.geist) for (const [a, b] of LINIEN) s +=`<line class="wgeist" ${linie(a, b, `stroke-opacity="${o.geist}"${o.gestrichelt ? ` stroke-dasharray="${o.gestrichelt}"` : ''}`)}/>`;
+      LINIEN.forEach(([a, b], i) => {
+        const L = Math.hypot(pts[b][0] - pts[a][0], pts[b][1] - pts[a][1]);
+        s += `<line class="wl" data-i="${i}" data-len="${f1(L)}" ${linie(a, b, `stroke-dasharray="${f1(L + 0.5)} ${f1(L + 4)}" stroke-dashoffset="0"`)}/>`;
+      });
+    }
+    for (let k = 1; k <= 7; k++) {
+      if (k === 7 && o.ohnePolar) continue;
+      if (!pts[k]) continue;
+      const m = o.mag ? 1 + (4.9 - MAG[k]) * 0.3 : k === 7 ? 1.45 : 1;
+      s += `<g class="ws" data-k="${k}" data-m="${f1(m)}" transform="translate(${f1(pts[k][0])} ${f1(pts[k][1])})">`
+        + `<circle class="hof" r="${f1(hof * m)}" fill="url(#g-hof)"/>`
+        + (k === 7 ? `<path class="strahl" d="${strahl(kern * m * 4.6)}" fill="url(#g-strahl)"/>` : '')
+        + `<circle class="kern" r="${f1(kern * m)}" fill="#fff"/>`
+        + `<circle class="ring" r="${f1(ringR)}" fill="none" stroke="#fff" stroke-width="${f1(Math.max(0.8, breite * 0.8))}"/></g>`;
+    }
+    return s + '</g>';
+  }
+  const wagenSVG = (w, h, o, extra = '') => `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true">${wagenG(o)}${extra}</svg>`;
+
+  /** Sichtbarer Zustand: b (Helligkeit je Stern, 0 schläft, 1 wach, > 1 blitzt), ring, l (Linie gezogen 0…1), la (Deckkraft). */
+  function visVon(z) {
+    const v = { b: [0], ring: [0], l: [], la: [] };
+    for (let k = 1; k <= 6; k++) { v.b[k] = k <= z.wach ? 1 : 0; v.ring[k] = k === z.naechster ? 1 : 0; }
+    v.b[7] = z.fertig ? 1.25 : 0.92; v.ring[7] = 0;
+    LINIEN.forEach((ln, i) => { v.l[i] = linieDa(ln, z) ? 1 : 0; v.la[i] = 1; });
+    return v;
+  }
+  const kopie = (v) => ({ b: v.b.slice(), ring: v.ring.slice(), l: v.l.slice(), la: v.la.slice() });
+  const blitz = (t, t0) => (t < t0 ? 0 : t < t0 + 0.25 ? lerp(0, 1.9, ease((t - t0) / 0.25)) : lerp(1.9, 1, ease((t - t0 - 0.25) / 0.9)));
+
+  /** Der Moment, in dem ein Stern neu aufleuchtet, zur Zeit t (s); z ist der Stand danach. */
+  function visMoment(art, t, z) {
+    if (t === Infinity) return visVon(z);
+    if (art === 'andeutung') {
+      const v = visVon(z), a = 0.3 * bump(t, 0.3, 1.3, 2.1, 3.3);
+      LINIEN.forEach((ln, i) => { if (!v.l[i]) { v.l[i] = 1; v.la[i] = a; } });
+      return v;
+    }
+    if (art === 'zucken1') {
+      const v = visVon(z);
+      v.b[1] = 0.65 * bump(t, 0.5, 0.7, 0.8, 1.35);
+      v.ring[1] = ease((t - 0.9) / 0.5);
+      return v;
+    }
+    if (art === 'stern') {
+      const k = Math.max(1, z.wach), v = visVon({ ...z, wach: k - 1, naechster: k });
+      v.b[k] = blitz(t, 0.5);
+      LINIEN.forEach(([a, b], i) => { if (b === k || (k === 4 && a === 4 && b === 1)) v.l[i] = ease((t - 0.7) / 0.7); });
+      v.ring[k] = 1 - ease((t - 0.45) / 0.3);
+      if (k < 6) { v.ring[k + 1] = ease((t - 1.8) / 0.45); v.b[k + 1] = 0.6 * bump(t, 1.7, 1.85, 1.9, 2.35); }
+      return v;
+    }
+    // Finale: Stern 6, Puls 1 … 6, über die Deichsel zum Polarstern
+    const v = visVon({ art: 'begonnen', wach: 5, naechster: 6, fertig: false });
+    v.b[6] = blitz(t, 0.5);
+    v.l[5] = ease((t - 0.7) / 0.7);
+    v.ring[6] = 1 - ease((t - 0.45) / 0.3);
+    const T0 = 1.9, dt = 0.32, tk = (k) => T0 + dt * (k - 1);
+    for (let k = 1; k <= 6; k++) v.b[k] += 0.9 * bump(t, tk(k) - 0.1, tk(k), tk(k) + 0.05, tk(k) + 0.45);
+    LINIEN.forEach(([a, b], i) => {
+      if (b === 7) return;
+      const t1 = a === 4 && b === 1 ? tk(4) : tk(Math.max(a, b));
+      v.la[i] = 1 + 1.3 * bump(t, t1 - 0.3, t1 - 0.05, t1 + 0.05, t1 + 0.5);
+    });
+    const tz = tk(6) + 0.35, tp = tz + 0.55;
+    v.l[6] = ease((t - tz) / 0.55);
+    v.la[6] = 1 + 1.3 * bump(t, tz, tz + 0.3, tz + 0.5, tz + 1.1);
+    v.b[7] = lerp(0.92, 1.25, ease((t - tp) / 0.6)) + 1.7 * bump(t, tp - 0.05, tp + 0.2, tp + 0.35, tp + 1.3);
+    return v;
+  }
+
+  /** Mini-Wagen in der Übersicht: der Stern einer Welt hervorgehoben, die übrigen gedämpft. */
+  function fokusVis(v, k) {
+    const w = kopie(v);
+    for (let j = 1; j <= 7; j++) if (j !== k) { w.b[j] = Math.min(v.b[j], 1) * 0.42; w.ring[j] = 0; }
+    w.la = v.la.map((a) => a * 0.4);
+    if (!w.ring[k] && v.b[k] < 0.5) w.ring[k] = 0.35; // gesperrte Welt: ihr Stern mit schwachem Ring
+    return w;
+  }
+
+  function setzeWagen(g, v0) {
+    const fk = +g.dataset.fokus || 0, v = fk ? fokusVis(v0, fk) : v0;
+    const kern = +g.dataset.kern, hof = +g.dataset.hof;
+    for (const l of g.querySelectorAll('.wl')) {
+      const i = +l.dataset.i, L = +l.dataset.len, d = v.l[i];
+      l.setAttribute('stroke-dashoffset', f1(L * (1 - d)));
+      l.style.opacity = d > 0.001 ? f1(0.72 * v.la[i] * 100) / 100 : 0;
+    }
+    for (const s of g.querySelectorAll('.ws')) {
+      const k = +s.dataset.k, m = +s.dataset.m, b = v.b[k] ?? 0, r = v.ring[k] ?? 0, hell = Math.min(b, 1), extra = Math.max(0, b - 1);
+      const kc = s.querySelector('.kern');
+      kc.setAttribute('r', f1(kern * m * (0.62 + 0.38 * hell + 0.55 * extra) * 10) / 10);
+      kc.style.opacity = (0.3 + 0.7 * hell).toFixed(3);
+      const h = s.querySelector('.hof');
+      h.style.opacity = Math.min(1, 0.85 * hell + 0.6 * extra).toFixed(3);
+      h.setAttribute('r', f1(hof * m * (1 + 0.9 * extra)));
+      const st = s.querySelector('.strahl');
+      if (st) { st.style.opacity = Math.min(1, 0.3 + 0.7 * hell + 0.4 * extra).toFixed(3); st.setAttribute('transform', `scale(${(1 + 0.9 * extra).toFixed(3)})`); }
+      s.querySelector('.ring').style.opacity = (0.8 * r).toFixed(3);
+    }
+  }
+
+  /* ---------- Himmel (gezeichnet, je Format einmal) ---------- */
+
+  const himmelCache = new Map();
+  function zufall(seed) { let a = seed | 0; return () => { a = a + 0x6d2b79f5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+  function himmelURL(art, W, H) {
+    const key = `${art}-${W}x${H}`;
+    if (himmelCache.has(key)) return himmelCache.get(key);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    const g = c.getContext('2d'), rnd = zufall(W * 31 + H * 7 + art.length * 1013);
+    const blob = (x, y, r, rgb, a) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(${rgb},${a})`); gr.addColorStop(1, `rgba(${rgb},0)`); g.fillStyle = gr; g.fillRect(x - r, y - r, 2 * r, 2 * r); };
+    if (art === 'tag') {
+      const lg = g.createLinearGradient(0, 0, 0, H);
+      lg.addColorStop(0, '#5d7cb3'); lg.addColorStop(0.4, '#8c9dba'); lg.addColorStop(0.6, '#b0b4b2'); lg.addColorStop(0.78, '#8f877c'); lg.addColorStop(1, '#4c463f');
+      g.fillStyle = lg; g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 7; i++) blob(rnd() * W, H * (0.45 + rnd() * 0.2), W * (0.15 + rnd() * 0.2), '235,232,225', 0.12);
+    } else {
+      const rg = g.createRadialGradient(W * 0.45, H * 0.55, 0, W * 0.45, H * 0.55, Math.max(W, H) * 0.8);
+      rg.addColorStop(0, art === 'wald' ? '#0a1018' : '#0d0b1d'); rg.addColorStop(1, '#030308');
+      g.fillStyle = rg; g.fillRect(0, 0, W, H);
+      if (art === 'nacht' || art === 'all') { // Milchstrasse: ein schräges Band aus weichen Wolken
+        const n = 26;
+        for (let i = 0; i < n; i++) {
+          const u = i / (n - 1), x = W * (-0.05 + 0.8 * u) + (rnd() - 0.5) * W * 0.08, y = H * (1.0 - 0.95 * u) + (rnd() - 0.5) * H * 0.1;
+          blob(x, y, Math.max(W, H) * (0.08 + rnd() * 0.1), rnd() < 0.5 ? '120,64,96' : '82,86,150', art === 'all' ? 0.05 : 0.07);
+        }
+      }
+      if (art === 'wald') { const lg = g.createLinearGradient(0, H * 0.6, 0, H); lg.addColorStop(0, 'rgba(30,60,70,0)'); lg.addColorStop(1, 'rgba(30,60,70,0.35)'); g.fillStyle = lg; g.fillRect(0, H * 0.6, W, H * 0.4); }
+      const dichte = art === 'all' ? 700 : art === 'wald' ? 2400 : 1300, n = Math.round(W * H / dichte);
+      for (let i = 0; i < n; i++) {
+        const x = rnd() * W, y = rnd() * H, r = 0.35 + rnd() ** 3 * 1.25, a = 0.2 + rnd() * 0.65;
+        g.fillStyle = `rgba(226,230,255,${a.toFixed(2)})`; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill();
+        if (rnd() < 0.02) blob(x, y, r * 6, '210,220,255', 0.25);
+      }
+      if (art === 'wald') { // Wipfel am unteren Rand
+        g.fillStyle = '#04060a';
+        for (let i = 0; i < W / 14; i++) { const x = i * 14 + rnd() * 6, h = H * (0.05 + rnd() * 0.07); g.beginPath(); g.moveTo(x - h * 0.35, H); g.lineTo(x, H - h); g.lineTo(x + h * 0.35, H); g.fill(); }
+      }
+    }
+    const url = c.toDataURL('image/png');
+    himmelCache.set(key, url);
+    return url;
+  }
+
+  /* ---------- Bausteine der Bildschirme ---------- */
+
+  const pipsH = (n) => `<span class="pips">${[1, 2, 3, 4].map((k) => `<i class="${k <= n ? 'on' : ''}"></i>`).join('')}</span>`;
+  const polarMini = () => '<svg class="polar-mini" viewBox="-50 -50 100 100" aria-hidden="true"><use href="#g-polar" x="-50" y="-50" width="100" height="100"/></svg>';
+  const standH = (g) => (g.art === 'neu' ? 'noch nicht begonnen' : g.art === 'geschafft' ? `${polarMini()}<span>Geschafft</span>` : `${WELTEN[g.welt].name} · ${g.geloest} / 60`);
+  const wohinH = (g) => (g.art === 'neu' ? `${g.name} · noch nicht begonnen` : g.art === 'geschafft' ? `${g.name} · geschafft` : `${g.name} · ${WELTEN[g.welt].name} ${g.geloest} / 60`);
+  const vonvornH = (cls = '') => `<span class="vonvorn ${cls}">${ico('neu')}<span>Von vorn</span></span>`;
+  const weiterH = (g, cls = '', titel = 'Weiter') => `<span class="weiter ${cls}"><span>${titel}</span><span class="wohin">${esc(wohinH(g))}</span></span>`;
+  const kopfH = (style) => `<div class="kopf abs" style="${style}"><div class="titel">Prisma</div><div class="unter">Ein Lichtsignal an die Sterne</div></div>`;
+  const polarH = (x, y, size, wort = true) => `<div class="polar" style="left:${f1(x)}px;top:${f1(y)}px;width:${size}px;height:${size}px">${wort ? '<span class="wort">Polarstern</span>' : ''}<svg viewBox="-50 -50 100 100" aria-hidden="true"><use href="#g-polar" x="-50" y="-50" width="100" height="100"/></svg></div>`;
+  const pos = (x, y, tx = 0, ty = 0) => `left:${f1(x)}px;top:${f1(y)}px;transform:translate(${tx}%,${ty}%)`;
+  function gradH(g, { align = 'right', aktion = true, vonvorn = true, klein = false } = {}) {
+    const cls = ['grad', g.art, g.zuletzt ? 'zuletzt' : '', g.hervor ? 'hervor' : '', klein ? 'klein' : ''].join(' ');
+    const ai = align === 'right' ? 'flex-end' : align === 'center' ? 'center' : 'flex-start';
+    return `<div class="${cls}" data-grad="${g.id}" style="align-items:${ai};text-align:${align}">`
+      + `<div class="z1">${pipsH(g.n)}<span class="name">${g.name}</span></div>`
+      + `<div class="stand">${standH(g)}</div>`
+      + (aktion ? `<div class="aktion">${AKTION[g.art]}${ico('pfeil')}</div>` : '')
+      + (vonvorn && g.art !== 'neu' ? vonvornH() : '') + '</div>';
+  }
+  /** Name an einem Stern, nach aussen versetzt. */
+  function etikett(p, dir, abstand, html, cls = '') {
+    const n = Math.hypot(dir[0], dir[1]), dx = dir[0] / n, dy = dir[1] / n, x = p[0] + dx * abstand, y = p[1] + dy * abstand;
+    const [tx, ty] = Math.abs(dir[0]) > Math.abs(dir[1]) ? [dx > 0 ? 0 : -100, -50] : [-50, dy > 0 ? 0 : -100];
+    return `<div class="etikett ${cls}" style="${pos(x, y, tx, ty)}">${html}</div>`;
+  }
+
+  /* ---------- Lichtwege (heutiges Menü, Varianten A und C) ---------- */
+
+  function weg(pts) { const len = [0]; for (let i = 1; i < pts.length; i++) len.push(len[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1])); return { pts, len, L: len[len.length - 1] }; }
+  function punktAuf(w, s) {
+    s = cl(s, 0, w.L); let k = 1; while (k < w.pts.length - 1 && w.len[k] < s) k++;
+    const a = w.pts[k - 1], b = w.pts[k], l = w.len[k] - w.len[k - 1] || 1, t = (s - w.len[k - 1]) / l;
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, (b[0] - a[0]) / l, (b[1] - a[1]) / l];
+  }
+  function stueck(w, s) { const out = [w.pts[0]]; for (let k = 1; k < w.pts.length && w.len[k] < s; k++) out.push(w.pts[k]); const p = punktAuf(w, s); out.push([p[0], p[1]]); return out; }
+  function ecke(A, C, S, r) {
+    const ein = Math.hypot(A[0] - C[0], A[1] - C[1]), aus = Math.hypot(S[0] - C[0], S[1] - C[1]);
+    const Pp = [C[0] + (A[0] - C[0]) / ein * r, C[1] + (A[1] - C[1]) / ein * r], Q = [C[0] + (S[0] - C[0]) / aus * r, C[1] + (S[1] - C[1]) / aus * r];
+    const pts = [A, Pp];
+    for (let k = 1; k < 10; k++) { const t = k / 10, u = 1 - t; pts.push([u * u * Pp[0] + 2 * u * t * C[0] + t * t * Q[0], u * u * Pp[1] + 2 * u * t * C[1] + t * t * Q[1]]); }
+    pts.push(Q, S);
+    return pts;
+  }
+  const pp = (pts) => pts.map((p) => `${f1(p[0])},${f1(p[1])}`).join(' ');
+
+  function lichtwege(ctx, stern) {
+    return ctx.grade.map((g, i) => {
+      let lampe, pts;
+      if (ctx.fmt === 'hoch') { lampe = [[88, 441], [66, 521], [44, 602], [22, 683]][i]; pts = ecke(lampe, [lampe[0], [392, 372, 352, 332][i]], stern, 28); }
+      else if (ctx.fmt === 'desktop') { lampe = [425, 283 + i * 165]; pts = [lampe, stern]; }
+      else { lampe = [271, 68 + i * 97]; pts = [lampe, stern]; }
+      return { g, lampe, w: weg(pts) };
+    });
+  }
+
+  function lichtwegeMenue(ctx, mitWagen) {
+    const { fmt, W } = ctx;
+    const stern = mitWagen ? { desktop: [930, 200], hoch: [140, 196], quer: [560, 74] }[fmt] : { desktop: [1138, 207], hoch: [294, 202], quer: [709, 105] }[fmt];
+    const wege = lichtwege(ctx, stern);
+    const weiterG = ctx.grade.find((g) => g.weiter), fokusG = weiterG ?? ctx.grade.find((g) => g.hervor) ?? ctx.grade[0];
+    let svg = '', html = '';
+    if (mitWagen) {
+      const gid = ctx.lokal.fokus ?? (ctx.grade.find((g) => g.zuletzt) ?? ctx.grade[0]).id;
+      const s = { desktop: 4.0, hoch: 2.15, quer: 2.3 }[fmt];
+      svg += wagenG({ x: stern[0], y: stern[1], s, anker: 'polar', grad: gid, geist: 0.1, ohnePolar: true, klasse: 'gross-wagen' });
+      const pts = wagenPunkte({ x: stern[0], y: stern[1], s, anker: 'polar' }), g = ctx.grade.find((x) => x.id === gid);
+      html += `<div class="abs wagen-name" id="wagen-name" style="${pos(pts[2][0] + 6, pts[2][1] + 18, -100, 0)}">${wagenNameText(g)}</div>`;
+    }
+    for (const { g, lampe, w } of wege) {
+      svg += `<polyline class="lw-rest${g === weiterG ? ' fokus' : ''}" points="${pp(w.pts)}"/>`;
+      svg += `<g class="lw-licht" data-grad="${g.id}"><polyline class="lw-hof" points=""/><polyline class="lw-kern" points=""/><circle class="lw-kopf" r="4" cx="0" cy="0" style="opacity:0"/></g>`;
+      for (let k = 1; k <= 5; k++) { const p = punktAuf(w, w.L * k / 6); svg += `<circle class="lw-pkt" data-grad="${g.id}" data-k="${k}" cx="${f1(p[0])}" cy="${f1(p[1])}" r="${fmt === 'hoch' ? 3.2 : 3}"/>`; }
+      svg += `<circle class="lw-lampe${g.art !== 'neu' ? ' an' : ''}${g.hervor ? ' hervor' : ''}" cx="${lampe[0]}" cy="${lampe[1]}" r="6.5"/>`;
+    }
+    // Zeichen der Welten neben dem Weg im Fokus
+    const fw = wege.find((x) => x.g === fokusG).w;
+    WELTEN.forEach((welt, k) => {
+      const p = punktAuf(fw, fw.L * (k + 0.5) / 6);
+      if (fmt === 'hoch') html += `<span class="lw-disc" style="left:${f1(p[0])}px;top:${f1(p[1])}px">${ico(welt.id)}</span>`;
+      else html += `<span class="abs lw-ico" style="${pos(p[0] + p[3] * 18, p[1] - p[2] * 18, -50, -50)}">${ico(welt.id)}</span>`;
+    });
+    html += polarH(stern[0], stern[1], { desktop: 150, hoch: 112, quer: 100 }[fmt]);
+    // Grade
+    wege.forEach(({ g, lampe }, i) => {
+      if (fmt === 'desktop') html += `<div class="abs zeile" data-grad="${g.id}" style="right:${W - 395}px;top:${lampe[1] - 34}px">${gradH(g)}</div>`;
+      else if (fmt === 'quer') html += `<div class="abs zeile" data-grad="${g.id}" style="right:${W - 250}px;top:${lampe[1] - 23}px">${gradH(g, { aktion: false })}</div>`;
+      else {
+        const y = [438, 520, 600, 681][i];
+        html += `<div class="abs zeile" data-grad="${g.id}" style="left:116px;top:${y - 12}px">${gradH(g, { align: 'left', vonvorn: false })}</div>`;
+        if (g.art !== 'neu') html += `<div class="abs" style="${pos(W - 42, y + 12, -50, -50)}">${vonvornH('senkrecht')}</div>`;
+      }
+    });
+    if (weiterG) {
+      const w = wege.find((x) => x.g === weiterG).w, h = punktAuf(w, w.L * weiterG.geloest / 60);
+      if (fmt === 'hoch') html += `<div class="abs" style="left:16px;right:16px;top:757px">${weiterH(weiterG, 'breit')}</div>`;
+      else {
+        const px = h[0] + 20, py = h[1] + (fmt === 'desktop' ? 26 : 24);
+        svg += `<line x1="${f1(h[0])}" y1="${f1(h[1] + 6)}" x2="${f1(px)}" y2="${f1(py)}" stroke="rgba(232,230,240,0.45)" stroke-width="1"/>`;
+        html += `<div class="abs" style="${pos(px, py, -50, 0)}">${weiterH(weiterG)}</div>`;
+      }
+    }
+    html += fmt === 'desktop' ? kopfH('left:100px;top:56px') : fmt === 'hoch' ? kopfH('left:0;right:0;top:22px;text-align:center') : kopfH('left:20px;top:14px');
+    ctx._wege = wege;
+    return `<svg class="ebene" width="${ctx.W}" height="${ctx.H}">${svg}</svg>${html}`;
+  }
+  const wagenNameText = (g) => `${g.name} · ${g.fertig ? 'alle Sterne wach' : g.wach === 1 ? 'ein Stern wach' : g.wach ? `${g.wach} Sterne wach` : 'alle Sterne schlafen'}`;
+  function lichtwegeSetzen(bs, ctx, t) {
+    for (const { g, w } of ctx._wege) {
+      const voll = g.geloest / 60, f = t === Infinity ? voll : voll * ease((t - 0.15) / 1.5);
+      const gl = bs.querySelector(`.lw-licht[data-grad="${g.id}"]`), pts = f > 0.0005 ? stueck(w, w.L * f) : [];
+      for (const p of gl.querySelectorAll('polyline')) p.setAttribute('points', pp(pts));
+      const kopf = gl.querySelector('.lw-kopf');
+      if (pts.length && g.art === 'begonnen') { const e = pts[pts.length - 1]; kopf.setAttribute('cx', f1(e[0])); kopf.setAttribute('cy', f1(e[1])); kopf.style.opacity = 1; } else kopf.style.opacity = 0;
+      for (const c of bs.querySelectorAll(`.lw-pkt[data-grad="${g.id}"]`)) c.classList.toggle('an', +c.dataset.k / 6 <= f + 1e-6);
+    }
+  }
+
+  /* ---------- Menü ---------- */
+
+  const MENUE = [
+    {
+      id: 'A', name: 'Heute: Lichtwege zum Polarstern',
+      idee: 'Das Menü, wie es heute im Spiel ist: je Grad ein Lichtweg von der Lampe zum Polarstern, so weit hell, wie das Licht im Grad gekommen ist. Die Punkte auf dem Weg sind die Grenzen der Welten.',
+      bezug: 'Das Spiel (createMenu, Variante «Lichtwege» aus Ticket 05).',
+      achtung: 'Kein Wagen. Der Moment zeigt das Wachsen des Lichts beim Öffnen; ein Stern leuchtet hier nicht auf.',
+      bild: (ctx) => lichtwegeMenue(ctx, false),
+      nach: (bs, ctx) => ({ setze: (v, t) => lichtwegeSetzen(bs, ctx, t) }),
+    },
+    {
+      id: 'B', name: 'Vier Wagen um den Polarstern',
+      idee: 'Der Lichtweg jedes Grads führt nicht mehr gerade zum Polarstern, sondern durch die sieben Sterne seines Wagens: Die Punkte der Lichtwege werden die Sterne. Die vier Wagen hängen am gemeinsamen Polarstern wie ein Fächer, jeder etwas weiter gedreht, und am Ende der Schale steht der Grad.',
+      bezug: 'Idee aus dem Grilling («Punkte der Lichtwege werden die Sterne»). Am Himmel dreht sich der Kleine Wagen jede Nacht einmal um den Polarstern; die vier Grade sind vier Stunden dieser Nacht.',
+      abweichung: 'Die Spec will den Wagen überall gleich (Entscheid 4: Polarstern oben links, Schale unten rechts). Hier dreht jeder Grad ihn ein Stück weiter um den Polarstern; höchstens einer steht ungefähr wie am Himmel.',
+      achtung: 'Auf dem Handy hoch reicht der Platz an den Schalen nur für die Namen, die Grade stehen darum noch einmal als Liste darunter.',
+      bild(ctx) {
+        const { fmt, W } = ctx;
+        const c = {
+          desktop: { stern: [360, 250], phi: [0, 18, 36, 54], len: [560, 620, 660, 690], polar: 120 },
+          hoch: { stern: [56, 182], phi: [26, 42, 58, 74], len: [262, 290, 318, 346], polar: 84 },
+          quer: { stern: [84, 86], phi: [0, 15, 30, 45], len: [430, 410, 380, 340], polar: 84 },
+        }[fmt];
+        let svg = '', html = '';
+        ctx.grade.forEach((g, i) => {
+          const s = c.len[i] / LAENGE, dreh = c.phi[i] * RAD - BASIS, phi = c.phi[i] * RAD;
+          const o = { x: c.stern[0], y: c.stern[1], s, anker: 'polar', dreh, grad: g.id, geist: 0.1, ohnePolar: true };
+          svg += wagenG(o);
+          const pts = wagenPunkte(o), e = [(pts[1][0] + pts[2][0]) / 2, (pts[1][1] + pts[2][1]) / 2];
+          const d = fmt === 'hoch' ? 20 : 34, ax = e[0] + Math.cos(phi) * d, ay = e[1] + Math.sin(phi) * d;
+          if (fmt === 'hoch') html += `<div class="abs klein-name${g.zuletzt || g.hervor ? ' hell' : ''}" style="${pos(ax, ay, 0, -50)}">${g.name}</div>`;
+          else html += `<div class="abs" style="${pos(ax, ay, 0, -50)}">${gradH(g, { align: 'left', aktion: fmt === 'desktop' })}</div>`;
+        });
+        html += polarH(c.stern[0], c.stern[1], c.polar);
+        const weiterG = ctx.grade.find((g) => g.weiter);
+        if (fmt === 'desktop') {
+          html += kopfH('left:100px;top:56px');
+          if (weiterG) html += `<div class="abs" style="left:100px;bottom:70px">${weiterH(weiterG)}</div>`;
+        } else if (fmt === 'quer') {
+          html += kopfH('left:20px;bottom:16px');
+          if (weiterG) html += `<div class="abs" style="right:18px;bottom:16px">${weiterH(weiterG, 'knapp')}</div>`;
+        } else {
+          html += kopfH('left:0;right:0;top:22px;text-align:center');
+          ctx.grade.forEach((g, i) => {
+            const y = 552 + i * 50;
+            html += `<div class="abs" style="left:24px;top:${y}px">${gradH(g, { align: 'left', aktion: false, vonvorn: false, klein: true })}</div>`;
+            if (g.art !== 'neu') html += `<div class="abs" style="right:20px;top:${y + 8}px">${vonvornH()}</div>`;
+          });
+          if (weiterG) html += `<div class="abs" style="left:16px;right:16px;top:757px">${weiterH(weiterG, 'breit')}</div>`;
+        }
+        return `<svg class="ebene" width="${ctx.W}" height="${ctx.H}">${svg}</svg>${html}`;
+      },
+    },
+    {
+      id: 'C', name: 'Grosser Wagen hinter dem Polarstern',
+      idee: 'Das heutige Menü bleibt, aber der Polarstern ist die Spitze eines grossen Wagens. Er zeigt den Grad, auf dem Zeiger oder Fokus liegt: Wer über die Grade fährt, sieht die Sterne wechseln.',
+      bezug: 'Idee aus dem Grilling. Stellarium und Star Walk 2 blenden Linien und Namen eines Sternbilds einzeln ein, sobald man hinsieht.',
+      achtung: 'Zwei Bilder für denselben Fortschritt (Weg und Wagen). Im Grossbild über die Grade fahren oder sie antippen; der Moment spielt beim Wagen von Mittel.',
+      bild: (ctx) => lichtwegeMenue(ctx, true),
+      nach(bs, ctx) {
+        const g0 = bs.querySelector('.gross-wagen');
+        const waehle = (id) => {
+          if (!g0 || g0.dataset.grad === id) return;
+          ctx.lokal.fokus = id; g0.dataset.grad = id;
+          setzeWagen(g0, visVon(ctx.zust[id]));
+          const n = bs.querySelector('#wagen-name'); if (n) n.textContent = wagenNameText(ctx.grade.find((g) => g.id === id));
+        };
+        for (const z of bs.querySelectorAll('.zeile')) { z.style.cursor = 'pointer'; z.addEventListener('pointerenter', () => waehle(z.dataset.grad)); z.addEventListener('click', () => waehle(z.dataset.grad)); }
+        return { setze: (v, t) => lichtwegeSetzen(bs, ctx, t) };
+      },
+    },
+    {
+      id: 'D', name: 'Je Karte ein kleiner Wagen',
+      idee: 'Vier Karten, jede mit dem Wagen ihres Grads. Wie weit er erwacht ist, sieht man auf einen Blick, auch im Vergleich der Grade; der zuletzt gespielte und der empfohlene Grad tragen einen helleren Rand.',
+      bezug: 'Idee aus dem Grilling. Sky: Children of the Light zeigt je Reich ein Sternbild; gefundene Geister leuchten, fehlende bleiben grau.',
+      achtung: 'Die Lichtwege und der grosse Polarstern fallen weg. Vier gleich grosse Karten machen den Grad im Fokus weniger deutlich; «Weiter» trägt das.',
+      bild(ctx) {
+        const { fmt } = ctx;
+        let html = '';
+        const L = {
+          desktop: { w: 270, h: 340, gap: 28, x0: 138, y0: 300, cols: 4, s: 1.95, wh: 160, pipsZeile: false },
+          hoch: { w: 171, h: 268, gap: 16, x0: 16, y0: 132, cols: 2, s: 1.3, wh: 112, pipsZeile: true },
+          quer: { w: 190, h: 292, gap: 14, x0: 21, y0: 76, cols: 4, s: 1.35, wh: 112, pipsZeile: true },
+        }[fmt];
+        ctx.grade.forEach((g, i) => {
+          const c = i % L.cols, r = Math.floor(i / L.cols), x = L.x0 + c * (L.w + L.gap), y = L.y0 + r * (L.h + L.gap);
+          const cls = ['gkarte', g.zuletzt && g.art === 'begonnen' ? 'zuletzt' : '', g.hervor ? 'hervor' : ''].join(' ');
+          const z1 = L.pipsZeile
+            ? `<div style="display:flex;flex-direction:column;align-items:center;gap:8px">${pipsH(g.n)}<span class="name" style="font-size:${fmt === 'hoch' ? 13 : 14}px;letter-spacing:.28em;margin-right:-.28em">${g.name}</span></div>`
+            : `<div class="z1">${pipsH(g.n)}<span class="name">${g.name}</span></div>`;
+          html += `<div class="${cls}" style="left:${x}px;top:${y}px;width:${L.w}px;height:${L.h}px">`
+            + wagenSVG(L.w, L.wh, { x: L.w / 2, y: L.wh / 2 + 4, s: L.s, grad: g.id, geist: 0.1 })
+            + `<div class="grad ${g.art}${g.zuletzt ? ' zuletzt' : ''}${g.hervor ? ' hervor' : ''}" style="align-items:center;margin-top:${fmt === 'desktop' ? 14 : 4}px">${z1}<div class="stand">${standH(g)}</div><div class="aktion">${AKTION[g.art]}${ico('pfeil')}</div></div>`
+            + `<div class="unten">${g.art !== 'neu' ? vonvornH() : ''}</div></div>`;
+        });
+        const weiterG = ctx.grade.find((g) => g.weiter);
+        if (fmt === 'desktop') { html += kopfH('left:0;right:0;top:80px;text-align:center'); if (weiterG) html += `<div class="abs" style="left:50%;top:700px;transform:translateX(-50%)">${weiterH(weiterG)}</div>`; }
+        else if (fmt === 'hoch') { html += kopfH('left:0;right:0;top:22px;text-align:center'); if (weiterG) html += `<div class="abs" style="left:16px;right:16px;top:757px">${weiterH(weiterG, 'breit')}</div>`; }
+        else { html += kopfH('left:20px;top:22px'); if (weiterG) html += `<div class="abs" style="right:20px;top:10px">${weiterH(weiterG, 'knapp')}</div>`; }
+        return html;
+      },
+    },
+    {
+      id: 'E', name: 'Ein Himmel, vier Wagen',
+      idee: 'Die vier Wagen stehen wie vier Sternbilder an einem weiten Himmel. Der Grad im Fokus steht gross in der Mitte, die anderen klein am Rand; Wischen oder die Pfeile schwenken den Himmel zum nächsten. Darunter sein Stand und sein Knopf.',
+      bezug: 'Skyrim: Die Fähigkeiten sind Sternbilder am Nachthimmel, die Kamera schwenkt zum gewählten. Sky: Children of the Light: ein Sternbild je Reich zum Durchblättern.',
+      achtung: 'Zeigt immer nur einen Grad ganz. Im Grossbild auf die Pfeile oder auf die Wagen am Rand tippen.',
+      bild(ctx) {
+        const { fmt, W } = ctx, c = SCHWENK[fmt];
+        const fi = ctx.lokal.fokus ?? Math.max(0, ctx.grade.findIndex((g) => g.zuletzt));
+        ctx.lokal.fokus = fi;
+        let band = '';
+        ctx.grade.forEach((g, i) => {
+          band += `<div class="hwagen${i === fi ? '' : ' aus'}" data-i="${i}" style="left:${i * c.abstand - c.sw / 2}px;top:${c.cy - c.sh / 2}px;width:${c.sw}px;height:${c.sh}px">`
+            + wagenSVG(c.sw, c.sh, { x: c.sw / 2, y: c.sh / 2, s: c.s, grad: g.id, geist: 0.1 })
+            + `<span class="hw-name">${g.name}</span></div>`;
+        });
+        let html = `<div class="band" style="transform:translateX(${W / 2 - fi * c.abstand}px)">${band}</div>`;
+        html += `<div class="rund abs" data-schritt="-1" style="${pos(fmt === 'hoch' ? 30 : 46, c.cy, -50, -50)}">${ico('links')}</div><div class="rund abs" data-schritt="1" style="${pos(W - (fmt === 'hoch' ? 30 : 46), c.cy, -50, -50)}">${ico('pfeil')}</div>`;
+        html += `<div class="abs" id="schwenk-text" style="left:0;right:0;top:${c.text}px">${schwenkText(ctx, fi)}</div>`;
+        html += fmt === 'desktop' ? kopfH('left:100px;top:56px') : fmt === 'hoch' ? kopfH('left:0;right:0;top:22px;text-align:center') : kopfH('left:20px;top:14px');
+        return html;
+      },
+      nach(bs, ctx) {
+        const c = SCHWENK[ctx.fmt];
+        const geh = (i) => {
+          i = (i + 4) % 4; ctx.lokal.fokus = i;
+          bs.querySelector('.band').style.transform = `translateX(${ctx.W / 2 - i * c.abstand}px)`;
+          for (const h of bs.querySelectorAll('.hwagen')) h.classList.toggle('aus', +h.dataset.i !== i);
+          bs.querySelector('#schwenk-text').innerHTML = schwenkText(ctx, i);
+        };
+        let x0 = null, gewischt = false; // nach einem Wischen mit der Maus kein Klick auf den Wagen darunter (er spränge zurück)
+        const klick = (fn) => () => { if (gewischt) { gewischt = false; return; } fn(); };
+        for (const b of bs.querySelectorAll('[data-schritt]')) b.addEventListener('click', klick(() => geh(ctx.lokal.fokus + +b.dataset.schritt)));
+        for (const h of bs.querySelectorAll('.hwagen')) h.addEventListener('click', klick(() => geh(+h.dataset.i)));
+        // Finger: waagrecht wischt die Seite selbst (sonst bricht der Browser mit pointercancel ab), senkrecht und Zoom bleiben dem Browser
+        bs.style.touchAction = 'pan-y pinch-zoom';
+        bs.addEventListener('pointerdown', (e) => { x0 = e.clientX; gewischt = false; });
+        bs.addEventListener('pointerup', (e) => { if (x0 !== null && Math.abs(e.clientX - x0) > 40) { gewischt = true; geh(ctx.lokal.fokus + (e.clientX < x0 ? 1 : -1)); } x0 = null; });
+        bs.addEventListener('pointercancel', () => { x0 = null; });
+      },
+    },
+    {
+      id: 'F', name: 'Sternkarte mit Reitern',
+      idee: 'Ein grosser Wagen wie auf einer Sternkarte: Kreise um den Polarstern, die Namen der Welten an ihren Sternen, die Grösse der Punkte nach der echten Helligkeit, noch fehlende Linien gestrichelt. Die vier Grade sind Reiter daneben.',
+      bezug: 'Sternkarten der IAU und von Sky & Telescope (Ursa Minor: Kochab 2,1 mag ist unser Stern 1, Pherkad 3,0 mag Stern 2). Genshin Impact: das Sternbild einer Figur mit sechs Knoten, die man einzeln antippt.',
+      achtung: 'Zeigt am deutlichsten, welche Welt welchen Stern weckt, ist aber das nüchternste Bild. Ein Grad zur Zeit; im Grossbild die Reiter antippen.',
+      bild(ctx) {
+        const { fmt, W, H } = ctx;
+        const c = { desktop: { m: [905, 420], s: 6.0, step: 140 }, hoch: { m: [192, 342], s: 2.65, step: 62 }, quer: { m: [575, 178], s: 2.8, step: 70 } }[fmt];
+        const tab = ctx.lokal.tab ?? (ctx.grade.find((g) => g.zuletzt) ?? ctx.grade[0]).id, g = ctx.grade.find((x) => x.id === tab);
+        const o = { x: c.m[0], y: c.m[1], s: c.s, grad: tab, geist: 0.28, gestrichelt: '3 5', mag: true, kern: fmt === 'desktop' ? 2.7 : 1.5, ringR: fmt === 'desktop' ? 13 : 7 };
+        const pts = wagenPunkte(o), pol = pts[7];
+        // Netz der Sternkarte: Kreise um den Pol, Stundenlinien
+        let netz = '';
+        const clip = fmt === 'desktop' ? [520, 130, 1400, 700] : fmt === 'hoch' ? [0, 170, 390, 450] : [300, 40, 844, 320];
+        for (let r = c.step; r < 2000; r += c.step) netz += `<circle cx="${f1(pol[0])}" cy="${f1(pol[1])}" r="${r}" fill="none" stroke="rgba(200,210,255,0.07)" stroke-width="1"/>`;
+        for (let a = 0; a < 360; a += 30) netz += `<line x1="${f1(pol[0])}" y1="${f1(pol[1])}" x2="${f1(pol[0] + Math.cos(a * RAD) * 2000)}" y2="${f1(pol[1] + Math.sin(a * RAD) * 2000)}" stroke="rgba(200,210,255,0.05)" stroke-width="1"/>`;
+        let svg = `<defs><clipPath id="netz-${fmt}"><rect x="${clip[0]}" y="${clip[1]}" width="${clip[2] - clip[0]}" height="${clip[3] - clip[1]}" rx="24"/></clipPath></defs><g clip-path="url(#netz-${fmt})">${netz}</g>`;
+        svg += wagenG(o);
+        let html = '';
+        const abstand = fmt === 'desktop' ? 20 : 12;
+        for (let k = 1; k <= 7; k++) {
+          const welt = WELTEN[k - 1], wach = k === 7 || k <= g.wach, jetzt = k === g.naechster;
+          const zahl = k === 7 ? '' : jetzt ? `${g.geloest - (k - 1) * 10} / 10` : wach ? '10 / 10' : '';
+          html += etikett(pts[k], richtung(k, fmt), abstand, `${k === 7 ? 'Polarstern' : welt.name}${zahl ? `<small>${zahl}</small>` : ''}`, jetzt ? 'jetzt' : wach ? 'wach' : '');
+        }
+        const knopf = weiterH(g, fmt === 'hoch' ? 'breit' : '', AKTION[g.art]);
+        if (fmt === 'desktop') {
+          html += kopfH('left:100px;top:56px');
+          ctx.grade.forEach((x, i) => { html += `<div class="reiter${x.id === tab ? ' an' : ''}" data-tab="${x.id}" style="left:84px;top:${206 + i * 96}px"><div style="display:flex;gap:12px;align-items:center">${pipsH(x.n)}<span class="name">${x.name}</span></div><div class="stand">${standH(x)}</div></div>`; });
+          html += `<div class="abs" style="left:${c.m[0]}px;top:740px;transform:translateX(-50%);display:flex;gap:28px;align-items:center">${knopf}${g.art !== 'neu' ? vonvornH() : ''}</div>`;
+        } else if (fmt === 'hoch') {
+          html += kopfH('left:0;right:0;top:22px;text-align:center');
+          ctx.grade.forEach((x, i) => { html += `<div class="reiter seg${x.id === tab ? ' an' : ''}" data-tab="${x.id}" style="left:${16 + i * 89.5}px;top:96px;width:89.5px">${pipsH(x.n)}<span class="name">${x.name}</span></div>`; });
+          html += `<div class="abs karte-info" style="left:0;right:0;top:500px"><div class="gross">${g.name}</div><div class="stand" style="display:flex;gap:8px;align-items:center">${standH(g)}</div><div class="fein">${g.naechster ? `Als Nächstes erwacht Stern ${g.naechster}: ${WELTEN[g.naechster - 1].name}` : g.fertig ? 'Alle sieben Sterne wach' : 'Alle Sterne schlafen'}</div></div>`;
+          if (g.art !== 'neu') html += `<div class="abs" style="left:50%;top:690px;transform:translateX(-50%)">${vonvornH()}</div>`;
+          html += `<div class="abs" style="left:16px;right:16px;top:757px">${knopf}</div>`;
+        } else {
+          html += kopfH('left:20px;top:14px');
+          ctx.grade.forEach((x, i) => { html += `<div class="reiter${x.id === tab ? ' an' : ''}" data-tab="${x.id}" style="left:14px;top:${58 + i * 76}px"><div style="display:flex;gap:10px;align-items:center">${pipsH(x.n)}<span class="name">${x.name}</span></div><div class="stand">${standH(x)}</div></div>`; });
+          html += `<div class="abs" style="right:18px;bottom:14px;display:flex;gap:18px;align-items:center">${g.art !== 'neu' ? vonvornH() : ''}${weiterH(g, 'knapp', AKTION[g.art])}</div>`;
+        }
+        return `<svg class="ebene" width="${W}" height="${H}">${svg}</svg>${html}`;
+      },
+      nach(bs, ctx, neu) {
+        for (const r of bs.querySelectorAll('[data-tab]')) r.addEventListener('click', () => { ctx.lokal.tab = r.dataset.tab; neu(); });
+      },
+    },
+  ];
+  const SCHWENK = {
+    desktop: { abstand: 640, cy: 380, s: 4.4, sw: 600, sh: 360, text: 580 },
+    hoch: { abstand: 250, cy: 286, s: 2.6, sw: 330, sh: 220, text: 420 },
+    quer: { abstand: 390, cy: 140, s: 2.3, sw: 300, sh: 190, text: 238 },
+  };
+  function schwenkText(ctx, i) {
+    const g = ctx.grade[i], fmt = ctx.fmt;
+    const punkte = `<div class="punkte">${ctx.grade.map((x, j) => `<i class="${j === i ? 'an' : ''}"></i>`).join('')}</div>`;
+    const kopf = `<div class="grad ${g.art}${g.hervor ? ' hervor' : ''}" style="align-items:center"><div class="z1">${pipsH(g.n)}<span class="name" style="font-size:${fmt === 'desktop' ? 20 : 16}px">${g.name}</span></div><div class="stand">${standH(g)}</div></div>`;
+    const knopf = weiterH(g, fmt === 'hoch' ? 'breit' : fmt === 'quer' ? 'knapp' : '', AKTION[g.art]);
+    if (fmt === 'desktop') return `<div style="display:flex;flex-direction:column;align-items:center;gap:22px">${kopf}<div style="display:flex;gap:28px;align-items:center">${knopf}${g.art !== 'neu' ? vonvornH() : ''}</div><div style="margin-top:20px">${punkte}</div></div>`;
+    if (fmt === 'quer') return `<div style="display:flex;flex-direction:column;align-items:center;gap:12px">${kopf}<div style="display:flex;gap:22px;align-items:center">${knopf}${g.art !== 'neu' ? vonvornH() : ''}</div></div>`;
+    return `<div style="display:flex;flex-direction:column;align-items:center;gap:20px">${kopf}${punkte}</div>`
+      + `<div style="position:absolute;left:0;right:0;top:${690 - 420}px;display:flex;justify-content:center">${g.art !== 'neu' ? vonvornH() : ''}</div>`
+      + `<div style="position:absolute;left:16px;right:16px;top:${757 - 420}px">${knopf}</div>`;
+  }
+
+  /* ---------- Übersicht ---------- */
+
+  const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  const rnd2 = (a, b) => { const x = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return x - Math.floor(x); };
+  function uebDaten(z, dorf) {
+    const welten = WELTEN.map((w, wi) => {
+      const level = w.titel.map((name, li) => {
+        const idx = wi * 10 + li, art = idx < z.geloest ? 'geloest' : idx === z.geloest ? 'offen' : 'gesperrt';
+        return { nr: li + 1, name, art, zeit: Math.round(58 + wi * 9 + li * 4 + rnd2(wi, li) * 70), dreh: Math.round(7 + wi + li / 2 + rnd2(li + 3, wi) * 6) };
+      });
+      const fertig = level.filter((l) => l.art === 'geloest');
+      return { ...w, wi, k: wi + 1, level, n: fertig.length, summe: fertig.reduce((s, l) => s + l.zeit, 0), offen: level.some((l) => l.art === 'offen') };
+    });
+    const d = dorf ? { id: 'dorf', name: 'Im Dorf', k: 0, level: DORF.map((name, li) => ({ nr: li + 1, name, art: 'geloest', zeit: 20 + li * 7, dreh: 3 + li })), n: 9 } : null;
+    if (d) d.summe = d.level.reduce((s, l) => s + l.zeit, 0);
+    return { welten, dorf: d };
+  }
+  function karteLvl(l, x, y, w, h, zeile = false) {
+    let un;
+    if (l.art === 'geloest') un = `<span>${ico('uhr')}${mmss(l.zeit)}</span><span>${ico('dreh')}${l.dreh}</span>`;
+    else if (l.art === 'offen') un = `<span class="weiter-k">Weiter ${ico('pfeil')}</span>`;
+    else un = ico('schloss');
+    return `<div class="lk ${l.art}${zeile ? ' zeile' : ''}${h < 40 ? ' eng' : ''}" style="left:${f1(x)}px;top:${f1(y)}px;width:${f1(w)}px;height:${f1(h)}px"><span class="nr">${l.nr}</span>${l.art === 'geloest' ? '<i class="pt"></i>' : ''}<span class="ln">${l.name}</span><span class="un">${un}</span></div>`;
+  }
+  function uebKopf(ctx, style, mitte = false) {
+    const z = ctx.zust.mittel;
+    return `<div class="ueb-kopf abs${mitte ? ' mitte' : ''}" style="${style}"><div class="kicker">Übersicht</div><div class="titel">${pipsH(2)}<span class="name">Mittel</span><span class="zahl">${z.geloest} / 60</span></div></div>`;
+  }
+  const legendeK = (style) => `<div class="legende-k abs" style="${style}"><span>${ico('uhr')}Bestzeit</span><span>${ico('dreh')}wenigste Drehungen</span></div>`;
+  const schliessenH = (style) => `<div class="pille abs" style="${style}">Schliessen</div>`;
+  const zuH = (style) => `<div class="rund abs" style="${style}">${ico('zu')}</div>`;
+  const weltZahl = (w) => `<span>${w.n} / ${w.level.length}</span>${w.n ? `<span>${ico('uhr')}${mmss(w.summe)}</span>` : ''}`;
+  /** Welt, die beim Öffnen gewählt ist: wo das Licht ist; geschafft: die letzte */
+  const startWelt = (z) => (z.fertig ? 5 : Math.max(0, z.welt));
+
+  const UEB = [
+    {
+      id: 'A', name: 'Stern im Kopf',
+      idee: 'Die heutige Übersicht; im Kopf jeder Welt steht der Wagen klein, mit dem Stern dieser Welt hervorgehoben: hell, sobald die Welt geschafft ist, mit Ring, solange das Licht dort ist, mit schwachem Ring, solange sie gesperrt ist. Auf dem Handy trägt jedes Zeichen der Welten seinen Stern.',
+      bezug: 'Das Logbuch von Outer Wilds: Karten in Reihen je Planet, die Ordnung kommt aus dem Kopf der Reihe. Die heutige Übersicht (createUebersicht).',
+      achtung: 'Ändert am wenigsten. Der Wagen im Kopf ist klein; auf dem Handy steht er nur bei der Welt, die man gerade ansieht.',
+      bild(ctx) {
+        const { fmt, W, H } = ctx, z = ctx.zust.mittel, D = uebDaten(z, ctx.S.dorf);
+        let svg = '', html = '';
+        if (fmt === 'desktop') {
+          const reihen = [...(D.dorf ? [D.dorf] : []), ...D.welten];
+          const rh = D.dorf ? 100 : 106, dy = D.dorf ? 112 : 121, y0 = 100, x0 = 238, cw = 107, gap = (1400 - x0 - 10 * cw) / 9;
+          html += uebKopf(ctx, 'left:44px;top:28px') + legendeK('right:210px;top:44px') + schliessenH('right:40px;top:30px');
+          reihen.forEach((w, r) => {
+            const y = y0 + r * dy, my = y + rh / 2, n = w.level.length;
+            const last = x0 + (n - 1) * (cw + gap) + cw, fertigX = w.n ? x0 + (w.n - 1) * (cw + gap) + cw / 2 : 0;
+            html += `<div class="rowline" style="left:216px;top:${f1(my)}px;width:${f1(last - 216)}px"><i style="width:${w.n ? f1(fertigX - 216) : 0}px"></i></div>`;
+            html += `<div class="welt-kopf abs${w.n || w.offen || w.k === 0 ? '' : ' gesperrt'}" style="right:${W - 150}px;top:${f1(my - 21)}px"><div class="wn">${w.name}</div><div class="wz">${weltZahl(w)}</div></div>`;
+            if (w.k === 0) html += `<div class="kreis fertig" style="left:192px;top:${f1(my)}px;width:34px;height:34px">${ico('dorf')}</div>`;
+            else svg += wagenG({ x: 192, y: my, s: 0.56, grad: 'mittel', fokus: w.k, geist: 0.12, kern: 1.35, ringR: 5.5 });
+            w.level.forEach((l, j) => { html += karteLvl(l, x0 + j * (cw + gap), y, cw, rh); });
+          });
+        } else {
+          const ws = ctx.lokal.welt ?? startWelt(z), w = ws === 'dorf' ? D.dorf : D.welten[ws];
+          const stationen = [...(D.dorf ? [D.dorf] : []), ...D.welten];
+          const hoch = fmt === 'hoch', d = hoch ? 34 : 30, lg = hoch ? 12 : 10, n = stationen.length, total = n * d + (n - 1) * lg;
+          const tx0 = (W - total) / 2 + d / 2, ty = hoch ? 146 : 44, sy = ty - d / 2 - (hoch ? 13 : 10);
+          const punkte = [];
+          stationen.forEach((s, i) => {
+            const x = tx0 + i * (d + lg), an = (s.k === 0 ? 'dorf' : s.wi) === ws;
+            if (i) html += `<div class="tabline${s.n || s.offen ? ' fertig' : ''}" style="left:${f1(x - d / 2 - lg)}px;top:${ty}px;width:${lg}px"></div>`;
+            html += `<div class="kreis${s.n === s.level.length ? ' fertig' : ''}${an ? ' an' : ''}" data-welt="${s.k === 0 ? 'dorf' : s.wi}" style="left:${f1(x)}px;top:${ty}px;width:${d}px;height:${d}px;cursor:pointer">${ico(s.id)}</div>`;
+            if (s.k) punkte[s.k] = [x, sy];
+          });
+          svg += wagenG({ punkte, s: 1, grad: 'mittel', ohneLinien: true, kern: 1.6, hof: 9, ringR: 4.6 });
+          if (hoch) {
+            html += uebKopf(ctx, 'left:0;right:0;top:24px', true) + legendeK('left:0;right:0;top:78px;justify-content:center');
+            html += `<div class="rund abs" data-schritt="-1" style="left:16px;top:184px">${ico('links')}</div><div class="rund abs" data-schritt="1" style="right:16px;top:184px">${ico('pfeil')}</div>`;
+            if (w.k) svg += wagenG({ x: 98, y: 206, s: 0.6, grad: 'mittel', fokus: w.k, geist: 0.12, kern: 1.4, ringR: 5.5 });
+            html += `<div class="welt-kopf links abs" style="left:${w.k ? 150 : 120}px;top:188px"><div class="wn">${w.name}</div><div class="wz">${weltZahl(w)}</div></div>`;
+            w.level.forEach((l, j) => { html += karteLvl(l, 16 + (j % 2) * 187, 252 + Math.floor(j / 2) * 104, 171, 92); });
+            html += schliessenH('left:50%;top:784px;transform:translateX(-50%)');
+          } else {
+            html += `<div class="ueb-kopf abs" style="left:20px;top:14px"><div class="titel" style="margin:0">${pipsH(2)}<span class="name" style="font-size:14px">Mittel</span><span class="zahl" style="font-size:13px">${z.geloest} / 60</span></div></div>`;
+            html += schliessenH('right:20px;top:16px;padding:10px 20px 10px calc(20px + .4em)');
+            html += `<div class="rund abs" data-schritt="-1" style="left:20px;top:72px;width:40px;height:40px">${ico('links')}</div><div class="rund abs" data-schritt="1" style="right:20px;top:72px;width:40px;height:40px">${ico('pfeil')}</div>`;
+            if (w.k) svg += wagenG({ x: 290, y: 93, s: 0.55, grad: 'mittel', fokus: w.k, geist: 0.12, kern: 1.35, ringR: 5.5 });
+            html += `<div class="welt-kopf links abs" style="left:${w.k ? 345 : 330}px;top:76px"><div class="wn">${w.name}</div><div class="wz">${weltZahl(w)}</div></div>`;
+            w.level.forEach((l, j) => { html += karteLvl(l, 23 + (j % 5) * 162, 126 + Math.floor(j / 5) * 128, 150, 116); });
+          }
+        }
+        return `<svg class="ebene" width="${W}" height="${H}">${svg}</svg>${html}`;
+      },
+      nach(bs, ctx, neu) {
+        const z = ctx.zust.mittel, liste = [...(ctx.S.dorf ? ['dorf'] : []), 0, 1, 2, 3, 4, 5];
+        for (const k of bs.querySelectorAll('.kreis[data-welt]')) k.addEventListener('click', () => { ctx.lokal.welt = k.dataset.welt === 'dorf' ? 'dorf' : +k.dataset.welt; neu(); });
+        for (const b of bs.querySelectorAll('[data-schritt]')) b.addEventListener('click', () => {
+          const i = liste.indexOf(ctx.lokal.welt ?? startWelt(z)); ctx.lokal.welt = liste[(i + +b.dataset.schritt + liste.length) % liste.length]; neu();
+        });
+      },
+    },
+    {
+      id: 'B', name: 'Wagen als Wegweiser',
+      idee: 'Der Wagen ist die Auswahl: Tippen auf einen Stern zeigt die zehn Level seiner Welt daneben, mit Bestwerten. Geweckte Sterne leuchten, der gewählte trägt einen Hof; das Dorf steht als eigene Station darunter.',
+      bezug: 'Genshin Impact (das Sternbild einer Figur als Bedienelement, ein Knoten zur Zeit), Skyrim (erst das Sternbild wählen, dann seine Sterne).',
+      achtung: 'Alle 60 Level auf einmal sieht man nicht mehr; die Übersicht zeigt eine Welt zur Zeit. Im Grossbild die Sterne antippen.',
+      bild(ctx) {
+        const { fmt, W, H } = ctx, z = ctx.zust.mittel, D = uebDaten(z, ctx.S.dorf);
+        const ws = ctx.lokal.welt ?? startWelt(z), w = ws === 'dorf' ? D.dorf : D.welten[ws];
+        const c = { desktop: { m: [330, 430], s: 4.3, ab: 18 }, hoch: { m: [195, 226], s: 2.7, ab: 11 }, quer: { m: [212, 210], s: 2.55, ab: 11 } }[fmt];
+        const o = { x: c.m[0], y: c.m[1], s: c.s, grad: 'mittel', geist: 0.16 }, pts = wagenPunkte(o);
+        let svg = '', html = '';
+        if (w.k) svg += `<circle class="wahlhof" cx="${f1(pts[w.k][0])}" cy="${f1(pts[w.k][1])}" r="${fmt === 'desktop' ? 24 : 15}"/>`;
+        svg += wagenG(o);
+        for (let k = 1; k <= 7; k++) {
+          const welt = D.welten[k - 1];
+          const txt = k === 7 ? 'Polarstern' : `${welt.name}<small>${welt.n} / 10</small>`;
+          html += etikett(pts[k], richtung(k, fmt), c.ab, txt, k === w.k ? 'jetzt' : k === 7 || welt?.n === 10 ? 'wach' : '');
+          if (k < 7) html += `<div class="treffer" data-welt="${k - 1}" style="left:${f1(pts[k][0])}px;top:${f1(pts[k][1])}px;width:${fmt === 'desktop' ? 64 : 40}px;height:${fmt === 'desktop' ? 64 : 40}px"></div>`;
+        }
+        const dorfChip = (style) => (D.dorf ? `<div class="dorf-chip${ws === 'dorf' ? ' an' : ''}" data-welt="dorf" style="${style}">${ico('dorf')}Im Dorf · 9 / 9</div>` : '');
+        const titel = (style) => `<div class="panel-titel abs" style="${style}"><span class="wn">${ico(w.id)}${w.name}</span><span class="wz">${weltZahl(w)}</span></div>`;
+        if (fmt === 'desktop') {
+          html += uebKopf(ctx, 'left:44px;top:28px') + legendeK('right:210px;top:44px') + schliessenH('right:40px;top:30px') + dorfChip('left:120px;top:730px');
+          html += titel('left:640px;top:150px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 640 + (j % 2) * 388, 200 + Math.floor(j / 2) * 112, 372, 98, true); });
+        } else if (fmt === 'hoch') {
+          html += uebKopf(ctx, 'left:0;right:0;top:22px', true) + zuH('right:12px;top:14px') + dorfChip('left:16px;top:322px');
+          html += titel('left:16px;top:368px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 16 + (j % 2) * 187, 400 + Math.floor(j / 2) * 88, 171, 80); });
+        } else {
+          html += `<div class="ueb-kopf abs" style="left:20px;top:12px"><div class="titel" style="margin:0">${pipsH(2)}<span class="name" style="font-size:14px">Mittel</span><span class="zahl" style="font-size:13px">${z.geloest} / 60</span></div></div>`;
+          html += zuH('right:12px;top:8px;width:40px;height:40px') + dorfChip('left:18px;top:340px');
+          html += titel('left:430px;top:22px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 430, 58 + j * 31, 396, 28, true); });
+        }
+        return `<svg class="ebene" width="${W}" height="${H}">${svg}</svg>${html}`;
+      },
+      nach(bs, ctx, neu) {
+        for (const t of bs.querySelectorAll('[data-welt]')) t.addEventListener('click', () => { ctx.lokal.welt = t.dataset.welt === 'dorf' ? 'dorf' : +t.dataset.welt; neu(); });
+      },
+    },
+    {
+      id: 'C', name: 'Sternhaufen',
+      idee: 'Um jeden Stern stehen die zehn Level seiner Welt als kleine Sterne: gelöste hell, das nächste mit Ring, gesperrte blass. Die Übersicht wird selbst ein Himmel; Tippen auf einen Haufen zeigt seine Level als Liste mit Bestwerten.',
+      bezug: 'Bejeweled Stars (gelöste Level füllen Sternbilder), Ōkami (Sternbilder, denen noch Sterne fehlen).',
+      achtung: 'Auf dem Handy sind die Level-Sterne sehr klein; gewählt wird der ganze Haufen, nicht das einzelne Level. Das dichteste Bild der drei.',
+      bild(ctx) {
+        const { fmt, W, H } = ctx, z = ctx.zust.mittel, D = uebDaten(z, ctx.S.dorf);
+        const ws = ctx.lokal.welt ?? startWelt(z), w = ws === 'dorf' ? D.dorf : D.welten[ws];
+        const c = { desktop: { m: [590, 470], s: 6.3, r: 34, ab: 52, dot: 2.4, dorf: [170, 780] }, hoch: { m: [188, 250], s: 2.62, r: 15, ab: 24, dot: 1.5, dorf: [34, 398] }, quer: { m: [226, 208], s: 2.75, r: 15, ab: 24, dot: 1.5, dorf: [36, 350] } }[fmt];
+        const o = { x: c.m[0], y: c.m[1], s: c.s, grad: 'mittel', geist: 0.12, kern: fmt === 'desktop' ? 3.6 : 1.9, hof: fmt === 'desktop' ? 22 : 11, ringR: c.r + 6 };
+        const pts = wagenPunkte(o);
+        let svg = wagenG(o), html = '';
+        const haufen = (cx, cy, level, r, an) => {
+          let s = an ? `<circle class="wahlhof" cx="${f1(cx)}" cy="${f1(cy)}" r="${f1(r + c.dot * 3)}"/>` : '';
+          level.forEach((l, j) => {
+            const a = -Math.PI / 2 + j * 2 * Math.PI / level.length, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+            if (l.art === 'geloest') s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(c.dot * 2.6)}" fill="url(#g-hof)" opacity=".6"/><circle cx="${f1(x)}" cy="${f1(y)}" r="${c.dot}" fill="#fff"/>`;
+            else if (l.art === 'offen') s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(c.dot * 0.8)}" fill="#fff" opacity=".7"/><circle class="ring-l" cx="${f1(x)}" cy="${f1(y)}" r="${f1(c.dot * 2.2)}" fill="none" stroke="#fff" stroke-width="1"/>`;
+            else s += `<circle cx="${f1(x)}" cy="${f1(y)}" r="${f1(c.dot * 0.6)}" fill="#fff" opacity=".28"/>`;
+          });
+          return s;
+        };
+        D.welten.forEach((welt) => {
+          const p = pts[welt.k];
+          svg = haufen(p[0], p[1], welt.level, c.r, welt.wi === ws) + svg;
+          html += `<div class="haufen-name${welt.wi === ws ? ' an' : ''}" style="${etikettPos(p, richtung(welt.k, fmt), c.ab)}">${welt.name}<small>${welt.n} / 10</small></div>`;
+          html += `<div class="treffer" data-welt="${welt.wi}" style="left:${f1(p[0])}px;top:${f1(p[1])}px;width:${c.r * 2 + 16}px;height:${c.r * 2 + 16}px"></div>`;
+        });
+        html += `<div class="haufen-name" style="${etikettPos(pts[7], RICHTUNG[7], fmt === 'desktop' ? 24 : 14)}">Polarstern</div>`;
+        if (D.dorf) {
+          svg = haufen(c.dorf[0], c.dorf[1], D.dorf.level, c.r * 0.8, ws === 'dorf') + svg;
+          html += `<div class="kreis fertig" style="left:${c.dorf[0]}px;top:${c.dorf[1]}px;width:${fmt === 'desktop' ? 30 : 16}px;height:${fmt === 'desktop' ? 30 : 16}px;border:0;background:none">${ico('dorf')}</div>`;
+          html += `<div class="haufen-name${ws === 'dorf' ? ' an' : ''}" style="${pos(c.dorf[0] + c.r * 0.8 + 10, c.dorf[1], 0, -50)}">Im Dorf<small>9 / 9</small></div>`;
+          html += `<div class="treffer" data-welt="dorf" style="left:${c.dorf[0]}px;top:${c.dorf[1]}px;width:${c.r * 2 + 16}px;height:${c.r * 2 + 16}px"></div>`;
+        }
+        const titel = (style) => `<div class="panel-titel abs" style="${style}"><span class="wn">${ico(w.id)}${w.name}</span><span class="wz">${weltZahl(w)}</span></div>`;
+        if (fmt === 'desktop') {
+          html += uebKopf(ctx, 'left:44px;top:28px') + schliessenH('right:40px;top:30px') + legendeK('right:40px;top:96px');
+          html += titel('left:1070px;top:150px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 1070, 196 + j * 52, 330, 46, true); });
+        } else if (fmt === 'hoch') {
+          html += uebKopf(ctx, 'left:0;right:0;top:22px', true) + zuH('right:12px;top:14px');
+          html += titel('left:16px;top:436px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 16, 470 + j * 36.5, 358, 32, true); });
+        } else {
+          html += `<div class="ueb-kopf abs" style="left:20px;top:12px"><div class="titel" style="margin:0">${pipsH(2)}<span class="name" style="font-size:14px">Mittel</span><span class="zahl" style="font-size:13px">${z.geloest} / 60</span></div></div>`;
+          html += zuH('right:12px;top:8px;width:40px;height:40px');
+          html += titel('left:446px;top:22px');
+          w.level.forEach((l, j) => { html += karteLvl(l, 446, 58 + j * 31, 380, 28, true); });
+        }
+        return `<svg class="ebene" width="${W}" height="${H}">${svg}</svg>${html}`;
+      },
+      nach(bs, ctx, neu) {
+        for (const t of bs.querySelectorAll('[data-welt]')) t.addEventListener('click', () => { ctx.lokal.welt = t.dataset.welt === 'dorf' ? 'dorf' : +t.dataset.welt; neu(); });
+      },
+    },
+  ];
+  function etikettPos(p, dir, abstand) {
+    const n = Math.hypot(dir[0], dir[1]), dx = dir[0] / n, dy = dir[1] / n;
+    const [tx, ty] = Math.abs(dir[0]) > Math.abs(dir[1]) ? [dx > 0 ? 0 : -100, -50] : [-50, dy > 0 ? 0 : -100];
+    return pos(p[0] + dx * abstand, p[1] + dy * abstand, tx, ty);
+  }
+
+  /* ---------- Leiste unter dem Untertitel ---------- */
+
+  /**
+   * mitte (Wahl des Nutzers, Leiste C): Text senkrecht in der Mitte, der Wagen unten am Rand, wo die Leiste heute steht,
+   * das Licht in der Mitte des freien Raums darüber (lichtSetzen). oben: Abstand vom oberen Rand
+   * des Wagen-Bilds bis zu seinem obersten Stern (px).
+   */
+  function leisteBild(ctx, pfad, mitte = false, oben = 0) {
+    const { fmt, W, H, S } = ctx, unten = fmt === 'quer' ? 70 : Math.round(0.14 * H);
+    if (mitte) {
+      const wagenUnten = fmt === 'quer' ? 12 : unten;
+      return `<div class="licht" style="left:${W / 2}px;top:${f1(0.15 * H)}px"></div>`
+        + `<div class="cap mitte" style="top:${H / 2}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p></div>`
+        + `<div class="pfad unten" data-oben="${f1(oben)}" style="bottom:${wagenUnten}px">${pfad}</div>`;
+    }
+    return `<div class="licht" style="left:${W / 2}px;top:${f1(fmt === 'quer' ? 56 : H * (fmt === 'hoch' ? 0.36 : 0.4))}px"></div>`
+      + `<div class="cap" style="bottom:${unten}px"><div class="kicker">${S.kicker}</div><p class="text">${S.text}</p><div class="pfad">${pfad}</div></div>`;
+  }
+  /** Leiste C: Licht in der Mitte des freien Raums zwischen oberem Rand und Text (gemessen nach dem Umbruch des Texts). */
+  function lichtSetzen(bs) {
+    const cap = bs.querySelector('.cap.mitte'), li = bs.querySelector('.licht');
+    if (!cap || !li) return;
+    li.style.top = `${f1((cap.offsetTop - cap.offsetHeight / 2) / 2)}px`;
+  }
+  const LEISTE = [
+    {
+      id: 'A', name: 'Heute: Dorf und sechs Welten',
+      idee: 'Die heutige Leiste unter dem Untertitel einer Reise: das Dorf und die sechs Welten als Zeichen, die erreichten hell, die aktuelle pulsiert, dazwischen Striche.',
+      bezug: 'Das Spiel (fillPath mit STORY_STATIONS und STORY_ICONS).',
+      achtung: 'Erzählt den Weg, nicht den Wagen. Auf dem Handy hoch ohne Namen.',
+      bild(ctx) {
+        let s = '<div class="path">';
+        STATIONEN.forEach(([id, name], i) => {
+          if (i) s += `<i class="ln" data-i="${i}"></i>`;
+          s += `<div class="st" data-i="${i}"><svg viewBox="0 0 24 24" aria-hidden="true">${ICON[id]}</svg><span>${name}</span></div>`;
+        });
+        return leisteBild(ctx, s + '</div>');
+      },
+      nach(bs, ctx) {
+        const S = ctx.S, art = ctx.moment;
+        return {
+          setze(v, t) {
+            let now = S.now;
+            if (t !== Infinity && S.vorher < S.now) now = t < 0.6 ? S.vorher : t < 1.8 ? -1 : S.now;
+            for (const st of bs.querySelectorAll('.st')) {
+              const i = +st.dataset.i;
+              const istNow = now === -1 ? false : i === now, done = now === -1 ? i <= S.vorher : i < now;
+              st.className = 'st' + (done ? ' done' : istNow ? ' now' : '');
+              if (art === 'finale' && t !== Infinity && i >= 1) { const tk = 1.9 + 0.32 * (i - 1); if (t > tk - 0.1 && t < tk + 0.35) st.classList.add('blitz'); }
+            }
+            for (const ln of bs.querySelectorAll('.ln')) {
+              const i = +ln.dataset.i;
+              ln.className = 'ln' + ((now === -1 ? (i <= S.vorher || (t >= 0.9 && i === S.now)) : i <= now) ? ' done' : '');
+            }
+          },
+        };
+      },
+    },
+    {
+      id: 'B', name: 'Kleiner Wagen',
+      idee: 'Statt der Zeichen der kleine Wagen selbst: geweckte Sterne hell und verbunden, der Stern der Welt, in die das Licht gerade fliegt, mit Ring; darunter ihr Zeichen und Name.',
+      bezug: 'Das Ladezeichen (dieselbe Form, fast gleich gross) und der Wagen am Himmel: Die Leiste spricht dieselbe Sprache wie der Himmel darüber.',
+      achtung: 'Das Dorf hat keinen Stern und fehlt. Ohne den Namen darunter wüsste man nicht, welcher Stern zu welcher Welt gehört.',
+      bild(ctx) {
+        const { fmt } = ctx, z = ctx.zust.mittel, s = { desktop: 1.35, hoch: 1.2, quer: 1.1 }[fmt];
+        const w = Math.round(112 * s + 30), h = Math.round(64 * s + 22);
+        const ziel = z.fertig ? ['sterne', 'Polarstern'] : [WELTEN[z.welt].id, WELTEN[z.welt].name];
+        return leisteBild(ctx, wagenSVG(w, h, { x: w / 2, y: h / 2, s, grad: 'mittel', geist: 0.22, kern: 1.7, hof: 10, ringR: 5.5 })
+          + `<div class="unterzeile">${ico(ziel[0])}<span>${ziel[1]}</span></div>`);
+      },
+    },
+    {
+      id: 'C', name: 'Zeichen im Wagen',
+      idee: 'Die Mischform: Die Zeichen der sechs Welten sitzen an den Sternen des Wagens, durch seine Linien verbunden; geweckte hell und mit Hof, die aktuelle pulsiert, spätere blass. An der Spitze der Polarstern.',
+      bezug: 'Sternkarten mit Zeichen an den Sternen; die Zeichen der heutigen Leiste.',
+      achtung: 'Höher als heute (gut 120 px statt 40). Gewählt, mit Anpassung des Nutzers: Text senkrecht in der Mitte, der Wagen unten am Rand wie bisher, das Licht deutlich über dem Text. Das Dorf fehlt auch hier.',
+      bild(ctx) {
+        const { fmt } = ctx, s = { desktop: 2.1, hoch: 1.75, quer: 1.4 }[fmt], ic = { desktop: 19, hoch: 17, quer: 15 }[fmt];
+        const w = Math.round(112 * s + 44), h = Math.round(64 * s + 40);
+        const o = { x: w / 2, y: h / 2, s, grad: 'mittel', geist: 0.22, kern: 1.6, hof: ic * 1.15, ringR: ic * 0.82 };
+        const pts = wagenPunkte(o);
+        let icons = '';
+        for (let k = 1; k <= 6; k++) {
+          const [x, y] = pts[k], sc = ic / 24;
+          icons += `<g class="lz-ico" data-k="${k}" transform="translate(${f1(x - ic / 2)} ${f1(y - ic / 2)}) scale(${sc.toFixed(3)})"><circle class="lz-disc" cx="12" cy="12" r="14"/>${ICON[WELTEN[k - 1].id]}</g>`;
+        }
+        // oberster Stern ist der Polarstern (P[0], 32 Einheiten über der Mitte des Wagens), dazu sein Kern
+        return leisteBild(ctx, wagenSVG(w, h, o, icons), true, h / 2 - 32 * s - 3);
+      },
+      nach(bs) {
+        lichtSetzen(bs);
+        const icons = [...bs.querySelectorAll('.lz-ico')];
+        return {
+          setze(v) {
+            for (const g of icons) {
+              const k = +g.dataset.k, b = v.b[k], r = v.ring[k];
+              g.style.opacity = cl(0.3 + 0.7 * Math.min(b, 1) + 0.6 * r + 0.3 * Math.max(0, b - 1), 0, 1).toFixed(3);
+              g.style.filter = b > 0.5 || r > 0.5 ? `drop-shadow(0 0 ${f1(3 + 4 * Math.max(r, Math.min(b, 1.8)))}px rgba(255,255,255,.75))` : 'none';
+            }
+          },
+        };
+      },
+    },
+  ];
+
+  const BEREICHE = {
+    menue: { name: 'Menü', varianten: MENUE, himmel: () => 'nacht' },
+    ueb: { name: 'Übersicht', varianten: UEB, himmel: () => 'nacht' },
+    leiste: { name: 'Leiste', varianten: LEISTE, himmel: (S) => S.himmel },
+  };
+
+  /* ---------- Bildschirme zeichnen und abspielen ---------- */
+
+  const lokal = {};
+  function kontext(bereich, stand, fmt, v) {
+    const S = STAENDE[stand], F = FMT[fmt], zust = {};
+    if (bereich === 'menue') for (const g of GRADE) zust[g.id] = zustand(S.menue[g.id]);
+    else zust.mittel = zustand(bereich === 'ueb' ? S.ueb : S.leiste);
+    const grade = GRADE.map((g) => {
+      const z = zust[g.id] ?? zustand();
+      return { ...g, ...z, zuletzt: S.zuletzt === g.id, hervor: S.hervor === g.id, weiter: S.zuletzt === g.id && z.art === 'begonnen' };
+    });
+    const key = `${bereich}-${v.id}-${fmt}-${stand}`;
+    return { bereich, stand, S, fmt, W: F.w, H: F.h, zust, grade, lokal: (lokal[key] ??= {}), moment: momentArt(bereich, stand) };
+  }
+  /** Ein Bildschirm: bs (Element in echter Grösse), v (Variante), ctx. */
+  function zeichne(fr, ctx) {
+    fr.ctx = ctx;
+    const bs = fr.bs, B = BEREICHE[ctx.bereich];
+    bs.className = `bs fmt-${ctx.fmt} b-${ctx.bereich}`;
+    bs.style.width = `${ctx.W}px`; bs.style.height = `${ctx.H}px`;
+    bs.style.backgroundImage = `url(${himmelURL(B.himmel(ctx.S), ctx.W, ctx.H)})`;
+    bs.innerHTML = (ctx.bereich === 'leiste' ? '' : '<div class="schleier"></div>') + fr.v.bild(ctx);
+    fr.hook = fr.v.nach?.(bs, ctx, () => zeichne(fr, ctx)) ?? {};
+    fr.wagen = [...bs.querySelectorAll('.wg')];
+    if (fr.t !== undefined && fr.t !== Infinity) spiele(fr, fr.t); else ruhe(fr);
+  }
+  const zVon = (ctx, id) => ctx.zust[id] ?? zustand();
+  function ruhe(fr) {
+    fr.t = Infinity;
+    for (const g of fr.wagen) setzeWagen(g, visVon(zVon(fr.ctx, g.dataset.grad)));
+    fr.hook.setze?.(visVon(fr.ctx.zust.mittel), Infinity);
+  }
+  function spiele(fr, t) {
+    fr.t = t;
+    const ctx = fr.ctx, art = ctx.moment, vm = visMoment(art, t, ctx.zust.mittel);
+    for (const g of fr.wagen) {
+      const id = g.dataset.grad;
+      if (id === 'mittel') setzeWagen(g, vm);
+      else if (art === 'andeutung' && id) setzeWagen(g, visMoment(art, t, zVon(ctx, id)));
+      else setzeWagen(g, visVon(zVon(ctx, id)));
+    }
+    fr.hook.setze?.(vm, t);
+  }
+
+  /* ---------- Seite ---------- */
+
+  const q = new URLSearchParams(location.search);
+  const lage = {
+    bereich: BEREICHE[q.get('bereich')] ? q.get('bereich') : 'menue',
+    stand: STAENDE[q.get('stand')] ? q.get('stand') : 'wueste',
+    format: FMT[q.get('format')] ? q.get('format') : innerWidth < 700 ? 'hoch' : 'desktop',
+  };
+  const tFest = q.has('t') ? Math.max(0, +q.get('t') || 0) : undefined;
+  const raster = document.getElementById('raster');
+  let rahmen = [], gross = null, grossI = -1;
+
+  function passe(fr) {
+    const r = fr.huelle, k = r.clientWidth / FMT[lage.format].w;
+    if (k > 0) fr.bs.style.transform = `scale(${k})`;
+  }
+  const beobachter = new ResizeObserver((eintraege) => { for (const e of eintraege) { const fr = rahmen.find((x) => x.huelle === e.target); if (fr) passe(fr); } });
+
+  function aufbauen() {
+    const B = BEREICHE[lage.bereich], F = FMT[lage.format];
+    document.documentElement.style.setProperty('--ar', `${F.w} / ${F.h}`);
+    document.documentElement.style.setProperty('--karte', F.karte);
+    for (const fr of rahmen) beobachter.unobserve(fr.huelle);
+    raster.replaceChildren();
+    rahmen = B.varianten.map((v, i) => {
+      const el = document.createElement('article');
+      el.className = 'karte';
+      el.innerHTML = `<button class="rahmen" aria-label="${B.name}, Variante ${v.id}: ${esc(v.name)}. Gross ansehen"><div class="bs" aria-hidden="true"></div></button>`
+        + `<h3><span class="k">${v.id}</span>${esc(v.name)}</h3><p>${esc(v.idee)}</p><p class="bezug"><b>Vorbild:</b> ${esc(v.bezug)}</p>${v.abweichung ? `<p class="achtung abweichung"><b>Abweichung von der Spec:</b> ${esc(v.abweichung)}</p>` : ''}<p class="achtung"><b>Achtung:</b> ${esc(v.achtung)}</p>`;
+      raster.append(el);
+      const fr = { v, huelle: el.querySelector('.rahmen'), bs: el.querySelector('.bs') };
+      fr.huelle.addEventListener('click', () => oeffne(i));
+      zeichne(fr, kontext(lage.bereich, lage.stand, lage.format, v));
+      beobachter.observe(fr.huelle);
+      passe(fr);
+      return fr;
+    });
+    for (const b of document.querySelectorAll('[data-bereich]')) b.setAttribute('aria-pressed', String(b.dataset.bereich === lage.bereich));
+    for (const b of document.querySelectorAll('[data-stand]')) b.setAttribute('aria-pressed', String(b.dataset.stand === lage.stand));
+    for (const b of document.querySelectorAll('[data-format]')) b.setAttribute('aria-pressed', String(b.dataset.format === lage.format));
+    document.getElementById('moment-text').innerHTML = MOMENT[momentArt(lage.bereich, lage.stand)].text;
+    document.getElementById('stand-text').textContent = `${B.name} · ${STAENDE[lage.stand].name} · ${F.name}: ${STAENDE[lage.stand]['text_' + lage.bereich]}`;
+    if (grossI >= 0) zeigeGross();
+    try { history.replaceState(null, '', `?bereich=${lage.bereich}&stand=${lage.stand}&format=${lage.format}`); } catch { /* Datei ohne Verlauf */ }
+  }
+
+  /* Moment abspielen: alle sichtbaren Bildschirme gleichzeitig */
+  let start = null, laeuft = false;
+  function abspielen() {
+    start = performance.now();
+    if (!laeuft) { laeuft = true; requestAnimationFrame(schritt); }
+  }
+  function schritt(now) {
+    const art = momentArt(lage.bereich, lage.stand), dauer = MOMENT[art].dauer, t = (now - start) / 1000;
+    const alle = gross ? [gross] : rahmen;
+    if (t > dauer) { for (const fr of alle) ruhe(fr); laeuft = false; return; }
+    for (const fr of alle) spiele(fr, t);
+    requestAnimationFrame(schritt);
+  }
+
+  /* Grossbild */
+  const grossEl = document.getElementById('gross'), buehne = document.getElementById('gross-buehne');
+  function zeigeGross() {
+    const B = BEREICHE[lage.bereich], v = B.varianten[grossI], F = FMT[lage.format];
+    buehne.replaceChildren();
+    const bs = document.createElement('div');
+    buehne.append(bs);
+    gross = { v, bs };
+    document.getElementById('g-name').textContent = `${B.name} ${v.id} · ${v.name}`;
+    document.getElementById('g-stand').textContent = { neu: 'Stand: neu', wueste: 'Stand: Wüste', geschafft: 'Stand: geschafft' }[lage.stand];
+    document.getElementById('g-format').textContent = { desktop: 'Desktop', hoch: 'Hoch', quer: 'Quer' }[lage.format];
+    zeichne(gross, kontext(lage.bereich, lage.stand, lage.format, v));
+    passeGross();
+  }
+  function passeGross() {
+    if (!gross) return;
+    const F = FMT[lage.format], bw = buehne.clientWidth, bh = buehne.clientHeight, k = Math.min(bw / F.w, bh / F.h);
+    gross.bs.style.transform = `translate(${f1((bw - F.w * k) / 2)}px, ${f1((bh - F.h * k) / 2)}px) scale(${k})`;
+  }
+  function oeffne(i) {
+    const n = BEREICHE[lage.bereich].varianten.length;
+    grossI = (i + n) % n;
+    grossEl.hidden = false;
+    document.body.style.overflow = 'hidden';
+    zeigeGross();
+    document.getElementById('g-weiter').focus({ preventScroll: true });
+  }
+  function schliesse() {
+    if (grossI < 0) return;
+    const war = grossI;
+    grossI = -1; gross = null; grossEl.hidden = true; buehne.replaceChildren();
+    document.body.style.overflow = '';
+    rahmen[war]?.huelle.focus({ preventScroll: true });
+  }
+  const zyklisch = (liste, jetzt, d = 1) => liste[(liste.indexOf(jetzt) + d + liste.length) % liste.length];
+  document.getElementById('g-zurueck').addEventListener('click', () => oeffne(grossI - 1));
+  document.getElementById('g-weiter').addEventListener('click', () => oeffne(grossI + 1));
+  document.getElementById('g-zu').addEventListener('click', schliesse);
+  document.getElementById('g-moment').addEventListener('click', abspielen);
+  document.getElementById('g-stand').addEventListener('click', () => setze({ stand: zyklisch(Object.keys(STAENDE), lage.stand) }));
+  document.getElementById('g-format').addEventListener('click', () => setze({ format: zyklisch(Object.keys(FMT), lage.format) }));
+  addEventListener('resize', passeGross);
+  new ResizeObserver(passeGross).observe(buehne);
+
+  function setze(neu) {
+    if (neu.bereich && neu.bereich !== lage.bereich && grossI >= 0) grossI = 0;
+    Object.assign(lage, neu);
+    if (grossI >= 0) grossI = Math.min(grossI, BEREICHE[lage.bereich].varianten.length - 1);
+    aufbauen();
+  }
+  for (const b of document.querySelectorAll('[data-bereich]')) b.addEventListener('click', () => setze({ bereich: b.dataset.bereich }));
+  for (const b of document.querySelectorAll('[data-stand]')) b.addEventListener('click', () => setze({ stand: b.dataset.stand }));
+  for (const b of document.querySelectorAll('[data-format]')) b.addEventListener('click', () => setze({ format: b.dataset.format }));
+  document.getElementById('abspielen').addEventListener('click', abspielen);
+
+  addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    if (grossI >= 0) {
+      if (e.key === 'ArrowLeft') { oeffne(grossI - 1); e.preventDefault(); return; }
+      if (e.key === 'ArrowRight') { oeffne(grossI + 1); e.preventDefault(); return; }
+      if (e.key === 'Escape') { schliesse(); e.preventDefault(); return; }
+    }
+    const map = { m: { bereich: 'menue' }, u: { bereich: 'ueb' }, l: { bereich: 'leiste' }, 1: { stand: 'neu' }, 2: { stand: 'wueste' }, 3: { stand: 'geschafft' }, d: { format: 'desktop' }, h: { format: 'hoch' }, q: { format: 'quer' } };
+    if (map[k]) { setze(map[k]); e.preventDefault(); return; }
+    if (k === 'p') { abspielen(); e.preventDefault(); }
+  });
+
+  /* Legende: der Wagen mit den Welten an seinen Sternen */
+  function legende() {
+    const el = document.getElementById('legende'), W = 380, H = 230, o = { x: 186, y: 118, s: 2.15, grad: 'mittel', geist: 0 };
+    const pts = wagenPunkte(o);
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">${wagenG(o)}</svg>`;
+    setzeWagen(el.querySelector('.wg'), visVon(zustand({ art: 'geschafft' })));
+    const namen = ['', 'Bergwald', 'Meer', 'Wüste', 'Vulkan', 'Planeten', 'Sterne', 'Polarstern'];
+    for (let k = 1; k <= 7; k++) {
+      const d = RICHTUNG[k], n = Math.hypot(d[0], d[1]), x = (pts[k][0] + d[0] / n * 14) / W * 100, y = (pts[k][1] + d[1] / n * 14) / H * 100;
+      const [tx, ty] = Math.abs(d[0]) > Math.abs(d[1]) ? [d[0] > 0 ? 0 : -100, -50] : [-50, d[1] > 0 ? 0 : -100];
+      const div = document.createElement('div');
+      div.className = 'lg-name';
+      div.style.cssText = `left:${x}%;top:${y}%;transform:translate(${tx}%,${ty}%)`;
+      div.innerHTML = `<b>${k}</b><span>${namen[k]}</span>`;
+      el.append(div);
+    }
+  }
+
+  /* ---------- Modi für Aufnahmen ---------- */
+
+  function nurModus() {
+    document.body.classList.add('nur');
+    const B = BEREICHE[lage.bereich], v = B.varianten.find((x) => x.id === (q.get('v') || 'A').toUpperCase()) ?? B.varianten[0];
+    const hold = document.createElement('div'); hold.id = 'einzel';
+    const F = FMT[lage.format]; hold.style.width = `${F.w}px`; hold.style.height = `${F.h}px`;
+    const bs = document.createElement('div'); hold.append(bs); document.body.append(hold);
+    const fr = { v, bs, t: tFest };
+    zeichne(fr, kontext(lage.bereich, lage.stand, lage.format, v));
+    window.__katalog = { fertig: true };
+  }
+  function blattModus() {
+    document.body.classList.add('blatt');
+    const B = BEREICHE[lage.bereich], F = FMT[lage.format], k = +(q.get('k') || { desktop: 0.5, hoch: 1, quer: 0.75 }[lage.format]);
+    const blatt = document.createElement('div'); blatt.id = 'blatt'; document.body.append(blatt);
+    for (const v of B.varianten) {
+      const box = document.createElement('div'); box.className = 'bk';
+      box.innerHTML = `<h3><span>${v.id}</span>${esc(v.name)}</h3><div class="rahmen" style="width:${F.w * k}px;aspect-ratio:${F.w} / ${F.h}"><div class="bs"></div></div>`;
+      blatt.append(box);
+      const fr = { v, bs: box.querySelector('.bs'), t: tFest };
+      zeichne(fr, kontext(lage.bereich, lage.stand, lage.format, v));
+      fr.bs.style.transform = `scale(${k})`;
+    }
+    window.__katalog = { fertig: true };
+  }
+
+  const los = () => {
+    if (q.has('nur')) return nurModus();
+    if (q.has('blatt')) return blattModus();
+    legende();
+    aufbauen();
+    if (q.has('v')) { const i = BEREICHE[lage.bereich].varianten.findIndex((x) => x.id === q.get('v').toUpperCase()); if (i >= 0) oeffne(i); }
+    window.__katalog = { fertig: true };
+  };
+  (document.fonts?.load('300 16px Jost') ?? Promise.resolve()).catch(() => {}).finally(los);
+})();
+</script>
+</body>
+</html>

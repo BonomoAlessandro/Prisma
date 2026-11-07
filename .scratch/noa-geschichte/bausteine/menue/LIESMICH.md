@@ -1,5 +1,10 @@
 # Menü der Geschichte (Baustein für Ticket 05)
 
+> **Überholt (05.11.2026, Ticket 08 von `.scratch/kleiner-wagen/`):** Das Menü im Spiel ist jetzt die «Sternkarte mit
+> Reitern» (Variante F des Skizzenkatalogs `.scratch/kleiner-wagen/katalog/katalog.html`), mit dem Kleinen Wagen je Grad
+> und neuer Schnittstelle (`wagen`, Feld `wach` je Grad). Massgebend ist `createMenu` in `index.html`; dieser Baustein
+> zeigt den früheren Stand «Lichtwege» und wird nicht mehr nachgeführt.
+
 Variante 3 «Lichtwege zum Polarstern», vorgebaut für `index.html`: je Grad ein Lichtweg von Noas Lampe zum Polarstern,
 hell so weit, wie das Licht im Grad gekommen ist, die sechs Welten als Punkte darauf. Vanilla-JS ohne Bibliotheken,
 einziger globaler Name `createMenu`; alle Klassen beginnen mit `menue-`, die IDs im SVG mit `menue-<n>-`.
