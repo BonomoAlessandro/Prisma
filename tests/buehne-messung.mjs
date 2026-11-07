@@ -10,9 +10,13 @@
 //   nach tests/output/buehne/messung-<name>.json. Desktop 1920 × 953, --handy 393 × 873 mit Pixeldichte 2,75 und
 //   Touch (wie das Poco F4 GT); --drossel: CPU-Drosselung (Emulation.setCPUThrottlingRate).
 //   bilder: an jedem Ruhepunkt von Prolog und Epilog ein Bild, eingefroren auf dieselbe Zeit (Rauch, Glühwürmchen,
-//   Funkeln), in Desktop, Handy hoch und quer und kleinem Handy, nach tests/output/buehne/<ordner>/; mit --nur nur
-//   diese Ansichten, dazu handy-275 und quer-275 (Pixeldichte 2,75 wie das Poco, Massstab der Seite). Dazu in Prolog 4
-//   die Andeutung der Linien des Kleinen Wagens mitten in der Fahrt (prolog-4-andeutung; Ticket 07 des Wagens).
+//   Funkeln), in Desktop, Handy hoch und quer und zwei kleinen Handys (360 × 640, 320 × 568), nach
+//   tests/output/buehne/<ordner>/; mit --nur nur diese Ansichten, dazu handy-275 und quer-275 (Pixeldichte 2,75 wie das
+//   Poco, Massstab der Seite). Dazu in Prolog 4 die Andeutung der Linien des Kleinen Wagens mitten in der Fahrt
+//   (prolog-4-andeutung; Ticket 07 des Wagens), in Epilog 3 der Strahl, wenn er am hellsten ist (epilog-3-strahl), und
+//   in Prolog 4 und Epilog 3 der Winkel, in dem Noa zum Polarstern leuchtet: gleich in beiden, der Arm auf dem
+//   Polarstern, er im Bild, in Epilog 3 auch die Lampe (Abnahme Ticket 13, pruefeWinkel; Werte nach
+//   <ordner>/winkel.json, sonst scheitert der Lauf).
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
@@ -235,10 +239,13 @@ async function bilder() {
     { name: 'handy', width: 390, height: 844, dpr: 2, phone: true },
     { name: 'quer', width: 844, height: 390, dpr: 2, phone: true },
     { name: 'handy-360x640', width: 360, height: 640, dpr: 2, phone: true },
+    { name: 'handy-320x568', width: 320, height: 568, dpr: 2, phone: true },
     // nur mit --nur: Pixeldichte 2,75 wie das Poco F4 GT, mit dem Massstab der Seite (Ticket 18 von .scratch/leistung/)
     { name: 'handy-275', width: 393, height: 873, dpr: 2.75, phone: true, extra: true },
     { name: 'quer-275', width: 873, height: 393, dpr: 2.75, phone: true, mobile: true, extra: true }];
+  const winkel = {};
   for (const view of VIEWS.filter((v) => (wert('--nur') ? wert('--nur').split(',').includes(v.name) : !v.extra))) {
+    winkel[view.name] = {};
     for (const epilog of [false, true]) {
       const c = await oeffne(view);
       try {
@@ -250,6 +257,13 @@ async function bilder() {
           const file = join(dir, `${view.name}-${epilog ? 'epilog' : 'prolog'}-${n}.png`);
           writeFileSync(file, Buffer.from((await c.send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
           console.log(`  Bild ${file}`);
+          // Noa leuchtet zum Polarstern: Prolog 4 (reach) und Epilog 3 (answer), im selben Winkel (Abnahme Ticket 13)
+          if (n === (epilog ? 3 : 4)) {
+            const act = epilog ? 'answer' : 'reach', w = winkel[view.name][act] = await c.ev(armMessen(act));
+            console.log(`  ${epilog ? 'Epilog 3' : 'Prolog 4'}: Noa leuchtet ${(-w.soll).toFixed(1)}° über der Waagrechten, `
+              + `Arm ${(-w.arm).toFixed(1)}°, am Polarstern vorbei ${w.vorbei.toFixed(1)} px, Lampe bei `
+              + `${w.noa.map((x) => x.toFixed(2)).join(' / ')}, Polarstern bei ${w.stern.map((x) => x.toFixed(2)).join(' / ')}`);
+          }
           await c.ev(auftauen);
           if (!(await c.ev(wartetTippen))) break;
           await c.tippe('#story .scene .lines');
@@ -264,12 +278,75 @@ async function bilder() {
             console.log(`  Bild ${file}`);
             await c.ev(auftauen);
           }
+          // Epilog 3: Noa blinkt zurück, der Strahl am hellsten (Abnahme Ticket 13: er zeigt zum Polarstern). Mit dem
+          // Tippen beginnen Fahrt (3 s) und act answer; das dritte Blinken ist 4 s danach am hellsten (scene.act; der
+          // Tween beamPower rechnet nur an Beginn und Ende, darum nach der Zeit der Bühne)
+          if (epilog && n === 2) {
+            await c.ev(`(() => { const sc = ${D}.story.scene, t0 = sc.time;
+              return new Promise((r) => { const f = () => (sc.time >= t0 + 4 ? r(true) : requestAnimationFrame(f)); f(); }); })()`);
+            await c.ev(einfrieren);
+            const file = join(dir, `${view.name}-epilog-3-strahl.png`);
+            writeFileSync(file, Buffer.from((await c.send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
+            console.log(`  Bild ${file}`);
+            await c.ev(auftauen);
+          }
         }
         const fehler = c.logs.filter((l) => /error|exception/i.test(l));
         if (fehler.length) console.log('  Konsole:', fehler.join('\n'));
       } finally { await c.close(); }
     }
   }
+  writeFileSync(join(dir, 'winkel.json'), JSON.stringify(winkel, null, 1));
+  pruefeWinkel(winkel);
+}
+
+/**
+ * Noas Arm in der Einstellung act (Prolog 4 reach, Epilog 3 answer; zu messen, wenn sie steht): arm (scene.arm) und
+ * soll, die Richtung im Bild vom Drehpunkt des Arms (440, 592 in der Ebene von Noa, p = 1) zum Polarstern
+ * (scene.starAt), in Grad (y nach unten, hinauf also negativ), unabhängig vom Spiel gerechnet wie in der
+ * Geschichte-Probe (pruefeArm). vorbei: so weit (CSS-Pixel) liefe der Strahl mit dem Winkel des Arms am Polarstern
+ * vorbei; noa, stern: Drehpunkt (Lampe) und Polarstern im Bild (Anteile von oben links). Gerechnet mit der Kamera, die
+ * die Bühne in der Einstellung zeigt (folgeZeit.kameras), nicht mit scene.ziel (Review Ticket 13).
+ */
+const armMessen = (act) => `(() => { const sc = ${D}.story.scene, i = sc.folge.findIndex((s) => s.act === '${act}');
+  const c = sc.folgeZeit.kameras[i], W = innerWidth, H = innerHeight; // die Kamera, die die Bühne dort zeigt (kameraBei)
+  const k = c.z * Math.min(1, 900 * W / H / 820) * Math.max(W / 1600, H / 900); // skala bei p = 1
+  const [fx, fy] = sc.starAt(c), nx = W / 2 + (440 - c.x) * k, ny = H / 2 + (592 - c.y) * k;
+  const dx = fx * W - nx, dy = fy * H - ny, soll = Math.atan2(dy, dx) * 180 / Math.PI;
+  return { arm: sc.arm, soll, vorbei: Math.hypot(dx, dy) * Math.sin(Math.abs(sc.arm - soll) * Math.PI / 180),
+    noa: [nx / W, ny / H], stern: [fx, fy] }; })()`;
+/**
+ * Toleranz (Grad) für «im selben Winkel» und für den Arm zum Polarstern (wie pruefeArm der Geschichte-Probe): Das
+ * Spiel rechnet die Kamera von Epilog 3 so, dass beide Winkel gleich sind (scene.winkelKamera, Abnahme Ticket 13), es
+ * bleibt nur die Rundung. 0,5° sieht man nicht (auf 300 px Strahl 2,6 px seitlich, weniger als der Hof des
+ * Polarsterns), jede echte Abweichung (etwa ein Wagen, der in Prolog und Epilog anders liegt, oder eine feste Kamera
+ * statt der gerechneten: vorher 7–18°) fällt auf.
+ */
+const WINKEL_TOLERANZ = 0.5;
+/** Winkel je Format: Prolog 4 und Epilog 3 gleich, der Arm zeigt auf den Polarstern, der im Bild steht. */
+function pruefeWinkel(winkel) {
+  const fehler = [];
+  console.log('\nNoa leuchtet (Grad über der Waagrechten): Prolog 4 | Epilog 3 | Unterschied');
+  for (const [name, { reach, answer }] of Object.entries(winkel)) {
+    if (!reach || !answer) { fehler.push(`${name}: Winkel nicht gemessen`); continue; }
+    const d = answer.soll - reach.soll;
+    console.log(`  ${name.padEnd(16)} ${(-reach.soll).toFixed(1).padStart(6)} | ${(-answer.soll).toFixed(1).padStart(6)} | `
+      + `${(-d).toFixed(2)}`);
+    if (Math.abs(d) > WINKEL_TOLERANZ) fehler.push(`${name}: Epilog 3 ${(-answer.soll).toFixed(1)}° statt `
+      + `${(-reach.soll).toFixed(1)}° wie Prolog 4`);
+    for (const [was, w] of [['Prolog 4', reach], ['Epilog 3', answer]]) {
+      if (Math.abs(w.arm - w.soll) > WINKEL_TOLERANZ) fehler.push(`${name}, ${was}: Arm zeigt nicht zum Polarstern `
+        + `(${(-w.arm).toFixed(1)}° statt ${(-w.soll).toFixed(1)}°)`);
+      if (!w.stern.every((x) => x > 0 && x < 1)) fehler.push(`${name}, ${was}: Polarstern nicht im Bild`);
+      // Noa mit der Lampe im Bild: in Epilog 3 (in Prolog 4 schaut die Kamera hinauf, hoch und quer liegt die Lampe
+      // knapp am Rand des Bilds, so seit Ticket 11)
+      if (w === answer && !(w.noa[0] >= 0 && w.noa[0] <= 1 && w.noa[1] > 0 && w.noa[1] < 1)) {
+        fehler.push(`${name}, ${was}: Noas Lampe nicht im Bild`);
+      }
+    }
+  }
+  for (const f of fehler) console.log(`FEHLER ${f}`);
+  if (fehler.length) process.exitCode = 1;
 }
 
 /* ---- PNG lesen und schreiben (ohne Pakete): Vergleich vorher/nachher ---- */

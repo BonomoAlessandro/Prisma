@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Blocked by:** 09, 11 und die Abnahme durch den Nutzer
+**Blocked by:** 09, 11, 12 und die Abnahme durch den Nutzer (erfolgt 07.11.; Ticket 13 läuft parallel)
 
 **Status:** ready-for-agent
 
@@ -22,3 +22,9 @@ gilt (Entscheid 25). Erst danach wird auf Wort des Nutzers nach main gemergt.
 - [ ] Danach: Merge nach main nur auf Wort des Nutzers, Push nur auf Auftrag.
 
 ## Comments
+
+**07.11.2026, Abnahme durch den Nutzer** (Koordinator): Nach Runde 3 (Stand 524432d auf dem Poco) «ich finde alles
+super»; offen nur Ticket 13 (Winkel im Epilog). Grösse und Helligkeit des Wagens: «ich finde sie gut wie sie sind»,
+also die Werte von 524432d fest übernehmen (am Himmel und auf der Bühne: Desktop 18 %, quer 11 % der Breite; die
+übrigen aktuellen Standardwerte im Code). Ebenfalls bestätigt: Halt bis zum Tippen auch bei der Reise; Strahlen am Ende
+der Welten 1–5 bleiben wie sie sind.

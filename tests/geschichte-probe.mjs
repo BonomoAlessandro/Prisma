@@ -21,7 +21,8 @@
 // Licht bei jeder Ankunft in einer Welt über dem Untertitel an und wartet auf Tippen: Die Probe prüft den Halt bei den
 // Einstiegen und Reisen ihrer Abläufe (halt) und tippt sonst beim Warten darauf wie ein Spieler (until); dazu der
 // gleichmässige Fall danach (pruefeFall), der Stand des Sterns nach dem Erwachen (pruefeErwachen), die Antwort des
-// Polarsterns ohne Schwenk, der Wagen rechts der Mitte (pruefeFinale) und Noas Arm zum Polarstern (pruefeArm). Seit
+// Polarsterns ohne Schwenk, der Wagen rechts der Mitte (pruefeFinale) und Noas Arm zum Polarstern (pruefeArm; seit
+// Ticket 13 in Epilog 3 im selben Winkel wie in Prolog 4). Seit
 // Ticket 12: der Fall gleichmässig im Bild und die Kamera ruhig (pruefeFallImBild, Schnelltest --fall), die Strahlen
 // im Finale laufen aus und der Aufprall der Antwort ist weich (pruefeFinale), kein Text der Bühne rückt, solange er zu
 // sehen ist (pruefeTexteRuhig), und am Ende einer Welt beginnt nichts vor «Weiter» (pruefeWartetAufWeiter).
@@ -590,17 +591,27 @@ async function pruefeSatz(sel, soll, was) {
  * Noas Arm mit der Lampe zeigt zum Polarstern der Bühne (Abnahme Ticket 11), so wie man beide in der Einstellung mit
  * act sieht (Prolog 4 reach, Epilog 3 answer): der Winkel des Arms (scene.arm, Grad) gegen die Richtung im Bild vom
  * Drehpunkt des Arms (440, 592 in der Ebene von Noa, p = 1) zum Polarstern (scene.starAt); dazu, wie steil Noa
- * hinauf leuchtet (Grad über der Waagrechten). Nach der Einstellung zu prüfen (die Bühne steht noch).
+ * hinauf leuchtet (Grad über der Waagrechten). Seit Ticket 13 (Abnahme): In Epilog 3 im selben Winkel wie in Prolog 4,
+ * mit derselben Rechnung für die Kamera von Prolog 4 (STORY_PROLOG) gegen den Wagen, wie er jetzt liegt; Toleranz wie
+ * für den Arm 0,5° (begründet bei WINKEL_TOLERANZ in tests/buehne-messung.mjs). Nach der Einstellung zu prüfen (die
+ * Bühne steht noch).
  */
 async function pruefeArm(act, was) {
-  const r = await ev(`(() => { const sc = ${D}.story.scene, c = sc.ziel(sc.folge.find((s) => s.act === '${act}'))[0];
-    const W = innerWidth, H = innerHeight;
-    const k = (1 + (c.z - 1)) * Math.min(1, 900 * W / H / 820) * Math.max(W / 1600, H / 900); // skala bei p = 1
-    const [fx, fy] = sc.starAt(c), dx = fx * W - (W / 2 + (440 - c.x) * k), dy = fy * H - (H / 2 + (592 - c.y) * k);
-    return { arm: sc.arm, soll: Math.atan2(dy, dx) * 180 / Math.PI }; })()`);
-  console.log(`  ${was}: Noa leuchtet ${(-r.soll).toFixed(1)}° über der Waagrechten, Arm ${(-r.arm).toFixed(1)}°`);
+  const r = await ev(`(() => { const sc = ${D}.story.scene, W = innerWidth, H = innerHeight;
+    const richtung = (shot) => { const c = sc.ziel(shot)[0];
+      const k = (1 + (c.z - 1)) * Math.min(1, 900 * W / H / 820) * Math.max(W / 1600, H / 900); // skala bei p = 1
+      const [fx, fy] = sc.starAt(c), dx = fx * W - (W / 2 + (440 - c.x) * k), dy = fy * H - (H / 2 + (592 - c.y) * k);
+      return Math.atan2(dy, dx) * 180 / Math.PI; };
+    return { arm: sc.arm, soll: richtung(sc.folge.find((s) => s.act === '${act}')),
+      prolog: richtung(STORY_PROLOG.find((s) => s.act === 'reach')) }; })()`);
+  console.log(`  ${was}: Noa leuchtet ${(-r.soll).toFixed(1)}° über der Waagrechten, Arm ${(-r.arm).toFixed(1)}°`
+    + (act === 'reach' ? '' : `, in Prolog 4 ${(-r.prolog).toFixed(1)}°`));
   pruefe(Math.abs(r.arm - r.soll) < 0.5, `${was}: Noas Arm zeigt nicht zum Polarstern (${r.arm.toFixed(1)}° statt `
     + `${r.soll.toFixed(1)}°)`);
+  if (act !== 'reach') {
+    pruefe(Math.abs(r.soll - r.prolog) < 0.5, `${was}: Noa leuchtet nicht im selben Winkel wie in Prolog 4 `
+      + `(${(-r.soll).toFixed(1)}° statt ${(-r.prolog).toFixed(1)}°)`);
+  }
 }
 /**
  * Texte der Bühne in jedem Bild aufzeichnen (Abnahme Ticket 12): je Zeile (.line), «Im Dorf» (.kicker) und Knöpfe

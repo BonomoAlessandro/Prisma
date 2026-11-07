@@ -18745,7 +18745,9 @@ const BUEHNENWAGEN = {
 /**
  * Prolog und Epilog: Einstellungen der Kamera über dem Dorf (Bühne siehe createStoryScene), je mit einem Satz.
  * cam: Bildmitte x, y und Zoom in der Ebene von Noa, im Hochformat camP (dort passt nur ein schmaler Streifen ins
- * Bild); from: Start der ersten Fahrt; move: Dauer der Fahrt (s); act: was dabei geschieht (siehe scene.act).
+ * Bild); from: Start der ersten Fahrt; move: Dauer der Fahrt (s); act: was dabei geschieht (siehe scene.act);
+ * winkelWie: Noa leuchtet hier im selben Winkel zum Polarstern wie in dieser Einstellung des Prologs, die Kamera fährt
+ * dafür waagrecht (x von cam bzw. camP gilt nur ohne Wagen; scene.winkelKamera, Abnahme Ticket 13).
  */
 const STORY_PROLOG = [
   { from: { x: 820, y: 160, z: 1.08 }, fromP: { x: 760, y: 120, z: 1.08 }, cam: { x: 800, y: 470, z: 1 },
@@ -18768,7 +18770,7 @@ const STORY_EPILOG = [
     text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.' },
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
     text: 'Da blinkt der Polarstern: einmal, zweimal, dreimal.' },
-  { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, move: 3, act: 'answer',
+  { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, winkelWie: 'reach', move: 3, act: 'answer',
     text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft mehr.' },
 ];
 
@@ -19832,15 +19834,14 @@ function createStoryScene(host, { wagenLage = null } = {}) {
   // in der Einstellung sieht, in der Noa zu ihm hinauf leuchtet (Prolog 4 reach, schon beim Heben in lamp; Epilog 3
   // answer), mit der Parallaxe von Himmel und Hügel (Abnahme Ticket 11; vorher wie bei Zoom 1, und der Strahl lief auf
   // dem Desktop links am Polarstern vorbei). Noa steht in der Ebene p = 1, ihr Arm dreht um (440, 592).
+  // In Epilog 3 im selben Winkel wie in Prolog 4 (Abnahme Ticket 13: dafür fährt die Kamera dort, scene.winkelKamera).
   const erhoben = (act) => {
     const shot = scene.folge?.find((s) => s.act === (act === 'lamp' ? 'reach' : act));
     if (!shot || !scene.wagenOrte) {
       const [x, y] = scene.wagenOrte?.[wagen.polarstern - 1] ?? [1120, 150];
       return Math.atan2(y + 20 - 592, x - 440) * 180 / Math.PI;
     }
-    const c = scene.ziel(shot)[0], W = innerWidth, H = innerHeight, s = scene.skala(c, 1);
-    const [fx, fy] = scene.wagenImBild(c)[wagen.polarstern - 1];
-    return Math.atan2(fy * H - (H / 2 + (592 - c.y) * s), fx * W - (W / 2 + (440 - c.x) * s)) * 180 / Math.PI;
+    return scene.winkel(scene.ziel(shot)[0]);
   };
   const [FLUG_ZU, FLUG_WALD] = [2.4, 3.6]; // s: Dauer der Flüge der Glühwürmchen zur Lampe und in den Wald
   const ABSCHNITT_MARGE = 1.15; // so viel mehr als nötig darf eine Ebene im Ruhepunkt gerastert sein (abschnitteFuer)
@@ -19947,12 +19948,53 @@ function createStoryScene(host, { wagenLage = null } = {}) {
      * Polarstern von früher. Zurück die Orte (wagenOrte), je Bildschirm neu (folgeAnlegen).
      */
     wagenLegen() {
-      const c = this.epilogStart(), p = layers[0].p, s = this.skala(c, p);
-      const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p, [px, py] = wagen.form[wagen.polarstern - 1];
-      this.wagenOrte = wagenLage
-        ? wagenLage().map(([fx, fy]) => [x + (fx - 0.5) * innerWidth / s, y + (fy - 0.5) * innerHeight / s])
+      const [px, py] = wagen.form[wagen.polarstern - 1];
+      this.wagenOrte = wagenLage ? this.orteAus(wagenLage())
         : wagen.form.map(([fx, fy]) => [1120 + 3 * (fx - px), 150 + 3 * (fy - py)]);
       return this.wagenOrte;
+    },
+    /** Orte im Himmel (Massen der Szene) zu Anteilen lage im ersten Bild des Epilogs (wagenLage). */
+    orteAus(lage) {
+      const c = this.epilogStart(), p = layers[0].p, s = this.skala(c, p);
+      const x = 800 + (c.x - 800) * p, y = 450 + (c.y - 450) * p;
+      return lage.map(([fx, fy]) => [x + (fx - 0.5) * innerWidth / s, y + (fy - 0.5) * innerHeight / s]);
+    },
+    /**
+     * Winkel (Grad im Bild, y nach unten: hinauf negativ), in dem Noa bei der Kamera c zum Polarstern leuchtet: vom
+     * Drehpunkt ihres Arms (440, 592 in ihrer Ebene, p = 1) zum Polarstern an seinem Ort in orte (Massen der Szene im
+     * Himmel), mit der Parallaxe von Himmel und Hügel (wie wagenImBild).
+     */
+    winkel(c, orte = this.wagenOrte ?? this.wagenLegen()) {
+      const p = layers[0].p, s0 = this.skala(c, p), s1 = this.skala(c, 1), [ox, oy] = orte[wagen.polarstern - 1];
+      const dx = (ox - 800 - (c.x - 800) * p) * s0 - (440 - c.x) * s1;
+      const dy = (oy - 450 - (c.y - 450) * p) * s0 - (592 - c.y) * s1;
+      return Math.atan2(dy, dx) * 180 / Math.PI;
+    },
+    /**
+     * Kamera c der Einstellung shot mit winkelWie (Epilog 3; Abnahme Ticket 13): Noa leuchtet darin im selben Winkel
+     * zum Polarstern wie in der Einstellung winkelWie des Prologs (Prolog 4), in jedem Format. Höhe und Zoom bleiben,
+     * waagrecht fährt die Kamera dorthin, wo der Polarstern in diesem Winkel über Noa steht (Noa zieht schneller durchs
+     * Bild als der ferne Himmel; der Abstand im Bild hängt linear an c.x). Der Wagen liegt, wo ihn das Finale am Ende
+     * zeigt (wagenLage), und das hängt über wagenFeld ein wenig auch an dieser Kamera: darum in ein paar Schritten;
+     * solange gerechnet wird, gibt ziel den letzten Schritt (wagenFeld fragt danach). Je Bildschirm einmal.
+     */
+    winkelKamera(shot, c) {
+      const key = `${innerWidth}×${innerHeight}×${camera.aspect}`, m = this._winkel;
+      if (m?.shot === shot && m.key === key) return m.c;
+      const w = this._winkel = { shot, key, c: { ...c } };
+      if (!wagenLage) return w.c;
+      const vorbild = STORY_PROLOG.find((s) => s.act === shot.winkelWie), p = layers[0].p;
+      for (let schritt = 0; schritt < 6; schritt++) {
+        const orte = this.orteAus(wagenLage()), soll = this.winkel(this.ziel(vorbild)[0], orte) * Math.PI / 180;
+        const s0 = this.skala(w.c, p), s1 = this.skala(w.c, 1), [ox, oy] = orte[wagen.polarstern - 1];
+        const dy = (oy - 450 - (w.c.y - 450) * p) * s0 - (592 - w.c.y) * s1;
+        // dx = (ox - 800 - (x - 800) p) s0 - (440 - x) s1 soll dy / tan(soll) sein, nach x aufgelöst
+        const x = (dy / Math.tan(soll) - (ox - 800 + 800 * p) * s0 + 440 * s1) / (s1 - p * s0);
+        const fertig = Math.abs(x - w.c.x) < 0.01;
+        w.c = { ...w.c, x };
+        if (fertig) break;
+      }
+      return w.c;
     },
     /**
      * Was der Wagen der Bühne zur Zeit t zeigt (BUEHNENWAGEN; glBuehne zeichnet es): hell und punkt (Durchmesser in
@@ -19972,10 +20014,11 @@ function createStoryScene(host, { wagenLage = null } = {}) {
       const W = innerWidth, H = innerHeight, fit = Math.min(1, 900 * W / H / 820);
       return (1 + (c.z - 1) * p) * fit * Math.max(W / 1600, H / 900);
     },
-    /** Ziel einer Einstellung (im Hochformat camP) und Dauer ihrer Fahrt (s). */
+    /** Ziel einer Einstellung (im Hochformat camP; mit winkelWie gerechnet, winkelKamera) und Dauer ihrer Fahrt (s). */
     ziel(shot) {
       const seconds = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : shot.move;
-      return [(this.portrait() && shot.camP) || shot.cam, seconds];
+      const c = (this.portrait() && shot.camP) || shot.cam;
+      return [shot.winkelWie ? this.winkelKamera(shot, c) : c, seconds];
     },
     /**
      * Die ganze Folge (Prolog oder Epilog) auf einer Uhr (folgeUhr, eine Animation ohne Ziel auf der Zeitachse des
