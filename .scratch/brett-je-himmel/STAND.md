@@ -1,6 +1,6 @@
 # Stand «Ein Brett je Himmel» – Übergabe
 
-Stand 06.11.2026 nachmittags, Branch `feature/brett-je-himmel` (gepusht). Diese Notiz ist für das Weiterarbeiten auf
+Stand 08.11.2026 morgens, Branch `feature/brett-je-himmel` (seit dem 06.11. nicht gepusht). Diese Notiz ist für das Weiterarbeiten auf
 einem anderen Rechner gedacht. Entscheide und Begründungen stehen in `spec.md` und in den Tickets unter `issues/`, je
 unter «Comments».
 
@@ -13,10 +13,16 @@ unter «Comments».
 | 03 | Katalog Strand, gewählt: Gezeitenbecken | b2083c4 |
 | 04 | **Gezeitenbecken** (Art `tidePool`) mit Lichtwelle **Brandung** am Strand | d02bac7, Merge ba55cb6 |
 | 06 | **Lehmterrasse** (Art `clay`) mit Lichtwelle **Sandverwehung** in der Wüste | 90d6b30, Merge 97c1da1 |
+| 08 | **Hochbeet** (Art `raisedBed`) mit Sämlingen und Glühwürmchen im Dorf | Merge 9c514ed |
+| 07 | **Moospolster** (Art `moss`) mit Lichtwelle Waldgott im Bergwald | Merge 62c99e6 |
+| 05 | **Übergang** für alle Arten an einer Stelle (`boardBlend`): das neue Brett wächst von der Mitte, undurchsichtig, umgelenkt ohne Sprung, Notfall wächst ein; Ziel der Fische beim Aufwärmen | Merge 1037af7 |
+| 09 | **Basaltsäulen** (Art `basalt`) mit Lichtwelle Version 2 im Vulkan, auf `boardBlend`; Hülle −2,9 m; `boardBlendN` nimmt die Kamera aus `viewMatrix` (Lambert hat kein `cameraPosition`) | Merge 2ae2be4 |
 
-Nach dem Merge von 06 liefen auf dem gemeinsamen Stand: Logik 2041, KI-Tester 84, Offline-Probe, Geschichte-Probe
-`--grad leicht --welten 3`, `brett-probe` mit allen Teilen (die wackelige Lücken-Prüfung «Brett laden und überblenden»
-dabei 79 ms, grün).
+Nach dem Merge von 09 (08.11.) lief der ganze Satz auf dem gemeinsamen Stand: alle Node-Tests (Logik 2044, Generator über
+`leise.sh`), Offline, `brett-probe` (100 ok, `formen` 30 Übergänge aller sechs Arten ohne leeres Pixel), Geschichte-Probe
+`--grad leicht --welten 5` Desktop und Handy, `--dorf`, `--uebersicht`, `--grenzen --handy` grün. Rot nur `--wagen`
+(«Wiederholen über die Grenze ins Meer» 150 ms) und `--grenzen` (Wüste → Vulkan 150 ms), beide im ersten Bild des
+neuen Panoramas (w ≈ 0,04), wie auf den Basen vor 05 und 09 (Streuung, siehe Reviews 05 und 09).
 
 ## Entscheide des Nutzers für die übrigen Bretter
 
@@ -34,10 +40,15 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 
 ## Als Nächstes
 
-1. **07 Moospolster und 08 Hochbeet** gleichzeitig, je in einem eigenen Worktree und Branch von `feature/brett-je-himmel`.
-2. **09 Basaltsäulen und 05 Übergang** zwischen verschieden geformten Brettern (für alle Bretter, siehe Ticket 05).
-3. **10 Schluss:** Schalter weg, ganze Geschichte auf Desktop und Handy-Ansicht, Messung über alle Welten, aktuelles
-   `main` holen, Test des Nutzers auf dem Poco, Merge nach `main` nur auf sein Go.
+1. **Manueller Test des Nutzers** (Wunsch vom 07.11.): Spiel mit `?bretter` öffnen; je Weltgrenze ein Knopf setzt den
+   Stand von «Leicht» aufs letzte Level der alten Welt, lädt neu und löst es, dann folgt die echte Reise. Die Leiste
+   (Commits 698ec03, 4e6c170) ist ungetestet und **fliegt raus, sobald der Nutzer das Go gibt** (mit `?brett=`).
+2. **Offene Fragen an den Nutzer:** Gefällt das Wachsen von der Mitte mit leuchtender Front (05)? Darf das Ziel der Fische
+   auf dem Desktop ohne MSAA auskommen (05, Lücke ohne Vorladen)? Ist die Probe `formen` an kleinen Bildern ohne
+   Referenzbilder in Ordnung (05)? Sind +1,7 ms GPU am Desktop für Basalt in Ordnung, und die matten Säulen (09)? Soll
+   die Lücken-Prüfung an Weltgrenzen lockerer werden oder das Laden der Panoramen besser (05/10)?
+3. **10 Schluss** erst nach dem Test: Schalter weg, ganze Geschichte auf Desktop und Handy-Ansicht, Messung über alle
+   Welten, aktuelles `main` holen, Test des Nutzers auf dem Poco, Merge nach `main` nur auf sein Go.
 
 ## Arbeitsweise (vom Nutzer so gewünscht)
 
@@ -83,14 +94,18 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   - Die Kosten der Lichtwellen auf einem echten Handy sind nicht gemessen.
   - Die Reise ans Meer ohne Vorladen auf dem Poco messen.
   - Die Texturdaten jedes Bretts bleiben im JS-Speicher, rund 12 MB je Brett.
-- **Ticket 05:**
-  - Beim Überblenden vom Steinbrett erscheinen eingezogene oder hängende Teile (Lehmwand, später Erdscholle,
-    hängende Säulen) erst im letzten Bild.
-  - Doppelter Code zum Zusammenziehen: das Überblenden in stone/tidePool/clay und `createClayTextures` neben
-    `createStoneTextures`.
-  - Wird ein Überblenden mittendrin umgelenkt, springt ein Teil des alten Bretts weg.
-  - Das Notfall-Steinbrett erscheint ohne Einblenden.
+- **Weltgrenzen:** Im ersten Bild eines neuen Panoramas (Strand, Vulkan) hält das Bild 100–150 ms an, mit jedem Brett
+  und schon auf den Basen; ohne Vorladen (Wiederholen über die Grenze) fällt das Anlegen des Ziels der Fische in die
+  Reise. Wege: Ziel ohne MSAA oder eines für die ganze Sitzung (Frage an den Nutzer).
+- **Basalt:** +1,7 ms GPU am Desktop in Ruhe (+2,2 ms in der Welle), vermutlich `discard` über die ganze Oberfläche
+  (kein früher Tiefentest für die Säulen darunter); Abhilfe: inneres Quadrat ohne `discard` plus Ring, oder kürzere
+  Säulen. Hauptthread-Bau 8,8 / 11,9 ms (Desktop / Handy gedrosselt).
+- **`brett-probe formen`** meldete zweimal in vielen Läufen 1 leeres Pixel (Hochbeet → Stein, Moos → Lehm, flach);
+  vermutlich ein Riss in der Rasterung an einer Naht, Ursache offen.
+- `--uebersicht`: Öffnen und Schliessen zeitweise über 100 ms, auf allen Ständen (im letzten Satz grün).
+- `--dorf`: «Übung 8 wiederholen» und «Prolog überspringen» zeitweise über 100 ms, schon auf den Basen.
 - **Ticket 10 (Aufräumen):**
+  - Die Test-Leiste `?bretter` muss weg.
   - Der Schalter `?brett=` muss weg.
   - Das Brett lässt sich über `__prismaDebug` umstellen; bedenken.
   - Gehören die Namen der Bretter ins Glossar? Danach den KI-Tester-Test laufen lassen.
