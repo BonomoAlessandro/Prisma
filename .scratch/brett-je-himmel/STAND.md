@@ -49,8 +49,9 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 ## Als Nächstes
 
 1. **Ticket 11 (Himmel unsichtbar vorzeichnen):** gebaut, nicht gelockert. Die Lücke an den Weltgrenzen kam vom
-   Freigeben des alten Panoramas, nicht vom neuen (Messung und Spur im Ticket). Als Nächstes Review, dann Merge in
-   `feature/brett-je-himmel`.
+   Freigeben des alten Panoramas, nicht vom neuen (Messung und Spur im Ticket). Reviewt (08.11. abends): Auflage
+   «Naht an der Kante der Streifen» (nach der Wüste eine Linie gut 10° über dem Horizont am Desktop, Vorschlag im
+   Ticket), sonst ohne Befund. Danach Merge in `feature/brett-je-himmel`.
 1. **Poco-Test des Nutzers** (Ticket 10 und 11): Stand mit Ticket 11 auf dem Poco F4 GT, Version
    `2026-11-08 himmel-vorzeichnen` (Taste F bzw. Leistungsanzeige). Was er ansieht, steht im Ticket 10 unter «Comments»;
    dazu die Weltgrenzen ins Meer und in den Vulkan, auch ohne Vorladen (Bergwald 10 wiederholen, dann «Weiter»), und das

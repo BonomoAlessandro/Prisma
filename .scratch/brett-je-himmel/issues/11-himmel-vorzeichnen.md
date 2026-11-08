@@ -4,7 +4,7 @@
 
 **Blocked by:** 10
 
-**Status:** ready-for-human (Review, dann Merge mit Ticket 10)
+**Status:** ready-for-agent (Auflage aus dem Review: Naht an der Kante der Streifen, dann Merge mit Ticket 10)
 
 **What to build:** Im ersten Bild, in dem ein neuer Blender-Himmel einblendet, dauerte ein Bild 100–175 ms
 (`skyTheme.set` mit `fadeTime` 2,4 s an Weltgrenzen; im Log der Probe `shown` = neuer Himmel, `w` ≈ 0,04, Anteil des
@@ -272,3 +272,48 @@ Himmel bewegt sich, Menü, Übersicht, Bühne, verdeckt, Feier.
   im Protokoll ohne langes Bild.
 - **Speicher:** Am Desktop bleiben ungenutzte Texturen bis 30 s im Vorrat (vorher hielt `keep` einen Himmel 30 s ganz).
   Auf dem Handy liegt der Vorrat bis zum nächsten Himmel oder 10 s; vorher gab das Handy sofort frei.
+
+**Review (08.11.2026 abends, Reviewer, Worktree `prisma-brett-11`)**
+
+- **Befund, mittel (sichtbar, Desktop): Naht an der oberen Kante der Streifen nach der Wüste.** Nimmt der Vorrat
+  Streifen-Texturen, in denen vorher die Wüste lag (3823 Zeilen), zeigt jede andere Welt (3413 Zeilen) eine dünne,
+  gelbliche Linie quer durch das ganze Panorama, gut 10° über dem Horizont (Kante `v` 0,444 der Streifen), an
+  Silhouetten der Berge am deutlichsten. Gemessen: Wüste, dann `skyTheme.set` in Wald bzw. Dorf, Blick auf den
+  Horizont; gegen frisch geladen 1000–2000 Pixel über 8, bis 32 Abweichung in 1–3 Zeilen über die ganze Breite. Auf der
+  Basis gibt es das nicht.
+  - **Ursache:** Der Worker halbiert jede Stufe mit `h >> 1`. Stufe L des Bilds hat `floor(H / 2^L)` Zeilen und
+    spannt das ganze Bild darüber. In der Textur von 4096 Zeilen liegt sie also nicht genau im Anteil `uKl` = H / 4096,
+    sondern bis `(2^L − 1)` Texel der Stufe 0 tiefer. Ab Stufe 2–3 liest der Shader über `uKl − (1 + 0,5 f) / n` hinaus
+    in die Zeilen darüber. In einer frischen Textur sind sie leer (fast unsichtbar), aus dem Vorrat stehen dort die
+    Zeilen des vorigen Himmels. Dazu sind die Stufen ab 1 um bis zu einen Texel gegen Stufe 0 verschoben (frisch
+    geladen: Kanten bis 51 Abweichung an einzelnen Pixeln, ohne Naht).
+  - **Versucht:** Der Abstand `(1 + 3 f) / n` statt `(1 + 0,5 f) / n` im Shader macht die Linie kürzer, gibt an
+    Silhouetten aber sichtbare Treppen. Das ist keine Lösung.
+  - **Vorschlag:** Der Worker füllt Stufe 0 eines Streifens auf `BAND_HOEHE` Zeilen auf, indem er die letzte Zeile
+    wiederholt, und rechnet die Mipmaps erst danach. Dann geht jede Stufe genau auf, die Kante wirkt wie
+    `CLAMP_TO_EDGE`, und das Kürzen in `uKl` entfällt. Das kostet am Desktop rund 20 % mehr Zeilen beim Hochladen,
+    an stillen Stellen. Danach soll der Vergleich «Wüste → andere Welt gegen frisch geladen» ohne Linie sein.
+- **Vorrat und Freigabe: richtig.**
+  - `dispose` einmal (der Hörer entfernt sich), `give` lehnt Doppelte ab.
+  - three registriert für diese Texturen keinen eigenen Hörer (`version` 0, nie `initTexture`), löscht also nichts aus
+    dem Vorrat.
+  - `bg.uPreview` wechselt in `update` vor `release`.
+  - Jeder Eintrag wird nach `KEEP_MS` und höchstens `FRIST_MS` gelöscht, auch ohne stilles Bild. Steht die Seite im
+    Hintergrund, wartet nur der rAF-Takt.
+  - Ein abgebrochener Aufbau gibt in den Vorrat zurück oder sofort frei.
+  - Beim Kontextverlust lädt das Spiel ohnehin neu (Meldung); `deleteTexture` auf verlorene Namen tut nichts.
+- **Grafikspeicher Handy:** Der Höchststand bleibt der des Überblendens (alter und neuer Himmel, je rund 45–55 MB). Er
+  dauert jetzt 10–30 s länger, bis der Vorrat am stillen Bild löscht. Nur bei raschem Wechsel über drei Himmel mit
+  verschiedener Grösse käme ein Panorama dazu; die ganzen Bilder sind gleich gross und werden wiederverwendet.
+- **Probe:** `ARBEIT` zeigt nur. Ohne `__arbeitAn` kostet `arbeit` nur die Abfrage von `an`. Die Pause von 800 ms nach
+  einem Bild der Probe liegt immer zwischen `bild` und `messe`, also vor der Handlung, die gemessen wird, an einer
+  wartenden Stelle. Sie verdeckt keine Lücke des Spiels.
+- **`--menue --handy`:** Im Wechsel mit 122d6f7 (dieselbe Probe) neu 4 von 4 grün (17–36 ms), Basis 3 von 3 grün
+  (18–33 ms). Die roten Läufe des Umsetzers waren Streuung.
+- **Present-Zuschreibung:** Spuren lassen sich nicht nutzen, weil mit laufender Spur alles grün bleibt (`--menue`,
+  `--uebersicht --handy`). Im sichtbaren Chrome (`fenster`, gleiche GPU) waren dafür grün: `--menue` (headless
+  «Menü → Prolog» 465 ms), `--uebersicht` (headless 232/375 ms), `--uebersicht --handy` (headless 127/435/143 ms) und
+  in `--dorf` «Prolog überspringen» 67 ms und «Übung 8 wiederholen» 18 ms (headless 356/371 ms). Einmal 117 ms unter
+  einem stehenden Untertitel, ohne Arbeit im Bild. Das stützt die Zuschreibung an headless.
+- **`brett-probe`:** «Reise» einmal 1348 ms im ganzen Lauf, danach allein je zweimal neu und Basis grün (50 ms).
+  `formen` 1 Pixel (raisedBed → tidePool), bekannt.
