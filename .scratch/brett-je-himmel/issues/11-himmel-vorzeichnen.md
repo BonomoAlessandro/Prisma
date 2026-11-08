@@ -359,3 +359,16 @@ Himmel bewegt sich, Menü, Übersicht, Bühne, verdeckt, Feier.
   - `--ganz`: grün, längste 50 ms.
   - `--uebersicht`: grün.
   - `brett-probe`: 100/100. `offline.mjs`: grün. Logik: 2045 grün.
+
+**Nachprüfung des Reviewers (08.11.2026 nachts, 39e9019)**
+
+- **Auffüllen, Mipmaps, `uKl`:** richtig. Stufe 0 hat 4096 Zeilen, jede Stufe geht genau auf, über dem Bild liegt die
+  wiederholte Kante. `uKl` = Zeilen des Bilds / 4096. Ohne OffscreenCanvas oder unter WebGL1 wird nicht aufgefüllt, `uKl` ist 1.
+- **`ruhigZumVorzeichnen` und `VORZEICHNEN_MS`:** Das Halten endet nach höchstens 500 ms. Ist kein ruhiges Bild da, blendet
+  der Himmel ohne Vorzeichnen ein; danach ist `vorzeichnenNoetig` falsch. Es bleibt nichts hängen.
+- **Horizont, Desktop, je 6 Blicke:** «Wüste → andere Welt» gegen frisch geladen bitgleich (alle fünf Himmel). Frisch gegen
+  122d6f7 höchstens 23 an verstreuten Pixeln, keine Linie.
+- **Läufe:** `--grenzen` 53 ms, `--ganz` 53 ms, `--wagen` 72 ms grün, `brett-probe` 100/100. Rot nur an bekannten Stellen
+  ohne Arbeit des Spiels bzw. ohne Himmel: `--uebersicht` Schliessen 196 ms und letztes Level 160 ms (Milchstrasse),
+  `--ganz --handy` Prolog 426 ms (Bühne blendet ein, nur «Level vorab» 6 ms; Basis dort 443 ms).
+- **Urteil:** bereit für den Merge in `feature/brett-je-himmel` und den Poco-Test.
