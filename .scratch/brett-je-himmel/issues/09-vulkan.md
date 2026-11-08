@@ -178,3 +178,39 @@ um 9 ms):
 - Die Kosten auf dem echten Handy misst der Poco-Test (Ticket 10).
 - Das Überblenden zwischen verschiedenen Formen (hängende Säulen unter einem Steinbrett erscheinen erst am Schluss)
   löst Ticket 05.
+
+**Review (08.11.2026, unabhängig, gegen da65d5e):** passt, eine Auflage für den Merge auf Ticket 05.
+
+- **Lücken an der Grenze des Vulkans (`--grenzen`):** Streuung vom Himmel, nicht vom Ticket. Abwechselnd gemessen,
+  HEAD und eine Kopie von 50760cf mit derselben Probe, Desktop (längste Lücke, in Klammern Lücken über 100 ms):
+
+  | Lauf | Wüste → Vulkan HEAD | Wüste → Vulkan 50760cf | Vulkan → Planeten HEAD | Vulkan → Planeten 50760cf |
+  |------|---------------------|------------------------|------------------------|---------------------------|
+  | 1    | 107 ms (1)          | 53 ms (0)              | 53 ms                  | 36 ms                     |
+  | 2    | 142 ms (1)          | 90 ms (0)              | 55 ms                  | 36 ms                     |
+  | 3    | 84 ms (0)           | 129 ms (1)             | 54 ms                  | 54 ms                     |
+
+  Handy (HEAD): 53 und 70 ms, bestanden. Die längste Lücke liegt in allen sechs Läufen am selben Ort: im ersten Bild,
+  nachdem der Himmel auf den Vulkan umgeschaltet hat (`shown` volcano, Anteil 0,515 … 0,522, w 0,03 … 0,045), bei
+  HEAD wie in der Basis mit dem Steinbrett. Die zweite (70 bzw. 78 ms) kurz davor, Anteil 0,39 … 0,41, noch unter dem
+  Himmel der Wüste, ebenfalls in beiden. `--wagen` zeigt dieselbe Stelle an der Grenze ins Meer (107 ms bei Anteil
+  0,522). Vulkan → Planeten bei HEAD dreimal 53 bis 55 ms beim Ausblenden der Basaltsäulen (Anteil 0,38 … 0,44), in
+  der Basis 36, 36 und 54 ms: knapp, unter jeder Grenze, passt zu den +1,7 ms unten.
+- **Übrige Läufe:** Node-Tests alle grün, auch `generator.test.mjs` (31, unter `leise.sh` mit `LEISE_MAX_CPU=100`).
+  `offline.mjs` und `brett-probe.mjs` (Lücken 54 / 71 ms) grün. Geschichte-Probe `--grad leicht --welten 5` Desktop
+  und Handy grün. `--dorf` rot nur bei «Übung 8 wiederholen» mit 377 ms (Basis 350 … 430 ms). `--wagen` rot mit 107 ms
+  an der Grenze ins Meer (Basis 90 … 136 ms). `--uebersicht` rot bei Öffnen 163 ms und Schliessen 484 ms, wie auf jedem
+  Stand.
+- **Geprüft:** Freigeben, Culling (`frustumCulled = false` bei beiden Instanzen), Schatten (nur die Oberfläche
+  empfängt), Spiegelung, Lichtwelle (`uShockT`, `rise` nur bis `waveEnd`), Kernquader ±3,95 m, y −0,8 … 0 (die
+  kürzeste Säule des Felds endet bei −0,865 m), Notfall.
+- **Behoben:** Kommentar zu `BASALT.coreLow` und bei `basalt.core` nannte −0,83 m, nachgerechnet sind es −0,865 m
+  (`basaltColumns` ausgelesen: 941 Säulen, 821 im Feld, 120 im Rand).
+- **Auflage für den Merge auf Ticket 05:** Die Säulen hängen tiefer als die Hülle des Übergangs
+  (`BOARD_BLEND_HULL_Y = -2`, «tiefer reicht kein Brett»). Ausgelesen: 97 Säulen enden unter −2 m, die tiefste bei
+  −2,84 m (y = −`PLATE_THICK` − hang, hang bis 2,46 m). Beim Merge die Hülle auf mindestens −2,9 m setzen (oder aus
+  den Arten ableiten) und den Übergang Wüste → Vulkan von unten ansehen.
+- **Hinweis Leistung (+1,7 ms Desktop):** Vermutlich verhindert `discard` über die ganze Oberfläche den frühen
+  Tiefentest, sodass die Säulen darunter voll schattiert werden. Mögliche Abhilfe: inneres Quadrat ohne `discard` als
+  eigenes Netz, nur der Ring mit `discard`; oder die Säulen kürzer, innen durch einen Quader ersetzt. Nicht umgebaut,
+  der Nutzer entscheidet (Haken «Leistung» bleibt offen).
