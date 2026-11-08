@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-07 brett-uebergang';
+const APP_VERSION = '2026-11-08 brett-vulkan';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -13045,7 +13045,9 @@ const FLOOR_DETAIL_GLSL = `
  * je Brett). Netze mit eigenem ShaderMaterial (Funken, Tropfen, Körner) gehören nicht dazu: Sie blenden über den Anteil
  * in setFade selbst aus.
  */
-const BOARD_BLEND_HULL_Y = -2;  // Unterkante der Hülle (m); tiefer reicht kein Brett
+// Unterkante der Hülle (m), unter dem tiefsten Teil aller Bretter: Die längste Basaltsäule endet bei −2,84 m (fester
+// Zufall, basaltColumns); eine Art, die tiefer reicht, muss sie senken
+const BOARD_BLEND_HULL_Y = -2.9;
 const BOARD_BLEND_EPS = 0.002;  // so weit überlappen die Stücke zweier Bretter (keine Lücke aus Rundung)
 const boardBlendHull = { value: new THREE.Vector2(PLATE / 2, BOARD_BLEND_HULL_Y) };
 const BOARD_BLEND_DECL = `
@@ -13074,11 +13076,14 @@ const BOARD_BLEND_DECL = `
   // Bretter gleich, darum decken sie dort lückenlos). Liegt es darüber (Polster, Türmchen, Kräuter), zählt
   // sein eigener Ort: Sonst bekäme es den Eintritt seines Strahls weiter innen und erschiene zu früh. Den Kernquader
   // deckt jedes Brett mit Stücken in der Hülle. Innen klein, zum Rand und nach unten gross, dazu Rauschen
+  // Ort der Kamera aus viewMatrix: three setzt cameraPosition nur für einige Materialien (Standard, Phong, Toon, Shader
+  // oder mit envMap), für MeshLambertMaterial bliebe es (0, 0, 0) und n falsch (Basaltsäulen, Polster des Moospolsters)
   float boardBlendN() {
-    vec3 v = (vec4(vBoardView, 0.0) * viewMatrix).xyz, w = cameraPosition + v, d = normalize(v), p = w;
+    vec3 cam = -(vec4(viewMatrix[3].xyz, 0.0) * viewMatrix).xyz;
+    vec3 v = (vec4(vBoardView, 0.0) * viewMatrix).xyz, w = cam + v, d = normalize(v), p = w;
     float h = uBoardHull.x + 0.005, t;
     bool drin = w.y < 0.005; // über dem Brett: draussen (die Metallkante des Steinbretts etwa, bündig, zählt als drin)
-    if (drin && bbBox(cameraPosition, d, vec3(-h, uBoardHull.y, -h), vec3(h, 0.005, h), t)) p = cameraPosition + d * t;
+    if (drin && bbBox(cam, d, vec3(-h, uBoardHull.y, -h), vec3(h, 0.005, h), t)) p = cam + d * t;
     float r = min(1.0, length(p.xz) / (uBoardHull.x * 1.41421) + max(0.0, -p.y) * 0.1);
     float g = bbNoise(p * 0.9) * 0.7 + bbNoise(p * 2.4 + 11.0) * 0.3;
     return clamp(0.015 + 0.82 * r + 0.24 * (g - 0.5) * min(1.0, r * 4.0), 0.0, 1.0);
@@ -14715,6 +14720,307 @@ function mossBoard(v) {
   };
 }
 
+/* ---------- Basaltsäulen (Art basalt): das Brett des Vulkans (Ticket 09) ---------- */
+
+// Masse der Basaltsäulen (m). Das Brett ist das Ende eines Bündels sechseckiger Säulen wie am Giant's Causeway (Spitze
+// des Sechsecks in z). Im Feld sind sie eben geschliffen: Die Oberfläche zeichnet ihre Fugen, die Säulen selbst stehen
+// knapp darunter. Im Rand stehen sie in Stufen, nach aussen tiefer, einzelne höher. Unten hängen sie verschieden lang
+// herab wie an der Decke der Fingalshöhle
+const BASALT = {
+  r: 0.19,                  // Umkreis einer Säule
+  body: 0.975,              // Körper etwas schmaler als die Wabe: feine Fugen zwischen den Säulen
+  top: -0.003,              // Köpfe der Säulen des Felds, knapp unter der Oberfläche
+  field: BOARD / 2 + 0.19,  // Säulen, deren Mitte näher liegt (Kastenabstand), gehören zum Feld: Sie decken jeden Punkt
+                            // des 7×7-Felds, und nur über ihnen ist die Oberfläche deckend
+  core: 3.95,               // halbe Kante des Kernquaders: Bis 4,2 m stehen Säulen des Felds, 25 cm bleiben als Tiefe
+  coreLow: -0.8,            // Boden des Kernquaders: Die kürzeste Säule des Felds endet bei −0,865 m
+  rise: 0.5,                // Anteil der Säulen des Felds, die sich in der Lichtwelle heben
+  waveEnd: 3,               // so lange (s nach dem Start des Rings) wirkt die Lichtwelle, danach steht das Brett still
+};
+// Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
+const BASALT_VALUES = ['basalt', 'tint', 'lip', 'joint', 'line', 'inlay', 'column', 'rise', 'glow'];
+
+/**
+ * Farbe, Rauheit und Normalen der Oberfläche der Basaltsäulen (basaltBoard), ohne Bezug auf das übrige Spiel (Worker).
+ * Formeln und Farben aus dem Katalog (katalog-vulkan, 2-basalt.js), die Höhen ungerundet. size² über das ganze Brett
+ * (Zeile j bei uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): je Säule ein Ton zwischen basalt[1] und
+ * basalt[0], wolkig getönt (tint), ihr Rand etwas heller geschliffen (lip), die Fugen dunkel (joint) und vertieft.
+ * Ausserhalb der Säulen des Felds (field, Kastenabstand ihrer Mitte) ist sie durchsichtig (Alpha 0): Dort stehen die
+ * Säulen des Rands als Körper. Rauheit im G-Kanal wie bei three, im R-Kanal die Fugen für die Glut der Lichtwelle.
+ * a: { size, plate, field, r (Umkreis einer Säule), v (Werte der Brett-Angabe) }.
+ */
+function basaltData({ size, plate, field, r: R, v }) {
+  const hash = (x, y, s) => {
+    let h = (Math.imul(x, 374761393) + Math.imul(y, 668265263) + Math.imul(s, 982451653)) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+  };
+  const noise = (x, y, s) => {
+    const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
+    const u = xf * xf * (3 - 2 * xf), w = yf * yf * (3 - 2 * yf);
+    const a = hash(xi, yi, s), b = hash(xi + 1, yi, s), c = hash(xi, yi + 1, s), d = hash(xi + 1, yi + 1, s);
+    return a + (b - a) * u + (c - a) * w + (a - b - c + d) * u * w;
+  };
+  const fbm = (x, y, oct, s) => {
+    let sum = 0, amp = 0.5, f = 1, n = 0;
+    for (let i = 0; i < oct; i++) { sum += amp * noise(x * f, y * f, s + i * 17); n += amp; amp *= 0.5; f *= 2.03; }
+    return sum / n;
+  };
+  const smooth = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  // Wabe unter (x, z): Mitte (cx, cz), Nummer, Abstand zur Kante (kubische Koordinaten, gerundet)
+  const S3 = Math.sqrt(3), AP = R * S3 / 2, CS = Math.cos(Math.PI / 3), SN = Math.sin(Math.PI / 3);
+  const hexAt = (x, z) => {
+    const qf = (S3 / 3 * x - z / 3) / R, rf = (2 / 3 * z) / R, sf = -qf - rf;
+    let q = Math.round(qf), rr = Math.round(rf);
+    const s = Math.round(sf), dq = Math.abs(q - qf), dr = Math.abs(rr - rf), ds = Math.abs(s - sf);
+    if (dq > dr && dq > ds) q = -rr - s; else if (dr > ds) rr = -q - s;
+    const cx = R * S3 * (q + rr / 2), cz = R * 1.5 * rr, px = x - cx, pz = z - cz;
+    const m = Math.max(Math.abs(px), Math.abs(px * CS + pz * SN), Math.abs(px * CS - pz * SN));
+    return { cx, cz, id: q * 1000 + rr, edge: AP - m };
+  };
+
+  const n = size * size, texel = plate / size;
+  const color = new Uint8ClampedArray(n * 4), rough = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
+  for (let j = 0; j < size; j++) {
+    const z = plate / 2 - (j + 0.5) * texel;
+    for (let i = 0; i < size; i++) {
+      const x = -plate / 2 + (i + 0.5) * texel, k = (j * size + i) * 4, h = hexAt(x, z);
+      if (Math.max(Math.abs(h.cx), Math.abs(h.cz)) >= field) { height[j * size + i] = -0.004; continue; } // Alpha 0
+      const t = noise(h.id * 0.137, h.id * 0.071, 302);
+      let c = mix(v.basalt[1], v.basalt[0], t);
+      c = mix(c, v.tint, fbm(x * 2, z * 2, 3, 303) * 0.4);
+      const joint = smooth(0.012, 0.004, h.edge), lip = smooth(0.045, 0.012, h.edge) * (1 - joint);
+      c = mix(c, v.lip, lip * 0.5);
+      c = mix(c, v.joint, joint);
+      color[k] = c[0] * 255; color[k + 1] = c[1] * 255; color[k + 2] = c[2] * 255; color[k + 3] = 255;
+      rough[k] = smooth(0.02, 0.004, h.edge) * 255; rough[k + 1] = (0.5 + 0.35 * joint) * 255; rough[k + 3] = 255;
+      height[j * size + i] = -joint * 0.004 - lip * 0.0012 + (fbm(x * 9, z * 9, 2, 304) - 0.5) * 0.0004;
+    }
+  }
+  // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
+  const normal = new Uint8ClampedArray(n * 4);
+  const H = (i, j) => height[Math.min(size - 1, Math.max(0, j)) * size + Math.min(size - 1, Math.max(0, i))];
+  for (let j = 0; j < size; j++) {
+    for (let i = 0; i < size; i++) {
+      const nx = -(H(i + 1, j) - H(i - 1, j)) / (2 * texel), ny = -(H(i, j + 1) - H(i, j - 1)) / (2 * texel);
+      const l = Math.hypot(nx, ny, 1), k = (j * size + i) * 4;
+      normal[k] = ((nx / l) * 0.5 + 0.5) * 255; normal[k + 1] = ((ny / l) * 0.5 + 0.5) * 255;
+      normal[k + 2] = ((1 / l) * 0.5 + 0.5) * 255; normal[k + 3] = 255;
+    }
+  }
+  return { map: color, roughnessMap: rough, normalMap: normal };
+}
+
+/**
+ * Säulen der Basaltsäulen (basaltBoard): alle, die ganz in den Umriss passen, wie im Katalog (gleicher Zufall). Die des
+ * Felds oben bündig (BASALT.top), die des Rands in Stufen, nach aussen tiefer, einzelne höher; unten hängen sie
+ * verschieden lang herab, in der Mitte am längsten. Liefert [{ x, z, top, bot, tone (0 … 1), field }].
+ */
+function basaltColumns() {
+  const R = BASALT.r, S3 = Math.sqrt(3), AP = R * S3 / 2, HP = PLATE / 2, r = mulberry32(301), cols = [];
+  const clamp = (x) => Math.min(1, Math.max(0, x));
+  for (let rr = -34; rr <= 34; rr++) {
+    for (let q = -34; q <= 34; q++) {
+      const x = R * S3 * (q + rr / 2), z = R * 1.5 * rr;
+      if (Math.abs(x) > HP - AP || Math.abs(z) > HP - R) continue;
+      const box = Math.max(Math.abs(x), Math.abs(z)), d = Math.hypot(x, z), field = box < BASALT.field;
+      const out = clamp((box - BASALT.field) / (HP - BASALT.field));
+      let top = field ? BASALT.top : -0.025 - out * 0.34 * (0.45 + r() * 0.8);
+      if (!field && out > 0.25 && r() < 0.14) top = 0.03 + r() * 0.06; // einzelne höher, wie Stufen am Causeway
+      const hang = 0.45 + 2.3 * Math.pow(clamp(1 - d / 6.6), 1.6) * (0.55 + 0.45 * r()) + (r() < 0.12 ? r() * 0.6 : 0);
+      const id = q * 1000 + rr;
+      cols.push({ x, z, top, bot: -PLATE_THICK - hang, id, field });
+    }
+  }
+  return cols;
+}
+
+/**
+ * Basaltsäulen (Art basalt, Vulkan; Ticket 09, aus dem Katalog gewählt: Karte 2): Das Brett ist das Ende eines Bündels
+ * sechseckiger Basaltsäulen. Die Oberfläche (Texturen aus dem Hintergrund-Thread, basaltData) zeigt die eben
+ * geschliffenen Säulen des Felds mit feinen Fugen, das Raster als feine helle Linien darüber, die Einlegelinie hellgrau
+ * (FLOOR_DETAIL_GLSL), leicht spiegelnd; ausserhalb der Säulen des Felds ist sie durchsichtig. Die Säulen selbst sind
+ * Instanzen eines Sechseckprismas (basaltColumns, je eine Gruppe für Feld und Rand), flach schattiert, matt (Lambert
+ * mit einem Ersatz für das Umgebungslicht; MeshStandardMaterial kostete am Desktop rund 4 ms je Bild mehr) und ohne
+ * Schatten. Flächen, die nach unten oder zur Seite schauen, fangen das Licht des Lavasees (glow), ihre Enden am
+ * stärksten. Lichtwelle (Katalog Version 2): Mit dem Ring steigt Glut in den Fugen auf und verglimmt dahinter, die Hälfte
+ * der Säulen des Felds hebt sich eine Handbreit, ihre Flanken glühen orange, und hinter dem Ring sinken sie zurück; die
+ * Köpfe der Randsäulen leuchten nacheinander auf. Alles folgt der Ankunft des Rings (shockClock), nicht seiner Stärke.
+ * Die Glut liegt knapp über der Bloom-Schwelle, das Licht der Lava in Ruhe darunter.
+ * v: Werte der Brett-Angabe (BASALT_VALUES, sRGB 0 … 1). Rückgabe wie jede Art (BOARD_TYPES).
+ */
+function basaltBoard(v) {
+  for (const k of BASALT_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
+  const srgb = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+  const N = QUALITY.textureSize, R = BASALT.r;
+  const tex = boardTextures({ map: [N, N, true], roughnessMap: [N, N, false], normalMap: [N, N, false] }, basaltData,
+    { size: N, plate: PLATE, field: BASALT.field, r: R, v });
+  const uLine = { value: srgb(v.line) }, uInlay = { value: srgb(v.inlay) }, uGlow = { value: srgb(v.glow) };
+  const speed = SHOCK_SPEED.toFixed(2), end = BASALT.waveEnd.toFixed(1);
+
+  // Oberfläche: Säulen des Felds mit Fugen, Raster und Einlegelinie, leichte Spiegelung; Glut in den Fugen
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    color: 0xffffff, map: tex.map, roughness: 1, roughnessMap: tex.roughnessMap, metalness: 0, normalMap: tex.normalMap,
+    normalScale: new THREE.Vector2(1, 1), envMapIntensity: 0.6,
+  });
+  floorMaterial.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, shockUniforms, { uLine, uInlay, uGlow });
+    addBoardReflection(shader);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      uniform vec3 uShock, uShockColor, uLine, uInlay, uGlow;
+      uniform float uShockT;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+      if (sampledDiffuseColor.a < 0.5) discard; // ausserhalb der Säulen des Felds: Dort stehen die des Rands
+      ${FLOOR_DETAIL_GLSL}
+      diffuseColor.rgb = mix(diffuseColor.rgb, uLine, floorGroove * 0.75);
+      diffuseColor.rgb = mix(diffuseColor.rgb, uInlay, floorInlay);`)
+      .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
+      roughnessFactor = mix(roughnessFactor, 0.8, floorGroove);
+      roughnessFactor = mix(roughnessFactor, 0.55, floorInlay);`)
+      .replace('#include <tonemapping_fragment>', `${boardReflectGlsl('0.3')}
+      {
+        vec2 wp = (vUv - 0.5) * ${PLATE.toFixed(4)};
+        float wd = length(wp);
+        // der Ring selbst als warmer Hauch
+        if (uShock.y > 0.0) {
+          float ring = exp(-pow((wd - uShock.x) / uShock.z, 2.0));
+          gl_FragColor.rgb += (uShockColor * 0.5 + vec3(0.2, 0.12, 0.05)) * ring * 0.6 * min(1.0, uShock.y * 3.0);
+        }
+        // Glut steigt in den Fugen auf, wenn der Ring ankommt (vor wAge s), und verglimmt dahinter
+        float wAge = uShockT - wd / ${speed};
+        if (uShockT < ${end} && wAge > -0.12) {
+          float jn = texture2D(roughnessMap, vUv).r;
+          float up = smoothstep(-0.12, 0.02, wAge), a = max(wAge, 0.0);
+          float glut = up * (0.72 * exp(-a / 0.16) + 0.28 * exp(-a / 0.8) * (1.0 - smoothstep(1.6, 2.6, a)));
+          gl_FragColor.rgb += uGlow * jn * glut * 1.5;
+        }
+      }
+      #include <tonemapping_fragment>`);
+  };
+  const floorTop = new THREE.Mesh(new THREE.PlaneGeometry(PLATE, PLATE), floorMaterial);
+  floorTop.rotation.x = -Math.PI / 2;
+  floorTop.receiveShadow = true;
+
+  // Säulen: Licht des Lavasees von unten und die Köpfe, die in der Lichtwelle nacheinander aufleuchten (jede mit
+  // eigenem Verzug bis 0,25 s). Feld und Rand teilen sich das Material
+  const colMat = new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+  colMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { uShockT: shockUniforms.uShockT, uGlow });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vBW;\nvarying vec3 vBI;')
+      .replace('#include <project_vertex>', `#include <project_vertex>
+      {
+        vec4 w4 = vec4(transformed, 1.0), o4 = vec4(0.0, 0.0, 0.0, 1.0);
+        #ifdef USE_INSTANCING
+          w4 = instanceMatrix * w4; o4 = instanceMatrix * o4;
+        #endif
+        vBW = (modelMatrix * w4).xyz; vBI = (modelMatrix * o4).xyz;
+      }`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+      varying vec3 vBW;
+      varying vec3 vBI;
+      uniform float uShockT;
+      uniform vec3 uGlow;`)
+      .replace('#include <tonemapping_fragment>', `
+      {
+        vec3 wN = inverseTransformDirection(normal, viewMatrix);
+        float dn = clamp(-wN.y, 0.0, 1.0), sd0 = 1.0 - abs(wN.y);
+        float low = 0.5 + 0.5 * (1.0 - smoothstep(-2.5, -0.4, vBW.y)); // tiefer: näher an der Lava
+        // Ersatz für das Umgebungslicht, das Lambert nicht kennt (wie die Softboxen bei MeshStandardMaterial): oben mehr
+        gl_FragColor.rgb += diffuseColor.rgb * (0.35 + 1.5 * clamp(wN.y, 0.0, 1.0));
+        gl_FragColor.rgb += diffuseColor.rgb * uGlow * (dn * 2.8 + sd0 * 0.3) * low;
+        float frs = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0);
+        gl_FragColor.rgb += uGlow * pow(clamp(-wN.y + 0.25, 0.0, 1.0), 1.5) * (0.12 + 0.88 * frs) * 0.35 * low;
+        if (uShockT < ${end}) {
+          float rnd = fract(sin(dot(vBI.xz, vec2(12.9898, 78.233))) * 43758.5453);
+          float a = uShockT - length(vBI.xz) / ${speed} - rnd * 0.25;
+          float flash = smoothstep(-0.04, 0.0, a) * exp(-max(a, 0.0) / 0.16);
+          float topf = smoothstep(0.7, 0.95, wN.y);
+          gl_FragColor.rgb += uGlow * vec3(1.0, 0.8, 0.7) * flash * (0.06 + 0.94 * topf) * 1.15;
+        }
+      }
+      #include <tonemapping_fragment>`);
+  };
+  const cols = basaltColumns(), dark = srgb(v.column[1]), light = srgb(v.column[0]);
+  const geo = new THREE.CylinderGeometry(R * BASALT.body, R * BASALT.body, 1, 6, 1).translate(0, -0.5, 0);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3();
+  const c = new THREE.Color(), hash = (id) => { const x = Math.sin(id * 12.9898) * 43758.5453; return x - Math.floor(x); };
+  const columns = (list, mat) => {
+    const mesh = new THREE.InstancedMesh(geo, mat, list.length);
+    list.forEach((col, i) => {
+      mesh.setMatrixAt(i, m4.compose(p.set(col.x, col.top, col.z), q, s.set(1, col.top - col.bot, 1)));
+      mesh.setColorAt(i, c.copy(dark).lerp(light, hash(col.id)));
+    });
+    mesh.frustumCulled = false; // three 0.147 prüft bei Instanzen nur die Kugel um die Form am Ursprung
+    return mesh;
+  };
+  const field = columns(cols.filter((col) => col.field), colMat), rim = columns(cols.filter((col) => !col.field), colMat);
+
+  // Lichtwelle: Die Hälfte der Säulen des Felds hebt sich im Ring um 8 bis 30 cm aus der Oberfläche, die Flanken glühen
+  // frisch; dahinter sinken sie zurück (Höhe im Vertex-Shader nach der Ankunft des Rings). Gezeichnet nur, solange die
+  // Lichtwelle wirkt
+  const rq = mulberry32(311), lifts = [];
+  for (const col of cols) if (col.field && rq() < BASALT.rise) lifts.push([col.x, col.z, 0.08 + rq() ** 2 * 0.22]);
+  const riseMat = new THREE.MeshLambertMaterial({ color: srgb(v.rise), flatShading: true });
+  riseMat.onBeforeCompile = (shader) => {
+    Object.assign(shader.uniforms, { uShockT: shockUniforms.uShockT, uGlow });
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nuniform float uShockT;\nvarying float vGrow;')
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+      {
+        vec3 ic = (instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+        float rnd = fract(sin(dot(ic.xz, vec2(12.9898, 78.233))) * 43758.5453);
+        float a = uShockT - (length(ic.xz) + (rnd - 0.5) * 0.4) / ${speed};
+        // hebt sich an der Front, ein Teil bleibt kurz oben und sinkt in einer halben Sekunde zurück
+        vGrow = a < 0.0 ? exp(-a * a / 0.0036) : 0.7 * exp(-a * a / 0.01) + 0.3 * (1.0 - smoothstep(0.0, 0.5, a));
+        transformed.y *= vGrow;
+      }`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform vec3 uGlow;\nvarying float vGrow;')
+      .replace('#include <tonemapping_fragment>', `
+      {
+        vec3 wN = inverseTransformDirection(normal, viewMatrix);
+        gl_FragColor.rgb += uGlow * (1.0 - smoothstep(0.6, 0.9, wN.y)) * vGrow * 1.2;
+      }
+      #include <tonemapping_fragment>`);
+  };
+  const rise = new THREE.InstancedMesh(new THREE.CylinderGeometry(R * 0.95, R * 0.95, 1, 6, 1).translate(0, 0.5, 0),
+    riseMat, lifts.length);
+  lifts.forEach(([x, z, h], i) => rise.setMatrixAt(i, m4.compose(p.set(x, -0.02, z), q, s.set(1, h, 1))));
+  rise.frustumCulled = false;
+  rise.visible = false;
+
+  const group = new THREE.Group();
+  group.add(floorTop, field, rim, rise);
+
+  // Überblenden: boardBlend (für alle Arten gleich, auch an colMat und riseMat). Die Oberfläche zeichnet vor den
+  // Säulen (renderOrder): Deren Köpfe unter ihr kosten dann nichts
+  floorTop.renderOrder = 0;
+  field.renderOrder = rim.renderOrder = rise.renderOrder = 1;
+  const all = [floorMaterial, colMat, riseMat];
+
+  const textures = [tex.map, tex.roughnessMap, tex.normalMap];
+  return {
+    group,
+    mirror: floorTop,
+    textures,
+    computed: tex.computed,
+    setFade(k) {
+      group.visible = k > 0;
+      // je Bild (boardTheme.render): die Säulen der Lichtwelle nur, solange sie wirkt
+      rise.visible = shockUniforms.uShockT.value < BASALT.waveEnd;
+    },
+    dispose() {
+      group.traverse((o) => { o.geometry?.dispose(); if (o.isInstancedMesh) o.dispose(); });
+      for (const m of all) m.dispose();
+      for (const t of textures) t.dispose();
+    },
+  };
+}
+
 /**
  * Arten von Brettern (Spec .scratch/brett-je-himmel/), je { core, build(values) }. tools/sky-schema.mjs liest ihre Namen
  * aus der Zeile `const BOARD_TYPES = { … }` und prüft die Werte der Brett-Angaben (BOARD_PARAMS dort).
@@ -14762,7 +15068,13 @@ const moss = {
   core: { lo: [-PLATE / 2, -PLATE_THICK - 0.03, -PLATE / 2], hi: [PLATE / 2, 0, PLATE / 2] },
   build: mossBoard,
 };
-const BOARD_TYPES = { stone, tidePool, clay, raisedBed, moss };
+const basalt = {
+  // Die Säulen des Felds stehen dicht unter der Oberfläche (y = 0) und reichen mindestens 0,865 m hinab: Sie decken den
+  // Quader unter dem Feld. Der stufige Rand und die Fugen zwischen den Säulen decken nichts sicher
+  core: { lo: [-BASALT.core, BASALT.coreLow, -BASALT.core], hi: [BASALT.core, 0, BASALT.core] },
+  build: basaltBoard,
+};
+const BOARD_TYPES = { stone, tidePool, clay, raisedBed, moss, basalt };
 // ?brett=<art>: unter jedem Himmel diese Art statt seiner Brett-Angabe, mit den Werten des ersten Himmels, der sie hat
 // (boardTheme.prepare); nur für Vergleichsbilder während der Gestaltung (Tickets 04 bis 09), fällt mit Ticket 10 weg
 const BOARD_URL = new URLSearchParams(location.search).get('brett');

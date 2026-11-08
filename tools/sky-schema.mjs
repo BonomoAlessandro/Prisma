@@ -13,9 +13,9 @@
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
 // BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
 // Farben und Lage der Rinne, clay die Farben der Lehmterrasse, raisedBed die des Hochbeets, moss die des Moospolsters,
-// je in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte, fehlende
-// oder ungültige Werte sind Fehler. pack.mjs übernimmt sie unverändert aus skybox.json (mit --brett nur sie, ohne die
-// Teile neu zu packen).
+// basalt die der Basaltsäulen, je in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte
+// Art und unbekannte, fehlende oder ungültige Werte sind Fehler. pack.mjs übernimmt sie unverändert aus skybox.json (mit
+// --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -180,6 +180,14 @@ const BOARD_PARAMS = {
   moss: {
     moss: isSrgbPair, tip: isSrgb, gold: isSrgb, silver: isSrgb, litter: isSrgb, soil: isSrgbPair, pebble: isSrgb,
     thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair,
+  },
+  // Basaltsäulen des Vulkans (basaltBoard): Farben sRGB 0 … 1. basalt die geschliffenen Säulen des Felds [hell, dunkel],
+  // tint ihre wolkige Tönung, lip ihr hell geschliffener Rand, joint die Fugen, line das Raster, inlay die Einlegelinie,
+  // column die Säulen als Körper [hell, dunkel], rise die Säulen, die sich in der Lichtwelle heben, glow die Glut (Licht
+  // der Lava von unten, Fugen, Flanken und Köpfe in der Lichtwelle)
+  basalt: {
+    basalt: isSrgbPair, tint: isSrgb, lip: isSrgb, joint: isSrgb, line: isSrgb, inlay: isSrgb, column: isSrgbPair,
+    rise: isSrgb, glow: isSrgb,
   },
 };
 
