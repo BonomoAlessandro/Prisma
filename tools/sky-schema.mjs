@@ -12,10 +12,10 @@
 // die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
 // BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
-// Farben und Lage der Rinne, clay die Farben der Lehmterrasse, basalt die der Basaltsäulen, je in sRGB 0 … 1). Ohne
-// Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte Art und unbekannte, fehlende oder ungültige Werte
-// sind Fehler.
-// pack.mjs übernimmt sie unverändert aus skybox.json (mit --brett nur sie, ohne die Teile neu zu packen).
+// Farben und Lage der Rinne, clay die Farben der Lehmterrasse, raisedBed die des Hochbeets, moss die des Moospolsters,
+// basalt die der Basaltsäulen, je in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte
+// Art und unbekannte, fehlende oder ungültige Werte sind Fehler. pack.mjs übernimmt sie unverändert aus skybox.json (mit
+// --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -164,6 +164,22 @@ const BOARD_PARAMS = {
   clay: {
     plaster: isSrgbPair, straw: isSrgb, brick: isSrgbPair, joint: isSrgb, gully: isSrgb, inlay: isSrgb, wood: isSrgb,
     egg: isSrgb, sand: isSrgb,
+  },
+  // Hochbeet des Dorfs (raisedBedBoard): Farben sRGB 0 … 1. soil und larch je zwei Töne [hell, dunkel] (Erde,
+  // Lärchenbohlen), mulch Mulch im Rand, cord Pflanzschnüre (Raster), pebble Kiesel (Einlegelinie), peg Pflöcke; Kräuter:
+  // chive Schnittlauch, thyme Thymian, lettuce Salat, marigold Ringelblumen, blossom Blüten von Schnittlauch und Thymian;
+  // Lichtwelle: sprout Sämlinge, firefly Glühwürmchen
+  raisedBed: {
+    soil: isSrgbPair, mulch: isSrgb, cord: isSrgb, pebble: isSrgb, larch: isSrgbPair, peg: isSrgb, chive: isSrgb,
+    thyme: isSrgb, lettuce: isSrgb, marigold: isSrgb, blossom: isSrgb, sprout: isSrgb, firefly: isSrgb,
+  },
+  // Moospolster des Bergwalds (mossBoard): Farben sRGB 0 … 1. moss zwei Töne des Mooses (dunkel, hell), tip helle Spitzen,
+  // gold goldene Flecken, silver Rasterlinien aus Silbermoos, litter Nadelstreu im Rand, soil zwei Töne des Humus der
+  // Seiten, pebble Steine darin, thread Wurzelfäden darin, root zwei Töne der hängenden Wurzeln, fern Farn (Blatt, Stiel),
+  // cap Hut der Helmlinge, glow ihr Leuchten, flower Blumen der Lichtwelle (Blütenblatt, Mitte)
+  moss: {
+    moss: isSrgbPair, tip: isSrgb, gold: isSrgb, silver: isSrgb, litter: isSrgb, soil: isSrgbPair, pebble: isSrgb,
+    thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair,
   },
   // Basaltsäulen des Vulkans (basaltBoard): Farben sRGB 0 … 1. basalt die geschliffenen Säulen des Felds [hell, dunkel],
   // tint ihre wolkige Tönung, lip ihr hell geschliffener Rand, joint die Fugen, line das Raster, inlay die Einlegelinie,

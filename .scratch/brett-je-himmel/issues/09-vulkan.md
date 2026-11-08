@@ -214,3 +214,36 @@ um 9 ms):
   Tiefentest, sodass die Säulen darunter voll schattiert werden. Mögliche Abhilfe: inneres Quadrat ohne `discard` als
   eigenes Netz, nur der Ring mit `discard`; oder die Säulen kürzer, innen durch einen Quader ersetzt. Nicht umgebaut,
   der Nutzer entscheidet (Haken «Leistung» bleibt offen).
+
+**Zusammenführen mit Ticket 05 (08.11.2026, Merge von `feature/brett-je-himmel` 1037af7 in `feature/brett-09-vulkan`):**
+
+- **Konflikte:** `index.html` als Stand des Branches übernommen und den Block «Basaltsäulen» als Ganzes hinter dem
+  Moospolster eingesetzt. `BOARD_TYPES = { stone, tidePool, clay, raisedBed, moss, basalt }`. `BOARD_PARAMS`, der
+  Kopfkommentar in `tools/sky-schema.mjs` und die Logiktests behalten alle Einträge. `APP_VERSION` `2026-11-08
+  brett-vulkan` in `index.html` und `sw.js`. Danach `node tools/blender/pack.mjs --brett` (Register `9f10951d`).
+  `tests/geschichte-probe.mjs` hatte keinen Konflikt (`--grenzen` bleibt).
+- **Basalt an `boardBlend` angepasst:** `look()`, `fadeVariants`, die Listen `body`/`extras` und `diffuseColor.a =
+  opacity` fallen weg. `setFade(k)` setzt nur noch `group.visible` und `rise.visible`. renderOrder fest: Oberfläche 0,
+  Säulen 1. Feld und Rand teilen sich jetzt ein Material (`colMat`). `boardBlend` hängt sich ohne Umbau an `colMat` und
+  `riseMat` (die Anker bleiben erhalten).
+- **Hülle:** `BOARD_BLEND_HULL_Y` −2,9 m (die längste Säule endet bei −2,836 m, 97 Säulen unter −2 m), der Kommentar
+  ist berichtigt.
+- **Fehler in `boardBlend` behoben (betrifft alle Arten mit `MeshLambertMaterial`):** three 0.147 setzt die Uniform
+  `cameraPosition` nur bei Standard-, Phong-, Toon- und Shader-Materialien oder mit `envMap`. In den Programmen der
+  Lambert-Säulen blieb sie (0, 0, 0), `boardBlendN` bekam einen falschen Strahl und ein zu kleines n. Folge: Beim Gehen
+  der Basaltsäulen verschwand das ganze Bündel im ersten Bild, beim Kommen stand es sofort da. `brett-probe --nur
+  formen` meldete das bei allen Übergängen vom Basalt aus (bis 1291 leere Pixel im Kernquader, Sprünge bis 60,7 %).
+  Jetzt rechnet `boardBlendN` den Ort der Kamera aus `viewMatrix` (wird für alle Materialien gesetzt). Das betrifft
+  auch die Polster des Moospolsters (`cushionMat`, ebenfalls Lambert).
+- **Geprüft von unten und flach:** Bilder bei 10 … 90 % des Übergangs Lehm → Basalt (flach, heraus), Basalt → Stein
+  (flach, heraus) und Stein → Basalt (flach): Die Säulen kommen und gehen mit der Front, ohne Löcher.
+- **Tests nach dem Merge** (Browser seriell über `leise.sh`):
+  - `logic.test.mjs`: 2044 bestanden.
+  - `offline.mjs`: bestanden (der Vulkan meldet `basalt`, das Dorf `raisedBed`, der Bergwald `moss`).
+  - `brett-probe.mjs`: ganz bestanden, 100 Prüfungen, `formen` mit allen 6 Arten, 30 Übergänge, je 0 leere Pixel im
+    Kernquader. Vor der Behebung in `boardBlend` waren es 10 Fehler, alle bei Übergängen vom Basalt aus. In einem
+    Zwischenlauf fehlte bei Moos → Lehm (flach, heraus) einmal 1 Pixel; im nächsten Lauf und im ganzen Lauf 0.
+  - Geschichte-Probe `--grad leicht --welten 5`: bestanden.
+  - `--grenzen`: Die Prüfungen zum Brett sind grün (Lehm → Basalt und Basalt → Stein mit dem Himmel über 2,44 bzw. 2,35
+    s). Rot ist nur die Lücke von 117 ms an der bekannten Stelle (erstes Bild des Vulkan-Himmels, Anteil 0,52, siehe
+    Review). Vulkan → Planeten: 50 ms.
