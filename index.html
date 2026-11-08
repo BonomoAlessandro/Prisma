@@ -13825,7 +13825,7 @@ const BASALT = {
   field: BOARD / 2 + 0.19,  // Säulen, deren Mitte näher liegt (Kastenabstand), gehören zum Feld: Sie decken jeden Punkt
                             // des 7×7-Felds, und nur über ihnen ist die Oberfläche deckend
   core: 3.95,               // halbe Kante des Kernquaders: Bis 4,2 m stehen Säulen des Felds, 25 cm bleiben als Tiefe
-  coreLow: -0.8,            // Boden des Kernquaders: Die kürzeste Säule des Felds endet bei −0,83 m
+  coreLow: -0.8,            // Boden des Kernquaders: Die kürzeste Säule des Felds endet bei −0,865 m
   rise: 0.5,                // Anteil der Säulen des Felds, die sich in der Lichtwelle heben
   waveEnd: 3,               // so lange (s nach dem Start des Rings) wirkt die Lichtwelle, danach steht das Brett still
 };
@@ -14182,7 +14182,7 @@ const clay = {
   build: clayBoard,
 };
 const basalt = {
-  // Die Säulen des Felds stehen dicht unter der Oberfläche (y = 0) und reichen mindestens 0,83 m hinab: Sie decken den
+  // Die Säulen des Felds stehen dicht unter der Oberfläche (y = 0) und reichen mindestens 0,865 m hinab: Sie decken den
   // Quader unter dem Feld. Der stufige Rand und die Fugen zwischen den Säulen decken nichts sicher
   core: { lo: [-BASALT.core, BASALT.coreLow, -BASALT.core], hi: [BASALT.core, 0, BASALT.core] },
   build: basaltBoard,
