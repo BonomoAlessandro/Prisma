@@ -887,6 +887,16 @@ console.log('Offline');
         `${id}: Brett im Register nicht wie in skybox.json (node tools/blender/pack.mjs --brett ${id})`);
     }
   });
+  test('Bretter: feste Bretter, keiner der fünf Blender-Himmel hat das Steinbrett, Milchstrasse und Sonnensystem schon', () => {
+    const arten = ['beach', 'desert', 'forest', 'village', 'volcano'].map((id) => skies.find((s) => s.id === id)?.board?.type);
+    for (const art of arten) assert.notEqual(art ?? 'stone', 'stone', `ein Blender-Himmel mit dem Steinbrett: ${arten}`);
+    assert.equal(new Set(arten).size, arten.length, `zwei Himmel mit derselben Art: ${arten}`);
+    // die Hintergründe aus dem Code haben keine Brett-Angabe (Rückfall Steinbrett)
+    assert.deepEqual(codeSkies(html).map((s) => s.id).sort(), ['milky', 'solar']);
+    const code = html.match(/^const SKY_ENTRIES = \(\(\) => \{\s*const code = \[([\s\S]*?)\];/m)?.[1];
+    assert.ok(code?.includes("id: 'milky'"), 'SKY_ENTRIES: Liste code nicht gefunden, Format geändert?');
+    assert.ok(!/\bboard\s*:/.test(code), 'Milchstrasse oder Sonnensystem mit Brett-Angabe');
+  });
   test('Bretter: Prüfung lehnt eine unbekannte Art und unbekannte Werte ab', () => {
     const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
     const errorsWith = (board) => checkSkies([{ ...beach, board }], { types: layerTypes(html), boards: boardTypes(html) });
