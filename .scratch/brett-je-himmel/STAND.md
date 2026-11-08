@@ -17,8 +17,8 @@ unter «Comments».
 | 08 | **Hochbeet** (Art `raisedBed`) mit Sämlingen und Glühwürmchen im Dorf | Merge 9c514ed |
 | 07 | **Moospolster** (Art `moss`) mit Lichtwelle Waldgott im Bergwald | Merge 62c99e6 |
 | 05 | **Übergang** für alle Arten an einer Stelle (`boardBlend`): das neue Brett wächst von der Mitte, undurchsichtig, umgelenkt ohne Sprung, Notfall wächst ein; Ziel der Fische beim Aufwärmen | Merge 1037af7 |
-| 10 | **Schluss** bis vor den Poco-Test: `?brett=` und Leiste `?bretter` entfernt, Logiktest «feste Bretter», ganze Prüfung, Messung über alle Welten, Doku | ea3b7b8 und folgende (`feature/brett-10-schluss`) |
 | 09 | **Basaltsäulen** (Art `basalt`) mit Lichtwelle Version 2 im Vulkan, auf `boardBlend`; Hülle −2,9 m; `boardBlendN` nimmt die Kamera aus `viewMatrix` (Lambert hat kein `cameraPosition`) | Merge 2ae2be4 |
+| 10 | **Schluss** bis vor den Poco-Test: `?brett=` und Leiste `?bretter` entfernt, Logiktest «feste Bretter», ganze Prüfung, Messung über alle Welten, Doku | ea3b7b8 und folgende (`feature/brett-10-schluss`) |
 
 Nach dem Merge von 09 (08.11.) lief der ganze Satz auf dem gemeinsamen Stand: alle Node-Tests (Logik 2044, Generator über
 `leise.sh`), Offline, `brett-probe` (100 ok, `formen` 30 Übergänge aller sechs Arten ohne leeres Pixel), Geschichte-Probe

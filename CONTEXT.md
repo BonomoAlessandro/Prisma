@@ -43,8 +43,9 @@ _Vermeiden_: Plattform, Steinplatte (für jedes Brett), Spielfeld (das ist nur d
 
 **Steinbrett**:
 Das Brett aus dunklem, fein geädertem Schiefer mit eingravierten Rasterlinien, einer hellen Einlegelinie, polierten
-Seiten und einer Metallkante, 9,8 × 9,8 m gross und 0,38 m dick, mit einem Rand von 0,7 m um das Feld. Es steht unter der Milchstrasse und dem Sonnensystem und überall, wo ein Himmel kein
-eigenes Brett nennt. Im Code die Art `stone`.
+Seiten und einer Metallkante, 9,8 × 9,8 m gross und 0,38 m dick, mit einem Rand von 0,7 m um das Feld. Es steht
+unter der Milchstrasse und dem Sonnensystem und überall, wo ein Himmel kein eigenes Brett nennt. Im Code die Art
+`stone`.
 _Vermeiden_: Steinplatte, Plattform
 
 ## Noas Geschichte
