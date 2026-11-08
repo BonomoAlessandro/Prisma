@@ -136,3 +136,34 @@ Hochbeet → Stein, Stein → Moos, Hochbeet → Moos, zwei umgelenkte; Handy St
     und 200 ms), wie schon in Ticket 08 auf der Basis.
 
 **Offen:** Abnahme des Nutzers an der Vorschau; Review; die Lücke auf dem Weg ohne Vorladen ans Meer (`--wagen`).
+
+**Review (08.11.2026, Worktree `prisma-brett-05`, Stand 0ad2a5b; Basis 62c99e6 im eigenen Worktree zum Vergleich)**
+
+- **Befund Übergang (`boardBlend`):** In Ordnung.
+  - Der Einbau in die Materialien stimmt: Der Schlüssel im Programm-Cache bleibt der eigene, `BOARD_BLEND` trennt die Fassungen über `defines`, und die Uniforms hängen auch an der Fassung ohne Überblenden. Der Grund: three 0.147 nimmt beim Zurückwechseln die Uniforms des zuletzt gebauten Programms. In Ruhe ist der Code abgeschaltet (`#ifdef`).
+  - Verträgt sich mit `mark` des Pinsels: Der fasst die Hülle danach, und sein Schlüssel liest den eingefrorenen.
+  - Weil kein Brett Schatten wirft, stört der Schattenpass nicht.
+  - `dispose` ist unverändert; three gibt beim Freigeben des Materials beide Fassungen ab.
+  - Umlenken, Rückkehr zum selben Brett (Stücke werden zusammengelegt, kein Leuchten ohne Wechsel) und das Notfall-Steinbrett aus dem Nichts: Code und `formen` stimmen überein.
+- **Selbst behoben** (1e6eec6, klein): Sprang der Himmel mitten in einem Übergang mit dem Himmel (`set` ohne Überblenden), wuchs das Brett mit eigener Uhr weiter, statt mitzuspringen. Das widersprach dem eigenen Kommentar in `follow` und der Beschreibung von `boardTheme`. Jetzt nimmt es die eigene Uhr nur aus dem Notfall oder dann, wenn es schon mit eigener Uhr wächst. Danach ist `brett-probe` ganz grün.
+- **Programme beim Wechsel:**
+  - Die Fassungen mit `BOARD_BLEND` werden wie zuvor die durchsichtigen vorab übersetzt, in gleicher Zahl je Brett.
+  - Zeitprotokoll der Übersetzungen in je zwei `--dorf`-Läufen (HEAD und Basis, Kopien mit Protokoll): gleiche Abfolge an gleicher Stelle. Die neuen Fassungen sind etwas grösser und werden später fertig: 480–710 ms nach dem Anstossen, die Basis 170–870 ms.
+  - In `formen` steigt die Zahl der Programme nur beim ersten Auftritt einer Art. Das kommt von der Probe selbst: Sie zeichnet ohne Lichter, also mit anderen Programmen. Kein Hinweis auf Übersetzen im Spiel.
+- **Lücken: Streuung, nicht das Ticket.** Je drei abwechselnde Läufe, längstes Bild:
+  - `--wagen`, «Wiederholen über die Grenze ins Meer»: HEAD 98, 116, 130 ms; Basis 90, 129, 126 ms. In beiden liegt das lange Bild im ersten Bild des Strand-Panoramas (Anteil ≈ 0,53), siehe Ticket 07.
+  - `--dorf`, «Übung 8 wiederholen»: HEAD 368, 402, 53, 405, 428 ms; Basis 350, 392, 406, 354 ms. Das lange Bild liegt beim Einstieg ins Dorf, bevor ein Brett überblendet oder übersetzt wird.
+  - `--dorf`, «Prolog überspringen»: HEAD 120, 74, 163, 53, 38 ms; Basis 19, 26, 55, 38, 189 ms. In beiden fallen die Lücken in die Zeit, in der die vorab übersetzten Fassungen von Stein und Moos noch ausstehen.
+  - `--uebersicht`: Öffnen rot, HEAD 143 und 160 ms, Basis 162 und 287 ms.
+- **Wackelig:** `brett-probe formen` meldete im ersten Lauf bei Hochbeet → Stein (flach, heraus) 1 Pixel ohne Brett im Kernquader, von über 9000. Im zweiten Lauf und im dritten (nach der Korrektur) waren es 0 in allen 22 Übergängen. Vermutlich ein Riss in der Rasterung an einer Naht. Wiederholt es sich, die Stelle aufzeichnen.
+- **Basaltsäulen (Ticket 09):** Die Lösung passt. Es braucht nur `look` und `fadeVariants` weg und `setFade(k)`.
+  - Die Köpfe liegen bei −0,003 m, also in der Hülle (bis 0,005 m), und die Säulen enden über −2 m.
+  - Was den Kernquader deckt, muss in Ruhe unter y = 0,005 liegen. Teile darüber nehmen ihren eigenen Ort, und dann deckte es im Kernquader nicht mehr sicher.
+  - Gehobene Säulen (Lichtwelle) überschneiden sich nur selten mit einem Übergang.
+- **Tests (über `leise.sh`, GPU, seriell):**
+  - Node: Logik 2043, KI-Tester 84, Beurteilung 206, Geschichte 35, Levelliste 54, Würfelliste 20, Vorrat 18, Hall 6, Generator 31, alle grün.
+  - `offline.mjs` grün.
+  - `brett-probe` grün bis auf das eine Pixel; nach der Korrektur ganz grün.
+  - Geschichte-Probe `--grad leicht --welten 3` grün auf Desktop und mit `--handy`.
+  - `--dorf`, `--wagen` und `--uebersicht` mit den Lücken oben.
+- **Auflagen:** keine. Hinweis für Ticket 10: Die Lücken beim Überspringen des Prologs und bei «Übung 8 wiederholen» bestehen schon auf der Basis. Die erste hängt am Fertigwerden der vorab übersetzten Fassungen, die zweite am Einstieg ins Dorf.
