@@ -4,7 +4,7 @@
 
 **Blocked by:** 10
 
-**Status:** ready-for-agent (Auflage aus dem Review: Naht an der Kante der Streifen, dann Merge mit Ticket 10)
+**Status:** ready-for-human (Auflage aus dem Review behoben, Nachprüfung des Reviewers, dann Merge mit Ticket 10)
 
 **What to build:** Im ersten Bild, in dem ein neuer Blender-Himmel einblendet, dauerte ein Bild 100–175 ms
 (`skyTheme.set` mit `fadeTime` 2,4 s an Weltgrenzen; im Log der Probe `shown` = neuer Himmel, `w` ≈ 0,04, Anteil des
@@ -317,3 +317,45 @@ Himmel bewegt sich, Menü, Übersicht, Bühne, verdeckt, Feier.
   einem stehenden Untertitel, ohne Arbeit im Bild. Das stützt die Zuschreibung an headless.
 - **`brett-probe`:** «Reise» einmal 1348 ms im ganzen Lauf, danach allein je zweimal neu und Basis grün (50 ms).
   `formen` 1 Pixel (raisedBed → tidePool), bekannt.
+
+**Auflage behoben (08.11.2026 nachts, Umsetzer)**
+
+- **1. Naht an der Kante der Streifen.**
+  - **Auffüllen im Worker:** `skyBitmaps` nimmt `pad` an. Für die Streifen ist das `BAND_HOEHE`. Stufe 0 wird auf
+    4096 Zeilen aufgefüllt: Die letzte Zeile, gekippt die obere Kante des Bilds, wird wiederholt. Erst danach rechnet
+    der Worker die Mipmaps. Jede Stufe geht damit genau auf. Über dem Bild liegt in jeder Stufe die wiederholte Kante,
+    nie Zeilen eines früheren Himmels.
+  - **Shader:** Er liest nur noch den Anteil `uKl` (Zeilen des Bilds durch 4096). Der Abstand zur Kante ist weg, ebenso
+    `userData.klasse`.
+  - **Leinwand im Hauptspeicher:** Die Leinwand fürs Auffüllen hat `willReadFrequently` wie `cut`. Ohne das lag sie im
+    Grafikprozess, und der Wechsel ins Meer in `--wagen` hatte durchs ganze Überblenden Bilder bis 167–200 ms (9–11
+    über 100 ms). Gegenprobe: ohne Auffüllen 50 ms; mit Auffüllen im Hauptspeicher 50 und 67 ms.
+  - **Nachweis:** Bild mit dem Horizont im Blick (Blick 0,45, Zeit steht), «Wüste → X» gegen X frisch geladen:
+
+    | Welt | vorher (ce4763d) | nachher |
+    |---|---|---|
+    | Wald | 1988 Pixel über 8, max 38, Linie in den Zeilen 632–635 | 0 Pixel, max 0 |
+    | Dorf | – | 0 Pixel, max 0 |
+    | Strand | – | 0 Pixel, max 0 |
+    | Vulkan | – | 0 Pixel, max 0 |
+
+  - **Frisch gegen 122d6f7:**
+    - Strand 0 Pixel (max 5), Vulkan 0 Pixel (max 8).
+    - Wald 210 Pixel, max 26; Dorf 155 Pixel, max 19. Je verstreut über die Zeilen 646–703, höchstens 20 je Zeile:
+      keine Linie.
+    - Zum Vergleich streuen zwei frische Läufe vor dem Auffüllen gegeneinander um 886–1574 Pixel (Wald).
+- **2. Vorzeichnen nur in einem ruhigen Bild** (`skyTheme.ruhigZumVorzeichnen`): keine Lichtwelle (`celebration.active`,
+  `uShock.y`), kein Wachsen des Bretts (`boardTheme.anteil` < 1), keine Fahrt (`story.tweens`) und kein Überblenden.
+  Halten zählt nicht als Überblenden, denn dabei steht das Bild.
+  - **Ohne Vorladen:** `holding` hält den bisherigen Himmel, bis der gewählte vorgezeichnet ist
+    (`wartetAufVorzeichnen`), höchstens `VORZEICHNEN_MS` = 500 ms. So wird auch beim Wiederholen über eine Weltgrenze
+    erst vorgezeichnet und dann eingeblendet.
+  - **Im Protokoll:** In `--grenzen` je ein Bild «Himmel desert/volcano: vorzeichnen» von 17 ms. In `--wagen` (Meer ohne
+    Vorladen) ist es ebenfalls dabei.
+- **Läufe nachher** (Desktop, headless mit GPU):
+  - `--grenzen`: grün, Wüste → Vulkan 50 ms, Streifen des Vulkans höchstens 34 ms.
+  - `--grenzen --handy`: grün.
+  - `--wagen`: grün, dreimal: 50, 67 und 67 ms.
+  - `--ganz`: grün, längste 50 ms.
+  - `--uebersicht`: grün.
+  - `brett-probe`: 100/100. `offline.mjs`: grün. Logik: 2045 grün.

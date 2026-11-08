@@ -9595,8 +9595,9 @@ const PANO = {
  * Höhe der Texturen für die Streifen (Desktop, Ticket 11): Die Streifen der Welten sind verschieden hoch (Wüste 3823,
  * die übrigen 3413 Zeilen bei 4096 Breite). Das erste Schreiben in eine Textur einer neuen Grösse hielt den
  * Grafikprozess 105–142 ms an, mitten im Spiel. In einer Höhe für alle nimmt der Vorrat (skyTexPool) beim nächsten Himmel
- * die Texturen des vorigen; jeder Streifen belegt darin die unteren Zeilen (Shader: uKl). Rund 10–20 % mehr
- * Grafikspeicher für die Streifen.
+ * die Texturen des vorigen. Der Worker füllt Stufe 0 jedes Streifens mit der wiederholten Kante auf diese Höhe auf
+ * (skyBitmaps, pad), dann gehen alle Stufen genau auf; der Shader liest nur den Anteil des Bilds (uKl). Rund 10–20 % mehr
+ * Grafikspeicher und Zeilen beim Hochladen für die Streifen.
  */
 const BAND_HOEHE = 4096;
 
@@ -9658,8 +9659,22 @@ function plainPngs(o) {
 const STRIP_ROWS = 256; // 4096 × 256 × 4 Byte = 4 MB je Streifen
 const skyBitmaps = (() => {
   const OPT = { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
-  async function decode(url, rows) {
-    const bmp = await createImageBitmap(await (await fetch(url)).blob(), OPT);
+  async function decode(url, rows, pad = 0) {
+    let bmp = await createImageBitmap(await (await fetch(url)).blob(), OPT);
+    const inhalt = bmp.height;
+    // pad: Stufe 0 auf so viele Zeilen auffüllen, mit der letzten Zeile (gekippt: der oberen Kante des Bilds) wiederholt,
+    // erst dann die Mipmaps: So geht jede Stufe genau auf (Streifen in einer Höhe, BAND_HOEHE), und keine Stufe liest an
+    // der Kante Zeilen, die nicht zum Bild gehören (im Vorrat die eines früheren Himmels)
+    if (pad > inhalt && rows < Infinity && typeof OffscreenCanvas === 'function') {
+      // willReadFrequently: Leinwand im Hauptspeicher (wie cut); sonst lag sie im Grafikprozess, und das Auffüllen und die
+      // Mipmaps daraus hielten ihn mitten im Überblenden an (Bilder bis 200 ms, --wagen)
+      const c = new OffscreenCanvas(bmp.width, pad), g = c.getContext('2d', { willReadFrequently: true });
+      g.imageSmoothingEnabled = false;
+      g.drawImage(bmp, 0, 0);
+      g.drawImage(bmp, 0, inhalt - 1, bmp.width, 1, 0, inhalt, bmp.width, pad - inhalt);
+      bmp.close();
+      bmp = c.transferToImageBitmap();
+    }
     const { width, height } = bmp, levels = [bmp];
     // Für das eigene Hochladen (rows endlich) auch die Mipmaps, je Stufe halbiert: generateMipmap hielt den Grafikprozess
     // je grosse Textur 35–50 ms an
@@ -9690,30 +9705,30 @@ const skyBitmaps = (() => {
       }
       lv.close();
     }
-    return { width, height, strips };
+    return { width, height, inhalt, strips };
   }
   // Bilder nacheinander, nicht alle zugleich (jedes belegt dekodiert samt Mipmaps und Streifen bis 150 MB), und jedes
   // erst, wenn es dran ist: Wer schnell durchschaltet, wartet so nicht auf die Bilder einer schon freigegebenen Skybox
   // (alive false: der Auftrag fällt weg)
   let worker = null, nextId = 0, flips = null, queue = Promise.resolve();
   const waiting = new Map();
-  const once = (url, rows) => (worker
+  const once = (url, rows, pad) => (worker
     ? new Promise((resolve, reject) => {
       const id = nextId++;
       waiting.set(id, (d) => (d.r ? resolve(d.r) : reject(new Error(d.err))));
-      worker.postMessage({ id, url, rows });
+      worker.postMessage({ id, url, rows, pad });
     })
-    : decode(url, rows));
-  const run = (url, rows, alive = () => true) => (queue = queue.catch(() => {}).then(() => {
+    : decode(url, rows, pad));
+  const run = (url, rows, alive = () => true, pad = 0) => (queue = queue.catch(() => {}).then(() => {
     if (!alive()) throw new Error('nicht mehr gebraucht');
-    return once(url, rows);
+    return once(url, rows, pad);
   }));
   // Worker und Test erst beim ersten Bild (mit einem Hintergrund aus dem Code braucht es beides nie)
   function start() {
     try {
       worker = new Worker(URL.createObjectURL(new Blob([`const OPT = ${JSON.stringify(OPT)};\n${decode};
-        onmessage = async ({ data: { id, url, rows } }) => {
-          try { const r = await decode(url, rows); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
+        onmessage = async ({ data: { id, url, rows, pad } }) => {
+          try { const r = await decode(url, rows, pad); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
           catch (e) { postMessage({ id, err: String(e) }); }
         };`], { type: 'text/javascript' })));
       worker.onmessage = ({ data }) => { waiting.get(data.id)?.(data); waiting.delete(data.id); };
@@ -9740,10 +9755,10 @@ const skyBitmaps = (() => {
     if (ok === null) flips = null; // keine Antwort in 10 s: die nächste Skybox prüft neu
     return !!ok;
   };
-  return Object.assign(async (url, alive) => {
+  return Object.assign(async (url, alive, pad = 0) => {
     const ok = await flipsOk();
     if (!ok) return null;
-    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive);
+    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive, pad);
     if (Math.max(r.width, r.height) <= renderer.capabilities.maxTextureSize) return r;
     for (const s of r.strips) s.bitmap.close(); // zu gross für diese Grafik: ein Bild, three verkleinert es
     return null;
@@ -9752,10 +9767,10 @@ const skyBitmaps = (() => {
 
 /** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild (schon dekodiert: sonst täte es
  * das erste drawImage im Hauptthread, beim Tiefenbild gemessen bis 170 ms) */
-async function loadSkyImage(url, bitmap = false, alive = () => true) {
+async function loadSkyImage(url, bitmap = false, alive = () => true, pad = 0) {
   if (bitmap) {
     try {
-      const strips = await skyBitmaps(url, alive);
+      const strips = await skyBitmaps(url, alive, pad);
       if (strips) return strips;
     } catch (e) { if (!alive()) throw e; /* sonst wie ohne */ }
   }
@@ -9891,8 +9906,7 @@ function* skyUpload(t, klein = false) {
     if (strips) closeSkyImage(t);
     return;
   }
-  // klasse: in einer höheren Textur (Streifen, BAND_HOEHE), die unteren Zeilen jeder Stufe
-  const gl = renderer.getContext(), { width: w } = t.image, h = Math.max(t.image.height, t.userData.klasse ?? 0);
+  const gl = renderer.getContext(), { width: w, height: h } = t.image;
   // ganze Kette aus dem Worker, Vorschau nur Stufe 0; mipmaps (Bilder der Felsen): nur Stufe 0, die übrigen erzeugt
   // danach die Grafikkarte wie bei three (generateMipmap)
   const levels = t.userData.mipmaps ? Math.floor(Math.log2(Math.max(w, h))) + 1
@@ -10159,21 +10173,13 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
   });
   const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i}; uniform float uOn${i}; uniform float uKl${i};`).join('\n');
   // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v). Kommt er
-  // erst nach dem Einblenden (uOn < 1), mischt er sich über das ganze Bild. Liegt er in einer höheren Textur (BAND_HOEHE:
-  // nur die unteren Zeilen, Anteil uKl), liest er nur dort, mit Abstand zur Kante nach der Grösse des Abdrucks (sonst
-  // läsen tiefe Mipmaps die Zeilen darüber mit).
+  // erst nach dem Einblenden (uOn < 1), mischt er sich über das ganze Bild. Aufgefüllt auf BAND_HOEHE (skyBitmaps, pad)
+  // liegt das Bild in den unteren Zeilen (Anteil uKl), darüber die wiederholte Kante.
   const pick = bands.map((_, i) => `
         if (!hit && uOn${i} > 0.0 && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
           vec2 s = 1.0 / vec2(uRect${i}.y - uRect${i}.x, uRect${i}.w - uRect${i}.z);
-          vec2 k = vec2(1.0, uKl${i}), p = vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y) * k;
-          vec2 ga = gx * s * k, gb = gy * s * k;
-          #if __VERSION__ >= 300
-            if (k.y < 1.0) {
-              vec2 n = vec2(textureSize(uBand${i}, 0)), f = max(abs(ga), abs(gb)) * n;
-              p.y = min(p.y, k.y - (1.0 + 0.5 * max(f.x, f.y)) / n.y);
-            }
-          #endif
-          col = SAMPLE(uBand${i}, p, ga, gb);
+          vec2 k = vec2(1.0, uKl${i});
+          col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y) * k, gx * s * k, gy * s * k);
           if (uOn${i} < 1.0) col = mix(SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy), col, uOn${i});
           hit = true;
         }`).join('');
@@ -12612,7 +12618,8 @@ function createPanoramaSky(m) {
     const alive = () => my === token;
     const fullLoad = loadSkyImage(base.full, true, alive), depthLoad = loadSkyImage(base.depth);
     const maskLoad = base.watermask ? loadSkyImage(base.watermask) : null; // Wasser im Panorama, fein (waterSurface)
-    const bandLoads = (hd?.bands ?? []).map((url) => loadSkyImage(url, true, alive)); // im Worker nach dem ganzen Bild
+    // im Worker nach dem ganzen Bild, aufgefüllt auf BAND_HOEHE Zeilen (eine Höhe für alle Welten, skyTexPool)
+    const bandLoads = (hd?.bands ?? []).map((url) => loadSkyImage(url, true, alive, BAND_HOEHE));
     for (const load of bandLoads) load.catch(() => {}); // Fehler erst unten, beim Abbruch gar nicht: nie unbehandelt
     const images = await Promise.allSettled([fullLoad, depthLoad, ...(maskLoad ? [maskLoad] : [])]);
     const [fullImg, depthImg, maskImg = null] = images.map((r) => r.value);
@@ -12774,14 +12781,12 @@ function createPanoramaSky(m) {
       try { img = await load; } catch (e) { if (my === token) console.warn(`${m.name}: Streifen ${i + 1} nicht geladen (${e.message})`); }
       if (my !== token || !img) { closeSkyStrips(img); myBands[i].done = true; continue; }
       const tex = skyTexture(img, false);
-      // alle Streifen in einer Höhe: Dann nimmt der Vorrat (skyTexPool) die jeder anderen Welt
-      if (img.strips && renderer.capabilities.isWebGL2 && img.height < BAND_HOEHE) tex.userData.klasse = BAND_HOEHE;
       streaming.add(tex); // release schliesst die Bilder, skyUpload bricht dann ab
       await sliced(skyUpload(tex), false, `Himmel ${m.id}: Streifen`);
       streaming.delete(tex);
       if (my !== token) { tex.dispose(); continue; }
       sky.material.uniforms[`uBand${i}`].value = tex;
-      sky.material.uniforms[`uKl${i}`].value = img.height / Math.max(img.height, tex.userData.klasse ?? 0);
+      sky.material.uniforms[`uKl${i}`].value = (img.inhalt ?? img.height) / img.height;
       myBands[i].age = 0;
       sceneLoop.wake();
     }
@@ -12949,6 +12954,8 @@ function createPanoramaSky(m) {
  * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, starsFrom: 0, rings: null };
+/** so lange hält skyTheme den bisherigen Himmel höchstens, bis der gewählte vorgezeichnet ist (wartetAufVorzeichnen) */
+const VORZEICHNEN_MS = 500;
 /** Untergrenze der Sterne (sky.starsFrom, Grad) als Sinus für den Shader; ohne starsAboveHorizon 0 */
 const starsFromSin = (s) => (s.starsAboveHorizon ? Math.sin(THREE.MathUtils.degToRad(s.starsFrom ?? 0)) : 0);
 const SKY_ENTRIES = (() => {
@@ -13010,7 +13017,27 @@ const skyTheme = {
     const shown = this.entries.filter((e) => e.id !== this.current && this.weight[e.id] > 0);
     if (!shown.length) return false;
     return this.byId.get(this.current).module?.settled === false && shown.some((e) => e.module?.settled !== false)
-      || boardTheme.haelt(this.current);
+      || boardTheme.haelt(this.current) || this.wartetAufVorzeichnen();
+  },
+  /**
+   * Der gewählte Himmel ist geladen, aber noch nicht vorgezeichnet (vorzeichnen): Der bisherige bleibt so lange stehen,
+   * höchstens VORZEICHNEN_MS, damit auch ohne Vorladen (Wiederholen über eine Weltgrenze) erst vorgezeichnet wird und
+   * dann eingeblendet. Fragt nur, was billig ist (je Bild).
+   */
+  wartetAufVorzeichnen() {
+    const m = this.byId.get(this.current).module;
+    if (!m?.vorzeichnenNoetig) { this.vorzeichnenSeit = null; return false; }
+    this.vorzeichnenSeit ??= performance.now();
+    return performance.now() - this.vorzeichnenSeit < VORZEICHNEN_MS;
+  },
+  vorzeichnenSeit: null,
+  /**
+   * Ein Bild, in dem das doppelte Zeichnen nicht auffällt (Review Ticket 11, Poco): keine Lichtwelle, kein Wachsen des
+   * Bretts, keine Fahrt der Kamera und kein Überblenden (Halten zählt nicht: da steht das Bild).
+   */
+  get ruhigZumVorzeichnen() {
+    return !celebration.active && !(shockUniforms.uShock.value.y > 0) && boardTheme.anteil === 1
+      && !story.tweens.length && !(this.fading && !this.holding);
   },
   /** Gewählter Hintergrund steht (Startbildschirm): wie ready, aber scharfes Bild und Streifen dürfen noch fehlen */
   get shown() { return !this.fading && (this.byId.get(this.current).module?.shown ?? true); },
@@ -13041,7 +13068,7 @@ const skyTheme = {
   vorzeichnen() {
     for (const e of this.entries) {
       if (this.weight[e.id] > 0 || (e.id !== this.current && e.id !== this.ahead) || !e.module?.vorzeichnenNoetig) continue;
-      if (!ruhe.jetzt()) return; // erst fragen, wenn eines ansteht (je Bild)
+      if (!ruhe.jetzt() || !this.ruhigZumVorzeichnen) return; // erst fragen, wenn eines ansteht (je Bild)
       arbeit.tue(`Himmel ${e.id}: vorzeichnen`, () => e.module.vorzeichnen(() => {
         const rt = composer.readBuffer, before = renderer.getRenderTarget(), shadows = renderer.shadowMap.needsUpdate;
         renderer.shadowMap.needsUpdate = false;
