@@ -15045,7 +15045,7 @@ const boardTheme = {
         // mit dem Himmel, sobald er sich bewegt; aus dem Notfall (oder während es mit eigener Uhr wächst) mit eigener
         // Uhr; sonst gleich (der Himmel sprang)
         if (to && fading) { if (!skyTheme.holding) this.blend(ziel, true); }
-        else if (to && (to.frist || this.anteil < 1)) this.blend(ziel, false);
+        else if (to && (to.frist || (this.anteil < 1 && !this.mitHimmel))) this.blend(ziel, false);
         else this.show(ziel);
       } else if (to?.frist) {
         to.sky = sky; // das Steinbrett nach 8 s ohne Brett steht weiter, nun für diesen Himmel
