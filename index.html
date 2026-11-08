@@ -25746,34 +25746,47 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
 window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n) ?? [],
   speicher: () => story.scene?.gl?.speicher() ?? 0, statistik: () => story.scene?.gl?.statistik ?? null,
   liste: () => story.scene?.gl?.liste() ?? [] };
-// ?bretter: Leiste zum Springen zwischen den Himmeln und ihren Brettern, um die Übergänge anzusehen (manueller Test
-// vor Ticket 10; Ticket 10 entfernt sie mit ?brett=). Je Himmel ein Knopf, der Regler setzt die Dauer des Überblendens
-// (skyTheme.fadeTime; an Weltgrenzen 2,4 s), «springen» wechselt ohne Übergang. Ein Klick mitten im Übergang lenkt um.
+// ?bretter: Leiste für den manuellen Test der Übergänge zwischen den Welten (vor Ticket 10; Ticket 10 entfernt sie mit
+// ?brett=). Je Weltgrenze ein Knopf: Er setzt den Stand im Grad leicht auf das letzte Level der alten Welt (wie nach
+// dem Spielen bis dorthin), lädt neu, geht über «Weiter» ins Level und löst es (loese); was dann folgt, ist die Reise des
+// Spiels in die neue Welt, mit Licht, Himmel und Brett wie im Durchgang. Der Stand von leicht wird dabei überschrieben.
 if (new URLSearchParams(location.search).has('bretter')) {
+  const MERK = 'prisma.bretter.grenze', grad = 'leicht';
   const bar = document.createElement('div');
-  bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;display:flex;flex-wrap:wrap;gap:4px;align-items:center;'
-    + 'max-width:calc(100vw - 16px);padding:6px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font:12px system-ui';
-  const knoepfe = skyTheme.entries.map((e) => {
-    const b = document.createElement('button');
-    b.textContent = `${e.name ?? e.id} · ${e.board?.type ?? 'stone'}`;
-    b.style.cssText = 'font:inherit;padding:4px 8px;border:1px solid #fff6;border-radius:6px;background:#fff2;color:#fff';
-    b.addEventListener('click', (ev) => { ev.stopPropagation(); skyTheme.set(e.id, !springen.checked); });
-    bar.append(b);
-    return [e.id, b];
-  });
-  const dauer = document.createElement('input'), wert = document.createElement('span');
-  Object.assign(dauer, { type: 'range', min: 0.3, max: 8, step: 0.1, value: 2.4 });
-  const setze = () => { skyTheme.fadeTime = +dauer.value; wert.textContent = `${(+dauer.value).toFixed(1)} s`; };
-  dauer.addEventListener('input', setze);
-  const springen = document.createElement('input'), sl = document.createElement('label');
-  springen.type = 'checkbox';
-  sl.append(springen, ' springen');
-  bar.append(dauer, wert, sl);
+  bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;display:flex;flex-wrap:wrap;gap:4px;'
+    + 'max-width:calc(100vw - 16px);padding:6px;border-radius:8px;background:rgba(0,0,0,.55);font:12px system-ui';
   for (const t of ['pointerdown', 'pointerup', 'click', 'wheel']) bar.addEventListener(t, (ev) => ev.stopPropagation());
-  setze();
+  STORY_CHAPTERS.slice(0, -1).forEach((ch, w) => {
+    const b = document.createElement('button');
+    const kurz = (s) => s.replace(/^(Der|Das|Die) /, '');
+    b.textContent = kurz(ch.title) + ' → ' + kurz(STORY_CHAPTERS[w + 1].title);
+    b.style.cssText = 'font:inherit;padding:4px 8px;border:1px solid #fff6;border-radius:6px;background:#fff2;color:#fff';
+    b.addEventListener('click', () => {
+      // Plätze im Durchgang: je Welt die Zahl ihrer Level (STORY_LEVELS), das letzte der Welt w ist dran
+      const welten = STORY_LEVELS[grad], platz = welten.slice(0, w + 1).flat().length - 1;
+      const stand = { platz, geloest: welten.flat().slice(0, platz), geschafft: false,
+        gesehen: ['prolog', 'angebot', ...STORY_CHAPTERS.slice(0, w + 1).map(storyChapterId)] };
+      progress.save(grad, stand);
+      progress.write(progress.lastKey, grad);
+      try { sessionStorage.setItem(MERK, String(platz)); } catch { /* privates Fenster */ }
+      const url = new URL(location.href);
+      url.searchParams.set('nointro', '');
+      location.href = url.href;
+    });
+    bar.append(b);
+  });
   document.body.append(bar);
-  // der gewählte Himmel hervorgehoben (die Geschichte wechselt ihn auch selbst)
-  setInterval(() => { for (const [id, b] of knoepfe) b.style.background = id === skyTheme.current ? '#fff6' : '#fff2'; }, 250);
+  // nach dem Neuladen: über «Weiter» ins letzte Level der alten Welt, kurz zeigen, dann lösen
+  let platz = null;
+  try { platz = sessionStorage.getItem(MERK); sessionStorage.removeItem(MERK); } catch { /* privates Fenster */ }
+  if (platz !== null) (async () => {
+    const warte = async (f) => { while (!f()) await new Promise((r) => setTimeout(r, 100)); };
+    await warte(() => story.choosing);
+    story.choose(grad);
+    await warte(() => flow.state === 'play' && story.step === +platz && story.gaze === 0);
+    await new Promise((r) => setTimeout(r, 1500));
+    __prismaDebug.loese();
+  })();
 }
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
