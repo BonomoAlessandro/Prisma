@@ -27,7 +27,12 @@
 //             Meer wird das echte Brett des Strands (Gezeitenbecken) berechnet und hochgeladen, während skyTheme.quiet
 //             gilt. Der Blick senkt sich auf dieses Brett, bereit und ohne Notfall, und die Reise hat keine Lücke über
 //             100 ms.
-// Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise]
+//   formen:   Desktop (Ticket 05). Übergang zwischen allen Arten des Registers (dazu das Steinbrett), jede geordnete
+//             Paarung einmal, flach und herausgezoomt, auf den beiden Himmeln aus dem Code als Trägern; dazu Stein → Lehm,
+//             umgelenkt ins Hochbeet, und Hochbeet → Stein, zurück ins Hochbeet. Je Bild nur die Bretter in einem kleinen
+//             Bild: Im Kernquader (hinter ihm zeichnet der Himmel nichts) deckt jedes Pixel ein Brett, und kein Teil
+//             erscheint oder verschwindet auf einmal, auch nicht im letzten Bild.
+// Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]
 // Etwa 3 min. Scheitert bei einem falschen Wert oder einer Meldung [error] bzw. einer Ausnahme in der Konsole.
 import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -39,8 +44,8 @@ import { requireQuiet } from '../tools/ki-tester/shots.mjs';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const nur = args.includes('--nur') ? args[args.indexOf('--nur') + 1] : null;
-if (nur !== null && !['mechanik', 'netz', 'menue', 'reise'].includes(nur)) {
-  console.error('Aufruf: node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise]');
+if (nur !== null && !['mechanik', 'netz', 'menue', 'reise', 'formen'].includes(nur)) {
+  console.error('Aufruf: node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]');
   process.exit(1);
 }
 requireQuiet();
@@ -211,7 +216,7 @@ async function mechanik() {
     await until('!!window.__tore.dorf', 'Brett des Dorfs gebaut', 10);
     await ev('__tore.dorf(); true');
     await until(`__prismaDebug.skyTheme.byId.get('village').module.settled && [...__prismaDebug.boardTheme.built.values()]
-      .some((e) => e.key === ${JSON.stringify(PROBE('dorf'))} && e.ready && e.obenBereit)`, 'Dorf vorgeladen', 120);
+      .some((e) => e.key === ${JSON.stringify(PROBE('dorf'))} && e.ready && e.blendBereit)`, 'Dorf vorgeladen', 120);
     const vorher = await ev('__prisma.brett()');
     await ev(PROTOKOLL);
     await ev(`__prismaDebug.skyTheme.set('village'); true`);
@@ -255,7 +260,12 @@ async function mechanik() {
     const seit = keines < 0 ? 0 : (log[keinesBis]?.ts - log[keines].ts) / 1000;
     pruefe(notfall.b.himmel === 'volcano' && notfall.b.art === 'stone' && seit > 7.8 && seit < 9,
       `Vulkan: nach ${seit.toFixed(1)} s das Steinbrett als Notfall ${JSON.stringify(notfall.b)}`);
-    const ueber = log.filter((e) => e.brett.von === 'volcano' && e.brett.himmel === 'volcano' && e.brett.anteil < 1);
+    // es wächst ins Bild (aus dem Nichts, eigene Uhr), statt auf einmal dazustehen
+    const ein = log.slice(keinesBis).filter((e) => e.brett.notfall && e.brett.von === null && e.brett.anteil < 1);
+    pruefe(ein.length > 3 && ein[0].brett.anteil < 0.1,
+      `Vulkan: das Steinbrett wächst ins Bild (${ein.length} Bilder, erstes mit Anteil ${ein[0]?.brett.anteil.toFixed(3)})`);
+    // das richtige wächst über das Steinbrett (dessen Stück es nach und nach bedeckt; danach wächst es weiter aus dem Nichts)
+    const ueber = log.filter((e) => e.brett.art === 'probe' && e.brett.himmel === 'volcano' && e.brett.anteil < 1);
     const udauer = (ueber.at(-1)?.ts - ueber[0]?.ts) / 1000;
     pruefe(ueber.length > 20 && Math.abs(udauer - 2.4) < 0.35 && vulkan.art === 'probe' && !vulkan.notfall
       && vulkan.anteil === 1, `Vulkan: vom Notfall ins richtige Brett in ${udauer.toFixed(2)} s ${JSON.stringify(vulkan)}`);
@@ -463,9 +473,195 @@ async function reise() {
   await b.close();
 }
 
+/* ---------- Formen: Übergang zwischen allen Arten (Ticket 05) ---------- */
+
+// In der Seite, je Bild (eigenes requestAnimationFrame) nach dem Spiel: nur die gezeigten Bretter in ein kleines Bild
+// zeichnen (320 × 200, ohne Himmel und Elemente, ohne die Schatten neu zu rechnen) und dazu den Kernquader, hinter dem der
+// Himmel gerade nichts zeichnet (boardCoreUniforms). luecken: Pixel im Kernquader, in die kein Brett zeichnet (Alpha 0; dort sähe man
+// ein Loch im Himmel). schritt: Anteil der Pixel mit Brett, deren Farbe sich gegenüber dem vorigen Bild deutlich ändert
+// (ein Teil, der auf einmal erscheint oder verschwindet, gibt einen grossen Schritt). Kein Vergleich mit
+// Referenzbildern: geprüft werden nur Deckung und Sprünge.
+const DECKUNG = `(() => { if (window.__dk) return true;
+  const D = __prismaDebug, W = 320, H = 200, rt = new THREE.WebGLRenderTarget(W, H);
+  const px = new Uint8Array(W * H * 4), alt = new Uint8Array(W * H * 4), maske = new Uint8Array(W * H * 4);
+  const kernSzene = new THREE.Scene(), box = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false }));
+  kernSzene.add(box);
+  const dk = window.__dk = { an: false, log: [], erstes: true };
+  const bild = () => {
+    const { scene, renderer, camera, boardTheme: B } = D, gruppen = new Set();
+    for (const e of B.built.values()) if (e.board) gruppen.add(e.board.group);
+    const sicht = scene.children.map((c) => c.visible), bg = scene.background, schatten = renderer.shadowMap.needsUpdate;
+    const vorher = renderer.getRenderTarget(), farbe = renderer.getClearColor(new THREE.Color()), alpha = renderer.getClearAlpha();
+    scene.children.forEach((c) => { if (!gruppen.has(c)) c.visible = false; });
+    scene.background = null;
+    renderer.shadowMap.needsUpdate = false;
+    renderer.setRenderTarget(rt);
+    renderer.setClearColor(0, 0);
+    renderer.clear();
+    renderer.render(scene, camera);
+    renderer.readRenderTargetPixels(rt, 0, 0, W, H, px);
+    const lo = boardCoreUniforms.uCoreLo.value, hi = boardCoreUniforms.uCoreHi.value;
+    let luecken = 0, kern = 0;
+    if (hi.y > -1000) {
+      box.position.addVectors(lo, hi).multiplyScalar(0.5);
+      box.scale.subVectors(hi, lo);
+      box.updateMatrixWorld();
+      renderer.clear();
+      renderer.render(kernSzene, camera);
+      renderer.readRenderTargetPixels(rt, 0, 0, W, H, maske);
+      for (let i = 0; i < W * H; i++) if (maske[i * 4] > 128) { kern++; if (px[i * 4 + 3] === 0) luecken++; }
+    }
+    renderer.setRenderTarget(vorher);
+    renderer.setClearColor(farbe, alpha);
+    scene.background = bg;
+    renderer.shadowMap.needsUpdate = schatten;
+    scene.children.forEach((c, i) => { c.visible = sicht[i]; });
+    let n = 0, anders = 0;
+    for (let i = 0; i < W * H * 4; i += 4) {
+      if (px[i + 3] < 128 && alt[i + 3] < 128) continue;
+      n++;
+      if (dk.erstes) continue;
+      if ((px[i + 3] < 128) !== (alt[i + 3] < 128) || Math.max(Math.abs(px[i] - alt[i]), Math.abs(px[i + 1] - alt[i + 1]),
+        Math.abs(px[i + 2] - alt[i + 2])) > 48) anders++;
+    }
+    alt.set(px);
+    const schritt = dk.erstes ? 0 : anders / Math.max(1, n);
+    dk.erstes = false;
+    return { luecken, kern, schritt };
+  };
+  const loop = () => { if (!dk.an) return; requestAnimationFrame(loop);
+    const b = __prisma.brett();
+    dk.log.push({ ...bild(), anteil: b.anteil, himmel: b.himmel, art: b.art, stuecke: b.stuecke.length }); };
+  dk.start = () => { dk.log = []; dk.erstes = true; dk.an = true; requestAnimationFrame(loop); return true; };
+  dk.stop = () => { dk.an = false; return dk.log; };
+  return true; })()`;
+
+/** Ein Übergang im Protokoll von DECKUNG: Lücken, grösster Schritt, erster und letzter (ins fertige Brett) */
+function uebergang(log) {
+  const i0 = log.findIndex((e) => e.anteil < 1 || e.stuecke > 1);
+  const i1 = log.findIndex((e, i) => i > i0 && e.anteil === 1 && e.stuecke === 1);
+  const fade = i0 < 0 || i1 < 0 ? [] : log.slice(i0, i1 + 1);
+  return {
+    bilder: Math.max(0, i1 - i0), luecken: Math.max(0, ...log.map((e) => e.luecken)),
+    kern: Math.min(...fade.map((e) => e.kern)), erster: fade[0]?.schritt ?? 1, letzter: fade.at(-1)?.schritt ?? 1,
+    groesster: Math.max(0, ...fade.map((e) => e.schritt)),
+    // ein Schritt über dem, was der Fortschritt dieses Bilds erklärt (die Front wächst mit dem Anteil): ein Sprung
+    sprung: Math.max(0, ...fade.slice(1).map((e, i) => e.schritt - SCHRITT_FREI - SCHRITT_JE * Math.abs(e.anteil - fade[i].anteil))),
+    stuecke: Math.max(0, ...fade.map((e) => e.stuecke)),
+  };
+}
+// Anteil der Pixel mit Brett, die sich von einem Bild zum nächsten ändern: frei (Front samt Leuchten; flach gesehen
+// stehen Kräuter und Polster im Rand dicht, dort ändert die Front viele Pixel auf einmal) und je Fortschritt
+// des Anteils in diesem Bild; ins erste und ins letzte Bild höchstens LETZTER_MAX
+const SCHRITT_FREI = 0.12, SCHRITT_JE = 2, LETZTER_MAX = 0.03;
+
+/** Euler-Weg durch alle geordneten Paare verschiedener Arten (vollständiger gerichteter Graph, Hierholzer) */
+function alleWege(arten) {
+  const offen = new Map(arten.map((a) => [a, arten.filter((b) => b !== a)])), weg = [], stapel = [arten[0]];
+  while (stapel.length) {
+    const a = stapel.at(-1), n = offen.get(a);
+    if (n.length) stapel.push(n.shift());
+    else weg.push(stapel.pop());
+  }
+  return weg.reverse();
+}
+
+async function formen() {
+  console.log('Formen (Desktop 1280 × 800): Übergang zwischen allen Arten');
+  const b = await browser({ width: 1280, height: 800, dpr: 1, phone: false });
+  const { ev, until, logs } = b;
+  const ANSICHTEN = ['flach', 'heraus', 'flach-heraus'];
+  const kamera = (a) => ev(`(() => { const c = __prismaDebug.cameraRig; c.homing = null; c.goalPhi = 0; c.goalTheta = 0;
+    c.goalZoom = 1; if ('${a}'.includes('flach')) { c.goalPhi = c.phiMax - c.basePhi; c.goalTheta = 0.62; }
+    if ('${a}'.includes('heraus')) c.goalZoom = c.zoomMax; __prismaDebug.sceneLoop.wake(); return true; })()`);
+  // Träger sind die beiden Himmel aus dem Code (ohne Panorama, nie freigegeben): Ihr Brett setzt die Probe
+  const traeger = (sky, angabe) => ev(`(() => { const k = __prismaDebug.skyTheme, B = __prismaDebug.boardTheme;
+    k.byId.get('${sky}').board = ${JSON.stringify(angabe)}; B.free('${sky}'); k.preload('${sky}'); return true; })()`);
+  const bereit = (sky) => `(() => { const e = __prismaDebug.boardTheme.skies.get('${sky}'); return !!e && e.ready
+    && e.blendBereit && __prismaDebug.skyTheme.byId.get('${sky}').module?.settled !== false; })()`;
+  const pruefeUebergang = (u, was) => {
+    pruefe(u.bilder > 20 && u.luecken === 0 && u.kern > 0, `${was}: ${u.bilder} Bilder, im Kernquader keine Lücke `
+      + `(höchstens ${u.luecken} Pixel, Kernquader mindestens ${u.kern})`);
+    pruefe(u.sprung <= 0 && u.erster <= LETZTER_MAX && u.letzter <= LETZTER_MAX, `${was}: kein Sprung, grösster Schritt `
+      + `${(u.groesster * 100).toFixed(1)} % (über das Wachsen hinaus ${(Math.max(0, u.sprung) * 100).toFixed(1)} %), erstes Bild ${(u.erster * 100).toFixed(1)} %, `
+      + `letztes ${(u.letzter * 100).toFixed(1)} % (höchstens ${LETZTER_MAX * 100})`);
+  };
+  try {
+    await b.send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro&sky=milky' });
+    await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady()', 'Milchstrasse bereit', 120);
+    await ev('__prismaDebug.zeige(12); true');
+    await until('window.__prisma.playing()', 'Level', 30);
+    await ev(DECKUNG);
+    // die Arten des Registers mit ihrer Brett-Angabe, dazu das Steinbrett
+    const angaben = JSON.parse(await ev(`(() => { const a = { stone: { type: 'stone' } };
+      for (const e of __prismaDebug.skyTheme.entries) if (e.board?.type && !a[e.board.type]) a[e.board.type] = e.board;
+      return JSON.stringify(a); })()`));
+    const weg = alleWege(Object.keys(angaben));
+    console.log(`  Arten ${Object.keys(angaben).join(', ')}: ${weg.length - 1} Übergänge`);
+    await ev(`(() => { __prismaDebug.skyTheme.fadeTime = 2.4; return true; })()`);
+    await traeger('milky', angaben[weg[0]]);
+    await ev(`__prismaDebug.skyTheme.set('milky', false); true`);
+    await until(`__prisma.skyReady() && __prisma.brett().art === '${weg[0]}'`, 'erstes Brett', 60);
+    const tabelle = [];
+    for (let i = 1; i < weg.length; i++) {
+      const nach = i % 2 ? 'solar' : 'milky', ansicht = ANSICHTEN[i % ANSICHTEN.length];
+      await traeger(nach, angaben[weg[i]]);
+      await kamera(ansicht);
+      await until(bereit(nach), `Brett ${weg[i]} bereit`, 60);
+      await sleep(2500); // die Kamera steht
+      await ev('__dk.start()');
+      await ev(`__prismaDebug.skyTheme.set('${nach}'); true`);
+      await until(`__prisma.skyReady() && __prisma.brett().art === '${weg[i]}'`, `${weg[i - 1]} → ${weg[i]}`, 60);
+      await sleep(300);
+      const u = uebergang(await ev('__dk.stop()'));
+      tabelle.push(`${weg[i - 1]} → ${weg[i]} (${ansicht}): ${u.bilder} Bilder, Lücken ${u.luecken}, Schritt grösster `
+        + `${(u.groesster * 100).toFixed(1)} %, letzter ${(u.letzter * 100).toFixed(1)} %`);
+      pruefeUebergang(u, `${weg[i - 1]} → ${weg[i]} (${ansicht})`);
+    }
+    console.log(`    ${tabelle.join('\n    ')}`);
+
+    // umgelenkt: Stein → Lehm, bei 40 % weiter ins Hochbeet des Dorfs (vorgeladen), dann vom Dorf zur Milchstrasse und
+    // bei 40 % zurück ins Dorf. Jedes Brett behält sein Stück, das nächste wächst darüber
+    if (angaben.clay && angaben.raisedBed) {
+      await kamera('flach');
+      await traeger('milky', angaben.stone);
+      await ev(`__prismaDebug.skyTheme.set('milky', false); true`);
+      await until(`__prisma.skyReady() && __prisma.brett().art === 'stone'`, 'Steinbrett', 60);
+      await ev(`(() => { const k = __prismaDebug.skyTheme; k.keep = 600; k.preload('village'); return true; })()`);
+      await until(bereit('village'), 'Dorf vorgeladen', 120);
+      await traeger('solar', angaben.clay);
+      await until(bereit('solar'), 'Lehm bereit', 60);
+      await sleep(2500);
+      await ev('__dk.start()');
+      await ev(`__prismaDebug.skyTheme.set('solar'); true`);
+      await until(`__prisma.brett().himmel === 'solar' && __prisma.brett().anteil >= 0.4`, 'Lehm zu 40 %', 10);
+      await ev(`__prismaDebug.skyTheme.set('village'); true`);
+      await until(`__prisma.skyReady() && __prisma.brett().art === 'raisedBed'`, 'umgelenkt ins Dorf', 60);
+      await sleep(300);
+      let u = uebergang(await ev('__dk.stop()'));
+      pruefe(u.stuecke === 3, `umgelenkt: Stein, Lehm und Hochbeet zugleich im Bild (${u.stuecke} Stücke)`);
+      pruefeUebergang(u, 'Stein → Lehm, umgelenkt ins Hochbeet');
+      await ev('__dk.start()');
+      await ev(`__prismaDebug.skyTheme.set('milky'); true`);
+      await until(`__prisma.brett().himmel === 'milky' && __prisma.brett().anteil >= 0.4`, 'Stein zu 40 %', 10);
+      await ev(`__prismaDebug.skyTheme.set('village'); true`);
+      await until(`__prisma.skyReady() && __prisma.brett().art === 'raisedBed'`, 'zurück ins Dorf', 60);
+      await sleep(300);
+      u = uebergang(await ev('__dk.stop()'));
+      pruefeUebergang(u, 'Hochbeet → Stein, zurück ins Hochbeet');
+    }
+  } catch (e) {
+    pruefe(false, `Formen: ${e.message}`);
+  }
+  konsole(logs, 'Formen');
+  await b.close();
+}
+
 if (!nur || nur === 'mechanik') await mechanik();
 if (!nur || nur === 'netz') await netz();
 if (!nur || nur === 'menue') await menue();
 if (!nur || nur === 'reise') await reise();
+if (!nur || nur === 'formen') await formen();
 console.log(fehler.length ? `\n${fehler.length} Fehler` : '\nBrett: in Ordnung');
 process.exit(fehler.length ? 1 : 0);
