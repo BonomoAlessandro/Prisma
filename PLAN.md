@@ -109,12 +109,19 @@ Android-Chromium.
 
 ## 1. Aussehen
 
-- [ ] **1.1 Ein Brett je Himmel:** Das Brett nimmt das Material seiner Umgebung auf, z. B. sandig am Strand. Gilt für
+- [x] **1.1 Ein Brett je Himmel:** Das Brett nimmt das Material seiner Umgebung auf, z. B. sandig am Strand. Gilt für
   die fünf Himmel aus Blender (Strand, Wüste, Wald, Dorf, Vulkan); Milchstrasse und Sonnensystem behalten das
   Steinbrett. Die neuen Himmel aus 1.2 bringen ihr Brett später in ihrer `skybox.json` mit. Spec und Tickets:
   `.scratch/brett-je-himmel/` (Grilling vom 05.11.2026), Branch `feature/brett-je-himmel`.
-  - **Stand 06.11.2026:** Tickets 01–04 und 06 fertig (Strand Gezeitenbecken, Wüste Lehmterrasse im Spiel), offen 05,
-    07–10. Übergabe für das Weiterarbeiten: `.scratch/brett-je-himmel/STAND.md`.
+  - **Fertig (08.11.2026, Tickets 01–10):** Jede Welt hat ihr festes Brett mit eigener Lichtwelle: Gezeitenbecken
+    (Strand), Lehmterrasse (Wüste), Moospolster (Bergwald), Hochbeet (Dorf), Basaltsäulen (Vulkan); Milchstrasse und
+    Sonnensystem das Steinbrett. Die Brett-Angabe steht in `skybox.json` und im Register, das Prüfwerkzeug kennt die
+    Arten. Das Brett wechselt mit dem Himmel (bereit, halten, überblenden), das neue wächst von der Mitte über das alte,
+    ein Steinbrett gibt es unter einem Blender-Himmel nur im Notfall. Berechnet wird im Spiel, keine Bytes zum Vorab-
+    Speichern dazu. Der Schalter `?brett=` und die Test-Leiste `?bretter` sind entfernt. Begriffe in `CONTEXT.md`
+    («Brett», «Steinbrett», die Namen der Bretter). Übergabe: `.scratch/brett-je-himmel/STAND.md`.
+  - [ ] Test des Nutzers auf dem Poco F4 GT.
+  - [ ] Merge nach main auf Wort des Nutzers.
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem

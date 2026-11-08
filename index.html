@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-08 brett-vulkan';
+const APP_VERSION = '2026-11-08 brett-schluss';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -15075,9 +15075,6 @@ const basalt = {
   build: basaltBoard,
 };
 const BOARD_TYPES = { stone, tidePool, clay, raisedBed, moss, basalt };
-// ?brett=<art>: unter jedem Himmel diese Art statt seiner Brett-Angabe, mit den Werten des ersten Himmels, der sie hat
-// (boardTheme.prepare); nur für Vergleichsbilder während der Gestaltung (Tickets 04 bis 09), fällt mit Ticket 10 weg
-const BOARD_URL = new URLSearchParams(location.search).get('brett');
 
 /**
  * Textur eines Bretts in Häppchen hochladen (Generator für sliced), an three vorbei wie skyUpload: eigene WebGL-Textur
@@ -15259,12 +15256,9 @@ const boardTheme = {
       .then(() => { entry.blendBereit = true; sceneLoop.wake(); });
   },
   /**
-   * Das Brett des Himmels sky (seine Brett-Angabe) bauen und bereit machen; es bleibt, bis der Himmel frei wird. Mit
-   * ?brett=<art> (nur für Vergleichsbilder während der Arbeit, Ticket 10 entfernt ihn) unter jedem Himmel diese Art,
-   * mit den Werten des ersten Himmels, der sie hat
+   * Das Brett des Himmels sky (seine Brett-Angabe) bauen und bereit machen; es bleibt, bis der Himmel frei wird
    */
   prepare(sky, angabe) {
-    if (BOARD_URL) angabe = skyTheme.entries.find((e) => e.board?.type === BOARD_URL)?.board ?? { type: BOARD_URL };
     if (!this.skies.has(sky)) this.skies.set(sky, this.acquire(angabe));
   },
   /** Mit dem Himmel sky freigeben (skyTheme.update); gezeigt bleibt es, bis sein Überblenden vorbei ist */
@@ -26058,48 +26052,6 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
 window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n) ?? [],
   speicher: () => story.scene?.gl?.speicher() ?? 0, statistik: () => story.scene?.gl?.statistik ?? null,
   liste: () => story.scene?.gl?.liste() ?? [] };
-// ?bretter: Leiste für den manuellen Test der Übergänge zwischen den Welten (vor Ticket 10; Ticket 10 entfernt sie mit
-// ?brett=). Je Weltgrenze ein Knopf: Er setzt den Stand im Grad leicht auf das letzte Level der alten Welt (wie nach
-// dem Spielen bis dorthin), lädt neu, geht über «Weiter» ins Level und löst es (loese); was dann folgt, ist die Reise des
-// Spiels in die neue Welt, mit Licht, Himmel und Brett wie im Durchgang. Der Stand von leicht wird dabei überschrieben.
-if (new URLSearchParams(location.search).has('bretter')) {
-  const MERK = 'prisma.bretter.grenze', grad = 'leicht';
-  const bar = document.createElement('div');
-  bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;display:flex;flex-wrap:wrap;gap:4px;'
-    + 'max-width:calc(100vw - 16px);padding:6px;border-radius:8px;background:rgba(0,0,0,.55);font:12px system-ui';
-  for (const t of ['pointerdown', 'pointerup', 'click', 'wheel']) bar.addEventListener(t, (ev) => ev.stopPropagation());
-  STORY_CHAPTERS.slice(0, -1).forEach((ch, w) => {
-    const b = document.createElement('button');
-    const kurz = (s) => s.replace(/^(Der|Das|Die) /, '');
-    b.textContent = kurz(ch.title) + ' → ' + kurz(STORY_CHAPTERS[w + 1].title);
-    b.style.cssText = 'font:inherit;padding:4px 8px;border:1px solid #fff6;border-radius:6px;background:#fff2;color:#fff';
-    b.addEventListener('click', () => {
-      // Plätze im Durchgang: je Welt die Zahl ihrer Level (STORY_LEVELS), das letzte der Welt w ist dran
-      const welten = STORY_LEVELS[grad], platz = welten.slice(0, w + 1).flat().length - 1;
-      const stand = { platz, geloest: welten.flat().slice(0, platz), geschafft: false,
-        gesehen: ['prolog', 'angebot', ...STORY_CHAPTERS.slice(0, w + 1).map(storyChapterId)] };
-      progress.save(grad, stand);
-      progress.write(progress.lastKey, grad);
-      try { sessionStorage.setItem(MERK, String(platz)); } catch { /* privates Fenster */ }
-      const url = new URL(location.href);
-      url.searchParams.set('nointro', '');
-      location.href = url.href;
-    });
-    bar.append(b);
-  });
-  document.body.append(bar);
-  // nach dem Neuladen: über «Weiter» ins letzte Level der alten Welt, kurz zeigen, dann lösen
-  let platz = null;
-  try { platz = sessionStorage.getItem(MERK); sessionStorage.removeItem(MERK); } catch { /* privates Fenster */ }
-  if (platz !== null) (async () => {
-    const warte = async (f) => { while (!f()) await new Promise((r) => setTimeout(r, 100)); };
-    await warte(() => story.choosing);
-    story.choose(grad);
-    await warte(() => flow.state === 'play' && story.step === +platz && story.gaze === 0);
-    await new Promise((r) => setTimeout(r, 1500));
-    __prismaDebug.loese();
-  })();
-}
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
 // rendern (Screenshots der KI-Tester). zeige(index): LEVELS[index] ausserhalb der Geschichte zeigen, gleich nach dem

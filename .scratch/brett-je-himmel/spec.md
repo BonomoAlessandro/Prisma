@@ -1,6 +1,6 @@
 # Spec: Ein Brett je Himmel
 
-Status: ready-for-agent
+Status: ready-for-human (Poco-Test und Merge)
 
 PLAN 1.1 «Plattformen passend zur Skybox», eingeschränkt auf die Himmel, die es schon gibt. Die Entscheide stammen aus
 dem Grilling vom 05.11.2026. Die Begriffe folgen `CONTEXT.md`, die neuen Begriffe «Brett» und «Steinbrett» trägt die
@@ -9,6 +9,25 @@ Grundlage nach (siehe «Geplanter Ablauf»).
 Gearbeitet wird auf dem Branch `feature/brett-je-himmel`, abgezweigt von `main` (6f322ce), in einem eigenen
 Arbeitsordner neben dem Repo. Der Merge nach `main` kommt erst am Ende, wenn alles fertig ist, und nur auf das Go des
 Nutzers.
+
+## Schlussstand (08.11.2026, Ticket 10)
+
+Gebaut wie oben, mit diesen Abweichungen und Ergänzungen:
+
+- **Bretter:** Strand Gezeitenbecken (`tidePool`, Lichtwelle Brandung), Wüste Lehmterrasse (`clay`, Sandverwehung),
+  Bergwald Moospolster (`moss`, Blumen und leuchtende Pilze), Dorf Hochbeet (`raisedBed`, Sämlinge und
+  Glühwürmchen), Vulkan Basaltsäulen (`basalt`, Säulen heben sich, Glut in den Fugen). Milchstrasse und
+  Sonnensystem: Steinbrett. Ein Logiktest verlangt, dass keiner der fünf Blender-Himmel das Steinbrett hat.
+- **Übergang zwischen Formen** (Ticket 05): Das neue Brett wächst von der Mitte nach aussen über das bisherige, beide
+  undurchsichtig (`boardBlend`, für alle Arten an einer Stelle). Prüfung an Bildern ohne Referenzbilder
+  (`brett-probe formen`: kein leeres Pixel im Kernquader, kein Sprung), bewusst abweichend von «keine Pixeltests».
+- **Basaltsäulen** reichen bis −2,84 m unter das Brett, innerhalb des Umrisses; die Hülle des Übergangs reicht darum bis
+  −2,9 m. Am Desktop kosten sie in Ruhe rund 1,7 ms mehr je Bild als das Steinbrett (Entscheid des Nutzers: so lassen).
+- **Schalter:** `?brett=` und die Test-Leiste `?bretter` sind entfernt. Ein Brett wählt nur noch der Himmel (`?sky=`
+  für Tests). Über `__prismaDebug.boardTheme` erreichen Proben weiter die Interna (`brett-probe` setzt dort eigene
+  Arten und Brett-Angaben); das ist die Testschnittstelle wie bei `skyTheme`, kein Weg für Spieler.
+- **Offen bis zum Merge:** Test des Nutzers auf dem Poco, Lücken im ersten Bild eines neuen Panoramas an Weltgrenzen
+  (siehe Ticket 10).
 
 ## Problem
 

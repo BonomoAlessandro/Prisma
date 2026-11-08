@@ -1,6 +1,7 @@
 # Stand «Ein Brett je Himmel» – Übergabe
 
-Stand 08.11.2026 morgens, Branch `feature/brett-je-himmel` (seit dem 06.11. nicht gepusht). Diese Notiz ist für das Weiterarbeiten auf
+Stand 08.11.2026 mittags, Branch `feature/brett-je-himmel` (seit dem 06.11. nicht gepusht); Ticket 10 bis vor den
+Poco-Test im Worktree `prisma-brett-10`, Branch `feature/brett-10-schluss`. Diese Notiz ist für das Weiterarbeiten auf
 einem anderen Rechner gedacht. Entscheide und Begründungen stehen in `spec.md` und in den Tickets unter `issues/`, je
 unter «Comments».
 
@@ -17,12 +18,18 @@ unter «Comments».
 | 07 | **Moospolster** (Art `moss`) mit Lichtwelle Waldgott im Bergwald | Merge 62c99e6 |
 | 05 | **Übergang** für alle Arten an einer Stelle (`boardBlend`): das neue Brett wächst von der Mitte, undurchsichtig, umgelenkt ohne Sprung, Notfall wächst ein; Ziel der Fische beim Aufwärmen | Merge 1037af7 |
 | 09 | **Basaltsäulen** (Art `basalt`) mit Lichtwelle Version 2 im Vulkan, auf `boardBlend`; Hülle −2,9 m; `boardBlendN` nimmt die Kamera aus `viewMatrix` (Lambert hat kein `cameraPosition`) | Merge 2ae2be4 |
+| 10 | **Schluss** bis vor den Poco-Test: `?brett=` und Leiste `?bretter` entfernt, Logiktest «feste Bretter», ganze Prüfung, Messung über alle Welten, Doku | ea3b7b8 und folgende (`feature/brett-10-schluss`) |
 
 Nach dem Merge von 09 (08.11.) lief der ganze Satz auf dem gemeinsamen Stand: alle Node-Tests (Logik 2044, Generator über
 `leise.sh`), Offline, `brett-probe` (100 ok, `formen` 30 Übergänge aller sechs Arten ohne leeres Pixel), Geschichte-Probe
 `--grad leicht --welten 5` Desktop und Handy, `--dorf`, `--uebersicht`, `--grenzen --handy` grün. Rot nur `--wagen`
 («Wiederholen über die Grenze ins Meer» 150 ms) und `--grenzen` (Wüste → Vulkan 150 ms), beide im ersten Bild des
 neuen Panoramas (w ≈ 0,04), wie auf den Basen vor 05 und 09 (Streuung, siehe Reviews 05 und 09).
+
+Ticket 10 (08.11., Zahlen im Ticket): Node-Tests alle grün (Logik 2045), Offline grün, `--ganz` Desktop und Handy
+grün, `--menue` grün. Rot nur an bekannten Stellen: `--dorf`, `--wagen`, `--grenzen` am Desktop, `--uebersicht` auf
+dem Handy; die jeweils andere Ansicht grün. `brett-probe` 99/100 (1 Pixel mit dem Moospolster, flach). Leistung headless: Strand
++1,5 ms, Vulkan +2,3 ms je Bild am Desktop, sonst Streuung; vorab gespeichert 4,15 von 4,5 MB.
 
 ## Entscheide des Nutzers für die übrigen Bretter
 
@@ -40,15 +47,16 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 
 ## Als Nächstes
 
-1. **Manueller Test des Nutzers** (Wunsch vom 07.11.): Spiel mit `?bretter` öffnen; je Weltgrenze ein Knopf setzt den
-   Stand von «Leicht» aufs letzte Level der alten Welt, lädt neu und löst es, dann folgt die echte Reise. Die Leiste
-   (Commits 698ec03, 4e6c170) ist ungetestet und **fliegt raus, sobald der Nutzer das Go gibt** (mit `?brett=`).
-2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt (im normalen Spiel kaum zu sehen, ihm egal).
-   Die Ruckler an den Weltgrenzen hat er im manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe
-   `formen` bleibt (ich halte sie für sinnvoll). Basaltsäulen gefallen, die +1,7 ms merkt er nicht: so lassen. Offen:
-   ob die Lücken-Prüfung an Weltgrenzen lockerer wird oder das Laden der Panoramen besser (Erklärung an ihn, 08.11.).
-3. **10 Schluss** erst nach dem Test: Schalter weg, ganze Geschichte auf Desktop und Handy-Ansicht, Messung über alle
-   Welten, aktuelles `main` holen, Test des Nutzers auf dem Poco, Merge nach `main` nur auf sein Go.
+1. **Poco-Test des Nutzers** (Ticket 10): Stand `feature/brett-10-schluss` auf dem Poco F4 GT, Version
+   `2026-11-08 brett-schluss` (Taste F bzw. Leistungsanzeige). Was er ansieht, steht im Ticket 10 unter «Comments».
+   Dabei messen, ob man das Anhalten im ersten Bild eines neuen Panoramas (Strand, Vulkan) sieht:
+   - sieht man nichts: nur die Lücken-Prüfung an genau dieser Stelle lockern, mit Vermerk (Vorschlag im Ticket);
+   - sieht man etwas: zuerst den Himmel vor dem Einblenden unsichtbar vorzeichnen.
+2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat er im
+   manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe `formen` bleibt. Basaltsäulen gefallen,
+   die +1,7 ms merkt er nicht: so lassen.
+3. Danach Review, Merge von `feature/brett-10-schluss` in `feature/brett-je-himmel`, und nach `main` nur auf sein Go
+   (`main` 96d6538 ist schon drin, vor dem Merge noch einmal fetchen).
 
 ## Arbeitsweise (vom Nutzer so gewünscht)
 
@@ -85,7 +93,8 @@ Das Spiel läuft direkt aus der Datei (Chrome):
 
 - Strand: `file:///<pfad>/index.html?sky=beach`
 - Wüste: `file:///<pfad>/index.html?sky=desert`
-- Vergleich mit dem Steinbrett: `&brett=stone` anhängen. Ein Level lösen zeigt die Lichtwelle.
+- Ebenso `forest`, `village`, `volcano`; das Steinbrett zeigen `?sky=milky` und `?sky=solar`. Ein Level lösen zeigt die
+  Lichtwelle. Einen Schalter für das Brett gibt es nicht mehr (Ticket 10).
 
 ## Offene Punkte
 
@@ -104,11 +113,10 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   vermutlich ein Riss in der Rasterung an einer Naht, Ursache offen.
 - `--uebersicht`: Öffnen und Schliessen zeitweise über 100 ms, auf allen Ständen (im letzten Satz grün).
 - `--dorf`: «Übung 8 wiederholen» und «Prolog überspringen» zeitweise über 100 ms, schon auf den Basen.
-- **Ticket 10 (Aufräumen):**
-  - Die Test-Leiste `?bretter` muss weg.
-  - Der Schalter `?brett=` muss weg.
-  - Das Brett lässt sich über `__prismaDebug` umstellen; bedenken.
-  - Gehören die Namen der Bretter ins Glossar? Danach den KI-Tester-Test laufen lassen.
+- **Ticket 10 (Aufräumen), erledigt:** Leiste `?bretter` und Schalter `?brett=` sind weg. `__prismaDebug.boardTheme`
+  bleibt: Es ist die Testschnittstelle für Proben (`brett-probe` setzt dort eigene Arten und Brett-Angaben), wie
+  `skyTheme` und die übrigen Interna, und kein Weg für Spieler. Die Namen der Bretter stehen im Glossar unter «Brett»
+  (Abschnitt «Auf dem Feld», nicht Teil des Fingerabdrucks der KI-Tester; KI-Tester-Test grün).
 - **Sonst:**
   - Die Türmchen der Lehmterrasse werfen keinen Schatten.
   - `dispose` beendet einen noch rechnenden Worker nicht.
