@@ -930,6 +930,22 @@ console.log('Offline');
     assert.ok(errorsWith({ egg: undefined }).some((e) => /egg/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ dach: [0.8, 0.7, 0.5] }).some((e) => /dach/.test(e)), 'unbekannter Wert');
   });
+  test('Bretter: Vulkan mit den Basaltsäulen (basalt); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const volcano = skies.find((s) => s.id === 'volcano') ?? assert.fail('Skybox volcano fehlt im Register');
+    const board = JSON.parse(JSON.stringify(volcano.board));
+    assert.equal(board.type, 'basalt', 'der Vulkan hat die Basaltsäulen');
+    const errorsWith = (change) => checkSkies([{ ...volcano, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    const fehler = (change, wert, was) => assert.ok(errorsWith(change).some((e) => e.includes(`basalt: ${wert}`)), was);
+    fehler({ glow: [1.4, 0.665, 0.349] }, 'glow', 'Glut über 1 (sRGB)');
+    fehler({ joint: [0.035, -0.01, 0.03] }, 'joint', 'Farbe unter 0');
+    fehler({ line: [0.63, 0.62] }, 'line', 'Farbe mit zwei Werten');
+    fehler({ basalt: [0.2, 0.19, 0.18] }, 'basalt', 'Säulen des Felds ohne zwei Töne');
+    fehler({ column: [board.column[0], board.column[1], board.column[0]] }, 'column', 'Säulen mit drei Tönen');
+    fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
+    fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
+  });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
     assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');

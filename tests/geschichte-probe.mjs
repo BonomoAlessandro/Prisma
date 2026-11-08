@@ -35,8 +35,8 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--wagen] [--fall] [--groesse 360x640] [--dpr 2.75] [--messwerte <datei.json>]
-//           [--vorher <datei.json>]
+//           [--dorf-raender] [--ganz] [--wagen] [--fall] [--grenzen] [--groesse 360x640] [--dpr 2.75]
+//           [--messwerte <datei.json>] [--vorher <datei.json>]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
 //   mit dem Massstab der Seite, Ticket 18 von .scratch/leistung/; Bilder unter <bildschirm>-dpr<n>-…); --grad: die
@@ -61,6 +61,8 @@
 //   12, siehe fallAblauf), gut 1 min. --vorher: die Dauern (netto) mit einem früheren Lauf mit --messwerte vergleichen
 //   (Vorher-Lauf .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe vergleicheVorher): jede Reise höchstens etwa
 //   1 s länger, die Einstiege nicht länger, das Finale etwa 4 s.
+// --grenzen: Wiederholen über die Weltgrenzen Wüste → Vulkan und Vulkan → Planeten aus der Übersicht, mit dem Wechsel
+// des Bretts (Ticket 09 von .scratch/brett-je-himmel/, siehe grenzenAblauf, gut 2 min).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -123,10 +125,11 @@ const dorfRaenderProbe = args.includes('--dorf-raender');
 const ganz = args.includes('--ganz');
 const wagenProbe = args.includes('--wagen');
 const fallProbe = args.includes('--fall');
+const grenzenProbe = args.includes('--grenzen');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
   : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe || wagenProbe
-    || fallProbe ? []
+    || fallProbe || grenzenProbe ? []
     : GRADE;
 const welten = +(wert('--welten') ?? 2);
 const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
@@ -2560,6 +2563,57 @@ async function fallAblauf() {
   await sleep(300);
   pruefeErwachen(await himmelAuswerten(), 1, 'Reise in Welt 2');
 }
+/**
+ * Wiederholen über die Weltgrenzen am Vulkan (--grenzen; Ticket 09 von .scratch/brett-je-himmel/): Stand Leicht bis
+ * Planeten 6, aus der Übersicht das letzte Level der Wüste wiederholen, «Weiter» zum Vulkan, dann ebenso das letzte des
+ * Vulkans und «Weiter» zu den Planeten. Je Grenze geprüft (grenzeBrett): kein Untertitel, kein Träger, der Blick bleibt
+ * auf dem Brett; das Brett gleitet gleichzeitig mit dem Himmel und steigend vom alten ins neue, ohne Notfall, mit der Art
+ * seiner Brett-Angabe in jedem Bild (Basaltsäulen am Vulkan, Steinbrett bei den Planeten); dazu die Bildzeiten.
+ */
+async function grenzenAblauf() {
+  console.log(`${view.name}: Wiederholen über die Grenzen des Vulkans`);
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 45, 4) });
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 45 && !${D}.story.running`,
+    'Leicht 46 läuft', 90);
+  for (const [w, von, nach, name] of [[2, 'desert', 'volcano', 'Wüste → Vulkan'], [3, 'volcano', null, 'Vulkan → Planeten']]) {
+    await tippe('#btn-overview', 'Übersicht');
+    await until(`${uebOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, `${name}: Übersicht`, 10);
+    await sleep(600);
+    await tippeKachel(w, 9, `${name}: Kachel ${w + 1}/10`);
+    await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === ${w * 10 + 9}`
+      + ` && !${D}.story.running`, `${name}: letztes Level wiederholen`, 60);
+    await ev(`${D}.loese()`);
+    await until('window.__prisma.solvedPanel()', `${name}: gelöst`, 30);
+    await sleep(700);
+    await messe();
+    await tippe('#btn-next', `${name}: Weiter`);
+    await until(`window.__prisma.playing() && ${D}.story.step === ${w * 10 + 10} && !${D}.story.running`,
+      `${name}: erstes Level der nächsten Welt`, 60);
+    await sleep(1500);
+    const log = await ende(`Wiederholen: ${name}`);
+    grenzeBrett(log, von, nach ?? await ev(`${D}.skyTheme.current`), name);
+    await bild(`grenze-${von}`);
+  }
+}
+/** Weiter über eine Weltgrenze beim Wiederholen: Das Brett wechselt mit dem Himmel von von nach nach (Log von messe). */
+function grenzeBrett(log, von, nach, name) {
+  ohneZwischenszene(log, name);
+  const blick = Math.max(...log.map((e) => e.gaze));
+  pruefe(blick < 0.01, `${name}: der Blick hob sich (${blick})`);
+  const bf = log.filter((e) => e.brett.von === von && e.brett.himmel === nach);
+  const steigt = bf.every((e, i) => i === 0 || e.brett.anteil >= bf[i - 1].brett.anteil);
+  const a0 = log.indexOf(bf[0]), a1 = log.indexOf(bf.at(-1)) + 1;
+  const h0 = log.findIndex((e) => !(e.shown === von && e.w === 1)), h1 = log.findIndex((e) => e.shown === nach && e.w === 1);
+  const falsch = log.find((e) => e.brett.notfall || !e.brett.himmel || e.brett.art !== e.brett.soll);
+  pruefe(bf.length > 10 && steigt && Math.abs(a0 - h0) <= 1 && Math.abs(a1 - h1) <= 1 && log.at(-1).brett.himmel === nach
+    && log.at(-1).brett.anteil === 1 && log.at(-1).brett.bereit, `${name}: das Brett wechselt nicht mit dem Himmel `
+    + `(Brett Bild ${a0}–${a1}, Himmel ${h0}–${h1}, ${bf.length} Bilder, steigend ${steigt}, am Ende `
+    + `${JSON.stringify(log.at(-1).brett)})`);
+  pruefe(!falsch, `${name}: falsches Brett oder Notfall (${JSON.stringify(falsch)})`);
+  console.log(`  ${name}: Brett ${log[0].brett.art} → ${log.at(-1).brett.art}, mit dem Himmel über `
+    + `${((log[h1]?.ts - log[h0]?.ts) / 1000).toFixed(2)} s`);
+}
 /** Grösster Rückgang dessen, was von Strahlen leuchtet (rest bzw. strahlen der Aufzeichnung), je Bild (60 je s). */
 const auslaufSprung = (lauf) => Math.max(0, ...lauf.slice(1).map((e, i) => ((lauf[i].rest ?? lauf[i].strahlen)
   - (e.rest ?? e.strahlen)) / Math.max(1, (e.ts - lauf[i].ts) / (1000 / 60))));
@@ -2852,6 +2906,7 @@ try {
   if (dorfRaenderProbe) await dorfRaender();
   if (wagenProbe) await wagenAblauf();
   if (fallProbe) await fallAblauf();
+  if (grenzenProbe) await grenzenAblauf();
   for (const [i, g] of grade.entries()) await (ganz ? ganzerDurchgang : durchgang)(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {
