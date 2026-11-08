@@ -1236,7 +1236,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-08 brett-schluss';
+const APP_VERSION = '2026-11-08 himmel-vorzeichnen';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8350,16 +8350,98 @@ const sceneLoop = {
 /**
  * Arbeit in Häppchen: führt einen Generator aus, der zwischendurch yield sagt, und gibt nach SLICE_MS ans nächste Bild
  * ab (yield NEXT_FRAME: sofort). So laufen Intro und Spiel flüssig weiter, während eine Skybox aufgebaut wird.
- * Ergebnis: der Rückgabewert.
+ * Ergebnis: der Rückgabewert. was: Name der Arbeit fürs Protokoll (arbeit).
  */
 const SLICE_MS = 6;
 const NEXT_FRAME = Symbol('nächstes Bild');
 /** yield RUHIG: erst weiter an einer ruhigen Stelle (ruhe), yield RUHIG_KLEIN: ebenso, für kleine Uploads (ruhe.jetzt) */
 const RUHIG = Symbol('ruhige Stelle'), RUHIG_KLEIN = Symbol('ruhige Stelle, klein');
-async function sliced(steps, ruhig = false) {
+/**
+ * Protokoll der Arbeit beim Vorladen und Aufbauen (Ticket 11 von .scratch/brett-je-himmel/): Welches Stück (Himmel,
+ * Brett, Shader, Hochladen, Vorzeichnen, erstes Bild) lief wann und wie lange im Hauptthread. Nur für Proben
+ * (window.__arbeitAn vor dem Laden gesetzt, Geschichte-Probe), sonst kostet es nur die Abfrage von an. log: [Beginn
+ * (performance.now), ms, was]; merke: ein Ereignis ohne Dauer (etwa das erste Bild eines Panoramas).
+ */
+const arbeit = {
+  an: window.__arbeitAn === true,
+  log: [],
+  /** fn() als Arbeit was ausführen und protokollieren */
+  tue(was, fn) {
+    if (!this.an) return fn();
+    const t = performance.now();
+    try { return fn(); } finally { this.eintrag(t, performance.now() - t, was); }
+  },
+  merke(was) { if (this.an) this.eintrag(performance.now(), 0, was); },
+  eintrag(t, ms, was) {
+    const last = this.log.at(-1);
+    // Häppchen derselben Arbeit im selben Bild (sliced) zusammenfassen: höchstens SLICE_MS auseinander
+    if (last && last[2] === was && ms > 0 && t - (last[0] + last[1]) < 2) last[1] = t + ms - last[0];
+    else this.log.push([t, ms, was]);
+    if (this.log.length > 20000) this.log.splice(0, 5000);
+  },
+};
+/**
+ * Grafikspeicher eines Himmels aus Blender freigeben, ohne dass man es sieht (Ticket 11 von .scratch/brett-je-himmel/).
+ * Beim Wechsel gab er bisher alles auf einmal frei: Texturen (am Desktop mit den Streifen rund 300 MB), Netze und
+ * Programme. Das hielt den Grafikprozess im ersten Bild des neuen Himmels 70–125 ms an (headless mit Grafikkarte;
+ * gemessen mit dem Protokoll der Arbeit, `--grenzen`). Je Bild eine grosse Textur kostete im Überblenden noch je 53 ms,
+ * eine Sekunde später einmal 143 ms; in einem ruhigen Level dagegen nichts. Darum wartet die Freigabe auf ein stilles
+ * Bild (still: ein Level läuft, nichts blendet über, keine Feier, kein Menü, keine Übersicht, seit STILL_MS), gibt dann
+ * je Bild eine grosse Textur (schwer) oder Kleines in Häppchen (sliced) frei und fragt vor jedem Stück neu. Länger als
+ * FRIST_MS wartet nichts (dann wie bisher, nur in Häppchen). add(fn, schwer, was): fn gibt frei; was: Name im
+ * Protokoll (arbeit).
+ */
+const freigabe = {
+  STILL_MS: 500,
+  FRIST_MS: 20000,
+  liste: [],      // [fn, schwer, was, seit (performance.now)]
+  laeuft: false,
+  stillSeit: null,
+  add(fn, schwer = false, was = 'Freigeben') {
+    this.liste.push([fn, schwer, was, performance.now()]);
+    if (!this.laeuft) this.start();
+  },
+  /** grosse Textur: eigenes Bild (ab 1 M Pixel, etwa das ganze Bild oder ein Streifen eines Himmels) */
+  schwer(t) { return (t.image?.width ?? 0) * (t.image?.height ?? 0) >= 1 << 20; },
+  /** jetzt ein stilles Bild, seit STILL_MS */
+  still() {
+    const jetzt = flow.state === 'play' && !celebration.active && skyTheme.ready && !story.running && !menu.offen
+      && !uebersicht.offen;
+    if (!jetzt) { this.stillSeit = null; return false; }
+    this.stillSeit ??= performance.now();
+    return performance.now() - this.stillSeit >= this.STILL_MS;
+  },
+  /** Promise: an einem stillen Bild oder wenn das älteste Stück FRIST_MS wartet (alle 100 ms gefragt, ohne rAF) */
+  warte() {
+    const ok = () => this.still() || performance.now() - (this.liste[0]?.[3] ?? 0) >= this.FRIST_MS;
+    if (ok()) return Promise.resolve();
+    return new Promise((weiter) => { const frage = () => (ok() ? weiter() : setTimeout(frage, 100)); setTimeout(frage, 100); });
+  },
+  start() {
+    this.laeuft = true;
+    (async () => {
+      while (this.liste.length) {
+        await this.warte();
+        const t = performance.now(), was = this.liste[0][2];
+        arbeit.tue(was, () => {
+          // eine grosse Textur allein in diesem Bild, sonst Kleines bis SLICE_MS und vor der nächsten grossen halt
+          for (let erstes = true; this.liste.length && performance.now() - t < SLICE_MS; erstes = false) {
+            const [fn, schwer] = this.liste[0];
+            if (schwer && !erstes) break;
+            this.liste.shift();
+            try { fn(); } catch (e) { console.warn(`Freigeben: ${e.message}`); }
+            if (schwer) break;
+          }
+        });
+        await nextFrame();
+      }
+    })().finally(() => { this.laeuft = false; if (this.liste.length) this.start(); });
+  },
+};
+async function sliced(steps, ruhig = false, was = 'Häppchen') {
   if (ruhig) await ruhe.warte();
   for (let t = performance.now(); ;) {
-    const { done, value } = steps.next();
+    const { done, value } = arbeit.an ? arbeit.tue(was, () => steps.next()) : steps.next();
     if (done) return value;
     if (value === RUHIG || value === RUHIG_KLEIN) {
       if (!ruhe.jetzt(value === RUHIG_KLEIN)) { await ruhe.warte(value === RUHIG_KLEIN); t = performance.now(); }
@@ -8514,11 +8596,11 @@ const compileParallel = (() => {
    */
   return async function compileParallel(roots, {
     skip = [], variants = [null], slices = false, alive = () => true, sliceMs = SLICE_MS, issued: onIssued = null,
-    pause = nextFrame,
+    pause = nextFrame, was = 'Shader',
   } = {}) {
     const omit = new Set(skip), programs = [];
     const lists = roots.map((r) => [r, collect(r, omit)]);
-    if (!slices) run(lists, variants, programs);
+    if (!slices) arbeit.tue(was, () => run(lists, variants, programs));
     else {
       let t = performance.now();
       for (const [root, objects] of lists) {
@@ -8536,7 +8618,7 @@ const compileParallel = (() => {
           }
           for (const variant of variants) {
             if (!alive()) return;
-            run([[root, part]], [variant], programs);
+            arbeit.tue(was, () => run([[root, part]], [variant], programs));
             if (performance.now() - t > sliceMs) { await pause(); t = performance.now(); }
           }
         }
@@ -9509,6 +9591,16 @@ const PANO = {
   hd: !IS_MOBILE && renderer.capabilities.maxTextureSize >= 4096,
 };
 
+/**
+ * Höhe der Texturen für die Streifen (Desktop, Ticket 11): Die Streifen der Welten sind verschieden hoch (Wüste 3823,
+ * die übrigen 3413 Zeilen bei 4096 Breite). Das erste Schreiben in eine Textur einer neuen Grösse hielt den
+ * Grafikprozess 105–142 ms an, mitten im Spiel. In einer Höhe für alle nimmt der Vorrat (skyTexPool) beim nächsten Himmel
+ * die Texturen des vorigen. Der Worker füllt Stufe 0 jedes Streifens mit der wiederholten Kante auf diese Höhe auf
+ * (skyBitmaps, pad), dann gehen alle Stufen genau auf; der Shader liest nur den Anteil des Bilds (uKl). Rund 10–20 % mehr
+ * Grafikspeicher und Zeilen beim Hochladen für die Streifen.
+ */
+const BAND_HOEHE = 4096;
+
 /** Zahl als GLSL-Fliesskommazahl (1 -> 1.0), Liste als vec2/vec3 */
 const glf = (v) => { const s = String(v); return /[.e]/.test(s) ? s : `${s}.0`; };
 const glv = (a) => `vec${a.length}(${a.map(glf).join(', ')})`;
@@ -9567,8 +9659,22 @@ function plainPngs(o) {
 const STRIP_ROWS = 256; // 4096 × 256 × 4 Byte = 4 MB je Streifen
 const skyBitmaps = (() => {
   const OPT = { imageOrientation: 'flipY', premultiplyAlpha: 'none', colorSpaceConversion: 'none' };
-  async function decode(url, rows) {
-    const bmp = await createImageBitmap(await (await fetch(url)).blob(), OPT);
+  async function decode(url, rows, pad = 0) {
+    let bmp = await createImageBitmap(await (await fetch(url)).blob(), OPT);
+    const inhalt = bmp.height;
+    // pad: Stufe 0 auf so viele Zeilen auffüllen, mit der letzten Zeile (gekippt: der oberen Kante des Bilds) wiederholt,
+    // erst dann die Mipmaps: So geht jede Stufe genau auf (Streifen in einer Höhe, BAND_HOEHE), und keine Stufe liest an
+    // der Kante Zeilen, die nicht zum Bild gehören (im Vorrat die eines früheren Himmels)
+    if (pad > inhalt && rows < Infinity && typeof OffscreenCanvas === 'function') {
+      // willReadFrequently: Leinwand im Hauptspeicher (wie cut); sonst lag sie im Grafikprozess, und das Auffüllen und die
+      // Mipmaps daraus hielten ihn mitten im Überblenden an (Bilder bis 200 ms, --wagen)
+      const c = new OffscreenCanvas(bmp.width, pad), g = c.getContext('2d', { willReadFrequently: true });
+      g.imageSmoothingEnabled = false;
+      g.drawImage(bmp, 0, 0);
+      g.drawImage(bmp, 0, inhalt - 1, bmp.width, 1, 0, inhalt, bmp.width, pad - inhalt);
+      bmp.close();
+      bmp = c.transferToImageBitmap();
+    }
     const { width, height } = bmp, levels = [bmp];
     // Für das eigene Hochladen (rows endlich) auch die Mipmaps, je Stufe halbiert: generateMipmap hielt den Grafikprozess
     // je grosse Textur 35–50 ms an
@@ -9599,30 +9705,30 @@ const skyBitmaps = (() => {
       }
       lv.close();
     }
-    return { width, height, strips };
+    return { width, height, inhalt, strips };
   }
   // Bilder nacheinander, nicht alle zugleich (jedes belegt dekodiert samt Mipmaps und Streifen bis 150 MB), und jedes
   // erst, wenn es dran ist: Wer schnell durchschaltet, wartet so nicht auf die Bilder einer schon freigegebenen Skybox
   // (alive false: der Auftrag fällt weg)
   let worker = null, nextId = 0, flips = null, queue = Promise.resolve();
   const waiting = new Map();
-  const once = (url, rows) => (worker
+  const once = (url, rows, pad) => (worker
     ? new Promise((resolve, reject) => {
       const id = nextId++;
       waiting.set(id, (d) => (d.r ? resolve(d.r) : reject(new Error(d.err))));
-      worker.postMessage({ id, url, rows });
+      worker.postMessage({ id, url, rows, pad });
     })
-    : decode(url, rows));
-  const run = (url, rows, alive = () => true) => (queue = queue.catch(() => {}).then(() => {
+    : decode(url, rows, pad));
+  const run = (url, rows, alive = () => true, pad = 0) => (queue = queue.catch(() => {}).then(() => {
     if (!alive()) throw new Error('nicht mehr gebraucht');
-    return once(url, rows);
+    return once(url, rows, pad);
   }));
   // Worker und Test erst beim ersten Bild (mit einem Hintergrund aus dem Code braucht es beides nie)
   function start() {
     try {
       worker = new Worker(URL.createObjectURL(new Blob([`const OPT = ${JSON.stringify(OPT)};\n${decode};
-        onmessage = async ({ data: { id, url, rows } }) => {
-          try { const r = await decode(url, rows); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
+        onmessage = async ({ data: { id, url, rows, pad } }) => {
+          try { const r = await decode(url, rows, pad); postMessage({ id, r }, r.strips.map((s) => s.bitmap)); }
           catch (e) { postMessage({ id, err: String(e) }); }
         };`], { type: 'text/javascript' })));
       worker.onmessage = ({ data }) => { waiting.get(data.id)?.(data); waiting.delete(data.id); };
@@ -9649,10 +9755,10 @@ const skyBitmaps = (() => {
     if (ok === null) flips = null; // keine Antwort in 10 s: die nächste Skybox prüft neu
     return !!ok;
   };
-  return Object.assign(async (url, alive) => {
+  return Object.assign(async (url, alive, pad = 0) => {
     const ok = await flipsOk();
     if (!ok) return null;
-    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive);
+    const r = await run(url, renderer.capabilities.isWebGL2 ? STRIP_ROWS : Infinity, alive, pad);
     if (Math.max(r.width, r.height) <= renderer.capabilities.maxTextureSize) return r;
     for (const s of r.strips) s.bitmap.close(); // zu gross für diese Grafik: ein Bild, three verkleinert es
     return null;
@@ -9661,10 +9767,10 @@ const skyBitmaps = (() => {
 
 /** bitmap: dekodiert und in Streifen (skyBitmaps), sonst oder wo das nicht geht ein Bild (schon dekodiert: sonst täte es
  * das erste drawImage im Hauptthread, beim Tiefenbild gemessen bis 170 ms) */
-async function loadSkyImage(url, bitmap = false, alive = () => true) {
+async function loadSkyImage(url, bitmap = false, alive = () => true, pad = 0) {
   if (bitmap) {
     try {
-      const strips = await skyBitmaps(url, alive);
+      const strips = await skyBitmaps(url, alive, pad);
       if (strips) return strips;
     } catch (e) { if (!alive()) throw e; /* sonst wie ohne */ }
   }
@@ -9800,21 +9906,25 @@ function* skyUpload(t, klein = false) {
     if (strips) closeSkyImage(t);
     return;
   }
-  const gl = renderer.getContext(), { width: w, height: h } = t.image, tex = gl.createTexture();
-  const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
-  bind();
+  const gl = renderer.getContext(), { width: w, height: h } = t.image;
   // ganze Kette aus dem Worker, Vorschau nur Stufe 0; mipmaps (Bilder der Felsen): nur Stufe 0, die übrigen erzeugt
   // danach die Grafikkarte wie bei three (generateMipmap)
   const levels = t.userData.mipmaps ? Math.floor(Math.log2(Math.max(w, h))) + 1
     : Math.max(...strips.map((s) => s.level)) + 1;
-  gl.texStorage2D(gl.TEXTURE_2D, levels, gl.SRGB8_ALPHA8, w, h);
+  // aus dem Vorrat (skyTexPool), sonst neu: jeder Streifen jeder Stufe überschreibt sie ganz
+  const pooled = skyTexPool.take(w, h, levels), tex = pooled ?? gl.createTexture();
+  const bind = () => renderer.state.bindTexture(gl.TEXTURE_2D, tex); // über three, damit es weiss, was gebunden ist
+  const weg = () => skyTexPool.give(w, h, levels, tex); // abgebrochen: zurück in den Vorrat
+  bind();
+  if (!pooled) gl.texStorage2D(gl.TEXTURE_2D, levels, gl.SRGB8_ALPHA8, w, h);
+  arbeit.merke(`Textur ${w}×${h}: ${pooled ? 'aus dem Vorrat' : 'neu'}`);
   // Grosse Streifen je in einem eigenen Bild, gleich abgeschickt: Schneller, als der Grafikprozess sie abnimmt, liefe
   // sein Puffer voll, und der nächste wartete (gemessen bis 100 ms)
   for (const { level, y, bitmap } of strips) {
     // inzwischen freigegeben: release hat die Bilder geschlossen (das Panorama liest auch eine Szene in offscreen)
-    if (t.userData.strips !== strips) { gl.deleteTexture(tex); return; }
+    if (t.userData.strips !== strips) { weg(); return; }
     yield ruhig;
-    if (t.userData.strips !== strips) { gl.deleteTexture(tex); return; }
+    if (t.userData.strips !== strips) { weg(); return; }
     bind();
     gl.texSubImage2D(gl.TEXTURE_2D, level, 0, y, bitmap.width, bitmap.height, gl.RGBA, gl.UNSIGNED_BYTE, bitmap);
     gl.flush();
@@ -9830,8 +9940,58 @@ function* skyUpload(t, klein = false) {
   if (aniso) gl.texParameterf(gl.TEXTURE_2D, aniso.TEXTURE_MAX_ANISOTROPY_EXT, t.anisotropy);
   closeSkyImage(t);
   renderer.properties.get(t).__webglTexture = tex;
-  t.addEventListener('dispose', () => { gl.deleteTexture(tex); renderer.properties.remove(t); });
+  t.userData.vorrat = true; // freigeben kostet nichts (zurück in den Vorrat): sofort (releaseTree)
+  // nur einmal: dispose kommt öfter (die Vorschau hängt auch in den Uniforms), zweimal im Vorrat nähmen sie zwei Himmel
+  t.addEventListener('dispose', function zu() {
+    t.removeEventListener('dispose', zu);
+    weg();
+    renderer.properties.remove(t);
+  });
 }
+
+/**
+ * Vorrat an Texturen der Himmel (Ticket 11 von .scratch/brett-je-himmel/): Eine Textur, die skyUpload angelegt hat
+ * (ganzes Bild, Vorschau, Streifen; feste Grösse über texStorage2D), wird beim Freigeben nicht gelöscht, sondern hier
+ * aufgehoben, und der nächste Himmel mit gleicher Grösse lädt hinein. Löschen und neu Anlegen grosser Texturen hielten den
+ * Grafikprozess sonst an: das Löschen im ersten Bild des neuen Himmels (70–125 ms, auch in Häppchen noch je 53–106 ms),
+ * das erste Schreiben in eine neue grosse Textur mitten im Spiel (die Streifen am Desktop, 105–142 ms). Was KEEP_MS
+ * niemand mehr nimmt, löscht freigabe an einem stillen Bild (Handy kürzer: weniger Grafikspeicher).
+ */
+const skyTexPool = {
+  KEEP_MS: IS_MOBILE ? 10000 : 30000,
+  frei: new Map(), // Schlüssel w×h×Stufen -> [{ tex, seit }]
+  take(w, h, levels) {
+    const list = this.frei.get(`${w}x${h}x${levels}`);
+    return list?.pop()?.tex ?? null;
+  },
+  give(w, h, levels, tex) {
+    const key = `${w}x${h}x${levels}`, eintrag = { tex, seit: performance.now() };
+    if (!this.frei.has(key)) this.frei.set(key, []);
+    if (this.frei.get(key).some((e) => e.tex === tex)) return; // schon da
+    this.frei.get(key).push(eintrag);
+    // nach KEEP_MS löschen, falls ihn bis dahin niemand genommen hat (an einem stillen Bild, freigabe)
+    setTimeout(() => {
+      const list = this.frei.get(key);
+      if (!list?.includes(eintrag)) return;
+      freigabe.add(() => {
+        const i = list.indexOf(eintrag);
+        if (i < 0) return; // inzwischen genommen
+        list.splice(i, 1);
+        renderer.getContext().deleteTexture(tex);
+      }, w * h >= 1 << 20, `Vorrat: Textur ${w}×${h} löschen`);
+    }, this.KEEP_MS);
+  },
+  /** im Vorrat: Zahl und Grafikspeicher (MB, mit Mipmaps), für Proben */
+  get stand() {
+    let n = 0, mb = 0;
+    for (const [key, list] of this.frei) {
+      const [w, h, l] = key.split('x').map(Number);
+      n += list.length;
+      mb += list.length * w * h * 4 * (l > 1 ? 4 / 3 : 1) / 1e6;
+    }
+    return { n, mb: Math.round(mb) };
+  },
+};
 
 /** Tiefenkarte (16 Bit log in Rot und Grün, 65535 = Himmel) -> geglätteter Log-Abstand (Sigma blurDeg in Grad, 0:
  * ungeglättet), Ferne auf dMax begrenzt. Generator für sliced (Häppchen je Spalte bzw. Zeile). */
@@ -10009,14 +10169,17 @@ function skyPanoramaMaterial(uniforms, center, full, bands) {
     u[`uBand${i}`] = { value: b.tex };
     u[`uRect${i}`] = { value: new THREE.Vector4(b.u[0], b.u[1], b.v[0], b.v[1]) };
     u[`uOn${i}`] = { value: b.on ?? 1 };
+    u[`uKl${i}`] = { value: 1 }; // Anteil der Zeilen des Streifens an seiner Textur (BAND_HOEHE, skyUpload)
   });
-  const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i}; uniform float uOn${i};`).join('\n');
+  const decl = bands.map((_, i) => `uniform sampler2D uBand${i}; uniform vec4 uRect${i}; uniform float uOn${i}; uniform float uKl${i};`).join('\n');
   // Streifen: Rechteck (u0, u1, v0, v1) im ganzen Equirect; Bildzeile 0 oben (Textur mit flipY: t = 1 − v). Kommt er
-  // erst nach dem Einblenden (uOn < 1), mischt er sich über das ganze Bild.
+  // erst nach dem Einblenden (uOn < 1), mischt er sich über das ganze Bild. Aufgefüllt auf BAND_HOEHE (skyBitmaps, pad)
+  // liegt das Bild in den unteren Zeilen (Anteil uKl), darüber die wiederholte Kante.
   const pick = bands.map((_, i) => `
         if (!hit && uOn${i} > 0.0 && u >= uRect${i}.x && u <= uRect${i}.y && v >= uRect${i}.z && v <= uRect${i}.w) {
           vec2 s = 1.0 / vec2(uRect${i}.y - uRect${i}.x, uRect${i}.w - uRect${i}.z);
-          col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y), gx * s, gy * s);
+          vec2 k = vec2(1.0, uKl${i});
+          col = SAMPLE(uBand${i}, vec2((u - uRect${i}.x) * s.x, 1.0 - (v - uRect${i}.z) * s.y) * k, gx * s * k, gy * s * k);
           if (uOn${i} < 1.0) col = mix(SAMPLE(uFull, vec2(u, 1.0 - v), gx, gy), col, uOn${i});
           hit = true;
         }`).join('');
@@ -11852,7 +12015,7 @@ function* waterSurface(ctx, opt) {
       const done = await sliced((function* () {
         for (let s = steps.next(); alive(); s = steps.next()) { if (s.done) return s.value; yield; }
         return null;
-      })(), true);
+      })(), true, 'Wasser: Grund');
       if (!done || !alive()) return;
       const old = material.uniforms.uGround.value;
       material.uniforms.uGround.value = groundTexture(done.data, done.n);
@@ -12429,7 +12592,7 @@ function createPanoramaSky(m) {
   const pointUniforms = { ...uniforms, uPixelRatio: { value: renderer.getPixelRatio() } };
   const light = new THREE.Vector3().fromArray(m.light.dir).normalize();
   const lightGLSL = `const vec3 SKY_LIGHT = vec3(${light.toArray().map((v) => v.toFixed(4)).join(', ')});`;
-  let loading = null, failed = false, mesh = null, preview = null, age = null, token = 0, offscreen = [];
+  let loading = null, failed = false, mesh = null, preview = null, age = null, token = 0, offscreen = [], vorgezeichnet = false;
   let bands = [];               // je Streifen: { on (Uniform uOn), age (s seit dem Hochladen), done }
   let sharpen = null;           // scharfes ganzes Bild über der Vorschau: { on (Uniform uSoftOn), age, done }
   const streaming = new Set();  // Streifen-Texturen, die gerade hochladen
@@ -12455,7 +12618,8 @@ function createPanoramaSky(m) {
     const alive = () => my === token;
     const fullLoad = loadSkyImage(base.full, true, alive), depthLoad = loadSkyImage(base.depth);
     const maskLoad = base.watermask ? loadSkyImage(base.watermask) : null; // Wasser im Panorama, fein (waterSurface)
-    const bandLoads = (hd?.bands ?? []).map((url) => loadSkyImage(url, true, alive)); // im Worker nach dem ganzen Bild
+    // im Worker nach dem ganzen Bild, aufgefüllt auf BAND_HOEHE Zeilen (eine Höhe für alle Welten, skyTexPool)
+    const bandLoads = (hd?.bands ?? []).map((url) => loadSkyImage(url, true, alive, BAND_HOEHE));
     for (const load of bandLoads) load.catch(() => {}); // Fehler erst unten, beim Abbruch gar nicht: nie unbehandelt
     const images = await Promise.allSettled([fullLoad, depthLoad, ...(maskLoad ? [maskLoad] : [])]);
     const [fullImg, depthImg, maskImg = null] = images.map((r) => r.value);
@@ -12478,7 +12642,7 @@ function createPanoramaSky(m) {
       const strips = await Promise.all(smallStrips.map(async ({ y, bitmap }) => ({ level: 0, y, bitmap: await createImageBitmap(bitmap) })));
       const tex = skyTexture({ width: fullImg.width >> small, height: fullImg.height >> small, strips }, true);
       streaming.add(tex);
-      await sliced(skyUpload(tex, true));
+      await sliced(skyUpload(tex, true), false, `Himmel ${m.id}: Vorschau hochladen`);
       streaming.delete(tex);
       if (my !== token) { tex.dispose(); dropImages(); return; }
       preview = tex;
@@ -12492,8 +12656,8 @@ function createPanoramaSky(m) {
     // Netz in Häppchen (sliced): Tiefe glätten, Ecken setzen. Wie alles Weitere nur an ruhigen Stellen (ruhe): Schon die
     // Häppchen von 6 ms liessen das Menü und die Fahrten des Prologs auf dem gedrosselten Handy Bilder auslassen
     const center = new THREE.Vector3().fromArray(m.panorama.center);
-    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log, m.panorama.depth.blur), true);
-    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center, m.panorama.depth.mesh), true) : null;
+    const depthLog = await sliced(skyLogDepth(depthImg, m.panorama.depth.log, m.panorama.depth.blur), true, `Himmel ${m.id}: Tiefe`);
+    const geo = my === token ? await sliced(skyProxyGeometry(depthLog, center, m.panorama.depth.mesh), true, `Himmel ${m.id}: Netz`) : null;
     if (my !== token) { dropFull(); dropBands(); geo?.dispose(); return; }
     const soft = preview ?? full; // so lange auf dem Netz und in den Ebenen (Spiegelung im Wasser)
     const sky = new THREE.Mesh(geo, skyPanoramaMaterial(uniforms, center, soft, rects.map((b) => ({ ...b, tex: null, on: 0 }))));
@@ -12525,8 +12689,8 @@ function createPanoramaSky(m) {
       if (!layer) break;
       try {
         if (!SKY_LAYERS[layer.type]) throw new Error('unbekannt');
-        const made = SKY_LAYERS[layer.type](ctx, layer);
-        const part = made.isObject3D ? made : await sliced(made, true);
+        const made = arbeit.tue(`Himmel ${m.id}: Ebene ${layer.type}`, () => SKY_LAYERS[layer.type](ctx, layer));
+        const part = made.isObject3D ? made : await sliced(made, true, `Himmel ${m.id}: Ebene ${layer.type}`);
         if (layer.brush && m.brush) painted = paint(part) || painted;
         parts.push(part);
       } catch (e) { console.warn(`${m.name}: Ebene ${layer.type} ausgelassen (${e.message})`); }
@@ -12556,8 +12720,8 @@ function createPanoramaSky(m) {
       const skip = [...skyTheme.idleGroups, ...scene.children.filter((c) => c !== staging)];
       const variants = [true, false].map((transparent) => () => { sky.material.transparent = transparent; });
       const alive = () => my === token;
-      compiled.push(compileParallel(roots, { skip, variants, slices: true, alive }));
-      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true, alive }));
+      compiled.push(compileParallel(roots, { skip, variants, slices: true, alive, was: `Himmel ${m.id}: Shader` }));
+      if (painted) compiled.push(compileParallel([brushPass.programs()], { slices: true, alive, was: `Himmel ${m.id}: Shader Pinsel` }));
       const textures = new Set();
       for (const root of [staging, ...offscreen]) root.traverse((o) => {
         for (const mat of [o.material ?? []].flat()) {
@@ -12571,9 +12735,9 @@ function createPanoramaSky(m) {
           yield* skyUpload(t);
           yield;
         }
-      })());
+      })(), false, `Himmel ${m.id}: Hochladen`);
       await Promise.all([...compiled, uploads]);
-      await sliced(skyWarmDraw(staging, parts, sky, () => my === token));
+      await sliced(skyWarmDraw(staging, parts, sky, () => my === token), false, `Himmel ${m.id}: erstes Zeichnen (1 × 1)`);
     } catch (e) {
       for (const root of [staging, ...ctx.offscreen]) releaseTree(root); // gescheitert: nichts halb Geladenes behalten
       dropFull();
@@ -12596,7 +12760,7 @@ function createPanoramaSky(m) {
     const shown = () => uniforms.uFade.value >= 1 && uniforms.uReady.value >= 1 && !skyTheme.quiet;
     if (preview) {
       while (my === token && !shown()) await nextFrame();
-      if (my === token) await sliced(skyUpload(full));
+      if (my === token) await sliced(skyUpload(full), false, `Himmel ${m.id}: scharfes Bild`);
       streaming.delete(full);
       if (my !== token) { full.dispose(); dropBands(); return; }
       // Scharfes Bild statt der Vorschau, überall (Netz, Spiegelung im Wasser); das Netz blendet dabei weich über (uSoft)
@@ -12618,10 +12782,11 @@ function createPanoramaSky(m) {
       if (my !== token || !img) { closeSkyStrips(img); myBands[i].done = true; continue; }
       const tex = skyTexture(img, false);
       streaming.add(tex); // release schliesst die Bilder, skyUpload bricht dann ab
-      await sliced(skyUpload(tex));
+      await sliced(skyUpload(tex), false, `Himmel ${m.id}: Streifen`);
       streaming.delete(tex);
       if (my !== token) { tex.dispose(); continue; }
       sky.material.uniforms[`uBand${i}`].value = tex;
+      sky.material.uniforms[`uKl${i}`].value = (img.inhalt ?? img.height) / img.height;
       myBands[i].age = 0;
       sceneLoop.wake();
     }
@@ -12648,19 +12813,22 @@ function createPanoramaSky(m) {
   /** Dekodierte Streifen schliessen, die (noch) keine Textur haben */
   function closeSkyStrips(img) { for (const s of img?.strips ?? []) s.bitmap.close(); }
 
-  /** Grafikspeicher eines Teilbaums freigeben */
-  function releaseTree(root) {
+  /** Grafikspeicher eines Teilbaums freigeben; spaeter: in Häppchen (freigabe), etwa beim Wechsel des Himmels */
+  function releaseTree(root, spaeter = false) {
+    const frei = (fn, schwer = false) => (spaeter ? freigabe.add(fn, schwer, `Himmel ${m.id}: freigeben`) : fn());
     root.traverse((o) => {
       o.userData.dispose?.();
-      if (o.isInstancedMesh) o.dispose(); // Puffer der Instanzen (Geometrie und Material bleiben, siehe unten)
-      o.geometry?.dispose();
+      if (o.isInstancedMesh) frei(() => o.dispose()); // Puffer der Instanzen (Geometrie und Material bleiben, siehe unten)
+      if (o.geometry) frei(() => o.geometry.dispose());
       for (const mat of [o.material ?? []].flat()) {
         for (const u of Object.values(mat.uniforms ?? {})) {
-          if (!u.value?.isTexture) continue;
-          closeSkyImage(u.value); // noch nicht hochgeladen (Abbruch während des Aufbaus)
-          u.value.dispose();
+          const t = u.value;
+          if (!t?.isTexture) continue;
+          closeSkyImage(t); // noch nicht hochgeladen (Abbruch während des Aufbaus)
+          if (t.userData.vorrat) t.dispose(); // zurück in den Vorrat (skyTexPool), gleich wieder zu haben
+          else frei(() => t.dispose(), freigabe.schwer(t));
         }
-        mat.dispose();
+        frei(() => mat.dispose());
       }
     });
   }
@@ -12694,6 +12862,29 @@ function createPanoramaSky(m) {
     get held() { return loading !== null; },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
+    /** geladen, aber noch nie im Bild und noch nicht vorgezeichnet (skyTheme.vorzeichnen) */
+    get vorzeichnenNoetig() { return !!mesh && !vorgezeichnet && !group.visible; },
+    /**
+     * Einmal unsichtbar ins Bild des Spiels zeichnen (Ticket 11): wie im ersten Bild des Einblendens, durchsichtig und
+     * mit fast nichts Deckkraft, ganz eingeblendet (uReady), zeichne(): die Szene samt Pinsel in das Ziel, das das
+     * nächste Bild ohnehin ganz überschreibt (skyTheme.vorzeichnen). Danach wieder unsichtbar.
+     */
+    vorzeichnen(zeichne) {
+      if (!this.vorzeichnenNoetig) return false;
+      vorgezeichnet = true;
+      const fade = uniforms.uFade.value, ready = uniforms.uReady.value;
+      uniforms.uFade.value = 1e-3;
+      uniforms.uReady.value = 1;
+      group.visible = true;
+      applyFade();
+      try { zeichne(); } finally {
+        uniforms.uFade.value = fade;
+        uniforms.uReady.value = ready;
+        group.visible = false;
+        applyFade();
+      }
+      return true;
+    },
     /** Erst laden, wenn die Skybox gewählt wird (Wald: 1,5 MB, auf dem Desktop dazu 4,5 MB Streifen). */
     prepare() {
       if (loading) return;
@@ -12702,6 +12893,7 @@ function createPanoramaSky(m) {
         .finally(() => sceneLoop.wake()); // gescheitert: der bisherige Hintergrund blendet aus (skyTheme.update)
     },
     setFade(k) {
+      if (k > 0 && !group.visible) arbeit.merke(`Himmel ${m.id}: erstes Bild${mesh ? '' : ' (Vorschau)'}`);
       uniforms.uFade.value = k;
       if (k > 0) this.prepare();
       else if (mesh) age = PANO.appear; // vor dem Einblenden geladen: nur uFade blendet (sonst mischten sich halb die Ringe)
@@ -12730,14 +12922,17 @@ function createPanoramaSky(m) {
     },
     release() {
       if (!loading) return;
+      arbeit.merke(`Himmel ${m.id}: freigeben`);
       token++;
-      loading = null; failed = false; mesh = null; age = null; bands = []; sharpen = null;
-      preview?.dispose();
+      loading = null; failed = false; mesh = null; age = null; bands = []; sharpen = null; vorgezeichnet = false;
+      preview?.dispose(); // zurück in den Vorrat (skyTexPool)
       preview = null;
       for (const t of streaming) closeSkyImage(t); // bricht skyUpload ab
       streaming.clear();
       uniforms.uReady.value = 0;
-      for (const root of [group, ...offscreen]) releaseTree(root);
+      // in Häppchen (freigabe): Alles auf einmal (beim Wechsel bis rund 300 MB am Desktop) hielt den Grafikprozess im
+      // ersten Bild des neuen Himmels 70–125 ms an (Ticket 11)
+      for (const root of [group, ...offscreen]) releaseTree(root, true);
       group.clear();
       offscreen = [];
     },
@@ -12759,6 +12954,8 @@ function createPanoramaSky(m) {
  * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, starsFrom: 0, rings: null };
+/** so lange hält skyTheme den bisherigen Himmel höchstens, bis der gewählte vorgezeichnet ist (wartetAufVorzeichnen) */
+const VORZEICHNEN_MS = 500;
 /** Untergrenze der Sterne (sky.starsFrom, Grad) als Sinus für den Shader; ohne starsAboveHorizon 0 */
 const starsFromSin = (s) => (s.starsAboveHorizon ? Math.sin(THREE.MathUtils.degToRad(s.starsFrom ?? 0)) : 0);
 const SKY_ENTRIES = (() => {
@@ -12820,7 +13017,27 @@ const skyTheme = {
     const shown = this.entries.filter((e) => e.id !== this.current && this.weight[e.id] > 0);
     if (!shown.length) return false;
     return this.byId.get(this.current).module?.settled === false && shown.some((e) => e.module?.settled !== false)
-      || boardTheme.haelt(this.current);
+      || boardTheme.haelt(this.current) || this.wartetAufVorzeichnen();
+  },
+  /**
+   * Der gewählte Himmel ist geladen, aber noch nicht vorgezeichnet (vorzeichnen): Der bisherige bleibt so lange stehen,
+   * höchstens VORZEICHNEN_MS, damit auch ohne Vorladen (Wiederholen über eine Weltgrenze) erst vorgezeichnet wird und
+   * dann eingeblendet. Fragt nur, was billig ist (je Bild).
+   */
+  wartetAufVorzeichnen() {
+    const m = this.byId.get(this.current).module;
+    if (!m?.vorzeichnenNoetig) { this.vorzeichnenSeit = null; return false; }
+    this.vorzeichnenSeit ??= performance.now();
+    return performance.now() - this.vorzeichnenSeit < VORZEICHNEN_MS;
+  },
+  vorzeichnenSeit: null,
+  /**
+   * Ein Bild, in dem das doppelte Zeichnen nicht auffällt (Review Ticket 11, Poco): keine Lichtwelle, kein Wachsen des
+   * Bretts, keine Fahrt der Kamera und kein Überblenden (Halten zählt nicht: da steht das Bild).
+   */
+  get ruhigZumVorzeichnen() {
+    return !celebration.active && !(shockUniforms.uShock.value.y > 0) && boardTheme.anteil === 1
+      && !story.tweens.length && !(this.fading && !this.holding);
   },
   /** Gewählter Hintergrund steht (Startbildschirm): wie ready, aber scharfes Bild und Streifen dürfen noch fehlen */
   get shown() { return !this.fading && (this.byId.get(this.current).module?.shown ?? true); },
@@ -12841,10 +13058,40 @@ const skyTheme = {
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
     return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
   },
+  /**
+   * Ein geladenes Panorama, das noch nie zu sehen war (gewählt oder vorgeladen), einmal unsichtbar in voller Grösse
+   * vorzeichnen, vor dem Bild des Spiels (draw) und nur an einer ruhigen Stelle (ruhe), je Bild höchstens eines (Ticket
+   * 11). skyWarmDraw hat es schon in ein Ziel von 1 × 1 Pixel gezeichnet; hier trifft es dazu das Ziel des Spiels in seiner
+   * Grösse und Art (Tiefe, Stencil, HDR) mit allen Vorläufen (SCENE_PREPASSES) und den Pinsel samt seinen Zielen: Was ein
+   * Treiber erst beim ersten echten Zeichnen anlegt, geschieht so vorher. Das Bild selbst überschreibt danach alles.
+   */
+  vorzeichnen() {
+    for (const e of this.entries) {
+      if (this.weight[e.id] > 0 || (e.id !== this.current && e.id !== this.ahead) || !e.module?.vorzeichnenNoetig) continue;
+      if (!ruhe.jetzt() || !this.ruhigZumVorzeichnen) return; // erst fragen, wenn eines ansteht (je Bild)
+      arbeit.tue(`Himmel ${e.id}: vorzeichnen`, () => e.module.vorzeichnen(() => {
+        const rt = composer.readBuffer, before = renderer.getRenderTarget(), shadows = renderer.shadowMap.needsUpdate;
+        renderer.shadowMap.needsUpdate = false;
+        try {
+          for (const prepass of SCENE_PREPASSES) prepass(renderer, camera, rt, scene);
+          renderer.setRenderTarget(rt);
+          renderer.render(scene, camera); // autoClear: löscht das Ziel zuerst
+          brushPass.render(renderer, composer.writeBuffer, rt);
+        } finally {
+          renderer.setRenderTarget(before);
+          renderer.shadowMap.needsUpdate = shadows;
+        }
+      }));
+      adaptiveResolution.hold(0.5); // das doppelt gezeichnete Bild nicht als Überlast werten
+      return;
+    }
+  },
+
   /** Gruppen der Hintergründe aus dem Code, die gerade nicht gewählt sind: beim Vorab-Übersetzen auslassen */
   get idleGroups() { return this.entries.filter((e) => e.module?.group && !e.module.panorama && e.id !== this.current).map((e) => e.module.group); },
   /** Hintergrund wechseln (die Welt der Geschichte bestimmt ihn, Entscheid 26; gespeichert wird nichts). */
   set(id, animate = true) {
+    arbeit.merke(`Himmel ${id}: gewählt`);
     this.current = id;
     this.ahead = null;
     this.hidden[id] = 0;                   // gewählt: die Frist fürs Freigeben beginnt erst beim Wegschalten
@@ -12862,6 +13109,7 @@ const skyTheme = {
    */
   preload(id) {
     if (id === this.current || !this.byId.has(id)) return;
+    arbeit.merke(`Himmel ${id}: vorladen`);
     this.ahead = id;
     this.hidden[id] = 0;
     this.byId.get(id).module?.prepare?.();
@@ -15187,7 +15435,7 @@ const boardTheme = {
         blendVorab: null, blendBereit: false };
       this.built.set(key, entry);
       try {
-        entry.board = this.types[type].build(values);
+        entry.board = arbeit.tue(`Brett ${type}: bauen`, () => this.types[type].build(values));
         entry.blend = boardBlend(entry.board.group);
         entry.board.setFade(0);
         scene.add(entry.board.group);
@@ -15208,7 +15456,7 @@ const boardTheme = {
     this.built.delete(entry.key);
     if (!entry.board) return;
     scene.remove(entry.board.group);
-    entry.board.dispose();
+    arbeit.tue(`Brett ${entry.type}: freigeben`, () => entry.board.dispose());
   },
   /**
    * Ein neues Brett bereit machen: abwarten, bis seine Texturen berechnet sind, dann an ruhigen Stellen (ruhe) seine
@@ -15223,7 +15471,8 @@ const boardTheme = {
       await ruhe.warte();
       if (!alive()) return;
       await this.compile(entry, [null]);
-      await sliced((function* () { for (const t of entry.board.textures) yield* boardTextureUpload(t, alive); })());
+      await sliced((function* () { for (const t of entry.board.textures) yield* boardTextureUpload(t, alive); })(), false,
+        `Brett ${entry.type}: Texturen`);
       if (!alive()) return;
       if (!entry.board.textures.every((t) => this.onGpu(t))) throw new Error('Texturen nicht hochgeladen');
       entry.ready = true;
@@ -15239,6 +15488,7 @@ const boardTheme = {
   compile(entry, variants) {
     const group = entry.board.group;
     return compileParallel([scene], { skip: scene.children.filter((c) => c !== group), variants, slices: true,
+      was: `Brett ${entry.type}: Shader${variants[0] ? ' Überblenden' : ''}`,
       alive: () => !entry.gone });
   },
   /**
@@ -15324,6 +15574,7 @@ const boardTheme = {
    */
   blend(ziel, mitHimmel) {
     const unter = this.to ? [{ ...this.to, bis: this.anteil }, ...this.unter].filter((l) => l.bis > 0) : [];
+    arbeit.merke(`Brett ${ziel.entry.type}: wächst`);
     this.show(ziel, unter);
     Object.assign(this, { anteil: 0, mitHimmel, p0: mitHimmel ? this.progress(ziel.sky) : 0 });
   },
@@ -17347,7 +17598,7 @@ function prepareLevel(index) {
   levelPrep.objects = [];
   levelPrep.proxies = [];
   const steps = levelPrep.steps = buildElements(levelPrep.board, levelPrep.objects, levelPrep.proxies);
-  sliced(steps, true).catch((e) => { if (levelPrep.steps === steps) dropPreparedLevel(); console.warn(`Level vorab: ${e.message}`); });
+  sliced(steps, true, 'Level vorab').catch((e) => { if (levelPrep.steps === steps) dropPreparedLevel(); console.warn(`Level vorab: ${e.message}`); });
 }
 function dropPreparedLevel() {
   for (const [, obj] of levelPrep.objects ?? []) disposeTree(obj);
@@ -17365,14 +17616,14 @@ function loadLevel(index, beamDelay = 0) {
   const board = prep?.board ?? createBoard(LEVELS[index]);
   const objects = prep?.objects ?? [], proxies = prep?.proxies ?? [];
   const steps = prep?.steps ?? buildElements(board, objects, proxies);
-  for (let r = steps.next(); !r.done; r = steps.next());
+  arbeit.tue(prep ? 'Level: Rest aufbauen' : 'Level aufbauen', () => { for (let r = steps.next(); !r.done; r = steps.next()); });
   game.board = board;
   game.stats = { turns: 0, startedAt: null, lastTurnAt: null };
   // das alte Feld: aus der Szene, freigeben erst in den nächsten Bildern (sliced; es kostete das Bild des Abstiegs
   // auf dem gedrosselten Handy weitere 14 ms)
   const old = [...game.objects.values()];
   for (const obj of old) boardGroup.remove(obj);
-  if (old.length) sliced((function* () { for (const obj of old) { disposeTree(obj); yield; } })());
+  if (old.length) sliced((function* () { for (const obj of old) { disposeTree(obj); yield; } })(), false, 'Level freigeben');
   game.objects.clear();
   game.hitProxies = proxies;
   setHovered(null);
@@ -19086,6 +19337,7 @@ const celebration = {
     for (const s of this.steps) if (!s.done && this.t >= s.at) { s.done = true; s.obj.userData.flash = 1; }
     if (!this.chordDone && this.t >= this.chordAt) {
       this.chordDone = true;
+      arbeit.merke('Lichtwelle');
       if (cubeView.size) this.rain.burstFrom(this.steps.map(s => s.obj.userData.gem.getWorldPosition(new THREE.Vector3())), this.colors);
       else this.rain.burst(this.colors);
       // Wellenfarbe: Mischung der Zielfarben, hell genug zum Blühen
@@ -19332,7 +19584,7 @@ function warmupShaders() {
       celebration.rain.points.visible = celebration.rain.alive > 0;
     };
   };
-  compileParallel([scene], { variants: [warm], slices: true });
+  compileParallel([scene], { variants: [warm], slices: true, was: 'Level: Shader' });
   // die unsichtbaren Vorwärm-Elemente jeder Art (am Ende, vor compileParallel) bleiben: Sonst übersetzte das erste
   // Level mit einer neuen Art seine Shader mitten im Fall des Lichts (ein Ruck)
 }
@@ -25997,6 +26249,7 @@ function frame(ts) {
 function draw(dt, t0, learn = true) {
   leistung.gpuBeginn();
   renderReflection();
+  skyTheme.vorzeichnen();
   composer.render(dt);
   leistung.bildEnde(t0);
 
@@ -26060,7 +26313,7 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
-window.__prismaDebug = { scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
+window.__prismaDebug = { arbeit, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);

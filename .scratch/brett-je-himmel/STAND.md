@@ -1,7 +1,7 @@
 # Stand «Ein Brett je Himmel» – Übergabe
 
-Stand 08.11.2026 mittags, Branch `feature/brett-je-himmel` (seit dem 06.11. nicht gepusht); Ticket 10 bis vor den
-Poco-Test im Worktree `prisma-brett-10`, Branch `feature/brett-10-schluss`. Diese Notiz ist für das Weiterarbeiten auf
+Stand 08.11.2026 nachmittags, Branch `feature/brett-je-himmel` (seit dem 06.11. nicht gepusht, Ticket 10 gemergt,
+cc31f9c); Ticket 11 im Worktree `prisma-brett-11`, Branch `feature/brett-11-vorzeichnen` (von 122d6f7). Diese Notiz ist für das Weiterarbeiten auf
 einem anderen Rechner gedacht. Entscheide und Begründungen stehen in `spec.md` und in den Tickets unter `issues/`, je
 unter «Comments».
 
@@ -18,7 +18,8 @@ unter «Comments».
 | 07 | **Moospolster** (Art `moss`) mit Lichtwelle Waldgott im Bergwald | Merge 62c99e6 |
 | 05 | **Übergang** für alle Arten an einer Stelle (`boardBlend`): das neue Brett wächst von der Mitte, undurchsichtig, umgelenkt ohne Sprung, Notfall wächst ein; Ziel der Fische beim Aufwärmen | Merge 1037af7 |
 | 09 | **Basaltsäulen** (Art `basalt`) mit Lichtwelle Version 2 im Vulkan, auf `boardBlend`; Hülle −2,9 m; `boardBlendN` nimmt die Kamera aus `viewMatrix` (Lambert hat kein `cameraPosition`) | Merge 2ae2be4 |
-| 10 | **Schluss** bis vor den Poco-Test: `?brett=` und Leiste `?bretter` entfernt, Logiktest «feste Bretter», ganze Prüfung, Messung über alle Welten, Doku | ea3b7b8 und folgende (`feature/brett-10-schluss`) |
+| 10 | **Schluss** bis vor den Poco-Test: `?brett=` und Leiste `?bretter` entfernt, Logiktest «feste Bretter», ganze Prüfung, Messung über alle Welten, Doku | ea3b7b8 und folgende, Merge cc31f9c |
+| 11 | **Himmel unsichtbar vorzeichnen:** Die Lücke im ersten Bild eines neuen Panoramas kam vom Freigeben des alten (bis 300 MB auf einmal). Jetzt Vorrat für Texturen der Himmel (`skyTexPool`), Streifen in einer Höhe (`BAND_HOEHE`), Freigeben an stillen Bildern (`freigabe`), einmal unsichtbar vorzeichnen in voller Grösse (`skyTheme.vorzeichnen`), Protokoll der Arbeit (`arbeit`, `ARBEIT` in der Geschichte-Probe) | `feature/brett-11-vorzeichnen` |
 
 Nach dem Merge von 09 (08.11.) lief der ganze Satz auf dem gemeinsamen Stand: alle Node-Tests (Logik 2044, Generator über
 `leise.sh`), Offline, `brett-probe` (100 ok, `formen` 30 Übergänge aller sechs Arten ohne leeres Pixel), Geschichte-Probe
@@ -47,16 +48,19 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 
 ## Als Nächstes
 
-1. **Poco-Test des Nutzers** (Ticket 10): Stand `feature/brett-10-schluss` auf dem Poco F4 GT, Version
-   `2026-11-08 brett-schluss` (Taste F bzw. Leistungsanzeige). Was er ansieht, steht im Ticket 10 unter «Comments».
-   Dabei messen, ob man das Anhalten im ersten Bild eines neuen Panoramas (Strand, Vulkan) sieht:
-   - sieht man nichts: nur die Lücken-Prüfung an genau dieser Stelle lockern, mit Vermerk (Vorschlag im Ticket);
-   - sieht man etwas: zuerst den Himmel vor dem Einblenden unsichtbar vorzeichnen.
+1. **Ticket 11 (Himmel unsichtbar vorzeichnen):** gebaut, nicht gelockert. Die Lücke an den Weltgrenzen kam vom
+   Freigeben des alten Panoramas, nicht vom neuen (Messung und Spur im Ticket). Reviewt (08.11. abends): Auflage
+   «Naht an der Kante der Streifen» (nach der Wüste eine Linie gut 10° über dem Horizont am Desktop, Vorschlag im
+   Ticket), sonst ohne Befund. Danach Merge in `feature/brett-je-himmel`.
+1. **Poco-Test des Nutzers** (Ticket 10 und 11): Stand mit Ticket 11 auf dem Poco F4 GT, Version
+   `2026-11-08 himmel-vorzeichnen` (Taste F bzw. Leistungsanzeige). Was er ansieht, steht im Ticket 10 unter «Comments»;
+   dazu die Weltgrenzen ins Meer und in den Vulkan, auch ohne Vorladen (Bergwald 10 wiederholen, dann «Weiter»), und das
+   Öffnen der Übersicht.
 2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat er im
    manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe `formen` bleibt. Basaltsäulen gefallen,
    die +1,7 ms merkt er nicht: so lassen.
-3. Danach Review, Merge von `feature/brett-10-schluss` in `feature/brett-je-himmel`, und nach `main` nur auf sein Go
-   (`main` 96d6538 ist schon drin, vor dem Merge noch einmal fetchen).
+3. Ticket 10 ist reviewt und in `feature/brett-je-himmel` gemergt (cc31f9c). Nach `main` nur auf sein Go (`main`
+   96d6538 ist schon drin, vor dem Merge noch einmal fetchen).
 
 ## Arbeitsweise (vom Nutzer so gewünscht)
 
@@ -103,16 +107,22 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   - Die Kosten der Lichtwellen auf einem echten Handy sind nicht gemessen.
   - Die Reise ans Meer ohne Vorladen auf dem Poco messen.
   - Die Texturdaten jedes Bretts bleiben im JS-Speicher, rund 12 MB je Brett.
-- **Weltgrenzen:** Im ersten Bild eines neuen Panoramas (Strand, Vulkan) hält das Bild 100–150 ms an, mit jedem Brett
-  und schon auf den Basen; ohne Vorladen (Wiederholen über die Grenze) fällt das Anlegen des Ziels der Fische in die
-  Reise. Wege: Ziel ohne MSAA oder eines für die ganze Sitzung (Frage an den Nutzer).
+- **Weltgrenzen** (Ticket 11, erledigt): Die 100–150 ms im ersten Bild eines neuen Panoramas kamen vom Freigeben des
+  alten (bis 300 MB auf einmal am Desktop). Jetzt Vorrat für Texturen, Freigeben an stillen Bildern, Vorzeichnen.
+- **Streifen am Desktop** (Ticket 11, erledigt): Das erste Schreiben in Streifen einer neuen Grösse hielt den
+  Grafikprozess einmal je Welt 105–142 ms an. Jetzt liegen alle Streifen in 4096 × 4096 (`BAND_HOEHE`, Shader `uKl`),
+  der Vorrat nimmt sie. Rund 10–20 % mehr Grafikspeicher für die Streifen am Desktop.
+- **Present von Chrome headless** (Ticket 11): Die Lücken beim Öffnen und Schliessen der Übersicht auf dem Handy (bis
+  424 ms) sind ein hängendes `DXGISwapChainImageBacking::Present` im Grafikprozess, auf allen Ständen, ohne Arbeit des
+  Spiels im Bild; auf dem Poco ansehen.
 - **Basalt:** +1,7 ms GPU am Desktop in Ruhe (+2,2 ms in der Welle), vermutlich `discard` über die ganze Oberfläche
   (kein früher Tiefentest für die Säulen darunter); Abhilfe: inneres Quadrat ohne `discard` plus Ring, oder kürzere
   Säulen. Hauptthread-Bau 8,8 / 11,9 ms (Desktop / Handy gedrosselt).
 - **`brett-probe formen`** meldete zweimal in vielen Läufen 1 leeres Pixel (Hochbeet → Stein, Moos → Lehm, flach);
   vermutlich ein Riss in der Rasterung an einer Naht, Ursache offen.
-- `--uebersicht`: Öffnen und Schliessen zeitweise über 100 ms, auf allen Ständen (im letzten Satz grün).
-- `--dorf`: «Übung 8 wiederholen» und «Prolog überspringen» zeitweise über 100 ms, schon auf den Basen.
+- `--uebersicht`: Öffnen und Schliessen zeitweise über 100 ms, auf allen Ständen: Present von Chrome headless (Ticket 11).
+- `--dorf`: «Übung 8 wiederholen» und «Prolog überspringen» zeitweise über 100 ms, schon auf den Basen: dieselbe Ursache
+  wie an den Weltgrenzen (Freigeben des alten Panoramas), seit Ticket 11 behoben.
 - **Ticket 10 (Aufräumen), erledigt:** Leiste `?bretter` und Schalter `?brett=` sind weg. `__prismaDebug.boardTheme`
   bleibt: Es ist die Testschnittstelle für Proben (`brett-probe` setzt dort eigene Arten und Brett-Angaben), wie
   `skyTheme` und die übrigen Interna, und kein Weg für Spieler. Die Namen der Bretter stehen im Glossar unter «Brett»

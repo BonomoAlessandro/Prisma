@@ -63,6 +63,9 @@
 //   1 s länger, die Einstiege nicht länger, das Finale etwa 4 s.
 // --grenzen: Wiederholen über die Weltgrenzen Wüste → Vulkan und Vulkan → Planeten aus der Übersicht, mit dem Wechsel
 // des Bretts (Ticket 09 von .scratch/brett-je-himmel/, siehe grenzenAblauf, gut 2 min).
+// Seit Ticket 11 von .scratch/brett-je-himmel/ dazu das Protokoll der Arbeit (ARBEIT): bei jeder Lücke über 50 ms die
+// Arbeit in ihrem Bild (Vorladen, Aufbauen, Shader, Hochladen, Vorzeichnen, Freigeben), am Ende je Schritt das längste
+// Bild und jede Lücke über 100 ms der ganzen Sitzung mit dem Zustand im Bild davor (bewegt sich etwas?).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -238,15 +241,94 @@ async function halt(was, { station = null, warten = 0, name = null } = {}) {
   } finally { tippeHalt = false; }
 }
 let fotos = null; // während einer Messung (messe … ende): Zeitfenster der Bilder in der Zeit der Seite
+// Ende des letzten Bilds der Probe (Date.now): Eine Messung beginnt frühestens BILD_NACHLAUF_MS danach (messe). Ein Bild
+// der Probe hielt die Seite auf dem Handy noch nach seinem Ende an (Lücken bis 280 ms im ersten Bild einer Messung, die
+// gleich danach begann, Ticket 11 von .scratch/brett-je-himmel/); das gehört zur Probe, nicht zum Spiel.
+let letztesBild = 0;
+const BILD_NACHLAUF_MS = 800;
 async function bild(name) {
   mkdirSync(OUT, { recursive: true });
   const file = join(OUT, `${view.name}-${name}.png`);
-  const von = fotos ? await ev('performance.now()') : 0;
+  const von = await ev('performance.now()');
   writeFileSync(file, Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
-  if (fotos) fotos.push([von, await ev('performance.now()')]);
+  const bis = await ev('performance.now()');
+  if (fotos) fotos.push([von, bis]);
+  letztesBild = Date.now();
+  await ev(`window.__fotos?.push([${von}, ${bis}])`); // fürs Protokoll der Arbeit (ARBEIT)
   console.log(`  Bild ${file}`);
 }
 const D = '__prismaDebug';
+/**
+ * Protokoll der Arbeit (Ticket 11 von .scratch/brett-je-himmel/): Vor jedem Laden der Seite schaltet es das Spiel ein
+ * (window.__arbeitAn, arbeit in index.html: Himmel, Brett, Shader, Hochladen, Vorzeichnen, erstes Bild, Lichtwelle), und
+ * ein eigener requestAnimationFrame zählt jedes Bild der ganzen Sitzung. auswerten ordnet jedem Stück Arbeit das Bild
+ * zu, in dem es lief (Lücke bis zum nächsten Bild), ohne die Zeitfenster der Bilder der Probe; je Sitzung (bis zum
+ * nächsten Laden, pagehide) in sessionStorage. Am Ende: je Arbeit das längste Bild und die Bilder über 50 und 100 ms,
+ * dazu jede Lücke über 100 ms mit ihrer Arbeit (arbeitBericht). Es prüft nichts, es zeigt, wo Vorladen und Aufbauen
+ * ein Bild kosten.
+ */
+const ARBEIT = `window.__arbeitAn = true;
+(() => {
+  const ts = [], fotos = window.__fotos = [], zustand = new Map();
+  // was im Bild vor einer langen Lücke zu sehen war und sich bewegte (Spiel wach, Himmel, Blick, Menü, Übersicht, Bühne)
+  const sieht = () => { const d = window.__prismaDebug; if (!d) return null; const s = d.story;
+    return { wach: d.sceneLoop.awake, flow: d.flow.state, blick: +s.gaze.toFixed(2), fahrt: s.tweens.length > 0,
+      himmel: d.skyTheme.fading || d.skyTheme.moving, menue: d.menu.offen, ueb: d.uebersicht.offen,
+      buehne: s.el.dataset.mode === 'scene', verdeckt: d.sceneLoop.covered, feier: d.celebration.active }; };
+  let vorher = null;
+  const loop = (t) => { const n = ts.push(t); if (n > 1 && t - ts[n - 2] > 100 && vorher) zustand.set(n - 2, vorher);
+    vorher = sieht(); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  window.__arbeitAuswerten = () => {
+    const log = window.__prismaDebug?.arbeit?.log ?? [], je = {}, lang = [];
+    const foto = (a, b) => fotos.some(([x, y]) => a < y && b > x);
+    let j = 0;
+    const bildVon = (t) => { while (j + 1 < ts.length && ts[j + 1] <= t) j++; return ts[j] <= t && j + 1 < ts.length ? j : -1; };
+    const imBild = new Map();
+    for (const [t, ms, was] of [...log].sort((a, b) => a[0] - b[0])) {
+      const i = bildVon(t);
+      if (i < 0 || foto(ts[i], ts[i + 1])) continue;
+      const d = ts[i + 1] - ts[i], e = je[was] ??= { max: 0, ms: 0, bilder: 0, ueber50: 0, ueber100: 0 };
+      if (!imBild.has(i)) imBild.set(i, new Map());
+      const m = imBild.get(i);
+      if (!m.has(was)) { m.set(was, 0); e.bilder++; if (d > 50) e.ueber50++; if (d > 100) e.ueber100++; }
+      m.set(was, m.get(was) + ms);
+      e.max = Math.max(e.max, Math.round(d)); e.ms = Math.max(e.ms, +m.get(was).toFixed(1));
+    }
+    for (const [i, m] of imBild) {
+      const d = ts[i + 1] - ts[i];
+      if (d > 100) lang.push({ ms: Math.round(d), bei: Math.round(ts[i]), arbeit: [...m].map(([w, x]) => w + ' ' + x.toFixed(1)),
+        zustand: zustand.get(i) ?? null });
+    }
+    return { seite: location.search, je, lang };
+  };
+  addEventListener('pagehide', () => {
+    try {
+      const a = JSON.parse(sessionStorage.getItem('__arbeit') ?? '[]');
+      a.push(window.__arbeitAuswerten());
+      sessionStorage.setItem('__arbeit', JSON.stringify(a));
+    } catch (e) { /* ohne Protokoll */ }
+  });
+})();`;
+/** Am Ende des Laufs: alle Sitzungen des Protokolls der Arbeit (ARBEIT) zusammen ausgeben */
+async function arbeitBericht() {
+  const sitzungen = await ev(`[...JSON.parse(sessionStorage.getItem('__arbeit') ?? '[]'), window.__arbeitAuswerten()]`);
+  const je = {};
+  for (const s of sitzungen) for (const [was, e] of Object.entries(s.je)) {
+    const g = je[was] ??= { max: 0, ms: 0, bilder: 0, ueber50: 0, ueber100: 0 };
+    g.max = Math.max(g.max, e.max); g.ms = Math.max(g.ms, e.ms);
+    for (const k of ['bilder', 'ueber50', 'ueber100']) g[k] += e[k];
+  }
+  console.log('\nArbeit beim Vorladen und Aufbauen (je Stück: längstes Bild, in dem es lief; längste Zeit darin im '
+    + 'Hauptthread; Bilder, über 50, über 100 ms):');
+  for (const [was, e] of Object.entries(je).sort((a, b) => b[1].max - a[1].max)) {
+    console.log(`  ${was}: ${e.max} ms (selbst ${e.ms} ms), ${e.bilder} Bilder, über 50 ms ${e.ueber50}, über 100 ms ${e.ueber100}`);
+  }
+  for (const s of sitzungen) for (const l of s.lang) {
+    console.log(`  Lücke ${l.ms} ms bei ${l.bei} ms (${s.seite}): ${l.arbeit.join(', ')}; im Bild davor ${JSON.stringify(l.zustand)}`);
+  }
+  return je;
+}
 const storyMode = `(!document.getElementById('story').classList.contains('hidden') && document.getElementById('story')`
   + '.dataset.mode)';
 const knoepfe = "document.querySelector('#story .scene .actions').children.length > 0";
@@ -393,6 +475,8 @@ async function taste(key, { strg = false } = {}) {
  * über seinem Zeitfenster zählen nicht.
  */
 async function messe({ abKlick = false } = {}) {
+  const nachlauf = BILD_NACHLAUF_MS - (Date.now() - letztesBild);
+  if (nachlauf > 0) await sleep(nachlauf);
   fotos = [];
   // abKlick: die Dauer zählt ab dem ersten Klick (bzw. Tippen) danach, etwa auf «Weiter» (sonst ab dem ersten Bild)
   await ev(`(() => { const b = window.__bz = { an: true, log: [], ab: null }; const loop = (ts) => { if (!b.an) return;
@@ -434,6 +518,8 @@ async function ende(name, { bis = null } = {}) {
   // noch zwei Bilder: Sah die Probe den Zustand eben erst (etwa play), steht er sonst womöglich noch nicht im Log
   if (bis) await ev('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))');
   const { log, ab } = await ev('(() => { const b = window.__bz; b.an = false; return { log: b.log, ab: b.ab }; })()');
+  // Protokoll der Arbeit (ARBEIT) in der Zeit der Messung: was in welchem Bild lief
+  const arb = log.length ? await ev(`(${D}.arbeit?.log ?? []).filter(([t]) => t >= ${log[0].ts} && t <= ${log.at(-1).ts})`) : [];
   const foto = (i) => fotos.some(([a, b]) => log[i].ts < b && log[i + 1].ts > a);
   const art = log.slice(1).map((_, i) => (foto(i) ? 'Bild der Probe' : ''));
   fotos = null;
@@ -471,7 +557,10 @@ async function ende(name, { bis = null } = {}) {
     if (d <= 50) return;
     const z = ({ ts, blick, ...x }) => JSON.stringify({ ...x, gaze: +x.gaze.toFixed(3) });
     const warum = art[i] ? ` (${art[i]}, zählt nicht)` : '';
-    console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`);
+    const darin = arb.filter(([t]) => t >= log[i].ts && t < e.ts).map(([, ms, w]) => `${w} ${ms.toFixed(1)}`);
+    console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`
+      + (darin.length ? `
+      Arbeit darin (ms im Hauptthread): ${darin.join(', ')}` : ''));
   });
   pruefe(ueber(100) === 0, `${name}: ${ueber(100)} Lücken über 100 ms (längste ${Math.round(max)} ms)`);
   brettPasst(log, name);
@@ -2894,8 +2983,10 @@ function vergleicheVorher() {
   }
 }
 
+let arbeitJe = null;
 try {
   await emulate(send, view);
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: ARBEIT });
   await send('Page.navigate', { url: PAGE });
   await until('window.__prisma?.ticks > 2', 'Spiel startet');
   reise = await ev('STORY_LEVELS');
@@ -2913,6 +3004,7 @@ try {
   pruefe(false, e.message);
   await bild('abbruch').catch(() => {});
 } finally {
+  arbeitJe = await arbeitBericht().catch((e) => { console.log(`Protokoll der Arbeit: ${e.message}`); return null; });
   await close();
 }
 const konsole = logs.filter(l => /\[exception\]|\[error\]|THREE\.WebGLProgram/.test(l));
@@ -2933,7 +3025,7 @@ if (vorherDatei) vergleicheVorher();
 if (messwerte) {
   mkdirSync(dirname(messwerte), { recursive: true });
   writeFileSync(messwerte, `${JSON.stringify({ zeit: new Date().toISOString(), aufruf: args.join(' '),
-    bildschirm: view, abschnitte: bildzeiten, fehler }, null, 1)}\n`);
+    bildschirm: view, abschnitte: bildzeiten, arbeit: arbeitJe, fehler }, null, 1)}\n`);
   console.log(`\nMesswerte nach ${messwerte}`);
 }
 console.log(fehler.length ? `\nProbe FEHLGESCHLAGEN (${fehler.length})` : '\nProbe bestanden, Konsole ohne Fehler.');

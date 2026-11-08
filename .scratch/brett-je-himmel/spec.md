@@ -26,8 +26,9 @@ Gebaut wie oben, mit diesen Abweichungen und Ergänzungen:
 - **Schalter:** `?brett=` und die Test-Leiste `?bretter` sind entfernt. Ein Brett wählt nur noch der Himmel (`?sky=`
   für Tests). Über `__prismaDebug.boardTheme` erreichen Proben weiter die Interna (`brett-probe` setzt dort eigene
   Arten und Brett-Angaben); das ist die Testschnittstelle wie bei `skyTheme`, kein Weg für Spieler.
-- **Offen bis zum Merge:** Test des Nutzers auf dem Poco, Lücken im ersten Bild eines neuen Panoramas an Weltgrenzen
-  (siehe Ticket 10).
+- **Lücken an Weltgrenzen** (Ticket 11): Sie kamen vom Freigeben des alten Panoramas. Jetzt gibt es einen Vorrat für
+  Texturen der Himmel, Freigeben an stillen Bildern und unsichtbares Vorzeichnen. Die Prüfung ist nicht gelockert.
+- **Offen bis zum Merge:** Test des Nutzers auf dem Poco.
 
 ## Problem
 
