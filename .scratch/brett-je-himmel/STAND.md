@@ -43,10 +43,10 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 1. **Manueller Test des Nutzers** (Wunsch vom 07.11.): Spiel mit `?bretter` öffnen; je Weltgrenze ein Knopf setzt den
    Stand von «Leicht» aufs letzte Level der alten Welt, lädt neu und löst es, dann folgt die echte Reise. Die Leiste
    (Commits 698ec03, 4e6c170) ist ungetestet und **fliegt raus, sobald der Nutzer das Go gibt** (mit `?brett=`).
-2. **Offene Fragen an den Nutzer:** Gefällt das Wachsen von der Mitte mit leuchtender Front (05)? Darf das Ziel der Fische
-   auf dem Desktop ohne MSAA auskommen (05, Lücke ohne Vorladen)? Ist die Probe `formen` an kleinen Bildern ohne
-   Referenzbilder in Ordnung (05)? Sind +1,7 ms GPU am Desktop für Basalt in Ordnung, und die matten Säulen (09)? Soll
-   die Lücken-Prüfung an Weltgrenzen lockerer werden oder das Laden der Panoramen besser (05/10)?
+2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt (im normalen Spiel kaum zu sehen, ihm egal).
+   Die Ruckler an den Weltgrenzen hat er im manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe
+   `formen` bleibt (ich halte sie für sinnvoll). Basaltsäulen gefallen, die +1,7 ms merkt er nicht: so lassen. Offen:
+   ob die Lücken-Prüfung an Weltgrenzen lockerer wird oder das Laden der Panoramen besser (Erklärung an ihn, 08.11.).
 3. **10 Schluss** erst nach dem Test: Schalter weg, ganze Geschichte auf Desktop und Handy-Ansicht, Messung über alle
    Welten, aktuelles `main` holen, Test des Nutzers auf dem Poco, Merge nach `main` nur auf sein Go.
 
