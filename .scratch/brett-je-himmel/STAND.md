@@ -48,17 +48,15 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 
 ## Als Nächstes
 
-1. **Ticket 11 (Himmel unsichtbar vorzeichnen):** gebaut, nicht gelockert. Die Lücke an den Weltgrenzen kam vom
-   Freigeben des alten Panoramas, nicht vom neuen (Messung und Spur im Ticket). Reviewt (08.11. abends): Auflage
-   «Naht an der Kante der Streifen» (nach der Wüste eine Linie gut 10° über dem Horizont am Desktop, Vorschlag im
-   Ticket), sonst ohne Befund. Danach Merge in `feature/brett-je-himmel`.
+1. **Ticket 11 (Himmel unsichtbar vorzeichnen):** fertig, reviewt mit Nachprüfung (Naht behoben), am 08.11. in
+   `feature/brett-je-himmel` gemergt (08d3ec9) und gepusht.
 1. **Poco-Test des Nutzers** (Ticket 10 und 11): Stand mit Ticket 11 auf dem Poco F4 GT, Version
-   `2026-11-08 himmel-vorzeichnen` (Taste F bzw. Leistungsanzeige). Was er ansieht, steht im Ticket 10 unter «Comments»;
+   `2026-11-08 himmel-vorzeichnen` (Taste F bzw. Leistungsanzeige). Was anzusehen ist, steht im Ticket 10 unter «Comments»;
    dazu die Weltgrenzen ins Meer und in den Vulkan, auch ohne Vorladen (Bergwald 10 wiederholen, dann «Weiter»), und das
    Öffnen der Übersicht.
-2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat er im
+2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat der Nutzer im
    manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe `formen` bleibt. Basaltsäulen gefallen,
-   die +1,7 ms merkt er nicht: so lassen.
+   die +1,7 ms merkt der Nutzer nicht: so lassen.
 3. Ticket 10 ist reviewt und in `feature/brett-je-himmel` gemergt (cc31f9c). Nach `main` nur auf sein Go (`main`
    96d6538 ist schon drin, vor dem Merge noch einmal fetchen).
 
