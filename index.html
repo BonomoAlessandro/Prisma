@@ -25746,6 +25746,35 @@ window.__prisma = { frames: 0, ticks: 0, ruht: () => sceneLoop.started && !scene
 window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n) ?? [],
   speicher: () => story.scene?.gl?.speicher() ?? 0, statistik: () => story.scene?.gl?.statistik ?? null,
   liste: () => story.scene?.gl?.liste() ?? [] };
+// ?bretter: Leiste zum Springen zwischen den Himmeln und ihren Brettern, um die Übergänge anzusehen (manueller Test
+// vor Ticket 10; Ticket 10 entfernt sie mit ?brett=). Je Himmel ein Knopf, der Regler setzt die Dauer des Überblendens
+// (skyTheme.fadeTime; an Weltgrenzen 2,4 s), «springen» wechselt ohne Übergang. Ein Klick mitten im Übergang lenkt um.
+if (new URLSearchParams(location.search).has('bretter')) {
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:9999;display:flex;flex-wrap:wrap;gap:4px;align-items:center;'
+    + 'max-width:calc(100vw - 16px);padding:6px;border-radius:8px;background:rgba(0,0,0,.55);color:#fff;font:12px system-ui';
+  const knoepfe = skyTheme.entries.map((e) => {
+    const b = document.createElement('button');
+    b.textContent = `${e.name ?? e.id} · ${e.board?.type ?? 'stone'}`;
+    b.style.cssText = 'font:inherit;padding:4px 8px;border:1px solid #fff6;border-radius:6px;background:#fff2;color:#fff';
+    b.addEventListener('click', (ev) => { ev.stopPropagation(); skyTheme.set(e.id, !springen.checked); });
+    bar.append(b);
+    return [e.id, b];
+  });
+  const dauer = document.createElement('input'), wert = document.createElement('span');
+  Object.assign(dauer, { type: 'range', min: 0.3, max: 8, step: 0.1, value: 2.4 });
+  const setze = () => { skyTheme.fadeTime = +dauer.value; wert.textContent = `${(+dauer.value).toFixed(1)} s`; };
+  dauer.addEventListener('input', setze);
+  const springen = document.createElement('input'), sl = document.createElement('label');
+  springen.type = 'checkbox';
+  sl.append(springen, ' springen');
+  bar.append(dauer, wert, sl);
+  for (const t of ['pointerdown', 'pointerup', 'click', 'wheel']) bar.addEventListener(t, (ev) => ev.stopPropagation());
+  setze();
+  document.body.append(bar);
+  // der gewählte Himmel hervorgehoben (die Geschichte wechselt ihn auch selbst)
+  setInterval(() => { for (const [id, b] of knoepfe) b.style.background = id === skyTheme.current ? '#fff6' : '#fff2'; }, 250);
+}
 // Zugriff für Debugging/Tests (nicht serialisieren), die Testschnittstelle für Werkzeuge und Proben; das Spiel ruft
 // nichts davon auf. settle(s): nur mit ?t=, spult Herauswachsen, Aufleuchten und Überblenden um s Sekunden vor, ohne zu
 // rendern (Screenshots der KI-Tester). zeige(index): LEVELS[index] ausserhalb der Geschichte zeigen, gleich nach dem
