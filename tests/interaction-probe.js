@@ -5,7 +5,7 @@
   // ohne Level (nach dem Start das Menü): das erste Tutorial-Level ausserhalb der Geschichte zeigen
   if (!window.__prisma.playing() && window.__prismaDebug.flow.state === 'story') window.__prismaDebug.zeige(0);
   while (!window.__prisma.playing()) await wait(50); // Level-Übergang abwarten
-  const canvas = document.querySelector('canvas');
+  const canvas = renderer.domElement; // nicht das erste <canvas> der Seite: davor liegen andere
   const el = game.board.elements.find(isRotatable);
   const obj = game.objects.get(el.id);
   const p = obj.position.clone(); p.y = BEAM_Y;

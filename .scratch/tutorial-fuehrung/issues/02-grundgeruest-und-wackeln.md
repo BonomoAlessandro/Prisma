@@ -22,9 +22,9 @@ Richtung, die der Nutzer am Katalog gewählt hat; am Ende läuft zur Probe eine 
 - [ ] **Unterbrechungen:** Neuladen und Neustart beginnen beim ersten Schritt der Übung, Menü und Übersicht behalten den
       Schritt. Kein neues Feld in `prisma.noa.<grad>.dorf`, keine gesperrten Knöpfe.
 - [ ] **Früher gelöst:** Die Lösung gilt sofort, die restlichen Schritte entfallen, kein Hinweis bleibt stehen.
-- [ ] **Wackeln:** Ein festes Element mit eckigem Sockel wackelt beim Antippen kurz, der rote Rand blitzt auf, ohne Text,
+- [x] **Wackeln:** Ein festes Element mit eckigem Sockel wackelt beim Antippen kurz, der rote Rand blitzt auf, ohne Text,
       im ganzen Spiel. Es verändert weder Zugzahl noch Strahlen. Elemente ohne Sockel reagieren nicht.
-- [ ] **Auswahl beim Antippen:** Liegt ein drehbares Element im Toleranzbereich, gewinnt es immer gegen ein festes, auch
+- [x] **Auswahl beim Antippen:** Liegt ein drehbares Element im Toleranzbereich, gewinnt es immer gegen ein festes, auch
       auf dem Handy mit `INPUT.touchSlop`.
 - [ ] **Tests:** Logiktests für die Daten der Schritte (Anzahl, Länge, nur bekannte Platzhalter). Die Tests «jedes mit
       Hinweis» und «nur bekannte Platzhalter» (`tests/logic.test.mjs`) und der Aufbau der Kopfzeile (`lvl.hint.replaceAll`)
@@ -42,3 +42,11 @@ Richtung, die der Nutzer am Katalog gewählt hat; am Ende läuft zur Probe eine 
   Sockels und kein Dorf.
 
 ## Comments
+
+- 09.11., Teil «Wackeln und Auswahl» (`feature/tutorial-02-wackeln`), fertig: Weigerung fester Elemente mit eckigem
+  Sockel im ganzen Spiel (`makeRefusing`, `weigern`, `animateWeigern`, `WEIGERN` in `index.html`; der Rand bekommt nur
+  für die Dauer ein eigenes Material, danach wieder `edgeMat`; je Bild nichts, solange nichts wackelt). Feste mit
+  Sockel haben einen Trefferzylinder in `game.hitProxies`, im Würfel nicht. Auswahl `pickTapped` (LOGIC): Drehbares
+  im Toleranzbereich gewinnt immer; Hover und Lichtrand nur für Drehbares. Begriff «Weigerung» in `CONTEXT.md`.
+  Tests: Logiktests «Antippen (Weigerung)», Browserprobe `tests/wackel-probe.js` (Desktop und `MOBILE=1`).
+  Offen in diesem Ticket: das Gerüst der Schritte (wartet auf die Wahl am Katalog).

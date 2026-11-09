@@ -48,6 +48,14 @@ unter der Milchstrasse und dem Sonnensystem und überall, wo ein Himmel kein eig
 `stone`.
 _Vermeiden_: Steinplatte, Plattform
 
+**Weigerung**:
+Ein festes Element auf eckigem Sockel (Quelle, Ziel, Filter, fester Spiegel, festes Prisma, fester Kombinator) wackelt
+beim Antippen kurz, sein roter Rand blitzt auf. Ohne Text, ohne Zug; Strahlen und Speicherstand bleiben. Es gilt im
+ganzen Spiel, nicht in Würfel-Leveln (dort Rahmen statt Sockel); Elemente ohne Sockel (Blocker) reagieren nicht.
+Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare. Rund heisst drehbar, eckig
+heisst fest. Im Code `weigern`, die Auswahl `pickTapped`.
+_Vermeiden_: Fehlklick, Ablehnung
+
 ## Noas Geschichte
 
 **Geschichte**:

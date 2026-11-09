@@ -17,7 +17,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3 };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -403,6 +403,38 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
   ]);
   assert.deepEqual(b.elements.map(L.isRotatable), [true, true, false, false]);
 });
+
+console.log('Antippen (Weigerung)');
+{
+  // Kandidaten wie in pickElement: hit = Abstand des Strahls zum Trefferzylinder (oder null), px = Abstand der Mitte
+  const spiegel = { type: 'mirror', x: 3, z: 3 }, prisma = { type: 'prism', x: 4, z: 3 };
+  const quelle = { type: 'source', x: 3, z: 4 }, festerSpiegel = { type: 'mirror', x: 2, z: 3, fixed: true };
+  const c = (el, hit, px = Infinity) => ({ el, hit, px });
+  test('Festes Element allein getroffen: es ist gemeint', () => {
+    assert.equal(L.pickTapped([c(quelle, 5)]), quelle);
+    assert.equal(L.pickTapped([c(festerSpiegel, 5)], 26), festerSpiegel);
+  });
+  test('Drehbares getroffen gewinnt gegen ein festes davor', () => {
+    assert.equal(L.pickTapped([c(quelle, 4), c(spiegel, 6)]), spiegel);
+    assert.equal(L.pickTapped([c(festerSpiegel, 4), c(spiegel, 6)], 26), spiegel);
+  });
+  test('Drehbares im Toleranzbereich gewinnt gegen ein getroffenes festes (Handy, touchSlop)', () => {
+    assert.equal(L.pickTapped([c(quelle, 5), c(quelle, null, 3), c(spiegel, null, 20)], 26), spiegel);
+  });
+  test('Drehbares ausserhalb des Toleranzbereichs: das feste ist gemeint', () => {
+    assert.equal(L.pickTapped([c(quelle, 5), c(quelle, null, 3), c(spiegel, null, 30)], 26), quelle);
+    assert.equal(L.pickTapped([c(quelle, 5), c(spiegel, null, 20)], 0), quelle); // Maus: ohne Toleranz
+  });
+  test('Unter Drehbaren: das vorderste getroffene, sonst das nächste', () => {
+    assert.equal(L.pickTapped([c(spiegel, 7), c(prisma, 5)]), prisma);
+    assert.equal(L.pickTapped([c(spiegel, 7), c(prisma, null, 2)], 26), spiegel);
+    assert.equal(L.pickTapped([c(spiegel, null, 12), c(prisma, null, 9)], 26), prisma);
+  });
+  test('Nichts in Reichweite: keines', () => {
+    assert.equal(L.pickTapped([]), null);
+    assert.equal(L.pickTapped([c(quelle, null, 40), c(spiegel, null, 30)], 26), null);
+  });
+}
 
 console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
