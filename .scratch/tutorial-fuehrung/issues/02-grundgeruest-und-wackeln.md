@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** ready-for-agent
+**Status:** done
 
 **What to build:** Die Führung als eigenes Stück neben dem Spiel: Sie zeigt die Schritte einer Übung, wartet auf die
 Handlung des Spielers und geht dann weiter. Dazu die Weigerung fester Elemente im ganzen Spiel. Gebaut wird in der
@@ -90,3 +90,34 @@ Richtung, die der Nutzer am Katalog gewählt hat; am Ende läuft zur Probe eine 
   Gelaufen: `logic.test.mjs` 2061 ok; Dorf-Probe Desktop und `--handy`: alle Prüfungen der Führung ok. Rot blieb nur
   eine Bildlücke bei «Sehr schwer: Übersicht → Übung 8 wiederholen» (281–404 ms, Himmel forest → village); sie kommt
   auf dem Stand vor diesem Teil ebenso (444 ms), gehört also nicht zur Führung.
+- 09.11.2026, **Review (Gerüst)** (`602b692`, Teil «Gerüst der Schritte»): bereit zum Mergen. Geprüft: Erklärung
+  schaltet nur mit «Weiter», `antippen` auch über die Weigerung (`weigern` → `fuehrung.angetippt`), `drehen` mit
+  `richtung`, `strahl` nach jeder Rechnung (synchron in `rotateElement`) und gleich beim Beginn eines Schritts;
+  früher gelöst beendet alles (`beenden`: Satz, Hinweise nebenbei, Umriss, Hand, Uhren); Neustart und Neuladen über
+  `enterLevel` → `fuehrung.neu` beim ersten Schritt, Menü und Übersicht behalten ihn (`verbergen`/`zeigen`); der
+  späte Fingerzeig löst nie und meldet nichts; nur bei `story.inDorf` mit `schritte`, in den Welten (auch nach
+  «Gleich los» und «Dorf überspringen») ist `level` null und nichts bleibt stehen (`dorfEnde` blendet über `hideHud`
+  aus); kein neues Feld im Speicherstand, kein Knopf gesperrt. Leistung: ausserhalb der Führung je Bild nur
+  `fuehrung.sichtbar`, in den Anschlüssen nur billige Prüfungen; in der Führung je Bild 36 Projektionen, ein Lesen von
+  `canvasEl.clientWidth/Height` vor allen Schreibzugriffen (kein Thrashing), Attribute nur bei Änderung. Barrierefrei:
+  «Weiter» ist ein echter Knopf (Tastatur, `focus-visible`, 79 × 28 px), der Satz `aria-live`, die Ebene
+  `aria-hidden`, `prefers-reduced-motion` hält alle Bewegung an. Selbst behoben (`ccaf5e0`):
+  (1) `fuehrung.neu`/`neustart`: benutzte Hinweise nebenbei blieben bei jedem Eintritt in dieselbe Übung weg (nächster
+  Grad an derselben Stelle, «Wiederholen» der laufenden Übung aus der Übersicht), jetzt nur nach einem Neustart
+  (`neustarten`); (2) `start`/`beginneSchritt`/`zeigeHand`/`armiere`/`verbergen`/`zeigen`: wuchs das Brett unter dem
+  Menü fertig (Menü während `in`), lief die Uhr des späten Fingerzeigs dort weiter und die Hand zeigte unsichtbar vor;
+  jetzt wartet beides (`vorzeigen`), und ein unterbrochenes Vorzeigen kommt beim Zurückkehren noch einmal;
+  (3) CSS `#hud.hidden .fuehrung-weiter`: «Weiter» war unter der ausgeblendeten Kopfzeile (Levelwechsel, Satz zum
+  Ende) unsichtbar antippbar (`pointer-events: auto` am Knopf), dazu verliert er beim Ausblenden den Fokus;
+  (4) `tests/vorrat.test.mjs` war rot («Erstes Licht geändert»: Abdruck mit `hint`): Die Übungen zählen jetzt ohne
+  `hint`, `schritte`, `nebenbei` gegen Abdrücke aus demselben Stand fc22df1 (`UEBUNGEN_OHNE_TEXT`), mit Gegenprobe.
+  Für Ticket 03: Ändert «Umweg» seine Startstellung, gehört der neue Abdruck in `UEBUNGEN_OHNE_TEXT`. Zum Prüfen in
+  Ticket 03 (kein Fehler hier): Auf dem Handy bei 360 px hoch und quer (640 × 360) braucht die Kopfzeile mit Satz,
+  «Weiter» und zwei Hinweisen nebenbei vier bis fünf Zeilen und reicht in einer nachgestellten Ansicht bis an die
+  hintere Reihe des Bretts; mit einem Hinweis je Übung (wie geplant) und der Kamera der Geschichte (390 × 844) bleibt
+  viel Platz; `geschichte-probe --dorf --groesse 360x640` und `--quer` nach Ticket 03 ansehen. Tests: Node alle grün
+  (logic 2061, beurteilung 206, ki-tester 84, levelliste 54, geschichte 35, generator 31, wuerfelliste 20, vorrat 18
+  nach der Korrektur, hall 6, golden 847 Level); `wackel-probe` Desktop und Handy ok, `interaction-probe` Desktop und
+  `MOBILE=1` ok; `geschichte-probe --dorf --handy` bestanden (Führung ganz geprüft), `--dorf` am Desktop alle
+  Prüfungen der Führung ok, rot nur die bekannte Lücke «Sehr schwer: Übersicht → Übung 8 wiederholen» (404 ms, Himmel
+  village); `--uebersicht --menue` bestanden. `offline.mjs` ausgelassen (Notbremse schon vor dem Vorhaben).
