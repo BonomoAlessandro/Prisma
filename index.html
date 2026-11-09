@@ -1932,7 +1932,8 @@ function tracePass(board, extraRays, emitting, from) {
 
 /**
  * Level-Definitionen. Format:
- *   { name, grad?, size?, tutorial?, hint?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
+ *   { name, grad?, size?, tutorial?, schritte?, nebenbei?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }],
+ *     solution }
  *   grad:     Schwierigkeitsgrad jedes Levels nach dem Tutorial: 'leicht', 'mittel', 'schwer' oder 'sehr schwer'
  *             (Kopfzeile, Kachel und Seitentitel zeigen ihn, GRAD_ANZEIGE)
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
@@ -2084,7 +2085,7 @@ const LEVELS = [
     name: 'Farbiges Licht', tutorial: true,
     schritte: [
       { text: 'Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
-      { text: 'Der Ring am Kristall zeigt seine Farbe, falsches Licht flackert darin.', bei: ['3,0', '6,5'],
+      { text: 'Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin.', bei: ['3,0', '6,5'],
         weiter: 'erklaerung' },
       { text: '{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.', bei: ['3,3', '3,5'], weiter: 'drehen' },
     ],

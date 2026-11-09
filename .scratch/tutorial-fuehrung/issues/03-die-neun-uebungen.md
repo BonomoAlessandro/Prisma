@@ -44,7 +44,7 @@
   | 4 | Brechung | E Prisma «Das Prisma fächert weisses Licht in Rot, Grün und Blau auf.» · D Prisma «{Tippe} das Prisma, bis jede Farbe ihren Kristall trifft.» | Neustart |
   | 5 | Schatten | S an Spiegel (3,5), trifft Prisma, Geste zurück «Längs zum Strahl lässt ein Spiegel das Licht verschwinden: {Drücke lang} auf ihn.» · E Prisma «Trifft Licht das Prisma auf der Seite seiner Farbpfeile, verschwindet es auch.» · D Prisma «{Tippe} das Prisma, bis seine Farbpfeile zu den Kristallen zeigen.» | – |
   | 6 | Farbenlehre | E Filter «Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.» · D Prisma «{Tippe} das Prisma: Es fächert nur die Farben auf, die ankommen.» | – |
-  | 7 | Farbiges Licht | E Quellen «Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.» · E Ziele «Der Ring am Kristall zeigt seine Farbe, falsches Licht flackert darin.» · D Spiegel «{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.» | – |
+  | 7 | Farbiges Licht | E Quellen «Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.» · E Ziele «Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin.» · D Spiegel «{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.» | – |
   | 8 | Treffpunkt | E Ziel «Treffen Rot und Blau denselben Kristall, mischen sie sich zu Magenta.» · D Spiegel «{Tippe} beide Spiegel, bis Rot und Blau den Kristall treffen.» | – |
   | 9 | Mischung | D Prisma «{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.» · E Kombinator «Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.» · D Kombinator «{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.» | – |
 
