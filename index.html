@@ -82,7 +82,7 @@
   }
   #hud.hidden { transition-duration: 0.3s; }
   #hud .title { font-size: 13px; font-weight: 300; }
-  /* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile (in der Geschichte in der Unterzeile; das
+  /* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile (in der Geschichte hinter den Zielen; das
      Menü zeichnet sie gleich, .menue-pips). Ohne eigene Farben, weil Rot, Grün und Blau Lichtfarben sind: Den Grad
      trägt die Zahl der vollen Punkte, volle und leere unterscheiden sich in der Form. */
   .tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; color: var(--ink-dim); }
@@ -95,22 +95,18 @@
   @media (max-width: 520px) { /* Handy hochkant: Grad in eigener Zeile unter dem Namen, lange Namen füllen die Zeile */
     #hud .title .tier:not([hidden]) { display: block; margin: 6px 0 0; padding-left: 0.3em; }
   }
-  /* Noas Geschichte (Entscheid 20): Grad, Kapitel und Level in der Unterzeile, dahinter die Bedienung; auf dem Handy
-     hochkant die Bedienung in einer eigenen Zeile */
-  #hud .sub .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; }
+  /* Noas Geschichte: der Grad hinter den Zielen («Ziele 0 / 3 · ●●○○ Mittel»); die Unterzeile nur im Dorf mit
+     «Übung 2 / 9» und dem Hinweis */
+  #hud .goal .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; vertical-align: 0; }
+  #hud .goal .tier::before { content: " · "; }
   #hud .sub .teil { white-space: nowrap; }
-  #hud .sub .ctl::before { content: " · "; }
-  /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile (statt der Bedienung). Er ist der Lehrinhalt des Kapitels: in
+  /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile. Er ist der Lehrinhalt des Kapitels: in
      normaler Schreibung, grösser und heller als die Unterzeile darüber (Review Ticket 07) */
   #hud .sub .hinweis {
     display: block; max-width: 40em; margin: 6px auto 0; font-size: 13.5px; line-height: 1.5; letter-spacing: 0.02em;
     text-transform: none; color: rgba(232, 230, 240, 0.84);
   }
   @media (max-width: 520px) { #hud .sub .hinweis { font-size: 13px; } }
-  @media (max-width: 520px) {
-    #hud .sub .ctl { display: block; }
-    #hud .sub .ctl::before { content: none; }
-  }
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
   #hud .goal.done { color: var(--ink); }
   #hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
@@ -127,12 +123,13 @@
     #hud .sub { display: none; }
     #hud .goal { margin-top: 2px; font-size: 9px; }
     #hud.tutorial .sub { display: block; margin-top: 4px; font-size: 9px; letter-spacing: 0.2em; } /* Tutorial: Hinweis bleibt */
-    /* Geschichte (Entscheid 20): Grad, Kapitel und Level klein in einer Zeile, ohne die Bedienung */
+    /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 9» klein in einer Zeile, darunter der Hinweis */
     #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
-    #hud.geschichte .sub .ctl { display: none; }
     #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
+  /* leer in der Geschichte ausserhalb des Dorfs: kein Abstand unter den Zielen (nach den Regeln oben, die sie zeigen) */
+  #hud .sub:empty { display: none; }
 
   /* ---------- Kleine Schaltflächen ---------- */
   #controls {
@@ -1149,7 +1146,7 @@ if (SEITE !== 1) {
 <div id="perf" hidden></div>
 <div id="hud" class="hidden">
   <div class="title"><span id="hud-title">Prisma</span><span class="tier" id="hud-tier" hidden></span></div>
-  <div class="goal" id="hud-goal"></div>
+  <div class="goal" id="hud-goal"><span id="hud-ziele"></span><span class="tier" id="hud-grad" hidden></span></div>
   <div class="sub" id="hud-sub"></div>
 </div>
 
@@ -1236,7 +1233,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-08 himmel-vorzeichnen';
+const APP_VERSION = '2026-11-09 kopfzeile-kurz';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -19668,7 +19665,8 @@ let markIntroCalm;
 const introCalm = new Promise((resolve) => { markIntroCalm = resolve; });
 
 const ui = {
-  hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), sub: $('hud-sub'),
+  hud: $('hud'), title: $('hud-title'), tier: $('hud-tier'), goal: $('hud-goal'), ziele: $('hud-ziele'),
+  grad: $('hud-grad'), sub: $('hud-sub'),
   controls: $('controls'), sound: $('btn-sound'),
   solved: $('solved'), solvedMsg: $('solved-msg'), solvedBest: $('solved-best'), solvedStats: $('solved-stats'),
   next: $('btn-next'), overview: $('btn-overview'),
@@ -19715,40 +19713,41 @@ const ui = {
   },
 
   /**
-   * Kopfzeile. In Noas Geschichte nach Entscheid 20: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter
-   * Grad, Kapitel und Level («●●○○ Mittel · Kapitel 2 / 6 · Level 4 / 10») und die Bedienung; im Dorf «Im Dorf –
-   * Umweg», darunter «●○○○ Leicht · Übung 2 / 9» und der Hinweis der Übung (Ticket 07). Ein Level ausserhalb
-   * der Geschichte (Testschnittstelle zeige): Titel oder Name mit dem Grad dahinter, darunter die Bedienung, im
-   * Tutorial und im Würfel der Hinweis.
+   * Kopfzeile. In Noas Geschichte: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter die Ziele mit dem
+   * Grad dahinter («Ziele 0 / 3 · ●●○○ Mittel»; Kapitel, Level und Bedienung stehen seit dem 09.11.2026 nicht mehr
+   * da, Wunsch des Nutzers); im Dorf «Im Dorf – Umweg», darunter ebenso Ziele und Grad, dann «Übung 2 / 9» und der
+   * Hinweis der Übung (Ticket 07). Ein Level ausserhalb der Geschichte (Testschnittstelle zeige): Titel oder Name mit
+   * dem Grad dahinter, im Tutorial und im Würfel darunter der Hinweis.
    */
   showHud(index) {
     const lvl = LEVELS[index];
-    const bedienung = IS_TOUCH ? 'Tippen dreht · lang drücken zurück' : 'Klick dreht · Rechtsklick zurück';
     this.hud.classList.toggle('tutorial', !!lvl.tutorial || lvl.dim === 3);
     this.hud.classList.toggle('geschichte', story.drives(index)); // Handy quer: die Unterzeile bleibt (CSS)
     this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
     fillTier(this.tier, lvl);
+    this.grad.hidden = true;
     const hinweis = () => lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
       .replaceAll('{Rechtsklick}', IS_TOUCH ? 'Lang drücken' : 'Rechtsklick');
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
       this.title.textContent = title;
-      this.tier.hidden = true; // der Grad steht in der Unterzeile
-      const tier = document.createElement('span'), ctl = document.createElement('span');
-      tier.className = 'tier';
-      // eine Übung im Dorf hat keinen Grad: der gewählte; statt der Bedienung ihr Hinweis in eigener Zeile (nicht in
-      // .ctl: Das blendet das Handy quer aus)
-      fillTier(tier, lvl.tutorial ? { grad: story.grade } : lvl);
-      ctl.className = lvl.tutorial ? 'hinweis' : 'ctl';
-      ctl.textContent = lvl.tutorial ? hinweis() : bedienung;
-      // Kapitel und Level je am Stück: Auf dem Handy hochkant bräche sonst «Level 1 / 10» vor der 10 um
-      const teile = info.split(' · ').flatMap((text, k) => {
+      this.tier.hidden = true; // der Grad steht hinter den Zielen
+      // eine Übung im Dorf hat keinen Grad: der gewählte
+      fillTier(this.grad, lvl.tutorial ? { grad: story.grade } : lvl);
+      const zeile = [];
+      if (info) { // im Dorf «Übung 2 / 9», am Stück: Auf dem Handy hochkant bräche es sonst vor der 9 um
         const teil = document.createElement('span');
         teil.className = 'teil';
-        teil.textContent = text;
-        return k ? [' · ', teil] : [teil];
-      });
-      this.sub.replaceChildren(...(tier.hidden ? [] : [tier, ' · ']), ...teile, ctl);
+        teil.textContent = info;
+        zeile.push(teil);
+      }
+      if (lvl.tutorial) { // Übung im Dorf: ihr Hinweis in eigener Zeile
+        const h = document.createElement('span');
+        h.className = 'hinweis';
+        h.textContent = hinweis();
+        zeile.push(h);
+      }
+      this.sub.replaceChildren(...zeile);
     } else if (lvl.dim === 3) {
       this.title.textContent = `Würfel ${index - CUBE_START + 1} / ${LEVELS.length - CUBE_START} – `
         + `${lvl.titel ?? lvl.name}`;
@@ -19758,7 +19757,7 @@ const ui = {
       this.sub.textContent = hinweis();
     } else {
       this.title.textContent = lvl.titel ?? lvl.name;
-      this.sub.textContent = bedienung;
+      this.sub.textContent = '';
     }
     this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
     // unter dem offenen Menü nicht (ein Level, das beim Öffnen gerade wechselte, wächst dahinter fertig heraus)
@@ -19767,8 +19766,8 @@ const ui = {
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
   showGoal(lit, total) {
     const text = `Ziele ${lit} / ${total}`;
-    if (this.goal.textContent !== text) this.goal.textContent = text;
-    this.goal.classList.toggle('done', lit === total);
+    if (this.ziele.textContent !== text) this.ziele.textContent = text;
+    this.goal.classList.toggle('done', lit === total); // hellt nur die Ziele auf, der Grad hat seine eigene Farbe
   },
   hideHud() { this.hud.classList.add('hidden'); },
 
@@ -25158,15 +25157,16 @@ const story = {
 
   /* ---------- Kopfzeile und Meldung ---------- */
 
-  /** Kopfzeile (Entscheid 20): [«Das Meer – Brandung», «Kapitel 2 / 6 · Level 4 / 10»]; Grad und Bedienung: ui. */
+  /**
+   * Kopfzeile: [«Das Meer – Brandung»] (Kapitel und Level stehen seit dem 09.11.2026 nicht mehr in der Unterzeile);
+   * im Dorf [«Im Dorf – Umweg», «Übung 2 / 9»]. Grad und Hinweis: ui.
+   */
   hudText(index) {
-    // im Dorf: «Im Dorf – Umweg», «Übung 2 / 9» (Grad und Hinweis: ui)
     if (this.inDorf) {
       return [`${STORY_DORF.title} – ${LEVELS[index].name}`, `Übung ${this.uebung + 1} / ${TUTORIAL_COUNT}`];
     }
-    const cur = this.steps[this.step], lvl = LEVELS[index], imKapitel = this.steps.filter(s => s.c === cur.c);
-    return [`${STORY_CHAPTERS[cur.c].title} – ${lvl.titel ?? lvl.name}`,
-      `Kapitel ${cur.c + 1} / ${STORY_CHAPTERS.length} · Level ${imKapitel.indexOf(cur) + 1} / ${imKapitel.length}`];
+    const lvl = LEVELS[index];
+    return [`${STORY_CHAPTERS[this.steps[this.step].c].title} – ${lvl.titel ?? lvl.name}`];
   },
   /**
    * Meldung und Knopf nach dem Lösen: im Kapitel «Gelöst» / «Weiter», am Ende der Welt ihr Satz und wohin es geht

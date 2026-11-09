@@ -869,11 +869,18 @@ async function brettDerWelt(was) {
 async function kopfzeile(g, platz) {
   const w = Math.floor(platz / 10), k = platz % 10;
   const titel = await ev("document.getElementById('hud-title').textContent");
-  const sub = await ev("document.getElementById('hud-sub').textContent");
+  const z = await ev(`(() => { const grad = document.getElementById('hud-grad');
+    return { ziele: document.getElementById('hud-ziele').textContent, grad: grad.hidden ? null : grad.textContent,
+      sub: document.getElementById('hud-sub').textContent }; })()`);
   const name = await ev(`(() => { const l = LEVELS[${D}.game.levelIndex]; return l.titel ?? l.name; })()`);
   pruefe(titel === `${WELTEN[w]} – ${name}`, `${g} ${platz + 1}: Titel «${titel}»`);
-  pruefe(sub.startsWith(`${GRAD_TEXT[g]} · Kapitel ${w + 1} / 6 · Level ${k + 1} / 10`),
-    `${g} ${platz + 1}: Unterzeile «${sub}»`);
+  // der Grad hinter den Zielen, keine Unterzeile (Kapitel, Level und Bedienung seit dem 09.11.2026 nicht mehr); den
+  // Platz prüft der Stand der Geschichte
+  pruefe(/^Ziele \d+ \/ \d+$/.test(z.ziele) && z.grad === GRAD_TEXT[g] && z.sub === '',
+    `${g} ${platz + 1}: Ziele und Grad ${JSON.stringify(z)}`);
+  const stand = await ev(`(() => { const s = ${D}.story; return { step: s.step, c: s.steps[s.step].c,
+    k: s.steps.filter(x => x.c === s.steps[s.step].c).indexOf(s.steps[s.step]) }; })()`);
+  pruefe(stand.step === platz && stand.c === w && stand.k === k, `${g} ${platz + 1}: Stand ${JSON.stringify(stand)}`);
 }
 
 /** Durchgang: neuer Stand, Prolog, Einstieg, welten × 10 Level mit den Reisen, dann «Weiter» nach dem Neuladen. */
@@ -1735,11 +1742,12 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false } = 
     `${g}: Übung ${n + 1} läuft`, 60);
   const k = await ev(`({ titel: document.getElementById('hud-title').textContent,
     sub: document.getElementById('hud-sub').textContent,
+    grad: document.getElementById('hud-grad').hidden ? null : document.getElementById('hud-grad').textContent,
     hinweis: document.querySelector('#hud-sub .hinweis')?.textContent ?? null, index: ${D}.game.levelIndex,
     uebersicht: !document.getElementById('btn-overview').hidden,
     skip: !document.getElementById('btn-skip').classList.contains('hidden') })`);
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
-  pruefe(k.sub.startsWith(`${GRAD_TEXT[g]} · Übung ${n + 1} / 9`) && k.hinweis?.length > 10
+  pruefe(k.grad === GRAD_TEXT[g] && k.sub.startsWith(`Übung ${n + 1} / 9`) && k.hinweis?.length > 10
     && !/[{}]/.test(k.hinweis), `${g}, Übung ${n + 1}: Unterzeile «${k.sub}»`);
   await brettDerWelt(`${g}, Übung ${n + 1}`);
   // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
