@@ -193,6 +193,22 @@ Android-Chromium.
     Felsen gehen am Rand weich ins Panorama über (`bakedMesh` mit `ground: [0, 0]`). Rest: Kiesel im Sand mit dünnem
     dunklem Rand (ihr Schatten im Panorama).
 
+## 1a. Spielführung
+
+- [ ] **1a.1 Tutorial überarbeiten** (Wunsch des Nutzers, 09.11.2026): Der Spieler soll besser durch die einzelnen
+  Funktionen geführt werden. Heute ist das Tutorial das Kapitel «Im Dorf» nach dem Prolog: neun Übungen (Erstes Licht,
+  Umweg, Sperre, Brechung, Schatten, Farbenlehre, Farbiges Licht, Treffpunkt, Mischung), je mit einem Satz als Hinweis
+  unter der Kopfzeile («Übung 2 / 9»). Was genau zu tun ist, muss der Spieler selbst herausfinden. Vor dem Bau zu klären:
+  - **Was geführt wird:** Drehen und Zurückdrehen, drehbar oder fest, Blöcke, Prisma, Licht, das verschwindet, Filter,
+    farbige Quellen und der Ring am Ziel, Mischen am Ziel, Kombinator; dazu die Bedienung rundherum (Kamera drehen
+    und zoomen, Neustart, Menü und Übersicht).
+  - **Wie geführt wird:** zum Beispiel Schritt für Schritt, das Element hervorgehoben, das als Nächstes zu drehen ist,
+    ein kurzer Text genau in dem Moment, in dem er zählt, Warten auf die Handlung statt eines Satzes vorab, eine
+    angedeutete Hand oder ein Finger, Rückmeldung, wenn etwas schiefgeht.
+  - Gleich gut auf dem Handy (Tippen, zwei Finger) und am Desktop (Klick, Rechtsklick, Mausrad).
+  - Vorgehen wie bei den Brettern: Vorbilder aus anderen Puzzlespielen sammeln, ein Katalog mit verschiedenen
+    Richtungen, dann wählt der Nutzer.
+
 ## 2. Würfel-Level (3D)
 
 - [~] **2.1 Würfel-Level erstellen und ausbauen.** Seit 27.10.2026 Quader 7 × 7 × 5 (vorher 7 × 7 × 7, bis 23. Oktober
