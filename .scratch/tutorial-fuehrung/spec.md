@@ -53,6 +53,33 @@ langes Drücken und zwei Finger gegen Klick, Rechtsklick und Mausrad).
 
 Menü, Übersicht und Ton werden nicht geführt: Sie sind als Knöpfe sichtbar und zum Lösen nicht nötig.
 
+### Bretter und Anzahl (Ticket 03)
+
+Der Nutzer liess frei, Bretter und sogar die Anzahl der Übungen zu ändern, wo es der Führung hilft. Geändert sind nur
+zwei Startstellungen; die Lösungen, die Elemente und ihre Lage bleiben, also auch die Eindeutigkeit (Löser).
+
+- **Umweg:** Der vordere Spiegel (3,5) startet eine Stufe zu weit (rot 4 statt 1, Lösung 3), Wahl des Nutzers am
+  Katalog: Einmal zurückdrehen ist der kurze Weg, der dritte Schritt («zurückdrehen») bringt ihn in die Lösung, statt
+  dass Zurückdrehen nur erzählt wird. Vorher waren es zwei Drehungen in beide Richtungen, Zurückdrehen war nie nötig.
+- **Mischung:** Das Prisma (2,3) startet eine Stufe vor der Lösung (rot 7 statt 6). Der erste Schritt lässt das Prisma
+  drehen, bis Rot und Blau den Kombinator treffen; aus rot 7 ist das ein Tippen, und wenn der nächste Schritt den
+  Kombinator erklärt, mischt er schon zwei Farben zu Magenta. Aus rot 6 hätte das erste Tippen den Schritt
+  weitergeschaltet, während der Kombinator nur Grün bekam.
+
+**Die Anzahl bleibt 9.** Jeder Inhalt der Tabelle ist ein eigener Gedanke, und jede Übung hat dafür höchstens drei
+Schritte. Zwei Übungen zusammenzulegen hiesse zwei Lehrinhalte auf einem Brett und in drei Sätzen: Das widerspricht
+«je Übung ein Gedanke» und macht die Sätze dichter, gerade auf dem Handy. Dazu hängen `TUTORIAL_COUNT`, der
+Speicherstand `prisma.noa.<grad>.dorf` (Platz), Übersicht, `tests/golden.json` und mehrere Tests an der 9; der Gewinn
+wäre eine oder zwei Übungen weniger, ohne dass ein Inhalt leichter zu lernen würde.
+
+**Nicht zu früh lösbar** (Prüfung mit der Strahlregel aus `index.html`, Breitensuche über alle Stellungen und den
+Stand der Führung): Wer jedem Schritt mit der kürzesten Handlung folgt und Erklärungen mit «Weiter» bestätigt, löst
+keine Übung vor ihrem letzten Lernschritt (Logiktest «wer jedem Schritt … folgt»). Früher lösen geht nur an den
+Schritten vorbei: in «Umweg» ohne den festen Spiegel anzutippen (zurückdrehen, dann (5,1) einmal), in «Schatten» mit
+vier Drehungen am Prisma, solange es noch kein Licht hat, in «Mischung» mit zwei Drehungen am Kombinator vor dem
+Prisma; in den Übungen, die mit einer Erklärung beginnen, wenn «Weiter» nie getippt wird. Das bleibt erlaubt («gilt
+sofort»); ein Brett, das es verhindert, gibt es nicht, weil alles frei drehbar bleibt.
+
 ### Rund und eckig
 
 Der Wunsch des Nutzers: Der Spieler soll wissen, was die Plattform bedeutet. Rund heisst drehbar, eckig heisst fest. Das

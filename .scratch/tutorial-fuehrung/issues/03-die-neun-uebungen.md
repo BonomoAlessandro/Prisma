@@ -8,20 +8,20 @@
 
 **What to build:** Alle 9 Übungen bekommen ihre Schritte nach der Tabelle in der Spec, auf dem Gerüst aus Ticket 02.
 
-- [ ] **Schritte** für jede Übung nach «Inhalte je Übung», höchstens drei, je ein Satz von etwa zwölf Wörtern, neutral
+- [x] **Schritte** für jede Übung nach «Inhalte je Übung», höchstens drei, je ein Satz von etwa zwölf Wörtern, neutral
       im Du.
-- [ ] **Erstes Licht:** Das Ziel wird vor dem ersten Tippen erklärt, denn ein Tippen löst die Übung schon.
-- [ ] **Umweg:** drei Schritte: festen Spiegel antippen (Wackeln), Satz «Rund lässt sich drehen, eckig nicht», zurückdrehen.
-- [ ] **Schatten:** Spiegel längs zum Strahl und Prisma von der falschen Seite als zwei getrennte Schritte.
-- [ ] **Hinweise nebenbei:** Kamera (drehen und zoomen) in «Sperre», Neustart in «Brechung».
-- [ ] **Nicht zu früh lösbar:** Für jede Übung prüfen, ob die Lösung vor dem letzten Lernschritt möglich ist. «Umweg» lässt
+- [x] **Erstes Licht:** Das Ziel wird vor dem ersten Tippen erklärt, denn ein Tippen löst die Übung schon.
+- [x] **Umweg:** drei Schritte: festen Spiegel antippen (Wackeln), Satz «Rund lässt sich drehen, eckig nicht», zurückdrehen.
+- [x] **Schatten:** Spiegel längs zum Strahl und Prisma von der falschen Seite als zwei getrennte Schritte.
+- [x] **Hinweise nebenbei:** Kamera (drehen und zoomen) in «Sperre», Neustart in «Brechung».
+- [x] **Nicht zu früh lösbar:** Für jede Übung prüfen, ob die Lösung vor dem letzten Lernschritt möglich ist. «Umweg» lässt
       sich zum Beispiel ohne Zurückdrehen lösen. Wo nötig, die Schritte umordnen oder das Brett ändern.
-- [ ] **Geänderte Bretter:** Lösung bleibt eindeutig (Löser), `tests/golden.json` für genau diese Übungen neu, in der
+- [x] **Geänderte Bretter:** Lösung bleibt eindeutig (Löser), `tests/golden.json` für genau diese Übungen neu, in der
       Spec vermerken, warum.
-- [ ] **Texte auf dem Handy:** alle Schritte im Hoch- und Querformat bei 360 px sichtbar und ohne Abschneiden.
-- [ ] Die alten Hinweissätze sind entfernt; `TUTORIAL_COUNT` bleibt 9. Die Tests und der Aufbau der Kopfzeile verlangen
+- [x] **Texte auf dem Handy:** alle Schritte im Hoch- und Querformat bei 360 px sichtbar und ohne Abschneiden.
+- [x] Die alten Hinweissätze sind entfernt; `TUTORIAL_COUNT` bleibt 9. Die Tests und der Aufbau der Kopfzeile verlangen
       jetzt Schritte, `hint` gibt es für die Übungen nicht mehr.
-- [ ] **Dorf-Probe auf alle Schritte erweitern** (`tests/geschichte-probe.mjs`, `uebung()`): Sie löst heute per `loese()` an
+- [x] **Dorf-Probe auf alle Schritte erweitern** (`tests/geschichte-probe.mjs`, `uebung()`): Sie löst heute per `loese()` an
       den Schritten vorbei und erwartet `#hud-sub .hinweis`. Sie spielt jeden Schritt jeder Übung, am Desktop und mit
       `--handy`, und folgt dem Textort aus dem Katalog.
 
