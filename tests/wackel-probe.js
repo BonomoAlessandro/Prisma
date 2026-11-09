@@ -2,7 +2,8 @@
 //   Handy: MOBILE=1 DPR=3 node tests/screenshot.mjs wackeln-handy 393 852 300 "$(cat tests/wackel-probe.js)"
 // Weigerung (Ticket 02 von .scratch/tutorial-fuehrung/): Ein festes Element mit Sockel antippen. Es wackelt, nur sein
 // Rand blitzt (eigenes Material, danach wieder das geteilte), Zugzahl, Strahlen und Speicherstand bleiben. Dazu: Ein
-// Tippen auf ein drehbares Element dreht es weiterhin. Wirft bei einem Fehler (screenshot.mjs meldet FEHLGESCHLAGEN).
+// Tippen auf ein drehbares Element dreht es weiterhin, und ein Levelwechsel mitten im Wackeln räumt auf. Wirft bei
+// einem Fehler (screenshot.mjs meldet FEHLGESCHLAGEN).
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const check = (ok, text) => { if (!ok) throw new Error('Weigerung: ' + text); };
@@ -48,7 +49,7 @@
     lage: game.board.elements.map(e => [e.rot, e.dir]),
     speicher: Object.keys(localStorage).sort().map(k => k + '=' + localStorage.getItem(k)),
   });
-  const vorher = stand();
+  const vorher = stand(), lage = obj.rotation.y;
   const out = { touch, type: el.type };
 
   tap(screenOf(el, 0.3));
@@ -72,13 +73,26 @@
   for (let i = 0; i < 100 && weigernde.size; i++) await wait(20);
   check(!weigernde.size && !u.weigern, 'wackelt nach über 2 s noch');
   check(u.sockelRand.material === geteilt && geteilt.color.getHex() === farbe, 'Rand nicht zurück auf dem geteilten Material');
-  check(Math.abs(obj.rotation.y) < 1e-9, 'Modell nicht zurück in seiner Lage');
+  check(obj.rotation.y === lage,'Modell nicht zurück in seiner Lage');
   check(stand() === vorher, 'Zugzahl, Strahlen oder Speicherstand verändert');
 
   // ein drehbares Element dreht beim Antippen weiterhin (Zugzahl + 1)
   const r = rot[0], turns = game.stats.turns;
   tap(screenOf(r, BEAM_Y));
   check(game.stats.turns === turns + 1, 'drehbares Element dreht nicht');
+
+  // Levelwechsel mitten im Wackeln: das alte Modell kommt zurück in seine Lage und aufs geteilte Material, das eigene
+  // wird freigegeben, nichts wackelt weiter
+  tap(screenOf(el, 0.3));
+  check(weigernde.has(obj), 'wackelt beim zweiten Antippen nicht');
+  const eigenes = u.weigern.mat;
+  let freigegeben = false;
+  eigenes.addEventListener('dispose', () => { freigegeben = true; });
+  loadLevel(game.levelIndex);
+  for (let i = 0; i < 100 && weigernde.size; i++) await wait(20);
+  check(!weigernde.size && !u.weigern, 'wackelt nach dem Levelwechsel weiter');
+  check(u.sockelRand.material === geteilt && obj.rotation.y === lage, 'altes Modell nicht zurückgesetzt');
+  check(freigegeben, 'eigenes Material nach dem Levelwechsel nicht freigegeben');
   out.ok = true;
   return JSON.stringify(out);
 })()
