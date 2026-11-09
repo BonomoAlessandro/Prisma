@@ -148,6 +148,32 @@ zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle 
 _Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
 
+**Führung**:
+Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
+der Kopfzeile, wo sonst der Hinweis steht, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
+einmal vor. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
+von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
+Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
+`fuehrung` (Anzeige, Uhr), die Daten `schritte` und `nebenbei` je Übung.
+_Vermeiden_: Tutorial (für die Führung), Hilfe
+
+**Schritt**:
+Ein Teil der Führung: ein Satz im Du von etwa zwölf Wörtern (Platzhalter je Gerät wie «Tippe» / «Klicke») und das, was
+ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
+Strahl trifft ein Element, oder bei einer Erklärung der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz
+bleibt stehen, bis der nächste kommt. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
+_Vermeiden_: Stufe, Hinweis (für einen Schritt)
+
+**Hinweis nebenbei**:
+Ein leiser Satz unter dem Schritt zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Schritten,
+verschwindet bei der ersten Benutzung (Kamerageste, Neustart) oder spätestens mit dem Lösen und kommt beim Neustart
+derselben Übung nicht wieder. Im Code `NEBENBEI`.
+
+**Später Fingerzeig**:
+Nach 15 s ohne Fortschritt (neuer Schritt, ein Element in der Stellung der Lösung) zeigt die Führung noch einmal: Der
+Umriss läuft schneller, die Hand zeigt die Geste wieder, «Weiter» stupst; nach den Schritten gilt das dem nächsten
+Element ausserhalb der Lösung. Er löst nie. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
+
 **Angebot**:
 Die Frage nach dem Prolog, auf der Bühne: «Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit
 Noa im Dorf üben?» mit «Üben» (das Kapitel «Im Dorf») und «Gleich los» (Einstieg in den Bergwald); der Fokus steht auf

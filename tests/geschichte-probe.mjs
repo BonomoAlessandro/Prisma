@@ -1736,8 +1736,108 @@ const skipUeberdeckt = () => ev(`(() => { const s = document.getElementById('btn
   return teile.filter(([, sel, rects]) => { const e = document.querySelector(sel);
     return e && !e.closest('.hidden') && rects(e).some(schnitt); }).map(([n]) => n); })()`);
 
+/**
+ * Stand der Führung (Ticket 02 von .scratch/tutorial-fuehrung/): Schritt, Satz, «Weiter», Umrisse (Mitte im Bild) und
+ * Hand (Geste, Lage), dazu wo die Elemente bei x, z im Bild liegen (Mitte bzw. Kuppe der Hand), in Pixeln des Layouts.
+ */
+const fuehrungStand = () => ev(`(() => { const f = ${D}.fuehrung, b = document.getElementById('fuehrung');
+  const satz = document.querySelector('#hud-sub .hinweis.schritt'), knopf = document.querySelector('#hud-sub .fuehrung-weiter');
+  const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || !e.getClientRects().length;
+  const sichtbar = b && b.style.display !== 'none';
+  const umrisse = sichtbar ? [...b.querySelectorAll('.fz-umriss')].filter((p) => p.style.display !== 'none')
+    .map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2,
+      stark: p.classList.contains('stark') }; }) : [];
+  const h = b?.querySelector('.fz-hand'), hand = sichtbar && h.style.display !== 'none'
+    ? { art: h.dataset.art, x: h.getScreenCTM().e, y: h.getScreenCTM().f } : null;
+  const c = ${D}.renderer.domElement.getBoundingClientRect();
+  const ort = (z, hoehe) => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === z);
+    const v = ${D}.game.objects.get(el.id).getWorldPosition(new ${D}.camera.position.constructor());
+    v.y += hoehe; v.project(${D}.camera);
+    return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height }; };
+  return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
+    knopf: !zu(knopf), stups: !!knopf?.classList.contains('stups'), umrisse, hand,
+    ziel: ort('4,0', 0), spiegel: ort('4,3', 0), kuppe: ort('4,3', 0.42), tippen: ort('4,3', 0.375) }; })()`);
+const nahe = (a, b, px = 12) => !!a && Math.hypot(a.x - b.x, a.y - b.y) <= px;
+/**
+ * «Erstes Licht» geführt, wie ein Spieler (Ticket 02 der Führung): Schritt 1 erklärt das Ziel (Umriss um den Kristall,
+ * «Weiter», keine Hand); Neustart beginnt wieder bei Schritt 1; «Weiter» → Schritt 2 (Satz in der Befehlsform des
+ * Geräts, Umriss und Hand am Spiegel, die Hand geht nach dem Vorzeigen); später Fingerzeig (vorgespult: Hand wieder,
+ * Umriss stark); Menü und zurück behält den Schritt; dann den Spiegel antippen: gelöst, nichts bleibt stehen.
+ */
+async function gefuehrt(g) {
+  const was = `${g}, Erstes Licht geführt`;
+  await until(`${D}.fuehrung.los && ${D}.fuehrung.level?.name === 'Erstes Licht'`, `${was}: Führung läuft`, 10);
+  await sleep(300);
+  const schritt1 = async (wann) => {
+    const f = await fuehrungStand();
+    pruefe(f.schritt === 0 && f.satz === 'Bring das Licht zum Kristall, dann leuchtet er.' && f.knopf && !f.hand
+      && f.umrisse.length === 1 && nahe(f.umrisse[0], f.ziel, 15), `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
+  };
+  await schritt1('Beginn');
+  await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
+  await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
+  // Neustart: wieder bei Schritt 1. Zur Probe der Anschlüsse bekommt die Übung bis dahin Hinweise nebenbei (die
+  // echten verteilt Ticket 03): Die Kamerageste beendet den zur Kamera, der Neustart den zum Neustart, und beim
+  // Neustart derselben Übung kommt keiner wieder
+  const neben = () => ev(`(() => { const n = document.querySelector('#hud-sub .hinweis.nebenbei');
+    return n && !n.hidden ? n.textContent : ''; })()`);
+  const neustart = async (wann) => {
+    await tippe('#btn-restart', `${was}: Neustart`);
+    await until(`${D}.flow.state === 'in'`, `${was}: Neustart wächst`, 10);
+    await until(`window.__prisma.playing() && ${D}.fuehrung.los`, `${was}: ${wann}`, 20);
+    await sleep(300);
+  };
+  await ev(`LEVELS[0].nebenbei = ['kamera', 'neustart']`);
+  try {
+    await neustart('nach dem Neustart');
+    const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((t) => t[${view.phone ? 0 : 1}])`);
+    let n = await neben();
+    pruefe(n === `${kamera} ${neu}`, `${was}: Hinweise nebenbei «${n}»`);
+    const c = await ev(`(() => { const r = ${D}.renderer.domElement.getBoundingClientRect();
+      return { x: r.left + r.width * 0.2, y: r.top + r.height * 0.75 }; })()`);
+    await scrolle(c.x, c.y, view.phone ? 120 : 40); // Handy: wischen dreht die Kamera, Desktop: das Mausrad zoomt
+    n = await neben();
+    pruefe(n === neu, `${was}: nach der Kamerageste «${n}»`);
+    await neustart('nach dem zweiten Neustart');
+    n = await neben();
+    pruefe(n === '', `${was}: nach dem Neustart noch Hinweise nebenbei «${n}»`);
+  } finally { await ev('delete LEVELS[0].nebenbei'); }
+  await schritt1('nach dem Neustart');
+  await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
+  await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
+  await sleep(200);
+  let f = await fuehrungStand();
+  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an, so dreht er sich.`;
+  pruefe(f.satz === satz2 && !f.knopf && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15)
+    && f.hand?.art === 'tippen' && nahe(f.hand, f.kuppe, 3), `${was}: Schritt 2 ${JSON.stringify(f)}`);
+  await bild(`dorf-${slug(g)}-fuehrung-schritt-2`);
+  await sleep(2800); // die Hand zeigt einmal vor und geht
+  f = await fuehrungStand();
+  pruefe(!f.hand && f.umrisse.length === 1 && !f.spaet, `${was}: Hand nach dem Vorzeigen ${JSON.stringify(f)}`);
+  await ev(`${D}.fuehrung.vorspulen()`);
+  f = await fuehrungStand();
+  pruefe(f.spaet && f.hand?.art === 'tippen' && f.umrisse[0]?.stark, `${was}: später Fingerzeig ${JSON.stringify(f)}`);
+  // Menü und zurück: derselbe Schritt, darunter nichts über dem Brett
+  if (view.phone) await tippe('#btn-menu', 'Menü');
+  else await taste('Escape');
+  await until(`${menueOffen} && !${D}.story.tweens.length`, `${was}: Menü`, 10);
+  f = await fuehrungStand();
+  pruefe(!f.umrisse.length && !f.hand, `${was}: unter dem Menü ${JSON.stringify(f)}`);
+  if (view.phone) await tippe('#menue .menue-weiter', 'Weiter');
+  else await taste('Escape');
+  await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && !${D}.story.running`, `${was}: zurück`, 15);
+  f = await fuehrungStand();
+  pruefe(f.schritt === 1 && f.satz === satz2 && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15),
+    `${was}: nach dem Menü ${JSON.stringify(f)}`);
+  // den Spiegel antippen wie ein Spieler: gelöst, die Führung ist durch
+  await tippeBei(f.tippen.x, f.tippen.y);
+  await until(`${D}.game.result.solved`, `${was}: Spiegel angetippt`, 5);
+  f = await fuehrungStand();
+  pruefe(f.fertig && f.satz === null && !f.umrisse.length && !f.hand, `${was}: gelöst ${JSON.stringify(f)}`);
+}
+
 /** Eine Übung im Dorf: warten, bis sie läuft, Kopfzeile prüfen, lösen, «Gelöst» prüfen, Weiter. */
-async function uebung(g, n, { bilder = false, weiter = true, replay = false } = {}) {
+async function uebung(g, n, { bilder = false, weiter = true, replay = false, fuehren = false } = {}) {
   await until(`${D}.story.inDorf && ${D}.story.uebung === ${n} && window.__prisma.playing()`,
     `${g}: Übung ${n + 1} läuft`, 60);
   const k = await ev(`({ titel: document.getElementById('hud-title').textContent,
@@ -1755,7 +1855,8 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false } = 
   pruefe(k.uebersicht && (replay ? !k.skip : skipText === 'Dorf überspringen'),
     `${g}, Übung ${n + 1}: Knöpfe Übersicht ${k.uebersicht}, Überspringen ${k.skip} «${skipText}»`);
   if (bilder) { await sleep(2200); await bild(`dorf-${slug(g)}-uebung-${n + 1}`); }
-  await ev(`${D}.loese()`);
+  if (fuehren) await gefuehrt(g); // geführt, wie ein Spieler bis zur Lösung
+  else await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Übung ${n + 1} gelöst`, 30);
   const f = await geloestFeld();
   const erwartet = n < 8 ? 'Gelöst/Weiter' : `Das Dorf leuchtet/${replay ? 'Zur Übersicht' : 'In den Bergwald'}`;
@@ -1881,7 +1982,7 @@ async function dorfAblauf() {
   let s = await stand('leicht');
   pruefe(s.gesehen.join() === 'prolog,angebot,dorf' && JSON.stringify(s.dorf) === '{"platz":0,"ende":null}',
     `Leicht nach dem Einstieg ins Dorf ${JSON.stringify(s)}`);
-  for (let n = 0; n < 3; n++) await uebung('leicht', n, { bilder: n === 1 });
+  for (let n = 0; n < 3; n++) await uebung('leicht', n, { bilder: n === 1, fuehren: n === 0 });
   await until(`${D}.story.uebung === 3 && window.__prisma.playing()`, 'Leicht: Übung 4', 30);
   s = await stand('leicht');
   pruefe(s.dorf?.platz === 3 && s.platz === 0 && s.geloest.join() === uebungen.slice(0, 3).join(),
