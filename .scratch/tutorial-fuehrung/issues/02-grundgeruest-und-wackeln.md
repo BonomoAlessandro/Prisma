@@ -10,23 +10,23 @@
 Handlung des Spielers und geht dann weiter. Dazu die Weigerung fester Elemente im ganzen Spiel. Gebaut wird in der
 Richtung, die der Nutzer am Katalog gewählt hat; am Ende läuft zur Probe eine Übung («Erstes Licht») geführt.
 
-- [ ] **Schritte als Daten** je Übung, neben dem Feld `hint`: Eine Übung hat in diesem Ticket Schritte oder `hint`, erst
+- [x] **Schritte als Daten** je Übung, neben dem Feld `hint`: Eine Übung hat in diesem Ticket Schritte oder `hint`, erst
       Ticket 03 entfernt `hint`. Höchstens drei Schritte mit Text und dem, was weiterschaltet (Spec, «Was weiterschaltet»).
-- [ ] **Hinweise nebenbei** (Kamera, Neustart): warten auf nichts, zählen nicht mit, verschwinden bei der ersten Benutzung
+- [x] **Hinweise nebenbei** (Kamera, Neustart): warten auf nichts, zählen nicht mit, verschwinden bei der ersten Benutzung
       oder spätestens mit dem Lösen und kommen beim Neustart derselben Übung nicht wieder. Das braucht Anschlüsse an
       Kamera und Neustart.
-- [ ] **Text je Gerät** mit Platzhaltern in der Befehlsform («Tippe» / «Klicke», «Drücke lang» / «Rechtsklicke»). Die
+- [x] **Text je Gerät** mit Platzhaltern in der Befehlsform («Tippe» / «Klicke», «Drücke lang» / «Rechtsklicke»). Die
       heutigen `{Klick}` und `{Rechtsklick}` ergeben «Tippen» und «Ein Klick», das passt nicht ins Du.
-- [ ] **Später Fingerzeig:** nach etwa 15 Sekunden ohne Fortschritt das nächste Element hervorheben, nie automatisch lösen,
+- [x] **Später Fingerzeig:** nach etwa 15 Sekunden ohne Fortschritt das nächste Element hervorheben, nie automatisch lösen,
       keine Meldung bei Fehlversuchen. Der Wert steht an einer Stelle.
-- [ ] **Unterbrechungen:** Neuladen und Neustart beginnen beim ersten Schritt der Übung, Menü und Übersicht behalten den
+- [x] **Unterbrechungen:** Neuladen und Neustart beginnen beim ersten Schritt der Übung, Menü und Übersicht behalten den
       Schritt. Kein neues Feld in `prisma.noa.<grad>.dorf`, keine gesperrten Knöpfe.
-- [ ] **Früher gelöst:** Die Lösung gilt sofort, die restlichen Schritte entfallen, kein Hinweis bleibt stehen.
+- [x] **Früher gelöst:** Die Lösung gilt sofort, die restlichen Schritte entfallen, kein Hinweis bleibt stehen.
 - [x] **Wackeln:** Ein festes Element mit eckigem Sockel wackelt beim Antippen kurz, der rote Rand blitzt auf, ohne Text,
       im ganzen Spiel. Es verändert weder Zugzahl noch Strahlen. Elemente ohne Sockel reagieren nicht.
 - [x] **Auswahl beim Antippen:** Liegt ein drehbares Element im Toleranzbereich, gewinnt es immer gegen ein festes, auch
       auf dem Handy mit `INPUT.touchSlop`.
-- [ ] **Tests:** Logiktests für die Daten der Schritte (Anzahl, Länge, nur bekannte Platzhalter). Die Tests «jedes mit
+- [x] **Tests:** Logiktests für die Daten der Schritte (Anzahl, Länge, nur bekannte Platzhalter). Die Tests «jedes mit
       Hinweis» und «nur bekannte Platzhalter» (`tests/logic.test.mjs`) und der Aufbau der Kopfzeile (`lvl.hint.replaceAll`)
       akzeptieren in diesem Ticket Schritte oder `hint`. Ablauf von «Erstes Licht» in der Dorf-Probe.
 
@@ -50,3 +50,23 @@ Richtung, die der Nutzer am Katalog gewählt hat; am Ende läuft zur Probe eine 
   im Toleranzbereich gewinnt immer; Hover und Lichtrand nur für Drehbares. Begriff «Weigerung» in `CONTEXT.md`.
   Tests: Logiktests «Antippen (Weigerung)», Browserprobe `tests/wackel-probe.js` (Desktop und `MOBILE=1`).
   Offen in diesem Ticket: das Gerüst der Schritte (wartet auf die Wahl am Katalog).
+- 09.11., Teil «Gerüst der Schritte» (`feature/tutorial-02-geruest`), fertig in Richtung C «Vorzeigen»: Daten je Übung
+  `schritte` ({ text, bei, weiter, richtung? }, höchstens `SCHRITTE_MAX` = 3) und `nebenbei` neben `hint`;
+  weiter ist `erklaerung` («Weiter» am Satz), `antippen` (auch die Weigerung eines festen Elements), `drehen`
+  (`richtung: -1`: nur zurück) oder `strahl` (`SCHRITT_WEITER`, `schrittErfuellt`, `strahlTrifft` im LOGIC-Block).
+  Platzhalter je Gerät `{Tippe}` und `{Drücke lang}` (`SCHRITT_PLATZHALTER`, `geraeteText`, auch für die alten
+  `{Klick}`/`{Rechtsklick}`). Hinweise nebenbei `NEBENBEI` (kamera, neustart). Die Führung `fuehrung` in
+  `index.html` (bei der Oberfläche): Satz in der Kopfzeile (`span.hinweis.schritt`, Knopf `.fuehrung-weiter`),
+  gestrichelter Umriss und Hand auf der Ebene `#fuehrung` über dem Brett, als Ring perspektivisch auf dem Brett
+  projiziert (`platziere` je Bild, nur solange etwas zu sehen ist; die Bewegung macht CSS). Später Fingerzeig nach
+  `FUEHRUNG.fingerzeig` = 15 s ohne Fortschritt, nach den Schritten am nächsten Element ausserhalb der Lösung
+  (`fingerzeigZiel`). Anschlüsse: `fuehrung.gedreht` (rotateElement), `fuehrung.angetippt` (weigern; für «Umweg»
+  in Ticket 03), `fuehrung.kamera` (dragCamera, zoomCamera), `fuehrung.neustart` (restartLevel), `fuehrung.neu`
+  (enterLevel), `fuehrung.start` (Brett steht), `verbergen`/`zeigen` (hideHud/showHud: Menü und Übersicht behalten
+  den Schritt, die Zeit dort zählt nicht). «Erstes Licht» läuft geführt (zwei Schritte: Ziel erklären, Spiegel antippen),
+  die übrigen acht behalten `hint`. Begriffe Führung, Schritt, Hinweis nebenbei, Später Fingerzeig in `CONTEXT.md`.
+  Tests: Logiktests «Führung im Dorf (Schritte)» und die beiden angepassten Tests des Tutorials; Dorf-Probe spielt
+  «Erstes Licht» geführt (`gefuehrt` in `tests/geschichte-probe.mjs`, mit zur Probe gesetzten Hinweisen nebenbei).
+  Gelaufen: `logic.test.mjs` 2061 ok; Dorf-Probe Desktop und `--handy`: alle Prüfungen der Führung ok. Rot blieb nur
+  eine Bildlücke bei «Sehr schwer: Übersicht → Übung 8 wiederholen» (281–404 ms, Himmel forest → village); sie kommt
+  auf dem Stand vor diesem Teil ebenso (444 ms), gehört also nicht zur Führung.

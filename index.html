@@ -107,6 +107,46 @@
     text-transform: none; color: rgba(232, 230, 240, 0.84);
   }
   @media (max-width: 520px) { #hud .sub .hinweis { font-size: 13px; } }
+  /* Führung im Dorf (fuehrung): der Satz des Schritts wie der Hinweis, eine Erklärung mit «Weiter» daran; Hinweise
+     nebenbei leiser darunter. Der Knopf nimmt Tippen an, der Rest der Kopfzeile nicht */
+  #hud .sub .hinweis[hidden] { display: none; }
+  #hud .sub .hinweis.nebenbei { margin-top: 2px; font-size: 12px; color: var(--ink-dim); }
+  #hud .fuehrung-weiter {
+    pointer-events: auto; margin-left: 0.7em; padding: 6px 13px 6px calc(13px + 0.3em); vertical-align: 1px;
+    font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink);
+    border: 1px solid rgba(232, 230, 240, 0.4); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
+    transition: border-color 0.25s ease, background-color 0.25s ease;
+  }
+  #hud .fuehrung-weiter:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+  #hud .fuehrung-weiter.stups { animation: fz-stups 1.1s ease-in-out infinite; } /* später Fingerzeig */
+  @keyframes fz-stups { 50% { transform: scale(1.1); border-color: rgba(255, 217, 138, 0.9); box-shadow: 0 0 0 5px rgba(255, 217, 138, 0.18); } }
+  /* Umriss und Hand über dem Brett: an der Bildschirmlage des Elements (fuehrung.platziere), unter der Kopfzeile
+     (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt; die Bewegung rechnet CSS */
+  #fuehrung { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  #fuehrung .fz-umriss {
+    fill: none; stroke: #ffd98a; stroke-width: 2; stroke-dasharray: 5 3; stroke-linecap: round; opacity: 0.85;
+    filter: drop-shadow(0 0 3px rgba(3, 3, 8, 0.9)); animation: fz-laufen 1.4s linear infinite;
+  }
+  #fuehrung .fz-umriss.stark { stroke-width: 2.6; opacity: 1; animation-duration: 0.55s; }
+  @keyframes fz-laufen { to { stroke-dashoffset: -8; } }
+  #fuehrung .fz-hand { opacity: 0.9; filter: drop-shadow(0 2px 4px rgba(3, 3, 8, 0.6)); }
+  #fuehrung .fz-hand > g { display: none; }
+  #fuehrung .fz-hand[data-art="tippen"] .fz-tippen, #fuehrung .fz-hand[data-art="halten"] .fz-halten,
+  #fuehrung .fz-hand[data-art="rechtsklick"] .fz-rechtsklick { display: inline; }
+  #fuehrung .fz-finger { fill: #f5f5f5; stroke: #222; stroke-width: 1.3; }
+  #fuehrung .fz-tippen .fz-finger { animation: fz-tipp 1.3s ease-in-out infinite; }
+  @keyframes fz-tipp { 0%, 100% { transform: translate(7px, 10px); } 40%, 55% { transform: scale(0.94); } }
+  #fuehrung .fz-welle { fill: none; stroke: #fff; stroke-width: 2.5; opacity: 0; transform-box: fill-box; transform-origin: center; animation: fz-welle 1.3s ease-out infinite; }
+  @keyframes fz-welle { 40% { opacity: 0; transform: scale(0.4); } 50% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: scale(1.4); } }
+  #fuehrung .fz-ring { fill: none; stroke: #fff; stroke-width: 3; stroke-dasharray: 100; animation: fz-halten 1.8s linear infinite; }
+  @keyframes fz-halten { 0%, 15% { stroke-dashoffset: 100; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 75%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+  #fuehrung .fz-maus { fill: rgba(245, 245, 245, 0.92); stroke: #222; stroke-width: 1.3; }
+  #fuehrung .fz-taste { fill: #ffd98a; stroke: #222; stroke-width: 1.3; animation: fz-druck 1.3s ease-in-out infinite; }
+  @keyframes fz-druck { 0%, 30%, 100% { fill: rgba(245, 245, 245, 0.92); } 45%, 70% { fill: #ffb347; } }
+  @media (prefers-reduced-motion: reduce) {
+    #fuehrung *, #hud .fuehrung-weiter { animation: none !important; }
+    #fuehrung .fz-welle { opacity: 0.6; }
+  }
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
   #hud .goal.done { color: var(--ink); }
   #hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
@@ -1903,7 +1943,8 @@ function tracePass(board, extraRays, emitting, from) {
  *   target:   color = benötigte Farbe
  *   fixed:    Element ist nicht drehbar
  *   tutorial: Lern-Level am Anfang; hint ist der Hinweis in der Kopfzeile ({Klick} und {Rechtsklick}
- *             werden je nach Gerät ersetzt)
+ *             werden je nach Gerät ersetzt). Statt hint: schritte, die Führung im Dorf (höchstens SCHRITTE_MAX,
+ *             { text, bei, weiter, richtung? }, siehe SCHRITT_WEITER), dazu nebenbei: Hinweise nebenbei (NEBENBEI)
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
  * Zuerst das Tutorial: je Level ein Gedanke (Ziel und Spiegel, drehbar/fest, Block, Prisma, verschwindendes Licht,
@@ -1917,7 +1958,11 @@ const LEVELS = [
   {
     // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
     name: 'Erstes Licht', tutorial: true,
-    hint: 'Ziel: Jeder Kristall muss in seiner Farbe leuchten. {Klick} dreht den Spiegel.',
+    // ein Tippen löst die Übung schon: zuerst das Ziel, dann das Drehen
+    schritte: [
+      { text: 'Bring das Licht zum Kristall, dann leuchtet er.', bei: '4,0', weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel an, so dreht er sich.', bei: '4,3', weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'mirror', x: 4, z: 3, rot: 2 },
@@ -8061,6 +8106,94 @@ const LEVELS = [
 ];
 /** Anzahl Tutorial-Level (sie stehen am Anfang von LEVELS). */
 const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
+
+/*
+ * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
+ * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung? }. text: ein Satz im Du, Platzhalter je Gerät
+ * (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss läuft. weiter: was den Schritt
+ * weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken bzw.
+ * Rechtsklick). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
+ */
+const SCHRITTE_MAX = 3;
+/**
+ * Was einen Schritt weiterschaltet: erklaerung (der Knopf «Weiter» am Satz, nie Zeit oder eine Drehung), antippen (das
+ * Element antippen: ein drehbares dreht sich dabei, ein festes weigert sich), drehen (das Element drehen), strahl (der
+ * Strahl trifft das Element).
+ */
+const SCHRITT_WEITER = ['erklaerung', 'antippen', 'drehen', 'strahl'];
+/** Platzhalter der Schritte in der Befehlsform: [Touch, Maus]. */
+const SCHRITT_PLATZHALTER = { '{Tippe}': ['Tippe', 'Klicke'], '{Drücke lang}': ['Drücke lang', 'Rechtsklicke'] };
+/** Platzhalter der alten Hinweise (hint), bis Ticket 03 sie ersetzt: [Touch, Maus]. */
+const HINWEIS_PLATZHALTER = { '{Klick}': ['Tippen', 'Ein Klick'], '{Rechtsklick}': ['Lang drücken', 'Rechtsklick'] };
+/** Text für das Gerät (touch: Finger, sonst Maus): Platzhalter der Schritte und der Hinweise ersetzt. */
+function geraeteText(text, touch) {
+  let t = text;
+  for (const tabelle of [SCHRITT_PLATZHALTER, HINWEIS_PLATZHALTER]) {
+    for (const [p, [finger, maus]] of Object.entries(tabelle)) t = t.replaceAll(p, touch ? finger : maus);
+  }
+  return t;
+}
+/**
+ * Hinweise nebenbei: warten auf nichts, zählen nicht zu den Schritten, verschwinden bei der ersten Benutzung oder
+ * spätestens mit dem Lösen und kommen beim Neustart derselben Übung nicht wieder. text: [Touch, Maus].
+ */
+const NEBENBEI = {
+  kamera: { text: ['Wische mit einem Finger, um die Kamera zu drehen; zwei Finger zoomen.',
+    'Ziehe mit der Maus, um die Kamera zu drehen; das Mausrad zoomt.'] },
+  neustart: { text: ['Der Pfeil im Kreis unten rechts beginnt die Übung neu.',
+    'Der Pfeil im Kreis unten rechts oder die Taste R beginnt die Übung neu.'] },
+};
+/** Zellen eines Schritts (bei als Zelle oder Liste). */
+const schrittZellen = (s) => (s.bei === undefined ? [] : [].concat(s.bei));
+const zelleVon = (el) => `${el.x},${el.z}`;
+/** Geste, die die Hand vorzeigt: tippen, zurueck (langes Drücken bzw. Rechtsklick) oder null (Erklärung, Strahl). */
+function schrittGeste(s) {
+  if (s.weiter !== 'antippen' && s.weiter !== 'drehen') return null;
+  return s.richtung === -1 ? 'zurueck' : 'tippen';
+}
+/** Trifft ein Strahl das Element el (Ergebnis von traceBeams)? Spiegel: wo er spiegelt oder an der Kante schluckt. */
+function strahlTrifft(result, el) {
+  if (!el) return false;
+  if (result.hits.has(el.id)) return true;
+  return result.events.some((ev) => ev.element === el.id || ev.target === el.id
+    || (ev.kind === 'reflect' && ev.y === undefined && ev.x === el.x && ev.z === el.z));
+}
+/**
+ * Schaltet das Ereignis e den Schritt s weiter? e: { art: 'weiter' } (Knopf), { art: 'angetippt', el } (ein festes
+ * Element weigert sich), { art: 'gedreht', el, delta }, { art: 'strahl', board, result } (nach jeder neuen Rechnung).
+ */
+function schrittErfuellt(s, e) {
+  const zellen = schrittZellen(s), bei = (el) => !!el && zellen.includes(zelleVon(el));
+  switch (s.weiter) {
+    case 'erklaerung': return e.art === 'weiter';
+    case 'antippen': return (e.art === 'angetippt' || e.art === 'gedreht') && bei(e.el);
+    case 'drehen': return e.art === 'gedreht' && bei(e.el) && (!s.richtung || Math.sign(e.delta) === s.richtung);
+    case 'strahl': return e.art === 'strahl'
+      && zellen.some((z) => strahlTrifft(e.result, e.board.elements.find((el) => zelleVon(el) === z)));
+    default: return false;
+  }
+}
+/** Steht das drehbare Element el in der Stellung der Lösung (Spiegel: rot und rot + 4 gleich)? */
+function inLoesung(level, el) {
+  const soll = level.solution[zelleVon(el)];
+  if (soll === undefined) return true;
+  const ist = el.type === 'combiner' ? el.dir : el.rot;
+  return el.type === 'mirror' ? mod8(ist - soll) % 4 === 0 : mod8(ist) === mod8(soll);
+}
+/**
+ * Später Fingerzeig nach den Schritten: das erste drehbare Element ausserhalb der Lösung (Reihenfolge von solution)
+ * mit der Geste des kürzeren Wegs dorthin ({ el, geste: 'tippen' | 'zurueck' }); alle in der Lösung: null.
+ */
+function fingerzeigZiel(level, board) {
+  for (const k of Object.keys(level.solution)) {
+    const el = board.elements.find((e) => zelleVon(e) === k);
+    if (!el || inLoesung(level, el)) continue;
+    const runde = el.type === 'mirror' ? 4 : 8, ist = el.type === 'combiner' ? el.dir : el.rot;
+    const vor = mod8(level.solution[k] - ist) % runde, zur = mod8(ist - level.solution[k]) % runde;
+    return { el, geste: zur < vor ? 'zurueck' : 'tippen' };
+  }
+  return null;
+}
 
 /**
  * Würfel-Level: { name, dim: 3, size, height?, grad, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
@@ -17820,6 +17953,7 @@ function rotateElement(el, delta) {
   u.rotation = { from: current, to: goal, t: 0 };
   sceneLoop.wake(); // auch ohne Eingabe (__prismaDebug.loese)
   recomputeBeams(false, ROTATE.beamDelay);
+  fuehrung.gedreht(el, delta);
 }
 
 /** Weiche Drehungen fortschreiben (pro Frame). */
@@ -17863,6 +17997,7 @@ function weigern(el) {
   if (flow.state !== 'play') return;
   const obj = game.objects.get(el.id), u = obj?.userData;
   if (!u?.sockelRand) return;
+  fuehrung.angetippt(el); // ein Schritt kann auf die Weigerung warten (festes Element antippen)
   if (u.weigern) { u.weigern.t = 0; return; }
   // eigenes Material nur für die Dauer: das geteilte (edgeMat) liesse alle Sockel aufblitzen
   const mat = u.sockelRand.material.clone();
@@ -18831,6 +18966,7 @@ function makeInteractive(obj) {
 function dragCamera(dx, dy) {
   const s = 2.4 / Math.max(window.innerWidth / SEITE, 600);
   cameraRig.homing = null;
+  fuehrung.kamera();
   cameraRig.goalTheta -= dx * s;
   // Nach einer ganzen Runde beide Winkel um 2π zurücknehmen (gleiches Bild): Der Rückflug beim Levelwechsel
   // nimmt so den kürzesten Weg, statt alle Runden zurückzudrehen.
@@ -18854,6 +18990,7 @@ function phiLimits() {
 /** Zoom um den Faktor f (> 1: weiter weg), in den Grenzen von cameraRig. */
 function zoomCamera(f) {
   cameraRig.homing = null;
+  fuehrung.kamera();
   cameraRig.goalZoom = THREE.MathUtils.clamp(cameraRig.goalZoom * f, cameraRig.zoomMin, cameraRig.zoomMax);
 }
 
@@ -19708,6 +19845,7 @@ function changeLevel(index) {
 
 /** Level neu starten (Knopf, R); während des Versinkens zählt das bereits gewählte Ziel-Level. */
 function restartLevel() {
+  fuehrung.neustart();
   changeLevel(flow.state === 'out' ? flow.next : game.levelIndex);
 }
 
@@ -19720,6 +19858,7 @@ function enterLevel(index) {
   flow.record = null;
   loadLevel(index, FLOW.inDuration + waveLength(LEVELS[index])); // erst wenn alles steht
   for (const obj of game.objects.values()) obj.scale.setScalar(1e-3);
+  fuehrung.neu(index); // beim ersten Schritt (auch nach Neustart und Neuladen)
   ui.showHud(index);
 }
 
@@ -19781,6 +19920,7 @@ function updateFlow(dt) {
     else {
       flow.state = 'play';
       warmupShaders();
+      fuehrung.start();
       // drehbare Elemente leuchten einmal kurz auf – als Welle wie beim Herauswachsen
       for (const obj of game.objects.values()) obj.userData.startPulse?.(waveDelay(obj.userData.element) * 1.5);
     }
@@ -19794,6 +19934,283 @@ function updateFlow(dt) {
 
 const $ = (id) => document.getElementById(id);
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
+
+/**
+ * Führung im Dorf (Ticket 02 von .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): zeigt die Schritte einer Übung
+ * (LEVELS[i].schritte), wartet auf die Handlung des Spielers und geht dann weiter. Der Satz steht in der Kopfzeile, wo
+ * sonst der Hinweis steht, eine Erklärung mit «Weiter»; ein gestrichelter Umriss läuft um das Element des Schritts, eine
+ * Hand zeigt seine Geste einmal vor. Nach FUEHRUNG.fingerzeig s ohne Fortschritt (ein neuer Schritt, ein Element in der
+ * Stellung der Lösung) kommt der späte Fingerzeig: der Umriss läuft schneller, die Hand zeigt die Geste wieder
+ * (nach den Schritten am nächsten Element ausserhalb der Lösung, fingerzeigZiel), «Weiter» stupst.
+ * Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie von selbst.
+ * Wird die Übung früher gelöst, gilt das sofort: Die restlichen Schritte entfallen, kein Hinweis bleibt stehen.
+ * Jedes neue Brett (enterLevel: Neustart, Neuladen, nächster Grad, aus der Übersicht) beginnt beim ersten Schritt;
+ * Menü und Übersicht (hideHud, showHud) behalten ihn, die Zeit dort zählt nicht. Kein Speicherstand.
+ * Anschlüsse: gedreht (rotateElement), angetippt (weigern: ein Schritt «antippen» eines festen Elements wartet darauf),
+ * kamera (dragCamera, zoomCamera), neustart (restartLevel), start (das Brett steht), platziere (je Bild, nur solange
+ * Umriss oder Hand zu sehen sind).
+ */
+const FUEHRUNG = {
+  fingerzeig: 15,                      // s ohne Fortschritt bis zum späten Fingerzeig (wird beim Testen angepasst)
+  hand: { tippen: 2.6, zurueck: 3.6 }, // s: so lange zeigt die Hand die Geste zu Beginn eines Schritts vor
+  umriss: 0.66,                        // Halbmesser des Umrisses um das Element (Welt; die Zelle misst CELL)
+  punkte: 36,                          // Ecken des Umrisses (er liegt perspektivisch auf dem Brett)
+  kuppe: 0.42,                         // Höhe über dem Brett, wo die Fingerkuppe aufsetzt (Welt)
+};
+
+const fuehrung = {
+  level: null,        // die geführte Übung (LEVELS[i]) oder null: keine Führung
+  board: null,        // ihr Brett; ein neues (enterLevel) beginnt beim ersten Schritt
+  schritt: 0,         // Platz in level.schritte; dahinter: alle Schritte durch, frei bis zur Lösung
+  los: false,         // das Brett steht (flow play): Umriss und Hand dürfen erscheinen
+  fertig: false,      // gelöst: nichts mehr bis zum nächsten Brett
+  spaet: false,       // später Fingerzeig
+  hand: false,        // die Hand zeigt die Geste des Schritts vor (einmal je Schritt)
+  nebenbei: [],       // offene Hinweise nebenbei (Schlüssel in NEBENBEI)
+  benutzt: new Set(), // benutzte Hinweise nebenbei der Übung benutztIn: kommen beim Neustart nicht wieder
+  benutztIn: -1,
+  uhr: 0, handUhr: 0, // setTimeout: später Fingerzeig, Ende des Vorzeigens
+  sichtbar: false,    // Umriss oder Hand zu sehen: platziere je Bild
+  ziele: [],          // Elemente mit Umriss
+  handZiel: null,     // Element der Hand
+  satz: null, satzText: null, knopf: null, neben: null, // Kopfzeile (kopfzeile)
+  bild: null, umrisse: [], handEl: null,               // Ebene über dem Brett (#fuehrung)
+
+  /** Läuft die Führung für LEVELS[index] auf dem Brett? */
+  fuehrt(index) { return !!this.level && this.level === LEVELS[index] && this.board === game.board; },
+  aktiv() { return !!this.level && !this.fertig; },
+  /** Der laufende Schritt (null: keiner mehr oder keine Führung). */
+  aktuell() { return this.aktiv() ? this.level.schritte[this.schritt] ?? null : null; },
+
+  /** Neues Brett (enterLevel): Führung nur für eine Übung im Dorf mit Schritten, beim ersten Schritt. */
+  neu(index) {
+    const lvl = LEVELS[index];
+    const gefuehrt = !!lvl.schritte?.length && story.drives(index) && story.inDorf;
+    if (index !== this.benutztIn) { this.benutzt.clear(); this.benutztIn = index; }
+    this.level = gefuehrt ? lvl : null;
+    this.board = game.board;
+    this.schritt = 0;
+    this.los = this.fertig = this.spaet = this.hand = false;
+    this.nebenbei = gefuehrt ? (lvl.nebenbei ?? []).filter((n) => !this.benutzt.has(n)) : [];
+    this.stoppeUhren();
+    this.zeichneBild();
+  },
+  /** Das Brett steht (updateFlow): die Hand zeigt den laufenden Schritt vor, die Uhr läuft. */
+  start() {
+    if (!this.aktiv() || this.board !== game.board || this.los) return;
+    this.los = true;
+    this.beginneSchritt();
+  },
+  /** Schritt beginnen (auch nach dem Weiterschalten): Hand einmal, Uhr neu. Trifft der Strahl schon: gleich weiter. */
+  beginneSchritt() {
+    let s = this.aktuell();
+    while (s?.weiter === 'strahl' && schrittErfuellt(s, { art: 'strahl', board: this.board, result: game.result })) {
+      this.schritt++;
+      s = this.aktuell();
+    }
+    this.spaet = false;
+    clearTimeout(this.handUhr);
+    const geste = s && schrittGeste(s);
+    this.hand = this.los && !!geste;
+    if (this.hand) this.handUhr = setTimeout(() => { this.hand = false; this.zeichneBild(); }, FUEHRUNG.hand[geste] * 1000);
+    this.armiere();
+    this.zeichne();
+  },
+  /** Ereignis e (schrittErfuellt) für den laufenden Schritt; schaltet es weiter: true. */
+  ereignis(e) {
+    const s = this.aktuell();
+    if (!s || this.board !== game.board || !schrittErfuellt(s, e)) return false;
+    this.schritt++;
+    this.beginneSchritt();
+    return true;
+  },
+  /** Ein Element wurde gedreht (rotateElement, nach der neuen Rechnung). */
+  gedreht(el, delta) {
+    if (!this.aktiv() || this.board !== game.board) return;
+    if (game.result.solved) { this.beenden(); return; } // früher gelöst: gilt sofort
+    const vorher = el.type === 'combiner' ? { ...el, dir: mod8(el.dir - delta) } : { ...el, rot: mod8(el.rot - delta) };
+    const weiter = this.ereignis({ art: 'gedreht', el, delta })
+      || this.ereignis({ art: 'strahl', board: this.board, result: game.result });
+    if (!weiter && !inLoesung(this.level, vorher) && inLoesung(this.level, el)) { // Fortschritt: die Uhr neu
+      this.spaet = false;
+      this.armiere();
+      this.zeichne();
+    }
+  },
+  /** Ein festes Element weigert sich (weigern): der Anschluss für einen Schritt «antippen» eines festen Elements. */
+  angetippt(el) { if (this.aktiv()) this.ereignis({ art: 'angetippt', el }); },
+  /** «Weiter» an einer Erklärung. */
+  weiter() { if (this.aktiv()) this.ereignis({ art: 'weiter' }); },
+  /** Eine Geste der Kamera (Ziehen, Zoomen): beendet den Hinweis nebenbei zur Kamera. */
+  kamera() { if (this.nebenbei.length && this.nebenbei.includes('kamera')) this.nutze('kamera'); },
+  /** Neustart der Übung (restartLevel), vor dem neuen Brett. */
+  neustart() { if (this.nebenbei.includes('neustart')) this.nutze('neustart'); },
+  nutze(n) {
+    this.benutzt.add(n);
+    this.nebenbei = this.nebenbei.filter((m) => m !== n);
+    this.zeichneKopf();
+  },
+  /** Gelöst: Schritte und Hinweise nebenbei entfallen, Umriss und Hand gehen. */
+  beenden() {
+    this.fertig = true;
+    this.nebenbei = [];
+    this.spaet = this.hand = false;
+    this.stoppeUhren();
+    this.zeichne();
+  },
+  /** Später Fingerzeig nach FUEHRUNG.fingerzeig s ohne Fortschritt (nur, solange das Brett steht und zu sehen ist). */
+  armiere() {
+    clearTimeout(this.uhr);
+    if (!this.aktiv() || !this.los || this.spaet) return;
+    this.uhr = setTimeout(() => { this.spaet = true; this.zeichne(); }, FUEHRUNG.fingerzeig * 1000);
+  },
+  stoppeUhren() { clearTimeout(this.uhr); clearTimeout(this.handUhr); },
+  /** Testschnittstelle: die Uhr des späten Fingerzeigs gleich ablaufen lassen. */
+  vorspulen() {
+    if (!this.aktiv() || !this.los) return;
+    clearTimeout(this.uhr);
+    this.spaet = true;
+    this.zeichne();
+  },
+  /** Kopfzeile ausgeblendet (Menü, Übersicht, Levelwechsel, Zwischenszene): Uhren aus, nichts über dem Brett. */
+  verbergen() {
+    this.stoppeUhren();
+    this.hand = false;
+    this.zeichneBild(true);
+  },
+  /** Kopfzeile wieder da (showHud): weiter im selben Schritt, die Uhr beginnt neu (die Zeit im Menü zählt nicht). */
+  zeigen() {
+    this.zeichneKopf();
+    this.armiere();
+    this.zeichneBild();
+  },
+  zeichne() { this.zeichneKopf(); this.zeichneBild(); },
+
+  /** Satz und Hinweise nebenbei für die Unterzeile der Kopfzeile (showHud), sonst leer. */
+  kopfzeile() {
+    if (!this.satz) {
+      this.satz = document.createElement('span');
+      this.satz.className = 'hinweis schritt';
+      this.satzText = document.createElement('span');
+      this.satzText.setAttribute('aria-live', 'polite');
+      this.knopf = document.createElement('button');
+      this.knopf.type = 'button';
+      this.knopf.className = 'fuehrung-weiter';
+      this.knopf.textContent = 'Weiter';
+      this.knopf.addEventListener('click', () => this.weiter());
+      this.satz.append(this.satzText, this.knopf);
+      this.neben = document.createElement('span');
+      this.neben.className = 'hinweis nebenbei';
+    }
+    this.zeichneKopf();
+    return [this.satz, this.neben];
+  },
+  zeichneKopf() {
+    if (!this.satz) return;
+    const s = this.aktuell(), schritte = this.level?.schritte ?? [];
+    // der Satz bleibt stehen, bis der nächste kommt: nach den Schritten der letzte
+    const text = !this.aktiv() ? '' : geraeteText((s ?? schritte.at(-1)).text, IS_TOUCH);
+    if (this.satzText.textContent !== text) this.satzText.textContent = text;
+    this.satz.hidden = !text;
+    const erklaerung = s?.weiter === 'erklaerung';
+    this.knopf.hidden = !erklaerung;
+    this.knopf.classList.toggle('stups', erklaerung && this.spaet);
+    const neben = this.aktiv() ? this.nebenbei.map((n) => NEBENBEI[n].text[IS_TOUCH ? 0 : 1]).join(' ') : '';
+    if (this.neben.textContent !== neben) this.neben.textContent = neben;
+    this.neben.hidden = !neben;
+  },
+
+  /** Was über dem Brett zu sehen ist: Umriss um die Elemente des Schritts, die Hand beim Vorzeigen und Fingerzeig. */
+  zeichneBild(aus = false) {
+    const s = this.aktuell();
+    const zeigt = !aus && this.aktiv() && this.los && flow.state === 'play' && !story.choosing
+      && this.board === game.board;
+    let ziele = [], hand = null, geste = null;
+    if (zeigt) {
+      const am = (z) => this.board.elements.find((el) => zelleVon(el) === z);
+      if (s) {
+        ziele = schrittZellen(s).map(am).filter(Boolean);
+        geste = schrittGeste(s);
+        if (geste && (this.hand || this.spaet)) hand = ziele[0] ?? null;
+      } else if (this.spaet) {
+        const fz = fingerzeigZiel(this.level, this.board);
+        if (fz) { ziele = [fz.el]; hand = fz.el; geste = fz.geste; }
+      }
+    }
+    this.ziele = ziele;
+    this.handZiel = hand;
+    this.sichtbar = ziele.length > 0 || !!hand;
+    if (!this.bild) { if (!this.sichtbar) return; this.baueBild(); }
+    for (let i = this.umrisse.length; i < ziele.length; i++) {
+      const p = document.createElementNS(this.bild.namespaceURI, 'path');
+      p.setAttribute('class', 'fz-umriss');
+      p.setAttribute('pathLength', '100');
+      this.bild.insertBefore(p, this.handEl);
+      this.umrisse.push(p);
+    }
+    this.umrisse.forEach((p, i) => {
+      p.style.display = i < ziele.length ? '' : 'none';
+      p.classList.toggle('stark', this.spaet);
+    });
+    const art = !hand ? '' : geste === 'tippen' ? 'tippen' : IS_TOUCH ? 'halten' : 'rechtsklick';
+    if (this.handEl.dataset.art !== art) this.handEl.dataset.art = art;
+    this.handEl.style.display = hand ? '' : 'none';
+    this.bild.style.display = this.sichtbar ? '' : 'none';
+    if (this.sichtbar) this.platziere();
+  },
+  /** Die Ebene #fuehrung (beim ersten Gebrauch): Umrisse und die Hand mit ihren drei Gesten. */
+  baueBild() {
+    const tmp = document.createElement('div');
+    // Finger: Kuppe im Ursprung, von unten rechts (wie im Katalog, in Pixeln); Maus mit der rechten Taste. Die Drehung
+    // steht an einer eigenen Gruppe: Die Animationen (transform in CSS) ersetzten sonst die des Attributs
+    const finger = '<path class="fz-finger" d="M-4 1Q0-4 4 1L5.6 23.5Q15.7 20 20 27L22.4 48Q11.2 55-3.4 50.4L-9 28Z"/>';
+    tmp.innerHTML = `<svg id="fuehrung" aria-hidden="true" style="display: none"><g class="fz-hand">
+      <g class="fz-tippen"><circle class="fz-welle" r="22"/><g transform="rotate(-18)">${finger}</g></g>
+      <g class="fz-halten"><circle class="fz-ring" r="28" pathLength="100" transform="rotate(-90)"/>
+        <g transform="rotate(-18)">${finger}</g></g>
+      <g class="fz-rechtsklick"><circle class="fz-welle" r="22"/><g transform="translate(6 6)">
+        <path class="fz-maus" d="M0 12A12 12 0 0 1 24 12V26A12 12 0 0 1 0 26Z"/>
+        <path class="fz-taste" d="M12 0A12 12 0 0 1 24 12V14H12Z"/><path class="fz-maus" d="M12 0V14H0V12A12 12 0 0 1 12 0Z"/></g></g>
+    </g></svg>`;
+    this.bild = tmp.firstElementChild;
+    this.handEl = this.bild.querySelector('.fz-hand');
+    document.body.insertBefore(this.bild, $('hud')); // unter der Kopfzeile, über der Szene
+  },
+  /**
+   * Umriss und Hand an die Bildschirmlage ihrer Elemente (je Bild, solange sichtbar): Der Umriss liegt als Ring auf dem
+   * Brett und geht so mit Kamera, Zoom und Perspektive mit, die Hand behält ihre Grösse.
+   */
+  platziere() {
+    if (!this.bild) return;
+    const w = canvasEl.clientWidth, h = canvasEl.clientHeight, v = _fzMitte, p = _fzPunkt;
+    const box = `0 0 ${w} ${h}`;
+    if (this.bild.getAttribute('viewBox') !== box) this.bild.setAttribute('viewBox', box);
+    camera.updateMatrixWorld();
+    const schirm = (q) => { q.project(camera); return [(q.x + 1) / 2 * w, (1 - q.y) / 2 * h]; };
+    this.ziele.forEach((el, i) => {
+      const obj = game.objects.get(el.id);
+      if (!obj) return;
+      obj.getWorldPosition(v);
+      const r = FUEHRUNG.umriss * obj.scale.x;
+      let d = '';
+      for (let k = 0; k < FUEHRUNG.punkte; k++) {
+        const a = k / FUEHRUNG.punkte * 2 * Math.PI;
+        const [x, y] = schirm(p.set(v.x + r * Math.cos(a), v.y + 0.02, v.z + r * Math.sin(a)));
+        d += `${k ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
+      }
+      d += 'Z';
+      if (this.umrisse[i].getAttribute('d') !== d) this.umrisse[i].setAttribute('d', d);
+    });
+    const obj = this.handZiel && game.objects.get(this.handZiel.id);
+    if (obj) {
+      obj.getWorldPosition(v);
+      const [x, y] = schirm(p.set(v.x, v.y + FUEHRUNG.kuppe * obj.scale.x, v.z));
+      const t = `translate(${x.toFixed(1)} ${y.toFixed(1)})`;
+      if (this.handEl.getAttribute('transform') !== t) this.handEl.setAttribute('transform', t);
+    }
+  },
+};
+const _fzMitte = new THREE.Vector3(), _fzPunkt = new THREE.Vector3();
 
 /** Sekunden als m:ss bzw. h:mm:ss. */
 function formatDuration(seconds) {
@@ -19887,8 +20304,8 @@ const ui = {
     this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
     fillTier(this.tier, lvl);
     this.grad.hidden = true;
-    const hinweis = () => lvl.hint.replaceAll('{Klick}', IS_TOUCH ? 'Tippen' : 'Ein Klick')
-      .replaceAll('{Rechtsklick}', IS_TOUCH ? 'Lang drücken' : 'Rechtsklick');
+    // Hinweis einer Übung; eine Übung mit Schritten zeigt ausserhalb der Führung ihren ersten (Testschnittstelle zeige)
+    const hinweis = () => geraeteText(lvl.hint ?? lvl.schritte?.[0].text ?? '', IS_TOUCH);
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
       this.title.textContent = title;
@@ -19902,7 +20319,8 @@ const ui = {
         teil.textContent = info;
         zeile.push(teil);
       }
-      if (lvl.tutorial) { // Übung im Dorf: ihr Hinweis in eigener Zeile
+      if (fuehrung.fuehrt(index)) zeile.push(...fuehrung.kopfzeile()); // geführt: der Satz des Schritts
+      else if (lvl.tutorial) { // Übung im Dorf: ihr Hinweis in eigener Zeile
         const h = document.createElement('span');
         h.className = 'hinweis';
         h.textContent = hinweis();
@@ -19923,6 +20341,7 @@ const ui = {
     this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
     // unter dem offenen Menü nicht (ein Level, das beim Öffnen gerade wechselte, wächst dahinter fertig heraus)
     this.hud.classList.toggle('hidden', story.choosing);
+    if (story.choosing) fuehrung.verbergen(); else fuehrung.zeigen();
   },
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
   showGoal(lit, total) {
@@ -19930,7 +20349,7 @@ const ui = {
     if (this.ziele.textContent !== text) this.ziele.textContent = text;
     this.goal.classList.toggle('done', lit === total); // hellt nur die Ziele auf, der Grad hat seine eigene Farbe
   },
-  hideHud() { this.hud.classList.add('hidden'); },
+  hideHud() { this.hud.classList.add('hidden'); fuehrung.verbergen(); },
 
   /**
    * Meldung nach dem Lösen, mit Zeit und Drehungen. In der Geschichte sagt sie, wie es weitergeht (story.solvedText),
@@ -26445,6 +26864,7 @@ function animate(t, dt) {
   }
   beamView.tick(t, dt);
   updateTargetGoals();
+  if (fuehrung.sichtbar) fuehrung.platziere(); // Umriss und Hand gehen mit Kamera und Zoom
 }
 
 // Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die
@@ -26475,7 +26895,7 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
-window.__prismaDebug = { arbeit, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
+window.__prismaDebug = { arbeit, fuehrung, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
