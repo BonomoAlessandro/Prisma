@@ -4,7 +4,7 @@
 
 **Blocked by:** 09
 
-**Status:** ready-for-human (Merge nach `main` auf Go des Nutzers)
+**Status:** fertig (09.11.2026 nach `main` gemergt)
 
 **What to build:** Jede Welt hat jetzt ein festes Brett. Der Schalter für die Varianten verschwindet. Danach folgen die
 ganze Geschichte als Prüfung, die Messung über alle Welten, der Test des Nutzers auf dem Poco und am Ende der Merge nach
@@ -26,7 +26,7 @@ ganze Geschichte als Prüfung, die Messung über alle Welten, der Test des Nutze
       - PLAN 1.1 wird mit einer kurzen Zusammenfassung abgehakt.
       - Die Spec bekommt ihren Schlussstand.
       - Das Glossar wird geprüft: Stimmen «Brett» und «Steinbrett» noch?
-- [ ] **Merge:** Der Merge nach `main` kommt erst auf das Go des Nutzers. Gepusht wird nur, wenn er es sagt.
+- [x] **Merge (09.11.2026, 9c853da):** Der Merge nach `main` kommt erst auf das Go des Nutzers. Gepusht wird nur, wenn er es sagt.
 - [x] Das Review nach dem Ticket ist gelaufen.
 
 ## Hinweise

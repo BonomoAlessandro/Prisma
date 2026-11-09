@@ -124,7 +124,7 @@ Android-Chromium.
     Freigeben des alten Panoramas, nicht vom neuen. Jetzt gibt es einen Vorrat für Texturen der Himmel, Freigeben an stillen
     Bildern, Streifen in einer Höhe und ein unsichtbares Vorzeichnen jedes Panoramas, ohne die Prüfung zu lockern.
   - [x] Test des Nutzers auf dem Poco F4 GT (09.11.2026): «alles sieht super aus», keine Befunde.
-  - [ ] Merge nach main auf Wort des Nutzers.
+  - [x] Merge nach main auf Wort des Nutzers (09.11.2026, 9c853da).
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem

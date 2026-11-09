@@ -52,7 +52,7 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
    `feature/brett-je-himmel` gemergt (08d3ec9) und gepusht.
 1. **Poco-Test des Nutzers** (Ticket 10 und 11): am 09.11. auf `2026-11-08 himmel-vorzeichnen` (7b858e9), «alles
    sieht super aus», keine Befunde.
-1. **Merge nach `main`** auf Go des Nutzers: `main` (96d6538) ist schon im Branch, kein Holen nötig (am 09.11. geprüft).
+1. **Merge nach `main`:** am 09.11. auf Go des Nutzers gemergt und gepusht (9c853da). PLAN 1.1 ist abgeschlossen.
 2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat der Nutzer im
    manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe `formen` bleibt. Basaltsäulen gefallen,
    die +1,7 ms merkt der Nutzer nicht: so lassen.
