@@ -124,8 +124,8 @@ ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.st
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter der Grad, «Übung 2 / 9»
-und statt der Bedienung der Hinweis der Übung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
+und der Hinweis der Übung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die

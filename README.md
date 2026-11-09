@@ -287,9 +287,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und nicht, solange ein Satz auf Tippen wartet (am Ende des Dorfs lädt der Wald schon, während man liest).
   Nur Deckkraft und Transform in CSS, damit er auch läuft, während das Laden den Hauptthread anhält. Gewählt aus dem
   Prototyp mit sechs Varianten (Branch `prototyp/ladeindikator`, `.scratch/ladeindikator/prototyp.html`).
-  Kopfzeile nach Entscheid 20: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter Grad,
-  Kapitel und Level («●○○○ Leicht · Kapitel 2 / 6 · Level 1 / 10») und die Bedienung. Sie zählt die
-  Ziele, die schon in ihrer Farbe leuchten („Ziele 1 / 3“). Der Ring am Ziel hat einen festen Platz je Grundfarbe
+  Kopfzeile: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter in einer Zeile die
+  Ziele, die schon in ihrer Farbe leuchten, und der Grad («Ziele 1 / 3 · ●○○○ Leicht»; Kapitel, Level und Bedienung
+  stehen seit dem 09.11.2026 nicht mehr da). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
   Grundfarbe an, wird ihr Bogen heller; kommt eine an, die das Ziel nicht braucht, flackert sie in ihrem leeren
   Platz. Beim Lösen leuchten die Ziele nacheinander auf, ein Akkord erklingt, eine Lichtwelle läuft über die
