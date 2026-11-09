@@ -123,7 +123,7 @@ Android-Chromium.
   - [x] Ticket 11 (08.11.2026): An Weltgrenzen hielt das erste Bild eines neuen Himmels 100–175 ms an. Das kam vom
     Freigeben des alten Panoramas, nicht vom neuen. Jetzt gibt es einen Vorrat für Texturen der Himmel, Freigeben an stillen
     Bildern, Streifen in einer Höhe und ein unsichtbares Vorzeichnen jedes Panoramas, ohne die Prüfung zu lockern.
-  - [ ] Test des Nutzers auf dem Poco F4 GT.
+  - [x] Test des Nutzers auf dem Poco F4 GT (09.11.2026): «alles sieht super aus», keine Befunde.
   - [ ] Merge nach main auf Wort des Nutzers.
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.

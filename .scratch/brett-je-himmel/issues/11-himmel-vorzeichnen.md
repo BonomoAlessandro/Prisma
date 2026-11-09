@@ -4,7 +4,7 @@
 
 **Blocked by:** 10
 
-**Status:** ready-for-human (Auflage aus dem Review behoben, Nachprüfung des Reviewers, dann Merge mit Ticket 10)
+**Status:** ready-for-human (reviewt, Poco-Test des Nutzers am 09.11.2026 ohne Befund, Merge nach `main` auf Go)
 
 **What to build:** Im ersten Bild, in dem ein neuer Blender-Himmel einblendet, dauerte ein Bild 100–175 ms
 (`skyTheme.set` mit `fadeTime` 2,4 s an Weltgrenzen; im Log der Probe `shown` = neuer Himmel, `w` ≈ 0,04, Anteil des
@@ -27,7 +27,7 @@ Lichtwelle und Shadern. Jede solche Arbeit steht im Log der Probe, mit dem Bild,
 - [x] **Die vier Prüfungen:** grün, ohne Lockerung. Das Öffnen der Übersicht auf dem Handy kommt nachweislich nicht vom
       Himmel (siehe unten).
 - [x] Tests, Leistung, Vorab-Speicher, `APP_VERSION` `2026-11-08 himmel-vorzeichnen`.
-- [ ] Review.
+- [x] Review (mit Nachprüfung der Auflage «Naht», a9f1ade) und Poco-Test des Nutzers (09.11.2026).
 
 ## Comments
 

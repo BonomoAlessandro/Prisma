@@ -50,10 +50,9 @@ nichts). Vorbilder dafür: `uShockT`/`shockClock` beim Gezeitenbecken, `uWave` b
 
 1. **Ticket 11 (Himmel unsichtbar vorzeichnen):** fertig, reviewt mit Nachprüfung (Naht behoben), am 08.11. in
    `feature/brett-je-himmel` gemergt (08d3ec9) und gepusht.
-1. **Poco-Test des Nutzers** (Ticket 10 und 11): Stand mit Ticket 11 auf dem Poco F4 GT, Version
-   `2026-11-08 himmel-vorzeichnen` (Taste F bzw. Leistungsanzeige). Was anzusehen ist, steht im Ticket 10 unter «Comments»;
-   dazu die Weltgrenzen ins Meer und in den Vulkan, auch ohne Vorladen (Bergwald 10 wiederholen, dann «Weiter»), und das
-   Öffnen der Übersicht.
+1. **Poco-Test des Nutzers** (Ticket 10 und 11): am 09.11. auf `2026-11-08 himmel-vorzeichnen` (7b858e9), «alles
+   sieht super aus», keine Befunde.
+1. **Merge nach `main`** auf Go des Nutzers: `main` (96d6538) ist schon im Branch, kein Holen nötig (am 09.11. geprüft).
 2. **Antworten des Nutzers (08.11.):** Das Wachsen von der Mitte bleibt. Die Ruckler an den Weltgrenzen hat der Nutzer im
    manuellen Test nicht bemerkt: Das Ziel der Fische behält MSAA. Die Probe `formen` bleibt. Basaltsäulen gefallen,
    die +1,7 ms merkt der Nutzer nicht: so lassen.
