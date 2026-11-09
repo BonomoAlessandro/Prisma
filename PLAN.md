@@ -125,6 +125,13 @@ Android-Chromium.
     Bildern, Streifen in einer Höhe und ein unsichtbares Vorzeichnen jedes Panoramas, ohne die Prüfung zu lockern.
   - [x] Test des Nutzers auf dem Poco F4 GT (09.11.2026): «alles sieht super aus», keine Befunde.
   - [x] Merge nach main auf Wort des Nutzers (09.11.2026, 9c853da).
+  - [x] **Moospolster im Mondlicht** (09.11.2026, Branch `fix/wald-brett-mondlicht`): Das Brett sah aus wie am Tag
+    (gelbgrünes Moos, warme Erde) und passte nicht in den nächtlichen Wald. Aus vier Varianten gewählt: **Blaugrün**
+    (Vorschau https://claude.ai/artifact/9Pt6KXqMyJzPs9GVKAuQ9j). Moos und Farn blaugrün wie die Bäume, Erde blaugrau,
+    Spitzen und Rasterlinien silbrig. Dazu ein kühles Licht aus der Richtung des Monds im Panorama nur auf dem Brett
+    (`moon`, `moonRim` in der Brett-Angabe), das auf der Mondseite helle Kanten an Polstern und Farn zeichnet, wie bei
+    den Bäumen. Aufbau und Lichtwelle bleiben. Die warmen Töne, die fest im Code standen, sind grau: Die Farbe kommt
+    allein aus `skybox.json` (ausser den festen Tönen der Lichtwelle).
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem
