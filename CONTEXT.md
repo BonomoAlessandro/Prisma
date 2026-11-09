@@ -132,8 +132,8 @@ ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.st
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
-und der Hinweis der Übung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
+und der Satz des laufenden Schritts, siehe Führung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die
@@ -150,7 +150,7 @@ Geschichte), Welt (für das Dorf)
 
 **Führung**:
 Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
-der Kopfzeile, wo sonst der Hinweis steht, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
+der Kopfzeile, wo früher der Hinweis stand, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
 einmal vor. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
 von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
 Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
@@ -160,8 +160,9 @@ _Vermeiden_: Tutorial (für die Führung), Hilfe
 **Schritt**:
 Ein Teil der Führung: ein Satz im Du von etwa zwölf Wörtern (Platzhalter je Gerät wie «Tippe» / «Klicke») und das, was
 ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
-Strahl trifft ein Element, oder bei einer Erklärung der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz
-bleibt stehen, bis der nächste kommt. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
+Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist), oder bei einer Erklärung
+der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
+bis zum Lösen. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
 _Vermeiden_: Stufe, Hinweis (für einen Schritt)
 
 **Hinweis nebenbei**:

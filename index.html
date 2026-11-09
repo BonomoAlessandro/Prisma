@@ -100,7 +100,7 @@
   #hud .goal .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; vertical-align: 0; }
   #hud .goal .tier::before { content: " · "; }
   #hud .sub .teil { white-space: nowrap; }
-  /* Übung im Dorf: ihr Hinweis in einer eigenen Zeile. Er ist der Lehrinhalt des Kapitels: in
+  /* Übung im Dorf: der Satz ihres Schritts in einer eigenen Zeile. Er ist der Lehrinhalt des Kapitels: in
      normaler Schreibung, grösser und heller als die Unterzeile darüber (Review Ticket 07) */
   #hud .sub .hinweis {
     display: block; max-width: 40em; margin: 6px auto 0; font-size: 13.5px; line-height: 1.5; letter-spacing: 0.02em;
@@ -1932,7 +1932,8 @@ function tracePass(board, extraRays, emitting, from) {
 
 /**
  * Level-Definitionen. Format:
- *   { name, grad?, size?, tutorial?, hint?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }], solution }
+ *   { name, grad?, size?, tutorial?, schritte?, nebenbei?, elements: [{ type, x, z, dir?, rot?, color?, fixed? }],
+ *     solution }
  *   grad:     Schwierigkeitsgrad jedes Levels nach dem Tutorial: 'leicht', 'mittel', 'schwer' oder 'sehr schwer'
  *             (Kopfzeile, Kachel und Seitentitel zeigen ihn, GRAD_ANZEIGE)
  *   source:   dir = Abstrahlrichtung, color (Standard Weiss)
@@ -1943,9 +1944,9 @@ function tracePass(board, extraRays, emitting, from) {
  *   blocker:  schluckt Licht
  *   target:   color = benötigte Farbe
  *   fixed:    Element ist nicht drehbar
- *   tutorial: Lern-Level am Anfang; hint ist der Hinweis in der Kopfzeile ({Klick} und {Rechtsklick}
- *             werden je nach Gerät ersetzt). Statt hint: schritte, die Führung im Dorf (höchstens SCHRITTE_MAX,
- *             { text, bei, weiter, richtung? }, siehe SCHRITT_WEITER), dazu nebenbei: Hinweise nebenbei (NEBENBEI)
+ *   tutorial: Lern-Level am Anfang (die Übungen im Dorf); schritte ist ihre Führung (höchstens SCHRITTE_MAX,
+ *             { text, bei, weiter, richtung?, trifft? }, siehe SCHRITT_WEITER), dazu nebenbei: Hinweise nebenbei
+ *             (NEBENBEI). Einen Hinweis (hint) haben sie seit Ticket 03 der Führung nicht mehr
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
  * Zuerst das Tutorial: je Level ein Gedanke (Ziel und Spiegel, drehbar/fest, Block, Prisma, verschwindendes Licht,
@@ -1973,11 +1974,19 @@ const LEVELS = [
   },
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
+    // Der vordere Spiegel (3,5) steht eine Stufe zu weit (rot 4 = 3 + 1): Zurückdrehen ist der kurze Weg (Wahl des
+    // Nutzers am Katalog). Zwischen dem festen Spiegel und dem drehbaren (5,1) liegt ein Feld: Auf dem Handy trifft
+    // das Antippen den festen.
     name: 'Umweg', tutorial: true,
-    hint: 'Runder Teller mit weissem Ring: drehbar. Eckiger Sockel mit rotem Rand: fest. {Rechtsklick} dreht zurück.',
+    schritte: [
+      { text: '{Tippe} den Spiegel auf dem eckigen Sockel an.', bei: '3,1', weiter: 'antippen' },
+      { text: 'Rund lässt sich drehen, eckig nicht.', bei: ['3,5', '5,1', '3,1'], weiter: 'erklaerung' },
+      { text: '{Drücke lang} auf den markierten Spiegel, so dreht er zurück.', bei: '3,5', weiter: 'drehen',
+        richtung: -1 },
+    ],
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 1 },
+      { type: 'mirror', x: 3, z: 5, rot: 4 },
       { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
       { type: 'mirror', x: 5, z: 1, rot: 0 },
       { type: 'target', x: 5, z: 4, color: 'white' },
@@ -1988,7 +1997,14 @@ const LEVELS = [
     // Lösung: Spiegel (3,2) rot 3 – Ost → Nord; Spiegel (3,0) rot 3 – Nord → Ost; Spiegel (5,0) rot 1 – Ost → Süd
     //   → Ziel (5,5). Der kurze Weg nach Süden über den festen Spiegel (3,5) endet am Block (3,4) – zu Beginn sichtbar.
     name: 'Sperre', tutorial: true,
-    hint: 'Blöcke schlucken Licht. Führe es auf einem Umweg ans Ziel.',
+    schritte: [
+      { text: 'Der Block schluckt das Licht, hier kommt es nicht weiter.', bei: '3,4', weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel, bis das Licht den nächsten Spiegel trifft.', bei: '3,2', weiter: 'strahl',
+        trifft: '3,0' },
+      { text: '{Tippe} die übrigen Spiegel, bis das Licht den Kristall erreicht.', bei: ['3,0', '5,0'],
+        weiter: 'drehen' },
+    ],
+    nebenbei: ['kamera'],
     elements: [
       { type: 'source', x: 0, z: 2, dir: 0 },
       { type: 'mirror', x: 3, z: 2, rot: 1 },
@@ -2004,7 +2020,11 @@ const LEVELS = [
     // Lösung: Prisma (2,3) rot 0 – Fächer nach Ost: Rot → Nordost → Ziel (5,0),
     //   Grün → Ost → Ziel (6,3), Blau → Südost → Ziel (5,6).
     name: 'Brechung', tutorial: true,
-    hint: 'Das Prisma fächert weisses Licht in Rot, Grün und Blau auf. Einfarbiges Licht lenkt es nur um.',
+    schritte: [
+      { text: 'Das Prisma fächert weisses Licht in Rot, Grün und Blau auf.', bei: '2,3', weiter: 'erklaerung' },
+      { text: '{Tippe} das Prisma, bis jede Farbe ihren Kristall trifft.', bei: '2,3', weiter: 'drehen' },
+    ],
+    nebenbei: ['neustart'],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'prism', x: 2, z: 3, rot: 6 },
@@ -2019,8 +2039,16 @@ const LEVELS = [
     //   Grün → Nord → Ziel (3,0), Blau → Nordost → Ziel (5,0).
     //   Das Licht verschwindet nacheinander: zuerst am Spiegel, der längs zum Strahl steht; ist er gedreht, am Prisma,
     //   das dem Licht den Rücken zeigt.
+    //   Geführt in zwei getrennten Schritten: erst der Spiegel (zurückdrehen ist der kurze Weg, wie in «Umweg»), dann
+    //   das Prisma, sobald das Licht es erreicht.
     name: 'Schatten', tutorial: true,
-    hint: 'Licht verschwindet, wenn es genau längs auf einen Spiegel fällt oder ein Prisma auf der Seite seiner Farbpfeile trifft.',
+    schritte: [
+      { text: 'Längs zum Strahl lässt ein Spiegel das Licht verschwinden: {Drücke lang} auf ihn.', bei: '3,5',
+        weiter: 'strahl', trifft: '3,2', richtung: -1 },
+      { text: 'Trifft Licht das Prisma auf der Seite seiner Farbpfeile, verschwindet es auch.', bei: '3,2',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} das Prisma, bis seine Farbpfeile zu den Kristallen zeigen.', bei: '3,2', weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 0 },
@@ -2035,8 +2063,12 @@ const LEVELS = [
     // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
     //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
     //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
+    //   Der zweite Schritt sagt dazu, was im Bergwald gilt: Ein Prisma fächert nur auf, was ankommt.
     name: 'Farbenlehre', tutorial: true,
-    hint: 'Filter lassen nur ihre Farbe durch. Gelb = Rot + Grün, Cyan = Grün + Blau, Magenta = Rot + Blau.',
+    schritte: [
+      { text: 'Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.', bei: '1,3', weiter: 'erklaerung' },
+      { text: '{Tippe} das Prisma: Es fächert nur die Farben auf, die ankommen.', bei: '3,3', weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
       { type: 'filter', x: 1, z: 3, color: 'yellow' },
@@ -2051,7 +2083,12 @@ const LEVELS = [
     // Lösung: Spiegel (3,3) rot 1 – Rot von West → Süd, Blau von Ost → Nord → Ziel (3,0);
     //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
     name: 'Farbiges Licht', tutorial: true,
-    hint: 'Farbige Quellen senden nur ihre Farbe. Der Ring am Ziel zeigt die nötigen Grundfarben; falsche flackern darin.',
+    schritte: [
+      { text: 'Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
+      { text: 'Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin.', bei: ['3,0', '6,5'],
+        weiter: 'erklaerung' },
+      { text: '{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.', bei: ['3,3', '3,5'], weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
       { type: 'source', x: 6, z: 3, dir: 4, color: 'blue' },
@@ -2066,7 +2103,10 @@ const LEVELS = [
     // Lösung: Spiegel (3,1) rot 1 – Rot von West → Süd; Spiegel (6,4) rot 1 – Blau von Süd → West;
     //   beide treffen das Ziel (3,4) und mischen sich dort zu Magenta.
     name: 'Treffpunkt', tutorial: true,
-    hint: 'Treffen sich Strahlen auf einem Ziel, mischen sie sich: Rot + Blau = Magenta.',
+    schritte: [
+      { text: 'Treffen Rot und Blau denselben Kristall, mischen sie sich zu Magenta.', bei: '3,4', weiter: 'erklaerung' },
+      { text: '{Tippe} beide Spiegel, bis Rot und Blau den Kristall treffen.', bei: ['3,1', '6,4'], weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
       { type: 'source', x: 6, z: 6, dir: 6, color: 'blue' },
@@ -2080,11 +2120,19 @@ const LEVELS = [
     // Lösung: Prisma (2,3) rot 0 – Grün → Ost → Ziel (4,3).
     //   Rot → Nordost → fester Spiegel (4,1) → Südost, Blau → Südost → fester Spiegel (4,5) → Nordost
     //   → beide in den Kombinator (6,3): Magenta → dir 6 (Nord) → Ziel (6,0).
+    //   Das Prisma steht eine Stufe vor der Lösung (rot 7, Ticket 03 der Führung): Ein Tippen schickt Rot und Blau in
+    //   den Kombinator, so mischt er schon zwei Farben, wenn der nächste Schritt ihn erklärt (aus rot 6 bekam er nach
+    //   dem ersten Tippen nur Grün).
     name: 'Mischung', tutorial: true,
-    hint: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie in eine Richtung. Weiss + Rot bleibt Weiss.',
+    schritte: [
+      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: '2,3', weiter: 'drehen' },
+      { text: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.', bei: '6,3',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.', bei: '6,3', weiter: 'drehen' },
+    ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'prism', x: 2, z: 3, rot: 6 },
+      { type: 'prism', x: 2, z: 3, rot: 7 },
       { type: 'mirror', x: 4, z: 1, rot: 0, fixed: true },
       { type: 'mirror', x: 4, z: 5, rot: 0, fixed: true },
       { type: 'target', x: 4, z: 3, color: 'green' },
@@ -8110,28 +8158,26 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /*
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
- * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung? }. text: ein Satz im Du, Platzhalter je Gerät
- * (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss läuft. weiter: was den Schritt
- * weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken bzw.
- * Rechtsklick). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
+ * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft? }. text: ein Satz im Du, Platzhalter je
+ * Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss läuft. weiter: was den
+ * Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken bzw.
+ * Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht das Element bei ist; bei ist
+ * dann das Element, das dafür zu drehen ist (Umriss und Hand dort, die Geste nach richtung, die hier nichts
+ * einschränkt). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
  */
 const SCHRITTE_MAX = 3;
 /**
  * Was einen Schritt weiterschaltet: erklaerung (der Knopf «Weiter» am Satz, nie Zeit oder eine Drehung), antippen (das
  * Element antippen: ein drehbares dreht sich dabei, ein festes weigert sich), drehen (das Element drehen), strahl (der
- * Strahl trifft das Element).
+ * Strahl trifft das Element bei bzw. trifft).
  */
 const SCHRITT_WEITER = ['erklaerung', 'antippen', 'drehen', 'strahl'];
 /** Platzhalter der Schritte in der Befehlsform: [Touch, Maus]. */
 const SCHRITT_PLATZHALTER = { '{Tippe}': ['Tippe', 'Klicke'], '{Drücke lang}': ['Drücke lang', 'Rechtsklicke'] };
-/** Platzhalter der alten Hinweise (hint), bis Ticket 03 sie ersetzt: [Touch, Maus]. */
-const HINWEIS_PLATZHALTER = { '{Klick}': ['Tippen', 'Ein Klick'], '{Rechtsklick}': ['Lang drücken', 'Rechtsklick'] };
-/** Text für das Gerät (touch: Finger, sonst Maus): Platzhalter der Schritte und der Hinweise ersetzt. */
+/** Text für das Gerät (touch: Finger, sonst Maus): Platzhalter der Schritte ersetzt. */
 function geraeteText(text, touch) {
   let t = text;
-  for (const tabelle of [SCHRITT_PLATZHALTER, HINWEIS_PLATZHALTER]) {
-    for (const [p, [finger, maus]] of Object.entries(tabelle)) t = t.replaceAll(p, touch ? finger : maus);
-  }
+  for (const [p, [finger, maus]] of Object.entries(SCHRITT_PLATZHALTER)) t = t.replaceAll(p, touch ? finger : maus);
   return t;
 }
 /**
@@ -8141,15 +8187,19 @@ function geraeteText(text, touch) {
 const NEBENBEI = {
   kamera: { text: ['Wische mit einem Finger, um die Kamera zu drehen; zwei Finger zoomen.',
     'Ziehe mit der Maus, um die Kamera zu drehen; das Mausrad zoomt.'] },
-  neustart: { text: ['Der Pfeil im Kreis unten rechts beginnt die Übung neu.',
-    'Der Pfeil im Kreis unten rechts oder die Taste R beginnt die Übung neu.'] },
+  // «am Rand rechts»: Die Knöpfe stehen unten rechts, auf dem Handy quer rechts in der Mitte
+  neustart: { text: ['Der Kreispfeil am Rand rechts beginnt die Übung von vorn.',
+    'Der Kreispfeil am Rand rechts oder die Taste R beginnt die Übung von vorn.'] },
 };
 /** Zellen eines Schritts (bei als Zelle oder Liste). */
 const schrittZellen = (s) => (s.bei === undefined ? [] : [].concat(s.bei));
 const zelleVon = (el) => `${el.x},${el.z}`;
-/** Geste, die die Hand vorzeigt: tippen, zurueck (langes Drücken bzw. Rechtsklick) oder null (Erklärung, Strahl). */
+/**
+ * Geste, die die Hand vorzeigt: tippen, zurueck (langes Drücken bzw. Rechtsklick) oder null (Erklärung, Strahl auf das
+ * Element selbst). Ein Strahl mit trifft zeigt sie am Element bei, das zu drehen ist.
+ */
 function schrittGeste(s) {
-  if (s.weiter !== 'antippen' && s.weiter !== 'drehen') return null;
+  if (s.weiter !== 'antippen' && s.weiter !== 'drehen' && !(s.weiter === 'strahl' && s.trifft)) return null;
   return s.richtung === -1 ? 'zurueck' : 'tippen';
 }
 /** Trifft ein Strahl das Element el (Ergebnis von traceBeams)? Spiegel: wo er spiegelt oder an der Kante schluckt. */
@@ -8169,8 +8219,8 @@ function schrittErfuellt(s, e) {
     case 'erklaerung': return e.art === 'weiter';
     case 'antippen': return (e.art === 'angetippt' || e.art === 'gedreht') && bei(e.el);
     case 'drehen': return e.art === 'gedreht' && bei(e.el) && (!s.richtung || Math.sign(e.delta) === s.richtung);
-    case 'strahl': return e.art === 'strahl'
-      && zellen.some((z) => strahlTrifft(e.result, e.board.elements.find((el) => zelleVon(el) === z)));
+    case 'strahl': return e.art === 'strahl' && (s.trifft === undefined ? zellen : [s.trifft])
+      .some((z) => strahlTrifft(e.result, e.board.elements.find((el) => zelleVon(el) === z)));
     default: return false;
   }
 }
@@ -20317,8 +20367,9 @@ const ui = {
    * Kopfzeile. In Noas Geschichte: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter die Ziele mit dem
    * Grad dahinter («Ziele 0 / 3 · ●●○○ Mittel»; Kapitel, Level und Bedienung stehen seit dem 09.11.2026 nicht mehr
    * da, Wunsch des Nutzers); im Dorf «Im Dorf – Umweg», darunter ebenso Ziele und Grad, dann «Übung 2 / 9» und der
-   * Hinweis der Übung (Ticket 07). Ein Level ausserhalb der Geschichte (Testschnittstelle zeige): Titel oder Name mit
-   * dem Grad dahinter, im Tutorial und im Würfel darunter der Hinweis.
+   * Satz des laufenden Schritts (Führung, seit Ticket 03 von .scratch/tutorial-fuehrung/). Ein Level ausserhalb der
+   * Geschichte (Testschnittstelle zeige): Titel oder Name mit dem Grad dahinter, im Tutorial darunter der erste
+   * Schritt, im Würfel der Hinweis.
    */
   showHud(index) {
     const lvl = LEVELS[index];
@@ -20327,8 +20378,8 @@ const ui = {
     this.overview.hidden = !story.drives(index); // die Übersicht gibt es nur in einem Level der Geschichte
     fillTier(this.tier, lvl);
     this.grad.hidden = true;
-    // Hinweis einer Übung; eine Übung mit Schritten zeigt ausserhalb der Führung ihren ersten (Testschnittstelle zeige)
-    const hinweis = () => geraeteText(lvl.hint ?? lvl.schritte?.[0].text ?? '', IS_TOUCH);
+    // eine Übung ausserhalb der Führung zeigt ihren ersten Schritt (Testschnittstelle zeige)
+    const hinweis = () => geraeteText(lvl.schritte?.[0].text ?? '', IS_TOUCH);
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
       this.title.textContent = title;
@@ -20343,7 +20394,7 @@ const ui = {
         zeile.push(teil);
       }
       if (fuehrung.fuehrt(index)) zeile.push(...fuehrung.kopfzeile()); // geführt: der Satz des Schritts
-      else if (lvl.tutorial) { // Übung im Dorf: ihr Hinweis in eigener Zeile
+      else if (lvl.tutorial) { // Übung im Dorf ohne Führung: ihr erster Schritt in eigener Zeile
         const h = document.createElement('span');
         h.className = 'hinweis';
         h.textContent = hinweis();
@@ -21991,7 +22042,8 @@ const himmelsWagen = (() => {
 })();
 /**
  * Das Kapitel «Im Dorf» (Entscheide 3, 10, 18; Ticket 07): das Tutorial zwischen Prolog und Bergwald, keine der sechs
- * Welten. Seine Übungen sind LEVELS[0 … TUTORIAL_COUNT − 1] mit Name und Hinweis; sie zählen nicht zu den 60 des Grads.
+ * Welten. Seine Übungen sind LEVELS[0 … TUTORIAL_COUNT − 1] mit Name und Schritten der Führung; sie zählen nicht zu
+ * den 60 des Grads.
  * angebot: nach dem Prolog auf der Bühne (auch nach «Überspringen»), beim ersten Durchgang je Grad; einstieg: der
  * Untertitel, wenn das Licht ins Dorf kommt (ohne Träger: Es ist schon bei Noa); ende: nach der letzten Übung oder
  * «Überspringen», danach tragen die Glühwürmchen das Licht in den Bergwald. done/next: «Gelöst» nach der letzten Übung.

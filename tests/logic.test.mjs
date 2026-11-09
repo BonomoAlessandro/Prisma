@@ -17,7 +17,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, inLoesung, fingerzeigZiel };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, inLoesung, fingerzeigZiel };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -587,13 +587,12 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.count, 4);
   assert.equal(r.solutions[0].free, 1);
 });
-test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Hinweis', () => {
+test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Schritten statt Hinweis', () => {
   assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 10, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
   L.LEVELS.forEach((l, i) => assert.equal(!!l.tutorial, i < L.TUTORIAL_COUNT, `Level ${i + 1} "${l.name}"`));
-  // bis Ticket 03 der Führung: Schritte oder Hinweis, nicht beides
+  // seit Ticket 03 der Führung: jede Übung hat Schritte, keine einen Hinweis
   for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) {
-    if (l.schritte) assert.ok(l.hint === undefined && l.schritte.length > 0, l.name + ': Schritte und Hinweis');
-    else assert.ok(typeof l.hint === 'string' && l.hint.length > 10, l.name + ': Hinweis fehlt');
+    assert.ok(l.hint === undefined && l.schritte?.length > 0, l.name + ': Schritte statt Hinweis');
   }
 });
 test('Tutorial: führt alle Elementarten ein', () => {
@@ -601,12 +600,11 @@ test('Tutorial: führt alle Elementarten ein', () => {
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Tutorial-Hinweise: nur bekannte Platzhalter', () => {
-  // Hinweise: {Klick} und {Rechtsklick}; Schritte: die Befehlsform aus SCHRITT_PLATZHALTER
+test('Tutorial-Schritte: nur bekannte Platzhalter', () => {
+  // die Befehlsform aus SCHRITT_PLATZHALTER
   const schritt = new RegExp(Object.keys(L.SCHRITT_PLATZHALTER).map(p => p.replace(/[{}]/g, '\\$&')).join('|'), 'g');
   for (const l of L.LEVELS.filter(q => q.tutorial)) {
-    const texte = l.schritte ? l.schritte.map(s => s.text.replace(schritt, '')) : [l.hint.replace(/\{(Klick|Rechtsklick)\}/g, '')];
-    for (const t of texte) assert.deepEqual(t.match(/[{}]/g), null, `${l.name}: «${t}»`);
+    for (const t of l.schritte.map(s => s.text.replace(schritt, ''))) assert.deepEqual(t.match(/[{}]/g), null, `${l.name}: «${t}»`);
   }
 });
 
@@ -615,7 +613,7 @@ console.log('Führung im Dorf (Schritte)');
   const gefuehrt = L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => l.schritte);
   const wort = (t) => t.split(/\s+/).filter(Boolean).length;
   const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
-  test('Schritte: mindestens «Erstes Licht» geführt', () => assert.ok(gefuehrt.some(l => l.name === 'Erstes Licht')));
+  test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
   test('Schritte: höchstens drei, je ein Satz von etwa zwölf Wörtern, auf beiden Geräten', () => {
     for (const l of gefuehrt) {
       assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
@@ -633,7 +631,102 @@ console.log('Führung im Dorf (Schritte)');
       if (s.weiter !== 'erklaerung') assert.ok(zellen.length > 0, `${l.name}: «${s.text}» ohne Element`);
       for (const z of zellen) assert.ok(am(l, z), `${l.name}: kein Element bei ${z}`);
       if (s.weiter === 'drehen') for (const z of zellen) assert.ok(L.isRotatable(am(l, z)), `${l.name}: ${z} nicht drehbar`);
-      if (s.richtung !== undefined) assert.ok(s.weiter === 'drehen' && [1, -1].includes(s.richtung), `${l.name}: richtung`);
+      // richtung: bei «drehen» die Richtung, bei «strahl» mit trifft nur die Geste der Hand
+      if (s.richtung !== undefined) {
+        assert.ok((s.weiter === 'drehen' || s.trifft) && [1, -1].includes(s.richtung), `${l.name}: richtung`);
+      }
+      // trifft: nur bei «strahl», eine Zelle auf dem Brett; bei ist dann das drehbare Element, das dafür zu drehen ist
+      if (s.trifft !== undefined) {
+        assert.ok(s.weiter === 'strahl' && typeof s.trifft === 'string' && am(l, s.trifft), `${l.name}: trifft ${s.trifft}`);
+        for (const z of zellen) assert.ok(L.isRotatable(am(l, z)), `${l.name}: ${z} nicht drehbar`);
+      }
+    }
+  });
+  test('Schritte: ein festes Element zum Antippen hat kein drehbares im Nachbarfeld (Handy: das drehbare gewönne)', () => {
+    for (const l of gefuehrt) for (const s of l.schritte.filter(q => q.weiter === 'antippen')) {
+      for (const z of [].concat(s.bei)) {
+        const f = am(l, z);
+        if (!f.fixed) continue;
+        const nah = l.elements.filter(e => e !== f && !e.fixed && ['mirror', 'prism', 'combiner'].includes(e.type)
+          && Math.max(Math.abs(e.x - f.x), Math.abs(e.z - f.z)) <= 1);
+        assert.deepEqual(nah.map(e => `${e.x},${e.z}`), [], `${l.name}: neben ${z}`);
+      }
+    }
+  });
+  test('Schritte: die Inhalte je Übung (Spec «Inhalte je Übung», Ticket 03)', () => {
+    const u = (n) => L.LEVELS.slice(0, L.TUTORIAL_COUNT).find(q => q.name === n);
+    const art = (n) => u(n).schritte.map(s => s.weiter + (s.richtung === -1 ? '-zurück' : '')).join(' ');
+    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name), ['Erstes Licht', 'Umweg', 'Sperre',
+      'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung']);
+    // Erstes Licht: das Ziel vor dem ersten Tippen (ein Tippen löst die Übung schon)
+    assert.equal(art('Erstes Licht'), 'erklaerung drehen');
+    assert.equal(u('Erstes Licht').schritte[0].bei, '4,0');
+    // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; der vordere Spiegel steht
+    // eine Stufe zu weit (einmal zurück ist die Lösung)
+    const w = u('Umweg');
+    assert.equal(art('Umweg'), 'antippen erklaerung drehen-zurück');
+    assert.ok(am(w, w.schritte[0].bei).fixed && w.schritte[1].text === 'Rund lässt sich drehen, eckig nicht.');
+    const vorn = am(w, w.schritte[2].bei);
+    assert.equal(L.mod8(vorn.rot - 1) % 4, w.solution[w.schritte[2].bei] % 4, 'eine Stufe zu weit');
+    // Schatten: Spiegel längs und Prisma von der falschen Seite in getrennten Schritten
+    const sch = u('Schatten');
+    assert.ok(am(sch, sch.schritte[0].bei).type === 'mirror' && am(sch, sch.schritte[1].bei).type === 'prism');
+    // Hinweise nebenbei: Kamera in «Sperre», Neustart in «Brechung», sonst keine
+    assert.deepEqual(Object.fromEntries(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(q => q.nebenbei).map(q => [q.name, q.nebenbei])),
+      { Sperre: ['kamera'], Brechung: ['neustart'] });
+    // die Elemente der Lehrinhalte stehen im Satz eines Schritts mit Umriss
+    const umrandet = (n, typ) => u(n).schritte.some(s => [].concat(s.bei ?? []).some(z => am(u(n), z).type === typ));
+    for (const [n, typ] of [['Sperre', 'blocker'], ['Brechung', 'prism'], ['Farbenlehre', 'filter'],
+      ['Farbiges Licht', 'source'], ['Farbiges Licht', 'target'], ['Treffpunkt', 'target'], ['Mischung', 'combiner']]) {
+      assert.ok(umrandet(n, typ), `${n}: ${typ}`);
+    }
+  });
+  test('Schritte: wer jedem Schritt mit der kürzesten Handlung folgt, löst keine Übung vor ihrem letzten Schritt', () => {
+    // wie fuehrung: nach jeder Drehung zuerst gelöst, dann der Schritt (Drehung oder Strahl), Strahl-Schritte, die
+    // schon erfüllt sind, entfallen; Erklärungen mit «Weiter»
+    const kopie = (b) => {
+      const elements = b.elements.map(e => ({ ...e })), grid = new Array(b.size * b.size).fill(null);
+      for (const e of elements) grid[e.z * b.size + e.x] = e;
+      return { ...b, elements, grid };
+    };
+    for (const l of gefuehrt) {
+      const s = l.schritte;
+      let b = L.createBoard(l), k = 0;
+      const ueberspringe = () => {
+        const r = L.traceBeams(b);
+        while (k < s.length && s[k].weiter === 'strahl' && L.schrittErfuellt(s[k], { art: 'strahl', board: b, result: r })) k++;
+      };
+      ueberspringe();
+      while (k < s.length) {
+        if (s[k].weiter === 'erklaerung') { k++; ueberspringe(); continue; }
+        // Breitensuche über Drehungen (und Antippen fester Elemente) bis zum Weiterschalten
+        const seen = new Set(), q = [[b, 0]];
+        let weiter = null;
+        while (q.length && !weiter) {
+          const [bb, n] = q.shift();
+          for (const [i, el] of bb.elements.entries()) {
+            for (const d of L.isRotatable(el) ? [1, -1] : el.fixed && s[k].weiter === 'antippen' ? [0] : []) {
+              const nb = kopie(bb), ne = nb.elements[i];
+              if (d) { if (ne.type === 'combiner') ne.dir = L.mod8(ne.dir + d); else ne.rot = L.mod8(ne.rot + d); }
+              const r = L.traceBeams(nb);
+              const e = d ? { art: 'gedreht', el: ne, delta: d } : { art: 'angetippt', el: ne };
+              if (d && r.solved) { weiter = { nb, geloest: true }; break; }
+              if (L.schrittErfuellt(s[k], e) || L.schrittErfuellt(s[k], { art: 'strahl', board: nb, result: r })) {
+                weiter = { nb, geloest: false }; break;
+              }
+              const key = nb.elements.map(x => x.rot + ':' + x.dir).join();
+              if (d && n < 6 && !seen.has(key)) { seen.add(key); q.push([nb, n + 1]); }
+            }
+            if (weiter) break;
+          }
+        }
+        assert.ok(weiter, `${l.name}: Schritt ${k + 1} nicht erfüllbar`);
+        assert.ok(!weiter.geloest || k === s.length - 1, `${l.name}: gelöst schon in Schritt ${k + 1}`);
+        b = weiter.nb;
+        if (weiter.geloest) break;
+        k++;
+        ueberspringe();
+      }
     }
   });
   test('Schritte: Hinweise nebenbei nur aus NEBENBEI, einmal je Übung', () => {
@@ -645,12 +738,11 @@ console.log('Führung im Dorf (Schritte)');
       for (const t of text) assert.ok(wort(t) <= 14 && !/[{}]/.test(t), `${k}: «${t}»`);
     }
   });
-  test('Text je Gerät: Befehlsform für Schritte, alte Platzhalter für Hinweise', () => {
+  test('Text je Gerät: Befehlsform für Schritte', () => {
     assert.equal(L.geraeteText('{Tippe} den Spiegel an.', true), 'Tippe den Spiegel an.');
     assert.equal(L.geraeteText('{Tippe} den Spiegel an.', false), 'Klicke den Spiegel an.');
-    assert.equal(L.geraeteText('{Drücke lang} den Spiegel.', true), 'Drücke lang den Spiegel.');
-    assert.equal(L.geraeteText('{Drücke lang} den Spiegel.', false), 'Rechtsklicke den Spiegel.');
-    assert.equal(L.geraeteText('{Klick} dreht, {Rechtsklick} dreht zurück.', true), 'Tippen dreht, Lang drücken dreht zurück.');
+    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', true), 'Drücke lang auf den Spiegel.');
+    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', false), 'Rechtsklicke auf den Spiegel.');
   });
   test('Was weiterschaltet: Erklärung nur «Weiter», antippen auch fest, drehen mit Richtung, Strahl', () => {
     const l = L.LEVELS.find(q => q.name === 'Umweg'), b = L.createBoard(l);
@@ -676,6 +768,14 @@ console.log('Führung im Dorf (Schritte)');
     sp.rot = e.solution[zelle(sp)];
     r = L.traceBeams(eb);
     assert.ok(L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
+    // Strahl mit trifft: Umriss und Hand am Spiegel, weiter erst, wenn das Licht das Ziel trifft
+    const mit = { weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel), richtung: -1 };
+    assert.ok(L.schrittErfuellt(mit, { art: 'strahl', board: eb, result: r }));
+    sp.rot = 2;
+    assert.ok(!L.schrittErfuellt(mit, { art: 'strahl', board: eb, result: L.traceBeams(eb) }), 'trifft nur den Spiegel');
+    assert.equal(L.schrittGeste(mit), 'zurueck');
+    assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel) }), 'tippen');
+    assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(ziel) }), null);
   });
   test('Später Fingerzeig: nächstes Element ausserhalb der Lösung, kürzerer Weg, Spiegel halbe Runde gleich', () => {
     const l = L.LEVELS[0], b = L.createBoard(l), sp = b.elements.find(q => q.type === 'mirror');
