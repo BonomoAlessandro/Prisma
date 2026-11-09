@@ -1,0 +1,1247 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Führung im Dorf</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Katalog: je Richtung ein Blatt mit Beschreibung links und einem spielbaren Brett rechts */
+  :root {
+    --bg: #eef0f3; --blatt: #fafbfc; --ink: #1a2230; --leise: #566173; --linie: #cfd5de;
+    --akzent: #9a5b12;    /* warmes Licht */
+    --akzent-grund: #f6ead8;
+    --gut: #2f7a4f; --schlecht: #a33a3a;
+    --brett: #263241; --brett-linie: #3a4859; --sockel: #3f4d5e; --fest: #e0504a; --ring: #f4f6f8;
+    --strahl: #ffe7a3; --spiegel: #d9e2ec;
+    --f-titel: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mass: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --s0: 0.8125rem; --s1: 0.9375rem; --s2: 1.0625rem; --s3: 1.375rem; --s4: 1.9rem; --s5: clamp(2.1rem, 5vw, 3.2rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #10141a; --blatt: #171d25; --ink: #e4e8ee; --leise: #9ea8b6; --linie: #2b3542;
+      --akzent: #f0b25e; --akzent-grund: #33281a; --gut: #6cc58f; --schlecht: #ec8a8a; color-scheme: dark; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--s1)/1.55 var(--f-text);
+    padding: 0 max(14px, env(safe-area-inset-right, 0px)) 4rem max(14px, env(safe-area-inset-left, 0px)); }
+  .seite { max-width: 1180px; margin: 0 auto; display: grid; gap: 2.2rem; }
+  header { padding-top: 2.4rem; display: grid; gap: .8rem; max-width: 68ch; }
+  h1 { font: 700 var(--s5)/1.05 var(--f-titel); margin: 0; letter-spacing: -.01em; }
+  h2 { font: 700 var(--s4)/1.1 var(--f-titel); margin: 0; }
+  h3 { font: 600 var(--s2)/1.3 var(--f-text); margin: 1rem 0 .3rem; }
+  p { margin: 0; }
+  .kicker { font: 500 var(--s0)/1 var(--f-mass); text-transform: uppercase; letter-spacing: .08em; color: var(--akzent); }
+  .leise { color: var(--leise); }
+  .kasten { background: var(--blatt); border: 1px solid var(--linie); border-radius: 14px; padding: 1.2rem 1.3rem; }
+  .seite > *, #richtungen > *, .richtung > * { min-width: 0; }
+  .tabelle-rahmen { overflow-x: auto; max-width: 100%; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: var(--s0); }
+  th, td { text-align: left; vertical-align: top; padding: .55rem .6rem; border-bottom: 1px solid var(--linie); }
+  th { font-weight: 600; }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+  ul { margin: .3rem 0 0; padding-left: 1.2rem; }
+  li { margin: .15rem 0; }
+  .plus li::marker { content: "+  "; color: var(--gut); font-weight: 700; }
+  .minus li::marker { content: "–  "; color: var(--schlecht); font-weight: 700; }
+
+  .richtung { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 430px); gap: 1.6rem; align-items: start; }
+  @media (max-width: 860px) { .richtung { grid-template-columns: 1fr; } .richtung .spiel { order: -1; } }
+  .achsen { display: grid; grid-template-columns: auto 1fr; gap: .2rem .8rem; margin-top: .8rem; font-size: var(--s0); }
+  .achsen dt { color: var(--leise); font-family: var(--f-mass); }
+  .achsen dd { margin: 0; }
+
+  /* Spielbereich */
+  .spiel { display: grid; gap: .6rem; position: sticky; top: .8rem; }
+  @media (max-width: 860px) { .spiel { position: static; } }
+  .reiter { display: flex; gap: .4rem; flex-wrap: wrap; }
+  button { font: 600 var(--s0)/1 var(--f-text); color: var(--ink); background: var(--blatt); border: 1px solid var(--linie);
+    border-radius: 999px; padding: .55rem .85rem; cursor: pointer; min-height: 36px; }
+  button[aria-pressed="true"] { background: var(--ink); color: var(--blatt); border-color: var(--ink); }
+  button:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+  .geraet { display: inline-flex; gap: .3rem; align-items: center; flex-wrap: wrap; }
+  .schirm { background: #121821; border-radius: 16px; padding: 10px; color: #eef2f6; display: grid; gap: 8px;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  .kopf { display: grid; gap: 4px; padding: 4px 6px 2px; }
+  .kopf .titel { font: 500 12px/1.2 var(--f-mass); color: #9fb0c3; display: flex; justify-content: space-between; gap: 8px; }
+  .kopf .titel span:last-child { white-space: nowrap; }
+  .satz { font: 600 16px/1.35 var(--f-text); color: #fff; min-height: 1.35em; }
+  .satz.neu { animation: einblenden .35s ease-out; }
+  @keyframes einblenden { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .weiter-knopf { margin-left: .4rem; padding: .25rem .6rem; min-height: 28px; font-size: 13px; background: #f0b25e; color: #1a1206;
+    border: 0; vertical-align: middle; }
+  .weiter-knopf.stups { animation: stups 1s ease-in-out infinite; }
+  @keyframes stups { 50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(240,178,94,.35); } }
+  .brettrahmen { position: relative; touch-action: manipulation; }
+  svg.brett { display: block; width: 100%; height: auto; cursor: pointer; touch-action: manipulation; }
+  .band { min-height: 46px; padding: 6px 8px; border-radius: 10px; background: rgba(255,255,255,.06); display: grid; gap: 6px; align-content: center; }
+  .uhr { height: 3px; border-radius: 2px; background: rgba(255,255,255,.12); overflow: hidden; }
+  .uhr i { display: block; height: 100%; width: 0; background: #f0b25e; }
+  .blase { position: absolute; width: max-content; max-width: 62%; background: #fff; color: #18202b; font: 600 15px/1.3 var(--f-text);
+    padding: 8px 11px; border-radius: 12px; box-shadow: 0 6px 18px rgba(0,0,0,.35); transform: translateX(-50%);
+    pointer-events: auto; z-index: 2; }
+  .blase::after { content: ""; position: absolute; left: var(--spitze, 50%); width: 12px; height: 12px; background: inherit;
+    transform: translateX(-50%) rotate(45deg); }
+  .blase.oben::after { bottom: -5px; } .blase.unten::after { top: -5px; }
+  .blase .tipp { display: inline-block; margin-left: .35rem; color: #9a5b12; animation: blink 1.2s infinite; }
+  @keyframes blink { 50% { opacity: .25; } }
+  .schild { position: absolute; width: max-content; max-width: 62%; background: #e9dcc3; color: #2d2414; font: 600 14px/1.3 var(--f-text);
+    padding: 7px 10px 9px; border-radius: 6px; border: 2px solid #8b6a3a; transform: translateX(-50%); z-index: 2; cursor: pointer; }
+  .schild .symbol { display: inline-block; vertical-align: -3px; margin-right: 6px; }
+  .schild .uhr { position: absolute; left: 6px; right: 6px; bottom: 3px; height: 2px; background: rgba(0,0,0,.12); }
+  .schild .uhr i { background: #8b6a3a; }
+  .leiste { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; }
+  .zustand { font: 400 12px/1.4 var(--f-mass); color: var(--leise); min-height: 2.8em; white-space: pre-line; }
+
+  /* Brett-Grafik */
+  .wackeln { animation: wackeln .38s ease-in-out; transform-box: fill-box; transform-origin: center; }
+  @keyframes wackeln { 15% { transform: rotate(-11deg); } 35% { transform: rotate(9deg); } 55% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+  .blitz { animation: blitz .5s ease-out; }
+  @keyframes blitz { 0%, 40% { stroke: #ff6a5f; stroke-width: .11; filter: drop-shadow(0 0 .12px #ff6a5f); } }
+  .puls { animation: puls 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+  .puls.stark { animation-duration: .8s; }
+  @keyframes puls { 0%, 100% { opacity: .25; transform: scale(.92); } 50% { opacity: .95; transform: scale(1.06); } }
+  .umriss { animation: laufen 1.2s linear infinite; }
+  .umriss.stark { animation-duration: .5s; }
+  @keyframes laufen { to { stroke-dashoffset: -0.6; } }
+  .pfeil { animation: huepfen .9s ease-in-out infinite; }
+  .pfeil.stark { animation-duration: .45s; }
+  @keyframes huepfen { 50% { transform: translateY(-.14px); } }
+  .finger-tipp { animation: tipp 1.3s ease-in-out infinite; transform-box: fill-box; transform-origin: 30% 10%; }
+  @keyframes tipp { 0%, 100% { transform: translate(.12px, .18px); } 40% { transform: translate(0, 0) scale(.94); } 55% { transform: translate(0, 0) scale(.94); } }
+  .welle { animation: welle 1.3s ease-out infinite; transform-box: fill-box; transform-origin: center; opacity: 0; }
+  @keyframes welle { 40% { opacity: 0; transform: scale(.4); } 50% { opacity: .9; transform: scale(.5); } 100% { opacity: 0; transform: scale(1.4); } }
+  .halten { animation: halten 1.8s linear infinite; }
+  @keyframes halten { 0%, 15% { stroke-dashoffset: 3.2; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 75%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+  .geloest .kristall { filter: drop-shadow(0 0 .18px #fff) drop-shadow(0 0 .35px #ffe7a3); }
+  @media (prefers-reduced-motion: reduce) { .puls, .umriss, .pfeil, .finger-tipp, .welle, .halten, .stups { animation-duration: 3s; } }
+  .empfehlung { border-left: 4px solid var(--akzent); background: var(--akzent-grund); }
+  code { font-family: var(--f-mass); font-size: .9em; }
+</style>
+</head>
+<body>
+<div class="seite">
+<header>
+  <span class="kicker">PLAN 1a.1 · Ticket 01 · Katalog</span>
+  <h1>Führung im Dorf</h1>
+  <p>Vier Richtungen, wie die Übungen im Dorf den Spieler führen können. Jede ist auf den Brettern von «Erstes Licht» und
+    «Umweg» spielbar, mit der Strahlregel aus dem Spiel und vereinfachter Grafik. Es geht um die Führung, nicht ums
+    Aussehen.</p>
+  <p class="leise">Bedienung wie im Spiel: Tippen oder Klick dreht ein Element um 45°, langes Drücken oder Rechtsklick
+    dreht es zurück. <strong>Rund</strong> (weisser Ring) heisst drehbar, <strong>eckig</strong> (roter Rand) heisst fest.
+    «15 s vorspulen» zeigt den späten Fingerzeig sofort.</p>
+  <div class="geraet" role="group" aria-label="Texte für">
+    <span class="leise">Sätze für:</span>
+    <button type="button" data-geraet="touch">Handy</button>
+    <button type="button" data-geraet="maus">Desktop</button>
+  </div>
+</header>
+
+<section class="kasten">
+  <h2>Die vier Richtungen auf einen Blick</h2>
+  <p class="leise" style="margin-top:.4rem">Gleich ist in allen: höchstens drei Schritte je Übung, je ein Satz von
+    höchstens etwa zwölf Wörtern, neutral im Du, kein Tadel, keine gesperrten Knöpfe, nach etwa 15 Sekunden ohne
+    Fortschritt der späte Fingerzeig aufs nächste Element. Gelöst wird nie automatisch; wer früher löst, ist fertig.</p>
+  <div class="tabelle-rahmen" style="margin-top:.8rem"><table>
+    <thead><tr><th>Richtung</th><th>Strenge</th><th>Hervorhebung</th><th>Finger / Hand</th><th>Textort</th><th>Erklärung schaltet weiter</th><th>Später Fingerzeig</th></tr></thead>
+    <tbody id="vergleich"></tbody>
+  </table></div>
+</section>
+
+<div id="richtungen" style="display:grid;gap:2.2rem"></div>
+
+<section class="kasten empfehlung">
+  <span class="kicker">Empfehlung</span>
+  <h2 style="margin-top:.4rem">C «Vorzeigen», frei und mit Weiter am Satz</h2>
+  <p style="margin-top:.6rem">Ich empfehle <strong>C</strong>. Langes Drücken ist die eine Geste, die niemand von selbst
+    findet; eine Hand, die sie einmal am richtigen Spiegel vormacht, erklärt sie ohne Fachwort und auf Handy und Desktop
+    gleich. Weil danach alles frei bleibt, lernt der Spieler durch eigenes Probieren, wie es die Spec mit «kein Tadel»
+    meint, und das Wackeln des festen Spiegels bleibt eine echte Entdeckung statt eines abgearbeiteten Auftrags.</p>
+  <p style="margin-top:.6rem">Der Satz «Rund lässt sich drehen, eckig nicht» wartet auf ein Tippen auf «Weiter» und nicht
+    auf eine Zeit: Wer langsam liest, verliert ihn nicht, und wer schnell ist, wartet nicht. Der Satz steht in der
+    Kopfzeile, wo heute der Hinweis steht; zeigt sich beim Testen auf dem Handy, dass der Blick dort nicht hinfindet,
+    lässt sich der Textort von D (Schild am Element) übernehmen, ohne sonst etwas zu ändern.</p>
+  <p style="margin-top:.6rem" class="leise">Für «Umweg» schlage ich ausserdem die zweite Startstellung vor (Schalter am
+    Brett): Der vordere Spiegel steht eine Stufe zu weit, so ist Zurückdrehen der kurze Weg und wird nicht nur erzählt.
+    Die Lösung bleibt dieselbe.</p>
+</section>
+
+<section class="kasten">
+  <h2>Was eine Erklärung weiterschaltet</h2>
+  <p style="margin-top:.5rem">Ein Schritt mit Auftrag wartet auf seine Handlung (ein Element antippen oder drehen). Reine
+    Erklärungen, hier «Bring das Licht zum Kristall» und «Rund lässt sich drehen, eckig nicht», warten je Richtung anders:
+    A nach 4 Sekunden von selbst, B auf ein Tippen irgendwohin, C auf den Knopf «Weiter» im Satz, D auf ein Tippen aufs
+    Schild oder nach 5 Sekunden. Keine Erklärung schaltet durch eine Drehung weiter, damit der Satz nach dem Wackeln
+    sicher zu lesen ist.</p>
+</section>
+</div>
+
+<script>
+/* ---------- Strahlregel und Bretter, von seite.mjs aus index.html des Spiels übernommen ---------- */
+const DIRS = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+const COLORS = { red: 1, green: 2, yellow: 3, blue: 4, magenta: 5, cyan: 6, white: 7 };
+const COLOR_NAMES = ['none', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+const MAX_BOUNCES = 50;   // Schutz gegen Endlosschleifen pro Strahl
+const MAX_SEGMENTS = 256; // harte Obergrenze für das ganze Feld
+const ELEMENT_TYPES = ['source', 'mirror', 'prism', 'filter', 'combiner', 'blocker', 'target'];
+
+const mod8 = (n) => ((n % 8) + 8) % 8;
+/** Einheitsvektoren der Richtungen (einmal berechnet; eingefroren, weil Strahlabschnitte sie teilen). */
+const UNIT_DIRS = DIRS.map(([dx, dz]) => { const l = Math.hypot(dx, dz); return Object.freeze([dx / l, dz / l]); });
+const unitDir = (dir) => UNIT_DIRS[mod8(dir)];
+
+/**
+ * Spiegel: Linie im Winkel rot·45°, beidseitig verspiegelt.
+ * Reflexion eines Winkels φ an einer Linie α: φ' = 2α − φ.
+ * Verläuft der Strahl parallel zur Spiegelfläche, trifft er die Rahmenkante und wird geschluckt
+ * (reflectOnMirror liefert dann die unveränderte Richtung).
+ */
+function reflectOnMirror(dir, rot) {
+  return mod8(2 * rot - dir);
+}
+
+/** Strecke (in Zellen), die ein Strahl nach der Feldkante noch ausläuft, bevor er ganz verblasst. */
+const EDGE_RUN = 3;
+
+/** Halbe Spiegelbreite in Rasterzellen (Modell: 0.46 Welt bei CELL = 1.2, siehe makeMirror).
+ *  Dort endet ein parallel einfallender Strahl. */
+const MIRROR_HALF_WIDTH = 0.46 / 1.2;
+
+/**
+ * Rasterrichtung → Drehung um die Y-Achse in three.js.
+ * Rasterwinkel laufen von +x nach +z; eine positive rotation.y dreht +x aber nach −z.
+ */
+function dirToRotationY(dir) {
+  return -dir * Math.PI / 4;
+}
+
+/** Erzeugt den Spielzustand aus einer Level-Definition (siehe LEVELS; Würfel-Level siehe LEVELS_3D). */
+function createBoard(level) {
+  if (level.dim === 3) return createBoard3(level);
+  const size = level.size || 7;
+  const elements = level.elements.map((e, i) => {
+    if (!ELEMENT_TYPES.includes(e.type)) throw new Error(`Level "${level.name}": unbekannter Typ "${e.type}"`);
+    if (e.color && !COLORS[e.color]) throw new Error(`Level "${level.name}": unbekannte Farbe "${e.color}"`);
+    return {
+      id: i,
+      type: e.type,
+      x: e.x,
+      z: e.z,
+      rot: mod8(e.rot || 0),
+      dir: mod8(e.dir || 0),
+      color: COLORS[e.color || 'white'],
+      fixed: !!e.fixed,
+    };
+  });
+  const grid = new Array(size * size).fill(null); // Elemente nach Zelle (z · size + x) – schneller Zugriff beim Verfolgen
+  for (const el of elements) {
+    const key = el.x + ',' + el.z;
+    if (el.x < 0 || el.z < 0 || el.x >= size || el.z >= size) throw new Error(`Level "${level.name}": ${key} ausserhalb`);
+    if (grid[el.z * size + el.x]) throw new Error(`Level "${level.name}": Zelle ${key} doppelt belegt`);
+    grid[el.z * size + el.x] = el;
+  }
+  return { size, elements, grid, name: level.name };
+}
+
+/** Eine Normale der Spiegelfläche je Stellung (einmal berechnet statt Math.sin und Math.cos bei jedem Treffer). */
+const MIRROR_NORMALS = Array.from({ length: 8 }, (_, rot) => {
+  const a = rot * Math.PI / 4;
+  return [-Math.sin(a), Math.cos(a)];
+});
+
+/**
+ * Normale der Spiegelfläche, die zur Seite des einfallenden Strahls zeigt.
+ * Der reflektierte Strahl verlässt den Spiegel auf derselben Seite.
+ */
+function mirrorFrontNormal(rot, dir) {
+  const n = MIRROR_NORMALS[mod8(rot)], d = DIRS[dir];
+  let nx = n[0], nz = n[1];
+  if (nx * d[0] + nz * d[1] > 0) { nx = -nx; nz = -nz; }
+  return [nx, nz];
+}
+
+/**
+ * Stellung, die der Löser (tools/solver.mjs) noch nicht festgelegt hat. Liest die Verfolgung sie, hält sie an und
+ * liefert { open: Element, hits: bis dahin sichere Treffer, resume: Stand zum Weitermachen }. Im Spiel kommt sie nie vor.
+ */
+const OPEN = -1;
+
+function isRotatable(el) {
+  return !el.fixed && (el.type === 'mirror' || el.type === 'prism' || el.type === 'combiner');
+}
+
+/** Zerlegt eine Farbmaske in ihre Grundfarben (Rot, Grün, Blau). */
+function primariesOf(color) {
+  return [1, 2, 4].filter(c => color & c);
+}
+
+/** Grösste Ablenkung, die ein Prisma schafft (in 45°-Schritten): bis 90°. */
+const PRISM_MAX_BEND = 2;
+
+/**
+ * Prisma: Die Austrittsfläche zeigt in Richtung rot·45° – dorthin zielt der Farbfächer.
+ * Grün läuft genau in Prismarichtung, Rot 45° links davon (rot − 1), Blau 45° rechts (rot + 1).
+ * Jede Stellung bewirkt so etwas anderes: Fächer geradeaus, um 45° oder um 90° abgelenkt.
+ * Zeigt die Austrittsfläche nach hinten (Ablenkung 135° oder 180°), tritt kein Licht aus.
+ * Eine Grundfarbe läuft nur auf ihrer eigenen Bahn (gebrochen, nicht gespalten);
+ * eine Mischfarbe zerfällt in ihre Anteile.
+ * Rückgabe: [{ dir, color }] – leer, wenn das Licht nicht austreten kann.
+ */
+function refractInPrism(dir, color, rot) {
+  const b = mod8(rot - dir);
+  const bend = b > 4 ? b - 8 : b; // −3 … 4
+  if (Math.abs(bend) > PRISM_MAX_BEND) return [];
+  const offset = { 1: -1, 2: 0, 4: 1 };
+  return primariesOf(color).map(c => ({ dir: mod8(rot + offset[c]), color: c }));
+}
+
+/**
+ * Verfolgt alle Strahlen auf dem Feld.
+ * extraRays (optional, v. a. für Tests): zusätzliche Startstrahlen { x, z, dir, color }, im Würfel
+ * { x, y, z, d: [dx, dy, dz], color }.
+ * from (optional, nur für den Löser): resume einer Verfolgung, die an einem Element auf OPEN angehalten hat. Die
+ * Verfolgung macht dort weiter, statt von vorn zu beginnen, mit demselben Ergebnis – vorausgesetzt, seither wurde nur
+ * die Stellung dieses Elements gesetzt (gleiches Feld, gleiche extraRays). Bis zum Anhalten hat sie es nie gelesen.
+ *
+ * Kombinatoren geben die additive Mischung ALLER eintreffenden Strahlen ab – auch solcher,
+ * die erst über ihren eigenen oder einen anderen Kombinator ankommen. Deshalb wird
+ * iteriert, bis sich die Eingangsfarben nicht mehr ändern (Fixpunkt; die Masken können
+ * nur wachsen und haben 3 Bit, nach wenigen Durchläufen ist Schluss).
+ *
+ * Rückgabe:
+ *   segments:  [{ x0, z0, x1, z1, color, dist0, length, n0, n1 }]  (Rasterkoordinaten, dist0 = Weglänge ab Quelle)
+ *              n0/n1: Schnittnormalen [nx, nz] an Anfang/Ende – sichtbar ist nur, was auf ihrer Seite liegt
+ *              (Spiegel: Spiegelfläche, sonst senkrecht zum Strahl), damit kein Leuchten durch Objekte dringt
+ *              fade (optional): Auslaufstrecke vor dem Ende, über die der Strahl verblasst (Feldkante)
+ *   events:    [{ x, z, color, kind, dist, target?, element?, normal? }]
+ *              kind ∈ reflect | refract | filter | merge | hit | absorb | edge | floor (Würfel: auf der Plattform)
+ *   hits:      Map(targetId → additiv gemischte Farbe aller eintreffenden Strahlen)
+ *   mixes:     Map(combinerId → abgegebene Mischfarbe)
+ *   satisfied: Set der Ziel-IDs, deren Mischfarbe exakt ihrer Zielfarbe entspricht
+ *   solved:    alle Ziele erfüllt
+ *   truncated: Obergrenze erreicht (Abpraller, Abschnitte, Kombinator-Fixpunkt) – dann nie gelöst
+ * Würfel-Level (board.dim 3) laufen über denselben Durchlauf (tracePass): Ein flaches Level ist ein Würfel mit einer
+ * Ebene (y = 0, Drehachse y). Im Würfel haben Segmente zusätzlich y0/y1, Ereignisse y, Normalen sind [nx, ny, nz].
+ * Steht ein Element, das Licht bekommt, auf OPEN, ist die Rückgabe nur { open: Element, hits, resume } (für den Löser).
+ * Ohne früheren Durchlauf ist hits dieselbe Map wie im Stand resume; ein Aufrufer darf sie nicht verändern.
+ */
+function traceBeams(board, extraRays = [], from = null) {
+  let emitting = from ? from.emitting : new Map(); // combinerId → { color, dist } aus dem vorigen Durchlauf
+  let result = from ? from.result : null;
+  let paused = from ? from.paused : null; // angehaltener Durchlauf, in dem es weitergeht
+  // Jeder Durchlauf trägt Licht einen Kombinator weiter; jede Mischung kann höchstens 3-mal wachsen.
+  let combiners = 0;
+  for (const el of board.elements) if (el.type === 'combiner') combiners++;
+  const maxPasses = 3 * combiners + 2;
+  let stable = false;
+  for (let pass = from ? from.pass : 0; pass < maxPasses && !stable; pass++) {
+    const r = tracePass(board, extraRays, emitting, paused);
+    paused = null;
+    if (r.open) {
+      // Für den Löser: Die Treffer des vorigen Passes sind ebenfalls sicher (die Pässe wachsen nur). Der angehaltene
+      // Durchlauf behält seine eigenen.
+      let hits = r.paused.hits;
+      if (result) {
+        hits = new Map(hits);
+        for (const [id, c] of result.hits) hits.set(id, (hits.get(id) || 0) | c);
+      }
+      return { open: r.open, hits, resume: { pass, emitting, result, paused: r.paused } };
+    }
+    result = r;
+    const next = result.combinerInputs;
+    stable = next.size === emitting.size;
+    if (stable) for (const [id, v] of next) if (emitting.get(id)?.color !== v.color) { stable = false; break; }
+    emitting = next;
+  }
+  if (!stable) result.truncated = true;
+  const mixes = new Map();
+  for (const [id, v] of emitting) mixes.set(id, v.color);
+  // Zielregel: Alle eintreffenden Strahlen mischen sich additiv; erfüllt ist ein Ziel nur,
+  // wenn die Mischung exakt seiner Farbe entspricht (ein zusätzlicher falscher Strahl stört).
+  const satisfied = new Set();
+  let targets = 0;
+  for (const t of board.elements) {
+    if (t.type !== 'target') continue;
+    targets++;
+    if (result.hits.get(t.id) === t.color) satisfied.add(t.id);
+  }
+  // Abgebrochene Verfolgung (Obergrenzen) zählt nie als gelöst – dieselbe Regel gilt für den Löser
+  const solved = !result.truncated && targets > 0 && satisfied.size === targets;
+  return {
+    segments: result.segments, events: result.events, hits: result.hits, mixes,
+    satisfied, solved, truncated: result.truncated,
+  };
+}
+
+/* ---------- Würfel (dim: 3) und Richtungen der Strahlregel ----------
+   Koordinaten x, y (Ebene, nach oben), z. Richtungen sind ganzzahlige Vektoren [dx, dy, dz] mit Werten −1, 0, 1,
+   ohne Raumdiagonalen: 6 Achsen und 12 Flächendiagonalen (DIRS3). Spiegelungen führen nie aus dieser Menge heraus.
+   Jedes Element dreht um eine feste Achse (axis 'x' | 'y' | 'z', Standard 'y') und wirkt in der Ebene senkrecht
+   dazu genau wie ein 2D-Element: rot bzw. dir zählt dort in 45°-Schritten (DIRS) über die Ebenenbasis u, v.
+   Achse y ist die 2D-Ebene (u = +x, v = +z). Ein Spiegel mit waagrechter Achse lenkt Licht zwischen die Ebenen.
+   Die Basis (u, a, v) ist rechtshändig: Die Darstellung dreht die 2D-Modelle damit in ihre Ebene.
+   Ein flaches Level ist ein Würfel mit einer Ebene (ADR 0003): y = 0, alle Achsen y, nur die ersten acht Richtungen.
+   Es läuft durch denselben Durchlauf (tracePass); nur die Ausgabe lässt y weg wie seit jeher. */
+const AXES = {
+  y: { a: [0, 1, 0], u: [1, 0, 0], v: [0, 0, 1] },
+  x: { a: [1, 0, 0], u: [0, 0, 1], v: [0, 1, 0] },
+  z: { a: [0, 0, 1], u: [1, 0, 0], v: [0, -1, 0] },
+};
+const MAX_SIZE_3D = 16; // Kantenlänge höchstens (die Schleifenerkennung in tracePass trüge bis 64)
+/** Halbe Spiegelhöhe in Rasterzellen (Rahmen 0.6 hoch, siehe makeMirror): dort endet ein Strahl längs der Drehachse. */
+const MIRROR_HALF_HEIGHT = 0.3 / 1.2;
+
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const unit3 = (d) => { const l = Math.hypot(d[0], d[1], d[2]); return [d[0] / l, d[1] / l, d[2] / l]; };
+
+/** Die 18 Richtungen [dx, dy, dz]: zuerst die acht der Ebene in der Reihenfolge von DIRS (ein flaches Level kennt nur
+ *  sie, mit derselben Nummer), dann die zehn mit Anteil in y. Ein Strahl trägt die Nummer (ray.dir). */
+const DIRS3 = DIRS.map(([dx, dz]) => [dx, 0, dz]);
+for (const dy of [1, -1]) for (const dx of [-1, 0, 1]) for (const dz of [-1, 0, 1]) {
+  if (dx * dx + dz * dz <= 1) DIRS3.push([dx, dy, dz]);
+}
+const DIR_OF_CODE = new Array(27).fill(-1);
+DIRS3.forEach((d, i) => { DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1] = i; });
+/** Nummer der Richtung d, −1 für eine Raumdiagonale oder den Nullvektor. */
+const dirOf = (d) => DIR_OF_CODE[(d[0] + 1) * 9 + (d[1] + 1) * 3 + d[2] + 1];
+/** Nummer der Richtung d; ist d keine der 18 Richtungen, ein Fehler (what: wessen Richtung). */
+function dirIndex(d, what) {
+  const i = dirOf(d);
+  if (!(i >= 0)) throw new Error(`${what} mit ungültiger Richtung ${JSON.stringify(d)}`);
+  return i;
+}
+/** Einheitsvektoren, eingefroren wie UNIT_DIRS; die acht der Ebene mit denselben Zahlen wie UNIT_DIRS. */
+const UNIT_DIRS3 = DIRS3.map((d, i) => Object.freeze(i < 8 ? [UNIT_DIRS[i][0], 0, UNIT_DIRS[i][1]] : unit3(d)));
+/** Schnittnormalen am Ende eines Abschnitts, der nicht an einem Spiegel endet: entgegen der Laufrichtung. */
+const BACK_DIRS = UNIT_DIRS.map(u => Object.freeze([-u[0], -u[1]]));
+const BACK_DIRS3 = UNIT_DIRS3.map(u => Object.freeze([-u[0], -u[1], -u[2]]));
+
+/**
+ * Richtungen in der Drehebene eines Elements, als Tabellen je Achse A (AXIS_IDS) und Richtung i = A · 18 + dir:
+ *   PLANE_K[i]  Richtung k (0 … 7, wie DIRS) des Anteils in der Drehebene, −1 wenn dir längs der Achse läuft
+ *   PLANE_A[i]  Anteil längs der Achse (−1, 0, 1); 0 heisst: dir liegt in der Drehebene, dann ist PLANE_K die Richtung
+ *   FROM_PLANE[(A · 3 + s + 1) · 8 + k]  Richtung aus k in der Ebene und Anteil s längs der Achse (−1: Raumdiagonale)
+ * Für Achse y und die acht Richtungen der Ebene ist das die Gleichheit: Ein flaches Level rechnet so wie in 2D.
+ */
+const AXIS_NAMES = ['y', 'x', 'z'], AXIS_IDS = { y: 0, x: 1, z: 2 };
+const PLANE_K = [], PLANE_A = [], FROM_PLANE = [];
+for (const name of AXIS_NAMES) {
+  const { a, u, v } = AXES[name];
+  for (const d of DIRS3) {
+    const du = dot3(d, u), dv = dot3(d, v);
+    PLANE_K.push(DIRS.findIndex(([x, z]) => x === du && z === dv));
+    PLANE_A.push(dot3(d, a));
+  }
+  for (const s of [-1, 0, 1]) for (const [du, dv] of DIRS) {
+    FROM_PLANE.push(dirOf([0, 1, 2].map(c => du * u[c] + dv * v[c] + s * a[c])));
+  }
+}
+/**
+ * Läuft ein Strahl parallel zur Spiegelfläche, endet er an der ersten Rahmenkante, die er erreicht: in der Drehebene
+ * an der Seitenkante (MIRROR_HALF_WIDTH, wie in 2D), längs der Achse an der Ober- oder Unterkante; schräg dazu (Anteil
+ * in der Ebene und längs der Achse, je 1/√2) an der näheren der beiden. Rückversatz von der Zellmitte je Richtung i.
+ */
+const MIRROR_EDGE = PLANE_A.map((s, i) => (s === 0 ? MIRROR_HALF_WIDTH : PLANE_K[i] < 0 ? MIRROR_HALF_HEIGHT
+  : Math.min(MIRROR_HALF_WIDTH, MIRROR_HALF_HEIGHT) * Math.SQRT2));
+
+/** Richtung k (0 … 7, wie DIRS) in der Drehebene eines Elements mit Achse axis. */
+function planeDir(axis, k) {
+  const [du, dv] = DIRS[mod8(k)], { u, v } = AXES[axis];
+  return [du * u[0] + dv * v[0], du * u[1] + dv * v[1], du * u[2] + dv * v[2]];
+}
+
+/** Gegenstück zu planeDir: Index k der Richtung d in der Drehebene, −1 wenn d aus der Ebene herauszeigt. */
+function planeIndex(axis, d) {
+  const { a, u, v } = AXES[axis];
+  if (dot3(d, a) !== 0) return -1;
+  const du = dot3(d, u), dv = dot3(d, v);
+  return DIRS.findIndex(([x, z]) => x === du && z === dv);
+}
+
+/** Vektor in der Drehebene der Achse mit Nummer A aus den Anteilen nu, nv der Ebenenbasis (etwa einer 2D-Normalen). */
+function inPlane(A, nu, nv) {
+  const { u, v } = AXES[AXIS_NAMES[A]];
+  return [nu * u[0] + nv * v[0], nu * u[1] + nv * v[1], nu * u[2] + nv * v[2]];
+}
+
+/**
+ * Spiegel im Würfel: Die Fläche enthält die Drehachse und die Ebenenrichtung rot. Der Anteil des Strahls in der
+ * Drehebene wird wie in 2D gespiegelt (reflectOnMirror), der Anteil längs der Achse bleibt. Läuft der Strahl parallel
+ * zur Fläche (Anteil in der Ebene parallel zur Spiegellinie oder null), trifft er die Rahmenkante: Rückgabe null.
+ * Dieselbe Regel rechnet tracePass über die Nummern der Richtungen. d ist eine der 18 Richtungen (DIRS3).
+ */
+function reflect3(d, axis, rot) {
+  const A = AXIS_IDS[axis], i = A * 18 + dirIndex(d, 'Spiegelung'), k = PLANE_K[i];
+  const nk = k < 0 ? k : reflectOnMirror(k, rot);
+  return nk === k ? null : DIRS3[FROM_PLANE[(A * 3 + PLANE_A[i] + 1) * 8 + nk]].slice();
+}
+
+/** Normale der Spiegelfläche (Einheitsvektor) auf der Seite des einfallenden Strahls: die 2D-Normale in der Drehebene. */
+function mirrorFrontNormal3(axis, rot, d) {
+  const A = AXIS_IDS[axis], k = PLANE_K[A * 18 + dirIndex(d, 'Spiegelnormale')];
+  // längs der Achse (k < 0) steht der Strahl senkrecht auf jeder Normalen der Fläche: dann die der Stellung
+  const n = k < 0 ? MIRROR_NORMALS[mod8(rot)] : mirrorFrontNormal(rot, k);
+  return inPlane(A, n[0], n[1]);
+}
+
+/** Prisma im Würfel: fächert in seiner Drehebene wie in 2D; Licht, das schräg zur Ebene einfällt, tritt nicht aus. */
+function refractInPrism3(d, color, axis, rot) {
+  const k = planeIndex(axis, d);
+  if (k < 0) return [];
+  return refractInPrism(k, color, rot).map(o => ({ d: planeDir(axis, o.dir), color: o.color }));
+}
+
+/**
+ * Spielzustand eines Würfel-Levels: wie createBoard, dazu Ebene y und Drehachse axis je Element. size ist die Kante der
+ * Grundfläche (x, z), height die Zahl der Ebenen (y; ohne Angabe size, ein Würfel). Die Würfel-Level sind 7 × 7 × 5.
+ */
+function createBoard3(level) {
+  const size = level.size || 5, height = level.height || size;
+  if (size > MAX_SIZE_3D || height > MAX_SIZE_3D) throw new Error(`Level "${level.name}": Würfel grösser als ${MAX_SIZE_3D}`);
+  const elements = level.elements.map((e, i) => {
+    if (!ELEMENT_TYPES.includes(e.type)) throw new Error(`Level "${level.name}": unbekannter Typ "${e.type}"`);
+    if (e.color && !COLORS[e.color]) throw new Error(`Level "${level.name}": unbekannte Farbe "${e.color}"`);
+    if (e.axis && !AXES[e.axis]) throw new Error(`Level "${level.name}": unbekannte Achse "${e.axis}"`);
+    return {
+      id: i,
+      type: e.type,
+      x: e.x,
+      y: e.y,
+      z: e.z,
+      axis: e.axis || 'y',
+      rot: mod8(e.rot || 0),
+      dir: mod8(e.dir || 0),
+      color: COLORS[e.color || 'white'],
+      fixed: !!e.fixed,
+    };
+  });
+  const grid = new Array(size * size * height).fill(null); // Index (y · size + z) · size + x
+  for (const el of elements) {
+    const key = el.x + ',' + el.y + ',' + el.z;
+    if (el.y === undefined) throw new Error(`Level "${level.name}": Element ${el.x},?,${el.z} ohne Ebene y`);
+    if (![el.x, el.y, el.z].every((c, k) => Number.isInteger(c) && c >= 0 && c < (k === 1 ? height : size))) throw new Error(`Level "${level.name}": ${key} ausserhalb`);
+    const i = (el.y * size + el.z) * size + el.x;
+    if (grid[i]) throw new Error(`Level "${level.name}": Zelle ${key} doppelt belegt`);
+    grid[i] = el;
+  }
+  return { dim: 3, size, height, elements, grid, name: level.name };
+}
+
+/**
+ * Tabellen für tracePass, einmal aus denselben Regeln berechnet statt bei jedem Treffer (wie MIRROR_NORMALS), je
+ * Achse A, Stellung r (0 … 7) und Richtung dir; die Einträge sind eingefroren, weil Strahlen sie teilen:
+ *   MIRROR_FRONT[r · 8 + k]              mirrorFrontNormal(r, k) für k in der Ebene (flach)
+ *   MIRROR_FRONT3[(A · 8 + r) · 8 + k]   dieselbe Normale in der Drehebene der Achse A (Würfel, mirrorFrontNormal3)
+ *   PRISM_OUT[((A · 8 + r) · 18 + dir) · 8 + Farbe]  austretende Strahlen [{ dir, color }] aus refractInPrism in der
+ *                                       Drehebene; leer, wenn das Licht schräg zur Ebene einfällt (refractInPrism3)
+ * Die Spiegelung selbst rechnet tracePass bei jedem Treffer mit reflectOnMirror (die Gegenprobe des Golden-Tests
+ * verändert sie).
+ */
+const MIRROR_FRONT = [], MIRROR_FRONT3 = [], PRISM_OUT = [];
+for (let r = 0; r < 8; r++) for (let k = 0; k < 8; k++) MIRROR_FRONT.push(Object.freeze(mirrorFrontNormal(r, k)));
+for (let A = 0; A < 3; A++) for (let r = 0; r < 8; r++) {
+  for (let k = 0; k < 8; k++) { const n = MIRROR_FRONT[r * 8 + k]; MIRROR_FRONT3.push(Object.freeze(inPlane(A, n[0], n[1]))); }
+  for (let dir = 0; dir < 18; dir++) for (let color = 0; color < 8; color++) {
+    const i = A * 18 + dir;
+    const outs = PLANE_A[i] === 0 ? refractInPrism(PLANE_K[i], color, r) : [];
+    PRISM_OUT.push(Object.freeze(outs.map(o => Object.freeze({ dir: FROM_PLANE[(A * 3 + 1) * 8 + o.dir], color: o.color }))));
+  }
+}
+
+/**
+ * Ein Durchlauf der Strahlverfolgung mit festen Kombinator-Ausgaben, für flache Level und Würfel. Ein flaches Brett
+ * ist ein Würfel mit einer Ebene: y = 0, Drehachse y, Raster (z · size + x) wie die unterste Ebene des Würfels.
+ * Segmente, Ereignisse und Normalen eines flachen Bretts haben kein y (siehe traceBeams). extraRays: flach
+ * { x, z, dir, color }, im Würfel { x, y, z, d: [dx, dy, dz], color } mit einer der 18 Richtungen, sonst ein Fehler.
+ * Trifft er auf ein Element mit offener Stellung (OPEN, nur beim Löser), hält er an und gibt { open, paused } zurück:
+ * paused ist sein Zustand an dieser Stelle. Mit from = paused macht ein späterer Durchlauf dort weiter, auf einer
+ * Kopie (der Löser setzt von dort aus jede Stellung).
+ */
+function tracePass(board, extraRays, emitting, from) {
+  const cube = board.dim === 3, S = board.size, H = board.height;
+  const units = cube ? UNIT_DIRS3 : UNIT_DIRS, backs = cube ? BACK_DIRS3 : BACK_DIRS;
+  const segments = from ? from.segments.slice() : [];
+  const events = from ? from.events.slice() : [];
+  const hits = from ? new Map(from.hits) : new Map();
+  const combinerInputs = new Map();
+  if (from) for (const [id, v] of from.combinerInputs) combinerInputs.set(id, { color: v.color, dist: v.dist, first: v.first.slice() });
+  // (Zelle, Richtung, Farbe): derselbe Strahl läuft nur einmal. Ein Feld ist bei so wenigen Strahlen schneller als ein
+  // Set; MAX_SEGMENTS begrenzt seine Länge.
+  const seen = from ? from.seen.slice() : [];
+  const queue = from ? from.queue.slice() : [];
+  let truncated = from ? from.truncated : false;
+  // Anhalten am offenen Element: beim Abschicken der Startstrahlen (start: Index des Elements, head -1) oder im Strahl
+  // queue[head] in der Zelle (cx, cy, cz) des Elements
+  const pause = (open, start, head, cx, cy, cz) =>
+    ({ open, paused: { segments, events, hits, combinerInputs, seen, queue, truncated, start, head, cx, cy, cz } });
+
+  // Einziger Weg, einen Strahl abzuschicken: hier greifen Schleifen- und Abprallschutz für alle Elemente.
+  const pushRay = (ray) => {
+    if (ray.color === 0) return; // kein Licht mehr übrig
+    // Strahlen starten in Zellen (ganzzahlig, Kantenlänge ≤ 64)
+    const key = (((ray.y * 64 + ray.x) * 64 + ray.z) * 18 + ray.dir) * 8 + ray.color;
+    // Schon unterwegs: zwei Strahlen laufen zusammen oder eine Schleife schliesst sich. Die Fortsetzung
+    // wäre identisch, es geht also nichts verloren – kein Abbruch, das Ergebnis bleibt exakt.
+    if (seen.includes(key)) return;
+    if (ray.bounces > MAX_BOUNCES) { truncated = true; return; }
+    seen.push(key);
+    queue.push(ray);
+  };
+  // Startstrahl eines Elements (Quelle, Ausgang eines Kombinators): dir zählt in seiner Drehebene
+  const emitter = (el, color, dist) => {
+    const dir = cube ? FROM_PLANE[(AXIS_IDS[el.axis] * 3 + 1) * 8 + el.dir] : el.dir;
+    pushRay({ x: el.x, y: cube ? el.y : 0, z: el.z, dir, color, dist, bounces: 0, n0: units[dir] });
+  };
+
+  if (!from || from.head < 0) {
+    const els = board.elements;
+    for (let i = from ? from.start : 0; i < els.length; i++) {
+      const el = els[i];
+      if (el.type === 'source') emitter(el, el.color, 0);
+      if (el.type === 'combiner' && emitting.has(el.id)) {
+        if (el.dir === OPEN) return pause(el, i, -1);
+        const e = emitting.get(el.id);
+        emitter(el, e.color, e.dist);
+      }
+    }
+    for (const r of extraRays) {
+      if (!cube) { pushRay({ y: 0, dist: 0, bounces: 0, n0: unitDir(r.dir), ...r, dir: mod8(r.dir) }); continue; }
+      const dir = dirIndex(r.d, 'Startstrahl');
+      pushRay({ dist: 0, bounces: 0, n0: UNIT_DIRS3[dir], ...r, dir });
+    }
+  }
+
+  // Die Schleife läuft beim Lösen millionenfach: bewusst ohne Destrukturierung, Objekt-Spread und Math.hypot, die hier
+  // messbar langsamer sind.
+  for (let head = from && from.head >= 0 ? from.head : 0; head < queue.length; head++) {
+    if (segments.length >= MAX_SEGMENTS) { truncated = true; break; }
+    const ray = queue[head];
+    const step = DIRS3[ray.dir], dx = step[0], dy = step[1], dz = step[2];
+    let cx = ray.x, cy = ray.y, cz = ray.z;
+    // Weitermachen am angehaltenen Element: eine Zelle davor beginnen, der erste Schritt trifft es (dazwischen ist leer)
+    if (from && head === from.head) { cx = from.cx - dx; cy = from.cy - dy; cz = from.cz - dz; }
+
+    const ahead = UNIT_DIRS3[ray.dir];
+    // Abschnitt bis (x1, y1, z1); im flachen Feld ist y überall 0 und fehlt in der Ausgabe
+    const emit = (x1, y1, z1, n1 = backs[ray.dir], fade) => {
+      const lx = x1 - ray.x, ly = y1 - ray.y, lz = z1 - ray.z;
+      const length = Math.sqrt(lx * lx + ly * ly + lz * lz);
+      if (length > 1e-6) {
+        const seg = cube
+          ? { x0: ray.x, y0: ray.y, z0: ray.z, x1, y1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 }
+          : { x0: ray.x, z0: ray.z, x1, z1, color: ray.color, dist0: ray.dist, length, n0: ray.n0, n1 };
+        if (fade) seg.fade = fade;
+        segments.push(seg);
+      }
+      return ray.dist + length;
+    };
+    const next = (dir, color, d) =>
+      pushRay({ x: cx, y: cy, z: cz, dir, color, dist: d, bounces: ray.bounces + 1, n0: units[dir] });
+    // Licht endet an der Vorderseite eines Körpers, back vor der Zellmitte
+    const absorbAt = (back, el) => {
+      const x = cx - ahead[0] * back, y = cy - ahead[1] * back, z = cz - ahead[2] * back;
+      const d = emit(x, y, z);
+      events.push(cube ? { x, y, z, color: ray.color, kind: 'absorb', dist: d, element: el.id }
+        : { x, z, color: ray.color, kind: 'absorb', dist: d, element: el.id });
+    };
+
+    for (;;) {
+      const nx = cx + dx, ny = cy + dy, nz = cz + dz;
+      if (dy < 0 && ny < 0) {
+        // Würfel: nach unten endet der Strahl auf der Plattform (Oberkante eine halbe Zelle unter der untersten Ebene)
+        const fx = cx + dx * 0.5, fy = cy - 0.5, fz = cz + dz * 0.5;
+        const d = emit(fx, fy, fz);
+        events.push({ x: fx, y: fy, z: fz, color: ray.color, kind: 'floor', dist: d });
+        break;
+      }
+      if (nx < 0 || nz < 0 || nx >= S || nz >= S || (dy !== 0 && ny >= H)) {
+        // über die Feldkante hinaus in die Ferne laufen lassen; dort blendet der Shader den Strahl weich aus
+        const ex = cx + dx * 0.5 + ahead[0] * EDGE_RUN, ey = cy + dy * 0.5 + ahead[1] * EDGE_RUN;
+        const ez = cz + dz * 0.5 + ahead[2] * EDGE_RUN;
+        const d = emit(ex, ey, ez, undefined, EDGE_RUN);
+        events.push(cube ? { x: ex, y: ey, z: ez, color: ray.color, kind: 'edge', dist: d }
+          : { x: ex, z: ez, color: ray.color, kind: 'edge', dist: d });
+        break;
+      }
+      cx = nx; cy = ny; cz = nz;
+      const el = board.grid[(cy * S + cz) * S + cx];
+      if (!el) continue;
+
+      if (el.type === 'mirror') {
+        if (el.rot === OPEN) return pause(el, 0, head, cx, cy, cz);
+        // Der Anteil in der Drehebene spiegelt wie in 2D, der Anteil längs der Achse bleibt (reflect3)
+        const A = cube ? AXIS_IDS[el.axis] : 0, i = A * 18 + ray.dir, k = PLANE_K[i];
+        const nk = k < 0 ? k : reflectOnMirror(k, el.rot);
+        if (nk === k) {
+          // Parallel zur Fläche: Der Strahl trifft die Rahmenkante und wird geschluckt.
+          absorbAt(MIRROR_EDGE[i], el);
+          break;
+        }
+        const r = el.rot & 7, normal = cube ? MIRROR_FRONT3[(A * 8 + r) * 8 + k] : MIRROR_FRONT[r * 8 + k];
+        const d = emit(cx, cy, cz, normal);
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'reflect', dist: d, normal }
+          : { x: cx, z: cz, color: ray.color, kind: 'reflect', dist: d, normal });
+        const nd = FROM_PLANE[(A * 3 + PLANE_A[i] + 1) * 8 + nk];
+        pushRay({ x: cx, y: cy, z: cz, dir: nd, color: ray.color, dist: d, bounces: ray.bounces + 1, n0: normal });
+        break;
+      }
+
+      if (el.type === 'prism') {
+        if (el.rot === OPEN) return pause(el, 0, head, cx, cy, cz);
+        const d = emit(cx, cy, cz);
+        // fächert in seiner Drehebene wie in 2D; schräg zur Ebene tritt kein Licht aus (refractInPrism3)
+        const A = cube ? AXIS_IDS[el.axis] : 0;
+        const outs = PRISM_OUT[((A * 8 + (el.rot & 7)) * 18 + ray.dir) * 8 + ray.color];
+        const kind = outs.length ? 'refract' : 'absorb';
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind, dist: d, element: el.id }
+          : { x: cx, z: cz, color: ray.color, kind, dist: d, element: el.id });
+        for (let o = 0; o < outs.length; o++) next(outs[o].dir, outs[o].color, d);
+        break;
+      }
+
+      if (el.type === 'filter') {
+        const d = emit(cx, cy, cz);
+        const passed = ray.color & el.color, color = passed || ray.color, kind = passed ? 'filter' : 'absorb';
+        events.push(cube ? { x: cx, y: cy, z: cz, color, kind, dist: d, element: el.id }
+          : { x: cx, z: cz, color, kind, dist: d, element: el.id });
+        next(ray.dir, passed, d); // Farbe 0 wird in pushRay verworfen
+        break;
+      }
+
+      if (el.type === 'combiner') {
+        const d = emit(cx, cy, cz);
+        // Ausgang startet, sobald jede beteiligte Grundfarbe erstmals da ist: späteste der frühesten
+        // Ankünfte je Grundfarbe – so verzögern Rückkopplungen über den eigenen Ausgang nichts.
+        // first[b]: früheste Ankunft der Grundfarbe 1 << b (Rot, Grün, Blau)
+        let inp = combinerInputs.get(el.id);
+        if (!inp) combinerInputs.set(el.id, inp = { color: 0, dist: 0, first: [Infinity, Infinity, Infinity] });
+        inp.color |= ray.color;
+        let dist = -Infinity;
+        for (let b = 0; b < 3; b++) {
+          if (ray.color >> b & 1 && d < inp.first[b]) inp.first[b] = d;
+          if (inp.color >> b & 1 && inp.first[b] > dist) dist = inp.first[b];
+        }
+        inp.dist = dist;
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id }
+          : { x: cx, z: cz, color: ray.color, kind: 'merge', dist: d, element: el.id });
+        break;
+      }
+
+      if (el.type === 'target') {
+        const d = emit(cx, cy, cz);
+        hits.set(el.id, (hits.get(el.id) || 0) | ray.color);
+        events.push(cube ? { x: cx, y: cy, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id }
+          : { x: cx, z: cz, color: ray.color, kind: 'hit', dist: d, target: el.id });
+        break;
+      }
+
+      absorbAt(0.32, el); // Quelle und Blocker schlucken das Licht an ihrer Vorderseite.
+      break;
+    }
+  }
+  return { segments, events, hits, combinerInputs, truncated };
+}
+const LEVELS = [
+  {
+    // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
+    name: 'Erstes Licht', tutorial: true,
+    hint: 'Ziel: Jeder Kristall muss in seiner Farbe leuchten. {Klick} dreht den Spiegel.',
+    elements: [
+      { type: 'source', x: 0, z: 3, dir: 0 },
+      { type: 'mirror', x: 4, z: 3, rot: 2 },
+      { type: 'target', x: 4, z: 0, color: 'white' },
+    ],
+    solution: { '4,3': 3 },
+  },
+  {
+    // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
+    name: 'Umweg', tutorial: true,
+    hint: 'Runder Teller mit weissem Ring: drehbar. Eckiger Sockel mit rotem Rand: fest. {Rechtsklick} dreht zurück.',
+    elements: [
+      { type: 'source', x: 0, z: 5, dir: 0 },
+      { type: 'mirror', x: 3, z: 5, rot: 1 },
+      { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 1, rot: 0 },
+      { type: 'target', x: 5, z: 4, color: 'white' },
+    ],
+    solution: { '3,5': 3, '5,1': 1 },
+  },
+];
+
+/* ---------- Katalog ---------- */
+const W = 7;
+const IST_TOUCH = matchMedia('(pointer: coarse)').matches;
+let geraet = IST_TOUCH ? 'touch' : 'maus';
+const T = (touch, maus) => ({ touch, maus });
+const satzText = (s) => typeof s === 'string' ? s : s[geraet];
+
+/** Schritte je Übung. art: erkl (reine Erklärung) | tat (wartet auf eine Handlung). ziel: Zellen "x,z". */
+const SCHRITTE = {
+  'Erstes Licht': [
+    { art: 'erkl', ziel: ['4,0'], text: 'Bring das Licht zum Kristall, dann leuchtet er.' },
+    { art: 'tat', warte: 'drehen', ziel: ['4,3'], geste: 'tippen',
+      text: T('Tippe den Spiegel an, so dreht er sich.', 'Klicke den Spiegel an, so dreht er sich.') },
+  ],
+  'Umweg': [
+    { art: 'tat', warte: 'antippen', ziel: ['3,1'], geste: 'tippen',
+      text: T('Tippe den Spiegel auf dem eckigen Sockel an.', 'Klicke den Spiegel auf dem eckigen Sockel an.') },
+    { art: 'erkl', ziel: ['3,5', '5,1', '3,1'], text: 'Rund lässt sich drehen, eckig nicht.' },
+    { art: 'tat', warte: 'zurueck', ziel: ['3,5'], geste: 'halten',
+      text: T('Lang drücken dreht einen Spiegel zurück, probier es hier.', 'Rechtsklick dreht einen Spiegel zurück, probier es hier.') },
+  ],
+};
+/** Zweite Startstellung für «Umweg» (Vorschlag): vorderer Spiegel eine Stufe zu weit, Zurückdrehen ist der kurze Weg. */
+const VORSCHLAG_UMWEG = { '3,5': 4, '5,1': 0 };
+
+const RICHTUNGEN = [
+  {
+    id: 'A', name: 'Leise Zeichen', streng: false, hervor: 'puls', finger: false, textort: 'unten', erkl: 'zeit', erklMs: 4000,
+    achsen: ['frei: alles reagiert immer', 'weiches Pulsieren eines Lichtrings um das Element', 'keiner', 'Band unter dem Brett', 'von selbst nach 4 s (dünner Balken zeigt die Zeit)', 'der Ring pulsiert schneller und heller'],
+    idee: 'So wenig wie möglich: Ein Lichtring pulsiert um das gemeinte Element, der Satz steht ruhig unter dem Brett. Nichts hält den Spieler auf, nichts deckt das Brett ab.',
+    plus: ['Stört am wenigsten, das Brett bleibt ganz sichtbar.', 'Passt zur ruhigen Art des Spiels und zu Monument Valley.', 'Am einfachsten zu bauen.'],
+    minus: ['Langes Drücken muss allein der Satz erklären.', 'Auf dem Handy ist das Band unter dem Brett weit vom Daumen und leicht zu übersehen.', 'Wer langsam liest, verpasst die Erklärung nach 4 s.'],
+  },
+  {
+    id: 'B', name: 'Scheinwerfer', streng: true, hervor: 'licht', finger: 'immer', textort: 'blase', erkl: 'tippen',
+    achsen: ['streng: nur das markierte Element reagiert (Knöpfe bleiben frei)', 'Brett abgedunkelt, Lichtkegel aufs Element', 'Finger zeigt die Geste, solange der Schritt läuft', 'Blase am Element', 'Tippen irgendwohin (› blinkt)', 'Lichtkegel zieht sich zusammen, Finger tippt erneut'],
+    idee: 'Der klare Weg: Das Brett dunkelt ab, nur das gemeinte Element liegt im Licht, ein Finger tippt darauf, der Satz steht als Blase daneben. Andere Elemente reagieren nicht, bis die Schritte durch sind.',
+    plus: ['Niemand kann sich verirren, jeder Schritt gelingt beim ersten Versuch.', 'Sehr deutlich auf kleinem Bildschirm.', 'Das Wackeln wird sicher gesehen.'],
+    minus: ['Bevormundend: Wer nur tippt, was leuchtet, lernt wenig (Giant-Bomb-Kritik).', 'Abgedunkelt sieht man den Strahl schlecht, gerade den Gedanken des Spiels.', 'Eigenes Probieren kommt erst nach den Schritten.'],
+  },
+  {
+    id: 'C', name: 'Vorzeigen', streng: false, hervor: 'umriss', finger: 'einmal', textort: 'kopf', erkl: 'knopf',
+    achsen: ['frei: alles reagiert immer', 'laufender gestrichelter Umriss', 'eine Hand zeigt die Geste einmal vor, dann nur beim Fingerzeig', 'Kopfzeile, wo heute der Hinweis steht', 'Knopf «Weiter» am Satz', 'die Hand zeigt die nötige Geste am nächsten Element'],
+    idee: 'Zeigen statt sagen: Zu Beginn eines Schritts macht eine halbdurchsichtige Hand die Geste einmal am Element vor (Tippen oder langes Drücken mit wachsendem Ring) und verschwindet. Ein laufender Umriss bleibt, der Satz steht oben in der Kopfzeile.',
+    plus: ['Erklärt langes Drücken ohne Worte, auf Handy und Desktop gleich.', 'Alles bleibt frei, Probieren lohnt sich.', 'Text an gewohnter Stelle, Brett frei bis auf den Umriss.'],
+    minus: ['Kopfzeile ist auf dem Handy weit vom Brett.', 'Der Knopf «Weiter» kostet ein zusätzliches Tippen.', 'Hand und Umriss zusammen sind mehr Grafik als A.'],
+  },
+  {
+    id: 'D', name: 'Schild am Element', streng: false, hervor: 'pfeil', finger: 'symbol', textort: 'schild', erkl: 'beides', erklMs: 5000,
+    achsen: ['frei: alles reagiert immer', 'hüpfender Pfeil über dem Element', 'kein Finger, ein kleines Gestensymbol im Schild', 'Schild direkt am Element', 'Tippen aufs Schild oder nach 5 s', 'Pfeil hüpft schneller, Schild mit Symbol am nächsten Element'],
+    idee: 'Der Satz hängt wie ein kleines Holzschild direkt am Element, ein Pfeil hüpft darüber. Statt einer Hand zeigt ein Symbol im Schild die Geste (Tippen oder Halten). Blick und Daumen bleiben am selben Ort.',
+    plus: ['Text, Ziel und Geste an einem Ort, kurze Blickwege auf dem Handy.', 'Frei, ohne Abdunkeln, der Strahl bleibt sichtbar.', 'Erklärung lässt sich weg tippen oder läuft von selbst ab.'],
+    minus: ['Das Schild deckt Teile des Bretts ab.', 'Ein Symbol erklärt langes Drücken schlechter als eine vorgemachte Geste.', 'Platzierung neben dem Element muss im echten 3D-Spiel mitwandern.'],
+  },
+];
+
+const zelle = (el) => el.x + ',' + el.z;
+const istFest = (el) => !isRotatable(el);
+const svgNS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs = {}, eltern) => {
+  const n = document.createElementNS(svgNS, tag);
+  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+  if (eltern) eltern.appendChild(n);
+  return n;
+};
+const FARBE = { 1: '#ff6b6b', 2: '#6bdc7a', 3: '#ffe36b', 4: '#6ba8ff', 5: '#ff6bf0', 6: '#6bf0ff', 7: '#ffe7a3' };
+
+class Uebung {
+  constructor(wurzel, r) {
+    this.r = r; this.wurzel = wurzel;
+    this.level = 0; this.vorschlag = false;
+    this.baueGeruest();
+    this.start();
+    setInterval(() => this.tick(), 200);
+  }
+
+  baueGeruest() {
+    const w = this.wurzel;
+    w.innerHTML = `
+      <div class="reiter" role="group" aria-label="Übung">
+        <button type="button" data-l="0">Erstes Licht</button><button type="button" data-l="1">Umweg</button>
+      </div>
+      <div class="schirm">
+        <div class="kopf"><div class="titel"><span class="uname"></span><span class="unr"></span></div>
+          ${this.r.textort === 'kopf' ? '<div class="satz"></div>' : ''}</div>
+        <div class="brettrahmen"></div>
+        ${this.r.textort === 'unten' ? '<div class="band"><div class="satz"></div><div class="uhr"><i></i></div></div>' : ''}
+      </div>
+      <div class="leiste">
+        <button type="button" class="neu">Neu beginnen</button>
+        <button type="button" class="vor">15 s vorspulen</button>
+        <label class="vorschlag-wahl leise" style="font-size:var(--s0);display:none"><input type="checkbox"> Umweg: Startstellung Vorschlag</label>
+      </div>
+      <div class="zustand" aria-live="polite"></div>`;
+    w.querySelectorAll('[data-l]').forEach(b => b.addEventListener('click', () => { this.level = +b.dataset.l; this.start(); }));
+    w.querySelector('.neu').addEventListener('click', () => this.start());
+    w.querySelector('.vor').addEventListener('click', () => { this.ruheSeit -= 15000; this.tick(); });
+    const cb = w.querySelector('.vorschlag-wahl input');
+    cb.addEventListener('change', () => { this.vorschlag = cb.checked; this.start(); });
+    this.rahmen = w.querySelector('.brettrahmen');
+    this.zustandEl = w.querySelector('.zustand');
+  }
+
+  start() {
+    const L = LEVELS[this.level];
+    const def = this.level === 1 && this.vorschlag
+      ? { ...L, elements: L.elements.map(e => (VORSCHLAG_UMWEG[zelle(e)] !== undefined ? { ...e, rot: VORSCHLAG_UMWEG[zelle(e)] } : e)) }
+      : L;
+    this.L = L;
+    this.board = createBoard(def);
+    this.winkel = new Map(this.board.elements.map(e => [e.id, e.rot * 45]));
+    this.schritte = SCHRITTE[L.name];
+    this.schritt = 0; this.geloest = false; this.zeigeFinger = this.r.finger === 'einmal';
+    this.schrittSeit = this.ruheSeit = performance.now();
+    this.letzteAktion = '–';
+    this.wurzel.querySelectorAll('[data-l]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.l === this.level)));
+    this.wurzel.querySelector('.uname').textContent = L.name;
+    this.wurzel.querySelector('.unr').textContent = `Übung ${this.level + 1} / 9`;
+    this.wurzel.querySelector('.vorschlag-wahl').style.display = this.level === 1 ? '' : 'none';
+    this.baueBrett();
+    this.zeichne(true);
+  }
+
+  el(c) { return this.board.elements.find(e => zelle(e) === c); }
+  aktiv() { return this.geloest ? null : this.schritte[this.schritt] || null; }
+  inLoesung(el) { return this.L.solution[zelle(el)] === undefined || mod8(el.rot) === this.L.solution[zelle(el)]; }
+
+  baueBrett() {
+    this.rahmen.innerHTML = '';
+    const svg = this.svg = mk('svg', { class: 'brett', viewBox: '-0.15 -0.15 7.3 7.3', role: 'img', 'aria-label': `Brett ${this.L.name}` }, this.rahmen);
+    const defs = mk('defs', {}, svg);
+    const f = mk('filter', { id: `glow-${this.r.id}`, x: '-1', y: '-1', width: '3', height: '3' }, defs);
+    mk('feGaussianBlur', { stdDeviation: '0.06', result: 'b' }, f);
+    const m = mk('feMerge', {}, f); mk('feMergeNode', { in: 'b' }, m); mk('feMergeNode', { in: 'SourceGraphic' }, m);
+    this.defs = defs;
+    mk('rect', { x: -0.15, y: -0.15, width: 7.3, height: 7.3, rx: 0.3, fill: 'var(--brett)' }, svg);
+    for (let i = 1; i < W; i++) {
+      mk('line', { x1: i, y1: 0, x2: i, y2: W, stroke: 'var(--brett-linie)', 'stroke-width': 0.02 }, svg);
+      mk('line', { x1: 0, y1: i, x2: W, y2: i, stroke: 'var(--brett-linie)', 'stroke-width': 0.02 }, svg);
+    }
+    this.strahlen = mk('g', { filter: `url(#glow-${this.r.id})` }, svg);
+    this.teile = new Map();
+    const elemente = mk('g', {}, svg);
+    for (const el of this.board.elements) {
+      const g = mk('g', { transform: `translate(${el.x + 0.5} ${el.z + 0.5})`, 'data-zelle': zelle(el) }, elemente);
+      const innen = mk('g', {}, g);
+      let sockel;
+      if (istFest(el)) sockel = mk('rect', { x: -0.4, y: -0.4, width: 0.8, height: 0.8, rx: 0.08, fill: 'var(--sockel)', stroke: 'var(--fest)', 'stroke-width': 0.05 }, innen);
+      else sockel = mk('circle', { r: 0.4, fill: 'var(--sockel)', stroke: 'var(--ring)', 'stroke-width': 0.05 }, innen);
+      const dreh = mk('g', {}, innen);
+      dreh.style.transition = 'transform .2s ease-out';
+      if (el.type === 'mirror') {
+        mk('line', { x1: -0.38, y1: 0, x2: 0.38, y2: 0, stroke: '#7e8ea3', 'stroke-width': 0.14, 'stroke-linecap': 'round' }, dreh);
+        mk('line', { x1: -0.36, y1: -0.02, x2: 0.36, y2: -0.02, stroke: 'var(--spiegel)', 'stroke-width': 0.06, 'stroke-linecap': 'round' }, dreh);
+      } else if (el.type === 'source') {
+        mk('circle', { r: 0.17, fill: '#ffe7a3' }, dreh);
+        mk('path', { d: 'M0.2 -0.12 L0.36 0 L0.2 0.12 Z', fill: '#ffe7a3' }, dreh);
+      } else if (el.type === 'target') {
+        mk('path', { class: 'kristall', d: 'M0 -0.28 L0.2 0 L0 0.28 L-0.2 0 Z', fill: 'rgba(255,255,255,.15)', stroke: FARBE[el.color], 'stroke-width': 0.04 }, dreh);
+      }
+      this.teile.set(el.id, { g, innen, sockel, dreh });
+    }
+    this.marken = mk('g', { 'pointer-events': 'none' }, svg);
+    this.huelle = mk('g', { 'pointer-events': 'none' }, svg);
+    this.fingerG = mk('g', { 'pointer-events': 'none' }, svg);
+    this.bindeEingabe();
+  }
+
+  /* Eingabe: Tippen/Klick dreht vor, langes Drücken (450 ms wie im Spiel) und Rechtsklick drehen zurück. */
+  bindeEingabe() {
+    const svg = this.svg;
+    const elementAn = (e) => {
+      const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+      const q = p.matrixTransform(svg.getScreenCTM().inverse());
+      const x = Math.floor(q.x), z = Math.floor(q.y);
+      return this.board.grid[z * W + x] || null;
+    };
+    let druck = null, letzteLang = 0;
+    svg.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) return;
+      const el = elementAn(e);
+      druck = { el, x: e.clientX, y: e.clientY, lang: false };
+      druck.t = setTimeout(() => { if (!druck) return; druck.lang = true; letzteLang = performance.now(); this.aktion(el, 'zurueck'); }, 450);
+    });
+    svg.addEventListener('pointermove', (e) => {
+      if (druck && Math.hypot(e.clientX - druck.x, e.clientY - druck.y) > 12) { clearTimeout(druck.t); druck = null; }
+    });
+    const ende = (e, gilt) => {
+      if (!druck) return;
+      clearTimeout(druck.t);
+      if (gilt && !druck.lang) this.aktion(druck.el, 'tippen');
+      druck = null;
+    };
+    svg.addEventListener('pointerup', (e) => ende(e, true));
+    svg.addEventListener('pointercancel', (e) => ende(e, false));
+    svg.addEventListener('pointerleave', (e) => ende(e, false));
+    svg.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (druck) { // Touch: das Kontextmenü kann vor oder nach den 450 ms kommen
+        if (!druck.lang) { clearTimeout(druck.t); druck.lang = true; letzteLang = performance.now(); this.aktion(druck.el, 'zurueck'); }
+        return;
+      }
+      if (performance.now() - letzteLang < 1000) return;
+      this.aktion(elementAn(e), 'zurueck');
+    });
+  }
+
+  aktion(el, art) {
+    this.letzteAktion = `${art === 'tippen' ? 'Tippen' : 'Zurück'} auf ${el ? (istFest(el) ? 'festes ' : 'drehbares ') + el.type + ' ' + zelle(el) : 'leeres Feld'}`;
+    if (this.geloest) { if (el && istFest(el)) this.wackeln(el); this.zeichne(); return; }
+    const s = this.aktiv();
+    if (s && s.art === 'erkl' && this.r.erkl === 'tippen') { this.weiter(); return; }
+    if (this.r.streng && s && !s.ziel.includes(el && zelle(el))) { this.zeichne(); return; }
+    if (!el) { this.zeichne(); return; }
+    if (istFest(el)) {
+      this.wackeln(el);
+      if (s && s.warte === 'antippen' && s.ziel.includes(zelle(el))) this.weiter();
+      this.zeichne();
+      return;
+    }
+    const vorher = this.inLoesung(el);
+    const d = art === 'tippen' ? 1 : -1;
+    el.rot = mod8(el.rot + d);
+    this.winkel.set(el.id, this.winkel.get(el.id) + d * 45);
+    if (!vorher && this.inLoesung(el)) this.ruheSeit = performance.now();
+    if (s && s.art === 'tat' && s.ziel.includes(zelle(el))) {
+      if (s.warte === 'drehen') this.weiter();
+      else if (s.warte === 'zurueck' && (d < 0 || this.inLoesung(el))) this.weiter();
+    }
+    if (traceBeams(this.board).solved) { this.geloest = true; this.ruheSeit = performance.now(); }
+    this.zeichne();
+  }
+
+  weiter() {
+    this.schritt++;
+    this.schrittSeit = this.ruheSeit = performance.now();
+    this.zeigeFinger = this.r.finger === 'einmal';
+    this.zeichne(true);
+  }
+
+  wackeln(el) {
+    const t = this.teile.get(el.id);
+    t.innen.classList.remove('wackeln'); t.sockel.classList.remove('blitz');
+    void t.innen.getBoundingClientRect();
+    t.innen.classList.add('wackeln'); t.sockel.classList.add('blitz');
+    clearTimeout(t.wt); t.wt = setTimeout(() => { t.innen.classList.remove('wackeln'); t.sockel.classList.remove('blitz'); }, 600);
+  }
+
+  /** Spät: seit 15 s kein Fortschritt (Schrittwechsel oder Element in Lösungsstellung). */
+  spaet() { return !this.geloest && performance.now() - this.ruheSeit >= 15000; }
+
+  /** Element für den späten Fingerzeig: Ziel des laufenden Auftrags, sonst das nächste drehbare ausserhalb der Lösung. */
+  fingerzeigZiel() {
+    const s = this.aktiv();
+    if (s && s.art === 'tat') return { zellen: s.ziel, geste: s.geste };
+    if (s && s.art === 'erkl') return { weiter: true, zellen: s.ziel };
+    for (const k of Object.keys(this.L.solution)) {
+      const el = this.el(k);
+      if (!this.inLoesung(el)) {
+        const vor = mod8(this.L.solution[k] - el.rot), zur = mod8(el.rot - this.L.solution[k]);
+        return { zellen: [k], geste: zur < vor ? 'halten' : 'tippen' };
+      }
+    }
+    return null;
+  }
+
+  tick() {
+    const s = this.aktiv();
+    if (s && s.art === 'erkl' && this.r.erklMs) {
+      const anteil = (performance.now() - this.schrittSeit) / this.r.erklMs;
+      const uhr = this.wurzel.querySelector('.uhr i');
+      if (uhr) uhr.style.width = Math.min(100, anteil * 100) + '%';
+      if (anteil >= 1) { this.weiter(); return; }
+    } else {
+      const uhr = this.wurzel.querySelector('.uhr i'); if (uhr) uhr.style.width = '0';
+    }
+    const sp = this.spaet();
+    if (sp !== this.warSpaet) { this.warSpaet = sp; this.zeichne(); }
+    this.zustand();
+  }
+
+  zustand() {
+    const s = this.aktiv(), n = this.schritte.length;
+    let t;
+    if (this.geloest) t = 'Gelöst.';
+    else if (s) t = `Schritt ${this.schritt + 1} / ${n} · wartet auf: ${s.art === 'erkl' ? { zeit: 'Zeit', tippen: 'Tippen irgendwohin', knopf: 'Knopf «Weiter»', beides: 'Tippen aufs Schild oder Zeit' }[this.r.erkl] : { antippen: 'festen Spiegel antippen', drehen: 'Spiegel drehen', zurueck: 'Zurückdrehen' }[s.warte]}`;
+    else t = 'Schritte durch, alles frei bis zur Lösung.';
+    const rest = Math.max(0, Math.ceil((15000 - (performance.now() - this.ruheSeit)) / 1000));
+    t += this.geloest ? '' : this.spaet() ? ' · Fingerzeig aktiv' : ` · Fingerzeig in ${rest} s`;
+    t += `\nLetzte Eingabe: ${this.letzteAktion}`;
+    if (this.zustandEl.textContent !== t) this.zustandEl.textContent = t;
+    this.wurzel.dataset.schritt = this.geloest ? 'geloest' : String(this.schritt);
+  }
+
+  satz() {
+    if (this.geloest) return 'Gelöst, der Kristall leuchtet.';
+    const s = this.aktiv();
+    if (s) return satzText(s.text);
+    const letzter = this.schritte[this.schritte.length - 1];
+    return satzText(letzter.text); // der Satz bleibt stehen, bis der nächste kommt
+  }
+
+  zeichne(neu = false) {
+    // Drehungen und Strahl
+    for (const el of this.board.elements) {
+      const t = this.teile.get(el.id);
+      if (el.type === 'mirror') t.dreh.style.transform = `rotate(${this.winkel.get(el.id)}deg)`;
+      if (el.type === 'source') t.dreh.style.transform = `rotate(${el.dir * 45}deg)`;
+    }
+    const res = traceBeams(this.board);
+    this.strahlen.innerHTML = '';
+    this.defs.querySelectorAll('.verlauf').forEach(n => n.remove());
+    res.segments.forEach((sg, i) => {
+      let stroke = FARBE[sg.color];
+      if (sg.fade) {
+        const id = `v-${this.r.id}-${i}`;
+        const lg = mk('linearGradient', { id, class: 'verlauf', gradientUnits: 'userSpaceOnUse', x1: sg.x0 + 0.5, y1: sg.z0 + 0.5, x2: sg.x1 + 0.5, y2: sg.z1 + 0.5 }, this.defs);
+        const off = Math.max(0, 1 - sg.fade / sg.length);
+        mk('stop', { offset: off, 'stop-color': stroke, 'stop-opacity': 1 }, lg);
+        mk('stop', { offset: 1, 'stop-color': stroke, 'stop-opacity': 0 }, lg);
+        stroke = `url(#${id})`;
+      }
+      mk('line', { x1: sg.x0 + 0.5, y1: sg.z0 + 0.5, x2: sg.x1 + 0.5, y2: sg.z1 + 0.5, stroke, 'stroke-width': 0.08, 'stroke-linecap': 'round' }, this.strahlen);
+    });
+    this.svg.classList.toggle('geloest', !!res.solved);
+    for (const el of this.board.elements) if (el.type === 'target') {
+      const k = this.teile.get(el.id).dreh.querySelector('.kristall');
+      k.setAttribute('fill', res.satisfied.has(el.id) ? FARBE[el.color] : 'rgba(255,255,255,.15)');
+    }
+    this.zeichneFuehrung(neu);
+    this.zustand();
+  }
+
+  zeichneFuehrung(neu) {
+    this.marken.innerHTML = ''; this.huelle.innerHTML = ''; this.fingerG.innerHTML = '';
+    this.rahmen.querySelectorAll('.blase, .schild').forEach(n => n.remove());
+    const s = this.aktiv(), spaet = this.spaet();
+    const fz = spaet ? this.fingerzeigZiel() : null;
+    // Was wird markiert: der laufende Schritt; nach den Schritten nur beim Fingerzeig
+    let zellen = s ? s.ziel : fz && !fz.weiter ? fz.zellen : [];
+    if (this.geloest) zellen = [];
+    const stark = spaet;
+    for (const c of zellen) this.marke(c, stark);
+    if (this.r.hervor === 'licht' && zellen.length) this.scheinwerfer(zellen, stark);
+    // Finger oder Hand
+    const geste = s ? s.geste : fz ? fz.geste : null;
+    const fingerZelle = s && s.art === 'tat' ? s.ziel[0] : fz && !fz.weiter ? fz.zellen[0] : null;
+    if (fingerZelle && geste && !this.geloest) {
+      if (this.r.finger === 'immer') this.finger(fingerZelle, geste);
+      if (this.r.finger === 'einmal' && (this.zeigeFinger || spaet)) {
+        this.finger(fingerZelle, geste);
+        if (this.zeigeFinger) { clearTimeout(this.fingerAus); this.fingerAus = setTimeout(() => { this.zeigeFinger = false; this.zeichne(); }, geste === 'halten' ? 3600 : 2600); }
+      }
+    }
+    // Satz
+    const text = this.satz();
+    const erklWeiter = s && s.art === 'erkl';
+    if (this.r.textort === 'unten' || this.r.textort === 'kopf') {
+      const z = this.wurzel.querySelector('.satz');
+      const knopf = erklWeiter && this.r.erkl === 'knopf' ? `<button type="button" class="weiter-knopf${spaet ? ' stups' : ''}">Weiter</button>` : '';
+      const html = `<span>${text}</span>${knopf}`;
+      if (z.innerHTML !== html) { z.innerHTML = html; if (neu) { z.classList.remove('neu'); void z.offsetWidth; z.classList.add('neu'); } }
+      const kb = z.querySelector('.weiter-knopf'); if (kb) kb.onclick = () => this.weiter();
+    } else {
+      const anker = this.geloest ? zelle(this.board.elements.find(e => e.type === 'target'))
+        : s ? (s.art === 'tat' ? s.ziel[0] : s.ziel[s.ziel.length - 1]) : fz && !fz.weiter ? fz.zellen[0] : this.schritte[this.schritte.length - 1].ziel[0];
+      this.textAmElement(anker, text, erklWeiter, spaet, s && s.art === 'tat' ? s.geste : fz && fz.geste);
+    }
+  }
+
+  marke(c, stark) {
+    const [x, z] = c.split(',').map(Number), cx = x + 0.5, cy = z + 0.5;
+    const g = mk('g', { transform: `translate(${cx} ${cy})` }, this.marken);
+    if (this.r.hervor === 'puls') mk('circle', { r: 0.52, fill: 'none', stroke: '#ffd98a', 'stroke-width': stark ? 0.1 : 0.06, class: 'puls' + (stark ? ' stark' : ''), filter: `url(#glow-${this.r.id})` }, g);
+    if (this.r.hervor === 'umriss') mk('circle', { r: 0.54, fill: 'none', stroke: '#ffd98a', 'stroke-width': 0.05, 'stroke-dasharray': '0.18 0.12', class: 'umriss' + (stark ? ' stark' : '') }, g);
+    if (this.r.hervor === 'pfeil') {
+      const p = mk('g', { class: 'pfeil' + (stark ? ' stark' : '') }, g);
+      mk('path', { d: 'M-0.2 -0.86 L0 -0.6 L0.2 -0.86', fill: 'none', stroke: '#f0b25e', 'stroke-width': 0.09, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }, p);
+    }
+  }
+
+  scheinwerfer(zellen, stark) {
+    const id = `maske-${this.r.id}`;
+    this.defs.querySelector('#' + id)?.remove();
+    const m = mk('mask', { id }, this.defs);
+    mk('rect', { x: -1, y: -1, width: 9, height: 9, fill: '#fff' }, m);
+    for (const c of zellen) {
+      const [x, z] = c.split(',').map(Number);
+      mk('circle', { cx: x + 0.5, cy: z + 0.5, r: stark ? 0.5 : 0.66, fill: '#000' }, m);
+    }
+    mk('rect', { x: -0.15, y: -0.15, width: 7.3, height: 7.3, fill: 'rgba(5,8,14,.68)', mask: `url(#${id})` }, this.huelle);
+  }
+
+  finger(c, geste) {
+    const [x, z] = c.split(',').map(Number);
+    const g = mk('g', { transform: `translate(${x + 0.5} ${z + 0.5})` }, this.fingerG);
+    if (geste === 'halten') {
+      mk('circle', { r: 0.5, fill: 'none', stroke: '#fff', 'stroke-width': 0.06, 'stroke-dasharray': 3.2, 'stroke-dashoffset': 3.2, class: 'halten', transform: 'rotate(-90)' }, g);
+    } else {
+      mk('circle', { r: 0.4, fill: 'none', stroke: '#fff', 'stroke-width': 0.05, class: 'welle' }, g);
+    }
+    // Zeigefinger von unten rechts, Fingerkuppe auf der Mitte
+    const h = mk('g', { class: geste === 'halten' ? '' : 'finger-tipp', opacity: 0.88 }, g);
+    mk('path', { d: 'M-0.07 0.02 Q0 -0.07 0.07 0.02 L0.1 0.42 Q0.28 0.36 0.36 0.48 L0.4 0.86 Q0.2 0.98 -0.06 0.9 L-0.16 0.5 Z', fill: '#f5f5f5', stroke: '#222', 'stroke-width': 0.025, transform: 'rotate(-18)' }, h);
+  }
+
+  textAmElement(c, text, erklWeiter, spaet, geste) {
+    const [x, z] = c.split(',').map(Number);
+    const n = document.createElement('div');
+    n.className = this.r.textort;
+    const symbol = this.r.textort === 'schild' && geste
+      ? `<svg class="symbol" width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="9" cy="9" r="${geste === 'halten' ? 7 : 3.5}" fill="none" stroke="#2d2414" stroke-width="1.6" ${geste === 'halten' ? 'stroke-dasharray="3 2"' : ''}/><circle cx="9" cy="9" r="2" fill="#2d2414"/></svg>` : '';
+    const zusatz = erklWeiter && this.r.erkl === 'tippen' ? '<span class="tipp" aria-hidden="true">›</span>' : '';
+    const uhr = erklWeiter && this.r.erkl === 'beides' ? '<div class="uhr"><i></i></div>' : '';
+    n.innerHTML = `${symbol}<span>${text}</span>${zusatz}${uhr}`;
+    const oben = z >= 3, abstand = this.r.textort === 'schild' ? 1.0 : 0.6;
+    n.classList.add(oben ? 'oben' : 'unten');
+    const mitte = (x + 0.65) / 7.3 * 100;
+    n.style.left = Math.min(68, Math.max(32, mitte)) + '%';
+    if (oben) n.style.bottom = (100 - (z + 0.65 - abstand) / 7.3 * 100) + '%';
+    else n.style.top = ((z + 0.65 + abstand) / 7.3 * 100) + '%';
+    if (erklWeiter && this.r.erkl === 'tippen') n.addEventListener('click', () => this.weiter());
+    if (erklWeiter && this.r.erkl === 'beides') n.addEventListener('click', () => this.weiter());
+    if (spaet && erklWeiter) n.style.boxShadow = '0 0 0 4px rgba(240,178,94,.6), 0 6px 18px rgba(0,0,0,.35)';
+    this.rahmen.appendChild(n);
+    // Spitze über dem Element, auch wenn die Blase am Rand anschlägt
+    const rb = this.rahmen.getBoundingClientRect(), nb = n.getBoundingClientRect();
+    if (nb.width) n.style.setProperty('--spitze', Math.min(nb.width - 14, Math.max(14, rb.left + rb.width * mitte / 100 - nb.left)) + 'px');
+  }
+}
+
+/* ---------- Seite aufbauen ---------- */
+const vergleich = document.getElementById('vergleich');
+for (const r of RICHTUNGEN) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${r.id} ${r.name}</td>` + r.achsen.map(a => `<td>${a}</td>`).join('');
+  vergleich.appendChild(tr);
+}
+const uebungen = [];
+const container = document.getElementById('richtungen');
+for (const r of RICHTUNGEN) {
+  const sec = document.createElement('section');
+  sec.className = 'kasten richtung';
+  sec.id = 'richtung-' + r.id;
+  sec.innerHTML = `
+    <div>
+      <span class="kicker">Richtung ${r.id}</span>
+      <h2 style="margin-top:.3rem">${r.name}</h2>
+      <p style="margin-top:.6rem">${r.idee}</p>
+      <dl class="achsen">
+        <dt>Strenge</dt><dd>${r.achsen[0]}</dd><dt>Hervorhebung</dt><dd>${r.achsen[1]}</dd>
+        <dt>Finger</dt><dd>${r.achsen[2]}</dd><dt>Textort</dt><dd>${r.achsen[3]}</dd>
+        <dt>Erklärung</dt><dd>${r.achsen[4]}</dd><dt>Fingerzeig</dt><dd>${r.achsen[5]}</dd>
+      </dl>
+      <h3>Vorteile</h3><ul class="plus">${r.plus.map(t => `<li>${t}</li>`).join('')}</ul>
+      <h3>Nachteile</h3><ul class="minus">${r.minus.map(t => `<li>${t}</li>`).join('')}</ul>
+    </div>
+    <div class="spiel"></div>`;
+  container.appendChild(sec);
+  uebungen.push(new Uebung(sec.querySelector('.spiel'), r));
+}
+const geraetKnoepfe = document.querySelectorAll('[data-geraet]');
+const setzeGeraet = (g) => {
+  geraet = g;
+  geraetKnoepfe.forEach(b => b.setAttribute('aria-pressed', String(b.dataset.geraet === g)));
+  uebungen.forEach(u => u.zeichne());
+};
+geraetKnoepfe.forEach(b => b.addEventListener('click', () => setzeGeraet(b.dataset.geraet)));
+setzeGeraet(geraet);
+window.katalog = uebungen;
+</script>
+</body>
+</html>
