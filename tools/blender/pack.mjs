@@ -5,23 +5,32 @@
 //                                    (nur Desktop, beim ersten Gebrauch)
 // rev (Stand) steht im Dateinamen: Der Service Worker speichert ohne Query-Parameter, ein neuer Stand braucht neue Namen.
 // Aufruf: node tools/blender/pack.mjs <id>
-// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, vorab, Tiefe, Sterne, Farben, Pinsel, Ebenen) und aus dessen Ordner
+//         node tools/blender/pack.mjs --brett [<id> …]
+// Liest tools/blender/szenen/<id>/skybox.json (Name, Reihenfolge, vorab, Tiefe, Sterne, Farben, Pinsel, Ebenen, Brett) und aus dessen Ordner
 // `daten` die Ausgabe der Pipeline: sky.json (Mittelpunkt, Tiefe, Streifen, Hauptlicht, Spitze, Farbringe von
 // wald_export.py bzw. anime.py json), die Bilder, trees.json (wald_spielbaum.py: nahe Fichten, Nebel der Szene) und
 // ebenen.json (export() der Szene: weitere Daten für die Ebenen).
 // Im Register ersetzt es nur den Eintrag dieser Skybox: Die Rohdaten der anderen liegen nicht im Repo.
+// --brett: nur die Brett-Angabe (board) aus skybox.json in den bestehenden Eintrag übertragen, ohne id in alle Einträge
+// des Registers. Die Teile werden nicht neu gepackt, sie und ihr Stand (rev) bleiben; nachgeführt werden das Register
+// und sein Stand in sw.js. So geht es ohne die Rohdaten aus Blender, und die Werte der Bretter ändern sich oft
+// (Spec .scratch/brett-je-himmel/).
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { dirname, join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { SKY_FORMAT, loadSkies, checkSkies, layerTypes, codeSkies } from '../sky-schema.mjs';
+import { SKY_FORMAT, loadSkies, checkSkies, layerTypes, boardTypes, codeSkies } from '../sky-schema.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
-const id = process.argv[2];
-if (!id) throw new Error('Aufruf: node tools/blender/pack.mjs <id>');
-const author = JSON.parse(readFileSync(join(here, 'szenen', id, 'skybox.json'), 'utf8'));
-if (author.id !== id) throw new Error(`skybox.json: id ${author.id} statt ${id}`);
+const args = process.argv.slice(2);
+if (args[0] === '--brett') {
+  transferBoards(args.slice(1));
+  process.exit(0);
+}
+const id = args[0];
+if (!id) throw new Error('Aufruf: node tools/blender/pack.mjs <id> | --brett [<id> …]');
+const author = readAuthor(id);
 const src = join(here, author.daten);
 const cfg = JSON.parse(readFileSync(join(src, 'sky.json'), 'utf8'));
 const MIME = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg' };
@@ -95,12 +104,12 @@ const entry = {
   ...(author.brush ? { brush: author.brush } : {}),
   sky: { ...author.sky, rings: cfg.rings },
   layers: author.layers ?? [],
+  ...(author.board !== undefined ? { board: author.board } : {}), // Brett-Angabe unverändert (sonst das Steinbrett)
 };
 
 // Erst alles prüfen (neue Teile noch im Speicher), dann schreiben: Ein fehlerhafter Eintrag landet nie im Register
 const skies = loadSkies(root).filter((s) => s.id !== id).concat(entry).sort((a, b) => a.order - b.order);
-const html = readFileSync(join(root, 'index.html'), 'utf8');
-const errors = checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html), pending: Object.fromEntries(files.map((f) => [f.file, f.js])) });
+const errors = checkRegistry(skies, Object.fromEntries(files.map((f) => [f.file, f.js])));
 if (errors.length) {
   console.error('Nicht gepackt, Register fehlerhaft:\n  ' + errors.join('\n  '));
   process.exit(1);
@@ -108,18 +117,60 @@ if (errors.length) {
 const out = join(root, 'backgrounds');
 mkdirSync(join(out, id), { recursive: true });
 for (const f of files) writeFileSync(join(out, f.file), f.js);
-const registry = '// Register der Skyboxen aus Blender – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n' +
-  '(globalThis.PRISMA_SKIES ||= []).push(\n' + skies.map((s) => '  ' + JSON.stringify(s)).join(',\n') + ',\n);\n';
-writeFileSync(join(out, 'skies.js'), registry);
+const skiesRev = writeRegistry(skies);
 for (const f of readdirSync(join(out, id))) {
   if (!files.some((x) => x.file === `${id}/${f}`)) rmSync(join(out, id, f));   // alte Stände dieser Skybox
 }
-// Stand des Registers in sw.js: Ein geänderter Service Worker löst in jedem Browser ein Update aus (ob ein nur per
-// importScripts geändertes Register das auch tut, hängt vom Browser ab)
-const swFile = join(root, 'sw.js');
-const sw = readFileSync(swFile, 'utf8');
-const skiesRev = createHash('sha256').update(registry).digest('hex').slice(0, 8);
-if (!/^const SKIES = '[0-9a-f]*';/m.test(sw)) throw new Error("sw.js: Zeile const SKIES = '…'; fehlt");
-writeFileSync(swFile, sw.replace(/^const SKIES = '[0-9a-f]*';/m, `const SKIES = '${skiesRev}';`));
 for (const f of files) console.log(`backgrounds/${f.file}: ${(Buffer.byteLength(f.js) / 1e6).toFixed(2)} MB, ${f.gpuMB} MB Grafikspeicher`);
 console.log(`backgrounds/skies.js: ${skies.map((s) => s.id).join(', ')} (Stand ${id}: ${rev}, Register ${skiesRev} in sw.js)`);
+
+/** Beschreibung einer Skybox (tools/blender/szenen/<id>/skybox.json) */
+function readAuthor(id) {
+  const author = JSON.parse(readFileSync(join(here, 'szenen', id, 'skybox.json'), 'utf8'));
+  if (author.id !== id) throw new Error(`skybox.json: id ${author.id} statt ${id}`);
+  return author;
+}
+
+/** Register prüfen (tools/sky-schema.mjs) mit den Ebenentypen, Arten der Bretter und Hintergründen des Spiels */
+function checkRegistry(skies, pending = {}) {
+  const html = readFileSync(join(root, 'index.html'), 'utf8');
+  return checkSkies(skies, { root, types: layerTypes(html), boards: boardTypes(html), reserved: codeSkies(html), pending });
+}
+
+/**
+ * Register backgrounds/skies.js schreiben und seinen Stand in sw.js nachführen: Ein geänderter Service Worker löst in
+ * jedem Browser ein Update aus (ob ein nur per importScripts geändertes Register das auch tut, hängt vom Browser ab).
+ * Rückgabe: der Stand des Registers
+ */
+function writeRegistry(skies) {
+  const registry = '// Register der Skyboxen aus Blender – erzeugt von tools/blender/pack.mjs, nicht von Hand ändern\n' +
+    '(globalThis.PRISMA_SKIES ||= []).push(\n' + skies.map((s) => '  ' + JSON.stringify(s)).join(',\n') + ',\n);\n';
+  const swFile = join(root, 'sw.js');
+  const sw = readFileSync(swFile, 'utf8');
+  if (!/^const SKIES = '[0-9a-f]*';/m.test(sw)) throw new Error("sw.js: Zeile const SKIES = '…'; fehlt");
+  const skiesRev = createHash('sha256').update(registry).digest('hex').slice(0, 8);
+  writeFileSync(join(root, 'backgrounds', 'skies.js'), registry);
+  writeFileSync(swFile, sw.replace(/^const SKIES = '[0-9a-f]*';/m, `const SKIES = '${skiesRev}';`));
+  return skiesRev;
+}
+
+/** --brett: nur die Brett-Angabe aus skybox.json in die Einträge ids (leer: alle) des bestehenden Registers */
+function transferBoards(ids) {
+  const skies = loadSkies(root);
+  if (!skies.length) throw new Error('backgrounds/skies.js fehlt oder ist leer: erst packen');
+  for (const id of ids.length ? ids : skies.map((s) => s.id)) {
+    const entry = skies.find((s) => s.id === id);
+    if (!entry) throw new Error(`${id}: nicht im Register, erst ganz packen (node tools/blender/pack.mjs ${id})`);
+    const { board } = readAuthor(id);
+    delete entry.board; // steht danach wie beim Packen am Schluss des Eintrags
+    if (board !== undefined) entry.board = board;
+  }
+  const errors = checkRegistry(skies);
+  if (errors.length) {
+    console.error('Nicht übertragen, Register fehlerhaft:\n  ' + errors.join('\n  '));
+    process.exit(1);
+  }
+  const skiesRev = writeRegistry(skies);
+  for (const s of skies) console.log(`${s.id}: Brett ${s.board ? JSON.stringify(s.board) : '– (Steinbrett)'}`);
+  console.log(`backgrounds/skies.js: nur Brett-Angaben übertragen, Teile unverändert (Register ${skiesRev} in sw.js)`);
+}

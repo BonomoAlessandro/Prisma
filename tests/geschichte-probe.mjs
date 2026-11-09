@@ -9,9 +9,14 @@
 // (Input.dispatchMouseEvent), auf dem Handy mit dem Finger (Input.dispatchTouchEvent; Mausereignisse kommen mit der
 // Touch-Emulation nie zurück). Gelöst wird über die Testschnittstelle (__prismaDebug.loese, Drehung für Drehung), einen
 // Stand setzt die Probe in localStorage. Sie prüft Kopfzeile, Speicherstand, Menü (Stand je Grad, «Weiter», Fokus,
-// Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt bereit
-// ist (kein leeres Brett), und misst die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken
-// über 100 ms sind Fehler, ausser während eines Bilds der Probe, siehe ende). Seit Ticket 03 von
+// Hervorhebung), dass das Menü nach der Wahl sofort ausblendet, dass die Kamera im Himmel bleibt, bis die Welt samt
+// ihrem Brett bereit ist (kein leeres Brett), dass das Brett in jeder Welt und im Dorf zum Himmel passt (auch in der Art
+// seiner Brett-Angabe im Register), unter einem Himmel aus Blender nie ein fremdes Brett oder das Steinbrett als Notfall
+// steht und es beim Wiederholen über eine Weltgrenze mit dem Himmel wechselt (Spec .scratch/brett-je-himmel/), und misst
+// die Bildzeiten der Übergänge (Lücken zwischen zwei requestAnimationFrame; Lücken über 100 ms sind Fehler, ausser
+// während eines Bilds der Probe, siehe ende).
+// Das Protokoll je Bild enthält das Brett (__prisma.brett: Himmel, Art, bereit, von, Anteil, Notfall; soll: Art der
+// Brett-Angabe seines Himmels). Seit Ticket 03 von
 // .scratch/kleiner-wagen/ dazu die Sätze, die der Spieler liest (Prolog, Einstiege, Reisen, Finale, Epilog, «Gelöst» am
 // Ende jeder Welt), und dass jeder ganz im Bild steht, ohne mehr Zeilen als der längste Satz vor dem Kleinen Wagen (auf
 // der Bühne nur ein HINWEIS, siehe pruefeSatz). Seit Ticket 08 gewählt wird im Menü über Reiter und Knopf (waehle), die
@@ -30,8 +35,8 @@
 // Wert oder einer Meldung in der Konsole ([error], Ausnahme, Shader).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
 //           [--grad leicht,mittel] [--welten 2] [--finale <grad>] [--menue] [--start] [--uebersicht] [--dorf]
-//           [--dorf-raender] [--ganz] [--wagen] [--fall] [--groesse 360x640] [--dpr 2.75] [--messwerte <datei.json>]
-//           [--vorher <datei.json>]
+//           [--dorf-raender] [--ganz] [--wagen] [--fall] [--grenzen] [--groesse 360x640] [--dpr 2.75]
+//           [--messwerte <datei.json>] [--vorher <datei.json>]
 //   --handy: 390 × 844, --quer: 844 × 390 (Pixeldichte 2, Touch) statt 1440 × 900; --groesse: ein anderes Handy (mit
 //   --handy, Bilder unter handy-<b>x<h>-…); --dpr: eine andere Pixeldichte für --handy oder --quer (2,75 wie das Poco:
 //   mit dem Massstab der Seite, Ticket 18 von .scratch/leistung/; Bilder unter <bildschirm>-dpr<n>-…); --grad: die
@@ -56,6 +61,11 @@
 //   12, siehe fallAblauf), gut 1 min. --vorher: die Dauern (netto) mit einem früheren Lauf mit --messwerte vergleichen
 //   (Vorher-Lauf .scratch/kleiner-wagen/vorher/<desktop|handy>.json, siehe vergleicheVorher): jede Reise höchstens etwa
 //   1 s länger, die Einstiege nicht länger, das Finale etwa 4 s.
+// --grenzen: Wiederholen über die Weltgrenzen Wüste → Vulkan und Vulkan → Planeten aus der Übersicht, mit dem Wechsel
+// des Bretts (Ticket 09 von .scratch/brett-je-himmel/, siehe grenzenAblauf, gut 2 min).
+// Seit Ticket 11 von .scratch/brett-je-himmel/ dazu das Protokoll der Arbeit (ARBEIT): bei jeder Lücke über 50 ms die
+// Arbeit in ihrem Bild (Vorladen, Aufbauen, Shader, Hochladen, Vorzeichnen, Freigeben), am Ende je Schritt das längste
+// Bild und jede Lücke über 100 ms der ganzen Sitzung mit dem Zustand im Bild davor (bewegt sich etwas?).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -118,10 +128,11 @@ const dorfRaenderProbe = args.includes('--dorf-raender');
 const ganz = args.includes('--ganz');
 const wagenProbe = args.includes('--wagen');
 const fallProbe = args.includes('--fall');
+const grenzenProbe = args.includes('--grenzen');
 const startTaste = args.includes('--start') || menue; // gehaltenes Enter am Startbildschirm (nur Desktop)
 const grade = wert('--grad') ? wert('--grad').split(',').map(grad)
   : ganz ? ['leicht'] : finaleGrad || startTaste || uebersichtProbe || dorfProbe || dorfRaenderProbe || wagenProbe
-    || fallProbe ? []
+    || fallProbe || grenzenProbe ? []
     : GRADE;
 const welten = +(wert('--welten') ?? 2);
 const groesse = wert('--groesse')?.match(/^(\d+)x(\d+)$/);
@@ -230,15 +241,94 @@ async function halt(was, { station = null, warten = 0, name = null } = {}) {
   } finally { tippeHalt = false; }
 }
 let fotos = null; // während einer Messung (messe … ende): Zeitfenster der Bilder in der Zeit der Seite
+// Ende des letzten Bilds der Probe (Date.now): Eine Messung beginnt frühestens BILD_NACHLAUF_MS danach (messe). Ein Bild
+// der Probe hielt die Seite auf dem Handy noch nach seinem Ende an (Lücken bis 280 ms im ersten Bild einer Messung, die
+// gleich danach begann, Ticket 11 von .scratch/brett-je-himmel/); das gehört zur Probe, nicht zum Spiel.
+let letztesBild = 0;
+const BILD_NACHLAUF_MS = 800;
 async function bild(name) {
   mkdirSync(OUT, { recursive: true });
   const file = join(OUT, `${view.name}-${name}.png`);
-  const von = fotos ? await ev('performance.now()') : 0;
+  const von = await ev('performance.now()');
   writeFileSync(file, Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).result.data, 'base64'));
-  if (fotos) fotos.push([von, await ev('performance.now()')]);
+  const bis = await ev('performance.now()');
+  if (fotos) fotos.push([von, bis]);
+  letztesBild = Date.now();
+  await ev(`window.__fotos?.push([${von}, ${bis}])`); // fürs Protokoll der Arbeit (ARBEIT)
   console.log(`  Bild ${file}`);
 }
 const D = '__prismaDebug';
+/**
+ * Protokoll der Arbeit (Ticket 11 von .scratch/brett-je-himmel/): Vor jedem Laden der Seite schaltet es das Spiel ein
+ * (window.__arbeitAn, arbeit in index.html: Himmel, Brett, Shader, Hochladen, Vorzeichnen, erstes Bild, Lichtwelle), und
+ * ein eigener requestAnimationFrame zählt jedes Bild der ganzen Sitzung. auswerten ordnet jedem Stück Arbeit das Bild
+ * zu, in dem es lief (Lücke bis zum nächsten Bild), ohne die Zeitfenster der Bilder der Probe; je Sitzung (bis zum
+ * nächsten Laden, pagehide) in sessionStorage. Am Ende: je Arbeit das längste Bild und die Bilder über 50 und 100 ms,
+ * dazu jede Lücke über 100 ms mit ihrer Arbeit (arbeitBericht). Es prüft nichts, es zeigt, wo Vorladen und Aufbauen
+ * ein Bild kosten.
+ */
+const ARBEIT = `window.__arbeitAn = true;
+(() => {
+  const ts = [], fotos = window.__fotos = [], zustand = new Map();
+  // was im Bild vor einer langen Lücke zu sehen war und sich bewegte (Spiel wach, Himmel, Blick, Menü, Übersicht, Bühne)
+  const sieht = () => { const d = window.__prismaDebug; if (!d) return null; const s = d.story;
+    return { wach: d.sceneLoop.awake, flow: d.flow.state, blick: +s.gaze.toFixed(2), fahrt: s.tweens.length > 0,
+      himmel: d.skyTheme.fading || d.skyTheme.moving, menue: d.menu.offen, ueb: d.uebersicht.offen,
+      buehne: s.el.dataset.mode === 'scene', verdeckt: d.sceneLoop.covered, feier: d.celebration.active }; };
+  let vorher = null;
+  const loop = (t) => { const n = ts.push(t); if (n > 1 && t - ts[n - 2] > 100 && vorher) zustand.set(n - 2, vorher);
+    vorher = sieht(); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+  window.__arbeitAuswerten = () => {
+    const log = window.__prismaDebug?.arbeit?.log ?? [], je = {}, lang = [];
+    const foto = (a, b) => fotos.some(([x, y]) => a < y && b > x);
+    let j = 0;
+    const bildVon = (t) => { while (j + 1 < ts.length && ts[j + 1] <= t) j++; return ts[j] <= t && j + 1 < ts.length ? j : -1; };
+    const imBild = new Map();
+    for (const [t, ms, was] of [...log].sort((a, b) => a[0] - b[0])) {
+      const i = bildVon(t);
+      if (i < 0 || foto(ts[i], ts[i + 1])) continue;
+      const d = ts[i + 1] - ts[i], e = je[was] ??= { max: 0, ms: 0, bilder: 0, ueber50: 0, ueber100: 0 };
+      if (!imBild.has(i)) imBild.set(i, new Map());
+      const m = imBild.get(i);
+      if (!m.has(was)) { m.set(was, 0); e.bilder++; if (d > 50) e.ueber50++; if (d > 100) e.ueber100++; }
+      m.set(was, m.get(was) + ms);
+      e.max = Math.max(e.max, Math.round(d)); e.ms = Math.max(e.ms, +m.get(was).toFixed(1));
+    }
+    for (const [i, m] of imBild) {
+      const d = ts[i + 1] - ts[i];
+      if (d > 100) lang.push({ ms: Math.round(d), bei: Math.round(ts[i]), arbeit: [...m].map(([w, x]) => w + ' ' + x.toFixed(1)),
+        zustand: zustand.get(i) ?? null });
+    }
+    return { seite: location.search, je, lang };
+  };
+  addEventListener('pagehide', () => {
+    try {
+      const a = JSON.parse(sessionStorage.getItem('__arbeit') ?? '[]');
+      a.push(window.__arbeitAuswerten());
+      sessionStorage.setItem('__arbeit', JSON.stringify(a));
+    } catch (e) { /* ohne Protokoll */ }
+  });
+})();`;
+/** Am Ende des Laufs: alle Sitzungen des Protokolls der Arbeit (ARBEIT) zusammen ausgeben */
+async function arbeitBericht() {
+  const sitzungen = await ev(`[...JSON.parse(sessionStorage.getItem('__arbeit') ?? '[]'), window.__arbeitAuswerten()]`);
+  const je = {};
+  for (const s of sitzungen) for (const [was, e] of Object.entries(s.je)) {
+    const g = je[was] ??= { max: 0, ms: 0, bilder: 0, ueber50: 0, ueber100: 0 };
+    g.max = Math.max(g.max, e.max); g.ms = Math.max(g.ms, e.ms);
+    for (const k of ['bilder', 'ueber50', 'ueber100']) g[k] += e[k];
+  }
+  console.log('\nArbeit beim Vorladen und Aufbauen (je Stück: längstes Bild, in dem es lief; längste Zeit darin im '
+    + 'Hauptthread; Bilder, über 50, über 100 ms):');
+  for (const [was, e] of Object.entries(je).sort((a, b) => b[1].max - a[1].max)) {
+    console.log(`  ${was}: ${e.max} ms (selbst ${e.ms} ms), ${e.bilder} Bilder, über 50 ms ${e.ueber50}, über 100 ms ${e.ueber100}`);
+  }
+  for (const s of sitzungen) for (const l of s.lang) {
+    console.log(`  Lücke ${l.ms} ms bei ${l.bei} ms (${s.seite}): ${l.arbeit.join(', ')}; im Bild davor ${JSON.stringify(l.zustand)}`);
+  }
+  return je;
+}
 const storyMode = `(!document.getElementById('story').classList.contains('hidden') && document.getElementById('story')`
   + '.dataset.mode)';
 const knoepfe = "document.querySelector('#story .scene .actions').children.length > 0";
@@ -378,16 +468,24 @@ async function taste(key, { strg = false } = {}) {
 
 /**
  * Bildzeiten eines Übergangs messen: In der Seite zählt ein eigener requestAnimationFrame jedes Bild des Browsers
- * (das Spiel selbst rendert im Ruhezustand nur jedes zweite) und schreibt dazu Blick, Zustand des Ablaufs und Himmel
- * auf. ende(name) gibt diese Liste zurück und meldet die längste Lücke. Ein Bild der Probe mitten in der Messung hält
- * die Seite an (auf dem Handy bis 0,5 s): Lücken über seinem Zeitfenster zählen nicht.
+ * (das Spiel selbst rendert im Ruhezustand nur jedes zweite) und schreibt dazu Blick, Zustand des Ablaufs, Himmel
+ * (gewählt, gezeigt mit Anteil, überblendet er, bereit, geladen samt Brett) und Brett (__prisma.brett: Himmel, Art,
+ * bereit, von, Anteil, Notfall; soll: Art der Brett-Angabe seines Himmels) auf. ende(name) gibt diese Liste zurück und
+ * meldet die längste Lücke. Ein Bild der Probe mitten in der Messung hält die Seite an (auf dem Handy bis 0,5 s): Lücken
+ * über seinem Zeitfenster zählen nicht.
  */
 async function messe({ abKlick = false } = {}) {
+  const nachlauf = BILD_NACHLAUF_MS - (Date.now() - letztesBild);
+  if (nachlauf > 0) await sleep(nachlauf);
   fotos = [];
   // abKlick: die Dauer zählt ab dem ersten Klick (bzw. Tippen) danach, etwa auf «Weiter» (sonst ab dem ersten Bild)
   await ev(`(() => { const b = window.__bz = { an: true, log: [], ab: null }; const loop = (ts) => { if (!b.an) return;
-    const s = ${D}.story, k = ${D}.skyTheme; b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current,
-      ready: k.ready, settled: k.byId.get(k.current).module?.settled ?? true, menu: ${D}.menu.offen,
+    const s = ${D}.story, k = ${D}.skyTheme, a = k.entries.find((e) => k.weight[e.id] > 0);
+    b.log.push({ ts, gaze: s.gaze, flow: ${D}.flow.state, sky: k.current, ready: k.ready, settled: k.settled,
+      shown: a?.id ?? null, w: a ? k.weight[a.id] : 0, blender: !!a?.module?.panorama, fading: k.fading,
+      brett: ((br) => ({ ...br, soll: br.himmel && (k.byId.get(br.himmel)?.board?.type ?? 'stone') }))(
+        window.__prisma.brett()),
+      menu: ${D}.menu.offen,
       ueb: ${D}.uebersicht.offen, story: ${storyMode}, traeger: !!s.carrier?.kind, bild: window.__prisma.frames,
       tippen: s.waitTap !== null, knoepfe: (document.querySelector('#story .scene .actions')?.children.length ?? 0) > 0,
       blick: ((m) => [-m[8], -m[9], -m[10]])(${D}.camera.matrixWorld.elements) });
@@ -420,6 +518,8 @@ async function ende(name, { bis = null } = {}) {
   // noch zwei Bilder: Sah die Probe den Zustand eben erst (etwa play), steht er sonst womöglich noch nicht im Log
   if (bis) await ev('new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true))))');
   const { log, ab } = await ev('(() => { const b = window.__bz; b.an = false; return { log: b.log, ab: b.ab }; })()');
+  // Protokoll der Arbeit (ARBEIT) in der Zeit der Messung: was in welchem Bild lief
+  const arb = log.length ? await ev(`(${D}.arbeit?.log ?? []).filter(([t]) => t >= ${log[0].ts} && t <= ${log.at(-1).ts})`) : [];
   const foto = (i) => fotos.some(([a, b]) => log[i].ts < b && log[i + 1].ts > a);
   const art = log.slice(1).map((_, i) => (foto(i) ? 'Bild der Probe' : ''));
   fotos = null;
@@ -457,10 +557,27 @@ async function ende(name, { bis = null } = {}) {
     if (d <= 50) return;
     const z = ({ ts, blick, ...x }) => JSON.stringify({ ...x, gaze: +x.gaze.toFixed(3) });
     const warum = art[i] ? ` (${art[i]}, zählt nicht)` : '';
-    console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`);
+    const darin = arb.filter(([t]) => t >= log[i].ts && t < e.ts).map(([, ms, w]) => `${w} ${ms.toFixed(1)}`);
+    console.log(`    ${Math.round(d)} ms bei ${Math.round(log[i].ts - log[0].ts)} ms${warum}: ${z(log[i])} → ${z(e)}`
+      + (darin.length ? `
+      Arbeit darin (ms im Hauptthread): ${darin.join(', ')}` : ''));
   });
   pruefe(ueber(100) === 0, `${name}: ${ueber(100)} Lücken über 100 ms (längste ${Math.round(max)} ms)`);
+  brettPasst(log, name);
   return log;
+}
+/**
+ * Unter einem Himmel aus Blender steht nie das Brett eines anderen Himmels oder das Steinbrett als Notfall (Spec
+ * .scratch/brett-je-himmel/), wo man das Brett sieht (Blick unter 0,6, weder Menü, Übersicht noch Bühne): ohne
+ * Überblenden das Brett des gezeigten Himmels, beim Überblenden (nur während der Himmel überblendet) das neue des
+ * gewählten, und zwar in der Art seiner Brett-Angabe im Register (soll; ohne Angabe das Steinbrett).
+ */
+function brettPasst(log, was) {
+  const falsch = log.find((e) => e.blender && e.gaze < 0.6 && !e.menu && !e.ueb && e.story !== 'scene'
+    && (e.brett.notfall || e.brett.art !== e.brett.soll
+      || (e.brett.anteil === 1 ? e.brett.himmel !== e.shown : !e.fading || e.brett.himmel !== e.sky)));
+  pruefe(!falsch, `${was}: unter einem Himmel aus Blender ein fremdes Brett oder das Steinbrett`
+    + (falsch ? ` (${JSON.stringify({ ...falsch, blick: undefined })})` : ''));
 }
 /** Nach einer Wahl im Menü: Es ist sofort weg (blendet aus), nicht erst, wenn die Welt bereit ist. */
 async function sofortZu(was) {
@@ -468,8 +585,9 @@ async function sofortZu(was) {
   pruefe(zu, `${was}: das Menü blendet nach der Wahl nicht sofort aus`);
 }
 /**
- * Kein leeres Brett: Solange der Blick noch im Himmel ist, kommt der Himmel der Welt; erst wenn er ganz da ist, senkt
- * sich der Blick, und sieht man das Brett (Blick unter 0,6), wächst dort schon das Level.
+ * Kein leeres Brett: Solange der Blick noch im Himmel ist, kommt der Himmel der Welt; erst wenn er samt seinem Brett ganz
+ * da ist, senkt sich der Blick, und sieht man das Brett (Blick unter 0,6), wächst dort schon das Level. Unter einem
+ * Himmel aus Blender steht dabei nie ein fremdes Brett oder das Steinbrett als Notfall (das prüft jede Messung, ende).
  */
 function ohneLeeresBrett(log, sky, was) {
   const ab = log.findIndex((e) => !e.menu && e.gaze < 0.98);
@@ -477,6 +595,9 @@ function ohneLeeresBrett(log, sky, was) {
   if (ab < 0) return;
   pruefe(log[ab].sky === sky && log[ab].ready, `${was}: der Blick senkt sich, bevor ${sky} bereit ist `
     + `(${log[ab].sky}, bereit ${log[ab].ready})`);
+  const b = log[ab].brett;
+  pruefe(b.himmel === sky && b.bereit && b.anteil === 1 && !b.notfall,
+    `${was}: der Blick senkt sich, bevor das Brett von ${sky} bereit ist (${JSON.stringify(b)})`);
   const leer = log.slice(ab).find((e) => e.gaze < 0.6 && !['in', 'play'].includes(e.flow));
   pruefe(!leer, `${was}: leeres Brett im Blick (${JSON.stringify(leer)})`);
 }
@@ -720,6 +841,7 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   const w = Math.floor(platz / 10), k = platz % 10;
   await until(`${D}.story.step === ${platz} && window.__prisma.playing()`, `${g}: Level ${platz + 1} läuft`);
   await kopfzeile(g, platz);
+  await brettDerWelt(`${g} ${platz + 1}`);
   if (bilder) { await sleep(2200); await bild(`${slug(g)}-${platz + 1}`); }
   await ev(`${D}.loese()`);
   await until('window.__prisma.solvedPanel()', `${g}: Level ${platz + 1} gelöst`, 30);
@@ -731,6 +853,18 @@ async function level(g, platz, { bilder = false, messen = false } = {}) {
   }
   if (messen) await messe({ abKlick: true }); // die Zwischenszene danach messen, ab «Weiter»
   await tippe('#btn-next', 'Weiter');
+}
+/**
+ * Das Brett passt zum Himmel der Welt (bzw. des Dorfs): sein Himmel, in der Art seiner Brett-Angabe im Register (soll),
+ * bereit, kein Notfall.
+ */
+async function brettDerWelt(was) {
+  const r = await ev(`(() => { const s = ${D}.story;
+    const welt = s.inDorf ? STORY_DORF.sky : STORY_CHAPTERS[s.steps[s.step].c].sky;
+    return { welt, sky: ${D}.skyTheme.current, brett: window.__prisma.brett(),
+      soll: ${D}.skyTheme.byId.get(welt)?.board?.type ?? 'stone' }; })()`);
+  pruefe(r.sky === r.welt && r.brett.himmel === r.welt && r.brett.art === r.soll && r.brett.bereit && !r.brett.notfall,
+    `${was}: Himmel und Brett passen nicht zur Welt ${JSON.stringify(r)}`);
 }
 async function kopfzeile(g, platz) {
   const w = Math.floor(platz / 10), k = platz % 10;
@@ -1395,8 +1529,19 @@ async function uebersichtAblauf() {
   ohneZwischenszene(log, 'Weiter ins Meer');
   const blick = Math.max(...log.map((e) => e.gaze)), sinkt = log.find((e) => e.flow === 'out');
   pruefe(blick < 0.01, `Weiter ins Meer: der Blick hob sich (${blick})`);
-  pruefe(sinkt?.sky === 'beach' && sinkt.settled, `Weiter ins Meer: das Level versinkt, bevor der Himmel geladen ist `
-    + `(${JSON.stringify(sinkt)})`);
+  pruefe(sinkt?.sky === 'beach' && sinkt.settled, `Weiter ins Meer: das Level versinkt, bevor Himmel und Brett geladen `
+    + `sind (${JSON.stringify(sinkt)})`);
+  // das Brett wechselt mit: vom Wald direkt ins Meer, gleichzeitig mit dem Himmel (Beginn und Ende je höchstens ein Bild
+  // auseinander), steigend, am Ende das Brett des Meers
+  const bf = log.filter((e) => e.brett.von === 'forest' && e.brett.himmel === 'beach');
+  const a0 = log.indexOf(bf[0]), a1 = log.indexOf(bf.at(-1)) + 1;
+  const h0 = log.findIndex((e) => !(e.shown === 'forest' && e.w === 1)), h1 = log.findIndex((e) => e.shown === 'beach' && e.w === 1);
+  const steigt = bf.every((e, i) => i === 0 || e.brett.anteil >= bf[i - 1].brett.anteil);
+  pruefe(bf.length > 10 && steigt && bf.every((e) => e.fading) && Math.abs(a0 - h0) <= 1 && Math.abs(a1 - h1) <= 1
+    && log.at(-1).brett.himmel === 'beach' && log.at(-1).brett.anteil === 1,
+  `Weiter ins Meer: das Brett wechselt nicht mit dem Himmel (Brett Bild ${a0}–${a1}, Himmel ${h0}–${h1}, `
+    + `${bf.length} Bilder, steigend ${steigt}, am Ende ${JSON.stringify(log.at(-1).brett)})`);
+  console.log(`  Weiter ins Meer: Brett und Himmel blenden über ${((log[h1]?.ts - log[h0]?.ts) / 1000).toFixed(2)} s`);
   const danach = await ev(`({ replay: ${D}.story.replay, blend: ${D}.story.blend, sky: ${D}.skyTheme.current,
     quiet: ${D}.skyTheme.quiet, fade: ${D}.skyTheme.fadeTime })`);
   pruefe(danach.replay && danach.blend === null && danach.sky === 'beach' && !danach.quiet && danach.fade === 0.9
@@ -1596,6 +1741,7 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false } = 
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
   pruefe(k.sub.startsWith(`${GRAD_TEXT[g]} · Übung ${n + 1} / 9`) && k.hinweis?.length > 10
     && !/[{}]/.test(k.hinweis), `${g}, Übung ${n + 1}: Unterzeile «${k.sub}»`);
+  await brettDerWelt(`${g}, Übung ${n + 1}`);
   // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
   const skipText = !replay ? await warteSkip(true) : null;
   pruefe(k.uebersicht && (replay ? !k.skip : skipText === 'Dorf überspringen'),
@@ -2506,6 +2652,57 @@ async function fallAblauf() {
   await sleep(300);
   pruefeErwachen(await himmelAuswerten(), 1, 'Reise in Welt 2');
 }
+/**
+ * Wiederholen über die Weltgrenzen am Vulkan (--grenzen; Ticket 09 von .scratch/brett-je-himmel/): Stand Leicht bis
+ * Planeten 6, aus der Übersicht das letzte Level der Wüste wiederholen, «Weiter» zum Vulkan, dann ebenso das letzte des
+ * Vulkans und «Weiter» zu den Planeten. Je Grenze geprüft (grenzeBrett): kein Untertitel, kein Träger, der Blick bleibt
+ * auf dem Brett; das Brett gleitet gleichzeitig mit dem Himmel und steigend vom alten ins neue, ohne Notfall, mit der Art
+ * seiner Brett-Angabe in jedem Bild (Basaltsäulen am Vulkan, Steinbrett bei den Planeten); dazu die Bildzeiten.
+ */
+async function grenzenAblauf() {
+  console.log(`${view.name}: Wiederholen über die Grenzen des Vulkans`);
+  await laden({ 'prisma.noa.zuletzt': 'leicht', 'prisma.noa.leicht': standBis('leicht', 45, 4) });
+  await tippe('#menue .menue-weiter', 'Weiter');
+  await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === 45 && !${D}.story.running`,
+    'Leicht 46 läuft', 90);
+  for (const [w, von, nach, name] of [[2, 'desert', 'volcano', 'Wüste → Vulkan'], [3, 'volcano', null, 'Vulkan → Planeten']]) {
+    await tippe('#btn-overview', 'Übersicht');
+    await until(`${uebOffen} && ${D}.story.gaze === 1 && !${D}.story.tweens.length`, `${name}: Übersicht`, 10);
+    await sleep(600);
+    await tippeKachel(w, 9, `${name}: Kachel ${w + 1}/10`);
+    await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && ${D}.story.step === ${w * 10 + 9}`
+      + ` && !${D}.story.running`, `${name}: letztes Level wiederholen`, 60);
+    await ev(`${D}.loese()`);
+    await until('window.__prisma.solvedPanel()', `${name}: gelöst`, 30);
+    await sleep(700);
+    await messe();
+    await tippe('#btn-next', `${name}: Weiter`);
+    await until(`window.__prisma.playing() && ${D}.story.step === ${w * 10 + 10} && !${D}.story.running`,
+      `${name}: erstes Level der nächsten Welt`, 60);
+    await sleep(1500);
+    const log = await ende(`Wiederholen: ${name}`);
+    grenzeBrett(log, von, nach ?? await ev(`${D}.skyTheme.current`), name);
+    await bild(`grenze-${von}`);
+  }
+}
+/** Weiter über eine Weltgrenze beim Wiederholen: Das Brett wechselt mit dem Himmel von von nach nach (Log von messe). */
+function grenzeBrett(log, von, nach, name) {
+  ohneZwischenszene(log, name);
+  const blick = Math.max(...log.map((e) => e.gaze));
+  pruefe(blick < 0.01, `${name}: der Blick hob sich (${blick})`);
+  const bf = log.filter((e) => e.brett.von === von && e.brett.himmel === nach);
+  const steigt = bf.every((e, i) => i === 0 || e.brett.anteil >= bf[i - 1].brett.anteil);
+  const a0 = log.indexOf(bf[0]), a1 = log.indexOf(bf.at(-1)) + 1;
+  const h0 = log.findIndex((e) => !(e.shown === von && e.w === 1)), h1 = log.findIndex((e) => e.shown === nach && e.w === 1);
+  const falsch = log.find((e) => e.brett.notfall || !e.brett.himmel || e.brett.art !== e.brett.soll);
+  pruefe(bf.length > 10 && steigt && Math.abs(a0 - h0) <= 1 && Math.abs(a1 - h1) <= 1 && log.at(-1).brett.himmel === nach
+    && log.at(-1).brett.anteil === 1 && log.at(-1).brett.bereit, `${name}: das Brett wechselt nicht mit dem Himmel `
+    + `(Brett Bild ${a0}–${a1}, Himmel ${h0}–${h1}, ${bf.length} Bilder, steigend ${steigt}, am Ende `
+    + `${JSON.stringify(log.at(-1).brett)})`);
+  pruefe(!falsch, `${name}: falsches Brett oder Notfall (${JSON.stringify(falsch)})`);
+  console.log(`  ${name}: Brett ${log[0].brett.art} → ${log.at(-1).brett.art}, mit dem Himmel über `
+    + `${((log[h1]?.ts - log[h0]?.ts) / 1000).toFixed(2)} s`);
+}
 /** Grösster Rückgang dessen, was von Strahlen leuchtet (rest bzw. strahlen der Aufzeichnung), je Bild (60 je s). */
 const auslaufSprung = (lauf) => Math.max(0, ...lauf.slice(1).map((e, i) => ((lauf[i].rest ?? lauf[i].strahlen)
   - (e.rest ?? e.strahlen)) / Math.max(1, (e.ts - lauf[i].ts) / (1000 / 60))));
@@ -2786,8 +2983,10 @@ function vergleicheVorher() {
   }
 }
 
+let arbeitJe = null;
 try {
   await emulate(send, view);
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: ARBEIT });
   await send('Page.navigate', { url: PAGE });
   await until('window.__prisma?.ticks > 2', 'Spiel startet');
   reise = await ev('STORY_LEVELS');
@@ -2798,12 +2997,14 @@ try {
   if (dorfRaenderProbe) await dorfRaender();
   if (wagenProbe) await wagenAblauf();
   if (fallProbe) await fallAblauf();
+  if (grenzenProbe) await grenzenAblauf();
   for (const [i, g] of grade.entries()) await (ganz ? ganzerDurchgang : durchgang)(g, i === 0);
   if (finaleGrad) await finale(finaleGrad);
 } catch (e) {
   pruefe(false, e.message);
   await bild('abbruch').catch(() => {});
 } finally {
+  arbeitJe = await arbeitBericht().catch((e) => { console.log(`Protokoll der Arbeit: ${e.message}`); return null; });
   await close();
 }
 const konsole = logs.filter(l => /\[exception\]|\[error\]|THREE\.WebGLProgram/.test(l));
@@ -2824,7 +3025,7 @@ if (vorherDatei) vergleicheVorher();
 if (messwerte) {
   mkdirSync(dirname(messwerte), { recursive: true });
   writeFileSync(messwerte, `${JSON.stringify({ zeit: new Date().toISOString(), aufruf: args.join(' '),
-    bildschirm: view, abschnitte: bildzeiten, fehler }, null, 1)}\n`);
+    bildschirm: view, abschnitte: bildzeiten, arbeit: arbeitJe, fehler }, null, 1)}\n`);
   console.log(`\nMesswerte nach ${messwerte}`);
 }
 console.log(fehler.length ? `\nProbe FEHLGESCHLAGEN (${fehler.length})` : '\nProbe bestanden, Konsole ohne Fehler.');

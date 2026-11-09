@@ -6,9 +6,16 @@
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
 //     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
-//     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }] }
+//     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }],
+//     board?: { type, … } }
 // starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
 // die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
+// board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
+// BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
+// Farben und Lage der Rinne, clay die Farben der Lehmterrasse, raisedBed die des Hochbeets, moss die des Moospolsters,
+// basalt die der Basaltsäulen, je in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte
+// Art und unbekannte, fehlende oder ungültige Werte sind Fehler. pack.mjs übernimmt sie unverändert aus skybox.json (mit
+// --brett nur sie, ohne die Teile neu zu packen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -47,6 +54,12 @@ export function layerTypes(html) {
   return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
 }
 
+/** Arten von Brettern, die index.html kennt (Schlüssel von BOARD_TYPES) */
+export function boardTypes(html) {
+  const m = html.match(/^const BOARD_TYPES = \{([^}]*)\};/m);
+  return m ? m[1].split(',').map((s) => s.trim()).filter(Boolean) : [];
+}
+
 /** Hintergründe aus dem Code (SKY_ENTRIES in index.html): ihre id und order darf keine Skybox haben */
 export function codeSkies(html) {
   const block = html.match(/^const SKY_ENTRIES = [\s\S]*?^\}\)\(\);/m)?.[0] ?? '';
@@ -67,6 +80,9 @@ const isRange = (v) => isVec(v, 2) && v[0] > 0 && v[1] >= v[0];
 /** Farbe, die nicht aufblüht (jeder Kanal unter der Bloom-Schwelle); isGlow(n): n solche */
 const isBright = (v) => isColor(v) && Math.max(...v) < BLOOM_THRESHOLD;
 const isGlow = (n) => (v) => Array.isArray(v) && v.length === n && v.every(isBright);
+/** Farbe in sRGB 0 … 1 (Farben eines Bretts); isSrgbPair: zwei Töne */
+const isSrgb = (v) => isVec(v) && v.every((x) => x >= 0 && x <= 1);
+const isSrgbPair = (v) => Array.isArray(v) && v.length === 2 && v.every(isSrgb);
 /** Pinsel der Skybox (createBrushPass): Felder optional, in ihrem Bereich */
 const BRUSH_RANGES = { size: [0.01, 2], uniformity: [0, 50], sharpness: [0, 1], eccentricity: [0, 2] };
 const isBrush = (v) => typeof v === 'object' && v !== null && !Array.isArray(v)
@@ -128,11 +144,73 @@ const LAYER_PARAMS = {
   },
 };
 
+// Werte der Arten von Brettern (BOARD_TYPES in index.html): Feld -> Prüfung. Jede Art steht hier, auch ohne Werte;
+// ein Feld, das hier fehlt, ist ein unbekannter Wert
+const BOARD_FIELD = 4.2, BOARD_PLATE = 4.9; // halbe Kante des 7×7-Felds und des Umrisses (BOARD, PLATE in index.html)
+/** zwei Farben in sRGB, je Kanal 0 … 1 (Texturen des Bretts) */
+const isColorPair = (v) => Array.isArray(v) && v.length === 2 && v.every((c) => isVec(c) && c.every((x) => x >= 0 && x <= 1));
+const BOARD_PARAMS = {
+  stone: {},
+  // Gezeitenbecken (Strand): Sandstein des Felds, Wasser in der Rinne (Grund), Fels der Lippe und Seiten, je [hell,
+  // dunkel]; channel: Rinne von innen bis aussen (Kastenabstand von der Mitte, m), ausserhalb des Felds, mindestens 10 cm
+  // breit, aussen mindestens 5 cm Felslippe
+  tidePool: {
+    stone: isColorPair, water: isColorPair, rock: isColorPair,
+    channel: (v) => isVec(v, 2) && v[0] > BOARD_FIELD && v[1] - v[0] >= 0.1 && v[1] <= BOARD_PLATE - 0.05,
+  },
+  // Lehmterrasse der Wüste (clayBoard): Farben sRGB 0 … 1. plaster und brick je zwei Töne (Putz, Ziegel), straw
+  // Strohhalme im Putz, joint Fugen, gully Regenrinnen in der Wand, inlay Kalklinie (Einlegelinie), wood Balken aus
+  // Palmholz, egg Strausseneier, sand Sandzungen der Lichtwelle
+  clay: {
+    plaster: isSrgbPair, straw: isSrgb, brick: isSrgbPair, joint: isSrgb, gully: isSrgb, inlay: isSrgb, wood: isSrgb,
+    egg: isSrgb, sand: isSrgb,
+  },
+  // Hochbeet des Dorfs (raisedBedBoard): Farben sRGB 0 … 1. soil und larch je zwei Töne [hell, dunkel] (Erde,
+  // Lärchenbohlen), mulch Mulch im Rand, cord Pflanzschnüre (Raster), pebble Kiesel (Einlegelinie), peg Pflöcke; Kräuter:
+  // chive Schnittlauch, thyme Thymian, lettuce Salat, marigold Ringelblumen, blossom Blüten von Schnittlauch und Thymian;
+  // Lichtwelle: sprout Sämlinge, firefly Glühwürmchen
+  raisedBed: {
+    soil: isSrgbPair, mulch: isSrgb, cord: isSrgb, pebble: isSrgb, larch: isSrgbPair, peg: isSrgb, chive: isSrgb,
+    thyme: isSrgb, lettuce: isSrgb, marigold: isSrgb, blossom: isSrgb, sprout: isSrgb, firefly: isSrgb,
+  },
+  // Moospolster des Bergwalds (mossBoard): Farben sRGB 0 … 1. moss zwei Töne des Mooses (dunkel, hell), tip helle Spitzen,
+  // gold goldene Flecken, silver Rasterlinien aus Silbermoos, litter Nadelstreu im Rand, soil zwei Töne des Humus der
+  // Seiten, pebble Steine darin, thread Wurzelfäden darin, root zwei Töne der hängenden Wurzeln, fern Farn (Blatt, Stiel),
+  // cap Hut der Helmlinge, glow ihr Leuchten, flower Blumen der Lichtwelle (Blütenblatt, Mitte)
+  moss: {
+    moss: isSrgbPair, tip: isSrgb, gold: isSrgb, silver: isSrgb, litter: isSrgb, soil: isSrgbPair, pebble: isSrgb,
+    thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair,
+  },
+  // Basaltsäulen des Vulkans (basaltBoard): Farben sRGB 0 … 1. basalt die geschliffenen Säulen des Felds [hell, dunkel],
+  // tint ihre wolkige Tönung, lip ihr hell geschliffener Rand, joint die Fugen, line das Raster, inlay die Einlegelinie,
+  // column die Säulen als Körper [hell, dunkel], rise die Säulen, die sich in der Lichtwelle heben, glow die Glut (Licht
+  // der Lava von unten, Fugen, Flanken und Köpfe in der Lichtwelle)
+  basalt: {
+    basalt: isSrgbPair, tint: isSrgb, lip: isSrgb, joint: isSrgb, line: isSrgb, inlay: isSrgb, column: isSrgbPair,
+    rise: isSrgb, glow: isSrgb,
+  },
+};
+
+/** Fehler der Brett-Angabe board (Liste von Texten); boards: Arten des Spiels (boardTypes), ohne: nicht geprüft */
+function boardErrors(board, boards) {
+  if (typeof board !== 'object' || board === null || Array.isArray(board)) return ['board: { type, …Werte }'];
+  const { type, ...values } = board;
+  if (typeof type !== 'string' || !type) return ['board: type fehlt'];
+  const errors = [];
+  if (boards && !boards.includes(type)) errors.push(`board: Art ${type} im Spiel unbekannt`);
+  const params = Object.hasOwn(BOARD_PARAMS, type) ? BOARD_PARAMS[type] : null;
+  if (!params) return [...errors, `board: Art ${type} ohne Werte in BOARD_PARAMS (tools/sky-schema.mjs)`];
+  for (const k of Object.keys(values)) if (!Object.hasOwn(params, k)) errors.push(`board ${type}: Wert ${k} unbekannt`);
+  for (const [k, ok] of Object.entries(params)) if (!ok(values[k])) errors.push(`board ${type}: ${k} fehlt oder ungültig`);
+  return errors;
+}
+
 /**
  * Fehler als Liste von Texten (leer = in Ordnung). root: Projektordner (Dateien prüfen); types: Ebenentypen des Spiels;
- * reserved: Hintergründe aus dem Code ({ id, order }); pending: Inhalt noch nicht geschriebener Teile (Datei -> Text)
+ * boards: Arten von Brettern im Spiel (boardTypes); reserved: Hintergründe aus dem Code ({ id, order }); pending:
+ * Inhalt noch nicht geschriebener Teile (Datei -> Text)
  */
-export function checkSkies(skies, { root, types, reserved = [], pending = {} } = {}) {
+export function checkSkies(skies, { root, types, boards, reserved = [], pending = {} } = {}) {
   const errors = [];
   const ids = new Set(reserved.map((r) => r.id)), orders = new Set(reserved.map((r) => r.order));
   let precache = 0;
@@ -233,6 +311,7 @@ export function checkSkies(skies, { root, types, reserved = [], pending = {} } =
         err('Ebene fishSchools: braucht davor waterSurface');
       }
     }
+    if (s.board !== undefined) for (const e of boardErrors(s.board, boards)) err(e);
   }
   if (precache > BUDGET.precacheBytes) errors.push(`vorab gespeichert ${precache} Bytes > ${BUDGET.precacheBytes}`);
   return errors;

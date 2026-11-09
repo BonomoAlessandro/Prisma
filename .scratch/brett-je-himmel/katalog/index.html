@@ -1,0 +1,645 @@
+<title>Brett am Strand</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Musterbuch: je Richtung ein Musterblatt, links das Spielbild mit drei Nebenansichten, rechts Idee und Folgen */
+  :root {
+    --bg: #edf2f0;        /* Meeresdunst */
+    --blatt: #f9fbfa;     /* Musterblatt */
+    --ink: #13292b;       /* tiefes Wasser */
+    --leise: #4f6567;
+    --linie: #c9d7d3;
+    --meer: #137a75;      /* Akzent: Türkis der Bucht */
+    --sand: #a5612f;      /* Hinweise */
+    --sand-grund: #f3e2d2;
+    --meer-grund: #d8ece9;
+    --wasser: #2b7c78;    /* Rand um die Aufsicht, wie das Meer ums Brett (beide Themen) */
+    --f-titel: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mass: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --s0: 0.8125rem; --s1: 0.9375rem; --s2: 1.0625rem; --s3: 1.375rem; --s4: 2rem; --s5: clamp(2.2rem, 5vw, 3.4rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+      --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+    --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font: 400 var(--s1)/1.55 var(--f-text);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .seite { max-width: 1240px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  a { color: var(--meer); text-underline-offset: 0.18em; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--meer); outline-offset: 3px; border-radius: 4px; }
+  .mass { font-family: var(--f-mass); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+
+  /* Kopf */
+  .einstieg { padding-top: 3rem; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: end; }
+  .einstieg h1 { font: 700 var(--s5)/1.02 var(--f-titel); letter-spacing: -0.02em; margin: 0.3rem 0 0; text-wrap: balance; }
+  .eyebrow { font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.08em; text-transform: uppercase; color: var(--meer); margin: 0; }
+  .einstieg p.lead { font-size: var(--s2); max-width: 62ch; margin: 0.9rem 0 0; }
+  .grenzen { margin: 0; padding: 1rem 1.1rem; border: 1px solid var(--linie); border-radius: 10px; background: var(--blatt); font-size: var(--s0); }
+  .grenzen h2 { font: 600 var(--s0)/1.3 var(--f-mass); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.5rem; color: var(--leise); }
+  .grenzen ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+  .legende { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 0.75rem 1.75rem; font-size: var(--s0); color: var(--leise); margin: 0; padding: 0; list-style: none; }
+  .legende li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.6rem; align-items: baseline; }
+  .legende .chip { justify-self: start; }
+  .inhalt { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .inhalt a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0.7rem; border: 1px solid var(--linie); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--blatt); font-size: var(--s0); }
+  .inhalt a b { font-family: var(--f-mass); font-weight: 500; color: var(--meer); }
+  .inhalt a:hover { border-color: var(--meer); }
+
+  /* Karten */
+  .karte { background: var(--blatt); border: 1px solid var(--linie); border-radius: 14px; padding: clamp(1rem, 2.5vw, 1.75rem);
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-areas: "kopf kopf" "bilder text"; gap: 1.1rem 1.75rem; scroll-margin-top: 1rem; }
+  .karte.heute { background: transparent; border-style: dashed; }
+  .kopf { grid-area: kopf; display: flex; gap: 1rem; align-items: center; }
+  .nr { font: 700 2.6rem/1 var(--f-titel); color: var(--meer); min-width: 1.4ch; text-align: center; }
+  .art { margin: 0; font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); }
+  .kopf h2 { margin: 0.15rem 0 0; font: 700 var(--s4)/1.1 var(--f-titel); letter-spacing: -0.01em; text-wrap: balance; }
+  .bilder { grid-area: bilder; display: grid; gap: 0.6rem; min-width: 0; }
+  .streifen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+  figure { margin: 0; display: grid; gap: 0.3rem; min-width: 0; }
+  figcaption { font-size: var(--s0); color: var(--leise); }
+  .zoom { all: unset; cursor: zoom-in; display: block; border-radius: 8px; overflow: hidden; background: var(--linie); }
+  .zoom img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.25s ease; }
+  .neben .zoom img { aspect-ratio: 16 / 10; }
+  .oben .zoom img { object-fit: contain; background: var(--wasser); }
+  .zoom:hover img { transform: scale(1.02); }
+  .text { grid-area: text; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+  .idee { margin: 0; font-size: var(--s2); }
+  .behaelt { margin: 0; display: grid; gap: 0.55rem; }
+  .behaelt div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.75rem; padding-top: 0.55rem; border-top: 1px solid var(--linie); }
+  .behaelt dt { font: 500 var(--s0)/1.5 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); }
+  .behaelt dd { margin: 0; }
+  .behaelt .welle dt { color: var(--meer); }
+  .hinweise { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; font-size: var(--s1); }
+  .chip { display: inline-block; font: 500 0.75rem/1.2 var(--f-mass); letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 5px;
+    color: var(--sand); background: var(--sand-grund); white-space: nowrap; }
+  .chip-pinsel, .chip-teile, .chip-mehr { color: var(--meer); background: var(--meer-grund); }
+  .vorbilder { margin: 0; font-size: var(--s0); line-height: 1.7; }
+  .label { font: 500 var(--s0)/1 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin-right: 0.35rem; }
+  .fuss { font-size: var(--s0); color: var(--leise); max-width: 75ch; }
+
+  /* Grossansicht */
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; }
+  dialog::backdrop { background: rgb(5 14 15 / 0.82); }
+  dialog figure { gap: 0.5rem; }
+  dialog img { max-width: 100%; max-height: 86vh; width: auto; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+  dialog figcaption { color: #e2ecea; text-align: center; }
+  dialog .zu { position: absolute; top: 0.5rem; right: 0.5rem; font: 600 var(--s1)/1 var(--f-text); background: rgb(13 24 25 / 0.75); color: #e2ecea;
+    border: 1px solid rgb(226 236 234 / 0.3); border-radius: 999px; padding: 0.45rem 0.8rem; cursor: pointer; }
+
+  @media (max-width: 860px) {
+    .einstieg { grid-template-columns: minmax(0, 1fr); padding-top: 2rem; }
+    .karte { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kopf" "bilder" "text"; }
+    .behaelt div { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .zoom img { transition: none; } .zoom:hover img { transform: none; } }
+</style>
+
+<div class="seite">
+  <header class="einstieg">
+    <div>
+      <p class="eyebrow">Prisma · Ein Brett je Himmel · Skizzenkatalog</p>
+      <h1>Brett am Strand</h1>
+      <p class="lead">Acht Richtungen, wie das Brett das Material des Strands aufnehmen kann. Jedes Bild stammt aus dem
+        Spiel: dasselbe Level am Strand, das neue Brett zur Laufzeit eingesetzt, nichts übermalt. Wähle zwei bis drei
+        Karten, gern mit Änderungswünschen. Sie kommen als Richtungen ins Spiel (Ticket 04).</p>
+    </div>
+    <section class="grenzen" aria-labelledby="grenzen-titel">
+      <h2 id="grenzen-titel">Bleibt in jeder Richtung gleich</h2>
+      <ul>
+        <li>Das 7×7-Feld: eben, <span class="mass">8,4 × 8,4 m</span>, an derselben Stelle.</li>
+        <li>Form frei innerhalb von <span class="mass">9,8 × 9,8 m</span>; das Brett schwebt <span class="mass">3 m</span> über dem Wasser.</li>
+        <li>Licht, Sockel, Drehteller und Prismenteller wie heute.</li>
+        <li>Lichtwelle beim Lösen auf jedem Brett.</li>
+        <li>Frei: Rasterlinien, Einlegelinie, Spiegelung.</li>
+      </ul>
+    </section>
+  </header>
+
+  <nav aria-label="Karten">
+    <ul class="inhalt">
+      <li><a href="#heute"><b>0</b> Heute</a></li>
+      <li><a href="#sandbank"><b>1</b> Sandbank</a></li>
+      <li><a href="#floss"><b>2</b> Treibholz-Floss</a></li>
+      <li><a href="#gezeitenfels"><b>3</b> Gezeitenfels</a></li>
+      <li><a href="#muschelkalk"><b>4</b> Muschelkalk mit Perlmutt</a></li>
+      <li><a href="#seeglas"><b>5</b> Seeglas</a></li>
+      <li><a href="#gezeitenbecken"><b>6</b> Gezeitenbecken</a></li>
+      <li><a href="#gemalt"><b>7</b> Gemalt</a></li>
+      <li><a href="#sandinsel"><b>8</b> Schwebende Sandinsel</a></li>
+    </ul>
+  </nav>
+
+  <ul class="legende" aria-label="Hinweise auf den Karten">
+    <li><span class="chip chip-blender">Form aus Blender</span> <span>Die Richtung braucht eine Form aus Blender oder wird damit deutlich schöner.</span></li>
+    <li><span class="chip chip-ausblick">Ausblick, teurer</span> <span>Geht über den Umriss von 9,8 × 9,8 m hinaus oder verbindet das Brett mit dem Grund. Nicht Teil der Spec.</span></li>
+    <li><span class="chip chip-kern">Kernquader kleiner</span> <span>Deckt den Quader des Bretts nicht ganz undurchsichtig. Der Himmel muss dahinter zeichnen (Kernquader, Ticket 01).</span></li>
+    <li><span class="chip chip-pinsel">Pinsel aufs Brett</span> <span>Der Pinselfilter der Pflanzen malt das Brett mit. Heute spart ihn ein Quader ums Brett aus.</span></li>
+    <li><span class="chip chip-teile">Viele kleine Teile</span> <span>Bewuchs oder Halme aus vielen kleinen Körpern. Auf dem Handy zu messen.</span></li>
+    <li><span class="chip chip-mehr">Echt wäre teurer</span> <span>Das Bild täuscht einen Stoff vor, der echt gerechnet mehr kosten würde.</span></li>
+  </ul>
+
+  
+    <article class="karte heute" id="heute">
+      <header class="kopf">
+        
+        <div>
+          <p class="art">Heute</p>
+          <h2>Steinbrett</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/stein-schraeg.jpg" data-text="Steinbrett: Im Spiel" aria-label="Steinbrett: Im Spiel gross zeigen">
+            <img src="bilder/stein-schraeg.jpg" alt="Steinbrett: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/stein-oben.jpg" data-text="Steinbrett: Aufsicht" aria-label="Steinbrett: Aufsicht gross zeigen">
+            <img src="bilder/stein-oben.jpg" alt="Steinbrett: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/stein-flach.jpg" data-text="Steinbrett: Flacher Blick: Seiten und Kante" aria-label="Steinbrett: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/stein-flach.jpg" alt="Steinbrett: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/stein-welle.jpg" data-text="Steinbrett: Lichtwelle beim Lösen" aria-label="Steinbrett: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/stein-welle.jpg" alt="Steinbrett: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Dunkler, fein geäderter Schiefer mit eingravierten Rasterlinien, einer hellen Einlegelinie, polierten dunklen Seiten und einer Metallkante. So sieht das Brett heute in allen Welten aus.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert, fein.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Helle, matte Linie knapp ausserhalb des Felds.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, poliert.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein heller Ring in der Mischfarbe der Ziele läuft von der Mitte bis über die Ecken.</dd></div>
+        </dl>
+        
+        
+      </div>
+    </article>
+
+    <article class="karte" id="sandbank">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">1</span>
+        <div>
+          <p class="art">Karte 1 · Andere Oberfläche</p>
+          <h2>Sandbank</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/sand-schraeg.jpg" data-text="Sandbank: Im Spiel" aria-label="Sandbank: Im Spiel gross zeigen">
+            <img src="bilder/sand-schraeg.jpg" alt="Sandbank: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/sand-oben.jpg" data-text="Sandbank: Aufsicht" aria-label="Sandbank: Aufsicht gross zeigen">
+            <img src="bilder/sand-oben.jpg" alt="Sandbank: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/sand-flach.jpg" data-text="Sandbank: Flacher Blick: Seiten und Kante" aria-label="Sandbank: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/sand-flach.jpg" alt="Sandbank: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/sand-welle.jpg" data-text="Sandbank: Lichtwelle beim Lösen" aria-label="Sandbank: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/sand-welle.jpg" alt="Sandbank: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Stück Strand, das mitfliegt. Im Feld liegt feuchter, glatt gestrichener Sand, auf dem Rand trockene Rippeln, wie sie die Ebbe hinterlässt. Die Seiten zeigen geschichteten Sand wie eine abgestochene Sandburg.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Mit dem Finger in den Sand gezogene Rillen, breiter und weicher als heute.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Reihe heller und rosa Muschelsplitter.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, aber matt: Nur wo der Sand nass ist, glänzt er und zeigt die Elemente verschwommen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Saum aus Schaum läuft von der Mitte nach aussen, dahinter bleibt der Sand dunkel und nass wie nach einer auslaufenden Welle.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Rippelmarke" target="_blank" rel="noopener">Rippelmarke</a> · <a href="https://en.wikipedia.org/wiki/Swash" target="_blank" rel="noopener">Swash</a> · <a href="https://de.wikipedia.org/wiki/Sandburg" target="_blank" rel="noopener">Sandburg</a> · <a href="https://en.wikipedia.org/wiki/Walk_on_the_Beach" target="_blank" rel="noopener">Sorolla, Walk on the Beach</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="floss">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">2</span>
+        <div>
+          <p class="art">Karte 2 · Andere Form: Bohlen</p>
+          <h2>Treibholz-Floss</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/floss-schraeg.jpg" data-text="Treibholz-Floss: Im Spiel" aria-label="Treibholz-Floss: Im Spiel gross zeigen">
+            <img src="bilder/floss-schraeg.jpg" alt="Treibholz-Floss: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/floss-oben.jpg" data-text="Treibholz-Floss: Aufsicht" aria-label="Treibholz-Floss: Aufsicht gross zeigen">
+            <img src="bilder/floss-oben.jpg" alt="Treibholz-Floss: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/floss-flach.jpg" data-text="Treibholz-Floss: Flacher Blick: Seiten und Kante" aria-label="Treibholz-Floss: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/floss-flach.jpg" alt="Treibholz-Floss: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/floss-welle.jpg" data-text="Treibholz-Floss: Lichtwelle beim Lösen" aria-label="Treibholz-Floss: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/floss-welle.jpg" alt="Treibholz-Floss: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Jede Reihe des Felds ist eine Bohle aus silbergrauem Treibholz, vorn und hinten liegen breitere Randbohlen mit Resten alter Bootsfarbe. Darunter halten drei Rundhölzer das Floss zusammen, mit Tau gezurrt. Die Bohlen sind ungleich lang, der Umriss franst aus.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Reihen sind die Fugen zwischen den Bohlen, die Spalten sind eingebrannt.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein Tau, das ums Feld läuft.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Nein, Holz ist matt. Ihr Zeichnen könnte für dieses Brett entfallen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Die eingebrannten Linien glimmen wie Glut auf, wo der Ring vorbeizieht, und durch die Fugen fällt warmes Licht von unten.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-blender">Form aus Blender</span> Bohlen, Rundhölzer und Tau lassen sich als einfache Körper berechnen (so in den Bildern). Krummes Treibholz mit Ästen bräuchte Formen aus Blender.</li>
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Ungleiche Bohlenenden und offene Fugen decken den Quader nicht ganz. Der Kernquader wäre nur das Feld mit den Randbohlen.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Treibholz" target="_blank" rel="noopener">Treibholz</a> · <a href="https://de.wikipedia.org/wiki/Kon-Tiki" target="_blank" rel="noopener">Kon-Tiki</a> · <a href="https://de.wikipedia.org/wiki/Brandmalerei" target="_blank" rel="noopener">Brandmalerei</a> · <a href="https://en.wikipedia.org/wiki/Raft_(video_game)" target="_blank" rel="noopener">Raft</a> · <a href="https://de.wikipedia.org/wiki/Sea_of_Thieves" target="_blank" rel="noopener">Sea of Thieves</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="gezeitenfels">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">3</span>
+        <div>
+          <p class="art">Karte 3 · Dinge auf dem Rand</p>
+          <h2>Gezeitenfels</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/fels-schraeg.jpg" data-text="Gezeitenfels: Im Spiel" aria-label="Gezeitenfels: Im Spiel gross zeigen">
+            <img src="bilder/fels-schraeg.jpg" alt="Gezeitenfels: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/fels-oben.jpg" data-text="Gezeitenfels: Aufsicht" aria-label="Gezeitenfels: Aufsicht gross zeigen">
+            <img src="bilder/fels-oben.jpg" alt="Gezeitenfels: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/fels-flach.jpg" data-text="Gezeitenfels: Flacher Blick: Seiten und Kante" aria-label="Gezeitenfels: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/fels-flach.jpg" alt="Gezeitenfels: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/fels-welle.jpg" data-text="Gezeitenfels: Lichtwelle beim Lösen" aria-label="Gezeitenfels: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/fels-welle.jpg" alt="Gezeitenfels: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Eine Platte aus dem rosabraunen Fels der Bucht. Das Feld ist glatt gewaschen und glänzt nass. Auf dem Rand sitzen Seepocken, Napfschnecken und in zwei Ecken Miesmuscheln, ein Seestern liegt auf einer Ecke, über die Kante hängt Tang, unten an den Seiten liegt ein grünes Algenband.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert wie heute.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine helle Linie wie eine Salzkruste.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, der nasse Fels glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Wasserfilm läuft über den Fels: vorn eine helle Kante, dahinter glänzt der Stein nass.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Gut 1500 Seepocken, Muscheln und Schnecken als Instanzen, dazu Tangbänder. Auf dem Handy zu messen.</li>
+          <li><span class="chip chip-blender">Form aus Blender</span> Seepocken und Muscheln gehen berechnet. Tang, der natürlich über die Kante fällt, gelänge mit Formen aus Blender besser.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Gezeitenzone" target="_blank" rel="noopener">Gezeitenzone</a> · <a href="https://de.wikipedia.org/wiki/Seepocken" target="_blank" rel="noopener">Seepocken</a> · <a href="https://de.wikipedia.org/wiki/Miesmuschel" target="_blank" rel="noopener">Miesmuschel</a> · <a href="https://de.wikipedia.org/wiki/Meersalat" target="_blank" rel="noopener">Meersalat</a> · <a href="https://de.wikipedia.org/wiki/Andy_Goldsworthy" target="_blank" rel="noopener">Andy Goldsworthy</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="muschelkalk">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">4</span>
+        <div>
+          <p class="art">Karte 4 · Andere Oberfläche, eingelegt</p>
+          <h2>Muschelkalk mit Perlmutt</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/muschelkalk-schraeg.jpg" data-text="Muschelkalk mit Perlmutt: Im Spiel" aria-label="Muschelkalk mit Perlmutt: Im Spiel gross zeigen">
+            <img src="bilder/muschelkalk-schraeg.jpg" alt="Muschelkalk mit Perlmutt: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/muschelkalk-oben.jpg" data-text="Muschelkalk mit Perlmutt: Aufsicht" aria-label="Muschelkalk mit Perlmutt: Aufsicht gross zeigen">
+            <img src="bilder/muschelkalk-oben.jpg" alt="Muschelkalk mit Perlmutt: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/muschelkalk-flach.jpg" data-text="Muschelkalk mit Perlmutt: Flacher Blick: Seiten und Kante" aria-label="Muschelkalk mit Perlmutt: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/muschelkalk-flach.jpg" alt="Muschelkalk mit Perlmutt: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/muschelkalk-welle.jpg" data-text="Muschelkalk mit Perlmutt: Lichtwelle beim Lösen" aria-label="Muschelkalk mit Perlmutt: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/muschelkalk-welle.jpg" alt="Muschelkalk mit Perlmutt: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Heller Schalenkalk, wie ihn das Meer aus Muscheln zusammenbäckt. Im Feld ist er geschliffen und zeigt nur feine Bögen der Schalen, im Rand bleibt er rau, mit ganzen Herz- und Kammmuscheln. Rasterlinien und Einlegelinie sind Bänder aus Perlmutt, deren Farbe mit dem Blick kippt.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Perlmuttlinien, gut doppelt so breit wie heute.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein breites Perlmuttband.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Schwach, geschliffener Stein. Die Perlmuttlinien glänzen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Schimmer in den Farben des Perlmutts zieht über den Stein, die Perlmuttlinien blitzen nacheinander auf.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Schillkalk" target="_blank" rel="noopener">Schillkalk</a> · <a href="https://en.wikipedia.org/wiki/Coquina" target="_blank" rel="noopener">Coquina</a> · <a href="https://de.wikipedia.org/wiki/Muschelkalk" target="_blank" rel="noopener">Muschelkalk</a> · <a href="https://de.wikipedia.org/wiki/Perlmutt" target="_blank" rel="noopener">Perlmutt</a> · <a href="https://de.wikipedia.org/wiki/Kammmuscheln" target="_blank" rel="noopener">Kammmuscheln</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="seeglas">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">5</span>
+        <div>
+          <p class="art">Karte 5 · Andere Oberfläche, durchscheinend</p>
+          <h2>Seeglas</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/seeglas-schraeg.jpg" data-text="Seeglas: Im Spiel" aria-label="Seeglas: Im Spiel gross zeigen">
+            <img src="bilder/seeglas-schraeg.jpg" alt="Seeglas: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/seeglas-oben.jpg" data-text="Seeglas: Aufsicht" aria-label="Seeglas: Aufsicht gross zeigen">
+            <img src="bilder/seeglas-oben.jpg" alt="Seeglas: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/seeglas-flach.jpg" data-text="Seeglas: Flacher Blick: Seiten und Kante" aria-label="Seeglas: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/seeglas-flach.jpg" alt="Seeglas: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/seeglas-welle.jpg" data-text="Seeglas: Lichtwelle beim Lösen" aria-label="Seeglas: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/seeglas-welle.jpg" alt="Seeglas: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Jedes der 49 Felder ist eine Fliese aus mattiertem Meerglas in Türkis, Grün und Weiss. Der Rand ist ein Mosaik aus Glaskieseln in Sand, darunter selten Bernstein und Kobalt. Die Seiten sind dickes, grünblaues Glas, durch das das Meer scheint.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Fugen zwischen den Fliesen.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Reihe kobaltblauer Splitter.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Schwach auf dem Glas.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Fliese um Fliese leuchtet von innen auf, als fiele Sonne durchs Glas. Der Ring wird zu einer Treppe aus Feldern.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Die durchscheinenden Seiten decken nicht. Der Himmel muss hinter dem Brett zeichnen, der Kernquader schrumpft auf die Oberseite.</li>
+          <li><span class="chip chip-mehr">Echt wäre teurer</span> Hier ist Glas vorgetäuscht (leuchtende Farbe, halb durchsichtige Seiten). Echtes Glas mit Brechung wäre deutlich teurer.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Meerglas" target="_blank" rel="noopener">Meerglas</a> · <a href="https://de.wikipedia.org/wiki/Kaustik_(Optik)" target="_blank" rel="noopener">Kaustik</a> · <a href="https://de.wikipedia.org/wiki/Trencad%C3%ADs" target="_blank" rel="noopener">Trencadís</a> · <a href="https://de.wikipedia.org/wiki/Mosaik" target="_blank" rel="noopener">Mosaik</a> · <a href="https://de.wikipedia.org/wiki/Abz%C3%BB" target="_blank" rel="noopener">Abzû</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="gezeitenbecken">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">6</span>
+        <div>
+          <p class="art">Karte 6 · Übergang zum Wasser</p>
+          <h2>Gezeitenbecken</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/wasserrand-schraeg.jpg" data-text="Gezeitenbecken: Im Spiel" aria-label="Gezeitenbecken: Im Spiel gross zeigen">
+            <img src="bilder/wasserrand-schraeg.jpg" alt="Gezeitenbecken: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/wasserrand-oben.jpg" data-text="Gezeitenbecken: Aufsicht" aria-label="Gezeitenbecken: Aufsicht gross zeigen">
+            <img src="bilder/wasserrand-oben.jpg" alt="Gezeitenbecken: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/wasserrand-flach.jpg" data-text="Gezeitenbecken: Flacher Blick: Seiten und Kante" aria-label="Gezeitenbecken: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/wasserrand-flach.jpg" alt="Gezeitenbecken: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/wasserrand-welle.jpg" data-text="Gezeitenbecken: Lichtwelle beim Lösen" aria-label="Gezeitenbecken: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/wasserrand-welle.jpg" alt="Gezeitenbecken: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/wasserrand-ausblick-flach.jpg" data-text="Gezeitenbecken: Ausblick: Wasserfall bis aufs Meer" aria-label="Gezeitenbecken: Ausblick: Wasserfall bis aufs Meer gross zeigen">
+            <img src="bilder/wasserrand-ausblick-flach.jpg" alt="Gezeitenbecken: Ausblick: Wasserfall bis aufs Meer" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Ausblick: Wasserfall bis aufs Meer</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Feld ist heller Sandstein. Rundherum läuft im Rand eine flache Rinne mit klarem Wasser, mit Lichtnetz am Grund und Schaum an den Kanten, aussen hält eine schmale Felslippe das Wasser. Die Seiten sind nasser Fels mit Rinnsalen.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert wie heute.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, die Wasserkante mit ihrem Schaum ersetzt sie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Nur in der Rinne, dort stark. Das Feld ist matt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Licht läuft über den Stein. In der Rinne läuft ein Schwall mit Schaum rundum.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-ausblick">Ausblick, teurer</span> Ausblick (Bild «Wasserfall»): Das Wasser fällt in Schleiern bis aufs Meer, 3 m tiefer. Das verbindet das Brett mit dem Grund und ist nicht Teil der Spec.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Gezeitent%C3%BCmpel" target="_blank" rel="noopener">Gezeitentümpel</a> · <a href="https://de.wikipedia.org/wiki/Infinity-Pool" target="_blank" rel="noopener">Infinity-Pool</a> · <a href="https://de.wikipedia.org/wiki/Kaustik_(Optik)" target="_blank" rel="noopener">Kaustik</a> · <a href="https://en.wikipedia.org/wiki/Bad_North" target="_blank" rel="noopener">Bad North</a> · <a href="https://de.wikipedia.org/wiki/Dorfromantik" target="_blank" rel="noopener">Dorfromantik</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="gemalt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">7</span>
+        <div>
+          <p class="art">Karte 7 · Gemalter Look</p>
+          <h2>Gemalt</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/gemalt-schraeg.jpg" data-text="Gemalt: Im Spiel" aria-label="Gemalt: Im Spiel gross zeigen">
+            <img src="bilder/gemalt-schraeg.jpg" alt="Gemalt: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/gemalt-oben.jpg" data-text="Gemalt: Aufsicht" aria-label="Gemalt: Aufsicht gross zeigen">
+            <img src="bilder/gemalt-oben.jpg" alt="Gemalt: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/gemalt-flach.jpg" data-text="Gemalt: Flacher Blick: Seiten und Kante" aria-label="Gemalt: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/gemalt-flach.jpg" alt="Gemalt: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/gemalt-welle.jpg" data-text="Gemalt: Lichtwelle beim Lösen" aria-label="Gemalt: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/gemalt-welle.jpg" alt="Gemalt: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett in Farben und Malweise des Panoramas: warmer Sandstein in wenigen ruhigen Tönen, ein violetter Schatten zur Kante hin, eine helle Kante oben, die Linien mit dem Pinsel gezogen. Der Pinselfilter, der heute nur die nahen Pflanzen malt, malt in den Bildern das Brett mit.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Gemalte Linien, leicht ungleich breit.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine helle, gemalte Linie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Nein. Eine Spiegelung passt nicht zu gemalten Flächen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein breiter, warmer Lichtring, den der Pinsel mitmalt.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-pinsel">Pinsel aufs Brett</span> Der Quader, der heute Brett und Elemente vor dem Pinsel schützt, muss weg oder enger um Elemente und Strahlen. Der Filter rechnet dann über das ganze Brett, auf dem Handy teuer. Elemente am Brett bekommen etwas Farbe ab.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://en.wikipedia.org/wiki/Kazuo_Oga" target="_blank" rel="noopener">Kazuo Oga</a> · <a href="https://de.wikipedia.org/wiki/Makoto_Shinkai" target="_blank" rel="noopener">Makoto Shinkai</a> · <a href="https://en.wikipedia.org/wiki/Kuwahara_filter" target="_blank" rel="noopener">Kuwahara-Filter</a> · <a href="https://de.wikipedia.org/wiki/The_Legend_of_Zelda:_The_Wind_Waker" target="_blank" rel="noopener">The Wind Waker</a> · <a href="https://en.wikipedia.org/wiki/Tchia" target="_blank" rel="noopener">Tchia</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="sandinsel">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">8</span>
+        <div>
+          <p class="art">Karte 8 · Andere Form: Scholle</p>
+          <h2>Schwebende Sandinsel</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/insel-schraeg.jpg" data-text="Schwebende Sandinsel: Im Spiel" aria-label="Schwebende Sandinsel: Im Spiel gross zeigen">
+            <img src="bilder/insel-schraeg.jpg" alt="Schwebende Sandinsel: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/insel-oben.jpg" data-text="Schwebende Sandinsel: Aufsicht" aria-label="Schwebende Sandinsel: Aufsicht gross zeigen">
+            <img src="bilder/insel-oben.jpg" alt="Schwebende Sandinsel: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/insel-flach.jpg" data-text="Schwebende Sandinsel: Flacher Blick: Seiten und Kante" aria-label="Schwebende Sandinsel: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/insel-flach.jpg" alt="Schwebende Sandinsel: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/insel-welle.jpg" data-text="Schwebende Sandinsel: Lichtwelle beim Lösen" aria-label="Schwebende Sandinsel: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/insel-welle.jpg" alt="Schwebende Sandinsel: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist eine kleine Insel, aus dem Strand gerissen: oben Sand, der Umriss rund und angefressen, auf dem Rand Strandhafer, Kiesel und Muscheln. Darunter hängt ein Zapfen aus Erde und dem Fels der Bucht, gut 2 m tief, mit Wurzeln.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>In den Sand gezogene Rillen, schmal.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine schmale, helle Linie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Nein.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein goldener Ring, in dem die Sandkörner aufglitzern.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-blender">Form aus Blender</span> Umriss und Zapfen sind hier berechnet (verrauschte Ringe). Ruhiger und schöner würde der Zapfen aus Blender, mit Felsen wie die der Bucht. Er reicht 2,4 m unter die Oberseite (heute 0,41 m), bleibt aber im Umriss.</li>
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Der runde Umriss deckt die Ecken des Quaders nicht. Der Kernquader wird kleiner.</li>
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Strandhafer aus vielen Halmen, Wurzeln unter der Kante.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Das_Schloss_im_Himmel" target="_blank" rel="noopener">Das Schloss im Himmel</a> · <a href="https://de.wikipedia.org/wiki/Zhangjiajie_National_Forest_Park" target="_blank" rel="noopener">Zhangjiajie</a> · <a href="https://de.wikipedia.org/wiki/The_Legend_of_Zelda:_Tears_of_the_Kingdom" target="_blank" rel="noopener">Tears of the Kingdom</a> · <a href="https://en.wikipedia.org/wiki/Sky:_Children_of_the_Light" target="_blank" rel="noopener">Sky: Children of the Light</a> · <a href="https://de.wikipedia.org/wiki/Strandhafer" target="_blank" rel="noopener">Strandhafer</a></p>
+      </div>
+    </article>
+
+  <p class="fuss">Bilder: Spiel im Stand <span class="mass">main 6f322ce</span>, <span class="mass">?sky=beach</span>,
+    Desktop <span class="mass">1440 × 900</span>, Chrome mit Grafikkarte. Die Bretter sind zur Laufzeit gebaut
+    (Texturen im Browser berechnet, Bewuchs als einfache Körper), sie zeigen die Richtung, nicht die fertige Gestaltung.
+    Vorbilder mit je einem Satz: <span class="mass">.scratch/brett-je-himmel/vorbilder/index.md</span>. Die Skripte, die die
+    Bretter im Spiel bauen (Texturen, Shader der Lichtwellen), liegen unter <span class="mass">katalog/bretter/</span>.</p>
+</div>
+
+<dialog id="gross" aria-label="Bild gross">
+  <figure>
+    <img id="gross-bild" alt="">
+    <figcaption id="gross-text"></figcaption>
+  </figure>
+  <button type="button" class="zu" id="gross-zu">Schliessen</button>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('gross'), img = document.getElementById('gross-bild'), txt = document.getElementById('gross-text');
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.zoom');
+    if (b) {
+      img.src = b.dataset.src; img.alt = b.dataset.text; txt.textContent = b.dataset.text;
+      if (typeof dlg.showModal === 'function') dlg.showModal(); else window.open(b.dataset.src, '_blank');
+      return;
+    }
+    if (e.target === dlg || e.target.id === 'gross-zu') dlg.close();
+  });
+</script>

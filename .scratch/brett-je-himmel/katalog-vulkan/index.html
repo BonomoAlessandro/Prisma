@@ -1,0 +1,648 @@
+<title>Vulkanbretter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Musterbuch: je Richtung ein Musterblatt, links das Spielbild mit drei Nebenansichten, rechts Idee und Folgen */
+  :root {
+    --bg: #edf2f0;        /* Meeresdunst */
+    --blatt: #f9fbfa;     /* Musterblatt */
+    --ink: #13292b;       /* tiefes Wasser */
+    --leise: #4f6567;
+    --linie: #c9d7d3;
+    --meer: #137a75;      /* Akzent: Türkis der Bucht */
+    --sand: #a5612f;      /* Hinweise */
+    --sand-grund: #f3e2d2;
+    --meer-grund: #d8ece9;
+    --wasser: #241a17;    /* Rand um die Aufsicht, wie die Kruste des Lavasees ums Brett (beide Themen) */
+    --f-titel: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mass: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --s0: 0.8125rem; --s1: 0.9375rem; --s2: 1.0625rem; --s3: 1.375rem; --s4: 2rem; --s5: clamp(2.2rem, 5vw, 3.4rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+      --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+    --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font: 400 var(--s1)/1.55 var(--f-text);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .seite { max-width: 1240px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  a { color: var(--meer); text-underline-offset: 0.18em; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--meer); outline-offset: 3px; border-radius: 4px; }
+  .mass { font-family: var(--f-mass); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+
+  /* Kopf */
+  .einstieg { padding-top: 3rem; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: end; }
+  .einstieg h1 { font: 700 var(--s5)/1.02 var(--f-titel); letter-spacing: -0.02em; margin: 0.3rem 0 0; text-wrap: balance; }
+  .eyebrow { font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.08em; text-transform: uppercase; color: var(--meer); margin: 0; }
+  .einstieg p.lead { font-size: var(--s2); max-width: 62ch; margin: 0.9rem 0 0; }
+  .grenzen { margin: 0; padding: 1rem 1.1rem; border: 1px solid var(--linie); border-radius: 10px; background: var(--blatt); font-size: var(--s0); }
+  .grenzen h2 { font: 600 var(--s0)/1.3 var(--f-mass); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.5rem; color: var(--leise); }
+  .grenzen ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+  .legende { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 0.75rem 1.75rem; font-size: var(--s0); color: var(--leise); margin: 0; padding: 0; list-style: none; }
+  .legende li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.6rem; align-items: baseline; }
+  .legende .chip { justify-self: start; }
+  .inhalt { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .inhalt a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0.7rem; border: 1px solid var(--linie); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--blatt); font-size: var(--s0); }
+  .inhalt a b { font-family: var(--f-mass); font-weight: 500; color: var(--meer); }
+  .inhalt a:hover { border-color: var(--meer); }
+
+  /* Karten */
+  .karte { background: var(--blatt); border: 1px solid var(--linie); border-radius: 14px; padding: clamp(1rem, 2.5vw, 1.75rem);
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-areas: "kopf kopf" "bilder text"; gap: 1.1rem 1.75rem; scroll-margin-top: 1rem; }
+  .karte.heute { background: transparent; border-style: dashed; }
+  .kopf { grid-area: kopf; display: flex; gap: 1rem; align-items: center; }
+  .nr { font: 700 2.6rem/1 var(--f-titel); color: var(--meer); min-width: 1.4ch; text-align: center; }
+  .art { margin: 0; font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); }
+  .kopf h2 { margin: 0.15rem 0 0; font: 700 var(--s4)/1.1 var(--f-titel); letter-spacing: -0.01em; text-wrap: balance; }
+  .bilder { grid-area: bilder; display: grid; gap: 0.6rem; min-width: 0; }
+  .streifen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+  figure { margin: 0; display: grid; gap: 0.3rem; min-width: 0; }
+  figcaption { font-size: var(--s0); color: var(--leise); }
+  .zoom { all: unset; cursor: zoom-in; display: block; border-radius: 8px; overflow: hidden; background: var(--linie); }
+  .zoom img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.25s ease; }
+  .neben .zoom img { aspect-ratio: 16 / 10; }
+  .oben .zoom img { object-fit: contain; background: var(--wasser); }
+  .zoom:hover img { transform: scale(1.02); }
+  .text { grid-area: text; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+  .idee { margin: 0; font-size: var(--s2); }
+  .behaelt { margin: 0; display: grid; gap: 0.55rem; }
+  .behaelt div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.75rem; padding-top: 0.55rem; border-top: 1px solid var(--linie); }
+  .behaelt dt { font: 500 var(--s0)/1.5 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); }
+  .behaelt dd { margin: 0; }
+  .behaelt .welle dt { color: var(--meer); }
+  .hinweise { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; font-size: var(--s1); }
+  .chip { display: inline-block; font: 500 0.75rem/1.2 var(--f-mass); letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 5px;
+    color: var(--sand); background: var(--sand-grund); white-space: nowrap; }
+  .chip-pinsel, .chip-teile, .chip-mehr { color: var(--meer); background: var(--meer-grund); }
+  .vorbilder { margin: 0; font-size: var(--s0); line-height: 1.7; }
+  .label { font: 500 var(--s0)/1 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin-right: 0.35rem; }
+  .fuss { font-size: var(--s0); color: var(--leise); max-width: 75ch; }
+
+  /* Grossansicht */
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; }
+  dialog::backdrop { background: rgb(5 14 15 / 0.82); }
+  dialog figure { gap: 0.5rem; }
+  dialog img { max-width: 100%; max-height: 86vh; width: auto; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+  dialog figcaption { color: #e2ecea; text-align: center; }
+  dialog .zu { position: absolute; top: 0.5rem; right: 0.5rem; font: 600 var(--s1)/1 var(--f-text); background: rgb(13 24 25 / 0.75); color: #e2ecea;
+    border: 1px solid rgb(226 236 234 / 0.3); border-radius: 999px; padding: 0.45rem 0.8rem; cursor: pointer; }
+
+  @media (max-width: 860px) {
+    .einstieg { grid-template-columns: minmax(0, 1fr); padding-top: 2rem; }
+    .karte { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kopf" "bilder" "text"; }
+    .behaelt div { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .zoom img { transition: none; } .zoom:hover img { transform: none; } }
+</style>
+
+<div class="seite">
+  <header class="einstieg">
+    <div>
+      <p class="eyebrow">Prisma · Ein Brett je Himmel · Vulkan</p>
+      <h1>Vulkanbretter</h1>
+      <p class="lead">Acht Richtungen für das Brett über dem Lavasee am neuen Krater, bei Nacht und im Licht der Glut:
+        Stoffe des Vulkans (Obsidian, Stricklava, Bims), andere Formen (Basaltsäulen, ein hängender Tuffkegel mit einer
+        Stadt darin), etwas Gebautes (ein Amboss), die Farben der Schwefelquellen von Dallol und ein Drachenhort. Beim
+        Lösen passiert auf jedem Brett etwas Eigenes, das vierte Bild jeder Karte zeigt es: Splitter, Säulen, Lavablasen,
+        Funken, Gasblasen, Kristalle, Ballone oder Münzen. Jedes Bild stammt aus dem Spiel, dasselbe Level, das Brett zur
+        Laufzeit eingesetzt. Wähle eine Richtung, gern mit Änderungswünschen.</p>
+    </div>
+    <section class="grenzen" aria-labelledby="grenzen-titel">
+      <h2 id="grenzen-titel">Bleibt in jeder Richtung gleich</h2>
+      <ul>
+        <li>Das 7×7-Feld: eben, <span class="mass">8,4 × 8,4 m</span>, an derselben Stelle.</li>
+        <li>Form frei innerhalb von <span class="mass">9,8 × 9,8 m</span>; das Brett schwebt rund <span class="mass">9 m</span> über dem Lavasee.</li>
+        <li>Licht, Sockel, Drehteller und Prismenteller wie heute.</li>
+        <li>Lichtwelle beim Lösen auf jedem Brett.</li>
+      </ul>
+    </section>
+  </header>
+
+  <nav aria-label="Karten">
+    <ul class="inhalt">
+      <li><a href="#heute"><b>·</b> Heute</a></li>
+      <li><a href="#obsidian"><b>1</b> Geschlagener Obsidian</a></li>
+      <li><a href="#basalt"><b>2</b> Basaltsäulen</a></li>
+      <li><a href="#stricklava"><b>3</b> Stricklava</a></li>
+      <li><a href="#amboss"><b>4</b> Amboss des Vulkan</a></li>
+      <li><a href="#bims"><b>5</b> Bimsfloss</a></li>
+      <li><a href="#schwefel"><b>6</b> Schwefelquelle</a></li>
+      <li><a href="#hoehlenstadt"><b>7</b> Höhlenstadt</a></li>
+      <li><a href="#drachenhort"><b>8</b> Drachenhort</a></li>
+    </ul>
+  </nav>
+
+  <ul class="legende" aria-label="Hinweise auf den Karten">
+    <li><span class="chip chip-blender">Form aus Blender</span> <span>Die Richtung braucht eine Form aus Blender oder wird damit deutlich schöner.</span></li>
+    <li><span class="chip chip-ausblick">Ausblick, teurer</span> <span>Geht über den Umriss von 9,8 × 9,8 m hinaus oder verbindet das Brett mit dem Grund. Nicht Teil der Spec.</span></li>
+    <li><span class="chip chip-kern">Kernquader kleiner</span> <span>Deckt den Quader des Bretts nicht ganz undurchsichtig. Der Himmel muss dahinter zeichnen (Kernquader, Ticket 01).</span></li>
+    <li><span class="chip chip-teile">Viele kleine Teile</span> <span>Bewuchs oder Halme aus vielen kleinen Körpern. Auf dem Handy zu messen.</span></li>
+  </ul>
+
+  
+    <article class="karte heute" id="heute">
+      <header class="kopf">
+        
+        <div>
+          <p class="art">Heute</p>
+          <h2>Steinbrett am Vulkan</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/stein-schraeg.jpg" data-text="Steinbrett am Vulkan: Im Spiel" aria-label="Steinbrett am Vulkan: Im Spiel gross zeigen">
+            <img src="bilder/stein-schraeg.jpg" alt="Steinbrett am Vulkan: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/stein-oben.jpg" data-text="Steinbrett am Vulkan: Aufsicht" aria-label="Steinbrett am Vulkan: Aufsicht gross zeigen">
+            <img src="bilder/stein-oben.jpg" alt="Steinbrett am Vulkan: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/stein-flach.jpg" data-text="Steinbrett am Vulkan: Flacher Blick: Seiten und Kante" aria-label="Steinbrett am Vulkan: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/stein-flach.jpg" alt="Steinbrett am Vulkan: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/stein-welle.jpg" data-text="Steinbrett am Vulkan: Lichtwelle beim Lösen" aria-label="Steinbrett am Vulkan: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/stein-welle.jpg" alt="Steinbrett am Vulkan: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das heutige Brett über dem Lavasee: dunkler Schiefer mit eingravierten Rasterlinien, heller Einlegelinie, polierten Seiten und Metallkante.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert, fein.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Helle, matte Linie knapp ausserhalb des Felds.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, poliert.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein heller Ring in der Mischfarbe der Ziele läuft von der Mitte bis über die Ecken.</dd></div>
+          
+        </dl>
+        
+        
+      </div>
+    </article>
+
+    <article class="karte" id="obsidian">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">1</span>
+        <div>
+          <p class="art">Variante 1 · Material: Vulkanglas</p>
+          <h2>Geschlagener Obsidian</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/obsidian-schraeg.jpg" data-text="Geschlagener Obsidian: Im Spiel" aria-label="Geschlagener Obsidian: Im Spiel gross zeigen">
+            <img src="bilder/obsidian-schraeg.jpg" alt="Geschlagener Obsidian: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/obsidian-oben.jpg" data-text="Geschlagener Obsidian: Aufsicht" aria-label="Geschlagener Obsidian: Aufsicht gross zeigen">
+            <img src="bilder/obsidian-oben.jpg" alt="Geschlagener Obsidian: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/obsidian-flach.jpg" data-text="Geschlagener Obsidian: Flacher Blick: Seiten und Kante" aria-label="Geschlagener Obsidian: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/obsidian-flach.jpg" alt="Geschlagener Obsidian: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/obsidian-welle.jpg" data-text="Geschlagener Obsidian: Lichtwelle beim Lösen" aria-label="Geschlagener Obsidian: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/obsidian-welle.jpg" alt="Geschlagener Obsidian: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Block aus Vulkanglas, geschlagen wie eine Klinge aus der Steinzeit. Das Feld ist schwarz poliert und spiegelt Strahlen und Elemente. Im Rand liegen muschelige Abschläge mit feinen Wellenlinien, der Umriss ist ausgebogt. Darunter hängt ein facettierter Kiel, dessen Flächen die Glut des Sees spiegeln. Die dünne Kante scheint rotbraun durch.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Matt geätzte, graue Linien.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine matte, hellgraue Linie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, stark: schwarzes, poliertes Glas.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wo der Ring vorbeizieht, schiessen schwarze Glassplitter mit Regenbogenkanten aus dem Feld, und das Glas schimmert in den Farben von Regenbogenobsidian. Hinter dem Ring sinken die Splitter wieder ins Glas, der Schimmer verlischt, und das Feld ist wieder schwarz und spiegelglatt.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, der Kiel ist ein Körper aus Ringen. Der ausgebogte Umriss deckt den heutigen Quader nicht ganz. Für die Welle rund 900 Splitter als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Ausgebogter Umriss: Der Kernquader wird kleiner. Der Kiel hängt 1,6 m unter das Brett, bleibt aber im Umriss.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Obsidian" target="_blank" rel="noopener">Obsidian</a> · <a href="https://en.wikipedia.org/wiki/Conchoidal_fracture" target="_blank" rel="noopener">Muscheliger Bruch</a> · <a href="https://en.wikipedia.org/wiki/Knapping" target="_blank" rel="noopener">Steinschlagen</a> · <a href="https://de.wikipedia.org/wiki/Tezcatlipoca" target="_blank" rel="noopener">Tezcatlipoca, der «rauchende Spiegel»</a> · <a href="https://en.wikipedia.org/wiki/Obsidian_Cliff" target="_blank" rel="noopener">Obsidian Cliff</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="basalt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">2</span>
+        <div>
+          <p class="art">Variante 2 · Andere Form: Säulen</p>
+          <h2>Basaltsäulen</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/basalt-schraeg.jpg" data-text="Basaltsäulen: Im Spiel" aria-label="Basaltsäulen: Im Spiel gross zeigen">
+            <img src="bilder/basalt-schraeg.jpg" alt="Basaltsäulen: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/basalt-oben.jpg" data-text="Basaltsäulen: Aufsicht" aria-label="Basaltsäulen: Aufsicht gross zeigen">
+            <img src="bilder/basalt-oben.jpg" alt="Basaltsäulen: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/basalt-flach.jpg" data-text="Basaltsäulen: Flacher Blick: Seiten und Kante" aria-label="Basaltsäulen: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/basalt-flach.jpg" alt="Basaltsäulen: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/basalt-welle.jpg" data-text="Basaltsäulen: Lichtwelle beim Lösen" aria-label="Basaltsäulen: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/basalt-welle.jpg" alt="Basaltsäulen: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist das Ende eines Bündels sechseckiger Basaltsäulen wie am Giant’s Causeway. Im Feld sind die Säulen eben abgeschliffen, man sieht nur ihre feinen Fugen. Im Rand stehen sie in Stufen, nach aussen tiefer, einzelne etwas höher. Unten hängen sie verschieden lang herab wie an der Decke der Fingalshöhle, und ihre Enden fangen das Licht der Lava.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine, helle Linien über den Fugen.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine hellgraue Linie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Leicht, der Basalt ist geschliffen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Im Ring heben sich Säulen des Felds eine Handbreit aus dem Boden, ihre Flanken glühen orange wie frisch erstarrter Basalt, und in den Fugen steigt Glut auf. Hinter dem Ring sinken die Säulen zurück, die Fugen verglimmen, und das Feld ist wieder eben.</dd></div>
+          <div><dt>Kosten</dt><dd>Rund 940 Säulen als ein Körper mit Instanzen, das Muster im Feld ist berechnet. Für die Welle einige hundert Säulen mehr, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 940 Säulen (Instanzen, ein Zeichenaufruf). Auf dem Handy zu messen.</li>
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Stufiger Rand aus Sechsecken: Der Kernquader wird etwas kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://en.wikipedia.org/wiki/Giant%27s_Causeway" target="_blank" rel="noopener">Giant’s Causeway</a> · <a href="https://de.wikipedia.org/wiki/Fingalsh%C3%B6hle" target="_blank" rel="noopener">Fingalshöhle</a> · <a href="https://de.wikipedia.org/wiki/S%C3%A4ulenbasalt" target="_blank" rel="noopener">Säulenbasalt</a> · <a href="https://en.wikipedia.org/wiki/Svartifoss" target="_blank" rel="noopener">Svartifoss</a> · <a href="https://en.wikipedia.org/wiki/Devils_Postpile_National_Monument" target="_blank" rel="noopener">Devils Postpile</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="stricklava">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">3</span>
+        <div>
+          <p class="art">Variante 3 · Material: die Lava selbst</p>
+          <h2>Stricklava</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/stricklava-schraeg.jpg" data-text="Stricklava: Im Spiel" aria-label="Stricklava: Im Spiel gross zeigen">
+            <img src="bilder/stricklava-schraeg.jpg" alt="Stricklava: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/stricklava-oben.jpg" data-text="Stricklava: Aufsicht" aria-label="Stricklava: Aufsicht gross zeigen">
+            <img src="bilder/stricklava-oben.jpg" alt="Stricklava: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/stricklava-flach.jpg" data-text="Stricklava: Flacher Blick: Seiten und Kante" aria-label="Stricklava: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/stricklava-flach.jpg" alt="Stricklava: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/stricklava-welle.jpg" data-text="Stricklava: Lichtwelle beim Lösen" aria-label="Stricklava: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/stricklava-welle.jpg" alt="Stricklava: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist eine Scholle aus frisch erstarrter Pāhoehoe-Lava, wie sie auf einem Lavasee treibt. Das Feld ist glatte, glasige Haut mit silbrigem Schimmer. Im Rand legt sich die Lava in Stricke, Bögen quer zum Fluss, und zwischen den Bogengruppen glüht es noch. Der Umriss hat runde Zehen mit glühendem Saum, die Seiten sind Kruste, die unten in Glut übergeht.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine Fugen, in denen es dunkelrot glimmt.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine silbrige Glaslinie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Leicht, die glasige Haut glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wo der Ring vorbeizieht, bricht die Kruste auf: Glühende Lavablasen quellen hervor, Funken steigen auf, und Fugen und Risse flammen gelb. Hinter dem Ring erkalten die Blasen von Gelb über Dunkelrot zu Kruste und sinken ein, die Funken verglühen in der Luft.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, die Seiten sind ein Körper aus Ringen. Für die Welle rund 900 Blasen und 700 Funken als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Runder Umriss mit Zehen: Der Kernquader wird kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Stricklava" target="_blank" rel="noopener">Stricklava</a> · <a href="https://de.wikipedia.org/wiki/K%C4%ABlauea" target="_blank" rel="noopener">Kīlauea</a> · <a href="https://de.wikipedia.org/wiki/Erta_Ale" target="_blank" rel="noopener">Erta Ale</a> · <a href="https://en.wikipedia.org/wiki/Halema%CA%BBuma%CA%BBu" target="_blank" rel="noopener">Halemaʻumaʻu</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="amboss">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">4</span>
+        <div>
+          <p class="art">Variante 4 · Gebaut: Werkzeug</p>
+          <h2>Amboss des Vulkan</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/amboss-schraeg.jpg" data-text="Amboss des Vulkan: Im Spiel" aria-label="Amboss des Vulkan: Im Spiel gross zeigen">
+            <img src="bilder/amboss-schraeg.jpg" alt="Amboss des Vulkan: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/amboss-oben.jpg" data-text="Amboss des Vulkan: Aufsicht" aria-label="Amboss des Vulkan: Aufsicht gross zeigen">
+            <img src="bilder/amboss-oben.jpg" alt="Amboss des Vulkan: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/amboss-flach.jpg" data-text="Amboss des Vulkan: Flacher Blick: Seiten und Kante" aria-label="Amboss des Vulkan: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/amboss-flach.jpg" alt="Amboss des Vulkan: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/amboss-welle.jpg" data-text="Amboss des Vulkan: Lichtwelle beim Lösen" aria-label="Amboss des Vulkan: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/amboss-welle.jpg" alt="Amboss des Vulkan: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist die Bahn eines riesigen Ambosses, wie in der Schmiede des römischen Gottes Vulkan. Das Feld ist geschliffener Stahl mit feinen Schleifspuren. Im Rand liegen Hammerschläge, Zunder und etwas Rost, in einer Ecke Vierkant- und Rundloch. Darunter steht der Körper mit Taille und Füssen, auf dem Rand liegt ein glühender Stab.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Anreisslinien, fein und blank.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine Linie aus Messing.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, der Stahl ist geschliffen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Hammerschlag: Ein weissglühender Ring läuft über die Bahn, aus ihm springen Funken hoch und nach aussen und verglühen im Flug von Gelbweiss zu Orange. Hinter dem Ring glüht der Stahl dunkelrot nach und kühlt wieder zu Grau ab.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, Körper und Stab sind einfache Körper. Deckt den heutigen Quader wie heute. Für die Welle rund 1400 Funken als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-ausblick">Ausblick, teurer</span> Ein echtes Horn ragte über den Umriss von 9,8 × 9,8 m hinaus, darum fehlt es hier.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Amboss" target="_blank" rel="noopener">Amboss</a> · <a href="https://en.wikipedia.org/wiki/Apollo_in_the_Forge_of_Vulcan" target="_blank" rel="noopener">Velázquez: Apollo in der Schmiede des Vulkan</a> · <a href="https://de.wikipedia.org/wiki/Hephaistos" target="_blank" rel="noopener">Hephaistos</a> · <a href="https://de.wikipedia.org/wiki/Prinzessin_Mononoke" target="_blank" rel="noopener">Prinzessin Mononoke (Eisenhütte)</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="bims">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">5</span>
+        <div>
+          <p class="art">Variante 5 · Material: hell und leicht</p>
+          <h2>Bimsfloss</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/bims-schraeg.jpg" data-text="Bimsfloss: Im Spiel" aria-label="Bimsfloss: Im Spiel gross zeigen">
+            <img src="bilder/bims-schraeg.jpg" alt="Bimsfloss: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/bims-oben.jpg" data-text="Bimsfloss: Aufsicht" aria-label="Bimsfloss: Aufsicht gross zeigen">
+            <img src="bilder/bims-oben.jpg" alt="Bimsfloss: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/bims-flach.jpg" data-text="Bimsfloss: Flacher Blick: Seiten und Kante" aria-label="Bimsfloss: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/bims-flach.jpg" alt="Bimsfloss: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/bims-welle.jpg" data-text="Bimsfloss: Lichtwelle beim Lösen" aria-label="Bimsfloss: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/bims-welle.jpg" alt="Bimsfloss: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Floss aus Bimsstein, dem Stein, der auf dem Wasser schwimmt. Es ist hell, leicht und porös: im Feld glatt geschliffen mit feinen Poren und Fasern, im Rand rau mit langgezogenen Blasen. Der Umriss ist rundlich, darunter liegt ein bauchiger Körper, den die Lava von unten warm anleuchtet.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine, dunklere Rillen.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine dunkle Linie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, Bims ist matt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Aus den Poren steigen glühende Gasblasen, werden beim Steigen grösser und zerplatzen, und die Poren leuchten im Ring warm auf wie eine Laterne. Hinter dem Ring werden die Poren wieder dunkel, die letzten Blasen platzen über dem Brett.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, der Körper ist ein Rumpf aus Ringen. Für die Welle rund 550 Blasen als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Rundlicher Umriss: Der Kernquader wird kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Bims" target="_blank" rel="noopener">Bims</a> · <a href="https://en.wikipedia.org/wiki/Pumice_raft" target="_blank" rel="noopener">Bimssteinfloss</a> · <a href="https://de.wikipedia.org/wiki/Lipari" target="_blank" rel="noopener">Lipari</a> · <a href="https://de.wikipedia.org/wiki/Laacher_See" target="_blank" rel="noopener">Laacher See</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="schwefel">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">6</span>
+        <div>
+          <p class="art">Variante 6 · Farbe: Mineralien</p>
+          <h2>Schwefelquelle</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/schwefel-schraeg.jpg" data-text="Schwefelquelle: Im Spiel" aria-label="Schwefelquelle: Im Spiel gross zeigen">
+            <img src="bilder/schwefel-schraeg.jpg" alt="Schwefelquelle: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/schwefel-oben.jpg" data-text="Schwefelquelle: Aufsicht" aria-label="Schwefelquelle: Aufsicht gross zeigen">
+            <img src="bilder/schwefel-oben.jpg" alt="Schwefelquelle: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/schwefel-flach.jpg" data-text="Schwefelquelle: Flacher Blick: Seiten und Kante" aria-label="Schwefelquelle: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/schwefel-flach.jpg" alt="Schwefelquelle: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/schwefel-welle.jpg" data-text="Schwefelquelle: Lichtwelle beim Lösen" aria-label="Schwefelquelle: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/schwefel-welle.jpg" alt="Schwefelquelle: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Stück Dallol, des Vulkans in der Danakil-Senke. Das Feld ist eine blassgelbe Salzkruste mit feinen Polygonrücken. Im Rand liegen Sinterhügel in Rost, Ocker und Schwefelgelb mit hellen Terrassenkanten, in den Mulden Becken mit säuregrünem Wasser, dazu kleine Schwefelschlote. Die Seiten zeigen die bunten Schichten.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine Linien in Ocker.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein Band aus Schwefelgelb.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Leicht, nur die Becken glänzen.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Im Ring wachsen gelbe Schwefelkristalle aus der Kruste, und blaue Flammen züngeln an ihnen hoch wie nachts am Kawah Ijen; die Becken fangen das blaue Licht. Hinter dem Ring erlöschen die Flammen, die Kristalle zerfallen wieder, und die Becken werden grün.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, die 13 Schlote sind einfache Körper. Deckt den heutigen Quader wie heute. Für die Welle rund 1100 Kristalle und 600 Flammen als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Dallol" target="_blank" rel="noopener">Dallol</a> · <a href="https://de.wikipedia.org/wiki/Kawah_Ijen" target="_blank" rel="noopener">Kawah Ijen</a> · <a href="https://de.wikipedia.org/wiki/Schwefel" target="_blank" rel="noopener">Schwefel</a> · <a href="https://en.wikipedia.org/wiki/Grand_Prismatic_Spring" target="_blank" rel="noopener">Grand Prismatic Spring</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="hoehlenstadt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">7</span>
+        <div>
+          <p class="art">Variante 7 · Bewohnt: in den Tuff gehauen</p>
+          <h2>Höhlenstadt</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/hoehlenstadt-schraeg.jpg" data-text="Höhlenstadt: Im Spiel" aria-label="Höhlenstadt: Im Spiel gross zeigen">
+            <img src="bilder/hoehlenstadt-schraeg.jpg" alt="Höhlenstadt: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/hoehlenstadt-oben.jpg" data-text="Höhlenstadt: Aufsicht" aria-label="Höhlenstadt: Aufsicht gross zeigen">
+            <img src="bilder/hoehlenstadt-oben.jpg" alt="Höhlenstadt: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/hoehlenstadt-flach.jpg" data-text="Höhlenstadt: Flacher Blick: Seiten und Kante" aria-label="Höhlenstadt: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/hoehlenstadt-flach.jpg" alt="Höhlenstadt: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/hoehlenstadt-welle.jpg" data-text="Höhlenstadt: Lichtwelle beim Lösen" aria-label="Höhlenstadt: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/hoehlenstadt-welle.jpg" alt="Höhlenstadt: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist die Oberseite eines Tuffkegels, in den eine Stadt gehauen ist wie in Kappadokien, nur umgekehrt: Der Kegel hängt 3 m unter dem Brett, voller Fenster, Türen und Taubenlöcher, aus denen warmes Lampenlicht fällt. Oben ist der Tuff glatt mit Meisselspuren, in einer Ecke führt eine Treppe hinab, auf den Ecken stehen Feenkamine mit dunklem Hut.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Gemeisselte Rillen.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein Band aus rotem Tuff.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, Tuff ist matt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wo der Ring vorbeizieht, steigen kleine Heissluftballone auf wie morgens über Göreme, und am Kegel geht Fenster für Fenster das Licht an. Hinter dem Ring treiben die Ballone höher und verblassen, die Fenster dimmen wieder auf ihr ruhiges Lampenlicht.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, der Kegel ist ein Körper aus Ringen, Fenster und Türen sind gemalt. Die Feenkamine sind einfache Körper. Für die Welle 55 Ballone als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-blender">Form aus Blender</span> Vertiefte Fenster, Balkone und Treppen am Kegel wären aus Blender deutlich schöner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/G%C3%B6reme" target="_blank" rel="noopener">Göreme</a> · <a href="https://de.wikipedia.org/wiki/Kappadokien" target="_blank" rel="noopener">Kappadokien</a> · <a href="https://de.wikipedia.org/wiki/Derinkuyu" target="_blank" rel="noopener">Derinkuyu</a> · <a href="https://de.wikipedia.org/wiki/U%C3%A7hisar" target="_blank" rel="noopener">Uçhisar</a> · <a href="https://de.wikipedia.org/wiki/Das_Schloss_im_Himmel" target="_blank" rel="noopener">Das Schloss im Himmel</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="drachenhort">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">8</span>
+        <div>
+          <p class="art">Variante 8 · Märchen: Schatz eines Drachen</p>
+          <h2>Drachenhort</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/drachenhort-schraeg.jpg" data-text="Drachenhort: Im Spiel" aria-label="Drachenhort: Im Spiel gross zeigen">
+            <img src="bilder/drachenhort-schraeg.jpg" alt="Drachenhort: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/drachenhort-oben.jpg" data-text="Drachenhort: Aufsicht" aria-label="Drachenhort: Aufsicht gross zeigen">
+            <img src="bilder/drachenhort-oben.jpg" alt="Drachenhort: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/drachenhort-flach.jpg" data-text="Drachenhort: Flacher Blick: Seiten und Kante" aria-label="Drachenhort: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/drachenhort-flach.jpg" alt="Drachenhort: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/drachenhort-welle.jpg" data-text="Drachenhort: Lichtwelle beim Lösen" aria-label="Drachenhort: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/drachenhort-welle.jpg" alt="Drachenhort: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist der Schatz eines Drachen, der es mit seinen Krallen festhält. Das Feld ist eine dunkle Bronzeplatte mit eingeprägten Drachenschuppen, im Rand liegen Haufen aus Goldmünzen. Die Seiten sind Schuppenhaut, und an jeder Ecke greifen drei Krallen von unten über die Kante.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Goldene Linien.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Eine breite Goldlinie.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, die Bronze glänzt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wo der Ring vorbeizieht, springen Goldmünzen aus der Platte und drehen sich funkelnd in der Luft, die Ränder der Schuppen leuchten golden. Hinter dem Ring fallen die Münzen zurück und verschwinden im Hort, das Glühen der Schuppen klingt ab.</dd></div>
+          <div><dt>Kosten</dt><dd>Platte, Schuppen und Krallen berechnet, die Münzen sind rund 2200 Instanzen. Für die Welle rund 1500 springende Münzen als Instanzen, in Ruhe unsichtbar.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 2200 Münzen (Instanzen, ein Zeichenaufruf). Auf dem Handy zu messen.</li>
+          <li><span class="chip chip-blender">Form aus Blender</span> Krallen und Pranken wären aus Blender deutlich schöner.</li>
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Die Platte ist nur 9,24 m breit, damit die Krallen im Umriss bleiben: Der Kernquader wird kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Fafnir" target="_blank" rel="noopener">Fafnir</a> · <a href="https://de.wikipedia.org/wiki/Nibelungenhort" target="_blank" rel="noopener">Nibelungenhort</a> · <a href="https://de.wikipedia.org/wiki/Smaug" target="_blank" rel="noopener">Smaug</a> · <a href="https://de.wikipedia.org/wiki/Beowulf" target="_blank" rel="noopener">Beowulf</a></p>
+      </div>
+    </article>
+
+  <p class="fuss">Bilder: Spiel im Stand <span class="mass">main 504adbb</span> (neuer Krater), <span class="mass">?sky=volcano</span>,
+    Desktop <span class="mass">1440 × 900</span>, Chrome mit Grafikkarte. Die Bretter sind zur Laufzeit gebaut
+    (Texturen im Browser berechnet, Säulen, Münzen und Kegel als einfache Körper), sie zeigen die Richtung, nicht die
+    fertige Gestaltung. Glühende Farben bleiben unter der Bloom-Schwelle, nur die Lichtwelle darf aufleuchten. Die
+    Skripte, die die Bretter im Spiel bauen, liegen unter <span class="mass">katalog-vulkan/bretter/</span>.</p>
+</div>
+
+<dialog id="gross" aria-label="Bild gross">
+  <figure>
+    <img id="gross-bild" alt="">
+    <figcaption id="gross-text"></figcaption>
+  </figure>
+  <button type="button" class="zu" id="gross-zu">Schliessen</button>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('gross'), img = document.getElementById('gross-bild'), txt = document.getElementById('gross-text');
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.zoom');
+    if (b) {
+      img.src = b.dataset.src; img.alt = b.dataset.text; txt.textContent = b.dataset.text;
+      if (typeof dlg.showModal === 'function') dlg.showModal(); else window.open(b.dataset.src, '_blank');
+      return;
+    }
+    if (e.target === dlg || e.target.id === 'gross-zu') dlg.close();
+  });
+</script>

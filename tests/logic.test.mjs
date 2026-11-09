@@ -10,7 +10,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
-import { loadSkies, checkSkies, layerTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
+import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -871,7 +871,122 @@ console.log('Offline');
   test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
     assert.ok(skies.length > 0, 'keine Skybox im Register');
     assert.ok(codeSkies(html).length >= 2, 'Hintergründe aus dem Code (SKY_ENTRIES) nicht gefunden: Format geändert?');
-    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), reserved: codeSkies(html) }), []);
+    assert.deepEqual(checkSkies(skies, { root, types: layerTypes(html), boards: boardTypes(html), reserved: codeSkies(html) }), []);
+  });
+  // Brett je Himmel (Spec .scratch/brett-je-himmel/): Arten im Spielcode, Brett-Angabe im Register
+  test('Bretter: Arten im Spielcode gefunden (BOARD_TYPES in index.html), darunter das Steinbrett', () => {
+    assert.ok(boardTypes(html).includes('stone'), 'Zeile const BOARD_TYPES = { … }; nicht gefunden oder ohne stone: Format geändert?');
+  });
+  test('Bretter: die fünf Himmel aus Blender haben eine gültige Brett-Angabe, im Register wie in skybox.json', () => {
+    for (const id of ['beach', 'desert', 'forest', 'village', 'volcano']) {
+      const sky = skies.find((s) => s.id === id) ?? assert.fail(`Skybox ${id} fehlt im Register`);
+      assert.ok(boardTypes(html).includes(sky.board?.type), `${id}: Brett-Angabe fehlt oder Art unbekannt`);
+      const author = JSON.parse(readFileSync(join(root, 'tools', 'blender', 'szenen', id, 'skybox.json'), 'utf8'));
+      // das Register läuft in einem eigenen Kontext (runCode): über JSON vergleichen, nicht seine Objekte
+      assert.deepEqual(JSON.parse(JSON.stringify(sky.board)), author.board,
+        `${id}: Brett im Register nicht wie in skybox.json (node tools/blender/pack.mjs --brett ${id})`);
+    }
+  });
+  test('Bretter: feste Bretter, keiner der fünf Blender-Himmel hat das Steinbrett, Milchstrasse und Sonnensystem schon', () => {
+    const arten = ['beach', 'desert', 'forest', 'village', 'volcano'].map((id) => skies.find((s) => s.id === id)?.board?.type);
+    for (const art of arten) assert.notEqual(art ?? 'stone', 'stone', `ein Blender-Himmel mit dem Steinbrett: ${arten}`);
+    assert.equal(new Set(arten).size, arten.length, `zwei Himmel mit derselben Art: ${arten}`);
+    // die Hintergründe aus dem Code haben keine Brett-Angabe (Rückfall Steinbrett)
+    assert.deepEqual(codeSkies(html).map((s) => s.id).sort(), ['milky', 'solar']);
+    const code = html.match(/^const SKY_ENTRIES = \(\(\) => \{\s*const code = \[([\s\S]*?)\];/m)?.[1];
+    assert.ok(code?.includes("id: 'milky'"), 'SKY_ENTRIES: Liste code nicht gefunden, Format geändert?');
+    assert.ok(!/\bboard\s*:/.test(code), 'Milchstrasse oder Sonnensystem mit Brett-Angabe');
+  });
+  test('Bretter: Prüfung lehnt eine unbekannte Art und unbekannte Werte ab', () => {
+    const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
+    const errorsWith = (board) => checkSkies([{ ...beach, board }], { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({ type: 'stone' }), []);
+    assert.deepEqual(errorsWith(undefined), [], 'ohne Brett-Angabe (Steinbrett)');
+    assert.ok(errorsWith({ type: 'treibholz' }).some((e) => /treibholz/.test(e)), 'unbekannte Art');
+    assert.ok(errorsWith({ type: 'stone', farbe: [0.8, 0.7, 0.5] }).some((e) => /farbe/.test(e)), 'unbekannter Wert');
+    assert.ok(errorsWith({}).some((e) => /board/.test(e)), 'ohne Art');
+    assert.ok(errorsWith('stone').some((e) => /board/.test(e)), 'kein Objekt');
+  });
+  test('Bretter: Prüfung lehnt ungültige Werte des Gezeitenbeckens ab (Farben, Lage der Rinne, fehlende Werte)', () => {
+    const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
+    assert.equal(beach.board?.type, 'tidePool', 'der Strand hat das Gezeitenbecken');
+    const errorsWith = (change) => checkSkies([{ ...beach, board: { ...beach.board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    const fehler = (change, wert, was) => assert.ok(errorsWith(change).some((e) => e.includes(`tidePool: ${wert}`)), was);
+    fehler({ stone: [[0.82, 0.7, 0.56]] }, 'stone', 'nur eine Farbe');
+    fehler({ water: [[0.33, 0.6, 0.58], [1.2, 0.7, 0.64]] }, 'water', 'Kanal über 1 (sRGB)');
+    fehler({ rock: [[0.62, 0.46], [0.48, 0.38, 0.38]] }, 'rock', 'Farbe mit zwei Kanälen');
+    fehler({ channel: [4.1, 4.7] }, 'channel', 'Rinne im 7×7-Feld');
+    fehler({ channel: [4.4, 4.45] }, 'channel', 'Rinne schmaler als 10 cm');
+    fehler({ channel: [4.32, 4.88] }, 'channel', 'keine Felslippe mehr');
+    fehler({ channel: [4.77, 4.32] }, 'channel', 'innen und aussen vertauscht');
+    fehler({ water: undefined }, 'water', 'fehlender Wert');
+    fehler({ glanz: 0.5 }, 'Wert glanz unbekannt', 'unbekannter Wert');
+  });
+  test('Bretter: Wüste mit der Lehmterrasse (clay); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const desert = skies.find((s) => s.id === 'desert') ?? assert.fail('Skybox desert fehlt im Register');
+    const board = JSON.parse(JSON.stringify(desert.board));
+    assert.equal(board.type, 'clay', 'die Wüste hat die Lehmterrasse');
+    const errorsWith = (change) => checkSkies([{ ...desert, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ sand: [1.2, 0.8, 0.5] }).some((e) => /sand/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ inlay: [0.9, 0.8] }).some((e) => /inlay/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ wood: [0.5, -0.1, 0.3] }).some((e) => /wood/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ plaster: [0.83, 0.6, 0.42] }).some((e) => /plaster/.test(e)), 'Putz ohne zwei Töne');
+    assert.ok(errorsWith({ brick: [board.brick[0], board.brick[1], board.brick[0]] }).some((e) => /brick/.test(e)),
+      'Ziegel mit drei Tönen');
+    assert.ok(errorsWith({ egg: undefined }).some((e) => /egg/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ dach: [0.8, 0.7, 0.5] }).some((e) => /dach/.test(e)), 'unbekannter Wert');
+  });
+  test('Bretter: Dorf mit dem Hochbeet (raisedBed); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const village = skies.find((s) => s.id === 'village') ?? assert.fail('Skybox village fehlt im Register');
+    const board = JSON.parse(JSON.stringify(village.board));
+    assert.equal(board.type, 'raisedBed', 'das Dorf hat das Hochbeet');
+    const errorsWith = (change) => checkSkies([{ ...village, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ cord: [1.2, 0.8, 0.7] }).some((e) => /cord/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ pebble: [0.7, 0.6] }).some((e) => /pebble/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ firefly: [0.9, -0.1, 0.6] }).some((e) => /firefly/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ soil: [0.17, 0.12, 0.085] }).some((e) => /soil/.test(e)), 'Erde ohne zwei Töne');
+    assert.ok(errorsWith({ larch: [board.larch[0], board.larch[1], board.larch[0]] }).some((e) => /larch/.test(e)),
+      'Bohlen mit drei Tönen');
+    assert.ok(errorsWith({ sprout: undefined }).some((e) => /sprout/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ tomate: [0.8, 0.2, 0.1] }).some((e) => /tomate/.test(e)), 'unbekannter Wert');
+  });
+  test('Bretter: Bergwald mit dem Moospolster (moss); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const forest = skies.find((s) => s.id === 'forest') ?? assert.fail('Skybox forest fehlt im Register');
+    const board = JSON.parse(JSON.stringify(forest.board));
+    assert.equal(board.type, 'moss', 'der Bergwald hat das Moospolster');
+    const errorsWith = (change) => checkSkies([{ ...forest, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ glow: [1.2, 0.8, 0.6] }).some((e) => /glow/.test(e)), 'Farbe über 1 (sRGB)');
+    assert.ok(errorsWith({ cap: [0.8, 0.85] }).some((e) => /cap/.test(e)), 'Farbe mit zwei Werten');
+    assert.ok(errorsWith({ pebble: [0.4, -0.1, 0.4] }).some((e) => /pebble/.test(e)), 'Farbe unter 0');
+    assert.ok(errorsWith({ moss: [0.24, 0.36, 0.17] }).some((e) => /moss: moss/.test(e)), 'Moos ohne zwei Töne');
+    assert.ok(errorsWith({ fern: [board.fern[0], board.fern[1], board.fern[0]] }).some((e) => /fern/.test(e)),
+      'Farn mit drei Tönen');
+    assert.ok(errorsWith({ flower: undefined }).some((e) => /flower/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ pilz: [0.8, 0.7, 0.5] }).some((e) => /pilz/.test(e)), 'unbekannter Wert');
+  });
+  test('Bretter: Vulkan mit den Basaltsäulen (basalt); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
+    const volcano = skies.find((s) => s.id === 'volcano') ?? assert.fail('Skybox volcano fehlt im Register');
+    const board = JSON.parse(JSON.stringify(volcano.board));
+    assert.equal(board.type, 'basalt', 'der Vulkan hat die Basaltsäulen');
+    const errorsWith = (change) => checkSkies([{ ...volcano, board: { ...board, ...change } }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    const fehler = (change, wert, was) => assert.ok(errorsWith(change).some((e) => e.includes(`basalt: ${wert}`)), was);
+    fehler({ glow: [1.4, 0.665, 0.349] }, 'glow', 'Glut über 1 (sRGB)');
+    fehler({ joint: [0.035, -0.01, 0.03] }, 'joint', 'Farbe unter 0');
+    fehler({ line: [0.63, 0.62] }, 'line', 'Farbe mit zwei Werten');
+    fehler({ basalt: [0.2, 0.19, 0.18] }, 'basalt', 'Säulen des Felds ohne zwei Töne');
+    fehler({ column: [board.column[0], board.column[1], board.column[0]] }, 'column', 'Säulen mit drei Tönen');
+    fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
+    fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
   });
   test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
@@ -895,7 +1010,7 @@ console.log('Offline');
     assert.ok(volcano, 'Skybox volcano fehlt im Register');
     const pool = volcano.layers.find((l) => l.type === 'lavaPool') ?? assert.fail('volcano ohne Ebene lavaPool');
     assert.ok(volcano.layers.some((l) => l.type === 'bakedMesh'), 'volcano ohne Felsbrocken (bakedMesh)');
-    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html) });
+    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [{ ...pool, ...change }] }], { types: layerTypes(html), boards: boardTypes(html) });
     assert.deepEqual(errorsWith({}), []);
     assert.ok(errorsWith({ heat: [[1.2, 0.8, 0.2], pool.heat[1], pool.heat[2]] }).some((e) => /heat/.test(e)), 'Bloom See');
     assert.ok(errorsWith({ spatter: { ...pool.spatter, color: [1.0, 0.9, 0.5] } }).some((e) => /spatter/.test(e)), 'Bloom Spritzer');

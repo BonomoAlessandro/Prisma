@@ -6,6 +6,14 @@
   "daten": "sky/village",
   "vorab": false,
   "sky": { "stars": 0.3, "starsAboveHorizon": true },
+  "board": {
+    "type": "raisedBed",
+    "soil": [[0.17, 0.12, 0.085], [0.11, 0.08, 0.06]], "mulch": [0.24, 0.19, 0.12], "cord": [0.847, 0.8, 0.69],
+    "pebble": [0.69, 0.67, 0.64], "larch": [[0.4, 0.29, 0.19], [0.3, 0.21, 0.14]], "peg": [0.541, 0.416, 0.282],
+    "chive": [0.247, 0.416, 0.165], "thyme": [0.29, 0.361, 0.227], "lettuce": [0.416, 0.604, 0.251],
+    "marigold": [0.91, 0.541, 0.11], "blossom": [0.655, 0.518, 0.784], "sprout": [0.549, 0.816, 0.353],
+    "firefly": [0.9, 1, 0.6]
+  },
   "layers": [
     { "type": "bakedMesh", "data": "house" },
     { "type": "bakedMesh", "data": "neighbors" },

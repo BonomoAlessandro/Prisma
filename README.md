@@ -201,6 +201,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tests/output/leistung/leerlauf-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]`
+    prüft das Brett je Himmel (Spec `.scratch/brett-je-himmel/`, Ticket 02; etwa 3 min) über `__prisma.brett()`, ohne
+    Bilder zu vergleichen. `mechanik` legt nur in der Seite eigene Arten an (ein Steinbrett, dessen Berechnen die Probe
+    freigibt, und eines, das scheitert): Halten, bis das Brett bereit ist, Überblenden gleichzeitig und gleich lang wie
+    der Himmel, nie ein drittes Brett im Bild, Vorladen, Freigeben (Handy sofort, Desktop nach der Frist), Steinbrett
+    als Notfall (Berechnen gescheitert; nach 8 s ohne früheres Brett), Lücken unter 100 ms. `netz`: Handy, Netz und
+    CPU gedrosselt, über den Startbildschirm und «Weiter» in die Wüste: Der Kleine Wagen wartet, bis Himmel und Brett
+    bereit sind. `menue`: Unter dem Menü zählt die Frist des Notfalls nicht (dort lädt kein Brett), nach 10 s ohne
+    bereites Brett also kein Steinbrett als Notfall und keine Warnung. `reise`: vom Ende des Bergwalds ans Meer, ohne
+    Vorladen: Das Gezeitenbecken lädt erst auf der Reise, der Blick senkt sich auf das bereite Brett, Lücken unter 100 ms.
+    `formen` (Ticket 05): Übergang zwischen allen Arten des Registers, jede geordnete Paarung einmal, flach und
+    herausgezoomt, dazu zwei umgelenkte Übergänge. Je Bild zeichnet die Probe nur die Bretter in ein kleines Bild:
+    Im Kernquader, hinter dem der Himmel nichts zeichnet, deckt jedes Pixel ein Brett, und kein Teil erscheint oder
+    verschwindet auf einmal (Anteil der geänderten Pixel je Bild, auch ins letzte).
   - `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/buehne-messung.mjs [messen]
     [--fenster] [--handy] [--drossel 4] [--ohne-webgl] [--epilog] [--seite datei] [--name x]` misst die Bühne von
     Prolog und Epilog (Ticket 04 der Leistung, bis das Messwerkzeug aus Ticket 01 da ist): Chrome mit GPU (`--fenster`:
@@ -344,13 +358,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   in Blender als Panorama entstehen; im Spiel zeichnet sie ein allgemeines Modul (`createPanoramaSky`, Abschnitt SKYBOX
   in `index.html`) aus ihrem Manifest. Register `backgrounds/skies.js`, Daten in `backgrounds/<id>/` (Stand im
   Dateinamen); beides schreibt `node tools/blender/pack.mjs <id>` aus `tools/blender/szenen/<id>/skybox.json` (Name,
-  Reihenfolge, Sterne, Farben, Ebenen) und der Ausgabe der Pipeline. `tools/sky-schema.mjs` prüft das Register (beim
+  Reihenfolge, Sterne, Farben, Ebenen, Brett) und der Ausgabe der Pipeline. `tools/sky-schema.mjs` prüft das Register (beim
   Packen und in den Tests), `sw.js` liest seine Listen daraus. Was das Spiel zu einem Panorama selbst zeichnet (nahe
   Objekte, Nebellagen, Leuchtpunkte, bewegtes Wasser), sind Ebenentypen mit Parametern (`SKY_LAYERS`). Pinsel: Jede
   Ebene mit `"brush": true` bekommt Pinselstriche wie das gemalte Panorama (anisotroper Kuwahara-Filter wie `anime.py`,
   `createBrushPass`); die Einstellungen stehen im Feld `brush` der Skybox (`size` Radius in Grad wie
   `px_per_deg * 0.28`, `uniformity`, `sharpness`, `eccentricity` wie der Knoten im Kompositor, `mobile` Stufe auf dem
-  Handy), Standard aus. `backgrounds/`
+  Handy), Standard aus. **Brett je Himmel** (Spec `.scratch/brett-je-himmel/`): Das Feld `board` in `skybox.json` nennt
+  das Brett der Skybox, `{ "type": <Art>, …Werte }`; ohne Angabe, unter Milchstrasse und Sonnensystem steht das
+  Steinbrett (Art `stone`). Die Arten stehen in der Zeile `const BOARD_TYPES = { … }` in `index.html` (`boardTheme`
+  baut, teilt und zeigt die Bretter, je Art mit ihrem Kernquader: dahinter zeichnet der Himmel nichts), ihre Werte
+  prüft `tools/sky-schema.mjs` (`BOARD_PARAMS`). `node tools/blender/pack.mjs --brett [<id> …]` überträgt nur die
+  Brett-Angaben ins Register (ohne id alle), ohne die Teile neu zu packen und ohne die Rohdaten aus Blender; nachgeführt
+  werden Register und `SKIES` in `sw.js`. `__prisma.brett()` meldet `{ himmel, art, bereit }`: den Himmel, dessen
+  Brett zu sehen ist, dessen Art und ob es berechnet und hochgeladen ist. `backgrounds/`
   muss samt Unterordnern mit ausgeliefert werden. Konzept und weitere Schritte: PLAN 2.32. Belichtung und Malstil je
   Szene stehen in `tools/blender/stile.py` (Name = `WALD_STIL` = Ordner `out/<stil>`, `sky/<stil>`).
 - **Wald** (`forest`, erste Skybox): `wald_scene.py` baut die Szene (Gelände, Fichten, Nebel, Mond) als `wald.blend`,

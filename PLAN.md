@@ -109,8 +109,36 @@ Android-Chromium.
 
 ## 1. Aussehen
 
-- [ ] **1.1 Plattformen passend zur Skybox:** Die Plattform nimmt das Material ihrer Umgebung auf, z. B. sandig am
-  Strand. Gilt für jede Skybox, auch für die neuen aus 1.2.
+- [x] **1.1 Ein Brett je Himmel:** Das Brett nimmt das Material seiner Umgebung auf, z. B. sandig am Strand. Gilt für
+  die fünf Himmel aus Blender (Strand, Wüste, Wald, Dorf, Vulkan); Milchstrasse und Sonnensystem behalten das
+  Steinbrett. Die neuen Himmel aus 1.2 bringen ihr Brett später in ihrer `skybox.json` mit. Spec und Tickets:
+  `.scratch/brett-je-himmel/` (Grilling vom 05.11.2026), Branch `feature/brett-je-himmel`.
+  - **Fertig (08.11.2026, Tickets 01–10):** Jede Welt hat ihr festes Brett mit eigener Lichtwelle: Gezeitenbecken
+    (Strand), Lehmterrasse (Wüste), Moospolster (Bergwald), Hochbeet (Dorf), Basaltsäulen (Vulkan); Milchstrasse und
+    Sonnensystem das Steinbrett. Die Brett-Angabe steht in `skybox.json` und im Register, das Prüfwerkzeug kennt die
+    Arten. Das Brett wechselt mit dem Himmel (bereit, halten, überblenden), das neue wächst von der Mitte über das alte,
+    ein Steinbrett gibt es unter einem Blender-Himmel nur im Notfall. Berechnet wird im Spiel, keine Bytes zum Vorab-
+    Speichern dazu. Der Schalter `?brett=` und die Test-Leiste `?bretter` sind entfernt. Begriffe in `CONTEXT.md`
+    («Brett», «Steinbrett», die Namen der Bretter). Übergabe: `.scratch/brett-je-himmel/STAND.md`.
+  - [x] Ticket 11 (08.11.2026): An Weltgrenzen hielt das erste Bild eines neuen Himmels 100–175 ms an. Das kam vom
+    Freigeben des alten Panoramas, nicht vom neuen. Jetzt gibt es einen Vorrat für Texturen der Himmel, Freigeben an stillen
+    Bildern, Streifen in einer Höhe und ein unsichtbares Vorzeichnen jedes Panoramas, ohne die Prüfung zu lockern.
+  - [x] Test des Nutzers auf dem Poco F4 GT (09.11.2026): «alles sieht super aus», keine Befunde.
+  - [ ] Merge nach main auf Wort des Nutzers.
+  - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
+    Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
+  - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem
+    Grund und wäre teurer.
+  - Jede Welt bekommt ihren eigenen Katalog (Entscheid vom 05.11.2026). In der Wüste gewählt (06.11.2026):
+    **Lehmterrasse**, das Dach eines Lehmbaus wie in Djenné. Katalog: https://claude.ai/artifact/18PvQpJeqFYvQZbDkyDR8j.
+  - Im Bergwald gewählt (06.11.2026): **Moospolster**, ein Stück Waldboden mit Moos, leuchtenden Pilzen und Farn.
+    Katalog: https://claude.ai/artifact/NxHnBEMttQfErbf32u96zJ.
+  - Am Vulkan gewählt (06.11.2026): **Basaltsäulen** wie am Giant’s Causeway, Glut steigt bei der Lichtwelle in den
+    Fugen auf. Katalog: https://claude.ai/artifact/M9QffoMkGcgwSn2geoCjWv.
+  - Im Dorf gewählt (06.11.2026): **Hochbeet** aus Noas Garten, bei der Lichtwelle steigen Glühwürmchen auf.
+    Katalog: https://claude.ai/artifact/6tyN2oGW1VJRwVB3CXNTEG.
+  - Jedes Brett hat seine eigene Lichtwelle. Strand: **Brandung**, Wüste: **Sandverwehung** (06.11.2026, Vorschau
+    https://claude.ai/artifact/JpN1KG6cNopn4wGAZrYJ8v); Dorf, Wald und Vulkan wie in ihren Katalogen.
 - [~] **1.2 Neue Skyboxen:**
   - [x] Vulkan mit Lava (seit 26.10.2026 auf main; Storyline: Rot)
   - [x] Wüste (Storyline: Gelb; seit 28.10.2026): weiche Dünen im Anime-Stil, Windrippel nah am Brett, drei nahe Dünen

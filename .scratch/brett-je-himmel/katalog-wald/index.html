@@ -1,0 +1,645 @@
+<title>Waldbretter</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Instrument+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Musterbuch: je Richtung ein Musterblatt, links das Spielbild mit drei Nebenansichten, rechts Idee und Folgen */
+  :root {
+    --bg: #edf2f0;        /* Meeresdunst */
+    --blatt: #f9fbfa;     /* Musterblatt */
+    --ink: #13292b;       /* tiefes Wasser */
+    --leise: #4f6567;
+    --linie: #c9d7d3;
+    --meer: #137a75;      /* Akzent: Türkis der Bucht */
+    --sand: #a5612f;      /* Hinweise */
+    --sand-grund: #f3e2d2;
+    --meer-grund: #d8ece9;
+    --wasser: #2b7c78;    /* Rand um die Aufsicht, wie das Meer ums Brett (beide Themen) */
+    --f-titel: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+    --f-text: "Instrument Sans", "Segoe UI", system-ui, sans-serif;
+    --f-mass: "IBM Plex Mono", ui-monospace, "Cascadia Mono", monospace;
+    --s0: 0.8125rem; --s1: 0.9375rem; --s2: 1.0625rem; --s3: 1.375rem; --s4: 2rem; --s5: clamp(2.2rem, 5vw, 3.4rem);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+      --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0d1819; --blatt: #132224; --ink: #e2ecea; --leise: #9fb3b1; --linie: #284140;
+    --meer: #52c3b9; --sand: #e3a36d; --sand-grund: #3a2a1e; --meer-grund: #173634; color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink); font: 400 var(--s1)/1.55 var(--f-text);
+    padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 4rem;
+  }
+  .seite { max-width: 1240px; margin: 0 auto; display: grid; gap: 2.5rem; }
+  a { color: var(--meer); text-underline-offset: 0.18em; }
+  a:focus-visible, button:focus-visible { outline: 3px solid var(--meer); outline-offset: 3px; border-radius: 4px; }
+  .mass { font-family: var(--f-mass); font-size: 0.92em; font-variant-numeric: tabular-nums; }
+
+  /* Kopf */
+  .einstieg { padding-top: 3rem; display: grid; gap: 1.25rem; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); align-items: end; }
+  .einstieg h1 { font: 700 var(--s5)/1.02 var(--f-titel); letter-spacing: -0.02em; margin: 0.3rem 0 0; text-wrap: balance; }
+  .eyebrow { font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.08em; text-transform: uppercase; color: var(--meer); margin: 0; }
+  .einstieg p.lead { font-size: var(--s2); max-width: 62ch; margin: 0.9rem 0 0; }
+  .grenzen { margin: 0; padding: 1rem 1.1rem; border: 1px solid var(--linie); border-radius: 10px; background: var(--blatt); font-size: var(--s0); }
+  .grenzen h2 { font: 600 var(--s0)/1.3 var(--f-mass); text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.5rem; color: var(--leise); }
+  .grenzen ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.25rem; }
+  .legende { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr)); gap: 0.75rem 1.75rem; font-size: var(--s0); color: var(--leise); margin: 0; padding: 0; list-style: none; }
+  .legende li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr); gap: 0.6rem; align-items: baseline; }
+  .legende .chip { justify-self: start; }
+  .inhalt { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+  .inhalt a { display: inline-flex; gap: 0.4rem; align-items: baseline; padding: 0.3rem 0.7rem; border: 1px solid var(--linie); border-radius: 999px; text-decoration: none; color: var(--ink); background: var(--blatt); font-size: var(--s0); }
+  .inhalt a b { font-family: var(--f-mass); font-weight: 500; color: var(--meer); }
+  .inhalt a:hover { border-color: var(--meer); }
+
+  /* Karten */
+  .karte { background: var(--blatt); border: 1px solid var(--linie); border-radius: 14px; padding: clamp(1rem, 2.5vw, 1.75rem);
+    display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); grid-template-areas: "kopf kopf" "bilder text"; gap: 1.1rem 1.75rem; scroll-margin-top: 1rem; }
+  .karte.heute { background: transparent; border-style: dashed; }
+  .kopf { grid-area: kopf; display: flex; gap: 1rem; align-items: center; }
+  .nr { font: 700 2.6rem/1 var(--f-titel); color: var(--meer); min-width: 1.4ch; text-align: center; }
+  .art { margin: 0; font: 500 var(--s0)/1.3 var(--f-mass); letter-spacing: 0.06em; text-transform: uppercase; color: var(--leise); }
+  .kopf h2 { margin: 0.15rem 0 0; font: 700 var(--s4)/1.1 var(--f-titel); letter-spacing: -0.01em; text-wrap: balance; }
+  .bilder { grid-area: bilder; display: grid; gap: 0.6rem; min-width: 0; }
+  .streifen { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; }
+  figure { margin: 0; display: grid; gap: 0.3rem; min-width: 0; }
+  figcaption { font-size: var(--s0); color: var(--leise); }
+  .zoom { all: unset; cursor: zoom-in; display: block; border-radius: 8px; overflow: hidden; background: var(--linie); }
+  .zoom img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 10; object-fit: cover; transition: transform 0.25s ease; }
+  .neben .zoom img { aspect-ratio: 16 / 10; }
+  .oben .zoom img { object-fit: contain; background: var(--wasser); }
+  .zoom:hover img { transform: scale(1.02); }
+  .text { grid-area: text; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+  .idee { margin: 0; font-size: var(--s2); }
+  .behaelt { margin: 0; display: grid; gap: 0.55rem; }
+  .behaelt div { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 0.75rem; padding-top: 0.55rem; border-top: 1px solid var(--linie); }
+  .behaelt dt { font: 500 var(--s0)/1.5 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); }
+  .behaelt dd { margin: 0; }
+  .behaelt .welle dt { color: var(--meer); }
+  .hinweise { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.5rem; font-size: var(--s1); }
+  .chip { display: inline-block; font: 500 0.75rem/1.2 var(--f-mass); letter-spacing: 0.03em; padding: 0.2rem 0.5rem; border-radius: 5px;
+    color: var(--sand); background: var(--sand-grund); white-space: nowrap; }
+  .chip-pinsel, .chip-teile, .chip-mehr { color: var(--meer); background: var(--meer-grund); }
+  .vorbilder { margin: 0; font-size: var(--s0); line-height: 1.7; }
+  .label { font: 500 var(--s0)/1 var(--f-mass); text-transform: uppercase; letter-spacing: 0.06em; color: var(--leise); margin-right: 0.35rem; }
+  .fuss { font-size: var(--s0); color: var(--leise); max-width: 75ch; }
+
+  /* Grossansicht */
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1440px); max-height: 96vh; }
+  dialog::backdrop { background: rgb(5 14 15 / 0.82); }
+  dialog figure { gap: 0.5rem; }
+  dialog img { max-width: 100%; max-height: 86vh; width: auto; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+  dialog figcaption { color: #e2ecea; text-align: center; }
+  dialog .zu { position: absolute; top: 0.5rem; right: 0.5rem; font: 600 var(--s1)/1 var(--f-text); background: rgb(13 24 25 / 0.75); color: #e2ecea;
+    border: 1px solid rgb(226 236 234 / 0.3); border-radius: 999px; padding: 0.45rem 0.8rem; cursor: pointer; }
+
+  @media (max-width: 860px) {
+    .einstieg { grid-template-columns: minmax(0, 1fr); padding-top: 2rem; }
+    .karte { grid-template-columns: minmax(0, 1fr); grid-template-areas: "kopf" "bilder" "text"; }
+    .behaelt div { grid-template-columns: minmax(0, 1fr); gap: 0.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) { .zoom img { transition: none; } .zoom:hover img { transform: none; } }
+</style>
+
+<div class="seite">
+  <header class="einstieg">
+    <div>
+      <p class="eyebrow">Prisma · Ein Brett je Himmel · Bergwald</p>
+      <h1>Waldbretter</h1>
+      <p class="lead">Acht Richtungen für den Bergwald, die weder dem Gezeitenbecken noch der Lehmterrasse folgen:
+        andere Formen (eine Baumscheibe, ein Fliegenpilz), Stoffe aus dem Wald (Moos, Granit mit Flechten), Gebautes und
+        Gefundenes (eine Arvenplatte mit Kerbschnitt, ein Steinboden in Wurzeln), Licht (eine Papierlaterne) und
+        Papierkunst (ein Scherenschnitt). Der Wald steht im Spiel im Mondlicht, die Farben sind darauf abgestimmt. Jedes
+        Bild stammt aus dem Spiel, dasselbe Level, das Brett zur Laufzeit eingesetzt. Wähle eine Richtung, gern mit
+        Änderungswünschen.</p>
+    </div>
+    <section class="grenzen" aria-labelledby="grenzen-titel">
+      <h2 id="grenzen-titel">Bleibt in jeder Richtung gleich</h2>
+      <ul>
+        <li>Das 7×7-Feld: eben, <span class="mass">8,4 × 8,4 m</span>, an derselben Stelle.</li>
+        <li>Form frei innerhalb von <span class="mass">9,8 × 9,8 m</span>; das Brett schwebt über den Wipfeln der Fichten.</li>
+        <li>Licht, Sockel, Drehteller und Prismenteller wie heute.</li>
+        <li>Lichtwelle beim Lösen auf jedem Brett.</li>
+      </ul>
+    </section>
+  </header>
+
+  <nav aria-label="Karten">
+    <ul class="inhalt">
+      <li><a href="#heute"><b>·</b> Heute</a></li>
+      <li><a href="#scheibe"><b>1</b> Baumscheibe</a></li>
+      <li><a href="#moos"><b>2</b> Moospolster</a></li>
+      <li><a href="#granit"><b>3</b> Granitblock mit Flechten</a></li>
+      <li><a href="#kerbschnitt"><b>4</b> Kerbschnitt und Bauernmalerei</a></li>
+      <li><a href="#fliegenpilz"><b>5</b> Fliegenpilz</a></li>
+      <li><a href="#wurzeln"><b>6</b> Wurzelgeflecht</a></li>
+      <li><a href="#laterne"><b>7</b> Papierlaterne</a></li>
+      <li><a href="#scherenschnitt"><b>8</b> Scherenschnitt</a></li>
+    </ul>
+  </nav>
+
+  <ul class="legende" aria-label="Hinweise auf den Karten">
+    <li><span class="chip chip-blender">Form aus Blender</span> <span>Die Richtung braucht eine Form aus Blender oder wird damit deutlich schöner.</span></li>
+    <li><span class="chip chip-kern">Kernquader kleiner</span> <span>Deckt den Quader des Bretts nicht ganz undurchsichtig. Der Himmel muss dahinter zeichnen (Kernquader, Ticket 01).</span></li>
+    <li><span class="chip chip-teile">Viele kleine Teile</span> <span>Bewuchs oder Halme aus vielen kleinen Körpern. Auf dem Handy zu messen.</span></li>
+    <li><span class="chip chip-mehr">Echt wäre teurer</span> <span>Das Bild täuscht einen Stoff vor, der echt gerechnet mehr kosten würde.</span></li>
+  </ul>
+
+  
+    <article class="karte heute" id="heute">
+      <header class="kopf">
+        
+        <div>
+          <p class="art">Heute</p>
+          <h2>Steinbrett im Bergwald</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/stein-schraeg.jpg" data-text="Steinbrett im Bergwald: Im Spiel" aria-label="Steinbrett im Bergwald: Im Spiel gross zeigen">
+            <img src="bilder/stein-schraeg.jpg" alt="Steinbrett im Bergwald: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/stein-oben.jpg" data-text="Steinbrett im Bergwald: Aufsicht" aria-label="Steinbrett im Bergwald: Aufsicht gross zeigen">
+            <img src="bilder/stein-oben.jpg" alt="Steinbrett im Bergwald: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/stein-flach.jpg" data-text="Steinbrett im Bergwald: Flacher Blick: Seiten und Kante" aria-label="Steinbrett im Bergwald: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/stein-flach.jpg" alt="Steinbrett im Bergwald: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/stein-welle.jpg" data-text="Steinbrett im Bergwald: Lichtwelle beim Lösen" aria-label="Steinbrett im Bergwald: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/stein-welle.jpg" alt="Steinbrett im Bergwald: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das heutige Brett unter dem Waldhimmel: dunkler Schiefer mit eingravierten Rasterlinien, heller Einlegelinie, polierten Seiten und Metallkante.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Eingraviert, fein.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Helle, matte Linie knapp ausserhalb des Felds.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Ja, poliert.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein heller Ring in der Mischfarbe der Ziele läuft von der Mitte bis über die Ecken.</dd></div>
+          
+        </dl>
+        
+        
+      </div>
+    </article>
+
+    <article class="karte" id="scheibe">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">1</span>
+        <div>
+          <p class="art">Variante 1 · Andere Form: gewachsen</p>
+          <h2>Baumscheibe</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/scheibe-schraeg.jpg" data-text="Baumscheibe: Im Spiel" aria-label="Baumscheibe: Im Spiel gross zeigen">
+            <img src="bilder/scheibe-schraeg.jpg" alt="Baumscheibe: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/scheibe-oben.jpg" data-text="Baumscheibe: Aufsicht" aria-label="Baumscheibe: Aufsicht gross zeigen">
+            <img src="bilder/scheibe-oben.jpg" alt="Baumscheibe: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/scheibe-flach.jpg" data-text="Baumscheibe: Flacher Blick: Seiten und Kante" aria-label="Baumscheibe: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/scheibe-flach.jpg" alt="Baumscheibe: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/scheibe-welle.jpg" data-text="Baumscheibe: Lichtwelle beim Lösen" aria-label="Baumscheibe: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/scheibe-welle.jpg" alt="Baumscheibe: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist eine Scheibe vom Stammfuss einer alten Lärche. Im Feld liegen die Jahresringe im rotbraunen Kernholz, um das Feld ein heller Splint, rundum die Borke. Der Umriss folgt den vier Wurzelanläufen, an den Seiten sitzt die tief gefurchte Borke, und von aussen laufen Trockenrisse ein.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Brandlinien, dunkel.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, der helle Splint rahmt das Feld.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Kaum, das Holz ist geölt.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Läuft Ring für Ring durch das Holz und folgt dabei den Jahresringen statt einem Kreis. Das Spätholz leuchtet wie Harz.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, die Borke ist eine Textur auf einem einzigen Körper. Die abgerundeten Ecken decken den heutigen Quader nicht ganz.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Abgerundeter Umriss: Der Kernquader wird an den Ecken kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Jahresring" target="_blank" rel="noopener">Jahresring</a> · <a href="https://de.wikipedia.org/wiki/Europ%C3%A4ische_L%C3%A4rche" target="_blank" rel="noopener">Europäische Lärche</a> · <a href="https://de.wikipedia.org/wiki/Wurzelanlauf" target="_blank" rel="noopener">Wurzelanlauf</a> · <a href="https://de.wikipedia.org/wiki/Dendrochronologie" target="_blank" rel="noopener">Dendrochronologie</a> · <a href="https://de.wikipedia.org/wiki/General_Sherman_Tree" target="_blank" rel="noopener">General Sherman Tree</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="moos">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">2</span>
+        <div>
+          <p class="art">Variante 2 · Material: lebendig</p>
+          <h2>Moospolster</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/moos-schraeg.jpg" data-text="Moospolster: Im Spiel" aria-label="Moospolster: Im Spiel gross zeigen">
+            <img src="bilder/moos-schraeg.jpg" alt="Moospolster: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/moos-oben.jpg" data-text="Moospolster: Aufsicht" aria-label="Moospolster: Aufsicht gross zeigen">
+            <img src="bilder/moos-oben.jpg" alt="Moospolster: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/moos-flach.jpg" data-text="Moospolster: Flacher Blick: Seiten und Kante" aria-label="Moospolster: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/moos-flach.jpg" alt="Moospolster: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/moos-welle.jpg" data-text="Moospolster: Lichtwelle beim Lösen" aria-label="Moospolster: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/moos-welle.jpg" alt="Moospolster: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein Stück Waldboden, das sich gelöst hat. Das Feld ist kurzes, samtiges Moos wie im Moostempel von Kyoto, im Rand liegen dicke Polster mit leuchtenden Helmlingen, an den Ecken wächst Farn. Die Seiten sind die Erdscholle mit Steinen, darunter hängen Wurzeln.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Linien aus hellem Silbermoos.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, die Polster beginnen am Feld.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Wie beim Waldgott in «Prinzessin Mononoke»: Wo der Ring vorbeizieht, blühen kleine weisse Blumen auf und welken hinter ihm wieder, die Helmlinge leuchten auf.</dd></div>
+          <div><dt>Kosten</dt><dd>Feld und Scholle berechnet. Polster, Pilze, Farn und Blumen sind rund 2100 kleine Körper in wenigen Gruppen, dazu 70 Wurzeln.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 2100 Polster, Pilze, Farnwedel und Blumen. Auf dem Handy zu messen.</li>
+          <li><span class="chip chip-mehr">Echt wäre teurer</span> Echter Moosflor aus vielen Schichten wäre weicher, aber teurer.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Saih%C5%8D-ji" target="_blank" rel="noopener">Saihō-ji (Moostempel)</a> · <a href="https://de.wikipedia.org/wiki/Yakushima" target="_blank" rel="noopener">Yakushima</a> · <a href="https://de.wikipedia.org/wiki/Prinzessin_Mononoke" target="_blank" rel="noopener">Prinzessin Mononoke</a> · <a href="https://en.wikipedia.org/wiki/Foxfire" target="_blank" rel="noopener">Foxfire (leuchtende Pilze)</a> · <a href="https://de.wikipedia.org/wiki/Helmlinge" target="_blank" rel="noopener">Helmlinge</a> · <a href="https://de.wikipedia.org/wiki/Wald-Sauerklee" target="_blank" rel="noopener">Wald-Sauerklee</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="granit">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">3</span>
+        <div>
+          <p class="art">Variante 3 · Material: Stein der Berge</p>
+          <h2>Granitblock mit Flechten</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/granit-schraeg.jpg" data-text="Granitblock mit Flechten: Im Spiel" aria-label="Granitblock mit Flechten: Im Spiel gross zeigen">
+            <img src="bilder/granit-schraeg.jpg" alt="Granitblock mit Flechten: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/granit-oben.jpg" data-text="Granitblock mit Flechten: Aufsicht" aria-label="Granitblock mit Flechten: Aufsicht gross zeigen">
+            <img src="bilder/granit-oben.jpg" alt="Granitblock mit Flechten: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/granit-flach.jpg" data-text="Granitblock mit Flechten: Flacher Blick: Seiten und Kante" aria-label="Granitblock mit Flechten: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/granit-flach.jpg" alt="Granitblock mit Flechten: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/granit-welle.jpg" data-text="Granitblock mit Flechten: Lichtwelle beim Lösen" aria-label="Granitblock mit Flechten: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/granit-welle.jpg" alt="Granitblock mit Flechten: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein schwerer Block aus Alpengranit, oben gesägt und fein gestockt. Im Rand und an den Seiten liegt die raue Spaltfläche aus dem Steinbruch, eine Ecke ist abgeschlagen. Darauf wachsen Landkartenflechte, Gelbflechte und graue Blattflechten wie auf jedem Findling im Bergwald.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Sägeschnitte, dunkel.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein polierter, dunklerer Streifen.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Leicht, im polierten Streifen etwas mehr.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Der Glimmer im Granit funkelt auf, wo der Ring vorbeizieht, dahinter bleibt ein kühler Schimmer.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet, ein einziger Körper von 62 cm Dicke. Die ausgebrochenen Kanten decken den Quader nicht ganz.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Ausgebrochene Kanten und die abgeschlagene Ecke: Der Kernquader wird etwas kleiner.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Granit" target="_blank" rel="noopener">Granit</a> · <a href="https://de.wikipedia.org/wiki/Findling" target="_blank" rel="noopener">Findling</a> · <a href="https://de.wikipedia.org/wiki/Landkartenflechte" target="_blank" rel="noopener">Landkartenflechte</a> · <a href="https://de.wikipedia.org/wiki/Gew%C3%B6hnliche_Gelbflechte" target="_blank" rel="noopener">Gewöhnliche Gelbflechte</a> · <a href="https://de.wikipedia.org/wiki/Glimmergruppe" target="_blank" rel="noopener">Glimmer</a> · <a href="https://en.wikipedia.org/wiki/Plug_and_feather" target="_blank" rel="noopener">Spaltkeile</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="kerbschnitt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">4</span>
+        <div>
+          <p class="art">Variante 4 · Gebaut: Handwerk aus der Alphütte</p>
+          <h2>Kerbschnitt und Bauernmalerei</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/kerbschnitt-schraeg.jpg" data-text="Kerbschnitt und Bauernmalerei: Im Spiel" aria-label="Kerbschnitt und Bauernmalerei: Im Spiel gross zeigen">
+            <img src="bilder/kerbschnitt-schraeg.jpg" alt="Kerbschnitt und Bauernmalerei: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/kerbschnitt-oben.jpg" data-text="Kerbschnitt und Bauernmalerei: Aufsicht" aria-label="Kerbschnitt und Bauernmalerei: Aufsicht gross zeigen">
+            <img src="bilder/kerbschnitt-oben.jpg" alt="Kerbschnitt und Bauernmalerei: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/kerbschnitt-flach.jpg" data-text="Kerbschnitt und Bauernmalerei: Flacher Blick: Seiten und Kante" aria-label="Kerbschnitt und Bauernmalerei: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/kerbschnitt-flach.jpg" alt="Kerbschnitt und Bauernmalerei: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/kerbschnitt-welle.jpg" data-text="Kerbschnitt und Bauernmalerei: Lichtwelle beim Lösen" aria-label="Kerbschnitt und Bauernmalerei: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/kerbschnitt-welle.jpg" alt="Kerbschnitt und Bauernmalerei: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist eine Tischplatte aus Arvenholz wie in einer Alphütte, jede Reihe eine Bohle mit dunklen Ästen. Der Rand ist dunkel blaugrün gemalt, mit Rosetten im Kerbschnitt (Sechsstern) und roten Tulpen dazwischen. An den Seiten läuft eine gemalte Ranke, die Kante ist eine rote Leiste.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Kerben, dunkel.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Entfällt, rote und ockerfarbene Malerlinien rahmen das Feld.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Kaum, das Holz ist gewachst.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Warmes Kerzenlicht, das sich in den Kerben des Rasters und in den Rosetten fängt.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet und gemalt, keine zusätzlichen Körper. Deckt das Feld wie heute.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Kerbschnitt" target="_blank" rel="noopener">Kerbschnitt</a> · <a href="https://en.wikipedia.org/wiki/Chip_carving" target="_blank" rel="noopener">Chip carving</a> · <a href="https://de.wikipedia.org/wiki/Bauernmalerei" target="_blank" rel="noopener">Bauernmalerei</a> · <a href="https://de.wikipedia.org/wiki/Appenzeller_Bauernmalerei" target="_blank" rel="noopener">Appenzeller Bauernmalerei</a> · <a href="https://de.wikipedia.org/wiki/Zirbelkiefer" target="_blank" rel="noopener">Arve (Zirbelkiefer)</a> · <a href="https://de.wikipedia.org/wiki/Sechsstern" target="_blank" rel="noopener">Sechsstern</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="fliegenpilz">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">5</span>
+        <div>
+          <p class="art">Variante 5 · Andere Form: ein Pilz</p>
+          <h2>Fliegenpilz</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/fliegenpilz-schraeg.jpg" data-text="Fliegenpilz: Im Spiel" aria-label="Fliegenpilz: Im Spiel gross zeigen">
+            <img src="bilder/fliegenpilz-schraeg.jpg" alt="Fliegenpilz: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/fliegenpilz-oben.jpg" data-text="Fliegenpilz: Aufsicht" aria-label="Fliegenpilz: Aufsicht gross zeigen">
+            <img src="bilder/fliegenpilz-oben.jpg" alt="Fliegenpilz: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/fliegenpilz-flach.jpg" data-text="Fliegenpilz: Flacher Blick: Seiten und Kante" aria-label="Fliegenpilz: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/fliegenpilz-flach.jpg" alt="Fliegenpilz: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/fliegenpilz-welle.jpg" data-text="Fliegenpilz: Lichtwelle beim Lösen" aria-label="Fliegenpilz: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/fliegenpilz-welle.jpg" alt="Fliegenpilz: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist der Hut eines riesigen Fliegenpilzes. Das Feld ist die blassere, orangerote Mitte des Huts, im Rand sitzen weisse Warzen auf Scharlachrot. Der Hutrand rollt sich nach unten ein, darunter liegen helle Lamellen, und ein weisser Stiel mit Manschette und Knolle reicht 3 m unter das Brett.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine weisse Linien wie Reste der Hülle.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Weiss.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Leicht, die Huthaut glänzt feucht.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Ein Hexenring: Der Ring leuchtet warm, Sporen steigen leuchtend in ihm auf, und die Warzen glimmen.</dd></div>
+          <div><dt>Kosten</dt><dd>Hut berechnet, Hutrand und Stiel als einfache Körper, rund 500 Warzen und 2600 Sporen als Instanzen. Das Rot wäre im Spiel noch mit den roten Zielsockeln abzustimmen.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-kern">Kernquader kleiner</span> Abgerundeter Hut und eingerollter Rand: Der Kernquader wird kleiner. Der Stiel ragt unter das Brett, bleibt aber im Umriss.</li>
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Warzen und Sporen sind viele kleine Körper. Auf dem Handy zu messen.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Fliegenpilz" target="_blank" rel="noopener">Fliegenpilz</a> · <a href="https://de.wikipedia.org/wiki/Hexenring" target="_blank" rel="noopener">Hexenring</a> · <a href="https://de.wikipedia.org/wiki/Alice_im_Wunderland" target="_blank" rel="noopener">Alice im Wunderland</a> · <a href="https://en.wikipedia.org/wiki/Fantasia_(1940_film)" target="_blank" rel="noopener">Fantasia (1940)</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="wurzeln">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">6</span>
+        <div>
+          <p class="art">Variante 6 · Gefunden: von Wurzeln umschlungen</p>
+          <h2>Wurzelgeflecht</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/wurzeln-schraeg.jpg" data-text="Wurzelgeflecht: Im Spiel" aria-label="Wurzelgeflecht: Im Spiel gross zeigen">
+            <img src="bilder/wurzeln-schraeg.jpg" alt="Wurzelgeflecht: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/wurzeln-oben.jpg" data-text="Wurzelgeflecht: Aufsicht" aria-label="Wurzelgeflecht: Aufsicht gross zeigen">
+            <img src="bilder/wurzeln-oben.jpg" alt="Wurzelgeflecht: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/wurzeln-flach.jpg" data-text="Wurzelgeflecht: Flacher Blick: Seiten und Kante" aria-label="Wurzelgeflecht: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/wurzeln-flach.jpg" alt="Wurzelgeflecht: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/wurzeln-welle.jpg" data-text="Wurzelgeflecht: Lichtwelle beim Lösen" aria-label="Wurzelgeflecht: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/wurzeln-welle.jpg" alt="Wurzelgeflecht: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein alter Steinboden im Wald, den die Wurzeln eines Baums umschlungen haben wie in Ta Prohm. Jedes Feld ist eine eigene, verwitterte Steinplatte, in den Fugen laufen feine Wurzelhaare. Dunkle Wurzeln kriechen über den Rand aus Bruchsteinen, umfassen die Seiten und hängen unter dem Brett als Geflecht.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Die Fugen zwischen den Platten.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Die Fuge zwischen Feld und Rand.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Kaum.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Licht fliesst wie Saft durch die Wurzelhaare in den Fugen, das Raster leuchtet grün auf. Erreicht der Ring den Rand, glühen die Wurzeln mit, wie Nachrichten im Wurzelnetz des Waldes.</dd></div>
+          <div><dt>Kosten</dt><dd>Steine berechnet, die Wurzeln sind rund 90 Röhren in einem Körper. An den Seiten reichen sie bis knapp an den Umriss.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-blender">Form aus Blender</span> Wurzeln mit Knorren und Rinde wären als Form aus Blender deutlich kräftiger als die berechneten Röhren.</li>
+          <li><span class="chip chip-teile">Viele kleine Teile</span> Rund 90 Wurzeln mit vielen Dreiecken. Auf dem Handy zu messen.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Ta_Prohm" target="_blank" rel="noopener">Ta Prohm</a> · <a href="https://de.wikipedia.org/wiki/Das_Schloss_im_Himmel" target="_blank" rel="noopener">Das Schloss im Himmel</a> · <a href="https://de.wikipedia.org/wiki/J%C5%8Dmon-Sugi" target="_blank" rel="noopener">Jōmon-Sugi</a> · <a href="https://de.wikipedia.org/wiki/Mykorrhiza" target="_blank" rel="noopener">Mykorrhiza</a> · <a href="https://en.wikipedia.org/wiki/Mycorrhizal_network" target="_blank" rel="noopener">Mycorrhizal network</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="laterne">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">7</span>
+        <div>
+          <p class="art">Variante 7 · Licht: von innen leuchtend</p>
+          <h2>Papierlaterne</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/laterne-schraeg.jpg" data-text="Papierlaterne: Im Spiel" aria-label="Papierlaterne: Im Spiel gross zeigen">
+            <img src="bilder/laterne-schraeg.jpg" alt="Papierlaterne: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/laterne-oben.jpg" data-text="Papierlaterne: Aufsicht" aria-label="Papierlaterne: Aufsicht gross zeigen">
+            <img src="bilder/laterne-oben.jpg" alt="Papierlaterne: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/laterne-flach.jpg" data-text="Papierlaterne: Flacher Blick: Seiten und Kante" aria-label="Papierlaterne: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/laterne-flach.jpg" alt="Papierlaterne: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/laterne-welle.jpg" data-text="Papierlaterne: Lichtwelle beim Lösen" aria-label="Papierlaterne: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/laterne-welle.jpg" alt="Papierlaterne: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist eine flache Laterne aus Washi-Papier in einem Gitter aus dunklem Holz, die von innen warm leuchtet: eine Lichtinsel im nächtlichen Wald, zu der die Glühwürmchen passen. Das Raster sind die Holzstäbe, im Rand liegt das Kumiko-Muster Asanoha (Hanfblatt), die Seiten sind Papierwände zwischen Pfosten.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Breite Holzstäbe, dunkel.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein schmaler Holzrahmen um das Feld.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine, Papier spiegelt nicht.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Fach für Fach flammt das Licht auf, sobald der Ring die Mitte des Fachs erreicht.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet. Das Leuchten steckt im Material, es ist keine Lichtquelle. Deckt das Feld wie heute.</dd></div>
+        </dl>
+        <ul class="hinweise">
+          <li><span class="chip chip-mehr">Echt wäre teurer</span> Das Leuchten ist gemalt: Es erhellt weder die Elemente noch die Bäume. Echtes Licht aus dem Brett wäre teurer.</li>
+        </ul>
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Sh%C5%8Dji" target="_blank" rel="noopener">Shōji</a> · <a href="https://de.wikipedia.org/wiki/Andon" target="_blank" rel="noopener">Andon</a> · <a href="https://en.wikipedia.org/wiki/Kumiko_(woodworking)" target="_blank" rel="noopener">Kumiko</a> · <a href="https://de.wikipedia.org/wiki/Washi" target="_blank" rel="noopener">Washi</a> · <a href="https://de.wikipedia.org/wiki/T%C5%8Dr%C5%8D_nagashi" target="_blank" rel="noopener">Tōrō nagashi</a></p>
+      </div>
+    </article>
+
+    <article class="karte" id="scherenschnitt">
+      <header class="kopf">
+        <span class="nr" aria-hidden="true">8</span>
+        <div>
+          <p class="art">Variante 8 · Gemalt: Papierkunst aus den Bergen</p>
+          <h2>Scherenschnitt</h2>
+        </div>
+      </header>
+      <div class="bilder">
+        <figure class="haupt schraeg">
+          <button type="button" class="zoom" data-src="bilder/scherenschnitt-schraeg.jpg" data-text="Scherenschnitt: Im Spiel" aria-label="Scherenschnitt: Im Spiel gross zeigen">
+            <img src="bilder/scherenschnitt-schraeg.jpg" alt="Scherenschnitt: Im Spiel" width="1080" height="675">
+          </button>
+          <figcaption>Im Spiel</figcaption>
+        </figure>
+        <div class="streifen">
+          <figure class="neben oben">
+          <button type="button" class="zoom" data-src="bilder/scherenschnitt-oben.jpg" data-text="Scherenschnitt: Aufsicht" aria-label="Scherenschnitt: Aufsicht gross zeigen">
+            <img src="bilder/scherenschnitt-oben.jpg" alt="Scherenschnitt: Aufsicht" loading="lazy" width="620" height="620">
+          </button>
+          <figcaption>Aufsicht</figcaption>
+        </figure>
+          <figure class="neben flach">
+          <button type="button" class="zoom" data-src="bilder/scherenschnitt-flach.jpg" data-text="Scherenschnitt: Flacher Blick: Seiten und Kante" aria-label="Scherenschnitt: Flacher Blick: Seiten und Kante gross zeigen">
+            <img src="bilder/scherenschnitt-flach.jpg" alt="Scherenschnitt: Flacher Blick: Seiten und Kante" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Flacher Blick: Seiten und Kante</figcaption>
+        </figure>
+          <figure class="neben welle">
+          <button type="button" class="zoom" data-src="bilder/scherenschnitt-welle.jpg" data-text="Scherenschnitt: Lichtwelle beim Lösen" aria-label="Scherenschnitt: Lichtwelle beim Lösen gross zeigen">
+            <img src="bilder/scherenschnitt-welle.jpg" alt="Scherenschnitt: Lichtwelle beim Lösen" loading="lazy" width="1080" height="675">
+          </button>
+          <figcaption>Lichtwelle beim Lösen</figcaption>
+        </figure>
+        </div>
+      </div>
+      <div class="text">
+        <p class="idee">Das Brett ist ein grosser Scherenschnitt wie aus dem Pays-d’Enhaut. Das Feld ist helles Büttenpapier, im Rand stehen schwarz geschnittene Tannen, Hirsche und Herzen, gespiegelt wie gefaltetes Papier, in den Ecken Sonnenräder. Die Seiten sind ein Stapel Papier.</p>
+        <dl class="behaelt">
+          <div><dt>Raster</dt><dd>Feine Bleistiftlinien.</dd></div>
+          <div><dt>Einlegelinie</dt><dd>Ein schwarzer Papierstreifen.</dd></div>
+          <div><dt>Spiegelung</dt><dd>Keine.</dd></div>
+          <div class="welle"><dt>Lichtwelle</dt><dd>Gegenlicht: Wo der Ring vorbeizieht, scheint das Papier warm durch, die Rippung des Büttens tritt hervor, und hinter dem Ring erscheint das Wasserzeichen, ein grosser Hirschkopf.</dd></div>
+          <div><dt>Kosten</dt><dd>Alles berechnet und gezeichnet. Deckt das Feld wie heute.</dd></div>
+        </dl>
+        
+        <p class="vorbilder"><span class="label">Vorbilder</span> <a href="https://de.wikipedia.org/wiki/Scherenschnitt" target="_blank" rel="noopener">Scherenschnitt</a> · <a href="https://de.wikipedia.org/wiki/Johann_Jakob_Hauswirth" target="_blank" rel="noopener">Johann Jakob Hauswirth</a> · <a href="https://de.wikipedia.org/wiki/Pays-d%E2%80%99Enhaut" target="_blank" rel="noopener">Pays-d’Enhaut</a> · <a href="https://de.wikipedia.org/wiki/Wasserzeichen" target="_blank" rel="noopener">Wasserzeichen</a> · <a href="https://de.wikipedia.org/wiki/B%C3%BCttenpapier" target="_blank" rel="noopener">Büttenpapier</a> · <a href="https://de.wikipedia.org/wiki/Lotte_Reiniger" target="_blank" rel="noopener">Lotte Reiniger</a></p>
+      </div>
+    </article>
+
+  <p class="fuss">Bilder: Spiel im Stand <span class="mass">main 504adbb</span>, <span class="mass">?sky=forest</span>,
+    Desktop <span class="mass">1440 × 900</span>, Chrome mit Grafikkarte. Die Bretter sind zur Laufzeit gebaut
+    (Texturen im Browser berechnet, Bewuchs und Wurzeln als einfache Körper), sie zeigen die Richtung, nicht die fertige
+    Gestaltung. Die Skripte, die die Bretter im Spiel bauen, liegen unter <span class="mass">katalog-wald/bretter/</span>.</p>
+</div>
+
+<dialog id="gross" aria-label="Bild gross">
+  <figure>
+    <img id="gross-bild" alt="">
+    <figcaption id="gross-text"></figcaption>
+  </figure>
+  <button type="button" class="zu" id="gross-zu">Schliessen</button>
+</dialog>
+
+<script>
+  const dlg = document.getElementById('gross'), img = document.getElementById('gross-bild'), txt = document.getElementById('gross-text');
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('.zoom');
+    if (b) {
+      img.src = b.dataset.src; img.alt = b.dataset.text; txt.textContent = b.dataset.text;
+      if (typeof dlg.showModal === 'function') dlg.showModal(); else window.open(b.dataset.src, '_blank');
+      return;
+    }
+    if (e.target === dlg || e.target.id === 'gross-zu') dlg.close();
+  });
+</script>
