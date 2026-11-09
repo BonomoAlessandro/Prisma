@@ -1033,6 +1033,32 @@ console.log('Offline');
     assert.ok(skyErrors({ starsFrom: 75 }).some((e) => /starsFrom/.test(e)), 'starsFrom zu hoch');
     assert.ok(skyErrors({ starsAboveHorizon: false }).some((e) => /starsFrom/.test(e)), 'starsFrom ohne starsAboveHorizon');
   });
+  test('Skyboxen: Strand – die Kamera hält vor den Palmen (camera.stops), die Felsen gehen am Rand ins Panorama über (bakedMesh ground [0, 0])', () => {
+    const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
+    assert.ok(beach.camera?.stops?.some(([dx, dz, weit]) => dx === 0 && dz < 0 && weit > 9 && weit < 15),
+      'beach: Halt zum Land hin (−z), vor den Palmen');
+    const rocks = beach.layers.find((l) => l.type === 'bakedMesh') ?? assert.fail('beach ohne nahe Felsen (bakedMesh)');
+    assert.deepEqual([...rocks.ground ?? []], [0, 0], 'Felsen: Farbe des Panoramas genau an der Stelle');
+    const errorsWith = (change) => checkSkies([{ ...beach, ...change }], { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ camera: { stops: [[0, 0, 13]] } }).some((e) => /camera/.test(e)), 'Richtung 0');
+    assert.ok(errorsWith({ camera: { stops: [[0, -1, -2]] } }).some((e) => /camera/.test(e)), 'weit nicht positiv');
+    assert.ok(errorsWith({ camera: { stops: [] } }).some((e) => /camera/.test(e)), 'keine Grenze');
+    assert.ok(errorsWith({ camera: { halt: 13 } }).some((e) => /camera/.test(e)), 'unbekanntes Feld');
+  });
+  test('Kamera: Halt vor dem Land (cameraStop) rückt nur heran, wo sie über die Grenze käme', () => {
+    const src = html.match(/function cameraStop\([\s\S]*?\n\}\r?\n/)?.[0] ?? assert.fail('function cameraStop nicht gefunden');
+    const cameraStop = new Function(`${src}; return cameraStop;`)();
+    const t = { x: 0, z: 0.35 }, dir = (theta, phi) => ({ x: Math.sin(phi) * Math.sin(theta), z: Math.sin(phi) * Math.cos(theta) });
+    const stops = [[0, -1, 13]];
+    assert.equal(cameraStop(stops, t, dir(0, 1.4), 30), 1, 'zum Meer hin frei');
+    assert.equal(cameraStop(undefined, t, dir(Math.PI, 1.4), 30), 1, 'ohne Grenzen frei');
+    const d = dir(Math.PI, 1.4), k = cameraStop(stops, t, d, 30);
+    assert.ok(Math.abs(-(t.z + d.z * 30 * k) - 13) < 1e-9, `zum Land hin genau an der Grenze (k ${k})`);
+    assert.equal(cameraStop(stops, t, d, 10), 1, 'nah genug: frei');
+    const s = dir(-Math.PI / 2, 1.4), zwei = cameraStop([[0, -1, 13], [-1, 0, 5]], t, s, 30);
+    assert.ok(Math.abs(-(s.x * 30 * zwei) - 5) < 1e-9, `mehrere Grenzen: die engste (k ${zwei})`);
+  });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);
     assert.deepEqual(named.filter(f => f !== 'backgrounds/skies.js'), []);

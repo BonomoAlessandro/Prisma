@@ -5,7 +5,7 @@
 //     parts: [{ role: 'base' | 'bands', file: '<id>/<name>.<rev>.js', device: 'all' | 'desktop', precache, bytes, gpuMB }],
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
-//     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? },
+//     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? }, camera?: { stops },
 //     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }],
 //     board?: { type, … } }
 // starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
@@ -16,6 +16,9 @@
 // basalt die der Basaltsäulen, je in sRGB 0 … 1). Ohne Angabe zeigt das Spiel das Steinbrett (stone). Eine unbekannte
 // Art und unbekannte, fehlende oder ungültige Werte sind Fehler. pack.mjs übernimmt sie unverändert aus skybox.json (mit
 // --brett nur sie, ohne die Teile neu zu packen).
+// camera.stops: Halt vor dem Land, Grenzen [dx, dz, weit] (Spielkoordinaten): In der waagrechten Richtung (dx, dz) steht
+// die Kamera höchstens weit m von der Mitte des Bretts, sonst rückt sie heran und das Sichtfeld wird weiter
+// (cameraStop in index.html; Strand: nicht hinter die Palmen).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -124,7 +127,8 @@ const LAYER_PARAMS = {
     // optional: Bereich in rock8 (0 … 1, aufsteigend), über den das Netz ins Panorama ausläuft
     fade: (v) => v === undefined || (isVec(v, 2) && v[0] >= 0 && v[1] > v[0] && v[1] <= 1),
     // optional mit fade: [sink, up] (m), rock8 · up ist die Höhe über dem Sand des Panoramas
-    ground: (v) => v === undefined || (isVec(v, 2) && v[0] >= 0 && v[1] > 0),
+    // [0, 0]: die Farbe des Panoramas genau an der Stelle (Strand: flaches Gelände der Felsgruppen)
+    ground: (v) => v === undefined || (isVec(v, 2) && v[0] >= 0 && v[1] >= 0),
   },
   // Vulkan: Lavasee. Grössen > 0, Bereiche aufsteigend; leuchtende Farben unter der Bloom-Schwelle: Die Lava
   // liegt hinter den Strahlen, ein Schleier darüber verdeckte sie
@@ -283,6 +287,11 @@ export function checkSkies(skies, { root, types, boards, reserved = [], pending 
     if (!isVec(s.light?.dir) || Math.abs(Math.hypot(...s.light.dir) - 1) > 1e-3) err('light.dir: Einheitsvektor zum Licht');
     if (s.fog && !(isNum(s.fog.top) && isVec(s.fog.soft) && isVec(s.fog.core))) err('fog: top, soft, core');
     if (s.air && !(isColor(s.air.haze) && isColor(s.air.lit) && isNum(s.air.density))) err('air: haze, lit, density');
+    if (s.camera !== undefined && !(typeof s.camera === 'object' && s.camera !== null
+      && Object.keys(s.camera).every((k) => k === 'stops') && Array.isArray(s.camera.stops) && s.camera.stops.length > 0
+      && s.camera.stops.every((g) => isVec(g, 3) && Math.hypot(g[0], g[1]) > 0 && g[2] > 0))) {
+      err('camera: { stops: [[dx, dz, weit], …] }, Richtung nicht 0, weit > 0');
+    }
     if (s.brush !== undefined && !isBrush(s.brush)) {
       err('brush: { size 0.01 … 2, uniformity 0 … 50, sharpness 0 … 1, eccentricity 0 … 2, mobile 0 | 2 | 3 }, '
         + 'alle optional');

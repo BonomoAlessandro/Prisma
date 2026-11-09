@@ -11,6 +11,7 @@
   },
   "air": { "haze": [0.42, 0.46, 0.52], "lit": [0.62, 0.55, 0.46], "density": 0.004 },
   "brush": { "size": 0.28, "uniformity": 4, "sharpness": 0.8, "eccentricity": 1.0 },
+  "camera": { "stops": [[0, -1, 13]] },
   "layers": [
     {
       "type": "waterSurface", "data": "water", "wave": [7.8, 1.1], "height": 0.19, "reach": 1.0, "lift": 0.3,
@@ -31,7 +32,7 @@
         { "count": 3, "speed": 0.4, "depth": 1.6, "length": 0.8, "shape": [0.42, 0.3], "pattern": "plain", "colors": [[0.78, 0.14, 0.55], [0.2, 0.75, 0.7], [0.95, 0.6, 0.1]] }
       ]
     },
-    { "type": "bakedMesh", "data": "rocks" },
+    { "type": "bakedMesh", "data": "rocks", "fade": [0.5, 0.99], "ground": [0, 0] },
     { "type": "paintedInstances", "data": "flora", "brush": true }
   ]
 }

@@ -364,7 +364,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Ebene mit `"brush": true` bekommt Pinselstriche wie das gemalte Panorama (anisotroper Kuwahara-Filter wie `anime.py`,
   `createBrushPass`); die Einstellungen stehen im Feld `brush` der Skybox (`size` Radius in Grad wie
   `px_per_deg * 0.28`, `uniformity`, `sharpness`, `eccentricity` wie der Knoten im Kompositor, `mobile` Stufe auf dem
-  Handy), Standard aus. **Brett je Himmel** (Spec `.scratch/brett-je-himmel/`): Das Feld `board` in `skybox.json` nennt
+  Handy), Standard aus. **Kamera:** Das Feld `camera.stops` der Skybox sind Grenzen `[dx, dz, weit]`: In der waagrechten
+  Richtung (dx, dz) steht die Kamera höchstens `weit` m von der Mitte des Bretts, sonst rückt sie auf ihrem Strahl heran
+  und das Sichtfeld wird so viel weiter, dass das Brett auf der Höhe seiner Mitte gleich gross bleibt (`cameraStop`;
+  Strand: nicht hinter die Palmen); beim Wechsel der Welt gleitet der Halt mit dem Überblenden. **Brett je Himmel** (Spec `.scratch/brett-je-himmel/`): Das Feld `board` in `skybox.json` nennt
   das Brett der Skybox, `{ "type": <Art>, …Werte }`; ohne Angabe, unter Milchstrasse und Sonnensystem steht das
   Steinbrett (Art `stone`). Die Arten stehen in der Zeile `const BOARD_TYPES = { … }` in `index.html` (`boardTheme`
   baut, teilt und zeigt die Bretter, je Art mit ihrem Kernquader: dahinter zeichnet der Himmel nichts), ihre Werte
@@ -394,6 +397,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Pflanzen und Wasserkarte nach `sky/beach/ebenen.json`, rund 25 min), danach `node tools/blender/pack.mjs beach`.
   Nur die nahen Pflanzen neu (Modelle, Eigenschatten, Lichtsonde, rund 3 min): `wald_mcp.scene('beach').export_flora()`,
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
+  Nur Lage und Felsanteil der nahen Felsen neu, ohne Backen: `export_rock_shape()` (passt nur zu einem Panorama mit
+  demselben `rock_drawn`, PLAN 1.4).
 - **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt über einem Lavasee in einem weiten Krater, Vorbilder Nyiragongo
   (See) und Masaya (Wand). Das Ufer liegt gut 50 m von der Mitte: Auch ganz herausgezoomt und flach geneigt bleibt die
   Kamera vor der Wand (Handy hochkant bis 48 m, Würfel auf Desktop und Tablet bis 45 m; nur der Würfel auf dem Handy
