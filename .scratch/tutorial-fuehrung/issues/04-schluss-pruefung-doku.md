@@ -4,7 +4,7 @@
 
 **Blocked by:** 03
 
-**Status:** needs-info (wartet auf die Wahl am Katalog, Ticket 01)
+**Status:** ready-for-agent
 
 **What to build:** Die Führung wird als Ganzes geprüft und dokumentiert, danach entscheidet der Nutzer über den Merge.
 

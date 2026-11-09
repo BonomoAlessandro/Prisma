@@ -1,6 +1,6 @@
 # Spec: Führung im Dorf
 
-Status: needs-info (Art der Führung offen bis zur Wahl am Katalog, Ticket 01; Start nur auf Zeichen des Nutzers)
+Status: ready-for-agent (Wahl am Katalog: C «Vorzeigen», siehe Ticket 01)
 
 PLAN 1a.1 «Tutorial überarbeiten». Die Entscheide stammen aus dem Grilling vom 09.11.2026. Die Begriffe folgen
 `CONTEXT.md`: Das Kapitel heisst «Im Dorf», seine 9 Level sind die Übungen.

@@ -4,7 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** needs-info (wartet auf die Wahl am Katalog, Ticket 01)
+**Status:** ready-for-agent
 
 **What to build:** Alle 9 Übungen bekommen ihre Schritte nach der Tabelle in der Spec, auf dem Gerüst aus Ticket 02.
 

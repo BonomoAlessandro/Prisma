@@ -4,7 +4,7 @@
 
 **Blocked by:** 01
 
-**Status:** needs-info (wartet auf die Wahl am Katalog, Ticket 01)
+**Status:** ready-for-agent
 
 **What to build:** Die Führung als eigenes Stück neben dem Spiel: Sie zeigt die Schritte einer Übung, wartet auf die
 Handlung des Spielers und geht dann weiter. Dazu die Weigerung fester Elemente im ganzen Spiel. Gebaut wird in der
