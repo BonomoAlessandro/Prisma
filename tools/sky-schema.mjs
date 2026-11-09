@@ -174,12 +174,15 @@ const BOARD_PARAMS = {
     thyme: isSrgb, lettuce: isSrgb, marigold: isSrgb, blossom: isSrgb, sprout: isSrgb, firefly: isSrgb,
   },
   // Moospolster des Bergwalds (mossBoard): Farben sRGB 0 … 1. moss zwei Töne des Mooses (dunkel, hell), tip helle Spitzen,
-  // gold goldene Flecken, silver Rasterlinien aus Silbermoos, litter Nadelstreu im Rand, soil zwei Töne des Humus der
-  // Seiten, pebble Steine darin, thread Wurzelfäden darin, root zwei Töne der hängenden Wurzeln, fern Farn (Blatt, Stiel),
-  // cap Hut der Helmlinge, glow ihr Leuchten, flower Blumen der Lichtwelle (Blütenblatt, Mitte)
+  // gold Flecken (im Katalog golden), silver Rasterlinien aus Silbermoos, litter Nadelstreu im Rand, soil zwei Töne des
+  // Humus der Seiten, pebble Steine darin, thread Wurzelfäden darin, root zwei Töne der hängenden Wurzeln, fern Farn
+  // (Blatt, Stiel), cap Hut der Helmlinge, glow ihr Leuchten, flower Blumen der Lichtwelle (Blütenblatt, Mitte);
+  // Mondlicht auf dem Brett aus der Richtung des Monds (MOSS.moonDir): moon Farbe und Stärke, moonRim die hellen Kanten
+  // auf der Mondseite
   moss: {
     moss: isSrgbPair, tip: isSrgb, gold: isSrgb, silver: isSrgb, litter: isSrgb, soil: isSrgbPair, pebble: isSrgb,
-    thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair,
+    thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair, moon: isSrgb,
+    moonRim: isSrgb,
   },
   // Basaltsäulen des Vulkans (basaltBoard): Farben sRGB 0 … 1. basalt die geschliffenen Säulen des Felds [hell, dunkel],
   // tint ihre wolkige Tönung, lip ihr hell geschliffener Rand, joint die Fugen, line das Raster, inlay die Einlegelinie,

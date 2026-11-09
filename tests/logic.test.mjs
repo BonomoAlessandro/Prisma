@@ -971,6 +971,15 @@ console.log('Offline');
       'Farn mit drei Tönen');
     assert.ok(errorsWith({ flower: undefined }).some((e) => /flower/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ pilz: [0.8, 0.7, 0.5] }).some((e) => /pilz/.test(e)), 'unbekannter Wert');
+    assert.ok(errorsWith({ moonRim: undefined }).some((e) => /moss: moonRim /.test(e)), 'Mondkante fehlt');
+    assert.ok(errorsWith({ moon: [0.3, 0.36] }).some((e) => /moss: moon /.test(e)), 'Mondlicht mit zwei Werten');
+  });
+  test('Bretter: Das Mondlicht des Moospolsters kommt aus der Richtung des Monds im Wald (MOSS.moonDir = light.dir)', () => {
+    const forest = skies.find((s) => s.id === 'forest') ?? assert.fail('Skybox forest fehlt im Register');
+    const m = html.match(/moonDir: \[([-\d., ]+)\]/) ?? assert.fail('MOSS.moonDir in index.html nicht gefunden');
+    const dir = m[1].split(',').map(Number), unit = (v) => v.map((x) => x / Math.hypot(...v));
+    const a = unit(dir), b = unit(forest.light.dir);
+    assert.ok(a.every((x, i) => Math.abs(x - b[i]) < 1e-3), `MOSS.moonDir ${dir} weicht von light.dir des Walds ab`);
   });
   test('Bretter: Vulkan mit den Basaltsäulen (basalt); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
     const volcano = skies.find((s) => s.id === 'volcano') ?? assert.fail('Skybox volcano fehlt im Register');

@@ -1233,7 +1233,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-09 kopfzeile-kurz';
+const APP_VERSION = '2026-11-09 wald-mondlicht';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -14532,18 +14532,20 @@ const MOSS = {
   roots: 70,            // Wurzeln unter der Scholle
   flowers: 1500,        // Blumen der Lichtwelle (Waldsauerklee), unsichtbar in Ruhe
   flowerEnd: 2.2,       // so lange (s nach dem Start des Rings) blühen Blumen, danach nicht gezeichnet
+  moonDir: [-0.8197, 0.5123, 0.2562], // zum Mond: light.dir des Walds im Register (ein Logiktest vergleicht)
+  moonRimFloor: 0.3,    // Mondkante auf der Fläche: nur ein Hauch, bei flachem Blick glänzte sie sonst wie Raureif
 };
 // Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
 const MOSS_VALUES = ['moss', 'tip', 'gold', 'silver', 'litter', 'soil', 'pebble', 'thread', 'root', 'fern', 'cap', 'glow',
-  'flower'];
+  'flower', 'moon', 'moonRim'];
 
 /**
  * Farbe und Normalen des Moospolsters, die Erdscholle und das Moos der Polster (mossBoard), ohne Bezug auf das übrige
  * Spiel (Worker). Formeln und Farben aus dem Katalog (katalog-wald, 2-moos.js), die Höhen ungerundet. Feld size² über das
  * ganze Brett (Zeile j bei z = plate/2 − (j + ½) · plate/size): kurzes Samtmoos in zwei Tönen (moss) mit hellen Spitzen
- * (tip) und goldenen Flecken (gold), im Feld ruhiger; im Rand unter den Polstern Nadelstreu (litter). Seiten sideW ×
- * sideH: Humus (soil) mit Steinen (pebble) und Wurzelfäden (thread), oben hängt Moos über die Kante. Polster cushion²:
- * Moos, nahtlos wiederholbar. v: Werte der Brett-Angabe.
+ * (tip) und Flecken (gold, im Katalog golden), im Feld ruhiger; im Rand unter den Polstern Nadelstreu (litter). Seiten
+ * sideW × sideH: Humus (soil) mit Steinen (pebble) und Wurzelfäden (thread), oben hängt Moos über die Kante. Polster
+ * cushion²: Moos, nahtlos wiederholbar. v: Werte der Brett-Angabe.
  */
 function mossData({ size, plate, half, sideW, sideH, cushion, v }) {
   const hash = (x, y, s) => {
@@ -14757,7 +14759,10 @@ function mossFlowers(list, petal, heart) {
  * sind eine Erdscholle mit Steinen, bündig unter der Oberfläche; darunter hängen Wurzeln. Keine Spiegelung (mirror null).
  * Lichtwelle wie der Waldgott in «Prinzessin Mononoke»: Wo der Ring vorbeizieht, blühen kleine weisse Blumen auf und
  * welken hinter ihm wieder (mossFlowers), die Helmlinge leuchten auf, über das Moos läuft ein grünlich-goldener Schein.
- * Alles folgt der Ankunft des Rings (shockClock), nicht seiner Stärke. v: Werte der Brett-Angabe (MOSS_VALUES, sRGB).
+ * Alles folgt der Ankunft des Rings (shockClock), nicht seiner Stärke. Das Brett liegt im Mondlicht des Walds (Wunsch
+ * vom 09.11.2026): blaugrüne Farben aus der Brett-Angabe und ein kühles Licht aus der Richtung des Monds (moon), das auf
+ * der Mondseite helle Kanten zeichnet (moonRim) wie bei den Bäumen (toonInstances). v: Werte der Brett-Angabe
+ * (MOSS_VALUES, sRGB).
  */
 function mossBoard(v) {
   for (const k of MOSS_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
@@ -14834,15 +14839,16 @@ function mossBoard(v) {
 
   // Polster im Rand: flache Kuppeln mit feiner Moosstruktur, höchstens 5 cm über den Umriss hinaus. Matt (Lambert) und
   // ohne Schatten: Die Polster liegen mehrfach übereinander, als MeshStandardMaterial mit Schatten kosteten sie am Desktop
-  // rund 4 ms Zeichenzeit (gemessen, Ticket 07), so gut 1 ms
+  // rund 4 ms Zeichenzeit (gemessen, Ticket 07), so gut 1 ms. Tönung und Leuchten grau, so hell wie die warmen Töne
+  // zuvor (ebenso bei Pilzen, Farn und Wurzeln): Die Farbe kommt allein aus der Brett-Angabe (Mondlicht im Wald)
   const cushionMat = new THREE.MeshLambertMaterial({ map: tex.cushion, emissiveMap: tex.cushion,
-    emissive: new THREE.Color(0.3, 0.33, 0.27) });
+    emissive: new THREE.Color().setScalar(0.32) });
   const cushionList = [];
   for (let i = 0; i < MOSS.cushions; i++) {
     const [x, z, box] = inRim(HB + 0.1, HP - 0.12), stretch = 1 + r() * 0.4, out = (box - HB) / (HP - HB);
     const big = Math.min(0.14 + r() * 0.22, (HP + 0.05 - box) / stretch);
     cushionList.push({ p: [x, -0.03, z], r: [0, r() * 6.3, 0], s: [big * stretch, (0.05 + r() * 0.08) * (1.2 - out * 0.5), big],
-      c: mix3([0.8, 0.95, 0.75], [1.15, 1.1, 0.8], r()) });
+      c: mix3([0.9, 0.9, 0.9], [1.09, 1.09, 1.09], r()) });
   }
   const cushions = scatter(new THREE.SphereGeometry(1, 18, 6, 0, Math.PI * 2, 0, Math.PI / 2), cushionMat, cushionList);
   cushions.receiveShadow = false;
@@ -14881,7 +14887,7 @@ function mossBoard(v) {
       const hgt = 0.1 + r() * 0.14, rad = 0.035 + r() * 0.035, rot = [(r() - 0.5) * 0.4, 0, (r() - 0.5) * 0.4];
       stemList.push({ p: [x, 0.02, z], r: rot, s: [rad * 0.5, hgt, rad * 0.5] });
       tilt.set(0, hgt, 0).applyEuler(e.set(...rot));
-      capList.push({ p: [x + tilt.x, 0.02 + tilt.y - rad * 0.3, z + tilt.z], r: rot, s: rad, c: mix3([0.85, 0.9, 0.75], [1, 1, 1], r()) });
+      capList.push({ p: [x + tilt.x, 0.02 + tilt.y - rad * 0.3, z + tilt.z], r: rot, s: rad, c: mix3([0.88, 0.88, 0.88], [1, 1, 1], r()) });
     }
   }
   const capGeo = new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55).scale(1, 1.1, 1);
@@ -14890,7 +14896,7 @@ function mossBoard(v) {
 
   // Farn an den Ecken und vereinzelt am Rand: Wedel als gebogene Fläche, die aufsteigt und sich nach aussen überbiegt
   const frondMat = new THREE.MeshStandardMaterial({ side: THREE.DoubleSide, roughness: 0.8,
-    emissive: new THREE.Color(0.35, 0.4, 0.3) });
+    emissive: new THREE.Color().setScalar(0.38) });
   const uLeaf = { value: lin(v.fern[0]) }, uStem = { value: lin(v.fern[1]) };
   frondMat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, { uLeaf, uStem });
@@ -14928,7 +14934,7 @@ function mossBoard(v) {
   const fronds = scatter(frondGeo, frondMat, frondList);
 
   // Wurzeln unter der Scholle (ein Netz)
-  const rootMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color(0.12, 0.09, 0.07) });
+  const rootMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, emissive: new THREE.Color().setScalar(0.095) });
   const r0 = lin(v.root[0]), r1 = lin(v.root[1]);
   const roots = new THREE.Mesh(mossRoots(r, HP, -SIDE_H + 0.02, (t) => r0.clone().lerp(r1, t)), rootMat);
 
@@ -14945,6 +14951,32 @@ function mossBoard(v) {
 
   // Überblenden: boardBlend (für alle Arten gleich); die Blumen stehen nur ohne Überblenden
   const all = [floorMaterial, sideMaterial, cushionMat, capMat, stemMat, frondMat, rootMat];
+
+  // Mondlicht: kühles Licht aus der Richtung des Monds im Panorama, nur auf dem Brett, zur Lampe des Spiels dazu. Es
+  // hellt auf, was zum Mond zeigt (moon), und zeichnet dort helle Kanten (moonRim, wie RIM der Bäume in toonInstances)
+  const uMoon = { value: lin(v.moon) }, uMoonRim = { value: lin(v.moonRim) };
+  const uMoonDir = { value: new THREE.Vector3(...MOSS.moonDir).normalize() };
+  for (const m of all) {
+    // three unterscheidet Programme nach onBeforeCompile.toString(): Die Hülle ist für alle Materialien dieselbe, also
+    // den Schlüssel des eigenen Codes behalten, dazu «mond» und die Stärke der Kante (auf der Fläche schwächer)
+    const prev = m.onBeforeCompile, key = m.customProgramCacheKey(), rimK = m === floorMaterial ? MOSS.moonRimFloor : 1;
+    m.customProgramCacheKey = () => `${key}|mond${rimK}`;
+    m.onBeforeCompile = (shader, renderer) => {
+      prev.call(m, shader, renderer);
+      if (!shader.fragmentShader.includes('#include <lights_fragment_end>')) throw new Error('Mondlicht: Stelle fehlt');
+      Object.assign(shader.uniforms, { uMoon, uMoonRim, uMoonDir });
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uMoon, uMoonRim, uMoonDir;')
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          {
+            vec3 toMoon = normalize((viewMatrix * vec4(uMoonDir, 0.0)).xyz);
+            float ml = dot(normal, toMoon);
+            // saturate statt max: Das Skalarprodukt liegt durch Rundung auch knapp über 1, pow(negativ) ist undefiniert
+            float mrim = pow(1.0 - saturate(dot(normal, geometry.viewDir)), 3.0) * smoothstep(-0.1, 0.4, ml);
+            reflectedLight.directDiffuse += uMoon * diffuseColor.rgb * max(ml, 0.0) + uMoonRim * (mrim * ${rimK.toFixed(2)});
+          }`);
+    };
+  }
 
   const textures = [tex.map, tex.normalMap, tex.side, tex.cushion];
   return {
