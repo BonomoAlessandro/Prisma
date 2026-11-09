@@ -1397,6 +1397,26 @@ function isRotatable(el) {
   return !el.fixed && (el.type === 'mirror' || el.type === 'prism' || el.type === 'combiner');
 }
 
+/**
+ * Welches Element ein Tippen oder Klick meint (pickElement). Kandidaten { el, hit: Abstand des Strahls zum
+ * Trefferzylinder oder null, px: Abstand seiner Mitte zum Zeiger in Pixeln }; slop: so weit daneben zählt noch (px).
+ * Ein drehbares Element im Toleranzbereich (getroffen oder höchstens slop daneben) gewinnt immer gegen ein festes,
+ * damit die Weigerung das Spielen nicht schlechter macht. In jeder Gruppe zuerst das vorderste getroffene, sonst das
+ * nächstgelegene. Nichts in Reichweite: null.
+ */
+function pickTapped(cands, slop = 0) {
+  for (const rot of [true, false]) {
+    let best = null, bestHit = Infinity, near = null, nearPx = slop;
+    for (const c of cands) {
+      if (isRotatable(c.el) !== rot) continue;
+      if (c.hit !== null && c.hit < bestHit) { bestHit = c.hit; best = c.el; }
+      if (c.px < nearPx) { nearPx = c.px; near = c.el; }
+    }
+    if (best || near) return best ?? near;
+  }
+  return null;
+}
+
 /** Zerlegt eine Farbmaske in ihre Grundfarben (Rot, Grün, Blau). */
 function primariesOf(color) {
   return [1, 2, 4].filter(c => color & c);
@@ -8274,6 +8294,7 @@ const sceneLoop = {
     if (himmelsWagen.blendet) return 'Wagen am Himmel (Menü)';
     if (cameraRig.homing || cameraRig.settling > 1e-3) return 'Kamera';
     if (beamView.time < beamView.settleAt + 1.2) return 'Strahlen';
+    if (weigernde.size) return 'Weigerung';
     for (const obj of game.objects.values()) {
       const u = obj.userData;
       if (u.rotation || u.pulseT > -100) return 'Drehen oder Puls';
@@ -16952,6 +16973,7 @@ function makeFixedBase() {
   const edge = new THREE.Mesh(edgeGeo, edgeMat);
   edge.raycast = () => {};
   edge.layers.set(LAYER_NO_REFLECT);
+  edge.userData.sockelRand = true; // makeRefusing: das Element weigert sich beim Antippen
   g.add(edge);
   return g;
 }
@@ -17552,7 +17574,7 @@ const game = {
   levelIndex: 0,
   board: null,
   objects: new Map(), // element.id → Object3D
-  hitProxies: [],     // unsichtbare Trefferzylinder der drehbaren Elemente
+  hitProxies: [],     // unsichtbare Trefferzylinder der drehbaren Elemente und der festen mit Sockel (Weigerung)
   targets: [],        // Modelle der Ziele
   result: null,
   // Statistik des laufenden Versuchs: die Zeit läuft ab der ersten Drehung
@@ -17642,6 +17664,7 @@ function* buildElements(board, objects, proxies) {
       else gridToWorld(el.x, el.z, 0, obj.position);
       obj.userData.element = el;
       if (isRotatable(el)) makeInteractive(obj);
+      else if (board.dim !== 3) makeRefusing(obj); // Würfel: Rahmen statt Sockel, keine Weigerung
       objects.push([el, obj]);
     } finally {
       [game.board, game.hitProxies] = saved;
@@ -17700,7 +17723,7 @@ function loadLevel(index, beamDelay = 0) {
   game.hitProxies = proxies;
   setHovered(null);
   clearTimeout(input.longPressTimer);
-  if (input.pointer) input.pointer.el = null;
+  if (input.pointer) input.pointer.el = input.pointer.fest = null;
   for (const [el, obj] of objects) {
     boardGroup.add(obj);
     game.objects.set(el.id, obj);
@@ -17809,6 +17832,62 @@ function animateRotations(dt) {
     u.pivot.rotation.y = r.from + (r.to - r.from) * easeOutCubic(r.t);
     markShadowsDirty();
     if (r.t >= 1) u.rotation = null;
+  }
+}
+
+/**
+ * Weigerung (Ticket 02 von .scratch/tutorial-fuehrung/): Ein festes Element mit eckigem Sockel wackelt beim Antippen
+ * kurz um die senkrechte Achse, sein roter Rand blitzt auf. Ohne Text, ohne Zug, Strahlen und Speicherstand bleiben,
+ * wie sie sind. dauer in s, winkel in rad, schwingungen: ganze Hin-und-her-Bewegungen, blitz: Faktor der Helligkeit
+ * des Rands auf dem Höhepunkt.
+ */
+const WEIGERN = { dauer: 0.42, winkel: 0.1, schwingungen: 2, blitz: 4 };
+const weigernde = new Set(); // Modelle, die gerade wackeln (leer: keine Arbeit je Bild)
+
+/** Rüstet ein festes Element mit Sockel mit einem Trefferzylinder aus (ohne Sockel: nichts, es reagiert nicht). */
+function makeRefusing(obj) {
+  let rand = null;
+  obj.traverse((m) => { if (m.userData.sockelRand) rand = m; });
+  if (!rand) return;
+  const proxy = new THREE.Mesh(hitProxyGeometry, hitProxyMaterial);
+  proxy.position.y = 0.375;
+  proxy.userData.element = obj.userData.element;
+  obj.add(proxy);
+  game.hitProxies.push(proxy);
+  obj.userData.sockelRand = rand;
+}
+
+/** Das feste Element el weigert sich (erneut angetippt: von vorn). */
+function weigern(el) {
+  if (!el || isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels
+  if (flow.state !== 'play') return;
+  const obj = game.objects.get(el.id), u = obj?.userData;
+  if (!u?.sockelRand) return;
+  if (u.weigern) { u.weigern.t = 0; return; }
+  // eigenes Material nur für die Dauer: das geteilte (edgeMat) liesse alle Sockel aufblitzen
+  const mat = u.sockelRand.material.clone();
+  u.sockelRand.material = mat;
+  u.weigern = { t: 0, mat, rotY: obj.rotation.y };
+  weigernde.add(obj);
+  sceneLoop.wake();
+}
+
+/** Wackeln und Blitz fortschreiben (pro Frame, nur solange eines wackelt). */
+function animateWeigern(dt) {
+  for (const obj of weigernde) {
+    const u = obj.userData, w = u.weigern;
+    w.t = Math.min(1, w.t + dt / WEIGERN.dauer);
+    obj.rotation.y = w.rotY + WEIGERN.winkel * Math.sin(2 * Math.PI * WEIGERN.schwingungen * w.t) * (1 - w.t);
+    // Blitz: schnell hell (Höhepunkt bei einem Viertel), langsam zurück
+    w.mat.color.copy(FIXED_EDGE.color).multiplyScalar(1 + WEIGERN.blitz * Math.sin(Math.PI * Math.sqrt(w.t)));
+    markShadowsDirty();
+    if (w.t >= 1 || !obj.parent) { // fertig oder das Level ist gewechselt
+      obj.rotation.y = w.rotY;
+      u.sockelRand.material = fixedBase().edgeMat;
+      w.mat.dispose();
+      u.weigern = null;
+      weigernde.delete(obj);
+    }
   }
 }
 
@@ -18547,28 +18626,32 @@ const pointerNdc = new THREE.Vector2();
 // pinch: zweiter Finger, solange zwei Finger zoomen ({ id, x, y, d: letzter Abstand der Finger })
 const input = { pointer: null, pinch: null, hovered: null, longPressTimer: 0 };
 
-/** Element unter einem Bildschirmpunkt (nur drehbare, über ihre Trefferzylinder). */
 const _pickPos = new THREE.Vector3();
 /**
- * Drehbares Element unter einem Bildschirmpunkt. slop (px): verfehlt der Strahl alle Trefferzylinder,
- * zählt das nächstgelegene Element, dessen Mitte höchstens so weit entfernt liegt (Finger sind ungenau).
+ * Element unter einem Bildschirmpunkt, über die Trefferzylinder: drehbare und feste mit Sockel (Weigerung), Drehbares
+ * im Toleranzbereich gewinnt immer (pickTapped). slop (px): verfehlt der Strahl die Zylinder, zählt auch ein Element,
+ * dessen Mitte höchstens so weit entfernt liegt (Finger sind ungenau).
  */
 function pickElement(clientX, clientY, slop = 0) {
   if (flow.state !== 'play') return null; // während eines Levelwechsels nichts anwählen
   const rect = renderer.domElement.getBoundingClientRect();
   pointerNdc.set(((clientX - rect.left) / rect.width) * 2 - 1, -((clientY - rect.top) / rect.height) * 2 + 1);
   raycaster.setFromCamera(pointerNdc, camera);
-  const hits = raycaster.intersectObjects(game.hitProxies, false);
-  if (hits.length) return hits[0].object.userData.element;
-  let best = null, bestD = slop * SEITE; // Abstände hier in Pixeln des Layouts (clientX, Rechteck)
-  for (const proxy of game.hitProxies) {
-    proxy.getWorldPosition(_pickPos).project(camera);
-    const d = Math.hypot((_pickPos.x + 1) / 2 * rect.width + rect.left - clientX,
-      (1 - _pickPos.y) / 2 * rect.height + rect.top - clientY);
-    if (d < bestD) { bestD = d; best = proxy.userData.element; }
+  const cands = raycaster.intersectObjects(game.hitProxies, false)
+    .map((h) => ({ el: h.object.userData.element, hit: h.distance, px: Infinity }));
+  if (slop > 0) {
+    for (const proxy of game.hitProxies) { // Abstände hier in Pixeln des Layouts (clientX, Rechteck)
+      proxy.getWorldPosition(_pickPos).project(camera);
+      const px = Math.hypot((_pickPos.x + 1) / 2 * rect.width + rect.left - clientX,
+        (1 - _pickPos.y) / 2 * rect.height + rect.top - clientY);
+      cands.push({ el: proxy.userData.element, hit: null, px });
+    }
   }
-  return best;
+  return pickTapped(cands, slop * SEITE);
 }
+
+/** Nur drehbare Elemente (Hover, Lichtrand): Feste reagieren allein aufs Antippen. */
+const rotatableOnly = (el) => (el && isRotatable(el) ? el : null);
 
 function setHovered(el) {
   if (input.hovered === el) return;
@@ -18805,13 +18888,15 @@ canvasEl.addEventListener('pointerdown', (e) => {
     return;
   }
   if (input.pointer || e.button === 1) return; // sonst ein Zeiger zur Zeit; Mittelklick ignorieren
-  const el = pickElement(e.clientX, e.clientY, e.pointerType === 'mouse' ? 0 : INPUT.touchSlop);
+  const picked = pickElement(e.clientX, e.clientY, e.pointerType === 'mouse' ? 0 : INPUT.touchSlop);
+  const el = rotatableOnly(picked);
   // x, y: zuletzt fürs Drehen ausgewertet; cx, cy: wo der Zeiger gerade ist (für den Abstand beim Zoomen);
-  // done: nach dem Zoomen mit zwei Fingern dreht der verbliebene nicht mehr (ein neuer zweiter zoomt wieder)
+  // done: nach dem Zoomen mit zwei Fingern dreht der verbliebene nicht mehr (ein neuer zweiter zoomt wieder);
+  // fest: angetipptes festes Element, es weigert sich beim Loslassen
   input.pointer = {
     id: e.pointerId, type: e.pointerType, button: e.button,
     x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, cx: e.clientX, cy: e.clientY,
-    el, moved: false, consumed: false, done: false,
+    el, fest: el ? null : picked, moved: false, consumed: false, done: false,
   };
   try { canvasEl.setPointerCapture(e.pointerId); } catch { /* z. B. synthetische Zeiger */ }
   if (el) setHovered(el);
@@ -18830,7 +18915,7 @@ canvasEl.addEventListener('pointerdown', (e) => {
 canvasEl.addEventListener('pointermove', (e) => {
   const p = input.pointer;
   if (!p) {
-    if (e.pointerType === 'mouse') setHovered(pickElement(e.clientX, e.clientY));
+    if (e.pointerType === 'mouse') setHovered(rotatableOnly(pickElement(e.clientX, e.clientY)));
     return;
   }
   const q = input.pinch;
@@ -18870,8 +18955,9 @@ canvasEl.addEventListener('pointerup', (e) => {
   const p = input.pointer;
   if (!p || e.pointerId !== p.id) return;
   if (!p.moved && !p.consumed && p.el) rotateElement(p.el, p.button === 2 ? -1 : 1);
+  else if (!p.moved && !p.consumed && p.fest) weigern(p.fest);
   endPointer();
-  if (e.pointerType === 'mouse') setHovered(pickElement(e.clientX, e.clientY));
+  if (e.pointerType === 'mouse') setHovered(rotatableOnly(pickElement(e.clientX, e.clientY)));
 });
 canvasEl.addEventListener('pointercancel', (e) => { if (!endPinch(e) && input.pointer && e.pointerId === input.pointer.id) endPointer(); });
 canvasEl.addEventListener('lostpointercapture', (e) => { if (!endPinch(e) && input.pointer && e.pointerId === input.pointer.id) endPointer(); });
@@ -26352,6 +26438,7 @@ function animate(t, dt) {
   celebration.update(dt, t);
   shockClock(dt); // nach Feier und Geschichte, die den Ring setzen
   animateRotations(dt);
+  if (weigernde.size) animateWeigern(dt);
   for (const obj of game.objects.values()) {
     if (obj.userData.update) obj.userData.update(t, dt);
     if (obj.userData.updateHover) obj.userData.updateHover(dt);
