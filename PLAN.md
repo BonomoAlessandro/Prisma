@@ -178,6 +178,20 @@ Android-Chromium.
     `prefers-reduced-motion` zählt heute die alten Elemente einzeln auf und ist für die neuen neu zu schreiben.
     Weiter gilt: Animation erst mit `.go`; auf dem Handy messen (Ruckler beim ersten Zeichnen von Filtern, vgl. das
     Vorab-Zeichnen des Farbfächers).
+- [x] **1.4 Strand: Kamera und Felsen** (09.11.2026, Branch `fix/strand-kamera-felsen`, Bild des Nutzers
+  `bilder/StrandUebergang.png`; Vorschau https://claude.ai/artifact/RjJYsRcUicQvjcVBanDRtZ):
+  - Herausgezoomt kam die Kamera bis hinter die Palmen (Handy hoch bis 34 m landeinwärts, Desktop 18 m). Gewählt: Die
+    Kamera hält an (`camera.stops` in `skybox.json`, Strand höchstens 13 m zum Land hin); wo sie heranrücken muss, wird
+    das Sichtfeld weiter, das Brett bleibt auf der Höhe der Mitte gleich gross (`cameraStop`; Handy hoch, ganz flach
+    zum Land: die vorderen Ecken ragen etwas hinaus, oben hängt ein Palmblatt ins Bild). Beim Wechsel der Welt gleitet
+    der Halt mit dem Überblenden. Das Brett aufs Meer zu schieben hätte fürs Handy rund 20 m gebraucht. Offen, heute
+    nicht erreichbar: Würfel im Hochformat bräuchte mehr als `stopFovMax` 100°; greift der Halt, überschreibt er
+    `story.sichtfeld` (Finale nur in der Milchstrasse).
+  - Neben den nahen Felsen lag ein Sandsaum des 3D-Netzes bis 18 cm über dem Boden des Panoramas (Sandhügel,
+    Treppenkante), darunter malte das Panorama dunklen Boden. Strand neu gerendert: Flach und vom Spiel gezeichnet ist
+    nur noch, wo Fels liegt (`rock_drawn` in `szenen/beach/szene.py`), daneben zeigt das Panorama glatten Sand; die
+    Felsen gehen am Rand weich ins Panorama über (`bakedMesh` mit `ground: [0, 0]`). Rest: Kiesel im Sand mit dünnem
+    dunklem Rand (ihr Schatten im Panorama).
 
 ## 2. Würfel-Level (3D)
 

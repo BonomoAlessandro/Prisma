@@ -241,13 +241,14 @@ def attrs(me, **arrays):
 
 
 def terrain_mesh():
-    """Gelände als Ringe um die Mitte; Attribute für das Material. Ohne das Relief der nahen Felsen (near_rock), soweit
-    das Spiel sie zeichnet (near_rocky): Dort zeigt das Panorama flachen Boden in der Farbe des Felses (wo er von der
-    Seite neben den Felsen des Spiels durchscheint, passt er so zu ihren Schattenseiten); flache Felsplatten bleiben."""
+    """Gelände als Ringe um die Mitte; Attribute für das Material. Ohne das Relief der nahen Felsen, soweit das Spiel
+    sie zeichnet (rock_drawn): Dort zeigt das Panorama flachen Boden in der Farbe des Felses (wo er von der Seite neben
+    den Felsen des Spiels durchscheint, passt er so zu ihren Schattenseiten); flache Felsplatten bleiben. Der Sand
+    daneben behält sein Relief (das Spiel zeigt ihn aus dem Panorama)."""
     X, Y, F = ring_mesh('Gelaende', 1024, 1.5, EXTENT)
     g = ground(X, Y)
-    nw = near_rocky(X, Y)
-    me = make_mesh('Gelaende', np.stack([X, Y, g.z - g.relief * nw], -1), F)
+    drawn = rock_drawn(X, Y, g)
+    me = make_mesh('Gelaende', np.stack([X, Y, g.z - g.relief * drawn], -1), F)
     attrs(me, rock=g.rock, veg=g.veg, grass=g.grass, shore=g.s, forest=g.forest, reef=g.reef, lagoon=g.lagoon, hill=g.hill)
     log('Gelände', len(X), 'Ecken')
     return me
@@ -255,10 +256,24 @@ def terrain_mesh():
 
 _NEAR_ROCK = {}
 
+# Sand neben den nahen Felsgruppen (Wunsch des Nutzers vom 09.11.2026): Bisher zeichnete das Spiel die ganze Gruppe samt
+# ihrem Saum aus Sand (near_rocky), und das Panorama zeigte dort flachen Boden in der Farbe des Felses, verwischt bis in
+# den Sand; im Spiel lag der Saum als Sandhügel bis 18 cm über dem flachen Boden, mit Treppenrand. Jetzt zeichnet das
+# Spiel nur, wo auch Fels liegt (g.rock über ROCK_SAND); den Sand daneben zeigt das Panorama mit seinem Relief
+ROCK_SAND = (0.2, 0.6)
+
+
+def rock_drawn(x, y, g=None):
+    """0 … 1: wie weit das Spiel das Gelände einer nahen Felsgruppe zeichnet (ab der Hälfte, siehe bakedMesh): nach dem
+    Relief (near_rocky) und nur, wo Fels liegt (ROCK_SAND). g: ground(x, y), falls schon gerechnet"""
+    g = ground(x, y) if g is None else g
+    return near_rocky(x, y) * smoothstep(ROCK_SAND[0], ROCK_SAND[1], g.rock)
+
 
 def near_rocky(x, y):
-    """0 … 1: wie weit das Spiel das Gelände einer nahen Felsgruppe zeichnet (ab der Hälfte, siehe bakedMesh); wo es
-    flach ist, zeigt es das Panorama, das dort mit dem Relief gerendert ist. Nach dem Relief, schon ab wenigen cm (die
+    """0 … 1: wie weit das Spiel das Gelände einer nahen Felsgruppe zeichnen kann (was es zeichnet, sagt rock_drawn:
+    dazu nur, wo Fels liegt); wo es flach ist, zeigt es das Panorama, das dort mit dem Relief gerendert ist. Nach dem
+    Relief, schon ab wenigen cm (die
     Blöcke stehen so bis zum Fuss) und geschlossen (Risse und Fugen zwischen den Absätzen gefüllt: sonst wirkten die
     Blöcke zerschnitten). Bilinear aus dem Raster von near_rock."""
     near_rock(np.zeros(1), np.zeros(1))   # Raster anlegen
@@ -310,9 +325,9 @@ def near_rock(x, y):
 
 
 def rock_patch(step=0.4):
-    """Netz der nahen Felsgruppen aus dem Gelände (Raster step), nur wo das Spiel es zeichnet (near_rocky, mit einem
-    Feld Rand): Flaches Gelände der Gruppe läge fast deckungsgleich auf dem des Panoramas und würfe darauf Schatten (eine
-    dunkle Fläche mit Treppenrand im Wasser)"""
+    """Netz der nahen Felsgruppen aus dem Gelände (Raster step), wo das Spiel es zeichnen kann (near_rocky, mit einem
+    Feld Rand; was es zeichnet, sagt rock_drawn): Flaches Gelände der Gruppe läge fast deckungsgleich auf dem des
+    Panoramas und würfe darauf Schatten (eine dunkle Fläche mit Treppenrand im Wasser)"""
     near_rock(np.zeros(1), np.zeros(1))   # Raster der nahen Felsgruppen anlegen
     G = _NEAR_ROCK
     rows, cols = np.nonzero(G['grid'])
@@ -327,9 +342,12 @@ def rock_patch(step=0.4):
     g = ground(X[used], Y[used])
     i, j = np.nonzero(cell)
     F = np.stack([idx[i, j], idx[i, j + 1], idx[i + 1, j + 1], idx[i + 1, j]], -1)
-    # den Saum, den das Spiel verwirft (near_rocky unter der Hälfte), unter den Boden: Er läge sonst knapp über dem des
-    # Panoramas und würfe darauf Schatten mit Treppenrand
-    sink = 0.3 * (1 - smoothstep(0.3, 0.5, near_rocky(X[used], Y[used])))
+    # Das Gelände der Gruppe liegt um relief · (1 − rock_drawn) tiefer: Das Panorama trägt dort relief · (1 − rock_drawn)
+    # seines Reliefs (terrain_mesh); am Rand, wo das Spiel aufhört (½), liegen beide gleich hoch, im Sand liegt das Netz
+    # darunter. Den Saum, den das Spiel verwirft (unter der Hälfte), dazu unter den Boden: Er läge sonst knapp über dem
+    # des Panoramas und würfe darauf Schatten mit Treppenrand
+    drawn = rock_drawn(X[used], Y[used], g)
+    sink = 0.3 * (1 - smoothstep(0.3, 0.5, drawn)) + g.relief * (1 - drawn)
     me = make_mesh('Felsen nah Gelaende', np.stack([X[used], Y[used], g.z - sink], -1), F)
     attrs(me, rock=g.rock, veg=g.veg, grass=g.grass, shore=g.s, forest=g.forest, reef=g.reef, lagoon=g.lagoon, hill=g.hill)
     return me
@@ -883,6 +901,28 @@ def build_plants():
     build_near_rocks(coll, pos[stone], var[stone], scl[stone], rot[stone])
 
 
+def ground_shadowless():
+    """Kopie des Bodens für das Gelände der nahen Felsen: für Schattenstrahlen durchsichtig. Es liegt über dem flachen
+    Boden des Panoramas und hätte ihn verdunkelt (dunkler, verwischter Boden neben den Felsen, den das Spiel dort zeigt,
+    wo es die Gruppe ausblendet); die Blöcke werfen ihre Schatten weiter"""
+    m = bpy.data.materials.get('Boden nah')
+    if m:
+        bpy.data.materials.remove(m)
+    m = bpy.data.materials['Boden'].copy()
+    m.name = 'Boden nah'
+    nt = m.node_tree
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL' and n.is_active_output)
+    src = out.inputs['Surface'].links[0].from_socket
+    lp = nt.nodes.new('ShaderNodeLightPath')
+    clear = nt.nodes.new('ShaderNodeBsdfTransparent')
+    mix = nt.nodes.new('ShaderNodeMixShader')
+    nt.links.new(lp.outputs['Is Shadow Ray'], mix.inputs[0])
+    nt.links.new(src, mix.inputs[1])
+    nt.links.new(clear.outputs[0], mix.inputs[2])
+    nt.links.new(mix.outputs[0], out.inputs['Surface'])
+    return m
+
+
 def build_near_rocks(coll, pos, var, scl, rot):
     """Nahe Felsen als ein Netz (Sammlung Spiel, für die Kamera unsichtbar, ihre Schatten bleiben im Panorama): das
     Gelände der nahen Felsgruppen (rock_patch) und die Felsblöcke dort, ausmultipliziert, mit UV-Karte
@@ -910,7 +950,7 @@ def build_near_rocks(coll, pos, var, scl, rot):
     bm.to_mesh(me)
     bm.free()
     me.materials.clear()   # löscht auch die Zuordnung je Fläche: erst danach setzen
-    me.materials.append(bpy.data.materials['Boden'])
+    me.materials.append(ground_shadowless())
     me.materials.append(bpy.data.materials['Fels'])
     me.polygons.foreach_set('material_index', (np.arange(len(me.polygons)) >= npatch).astype(np.int32))
     ob = link('Felsen nah', me, collection('Spiel'))
@@ -1802,12 +1842,46 @@ def bake_near_rocks(samples=1024):
     log('Felsen gebacken', round(time.time() - t0, 1), 's')
 
 
+def rock_geometry():
+    """Netz «Felsen nah» fürs Spiel: (Ecken in Spielkoordinaten, UV, Dreiecke, Felsanteil je Ecke). Je Ecke und UV eine
+    Ecke (an den Nähten der UV-Karte doppelt). Felsanteil: Blöcke 1, Gelände rock_drawn (seine Lage passt rock_patch
+    dazu an)"""
+    me = bpy.data.objects['Felsen nah'].data
+    me.calc_loop_triangles()
+    loops = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('loops', loops)
+    vi = np.empty(len(me.loops), np.int64); me.loops.foreach_get('vertex_index', vi)
+    uv = np.empty(len(me.loops) * 2); me.uv_layers.active.data.foreach_get('uv', uv); uv = uv.reshape(-1, 2)
+    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
+    mi = np.empty(len(me.polygons), np.int32); me.polygons.foreach_get('material_index', mi)
+    tot = np.empty(len(me.polygons), np.int64); me.polygons.foreach_get('loop_total', tot)
+    loop_block = np.repeat(mi, tot) == 1                             # Flächen der Blöcke (Material Fels)
+    nv = len(me.vertices)
+    vblock = np.zeros(nv, bool); vblock[vi[loop_block]] = True
+    rocky_v = np.where(vblock, 1.0, rock_drawn(co[:, 0], co[:, 1]))
+    # je Ecke und UV eine Ecke im Spiel (an den Nähten der UV-Karte doppelt)
+    quv = np.clip(np.round(uv * 65535), 0, 65535).astype(np.int64)
+    key = (vi * 65536 + quv[:, 0]) * 65536 + quv[:, 1]
+    uniq, first, inv = np.unique(key, return_index=True, return_inverse=True)
+    v = vi[first]
+    pos = co[v]
+    game = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]]                  # Blender -> Spiel
+    return game, quv[first], inv[loops], rocky_v[v]
+
+
+def rock_arrays(game, quv, tri, rocky):
+    """Felder des Netzes für ebenen.json (Base64): pos16 (1/256 m), idx16/idx32, uv16, rock8"""
+    import base64
+    n = len(game)
+    b = lambda a: base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
+    idx = {'idx16': b(tri.astype('<u2'))} if n <= 65536 else {'idx32': b(tri.astype('<u4'))}
+    return {'n': n, 'scale': 256, 'pos16': b(np.clip(np.round(game * 256), -32767, 32767).astype('<i2')), **idx,
+            'uv16': b(quv.astype('<u2')), 'rock8': b(np.round(rocky * 255).astype('u1'))}
+
+
 def rock_model(sky):
-    """Nahe Felsen fürs Spiel (nach bake_near_rocks): Ecken in Spielkoordinaten (Int16, 1/256 m), UV (Uint16),
-    Dreiecke (Uint16, ab 65536 Ecken Uint32), je Ecke wie viel Fels sie trägt (Uint8: Blöcke 1, Gelände nach seinem
-    Relief – wo es flach ist, zeigt das Spiel das Panorama, das dort stimmt); das gebackene Licht gemalt wie das
-    Panorama als sky/beach/rocks_hd.jpg und halb so gross rocks.jpg (Szenenwerte vor ACES, sRGB-kodiert)"""
-    import base64, importlib
+    """Nahe Felsen fürs Spiel (nach bake_near_rocks): Netz aus rock_geometry (rock_arrays); das gebackene Licht gemalt
+    wie das Panorama als sky/beach/rocks_hd.jpg und halb so gross rocks.jpg (Szenenwerte vor ACES, sRGB-kodiert)"""
+    import importlib
     from wald_io import save_image
     os.environ['WALD_STIL'] = 'beach'
     import anime
@@ -1818,28 +1892,26 @@ def rock_model(sky):
     save_image(painted, os.path.join(sky, 'rocks_hd.jpg'), 'JPEG', 88)                     # Desktop (HD-Teil)
     h, w = painted.shape[:2]
     save_image(painted.reshape(h // 2, 2, w // 2, 2, 3).mean((1, 3)), os.path.join(sky, 'rocks.jpg'), 'JPEG', 88)
-    me = bpy.data.objects['Felsen nah'].data
-    me.calc_loop_triangles()
-    loops = np.empty(len(me.loop_triangles) * 3, np.int64); me.loop_triangles.foreach_get('loops', loops)
-    vi = np.empty(len(me.loops), np.int64); me.loops.foreach_get('vertex_index', vi)
-    uv = np.empty(len(me.loops) * 2); me.uv_layers.active.data.foreach_get('uv', uv); uv = uv.reshape(-1, 2)
-    co = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', co); co = co.reshape(-1, 3)
-    # je Ecke und UV eine Ecke im Spiel (an den Nähten der UV-Karte doppelt)
-    quv = np.clip(np.round(uv * 65535), 0, 65535).astype(np.int64)
-    key = (vi * 65536 + quv[:, 0]) * 65536 + quv[:, 1]
-    uniq, first, inv = np.unique(key, return_index=True, return_inverse=True)
-    tri = inv[loops]
-    pos = co[vi[first]]
-    game = np.c_[pos[:, 0], pos[:, 2], -pos[:, 1]]                  # Blender -> Spiel
-    mi = np.empty(len(me.polygons), np.int32); me.polygons.foreach_get('material_index', mi)
-    tot = np.empty(len(me.polygons), np.int64); me.polygons.foreach_get('loop_total', tot)
-    block = np.repeat(mi, tot)[first] == 1                           # Flächen der Blöcke (Material Fels)
-    rocky = np.where(block, 1.0, near_rocky(pos[:, 0], pos[:, 1]))
-    n = len(uniq)
-    b = lambda a: base64.b64encode(np.ascontiguousarray(a).tobytes()).decode()
-    idx = {'idx16': b(tri.astype('<u2'))} if n <= 65536 else {'idx32': b(tri.astype('<u4'))}
-    return {'n': n, 'scale': 256, 'pos16': b(np.clip(np.round(game * 256), -32767, 32767).astype('<i2')), **idx,
-            'uv16': b(quv[first].astype('<u2')), 'rock8': b(np.round(rocky * 255).astype('u1')), 'texture': 'file:rocks.jpg'}
+    return {**rock_arrays(*rock_geometry()), 'texture': 'file:rocks.jpg'}
+
+
+def export_rock_shape(stil='beach'):
+    """Nur Lage und Felsanteil der nahen Felsen in sky/<stil>/ebenen.json neu (rock_geometry; Bilder, UV und Dreiecke
+    bleiben, die Ansicht vom Mittelpunkt auch). Braucht die Szene mit «Felsen nah», kein Backen; passt nur zu einem
+    Panorama, das mit demselben rock_drawn gerendert ist (sonst skybox)"""
+    import json
+    path = os.path.join(ROOT, 'sky', stil, 'ebenen.json')
+    with open(path, encoding='utf-8') as fh:
+        data = json.load(fh)
+    neu = rock_arrays(*rock_geometry())
+    rocks = data['rocks']
+    for k in ('n', 'uv16', 'idx16', 'idx32'):
+        if rocks.get(k) != neu.get(k):
+            raise RuntimeError(f'Felsen: {k} weicht ab, ganzes export() nötig')
+    rocks.update(pos16=neu['pos16'], rock8=neu['rock8'])
+    with open(path, 'w', encoding='utf-8') as fh:
+        json.dump(data, fh, separators=(',', ':'))
+    return {'ecken': neu['n']}
 
 
 ROCK_VIEW_PPD = 4096 * 3 / 360.0   # Pixel je Grad der Ansicht der Felsen: wie die HD-Streifen

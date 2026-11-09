@@ -1233,7 +1233,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-09 wald-mondlicht';
+const APP_VERSION = '2026-11-09 strand-kamera-felsen';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -10733,7 +10733,9 @@ function* paintedInstances(ctx, opt) {
  * Schatten darin bleiben. Wo das Gelände flach ist (rock8 unter der Hälfte), zeigt sich das Panorama: Dort stimmt es
  * (gebacken hob sich der Sand ab). Mit fade: [von, bis] läuft das Netz dazwischen ins Panorama aus, statt hart
  * abzubrechen: durchsichtig, oder mit ground: [sink, up] (Wüste: rock8 · up ist die Höhe der nahen Dünen über dem Sand
- * des Panoramas, das Netz liegt sink tiefer) in die Farbe, die das Panorama vom Sand direkt darunter zeigt.
+ * des Panoramas, das Netz liegt sink tiefer) in die Farbe, die das Panorama vom Sand direkt darunter zeigt; Strand:
+ * ground [0, 0], das flache Gelände der Felsgruppen nimmt die Farbe, die das Panorama genau dort zeigt (sonst stand es
+ * mit Treppenrand heller im Sand).
  * Mit view, viewTexture, viewData zeigen sie, wo man sie vom Mittelpunkt des Panoramas aus sieht, das Bild, das Blender
  * von dort gemalt hat (vom Mittelpunkt aus projiziert: so sahen sie aus, als das Panorama sie noch zeigte – gebacken
  * wirkten sie fleckiger und flauer); sonst das gebackene Licht. view.windows: Ausschnitte [az0, az1, el0, el1 (Grad,
@@ -12972,7 +12974,8 @@ const SKY_ENTRIES = (() => {
       if (!Array.isArray(rings) || rings.length !== 9 || !rings.every((c) => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))) {
         throw new Error('sky.rings: 9 Farben');
       }
-      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, board: m.board, module: createPanoramaSky(m) });
+      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, board: m.board, camera: m.camera,
+        module: createPanoramaSky(m) });
       ids.add(m.id);
     } catch (e) { console.warn(`Skybox ${m?.id}: übersprungen (${e.message})`); }
   }
@@ -16612,7 +16615,32 @@ const cameraRig = {
   turn: 0,                // zusätzlicher Azimut (Würfel: CUBE.cameraTurn, schräg auf eine Kante)
   wide: 1,                // 0 = Hochformat … 1 = Querformat (fitCameraDistance)
   settling: 0,            // Abstand aller weich nachgeführten Werte zu ihrem Ziel (updateCamera, sceneLoop)
+  // Halt vor dem Land (cameraStop): so viel weiter ist das Sichtfeld gerade (1: wie sonst). Solange der Halt greift,
+  // setzt updateCamera es jedes Bild aus dem Format (kameraSichtfeld), auch über story.sichtfeld hinweg; lässt er los,
+  // einmal zurück aufs Format, danach gehört es wieder dem Format und der Geschichte
+  stopWide: 1,
+  stopFovMax: 100,        // Grad: weiter nie, auch wenn das Brett dann nicht mehr ganz ins Bild passt
 };
+
+/**
+ * Halt vor dem Land (Wunsch des Nutzers vom 09.11.2026: am Strand kam die Kamera herausgezoomt bis hinter die Palmen):
+ * camera.stops der Skybox (skybox.json) sind Grenzen [dx, dz, weit]: In der waagrechten Richtung (dx, dz) steht die
+ * Kamera höchstens weit m von der Mitte des Bretts. Liegt ihr Platz dahinter, rückt sie auf ihrem Strahl zum Blickpunkt
+ * heran, bis sie an der Grenze steht (höchstens auf ein Zehntel des Abstands); der Blick bleibt derselbe. Zurück: der
+ * Faktor, um den sie näher steht (1: frei).
+ * target: Blickpunkt, dir: Richtung vom Blickpunkt zur Kamera (Einheitsvektor), r: Abstand ohne Halt.
+ */
+function cameraStop(stops, target, dir, r) {
+  let k = 1;
+  for (const [dx, dz, weit] of stops ?? []) {
+    const len = Math.hypot(dx, dz), out = (dir.x * dx + dir.z * dz) / len;
+    if (out <= 1e-6) continue; // die Kamera entfernt sich nicht in diese Richtung
+    const frei = (weit - (target.x * dx + target.z * dz) / len) / out;
+    k = Math.min(k, Math.max(frei, 0.1 * r) / r);
+  }
+  return k;
+}
+const _stopDir = new THREE.Vector3();
 
 function fitCameraDistance() {
   // Spielfeld soll in Breite und Höhe sicher ins Bild passen
@@ -16693,11 +16721,26 @@ function updateCamera(t, dt) {
   const r = cameraRig.radius * cameraRig.zoom * cameraRig.userZoom * (1 + Math.sin(t * 0.17 + 0.4) * 0.006);
 
   cameraRig.target.set(cameraRig.lead * Math.sin(theta), cameraRig.lift, cameraRig.lead * Math.cos(theta));
-  camera.position.set(
-    cameraRig.target.x + r * Math.sin(phi) * Math.sin(theta),
-    cameraRig.target.y + r * Math.cos(phi),
-    cameraRig.target.z + r * Math.sin(phi) * Math.cos(theta)
-  );
+  _stopDir.set(Math.sin(phi) * Math.sin(theta), Math.cos(phi), Math.sin(phi) * Math.cos(theta));
+  // Halt vor dem Land: näher heran und das Sichtfeld so viel weiter, dass das Brett auf der Höhe des Blickpunkts
+  // gleich gross im Bild bleibt (die nahe Kante wird grösser). Nach den Himmeln, die gerade zu sehen sind, je mit ihrem
+  // Anteil: Beim Wechsel der Welt (Reise der Geschichte) gleiten Kamera und Sichtfeld mit dem Überblenden, in beide
+  // Richtungen, statt in einem Bild zu springen
+  let stop = 1;
+  for (const e of skyTheme.entries) {
+    const w = skyTheme.weight[e.id];
+    if (w > 0 && e.camera?.stops) stop -= w * w * (3 - 2 * w) * (1 - cameraStop(e.camera.stops, cameraRig.target, _stopDir, r));
+  }
+  camera.position.copy(cameraRig.target).addScaledVector(_stopDir, r * stop);
+  if (stop < 1 || cameraRig.stopWide !== 1) {
+    const fov0 = kameraSichtfeld(camera.aspect), half = Math.tan(THREE.MathUtils.degToRad(fov0 / 2));
+    const fov = Math.min(cameraRig.stopFovMax, THREE.MathUtils.radToDeg(2 * Math.atan(half / stop)));
+    cameraRig.stopWide = stop < 1 ? fov / fov0 : 1;
+    if (camera.fov !== fov) {
+      camera.fov = fov;
+      camera.updateProjectionMatrix();
+    }
+  }
   camera.lookAt(cameraRig.target);
   // Geschichte: in den Zwischenszenen schaut die Kamera vom Brett hinauf in den Himmel (story.gaze 0 … 1)
   if (story.gaze > 0) {
