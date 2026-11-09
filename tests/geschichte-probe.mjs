@@ -1865,13 +1865,15 @@ const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = documen
   const knoepfe = [document.getElementById('controls'), document.getElementById('btn-skip')]
     .filter((e) => !zu(e)).map((e) => e.getBoundingClientRect());
   const imBild = (e) => { if (zu(e)) return true; const g = document.createRange(); g.selectNodeContents(e);
-    const rs = [...g.getClientRects(), e.getBoundingClientRect()];
-    return rs.every((r) => r.left >= 0 && r.right <= w + 0.5 && r.top >= 0 && r.bottom <= hh + 0.5
-      && !knoepfe.some((k) => schnitt(r, k))) && e.scrollWidth <= e.clientWidth + 1
+    const zeilen = [...g.getClientRects()], rs = [...zeilen, e.getBoundingClientRect()];
+    // im Fenster auch der Kasten; die Knöpfe berührt kein Text (je Zeile, der Kasten ist breiter als sein Text)
+    return rs.every((r) => r.left >= 0 && r.right <= w + 0.5 && r.top >= 0 && r.bottom <= hh + 0.5)
+      && !zeilen.some((r) => knoepfe.some((k) => schnitt(r, k))) && e.scrollWidth <= e.clientWidth + 1
       && getComputedStyle(e).textOverflow !== 'ellipsis'; };
   return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
     knopf: !zu(knopf), umrisse, hand, orte, neben: zu(neben) ? '' : neben.textContent,
-    imBild: imBild(satz) && imBild(knopf) && imBild(neben), zeilen: zu(satz) ? 0 : Math.round(satz.firstChild
+    imBild: imBild(satz) && imBild(knopf) && imBild(neben),
+    teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: zu(satz) ? 0 : Math.round(satz.firstChild
       .getClientRects().length) }; })()`);
 /** Langes Drücken (Handy) bzw. Rechtsklick (Desktop) bei (x, y): dreht ein drehbares Element zurück. */
 async function halteBei(x, y) {

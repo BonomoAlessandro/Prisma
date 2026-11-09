@@ -327,12 +327,13 @@ const abdruckVorher = (level) => {
 /**
  * Die Übungen im Dorf bekommen mit der Führung (.scratch/tutorial-fuehrung/) Schritte statt des Hinweises: Für sie
  * zählt der Abdruck ohne hint, schritte und nebenbei, gerechnet aus demselben Stand fc22df1 (Review Ticket 02 Gerüst).
- * Ändert die Führung ein Brett mit Absicht (Ticket 03: Startstellung von «Umweg»), kommt der neue Abdruck hierher.
+ * Ändert die Führung ein Brett mit Absicht, kommt der neue Abdruck hierher: Ticket 03 änderte die Startstellungen von
+ * «Umweg» (vorderer Spiegel rot 4) und «Mischung» (Prisma rot 7).
  */
 const UEBUNGEN_OHNE_TEXT = {
-  'Erstes Licht': '740f8b5d7649c11a', Umweg: '724d9be0063ce830', Sperre: 'b8e589cb0c6e11d2',
+  'Erstes Licht': '740f8b5d7649c11a', Umweg: 'b3e191d76ab6735c', Sperre: 'b8e589cb0c6e11d2',
   Brechung: '91e7a4c8a9db69f9', Schatten: '8b4d29eb90760870', Farbenlehre: '147064e66d7c0df2',
-  'Farbiges Licht': '7d99bbec783cc08a', Treffpunkt: 'c958b0716229036f', Mischung: '40d4bd26799f4df0',
+  'Farbiges Licht': '7d99bbec783cc08a', Treffpunkt: 'c958b0716229036f', Mischung: 'd03e510fca040a5d',
 };
 const abdruckOhneText = (level) => {
   const { titel, hint, schritte, nebenbei, ...daten } = level;
