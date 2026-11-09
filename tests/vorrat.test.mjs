@@ -324,9 +324,24 @@ const abdruckVorher = (level) => {
   const { titel, ...daten } = level;
   return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 16);
 };
+/**
+ * Die Übungen im Dorf bekommen mit der Führung (.scratch/tutorial-fuehrung/) Schritte statt des Hinweises: Für sie
+ * zählt der Abdruck ohne hint, schritte und nebenbei, gerechnet aus demselben Stand fc22df1 (Review Ticket 02 Gerüst).
+ * Ändert die Führung ein Brett mit Absicht (Ticket 03: Startstellung von «Umweg»), kommt der neue Abdruck hierher.
+ */
+const UEBUNGEN_OHNE_TEXT = {
+  'Erstes Licht': '740f8b5d7649c11a', Umweg: '724d9be0063ce830', Sperre: 'b8e589cb0c6e11d2',
+  Brechung: '91e7a4c8a9db69f9', Schatten: '8b4d29eb90760870', Farbenlehre: '147064e66d7c0df2',
+  'Farbiges Licht': '7d99bbec783cc08a', Treffpunkt: 'c958b0716229036f', Mischung: '40d4bd26799f4df0',
+};
+const abdruckOhneText = (level) => {
+  const { titel, hint, schritte, nebenbei, ...daten } = level;
+  return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 16);
+};
 /** Was an den Leveln (Name → Level) gegenüber vorher (Name → Abdruck) fehlt oder anders ist. */
 const verloren = (vorher, levels) => Object.entries(vorher).flatMap(([name, h]) => (!levels.has(name)
-  ? [`${name} fehlt`] : abdruckVorher(levels.get(name)) !== h ? [`${name} geändert`] : []));
+  ? [`${name} fehlt`] : (name in UEBUNGEN_OHNE_TEXT ? abdruckOhneText(levels.get(name)) !== UEBUNGEN_OHNE_TEXT[name]
+    : abdruckVorher(levels.get(name)) !== h) ? [`${name} geändert`] : []));
 test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränderten Leveldaten, dazu nur die 15 '
   + 'neuen sehr schweren aus dem Ausbau und die Kandidaten mit Schlüssel aus Ticket 09; mit Gegenproben', () => {
   const jetzt = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
@@ -344,6 +359,11 @@ test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränd
   const erstes = ALLE.LEVELS[ALLE.TUTORIAL_COUNT], k = erstes.elements.findIndex(e => 'rot' in e);
   const gedreht = { ...erstes, elements: erstes.elements.map((e, j) => (j === k ? { ...e, rot: e.rot + 1 } : e)) };
   assert.deepEqual(verloren(VORHER, new Map([...jetzt, [erstes.name, gedreht]])), [`${erstes.name} geändert`]);
+  // eine Übung: andere Schritte zählen nicht, ein gedrehtes Element schon
+  const uebung = ALLE.LEVELS[0], j0 = uebung.elements.findIndex(e => 'rot' in e);
+  assert.deepEqual(verloren(VORHER, new Map([...jetzt, [uebung.name, { ...uebung, hint: undefined, schritte: [] }]])), []);
+  assert.deepEqual(verloren(VORHER, new Map([...jetzt, [uebung.name, { ...uebung, elements: uebung.elements
+    .map((e, j) => (j === j0 ? { ...e, rot: e.rot + 1 } : e)) }]])), [`${uebung.name} geändert`]);
   const ohne = new Map(jetzt);
   ohne.delete(ALLE.LEVELS_3D[0].name);
   assert.deepEqual(verloren(VORHER, ohne), [`${ALLE.LEVELS_3D[0].name} fehlt`]);

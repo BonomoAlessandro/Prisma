@@ -117,6 +117,7 @@
     border: 1px solid rgba(232, 230, 240, 0.4); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
     transition: border-color 0.25s ease, background-color 0.25s ease;
   }
+  #hud.hidden .fuehrung-weiter { pointer-events: none; } /* ausgeblendet (Menü, Levelwechsel): nicht antippbar */
   #hud .fuehrung-weiter:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
   #hud .fuehrung-weiter.stups { animation: fz-stups 1.1s ease-in-out infinite; } /* später Fingerzeig */
   @keyframes fz-stups { 50% { transform: scale(1.1); border-color: rgba(255, 217, 138, 0.9); box-shadow: 0 0 0 5px rgba(255, 217, 138, 0.18); } }
@@ -19966,9 +19967,11 @@ const fuehrung = {
   fertig: false,      // gelöst: nichts mehr bis zum nächsten Brett
   spaet: false,       // später Fingerzeig
   hand: false,        // die Hand zeigt die Geste des Schritts vor (einmal je Schritt)
+  vorzeigen: false,   // die Hand hat die Geste des Schritts noch nicht vorgezeigt (unter Menü und Übersicht wartet sie)
   nebenbei: [],       // offene Hinweise nebenbei (Schlüssel in NEBENBEI)
   benutzt: new Set(), // benutzte Hinweise nebenbei der Übung benutztIn: kommen beim Neustart nicht wieder
   benutztIn: -1,
+  neustarten: false,  // ein Neustart (restartLevel) kommt: nur dann bleiben die benutzten Hinweise nebenbei weg
   uhr: 0, handUhr: 0, // setTimeout: später Fingerzeig, Ende des Vorzeigens
   sichtbar: false,    // Umriss oder Hand zu sehen: platziere je Bild
   ziele: [],          // Elemente mit Umriss
@@ -19986,11 +19989,14 @@ const fuehrung = {
   neu(index) {
     const lvl = LEVELS[index];
     const gefuehrt = !!lvl.schritte?.length && story.drives(index) && story.inDorf;
-    if (index !== this.benutztIn) { this.benutzt.clear(); this.benutztIn = index; }
+    // benutzte Hinweise nebenbei bleiben nur beim Neustart derselben Übung weg; sonst (nächster Grad, aus der
+    // Übersicht) läuft die Führung ganz (Review Ticket 02 Gerüst)
+    if (index !== this.benutztIn || !this.neustarten) { this.benutzt.clear(); this.benutztIn = index; }
+    this.neustarten = false;
     this.level = gefuehrt ? lvl : null;
     this.board = game.board;
     this.schritt = 0;
-    this.los = this.fertig = this.spaet = this.hand = false;
+    this.los = this.fertig = this.spaet = this.hand = this.vorzeigen = false;
     this.nebenbei = gefuehrt ? (lvl.nebenbei ?? []).filter((n) => !this.benutzt.has(n)) : [];
     this.stoppeUhren();
     this.zeichneBild();
@@ -20010,11 +20016,22 @@ const fuehrung = {
     }
     this.spaet = false;
     clearTimeout(this.handUhr);
-    const geste = s && schrittGeste(s);
-    this.hand = this.los && !!geste;
-    if (this.hand) this.handUhr = setTimeout(() => { this.hand = false; this.zeichneBild(); }, FUEHRUNG.hand[geste] * 1000);
+    this.hand = false;
+    this.vorzeigen = !!(s && schrittGeste(s));
+    this.zeigeHand();
     this.armiere();
     this.zeichne();
+  },
+  /**
+   * Die Hand zeigt die Geste des laufenden Schritts einmal vor, sobald das Brett steht und zu sehen ist (stand es unter
+   * dem Menü fertig, beim Zurückkommen; Review Ticket 02 Gerüst).
+   */
+  zeigeHand() {
+    const s = this.aktuell(), geste = s && schrittGeste(s);
+    if (!this.vorzeigen || !this.los || story.choosing || !geste) return;
+    this.vorzeigen = false;
+    this.hand = true;
+    this.handUhr = setTimeout(() => { this.hand = false; this.zeichneBild(); }, FUEHRUNG.hand[geste] * 1000);
   },
   /** Ereignis e (schrittErfuellt) für den laufenden Schritt; schaltet es weiter: true. */
   ereignis(e) {
@@ -20044,7 +20061,10 @@ const fuehrung = {
   /** Eine Geste der Kamera (Ziehen, Zoomen): beendet den Hinweis nebenbei zur Kamera. */
   kamera() { if (this.nebenbei.length && this.nebenbei.includes('kamera')) this.nutze('kamera'); },
   /** Neustart der Übung (restartLevel), vor dem neuen Brett. */
-  neustart() { if (this.nebenbei.includes('neustart')) this.nutze('neustart'); },
+  neustart() {
+    this.neustarten = true;
+    if (this.nebenbei.includes('neustart')) this.nutze('neustart');
+  },
   nutze(n) {
     this.benutzt.add(n);
     this.nebenbei = this.nebenbei.filter((m) => m !== n);
@@ -20061,7 +20081,7 @@ const fuehrung = {
   /** Später Fingerzeig nach FUEHRUNG.fingerzeig s ohne Fortschritt (nur, solange das Brett steht und zu sehen ist). */
   armiere() {
     clearTimeout(this.uhr);
-    if (!this.aktiv() || !this.los || this.spaet) return;
+    if (!this.aktiv() || !this.los || this.spaet || story.choosing) return; // unter dem Menü zählt die Zeit nicht
     this.uhr = setTimeout(() => { this.spaet = true; this.zeichne(); }, FUEHRUNG.fingerzeig * 1000);
   },
   stoppeUhren() { clearTimeout(this.uhr); clearTimeout(this.handUhr); },
@@ -20075,12 +20095,15 @@ const fuehrung = {
   /** Kopfzeile ausgeblendet (Menü, Übersicht, Levelwechsel, Zwischenszene): Uhren aus, nichts über dem Brett. */
   verbergen() {
     this.stoppeUhren();
+    if (this.hand) this.vorzeigen = true; // mitten im Vorzeigen: beim Zurückkommen noch einmal ganz
     this.hand = false;
+    if (this.knopf?.contains(document.activeElement)) this.knopf.blur(); // die Kopfzeile ist nur ausgeblendet
     this.zeichneBild(true);
   },
   /** Kopfzeile wieder da (showHud): weiter im selben Schritt, die Uhr beginnt neu (die Zeit im Menü zählt nicht). */
   zeigen() {
     this.zeichneKopf();
+    this.zeigeHand();
     this.armiere();
     this.zeichneBild();
   },
