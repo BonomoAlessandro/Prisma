@@ -1,6 +1,7 @@
 # Spec: Führung im Dorf
 
-Status: ready-for-agent (Wahl am Katalog: C «Vorzeigen», siehe Ticket 01)
+Status: ready-for-human (umgesetzt bis vor den manuellen Test, siehe «Schlussstand»; Wahl am Katalog: C «Vorzeigen»,
+siehe Ticket 01)
 
 PLAN 1a.1 «Tutorial überarbeiten». Die Entscheide stammen aus dem Grilling vom 09.11.2026. Die Begriffe folgen
 `CONTEXT.md`: Das Kapitel heisst «Im Dorf», seine 9 Level sind die Übungen.
@@ -129,6 +130,24 @@ und Kombinatoren auf dem eckigen Sockel.
 
 - Automatisch: Node-Tests, dazu jeder Schritt am Desktop und auf dem Handy mit `tests/geschichte-probe.mjs --dorf`.
 - Von Hand: der Nutzer auf dem Poco und mindestens eine Person, die Prisma noch nie gesehen hat, auf dem Handy.
+
+## Schlussstand (10.11.2026, vor dem manuellen Test)
+
+Umgesetzt in der Richtung C «Vorzeigen» auf `feature/tutorial-fuehrung` (Tickets 01–04). Alle 9 Übungen sind geführt,
+mit 23 Schritten (je 2 oder 3), Hinweisen nebenbei in «Sperre» (Kamera) und «Brechung» (Neustart), dem späten
+Fingerzeig und der Weigerung fester Elemente im ganzen Spiel. Geänderte Startstellungen: «Umweg» (beide runden Spiegel
+eine Stufe zu weit) und «Mischung» (Prisma eine Stufe vor der Lösung); Lösungen und Eindeutigkeit unverändert, die
+Anzahl bleibt 9. Ticket 04 brachte dazu das Feld `farbe` an Strahl-Schritten («Mischung» wartet auf Magenta im
+Kombinator) und letzte Schritte, die alles nennen, was noch zu drehen ist («Umweg», «Farbenlehre»).
+
+Automatisch geprüft (Zahlen in Ticket 04): Node-Tests und Golden grün; jeder Schritt jeder Übung am Desktop, auf dem
+Handy hoch, bei 360 × 640 und quer; Neuladen, Neustart, Menü, Übersicht und «Dorf überspringen» mitten in der Führung;
+Wackeln in einer Welt mit festem Spiegel neben einem drehbaren auf dem Handy. Rot nur Bildlücken, die auf `e426554`
+ebenso vorkommen. `APP_VERSION` `2026-11-10 tutorial-fuehrung`.
+
+Offen: der Poco-Test des Nutzers und der Test mit mindestens einer Person, die Prisma nicht kennt (Beobachtungsfragen
+in Ticket 04). **Die 15 s des späten Fingerzeigs sind vorläufig** und werden nach diesen Tests festgelegt. Danach PLAN
+1a.1 abhaken; der Merge nach `main` nur auf das Go des Nutzers.
 
 ## Nicht in diesem Vorhaben
 

@@ -208,6 +208,12 @@ Android-Chromium.
   - Gleich gut auf dem Handy (Tippen, zwei Finger) und am Desktop (Klick, Rechtsklick, Mausrad).
   - Vorgehen wie bei den Brettern: Vorbilder aus anderen Puzzlespielen sammeln, ein Katalog mit verschiedenen
     Richtungen, dann wählt der Nutzer.
+  - **Stand 10.11.2026: umgesetzt, wartet auf den Poco-Test und den Test mit einer fremden Person.** Branch
+    `feature/tutorial-fuehrung`, Richtung C «Vorzeigen» aus dem Katalog: je Übung höchstens drei Schritte mit einem
+    Satz in der Kopfzeile, Umriss und Hand am Element, Hinweise nebenbei zu Kamera und Neustart, später Fingerzeig nach
+    15 s (vorläufig, wird nach den Tests von Hand festgelegt), feste Elemente mit Sockel wackeln beim Antippen im ganzen
+    Spiel. Spec, Tickets und Übergabe in `.scratch/tutorial-fuehrung/` (`STAND.md`). Abhaken erst nach den Tests von
+    Hand; der Merge nach `main` nur auf das Go des Nutzers.
 
 ## 2. Würfel-Level (3D)
 

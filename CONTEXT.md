@@ -133,7 +133,8 @@ ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.st
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
 die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
-und der Satz des laufenden Schritts, siehe Führung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+und der Satz des laufenden Schritts, siehe Führung; einen festen Hinweissatz je Übung gibt es seit der Führung nicht
+mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die
@@ -160,7 +161,8 @@ _Vermeiden_: Tutorial (für die Führung), Hilfe
 **Schritt**:
 Ein Teil der Führung: ein Satz im Du von etwa zwölf Wörtern (Platzhalter je Gerät wie «Tippe» / «Klicke») und das, was
 ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
-Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist), oder bei einer Erklärung
+Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist, und auch nur mit einer
+bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung
 der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
 bis zum Lösen. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
 _Vermeiden_: Stufe, Hinweis (für einen Schritt)
@@ -173,7 +175,8 @@ derselben Übung nicht wieder. Im Code `NEBENBEI`.
 **Später Fingerzeig**:
 Nach 15 s ohne Fortschritt (neuer Schritt, ein Element in der Stellung der Lösung) zeigt die Führung noch einmal: Der
 Umriss läuft schneller, die Hand zeigt die Geste wieder, «Weiter» stupst; nach den Schritten gilt das dem nächsten
-Element ausserhalb der Lösung. Er löst nie. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
+Element ausserhalb der Lösung. Er löst nie. Die 15 s sind vorläufig, sie werden nach den Tests von Hand (Poco, eine
+Person, die Prisma nicht kennt) festgelegt. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
 
 **Angebot**:
 Die Frage nach dem Prolog, auf der Bühne: «Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit
