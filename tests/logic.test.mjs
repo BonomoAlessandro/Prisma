@@ -956,6 +956,8 @@ console.log('Offline');
     assert.ok(errorsWith({ sprout: undefined }).some((e) => /sprout/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ tomate: [0.8, 0.2, 0.1] }).some((e) => /tomate/.test(e)), 'unbekannter Wert');
     assert.ok(errorsWith({ moonRim: undefined }).some((e) => /raisedBed: moonRim /.test(e)), 'Mondkante fehlt');
+    assert.ok(errorsWith({ grass: [0.06, 0.15, 0.13] }).some((e) => /raisedBed: grass /.test(e)), 'Wiese ohne zwei Töne');
+    assert.ok(errorsWith({ daisy: undefined }).some((e) => /raisedBed: daisy /.test(e)), 'Gänseblümchen fehlen');
     assert.ok(errorsWith({ moon: [0.3, 0.36] }).some((e) => /raisedBed: moon /.test(e)), 'Mondlicht mit zwei Werten');
   });
   test('Bretter: Bergwald mit dem Moospolster (moss); die Prüfung lehnt ungültige und fehlende Farben ab', () => {

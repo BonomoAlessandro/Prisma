@@ -139,6 +139,14 @@ Android-Chromium.
     Kanten auf der Mondseite, auf der Erde kaum (sonst wirkte sie bei flachem Blick wie grauer Beton). Das Mondlicht ist
     ein Baustein für beide Bretter (`boardMoonlight`); seine Richtung kommt aus `light.dir` des Himmels, das Spiel gibt
     sie der Brett-Angabe mit (`lightDir`). Die Kopie `MOSS.moonDir` im Code ist weg.
+  - [x] **Hochbeet als Blumenwiese** (10.11.2026, gleicher Branch): Statt der gerechten Erde wächst im Feld eine Wiese.
+    Aus vier Varianten gewählt: **Blumenwiese** (Vorschau https://claude.ai/artifact/DhBE1GrE6iZ28vix6jyHSU): Gras in
+    Büscheln mit dunklen Lücken und hellen Spitzen, helle und dunkle Flecken, dazu Grüppchen von Gänseblümchen und
+    blassem Klee, alles in die Textur des Felds gemalt (`grass`, `grassTip`, `daisy`, `daisyHeart`, `clover` in der
+    Brett-Angabe). Im Rand bleiben Erde, Mulch und Kräuter, Schnüre, Pflöcke und Kiesel bleiben. Nicht gewählt: Rasen
+    ohne Blumen, Mähmuster im Schachbrett, hohes Gras im Rand. Das Berechnen der Texturen dauert rund 0,1 s länger
+    (1024², im Hintergrund-Thread). Offen: Die Lichtwelle ist noch die alte (Sämlinge neben den Schnüren,
+    Glühwürmchen); auf der Wiese wären ein Windstoss übers Gras oder sich öffnende Gänseblümchen denkbar.
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem

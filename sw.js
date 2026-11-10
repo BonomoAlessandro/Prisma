@@ -16,9 +16,9 @@
 // Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigt die Leistungsanzeige
 // (Taste F); ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die neue.
 
-const APP_VERSION = '2026-11-10 dorf-mondsilber-kuehe';
+const APP_VERSION = '2026-11-10 dorf-blumenwiese';
 const CACHE = 'prisma-v1';
-const SKIES = '5797317b';
+const SKIES = '7fc0953d';
 const FILES = [
   'index.html',
   'manifest.webmanifest',
