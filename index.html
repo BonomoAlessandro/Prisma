@@ -176,6 +176,9 @@
     /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 9» klein in einer Zeile, darunter der Hinweis */
     #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
     #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
+    /* der Satz einer Erklärung behält quer dieselbe Breite, «Weiter» steht daneben (die Regel oben setzte sonst
+       40em + 8.5em, gut 550 px: ein langer Satz brach dann früher um als ohne «Weiter») */
+    #hud.geschichte .sub .hinweis.schritt:not([hidden]) { max-width: calc(64em + 8.5em); }
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
   /* leer in der Geschichte ausserhalb des Dorfs: kein Abstand unter den Zielen (nach den Regeln oben, die sie zeigen) */
@@ -1283,7 +1286,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-10 tutorial-fuehrung-2';
+const APP_VERSION = '2026-11-10 tutorial-fuehrung-3';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 

@@ -26,7 +26,7 @@ Wortlaut des Nutzers:
       Die Grenzen der Spec gelten weiter.
 - [x] **«Weiter» auf dem Handy:** an einer ruhigen, gleichbleibenden Stelle beim Satz, in jeder Länge des Satzes, im
       Hoch- und Querformat.
-- [ ] Tests und Proben nachgeführt, `APP_VERSION` neu für den nächsten Poco-Test.
+- [x] Tests und Proben nachgeführt, `APP_VERSION` neu für den nächsten Poco-Test.
 
 ## Comments
 
@@ -118,3 +118,55 @@ Wortlaut des Nutzers:
   `geschichte-probe --dorf` und `--dorf --handy` bestanden, Konsole ohne Fehler (Arbeit «Führung: Umriss» 0,9 bzw.
   0,7 ms selbst, keine Lücke über 50 ms). Bilder `umriss-*.png` in `%TEMP%\prisma-vorschau` (Erstes Licht, Umweg
   Schritt 2 mit drei Ringen aus der Ausgangsansicht, schräg, flach von hinten, stark; Desktop und 393 × 873; still).
+
+- 10.11.2026, **Review** (Diff `18e18ce..55a18f3`, beide Teile und die Zusammenführung). Ergebnis: bereit für den
+  nächsten Poco-Test. Einen kleinen Fund selbst behoben, sonst nur Hinweise.
+
+  **Behoben (klein):** Quer (`max-height: 500px`) setzte die Regel des Flex-Kastens (`.hinweis.schritt:not([hidden])`,
+  höhere Spezifität) die Breite des Satzes auf 40em + 8.5em, gut 550 px, statt 64em wie für den Hinweis quer: Ein
+  langer Satz mit «Weiter» brach dort früher um als vorher. Jetzt quer `calc(64em + 8.5em)`; die Quer-Probe zeigt
+  weiter alle 29 Sätze einzeilig, «Weiter» rechts. `APP_VERSION` `2026-11-10 tutorial-fuehrung-3` (index.html, sw.js).
+
+  **Geprüft, in Ordnung:**
+  - Zusammenspiel: «Erstes Licht» 1 und «Mischung» 1 zeigen je zwei Ringe (die Probe prüft Zelle und Lage je Ring), die
+    Hand steht an `ziele[0]` (Spiegel bzw. Prisma), an Erklärungen keine. Der Ring an Kristall und Kombinator hängt am
+    Modell (`game.objects`), 0,02 über dem Brett; Sockel und Element verdecken die hintere Hälfte (Bilder Desktop und
+    quer angesehen). Am Drehteller hängt er nicht am `pivot`: Die Striche drehen beim Tippen nicht mit. Beim Wackeln
+    eines festen Elements wackelt er mit (±0,1 rad, kaum zu sehen).
+  - Freigabe: `beenden` (Lösen, auch früh) gibt Geometrie und Material frei; `neu` (Neustart, Levelwechsel, «Dorf
+    überspringen», Übersicht → anderes Level) erst nach dem Anstossen des neuen Programms (das erste Häppchen von
+    `compileParallel` läuft synchron, das Programm bleibt im Cache). Menü und Übersicht hängen die Ringe nur ab
+    (`verbergen`). `disposeTree` der alten Modelle läuft erst in späteren Bildern; die Ringe hängen dann schon nicht
+    mehr daran. Ausserhalb einer geführten Übung: kein Objekt, `ringeAb` gibt sofort zurück, `platziere` nur bei
+    `sichtbar`.
+  - Kein z-fighting (Tiefentest ohne Tiefe zu schreiben, `polygonOffset`, 0,02 hoch), ohne Nebel, nicht in der
+    Spiegelung, kein Schattenwurf, kein Raycast. `prefers-reduced-motion`: `uPhase` steht. Verlust des WebGL-Kontexts:
+    Das Spiel zeigt nur «bitte neu laden», nichts nachzuziehen.
+  - Pixeldichte: `uPx` wird je Bild aus `renderer.getPixelRatio()` gelesen. Die ändert nur die adaptive Auflösung
+    (`setPixelRatio`, Composer gleich); Drehen und Grössenänderung lassen sie stehen, und die Leinwand misst dann ebenso
+    viele Bildpunkte je CSS-Pixel. Richtig.
+  - Sätze: alle 23 richtig nach der Strahlregel, in den Grenzen (Logiktest). «Längs zum Strahl schluckt der Spiegel das
+    Licht» stimmt (Spiegel rot 0 längs zu Ost; ein Zurück gibt rot 7 ≡ 3, das Licht läuft nach Norden zum Prisma).
+    «Die zwei markierten Spiegel» in «Sperre» stimmt ((3,0) und (5,0); der feste ist nicht markiert). «Farbenlehre»:
+    Der Filter wird getragen (Satz 1 mit «ohne Blau», danach kommen aus dem Prisma sichtbar nur Rot und Grün);
+    «fächert nur auf, was ankommt» steht nicht mehr ausdrücklich da, für den Lerninhalt der Spec («der Filter») genügt
+    das.
+  - «Weiter»: Zwischen den Regeln kippt nichts. Breiter als 520 px hochkant (Tablet, offenes Foldable) wie am Desktop
+    (der Satz schrumpft und bricht um, der Knopf rechts mittig); 412 × 915 unter dem Satz; 375 × 667 und 360 × 640
+    rechts neben dem Satzblock; quer mit zwei Zeilen bliebe der Knopf rechts mittig.
+  - Merge in `fuehrungIn`: richtig; `c` steht vor `UMRISSE`, `frei`, `lage` und `zeilen` aus `satzZeilen` sind da.
+
+  **Hinweise ohne Änderung:**
+  - «Schatten» 1: «{Drücke lang}, bis es weiterläuft» nennt kein Objekt (am Desktop «Rechtsklicke, bis …»). Ring und
+    Hand zeigen den Spiegel; mit «darauf» wären es 88 Zeichen. Beim Poco-Test beobachten.
+  - Geht man aus einer Übung ganz hinaus, ohne dass ein neues Brett kommt (etwa zum Startbildschirm), bleiben Material
+    und Geometrie bis zum nächsten Brett stehen: zwei kleine Objekte, kein Handlungsbedarf.
+
+  **Tests** (mit der Änderung): `logic` 2064, `geschichte` 35, `vorrat` 18, `beurteilung` 206, `generator` 31,
+  `ki-tester` 84, `levelliste` 54, `wuerfelliste` 20, `hall` 6 ok; `golden.mjs` alle 847 ok. Dorf-Probe, je 29
+  Schritte mit Ringen und Lage von «Weiter»: Desktop rot nur «Übung 8 wiederholen» (405 ms); `--handy` ebenso (193 ms;
+  7 × eine, 22 × zwei Zeilen); `--handy --groesse 360x640` rot nur eine Lücke von 301 ms bei «Satz zum Ende →
+  Bergwald 1» (Bildunterschrift im Wald, Führung aus; die bekannten Lücken im Wald; 3 × eine, 25 × zwei, 1 × drei
+  Zeilen); `--quer` rot nur «Übung 8 wiederholen» (107 ms; 29 × eine Zeile). Arbeit «Führung: Umriss» 0,7–0,8 ms
+  selbst, keine Lücke über 50 ms. `--uebersicht --menue` rot nur «Spiel → Übersicht» (123 ms, bekannt);
+  `--grad leicht --welten 2` bestanden, Konsole ohne Fehler. `wackel-probe` mit `MOBILE=1` ok, `interaction-probe` ok.
