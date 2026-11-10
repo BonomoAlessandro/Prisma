@@ -1737,6 +1737,19 @@ const skipUeberdeckt = () => ev(`(() => { const s = document.getElementById('btn
     return e && !e.closest('.hidden') && rects(e).some(schnitt); }).map(([n]) => n); })()`);
 
 /**
+ * Umrisse der Führung (Ausdruck im Fenster, braucht c: Lage des Canvas): seit Ticket 05 Ringe in der Szene
+ * (fuehrung.ringe), gezählt die gezeigten, die an ihrem Modell in der Szene hängen; Mitte im Bild wie vorher die Mitte
+ * des SVG-Rings, stark beim späten Fingerzeig, zelle: das Element, an dem er hängt. UMRISSE_FREI: nichts mehr da (kein
+ * Ring, Geometrie und Material frei).
+ */
+const UMRISSE = `${D}.fuehrung.ringe.slice(0, ${D}.fuehrung.gezeigt).filter((m) => {
+    let t = m; while (t.parent) t = t.parent; return m.visible && t === ${D}.scene && m.parent !== ${D}.scene; })
+    .map((m) => { const v = m.getWorldPosition(new ${D}.camera.position.constructor()).project(${D}.camera);
+      return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height,
+        stark: ${D}.fuehrung.ringMat.uniforms.uBreite.value === FUEHRUNG.ring.stark.breite,
+        zelle: m.parent.userData.element.x + ',' + m.parent.userData.element.z }; })`;
+const UMRISSE_FREI = `!${D}.fuehrung.ringe.length && !${D}.fuehrung.ringMat && !${D}.fuehrung.ringGeo`;
+/**
  * Stand der Führung (Ticket 02 von .scratch/tutorial-fuehrung/): Schritt, Satz, «Weiter», Umrisse (Mitte im Bild) und
  * Hand (Geste, Lage), dazu wo die Elemente bei x, z im Bild liegen (Mitte bzw. Kuppe der Hand), in Pixeln des Layouts.
  */
@@ -1744,18 +1757,16 @@ const fuehrungStand = () => ev(`(() => { const f = ${D}.fuehrung, b = document.g
   const satz = document.querySelector('#hud-sub .hinweis.schritt'), knopf = document.querySelector('#hud-sub .fuehrung-weiter');
   const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || !e.getClientRects().length;
   const sichtbar = b && b.style.display !== 'none';
-  const umrisse = sichtbar ? [...b.querySelectorAll('.fz-umriss')].filter((p) => p.style.display !== 'none')
-    .map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2,
-      stark: p.classList.contains('stark') }; }) : [];
+  const c = ${D}.renderer.domElement.getBoundingClientRect();
+  const umrisse = ${UMRISSE};
   const h = b?.querySelector('.fz-hand'), hand = sichtbar && h.style.display !== 'none'
     ? { art: h.dataset.art, x: h.getScreenCTM().e, y: h.getScreenCTM().f } : null;
-  const c = ${D}.renderer.domElement.getBoundingClientRect();
   const ort = (z, hoehe) => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === z);
     const v = ${D}.game.objects.get(el.id).getWorldPosition(new ${D}.camera.position.constructor());
     v.y += hoehe; v.project(${D}.camera);
     return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height }; };
   return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
-    knopf: !zu(knopf), stups: !!knopf?.classList.contains('stups'), umrisse, hand,
+    knopf: !zu(knopf), stups: !!knopf?.classList.contains('stups'), umrisse, hand, frei: ${UMRISSE_FREI},
     ziel: ort('4,0', 0), spiegel: ort('4,3', 0), kuppe: ort('4,3', 0.42), tippen: ort('4,3', 0.375) }; })()`);
 const nahe = (a, b, px = 12) => !!a && Math.hypot(a.x - b.x, a.y - b.y) <= px;
 /**
@@ -1834,7 +1845,7 @@ async function gefuehrt(g) {
   await tippeBei(f.tippen.x, f.tippen.y);
   await until(`${D}.game.result.solved`, `${was}: Spiegel angetippt`, 5);
   f = await fuehrungStand();
-  pruefe(f.fertig && f.satz === null && !f.umrisse.length && !f.hand, `${was}: gelöst ${JSON.stringify(f)}`);
+  pruefe(f.fertig && f.satz === null && !f.umrisse.length && f.frei && !f.hand, `${was}: gelöst ${JSON.stringify(f)}`);
 }
 
 /**
@@ -1848,12 +1859,10 @@ const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = documen
   const neben = document.querySelector('#hud-sub .hinweis.nebenbei');
   const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || !e.getClientRects().length;
   const sichtbar = b && b.style.display !== 'none';
-  const umrisse = sichtbar ? [...b.querySelectorAll('.fz-umriss')].filter((p) => p.style.display !== 'none')
-    .map((p) => { const r = p.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2,
-      stark: p.classList.contains('stark') }; }) : [];
+  const c = ${D}.renderer.domElement.getBoundingClientRect();
+  const umrisse = ${UMRISSE};
   const h = b?.querySelector('.fz-hand'), hand = sichtbar && h.style.display !== 'none'
     ? { art: h.dataset.art, x: h.getScreenCTM().e, y: h.getScreenCTM().f } : null;
-  const c = ${D}.renderer.domElement.getBoundingClientRect();
   const ort = (z, hoehe) => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === z);
     const v = ${D}.game.objects.get(el.id).getWorldPosition(new ${D}.camera.position.constructor());
     v.y += hoehe; v.project(${D}.camera);
@@ -1884,7 +1893,7 @@ const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = documen
       : k.left >= rechts - 0.5 && Math.abs(mitte(k.top, k.bottom) - mitte(oben, unten)) <= 3 ? 'rechts' : 'anders';
   }
   return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
-    knopf: !zu(knopf), umrisse, hand, orte, neben: zu(neben) ? '' : neben.textContent,
+    knopf: !zu(knopf), umrisse, hand, frei: ${UMRISSE_FREI}, orte, neben: zu(neben) ? '' : neben.textContent,
     imBild: imBild(satz) && imBild(knopf) && imBild(neben), lage,
     teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: satzZeilen.length }; })()`);
 /**
@@ -1940,7 +1949,8 @@ async function schritteSpielen(g, n) {
     const f = await fuehrungIn(zellen);
     pruefe(!f.fertig, `${was}: schon in Schritt ${k + 1} gelöst`);
     if (f.fertig) return;
-    const umrandet = zellen.every((z) => f.umrisse.some((u) => nahe(u, f.orte[z].mitte, 15)));
+    // je Element ein Ring in der Szene, an seinem Modell und im Bild um seine Mitte
+    const umrandet = zellen.every((z) => f.umrisse.some((u) => u.zelle === z && nahe(u, f.orte[z].mitte, 15)));
     const art = handArt(s);
     pruefe(f.satz === s.text && f.knopf === (s.weiter === 'erklaerung') && f.umrisse.length === zellen.length
       && umrandet && (art ? f.hand?.art === art && nahe(f.hand, f.orte[zellen[0]].kuppe, 3) : !f.hand)
@@ -1975,6 +1985,10 @@ async function schritteSpielen(g, n) {
     pruefe(f.satz === schritte.at(-1).text && !f.knopf && f.imBild, `${was}: nach den Schritten ${JSON.stringify(f)}`);
     await ev(`${D}.loese()`);
   }
+  // gelöst: kein Umriss mehr in der Szene, Geometrie und Material frei (Ticket 05)
+  await until(`${D}.fuehrung.fertig`, `${was}: gelöst`, 5);
+  const f = await fuehrungIn([]);
+  pruefe(!f.umrisse.length && f.frei, `${was}: Umriss nach dem Lösen ${JSON.stringify(f)}`);
 }
 
 /**
@@ -2218,7 +2232,7 @@ async function dorfAblauf() {
     `Leicht im Bergwald ${JSON.stringify(s)}`);
   // nach «Dorf überspringen» mitten in der Führung bleibt im Bergwald nichts von ihr stehen
   const fw = await fuehrungIn([]);
-  pruefe(!(await ev(`${D}.fuehrung.level`)) && fw.satz === null && !fw.knopf && !fw.umrisse.length && !fw.hand,
+  pruefe(!(await ev(`${D}.fuehrung.level`)) && fw.satz === null && !fw.knopf && !fw.umrisse.length && fw.frei && !fw.hand,
     `Leicht im Bergwald: Führung übrig ${JSON.stringify(fw)}`);
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Leicht: Übersicht im Bergwald', 10);
