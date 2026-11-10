@@ -139,13 +139,19 @@
      (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt; die Bewegung rechnet CSS */
   #fuehrung { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   /* der gestrichelte Umriss liegt seit Ticket 05 in der Szene (fuehrung.ringe, UMRISS_FRAGMENT); hier nur die Hand */
-  #fuehrung .fz-hand { opacity: 0.9; filter: drop-shadow(0 2px 4px rgba(3, 3, 8, 0.6)); }
+  #fuehrung .fz-hand { filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
   #fuehrung .fz-hand > g { display: none; }
   #fuehrung .fz-hand[data-art="tippen"] .fz-tippen, #fuehrung .fz-hand[data-art="halten"] .fz-halten,
   #fuehrung .fz-hand[data-art="rechtsklick"] .fz-rechtsklick { display: inline; }
-  #fuehrung .fz-finger { fill: #f5f5f5; stroke: #222; stroke-width: 1.3; }
+  /* gezeichnete Zeigehand (Ticket 06): die Kontur ist ein dicker Strich unter derselben Form, so bleibt sie aussen */
+  #fuehrung .fz-kontur > * { fill: #1b1d24; stroke: #1b1d24; stroke-width: 3.2; stroke-linejoin: round; }
+  #fuehrung .fz-flaeche > * { fill: #f7f4ee; }
+  #fuehrung .fz-aermel { fill: #ffd98a; }
+  #fuehrung .fz-falte { fill: none; stroke: #b8b2a6; stroke-width: 1.2; stroke-linecap: round; }
   #fuehrung .fz-tippen .fz-finger { animation: fz-tipp 1.3s ease-in-out infinite; }
-  @keyframes fz-tipp { 0%, 100% { transform: translate(7px, 10px); } 40%, 55% { transform: scale(0.94); } }
+  @keyframes fz-tipp { 0%, 100% { transform: translate(6px, 9px); } 40%, 55% { transform: scale(0.95); } }
+  #fuehrung .fz-halten .fz-finger { animation: fz-halt 1.8s ease-in-out infinite; } /* drückt, solange der Ring läuft */
+  @keyframes fz-halt { 0%, 100% { transform: translate(6px, 9px); } 12%, 70% { transform: scale(0.95); } }
   #fuehrung .fz-welle { fill: none; stroke: #fff; stroke-width: 2.5; opacity: 0; transform-box: fill-box; transform-origin: center; animation: fz-welle 1.3s ease-out infinite; }
   @keyframes fz-welle { 40% { opacity: 0; transform: scale(0.4); } 50% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: scale(1.4); } }
   #fuehrung .fz-ring { fill: none; stroke: #fff; stroke-width: 3; stroke-dasharray: 100; animation: fz-halten 1.8s linear infinite; }
@@ -1286,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-10 tutorial-fuehrung-3';
+const APP_VERSION = '2026-11-10 tutorial-fuehrung-4';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -20399,9 +20405,16 @@ const fuehrung = {
   /** Die Ebene #fuehrung (beim ersten Gebrauch): die Hand mit ihren drei Gesten. */
   baueBild() {
     const tmp = document.createElement('div');
-    // Finger: Kuppe im Ursprung, von unten rechts (wie im Katalog, in Pixeln); Maus mit der rechten Taste. Die Drehung
-    // steht an einer eigenen Gruppe: Die Animationen (transform in CSS) ersetzten sonst die des Attributs
-    const finger = '<path class="fz-finger" d="M-4 1Q0-4 4 1L5.6 23.5Q15.7 20 20 27L22.4 48Q11.2 55-3.4 50.4L-9 28Z"/>';
+    // Zeigehand (Ticket 06, Wahl B des Nutzers): Kuppe des Zeigefingers im Ursprung, die Hand unten rechts, in Pixeln;
+    // eingerollte Finger, Daumen, goldener Ärmel. Maus mit der rechten Taste. Die Drehung steht an einer eigenen Gruppe:
+    // Die Animationen (transform in CSS) ersetzten sonst die des Attributs
+    const form = ['<rect x="-6.5" y="0" width="13" height="36" rx="6.5"/>', '<rect x="5" y="19" width="11.5" height="17" rx="5.75"/>',
+      '<rect x="15" y="22" width="11" height="16" rx="5.5"/>', '<rect x="24" y="26" width="9.5" height="14" rx="4.75"/>',
+      '<rect x="-8" y="26" width="41" height="32" rx="11"/>',
+      '<rect x="-15" y="31" width="10" height="22" rx="5" transform="rotate(-32 -10 42)"/>',
+      '<rect x="-4" y="55" width="33" height="10" rx="2"/>'].join('');
+    const finger = `<g class="fz-finger"><g class="fz-kontur">${form}</g><g class="fz-flaeche">${form}</g>
+      <rect class="fz-aermel" x="-4" y="57" width="33" height="8" rx="2"/><path class="fz-falte" d="M15.7 27V33M25 30V35M-2 6.5H2"/></g>`;
     tmp.innerHTML = `<svg id="fuehrung" aria-hidden="true" style="display: none"><g class="fz-hand">
       <g class="fz-tippen"><circle class="fz-welle" r="22"/><g transform="rotate(-18)">${finger}</g></g>
       <g class="fz-halten"><circle class="fz-ring" r="28" pathLength="100" transform="rotate(-90)"/>
