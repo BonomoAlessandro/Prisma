@@ -643,6 +643,10 @@ console.log('Führung im Dorf (Schritte)');
       // farbe: nur bei «strahl», eine Farbe aus COLORS (Ticket 04: «Mischung» wartet auf Magenta im Kombinator)
       if (s.farbe !== undefined) {
         assert.ok(s.weiter === 'strahl' && s.farbe in L.COLORS, `${l.name}: farbe ${s.farbe}`);
+        // lichtBei kennt Farben nur am Kombinator (Mischung) und am Ziel (Treffer); sonst schaltete der Schritt nie
+        for (const z of s.trifft === undefined ? zellen : [s.trifft]) {
+          assert.ok(['combiner', 'target'].includes(am(l, z).type), `${l.name}: farbe an ${z} (${am(l, z).type})`);
+        }
       }
     }
   });

@@ -29,7 +29,7 @@ Ticket 04 änderte an den Übungen:
   ankommt.» Vorher blieb der Spiegel (4,2) ungenannt.
 
 Prüfung (Zahlen in Ticket 04 unter «Comments»): alle Node-Tests und Golden grün; Dorf-Probe Desktop, Handy, 360 × 640
-und quer spielen jeden der 29 Schritte; rot nur bekannte Bildlücken. Wackel-Probe am Desktop und auf dem Handy grün,
+und quer spielen jeden der 23 Schritte (29 gespielte: Übung 2 und 3 auch in Leicht); rot nur bekannte Bildlücken. Wackel-Probe am Desktop und auf dem Handy grün,
 auch in einer Welt (Bergwald «Lichtblick», fester Spiegel neben einem Prisma).
 
 ## Was der Nutzer testet
