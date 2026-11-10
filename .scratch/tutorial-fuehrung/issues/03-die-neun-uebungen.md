@@ -39,14 +39,14 @@
   | # | Übung | Schritte | nebenbei |
   |---|---|---|---|
   | 1 | Erstes Licht | E Kristall «Bring das Licht zum Kristall, dann leuchtet er.» · D Spiegel «{Tippe} den Spiegel an, so dreht er sich.» | – |
-  | 2 | Umweg | A fester Spiegel «{Tippe} den Spiegel auf dem eckigen Sockel an.» · E alle drei Spiegel «Rund lässt sich drehen, eckig nicht.» · D zurück (3,5) «{Drücke lang} auf den markierten Spiegel, so dreht er zurück.» | – |
+  | 2 | Umweg | A fester Spiegel «{Tippe} den Spiegel auf dem eckigen Sockel an.» · E alle drei Spiegel «Rund lässt sich drehen, eckig nicht.» · D zurück (3,5)/(5,1) «{Drücke lang} auf die runden Spiegel, so drehen sie zurück.» (Ticket 04; vorher nur (3,5) «{Drücke lang} auf den markierten Spiegel, so dreht er zurück.») | – |
   | 3 | Sperre | E Block «Der Block schluckt das Licht, hier kommt es nicht weiter.» · S an (3,2), trifft (3,0) «{Tippe} den Spiegel, bis das Licht den nächsten Spiegel trifft.» · D (3,0)/(5,0) «{Tippe} die übrigen Spiegel, bis das Licht den Kristall erreicht.» | Kamera |
   | 4 | Brechung | E Prisma «Das Prisma fächert weisses Licht in Rot, Grün und Blau auf.» · D Prisma «{Tippe} das Prisma, bis jede Farbe ihren Kristall trifft.» | Neustart |
   | 5 | Schatten | S an Spiegel (3,5), trifft Prisma, Geste zurück «Längs zum Strahl lässt ein Spiegel das Licht verschwinden: {Drücke lang} auf ihn.» · E Prisma «Trifft Licht das Prisma auf der Seite seiner Farbpfeile, verschwindet es auch.» · D Prisma «{Tippe} das Prisma, bis seine Farbpfeile zu den Kristallen zeigen.» | – |
-  | 6 | Farbenlehre | E Filter «Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.» · D Prisma «{Tippe} das Prisma: Es fächert nur die Farben auf, die ankommen.» | – |
+  | 6 | Farbenlehre | E Filter «Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.» · D (3,3)/(4,2) «{Tippe} Prisma und Spiegel: Das Prisma fächert nur auf, was ankommt.» (Ticket 04; vorher nur das Prisma «{Tippe} das Prisma: Es fächert nur die Farben auf, die ankommen.») | – |
   | 7 | Farbiges Licht | E Quellen «Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.» · E Ziele «Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin.» · D Spiegel «{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.» | – |
   | 8 | Treffpunkt | E Ziel «Treffen Rot und Blau denselben Kristall, mischen sie sich zu Magenta.» · D Spiegel «{Tippe} beide Spiegel, bis Rot und Blau den Kristall treffen.» | – |
-  | 9 | Mischung | D Prisma «{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.» · E Kombinator «Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.» · D Kombinator «{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.» | – |
+  | 9 | Mischung | S an Prisma, trifft Kombinator mit Magenta «{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.» (Ticket 04; vorher D Prisma, jede Drehung schaltete weiter) · E Kombinator «Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.» · D Kombinator «{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.» | – |
 
   Neu im Gerüst: `trifft` an einem Strahl-Schritt (Umriss und Hand am Element `bei`, das zu drehen ist, weiter erst,
   wenn der Strahl `trifft` erreicht; `richtung` gibt dort nur die Geste). Sonst hätte in «Schatten» der Umriss am

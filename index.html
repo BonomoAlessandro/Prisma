@@ -1945,7 +1945,7 @@ function tracePass(board, extraRays, emitting, from) {
  *   target:   color = benötigte Farbe
  *   fixed:    Element ist nicht drehbar
  *   tutorial: Lern-Level am Anfang (die Übungen im Dorf); schritte ist ihre Führung (höchstens SCHRITTE_MAX,
- *             { text, bei, weiter, richtung?, trifft? }, siehe SCHRITT_WEITER), dazu nebenbei: Hinweise nebenbei
+ *             { text, bei, weiter, richtung?, trifft?, farbe? }, siehe SCHRITT_WEITER), dazu nebenbei: Hinweise nebenbei
  *             (NEBENBEI). Einen Hinweis (hint) haben sie seit Ticket 03 der Führung nicht mehr
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
@@ -1975,20 +1975,21 @@ const LEVELS = [
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
     // Der vordere Spiegel (3,5) steht eine Stufe zu weit (rot 4 = 3 + 1): Zurückdrehen ist der kurze Weg (Wahl des
-    // Nutzers am Katalog). Zwischen dem festen Spiegel und dem drehbaren (5,1) liegt ein Feld: Auf dem Handy trifft
-    // das Antippen den festen.
+    // Nutzers am Katalog). Der hintere (5,1) ebenso (rot 2 = 1 + 1, Ticket 04 der Führung): Der letzte Schritt nennt
+    // beide runden Spiegel, nach ihm bleibt keine Drehung, von der kein Satz spricht. Zwischen dem festen Spiegel und
+    // dem drehbaren (5,1) liegt ein Feld: Auf dem Handy trifft das Antippen den festen.
     name: 'Umweg', tutorial: true,
     schritte: [
       { text: '{Tippe} den Spiegel auf dem eckigen Sockel an.', bei: '3,1', weiter: 'antippen' },
       { text: 'Rund lässt sich drehen, eckig nicht.', bei: ['3,5', '5,1', '3,1'], weiter: 'erklaerung' },
-      { text: '{Drücke lang} auf den markierten Spiegel, so dreht er zurück.', bei: '3,5', weiter: 'drehen',
+      { text: '{Drücke lang} auf die runden Spiegel, so drehen sie zurück.', bei: ['3,5', '5,1'], weiter: 'drehen',
         richtung: -1 },
     ],
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
       { type: 'mirror', x: 3, z: 5, rot: 4 },
       { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
-      { type: 'mirror', x: 5, z: 1, rot: 0 },
+      { type: 'mirror', x: 5, z: 1, rot: 2 },
       { type: 'target', x: 5, z: 4, color: 'white' },
     ],
     solution: { '3,5': 3, '5,1': 1 },
@@ -2063,11 +2064,13 @@ const LEVELS = [
     // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
     //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
     //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
-    //   Der zweite Schritt sagt dazu, was im Bergwald gilt: Ein Prisma fächert nur auf, was ankommt.
+    //   Der zweite Schritt sagt dazu, was im Bergwald gilt: Ein Prisma fächert nur auf, was ankommt. Er nennt Prisma
+    //   und Spiegel, beide sind zu drehen (Ticket 04 der Führung: sonst bliebe nach ihm der Spiegel ungenannt).
     name: 'Farbenlehre', tutorial: true,
     schritte: [
       { text: 'Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.', bei: '1,3', weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma: Es fächert nur die Farben auf, die ankommen.', bei: '3,3', weiter: 'drehen' },
+      { text: '{Tippe} Prisma und Spiegel: Das Prisma fächert nur auf, was ankommt.', bei: ['3,3', '4,2'],
+        weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
@@ -2122,10 +2125,12 @@ const LEVELS = [
     //   → beide in den Kombinator (6,3): Magenta → dir 6 (Nord) → Ziel (6,0).
     //   Das Prisma steht eine Stufe vor der Lösung (rot 7, Ticket 03 der Führung): Ein Tippen schickt Rot und Blau in
     //   den Kombinator, so mischt er schon zwei Farben, wenn der nächste Schritt ihn erklärt (aus rot 6 bekam er nach
-    //   dem ersten Tippen nur Grün).
+    //   dem ersten Tippen nur Grün). Der erste Schritt schaltet erst weiter, wenn im Kombinator Magenta ankommt (Rot und
+    //   Blau ohne Grün; Ticket 04 der Führung), nicht schon bei irgendeiner Drehung des Prismas.
     name: 'Mischung', tutorial: true,
     schritte: [
-      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: '2,3', weiter: 'drehen' },
+      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: '2,3', weiter: 'strahl',
+        trifft: '6,3', farbe: 'magenta' },
       { text: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.', bei: '6,3',
         weiter: 'erklaerung' },
       { text: '{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.', bei: '6,3', weiter: 'drehen' },
@@ -8158,12 +8163,13 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /*
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
- * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft? }. text: ein Satz im Du, Platzhalter je
+ * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: ein Satz im Du, Platzhalter je
  * Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss läuft. weiter: was den
  * Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken bzw.
  * Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht das Element bei ist; bei ist
  * dann das Element, das dafür zu drehen ist (Umriss und Hand dort, die Geste nach richtung, die hier nichts
- * einschränkt). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
+ * einschränkt). farbe: bei «strahl» zählt nur Licht, das dort genau diese Farbe mischt (COLORS; am Kombinator seine
+ * Mischung, sonst die Treffer). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
  */
 const SCHRITTE_MAX = 3;
 /**
@@ -8209,6 +8215,8 @@ function strahlTrifft(result, el) {
   return result.events.some((ev) => ev.element === el.id || ev.target === el.id
     || (ev.kind === 'reflect' && ev.y === undefined && ev.x === el.x && ev.z === el.z));
 }
+/** Farbe (Bitmaske wie COLORS), die am Element el ankommt: am Kombinator seine Mischung, sonst die Treffer. */
+const lichtBei = (result, el) => (el.type === 'combiner' ? result.mixes.get(el.id) : result.hits.get(el.id)) ?? 0;
 /**
  * Schaltet das Ereignis e den Schritt s weiter? e: { art: 'weiter' } (Knopf), { art: 'angetippt', el } (ein festes
  * Element weigert sich), { art: 'gedreht', el, delta }, { art: 'strahl', board, result } (nach jeder neuen Rechnung).
@@ -8219,8 +8227,10 @@ function schrittErfuellt(s, e) {
     case 'erklaerung': return e.art === 'weiter';
     case 'antippen': return (e.art === 'angetippt' || e.art === 'gedreht') && bei(e.el);
     case 'drehen': return e.art === 'gedreht' && bei(e.el) && (!s.richtung || Math.sign(e.delta) === s.richtung);
-    case 'strahl': return e.art === 'strahl' && (s.trifft === undefined ? zellen : [s.trifft])
-      .some((z) => strahlTrifft(e.result, e.board.elements.find((el) => zelleVon(el) === z)));
+    case 'strahl': return e.art === 'strahl' && (s.trifft === undefined ? zellen : [s.trifft]).some((z) => {
+      const el = e.board.elements.find((x) => zelleVon(x) === z);
+      return strahlTrifft(e.result, el) && (!s.farbe || lichtBei(e.result, el) === COLORS[s.farbe]);
+    });
     default: return false;
   }
 }

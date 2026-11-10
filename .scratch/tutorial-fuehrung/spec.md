@@ -56,11 +56,15 @@ Menü, Übersicht und Ton werden nicht geführt: Sie sind als Knöpfe sichtbar u
 ### Bretter und Anzahl (Ticket 03)
 
 Der Nutzer liess frei, Bretter und sogar die Anzahl der Übungen zu ändern, wo es der Führung hilft. Geändert sind nur
-zwei Startstellungen; die Lösungen, die Elemente und ihre Lage bleiben, also auch die Eindeutigkeit (Löser).
+Startstellungen in zwei Übungen; die Lösungen, die Elemente und ihre Lage bleiben, also auch die Eindeutigkeit (Löser).
 
 - **Umweg:** Der vordere Spiegel (3,5) startet eine Stufe zu weit (rot 4 statt 1, Lösung 3), Wahl des Nutzers am
   Katalog: Einmal zurückdrehen ist der kurze Weg, der dritte Schritt («zurückdrehen») bringt ihn in die Lösung, statt
   dass Zurückdrehen nur erzählt wird. Vorher waren es zwei Drehungen in beide Richtungen, Zurückdrehen war nie nötig.
+  In Ticket 04 startet auch der hintere Spiegel (5,1) eine Stufe zu weit (rot 2 statt 0, Lösung 1): Nach dem dritten
+  Schritt blieb sonst eine Drehung an (5,1), von der kein Satz sprach und die kein Umriss zeigte, bis zum späten
+  Fingerzeig; der Satz meinte zudem «den markierten Spiegel». Jetzt nennt der dritte Schritt beide runden Spiegel
+  («{Drücke lang} auf die runden Spiegel, so drehen sie zurück.»), und jeder braucht genau ein Zurück.
 - **Mischung:** Das Prisma (2,3) startet eine Stufe vor der Lösung (rot 7 statt 6). Der erste Schritt lässt das Prisma
   drehen, bis Rot und Blau den Kombinator treffen; aus rot 7 ist das ein Tippen, und wenn der nächste Schritt den
   Kombinator erklärt, mischt er schon zwei Farben zu Magenta. Aus rot 6 hätte das erste Tippen den Schritt
@@ -75,7 +79,7 @@ wäre eine oder zwei Übungen weniger, ohne dass ein Inhalt leichter zu lernen w
 **Nicht zu früh lösbar** (Prüfung mit der Strahlregel aus `index.html`, Breitensuche über alle Stellungen und den
 Stand der Führung): Wer jedem Schritt mit der kürzesten Handlung folgt und Erklärungen mit «Weiter» bestätigt, löst
 keine Übung vor ihrem letzten Lernschritt (Logiktest «wer jedem Schritt … folgt»). Früher lösen geht nur an den
-Schritten vorbei: in «Umweg» ohne den festen Spiegel anzutippen (zurückdrehen, dann (5,1) einmal), in «Schatten» mit
+Schritten vorbei: in «Umweg» ohne den festen Spiegel anzutippen (beide runden Spiegel je einmal zurück), in «Schatten» mit
 vier Drehungen am Prisma, solange es noch kein Licht hat, in «Mischung» mit zwei Drehungen am Kombinator vor dem
 Prisma; in den Übungen, die mit einer Erklärung beginnen, wenn «Weiter» nie getippt wird. Das bleibt erlaubt («gilt
 sofort»); ein Brett, das es verhindert, gibt es nicht, weil alles frei drehbar bleibt.

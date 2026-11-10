@@ -640,6 +640,10 @@ console.log('Führung im Dorf (Schritte)');
         assert.ok(s.weiter === 'strahl' && typeof s.trifft === 'string' && am(l, s.trifft), `${l.name}: trifft ${s.trifft}`);
         for (const z of zellen) assert.ok(L.isRotatable(am(l, z)), `${l.name}: ${z} nicht drehbar`);
       }
+      // farbe: nur bei «strahl», eine Farbe aus COLORS (Ticket 04: «Mischung» wartet auf Magenta im Kombinator)
+      if (s.farbe !== undefined) {
+        assert.ok(s.weiter === 'strahl' && s.farbe in L.COLORS, `${l.name}: farbe ${s.farbe}`);
+      }
     }
   });
   test('Schritte: ein festes Element zum Antippen hat kein drehbares im Nachbarfeld (Handy: das drehbare gewönne)', () => {
@@ -661,13 +665,15 @@ console.log('Führung im Dorf (Schritte)');
     // Erstes Licht: das Ziel vor dem ersten Tippen (ein Tippen löst die Übung schon)
     assert.equal(art('Erstes Licht'), 'erklaerung drehen');
     assert.equal(u('Erstes Licht').schritte[0].bei, '4,0');
-    // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; der vordere Spiegel steht
-    // eine Stufe zu weit (einmal zurück ist die Lösung)
+    // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; beide runden Spiegel stehen
+    // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
     const w = u('Umweg');
     assert.equal(art('Umweg'), 'antippen erklaerung drehen-zurück');
     assert.ok(am(w, w.schritte[0].bei).fixed && w.schritte[1].text === 'Rund lässt sich drehen, eckig nicht.');
-    const vorn = am(w, w.schritte[2].bei);
-    assert.equal(L.mod8(vorn.rot - 1) % 4, w.solution[w.schritte[2].bei] % 4, 'eine Stufe zu weit');
+    assert.deepEqual([].concat(w.schritte[2].bei).sort(), Object.keys(w.solution).sort(), 'alle runden Spiegel');
+    for (const z of Object.keys(w.solution)) {
+      assert.equal(L.mod8(am(w, z).rot - 1) % 4, w.solution[z] % 4, `${z}: eine Stufe zu weit`);
+    }
     // Schatten: Spiegel längs und Prisma von der falschen Seite in getrennten Schritten
     const sch = u('Schatten');
     assert.ok(am(sch, sch.schritte[0].bei).type === 'mirror' && am(sch, sch.schritte[1].bei).type === 'prism');
@@ -776,6 +782,18 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(L.schrittGeste(mit), 'zurueck');
     assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel) }), 'tippen');
     assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(ziel) }), null);
+    // Strahl mit farbe («Mischung»): Grün allein im Kombinator schaltet nicht, erst Rot und Blau (Magenta)
+    const m = L.LEVELS.find(q => q.name === 'Mischung'), mb = L.createBoard(m), s1 = m.schritte[0];
+    const kombi = mb.elements.find(q => q.type === 'combiner'), prisma = mb.elements.find(q => q.type === 'prism');
+    let mr = L.traceBeams(mb);
+    assert.ok(L.strahlTrifft(mr, kombi) && mr.mixes.get(kombi.id) === L.COLORS.green, 'Start: Grün im Kombinator');
+    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }), 'Grün schaltet nicht');
+    assert.ok(L.schrittErfuellt({ ...s1, farbe: undefined }, { art: 'strahl', board: mb, result: mr }), 'ohne farbe schon');
+    prisma.rot = L.mod8(prisma.rot - 1); // zurück: nur Blau
+    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: L.traceBeams(mb) }), 'zurück schaltet nicht');
+    prisma.rot = L.mod8(prisma.rot + 2); // ein Tippen vom Start: Rot und Blau
+    mr = L.traceBeams(mb);
+    assert.ok(mr.mixes.get(kombi.id) === L.COLORS.magenta && L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }));
   });
   test('Später Fingerzeig: nächstes Element ausserhalb der Lösung, kürzerer Weg, Spiegel halbe Runde gleich', () => {
     const l = L.LEVELS[0], b = L.createBoard(l), sp = b.elements.find(q => q.type === 'mirror');
