@@ -4,7 +4,7 @@
 
 **Blocked by:** 05
 
-**Status:** ready-for-agent
+**Status:** done
 
 **What to build:** Die Hand der Führung neu zeichnen. Der Nutzer (10.11.2026): «Die hände die erscheinen um zu zeigen
 wo geklickt werden soll, soll noch angepast werden. Ich bin mit dem look noch nicht zufrieden». Aus fünf Varianten

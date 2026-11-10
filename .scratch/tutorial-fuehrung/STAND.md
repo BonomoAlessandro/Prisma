@@ -1,8 +1,8 @@
 # Stand «Führung im Dorf» – Übergabe
 
-Stand 10.11.2026, Branch `feature/tutorial-fuehrung` (gepusht, b6421e6; Tickets 01–05 gemergt, 05 = Rückmeldungen
-aus dem ersten Handy-Test). PLAN 1a.1. Entscheide und Begründungen stehen in `spec.md` und in den Tickets unter
-`issues/`, je unter «Comments». `APP_VERSION` ist `2026-11-10 tutorial-fuehrung-3` (index.html und sw.js).
+Stand 10.11.2026, Branch `feature/tutorial-fuehrung` (gepusht; Tickets 01–06, 05 = Rückmeldungen
+aus dem ersten Handy-Test, 06 = gezeichnete Hand). PLAN 1a.1. Entscheide und Begründungen stehen in `spec.md` und in den Tickets unter
+`issues/`, je unter «Comments». `APP_VERSION` ist `2026-11-10 tutorial-fuehrung-4` (index.html und sw.js).
 
 ## Fertig
 
@@ -13,6 +13,7 @@ aus dem ersten Handy-Test). PLAN 1a.1. Entscheide und Begründungen stehen in `s
 | 03 | Alle 9 Übungen geführt, Startstellungen von «Umweg» und «Mischung» geändert, Dorf-Probe spielt jeden Schritt | Merge bc52fe0 |
 | 04 | Drei Punkte aus dem Review von 03, Probe für Unterbrechungen mitten in der Führung, Wackeln in einer Welt, `APP_VERSION`, Doku | cab0c58, 43b5bea, fe4dfb3 und die Doku danach |
 | 05 | Erster Handy-Test des Nutzers: Umriss als Ring in der Szene (hinter Elementen verdeckt), alle Sätze nennen Ziel und Weg (Tabelle in Ticket 05), «Weiter» an fester Stelle beim Satz | Merges 60af470, 2c8877b, Review b6421e6 |
+| 06 | Gezeichnete Zeigehand statt des Fingers (Wahl B des Nutzers aus fünf Varianten), drückt auch beim langen Drücken | 5effe8c, Review 8e561ae |
 
 Die Sätze gelten in der Fassung aus Ticket 05; die Angaben zu Ticket 04 unten sind dort teils überholt.
 
