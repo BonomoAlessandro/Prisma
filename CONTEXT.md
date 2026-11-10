@@ -152,7 +152,8 @@ Geschichte), Welt (für das Dorf)
 **Führung**:
 Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
 der Kopfzeile, wo früher der Hinweis stand, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
-einmal vor. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
+einmal vor. Der Umriss liegt als Ring auf dem Brett, Teil der Szene: Wo er hinter einem Element durchläuft, ist er
+verdeckt. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
 von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
 Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
 `fuehrung` (Anzeige, Uhr), die Daten `schritte` und `nebenbei` je Übung.

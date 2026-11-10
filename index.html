@@ -124,12 +124,7 @@
   /* Umriss und Hand über dem Brett: an der Bildschirmlage des Elements (fuehrung.platziere), unter der Kopfzeile
      (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt; die Bewegung rechnet CSS */
   #fuehrung { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  #fuehrung .fz-umriss {
-    fill: none; stroke: #ffd98a; stroke-width: 2; stroke-dasharray: 5 3; stroke-linecap: round; opacity: 0.85;
-    filter: drop-shadow(0 0 3px rgba(3, 3, 8, 0.9)); animation: fz-laufen 1.4s linear infinite;
-  }
-  #fuehrung .fz-umriss.stark { stroke-width: 2.6; opacity: 1; animation-duration: 0.55s; }
-  @keyframes fz-laufen { to { stroke-dashoffset: -8; } }
+  /* der gestrichelte Umriss liegt seit Ticket 05 in der Szene (fuehrung.ringe, UMRISS_FRAGMENT); hier nur die Hand */
   #fuehrung .fz-hand { opacity: 0.9; filter: drop-shadow(0 2px 4px rgba(3, 3, 8, 0.6)); }
   #fuehrung .fz-hand > g { display: none; }
   #fuehrung .fz-hand[data-art="tippen"] .fz-tippen, #fuehrung .fz-hand[data-art="halten"] .fz-halten,
@@ -20015,9 +20010,55 @@ const FUEHRUNG = {
   fingerzeig: 15,                      // s ohne Fortschritt bis zum späten Fingerzeig (wird beim Testen angepasst)
   hand: { tippen: 2.6, zurueck: 3.6 }, // s: so lange zeigt die Hand die Geste zu Beginn eines Schritts vor
   umriss: 0.66,                        // Halbmesser des Umrisses um das Element (Welt; die Zelle misst CELL)
-  punkte: 36,                          // Ecken des Umrisses (er liegt perspektivisch auf dem Brett)
   kuppe: 0.42,                         // Höhe über dem Brett, wo die Fingerkuppe aufsetzt (Welt)
+  // Der Umriss als Ring in der Szene (Ticket 05, fuehrung.ringe): Striche und Schatten in Pixeln der Oberfläche wie
+  // vorher der SVG-Ring (stroke-width 2, dasharray 5 3 auf 100, drop-shadow 3 px, opacity 0.85), stark beim späten
+  // Fingerzeig. takt: s je Strich und Lücke (so weit läuft er in der Zeit). Er liegt hoehe über dem Brett, sein Band
+  // reicht band (Welt) nach innen und aussen: so viel Platz brauchen Strich und Schatten, auch ganz herausgezoomt
+  ring: {
+    striche: 12, anteil: 5 / 8, hoehe: 0.02, band: 0.2, schatten: 1.5,
+    normal: { breite: 2, deckung: 0.85, takt: 1.4 }, stark: { breite: 2.6, deckung: 1, takt: 0.55 },
+  },
 };
+
+/**
+ * Shader des Umrisses (fuehrung.ringe): ein flaches Band um das Element, gezeichnet ist nur der Strich in seiner Mitte
+ * (Halbmesser uR) mit einem dunklen Schatten. Breite und Schatten in Pixeln der Oberfläche (uPx: Bildpunkte je Pixel,
+ * renderer.getPixelRatio): Quer und entlang des Rings rechnet er über die Ableitungen in Bildpunkte um, so bleibt der
+ * Strich bei jedem Zoom und schräg wie der frühere SVG-Ring. uPhase: Lage der Striche (läuft je Bild, die einzige
+ * Uniform je Bild). Tiefentest wie alles in der Szene, ohne Tiefe zu schreiben: Element und Nachbarn verdecken ihn.
+ * Ohne Nebel, Farbe unter der Bloom-Schwelle (fuehrung.ringTeile).
+ */
+const UMRISS_VERTEX = `
+  varying vec2 vP;
+  void main() {
+    vP = position.xz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }`;
+const UMRISS_FRAGMENT = `
+  uniform vec3 uFarbe, uDunkel;
+  uniform float uR, uPhase, uBreite, uDeckung, uPx;
+  varying vec2 vP;
+  const float N = ${glf(FUEHRUNG.ring.striche)}, D = ${glf(FUEHRUNG.ring.anteil)}, TAU = 6.2831853;
+  const float SIGMA = ${glf(FUEHRUNG.ring.schatten)};
+  void main() {
+    float r = max(length(vP), 1e-4);
+    // Welt je Bildpunkt quer (radial) und entlang (in Strichen): aus den Ableitungen von vP, nicht von atan, das am
+    // Übergang springt
+    vec2 gx = dFdx(vP), gy = dFdy(vP), n = vP / r, t = vec2(-n.y, n.x);
+    float quer = max(length(vec2(dot(gx, n), dot(gy, n))), 1e-6);
+    float entlang = max(length(vec2(dot(gx, t), dot(gy, t))) / r * N / TAU, 1e-6);
+    // Abstand zum nächsten Strich (rund abgeschlossen wie stroke-linecap: round), in Bildpunkten
+    float g = fract(atan(vP.y, vP.x) / TAU * N + uPhase) - 0.5 * D;
+    g -= floor(g + 0.5);
+    float a = length(vec2((r - uR) / quer, max(abs(g) - 0.5 * D, 0.0) / entlang));
+    float strich = clamp(0.5 * uBreite * uPx + 0.5 - a, 0.0, 1.0);
+    float aussen = max(a / uPx - 0.5 * uBreite, 0.0); // Pixel der Oberfläche ausserhalb des Strichs
+    float schatten = 0.45 * exp(-aussen * aussen / (2.0 * SIGMA * SIGMA));
+    float alpha = strich + schatten * (1.0 - strich);
+    if (alpha * uDeckung < 0.004) discard;
+    gl_FragColor = vec4((uFarbe * strich + uDunkel * schatten * (1.0 - strich)) / alpha, alpha * uDeckung);
+  }`;
 
 const fuehrung = {
   level: null,        // die geführte Übung (LEVELS[i]) oder null: keine Führung
@@ -20037,7 +20078,12 @@ const fuehrung = {
   ziele: [],          // Elemente mit Umriss
   handZiel: null,     // Element der Hand
   satz: null, satzText: null, knopf: null, neben: null, // Kopfzeile (kopfzeile)
-  bild: null, umrisse: [], handEl: null,               // Ebene über dem Brett (#fuehrung)
+  bild: null, handEl: null,                            // Ebene über dem Brett (#fuehrung): die Hand
+  ringe: [],          // Umrisse in der Szene (ein Mesh je Element, am Modell; ringTeile), nicht gezeigte ohne Eltern
+  ringGeo: null, ringMat: null, // je geführtes Brett (ringTeile), frei bei seinem Ende (ringeFrei)
+  ringHalter: null,   // zum Vorwärmen kurz in der Szene, unsichtbar (ringeVorwaermen)
+  gezeigt: 0,         // so viele Ringe sind gezeigt (die ersten in ringe)
+  still: matchMedia('(prefers-reduced-motion: reduce)'), // dann stehen die Striche
 
   /** Läuft die Führung für LEVELS[index] auf dem Brett? */
   fuehrt(index) { return !!this.level && this.level === LEVELS[index] && this.board === game.board; },
@@ -20059,6 +20105,9 @@ const fuehrung = {
     this.los = this.fertig = this.spaet = this.hand = this.vorzeigen = false;
     this.nebenbei = gefuehrt ? (lvl.nebenbei ?? []).filter((n) => !this.benutzt.has(n)) : [];
     this.stoppeUhren();
+    const frei = this.ringeAb(); // die des vorigen Bretts
+    if (gefuehrt) this.ringeVorwaermen(); // während das Brett herauswächst
+    frei();
     this.zeichneBild();
   },
   /** Das Brett steht (updateFlow): die Hand zeigt den laufenden Schritt vor, die Uhr läuft. */
@@ -20137,6 +20186,7 @@ const fuehrung = {
     this.spaet = this.hand = false;
     this.stoppeUhren();
     this.zeichne();
+    this.ringeFrei();
   },
   /** Später Fingerzeig nach FUEHRUNG.fingerzeig s ohne Fortschritt (nur, solange das Brett steht und zu sehen ist). */
   armiere() {
@@ -20223,25 +20273,101 @@ const fuehrung = {
     this.ziele = ziele;
     this.handZiel = hand;
     this.sichtbar = ziele.length > 0 || !!hand;
-    if (!this.bild) { if (!this.sichtbar) return; this.baueBild(); }
-    for (let i = this.umrisse.length; i < ziele.length; i++) {
-      const p = document.createElementNS(this.bild.namespaceURI, 'path');
-      p.setAttribute('class', 'fz-umriss');
-      p.setAttribute('pathLength', '100');
-      this.bild.insertBefore(p, this.handEl);
-      this.umrisse.push(p);
+    this.zeigeRinge(ziele);
+    if (this.bild || hand) {
+      if (!this.bild) this.baueBild();
+      const art = !hand ? '' : geste === 'tippen' ? 'tippen' : IS_TOUCH ? 'halten' : 'rechtsklick';
+      if (this.handEl.dataset.art !== art) this.handEl.dataset.art = art;
+      this.handEl.style.display = hand ? '' : 'none';
+      this.bild.style.display = hand ? '' : 'none';
     }
-    this.umrisse.forEach((p, i) => {
-      p.style.display = i < ziele.length ? '' : 'none';
-      p.classList.toggle('stark', this.spaet);
-    });
-    const art = !hand ? '' : geste === 'tippen' ? 'tippen' : IS_TOUCH ? 'halten' : 'rechtsklick';
-    if (this.handEl.dataset.art !== art) this.handEl.dataset.art = art;
-    this.handEl.style.display = hand ? '' : 'none';
-    this.bild.style.display = this.sichtbar ? '' : 'none';
     if (this.sichtbar) this.platziere();
   },
-  /** Die Ebene #fuehrung (beim ersten Gebrauch): Umrisse und die Hand mit ihren drei Gesten. */
+
+  /**
+   * Umrisse in der Szene (Ticket 05: Wo der Ring hinter einem Element durchläuft, ist er verdeckt): je Element ein Mesh
+   * am Modell, so geht er mit Kamera, Zoom und Herauswachsen mit. Nicht gezeigte hängen nirgends; stark beim späten
+   * Fingerzeig (Breite und Deckung nur hier, je Bild nur uPhase in platziere).
+   */
+  zeigeRinge(ziele) {
+    if (ziele.length && !this.ringMat) this.ringTeile(); // sonst schon in neu vorgewärmt
+    for (let i = 0; i < Math.max(ziele.length, this.gezeigt); i++) {
+      const obj = i < ziele.length ? game.objects.get(ziele[i].id) ?? null : null;
+      if (obj && !this.ringe[i]) this.ringe[i] = this.ringMesh();
+      const m = this.ringe[i];
+      if (!m || m.parent === obj) continue;
+      m.parent?.remove(m);
+      obj?.add(m);
+    }
+    if (this.gezeigt !== ziele.length) sceneLoop.wake();
+    this.gezeigt = ziele.length;
+    if (!this.ringMat) return;
+    const art = FUEHRUNG.ring[this.spaet ? 'stark' : 'normal'], u = this.ringMat.uniforms;
+    u.uBreite.value = art.breite;
+    u.uDeckung.value = art.deckung;
+  },
+  /** Geometrie und Material der Umrisse eines geführten Bretts (frei mit ringeFrei). */
+  ringTeile() {
+    const r = FUEHRUNG.umriss, ring = FUEHRUNG.ring;
+    this.ringGeo = new THREE.RingGeometry(r - ring.band, r + ring.band, 96, 1).rotateX(-Math.PI / 2); // flach, oben vorn
+    // #ffd98a des SVG-Rings als Szenenwert vor ACES mit der Helligkeit 0.8: Er erscheint fast gleich (rund #f4cf8a)
+    // und bleibt unter der Bloom-Schwelle (ohne HDR liegt sie bei 0.8, dann im selben Mass dunkler), er leuchtet nicht
+    const k = Math.min(1, 0.95 * LOOK.bloomThreshold / 0.8);
+    this.ringMat = new THREE.ShaderMaterial({
+      uniforms: {
+        uFarbe: { value: new THREE.Color(1.5, 0.57, 0.13).multiplyScalar(k) },
+        uDunkel: { value: new THREE.Color(0.001, 0.001, 0.0025) }, // rgba(3, 3, 8) des Schattens
+        uR: { value: r }, uPhase: { value: 0 }, uBreite: { value: ring.normal.breite },
+        uDeckung: { value: ring.normal.deckung }, uPx: { value: renderer.getPixelRatio() },
+      },
+      vertexShader: UMRISS_VERTEX,
+      fragmentShader: UMRISS_FRAGMENT,
+      transparent: true,
+      depthWrite: false,
+      fog: false, // der Nebel verschluckte ihn weit weg (Handy hoch)
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, // nie im Brett (z-fighting)
+      extensions: { derivatives: true }, // dFdx, dFdy (WebGL1)
+    });
+  },
+  ringMesh() {
+    const m = new THREE.Mesh(this.ringGeo, this.ringMat);
+    m.position.y = FUEHRUNG.ring.hoehe;
+    m.renderOrder = 8; // nach den Durchsichtigen der Elemente (Lichtrand 7)
+    m.raycast = () => {};
+    m.layers.set(LAYER_NO_REFLECT); // nicht in der Spiegelung des Bretts
+    return m;
+  },
+  /**
+   * Das Programm des Umrisses übersetzen, während das Brett herauswächst (compileParallel wie warmupShaders): sonst
+   * stockte das erste Bild mit Umriss. Dazu hängt ein unsichtbarer Ring kurz in der Szene (three übersetzt mit ihren
+   * Lichtern und Schatten, wie es dann zeichnet), bis alles angestossen ist.
+   */
+  ringeVorwaermen() {
+    if (!this.ringMat) this.ringTeile();
+    const halter = this.ringHalter = this.ringMesh();
+    halter.visible = false;
+    scene.add(halter);
+    const weg = () => { scene.remove(halter); if (this.ringHalter === halter) this.ringHalter = null; };
+    compileParallel([scene], { skip: scene.children.filter((c) => c !== halter), slices: true,
+      alive: () => this.ringHalter === halter, issued: weg, was: 'Führung: Umriss' }).finally(weg);
+  },
+  /** Ende der Führung eines Bretts (gelöst, neues Brett): Umrisse aus der Szene, Geometrie und Material frei. */
+  ringeFrei() { this.ringeAb()(); },
+  /**
+   * Umrisse aus der Szene, ohne sie schon freizugeben: gibt das Freigeben zurück. neu gibt erst nach dem Vorwärmen der
+   * neuen frei, so behält three das Programm (gleicher Shader) und übersetzt es für die nächste Übung nicht noch einmal.
+   */
+  ringeAb() {
+    const geo = this.ringGeo, mat = this.ringMat;
+    if (!mat) return () => {};
+    for (const m of this.ringe) m.parent?.remove(m);
+    if (this.ringHalter) { scene.remove(this.ringHalter); this.ringHalter = null; }
+    this.ringe = [];
+    this.gezeigt = 0;
+    this.ringGeo = this.ringMat = null;
+    return () => { geo.dispose(); mat.dispose(); };
+  },
+  /** Die Ebene #fuehrung (beim ersten Gebrauch): die Hand mit ihren drei Gesten. */
   baueBild() {
     const tmp = document.createElement('div');
     // Finger: Kuppe im Ursprung, von unten rechts (wie im Katalog, in Pixeln); Maus mit der rechten Taste. Die Drehung
@@ -20260,40 +20386,30 @@ const fuehrung = {
     document.body.insertBefore(this.bild, $('hud')); // unter der Kopfzeile, über der Szene
   },
   /**
-   * Umriss und Hand an die Bildschirmlage ihrer Elemente (je Bild, solange sichtbar): Der Umriss liegt als Ring auf dem
-   * Brett und geht so mit Kamera, Zoom und Perspektive mit, die Hand behält ihre Grösse.
+   * Je Bild, solange sichtbar (dt in s): Die Striche der Umrisse laufen (eine Uniform; mit prefers-reduced-motion
+   * stehen sie), die Hand geht an die Bildschirmlage ihres Elements und behält ihre Grösse. Die Umrisse selbst gehen als
+   * Teil der Szene mit Kamera, Zoom und Perspektive mit.
    */
-  platziere() {
-    if (!this.bild) return;
-    const w = canvasEl.clientWidth, h = canvasEl.clientHeight, v = _fzMitte, p = _fzPunkt;
+  platziere(dt = 0) {
+    if (this.gezeigt && this.ringMat) {
+      const u = this.ringMat.uniforms, px = renderer.getPixelRatio();
+      if (!this.still.matches) u.uPhase.value = (u.uPhase.value - dt / FUEHRUNG.ring[this.spaet ? 'stark' : 'normal'].takt) % 1;
+      if (u.uPx.value !== px) u.uPx.value = px; // adaptive Auflösung
+    }
+    const obj = this.bild && this.handZiel && game.objects.get(this.handZiel.id);
+    if (!obj) return;
+    const w = canvasEl.clientWidth, h = canvasEl.clientHeight, v = _fzMitte;
     const box = `0 0 ${w} ${h}`;
     if (this.bild.getAttribute('viewBox') !== box) this.bild.setAttribute('viewBox', box);
     camera.updateMatrixWorld();
-    const schirm = (q) => { q.project(camera); return [(q.x + 1) / 2 * w, (1 - q.y) / 2 * h]; };
-    this.ziele.forEach((el, i) => {
-      const obj = game.objects.get(el.id);
-      if (!obj) return;
-      obj.getWorldPosition(v);
-      const r = FUEHRUNG.umriss * obj.scale.x;
-      let d = '';
-      for (let k = 0; k < FUEHRUNG.punkte; k++) {
-        const a = k / FUEHRUNG.punkte * 2 * Math.PI;
-        const [x, y] = schirm(p.set(v.x + r * Math.cos(a), v.y + 0.02, v.z + r * Math.sin(a)));
-        d += `${k ? 'L' : 'M'}${x.toFixed(1)} ${y.toFixed(1)}`;
-      }
-      d += 'Z';
-      if (this.umrisse[i].getAttribute('d') !== d) this.umrisse[i].setAttribute('d', d);
-    });
-    const obj = this.handZiel && game.objects.get(this.handZiel.id);
-    if (obj) {
-      obj.getWorldPosition(v);
-      const [x, y] = schirm(p.set(v.x, v.y + FUEHRUNG.kuppe * obj.scale.x, v.z));
-      const t = `translate(${x.toFixed(1)} ${y.toFixed(1)})`;
-      if (this.handEl.getAttribute('transform') !== t) this.handEl.setAttribute('transform', t);
-    }
+    obj.getWorldPosition(v);
+    v.y += FUEHRUNG.kuppe * obj.scale.x;
+    v.project(camera);
+    const t = `translate(${((v.x + 1) / 2 * w).toFixed(1)} ${((1 - v.y) / 2 * h).toFixed(1)})`;
+    if (this.handEl.getAttribute('transform') !== t) this.handEl.setAttribute('transform', t);
   },
 };
-const _fzMitte = new THREE.Vector3(), _fzPunkt = new THREE.Vector3();
+const _fzMitte = new THREE.Vector3();
 
 /** Sekunden als m:ss bzw. h:mm:ss. */
 function formatDuration(seconds) {
@@ -26949,7 +27065,7 @@ function animate(t, dt) {
   }
   beamView.tick(t, dt);
   updateTargetGoals();
-  if (fuehrung.sichtbar) fuehrung.platziere(); // Umriss und Hand gehen mit Kamera und Zoom
+  if (fuehrung.sichtbar) fuehrung.platziere(dt); // Striche der Umrisse laufen, die Hand geht mit Kamera und Zoom
 }
 
 // Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die
