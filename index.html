@@ -1233,7 +1233,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-09 strand-kamera-felsen';
+const APP_VERSION = '2026-11-10 dorf-blumenwiese';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -12974,7 +12974,10 @@ const SKY_ENTRIES = (() => {
       if (!Array.isArray(rings) || rings.length !== 9 || !rings.every((c) => Array.isArray(c) && c.length === 3 && c.every(Number.isFinite))) {
         throw new Error('sky.rings: 9 Farben');
       }
-      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, board: m.board, camera: m.camera,
+      // Die Brett-Angabe bekommt die Richtung des Hauptlichts im Panorama mit (light.dir): Bretter im Mondlicht
+      // (boardMoonlight) beleuchten sich aus der Richtung des Monds
+      const board = m.board && m.light?.dir ? { ...m.board, lightDir: m.light.dir } : m.board;
+      blender.push({ id: m.id, name: m.name, order: m.order, sky: m.sky, board, camera: m.camera,
         module: createPanoramaSky(m) });
       ids.add(m.id);
     } catch (e) { console.warn(`Skybox ${m?.id}: übersprungen (${e.message})`); }
@@ -14104,34 +14107,74 @@ function clayBoard(v) {
   };
 }
 
+/* ---------- Mondlicht auf dem Brett: für Moospolster und Hochbeet gleich, an einer Stelle ---------- */
+
+/**
+ * Mondlicht auf einem Brett (Moospolster im Wald, Hochbeet im Dorf; Wünsche vom 09. und 10.11.2026): ein kühles Licht aus
+ * der Richtung des Hauptlichts im Panorama (v.lightDir: light.dir des Himmels, SKY_ENTRIES gibt es der Brett-Angabe
+ * mit), nur auf dem Brett, zur Lampe des Spiels dazu. Es hellt auf, was zum Mond zeigt (v.moon), und zeichnet dort helle
+ * Kanten (v.moonRim, wie RIM der Bäume in toonInstances), auf der Fläche (floor) nur mit dem Anteil floorRim. Für
+ * MeshStandardMaterial und MeshLambertMaterial (nach lights_fragment_end).
+ */
+function boardMoonlight(materials, v, floor, floorRim) {
+  if (!v.lightDir) throw new Error('Mondlicht: Richtung des Monds fehlt (light.dir im Register)');
+  const lin = (c) => new THREE.Color().setRGB(c[0], c[1], c[2], THREE.SRGBColorSpace);
+  const uniforms = { uMoon: { value: lin(v.moon) }, uMoonRim: { value: lin(v.moonRim) },
+    uMoonDir: { value: new THREE.Vector3(...v.lightDir).normalize() } };
+  for (const m of materials) {
+    // three unterscheidet Programme nach onBeforeCompile.toString(): Die Hülle ist für alle Materialien dieselbe, also
+    // den Schlüssel des eigenen Codes behalten, dazu «mond» und die Stärke der Kante
+    const prev = m.onBeforeCompile, key = m.customProgramCacheKey(), rimK = m === floor ? floorRim : 1;
+    m.customProgramCacheKey = () => `${key}|mond${rimK}`;
+    m.onBeforeCompile = (shader, renderer) => {
+      prev.call(m, shader, renderer);
+      if (!shader.fragmentShader.includes('#include <lights_fragment_end>')) throw new Error('Mondlicht: Stelle fehlt');
+      Object.assign(shader.uniforms, uniforms);
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform vec3 uMoon, uMoonRim, uMoonDir;')
+        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+          {
+            vec3 toMoon = normalize((viewMatrix * vec4(uMoonDir, 0.0)).xyz);
+            float ml = dot(normal, toMoon);
+            // saturate statt max: Das Skalarprodukt liegt durch Rundung auch knapp über 1, pow(negativ) ist undefiniert
+            float mrim = pow(1.0 - saturate(dot(normal, geometry.viewDir)), 3.0) * smoothstep(-0.1, 0.4, ml);
+            reflectedLight.directDiffuse += uMoon * diffuseColor.rgb * max(ml, 0.0) + uMoonRim * (mrim * ${rimK.toFixed(2)});
+          }`);
+    };
+  }
+}
+
 /* ---------- Hochbeet (Art raisedBed): das Brett des Dorfs (Ticket 08) ---------- */
 
-// Masse des Hochbeets (m, als Kastenabstand von der Mitte). Das Brett ist das Hochbeet aus Noas Garten: Im Feld liegt
-// frisch gerechte Erde, das Raster sind Pflanzschnüre zwischen Holzpflöcken, statt der Einlegelinie liegt eine Reihe
-// Kiesel, dahinter wachsen Kräuter im Rand. Der Kasten ist aus Lärchenbohlen, oben liegt ein Abdeckbrett. Erde ist
-// matt: keine Spiegelung
+// Masse des Hochbeets (m, als Kastenabstand von der Mitte). Das Brett ist das Hochbeet aus Noas Garten: Im Feld wächst
+// eine Blumenwiese (Wunsch vom 10.11.2026, vorher frisch gerechte Erde), das Raster sind Pflanzschnüre zwischen
+// Holzpflöcken, statt der Einlegelinie liegt eine Reihe Kiesel, dahinter wachsen Kräuter im Rand. Der Kasten ist aus
+// Lärchenbohlen, oben liegt ein Abdeckbrett. Wiese und Erde sind matt: keine Spiegelung
 const BED = {
   peg: BOARD / 2 + 0.07,      // Pflöcke an den Enden der Schnüre
   pebbles: BOARD / 2 + 0.16,  // Mitte der Kieselreihe
   herbs: [BOARD / 2 + 0.2, PLATE / 2 - 0.13], // Streifen der Kräuter, aussen beginnt das Abdeckbrett
-  cap: 0.08,                  // Abdeckbrett: so hoch über der Erde
+  cap: 0.08,                  // Abdeckbrett: so hoch über der Fläche
   depth: 0.6,                 // Kasten unter der Erde: drei Bohlen zu 20 cm
   sideTex: [1024, 128],       // Bohlen der Seiten (u über PLATE, v über depth)
   capTex: [1024, 32],         // Abdeckbrett (u über die Länge, v über die Breite)
   flies: [260, 160],          // Glühwürmchen über den Kräutern und über dem Feld (Lichtwelle)
   sproutsEnd: 1.9,            // so lange (s nach dem Start des Rings) keimen Sämlinge, danach nicht gezeichnet
   fliesEnd: 4.4,              // ebenso Glühwürmchen
+  moonRimFloor: 0.1,          // Mondkante auf der Fläche: kaum (bei flachem Blick wirkte die Erde sonst wie grauer Beton)
 };
 // Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
-const BED_VALUES = ['soil', 'mulch', 'cord', 'pebble', 'larch', 'peg', 'chive', 'thyme', 'lettuce', 'marigold',
-  'blossom', 'sprout', 'firefly'];
+const BED_VALUES = ['soil', 'mulch', 'grass', 'grassTip', 'daisy', 'daisyHeart', 'clover', 'cord', 'pebble', 'larch', 'peg',
+  'chive', 'thyme', 'lettuce', 'marigold', 'blossom', 'sprout', 'firefly', 'moon', 'moonRim'];
 
 /**
- * Farbe und Normalen des Hochbeets (raisedBedBoard), ohne Bezug auf das übrige Spiel (Worker). Formeln und Farben aus dem
- * Katalog (katalog-dorf, 4-hochbeet.js). Feld size² über das ganze Brett (Zeile j bei uv.y = (j + ½) / size, also z von
- * +plate/2 nach −plate/2): dunkle Erde in zwei Tönen (soil) mit Krumen, im Feld die Spuren des Rechens, im Rand Mulch
- * (mulch), da und dort ein Steinchen. Seiten sideW × sideH: Lärchenbohlen (larch, zwei Töne) mit Fugen und Schrauben, das
- * Abdeckbrett capW × capH ebenso. Farben sRGB 0 … 1 (v: Werte der Brett-Angabe).
+ * Farbe und Normalen des Hochbeets (raisedBedBoard), ohne Bezug auf das übrige Spiel (Worker). Formeln aus dem Katalog
+ * (katalog-dorf, 4-hochbeet.js), die Wiese aus der Vorschau vom 10.11.2026 (PLAN). Feld size² über das ganze Brett
+ * (Zeile j bei uv.y = (j + ½) / size, also z von +plate/2 nach −plate/2): im Feld eine Wiese aus Grasbüscheln (grass
+ * [dunkel, hell], Spitzen grassTip) mit dunklen Lücken, Gänseblümchen und Klee in Grüppchen; im Rand dunkle Erde in
+ * zwei Tönen (soil) mit Krumen und Mulch (mulch), da und dort ein Steinchen. Seiten sideW × sideH: Lärchenbohlen
+ * (larch, zwei Töne) mit Fugen und Schrauben, das Abdeckbrett capW × capH ebenso. Farben sRGB 0 … 1 (v: Werte der
+ * Brett-Angabe).
  */
 function raisedBedData({ size, plate, half, rim, sideW, sideH, capW, capH, depth, v }) {
   const hash = (x, y, s) => {
@@ -14154,25 +14197,72 @@ function raisedBedData({ size, plate, half, rim, sideW, sideH, capW, capH, depth
   const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const put = (out, k, c) => { out[k] = c[0] * 255; out[k + 1] = c[1] * 255; out[k + 2] = c[2] * 255; out[k + 3] = 255; };
 
-  const n = size * size, texel = plate / size, grit = mix(v.soil[0], v.pebble, 0.25);
+  const n = size * size, texel = plate / size, grit = mix(v.soil[0], v.pebble, 0.25), field = half + 0.02;
+  const ground = [v.grass[0].map((x) => x * 0.35), v.grass[0].map((x) => x * 0.7)]; // Grund der Wiese
   const color = new Uint8ClampedArray(n * 4), height = new Float32Array(n);
   for (let j = 0; j < size; j++) {
     const z = plate / 2 - (j + 0.5) * texel;
     for (let i = 0; i < size; i++) {
       const x = -plate / 2 + (i + 0.5) * texel, k = j * size + i, box = Math.max(Math.abs(x), Math.abs(z));
-      const crumb = noise(x * 70, z * 70, 412), clod = fbm(x * 9, z * 9, 3, 413);
+      const clod = fbm(x * 9, z * 9, 3, 413);
+      if (box < field) { // Wiese: Grund zwischen den Grasbüscheln (dunkles Gras), die Büschel folgen unten
+        put(color, k * 4, mix(ground[0], ground[1], clod));
+        height[k] = (clod - 0.5) * 0.002;
+        continue;
+      }
+      const crumb = noise(x * 70, z * 70, 412);
       let c = mix(v.soil[1], v.soil[0], clod * 0.7 + crumb * 0.5);
       let h = (crumb - 0.5) * 0.002 + (clod - 0.5) * 0.004;
-      if (box < half + 0.02) { // Spuren des Rechens
-        const rake = Math.sin(z * 2 * Math.PI / 0.06 + fbm(x * 0.8, z * 0.8, 2, 414) * 3);
-        h += rake * 0.0012;
-        c = c.map((x) => x * (1 + rake * 0.05));
-      } else if (box < rim) { // Mulch, Stroh zwischen den Kräutern
+      if (box < rim) { // Mulch, Stroh zwischen den Kräutern
         c = mix(c, v.mulch, smooth(0.55, 0.8, noise(x * 30, z * 30, 415)) * 0.6);
       }
       if (crumb > 0.93) c = grit; // Steinchen
       put(color, k * 4, c);
       height[k] = h;
+    }
+  }
+  // Grasbüschel etwa alle 4,5 cm: Halme strahlen von einer Mitte aus und werden zur Spitze heller (grassTip); grosse
+  // Flecken heller und dunkler, jedes Büschel etwas anders. Die Mitten liegen im Feld, an seinem Rand reichen Halme bis
+  // 6 cm auf die Erde
+  let seed = 977;
+  const r = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+  const at = (x, z) => [Math.round((x + plate / 2) / texel - 0.5), Math.round((plate / 2 - z) / texel - 0.5)];
+  const gap = 0.045;
+  for (let gz = -field; gz < field; gz += gap) {
+    for (let gx = -field; gx < field; gx += gap) {
+      const x0 = gx + r() * gap, z0 = gz + r() * gap;
+      if (Math.max(Math.abs(x0), Math.abs(z0)) > field) continue;
+      const patch = fbm(x0 * 0.9, z0 * 0.9, 3, 416), q = (0.7 + patch * 0.6) * (0.85 + r() * 0.3) * 255;
+      const base = mix(v.grass[0], v.grass[1], smooth(0.3, 0.75, patch) * 0.8 + r() * 0.2);
+      const blades = 9 + Math.floor(r() * 8), reach = 0.02 + r() * 0.035, [i0, j0] = at(x0, z0);
+      for (let b = 0; b < blades; b++) {
+        const lay = r() * 6.283, len = (reach * (0.5 + r() * 0.7)) / texel, dx = Math.cos(lay), dz = Math.sin(lay);
+        for (let t = 0; t <= len; t++) { // ohne Arrays je Pixel (mit ihnen dauerte es doppelt so lange)
+          const i = Math.round(i0 + dx * t), j = Math.round(j0 - dz * t);
+          if (i < 0 || j < 0 || i >= size || j >= size) break;
+          const f = t / len, k = j * size + i, dark = 0.75 + f * 0.25, w = f * f * 0.7;
+          for (let ch = 0; ch < 3; ch++) color[k * 4 + ch] = (base[ch] * dark * (1 - w) + v.grassTip[ch] * w) * q;
+          height[k] = Math.max(height[k], 0.004 * (1 - f * 0.5));
+        }
+      }
+    }
+  }
+  // Blumen, 14 je m²: Gänseblümchen (daisy, Mitte daisyHeart) und Klee (clover), je ein kleiner Tupfer, in Grüppchen um
+  // wenige Mitten verstreut, dazwischen einzelne
+  const flowers = Math.round((2 * field) ** 2 * 14);
+  const groups = Array.from({ length: Math.round(flowers / 25) }, () => [(r() * 2 - 1) * field, (r() * 2 - 1) * field]);
+  for (let b = 0; b < flowers; b++) {
+    const g = groups[Math.floor(r() * groups.length)], lone = r() < 0.2, sp = 0.05 + r() * 0.2, a = r() * 6.283;
+    const x0 = lone ? (r() * 2 - 1) * field : g[0] + Math.cos(a) * sp, z0 = lone ? (r() * 2 - 1) * field : g[1] + Math.sin(a) * sp;
+    if (Math.max(Math.abs(x0), Math.abs(z0)) > field) continue;
+    const [i0, j0] = at(x0, z0), clover = r() < 0.35, rad = (clover ? 0.006 : 0.008) / texel + 0.5;
+    for (let dj = -Math.ceil(rad); dj <= Math.ceil(rad); dj++) {
+      for (let di = -Math.ceil(rad); di <= Math.ceil(rad); di++) {
+        const d = Math.hypot(di, dj), i = i0 + di, j = j0 + dj;
+        if (d > rad || i < 0 || j < 0 || i >= size || j >= size) continue;
+        put(color, (j * size + i) * 4, clover ? v.clover : d < rad * 0.4 ? v.daisyHeart : v.daisy);
+        height[j * size + i] = 0.002;
+      }
     }
   }
   // Normalen im Raum der Textur (+u = +x, +v = −z): (−∂h/∂u, −∂h/∂v, 1)
@@ -14249,15 +14339,18 @@ function bedInstances(geo, material, list, color) {
 }
 
 /**
- * Hochbeet (Art raisedBed, Dorf; Ticket 08, aus dem Katalog gewählt: Karte 4): Im Feld frisch gerechte, dunkle Erde
- * (Texturen aus dem Hintergrund-Thread, raisedBedData), das Raster sind helle Pflanzschnüre zwischen Holzpflöcken
- * (BED_CORD_GLSL, Pflöcke als Instanzen), statt der Einlegelinie eine Reihe heller Kiesel. Im Rand wachsen Kräuter:
- * Schnittlauch mit lila Blüten, Thymian, Ringelblumen und Salat (je als Instanzen). Die Seiten sind Lärchenbohlen, oben
- * liegt ein Abdeckbrett 8 cm über der Erde. Erde ist matt: keine Spiegelung (mirror null).
- * Lichtwelle (Katalog Version 2): Wo der Ring ankommt, leuchtet die Erde auf und die Schnüre mit, neben den Schnüren
- * keimen Reihen von Sämlingen auf (rund 1100), und Glühwürmchen steigen aus Erde und Kräutern (420). Hinter dem Ring ziehen
+ * Hochbeet (Art raisedBed, Dorf; Ticket 08, aus dem Katalog gewählt: Karte 4): Im Feld eine Blumenwiese mit
+ * Gänseblümchen und Klee (Wunsch vom 10.11.2026, vorher frisch gerechte Erde; Texturen aus dem Hintergrund-Thread,
+ * raisedBedData), das Raster sind helle Pflanzschnüre zwischen Holzpflöcken (BED_CORD_GLSL, Pflöcke als Instanzen),
+ * statt der Einlegelinie eine Reihe heller Kiesel. Im Rand wachsen Kräuter in Erde mit Mulch: Schnittlauch mit lila
+ * Blüten, Thymian, Ringelblumen und Salat (je als Instanzen). Die Seiten sind Lärchenbohlen, oben liegt ein Abdeckbrett
+ * 8 cm über dem Feld. Wiese und Erde sind matt: keine Spiegelung (mirror null).
+ * Lichtwelle (Katalog Version 2): Wo der Ring ankommt, leuchtet die Wiese auf und die Schnüre mit, neben den Schnüren
+ * keimen Reihen von Sämlingen auf (rund 1100), und Glühwürmchen steigen aus Wiese und Kräutern (420). Hinter dem Ring ziehen
  * sich die Keimlinge in die Erde zurück, die Glühwürmchen schweben noch kurz und verlöschen. Alles folgt der Ankunft des
- * Rings (shockClock, uShockT − Abstand / SHOCK_SPEED), nicht seiner Stärke. v: Werte der Brett-Angabe (BED_VALUES).
+ * Rings (shockClock, uShockT − Abstand / SHOCK_SPEED), nicht seiner Stärke. Das Hochbeet liegt im Mondlicht des Dorfs
+ * (Wunsch vom 10.11.2026, es wirkte zu grell für die Nacht): kühle Farben aus der Brett-Angabe und ein Licht aus der
+ * Richtung des Monds mit hellen Kanten (boardMoonlight). v: Werte der Brett-Angabe (BED_VALUES, sRGB; dazu lightDir).
  */
 function raisedBedBoard(v) {
   for (const k of BED_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
@@ -14278,7 +14371,7 @@ function raisedBedBoard(v) {
         wAfter = wAge > 0.0 ? exp(-wAge * 3.0) * uBed.y : 0.0;
       }`;
 
-  // Oberfläche: Erde, Mulch, Schnüre und ihr Schatten; mit der Lichtwelle leuchten Erde und Schnüre auf
+  // Oberfläche: Wiese, im Rand Erde und Mulch, Schnüre und ihr Schatten; mit der Lichtwelle leuchten Fläche und Schnüre auf
   const floorMaterial = new THREE.MeshStandardMaterial({
     color: 0xffffff, map: tex.map, normalMap: tex.normalMap, normalScale: new THREE.Vector2(1, 1), roughness: 0.97,
     metalness: 0, envMapIntensity: 0.3,
@@ -14303,7 +14396,7 @@ function raisedBedBoard(v) {
   floorTop.rotation.x = -Math.PI / 2;
   floorTop.receiveShadow = true;
 
-  // Kasten aus Lärchenbohlen ohne Deckfläche (die Erde liegt bündig darauf), Oberkante in y = 0. Im Spiel fällt kaum Licht
+  // Kasten aus Lärchenbohlen ohne Deckfläche (die Fläche liegt bündig darauf), Oberkante in y = 0. Im Spiel fällt kaum Licht
   // auf senkrechte Flächen; ein Teil der Farbe leuchtet selbst, sonst stünden sie schwarz im Bild
   const wood = (map, glow) => new THREE.MeshStandardMaterial({ map, emissiveMap: map,
     emissive: new THREE.Color().setScalar(glow), roughness: 0.9, envMapIntensity: 1.2 });
@@ -14502,6 +14595,9 @@ function raisedBedBoard(v) {
   // Überblenden: boardBlend (für alle Arten gleich); die Glühwürmchen blenden mit dem Anteil (uBed.x)
   const all = [floorMaterial, sideMat, capMat, plantMat, sproutMat];
 
+  // Mondlicht aus der Richtung des Monds im Panorama, mit hellen Kanten auf der Mondseite (auf der Fläche schwächer)
+  boardMoonlight(all, v, floorMaterial, BED.moonRimFloor);
+
   const textures = [tex.map, tex.normalMap, tex.side, tex.cap];
   return {
     group,
@@ -14535,7 +14631,6 @@ const MOSS = {
   roots: 70,            // Wurzeln unter der Scholle
   flowers: 1500,        // Blumen der Lichtwelle (Waldsauerklee), unsichtbar in Ruhe
   flowerEnd: 2.2,       // so lange (s nach dem Start des Rings) blühen Blumen, danach nicht gezeichnet
-  moonDir: [-0.8197, 0.5123, 0.2562], // zum Mond: light.dir des Walds im Register (ein Logiktest vergleicht)
   moonRimFloor: 0.3,    // Mondkante auf der Fläche: nur ein Hauch, bei flachem Blick glänzte sie sonst wie Raureif
 };
 // Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
@@ -14764,8 +14859,8 @@ function mossFlowers(list, petal, heart) {
  * welken hinter ihm wieder (mossFlowers), die Helmlinge leuchten auf, über das Moos läuft ein grünlich-goldener Schein.
  * Alles folgt der Ankunft des Rings (shockClock), nicht seiner Stärke. Das Brett liegt im Mondlicht des Walds (Wunsch
  * vom 09.11.2026): blaugrüne Farben aus der Brett-Angabe und ein kühles Licht aus der Richtung des Monds (moon), das auf
- * der Mondseite helle Kanten zeichnet (moonRim) wie bei den Bäumen (toonInstances). v: Werte der Brett-Angabe
- * (MOSS_VALUES, sRGB).
+ * der Mondseite helle Kanten zeichnet (moonRim) wie bei den Bäumen (toonInstances; boardMoonlight). v: Werte der
+ * Brett-Angabe (MOSS_VALUES, sRGB; dazu lightDir, die Richtung des Monds).
  */
 function mossBoard(v) {
   for (const k of MOSS_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
@@ -14955,31 +15050,8 @@ function mossBoard(v) {
   // Überblenden: boardBlend (für alle Arten gleich); die Blumen stehen nur ohne Überblenden
   const all = [floorMaterial, sideMaterial, cushionMat, capMat, stemMat, frondMat, rootMat];
 
-  // Mondlicht: kühles Licht aus der Richtung des Monds im Panorama, nur auf dem Brett, zur Lampe des Spiels dazu. Es
-  // hellt auf, was zum Mond zeigt (moon), und zeichnet dort helle Kanten (moonRim, wie RIM der Bäume in toonInstances)
-  const uMoon = { value: lin(v.moon) }, uMoonRim = { value: lin(v.moonRim) };
-  const uMoonDir = { value: new THREE.Vector3(...MOSS.moonDir).normalize() };
-  for (const m of all) {
-    // three unterscheidet Programme nach onBeforeCompile.toString(): Die Hülle ist für alle Materialien dieselbe, also
-    // den Schlüssel des eigenen Codes behalten, dazu «mond» und die Stärke der Kante (auf der Fläche schwächer)
-    const prev = m.onBeforeCompile, key = m.customProgramCacheKey(), rimK = m === floorMaterial ? MOSS.moonRimFloor : 1;
-    m.customProgramCacheKey = () => `${key}|mond${rimK}`;
-    m.onBeforeCompile = (shader, renderer) => {
-      prev.call(m, shader, renderer);
-      if (!shader.fragmentShader.includes('#include <lights_fragment_end>')) throw new Error('Mondlicht: Stelle fehlt');
-      Object.assign(shader.uniforms, { uMoon, uMoonRim, uMoonDir });
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform vec3 uMoon, uMoonRim, uMoonDir;')
-        .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
-          {
-            vec3 toMoon = normalize((viewMatrix * vec4(uMoonDir, 0.0)).xyz);
-            float ml = dot(normal, toMoon);
-            // saturate statt max: Das Skalarprodukt liegt durch Rundung auch knapp über 1, pow(negativ) ist undefiniert
-            float mrim = pow(1.0 - saturate(dot(normal, geometry.viewDir)), 3.0) * smoothstep(-0.1, 0.4, ml);
-            reflectedLight.directDiffuse += uMoon * diffuseColor.rgb * max(ml, 0.0) + uMoonRim * (mrim * ${rimK.toFixed(2)});
-          }`);
-    };
-  }
+  // Mondlicht aus der Richtung des Monds im Panorama, mit hellen Kanten auf der Mondseite (auf der Fläche schwächer)
+  boardMoonlight(all, v, floorMaterial, MOSS.moonRimFloor);
 
   const textures = [tex.map, tex.normalMap, tex.side, tex.cushion];
   return {

@@ -6,9 +6,9 @@
 # warme Fenster, Kirchturm, Laternen am Weg, Bergwald, verschneite Gipfel, Sterne (die Milchstrasse des Prologs nicht).
 # Aufbau: Das Brett schwebt über der Wiese hinter Noas Haus, auf einer Terrasse am Berghang. Das Haus steht gut 20 m
 # hinter dem Brett (+y) und kehrt ihm die Rückseite zu: Hintertür mit Lampe, Fenster mit Läden, Holzstapel, Bank, ein
-# Zaun um den Garten, ein Hochbeet. Das Spiel zeichnet Haus, Zaun, Hochbeet und die drei Nachbarhäuser selbst (Sammlung
-# „Spiel“, bakedMesh): Aus dem Mittelpunkt des
-# Panoramas gesehen lägen sie schräg, ihre Kanten rissen auf. Das Panorama zeigt dahinter das Dorf am Hang (ab 95 m:
+# Zaun um den Garten, ein Hochbeet, Kühe im Garten ums Brett. Das Spiel zeichnet Haus, Zaun, Hochbeet, Kühe (im Netz des
+# Hauses) und die drei Nachbarhäuser selbst (Sammlung „Spiel“, bakedMesh): Aus dem Mittelpunkt des Panoramas gesehen
+# lägen sie schräg, ihre Kanten rissen auf. Das Panorama zeigt dahinter das Dorf am Hang (ab 95 m:
 # näher hochragende Formen rissen im Netz der Tiefe auf, PANO.dMax 88 m), den Kirchturm, den Laternenweg, rechts und
 # hinten den Waldrand, links Noas Hügel, über dem Tal die Gipfel mit Schnee.
 # Licht: kein Mond am Himmel, aber kühles Mondlicht von hinten links (MOON), dazu das warme Licht der Fenster.
@@ -731,6 +731,368 @@ def fence_mesh(V, F, M):
                 _beam(V, F, M, (*q0, z0 + hz), (*q1, z1 + hz), 0.06, 0.09, 1)
 
 
+# ---------------------------------------------------------------- Kühe im Garten (im Netz von Noas Haus)
+
+# Ein paar Kühe weiden im Garten rund ums Brett (Wunsch vom 10.11.2026: der Garten wirkte leer). Schweizer Rassen:
+# Braunvieh (mausgrau-braun, dunkles Flotzmaul mit hellem Ring, helle Hörner mit dunkler Spitze) und Fleckvieh
+# (rotbraun gefleckt, Kopf, Bauch und Beine weiss); die grossen tragen eine Glocke am Lederriemen. Rumpf, Hals und Kopf
+# sind Metaballs (weich verschmolzen), Beine, Hörner, Ohren, Augen, Schwanz und Glocke eigene Formen. Die Kühe gehören
+# zum Netz von Noas Haus und teilen sein Bild (ein eigenes sprengte die 300 MB Grafikspeicher des Dorfs), liegen darauf
+# aber COW_TEXEL-mal dichter (Seitenlänge) als das Haus.
+# Je Kuh: Ort x, y, Blickrichtung (Grad, 0 = +x, gegen den Uhrzeiger), Rasse, Haltung, Grösse, Zufall. Die Orte sind
+# aus den Spielansichten gewählt (das Brett füllt das Bild fast): hinter dem Brett sieht man sie von oben und auf dem
+# Handy, seitlich nah am Brett von oben und flach, vorne auf dem Handy
+COWS = [(1.9, 10.6, 160.0, 'fleck', 'graze', 1.0, 1),
+        (6.6, 3.6, 215.0, 'braun', 'stand', 1.0, 2),
+        (-6.8, 3.4, 80.0, 'braun', 'lie', 1.0, 3),
+        (1.4, -6.9, 190.0, 'fleck', 'graze', 0.96, 4),
+        (3.6, -5.6, 205.0, 'fleck', 'calf', 0.62, 5)]
+COW_TEXEL = 4.0
+HOUSE_UV = 0.0070   # Dichte von Noas Haus auf seinem Bild (UV je m; 14 Texel je m bei 2048), wie vor den Kühen
+COW_RES = 0.05    # Auflösung der Metaballs (m) bei Grösse 1
+K_MB = 0.575      # Metaball allein (Steifheit 2, Schwelle 0.6): die Fläche liegt bei 0.575 · Radius
+# Farben sRGB (in cow_mesh linear umgerechnet)
+COW_BRAUN = {'fell': (0.49, 0.40, 0.32), 'dunkel': (0.36, 0.29, 0.23), 'hell': (0.62, 0.54, 0.45),
+             'ring': (0.86, 0.83, 0.75), 'nase': (0.15, 0.14, 0.15), 'bein': (0.29, 0.24, 0.20),
+             'huf': (0.08, 0.07, 0.065), 'quaste': (0.13, 0.11, 0.10)}
+COW_FLECK = {'rot': (0.52, 0.25, 0.11), 'weiss': (0.80, 0.78, 0.74), 'maul': (0.74, 0.57, 0.52),
+             'huf': (0.55, 0.47, 0.36)}
+COW_HORN = ((0.86, 0.81, 0.68), (0.80, 0.74, 0.60), (0.55, 0.47, 0.38), (0.12, 0.10, 0.09))
+COW_EYE = (0.025, 0.022, 0.024)
+COW_UDDER = (0.66, 0.52, 0.49)
+COW_STRAP = (0.16, 0.09, 0.05)
+
+
+def _rot(axis, deg):
+    from mathutils import Matrix
+    return np.array(Matrix.Rotation(math.radians(deg), 3, axis))
+
+
+def _srgb_lin(c):
+    c = np.asarray(c, float)
+    return np.where(c <= 0.04045, c / 12.92, ((c + 0.055) / 1.055) ** 2.4)
+
+
+def cow_parts(pose, calf=False):
+    """Teile einer Kuh in eigenen Koordinaten (x nach vorn, y nach links, z nach oben, Boden z = 0): Metaballs
+    [(art, tag, …)] – ('E', tag, Mitte, Halbachsen, Drehung 3×3) oder ('C', tag, a, b, Radius) –, eigene Formen
+    [(art, tag, …)] – ('T', tag, Punkte, Radien, Farben je Ring oder None) Röhre, ('S', tag, Mitte, Halbachsen, Drehung)
+    Ellipsoid –, dazu der Kopf (Genick H, Drehung R: Kopf-x zum Maul, Kopf-z zur Stirn), der Hals (a, b) für Riemen und
+    Glocke und dz (so viel tiefer liegt der Rumpf, liegend)."""
+    I = np.eye(3)
+    lie = pose == 'lie'
+    dz = -0.50 if lie else 0.0
+    mb = [('E', 'body', (0.00, 0, 1.00), (0.62, 0.30, 0.33), I),
+          ('E', 'body', (0.40, 0, 1.02), (0.36, 0.29, 0.36), I),
+          ('E', 'body', (-0.46, 0, 1.06), (0.38, 0.29, 0.30), I),
+          ('E', 'belly', (-0.02, 0, 0.88), (0.50, 0.38 if lie else 0.31, 0.30 if lie else 0.26), I),
+          ('E', 'body', (0.42, 0, 1.24), (0.24, 0.15, 0.12), I),                 # Widerrist
+          ('E', 'body', (-0.48, 0.20, 1.27), (0.10, 0.08, 0.07), I),             # Hüfthöcker
+          ('E', 'body', (-0.48, -0.20, 1.27), (0.10, 0.08, 0.07), I),
+          ('E', 'body', (-0.80, 0, 1.17), (0.10, 0.17, 0.15), I)]                # Sitzbein, Schwanzansatz
+    mb = [(k, t, (c[0], c[1], c[2] + dz), s, R) for k, t, c, s, R in mb]
+    ex = []
+    if lie:
+        mb += [('E', 'thigh', (-0.45, 0.27, 0.40), (0.32, 0.15, 0.24), I),
+               ('E', 'leg', (0.42, 0.15, 0.24), (0.12, 0.09, 0.12), I), ('E', 'leg', (0.42, -0.15, 0.24), (0.12, 0.09, 0.12), I)]
+        ex += [('T', 'leg', [(0.40, 0.16, 0.22), (0.60, 0.19, 0.09), (0.36, 0.22, 0.055), (0.24, 0.22, 0.055)],
+                [0.085, 0.07, 0.05, 0.05], None),
+               ('T', 'hoof', [(0.25, 0.22, 0.055), (0.15, 0.22, 0.05)], [0.055, 0.066], None),
+               ('T', 'leg', [(0.40, -0.16, 0.22), (0.64, -0.17, 0.09), (0.92, -0.16, 0.055), (1.02, -0.16, 0.055)],
+                [0.085, 0.07, 0.05, 0.05], None),
+               ('T', 'hoof', [(1.01, -0.16, 0.055), (1.11, -0.16, 0.05)], [0.055, 0.066], None),
+               ('T', 'leg', [(-0.62, 0.30, 0.24), (-0.80, 0.33, 0.10), (-0.45, 0.42, 0.055), (-0.30, 0.43, 0.055)],
+                [0.09, 0.065, 0.05, 0.05], None),
+               ('T', 'hoof', [(-0.31, 0.43, 0.055), (-0.21, 0.44, 0.05)], [0.055, 0.066], None),
+               ('T', 'tail', [(-0.83, 0, 0.66), (-0.90, -0.10, 0.42), (-0.84, -0.24, 0.12), (-0.62, -0.34, 0.05)],
+                [0.045, 0.035, 0.03, 0.025], None),
+               ('S', 'tuft', (-0.48, -0.37, 0.045), (0.12, 0.045, 0.035), _rot('Z', -12))]
+        H, pitch, yaw = np.array((0.94, 0.0, 0.88)), 32.0, 18.0
+        neck = [((0.50, 0, 0.58), (0.84, 0, 0.75), 0.21), ((0.78, 0, 0.74), (0.92, 0, 0.84), 0.16)]
+    else:
+        mb += [('E', 'leg', (0.44, s * 0.16, 0.64), (0.10, 0.085, 0.22), I) for s in (1, -1)]
+        mb += [('E', 'thigh', (-0.56, s * 0.155, 0.82), (0.22, 0.12, 0.30), I) for s in (1, -1)]
+        if not calf:
+            mb.append(('E', 'udder', (-0.36, 0, 0.64), (0.17, 0.15, 0.10), I))
+        step = 0.07 if pose == 'graze' else 0.0
+        for s, dx in ((1, step), (-1, -step * 0.4)):
+            fx = 0.44 + dx
+            ex += [('T', 'leg', [(fx, s * 0.16, 0.66), (fx + 0.01, s * 0.16, 0.40), (fx + 0.02, s * 0.155, 0.13),
+                                 (fx + 0.05, s * 0.155, 0.075)], [0.085, 0.068, 0.05, 0.052], None),
+                   ('T', 'hoof', [(fx + 0.05, s * 0.155, 0.085), (fx + 0.08, s * 0.155, -0.01)], [0.055, 0.068], None)]
+        for s, dx in ((1, -0.03), (-1, 0.05 if pose == 'graze' else 0.0)):
+            hx = -0.58 + dx
+            ex += [('T', 'leg', [(hx, s * 0.16, 0.72), (hx - 0.08, s * 0.16, 0.46), (hx - 0.03, s * 0.155, 0.13),
+                                 (hx, s * 0.155, 0.075)], [0.09, 0.065, 0.05, 0.052], None),
+                   ('T', 'hoof', [(hx, s * 0.155, 0.085), (hx + 0.03, s * 0.155, -0.01)], [0.055, 0.068], None)]
+        sway = 0.06 if pose == 'graze' else -0.04
+        ex += [('T', 'tail', [(-0.80, 0, 1.28), (-0.90, 0, 1.12), (-0.93, sway * 0.4, 0.85), (-0.92, sway, 0.58)],
+                [0.04, 0.03, 0.022, 0.02], None),
+               ('S', 'tuft', (-0.92, sway * 1.1, 0.48), (0.045, 0.045, 0.12), I)]
+        if pose == 'graze':
+            H, pitch, yaw = np.array((1.08, 0.0, 0.66)), 78.0, -8.0
+            neck = [((0.55, 0, 1.05), (0.90, 0, 0.84), 0.21), ((0.84, 0, 0.88), (1.03, 0, 0.71), 0.16)]
+        else:
+            H, pitch, yaw = np.array((1.02, 0.0, 1.36)), 40.0, 22.0
+            neck = [((0.55, 0, 1.08), (0.92, 0, 1.22), 0.21), ((0.80, 0, 1.18), (0.98, 0, 1.30), 0.16)]
+    for a, b, r in neck:
+        mb.append(('C', 'neck', a, b, r))
+    mb.append(('E', 'dewlap', tuple(np.add(neck[0][0], neck[0][1]) / 2 + (0.08, 0, -0.20)), (0.15, 0.05, 0.16), I))
+    R = _rot('Z', yaw) @ _rot('Y', pitch)
+    hs = 1.2 if calf else 1.0   # Kalb: grösserer Kopf
+
+    def head(p):
+        return tuple(H + R @ (np.array(p, float) * hs))
+    mb += [('E', 'head', head((0.0, 0, 0.0)), tuple(np.array((0.15, 0.135, 0.135)) * hs), R),
+           ('C', 'head', head((0.04, 0, -0.02)), head((0.30, 0, -0.04)), 0.095 * hs),
+           ('E', 'muzzle', head((0.37, 0, -0.045)), tuple(np.array((0.085, 0.115, 0.085)) * hs), R),
+           ('E', 'head', head((0.17, 0, -0.11)), tuple(np.array((0.15, 0.07, 0.06)) * hs), R),
+           ('E', 'head', head((-0.04, 0, 0.07)), tuple(np.array((0.08, 0.13, 0.06)) * hs), R)]
+    mb += [('E', 'head', head((0.10, s * 0.065, -0.08)), tuple(np.array((0.10, 0.065, 0.085)) * hs), R) for s in (1, -1)]
+    for s in (1, -1):
+        # Ohren waagrecht zur Seite, flach quer zum Gesicht, die Spitzen hängen etwas
+        ex.append(('S', 'ear', head((-0.01, s * 0.20, 0.0)), tuple(np.array((0.028, 0.11, 0.055)) * hs * (1.15 if calf else 1)),
+                   R @ _rot('X', s * -15.0)))
+        if not calf:
+            ex.append(('T', 'horn', [head((-0.02, s * 0.10, 0.09)), head((0.0, s * 0.17, 0.14)), head((0.05, s * 0.21, 0.21)),
+                                     head((0.11, s * 0.20, 0.25))], [0.032, 0.025, 0.017, 0.006], COW_HORN))
+    if calf:   # kürzerer Rumpf: hinten gestaucht, Brust, Hals und Kopf rücken unverändert nach (stetig bei x = 0.5)
+        kx = lambda p: (p[0] * 0.88 if p[0] < 0.5 else p[0] - 0.06, *p[1:])
+        mb = [(k, t, kx(p), q, r) if k == 'E' else (k, t, kx(p), kx(q), r) for k, t, p, q, r in mb]   # E: Mitte; C: a, b
+        ex = [(k, t, [kx(p) for p in a], *r) if k == 'T' else (k, t, kx(a), *r) for k, t, a, *r in ex]
+        H = np.array(kx(H)); neck = [(kx(a), kx(b), r) for a, b, r in neck]
+    return mb, ex, (H, R, hs), neck[0][:2], dz
+
+
+def _snap(V, target, center):
+    """Ecke der Fläche V am nächsten bei target; dazu die Richtung von center (Achse innen) zu ihr"""
+    i = np.argmin(np.linalg.norm(V - target, axis=1))
+    n = V[i] - center
+    return V[i], n / np.linalg.norm(n)
+
+
+def _mb_field(mb, P):
+    """Beitrag jedes Metaballs an den Punkten P (n × 3), wie Blender ihn rechnet ((1 − d²)³)"""
+    out = np.zeros((len(mb), len(P)))
+    for i, e in enumerate(mb):
+        if e[0] == 'E':
+            _, _, c, semi, R = e
+            q = (P - np.array(c)) @ np.array(R) / (np.array(semi) / K_MB)
+            d2 = (q * q).sum(1)
+        else:
+            _, _, a, b, r = e
+            a, b = np.array(a, float), np.array(b, float)
+            t = np.clip(((P - a) @ (b - a)) / ((b - a) @ (b - a)), 0, 1)
+            d2 = (np.linalg.norm(P - (a + t[:, None] * (b - a)), axis=1) / (r / K_MB)) ** 2
+        out[i] = np.where(d2 < 1, (1 - np.minimum(d2, 1)) ** 3, 0.0)
+    return out
+
+
+def _mb_mesh(name, mb, res):
+    """Metaballs zu Ecken und Flächen (Koordinaten wie die Teile)"""
+    from mathutils import Matrix
+    data = bpy.data.metaballs.new(name)
+    data.resolution = data.render_resolution = res
+    data.threshold = 0.6
+    for e in mb:
+        if e[0] == 'E':
+            _, _, c, semi, R = e
+            el = data.elements.new(type='ELLIPSOID'); el.co = c; el.radius = 1.0
+            el.size_x, el.size_y, el.size_z = (s / K_MB for s in semi)
+            el.rotation = Matrix(np.asarray(R).tolist()).to_quaternion()
+        else:
+            _, _, a, b, r = e
+            a, b = Vector(a), Vector(b)
+            el = data.elements.new(type='CAPSULE'); el.co = (a + b) / 2; el.radius = r / K_MB
+            el.size_x = (b - a).length / 2
+            el.rotation = Vector((1, 0, 0)).rotation_difference(b - a)
+    ob = bpy.data.objects.new(name, data)
+    sc().collection.objects.link(ob)
+    dg = bpy.context.evaluated_depsgraph_get(); dg.update()
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(dg))
+    V = np.empty(len(me.vertices) * 3); me.vertices.foreach_get('co', V)
+    F = [tuple(p.vertices) for p in me.polygons]
+    bpy.data.objects.remove(ob); bpy.data.metaballs.remove(data); bpy.data.meshes.remove(me)
+    return V.reshape(-1, 3), F
+
+
+def _tube(pts, radii, n=8):
+    """Röhre durch pts mit Radien, beide Enden zu (Ecken, Flächen nach aussen, Ring je Punkt)"""
+    P = np.array(pts, float)
+    T = np.gradient(P, axis=0); T /= np.linalg.norm(T, axis=1)[:, None]
+    ref = np.array((0, 0, 1.0)) if abs(T[0][2]) < 0.9 else np.array((1.0, 0, 0))
+    u = np.cross(T[0], ref); u /= np.linalg.norm(u)
+    V, F, rings = [], [], []
+    for p, t, r in zip(P, T, radii):
+        u = u - (u @ t) * t; u /= np.linalg.norm(u)   # mitgeführt, damit sich die Röhre nicht verdreht
+        w = np.cross(t, u)
+        rings.append(len(V))
+        for k in range(n):
+            a = 2 * math.pi * k / n
+            V.append(p + r * (math.cos(a) * u + math.sin(a) * w))
+    for i in range(len(P) - 1):
+        a, b = rings[i], rings[i + 1]
+        for k in range(n):
+            k1 = (k + 1) % n
+            F.append((a + k, a + k1, b + k1, b + k))
+    for i, s in ((0, -1), (len(P) - 1, 1)):
+        c = len(V); V.append(P[i] + s * T[i] * radii[i] * 0.35)
+        for k in range(n):
+            k1 = (k + 1) % n
+            F.append((rings[i] + k1, rings[i] + k, c) if s < 0 else (rings[i] + k, rings[i] + k1, c))
+    return np.array(V), F, [i for i in range(len(P)) for _ in range(n)] + [0, len(P) - 1]
+
+
+def _ellipsoid(c, semi, R, seg=12, rings=7):
+    """Ellipsoid um c mit Halbachsen semi, gedreht um R (Ecken, Flächen nach aussen; seg Ecken je Ring, rings Ringe)"""
+    V = [(0, 0, -1.0)]
+    for i in range(1, rings):
+        th = math.pi * i / rings
+        V += [(math.sin(th) * math.cos(2 * math.pi * k / seg), math.sin(th) * math.sin(2 * math.pi * k / seg), -math.cos(th))
+              for k in range(seg)]
+    V.append((0, 0, 1.0))
+    F = [(0, 1 + (k + 1) % seg, 1 + k) for k in range(seg)]
+    for i in range(rings - 2):
+        a, b = 1 + i * seg, 1 + (i + 1) * seg
+        F += [(a + k, a + (k + 1) % seg, b + (k + 1) % seg, b + k) for k in range(seg)]
+    top, a = len(V) - 1, 1 + (rings - 2) * seg
+    F += [(a + k, a + (k + 1) % seg, top) for k in range(seg)]
+    V = np.array(V) * np.array(semi) @ np.array(R).T + np.array(c)
+    return V, F
+
+
+def cow_colors(breed, tag, P, head, seed, dz):
+    """Farben (sRGB) je Ecke einer Kuh: tag je Ecke, P eigene Koordinaten, head (H, R, hs) für Maul und Augen, dz so
+    viel tiefer liegt der Rumpf (liegend)"""
+    H, R, hs = head
+    L = (P - H) @ R / hs                  # Kopf-Koordinaten
+    G = Perlin(700 + seed)
+    n = fbm(G, P[:, 0] * 1.7 + 0.9 * np.sign(P[:, 1]), P[:, 2] * 1.7, 3)
+    col = np.zeros((len(P), 3))
+    is_ = lambda *t: np.isin(tag, t)
+    if breed == 'braun':
+        c = COW_BRAUN
+        col[:] = c['fell']
+        fore = smoothstep(0.1, 0.7, P[:, 0])                                     # Vorhand dunkler
+        col = col + (np.array(c['dunkel']) - col) * (0.45 * fore)[:, None]
+        m = is_('head', 'neck', 'ear')
+        col[m] = c['dunkel']
+        low = is_('belly', 'leg', 'thigh', 'body') & (P[:, 2] < 0.86 + dz)
+        col[low] = col[low] + (np.array(c['hell']) - col[low]) * 0.5
+        back = is_('body') & (np.abs(P[:, 1]) < 0.07)
+        col[back] = col[back] + (np.array(c['hell']) - col[back]) * 0.6        # heller Aalstrich
+        mz = is_('muzzle') | (is_('head') & (L[:, 0] > 0.27))
+        col[mz] = np.where((L[mz, 0] > 0.38)[:, None], c['nase'], c['ring'])
+        eye_ring = is_('head') & (np.hypot(L[:, 0] - 0.10, L[:, 2] - 0.01) < 0.06)
+        col[eye_ring] = col[eye_ring] * 0.7 + np.array(c['hell']) * 0.3
+        col[is_('leg') & (P[:, 2] < 0.45)] = c['bein']
+        col[is_('hoof')] = c['huf']
+        col[is_('tuft')] = c['quaste']
+    else:
+        c = COW_FLECK
+        red, white = np.array(c['rot']), np.array(c['weiss'])
+        patch = smoothstep(0.14, 0.30, n)                                          # weisse Flecken
+        belly = smoothstep(0.92, 0.78, P[:, 2] - dz + 0.10 * fbm(G, P[:, 0] * 3.1, P[:, 1] * 3.1 + 5, 2))
+        w = np.maximum(patch, belly)
+        col[:] = red + (white - red) * w[:, None]
+        col[is_('head', 'muzzle', 'dewlap')] = white
+        eye_patch = is_('head') & (np.hypot(L[:, 0] - 0.08, L[:, 2]) < 0.075) & (L[:, 1] * (1 if seed % 2 else -1) > 0)
+        col[eye_patch] = red                                                           # roter Fleck ums Auge
+        col[is_('ear')] = red
+        col[is_('muzzle') & (L[:, 0] > 0.33)] = c['maul']
+        col[is_('leg', 'tuft')] = white
+        col[is_('hoof')] = c['huf']
+    col[is_('udder')] = COW_UDDER
+    col[is_('eye')] = COW_EYE
+    col[is_('strap')] = COW_STRAP
+    return col
+
+
+def cow_mesh(x, y, heading, breed, pose, size, seed):
+    """Eine Kuh als Ecken (Welt), Flächen, Material je Fläche (0 Fell, 1 Glocke) und Farbe je Ecke (linear)"""
+    calf = pose == 'calf'
+    mb, ex, head, neck, dz = cow_parts('stand' if calf else pose, calf)
+    V, F = _mb_mesh('Kuh%d' % seed, mb, COW_RES)
+    names = np.array([e[1] for e in mb])
+    tags = names[np.argmax(_mb_field(mb, V), 0)]
+    parts = [(V, F, tags, None)]
+    for e in ex:
+        if e[0] == 'T':
+            _, t, pts, radii, ring_cols = e
+            v, f, ring = _tube(pts, radii, 8 if t != 'horn' else 6)
+            rc = None if ring_cols is None else np.array(ring_cols)[np.array(ring)]
+            parts.append((v, f, np.full(len(v), t), rc))
+        else:
+            _, t, c, semi, R = e
+            v, f = _ellipsoid(c, semi, R)
+            parts.append((v, f, np.full(len(v), t), None))
+    H, R, hs = head
+    for s in (1, -1):   # Augen: knapp in die Fläche des Kopfs gesetzt
+        p, n = _snap(V[np.isin(tags, ('head',))], H + R @ (np.array((0.13, s * 0.11, -0.005)) * hs), H + R @ (np.array((0.13, 0, -0.03)) * hs))
+        v, f = _ellipsoid(p - n * 0.019 * hs, (0.028 * hs,) * 3, R, 8, 5)
+        parts.append((v, f, np.full(len(v), 'eye'), None))
+    if not calf:   # Riemen um den Hals (an der Fläche entlang), darunter die Glocke
+        a, b = np.array(neck[0], float), np.array(neck[1], float)
+        s = a + (b - a) * 0.62
+        ax = (b - a) / np.linalg.norm(b - a)
+        u = np.cross(ax, (0, 1.0, 0)); u /= np.linalg.norm(u)
+        if u[2] > 0:
+            u = -u
+        w = np.cross(ax, u)
+        # nur der Hals samt Wamme: Beim Weiden reichte die Scheibe sonst bis in die Vorderbeine (Review)
+        Q = V[np.isin(tags, ('neck', 'dewlap')) & (np.abs((V - s) @ ax) < 0.035)] - s
+        ang = np.arctan2(Q @ w, Q @ u); rad = np.hypot(Q @ u, Q @ w)
+        ts = np.linspace(0, 2 * math.pi, 25)
+        near = [rad[np.abs((ang - t + math.pi) % (2 * math.pi) - math.pi) < 0.2] for t in ts]
+        rr = np.array([q.max() if len(q) else np.nan for q in near])
+        rr = np.where(np.isnan(rr), np.nanmedian(rr), rr)   # Richtung ohne Ecke des Halses: wie die übrigen
+        rr = (np.roll(rr[:-1], 1) + 2 * rr[:-1] + np.roll(rr[:-1], -1)) / 4; rr = np.append(rr, rr[0])
+        ring = [s + (r + 0.012) * (math.cos(t) * u + math.sin(t) * w) for t, r in zip(ts, rr)]
+        v, f, _ = _tube(ring, [0.026] * len(ring), 6)
+        parts.append((v, f, np.full(len(v), 'strap'), None))
+        low = ring[0] + np.array((0, 0, -0.01))
+        prof = [(0.0, 0.025), (-0.035, 0.035), (-0.06, 0.062), (-0.15, 0.078), (-0.235, 0.098), (-0.245, 0.09)]
+        v, f, _ = _tube([low + (0, 0, h) for h, _ in prof], [r for _, r in prof], 12)
+        parts.append((v, f, np.full(len(v), 'bell'), None))
+    Vs, Fs, Ts, Cs, Ms, b = [], [], [], [], [], 0
+    for v, f, t, rc in parts:
+        Vs.append(v); Ts.append(t)
+        Cs.append(rc if rc is not None else np.full((len(v), 3), np.nan))
+        Fs += [tuple(i + b for i in face) for face in f]
+        Ms += [1 if t[0] == 'bell' else 0] * len(f)
+        b += len(v)
+    P = np.concatenate(Vs); T = np.concatenate(Ts); C = np.concatenate(Cs)
+    col = cow_colors(breed, T, P, head, seed, dz)
+    col = np.where(np.isnan(C), col, C)
+    Rz = _rot('Z', heading)
+    W = (P * size) @ Rz.T + np.array((x, y, FLOOR - 0.01))
+    return W, Fs, Ms, _srgb_lin(col)
+
+
+def cows_mesh():
+    V, F, M, C = [], [], [], []
+    for cow in COWS:
+        v, f, m, c = cow_mesh(*cow)
+        b = len(V)
+        V += [tuple(p) for p in v]; F += [tuple(i + b for i in face) for face in f]; M += m; C.append(c)
+    return V, F, M, np.concatenate(C)
+
+
+def mat_cow():
+    """Fell der Kühe: Farbe je Ecke (Attribut fell)"""
+    m = _principled('Kuh', (0.2, 0.15, 0.1), rough=0.8)
+    t = m.node_tree; bs = t.nodes['Principled BSDF']
+    a = t.nodes.new('ShaderNodeAttribute'); a.attribute_name = 'fell'; a.attribute_type = 'GEOMETRY'
+    t.links.new(a.outputs['Color'], bs.inputs['Base Color'])
+    return m
+
+
+def mat_bell():
+    m = _principled('Glocke', (0.62, 0.42, 0.14), rough=0.35)
+    m.node_tree.nodes['Principled BSDF'].inputs['Metallic'].default_value = 0.85
+    return m
+
+
 def build_house():
     for n in ('Noas Haus', 'Fensterlicht'):
         for ob in [o for o in bpy.data.objects if o.name.startswith(n)]:
@@ -745,7 +1107,15 @@ def build_house():
             shared('Kohl', lambda: _principled('Kohl', (0.07, 0.15, 0.12))),
             shared('Laub', lambda: _principled('Laub', (0.04, 0.10, 0.03))),
             shared('Ringelblume', lambda: _principled('Ringelblume', (0.65, 0.26, 0.02)))]
+    # Kühe im Garten im selben Netz (eigene Materialien dahinter, Farbe je Ecke im Attribut fell, glatt schattiert)
+    nv, nf, nm = len(V), len(F), len(mats)
+    cv, cf, cm, cc = cows_mesh()
+    V = V + cv; F = F + [tuple(i + nv for i in f) for f in cf]; M = M + [m + nm for m in cm]
+    mats += [shared('Kuh', mat_cow), shared('Glocke', mat_bell)]
     me = S.mesh('Noas Haus', V, F, M, mats=mats, smooth=False)
+    fell = np.ones((len(V), 4)); fell[nv:, :3] = cc
+    me.color_attributes.new('fell', 'FLOAT_COLOR', 'POINT').data.foreach_set('color', fell.astype(np.float32).ravel())
+    me.polygons.foreach_set('use_smooth', np.arange(len(F)) >= nf)
     ob = link('Noas Haus', me, S.collection('Spiel'))
     ob.visible_camera = False
     with S.only(ob):
@@ -753,6 +1123,25 @@ def build_house():
         bpy.ops.mesh.select_all(action='SELECT')
         bpy.ops.mesh.quads_convert_to_tris()
         bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.01, area_weight=0.0, scale_to_bounds=True)
+        # Das Haus behält die Dichte von vorher (HOUSE_UV; so ist es gemalt abgenommen), die Kühe stehen näher am Brett:
+        # ihre Inseln COW_TEXEL-mal grösser. Danach alle neu gepackt, ohne die Grösse zu ändern
+        import bmesh
+        bm = bmesh.from_edit_mesh(me); uvl = bm.loops.layers.uv.active
+
+        def uv_area(f):
+            p = [lp[uvl].uv for lp in f.loops]
+            return abs(sum(p[i].x * p[i - 1].y - p[i - 1].x * p[i].y for i in range(len(p)))) / 2
+        r = np.median([uv_area(f) / f.calc_area() for f in bm.faces if f.material_index < nm and f.calc_area() > 0.01])
+        k = HOUSE_UV / math.sqrt(r)
+        for f in bm.faces:
+            for lp in f.loops:
+                lp[uvl].uv *= k * (COW_TEXEL if f.material_index >= nm else 1.0)
+        bmesh.update_edit_mesh(me)
+        ts = bpy.context.scene.tool_settings; sync = ts.use_uv_select_sync; ts.use_uv_select_sync = True
+        try:
+            bpy.ops.uv.pack_islands(rotate=True, scale=False, margin_method='FRACTION', margin=0.004, shape_method='CONCAVE')
+        finally:
+            ts.use_uv_select_sync = sync
         bpy.ops.object.mode_set(mode='OBJECT')
     # Licht aus den Fenstern auf die Wiese (Flächenlampen knapp davor, nach −y)
     cx, cy = HOUSE; yb = cy - HOUSE_SIZE[1] / 2 - 0.5
