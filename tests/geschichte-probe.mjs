@@ -1875,6 +1875,21 @@ const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = documen
     imBild: imBild(satz) && imBild(knopf) && imBild(neben),
     teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: zu(satz) ? 0 : Math.round(satz.firstChild
       .getClientRects().length) }; })()`);
+/**
+ * Die Führung der laufenden Übung n steht beim Schritt k (Ticket 04 der Führung, Unterbrechungen mitten in ihr): sein
+ * Satz in der Kopfzeile, je Element ein Umriss, «Weiter» nur an einer Erklärung.
+ */
+async function schrittIst(n, k, was) {
+  await until(`${D}.fuehrung.los && ${D}.fuehrung.level === LEVELS[${n}] && ${D}.flow.state === 'play'`,
+    `${was}: Führung läuft`, 15);
+  await sleep(300);
+  const s = await ev(`(({ text, bei, weiter }) => ({ text: geraeteText(text, ${view.phone}),
+    zellen: [].concat(bei ?? []).length, erklaerung: weiter === 'erklaerung' }))(LEVELS[${n}].schritte[${k}])`);
+  const f = await fuehrungIn([]);
+  pruefe(f.schritt === k && !f.fertig && f.satz === s.text && f.knopf === s.erklaerung && f.umrisse.length === s.zellen,
+    `${was}: Schritt ${k + 1} erwartet ${JSON.stringify(f)}`);
+  console.log(`  ${was}: Schritt ${k + 1} «${f.satz}»`);
+}
 /** Langes Drücken (Handy) bzw. Rechtsklick (Desktop) bei (x, y): dreht ein drehbares Element zurück. */
 async function halteBei(x, y) {
   if (view.phone) {
@@ -2106,6 +2121,11 @@ async function dorfAblauf() {
   pruefe(s.dorf?.platz === 3 && s.platz === 0 && s.geloest.join() === uebungen.slice(0, 3).join(),
     `Leicht nach drei Übungen ${JSON.stringify(s)}`);
 
+  // mitten in der Führung von Übung 4 («Brechung»): «Weiter» zum zweiten Schritt, dann Neuladen, Menü, Übersicht und
+  // «Dorf überspringen» (Ticket 04 der Führung)
+  await schrittIst(3, 0, 'Leicht, Übung 4');
+  await tippe('#hud-sub .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
+  await schrittIst(3, 1, 'Leicht, Übung 4 vor dem Neuladen');
   // Neuladen: «Weiter» führt in Übung 4, ohne Prolog, Angebot und Einstieg
   await ev('window.__vorher = true');
   await send('Page.reload');
@@ -2125,6 +2145,10 @@ async function dorfAblauf() {
   await sleep(600);
   await ende('Leicht: Weiter → Übung 4');
   pruefe(!zwischen, 'Leicht: nach dem Neuladen Prolog, Angebot oder Einstieg');
+  // Neuladen beginnt beim ersten Schritt; wieder zum zweiten, den Menü und Übersicht behalten
+  await schrittIst(3, 0, 'Leicht, Übung 4 nach dem Neuladen');
+  await tippe('#hud-sub .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
+  await schrittIst(3, 1, 'Leicht, Übung 4');
   // Menü mitten in der Übung und zurück: dieselbe Übung
   await uebungLaeuft(3);
   if (view.phone) await tippe('#btn-menu', 'Menü');
@@ -2135,6 +2159,7 @@ async function dorfAblauf() {
   else await taste('Escape');
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && !${D}.story.running`, 'Leicht: zurück', 15);
   await uebungLaeuft(3);
+  await schrittIst(3, 1, 'Leicht, Übung 4 nach dem Menü');
   // Übersicht im Dorf: Reihe «Im Dorf» mit der laufenden Übung
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Leicht: Übersicht im Dorf', 10);
@@ -2149,7 +2174,8 @@ async function dorfAblauf() {
   await uebersichtZu();
   await until(`!${uebOffen} && window.__prisma.playing() && !${D}.story.running`, 'Leicht: Übersicht zu', 15);
   await uebungLaeuft(3);
-  // Überspringen mitten in der Übung: Satz zum Ende, dann die Glühwürmchen in den Bergwald
+  await schrittIst(3, 1, 'Leicht, Übung 4 nach der Übersicht');
+  // Überspringen mitten in der Übung (und der Führung): Satz zum Ende, dann die Glühwürmchen in den Bergwald
   await messe();
   await tippe(SKIP, 'Überspringen');
   await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'Leicht: Ende des Dorfs', 20);
@@ -2174,6 +2200,10 @@ async function dorfAblauf() {
   s = await stand('leicht');
   pruefe(s.gesehen.join() === 'prolog,angebot,dorf,wald' && !(await skipSichtbar()) && !(await ev(`${D}.story.inDorf`)),
     `Leicht im Bergwald ${JSON.stringify(s)}`);
+  // nach «Dorf überspringen» mitten in der Führung bleibt im Bergwald nichts von ihr stehen
+  const fw = await fuehrungIn([]);
+  pruefe(!(await ev(`${D}.fuehrung.level`)) && fw.satz === null && !fw.knopf && !fw.umrisse.length && !fw.hand,
+    `Leicht im Bergwald: Führung übrig ${JSON.stringify(fw)}`);
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Leicht: Übersicht im Bergwald', 10);
   const frei = await ev(`document.querySelectorAll('${UEB} .ueb-welt[data-reihe="0"] .ueb-frei').length`);
