@@ -1233,7 +1233,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-10 dorf-blumenwiese';
+const APP_VERSION = '2026-11-10 strahlen-satt';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -16883,14 +16883,17 @@ function brightTame(c) {
   return THREE.MathUtils.smoothstep(lum, 0.35, 0.95);
 }
 
+// Linear (THREE.Color), satt: Nebenkanäle nahe 0. Früher lagen sie bei 0.2 (im Bild Mint, Lachs, Lavendel), und es war
+// schwer zu sehen, welche Farbe wohin muss (Wunsch 10.11.2026). Cyan liegt näher bei Blau (G 0.55): mit mehr Grün
+// bleichte die Tonwertabbildung (ACES) seinen Kern fast weiss. Gleich dick wirken die Strahlen über BEAM_EVEN.
 const COLOR_RGB = {
-  1: new THREE.Color(1.0, 0.16, 0.12),  // Rot
-  2: new THREE.Color(0.2, 1.0, 0.32),   // Grün
-  3: new THREE.Color(1.0, 0.78, 0.18),  // Gelb
-  4: new THREE.Color(0.18, 0.36, 1.0),  // Blau
-  5: new THREE.Color(1.0, 0.22, 0.85),  // Magenta
-  6: new THREE.Color(0.2, 0.92, 1.0),   // Cyan
-  7: new THREE.Color(1.0, 0.97, 0.92),  // Weiss (minimal warm)
+  1: new THREE.Color(1.0, 0.035, 0.02),  // Rot
+  2: new THREE.Color(0.04, 1.0, 0.07),   // Grün
+  3: new THREE.Color(1.0, 0.7, 0.0),     // Gelb
+  4: new THREE.Color(0.03, 0.13, 1.0),   // Blau
+  5: new THREE.Color(1.0, 0.03, 0.9),    // Magenta
+  6: new THREE.Color(0.0, 0.55, 1.0),    // Cyan
+  7: new THREE.Color(1.0, 0.97, 0.92),   // Weiss (minimal warm)
 };
 
 const brushedTex = createBrushedTexture(256);
@@ -17138,7 +17141,7 @@ function makeTarget(el) {
   root.add(makeFixedBase());
   const col = COLOR_RGB[el.color];
   const mask = el.color; // Farbmaske: Rot 1, Grün 2, Blau 4
-  // Etwas sattere Variante der Strahlfarbe für den Stein (die Strahlfarben sind bewusst hell, z. B. Himmelblau)
+  // Etwas sattere Variante der Strahlfarbe für den Stein (bei den satten Farben seit 10.11.2026 kaum ein Unterschied)
   const deep = new THREE.Color(col.r * col.r, col.g * col.g, col.b * col.b).lerp(col, 0.85);
   // Dunkle Farben (Blau, Rot) verwässern schnell: Mit viel Weiss und Schillern im Glas liest sich Blau neben
   // Weiss nur als „Weiss mit Blaustich“. Helle Farben vertragen mehr (und werden getroffen gedämpft, siehe litTame).
@@ -17899,8 +17902,12 @@ function animateRotations(dt) {
 const BEAM = {
   revealSpeed: 30,     // Welteinheiten pro Sekunde
   coreWidth: 0.011,
-  glowWidth: 0.05,
-  quadWidth: 0.34,     // halbe Breite der Billboard-Fläche (muss den Halo abdecken)
+  glowWidth: 0.054,
+  glowGain: 1.15,      // farbiges Leuchten (Weiss bleibt bei 1)
+  coreWhite: 0.06,     // Weissanteil im Kern farbiger Strahlen (früher 0.32: der Kern wirkte fast weiss)
+  shade: 0.4,          // dunkler Saum ums Leuchten (beamShadeMaterial), Deckkraft in der Mitte
+  shadeWidth: 0.13,
+  quadWidth: 0.34,     // halbe Breite der Billboard-Fläche (Halo und Saum laufen an ihrem Rand auf null aus)
   floorWidth: 0.75,
   fadeOut: 0.22,       // Sekunden
   dustCount: IS_MOBILE ? 700 : 1600,
@@ -17925,6 +17932,23 @@ function fadeAt(rec, t) {
   return f * f;
 }
 
+/*
+ * Ausgleich je Farbe [Breite, Leuchten, Kern], damit alle Strahlen gleich dick wirken (Wunsch 10.11.2026: Blau wirkte
+ * viel dünner als Grün). Bei gleicher Breite im Shader wirken dunkle Farben dünner: Ihr Leuchten fällt früher unter die
+ * Sichtbarkeit, und ihr Kern bleibt unter der Bloom-Schwelle, während Grün und Gelb aufblühen. Breite wirkt auf Kern,
+ * Leuchten und Saum, Leuchten auch auf den Schein auf dem Brett. Abgeglichen an sieben parallelen Strahlen vor
+ * Milchstrasse, Strand und Dorf, Desktop und Handy (Breite quer zum Strahl, Perspektive herausgerechnet).
+ */
+const BEAM_EVEN = {
+  1: [1.35, 1.18, 1.12], // Rot
+  2: [1, 1, 1],          // Grün
+  3: [1, 1, 1],          // Gelb
+  4: [1.5, 1.3, 1.25],   // Blau
+  5: [1.1, 1.03, 1],     // Magenta
+  6: [1.05, 1.03, 1],    // Cyan
+  7: [1, 1, 1],          // Weiss
+};
+
 const BEAM_VERTEX_COMMON = `
   attribute vec3 aStart;
   attribute vec3 aEnd;
@@ -17935,6 +17959,8 @@ const BEAM_VERTEX_COMMON = `
   attribute vec3 aCap0;     // Schnittnormale am Anfang (im 2D-Feld waagrecht, im Würfel beliebig)
   attribute vec3 aCap1;     // … und am Ende
   attribute float aFade;    // Ausblendstrecke vor dem Ende (Welt, ab Plattenkante; 0 = hartes Ende)
+  attribute vec3 aEven;     // Ausgleich der Farbe (BEAM_EVEN): Breite, Leuchten, Kern
+  varying vec3 vEven;
   uniform float uHalfWidth;
   varying vec2 vLocal;      // x: entlang (Welt, 0..Länge, ausserhalb = Kappe) · y: quer
   varying vec3 vColor;
@@ -17946,6 +17972,7 @@ const BEAM_VERTEX_COMMON = `
   void passCaps(vec3 s, vec3 e, vec3 p) {
     vWorld = p;
     vFade = aFade;
+    vEven = aEven;
     // Der Abstand zu einer Ebene ist linear in p – über die flache Kapsel interpoliert bleibt er exakt.
     vCut = vec2(dot(p - s, mat3(modelMatrix) * aCap0), dot(p - e, mat3(modelMatrix) * aCap1));
   }
@@ -17963,6 +17990,7 @@ const BEAM_FRAGMENT_COMMON = `
   varying vec3 vWorld;
   varying vec2 vCut;
   varying float vFade;
+  varying vec3 vEven;
 
   float hash1(float n) { return fract(sin(n) * 43758.5453123); }
   float noise1(float x) {
@@ -18014,14 +18042,8 @@ const beamMaterialParams = (extraUniforms, vertexMain, fragment) => ({
   extensions: { derivatives: true }, // fwidth() für die Kantenglättung des Kerns (WebGL1; WebGL2 hat es immer)
 });
 
-const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
-  {
-    uCore: { value: BEAM.coreWidth },
-    uGlow: { value: BEAM.glowWidth },
-    uIntensity: { value: 1 },
-    uCalm: { value: 0 }, // 1: ohne Fliessen und Energiepakete (Spiegelung, renderReflection)
-  },
-  `
+// Billboard-Kapsel um den Strahl, zur Kamera gedreht (Strahl und dunkler Saum)
+const BEAM_BILLBOARD_MAIN = `
   void main() {
     vec3 s = (modelMatrix * vec4(aStart, 1.0)).xyz;
     vec3 e = (modelMatrix * vec4(aEnd, 1.0)).xyz;
@@ -18039,12 +18061,22 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     vLife = aLife;
     passCaps(s, e, p);
     gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
-  }`,
+  }`;
+
+const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
+  {
+    uCore: { value: BEAM.coreWidth },
+    uGlow: { value: BEAM.glowWidth },
+    uIntensity: { value: 1 },
+    uCalm: { value: 0 }, // 1: ohne Fliessen und Energiepakete (Spiegelung, renderReflection)
+  },
+  BEAM_BILLBOARD_MAIN,
   BEAM_FRAGMENT_COMMON + `
   uniform float uCore;
   uniform float uGlow;
   uniform float uIntensity;
   uniform float uCalm;
+  uniform float uHalfWidth;
   void main() {
     // Pixelgrösse vor discard bestimmen (Ableitungen nur in einheitlichem Kontrollfluss verlässlich)
     float px = length(vec2(dFdx(vLocal.y), dFdy(vLocal.y)));
@@ -18066,7 +18098,7 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // Glow-Breite fest: Das frühere "Atmen" (Breite ±8 % entlang des Strahls, wandernd) wirkte auf scharfen
     // Bildschirmen wie Wellen – vor allem bei Strahlen quer zur Blickrichtung. Leicht schmaler als uGlow,
     // damit es im Mittel wie vorher aussieht.
-    float gw = uGlow * 0.95;
+    float gw = uGlow * 0.95 * vEven.x;
 
     // Kern nie schmaler als etwa ein Bildpunkt: Auf kleinen Schirmen (Handy) war er dünner als ein Pixel und
     // zerfiel je nach Winkel in Treppen und Lücken, die der Bloom noch verstärkte. Breiter heisst hier
@@ -18074,27 +18106,61 @@ const beamMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     // px (oben): Pixelgrösse aus der Querkoordinate vLocal.y (linear, ohne Knick) als echte Gradientenlänge.
     // fwidth(d) sprang an der Mittellinie (d = |y|) je 2×2-Pixelblock um bis zu das Doppelte – der Kern
     // pulsierte entlang schräger Strahlen und wirkte wellenförmig.
-    float cw = max(uCore, px * 1.5);
-    float core = exp(-(d * d) / (cw * cw)) * (uCore / cw);
+    float coreW = uCore * vEven.x;
+    float cw = max(coreW, px * 1.5);
+    float core = exp(-(d * d) / (cw * cw)) * (coreW / cw) * vEven.z;
     // Glow und Halo laufen vor Spiegelflächen und Enden aus: sonst legt sich der breite Saum
     // über die ganze Glasplatte bzw. den Edelstein und wirkt, als schiene Licht hindurch.
     // (den Lichtfleck auf der Glasfläche zeichnet beamView als eigenes, flaches Objekt)
     float nearCut = smoothstep(0.0, min(0.2, vDist.y * 0.3), cutDist);
     float glow = exp(-(d * d) / (gw * gw)) * mix(0.8, 1.0, nearCut);
-    float halo = exp(-d / (gw * 1.8)) * 0.05 * nearCut;
+    // am Rand der Billboard-Fläche auf null: Mit den breiteren dunklen Farben (BEAM_EVEN) bliebe sonst eine feine Kante
+    float halo = exp(-d / (gw * 1.8)) * 0.05 * nearCut * smoothstep(uHalfWidth, uHalfWidth * 0.8, d);
 
     // Kern fast weiss nur bei weissem Licht; farbige Strahlen behalten einen satten Kern
     float whiteness = min(min(vColor.r, vColor.g), vColor.b);
-    vec3 hot = mix(vColor, vec3(1.0), mix(0.32, 0.6, whiteness));
-    // Helle Farben (Weiss, Gelb, Cyan, Grün) überschreiten die Bloom-Schwelle viel stärker als
-    // Rot oder Blau – gedämpft, damit alle Strahlen gleich kräftig wirken.
+    vec3 hot = mix(vColor, vec3(1.0), mix(${BEAM.coreWhite.toFixed(3)}, 0.6, whiteness));
+    // Helle Farben (Weiss, Gelb, Grün; Cyan seit den satten Farben kaum noch) überschreiten die Bloom-Schwelle viel
+    // stärker als Rot oder Blau – gedämpft, damit alle Strahlen gleich kräftig wirken.
     float bright = smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)));
+    float gain = mix(${BEAM.glowGain.toFixed(3)}, 1.0, whiteness) * vEven.y; // Weiss bleibt, wie es ist
     vec3 col = vColor * (glow * mix(0.95, 0.75, whiteness) + halo) * flow * (1.0 + packet) * mix(1.0, 0.72, bright)
+               * gain
              + hot * core * 3.0 * mix(1.0, 0.8, bright);
     col *= uIntensity * visible;
     gl_FragColor = vec4(col, 1.0);
   }`
 ));
+
+// Dunkler Saum ums Leuchten, vor dem Strahl gezeichnet (Wunsch 10.11.2026, Variante «Dunkler Saum»). Additives Licht
+// kann einen hellen Grund (Sand, Wiese) nur aufhellen, die Farbe geht dort im Weiss unter; der Saum dunkelt den Grund
+// ums Leuchten ab (Ziel · (1 − a)), danach legt sich die Farbe darauf. Vor dunklem Himmel wirkt er kaum.
+const beamShadeMaterial = new THREE.ShaderMaterial(Object.assign(beamMaterialParams(
+  { uShade: { value: BEAM.shade }, uShadeWidth: { value: BEAM.shadeWidth } },
+  BEAM_BILLBOARD_MAIN,
+  BEAM_FRAGMENT_COMMON + `
+  uniform float uShade;
+  uniform float uShadeWidth;
+  uniform float uHalfWidth;
+  void main() {
+    float d, pathDist, visible;
+    beamDistance(d, pathDist, visible);
+    if (visible <= 0.001) discard;
+    float nearCut = smoothstep(0.0, min(0.2, vDist.y * 0.3), cutDist);
+    float sw = uShadeWidth * vEven.x;
+    // am Rand der Billboard-Fläche auf null (breiter Saum bei Blau, siehe BEAM_EVEN: sonst eine feine Kante)
+    float a = uShade * exp(-(d * d) / (sw * sw)) * smoothstep(uHalfWidth, uHalfWidth * 0.8, d) * nearCut * visible;
+    gl_FragColor = vec4(0.0, 0.0, 0.0, a);
+  }`
+), {
+  blending: THREE.CustomBlending,
+  blendEquation: THREE.AddEquation,
+  blendSrc: THREE.ZeroFactor,
+  blendDst: THREE.OneMinusSrcAlphaFactor,
+  blendSrcAlpha: THREE.ZeroFactor, // Alpha des Bildes bleibt (0 markiert den Himmel für die Aberration, BRUSH_MARK die
+                                   // gemalten Ebenen)
+  blendDstAlpha: THREE.OneFactor,
+}));
 
 // Bodenschein: flache Kapsel auf der Platte – das Licht "streift" den Stein.
 const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
@@ -18135,6 +18201,7 @@ const floorGlowMaterial = new THREE.ShaderMaterial(beamMaterialParams(
     visible *= smoothstep(0.0, 0.3, edge) * exp(-max(vLift, 0.0) * 0.45);
     float spill = exp(-(d * d) / 0.03) * 0.045 + exp(-d / 0.3) * 0.01;
     spill *= mix(1.0, 0.75, smoothstep(0.35, 0.95, dot(vColor, vec3(0.2126, 0.7152, 0.0722)))); // wie beim Strahl
+    spill *= vEven.y; // Ausgleich der Farbe (BEAM_EVEN): dunkle Farben scheinen sonst kaum aufs Brett
     gl_FragColor = vec4(vColor * spill * visible, 1.0);
   }`
 ));
@@ -18146,11 +18213,12 @@ function buildBeamGeometry(records) {
   const corner = new Float32Array(n * 8), color = new Float32Array(n * 12);
   const dist = new Float32Array(n * 8), life = new Float32Array(n * 12);
   const cap0 = new Float32Array(n * 12), cap1 = new Float32Array(n * 12), fade = new Float32Array(n * 4);
+  const even = new Float32Array(n * 12);
   const c0 = new THREE.Vector3(), c1 = new THREE.Vector3();
   const index = new Uint16Array(n * 6); // max. 256 Abschnitte × 4 Ecken < 65536
   const corners = [[-1, -1], [1, -1], [1, 1], [-1, 1]];
   records.forEach((r, i) => {
-    const s = r.seg, c = COLOR_RGB[s.color];
+    const s = r.seg, c = COLOR_RGB[s.color], ev = BEAM_EVEN[s.color];
     // Erst jenseits der Platte ausblenden: Weg bis zur Plattenkante entlang des Strahls (diagonal länger)
     const axis = Math.max(Math.abs(s.x1 - s.x0), Math.abs(s.z1 - s.z0)) / s.length;
     // Würfel: kein Plattenrand ringsum (Strahlen verlassen ihn auch nach oben) – ab der Würfelkante ausblenden
@@ -18166,6 +18234,7 @@ function buildBeamGeometry(records) {
       dist[v * 2] = s.dist0 * CELL; dist[v * 2 + 1] = s.length * CELL;
       life[v * 3] = r.start; life[v * 3 + 1] = r.birth; life[v * 3 + 2] = r.death;
       fade[v] = fadeLen;
+      even[v * 3] = ev[0]; even[v * 3 + 1] = ev[1]; even[v * 3 + 2] = ev[2];
       c0.toArray(cap0, v * 3);
       c1.toArray(cap1, v * 3);
     }
@@ -18183,6 +18252,7 @@ function buildBeamGeometry(records) {
   geo.setAttribute('aCap0', new THREE.BufferAttribute(cap0, 3));
   geo.setAttribute('aCap1', new THREE.BufferAttribute(cap1, 3));
   geo.setAttribute('aFade', new THREE.BufferAttribute(fade, 1));
+  geo.setAttribute('aEven', new THREE.BufferAttribute(even, 3));
   geo.setIndex(new THREE.BufferAttribute(index, 1));
   return geo;
 }
@@ -18355,6 +18425,7 @@ const beamView = {
   group: new THREE.Group(),
   beams: null,
   floor: null,
+  shade: null,        // dunkler Saum (beamShadeMaterial)
   segRecords: [],     // lebende Abschnitte
   dyingSegs: [],      // ausblendende Abschnitte
   eventRecords: [],   // lebende Ereignisse
@@ -18382,8 +18453,12 @@ const beamView = {
   },
 
   _rebuild() {
-    if (this.beams) { this.group.remove(this.beams, this.floor); this.beams.geometry.dispose(); }
+    if (this.beams) { this.group.remove(this.beams, this.floor, this.shade); this.beams.geometry.dispose(); }
     const geo = buildBeamGeometry(this.segRecords.concat(this.dyingSegs));
+    // der dunkle Saum vor dem Strahl (nicht in der Spiegelung), auch vor dem Glas (renderOrder 5, ohne Tiefe): Liegt
+    // ein Strahl dahinter, dunkelt er so nur den Grund ab, nicht die Glanzlichter von Prisma, Filter und Kombinator
+    this.shade = this._mesh(geo, beamShadeMaterial, true);
+    this.shade.renderOrder = 4.5;
     this.beams = this._mesh(geo, beamMaterial, false);
     this.floor = this._mesh(geo, floorGlowMaterial, true);
   },
@@ -18523,6 +18598,7 @@ const beamView = {
     this.time = t;
     beamMaterial.uniforms.uTime.value = t;
     floorGlowMaterial.uniforms.uTime.value = t;
+    beamShadeMaterial.uniforms.uTime.value = t;
 
     // Vollständig ausgeblendete Abschnitte/Blitze aufräumen
     if (this.dyingSegs.length && this.dyingSegs.every(r => t - r.death >= BEAM.fadeOut)) {
@@ -26527,7 +26603,8 @@ function vorwaermElemente() {
     console.error(e); // nur ein Vorwärmen: das Spiel startet auch ohne
   } finally { Math.random = random; }
   // dazu die Strahlen: Ihre Netze entstehen erst mit dem Level (beamView._rebuild), die Materialien sind geteilt
-  const beams = [beamMaterial, floorGlowMaterial].map((mat) => new THREE.Mesh(buildBeamGeometry([]), mat));
+  const beams = [beamMaterial, floorGlowMaterial, beamShadeMaterial]
+    .map((mat) => new THREE.Mesh(buildBeamGeometry([]), mat));
   group.add(...beams);
   boardGroup.add(group);
   game.hitProxies = proxies; // makeInteractive trägt die Trefferzylinder der Vorwärm-Elemente ein: Sie sind nie zu treffen

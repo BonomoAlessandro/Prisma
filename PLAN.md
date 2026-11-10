@@ -215,6 +215,16 @@ Android-Chromium.
     nur noch, wo Fels liegt (`rock_drawn` in `szenen/beach/szene.py`), daneben zeigt das Panorama glatten Sand; die
     Felsen gehen am Rand weich ins Panorama über (`bakedMesh` mit `ground: [0, 0]`). Rest: Kiesel im Sand mit dünnem
     dunklem Rand (ihr Schatten im Panorama).
+- [x] **1.5 Satte Strahlen** (10.11.2026, Branch `feature/strahlen-satt`; Vergleich der Varianten
+  https://claude.ai/artifact/4bkF9EMhK9UgfWYxuogP3w): Die Farben sollten satter sein, damit klar ist, welche Farbe wohin
+  muss. Aus vier Varianten gewählt: **Dunkler Saum**. Die Farben (`COLOR_RGB`) sind rein statt pastell (Grün statt Mint,
+  Blau statt Lavendel, Rot statt Lachs; gilt auch für Ziele, Filter, Kombinator und Funken), der Kern leuchtet in der
+  Strahlfarbe statt fast weiss, das Leuchten ist etwas kräftiger (`BEAM.glowGain` 1.15, `glowWidth` 0.054), und ein
+  leichter dunkler Saum (`beamShadeMaterial`, vor dem Glas gezeichnet) hält die Farbe auf hellem Sand und Gras sichtbar.
+  Cyan liegt näher bei Blau, sonst bleichte sein Kern weiss aus. Dazu auf Wunsch: alle Strahlen gleich dick (Blau wirkte
+  viel dünner als Grün). Ausgleich je Farbe in `BEAM_EVEN` (Breite, Leuchten, Kern), abgeglichen an sieben parallelen
+  Strahlen auf drei Himmeln, Desktop und Handy. Offen: auf hellem Sand bleiben die Farben heller als vor dem
+  Sternenhimmel.
 
 ## 1a. Spielführung
 
