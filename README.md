@@ -164,8 +164,11 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     ungelösten Level, aus dem Menü die Übersicht eines geschafften Grads bis zum letzten Level und «Zur Übersicht»,
     «Von vorn» lässt die Bestwerte stehen; auf dem Handy Wischen, Stationen und Pfeile; auf dem Desktop dazu die Reise
     nach dem Wiederholen); `--dorf` das Kapitel «Im Dorf» (Ticket 07, etwa 6 min: Angebot nach dem Prolog mit Fokus
-    auf «Üben», Einstieg ins Dorf, Übungen mit Kopfzeile und Hinweis, Neuladen und «Weiter» in die Übung, Menü und
-    Übersicht im Dorf, «Überspringen» mitten in einer Übung und beim Herauswachsen, «Gleich los», alle 9 Übungen bis
+    auf «Üben», Einstieg ins Dorf, Übungen mit Kopfzeile und Führung (jeder Schritt jeder Übung wie ein Spieler: Satz,
+    «Weiter», Umriss, Hand, Text ganz im Bild; in «Erstes Licht» Neustart, Hinweise nebenbei, später Fingerzeig und
+    Menü), Neuladen und «Weiter» in die Übung, Menü und Übersicht im Dorf (mitten in der Führung von «Brechung»: Neuladen
+    beginnt beim ersten Schritt, Menü und Übersicht behalten ihn), «Überspringen» mitten in einer Übung (danach bleibt
+    von der Führung nichts stehen) und beim Herauswachsen, «Gleich los», alle 9 Übungen bis
     zum Bergwald, Wiederholen einer Übung aus der Übersicht, Einstiege übersprungen im Flug, im Fall und gleich zu
     Beginn: genau ein Level wächst, kein leeres Brett, Tempo des Einstiegs, Drehung der Kamera je Bild); `--dorf-raender`
     Randfälle des Dorfs (etwa 5 min: Wiederholen im laufenden Kapitel, Bergwald 1 aus der Übersicht mitten im Dorf,
@@ -857,8 +860,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `tools/geschichte/sehr-schwer-kandidaten.json`, `geschichte.mjs wahl`, `geschichte.mjs ausbau <datei>`,
   `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
   dazu), `geschichte.mjs spiel`.
-- **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`, je ein Hinweis zur Mechanik in der
-  Kopfzeile, auch im Handy-Querformat; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
+- **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.1 statt eines Hinweises
+  höchstens drei geführte Schritte `schritte` mit je einem Satz in der Kopfzeile, auch im Handy-Querformat, Umriss und
+  Hand am Element, dazu Hinweise nebenbei `nebenbei` zu Kamera und Neustart; geführt nur im Dorf, siehe «Führung» in
+  `CONTEXT.md`; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach seit Ticket 04
   (Noas Geschichte) genau die 240 Level der Geschichte mit ihrem Titel (`titel`, die Reise in `STORY_LEVELS`), in der
   Reihenfolge der Reihe; die übrigen der 538 flachen Level (500, die 15 neuen sehr schweren aus Ticket 01 und die 23

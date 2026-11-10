@@ -48,6 +48,14 @@ unter der Milchstrasse und dem Sonnensystem und überall, wo ein Himmel kein eig
 `stone`.
 _Vermeiden_: Steinplatte, Plattform
 
+**Weigerung**:
+Ein festes Element auf eckigem Sockel (Quelle, Ziel, Filter, fester Spiegel, festes Prisma, fester Kombinator) wackelt
+beim Antippen kurz, sein roter Rand blitzt auf. Ohne Text, ohne Zug; Strahlen und Speicherstand bleiben. Es gilt im
+ganzen Spiel, nicht in Würfel-Leveln (dort Rahmen statt Sockel); Elemente ohne Sockel (Blocker) reagieren nicht.
+Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare. Rund heisst drehbar, eckig
+heisst fest. Im Code `weigern`, die Auswahl `pickTapped`.
+_Vermeiden_: Fehlklick, Ablehnung
+
 ## Noas Geschichte
 
 **Geschichte**:
@@ -124,8 +132,9 @@ ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.st
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Hinweisen (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
-und der Hinweis der Übung). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
+und der Satz des laufenden Schritts, siehe Führung; einen festen Hinweissatz je Übung gibt es seit der Führung nicht
+mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die
@@ -139,6 +148,36 @@ zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle 
 `prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder übersprungen), nur nach «Üben».
 _Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
+
+**Führung**:
+Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
+der Kopfzeile, wo früher der Hinweis stand, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
+einmal vor. Der Umriss liegt als Ring auf dem Brett, Teil der Szene: Wo er hinter einem Element durchläuft, ist er
+verdeckt. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
+von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
+Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
+`fuehrung` (Anzeige, Uhr), die Daten `schritte` und `nebenbei` je Übung.
+_Vermeiden_: Tutorial (für die Führung), Hilfe
+
+**Schritt**:
+Ein Teil der Führung: ein Satz im Du von etwa zwölf Wörtern (Platzhalter je Gerät wie «Tippe» / «Klicke») und das, was
+ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
+Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist, und auch nur mit einer
+bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung
+der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
+bis zum Lösen. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
+_Vermeiden_: Stufe, Hinweis (für einen Schritt)
+
+**Hinweis nebenbei**:
+Ein leiser Satz unter dem Schritt zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Schritten,
+verschwindet bei der ersten Benutzung (Kamerageste, Neustart) oder spätestens mit dem Lösen und kommt beim Neustart
+derselben Übung nicht wieder. Im Code `NEBENBEI`.
+
+**Später Fingerzeig**:
+Nach 15 s ohne Fortschritt (neuer Schritt, ein Element in der Stellung der Lösung) zeigt die Führung noch einmal: Der
+Umriss läuft schneller, die Hand zeigt die Geste wieder, «Weiter» stupst; nach den Schritten gilt das dem nächsten
+Element ausserhalb der Lösung. Er löst nie. Die 15 s sind vorläufig, sie werden nach den Tests von Hand (Poco, eine
+Person, die Prisma nicht kennt) festgelegt. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
 
 **Angebot**:
 Die Frage nach dem Prolog, auf der Bühne: «Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit

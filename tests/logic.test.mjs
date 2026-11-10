@@ -17,7 +17,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3 };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, inLoesung, fingerzeigZiel };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -404,6 +404,38 @@ test('Prisma und Kombinator sind drehbar, Filter und Blocker nicht', () => {
   assert.deepEqual(b.elements.map(L.isRotatable), [true, true, false, false]);
 });
 
+console.log('Antippen (Weigerung)');
+{
+  // Kandidaten wie in pickElement: hit = Abstand des Strahls zum Trefferzylinder (oder null), px = Abstand der Mitte
+  const spiegel = { type: 'mirror', x: 3, z: 3 }, prisma = { type: 'prism', x: 4, z: 3 };
+  const quelle = { type: 'source', x: 3, z: 4 }, festerSpiegel = { type: 'mirror', x: 2, z: 3, fixed: true };
+  const c = (el, hit, px = Infinity) => ({ el, hit, px });
+  test('Festes Element allein getroffen: es ist gemeint', () => {
+    assert.equal(L.pickTapped([c(quelle, 5)]), quelle);
+    assert.equal(L.pickTapped([c(festerSpiegel, 5)], 26), festerSpiegel);
+  });
+  test('Drehbares getroffen gewinnt gegen ein festes davor', () => {
+    assert.equal(L.pickTapped([c(quelle, 4), c(spiegel, 6)]), spiegel);
+    assert.equal(L.pickTapped([c(festerSpiegel, 4), c(spiegel, 6)], 26), spiegel);
+  });
+  test('Drehbares im Toleranzbereich gewinnt gegen ein getroffenes festes (Handy, touchSlop)', () => {
+    assert.equal(L.pickTapped([c(quelle, 5), c(quelle, null, 3), c(spiegel, null, 20)], 26), spiegel);
+  });
+  test('Drehbares ausserhalb des Toleranzbereichs: das feste ist gemeint', () => {
+    assert.equal(L.pickTapped([c(quelle, 5), c(quelle, null, 3), c(spiegel, null, 30)], 26), quelle);
+    assert.equal(L.pickTapped([c(quelle, 5), c(spiegel, null, 20)], 0), quelle); // Maus: ohne Toleranz
+  });
+  test('Unter Drehbaren: das vorderste getroffene, sonst das nächste', () => {
+    assert.equal(L.pickTapped([c(spiegel, 7), c(prisma, 5)]), prisma);
+    assert.equal(L.pickTapped([c(spiegel, 7), c(prisma, null, 2)], 26), spiegel);
+    assert.equal(L.pickTapped([c(spiegel, null, 12), c(prisma, null, 9)], 26), prisma);
+  });
+  test('Nichts in Reichweite: keines', () => {
+    assert.equal(L.pickTapped([]), null);
+    assert.equal(L.pickTapped([c(quelle, null, 40), c(spiegel, null, 30)], 26), null);
+  });
+}
+
 console.log('Level');
 // Löser aus tools/solver.mjs: folgt den Strahlen und probiert nur Elemente durch, die Licht bekommen.
 const S = await import('../tools/solver.mjs');
@@ -555,19 +587,228 @@ test('Löser zählt Elemente ohne Licht als frei (mehrere Lösungen)', () => {
   assert.equal(r.count, 4);
   assert.equal(r.solutions[0].free, 1);
 });
-test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Hinweis', () => {
+test('Tutorial: steht am Anfang, 3–10 Level (eine Seite), jedes mit Schritten statt Hinweis', () => {
   assert.ok(L.TUTORIAL_COUNT >= 3 && L.TUTORIAL_COUNT <= 10, 'Tutorial-Level: ' + L.TUTORIAL_COUNT);
   L.LEVELS.forEach((l, i) => assert.equal(!!l.tutorial, i < L.TUTORIAL_COUNT, `Level ${i + 1} "${l.name}"`));
-  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) assert.ok(typeof l.hint === 'string' && l.hint.length > 10, l.name + ': Hinweis fehlt');
+  // seit Ticket 03 der Führung: jede Übung hat Schritte, keine einen Hinweis
+  for (const l of L.LEVELS.slice(0, L.TUTORIAL_COUNT)) {
+    assert.ok(l.hint === undefined && l.schritte?.length > 0, l.name + ': Schritte statt Hinweis');
+  }
 });
 test('Tutorial: führt alle Elementarten ein', () => {
   const kinds = new Set(L.LEVELS.slice(0, L.TUTORIAL_COUNT).flatMap(l => l.elements.map(e => e.type + (e.fixed ? ':fest' : ''))));
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Tutorial-Hinweise: nur bekannte Platzhalter', () => {
-  for (const l of L.LEVELS.filter(q => q.tutorial)) assert.deepEqual(l.hint.replace(/\{(Klick|Rechtsklick)\}/g, '').match(/[{}]/g), null, l.name);
+test('Tutorial-Schritte: nur bekannte Platzhalter', () => {
+  // die Befehlsform aus SCHRITT_PLATZHALTER
+  const schritt = new RegExp(Object.keys(L.SCHRITT_PLATZHALTER).map(p => p.replace(/[{}]/g, '\\$&')).join('|'), 'g');
+  for (const l of L.LEVELS.filter(q => q.tutorial)) {
+    for (const t of l.schritte.map(s => s.text.replace(schritt, ''))) assert.deepEqual(t.match(/[{}]/g), null, `${l.name}: «${t}»`);
+  }
 });
+
+console.log('Führung im Dorf (Schritte)');
+{
+  const gefuehrt = L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => l.schritte);
+  const wort = (t) => t.split(/\s+/).filter(Boolean).length;
+  const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
+  test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
+  test('Schritte: höchstens drei, je ein Satz von etwa zwölf Wörtern, auf beiden Geräten', () => {
+    for (const l of gefuehrt) {
+      assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
+      for (const s of l.schritte) for (const touch of [true, false]) {
+        const t = L.geraeteText(s.text, touch);
+        assert.ok(wort(t) >= 3 && wort(t) <= 14 && t.length <= 90, `${l.name}: «${t}» (${wort(t)} Wörter)`);
+        assert.ok(/[.!?]$/.test(t) && !/[.!?] \S/.test(t), `${l.name}: ein Satz «${t}»`);
+      }
+    }
+  });
+  test('Schritte: was weiterschaltet ist bekannt, das Element dazu steht auf dem Brett', () => {
+    for (const l of gefuehrt) for (const s of l.schritte) {
+      assert.ok(L.SCHRITT_WEITER.includes(s.weiter), `${l.name}: weiter «${s.weiter}»`);
+      const zellen = s.bei === undefined ? [] : [].concat(s.bei);
+      if (s.weiter !== 'erklaerung') assert.ok(zellen.length > 0, `${l.name}: «${s.text}» ohne Element`);
+      for (const z of zellen) assert.ok(am(l, z), `${l.name}: kein Element bei ${z}`);
+      if (s.weiter === 'drehen') for (const z of zellen) assert.ok(L.isRotatable(am(l, z)), `${l.name}: ${z} nicht drehbar`);
+      // richtung: bei «drehen» die Richtung, bei «strahl» mit trifft nur die Geste der Hand
+      if (s.richtung !== undefined) {
+        assert.ok((s.weiter === 'drehen' || s.trifft) && [1, -1].includes(s.richtung), `${l.name}: richtung`);
+      }
+      // trifft: nur bei «strahl», eine Zelle auf dem Brett; bei ist dann das drehbare Element, das dafür zu drehen ist
+      if (s.trifft !== undefined) {
+        assert.ok(s.weiter === 'strahl' && typeof s.trifft === 'string' && am(l, s.trifft), `${l.name}: trifft ${s.trifft}`);
+        for (const z of zellen) assert.ok(L.isRotatable(am(l, z)), `${l.name}: ${z} nicht drehbar`);
+      }
+      // farbe: nur bei «strahl», eine Farbe aus COLORS (Ticket 04: «Mischung» wartet auf Magenta im Kombinator)
+      if (s.farbe !== undefined) {
+        assert.ok(s.weiter === 'strahl' && s.farbe in L.COLORS, `${l.name}: farbe ${s.farbe}`);
+        // lichtBei kennt Farben nur am Kombinator (Mischung) und am Ziel (Treffer); sonst schaltete der Schritt nie
+        for (const z of s.trifft === undefined ? zellen : [s.trifft]) {
+          assert.ok(['combiner', 'target'].includes(am(l, z).type), `${l.name}: farbe an ${z} (${am(l, z).type})`);
+        }
+      }
+    }
+  });
+  test('Schritte: ein festes Element zum Antippen hat kein drehbares im Nachbarfeld (Handy: das drehbare gewönne)', () => {
+    for (const l of gefuehrt) for (const s of l.schritte.filter(q => q.weiter === 'antippen')) {
+      for (const z of [].concat(s.bei)) {
+        const f = am(l, z);
+        if (!f.fixed) continue;
+        const nah = l.elements.filter(e => e !== f && !e.fixed && ['mirror', 'prism', 'combiner'].includes(e.type)
+          && Math.max(Math.abs(e.x - f.x), Math.abs(e.z - f.z)) <= 1);
+        assert.deepEqual(nah.map(e => `${e.x},${e.z}`), [], `${l.name}: neben ${z}`);
+      }
+    }
+  });
+  test('Schritte: die Inhalte je Übung (Spec «Inhalte je Übung», Ticket 03)', () => {
+    const u = (n) => L.LEVELS.slice(0, L.TUTORIAL_COUNT).find(q => q.name === n);
+    const art = (n) => u(n).schritte.map(s => s.weiter + (s.richtung === -1 ? '-zurück' : '')).join(' ');
+    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name), ['Erstes Licht', 'Umweg', 'Sperre',
+      'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung']);
+    // Erstes Licht: das Ziel und der Weg dahin vor dem ersten Tippen (ein Tippen löst die Übung schon), mit Umriss um
+    // Kristall und Spiegel (Ticket 05: der Satz nennt beide)
+    assert.equal(art('Erstes Licht'), 'erklaerung drehen');
+    assert.deepEqual([].concat(u('Erstes Licht').schritte[0].bei), ['4,0', '4,3']);
+    // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; beide runden Spiegel stehen
+    // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
+    const w = u('Umweg');
+    assert.equal(art('Umweg'), 'antippen erklaerung drehen-zurück');
+    assert.ok(am(w, w.schritte[0].bei).fixed && w.schritte[1].text === 'Rund lässt sich drehen, eckig nicht.');
+    assert.deepEqual([].concat(w.schritte[2].bei).sort(), Object.keys(w.solution).sort(), 'alle runden Spiegel');
+    for (const z of Object.keys(w.solution)) {
+      assert.equal(L.mod8(am(w, z).rot - 1) % 4, w.solution[z] % 4, `${z}: eine Stufe zu weit`);
+    }
+    // Schatten: Spiegel längs und Prisma von der falschen Seite in getrennten Schritten
+    const sch = u('Schatten');
+    assert.ok(am(sch, sch.schritte[0].bei).type === 'mirror' && am(sch, sch.schritte[1].bei).type === 'prism');
+    // Hinweise nebenbei: Kamera in «Sperre», Neustart in «Brechung», sonst keine
+    assert.deepEqual(Object.fromEntries(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(q => q.nebenbei).map(q => [q.name, q.nebenbei])),
+      { Sperre: ['kamera'], Brechung: ['neustart'] });
+    // die Elemente der Lehrinhalte stehen im Satz eines Schritts mit Umriss
+    const umrandet = (n, typ) => u(n).schritte.some(s => [].concat(s.bei ?? []).some(z => am(u(n), z).type === typ));
+    for (const [n, typ] of [['Sperre', 'blocker'], ['Brechung', 'prism'], ['Farbenlehre', 'filter'],
+      ['Farbiges Licht', 'source'], ['Farbiges Licht', 'target'], ['Treffpunkt', 'target'], ['Mischung', 'combiner']]) {
+      assert.ok(umrandet(n, typ), `${n}: ${typ}`);
+    }
+  });
+  test('Schritte: wer jedem Schritt mit der kürzesten Handlung folgt, löst keine Übung vor ihrem letzten Schritt', () => {
+    // wie fuehrung: nach jeder Drehung zuerst gelöst, dann der Schritt (Drehung oder Strahl), Strahl-Schritte, die
+    // schon erfüllt sind, entfallen; Erklärungen mit «Weiter»
+    const kopie = (b) => {
+      const elements = b.elements.map(e => ({ ...e })), grid = new Array(b.size * b.size).fill(null);
+      for (const e of elements) grid[e.z * b.size + e.x] = e;
+      return { ...b, elements, grid };
+    };
+    for (const l of gefuehrt) {
+      const s = l.schritte;
+      let b = L.createBoard(l), k = 0;
+      const ueberspringe = () => {
+        const r = L.traceBeams(b);
+        while (k < s.length && s[k].weiter === 'strahl' && L.schrittErfuellt(s[k], { art: 'strahl', board: b, result: r })) k++;
+      };
+      ueberspringe();
+      while (k < s.length) {
+        if (s[k].weiter === 'erklaerung') { k++; ueberspringe(); continue; }
+        // Breitensuche über Drehungen (und Antippen fester Elemente) bis zum Weiterschalten
+        const seen = new Set(), q = [[b, 0]];
+        let weiter = null;
+        while (q.length && !weiter) {
+          const [bb, n] = q.shift();
+          for (const [i, el] of bb.elements.entries()) {
+            for (const d of L.isRotatable(el) ? [1, -1] : el.fixed && s[k].weiter === 'antippen' ? [0] : []) {
+              const nb = kopie(bb), ne = nb.elements[i];
+              if (d) { if (ne.type === 'combiner') ne.dir = L.mod8(ne.dir + d); else ne.rot = L.mod8(ne.rot + d); }
+              const r = L.traceBeams(nb);
+              const e = d ? { art: 'gedreht', el: ne, delta: d } : { art: 'angetippt', el: ne };
+              if (d && r.solved) { weiter = { nb, geloest: true }; break; }
+              if (L.schrittErfuellt(s[k], e) || L.schrittErfuellt(s[k], { art: 'strahl', board: nb, result: r })) {
+                weiter = { nb, geloest: false }; break;
+              }
+              const key = nb.elements.map(x => x.rot + ':' + x.dir).join();
+              if (d && n < 6 && !seen.has(key)) { seen.add(key); q.push([nb, n + 1]); }
+            }
+            if (weiter) break;
+          }
+        }
+        assert.ok(weiter, `${l.name}: Schritt ${k + 1} nicht erfüllbar`);
+        assert.ok(!weiter.geloest || k === s.length - 1, `${l.name}: gelöst schon in Schritt ${k + 1}`);
+        b = weiter.nb;
+        if (weiter.geloest) break;
+        k++;
+        ueberspringe();
+      }
+    }
+  });
+  test('Schritte: Hinweise nebenbei nur aus NEBENBEI, einmal je Übung', () => {
+    for (const l of gefuehrt) {
+      const n = l.nebenbei ?? [];
+      assert.ok(n.every(k => k in L.NEBENBEI) && new Set(n).size === n.length, `${l.name}: ${n}`);
+    }
+    for (const [k, { text }] of Object.entries(L.NEBENBEI)) {
+      for (const t of text) assert.ok(wort(t) <= 14 && !/[{}]/.test(t), `${k}: «${t}»`);
+    }
+  });
+  test('Text je Gerät: Befehlsform für Schritte', () => {
+    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', true), 'Tippe den Spiegel an.');
+    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', false), 'Klicke den Spiegel an.');
+    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', true), 'Drücke lang auf den Spiegel.');
+    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', false), 'Rechtsklicke auf den Spiegel.');
+  });
+  test('Was weiterschaltet: Erklärung nur «Weiter», antippen auch fest, drehen mit Richtung, Strahl', () => {
+    const l = L.LEVELS.find(q => q.name === 'Umweg'), b = L.createBoard(l);
+    const fest = b.elements.find(e => e.fixed), dreh = b.elements.find(e => L.isRotatable(e));
+    const zelle = (e) => `${e.x},${e.z}`;
+    assert.ok(L.schrittErfuellt({ weiter: 'erklaerung' }, { art: 'weiter' }));
+    assert.ok(!L.schrittErfuellt({ weiter: 'erklaerung' }, { art: 'gedreht', el: dreh, delta: 1 }), 'Drehung schaltet keine Erklärung');
+    assert.ok(L.schrittErfuellt({ weiter: 'antippen', bei: zelle(fest) }, { art: 'angetippt', el: fest }), 'Weigerung');
+    assert.ok(!L.schrittErfuellt({ weiter: 'antippen', bei: zelle(fest) }, { art: 'angetippt', el: b.elements[0] }), 'anderes Element');
+    assert.ok(L.schrittErfuellt({ weiter: 'antippen', bei: zelle(dreh) }, { art: 'gedreht', el: dreh, delta: 1 }), 'drehbares antippen');
+    assert.ok(L.schrittErfuellt({ weiter: 'drehen', bei: [zelle(dreh)] }, { art: 'gedreht', el: dreh, delta: -1 }));
+    assert.ok(!L.schrittErfuellt({ weiter: 'drehen', bei: zelle(dreh), richtung: -1 }, { art: 'gedreht', el: dreh, delta: 1 }), 'falsche Richtung');
+    assert.ok(L.schrittErfuellt({ weiter: 'drehen', bei: zelle(dreh), richtung: -1 }, { art: 'gedreht', el: dreh, delta: -1 }));
+    assert.equal(L.schrittGeste({ weiter: 'drehen', richtung: -1 }), 'zurueck');
+    assert.equal(L.schrittGeste({ weiter: 'antippen' }), 'tippen');
+    assert.equal(L.schrittGeste({ weiter: 'erklaerung' }), null);
+    // Strahl: Die Quelle von «Erstes Licht» trifft den Spiegel, das Ziel erst gelöst
+    const e = L.LEVELS[0], eb = L.createBoard(e), ziel = eb.elements.find(q => q.type === 'target');
+    const sp = eb.elements.find(q => q.type === 'mirror');
+    let r = L.traceBeams(eb);
+    assert.ok(L.strahlTrifft(r, sp) && !L.strahlTrifft(r, ziel));
+    assert.ok(!L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
+    sp.rot = e.solution[zelle(sp)];
+    r = L.traceBeams(eb);
+    assert.ok(L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
+    // Strahl mit trifft: Umriss und Hand am Spiegel, weiter erst, wenn das Licht das Ziel trifft
+    const mit = { weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel), richtung: -1 };
+    assert.ok(L.schrittErfuellt(mit, { art: 'strahl', board: eb, result: r }));
+    sp.rot = 2;
+    assert.ok(!L.schrittErfuellt(mit, { art: 'strahl', board: eb, result: L.traceBeams(eb) }), 'trifft nur den Spiegel');
+    assert.equal(L.schrittGeste(mit), 'zurueck');
+    assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel) }), 'tippen');
+    assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(ziel) }), null);
+    // Strahl mit farbe («Mischung»): Grün allein im Kombinator schaltet nicht, erst Rot und Blau (Magenta)
+    const m = L.LEVELS.find(q => q.name === 'Mischung'), mb = L.createBoard(m), s1 = m.schritte[0];
+    const kombi = mb.elements.find(q => q.type === 'combiner'), prisma = mb.elements.find(q => q.type === 'prism');
+    let mr = L.traceBeams(mb);
+    assert.ok(L.strahlTrifft(mr, kombi) && mr.mixes.get(kombi.id) === L.COLORS.green, 'Start: Grün im Kombinator');
+    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }), 'Grün schaltet nicht');
+    assert.ok(L.schrittErfuellt({ ...s1, farbe: undefined }, { art: 'strahl', board: mb, result: mr }), 'ohne farbe schon');
+    prisma.rot = L.mod8(prisma.rot - 1); // zurück: nur Blau
+    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: L.traceBeams(mb) }), 'zurück schaltet nicht');
+    prisma.rot = L.mod8(prisma.rot + 2); // ein Tippen vom Start: Rot und Blau
+    mr = L.traceBeams(mb);
+    assert.ok(mr.mixes.get(kombi.id) === L.COLORS.magenta && L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }));
+  });
+  test('Später Fingerzeig: nächstes Element ausserhalb der Lösung, kürzerer Weg, Spiegel halbe Runde gleich', () => {
+    const l = L.LEVELS[0], b = L.createBoard(l), sp = b.elements.find(q => q.type === 'mirror');
+    assert.deepEqual([L.fingerzeigZiel(l, b).el, L.fingerzeigZiel(l, b).geste], [sp, 'tippen']); // 2 → 3
+    sp.rot = 4; // 3 + 1: zurück ist kürzer
+    assert.equal(L.fingerzeigZiel(l, b).geste, 'zurueck');
+    sp.rot = 7; // 3 + 4: gleich wie die Lösung
+    assert.ok(L.inLoesung(l, sp) && L.fingerzeigZiel(l, b) === null);
+  });
+}
 test('Namen: alle Level eindeutig', () => {
   const names = ALLE.LEVELS.map(l => l.name);
   assert.deepEqual(names.filter((n, i) => names.indexOf(n) !== i), [], 'doppelte Namen');

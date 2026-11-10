@@ -14,5 +14,6 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ## Laufendes Vorhaben
 
-Zuletzt PLAN 1.1 «Ein Brett je Himmel» (`feature/brett-je-himmel`): Übergabe, Stand und Arbeitsregeln in
-`.scratch/brett-je-himmel/STAND.md`; vor dem Weitermachen lesen.
+PLAN 1a.1 «Führung im Dorf» (`feature/tutorial-fuehrung`): Übergabe, Stand und Arbeitsregeln in
+`.scratch/tutorial-fuehrung/STAND.md`; vor dem Weitermachen lesen. Abgeschlossen davor: PLAN 1.1 «Ein Brett je
+Himmel» (`.scratch/brett-je-himmel/STAND.md`).

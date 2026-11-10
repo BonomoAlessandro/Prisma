@@ -1,0 +1,172 @@
+# 05: Rückmeldungen aus dem Poco-Test
+
+**Spec:** ../spec.md
+
+**Blocked by:** 04
+
+**Status:** ready-for-agent
+
+**What to build:** Die drei Punkte aus dem ersten Handy-Test des Nutzers (10.11.2026) einarbeiten.
+
+Wortlaut des Nutzers:
+
+> Die kreise um die drehbaren elemente sind gut, aber der kreis soll hinter dem element verschwinden können. Also
+> aktuell haben wir die kreismarkierung die sich um drehbare elemente dreht und es kann sein, dass der kreis hinter
+> einem element durchfährt. In einem solchen fall soll es wirken als wäre es ebenfalls 3dimensional.
+> Die hilfe/anweisungstexte sind nicht immer ganz so gut. Im ersten level heisst es einfach, man solle das licht zum
+> kristall bringen, aber wie soll das klappe ?
+> Sonst ist es eigentlich ganz gut, nur auf dem handy ist der weiter button ein wenig komisch platziet teilweise
+
+- [x] **Umriss räumlich:** Der gestrichelte Umriss liegt als Teil der Szene auf dem Brett. Wo er hinter einem Element
+      (dem markierten selbst oder einem Nachbarn) durchläuft, ist er verdeckt, wie ein Ring um das Element herum. Er
+      bleibt gut sichtbar, wo er frei liegt, und geht mit Kamera und Zoom mit. Der späte Fingerzeig (kräftiger Umriss)
+      bleibt erhalten.
+- [x] **Texte, die sagen, wie:** Jeder Schritt sagt nicht nur, was das Ziel ist, sondern auch, wie man dahin kommt.
+      Vor allem «Erstes Licht» Schritt 1. Alle 23 Schritte aus der Sicht eines Spielers ohne Vorwissen durchgehen.
+      Die Grenzen der Spec gelten weiter.
+- [x] **«Weiter» auf dem Handy:** an einer ruhigen, gleichbleibenden Stelle beim Satz, in jeder Länge des Satzes, im
+      Hoch- und Querformat.
+- [x] Tests und Proben nachgeführt, `APP_VERSION` neu für den nächsten Poco-Test.
+
+## Comments
+
+- 10.11.2026, **Texte und «Weiter»** (`feature/tutorial-05-texte`, Worktree `prisma-tutorial-05t`; der Umriss im Raum läuft
+  getrennt). Alle 23 Schritte aus der Sicht eines Spielers ohne Vorwissen durchgegangen: Weiss er danach, was er tun
+  soll und woran er merkt, dass es genug ist? Jeder Satz nennt jetzt Handlung und Ziel («… bis …»), Erklärungen sagen,
+  wozu das Gesagte dient. Grenzen der Spec unverändert (höchstens drei Schritte, 11–14 Wörter, höchstens 84 Zeichen,
+  ein Satz im Du, Platzhalter); Bretter, `weiter`, `richtung`, `trifft` und `farbe` unverändert, also auch «nicht zu
+  früh» und die Abdrücke `UEBUNGEN_OHNE_TEXT`. Geändert ist `bei` an zwei Stellen.
+
+  | # | Schritt | alt | neu |
+  |---|---|---|---|
+  | 1 | E | Bring das Licht zum Kristall, dann leuchtet er. | Bring das Licht zum Kristall: Es läuft geradeaus, bis ein Spiegel es umlenkt. (Umriss um Kristall **und Spiegel**) |
+  | 1 | D | {Tippe} den Spiegel an, so dreht er sich. | {Tippe} den Spiegel an, so dreht er sich und lenkt das Licht zum Kristall. |
+  | 2 | A | {Tippe} den Spiegel auf dem eckigen Sockel an. | {Tippe} den Spiegel auf dem eckigen Sockel an und schau, was passiert. |
+  | 2 | E | Rund lässt sich drehen, eckig nicht. | unverändert (Satz des Nutzers) |
+  | 2 | D | {Drücke lang} auf die runden Spiegel, so drehen sie zurück. | Die runden Spiegel sind zu weit gedreht: {Drücke lang} darauf, so drehen sie zurück. |
+  | 3 | E | Der Block schluckt das Licht, hier kommt es nicht weiter. | Der Block schluckt das Licht, also braucht es einen Weg um ihn herum. |
+  | 3 | S | {Tippe} den Spiegel, bis das Licht den nächsten Spiegel trifft. | {Tippe} den Spiegel, bis das Licht vom Block weg zum nächsten Spiegel läuft. |
+  | 3 | D | {Tippe} die übrigen Spiegel, bis das Licht den Kristall erreicht. | {Tippe} die zwei markierten Spiegel, bis das Licht den Kristall erreicht. |
+  | 4 | E | Das Prisma fächert weisses Licht in Rot, Grün und Blau auf. | unverändert |
+  | 4 | D | {Tippe} das Prisma, bis jede Farbe ihren Kristall trifft. | {Tippe} das Prisma, bis jede Farbe den Kristall ihrer Farbe trifft. |
+  | 5 | S | Längs zum Strahl lässt ein Spiegel das Licht verschwinden: {Drücke lang} auf ihn. | Längs zum Strahl schluckt der Spiegel das Licht: {Drücke lang}, bis es weiterläuft. |
+  | 5 | E | Trifft Licht das Prisma auf der Seite seiner Farbpfeile, verschwindet es auch. | Auch das Prisma schluckt Licht, wenn es von der Seite seiner Farbpfeile kommt. |
+  | 5 | D | {Tippe} das Prisma, bis seine Farbpfeile zu den Kristallen zeigen. | {Tippe} das Prisma, bis seine Farbpfeile vom Licht weg zu den Kristallen zeigen. |
+  | 6 | E | Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün. | Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün, ohne Blau. |
+  | 6 | D | {Tippe} Prisma und Spiegel: Das Prisma fächert nur auf, was ankommt. | {Tippe} Prisma und Spiegel, bis Rot und Grün die Kristalle ihrer Farbe treffen. |
+  | 7 | E | Farbige Quellen senden nur ihre Farbe, hier Rot und Blau. | unverändert |
+  | 7 | E | Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin. | Der Ring am Kristall zeigt, welche Grundfarben er braucht; falsche flackern darin. |
+  | 7 | D | {Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft. | {Tippe} die Spiegel, bis Rot und Blau die Kristalle ihrer Farbe treffen. |
+  | 8 | E | Treffen Rot und Blau denselben Kristall, mischen sie sich zu Magenta. | Dieser Kristall braucht Magenta: Treffen ihn Rot und Blau, mischen sie sich dazu. |
+  | 8 | D | {Tippe} beide Spiegel, bis Rot und Blau den Kristall treffen. | {Tippe} beide Spiegel, bis Rot und Blau zusammen den Kristall treffen. |
+  | 9 | S | {Tippe} das Prisma, bis Rot und Blau den Kombinator treffen. | unverändert; Umriss jetzt an Prisma **und Kombinator** (die Hand bleibt am Prisma) |
+  | 9 | E | Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter. | Der Kombinator mischt alles Licht, das ihn trifft, zu einem neuen Strahl. |
+  | 9 | D | {Tippe} den Kombinator, bis sein Magenta den Kristall trifft. | unverändert |
+
+  Gründe, kurz: «Erstes Licht» sagte nur das Ziel; jetzt Ziel und Weg (geradeaus, Spiegel lenkt um), und der Umriss
+  zeigt beide Dinge, die der Satz nennt. «Umweg»: Der erste Satz gibt dem Antippen einen Zweck, der letzte sagt, warum
+  zurück. «Sperre»: «nächsten Spiegel» war ohne Richtung, «übrigen» schloss den festen Spiegel ein. «Kristall ihrer
+  Farbe» statt «ihren Kristall»: Woran man den richtigen erkennt (der Kristall leuchtet in seiner Farbe). «Schatten»:
+  «schluckt» wie beim Block, und der erste Satz sagt, wann es genug ist. «Farbenlehre»: Der zweite Satz sagte, was das
+  Prisma tut, aber nicht, wohin; «ohne Blau» im ersten trägt jetzt den Rest («fächert nur auf, was ankommt»).
+  «Mischung»: Der erste Satz nennt den Kombinator, bevor er erklärt ist; der Umriss zeigt, welches Element gemeint ist.
+  «sendet sie weiter» liess offen, dass ein Strahl herauskommt, den man drehen kann (dritter Schritt).
+  Logiktest «Inhalte je Übung»: `bei` von «Erstes Licht» Schritt 1 ist jetzt Kristall und Spiegel; Dorf-Probe
+  (`gefuehrt`) erwartet die neuen Sätze und zwei Umrisse.
+
+  **«Weiter»:** Bilder vorher (`weiter-vorher-*`) zeigen auf dem Handy drei Lagen je nach Länge des Satzes: hinter
+  einem kurzen Satz in derselben Zeile, allein in einer eigenen Zeile, wenn der Satz die Zeile füllt (Brechung,
+  Poco), oder hinter dem umbrochenen zweiten Teil, oft einem einzelnen Wort («auf.», «sie weiter.»). Dazu machte der
+  Knopf die Zeile, in der er stand, höher als die übrigen. Jetzt steht er nicht mehr im Fluss des Texts
+  (`#hud .sub .hinweis.schritt` ein Flex-Kasten): am Desktop und quer rechts neben dem Satz, mittig zu seiner Höhe
+  (am Desktop wie bisher, aber nie mehr umbrochen; quer passt jeder Satz jetzt in eine Zeile); auf dem Handy hochkant
+  (bis 520 px breit, ab 700 px hoch, also Poco) in einer eigenen Zeile mittig unter dem Satz, immer an derselben
+  waagrechten Stelle; auf kleinen Handys (unter 700 px hoch, 360 × 640) rechts neben einem Satzblock, der die übrige
+  Breite füllt, weil eine eigene Zeile dort die Kopfzeile über den Rand des Bretts schob (Brechung: Hinweis nebenbei
+  über dem Brett). Die Dorf-Probe prüft die Lage je Bildschirm (`fuehrungIn`: `lage` unter/rechts) und zählt die
+  Zeilen über den Text (der Satz ist kein Inline-Kasten mehr).
+
+  Bilder vorher und nachher je Erklärungsschritt (10 je Bildschirm: Poco 393 × 873 bei 2,75, 360 × 640, quer
+  873 × 393 bei 2,75, Desktop 1440 × 900) unter `%TEMP%prisma-vorschauweiter-vorher-*` und `weiter-nachher-*`.
+  Nachher: Poco «Weiter» immer bei x 157–236, eine oder zwei Zeilen darüber; 360 × 640 immer bei x 265–344, mittig
+  zu zwei (einmal drei) Zeilen; quer jeder Satz einzeilig, «Weiter» auf derselben Höhe rechts daneben.
+
+  Tests: `logic.test.mjs` 2064 ok, `vorrat.test.mjs` 18 ok, `golden.mjs` alle 847 Level ok. Dorf-Probe (je 29
+  gespielte Schritte, Lage von «Weiter» geprüft): Desktop, `--handy` und `--handy --groesse 360x640` rot nur die
+  bekannte Lücke «Sehr schwer: Übersicht → Übung 8 wiederholen» (404, 178, 176 ms); `--quer` bestanden. Zeilen je
+  Satz: Desktop und quer alle einzeilig, Handy 7 × eine und 22 × zwei, 360 × 640 3 × eine, 25 × zwei, 1 × drei
+  («Der Ring am Kristall …»). `APP_VERSION` unverändert (vierter Haken offen, kommt mit dem Umriss).
+
+- 10.11., Teil «Umriss räumlich» (`feature/tutorial-05-umriss`), fertig: Der Umriss ist ein Ring in der Szene statt
+  des SVG-Rings über dem Bild. `fuehrung.ringe` (je Element ein Mesh am Modell, `zeigeRinge`), `ringTeile`
+  (`RingGeometry` als flaches Band, `ShaderMaterial` mit `UMRISS_VERTEX`/`UMRISS_FRAGMENT`), `ringeVorwaermen`,
+  `ringeAb`/`ringeFrei`; Masse in `FUEHRUNG.ring`. Der Shader zeichnet nur den Strich in der Mitte des Bands und rechnet
+  Breite, runde Strichenden und den dunklen Schatten über `dFdx`/`dFdy` in Pixel der Oberfläche um: 2 px, Striche 5:3,
+  Schatten wie `drop-shadow` 3 px, Deckung 0,85, beim späten Fingerzeig 2,6 px, voll, schneller (0,55 statt 1,4 s je
+  Strich). Tiefentest ohne Tiefe zu schreiben, 0,02 über dem Brett mit `polygonOffset`: Element und Nachbarn
+  verdecken ihn, er versinkt nicht im Brett. Ohne Nebel, nicht in der Spiegelung (`LAYER_NO_REFLECT`), Farbe #ffd98a
+  als Szenenwert vor ACES mit Helligkeit 0,8 (zeigt sich als rund #f4cf8a), unter der Bloom-Schwelle: kein Leuchten.
+  Leistung: ausserhalb der Führung kein Objekt und keine Arbeit je Bild; in ihr je Bild nur `uPhase` (mit
+  `prefers-reduced-motion` steht sie). Das Programm wird in `fuehrung.neu` übersetzt, während das Brett herauswächst
+  (`compileParallel` mit einem unsichtbaren Ring kurz in der Szene); beim ersten Bild mit Umriss kein neues Programm
+  (geprüft: das Material hat sein Programm schon in `flow` «in»). Geometrie und Material frei beim Lösen (`beenden`)
+  und beim nächsten Brett (`neu`, dort erst nach dem Vorwärmen der neuen, so bleibt das Programm bei Neustart und
+  Wechsel ohne Lösen). Die Hand bleibt SVG (`platziere`). Die Führung gibt es nur im Dorf (Himmel village, Hochbeet).
+  Dorf-Probe: Umrisse über `__prismaDebug.fuehrung` (`UMRISSE`: gezeigte Ringe, die an ihrem Modell in der Szene
+  hängen, Mitte im Bild, Zelle des Elements, stark; `UMRISSE_FREI`), je Schritt am richtigen Element, nach dem Lösen
+  und im Bergwald nach «Überspringen» nichts mehr da. Tests: `logic` 2064, `geschichte` 35, `vorrat` 18 ok;
+  `geschichte-probe --dorf` und `--dorf --handy` bestanden, Konsole ohne Fehler (Arbeit «Führung: Umriss» 0,9 bzw.
+  0,7 ms selbst, keine Lücke über 50 ms). Bilder `umriss-*.png` in `%TEMP%\prisma-vorschau` (Erstes Licht, Umweg
+  Schritt 2 mit drei Ringen aus der Ausgangsansicht, schräg, flach von hinten, stark; Desktop und 393 × 873; still).
+
+- 10.11.2026, **Review** (Diff `18e18ce..55a18f3`, beide Teile und die Zusammenführung). Ergebnis: bereit für den
+  nächsten Poco-Test. Einen kleinen Fund selbst behoben, sonst nur Hinweise.
+
+  **Behoben (klein):** Quer (`max-height: 500px`) setzte die Regel des Flex-Kastens (`.hinweis.schritt:not([hidden])`,
+  höhere Spezifität) die Breite des Satzes auf 40em + 8.5em, gut 550 px, statt 64em wie für den Hinweis quer: Ein
+  langer Satz mit «Weiter» brach dort früher um als vorher. Jetzt quer `calc(64em + 8.5em)`; die Quer-Probe zeigt
+  weiter alle 29 Sätze einzeilig, «Weiter» rechts. `APP_VERSION` `2026-11-10 tutorial-fuehrung-3` (index.html, sw.js).
+
+  **Geprüft, in Ordnung:**
+  - Zusammenspiel: «Erstes Licht» 1 und «Mischung» 1 zeigen je zwei Ringe (die Probe prüft Zelle und Lage je Ring), die
+    Hand steht an `ziele[0]` (Spiegel bzw. Prisma), an Erklärungen keine. Der Ring an Kristall und Kombinator hängt am
+    Modell (`game.objects`), 0,02 über dem Brett; Sockel und Element verdecken die hintere Hälfte (Bilder Desktop und
+    quer angesehen). Am Drehteller hängt er nicht am `pivot`: Die Striche drehen beim Tippen nicht mit. Beim Wackeln
+    eines festen Elements wackelt er mit (±0,1 rad, kaum zu sehen).
+  - Freigabe: `beenden` (Lösen, auch früh) gibt Geometrie und Material frei; `neu` (Neustart, Levelwechsel, «Dorf
+    überspringen», Übersicht → anderes Level) erst nach dem Anstossen des neuen Programms (das erste Häppchen von
+    `compileParallel` läuft synchron, das Programm bleibt im Cache). Menü und Übersicht hängen die Ringe nur ab
+    (`verbergen`). `disposeTree` der alten Modelle läuft erst in späteren Bildern; die Ringe hängen dann schon nicht
+    mehr daran. Ausserhalb einer geführten Übung: kein Objekt, `ringeAb` gibt sofort zurück, `platziere` nur bei
+    `sichtbar`.
+  - Kein z-fighting (Tiefentest ohne Tiefe zu schreiben, `polygonOffset`, 0,02 hoch), ohne Nebel, nicht in der
+    Spiegelung, kein Schattenwurf, kein Raycast. `prefers-reduced-motion`: `uPhase` steht. Verlust des WebGL-Kontexts:
+    Das Spiel zeigt nur «bitte neu laden», nichts nachzuziehen.
+  - Pixeldichte: `uPx` wird je Bild aus `renderer.getPixelRatio()` gelesen. Die ändert nur die adaptive Auflösung
+    (`setPixelRatio`, Composer gleich); Drehen und Grössenänderung lassen sie stehen, und die Leinwand misst dann ebenso
+    viele Bildpunkte je CSS-Pixel. Richtig.
+  - Sätze: alle 23 richtig nach der Strahlregel, in den Grenzen (Logiktest). «Längs zum Strahl schluckt der Spiegel das
+    Licht» stimmt (Spiegel rot 0 längs zu Ost; ein Zurück gibt rot 7 ≡ 3, das Licht läuft nach Norden zum Prisma).
+    «Die zwei markierten Spiegel» in «Sperre» stimmt ((3,0) und (5,0); der feste ist nicht markiert). «Farbenlehre»:
+    Der Filter wird getragen (Satz 1 mit «ohne Blau», danach kommen aus dem Prisma sichtbar nur Rot und Grün);
+    «fächert nur auf, was ankommt» steht nicht mehr ausdrücklich da, für den Lerninhalt der Spec («der Filter») genügt
+    das.
+  - «Weiter»: Zwischen den Regeln kippt nichts. Breiter als 520 px hochkant (Tablet, offenes Foldable) wie am Desktop
+    (der Satz schrumpft und bricht um, der Knopf rechts mittig); 412 × 915 unter dem Satz; 375 × 667 und 360 × 640
+    rechts neben dem Satzblock; quer mit zwei Zeilen bliebe der Knopf rechts mittig.
+  - Merge in `fuehrungIn`: richtig; `c` steht vor `UMRISSE`, `frei`, `lage` und `zeilen` aus `satzZeilen` sind da.
+
+  **Hinweise ohne Änderung:**
+  - «Schatten» 1: «{Drücke lang}, bis es weiterläuft» nennt kein Objekt (am Desktop «Rechtsklicke, bis …»). Ring und
+    Hand zeigen den Spiegel; mit «darauf» wären es 88 Zeichen. Beim Poco-Test beobachten.
+  - Geht man aus einer Übung ganz hinaus, ohne dass ein neues Brett kommt (etwa zum Startbildschirm), bleiben Material
+    und Geometrie bis zum nächsten Brett stehen: zwei kleine Objekte, kein Handlungsbedarf.
+
+  **Tests** (mit der Änderung): `logic` 2064, `geschichte` 35, `vorrat` 18, `beurteilung` 206, `generator` 31,
+  `ki-tester` 84, `levelliste` 54, `wuerfelliste` 20, `hall` 6 ok; `golden.mjs` alle 847 ok. Dorf-Probe, je 29
+  Schritte mit Ringen und Lage von «Weiter»: Desktop rot nur «Übung 8 wiederholen» (405 ms); `--handy` ebenso (193 ms;
+  7 × eine, 22 × zwei Zeilen); `--handy --groesse 360x640` rot nur eine Lücke von 301 ms bei «Satz zum Ende →
+  Bergwald 1» (Bildunterschrift im Wald, Führung aus; die bekannten Lücken im Wald; 3 × eine, 25 × zwei, 1 × drei
+  Zeilen); `--quer` rot nur «Übung 8 wiederholen» (107 ms; 29 × eine Zeile). Arbeit «Führung: Umriss» 0,7–0,8 ms
+  selbst, keine Lücke über 50 ms. `--uebersicht --menue` rot nur «Spiel → Übersicht» (123 ms, bekannt);
+  `--grad leicht --welten 2` bestanden, Konsole ohne Fehler. `wackel-probe` mit `MOBILE=1` ok, `interaction-probe` ok.
