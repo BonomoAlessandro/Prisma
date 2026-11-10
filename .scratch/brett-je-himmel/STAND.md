@@ -116,7 +116,12 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   (kein früher Tiefentest für die Säulen darunter); Abhilfe: inneres Quadrat ohne `discard` plus Ring, oder kürzere
   Säulen. Hauptthread-Bau 8,8 / 11,9 ms (Desktop / Handy gedrosselt).
 - **`brett-probe formen`** meldete zweimal in vielen Läufen 1 leeres Pixel (Hochbeet → Stein, Moos → Lehm, flach);
-  vermutlich ein Riss in der Rasterung an einer Naht, Ursache offen.
+  vermutlich ein Riss in der Rasterung an einer Naht, Ursache offen. Seit «Hochbeet im Mondlicht» und den Kühen im Dorf
+  (10.11.2026, `feature/dorf-mond-kuehe`) in jedem Lauf 1–2 Übergänge mit je 1 Pixel (4 von 4 Läufen; verschiedene
+  Übergänge, z. B. Hochbeet → Stein umgelenkt, tidePool → raisedBed flach-heraus, clay → moss flach). Auf 700edfa
+  3 von 3 Läufen ohne. Auch ohne das Mondlicht des Hochbeets trat es auf (1 Lauf: clay → moss), also nicht dessen
+  Shader. Form und Zufall der Bretter hängen nicht von den Werten ab (feste Seeds). Im Spiel nicht zu sehen (1 Pixel
+  im Bild der Probe, 320 × 200, ein Bild lang).
 - `--uebersicht`: Öffnen und Schliessen zeitweise über 100 ms, auf allen Ständen: Present von Chrome headless (Ticket 11).
 - `--dorf`: «Übung 8 wiederholen» und «Prolog überspringen» zeitweise über 100 ms, schon auf den Basen: dieselbe Ursache
   wie an den Weltgrenzen (Freigeben des alten Panoramas), seit Ticket 11 behoben.
