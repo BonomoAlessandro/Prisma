@@ -1196,6 +1196,10 @@ console.log('Offline');
       'Bohlen mit drei Tönen');
     assert.ok(errorsWith({ sprout: undefined }).some((e) => /sprout/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ tomate: [0.8, 0.2, 0.1] }).some((e) => /tomate/.test(e)), 'unbekannter Wert');
+    assert.ok(errorsWith({ moonRim: undefined }).some((e) => /raisedBed: moonRim /.test(e)), 'Mondkante fehlt');
+    assert.ok(errorsWith({ grass: [0.06, 0.15, 0.13] }).some((e) => /raisedBed: grass /.test(e)), 'Wiese ohne zwei Töne');
+    assert.ok(errorsWith({ daisy: undefined }).some((e) => /raisedBed: daisy /.test(e)), 'Gänseblümchen fehlen');
+    assert.ok(errorsWith({ moon: [0.3, 0.36] }).some((e) => /raisedBed: moon /.test(e)), 'Mondlicht mit zwei Werten');
   });
   test('Bretter: Bergwald mit dem Moospolster (moss); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
     const forest = skies.find((s) => s.id === 'forest') ?? assert.fail('Skybox forest fehlt im Register');
@@ -1215,12 +1219,17 @@ console.log('Offline');
     assert.ok(errorsWith({ moonRim: undefined }).some((e) => /moss: moonRim /.test(e)), 'Mondkante fehlt');
     assert.ok(errorsWith({ moon: [0.3, 0.36] }).some((e) => /moss: moon /.test(e)), 'Mondlicht mit zwei Werten');
   });
-  test('Bretter: Das Mondlicht des Moospolsters kommt aus der Richtung des Monds im Wald (MOSS.moonDir = light.dir)', () => {
-    const forest = skies.find((s) => s.id === 'forest') ?? assert.fail('Skybox forest fehlt im Register');
-    const m = html.match(/moonDir: \[([-\d., ]+)\]/) ?? assert.fail('MOSS.moonDir in index.html nicht gefunden');
-    const dir = m[1].split(',').map(Number), unit = (v) => v.map((x) => x / Math.hypot(...v));
-    const a = unit(dir), b = unit(forest.light.dir);
-    assert.ok(a.every((x, i) => Math.abs(x - b[i]) < 1e-3), `MOSS.moonDir ${dir} weicht von light.dir des Walds ab`);
+  test('Bretter: Moospolster und Hochbeet liegen im Mondlicht aus der Richtung des Monds (light.dir als lightDir)', () => {
+    // Das Spiel gibt der Brett-Angabe light.dir des Himmels mit (SKY_ENTRIES), boardMoonlight verlangt es
+    assert.match(html, /lightDir: m\.light\.dir/, 'SKY_ENTRIES gibt light.dir als lightDir weiter');
+    assert.match(html, /if \(!v\.lightDir\) throw/, 'boardMoonlight verlangt die Richtung');
+    for (const [id, type] of [['forest', 'moss'], ['village', 'raisedBed']]) {
+      const s = skies.find((x) => x.id === id) ?? assert.fail(`Skybox ${id} fehlt im Register`);
+      assert.equal(s.board.type, type);
+      assert.ok(Array.isArray(s.light?.dir) && s.light.dir.length === 3 && s.light.dir.every(Number.isFinite),
+        `${id}: light.dir fehlt`);
+      assert.ok(s.light.dir[1] > 0, `${id}: der Mond steht über dem Horizont`);
+    }
   });
   test('Bretter: Vulkan mit den Basaltsäulen (basalt); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
     const volcano = skies.find((s) => s.id === 'volcano') ?? assert.fail('Skybox volcano fehlt im Register');

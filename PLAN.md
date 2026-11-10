@@ -132,6 +132,21 @@ Android-Chromium.
     (`moon`, `moonRim` in der Brett-Angabe), das auf der Mondseite helle Kanten an Polstern und Farn zeichnet, wie bei
     den Bäumen. Aufbau und Lichtwelle bleiben. Die warmen Töne, die fest im Code standen, sind grau: Die Farbe kommt
     allein aus `skybox.json` (ausser den festen Tönen der Lichtwelle).
+  - [x] **Hochbeet im Mondlicht** (10.11.2026, Branch `feature/dorf-mond-kuehe`): Das Brett wirkte für die Nacht im
+    Dorf zu grell (warme Erde, saftig grüne Kräuter, orange Ringelblumen). Aus vier Varianten gewählt: **Mondsilber**
+    (Vorschau https://claude.ai/artifact/Jts6VWRTULSuTU61fX3q85). Erde und Bohlen blaugrau, Kräuter blaugrün,
+    Schnüre und Kiesel silbrig, Ringelblumen gedämpft. Dazu dasselbe kühle Mondlicht wie beim Moospolster mit hellen
+    Kanten auf der Mondseite, auf der Erde kaum (sonst wirkte sie bei flachem Blick wie grauer Beton). Das Mondlicht ist
+    ein Baustein für beide Bretter (`boardMoonlight`); seine Richtung kommt aus `light.dir` des Himmels, das Spiel gibt
+    sie der Brett-Angabe mit (`lightDir`). Die Kopie `MOSS.moonDir` im Code ist weg.
+  - [x] **Hochbeet als Blumenwiese** (10.11.2026, gleicher Branch): Statt der gerechten Erde wächst im Feld eine Wiese.
+    Aus vier Varianten gewählt: **Blumenwiese** (Vorschau https://claude.ai/artifact/DhBE1GrE6iZ28vix6jyHSU): Gras in
+    Büscheln mit dunklen Lücken und hellen Spitzen, helle und dunkle Flecken, dazu Grüppchen von Gänseblümchen und
+    blassem Klee, alles in die Textur des Felds gemalt (`grass`, `grassTip`, `daisy`, `daisyHeart`, `clover` in der
+    Brett-Angabe). Im Rand bleiben Erde, Mulch und Kräuter, Schnüre, Pflöcke und Kiesel bleiben. Nicht gewählt: Rasen
+    ohne Blumen, Mähmuster im Schachbrett, hohes Gras im Rand. Das Berechnen der Texturen dauert rund 0,1 s länger
+    (1024², im Hintergrund-Thread). Offen: Die Lichtwelle ist noch die alte (Sämlinge neben den Schnüren,
+    Glühwürmchen); auf der Wiese wären ein Windstoss übers Gras oder sich öffnende Gänseblümchen denkbar.
   - Am Strand gewählt (05.11.2026): **Gezeitenbecken**. Das Feld ist heller Sandstein, im Rand läuft eine Rinne mit
     Wasser. Katalog mit 8 Richtungen: https://claude.ai/artifact/81jLC81YCbWBGYDRe6C6H1.
   - Idee, nicht Teil der Spec: Das Wasser der Rinne fällt als Wasserfall bis aufs Meer. Das verbindet das Brett mit dem
@@ -159,6 +174,14 @@ Android-Chromium.
     Kirche am Hang, Gipfel mit Schnee, Sternenhimmel; Noas Haus, Zaun, Hochbeet und drei Nachbarhäuser als 3D-Modelle
     im Spiel. Gepackt und im Register (lädt erst beim Gebrauch, `vorab: false`), seit 03.11.2026 eingebaut:
     `STORY_DORF.sky` ist `village` (Merge `feature/dorf-himmel`). Szene `tools/blender/szenen/village/szene.py`.
+    - [x] **Kühe im Garten** (10.11.2026, Branch `feature/dorf-mond-kuehe`): Der Garten rund ums Brett wirkte leer.
+      Fünf Kühe: zwei Braunvieh, zwei Fleckvieh und ein Kalb, weidend, stehend und liegend, die grossen mit Glocke
+      (`COWS`, `cow_mesh` in `szene.py`: Metaballs für Rumpf, Hals und Kopf, eigene Formen für Beine, Hörner, Ohren,
+      Augen, Schwanz und Glocke). Sie gehören zum Netz von Noas Haus (bakedMesh `house`) und teilen dessen Bild, weil
+      eine eigene Textur die 300 MB Grafikspeicher des Dorfs gesprengt hätte. Auf dem Bild liegen sie 4-mal dichter
+      (je Seitenlänge, `COW_TEXEL`), das Haus behält seine Dichte (`HOUSE_UV`). Die Orte sind aus den Spielansichten
+      gewählt, nah ums Brett: auf dem Handy über und unter dem Brett, am Desktop an den Rändern und flach unter dem
+      schwebenden Brett. Ihre Schatten liegen im Panorama. Grundteil des Dorfs 1,87 MB (Grenze 2 MB). Offen: Die Kühe stehen still.
 - [ ] **1.3 Neuer Startbildschirm «Sternbild über Noas Dorf»** (vom Nutzer gewählt, 01.11.2026): ersetzt das heutige
   Intro (`#intro` in `index.html`: Strahl, Schriftzug, Farbfächer hinter dem A). Prototyp mit allen drei geprüften
   Varianten in `.scratch/startbildschirm/prototyp.html` (Variante 3; im Browser öffnen, Taste 3, Taste r spielt nochmals ab).
@@ -192,10 +215,20 @@ Android-Chromium.
     nur noch, wo Fels liegt (`rock_drawn` in `szenen/beach/szene.py`), daneben zeigt das Panorama glatten Sand; die
     Felsen gehen am Rand weich ins Panorama über (`bakedMesh` mit `ground: [0, 0]`). Rest: Kiesel im Sand mit dünnem
     dunklem Rand (ihr Schatten im Panorama).
+- [x] **1.5 Satte Strahlen** (10.11.2026, Branch `feature/strahlen-satt`; Vergleich der Varianten
+  https://claude.ai/artifact/4bkF9EMhK9UgfWYxuogP3w): Die Farben sollten satter sein, damit klar ist, welche Farbe wohin
+  muss. Aus vier Varianten gewählt: **Dunkler Saum**. Die Farben (`COLOR_RGB`) sind rein statt pastell (Grün statt Mint,
+  Blau statt Lavendel, Rot statt Lachs; gilt auch für Ziele, Filter, Kombinator und Funken), der Kern leuchtet in der
+  Strahlfarbe statt fast weiss, das Leuchten ist etwas kräftiger (`BEAM.glowGain` 1.15, `glowWidth` 0.054), und ein
+  leichter dunkler Saum (`beamShadeMaterial`, vor dem Glas gezeichnet) hält die Farbe auf hellem Sand und Gras sichtbar.
+  Cyan liegt näher bei Blau, sonst bleichte sein Kern weiss aus. Dazu auf Wunsch: alle Strahlen gleich dick (Blau wirkte
+  viel dünner als Grün). Ausgleich je Farbe in `BEAM_EVEN` (Breite, Leuchten, Kern), abgeglichen an sieben parallelen
+  Strahlen auf drei Himmeln, Desktop und Handy. Offen: auf hellem Sand bleiben die Farben heller als vor dem
+  Sternenhimmel.
 
 ## 1a. Spielführung
 
-- [ ] **1a.1 Tutorial überarbeiten** (Wunsch des Nutzers, 09.11.2026): Der Spieler soll besser durch die einzelnen
+- [x] **1a.1 Tutorial überarbeiten** (Wunsch des Nutzers, 09.11.2026): Der Spieler soll besser durch die einzelnen
   Funktionen geführt werden. Heute ist das Tutorial das Kapitel «Im Dorf» nach dem Prolog: neun Übungen (Erstes Licht,
   Umweg, Sperre, Brechung, Schatten, Farbenlehre, Farbiges Licht, Treffpunkt, Mischung), je mit einem Satz als Hinweis
   unter der Kopfzeile («Übung 2 / 9»). Was genau zu tun ist, muss der Spieler selbst herausfinden. Vor dem Bau zu klären:
@@ -208,12 +241,12 @@ Android-Chromium.
   - Gleich gut auf dem Handy (Tippen, zwei Finger) und am Desktop (Klick, Rechtsklick, Mausrad).
   - Vorgehen wie bei den Brettern: Vorbilder aus anderen Puzzlespielen sammeln, ein Katalog mit verschiedenen
     Richtungen, dann wählt der Nutzer.
-  - **Stand 10.11.2026: umgesetzt, wartet auf den Poco-Test und den Test mit einer fremden Person.** Branch
+  - **Stand 10.11.2026: fertig, nach zwei Handy-Tests des Nutzers abgenommen und nach `main` gemergt.** Branch
     `feature/tutorial-fuehrung`, Richtung C «Vorzeigen» aus dem Katalog: je Übung höchstens drei Schritte mit einem
     Satz in der Kopfzeile, Umriss und Hand am Element, Hinweise nebenbei zu Kamera und Neustart, später Fingerzeig nach
-    15 s (vorläufig, wird nach den Tests von Hand festgelegt), feste Elemente mit Sockel wackeln beim Antippen im ganzen
-    Spiel. Spec, Tickets und Übergabe in `.scratch/tutorial-fuehrung/` (`STAND.md`). Abhaken erst nach den Tests von
-    Hand; der Merge nach `main` nur auf das Go des Nutzers.
+    15 s, gezeichnete Zeigehand (Wahl B), feste Elemente mit Sockel wackeln beim Antippen im ganzen
+    Spiel. Spec, Tickets und Übergabe in `.scratch/tutorial-fuehrung/` (`STAND.md`). Offen: Test mit einer
+    fremden Person.
 
 ## 2. Würfel-Level (3D)
 

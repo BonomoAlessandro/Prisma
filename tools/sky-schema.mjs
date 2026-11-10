@@ -169,20 +169,23 @@ const BOARD_PARAMS = {
     plaster: isSrgbPair, straw: isSrgb, brick: isSrgbPair, joint: isSrgb, gully: isSrgb, inlay: isSrgb, wood: isSrgb,
     egg: isSrgb, sand: isSrgb,
   },
-  // Hochbeet des Dorfs (raisedBedBoard): Farben sRGB 0 … 1. soil und larch je zwei Töne [hell, dunkel] (Erde,
-  // Lärchenbohlen), mulch Mulch im Rand, cord Pflanzschnüre (Raster), pebble Kiesel (Einlegelinie), peg Pflöcke; Kräuter:
-  // chive Schnittlauch, thyme Thymian, lettuce Salat, marigold Ringelblumen, blossom Blüten von Schnittlauch und Thymian;
-  // Lichtwelle: sprout Sämlinge, firefly Glühwürmchen
+  // Hochbeet des Dorfs (raisedBedBoard): Farben sRGB 0 … 1. soil und larch je zwei Töne [hell, dunkel] (Erde im Rand,
+  // Lärchenbohlen), mulch Mulch im Rand; Blumenwiese im Feld: grass zwei Töne [dunkel, hell], grassTip Spitzen der Halme,
+  // daisy Gänseblümchen, daisyHeart ihre Mitte, clover Klee; cord Pflanzschnüre (Raster), pebble Kiesel (Einlegelinie),
+  // peg Pflöcke; Kräuter: chive Schnittlauch, thyme Thymian, lettuce Salat, marigold Ringelblumen, blossom Blüten von
+  // Schnittlauch und Thymian; Lichtwelle: sprout Sämlinge, firefly Glühwürmchen; Mondlicht auf dem Brett aus der Richtung
+  // des Monds (light.dir, boardMoonlight): moon Farbe und Stärke, moonRim die hellen Kanten auf der Mondseite
   raisedBed: {
-    soil: isSrgbPair, mulch: isSrgb, cord: isSrgb, pebble: isSrgb, larch: isSrgbPair, peg: isSrgb, chive: isSrgb,
-    thyme: isSrgb, lettuce: isSrgb, marigold: isSrgb, blossom: isSrgb, sprout: isSrgb, firefly: isSrgb,
+    soil: isSrgbPair, mulch: isSrgb, grass: isSrgbPair, grassTip: isSrgb, daisy: isSrgb, daisyHeart: isSrgb,
+    clover: isSrgb, cord: isSrgb, pebble: isSrgb, larch: isSrgbPair, peg: isSrgb, chive: isSrgb, thyme: isSrgb,
+    lettuce: isSrgb, marigold: isSrgb, blossom: isSrgb, sprout: isSrgb, firefly: isSrgb, moon: isSrgb, moonRim: isSrgb,
   },
   // Moospolster des Bergwalds (mossBoard): Farben sRGB 0 … 1. moss zwei Töne des Mooses (dunkel, hell), tip helle Spitzen,
   // gold Flecken (im Katalog golden), silver Rasterlinien aus Silbermoos, litter Nadelstreu im Rand, soil zwei Töne des
   // Humus der Seiten, pebble Steine darin, thread Wurzelfäden darin, root zwei Töne der hängenden Wurzeln, fern Farn
   // (Blatt, Stiel), cap Hut der Helmlinge, glow ihr Leuchten, flower Blumen der Lichtwelle (Blütenblatt, Mitte);
-  // Mondlicht auf dem Brett aus der Richtung des Monds (MOSS.moonDir): moon Farbe und Stärke, moonRim die hellen Kanten
-  // auf der Mondseite
+  // Mondlicht auf dem Brett aus der Richtung des Monds (light.dir, boardMoonlight): moon Farbe und Stärke, moonRim die
+  // hellen Kanten auf der Mondseite
   moss: {
     moss: isSrgbPair, tip: isSrgb, gold: isSrgb, silver: isSrgb, litter: isSrgb, soil: isSrgbPair, pebble: isSrgb,
     thread: isSrgb, root: isSrgbPair, fern: isSrgbPair, cap: isSrgb, glow: isSrgb, flower: isSrgbPair, moon: isSrgb,
