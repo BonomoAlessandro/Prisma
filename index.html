@@ -111,8 +111,22 @@
      nebenbei leiser darunter. Der Knopf nimmt Tippen an, der Rest der Kopfzeile nicht */
   #hud .sub .hinweis[hidden] { display: none; }
   #hud .sub .hinweis.nebenbei { margin-top: 2px; font-size: 12px; color: var(--ink-dim); }
+  /* «Weiter» an einer Erklärung steht an fester Stelle beim Satz, in jeder Länge des Satzes (Ticket 05 der Führung:
+     im Fluss des Texts stand er auf dem Handy mal hinter dem Satz, mal allein in einer Zeile, mal hinter der zweiten):
+     rechts neben dem Satz, mittig zu seiner Höhe; der Satz behält dabei seine Breite (40em wie der Hinweis). Auf dem
+     Handy hochkant in einer eigenen Zeile mittig unter dem Satz; auf einem kleinen (unter 700 px hoch) bliebe dafür
+     kein Platz über dem Brett: dort ganz rechts neben einem Satzblock, der die übrige Breite füllt */
+  #hud .sub .hinweis.schritt:not([hidden]) {
+    display: flex; justify-content: center; align-items: center; gap: 8px 0.9em; max-width: calc(40em + 8.5em);
+  }
+  @media (max-width: 520px) and (min-height: 700px) {
+    #hud .sub .hinweis.schritt:not([hidden]) { flex-direction: column; max-width: 40em; }
+  }
+  @media (max-width: 520px) and (max-height: 699.98px) {
+    #hud .sub .hinweis.schritt:not([hidden]) > span { flex: 1 1 0; min-width: 0; }
+  }
   #hud .fuehrung-weiter {
-    pointer-events: auto; margin-left: 0.7em; padding: 6px 13px 6px calc(13px + 0.3em); vertical-align: 1px;
+    pointer-events: auto; flex: none; padding: 6px 13px 6px calc(13px + 0.3em);
     font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink);
     border: 1px solid rgba(232, 230, 240, 0.4); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
     transition: border-color 0.25s ease, background-color 0.25s ease;
@@ -1960,10 +1974,13 @@ const LEVELS = [
   {
     // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
     name: 'Erstes Licht', tutorial: true,
-    // ein Tippen löst die Übung schon: zuerst das Ziel, dann das Drehen
+    // ein Tippen löst die Übung schon: zuerst das Ziel und der Weg dahin (Licht läuft geradeaus, der Spiegel lenkt es
+    // um; Umriss um Kristall und Spiegel), dann das Drehen (Ticket 05 der Führung: Der Satz sagte nur, wohin)
     schritte: [
-      { text: 'Bring das Licht zum Kristall, dann leuchtet er.', bei: '4,0', weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel an, so dreht er sich.', bei: '4,3', weiter: 'drehen' },
+      { text: 'Bring das Licht zum Kristall: Es läuft geradeaus, bis ein Spiegel es umlenkt.', bei: ['4,0', '4,3'],
+        weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel an, so dreht er sich und lenkt das Licht zum Kristall.', bei: '4,3',
+        weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
@@ -1980,10 +1997,11 @@ const LEVELS = [
     // dem drehbaren (5,1) liegt ein Feld: Auf dem Handy trifft das Antippen den festen.
     name: 'Umweg', tutorial: true,
     schritte: [
-      { text: '{Tippe} den Spiegel auf dem eckigen Sockel an.', bei: '3,1', weiter: 'antippen' },
+      { text: '{Tippe} den Spiegel auf dem eckigen Sockel an und schau, was passiert.', bei: '3,1',
+        weiter: 'antippen' },
       { text: 'Rund lässt sich drehen, eckig nicht.', bei: ['3,5', '5,1', '3,1'], weiter: 'erklaerung' },
-      { text: '{Drücke lang} auf die runden Spiegel, so drehen sie zurück.', bei: ['3,5', '5,1'], weiter: 'drehen',
-        richtung: -1 },
+      { text: 'Die runden Spiegel sind zu weit gedreht: {Drücke lang} darauf, so drehen sie zurück.',
+        bei: ['3,5', '5,1'], weiter: 'drehen', richtung: -1 },
     ],
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -1999,10 +2017,11 @@ const LEVELS = [
     //   → Ziel (5,5). Der kurze Weg nach Süden über den festen Spiegel (3,5) endet am Block (3,4) – zu Beginn sichtbar.
     name: 'Sperre', tutorial: true,
     schritte: [
-      { text: 'Der Block schluckt das Licht, hier kommt es nicht weiter.', bei: '3,4', weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel, bis das Licht den nächsten Spiegel trifft.', bei: '3,2', weiter: 'strahl',
-        trifft: '3,0' },
-      { text: '{Tippe} die übrigen Spiegel, bis das Licht den Kristall erreicht.', bei: ['3,0', '5,0'],
+      { text: 'Der Block schluckt das Licht, also braucht es einen Weg um ihn herum.', bei: '3,4',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel, bis das Licht vom Block weg zum nächsten Spiegel läuft.', bei: '3,2',
+        weiter: 'strahl', trifft: '3,0' },
+      { text: '{Tippe} die zwei markierten Spiegel, bis das Licht den Kristall erreicht.', bei: ['3,0', '5,0'],
         weiter: 'drehen' },
     ],
     nebenbei: ['kamera'],
@@ -2023,7 +2042,7 @@ const LEVELS = [
     name: 'Brechung', tutorial: true,
     schritte: [
       { text: 'Das Prisma fächert weisses Licht in Rot, Grün und Blau auf.', bei: '2,3', weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis jede Farbe ihren Kristall trifft.', bei: '2,3', weiter: 'drehen' },
+      { text: '{Tippe} das Prisma, bis jede Farbe den Kristall ihrer Farbe trifft.', bei: '2,3', weiter: 'drehen' },
     ],
     nebenbei: ['neustart'],
     elements: [
@@ -2044,11 +2063,12 @@ const LEVELS = [
     //   das Prisma, sobald das Licht es erreicht.
     name: 'Schatten', tutorial: true,
     schritte: [
-      { text: 'Längs zum Strahl lässt ein Spiegel das Licht verschwinden: {Drücke lang} auf ihn.', bei: '3,5',
+      { text: 'Längs zum Strahl schluckt der Spiegel das Licht: {Drücke lang}, bis es weiterläuft.', bei: '3,5',
         weiter: 'strahl', trifft: '3,2', richtung: -1 },
-      { text: 'Trifft Licht das Prisma auf der Seite seiner Farbpfeile, verschwindet es auch.', bei: '3,2',
+      { text: 'Auch das Prisma schluckt Licht, wenn es von der Seite seiner Farbpfeile kommt.', bei: '3,2',
         weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis seine Farbpfeile zu den Kristallen zeigen.', bei: '3,2', weiter: 'drehen' },
+      { text: '{Tippe} das Prisma, bis seine Farbpfeile vom Licht weg zu den Kristallen zeigen.', bei: '3,2',
+        weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 5, dir: 0 },
@@ -2064,12 +2084,14 @@ const LEVELS = [
     // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
     //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
     //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
-    //   Der zweite Schritt sagt dazu, was im Bergwald gilt: Ein Prisma fächert nur auf, was ankommt. Er nennt Prisma
-    //   und Spiegel, beide sind zu drehen (Ticket 04 der Führung: sonst bliebe nach ihm der Spiegel ungenannt).
+    //   Der erste Schritt nennt mit «ohne Blau», was danach am Prisma fehlt: Ein Prisma fächert nur auf, was ankommt
+    //   (gilt im Bergwald). Der zweite nennt Prisma und Spiegel, beide sind zu drehen (Ticket 04 der Führung: sonst
+    //   bliebe nach ihm der Spiegel ungenannt), und wann es genug ist (Ticket 05).
     name: 'Farbenlehre', tutorial: true,
     schritte: [
-      { text: 'Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün.', bei: '1,3', weiter: 'erklaerung' },
-      { text: '{Tippe} Prisma und Spiegel: Das Prisma fächert nur auf, was ankommt.', bei: ['3,3', '4,2'],
+      { text: 'Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün, ohne Blau.', bei: '1,3',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} Prisma und Spiegel, bis Rot und Grün die Kristalle ihrer Farbe treffen.', bei: ['3,3', '4,2'],
         weiter: 'drehen' },
     ],
     elements: [
@@ -2088,9 +2110,10 @@ const LEVELS = [
     name: 'Farbiges Licht', tutorial: true,
     schritte: [
       { text: 'Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
-      { text: 'Der Ring am Kristall zeigt seine Grundfarben, falsche flackern darin.', bei: ['3,0', '6,5'],
+      { text: 'Der Ring am Kristall zeigt, welche Grundfarben er braucht; falsche flackern darin.', bei: ['3,0', '6,5'],
         weiter: 'erklaerung' },
-      { text: '{Tippe} die Spiegel, bis jede Farbe ihren Kristall trifft.', bei: ['3,3', '3,5'], weiter: 'drehen' },
+      { text: '{Tippe} die Spiegel, bis Rot und Blau die Kristalle ihrer Farbe treffen.', bei: ['3,3', '3,5'],
+        weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
@@ -2107,8 +2130,10 @@ const LEVELS = [
     //   beide treffen das Ziel (3,4) und mischen sich dort zu Magenta.
     name: 'Treffpunkt', tutorial: true,
     schritte: [
-      { text: 'Treffen Rot und Blau denselben Kristall, mischen sie sich zu Magenta.', bei: '3,4', weiter: 'erklaerung' },
-      { text: '{Tippe} beide Spiegel, bis Rot und Blau den Kristall treffen.', bei: ['3,1', '6,4'], weiter: 'drehen' },
+      { text: 'Dieser Kristall braucht Magenta: Treffen ihn Rot und Blau, mischen sie sich dazu.', bei: '3,4',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} beide Spiegel, bis Rot und Blau zusammen den Kristall treffen.', bei: ['3,1', '6,4'],
+        weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
@@ -2126,12 +2151,13 @@ const LEVELS = [
     //   Das Prisma steht eine Stufe vor der Lösung (rot 7, Ticket 03 der Führung): Ein Tippen schickt Rot und Blau in
     //   den Kombinator, so mischt er schon zwei Farben, wenn der nächste Schritt ihn erklärt (aus rot 6 bekam er nach
     //   dem ersten Tippen nur Grün). Der erste Schritt schaltet erst weiter, wenn im Kombinator Magenta ankommt (Rot und
-    //   Blau ohne Grün; Ticket 04 der Führung), nicht schon bei irgendeiner Drehung des Prismas.
+    //   Blau ohne Grün; Ticket 04 der Führung), nicht schon bei irgendeiner Drehung des Prismas. Sein Umriss liegt auch
+    //   am Kombinator, den der Satz nennt, bevor der nächste Schritt ihn erklärt (Ticket 05; die Hand bleibt am Prisma).
     name: 'Mischung', tutorial: true,
     schritte: [
-      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: '2,3', weiter: 'strahl',
+      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: ['2,3', '6,3'], weiter: 'strahl',
         trifft: '6,3', farbe: 'magenta' },
-      { text: 'Der Kombinator mischt alle Strahlen, die ihn treffen, und sendet sie weiter.', bei: '6,3',
+      { text: 'Der Kombinator mischt alles Licht, das ihn trifft, zu einem neuen Strahl.', bei: '6,3',
         weiter: 'erklaerung' },
       { text: '{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.', bei: '6,3', weiter: 'drehen' },
     ],

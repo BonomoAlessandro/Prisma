@@ -1759,8 +1759,8 @@ const fuehrungStand = () => ev(`(() => { const f = ${D}.fuehrung, b = document.g
     ziel: ort('4,0', 0), spiegel: ort('4,3', 0), kuppe: ort('4,3', 0.42), tippen: ort('4,3', 0.375) }; })()`);
 const nahe = (a, b, px = 12) => !!a && Math.hypot(a.x - b.x, a.y - b.y) <= px;
 /**
- * «Erstes Licht» geführt, wie ein Spieler (Ticket 02 der Führung): Schritt 1 erklärt das Ziel (Umriss um den Kristall,
- * «Weiter», keine Hand); Neustart beginnt wieder bei Schritt 1; «Weiter» → Schritt 2 (Satz in der Befehlsform des
+ * «Erstes Licht» geführt, wie ein Spieler (Ticket 02 der Führung): Schritt 1 erklärt Ziel und Weg (Umriss um
+ * Kristall und Spiegel, «Weiter», keine Hand); Neustart beginnt wieder bei Schritt 1; «Weiter» → Schritt 2 (Satz in der Befehlsform des
  * Geräts, Umriss und Hand am Spiegel, die Hand geht nach dem Vorzeigen); später Fingerzeig (vorgespult: Hand wieder,
  * Umriss stark); Menü und zurück behält den Schritt; dann den Spiegel antippen: gelöst, nichts bleibt stehen.
  */
@@ -1770,8 +1770,9 @@ async function gefuehrt(g) {
   await sleep(300);
   const schritt1 = async (wann) => {
     const f = await fuehrungStand();
-    pruefe(f.schritt === 0 && f.satz === 'Bring das Licht zum Kristall, dann leuchtet er.' && f.knopf && !f.hand
-      && f.umrisse.length === 1 && nahe(f.umrisse[0], f.ziel, 15), `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
+    pruefe(f.schritt === 0 && f.satz === 'Bring das Licht zum Kristall: Es läuft geradeaus, bis ein Spiegel es umlenkt.'
+      && f.knopf && !f.hand && f.umrisse.length === 2 && f.umrisse.some((u) => nahe(u, f.ziel, 15))
+      && f.umrisse.some((u) => nahe(u, f.spiegel, 15)), `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
   };
   await schritt1('Beginn');
   await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
@@ -1807,7 +1808,7 @@ async function gefuehrt(g) {
   await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
   await sleep(200);
   let f = await fuehrungStand();
-  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an, so dreht er sich.`;
+  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an, so dreht er sich und lenkt das Licht zum Kristall.`;
   pruefe(f.satz === satz2 && !f.knopf && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15)
     && f.hand?.art === 'tippen' && nahe(f.hand, f.kuppe, 3), `${was}: Schritt 2 ${JSON.stringify(f)}`);
   await bild(`dorf-${slug(g)}-fuehrung-schritt-2`);
@@ -1870,11 +1871,22 @@ const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = documen
     return rs.every((r) => r.left >= 0 && r.right <= w + 0.5 && r.top >= 0 && r.bottom <= hh + 0.5)
       && !zeilen.some((r) => knoepfe.some((k) => schnitt(r, k))) && e.scrollWidth <= e.clientWidth + 1
       && getComputedStyle(e).textOverflow !== 'ellipsis'; };
+  // die Zeilen des Satzes (ohne «Weiter») und die Lage von «Weiter» dazu (Ticket 05 der Führung): auf dem Handy
+  // hochkant mittig unter dem Satz, sonst rechts daneben, mittig zu seiner Höhe
+  const satzZeilen = zu(satz) ? [] : (() => { const g = document.createRange(); g.selectNodeContents(satz.firstChild);
+    return [...g.getClientRects()]; })();
+  let lage = null;
+  if (!zu(knopf) && satzZeilen.length) {
+    const k = knopf.getBoundingClientRect(), oben = Math.min(...satzZeilen.map((r) => r.top));
+    const unten = Math.max(...satzZeilen.map((r) => r.bottom)), links = Math.min(...satzZeilen.map((r) => r.left));
+    const rechts = Math.max(...satzZeilen.map((r) => r.right)), mitte = (a, b) => (a + b) / 2;
+    lage = k.top >= unten - 0.5 && Math.abs(mitte(k.left, k.right) - mitte(links, rechts)) <= 1.5 ? 'unter'
+      : k.left >= rechts - 0.5 && Math.abs(mitte(k.top, k.bottom) - mitte(oben, unten)) <= 3 ? 'rechts' : 'anders';
+  }
   return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
     knopf: !zu(knopf), umrisse, hand, orte, neben: zu(neben) ? '' : neben.textContent,
-    imBild: imBild(satz) && imBild(knopf) && imBild(neben),
-    teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: zu(satz) ? 0 : Math.round(satz.firstChild
-      .getClientRects().length) }; })()`);
+    imBild: imBild(satz) && imBild(knopf) && imBild(neben), lage,
+    teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: satzZeilen.length }; })()`);
 /**
  * Die Führung der laufenden Übung n steht beim Schritt k (Ticket 04 der Führung, Unterbrechungen mitten in ihr): sein
  * Satz in der Kopfzeile, je Element ein Umriss, «Weiter» nur an einer Erklärung.
@@ -1933,6 +1945,10 @@ async function schritteSpielen(g, n) {
     pruefe(f.satz === s.text && f.knopf === (s.weiter === 'erklaerung') && f.umrisse.length === zellen.length
       && umrandet && (art ? f.hand?.art === art && nahe(f.hand, f.orte[zellen[0]].kuppe, 3) : !f.hand)
       && f.imBild && f.neben === (k === 0 ? nebenbei : f.neben), `${was}: Schritt ${k + 1} ${JSON.stringify(f)}`);
+    // «Weiter» an fester Stelle beim Satz (Ticket 05 der Führung)
+    // wie die Regeln in index.html: hochkant ab 700 px Höhe darunter, auf einem kleinen Handy und sonst rechts
+    const lage = view.width <= 520 && view.height >= 700 ? 'unter' : 'rechts';
+    pruefe(s.weiter !== 'erklaerung' || f.lage === lage, `${was}: Schritt ${k + 1} «Weiter» ${f.lage} statt ${lage}`);
     if (k === 0 && nebenbei) console.log(`  ${was}: Hinweis nebenbei «${f.neben}»`);
     console.log(`  ${was}: Schritt ${k + 1} «${f.satz}» (${f.zeilen} Zeile${f.zeilen === 1 ? '' : 'n'})`);
     if (s.weiter === 'erklaerung') {
