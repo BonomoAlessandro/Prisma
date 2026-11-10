@@ -666,9 +666,10 @@ console.log('Führung im Dorf (Schritte)');
     const art = (n) => u(n).schritte.map(s => s.weiter + (s.richtung === -1 ? '-zurück' : '')).join(' ');
     assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name), ['Erstes Licht', 'Umweg', 'Sperre',
       'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung']);
-    // Erstes Licht: das Ziel vor dem ersten Tippen (ein Tippen löst die Übung schon)
+    // Erstes Licht: das Ziel und der Weg dahin vor dem ersten Tippen (ein Tippen löst die Übung schon), mit Umriss um
+    // Kristall und Spiegel (Ticket 05: der Satz nennt beide)
     assert.equal(art('Erstes Licht'), 'erklaerung drehen');
-    assert.equal(u('Erstes Licht').schritte[0].bei, '4,0');
+    assert.deepEqual([].concat(u('Erstes Licht').schritte[0].bei), ['4,0', '4,3']);
     // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; beide runden Spiegel stehen
     // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
     const w = u('Umweg');
