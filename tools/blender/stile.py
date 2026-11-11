@@ -64,10 +64,10 @@ STILE = {
         'knie': 0.72,
         'spitze': 0.8,    # unter textur
         'rauschen': 0.008,
-        'volumen': 1,     # Dampf im geschlossenen Krater: mehr Streuungen kosteten Stunden
+        'volumen': 1,     # Dunst im Krater: mehr Streuungen kosteten Stunden
         'jpeg': 82,       # ganzes Bild (vorab gespeichert, sky-schema BUDGET.precacheBytes)
         'textur': 0.82,   # Obergrenze in der Textur (anime.py TEX_MAX): das satte Orange bliebe sonst bei 255
-        'pinsel': 0.14,   # feinere Striche: die dünnen Lagen der Kraterwand bleiben lesbar
+        'pinsel': 0.14,   # feinere Striche: Geröll, Kies und die Lagen der Abbruchkante bleiben lesbar
     },
     # Wüste am Nachmittag wie eine Anime-Landschaft: Sand golden, Schatten rosa-lila,
     # oben ein helles, klares Blau

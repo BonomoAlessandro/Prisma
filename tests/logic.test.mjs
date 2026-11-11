@@ -1283,6 +1283,18 @@ console.log('Offline');
     assert.ok(skyErrors({ starsFrom: 75 }).some((e) => /starsFrom/.test(e)), 'starsFrom zu hoch');
     assert.ok(skyErrors({ starsAboveHorizon: false }).some((e) => /starsFrom/.test(e)), 'starsFrom ohne starsAboveHorizon');
   });
+  test('Skyboxen: Feuernester des Vulkans – das Spiel zeichnet die Flammen (fireNests), die Prüfung lehnt grelle Farben, falsche Stufen und Deckung ab', () => {
+    const volcano = skies.find((s) => s.id === 'volcano') ?? assert.fail('Skybox volcano fehlt im Register');
+    const fire = volcano.layers.find((l) => l.type === 'fireNests') ?? assert.fail('volcano ohne Ebene fireNests');
+    const others = volcano.layers.filter((l) => l !== fire);
+    const errorsWith = (change) => checkSkies([{ ...volcano, layers: [...others, { ...fire, ...change }] }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ core: [1.2, 0.9, 0.5] }).some((e) => /core/.test(e)), 'Bloom Kern');
+    assert.ok(errorsWith({ bands: [0.25, 0.55] }).some((e) => /bands/.test(e)), 'Stufen vertauscht');
+    assert.ok(errorsWith({ cover: 1.5 }).some((e) => /cover/.test(e)), 'Deckung über 1');
+    assert.ok(errorsWith({ data: undefined }).some((e) => /data/.test(e)), 'ohne Daten');
+  });
   test('Skyboxen: Strand – die Kamera hält vor den Palmen (camera.stops), die Felsen gehen am Rand ins Panorama über (bakedMesh ground [0, 0])', () => {
     const beach = skies.find((s) => s.id === 'beach') ?? assert.fail('Skybox beach fehlt im Register');
     assert.ok(beach.camera?.stops?.some(([dx, dz, weit]) => dx === 0 && dz < 0 && weit > 9 && weit < 15),

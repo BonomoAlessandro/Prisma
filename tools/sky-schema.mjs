@@ -9,7 +9,7 @@
 //     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }],
 //     board?: { type, … } }
 // starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
-// die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: die obere Kraterwand)
+// die Kamera, und das Netz eines Panoramas verdeckt nur, was näher liegt (Vulkan: der Rand des Trichters)
 // board: die Brett-Angabe (Spec .scratch/brett-je-himmel/), das Brett dieses Himmels. type ist eine Art aus
 // BOARD_TYPES in index.html (boardTypes), dazu kommen die Werte dieser Art (BOARD_PARAMS; stone hat keine, tidePool
 // Farben und Lage der Rinne, clay die Farben der Lehmterrasse, raisedBed die des Hochbeets, moss die des Moospolsters,
@@ -141,6 +141,17 @@ const LAYER_PARAMS = {
     bursts: (v) => isInt(v?.count) && v.count <= 32 && isRange(v.ring) && isRange(v.size) && isRange(v.period),
     spatter: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
     sparks: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
+  },
+  // Vulkan: Flammen der Feuernester (Daten vom Export der Szene). Farben unter der Bloom-Schwelle, Stufen bands
+  // absteigend (core über der ersten, mid über der zweiten, edge über der dritten, sonst deep), cover 0 … 1 (so viel
+  // deckt eine Flamme den Grund ab), Funken embers je Nest
+  fireNests: {
+    data: (v) => typeof v === 'string', speed: isPos, lift: (v) => isNum(v) && v >= 0,
+    core: isBright, mid: isBright, edge: isBright, deep: isBright, base: isBright, halo: isBright, glow: isBright,
+    glowSize: isPos,
+    bands: (v) => isVec(v, 3) && v[0] < 1 && v[0] > v[1] && v[1] > v[2] && v[2] > 0,
+    cover: (v) => isNum(v) && v >= 0 && v <= 1, shape: (v) => isVec(v, 2) && v.every(isPos),
+    embers: (v) => Number.isInteger(v?.count) && v.count >= 0 && isPos(v.height) && isPos(v.size) && isBright(v.color),
   },
   mistSheets: {
     sheets: (v) => Array.isArray(v) && v.length > 0 && v.every((s) => isVec(s)), radius: isNum, wind: (v) => isVec(v, 2),

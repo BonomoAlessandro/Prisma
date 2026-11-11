@@ -233,6 +233,20 @@ Android-Chromium.
 - [x] Nachtrag 11.11.2026 (Branch `feature/wueste-ohne-pyramiden`): Die Pyramiden aus 1.6 sind wieder weg, ohne
   Ersatz: Der Nutzer will sie doch nicht. Die Ecken der Lehmterrasse bleiben frei; `CLAY.pyramid`, `pyramidSize` und
   der Wert `cap` sind weg.
+- [x] **1.7 Vulkan wie das «Door to Hell»** (11.11.2026, Branch `feature/vulkan-sandtrichter`; Skizzen
+  https://claude.ai/artifact/UCLy5akG6GFMPTUquRD8Yg, Abnahme https://claude.ai/artifact/DfffUQgbWPErndiEsYQhRk): Die
+  Lava bleibt, die steilen Felswände kommen weg. Aus vier Skizzen (Gaskrater, Sandtrichter, Feuerbänder, Abbruchkante)
+  gewählt: **Sandtrichter** wie der Gaskrater Darvaza, in drei Runden flacher, kleiner und detaillierter. Vom Lavasee
+  (Ufer bei 38 m statt 53, das Spiel zeichnet die Lava bis 29 m) steigt eine Böschung aus Sand mit 15° bis 23° zu
+  einer niedrigen, bröckelnden Abbruchkante mit hellen Lagen (Rand 11 … 23 m über der Lava statt um 60); darauf
+  Rutschungen, Rinnen, Rieselzungen, Rippel, aufgerissene Lehmkruste, rund 7800 Lehmbrocken und 40 000 Kiesel, dahinter
+  dunkle Sträucher. 130 Feuernester: Das Panorama zeigt ihren Schein, Russ und glimmende Risse, die 966 Flammen zeichnet
+  das Spiel bewegt (neue Ebene `fireNests`: drei Zungen je Flamme in vier Farbstufen, bläulicher Fuss, Glutschein,
+  Funken; 156 KB, keine Texturen). Die Kamera bleibt in allen Stellungen über der Böschung, auch beim Würfel-Level am
+  Handy hochkant. Sterne ab 14° (`starsFrom`, vorher 32°), Einstieg ohne steileren Blick (`up` wie die anderen Welten).
+  Der Schein der Nester ist eine Fläche zur Kamera, kein Punkt (Review: Punkte bis über 1000 px wären am Handy oft
+  begrenzt und fielen ganz weg, sobald ihre Mitte aus dem Bild geht). Offen: Kosten der Flammen auf dem echten Handy
+  (Poco).
 
 ## 1a. Spielführung
 

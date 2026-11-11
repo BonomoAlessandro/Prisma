@@ -402,22 +402,20 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   danach packen. Die Pflanzen zeichnet das Spiel beleuchtet und gemalt wie Blender (Ebene `paintedInstances`, PLAN 2.38).
   Nur Lage und Felsanteil der nahen Felsen neu, ohne Backen: `export_rock_shape()` (passt nur zu einem Panorama mit
   demselben `rock_drawn`, PLAN 1.4).
-- **Vulkan** (`volcano`, PLAN 1.2): Das Brett schwebt über einem Lavasee in einem weiten Krater, Vorbilder Nyiragongo
-  (See) und Masaya (Wand). Das Ufer liegt gut 50 m von der Mitte: Auch ganz herausgezoomt und flach geneigt bleibt die
-  Kamera vor der Wand (Handy hochkant bis 48 m, Würfel auf Desktop und Tablet bis 45 m; nur der Würfel auf dem Handy
-  hochkant reicht weiter). Der Rand steht um 60 m über der Lava, auf einer Seite höher, vom Brett aus gut 30° hoch;
-  so fällt das Licht auf der Reise sichtbar über die Kante (Kapitel Vulkan `up` 0.65). Rundum eine steile,
-  geschichtete Kraterwand in zwei Stufen mit schmalem Absatz, im Grundriss aus geraden Flächen (Rippen und Buchten
-  in wechselnden Abständen, ruhige und wilde Abschnitte, V-förmige Rinnen, manche erst weit oben), aus
-  Gesteinsbänken mit dünnen Lagen und kantigen Felsflächen; am Fuss eine Schutthalde, je nach Stelle Fächer, Kegel
-  oder fast kahl, mit Felsblöcken wie am Strand in Gruppen, dazu Riesenblöcke. Licht: Es ist Nacht wie am Gaskrater
-  Darvaza, das Hauptlicht ist die Lava. Ein Ring Lampen knapp vor dem Ufer lässt Halde und untere Wand orange
-  glühen, nach oben wird es dunkel; der Himmel ist bis zum Rand fast schwarz (ein warmer Schein über dem Rand wirkte
-  wie ein Licht hinter dem Krater). Die Sterne zeichnet das Spiel erst ab 32° über dem Horizont (`sky.starsFrom`):
-  Sie liegen 70 m um die Kamera, und die obere Wand ist weiter weg. Szene in `tools/blender/szenen/volcano/szene.py`
-  (in Cycles gerendert, gemalt mit dem Stil `volcano` in `stile.py` wie der Strand, satt, mit feineren Pinselstrichen
-  `pinsel` für die dünnen Gesteinslagen). `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')` (ohne MCP auch
-  headless mit denselben Skripten über `wald_mcp.run`), danach `node tools/blender/pack.mjs volcano`.
+- **Vulkan** (`volcano`, PLAN 1.2, 1.7): Das Brett schwebt über einem Lavasee in einem Trichter aus Sand wie dem
+  Gaskrater Darvaza («Door to Hell»), der See wie am Nyiragongo. Das Ufer liegt um 38 m von der Mitte (die Lava
+  zeichnet das Spiel bis 29 m), von dort steigt eine flache Böschung (15° unten bis 23° oben) zu einer niedrigen,
+  bröckelnden Abbruchkante mit hellen Lagen; der Rand steht 11 … 23 m über der Lava, dahinter flache Wüste mit dunklen
+  Sträuchern. Auch ganz herausgezoomt und flach geneigt bleibt die Kamera über der Böschung, selbst beim Würfel auf dem
+  Handy hochkant (bis 64 m von der Mitte). Auf der Böschung Rutschungen, Rinnen, Rieselzungen, Rippel, aufgerissene
+  Lehmkruste, Lehmbrocken (Schuttsaum, Haufen, Gruppen) und Kies, dazu 130 Feuernester: Ihren Schein, den Russ und
+  die glimmenden Risse malt das Panorama, die Flammen und Funken zeichnet das Spiel bewegt (Ebene `fireNests`, Daten
+  `fires` aus dem Export der Szene). Licht: Es ist Nacht, das Hauptlicht sind Lava und Feuer; der Himmel ist bis zum
+  Rand fast schwarz (ein warmer Schein über dem Rand wirkte wie ein Licht hinter dem Krater). Die Sterne zeichnet das
+  Spiel ab 14° über dem Horizont (`sky.starsFrom`): Sie liegen 70 m um die Kamera, der Rand ist weiter weg. Szene in
+  `tools/blender/szenen/volcano/szene.py` (in Cycles gerendert, gemalt mit dem Stil `volcano` in `stile.py` wie der
+  Strand, satt, mit feineren Pinselstrichen `pinsel`). `wald_mcp.neu('volcano')`, `wald_mcp.skybox('volcano')` (ohne
+  MCP auch headless mit denselben Skripten über `wald_mcp.run`), danach `node tools/blender/pack.mjs volcano`.
   Bewegt zeichnet das Spiel den See ums Brett (`lavaPool`: treibende Krustenplatten mit glühenden Rissen, die sich
   öffnen und schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken); Blender
   malt dort nur die Kruste. Ein Dutzend Felsbrocken im See vor dem Ufer zeichnet das Spiel wie die nahen Felsen am
