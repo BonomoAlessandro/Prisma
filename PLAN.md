@@ -233,7 +233,7 @@ Android-Chromium.
 
 ## 1a. Spielführung
 
-- [ ] **1a.1 Tutorial überarbeiten** (Wunsch des Nutzers, 09.11.2026): Der Spieler soll besser durch die einzelnen
+- [x] **1a.1 Tutorial überarbeiten** (Wunsch des Nutzers, 09.11.2026): Der Spieler soll besser durch die einzelnen
   Funktionen geführt werden. Heute ist das Tutorial das Kapitel «Im Dorf» nach dem Prolog: neun Übungen (Erstes Licht,
   Umweg, Sperre, Brechung, Schatten, Farbenlehre, Farbiges Licht, Treffpunkt, Mischung), je mit einem Satz als Hinweis
   unter der Kopfzeile («Übung 2 / 9»). Was genau zu tun ist, muss der Spieler selbst herausfinden. Vor dem Bau zu klären:
@@ -246,6 +246,12 @@ Android-Chromium.
   - Gleich gut auf dem Handy (Tippen, zwei Finger) und am Desktop (Klick, Rechtsklick, Mausrad).
   - Vorgehen wie bei den Brettern: Vorbilder aus anderen Puzzlespielen sammeln, ein Katalog mit verschiedenen
     Richtungen, dann wählt der Nutzer.
+  - **Stand 10.11.2026: fertig, nach zwei Handy-Tests des Nutzers abgenommen und nach `main` gemergt.** Branch
+    `feature/tutorial-fuehrung`, Richtung C «Vorzeigen» aus dem Katalog: je Übung höchstens drei Schritte mit einem
+    Satz in der Kopfzeile, Umriss und Hand am Element, Hinweise nebenbei zu Kamera und Neustart, später Fingerzeig nach
+    15 s, gezeichnete Zeigehand (Wahl B), feste Elemente mit Sockel wackeln beim Antippen im ganzen
+    Spiel. Spec, Tickets und Übergabe in `.scratch/tutorial-fuehrung/` (`STAND.md`). Offen: Test mit einer
+    fremden Person.
 
 ## 2. Würfel-Level (3D)
 
