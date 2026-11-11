@@ -1292,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-10 tutorial-fuehrung-5';
+const APP_VERSION = '2026-11-11 wueste-pyramiden';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -13569,7 +13569,7 @@ const BOARD_BLEND_DECL = `
     return t1 >= t;
   }
   // n dieses Pixels: Liegt das Stück des Bretts nicht über y = 0, zählt der Sehstrahl (wo er in die Hülle tritt; für alle
-  // Bretter gleich, darum decken sie dort lückenlos). Liegt es darüber (Polster, Türmchen, Kräuter), zählt
+  // Bretter gleich, darum decken sie dort lückenlos). Liegt es darüber (Polster, Pyramiden, Kräuter), zählt
   // sein eigener Ort: Sonst bekäme es den Eintritt seines Strahls weiter innen und erschiene zu früh. Den Kernquader
   // deckt jedes Brett mit Stücken in der Hülle. Innen klein, zum Rand und nach unten gross, dazu Rauschen
   // Ort der Kamera aus viewMatrix: three setzt cameraPosition nur für einige Materialien (Standard, Phong, Toon, Shader
@@ -13992,18 +13992,20 @@ function tidePoolBoard(values) {
 
 // Masse der Lehmterrasse (m). Das Brett ist das Dach eines Lehmbaus wie der Moschee von Djenné: Unter einem Gesims über
 // die ganze Breite steht eine eingezogene Wand, aus der Balken aus Palmholz ragen (Torons, je 22 cm); auf den Ecken des
-// Rands stehen Spitztürmchen mit einem Straussenei. Lehm ist matt: keine Spiegelung
+// Rands stehen kleine Pyramiden mit heller Spitze wie die von Giza am Horizont. Lehm ist matt: keine Spiegelung
 const CLAY = {
   cornice: 0.09,          // Gesims über die ganze Breite (PLATE), 3 mm unter der Oberfläche
   wall: 9.3, wallH: 0.34, // eingezogene Wand unter dem Gesims: Breite, Höhe
-  wallTex: [1024, 128],   // Textur von Gesims, Wand und Türmchen (u über PLATE, v über die Höhe einer Seite)
-  turret: 4.55,           // Mitte der Türmchen (x und z)
+  wallTex: [1024, 128],   // Textur von Gesims, Wand und Pyramiden (u über PLATE, v über die Höhe einer Seite)
+  pyramid: 4.55,          // Mitte der Pyramiden (x und z)
+  // halbe Kante, Höhe (Neigung 52° wie die Cheopspyramide), Anteil der hellen Spitze an der Höhe (wie bei Chephren)
+  pyramidSize: [0.3, 0.38, 0.24],
   grains: 2600,           // Körner, die mit der Fahne über den Putz hüpfen (Lichtwelle)
   falls: [44, 8],         // je Seite so viele Strähnen zu so vielen Körnern, die über das Gesims rieseln
   waveEnd: 3.2,           // so lange (s nach dem Start des Rings) sind Körner unterwegs, danach nicht gezeichnet
 };
 // Werte der Brett-Angabe (tools/sky-schema.mjs, BOARD_PARAMS), alle Farben sRGB 0 … 1
-const CLAY_VALUES = ['plaster', 'straw', 'brick', 'joint', 'gully', 'inlay', 'wood', 'egg', 'sand'];
+const CLAY_VALUES = ['plaster', 'straw', 'brick', 'joint', 'gully', 'inlay', 'wood', 'cap', 'sand'];
 
 /**
  * Farbe und Normalen der Lehmterrasse (createClayTextures), ohne Bezug auf das übrige Spiel (Worker). Formeln und Farben
@@ -14159,10 +14161,10 @@ function clayGrains(rows, vertex, uniforms) {
  * Lehmterrasse (Art clay, Wüste): glatter Lehmputz im Feld mit feinen Rillen als Raster und einer hellen Kalklinie als
  * Einlegelinie (FLOOR_DETAIL_GLSL, breiter), im Rand Ziegel, wo der Putz abgeplatzt ist (Texturen aus dem
  * Hintergrund-Thread, createClayTextures). Darunter Gesims und eingezogene Wand mit Balken aus Palmholz, auf den Ecken
- * Spitztürmchen mit Straussenei (Balken, Türmchen und Eier je als Instanzen). Lehm ist matt: keine Spiegelung (mirror
- * null, renderReflection entfällt). Lichtwelle «Sandverwehung»: Mit dem Ring treibt eine Fahne aus Sand in Schlieren
- * nach aussen, Körner hüpfen mit; dahinter bleiben Sandzungen liegen, in den Rillen länger, und wehen fleckig fort. Am
- * Gesims rieselt Sand in dünnen Strähnen hinunter. v: Werte der Brett-Angabe (CLAY_VALUES, sRGB 0 … 1).
+ * kleine Pyramiden mit heller Spitze (Balken, Pyramiden und Spitzen je als Instanzen). Lehm ist matt: keine Spiegelung
+ * (mirror null, renderReflection entfällt). Lichtwelle «Sandverwehung»: Mit dem Ring treibt eine Fahne aus Sand in
+ * Schlieren nach aussen, Körner hüpfen mit; dahinter bleiben Sandzungen liegen, in den Rillen länger, und wehen fleckig
+ * fort. Am Gesims rieselt Sand in dünnen Strähnen hinunter. v: Werte der Brett-Angabe (CLAY_VALUES, sRGB 0 … 1).
  */
 function clayBoard(v) {
   for (const k of CLAY_VALUES) if (!v[k]) throw new Error(`Wert ${k} fehlt`);
@@ -14237,11 +14239,11 @@ function clayBoard(v) {
   floorTop.receiveShadow = true;
   floorTop.onBeforeRender = tick;
 
-  // Gesims, Wand und Türmchen: matter Lehmputz. Im Spiel fällt kaum Licht auf senkrechte Flächen; ein Teil der Farbe
+  // Gesims, Wand und Pyramiden: matter Lehmputz. Im Spiel fällt kaum Licht auf senkrechte Flächen; ein Teil der Farbe
   // leuchtet selbst, sonst stünden sie schwarz im Bild
   const lehm = () => new THREE.MeshStandardMaterial({ map: tex.wallMap, emissiveMap: tex.wallMap,
     emissive: new THREE.Color(0.34, 0.34, 0.34), roughness: 0.95, envMapIntensity: 1.2 });
-  const wallMat = lehm(), turretMat = lehm();
+  const wallMat = lehm(), pyramidMat = lehm();
   const cornice = new THREE.Mesh(new THREE.BoxGeometry(PLATE, CLAY.cornice, PLATE), wallMat);
   cornice.position.y = -0.003 - CLAY.cornice / 2;
   const wall = new THREE.Mesh(new THREE.BoxGeometry(CLAY.wall, CLAY.wallH, CLAY.wall), wallMat);
@@ -14264,18 +14266,27 @@ function clayBoard(v) {
   spots.forEach(([x, y, z, a], i) => torons.setMatrixAt(i, m4.compose(p.set(x, y, z),
     q.setFromAxisAngle(up, a + (rnd() - 0.5) * 0.1), one)));
 
-  // Spitztürmchen mit Straussenei auf den Ecken des Rands
-  const eggMat = new THREE.MeshStandardMaterial({ color: srgb(v.egg), roughness: 0.4, emissive: srgb(v.egg, 0.26) });
-  const turrets = new THREE.InstancedMesh(new THREE.LatheGeometry([0, 0.3, 0.28, 0.22, 0.12, 0.04, 0]
-    .map((r, i) => new THREE.Vector2(r, i * 0.09)), 12), turretMat, 4);
-  const eggs = new THREE.InstancedMesh(new THREE.SphereGeometry(0.055, 12, 8).scale(1, 1.3, 1), eggMat, 4);
+  // Kleine Pyramiden auf den Ecken des Rands: Stumpf aus Lehm, darauf die helle Spitze. Profil [halbe Kante, Höhe] als
+  // Drehkörper mit 4 Seiten, Kanten parallel zum Brett, flach schattiert; u im Massstab der Wand (PLATE je Textur)
+  const [pa, ph, pf] = CLAY.pyramidSize;
+  const pyramid = (pts) => {
+    const g = new THREE.LatheGeometry(pts.map(([a, y]) => new THREE.Vector2(a * Math.SQRT2, y)), 4).toNonIndexed()
+      .rotateY(Math.PI / 4);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setX(i, uv.getX(i) * 8 * pa / PLATE);
+    g.computeVertexNormals();
+    return g;
+  };
+  const capMat = new THREE.MeshStandardMaterial({ color: srgb(v.cap), roughness: 0.6, emissive: srgb(v.cap, 0.3) });
+  const pyramids = new THREE.InstancedMesh(pyramid([[0, 0], [pa, 0], [pa * pf, ph * (1 - pf)]]), pyramidMat, 4);
+  const caps = new THREE.InstancedMesh(pyramid([[pa * pf, 0], [0, ph * pf]]), capMat, 4);
   [[-1, -1], [-1, 1], [1, -1], [1, 1]].forEach(([sx, sz], i) => {
-    turrets.setMatrixAt(i, m4.makeTranslation(sx * CLAY.turret, 0, sz * CLAY.turret));
-    eggs.setMatrixAt(i, m4.makeTranslation(sx * CLAY.turret, 0.6, sz * CLAY.turret));
+    pyramids.setMatrixAt(i, m4.makeTranslation(sx * CLAY.pyramid, 0, sz * CLAY.pyramid));
+    caps.setMatrixAt(i, m4.makeTranslation(sx * CLAY.pyramid, ph * (1 - pf), sz * CLAY.pyramid));
   });
-  turrets.receiveShadow = true;
+  pyramids.receiveShadow = caps.receiveShadow = true;
   // three 0.147 prüft bei Instanzen nur die Kugel um die Form am Ursprung: nie aussortieren
-  torons.frustumCulled = turrets.frustumCulled = eggs.frustumCulled = false;
+  torons.frustumCulled = pyramids.frustumCulled = caps.frustumCulled = false;
 
   // Körner der Fahne: hüpfen mit der Front nach aussen, bleiben zurück und legen sich; helle und dunkle, einige blitzen
   const r2 = mulberry32(601), edge = PLATE / 2, rows = [];
@@ -14330,10 +14341,10 @@ function clayBoard(v) {
         }`, uniforms);
 
   const group = new THREE.Group();
-  group.add(floorTop, cornice, wall, torons, turrets, eggs, grains, falls);
+  group.add(floorTop, cornice, wall, torons, pyramids, caps, grains, falls);
 
   // Überblenden: boardBlend (für alle Arten gleich); die Körner blenden mit dem Anteil (uK)
-  const all = [floorMaterial, wallMat, turretMat, woodMat, eggMat];
+  const all = [floorMaterial, wallMat, pyramidMat, woodMat, capMat];
   const textures = [tex.map, tex.normalMap, tex.wallMap];
   return {
     group,

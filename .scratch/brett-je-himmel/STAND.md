@@ -130,7 +130,7 @@ Das Spiel läuft direkt aus der Datei (Chrome):
   `skyTheme` und die übrigen Interna, und kein Weg für Spieler. Die Namen der Bretter stehen im Glossar unter «Brett»
   (Abschnitt «Auf dem Feld», nicht Teil des Fingerabdrucks der KI-Tester; KI-Tester-Test grün).
 - **Sonst:**
-  - Die Türmchen der Lehmterrasse werfen keinen Schatten.
+  - Die Pyramiden auf den Ecken der Lehmterrasse (seit 10.11.2026 statt der Türmchen, PLAN 1.6) werfen keinen Schatten.
   - `dispose` beendet einen noch rechnenden Worker nicht.
   - `FLOOR_DETAIL_GLSL.replace('float iw = 0.011;', …)` in der Lehmterrasse greift nicht mehr, falls sich die Zeile beim
     Steinbrett ändert.

@@ -164,10 +164,10 @@ const BOARD_PARAMS = {
   },
   // Lehmterrasse der Wüste (clayBoard): Farben sRGB 0 … 1. plaster und brick je zwei Töne (Putz, Ziegel), straw
   // Strohhalme im Putz, joint Fugen, gully Regenrinnen in der Wand, inlay Kalklinie (Einlegelinie), wood Balken aus
-  // Palmholz, egg Strausseneier, sand Sandzungen der Lichtwelle
+  // Palmholz, cap helle Spitzen der Pyramiden auf den Ecken, sand Sandzungen der Lichtwelle
   clay: {
     plaster: isSrgbPair, straw: isSrgb, brick: isSrgbPair, joint: isSrgb, gully: isSrgb, inlay: isSrgb, wood: isSrgb,
-    egg: isSrgb, sand: isSrgb,
+    cap: isSrgb, sand: isSrgb,
   },
   // Hochbeet des Dorfs (raisedBedBoard): Farben sRGB 0 … 1. soil und larch je zwei Töne [hell, dunkel] (Erde im Rand,
   // Lärchenbohlen), mulch Mulch im Rand; Blumenwiese im Feld: grass zwei Töne [dunkel, hell], grassTip Spitzen der Halme,
