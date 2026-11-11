@@ -225,6 +225,11 @@ Android-Chromium.
   viel dünner als Grün). Ausgleich je Farbe in `BEAM_EVEN` (Breite, Leuchten, Kern), abgeglichen an sieben parallelen
   Strahlen auf drei Himmeln, Desktop und Handy. Offen: auf hellem Sand bleiben die Farben heller als vor dem
   Sternenhimmel.
+- [x] **1.6 Wüste: Pyramiden auf den Ecken** (10.11.2026, Branch `feature/wueste-pyramiden`; Vergleich der Varianten
+  https://claude.ai/artifact/529JqRzUk5eCZwx7U3c4pS): Auf den Ecken der Lehmterrasse stehen kleine Pyramiden statt
+  der Spitztürmchen mit Straussenei. Aus drei Varianten (glatt, helle Spitze, Stufen) gewählt: **helle Spitze** wie
+  bei der Chephrenpyramide am Horizont. 60 cm Kante, 38 cm hoch, Neigung 52° wie die Cheopspyramide, das oberste
+  Viertel hell (`CLAY.pyramidSize`); der Wert `egg` der Brett-Angabe heisst jetzt `cap`.
 
 ## 1a. Spielführung
 
