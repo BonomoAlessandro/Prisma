@@ -230,6 +230,9 @@ Android-Chromium.
   der Spitztürmchen mit Straussenei. Aus drei Varianten (glatt, helle Spitze, Stufen) gewählt: **helle Spitze** wie
   bei der Chephrenpyramide am Horizont. 60 cm Kante, 38 cm hoch, Neigung 52° wie die Cheopspyramide, das oberste
   Viertel hell (`CLAY.pyramidSize`); der Wert `egg` der Brett-Angabe heisst jetzt `cap`.
+- [x] Nachtrag 11.11.2026 (Branch `feature/wueste-ohne-pyramiden`): Die Pyramiden aus 1.6 sind wieder weg, ohne
+  Ersatz: Der Nutzer will sie doch nicht. Die Ecken der Lehmterrasse bleiben frei; `CLAY.pyramid`, `pyramidSize` und
+  der Wert `cap` sind weg.
 
 ## 1a. Spielführung
 

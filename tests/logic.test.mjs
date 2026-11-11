@@ -1178,7 +1178,7 @@ console.log('Offline');
     assert.ok(errorsWith({ plaster: [0.83, 0.6, 0.42] }).some((e) => /plaster/.test(e)), 'Putz ohne zwei Töne');
     assert.ok(errorsWith({ brick: [board.brick[0], board.brick[1], board.brick[0]] }).some((e) => /brick/.test(e)),
       'Ziegel mit drei Tönen');
-    assert.ok(errorsWith({ cap: undefined }).some((e) => /cap/.test(e)), 'fehlende Farbe');
+    assert.ok(errorsWith({ gully: undefined }).some((e) => /gully/.test(e)), 'fehlende Farbe');
     assert.ok(errorsWith({ dach: [0.8, 0.7, 0.5] }).some((e) => /dach/.test(e)), 'unbekannter Wert');
   });
   test('Bretter: Dorf mit dem Hochbeet (raisedBed); die Prüfung lehnt ungültige und fehlende Farben ab', () => {
