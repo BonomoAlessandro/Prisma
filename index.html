@@ -1292,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-11 wueste-ecken-frei';
+const APP_VERSION = '2026-11-11 vulkan-sandtrichter';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -9821,6 +9821,8 @@ scene.add(solar.group);
    Strand (beach): Abend am Meer, das Brett über einer türkisen Lagune vor dem Strand; nahe Palmen, Bäume und Büsche
    als 3D-Modelle, beleuchtet und gemalt wie im Panorama (paintedInstances, mit Pinsel), Wellen, Schaum und Glitzern
    ums Brett (waterSurface), Fische (fishSchools), nahe Felsen (bakedMesh).
+   Vulkan (volcano): Nacht in einem Trichter aus Sand wie dem Gaskrater Darvaza; der Lavasee unter dem Brett (lavaPool),
+   Felsbrocken darin (bakedMesh) und die Flammen der Feuernester auf der Böschung (fireNests) zeichnet das Spiel bewegt.
    ===================================================================== */
 
 const SKY_FORMAT = 1; // Fassung des Registers, die das Spiel versteht (tools/sky-schema.mjs)
@@ -11422,6 +11424,194 @@ function lavaPool(ctx, opt) {
 }
 
 /**
+ * Feuernester (Vulkan, wie im Gaskrater Darvaza): Das Panorama zeigt nur ihren Schein, den Russ und die glimmenden
+ * Risse, die Flammen zeichnet das Spiel bewegt. Je Flamme eine aufrechte Fläche, zur Kamera gedreht, der Fuss auf der
+ * Böschung (data: flames je [x, y, z, Höhe, Breite, Zufall] in Spielkoordinaten, vom Export der Szene); im Shader drei
+ * Zungen aus Rauschen, das nach oben zieht: Sie flackern, schwanken und reissen an der Spitze auf, in vier Farbstufen
+ * wie gemalt (core, mid, edge, deep ab den Schwellen bands), am Fuss ein bläulicher Saum (base), rundum ein weicher
+ * Glutschein (halo); shape: Faktor auf Höhe und Breite. Dazu je Nest (nests: [x, y, z, Zahl der Flammen]) ein weicher
+ * Schein (glow, Radius glowSize m plus 0,25 m je Flamme), der mitflackert: das Licht auf dem Sand, und aufsteigende
+ * Funken (embers: count je Nest, Höhe height m, Grösse size m, Farbe color). Keine Texturen, nur Ecken (rund 1000
+ * Flammen: gut 130 KB, samt Schein und Funken gut 150 KB). lift: so weit zur Kamera hin (m), für den Tiefentest gegen
+ * das Netz des Panoramas; cover: so viel deckt eine Flamme den Grund ab (der Rest kommt dazu). Farben unter der
+ * Bloom-Schwelle.
+ */
+function fireNests(ctx, opt) {
+  const out = new THREE.Group();
+  const { flames, nests } = ctx.data[opt.data];
+  const n = flames.length;
+  const foot = new Float32Array(n * 12), shape = new Float32Array(n * 12), corner = new Float32Array(n * 8);
+  const index = new (n * 4 > 65536 ? Uint32Array : Uint16Array)(n * 6); // ab 16384 Flammen reicht Uint16 nicht
+  flames.forEach(([x, y, z, h, w, s], i) => {
+    for (let k = 0; k < 4; k++) {
+      const v = i * 4 + k;
+      foot.set([x, y, z], v * 3);
+      shape.set([h, w, s], v * 3);
+      corner.set([k & 1 ? 1 : -1, k >> 1], v * 2);
+    }
+    index.set([i * 4, i * 4 + 1, i * 4 + 3, i * 4, i * 4 + 3, i * 4 + 2], i * 6);
+  });
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(foot, 3));
+  geo.setAttribute('aFlame', new THREE.BufferAttribute(shape, 3));
+  geo.setAttribute('aCorner', new THREE.BufferAttribute(corner, 2));
+  geo.setIndex(new THREE.BufferAttribute(index, 1));
+  const speed = glf(opt.speed);
+  const tongues = new THREE.Mesh(geo, new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute vec3 aFlame;
+        attribute vec2 aCorner;
+        uniform float uTime;
+        varying vec2 vUv;
+        varying float vSeed, vHot;
+        void main() {
+          float s = aFlame.z, t = uTime * ${speed};
+          // Flackern: die Flamme wächst und schrumpft unregelmässig, je Flamme anders
+          float flick = 0.8 + 0.12 * sin(t * 6.1 + s * 40.0) + 0.08 * sin(t * 11.3 + s * 17.0) + 0.06 * sin(t * 2.3 + s * 5.0);
+          vec3 toCam = cameraPosition - position;
+          vec3 side = normalize(cross(vec3(0.0, 1.0, 0.0), toCam));
+          vec3 front = normalize(vec3(toCam.x, 0.0, toCam.z) + 1e-4);
+          // die Fläche ist breiter und höher als die Flamme: Platz zum Schwanken
+          float h = aFlame.x * flick * 1.15 * ${glf(opt.shape[0])}, w = aFlame.y * 2.0 * ${glf(opt.shape[1])};
+          vec3 p = position + front * ${glf(opt.lift)} + side * (aCorner.x * w * 0.5) + vec3(0.0, aCorner.y * h, 0.0);
+          vUv = aCorner; vSeed = s; vHot = flick;
+          gl_Position = projectionMatrix * viewMatrix * vec4(p, 1.0);
+        }`,
+    fragmentShader: `uniform float uTime, uFade, uReady;
+        varying vec2 vUv;
+        varying float vSeed, vHot;
+        ${GLSL_NOISE}
+        void main() {
+          float t = uTime * ${speed};
+          // Rauschen zieht nach oben; nach oben schwankt die Flamme mehr, die Ränder fransen aus, die Spitzen reissen
+          // auf. Unten breit auf dem Boden (rund unten und spitz oben wirkte wie ein Tropfen). Drei Zungen: in der Mitte
+          // die grosse, links und rechts kürzere, die abwechselnd auflodern
+          float n = fbm3(vec3(vUv.x * 1.6 + vSeed * 13.0, vUv.y * 2.2 - t * 2.2, t * 0.4 + vSeed * 7.0));
+          float e = noise(vec3(vUv.x * 4.0 + vSeed * 5.0, vUv.y * 5.0 - t * 4.0, vSeed * 3.0));
+          float y0 = vUv.y * 1.15, sway = (n - 0.44) * 1.8 * vUv.y, body = 0.0, heat = 0.0;
+          for (int i = 0; i < 3; i++) {
+            float fi = float(i) - 1.0;
+            float tall = i == 1 ? 1.0 : 0.6 + 0.18 * sin(t * 3.1 + vSeed * 20.0 + fi * 2.1);
+            float y = y0 / tall;
+            float x = vUv.x * 2.0 - fi * 0.34 + sway;
+            float width = (y < 0.25 ? 0.75 + y : pow(max(1.0 - y, 0.0) / 0.75, 0.9)) * (i == 1 ? 1.0 : 0.55);
+            float d = abs(x) / max(width, 1e-3) + (e - 0.5) * 0.7 * y;
+            float b = (1.0 - smoothstep(0.8, 1.0, d)) * (1.0 - smoothstep(0.5, 0.9, y + (n - 0.44) * 1.2));
+            body = max(body, b);
+            heat = max(heat, b * pow(max(1.0 - d, 0.0), 1.5) * (1.0 - 0.9 * y));
+          }
+          // Glut um die Flamme: ein weicher Schein, nur dazugezählt
+          float halo = exp(-(vUv.x * vUv.x * 2.5 + (y0 - 0.3) * (y0 - 0.3) * 3.5)) * (0.75 + 0.25 * vHot);
+          if (body < 0.01 && halo < 0.02) discard;
+          heat *= vHot;
+          vec3 col = heat > ${glf(opt.bands[0])} ? ${glv(opt.core)} : heat > ${glf(opt.bands[1])} ? ${glv(opt.mid)}
+            : heat > ${glf(opt.bands[2])} ? ${glv(opt.edge)} : ${glv(opt.deep)};
+          // Gas brennt am Fuss bläulich: ein schmaler Saum unten in der Mitte
+          col = mix(col, ${glv(opt.base)}, (1.0 - smoothstep(0.02, 0.1, y0)) * smoothstep(0.2, 0.5, heat) * 0.8);
+          float k = uFade * uReady, a = body * k;
+          gl_FragColor = vec4(col * a + ${glv(opt.halo)} * halo * (1.0 - body) * k, a * ${glf(opt.cover)});
+        }`,
+  }));
+  tongues.frustumCulled = false;
+  tongues.renderOrder = 6;
+  out.add(tongues);
+
+  // Schein je Nest: ein weicher Fleck, der unregelmässig mitflackert. Als Fläche zur Kamera, nicht als Punkt: Punkte
+  // wären hier mehrere hundert Pixel gross (manche Handys begrenzen sie) und fielen ganz weg, sobald ihre Mitte das
+  // Bild verlässt (Review)
+  const screenH = { value: 1 };
+  const G = [], K = [], GC = [], GI = [];
+  nests.forEach(([x, y, z, k], i) => {
+    for (let c = 0; c < 4; c++) {
+      G.push(x, y + 0.6, z);
+      K.push(opt.glowSize + 0.25 * k, (i * 0.618) % 1);
+      GC.push(c & 1 ? 1 : -1, c & 2 ? 1 : -1);
+    }
+    GI.push(i * 4, i * 4 + 1, i * 4 + 3, i * 4, i * 4 + 3, i * 4 + 2);
+  });
+  const gGeo = new THREE.BufferGeometry();
+  gGeo.setAttribute('position', new THREE.Float32BufferAttribute(G, 3));
+  gGeo.setAttribute('aGlow', new THREE.Float32BufferAttribute(K, 2));
+  gGeo.setAttribute('aCorner', new THREE.Float32BufferAttribute(GC, 2));
+  gGeo.setIndex(GI);
+  const glow = new THREE.Mesh(gGeo, new THREE.ShaderMaterial({
+    uniforms: ctx.uniforms,
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute vec2 aGlow, aCorner;
+        uniform float uTime;
+        varying float vK;
+        varying vec2 vUv;
+        void main() {
+          float t = uTime * ${speed}, s = aGlow.y * 6.2831;
+          vK = 0.55 + 0.25 * sin(t * 5.3 + s * 3.0) + 0.2 * sin(t * 9.7 + s * 7.0);
+          vUv = aCorner;
+          vec4 mv = viewMatrix * vec4(position, 1.0);
+          mv.xy += aCorner * aGlow.x;   // in Blickrichtung ausgerichtet, Radius in Metern
+          gl_Position = projectionMatrix * mv;
+        }`,
+    fragmentShader: `uniform float uFade, uReady;
+        varying float vK;
+        varying vec2 vUv;
+        void main() {
+          float r = length(vUv);
+          gl_FragColor = vec4(${glv(opt.glow)} * exp(-r * r * 4.0) * (1.0 - smoothstep(0.8, 1.0, r)) * vK * uFade * uReady, 0.0);
+        }`,
+  }));
+  glow.frustumCulled = false;
+  glow.renderOrder = 5;
+  out.add(glow);
+
+  // Funken (embers: count je Nest): steigen aus dem Nest auf, schwanken, kühlen von Gelb zu Rot ab und verlöschen
+  const em = opt.embers, rand = mulberry32(31), E = [], EA = [];
+  for (const [x, y, z, k] of nests) {
+    const spread = 0.4 + 0.06 * k;
+    for (let j = 0; j < em.count; j++) {
+      E.push(x + (rand() - 0.5) * 2 * spread, y + 0.3, z + (rand() - 0.5) * 2 * spread);
+      EA.push(1.2 + rand() * 1.8, rand(), em.height * (0.5 + 0.5 * rand()), rand());   // Dauer, Versatz, Höhe, Zufall
+    }
+  }
+  const eGeo = new THREE.BufferGeometry();
+  eGeo.setAttribute('position', new THREE.Float32BufferAttribute(E, 3));
+  eGeo.setAttribute('aEmber', new THREE.Float32BufferAttribute(EA, 4));
+  const embers = new THREE.Points(eGeo, new THREE.ShaderMaterial({
+    uniforms: { ...ctx.uniforms, uScreenH: screenH },
+    transparent: true, depthWrite: false,
+    blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneFactor,
+    blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.OneFactor,
+    vertexShader: `attribute vec4 aEmber;
+        uniform float uTime, uScreenH;
+        varying float vOn, vCool;
+        void main() {
+          float t = uTime * ${speed}, ph = fract(t / aEmber.x + aEmber.y), s = aEmber.w * 6.2831;
+          vec3 p = position + vec3(sin(t * 1.7 + s) * 0.5 * ph, ph * aEmber.z, cos(t * 1.3 + s) * 0.5 * ph);
+          vOn = smoothstep(0.0, 0.08, ph) * (1.0 - smoothstep(0.55, 1.0, ph)) * step(0.5, fract(t * 7.0 + s));
+          vCool = ph;
+          vec4 mv = modelViewMatrix * vec4(p, 1.0);
+          gl_Position = projectionMatrix * mv;
+          gl_PointSize = max(${glf(em.size)} * projectionMatrix[1][1] * 0.5 * uScreenH / max(-mv.z, 0.1), 1.5);
+        }`,
+    fragmentShader: `uniform float uFade, uReady;
+        varying float vOn, vCool;
+        void main() {
+          float r = length(gl_PointCoord - 0.5) * 2.0;
+          float a = (1.0 - smoothstep(0.4, 1.0, r)) * (0.6 + 0.4 * vOn) * (1.0 - vCool * 0.5);
+          gl_FragColor = vec4(mix(${glv(em.color)}, ${glv(opt.deep)}, vCool) * a * uFade * uReady, 0.0);
+        }`,
+  }));
+  embers.frustumCulled = false;
+  embers.renderOrder = 6;
+  out.add(embers);
+  const size = new THREE.Vector2();
+  out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
+  return out;
+}
+
+/**
  * Kachelbare Wellen fürs Wasser (waterSurface): RGB = Normale feiner Wellen (Summe von Sinuswellen mit ganzzahligen
  * Wellenzahlen, vorwiegend in einer Richtung), A = kachelbares Rauschen (Lücken der Brecher). Generator (yield je Zeile).
  */
@@ -12822,7 +13012,7 @@ function* fishSchools(ctx, opt) {
   return holder;
 }
 
-const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool };
+const SKY_LAYERS = { toonInstances, paintedInstances, glowParticles, mistSheets, waterSurface, fishSchools, bakedMesh, lavaPool, fireNests };
 
 /**
  * Eine Skybox aus ihrem Manifest (Eintrag im Register). Schnittstelle wie die übrigen Hintergründe (skyTheme):
@@ -22069,9 +22259,9 @@ const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
  * Kapitel: Station auf dem Weg, Hintergrund, Meldung und Knopf nach dem letzten Level; die Level je Grad stehen in
  * STORY_LEVELS (dieselbe Reihenfolge der Welten). travel: Untertitel, wenn das Licht hier ankommt (nach dem Prolog,
  * auf der Reise, beim Fortsetzen); carrier: was das Licht von hier in die nächste Welt trägt (STORY_CARRIERS). up:
- * so hoch schaut man in dieser Welt in den Himmel, wenn das Licht ankommt (Einstieg, Ende des Flugs, Menü), steiler
- * beim Vulkan (über die Kraterwand); der Aufstieg am Ende der Welt schaut zu ihrem Stern. finale: danach antwortet der
- * Stern, und der Epilog folgt.
+ * so hoch schaut man in dieser Welt in den Himmel, wenn das Licht ankommt (Einstieg, Ende des Flugs, Menü; ohne
+ * Angabe STORY_UP); der Aufstieg am Ende der Welt schaut zu ihrem Stern. finale: danach antwortet der Stern, und der
+ * Epilog folgt.
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest',
@@ -22083,7 +22273,7 @@ const STORY_CHAPTERS = [
   { station: 3, title: 'Die Wüste', sky: 'desert',
     travel: 'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der Wüste.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
-  { station: 4, title: 'Der Vulkan', sky: 'volcano', up: 0.65,
+  { station: 4, title: 'Der Vulkan', sky: 'volcano',
     travel: 'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
   { station: 5, title: 'Die Planeten', sky: 'solar',
@@ -22141,7 +22331,8 @@ const wagen = {
  * 20; Ticket 04): Lage, Grösse und Helligkeit an einer Stelle. Er steht an einer festen Stelle in der Welt, nicht an
  * der Skybox: hoehe und azimut sind die Richtung der Mitte seiner Form (wagen.form) von der Kamera aus, azimut 0
  * geradeaus wie in der Ausgangsansicht (−z), positiv nach rechts. So hoch, dass der Stern des Vulkans über der
- * Kraterwand steht (sie reicht geradeaus bis gut 50°); der ganze Wagen (112 × 64 Einheiten der Form) misst mit winkel
+ * früheren Kraterwand stand (sie reichte geradeaus bis gut 50°; seit PLAN 1.7 ist der Rand viel niedriger, die Lage
+ * blieb, wie abgenommen); der ganze Wagen (112 × 64 Einheiten der Form) misst mit winkel
  * 0,15 etwa 17° × 10° und passt so auch im Hochformat (gut 21° breit) ins Bild. Helligkeit je Zustand [Nacht, Tag]
  * nach der Tabelle der Spec (linear, die Sterne weiss; alles bleibt unter der Bloom-Schwelle), Grösse der Sterne
  * (punkt) und Breite der Linien in CSS-Pixeln. Grösse und Helligkeit hat der Nutzer bei der Abnahme so bestätigt
@@ -25084,7 +25275,7 @@ const story = {
       phase += 0.12;
     }
     // Bogen vom geweckten Stern am nächsten vorbei und hinab, seitwärts weiter in seine Richtung, am Ende so hoch,
-    // wie man in der neuen Welt hinaufschaut (Vulkan: über die Kraterwand)
+    // wie man in der neuen Welt hinaufschaut
     const vorbei = this.vorbeiAn(n, az0), ende = [vorbei[0] + side * F.reise.seitwaerts,
       Math.min(1.15, (ch.up ?? STORY_UP) + 0.1)];
     const weg = this.bogen([az0, el0], vorbei, ende, F.reise.amStern);
@@ -25358,7 +25549,7 @@ const story = {
    * Die Strahlen der Ziele steigen zu einem Lichtpunkt am Himmel, die Kamera schaut ihnen nach; der Punkt blitzt auf,
    * wenn sie ankommen. stern: Nummer des Sterns dieser Welt (Ende einer Welt, Ticket 05 von .scratch/kleiner-wagen/; im
    * Finale der sechste, Ticket 06): Der Lichtpunkt steht dort, wo er am Himmel steht (himmelsWagen.richtung; beim
-   * Vulkan über der Kraterwand), und er erwacht, sobald die Strahlen ankommen (erwache). Reise und Finale beginnen hier:
+   * Vulkan hoch über dem Rand), und er erwacht, sobald die Strahlen ankommen (erwache). Reise und Finale beginnen hier:
    * Die Knöpfe gehen weg, «Menü» und «Neu starten» wirken dort nicht (Review Ticket 05); sie kommen mit dem nächsten
    * Level wieder (fall, begin).
    * ende(punkt): Blickrichtung, in der die Kamera ankommt (Abnahme Ticket 11): Der Stern steht beim Erwachen schon

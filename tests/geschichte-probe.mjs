@@ -2535,7 +2535,7 @@ async function pruefeHelligkeit(tag, was) {
     s.linien.some(([x, y]) => x === a && y === b) === hell[7 + i] > 0, `${zeile}: Linie ${a}–${b}`));
 }
 /**
- * Bild des Wagens am Himmel: Im Spiel sieht die Kamera nie so hoch hinauf (er steht über der Kraterwand des Vulkans);
+ * Bild des Wagens am Himmel: Im Spiel sieht die Kamera nie so hoch hinauf (er steht hoch über dem Rand des Vulkans);
  * für das Bild schaut sie kurz zur Mitte des Wagens (story.gazeDir, gaze) und danach zurück aufs Brett. Nur für Bilder,
  * nicht während einer Messung der Bildzeiten. tag: Himmel von Meer oder Wüste (pruefeHelligkeit).
  */
