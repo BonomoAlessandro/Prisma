@@ -1292,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-11 vulkan-sandtrichter';
+const APP_VERSION = '2026-11-12 testhilfe-alles';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -24512,6 +24512,31 @@ const ladeZeichen = (() => {
       setze(jetzt - seit >= 400);
     },
   };
+})();
+
+/**
+ * Testhilfe ?alles (Wunsch des Nutzers vom 09.11.2026: testen, ohne durchzuspielen): setzt den Speicherstand eines
+ * Grads auf «alles gelöst», bevor die Geschichte ihn liest. Alle Level seines Durchgangs und alle Übungen im Dorf sind
+ * gelöst, alle Momente und das Finale gesehen, der Grad ist der zuletzt gespielte. Im Menü steht dann «Übersicht», dort
+ * ist jedes Level wählbar. ?alles: Leicht; ?alles=mittel, schwer, sehr-schwer. Weitere Felder des Stands und die
+ * Bestwerte bleiben. Danach verschwindet der Parameter aus der Adresse, ein Neuladen setzt nichts mehr; «Von vorn» im
+ * Menü setzt den Grad zurück.
+ */
+(() => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('alles')) return;
+  const grad = (q.get('alles') || 'leicht').replaceAll('-', ' ');
+  if (!Object.hasOwn(STORY_LEVELS, grad)) { console.warn(`?alles: Grad ${grad} unbekannt, nichts gesetzt`); return; }
+  const namen = STORY_LEVELS[grad].flat(), uebungen = LEVELS.slice(0, TUTORIAL_COUNT).map((l) => l.name);
+  const alt = progress.load(grad, namen.length);
+  const momente = ['prolog', 'angebot', STORY_DORF.einstieg.moment, ...STORY_CHAPTERS.map(storyChapterId)];
+  progress.save(grad, { ...alt, platz: namen.length - 1, geloest: [...new Set([...uebungen, ...namen])],
+    gesehen: [...new Set([...alt.gesehen, ...momente])], geschafft: true,
+    dorf: { platz: TUTORIAL_COUNT - 1, ende: 'gespielt' } });
+  progress.setLast(grad);
+  // die übrigen Parameter wörtlich behalten (URLSearchParams schriebe ?noadapt als ?noadapt=)
+  const rest = location.search.slice(1).split('&').filter((t) => t && !/^alles(=|$)/.test(t)).join('&');
+  history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
 })();
 
 const story = {
