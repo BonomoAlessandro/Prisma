@@ -370,7 +370,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Handy), Standard aus. **Kamera:** Das Feld `camera.stops` der Skybox sind Grenzen `[dx, dz, weit]`: In der waagrechten
   Richtung (dx, dz) steht die Kamera höchstens `weit` m von der Mitte des Bretts, sonst rückt sie auf ihrem Strahl heran
   und das Sichtfeld wird so viel weiter, dass das Brett auf der Höhe seiner Mitte gleich gross bleibt (`cameraStop`;
-  Strand: nicht hinter die Palmen); beim Wechsel der Welt gleitet der Halt mit dem Überblenden. **Brett je Himmel** (Spec `.scratch/brett-je-himmel/`): Das Feld `board` in `skybox.json` nennt
+  Strand: nicht hinter die Palmen); beim Wechsel der Welt gleitet der Halt mit dem Überblenden. `camera.top` ist ebenso
+  eine Decke: Die Kamera steht höchstens so viele m über der Platte (Eishöhle: unter dem Gewölbe, das sich zur Wand hin senkt; geprüft entlang der ganzen Bahn mit `kamera_abstand()` der Szene). **Brett je Himmel** (Spec `.scratch/brett-je-himmel/`): Das Feld `board` in `skybox.json` nennt
   das Brett der Skybox, `{ "type": <Art>, …Werte }`; ohne Angabe, unter Milchstrasse und Sonnensystem steht das
   Steinbrett (Art `stone`). Die Arten stehen in der Zeile `const BOARD_TYPES = { … }` in `index.html` (`boardTheme`
   baut, teilt und zeigt die Bretter, je Art mit ihrem Kernquader: dahinter zeichnet der Himmel nichts), ihre Werte
@@ -420,6 +421,33 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   öffnen und schliessen; Gasblasen wölben die Kruste auf, reissen, Lava spritzt hoch und kühlt ab; Funken); Blender
   malt dort nur die Kruste. Ein Dutzend Felsbrocken im See vor dem Ufer zeichnet das Spiel wie die nahen Felsen am
   Strand (`bakedMesh`, Licht gebacken und gemalt, `export()` der Szene).
+- **Eishöhle** (`icecave`, PLAN 1.8): Das Brett schwebt 4 m über einem See in einer Gletscherhöhle nach Fotos echter
+  Höhlen: eine längliche, unregelmässige Halle (Wand 72 … 96 m von der Mitte, Decke über dem Brett mindestens 35,6 m
+  hoch, je Richtung eine eigene Superellipse), geradeaus ein Ausgang ins Tageslicht, schräg hinten ein dunkler Gang mit
+  Bach, genau über dem Brett ein Schmelzwasserschacht als Trichter, oben offen (blickt die Kamera der Geschichte
+  hinauf, sieht sie durch ihn den Himmel); auf dem See elf Eisschollen, jede anders, auch nah am Brett (ausgefranst,
+  ohne gerade Bruchkanten, nichts unter Wasser; kein Eis liegt ganz unter Wasser). Das Eis hat
+  Mulden in vier Grössen (gewichtetes Voronoi: gebogene Kanten, gestreckt zum Ausgang hin, dazwischen glatte Stellen),
+  Farbe nach dem Licht (Attribut `thin`), Schlieren, Raureif, nasse Rinnen; Kies- und Aschelagen liegen nur unten.
+  Szene `tools/blender/szenen/icecave/szene.py`, gemalt mit dem Stil `icecave` in `stile.py` (Belichtung 2,8, feine
+  Striche `pinsel` 0.12, mehr Abtastwerte `proben`, Streifen bis 22°: höher sprengte das Budget von 300 MB).
+  `wald_mcp.neu('icecave')`, `wald_mcp.skybox('icecave')` (rund 50 min), danach `node tools/blender/pack.mjs icecave`.
+  Licht: Die Sonne (Richtung des Hauptlichts im Spiel) bescheint per Light Linking nur Berge und Ebene draussen
+  (durch den Schacht fiele sonst ihr Fleck in die Höhle), eine Flächenlampe vor dem Ausgang bringt das Himmelslicht.
+  Fallen: Flächenlampen spiegeln sich im See mit ihrer Form (die am Ausgang steht darum grösser als das Mundloch
+  davor); Light Linking nimmt in Cycles dem ganzen Pfad das Licht, nicht nur dem ausgeschlossenen Objekt. Unter dem
+  Brett, das 4 m über dem See schwebt, sieht man flach hindurch auf den Grund des Panoramas: Der Boden ist dort mit einem
+  Fächer geschlossen (offen zeigte er einen blauen Kreis). Den See zeichnet das Spiel (Ebene `waterSurface` mit `calm`:
+  ruhig, ohne Brandung und Schaum, Spiegelung des Panoramas passend zur Kamera); Blender malt dort nur den Grund durchs
+  Wasser und exportiert wie der Strand die Wasserkarte (`water_map`, mit Schollen und Eis im Wasser als «Fels») und
+  die Wassermaske (Stil `wasser`, hier bis 70° unter den Horizont: `maske`; Eis unter Wasser zeichnete die Brechung
+  als Schlieren, darum reichen die Schollen nur knapp unter die Wasserlinie; damit Schollen nicht als Geisterbilder im
+  Wasser stehen, gilt bei `calm` Grund hinter Eis oder Fels der Wasserkarte als verdeckt, siehe `groundShift`).
+  Ausserhalb des Sees liegen Bäche und Rinnen knapp über
+  dem Wasser (sonst zeichnet das Spiel dort im flachen Blick offenes Wasser in Streifen); draussen vor dem Ausgang
+  Moränenhügel und -geröll, die das schmale Fenster vom Brett aus füllen. Die Kamera hält unter der Decke (`camera.top` 28: mindestens 2,6 m Luft entlang der ganzen Bahn,
+  `wald_mcp.scene('icecave').kamera_abstand(28)`; mit 32 stiess sie am Handy im Würfel ins Gewölbe). Einzige Ebene ist
+  das Wasser; das Steinbrett bleibt vorerst.
 - **Level-Werkzeuge** (`tools/`, nur für die Entwicklung): Wie Level beurteilt und erzeugt werden, bestimmen nur die
   Beurteilung (`tools/beurteilung/`) und der Generator (`tools/generator/`, Kommandozeile `generiere.mjs`); beide
   unten. Seit Ticket 21 sind die alten Werkzeuge mit eigenen Formeln entfernt (im Verlauf bis `6e98bb1`): der

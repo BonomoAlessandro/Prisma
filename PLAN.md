@@ -247,6 +247,77 @@ Android-Chromium.
   Der Schein der Nester ist eine Fläche zur Kamera, kein Punkt (Review: Punkte bis über 1000 px wären am Handy oft
   begrenzt und fielen ganz weg, sobald ihre Mitte aus dem Bild geht). Offen: Kosten der Flammen auf dem echten Handy
   (Poco).
+- [x] **1.8 Neue Welt: Eishöhle** (11./12.11.2026, Branch `feature/skybox-eishoehle`; Skizzen
+  https://claude.ai/artifact/4yjYAG9xRyEAAeWEwxsUbG, Runde 1 https://claude.ai/artifact/6FSTuJYmee8tpvkji9kb9d,
+  Runde 2 https://claude.ai/artifact/MGySQ93B4s5nsxEnG3Bni9): Aus vier Eis-Skizzen (Gletscherlagune, Eishöhle,
+  Polarnacht, Eisbruch) gewählt: **Eishöhle** (Skybox `icecave`, Reihenfolge 70). Runde 1 war eine runde Kuppel mit
+  gleichmässigen Waben und wirkte künstlich; Runde 2 ist nach Fotos echter Gletscherhöhlen gebaut (Wikimedia Commons:
+  Breiðamerkurjökull, Mendenhall, Nigardsbreen) und so detailliert wie möglich ausgearbeitet: eine längliche,
+  unregelmässige Halle (die Decke mal steil, mal flach bis auf den Kies), ein Ausgang ins Tageslicht mit Zapfen und ein
+  dunkler Gang mit Bach, ein Schmelzwasserschacht als Trichter mit Lichtstrahl, Mulden in vier Grössen mit gebogenen
+  Kanten (gewichtetes Voronoi), zum Ausgang grösser und gestreckt, dazwischen glattes Eis; Schlieren, Blasenzüge,
+  Raureif an den Öffnungen, nasse Rinnen; Kies- und Aschelagen nur unten, Steine stecken halb im Eis; am Ufer Kiesel,
+  Grus, Steine, abgerundete Eisblöcke, Eis-Stalagmiten. Der See bleibt (Wunsch des Nutzers): klar über dem Kies, in der
+  Mitte tief. Die Lampe des Schachts spiegelt sich nicht im See (eingebacken lag ihr Bild als weisser Fleck 7–10 m
+  neben dem Brett); eine Eiskruste ums Brett war verworfen (helle Scheibe, Risse wie Flüsse). Gemalt mit feineren
+  Strichen (`pinsel` 0.12) und mehr Abtastwerten (`proben` in `stile.py`). Neu: Decke für die Kamera (`camera.top`,
+  28 m; auf dem Handy stand sie im Würfel steil über dem Gewölbe; 32 m reichten nicht, das Gewölbe senkt sich zur Wand
+  hin: Review, nachgemessen entlang der ganzen Bahn mit `kamera_abstand()`). Das Steinbrett bleibt vorerst; offen: eigenes Brett
+  und Lichtwelle, bewegtes Wasser als Spiel-Ebene, Poco.
+  - Nachtrag 12.11.2026 nach dem Spieltest des Nutzers: Das Eis ist heller (`GLOW`, Grundwert von `thin`), auf dem See
+    schwimmen drei Eisschollen (Schnee mit blanken Flecken, 30 cm über dem Wasser). Der Lichtstrahl und die Lampe über
+    dem Schacht sind weg; der Schacht liegt jetzt genau über dem Brett, damit das Licht der Geschichte durch ihn ein-
+    und ausfliegen und die Strahlen zum Himmel durch ihn hinaus gehen können; die Sonne scheint per Light Linking nur
+    noch draussen. Der blaue Kreis unter dem Brett war ein Loch im Boden (Ringe ab 0,5 m, wie einst im Wald): mit einem
+    Fächer geschlossen. Die Öffnung darüber spiegelte sich danach genau dort; ein Stellvertreter des Bretts nur für
+    Spiegelungen zeigt nun seine dunkle Unterseite (eine Zone ohne Spiegelung gab einen dunklen Kreis, raues Wasser
+    einen hellen Fleck). Der Offline-Test lädt jetzt sechs Blender-Himmel: seine Notbremse steht auf 900 s (600 s
+    reichten in SwiftShader unter Last nicht mehr).
+  - Nachtrag 12.11.2026, zweiter Spieltest: Die Spiegelung des Eingangs im See stimmte nur von der Mitte des Panoramas
+    aus und blieb stehen, wenn die Kamera sich bewegte. Jetzt zeichnet das Spiel die Oberfläche des Sees (Ebene
+    `waterSurface` mit dem neuen ruhigen Modus `calm`: keine Dünung, Brandung, Schaum und kein Auflaufen, Kräuselwellen
+    um `ripple` schwächer) und spiegelt das Panorama passend zur Kamera; Blender malt nur noch den Grund durchs Wasser
+    (unter Wasser grau-türkiser Gletscherschlamm) und exportiert Wasserkarte und Wassermaske wie der Strand. Was aus dem
+    Wasser ragt (Schollen, Treibeis, Eis im Seichten), steht in der Karte als «Fels»: Dort bleibt das Panorama vor dem
+    Wasser. Der Stellvertreter des Bretts für Spiegelungen ist damit weg. Dazu: viel mehr Eisblöcke (15 grosse mit
+    Trümmern, 220 verstreut am Ufer, 60 halb im Seichten; abgeschmolzen oder frisch gebrochen, je Block eigene Farbe,
+    Blasenbänder, feine Risse, helle Kanten), vier Schollen mit eigener Form (gestreckt, gerade Bruchkanten, eine mit
+    abgebrochenem Stück, Presseisrücken, geneigt, verschieden verschneit), weichere Übergänge der Wandmuster.
+    Danach auf Wunsch sieben Schollen mehr (elf), drei davon nah am Brett (13 … 18 m von der Mitte).
+  - Nachtrag 13.11.2026, dritter Spieltest: (1) Unter Wasser zeigten die Schollen «Schlieren»: Ihr heller,
+    untergetauchter Rand wurde von der Brechung des Spielwassers verschoben, und am Rand entschied nahe unter der
+    Kamera nur die grobe Tiefe, ob Wasser gezeichnet wird. Jetzt ist der untergetauchte Teil dunkel wie Eis in tiefem
+    Wasser, das ruhige Wasser (`calm`) verschiebt den Grund nur noch um ein Viertel (Strand unverändert), die
+    Wassermaske reicht in der Eishöhle bis 70° unter den Horizont (neuer Stil-Wert `maske`, sonst 20°; Grund- und
+    Wasserbild zusammen jetzt 295 von 300 MB). Bleibt: Ganz herausgezoomt und steil von oben werden die Seiten naher
+    Schollen gezogen, weil das Panorama nur vom Mittelpunkt aus stimmt (hinter jeder Scholle ein «Schatten», den es
+    nicht kennt); ganz weg nur, wenn das Spiel die nahen Schollen selbst zeichnet. (2) Der Blick durch den Ausgang war «pixelig»: Die
+    Rinnen draussen lagen unter dem Seespiegel, ausserhalb der Wasserkarte zeichnete das Spiel dort im flachen Blick
+    offenes Wasser in Streifen. Bäche und Rinnen ausserhalb des Sees sind jetzt nasser Kies knapp über dem Wasser;
+    draussen kamen Moränenwälle, Schneewehen, Moränenhügel 250–900 m vor dem Mundloch (sie füllen das schmale Fenster
+    von gut 4°, durch das man vom Brett aus hinaussieht) und 2600 Blöcke Moränengeröll dazu, auf steilen Hängen Schutt
+    statt Schnee; die Berge haben dunkle Felsflanken und Felsrippen (ein mittleres Grau wurde in der hellen Belichtung
+    draussen fast weiss). Rinnen und Bäche liegen dafür 0,12 m über dem Wasser (`DRY`; die Maske zählt bis 0,05 m
+    darüber als Wasser: Review). Zweites Review: Die Rinnen schnitten bis 18 m tiefe, 4 m schmale Schluchten in die
+    Hügel und der Tunnelbach eine Kerbe genau in die Blickachse; zwischen den groben Bodenringen (16–52 m) wurden daraus
+    Treppen, Geröll schwebte. Jetzt liegen die Hügel über den Rinnen, der Bach verläuft sich 60–160 m vor dem Mundloch,
+    und die Ringe sind bis 1000 m dichter (100 statt rund 20). `textur` der Eishöhle 0,8 statt 0,9: An einem
+    Glitzerpunkt im satten Blau schwang das JPEG sonst auf 1,0 (Bloom-Schwelle; Spitze 0,998).
+  - Nachtrag 13.11.2026, vierter Spieltest: Eis unter Wasser ist weg. Das «Treibeis» (26 grössere und 140 kleine
+    Platten) lag ganz unter dem Spiegel: entfernt, ebenso Eisblöcke, deren Oberkante nicht 0,1 m herausragt. Die
+    Schollen reichen nur noch 0,12 m unter die Wasserlinie (ihr Körper darunter schimmerte als Schlieren). Keine geraden
+    Bruchkanten mehr: Sie wirkten abgeschnitten, vor allem bei den Schollen nah am Brett; alle haben jetzt einen
+    natürlich ausgefransten Rand. Fünf ragen höher heraus (0,45 … 0,7 m statt 0,25 … 0,42 m). Review: Ohne Bruchkante
+    steckte das kleine Stück in der Scholle daneben (verschoben), geneigte Schollen reichten auf der tiefen Seite bis
+    0,32 m unter Wasser (Unterseite jetzt flach bei −0,12 m), flache Eisvorlagen (0,6 hoch) rutschten durch den Filter.
+  - Nachtrag 13.11.2026, fünfter Spieltest (Bild `bilder/Eisschollen.png`, drei markierte «unsaubere Schollen» im
+    Wasser): Das waren Geisterbilder der echten Schollen. Das Spielwasser zeigt den Grund, indem es im Panorama in
+    Richtung des Grundpunkts nachschlägt; hinter einer Scholle geht diese Richtung durch sie, ihr heller Rand stand
+    gestreckt weiter hinten im Wasser. `groundShift` erkennt bei ruhigem Wasser jetzt verdeckten Grund auch über die
+    Wasserkarte (Eis oder Fels auf dem letzten Stück des Strahls vor der Wasserfläche; die grobe Tiefe fasste die dünnen
+    Ränder nicht), und der Shader mischt bei `calm` die Farben der vier Nachbarzellen statt ihrer Versätze (gemischte
+    Versätze zweier Ersatzstellen trafen dazwischen wieder den Rand). Weg sind damit auch die gezackten Linien im
+    steilen Blick. Der Strand bleibt unverändert.
 
 ## 1a. Spielführung
 
