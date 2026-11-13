@@ -887,7 +887,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
   dazu), `geschichte.mjs spiel`.
 - **Levels:** in `LEVELS` (index.html): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.1 statt eines Hinweises
-  höchstens drei geführte Schritte `schritte` mit je einem Satz in der Kopfzeile, auch im Handy-Querformat, Umriss und
+  höchstens drei geführte Schritte `schritte` mit je einem oder zwei kurzen Sätzen in der Kopfzeile, auch im
+  Handy-Querformat, Umriss und
   Hand am Element, dazu Hinweise nebenbei `nebenbei` zu Kamera und Neustart; geführt nur im Dorf, siehe «Führung» in
   `CONTEXT.md`; 9 Level mit je einem Gedanken: Ziel und Spiegel, drehbar/fest, Block,
   Prisma, verschwindendes Licht, Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator), danach seit Ticket 04

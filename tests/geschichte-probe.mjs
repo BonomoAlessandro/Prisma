@@ -81,38 +81,44 @@ const WELT_MENUE = ['Bergwald', 'Meer', 'Wüste', 'Vulkan', 'Planeten', 'Sterne'
 const STATIONEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'];
 // Texte der Geschichte vom Kleinen Wagen (Spec .scratch/kleiner-wagen/, «Texte»; Ticket 03): so sieht sie der Spieler
 const PROLOG_SAETZE = [
-  'Hoch oben in den Bergen, wo die Nächte klar und still sind, liegt ein kleines Dorf.',
-  'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an der Deichsel des '
-    + 'Kleinen Wagens.',
-  'Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die Taschenlampe leuchtet auf.',
-  'Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen sollten, schlafen – der Kleine Wagen ist '
-    + 'fast unsichtbar.',
-  'Da blinkt es am Waldrand. Glühwürmchen umschwirren die Lampe und fangen das Licht ein.',
-  'Jeder Stern des Wagens wacht über einen Ort der Welt und erwacht erst, wenn dort Licht leuchtet. Trag Noas Licht '
-    + 'von Spiegel zu Spiegel, von Ort zu Ort – Stern für Stern bis zum Polarstern.'];
+  'Hoch in den Bergen liegt ein kleines Dorf. Aus den Kaminen steigt Rauch, und über den Dächern funkeln die '
+    + 'Sterne.',
+  'Jeden Abend klettert Noa auf den Hügel hinter den Häusern und sucht den Polarstern. Er sitzt ganz vorn an '
+    + 'der Deichsel des Kleinen Wagens.',
+  'Heute hat Noa die Taschenlampe mitgenommen. Klick. Der Polarstern soll ein Zeichen bekommen.',
+  'Aber das Licht kommt nicht weit. Die Sterne des Wagens schlafen, und ohne sie verliert es sich im Dunkeln.',
+  'Da blinkt etwas am Waldrand. Ein Schwarm Glühwürmchen fliegt heran und fängt das Licht ein.',
+  'Jeder Stern im Wagen gehört zu einem Ort und wacht erst auf, wenn dort Licht ankommt. Hilf den '
+    + 'Glühwürmchen, das Licht von Ort zu Ort zu bringen, bis es beim Polarstern ankommt.'];
 /** Untertitel bei der Ankunft in einer Welt (Einstieg und Reise), je Welt. */
 const ANKUNFT = [
-  'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des Wagens.',
-  'Über dem Wald erwacht der erste Stern und weist zum Meer. Die Glühwürmchen tragen das Licht über die Hügel bis an '
-    + 'den Strand.',
-  'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der '
-    + 'Wüste.',
-  'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
-  'Der vierte Stern erwacht, und die Schale des Wagens schliesst sich. Der Vulkan bricht aus und schleudert das Licht '
-    + 'hinauf, höher als alle Wolken.',
-  'Fünf Sterne leuchten, nur einer schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.'];
+  'Die Glühwürmchen fliegen mit Noas Licht tief in den Bergwald. Irgendwo über den Tannen schläft der erste '
+    + 'Stern.',
+  'Über dem Wald ist der erste Stern aufgewacht. Er zeigt zum Meer, und die Glühwürmchen fliegen mit dem '
+    + 'Licht über die Hügel bis an den Strand.',
+  'Jetzt leuchtet auch der zweite Stern. Der Wind nimmt das Licht mit, weit übers Wasser bis dorthin, wo die '
+    + 'Wüste anfängt.',
+  'Über den Dünen funkelt der dritte Stern. Ein Sandwirbel trägt das Licht weiter bis an einen Krater, in dem '
+    + 'Feuer brennt.',
+  'Mit dem vierten Stern ist die Schale des Wagens vollständig. Da bricht der Vulkan aus und schleudert das '
+    + 'Licht hoch über die Wolken.',
+  'Fünf Sterne leuchten schon, nur einer schläft noch. Ein Komet nimmt das Licht mit, weit hinaus zu den '
+    + 'Sternen.'];
 /** «Gelöst» nach dem letzten Level jeder Welt: Meldung und Knopf. */
 const WELT_GELOEST = [['Der Wald leuchtet', 'Weiter zum Meer'], ['Das Meer leuchtet', 'Weiter in die Wüste'],
   ['Die Wüste leuchtet', 'Weiter zum Vulkan'], ['Der Vulkan glüht', 'Hinauf in den Himmel'],
   ['Die Planeten leuchten', 'Weiter zu den Sternen'], ['Der Wagen ist wach', 'Hinaufschauen']];
-const FINALE_SAETZE = ['Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.',
-  'Über die Deichsel läuft das Licht bis zum Polarstern.', 'Er hat das Zeichen gesehen. Und er antwortet.'];
-const EPILOG_SAETZE = ['In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.',
-  'Da blinkt der Polarstern: einmal, zweimal, dreimal.',
-  'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft '
-    + 'mehr.'];
+const FINALE_SAETZE = [
+  'Der letzte Stern wacht auf. Jetzt leuchtet der ganze Kleine Wagen.',
+  'Das Licht wandert die Deichsel entlang bis zum Polarstern.',
+  'Der Polarstern hat Noas Zeichen gesehen.'];
+const EPILOG_SAETZE = [
+  'In dieser Nacht bleibt Noa noch lange auf dem Hügel sitzen und schaut hinauf.',
+  'Da blinkt der Polarstern. Einmal, zweimal, dreimal.',
+  'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt alle sieben Sterne.'];
 // Massstab für die Zeilen: die längsten Sätze vor dem Kleinen Wagen, auf der Bühne (der alte Prolog 2) und im
-// Untertitel über der Welt (Einstieg ins Dorf, unverändert). Kein neuer Satz braucht mehr Zeilen als sie.
+// Untertitel über der Welt (der alte Einstieg ins Dorf, vor den Texten vom 13.11.2026). Kein neuer Satz braucht mehr
+// Zeilen als sie.
 const MASS_BUEHNE = 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht am Himmel den Polarstern, den '
   + 'einen Stern, der sich nie vom Fleck rührt.';
 const MASS_UNTERTITEL = 'Hinter dem Haus übt Noa mit der Taschenlampe. Ein alter Spiegel, ein Stück buntes Glas – und '
@@ -696,8 +702,8 @@ async function pruefeSatz(sel, soll, was) {
   pruefe(s?.text === soll, `${was}: Satz «${s?.text}» statt «${soll}»`);
   if (!s) return;
   pruefe(s.drin, `${was}: Satz nicht ganz im Bild`);
-  // auf der Bühne nur ein Hinweis: Prolog 6 steht wörtlich in der Spec (Entscheid 13) und braucht eine Zeile mehr als
-  // der alte Prolog 2; die Zeilen der Bühne wachsen nach oben (.lines), abgeschnitten wird nichts (drin)
+  // auf der Bühne nur ein Hinweis: Prolog 6 ist der längste Satz und braucht eine Zeile mehr als der alte Prolog 2
+  // (Texte vom 13.11.2026); die Zeilen der Bühne wachsen nach oben (.lines), abgeschnitten wird nichts (drin)
   const mehr = `${was}: ${s.zeilen} Zeilen, mehr als der längste Satz vor dem Wagen (${s.masse})`;
   if (sel === SATZ_BUEHNE && s.zeilen > s.masse) console.log(`  HINWEIS ${mehr}`);
   else pruefe(s.zeilen <= s.masse, mehr);
@@ -822,7 +828,7 @@ async function angebot(was, wahl, { mitTaste = false, name = null } = {}) {
     text: document.querySelector('#story .scene .line.on')?.textContent ?? '',
     knoepfe: [...document.querySelectorAll('${ANGEBOT}')].map((b) => b.textContent).join(),
     fokus: document.activeElement?.textContent ?? null })`);
-  pruefe(a.kicker === 'Im Dorf' && a.text.startsWith('Bevor die Glühwürmchen') && a.knoepfe === 'Üben,Gleich los'
+  pruefe(a.kicker === 'Im Dorf' && a.text.startsWith('Die Glühwürmchen wollen') && a.knoepfe === 'Üben,Gleich los'
     && a.fokus === 'Üben', `${was}: Angebot ${JSON.stringify(a)}`);
   if (name) { await sleep(1800); await bild(name); }
   if (mitTaste) {
@@ -1781,7 +1787,7 @@ async function gefuehrt(g) {
   await sleep(300);
   const schritt1 = async (wann) => {
     const f = await fuehrungStand();
-    pruefe(f.schritt === 0 && f.satz === 'Bring das Licht zum Kristall: Es läuft geradeaus, bis ein Spiegel es umlenkt.'
+    pruefe(f.schritt === 0 && f.satz === 'Das Licht läuft geradeaus, bis es auf einen Spiegel trifft. Bring es zum Kristall.'
       && f.knopf && !f.hand && f.umrisse.length === 2 && f.umrisse.some((u) => nahe(u, f.ziel, 15))
       && f.umrisse.some((u) => nahe(u, f.spiegel, 15)), `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
   };
@@ -1819,7 +1825,7 @@ async function gefuehrt(g) {
   await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
   await sleep(200);
   let f = await fuehrungStand();
-  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an, so dreht er sich und lenkt das Licht zum Kristall.`;
+  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an. Er dreht sich und lenkt das Licht zum Kristall.`;
   pruefe(f.satz === satz2 && !f.knopf && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15)
     && f.hand?.art === 'tippen' && nahe(f.hand, f.kuppe, 3), `${was}: Schritt 2 ${JSON.stringify(f)}`);
   await bild(`dorf-${slug(g)}-fuehrung-schritt-2`);
@@ -2211,7 +2217,7 @@ async function dorfAblauf() {
   await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'Leicht: Ende des Dorfs', 20);
   const ende1 = await ev("document.querySelector('#story .caption .text').textContent");
   s = await stand('leicht');
-  pruefe(await kicker() === 'Im Dorf' && ende1.startsWith('Jetzt weiss Noa') && s.dorf?.ende === 'uebersprungen'
+  pruefe(await kicker() === 'Im Dorf' && ende1.startsWith('Jetzt hat Noa') && s.dorf?.ende === 'uebersprungen'
     && !(await skipSichtbar()), `Leicht: Ende des Dorfs «${ende1}», ${JSON.stringify(s.dorf)}`);
   await sleep(900);
   await bild('dorf-ende');

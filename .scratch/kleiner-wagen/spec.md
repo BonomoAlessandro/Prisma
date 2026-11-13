@@ -165,6 +165,10 @@ Helligkeit des Wagens mit, sein Ort bleibt. Grösse und Helligkeit stimmt der Nu
 | Finale | Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen. / Über die Deichsel läuft das Licht bis zum Polarstern. / Er hat das Zeichen gesehen. Und er antwortet. |
 | Epilog 3 | Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft mehr. |
 
+Nachtrag 13.11.2026: Alle Texte von Prolog, Reisen, Finale, Epilog und Dorf sind auf Wunsch des Nutzers neu und
+natürlicher formuliert (gelten jetzt so, wie sie in `index.html` stehen); damit ist auch Entscheid 13 («in Prolog 6
+bleibt ‹von Spiegel zu Spiegel›») aufgehoben. Die Tabelle oben zeigt den Stand von damals.
+
 Unverändert bleiben Prolog 1, 3 und 5, Epilog 1 und 2, das Angebot, die Texte des Dorfs und die übrigen Meldungen
 «Gelöst» («Der Wald leuchtet» …) samt ihren Knöpfen. Die Texte der Reisen gelten auch für den Einstieg in eine Welt
 (wie heute derselbe Untertitel).

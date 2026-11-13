@@ -32,7 +32,8 @@ langes Drücken und zwei Finger gegen Klick, Rechtsklick und Mausrad).
 - Die 9 Übungen, ihre Namen und ihre Reihenfolge bleiben. **Die Anordnung auf einem Brett darf sich ändern**, wo es der
   Führung hilft, muss aber nicht.
 - Eine Übung hat **höchstens drei geführte Schritte** mit je **einem Satz von etwa zwölf Wörtern**, auch im
-  Handy-Querformat lesbar.
+  Handy-Querformat lesbar. Nachtrag 13.11.2026 (Wunsch des Nutzers bei der Überarbeitung der Spieltexte): ein oder zwei
+  kurze Sätze, höchstens 18 Wörter und 105 Zeichen (Hinweise nebenbei höchstens 16 Wörter).
 - Die Schritte sind **neutrale Anweisungen im Du** («Tippe den Spiegel an»). Noa kommt wie bisher nur im Einstieg und im
   Satz zum Ende vor.
 - Die Schritte **ersetzen die heutigen Hinweissätze** vollständig. «Übung 2 / 9» bleibt. Es gibt keine dauerhafte
@@ -105,7 +106,9 @@ und Kombinatoren auf dem eckigen Sockel.
 - **Kamera und Neustart** sind Hinweise nebenbei. Sie warten auf keine Handlung, verschwinden bei Benutzung oder
   spätestens mit dem Lösen und zählen nicht zu den drei Schritten.
   Ein Hinweis nebenbei, der einmal benutzt wurde, kommt beim Neustart derselben Übung nicht wieder. Der Kamera-Hinweis
-  nennt Drehen und Zoomen in einem Satz; die erste Kamerageste beendet ihn.
+  nennt Drehen und Zoomen in einem Satz (seit 13.11.2026 in zwei kurzen); die erste Kamerageste beendet ihn.
+  Nachtrag 13.11.2026: Alle Schrittsätze und Hinweise sind neu und natürlicher formuliert; die Sätze, die diese Spec
+  zitiert («Rund lässt sich drehen, eckig nicht» …), zeigen den Stand von damals, gültig ist `index.html`.
 - **Was weiterschaltet:** Ein Schritt wartet auf eine Handlung (ein bestimmtes Element antippen oder drehen) oder darauf,
   dass der Strahl ein Element trifft. Reine Erklärungen (etwa «Rund lässt sich drehen, eckig nicht») schalten nicht von
   selbst nach einer Handlung; ob sie auf ein Tippen oder eine kurze Zeit warten, folgt aus der Wahl am Katalog.
