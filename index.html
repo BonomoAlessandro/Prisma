@@ -1292,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-11 vulkan-sandtrichter';
+const APP_VERSION = '2026-11-13 eishoehle';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -11761,12 +11761,13 @@ function mapTexture(url, what) {
  * reicht (Blender hat sie in der Tiefe; wo das Spiel sie zeichnet, ist sie durchsichtig). Hinter Fels sähe der
  * Mittelpunkt den Fels – im Wasser stünde ein Schatten des Felsens –, dort gilt die nächste Zelle mit sichtbarem Grund
  * (um eine Zelle Abstand vom Schatten, damit die lineare Filterung nicht hineinreicht); im Loch des Geländes unter dem
- * Brett (ohne Treffer zeigt das Panorama den Himmel) der Rand rundum. water: { image (Karte), ext, range, level },
+ * Brett (ohne Treffer zeigt das Panorama den Himmel) der Rand rundum. water: { image (Karte), ext, range, level, calm
+ * (ruhig: verdeckt auch, was laut Karte als Fels an der Wasserfläche steht) },
  * depth: { image, log }. Ergebnis RGBA, Zeile 0 bei z = +ext (wie die Karte als Textur, ohne Kippen): R 128 − Radius
  * des Rands im Loch / 0,1 m (sonst 128), G/B 128 + Versatz in x/z zur Ersatzstelle / 0,25 m. Generator für sliced.
  */
 function* groundShift(water, depth, center) {
-  const { ext, range: [d0, d1], level } = water, n = water.image.width;
+  const { ext, range: [d0, d1], level, calm = false } = water, n = water.image.width;
   const px = imagePixels(water.image);
   yield;
   const depthPx = imagePixels(depth.image);
@@ -11790,6 +11791,7 @@ function* groundShift(water, depth, center) {
   };
   // je Zelle: 0 sichtbar, 1 verdeckt, 2 im Loch, 3 Land (ohne Wasser, Grund egal)
   const LAND = 3, kind = new Uint8Array(n * n), rim = new Float32Array(n * n), cell = (2 * ext) / n;
+  const CALM_TALL = 1.2; // ruhig: so hoch ragt Eis oder Fels im Wasser höchstens heraus (m; Schollen bis gut 1 m)
   for (let row = 0; row < n; row++) {
     for (let col = 0; col < n; col++) {
       const i = row * n + col, d = d0 + ((d1 - d0) * (px[4 * i] * 256 + px[4 * i + 1])) / 65535;
@@ -11801,7 +11803,24 @@ function* groundShift(water, depth, center) {
         const qx = x * (1 + t / r), qz = z * (1 + t / r), pd = dist(qx, y, qz);
         if (pd === null) return 2;
         const ds = (Math.hypot(qx, y, qz) * (center.y - level)) / -y; // bis zur Wasserfläche auf dem Strahl
-        return pd >= ds - 0.05 - 0.004 * ds ? 0 : 1;
+        if (pd < ds - 0.05 - 0.004 * ds) return 1;
+        if (calm) {
+          // Ruhig: Steht auf dem letzten Stück des Strahls vor der Wasserfläche (dort tiefer als CALM_TALL über ihr) Eis
+          // oder Fels (B der Karte, eine Zelle Rand)? Dann verdeckt es den Grund. Die grobe Tiefe fasst die dünnen
+          // Ränder der Schollen nicht: Sie standen sonst als Geisterbilder im Wasser, gestreckt und weiter hinten
+          const f = (level - center.y) / y, hx = qx * f, hz = qz * f, hr = Math.hypot(hx, hz) || 1;
+          const back = Math.min(hr, (CALM_TALL * hr) / (center.y - level));
+          for (let u = 0; u <= back; u += cell) { // ganze Zellen genügen: jede Probe prüft 3 × 3
+            const k = 1 - u / hr;
+            const sc = Math.floor((hx * k + center.x + ext) / cell), sr = Math.floor((hz * k + center.z + ext) / cell);
+            for (let a = Math.max(0, sr - 1); a <= Math.min(n - 1, sr + 1); a++) {
+              for (let b = Math.max(0, sc - 1); b <= Math.min(n - 1, sc + 1); b++) {
+                if (px[4 * (a * n + b) + 2] > 76) return 1;
+              }
+            }
+          }
+        }
+        return 0;
       };
       kind[i] = seen(0);
       if (kind[i] !== 2) continue;
@@ -11962,7 +11981,8 @@ const WATER_CAP = camera.far - 16;
  * Panorama: den Grund unter der Stelle, von den Wellen verschoben, und in Richtung des gespiegelten Strahls Himmel und
  * Insel (wie vom Mittelpunkt aus gesehen). Wellenphysik wie im früheren gerechneten Strand (2.25). wave: Wellenlänge,
  * Kreisfrequenz; sun, foam, sediment, lip, crest: Farben (Szenenwerte; crest: Licht im Kamm der Dünung, die noch nicht
- * bricht). Das Gitter folgt, wo das Wasser aufläuft, der Höhe des Sands, und liegt für den Tiefentest etwas zur Kamera
+ * bricht). calm (Eishöhle): ruhiges Wasser – keine Dünung, keine Brandung, kein Schaum, kein Auflaufen, kein Spülsaum;
+ * nur Kräuselwellen, um ripple (0 … 1) schwächer, und die Spiegelung (am Ufer endet es, wo der Grund auftaucht). Das Gitter folgt, wo das Wasser aufläuft, der Höhe des Sands, und liegt für den Tiefentest etwas zur Kamera
  * hin (lift). Ob es verdeckt ist, entscheidet das Netz des Panoramas Pixel für Pixel nach dem, was es zeigt
  * (ctx.pano.depthRule): Zeigt es Wasser oder etwas hinter dem Wasser, liegt seine Tiefe hinter der Wasserfläche – das
  * geglättete Netz reichte um Felsen herum vor das Wasser, von der Seite gesehen endete das Wasser so weit vor dem Fels
@@ -12019,7 +12039,7 @@ function* waterSurface(ctx, opt) {
       uUnder: { value: null }, uUnderOn: { value: 0 }, uUnderView: { value: new THREE.Matrix4() },
       uGround: { value: groundTexture(new Uint8Array([128, 128, 128, 255]), 1) }, // bis groundShift gerechnet ist
     },
-    defines: cut ? { CUT: '' } : {},
+    defines: { ...(cut ? { CUT: '' } : {}), ...(opt.calm ? { CALM: '' } : {}) },
     extensions: { derivatives: true, shaderTextureLOD: true },
     transparent: true, depthWrite: false,
     blending: THREE.CustomBlending, blendSrc: THREE.OneFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
@@ -12034,6 +12054,9 @@ function* waterSurface(ctx, opt) {
           // vorn). Jenseits der Karte offenes Wasser (ihr Rand gilt dort nicht, wie im Fragment)
           float outside = smoothstep(EXT - 12.0, EXT - 1.0, max(abs(wp.x), abs(wp.z)));
           wp.y = LEVEL + max(-m.x, 0.0) * (1.0 - rock) * (1.0 - outside);
+          #ifdef CALM
+            wp.y = LEVEL; // ruhiges Wasser läuft nicht auf
+          #endif
           float lift = ${glf(opt.lift)};
           #ifndef CUT
             lift += ROCK_LIFT * rock;
@@ -12077,6 +12100,11 @@ function* waterSurface(ctx, opt) {
         const float SWELL_K = ${glf(2 * Math.PI / opt.wave[0])}, SWELL_W = ${glf(opt.wave[1])};
         const vec3 SUN_COL = ${glv(opt.sun)}, FOAM = ${glv(opt.foam)}, SEDIMENT = ${glv(opt.sediment)}, LIP = ${glv(opt.lip)};
         const vec3 CREST = ${glv(opt.crest)};
+        #ifdef CALM
+          const float WIND = ${glf(opt.ripple ?? 1)}; // ruhiges Wasser: Kräuselwellen so viel schwächer
+        #else
+          const float WIND = 1.0;
+        #endif
         // Panorama in Richtung d (Spiel), wie vom Mittelpunkt gesehen; Mipmap-Stufe lod von Hand (Ableitungen gelten in
         // den verzweigten Teilen nicht), sonst die Grundstufe (die Karte ist hier fein genug)
         const float PANO_TEXEL = 0.0015; // Winkel eines Pixels im ganzen Bild (π / 2048 Zeilen)
@@ -12085,12 +12113,37 @@ function* waterSurface(ctx, opt) {
           return LOD(uPano, vec2(0.5 + atan(b.x, b.y) / 6.2831853, 1.0 - acos(clamp(b.z, -1.0, 1.0)) / 3.1415927), lod).rgb;
         }
         vec3 pano(vec3 d) { return panoLod(d, 0.0); }
+        #ifdef CALM
+          // Grund an der Ersatzstelle q + s (Versatz s in m), mit deren Tiefe statt der eigenen
+          vec3 groundAt(vec3 rel, vec2 q, vec2 s) {
+            return pano(vec3(rel.x + s.x, rel.y + at(q).x - at(q + s).x, rel.z + s.y));
+          }
+        #endif
         // Grund an q, wie ihn das Panorama zeigt; sieht der Mittelpunkt ihn nicht, eine Stelle daneben (groundShift):
         // die nächste, deren Grund er sieht, im Loch unter dem Brett der Rand rundum, zur eigenen Richtung gewichtet
         vec3 ground(vec3 q) {
           vec4 g = texture2D(uGround, mapUV(q.xz)) * 255.0 - 128.0;
           vec3 rel = q - uCenter;
-          if (g.r > -0.5) return pano(rel + vec3(g.g, 0.0, g.b) * 0.25);
+          if (g.r > -0.5) {
+            #ifdef CALM
+              // ruhig: die Farben der vier Nachbarzellen mischen, jede an ihrer Ersatzstelle mit deren Tiefe. Gemischte
+              // Versätze zweier Ersatzstellen zeigten zwischen ihnen wieder den Rand einer Scholle (Geisterbilder)
+              float gn = 2.0 * EXT / CELL;
+              vec2 t = mapUV(q.xz) * gn - 0.5, t0 = floor(t), fr = t - t0;
+              vec2 s0 = (texture2D(uGround, (t0 + vec2(0.5, 0.5)) / gn).gb * 255.0 - 128.0) * 0.25;
+              vec2 s1 = (texture2D(uGround, (t0 + vec2(1.5, 0.5)) / gn).gb * 255.0 - 128.0) * 0.25;
+              vec2 s2 = (texture2D(uGround, (t0 + vec2(0.5, 1.5)) / gn).gb * 255.0 - 128.0) * 0.25;
+              vec2 s3 = (texture2D(uGround, (t0 + vec2(1.5, 1.5)) / gn).gb * 255.0 - 128.0) * 0.25;
+              // alle gleich (im offenen Wasser fast immer 0): eine Abfrage, bei 0 genau wie ohne Ersatz
+              if (length(s1 - s0) + length(s2 - s0) + length(s3 - s0) < 0.01) {
+                return dot(s0, s0) < 1e-6 ? pano(rel) : groundAt(rel, q.xz, s0);
+              }
+              return mix(mix(groundAt(rel, q.xz, s0), groundAt(rel, q.xz, s1), fr.x),
+                         mix(groundAt(rel, q.xz, s2), groundAt(rel, q.xz, s3), fr.x), fr.y);
+            #else
+              return pano(rel + vec3(g.g, 0.0, g.b) * 0.25);
+            #endif
+          }
           // sechs Richtungen ab der eigenen; je näher am Rand, desto mehr zählt die eigene (am Rand die Probe von dort)
           float len = length(rel.xz), rim = max(-g.r * 0.1, len + 0.01), sum = 0.0;
           float a0 = len > 1e-4 ? atan(rel.z, rel.x) : 0.0, sharp = 30.0 * pow(len / rim, 4.0);
@@ -12162,18 +12215,22 @@ function* waterSurface(ctx, opt) {
         float resolved(float k, float fp) { return 1.0 - smoothstep(0.4, 0.8, fp * k / 3.14159); }
         vec3 waterNormal(vec2 p, float dist, float fp, float x, vec2 dir, float d, float env, float sharp, float brk, out float var, out vec2 low) {
           vec2 d2 = vec2(-0.34, -0.94), d3 = vec2(0.53, -0.848);
-          float calm = smoothstep(0.0, 0.8, d);
+          float deep = smoothstep(0.0, 0.8, d); // im Flachen glatt
           vec2 s = dir * SWELL_K * (swellHeight(x + 0.03, d, env, sharp, brk) - swellHeight(x - 0.03, d, env, sharp, brk)) / 0.06 * (1.0 - swashShare(d)) * resolved(SWELL_K, fp);
-          s += d2 * 0.05 * calm * sin(dot(p, d2) * 0.95 - uTime * 1.05 + 1.3) * resolved(0.95, fp);
-          s += d3 * 0.035 * calm * sin(dot(p, d3) * 1.4 - uTime * 1.25 + 4.1) * resolved(1.4, fp);
+          #ifdef CALM
+            s = vec2(0.0); // keine Dünung
+          #endif
+          float wind = deep * WIND;
+          s += d2 * 0.05 * wind * sin(dot(p, d2) * 0.95 - uTime * 1.05 + 1.3) * resolved(0.95, fp);
+          s += d3 * 0.035 * wind * sin(dot(p, d3) * 1.4 - uTime * 1.25 + 4.1) * resolved(1.4, fp);
           vec2 d4 = vec2(0.81, -0.59); // Windsee schräg zur Dünung, länger
-          s += d4 * 0.07 * calm * sin(dot(p, d4) * 0.52 - uTime * 0.83 + 0.7) * (0.6 + 0.4 * sin(dot(p, vec2(0.6, 0.8)) * 0.07 + uTime * 0.05)) * resolved(0.52, fp);
+          s += d4 * 0.07 * wind * sin(dot(p, d4) * 0.52 - uTime * 0.83 + 0.7) * (0.6 + 0.4 * sin(dot(p, vec2(0.6, 0.8)) * 0.07 + uTime * 0.05)) * resolved(0.52, fp);
           low = -s;
           const mat2 ROT = mat2(0.8, 0.6, -0.6, 0.8);
           vec3 a = texture2D(uWaves, p * 0.09 + vec2(0.004, -0.013) * uTime).rgb * 2.0 - 1.0;
           vec3 b = texture2D(uWaves, (ROT * p) * 0.27 + vec2(-0.011, -0.02) * uTime).rgb * 2.0 - 1.0;
           vec3 c = texture2D(uWaves, p * 0.83 + vec2(0.031, -0.027) * uTime).rgb * 2.0 - 1.0;
-          float ripple = 0.25 + 0.75 * calm;
+          float ripple = (0.25 + 0.75 * deep) * WIND;
           s -= a.xy / max(a.z, 0.3) * 0.3 * ripple;
           s -= (b.xy / max(b.z, 0.3)) * ROT * 0.32 * ripple;
           s -= c.xy / max(c.z, 0.3) * 0.22 * ripple;
@@ -12237,18 +12294,25 @@ function* waterSurface(ctx, opt) {
             // dicht vor dem Fels (von der Kamera aus): 0,6 m weiter hinten wäre schon Fels – dort der Schaum am Fuss.
             // Fels im Panorama nach seiner Tiefe. Die nahen Felsgruppen (B der zweiten Karte) zeichnet das Spiel, dort
             // nach der Karte, nur am Rand: Sie zählt um die Blöcke einen Ring mit (sonst ein breites weisses Band)
+            // ruhig (CALM): kein Schaum am Fels
+            #ifndef CALM
             vec2 away = normalize(pos.xz - cameraPosition.xz) * 0.6;
             vec3 rel2 = rel + vec3(away.x, 0.0, away.y);
             near = texture2D(uShore, mapUV(p)).b;
             float edge = smoothstep(0.85, 1.0, texture2D(uMap, mapUV(p + away)).b) * (1.0 - smoothstep(0.85, 1.0, rock));
             hug = mix(smoothstep(0.0, 0.6, length(rel2) - panoDist(rel2)), edge, near) * rk;
+            #endif
             bedD = mix(bedD, max(bedD, 0.25), smoothstep(0.3, 0.7, rock));
           }
           vec3 toCam = cameraPosition - pos;
           float dist = length(toCam);
           vec3 V = toCam / dist;
           // aufs Ufer zu: Gefälle des Abstands, nach vorn genommen (zwei Abfragen statt vier: fürs Handy)
+          #ifdef CALM
+            vec2 dir = vec2(0.0, 1.0); // ohne Wellen gleich (spart vier Abfragen)
+          #else
           vec2 dir = normalize(vec2(at(p + vec2(CELL, 0.0)).y - shore, at(p + vec2(0.0, CELL)).y - shore) + vec2(1e-6));
+          #endif
           // Wellen: Fronten parallel zum Ufer, entlang des Ufers leicht versetzt (wob), in Gruppen höher und niedriger
           float wob = (noiseFlat(p * 0.045) - 0.5) * 6.0;
           // Wellengruppen; zum Rand der Karte hin ohne Dünung (draussen gälte überall derselbe Abstand zum Ufer),
@@ -12259,6 +12323,13 @@ function* waterSurface(ctx, opt) {
           // Was nur im Flachen wirkt, nur dort rechnen (Ticket 11, Handy): Ab 1,8 m Tiefe bricht keine Welle (jede
           // Verwendung von brk ist mit smoothstep(1.8, 0.9, Tiefe) = 0 gewichtet), ab 0,7 m läuft nichts auf (share = 0,
           // das Wasser ist dort mindestens 0,39 m dick, der Sand nie frei). Das Bild bleibt genau gleich.
+          #ifdef CALM
+            // ruhiges Wasser: keine Dünung, kein Auflaufen; es reicht genau bis an die Wasserlinie
+            float ph = 0.0, x = 0.0, brk = 1.0, u = 0.0, n = 0.0;
+            float share = 0.0, reach = 0.0, reachPrev = 0.0, swash = 0.0;
+            float thick = bedD;
+            if (thick <= 0.0) discard; // Grund über dem Wasser: das zeigt das Panorama (vor Normale und Wellen)
+          #else
           float ph = (shore + wob) * SWELL_K - uTime * SWELL_W, x = wrapPhase(ph), brk = bedD < 1.8 ? breakGaps(ph, bedD, along) : 1.0;
           float cyc = (uTime * SWELL_W - wob * SWELL_K) / 6.28319; // so viele Walzen haben die Wasserlinie erreicht
           float u = fract(cyc), n = floor(cyc);
@@ -12269,6 +12340,7 @@ function* waterSurface(ctx, opt) {
             swash = swashLevel(u, reach);
           }
           float thick = mix(swellHeight(x, bedD, env, sharp, brk), swash, share) + bedD; // Wasser über dem Grund
+          #endif
           float var;
           vec2 lowN; // Neigung der langen Wellen (wie N.xz, ohne Kräuselwellen)
           vec3 N = waterNormal(p, dist, fp, x, dir, bedD, env, sharp, brk, var, lowN);
@@ -12306,6 +12378,9 @@ function* waterSurface(ctx, opt) {
             // Grund durch die Oberfläche: im Panorama an der Stelle unter dem Wasser, von den Wellen verschoben
             float depth = thick;
             vec2 off = N.xz * min(depth, 1.5) * 0.2;
+            #ifdef CALM
+              off *= 0.25; // ruhig: sonst Schlieren an Eis und Steinen knapp unter Wasser
+            #endif
             vec3 below = ground(vec3(p.x + off.x, LEVEL - bedD, p.y + off.y));
             // was darin schwimmt (Bild der Szene unter der Oberfläche, vormultipliziert), von den langen Wellen verschoben
             // wie der Grund in gut 1 m Tiefe: Die Fische schwanken, bleiben aber ganz
@@ -12322,6 +12397,9 @@ function* waterSurface(ctx, opt) {
             // Trübung: In der Brandung wirbeln die Walzen Sand auf – milchig, gleich hinter einer Walze am stärksten
             float breaking = smoothstep(1.8, 0.9, bedD) * mix(1.0, brk, smoothstep(3.0, 2.2, abs(x)));
             float stirred = smoothstep(2.4, 0.6, bedD) * (0.4 + 0.6 * exp(min(x, 0.0) * 0.6) * smoothstep(0.15, 0.0, x) * smoothstep(-3.14, -2.4, x));
+            #ifdef CALM
+              breaking = 0.0; stirred = 0.0; // keine Brandung, nichts aufgewirbelt
+            #endif
             below = mix(below, SEDIMENT, stirred * 0.5 * (1.0 - exp(-depth * 1.5)) * (1.0 - 0.7 * share));
             float F = 0.02 + 0.98 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
             vec3 R = reflect(-V, N);
@@ -12350,6 +12428,9 @@ function* waterSurface(ctx, opt) {
             // Dünung, die noch nicht bricht: Der Kamm leuchtet, wo das Licht durch seine dünne Spitze fällt, das Tal
             // davor liegt etwas dunkler – so sieht man von oben die Wellen heranrollen
             float swell = (1.0 - breaking) * (1.0 - share) * smoothstep(0.5, 1.6, bedD) * env;
+            #ifdef CALM
+              swell = 0.0;
+            #endif
             col *= 1.0 - 0.12 * swell * smoothstep(0.1, 0.9, -cos(x));
             col += CREST * swell * smoothstep(0.45, 1.0, cos(x)) * smoothstep(-0.2, 0.6, sin(x + 0.6));
             // Schaum: an der brechenden Front ein schmaler, dichter Kern, dahinter ein Feld aus Zellen und Fäden, das
@@ -12360,6 +12441,9 @@ function* waterSurface(ctx, opt) {
             float field = exp(min(xf, 0.0) * 0.65) * smoothstep(0.12, 0.04, xf) * smoothstep(-3.14, -2.3, xf) * 0.62;
             float dens = (breaking * max(core * 1.15 * (1.0 - 0.5 * rock), field) + 0.17 * smoothstep(2.2, 0.8, bedD)) * (1.0 - share);
             dens *= 1.0 - 0.55 * smoothstep(0.3, 0.8, rock); // über flachem Fels kein Teppich
+            #ifdef CALM
+              dens = 0.0; // kein Schaum
+            #endif
             // auf dem Film: hinauf eine Schaumrolle vorn; hinab zerrissene Schaumreste, in Fliessrichtung gezogen
             dens = max(dens, share * (0.1 + 0.6 * rising * smoothstep(0.12, 0.01, depth)) + back * 0.22 * smoothstep(0.2, 0.03, depth));
             // ohne Dichte kein Schaum (foamDissolve ist dann 0)
@@ -12372,6 +12456,9 @@ function* waterSurface(ctx, opt) {
             // (nur am Fels: ohne ihn sind hug und lace 0)
             float gaps = hug > 0.0 ? texture2D(uFoam, p * 0.11 + vec2(uTime * 0.012, 0.0)).r : 0.0;
             float lace = max(hug * mix(smoothstep(0.25, 0.7, gaps), 1.0, surge), 0.5 * surge * smoothstep(0.4, 0.9, rock) * smoothstep(0.9, 0.2, d0) * (1.0 - 0.75 * near));
+            #ifdef CALM
+              lace = 0.0; // kein Schaum an Schollen und Eis im Wasser
+            #endif
             if (lace > 0.0) foam = max(foam, lace * foamDissolve(p * 1.3, 0.12 + 0.35 * hug + 0.35 * surge * (0.4 + hug), dir, uTime * 0.06 - surge * 0.4));
             col = mix(col, FOAM * (0.86 + 0.16 * fn), clamp(foam, 0.0, 1.0) * mix(0.75, 0.95, smoothstep(0.4, 0.9, dens)));
             // Rand des Films: hinauf eine klare Kante, hinab versickert das Wasser fleckig (die Stellen, wo der Sand
@@ -12445,7 +12532,8 @@ function* waterSurface(ctx, opt) {
     try {
       await ruhe.warte(); // wie der übrige Aufbau nur an ruhigen Stellen, auch das Dekodieren (nicht in Fahrten)
       const image = await loadSkyImage(w.map);
-      const steps = groundShift({ ext, range: w.depthRange, level: w.level, image }, ctx.pano.depth, ctx.pano.center);
+      const water = { ext, range: w.depthRange, level: w.level, image, calm: !!opt.calm };
+      const steps = groundShift(water, ctx.pano.depth, ctx.pano.center);
       const done = await sliced((function* () {
         for (let s = steps.next(); alive(); s = steps.next()) { if (s.done) return s.value; yield; }
         return null;
@@ -17121,9 +17209,11 @@ const cameraRig = {
  * Kamera höchstens weit m von der Mitte des Bretts. Liegt ihr Platz dahinter, rückt sie auf ihrem Strahl zum Blickpunkt
  * heran, bis sie an der Grenze steht (höchstens auf ein Zehntel des Abstands); der Blick bleibt derselbe. Zurück: der
  * Faktor, um den sie näher steht (1: frei).
+ * top (camera.top): ebenso eine Decke, höchstens so hoch über der Platte (Eishöhle: auf dem Handy stand die Kamera im
+ * Würfel steil von oben über dem Gewölbe und sah es von aussen).
  * target: Blickpunkt, dir: Richtung vom Blickpunkt zur Kamera (Einheitsvektor), r: Abstand ohne Halt.
  */
-function cameraStop(stops, target, dir, r) {
+function cameraStop(stops, target, dir, r, top) {
   let k = 1;
   for (const [dx, dz, weit] of stops ?? []) {
     const len = Math.hypot(dx, dz), out = (dir.x * dx + dir.z * dz) / len;
@@ -17131,6 +17221,7 @@ function cameraStop(stops, target, dir, r) {
     const frei = (weit - (target.x * dx + target.z * dz) / len) / out;
     k = Math.min(k, Math.max(frei, 0.1 * r) / r);
   }
+  if (top !== undefined && dir.y > 1e-6) k = Math.min(k, Math.max((top - target.y) / dir.y, 0.1 * r) / r);
   return k;
 }
 const _stopDir = new THREE.Vector3();
@@ -17222,7 +17313,9 @@ function updateCamera(t, dt) {
   let stop = 1;
   for (const e of skyTheme.entries) {
     const w = skyTheme.weight[e.id];
-    if (w > 0 && e.camera?.stops) stop -= w * w * (3 - 2 * w) * (1 - cameraStop(e.camera.stops, cameraRig.target, _stopDir, r));
+    if (w > 0 && e.camera) {
+      stop -= w * w * (3 - 2 * w) * (1 - cameraStop(e.camera.stops, cameraRig.target, _stopDir, r, e.camera.top));
+    }
   }
   camera.position.copy(cameraRig.target).addScaledVector(_stopDir, r * stop);
   if (stop < 1 || cameraRig.stopWide !== 1) {
@@ -24512,6 +24605,31 @@ const ladeZeichen = (() => {
       setze(jetzt - seit >= 400);
     },
   };
+})();
+
+/**
+ * Testhilfe ?alles (Wunsch des Nutzers vom 09.11.2026: testen, ohne durchzuspielen): setzt den Speicherstand eines
+ * Grads auf «alles gelöst», bevor die Geschichte ihn liest. Alle Level seines Durchgangs und alle Übungen im Dorf sind
+ * gelöst, alle Momente und das Finale gesehen, der Grad ist der zuletzt gespielte. Im Menü steht dann «Übersicht», dort
+ * ist jedes Level wählbar. ?alles: Leicht; ?alles=mittel, schwer, sehr-schwer. Weitere Felder des Stands und die
+ * Bestwerte bleiben. Danach verschwindet der Parameter aus der Adresse, ein Neuladen setzt nichts mehr; «Von vorn» im
+ * Menü setzt den Grad zurück.
+ */
+(() => {
+  const q = new URLSearchParams(location.search);
+  if (!q.has('alles')) return;
+  const grad = (q.get('alles') || 'leicht').replaceAll('-', ' ');
+  if (!Object.hasOwn(STORY_LEVELS, grad)) { console.warn(`?alles: Grad ${grad} unbekannt, nichts gesetzt`); return; }
+  const namen = STORY_LEVELS[grad].flat(), uebungen = LEVELS.slice(0, TUTORIAL_COUNT).map((l) => l.name);
+  const alt = progress.load(grad, namen.length);
+  const momente = ['prolog', 'angebot', STORY_DORF.einstieg.moment, ...STORY_CHAPTERS.map(storyChapterId)];
+  progress.save(grad, { ...alt, platz: namen.length - 1, geloest: [...new Set([...uebungen, ...namen])],
+    gesehen: [...new Set([...alt.gesehen, ...momente])], geschafft: true,
+    dorf: { platz: TUTORIAL_COUNT - 1, ende: 'gespielt' } });
+  progress.setLast(grad);
+  // die übrigen Parameter wörtlich behalten (URLSearchParams schriebe ?noadapt als ?noadapt=)
+  const rest = location.search.slice(1).split('&').filter((t) => t && !/^alles(=|$)/.test(t)).join('&');
+  history.replaceState(history.state, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
 })();
 
 const story = {

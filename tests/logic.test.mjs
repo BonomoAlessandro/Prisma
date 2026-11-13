@@ -1128,6 +1128,10 @@ console.log('Offline');
         `${id}: Brett im Register nicht wie in skybox.json (node tools/blender/pack.mjs --brett ${id})`);
     }
   });
+  test('Bretter: die Eishöhle hat vorerst das Steinbrett (PLAN 1.8: eigenes Brett offen)', () => {
+    const cave = skies.find((s) => s.id === 'icecave') ?? assert.fail('Skybox icecave fehlt im Register');
+    assert.equal(cave.board, undefined, 'icecave hat jetzt ein eigenes Brett: in die Tests der Blender-Himmel aufnehmen');
+  });
   test('Bretter: feste Bretter, keiner der fünf Blender-Himmel hat das Steinbrett, Milchstrasse und Sonnensystem schon', () => {
     const arten = ['beach', 'desert', 'forest', 'village', 'volcano'].map((id) => skies.find((s) => s.id === id)?.board?.type);
     for (const art of arten) assert.notEqual(art ?? 'stone', 'stone', `ein Blender-Himmel mit dem Steinbrett: ${arten}`);
@@ -1307,6 +1311,43 @@ console.log('Offline');
     assert.ok(errorsWith({ camera: { stops: [[0, -1, -2]] } }).some((e) => /camera/.test(e)), 'weit nicht positiv');
     assert.ok(errorsWith({ camera: { stops: [] } }).some((e) => /camera/.test(e)), 'keine Grenze');
     assert.ok(errorsWith({ camera: { halt: 13 } }).some((e) => /camera/.test(e)), 'unbekanntes Feld');
+    assert.deepEqual(errorsWith({ camera: { top: 34 } }), [], 'nur eine Decke');
+    assert.deepEqual(errorsWith({ camera: { stops: [[0, -1, 13]], top: 34 } }), [], 'Grenze und Decke');
+    assert.ok(errorsWith({ camera: { top: 0 } }).some((e) => /camera/.test(e)), 'Decke nicht positiv');
+    assert.ok(errorsWith({ camera: {} }).some((e) => /camera/.test(e)), 'weder Grenze noch Decke');
+  });
+  test('Skyboxen: Eishöhle – die Kamera bleibt unter dem Gewölbe (camera.top)', () => {
+    const cave = skies.find((s) => s.id === 'icecave') ?? assert.fail('Skybox icecave fehlt im Register');
+    // Decke über dem Brett 38 m über der Platte (szene.py WATER + H_CAVE), Beulen bis gut 2 m tiefer; zur Wand hin senkt
+    // sich das Gewölbe: Mit 32 stiess die Kamera am Handy im Würfel 36 m von der Mitte hinein, mit 28 bleiben mindestens
+    // 2,6 m (gemessen am Netz entlang der ganzen Bahn: kamera_abstand() in szenen/icecave/szene.py)
+    assert.ok(cave.camera?.top > 20 && cave.camera.top <= 28, `icecave: Kamera unter dem Gewölbe (top ${cave.camera?.top})`);
+  });
+  test('Skyboxen: Eishöhle – ruhiges Wasser des Spiels (waterSurface calm), damit die Spiegelung zur Kamera passt', () => {
+    const cave = skies.find((s) => s.id === 'icecave') ?? assert.fail('Skybox icecave fehlt im Register');
+    const water = cave.layers.find((l) => l.type === 'waterSurface') ?? assert.fail('icecave ohne waterSurface');
+    assert.equal(water.calm, true, 'icecave: Wasser ruhig (calm)');
+    assert.ok(water.ripple > 0 && water.ripple < 1, `icecave: Kräuselung schwächer als am Strand (ripple ${water.ripple})`);
+    assert.deepEqual([...water.sun], [0, 0, 0], 'icecave: kein Glitzern zur Sonne (sie steht draussen)');
+    const errorsWith = (change) => checkSkies([{ ...cave, layers: [{ ...water, ...change }] }],
+      { types: layerTypes(html), boards: boardTypes(html) });
+    assert.deepEqual(errorsWith({}), []);
+    assert.ok(errorsWith({ calm: 'ja' }).some((e) => /calm/.test(e)), 'calm kein Wahrheitswert');
+    assert.ok(errorsWith({ ripple: 1.5 }).some((e) => /ripple/.test(e)), 'ripple über 1');
+    assert.ok(errorsWith({ calm: undefined }).some((e) => /ripple/.test(e)), 'ripple ohne calm');
+    // der Shader kennt den ruhigen Modus: ohne Dünung, Auflaufen und Schaum – nur in den Blöcken für CALM, der Strand
+    // (ohne CALM) rechnet wie zuvor
+    const src = html.match(/function\* waterSurface\([\s\S]*?\n\}\r?\n/)?.[0] ?? assert.fail('waterSurface nicht gefunden');
+    assert.match(src, /opt\.calm \? \{ CALM: '' \}/, 'Kennzeichen CALM aus opt.calm');
+    const calmBlocks = [...src.matchAll(/#ifdef CALM([\s\S]*?)#(?:else|endif)/g)].map((m) => m[1]).join('\n');
+    const outside = src.replace(/#ifdef CALM[\s\S]*?#(?:else|endif)/g, '');
+    for (const what of ['s = vec2(0.0);', 'wp.y = LEVEL;', 'float thick = bedD;', 'discard;', 'breaking = 0.0;',
+      'dens = 0.0;', 'lace = 0.0;', 'swell = 0.0;', 'const float WIND']) {
+      assert.ok(calmBlocks.includes(what), `ruhiges Wasser: ${what} fehlt in den Blöcken für CALM`);
+    }
+    for (const what of ['s = vec2(0.0);', 'breaking = 0.0;', 'dens = 0.0;', 'lace = 0.0;', 'swell = 0.0;']) {
+      assert.ok(!outside.includes(what), `${what} wirkt ausserhalb von CALM (auch am Strand)`);
+    }
   });
   test('Kamera: Halt vor dem Land (cameraStop) rückt nur heran, wo sie über die Grenze käme', () => {
     const src = html.match(/function cameraStop\([\s\S]*?\n\}\r?\n/)?.[0] ?? assert.fail('function cameraStop nicht gefunden');
@@ -1320,6 +1361,23 @@ console.log('Offline');
     assert.equal(cameraStop(stops, t, d, 10), 1, 'nah genug: frei');
     const s = dir(-Math.PI / 2, 1.4), zwei = cameraStop([[0, -1, 13], [-1, 0, 5]], t, s, 30);
     assert.ok(Math.abs(-(s.x * 30 * zwei) - 5) < 1e-9, `mehrere Grenzen: die engste (k ${zwei})`);
+    // Decke (camera.top): steil von oben rückt die Kamera heran, bis sie auf der Höhe top steht
+    const up = (theta, phi) => ({ ...dir(theta, phi), y: Math.cos(phi) }), ty = { ...t, y: 4.2 };
+    const steil = up(0, 0.22), kt = cameraStop(undefined, ty, steil, 45, 34);
+    assert.ok(Math.abs(ty.y + steil.y * 45 * kt - 34) < 1e-9, `Decke: genau auf ihrer Höhe (k ${kt})`);
+    assert.equal(cameraStop(undefined, ty, steil, 20, 34), 1, 'Decke: tief genug, frei');
+    assert.equal(cameraStop(undefined, ty, { x: 0, y: 0, z: 1 }, 45, 34), 1, 'Decke: waagrecht nie');
+    const beide = cameraStop(stops, ty, up(Math.PI, 1.4), 30, 34);
+    assert.equal(beide, cameraStop(stops, t, d, 30), 'Decke und Grenze: die engere (hier die Grenze)');
+    // beide greifen, die Decke ist enger: steiler zum Land hin, weit weg, tiefe Decke
+    const schraeg = up(Math.PI, 0.6), nurDecke = cameraStop(undefined, ty, schraeg, 45, 20);
+    const nurGrenze = cameraStop(stops, ty, schraeg, 45), beideEng = cameraStop(stops, ty, schraeg, 45, 20);
+    assert.ok(nurDecke < 1 && nurGrenze < 1, `beide greifen (Decke ${nurDecke}, Grenze ${nurGrenze})`);
+    assert.ok(beideEng === nurDecke && beideEng < nurGrenze, `Decke und Grenze: die engere (hier die Decke, k ${beideEng})`);
+  });
+  test('Kamera: updateCamera gibt die Decke der Skybox (camera.top) an cameraStop weiter', () => {
+    assert.match(html, /cameraStop\(e\.camera\.stops, cameraRig\.target, _stopDir, r, e\.camera\.top\)/,
+      'Aufruf von cameraStop in updateCamera ohne e.camera.top');
   });
   test('Skyboxen: index.html lädt Hintergründe nur über das Register', () => {
     const named = [...html.matchAll(/["'`](backgrounds\/[^"'`$]*)["'`]/g)].map(m => m[1]);

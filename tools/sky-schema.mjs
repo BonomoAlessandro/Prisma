@@ -5,7 +5,7 @@
 //     parts: [{ role: 'base' | 'bands', file: '<id>/<name>.<rev>.js', device: 'all' | 'desktop', precache, bytes, gpuMB }],
 //     panorama: { center, depth: { log }, bands: [{ u, v }], peak },
 //     light: { dir }, fog?: { top, soft, core }, air?: { haze, lit, density },
-//     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? }, camera?: { stops },
+//     brush?: { size?, uniformity?, sharpness?, eccentricity?, mobile? }, camera?: { stops?, top? },
 //     sky: { stars?, starsAboveHorizon?, starsFrom?, milkyWay?, rings }, layers?: [{ type, brush?, … }],
 //     board?: { type, … } }
 // starsFrom: nur mit starsAboveHorizon, Sterne erst ab dieser Höhe über dem Horizont (Grad, 0 … 60): Sie liegen 70 m um
@@ -18,7 +18,8 @@
 // --brett nur sie, ohne die Teile neu zu packen).
 // camera.stops: Halt vor dem Land, Grenzen [dx, dz, weit] (Spielkoordinaten): In der waagrechten Richtung (dx, dz) steht
 // die Kamera höchstens weit m von der Mitte des Bretts, sonst rückt sie heran und das Sichtfeld wird weiter
-// (cameraStop in index.html; Strand: nicht hinter die Palmen).
+// (cameraStop in index.html; Strand: nicht hinter die Palmen). camera.top: ebenso eine Decke, die Kamera höchstens so
+// viele m über der Platte (Eishöhle: nie über dem Gewölbe).
 // brush: Pinselstriche über 3D-Ebenen wie Blenders Kuwahara-Filter in anime.py (createBrushPass in index.html), für
 // jede Ebene mit brush: true (Standard aus). size Radius in Grad (anime.py: px_per_deg × 0.28), uniformity, sharpness
 // (0 … 1), eccentricity (0 … 2) wie der Knoten im Kompositor; mobile: Stufe auf dem Handy (2 oder 3 Bildpixel je
@@ -111,6 +112,8 @@ const LAYER_PARAMS = {
   waterSurface: {
     data: (v) => typeof v === 'string', wave: (v) => isVec(v, 2), height: isNum, reach: isNum, lift: isNum,
     sun: isColor, foam: isColor, sediment: isColor, lip: isColor, crest: isColor,
+    // optional: ruhiges Wasser (Eishöhle) ohne Dünung, Brandung, Schaum und Auflaufen; Kräuselwellen um ripple schwächer
+    calm: (v) => v === undefined || typeof v === 'boolean', ripple: (v) => v === undefined || (isNum(v) && v >= 0 && v <= 1),
   },
   fishSchools: {
     // Halbachsen von area, length, speed, depth > 0: createFishSim teilt durch sie oder rechnet mit ihnen weiter (ein
@@ -301,10 +304,13 @@ export function checkSkies(skies, { root, types, boards, reserved = [], pending 
     if (!isVec(s.light?.dir) || Math.abs(Math.hypot(...s.light.dir) - 1) > 1e-3) err('light.dir: Einheitsvektor zum Licht');
     if (s.fog && !(isNum(s.fog.top) && isVec(s.fog.soft) && isVec(s.fog.core))) err('fog: top, soft, core');
     if (s.air && !(isColor(s.air.haze) && isColor(s.air.lit) && isNum(s.air.density))) err('air: haze, lit, density');
-    if (s.camera !== undefined && !(typeof s.camera === 'object' && s.camera !== null
-      && Object.keys(s.camera).every((k) => k === 'stops') && Array.isArray(s.camera.stops) && s.camera.stops.length > 0
-      && s.camera.stops.every((g) => isVec(g, 3) && Math.hypot(g[0], g[1]) > 0 && g[2] > 0))) {
-      err('camera: { stops: [[dx, dz, weit], …] }, Richtung nicht 0, weit > 0');
+    const cam = s.camera;
+    if (cam !== undefined && !(typeof cam === 'object' && cam !== null && Object.keys(cam).length > 0
+      && Object.keys(cam).every((k) => k === 'stops' || k === 'top')
+      && (cam.stops === undefined || (Array.isArray(cam.stops) && cam.stops.length > 0
+        && cam.stops.every((g) => isVec(g, 3) && Math.hypot(g[0], g[1]) > 0 && g[2] > 0)))
+      && (cam.top === undefined || (isNum(cam.top) && cam.top > 0)))) {
+      err('camera: { stops?: [[dx, dz, weit], …], top?: Höhe }, Richtung nicht 0, weit > 0, top > 0, eins davon');
     }
     if (s.brush !== undefined && !isBrush(s.brush)) {
       err('brush: { size 0.01 … 2, uniformity 0 … 50, sharpness 0 … 1, eccentricity 0 … 2, mobile 0 | 2 | 3 }, '
@@ -333,6 +339,7 @@ export function checkSkies(skies, { root, types, boards, reserved = [], pending 
       }
       if (l.type === 'mistSheets' && !s.fog) err('Ebene mistSheets: braucht fog');
       if (l.type === 'lavaPool' && !(l.fade < l.radius)) err('Ebene lavaPool: fade muss kleiner sein als radius');
+      if (l.type === 'waterSurface' && l.ripple !== undefined && l.calm !== true) err('Ebene waterSurface: ripple nur mit calm');
       if (l.type === 'fishSchools' && !s.layers.slice(0, s.layers.indexOf(l)).some((x) => x.type === 'waterSurface')) {
         err('Ebene fishSchools: braucht davor waterSurface');
       }

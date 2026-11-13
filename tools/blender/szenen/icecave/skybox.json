@@ -1,0 +1,18 @@
+{
+  "format": 1,
+  "id": "icecave",
+  "name": "Eishöhle",
+  "order": 70,
+  "daten": "sky/icecave",
+  "vorab": false,
+  "depth": { "blur": 0.5, "mesh": [1024, 512] },
+  "sky": { "stars": 0 },
+  "camera": { "top": 28 },
+  "layers": [
+    {
+      "type": "waterSurface", "data": "water", "calm": true, "ripple": 0.25, "wave": [6.0, 0.8], "height": 0.0,
+      "reach": 0.0, "lift": 0.1, "sun": [0, 0, 0], "foam": [0.5, 0.62, 0.72], "sediment": [0.05, 0.1, 0.14],
+      "lip": [0, 0, 0], "crest": [0, 0, 0]
+    }
+  ]
+}

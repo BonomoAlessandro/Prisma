@@ -66,8 +66,9 @@ async function cleanup() {
   await Promise.race([chromeExited, sleep(5000)]);
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien offen */ }
 }
-// Notbremse: Hängt Chrome, endet der Test trotzdem (jede Skybox zweimal, in SwiftShader brauchte das bis über 300 s)
-setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 600000).unref();
+// Notbremse: Hängt Chrome, endet der Test trotzdem (jede Skybox zweimal, in SwiftShader brauchte das bis über 300 s;
+// mit der sechsten aus Blender, der Eishöhle, und etwas Last auf dem Rechner reichten 600 s nicht mehr)
+setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 900000).unref();
 
 let ok = true;
 const check = (cond, text) => { console.log(`  ${cond ? 'ok  ' : 'FAIL'}  ${text}`); ok &&= cond; };

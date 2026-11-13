@@ -18,6 +18,10 @@
 #               None: der gerenderte Himmel bleibt und wird wie alles andere gemalt
 #   streifen    Oberkante der hoch aufgelösten Streifen in Grad über dem Horizont (wald_export.py LAT_TOP, Standard 10);
 #               höher, wenn nahe Formen weit hinaufragen (Wüste: Dünenkämme), kostet Grafikspeicher
+#   proben      Abtastwerte beim Rendern (ganzes Bild, Streifen), Standard wald_mcp.ANIME (64, 32); mehr behält feine
+#               Formen (der Entrauscher glättet sie sonst weg), kostet Renderzeit
+#   maske       so viele Grad unter den Horizont reicht die Wassermaske (mit wasser; Standard 20); näher unter der
+#               Kamera entscheidet sonst die grobe Tiefe, ob das Panorama Wasser zeigt (Ränder von Schollen treppig)
 
 STILE = {
     '': {'belichtung': 5.5},   # realistischer Wald (wald_export.py encode, nicht gemalt)
@@ -101,6 +105,27 @@ STILE = {
         'jpeg': 85,
         'textur': 0.88,
         'pinsel': 0.2,
+    },
+    # Eishöhle im Gletscher wie ein Anime-Hintergrund: leuchtendes Blau, Schatten tief marineblau, die hellen Töne
+    # kühl, Asche fast schwarz; feinere Pinselstriche für die Mulden im Eis
+    'icecave': {
+        'belichtung': 2.8,   # Runde 2: dunkleres, natürlicheres Eis; mit 1,4 waren die Wände im Spiel fast schwarz
+        'saettigung': 1.3,
+        'schatten': (0.004, 0.016, 0.055),
+        'glut': (0.75, 0.92, 1.0),
+        'himmel': None,
+        'licht': (0.96, 1.0, 1.04),
+        'knie': 0.75,
+        'spitze': 0.88,
+        'rauschen': 0.008,
+        'volumen': 1,
+        'jpeg': 85,
+        'textur': 0.8,     # 13.11.: mit 0,9 (auch 0,87) schwang das JPEG an Glitzerpunkten im satten Blau auf 1,0 (Bloom)
+        'pinsel': 0.12,     # Runde 2: feinere Striche, die Mulden, Kiesel und Zapfen bleiben lesbar
+        'streifen': 22.0,   # die Wände ragen weit hinauf; höher sprengte das Budget (300 MB)
+        'proben': (128, 96),
+        'wasser': -4.0,     # Seespiegel: Wassermaske für die Ebene waterSurface (calm)
+        'maske': 70.0,      # bis nah unters Brett: Schollen dort mit scharfem Rand
     },
 }
 
