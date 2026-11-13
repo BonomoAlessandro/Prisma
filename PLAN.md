@@ -340,6 +340,14 @@ Android-Chromium.
     15 s, gezeichnete Zeigehand (Wahl B), feste Elemente mit Sockel wackeln beim Antippen im ganzen
     Spiel. Spec, Tickets und Übergabe in `.scratch/tutorial-fuehrung/` (`STAND.md`). Offen: Test mit einer
     fremden Person.
+- [x] **1a.2 Texte natürlicher** (Wunsch des Nutzers, 13.11.2026): Die Texte von Geschichte und Tutorial wirkten «zu
+  stark nach KI generiert». Befund: Gedankenstriche, Doppelpunkt mit Auflösung, feierliche Formeln («von Spiegel zu
+  Spiegel, von Ort zu Ort – Stern für Stern»), jedes Kapitel nach demselben Muster («erwacht und weist»), gehobene
+  Wörter, «so» und «also». Vorschlag als Vergleichsseite alt/neu, der Prolog in drei Tonlagen; gewählt **«Vorgelesen»**
+  (warm, mit kleinen Einzelheiten aus dem Bild, etwa Rauch aus den Kaminen). Neu sind alle 47 Texte: Prolog, Dorf
+  (Angebot, Einstieg, Ende), sechs Reisen, Finale, Epilog, 22 der 23 Schritte und die Hinweise nebenbei. Die Regel der
+  Führung ist dafür gelockert: ein oder zwei kurze Sätze je Schritt (höchstens 18 Wörter, 105 Zeichen), Hinweise
+  höchstens 16 Wörter. Entscheid 13 des Kleinen Wagens («von Spiegel zu Spiegel» in Prolog 6) ist damit aufgehoben.
 
 ## 2. Würfel-Level (3D)
 

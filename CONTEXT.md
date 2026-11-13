@@ -137,7 +137,7 @@ und der Satz des laufenden Schritts, siehe Führung; einen festen Hinweissatz je
 mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
-folgt ein Satz zum Ende («Jetzt weiss Noa, wie man Licht weitergibt …», wartet auf Tippen), dann bringen die
+folgt ein Satz zum Ende («Jetzt hat Noa den Dreh raus …», wartet auf Tippen), dann bringen die
 Glühwürmchen das Licht in den Bergwald wie nach «Gleich los». Es ist ein Kapitel, aber keine der sechs Welten: ohne
 Nummer, sein Einstieg ohne Träger, und die Übungen zählen nicht zu den 60 Leveln des Grads (im Menü steht der Grad dort
 auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar; Neuladen setzt an der Übung fort. Die Übersicht
@@ -160,8 +160,8 @@ Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht b
 _Vermeiden_: Tutorial (für die Führung), Hilfe
 
 **Schritt**:
-Ein Teil der Führung: ein Satz im Du von etwa zwölf Wörtern (Platzhalter je Gerät wie «Tippe» / «Klicke») und das, was
-ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
+Ein Teil der Führung: ein oder zwei kurze Sätze im Du, höchstens 18 Wörter (Platzhalter je Gerät wie «Tippe» /
+«Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
 Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist, und auch nur mit einer
 bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung
 der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
@@ -180,8 +180,8 @@ Element ausserhalb der Lösung. Er löst nie. Die 15 s sind vorläufig, sie werd
 Person, die Prisma nicht kennt) festgelegt. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
 
 **Angebot**:
-Die Frage nach dem Prolog, auf der Bühne: «Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit
-Noa im Dorf üben?» mit «Üben» (das Kapitel «Im Dorf») und «Gleich los» (Einstieg in den Bergwald); der Fokus steht auf
+Die Frage nach dem Prolog, auf der Bühne: «Die Glühwürmchen wollen gleich los in den Wald. Möchtest du vorher mit Noa
+im Dorf üben?» mit «Üben» (das Kapitel «Im Dorf») und «Gleich los» (Einstieg in den Bergwald); der Fokus steht auf
 «Üben». Kommt einmal je Grad, auch nach dem Überspringen des Prologs, und nur, solange der Bergwald nicht gesehen ist.
 Die Wahl gilt sofort (gesehen: `angebot`); Neuladen vor der Wahl bringt nur das Angebot wieder, ohne den Prolog. Es
 hat kein eigenes Überspringen: «Gleich los» ist es. Im Code `story.offer`, Texte in `STORY_DORF.angebot`.

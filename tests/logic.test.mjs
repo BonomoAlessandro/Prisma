@@ -614,13 +614,14 @@ console.log('Führung im Dorf (Schritte)');
   const wort = (t) => t.split(/\s+/).filter(Boolean).length;
   const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
   test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
-  test('Schritte: höchstens drei, je ein Satz von etwa zwölf Wörtern, auf beiden Geräten', () => {
+  // seit 13.11.2026 (Wunsch des Nutzers, natürlichere Texte) ein oder zwei kurze Sätze statt genau einem
+  test('Schritte: höchstens drei, je ein oder zwei kurze Sätze, auf beiden Geräten', () => {
     for (const l of gefuehrt) {
       assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
       for (const s of l.schritte) for (const touch of [true, false]) {
         const t = L.geraeteText(s.text, touch);
-        assert.ok(wort(t) >= 3 && wort(t) <= 14 && t.length <= 90, `${l.name}: «${t}» (${wort(t)} Wörter)`);
-        assert.ok(/[.!?]$/.test(t) && !/[.!?] \S/.test(t), `${l.name}: ein Satz «${t}»`);
+        assert.ok(wort(t) >= 3 && wort(t) <= 18 && t.length <= 105, `${l.name}: «${t}» (${wort(t)} Wörter)`);
+        assert.ok(/[.!?]$/.test(t) && (t.match(/[.!?] \S/g) ?? []).length <= 1, `${l.name}: höchstens zwei Sätze «${t}»`);
       }
     }
   });
@@ -670,11 +671,13 @@ console.log('Führung im Dorf (Schritte)');
     // Kristall und Spiegel (Ticket 05: der Satz nennt beide)
     assert.equal(art('Erstes Licht'), 'erklaerung drehen');
     assert.deepEqual([].concat(u('Erstes Licht').schritte[0].bei), ['4,0', '4,3']);
-    // Umweg: festen Spiegel antippen, «Rund lässt sich drehen, eckig nicht», zurückdrehen; beide runden Spiegel stehen
+    // Umweg: festen Spiegel antippen, «Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht», zurückdrehen;
+    // beide runden Spiegel stehen
     // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
     const w = u('Umweg');
     assert.equal(art('Umweg'), 'antippen erklaerung drehen-zurück');
-    assert.ok(am(w, w.schritte[0].bei).fixed && w.schritte[1].text === 'Rund lässt sich drehen, eckig nicht.');
+    assert.ok(am(w, w.schritte[0].bei).fixed
+      && w.schritte[1].text === 'Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht.');
     assert.deepEqual([].concat(w.schritte[2].bei).sort(), Object.keys(w.solution).sort(), 'alle runden Spiegel');
     for (const z of Object.keys(w.solution)) {
       assert.equal(L.mod8(am(w, z).rot - 1) % 4, w.solution[z] % 4, `${z}: eine Stufe zu weit`);
@@ -746,7 +749,7 @@ console.log('Führung im Dorf (Schritte)');
       assert.ok(n.every(k => k in L.NEBENBEI) && new Set(n).size === n.length, `${l.name}: ${n}`);
     }
     for (const [k, { text }] of Object.entries(L.NEBENBEI)) {
-      for (const t of text) assert.ok(wort(t) <= 14 && !/[{}]/.test(t), `${k}: «${t}»`);
+      for (const t of text) assert.ok(wort(t) <= 16 && !/[{}]/.test(t), `${k}: «${t}»`);
     }
   });
   test('Text je Gerät: Befehlsform für Schritte', () => {

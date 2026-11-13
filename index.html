@@ -1292,7 +1292,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-13 eishoehle';
+const APP_VERSION = '2026-11-13 spieltexte';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -1981,9 +1981,9 @@ const LEVELS = [
     // ein Tippen löst die Übung schon: zuerst das Ziel und der Weg dahin (Licht läuft geradeaus, der Spiegel lenkt es
     // um; Umriss um Kristall und Spiegel), dann das Drehen (Ticket 05 der Führung: Der Satz sagte nur, wohin)
     schritte: [
-      { text: 'Bring das Licht zum Kristall: Es läuft geradeaus, bis ein Spiegel es umlenkt.', bei: ['4,0', '4,3'],
+      { text: 'Das Licht läuft geradeaus, bis es auf einen Spiegel trifft. Bring es zum Kristall.', bei: ['4,0', '4,3'],
         weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel an, so dreht er sich und lenkt das Licht zum Kristall.', bei: '4,3',
+      { text: '{Tippe} den Spiegel an. Er dreht sich und lenkt das Licht zum Kristall.', bei: '4,3',
         weiter: 'drehen' },
     ],
     elements: [
@@ -2003,8 +2003,9 @@ const LEVELS = [
     schritte: [
       { text: '{Tippe} den Spiegel auf dem eckigen Sockel an und schau, was passiert.', bei: '3,1',
         weiter: 'antippen' },
-      { text: 'Rund lässt sich drehen, eckig nicht.', bei: ['3,5', '5,1', '3,1'], weiter: 'erklaerung' },
-      { text: 'Die runden Spiegel sind zu weit gedreht: {Drücke lang} darauf, so drehen sie zurück.',
+      { text: 'Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht.', bei: ['3,5', '5,1', '3,1'],
+        weiter: 'erklaerung' },
+      { text: 'Die runden Spiegel stehen einen Schritt zu weit. {Drücke lang} darauf, dann drehen sie zurück.',
         bei: ['3,5', '5,1'], weiter: 'drehen', richtung: -1 },
     ],
     elements: [
@@ -2021,11 +2022,11 @@ const LEVELS = [
     //   → Ziel (5,5). Der kurze Weg nach Süden über den festen Spiegel (3,5) endet am Block (3,4) – zu Beginn sichtbar.
     name: 'Sperre', tutorial: true,
     schritte: [
-      { text: 'Der Block schluckt das Licht, also braucht es einen Weg um ihn herum.', bei: '3,4',
+      { text: 'Durch den Block kommt kein Licht. Es muss um ihn herum.', bei: '3,4',
         weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel, bis das Licht vom Block weg zum nächsten Spiegel läuft.', bei: '3,2',
+      { text: '{Tippe} den Spiegel, bis das Licht zum nächsten Spiegel läuft.', bei: '3,2',
         weiter: 'strahl', trifft: '3,0' },
-      { text: '{Tippe} die zwei markierten Spiegel, bis das Licht den Kristall erreicht.', bei: ['3,0', '5,0'],
+      { text: '{Tippe} jetzt die beiden markierten Spiegel, bis das Licht beim Kristall ankommt.', bei: ['3,0', '5,0'],
         weiter: 'drehen' },
     ],
     nebenbei: ['kamera'],
@@ -2045,8 +2046,8 @@ const LEVELS = [
     //   Grün → Ost → Ziel (6,3), Blau → Südost → Ziel (5,6).
     name: 'Brechung', tutorial: true,
     schritte: [
-      { text: 'Das Prisma fächert weisses Licht in Rot, Grün und Blau auf.', bei: '2,3', weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis jede Farbe den Kristall ihrer Farbe trifft.', bei: '2,3', weiter: 'drehen' },
+      { text: 'Ein Prisma teilt weisses Licht in Rot, Grün und Blau.', bei: '2,3', weiter: 'erklaerung' },
+      { text: '{Tippe} das Prisma, bis jede Farbe den passenden Kristall trifft.', bei: '2,3', weiter: 'drehen' },
     ],
     nebenbei: ['neustart'],
     elements: [
@@ -2067,11 +2068,11 @@ const LEVELS = [
     //   das Prisma, sobald das Licht es erreicht.
     name: 'Schatten', tutorial: true,
     schritte: [
-      { text: 'Längs zum Strahl schluckt der Spiegel das Licht: {Drücke lang}, bis es weiterläuft.', bei: '3,5',
-        weiter: 'strahl', trifft: '3,2', richtung: -1 },
-      { text: 'Auch das Prisma schluckt Licht, wenn es von der Seite seiner Farbpfeile kommt.', bei: '3,2',
+      { text: 'Dieser Spiegel zeigt mit der Kante zum Licht und hält es auf. {Drücke lang} darauf, bis es weiterläuft.',
+        bei: '3,5', weiter: 'strahl', trifft: '3,2', richtung: -1 },
+      { text: 'Auch ein Prisma hält Licht auf, wenn es von der Seite mit den Farbpfeilen kommt.', bei: '3,2',
         weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis seine Farbpfeile vom Licht weg zu den Kristallen zeigen.', bei: '3,2',
+      { text: '{Tippe} das Prisma, bis die Farbpfeile zu den Kristallen zeigen.', bei: '3,2',
         weiter: 'drehen' },
     ],
     elements: [
@@ -2088,14 +2089,14 @@ const LEVELS = [
     // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
     //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
     //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
-    //   Der erste Schritt nennt mit «ohne Blau», was danach am Prisma fehlt: Ein Prisma fächert nur auf, was ankommt
-    //   (gilt im Bergwald). Der zweite nennt Prisma und Spiegel, beide sind zu drehen (Ticket 04 der Führung: sonst
-    //   bliebe nach ihm der Spiegel ungenannt), und wann es genug ist (Ticket 05).
+    //   Der erste Schritt nennt mit «Blau bleibt hängen», was danach am Prisma fehlt: Ein Prisma fächert nur auf,
+    //   was ankommt (gilt im Bergwald). Der zweite nennt Prisma und Spiegel, beide sind zu drehen (Ticket 04 der
+    //   Führung: sonst bliebe nach ihm der Spiegel ungenannt), und wann es genug ist (Ticket 05).
     name: 'Farbenlehre', tutorial: true,
     schritte: [
-      { text: 'Der Filter lässt nur seine Farbe durch: Gelb heisst Rot und Grün, ohne Blau.', bei: '1,3',
-        weiter: 'erklaerung' },
-      { text: '{Tippe} Prisma und Spiegel, bis Rot und Grün die Kristalle ihrer Farbe treffen.', bei: ['3,3', '4,2'],
+      { text: 'Ein Filter lässt nur seine eigene Farbe durch. Gelb besteht aus Rot und Grün, Blau bleibt hängen.',
+        bei: '1,3', weiter: 'erklaerung' },
+      { text: '{Tippe} Prisma und Spiegel, bis Rot und Grün ihre Kristalle treffen.', bei: ['3,3', '4,2'],
         weiter: 'drehen' },
     ],
     elements: [
@@ -2113,10 +2114,10 @@ const LEVELS = [
     //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
     name: 'Farbiges Licht', tutorial: true,
     schritte: [
-      { text: 'Farbige Quellen senden nur ihre Farbe, hier Rot und Blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
-      { text: 'Der Ring am Kristall zeigt, welche Grundfarben er braucht; falsche flackern darin.', bei: ['3,0', '6,5'],
-        weiter: 'erklaerung' },
-      { text: '{Tippe} die Spiegel, bis Rot und Blau die Kristalle ihrer Farbe treffen.', bei: ['3,3', '3,5'],
+      { text: 'Hier leuchtet eine Lampe rot und die andere blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
+      { text: 'Am Ring um den Kristall siehst du, welche Farben er braucht. Eine falsche Farbe flackert darin.',
+        bei: ['3,0', '6,5'], weiter: 'erklaerung' },
+      { text: '{Tippe} die Spiegel, bis Rot und Blau ihre Kristalle treffen.', bei: ['3,3', '3,5'],
         weiter: 'drehen' },
     ],
     elements: [
@@ -2134,9 +2135,9 @@ const LEVELS = [
     //   beide treffen das Ziel (3,4) und mischen sich dort zu Magenta.
     name: 'Treffpunkt', tutorial: true,
     schritte: [
-      { text: 'Dieser Kristall braucht Magenta: Treffen ihn Rot und Blau, mischen sie sich dazu.', bei: '3,4',
+      { text: 'Dieser Kristall braucht Magenta. Das entsteht, wenn Rot und Blau ihn gleichzeitig treffen.', bei: '3,4',
         weiter: 'erklaerung' },
-      { text: '{Tippe} beide Spiegel, bis Rot und Blau zusammen den Kristall treffen.', bei: ['3,1', '6,4'],
+      { text: '{Tippe} beide Spiegel, bis Rot und Blau zusammen beim Kristall ankommen.', bei: ['3,1', '6,4'],
         weiter: 'drehen' },
     ],
     elements: [
@@ -2159,11 +2160,11 @@ const LEVELS = [
     //   am Kombinator, den der Satz nennt, bevor der nächste Schritt ihn erklärt (Ticket 05; die Hand bleibt am Prisma).
     name: 'Mischung', tutorial: true,
     schritte: [
-      { text: '{Tippe} das Prisma, bis Rot und Blau den Kombinator treffen.', bei: ['2,3', '6,3'], weiter: 'strahl',
+      { text: '{Tippe} das Prisma, bis Rot und Blau im Kombinator landen.', bei: ['2,3', '6,3'], weiter: 'strahl',
         trifft: '6,3', farbe: 'magenta' },
-      { text: 'Der Kombinator mischt alles Licht, das ihn trifft, zu einem neuen Strahl.', bei: '6,3',
+      { text: 'Der Kombinator mischt alles Licht, das hineinfällt, und schickt es als einen Strahl weiter.', bei: '6,3',
         weiter: 'erklaerung' },
-      { text: '{Tippe} den Kombinator, bis sein Magenta den Kristall trifft.', bei: '6,3', weiter: 'drehen' },
+      { text: '{Tippe} den Kombinator, bis das Magenta beim Kristall ankommt.', bei: '6,3', weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 3, dir: 0 },
@@ -8193,13 +8194,14 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /*
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
- * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: ein Satz im Du, Platzhalter je
- * Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss läuft. weiter: was den
- * Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken bzw.
- * Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht das Element bei ist; bei ist
- * dann das Element, das dafür zu drehen ist (Umriss und Hand dort, die Geste nach richtung, die hier nichts
- * einschränkt). farbe: bei «strahl» zählt nur Licht, das dort genau diese Farbe mischt (COLORS; am Kombinator seine
- * Mischung, sonst die Treffer). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche (fuehrung).
+ * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: ein oder zwei kurze Sätze im
+ * Du, Platzhalter je Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss
+ * läuft. weiter: was den Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1:
+ * zurück, langes Drücken bzw. Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht
+ * das Element bei ist; bei ist dann das Element, das dafür zu drehen ist (Umriss und Hand dort, die Geste nach
+ * richtung, die hier nichts einschränkt). farbe: bei «strahl» zählt nur Licht, das dort genau diese Farbe mischt
+ * (COLORS; am Kombinator seine Mischung, sonst die Treffer). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche
+ * (fuehrung).
  */
 const SCHRITTE_MAX = 3;
 /**
@@ -8221,11 +8223,11 @@ function geraeteText(text, touch) {
  * spätestens mit dem Lösen und kommen beim Neustart derselben Übung nicht wieder. text: [Touch, Maus].
  */
 const NEBENBEI = {
-  kamera: { text: ['Wische mit einem Finger, um die Kamera zu drehen; zwei Finger zoomen.',
-    'Ziehe mit der Maus, um die Kamera zu drehen; das Mausrad zoomt.'] },
+  kamera: { text: ['Wisch mit einem Finger, dann dreht sich die Ansicht. Mit zwei Fingern zoomst du.',
+    'Zieh mit der Maus, dann dreht sich die Ansicht. Mit dem Mausrad zoomst du.'] },
   // «am Rand rechts»: Die Knöpfe stehen unten rechts, auf dem Handy quer rechts in der Mitte
-  neustart: { text: ['Der Kreispfeil am Rand rechts beginnt die Übung von vorn.',
-    'Der Kreispfeil am Rand rechts oder die Taste R beginnt die Übung von vorn.'] },
+  neustart: { text: ['Mit dem Kreispfeil rechts am Rand fängst du die Übung neu an.',
+    'Mit dem Kreispfeil rechts am Rand oder der Taste R fängst du die Übung neu an.'] },
 };
 /** Zellen eines Schritts (bei als Zelle oder Liste). */
 const schrittZellen = (s) => (s.bei === undefined ? [] : [].concat(s.bei));
@@ -22358,26 +22360,26 @@ const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
  */
 const STORY_CHAPTERS = [
   { station: 1, title: 'Der Bergwald', sky: 'forest',
-    travel: 'Die Glühwürmchen tragen Noas Licht tief in den Bergwald. Über den Wipfeln schläft der erste Stern des Wagens.',
+    travel: 'Die Glühwürmchen fliegen mit Noas Licht tief in den Bergwald. Irgendwo über den Tannen schläft der erste Stern.',
     carrier: 'glow', done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
   { station: 2, title: 'Das Meer', sky: 'beach',
-    travel: 'Über dem Wald erwacht der erste Stern und weist zum Meer. Die Glühwürmchen tragen das Licht über die Hügel bis an den Strand.',
+    travel: 'Über dem Wald ist der erste Stern aufgewacht. Er zeigt zum Meer, und die Glühwürmchen fliegen mit dem Licht über die Hügel bis an den Strand.',
     carrier: 'spray', done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
   { station: 3, title: 'Die Wüste', sky: 'desert',
-    travel: 'Der zweite Stern erwacht und weist weit übers Wasser. Der Wind über den Wellen trägt das Licht bis an den Rand der Wüste.',
+    travel: 'Jetzt leuchtet auch der zweite Stern. Der Wind nimmt das Licht mit, weit übers Wasser bis dorthin, wo die Wüste anfängt.',
     carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
   { station: 4, title: 'Der Vulkan', sky: 'volcano',
-    travel: 'Über den Dünen funkelt der dritte Stern. Ein Wirbel aus Sand trägt das Licht dorthin, wo die Erde rot glüht.',
+    travel: 'Über den Dünen funkelt der dritte Stern. Ein Sandwirbel trägt das Licht weiter bis an einen Krater, in dem Feuer brennt.',
     carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
   { station: 5, title: 'Die Planeten', sky: 'solar',
-    travel: 'Der vierte Stern erwacht, und die Schale des Wagens schliesst sich. Der Vulkan bricht aus und schleudert das Licht hinauf, höher als alle Wolken.',
+    travel: 'Mit dem vierten Stern ist die Schale des Wagens vollständig. Da bricht der Vulkan aus und schleudert das Licht hoch über die Wolken.',
     carrier: 'comet', done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
   { station: 6, title: 'Die Sterne', sky: 'milky', finale: true,
-    travel: 'Fünf Sterne leuchten, nur einer schläft noch. Ein Komet trägt das Licht hinaus, dorthin, wo nur noch Sterne sind.',
+    travel: 'Fünf Sterne leuchten schon, nur einer schläft noch. Ein Komet nimmt das Licht mit, weit hinaus zu den Sternen.',
     done: 'Der Wagen ist wach', next: 'Hinaufschauen' },
 ];
-const STORY_FINALE = ['Der letzte Stern erwacht. Der Kleine Wagen leuchtet, von einem Ende bis zum anderen.',
-  'Über die Deichsel läuft das Licht bis zum Polarstern.', 'Er hat das Zeichen gesehen. Und er antwortet.'];
+const STORY_FINALE = ['Der letzte Stern wacht auf. Jetzt leuchtet der ganze Kleine Wagen.',
+  'Das Licht wandert die Deichsel entlang bis zum Polarstern.', 'Der Polarstern hat Noas Zeichen gesehen.'];
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
 /**
@@ -22637,10 +22639,10 @@ const himmelsWagen = (() => {
  */
 const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'village',
   angebot: { kicker: 'Im Dorf', ueben: 'Üben', los: 'Gleich los',
-    text: 'Bevor die Glühwürmchen das Licht in den Wald tragen: Möchtest du zuerst mit Noa im Dorf üben?' },
+    text: 'Die Glühwürmchen wollen gleich los in den Wald. Möchtest du vorher mit Noa im Dorf üben?' },
   einstieg: { kicker: 'Im Dorf · Erstes Licht', traeger: null, moment: 'dorf', path: 0,
-    text: 'Hinter dem Haus übt Noa mit der Taschenlampe. Ein alter Spiegel, ein Stück buntes Glas – und das Licht geht genau dorthin, wo Noa es haben will.' },
-  ende: 'Jetzt weiss Noa, wie man Licht weitergibt. Am Waldrand blinken schon die Glühwürmchen.',
+    text: 'Hinter dem Haus übt Noa mit der Taschenlampe. Mit einem alten Spiegel und einem Stück buntem Glas lässt sich das Licht überallhin schicken.' },
+  ende: 'Jetzt hat Noa den Dreh raus. Am Waldrand warten schon die Glühwürmchen.',
   done: 'Das Dorf leuchtet', next: 'In den Bergwald' };
 /** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
 const STORY_SKIP_RUHE = 2000;
@@ -22751,26 +22753,26 @@ const BUEHNENWAGEN = {
 const STORY_PROLOG = [
   { from: { x: 820, y: 160, z: 1.08 }, fromP: { x: 760, y: 120, z: 1.08 }, cam: { x: 800, y: 470, z: 1 },
     camP: { x: 760, y: 470, z: 1 }, move: 6,
-    text: 'Hoch oben in den Bergen, wo die Nächte klar und still sind, liegt ein kleines Dorf.' },
+    text: 'Hoch in den Bergen liegt ein kleines Dorf. Aus den Kaminen steigt Rauch, und über den Dächern funkeln die Sterne.' },
   { cam: { x: 520, y: 590, z: 2 }, move: 4.5,
-    text: 'Jeden Abend steigt Noa auf den Hügel über den Dächern und sucht den Polarstern, ganz vorn an der Deichsel des Kleinen Wagens.' },
+    text: 'Jeden Abend klettert Noa auf den Hügel hinter den Häusern und sucht den Polarstern. Er sitzt ganz vorn an der Deichsel des Kleinen Wagens.' },
   { cam: { x: 560, y: 560, z: 2.2 }, move: 2.6, act: 'lamp',
-    text: 'Heute Nacht will Noa ihm ein Zeichen schicken. Klick – die Taschenlampe leuchtet auf.' },
+    text: 'Heute hat Noa die Taschenlampe mitgenommen. Klick. Der Polarstern soll ein Zeichen bekommen.' },
   { cam: { x: 900, y: 300, z: 1.35 }, camP: { x: 760, y: 330, z: 1.3 }, move: 5, act: 'reach',
-    text: 'Doch der Strahl verblasst im Dunkeln. Die Sterne, die ihm den Weg zeigen sollten, schlafen – der Kleine Wagen ist fast unsichtbar.' },
+    text: 'Aber das Licht kommt nicht weit. Die Sterne des Wagens schlafen, und ohne sie verliert es sich im Dunkeln.' },
   { cam: { x: 760, y: 600, z: 1.55 }, camP: { x: 560, y: 600, z: 1.55 }, move: 4, act: 'gather',
-    text: 'Da blinkt es am Waldrand. Glühwürmchen umschwirren die Lampe und fangen das Licht ein.' },
+    text: 'Da blinkt etwas am Waldrand. Ein Schwarm Glühwürmchen fliegt heran und fängt das Licht ein.' },
   { cam: { x: 1250, y: 560, z: 1.7 }, camP: { x: 1300, y: 590, z: 1.6 }, move: 5.5, act: 'carry',
-    text: 'Jeder Stern des Wagens wacht über einen Ort der Welt und erwacht erst, wenn dort Licht leuchtet. Trag Noas Licht von Spiegel zu Spiegel, von Ort zu Ort – Stern für Stern bis zum Polarstern.' },
+    text: 'Jeder Stern im Wagen gehört zu einem Ort und wacht erst auf, wenn dort Licht ankommt. Hilf den Glühwürmchen, das Licht von Ort zu Ort zu bringen, bis es beim Polarstern ankommt.' },
 ];
 const STORY_EPILOG = [
   { from: { x: 900, y: 120, z: 1.12 }, fromP: { x: 980, y: 160, z: 1.08 }, cam: { x: 760, y: 420, z: 1.25 },
     camP: { x: 520, y: 470, z: 1.3 }, move: 6.5,
-    text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel und schaut hinauf.' },
+    text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel sitzen und schaut hinauf.' },
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
-    text: 'Da blinkt der Polarstern: einmal, zweimal, dreimal.' },
+    text: 'Da blinkt der Polarstern. Einmal, zweimal, dreimal.' },
   { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, winkelWie: 'reach', move: 3, act: 'answer',
-    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt sieben Sterne, und keiner schläft mehr.' },
+    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt alle sieben Sterne.' },
 ];
 
 /**
