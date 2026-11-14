@@ -88,7 +88,9 @@ Das Dorf ist nur das Tutorial und **merkt sich keinen Platz** (Entscheid des Nut
 `prisma.noa.<grad>.dorf` bleibt nur, ob das Dorf beendet ist (`ende: 'gespielt'` oder `'uebersprungen'`), damit die
 Geschichte danach im Bergwald weitergeht und die Übersicht die Reihe «Im Dorf» zeigt (nach «Überspringen» mit allen
 Übungen frei); das Feld `platz` fällt weg. Innerhalb einer Sitzung behalten Menü und Übersicht die laufende Übung und
-ihren Schritt. Einzelne Übungen aus der Übersicht wiederholen bleibt wie heute.
+ihren Schritt. Einzelne Übungen aus der Übersicht wiederholen bleibt wie heute. Gelöste Übungen bleiben in der
+Übersicht gelöst, auch nach dem Neuladen; wer dort die nächste offene wählt, spielt ab ihr weiter (Entscheid des
+Nutzers, 14.11.2026: Die Übersicht wählt man bewusst).
 
 Alte Spielstände: Ein laufendes Dorf (`ende: null`) beginnt damit von selbst wieder bei Übung 1. Ein beendetes oder
 übersprungenes Dorf bleibt beendet, auch wenn sein alter `platz` (bis 8) nicht mehr gültig wäre; es darf deswegen nicht

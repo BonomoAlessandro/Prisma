@@ -42,6 +42,6 @@ Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Fa
 - Die Übersicht (`baueReihen`, etwa Zeile 21782) richtet sich nicht nach `platz`, sondern nach `geloest`: Die erste
   ungelöste Übung ist «offen». `geloest` bleibt gespeichert. Nach dem Neuladen mitten im Dorf beginnt «Weiter» also bei
   Übung 1, die Übersicht zeigt aber die gelösten Übungen als gelöst und die nächste als offen; wer sie dort wählt,
-  spielt ab ihr im normalen Ablauf weiter (`playDorf`, `advanceDorf`). Das bleibt so, ausser der Nutzer entscheidet
-  anders.
+  spielt ab ihr im normalen Ablauf weiter (`playDorf`, `advanceDorf`). Das bleibt so (Entscheid des Nutzers,
+  14.11.2026: Die Übersicht wählt man bewusst).
 - Neues Rot zuerst gegen `ec02954` (Stand vor dem Vorhaben) vergleichen.
