@@ -96,7 +96,7 @@
     #hud .title .tier:not([hidden]) { display: block; margin: 6px 0 0; padding-left: 0.3em; }
   }
   /* Noas Geschichte: der Grad hinter den Zielen («Ziele 0 / 3 · ●●○○ Mittel»); die Unterzeile nur im Dorf mit
-     «Übung 2 / 9» und dem Hinweis */
+     «Übung 2 / 9» (der Satz des Schritts steht im Band unten, #band) */
   #hud .goal .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; vertical-align: 0; }
   #hud .goal .tier::before { content: " · "; }
   #hud .sub .teil { white-space: nowrap; }
@@ -107,38 +107,82 @@
     text-transform: none; color: rgba(232, 230, 240, 0.84);
   }
   @media (max-width: 520px) { #hud .sub .hinweis { font-size: 13px; } }
-  /* Führung im Dorf (fuehrung): der Satz des Schritts wie der Hinweis, eine Erklärung mit «Weiter» daran; Hinweise
-     nebenbei leiser darunter. Der Knopf nimmt Tippen an, der Rest der Kopfzeile nicht */
-  #hud .sub .hinweis[hidden] { display: none; }
-  #hud .sub .hinweis.nebenbei { margin-top: 2px; font-size: 12px; color: var(--ink-dim); }
-  /* «Weiter» an einer Erklärung steht an fester Stelle beim Satz, in jeder Länge des Satzes (Ticket 05 der Führung:
-     im Fluss des Texts stand er auf dem Handy mal hinter dem Satz, mal allein in einer Zeile, mal hinter der zweiten):
-     rechts neben dem Satz, mittig zu seiner Höhe; der Satz behält dabei seine Breite (40em wie der Hinweis). Auf dem
-     Handy hochkant in einer eigenen Zeile mittig unter dem Satz; auf einem kleinen (unter 700 px hoch) bliebe dafür
-     kein Platz über dem Brett: dort ganz rechts neben einem Satzblock, der die übrige Breite füllt */
-  #hud .sub .hinweis.schritt:not([hidden]) {
-    display: flex; justify-content: center; align-items: center; gap: 8px 0.9em; max-width: calc(40em + 8.5em);
+  /* Band der Führung (fuehrung.zeichneBand, Spec .scratch/tutorial-neu/ «Aussehen»): fest am unteren Rand, immer an
+     derselben Stelle, über der Szene und ihrem Abdunkeln. Darin Punkte für den Fortschritt der Übung, der Satz des
+     Schritts und an einer Erklärung «Weiter» rechts daneben, mittig zu seiner Höhe; Hinweise nebenbei klein darüber.
+     Es lässt die Knöpfe frei: über der Reihe der Knöpfe unten rechts (und «Dorf überspringen» unten links auf dem Handy
+     hochkant), auf einem breiten Bildschirm daneben; auf dem Handy quer am unteren Rand, links der Knöpfe rechts in der
+     Mitte. Nur «Weiter» nimmt Tippen an, der Rest geht an die Szene. Mit der Kopfzeile aus und ein (Menü, Übersicht) */
+  #band {
+    position: fixed; left: 0; right: 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 56px);
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 16px;
+    letter-spacing: 0.02em; text-transform: none; text-align: left;
+    transition: opacity 0.45s ease, visibility 0s;
   }
-  @media (max-width: 520px) and (min-height: 700px) {
-    #hud .sub .hinweis.schritt:not([hidden]) { flex-direction: column; max-width: 40em; }
+  #band.aus { opacity: 0; visibility: hidden; transition: opacity 0.45s ease, visibility 0s 0.45s; }
+  @media (min-width: 1100px) and (min-height: 501px) { #band { bottom: max(16px, env(safe-area-inset-bottom)); } }
+  #band .band-kasten {
+    box-sizing: border-box; width: min(600px, 100%); padding: 10px 12px 12px 18px;
+    border: 1px solid rgba(255, 217, 138, 0.24); border-radius: 16px;
+    background: rgba(8, 8, 16, 0.8); box-shadow: 0 6px 26px rgba(0, 0, 0, 0.45);
   }
-  @media (max-width: 520px) and (max-height: 699.98px) {
-    #hud .sub .hinweis.schritt:not([hidden]) > span { flex: 1 1 0; min-width: 0; }
+  #band .band-punkte { display: flex; gap: 6px; margin-bottom: 7px; }
+  #band .band-punkte i {
+    width: 7px; height: 7px; box-sizing: border-box; border: 1px solid rgba(232, 230, 240, 0.45); border-radius: 50%;
+    transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
-  #hud .fuehrung-weiter {
-    pointer-events: auto; flex: none; padding: 6px 13px 6px calc(13px + 0.3em);
-    font-size: 9.5px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--ink);
-    border: 1px solid rgba(232, 230, 240, 0.4); border-radius: 999px; background: rgba(3, 3, 8, 0.55);
-    transition: border-color 0.25s ease, background-color 0.25s ease;
+  #band .band-punkte i.voll { background: #ffd98a; border-color: #ffd98a; }
+  #band .band-punkte i.jetzt { border-color: #ffd98a; box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.2); }
+  /* der Satz blendet beim Wechsel aus und mit dem nächsten Schritt wieder ein (fuehrung.wechselt) */
+  #band .band-zeile { display: flex; align-items: center; gap: 14px; min-height: 34px; transition: opacity 0.35s ease; }
+  #band .band-zeile.wechsel { opacity: 0; transition-duration: 0.2s; }
+  #band .band-satz { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 15px; line-height: 1.45; color: rgba(242, 240, 248, 0.96); }
+  #band .fuehrung-weiter {
+    pointer-events: auto; flex: none; padding: 9px 16px 9px calc(16px + 0.3em);
+    font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: #17130a;
+    border-radius: 999px; background: #ffd98a; transition: background-color 0.25s ease;
   }
-  #hud.hidden .fuehrung-weiter { pointer-events: none; } /* ausgeblendet (Menü, Levelwechsel): nicht antippbar */
-  #hud .fuehrung-weiter:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
-  #hud .fuehrung-weiter.stups { animation: fz-stups 1.1s ease-in-out infinite; } /* später Fingerzeig */
-  @keyframes fz-stups { 50% { transform: scale(1.1); border-color: rgba(255, 217, 138, 0.9); box-shadow: 0 0 0 5px rgba(255, 217, 138, 0.18); } }
-  /* Umriss und Hand über dem Brett: an der Bildschirmlage des Elements (fuehrung.platziere), unter der Kopfzeile
-     (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt; die Bewegung rechnet CSS */
+  #band .fuehrung-weiter:hover { background: #ffe6b0; }
+  #band .fuehrung-weiter[hidden] { display: none; }
+  #hud.hidden #band .fuehrung-weiter, #band.aus .fuehrung-weiter, #band .wechsel .fuehrung-weiter { pointer-events: none; }
+  #band .band-neben {
+    box-sizing: border-box; max-width: min(600px, 100%); padding: 4px 12px; border-radius: 10px;
+    background: rgba(8, 8, 16, 0.62); font-size: 12px; line-height: 1.4; text-align: center; color: rgba(232, 230, 240, 0.8);
+  }
+  #band .band-neben[hidden] { display: none; }
+  @media (max-width: 520px) {
+    #band .band-kasten { padding: 9px 10px 10px 14px; }
+    #band .band-satz { font-size: 14px; }
+  }
+  @media (max-height: 500px) { /* Handy quer: am unteren Rand, die Knöpfe stehen rechts in der Mitte */
+    #band {
+      bottom: max(8px, env(safe-area-inset-bottom));
+      padding: 0 calc(max(16px, env(safe-area-inset-right)) + 56px) 0 calc(max(16px, env(safe-area-inset-left)) + 56px);
+      gap: 4px;
+    }
+    /* flach: die Punkte links in derselben Zeile wie der Satz, breiter (ein Satz meist in einer Zeile), damit das Band
+       so wenig wie möglich vom Brett deckt, das hier die ganze Höhe füllt */
+    #band .band-kasten { display: flex; align-items: center; gap: 12px; width: min(720px, 100%); padding: 6px 8px 6px 14px; }
+    #band .band-punkte { flex: none; gap: 5px; margin: 0; }
+    #band .band-zeile { flex: 1 1 auto; min-width: 0; min-height: 30px; }
+    #band .band-satz { font-size: 13.5px; line-height: 1.4; }
+    #band .band-neben { font-size: 11px; padding: 3px 10px; }
+  }
+  /* Abdunkeln, Lichtkegel, Funkeln und Hand über dem Brett (fuehrung.zeichneBild): an der Bildschirmlage der Elemente
+     (fuehrung.platziere), unter Kopfzeile und Band (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt;
+     die Bewegung rechnet CSS */
   #fuehrung { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
-  /* der gestrichelte Umriss liegt seit Ticket 05 in der Szene (fuehrung.ringe, UMRISS_FRAGMENT); hier nur die Hand */
+  /* die Szene leicht abgedunkelt, je Lichtkegel ein weiches Loch (Maske); ein neuer Kegel wächst kurz auf */
+  #fuehrung .fz-dunkel { fill: rgb(3, 3, 8); opacity: 0; transition: opacity 0.5s ease; }
+  #fuehrung.dunkel .fz-dunkel { opacity: var(--fz-dunkel); }
+  #fuehrung .fz-kegel { transform-origin: 0 0; animation: fz-kegel 0.45s ease-out both; }
+  @keyframes fz-kegel { from { opacity: 0; transform: scale(0.35); } }
+  /* Funkeln am Element eines geschafften Schritts (fuehrung.funkle) */
+  #fuehrung .fz-funke > g {
+    fill: none; stroke: #fff4d6; stroke-width: 2.2; stroke-linecap: round; transform-origin: 0 0;
+    animation: fz-funke 0.9s ease-out both;
+  }
+  @keyframes fz-funke { 0% { opacity: 0; transform: scale(0.5); } 20% { opacity: 1; } 100% { opacity: 0; transform: scale(1.5); } }
   #fuehrung .fz-hand { filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
   #fuehrung .fz-hand > g { display: none; }
   #fuehrung .fz-hand[data-art="tippen"] .fz-tippen, #fuehrung .fz-hand[data-art="halten"] .fz-halten,
@@ -160,7 +204,7 @@
   #fuehrung .fz-taste { fill: #ffd98a; stroke: #222; stroke-width: 1.3; animation: fz-druck 1.3s ease-in-out infinite; }
   @keyframes fz-druck { 0%, 30%, 100% { fill: rgba(245, 245, 245, 0.92); } 45%, 70% { fill: #ffb347; } }
   @media (prefers-reduced-motion: reduce) {
-    #fuehrung *, #hud .fuehrung-weiter { animation: none !important; }
+    #fuehrung *, #band * { animation: none !important; }
     #fuehrung .fz-welle { opacity: 0.6; }
   }
   #hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
@@ -182,9 +226,6 @@
     /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 9» klein in einer Zeile, darunter der Hinweis */
     #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
     #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
-    /* der Satz einer Erklärung behält quer dieselbe Breite, «Weiter» steht daneben (die Regel oben setzte sonst
-       40em + 8.5em, gut 550 px: ein langer Satz brach dann früher um als ohne «Weiter») */
-    #hud.geschichte .sub .hinweis.schritt:not([hidden]) { max-width: calc(64em + 8.5em); }
   }
   #hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
   /* leer in der Geschichte ausserhalb des Dorfs: kein Abstand unter den Zielen (nach den Regeln oben, die sie zeigen) */
@@ -1207,6 +1248,14 @@ if (SEITE !== 1) {
   <div class="title"><span id="hud-title">Prisma</span><span class="tier" id="hud-tier" hidden></span></div>
   <div class="goal" id="hud-goal"><span id="hud-ziele"></span><span class="tier" id="hud-grad" hidden></span></div>
   <div class="sub" id="hud-sub"></div>
+  <!-- Band der Führung (fuehrung.zeichneBand): fest am unteren Rand, geht mit der Kopfzeile aus und ein -->
+  <div id="band" class="aus">
+    <div class="band-neben" hidden></div>
+    <div class="band-kasten">
+      <div class="band-punkte" aria-hidden="true"></div>
+      <div class="band-zeile"><p class="band-satz" aria-live="polite"></p><button type="button" class="fuehrung-weiter" hidden>Weiter</button></div>
+    </div>
+  </div>
 </div>
 
 <nav id="controls" class="hidden" inert aria-label="Steuerung">
@@ -1292,7 +1341,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-13 spieltexte';
+const APP_VERSION = '2026-11-14 tutorial-neu-1';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -1461,13 +1510,15 @@ function isRotatable(el) {
  * Trefferzylinder oder null, px: Abstand seiner Mitte zum Zeiger in Pixeln }; slop: so weit daneben zählt noch (px).
  * Ein drehbares Element im Toleranzbereich (getroffen oder höchstens slop daneben) gewinnt immer gegen ein festes,
  * damit die Weigerung das Spielen nicht schlechter macht. In jeder Gruppe zuerst das vorderste getroffene, sonst das
- * nächstgelegene. Nichts in Reichweite: null.
+ * nächstgelegene. Nichts in Reichweite: null. vorrang (Sperre der Führung, schrittErlaubt): Elemente, für die er wahr
+ * ist, gewinnen vor allen anderen, auch ein festes vor einem drehbaren.
  */
-function pickTapped(cands, slop = 0) {
-  for (const rot of [true, false]) {
+function pickTapped(cands, slop = 0, vorrang = null) {
+  const gruppe = (el) => (vorrang?.(el) ? 0 : isRotatable(el) ? 1 : 2);
+  for (const g of [0, 1, 2]) {
     let best = null, bestHit = Infinity, near = null, nearPx = slop;
     for (const c of cands) {
-      if (isRotatable(c.el) !== rot) continue;
+      if (gruppe(c.el) !== g) continue;
       if (c.hit !== null && c.hit < bestHit) { bestHit = c.hit; best = c.el; }
       if (c.px < nearPx) { nearPx = c.px; near = c.el; }
     }
@@ -1976,22 +2027,31 @@ function tracePass(board, extraRays, emitting, from) {
  */
 const LEVELS = [
   {
-    // Lösung: Spiegel (4,3) rot 3 – Ost → Nord → Ziel (4,0).
+    // Lösung: Spiegel (2,4) rot 3 – Ost → Nord; fester Spiegel (2,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd
+    //   → Ziel (5,4). Neu mit Ticket 01 von .scratch/tutorial-neu/ (vier Schritte, strikte Führung): zuerst das Ziel,
+    //   dann Tippen dreht (der vordere Spiegel wirft das Licht zu Beginn zurück, ein Tippen schickt es zum festen),
+    //   dann den festen Spiegel antippen (er wackelt), zuletzt rund gegen eckig und zurückdrehen: Der hintere Spiegel
+    //   steht eine Stufe zu weit (rot 2 = 1 + 1), langes Drücken löst die Übung. Zwischen dem festen Spiegel und den
+    //   drehbaren liegt mindestens ein Feld.
     name: 'Erstes Licht', tutorial: true,
-    // ein Tippen löst die Übung schon: zuerst das Ziel und der Weg dahin (Licht läuft geradeaus, der Spiegel lenkt es
-    // um; Umriss um Kristall und Spiegel), dann das Drehen (Ticket 05 der Führung: Der Satz sagte nur, wohin)
     schritte: [
-      { text: 'Das Licht läuft geradeaus, bis es auf einen Spiegel trifft. Bring es zum Kristall.', bei: ['4,0', '4,3'],
+      { text: 'Bring das Licht zum Kristall. Es läuft geradeaus, Spiegel lenken es um.', bei: '5,4',
         weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel an. Er dreht sich und lenkt das Licht zum Kristall.', bei: '4,3',
-        weiter: 'drehen' },
+      { text: '{Tippe} den Spiegel an. Er dreht sich und lenkt das Licht weiter.', bei: '2,4',
+        weiter: 'strahl', trifft: '2,1' },
+      { text: '{Tippe} den Spiegel auf dem eckigen Sockel an und schau, was passiert.', bei: '2,1',
+        weiter: 'antippen' },
+      { text: 'Eckige Sockel stehen fest, runde drehen sich. {Drücke lang} auf diesen Spiegel, dann dreht er zurück.',
+        bei: '5,1', weiter: 'drehen', richtung: -1 },
     ],
     elements: [
-      { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'mirror', x: 4, z: 3, rot: 2 },
-      { type: 'target', x: 4, z: 0, color: 'white' },
+      { type: 'source', x: 0, z: 4, dir: 0 },
+      { type: 'mirror', x: 2, z: 4, rot: 2 },
+      { type: 'mirror', x: 2, z: 1, rot: 3, fixed: true },
+      { type: 'mirror', x: 5, z: 1, rot: 2 },
+      { type: 'target', x: 5, z: 4, color: 'white' },
     ],
-    solution: { '4,3': 3 },
+    solution: { '2,4': 3, '5,1': 1 },
   },
   {
     // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
@@ -8195,15 +8255,16 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 /*
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
  * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: ein oder zwei kurze Sätze im
- * Du, Platzhalter je Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), um das der Umriss
- * läuft. weiter: was den Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1:
- * zurück, langes Drücken bzw. Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht
- * das Element bei ist; bei ist dann das Element, das dafür zu drehen ist (Umriss und Hand dort, die Geste nach
- * richtung, die hier nichts einschränkt). farbe: bei «strahl» zählt nur Licht, das dort genau diese Farbe mischt
- * (COLORS; am Kombinator seine Mischung, sonst die Treffer). Die Führung selbst (Anzeige, Uhr) steht bei der Oberfläche
- * (fuehrung).
+ * Du, Platzhalter je Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), auf dem der
+ * Lichtkegel liegt; bei einem Handlungsschritt reagieren nur sie (Sperre, seit .scratch/tutorial-neu/). weiter: was
+ * den Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken
+ * bzw. Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht das Element bei ist; bei
+ * ist dann das Element, das dafür zu drehen ist (Lichtkegel und Hand dort, die Geste nach richtung, die hier nichts
+ * einschränkt). farbe: bei «strahl» zählt nur Licht, das dort genau diese Farbe mischt (COLORS; am Kombinator seine
+ * Mischung, sonst die Treffer). Der letzte Schritt ist eine Handlung und endet erst mit dem Lösen. Die Führung selbst
+ * (Band, Lichtkegel, Hand) steht bei der Oberfläche (fuehrung).
  */
-const SCHRITTE_MAX = 3;
+const SCHRITTE_MAX = 4;
 /**
  * Was einen Schritt weiterschaltet: erklaerung (der Knopf «Weiter» am Satz, nie Zeit oder eine Drehung), antippen (das
  * Element antippen: ein drehbares dreht sich dabei, ein festes weigert sich), drehen (das Element drehen), strahl (der
@@ -8266,27 +8327,12 @@ function schrittErfuellt(s, e) {
     default: return false;
   }
 }
-/** Steht das drehbare Element el in der Stellung der Lösung (Spiegel: rot und rot + 4 gleich)? */
-function inLoesung(level, el) {
-  const soll = level.solution[zelleVon(el)];
-  if (soll === undefined) return true;
-  const ist = el.type === 'combiner' ? el.dir : el.rot;
-  return el.type === 'mirror' ? mod8(ist - soll) % 4 === 0 : mod8(ist) === mod8(soll);
-}
 /**
- * Später Fingerzeig nach den Schritten: das erste drehbare Element ausserhalb der Lösung (Reihenfolge von solution)
- * mit der Geste des kürzeren Wegs dorthin ({ el, geste: 'tippen' | 'zurueck' }); alle in der Lösung: null.
+ * Sperre (Spec .scratch/tutorial-neu/, «Strikte Führung»): Darf das Element el im Schritt s reagieren (drehen, als
+ * festes angetippt werden)? Bei einem Handlungsschritt nur die Elemente bei, bei einer Erklärung keines. Alle anderen
+ * weigern sich wie feste (weigern), auch drehbare.
  */
-function fingerzeigZiel(level, board) {
-  for (const k of Object.keys(level.solution)) {
-    const el = board.elements.find((e) => zelleVon(e) === k);
-    if (!el || inLoesung(level, el)) continue;
-    const runde = el.type === 'mirror' ? 4 : 8, ist = el.type === 'combiner' ? el.dir : el.rot;
-    const vor = mod8(level.solution[k] - ist) % runde, zur = mod8(ist - level.solution[k]) % runde;
-    return { el, geste: zur < vor ? 'zurueck' : 'tippen' };
-  }
-  return null;
-}
+const schrittErlaubt = (s, el) => !!s && s.weiter !== 'erklaerung' && schrittZellen(s).includes(zelleVon(el));
 
 /**
  * Würfel-Level: { name, dim: 3, size, height?, grad, hint?, elements: [{ type, x, y, z, axis?, dir?, rot?, color?, fixed? }],
@@ -18428,17 +18474,20 @@ function makeRefusing(obj) {
   obj.userData.sockelRand = rand;
 }
 
-/** Das feste Element el weigert sich (erneut angetippt: von vorn). */
+/**
+ * Das feste Element el weigert sich (erneut angetippt: von vorn). Unter der Sperre der Führung (fuehrung.darf) auch
+ * ein drehbares: Es wackelt ebenso, ohne Blitz (sein runder Sockel hat keinen roten Rand).
+ */
 function weigern(el) {
-  if (!el || isRotatable(el) || game.board.elements[el.id] !== el) return; // z. B. Element eines alten Levels
+  if (!el || (isRotatable(el) && fuehrung.darf(el)) || game.board.elements[el.id] !== el) return; // z. B. altes Level
   if (flow.state !== 'play') return;
   const obj = game.objects.get(el.id), u = obj?.userData;
-  if (!u?.sockelRand) return;
+  if (!u || (!u.sockelRand && !isRotatable(el))) return;
   fuehrung.angetippt(el); // ein Schritt kann auf die Weigerung warten (festes Element antippen)
   if (u.weigern) { u.weigern.t = 0; return; }
   // eigenes Material nur für die Dauer: das geteilte (edgeMat) liesse alle Sockel aufblitzen
-  const mat = u.sockelRand.material.clone();
-  u.sockelRand.material = mat;
+  const mat = u.sockelRand?.material.clone() ?? null;
+  if (mat) u.sockelRand.material = mat;
   u.weigern = { t: 0, mat, rotY: obj.rotation.y };
   weigernde.add(obj);
   sceneLoop.wake();
@@ -18451,12 +18500,11 @@ function animateWeigern(dt) {
     w.t = Math.min(1, w.t + dt / WEIGERN.dauer);
     obj.rotation.y = w.rotY + WEIGERN.winkel * Math.sin(2 * Math.PI * WEIGERN.schwingungen * w.t) * (1 - w.t);
     // Blitz: schnell hell (Höhepunkt bei einem Viertel), langsam zurück
-    w.mat.color.copy(FIXED_EDGE.color).multiplyScalar(1 + WEIGERN.blitz * Math.sin(Math.PI * Math.sqrt(w.t)));
+    w.mat?.color.copy(FIXED_EDGE.color).multiplyScalar(1 + WEIGERN.blitz * Math.sin(Math.PI * Math.sqrt(w.t)));
     markShadowsDirty();
     if (w.t >= 1 || !obj.parent) { // fertig oder das Level ist gewechselt
       obj.rotation.y = w.rotY;
-      u.sockelRand.material = fixedBase().edgeMat;
-      w.mat.dispose();
+      if (w.mat) { u.sockelRand.material = fixedBase().edgeMat; w.mat.dispose(); }
       u.weigern = null;
       weigernde.delete(obj);
     }
@@ -19292,11 +19340,14 @@ function pickElement(clientX, clientY, slop = 0) {
       cands.push({ el: proxy.userData.element, hit: null, px });
     }
   }
-  return pickTapped(cands, slop * SEITE);
+  return pickTapped(cands, slop * SEITE, fuehrung.vorrang());
 }
 
-/** Nur drehbare Elemente (Hover, Lichtrand): Feste reagieren allein aufs Antippen. */
-const rotatableOnly = (el) => (el && isRotatable(el) ? el : null);
+/**
+ * Nur drehbare Elemente, die drehen dürfen (Hover, Lichtrand, Drehen): Feste reagieren allein aufs Antippen, unter der
+ * Sperre der Führung weigern sich auch drehbare ausser den markierten (fuehrung.darf).
+ */
+const rotatableOnly = (el) => (el && isRotatable(el) && fuehrung.darf(el) ? el : null);
 
 function setHovered(el) {
   if (input.hovered === el) return;
@@ -19553,6 +19604,7 @@ canvasEl.addEventListener('pointerdown', (e) => {
       const p = input.pointer;
       if (!p || p.moved || p.consumed) return;
       p.consumed = true;
+      if (!fuehrung.darf(p.el)) { weigern(p.el); return; } // der Schritt wechselte während des Drückens
       rotateElement(p.el, -1);
       if (navigator.vibrate) navigator.vibrate(12);
     }, INPUT.longPressMs);
@@ -19601,8 +19653,9 @@ canvasEl.addEventListener('pointerup', (e) => {
   if (endPinch(e)) return;
   const p = input.pointer;
   if (!p || e.pointerId !== p.id) return;
-  if (!p.moved && !p.consumed && p.el) rotateElement(p.el, p.button === 2 ? -1 : 1);
-  else if (!p.moved && !p.consumed && p.fest) weigern(p.fest);
+  // die Sperre noch einmal: Zwischen Drücken und Loslassen kann der Schritt gewechselt haben
+  if (!p.moved && !p.consumed && p.el && fuehrung.darf(p.el)) rotateElement(p.el, p.button === 2 ? -1 : 1);
+  else if (!p.moved && !p.consumed && (p.fest || p.el)) weigern(p.fest ?? p.el);
   endPointer();
   if (e.pointerType === 'mouse') setHovered(rotatableOnly(pickElement(e.clientX, e.clientY)));
 });
@@ -19881,6 +19934,13 @@ const audio = {
   rotate() {
     const hz = GLASS_HZ[Math.floor(Math.random() * GLASS_HZ.length)];
     this._bell(hz, { gain: 0.035, decay: 0.45, partials: [[1, 1], [2.76, 0.3], [5.4, 0.1]], wet: 0.8 });
+  },
+
+  /** Ein Schritt der Führung ist geschafft (fuehrung.geschafft): zwei leise, helle Glockentöne aufwärts. */
+  schritt() {
+    const glocke = [[1, 1], [2, 0.14]];
+    this._bell(STERN_HZ[3], { gain: 0.026, attack: 0.004, decay: 1.1, partials: glocke, wet: 0.7 });
+    this._bell(STERN_HZ[5], { when: 0.09, gain: 0.02, attack: 0.004, decay: 1.4, partials: glocke, wet: 0.8 });
   },
 
   /** Ziel getroffen: Ton passend zur Farbe. */
@@ -20446,104 +20506,70 @@ const $ = (id) => document.getElementById(id);
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
 
 /**
- * Führung im Dorf (Ticket 02 von .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): zeigt die Schritte einer Übung
- * (LEVELS[i].schritte), wartet auf die Handlung des Spielers und geht dann weiter. Der Satz steht in der Kopfzeile, wo
- * sonst der Hinweis steht, eine Erklärung mit «Weiter»; ein gestrichelter Umriss läuft um das Element des Schritts, eine
- * Hand zeigt seine Geste einmal vor. Nach FUEHRUNG.fingerzeig s ohne Fortschritt (ein neuer Schritt, ein Element in der
- * Stellung der Lösung) kommt der späte Fingerzeig: der Umriss läuft schneller, die Hand zeigt die Geste wieder
- * (nach den Schritten am nächsten Element ausserhalb der Lösung, fingerzeigZiel), «Weiter» stupst.
- * Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie von selbst.
- * Wird die Übung früher gelöst, gilt das sofort: Die restlichen Schritte entfallen, kein Hinweis bleibt stehen.
+ * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, neu gestaltet mit .scratch/tutorial-neu/): zeigt die Schritte
+ * einer Übung (LEVELS[i].schritte), wartet auf die Handlung des Spielers und geht dann weiter. Der Satz steht im Band
+ * unten (#band), mit Punkten für den Fortschritt der Übung und bei einer Erklärung «Weiter»; Hinweise nebenbei klein
+ * darüber. Die Szene ist leicht abgedunkelt, ein Lichtkegel liegt auf jedem Element des Schritts; bei einem
+ * Handlungsschritt zeigt die Hand seine Geste sofort einmal vor.
+ * Strikt (Sperre): Bei einem Handlungsschritt reagieren nur seine Elemente (darf, vorrang; schrittErlaubt), alle
+ * anderen weigern sich (weigern, auch drehbare); bei einer Erklärung ist das ganze Brett gesperrt bis «Weiter». Kamera,
+ * Knöpfe, Menü, Übersicht, Ton, Neustart und «Dorf überspringen» bleiben frei. Ohne Führung ist nichts gesperrt.
+ * Rückmeldung: Ist ein Schritt geschafft, funkelt es an seinen Elementen (nur nach einer Handlung), sein Punkt füllt
+ * sich, ein leiser Ton (audio.schritt, nur bei Ton an); nach FUEHRUNG.wechsel s blendet der nächste weich ein (Satz,
+ * Lichtkegel, Hand). Die Sperre gilt in der Zeit dazwischen schon für den neuen Schritt. Fehlversuche bleiben ohne
+ * Tadel. Der letzte Schritt endet erst mit dem Lösen; gelöst wird nie von selbst. Wird die Übung früher gelöst, gilt
+ * das sofort: Die restlichen Schritte entfallen, nichts bleibt stehen.
  * Jedes neue Brett (enterLevel: Neustart, Neuladen, nächster Grad, aus der Übersicht) beginnt beim ersten Schritt;
- * Menü und Übersicht (hideHud, showHud) behalten ihn, die Zeit dort zählt nicht. Kein Speicherstand.
+ * Menü und Übersicht (hideHud, showHud) behalten ihn. Kein Speicherstand.
  * Anschlüsse: gedreht (rotateElement), angetippt (weigern: ein Schritt «antippen» eines festen Elements wartet darauf),
- * kamera (dragCamera, zoomCamera), neustart (restartLevel), start (das Brett steht), platziere (je Bild, nur solange
- * Umriss oder Hand zu sehen sind).
+ * kamera (dragCamera, zoomCamera), neustart (restartLevel), start (das Brett steht), darf und vorrang (Eingabe:
+ * rotatableOnly, pickElement, weigern), platziere (je Bild, solange über dem Brett etwas zu sehen ist).
  */
 const FUEHRUNG = {
-  fingerzeig: 15,                      // s ohne Fortschritt bis zum späten Fingerzeig (wird beim Testen angepasst)
   hand: { tippen: 2.6, zurueck: 3.6 }, // s: so lange zeigt die Hand die Geste zu Beginn eines Schritts vor
-  umriss: 0.66,                        // Halbmesser des Umrisses um das Element (Welt; die Zelle misst CELL)
   kuppe: 0.42,                         // Höhe über dem Brett, wo die Fingerkuppe aufsetzt (Welt)
-  // Der Umriss als Ring in der Szene (Ticket 05, fuehrung.ringe): Striche und Schatten in Pixeln der Oberfläche wie
-  // vorher der SVG-Ring (stroke-width 2, dasharray 5 3 auf 100, drop-shadow 3 px, opacity 0.85), stark beim späten
-  // Fingerzeig. takt: s je Strich und Lücke (so weit läuft er in der Zeit). Er liegt hoehe über dem Brett, sein Band
-  // reicht band (Welt) nach innen und aussen: so viel Platz brauchen Strich und Schatten, auch ganz herausgezoomt
-  ring: {
-    striche: 12, anteil: 5 / 8, hoehe: 0.02, band: 0.2, schatten: 1.5,
-    normal: { breite: 2, deckung: 0.85, takt: 1.4 }, stark: { breite: 2.6, deckung: 1, takt: 0.55 },
-  },
+  wechsel: 0.6,                        // s nach einem geschafften Schritt, bis der nächste weich einblendet
+  funkeln: 0.9,                        // s: so lange funkelt es am Element eines geschafften Schritts (CSS fz-funke)
+  // Lichtkegel: Halbmesser um das Element (Welt; die Zelle misst CELL) in der Höhe hoehe über dem Brett; bis innen
+  // (Anteil des Halbmessers) ganz hell, dann weich ins Abdunkeln (dunkel: Deckkraft über der übrigen Szene)
+  kegel: { radius: 0.78, hoehe: 0.3, innen: 0.55, dunkel: 0.46 },
 };
-
-/**
- * Shader des Umrisses (fuehrung.ringe): ein flaches Band um das Element, gezeichnet ist nur der Strich in seiner Mitte
- * (Halbmesser uR) mit einem dunklen Schatten. Breite und Schatten in Pixeln der Oberfläche (uPx: Bildpunkte je Pixel,
- * renderer.getPixelRatio): Quer und entlang des Rings rechnet er über die Ableitungen in Bildpunkte um, so bleibt der
- * Strich bei jedem Zoom und schräg wie der frühere SVG-Ring. uPhase: Lage der Striche (läuft je Bild, die einzige
- * Uniform je Bild). Tiefentest wie alles in der Szene, ohne Tiefe zu schreiben: Element und Nachbarn verdecken ihn.
- * Ohne Nebel, Farbe unter der Bloom-Schwelle (fuehrung.ringTeile).
- */
-const UMRISS_VERTEX = `
-  varying vec2 vP;
-  void main() {
-    vP = position.xz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }`;
-const UMRISS_FRAGMENT = `
-  uniform vec3 uFarbe, uDunkel;
-  uniform float uR, uPhase, uBreite, uDeckung, uPx;
-  varying vec2 vP;
-  const float N = ${glf(FUEHRUNG.ring.striche)}, D = ${glf(FUEHRUNG.ring.anteil)}, TAU = 6.2831853;
-  const float SIGMA = ${glf(FUEHRUNG.ring.schatten)};
-  void main() {
-    float r = max(length(vP), 1e-4);
-    // Welt je Bildpunkt quer (radial) und entlang (in Strichen): aus den Ableitungen von vP, nicht von atan, das am
-    // Übergang springt
-    vec2 gx = dFdx(vP), gy = dFdy(vP), n = vP / r, t = vec2(-n.y, n.x);
-    float quer = max(length(vec2(dot(gx, n), dot(gy, n))), 1e-6);
-    float entlang = max(length(vec2(dot(gx, t), dot(gy, t))) / r * N / TAU, 1e-6);
-    // Abstand zum nächsten Strich (rund abgeschlossen wie stroke-linecap: round), in Bildpunkten
-    float g = fract(atan(vP.y, vP.x) / TAU * N + uPhase) - 0.5 * D;
-    g -= floor(g + 0.5);
-    float a = length(vec2((r - uR) / quer, max(abs(g) - 0.5 * D, 0.0) / entlang));
-    float strich = clamp(0.5 * uBreite * uPx + 0.5 - a, 0.0, 1.0);
-    float aussen = max(a / uPx - 0.5 * uBreite, 0.0); // Pixel der Oberfläche ausserhalb des Strichs
-    float schatten = 0.45 * exp(-aussen * aussen / (2.0 * SIGMA * SIGMA));
-    float alpha = strich + schatten * (1.0 - strich);
-    if (alpha * uDeckung < 0.004) discard;
-    gl_FragColor = vec4((uFarbe * strich + uDunkel * schatten * (1.0 - strich)) / alpha, alpha * uDeckung);
-  }`;
 
 const fuehrung = {
   level: null,        // die geführte Übung (LEVELS[i]) oder null: keine Führung
   board: null,        // ihr Brett; ein neues (enterLevel) beginnt beim ersten Schritt
-  schritt: 0,         // Platz in level.schritte; dahinter: alle Schritte durch, frei bis zur Lösung
-  los: false,         // das Brett steht (flow play): Umriss und Hand dürfen erscheinen
+  schritt: 0,         // Platz in level.schritte; der letzte bleibt bis zum Lösen
+  los: false,         // das Brett steht (flow play): Lichtkegel und Hand dürfen erscheinen
   fertig: false,      // gelöst: nichts mehr bis zum nächsten Brett
-  spaet: false,       // später Fingerzeig
+  wechselt: false,    // ein Schritt ist geschafft, der nächste blendet nach FUEHRUNG.wechsel ein
+  vorige: [],         // Zellen des geschafften Schritts: ihr Lichtkegel bleibt, solange es wechselt
   hand: false,        // die Hand zeigt die Geste des Schritts vor (einmal je Schritt)
   vorzeigen: false,   // die Hand hat die Geste des Schritts noch nicht vorgezeigt (unter Menü und Übersicht wartet sie)
   nebenbei: [],       // offene Hinweise nebenbei (Schlüssel in NEBENBEI)
   benutzt: new Set(), // benutzte Hinweise nebenbei der Übung benutztIn: kommen beim Neustart nicht wieder
   benutztIn: -1,
   neustarten: false,  // ein Neustart (restartLevel) kommt: nur dann bleiben die benutzten Hinweise nebenbei weg
-  uhr: 0, handUhr: 0, // setTimeout: später Fingerzeig, Ende des Vorzeigens
-  sichtbar: false,    // Umriss oder Hand zu sehen: platziere je Bild
-  ziele: [],          // Elemente mit Umriss
+  handUhr: 0, wechselUhr: 0, ausUhr: 0, // setTimeout: Ende des Vorzeigens, nächster Schritt, Ebene weg
+  sichtbar: false,    // Abdunkeln, Lichtkegel oder Hand zu sehen: platziere je Bild
+  kegel: [],          // Lichtkegel { el, loch, schein, x, y, r } (x, y, r in Pixeln des Canvas; platziere)
+  kegelZellen: '',    // ihre Zellen (ein neuer Satz Kegel wächst neu auf)
   handZiel: null,     // Element der Hand
-  satz: null, satzText: null, knopf: null, neben: null, // Kopfzeile (kopfzeile)
-  bild: null, handEl: null,                            // Ebene über dem Brett (#fuehrung): die Hand
-  ringe: [],          // Umrisse in der Szene (ein Mesh je Element, am Modell; ringTeile), nicht gezeigte ohne Eltern
-  ringGeo: null, ringMat: null, // je geführtes Brett (ringTeile), frei bei seinem Ende (ringeFrei)
-  ringHalter: null,   // zum Vorwärmen kurz in der Szene, unsichtbar (ringeVorwaermen)
-  gezeigt: 0,         // so viele Ringe sind gezeigt (die ersten in ringe)
-  still: matchMedia('(prefers-reduced-motion: reduce)'), // dann stehen die Striche
+  band: null,         // das Band unten (#band, bandTeile)
+  bild: null, handEl: null, // Ebene über dem Brett (#fuehrung): Abdunkeln, Lichtkegel, Funkeln, Hand
 
   /** Läuft die Führung für LEVELS[index] auf dem Brett? */
   fuehrt(index) { return !!this.level && this.level === LEVELS[index] && this.board === game.board; },
   aktiv() { return !!this.level && !this.fertig; },
   /** Der laufende Schritt (null: keiner mehr oder keine Führung). */
   aktuell() { return this.aktiv() ? this.level.schritte[this.schritt] ?? null : null; },
+  /** Sperre: Darf el reagieren (drehen, als festes angetippt werden)? Ohne laufende Führung immer. */
+  darf(el) { return !this.aktiv() || this.board !== game.board || schrittErlaubt(this.aktuell(), el); },
+  /** Für die Auswahl beim Antippen (pickTapped): die Elemente des Schritts gewinnen; ohne Führung null. */
+  vorrang() {
+    if (!this.aktiv() || this.board !== game.board) return null;
+    const s = this.aktuell();
+    return (el) => schrittErlaubt(s, el);
+  },
 
   /** Neues Brett (enterLevel): Führung nur für eine Übung im Dorf mit Schritten, beim ersten Schritt. */
   neu(index) {
@@ -20556,71 +20582,87 @@ const fuehrung = {
     this.level = gefuehrt ? lvl : null;
     this.board = game.board;
     this.schritt = 0;
-    this.los = this.fertig = this.spaet = this.hand = this.vorzeigen = false;
+    this.los = this.fertig = this.wechselt = this.hand = this.vorzeigen = false;
+    this.vorige = [];
     this.nebenbei = gefuehrt ? (lvl.nebenbei ?? []).filter((n) => !this.benutzt.has(n)) : [];
     this.stoppeUhren();
-    const frei = this.ringeAb(); // die des vorigen Bretts
-    if (gefuehrt) this.ringeVorwaermen(); // während das Brett herauswächst
-    frei();
-    this.zeichneBild();
+    this.zeichneBild(true); // das vorige Brett: nichts mehr darüber
+    this.zeichneBand();
   },
-  /** Das Brett steht (updateFlow): die Hand zeigt den laufenden Schritt vor, die Uhr läuft. */
+  /** Das Brett steht (updateFlow): Abdunkeln, Lichtkegel, die Hand zeigt den laufenden Schritt vor. */
   start() {
     if (!this.aktiv() || this.board !== game.board || this.los) return;
     this.los = true;
     this.beginneSchritt();
   },
-  /** Schritt beginnen (auch nach dem Weiterschalten): Hand einmal, Uhr neu. Trifft der Strahl schon: gleich weiter. */
-  beginneSchritt() {
+  /**
+   * Schritt beginnen (auch nach dem Weiterschalten, weich: nach FUEHRUNG.wechsel). Trifft der Strahl schon: gleich
+   * weiter (nie über den letzten hinaus).
+   */
+  beginneSchritt(weich = false) {
+    const letzter = this.level.schritte.length - 1;
     let s = this.aktuell();
-    while (s?.weiter === 'strahl' && schrittErfuellt(s, { art: 'strahl', board: this.board, result: game.result })) {
+    while (s?.weiter === 'strahl' && this.schritt < letzter
+      && schrittErfuellt(s, { art: 'strahl', board: this.board, result: game.result })) {
       this.schritt++;
       s = this.aktuell();
     }
-    this.spaet = false;
     clearTimeout(this.handUhr);
+    clearTimeout(this.wechselUhr);
     this.hand = false;
     this.vorzeigen = !!(s && schrittGeste(s));
-    this.zeigeHand();
-    this.armiere();
+    this.wechselt = weich;
+    if (weich) {
+      this.wechselUhr = setTimeout(() => {
+        this.wechselt = false;
+        this.zeigeHand();
+        this.zeichne();
+      }, FUEHRUNG.wechsel * 1000);
+    } else this.zeigeHand();
     this.zeichne();
   },
   /**
-   * Die Hand zeigt die Geste des laufenden Schritts einmal vor, sobald das Brett steht und zu sehen ist (stand es unter
-   * dem Menü fertig, beim Zurückkommen; Review Ticket 02 Gerüst).
+   * Die Hand zeigt die Geste des laufenden Schritts einmal vor, sobald das Brett steht, der Schritt eingeblendet und
+   * zu sehen ist (stand es unter dem Menü fertig, beim Zurückkommen; Review Ticket 02 Gerüst).
    */
   zeigeHand() {
     const s = this.aktuell(), geste = s && schrittGeste(s);
-    if (!this.vorzeigen || !this.los || story.choosing || !geste) return;
+    if (!this.vorzeigen || !this.los || this.wechselt || story.choosing || !geste) return;
     this.vorzeigen = false;
     this.hand = true;
     this.handUhr = setTimeout(() => { this.hand = false; this.zeichneBild(); }, FUEHRUNG.hand[geste] * 1000);
   },
-  /** Ereignis e (schrittErfuellt) für den laufenden Schritt; schaltet es weiter: true. */
+  /** Ereignis e (schrittErfuellt) für den laufenden Schritt; schaltet es weiter: true. Der letzte endet mit dem Lösen. */
   ereignis(e) {
     const s = this.aktuell();
     if (!s || this.board !== game.board || !schrittErfuellt(s, e)) return false;
+    if (this.schritt >= this.level.schritte.length - 1) return false;
+    this.geschafft(s);
     this.schritt++;
-    this.beginneSchritt();
+    this.beginneSchritt(true);
     return true;
+  },
+  /** Rückmeldung zum geschafften Schritt s: Funkeln an seinen Elementen (nach einer Handlung), Ton; Punkt in zeichne. */
+  geschafft(s) {
+    this.vorige = schrittZellen(s);
+    if (s.weiter !== 'erklaerung') {
+      for (const z of new Set([...this.vorige, ...(s.trifft ? [s.trifft] : [])])) {
+        const el = this.board.elements.find((x) => zelleVon(x) === z);
+        if (el) this.funkle(el);
+      }
+    }
+    audio.schritt();
   },
   /** Ein Element wurde gedreht (rotateElement, nach der neuen Rechnung). */
   gedreht(el, delta) {
     if (!this.aktiv() || this.board !== game.board) return;
     if (game.result.solved) { this.beenden(); return; } // früher gelöst: gilt sofort
-    const vorher = el.type === 'combiner' ? { ...el, dir: mod8(el.dir - delta) } : { ...el, rot: mod8(el.rot - delta) };
-    const weiter = this.ereignis({ art: 'gedreht', el, delta })
-      || this.ereignis({ art: 'strahl', board: this.board, result: game.result });
-    if (!weiter && !inLoesung(this.level, vorher) && inLoesung(this.level, el)) { // Fortschritt: die Uhr neu
-      this.spaet = false;
-      this.armiere();
-      this.zeichne();
-    }
+    if (!this.ereignis({ art: 'gedreht', el, delta })) this.ereignis({ art: 'strahl', board: this.board, result: game.result });
   },
-  /** Ein festes Element weigert sich (weigern): der Anschluss für einen Schritt «antippen» eines festen Elements. */
+  /** Ein Element weigert sich (weigern): der Anschluss für einen Schritt «antippen» eines festen Elements. */
   angetippt(el) { if (this.aktiv()) this.ereignis({ art: 'angetippt', el }); },
-  /** «Weiter» an einer Erklärung. */
-  weiter() { if (this.aktiv()) this.ereignis({ art: 'weiter' }); },
+  /** «Weiter» an einer Erklärung (nicht, solange der nächste Schritt einblendet). */
+  weiter() { if (this.aktiv() && !this.wechselt) this.ereignis({ art: 'weiter' }); },
   /** Eine Geste der Kamera (Ziehen, Zoomen): beendet den Hinweis nebenbei zur Kamera. */
   kamera() { if (this.nebenbei.length && this.nebenbei.includes('kamera')) this.nutze('kamera'); },
   /** Neustart der Übung (restartLevel), vor dem neuen Brett. */
@@ -20631,197 +20673,145 @@ const fuehrung = {
   nutze(n) {
     this.benutzt.add(n);
     this.nebenbei = this.nebenbei.filter((m) => m !== n);
-    this.zeichneKopf();
+    this.zeichneBand();
   },
-  /** Gelöst: Schritte und Hinweise nebenbei entfallen, Umriss und Hand gehen. */
+  /** Gelöst: Schritte und Hinweise nebenbei entfallen, Band, Abdunkeln und Hand gehen weich. */
   beenden() {
     this.fertig = true;
+    this.wechselt = this.hand = false;
     this.nebenbei = [];
-    this.spaet = this.hand = false;
     this.stoppeUhren();
     this.zeichne();
-    this.ringeFrei();
   },
-  /** Später Fingerzeig nach FUEHRUNG.fingerzeig s ohne Fortschritt (nur, solange das Brett steht und zu sehen ist). */
-  armiere() {
-    clearTimeout(this.uhr);
-    if (!this.aktiv() || !this.los || this.spaet || story.choosing) return; // unter dem Menü zählt die Zeit nicht
-    this.uhr = setTimeout(() => { this.spaet = true; this.zeichne(); }, FUEHRUNG.fingerzeig * 1000);
-  },
-  stoppeUhren() { clearTimeout(this.uhr); clearTimeout(this.handUhr); },
-  /** Testschnittstelle: die Uhr des späten Fingerzeigs gleich ablaufen lassen. */
-  vorspulen() {
-    if (!this.aktiv() || !this.los) return;
-    clearTimeout(this.uhr);
-    this.spaet = true;
-    this.zeichne();
-  },
-  /** Kopfzeile ausgeblendet (Menü, Übersicht, Levelwechsel, Zwischenszene): Uhren aus, nichts über dem Brett. */
+  stoppeUhren() { clearTimeout(this.handUhr); clearTimeout(this.wechselUhr); },
+  /** Kopfzeile ausgeblendet (Menü, Übersicht, Levelwechsel, Zwischenszene): nichts über dem Brett. */
   verbergen() {
-    this.stoppeUhren();
+    clearTimeout(this.handUhr); // der Wechsel zum nächsten Schritt läuft weiter, die Hand wartet (zeigeHand)
     if (this.hand) this.vorzeigen = true; // mitten im Vorzeigen: beim Zurückkommen noch einmal ganz
     this.hand = false;
-    if (this.knopf?.contains(document.activeElement)) this.knopf.blur(); // die Kopfzeile ist nur ausgeblendet
+    if (this.band?.knopf.contains(document.activeElement)) this.band.knopf.blur(); // das Band ist nur ausgeblendet
     this.zeichneBild(true);
   },
-  /** Kopfzeile wieder da (showHud): weiter im selben Schritt, die Uhr beginnt neu (die Zeit im Menü zählt nicht). */
+  /** Kopfzeile wieder da (showHud): weiter im selben Schritt. */
   zeigen() {
-    this.zeichneKopf();
+    this.zeichneBand();
     this.zeigeHand();
-    this.armiere();
     this.zeichneBild();
   },
-  zeichne() { this.zeichneKopf(); this.zeichneBild(); },
+  zeichne() { this.zeichneBand(); this.zeichneBild(); },
 
-  /** Satz und Hinweise nebenbei für die Unterzeile der Kopfzeile (showHud), sonst leer. */
-  kopfzeile() {
-    if (!this.satz) {
-      this.satz = document.createElement('span');
-      this.satz.className = 'hinweis schritt';
-      this.satzText = document.createElement('span');
-      this.satzText.setAttribute('aria-live', 'polite');
-      this.knopf = document.createElement('button');
-      this.knopf.type = 'button';
-      this.knopf.className = 'fuehrung-weiter';
-      this.knopf.textContent = 'Weiter';
-      this.knopf.addEventListener('click', () => this.weiter());
-      this.satz.append(this.satzText, this.knopf);
-      this.neben = document.createElement('span');
-      this.neben.className = 'hinweis nebenbei';
+  /** Die Teile des Bands (#band in der Kopfzeile), beim ersten Gebrauch. */
+  bandTeile() {
+    if (this.band) return this.band;
+    const el = $('band');
+    const knopf = el.querySelector('.fuehrung-weiter');
+    knopf.addEventListener('click', () => this.weiter());
+    return this.band = { el, knopf, satz: el.querySelector('.band-satz'), zeile: el.querySelector('.band-zeile'),
+      punkte: el.querySelector('.band-punkte'), neben: el.querySelector('.band-neben') };
+  },
+  /**
+   * Das Band: der Satz des Schritts, ein Punkt je Schritt (voll: geschafft, mit Ring: der laufende), «Weiter» an einer
+   * Erklärung, darüber die Hinweise nebenbei. Während es wechselt, blendet der Satz aus und mit dem neuen wieder ein
+   * (CSS .wechsel). Ohne laufende Führung (gelöst, anderes Brett) blendet es aus und behält dabei seinen Inhalt.
+   */
+  zeichneBand() {
+    const b = this.bandTeile(), schritte = this.level?.schritte ?? [];
+    const an = this.aktiv() && this.board === game.board;
+    b.el.classList.toggle('aus', !an);
+    if (b.punkte.childElementCount !== schritte.length && (an || !schritte.length)) {
+      b.punkte.replaceChildren(...schritte.map(() => document.createElement('i')));
     }
-    this.zeichneKopf();
-    return [this.satz, this.neben];
-  },
-  zeichneKopf() {
-    if (!this.satz) return;
-    const s = this.aktuell(), schritte = this.level?.schritte ?? [];
-    // der Satz bleibt stehen, bis der nächste kommt: nach den Schritten der letzte
-    const text = !this.aktiv() ? '' : geraeteText((s ?? schritte.at(-1)).text, IS_TOUCH);
-    if (this.satzText.textContent !== text) this.satzText.textContent = text;
-    this.satz.hidden = !text;
-    const erklaerung = s?.weiter === 'erklaerung';
-    this.knopf.hidden = !erklaerung;
-    this.knopf.classList.toggle('stups', erklaerung && this.spaet);
-    const neben = this.aktiv() ? this.nebenbei.map((n) => NEBENBEI[n].text[IS_TOUCH ? 0 : 1]).join(' ') : '';
-    if (this.neben.textContent !== neben) this.neben.textContent = neben;
-    this.neben.hidden = !neben;
+    [...b.punkte.children].forEach((p, i) => {
+      p.classList.toggle('voll', this.fertig || i < this.schritt);
+      p.classList.toggle('jetzt', an && !this.wechselt && i === this.schritt);
+    });
+    if (!an) return;
+    b.zeile.classList.toggle('wechsel', this.wechselt);
+    if (!this.wechselt) {
+      const s = this.aktuell(), text = geraeteText(s.text, IS_TOUCH);
+      if (b.satz.textContent !== text) b.satz.textContent = text;
+      b.knopf.hidden = s.weiter !== 'erklaerung';
+    } else if (b.knopf.contains(document.activeElement)) b.knopf.blur();
+    const neben = this.nebenbei.map((n) => NEBENBEI[n].text[IS_TOUCH ? 0 : 1]).join(' ');
+    if (b.neben.textContent !== neben) b.neben.textContent = neben;
+    b.neben.hidden = !neben;
   },
 
-  /** Was über dem Brett zu sehen ist: Umriss um die Elemente des Schritts, die Hand beim Vorzeigen und Fingerzeig. */
+  /**
+   * Was über dem Brett zu sehen ist: das Abdunkeln mit einem Lichtkegel je Element des Schritts (während es wechselt,
+   * die des geschafften), die Hand beim Vorzeigen. aus: sofort nichts (Menü, neues Brett); gelöst blenden Abdunkeln und
+   * Kegel weich aus.
+   */
   zeichneBild(aus = false) {
     const s = this.aktuell();
     const zeigt = !aus && this.aktiv() && this.los && flow.state === 'play' && !story.choosing
       && this.board === game.board;
-    let ziele = [], hand = null, geste = null;
+    clearTimeout(this.ausUhr);
+    if (!zeigt && !this.bild) return;
+    if (!this.bild) this.baueBild();
     if (zeigt) {
       const am = (z) => this.board.elements.find((el) => zelleVon(el) === z);
-      if (s) {
-        ziele = schrittZellen(s).map(am).filter(Boolean);
-        geste = schrittGeste(s);
-        if (geste && (this.hand || this.spaet)) hand = ziele[0] ?? null;
-      } else if (this.spaet) {
-        const fz = fingerzeigZiel(this.level, this.board);
-        if (fz) { ziele = [fz.el]; hand = fz.el; geste = fz.geste; }
-      }
-    }
-    this.ziele = ziele;
+      this.zeigeKegel((this.wechselt ? this.vorige : schrittZellen(s)).map(am).filter(Boolean));
+    } else if (aus) this.zeigeKegel([]);
+    const geste = zeigt && !this.wechselt ? schrittGeste(s) : null;
+    const hand = geste && this.hand ? this.kegel[0]?.el ?? null : null;
     this.handZiel = hand;
-    this.sichtbar = ziele.length > 0 || !!hand;
-    this.zeigeRinge(ziele);
-    if (this.bild || hand) {
-      if (!this.bild) this.baueBild();
-      const art = !hand ? '' : geste === 'tippen' ? 'tippen' : IS_TOUCH ? 'halten' : 'rechtsklick';
-      if (this.handEl.dataset.art !== art) this.handEl.dataset.art = art;
-      this.handEl.style.display = hand ? '' : 'none';
-      this.bild.style.display = hand ? '' : 'none';
+    const art = !hand ? '' : geste === 'tippen' ? 'tippen' : IS_TOUCH ? 'halten' : 'rechtsklick';
+    if (this.handEl.dataset.art !== art) this.handEl.dataset.art = art;
+    this.handEl.style.display = hand ? '' : 'none';
+    this.bild.classList.toggle('dunkel', zeigt);
+    this.sichtbar = zeigt;
+    // ein Funkeln läuft noch aus (gelöst gleich nach einem Schritt), nicht aber unter Menü, Übersicht oder Zwischenszene:
+    // Dort zeigte die Uhr des Wechsels (wechselUhr) es sonst wieder über ihnen (Review Ticket 01)
+    const funkelt = !aus && flow.state === 'play' && !story.choosing && this.board === game.board
+      && !!this.bild.querySelector('.fz-funke');
+    if (zeigt || funkelt) {
+      this.bild.style.display = '';
+      this.platziere();
     }
-    if (this.sichtbar) this.platziere();
+    if (aus) this.bild.style.display = 'none';
+    // gelöst: Abdunkeln und Kegel blenden aus (CSS), danach ist die Ebene weg
+    else if (!zeigt) this.ausUhr = setTimeout(() => { this.bild.style.display = 'none'; this.zeigeKegel([]); }, 700);
   },
-
-  /**
-   * Umrisse in der Szene (Ticket 05: Wo der Ring hinter einem Element durchläuft, ist er verdeckt): je Element ein Mesh
-   * am Modell, so geht er mit Kamera, Zoom und Herauswachsen mit. Nicht gezeigte hängen nirgends; stark beim späten
-   * Fingerzeig (Breite und Deckung nur hier, je Bild nur uPhase in platziere).
-   */
-  zeigeRinge(ziele) {
-    if (ziele.length && !this.ringMat) this.ringTeile(); // sonst schon in neu vorgewärmt
-    for (let i = 0; i < Math.max(ziele.length, this.gezeigt); i++) {
-      const obj = i < ziele.length ? game.objects.get(ziele[i].id) ?? null : null;
-      if (obj && !this.ringe[i]) this.ringe[i] = this.ringMesh();
-      const m = this.ringe[i];
-      if (!m || m.parent === obj) continue;
-      m.parent?.remove(m);
-      obj?.add(m);
-    }
-    if (this.gezeigt !== ziele.length) sceneLoop.wake();
-    this.gezeigt = ziele.length;
-    if (!this.ringMat) return;
-    const art = FUEHRUNG.ring[this.spaet ? 'stark' : 'normal'], u = this.ringMat.uniforms;
-    u.uBreite.value = art.breite;
-    u.uDeckung.value = art.deckung;
-  },
-  /** Geometrie und Material der Umrisse eines geführten Bretts (frei mit ringeFrei). */
-  ringTeile() {
-    const r = FUEHRUNG.umriss, ring = FUEHRUNG.ring;
-    this.ringGeo = new THREE.RingGeometry(r - ring.band, r + ring.band, 96, 1).rotateX(-Math.PI / 2); // flach, oben vorn
-    // #ffd98a des SVG-Rings als Szenenwert vor ACES mit der Helligkeit 0.8: Er erscheint fast gleich (rund #f4cf8a)
-    // und bleibt unter der Bloom-Schwelle (ohne HDR liegt sie bei 0.8, dann im selben Mass dunkler), er leuchtet nicht
-    const k = Math.min(1, 0.95 * LOOK.bloomThreshold / 0.8);
-    this.ringMat = new THREE.ShaderMaterial({
-      uniforms: {
-        uFarbe: { value: new THREE.Color(1.5, 0.57, 0.13).multiplyScalar(k) },
-        uDunkel: { value: new THREE.Color(0.001, 0.001, 0.0025) }, // rgba(3, 3, 8) des Schattens
-        uR: { value: r }, uPhase: { value: 0 }, uBreite: { value: ring.normal.breite },
-        uDeckung: { value: ring.normal.deckung }, uPx: { value: renderer.getPixelRatio() },
-      },
-      vertexShader: UMRISS_VERTEX,
-      fragmentShader: UMRISS_FRAGMENT,
-      transparent: true,
-      depthWrite: false,
-      fog: false, // der Nebel verschluckte ihn weit weg (Handy hoch)
-      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, // nie im Brett (z-fighting)
-      extensions: { derivatives: true }, // dFdx, dFdy (WebGL1)
+  /** Lichtkegel auf die Elemente ziele: ein neuer Satz wächst auf (CSS), derselbe bleibt stehen. */
+  zeigeKegel(ziele) {
+    const key = ziele.map((el) => el.id).join();
+    if (key === this.kegelZellen) return;
+    this.kegelZellen = key;
+    for (const k of this.kegel) { k.loch.remove(); k.schein.remove(); }
+    const ns = this.bild.namespaceURI, loecher = this.bild.querySelector('.fz-loecher');
+    const scheine = this.bild.querySelector('.fz-scheine');
+    this.kegel = ziele.map((el) => {
+      const teil = (verlauf) => {
+        const g = document.createElementNS(ns, 'g'), c = document.createElementNS(ns, 'circle');
+        c.setAttribute('r', '1');
+        c.setAttribute('fill', `url(#${verlauf})`);
+        c.setAttribute('class', 'fz-kegel');
+        g.append(c);
+        return g;
+      };
+      const loch = teil('fz-loch'), schein = teil('fz-schein');
+      loecher.append(loch);
+      scheine.append(schein);
+      return { el, loch, schein, x: 0, y: 0, r: 0 };
     });
+    sceneLoop.wake();
   },
-  ringMesh() {
-    const m = new THREE.Mesh(this.ringGeo, this.ringMat);
-    m.position.y = FUEHRUNG.ring.hoehe;
-    m.renderOrder = 8; // nach den Durchsichtigen der Elemente (Lichtrand 7)
-    m.raycast = () => {};
-    m.layers.set(LAYER_NO_REFLECT); // nicht in der Spiegelung des Bretts
-    return m;
+  /** Ein kurzes Funkeln am Element el (geschaffter Schritt): Strahlen und Ring, die vergehen (CSS fz-funke). */
+  funkle(el) {
+    if (!this.bild) this.baueBild();
+    const obj = game.objects.get(el.id);
+    if (!obj) return;
+    const p = this.bildpunkt(obj, FUEHRUNG.kegel.hoehe);
+    const g = document.createElementNS(this.bild.namespaceURI, 'g');
+    g.setAttribute('transform', `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`);
+    g.setAttribute('class', 'fz-funke');
+    g.innerHTML = '<g><circle r="16"/><path d="M0-30V-19M0 19V30M-30 0H-19M19 0H30M-21-21L-14-14M14 14L21 21M-21 21L-14 14M14-14L21-21"/></g>';
+    this.bild.querySelector('.fz-funken').append(g);
+    this.bild.style.display = '';
+    setTimeout(() => g.remove(), FUEHRUNG.funkeln * 1000);
   },
-  /**
-   * Das Programm des Umrisses übersetzen, während das Brett herauswächst (compileParallel wie warmupShaders): sonst
-   * stockte das erste Bild mit Umriss. Dazu hängt ein unsichtbarer Ring kurz in der Szene (three übersetzt mit ihren
-   * Lichtern und Schatten, wie es dann zeichnet), bis alles angestossen ist.
-   */
-  ringeVorwaermen() {
-    if (!this.ringMat) this.ringTeile();
-    const halter = this.ringHalter = this.ringMesh();
-    halter.visible = false;
-    scene.add(halter);
-    const weg = () => { scene.remove(halter); if (this.ringHalter === halter) this.ringHalter = null; };
-    compileParallel([scene], { skip: scene.children.filter((c) => c !== halter), slices: true,
-      alive: () => this.ringHalter === halter, issued: weg, was: 'Führung: Umriss' }).finally(weg);
-  },
-  /** Ende der Führung eines Bretts (gelöst, neues Brett): Umrisse aus der Szene, Geometrie und Material frei. */
-  ringeFrei() { this.ringeAb()(); },
-  /**
-   * Umrisse aus der Szene, ohne sie schon freizugeben: gibt das Freigeben zurück. neu gibt erst nach dem Vorwärmen der
-   * neuen frei, so behält three das Programm (gleicher Shader) und übersetzt es für die nächste Übung nicht noch einmal.
-   */
-  ringeAb() {
-    const geo = this.ringGeo, mat = this.ringMat;
-    if (!mat) return () => {};
-    for (const m of this.ringe) m.parent?.remove(m);
-    if (this.ringHalter) { scene.remove(this.ringHalter); this.ringHalter = null; }
-    this.ringe = [];
-    this.gezeigt = 0;
-    this.ringGeo = this.ringMat = null;
-    return () => { geo.dispose(); mat.dispose(); };
-  },
-  /** Die Ebene #fuehrung (beim ersten Gebrauch): die Hand mit ihren drei Gesten. */
+  /** Die Ebene #fuehrung (beim ersten Gebrauch): Abdunkeln mit Löchern für die Lichtkegel, Funkeln, die Hand. */
   baueBild() {
     const tmp = document.createElement('div');
     // Zeigehand (Ticket 06, Wahl B des Nutzers): Kuppe des Zeigefingers im Ursprung, die Hand unten rechts, in Pixeln;
@@ -20834,7 +20824,22 @@ const fuehrung = {
       '<rect x="-4" y="55" width="33" height="10" rx="2"/>'].join('');
     const finger = `<g class="fz-finger"><g class="fz-kontur">${form}</g><g class="fz-flaeche">${form}</g>
       <rect class="fz-aermel" x="-4" y="57" width="33" height="8" rx="2"/><path class="fz-falte" d="M15.7 27V33M25 30V35M-2 6.5H2"/></g>`;
-    tmp.innerHTML = `<svg id="fuehrung" aria-hidden="true" style="display: none"><g class="fz-hand">
+    // Lichtkegel: Im Abdunkeln (Maske: weiss deckt) liegt je Kegel ein Loch, innen ganz offen, aussen weich, nach
+    // aussen durchsichtig statt weiss, so stören sich nahe Kegel nicht; darüber ein schwacher warmer Schein
+    const k = FUEHRUNG.kegel;
+    tmp.innerHTML = `<svg id="fuehrung" aria-hidden="true" style="display: none">
+      <defs>
+        <radialGradient id="fz-loch"><stop offset="${k.innen}" stop-color="#000"/>
+          <stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+        <radialGradient id="fz-schein"><stop offset="0" stop-color="#ffe6b0" stop-opacity="0.12"/>
+          <stop offset="${k.innen}" stop-color="#ffd98a" stop-opacity="0.07"/>
+          <stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></radialGradient>
+        <mask id="fz-maske" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
+          <rect class="fz-flaeche-maske" width="100%" height="100%" fill="#fff"/><g class="fz-loecher"></g></mask>
+      </defs>
+      <rect class="fz-dunkel" width="100%" height="100%" mask="url(#fz-maske)" style="--fz-dunkel: ${k.dunkel}"/>
+      <g class="fz-scheine"></g><g class="fz-funken"></g>
+      <g class="fz-hand">
       <g class="fz-tippen"><circle class="fz-welle" r="22"/><g transform="rotate(-18)">${finger}</g></g>
       <g class="fz-halten"><circle class="fz-ring" r="28" pathLength="100" transform="rotate(-90)"/>
         <g transform="rotate(-18)">${finger}</g></g>
@@ -20844,33 +20849,54 @@ const fuehrung = {
     </g></svg>`;
     this.bild = tmp.firstElementChild;
     this.handEl = this.bild.querySelector('.fz-hand');
-    document.body.insertBefore(this.bild, $('hud')); // unter der Kopfzeile, über der Szene
+    this.handEl.style.display = 'none';
+    document.body.insertBefore(this.bild, $('hud')); // unter Kopfzeile und Band, über der Szene
+  },
+  /** Bildschirmlage (Pixel des Canvas) des Modells obj, hoehe über seiner Mitte (mit seiner Grösse beim Herauswachsen). */
+  bildpunkt(obj, hoehe) {
+    const v = _fzMitte, w = canvasEl.clientWidth, h = canvasEl.clientHeight;
+    obj.getWorldPosition(v);
+    v.y += hoehe * obj.scale.x;
+    v.project(camera);
+    return { x: (v.x + 1) / 2 * w, y: (1 - v.y) / 2 * h };
   },
   /**
-   * Je Bild, solange sichtbar (dt in s): Die Striche der Umrisse laufen (eine Uniform; mit prefers-reduced-motion
-   * stehen sie), die Hand geht an die Bildschirmlage ihres Elements und behält ihre Grösse. Die Umrisse selbst gehen als
-   * Teil der Szene mit Kamera, Zoom und Perspektive mit.
+   * Je Bild, solange sichtbar: Die Lichtkegel und die Hand gehen an die Bildschirmlage ihres Elements (Kamera, Zoom,
+   * Herauswachsen), die Kegel in der Grösse des Elements im Bild, die Hand in ihrer eigenen. Gesetzt wird nur, was
+   * sich um einen halben Pixel ändert (die Kamera schwebt).
    */
-  platziere(dt = 0) {
-    if (this.gezeigt && this.ringMat) {
-      const u = this.ringMat.uniforms, px = renderer.getPixelRatio();
-      if (!this.still.matches) u.uPhase.value = (u.uPhase.value - dt / FUEHRUNG.ring[this.spaet ? 'stark' : 'normal'].takt) % 1;
-      if (u.uPx.value !== px) u.uPx.value = px; // adaptive Auflösung
-    }
-    const obj = this.bild && this.handZiel && game.objects.get(this.handZiel.id);
-    if (!obj) return;
-    const w = canvasEl.clientWidth, h = canvasEl.clientHeight, v = _fzMitte;
+  platziere() {
+    if (!this.bild) return;
+    const w = canvasEl.clientWidth, h = canvasEl.clientHeight;
     const box = `0 0 ${w} ${h}`;
     if (this.bild.getAttribute('viewBox') !== box) this.bild.setAttribute('viewBox', box);
     camera.updateMatrixWorld();
-    obj.getWorldPosition(v);
-    v.y += FUEHRUNG.kuppe * obj.scale.x;
-    v.project(camera);
-    const t = `translate(${((v.x + 1) / 2 * w).toFixed(1)} ${((1 - v.y) / 2 * h).toFixed(1)})`;
+    const rechts = _fzRechts.setFromMatrixColumn(camera.matrixWorld, 0).normalize();
+    const rund = (x) => Math.round(x * 2) / 2;
+    for (const k of this.kegel) {
+      const obj = game.objects.get(k.el.id);
+      if (!obj) continue;
+      const p = this.bildpunkt(obj, FUEHRUNG.kegel.hoehe);
+      // Halbmesser im Bild: ein Punkt um radius nach rechts (in der Ebene des Bildschirms) neben der Mitte
+      const v = obj.getWorldPosition(_fzMitte);
+      v.y += FUEHRUNG.kegel.hoehe * obj.scale.x;
+      v.addScaledVector(rechts, FUEHRUNG.kegel.radius * Math.max(obj.scale.x, 0.01)).project(camera);
+      const r = Math.max(4, rund(Math.hypot((v.x + 1) / 2 * w - p.x, (1 - v.y) / 2 * h - p.y)));
+      const x = rund(p.x), y = rund(p.y);
+      if (x === k.x && y === k.y && r === k.r) continue;
+      Object.assign(k, { x, y, r });
+      const t = `translate(${x} ${y}) scale(${r})`;
+      k.loch.setAttribute('transform', t);
+      k.schein.setAttribute('transform', t);
+    }
+    const obj = this.handZiel && game.objects.get(this.handZiel.id);
+    if (!obj) return;
+    const p = this.bildpunkt(obj, FUEHRUNG.kuppe);
+    const t = `translate(${p.x.toFixed(1)} ${p.y.toFixed(1)})`;
     if (this.handEl.getAttribute('transform') !== t) this.handEl.setAttribute('transform', t);
   },
 };
-const _fzMitte = new THREE.Vector3();
+const _fzMitte = new THREE.Vector3(), _fzRechts = new THREE.Vector3();
 
 /** Sekunden als m:ss bzw. h:mm:ss. */
 function formatDuration(seconds) {
@@ -20953,8 +20979,8 @@ const ui = {
   /**
    * Kopfzeile. In Noas Geschichte: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter die Ziele mit dem
    * Grad dahinter («Ziele 0 / 3 · ●●○○ Mittel»; Kapitel, Level und Bedienung stehen seit dem 09.11.2026 nicht mehr
-   * da, Wunsch des Nutzers); im Dorf «Im Dorf – Umweg», darunter ebenso Ziele und Grad, dann «Übung 2 / 9» und der
-   * Satz des laufenden Schritts (Führung, seit Ticket 03 von .scratch/tutorial-fuehrung/). Ein Level ausserhalb der
+   * da, Wunsch des Nutzers); im Dorf «Im Dorf – Umweg», darunter ebenso Ziele und Grad, dann «Übung 2 / 9» (der Satz
+   * des laufenden Schritts steht seit .scratch/tutorial-neu/ im Band unten, fuehrung). Ein Level ausserhalb der
    * Geschichte (Testschnittstelle zeige): Titel oder Name mit dem Grad dahinter, im Tutorial darunter der erste
    * Schritt, im Würfel der Hinweis.
    */
@@ -20980,8 +21006,8 @@ const ui = {
         teil.textContent = info;
         zeile.push(teil);
       }
-      if (fuehrung.fuehrt(index)) zeile.push(...fuehrung.kopfzeile()); // geführt: der Satz des Schritts
-      else if (lvl.tutorial) { // Übung im Dorf ohne Führung: ihr erster Schritt in eigener Zeile
+      // geführt: der Satz des Schritts steht im Band unten (fuehrung.zeichneBand, seit .scratch/tutorial-neu/)
+      if (lvl.tutorial && !fuehrung.fuehrt(index)) { // Übung im Dorf ohne Führung: ihr erster Schritt in eigener Zeile
         const h = document.createElement('span');
         h.className = 'hinweis';
         h.textContent = hinweis();
@@ -27552,7 +27578,7 @@ function animate(t, dt) {
   }
   beamView.tick(t, dt);
   updateTargetGoals();
-  if (fuehrung.sichtbar) fuehrung.platziere(dt); // Striche der Umrisse laufen, die Hand geht mit Kamera und Zoom
+  if (fuehrung.sichtbar) fuehrung.platziere(); // Lichtkegel und Hand gehen mit Kamera und Zoom
 }
 
 // Zustand für Werkzeuge und Proben; ohne Weg, ein Level zu wechseln (goto ist mit der Levelauswahl weggefallen: Die

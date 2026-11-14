@@ -52,8 +52,9 @@ _Vermeiden_: Steinplatte, Plattform
 Ein festes Element auf eckigem Sockel (Quelle, Ziel, Filter, fester Spiegel, festes Prisma, fester Kombinator) wackelt
 beim Antippen kurz, sein roter Rand blitzt auf. Ohne Text, ohne Zug; Strahlen und Speicherstand bleiben. Es gilt im
 ganzen Spiel, nicht in Würfel-Leveln (dort Rahmen statt Sockel); Elemente ohne Sockel (Blocker) reagieren nicht.
-Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare. Rund heisst drehbar, eckig
-heisst fest. Im Code `weigern`, die Auswahl `pickTapped`.
+Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare (unter der Sperre der Führung
+gewinnt das markierte, und auch drehbare weigern sich dort, nur ohne Blitz). Rund heisst drehbar, eckig heisst fest.
+Im Code `weigern`, die Auswahl `pickTapped`.
 _Vermeiden_: Fehlklick, Ablehnung
 
 ## Noas Geschichte
@@ -132,9 +133,9 @@ ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.st
 
 **Im Dorf**:
 Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
-und der Satz des laufenden Schritts, siehe Führung; einen festen Hinweissatz je Übung gibt es seit der Führung nicht
-mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad und
+«Übung 2 / 9»; der Satz des laufenden Schritts steht im Band, siehe Führung; einen festen Hinweissatz je Übung gibt es
+seit der Führung nicht mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
 der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt hat Noa den Dreh raus …», wartet auf Tippen), dann bringen die
@@ -150,34 +151,51 @@ _Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in
 Geschichte), Welt (für das Dorf)
 
 **Führung**:
-Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
-der Kopfzeile, wo früher der Hinweis stand, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
-einmal vor. Der Umriss liegt als Ring auf dem Brett, Teil der Szene: Wo er hinter einem Element durchläuft, ist er
-verdeckt. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
-von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
-Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
-`fuehrung` (Anzeige, Uhr), die Daten `schritte` und `nebenbei` je Übung.
+Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen», neu gestaltet mit PLAN 1a.3
+«Tutorial neu»): Der Satz des Schritts steht im Band unten, die Szene ist leicht abgedunkelt, ein Lichtkegel liegt auf
+dem Element des Schritts, und bei einer Handlung zeigt eine gezeichnete Zeigehand die Geste sofort einmal vor. Sie ist
+strikt (siehe Sperre). Ein geschaffter Schritt bekommt eine Rückmeldung: ein kurzes Funkeln am Element, sein Punkt im
+Band füllt sich, ein leiser Ton (nur bei Ton an); nach etwa 0,6 s blendet der nächste weich ein. Fehlversuche bleiben
+ohne Tadel. Gelöst wird nie von selbst, der letzte Schritt führt zur Lösung; wird die Übung früher gelöst, gilt das
+sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im Dorf; Neustart und Neuladen beginnen beim ersten
+Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code `fuehrung` (Band, Lichtkegel, Hand, Sperre),
+die Daten `schritte` und `nebenbei` je Übung.
 _Vermeiden_: Tutorial (für die Führung), Hilfe
+
+**Band**:
+Das feste Band der Führung am unteren Rand, immer an derselben Stelle: der Satz des Schritts, ein Punkt je Schritt der
+Übung (● ● ○ ○: geschafft, der laufende mit Ring) und bei einer Erklärung der Knopf «Weiter»; darüber klein die
+Hinweise nebenbei. Es lässt die Knöpfe frei (über ihrer Reihe unten, auf dem Handy quer links von ihnen) und geht mit
+der Kopfzeile aus und ein. «Übung 2 / 9» bleibt in der Kopfzeile. Im Code `#band`, `fuehrung.zeichneBand`.
+_Vermeiden_: Leiste, Untertitel, Sprechblase
+
+**Lichtkegel**:
+Die weiche, helle Stelle im Abdunkeln der Szene auf dem Element eines Schritts (bei mehreren auf jedem); ein neuer
+wächst kurz auf. Er ersetzt den gestrichelten Umriss aus 1a.1, das Abdunkeln zeigt zugleich, dass der Rest gesperrt
+ist. Im Code `fuehrung.kegel`, `FUEHRUNG.kegel`.
+_Vermeiden_: Umriss, Spotlight, Markierung (für den Kegel selbst)
+
+**Sperre**:
+Die strikte Führung: Bei einem Handlungsschritt reagiert nur das markierte Element (beim Antippen gewinnt es auch gegen
+ein drehbares daneben), jedes andere weigert sich wie ein festes, auch drehbare (Wackeln ohne Blitz, kein Zug, keine
+Drehung). Bei einer Erklärung ist das ganze Brett gesperrt, bis «Weiter» getippt wird. Frei bleiben immer Kamera,
+Knöpfe, Menü, Übersicht, Ton, Neustart und «Dorf überspringen»; ausserhalb der Führung ist nichts gesperrt. Im Code
+`schrittErlaubt`, `fuehrung.darf` und `fuehrung.vorrang`.
+_Vermeiden_: Blockade, Lock
 
 **Schritt**:
 Ein Teil der Führung: ein oder zwei kurze Sätze im Du, höchstens 18 Wörter (Platzhalter je Gerät wie «Tippe» /
-«Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
-Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist, und auch nur mit einer
-bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung
-der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
-bis zum Lösen. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
+«Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen
+(auch nur zurück), der Strahl trifft ein Element (auch eines, für das ein anderes, markiertes Element zu drehen ist,
+und auch nur mit einer bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung der Knopf «Weiter» im
+Band. Höchstens vier je Übung; der letzte ist eine Handlung und endet erst mit dem Lösen. Im Code `schritte`
+(`SCHRITTE_MAX`, `SCHRITT_WEITER`, `schrittErfuellt`).
 _Vermeiden_: Stufe, Hinweis (für einen Schritt)
 
 **Hinweis nebenbei**:
-Ein leiser Satz unter dem Schritt zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Schritten,
+Ein leiser Zusatz über dem Band zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Punkten,
 verschwindet bei der ersten Benutzung (Kamerageste, Neustart) oder spätestens mit dem Lösen und kommt beim Neustart
 derselben Übung nicht wieder. Im Code `NEBENBEI`.
-
-**Später Fingerzeig**:
-Nach 15 s ohne Fortschritt (neuer Schritt, ein Element in der Stellung der Lösung) zeigt die Führung noch einmal: Der
-Umriss läuft schneller, die Hand zeigt die Geste wieder, «Weiter» stupst; nach den Schritten gilt das dem nächsten
-Element ausserhalb der Lösung. Er löst nie. Die 15 s sind vorläufig, sie werden nach den Tests von Hand (Poco, eine
-Person, die Prisma nicht kennt) festgelegt. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
 
 **Angebot**:
 Die Frage nach dem Prolog, auf der Bühne: «Die Glühwürmchen wollen gleich los in den Wald. Möchtest du vorher mit Noa
@@ -383,6 +401,13 @@ So viele Elemente so dicht beieinander, dass das Feld unübersichtlich wird.
 ## Abgelöst
 
 Begriffe aus älteren Specs, Tickets und Kommentaren, die den Ablauf des Spiels nicht mehr beschreiben.
+
+**Später Fingerzeig**:
+In der Führung aus PLAN 1a.1 zeigte sie nach 15 s ohne Fortschritt noch einmal: Der gestrichelte Umriss lief
+schneller, die Hand zeigte die Geste wieder, «Weiter» stupste; nach den Schritten galt das dem nächsten Element
+ausserhalb der Lösung. Im Code war das `FUEHRUNG.fingerzeig` und `fingerzeigZiel`.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu»: Die Hand zeigt sofort, die Sperre lässt nur das Markierte reagieren, der
+Lichtkegel ersetzt den Umriss.
 
 **Reihe** (500er-Reihe):
 Bis zum 29.10.2026 der Ablauf des Spiels: das Tutorial und alle flachen Level in einer festen Folge nach
