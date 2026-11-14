@@ -1,12 +1,15 @@
 # Stand «Tutorial neu» – Übergabe
 
 Stand 14.11.2026, Branch `feature/tutorial-neu` (von `main` ec02954). PLAN 1a.3. Spec und Tickets aus dem Grilling vom
-14.11.2026 liegen bereit; umgesetzt ist noch nichts. Die Tickets werden auf einem anderen Rechner umgesetzt.
+14.11.2026. **Ticket 01 ist umgesetzt und reviewt** (Merge 85530ed, APP_VERSION `2026-11-14 tutorial-neu-1`) und wartet
+auf den Poco-Test des Nutzers.
 
 ## Als Nächstes
 
-1. **Ticket 01** (`issues/01-geruest-und-aussehen.md`): Gerüst, Aussehen, strikte Führung, «Erstes Licht» neu.
-2. Bilder für den Nutzer, **er prüft auf dem Poco**. Ticket 02 erst nach seinem Okay.
+1. ~~Ticket 01~~ fertig. Hinweise fürs Weitere im Ticket unter «Comments»: Band deckt quer und bei 360 × 640 die
+   unterste Brettreihe (neue Bretter unten frei lassen), Text `NEBENBEI.neustart` passt hochkant nicht, Abdunkeln 0,46
+   auf dem Poco beurteilen.
+2. Bilder sind beim Nutzer, **er prüft auf dem Poco**. Ticket 02 erst nach seinem Okay.
 3. Ticket 02, dann 03.
 
 ## Arbeitsweise (vom Nutzer so gewünscht, wie in 1a.1)
