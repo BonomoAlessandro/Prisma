@@ -348,6 +348,15 @@ Android-Chromium.
   (Angebot, Einstieg, Ende), sechs Reisen, Finale, Epilog, 22 der 23 Schritte und die Hinweise nebenbei. Die Regel der
   Führung ist dafür gelockert: ein oder zwei kurze Sätze je Schritt (höchstens 18 Wörter, 105 Zeichen), Hinweise
   höchstens 16 Wörter. Entscheid 13 des Kleinen Wagens («von Spiegel zu Spiegel» in Prolog 6) ist damit aufgehoben.
+- [ ] **1a.3 Tutorial neu** (Wunsch des Nutzers, 14.11.2026): 9 Übungen sind nicht nötig, um alle Mechaniken zu
+  zeigen, und das Tutorial soll professioneller wirken; der Spieler soll immer wissen, was zu tun ist. Entschieden im
+  Grilling: **4 Übungen** auf neuen Brettern (Erstes Licht, Brechung, Farbenlehre, Mischung), je höchstens 4 Schritte;
+  «Spiegel längs» und «Prisma von der falschen Seite» fallen weg. **Strikte Führung:** Nur das markierte Element
+  reagiert, Kamera und Knöpfe bleiben frei; der späte Fingerzeig entfällt. **Neuer Look:** festes Band unten mit Satz,
+  Fortschrittspunkten und «Weiter», abgedunkelte Szene mit Lichtkegel statt Umriss, Hand sofort, Rückmeldung je
+  Schritt (Funkeln, Punkt, leiser Ton bei Ton an, weicher Übergang). Ein laufendes Dorf in alten Spielständen beginnt neu. Zuerst nur
+  «Erstes Licht», der Nutzer prüft auf dem Poco, dann der Rest. Branch `feature/tutorial-neu`, Spec, Tickets und
+  Übergabe in `.scratch/tutorial-neu/` (`STAND.md`).
 
 ## 2. Würfel-Level (3D)
 
