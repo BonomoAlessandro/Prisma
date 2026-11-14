@@ -680,11 +680,13 @@ console.log('Führung im Dorf (Schritte)');
       }
     }
   });
-  test('Schritte: die Inhalte je Übung (Spec «Inhalte je Übung», Ticket 03)', () => {
+  // seit Ticket 02 von .scratch/tutorial-neu/ vier Übungen (Spec «Vier Übungen statt neun»), je ein neues Brett
+  test('Schritte: die Inhalte je Übung (Spec .scratch/tutorial-neu/, «Vier Übungen statt neun»)', () => {
     const u = (n) => L.LEVELS.slice(0, L.TUTORIAL_COUNT).find(q => q.name === n);
     const art = (n) => u(n).schritte.map(s => s.weiter + (s.richtung === -1 ? '-zurück' : '')).join(' ');
-    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name), ['Erstes Licht', 'Umweg', 'Sperre',
-      'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung']);
+    const typ = (n, z) => am(u(n), z).type, zelle = (q) => `${q.x},${q.z}`;
+    assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name),
+      ['Erstes Licht', 'Brechung', 'Farbenlehre', 'Mischung']);
     // Erstes Licht (neu mit Ticket 01 von .scratch/tutorial-neu/): das Ziel (Erklärung mit Lichtkegel auf dem
     // Kristall), Tippen dreht (bis das Licht den festen Spiegel trifft), den festen Spiegel antippen (er wackelt),
     // rund gegen eckig und zurückdrehen: Der hintere Spiegel steht eine Stufe zu weit, einmal zurück löst die Übung
@@ -696,28 +698,48 @@ console.log('Führung im Dorf (Schritte)');
     assert.ok(/eckig/.test(es[2].text) && /[Ee]ckige.*runde/.test(es[3].text), 'rund gegen eckig');
     assert.equal(L.mod8(am(e, es[3].bei).rot - 1) % 4, e.solution[es[3].bei] % 4, 'eine Stufe zu weit');
     assert.deepEqual(Object.keys(e.solution).sort(), [es[1].bei, es[3].bei].sort(), 'genau die beiden runden Spiegel');
-    // Umweg: festen Spiegel antippen, «Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht», zurückdrehen;
-    // beide runden Spiegel stehen
-    // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
-    const w = u('Umweg');
-    assert.equal(art('Umweg'), 'antippen erklaerung drehen-zurück');
-    assert.ok(am(w, w.schritte[0].bei).fixed
-      && w.schritte[1].text === 'Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht.');
-    assert.deepEqual([].concat(w.schritte[2].bei).sort(), Object.keys(w.solution).sort(), 'alle runden Spiegel');
-    for (const z of Object.keys(w.solution)) {
-      assert.equal(L.mod8(am(w, z).rot - 1) % 4, w.solution[z] % 4, `${z}: eine Stufe zu weit`);
-    }
-    // Schatten: Spiegel längs und Prisma von der falschen Seite in getrennten Schritten
-    const sch = u('Schatten');
-    assert.ok(am(sch, sch.schritte[0].bei).type === 'mirror' && am(sch, sch.schritte[1].bei).type === 'prism');
-    // Hinweise nebenbei: Kamera in «Sperre», Neustart in «Brechung», sonst keine
+    // Brechung: der Block (Erklärung, zu Beginn fällt das Licht auf ihn), den Spiegel drehen, bis das Licht das Prisma
+    // trifft, das Prisma (Erklärung), es drehen bis zur Lösung
+    const b = u('Brechung'), bs = b.schritte;
+    assert.equal(art('Brechung'), 'erklaerung strahl erklaerung drehen');
+    assert.ok(typ('Brechung', bs[0].bei) === 'blocker' && L.strahlTrifft(L.traceBeams(L.createBoard(b)),
+      L.createBoard(b).elements.find(q => zelle(q) === bs[0].bei)), 'zu Beginn fällt das Licht auf den Block');
+    assert.ok(typ('Brechung', bs[1].bei) === 'mirror' && typ('Brechung', bs[1].trifft) === 'prism');
+    assert.ok(bs[2].bei === bs[1].trifft && bs[3].bei === bs[1].trifft, 'Erklärung und Drehung am Prisma');
+    // Farbenlehre: der Filter, der Ring an den Kristallen (zu Beginn flackert dort eine falsche Farbe), das Grün an
+    // seinen Platz, dann der Spiegel der roten Lampe
+    const f = u('Farbenlehre'), fs = f.schritte, fr = L.traceBeams(L.createBoard(f)), fb = L.createBoard(f);
+    assert.equal(art('Farbenlehre'), 'erklaerung erklaerung strahl drehen');
+    assert.equal(typ('Farbenlehre', fs[0].bei), 'filter');
+    assert.ok([].concat(fs[1].bei).every(z => typ('Farbenlehre', z) === 'target'), 'Ring: die Kristalle');
+    assert.ok([].concat(fs[1].bei).some(z => {
+      const t = fb.elements.find(q => zelle(q) === z), hit = fr.hits.get(t.id) ?? 0;
+      return hit && hit !== t.color;
+    }), 'zu Beginn eine falsche Farbe in einem Ring');
+    assert.ok(f.elements.some(q => q.type === 'source' && q.color && q.color !== 'white'), 'farbige Lampe');
+    assert.ok(typ('Farbenlehre', fs[2].bei) === 'mirror' && typ('Farbenlehre', fs[3].bei) === 'mirror');
+    // Mischung: Mischen am Ziel (Erklärung, dann der Spiegel, bis Rot und Blau den Kristall zusammen treffen), der
+    // Kombinator (Erklärung), ihn drehen bis zur Lösung
+    const m = u('Mischung'), ms = m.schritte;
+    assert.equal(art('Mischung'), 'erklaerung strahl erklaerung drehen');
+    assert.ok(typ('Mischung', ms[0].bei) === 'target' && ms[1].trifft === ms[0].bei && ms[1].farbe === 'magenta');
+    assert.ok(typ('Mischung', ms[2].bei) === 'combiner' && ms[3].bei === ms[2].bei);
+    // Hinweise nebenbei: Kamera und Neustart in «Brechung», sonst keine
     assert.deepEqual(Object.fromEntries(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(q => q.nebenbei).map(q => [q.name, q.nebenbei])),
-      { Sperre: ['kamera'], Brechung: ['neustart'] });
-    // die Elemente der Lehrinhalte stehen im Satz eines Schritts mit Umriss
-    const umrandet = (n, typ) => u(n).schritte.some(s => [].concat(s.bei ?? []).some(z => am(u(n), z).type === typ));
-    for (const [n, typ] of [['Sperre', 'blocker'], ['Brechung', 'prism'], ['Farbenlehre', 'filter'],
-      ['Farbiges Licht', 'source'], ['Farbiges Licht', 'target'], ['Treffpunkt', 'target'], ['Mischung', 'combiner']]) {
-      assert.ok(umrandet(n, typ), `${n}: ${typ}`);
+      { Brechung: ['kamera', 'neustart'] });
+    // die Elemente der Lehrinhalte stehen im Lichtkegel eines Schritts
+    const beleuchtet = (n, t) => u(n).schritte.some(s => [].concat(s.bei ?? []).some(z => typ(n, z) === t));
+    for (const [n, t] of [['Brechung', 'blocker'], ['Brechung', 'prism'], ['Farbenlehre', 'filter'],
+      ['Farbenlehre', 'target'], ['Mischung', 'target'], ['Mischung', 'combiner']]) {
+      assert.ok(beleuchtet(n, t), `${n}: ${t}`);
+    }
+  });
+  // Ticket 01 von .scratch/tutorial-neu/: Auf dem Handy quer und bei 360 × 640 deckt das Band die unterste Reihe und
+  // reicht in die zweitletzte; dort steht kein Element einer Übung
+  test('Schritte: die beiden untersten Reihen jeder Übung sind leer (dort liegt das Band)', () => {
+    for (const l of gefuehrt) {
+      const size = l.size || 7;
+      assert.deepEqual(l.elements.filter(e => e.z >= size - 2).map(e => `${e.type} ${e.x},${e.z}`), [], l.name);
     }
   });
   test('Schritte: der letzte ist eine Handlung (er endet erst mit dem Lösen), jede Handlung hat ein Element, das reagiert', () => {
@@ -853,7 +875,7 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', false), 'Rechtsklicke auf den Spiegel.');
   });
   test('Was weiterschaltet: Erklärung nur «Weiter», antippen auch fest, drehen mit Richtung, Strahl', () => {
-    const l = L.LEVELS.find(q => q.name === 'Umweg'), b = L.createBoard(l);
+    const l = L.LEVELS.find(q => q.name === 'Erstes Licht'), b = L.createBoard(l);
     const fest = b.elements.find(e => e.fixed), dreh = b.elements.find(e => L.isRotatable(e));
     const zelle = (e) => `${e.x},${e.z}`;
     assert.ok(L.schrittErfuellt({ weiter: 'erklaerung' }, { art: 'weiter' }));
@@ -884,18 +906,21 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(L.schrittGeste(mit), 'zurueck');
     assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel) }), 'tippen');
     assert.equal(L.schrittGeste({ weiter: 'strahl', bei: zelle(ziel) }), null);
-    // Strahl mit farbe («Mischung»): Grün allein im Kombinator schaltet nicht, erst Rot und Blau (Magenta)
-    const m = L.LEVELS.find(q => q.name === 'Mischung'), mb = L.createBoard(m), s1 = m.schritte[0];
-    const kombi = mb.elements.find(q => q.type === 'combiner'), prisma = mb.elements.find(q => q.type === 'prism');
+    // Strahl mit farbe («Mischung», seit Ticket 02 von .scratch/tutorial-neu/ am Ziel): Blau allein am Kristall schaltet
+    // nicht, erst Rot und Blau zusammen (Magenta); der Kombinator mischt schon zu Beginn beide
+    const m = L.LEVELS.find(q => q.name === 'Mischung'), mb = L.createBoard(m), s2 = m.schritte[1];
+    const kristall = mb.elements.find(q => zelle(q) === s2.trifft), spiegel = mb.elements.find(q => zelle(q) === s2.bei);
+    const kombi = mb.elements.find(q => q.type === 'combiner');
     let mr = L.traceBeams(mb);
-    assert.ok(L.strahlTrifft(mr, kombi) && mr.mixes.get(kombi.id) === L.COLORS.green, 'Start: Grün im Kombinator');
-    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }), 'Grün schaltet nicht');
-    assert.ok(L.schrittErfuellt({ ...s1, farbe: undefined }, { art: 'strahl', board: mb, result: mr }), 'ohne farbe schon');
-    prisma.rot = L.mod8(prisma.rot - 1); // zurück: nur Blau
-    assert.ok(!L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: L.traceBeams(mb) }), 'zurück schaltet nicht');
-    prisma.rot = L.mod8(prisma.rot + 2); // ein Tippen vom Start: Rot und Blau
+    assert.ok(L.strahlTrifft(mr, kristall) && mr.hits.get(kristall.id) === L.COLORS.blue, 'Start: Blau am Kristall');
+    assert.equal(mr.mixes.get(kombi.id), L.COLORS.magenta, 'Start: der Kombinator mischt Rot und Blau');
+    assert.ok(!L.schrittErfuellt(s2, { art: 'strahl', board: mb, result: mr }), 'Blau schaltet nicht');
+    assert.ok(L.schrittErfuellt({ ...s2, farbe: undefined }, { art: 'strahl', board: mb, result: mr }), 'ohne farbe schon');
+    spiegel.rot = L.mod8(spiegel.rot + 1); // ein Tippen: das Rot verschwindet am Spiegel
+    assert.ok(!L.schrittErfuellt(s2, { art: 'strahl', board: mb, result: L.traceBeams(mb) }), 'ein Tippen schaltet nicht');
+    spiegel.rot = L.mod8(spiegel.rot + 1); // zwei Tippen: Rot und Blau
     mr = L.traceBeams(mb);
-    assert.ok(mr.mixes.get(kombi.id) === L.COLORS.magenta && L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }));
+    assert.ok(mr.hits.get(kristall.id) === L.COLORS.magenta && L.schrittErfuellt(s2, { art: 'strahl', board: mb, result: mr }));
   });
   // der späte Fingerzeig (fingerzeigZiel, FUEHRUNG.fingerzeig) fällt mit .scratch/tutorial-neu/ weg: Die Hand zeigt
   // sofort, die Sperre lässt nur das Markierte reagieren

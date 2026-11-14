@@ -96,7 +96,7 @@
     #hud .title .tier:not([hidden]) { display: block; margin: 6px 0 0; padding-left: 0.3em; }
   }
   /* Noas Geschichte: der Grad hinter den Zielen («Ziele 0 / 3 · ●●○○ Mittel»); die Unterzeile nur im Dorf mit
-     «Übung 2 / 9» (der Satz des Schritts steht im Band unten, #band) */
+     «Übung 2 / 4» (der Satz des Schritts steht im Band unten, #band) */
   #hud .goal .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; vertical-align: 0; }
   #hud .goal .tier::before { content: " · "; }
   #hud .sub .teil { white-space: nowrap; }
@@ -217,7 +217,7 @@
     #hud .sub { display: none; }
     #hud .goal { margin-top: 2px; font-size: 9px; }
     #hud.tutorial .sub { display: block; margin-top: 4px; font-size: 9px; letter-spacing: 0.2em; } /* Tutorial: Hinweis bleibt */
-    /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 9» klein in einer Zeile, darunter der Hinweis */
+    /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 4» klein in einer Zeile, darunter der Hinweis */
     #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
     #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
   }
@@ -1335,7 +1335,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-14 tutorial-neu-2';
+const APP_VERSION = '2026-11-14 tutorial-neu-3';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -2012,8 +2012,9 @@ function tracePass(board, extraRays, emitting, from) {
  *             (NEBENBEI). Einen Hinweis (hint) haben sie seit Ticket 03 der Führung nicht mehr
  *   solution: { "x,z": rot bzw. dir } für jedes drehbare Element – die einzige Lösung.
  *             Die Elemente stehen zu Beginn in ihrer Startstellung (nie bereits gelöst).
- * Zuerst das Tutorial: je Level ein Gedanke (Ziel und Spiegel, drehbar/fest, Block, Prisma, verschwindendes Licht,
- * Filter, farbige Quellen, Mischen auf dem Ziel, Kombinator).
+ * Zuerst das Tutorial, seit .scratch/tutorial-neu/ vier Übungen: Erstes Licht (Ziel, Spiegel, drehbar und fest),
+ * Brechung (Block, Prisma), Farbenlehre (Filter, farbige Quellen, Ring am Ziel), Mischung (Mischen am Ziel, Kombinator).
+ * Ihre Bretter lassen die beiden untersten Reihen frei (dort liegt auf dem Handy das Band der Führung).
  * Danach die 150 Level nach der Schwierigkeit aus der Beurteilung, mit ihrem Grad (Ticket 15) – Elemente und Farben
  * mischen sich frei. tools/ordne-level.mjs ordnet sie zwischen den Markierungen und setzt den Grad; die Kommentare
  * je Level nennen die Herkunft (alte Wertung und Profil der Werkzeuge bis Ticket 21, Seed).
@@ -2048,188 +2049,87 @@ const LEVELS = [
     solution: { '2,4': 3, '5,1': 1 },
   },
   {
-    // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; fester Spiegel (3,1) – Nord → Ost; Spiegel (5,1) rot 1 – Ost → Süd → Ziel (5,4).
-    // Der vordere Spiegel (3,5) steht eine Stufe zu weit (rot 4 = 3 + 1): Zurückdrehen ist der kurze Weg (Wahl des
-    // Nutzers am Katalog). Der hintere (5,1) ebenso (rot 2 = 1 + 1, Ticket 04 der Führung): Der letzte Schritt nennt
-    // beide runden Spiegel, nach ihm bleibt keine Drehung, von der kein Satz spricht. Zwischen dem festen Spiegel und
-    // dem drehbaren (5,1) liegt ein Feld: Auf dem Handy trifft das Antippen den festen.
-    name: 'Umweg', tutorial: true,
-    schritte: [
-      { text: '{Tippe} den Spiegel auf dem eckigen Sockel an und schau, was passiert.', bei: '3,1',
-        weiter: 'antippen' },
-      { text: 'Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht.', bei: ['3,5', '5,1', '3,1'],
-        weiter: 'erklaerung' },
-      { text: 'Die runden Spiegel stehen einen Schritt zu weit. {Drücke lang} darauf, dann drehen sie zurück.',
-        bei: ['3,5', '5,1'], weiter: 'drehen', richtung: -1 },
-    ],
-    elements: [
-      { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 4 },
-      { type: 'mirror', x: 3, z: 1, rot: 3, fixed: true },
-      { type: 'mirror', x: 5, z: 1, rot: 2 },
-      { type: 'target', x: 5, z: 4, color: 'white' },
-    ],
-    solution: { '3,5': 3, '5,1': 1 },
-  },
-  {
-    // Lösung: Spiegel (3,2) rot 3 – Ost → Nord; Spiegel (3,0) rot 3 – Nord → Ost; Spiegel (5,0) rot 1 – Ost → Süd
-    //   → Ziel (5,5). Der kurze Weg nach Süden über den festen Spiegel (3,5) endet am Block (3,4) – zu Beginn sichtbar.
-    name: 'Sperre', tutorial: true,
-    schritte: [
-      { text: 'Durch den Block kommt kein Licht. Es muss um ihn herum.', bei: '3,4',
-        weiter: 'erklaerung' },
-      { text: '{Tippe} den Spiegel, bis das Licht zum nächsten Spiegel läuft.', bei: '3,2',
-        weiter: 'strahl', trifft: '3,0' },
-      { text: '{Tippe} jetzt die beiden markierten Spiegel, bis das Licht beim Kristall ankommt.', bei: ['3,0', '5,0'],
-        weiter: 'drehen' },
-    ],
-    nebenbei: ['kamera'],
-    elements: [
-      { type: 'source', x: 0, z: 2, dir: 0 },
-      { type: 'mirror', x: 3, z: 2, rot: 1 },
-      { type: 'blocker', x: 3, z: 4 },
-      { type: 'mirror', x: 3, z: 5, rot: 1, fixed: true },
-      { type: 'mirror', x: 3, z: 0, rot: 0 },
-      { type: 'mirror', x: 5, z: 0, rot: 0 },
-      { type: 'target', x: 5, z: 5, color: 'white' },
-    ],
-    solution: { '3,2': 3, '3,0': 3, '5,0': 1 },
-  },
-  {
-    // Lösung: Prisma (2,3) rot 0 – Fächer nach Ost: Rot → Nordost → Ziel (5,0),
-    //   Grün → Ost → Ziel (6,3), Blau → Südost → Ziel (5,6).
+    // Lösung: Spiegel (2,4) rot 1 – Süd → Ost; Prisma (4,4) rot 7 – Fächer nach Nordost: Rot → Nord → Ziel (4,1),
+    //   Grün → Nordost → Ziel (6,2), Blau → Ost → Ziel (6,4). Neu mit Ticket 02 von .scratch/tutorial-neu/ (vier
+    //   Schritte): Zu Beginn wirft der Spiegel das Licht nach Westen in den Block (0,4), der erste Schritt erklärt ihn.
+    //   Zwei Tippen (über «zurück zur Lampe») schicken es nach Osten ins Prisma; dort fächert es zuerst falsch auf (rot 6:
+    //   Grün und Blau treffen die falschen Kristalle), ein Tippen löst. Unten (z = 5, 6) steht nichts: Dort liegt auf dem
+    //   Handy quer und bei 360 × 640 das Band. Nebenbei Kamera und Neustart.
     name: 'Brechung', tutorial: true,
     schritte: [
-      { text: 'Ein Prisma teilt weisses Licht in Rot, Grün und Blau.', bei: '2,3', weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis jede Farbe den passenden Kristall trifft.', bei: '2,3', weiter: 'drehen' },
-    ],
-    nebenbei: ['neustart'],
-    elements: [
-      { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'prism', x: 2, z: 3, rot: 6 },
-      { type: 'target', x: 5, z: 0, color: 'red' },
-      { type: 'target', x: 6, z: 3, color: 'green' },
-      { type: 'target', x: 5, z: 6, color: 'blue' },
-    ],
-    solution: { '2,3': 0 },
-  },
-  {
-    // Lösung: Spiegel (3,5) rot 3 – Ost → Nord; Prisma (3,2) rot 6 – Fächer nach Nord: Rot → Nordwest → Ziel (1,0),
-    //   Grün → Nord → Ziel (3,0), Blau → Nordost → Ziel (5,0).
-    //   Das Licht verschwindet nacheinander: zuerst am Spiegel, der längs zum Strahl steht; ist er gedreht, am Prisma,
-    //   das dem Licht den Rücken zeigt.
-    //   Geführt in zwei getrennten Schritten: erst der Spiegel (zurückdrehen ist der kurze Weg, wie in «Umweg»), dann
-    //   das Prisma, sobald das Licht es erreicht.
-    name: 'Schatten', tutorial: true,
-    schritte: [
-      { text: 'Dieser Spiegel zeigt mit der Kante zum Licht und hält es auf. {Drücke lang} darauf, bis es weiterläuft.',
-        bei: '3,5', weiter: 'strahl', trifft: '3,2', richtung: -1 },
-      { text: 'Auch ein Prisma hält Licht auf, wenn es von der Seite mit den Farbpfeilen kommt.', bei: '3,2',
+      { text: 'Durch einen Block kommt kein Licht. Er schluckt alles, was ihn trifft.', bei: '0,4',
         weiter: 'erklaerung' },
-      { text: '{Tippe} das Prisma, bis die Farbpfeile zu den Kristallen zeigen.', bei: '3,2',
-        weiter: 'drehen' },
+      { text: '{Tippe} den Spiegel, bis das Licht beim Prisma ankommt.', bei: '2,4', weiter: 'strahl', trifft: '4,4' },
+      { text: 'Ein Prisma teilt weisses Licht in Rot, Grün und Blau.', bei: '4,4', weiter: 'erklaerung' },
+      { text: '{Tippe} das Prisma, bis jede Farbe den Kristall in ihrer Farbe trifft.', bei: '4,4', weiter: 'drehen' },
     ],
+    nebenbei: ['kamera', 'neustart'],
     elements: [
-      { type: 'source', x: 0, z: 5, dir: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
-      { type: 'prism', x: 3, z: 2, rot: 2 },
-      { type: 'target', x: 1, z: 0, color: 'red' },
-      { type: 'target', x: 3, z: 0, color: 'green' },
-      { type: 'target', x: 5, z: 0, color: 'blue' },
+      { type: 'source', x: 2, z: 1, dir: 2 },
+      { type: 'mirror', x: 2, z: 4, rot: 3 },
+      { type: 'blocker', x: 0, z: 4 },
+      { type: 'prism', x: 4, z: 4, rot: 6 },
+      { type: 'target', x: 4, z: 1, color: 'red' },
+      { type: 'target', x: 6, z: 2, color: 'green' },
+      { type: 'target', x: 6, z: 4, color: 'blue' },
     ],
-    solution: { '3,5': 3, '3,2': 6 },
+    solution: { '2,4': 1, '4,4': 7 },
   },
   {
-    // Lösung: Der Gelbfilter lässt nur Rot und Grün durch. Prisma (3,3) rot 7 – Fächer nach Nordost:
-    //   Rot → Nord → Ziel (3,0); Grün → Nordost → Spiegel (4,2) rot 0 → Südost → Ziel (5,3).
-    //   Ohne den Filter liefe Blau nach Ost ins Grün-Ziel (Cyan) – der Filter ist nötig.
-    //   Der erste Schritt nennt mit «Blau bleibt hängen», was danach am Prisma fehlt: Ein Prisma fächert nur auf,
-    //   was ankommt (gilt im Bergwald). Der zweite nennt Prisma und Spiegel, beide sind zu drehen (Ticket 04 der
-    //   Führung: sonst bliebe nach ihm der Spiegel ungenannt), und wann es genug ist (Ticket 05).
+    // Lösung: Grünfilter (2,2) – aus Weiss wird Grün; Spiegel (4,2) rot 3 – Ost → Nord → Ziel (4,0); die rote Lampe
+    //   (6,1) – Süd; Spiegel (6,4) rot 3 – Süd → West → Ziel (4,4). Neu mit Ticket 02 von .scratch/tutorial-neu/ (vier
+    //   Schritte): Zu Beginn fällt das Grün auf den roten Kristall (4,4) und flackert in seinem Ring, wenn der zweite
+    //   Schritt den Ring erklärt; das Rot läuft am Ostrand hinaus. Zuerst kommt das Grün an seinen Platz (zwei Tippen),
+    //   erst dann das Rot: Andersherum mischten sich auf dem roten Kristall beide Farben. Unten (z = 5, 6) steht nichts.
     name: 'Farbenlehre', tutorial: true,
     schritte: [
-      { text: 'Ein Filter lässt nur seine eigene Farbe durch. Gelb besteht aus Rot und Grün, Blau bleibt hängen.',
-        bei: '1,3', weiter: 'erklaerung' },
-      { text: '{Tippe} Prisma und Spiegel, bis Rot und Grün ihre Kristalle treffen.', bei: ['3,3', '4,2'],
-        weiter: 'drehen' },
-    ],
-    elements: [
-      { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'filter', x: 1, z: 3, color: 'yellow' },
-      { type: 'prism', x: 3, z: 3, rot: 6 },
-      { type: 'mirror', x: 4, z: 2, rot: 1 },
-      { type: 'target', x: 3, z: 0, color: 'red' },
-      { type: 'target', x: 5, z: 3, color: 'green' },
-    ],
-    solution: { '3,3': 7, '4,2': 0 },
-  },
-  {
-    // Lösung: Spiegel (3,3) rot 1 – Rot von West → Süd, Blau von Ost → Nord → Ziel (3,0);
-    //   Spiegel (3,5) rot 1 – Rot → Ost → Ziel (6,5). Mit rot 3 treffen beide Farben das falsche Ziel.
-    name: 'Farbiges Licht', tutorial: true,
-    schritte: [
-      { text: 'Hier leuchtet eine Lampe rot und die andere blau.', bei: ['0,3', '6,3'], weiter: 'erklaerung' },
-      { text: 'Am Ring um den Kristall siehst du, welche Farben er braucht. Eine falsche Farbe flackert darin.',
-        bei: ['3,0', '6,5'], weiter: 'erklaerung' },
-      { text: '{Tippe} die Spiegel, bis Rot und Blau ihre Kristalle treffen.', bei: ['3,3', '3,5'],
-        weiter: 'drehen' },
-    ],
-    elements: [
-      { type: 'source', x: 0, z: 3, dir: 0, color: 'red' },
-      { type: 'source', x: 6, z: 3, dir: 4, color: 'blue' },
-      { type: 'mirror', x: 3, z: 3, rot: 0 },
-      { type: 'mirror', x: 3, z: 5, rot: 0 },
-      { type: 'target', x: 3, z: 0, color: 'blue' },
-      { type: 'target', x: 6, z: 5, color: 'red' },
-    ],
-    solution: { '3,3': 1, '3,5': 1 },
-  },
-  {
-    // Lösung: Spiegel (3,1) rot 1 – Rot von West → Süd; Spiegel (6,4) rot 1 – Blau von Süd → West;
-    //   beide treffen das Ziel (3,4) und mischen sich dort zu Magenta.
-    name: 'Treffpunkt', tutorial: true,
-    schritte: [
-      { text: 'Dieser Kristall braucht Magenta. Das entsteht, wenn Rot und Blau ihn gleichzeitig treffen.', bei: '3,4',
+      { text: 'Ein Filter lässt nur seine eigene Farbe durch. Aus dem weissen Licht wird hier Grün.', bei: '2,2',
         weiter: 'erklaerung' },
-      { text: '{Tippe} beide Spiegel, bis Rot und Blau zusammen beim Kristall ankommen.', bei: ['3,1', '6,4'],
-        weiter: 'drehen' },
+      { text: 'Am Ring siehst du, welche Farbe ein Kristall braucht. Eine falsche Farbe flackert darin.',
+        bei: ['4,4', '4,0'], weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel, bis das Grün beim grünen Kristall ankommt.', bei: '4,2', weiter: 'strahl',
+        trifft: '4,0', farbe: 'green' },
+      { text: 'Die andere Lampe leuchtet von selbst rot. {Tippe} ihren Spiegel, bis Rot beim roten Kristall ankommt.',
+        bei: '6,4', weiter: 'drehen' },
+    ],
+    elements: [
+      { type: 'source', x: 0, z: 2, dir: 0 },
+      { type: 'filter', x: 2, z: 2, color: 'green' },
+      { type: 'mirror', x: 4, z: 2, rot: 1 },
+      { type: 'target', x: 4, z: 0, color: 'green' },
+      { type: 'target', x: 4, z: 4, color: 'red' },
+      { type: 'source', x: 6, z: 1, dir: 2, color: 'red' },
+      { type: 'mirror', x: 6, z: 4, rot: 1 },
+    ],
+    solution: { '4,2': 3, '6,4': 3 },
+  },
+  {
+    // Lösung: Spiegel (3,1) rot 1 – Rot von West → Süd → Ziel (3,3), dort mit dem Blau von West zu Magenta gemischt;
+    //   Kombinator (5,2) dir 0 – mischt Rot von Nord und Blau von Süd zu Magenta → Ost → Ziel (6,2). Neu mit Ticket 02
+    //   von .scratch/tutorial-neu/ (vier Schritte): zuerst Mischen am Ziel (zu Beginn läuft das Rot oben hinaus, nur
+    //   Blau kommt an; zwei Tippen), dann der Kombinator, der schon beide Farben mischt (ein Tippen). Zwei rote und zwei
+    //   blaue Lampen, damit beide Arten zu mischen dieselbe Farbe ergeben. Unten (z = 5, 6) steht nichts.
+    name: 'Mischung', tutorial: true,
+    schritte: [
+      { text: 'Dieser Kristall braucht Magenta. Das entsteht, wenn Rot und Blau ihn zusammen treffen.', bei: '3,3',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} den Spiegel, bis Rot und Blau zusammen beim Kristall ankommen.', bei: '3,1', weiter: 'strahl',
+        trifft: '3,3', farbe: 'magenta' },
+      { text: 'Der Kombinator mischt alles Licht, das hineinfällt, und schickt es als einen Strahl weiter.', bei: '5,2',
+        weiter: 'erklaerung' },
+      { text: '{Tippe} den Kombinator, bis sein Magenta beim zweiten Kristall ankommt.', bei: '5,2', weiter: 'drehen' },
     ],
     elements: [
       { type: 'source', x: 0, z: 1, dir: 0, color: 'red' },
-      { type: 'source', x: 6, z: 6, dir: 6, color: 'blue' },
-      { type: 'mirror', x: 3, z: 1, rot: 0 },
-      { type: 'mirror', x: 6, z: 4, rot: 0 },
-      { type: 'target', x: 3, z: 4, color: 'magenta' },
+      { type: 'mirror', x: 3, z: 1, rot: 3 },
+      { type: 'source', x: 0, z: 3, dir: 0, color: 'blue' },
+      { type: 'target', x: 3, z: 3, color: 'magenta' },
+      { type: 'source', x: 5, z: 0, dir: 2, color: 'red' },
+      { type: 'source', x: 5, z: 4, dir: 6, color: 'blue' },
+      { type: 'combiner', x: 5, z: 2, dir: 7 },
+      { type: 'target', x: 6, z: 2, color: 'magenta' },
     ],
-    solution: { '3,1': 1, '6,4': 1 },
-  },
-  {
-    // Lösung: Prisma (2,3) rot 0 – Grün → Ost → Ziel (4,3).
-    //   Rot → Nordost → fester Spiegel (4,1) → Südost, Blau → Südost → fester Spiegel (4,5) → Nordost
-    //   → beide in den Kombinator (6,3): Magenta → dir 6 (Nord) → Ziel (6,0).
-    //   Das Prisma steht eine Stufe vor der Lösung (rot 7, Ticket 03 der Führung): Ein Tippen schickt Rot und Blau in
-    //   den Kombinator, so mischt er schon zwei Farben, wenn der nächste Schritt ihn erklärt (aus rot 6 bekam er nach
-    //   dem ersten Tippen nur Grün). Der erste Schritt schaltet erst weiter, wenn im Kombinator Magenta ankommt (Rot und
-    //   Blau ohne Grün; Ticket 04 der Führung), nicht schon bei irgendeiner Drehung des Prismas. Sein Umriss liegt auch
-    //   am Kombinator, den der Satz nennt, bevor der nächste Schritt ihn erklärt (Ticket 05; die Hand bleibt am Prisma).
-    name: 'Mischung', tutorial: true,
-    schritte: [
-      { text: '{Tippe} das Prisma, bis Rot und Blau im Kombinator landen.', bei: ['2,3', '6,3'], weiter: 'strahl',
-        trifft: '6,3', farbe: 'magenta' },
-      { text: 'Der Kombinator mischt alles Licht, das hineinfällt, und schickt es als einen Strahl weiter.', bei: '6,3',
-        weiter: 'erklaerung' },
-      { text: '{Tippe} den Kombinator, bis das Magenta beim Kristall ankommt.', bei: '6,3', weiter: 'drehen' },
-    ],
-    elements: [
-      { type: 'source', x: 0, z: 3, dir: 0 },
-      { type: 'prism', x: 2, z: 3, rot: 7 },
-      { type: 'mirror', x: 4, z: 1, rot: 0, fixed: true },
-      { type: 'mirror', x: 4, z: 5, rot: 0, fixed: true },
-      { type: 'target', x: 4, z: 3, color: 'green' },
-      { type: 'combiner', x: 6, z: 3, dir: 4 },
-      { type: 'target', x: 6, z: 0, color: 'magenta' },
-    ],
-    solution: { '2,3': 0, '6,3': 6 },
+    solution: { '3,1': 1, '5,2': 0 },
   },
   /* LEVELS:BEGIN */
   {
@@ -8280,9 +8180,10 @@ function geraeteText(text, touch) {
 const NEBENBEI = {
   kamera: { text: ['Wisch mit einem Finger, dann dreht sich die Ansicht. Mit zwei Fingern zoomst du.',
     'Zieh mit der Maus, dann dreht sich die Ansicht. Mit dem Mausrad zoomst du.'] },
-  // «am Rand rechts»: Die Knöpfe stehen unten rechts, auf dem Handy quer rechts in der Mitte
-  neustart: { text: ['Mit dem Kreispfeil rechts am Rand fängst du die Übung neu an.',
-    'Mit dem Kreispfeil rechts am Rand oder der Taste R fängst du die Übung neu an.'] },
+  // ohne Ort: Der Knopf steht am Desktop unten rechts, auf dem Handy hochkant unten in der Reihe, quer rechts in der
+  // Mitte (Ticket 02 von .scratch/tutorial-neu/; bisher «rechts am Rand», das passte hochkant nicht)
+  neustart: { text: ['Tippst du auf den Kreispfeil, fängt die Übung von vorn an.',
+    'Klickst du auf den Kreispfeil oder drückst R, fängt die Übung von vorn an.'] },
 };
 /** Zellen eines Schritts (bei als Zelle oder Liste). */
 const schrittZellen = (s) => (s.bei === undefined ? [] : [].concat(s.bei));
@@ -20947,7 +20848,7 @@ const ui = {
   /**
    * Kopfzeile. In Noas Geschichte: «Das Meer – Brandung» (Kapitel und Titel des Levels), darunter die Ziele mit dem
    * Grad dahinter («Ziele 0 / 3 · ●●○○ Mittel»; Kapitel, Level und Bedienung stehen seit dem 09.11.2026 nicht mehr
-   * da, Wunsch des Nutzers); im Dorf «Im Dorf – Umweg», darunter ebenso Ziele und Grad, dann «Übung 2 / 9» (der Satz
+   * da, Wunsch des Nutzers); im Dorf «Im Dorf – Brechung», darunter ebenso Ziele und Grad, dann «Übung 2 / 4» (der Satz
    * des laufenden Schritts steht seit .scratch/tutorial-neu/ im Band unten, fuehrung). Ein Level ausserhalb der
    * Geschichte (Testschnittstelle zeige): Titel oder Name mit dem Grad dahinter, im Tutorial darunter der erste
    * Schritt, im Würfel der Hinweis.
@@ -20968,7 +20869,7 @@ const ui = {
       // eine Übung im Dorf hat keinen Grad: der gewählte
       fillTier(this.grad, lvl.tutorial ? { grad: story.grade } : lvl);
       const zeile = [];
-      if (info) { // im Dorf «Übung 2 / 9», am Stück: Auf dem Handy hochkant bräche es sonst vor der 9 um
+      if (info) { // im Dorf «Übung 2 / 4», am Stück: Auf dem Handy hochkant bräche es sonst vor der 4 um
         const teil = document.createElement('span');
         teil.className = 'teil';
         teil.textContent = info;
@@ -22641,12 +22542,14 @@ const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'village',
 /** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
 const STORY_SKIP_RUHE = 2000;
 /**
- * Stand des Dorfs im Speicherstand (prisma.noa.<grad>.dorf, nur nach «Üben»): { platz: Übung 0 … 8, ende: null (das
- * Kapitel läuft) | 'gespielt' | 'uebersprungen' }; Unlesbares gilt als nicht gespielt (null).
+ * Stand des Dorfs im Speicherstand (prisma.noa.<grad>.dorf, nur nach «Üben»): { ende: null (das Kapitel läuft) |
+ * 'gespielt' | 'uebersprungen' }; Unlesbares gilt als nicht gespielt (null). Seit Ticket 02 von .scratch/tutorial-neu/
+ * merkt sich das Dorf keinen Platz mehr (Spec «Kein Stand im Dorf»): Wer es startet, beginnt bei Übung 1. Ein altes
+ * Feld platz (bis 8, aus der Zeit der 9 Übungen) zählt nicht und fällt beim nächsten Speichern weg; ein beendetes Dorf
+ * bleibt darum beendet, wie gross sein platz auch war.
  */
-const storyDorfStand = (d) => (d && typeof d === 'object' && Number.isInteger(d.platz) && d.platz >= 0
-  && d.platz < TUTORIAL_COUNT && [null, 'gespielt', 'uebersprungen'].includes(d.ende ?? null)
-  ? { platz: d.platz, ende: d.ende ?? null } : null);
+const storyDorfStand = (d) => (d && typeof d === 'object' && !Array.isArray(d)
+  && [null, 'gespielt', 'uebersprungen'].includes(d.ende ?? null) ? { ende: d.ende ?? null } : null);
 /**
  * Träger zwischen zwei Welten (story.makeCarrier): Punkte um den Lichtpunkt und hinter ihm her. motion: swarm
  * (umkreisen ihn), helix (Wirbel, nach hinten weiter), trail (Spur auf seinem Weg, wave: auf und ab wie Wellen),
@@ -24621,7 +24524,7 @@ const ladeZeichen = (() => {
   const momente = ['prolog', 'angebot', STORY_DORF.einstieg.moment, ...STORY_CHAPTERS.map(storyChapterId)];
   progress.save(grad, { ...alt, platz: namen.length - 1, geloest: [...new Set([...uebungen, ...namen])],
     gesehen: [...new Set([...alt.gesehen, ...momente])], geschafft: true,
-    dorf: { platz: TUTORIAL_COUNT - 1, ende: 'gespielt' } });
+    dorf: { ende: 'gespielt' } });
   progress.setLast(grad);
   // die übrigen Parameter wörtlich behalten (URLSearchParams schriebe ?noadapt als ?noadapt=)
   const rest = location.search.slice(1).split('&').filter((t) => t && !/^alles(=|$)/.test(t)).join('&');
@@ -24722,7 +24625,7 @@ const story = {
   dorfLaeuft() { return this.stand?.dorf?.ende === null; },
   /** Das Level, mit dem es nach dem Start wohl weitergeht (Vorwärmen): im zuletzt gespielten Grad, sonst im ersten. */
   firstIndex() {
-    if (this.dorfLaeuft()) return this.stand.dorf.platz;
+    if (this.dorfLaeuft()) return 0; // das Dorf beginnt immer bei Übung 1
     if (this.steps.length) return this.steps[this.step].index;
     const name = Object.values(STORY_LEVELS)[0]?.[0]?.[0], i = LEVELS.findIndex(l => l.name === name);
     return i >= 0 ? i : 0;
@@ -24737,11 +24640,12 @@ const story = {
   drives(index) { return !this.outside && this.grade !== null && this.currentIndex() === index; },
   /**
    * Stand des Grads speichern; gespielt: wann zuletzt (ms seit 1970), für «Weiter» im Menü (menuStand). Der Platz
-   * fällt nie zurück (Wiederholen spielt Level davor). Im Dorf (nicht beim Wiederholen) dazu die Übung.
+   * fällt nie zurück (Wiederholen spielt Level davor). Die Übung im Dorf nicht (Spec .scratch/tutorial-neu/, «Kein
+   * Stand im Dorf»): Innerhalb der Sitzung behalten sie Menü und Übersicht (story.uebung), nach dem Neuladen beginnt
+   * das Dorf bei Übung 1.
    */
   save() {
     if (this.outside || this.grade === null) return;
-    if (this.inDorf && !this.replay && this.dorfLaeuft()) this.stand.dorf.platz = this.uebung;
     this.stand.platz = Math.max(this.stand.platz, this.step);
     this.stand.gespielt = Date.now();
     progress.save(this.grade, this.stand);
@@ -25062,13 +24966,13 @@ const story = {
    * Prolog (nur beim ersten Mal je Grad) mit dem Angebot «Üben» / «Gleich los» (Entscheid 18), dann bringt der Träger
    * das Licht in die Welt, in der es weitergeht, bzw. das Licht kommt ins Dorf. Ein altes Feld (Menü oder Übersicht aus
    * dem Spiel, nach dem Epilog) versinkt dabei unbemerkt: Die Kamera schaut in den Himmel bzw. die Bühne deckt es zu.
-   * Läuft das Kapitel «Im Dorf», geht es an seiner Übung weiter. Wiederholen (replay) kommt immer ohne Prolog und
-   * Einstieg.
+   * Läuft das Kapitel «Im Dorf», beginnt es bei Übung 1 (kein Stand im Dorf). Wiederholen (replay) kommt immer ohne
+   * Prolog und Einstieg.
    */
   async begin() {
     this.running = true;
     flow.state = 'story';
-    if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = this.stand.dorf.platz; }
+    if (!this.inDorf && !this.replay && this.dorfLaeuft()) { this.inDorf = true; this.uebung = 0; }
     this.himmelStand();
     let index = this.currentIndex(), ch = this.inDorf ? STORY_DORF : this.chapter();
     prepareLevel(index); // ohne altes Feld (sinkTo): die Elemente in den Pausen des Prologs bzw. während der Blick oben ist
@@ -25168,7 +25072,7 @@ const story = {
     this.keepFocus();
     this.fast = 1; // «Überspringen» des Prologs tippt (fast = 3): Der Einstieg danach läuft wieder in seinem Tempo
     if (ueben) {
-      this.stand.dorf = { platz: 0, ende: null };
+      this.stand.dorf = { ende: null };
       this.setSky(STORY_DORF.sky, false);
     }
     this.see('angebot');
@@ -26421,7 +26325,7 @@ const story = {
 
   /**
    * Kopfzeile: [«Das Meer – Brandung»] (Kapitel und Level stehen seit dem 09.11.2026 nicht mehr in der Unterzeile);
-   * im Dorf [«Im Dorf – Umweg», «Übung 2 / 9»]. Grad und Hinweis: ui.
+   * im Dorf [«Im Dorf – Brechung», «Übung 2 / 4»]. Grad und Hinweis: ui.
    */
   hudText(index) {
     if (this.inDorf) {
