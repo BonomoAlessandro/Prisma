@@ -1844,7 +1844,7 @@ async function sperreProbe(z, markiert, was) {
  * Schritt 1 (dazu die Hinweise nebenbei über dem Band); «Weiter» → Punkt voll, Wechsel, Schritt 2 (Satz in der
  * Befehlsform des Geräts, Kegel und Hand am vorderen Spiegel, die Hand geht nach dem Vorzeigen; der feste und der
  * hintere Spiegel weigern sich); Menü und zurück behält den Schritt; Tippen schickt das Licht zum festen Spiegel →
- * Funkeln, Schritt 3 (den festen antippen: er wackelt) → Schritt 4 (langes Drücken bzw. Rechtsklick auf den hinteren
+ * kein Funkeln, Schritt 3 (den festen antippen: er wackelt) → Schritt 4 (langes Drücken bzw. Rechtsklick auf den hinteren
  * Spiegel, der vordere ist gesperrt): gelöst, Band und Abdunkeln gehen.
  */
 async function gefuehrt(g) {
@@ -1929,11 +1929,11 @@ async function gefuehrt(g) {
   f = await fuehrungIn([VORN]);
   pruefe(f.schritt === 1 && f.satz === texte[1] && f.kegel.length === 1 && nahe(f.kegel[0], f.orte[VORN].mitte, 4),
     `${was}: nach dem Menü ${JSON.stringify(f)}`);
-  // den vorderen Spiegel antippen wie ein Spieler: das Licht läuft zum festen, es funkelt, Schritt 3
+  // den vorderen Spiegel antippen wie ein Spieler: das Licht läuft zum festen, Schritt 3 (ohne Funkeln)
   await tippeBei(f.orte[VORN].tippen.x, f.orte[VORN].tippen.y);
   await until(`${D}.fuehrung.schritt === 2`, `${was}: Schritt 3`, 5);
-  const funke = await ev(`document.querySelectorAll('#fuehrung .fz-funke').length`);
-  pruefe(funke >= 1, `${was}: kein Funkeln nach Schritt 2`);
+  const funke = await ev(`document.querySelectorAll('#fuehrung .fz-funke, #fuehrung .fz-funken').length`);
+  pruefe(funke === 0, `${was}: Funkeln nach Schritt 2 (entfernt nach Ticket 01)`);
   await eingeblendet(2, `${was}: Schritt 3 eingeblendet`);
   await sleep(250);
   f = await fuehrungIn([FEST]);

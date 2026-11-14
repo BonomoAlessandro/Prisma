@@ -154,7 +154,7 @@ Geschichte), Welt (für das Dorf)
 Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen», neu gestaltet mit PLAN 1a.3
 «Tutorial neu»): Der Satz des Schritts steht im Band unten, die Szene ist leicht abgedunkelt, ein Lichtkegel liegt auf
 dem Element des Schritts, und bei einer Handlung zeigt eine gezeichnete Zeigehand die Geste sofort einmal vor. Sie ist
-strikt (siehe Sperre). Ein geschaffter Schritt bekommt eine Rückmeldung: ein kurzes Funkeln am Element, sein Punkt im
+strikt (siehe Sperre). Ein geschaffter Schritt bekommt eine Rückmeldung: Sein Punkt im
 Band füllt sich, ein leiser Ton (nur bei Ton an); nach etwa 0,6 s blendet der nächste weich ein. Fehlversuche bleiben
 ohne Tadel. Gelöst wird nie von selbst, der letzte Schritt führt zur Lösung; wird die Übung früher gelöst, gilt das
 sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im Dorf; Neustart und Neuladen beginnen beim ersten
