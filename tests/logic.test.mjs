@@ -784,6 +784,59 @@ console.log('Führung im Dorf (Schritte)');
     }
     assert.deepEqual(steckt, [], 'unter der Sperre nicht lösbar');
   });
+  // Review Ticket 01 von .scratch/tutorial-neu/: Der Test davor folgt nur dem kürzesten Weg. Ein Spieler darf die
+  // markierten Elemente aber beliebig drehen (zurück statt vor, mehrmals) und schaltet damit weiter; danach sind sie
+  // gesperrt. Kein so erreichbarer Stand darf eine Sackgasse sein, aus der nur noch der Neustart hilft
+  test('Schritte: unter der Sperre führt keine erlaubte Handlung in eine Sackgasse', () => {
+    for (const l of gefuehrt) {
+      const s = l.schritte, letzter = s.length - 1, b0 = L.createBoard(l);
+      const drehbar = b0.elements.map((e, i) => i).filter(i => L.isRotatable(b0.elements[i]));
+      const stell = (el) => (el.type === 'combiner' ? el.dir : el.rot);
+      const brett = (rots) => {
+        const b = L.createBoard(l);
+        drehbar.forEach((i, j) => { if (b.elements[i].type === 'combiner') b.elements[i].dir = rots[j]; else b.elements[i].rot = rots[j]; });
+        return b;
+      };
+      const ueberspringe = (b, k) => {
+        const r = L.traceBeams(b);
+        while (k < letzter && s[k].weiter === 'strahl' && L.schrittErfuellt(s[k], { art: 'strahl', board: b, result: r })) k++;
+        return k;
+      };
+      const schluessel = ([rots, k]) => rots.join() + '|' + k;
+      // alle erreichbaren Stände (Stellungen, Schritt) mit ihren Nachfolgern; geloest: eine Handlung löst
+      const graph = new Map(), start = [drehbar.map(i => stell(b0.elements[i])), ueberspringe(b0, 0)], offen = [start];
+      graph.set(schluessel(start), null);
+      while (offen.length) {
+        const [rots, k] = offen.pop(), b = brett(rots), nach = [];
+        let geloest = false;
+        if (s[k].weiter === 'erklaerung') nach.push([rots, ueberspringe(b, k + 1)]);
+        else for (const [i, el] of b.elements.entries()) {
+          if (!L.schrittErlaubt(s[k], el)) continue;
+          for (const d of L.isRotatable(el) ? [1, -1] : el.fixed ? [0] : []) {
+            const nb = brett(rots), ne = nb.elements[i];
+            if (d) { if (ne.type === 'combiner') ne.dir = L.mod8(ne.dir + d); else ne.rot = L.mod8(ne.rot + d); }
+            const r = L.traceBeams(nb);
+            if (d && r.solved) { geloest = true; continue; }
+            const e = d ? { art: 'gedreht', el: ne, delta: d } : { art: 'angetippt', el: ne };
+            const weiter = k < letzter && (L.schrittErfuellt(s[k], e) || L.schrittErfuellt(s[k], { art: 'strahl', board: nb, result: r }));
+            nach.push([drehbar.map(j => stell(nb.elements[j])), weiter ? ueberspringe(nb, k + 1) : k]);
+          }
+        }
+        graph.set(schluessel([rots, k]), { geloest, nach: nach.map(schluessel) });
+        for (const n of nach) if (!graph.has(schluessel(n))) { graph.set(schluessel(n), null); offen.push(n); }
+      }
+      // rückwärts: von wo aus lässt sich die Übung noch lösen?
+      const gut = new Set();
+      for (let neu = true; neu;) {
+        neu = false;
+        for (const [key, v] of graph) {
+          if (!gut.has(key) && (v.geloest || v.nach.some(n => gut.has(n)))) { gut.add(key); neu = true; }
+        }
+      }
+      const sackgassen = [...graph.keys()].filter(key => !gut.has(key));
+      assert.deepEqual(sackgassen, [], `${l.name}: Sackgassen (Stellungen | Schritt)`);
+    }
+  });
   test('Schritte: Hinweise nebenbei nur aus NEBENBEI, einmal je Übung', () => {
     for (const l of gefuehrt) {
       const n = l.nebenbei ?? [];

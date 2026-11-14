@@ -20761,7 +20761,11 @@ const fuehrung = {
     this.handEl.style.display = hand ? '' : 'none';
     this.bild.classList.toggle('dunkel', zeigt);
     this.sichtbar = zeigt;
-    if (zeigt || (!aus && this.bild.querySelector('.fz-funke'))) {
+    // ein Funkeln läuft noch aus (gelöst gleich nach einem Schritt), nicht aber unter Menü, Übersicht oder Zwischenszene:
+    // Dort zeigte die Uhr des Wechsels (wechselUhr) es sonst wieder über ihnen (Review Ticket 01)
+    const funkelt = !aus && flow.state === 'play' && !story.choosing && this.board === game.board
+      && !!this.bild.querySelector('.fz-funke');
+    if (zeigt || funkelt) {
       this.bild.style.display = '';
       this.platziere();
     }
