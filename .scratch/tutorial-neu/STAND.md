@@ -1,6 +1,6 @@
 # Stand «Tutorial neu» – Übergabe
 
-Stand 15.11.2026, Branch `feature/tutorial-neu` (von `main` ec02954, nicht gepusht). PLAN 1a.3. Spec und Tickets aus
+Stand 15.11.2026, Branch `feature/tutorial-neu` (von `main` ec02954, gepusht). PLAN 1a.3. Spec und Tickets aus
 dem Grilling vom 14.11.2026; Entscheide und Begründungen in `spec.md` und in den Tickets unter `issues/`, je unter
 «Comments». `APP_VERSION` ist `2026-11-14 tutorial-neu-3` (index.html und sw.js). **Tickets 01–03 sind umgesetzt,
 das Vorhaben wartet auf den Test des Nutzers.**
