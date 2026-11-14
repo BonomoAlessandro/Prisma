@@ -104,3 +104,77 @@ Handy. Der Person nichts erklären, nur zuschauen; erst am Ende fragen. Antworte
     ohne etwas zu tun?
 18. Nur der Nutzer, am Desktop: Werden Klicken, Rechtsklicken («Erstes Licht» Schritt 4) und das Mausrad ebenso
     verstanden wie auf dem Handy, auch mit der Hand, die die Geste vorzeigt?
+
+### Review (15.11.2026)
+
+Geprüft wurden die Commits 51b8cc0 (Proben) und bcbba57 (Doku) gegen `feature/tutorial-neu`. Am Spiel ist nichts
+geändert. Die Haken der Checkliste stimmen, offen ist nur der Test des Nutzers. Mittlere oder grosse Funde gibt es
+keine.
+
+**Tests** (über `tools/leise.sh`, schwere Läufe einzeln, nach dem Review-Commit):
+
+- Alle Node-Tests grün: 10 Dateien, `logic.test.mjs` 2059 Tests, dazu einzeln die 19 unter `tests/beurteilung/`.
+  Golden grün: 842 Level, Löser für die Stichprobe (88 Level).
+- `--dorf-raender --quer` und `--dorf-raender --handy --groesse 360x640` grün, mit Fall g), Konsole ohne Fehler. In den
+  gemessenen Übergängen gab es keine Lücke über 100 ms. Die Lücken beim Laden (`?noadapt&nointro`) zählen nicht.
+- Wackel-Probe am Desktop grün, die Konsole ohne Meldungen. In der Welt «Lichtblick» drehen 3 von 3 drehbaren Elementen.
+- Die vier `--dorf`-Läufe habe ich nicht wiederholt, denn `index.html` ist unverändert.
+
+**Doku gegen den Code:** `CONTEXT.md`, `README.md`, PLAN 1a.3, `CLAUDE.md` und `STAND.md` stimmen mit `index.html`
+überein:
+
+- vier Übungen mit je 4 Schritten, `SCHRITTE_MAX` 4
+- die Reihen z = 5 und 6 auf allen vier Brettern leer
+- Hinweise nebenbei nur in «Brechung»
+- die Sperre über `schrittErlaubt`, `fuehrung.darf` und `fuehrung.vorrang`, sie wackelt ohne Blitz
+- kein Funkeln und kein später Fingerzeig
+- `storyDorfStand` ohne `platz`
+- `APP_VERSION` `2026-11-14 tutorial-neu-3` in `index.html` und `sw.js` gleich
+
+Die Commit-Hashes in `STAND.md` stimmen. Die Begriffe folgen `CONTEXT.md`. Die Suche nach «9 Übungen», «/ 9»,
+«Umweg», «Fingerzeig», «Umriss», «Funkeln» und `dorf.platz` ausserhalb von `.scratch/` findet sonst nur:
+
+- Abgelöstes in `CONTEXT.md`
+- die Beschreibung von 1a.1 in `PLAN.md` (Rückblick)
+- Levelnamen und -titel («Fingerzeig», «Funkeln»)
+- das Funkeln der Sterne
+- den Umriss der Bretter
+- Probe- und Testkommentare zu alten Ständen und Gegenproben (`vorrat.test.mjs` `GESTRICHEN`, `alt9`)
+
+**Proben:**
+
+- g) in `dorfRaender` prüft, was es vorgibt:
+  - Im anderen Grad gibt es keine Führung: `fuehrung.level`, Satz, Knopf, Kegel, Hand und Abdunkeln.
+  - Zurück in Leicht stehen Übung 1 und Schritt 1, obwohl Übung 1 im Stand gelöst ist. Der Stand bleibt
+    `{"ende":null}`.
+  - Für «Überspringen im Wechsel» wird `FUEHRUNG.wechsel` auf 3 s gestreckt. Das wird erst beim Planen der Uhr gelesen
+    (`setTimeout`), also mit Wanduhr. Die Probe prüft danach, dass `wechselt` läuft, und schaut nach 3,5 s nach. Das
+    ist robust, und `finally` stellt den Wert zurück.
+  - Die Probe sieht nur den sichtbaren Ausgang, nicht, ob `stoppeUhren` gerufen wird. Eine Uhr, die nach dem Ende
+    noch `zeichne` ruft, fiele nur auf, wenn sie etwas zeigt. Das genügt.
+- Die Wackel-Probe in der Welt prüft `darf` für alle Elemente und `vorrang() === null`. Dann tippt sie jedes drehbare
+  Element in der Mitte an und erwartet Zug + 1, eine neue Lage und kein Wackeln. Das geschieht synchron und ohne
+  Zeiten. Ist das Level gelöst, bricht sie ab, verlangt aber mindestens zwei geprüfte Elemente. Ausserhalb des Dorfs
+  ist `darf` trivial wahr. Die Probe ist darum eine Absicherung gegen Rückfälle, kein Beweis der Sperre. Mehr ist
+  dort auch nicht zu prüfen.
+
+**Beobachtungsfragen:** brauchbar und auf die offenen Punkte aus den Reviews bezogen. «Nur zuschauen, erst am Ende
+fragen» ist der richtige Rahmen. Ergänzt bzw. geändert:
+
+- 13 neutraler, ohne «zu voll» vorzugeben.
+- 17 neu: welcher Satz zweimal gelesen wird und wo die Person stehen bleibt. Bisher fragte nur 1, ob der Satz
+  gefunden wird, nicht, ob er verstanden wird.
+- 18 neu: der Desktop (Klick, Rechtsklick, Mausrad). Die Spec verlangt ihn als zweiten Prüffall, die Fragen
+  deckten nur das Handy ab.
+
+**Selbst behoben** (Commit «docs(tutorial-neu): letzte Reste der 9 Übungen …»):
+
+- Klein: `docs/adr/0005-geschichte-ersetzt-feste-reihenfolge.md` nannte «die 9 Übungen». Jetzt steht dort «bis
+  PLAN 1a.3 neun, seither vier».
+- Klein: Ein Kommentar in `tests/logic.test.mjs` (Test zu `trifft`) sprach noch vom Umriss. Jetzt steht dort
+  Lichtkegel.
+- Klein: Das Datum des Stands in PLAN 1a.3 und `STAND.md` ist jetzt 15.11.2026, der Tag von Ticket 03.
+- Die Beobachtungsfragen 13, 17 und 18 (siehe oben).
+
+**Ergebnis:** Das Vorhaben ist aus Sicht des Reviews bereit für den Test des Nutzers auf dem Poco und mit einer Person,
+die Prisma nicht kennt. Danach kommt der Merge auf sein Go.
