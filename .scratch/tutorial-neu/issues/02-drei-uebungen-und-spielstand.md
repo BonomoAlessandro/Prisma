@@ -4,7 +4,7 @@
 
 **Blocked by:** 01 und das Okay des Nutzers nach seinem Poco-Test
 
-**Status:** needs-triage (wird ready-for-agent mit dem Okay zu 01)
+**Status:** ready-for-agent (Okay des Nutzers zu 01 am 14.11.2026, nach Entfernen des Funkelns)
 
 **What to build:** Das Dorf hat danach genau vier Übungen auf neuen Brettern. Die alten Übungen Umweg, Sperre,
 Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Farbenlehre und Mischung sind weg.
