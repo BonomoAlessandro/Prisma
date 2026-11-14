@@ -4,7 +4,8 @@
 
 **Blocked by:** 01 und das Okay des Nutzers nach seinem Poco-Test
 
-**Status:** ready-for-agent (Okay des Nutzers zu 01 am 14.11.2026, nach Entfernen des Funkelns)
+**Status:** ready-for-human (umgesetzt und reviewt; offen nur noch der Test des Nutzers auf dem Poco und mit einer
+Person, die Prisma nicht kennt, siehe Ticket 03)
 
 **What to build:** Das Dorf hat danach genau vier Übungen auf neuen Brettern. Die alten Übungen Umweg, Sperre,
 Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Farbenlehre und Mischung sind weg.

@@ -163,9 +163,10 @@ dem Element des Schritts, und bei einer Handlung zeigt eine gezeichnete Zeigehan
 strikt (siehe Sperre). Ein geschaffter Schritt bekommt eine Rückmeldung: Sein Punkt im
 Band füllt sich, ein leiser Ton (nur bei Ton an); nach etwa 0,6 s blendet der nächste weich ein. Fehlversuche bleiben
 ohne Tadel. Gelöst wird nie von selbst, der letzte Schritt führt zur Lösung; wird die Übung früher gelöst, gilt das
-sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im Dorf; Neustart und Neuladen beginnen beim ersten
-Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code `fuehrung` (Band, Lichtkegel, Hand, Sperre),
-die Daten `schritte` und `nebenbei` je Übung.
+sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im Dorf; Neustart beginnt beim ersten Schritt der
+Übung, Neuladen das Dorf bei Übung 1 (siehe Im Dorf), Menü und Übersicht behalten Übung und Schritt. Ohne
+Speicherstand. Ein geschaffter Schritt funkelt nicht (Wunsch des Nutzers nach dem Poco-Test, 14.11.2026). Im Code
+`fuehrung` (Band, Lichtkegel, Hand, Sperre), die Daten `schritte` und `nebenbei` je Übung.
 _Vermeiden_: Tutorial (für die Führung), Hilfe
 
 **Band**:
@@ -414,6 +415,27 @@ schneller, die Hand zeigte die Geste wieder, «Weiter» stupste; nach den Schrit
 ausserhalb der Lösung. Im Code war das `FUEHRUNG.fingerzeig` und `fingerzeigZiel`.
 _Abgelöst_ mit PLAN 1a.3 «Tutorial neu»: Die Hand zeigt sofort, die Sperre lässt nur das Markierte reagieren, der
 Lichtkegel ersetzt den Umriss.
+
+**Umriss** (der Führung):
+In PLAN 1a.1 markierte ein gestrichelter Umriss, zuletzt ein Ring in der Szene, das Element des Schritts; der Satz
+stand oben in der Kopfzeile, «Weiter» daneben.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu» durch Lichtkegel und Abdunkeln; der Satz steht im Band.
+
+**Die neun Übungen**:
+Bis PLAN 1a.3 hatte das Dorf 9 Übungen: Erstes Licht, Umweg, Sperre, Brechung, Schatten, Farbenlehre, Farbiges Licht,
+Treffpunkt, Mischung, je höchstens drei Schritte. Die Übung «Sperre» (Blöcke) hat nichts mit der Sperre der Führung
+zu tun.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu»: 4 Übungen auf neuen Brettern. Brechung, Farbenlehre und Mischung heissen wie
+früher, ihre alten Bestwerte gelten aber für die alten Bretter. «Spiegel längs zum Strahl» und «Prisma von der
+falschen Seite» werden nicht mehr gelehrt.
+
+**Platz im Dorf**:
+Bis PLAN 1a.3 merkte sich der Stand die laufende Übung (`prisma.noa.<grad>.dorf.platz`), Neuladen setzte dort fort.
+_Abgelöst_: Das Dorf merkt sich keinen Platz, jeder Start beginnt bei Übung 1; ein altes `platz` zählt nicht.
+
+**Funkeln** (Rückmeldung je Schritt):
+Die Spec von PLAN 1a.3 sah ein kurzes Funkeln am Element vor, wenn ein Schritt geschafft ist.
+_Abgelöst_ nach dem Poco-Test des Nutzers (14.11.2026): Rückmeldung sind nur der Punkt im Band und der leise Ton.
 
 **Reihe** (500er-Reihe):
 Bis zum 29.10.2026 der Ablauf des Spiels: das Tutorial und alle flachen Level in einer festen Folge nach

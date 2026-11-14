@@ -14,6 +14,8 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ## Laufendes Vorhaben
 
-PLAN 1a.3 «Tutorial neu» (`feature/tutorial-neu`): Spec, Tickets und Übergabe in `.scratch/tutorial-neu/STAND.md`;
-vor dem Weitermachen lesen. Zuletzt abgeschlossen: PLAN 1a.1 «Führung im Dorf» (10.11.2026 nach `main`, Übergabe in
+PLAN 1a.3 «Tutorial neu» (`feature/tutorial-neu`): Tickets 01–03 umgesetzt und geprüft, **wartet auf den Test des
+Nutzers** (Poco und eine Person, die Prisma nicht kennt; Beobachtungsfragen in Ticket 03 unter «Comments»). Merge nach
+`main` nur auf sein Go. Spec, Tickets und Übergabe in `.scratch/tutorial-neu/STAND.md`; vor dem Weitermachen lesen.
+Zuletzt abgeschlossen: PLAN 1a.1 «Führung im Dorf» (10.11.2026 nach `main`, Übergabe in
 `.scratch/tutorial-fuehrung/STAND.md`); davor PLAN 1.1 «Ein Brett je Himmel» (`.scratch/brett-je-himmel/STAND.md`).
