@@ -1,4 +1,4 @@
-# 02: Brechung, Farbenlehre, Mischung neu; Spielstand
+# 02: Brechung, Farbenlehre, Mischung neu; kein Stand im Dorf
 
 **Spec:** ../spec.md
 
@@ -14,8 +14,11 @@ Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Fa
 - [ ] **Mischung:** Mischen am Ziel, dann der Kombinator. Höchstens 4 Schritte.
 - [ ] Jedes Brett eindeutig lösbar (Löser), auf dem Handy quer nicht eng; der letzte Schritt führt zur Lösung, kein
       Schritt kann wegen der Sperre in eine Sackgasse führen.
-- [ ] **Spielstand:** Ein laufendes Dorf aus der alten Zählung (ohne die Kennung der neuen, siehe Spec «Spielstände»)
-      beginnt wieder bei Übung 1; ein beendetes oder übersprungenes Dorf bleibt, auch mit `platz` ≥ 4. Logiktest dazu.
+- [ ] **Kein Stand im Dorf** (Spec «Kein Stand im Dorf»): `platz` im Dorf-Stand fällt weg; wer das Dorf startet oder
+      mitten im Dorf neu lädt, beginnt bei Übung 1. Gespeichert bleibt nur `ende`; ein beendetes oder übersprungenes
+      Dorf bleibt beendet, auch aus alten Ständen mit `platz` bis 8. Logiktest dazu; was heute `dorf.platz` prüft,
+      umstellen (`tests/levelliste.test.mjs` etwa Zeile 917–930, `tests/geschichte-probe.mjs` etwa Zeile 2088–2160
+      mit «Neuladen → Übung 4», dazu etwa 2327 und 2362–2397).
 - [ ] **Abhängigkeiten der 9 nachziehen:** `TUTORIAL_COUNT` ergibt sich aus `LEVELS`; prüfen, was an Indizes von `LEVELS`
       hängt (`tests/golden.json`, Klassik-Modus mit «Tutorial n / N», Übersicht, Logik- und Vorratstests), und anpassen.
 - [ ] Dorf-Probe spielt jeden Schritt aller vier Übungen auf Desktop, Handy hoch, 360 × 640 und quer.
@@ -27,7 +30,18 @@ Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Fa
   Test wird bewusst angepasst. «Schritte: die Inhalte je Übung» nennt die neun alten Namen, «Umweg», «Schatten» und die
   Hinweise nebenbei in «Sperre» und «Brechung»; er wird neu geschrieben (Kamera und Neustart dann beide in «Brechung»).
 - Der Speicherstand des Dorfs wird in `storyDorfStand` geprüft (`index.html`, etwa Zeile 22650). Achtung: Heute gilt
-  dort ein `platz` ≥ `TUTORIAL_COUNT` als unlesbar, und der Stand wird gelöscht (etwa Zeile 24722). Ein altes gespieltes
-  Dorf steht auf Platz 8 (`TUTORIAL_COUNT - 1`, so auch `?alles`); ohne Änderung ginge also gerade das beendete Dorf
-  verloren.
+  dort ein Stand ohne ganzzahliges `platz` oder mit `platz` ≥ `TUTORIAL_COUNT` als unlesbar, und `setGrade` löscht ihn
+  (etwa Zeile 24722–24724). Ein altes gespieltes Dorf steht auf Platz 8 (`TUTORIAL_COUNT - 1`, so auch `?alles`, etwa
+  Zeile 24630); ohne Änderung ginge also gerade das beendete Dorf verloren, und ein neuer Stand ohne `platz` ebenso.
+- `dorf.platz` wird gelesen in `firstIndex` (etwa Zeile 24731) und `begin` (etwa Zeile 25077: läuft das Dorf, beginnt
+  es bei dieser Übung) und geschrieben in `save` (etwa Zeile 24750). Ohne `platz` muss `begin` bei Index 0 beginnen.
+  «Innerhalb einer Sitzung behalten Menü und Übersicht die Übung» gilt heute über `resume` (`choose`, `playDorf`: das
+  Brett steht noch). Wo `choose` nicht fortsetzt, ruft es `setGrade` auf (setzt `inDorf` zurück, lädt den Stand neu),
+  dann `begin`: ohne gespeicherten Platz also Übung 1, z. B. nach einem Wechsel in einen anderen Grad und zurück. Das
+  passt zu «jeder Start bei Übung 1»; nur darf `begin` nicht auf ein fehlendes `platz` stossen.
+- Die Übersicht (`baueReihen`, etwa Zeile 21782) richtet sich nicht nach `platz`, sondern nach `geloest`: Die erste
+  ungelöste Übung ist «offen». `geloest` bleibt gespeichert. Nach dem Neuladen mitten im Dorf beginnt «Weiter» also bei
+  Übung 1, die Übersicht zeigt aber die gelösten Übungen als gelöst und die nächste als offen; wer sie dort wählt,
+  spielt ab ihr im normalen Ablauf weiter (`playDorf`, `advanceDorf`). Das bleibt so, ausser der Nutzer entscheidet
+  anders.
 - Neues Rot zuerst gegen `ec02954` (Stand vor dem Vorhaben) vergleichen.

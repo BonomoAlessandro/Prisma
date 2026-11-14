@@ -35,7 +35,8 @@ muss alles ebenso gut funktionieren (Klick, Rechtsklick, Mausrad).
 - Sätze: ein oder zwei kurze Sätze, höchstens 18 Wörter und 105 Zeichen; Hinweise nebenbei höchstens 16 Wörter.
   Platzhalter je Gerät wie heute («{Tippe}», «{Drücke lang}»).
 - Das Wackeln fester Elemente mit Sockel gilt weiter im ganzen Spiel.
-- Neustart und Neuladen beginnen beim ersten Schritt der Übung, Menü und Übersicht behalten ihn.
+- Neustart beginnt beim ersten Schritt der Übung, Menü und Übersicht behalten ihn. Neuladen beginnt das Dorf neu bei
+  Übung 1 (siehe «Kein Stand im Dorf»).
 
 ### Vier Übungen statt neun
 
@@ -80,19 +81,24 @@ Ist ein Schritt geschafft: ein kurzes Funkeln am Element, der Punkt im Band fül
 Nach etwa **0,6 s** blendet der nächste Schritt weich ein (Satz, Lichtkegel, Hand), statt hart zu springen. Fehlversuche
 bleiben ohne Tadel, die Weigerung ist die einzige Reaktion.
 
-### Spielstände
+### Kein Stand im Dorf
 
-Ein **laufendes Dorf darf verloren gehen**: Ein laufendes Dorf (`ende: null`) in `prisma.noa.<grad>.dorf` aus der
-alten Zählung beginnt wieder bei Übung 1, auch wenn sein Platz (0–3) noch gültig wäre. Dafür bekommt der Stand des Dorfs
-eine Kennung der neuen Zählung; ein laufender Stand ohne sie gilt als alt. Ein beendetes oder übersprungenes Dorf
-(`ende: 'gespielt'` oder `'uebersprungen'`) bleibt, wie es ist, auch mit einem Platz ab 4 (ein altes gespieltes Dorf
-steht auf Platz 8). Keine Umrechnung nach Inhalt.
+Das Dorf ist nur das Tutorial und **merkt sich keinen Platz** (Entscheid des Nutzers, 14.11.2026). Wer das Dorf startet
+(aus dem Angebot «Üben» oder nach dem Neuladen mitten im Dorf), beginnt **immer bei Übung 1**. Im Speicherstand
+`prisma.noa.<grad>.dorf` bleibt nur, ob das Dorf beendet ist (`ende: 'gespielt'` oder `'uebersprungen'`), damit die
+Geschichte danach im Bergwald weitergeht und die Übersicht die Reihe «Im Dorf» zeigt (nach «Überspringen» mit allen
+Übungen frei); das Feld `platz` fällt weg. Innerhalb einer Sitzung behalten Menü und Übersicht die laufende Übung und
+ihren Schritt. Einzelne Übungen aus der Übersicht wiederholen bleibt wie heute.
+
+Alte Spielstände: Ein laufendes Dorf (`ende: null`) beginnt damit von selbst wieder bei Übung 1. Ein beendetes oder
+übersprungenes Dorf bleibt beendet, auch wenn sein alter `platz` (bis 8) nicht mehr gültig wäre; es darf deswegen nicht
+als unlesbar gelöscht werden. Keine Umrechnung nach Inhalt, keine Kennung für die neue Zählung.
 
 ## Ablauf
 
 1. Ticket 01: Gerüst und Aussehen, «Erstes Licht» neu. Danach Bilder; der Nutzer prüft auf dem Poco.
    **Ticket 02 startet erst nach seinem Okay.**
-2. Ticket 02: Brechung, Farbenlehre, Mischung neu; die übrigen Übungen weg; Spielstand.
+2. Ticket 02: Brechung, Farbenlehre, Mischung neu; die übrigen Übungen weg; kein Stand im Dorf.
 3. Ticket 03: Schluss mit Prüfung und Doku.
 
 Je Ticket ein Umsetzer, danach ein unabhängiges Review; Kleines behebt der Reviewer selbst.

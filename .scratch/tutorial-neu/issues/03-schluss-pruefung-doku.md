@@ -9,7 +9,8 @@
 **What to build:** Das Vorhaben ist geprüft und beschrieben, bereit für den Test des Nutzers und den Merge auf sein Go.
 
 - [ ] Alle Node-Tests und Golden grün; Dorf-Probe auf allen vier Grössen; Unterbrechungen mitten in der Führung
-      (Neuladen, Neustart, Menü, Übersicht, «Dorf überspringen»); Wackel-Probe in einer Welt (Sperre gilt dort nicht).
+      (Neuladen: zurück auf Übung 1; Neustart, Menü, Übersicht, «Dorf überspringen»); Wackel-Probe in einer Welt
+      (Sperre gilt dort nicht).
 - [ ] Doku: `CONTEXT.md` (Übungen, Führung, Band, Lichtkegel, Sperre; Abgelöstes), `README.md`, PLAN 1a.3 mit Stand,
       `.scratch/tutorial-neu/STAND.md` mit Übergabe, Beobachtungsfragen für den Test von Hand.
 - [ ] `APP_VERSION` in `index.html` und `sw.js` gleich.

@@ -354,9 +354,9 @@ Android-Chromium.
   «Spiegel längs» und «Prisma von der falschen Seite» fallen weg. **Strikte Führung:** Nur das markierte Element
   reagiert, Kamera und Knöpfe bleiben frei; der späte Fingerzeig entfällt. **Neuer Look:** festes Band unten mit Satz,
   Fortschrittspunkten und «Weiter», abgedunkelte Szene mit Lichtkegel statt Umriss, Hand sofort, Rückmeldung je
-  Schritt (Funkeln, Punkt, leiser Ton bei Ton an, weicher Übergang). Ein laufendes Dorf in alten Spielständen beginnt neu. Zuerst nur
-  «Erstes Licht», der Nutzer prüft auf dem Poco, dann der Rest. Branch `feature/tutorial-neu`, Spec, Tickets und
-  Übergabe in `.scratch/tutorial-neu/` (`STAND.md`).
+  Schritt (Funkeln, Punkt, leiser Ton bei Ton an, weicher Übergang). Das Dorf merkt sich keinen Platz: Jeder Start
+  beginnt bei Übung 1. Zuerst nur «Erstes Licht», der Nutzer prüft auf dem Poco, dann der Rest. Branch
+  `feature/tutorial-neu`, Spec, Tickets und Übergabe in `.scratch/tutorial-neu/` (`STAND.md`).
 
 ## 2. Würfel-Level (3D)
 
