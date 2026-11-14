@@ -898,7 +898,7 @@ console.log('Führung im Dorf (Schritte)');
     for (const q of eb.elements) if (L.isRotatable(q)) q.rot = e.solution[zelle(q)];
     r = L.traceBeams(eb);
     assert.ok(L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
-    // Strahl mit trifft: Umriss und Hand am Spiegel, weiter erst, wenn das Licht das Ziel trifft
+    // Strahl mit trifft: Lichtkegel und Hand am Spiegel, weiter erst, wenn das Licht das Ziel trifft
     const mit = { weiter: 'strahl', bei: zelle(sp), trifft: zelle(ziel), richtung: -1 };
     assert.ok(L.schrittErfuellt(mit, { art: 'strahl', board: eb, result: r }));
     sp.rot = 2;

@@ -5,8 +5,9 @@
 // Tippen auf ein drehbares Element dreht es weiterhin, und ein Levelwechsel mitten im Wackeln räumt auf. Zum Schluss
 // in einer Welt (Ticket 04 der Führung): das erste Level des Bergwalds (Leicht) mit einem festen Spiegel direkt neben
 // einem drehbaren, ohne Führung. Der feste wackelt auf seiner abgewandten Seite; nahe der gemeinsamen Kante (Handy,
-// INPUT.touchSlop) bzw. auf dem drehbaren (Maus) dreht das drehbare, und der feste bleibt still. Wirft bei einem
-// Fehler (screenshot.mjs meldet FEHLGESCHLAGEN).
+// INPUT.touchSlop) bzw. auf dem drehbaren (Maus) dreht das drehbare, und der feste bleibt still. Die Sperre der
+// Führung (Ticket 03 von .scratch/tutorial-neu/) gilt dort nicht: Jedes drehbare dreht beim Antippen seiner Mitte, bis
+// das Level gelöst ist. Wirft bei einem Fehler (screenshot.mjs meldet FEHLGESCHLAGEN).
 (async () => {
   const wait = (ms) => new Promise(r => setTimeout(r, ms));
   const check = (ok, text) => { if (!ok) throw new Error('Weigerung: ' + text); };
@@ -142,8 +143,22 @@
   tap(touch ? [md[0] + (mf[0] - md[0]) * k, md[1] + (mf[1] - md[1]) * k] : screenOf(wd, BEAM_Y));
   check(!weigernde.size && game.stats.turns === zuege + 1 && lageD() !== vor,
     `in der Welt: neben dem festen gewinnt das drehbare nicht (wackelt ${weigernde.size}, Züge ${game.stats.turns - zuege})`);
+  // die Sperre der Führung (.scratch/tutorial-neu/) gilt in der Welt nicht: jedes drehbare Element dreht beim Antippen
+  // seiner Mitte (bis das Level gelöst ist, dann nimmt das Brett nichts mehr an)
+  const drehbare = game.board.elements.filter(isRotatable);
+  check(game.board.elements.every(e => fuehrung.darf(e)) && fuehrung.vorrang() === null, 'in der Welt: Sperre aktiv');
+  let frei = 0;
+  for (const e of drehbare) {
+    if (game.result.solved) break;
+    const lageE = () => (e.type === 'combiner' ? e.dir : e.rot), z0 = game.stats.turns, l0 = lageE();
+    tap(mitte(e));
+    check(!weigernde.size && game.stats.turns === z0 + 1 && lageE() !== l0,
+      `in der Welt: drehbares ${e.type} ${e.x},${e.z} dreht nicht (wackelt ${weigernde.size})`);
+    frei++;
+  }
+  check(frei >= Math.min(2, drehbare.length), `in der Welt: nur ${frei} von ${drehbare.length} drehbaren geprüft`);
   out.welt = { level: LEVELS[paar.i].name, fest: paar.f, drehbar: paar.d, abstandPx: +abst.toFixed(1),
-    seiteDesFesten: k > 0.5, anteil: +k.toFixed(2) };
+    seiteDesFesten: k > 0.5, anteil: +k.toFixed(2), frei: `${frei}/${drehbare.length}` };
   out.ok = true;
   return JSON.stringify(out);
 })()

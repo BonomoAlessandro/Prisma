@@ -354,9 +354,13 @@ Android-Chromium.
   «Spiegel längs» und «Prisma von der falschen Seite» fallen weg. **Strikte Führung:** Nur das markierte Element
   reagiert, Kamera und Knöpfe bleiben frei; der späte Fingerzeig entfällt. **Neuer Look:** festes Band unten mit Satz,
   Fortschrittspunkten und «Weiter», abgedunkelte Szene mit Lichtkegel statt Umriss, Hand sofort, Rückmeldung je
-  Schritt (Funkeln, Punkt, leiser Ton bei Ton an, weicher Übergang). Das Dorf merkt sich keinen Platz: Jeder Start
-  beginnt bei Übung 1. Zuerst nur «Erstes Licht», der Nutzer prüft auf dem Poco, dann der Rest. Branch
-  `feature/tutorial-neu`, Spec, Tickets und Übergabe in `.scratch/tutorial-neu/` (`STAND.md`).
+  Schritt (Punkt, leiser Ton bei Ton an, weicher Übergang; das Funkeln nahm der Nutzer nach dem Poco-Test wieder
+  heraus). Das Dorf merkt sich keinen Platz: Jeder Start beginnt bei Übung 1. Zuerst nur «Erstes Licht», der Nutzer
+  prüft auf dem Poco, dann der Rest. Branch `feature/tutorial-neu`, Spec, Tickets und Übergabe in
+  `.scratch/tutorial-neu/` (`STAND.md`).
+  - **Stand 15.11.2026: umgesetzt, geprüft und beschrieben (Tickets 01–03), wartet auf den Test des Nutzers** auf dem
+    Poco und mit einer Person, die Prisma nicht kennt (Beobachtungsfragen in Ticket 03 unter «Comments»); danach
+    abhaken und Merge nach `main` nur auf sein Go.
 
 ## 2. Würfel-Level (3D)
 

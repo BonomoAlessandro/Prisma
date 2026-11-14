@@ -2483,7 +2483,9 @@ async function dorfAblauf() {
  *    wächst nicht, Satz zum Ende, Bergwald; d) einen Einstieg überspringen, während er auf das Versinken des alten
  *    Bretts wartet (sunk künstlich verzögert): Er landet erst danach, genau ein Level wächst; d2) ebenso im Flug ins
  *    Dorf: «Dorf überspringen» erst 2 s nach dem Herauswachsen, nicht während des Wartens; f) ein altes gespieltes Dorf
- *    (platz 8 aus der Zeit der 9 Übungen) bleibt beendet: Bergwald, die Reihe «Im Dorf» in der Übersicht.
+ *    (platz 8 aus der Zeit der 9 Übungen) bleibt beendet: Bergwald, die Reihe «Im Dorf» in der Übersicht; g) mitten in
+ *    der Führung in einen anderen Grad und zurück (dort keine Führung, zurück Übung 1, Schritt 1), dann «Dorf
+ *    überspringen» im Wechsel zwischen zwei Schritten (danach blendet kein Schritt mehr ein).
  */
 async function dorfRaender() {
   console.log(`${view.name}: Im Dorf, Randfälle`);
@@ -2613,6 +2615,59 @@ async function dorfRaender() {
   pruefe(!fd.inDorf && fd.n === 4 && fd.geloest === 4 && fd.frei === false && s.dorf?.ende === 'gespielt',
     `f: altes gespieltes Dorf ${JSON.stringify({ fd, dorf: s.dorf })}`);
   await kopfzeile('leicht', 0);
+
+  // g) mitten in der Führung in einen anderen Grad und zurück, dann «Dorf überspringen» im Wechsel zwischen zwei
+  // Schritten (Ticket 03 von .scratch/tutorial-neu/): Im anderen Grad bleibt von der Führung nichts stehen, zurück
+  // beginnt das Dorf bei Übung 1 und ihrem ersten Schritt (kein Stand im Dorf); nach dem Überspringen im Wechsel blendet
+  // kein Schritt mehr ein, weder über dem Satz zum Ende noch im Bergwald
+  const ohneFuehrung = async (was) => {
+    const f = await fuehrungIn([]);
+    pruefe(!(await ev(`${D}.fuehrung.level`)) && f.satz === null && !f.knopf && !f.kegel.length && f.frei && !f.hand,
+      `g: ${was}: Führung übrig ${JSON.stringify(f)}`);
+  };
+  const menue = async (was) => {
+    if (view.phone) await tippe('#btn-menu', 'Menü');
+    else await taste('Escape');
+    await until(`${menueOffen} && !${D}.story.tweens.length`, `g: Menü ${was}`, 10);
+  };
+  await laden({ 'prisma.noa.leicht': imDorf(1), 'prisma.noa.mittel': { platz: 0, geloest: [],
+    gesehen: ['prolog', 'angebot', 'wald'], geschafft: false } });
+  await waehle('leicht', 'Karte Leicht');
+  await uebungLaeuft(0);
+  await schrittIst(0, 0, 'g: Übung 1');
+  await tippe('#band .fuehrung-weiter', 'g: Übung 1: Weiter');
+  await schrittIst(0, 1, 'g: Übung 1');
+  await menue('aus dem Dorf');
+  await waehle('mittel', 'Karte Mittel');
+  await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0 && !${D}.story.inDorf`,
+    'g: Mittel, Bergwald 1', 60);
+  await kopfzeile('mittel', 0);
+  await ohneFuehrung('Mittel, Bergwald 1');
+  await menue('aus dem Bergwald');
+  await waehle('leicht', 'Karte Leicht');
+  await uebungLaeuft(0);
+  await schrittIst(0, 0, 'g: zurück in Leicht');
+  s = await stand('leicht');
+  pruefe(JSON.stringify(s.dorf) === '{"ende":null}' && s.geloest.join() === uebungen[0],
+    `g: zurück in Leicht ${JSON.stringify(s)}`);
+  // «Dorf überspringen» gleich nach «Weiter», solange der nächste Schritt noch nicht eingeblendet ist (der Wechsel für
+  // die Probe auf 3 s verlängert, damit das Tippen sicher hineinfällt)
+  await ev('window.__wechselVorher = FUEHRUNG.wechsel; FUEHRUNG.wechsel = 3; true');
+  try {
+    await tippe('#band .fuehrung-weiter', 'g: Übung 1: Weiter');
+    pruefe(await ev(`${D}.fuehrung.wechselt`), 'g: nach «Weiter» kein Wechsel');
+    await tippe(SKIP, 'g: Dorf überspringen');
+    await until(`${storyMode} === 'caption' && ${D}.story.waitTap !== null`, 'g: Satz zum Ende', 20);
+    await sleep(3500); // länger als der Wechsel
+    const f = await fuehrungIn([]);
+    s = await stand('leicht');
+    pruefe(f.satz === null && !f.knopf && !f.kegel.length && !f.hand && s.dorf?.ende === 'uebersprungen',
+      `g: Satz zum Ende nach dem Überspringen im Wechsel ${JSON.stringify({ f, dorf: s.dorf })}`);
+  } finally { await ev('FUEHRUNG.wechsel = window.__wechselVorher; true'); }
+  await tippe('#story .caption .text', 'Untertitel');
+  await until(`window.__prisma.playing() && !${D}.story.running && ${D}.story.step === 0`, 'g: Bergwald 1', 60);
+  await kopfzeile('leicht', 0);
+  await ohneFuehrung('Leicht, Bergwald 1');
 }
 /** Die Übung n steht auf dem Brett und läuft. */
 async function uebungLaeuft(n) {

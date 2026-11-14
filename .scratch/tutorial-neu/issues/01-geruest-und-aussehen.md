@@ -2,7 +2,8 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent
+**Status:** ready-for-human (umgesetzt, reviewt und vom Nutzer auf dem Poco abgenommen; offen nur noch der Test des
+ganzen Tutorials durch den Nutzer und eine Person, die Prisma nicht kennt, siehe Ticket 03)
 
 **What to build:** Die Führung aus 1a.1 bekommt das neue Aussehen und wird strikt. Am Ende läuft «Erstes Licht» auf einem
 neuen Brett mit vier Schritten so, wie es für alle Übungen gelten soll. Die übrigen acht alten Übungen bleiben in diesem
@@ -19,7 +20,7 @@ nicht, das beim Übergeben zum Poco-Test sagen. Danach prüft der Nutzer auf dem
       drehbare). Bei Erklärungen ist das Brett gesperrt bis «Weiter». Kamera, Knöpfe, Menü, Übersicht, Ton, Neustart und
       «Dorf überspringen» bleiben frei. Ausserhalb des Dorfs ändert sich nichts.
 - [x] **Rückmeldung:** Funkeln am Element, Punkt füllt sich, leiser Ton (nur bei Ton an), dann etwa 0,6 s und weiches
-      Einblenden des nächsten Schritts.
+      Einblenden des nächsten Schritts. Das Funkeln nahm der Nutzer nach dem Poco-Test wieder heraus (3c570a6).
 - [x] **Hinweise nebenbei** als kleiner Zusatz über dem Band (Verhalten wie bisher).
 - [x] **«Erstes Licht» neu:** Brett mit Quelle, Ziel, drehbaren und einem festen Spiegel; vier Schritte: Ziel zeigen
       (Erklärung), Tippen dreht, den festen Spiegel antippen (er wackelt, danach rund gegen eckig), Zurückdrehen mit
