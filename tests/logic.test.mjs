@@ -17,7 +17,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, inLoesung, fingerzeigZiel };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, schrittErlaubt };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -434,6 +434,22 @@ console.log('Antippen (Weigerung)');
     assert.equal(L.pickTapped([]), null);
     assert.equal(L.pickTapped([c(quelle, null, 40), c(spiegel, null, 30)], 26), null);
   });
+  // Sperre der Führung (.scratch/tutorial-neu/): die Elemente des Schritts gewinnen, auch ein festes vor einem drehbaren
+  test('Sperre: das Element des Schritts gewinnt, auch ein festes gegen ein drehbares im Toleranzbereich', () => {
+    const schritt = { weiter: 'antippen', bei: '2,3' }, vorrang = (el) => L.schrittErlaubt(schritt, el);
+    assert.equal(L.pickTapped([c(festerSpiegel, 5), c(spiegel, null, 20)], 26, vorrang), festerSpiegel);
+    assert.equal(L.pickTapped([c(festerSpiegel, null, 20), c(spiegel, 4)], 26, vorrang), festerSpiegel);
+    assert.equal(L.pickTapped([c(festerSpiegel, null, 30), c(spiegel, 4)], 26, vorrang), spiegel); // ausser Reichweite
+    assert.equal(L.pickTapped([c(festerSpiegel, 5), c(spiegel, null, 20)], 26), spiegel); // ohne Führung wie immer
+  });
+  test('Sperre: nur die Elemente eines Handlungsschritts dürfen reagieren, bei einer Erklärung keines', () => {
+    assert.ok(L.schrittErlaubt({ weiter: 'drehen', bei: ['3,3', '4,3'] }, prisma));
+    assert.ok(!L.schrittErlaubt({ weiter: 'drehen', bei: '4,3' }, spiegel));
+    assert.ok(!L.schrittErlaubt({ weiter: 'erklaerung', bei: '3,3' }, spiegel));
+    assert.ok(L.schrittErlaubt({ weiter: 'strahl', bei: '3,3', trifft: '4,3' }, spiegel));
+    assert.ok(!L.schrittErlaubt({ weiter: 'strahl', bei: '3,3', trifft: '4,3' }, prisma), 'trifft ist nicht zu drehen');
+    assert.ok(!L.schrittErlaubt(null, spiegel));
+  });
 }
 
 console.log('Level');
@@ -615,7 +631,9 @@ console.log('Führung im Dorf (Schritte)');
   const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
   test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
   // seit 13.11.2026 (Wunsch des Nutzers, natürlichere Texte) ein oder zwei kurze Sätze statt genau einem
-  test('Schritte: höchstens drei, je ein oder zwei kurze Sätze, auf beiden Geräten', () => {
+  // seit .scratch/tutorial-neu/ höchstens vier (bisher drei)
+  test('Schritte: höchstens vier, je ein oder zwei kurze Sätze, auf beiden Geräten', () => {
+    assert.equal(L.SCHRITTE_MAX, 4);
     for (const l of gefuehrt) {
       assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
       for (const s of l.schritte) for (const touch of [true, false]) {
@@ -667,10 +685,17 @@ console.log('Führung im Dorf (Schritte)');
     const art = (n) => u(n).schritte.map(s => s.weiter + (s.richtung === -1 ? '-zurück' : '')).join(' ');
     assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).map(q => q.name), ['Erstes Licht', 'Umweg', 'Sperre',
       'Brechung', 'Schatten', 'Farbenlehre', 'Farbiges Licht', 'Treffpunkt', 'Mischung']);
-    // Erstes Licht: das Ziel und der Weg dahin vor dem ersten Tippen (ein Tippen löst die Übung schon), mit Umriss um
-    // Kristall und Spiegel (Ticket 05: der Satz nennt beide)
-    assert.equal(art('Erstes Licht'), 'erklaerung drehen');
-    assert.deepEqual([].concat(u('Erstes Licht').schritte[0].bei), ['4,0', '4,3']);
+    // Erstes Licht (neu mit Ticket 01 von .scratch/tutorial-neu/): das Ziel (Erklärung mit Lichtkegel auf dem
+    // Kristall), Tippen dreht (bis das Licht den festen Spiegel trifft), den festen Spiegel antippen (er wackelt),
+    // rund gegen eckig und zurückdrehen: Der hintere Spiegel steht eine Stufe zu weit, einmal zurück löst die Übung
+    const e = u('Erstes Licht'), es = e.schritte;
+    assert.equal(art('Erstes Licht'), 'erklaerung strahl antippen drehen-zurück');
+    assert.equal(am(e, es[0].bei).type, 'target');
+    assert.ok(am(e, es[1].bei).type === 'mirror' && L.isRotatable(am(e, es[1].bei)) && es[1].trifft === es[2].bei);
+    assert.ok(am(e, es[2].bei).type === 'mirror' && am(e, es[2].bei).fixed, 'fester Spiegel zum Antippen');
+    assert.ok(/eckig/.test(es[2].text) && /[Ee]ckige.*runde/.test(es[3].text), 'rund gegen eckig');
+    assert.equal(L.mod8(am(e, es[3].bei).rot - 1) % 4, e.solution[es[3].bei] % 4, 'eine Stufe zu weit');
+    assert.deepEqual(Object.keys(e.solution).sort(), [es[1].bei, es[3].bei].sort(), 'genau die beiden runden Spiegel');
     // Umweg: festen Spiegel antippen, «Spiegel auf runden Sockeln lassen sich drehen, auf eckigen nicht», zurückdrehen;
     // beide runden Spiegel stehen
     // eine Stufe zu weit (je einmal zurück ist die Lösung), der letzte Schritt nennt beide (Ticket 04)
@@ -695,53 +720,69 @@ console.log('Führung im Dorf (Schritte)');
       assert.ok(umrandet(n, typ), `${n}: ${typ}`);
     }
   });
-  test('Schritte: wer jedem Schritt mit der kürzesten Handlung folgt, löst keine Übung vor ihrem letzten Schritt', () => {
+  test('Schritte: der letzte ist eine Handlung (er endet erst mit dem Lösen), jede Handlung hat ein Element, das reagiert', () => {
+    for (const l of gefuehrt) {
+      assert.notEqual(l.schritte.at(-1).weiter, 'erklaerung', `${l.name}: letzter Schritt`);
+      for (const s of l.schritte.filter(q => q.weiter !== 'erklaerung')) {
+        const reagiert = [].concat(s.bei).map(z => am(l, z)).filter(el => L.isRotatable(el) || (el.fixed && s.weiter === 'antippen'));
+        assert.ok(reagiert.length > 0, `${l.name}: «${s.text}» ohne Element, das unter der Sperre reagiert`);
+      }
+    }
+  });
+  // seit .scratch/tutorial-neu/ unter der Sperre: Die Suche dreht nur die Elemente des laufenden Schritts (auch
+  // mehrmals) und tippt nur sie an; der letzte Schritt endet erst mit dem Lösen, also muss er mit seinen Elementen lösbar
+  // sein (sonst steckte der Spieler fest)
+  test('Schritte: wer unter der Sperre jedem Schritt mit der kürzesten Handlung folgt, löst erst im letzten, und dort sicher', () => {
     // wie fuehrung: nach jeder Drehung zuerst gelöst, dann der Schritt (Drehung oder Strahl), Strahl-Schritte, die
-    // schon erfüllt sind, entfallen; Erklärungen mit «Weiter»
+    // schon erfüllt sind, entfallen (nie der letzte); Erklärungen mit «Weiter»
     const kopie = (b) => {
       const elements = b.elements.map(e => ({ ...e })), grid = new Array(b.size * b.size).fill(null);
       for (const e of elements) grid[e.z * b.size + e.x] = e;
       return { ...b, elements, grid };
     };
+    const steckt = [];
     for (const l of gefuehrt) {
-      const s = l.schritte;
+      const s = l.schritte, letzter = s.length - 1;
       let b = L.createBoard(l), k = 0;
       const ueberspringe = () => {
         const r = L.traceBeams(b);
-        while (k < s.length && s[k].weiter === 'strahl' && L.schrittErfuellt(s[k], { art: 'strahl', board: b, result: r })) k++;
+        while (k < letzter && s[k].weiter === 'strahl' && L.schrittErfuellt(s[k], { art: 'strahl', board: b, result: r })) k++;
       };
       ueberspringe();
-      while (k < s.length) {
+      for (;;) {
         if (s[k].weiter === 'erklaerung') { k++; ueberspringe(); continue; }
-        // Breitensuche über Drehungen (und Antippen fester Elemente) bis zum Weiterschalten
+        // Breitensuche über Drehungen (und Antippen fester Elemente) der Elemente des Schritts bis zum Weiterschalten,
+        // im letzten Schritt bis zum Lösen
         const seen = new Set(), q = [[b, 0]];
         let weiter = null;
         while (q.length && !weiter) {
           const [bb, n] = q.shift();
           for (const [i, el] of bb.elements.entries()) {
+            if (!L.schrittErlaubt(s[k], el)) continue; // die Sperre
             for (const d of L.isRotatable(el) ? [1, -1] : el.fixed && s[k].weiter === 'antippen' ? [0] : []) {
               const nb = kopie(bb), ne = nb.elements[i];
               if (d) { if (ne.type === 'combiner') ne.dir = L.mod8(ne.dir + d); else ne.rot = L.mod8(ne.rot + d); }
               const r = L.traceBeams(nb);
               const e = d ? { art: 'gedreht', el: ne, delta: d } : { art: 'angetippt', el: ne };
               if (d && r.solved) { weiter = { nb, geloest: true }; break; }
-              if (L.schrittErfuellt(s[k], e) || L.schrittErfuellt(s[k], { art: 'strahl', board: nb, result: r })) {
+              if (k < letzter && (L.schrittErfuellt(s[k], e) || L.schrittErfuellt(s[k], { art: 'strahl', board: nb, result: r }))) {
                 weiter = { nb, geloest: false }; break;
               }
               const key = nb.elements.map(x => x.rot + ':' + x.dir).join();
-              if (d && n < 6 && !seen.has(key)) { seen.add(key); q.push([nb, n + 1]); }
+              if (d && n < 10 && !seen.has(key)) { seen.add(key); q.push([nb, n + 1]); }
             }
             if (weiter) break;
           }
         }
-        assert.ok(weiter, `${l.name}: Schritt ${k + 1} nicht erfüllbar`);
-        assert.ok(!weiter.geloest || k === s.length - 1, `${l.name}: gelöst schon in Schritt ${k + 1}`);
+        if (!weiter) { steckt.push(`${l.name}: Schritt ${k + 1} ${k === letzter ? 'löst nicht' : 'nicht erfüllbar'}`); break; }
+        assert.ok(!weiter.geloest || k === letzter, `${l.name}: gelöst schon in Schritt ${k + 1}`);
         b = weiter.nb;
         if (weiter.geloest) break;
         k++;
         ueberspringe();
       }
     }
+    assert.deepEqual(steckt, [], 'unter der Sperre nicht lösbar');
   });
   test('Schritte: Hinweise nebenbei nur aus NEBENBEI, einmal je Übung', () => {
     for (const l of gefuehrt) {
@@ -773,13 +814,13 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(L.schrittGeste({ weiter: 'drehen', richtung: -1 }), 'zurueck');
     assert.equal(L.schrittGeste({ weiter: 'antippen' }), 'tippen');
     assert.equal(L.schrittGeste({ weiter: 'erklaerung' }), null);
-    // Strahl: Die Quelle von «Erstes Licht» trifft den Spiegel, das Ziel erst gelöst
+    // Strahl: Die Quelle von «Erstes Licht» trifft den vorderen Spiegel, das Ziel erst gelöst
     const e = L.LEVELS[0], eb = L.createBoard(e), ziel = eb.elements.find(q => q.type === 'target');
-    const sp = eb.elements.find(q => q.type === 'mirror');
+    const sp = eb.elements.find(q => L.isRotatable(q));
     let r = L.traceBeams(eb);
     assert.ok(L.strahlTrifft(r, sp) && !L.strahlTrifft(r, ziel));
     assert.ok(!L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
-    sp.rot = e.solution[zelle(sp)];
+    for (const q of eb.elements) if (L.isRotatable(q)) q.rot = e.solution[zelle(q)];
     r = L.traceBeams(eb);
     assert.ok(L.schrittErfuellt({ weiter: 'strahl', bei: zelle(ziel) }, { art: 'strahl', board: eb, result: r }));
     // Strahl mit trifft: Umriss und Hand am Spiegel, weiter erst, wenn das Licht das Ziel trifft
@@ -803,13 +844,10 @@ console.log('Führung im Dorf (Schritte)');
     mr = L.traceBeams(mb);
     assert.ok(mr.mixes.get(kombi.id) === L.COLORS.magenta && L.schrittErfuellt(s1, { art: 'strahl', board: mb, result: mr }));
   });
-  test('Später Fingerzeig: nächstes Element ausserhalb der Lösung, kürzerer Weg, Spiegel halbe Runde gleich', () => {
-    const l = L.LEVELS[0], b = L.createBoard(l), sp = b.elements.find(q => q.type === 'mirror');
-    assert.deepEqual([L.fingerzeigZiel(l, b).el, L.fingerzeigZiel(l, b).geste], [sp, 'tippen']); // 2 → 3
-    sp.rot = 4; // 3 + 1: zurück ist kürzer
-    assert.equal(L.fingerzeigZiel(l, b).geste, 'zurueck');
-    sp.rot = 7; // 3 + 4: gleich wie die Lösung
-    assert.ok(L.inLoesung(l, sp) && L.fingerzeigZiel(l, b) === null);
+  // der späte Fingerzeig (fingerzeigZiel, FUEHRUNG.fingerzeig) fällt mit .scratch/tutorial-neu/ weg: Die Hand zeigt
+  // sofort, die Sperre lässt nur das Markierte reagieren
+  test('Später Fingerzeig: entfallen', () => {
+    assert.ok(!/fingerzeigZiel|FUEHRUNG\.fingerzeig|vorspulen/.test(html), 'Reste des späten Fingerzeigs');
   });
 }
 test('Namen: alle Level eindeutig', () => {

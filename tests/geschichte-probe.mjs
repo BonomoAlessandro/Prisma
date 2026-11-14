@@ -1737,67 +1737,139 @@ const skipUeberdeckt = () => ev(`(() => { const s = document.getElementById('btn
   const schnitt = (r) => r.width > 0 && r.left < s.right && r.right > s.left && r.top < s.bottom && r.bottom > s.top;
   const text = (e) => { const g = document.createRange(); g.selectNodeContents(e); return [...g.getClientRects()]; };
   const teile = [['Titel', '#hud .title', text], ['Ziele', '#hud .goal', text], ['Unterzeile', '#hud .sub', text],
+    ['Band', '#band:not(.aus) .band-kasten', (e) => [e.getBoundingClientRect()]],
     ['Gelöst', '#solved .msg', text], ['Bestmarke', '#solved > .best', text], ['Weiter', '#btn-next', (e) => [e.getBoundingClientRect()]],
     ['Knöpfe', '#controls', (e) => [e.getBoundingClientRect()]]];
   return teile.filter(([, sel, rects]) => { const e = document.querySelector(sel);
     return e && !e.closest('.hidden') && rects(e).some(schnitt); }).map(([n]) => n); })()`);
 
 /**
- * Umrisse der Führung (Ausdruck im Fenster, braucht c: Lage des Canvas): seit Ticket 05 Ringe in der Szene
- * (fuehrung.ringe), gezählt die gezeigten, die an ihrem Modell in der Szene hängen; Mitte im Bild wie vorher die Mitte
- * des SVG-Rings, stark beim späten Fingerzeig, zelle: das Element, an dem er hängt. UMRISSE_FREI: nichts mehr da (kein
- * Ring, Geometrie und Material frei).
+ * Lichtkegel der Führung (Ausdruck im Fenster, braucht c: Lage des Canvas; seit .scratch/tutorial-neu/ statt der
+ * Umrisse): die gezeigten Kegel mit Mitte und Halbmesser im Bild (Pixel des Layouts), zelle: ihr Element. DUNKEL: die
+ * Szene ist abgedunkelt. FREI: nichts mehr über dem Brett (kein Abdunkeln, nichts je Bild).
  */
-const UMRISSE = `${D}.fuehrung.ringe.slice(0, ${D}.fuehrung.gezeigt).filter((m) => {
-    let t = m; while (t.parent) t = t.parent; return m.visible && t === ${D}.scene && m.parent !== ${D}.scene; })
-    .map((m) => { const v = m.getWorldPosition(new ${D}.camera.position.constructor()).project(${D}.camera);
-      return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height,
-        stark: ${D}.fuehrung.ringMat.uniforms.uBreite.value === FUEHRUNG.ring.stark.breite,
-        zelle: m.parent.userData.element.x + ',' + m.parent.userData.element.z }; })`;
-const UMRISSE_FREI = `!${D}.fuehrung.ringe.length && !${D}.fuehrung.ringMat && !${D}.fuehrung.ringGeo`;
+const KEGEL = `(() => { const b = document.getElementById('fuehrung');
+  if (!b || b.style.display === 'none' || !b.classList.contains('dunkel')) return [];
+  return ${D}.fuehrung.kegel.map((k) => ({ x: c.left + k.x, y: c.top + k.y, r: k.r, zelle: k.el.x + ',' + k.el.z })); })()`;
+const DUNKEL = `(() => { const b = document.getElementById('fuehrung');
+  return !!b && b.style.display !== 'none' && b.classList.contains('dunkel'); })()`;
+const FREI = `!${D}.fuehrung.sichtbar && !${DUNKEL}`;
+const nahe = (a, b, px = 12) => !!a && Math.hypot(a.x - b.x, a.y - b.y) <= px;
 /**
- * Stand der Führung (Ticket 02 von .scratch/tutorial-fuehrung/): Schritt, Satz, «Weiter», Umrisse (Mitte im Bild) und
- * Hand (Geste, Lage), dazu wo die Elemente bei x, z im Bild liegen (Mitte bzw. Kuppe der Hand), in Pixeln des Layouts.
+ * Stand der Führung in einer Übung (seit .scratch/tutorial-neu/ mit Band und Lichtkegel): Schritt, Wechsel, Satz und
+ * «Weiter» im Band, Punkte, Hinweise nebenbei, Lichtkegel, Abdunkeln und Hand (Geste, Lage), dazu die Lage der Elemente
+ * in den Zellen zellen (Mitte des Kegels, Kuppe der Hand, Punkt zum Antippen) und ob Satz, «Weiter» und Hinweise
+ * nebenbei ganz im Bild stehen, ohne Abschneiden (keine Ellipse, nichts breiter als sein Kasten) und ohne die Knöpfe
+ * oder «Überspringen» zu berühren; ob das Band einen Knopf oder einen Lichtkegel verdeckt.
  */
-const fuehrungStand = () => ev(`(() => { const f = ${D}.fuehrung, b = document.getElementById('fuehrung');
-  const satz = document.querySelector('#hud-sub .hinweis.schritt'), knopf = document.querySelector('#hud-sub .fuehrung-weiter');
-  const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || !e.getClientRects().length;
+const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = document.getElementById('fuehrung');
+  const band = document.getElementById('band'), kasten = band.querySelector('.band-kasten');
+  const satz = band.querySelector('.band-satz'), knopf = band.querySelector('.fuehrung-weiter');
+  const neben = band.querySelector('.band-neben');
+  const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || e.closest('.aus')
+    || !e.getClientRects().length;
   const sichtbar = b && b.style.display !== 'none';
   const c = ${D}.renderer.domElement.getBoundingClientRect();
-  const umrisse = ${UMRISSE};
+  const kegel = ${KEGEL};
   const h = b?.querySelector('.fz-hand'), hand = sichtbar && h.style.display !== 'none'
     ? { art: h.dataset.art, x: h.getScreenCTM().e, y: h.getScreenCTM().f } : null;
   const ort = (z, hoehe) => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === z);
-    const v = ${D}.game.objects.get(el.id).getWorldPosition(new ${D}.camera.position.constructor());
-    v.y += hoehe; v.project(${D}.camera);
+    const obj = ${D}.game.objects.get(el.id), v = obj.getWorldPosition(new ${D}.camera.position.constructor());
+    v.y += hoehe * obj.scale.x; v.project(${D}.camera);
     return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height }; };
-  return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
-    knopf: !zu(knopf), stups: !!knopf?.classList.contains('stups'), umrisse, hand, frei: ${UMRISSE_FREI},
-    ziel: ort('4,0', 0), spiegel: ort('4,3', 0), kuppe: ort('4,3', 0.42), tippen: ort('4,3', 0.375) }; })()`);
-const nahe = (a, b, px = 12) => !!a && Math.hypot(a.x - b.x, a.y - b.y) <= px;
+  const orte = Object.fromEntries(${JSON.stringify(zellen)}.map((z) => [z,
+    { mitte: ort(z, FUEHRUNG.kegel.hoehe), kuppe: ort(z, FUEHRUNG.kuppe), tippen: ort(z, 0.375) }]));
+  // ganz im Bild: jede Zeile des Texts im Fenster, kein Kasten breiter als sein Inhalt erlaubt, kein Knopf darüber
+  const w = innerWidth, hh = innerHeight, schnitt = (a, r) => r.width > 0 && a.left < r.right && a.right > r.left
+    && a.top < r.bottom && a.bottom > r.top;
+  const knoepfe = [document.getElementById('controls'), document.getElementById('btn-skip')]
+    .filter((e) => !zu(e)).map((e) => e.getBoundingClientRect());
+  const imBild = (e) => { if (zu(e)) return true; const g = document.createRange(); g.selectNodeContents(e);
+    const zeilen = [...g.getClientRects()], rs = [...zeilen, e.getBoundingClientRect()];
+    return rs.every((r) => r.left >= 0 && r.right <= w + 0.5 && r.top >= 0 && r.bottom <= hh + 0.5)
+      && !zeilen.some((r) => knoepfe.some((k) => schnitt(r, k))) && e.scrollWidth <= e.clientWidth + 1
+      && getComputedStyle(e).textOverflow !== 'ellipsis'; };
+  // «Weiter» an fester Stelle: rechts neben dem Satz, mittig zu seiner Höhe
+  const satzZeilen = zu(satz) ? [] : (() => { const g = document.createRange(); g.selectNodeContents(satz);
+    return [...g.getClientRects()]; })();
+  let lage = null;
+  if (!zu(knopf) && satzZeilen.length) {
+    const k = knopf.getBoundingClientRect(), oben = Math.min(...satzZeilen.map((r) => r.top));
+    const unten = Math.max(...satzZeilen.map((r) => r.bottom)), rechts = Math.max(...satzZeilen.map((r) => r.right));
+    lage = k.left >= rechts - 0.5 && Math.abs((k.top + k.bottom) / 2 - (oben + unten) / 2) <= 3 ? 'rechts' : 'anders';
+  }
+  // das Band (Kasten und Hinweise nebenbei) verdeckt keinen Knopf und keinen Lichtkegel (seine Mitte)
+  const bandRs = [kasten, neben].filter((e) => !zu(e)).map((e) => e.getBoundingClientRect());
+  const verdeckt = [...knoepfe.filter((k) => bandRs.some((r) => schnitt(r, k))).map(() => 'Knopf'),
+    ...kegel.filter((k) => bandRs.some((r) => k.x > r.left && k.x < r.right && k.y > r.top && k.y < r.bottom))
+      .map((k) => 'Kegel ' + k.zelle)];
+  const punkte = [...band.querySelectorAll('.band-punkte i')];
+  return { schritt: f.schritt, fertig: f.fertig, wechselt: f.wechselt, satz: zu(satz) ? null : satz.textContent,
+    knopf: !zu(knopf), kegel, dunkel: ${DUNKEL}, hand, frei: ${FREI}, orte, neben: zu(neben) ? '' : neben.textContent,
+    imBild: imBild(satz) && imBild(knopf) && imBild(neben), lage, verdeckt,
+    punkte: { n: punkte.length, voll: punkte.filter((p) => p.classList.contains('voll')).length,
+      jetzt: punkte.findIndex((p) => p.classList.contains('jetzt')) },
+    teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: satzZeilen.length }; })()`);
+/** Stellung (rot bzw. dir) des Elements in der Zelle z auf dem laufenden Brett. */
+const stellung = (z) => ev(`(() => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === '${z}');
+  return el.type === 'combiner' ? el.dir : el.rot; })()`);
+/** Wackelt das Element in der Zelle z gerade (Weigerung)? */
+const wackelt = (z) => ev(`(() => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === '${z}');
+  return !!${D}.game.objects.get(el.id).userData.weigern; })()`);
+/** Bis der laufende Schritt k eingeblendet ist (der Wechsel nach dem vorigen ist vorbei) oder gelöst. */
+const eingeblendet = (k, was) => until(`(${D}.fuehrung.schritt === ${k} && !${D}.fuehrung.wechselt) || ${D}.fuehrung.fertig`,
+  was, 10);
 /**
- * «Erstes Licht» geführt, wie ein Spieler (Ticket 02 der Führung): Schritt 1 erklärt Ziel und Weg (Umriss um
- * Kristall und Spiegel, «Weiter», keine Hand); Neustart beginnt wieder bei Schritt 1; «Weiter» → Schritt 2 (Satz in der Befehlsform des
- * Geräts, Umriss und Hand am Spiegel, die Hand geht nach dem Vorzeigen); später Fingerzeig (vorgespult: Hand wieder,
- * Umriss stark); Menü und zurück behält den Schritt; dann den Spiegel antippen: gelöst, nichts bleibt stehen.
+ * Sperre (seit .scratch/tutorial-neu/): ein Element, das im Schritt nicht reagieren darf, wie ein Spieler antippen. Es
+ * dreht sich nicht und wackelt (Weigerung), der Schritt bleibt. Nur wo es im Bild weit genug von den markierten liegt
+ * (Toleranz des Fingers, die markierten gewännen); sonst zurück: false.
+ */
+async function sperreProbe(z, markiert, was) {
+  const f = await fuehrungIn([z, ...markiert]), p = f.orte[z].tippen;
+  if (markiert.some((m) => nahe(f.orte[m].tippen, p, 70))) return false;
+  const vorher = await stellung(z), schritt = f.schritt;
+  await tippeBei(p.x, p.y);
+  await sleep(120);
+  const weigert = await wackelt(z);
+  await sleep(380);
+  const g = await fuehrungIn([]);
+  pruefe((await stellung(z)) === vorher && weigert && g.schritt === schritt && !g.fertig,
+    `${was}: gesperrtes Element ${z} dreht sich oder wackelt nicht (Stellung ${vorher} → ${await stellung(z)}, `
+    + `wackelt ${weigert}, Schritt ${schritt} → ${g.schritt})`);
+  return true;
+}
+/**
+ * «Erstes Licht» geführt, wie ein Spieler (seit Ticket 01 von .scratch/tutorial-neu/ vier Schritte, strikt): Schritt 1
+ * zeigt das Ziel (Lichtkegel auf dem Kristall, «Weiter», keine Hand, das Brett gesperrt); Neustart beginnt wieder bei
+ * Schritt 1 (dazu die Hinweise nebenbei über dem Band); «Weiter» → Punkt voll, Wechsel, Schritt 2 (Satz in der
+ * Befehlsform des Geräts, Kegel und Hand am vorderen Spiegel, die Hand geht nach dem Vorzeigen; der feste und der
+ * hintere Spiegel weigern sich); Menü und zurück behält den Schritt; Tippen schickt das Licht zum festen Spiegel →
+ * Funkeln, Schritt 3 (den festen antippen: er wackelt) → Schritt 4 (langes Drücken bzw. Rechtsklick auf den hinteren
+ * Spiegel, der vordere ist gesperrt): gelöst, Band und Abdunkeln gehen.
  */
 async function gefuehrt(g) {
   const was = `${g}, Erstes Licht geführt`;
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level?.name === 'Erstes Licht'`, `${was}: Führung läuft`, 10);
   await sleep(300);
+  const [ZIEL, VORN, FEST, HINTEN] = ['5,4', '2,4', '2,1', '5,1'];
+  const texte = await ev(`LEVELS[0].schritte.map((s) => geraeteText(s.text, ${view.phone}))`);
   const schritt1 = async (wann) => {
-    const f = await fuehrungStand();
-    pruefe(f.schritt === 0 && f.satz === 'Das Licht läuft geradeaus, bis es auf einen Spiegel trifft. Bring es zum Kristall.'
-      && f.knopf && !f.hand && f.umrisse.length === 2 && f.umrisse.some((u) => nahe(u, f.ziel, 15))
-      && f.umrisse.some((u) => nahe(u, f.spiegel, 15)), `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
+    const f = await fuehrungIn([ZIEL]);
+    pruefe(f.schritt === 0 && f.satz === texte[0] && f.knopf && !f.hand && f.dunkel && f.kegel.length === 1
+      && f.kegel[0].zelle === ZIEL && nahe(f.kegel[0], f.orte[ZIEL].mitte, 4) && f.kegel[0].r > 12
+      && f.punkte.n === 4 && f.punkte.voll === 0 && f.punkte.jetzt === 0 && f.lage === 'rechts' && f.imBild
+      && !f.verdeckt.length, `${was} (${wann}): Schritt 1 ${JSON.stringify(f)}`);
   };
   await schritt1('Beginn');
-  await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
+  // eine Erklärung sperrt das ganze Brett: der vordere Spiegel dreht sich nicht
+  await sperreProbe(VORN, [], `${was}, Schritt 1`);
+  await bild(`dorf-${slug(g)}-fuehrung-schritt-1`);
+  await tippe('#band .fuehrung-weiter', `${was}: Weiter`);
   await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
-  // Neustart: wieder bei Schritt 1. Zur Probe der Anschlüsse bekommt die Übung bis dahin Hinweise nebenbei (die
-  // echten verteilt Ticket 03): Die Kamerageste beendet den zur Kamera, der Neustart den zum Neustart, und beim
-  // Neustart derselben Übung kommt keiner wieder
-  const neben = () => ev(`(() => { const n = document.querySelector('#hud-sub .hinweis.nebenbei');
+  // Neustart: wieder bei Schritt 1. Zur Probe der Anschlüsse bekommt die Übung Hinweise nebenbei (die echten stehen
+  // in anderen Übungen): Die Kamerageste beendet den zur Kamera, der Neustart den zum Neustart, und beim Neustart
+  // derselben Übung kommt keiner wieder
+  const neben = () => ev(`(() => { const n = document.querySelector('#band .band-neben');
     return n && !n.hidden ? n.textContent : ''; })()`);
   const neustart = async (wann) => {
     await tippe('#btn-restart', `${was}: Neustart`);
@@ -1811,8 +1883,11 @@ async function gefuehrt(g) {
     const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((t) => t[${view.phone ? 0 : 1}])`);
     let n = await neben();
     pruefe(n === `${kamera} ${neu}`, `${was}: Hinweise nebenbei «${n}»`);
+    const f = await fuehrungIn([]);
+    pruefe(f.imBild && !f.verdeckt.length, `${was}: Hinweise nebenbei über dem Band ${JSON.stringify(f)}`);
+    await bild(`dorf-${slug(g)}-fuehrung-nebenbei`);
     const c = await ev(`(() => { const r = ${D}.renderer.domElement.getBoundingClientRect();
-      return { x: r.left + r.width * 0.2, y: r.top + r.height * 0.75 }; })()`);
+      return { x: r.left + r.width * 0.2, y: r.top + r.height * 0.3 }; })()`);
     await scrolle(c.x, c.y, view.phone ? 120 : 40); // Handy: wischen dreht die Kamera, Desktop: das Mausrad zoomt
     n = await neben();
     pruefe(n === neu, `${was}: nach der Kamerageste «${n}»`);
@@ -1821,99 +1896,84 @@ async function gefuehrt(g) {
     pruefe(n === '', `${was}: nach dem Neustart noch Hinweise nebenbei «${n}»`);
   } finally { await ev('delete LEVELS[0].nebenbei'); }
   await schritt1('nach dem Neustart');
-  await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
+  await tippe('#band .fuehrung-weiter', `${was}: Weiter`);
   await until(`${D}.fuehrung.schritt === 1`, `${was}: Schritt 2`, 5);
-  await sleep(200);
-  let f = await fuehrungStand();
-  const satz2 = `${view.phone ? 'Tippe' : 'Klicke'} den Spiegel an. Er dreht sich und lenkt das Licht zum Kristall.`;
-  pruefe(f.satz === satz2 && !f.knopf && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15)
-    && f.hand?.art === 'tippen' && nahe(f.hand, f.kuppe, 3), `${was}: Schritt 2 ${JSON.stringify(f)}`);
+  // Rückmeldung: der Punkt füllt sich sofort, der Satz blendet aus, nach FUEHRUNG.wechsel kommt der nächste
+  let f = await fuehrungIn([]);
+  pruefe(f.wechselt && f.punkte.voll === 1 && !f.hand, `${was}: Wechsel nach «Weiter» ${JSON.stringify(f)}`);
+  await eingeblendet(1, `${was}: Schritt 2 eingeblendet`);
+  await sleep(250);
+  f = await fuehrungIn([VORN]);
+  pruefe(f.satz === texte[1] && !f.knopf && f.kegel.length === 1 && f.kegel[0].zelle === VORN
+    && nahe(f.kegel[0], f.orte[VORN].mitte, 4) && f.hand?.art === 'tippen' && nahe(f.hand, f.orte[VORN].kuppe, 3)
+    && f.punkte.voll === 1 && f.punkte.jetzt === 1 && f.imBild && !f.verdeckt.length,
+  `${was}: Schritt 2 ${JSON.stringify(f)}`);
   await bild(`dorf-${slug(g)}-fuehrung-schritt-2`);
+  // Sperre: der hintere und der feste Spiegel reagieren nicht
+  await sperreProbe(HINTEN, [VORN], `${was}, Schritt 2`);
+  const vorFest = await fuehrungIn([]);
+  await sperreProbe(FEST, [VORN], `${was}, Schritt 2`);
+  pruefe((await fuehrungIn([])).schritt === vorFest.schritt, `${was}: der feste Spiegel schaltet Schritt 2 weiter`);
   await sleep(2800); // die Hand zeigt einmal vor und geht
-  f = await fuehrungStand();
-  pruefe(!f.hand && f.umrisse.length === 1 && !f.spaet, `${was}: Hand nach dem Vorzeigen ${JSON.stringify(f)}`);
-  await ev(`${D}.fuehrung.vorspulen()`);
-  f = await fuehrungStand();
-  pruefe(f.spaet && f.hand?.art === 'tippen' && f.umrisse[0]?.stark, `${was}: später Fingerzeig ${JSON.stringify(f)}`);
+  f = await fuehrungIn([VORN]);
+  pruefe(!f.hand && f.kegel.length === 1 && f.dunkel, `${was}: Hand nach dem Vorzeigen ${JSON.stringify(f)}`);
   // Menü und zurück: derselbe Schritt, darunter nichts über dem Brett
   if (view.phone) await tippe('#btn-menu', 'Menü');
   else await taste('Escape');
   await until(`${menueOffen} && !${D}.story.tweens.length`, `${was}: Menü`, 10);
-  f = await fuehrungStand();
-  pruefe(!f.umrisse.length && !f.hand, `${was}: unter dem Menü ${JSON.stringify(f)}`);
+  f = await fuehrungIn([]);
+  pruefe(!f.kegel.length && !f.hand && !f.dunkel, `${was}: unter dem Menü ${JSON.stringify(f)}`);
   if (view.phone) await tippe('#menue .menue-weiter', 'Weiter');
   else await taste('Escape');
   await until(`window.__prisma.playing() && ${D}.story.gaze === 0 && !${D}.story.running`, `${was}: zurück`, 15);
-  f = await fuehrungStand();
-  pruefe(f.schritt === 1 && f.satz === satz2 && f.umrisse.length === 1 && nahe(f.umrisse[0], f.spiegel, 15),
+  f = await fuehrungIn([VORN]);
+  pruefe(f.schritt === 1 && f.satz === texte[1] && f.kegel.length === 1 && nahe(f.kegel[0], f.orte[VORN].mitte, 4),
     `${was}: nach dem Menü ${JSON.stringify(f)}`);
-  // den Spiegel antippen wie ein Spieler: gelöst, die Führung ist durch
-  await tippeBei(f.tippen.x, f.tippen.y);
-  await until(`${D}.game.result.solved`, `${was}: Spiegel angetippt`, 5);
-  f = await fuehrungStand();
-  pruefe(f.fertig && f.satz === null && !f.umrisse.length && f.frei && !f.hand, `${was}: gelöst ${JSON.stringify(f)}`);
+  // den vorderen Spiegel antippen wie ein Spieler: das Licht läuft zum festen, es funkelt, Schritt 3
+  await tippeBei(f.orte[VORN].tippen.x, f.orte[VORN].tippen.y);
+  await until(`${D}.fuehrung.schritt === 2`, `${was}: Schritt 3`, 5);
+  const funke = await ev(`document.querySelectorAll('#fuehrung .fz-funke').length`);
+  pruefe(funke >= 1, `${was}: kein Funkeln nach Schritt 2`);
+  await eingeblendet(2, `${was}: Schritt 3 eingeblendet`);
+  await sleep(250);
+  f = await fuehrungIn([FEST]);
+  pruefe(f.satz === texte[2] && f.kegel.length === 1 && f.kegel[0].zelle === FEST && f.hand?.art === 'tippen'
+    && nahe(f.hand, f.orte[FEST].kuppe, 3) && f.punkte.voll === 2 && f.imBild && !f.verdeckt.length,
+  `${was}: Schritt 3 ${JSON.stringify(f)}`);
+  await bild(`dorf-${slug(g)}-fuehrung-schritt-3`);
+  await tippeBei(f.orte[FEST].tippen.x, f.orte[FEST].tippen.y);
+  await sleep(100);
+  pruefe(await wackelt(FEST), `${was}: der feste Spiegel wackelt nicht`);
+  await until(`${D}.fuehrung.schritt === 3`, `${was}: Schritt 4`, 5);
+  await eingeblendet(3, `${was}: Schritt 4 eingeblendet`);
+  await sleep(250);
+  f = await fuehrungIn([HINTEN]);
+  const zurueck = view.phone ? 'halten' : 'rechtsklick';
+  pruefe(f.satz === texte[3] && f.kegel.length === 1 && f.kegel[0].zelle === HINTEN && f.hand?.art === zurueck
+    && nahe(f.hand, f.orte[HINTEN].kuppe, 3) && f.punkte.voll === 3 && f.punkte.jetzt === 3 && f.imBild
+    && !f.verdeckt.length, `${was}: Schritt 4 ${JSON.stringify(f)}`);
+  await bild(`dorf-${slug(g)}-fuehrung-schritt-4`);
+  await sperreProbe(VORN, [HINTEN], `${was}, Schritt 4`);
+  await halteBei(f.orte[HINTEN].tippen.x, f.orte[HINTEN].tippen.y);
+  await until(`${D}.game.result.solved`, `${was}: hinterer Spiegel zurückgedreht`, 5);
+  f = await fuehrungIn([]);
+  pruefe(f.fertig && f.satz === null && !f.hand && !f.dunkel, `${was}: gelöst ${JSON.stringify(f)}`);
+  await until(FREI, `${was}: nichts mehr über dem Brett`, 3);
 }
 
 /**
- * Stand der Führung in einer beliebigen Übung (Ticket 03 der Führung): wie fuehrungStand, dazu die Lage der Elemente
- * in den Zellen zellen (Mitte am Brett, Kuppe der Hand, Punkt zum Antippen) und ob Satz, «Weiter» und Hinweise
- * nebenbei ganz im Bild stehen, ohne Abschneiden (keine Ellipse, nichts breiter als sein Kasten) und ohne die Knöpfe
- * unten rechts oder «Überspringen» zu berühren.
- */
-const fuehrungIn = (zellen) => ev(`(() => { const f = ${D}.fuehrung, b = document.getElementById('fuehrung');
-  const satz = document.querySelector('#hud-sub .hinweis.schritt'), knopf = document.querySelector('#hud-sub .fuehrung-weiter');
-  const neben = document.querySelector('#hud-sub .hinweis.nebenbei');
-  const zu = (e) => !e || e.hidden || e.closest('[hidden]') || e.closest('.hidden') || !e.getClientRects().length;
-  const sichtbar = b && b.style.display !== 'none';
-  const c = ${D}.renderer.domElement.getBoundingClientRect();
-  const umrisse = ${UMRISSE};
-  const h = b?.querySelector('.fz-hand'), hand = sichtbar && h.style.display !== 'none'
-    ? { art: h.dataset.art, x: h.getScreenCTM().e, y: h.getScreenCTM().f } : null;
-  const ort = (z, hoehe) => { const el = ${D}.game.board.elements.find((e) => e.x + ',' + e.z === z);
-    const v = ${D}.game.objects.get(el.id).getWorldPosition(new ${D}.camera.position.constructor());
-    v.y += hoehe; v.project(${D}.camera);
-    return { x: c.left + (v.x + 1) / 2 * c.width, y: c.top + (1 - v.y) / 2 * c.height }; };
-  const orte = Object.fromEntries(${JSON.stringify(zellen)}.map((z) => [z,
-    { mitte: ort(z, 0), kuppe: ort(z, 0.42), tippen: ort(z, 0.375) }]));
-  // ganz im Bild: jede Zeile des Texts im Fenster, kein Kasten breiter als sein Inhalt erlaubt, kein Knopf darüber
-  const w = innerWidth, hh = innerHeight, schnitt = (a, r) => r.width > 0 && a.left < r.right && a.right > r.left
-    && a.top < r.bottom && a.bottom > r.top;
-  const knoepfe = [document.getElementById('controls'), document.getElementById('btn-skip')]
-    .filter((e) => !zu(e)).map((e) => e.getBoundingClientRect());
-  const imBild = (e) => { if (zu(e)) return true; const g = document.createRange(); g.selectNodeContents(e);
-    const zeilen = [...g.getClientRects()], rs = [...zeilen, e.getBoundingClientRect()];
-    // im Fenster auch der Kasten; die Knöpfe berührt kein Text (je Zeile, der Kasten ist breiter als sein Text)
-    return rs.every((r) => r.left >= 0 && r.right <= w + 0.5 && r.top >= 0 && r.bottom <= hh + 0.5)
-      && !zeilen.some((r) => knoepfe.some((k) => schnitt(r, k))) && e.scrollWidth <= e.clientWidth + 1
-      && getComputedStyle(e).textOverflow !== 'ellipsis'; };
-  // die Zeilen des Satzes (ohne «Weiter») und die Lage von «Weiter» dazu (Ticket 05 der Führung): auf dem Handy
-  // hochkant mittig unter dem Satz, sonst rechts daneben, mittig zu seiner Höhe
-  const satzZeilen = zu(satz) ? [] : (() => { const g = document.createRange(); g.selectNodeContents(satz.firstChild);
-    return [...g.getClientRects()]; })();
-  let lage = null;
-  if (!zu(knopf) && satzZeilen.length) {
-    const k = knopf.getBoundingClientRect(), oben = Math.min(...satzZeilen.map((r) => r.top));
-    const unten = Math.max(...satzZeilen.map((r) => r.bottom)), links = Math.min(...satzZeilen.map((r) => r.left));
-    const rechts = Math.max(...satzZeilen.map((r) => r.right)), mitte = (a, b) => (a + b) / 2;
-    lage = k.top >= unten - 0.5 && Math.abs(mitte(k.left, k.right) - mitte(links, rechts)) <= 1.5 ? 'unter'
-      : k.left >= rechts - 0.5 && Math.abs(mitte(k.top, k.bottom) - mitte(oben, unten)) <= 3 ? 'rechts' : 'anders';
-  }
-  return { schritt: f.schritt, fertig: f.fertig, spaet: f.spaet, satz: zu(satz) ? null : satz.firstChild.textContent,
-    knopf: !zu(knopf), umrisse, hand, frei: ${UMRISSE_FREI}, orte, neben: zu(neben) ? '' : neben.textContent,
-    imBild: imBild(satz) && imBild(knopf) && imBild(neben), lage,
-    teile: [imBild(satz), imBild(knopf), imBild(neben)].join(), zeilen: satzZeilen.length }; })()`);
-/**
  * Die Führung der laufenden Übung n steht beim Schritt k (Ticket 04 der Führung, Unterbrechungen mitten in ihr): sein
- * Satz in der Kopfzeile, je Element ein Umriss, «Weiter» nur an einer Erklärung.
+ * Satz im Band, je Element ein Lichtkegel, «Weiter» nur an einer Erklärung.
  */
 async function schrittIst(n, k, was) {
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level === LEVELS[${n}] && ${D}.flow.state === 'play'`,
     `${was}: Führung läuft`, 15);
+  await eingeblendet(k, `${was}: Schritt ${k + 1} eingeblendet`);
   await sleep(300);
   const s = await ev(`(({ text, bei, weiter }) => ({ text: geraeteText(text, ${view.phone}),
     zellen: [].concat(bei ?? []).length, erklaerung: weiter === 'erklaerung' }))(LEVELS[${n}].schritte[${k}])`);
   const f = await fuehrungIn([]);
-  pruefe(f.schritt === k && !f.fertig && f.satz === s.text && f.knopf === s.erklaerung && f.umrisse.length === s.zellen,
+  pruefe(f.schritt === k && !f.fertig && f.satz === s.text && f.knopf === s.erklaerung && f.kegel.length === s.zellen,
     `${was}: Schritt ${k + 1} erwartet ${JSON.stringify(f)}`);
   console.log(`  ${was}: Schritt ${k + 1} «${f.satz}»`);
 }
@@ -1931,45 +1991,54 @@ async function halteBei(x, y) {
   }
 }
 /**
- * Jeden Schritt einer Übung spielen wie ein Spieler (Ticket 03 der Führung): je Schritt Satz in der Befehlsform des
- * Geräts, «Weiter» nur an Erklärungen, je Element des Schritts ein Umriss an seiner Lage, die Hand mit der Geste des
- * Schritts am ersten Element, Satz und Hinweise nebenbei ganz im Bild. Dann die Handlung: «Weiter» tippen, das Element
- * antippen (ein festes weigert sich), drehen (zurück mit langem Drücken bzw. Rechtsklick) oder drehen, bis der Strahl
- * trifft. Wer so folgt, löst die Übung nicht vor ihrem letzten Schritt; den Rest löst die Probe (loese).
+ * Jeden Schritt einer Übung spielen wie ein Spieler (Ticket 03 der Führung, seit .scratch/tutorial-neu/ unter der
+ * Sperre): je Schritt Satz in der Befehlsform des Geräts im Band, «Weiter» nur an Erklärungen (rechts neben dem Satz),
+ * die Punkte, je Element des Schritts ein Lichtkegel an seiner Lage, die Hand mit der Geste des Schritts am ersten
+ * Element, Satz und Hinweise nebenbei ganz im Bild, das Band verdeckt weder Knöpfe noch Kegel. Ein gesperrtes Element
+ * angetippt dreht sich nicht. Dann die Handlung: «Weiter» tippen, das Element antippen (ein festes weigert sich),
+ * drehen (zurück mit langem Drücken bzw. Rechtsklick) oder drehen, bis der Strahl trifft. Wer so folgt, löst die Übung
+ * nicht vor ihrem letzten Schritt; der letzte endet erst mit dem Lösen: Die Probe dreht dort seine Elemente wie ein
+ * Spieler in die Lösung (die Geste des Schritts), nur sie (sonst stäke der Spieler unter der Sperre fest).
  */
 async function schritteSpielen(g, n) {
   const was = `${g}, Übung ${n + 1} geführt`;
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level === LEVELS[${n}] && ${D}.flow.state === 'play'`,
     `${was}: Führung läuft`, 10);
-  const { schritte, nebenbei } = await ev(`({ schritte: LEVELS[${n}].schritte.map((s) => ({ ...s,
+  const { schritte, nebenbei, drehbar, loesung } = await ev(`({ schritte: LEVELS[${n}].schritte.map((s) => ({ ...s,
     text: geraeteText(s.text, ${view.phone}) })), nebenbei: (LEVELS[${n}].nebenbei ?? [])
-    .map((k) => NEBENBEI[k].text[${view.phone ? 0 : 1}]).join(' ') })`);
+    .map((k) => NEBENBEI[k].text[${view.phone ? 0 : 1}]).join(' '), loesung: LEVELS[${n}].solution,
+    drehbar: ${D}.game.board.elements.filter((e) => isRotatable(e)).map((e) => e.x + ',' + e.z) })`);
   const handArt = (s) => (s.weiter === 'erklaerung' || (s.weiter === 'strahl' && !s.trifft) ? null
     : s.richtung === -1 ? (view.phone ? 'halten' : 'rechtsklick') : 'tippen');
+  const letzter = schritte.length - 1;
   for (let k = 0; k < schritte.length; k++) {
     const s = schritte[k], zellen = [].concat(s.bei ?? []);
-    await until(`${D}.fuehrung.schritt === ${k} || ${D}.fuehrung.fertig`, `${was}: Schritt ${k + 1}`, 10);
+    await until(`${D}.fuehrung.schritt >= ${k} || ${D}.fuehrung.fertig`, `${was}: Schritt ${k + 1}`, 10);
+    if (await ev(`${D}.fuehrung.schritt > ${k}`)) continue; // ein Strahl-Schritt, den der Strahl schon erfüllt
     // vor dem ersten Schritt wartete die Probe (Knöpfe, Bild), die Hand hat schon vorgezeigt: noch einmal beginnen
     if (k === 0) await ev(`${D}.fuehrung.beginneSchritt()`);
+    await eingeblendet(k, `${was}: Schritt ${k + 1} eingeblendet`);
     await sleep(250);
     const f = await fuehrungIn(zellen);
     pruefe(!f.fertig, `${was}: schon in Schritt ${k + 1} gelöst`);
     if (f.fertig) return;
-    // je Element ein Ring in der Szene, an seinem Modell und im Bild um seine Mitte
-    const umrandet = zellen.every((z) => f.umrisse.some((u) => u.zelle === z && nahe(u, f.orte[z].mitte, 15)));
+    // je Element ein Lichtkegel im Bild um seine Mitte
+    const beleuchtet = zellen.every((z) => f.kegel.some((u) => u.zelle === z && nahe(u, f.orte[z].mitte, 4)));
     const art = handArt(s);
-    pruefe(f.satz === s.text && f.knopf === (s.weiter === 'erklaerung') && f.umrisse.length === zellen.length
-      && umrandet && (art ? f.hand?.art === art && nahe(f.hand, f.orte[zellen[0]].kuppe, 3) : !f.hand)
-      && f.imBild && f.neben === (k === 0 ? nebenbei : f.neben), `${was}: Schritt ${k + 1} ${JSON.stringify(f)}`);
-    // «Weiter» an fester Stelle beim Satz (Ticket 05 der Führung)
-    // wie die Regeln in index.html: hochkant ab 700 px Höhe darunter, auf einem kleinen Handy und sonst rechts
-    const lage = view.width <= 520 && view.height >= 700 ? 'unter' : 'rechts';
-    pruefe(s.weiter !== 'erklaerung' || f.lage === lage, `${was}: Schritt ${k + 1} «Weiter» ${f.lage} statt ${lage}`);
+    pruefe(f.satz === s.text && f.knopf === (s.weiter === 'erklaerung') && f.kegel.length === zellen.length
+      && beleuchtet && f.dunkel && (art ? f.hand?.art === art && nahe(f.hand, f.orte[zellen[0]].kuppe, 3) : !f.hand)
+      && f.imBild && f.neben === (k === 0 ? nebenbei : f.neben) && !f.verdeckt.length
+      && f.punkte.n === schritte.length && f.punkte.voll === k && f.punkte.jetzt === k,
+    `${was}: Schritt ${k + 1} ${JSON.stringify(f)}`);
+    pruefe(s.weiter !== 'erklaerung' || f.lage === 'rechts', `${was}: Schritt ${k + 1} «Weiter» ${f.lage} statt rechts`);
     if (k === 0 && nebenbei) console.log(`  ${was}: Hinweis nebenbei «${f.neben}»`);
     console.log(`  ${was}: Schritt ${k + 1} «${f.satz}» (${f.zeilen} Zeile${f.zeilen === 1 ? '' : 'n'})`);
+    // Sperre: ein drehbares Element, das nicht zum Schritt gehört, weigert sich (das erste, das weit genug liegt)
+    const markiert = s.weiter === 'erklaerung' ? [] : zellen;
+    for (const z of drehbar.filter((d) => !markiert.includes(d))) if (await sperreProbe(z, markiert, `${was}, Schritt ${k + 1}`)) break;
     if (s.weiter === 'erklaerung') {
-      await tippe('#hud-sub .fuehrung-weiter', `${was}: Weiter`);
-    } else {
+      await tippe('#band .fuehrung-weiter', `${was}: Weiter`);
+    } else if (k < letzter) {
       // die Geste am ersten Element des Schritts, beim Strahl so oft, bis er trifft (höchstens eine Runde)
       for (let i = 0; i < 8; i++) {
         const p = f.orte[zellen[0]].tippen;
@@ -1979,28 +2048,43 @@ async function schritteSpielen(g, n) {
         if (await ev(`${D}.fuehrung.schritt > ${k} || ${D}.fuehrung.fertig`)) break;
         if (s.weiter !== 'strahl') break;
       }
+    } else {
+      // der letzte: seine Elemente mit der Geste des Schritts in die Lösung drehen (zurück: langes Drücken)
+      const g2 = await fuehrungIn(zellen);
+      for (const z of zellen.filter((q) => q in loesung)) {
+        const runde = (await ev(`${D}.game.board.elements.find((e) => e.x + ',' + e.z === '${z}').type`)) === 'mirror'
+          ? 4 : 8, ist = await stellung(z);
+        const mal = s.richtung === -1 ? ((ist - loesung[z]) % runde + runde) % runde
+          : ((loesung[z] - ist) % runde + runde) % runde;
+        for (let i = 0; i < mal && !(await ev(`${D}.fuehrung.fertig`)); i++) {
+          const p = g2.orte[z].tippen;
+          if (s.richtung === -1) await halteBei(p.x, p.y);
+          else await tippeBei(p.x, p.y);
+          await sleep(450);
+        }
+      }
     }
     await until(`${D}.fuehrung.schritt > ${k} || ${D}.fuehrung.fertig`, `${was}: Schritt ${k + 1} erfüllt`, 5);
     const fertig = await ev(`${D}.fuehrung.fertig`);
-    pruefe(!fertig || k === schritte.length - 1, `${was}: nach Schritt ${k + 1} gelöst`);
+    pruefe(!fertig || k === letzter, `${was}: nach Schritt ${k + 1} gelöst`);
     if (fertig) break;
   }
-  // nach den Schritten: der letzte Satz bleibt stehen, bis die Übung gelöst ist
-  if (!(await ev(`${D}.game.result.solved`))) {
-    const f = await fuehrungIn([]);
-    pruefe(f.satz === schritte.at(-1).text && !f.knopf && f.imBild, `${was}: nach den Schritten ${JSON.stringify(f)}`);
+  if (!(await ev(`${D}.game.result.solved`))) { // sollte nicht vorkommen (die Prüfung oben meldet es)
+    pruefe(false, `${was}: unter der Sperre nicht gelöst`);
     await ev(`${D}.loese()`);
   }
-  // gelöst: kein Umriss mehr in der Szene, Geometrie und Material frei (Ticket 05)
+  // gelöst: Band aus, nichts mehr über dem Brett
   await until(`${D}.fuehrung.fertig`, `${was}: gelöst`, 5);
+  await until(FREI, `${was}: nichts mehr über dem Brett`, 3);
   const f = await fuehrungIn([]);
-  pruefe(!f.umrisse.length && f.frei, `${was}: Umriss nach dem Lösen ${JSON.stringify(f)}`);
+  pruefe(!f.kegel.length && f.frei && f.satz === null, `${was}: nach dem Lösen ${JSON.stringify(f)}`);
 }
 
 /**
- * Eine Übung im Dorf: warten, bis sie läuft, Kopfzeile prüfen (seit Ticket 03 der Führung der Satz des ersten Schritts
- * statt des Hinweises), lösen, «Gelöst» prüfen, Weiter. fuehren: 'erstes' spielt «Erstes Licht» mit den Proben des
- * Gerüsts (gefuehrt), true jeden Schritt der Übung (schritteSpielen), sonst löst die Probe an den Schritten vorbei.
+ * Eine Übung im Dorf: warten, bis sie läuft, Kopfzeile und Band prüfen (seit Ticket 03 der Führung der Satz des ersten
+ * Schritts statt des Hinweises, seit .scratch/tutorial-neu/ im Band), lösen, «Gelöst» prüfen, Weiter. fuehren:
+ * 'erstes' spielt «Erstes Licht» mit den Proben des Gerüsts (gefuehrt), true jeden Schritt der Übung (schritteSpielen),
+ * sonst löst die Probe an den Schritten vorbei.
  */
 async function uebung(g, n, { bilder = false, weiter = true, replay = false, fuehren = false } = {}) {
   await until(`${D}.story.inDorf && ${D}.story.uebung === ${n} && window.__prisma.playing()`,
@@ -2008,12 +2092,12 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false, fue
   const k = await ev(`({ titel: document.getElementById('hud-title').textContent,
     sub: document.getElementById('hud-sub').textContent,
     grad: document.getElementById('hud-grad').hidden ? null : document.getElementById('hud-grad').textContent,
-    hinweis: document.querySelector('#hud-sub .hinweis.schritt')?.firstChild.textContent ?? null,
+    hinweis: document.querySelector('#band:not(.aus) .band-satz')?.textContent ?? null,
     erster: geraeteText(LEVELS[${n}].schritte[0].text, ${view.phone}), index: ${D}.game.levelIndex,
     uebersicht: !document.getElementById('btn-overview').hidden,
     skip: !document.getElementById('btn-skip').classList.contains('hidden') })`);
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
-  pruefe(k.grad === GRAD_TEXT[g] && k.sub.startsWith(`Übung ${n + 1} / 9`) && k.hinweis === k.erster,
+  pruefe(k.grad === GRAD_TEXT[g] && k.sub === `Übung ${n + 1} / 9` && k.hinweis === k.erster,
     `${g}, Übung ${n + 1}: Unterzeile «${k.sub}», erster Schritt «${k.erster}»`);
   await brettDerWelt(`${g}, Übung ${n + 1}`);
   // «Dorf überspringen»: nicht beim Wiederholen nach dem Kapitel, nach einem Einstieg erst nach einer Pause
@@ -2160,7 +2244,7 @@ async function dorfAblauf() {
   // mitten in der Führung von Übung 4 («Brechung»): «Weiter» zum zweiten Schritt, dann Neuladen, Menü, Übersicht und
   // «Dorf überspringen» (Ticket 04 der Führung)
   await schrittIst(3, 0, 'Leicht, Übung 4');
-  await tippe('#hud-sub .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
+  await tippe('#band .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
   await schrittIst(3, 1, 'Leicht, Übung 4 vor dem Neuladen');
   // Neuladen: «Weiter» führt in Übung 4, ohne Prolog, Angebot und Einstieg
   await ev('window.__vorher = true');
@@ -2183,7 +2267,7 @@ async function dorfAblauf() {
   pruefe(!zwischen, 'Leicht: nach dem Neuladen Prolog, Angebot oder Einstieg');
   // Neuladen beginnt beim ersten Schritt; wieder zum zweiten, den Menü und Übersicht behalten
   await schrittIst(3, 0, 'Leicht, Übung 4 nach dem Neuladen');
-  await tippe('#hud-sub .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
+  await tippe('#band .fuehrung-weiter', 'Leicht, Übung 4: Weiter');
   await schrittIst(3, 1, 'Leicht, Übung 4');
   // Menü mitten in der Übung und zurück: dieselbe Übung
   await uebungLaeuft(3);
@@ -2238,7 +2322,7 @@ async function dorfAblauf() {
     `Leicht im Bergwald ${JSON.stringify(s)}`);
   // nach «Dorf überspringen» mitten in der Führung bleibt im Bergwald nichts von ihr stehen
   const fw = await fuehrungIn([]);
-  pruefe(!(await ev(`${D}.fuehrung.level`)) && fw.satz === null && !fw.knopf && !fw.umrisse.length && fw.frei && !fw.hand,
+  pruefe(!(await ev(`${D}.fuehrung.level`)) && fw.satz === null && !fw.knopf && !fw.kegel.length && fw.frei && !fw.hand,
     `Leicht im Bergwald: Führung übrig ${JSON.stringify(fw)}`);
   await tippe('#btn-overview', 'Übersicht');
   await until(`${uebOffen} && !${D}.story.tweens.length`, 'Leicht: Übersicht im Bergwald', 10);
