@@ -132,22 +132,28 @@ wer nach dem letzten Level einer Welt neu lädt, sieht den Stern schon wach. Der
 ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.stand`.
 
 **Im Dorf**:
-Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad und
-«Übung 2 / 9»; der Satz des laufenden Schritts steht im Band, siehe Führung; einen festen Hinweissatz je Übung gibt es
-seit der Führung nicht mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
-der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
+Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 4 Übungen, das sind
+die Level des Tutorials mit ihren Namen und Schritten (seit PLAN 1a.3 «Tutorial neu»: Erstes Licht mit Ziel, Spiegel,
+rund gegen eckig und Zurückdrehen; Brechung mit Block und Prisma; Farbenlehre mit Filter, farbigen Lampen und dem Ring
+am Kristall; Mischung mit Mischen am Kristall und Kombinator; je ein eigenes Brett, dessen zwei unterste Reihen leer
+bleiben, weil auf dem Handy das Band dort liegt). Kopfzeile «Im Dorf – Brechung», darunter Ziele und Grad und
+«Übung 2 / 4»; der Satz des laufenden Schritts steht im Band, siehe Führung; einen festen Hinweissatz je Übung gibt es
+seit der Führung nicht mehr. Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+der Reihe nach; nach der 4. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt hat Noa den Dreh raus …», wartet auf Tippen), dann bringen die
 Glühwürmchen das Licht in den Bergwald wie nach «Gleich los». Es ist ein Kapitel, aber keine der sechs Welten: ohne
 Nummer, sein Einstieg ohne Träger, und die Übungen zählen nicht zu den 60 Leveln des Grads (im Menü steht der Grad dort
-auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar; Neuladen setzt an der Übung fort. Die Übersicht
-zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle Übungen frei, und eine Übung aus der
-Übersicht führt nach der 9. zurück in die Übersicht. Hintergrund ist Noas Dorf bei Nacht (Skybox `village`,
-`STORY_DORF.sky`); an seinem Himmel steht der Kleine Wagen wie im Prolog, alle sechs Sterne schlafend. Im Code
-`STORY_DORF` (Texte, Himmel), `story.inDorf` und `story.uebung` (die laufende Übung), im Stand
-`prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder übersprungen), nur nach «Üben».
-_Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
+auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar und behalten die laufende Übung und ihren
+Schritt. Das Dorf merkt sich keinen Platz (Entscheid des Nutzers, 14.11.2026): Wer es startet, auch nach dem Neuladen
+mitten im Dorf, beginnt bei Übung 1. Die Übersicht zeigt das Dorf, sobald «Üben» gewählt ist, gelöste Übungen bleiben
+dort gelöst (auch nach dem Neuladen), und wer dort die nächste offene wählt, spielt ab ihr weiter; nach dem
+Überspringen sind alle Übungen frei, und eine Übung aus der Übersicht führt nach der 4. zurück in die Übersicht.
+Hintergrund ist Noas Dorf bei Nacht (Skybox `village`, `STORY_DORF.sky`); an seinem Himmel steht der Kleine Wagen wie
+im Prolog, alle sechs Sterne schlafend. Im Code `STORY_DORF` (Texte, Himmel), `story.inDorf` und `story.uebung` (die
+laufende Übung), im Stand `prisma.noa.<grad>.dorf` nur das Ende (`ende`: null, solange es läuft, sonst gespielt oder
+übersprungen), nur nach «Üben»; ein altes Feld `platz` zählt nicht, ein beendetes Dorf bleibt beendet.
+_Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 4 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
 
 **Führung**:
@@ -166,7 +172,7 @@ _Vermeiden_: Tutorial (für die Führung), Hilfe
 Das feste Band der Führung am unteren Rand, immer an derselben Stelle: der Satz des Schritts, ein Punkt je Schritt der
 Übung (● ● ○ ○: geschafft, der laufende mit Ring) und bei einer Erklärung der Knopf «Weiter»; darüber klein die
 Hinweise nebenbei. Es lässt die Knöpfe frei (über ihrer Reihe unten, auf dem Handy quer links von ihnen) und geht mit
-der Kopfzeile aus und ein. «Übung 2 / 9» bleibt in der Kopfzeile. Im Code `#band`, `fuehrung.zeichneBand`.
+der Kopfzeile aus und ein. «Übung 2 / 4» bleibt in der Kopfzeile. Im Code `#band`, `fuehrung.zeichneBand`.
 _Vermeiden_: Leiste, Untertitel, Sprechblase
 
 **Lichtkegel**:
@@ -187,13 +193,13 @@ _Vermeiden_: Blockade, Lock
 Ein Teil der Führung: ein oder zwei kurze Sätze im Du, höchstens 18 Wörter (Platzhalter je Gerät wie «Tippe» /
 «Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen
 (auch nur zurück), der Strahl trifft ein Element (auch eines, für das ein anderes, markiertes Element zu drehen ist,
-und auch nur mit einer bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung der Knopf «Weiter» im
+und auch nur mit einer bestimmten Farbe, etwa Magenta am Kristall in «Mischung»), oder bei einer Erklärung der Knopf «Weiter» im
 Band. Höchstens vier je Übung; der letzte ist eine Handlung und endet erst mit dem Lösen. Im Code `schritte`
 (`SCHRITTE_MAX`, `SCHRITT_WEITER`, `schrittErfuellt`).
 _Vermeiden_: Stufe, Hinweis (für einen Schritt)
 
 **Hinweis nebenbei**:
-Ein leiser Zusatz über dem Band zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Punkten,
+Ein leiser Zusatz über dem Band zu Kamera oder Neustart (beide in «Brechung»): Er wartet auf nichts, zählt nicht zu den Punkten,
 verschwindet bei der ersten Benutzung (Kamerageste, Neustart) oder spätestens mit dem Lösen und kommt beim Neustart
 derselben Übung nicht wieder. Im Code `NEBENBEI`.
 
@@ -256,7 +262,7 @@ _Vermeiden_: Levelauswahl (abgelöst, siehe unten)
 Ein gelöstes Level aus der Übersicht noch einmal spielen. Es kommt ohne Einstieg, Reise und Finale, also ohne
 Erwachen; der Kleine Wagen zeigt den Stand des Durchgangs. «Weiter» führt zum nächsten Level, über eine Weltgrenze
 blendet nur der Hintergrund. Erst beim nächsten ungelösten Level gilt wieder der normale Ablauf mit Reise und Finale.
-Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level zurück in die Übersicht, ebenso die 9.
+Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level zurück in die Übersicht, ebenso die 4.
 Übung im Dorf. Im Code `story.replay`.
 _Vermeiden_: Neu starten (setzt das Level auf dem Brett zurück), Von vorn (löscht den Stand eines Grads)
 
