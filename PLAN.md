@@ -358,7 +358,7 @@ Android-Chromium.
   heraus). Das Dorf merkt sich keinen Platz: Jeder Start beginnt bei Übung 1. Zuerst nur «Erstes Licht», der Nutzer
   prüft auf dem Poco, dann der Rest. Branch `feature/tutorial-neu`, Spec, Tickets und Übergabe in
   `.scratch/tutorial-neu/` (`STAND.md`).
-  - **Stand 14.11.2026: umgesetzt, geprüft und beschrieben (Tickets 01–03), wartet auf den Test des Nutzers** auf dem
+  - **Stand 15.11.2026: umgesetzt, geprüft und beschrieben (Tickets 01–03), wartet auf den Test des Nutzers** auf dem
     Poco und mit einer Person, die Prisma nicht kennt (Beobachtungsfragen in Ticket 03 unter «Comments»); danach
     abhaken und Merge nach `main` nur auf sein Go.
 

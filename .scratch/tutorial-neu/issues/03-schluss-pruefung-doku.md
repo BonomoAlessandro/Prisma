@@ -93,9 +93,14 @@ Handy. Der Person nichts erklären, nur zuschauen; erst am Ende fragen. Antworte
 **Übungen und danach**
 
 12. «Farbenlehre» Schritt 2: Wird der Ring am Kristall verstanden, auch die falsche Farbe, die darin flackert?
-13. «Mischung»: Wirken die vier Lampen und acht Elemente zu voll? Wird der Kombinator verstanden?
+13. «Mischung» mit vier Lampen und acht Elementen: Findet sich die Person zurecht, oder sucht und zögert sie? Wird
+    der Kombinator verstanden?
 14. Massstab der Spec: Schafft die Person alle vier Übungen ohne fremde Hilfe? Benutzt sie danach im Bergwald (einige
     Level) Drehen, Zurückdrehen, Prisma, Filter und Kombinator richtig?
 15. Nur der Nutzer: Neuladen mitten im Dorf beginnt bei Übung 1, die Übersicht behält die gelösten. Passt das so?
 16. Nur der Nutzer, hochkant, quer und auf einem kleinen Handy: Verdeckt das Band etwas, ist der Satz gut lesbar,
     ruckelt der Wechsel «Übersicht → Übung wiederholen» (bekannte Lücke beim Himmelswechsel)?
+17. Welcher Satz wird zweimal gelesen oder nachgefragt? Wo bleibt die Person länger als ein paar Sekunden stehen,
+    ohne etwas zu tun?
+18. Nur der Nutzer, am Desktop: Werden Klicken, Rechtsklicken («Erstes Licht» Schritt 4) und das Mausrad ebenso
+    verstanden wie auf dem Handy, auch mit der Hand, die die Geste vorzeigt?

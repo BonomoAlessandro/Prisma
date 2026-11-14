@@ -21,8 +21,8 @@ Nutzer wollte den Prototyp als Spiel, mit einer wählbaren Schwierigkeit statt e
 - Ein Durchgang: Prolog, auf Wunsch «Im Dorf» (das Tutorial), sechs Welten mit je genau 10 Leveln (Bergwald, Meer,
   Wüste, Vulkan, Planeten, Sterne), Finale, Epilog. Also 60 Level je Grad und 240 im Spiel, dazu das Tutorial.
 - «Im Dorf» ist ein Kapitel der Geschichte, aber keine Welt: Nach dem Prolog wählt der Spieler einmal je Grad «Üben»
-  oder «Gleich los»; die 9 Übungen (die Level des Tutorials) zählen nicht zu den 60 Leveln des Grads. Hintergrund
-  vorerst die Milchstrasse.
+  oder «Gleich los»; die Übungen (die Level des Tutorials, bis PLAN 1a.3 neun, seither vier) zählen nicht zu den
+  60 Leveln des Grads. Hintergrund vorerst die Milchstrasse.
 - Die Wahl rechnet ein Werkzeug nachbaubar: kein abgelehntes Level (von den KI-Testern oder der Beurteilung), dann nach
   der Bewertung, aber die Vielfalt geht vor (dieselbe Haupt-Kernidee höchstens zweimal je 10 aufeinanderfolgende
   Level, auch über die Weltgrenzen; keine zwei Level zu ähnlich). Die Schwierigkeit steigt über die Welten und in der
