@@ -1,6 +1,6 @@
 # Das Spiel zeichnet wieder stetig 60 Bilder pro Sekunde; der Referenzdurchlauf entfällt
 
-Entschieden vom Nutzer am 04.11.2026. Ersetzt den Entscheid zum Takt in ADR 0006.
+Entschieden vom Nutzer am 04.11.2026. Ersetzt den Entscheid zum Takt in ADR 0006. Ergänzt durch ADR 0009 (Ruhe-Bildrate, vorerst nur als Schalter `?ruhetakt`).
 
 ## Kontext
 
