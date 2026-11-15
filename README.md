@@ -216,6 +216,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tests/output/energie/ruhetakt-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spar-probe.mjs
+    [messen|bilder|pruefe] [--handy] [--welten forest,beach,volcano] [--runden 4] [--level 212] [--fassungen …]
+    [--ordner pfad]` (Ticket 03 der Energie): `messen` misst die GPU-Zeit je Schritt von `draw` (Spiegelung, Szene, Pinsel, Bloom,
+    letzter Schritt) mit einer eigenen Abfrage über `EXT_disjoint_timer_query_webgl2`, je Fassung (`heute`,
+    `ohneSpiegel`, `ohneBloom`, `ohnePinsel`, die Sparfassungen; `zerlege`/`zerlege5` je Kind der Szene, `pr175` …) in
+    Runden im Wechsel, als Stösse von 30 Bildern ohne Pause (die eingebaute Grafik taktet im Takt von 60 sonst herunter,
+    die Zahlen schwankten; `--takt` misst im Takt). Headless läuft das auf der eingebauten Intel-Grafik. Ergebnis nach
+    `tests/output/energie/spar-<bildschirm>.json`. `bilder` legt Vergleichsbilder (Handy hoch, `?t=12`) samt Ausschnitt
+    in doppelter Grösse, nebeneinander mit dem Unterschied ×8, nach `--ordner`. `pruefe` lädt jede Sparfassung einmal
+    (dazu alle zusammen): `SPAR` stimmt, es zeichnet, keine Konsolenfehler, und `spiegel2` lässt die Spiegeltextur nur
+    in Ruhe aus (etwa jedes zweite Bild), nie zweimal in Folge, beim Drehen oder Ziehen nicht.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]`
     prüft das Brett je Himmel (Spec `.scratch/brett-je-himmel/`, Ticket 02; etwa 3 min) über `__prisma.brett()`, ohne
     Bilder zu vergleichen. `mechanik` legt nur in der Seite eigene Arten an (ein Steinbrett, dessen Berechnen die Probe
@@ -364,6 +375,12 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   **Diagnose-Schalter** `?diag=a,b` (zum Messen auf dem Handy, je Schalter eine Ursache weg): `seite275` (ohne
   Seitenmassstab), `ohnevorbereitung` (kein Laden hinter der Bühne), `ruhepunkte` (Laden in jedem Ruhepunkt, auch vor
   den Flügen der Glühwürmchen), `ohneleuchten`, `ohnestrahl`.
+  **Sparfassungen** `?spar=a,b` oder `?spar=alle` (Spec `.scratch/energie/`, Ticket 03; nur zum Vergleich, ohne den
+  Schalter alles wie bisher; `SPAR`, `sparQualitaet` in `index.html`): `aufloesung` (Handy höchstens 1,75 Bildpunkte
+  je CSS-Pixel statt 2), `spiegelklein` (Spiegeltextur Handy 0,25 statt 0,35, Desktop 0,22 statt 0,3, ohne
+  Kantenglättung), `spiegel2` (Spiegeltextur nur jedes zweite Bild neu, solange nichts dreht, gezogen wird oder
+  ansteht, und nur bei vollem Takt; `spiegelTakt`), `pinsel3` (Pinsel Handy 3 × 3 statt 2 × 2 Bildpixel je
+  Filterpixel, Desktop 2 × 2 statt voll). Gemessene Kosten je Effekt und Ersparnis im Ticket.
   **Leistungsanzeige** (Taste F oder `?perf`; `perfHud` in `index.html`, ADR 0008): oben die effektive Bildrate (wie
   viele Bilder in der letzten Sekunde wirklich gezeichnet wurden, vom Spiel oder von der Bühne von Prolog und Epilog)
   und das Ziel mit dem Grund (60 im Spiel, im Menü und in der Geschichte, 30 und «Ruhe» im ruhenden Level, mit
