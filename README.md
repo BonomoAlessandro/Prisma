@@ -216,8 +216,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spar-probe.mjs
-    [messen|bilder|pruefe] [--handy] [--welten forest,beach,volcano] [--runden 3] [--fassungen …] [--ordner pfad]`
-    (Ticket 03 der Energie): `messen` misst die GPU-Zeit je Schritt von `draw` (Spiegelung, Szene, Pinsel, Bloom,
+    [messen|bilder|pruefe] [--handy] [--welten forest,beach,volcano] [--runden 4] [--level 212] [--fassungen …]
+    [--ordner pfad]` (Ticket 03 der Energie): `messen` misst die GPU-Zeit je Schritt von `draw` (Spiegelung, Szene, Pinsel, Bloom,
     letzter Schritt) mit einer eigenen Abfrage über `EXT_disjoint_timer_query_webgl2`, je Fassung (`heute`,
     `ohneSpiegel`, `ohneBloom`, `ohnePinsel`, die Sparfassungen; `zerlege`/`zerlege5` je Kind der Szene, `pr175` …) in
     Runden im Wechsel, als Stösse von 30 Bildern ohne Pause (die eingebaute Grafik taktet im Takt von 60 sonst herunter,

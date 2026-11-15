@@ -13,7 +13,7 @@
 //   pruefe: lädt jede Sparfassung einmal mit ?spar=… (dazu alle zusammen), dreht ein Element, zieht die Kamera; keine
 //           Konsolenfehler, die Fassung ist aktiv (SPAR), es wird gezeichnet.
 //   --handy: 393 × 852, Pixeldichte 2,75, Android-Kennung und Touch (wie das Poco); sonst 1440 × 900.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
@@ -39,10 +39,7 @@ const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHL
 
 // Sparfassungen (Namen wie ?spar=…) und Fassungen nur zum Messen (ohne… schaltet einen Effekt ab)
 const SPAR = ['spiegel2', 'spiegelklein', 'pinsel3', 'aufloesung'];
-// Fassungen nur beim Laden der Seite (nicht zur Laufzeit umschaltbar): je eine eigene Seite im Wechsel mit heute.
-// Leer, seit bloomhalb wegfiel (Bloom ab halber Auflösung auf dem Handy: teurer statt billiger, Ticket 03).
-const NUR_LADEN = new Set([]);
-const MESS = ['heute', 'ohneSpiegel', 'ohneBloom', 'ohnePinsel', ...SPAR.filter((s) => !NUR_LADEN.has(s))];
+const MESS = ['heute', 'ohneSpiegel', 'ohneBloom', 'ohnePinsel', ...SPAR];
 const fassungenWahl = wert('--fassungen', MESS.join(',')).split(',');
 const fassungen = fassungenWahl;
 
@@ -173,7 +170,7 @@ const mittel = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
 const r2 = (x) => x === null ? null : +x.toFixed(3);
 
 async function messeWelt(welt, query = '') {
-  await oeffne(`sky=${welt}${query}`);
+  await oeffne(`sky=${welt}&ruhetakt=aus${query}`); // spiegel2 lässt nur im vollen Takt aus (frameRate.gap)
   if (!await ev(EINRICHTEN)) throw new Error('keine Erweiterung EXT_disjoint_timer_query_webgl2');
   const geraet = JSON.parse(await ev(`JSON.stringify({ render: renderer.getDrawingBufferSize(new THREE.Vector2()).toArray(),
     pr: renderer.getPixelRatio(), spiegel: [reflector.getRenderTarget().width, reflector.getRenderTarget().height],
@@ -295,18 +292,6 @@ try {
       const e = await messeWelt(welt);
       ergebnis.welten[welt] = e;
       tabelle(welt, e);
-      // Fassungen nur beim Laden: je eine eigene Seite, im Wechsel mit heute
-      for (const s of SPAR.filter((x) => NUR_LADEN.has(x) && (wert('--fassungen') === null || fassungen.includes(x)))) {
-        for (let r = 0; r < 2; r++) {
-          for (const [name, q] of [['heute', ''], [s, `&spar=${s}`]]) {
-            const z = await messeWeltNurHeute(welt, q);
-            const k = `${name}@laden`;
-            (ergebnis.welten[welt].laden ??= {})[k] ??= [];
-            ergebnis.welten[welt].laden[k].push(z);
-            console.log(`    ${k.padEnd(18)} Lauf ${r + 1}: ${Object.entries(z).map(([a, b]) => `${a} ${b.toFixed(2)}`).join(', ')}`);
-          }
-        }
-      }
     }
     const OUT = join(root, 'tests', 'output', 'energie');
     mkdirSync(OUT, { recursive: true });
@@ -329,11 +314,8 @@ try {
         ergebnis.bilder[`${welt}-${s}`] = {};
         for (const teil of ['', '-ausschnitt']) {
           await send('Page.navigate', { url: 'about:blank' });
-          const url = (f) => pathToFileURL(`${f}${teil}.png`).href;
           // Bilder von file:// in about:blank: über fetch nicht erlaubt, darum als Daten-URL
-          const { readFileSync } = await import('node:fs');
           const daten = (f) => `data:image/png;base64,${readFileSync(`${f}${teil}.png`).toString('base64')}`;
-          void url;
           const v = await ev(`${VERGLEICH}(${JSON.stringify(daten(basis))}, ${JSON.stringify(daten(datei))})`);
           writeFileSync(`${datei}${teil}-vergleich.png`, Buffer.from(v.bild.split(',')[1], 'base64'));
           ergebnis.bilder[`${welt}-${s}`][teil || 'voll'] = { anteil: +v.anteil.toFixed(4), mittel: +v.mittel.toFixed(3) };
@@ -378,9 +360,12 @@ try {
       return { bilder: b.length, ausgelassen: b.filter((x) => x[0]).length,
         ausgelassenBewegt: b.filter((x) => x[0] && (x[1] || x[2])).length, folge: Math.max(0, ...b.map((x, i) => x[0] && b[i - 1]?.[0] ? 2 : 0)) };
     };
-    for (const q of [...SPAR, SPAR.join(','), 'alle', '']) {
-      console.log(`?spar=${q}`);
-      await oeffne(`sky=beach&spar=${q}`);
+    // Ruhe-Bildrate (Tickets 01 und 02 der Energie) aus: spiegel2 lässt nur im vollen Takt aus. Dazu einmal mit Ruhe
+    // (30, ?ruhehimmel: bis Ticket 01 hielten die Fische am Strand sonst den vollen Takt): dort nie auslassen
+    const faelle = [...[...SPAR, SPAR.join(','), 'alle', ''].map((q) => [q, 'aus']), ['spiegel2', '30&ruhehimmel']];
+    for (const [q, ruhe] of faelle) {
+      console.log(`?spar=${q}&ruhetakt=${ruhe}`);
+      await oeffne(`sky=beach&spar=${q}&ruhetakt=${ruhe}`);
       const an = JSON.parse(await ev('JSON.stringify(SPAR)'));
       const soll = q === 'alle' ? SPAR : q.split(',').filter(Boolean);
       pruefe(SPAR.every((s) => an[s] === soll.includes(s)), `?spar=${q}: SPAR ${JSON.stringify(an)}`);
@@ -402,13 +387,15 @@ try {
       await sleep(1500);
       const zug = await abschnitt(() => ziehe(1500));
       console.log(`  ruhig ${JSON.stringify(ruhig)}, Drehen ${JSON.stringify(dreh)}, Ziehen ${JSON.stringify(zug)}`);
-      pruefe(ruhig.bilder > 60 && zug.bilder > 40, `?spar=${q}: zu wenige Bilder (ruhig ${ruhig.bilder}, Ziehen ${zug.bilder})`);
+      pruefe(ruhig.bilder > (ruhe === 'aus' ? 60 : 25) && zug.bilder > 40, `?spar=${q}: zu wenige Bilder (ruhig ${ruhig.bilder}, Ziehen ${zug.bilder})`);
       for (const [name, x] of [['ruhig', ruhig], ['Drehen', dreh], ['Ziehen', zug]]) {
         pruefe(!x.ausgelassenBewegt && !x.folge, `?spar=${q} ${name}: Spiegel ausgelassen, obwohl sich etwas bewegt (${x.ausgelassenBewegt}) oder zweimal in Folge (${x.folge})`);
       }
-      if (an.spiegel2) {
+      if (an.spiegel2 && ruhe === 'aus') {
         pruefe(ruhig.ausgelassen >= ruhig.bilder * 0.4, `?spar=${q}: in Ruhe nur ${ruhig.ausgelassen} von ${ruhig.bilder} Spiegelbildern ausgelassen`);
         pruefe(dreh.ausgelassen <= 2 && zug.ausgelassen <= 3, `?spar=${q}: beim Drehen ${dreh.ausgelassen}, beim Ziehen ${zug.ausgelassen} ausgelassen`);
+      } else if (an.spiegel2) {
+        pruefe(!ruhig.ausgelassen && !dreh.ausgelassen && zug.ausgelassen <= 3, `?spar=${q}&ruhetakt=${ruhe}: Spiegel in der Ruhe-Bildrate ausgelassen (ruhig ${ruhig.ausgelassen}, Drehen ${dreh.ausgelassen}, Ziehen ${zug.ausgelassen})`);
       } else pruefe(!ruhig.ausgelassen && !dreh.ausgelassen && !zug.ausgelassen, `?spar=${q}: Spiegel ausgelassen ohne spiegel2`);
     }
   }
@@ -417,19 +404,6 @@ try {
   console.log(`  FEHLER ${err.message}`);
 } finally {
   await close();
-}
-
-/** Nur «heute» einer frisch geladenen Seite (query: etwa &spar=bloomhalb), GPU-Zeit je Schritt (Median). */
-async function messeWeltNurHeute(welt, query) {
-  await oeffne(`sky=${welt}${query}`);
-  if (!await ev(EINRICHTEN)) throw new Error('keine Erweiterung EXT_disjoint_timer_query_webgl2');
-  await ev(`__spar.stoss('w', 10)`);
-  for (let k = 0; k < 4; k++) await ev(`__spar.stoss('x', 30)`);
-  const b = JSON.parse(await ev('JSON.stringify(__spar.werte.x ?? [])'));
-  const schritte = [...new Set(b.flatMap((x) => Object.keys(x)))];
-  const m = { summe: mittel(b.map((x) => Object.values(x).reduce((p, q) => p + q, 0))) };
-  for (const s of schritte) m[s] = mittel(b.map((x) => x[s] ?? 0));
-  return m;
 }
 
 const bad = logs.filter((l) => /\[exception\]|\[error\]|THREE\.WebGLProgram/.test(l));
