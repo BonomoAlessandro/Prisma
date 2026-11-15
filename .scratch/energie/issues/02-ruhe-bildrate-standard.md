@@ -49,3 +49,44 @@ stufig.
   Bild). `geschichte-probe --dorf --handy` bestanden. `--dorf` am Desktop: eine Lücke von 427 ms bei «Sehr schwer:
   Übersicht → Übung 3 wiederholen → Übung 4» (im Wald, Brett moss bauen); auf `feature/energie` 90d44f0 ebenso (389 ms),
   also nicht von diesem Ticket.
+
+## Comments
+
+### Review (15.11.2026, unabhängiger Reviewer)
+
+**Ergebnis:** bereit zum Mergen. Jeder Punkt des Tickets ist erfüllt, die Doku (README Leistung und Proben, ADR 0008
+und 0009, Leistungsanzeige) stimmt mit dem Code.
+
+**Läufe (f69c020, dazu 13e3a3d):** alle `tests/*.test.mjs` grün (logic 2063, beurteilung 206, ki-tester 84,
+levelliste 54, geschichte 35, wuerfelliste 20, vorrat 18, hall 6; generator 31 über `leise.sh`); `golden.mjs` grün
+(842 Level). `ruhetakt-probe` Desktop und `--handy` OK: Ruhe 30,1 Bilder/s bei 60,2 Hz, Grund «Ruhe», auch im Wald;
+Tippen im nächsten Bildschirmbild, Ruhe wieder nach 1601/1614 ms; Drehen und Feier im vollen Takt; `?ruhetakt=60`
+stetig 60 mit «Spiel (Ruhe aus)». `leerlauf-probe` headless und `--fenster` OK (Level in Ruhe 30 gez/s, Reaktion
+9 × im nächsten Bild). `geschichte-probe --dorf --quer` und `--dorf-raender` bestanden.
+
+**`fluid`:** vollständig entfernt (Planeten, Glühwürmchen, Lavasee, Feuernester, Fische, Getter in
+`createPanoramaSky` und `skyTheme`, `?ruhehimmel`, Grund «Himmel mit Bewegung»). Die Module verlieren sonst nichts:
+`userData.update` von Lava, Feuer und Fischen bleibt; nichts anderes las `fluid`. Übrig nur in ADR 0006/0008 und
+Ticket 01 als Verlauf, richtig so.
+
+**Randfälle geprüft:**
+- `?takt=30`: `ruhetaktAus` gibt null, das Spiel stetig 30. Die Leistungsanzeige sagte dort «Spiel (Ruhe aus)»,
+  obwohl niemand sie ausgeschaltet hat; **klein, behoben (13e3a3d)**: «Spiel», «Spiel (Ruhe aus)» nur, wenn der Takt
+  des Spiels über `RUHE_FPS` liegt; Logiktest nachgeführt.
+- `?t=`: Die Szene ruht ganz (`sceneLoop`), bevor die Ruhe nach 1,5 s greift; `shots.mjs` der KI-Tester weckt mit
+  `wake(true)` (voller Takt) und zählt dann `__prisma.frames`, also weder langsamer noch flatterhaft.
+- `?ruhetakt` unsinnig (`abc`, `0`, `-30`, leer, `Infinity`): Standard 30; `1e3`, `60`, `100`: aus; `aus` auch
+  gross geschrieben. Dass `0` den Standard gibt und nicht «aus», ist dokumentiert («unbrauchbar»); vertretbar.
+- Würfel: nichts Eigenes; das Nachdrehen der Kamera zählt über `cameraRig.settling` als Bewegung.
+- Führung: Hand und Wechsel halten den vollen Takt (`bewegt` «Führung»); die Lichtkegel nach dem Vorzeigen gehen in
+  Ruhe mit 30 mit, weil `platziere` in `animate` und damit im selben Bild wie das WebGL läuft; das Aufwachsen der
+  Kegel und die Geste der Hand sind CSS und laufen unabhängig. Die Dorf-Proben bestanden.
+- Menü, Übersicht, Geschichte, hinter der Bühne: `bildrate` unverändert (Ruhe nur mit flow `play`, nicht im Menü).
+
+**Proben und Werkzeuge mit `__prisma.frames`:** nur `leerlauf-probe` (nachgeführt auf `ruheFps ?? spielFps`),
+`geschichte-probe` (nur im Log) und `ki-tester/shots.mjs` (mit `?t=` und Weckruf, s. o.). `__prisma.ticks` zählt
+ausserhalb der Bühne nur gezeichnete Bilder, also in Ruhe 30/s; die Proben warten nur auf `ticks > 2`. Alle
+Bildzeit-Messungen (`geschichte-probe`, `brett-probe`, `start-probe`, `buehne-messung`) zählen Lücken zwischen eigenen
+rAF, also Bildschirmbilder: unverändert. Nichts weiter umzustellen.
+
+**Offen:** nichts.
