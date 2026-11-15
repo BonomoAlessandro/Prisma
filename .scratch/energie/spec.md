@@ -32,3 +32,10 @@ ein Drittel aus.
 ## Ticket 01: Ruhe-Bildrate (Schalter `?ruhetakt=<n>`)
 
 Siehe `issues/01-ruhe-bildrate.md`.
+
+## Bekannt rot (Vorhaben Energie)
+
+- `geschichte-probe --uebersicht`: in jedem Lauf eine einzelne Lücke von 120–230 ms an wechselnden Stellen («Spiel →
+  Übersicht», «letztes Level → Übersicht», «Übersicht → Spiel», «Menü → Übersicht»); auf d732d27 ebenso (Review
+  Ticket 04).
+- Wie zuvor: Himmelswechsel («Übersicht → Übung 3 wiederholen»), Wald, «Angebot steht», «Prolog → Überspringen».
