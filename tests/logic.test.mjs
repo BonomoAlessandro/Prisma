@@ -1231,7 +1231,7 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
   test('Ruhe-Bildrate aus (?ruhetakt=aus): Spiel stetig 60 (mit ?takt=30: 30), Menü, Himmel, Geschichte, hinter der Bühne', () => {
     assert.deepEqual(wahl({}), [60, 'Spiel (Ruhe aus)']);
     assert.deepEqual(wahl({ ruht: true }), [60, 'Spiel (Ruhe aus)'], 'ruht ohne ruheFps gibt es nicht, wirkt aber auch nicht');
-    assert.deepEqual(wahl({ spielFps: 30 }), [30, 'Spiel (Ruhe aus)']);
+    assert.deepEqual(wahl({ spielFps: 30 }), [30, 'Spiel'], '?takt=30: stetig 30, die Ruhe-Bildrate ist unnötig, nicht aus');
     assert.deepEqual(wahl({ menue: true }), [60, 'Menü']);
     assert.deepEqual(wahl({ menue: true, himmel: true }), [10, 'Himmel (Menü)']);
     assert.deepEqual(wahl({ geschichte: true }), [60, 'Geschichte']);

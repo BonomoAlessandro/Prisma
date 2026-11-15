@@ -8371,7 +8371,8 @@ function bildrateGrund(z) {
   if (z.geschichte) return 'Geschichte';
   if (z.himmel) return 'Himmel (Menü)';
   if (z.menue) return 'Menü';
-  if (z.ruheFps === null) return 'Spiel (Ruhe aus)';
+  // ?takt=30 zeichnet ohnehin stetig 30: Dort ist die Ruhe-Bildrate nicht ausgeschaltet, sondern unnötig
+  if (z.ruheFps === null && z.spielFps > RUHE_FPS) return 'Spiel (Ruhe aus)';
   return z.ruht ? 'Ruhe' : 'Spiel';
 }
 
