@@ -1374,6 +1374,37 @@ const QUALITY = {
   brush: IS_MOBILE ? { step: 2, full: false } : { step: 1, full: true },
 };
 
+/**
+ * Sparfassungen (Spec .scratch/energie/, Ticket 03), vorerst nur zum Vergleich: ?spar=<name>[,<name>…] oder ?spar=alle.
+ * Ohne den Schalter bleibt alles wie bisher. Der Nutzer entscheidet an Vergleichsbildern und auf dem Poco, was Standard
+ * wird (eigenes Ticket).
+ * - aufloesung:   Handy höchstens 1,75 Bildpunkte je CSS-Pixel statt 2 (Desktop unverändert 1)
+ * - spiegelklein: Spiegeltextur kleiner (Handy 0,25 statt 0,35, Desktop 0,22 statt 0,3) und ohne Kantenglättung
+ * - spiegel2:     Spiegeltextur nur jedes zweite Bild neu, solange sich nichts bewegt, was man anschaut (renderReflection)
+ * - pinsel3:      Pinsel gröber (Handy 3 × 3 statt 2 × 2 Bildpixel je Filterpixel, Desktop 2 × 2 statt voll)
+ * SPAR ist veränderlich: Proben schalten zur Laufzeit um und rufen sparAnwenden (tests/spar-probe.mjs).
+ */
+const SPAR_NAMEN = ['aufloesung', 'spiegelklein', 'spiegel2', 'pinsel3'];
+const SPAR = (() => {
+  const an = Object.fromEntries(SPAR_NAMEN.map((n) => [n, false]));
+  for (const n of (new URLSearchParams(location.search).get('spar') ?? '').split(',').map((s) => s.trim()).filter(Boolean)) {
+    if (n === 'alle') SPAR_NAMEN.forEach((x) => { an[x] = true; });
+    else if (n in an) an[n] = true;
+    else console.warn(`?spar: unbekannte Sparfassung «${n}» (bekannt: ${SPAR_NAMEN.join(', ')}, alle)`);
+  }
+  return an;
+})();
+const QUALITY_HEUTE = { pixelRatio: QUALITY.pixelRatio, reflectionScale: QUALITY.reflectionScale,
+  reflectionMsaa: QUALITY.reflectionMsaa, brush: { ...QUALITY.brush } };
+/** QUALITY nach SPAR (beim Laden und aus sparAnwenden); QUALITY.brush bleibt dasselbe Objekt (createBrushPass hält es). */
+function sparQualitaet() {
+  QUALITY.pixelRatio = SPAR.aufloesung && IS_MOBILE ? Math.min(QUALITY_HEUTE.pixelRatio, 1.75) : QUALITY_HEUTE.pixelRatio;
+  QUALITY.reflectionScale = SPAR.spiegelklein ? (IS_MOBILE ? 0.25 : 0.22) : QUALITY_HEUTE.reflectionScale;
+  QUALITY.reflectionMsaa = SPAR.spiegelklein ? 0 : QUALITY_HEUTE.reflectionMsaa;
+  Object.assign(QUALITY.brush, SPAR.pinsel3 ? (IS_MOBILE ? { step: 3, full: false } : { step: 2, full: true }) : QUALITY_HEUTE.brush);
+}
+sparQualitaet();
+
 const GRID = 7;            // Spielfeld 7×7
 const CELL = 1.2;          // Weltgrösse einer Zelle
 const BOARD = GRID * CELL; // Kantenlänge des Spielfelds
@@ -26801,6 +26832,17 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
+/** SPAR zur Laufzeit neu anwenden (Proben, nach einer Änderung an SPAR). */
+function sparAnwenden() {
+  sparQualitaet();
+  const rt = reflector.getRenderTarget();
+  if (renderer.capabilities.isWebGL2 && rt.samples !== QUALITY.reflectionMsaa) {
+    rt.samples = QUALITY.reflectionMsaa;
+    rt.dispose(); // three legt das Ziel beim nächsten Zeichnen mit der neuen Kantenglättung an
+  }
+  adaptiveResolution.set(adaptiveResolution.scale); // Auflösung und Grösse der Spiegeltextur (onResize)
+}
+
 const clock = new THREE.Clock();
 /**
  * Zeit der Animationen (s) zu einem rAF-Zeitstempel ts (frame): Die Uhr beim Start des Callbacks lief um den Verzug
@@ -26919,10 +26961,34 @@ function limitReflectionMips() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, REFLECT_MAX_MIP);
 }
 
+/**
+ * ?spar=spiegel2 (Ticket 03 der Energie): Die Spiegeltextur nur jedes zweite Bild neu. Ausgelassen wird nur, wenn sie
+ * den Stand des letzten Bilds zeigt (nicht neu angelegt, dasselbe Brett, die Platte war im Bild) und sich nichts bewegt,
+ * was man anschaut: kein Finger oder keine Taste unten, nichts aus sceneLoop.pending (Drehen, Hover, Ziele, Kamera nach
+ * dem Ziehen, Überblenden, Feier …), und nur bei vollem Takt (nicht in Ruhe oder mit ?takt=30: sonst unter 30/s). Die
+ * Matrix der Textur (textureMatrix) bleibt dann die des letzten Bilds, passt also zum Bild in der Textur: Das Spiegelbild
+ * hängt um ein Bild nach, verrutscht aber nicht.
+ */
+const spiegelTakt = {
+  gueltig: false,   // die Textur zeigt das zuletzt gerenderte Spiegelbild von spiegel
+  spiegel: null,
+  ausgelassen: false,
+  auslassen(mirror) {
+    const darf = SPAR.spiegel2 && this.gueltig && !this.ausgelassen && mirror === this.spiegel && frameRate.gap < 20
+      && !drag.active && !input.pointer && !input.pinch && !sceneLoop.pending();
+    this.ausgelassen = darf;
+    return darf;
+  },
+};
+reflector.getRenderTarget().addEventListener('dispose', () => { spiegelTakt.gueltig = false; }); // setSize legt neu an
+
 function renderReflection() {
   // spiegelnde Oberflächen der gezeigten Bretter (beim Überblenden beide; leer: keines spiegelt), alle in y = 0
   const mirrors = boardTheme.mirrors, mirror = mirrors[0];
-  if (!mirror || !reflectionInView()) return;
+  if (!mirror || !reflectionInView()) { spiegelTakt.gueltig = false; return; }
+  if (spiegelTakt.auslassen(mirror)) return;
+  spiegelTakt.gueltig = true;
+  spiegelTakt.spiegel = mirror;
   mirror.updateMatrixWorld();
   reflector.matrixWorld.copy(mirror.matrixWorld);
 
