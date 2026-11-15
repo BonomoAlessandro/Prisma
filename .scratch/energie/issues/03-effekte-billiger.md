@@ -116,3 +116,78 @@ Kachel-GPU vielleicht mehr. `pinsel3` lohnt kaum.
 
 **Offen:** Der Himmel ist der grösste Posten, Vulkan ≈ 20 ms und Strand ≈ 8 ms von 28 bzw. 18. Das liegt ausserhalb der
 Kandidaten dieses Tickets und wäre ein eigenes Ticket (Lava, Wasser).
+
+## Comments
+
+### Review (15.11.2026, unabhängiger Reviewer)
+
+**Läufe** (Stand 1b45ac0 plus Review-Commit): alle `tests/*.test.mjs` grün (`generator.test.mjs` über `leise.sh`),
+`node tests/golden.mjs` grün (842 Level). `spar-probe pruefe` Desktop und `--handy` OK. `spar-probe messen --handy`
+einmal (unten). `leerlauf-probe` OK (Reaktion: erstes Bild immer im nächsten Bildschirmbild),
+`geschichte-probe --dorf --handy` bestanden, ohne FEHLER und ohne Lücke über 100 ms.
+
+**Ohne Schalter bitgleich.** Eigener Vergleich 90d44f0 gegen diesen Stand, ohne `?spar`, Level 212, `?t=12`, Wald,
+Strand und Vulkan, Desktop und Handy: Bildschirmfotos SHA-1-gleich, dazu je Bild gleich viele Draw-Calls und Dreiecke,
+gleiche Spiegeltextur (Grösse, MSAA) und gleiches Pixelverhältnis. Mehrarbeit je Bild ohne Schalter: nur der Aufruf
+`spiegelTakt.auslassen` (bricht an `SPAR.spiegel2` ab) und zwei Zuweisungen, vernachlässigbar.
+
+**Messung** (meine, Handy, Lauf wie Lauf 2 des Umsetzers, Level 212, 4 Runden), GPU ms je Bild:
+
+| | Wald | Strand | Vulkan |
+|---|---|---|---|
+| heute ganzes Bild (Umsetzer) | 12,57 ±0,03 (12,8) | 18,87 ±0,63 (18,4) | 28,72 ±0,26 (28,2) |
+| `aufloesung` | −2,27, −18 % (−2,7) | −3,46, −18 % (−3,3) | −5,95, −21 % (−5,7) |
+| `spiegel2`, Schritt Spiegel | – | 0,74 → 0,35 (−0,34) | 0,93 → 0,46 (−0,45) |
+| `spiegelklein`, Schritt Spiegel | – | 0,74 → 0,59 (−0,12) | 0,93 → 0,78 (−0,14) |
+| `pinsel3`, Schritt Pinsel | – | 0,64 → 0,57 (−0,07) | – |
+| ohne Bloom | −1,94 | −1,51 | −1,88 |
+
+Die Zahlen des Umsetzers treffen zu. Methode (Stösse ohne Pause, Runden im Wechsel, Median je Runde, Spanne) ist gut.
+Einschränkung: Die Ersparnis von `spiegel2`, `spiegelklein` und `pinsel3` ist die Differenz des einzelnen Schritts. Im
+ganzen Bild geht sie am Strand im Rauschen unter (Spanne ±0,6–0,9 ms, vom Wasser des Himmels). Die Tabelle des
+Umsetzers schreibt sie als Ersparnis «für das ganze Bild». Das ist rechnerisch richtig, gemessen aber nur am Schritt.
+
+**Vergleichsbilder** angesehen (Vulkan, Strand, Wald, Ausschnitt). Das Urteil stimmt: Mit `aufloesung` sind im
+vergrösserten Ausschnitt die Rasterlinien und die Kanten der Elemente etwas weicher und treppiger, dünne helle Linien
+etwas matter. Im Unterschiedsbild leuchten nur Kanten. In Originalgrösse auf dem Rechner sehe ich es nicht. Ehrlich
+beschrieben. Einziger Nachtrag: Der Ausschnitt ist nicht doppelt, sondern etwa 2,75-fach in Gerätepixeln vergrössert
+(Clip in Seitenpixeln mal `SEITE`), also eher strenger als nötig. `spiegelklein` und `pinsel3` sind im Bild unsichtbar,
+am Desktop aber nicht im Bild geprüft (dort MSAA der Spiegelung 4 → 0 und Pinsel 2 × 2 statt voll).
+
+**`aufloesung`** wirkt korrekt mit dem Rest: `adaptiveResolution.min` rechnet relativ zu `QUALITY.pixelRatio`, die
+absolute Untergrenze (1 Bildpunkt je CSS-Pixel) bleibt. `SEITE` und die Grösse des Canvas hängen nicht am
+Pixelverhältnis (`seiteBreite`, `renderer.setSize`). Treffer (`pickElement`) rechnen in CSS-Pixeln über
+`getBoundingClientRect`. Band, Lichtkegel und Hand der Führung sind DOM/SVG und bleiben scharf. Shader mit
+`uPixelRatio` lesen den Wert beim Laden oder je Bild, beim Laden stimmt also alles. Nur `sparAnwenden` zur Laufzeit
+(nur Proben) lässt die beim Bau gesetzten `uPixelRatio` stehen. Für Punktgrössen in Messungen ist das unerheblich.
+
+**`spiegel2`** ist korrekt: Ausgelassen wird nur mit gültiger Textur, gleichem Spiegel, ohne Finger, Taste oder Zwei
+Finger, ohne irgendetwas aus `sceneLoop.pending` (Drehen, Hover, Ziele, Kamera nach Ziehen und Zoom samt Rad, Feier,
+Feld beim Levelwechsel, Überblenden von Himmel und Brett über `skyTheme.busy`/`boardTheme.busy`, wachsende Strahlen)
+und nur im vollen Takt. Die `textureMatrix` bleibt die des letzten Spiegelbilds, das Spiegelbild hängt also in der
+Welt fest und ist höchstens ein Bild alt. Neu angelegte Textur (`setSize` → `dispose`) und Platte ausser Bild setzen
+`gueltig` zurück. Nie zwei Auslassungen in Folge. Probe: beim Drehen 0, beim Ziehen höchstens 1 (vor dem ersten Touch).
+
+**Fund, mittel: `spiegel2` wirkt mit Ticket 02 fast nie.** Ticket 02 ist inzwischen in `feature/energie` (844a674),
+das ruhende Level zeichnet nun 30 Bilder/s. `spiegelTakt.auslassen` (index.html, `frameRate.gap < 20`) lässt nur im
+vollen Takt aus. Ausgelassen wird damit nur noch in den 1,5 s nach einer Eingabe, wenn nichts ansteht, und im Menü,
+solange der Blick nicht im Himmel steht. Die gemessenen −0,34/−0,45 ms gelten nur mit `?ruhetakt=aus`. In einem
+Probe-Merge (02 + 03, temporärer Worktree) fiel `spar-probe pruefe` mit 10 FEHLER durch: zu wenige Bilder in Ruhe, und
+`spiegel2` liess 0 von 56 aus. Behoben in der Probe (siehe unten). Am Spiel selbst ändert sich nichts, der Zusammenbau
+geht ohne Konflikt (`git merge-tree`: sauber). Ticket 03 liest weder `skyTheme.fluid` noch `ruheFps`/`RUHE_FPS`, nur
+`frameRate.gap`.
+Vorschlag: `spiegel2` nicht mehr für den Poco-Test empfehlen, oder nur zusammen mit `?ruhetakt=aus`, und vor einem
+Standard-Ticket streichen. Auslassen auch bei 30 (Spiegel mit 15/s) würde ich nicht bauen: Beim Schweben der Kamera
+hinge das Spiegelbild dann 33–67 ms nach, das ist eher sichtbar. Die Empfehlung oben («`?spar=spiegel2,spiegelklein`»)
+sollte darum heissen: `?spar=aufloesung` und `?spar=spiegelklein`, jeweils gegen ohne.
+
+**Selbst behoben** (Commit «fix(energie): spar-probe unabhängig von der Ruhe-Bildrate, toter Code weg (Review Energie
+03)»): `pruefe` und `messen` laden mit `?ruhetakt=aus`, dazu ein Fall `?spar=spiegel2&ruhetakt=30&ruhehimmel`, der
+prüft, dass in der Ruhe-Bildrate nie ausgelassen wird. Auf diesem Stand und im Probe-Merge mit 02 grün. Toter Code
+entfernt (`NUR_LADEN`, `messeWeltNurHeute`, ungenutztes `url`). README: Vorgabe `--runden 4` statt 3, `--level`.
+
+**Offen:** `APP_VERSION` beim Zusammenführen (Koordinator). Ob `aufloesung` auf dem Poco sichtbar ist, entscheidet der
+Nutzer. Der Himmel (Vulkan ≈ 20 ms, Strand ≈ 8 ms) bleibt der grösste Posten, eigenes Ticket.
+
+**Urteil:** bereit für den Test des Nutzers auf dem Poco, mit `?spar=aufloesung` und `?spar=spiegelklein` (jeweils
+gegen ohne). `spiegel2` nur mit `?ruhetakt=aus` vergleichbar.
