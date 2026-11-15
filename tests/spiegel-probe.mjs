@@ -250,7 +250,7 @@ async function bild(url, datei, clip = null) {
 
 // --- pruefe ---------------------------------------------------------------------------------------------------------
 // je gezeichnetes Bild: [Anteil der Spiegelung, Spiegelbilder gerechnet, Himmel blendet, Himmel hält, Platte im Bild,
-// Abstand zum letzten Bild in ms]
+// Abstand zum letzten Bild in ms, ein gezeigtes Brett hat eine Spiegelfläche]
 const MITSCHRIFT = `(() => {
   const p = window.__sp = { bilder: [], spiegelbilder: 0, letzt: null };
   const ob = reflector.onBeforeRender;
@@ -260,7 +260,8 @@ const MITSCHRIFT = `(() => {
     const vor = p.spiegelbilder, jetzt = performance.now();
     const r = draw0.apply(this, a);
     p.bilder.push([+boardReflection.uniform.value.toFixed(4), p.spiegelbilder - vor, skyTheme.fading ? 1 : 0,
-      skyTheme.holding ? 1 : 0, reflectionInView() ? 1 : 0, p.letzt === null ? 0 : Math.round(jetzt - p.letzt)]);
+      skyTheme.holding ? 1 : 0, reflectionInView() ? 1 : 0, p.letzt === null ? 0 : Math.round(jetzt - p.letzt),
+      boardTheme.mirrors.length ? 1 : 0]);
     p.letzt = jetzt;
     return r;
   };
@@ -307,10 +308,13 @@ async function pruefeFolge(alle) {
     const soll = info.spiegelt ? 1 : 0, rechnet = info.spiegelt && info.spiegel > 0;
     const spiegelbilder = steht.filter((b) => b[1]).length;
     // Wechsel: Schritte des Anteils je Bild, Spiegelbilder bei Anteil 0, Änderung beim Halten, Umkehr
-    let maxSchritt = 0, beimHalten = 0, beiNull = 0, umkehr = 0, richtung = 0, maxLuecke = 0;
+    // veraltet: Anteil über 0, Platte im Bild, ein Brett hat eine Spiegelfläche, aber kein Spiegelbild in diesem Bild (das
+    // Brett läse eine alte Textur, etwa beim Einblenden aus einer Welt ohne Spiegelung)
+    let maxSchritt = 0, beimHalten = 0, beiNull = 0, veraltet = 0, umkehr = 0, richtung = 0, maxLuecke = 0;
     for (let i = 0; i < wechsel.length; i++) {
-      const [a, s, , halt, , luecke] = wechsel[i];
+      const [a, s, , halt, sicht, luecke, flaeche] = wechsel[i];
       if (s && !(a > 0)) beiNull++;
+      if (!s && a > 0 && sicht && flaeche) veraltet++;
       if (i === 0) continue;
       maxLuecke = Math.max(maxLuecke, luecke);
       const d = a - wechsel[i - 1][0];
@@ -332,6 +336,7 @@ async function pruefeFolge(alle) {
     pruefe(e.anteil === soll, `${name} ${welt}: Anteil der Spiegelung ${e.anteil}, soll ${soll}`);
     pruefe(rechnet ? spiegelbilder === steht.length : spiegelbilder === 0, `${name} ${welt}: ${spiegelbilder} Spiegelbilder in ${steht.length} Bildern (soll ${rechnet ? 'jedes' : 'keines'})`);
     pruefe(!beiNull, `${name} ${vorige} → ${welt}: ${beiNull} Spiegelbilder bei Anteil 0`);
+    pruefe(!veraltet, `${name} ${vorige} → ${welt}: ${veraltet} Bilder mit Anteil über 0 ohne neues Spiegelbild`);
     // weich: höchstens so viel wie smoothstep in einem Bild (Steigung 1,5 je fadeTime 0,9 s, ein Bild höchstens MAX_DT 0,05 s)
     pruefe(maxSchritt <= 1.5 * 0.05 / 0.9 + 1e-3, `${name} ${vorige} → ${welt}: Anteil springt um ${maxSchritt.toFixed(3)} in einem Bild`);
     pruefe(!beimHalten && !umkehr, `${name} ${vorige} → ${welt}: Anteil ändert sich beim Halten (${beimHalten}) oder kehrt um (${umkehr})`);
