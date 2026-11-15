@@ -191,3 +191,11 @@ Nutzer. Der Himmel (Vulkan ≈ 20 ms, Strand ≈ 8 ms) bleibt der grösste Poste
 
 **Urteil:** bereit für den Test des Nutzers auf dem Poco, mit `?spar=aufloesung` und `?spar=spiegelklein` (jeweils
 gegen ohne). `spiegel2` nur mit `?ruhetakt=aus` vergleichbar.
+
+### Test des Nutzers auf dem Poco (15.11.2026, energie-3)
+
+- `aufloesung`: Beim Prisma «flackert» die linke untere Kante, wenn eine Spitze zur Kamera zeigt; die Farne im Wald wirken
+  weniger schön, ihre Farbe ändert sich mit der Kamera leicht (evtl. schon vorher); Spiegel je nach Winkel etwas
+  pixeliger (ok). **Nicht übernommen.**
+- Spiegelung: Auf den eigenen Welten (alle ausser den beiden im All) kann die Spiegelung auf dem Brett ganz weg; im All
+  wirkt die schwächere (`spiegelklein`) gut. → Ticket 04.
