@@ -13384,7 +13384,11 @@ function createPanoramaSky(m) {
     /** geladen oder lädt: release gibt etwas frei */
     get held() { return loading !== null; },
     /** Eine Ebene zeigt Bewegung, der das Auge folgt (userData.fluid, etwa die Fische): in Ruhe nicht langsamer zeichnen (frameRate.ruhe) */
-    get fluid() { return mesh !== null && group.children.some((p) => p.userData.fluid); },
+    get fluid() {
+      if (mesh === null) return false;
+      for (const p of group.children) if (p.userData.fluid) return true; // je rAF gefragt: ohne Allokation (skyTheme.fluid)
+      return false;
+    },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** geladen, aber noch nie im Bild und noch nicht vorgezeichnet (skyTheme.vorzeichnen) */
