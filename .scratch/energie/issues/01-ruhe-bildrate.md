@@ -111,3 +111,19 @@ stetigen 30 lief «sauber»; das Ruckeln in Ticket 17 kam vom häufigen Wechsel)
 
 **Ergebnis:** bereit für den Test des Nutzers auf dem Poco (`?ruhetakt=30` in Wüste und Sterne, zum Vergleich
 `&ruhehimmel` in Dorf, Wald, Meer, Vulkan, Planeten).
+
+### Akkuvergleich auf dem Poco (15.11.2026, Koordinator)
+
+Der Nutzer sah in allen Welten (mit `?alles&ruhetakt=30&ruhehimmel`) nichts Stufiges. Abwechselnd gemessen, je 15 min,
+im selben Level (Bergwald, `zeige(4)`), gegen den deployten Stand `energie-1`, nach Vorlauf bis 98 %:
+
+| Fenster | Bilder/s | Strom |
+|---|---|---|
+| A heute | 60,7 | 655 mA |
+| B `?ruhetakt=30&ruhehimmel` | 30,3 | 465 mA |
+| A heute | 60,8 | 728 mA |
+| B `?ruhetakt=30&ruhehimmel` | 30,2 | 468 mA |
+
+B braucht etwa **30–35 % weniger Strom** (Mittel A ≈ 690 mA, B ≈ 467 mA), das Handy wird dabei kühler (B senkte die
+Temperatur je um 1–3 °C). Die absoluten Werte liegen höher als am Morgen (Akku oben, 98 → 50 %), der Vergleich gilt
+wegen des Wechsels A/B/A/B.
