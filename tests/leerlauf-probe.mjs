@@ -6,7 +6,7 @@
 // gez/s), CPU-Zeit von frame(); dazu je Eingabe, wie viele Bildschirmbilder nach dem Ereignis das erste gezeichnete
 // Bild kam (0 = im nächsten), und die Bildabstände des sichtbaren Bilds (p95, max). Prüft: Reaktion immer im nächsten
 // Bild, Konsole ohne Fehler; mit ?t= (--still) ruht die sichtbare Szene ganz (0 gezeichnete Bilder). Im Fenster
-// ungedrosselt dazu der Takt (ADR 0008): Menü 10 Bilder/s, Level in Ruhe stetig 60 (mit ?takt=30: 30).
+// ungedrosselt dazu der Takt (ADR 0008, 0009): Menü 10 Bilder/s, Level in Ruhe 30 (Ruhe-Bildrate; mit ?takt=30 ebenso).
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/leerlauf-probe.mjs [--fenster] [--handy]
 //           [--drossel 4] [--sky forest] [--seite <index.html>] [--still]
 //   --fenster: echtes Fenster (Messwerte; sonst headless, nur Regression); --handy: 393 × 873, Pixeldichte 2,75, Touch;
@@ -147,12 +147,13 @@ try {
   ergebnis.ruhe.bilderGesamt = await ev(`window.__prisma.frames - ${f1}`);
   ergebnis.ruhe.ruht = await ev('window.__prisma.ruht?.() ?? null');
   console.log('Ruhe', JSON.stringify(ergebnis.ruhe));
-  // Takt in Ruhe (ADR 0008): stetig frameRate.spielFps (60, mit ?takt=30: 30), auch ohne Eingabe. Nur im Fenster
-  // ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt hält die CPU den Takt nicht)
+  // Takt in Ruhe (ADR 0009, Ticket 02 der Energie): die Ruhe-Bildrate frameRate.ruheFps (30), ohne sie (?ruhetakt=aus,
+  // ?takt=30) stetig frameRate.spielFps. Nur im Fenster ungedrosselt messbar (headless taktet rAF virtuell, gedrosselt
+  // hält die CPU den Takt nicht)
   if (!still && fenster && drossel === 1) {
     // Soll am gemessenen Bildschirmtakt (frameRate.vsync): Die T2000 lief im Review mit 56,7 Hz statt 60, das Level dann
     // mit 56,7 Bildern/s (jedes k-te Bildschirmbild, wie frameRate.teiler rechnet)
-    const hz = 1000 / await ev('frameRate.vsync'), fps = await ev('frameRate.spielFps');
+    const hz = 1000 / await ev('frameRate.vsync'), fps = await ev('frameRate.ruheFps ?? frameRate.spielFps');
     const soll = +(hz / await ev(`frameRate.teiler(${fps})`)).toFixed(1);
     pruefe(Math.abs(ergebnis.ruhe.gezJeS - soll) <= 3, `Level in Ruhe: ${ergebnis.ruhe.gezJeS} gez/s statt ${soll} (Takt ${hz.toFixed(1)} Hz)`);
     pruefe(ergebnis.menue.gezJeS <= 12, `Menü: ${ergebnis.menue.gezJeS} gez/s statt 10`);
