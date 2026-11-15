@@ -1,6 +1,6 @@
 # Spec: Tutorial neu
 
-Status: ready-for-agent
+Status: done (15.11.2026 nach `main`)
 
 PLAN 1a.3 «Tutorial neu». Die Entscheide stammen aus dem Grilling vom 14.11.2026 und lösen Teile von PLAN 1a.1
 («Führung im Dorf», `.scratch/tutorial-fuehrung/spec.md`) ab. Was dort steht und hier nicht geändert wird, gilt weiter.

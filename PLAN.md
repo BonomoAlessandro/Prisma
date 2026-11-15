@@ -348,7 +348,7 @@ Android-Chromium.
   (Angebot, Einstieg, Ende), sechs Reisen, Finale, Epilog, 22 der 23 Schritte und die Hinweise nebenbei. Die Regel der
   Führung ist dafür gelockert: ein oder zwei kurze Sätze je Schritt (höchstens 18 Wörter, 105 Zeichen), Hinweise
   höchstens 16 Wörter. Entscheid 13 des Kleinen Wagens («von Spiegel zu Spiegel» in Prolog 6) ist damit aufgehoben.
-- [ ] **1a.3 Tutorial neu** (Wunsch des Nutzers, 14.11.2026): 9 Übungen sind nicht nötig, um alle Mechaniken zu
+- [x] **1a.3 Tutorial neu** (Wunsch des Nutzers, 14.11.2026): 9 Übungen sind nicht nötig, um alle Mechaniken zu
   zeigen, und das Tutorial soll professioneller wirken; der Spieler soll immer wissen, was zu tun ist. Entschieden im
   Grilling: **4 Übungen** auf neuen Brettern (Erstes Licht, Brechung, Farbenlehre, Mischung), je höchstens 4 Schritte;
   «Spiegel längs» und «Prisma von der falschen Seite» fallen weg. **Strikte Führung:** Nur das markierte Element
@@ -358,9 +358,9 @@ Android-Chromium.
   heraus). Das Dorf merkt sich keinen Platz: Jeder Start beginnt bei Übung 1. Zuerst nur «Erstes Licht», der Nutzer
   prüft auf dem Poco, dann der Rest. Branch `feature/tutorial-neu`, Spec, Tickets und Übergabe in
   `.scratch/tutorial-neu/` (`STAND.md`).
-  - **Stand 15.11.2026: umgesetzt, geprüft und beschrieben (Tickets 01–03), wartet auf den Test des Nutzers** auf dem
-    Poco und mit einer Person, die Prisma nicht kennt (Beobachtungsfragen in Ticket 03 unter «Comments»); danach
-    abhaken und Merge nach `main` nur auf sein Go.
+  - **Fertig, 15.11.2026 nach `main`** (Tickets 01–03, APP_VERSION `2026-11-15 tutorial-neu-4`). Nach dem Poco-Test
+    des Nutzers: Abdunkeln 0,52 statt 0,46, die Hand zeigt nach 5 s ohne Fortschritt wieder vor. Offen bleibt nur der
+    Test mit einer Person, die Prisma nicht kennt (Beobachtungsfragen in Ticket 03 unter «Comments»).
 
 ## 2. Würfel-Level (3D)
 

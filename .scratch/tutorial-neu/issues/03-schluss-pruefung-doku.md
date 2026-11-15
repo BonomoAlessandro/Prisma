@@ -4,8 +4,7 @@
 
 **Blocked by:** 02
 
-**Status:** ready-for-human (geprüft und beschrieben; offen nur noch der Test des Nutzers auf dem Poco und mit einer
-Person, die Prisma nicht kennt, danach der Merge auf sein Go)
+**Status:** done (15.11.2026 nach `main`; offen nur der Test mit einer fremden Person, siehe Ticket 03)
 
 **What to build:** Das Vorhaben ist geprüft und beschrieben, bereit für den Test des Nutzers und den Merge auf sein Go.
 

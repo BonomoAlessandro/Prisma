@@ -2,8 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-human (umgesetzt, reviewt und vom Nutzer auf dem Poco abgenommen; offen nur noch der Test des
-ganzen Tutorials durch den Nutzer und eine Person, die Prisma nicht kennt, siehe Ticket 03)
+**Status:** done (15.11.2026 nach `main`; offen nur der Test mit einer fremden Person, siehe Ticket 03)
 
 **What to build:** Die Führung aus 1a.1 bekommt das neue Aussehen und wird strikt. Am Ende läuft «Erstes Licht» auf einem
 neuen Brett mit vier Schritten so, wie es für alle Übungen gelten soll. Die übrigen acht alten Übungen bleiben in diesem

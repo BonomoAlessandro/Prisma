@@ -4,8 +4,7 @@
 
 **Blocked by:** 01 und das Okay des Nutzers nach seinem Poco-Test
 
-**Status:** ready-for-human (umgesetzt und reviewt; offen nur noch der Test des Nutzers auf dem Poco und mit einer
-Person, die Prisma nicht kennt, siehe Ticket 03)
+**Status:** done (15.11.2026 nach `main`; offen nur der Test mit einer fremden Person, siehe Ticket 03)
 
 **What to build:** Das Dorf hat danach genau vier Übungen auf neuen Brettern. Die alten Übungen Umweg, Sperre,
 Schatten, Farbiges Licht und Treffpunkt sowie die alten Bretter von Brechung, Farbenlehre und Mischung sind weg.
