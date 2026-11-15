@@ -329,22 +329,29 @@ const abdruckVorher = (level) => {
  * zählt der Abdruck ohne hint, schritte und nebenbei, gerechnet aus demselben Stand fc22df1 (Review Ticket 02 Gerüst).
  * Ändert die Führung ein Brett mit Absicht, kommt der neue Abdruck hierher: Ticket 03 änderte die Startstellungen von
  * «Umweg» (vorderer Spiegel rot 4) und «Mischung» (Prisma rot 7), Ticket 04 die von «Umweg» noch einmal (hinterer
- * Spiegel rot 2).
+ * Spiegel rot 2). Ticket 01 von .scratch/tutorial-neu/ gab «Erstes Licht» ein neues Brett (vier Schritte), Ticket 02
+ * ebenso «Brechung», «Farbenlehre» und «Mischung».
  */
 const UEBUNGEN_OHNE_TEXT = {
-  'Erstes Licht': '740f8b5d7649c11a', Umweg: '2e315d6d5b0b3d34', Sperre: 'b8e589cb0c6e11d2',
-  Brechung: '91e7a4c8a9db69f9', Schatten: '8b4d29eb90760870', Farbenlehre: '147064e66d7c0df2',
-  'Farbiges Licht': '7d99bbec783cc08a', Treffpunkt: 'c958b0716229036f', Mischung: 'd03e510fca040a5d',
+  'Erstes Licht': 'a121c77e3fc13e08', Brechung: '28cb9fc202eefa02', Farbenlehre: '5191bbd5ed21589c',
+  Mischung: '66859630084dcd5f',
 };
+/**
+ * Mit Absicht gestrichen (Spec .scratch/tutorial-neu/, «Vier Übungen statt neun», Ticket 02): Diese Übungen stehen
+ * weder im Spiel noch im Vorrat.
+ */
+const GESTRICHEN = ['Umweg', 'Sperre', 'Schatten', 'Farbiges Licht', 'Treffpunkt'];
 const abdruckOhneText = (level) => {
   const { titel, hint, schritte, nebenbei, ...daten } = level;
   return createHash('sha256').update(JSON.stringify(daten)).digest('hex').slice(0, 16);
 };
-/** Was an den Leveln (Name → Level) gegenüber vorher (Name → Abdruck) fehlt oder anders ist. */
-const verloren = (vorher, levels) => Object.entries(vorher).flatMap(([name, h]) => (!levels.has(name)
+/** Was an den Leveln (Name → Level) gegenüber vorher (Name → Abdruck) fehlt oder anders ist (gestrichen: noch da). */
+const verloren = (vorher, levels) => Object.entries(vorher).flatMap(([name, h]) => (GESTRICHEN.includes(name)
+  ? (levels.has(name) ? [`${name} gestrichen, aber noch da`] : []) : !levels.has(name)
   ? [`${name} fehlt`] : (name in UEBUNGEN_OHNE_TEXT ? abdruckOhneText(levels.get(name)) !== UEBUNGEN_OHNE_TEXT[name]
     : abdruckVorher(levels.get(name)) !== h) ? [`${name} geändert`] : []));
-test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränderten Leveldaten, dazu nur die 15 '
+test('Jedes Level von vor dem Umbau (ausser den gestrichenen Übungen) steht im Spiel oder im Vorrat, mit unveränderten '
+  + 'Leveldaten, dazu nur die 15 '
   + 'neuen sehr schweren aus dem Ausbau und die Kandidaten mit Schlüssel aus Ticket 09; mit Gegenproben', () => {
   const jetzt = new Map([...ALLE.LEVELS, ...ALLE.LEVELS_3D].map(l => [l.name, l]));
   assert.equal(Object.keys(VORHER).length, 809, 'Tutorial, 500 flache und 300 Würfel-Level');
@@ -371,4 +378,7 @@ test('Jedes Level von vor dem Umbau steht im Spiel oder im Vorrat, mit unveränd
   assert.deepEqual(verloren(VORHER, ohne), [`${ALLE.LEVELS_3D[0].name} fehlt`]);
   const { titel, ...ohneTitel } = erstes;
   assert.deepEqual(verloren(VORHER, new Map([...jetzt, [erstes.name, { ...ohneTitel, titel: 'Anders' }]])), []);
+  // eine gestrichene Übung, die wieder auftaucht
+  assert.ok(GESTRICHEN.every(n => n in VORHER), 'gestrichen: nur Übungen von vorher');
+  assert.deepEqual(verloren(VORHER, new Map([...jetzt, ['Umweg', uebung]])), ['Umweg gestrichen, aber noch da']);
 });

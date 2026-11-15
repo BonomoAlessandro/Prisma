@@ -647,7 +647,7 @@ console.log('Die Wahl im Spiel (Ticket 04)');
 const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
 await test('index.html enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
   + 'der Reihenfolge der Reihe; die übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
-  assert.equal(L.TUTORIAL_COUNT, 9);
+  assert.equal(L.TUTORIAL_COUNT, 4); // seit Ticket 02 von .scratch/tutorial-neu/ vier Übungen
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => !l.tutorial).map(l => l.name), []);
   assert.deepEqual(IM_SPIEL.map(l => l.name).sort(), LEVEL.map(l => l.name).sort());
   const titel = new Map(LEVEL.map(l => [l.name, l.titel]));

@@ -915,20 +915,32 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
     { neueBestzeit: false, wenigerDrehungen: false }, 'Zeit fehlte: keine Meldung');
   assert.deepEqual(progress.best('mittel').Mira, { zeit: 50, drehungen: 4 });
   // Stand des Dorfs (Ticket 07): progress lässt das Feld dorf stehen, storyDorfStand prüft es (Unlesbares: null)
-  const dorfStand = { platz: 0, geloest: ['Umweg'], gesehen: ['prolog', 'angebot', 'dorf'], geschafft: false,
-    dorf: { platz: 3, ende: null } };
+  const dorfStand = { platz: 0, geloest: ['Brechung'], gesehen: ['prolog', 'angebot', 'dorf'], geschafft: false,
+    dorf: { ende: null } };
   progress.save('leicht', dorfStand);
   assert.deepEqual(progress.load('leicht', 60), dorfStand);
   const vonD = html.indexOf('const storyDorfStand = '), bisD = html.indexOf(': null);', vonD) + 8;
-  const storyDorfStand = new Function('TUTORIAL_COUNT', `${html.slice(vonD, bisD)}\nreturn storyDorfStand;`)(
-    L.TUTORIAL_COUNT);
-  assert.equal(L.TUTORIAL_COUNT, 9);
-  assert.deepEqual(storyDorfStand({ platz: 3, ende: null }), { platz: 3, ende: null });
-  assert.deepEqual(storyDorfStand({ platz: 8, ende: 'gespielt', mehr: 1 }), { platz: 8, ende: 'gespielt' });
-  assert.deepEqual(storyDorfStand({ platz: 0 }), { platz: 0, ende: null }, 'ohne ende: das Kapitel läuft');
-  assert.deepEqual(storyDorfStand({ platz: 5, ende: 'uebersprungen' }), { platz: 5, ende: 'uebersprungen' });
-  for (const kaputt of [undefined, null, 'dorf', 3, [], {}, { platz: 9, ende: null }, { platz: -1, ende: null },
-    { platz: 1.5, ende: null }, { platz: '2', ende: null }, { platz: 2, ende: 'fertig' }, { platz: 2, ende: true }]) {
+  const storyDorfStand = new Function(`${html.slice(vonD, bisD)}\nreturn storyDorfStand;`)();
+  assert.equal(L.TUTORIAL_COUNT, 4);
+  // seit Ticket 02 von .scratch/tutorial-neu/ kein Platz im Dorf (Spec «Kein Stand im Dorf»): nur ende zählt
+  assert.deepEqual(storyDorfStand({ ende: null }), { ende: null });
+  assert.deepEqual(storyDorfStand({ ende: 'gespielt', mehr: 1 }), { ende: 'gespielt' });
+  assert.deepEqual(storyDorfStand({}), { ende: null }, 'ohne ende: das Kapitel läuft');
+  assert.deepEqual(storyDorfStand({ ende: 'uebersprungen' }), { ende: 'uebersprungen' });
+  // alte Stände mit platz (bis 8 aus der Zeit der 9 Übungen): Der Platz fällt weg, ein beendetes Dorf bleibt beendet,
+  // ein laufendes beginnt wieder bei Übung 1; keiner gilt deswegen als unlesbar (sonst löschte setGrade ihn)
+  assert.deepEqual(storyDorfStand({ platz: 3, ende: null }), { ende: null });
+  assert.deepEqual(storyDorfStand({ platz: 8, ende: 'gespielt' }), { ende: 'gespielt' }, 'altes gespieltes Dorf');
+  assert.deepEqual(storyDorfStand({ platz: 5, ende: 'uebersprungen' }), { ende: 'uebersprungen' });
+  assert.deepEqual(storyDorfStand({ platz: 0 }), { ende: null });
+  for (const alt of [{ platz: 9, ende: 'gespielt' }, { platz: -1, ende: 'gespielt' }, { platz: 1.5, ende: 'gespielt' },
+    { platz: '2', ende: 'gespielt' }]) {
+    assert.deepEqual(storyDorfStand(alt), { ende: 'gespielt' }, `${JSON.stringify(alt)}: platz zählt nicht`);
+  }
+  // das Spiel liest und schreibt keinen Platz im Dorf mehr (firstIndex, begin, save, «Üben», ?alles)
+  assert.deepEqual(html.match(/dorf\??\.platz|dorf: \{ platz|dorf = \{ platz/g), null, 'Platz im Dorf');
+  for (const kaputt of [undefined, null, 'dorf', 3, [], [{ ende: null }], { ende: 'fertig' }, { ende: true },
+    { platz: 2, ende: 'fertig' }, { platz: 2, ende: true }]) {
     assert.equal(storyDorfStand(kaputt), null, JSON.stringify(kaputt));
   }
   // die alten Schlüssel stehen im Spiel nirgends mehr als Text im Code (nur noch im Kommentar)

@@ -52,8 +52,9 @@ _Vermeiden_: Steinplatte, Plattform
 Ein festes Element auf eckigem Sockel (Quelle, Ziel, Filter, fester Spiegel, festes Prisma, fester Kombinator) wackelt
 beim Antippen kurz, sein roter Rand blitzt auf. Ohne Text, ohne Zug; Strahlen und Speicherstand bleiben. Es gilt im
 ganzen Spiel, nicht in Würfel-Leveln (dort Rahmen statt Sockel); Elemente ohne Sockel (Blocker) reagieren nicht.
-Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare. Rund heisst drehbar, eckig
-heisst fest. Im Code `weigern`, die Auswahl `pickTapped`.
+Liegt ein drehbares Element im Toleranzbereich des Tippens, gewinnt immer das drehbare (unter der Sperre der Führung
+gewinnt das markierte, und auch drehbare weigern sich dort, nur ohne Blitz). Rund heisst drehbar, eckig heisst fest.
+Im Code `weigern`, die Auswahl `pickTapped`.
 _Vermeiden_: Fehlklick, Ablehnung
 
 ## Noas Geschichte
@@ -131,53 +132,77 @@ wer nach dem letzten Level einer Welt neu lädt, sieht den Stern schon wach. Der
 ohne eigenes Feld im Speicherstand. Im Code `story.erwache`, der Stand `wagen.stand`.
 
 **Im Dorf**:
-Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 9 Übungen, das sind
-die Level des Tutorials mit ihren Namen und Schritten (Kopfzeile «Im Dorf – Umweg», darunter Ziele und Grad, «Übung 2 / 9»
-und der Satz des laufenden Schritts, siehe Führung; einen festen Hinweissatz je Übung gibt es seit der Führung nicht
-mehr). Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
-der Reihe nach; nach der 9. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
+Das Kapitel der Geschichte zwischen Prolog und Bergwald, in dem Noa mit der Taschenlampe übt: die 4 Übungen, das sind
+die Level des Tutorials mit ihren Namen und Schritten (seit PLAN 1a.3 «Tutorial neu»: Erstes Licht mit Ziel, Spiegel,
+rund gegen eckig und Zurückdrehen; Brechung mit Block und Prisma; Farbenlehre mit Filter, farbigen Lampen und dem Ring
+am Kristall; Mischung mit Mischen am Kristall und Kombinator; je ein eigenes Brett, dessen zwei unterste Reihen leer
+bleiben, weil auf dem Handy das Band dort liegt). Kopfzeile «Im Dorf – Brechung», darunter Ziele und Grad und
+«Übung 2 / 4»; der Satz des laufenden Schritts steht im Band, siehe Führung; einen festen Hinweissatz je Übung gibt es
+seit der Führung nicht mehr. Nach «Üben» im Angebot kommt der Einstieg ins Dorf, dann die Übungen
+der Reihe nach; nach der 4. meldet «Gelöst» «Das Dorf leuchtet» mit «In den Bergwald». Der Knopf «Dorf überspringen»
 beendet das Kapitel jederzeit (nicht Esc: Das öffnet im Dorf wie in jedem Level das Menü). Gespielt oder übersprungen,
 folgt ein Satz zum Ende («Jetzt hat Noa den Dreh raus …», wartet auf Tippen), dann bringen die
 Glühwürmchen das Licht in den Bergwald wie nach «Gleich los». Es ist ein Kapitel, aber keine der sechs Welten: ohne
 Nummer, sein Einstieg ohne Träger, und die Übungen zählen nicht zu den 60 Leveln des Grads (im Menü steht der Grad dort
-auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar; Neuladen setzt an der Übung fort. Die Übersicht
-zeigt das Dorf, sobald «Üben» gewählt ist; nach dem Überspringen sind alle Übungen frei, und eine Übung aus der
-Übersicht führt nach der 9. zurück in die Übersicht. Hintergrund ist Noas Dorf bei Nacht (Skybox `village`,
-`STORY_DORF.sky`); an seinem Himmel steht der Kleine Wagen wie im Prolog, alle sechs Sterne schlafend. Im Code
-`STORY_DORF` (Texte, Himmel), `story.inDorf` und `story.uebung` (die laufende Übung), im Stand
-`prisma.noa.<grad>.dorf` mit Platz und Ende (gespielt oder übersprungen), nur nach «Üben».
-_Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 9 Level selbst, in den Werkzeugen und ausserhalb der
+auf «Dorf · 0 / 60»). Menü und Übersicht sind auch im Dorf erreichbar und behalten die laufende Übung und ihren
+Schritt. Das Dorf merkt sich keinen Platz (Entscheid des Nutzers, 14.11.2026): Wer es startet, auch nach dem Neuladen
+mitten im Dorf, beginnt bei Übung 1. Die Übersicht zeigt das Dorf, sobald «Üben» gewählt ist, gelöste Übungen bleiben
+dort gelöst (auch nach dem Neuladen), und wer dort die nächste offene wählt, spielt ab ihr weiter; nach dem
+Überspringen sind alle Übungen frei, und eine Übung aus der Übersicht führt nach der 4. zurück in die Übersicht.
+Hintergrund ist Noas Dorf bei Nacht (Skybox `village`, `STORY_DORF.sky`); an seinem Himmel steht der Kleine Wagen wie
+im Prolog, alle sechs Sterne schlafend. Im Code `STORY_DORF` (Texte, Himmel), `story.inDorf` und `story.uebung` (die
+laufende Übung), im Stand `prisma.noa.<grad>.dorf` nur das Ende (`ende`: null, solange es läuft, sonst gespielt oder
+übersprungen), nur nach «Üben»; ein altes Feld `platz` zählt nicht, ein beendetes Dorf bleibt beendet.
+_Vermeiden_: Tutorial (für das Kapitel; Tutorial heissen die 4 Level selbst, in den Werkzeugen und ausserhalb der
 Geschichte), Welt (für das Dorf)
 
 **Führung**:
-Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen»): Der Satz des Schritts steht in
-der Kopfzeile, wo früher der Hinweis stand, ein gestrichelter Umriss läuft um das Element, eine Hand zeigt die Geste
-einmal vor. Der Umriss liegt als Ring auf dem Brett, Teil der Szene: Wo er hinter einem Element durchläuft, ist er
-verdeckt. Frei: Alles reagiert wie immer, nichts wird gesperrt, Fehlversuche bleiben ohne Meldung, gelöst wird nie
-von selbst; wird die Übung früher gelöst, gilt das sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im
-Dorf; Neustart und Neuladen beginnen beim ersten Schritt, Menü und Übersicht behalten ihn. Ohne Speicherstand. Im Code
-`fuehrung` (Anzeige, Uhr), die Daten `schritte` und `nebenbei` je Übung.
+Wie eine Übung im Dorf den Spieler durch ihre Schritte leitet (Richtung «Vorzeigen», neu gestaltet mit PLAN 1a.3
+«Tutorial neu»): Der Satz des Schritts steht im Band unten, die Szene ist leicht abgedunkelt, ein Lichtkegel liegt auf
+dem Element des Schritts, und bei einer Handlung zeigt eine gezeichnete Zeigehand die Geste sofort vor und nach 5 s ohne Fortschritt wieder. Sie ist
+strikt (siehe Sperre). Ein geschaffter Schritt bekommt eine Rückmeldung: Sein Punkt im
+Band füllt sich, ein leiser Ton (nur bei Ton an); nach etwa 0,6 s blendet der nächste weich ein. Fehlversuche bleiben
+ohne Tadel. Gelöst wird nie von selbst, der letzte Schritt führt zur Lösung; wird die Übung früher gelöst, gilt das
+sofort, und nichts bleibt stehen. Sie läuft jedes Mal ganz, nur im Dorf; Neustart beginnt beim ersten Schritt der
+Übung, Neuladen das Dorf bei Übung 1 (siehe Im Dorf), Menü und Übersicht behalten Übung und Schritt. Ohne
+Speicherstand. Ein geschaffter Schritt funkelt nicht (Wunsch des Nutzers nach dem Poco-Test, 14.11.2026). Im Code
+`fuehrung` (Band, Lichtkegel, Hand, Sperre), die Daten `schritte` und `nebenbei` je Übung.
 _Vermeiden_: Tutorial (für die Führung), Hilfe
+
+**Band**:
+Das feste Band der Führung am unteren Rand, immer an derselben Stelle: der Satz des Schritts, ein Punkt je Schritt der
+Übung (● ● ○ ○: geschafft, der laufende mit Ring) und bei einer Erklärung der Knopf «Weiter»; darüber klein die
+Hinweise nebenbei. Es lässt die Knöpfe frei (über ihrer Reihe unten, auf dem Handy quer links von ihnen) und geht mit
+der Kopfzeile aus und ein. «Übung 2 / 4» bleibt in der Kopfzeile. Im Code `#band`, `fuehrung.zeichneBand`.
+_Vermeiden_: Leiste, Untertitel, Sprechblase
+
+**Lichtkegel**:
+Die weiche, helle Stelle im Abdunkeln der Szene auf dem Element eines Schritts (bei mehreren auf jedem); ein neuer
+wächst kurz auf. Er ersetzt den gestrichelten Umriss aus 1a.1, das Abdunkeln zeigt zugleich, dass der Rest gesperrt
+ist. Im Code `fuehrung.kegel`, `FUEHRUNG.kegel`.
+_Vermeiden_: Umriss, Spotlight, Markierung (für den Kegel selbst)
+
+**Sperre**:
+Die strikte Führung: Bei einem Handlungsschritt reagiert nur das markierte Element (beim Antippen gewinnt es auch gegen
+ein drehbares daneben), jedes andere weigert sich wie ein festes, auch drehbare (Wackeln ohne Blitz, kein Zug, keine
+Drehung). Bei einer Erklärung ist das ganze Brett gesperrt, bis «Weiter» getippt wird. Frei bleiben immer Kamera,
+Knöpfe, Menü, Übersicht, Ton, Neustart und «Dorf überspringen»; ausserhalb der Führung ist nichts gesperrt. Im Code
+`schrittErlaubt`, `fuehrung.darf` und `fuehrung.vorrang`.
+_Vermeiden_: Blockade, Lock
 
 **Schritt**:
 Ein Teil der Führung: ein oder zwei kurze Sätze im Du, höchstens 18 Wörter (Platzhalter je Gerät wie «Tippe» /
-«Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen (auch nur zurück), der
-Strahl trifft ein Element (auch eines, für das ein anderes, umrandetes Element zu drehen ist, und auch nur mit einer
-bestimmten Farbe, etwa Magenta im Kombinator), oder bei einer Erklärung
-der Knopf «Weiter» am Satz. Höchstens drei je Übung; der Satz bleibt stehen, bis der nächste kommt, nach dem letzten
-bis zum Lösen. Im Code `schritte` (`SCHRITT_WEITER`, `schrittErfuellt`).
+«Klicke»), und das, was ihn weiterschaltet: ein Element antippen (ein festes weigert sich dabei), ein Element drehen
+(auch nur zurück), der Strahl trifft ein Element (auch eines, für das ein anderes, markiertes Element zu drehen ist,
+und auch nur mit einer bestimmten Farbe, etwa Magenta am Kristall in «Mischung»), oder bei einer Erklärung der Knopf «Weiter» im
+Band. Höchstens vier je Übung; der letzte ist eine Handlung und endet erst mit dem Lösen. Im Code `schritte`
+(`SCHRITTE_MAX`, `SCHRITT_WEITER`, `schrittErfuellt`).
 _Vermeiden_: Stufe, Hinweis (für einen Schritt)
 
 **Hinweis nebenbei**:
-Ein leiser Satz unter dem Schritt zu Kamera oder Neustart: Er wartet auf nichts, zählt nicht zu den Schritten,
+Ein leiser Zusatz über dem Band zu Kamera oder Neustart (beide in «Brechung»): Er wartet auf nichts, zählt nicht zu den Punkten,
 verschwindet bei der ersten Benutzung (Kamerageste, Neustart) oder spätestens mit dem Lösen und kommt beim Neustart
 derselben Übung nicht wieder. Im Code `NEBENBEI`.
-
-**Später Fingerzeig**:
-Nach 15 s ohne Fortschritt (neuer Schritt, ein Element in der Stellung der Lösung) zeigt die Führung noch einmal: Der
-Umriss läuft schneller, die Hand zeigt die Geste wieder, «Weiter» stupst; nach den Schritten gilt das dem nächsten
-Element ausserhalb der Lösung. Er löst nie. Die 15 s sind vorläufig, sie werden nach den Tests von Hand (Poco, eine
-Person, die Prisma nicht kennt) festgelegt. Im Code `FUEHRUNG.fingerzeig`, `fingerzeigZiel`.
 
 **Angebot**:
 Die Frage nach dem Prolog, auf der Bühne: «Die Glühwürmchen wollen gleich los in den Wald. Möchtest du vorher mit Noa
@@ -238,7 +263,7 @@ _Vermeiden_: Levelauswahl (abgelöst, siehe unten)
 Ein gelöstes Level aus der Übersicht noch einmal spielen. Es kommt ohne Einstieg, Reise und Finale, also ohne
 Erwachen; der Kleine Wagen zeigt den Stand des Durchgangs. «Weiter» führt zum nächsten Level, über eine Weltgrenze
 blendet nur der Hintergrund. Erst beim nächsten ungelösten Level gilt wieder der normale Ablauf mit Reise und Finale.
-Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level zurück in die Übersicht, ebenso die 9.
+Der Platz im Durchgang bleibt; in einem geschafften Grad führt das letzte Level zurück in die Übersicht, ebenso die 4.
 Übung im Dorf. Im Code `story.replay`.
 _Vermeiden_: Neu starten (setzt das Level auf dem Brett zurück), Von vorn (löscht den Stand eines Grads)
 
@@ -383,6 +408,34 @@ So viele Elemente so dicht beieinander, dass das Feld unübersichtlich wird.
 ## Abgelöst
 
 Begriffe aus älteren Specs, Tickets und Kommentaren, die den Ablauf des Spiels nicht mehr beschreiben.
+
+**Später Fingerzeig**:
+In der Führung aus PLAN 1a.1 zeigte sie nach 15 s ohne Fortschritt noch einmal: Der gestrichelte Umriss lief
+schneller, die Hand zeigte die Geste wieder, «Weiter» stupste; nach den Schritten galt das dem nächsten Element
+ausserhalb der Lösung. Im Code war das `FUEHRUNG.fingerzeig` und `fingerzeigZiel`.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu»: Die Hand zeigt sofort, die Sperre lässt nur das Markierte reagieren, der
+Lichtkegel ersetzt den Umriss.
+
+**Umriss** (der Führung):
+In PLAN 1a.1 markierte ein gestrichelter Umriss, zuletzt ein Ring in der Szene, das Element des Schritts; der Satz
+stand oben in der Kopfzeile, «Weiter» daneben.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu» durch Lichtkegel und Abdunkeln; der Satz steht im Band.
+
+**Die neun Übungen**:
+Bis PLAN 1a.3 hatte das Dorf 9 Übungen: Erstes Licht, Umweg, Sperre, Brechung, Schatten, Farbenlehre, Farbiges Licht,
+Treffpunkt, Mischung, je höchstens drei Schritte. Die Übung «Sperre» (Blöcke) hat nichts mit der Sperre der Führung
+zu tun.
+_Abgelöst_ mit PLAN 1a.3 «Tutorial neu»: 4 Übungen auf neuen Brettern. Brechung, Farbenlehre und Mischung heissen wie
+früher, ihre alten Bestwerte gelten aber für die alten Bretter. «Spiegel längs zum Strahl» und «Prisma von der
+falschen Seite» werden nicht mehr gelehrt.
+
+**Platz im Dorf**:
+Bis PLAN 1a.3 merkte sich der Stand die laufende Übung (`prisma.noa.<grad>.dorf.platz`), Neuladen setzte dort fort.
+_Abgelöst_: Das Dorf merkt sich keinen Platz, jeder Start beginnt bei Übung 1; ein altes `platz` zählt nicht.
+
+**Funkeln** (Rückmeldung je Schritt):
+Die Spec von PLAN 1a.3 sah ein kurzes Funkeln am Element vor, wenn ein Schritt geschafft ist.
+_Abgelöst_ nach dem Poco-Test des Nutzers (14.11.2026): Rückmeldung sind nur der Punkt im Band und der leise Ton.
 
 **Reihe** (500er-Reihe):
 Bis zum 29.10.2026 der Ablauf des Spiels: das Tutorial und alle flachen Level in einer festen Folge nach
