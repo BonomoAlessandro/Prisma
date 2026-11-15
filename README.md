@@ -216,17 +216,22 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tests/output/energie/ruhetakt-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
-  - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spar-probe.mjs
-    [messen|bilder|pruefe] [--handy] [--welten forest,beach,volcano] [--runden 4] [--level 212] [--fassungen …]
-    [--ordner pfad]` (Ticket 03 der Energie): `messen` misst die GPU-Zeit je Schritt von `draw` (Spiegelung, Szene, Pinsel, Bloom,
-    letzter Schritt) mit einer eigenen Abfrage über `EXT_disjoint_timer_query_webgl2`, je Fassung (`heute`,
-    `ohneSpiegel`, `ohneBloom`, `ohnePinsel`, die Sparfassungen; `zerlege`/`zerlege5` je Kind der Szene, `pr175` …) in
-    Runden im Wechsel, als Stösse von 30 Bildern ohne Pause (die eingebaute Grafik taktet im Takt von 60 sonst herunter,
-    die Zahlen schwankten; `--takt` misst im Takt). Headless läuft das auf der eingebauten Intel-Grafik. Ergebnis nach
-    `tests/output/energie/spar-<bildschirm>.json`. `bilder` legt Vergleichsbilder (Handy hoch, `?t=12`) samt Ausschnitt
-    in doppelter Grösse, nebeneinander mit dem Unterschied ×8, nach `--ordner`. `pruefe` lädt jede Sparfassung einmal
-    (dazu alle zusammen): `SPAR` stimmt, es zeichnet, keine Konsolenfehler, und `spiegel2` lässt die Spiegeltextur nur
-    in Ruhe aus (etwa jedes zweite Bild), nie zweimal in Folge, beim Drehen oder Ziehen nicht.
+  - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spiegel-probe.mjs
+    [pruefe|messen|bilder] [--handy] [--welten forest,beach,…] [--runden 4] [--level 212] [--fassungen …]
+    [--vorher datei] [--ordner pfad]` (Tickets 03 und 04 der Energie, je etwa 3 min): `pruefe` (Vorgabe) wechselt in
+    einer Seite die Himmel nacheinander mit Überblenden (Dorf, Wald, Strand, Wüste, Vulkan, Planeten, Sterne, Eishöhle,
+    zurück zu den Sternen, Strand, Planeten), ohne Schalter und mit `?spiegel=alle`: Die Spiegeltextur rechnet genau unter
+    den Himmeln, die spiegeln (und nur auf Brettern mit Spiegelfläche), der Anteil der Spiegelung ändert sich je Bild
+    höchstens so viel wie das weiche Überblenden, nie beim Halten und ohne Umkehr, kein Spiegelbild bei Anteil 0, im Menü
+    (Blick im Himmel) keines, Grösse und Kantenglättung der Textur, keine Konsolenfehler. `messen` misst die GPU-Zeit je
+    Schritt von `draw` (Spiegelung, Szene, Pinsel, Bloom, letzter Schritt) mit einer eigenen Abfrage über
+    `EXT_disjoint_timer_query_webgl2`, je Fassung (`heute`, `alle` wie `?spiegel=alle`, `ohneSpiegel`, `ohneBloom`,
+    `ohnePinsel`) in Runden im Wechsel, als Stösse von 30 Bildern ohne Pause (die eingebaute Grafik taktet im Takt von 60
+    sonst herunter). Headless läuft das auf der eingebauten Intel-Grafik. Ergebnis nach
+    `tests/output/energie/spiegel-<bildschirm>.json`. `bilder` legt Vergleichsbilder (Handy hoch, `?t=12`) vorher gegen
+    neu samt Ausschnitt der Mitte des Bretts, nebeneinander mit dem Unterschied ×8 und der mittleren Änderung der
+    Helligkeit, nach `--ordner`; vorher ist `--vorher` (Kopie einer früheren `index.html` im Wurzelordner) oder
+    `?spiegel=alle`.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]`
     prüft das Brett je Himmel (Spec `.scratch/brett-je-himmel/`, Ticket 02; etwa 3 min) über `__prisma.brett()`, ohne
     Bilder zu vergleichen. `mechanik` legt nur in der Seite eigene Arten an (ein Steinbrett, dessen Berechnen die Probe
@@ -325,7 +330,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   ruft sie nie auf): `zeige(index)` zeigt ein Level ausserhalb der Geschichte (ohne Speicherstand), `loese()` löst das
   laufende Level Drehung für Drehung, `menu` ist das Menü (`story.choose(grad)` wählt einen Grad, solange es offen
   ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
-- **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
+- **Leistung:** Fast die ganze Last ist das Rendern (Szene, in den Welten im All dazu ihr Spiegelbild, Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): im Level, im Menü
   und in den Szenen der Geschichte im WebGL-Bild (Aufstieg, Reise, Einstieg, Finale) 60 Bilder/s (ADR 0008;
   `?takt=30` zum Vergleich wie unter ADR 0006: das Spiel stetig 30, die Geschichte 60), im ruhenden Level 30
@@ -375,12 +380,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   **Diagnose-Schalter** `?diag=a,b` (zum Messen auf dem Handy, je Schalter eine Ursache weg): `seite275` (ohne
   Seitenmassstab), `ohnevorbereitung` (kein Laden hinter der Bühne), `ruhepunkte` (Laden in jedem Ruhepunkt, auch vor
   den Flügen der Glühwürmchen), `ohneleuchten`, `ohnestrahl`.
-  **Sparfassungen** `?spar=a,b` oder `?spar=alle` (Spec `.scratch/energie/`, Ticket 03; nur zum Vergleich, ohne den
-  Schalter alles wie bisher; `SPAR`, `sparQualitaet` in `index.html`): `aufloesung` (Handy höchstens 1,75 Bildpunkte
-  je CSS-Pixel statt 2), `spiegelklein` (Spiegeltextur Handy 0,25 statt 0,35, Desktop 0,22 statt 0,3, ohne
-  Kantenglättung), `spiegel2` (Spiegeltextur nur jedes zweite Bild neu, solange nichts dreht, gezogen wird oder
-  ansteht, und nur bei vollem Takt; `spiegelTakt`), `pinsel3` (Pinsel Handy 3 × 3 statt 2 × 2 Bildpixel je
-  Filterpixel, Desktop 2 × 2 statt voll). Gemessene Kosten je Effekt und Ersparnis im Ticket.
+  **Spiegelung je Welt** (Spec `.scratch/energie/`, Ticket 04; ADR 0010): Das Brett spiegelt nur unter den beiden
+  Himmeln im All (Planeten und Sterne, `spiegel: true` in ihren Einträgen in `SKY_ENTRIES`, `spiegelHimmel`), dort mit
+  kleiner Spiegeltextur ohne Kantenglättung (`QUALITY.reflectionScale` Handy 0,25, Desktop 0,22, `reflectionMsaa` 0).
+  In allen anderen Welten rechnet `renderReflection` nichts, weder Spiegelbild noch Mipmaps, und die Bretter lesen die
+  Textur nicht (`uReflStrength` 0); sonst sehen sie gleich aus. Die Zuordnung hängt am Himmel, nicht am Brett: Das
+  Steinbrett steht auch in der Eishöhle und spiegelt dort nicht. Beim Überblenden des Himmels wandert der Anteil der
+  Spiegelung (`boardReflection`) in derselben Zeit weich zum neuen, solange der Himmel nicht hält. Schalter zum
+  Vergleichen: `?spiegel=alle` spiegelt in allen Welten wie bis energie-3 (Handy 0,35 mit MSAA 2, Desktop 0,3 mit
+  MSAA 4). Die Sparfassungen `?spar=` aus Ticket 03 (`aufloesung`, `spiegelklein`, `spiegel2`, `pinsel3`) sind
+  entfallen (in git bis energie-3); gemessene Kosten je Effekt in den Tickets 03 und 04.
   **Leistungsanzeige** (Taste F oder `?perf`; `perfHud` in `index.html`, ADR 0008): oben die effektive Bildrate (wie
   viele Bilder in der letzten Sekunde wirklich gezeichnet wurden, vom Spiel oder von der Bühne von Prolog und Epilog)
   und das Ziel mit dem Grund (60 im Spiel, im Menü und in der Geschichte, 30 und «Ruhe» im ruhenden Level, mit

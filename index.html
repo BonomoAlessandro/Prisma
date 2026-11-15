@@ -1335,7 +1335,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-15 energie-3';
+const APP_VERSION = '2026-11-15 energie-4';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -1357,6 +1357,9 @@ const FIXED_TIME = (() => {
 })();
 if (FIXED_TIME !== null) Math.random = mulberry32(1);
 
+// ?spiegel=alle (Ticket 04 der Energie): Das Brett spiegelt in allen Welten wie bis energie-3 (spiegelHimmel, QUALITY)
+const SPIEGEL_ALLE = new URLSearchParams(location.search).get('spiegel') === 'alle';
+
 // Feste Qualität (früher Stufe "Niedrig"): höhere Stufen kosteten auf Laptops sehr viele FPS,
 // ohne sichtbar besser auszusehen. pixelRatio ist die Obergrenze; adaptiveResolution regelt darunter.
 // Smartphones haben 2–3 Bildpunkte pro CSS-Pixel und kleine Schirme: mit nur 1 wirkte dort alles verpixelt.
@@ -1364,8 +1367,12 @@ if (FIXED_TIME !== null) Math.random = mulberry32(1);
 const QUALITY = {
   pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1),
   msaa: 0,                // Hauptbild ohne MSAA
-  reflectionMsaa: IS_MOBILE ? 2 : 4, // Desktop: Spiegeltextur klein, Kantenglättung fast gratis; Handy: grössere Textur
-  reflectionScale: IS_MOBILE ? 0.35 : 0.3, // Anteil am Drawing-Buffer (Handy mit Pixeldichte 2 ≈ 0,7 CSS-Auflösung)
+  // Spiegeltextur des Bretts, Anteil am Drawing-Buffer und Kantenglättung: Seit Ticket 04 der Energie spiegelt das Brett
+  // nur in den Welten im All (spiegelHimmel, ADR 0010), dort klein und ohne MSAA (Handy mit Pixeldichte 2: 0,25 ≈ halbe
+  // CSS-Auflösung). ?spiegel=alle: in allen Welten und so gross wie bis energie-3 (Handy 0,35 mit MSAA 2, Desktop 0,3
+  // mit MSAA 4), zum Vergleichen
+  reflectionMsaa: SPIEGEL_ALLE ? (IS_MOBILE ? 2 : 4) : 0,
+  reflectionScale: SPIEGEL_ALLE ? (IS_MOBILE ? 0.35 : 0.3) : (IS_MOBILE ? 0.25 : 0.22),
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: 1024,
   reflections: true,
@@ -1373,37 +1380,6 @@ const QUALITY = {
   // voller Auflösung (RTX A2000, 1440 × 900: bis 0,8 ms), Handy je 2 × 2 Pixel und vergrössert; null aus
   brush: IS_MOBILE ? { step: 2, full: false } : { step: 1, full: true },
 };
-
-/**
- * Sparfassungen (Spec .scratch/energie/, Ticket 03), vorerst nur zum Vergleich: ?spar=<name>[,<name>…] oder ?spar=alle.
- * Ohne den Schalter bleibt alles wie bisher. Der Nutzer entscheidet an Vergleichsbildern und auf dem Poco, was Standard
- * wird (eigenes Ticket).
- * - aufloesung:   Handy höchstens 1,75 Bildpunkte je CSS-Pixel statt 2 (Desktop unverändert 1)
- * - spiegelklein: Spiegeltextur kleiner (Handy 0,25 statt 0,35, Desktop 0,22 statt 0,3) und ohne Kantenglättung
- * - spiegel2:     Spiegeltextur nur jedes zweite Bild neu, solange sich nichts bewegt, was man anschaut (renderReflection)
- * - pinsel3:      Pinsel gröber (Handy 3 × 3 statt 2 × 2 Bildpixel je Filterpixel, Desktop 2 × 2 statt voll)
- * SPAR ist veränderlich: Proben schalten zur Laufzeit um und rufen sparAnwenden (tests/spar-probe.mjs).
- */
-const SPAR_NAMEN = ['aufloesung', 'spiegelklein', 'spiegel2', 'pinsel3'];
-const SPAR = (() => {
-  const an = Object.fromEntries(SPAR_NAMEN.map((n) => [n, false]));
-  for (const n of (new URLSearchParams(location.search).get('spar') ?? '').split(',').map((s) => s.trim()).filter(Boolean)) {
-    if (n === 'alle') SPAR_NAMEN.forEach((x) => { an[x] = true; });
-    else if (n in an) an[n] = true;
-    else console.warn(`?spar: unbekannte Sparfassung «${n}» (bekannt: ${SPAR_NAMEN.join(', ')}, alle)`);
-  }
-  return an;
-})();
-const QUALITY_HEUTE = { pixelRatio: QUALITY.pixelRatio, reflectionScale: QUALITY.reflectionScale,
-  reflectionMsaa: QUALITY.reflectionMsaa, brush: { ...QUALITY.brush } };
-/** QUALITY nach SPAR (beim Laden und aus sparAnwenden); QUALITY.brush bleibt dasselbe Objekt (createBrushPass hält es). */
-function sparQualitaet() {
-  QUALITY.pixelRatio = SPAR.aufloesung && IS_MOBILE ? Math.min(QUALITY_HEUTE.pixelRatio, 1.75) : QUALITY_HEUTE.pixelRatio;
-  QUALITY.reflectionScale = SPAR.spiegelklein ? (IS_MOBILE ? 0.25 : 0.22) : QUALITY_HEUTE.reflectionScale;
-  QUALITY.reflectionMsaa = SPAR.spiegelklein ? 0 : QUALITY_HEUTE.reflectionMsaa;
-  Object.assign(QUALITY.brush, SPAR.pinsel3 ? (IS_MOBILE ? { step: 3, full: false } : { step: 2, full: true }) : QUALITY_HEUTE.brush);
-}
-sparQualitaet();
 
 const GRID = 7;            // Spielfeld 7×7
 const CELL = 1.2;          // Weltgrösse einer Zelle
@@ -13499,7 +13475,8 @@ function createPanoramaSky(m) {
  * Vulkan: über dem Kraterrand), rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module:
  * prepare, setFade, update, ready, settled, release (siehe createPanoramaSky). board: die Brett-Angabe der Skybox
  * (Register), ohne sie das Steinbrett. Das Brett gehört zum Bereitsein seines Hintergrunds: Es lädt mit ihm, hält mit
- * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme).
+ * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme). spiegel: Unter diesem
+ * Hintergrund spiegelt das Brett (nur die beiden im All, Ticket 04 der Energie, ADR 0010; spiegelHimmel, boardReflection).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, starsFrom: 0, rings: null };
 /** so lange hält skyTheme den bisherigen Himmel höchstens, bis der gewählte vorgezeichnet ist (wartetAufVorzeichnen) */
@@ -13508,8 +13485,8 @@ const VORZEICHNEN_MS = 500;
 const starsFromSin = (s) => (s.starsAboveHorizon ? Math.sin(THREE.MathUtils.degToRad(s.starsFrom ?? 0)) : 0);
 const SKY_ENTRIES = (() => {
   const code = [
-    { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 } },
-    { id: 'solar', name: 'Sonnensystem', order: 20, module: solar },
+    { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 }, spiegel: true },
+    { id: 'solar', name: 'Sonnensystem', order: 20, module: solar, spiegel: true },
   ];
   // Ein unbrauchbarer Eintrag (unbekannte Fassung, id doppelt, Fehler beim Anlegen) fällt mit einer Warnung weg; das Spiel
   // läuft mit den übrigen Hintergründen weiter
@@ -13651,6 +13628,7 @@ const skyTheme = {
     boardTheme.prepare(id, this.byId.get(id).board); // sein Brett ebenso
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     this.apply();
+    boardReflection.follow(0, !animate); // die Spiegelung ebenso
     boardTheme.follow(0); // ohne Überblenden springt das Brett gleich mit
     sceneLoop.wake();
   },
@@ -13688,6 +13666,7 @@ const skyTheme = {
       this.hidden[e.id] = (this.hidden[e.id] ?? 0) + dt;
       if (otherPanorama || this.hidden[e.id] >= this.keep) { e.module.release(); boardTheme.free(e.id); }
     }
+    boardReflection.follow(dt);
     boardTheme.follow(dt);
   },
   apply() {
@@ -13736,6 +13715,34 @@ if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Tex
 // Unschärfe in CSS-Pixeln gleich bleibt, muss der Bias nur die Pixeldichte ausgleichen.
 const reflLodShift = { value: 0 };
 
+/**
+ * Spiegelt das Brett unter dem Himmel id? Nur unter den beiden im All (spiegel im Eintrag, SKY_ENTRIES), mit
+ * ?spiegel=alle unter allen, ohne HDR nie (Ticket 04 der Energie, ADR 0010). Die Zuordnung hängt am Himmel, nicht an der
+ * Art des Bretts: Das Steinbrett steht auch in der Eishöhle, und dort spiegelt es nicht.
+ */
+const spiegelHimmel = (id) => QUALITY.reflections && (SPIEGEL_ALLE || !!skyTheme.byId.get(id)?.spiegel);
+/**
+ * Anteil der Spiegelung auf dem Brett (uReflStrength aller Bretter, addBoardReflection): 1 unter einem Himmel mit
+ * Spiegelung (spiegelHimmel), sonst 0. Bei 0 rechnet renderReflection nichts (weder Spiegelbild noch Mipmaps), und die
+ * Bretter lesen die Spiegeltextur nicht; sonst sehen sie gleich aus, nur ohne Spiegelbild. Blendet der Himmel über,
+ * wandert der Anteil in derselben Zeit (skyTheme.fadeTime) weich zum neuen, solange der Himmel nicht hält; springt der
+ * Himmel (set ohne Überblenden) oder steht er, gilt gleich der neue. follow je Bild aus skyTheme.update und aus set.
+ */
+const boardReflection = {
+  uniform: { value: 0 }, // uReflStrength: weich (smoothstep) aus anteil
+  anteil: 0,             // 0 … 1, linear in der Zeit
+  follow(dt, springen = false) {
+    const ziel = spiegelHimmel(skyTheme.current) ? 1 : 0;
+    if (springen || !skyTheme.fading) this.anteil = ziel;
+    else if (!skyTheme.holding) {
+      const step = dt / skyTheme.fadeTime;
+      this.anteil = ziel > this.anteil ? Math.min(ziel, this.anteil + step) : Math.max(ziel, this.anteil - step);
+    }
+    const a = this.anteil;
+    this.uniform.value = a * a * (3 - 2 * a);
+  },
+};
+
 // Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt). Pflicht auf jedem Brett, je Art
 // in ihrem Material; die Farbe nutzt auch der Rahmen im Würfel. uShockT: Sekunden seit dem Start des Rings (shockClock;
 // 99 in Ruhe)
@@ -13768,7 +13775,7 @@ function shockClock(dt) {
 function addBoardReflection(shader) {
   shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
   shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
-  shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+  shader.uniforms.uReflStrength = boardReflection.uniform; // für alle Bretter dasselbe (Welt mit Spiegelung, weich)
   shader.uniforms.uReflLodShift = reflLodShift;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
@@ -13778,11 +13785,13 @@ function addBoardReflection(shader) {
 }
 /**
  * GLSL der Spiegelung vor dem Tonemapping (addBoardReflection): weichgezeichnet nach Rauheit, Fresnel, nur wo es glänzt.
- * strength: Anteil der Spiegelung (Text, GLSL); warp: GLSL, das ruv verschieben darf (etwa Kräuseln)
+ * strength: Anteil der Spiegelung (Text, GLSL); warp: GLSL, das ruv verschieben darf (etwa Kräuseln). Der Beitrag kommt
+ * nur dazu (kein Anteil der Farbe darunter geht weg): Ohne Spiegelung (uReflStrength 0, boardReflection) bleibt das Brett
+ * also genau so, wie es ohne Spiegelbild aussah, und liest die Textur nicht (Bedingung für alle Pixel gleich).
  */
 function boardReflectGlsl(strength, warp = '') {
   return `
-      {
+      if (uReflStrength > 0.0) {
         vec2 ruv = vReflUv.xy / vReflUv.w;${warp}
         // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
         // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
@@ -26814,17 +26823,6 @@ function onResize() {
 window.addEventListener('resize', onResize);
 onResize();
 
-/** SPAR zur Laufzeit neu anwenden (Proben, nach einer Änderung an SPAR). */
-function sparAnwenden() {
-  sparQualitaet();
-  const rt = reflector.getRenderTarget();
-  if (renderer.capabilities.isWebGL2 && rt.samples !== QUALITY.reflectionMsaa) {
-    rt.samples = QUALITY.reflectionMsaa;
-    rt.dispose(); // three legt das Ziel beim nächsten Zeichnen mit der neuen Kantenglättung an
-  }
-  adaptiveResolution.set(adaptiveResolution.scale); // Auflösung und Grösse der Spiegeltextur (onResize)
-}
-
 const clock = new THREE.Clock();
 /**
  * Zeit der Animationen (s) zu einem rAF-Zeitstempel ts (frame): Die Uhr beim Start des Callbacks lief um den Verzug
@@ -26943,34 +26941,11 @@ function limitReflectionMips() {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAX_LEVEL, REFLECT_MAX_MIP);
 }
 
-/**
- * ?spar=spiegel2 (Ticket 03 der Energie): Die Spiegeltextur nur jedes zweite Bild neu. Ausgelassen wird nur, wenn sie
- * den Stand des letzten Bilds zeigt (nicht neu angelegt, dasselbe Brett, die Platte war im Bild) und sich nichts bewegt,
- * was man anschaut: kein Finger oder keine Taste unten, nichts aus sceneLoop.pending (Drehen, Hover, Ziele, Kamera nach
- * dem Ziehen, Überblenden, Feier …), und nur bei vollem Takt (nicht in Ruhe oder mit ?takt=30: sonst unter 30/s). Die
- * Matrix der Textur (textureMatrix) bleibt dann die des letzten Bilds, passt also zum Bild in der Textur: Das Spiegelbild
- * hängt um ein Bild nach, verrutscht aber nicht.
- */
-const spiegelTakt = {
-  gueltig: false,   // die Textur zeigt das zuletzt gerenderte Spiegelbild von spiegel
-  spiegel: null,
-  ausgelassen: false,
-  auslassen(mirror) {
-    const darf = SPAR.spiegel2 && this.gueltig && !this.ausgelassen && mirror === this.spiegel && frameRate.gap < 20
-      && !drag.active && !input.pointer && !input.pinch && !sceneLoop.pending();
-    this.ausgelassen = darf;
-    return darf;
-  },
-};
-reflector.getRenderTarget().addEventListener('dispose', () => { spiegelTakt.gueltig = false; }); // setSize legt neu an
-
 function renderReflection() {
-  // spiegelnde Oberflächen der gezeigten Bretter (beim Überblenden beide; leer: keines spiegelt), alle in y = 0
+  // spiegelnde Oberflächen der gezeigten Bretter (beim Überblenden beide; leer: keines spiegelt), alle in y = 0; in
+  // Welten ohne Spiegelung (boardReflection 0) nichts, weder Spiegelbild noch Mipmaps
   const mirrors = boardTheme.mirrors, mirror = mirrors[0];
-  if (!mirror || !reflectionInView()) { spiegelTakt.gueltig = false; return; }
-  if (spiegelTakt.auslassen(mirror)) return;
-  spiegelTakt.gueltig = true;
-  spiegelTakt.spiegel = mirror;
+  if (!mirror || !(boardReflection.uniform.value > 0) || !reflectionInView()) return;
   mirror.updateMatrixWorld();
   reflector.matrixWorld.copy(mirror.matrixWorld);
 
