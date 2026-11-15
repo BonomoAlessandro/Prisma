@@ -1335,7 +1335,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-15 tutorial-neu-4';
+const APP_VERSION = '2026-11-15 energie-1';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -8327,6 +8327,47 @@ const STORY_LEVELS = {
   /* GESCHICHTE:END */
 };
 
+/*
+ * Ruhe-Bildrate (Spec .scratch/energie/, Ticket 01; ADR 0009): Mit ?ruhetakt=<n> zeichnet das Level in Ruhe nur n
+ * Bilder/s, bei jeder Eingabe und jeder Bewegung sofort wieder den Takt des Spiels. Ohne den Schalter wie bisher (ADR
+ * 0008). Hier nur die Entscheidung (tests/logic.test.mjs), was Ruhe ist, liest frameRate.ruhe aus der Szene.
+ */
+const RUHE_NACH_MS = 1500; // so lange nach der letzten Eingabe oder Bewegung (sceneLoop.wake) noch der volle Takt
+const RUHE_MIN_FPS = 20;   // darunter wäre ein Zeitschritt länger als MAX_DT (0,05 s): Animationen liefen langsamer
+/** Wert von ?ruhetakt (Text oder null) → Bilder/s in Ruhe, oder null (kein Schalter, unbrauchbar, nicht unter spielFps). */
+function ruhetaktAus(wert, spielFps) {
+  if (wert === null || wert === undefined || String(wert).trim() === '') return null;
+  const n = Math.round(Number(wert));
+  if (!Number.isFinite(n) || n <= 0) return null;
+  const fps = Math.max(RUHE_MIN_FPS, n);
+  return fps < spielFps ? fps : null;
+}
+/**
+ * Ruht das Level? z: { ruheFps (ruhetaktAus), spiel (flow 'play', weder Menü noch Bühne), seitAnstoss (ms seit der
+ * letzten Eingabe oder Bewegung), bewegt (etwas, das man anschaut, bewegt sich: Text oder false) }.
+ */
+function ruhtJetzt(z) {
+  return z.ruheFps !== null && z.spiel && z.seitAnstoss >= RUHE_NACH_MS && !z.bewegt;
+}
+/**
+ * Angestrebte Bilder/s (frameRate.fps) und ihr Grund (Leistungsanzeige). z: { verdeckt (hinter der einblendenden
+ * Bühne), geschichte, himmel (Blick im Himmel), menue, ruht (ruhtJetzt), spielFps, storyFps, skyFps, ruheFps }.
+ */
+function bildrate(z) {
+  if (z.verdeckt) return Math.min(30, z.spielFps);
+  if (z.geschichte) return Math.max(z.storyFps, z.spielFps);
+  if (z.himmel) return z.skyFps;
+  if (z.ruht && !z.menue && z.ruheFps !== null) return z.ruheFps;
+  return z.spielFps;
+}
+function bildrateGrund(z) {
+  if (z.verdeckt) return 'hinter der Bühne';
+  if (z.geschichte) return 'Geschichte';
+  if (z.himmel) return 'Himmel (Menü)';
+  if (z.menue) return 'Menü';
+  return z.ruht && z.ruheFps !== null ? 'Ruhe' : 'Spiel';
+}
+
 /* LOGIC:END ============================================================ */
 </script>
 <script>
@@ -8499,6 +8540,9 @@ const sceneLoop = {
   wake(cold = false) {
     if (cold) this.dirty = true;
     this.still = 0;
+    // Eingabe oder Anstoss: eine Weile keine Ruhe-Bildrate (?ruhetakt), das nächste Bild sofort (erst ab start: frameRate
+    // steht weiter unten im Script)
+    if (this.started) frameRate.rege();
     if (this.awake || !this.started) return;
     this.awake = true;
     this.last = null;
@@ -9713,6 +9757,9 @@ const solar = (() => {
 
   return {
     group, corona, planets, lineMat,
+    // Die Planeten ziehen um das Brett (Merkur 0,8 m/s, Erde 0,55 m/s), so schnell wie die Fische am Strand: in Ruhe
+    // nicht langsamer zeichnen (fluid, frameRate.ruhe; Ticket 17 der Leistung)
+    fluid: true,
     setFade(k) {
       solarUniforms.uFade.value = k;
       lineMat.opacity = 0.12 * k;
@@ -11130,6 +11177,9 @@ function glowParticles(ctx, opt) {
   }));
   points.frustumCulled = false;
   points.renderOrder = 6;
+  // Die Glühwürmchen ziehen etwa so schnell wie die Fische am Strand, das Auge folgt ihnen: in Ruhe nicht langsamer
+  // zeichnen (fluid, frameRate.ruhe; Ticket 17 der Leistung)
+  points.userData.fluid = true;
   return points;
 }
 
@@ -11361,6 +11411,9 @@ function lavaPool(ctx, opt) {
   drops.frustumCulled = false;
   drops.renderOrder = 6;
   out.add(drops);
+  // Funken steigen mit 1–6 m/s, Spritzer fliegen im Bogen: mit 30 Bildern/s sprangen sie sichtbar (Ticket 17 der
+  // Leistung: bis 100 CSS-px/s), in Ruhe darum nicht langsamer zeichnen (fluid, frameRate.ruhe)
+  out.userData.fluid = true;
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
@@ -11549,6 +11602,8 @@ function fireNests(ctx, opt) {
   embers.frustumCulled = false;
   embers.renderOrder = 6;
   out.add(embers);
+  // Funken steigen auf wie über dem Lavasee: in Ruhe nicht langsamer zeichnen (fluid, frameRate.ruhe)
+  out.userData.fluid = true;
   const size = new THREE.Vector2();
   out.userData.update = () => { screenH.value = renderer.getDrawingBufferSize(size).y; };
   return out;
@@ -13028,6 +13083,9 @@ function* fishSchools(ctx, opt) {
   under.scene.add(shadowMesh, fishMesh);
 
   const holder = new THREE.Group();
+  // Die Fische ziehen gleichmässig, das Auge folgt ihnen: mit 30 Bildern/s in Ruhe und 60 nach jeder Eingabe ruckelten
+  // sie sichtbar (Ticket 17 der Leistung), in Ruhe darum nicht langsamer zeichnen (fluid, frameRate.ruhe)
+  holder.userData.fluid = true;
   const s = new Float64Array(10);
   holder.userData.update = (t) => {
     const alpha = sim.advance(t);
@@ -13325,6 +13383,12 @@ function createPanoramaSky(m) {
     },
     /** geladen oder lädt: release gibt etwas frei */
     get held() { return loading !== null; },
+    /** Eine Ebene zeigt Bewegung, der das Auge folgt (userData.fluid, etwa die Fische): in Ruhe nicht langsamer zeichnen (frameRate.ruhe) */
+    get fluid() {
+      if (mesh === null) return false;
+      for (const p of group.children) if (p.userData.fluid) return true; // je rAF gefragt: ohne Allokation (skyTheme.fluid)
+      return false;
+    },
     /** kleine Textur des ganzen Bilds für die Himmelskugel, solange das Netz fehlt, ein- oder ausblendet (null: noch keine) */
     get preview() { return preview; },
     /** geladen, aber noch nie im Bild und noch nicht vorgezeichnet (skyTheme.vorzeichnen) */
@@ -13526,6 +13590,12 @@ const skyTheme = {
     const preview = shown?.module?.preview ?? null;
     if (bg.uPreview.value !== preview || preview && bg.uPreviewOn.value < 1) return true;
     return this.entries.some((e) => this.weight[e.id] > 0 && e.module?.busy);
+  },
+  /** Ein Himmel im Bild zeigt Bewegung, der das Auge folgt (Modul fluid: Fische, Glühwürmchen, Funken, Planeten): in
+   *  Ruhe nicht langsamer zeichnen (frameRate.ruhe). Je rAF gefragt, darum ohne Allokation. */
+  get fluid() {
+    for (const e of this.entries) if (this.weight[e.id] > 0 && e.module?.fluid) return true;
+    return false;
   },
   /**
    * Ein geladenes Panorama, das noch nie zu sehen war (gewählt oder vorgeladen), einmal unsichtbar in voller Grösse
@@ -27183,7 +27253,7 @@ const leistung = {
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${Math.round(innerWidth / SEITE)}×${Math.round(innerHeight / SEITE)}`, seite: SEITE,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
         adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
-        spielFps: frameRate.spielFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
+        spielFps: frameRate.spielFps, ruheFps: frameRate.ruheFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
       gesamt: { bilder: gesamt.n, p95: q(gesamt, 0.95), max: gesamt.max, ueber33: ueber, zeichnenP95: q(zeichnen, 0.95),
@@ -27290,6 +27360,8 @@ window.addEventListener('keydown', (e) => {
  * (Menü, Übersicht), 10 (skyFps); hinter der Bühne, solange sie einblendet, 30. Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop). ?takt=30: zum
  * Vergleich wie unter ADR 0006, das Spiel stetig mit 30, die Folgen der Geschichte im WebGL-Bild (Einstieg, Reise,
  * Finale) mit 60 (storyFps, geschichte; ADR 0007).
+ * ?ruhetakt=<n> (Ticket 01 der Energie, ADR 0009; nur als Schalter): Ruht das Level (ruhe), zeichnet es n Bilder/s
+ * (ruheFps, ab 20), bei jeder Eingabe oder Bewegung sofort wieder spielFps (rege, zurueck).
  */
 const frameRate = {
   spielFps: new URLSearchParams(location.search).get('takt') === '30' ? 30 : 60,
@@ -27304,6 +27376,15 @@ const frameRate = {
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
+  ruheFps: null,      // ?ruhetakt=<n>: Bilder/s in Ruhe (ruhetaktAus), null: kein Schalter, der Takt bleibt wie bisher
+  // ?ruhehimmel (nur zum Vergleich auf dem Handy): Himmel mit Bewegung, der das Auge folgt (skyTheme.fluid), zählen
+  // auch als Ruhe; ohne ihn bleibt es dort beim vollen Takt (bewegt)
+  ruheHimmel: new URLSearchParams(location.search).has('ruhehimmel'),
+  ruht: false,        // beim letzten rAF in Ruhe (ruhe): zeichnet ruheFps
+  anstoss: -Infinity, // performance.now() der letzten Eingabe oder Bewegung (rege, ruhe)
+  ruheLage: { ruheFps: null, spiel: false, seitAnstoss: 0, bewegt: false }, // für ruhtJetzt, ohne Allokation je rAF
+  lage: { verdeckt: false, geschichte: false, himmel: false, menue: false, ruht: false, spielFps: 60, storyFps: 60,
+    skyFps: 10, ruheFps: null }, // für bildrate und bildrateGrund
   /**
    * Eine Folge der Geschichte im WebGL-Bild läuft (flow.state 'story': Aufstieg, Reise, Fall, Einstieg, Finale, Satz
    * zum Ende des Dorfs), nicht im Menü oder in der Übersicht (choosing) und nicht hinter der Bühne (covered, dort steht
@@ -27319,18 +27400,61 @@ const frameRate = {
    * zeichnet das Spiel gar nicht mehr, sceneLoop.covered), höchstens 30 wie vor ADR 0008: Bühne und Spiel zeichnen dann
    * beide, und vom Spiel sieht man kaum noch etwas.
    */
-  fps() {
-    if (story.covered) return Math.min(30, this.spielFps);
-    if (this.geschichte()) return Math.max(this.storyFps, this.spielFps);
-    if (this.skyOnly()) return this.skyFps;
-    return this.spielFps;
+  fps() { return bildrate(this.jetzt()); },
+  /** Der Grund zu fps (Leistungsanzeige): Spiel, Ruhe, Menü, Himmel (Menü), Geschichte, hinter der Bühne. */
+  grund() { return bildrateGrund(this.jetzt()); },
+  /** Die Lage für bildrate und bildrateGrund (LOGIC; ruht: zuletzt von due bestimmt). */
+  jetzt() {
+    const z = this.lage;
+    z.verdeckt = story.covered;
+    z.geschichte = !z.verdeckt && this.geschichte();
+    z.himmel = !z.verdeckt && !z.geschichte && this.skyOnly();
+    z.menue = story.choosing;
+    z.ruht = this.ruht;
+    z.spielFps = this.spielFps; z.storyFps = this.storyFps; z.skyFps = this.skyFps; z.ruheFps = this.ruheFps;
+    return z;
   },
-  /** Der Grund zu fps (Leistungsanzeige). */
-  grund() {
-    if (story.covered) return 'hinter der Bühne';
-    if (this.geschichte()) return 'Geschichte';
-    if (this.skyOnly()) return 'Himmel (Menü)';
-    return story.choosing ? 'Menü' : 'Spiel';
+  /**
+   * Was das Auge im ruhenden Level verfolgen würde (Text) oder false. Das Schweben der Kamera, das Fliessen der
+   * Strahlen, das Drehen und Atmen der Ziele, Staub, Sterne und die langsamen Himmel bleiben Ruhe (Wunsch des Nutzers);
+   * keine Ruhe sind: der Finger oder die Maustaste unten (Ziehen, Halten, zwei Finger), alles in sceneLoop.pending
+   * (Drehen, Puls, Wackeln, Hover, Ziele, die aufleuchten, wachsende Strahlen, Feier, Herauswachsen, Überblenden des
+   * Himmels oder Bretts, Kamera nach dem Ziehen, Zoomen oder beim Rückflug), der Wechsel der Führung und ihre Hand, die
+   * Lichtwelle samt Nachwirkung auf dem Brett und Himmel mit Bewegung, der das Auge folgt (skyTheme.fluid: Fische,
+   * Glühwürmchen, Funken, Planeten; Ticket 17 der Leistung: mit 30 und 60 im Wechsel ruckelten sie sichtbar; mit
+   * ?ruhehimmel doch Ruhe).
+   */
+  bewegt() {
+    if (drag.active || input.pointer || input.pinch) return 'Eingabe';
+    if (fuehrung.wechselt || fuehrung.hand) return 'Führung';
+    if (shockUniforms.uShockT.value < SHOCK_REST_S) return 'Lichtwelle';
+    if (skyTheme.fluid && !this.ruheHimmel) return 'Himmel mit Bewegung';
+    return sceneLoop.pending();
+  },
+  /**
+   * Ruht das Level (ruhtJetzt)? Im Level (flow 'play', weder Menü, Übersicht noch Bühne), RUHE_NACH_MS nach der letzten
+   * Eingabe oder Bewegung, und es bewegt sich nichts, das man anschaut (bewegt). Eine Bewegung zählt wie eine Eingabe:
+   * Nach ihrem Ende bleibt der volle Takt noch RUHE_NACH_MS. Ohne Schalter nie (unverändert wie unter ADR 0008).
+   */
+  ruhe(ts) {
+    if (this.ruheFps === null) return false;
+    const z = this.ruheLage;
+    z.ruheFps = this.ruheFps;
+    z.spiel = flow.state === 'play' && !story.choosing && !story.covered && !sceneLoop.covered;
+    z.seitAnstoss = ts - this.anstoss;
+    z.bewegt = z.spiel && z.seitAnstoss >= RUHE_NACH_MS ? this.bewegt() : false;
+    if (z.bewegt) this.anstoss = ts;
+    return ruhtJetzt(z);
+  },
+  /** Eingabe oder Anstoss (sceneLoop.wake): ruhte das Level, das nächste Bildschirmbild gleich mit dem vollen Takt. */
+  rege() {
+    this.anstoss = performance.now();
+    if (this.ruht) { this.ruht = false; this.zurueck(); }
+  },
+  /** Aus der Ruhe zurück: jetzt zeichnen, nicht erst im nächsten Ruhe-Takt; der längere Abstand davor ist kein langsames Bild. */
+  zurueck() {
+    this.skipped = Infinity;
+    adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 1);
   },
   /**
    * Jedes wievielte Bildschirmbild für fps gerendert wird (k). So bleibt der Takt gleichmässig (kein Wechsel 14/21 ms):
@@ -27353,6 +27477,8 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
+    const ruht = this.ruhe(ts);
+    if (ruht !== this.ruht) { this.ruht = ruht; if (!ruht) this.zurueck(); }
     const fps = this.fps(), k = this.teiler(fps);
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
@@ -27362,6 +27488,7 @@ const frameRate = {
     return true;
   },
 };
+frameRate.ruheFps = ruhetaktAus(new URLSearchParams(location.search).get('ruhetakt'), frameRate.spielFps);
 // Eingaben wecken die Hauptschleife (sceneLoop): Drücken, Ziehen und Hover (pointermove), Loslassen, Rad, Tasten
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => sceneLoop.wake(), { passive: true, capture: true });
