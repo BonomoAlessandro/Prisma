@@ -14,6 +14,8 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 
 ## Laufendes Vorhaben
 
-Keines. Zuletzt abgeschlossen: PLAN 1a.3 «Tutorial neu» (15.11.2026 nach `main`, Übergabe in
+PLAN 3a «Umbau für die Stores» (`feature/umbau`): Spec und Tickets in `.scratch/umbau/`, vor dem Weitermachen lesen.
+**Wartet auf das Go des Nutzers** nach dem Merge von `feature/energie`; dann zuerst `main` in `feature/umbau` holen und
+mit Ticket 01 beginnen. Zuletzt abgeschlossen: PLAN 1a.3 «Tutorial neu» (15.11.2026 nach `main`, Übergabe in
 `.scratch/tutorial-neu/STAND.md`; offen nur der Test mit einer fremden Person); davor PLAN 1a.1 «Führung im Dorf» (10.11.2026 nach `main`, Übergabe in
 `.scratch/tutorial-fuehrung/STAND.md`); davor PLAN 1.1 «Ein Brett je Himmel» (`.scratch/brett-je-himmel/STAND.md`).

@@ -415,18 +415,35 @@ Android-Chromium.
   ehesten etwas, das mit Licht zu tun hat. Seit 28. Oktober als Prototyp «Ein Lichtsignal an die Sterne» (Branch
   `feature/lichtsignal-prototyp`, `?signal`); wie es weitergeht, steht unter 0.
 
+## 3a. Umbau für die Stores
+
+Wunsch des Nutzers (15.11.2026): Prisma soll in den Play Store und auf Steam, und der Weg dahin ist die Gelegenheit,
+den Code auf eine bessere Grundlage zu stellen. Entschieden im Grilling vom 15.11.2026: **Web-Technik bleibt** (kein
+Wechsel auf eine Engine, ADR 0009). Build mit **Vite und npm** (`npm run dev`, Ausgabe `dist/`, kein Doppelklick mehr),
+Code **schrittweise in Module** mit schrittweisem **TypeScript**, Three.js bleibt vorerst r147. **Speicherschicht** für
+den Spielstand, **Level und Texte in Dateien**, eigene **Übersetzungsschicht** mit Deutsch und Englisch (Claude
+übersetzt, weitere Sprachen nachrüstbar, Sprache nach Gerät und Schalter in den Einstellungen). Ein **automatischer
+Bildvergleich** sichert jeden Schritt ab; der Nutzer spielt nur an drei Meilensteinen auf dem Handy. Ein `dist/` für
+alle Ziele: Browser auf GitHub Pages, Android mit **Capacitor** (ADR 0010), Steam mit **Electron** (ADR 0011). Steam
+mit Kaufpreis, Android gratis (Vollversion zum Kaufen später, im Umbau nicht vorbereitet). Jede Plattform hat ihren
+eigenen Spielstand, Steam zusätzlich Steam Cloud. Vor Steam eine volle Controller-Steuerung.
+
+- [ ] **3a.1 Umbau** (Tickets 01–09: Bildvergleich, Vite, Module, Speicherschicht, Daten, Übersetzung, Englisch, GitHub
+  Pages). Branch `feature/umbau`, Spec und Tickets in `.scratch/umbau/`. **Beginnt erst nach dem Merge von
+  `feature/energie` und dem Go des Nutzers.** Während des Umbaus keine neuen Funktionen.
+- [ ] **3a.2 Verpacken** (Tickets 10–12: Android, Controller, Steam), je mit eigenem Grilling vorher.
+
 ## 4. Google Play Store
 
-Weg: Prisma bleibt eine Web-App und wird als Trusted Web Activity (TWA) in eine Android-Hülle verpackt (Bubblewrap oder
-PWABuilder) – das Spiel selbst wird nicht umgeschrieben. Reihenfolge: zuerst 4.1–4.4 (lohnt sich auch ohne Store),
-dann 4.5–4.7, parallel 4.8–4.10, zuletzt der Test 4.11. Die Regeln (Testerzahl, verlangte Android-Version) vor dem
-Start in der aktuellen Play-Console-Hilfe nachsehen.
+Weg (seit 15.11.2026, ADR 0010): Prisma bleibt eine Web-App und wird mit **Capacitor** als Android-App verpackt; das
+Spiel aus `dist/` liegt in der App und läuft offline. Bis dahin war eine Trusted Web Activity (TWA) mit Bubblewrap
+vorgesehen. Vorher kommt der Umbau (3a.1), danach Ticket 10 von `.scratch/umbau/` mit eigenem Grilling. Die Regeln
+(Testerzahl, verlangte Android-Version) vor dem Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 **Im Projekt**
-- [ ] **4.1 Feste Adresse mit HTTPS**, z. B. GitHub Pages (Repo liegt schon auf GitHub) oder eigene Domain.
-  Vor dem geschlossenen Test (4.11) endgültig entscheiden: Spielfortschritt (localStorage), Manifest-`id` und Asset
-  Links hängen an der Adresse, ein späterer Wechsel kostet die Spieler ihren Fortschritt. Bei GitHub Pages als
-  Projektseite (`…github.io/Prisma/`) muss `assetlinks.json` (4.5) im Repo `BonomoAlessandro.github.io` liegen.
+- [ ] **4.1 Feste Adresse mit HTTPS** für die Browser-Fassung: GitHub Pages (`bonomoalessandro.github.io/Prisma/`),
+  automatisch gebaut (Ticket 09 von `.scratch/umbau/`). Der Spielfortschritt der Browser-Fassung hängt an der Adresse,
+  ein späterer Wechsel kostet die Spieler ihren Fortschritt. Die Android-App braucht die Adresse nicht mehr.
 - [x] **4.2 Offline-Fähigkeit:** Service Worker (`sw.js`), der Spiel, Icons, Bibliotheken und Schrift
   zwischenspeichert. Online kommt die Seite frisch vom Server (nach 3 s Wartezeit aus dem Speicher), offline aus
   dem Speicher; `vendor/` direkt aus dem Speicher; alle anderen Anfragen gehen vorbei. Nur über http(s) (über
@@ -442,10 +459,9 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
   Beschreibung, Kategorie. Android-Icons mit Schutzrand (`icons/icon-maskable-192/512.png`, erzeugt mit
   `tools/icons.mjs`: ohne Ecke, Prisma auf 85 % verkleinert, Strahl und Spektrum bis zum Rand). Seitentitel
   angepasst. Speicherschlüssel des Fortschritts unverändert. Chrome meldet keine Manifest-Fehler, installierbar.
-- [ ] **4.5 Digital Asset Links:** `/.well-known/assetlinks.json` auf der Website, sonst zeigt die App eine
-  Browser-Adressleiste.
-- [ ] **4.6 Android App Bundle (.aab) bauen und signieren** (Bubblewrap). Signaturschlüssel sicher aufbewahren – ohne
-  ihn keine Updates.
+- [x] **4.5 Digital Asset Links:** entfällt mit Capacitor (ADR 0010); nur eine TWA brauchte `assetlinks.json`.
+- [ ] **4.6 Android App Bundle (.aab) bauen und signieren** (Capacitor, Android-Projekt). Signaturschlüssel sicher
+  aufbewahren – ohne ihn keine Updates.
 - [ ] **4.7 Test auf echten Android-Geräten:** Leistung auf schwächeren Handys, Zurück-Taste, Hoch-/Querformat, Ton.
 
 **Konto und Store-Eintrag**
@@ -459,6 +475,11 @@ Start in der aktuellen Play-Console-Hilfe nachsehen.
 
 ## 5. Steam
 
-- [ ] **5.1 Prisma irgendwann auch auf Steam veröffentlichen.** Als Web-App braucht Prisma dafür eine Desktop-Hülle
-  (z. B. Electron oder Tauri). Weg und Schritte sind noch offen; Regeln und Gebühr (Steam Direct) vor dem Start
-  nachsehen.
+Weg (seit 15.11.2026, ADR 0011): Desktop-App mit **Electron** und `steamworks.js`, für Windows und das Steam Deck
+(Linux), aus demselben `dist/`. Einmaliger Kaufpreis. Spielstand als Datei mit Steam Cloud. Nach dem Play-Store-Start,
+vorher die Controller-Steuerung (Ticket 11 von `.scratch/umbau/`). macOS später.
+
+- [ ] **5.1 Controller-Steuerung** für das ganze Spiel (Voraussetzung für «Deck Verified»), mit eigenem Grilling.
+- [ ] **5.2 Electron und Steam** (Ticket 12 von `.scratch/umbau/`), mit eigenem Grilling: Preis, Erfolge, Store-Seite.
+  Steam Direct kostet 100 USD je Spiel, zwischen Anmeldung und Erscheinen liegen mindestens 30 Tage. Regeln vor dem
+  Start nachsehen.
