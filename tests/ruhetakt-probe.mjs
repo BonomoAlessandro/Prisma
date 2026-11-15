@@ -1,13 +1,13 @@
-// Probe der Ruhe-Bildrate (Spec .scratch/energie/, Ticket 01; ADR 0009): Mit ?ruhetakt=30 zeichnet das ruhende Level
-// 30 Bilder/s, nach einer Eingabe sofort wieder 60; Drehung und Feier bleiben bei 60; ein Himmel mit Bewegung, der das
-// Auge folgt (Glühwürmchen im Wald), bleibt bei 60; ohne den Schalter ändert sich nichts.
+// Probe der Ruhe-Bildrate (Spec .scratch/energie/, Tickets 01 und 02; ADR 0009): Ohne Parameter (Standard seit Ticket
+// 02) zeichnet das ruhende Level 30 Bilder/s, nach einer Eingabe sofort wieder 60; Drehung und Feier bleiben bei 60;
+// auch mit Bewegung im Himmel (Glühwürmchen im Wald) ruht es; mit ?ruhetakt=60 (aus) stetig 60 wie unter ADR 0008.
 // Gemessen in der Seite: rAF-Zeitstempel (Bildschirmbilder) und gezeichnete Bilder (draw, mit frameRate.ruht). Daraus
 // gezeichnete Bilder/s, übersprungene Bildschirmbilder zwischen zwei gezeichneten, wie viele Bildschirmbilder nach einer
 // Eingabe das erste Bild kam (0 = im nächsten) und wann die Ruhe wieder beginnt.
-// Durchgänge: «ruhe» (Wüste, ?ruhetakt=30: Ruhe, Tippen aufs leere Brett, Drehen, Lösen mit Feier), «ohne» (Wüste ohne
-// Schalter: Ruhe, Tippen), «wald» (Wald, ?ruhetakt=30: Ruhe mit Glühwürmchen).
+// Durchgänge: «ruhe» (Wüste ohne Parameter: Ruhe, Tippen aufs leere Brett, Drehen, Lösen mit Feier), «aus» (Wüste,
+// ?ruhetakt=60: stetig 60, Tippen), «wald» (Wald ohne Parameter: Ruhe mit Glühwürmchen).
 // Aufruf: GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/ruhetakt-probe.mjs
-//           [--handy] [--fenster] [--seite <index.html>] [--nur ruhe,ohne,wald]
+//           [--handy] [--fenster] [--seite <index.html>] [--nur ruhe,aus,wald]
 //   --handy: 393 × 873, Pixeldichte 2,75, Touch; --fenster: echtes Fenster (Takt des Bildschirms; sonst headless).
 //   Etwa 2 min. Ergebnis nach tests/output/energie/ruhetakt-<bildschirm>.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -21,7 +21,7 @@ const args = process.argv.slice(2);
 const wert = (name, vorgabe = null) => { const i = args.indexOf(name); return i < 0 ? vorgabe : args[i + 1]; };
 const handy = args.includes('--handy'), fenster = args.includes('--fenster');
 const seite = resolve(wert('--seite', join(root, 'index.html')));
-const nur = (wert('--nur', 'ruhe,ohne,wald')).split(',');
+const nur = (wert('--nur', 'ruhe,aus,wald')).split(',');
 requireQuiet();
 
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
@@ -110,7 +110,7 @@ const PUNKTE = `JSON.stringify((() => {
 })())`;
 
 async function oeffne(query) {
-  await send('Page.navigate', { url: pathToFileURL(seite).href + `?perf&nointro&${query}` });
+  await send('Page.navigate', { url: pathToFileURL(seite).href + `?perf&nointro${query ? '&' + query : ''}` });
   await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady() && __prismaDebug.story.choosing', 'Menü');
   await ev(EINRICHTEN);
   await ev('__prismaDebug.zeige(story.firstIndex())');
@@ -148,8 +148,8 @@ try {
   if (fenster) await send('Page.bringToFront');
 
   if (nur.includes('ruhe')) {
-    console.log('Durchgang «ruhe»: Wüste, ?ruhetakt=30');
-    await oeffne('sky=desert&ruhetakt=30');
+    console.log('Durchgang «ruhe»: Wüste ohne Parameter (Standard)');
+    await oeffne('sky=desert');
     const hz = 1000 / await ev('frameRate.vsync');
     const k30 = await ev('frameRate.teiler(30)'), k60 = await ev('frameRate.teiler(60)');
     const r = auswerten(await messe(5000));
@@ -161,6 +161,8 @@ try {
     pruefe(Math.abs(r.bilderJeS - soll) <= 3, `Ruhe: ${r.bilderJeS} Bilder/s statt ${soll} (Takt ${hz.toFixed(1)} Hz)`);
     pruefe(r.ruhend >= r.bilder - 1, `Ruhe: nur ${r.ruhend} von ${r.bilder} Bildern in Ruhe gezeichnet`);
     pruefe(JSON.parse(ziel)[1] === 'Ruhe', `Leistungsanzeige: Grund ${ziel} statt «Ruhe»`);
+    pruefe(ergebnis.ruhe.ruheFps === 30, `Standard: ruheFps ${ergebnis.ruhe.ruheFps} statt 30`);
+    const skala = await ev('adaptiveResolution.scale');
 
     const P = JSON.parse(await ev(PUNKTE));
     // Tippen aufs leere Brett: das nächste Bildschirmbild zeichnet, danach im vollen Takt, nach RUHE_NACH_MS wieder Ruhe
@@ -206,36 +208,40 @@ try {
     pruefe(ergebnis.feier.geloest && fest.length >= 30, `Feier: gelöst ${ergebnis.feier.geloest}, ${fest.length} Bilder`);
     pruefe(v.luecken.every((n) => n <= k60 - 1) && !ergebnis.feier.ruhend,
       `Feier: nicht im vollen Takt (${JSON.stringify(ergebnis.feier.luecken)}, in Ruhe ${ergebnis.feier.ruhend})`);
+    // Die Wechsel 30 ↔ 60 senken die Auflösung nicht (adaptiveResolution wertet den Ruhe-Takt nicht als langsam)
+    ergebnis.skala = { vorher: skala, nachher: await ev('adaptiveResolution.scale') };
+    pruefe(ergebnis.skala.nachher >= skala, `Auflösung beim Wechsel 30 ↔ 60 gesenkt: ${skala} → ${ergebnis.skala.nachher}`);
   }
 
-  if (nur.includes('ohne')) {
-    console.log('Durchgang «ohne»: Wüste ohne Schalter');
-    await oeffne('sky=desert');
+  if (nur.includes('aus')) {
+    console.log('Durchgang «aus»: Wüste, ?ruhetakt=60');
+    await oeffne('sky=desert&ruhetakt=60');
     const k60 = await ev('frameRate.teiler(60)');
     const r = auswerten(await messe(4000));
     const ziel = JSON.parse(await ev('JSON.stringify(perfHud.ziel(1000 / frameRate.vsync))'));
-    ergebnis.ohne = { ...r, luecken: haeufig(r.luecken), ziel, ruheFps: await ev('frameRate.ruheFps') };
-    console.log('  Ruhe', JSON.stringify(ergebnis.ohne));
-    pruefe(ergebnis.ohne.ruheFps === null && !r.ruhend && ziel[1] === 'Spiel', `ohne Schalter: ruheFps ${ergebnis.ohne.ruheFps}, `
+    ergebnis.aus = { ...r, luecken: haeufig(r.luecken), ziel, ruheFps: await ev('frameRate.ruheFps') };
+    console.log('  Ruhe', JSON.stringify(ergebnis.aus));
+    pruefe(ergebnis.aus.ruheFps === null && !r.ruhend && ziel[1] === 'Spiel (Ruhe aus)', `?ruhetakt=60: ruheFps ${ergebnis.aus.ruheFps}, `
       + `${r.ruhend} Bilder in Ruhe, Grund ${ziel[1]}`);
-    pruefe(r.luecken.every((n) => n <= k60 - 1), `ohne Schalter: nicht stetig im vollen Takt (${JSON.stringify(haeufig(r.luecken))})`);
+    pruefe(r.luecken.every((n) => n <= k60 - 1), `?ruhetakt=60: nicht stetig im vollen Takt (${JSON.stringify(haeufig(r.luecken))})`);
     const P = JSON.parse(await ev(PUNKTE));
     const t = await eingabe(P.leer, 1500);
-    ergebnis.ohne.tippen = { warten: t.warten, msBisBild: t.msBisBild };
-    console.log('  Tippen', JSON.stringify(ergebnis.ohne.tippen));
-    pruefe(t.warten === 0, `ohne Schalter: erstes Bild nach dem Tippen nach ${t.warten} Bildschirmbildern`);
+    ergebnis.aus.tippen = { warten: t.warten, msBisBild: t.msBisBild };
+    console.log('  Tippen', JSON.stringify(ergebnis.aus.tippen));
+    pruefe(t.warten === 0, `?ruhetakt=60: erstes Bild nach dem Tippen nach ${t.warten} Bildschirmbildern`);
   }
 
   if (nur.includes('wald')) {
-    console.log('Durchgang «wald»: Wald mit Glühwürmchen, ?ruhetakt=30');
-    await oeffne('sky=forest&ruhetakt=30');
-    const k60 = await ev('frameRate.teiler(60)');
+    console.log('Durchgang «wald»: Wald mit Glühwürmchen, ohne Parameter');
+    await oeffne('sky=forest');
+    const hz = 1000 / await ev('frameRate.vsync'), soll = +(hz / await ev('frameRate.teiler(30)')).toFixed(1);
     const r = auswerten(await messe(4000));
-    ergebnis.wald = { ...r, luecken: haeufig(r.luecken), bewegt: await ev('frameRate.bewegt()'),
+    ergebnis.wald = { soll, ...r, luecken: haeufig(r.luecken), bewegt: await ev('frameRate.bewegt()'),
       ziel: JSON.parse(await ev('JSON.stringify(perfHud.ziel(1000 / frameRate.vsync))')) };
     console.log('  Ruhe', JSON.stringify(ergebnis.wald));
-    pruefe(!r.ruhend && r.luecken.every((n) => n <= k60 - 1) && ergebnis.wald.bewegt === 'Himmel mit Bewegung',
-      `Wald: ${r.ruhend} Bilder in Ruhe, Lücken ${JSON.stringify(ergebnis.wald.luecken)}, bewegt ${ergebnis.wald.bewegt}`);
+    pruefe(Math.abs(r.bilderJeS - soll) <= 3 && r.ruhend >= r.bilder - 1 && ergebnis.wald.ziel[1] === 'Ruhe',
+      `Wald: ${r.bilderJeS} Bilder/s statt ${soll}, ${r.ruhend} von ${r.bilder} in Ruhe, Grund ${ergebnis.wald.ziel[1]}, `
+      + `bewegt ${ergebnis.wald.bewegt}`);
   }
 } catch (err) {
   fehler.push(err.message);

@@ -207,12 +207,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Szene nichts mehr zeichnet; `--seite` misst eine andere Fassung (etwa den Stand vorher als Kopie). Daten unter
     `tests/output/leistung/leerlauf-*.json`.
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/ruhetakt-probe.mjs [--handy]
-    [--fenster] [--seite datei] [--nur ruhe,ohne,wald]` prüft die Ruhe-Bildrate (Ticket 01 der Energie, etwa 2 min):
-    `ruhe` (Wüste, `?ruhetakt=30`): im ruhenden Level die Hälfte der Bildschirmbilder gezeichnet, Grund «Ruhe»; nach
-    einem Tippen aufs leere Brett das erste Bild im nächsten Bildschirmbild, danach jedes, nach etwa 1,5 s wieder Ruhe;
-    Drehen und Lösen mit Feier (`__prismaDebug.loese`) im vollen Takt. `ohne` (ohne Schalter): stetig voller Takt.
-    `wald` (`?ruhetakt=30`): mit den Glühwürmchen keine Ruhe. Gemessen in der Seite über rAF und `draw` (auch
-    headless brauchbar); Ergebnis nach `tests/output/energie/ruhetakt-*.json`.
+    [--fenster] [--seite datei] [--nur ruhe,aus,wald]` prüft die Ruhe-Bildrate (Tickets 01 und 02 der Energie, etwa
+    2 min): `ruhe` (Wüste ohne Parameter): im ruhenden Level die Hälfte der Bildschirmbilder gezeichnet, Grund «Ruhe»;
+    nach einem Tippen aufs leere Brett das erste Bild im nächsten Bildschirmbild, danach jedes, nach etwa 1,5 s wieder
+    Ruhe; Drehen und Lösen mit Feier (`__prismaDebug.loese`) im vollen Takt; die Auflösung sinkt dabei nicht. `aus`
+    (`?ruhetakt=60`): stetig voller Takt, Grund «Spiel (Ruhe aus)». `wald` (ohne Parameter): auch mit den
+    Glühwürmchen Ruhe. Gemessen in der Seite über rAF und `draw` (auch headless brauchbar); Ergebnis nach
+    `tests/output/energie/ruhetakt-*.json`.
   - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
     Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]`
@@ -315,24 +316,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   ist), `uebersicht` die Übersicht (Daten aus `story.overviewData(grad)`), `settle(s)` spult mit `?t=` vor.
 - **Leistung:** Fast die ganze Last ist das Rendern (Szene zweimal wegen der Bodenspiegelung, dazu Bloom); die
   Logik kostet unter 0,1 ms pro Bild. Darum rendert das Spiel nur so oft wie nötig (`frameRate`): im Level, im Menü
-  und in den Szenen der Geschichte im WebGL-Bild (Aufstieg, Reise, Einstieg, Finale) stetig 60 Bilder/s, auch in Ruhe
-  (ADR 0008; `?takt=30` zum Vergleich wie unter ADR 0006: das Spiel stetig 30, die Geschichte 60), mit dem Blick im
-  Himmel (Menü, Übersicht) 10, hinter der einblendenden Bühne 30. Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
+  und in den Szenen der Geschichte im WebGL-Bild (Aufstieg, Reise, Einstieg, Finale) 60 Bilder/s (ADR 0008;
+  `?takt=30` zum Vergleich wie unter ADR 0006: das Spiel stetig 30, die Geschichte 60), im ruhenden Level 30
+  (Ruhe-Bildrate, unten), mit dem Blick im Himmel (Menü, Übersicht) 10, hinter der einblendenden Bühne 30. Gerendert wird jedes k-te Bildschirmbild, damit der Takt gleichmässig bleibt
   (`frameRate.teiler`; 144 Hz → 72).
-  **Ruhe-Bildrate** (Spec `.scratch/energie/`, Ticket 01; ADR 0009; vorerst nur als Schalter): Mit `?ruhetakt=<n>` (ab 20,
-  unter dem Takt des Spiels) zeichnet das Level in **Ruhe** nur n Bilder/s (`frameRate.ruhe`, Entscheidung in
-  `ruhtJetzt`, `bildrate` im Logikblock). Ruhe heisst: im Level (`flow.state` `play`, weder Menü, Übersicht noch Bühne),
+  **Ruhe-Bildrate** (Spec `.scratch/energie/`, Tickets 01 und 02; ADR 0009; Standard seit Ticket 02): Das Level zeichnet
+  in **Ruhe** nur 30 Bilder/s (`RUHE_FPS`, `frameRate.ruhe`, Entscheidung in `ruhtJetzt`, `bildrate` im Logikblock),
+  in jeder Welt. Auf dem Poco spart das im Level 30–35 % Strom, stufig wirkte in keiner Welt etwas. Schalter zum
+  Vergleichen: `?ruhetakt=<n>` (ab 20, unter dem Takt des Spiels) wählt einen anderen Wert, `?ruhetakt=aus` oder
+  `?ruhetakt=60` schaltet sie aus (stetig 60 wie unter ADR 0008). Ruhe heisst: im Level (`flow.state` `play`, weder Menü, Übersicht noch Bühne),
   seit 1,5 s (`RUHE_NACH_MS`) keine Eingabe und kein Anstoss (`sceneLoop.wake`, also Drücken, Ziehen, Hover, Rad,
   Tasten, Touch, jeder Weckruf) und nichts, was man anschaut, bewegt sich (`frameRate.bewegt`): kein Finger oder keine
   Taste unten, nichts aus `sceneLoop.pending` (Drehen, Puls, Wackeln, Hover, aufleuchtende Ziele, wachsende Strahlen,
   Feier, Herauswachsen, Überblenden, Kamera nach Ziehen und Zoom), kein Wechsel der Führung und keine Hand, keine
-  Lichtwelle samt Nachwirkung, kein Himmel mit Bewegung, der das Auge folgt (`skyTheme.fluid`: Fische am Strand,
-  Glühwürmchen in Wald und Dorf, Funken am Vulkan, Planeten; mit 30 und 60 im Wechsel ruckelten sie sichtbar, Ticket 17
-  der Leistung). Eine Bewegung zählt wie eine Eingabe, danach also noch 1,5 s voller Takt. Das Schweben der Kamera, das
-  Fliessen der Strahlen und das Drehen der Ziele sind Ruhe. Bei jeder Eingabe zeichnet das nächste Bildschirmbild sofort
+  Lichtwelle samt Nachwirkung. Eine Bewegung zählt wie eine Eingabe, danach also noch 1,5 s voller Takt. Das Schweben
+  der Kamera, das Fliessen der Strahlen, das Drehen der Ziele und die Himmel samt Fischen, Glühwürmchen, Funken und
+  Planeten sind Ruhe (bis Ticket 01 hielten diese Himmel den vollen Takt, `skyTheme.fluid`; das entfiel mit Ticket 02). Bei jeder Eingabe zeichnet das nächste Bildschirmbild sofort
   wieder mit vollem Takt (`frameRate.rege`, `zurueck`; die adaptive Auflösung wertet den längeren Abstand davor nicht).
-  `?ruhehimmel` zählt zum Vergleich auch die Himmel mit Bewegung als Ruhe. Ohne `?ruhetakt` bleibt alles wie unter ADR
-  0008; die Geschichte bleibt bei 60, Menü und Übersicht bei 10, hinter der Bühne 30. Alle Animationen rechnen nach der
+  Die Geschichte bleibt bei 60, Menü und Übersicht bei 10, hinter der Bühne 30; mit `?takt=30` zeichnet das Spiel ohnehin
+  stetig 30. Alle Animationen rechnen nach der
   Zeit (`MAX_DT` 0,05 s, darum ab 20). Liegt die Szene ganz verdeckt (Startbildschirm, eingeblendete Bühne von Prolog und Epilog),
   wird sie nicht gezeichnet (`sceneLoop`): Nur die Logik läuft, solange etwas ansteht (Tweens, Einblenden des Himmels,
   Kamera), dann ruht die Hauptschleife ohne rAF, bis `sceneLoop.wake()` sie weckt; vor dem Ruhen ein Bild zum
@@ -364,8 +366,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   den Flügen der Glühwürmchen), `ohneleuchten`, `ohnestrahl`.
   **Leistungsanzeige** (Taste F oder `?perf`; `perfHud` in `index.html`, ADR 0008): oben die effektive Bildrate (wie
   viele Bilder in der letzten Sekunde wirklich gezeichnet wurden, vom Spiel oder von der Bühne von Prolog und Epilog)
-  und das Ziel mit dem Grund (60 im Spiel, im Menü und in der Geschichte, mit `?ruhetakt` dessen Wert und «Ruhe» im
-  ruhenden Level, 10 mit dem Blick im Himmel, 30 hinter der einblendenden Bühne, auf der Bühne
+  und das Ziel mit dem Grund (60 im Spiel, im Menü und in der Geschichte, 30 und «Ruhe» im ruhenden Level, mit
+  `?ruhetakt=aus` «Spiel (Ruhe aus)», 10 mit dem Blick im Himmel, 30 hinter der einblendenden Bühne, auf der Bühne
   der Bildschirmtakt, 0, wenn die Schleife ruht; auf dem Startbildschirm «–», er ist eine Animation des Browsers).
   Darunter Bildschirmtakt, p95 der Abstände der gezeichneten Bilder, Auflösung samt adaptiver Absenkung und **Version**;
   auf schmalem Bildschirm knapp oben links.

@@ -17,7 +17,7 @@ const begin = html.indexOf('/* LOGIC:BEGIN');
 const end = html.indexOf('/* LOGIC:END');
 assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
 const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, schrittErlaubt, RUHE_NACH_MS, RUHE_MIN_FPS, ruhetaktAus, ruhtJetzt, bildrate, bildrateGrund };')();
+const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, schrittErlaubt, RUHE_NACH_MS, RUHE_MIN_FPS, RUHE_FPS, ruhetaktAus, ruhtJetzt, bildrate, bildrateGrund };')();
 
 let passed = 0;
 function test(name, fn) {
@@ -1196,17 +1196,22 @@ console.log('Würfel (dim: 3)');
 
 console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
 {
-  // Lage wie frameRate.jetzt: im Level, nichts verdeckt; ruheFps aus ?ruhetakt (null: kein Schalter)
+  // Lage wie frameRate.jetzt: im Level, nichts verdeckt; ruheFps aus ?ruhetakt (null: aus, ?ruhetakt=aus)
   const lage = (z = {}) => ({ verdeckt: false, geschichte: false, himmel: false, menue: false, ruht: false,
     spielFps: 60, storyFps: 60, skyFps: 10, ruheFps: null, ...z });
   const wahl = (z) => [L.bildrate(lage(z)), L.bildrateGrund(lage(z))];
-  test('?ruhetakt: Zahl, ab 20, nur unter dem Takt des Spiels, sonst kein Schalter', () => {
-    assert.equal(L.ruhetaktAus(null, 60), null);
-    assert.equal(L.ruhetaktAus('', 60), null);
-    assert.equal(L.ruhetaktAus('abc', 60), null);
-    assert.equal(L.ruhetaktAus('0', 60), null);
-    assert.equal(L.ruhetaktAus('-30', 60), null);
+  test('?ruhetakt: ohne Schalter 30 (Standard seit Ticket 02), Zahl ab 20, aus mit «aus» oder ab dem Takt des Spiels', () => {
+    assert.equal(L.RUHE_FPS, 30);
+    assert.equal(L.ruhetaktAus(null, 60), 30, 'Standard');
+    assert.equal(L.ruhetaktAus('', 60), 30);
+    assert.equal(L.ruhetaktAus('abc', 60), 30, 'unbrauchbar: Standard');
+    assert.equal(L.ruhetaktAus('0', 60), 30);
+    assert.equal(L.ruhetaktAus('-30', 60), 30);
+    assert.equal(L.ruhetaktAus('aus', 60), null);
+    assert.equal(L.ruhetaktAus(' AUS ', 60), null);
+    assert.equal(L.ruhetaktAus(null, 30), null, '?takt=30 zeichnet ohnehin 30');
     assert.equal(L.ruhetaktAus('30', 60), 30);
+    assert.equal(L.ruhetaktAus('40', 60), 40);
     assert.equal(L.ruhetaktAus('20', 60), 20);
     assert.equal(L.ruhetaktAus('10', 60), L.RUHE_MIN_FPS, 'unter 20 liefen Animationen langsamer (MAX_DT)');
     assert.equal(L.ruhetaktAus('60', 60), null);
@@ -1214,7 +1219,7 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
     assert.equal(L.ruhetaktAus('30', 30), null, '?takt=30 zeichnet ohnehin 30');
     assert.equal(L.ruhetaktAus('20', 30), 20);
   });
-  test('Ruhe erst nach RUHE_NACH_MS ohne Eingabe, im Level, ohne Bewegung, nur mit Schalter', () => {
+  test('Ruhe erst nach RUHE_NACH_MS ohne Eingabe, im Level, ohne Bewegung, nicht mit ?ruhetakt=aus', () => {
     const z = (o) => ({ ruheFps: 30, spiel: true, seitAnstoss: L.RUHE_NACH_MS, bewegt: false, ...o });
     assert.equal(L.ruhtJetzt(z()), true);
     assert.equal(L.ruhtJetzt(z({ seitAnstoss: L.RUHE_NACH_MS - 1 })), false);
@@ -1223,17 +1228,17 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
     assert.equal(L.ruhtJetzt(z({ ruheFps: null })), false);
     assert.ok(L.RUHE_NACH_MS >= 1000 && L.RUHE_NACH_MS <= 2000);
   });
-  test('ohne Schalter unverändert: Spiel 60 (mit ?takt=30: 30), Menü, Himmel, Geschichte, hinter der Bühne', () => {
-    assert.deepEqual(wahl({}), [60, 'Spiel']);
-    assert.deepEqual(wahl({ ruht: true }), [60, 'Spiel'], 'ruht ohne ruheFps gibt es nicht, wirkt aber auch nicht');
-    assert.deepEqual(wahl({ spielFps: 30 }), [30, 'Spiel']);
+  test('Ruhe-Bildrate aus (?ruhetakt=aus): Spiel stetig 60 (mit ?takt=30: 30), Menü, Himmel, Geschichte, hinter der Bühne', () => {
+    assert.deepEqual(wahl({}), [60, 'Spiel (Ruhe aus)']);
+    assert.deepEqual(wahl({ ruht: true }), [60, 'Spiel (Ruhe aus)'], 'ruht ohne ruheFps gibt es nicht, wirkt aber auch nicht');
+    assert.deepEqual(wahl({ spielFps: 30 }), [30, 'Spiel (Ruhe aus)']);
     assert.deepEqual(wahl({ menue: true }), [60, 'Menü']);
     assert.deepEqual(wahl({ menue: true, himmel: true }), [10, 'Himmel (Menü)']);
     assert.deepEqual(wahl({ geschichte: true }), [60, 'Geschichte']);
     assert.deepEqual(wahl({ geschichte: true, spielFps: 30 }), [60, 'Geschichte']);
     assert.deepEqual(wahl({ verdeckt: true }), [30, 'hinter der Bühne']);
   });
-  test('mit Schalter: in Ruhe ruheFps, sonst wie ohne; Geschichte bleibt 60, Menü 10/60, Bühne 30', () => {
+  test('Standard (ruheFps 30) oder ?ruhetakt=<n>: in Ruhe ruheFps, sonst wie aus; Geschichte bleibt 60, Menü 10/60, Bühne 30', () => {
     assert.deepEqual(wahl({ ruheFps: 30 }), [60, 'Spiel']);
     assert.deepEqual(wahl({ ruheFps: 30, ruht: true }), [30, 'Ruhe']);
     assert.deepEqual(wahl({ ruheFps: 20, ruht: true }), [20, 'Ruhe']);
