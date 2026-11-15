@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-human (umgesetzt; Review und Test des Nutzers offen)
+**Status:** ready-for-human (umgesetzt und reviewt; wartet auf den Test des Nutzers)
 
 **What to build:** Entscheid des Nutzers nach dem Test auf dem Poco (15.11.2026, Stand `energie-3`):
 
