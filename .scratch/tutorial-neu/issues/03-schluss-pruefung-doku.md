@@ -178,3 +178,11 @@ fragen» ist der richtige Rahmen. Ergänzt bzw. geändert:
 
 **Ergebnis:** Das Vorhaben ist aus Sicht des Reviews bereit für den Test des Nutzers auf dem Poco und mit einer Person,
 die Prisma nicht kennt. Danach kommt der Merge auf sein Go.
+
+### Nach dem Poco-Test des Nutzers (15.11.2026)
+
+Fragen 2 und 3: Abdunkeln etwas stärker (`FUEHRUNG.kegel.dunkel` 0,46 → 0,52). Die Hand verschwand zu schnell: Sie zeigt
+jetzt nach `FUEHRUNG.handPause` = 5 s ohne Fortschritt wieder vor, bis der Schritt geschafft ist (Menü dazwischen:
+beim Zurückkommen sofort). Alles andere hat der Nutzer als gut befunden. APP_VERSION `2026-11-15 tutorial-neu-4`.
+Node-Tests und Golden grün, `--dorf` am Handy und quer grün, am Desktop nur die bekannte Lücke «Angebot steht, der
+Wald lädt fertig» (100 ms, vor dem Dorf).

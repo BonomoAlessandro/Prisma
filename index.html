@@ -1335,7 +1335,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-14 tutorial-neu-3';
+const APP_VERSION = '2026-11-15 tutorial-neu-4';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -20405,7 +20405,8 @@ const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
  * einer Übung (LEVELS[i].schritte), wartet auf die Handlung des Spielers und geht dann weiter. Der Satz steht im Band
  * unten (#band), mit Punkten für den Fortschritt der Übung und bei einer Erklärung «Weiter»; Hinweise nebenbei klein
  * darüber. Die Szene ist leicht abgedunkelt, ein Lichtkegel liegt auf jedem Element des Schritts; bei einem
- * Handlungsschritt zeigt die Hand seine Geste sofort einmal vor.
+ * Handlungsschritt zeigt die Hand seine Geste sofort vor, nach FUEHRUNG.handPause s ohne Fortschritt wieder, bis der
+ * Schritt geschafft ist (Wunsch des Nutzers nach dem Poco-Test).
  * Strikt (Sperre): Bei einem Handlungsschritt reagieren nur seine Elemente (darf, vorrang; schrittErlaubt), alle
  * anderen weigern sich (weigern, auch drehbare); bei einer Erklärung ist das ganze Brett gesperrt bis «Weiter». Kamera,
  * Knöpfe, Menü, Übersicht, Ton, Neustart und «Dorf überspringen» bleiben frei. Ohne Führung ist nichts gesperrt.
@@ -20421,11 +20422,12 @@ const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
  */
 const FUEHRUNG = {
   hand: { tippen: 2.6, zurueck: 3.6 }, // s: so lange zeigt die Hand die Geste zu Beginn eines Schritts vor
+  handPause: 5,                        // s: so lange bleibt die Hand weg, bis sie die Geste noch einmal vorzeigt
   kuppe: 0.42,                         // Höhe über dem Brett, wo die Fingerkuppe aufsetzt (Welt)
   wechsel: 0.6,                        // s nach einem geschafften Schritt, bis der nächste weich einblendet
   // Lichtkegel: Halbmesser um das Element (Welt; die Zelle misst CELL) in der Höhe hoehe über dem Brett; bis innen
   // (Anteil des Halbmessers) ganz hell, dann weich ins Abdunkeln (dunkel: Deckkraft über der übrigen Szene)
-  kegel: { radius: 0.78, hoehe: 0.3, innen: 0.55, dunkel: 0.46 },
+  kegel: { radius: 0.78, hoehe: 0.3, innen: 0.55, dunkel: 0.52 }, // dunkel 0,46 → 0,52 nach dem Poco-Test
 };
 
 const fuehrung = {
@@ -20515,15 +20517,21 @@ const fuehrung = {
     this.zeichne();
   },
   /**
-   * Die Hand zeigt die Geste des laufenden Schritts einmal vor, sobald das Brett steht, der Schritt eingeblendet und
-   * zu sehen ist (stand es unter dem Menü fertig, beim Zurückkommen; Review Ticket 02 Gerüst).
+   * Die Hand zeigt die Geste des laufenden Schritts vor, sobald das Brett steht, der Schritt eingeblendet und zu sehen
+   * ist (stand es unter dem Menü fertig, beim Zurückkommen; Review Ticket 02 Gerüst). Danach bleibt sie
+   * FUEHRUNG.handPause s weg und zeigt wieder vor, bis der Schritt wechselt (beginneSchritt hält die Uhr an).
    */
   zeigeHand() {
     const s = this.aktuell(), geste = s && schrittGeste(s);
     if (!this.vorzeigen || !this.los || this.wechselt || story.choosing || !geste) return;
     this.vorzeigen = false;
     this.hand = true;
-    this.handUhr = setTimeout(() => { this.hand = false; this.zeichneBild(); }, FUEHRUNG.hand[geste] * 1000);
+    this.handUhr = setTimeout(() => {
+      this.hand = false;
+      this.zeichneBild();
+      this.handUhr = setTimeout(() => { this.vorzeigen = true; this.zeigeHand(); this.zeichneBild(); },
+        FUEHRUNG.handPause * 1000);
+    }, FUEHRUNG.hand[geste] * 1000);
   },
   /** Ereignis e (schrittErfuellt) für den laufenden Schritt; schaltet es weiter: true. Der letzte endet mit dem Lösen. */
   ereignis(e) {
@@ -20574,7 +20582,8 @@ const fuehrung = {
   /** Kopfzeile ausgeblendet (Menü, Übersicht, Levelwechsel, Zwischenszene): nichts über dem Brett. */
   verbergen() {
     clearTimeout(this.handUhr); // der Wechsel zum nächsten Schritt läuft weiter, die Hand wartet (zeigeHand)
-    if (this.hand) this.vorzeigen = true; // mitten im Vorzeigen: beim Zurückkommen noch einmal ganz
+    // mitten im Vorzeigen oder in der Pause danach: beim Zurückkommen zeigt sie noch einmal ganz vor
+    if (!this.fertig) this.vorzeigen = true;
     this.hand = false;
     if (this.band?.knopf.contains(document.activeElement)) this.band.knopf.blur(); // das Band ist nur ausgeblendet
     this.zeichneBild(true);

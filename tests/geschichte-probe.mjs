@@ -1930,6 +1930,10 @@ async function gefuehrt(g) {
   await sleep(2800); // die Hand zeigt einmal vor und geht
   f = await fuehrungIn([VORN]);
   pruefe(!f.hand && f.kegel.length === 1 && f.dunkel, `${was}: Hand nach dem Vorzeigen ${JSON.stringify(f)}`);
+  // ohne Fortschritt zeigt sie nach der Pause (FUEHRUNG.handPause) wieder vor, am selben Spiegel
+  await until(`!!${D}.fuehrung.hand`, `${was}: Hand nach der Pause wieder da`, 8);
+  f = await fuehrungIn([VORN]);
+  pruefe(f.hand?.art === 'tippen' && nahe(f.hand, f.orte[VORN].kuppe, 3), `${was}: Hand wieder ${JSON.stringify(f)}`);
   // Menü und zurück: derselbe Schritt, darunter nichts über dem Brett
   if (view.phone) await tippe('#btn-menu', 'Menü');
   else await taste('Escape');

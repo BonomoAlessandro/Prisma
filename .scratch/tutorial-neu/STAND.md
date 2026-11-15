@@ -16,7 +16,7 @@ das Vorhaben wartet auf den Test des Nutzers.**
 
 Die Führung heute: vier Übungen (Erstes Licht, Brechung, Farbenlehre, Mischung), je vier Schritte, Satz im Band unten,
 Punkte für den Fortschritt, «Weiter» an Erklärungen. Die Szene ist abgedunkelt, ein Lichtkegel liegt auf dem Element
-des Schritts, bei Handlungen zeigt die gezeichnete Hand (Wahl B aus 1a.1) die Geste sofort einmal vor. Nur das
+des Schritts, bei Handlungen zeigt die gezeichnete Hand (Wahl B aus 1a.1) die Geste sofort vor und nach 5 s Pause wieder. Nur das
 markierte Element reagiert, bei Erklärungen ist das Brett gesperrt; Kamera, Knöpfe, Menü, Übersicht, Ton, Neustart
 und «Dorf überspringen» bleiben frei. Ein geschaffter Schritt: Punkt füllt sich, leiser Ton, nach 0,6 s blendet der
 nächste ein; kein Funkeln. Hinweise nebenbei zu Kamera und Neustart stehen in «Brechung» über dem Band. Neustart
@@ -82,5 +82,5 @@ Farbenlehre Schritt 4, und ob die Elemente danach im Bergwald richtig benutzt we
 - Hinweise nebenbei in «Brechung»: Kamera und Neustart stehen zusammen (hochkant drei Zeilen) neben der ersten
   Erklärung. Nur den ersten zu zeigen hiesse, dass den Neustart-Hinweis nie sieht, wer die Kamera nicht benutzt;
   Entscheid nach dem Test.
-- Abdunkeln 0,46 (`FUEHRUNG.kegel.dunkel`): ob der Kegel auf dem Poco genug auffällt.
+- Abdunkeln: nach dem Poco-Test von 0,46 auf 0,52 (`FUEHRUNG.kegel.dunkel`).
 - Tipps in den sechs Welten, Führung für Menü, Übersicht und Ton gehören nicht in dieses Vorhaben.
