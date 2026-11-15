@@ -134,3 +134,53 @@ Ziels, MSAA-Auflösen, Mipmaps) mehr weg; messen lässt sich das nur am Akku.
 **Offen:** Auf dem Poco ansehen, ob die Eishöhle ohne Spiegelbilder auf dem polierten Stein gefällt (dort sieht man es am
 ehesten; in der Geschichte kommt sie nicht vor). Die Ersparnis am Akku messen (auf der Kachel-GPU wohl mehr als die
 0,8–0,9 ms hier).
+
+## Comments
+
+### Review (15.11.2026, unabhängiger Reviewer)
+
+**Läufe** (Stand a9ff80d plus Review-Commit e0cf984, alle über `leise.sh`, Vorrang 4):
+- alle `tests/*.test.mjs` grün (generator über `leise.sh`), `golden.mjs` grün (842 Level).
+- `spiegel-probe pruefe` Desktop und `--handy` OK, auch mit der neuen Prüfung (siehe unten).
+- `ruhetakt-probe` OK, `leerlauf-probe` OK, `geschichte-probe --dorf --quer` bestanden, Konsole ohne Fehler.
+- `geschichte-probe --uebersicht` rot, dreimal auf diesem Stand und zweimal auf d732d27 (temporärer Worktree), jedes Mal
+  mit einer einzelnen Lücke von 120–230 ms, wechselnd bei «Spiel → Übersicht», «letztes Level → Übersicht» (bei gaze 1,
+  der Blick ist schon im Himmel), «Übersicht → Spiel (Schliessen)» oder «Menü → Übersicht». Das gab es also schon vorher,
+  es kommt nicht aus diesem Ticket (die Notiz oben «bestanden» war ein glücklicher Lauf). Gehört zur bekannten Liste.
+
+**Geprüft und in Ordnung:**
+- Alle Punkte des Auftrags erfüllt. Zuordnung am Himmel (`spiegel: true` bei `milky`, `solar`) ist einfach und begründet
+  (Steinbrett auch in Eishöhle und Rückfall).
+- Anteil 0: `renderReflection` bricht vor allem ab (kein `onBeforeRender`, keine Mipmaps, kein MSAA-Auflösen,
+  `limitReflectionMips` nicht). Der Shader liest die Textur nur unter `if (uReflStrength > 0.0)`; die Bedingung ist für
+  alle Pixel gleich, also kein Problem mit Ableitungen bei `texture2D` mit Bias. Der Sampler bleibt gebunden (three bindet
+  ihn je Material), das kostet nichts Messbares. Der Block war vorher schon eigener Gültigkeitsbereich `{ … }`, ausserhalb
+  hängt nichts daran: Helligkeit und Fresnel des Bretts ändern sich nicht (Bilder bestätigen: Wald, Strand, Wüste
+  pixelgleich).
+- Speicher: three legt das Ziel erst beim ersten Rendern an. Wer nie im All war, hat keine Spiegeltextur. Wer aus dem All
+  kommt, behält die kleine Textur (197 × 426 HalfFloat mit Mipmaps samt Tiefe/Stencil, gut 1 MB) bis zum nächsten
+  `setSize`. Lohnt kein Freigeben (Neuanlegen kostete beim Zurück ins All ein Stocken).
+- Überblenden: `skyTheme.update` (darin `boardReflection.follow`) läuft in `animate` vor `draw`, und `draw` ruft
+  `renderReflection` vor der Szene. Im ersten Bild mit Anteil über 0 ist das Spiegelbild also schon neu gerechnet, bevor
+  ein Brett es liest; eine alte Textur aus dem letzten Besuch im All sieht man nie. Beim Ausblenden rechnet es bis zum
+  letzten Bild über 0. Umkehr mitten im Überblenden wandert linear weiter, ohne Sprung. Halten hält.
+- Menü und Übersicht (Platte nicht im Bild): keine Spiegelung, wie bisher. Rückfall ohne HDR: `spiegelHimmel` nie, Anteil
+  0 wie vorher. `?sky=`: `setSky` setzt den Himmel, `follow` folgt ihm. Brett, das herauswächst, und Bretter ohne
+  Spiegelfläche: `boardTheme.mirrors` unverändert.
+- Bilder angesehen (Eishöhle, Vulkan, Planeten Ausschnitt, Strand ganz): stimmen mit der Beschreibung oben. In der
+  Eishöhle fehlen die hellen Spiegelbilder unter Spiegel und Prisma und die gespiegelten Strahlen sichtbar, die Fläche
+  bleibt gleich; im Vulkan nur im Unterschied ×8; Planeten weicher an den Kanten der Spiegelbilder.
+- `?spar` restlos weg: kein `SPAR`, `sparQualitaet`, `sparAnwenden`, `spiegelTakt`, `spar-probe` mehr in Code, Proben,
+  README, CONTEXT (nur noch der Satz «sind entfallen» im README und die Tickets). `APP_VERSION` gleich in `index.html` und
+  `sw.js`.
+
+**Selbst behoben (klein):** e0cf984 `spiegel-probe pruefe` prüfte beim Überblenden nur «kein Spiegelbild bei Anteil 0»,
+nicht die Gegenrichtung. Neu zählt sie Bilder mit Anteil über 0, Platte im Bild und einer Spiegelfläche, aber ohne
+neues Spiegelbild (das Brett läse eine alte Textur). Desktop und Handy: 0.
+
+**Hinweis, nicht nötig:** Ohne MSAA fällt im All `__ignoreDepthValues` weg (gilt nur beim Auflösen), Tiefe und Stencil
+des Spiegelziels werden auf einer Kachel-GPU also gespeichert. Bei 197 × 426 vernachlässigbar; wer es will, müsste in
+`reflector.onBeforeRender` vor dem Zurücksetzen des Ziels `invalidateFramebuffer` aufrufen (wie `discardDepth`).
+
+**Ergebnis:** keine mittleren oder grossen Funde. Bereit für den Test des Nutzers (offen wie oben: Eishöhle auf dem Poco
+ansehen, Akku messen).
