@@ -1335,7 +1335,7 @@ if (SEITE !== 1) {
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
 // Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
 // das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-15 tutorial-neu-4';
+const APP_VERSION = '2026-11-15 energie-4';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 
@@ -1357,6 +1357,9 @@ const FIXED_TIME = (() => {
 })();
 if (FIXED_TIME !== null) Math.random = mulberry32(1);
 
+// ?spiegel=alle (Ticket 04 der Energie): Das Brett spiegelt in allen Welten wie bis energie-3 (spiegelHimmel, QUALITY)
+const SPIEGEL_ALLE = new URLSearchParams(location.search).get('spiegel') === 'alle';
+
 // Feste Qualität (früher Stufe "Niedrig"): höhere Stufen kosteten auf Laptops sehr viele FPS,
 // ohne sichtbar besser auszusehen. pixelRatio ist die Obergrenze; adaptiveResolution regelt darunter.
 // Smartphones haben 2–3 Bildpunkte pro CSS-Pixel und kleine Schirme: mit nur 1 wirkte dort alles verpixelt.
@@ -1364,8 +1367,12 @@ if (FIXED_TIME !== null) Math.random = mulberry32(1);
 const QUALITY = {
   pixelRatio: Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 2 : 1),
   msaa: 0,                // Hauptbild ohne MSAA
-  reflectionMsaa: IS_MOBILE ? 2 : 4, // Desktop: Spiegeltextur klein, Kantenglättung fast gratis; Handy: grössere Textur
-  reflectionScale: IS_MOBILE ? 0.35 : 0.3, // Anteil am Drawing-Buffer (Handy mit Pixeldichte 2 ≈ 0,7 CSS-Auflösung)
+  // Spiegeltextur des Bretts, Anteil am Drawing-Buffer und Kantenglättung: Seit Ticket 04 der Energie spiegelt das Brett
+  // nur in den Welten im All (spiegelHimmel, ADR 0010), dort klein und ohne MSAA (Handy mit Pixeldichte 2: 0,25 ≈ halbe
+  // CSS-Auflösung). ?spiegel=alle: in allen Welten und so gross wie bis energie-3 (Handy 0,35 mit MSAA 2, Desktop 0,3
+  // mit MSAA 4), zum Vergleichen
+  reflectionMsaa: SPIEGEL_ALLE ? (IS_MOBILE ? 2 : 4) : 0,
+  reflectionScale: SPIEGEL_ALLE ? (IS_MOBILE ? 0.35 : 0.3) : (IS_MOBILE ? 0.25 : 0.22),
   shadowSize: IS_MOBILE ? 1024 : 2048,
   textureSize: 1024,
   reflections: true,
@@ -8327,6 +8334,55 @@ const STORY_LEVELS = {
   /* GESCHICHTE:END */
 };
 
+/*
+ * Ruhe-Bildrate (Spec .scratch/energie/, Tickets 01 und 02; ADR 0009): Das Level zeichnet in Ruhe nur 30 Bilder/s,
+ * in jeder Welt, bei jeder Eingabe und jeder Bewegung sofort wieder den Takt des Spiels. ?ruhetakt=<n> wählt einen
+ * anderen Wert (ab 20), ?ruhetakt=aus oder =60 schaltet sie aus (stetig 60 wie unter ADR 0008). Hier nur die
+ * Entscheidung (tests/logic.test.mjs), was Ruhe ist, liest frameRate.ruhe aus der Szene.
+ */
+const RUHE_NACH_MS = 1500; // so lange nach der letzten Eingabe oder Bewegung (sceneLoop.wake) noch der volle Takt
+const RUHE_MIN_FPS = 20;   // darunter wäre ein Zeitschritt länger als MAX_DT (0,05 s): Animationen liefen langsamer
+const RUHE_FPS = 30;       // Standard (Entscheid des Nutzers, 15.11.2026: auf dem Poco 30–35 % weniger Strom im Level)
+/**
+ * Wert von ?ruhetakt (Text oder null) → Bilder/s in Ruhe, oder null (Ruhe-Bildrate aus). Ohne Schalter oder
+ * unbrauchbar RUHE_FPS, unter 20 dann 20; «aus» oder nicht unter spielFps (?ruhetakt=60, mit ?takt=30 auch der
+ * Standard): aus.
+ */
+function ruhetaktAus(wert, spielFps) {
+  const text = wert === null || wert === undefined ? '' : String(wert).trim().toLowerCase();
+  if (text === 'aus') return null;
+  const n = Math.round(Number(text));
+  const fps = text === '' || !Number.isFinite(n) || n <= 0 ? RUHE_FPS : Math.max(RUHE_MIN_FPS, n);
+  return fps < spielFps ? fps : null;
+}
+/**
+ * Ruht das Level? z: { ruheFps (ruhetaktAus), spiel (flow 'play', weder Menü noch Bühne), seitAnstoss (ms seit der
+ * letzten Eingabe oder Bewegung), bewegt (etwas, das man anschaut, bewegt sich: Text oder false) }.
+ */
+function ruhtJetzt(z) {
+  return z.ruheFps !== null && z.spiel && z.seitAnstoss >= RUHE_NACH_MS && !z.bewegt;
+}
+/**
+ * Angestrebte Bilder/s (frameRate.fps) und ihr Grund (Leistungsanzeige). z: { verdeckt (hinter der einblendenden
+ * Bühne), geschichte, himmel (Blick im Himmel), menue, ruht (ruhtJetzt), spielFps, storyFps, skyFps, ruheFps }.
+ */
+function bildrate(z) {
+  if (z.verdeckt) return Math.min(30, z.spielFps);
+  if (z.geschichte) return Math.max(z.storyFps, z.spielFps);
+  if (z.himmel) return z.skyFps;
+  if (z.ruht && !z.menue && z.ruheFps !== null) return z.ruheFps;
+  return z.spielFps;
+}
+function bildrateGrund(z) {
+  if (z.verdeckt) return 'hinter der Bühne';
+  if (z.geschichte) return 'Geschichte';
+  if (z.himmel) return 'Himmel (Menü)';
+  if (z.menue) return 'Menü';
+  // ?takt=30 zeichnet ohnehin stetig 30: Dort ist die Ruhe-Bildrate nicht ausgeschaltet, sondern unnötig
+  if (z.ruheFps === null && z.spielFps > RUHE_FPS) return 'Spiel (Ruhe aus)';
+  return z.ruht ? 'Ruhe' : 'Spiel';
+}
+
 /* LOGIC:END ============================================================ */
 </script>
 <script>
@@ -8499,6 +8555,9 @@ const sceneLoop = {
   wake(cold = false) {
     if (cold) this.dirty = true;
     this.still = 0;
+    // Eingabe oder Anstoss: eine Weile keine Ruhe-Bildrate (frameRate.ruhe), das nächste Bild sofort (erst ab start: frameRate
+    // steht weiter unten im Script)
+    if (this.started) frameRate.rege();
     if (this.awake || !this.started) return;
     this.awake = true;
     this.last = null;
@@ -13416,7 +13475,8 @@ function createPanoramaSky(m) {
  * Vulkan: über dem Kraterrand), rings (Platzhalter der Kugel, solange ein Panorama lädt oder überblendet). Module:
  * prepare, setFade, update, ready, settled, release (siehe createPanoramaSky). board: die Brett-Angabe der Skybox
  * (Register), ohne sie das Steinbrett. Das Brett gehört zum Bereitsein seines Hintergrunds: Es lädt mit ihm, hält mit
- * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme).
+ * ihm (holding), blendet gleichzeitig mit ihm über und wird mit ihm freigegeben (boardTheme). spiegel: Unter diesem
+ * Hintergrund spiegelt das Brett (nur die beiden im All, Ticket 04 der Energie, ADR 0010; spiegelHimmel, boardReflection).
  */
 const SKY_NEUTRAL = { milkyWay: 0, stars: 1, starsAboveHorizon: false, starsFrom: 0, rings: null };
 /** so lange hält skyTheme den bisherigen Himmel höchstens, bis der gewählte vorgezeichnet ist (wartetAufVorzeichnen) */
@@ -13425,8 +13485,8 @@ const VORZEICHNEN_MS = 500;
 const starsFromSin = (s) => (s.starsAboveHorizon ? Math.sin(THREE.MathUtils.degToRad(s.starsFrom ?? 0)) : 0);
 const SKY_ENTRIES = (() => {
   const code = [
-    { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 } },
-    { id: 'solar', name: 'Sonnensystem', order: 20, module: solar },
+    { id: 'milky', name: 'Milchstrasse', order: 10, sky: { milkyWay: 1 }, spiegel: true },
+    { id: 'solar', name: 'Sonnensystem', order: 20, module: solar, spiegel: true },
   ];
   // Ein unbrauchbarer Eintrag (unbekannte Fassung, id doppelt, Fehler beim Anlegen) fällt mit einer Warnung weg; das Spiel
   // läuft mit den übrigen Hintergründen weiter
@@ -13568,6 +13628,7 @@ const skyTheme = {
     boardTheme.prepare(id, this.byId.get(id).board); // sein Brett ebenso
     if (!animate) for (const n of this.order) this.weight[n] = this.goal(n);
     this.apply();
+    boardReflection.follow(0, !animate); // die Spiegelung ebenso
     boardTheme.follow(0); // ohne Überblenden springt das Brett gleich mit
     sceneLoop.wake();
   },
@@ -13605,6 +13666,7 @@ const skyTheme = {
       this.hidden[e.id] = (this.hidden[e.id] ?? 0) + dt;
       if (otherPanorama || this.hidden[e.id] >= this.keep) { e.module.release(); boardTheme.free(e.id); }
     }
+    boardReflection.follow(dt);
     boardTheme.follow(dt);
   },
   apply() {
@@ -13653,6 +13715,34 @@ if (renderer.capabilities.isWebGL2) { // WebGL1 kann keine Mipmaps für NPOT-Tex
 // Unschärfe in CSS-Pixeln gleich bleibt, muss der Bias nur die Pixeldichte ausgleichen.
 const reflLodShift = { value: 0 };
 
+/**
+ * Spiegelt das Brett unter dem Himmel id? Nur unter den beiden im All (spiegel im Eintrag, SKY_ENTRIES), mit
+ * ?spiegel=alle unter allen, ohne HDR nie (Ticket 04 der Energie, ADR 0010). Die Zuordnung hängt am Himmel, nicht an der
+ * Art des Bretts: Das Steinbrett steht auch in der Eishöhle, und dort spiegelt es nicht.
+ */
+const spiegelHimmel = (id) => QUALITY.reflections && (SPIEGEL_ALLE || !!skyTheme.byId.get(id)?.spiegel);
+/**
+ * Anteil der Spiegelung auf dem Brett (uReflStrength aller Bretter, addBoardReflection): 1 unter einem Himmel mit
+ * Spiegelung (spiegelHimmel), sonst 0. Bei 0 rechnet renderReflection nichts (weder Spiegelbild noch Mipmaps), und die
+ * Bretter lesen die Spiegeltextur nicht; sonst sehen sie gleich aus, nur ohne Spiegelbild. Blendet der Himmel über,
+ * wandert der Anteil in derselben Zeit (skyTheme.fadeTime) weich zum neuen, solange der Himmel nicht hält; springt der
+ * Himmel (set ohne Überblenden) oder steht er, gilt gleich der neue. follow je Bild aus skyTheme.update und aus set.
+ */
+const boardReflection = {
+  uniform: { value: 0 }, // uReflStrength: weich (smoothstep) aus anteil
+  anteil: 0,             // 0 … 1, linear in der Zeit
+  follow(dt, springen = false) {
+    const ziel = spiegelHimmel(skyTheme.current) ? 1 : 0;
+    if (springen || !skyTheme.fading) this.anteil = ziel;
+    else if (!skyTheme.holding) {
+      const step = dt / skyTheme.fadeTime;
+      this.anteil = ziel > this.anteil ? Math.min(ziel, this.anteil + step) : Math.max(ziel, this.anteil - step);
+    }
+    const a = this.anteil;
+    this.uniform.value = a * a * (3 - 2 * a);
+  },
+};
+
 // Lichtwelle beim Lösen (siehe celebration): x = Radius, y = Stärke, z = Breite (Welt). Pflicht auf jedem Brett, je Art
 // in ihrem Material; die Farbe nutzt auch der Rahmen im Würfel. uShockT: Sekunden seit dem Start des Rings (shockClock;
 // 99 in Ruhe)
@@ -13685,7 +13775,7 @@ function shockClock(dt) {
 function addBoardReflection(shader) {
   shader.uniforms.tReflect = { value: reflector.getRenderTarget().texture };
   shader.uniforms.uReflMatrix = reflector.material.uniforms.textureMatrix;
-  shader.uniforms.uReflStrength = { value: QUALITY.reflections ? 1.0 : 0.0 };
+  shader.uniforms.uReflStrength = boardReflection.uniform; // für alle Bretter dasselbe (Welt mit Spiegelung, weich)
   shader.uniforms.uReflLodShift = reflLodShift;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', '#include <common>\nuniform mat4 uReflMatrix;\nvarying vec4 vReflUv;')
@@ -13695,11 +13785,13 @@ function addBoardReflection(shader) {
 }
 /**
  * GLSL der Spiegelung vor dem Tonemapping (addBoardReflection): weichgezeichnet nach Rauheit, Fresnel, nur wo es glänzt.
- * strength: Anteil der Spiegelung (Text, GLSL); warp: GLSL, das ruv verschieben darf (etwa Kräuseln)
+ * strength: Anteil der Spiegelung (Text, GLSL); warp: GLSL, das ruv verschieben darf (etwa Kräuseln). Der Beitrag kommt
+ * nur dazu (kein Anteil der Farbe darunter geht weg): Ohne Spiegelung (uReflStrength 0, boardReflection) bleibt das Brett
+ * also genau so, wie es ohne Spiegelbild aussah, und liest die Textur nicht (Bedingung für alle Pixel gleich).
  */
 function boardReflectGlsl(strength, warp = '') {
   return `
-      {
+      if (uReflStrength > 0.0) {
         vec2 ruv = vReflUv.xy / vReflUv.w;${warp}
         // Unschärfe über Mipmaps nur mässig: tiefe Stufen mitteln in Blöcken (bis 32×32 Texel) und machten aus
         // gespiegelten Strahlen eine Kette weicher Flecken, die beim Bewegen der Kamera wanderten ("Wellen").
@@ -26850,9 +26942,10 @@ function limitReflectionMips() {
 }
 
 function renderReflection() {
-  // spiegelnde Oberflächen der gezeigten Bretter (beim Überblenden beide; leer: keines spiegelt), alle in y = 0
+  // spiegelnde Oberflächen der gezeigten Bretter (beim Überblenden beide; leer: keines spiegelt), alle in y = 0; in
+  // Welten ohne Spiegelung (boardReflection 0) nichts, weder Spiegelbild noch Mipmaps
   const mirrors = boardTheme.mirrors, mirror = mirrors[0];
-  if (!mirror || !reflectionInView()) return;
+  if (!mirror || !(boardReflection.uniform.value > 0) || !reflectionInView()) return;
   mirror.updateMatrixWorld();
   reflector.matrixWorld.copy(mirror.matrixWorld);
 
@@ -27183,7 +27276,7 @@ const leistung = {
         bildschirm: `${screen.width}×${screen.height}`, fenster: `${Math.round(innerWidth / SEITE)}×${Math.round(innerHeight / SEITE)}`, seite: SEITE,
         pixelverhaeltnis: devicePixelRatio, render: `${size.x}×${size.y}`, renderPixel: renderer.getPixelRatio(),
         adaptiv: adaptiveResolution.scale, umbauten: adaptiveResolution.changes || 0,
-        spielFps: frameRate.spielFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
+        spielFps: frameRate.spielFps, ruheFps: frameRate.ruheFps, kerne: navigator.hardwareConcurrency ?? null, speicher: navigator.deviceMemory ?? null,
         takt: median ? Math.round(1000 / median) : null, medianMs: median },
       abschnitte,
       gesamt: { bilder: gesamt.n, p95: q(gesamt, 0.95), max: gesamt.max, ueber33: ueber, zeichnenP95: q(zeichnen, 0.95),
@@ -27285,11 +27378,14 @@ window.addEventListener('keydown', (e) => {
 
 /**
  * Bildrate nach Bedarf: Jedes Bild rendert die Szene zweimal (Bodenspiegelung) plus Bloom – das ist fast die ganze
- * Last; die Logik kostet unter 0,1 ms. Das WebGL-Bild läuft stetig mit 60 Bildern/s (spielFps), im Level, im Menü und
- * in den Folgen der Geschichte, auch in Ruhe (ADR 0008; von ADR 0006 bis dahin stetig 30). Steht der Blick im Himmel
+ * Last; die Logik kostet unter 0,1 ms. Das WebGL-Bild läuft mit 60 Bildern/s (spielFps), im Level, im Menü und in den
+ * Folgen der Geschichte (ADR 0008; von ADR 0006 bis dahin stetig 30), im ruhenden Level 30 (siehe unten). Steht der Blick im Himmel
  * (Menü, Übersicht), 10 (skyFps); hinter der Bühne, solange sie einblendet, 30. Bewegt sich gar nichts (mit ?t=), ruht die Schleife ganz (sceneLoop). ?takt=30: zum
  * Vergleich wie unter ADR 0006, das Spiel stetig mit 30, die Folgen der Geschichte im WebGL-Bild (Einstieg, Reise,
  * Finale) mit 60 (storyFps, geschichte; ADR 0007).
+ * Ruhe-Bildrate (Tickets 01 und 02 der Energie, ADR 0009): Ruht das Level (ruhe), zeichnet es 30 Bilder/s (ruheFps;
+ * ?ruhetakt=<n> ab 20, ?ruhetakt=aus oder =60: aus), bei jeder Eingabe oder Bewegung sofort wieder spielFps (rege,
+ * zurueck).
  */
 const frameRate = {
   spielFps: new URLSearchParams(location.search).get('takt') === '30' ? 30 : 60,
@@ -27304,6 +27400,12 @@ const frameRate = {
   prevTs: null,
   skipped: 0,         // rAF-Aufrufe seit dem letzten gerenderten Bild
   gap: 1000 / 60,     // erwarteter Abstand zweier gerenderter Bilder – Budget der adaptiven Auflösung (siehe due)
+  ruheFps: null,      // Bilder/s in Ruhe (ruhetaktAus: 30 oder ?ruhetakt=<n>), null: aus (?ruhetakt=aus), stetig spielFps
+  ruht: false,        // beim letzten rAF in Ruhe (ruhe): zeichnet ruheFps
+  anstoss: -Infinity, // performance.now() der letzten Eingabe oder Bewegung (rege, ruhe)
+  ruheLage: { ruheFps: null, spiel: false, seitAnstoss: 0, bewegt: false }, // für ruhtJetzt, ohne Allokation je rAF
+  lage: { verdeckt: false, geschichte: false, himmel: false, menue: false, ruht: false, spielFps: 60, storyFps: 60,
+    skyFps: 10, ruheFps: null }, // für bildrate und bildrateGrund
   /**
    * Eine Folge der Geschichte im WebGL-Bild läuft (flow.state 'story': Aufstieg, Reise, Fall, Einstieg, Finale, Satz
    * zum Ende des Dorfs), nicht im Menü oder in der Übersicht (choosing) und nicht hinter der Bühne (covered, dort steht
@@ -27319,18 +27421,59 @@ const frameRate = {
    * zeichnet das Spiel gar nicht mehr, sceneLoop.covered), höchstens 30 wie vor ADR 0008: Bühne und Spiel zeichnen dann
    * beide, und vom Spiel sieht man kaum noch etwas.
    */
-  fps() {
-    if (story.covered) return Math.min(30, this.spielFps);
-    if (this.geschichte()) return Math.max(this.storyFps, this.spielFps);
-    if (this.skyOnly()) return this.skyFps;
-    return this.spielFps;
+  fps() { return bildrate(this.jetzt()); },
+  /** Der Grund zu fps (Leistungsanzeige): Spiel, Ruhe, Menü, Himmel (Menü), Geschichte, hinter der Bühne. */
+  grund() { return bildrateGrund(this.jetzt()); },
+  /** Die Lage für bildrate und bildrateGrund (LOGIC; ruht: zuletzt von due bestimmt). */
+  jetzt() {
+    const z = this.lage;
+    z.verdeckt = story.covered;
+    z.geschichte = !z.verdeckt && this.geschichte();
+    z.himmel = !z.verdeckt && !z.geschichte && this.skyOnly();
+    z.menue = story.choosing;
+    z.ruht = this.ruht;
+    z.spielFps = this.spielFps; z.storyFps = this.storyFps; z.skyFps = this.skyFps; z.ruheFps = this.ruheFps;
+    return z;
   },
-  /** Der Grund zu fps (Leistungsanzeige). */
-  grund() {
-    if (story.covered) return 'hinter der Bühne';
-    if (this.geschichte()) return 'Geschichte';
-    if (this.skyOnly()) return 'Himmel (Menü)';
-    return story.choosing ? 'Menü' : 'Spiel';
+  /**
+   * Was das Auge im ruhenden Level verfolgen würde (Text) oder false. Das Schweben der Kamera, das Fliessen der
+   * Strahlen, das Drehen und Atmen der Ziele und die Himmel samt Fischen, Glühwürmchen, Funken und Planeten bleiben Ruhe
+   * (Wunsch des Nutzers; Ticket 02 der Energie: auf dem Poco wirkte mit 30 in keiner Welt etwas stufig);
+   * keine Ruhe sind: der Finger oder die Maustaste unten (Ziehen, Halten, zwei Finger), alles in sceneLoop.pending
+   * (Drehen, Puls, Wackeln, Hover, Ziele, die aufleuchten, wachsende Strahlen, Feier, Herauswachsen, Überblenden des
+   * Himmels oder Bretts, Kamera nach dem Ziehen, Zoomen oder beim Rückflug), der Wechsel der Führung und ihre Hand und
+   * die Lichtwelle samt Nachwirkung auf dem Brett.
+   */
+  bewegt() {
+    if (drag.active || input.pointer || input.pinch) return 'Eingabe';
+    if (fuehrung.wechselt || fuehrung.hand) return 'Führung';
+    if (shockUniforms.uShockT.value < SHOCK_REST_S) return 'Lichtwelle';
+    return sceneLoop.pending();
+  },
+  /**
+   * Ruht das Level (ruhtJetzt)? Im Level (flow 'play', weder Menü, Übersicht noch Bühne), RUHE_NACH_MS nach der letzten
+   * Eingabe oder Bewegung, und es bewegt sich nichts, das man anschaut (bewegt). Eine Bewegung zählt wie eine Eingabe:
+   * Nach ihrem Ende bleibt der volle Takt noch RUHE_NACH_MS. Mit ?ruhetakt=aus nie (stetig wie unter ADR 0008).
+   */
+  ruhe(ts) {
+    if (this.ruheFps === null) return false;
+    const z = this.ruheLage;
+    z.ruheFps = this.ruheFps;
+    z.spiel = flow.state === 'play' && !story.choosing && !story.covered && !sceneLoop.covered;
+    z.seitAnstoss = ts - this.anstoss;
+    z.bewegt = z.spiel && z.seitAnstoss >= RUHE_NACH_MS ? this.bewegt() : false;
+    if (z.bewegt) this.anstoss = ts;
+    return ruhtJetzt(z);
+  },
+  /** Eingabe oder Anstoss (sceneLoop.wake): ruhte das Level, das nächste Bildschirmbild gleich mit dem vollen Takt. */
+  rege() {
+    this.anstoss = performance.now();
+    if (this.ruht) { this.ruht = false; this.zurueck(); }
+  },
+  /** Aus der Ruhe zurück: jetzt zeichnen, nicht erst im nächsten Ruhe-Takt; der längere Abstand davor ist kein langsames Bild. */
+  zurueck() {
+    this.skipped = Infinity;
+    adaptiveResolution.skip = Math.max(adaptiveResolution.skip, 1);
   },
   /**
    * Jedes wievielte Bildschirmbild für fps gerendert wird (k). So bleibt der Takt gleichmässig (kein Wechsel 14/21 ms):
@@ -27353,6 +27496,8 @@ const frameRate = {
       }
     }
     this.prevTs = ts;
+    const ruht = this.ruhe(ts);
+    if (ruht !== this.ruht) { this.ruht = ruht; if (!ruht) this.zurueck(); }
     const fps = this.fps(), k = this.teiler(fps);
     // k > 1: übersprungene, billige Aufrufe zeigen den echten Takt – Budget = tatsächlicher Abstand (50 Hz: 40 ms).
     // k = 1: der gemessene Takt kann von einer überlasteten Grafik stammen – dann gilt das Ziel-Budget.
@@ -27362,6 +27507,7 @@ const frameRate = {
     return true;
   },
 };
+frameRate.ruheFps = ruhetaktAus(new URLSearchParams(location.search).get('ruhetakt'), frameRate.spielFps);
 // Eingaben wecken die Hauptschleife (sceneLoop): Drücken, Ziehen und Hover (pointermove), Loslassen, Rad, Tasten
 for (const type of ['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'touchstart']) {
   window.addEventListener(type, () => sceneLoop.wake(), { passive: true, capture: true });

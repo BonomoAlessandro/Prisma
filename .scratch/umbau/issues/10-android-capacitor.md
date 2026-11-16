@@ -6,7 +6,7 @@
 
 **Blocked by:** 08, 09
 
-**What to build:** Prisma als Android-App mit Capacitor (ADR 0010), aus demselben `dist/` wie die Browser-Fassung, und
+**What to build:** Prisma als Android-App mit Capacitor (ADR 0012), aus demselben `dist/` wie die Browser-Fassung, und
 der Weg bis zum Eintrag im Play Store (PLAN 4).
 
 Grob, wird im Grilling ausgearbeitet:

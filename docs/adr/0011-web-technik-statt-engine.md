@@ -16,8 +16,8 @@ für mehrere Plattformen. Leistung und fehlende Funktionen im Browser sind kein 
 - Prisma bleibt eine Web-App mit Three.js. Kein Wechsel auf eine Engine.
 - Der Code wird mit Vite und npm gebaut und schrittweise in Module aufgeteilt, mit schrittweiser Einführung von
   TypeScript.
-- Ein `dist/` speist alle drei Ziele: Browser (GitHub Pages), Android (Capacitor, ADR 0010) und Steam (Electron,
-  ADR 0011).
+- Ein `dist/` speist alle drei Ziele: Browser (GitHub Pages), Android (Capacitor, ADR 0012) und Steam (Electron,
+  ADR 0013).
 - Three.js bleibt vorerst bei r147.
 
 ## Folgen

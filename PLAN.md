@@ -419,12 +419,12 @@ Android-Chromium.
 
 Wunsch des Nutzers (15.11.2026): Prisma soll in den Play Store und auf Steam, und der Weg dahin ist die Gelegenheit,
 den Code auf eine bessere Grundlage zu stellen. Entschieden im Grilling vom 15.11.2026: **Web-Technik bleibt** (kein
-Wechsel auf eine Engine, ADR 0009). Build mit **Vite und npm** (`npm run dev`, Ausgabe `dist/`, kein Doppelklick mehr),
+Wechsel auf eine Engine, ADR 0011). Build mit **Vite und npm** (`npm run dev`, Ausgabe `dist/`, kein Doppelklick mehr),
 Code **schrittweise in Module** mit schrittweisem **TypeScript**, Three.js bleibt vorerst r147. **Speicherschicht** für
 den Spielstand, **Level und Texte in Dateien**, eigene **Übersetzungsschicht** mit Deutsch und Englisch (Claude
 übersetzt, weitere Sprachen nachrüstbar, Sprache nach Gerät und Schalter in den Einstellungen). Ein **automatischer
 Bildvergleich** sichert jeden Schritt ab; der Nutzer spielt nur an drei Meilensteinen auf dem Handy. Ein `dist/` für
-alle Ziele: Browser auf GitHub Pages, Android mit **Capacitor** (ADR 0010), Steam mit **Electron** (ADR 0011). Steam
+alle Ziele: Browser auf GitHub Pages, Android mit **Capacitor** (ADR 0012), Steam mit **Electron** (ADR 0013). Steam
 mit Kaufpreis, Android gratis (Vollversion zum Kaufen später, im Umbau nicht vorbereitet). Jede Plattform hat ihren
 eigenen Spielstand, Steam zusätzlich Steam Cloud. Vor Steam eine volle Controller-Steuerung.
 
@@ -435,7 +435,7 @@ eigenen Spielstand, Steam zusätzlich Steam Cloud. Vor Steam eine volle Controll
 
 ## 4. Google Play Store
 
-Weg (seit 15.11.2026, ADR 0010): Prisma bleibt eine Web-App und wird mit **Capacitor** als Android-App verpackt; das
+Weg (seit 15.11.2026, ADR 0012): Prisma bleibt eine Web-App und wird mit **Capacitor** als Android-App verpackt; das
 Spiel aus `dist/` liegt in der App und läuft offline. Bis dahin war eine Trusted Web Activity (TWA) mit Bubblewrap
 vorgesehen. Vorher kommt der Umbau (3a.1), danach Ticket 10 von `.scratch/umbau/` mit eigenem Grilling. Die Regeln
 (Testerzahl, verlangte Android-Version) vor dem Start in der aktuellen Play-Console-Hilfe nachsehen.
@@ -459,7 +459,7 @@ vorgesehen. Vorher kommt der Umbau (3a.1), danach Ticket 10 von `.scratch/umbau/
   Beschreibung, Kategorie. Android-Icons mit Schutzrand (`icons/icon-maskable-192/512.png`, erzeugt mit
   `tools/icons.mjs`: ohne Ecke, Prisma auf 85 % verkleinert, Strahl und Spektrum bis zum Rand). Seitentitel
   angepasst. Speicherschlüssel des Fortschritts unverändert. Chrome meldet keine Manifest-Fehler, installierbar.
-- [x] **4.5 Digital Asset Links:** entfällt mit Capacitor (ADR 0010); nur eine TWA brauchte `assetlinks.json`.
+- [x] **4.5 Digital Asset Links:** entfällt mit Capacitor (ADR 0012); nur eine TWA brauchte `assetlinks.json`.
 - [ ] **4.6 Android App Bundle (.aab) bauen und signieren** (Capacitor, Android-Projekt). Signaturschlüssel sicher
   aufbewahren – ohne ihn keine Updates.
 - [ ] **4.7 Test auf echten Android-Geräten:** Leistung auf schwächeren Handys, Zurück-Taste, Hoch-/Querformat, Ton.
@@ -475,7 +475,7 @@ vorgesehen. Vorher kommt der Umbau (3a.1), danach Ticket 10 von `.scratch/umbau/
 
 ## 5. Steam
 
-Weg (seit 15.11.2026, ADR 0011): Desktop-App mit **Electron** und `steamworks.js`, für Windows und das Steam Deck
+Weg (seit 15.11.2026, ADR 0013): Desktop-App mit **Electron** und `steamworks.js`, für Windows und das Steam Deck
 (Linux), aus demselben `dist/`. Einmaliger Kaufpreis. Spielstand als Datei mit Steam Cloud. Nach dem Play-Store-Start,
 vorher die Controller-Steuerung (Ticket 11 von `.scratch/umbau/`). macOS später.
 

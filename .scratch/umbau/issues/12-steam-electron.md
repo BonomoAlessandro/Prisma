@@ -6,7 +6,7 @@
 
 **Blocked by:** 11
 
-**What to build:** Prisma als Desktop-App mit Electron und `steamworks.js` (ADR 0011), für Windows und das Steam Deck
+**What to build:** Prisma als Desktop-App mit Electron und `steamworks.js` (ADR 0013), für Windows und das Steam Deck
 (Linux), aus demselben `dist/`. Einmaliger Kaufpreis. Spielstand als Datei über die Speicherschicht, mit Steam Cloud.
 
 Grob, wird im Grilling ausgearbeitet:

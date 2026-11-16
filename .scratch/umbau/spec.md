@@ -3,8 +3,8 @@
 Status: needs-triage (wartet auf das Go des Nutzers nach dem Merge von `feature/energie`)
 
 PLAN 3a «Umbau für die Stores». Die Entscheide stammen aus dem Grilling vom 15.11.2026. Sie ändern den Weg in PLAN 4
-(Play Store) und legen PLAN 5 (Steam) fest. Die Weichen stehen in ADR 0009 (Web-Technik statt Engine), ADR 0010
-(Capacitor statt TWA) und ADR 0011 (Electron statt Tauri).
+(Play Store) und legen PLAN 5 (Steam) fest. Die Weichen stehen in ADR 0011 (Web-Technik statt Engine), ADR 0012
+(Capacitor statt TWA) und ADR 0013 (Electron statt Tauri).
 
 Gearbeitet wird auf dem Branch `feature/umbau`. **Begonnen wird erst, wenn `feature/energie` nach `main` gemergt ist
 und der Nutzer das Go gibt.** Dann zuerst `main` in `feature/umbau` holen. Während des Umbaus kommen keine neuen
@@ -31,7 +31,7 @@ Code. Dazu wird das Spiel so umgebaut, dass es sich mit wenig Aufwand verpacken,
 
 ### Technik
 
-- **Web-Technik bleibt** (ADR 0009). Kein Wechsel auf Godot, Unity o. Ä.: Strahlregel, Löser, die Level der Geschichte
+- **Web-Technik bleibt** (ADR 0011). Kein Wechsel auf Godot, Unity o. Ä.: Strahlregel, Löser, die Level der Geschichte
   und alle Prüfungen bleiben erhalten.
 - **Vite und npm.** Entwickelt wird mit `npm run dev` auf `localhost`. `npm run build` erzeugt das fertige Spiel in
   `dist/`, mit relativen Pfaden (`base: './'`), damit dieselbe Ausgabe auf GitHub Pages unter `/Prisma/`, in Capacitor
@@ -58,8 +58,8 @@ Code. Dazu wird das Spiel so umgebaut, dass es sich mit wenig Aufwand verpacken,
 - **Browser:** bleibt. `dist/` wird bei jedem Push auf `main` von einer GitHub Action gebaut und auf GitHub Pages
   veröffentlicht (`bonomoalessandro.github.io/Prisma/`). Diese Adresse ist fest; ein späterer Wechsel kostet die
   Spieler der Browser-Fassung ihren Fortschritt.
-- **Android:** Capacitor statt TWA (ADR 0010). Das Spiel liegt in der App und läuft vom ersten Start an offline.
-- **Steam:** Electron mit `steamworks.js` (ADR 0011), für Windows und das Steam Deck (Linux). macOS später.
+- **Android:** Capacitor statt TWA (ADR 0012). Das Spiel liegt in der App und läuft vom ersten Start an offline.
+- **Steam:** Electron mit `steamworks.js` (ADR 0013), für Windows und das Steam Deck (Linux). macOS später.
 - **Spielstand:** Jede Plattform hat ihren eigenen. Auf Steam kommt Steam Cloud dazu. Kein Abgleich zwischen
   Plattformen.
 - **Controller:** Vor Steam bekommt Prisma eine volle Controller-Steuerung (Voraussetzung für «Deck Verified»). Das ist
