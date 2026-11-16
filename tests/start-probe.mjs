@@ -8,19 +8,19 @@
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/start-probe.mjs [--fenster] [--handy]
 //           [--drossel 4] [--laeufe 2] [--nur neu|weiter] [--seite <Pfad zu index.html>]
 // Headless (ohne --fenster) taktet rAF virtuell: nur zur Regression. Ergebnis als JSON nach tests/output/leistung/.
+// Die Seite kommt aus dist/ über http (tools/spielserver.mjs), mit --seite ungebaut aus dem Ordner der Datei.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
+import { root, seiteAus, spielServer } from '../tools/spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'tests', 'output', 'leistung');
 const args = process.argv.slice(2);
 const wert = (name) => { const i = args.indexOf(name); return i < 0 ? null : args[i + 1]; };
 const handy = args.includes('--handy'), fenster = args.includes('--fenster');
 const drossel = Number(wert('--drossel') ?? 1), laeufe = Number(wert('--laeufe') ?? 1), nur = wert('--nur');
-const seite = wert('--seite') ? resolve(wert('--seite')) : join(root, 'index.html');
-const PAGE = pathToFileURL(seite).href + '?perf';
+const spiel = await spielServer(wert('--seite') ? seiteAus(wert('--seite')) : {}); // endet mit process.exit
+const PAGE = spiel.seite('perf');
 const view = handy ? { width: 393, height: 873, dpr: 2.75, phone: true } : { width: 1440, height: 900, dpr: 1, phone: false };
 const name = `start-${fenster ? 'fenster' : 'headless'}-${handy ? 'handy' : 'desktop'}${drossel > 1 ? `-drossel${drossel}` : ''}`;
 const fehler = [];

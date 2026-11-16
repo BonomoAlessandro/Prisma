@@ -3,13 +3,31 @@
 Ein 3D-Licht-Puzzle im Browser: Spiegel und Kristalle drehen, Licht lenken,
 mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 
-- **Starten:** `index.html` direkt im Browser öffnen (keine Installation, kein Build-Step, kein Internet nötig).
+- **Starten:** Node 22.12 oder neuer, einmal `npm install` (einzige Abhängigkeit: Vite, Version fest in
+  `package-lock.json`). Dann `npm run dev`: Dev-Server auf `http://localhost:5173/`, lädt bei einer Änderung neu.
   Three.js r147 (MIT) und die Schrift Jost (SIL OFL 1.1) liegen in `vendor/`, die Lizenztexte daneben.
+- **Bauen:** `npm run build` legt das fertige Spiel nach `dist/` (nicht im Repo; etwa 2 s), mit relativen Pfaden
+  (`base: './'`, läuft also auch in einem Unterordner wie `/Prisma/`). `npm run preview` liefert `dist/` über http
+  (`http://localhost:4173/`), mit Service Worker wie später im Netz. Wie gebaut wird, steht im Kopf von
+  `vite.config.mjs`: `index.html` bleibt eine Seite mit klassischen Skripten; was sie direkt lädt, trägt `vite-ignore`;
+  `vendor/`, `icons/`, `favicon.svg`, `manifest.webmanifest` und die Skyboxen des Registers kommen unverändert nach
+  `dist/`, die Schrift mit Hash nach `dist/assets/`.
+- **Auf dem Handy (gleiches WLAN):** `npm run build`, dann `npm run preview -- --host`; Vite nennt die Adresse im Netz
+  (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
+  zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
+  Worker (Browser verlangen https ausser auf `localhost`); offline spielbar ist erst die Fassung auf GitHub Pages.
+- **Version:** `appVersion` in `package.json` ist die einzige Quelle; Dev-Server und Build setzen sie in `index.html`
+  und `sw.js` ein (Platzhalter `__APP_VERSION__`). Mit jedem Stand für einen Handy-Durchlauf nachführen.
 - **Offline:** Über http(s) ausgeliefert, speichert der Service Worker `sw.js` alle Dateien; danach läuft das Spiel
-  auch ohne Verbindung. Neue Dateien in die Liste `FILES` in `sw.js` eintragen (ein Test prüft das); grosse, die nicht jedes Gerät braucht, in
-  `LAZY` (gespeichert beim ersten Gebrauch).
-  Beim Entwickeln über `localhost` bleibt der Service Worker für diese Adresse registriert (er liefert das Spiel auch
-  bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder „Bypass for network“.
+  auch ohne Verbindung. Die Listen `FILES` und `LAZY` entstehen beim Build aus `dist/` (nichts mehr von Hand
+  eintragen): alles nach `FILES`, ausser `sw.js` und den Lizenztexten; Teile der Skyboxen ohne `precache` nach `LAZY`
+  (gespeichert beim ersten Gebrauch). Ein Test prüft die Listen am Build.
+  Der Dev-Server registriert keinen Service Worker (`PRISMA_DEV`); einen alten, noch registrierten derselben Adresse
+  meldet er ab. Wer `dist/` mit `npm run preview` auf `localhost` öffnet, hat danach dort einen Service Worker (er
+  liefert das Spiel auch bei gestopptem Server): In den DevTools unter Application → Service Workers „Unregister“ oder
+  „Bypass for network“.
+- **Über file://:** Ein Doppelklick auf `index.html` ist nicht mehr der Weg (Vite lädt Module nicht über file://,
+  ab Ticket 03 des Umbaus geht es darum nicht mehr). Proben und Tests laufen über http gegen `dist/`.
 - **Spezifikation:** siehe [SPEC.md](SPEC.md).
 - **Würfel-Level (3D-Prototyp):** Vorgehen, Modell und offene Punkte in [3D-WUERFEL.md](3D-WUERFEL.md).
 - **Plan und offene Punkte:** siehe [PLAN.md](PLAN.md) – was noch umgesetzt werden soll, Entscheidungen, Erledigtes.
@@ -20,7 +38,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Startbildschirm „Prisma“. `manifest.webmanifest` (feste `id` „prisma“, nicht mehr ändern) wird nur über http(s)
   eingebunden, über file:// blockiert es der Browser.
 - **Tests:**
-  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level.
+  - `npm test` (`tests/alle.mjs`) lässt alle Node-Tests ohne Browser nacheinander laufen, jeden bis zum Ende, mit einer
+    Übersicht am Schluss (mehrere Minuten, nur über `leise.sh`: `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh
+    timeout -k 30 3600 npm test`); `node tests/alle.mjs logic golden` nur diese. `npm run test:bild` ist der
+    Bildvergleich (Ticket 01 des Umbaus).
+  - **Proben im Browser** öffnen das Spiel über http aus `dist/` (seit Ticket 02 des Umbaus, nicht mehr über file://).
+    Die Adresse steht an einer Stelle, `tools/spielserver.mjs`: `spielServer()` baut `dist/` frisch und liefert es über
+    einen kleinen Server auf `127.0.0.1` (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher
+    über file:// ohne Vorab-Speichern). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
+    laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
+    `index.html` ungebaut aus ihrem Ordner. Markierte Bereiche (`LOGIC`, `HALL`, `LEVELS`, `WUERFEL`, `GESCHICHTE`)
+    lesen die Tests weiter aus der Quelldatei `index.html`, und die Werkzeuge schreiben weiter dorthin.
+  - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Im Block
+    „Offline“ baut er das Spiel einmal in einen eigenen Ordner und prüft den Build (Listen von `sw.js`, statische Dateien
+    Byte für Byte, `index.html` bis auf `vite-ignore`, Schrift und Version gleich wie die Quelle) und den Dev-Server
+    (Version, kein Service Worker, `vendor/` und `backgrounds/` roh); braucht `npm install`.
   - `node tests/golden.mjs` vergleicht die Strahlbilder aller flachen Level (Start- und Lösungsstellung) mit
     `tests/golden.json`, dazu den Löser für eine Stichprobe aus Spiel und Vorrat: das Tutorial, je Grad der Geschichte
     jedes 10. Level (das erste jeder Welt), jedes 10. flache Level des Vorrats und jedes 10. Würfel-Level (seit Ticket
@@ -233,8 +265,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (`?ruhetakt=60`): stetig voller Takt, Grund «Spiel (Ruhe aus)». `wald` (ohne Parameter): auch mit den
     Glühwürmchen Ruhe. Gemessen in der Seite über rAF und `draw` (auch headless brauchbar); Ergebnis nach
     `tests/output/energie/ruhetakt-*.json`.
-  - `node tests/offline.mjs` prüft den Offline-Betrieb (`--redirect`: Server leitet index.html weiter; startet
-    Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
+  - `node tests/offline.mjs` prüft den Offline-Betrieb am frisch gebauten `dist/` mit dessen `sw.js` (`--redirect`:
+    Server leitet index.html weiter; startet Headless-Chrome, also wie die Screenshots nur über `leise.sh`).
   - `GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/spiegel-probe.mjs
     [pruefe|messen|bilder] [--handy] [--welten forest,beach,…] [--runden 4] [--level 212] [--fassungen …]
     [--vorher datei] [--ordner pfad]` (Tickets 03 und 04 der Energie, je etwa 3 min): `pruefe` (Vorgabe) wechselt in

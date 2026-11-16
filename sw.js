@@ -4,68 +4,47 @@
 // immer der Speicher. Die Bibliotheken unter vendor/ (Version im Ordnernamen) und die Teile der Skyboxen (Stand im
 // Dateinamen) ändern sich nie und kommen direkt aus dem Speicher – auch wenn der Server erst aufwachen muss. Alle
 // anderen Anfragen gehen am Service Worker vorbei.
-// Neue Dateien in FILES eintragen (tests/logic.test.mjs prüft, dass alles, was index.html lädt, dort steht). Grosse
-// Dateien, die nicht jedes Gerät braucht, in LAZY: gespeichert erst beim ersten Gebrauch.
-// Skyboxen aus Blender stehen nicht hier, sondern im Register backgrounds/skies.js (tools/blender/pack.mjs): Teile mit
-// precache kommen nach FILES, die übrigen nach LAZY. Ihr Stand steht im Dateinamen; beim Aktivieren verschwindet aus
-// dem Speicher, was keine der Listen mehr kennt (alte Stände). SKIES (Stand des Registers, von pack.mjs nachgeführt)
-// ändert diese Datei mit jedem neuen Register: So holt jeder Browser den neuen Stand.
+// Die Listen FILES und LAZY entstehen beim Build (vite.config.mjs, npm run build) aus dem, was in dist/ liegt: alles
+// kommt nach FILES, ausser sw.js selbst und den Lizenztexten; Teile der Skyboxen ohne precache im Register
+// backgrounds/skies.js (tools/blender/pack.mjs) kommen nach LAZY (gespeichert erst beim ersten Gebrauch, nicht jedes
+// Gerät braucht sie). Ihr Stand steht im Dateinamen; beim Aktivieren verschwindet aus dem Speicher, was keine der Listen
+// mehr kennt (alte Stände). SKIES (Stand des Registers, von pack.mjs nachgeführt) ändert diese Datei mit jedem neuen
+// Register: So holt jeder Browser den neuen Stand. Dateien mit Hash im Namen aus dem Build (assets/) ändern sich nie
+// und kommen wie vendor/ direkt aus dem Speicher.
 // CACHE hochzählen, wenn vendor/ eine neue Version bekommt: Das räumt die alten Einträge weg.
-// APP_VERSION (Datum und Ticketstand) ist dieselbe Kennung wie in index.html (ein Test prüft das) und wird mit jedem
-// Stand für einen Handy-Durchlauf nachgeführt: Die geänderte sw.js lässt jeden Browser beim nächsten Besuch einen neuen
-// Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigt die Leistungsanzeige
-// (Taste F); ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die neue.
+// APP_VERSION (Datum und Ticketstand) setzt der Build aus appVersion in package.json ein, wie in index.html; sie wird
+// mit jedem Stand für einen Handy-Durchlauf nachgeführt: Die geänderte sw.js lässt jeden Browser beim nächsten Besuch
+// einen neuen Service Worker installieren, der alle FILES frisch vom Server holt. Welche Fassung läuft, zeigt die
+// Leistungsanzeige (Taste F); ist es noch die alte (das Netz brauchte länger als NETWORK_WAIT), bringt ein Neuladen die
+// neue. Die Quelldatei selbst läuft nicht (die Listen sind leer); der Dev-Server registriert keinen Service Worker.
 
-const APP_VERSION = '2026-11-15 energie-4';
+const APP_VERSION = '__APP_VERSION__';
 const CACHE = 'prisma-v1';
 const SKIES = 'd892a061';
-const FILES = [
-  'index.html',
-  'manifest.webmanifest',
-  'favicon.svg',
-  'icons/icon-192.png',
-  'icons/icon-512.png',
-  'icons/apple-touch-icon.png',
-  'icons/icon-maskable-192.png',
-  'icons/icon-maskable-512.png',
-  'vendor/jost/jost-latin.woff2',
-  'vendor/three-0.147.0/three.min.js',
-  'vendor/three-0.147.0/CopyShader.js',
-  'vendor/three-0.147.0/LuminosityHighPassShader.js',
-  'vendor/three-0.147.0/EffectComposer.js',
-  'vendor/three-0.147.0/RenderPass.js',
-  'vendor/three-0.147.0/ShaderPass.js',
-  'vendor/three-0.147.0/UnrealBloomPass.js',
-  'vendor/three-0.147.0/Reflector.js',
-];
-const LAZY = [];
-try {
-  importScripts('backgrounds/skies.js');
-  FILES.push('backgrounds/skies.js');
-  for (const sky of self.PRISMA_SKIES ?? []) {
-    for (const part of sky.parts ?? []) (part.precache ? FILES : LAZY).push(`backgrounds/${part.file}`);
-  }
-} catch { /* ohne Register (fehlt auf dem Server): nur die Hintergründe aus dem Code */ }
+const FILES = []; // beim Build gefüllt
+const LAZY = []; // beim Build gefüllt
 const NETWORK_WAIT = 3000; // ms
 
 const PAGE = new URL('index.html', self.location).href;
 const ROOT = new URL('./', self.location).href;
 const VENDOR = new URL('vendor/', self.location).href;
 const SKY_PARTS = new URL('backgrounds/', self.location).href; // darin je Skybox ein Ordner; skies.js selbst nicht
+const ASSETS = new URL('assets/', self.location).href; // vom Build, mit Hash im Namen
 const KNOWN = new Set([...FILES, ...LAZY].map((f) => new URL(f, self.location).href));
-const fixed = (key) => key.startsWith(VENDOR) || (key.startsWith(SKY_PARTS) && key.slice(SKY_PARTS.length).includes('/'));
+const fixed = (key) => key.startsWith(VENDOR) || key.startsWith(ASSETS) || (key.startsWith(SKY_PARTS) && key.slice(SKY_PARTS.length).includes('/'));
 
 /**
  * Speicherschlüssel einer Anfrage: die Datei ohne Parameter; ./ und index.html?… sind alle die Seite selbst.
- * Alles unter vendor/ zählt mit, auch was erst eine neuere index.html lädt (sonst fehlte es offline, solange
- * noch der alte Service Worker läuft).
+ * Alles unter vendor/ und assets/ zählt mit, auch was erst eine neuere index.html lädt (sonst fehlte es offline,
+ * solange noch der alte Service Worker läuft). Dateien unter assets/, die keine Liste mehr kennt (alte Hash-Namen),
+ * räumt das Aktivieren des nächsten Service Workers weg; unter vendor/ bleiben sie bis zu einem neuen CACHE.
  */
 function cacheKey(url) {
   const u = new URL(url);
   u.search = '';
   u.hash = '';
   if (u.href === ROOT) return PAGE;
-  return KNOWN.has(u.href) || u.href.startsWith(VENDOR) ? u.href : null;
+  return KNOWN.has(u.href) || u.href.startsWith(VENDOR) || u.href.startsWith(ASSETS) ? u.href : null;
 }
 
 /**

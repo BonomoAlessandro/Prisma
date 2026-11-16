@@ -68,9 +68,10 @@
 // Bild und jede Lücke über 100 ms der ganzen Sitzung mit dem Zustand im Bild davor (bewegt sich etwas?).
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'tests', 'output', 'geschichte');
@@ -167,8 +168,9 @@ const view = groesse ? { name: `handy-${groesse[1]}x${groesse[2]}`, width: +groe
     : { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false };
 // andere Pixeldichte: ein Handy quer gilt dann ausdrücklich als mobil (Meta-Viewport, Massstab der Seite)
 if (dpr !== null) Object.assign(view, { name: `${view.name}-dpr${String(dpr).replace('.', '')}`, dpr, mobile: true });
-const PAGE = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
-const PAGE_START = pathToFileURL(join(root, 'index.html')).href + '?noadapt'; // mit Startbildschirm
+const spiel = await spielServer(); // dist/ über http; der Server endet mit dem Lauf (process.exit)
+const PAGE = spiel.seite('noadapt&nointro');
+const PAGE_START = spiel.seite('noadapt'); // mit Startbildschirm
 const fehler = [];
 const pruefe = (ok, text) => { if (!ok) { fehler.push(text); console.log(`  FEHLER ${text}`); } };
 const bildzeiten = []; // je Übergang: Name, längste Lücke, Lücken über 50 und 100 ms

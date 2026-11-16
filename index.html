@@ -6,16 +6,17 @@
 <title>Prisma – Licht-Puzzle</title>
 <meta name="description" content="Ein 3D-Licht-Puzzle: Spiegel, Prismen und Filter lenken das Licht zu farbigen Kristallen.">
 <meta name="apple-mobile-web-app-title" content="Prisma">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml" vite-ignore>
+<link rel="icon" href="icons/icon-192.png" type="image/png" sizes="192x192" vite-ignore>
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" vite-ignore>
 <script>
   // Manifest (Icon für den Android-Startbildschirm) und Service Worker (offline spielbar, siehe sw.js) nur über
   // http(s): über file:// blockiert der Browser das Manifest mit Fehler und kennt keine Service Worker. updateViaCache:
-  // sw.js und das Register der Skyboxen (importScripts) bei jedem Besuch beim Server prüfen
+  // sw.js bei jedem Besuch beim Server prüfen. Im Dev-Server (npm run dev) setzt vite.config.mjs PRISMA_DEV: dort kein
+  // Service Worker, sonst lieferte er alte Stände
   if (/^https?:/.test(location.protocol)) {
     document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
-    if ('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
+    if ('serviceWorker' in navigator && !window.PRISMA_DEV) addEventListener('load', () => navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {}));
   }
 </script>
 <meta name="theme-color" content="#030308">
@@ -1315,15 +1316,15 @@ if (SEITE !== 1) {
   <button class="start"><span>Tippen zum Starten</span></button>
 </div>
 
-<script src="vendor/three-0.147.0/three.min.js"></script>
-<script src="vendor/three-0.147.0/CopyShader.js"></script>
-<script src="vendor/three-0.147.0/LuminosityHighPassShader.js"></script>
-<script src="vendor/three-0.147.0/EffectComposer.js"></script>
-<script src="vendor/three-0.147.0/RenderPass.js"></script>
-<script src="vendor/three-0.147.0/ShaderPass.js"></script>
-<script src="vendor/three-0.147.0/UnrealBloomPass.js"></script>
-<script src="vendor/three-0.147.0/Reflector.js"></script>
-<script src="backgrounds/skies.js"></script>
+<script src="vendor/three-0.147.0/three.min.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/CopyShader.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/LuminosityHighPassShader.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/EffectComposer.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/RenderPass.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/ShaderPass.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/UnrealBloomPass.js" vite-ignore></script>
+<script src="vendor/three-0.147.0/Reflector.js" vite-ignore></script>
+<script src="backgrounds/skies.js" vite-ignore></script>
 
 <script>
 'use strict';
@@ -1333,9 +1334,10 @@ if (SEITE !== 1) {
    ===================================================================== */
 
 // Fassung, die gerade läuft (Leistungsanzeige, Taste F, Spec .scratch/leistung/): Datum und
-// Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt, gleich wie APP_VERSION in sw.js (ein Test prüft
-// das). Weil sich sw.js damit ändert, holt der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
-const APP_VERSION = '2026-11-15 energie-4';
+// Ticketstand, bei jedem Stand für einen Handy-Durchlauf nachgeführt. Die einzige Quelle ist appVersion in package.json;
+// vite.config.mjs setzt sie hier und in sw.js ein (npm run dev und npm run build). Weil sich sw.js damit ändert, holt
+// der Browser beim nächsten Besuch einen neuen Service Worker samt Speicher.
+const APP_VERSION = '__APP_VERSION__';
 
 const IS_MOBILE = matchMedia('(pointer: coarse)').matches || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
 

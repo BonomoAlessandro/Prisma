@@ -1,5 +1,7 @@
 # Abhängigkeiten / Tooling
 node_modules/
+# Build (npm run build)
+dist/
 
 # Test- und Screenshot-Ausgaben
 tests/output/

@@ -34,14 +34,10 @@
 //             erscheint oder verschwindet auf einmal, auch nicht im letzten Bild.
 // Aufruf: GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/brett-probe.mjs [--nur mechanik|netz|menue|reise|formen]
 // Etwa 3 min. Scheitert bei einem falschen Wert oder einer Meldung [error] bzw. einer Ausnahme in der Konsole.
-import { createServer } from 'node:http';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { dirname, extname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const nur = args.includes('--nur') ? args[args.indexOf('--nur') + 1] : null;
 if (nur !== null && !['mechanik', 'netz', 'menue', 'reise', 'formen'].includes(nur)) {
@@ -49,6 +45,8 @@ if (nur !== null && !['mechanik', 'netz', 'menue', 'reise', 'formen'].includes(n
   process.exit(1);
 }
 requireQuiet();
+// das Spiel aus dist/ über http (alle Abschnitte; netz drosselt es im Browser)
+const spiel = await spielServer();
 const fehler = [];
 const pruefe = (ok, text) => { console.log(`  ${ok ? 'ok  ' : 'FEHLER'} ${text}`); if (!ok) fehler.push(text); };
 setTimeout(() => { console.error('Zeitrahmen von 10 min überschritten: Abbruch'); process.exit(3); }, 600000).unref();
@@ -121,7 +119,7 @@ async function mechanik() {
   const b = await browser({ width: 1280, height: 800, dpr: 1, phone: false });
   const { ev, until, logs } = b;
   try {
-    await b.send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro' });
+    await b.send('Page.navigate', { url: spiel.seite('noadapt&nointro') });
     await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady()', 'Wald bereit', 120);
     const start = await ev('__prisma.brett()'), wald = await ev(`__prismaDebug.skyTheme.byId.get('forest').board?.type`);
     pruefe(start.himmel === 'forest' && start.art === wald && start.bereit && start.anteil === 1 && start.von === null
@@ -281,25 +279,13 @@ async function mechanik() {
 
 /* ---------- Langsames Netz ---------- */
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 async function netz() {
   console.log('Langsames Netz (Handy 390 × 844, 300 KB/s, 150 ms, CPU 4×)');
-  const server = createServer((req, res) => {
-    let path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    if (path.endsWith('/')) path += 'index.html';
-    const file = join(root, path);
-    if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
-    res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
-    res.end(readFileSync(file));
-  });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  const base = `http://127.0.0.1:${server.address().port}/`;
   const b = await browser({ width: 390, height: 844, dpr: 2, phone: true });
   const { ev, until, send, logs } = b;
   try {
     // Stand mitten in der Wüste (25 gelöst), dann gedrosselt und ohne Zwischenspeicher neu laden
-    await send('Page.navigate', { url: base + 'index.html?noadapt&nointro' });
+    await send('Page.navigate', { url: spiel.seite('noadapt&nointro') });
     await until('window.__prisma?.ticks > 2', 'Seite', 60);
     await ev(`(() => { localStorage.clear(); localStorage.setItem('prisma.noa.zuletzt', 'leicht');
       localStorage.setItem('prisma.noa.leicht', JSON.stringify({ platz: 25, geloest: STORY_LEVELS.leicht.flat().slice(0, 25),
@@ -315,7 +301,7 @@ async function netz() {
     const t0 = Date.now();
     // wie im Spiel über den Startbildschirm (ohne ?nointro): Unter dem Menü lädt nichts Grosses (ruhe), was dort fehlt,
     // lädt erst hinter der Überblendung nach «Weiter» (ruhe.lade). Getippt wird je sofort, sobald es geht
-    await send('Page.navigate', { url: base + 'index.html?noadapt' });
+    await send('Page.navigate', { url: spiel.seite('noadapt') });
     const tippe = async (sel) => {
       const r = await ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
         return { x: r.left + r.width / 2, y: r.top + r.height / 2, t: performance.now(),
@@ -351,7 +337,6 @@ async function netz() {
   }
   konsole(logs, 'Netz');
   await b.close();
-  server.close();
 }
 
 /* ---------- Menü ---------- */
@@ -363,7 +348,7 @@ async function menue() {
   const b = await browser({ width: 1280, height: 800, dpr: 1, phone: false });
   const { ev, until, send, logs } = b;
   try {
-    await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt' });
+    await send('Page.navigate', { url: spiel.seite('noadapt') });
     await until("document.getElementById('intro')?.classList.contains('ready') && __prisma.skyReady()",
       'Startbildschirm, Himmel und Brett bereit', 120);
     const { x, y } = await ev(`(() => { const r = document.querySelector('#intro .start').getBoundingClientRect();
@@ -402,7 +387,7 @@ async function reise() {
   console.log('Reise ohne Vorladen ans Meer (Desktop 1280 × 800)');
   const b = await browser({ width: 1280, height: 800, dpr: 1, phone: false });
   const { ev, until, send, logs } = b;
-  const seite = pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro';
+  const seite = spiel.seite('noadapt&nointro');
   const klicke = async (sel) => {
     const { x, y } = await ev(`(() => { const r = document.querySelector(${JSON.stringify(sel)}).getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })()`);
@@ -588,7 +573,7 @@ async function formen() {
       + `letztes ${(u.letzter * 100).toFixed(1)} % (höchstens ${LETZTER_MAX * 100})`);
   };
   try {
-    await b.send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?noadapt&nointro&sky=milky' });
+    await b.send('Page.navigate', { url: spiel.seite('noadapt&nointro&sky=milky') });
     await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady()', 'Milchstrasse bereit', 120);
     await ev('__prismaDebug.zeige(12); true');
     await until('window.__prisma.playing()', 'Level', 30);
@@ -663,5 +648,6 @@ if (!nur || nur === 'netz') await netz();
 if (!nur || nur === 'menue') await menue();
 if (!nur || nur === 'reise') await reise();
 if (!nur || nur === 'formen') await formen();
+await spiel.close();
 console.log(fehler.length ? `\n${fehler.length} Fehler` : '\nBrett: in Ordnung');
 process.exit(fehler.length ? 1 : 0);
