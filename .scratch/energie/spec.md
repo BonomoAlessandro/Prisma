@@ -1,6 +1,6 @@
 # Spec: Energie auf dem Handy
 
-Status: ready-for-human (Tickets 01–04 umgesetzt, reviewt und vom Nutzer getestet; Akkuvergleich 16.11.: −50 % gegen `main`)
+Status: done (16.11.2026 nach `main`; Tickets 01–04 umgesetzt, reviewt und vom Nutzer getestet; Akkuvergleich 16.11.: −50 % gegen `main`)
 
 Wunsch des Nutzers (15.11.2026): Das Spiel soll auf dem Smartphone weniger Akku brauchen, so weit wie möglich, ohne
 dass Gefühl oder Ansicht für den Spieler schlechter werden. Branch `feature/energie` von `main` (966c75a).

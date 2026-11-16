@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-human (vom Nutzer auf dem Poco getestet, 16.11.2026: alles gut; wartet auf den Merge nach `main`)
+**Status:** done (vom Nutzer auf dem Poco getestet, 16.11.2026: alles gut; 16.11.2026 nach `main`)
 
 **What to build:** Der Nutzer hat entschieden (15.11.2026, nach Test auf dem Poco und Akkuvergleich in Ticket 01):
 Die Ruhe-Bildrate wird **Standard**, mit 30 Bildern/s in Ruhe, **in allen Welten**, also auch mit Himmeln mit

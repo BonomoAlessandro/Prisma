@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-human (vom Nutzer auf dem Poco getestet, 16.11.2026: alles gut; wartet auf den Merge nach `main`)
+**Status:** done (vom Nutzer auf dem Poco getestet, 16.11.2026: alles gut; 16.11.2026 nach `main`)
 
 **What to build:** Entscheid des Nutzers nach dem Test auf dem Poco (15.11.2026, Stand `energie-3`):
 
