@@ -1,24 +1,26 @@
-// Rendert index.html in Headless-Chrome, sammelt Konsolenfehler und speichert Screenshots.
+// Rendert das Spiel (dist/ über http, tools/spielserver.mjs) in Headless-Chrome, sammelt Konsolenfehler und speichert
+// Screenshots.
 // Aufruf: node tests/screenshot.mjs [name] [breite] [höhe] [wartezeit-ms] [js-vor-screenshot]
 // Umgebung: DPR=3 (Pixeldichte), MOBILE=1 (als Smartphone ausgeben), INTRO=1 (Startbildschirm zeigen),
 // QUERY='sky=forest&t=12' (weitere Parameter der Seite), GPU=1 (auf der Grafikkarte statt SwiftShader: wie im echten
 // Browser, Fehler nur der Grafikkarte zeigen sich so). Gewartet wird, bis der Hintergrund ganz eingeblendet ist.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, sleep } from '../tools/chrome.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, '..');
 const outDir = join(here, 'output');
 mkdirSync(outDir, { recursive: true });
 
 const [name = 'shot', width = '1440', height = '900', waitMs = '4000', script = ''] = process.argv.slice(2);
 
+const spiel = await spielServer();
 const { send, logs, close } = await startChrome({ width, height, gpu: !!process.env.GPU });
 await emulate(send, { width: +width, height: +height, dpr: +(process.env.DPR || 1), phone: !!process.env.MOBILE });
 const query = ['noadapt', process.env.INTRO ? '' : 'nointro', process.env.QUERY ?? ''].filter(Boolean).join('&');
-await send('Page.navigate', { url: pathToFileURL(join(root, 'index.html')).href + '?' + query });
+await send('Page.navigate', { url: spiel.seite(query) });
 
 // Warten bis die Szene läuft
 let state = null;
@@ -53,6 +55,7 @@ const relevant = logs.filter(l => !/GPU stall|swiftshader|WebGL-|Automatic fallb
 console.log(relevant.length ? 'Konsole:\n  ' + relevant.join('\n  ') : 'Konsole: keine Meldungen');
 
 await close();
+await spiel.close();
 // Fehlschlag melden: Exceptions, Shader-Fehler oder keine laufende Render-Schleife
 const failed = relevant.some(l => /\[exception\]|\[script-exception\]|\[error\]|THREE\.WebGLProgram/.test(l)) || !state || state.ticks < 3;
 if (failed) console.error('FEHLGESCHLAGEN');

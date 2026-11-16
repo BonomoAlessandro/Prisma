@@ -2,8 +2,11 @@
 // Die Level, an denen sie die Strahlregel und den Löser prüft (Lösung, Eindeutigkeit, Würfel, Vergleiche), kommen aus
 // Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, Spec .scratch/noa-geschichte/); das Tutorial aus dem
 // Spiel.
+// Im Block «Offline» baut er das Spiel einmal (wie npm run build, in einen eigenen Ordner) und prüft den Build und den
+// Dev-Server (Ticket 02 von .scratch/umbau/; braucht npm install).
 // Aufruf: node tests/logic.test.mjs
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
@@ -11,6 +14,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
+import { baue } from '../tools/spielserver.mjs';
 
 const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const begin = html.indexOf('/* LOGIC:BEGIN');
@@ -1253,36 +1257,85 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
 console.log('Offline');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-  // sw.js so ausführen, wie der Browser es tut (mit dem Register der Skyboxen per importScripts), dann die Listen lesen
+  // Seit Ticket 02 von .scratch/umbau/ entstehen die Listen von sw.js beim Build: einmal bauen (wie npm run build, in
+  // einen eigenen Ordner), dann das erzeugte sw.js so ausführen, wie der Browser es tut, und die Listen lesen
+  const aus = mkdtempSync(join(tmpdir(), 'prisma-bau-'));
+  process.on('exit', () => rmSync(aus, { recursive: true, force: true }));
+  baue(aus);
+  const distHtml = readFileSync(join(aus, 'index.html'), 'utf8');
   const sw = vm.createContext({ URL, location: new URL('http://prisma.test/sw.js'), addEventListener() {} });
   sw.self = sw;
-  sw.importScripts = (...files) => files.forEach((f) => vm.runInContext(readFileSync(join(root, f), 'utf8'), sw));
-  vm.runInContext(readFileSync(join(root, 'sw.js'), 'utf8'), sw);
+  vm.runInContext(readFileSync(join(aus, 'sw.js'), 'utf8'), sw);
   const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
   const skies = loadSkies(root);
-  // alles, was die Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
+  const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
+  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
   // dazu die Icons aus dem Manifest
   const refs = new Set([
-    ...[...html.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
-    ...[...html.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
-    ...JSON.parse(readFileSync(join(root, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
-  ]);
+    ...[...distHtml.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
+    ...[...distHtml.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
+    ...JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
+  ].map((r) => r.replace(/^\.\//, '')));
   // existiert genau so geschrieben? (Windows ignoriert Gross-/Kleinschreibung, der Webserver nicht)
-  const existsExactly = (path) => path.split('/').every((part, i, parts) => {
-    const dir = join(root, ...parts.slice(0, i));
+  const existsExactly = (path, ordner = aus) => path.split('/').every((part, i, parts) => {
+    const dir = join(ordner, ...parts.slice(0, i));
     return existsSync(dir) && readdirSync(dir).includes(part);
   });
+  const imBau = (unter = '') => readdirSync(join(aus, unter), { withFileTypes: true })
+    .flatMap((e) => (e.isDirectory() ? imBau(`${unter}${e.name}/`) : [`${unter}${e.name}`]));
   test('Offline: index.html lädt nichts von fremden Servern (keine http(s)-Adresse, auch nicht per Skript)', () => {
     assert.deepEqual(html.match(/https?:\/\/\S*/g) ?? [], []);
   });
-  test('Offline: sw.js speichert alles, was index.html und das Manifest laden', () => {
-    assert.ok(swFiles.length > 0, 'Liste FILES in sw.js nicht gefunden');
+  test('Offline: sw.js (Build) speichert alles, was index.html und das Manifest laden', () => {
+    assert.ok(swFiles.length > 0, 'Liste FILES im gebauten sw.js leer');
     assert.deepEqual([...refs].filter(r => !swFiles.includes(r)), []);
   });
-  test('Offline: jede Datei aus sw.js existiert genau so geschrieben, keine doppelt', () => {
+  test('Offline: jede Datei aus sw.js existiert im Build genau so geschrieben, keine doppelt', () => {
     const all = [...swFiles, ...swLazy];
     assert.deepEqual(all.filter(f => !existsExactly(f)), []);
     assert.deepEqual(all.filter((f, i) => all.indexOf(f) !== i), []);
+  });
+  test('Offline: sw.js kennt jede Datei des Builds (ausser sich selbst und den Lizenztexten), Hash-Namen nur unter assets/', () => {
+    const all = new Set([...swFiles, ...swLazy]);
+    assert.deepEqual(imBau().filter((f) => !all.has(f) && !/^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$/.test(f)), []);
+    assert.ok(imBau().includes('vendor/three-0.147.0/LICENSE') && imBau().includes('vendor/jost/OFL.txt'), 'Lizenztexte fehlen im Build');
+    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+$/.test(f)), []);
+  });
+  test('Build: statische Dateien (vendor/, icons/, Skyboxen, Manifest, Icon) Byte für Byte wie in der Quelle', () => {
+    const anders = [...swFiles, ...swLazy].filter((f) => f !== 'index.html' && !f.startsWith('assets/'))
+      .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
+    assert.deepEqual(anders, []);
+  });
+  test('Build: index.html wie die Quelle bis auf vite-ignore, die Schrift unter assets/ und APP_VERSION', () => {
+    const schrift = [...refs].find((r) => /^assets\/jost-latin-[\w-]+\.woff2$/.test(r));
+    assert.ok(schrift, 'Schrift Jost nicht unter assets/');
+    const erwartet = html.replaceAll(' vite-ignore>', ' >').replace('url(vendor/jost/jost-latin.woff2)', `url(./${schrift})`)
+      .replace("const APP_VERSION = '__APP_VERSION__';", `const APP_VERSION = '${version}';`);
+    const zeilen = (t) => t.replaceAll('\r\n', '\n');
+    assert.ok(zeilen(distHtml) === zeilen(erwartet), 'index.html im Build weicht ab');
+    assert.ok(!/vite-ignore/.test(distHtml) && !/<script type="module"/.test(distHtml), 'Build: Module oder vite-ignore übrig');
+  });
+  // Dev-Server (npm run dev): Version eingesetzt, kein Service Worker, vendor/ und backgrounds/ roh
+  const { createServer } = await import('vite');
+  const dev = await createServer({ root, configFile: join(root, 'vite.config.mjs'), logLevel: 'silent',
+    server: { port: 0, hmr: false } });
+  await dev.listen();
+  const devUrl = dev.resolvedUrls.local[0], holen = async (p) => (await fetch(devUrl + p)).text();
+  const devHtml = await holen(''), devSw = await holen('sw.js');
+  const roh = {};
+  for (const f of ['vendor/three-0.147.0/three.min.js', 'backgrounds/skies.js']) {
+    roh[f] = Buffer.from(await (await fetch(devUrl + f, { headers: { 'sec-fetch-dest': 'script' } })).arrayBuffer());
+  }
+  await dev.close();
+  test('Dev-Server: Version eingesetzt, PRISMA_DEV vor der Registrierung, sw.js meldet sich nur ab', () => {
+    assert.ok(devHtml.includes(`const APP_VERSION = '${version}';`), 'APP_VERSION fehlt');
+    const flag = devHtml.indexOf('window.PRISMA_DEV = true'), reg = devHtml.indexOf('navigator.serviceWorker.register');
+    assert.ok(flag > 0 && reg > flag, 'PRISMA_DEV fehlt oder steht nach der Registrierung');
+    assert.match(devHtml, /'serviceWorker' in navigator && !window\.PRISMA_DEV\)/);
+    assert.ok(devSw.includes('unregister()') && !devSw.includes('FILES'), 'sw.js im Dev-Server ist nicht der, der sich abmeldet');
+  });
+  test('Dev-Server: vendor/ und backgrounds/ Byte für Byte wie die Quelle (ohne Source-Map)', () => {
+    for (const [f, b] of Object.entries(roh)) assert.ok(b.equals(readFileSync(join(root, f))), f);
   });
   test('Skyboxen: Register backgrounds/skies.js gültig, Teile vorhanden, Budget eingehalten (tools/sky-schema.mjs)', () => {
     assert.ok(skies.length > 0, 'keine Skybox im Register');
@@ -1426,10 +1479,12 @@ console.log('Offline');
     fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
     fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
   });
-  test('Version: APP_VERSION in sw.js und index.html gleich (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
-    const seite = html.match(/^const APP_VERSION = '([^']+)';$/m)?.[1];
-    assert.ok(seite, 'APP_VERSION in index.html nicht gefunden');
-    assert.equal(vm.runInContext('APP_VERSION', sw), seite);
+  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie in index.html und sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+    assert.ok(typeof version === 'string' && version.length > 0, 'appVersion in package.json fehlt');
+    assert.match(html, /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in index.html (Quelle) fehlt');
+    assert.match(readFileSync(join(root, 'sw.js'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in sw.js (Quelle) fehlt');
+    assert.equal(distHtml.match(/^const APP_VERSION = '([^']+)';$/m)?.[1], version);
+    assert.equal(vm.runInContext('APP_VERSION', sw), version);
   });
   test('Skyboxen: sw.js nennt den Stand des Registers (pack.mjs; ein neues Register löst so in jedem Browser ein Update aus)', () => {
     const registry = readFileSync(join(root, 'backgrounds', 'skies.js'));

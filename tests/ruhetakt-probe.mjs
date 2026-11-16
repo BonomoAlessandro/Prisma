@@ -9,18 +9,18 @@
 // Aufruf: GPU=1 LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 900 node tests/ruhetakt-probe.mjs
 //           [--handy] [--fenster] [--seite <index.html>] [--nur ruhe,aus,wald]
 //   --handy: 393 × 873, Pixeldichte 2,75, Touch; --fenster: echtes Fenster (Takt des Bildschirms; sonst headless).
+//   Die Seite kommt aus dist/ über http (tools/spielserver.mjs), mit --seite ungebaut aus dem Ordner der Datei.
 //   Etwa 2 min. Ergebnis nach tests/output/energie/ruhetakt-<bildschirm>.json.
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { join } from 'node:path';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { root, seiteAus, spielServer } from '../tools/spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const wert = (name, vorgabe = null) => { const i = args.indexOf(name); return i < 0 ? vorgabe : args[i + 1]; };
 const handy = args.includes('--handy'), fenster = args.includes('--fenster');
-const seite = resolve(wert('--seite', join(root, 'index.html')));
+const spiel = await spielServer(wert('--seite') ? seiteAus(wert('--seite')) : {}); // endet mit process.exit
 const nur = (wert('--nur', 'ruhe,aus,wald')).split(',');
 requireQuiet();
 
@@ -110,7 +110,7 @@ const PUNKTE = `JSON.stringify((() => {
 })())`;
 
 async function oeffne(query) {
-  await send('Page.navigate', { url: pathToFileURL(seite).href + `?perf&nointro${query ? '&' + query : ''}` });
+  await send('Page.navigate', { url: spiel.seite(`perf&nointro${query ? '&' + query : ''}`) });
   await until('window.__prisma?.ticks > 2 && window.__prisma.skyReady() && __prismaDebug.story.choosing', 'Menü');
   await ev(EINRICHTEN);
   await ev('__prismaDebug.zeige(story.firstIndex())');

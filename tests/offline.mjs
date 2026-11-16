@@ -4,6 +4,8 @@
 // jede Skybox aus Blender wählen (Teile im Speicher: vorab bzw. beim ersten Gebrauch) und sie offline zeigen; je
 // Himmel ist er erst bereit (skyReady), wenn das Brett seiner Brett-Angabe bereit ist und ganz steht (__prisma.brett(),
 // auch Milchstrasse und Sonnensystem online).
+// Ausgeliefert wird der Build (dist/, vorher frisch gebaut über tools/spielserver.mjs; PRISMA_OHNE_BAU=1 nimmt das
+// vorhandene) samt dem dort erzeugten sw.js.
 // Aufruf: node tests/offline.mjs [--redirect]   (--redirect: Server leitet index.html auf ./ weiter, wie manche Hoster)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -12,16 +14,14 @@ import { loadSkies } from '../tools/sky-schema.mjs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { baue, DIST, TYPES } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const TYPES = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.webmanifest': 'application/manifest+json',
-  '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2',
-};
+const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue();
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redirect = process.argv.includes('--redirect');
 
-// Statischer Server für das Projektverzeichnis; merkt sich die Parameter der Seitenaufrufe
+// Statischer Server für dist/; merkt sich die Parameter der Seitenaufrufe
 const pageQueries = [];
 const server = createServer((req, res) => {
   const reqUrl = new URL(req.url, 'http://x');
@@ -29,8 +29,8 @@ const server = createServer((req, res) => {
   if (redirect && reqUrl.pathname === '/index.html') { res.writeHead(301, { Location: '/' + reqUrl.search }); res.end(); return; }
   let path = decodeURIComponent(reqUrl.pathname);
   if (path.endsWith('/')) path += 'index.html';
-  const file = join(root, path);
-  if (!file.startsWith(root) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
+  const file = join(dist, path);
+  if (!file.startsWith(dist) || !existsSync(file) || !statSync(file).isFile()) { res.writeHead(404); res.end(); return; }
   res.writeHead(200, { 'Content-Type': TYPES[extname(file)] || 'application/octet-stream' });
   res.end(readFileSync(file));
 });

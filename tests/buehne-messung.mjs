@@ -20,9 +20,10 @@
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { deflateSync, inflateSync } from 'node:zlib';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { seiteAus, spielServer } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT = join(root, 'tests', 'output', 'buehne');
@@ -30,8 +31,11 @@ const args = process.argv.slice(2);
 const wert = (name) => { const i = args.indexOf(name); return i < 0 ? null : args[i + 1]; };
 const modus = ['bilder', 'vergleich'].includes(args[0]) ? args[0] : 'messen';
 const fenster = args.includes('--fenster');
-// --seite: eine andere Fassung der Seite im selben Ordner (etwa der Stand vor dem Umbau, für Vorher-Werte)
-const PAGE = pathToFileURL(join(root, wert('--seite') ?? 'index.html')).href + '?noadapt&nointro';
+// Das Spiel aus dist/ über http (tools/spielserver.mjs); --seite: eine andere Fassung der Seite im Wurzelordner (etwa
+// der Stand vor dem Umbau, für Vorher-Werte), ungebaut
+const spiel = modus === 'vergleich' ? null
+  : await spielServer(wert('--seite') ? seiteAus(join(root, wert('--seite'))) : {});
+const PAGE = spiel?.seite('noadapt&nointro');
 const D = '__prismaDebug';
 const storyMode = `(!document.getElementById('story').classList.contains('hidden') && document.getElementById('story')`
   + '.dataset.mode)';
@@ -421,3 +425,4 @@ async function vergleich() {
 }
 
 await ({ bilder, vergleich, messen }[modus])();
+await spiel?.close();
