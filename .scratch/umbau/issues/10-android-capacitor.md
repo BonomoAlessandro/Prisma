@@ -1,4 +1,4 @@
-# 10: Android mit Capacitor und Play Store
+# 10: Android mit Capacitor, bereit für den Play Store
 
 **Spec:** ../spec.md
 
@@ -7,7 +7,11 @@
 **Blocked by:** 08, 09
 
 **What to build:** Prisma als Android-App mit Capacitor (ADR 0012), aus demselben `dist/` wie die Browser-Fassung, und
-der Weg bis zum Eintrag im Play Store (PLAN 4).
+so weit, dass sie in den Play Store hochgeladen werden kann (PLAN 4).
+
+**Ziel (Nutzer, 16.11.2026):** Das Ziel dieses Tickets ist **nicht** der Eintrag im Play Store, sondern ein Spiel,
+das **bereit** dafür ist: ein signiertes App Bundle und alles Material, das der Upload verlangt. Konto, Upload,
+geschlossener Test und Veröffentlichung sind nicht Teil des Tickets.
 
 Grob, wird im Grilling ausgearbeitet:
 
@@ -16,9 +20,12 @@ Grob, wird im Grilling ausgearbeitet:
       Vollbild, Ton.
 - [ ] Android App Bundle (`.aab`) bauen und signieren. Signaturschlüssel sicher aufbewahren, ohne ihn keine Updates.
 - [ ] Test auf echten Geräten, auch schwächeren (PLAN 4.7).
-- [ ] Konto, Pflichtangaben, Store-Material, geschlossener Test mit 12 Testern über 14 Tage (PLAN 4.8–4.11).
+- [ ] Store-Material bereitlegen (Texte, Bilder, Pflichtangaben wie Datenschutz und Inhaltseinstufung), damit der
+      Upload ohne weitere Arbeit am Spiel geht.
+- Nicht in diesem Ticket: Konto in der Play Console, Upload, geschlossener Test mit 12 Testern über 14 Tage,
+  Veröffentlichung (PLAN 4.8–4.11).
 
 **Offen für das Grilling:** Paketname (z. B. `ch.….prisma`, danach nicht mehr änderbar), Mindestversion von Android,
-Store-Texte auf Deutsch und Englisch, wer die 12 Tester sind, ob der Service Worker in der App abgeschaltet wird.
+Store-Texte auf Deutsch und Englisch, ob der Service Worker in der App abgeschaltet wird.
 
 ## Comments

@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **Blocked by:** 02
 
