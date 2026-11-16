@@ -35,15 +35,16 @@ const fixed = (key) => key.startsWith(VENDOR) || key.startsWith(ASSETS) || (key.
 
 /**
  * Speicherschlüssel einer Anfrage: die Datei ohne Parameter; ./ und index.html?… sind alle die Seite selbst.
- * Alles unter vendor/ zählt mit, auch was erst eine neuere index.html lädt (sonst fehlte es offline, solange
- * noch der alte Service Worker läuft).
+ * Alles unter vendor/ und assets/ zählt mit, auch was erst eine neuere index.html lädt (sonst fehlte es offline,
+ * solange noch der alte Service Worker läuft). Dateien unter assets/, die keine Liste mehr kennt (alte Hash-Namen),
+ * räumt das Aktivieren des nächsten Service Workers weg; unter vendor/ bleiben sie bis zu einem neuen CACHE.
  */
 function cacheKey(url) {
   const u = new URL(url);
   u.search = '';
   u.hash = '';
   if (u.href === ROOT) return PAGE;
-  return KNOWN.has(u.href) || u.href.startsWith(VENDOR) ? u.href : null;
+  return KNOWN.has(u.href) || u.href.startsWith(VENDOR) || u.href.startsWith(ASSETS) ? u.href : null;
 }
 
 /**

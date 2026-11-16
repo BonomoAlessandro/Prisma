@@ -1301,6 +1301,14 @@ console.log('Offline');
     assert.ok(imBau().includes('vendor/three-0.147.0/LICENSE') && imBau().includes('vendor/jost/OFL.txt'), 'Lizenztexte fehlen im Build');
     assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+$/.test(f)), []);
   });
+  test('Offline: sw.js nimmt auch unbekannte Dateien unter assets/ und vendor/ in den Speicher (eine neuere Seite unter dem alten Service Worker), andere nicht', () => {
+    const key = (p) => vm.runInContext(`cacheKey(${JSON.stringify(`http://prisma.test/${p}`)})`, sw);
+    assert.equal(key('assets/neu-AbCd1234.js?x'), 'http://prisma.test/assets/neu-AbCd1234.js');
+    assert.equal(key('vendor/three-0.148.0/three.min.js'), 'http://prisma.test/vendor/three-0.148.0/three.min.js');
+    assert.equal(key('?noadapt'), 'http://prisma.test/index.html');
+    assert.equal(key('fremd.js'), null);
+    assert.ok(vm.runInContext("fixed('http://prisma.test/assets/neu-AbCd1234.js') && !fixed('http://prisma.test/index.html')", sw));
+  });
   test('Build: statische Dateien (vendor/, icons/, Skyboxen, Manifest, Icon) Byte für Byte wie in der Quelle', () => {
     const anders = [...swFiles, ...swLazy].filter((f) => f !== 'index.html' && !f.startsWith('assets/'))
       .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
