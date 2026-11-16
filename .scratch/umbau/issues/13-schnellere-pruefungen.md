@@ -26,5 +26,10 @@ Sperre von `tools/leise.sh`). Der Nutzer hat entschieden (16.11.2026), sie zu be
       (Node-Tests, Golden, Bildvergleich, dazu die Proben, die ihr Ticket direkt betrifft); der Reviewer lässt den ganzen
       Satz einmal laufen, die Proben mit Zeitmessung nur er. Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake),
       zurück zum alleinigen Lauf.
+- [ ] Bildvergleich bekommt eine vierte Grösse «poco» (Android-Kennung, Pixeldichte 2,75) mit `start`, `dorf` und
+      `welt-1-2`, damit der Weg der echten Handys (Massstab `SEITE`, Pixelverhältnis 2) geprüft wird (Fund Review 01).
+- [ ] Regel für die Proben mit Bildtakt: Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis
+      vor. Bei so einem Fehler die Probe wiederholen bzw. mit der Basis vergleichen; es zählt nur ein Fehler, der auf
+      der Basis nicht kommt (Fund Review 01). In README bzw. `CLAUDE.md` festhalten.
 
 ## Comments

@@ -28,6 +28,8 @@ Fassung.
 - [ ] `lang` des Dokuments folgt der Sprache.
 - [ ] Bildvergleich (auf Deutsch), Golden, alle Tests und Proben grün; der neue Schalter in den Einstellungen bekommt ein
       neues Referenzbild (bewusste Änderung, unter «Comments» festhalten).
+- [ ] Der Bildvergleich legt Deutsch fest (z. B. `--lang=de-CH`, `setLocaleOverride` oder `?lang=de`), weil
+      Headless-Chrome sonst die Sprache des Rechners bzw. Englisch meldet (Fund Review 01).
 - [ ] Begriff «Übersetzungsschicht» in `CONTEXT.md`.
 
 ## Comments
