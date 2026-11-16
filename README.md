@@ -87,6 +87,25 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
+  - `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node tests/bildvergleich.mjs [--write]
+    [--groesse desktop,handy,quer] [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6]` ist der Bildvergleich des Umbaus
+    (`.scratch/umbau/`, Ticket 01; etwa 30 min: gemessen 27–33 min unter `leise.sh` mit 100 %, davon Desktop 16–20
+    min, Handy hochkant und quer je 5–7 min; mit `--groesse` und `--nur` kürzer): Er nimmt eine feste Liste von
+    Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in `tests/bildvergleich/referenz/` (66
+    JPEG, 5,8 MB). Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
+    Himmel je in einem Level vor und nach dem Lösen, die vier Übungen im Dorf mit Band, Lichtkegel und Hand, Prolog,
+    Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Je in drei Grössen: Desktop
+    1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1). Gleiche Bilder bei jedem Lauf:
+    `?t=12` (Zeit steht, Zufall fest, dazu `phasenZufall`), `?noadapt`, SwiftShader; was bei stehender Zeit nie fertig
+    oder still würde (Strahlen, Feier, CSS-Animationen, Uhr der Bühne, Hand im Dorf, Glühwürmchen der Reise), hält die
+    Prüfung nur in der Seite fest. Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
+    Farbkanal um mehr als 3 abweichen (`TOLERANZ`; ausgenommen nur ein Rechteck im Wasser von Handy quer, Meer 1, das
+    das Spiel nicht in jedem Lauf gleich zeichnet, `AUSNAHMEN`); bei Rot liegen Bild, Referenz und Differenzbild unter
+    `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
+    Referenzen neu, aber nur bei einer bewussten Änderung des Aussehens (im Umbau nie; auch nach einer neuen Fassung von
+    Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt
+    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Die Adresse des Spiels steht
+    an einer Stelle (`seite`).
   - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse` im Modul `src/hall.js`; Ticket 05 von
     `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
     (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),

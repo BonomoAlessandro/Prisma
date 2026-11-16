@@ -1351,6 +1351,10 @@ const FIXED_TIME = (() => {
   return v !== null && Number.isFinite(+v) ? +v : null;
 })();
 if (FIXED_TIME !== null) Math.random = mulberry32(1);
+// Phasen, mit denen Ziele und Filter atmen und Lichtblitze flackern: mit ?t= aus einer eigenen festen Folge
+// (Bildvergleich, Ticket 01 von .scratch/umbau/). Aus Math.random hingen sie davon ab, wie viel Laden und three (UUIDs)
+// davor gezogen hatten, und das hängt vom Zeitpunkt ab. Ohne ?t= wie bisher Math.random.
+const phasenZufall = FIXED_TIME !== null ? mulberry32(2) : () => Math.random();
 
 // ?spiegel=alle (Ticket 04 der Energie): Das Brett spiegelt in allen Welten wie bis energie-3 (spiegelHimmel, QUALITY)
 const SPIEGEL_ALLE = new URLSearchParams(location.search).get('spiegel') === 'alle';
@@ -10789,7 +10793,7 @@ function makeTarget(el) {
   root.userData.wrongMix = 0;
   root.userData.wrongColor = new THREE.Color();
   root.userData.flash = 0;      // kurzes Aufblitzen im Lösungsmoment (1 → 0)
-  root.userData.phase = Math.random() * Math.PI * 2;
+  root.userData.phase = phasenZufall() * Math.PI * 2;
   root.userData.update = (t, dt) => updateTarget(root, t, dt);
   return root;
 }
@@ -11066,7 +11070,7 @@ function makeFilter(el) {
 
   const u = root.userData;
   u.glow = 0;
-  u.phase = Math.random() * Math.PI * 2;
+  u.phase = phasenZufall() * Math.PI * 2;
   u.update = (t, dt) => {
     u.glow = easeToward(u.glow, activeColorOf(u) ? 1 : 0, dt);
     crystal.rotation.y = t * 0.3 + u.phase;
@@ -12168,7 +12172,7 @@ const beamView = {
       // Nicht in der Bodenspiegelung: Versatz und Sichtseite gelten für die Hauptkamera,
       // gespiegelt lägen die Blitze auf der falschen Seite des Spiegels.
       s.layers.set(LAYER_NO_REFLECT);
-      s.userData.phase = Math.random() * 10;
+      s.userData.phase = phasenZufall() * 10;
       s.userData.pop = 0;
       this.group.add(s);
       this.flares.push(s);
@@ -20624,8 +20628,9 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // Kopfzeile mit Titel oder Name und Grad (Bilder der KI-Tester, Proben im Würfel). loese(): das laufende Level lösen,
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
 // wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
-// (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData).
-window.__prismaDebug = { arbeit, fuehrung, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
+// (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData). beamView, shockUniforms,
+// STORY_LEVELS, COLORS: für den Bildvergleich (tests/bildvergleich.mjs), der nur über dieses Objekt in die Seite greift.
+window.__prismaDebug = { beamView, shockUniforms, STORY_LEVELS, COLORS, arbeit, fuehrung, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,
   settle(seconds) {
     if (FIXED_TIME === null) throw new Error('settle braucht ?t=');
     for (let k = 0; k < seconds / MAX_DT; k++) animate(FIXED_TIME, MAX_DT);
