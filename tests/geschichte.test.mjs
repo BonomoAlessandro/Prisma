@@ -11,7 +11,7 @@
 // Prüfung einen Verstoss findet, und an erfundenen Pools, dass die Wahl die Vielfalt vor die Bewertung stellt, über die
 // Grenzen der Welten anordnet, über den ganzen Grad die kleinsten Verschiebungen findet, ohne Wahl so wenige Verstösse
 // wie möglich lässt und mit Wahl über den ganzen Grad die kleinste Summe der Ränge findet (gegen alle Mengen). Seit
-// Ticket 04 die Wahl im Spiel: index.html enthält das Tutorial und genau die 240 mit ihrem Titel, in der Reihenfolge
+// Ticket 04 die Wahl im Spiel: src/logik.js hat das Tutorial und genau die 240 mit ihrem Titel, in der Reihenfolge
 // der Reihe (nicht umgeordnet), der Datenblock der Geschichte (STORY_LEVELS) die Reise aus wahl.json, alles übrige
 // liegt im Vorrat; geschichte.mjs spiel ändert danach nichts mehr und bringt an Kopien der Texte jedes Level dorthin,
 // wo es hingehört. Seit dem Einbau von Ticket 09 stehen die 23 gewählten Kandidaten im Spiel (über ordne-level.mjs
@@ -645,7 +645,7 @@ await test('waehleGrad über die Weltgrenzen mit mehr als 60 (Ticket 09): Gehen 
 
 console.log('Die Wahl im Spiel (Ticket 04)');
 const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
-await test('index.html enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
+await test('src/logik.js enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
   + 'der Reihenfolge der Reihe; die übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
   assert.equal(L.TUTORIAL_COUNT, 4); // seit Ticket 02 von .scratch/tutorial-neu/ vier Übungen
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => !l.tutorial).map(l => l.name), []);
@@ -664,7 +664,7 @@ await test('Der Datenblock der Geschichte (STORY_LEVELS) nennt je Grad die 6 Wel
   + 'jedes im Spiel mit seinem Grad; höchstens 120 Zeichen je Zeile', () => {
   const reise = reiseAus(DATEN);
   assert.deepEqual(L.STORY_LEVELS, reise);
-  assert.deepEqual(reiseImSpiel(readFileSync(new URL('../index.html', import.meta.url), 'utf8')), reise);
+  assert.deepEqual(reiseImSpiel(readFileSync(new URL('../src/logik.js', import.meta.url), 'utf8')), reise);
   const grad = new Map(IM_SPIEL.map(l => [l.name, l.grad]));
   for (const g of GRADE) {
     assert.deepEqual(reise[g].map(w => w.length), WELTEN.map(() => JE_WELT), g);

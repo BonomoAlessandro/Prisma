@@ -1,5 +1,5 @@
 // Tests des Vorrats und des gemeinsamen Laders (Spec .scratch/noa-geschichte/, «Daten» und «Tests»; Ticket 02):
-// Ablegen und Zurückholen sind verlustfrei (index.html und der Vorrat byte-gleich nach hin und zurück, auch in Teilen,
+// Ablegen und Zurückholen sind verlustfrei (src/logik.js und Vorrat byte-gleich nach hin und zurück, auch in Teilen,
 // in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level und mit CRLF im Vorrat), die Folge nach
 // dem Zurückholen (einfuegen) an erfundenen Fällen, das Format des Vorrats (der Block wie im Spiel, der Platz darüber,
 // Leveldaten wie im Spiel, Titel), die Auswahl nach Art und Grad und die Fehler; dazu der Lader auf dem Stand der
@@ -22,6 +22,7 @@ import {
   ARTEN, ablegen, auswahl, einfuegen, inGanzerFolge, inhalt, lese, leveldaten, mitAllen, namenImSpiel, zurueckholen,
 } from '../tools/vorrat.mjs';
 import { ALLE, VORRAT, alleText, ort } from '../tools/lader.mjs';
+import { ausText } from '../tools/seitenmodule.mjs';
 
 let passed = 0;
 function test(name, fn) {
@@ -30,7 +31,7 @@ function test(name, fn) {
 }
 process.on('exit', () => console.log(`\n${passed} Tests bestanden.`));
 
-// Die Texte, auf denen gerechnet wird: index.html und ein leerer Vorrat (die Dateien ohne ihre Level), damit die Tests
+// Die Texte, auf denen gerechnet wird: src/logik.js, ein leerer Vorrat (die Dateien ohne ihre Level), damit die Tests
 // nicht davon abhängen, was gerade im Vorrat liegt
 const DATEIEN = lese();
 const T = { spiel: mitAllen(DATEIEN), flach: null, wuerfel: null };
@@ -58,7 +59,8 @@ const WAHL = [FLACH[0], FLACH[1], FLACH[2], FLACH[100], FLACH[101], FLACH[102], 
 const A = ablegen(T, WAHL);
 
 console.log('Ablegen und Zurückholen');
-test('Hin und zurück: index.html und Vorrat byte-gleich (am Anfang, in der Mitte, am Ende, flach und im Würfel)', () => {
+test('Hin und zurück: src/logik.js und Vorrat byte-gleich (am Anfang, in der Mitte, am Ende, flach, im Würfel)',
+  () => {
   assert.deepEqual(A.abgelegt,
     { flach: WAHL.filter(x => FLACH.includes(x)), wuerfel: WAHL.filter(x => WUERFEL.includes(x)) });
   assert.deepEqual(namenImSpiel(A.spiel, 'flach'), FLACH.filter(x => !WAHL.includes(x)));
@@ -130,7 +132,7 @@ test('Alle flachen und alle Würfel-Level abgelegt (wie im Umbau) und zurück: b
   // nur ein Teil zurück, dann der Rest
   gleich(zurueckholen(zurueckholen(r, FLACH.filter((_, k) => k % 7 === 3)), null), 'in zwei Teilen');
 });
-test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, index.html gleich, byte-gleich zurück', () => {
+test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, src/logik.js gleich, byte-gleich zurück', () => {
   const lf = (s) => s.replaceAll('\r\n', '\n'), crlf = (s) => lf(s).replaceAll('\n', '\r\n');
   const mit = (f) => ({ ...T, flach: f(T.flach), wuerfel: f(T.wuerfel) });
   const [r, s] = [ablegen(mit(crlf), WAHL), ablegen(mit(lf), WAHL)];
@@ -144,7 +146,7 @@ test('Zeilenenden: ein Vorrat mit CRLF bleibt CRLF, mit LF bleibt LF, index.html
 
 console.log('Die ganze Folge ändern (inGanzerFolge, Ticket 08)');
 /**
- * Ändert die Blöcke einer Art in index.html (zwischen ihren Markierungen) wie ordne-level.mjs und ordne-wuerfel.mjs:
+ * Ändert die Blöcke einer Art in src/logik.js (zwischen ihren Markierungen) wie ordne-level.mjs und ordne-wuerfel.mjs:
  * f bekommt die Blöcke als Zeilenlisten und gibt die neuen zurück.
  */
 const bloeckeAendern = (art, f) => (html) => {
@@ -214,7 +216,7 @@ test('Je Level die Zeile mit seinem Platz, dann sein Block Zeile für Zeile wie 
     }
     assert.deepEqual(leveldaten(A[art], art), eintraege.map(e => spiel.find(l => l.name === e.name)),
       `${art}: Leveldaten`);
-    // die Datei bleibt JavaScript wie index.html
+    // die Datei bleibt JavaScript wie src/logik.js
     assert.equal(new Function(`${A[art]}\nreturn ${art === 'flach' ? 'VORRAT_FLACH' : 'VORRAT_WUERFEL'};`)().length,
       eintraege.length);
   }
@@ -275,9 +277,7 @@ test('Fehler: Tutorial, unbekannt, schon im Vorrat, nicht im Vorrat, im Spiel un
 
 console.log('Lader und Dateien');
 test('Lader: jedes Level aus Spiel und Vorrat genau einmal, wie nach dem Zurückholen aller, die im Spiel aus L', () => {
-  const h = alleText();
-  const voll = new Function(`${h.slice(h.indexOf('/* LOGIC:BEGIN'), h.indexOf('/* LOGIC:END'))}
-    return { LEVELS, TUTORIAL_COUNT, LEVELS_3D };`)();
+  const voll = ausText(alleText(), 'src/logik.js mit allen Leveln');
   assert.deepEqual(ALLE.LEVELS, voll.LEVELS);
   assert.deepEqual(ALLE.LEVELS_3D, voll.LEVELS_3D);
   assert.equal(ALLE.TUTORIAL_COUNT, L.TUTORIAL_COUNT);

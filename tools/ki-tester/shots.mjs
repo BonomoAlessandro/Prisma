@@ -12,18 +12,15 @@
 // Geschichte, vor der Milchstrasse wie bisher, ?sky=milky), Herauswachsen und Aufleuchten mit __prismaDebug.settle
 // vorspulen statt sie über 150 s Bild für Bild abzuwarten, zwei Bilder rendern lassen und aufnehmen. Gültig ist eine
 // Aufnahme erst, wenn eine zweite nach weiterem Vorspulen byte-gleich ist: Dann ist die Szene ruhig.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gedeckelt, deckelText } from '../deckel.mjs';
 import { startChrome, emulate, evaluate, sleep } from '../chrome.mjs';
 import { L } from '../solver.mjs';
+import { mitLogik } from '../seitenmodule.mjs';
+import { DIST, spielServer } from '../spielserver.mjs';
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-/** Die Seite der Aufnahmen: index.html, oder eine Kopie mit weiteren Leveln (Kandidaten, prepare.mjs). */
-export const seitenUrl = (datei = join(root, 'index.html')) => pathToFileURL(datei).href
-  + '?noadapt&nointro&t=12&sky=milky';
-const PAGE = seitenUrl();
+const QUERY = 'noadapt&nointro&t=12&sky=milky';
 export const VIEWS = [
   { name: 'desktop', width: 1440, height: 900, dpr: 1, phone: false },
   { name: 'handy', width: 390, height: 844, dpr: 2, phone: true },
@@ -79,11 +76,21 @@ const capture = async (send) => (await send('Page.captureScreenshot', { format: 
  * Nimmt die Level auf. shots: [{ index (in LEVELS, im Spiel mit den Würfel-Leveln ab CUBE_START), label (Kennung in
  * der Kopfzeile, null = wie im Spiel), file (Pfad ohne Endung), angles (wahlweise Blickwinkel je Bildschirm wie
  * CUBE_ANGLES) }]. Schreibt <file>-desktop.png und <file>-handy.png, mit angles je Blickwinkel (imageNames).
- * log(text) meldet den Fortschritt; page: die URL der Seite (seitenUrl), Vorgabe index.html. Rückgabe: Sekunden je
- * Bildschirm und Level.
+ * log(text) meldet den Fortschritt. Die Seite kommt über tools/spielserver.mjs (dist/, frisch gebaut); logik: wahlweise
+ * der Pfad einer anderen Spiellogik (src/logik.js mit weiteren Leveln, prepare.mjs), dann zeigt die Seite diese
+ * (mitLogik in tools/seitenmodule.mjs). Rückgabe: Sekunden je Bildschirm und Level.
  */
-export async function takeShots(shots, log = console.log, page = PAGE) {
+export async function takeShots(shots, log = console.log, logik = null) {
   requireQuiet();
+  const spiel = await spielServer(logik ? { seiten: { 'kandidaten.html': () => mitLogik(
+    readFileSync(join(DIST, 'index.html'), 'utf8'), readFileSync(logik, 'utf8')) } } : {});
+  try {
+    return await aufnehmen(shots, log, logik ? `${spiel.url('kandidaten.html')}?${QUERY}` : spiel.seite(QUERY));
+  } finally { await spiel.close(); }
+}
+
+/** takeShots mit der Adresse der Seite (page). */
+async function aufnehmen(shots, log, page) {
   const seconds = {};
   for (const view of VIEWS) {
     const { send, logs, close } = await startChrome(view);

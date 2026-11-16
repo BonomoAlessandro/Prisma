@@ -1,4 +1,7 @@
-// Testet die reine Spiellogik aus index.html (Bereich zwischen LOGIC:BEGIN und LOGIC:END).
+// Testet die reine Spiellogik (das Modul src/logik.js, bis Ticket 03 von .scratch/umbau/ der Bereich LOGIC in
+// index.html) und Teile der Seite. Was er aus der Seite liest, liest er aus index.html mit den eingesetzten Modulen
+// (setzeEin in tools/seitenmodule.mjs), also aus dem Code, der im Spiel läuft. Im Block «Module» prüft er die Form der
+// Module, die die Seite einsetzt.
 // Die Level, an denen sie die Strahlregel und den Löser prüft (Lösung, Eindeutigkeit, Würfel, Vergleiche), kommen aus
 // Spiel und Vorrat (ALLE im gemeinsamen Lader tools/lader.mjs, Spec .scratch/noa-geschichte/); das Tutorial aus dem
 // Spiel.
@@ -15,13 +18,11 @@ import { createHash } from 'node:crypto';
 import { inflateSync } from 'node:zlib';
 import { loadSkies, checkSkies, layerTypes, boardTypes, codeSkies, orphans, runCode } from '../tools/sky-schema.mjs';
 import { baue } from '../tools/spielserver.mjs';
+import { MARKE, setzeEin, zerlege } from '../tools/seitenmodule.mjs';
+import * as L from '../src/logik.js';
 
-const html = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
-const begin = html.indexOf('/* LOGIC:BEGIN');
-const end = html.indexOf('/* LOGIC:END');
-assert.ok(begin > 0 && end > begin, 'LOGIC-Marker nicht gefunden');
-const code = html.slice(begin, end);
-const L = new Function(code + '\nreturn { DIRS, COLORS, EDGE_RUN, MIRROR_HALF_WIDTH, COLOR_NAMES, MAX_BOUNCES, reflectOnMirror, mirrorFrontNormal, refractInPrism, dirToRotationY, createBoard, traceBeams, isRotatable, LEVELS, TUTORIAL_COUNT, LEVELS_3D, AXES, MIRROR_HALF_HEIGHT, planeDir, reflect3, refractInPrism3, mirrorFrontNormal3, pickTapped, mod8, SCHRITTE_MAX, SCHRITT_WEITER, SCHRITT_PLATZHALTER, NEBENBEI, geraeteText, schrittErfuellt, schrittGeste, strahlTrifft, schrittErlaubt, RUHE_NACH_MS, RUHE_MIN_FPS, RUHE_FPS, ruhetaktAus, ruhtJetzt, bildrate, bildrateGrund };')();
+const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
+const html = setzeEin(quelle); // die Seite mit den Modulen, wie im Spiel
 
 let passed = 0;
 function test(name, fn) {
@@ -1254,6 +1255,40 @@ console.log('Bildrate (Ruhe-Bildrate, ?ruhetakt)');
   });
 }
 
+console.log('Module (Ticket 03 von .scratch/umbau/)');
+{
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..');
+  const { parseAst } = await import('vite');
+  const marken = [...quelle.matchAll(MARKE)].map((m) => m[1]);
+  test('index.html: Marken für zufall, logik und hall in dieser Reihenfolge, keine Bereiche LOGIC, HALL mehr', () => {
+    assert.deepEqual(marken, ['src/zufall.js', 'src/logik.js', 'src/hall.js']);
+    assert.ok(!/LOGIC:BEGIN|LOGIC:END|HALL:BEGIN|HALL:END/.test(quelle), 'alte Bereiche');
+    assert.equal(quelle.split("'__HALL_WORKER__'").length, 2, 'Platzhalter des Workers nicht genau einmal');
+  });
+  for (const pfad of marken) {
+    test(`${pfad}: der export-Block nennt genau die Deklarationen auf oberster Ebene`, () => {
+      const text = readFileSync(join(root, pfad), 'utf8');
+      const deklariert = parseAst(text).body.flatMap((n) => (n.type === 'VariableDeclaration'
+        ? n.declarations.map((d) => d.id.name)
+        : ['FunctionDeclaration', 'ClassDeclaration'].includes(n.type) ? [n.id.name] : []));
+      assert.deepEqual([...zerlege(text, pfad).namen].sort(), deklariert.sort());
+    });
+  }
+  test('src/logik.js: der Import liefert dieselben Namen wie die Seite (export-Block)', () => {
+    const text = readFileSync(join(root, 'src/logik.js'), 'utf8');
+    assert.deepEqual(Object.keys(L).sort(), [...zerlege(text, 'logik').namen].sort());
+  });
+  test('zerlege: anderes import oder export, kein export-Block, Import, der nicht weiter oben steht: Fehler', () => {
+    assert.throws(() => zerlege('const a = 1;\nexport const b = 2;\nexport { a };\n', 'x'), /export const b/);
+    assert.throws(() => zerlege('const a = 1;\n', 'x'), /export-Block/);
+    assert.throws(() => zerlege("const a = 1;\nimport b from './b.js';\nexport { a };\n", 'x'), /import b/);
+    const lies = (p) => ({ 'src/a.js': 'const a = 1;\nexport { a };\n',
+      'src/b.js': "import { a } from './a.js';\nconst b = a;\nexport { b };\n" })[p];
+    assert.equal(setzeEin('/* MODUL src/a.js */\n/* MODUL src/b.js */\n', lies), 'const a = 1;\nconst b = a;\n');
+    assert.throws(() => setzeEin('/* MODUL src/b.js */\n/* MODUL src/a.js */\n', lies), /nicht weiter oben/);
+  });
+}
+
 console.log('Offline');
 {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -1306,14 +1341,36 @@ console.log('Offline');
       .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
     assert.deepEqual(anders, []);
   });
-  test('Build: index.html wie die Quelle bis auf vite-ignore, die Schrift unter assets/ und APP_VERSION', () => {
+  test('Build: index.html wie die Quelle mit den Modulen bis auf vite-ignore, die Schrift unter assets/, APP_VERSION '
+    + 'und den Pfad des Workers', () => {
     const schrift = [...refs].find((r) => /^assets\/jost-latin-[\w-]+\.woff2$/.test(r));
     assert.ok(schrift, 'Schrift Jost nicht unter assets/');
+    const worker = imBau().filter((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
+    assert.equal(worker.length, 1, 'Worker des Halls nicht genau einmal unter assets/');
     const erwartet = html.replaceAll(' vite-ignore>', ' >').replace('url(vendor/jost/jost-latin.woff2)', `url(./${schrift})`)
-      .replace("const APP_VERSION = '__APP_VERSION__';", `const APP_VERSION = '${version}';`);
+      .replace("const APP_VERSION = '__APP_VERSION__';", `const APP_VERSION = '${version}';`)
+      .replace("new Worker('__HALL_WORKER__',", `new Worker('${worker[0]}',`);
     const zeilen = (t) => t.replaceAll('\r\n', '\n');
     assert.ok(zeilen(distHtml) === zeilen(erwartet), 'index.html im Build weicht ab');
     assert.ok(!/vite-ignore/.test(distHtml) && !/<script type="module"/.test(distHtml), 'Build: Module oder vite-ignore übrig');
+  });
+  test('Build: der Worker des Halls, ein ES-Modul mit hallImpulse und mulberry32, unverkleinert, ohne import', () => {
+    const datei = imBau().find((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
+    const w = readFileSync(join(aus, datei), 'utf8');
+    assert.ok(swFiles.includes(datei), 'Worker nicht in FILES');
+    assert.ok(/function\* hallImpulse\(/.test(w) && /function mulberry32\(/.test(w), 'hallImpulse, mulberry32?');
+    assert.ok(w.includes('Math.pow(1 - i / len, 3.2)'), 'Formel des Halls verändert (verkleinert?)');
+    assert.ok(!/^\s*import\b/m.test(w), 'Worker lädt weitere Module');
+    // so ausgeführt, wie ihn die Seite benutzt: Abtastrate hin, [links, rechts] zurück, bitgleich (tests/hall.test.mjs)
+    const ctx = vm.createContext({ Float32Array, Math, close() { ctx.zu = true; } });
+    ctx.postMessage = (daten, uebertragen) => { ctx.antwort = { daten, uebertragen }; };
+    vm.runInContext(w, ctx);
+    ctx.onmessage({ data: 48000 });
+    const { daten, uebertragen } = ctx.antwort, h = createHash('sha256');
+    for (const d of daten) h.update(new Uint8Array(d.buffer));
+    assert.equal(h.digest('hex'), 'ba341507dc2e45d5cd5c13451af52e0266a4c566c0c6b4e15908557beab439dd');
+    assert.deepEqual(uebertragen, daten.map((d) => d.buffer));
+    assert.ok(ctx.zu, 'Worker schliesst sich nicht');
   });
   // Dev-Server (npm run dev): Version eingesetzt, kein Service Worker, vendor/ und backgrounds/ roh
   const { createServer } = await import('vite');
@@ -1321,7 +1378,7 @@ console.log('Offline');
     server: { port: 0, hmr: false } });
   await dev.listen();
   const devUrl = dev.resolvedUrls.local[0], holen = async (p) => (await fetch(devUrl + p)).text();
-  const devHtml = await holen(''), devSw = await holen('sw.js');
+  const devHtml = await holen(''), devSw = await holen('sw.js'), devWorker = await holen('src/hall-worker.ts');
   const roh = {};
   for (const f of ['vendor/three-0.147.0/three.min.js', 'backgrounds/skies.js']) {
     roh[f] = Buffer.from(await (await fetch(devUrl + f, { headers: { 'sec-fetch-dest': 'script' } })).arrayBuffer());
@@ -1333,6 +1390,14 @@ console.log('Offline');
     assert.ok(flag > 0 && reg > flag, 'PRISMA_DEV fehlt oder steht nach der Registrierung');
     assert.match(devHtml, /'serviceWorker' in navigator && !window\.PRISMA_DEV\)/);
     assert.ok(devSw.includes('unregister()') && !devSw.includes('FILES'), 'sw.js im Dev-Server ist nicht der, der sich abmeldet');
+  });
+  test('Dev-Server: Module eingesetzt, der Worker des Halls aus src/hall-worker.ts (von Vite übersetzt)', () => {
+    const z = (t) => t.replaceAll('\r\n', '\n');
+    for (const m of quelle.matchAll(MARKE)) {
+      assert.ok(z(devHtml).includes(z(zerlege(readFileSync(join(root, m[1]), 'utf8'), m[1]).code)), `${m[1]} fehlt`);
+    }
+    assert.ok(devHtml.includes("new Worker('src/hall-worker.ts', { type: 'module' })"), 'Pfad des Workers');
+    assert.ok(/^import .*hall\.js/m.test(devWorker) && !/: MessageEvent/.test(devWorker), 'Worker nicht übersetzt');
   });
   test('Dev-Server: vendor/ und backgrounds/ Byte für Byte wie die Quelle (ohne Source-Map)', () => {
     for (const [f, b] of Object.entries(roh)) assert.ok(b.equals(readFileSync(join(root, f))), f);

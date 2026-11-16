@@ -1,7 +1,7 @@
 // Feldform der Würfel-Level (Ticket 14, nur auf dem Branch feature/3d-wuerfel): dieselben Teile wie die flache Feldform
 // (feldform.mjs), für einen Würfel aus groesse × hoehe × groesse Zellen (Grundfläche groesse × groesse, hoehe Ebenen;
 // die Würfel-Level sind 7 × 7 × 5, .scratch/wuerfel-7x7x5/). Die Wirkung der Elemente kommt aus der
-// Strahlregel des Würfels in index.html (planeDir, reflect3, refractInPrism3; ADR 0003), es gibt keine eigene.
+// Strahlregel des Würfels in src/logik.js (planeDir, reflect3, refractInPrism3; ADR 0003), es gibt keine eigene.
 //
 // - Zelle: „x,y,z“ wie in der Lösung eines Würfel-Levels, y ist die Ebene (0 = unten). Die Zellen stehen Ebene für
 //   Ebene wie im Brett der Strahlregel, in der untersten also wie im flachen Feld.

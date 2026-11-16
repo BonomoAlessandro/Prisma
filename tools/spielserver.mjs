@@ -7,7 +7,8 @@
 //   Wurzelordner), datei (die Seite, Vorgabe index.html), bauen (Vorgabe true; mit PRISMA_OHNE_BAU=1 gilt das
 //   vorhandene dist/), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
-//   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern).
+//   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern), seiten (weitere
+//   Seiten nur im Speicher, { 'pfad.html': Text oder () => Text }, etwa das Spiel mit Kandidaten der KI-Tester).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
 // - PRISMA_SPIEL=<url>: statt eines eigenen Servers diese Adresse, etwa der Dev-Server (npm run dev,
 //   http://localhost:5173/) oder npm run preview; ordner und bauen gelten dann nicht.
@@ -39,18 +40,25 @@ export function baue(ausgabe = DIST) {
 export const seiteAus = (pfad) => ({ ordner: dirname(resolve(pfad)), datei: basename(pfad), bauen: false });
 
 /** Liefert das Spiel über http (siehe Kopf). */
-export async function spielServer({ ordner = DIST, datei = 'index.html', bauen = ordner === DIST, sw = false } = {}) {
+export async function spielServer({ ordner = DIST, datei = 'index.html', bauen = ordner === DIST, sw = false,
+  seiten = {} } = {}) {
   ordner = resolve(ordner);
   const fertig = (base, close) => ({ base, close,
     url: (pfad) => new URL(pfad, base).href,
     seite: (query = '') => new URL(datei, base).href + (query ? `?${query}` : '') });
+  if (process.env.PRISMA_SPIEL && Object.keys(seiten).length) throw new Error('PRISMA_SPIEL: ohne weitere Seiten');
   if (process.env.PRISMA_SPIEL) return fertig(new URL('./', process.env.PRISMA_SPIEL).href, async () => {});
   if (bauen && !process.env.PRISMA_OHNE_BAU) baue(ordner);
   if (!existsSync(join(ordner, datei))) throw new Error(`${join(ordner, datei)} fehlt (npm run build?)`);
   const server = createServer((req, res) => {
     let pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
     if (pfad.endsWith('/')) pfad += 'index.html';
-    const file = join(ordner, pfad);
+    const file = join(ordner, pfad), mehr = seiten[pfad.slice(1)];
+    if (Object.hasOwn(seiten, pfad.slice(1))) {
+      res.writeHead(200, { 'Content-Type': TYPES[extname(pfad)] || 'application/octet-stream' });
+      res.end(typeof mehr === 'function' ? mehr() : mehr);
+      return;
+    }
     if (!sw && pfad === '/sw.js') {
       res.writeHead(200, { 'Content-Type': 'text/javascript' });
       res.end('// leer (tools/spielserver.mjs): ohne Fetch-Handler fängt er nichts ab\n');

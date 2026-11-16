@@ -1,5 +1,5 @@
 // Gemeinsamer Lader der Level (Spec .scratch/noa-geschichte/, «Daten»; Ticket 02): Spiel und Vorrat zusammen. Die Level
-// im Spiel stehen in index.html (LEVELS und LEVELS_3D, über tools/solver.mjs), die übrigen im Vorrat (tools/vorrat/,
+// im Spiel stehen in src/logik.js (LEVELS, LEVELS_3D, über tools/solver.mjs), die übrigen im Vorrat (tools/vorrat/,
 // Werkzeug tools/vorrat.mjs). Wer alle Level braucht, liest ALLE: Strahlregel, Golden-Test, Beurteilung und ihre
 // Eichung, Ähnlichkeit, KI-Tester mit ihrem Protokoll, Levelliste und Würfelliste. So geht kein Level und kein Urteil
 // verloren, wenn ein Level im Vorrat statt im Spiel liegt. Wer nur das Spiel braucht (Anzeige, Fortschritt, Tutorial,
@@ -10,7 +10,7 @@
 //   Würfel), und die Regeln der Levelliste und der Würfelliste gelten weiter. Die Level im Spiel sind dieselben
 //   Objekte wie in L.
 // - VORRAT: { flach, wuerfel }, die Level des Vorrats in seiner Reihenfolge; ort(name): 'spiel', 'vorrat' oder null.
-// - alleText(): index.html mit allen Leveln des Vorrats an ihrem Platz, als Text (für Prüfungen am Kommentar eines
+// - alleText(): src/logik.js mit allen Leveln des Vorrats an ihrem Platz, als Text (für Prüfungen am Kommentar eines
 //   Levels und für Seiten mit allen Leveln, etwa die Bilder der KI-Tester).
 // Ein Name steht in Spiel und Vorrat zusammen höchstens einmal, sonst bricht der Lader ab.
 import { L } from './solver.mjs';
@@ -28,7 +28,7 @@ export const VORRAT = { flach: leveldaten(texte.flach, 'flach'), wuerfel: leveld
 function zusammen(art, spiel) {
   const imSpiel = namenImSpiel(texte.spiel, art), vor = spiel.length - imSpiel.length;
   if (vor < 0 || spiel.slice(vor).some((l, k) => l.name !== imSpiel[k])) {
-    throw new Error(`index.html: ${art === 'flach' ? 'LEVELS' : 'LEVELS_3D'} passt nicht zu den Leveln zwischen den `
+    throw new Error(`src/logik.js: ${art === 'flach' ? 'LEVELS' : 'LEVELS_3D'} passt nicht zu den Leveln zwischen den `
       + 'Markierungen');
   }
   const eintraege = inhalt(texte[art], art);
@@ -54,5 +54,5 @@ const imSpiel = new Set([...L.LEVELS, ...L.LEVELS_3D].map(l => l.name));
 export const ort = (name) => (imSpiel.has(name) ? 'spiel' : imVorrat.has(name) ? 'vorrat' : null);
 
 let text = null;
-/** index.html mit allen Leveln des Vorrats an ihrem Platz (siehe Kopf), einmal je Lauf gerechnet. */
+/** src/logik.js mit allen Leveln des Vorrats an ihrem Platz (siehe Kopf), einmal je Lauf gerechnet. */
 export const alleText = () => (text ??= mitAllen(texte));

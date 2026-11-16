@@ -945,6 +945,6 @@ test('Speicherstand von Noas Geschichte (Ticket 04): je Grad unter prisma.noa.*,
   }
   // die alten Schlüssel stehen im Spiel nirgends mehr als Text im Code (nur noch im Kommentar)
   const alt = ['prisma.solvedLevels', 'prisma.current', 'prisma.sky', 'prisma.signal', 'prisma.signal.seen'];
-  const spiel = html.slice(html.indexOf('/* LOGIC:END'));
+  const spiel = html; // seit Ticket 03 von .scratch/umbau/ ohne die Spiellogik (src/logik.js), wie früher ab LOGIC:END
   assert.deepEqual(alt.filter(k => new RegExp(`['\`]${k.replaceAll('.', '\\.')}['\`]`).test(spiel)), []);
 });
