@@ -81,10 +81,12 @@ ist (Ticket 10). Tickets 11 (Controller) und 12 (Steam) sind zurückgestellt. Da
 - **Automatisch geprüft, ohne den Nutzer.** Nach jedem Schritt müssen grün sein: der Bildvergleich (Ticket 01),
   `tests/golden.mjs` gegen die bestehende Referenz (kein `--write`), alle Node-Tests und die Proben. Danach prüft ein
   Reviewer-Agent den Diff. Erst dann geht es weiter.
-- **Der Nutzer spielt selbst nur an drei Meilensteinen** auf dem Handy:
-  1. nach Ticket 02 (das Spiel kommt erstmals aus `dist/`),
-  2. nach Ticket 07 (Level und Texte in Dateien, Übersetzungsschicht, auf Deutsch),
-  3. nach Ticket 08 (englische Fassung).
+- **Der Nutzer spielt selbst nur an zwei Meilensteinen** auf dem Handy:
+  1. nach Ticket 07 (das Spiel aus `dist/`, Level und Texte in Dateien, Übersetzungsschicht, auf Deutsch),
+  2. nach Ticket 08 (englische Fassung).
+
+  Den Test nach Ticket 02 lässt der Nutzer aus (16.11.2026): Die Tickets laufen ohne Halt weiter, sein erster Test
+  kommt nach Ticket 07 und deckt den nach 02 mit ab.
 - Schwere Läufe (Chrome, Proben) wie bisher über `tools/leise.sh`.
 
 ## Ablauf
@@ -92,13 +94,13 @@ ist (Ticket 10). Tickets 11 (Controller) und 12 (Steam) sind zurückgestellt. Da
 | # | Ticket | Meilenstein |
 |---|---|---|
 | 01 | Bildvergleich gegen die heutige `index.html` | |
-| 02 | Vite, npm und `dist/`; Prüfungen gegen den Build | 1 |
+| 02 | Vite, npm und `dist/`; Prüfungen gegen den Build | (ausgelassen) |
 | 03 | Spiellogik und markierte Bereiche als Module | |
 | 04 | Übriger Code in Module, TypeScript einführen | |
 | 05 | Speicherschicht | |
 | 06 | Level und Geschichte als Datendateien | |
-| 07 | Übersetzungsschicht, deutsche Texte, Sprachwahl | 2 |
-| 08 | Englische Fassung | 3 |
+| 07 | Übersetzungsschicht, deutsche Texte, Sprachwahl | 1 |
+| 08 | Englische Fassung | 2 |
 | 09 | Browser-Fassung auf GitHub Pages | |
 | 10 | Android mit Capacitor, bereit für den Play Store | eigenes Grilling vorher |
 | 11 | Controller-Steuerung | zurückgestellt |
