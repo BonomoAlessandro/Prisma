@@ -13,7 +13,10 @@ Funktionen dazu, nur Fehlerbehebungen (sonst gibt es ständig Konflikte in `inde
 ## Ziel
 
 Prisma erscheint im Google Play Store, auf Steam (Windows und Steam Deck) und weiter im Browser, alles aus **einem**
-Code. Dazu wird das Spiel so umgebaut, dass es sich mit wenig Aufwand verpacken, übersetzen und weiterentwickeln lässt.
+Code.
+
+**Umfang vorerst (Nutzer, 16.11.2026):** Nur bis zum Play Store, und dort bis zum Spiel, das **bereit** zum Hochladen
+ist (Ticket 10). Tickets 11 (Controller) und 12 (Steam) sind zurückgestellt. Dazu wird das Spiel so umgebaut, dass es sich mit wenig Aufwand verpacken, übersetzen und weiterentwickeln lässt.
 
 ## Ausgangslage
 
@@ -97,9 +100,9 @@ Code. Dazu wird das Spiel so umgebaut, dass es sich mit wenig Aufwand verpacken,
 | 07 | Übersetzungsschicht, deutsche Texte, Sprachwahl | 2 |
 | 08 | Englische Fassung | 3 |
 | 09 | Browser-Fassung auf GitHub Pages | |
-| 10 | Android mit Capacitor und Play Store | eigenes Grilling vorher |
-| 11 | Controller-Steuerung | eigenes Grilling vorher |
-| 12 | Steam mit Electron | eigenes Grilling vorher |
+| 10 | Android mit Capacitor, bereit für den Play Store | eigenes Grilling vorher |
+| 11 | Controller-Steuerung | zurückgestellt |
+| 12 | Steam mit Electron | zurückgestellt |
 
 Je Ticket ein Umsetzer, danach ein unabhängiges Review; Kleines behebt der Reviewer selbst. Der Merge nach `main`
 erfolgt nur auf das Go des Nutzers. Ob nach jedem Meilenstein oder erst am Ende gemergt wird, entscheidet der Nutzer

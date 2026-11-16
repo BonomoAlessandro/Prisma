@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage (vor Beginn ein eigenes Grilling)
+**Status:** needs-triage (zurückgestellt: der Nutzer lässt 11 und 12 am 16.11.2026 vorerst weg, zuerst nur der Play Store)
 
 **Blocked by:** 10
 
