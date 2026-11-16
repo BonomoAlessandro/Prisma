@@ -1,6 +1,6 @@
 # Spec: Umbau für die Stores
 
-Status: needs-triage (wartet auf das Go des Nutzers nach dem Merge von `feature/energie`)
+Status: ready-for-agent (Go des Nutzers 16.11.2026, `main` hineingeholt)
 
 PLAN 3a «Umbau für die Stores». Die Entscheide stammen aus dem Grilling vom 15.11.2026. Sie ändern den Weg in PLAN 4
 (Play Store) und legen PLAN 5 (Steam) fest. Die Weichen stehen in ADR 0011 (Web-Technik statt Engine), ADR 0012

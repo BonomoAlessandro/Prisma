@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** needs-triage
+**Status:** ready-for-agent
 
 **What to build:** Eine automatische Prüfung, die zeigt, dass das Spiel nach einem Schritt des Umbaus genau gleich
 aussieht. Sie läuft noch gegen die heutige `index.html` und hält deren Bilder als Referenz fest, **bevor** irgendetwas
