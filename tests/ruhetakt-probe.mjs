@@ -138,7 +138,7 @@ async function eingabe(punkt, ms) {
     msBisRuhe: ruheWieder ? Math.round(ruheWieder.t - m.eingabe) : null };
 }
 
-const ergebnis = { name, seite };
+const ergebnis = { name, seite: wert('--seite') ?? 'dist/' };
 try {
   if (handy) {
     await emulate(send, view);

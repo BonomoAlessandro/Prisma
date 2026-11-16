@@ -112,7 +112,7 @@ const LIES = `(() => {
   return JSON.stringify(out);
 })()`;
 
-const ergebnis = { name, seite, sky };
+const ergebnis = { name, seite: wert('--seite') ?? 'dist/', sky };
 try {
   if (handy) {
     await emulate(send, view);
