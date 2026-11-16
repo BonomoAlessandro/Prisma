@@ -184,3 +184,20 @@ des Spiegelziels werden auf einer Kachel-GPU also gespeichert. Bei 197 × 426 ve
 
 **Ergebnis:** keine mittleren oder grossen Funde. Bereit für den Test des Nutzers (offen wie oben: Eishöhle auf dem Poco
 ansehen, Akku messen).
+
+### Akkuvergleich auf dem Poco (16.11.2026)
+
+Strand (`?nointro&sky=beach`, Level 4 «Wasserfarbe»), Kamera schwebt, keine Eingabe, automatische Helligkeit aus
+(Helligkeit evtl. anders als am 15.11.). Vorlauf 15 min bis unter 99 %, dann A/B/A/B je 15 min. A wie `main`
+(`?ruhetakt=aus&spiegel=alle`), B energie-4 ohne Parameter. Strom aus dem Ladezähler zwischen erster und letzter Stufe.
+
+| Fassung | Bilder/s | Strom | Akku | Temperatur |
+|---|---|---|---|---|
+| A wie main | 60,8 | 1171 mA | 94 → 75 % | 28,0 → 34,6 °C |
+| B energie-4 | 30,4 | 521 mA | 75 → 66 % | 34,6 → 31,3 °C |
+| A wie main | 60,7 | 1150 mA | 65 → 47 % | 31,1 → 36,5 °C |
+| B energie-4 | 30,4 | 632 mA | 46 → 36 % | 36,6 → 33,9 °C |
+
+**Ergebnis:** B braucht etwa halb so viel Strom wie A (Mittel 577 gegen 1160 mA, −50 %), auch im Akkustand (9–10 %
+gegen 18–19 % je 15 min). Mit A wird das Handy wärmer, mit B kühlt es ab. Die absoluten Werte liegen höher als am 15.11.
+(Bergwald, andere Helligkeit); verglichen wird nur innerhalb dieses Laufs.
