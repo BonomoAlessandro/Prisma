@@ -8,7 +8,7 @@
 
 **What to build:** Alle Texte, die der Spieler sieht, kommen über eine Übersetzungsschicht aus einer JSON-Datei je
 Sprache. In diesem Ticket gibt es nur Deutsch, das Spiel sieht genau gleich aus. Dazu kommt die Sprachwahl, damit
-Ticket 08 nur noch eine Datei ergänzen muss. **Meilenstein 2:** Danach spielt der Nutzer auf dem Handy die deutsche
+Ticket 08 nur noch eine Datei ergänzen muss. **Meilenstein 1** (erster Handytest, der nach 02 entfällt): Danach spielt der Nutzer auf dem Handy die deutsche
 Fassung.
 
 - [ ] Modul mit `t('schluessel', { werte })`. Platzhalter wie heute («{Tippe}», «{Drücke lang}» je Gerät) und Werte

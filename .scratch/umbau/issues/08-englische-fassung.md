@@ -7,7 +7,7 @@
 **Blocked by:** 07
 
 **What to build:** Prisma gibt es auch auf Englisch. Claude schreibt alle englischen Texte, der Nutzer prüft sie im
-Spiel. **Meilenstein 3:** Danach spielt der Nutzer auf dem Handy die englische Fassung.
+Spiel. **Meilenstein 2:** Danach spielt der Nutzer auf dem Handy die englische Fassung.
 
 - [ ] `en.json` mit allen Schlüsseln. Die Geschichte im Ton «Vorgelesen» wie im Deutschen (PLAN 1a.2): warm, mit
       kleinen Einzelheiten aus dem Bild, ohne die Muster, die dort als «zu stark nach KI» galten (Gedankenstriche,
