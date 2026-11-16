@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent
+**Status:** done (Schalter gemessen und vom Nutzer beurteilt; `?spar` in Ticket 04 durch die Spiegelung je Welt ersetzt)
 
 **What to build:** Spiegelung des Bodens, Bloom und Pinsel machten im Level auf dem Poco zusammen etwa ein Drittel
 des Stroms aus (Spec, Messung am Morgen: ≈ 3,6 W gegen ≈ 2,2 W ohne die drei). Der Nutzer will sparen, **ohne dass

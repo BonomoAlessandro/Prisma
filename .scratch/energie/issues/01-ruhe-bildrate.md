@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-human (umgesetzt und reviewt; wartet auf den Test des Nutzers auf dem Poco und den Akku-Vergleich)
+**Status:** ready-for-human (vom Nutzer auf dem Poco getestet, 16.11.2026: alles gut; wartet auf den Merge nach `main`)
 
 **What to build:** Im Level zeichnet das Spiel heute stetig 60 Bilder/s, auch wenn der Spieler nur überlegt (ADR 0008).
 Neu senkt es in **Ruhe** die Bildrate, etwa auf 30, und kehrt bei jeder Eingabe oder Animation **sofort** auf 60
