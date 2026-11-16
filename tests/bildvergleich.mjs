@@ -36,9 +36,8 @@
 //   oder --groesse nur diese. Ohne --write: vergleichen; Rückgabe 1 bei einem roten Bild, einer fehlenden Referenz
 //   oder einem Fehler im Ablauf bzw. in der Konsole. --diag: je Bild den Zustand ausgeben (Kamera, Uhren, Ziele,
 //   Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht.
-// Aus der Seite gelesen: window.__prisma, __prismaDebug und die globalen Namen beamView, STORY_LEVELS, COLORS (mit
-// --diag dazu shockUniforms). Wandern sie in Module (Tickets 03 und 04), müssen sie über __prismaDebug erreichbar
-// bleiben.
+// Aus der Seite gelesen nur window.__prisma und __prismaDebug (darin auch beamView, STORY_LEVELS, COLORS, mit --diag
+// shockUniforms), keine globalen Namen: Wandert Code in Module (Tickets 03 und 04), muss nur __prismaDebug bleiben.
 // Laufzeit siehe README (Abschnitt Tests).
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -137,7 +136,7 @@ async function laden(query, stand = {}) {
   await s.ev(`localStorage.clear(); ${setzen} window.__vorher = true`);
   await s.send('Page.navigate', { url });
   await until('!window.__vorher && window.__prisma?.ticks > 2', 'Seite geladen');
-  await s.ev(`(() => { const u = beamView.update; beamView.update = function (r, i, d) {
+  await s.ev(`(() => { const b = ${D}.beamView, u = b.update; b.update = function (r, i, d) {
     const t = this.time; this.time = 0; try { return u.call(this, r, i, d); } finally { this.time = t; } };
     return true; })()`);
   await s.ev('document.fonts.ready.then(() => true)');
@@ -166,7 +165,7 @@ const BILDER = (n) => `new Promise((r) => { ${D}.sceneLoop.wake(true); let k = $
 /** --diag: der Zustand beim Bild (Kamera, Uhren, Ziele, Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht */
 const ZUSTAND = `(() => { const D = ${D}, c = D.camera, r = (v) => +(+v || 0).toFixed(6);
   return JSON.stringify({ kamera: [...c.position.toArray(), ...c.quaternion.toArray(), c.fov, c.zoom].map(r),
-    welle: r(shockUniforms.uShockT.value), himmel: D.skyTheme.current, aufl: [D.adaptiveResolution.scale,
+    welle: r(D.shockUniforms.uShockT.value), himmel: D.skyTheme.current, aufl: [D.adaptiveResolution.scale,
       D.renderer.getPixelRatio()], ruhe: D.sceneLoop.pending(), regen: D.celebration.rain?.alive ?? null,
     objekte: [...D.game.objects.values()].map((o) => { const u = o.userData;
       return [u.hit, u.wrong, u.flash, u.pulseT, u.hover, o.scale.x, o.position.y].map(r); }),
@@ -218,7 +217,7 @@ async function aufnehmen(name, vorspulen) {
 const elementeImBild = new Set();
 const merkeElemente = async () => {
   for (const t of await s.ev(`[...new Set(${D}.game.board.elements.map((e) => e.type === 'source'
-    ? 'source:' + (e.color === COLORS.white ? 'weiss' : 'farbig') : e.type))]`)) elementeImBild.add(t);
+    ? 'source:' + (e.color === ${D}.COLORS.white ? 'weiss' : 'farbig') : e.type))]`)) elementeImBild.add(t);
 };
 
 /** Warten wie until; hält das Licht dabei über dem Untertitel an (Ankunft in einer Welt), tippen wie ein Spieler. */
@@ -408,7 +407,7 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
     // die Reise des Grads (Level je Welt) aus dem Spiel, für die Stände
     await s.send('Page.navigate', { url: seite(`${BASIS}&nointro`) });
     await until('window.__prisma?.ticks > 2', 'Spiel startet');
-    s.reise = await s.ev(`STORY_LEVELS[${JSON.stringify(GRAD)}]`);
+    s.reise = await s.ev(`${D}.STORY_LEVELS[${JSON.stringify(GRAD)}]`);
     for (const a of ABLAEUFE.filter((x) => !nurAnsichten || nurAnsichten.includes(x.name))) {
       const vorher = s.logs.length;
       try {
