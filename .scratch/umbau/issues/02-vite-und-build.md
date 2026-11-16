@@ -150,3 +150,66 @@ Stand `1b5acae`/`c9b0c30`. Die Zeiten der Proben enthalten das Warten an der Spe
 - Bildvergleich gegen `dist/`: offen, wartet auf Ticket 01.
 
 ## Comments
+
+### Review (16.11.2026, unabhängiger Reviewer)
+
+**Ergebnis:** Ticket erfüllt (ausser dem Bildvergleich, der auf 01 wartet). Ein kleiner Fund selbst behoben, keine
+mittleren oder grossen Funde. Merge ohne Konflikt mit dem neueren `feature/umbau` (3fe610f, Ziel/Spec): Der Diff
+`feature/umbau..ticket/umbau-02` zeigt in `spec.md` und den Tickets 10–12 nur scheinbar Rückschritte (zweipunktig);
+`git merge-tree` geht sauber durch, der Branch ändert dort nichts.
+
+**Geprüft gegen den Code (jede Checkbox):**
+- `package.json`: Vite 8.3.8 fest, einzige Abhängigkeit, Lockfile im Repo; Skripte `dev`, `build`, `preview`, `test`,
+  `test:bild` (Datei kommt mit 01). `dist/` in `.gitignore`.
+- `vite.config.mjs`: `base: './'`, `publicDir: false`, `cssMinify: false`. Gebaute `index.html` gegen die Quelle
+  verglichen: einzige Unterschiede `vite-ignore` (entfernt), Schrift `./assets/jost-latin-<hash>.woff2`, Version; kein
+  Modul-Skript, kein Preload, Inline-Skripte unverändert. Statische Dateien Byte für Byte (Test). `FILES`/`LAZY` im
+  gebauten `sw.js` gegen die alte Handliste plus Register geprüft: dieselben 21 + 9 Dateien, nur
+  `vendor/jost/jost-latin.woff2` ist jetzt `assets/jost-latin-<hash>.woff2`; Lizenztexte liegen bei, stehen in keiner
+  Liste. `mitVersion` verlangt den Platzhalter genau einmal.
+- Service Worker: neue Version → neues `sw.js` (Version, Hash-Namen, `SKIES`) → Installation holt alle `FILES` frisch;
+  Aktivieren löscht alles, was keine Liste kennt, also auch alte Hash-Dateien unter `assets/` (kein Wachstum).
+  `pack.mjs` findet `const SKIES = '…';` weiter. Unterpfad: `offline.mjs` in einer Kopie mit dem Spiel unter `/Prisma/`
+  (Server liefert nur dort) bestanden, 36 Prüfungen (Manifest `start_url`/`scope` sind relativ).
+- Dev-Server: eigene Probe im Browser: Build über `localhost:<p>` mit echtem `sw.js`, Service Worker übernimmt,
+  Speicher `prisma-v1` da; dann der Dev-Server auf derselben Adresse: Seite kommt vom Dev-Server (`PRISMA_DEV`), der
+  alte Service Worker meldet sich ab, `prisma-*` geleert, nach Neuladen ohne Service Worker und ohne neue
+  Registrierung, Version eingesetzt. Bestanden.
+- `tools/spielserver.mjs`: Pfadschutz, leerer Service Worker, `PRISMA_OHNE_BAU`, `PRISMA_SPIEL`, `seiteAus` (auch mit
+  `--seite`/`--vorher` gelaufen, siehe unten). `--seite` löst wie früher relativ zum Arbeitsordner auf (start, leerlauf,
+  ruhetakt), `buehne-messung` und `spiegel-probe` relativ zum Wurzelordner, wie vorher.
+- Werkzeuge: `ordne-level`, `ordne-wuerfel`, `geschichte`, `leveldaten`, `vorrat`, `ki-tester/*` schreiben/lesen nur
+  markierte Bereiche; die Änderungen an `index.html` (Kopf, Skript-Tags, Platzhalter) liegen ausserhalb. Ihre
+  Hin-und-zurück-Tests in `npm test` grün. KI-Tester über file:// zeigen den Platzhalter statt der Version (bekannt,
+  Notiz der Umsetzung).
+- README: Starten, Bauen, Handy, Version, Offline, Tests stimmen mit dem Code.
+
+**Selbst behoben** (7fd7176, `fix(umbau): sw.js nimmt auch unbekannte Dateien unter assets/ in den Speicher wie
+vendor/`): `cacheKey` liess Dateien unter `assets/`, die keine Liste kennt, am Service Worker vorbei. Holt eine neuere
+`index.html` (vom Netz, im Speicher nachgeführt) unter dem noch laufenden alten Service Worker eine Datei mit neuem
+Hash, fehlte diese offline, bis der neue Service Worker installiert ist (heute nur die Schrift, ab Ticket 03 das ganze
+Skript). Jetzt zählt `assets/` mit wie `vendor/`; alte Hash-Namen räumt das nächste Aktivieren weg (anders als
+`vendor/`). Neuer Test in `logic.test.mjs` (`cacheKey`/`fixed`).
+
+**Läufe** (alle über `leise.sh`, `LEISE_VORRANG=2`, Browser nacheinander):
+- `npm test`: alle zehn grün (golden 5 s ohne `--write`, logic 51 s mit 2069 Tests, geschichte 480 s, …).
+- `offline.mjs`: 4 von 5 Läufen bestanden, `--redirect` bestanden, Unterpfad `/Prisma/` bestanden, Unterpfad mit
+  Weiterleitung einmal gescheitert. Beide Fehlschläge: «Zeitüberschreitung: online icecave bereit». Gemessen mit
+  Versuchszähler (Grenze 400 × 200 ms): Eishöhle neu 356 und 382, auf dem alten Stand (`feature/umbau`, Server aus dem
+  Wurzelordner) 358; die alten Läufe bestanden, gleiche Grössenordnung. Keine Verschlechterung, die Grenze ist schon
+  heute knapp (SwiftShader); Vorschlag für später: Grenze der Eishöhle anheben.
+- `spiegel-probe pruefe`: OK. `spiegel-probe bilder --handy --vorher <index.html von feature/umbau>`: Wald identisch,
+  Strand 0,3 % der Pixel, mittlere Änderung 0,056 (Wasser), OK.
+- `start-probe --seite`, `leerlauf-probe --seite`, `ruhetakt-probe --seite`, `buehne-messung --seite` (je mit der
+  `index.html` von `feature/umbau`, ungebaut über `seiteAus`): alle OK, Konsole leer.
+- `geschichte-probe --handy` (alle Grade), `--quer --grad leicht`, `--menue`, `--ganz --vorher
+  .scratch/kleiner-wagen/vorher/desktop.json`, `--dorf-raender`: bestanden, Konsole ohne Fehler.
+- `geschichte-probe --uebersicht`: rot mit je einer Lücke von 125 ms («Spiel → Übersicht», «letztes Level →
+  Übersicht»): bekannt rot (einzelne Lücken 120–230 ms, `.scratch/energie/spec.md`), nicht diesem Ticket anzulasten.
+
+**Mittlere/grosse Funde:** keine.
+
+**Hinweise ohne Handlungsbedarf:** Bei Geräten mit dem alten Service Worker bleibt `vendor/jost/jost-latin.woff2`
+(26 kB) im Speicher, bis `CACHE` hochgezählt wird (Regel für `vendor/`, wie bisher). Der Kommentar zu `writeRegistry`
+in `tools/blender/pack.mjs` spricht noch von `importScripts`; `SKIES` bleibt trotzdem nötig, wenn nur Brett-Angaben
+ändern.
