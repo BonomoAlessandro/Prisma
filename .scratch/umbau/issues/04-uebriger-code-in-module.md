@@ -24,6 +24,9 @@ und Aussehen bleiben genau gleich.
 - [ ] `window.__prismaDebug` und alle Schalter in der URL (`?noadapt`, `?nointro`, `?sky=`, `?t=`, `?perf`, `?takt=`
       …) funktionieren weiter, die Proben brauchen sie.
 - [ ] README: Aufbau des Codes kurz beschreiben (welcher Teil wo liegt).
+- [ ] Die KI-Tester (`tools/ki-tester/shots.mjs`, `prepare.mjs`) öffnen das Spiel über `tools/spielserver.mjs` statt
+      über file://; mit Modulen geht file:// nicht mehr (offen aus Ticket 02).
+- [ ] Kleinigkeit aus Review 02: Kommentar zu `writeRegistry` in `tools/blender/pack.mjs` nennt noch `importScripts`.
 
 ## Hinweise
 

@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt bis auf Bildvergleich, wartet auf 01)
+**Status:** done (Review 16.11.2026; der Bildvergleich gegen `dist/` wandert in Ticket 13)
 
 **Blocked by:** 01
 

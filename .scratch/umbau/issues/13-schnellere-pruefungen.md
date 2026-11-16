@@ -9,6 +9,8 @@
 **What to build:** Die Prüfungen nach jedem Schritt dauern zu lange (16.11.2026: drei Agenten standen stundenlang an der
 Sperre von `tools/leise.sh`). Der Nutzer hat entschieden (16.11.2026), sie zu beschleunigen, **ohne weniger zu prüfen**:
 
+- [ ] Zuerst den Rest von Ticket 02: `tests/bildvergleich.mjs` holt das Spiel über `tools/spielserver.mjs` (siehe
+      Ticket 02, «Für den Bildvergleich»), läuft so gegen `dist/` und ist dort grün (ohne `--write`).
 - [ ] `tools/leise.sh` kennt zwei Arten von Läufen:
       - **leicht** (`LEISE_ART=leicht`): Läufe ohne Messung von Zeiten (Bildvergleich, Golden, Node-Tests, `brett-probe`,
         `offline.mjs`, `screenshot`, Werkzeuge). Bis zu `LEISE_LEICHT_MAX` (Standard 4) gleichzeitig.
