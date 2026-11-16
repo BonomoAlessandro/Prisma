@@ -144,10 +144,85 @@ Block, Kristall (Kombinator und Block in Sterne 1 und im Dorf).
 
 - Die Linie im Wasser (Handy quer, Meer 1) zeichnet das Spiel selbst nicht in jedem Lauf gleich; ob das auch im echten
   Spiel vorkommt, ist offen (die Ausnahme verdeckt nur sie).
-- Die Prüfung liest globale Namen der Seite (`beamView`, `STORY_LEVELS`, `COLORS`, mit `--diag` `shockUniforms`) und
-  Felder der Geschichte (`story.carrier`, `story.scene`). Ticket 03/04 muss sie über `__prismaDebug` erreichbar halten.
+- Die Prüfung greift nur über `window.__prisma` und `__prismaDebug` in die Seite (seit dem Review stehen dort auch
+  `beamView`, `shockUniforms`, `STORY_LEVELS`, `COLORS`), dazu Felder der Geschichte (`story.carrier`, `story.scene`).
+  Ticket 03/04 muss `__prismaDebug` mit diesen Namen erhalten.
 - Bei einer neuen Fassung von Chrome (SwiftShader, JPEG-Kodierer) kann der Vergleich überall rot werden, ohne dass sich
   das Spiel geändert hat. Dann die Referenzen auf dem alten Stand des Spiels mit `--write` neu schreiben, nie mitten in
   einem Schritt des Umbaus.
 
 ## Comments
+
+### Review (16.11.2026, unabhängiger Reviewer)
+
+**Ergebnis: bestanden**, mit einem kleinen Fund selbst behoben (`d1daca4`) und drei mittleren Hinweisen für spätere
+Tickets. Der Bildvergleich deckt, was das Ticket verlangt, ist scharf genug und in meinen Läufen völlig ruhig.
+
+**Läufe** (alle über `tools/leise.sh`, `LEISE_MAX_CPU=100 LEISE_CPU=100 LEISE_VORRANG=1`, Browserläufe nacheinander):
+
+- Bildvergleich ganz, Lauf 1 (mit `d1daca4`; nebenher lief versehentlich `geschichte.test.mjs` ohne `leise.sh`, also
+  unter Last): **grün**, 30 min 20 s; 64 Bilder Abweichung 0, `quer-welt-2-*` höchstens 2 (Linie im Rechteck).
+- Bildvergleich ganz, Lauf 2: **grün**, 28 min 55 s; alle 66 Bilder Abweichung 0 (diesmal ohne Linie).
+- Absichtliche Änderungen an anderen Stellen als in der Umsetzung (je danach `git checkout`, Datei mit `cmp`
+  byte-gleich, `git diff` leer):
+  - Vulkan, Farbe des Basaltbretts (`tint` in `backgrounds/skies.js`) um 2 % heller, `--groesse handy --nur welt-3-4`:
+    **rot** in `handy-welt-4-vor`/`-nach` (0,94 % bzw. 0,96 % der Pixel, bis 13), Wüste, Menü, Übersicht grün.
+  - Meer, Wasser des Bretts (`water` des Strands) um nur 1 %, `--groesse quer --nur welt-1-2` (die Grösse mit der
+    Ausnahme): **rot** in `quer-welt-2-vor`/`-nach` (0,99 % bzw. 1,12 %, bis 12), Bergwald und Reise grün. Die
+    Ausnahme verdeckt eine Änderung am Brett also nicht.
+- Node: `golden.mjs` (842 Level), `logic.test.mjs` (2063), `beurteilung`, `geschichte` (35), `hall` (6), `ki-tester`
+  (84), `levelliste` (54), `vorrat` (18), `wuerfelliste` (20) grün; `generator.test.mjs` über `leise.sh` grün (31).
+- Proben (`GPU=1`): `brett-probe` 2× auf dem Branch: einmal 1 Fehler (`moss → stone`: 1 Pixel Lücke im Kernquader),
+  einmal grün; auf `a2a47e3` grün. `geschichte-probe --dorf` auf dem Branch 4× rot, auf `a2a47e3` 3×: 1× grün, 2× rot,
+  immer dieselbe Art Fehler: eine einzelne Lücke über 100 ms (126–428 ms) im Bildtakt, meist «Sehr schwer: Übersicht →
+  Übung 3 wiederholen → Übung 4», an wechselnden Stellen. Die Proben laufen ohne `?t=`, dort ist `phasenZufall` genau
+  `Math.random()`; der Diff ändert für sie sonst nichts. **Keine Verschlechterung**, die Basis zeigt dieselben Fehler
+  (Bildtakt dieses Rechners, nicht des Spiels).
+
+**Geprüft:**
+
+- *Abdeckung:* Alle Ansichten des Tickets da, je drei Grössen; jedes Element prüft der Lauf (`elementeImBild`).
+  Abweichungen vertretbar: Eine Seite «Einstellungen» gibt es nicht (Knöpfe stehen in jedem Level, «Ton aus» in
+  `welt-6-nach`); Epilog über `story.ending()` ohne Finale (das Finale ist eine Fahrt, kein Standbild); DPR 1 siehe
+  unten.
+- *Schärfe:* Toleranz 3/255 je Kanal und 0,01 % ist knapp genug: In meinen zwei Läufen lag das Rauschen bei 0
+  (ausserhalb des Rechtecks höchstens 2), eine Farbänderung um 1–2 % ergibt ~1 % abweichende Pixel, also rund das
+  Hundertfache der Grenze. JPEG gegen JPEG verdeckt nichts Sichtbares: Chrome kodiert dasselbe Bild byte-gleich; was
+  JPEG Q90 schluckt, liegt unter der Pixelgrenze von 3. Die Ausnahme (`quer-welt-2-*`, 144 × 48 am linken Rand im
+  Wasser, 2,1 %) ist gerechtfertigt und eng genug; Brett und Elemente liegen ausserhalb. Ihre Ursache bleibt offen.
+- *Verfälscht er das Spiel?* `phasenZufall` ist ohne `?t=` ein Aufruf von `Math.random()` an derselben Stelle zur
+  selben Zeit, auch in `vorwaermElemente` (dort wird `Math.random` vorübergehend auf 0,5 gesetzt, `phasenZufall` ruft
+  es zur Laufzeit auf und bekommt wie vorher 0,5). Übrige `Math.random` im Spiel nur im Ton und für eine Kennung der
+  Übersicht, nichts Sichtbares. Alle Eingriffe des Tests (`beamView.update`, `carrier.update`, `einfrieren`,
+  `clearTimeout(handUhr)`, Animationen) geschehen nur in der Prüfseite.
+- *Für Ticket 02:* Adresse nur in `seite()`; der Stand wird über `favicon.svg` desselben Ursprungs gesetzt, das Ticket
+  02 ohnehin nach `dist/` mitnehmen muss.
+- README und Ticket stimmen mit dem Code (Aufruf, Ansichten, Toleranz, Ausnahme, `--diag`, Laufzeit; meine Läufe 29–30
+  min liegen in der angegebenen Spanne).
+
+**Selbst behoben** (`d1daca4`, *test(umbau-01): Bildvergleich greift nur über __prismaDebug in die Seite (Review Umbau
+01)*): Der Test las die globalen Namen `beamView`, `STORY_LEVELS`, `COLORS` und mit `--diag` `shockUniforms`; nach
+Ticket 03/04 (Module) gäbe es sie nicht mehr, und der Test bräche genau dann, wenn er am meisten gebraucht wird.
+`__prismaDebug` führt sie jetzt (eine Zeile in `index.html`, ohne Wirkung aufs Spiel), der Test liest nur noch über
+`__prismaDebug`. Beide ganzen Läufe oben liefen mit diesem Stand. Die Notiz unter «Offen» ist nachgeführt.
+
+**Mittlere Hinweise (nicht behoben):**
+
+1. **Der Weg der echten Handys fehlt.** Alle Bilder mit DPR 1 und iPhone-Kennung. Damit laufen nie: der Massstab der
+   Seite `SEITE` (nur Chrome auf Android mit DPR > 2, das Poco hat 2,75; ein früh laufendes Inline-Skript, das beim
+   Lösen in Module leicht später oder anders läuft) und das Pixelverhältnis 2 des Renderers auf Handys
+   (`Math.min(devicePixelRatio, IS_MOBILE ? 2 : 1)`). Ein Fehler dort bliebe grün. Vorschlag: eine vierte Grösse
+   «poco» (Android-Chrome-Kennung, z. B. 393 × 873, DPR 2,75) mit wenigen Ansichten (`start`, `dorf`, `welt-1-2`),
+   Laufzeit grob +10 min. Entscheid für Ticket 02 (dort ohnehin der erste Handytest nach dem Umbau, Meilenstein 1).
+2. **Sprache.** Ticket 07 wählt die Sprache nach dem Gerät (Deutsch nur bei Deutsch). Headless-Chrome meldet die
+   Sprache des Rechners bzw. `en-US`; ab Ticket 07 kann der Vergleich darum überall auf Englisch und rot werden. Der
+   Test muss dann Deutsch festlegen (`--lang=de-CH` beim Start, `Emulation.setLocaleOverride` oder ein Parameter
+   `?lang=de`). Für Ticket 07 vormerken.
+3. **«Proben grün» ist auf diesem Rechner nicht verlässlich erreichbar.** `geschichte-probe --dorf` meldet schon auf
+   `a2a47e3` in 2 von 3 Läufen eine Lücke über 100 ms, `brett-probe` gelegentlich 1 Pixel. Die Spec verlangt nach
+   jedem Schritt grüne Proben; für die Tickets 02 ff. braucht es eine Regel (z. B. bei Fehlern im Bildtakt Vergleich
+   mit der Basis oder Wiederholen), sonst hält jeder Reviewer daran an.
+
+**Kleinigkeiten, bewusst gelassen:** `istRot` rechnet den Anteil auf alle Pixel samt Ausnahme (Grenze dort 33 statt
+32 Pixel); `--groesse`/`--nur` ohne Wert bricht mit einer Ausnahme statt einer Meldung ab; `--write` mit Fehler in
+einem Ablauf schreibt die übrigen Referenzen trotzdem (gibt aber 1 zurück).
