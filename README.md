@@ -45,8 +45,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1). Gleiche Bilder bei jedem Lauf:
     `?t=12` (Zeit steht, Zufall fest, dazu `phasenZufall`), `?noadapt`, SwiftShader; was bei stehender Zeit nie fertig
     oder still würde (Strahlen, Feier, CSS-Animationen, Uhr der Bühne, Hand im Dorf, Glühwürmchen der Reise), hält die
-    Prüfung nur in der Seite fest. Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,05 % der Pixel in einem
-    Farbkanal um mehr als 3 abweichen (`TOLERANZ`); bei Rot liegen Bild, Referenz und Differenzbild unter
+    Prüfung nur in der Seite fest. Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
+    Farbkanal um mehr als 3 abweichen (`TOLERANZ`; ausgenommen nur ein Rechteck im Wasser von Handy quer, Meer 1, das
+    das Spiel nicht in jedem Lauf gleich zeichnet, `AUSNAHMEN`); bei Rot liegen Bild, Referenz und Differenzbild unter
     `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
     Referenzen neu, aber nur bei einer bewussten Änderung des Aussehens (im Umbau nie; auch nach einer neuen Fassung von
     Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt

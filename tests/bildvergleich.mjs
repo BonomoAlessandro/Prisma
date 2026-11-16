@@ -26,9 +26,9 @@
 // Vergleich (vergleiche): Bilder und Referenzen sind JPEG (Qualität JPEG_QUALITAET, von Chrome selbst kodiert), damit
 // das Repo klein bleibt; als PNG wären es rund sechsmal so viele Bytes. Dasselbe Bild ergibt dasselbe JPEG, eine
 // Änderung ändert das JPEG an ihrer Stelle. Je Pixel zählt die grösste Abweichung eines Farbkanals (0–255); rot ist ein
-// Bild, wenn mehr als TOLERANZ.anteil seiner Pixel um mehr als TOLERANZ.pixel abweichen. Dekodiert und gerechnet wird
-// in einem zweiten Chrome (keine Pakete in Node). Bei Rot liegen Bild, Referenz und Differenzbild (abweichende Pixel
-// rot über dem grau gedämpften Bild) unter tests/output/bildvergleich/.
+// Bild, wenn mehr als TOLERANZ.anteil seiner Pixel um mehr als TOLERANZ.pixel abweichen; Rechtecke in AUSNAHMEN zählen
+// nicht. Dekodiert und gerechnet wird in einem zweiten Chrome (keine Pakete in Node). Bei Rot liegen Bild, Referenz und
+// Differenzbild (abweichende Pixel rot über dem grau gedämpften Bild, Ausnahmen blau) unter tests/output/bildvergleich/.
 //
 // Aufruf: LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node tests/bildvergleich.mjs
 //           [--write] [--groesse desktop,handy,quer] [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6]
@@ -61,7 +61,17 @@ const JPEG_QUALITAET = 90;
  * Toleranz: pixel ist die Abweichung eines Farbkanals (0–255), ab der ein Pixel als abweichend zählt, anteil der
  * erlaubte Anteil solcher Pixel je Bild. Begründung und Messung: Ticket 01, Notizen der Umsetzung.
  */
-const TOLERANZ = { pixel: 3, anteil: 0.0005 };
+const TOLERANZ = { pixel: 3, anteil: 0.0001 };
+/**
+ * Ausnahmen: Rechtecke [x, y, Breite, Höhe] je Bild, die nicht verglichen werden. Nur für Stellen, die das Spiel selbst
+ * nicht in jedem Lauf gleich zeichnet (gemessen in sieben Läufen, Ticket 01). Handy quer, Meer 1: Im Wasser links des
+ * Bretts liegt in etwa der Hälfte der Läufe eine dünne dunkle Linie (x 5–129, y 144–159, bis 113 Pixel um bis 16);
+ * das Rechteck darum auf ganzen Blöcken des JPEG (16 Pixel).
+ */
+const AUSNAHMEN = {
+  'quer-welt-2-vor': [[0, 128, 144, 48]],
+  'quer-welt-2-nach': [[0, 128, 144, 48]],
+};
 
 const GROESSEN = [
   { name: 'desktop', width: 1280, height: 800, dpr: 1, phone: false },
@@ -331,18 +341,23 @@ const ABLAEUFE = [
 
 /**
  * In der Seite des Rechners: beide JPEG dekodieren, je Pixel die grösste Abweichung eines Farbkanals; zurück die Zahl
- * der Pixel über der Schwelle, die grösste Abweichung, auf Wunsch das Differenzbild (PNG, base64).
+ * der Pixel über der Schwelle, die grösste Abweichung, auf Wunsch das Differenzbild (PNG, base64). aus: Rechtecke
+ * [x, y, Breite, Höhe], die nicht zählen (AUSNAHMEN; im Differenzbild blau).
  */
-const RECHNER = `window.vergleiche = async (ref, bild, schwelle, diff) => {
+const RECHNER = `window.vergleiche = async (ref, bild, schwelle, diff, aus) => {
   const lese = async (b64) => { const bmp = await createImageBitmap(await (await fetch('data:image/jpeg;base64,' + b64)).blob(),
     { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
     const c = new OffscreenCanvas(bmp.width, bmp.height), g = c.getContext('2d', { willReadFrequently: true });
     g.drawImage(bmp, 0, 0); return { w: bmp.width, h: bmp.height, d: g.getImageData(0, 0, bmp.width, bmp.height).data }; };
   const a = await lese(ref), b = await lese(bild);
   if (a.w !== b.w || a.h !== b.h) return { groesse: [a.w, a.h, b.w, b.h] };
-  const n = a.w * a.h, dev = new Uint8Array(n);
+  const n = a.w * a.h, dev = new Uint8Array(n), frei = new Uint8Array(n);
+  for (const [x0, y0, bw, bh] of aus) {
+    for (let y = y0; y < Math.min(a.h, y0 + bh); y++) for (let x = x0; x < Math.min(a.w, x0 + bw); x++) frei[y * a.w + x] = 1;
+  }
   let max = 0, ab = 0;
   for (let i = 0; i < n; i++) {
+    if (frei[i]) continue;
     const p = i * 4, m = Math.max(Math.abs(a.d[p] - b.d[p]), Math.abs(a.d[p + 1] - b.d[p + 1]), Math.abs(a.d[p + 2] - b.d[p + 2]));
     dev[i] = m; if (m > max) max = m; if (m > schwelle) ab++;
   }
@@ -352,7 +367,8 @@ const RECHNER = `window.vergleiche = async (ref, bild, schwelle, diff) => {
     for (let i = 0; i < n; i++) {
       const p = i * 4, grau = (b.d[p] + b.d[p + 1] + b.d[p + 2]) / 3 * 0.3, m = dev[i];
       const rot = m > schwelle ? Math.min(255, 140 + m * 4) : 0;
-      img.data[p] = rot || grau; img.data[p + 1] = rot ? 0 : grau; img.data[p + 2] = rot ? 0 : grau; img.data[p + 3] = 255;
+      img.data[p] = rot || grau; img.data[p + 1] = rot ? 0 : grau; img.data[p + 2] = rot ? 0 : frei[i] ? 140 : grau;
+      img.data[p + 3] = 255;
     }
     g.putImageData(img, 0, 0);
     const blob = await c.convertToBlob({ type: 'image/png' }), buf = new Uint8Array(await blob.arrayBuffer());
@@ -363,12 +379,13 @@ const RECHNER = `window.vergleiche = async (ref, bild, schwelle, diff) => {
 }; true`;
 
 let rechner = null;
-async function vergleiche(refB64, bildB64, diff = false) {
+async function vergleiche(name, refB64, bildB64, diff = false) {
   if (!rechner) {
     rechner = await sitzung({ width: 200, height: 200, dpr: 1, phone: false });
     await rechner.ev(RECHNER);
   }
-  return rechner.ev(`vergleiche(${JSON.stringify(refB64)}, ${JSON.stringify(bildB64)}, ${TOLERANZ.pixel}, ${diff})`);
+  return rechner.ev(`vergleiche(${JSON.stringify(refB64)}, ${JSON.stringify(bildB64)}, ${TOLERANZ.pixel}, ${diff}, `
+    + `${JSON.stringify(AUSNAHMEN[name] ?? [])})`);
 }
 const istRot = (r) => !!r.groesse || r.ab > TOLERANZ.anteil * r.pixel;
 
@@ -422,13 +439,13 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
       continue;
     }
     const refB64 = readFileSync(ref).toString('base64');
-    let r = await vergleiche(refB64, b.jpeg);
+    let r = await vergleiche(b.name, refB64, b.jpeg);
     ergebnisse.push({ name: b.name, ...r });
     const text = r.groesse ? `Grösse ${r.groesse.join(' × ')}` : `grösste Abweichung ${r.max}, ${r.ab} Pixel über `
       + `${TOLERANZ.pixel} (${(r.ab / r.pixel * 100).toFixed(3)} %)`;
     if (istRot(r)) {
       fehler.push(`${b.name}: ROT (${text})`);
-      if (!r.groesse) r = await vergleiche(refB64, b.jpeg, true);
+      if (!r.groesse) r = await vergleiche(b.name, refB64, b.jpeg, true);
       writeFileSync(join(OUT, `${b.name}.jpg`), Buffer.from(b.jpeg, 'base64'));
       writeFileSync(join(OUT, `${b.name}-referenz.jpg`), readFileSync(ref));
       if (r.diff) writeFileSync(join(OUT, `${b.name}-differenz.png`), Buffer.from(r.diff, 'base64'));
