@@ -8,7 +8,7 @@
 
 **What to build:** Prisma bekommt einen Build-Schritt mit Vite. Der Inhalt von `index.html` bleibt in diesem Ticket
 fast unverändert. Es geht nur darum, dass das Spiel aus `npm run dev` und aus `dist/` genauso läuft wie heute und alle
-Prüfungen dagegen laufen. **Meilenstein 1:** Danach spielt der Nutzer auf dem Handy die Fassung aus `dist/`.
+Prüfungen dagegen laufen. **Meilenstein:** entfällt (Nutzer, 16.11.2026); der erste Handytest kommt nach Ticket 07.
 
 - [ ] `package.json` mit Vite als einziger Abhängigkeit für den Build (Version fest, `package-lock.json` im Repo).
       Skripte: `dev`, `build`, `preview`, `test` (alle Node-Tests), `test:bild` (Bildvergleich).
