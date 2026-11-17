@@ -30,8 +30,12 @@
 // nicht. Dekodiert und gerechnet wird in einem zweiten Chrome (keine Pakete in Node). Bei Rot liegen Bild, Referenz und
 // Differenzbild (abweichende Pixel rot über dem grau gedämpften Bild, Ausnahmen blau) unter tests/output/bildvergleich/.
 //
+// Grösse «poco» (Ticket 13, Fund Review 01): wie das Poco F4 GT, 393 × 873 mit Pixeldichte 2,75, Android-Kennung und
+// Touch, nur start, dorf und welt-1-2. So laufen der Massstab der Seite (SEITE, nur Chrome auf Android mit Pixeldichte
+// über 2) und das Pixelverhältnis 2 des Renderers wie auf den echten Handys; die Bilder in Gerätepixeln.
+//
 // Aufruf: LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node
-//           tests/bildvergleich.mjs [--write] [--groesse desktop,handy,quer]
+//           tests/bildvergleich.mjs [--write] [--groesse desktop,handy,quer,poco]
 //           [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]
 //   --write: die Referenzen neu schreiben, nur bei einer bewussten Änderung des Aussehens (im Umbau nie). Mit --nur
 //   oder --groesse nur diese. Ohne --write: vergleichen; Rückgabe 1 bei einem roten Bild, einer fehlenden Referenz
@@ -84,6 +88,8 @@ const GROESSEN = [
   { name: 'desktop', width: 1280, height: 800, dpr: 1, phone: false },
   { name: 'handy', width: 390, height: 844, dpr: 1, phone: true },
   { name: 'quer', width: 844, height: 390, dpr: 1, phone: true, mobile: true },
+  // wie das Poco F4 GT (Kopf); nur diese Abläufe
+  { name: 'poco', width: 393, height: 873, dpr: 2.75, phone: true, android: true, nur: ['start', 'dorf', 'welt-1-2'] },
 ];
 const ANDROID = 'Mozilla/5.0 (Linux; Android 14; 22021211RG) AppleWebKit/537.36 (KHTML, like Gecko) '
   + 'Chrome/130.0.0.0 Mobile Safari/537.36';
@@ -457,6 +463,10 @@ async function groesseAufnehmen(view) {
     await s.send('Page.navigate', { url: seite(`${BASIS}&nointro`) });
     await until('window.__prisma?.ticks > 2', 'Spiel startet');
     s.reise = await s.ev(`${D}.STORY_LEVELS[${JSON.stringify(GRAD)}]`);
+    if (view.android) { // der Weg der echten Handys: Massstab der Seite (SEITE) und Pixelverhältnis 2
+      const weg = await s.ev(`[document.documentElement.classList.contains('seite'), ${D}.renderer.getPixelRatio()]`);
+      if (!weg[0] || weg[1] !== 2) throw new Error(`${view.name}: nicht der Weg der Handys (SEITE ${weg[0]}, Pixelverhältnis ${weg[1]})`);
+    }
     for (const a of ablaeufe) {
       const vorher = s.logs.length;
       try {
