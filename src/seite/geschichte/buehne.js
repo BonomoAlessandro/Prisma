@@ -2,7 +2,7 @@
 import { BUEHNENWAGEN, HIMMELSWAGEN, STORY_EPILOG, STORY_PROLOG, wagen } from './daten.js';
 import { camera, DIAG } from '../szene.js';
 import { audio } from '../ton.js';
-import { IS_TOUCH } from '../oberflaeche/dom.js';
+import { IS_TOUCH } from '../oberflaeche/dom.ts';
 import { storyEase, storyLinear, storySleep } from './geschichte.js';
 import { mulberry32 } from '../../zufall.js';
 

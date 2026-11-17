@@ -1,6 +1,6 @@
 // Lösungsmoment und Levelfluss: Feier, Übergänge zwischen den Leveln, Fortschritt (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { audio } from './ton.js';
-import { BOARD, CELL, LOOK, PLATE } from './konfiguration.js';
+import { BOARD, CELL, LOOK, PLATE } from './konfiguration.ts';
 import { arbeit, compileParallel, LAYER_NO_REFLECT, markShadowsDirty, renderer, scene, sceneLoop } from './szene.js';
 import { SHOCK_SPEED, shockUniforms } from './brett/brett.js';
 import { bloomPass } from './bildschritte.js';

@@ -16,8 +16,8 @@
 //   aus der Quelle übernommen hat (die Schrift), wird nicht noch einmal kopiert;
 // - der <link> des Stils an seine Stelle in der Quelle (stilZurueck);
 // - sw.js mit den Listen FILES und LAZY aus dem, was in dist/ liegt (Regeln im Kopf von sw.js);
-// - APP_VERSION aus package.json (appVersion, die einzige Quelle) in src/seite/konfiguration.js und sw.js; im
-//   Dev-Server ebenso in src/seite/konfiguration.js.
+// - APP_VERSION aus package.json (appVersion, die einzige Quelle) in src/seite/konfiguration.ts und sw.js; im
+//   Dev-Server ebenso in src/seite/konfiguration.ts.
 // Im Dev-Server registriert die Seite keinen Service Worker (PRISMA_DEV); fragt ein alter, noch registrierter nach
 // sw.js, bekommt er einen, der sich selbst abmeldet und den Speicher leert. vendor/ und backgrounds/ liefert er roh
 // (sonst hängte Vite an die klassischen Skripte eine Source-Map an). tests/logic.test.mjs prüft Build und Dev-Server.
@@ -31,7 +31,7 @@ const root = dirname(fileURLToPath(import.meta.url));
 const VERSION = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
 if (typeof VERSION !== 'string' || !VERSION) throw new Error('package.json: appVersion fehlt');
 const PLATZHALTER = '__APP_VERSION__';
-const MIT_VERSION = 'src/seite/konfiguration.js'; // das Modul mit APP_VERSION
+const MIT_VERSION = 'src/seite/konfiguration.ts'; // das Modul mit APP_VERSION
 const STATISCH = ['vendor', 'icons', 'favicon.svg', 'manifest.webmanifest'];
 /**
  * Nicht in den Speicher des Service Workers: er selbst, die Lizenztexte (liegen bei, braucht das Spiel nicht) und die

@@ -1279,9 +1279,12 @@ console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
     };
     const kette = [];
     for (let p = erstes('src/main.ts'); p?.startsWith('src/seite/') && !kette.includes(p); p = erstes(p)) kette.unshift(p);
-    const teile = module('src/seite').filter((p) => p.endsWith('.js'));
+    // alle Teile ausser den zwei Hilfen, die jeder Teil importieren darf
+    const hilfen = ['src/seite/aufgabe.ts', 'src/seite/testschnittstelle.ts'];
+    const teile = module('src/seite').filter((p) => !hilfen.includes(p));
     assert.deepEqual([...kette].sort(), teile, 'nicht alle Teile in der Kette');
-    assert.equal(kette[0], 'src/seite/konfiguration.js');
+    assert.equal(kette[0], 'src/seite/konfiguration.ts');
+    for (const h of hilfen) assert.ok(!/^import /m.test(lies(h)), `${h} importiert etwas (darf nur importiert werden)`);
   });
   const feste = ['src/zufall.js', 'src/logik.js', 'src/hall.js'];
   for (const pfad of feste) {
@@ -1437,7 +1440,7 @@ console.log('Offline');
   await dev.listen();
   const devUrl = dev.resolvedUrls.local[0], holen = async (p) => (await fetch(devUrl + p)).text();
   const devHtml = await holen(''), devSw = await holen('sw.js'), devWorker = await holen('src/hall-worker.ts');
-  const devKonfig = await holen('src/seite/konfiguration.js'), devMain = await holen('src/main.ts');
+  const devKonfig = await holen('src/seite/konfiguration.ts'), devMain = await holen('src/main.ts');
   const devSpiel = await holen((module('src/seite').find((p) => /^import \{[^}]*\bhallImpulse\b/m.test(readFileSync(join(root, p), 'utf8')))));
   const roh = {};
   for (const f of ['vendor/three-0.147.0/three.min.js', 'backgrounds/skies.js']) {
@@ -1445,7 +1448,7 @@ console.log('Offline');
   }
   await dev.close();
   test('Dev-Server: Version eingesetzt, PRISMA_DEV vor der Registrierung, sw.js meldet sich nur ab', () => {
-    assert.ok(devKonfig.includes(`const APP_VERSION = '${version}';`), 'APP_VERSION fehlt');
+    assert.ok(devKonfig.includes(version) && !devKonfig.includes('__APP_VERSION__'), 'APP_VERSION fehlt');
     const flag = devHtml.indexOf('window.PRISMA_DEV = true'), reg = devHtml.indexOf('navigator.serviceWorker.register');
     assert.ok(flag > 0 && reg > flag, 'PRISMA_DEV fehlt oder steht nach der Registrierung');
     assert.match(devHtml, /'serviceWorker' in navigator && !window\.PRISMA_DEV\)/);
@@ -1602,11 +1605,11 @@ console.log('Offline');
     fehler({ rise: undefined }, 'rise', 'fehlende Farbe');
     fehler({ lava: [1, 0.4, 0.1] }, 'Wert lava unbekannt', 'unbekannter Wert');
   });
-  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie im Spiel (src/seite/konfiguration.js) und in sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
+  test('Version: APP_VERSION nur in package.json (appVersion), der Build setzt sie im Spiel (src/seite/konfiguration.ts) und in sw.js ein (Messwerkzeug, .scratch/leistung/ Ticket 01)', () => {
     assert.ok(typeof version === 'string' && version.length > 0, 'appVersion in package.json fehlt');
     assert.equal(html.split('__APP_VERSION__').length - 1, 1, 'Platzhalter im Spiel nicht genau einmal');
-    assert.match(readFileSync(join(root, 'src/seite/konfiguration.js'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m,
-      'Platzhalter in src/seite/konfiguration.js (Quelle) fehlt');
+    assert.match(readFileSync(join(root, 'src/seite/konfiguration.ts'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m,
+      'Platzhalter in src/seite/konfiguration.ts (Quelle) fehlt');
     assert.match(readFileSync(join(root, 'sw.js'), 'utf8'), /^const APP_VERSION = '__APP_VERSION__';$/m, 'Platzhalter in sw.js (Quelle) fehlt');
     assert.ok(readFileSync(join(aus, skripte[0]), 'utf8').includes(version), 'Version fehlt im gebauten Spiel');
     assert.equal(vm.runInContext('APP_VERSION', sw), version);

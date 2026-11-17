@@ -1,5 +1,5 @@
 // Führung im Dorf: Band, Lichtkegel, Hand, Sperre (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
-import { $, IS_TOUCH } from './oberflaeche/dom.js';
+import { $, IS_TOUCH } from './oberflaeche/dom.ts';
 import { camera, sceneLoop } from './szene.js';
 import { game } from './brett/feld.js';
 import { canvasEl } from './eingabe.js';

@@ -4,7 +4,7 @@ import { nextFrame, ruhe, sceneLoop } from '../szene.js';
 import { game } from '../brett/feld.js';
 import { audio } from '../ton.js';
 import { CUBE_START, fillTier, flow, restartLevel } from '../levelfluss.js';
-import { $, IS_TOUCH } from './dom.js';
+import { $, IS_TOUCH } from './dom.ts';
 import { story, vorwaermenVorStart } from '../geschichte/geschichte.js';
 import { geraeteText, LEVELS, TUTORIAL_COUNT } from '../../logik.js';
 

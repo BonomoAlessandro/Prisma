@@ -1,6 +1,6 @@
 // Strahlen, Lichtschein, Staub und Lichtblitze (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { boardGroup } from './feld.js';
-import { BOARD, CELL, IS_MOBILE, phasenZufall, PLATE, PLATE_RIM } from '../konfiguration.js';
+import { BOARD, CELL, IS_MOBILE, phasenZufall, PLATE, PLATE_RIM } from '../konfiguration.ts';
 import { camera, LAYER_NO_REFLECT, renderer } from '../szene.js';
 import { beamPointToWorld, COLOR_RGB, CUBE_FLOOR, normalToWorld } from './elemente.js';
 import { mulberry32 } from '../../zufall.js';

@@ -1,6 +1,6 @@
 // Messwerkzeug und Leistungsanzeige (?perf, Taste F), Bildrate (frameRate) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { adaptiveResolution } from './aufloesung.js';
-import { APP_VERSION, IS_MOBILE } from './konfiguration.js';
+import { APP_VERSION, IS_MOBILE } from './konfiguration.ts';
 import { renderer, sceneLoop } from './szene.js';
 import { skyTheme } from './himmel/skybox.js';
 import { SHOCK_REST_S, shockUniforms } from './brett/brett.js';

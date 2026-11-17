@@ -2,7 +2,7 @@
 import {
   COLOR_RGB, cubeToWorld, ELEMENT_FACTORIES, FIXED_EDGE, fixedBase, gridToWorld, MAT, placeInCube,
 } from './elemente.js';
-import { CELL, FIXED_TIME } from '../konfiguration.js';
+import { CELL, FIXED_TIME } from '../konfiguration.ts';
 import { arbeit, LAYER_NO_REFLECT, markShadowsDirty, scene, sceneLoop, sliced } from '../szene.js';
 import { shockUniforms } from './brett.js';
 import { cameraRig } from '../kamera.js';

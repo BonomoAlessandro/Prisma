@@ -1,6 +1,6 @@
 // Noas Geschichte: Kapitel, Stationen, Kleiner Wagen, Texte von Prolog und Epilog (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import '../oberflaeche/uebersicht.js';
-import { LOOK } from '../konfiguration.js';
+import { LOOK } from '../konfiguration.ts';
 import { camera, LAYER_NO_REFLECT, renderer, scene, sceneLoop } from '../szene.js';
 import { stars } from '../himmel/sterne.js';
 import { menu, uebersicht } from './geschichte.js';

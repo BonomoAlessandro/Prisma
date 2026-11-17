@@ -1,6 +1,6 @@
 // Spielelemente: 3D-Modelle für Quelle, Spiegel, Prisma, Filter, Vereiniger, Blocker und Ziel (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import '../kamera.js';
-import { CELL, GRID, phasenZufall } from '../konfiguration.js';
+import { CELL, GRID, phasenZufall } from '../konfiguration.ts';
 import { LAYER_NO_REFLECT } from '../szene.js';
 import { createBrushedTexture, makeMirrorStreakTexture } from '../texturen.js';
 import { game, SHARED_MATERIALS } from './feld.js';

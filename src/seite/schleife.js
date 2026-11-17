@@ -1,6 +1,6 @@
 // Hauptschleife (frame, draw, animate), Testschnittstelle (__prisma, __prismaDebug) und Seitenstart (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { frameRate, leistung, perfHud } from './leistung.js';
-import { FIXED_TIME } from './konfiguration.js';
+import { FIXED_TIME } from './konfiguration.ts';
 import {
   arbeit, camera, compileParallel, markSceneReady, NEXT_FRAME, renderer, REST_STEPS, scene, sceneLoop,
 } from './szene.js';

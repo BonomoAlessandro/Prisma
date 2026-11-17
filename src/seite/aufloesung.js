@@ -1,6 +1,6 @@
 // Grösse, Uhr, adaptive Auflösung und Spiegelung des Bretts je Bild (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './geschichte/geschichte.js';
-import { IS_MOBILE, PLATE, QUALITY } from './konfiguration.js';
+import { IS_MOBILE, PLATE, QUALITY } from './konfiguration.ts';
 import { camera, renderer, scene } from './szene.js';
 import { background } from './himmel/sterne.js';
 import { boardReflection, boardTheme, reflector, reflLodShift } from './brett/brett.js';

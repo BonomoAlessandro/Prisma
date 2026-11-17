@@ -1,6 +1,6 @@
 // Noas Geschichte: der Ablauf (story), Menü und Übersicht, Ladezeichen, Vorwärmen (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { createStoryScene } from './buehne.js';
-import { LOOK } from '../konfiguration.js';
+import { LOOK } from '../konfiguration.ts';
 import { camera, LAYER_NO_REFLECT, nextFrame, renderer, ruhe, RUHE_OHNE_START, scene, sceneLoop } from '../szene.js';
 import { background, stars } from '../himmel/sterne.js';
 import { skyTheme, starsFromSin } from '../himmel/skybox.js';
@@ -13,7 +13,7 @@ import { WHITE } from '../brett/strahlen.js';
 import { setHovered } from '../eingabe.js';
 import { audio } from '../ton.js';
 import { CELEBRATE, celebration, changeLevel, enterLevel, flow, progress, restartLevel } from '../levelfluss.js';
-import { $, IS_TOUCH } from '../oberflaeche/dom.js';
+import { $, IS_TOUCH } from '../oberflaeche/dom.ts';
 import { introCalm, markIntroCalm, setShown, ui } from '../oberflaeche/ui.js';
 import { createMenu } from '../oberflaeche/menue.js';
 import { createUebersicht } from '../oberflaeche/uebersicht.js';

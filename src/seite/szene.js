@@ -5,7 +5,7 @@
 // wartet dieses Modul zuerst auf eine neue Aufgabe (await auf oberster Ebene). Die Module laufen in der Reihenfolge der
 // früheren Skripte: Jedes importiert zuerst das vorherige (auch nur dafür), src/main.ts das letzte. Beim Laden ruft ein
 // Modul nichts aus einem späteren auf.
-import { FIXED_TIME, LOOK, QUALITY } from './konfiguration.js';
+import { FIXED_TIME, LOOK, QUALITY } from './konfiguration.ts';
 import { skyTheme } from './himmel/skybox.js';
 import { cameraRig } from './kamera.js';
 import { game, weigernde } from './brett/feld.js';

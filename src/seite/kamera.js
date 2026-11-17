@@ -6,7 +6,7 @@
 // früheren Skripte: Jedes importiert zuerst das vorherige (auch nur dafür), src/main.ts das letzte. Beim Laden ruft ein
 // Modul nichts aus einem späteren auf.
 import { keyLight } from './bildschritte.js';
-import { CELL, PLATE } from './konfiguration.js';
+import { CELL, PLATE } from './konfiguration.ts';
 import { camera, markShadowsDirty, renderer } from './szene.js';
 import { updateSky } from './himmel/sterne.js';
 import { skyTheme } from './himmel/skybox.js';

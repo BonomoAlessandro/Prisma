@@ -1,6 +1,6 @@
 // Brett mit planarer Spiegelung, die Bretter je Himmel (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import { boardCoreUniforms, skyTheme } from '../himmel/skybox.js';
-import { BOARD, CELL, GRID, PLATE, PLATE_THICK, QUALITY, SPIEGEL_ALLE } from '../konfiguration.js';
+import { BOARD, CELL, GRID, PLATE, PLATE_THICK, QUALITY, SPIEGEL_ALLE } from '../konfiguration.ts';
 import {
   arbeit, compileParallel, NEXT_FRAME, renderer, ruhe, RUHIG, scene, sceneLoop, sceneReady, sliced,
 } from '../szene.js';

@@ -6,7 +6,7 @@ import '../levelfluss.js';
    erreichen den Canvas nicht und drehen daher nichts.
    ===================================================================== */
 
-const $ = (id) => document.getElementById(id);
+const $ = (id: string) => document.getElementById(id);
 const IS_TOUCH = window.matchMedia('(pointer: coarse)').matches;
 
 export { $, IS_TOUCH };
