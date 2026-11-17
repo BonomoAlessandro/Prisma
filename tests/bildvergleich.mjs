@@ -243,7 +243,7 @@ async function aufnehmen(name, vorspulen) {
   await s.ev(ANHALTEN);
   await s.ev(`${D}.settle(${vorspulen})`);
   await s.ev(BILDER(3));
-  let jpeg = await aufnahme(), ruhig = false;
+  let jpeg = await aufnahme(), vorher = null, ruhig = false;
   for (let k = 0; k < 6 && !ruhig; k++) {
     await sleep(300);
     await s.ev(ANHALTEN);
@@ -251,9 +251,18 @@ async function aufnehmen(name, vorspulen) {
     await s.ev(BILDER(3));
     const nochmal = await aufnahme();
     ruhig = nochmal === jpeg;
+    vorher = jpeg;
     jpeg = nochmal;
   }
-  if (!ruhig) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
+  if (!ruhig) {
+    // Ausweg (Ticket 13): Bei «poco» wechselt ein Fleck im Lichtstreifen des Startbildschirms von Bild zu Bild zwischen
+    // zwei Zuständen (21 Gerätepixel, höchstens 5 von 255), so werden zwei Aufnahmen nie byte-gleich. Weichen die
+    // letzten zwei höchstens innerhalb der Toleranz des Vergleichs voneinander ab, gilt die Ansicht als ruhig.
+    const r = await vergleiche('', vorher, jpeg);
+    if (istRot(r)) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
+    console.log(`    ${s.view.name}-${name}: fast ruhig (zwei Aufnahmen: ${r.ab} Pixel über ${TOLERANZ.pixel}, `
+      + `grösste Abweichung ${r.max})`);
+  }
   if (diag) console.log(`    Zustand ${name}: ${await s.ev(ZUSTAND)}`);
   s.bilder.push({ name: `${s.view.name}-${name}`, jpeg });
   zeit(`${s.view.name}-${name}`);
