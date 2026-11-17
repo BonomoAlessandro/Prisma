@@ -27,6 +27,7 @@ Grob, wird im Grilling ausgearbeitet:
 
 **Offen für das Grilling:** Paketname (z. B. `ch.….prisma`, danach nicht mehr änderbar), Mindestversion von Android,
 Store-Texte auf Deutsch und Englisch, ob der Service Worker in der App abgeschaltet wird, Source-Maps in der App
-weglassen (Review 04: 2,3 MB).
+weglassen (Review 04: 2,3 MB). Aus Review 05: Die Speicherschicht ist synchron; für Capacitor Preferences braucht es
+einen Zwischenspeicher, der beim Start einmal geladen wird (oder `localStorage` in der WebView behalten).
 
 ## Comments
