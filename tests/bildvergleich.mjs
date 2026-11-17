@@ -150,10 +150,10 @@ async function until(expr, was, sekunden = 240, spulen = false) {
   throw new Error(`Zeitüberschreitung: ${was}`);
 }
 /**
- * Mehr Geduld in einem Teilprozess von --jobs: Neben anderen Chrome lädt ein Himmel in SwiftShader mehrmals so lange
- * (Ticket 13: mit 6 Prozessen über 240 s für Menü und Wüste). Die Grenzen sind nur Sicherheitsnetze.
+ * Geduld: Neben anderen Chrome (leichte Läufe laufen gleichzeitig, tools/leise.sh) lädt ein Himmel in SwiftShader
+ * mehrmals so lange (Ticket 13: mit 6 Prozessen über 240 s für Menü und Wüste). Die Grenzen sind nur Sicherheitsnetze.
  */
-const GEDULD = teil ? 3 : 1;
+const GEDULD = 3;
 
 /**
  * Die Seite frisch laden (query ohne BASIS), mit diesem Stand im localStorage (Schlüssel → Wert; Objekte als JSON).
@@ -444,7 +444,8 @@ const ergebnisse = [];
 if (!teil) rmSync(OUT, { recursive: true, force: true }); // ein Teilprozess (--teil) räumt die Ausgabe nicht
 mkdirSync(OUT, { recursive: true });
 mkdirSync(REFERENZ, { recursive: true });
-setTimeout(() => { console.error('Zeitrahmen von 90 min überschritten: Abbruch'); process.exit(3); }, 90 * 60000).unref();
+// Zeitrahmen: allein rund 30 min, neben anderen leichten Läufen mehrmals so lang (Ticket 13)
+setTimeout(() => { console.error('Zeitrahmen von 180 min überschritten: Abbruch'); process.exit(3); }, 180 * 60000).unref();
 
 const groessen = GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name));
 /** die Abläufe einer Grösse (--nur, und eine Grösse mit nur nimmt nur diese) */
