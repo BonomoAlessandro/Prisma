@@ -269,11 +269,15 @@ async function aufnehmen(name, vorspulen) {
   if (!ruhig) {
     // Ausweg (Ticket 13): Bei «poco» wechselt ein Fleck im Lichtstreifen des Startbildschirms von Bild zu Bild zwischen
     // zwei Zuständen (21 Gerätepixel, höchstens 5 von 255), so werden zwei Aufnahmen nie byte-gleich. Weichen die
-    // letzten zwei höchstens innerhalb der Toleranz des Vergleichs voneinander ab, gilt die Ansicht als ruhig.
+    // letzten zwei höchstens innerhalb der Toleranz des Vergleichs voneinander ab, gilt die Ansicht als ruhig. Nur bei
+    // den Grössen in FAST_RUHIG (Ticket 14: in allen bekannten Läufen kam es nur bei «poco» vor); die Fälle zählt die
+    // Übersicht am Schluss.
+    if (!FAST_RUHIG.includes(s.view.name)) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
     const r = await vergleiche('', vorher, jpeg);
     if (istRot(r)) throw new Error(`${s.view.name}-${name}: Ansicht wird nicht ruhig`);
     console.log(`    ${s.view.name}-${name}: fast ruhig (zwei Aufnahmen: ${r.ab} Pixel über ${TOLERANZ.pixel}, `
       + `grösste Abweichung ${r.max})`);
+    fastRuhig.push(`${s.view.name}-${name} (${r.ab} Pixel, bis ${r.max})`);
   }
   if (diag) console.log(`    Zustand ${name}: ${await s.ev(ZUSTAND)}`);
   s.bilder.push({ name: `${s.view.name}-${name}`, jpeg });
@@ -462,6 +466,8 @@ const t0 = Date.now();
 const zeit = (was) => console.log(`  ${((Date.now() - t0) / 1000).toFixed(0).padStart(5)} s  ${was}`);
 const fehler = [];
 const ergebnisse = [];
+const FAST_RUHIG = ['poco']; // Grössen, bei denen eine Ansicht auch «fast ruhig» gelten darf (aufnehmen)
+const fastRuhig = []; // die Ansichten, die nur «fast ruhig» waren
 if (!teil) rmSync(OUT, { recursive: true, force: true }); // ein Teilprozess (--teil) räumt die Ausgabe nicht
 mkdirSync(OUT, { recursive: true });
 mkdirSync(REFERENZ, { recursive: true });
@@ -569,6 +575,7 @@ async function parallel() {
     const r = JSON.parse(readFileSync(datei, 'utf8'));
     fehler.push(...r.fehler);
     ergebnisse.push(...r.ergebnisse);
+    fastRuhig.push(...r.fastRuhig);
     for (const e of r.elemente) elementeImBild.add(e);
   };
   const arbeiter = async () => { while (naechste < aufgaben.length) await eine(aufgaben[naechste++]); };
@@ -615,7 +622,7 @@ if (rechner) await rechner.chrome.close();
 await spiel.close();
 
 if (teil) { // Teilprozess von --jobs: das Ergebnis für den Hauptprozess
-  writeFileSync(teil, JSON.stringify({ fehler, ergebnisse, elemente: [...elementeImBild] }));
+  writeFileSync(teil, JSON.stringify({ fehler, ergebnisse, fastRuhig, elemente: [...elementeImBild] }));
   process.exit(fehler.length ? 1 : 0);
 }
 
@@ -640,6 +647,8 @@ if (ergebnisse.length) {
     + `höchster Anteil abweichender Pixel: ${(Math.max(...ergebnisse.map((e) => (e.ab ?? 0) / (e.pixel ?? 1))) * 100)
       .toFixed(3)} %`);
 }
+console.log(`nur «fast ruhig» (zwei Aufnahmen innerhalb der Toleranz statt gleich): ${fastRuhig.length}`
+  + `${fastRuhig.length ? `, ${fastRuhig.join(', ')}` : ''}`);
 for (const f of fehler) console.log(`FEHLER ${f}`);
 console.log(fehler.length ? 'ROT' : schreiben ? 'Referenzen geschrieben' : 'GRÜN');
 process.exit(fehler.length ? 1 : 0);
