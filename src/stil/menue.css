@@ -141,6 +141,15 @@
 .menue-vonvorn[hidden] { display: none; }
 .menue-vonvorn .menue-ico { font-size: 14px; }
 .menue-vonvorn:hover { color: var(--menue-ink); }
+/* Sprache (Ticket 07 von .scratch/umbau/): oben rechts, so zurückhaltend wie «Von vorn», mit einem Globus */
+.menue-sprache {
+  position: absolute; top: 40px; right: 4%;
+  display: inline-flex; align-items: center; gap: 0.7em; min-height: 44px; padding: 8px 12px; border-radius: 999px;
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--menue-dim);
+  transition: color 0.25s ease;
+}
+.menue-sprache .menue-ico { font-size: 14px; }
+.menue-sprache:hover { color: var(--menue-ink); }
 .menue-info { display: none; } /* Stand des gewählten Grads unter der Karte: nur hoch (dort fehlt er im Reiter) */
 @media (prefers-reduced-motion: reduce) {
   .menue-weiter.menue-auf, .menue-hervor .menue-name, .menue-ring, .menue-erwacht, .menue-zieht { animation: none; }
@@ -196,6 +205,8 @@
   .menue-fein { font-size: 12px; letter-spacing: 0.05em; color: var(--menue-dim); }
   .menue-knoepfe { position: static; flex-direction: column-reverse; align-items: stretch; gap: 8px; margin-top: 12px; }
   .menue-vonvorn { align-self: center; }
+  .menue-sprache { top: max(10px, env(safe-area-inset-top)); right: max(4px, env(safe-area-inset-right)); padding: 8px 10px; font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-sprache .menue-ico { font-size: 13px; }
   .menue-frage { place-items: end center; padding-bottom: max(24px, env(safe-area-inset-bottom)); }
   .menue-frage-box { padding: 26px 20px 20px; }
 }
@@ -233,6 +244,7 @@
   .menue-etikett .menue-klein { font-size: 9px; }
   .menue-knoepfe { left: auto; right: max(18px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); gap: 14px; }
   .menue-vonvorn { order: -1; font-size: 8.5px; letter-spacing: 0.22em; }
+  .menue-sprache { top: 2px; right: max(10px, env(safe-area-inset-right)); font-size: 8.5px; letter-spacing: 0.22em; }
   .menue-weiter { gap: 4px; padding: 8px 20px 7px calc(20px + 0.45em); font-size: 11px; }
   .menue-wohin { font-size: 9px; }
   .menue-frage-box { padding: 20px 22px 18px; }

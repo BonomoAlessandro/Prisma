@@ -1,6 +1,6 @@
 // Menü der Geschichte (Sternkarte mit Reitern) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
 import './ui.js';
-import { t } from '../../texte/sprache.js';
+import { setzeSprache, sprache, spracheName, t, VORHANDEN } from '../../texte/sprache.js';
 
 /* =====================================================================
    MENÜ DER GESCHICHTE (Ticket 05; seit Ticket 08 von .scratch/kleiner-wagen/ «Sternkarte mit Reitern», Variante F des
@@ -11,8 +11,10 @@ import { t } from '../../texte/sprache.js';
    zuletzt gespielten, nicht geschafften Grads; ihn zeigt das Menü beim Öffnen. Ist seit dem letzten Zeigen eines Grads
    (in dieser Sitzung) ein Stern erwacht, blitzt er auf, und seine Linien ziehen sich (der Moment aus dem Katalog).
    Desktop und Handy quer: Reiter links untereinander, die Karte daneben, der Knopf darunter; Handy hoch: Reiter oben
-   als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Texte über die
-   Übersetzungsschicht (t, Ticket 07 von .scratch/umbau/). Gestalt im Stil (Präfix menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
+   als Segmente, darunter Karte und Stand, der Knopf ganz unten in Reichweite des Daumens. Oben rechts der Schalter
+   der Sprache (Ticket 07 von .scratch/umbau/; das Spiel hat keine eigenen Einstellungen): Globus und der Name der
+   Sprache, ein Klick wechselt zur nächsten und lädt neu. Texte über die Übersetzungsschicht (t). Gestalt im Stil
+   (Präfix menue-). Der Baustein .scratch/noa-geschichte/bausteine/menue/ («Lichtwege») ist damit überholt.
 
      const menu = createMenu({ root, onAction, wagen });
      menu.show(stand);   // einblenden; ist es offen, mit dem neuen Stand neu zeichnen (Fokus und Reiter bleiben)
@@ -44,8 +46,11 @@ const createMenu = (() => {
   const WELTEN = ['wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'].map((id) => ({ id, name: t(`welt.${id}`) }));
   const JE_WELT = 10;
   const LEVEL = WELTEN.length * JE_WELT; // 60 je Grad
-  /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel. */
-  const ICONS = { neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>' };
+  /** Zeichen im Strich der STORY_ICONS: «Von vorn» wie «Level neu starten» im Spiel; die Sprache ein Globus. */
+  const ICONS = {
+    neu: '<path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3.2h3.2"/>',
+    sprache: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17"/><path d="M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.1-3.6-8.5s1.2-6.2 3.6-8.5z"/>',
+  };
   const AKTION = Object.fromEntries(['weiter', 'beginnen', 'fortsetzen', 'uebersicht', 'vonvorn']
     .map((a) => [a, t(`menue.aktion.${a}`)]));
   // gleich wie im CSS des Menüs
@@ -155,6 +160,7 @@ const createMenu = (() => {
         <div class="menue-knoepfe">
           <button type="button" class="menue-weiter" data-menue-fokus="weiter"><span class="menue-was"></span><span class="menue-wohin"></span></button>
         </div>
+        <button type="button" class="menue-sprache" data-menue-fokus="sprache" aria-label="${esc(t('menue.sprache', { sprache: spracheName(sprache) }))}">${icon('sprache')}<span>${esc(spracheName(sprache))}</span></button>
       </div>
       <div class="menue-frage menue-aus" role="alertdialog" aria-modal="true" aria-labelledby="${uid}-frage-titel" aria-describedby="${uid}-frage-text" hidden>
         <div class="menue-frage-box">
@@ -176,6 +182,11 @@ const createMenu = (() => {
     const knopf = $('.menue-weiter'), knoepfe = $('.menue-knoepfe'), info = $('.menue-info');
     const frageEl = $('.menue-frage'), sr = $('.menue-sr');
     const neinBtn = $('[data-menue-frage="nein"]'), jaBtn = $('[data-menue-frage="ja"]');
+    // Sprache (Ticket 07 von .scratch/umbau/): die nächste der Sprachen mit Datei; die Seite lädt dann neu
+    // (setzeSprache). Mit nur einer Sprache bleibt alles, wie es ist.
+    $('.menue-sprache').addEventListener('click', () => {
+      if (offen && !gesperrt) setzeSprache(VORHANDEN[(VORHANDEN.indexOf(sprache) + 1) % VORHANDEN.length]);
+    });
 
     let daten = lies({}, uebersicht);
     let offen = false;

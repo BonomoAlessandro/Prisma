@@ -86,6 +86,7 @@
     "geschafft": "Geschafft",
     "imDorf": "im Dorf",
     "geloescht": "{grad}: Stand gelöscht.",
+    "sprache": "Sprache: {sprache}",
     "aktion": {
       "weiter": "Weiter",
       "beginnen": "Beginnen",
