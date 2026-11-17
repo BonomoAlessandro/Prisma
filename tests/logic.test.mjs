@@ -1409,8 +1409,11 @@ console.log('Offline');
     assert.ok(js.includes(posix.basename(worker[0])), 'Pfad des Workers fehlt im Spiel');
     assert.ok(js.trimEnd().endsWith(`//# sourceMappingURL=${posix.basename(skripte[0])}.map`), 'Verweis auf die Source-Map');
     const karte = JSON.parse(readFileSync(join(aus, `${skripte[0]}.map`), 'utf8'));
-    const quellen = karte.sources.map((s) => posix.normalize(posix.join('assets', s)));
-    for (const m of ['src/main.ts', 'src/logik.js', ...module('src/seite')]) assert.ok(quellen.includes(m), `${m} fehlt in der Source-Map`);
+    // Pfade relativ zum Ausgabeordner (hier ein temporärer Ordner); src/main.ts hat keinen eigenen Code
+    const quellen = karte.sources.map((s) => s.replaceAll('\\', '/'));
+    for (const m of ['src/logik.js', ...module('src/seite')]) {
+      assert.ok(quellen.some((q) => q.endsWith(`/${m}`)), `${m} fehlt in der Source-Map`);
+    }
   });
   test('Build: der Stil enthält die Teile aus src/stil/ in der Reihenfolge von index.css, sonst nichts', () => {
     const quelleStil = readFileSync(join(root, 'src/stil/index.css'), 'utf8');
