@@ -88,10 +88,37 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Übersicht am Schluss (mehrere Minuten, nur über `leise.sh`: `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh
     timeout -k 30 3600 npm test`); `node tests/alle.mjs logic golden` nur diese. `npm run test:bild` ist der
     Bildvergleich (Ticket 01 des Umbaus).
+  - **Art der Läufe unter `leise.sh`** (Ticket 13 des Umbaus; siehe `leise.sh` unter Werkzeuge). Leichte Läufe messen
+    keine Zeiten und laufen bis zu vier gleichzeitig: `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh
+    tools/leise.sh …`. Alleinige (Vorgabe, ohne `LEISE_ART`) laufen nie neben einem anderen Lauf.
+
+    | Art | Läufe |
+    |---|---|
+    | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
+    | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `brett-probe.mjs` (scheitert an Lücken über 100 ms auf der Grafikkarte, `mechanik` und `reise`), `tools/bench.mjs`, alles mit `--fenster` |
+
+    **Regeln für die Agenten** (Nutzer, 16. und 17.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als
+    leichte Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, den Bildvergleich **auf der Grafikkarte**
+    (`--gpu`, etwa 8 min), dazu die Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal
+    laufen, den Bildvergleich in **SwiftShader** (ohne `--gpu`, die genaue Prüfung, etwa 35 min); die Proben mit
+    Zeitmessung (alleinige) nur er. Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), ihn als alleinigen
+    wiederholen (ohne `LEISE_ART`, beim Bildvergleich dazu `--jobs 1`), bevor man einen Fehler meldet. Nach einem
+    Treiberupdate der Grafikkarte (oder einer neuen Fassung von Chrome) kann der GPU-Weg überall rot werden: dann zuerst
+    den Bildvergleich in SwiftShader laufen lassen, und erst wenn er grün ist, die GPU-Referenzen mit `--gpu --write`
+    neu schreiben.
+    **Proben mit Bildtakt** (`geschichte-probe`, `brett-probe`, `leerlauf-probe`, `ruhetakt-probe`, `start-probe`):
+    Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis vor (Review Ticket 01 des Umbaus:
+    `geschichte-probe --dorf` in 2 von 3 Läufen auf dem alten Stand). Scheitert eine solche Probe an einer Lücke, sie
+    wiederholen bzw. gleich oft auf der Basis laufen lassen (Stand vor dem Ticket, etwa in einem `git worktree`); es
+    zählt nur ein Fehler, der auf der Basis nicht kommt.
   - **Proben im Browser** öffnen das Spiel über http aus `dist/` (seit Ticket 02 des Umbaus, nicht mehr über file://).
-    Die Adresse steht an einer Stelle, `tools/spielserver.mjs`: `spielServer()` baut `dist/` frisch und liefert es über
-    einen kleinen Server auf `127.0.0.1` (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher
-    über file:// ohne Vorab-Speichern). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
+    Die Adresse steht an einer Stelle, `tools/spielserver.mjs`: `spielServer()` baut das Spiel frisch (seit Ticket 13
+    je Prozess in einen eigenen Ordner im Temp-Verzeichnis, nicht nach `dist/`, damit gleichzeitige leichte Läufe
+    einander den Build nicht wegräumen; danach gelöscht) und liefert es über einen kleinen Server auf `127.0.0.1`
+    (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher über file:// ohne Vorab-Speichern) und
+    einer leeren Antwort auf `/favicon.ico` (Chrome fragt danach; eine 404 stünde als Fehler in der Konsole).
+    `tools/chrome.mjs` lässt Chrome seinen Port selbst wählen (`--remote-debugging-port=0`), damit viele gleichzeitige
+    Chrome nie zusammenstossen. `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
     laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
     `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
     `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
@@ -120,25 +147,43 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     oder wegfallen; ein Umbau der Strahlregel oder des Lösers muss gegen die bestehende Referenz grün bleiben. Bis
     Ticket 21 hielt die Referenz für 24 Level auch die alte Wertung (`score`) fest, und diese Einträge bildeten die
     Stichprobe.
-  - `LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node tests/bildvergleich.mjs [--write]
-    [--groesse desktop,handy,quer] [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6]` ist der Bildvergleich des Umbaus
-    (`.scratch/umbau/`, Ticket 01; etwa 30 min: gemessen 27–33 min unter `leise.sh` mit 100 %, davon Desktop 16–20
-    min, Handy hochkant und quer je 5–7 min; mit `--groesse` und `--nur` kürzer): Er nimmt eine feste Liste von
-    Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in `tests/bildvergleich/referenz/` (66
-    JPEG, 5,8 MB). Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
+  - `LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 5400 node
+    tests/bildvergleich.mjs [--gpu] [--write] [--groesse desktop,handy,quer,poco]
+    [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]` ist der Bildvergleich des Umbaus (`.scratch/umbau/`, Ticket 01; etwa 35 min allein: gemessen 27–33 min
+    für die drei ersten Grössen unter `leise.sh` mit 100 %, davon Desktop 16–20 min, Handy hochkant und quer je 5–7 min,
+    dazu «poco» gut 6 min; neben anderen leichten Läufen entsprechend länger; mit `--groesse` und `--nur` kürzer). Er
+    nimmt eine feste Liste von Ansichten in Headless-Chrome auf und vergleicht sie mit den Referenzbildern in
+    `tests/bildvergleich/referenz/` (77 JPEG, 8,5 MB). `--jobs n` lässt die Abläufe je Grösse in n eigenen Prozessen
+    laufen (Ticket 13); auf diesem Rechner bringt das nichts, denn SwiftShader rechnet schon in einem Chrome auf allen
+    Kernen (nacheinander 27 min, mit 2 Prozessen 29 min, mit 4 Prozessen 29 min, mit 6 Zeitüberschreitungen), Vorgabe
+    darum 1. **`--gpu`** (oder `GPU=1`; Entscheid des Nutzers 17.11.2026, Ticket 13) zeichnet auf der Grafikkarte statt
+    in SwiftShader: alle 77 Bilder in knapp 8 min, mit eigenen Referenzen in `tests/bildvergleich/referenz-gpu/`, eigener
+    Toleranz (`TOLERANZ_GPU`, 0,03 % statt 0,01 %; zwischen GPU-Läufen weichen nur Sternpunkte im Bild der Planeten um
+    bis 6 ab) und Ausgabe nach `tests/output/bildvergleich-gpu/`. Headless nimmt Chrome sonst die eingebaute Intel UHD
+    630; der Bildvergleich startet es mit `--force_high_performance_gpu` (`tools/chrome.mjs`, Option `hochleistung`)
+    und bricht ab, wenn `WEBGL_debug_renderer_info` nicht die NVIDIA meldet (andere Karte: `PRISMA_GPU=<Muster>`).
+    Höchstens zwei GPU-Bildvergleiche zeichnen gleichzeitig (Plätze `prisma-bildvergleich-gpu-<n>` im Temp-Verzeichnis),
+    ein dritter wartet. Der GPU-Weg ist der schnelle für Umsetzer; die genaue Prüfung bleibt SwiftShader (Regeln oben).
+    Ansichten: Startbildschirm, Menü mit den vier Graden, Übersicht, jede Welt der Geschichte mit ihrem
     Himmel je in einem Level vor und nach dem Lösen, die vier Übungen im Dorf mit Band, Lichtkegel und Hand, Prolog,
     Reise (Bergwald → Meer) und Epilog; jedes Element steht mindestens einmal im Bild. Je in drei Grössen: Desktop
-    1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1). Gleiche Bilder bei jedem Lauf:
+    1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1); dazu «poco» wie das Poco F4 GT
+    (393 × 873, Pixeldichte 2,75, Android-Kennung, nur `start`, `dorf` und `welt-1-2`): Nur so laufen der Massstab der
+    Seite (`SEITE`) und das Pixelverhältnis 2 des Renderers wie auf den echten Handys (der Lauf prüft beides; Fund
+    Review Ticket 01, Referenzen seit Ticket 13). Gleiche Bilder bei jedem Lauf:
     `?t=12` (Zeit steht, Zufall fest, dazu `phasenZufall`), `?noadapt`, SwiftShader; was bei stehender Zeit nie fertig
     oder still würde (Strahlen, Feier, CSS-Animationen, Uhr der Bühne, Hand im Dorf, Glühwürmchen der Reise), hält die
-    Prüfung nur in der Seite fest. Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
+    Prüfung nur in der Seite fest. Die Bühne von Prolog und Epilog friert sie erst ein, wenn ihre Bewegungen fertig und
+    ihre Texturen ganz gerastert sind (sonst unter Last rot, Ticket 13). Verglichen wird JPEG mit JPEG je Pixel: rot, wenn mehr als 0,01 % der Pixel in einem
     Farbkanal um mehr als 3 abweichen (`TOLERANZ`; ausgenommen nur ein Rechteck im Wasser von Handy quer, Meer 1, das
     das Spiel nicht in jedem Lauf gleich zeichnet, `AUSNAHMEN`); bei Rot liegen Bild, Referenz und Differenzbild unter
     `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
     Referenzen neu, aber nur bei einer bewussten Änderung des Aussehens (im Umbau nie; auch nach einer neuen Fassung von
     Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt
-    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Die Adresse des Spiels steht
-    an einer Stelle (`seite`).
+    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Das Spiel kommt seit den Tickets
+    03 und 13 des Umbaus aus `dist/` über http (`tools/spielserver.mjs`, wie die Proben); die Referenzen stammen noch aus der
+    `index.html` über file:// und gelten unverändert (erster Lauf gegen `dist/`: alle 66 Bilder grün, grösste
+    Abweichung 3).
   - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse` im Modul `src/hall.js`; Ticket 05 von
     `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
     (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),
@@ -721,14 +766,24 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leise.sh <befehl …>` (mit `leise.ps1`, nur unter Windows) startet einen Befehl samt allen Unterprozessen in einem
   Job-Objekt mit harter CPU-Obergrenze und Priorität „Leerlauf“, damit der Rechner bedienbar bleibt. Vorgabe sind 20 %
   der ganzen Maschine; der Generator und die Vorbereitung der KI-Tester (`prepare.mjs`, Screenshots) dürfen
-  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Weil Läufe nur nacheinander laufen, bleibt die
-  Arbeit an Tickets insgesamt unter 70 % der Maschine (Vorgabe des Nutzers). Ein Rechner, auf dem mehr erlaubt ist,
+  `LEISE_CPU=50`, mehr nimmt `leise.sh` ohne `LEISE_MAX_CPU` nicht an. Die Grenze gilt je Lauf: Leichte Läufe (unten)
+  laufen bis zu vier gleichzeitig, jeder mit seiner Grenze; wo das zu viel ist, `LEISE_LEICHT_MAX=1` (dann wie bis
+  Ticket 13 des Umbaus alles nacheinander). Ein Rechner, auf dem mehr erlaubt ist,
   hebt die Obergrenze lokal mit der Umgebungsvariablen `LEISE_MAX_CPU` an (Standard 50; nicht versioniert, etwa in
   `.claude/settings.local.json` unter `env`, das gitignored ist), etwa `LEISE_MAX_CPU=65 LEISE_CPU=65 sh tools/leise.sh
   …`. Dieselbe Grenze prüfen Generator, Messskript und Screenshots (`tools/deckel.mjs`). Alle schweren Läufe (Tests,
-  Messungen, Screenshots, Generator) laufen darüber, nie mehrere gleichzeitig: Eine Sperre (`/tmp/prisma-leise.lock`)
-  lässt einen zweiten Lauf warten („leise: warte auf laufenden Lauf“), auch aus parallel arbeitenden Worktrees; ein Aufruf innerhalb eines
-  Laufs läuft direkt, eine verwaiste Sperre (Halter tot, oder über eine Minute ohne pid-Datei) wird übernommen;
+  Messungen, Screenshots, Generator) laufen darüber, auch aus parallel arbeitenden Worktrees, über eine Sperre
+  (`/tmp/prisma-leise.lock`) mit zwei Arten von Läufen (Ticket 13 des Umbaus; welcher Lauf welche Art ist: Tabelle im
+  Abschnitt Tests): **allein** (Vorgabe, Läufe mit Bildzeiten oder Messungen) startet erst, wenn kein anderer Lauf mehr
+  läuft, und solange er läuft, startet keiner („leise: warte auf laufenden Lauf“); **leicht** (`LEISE_ART=leicht`)
+  laufen bis zu `LEISE_LEICHT_MAX` (Vorgabe 4) gleichzeitig und halten die Sperre gemeinsam (der letzte räumt sie weg),
+  so wartet auch eine ältere Kopie von `leise.sh` auf sie. Warten mehrere alleinige, geht die kleinere Zahl
+  `LEISE_VORRANG` vor (Nummer des Tickets, ohne Angabe 500). Ein leichter Lauf lässt jedem wartenden alleinigen mit
+  gleicher oder kleinerer Zahl den Vortritt; einen mit grösserer Zahl überholt er höchstens `LEISE_FRIST` Minuten
+  (Vorgabe 10) lang, danach startet kein leichter mehr, bis der alleinige gelaufen ist. Ein Aufruf innerhalb eines
+  Laufs läuft direkt, eine verwaiste Sperre (Halter tot und kein lebender leichter Lauf darin, oder über eine Minute
+  ohne pid-Datei) wird übernommen. `node tests/leise.test.mjs` prüft das mit eigenen Pfaden (`LEISE_SPERRE`,
+  `LEISE_WARTE`), nie an der echten Sperre;
   `chrome.mjs` steuert Headless-Chrome über das DevTools-Protokoll (für `tests/screenshot.mjs` und die KI-Tester;
   mit `fenster` sichtbar, für Messungen im echten Bildschirmtakt; `on` hört auf Ereignisse wie die eines Traces).
 - **Beurteilung** (`tools/beurteilung/`, nur für die Entwicklung; ADR 0002, Spec „Beurteilung“ und „Feldform“): ein

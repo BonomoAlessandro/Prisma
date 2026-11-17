@@ -4,8 +4,8 @@
 // jede Skybox aus Blender wählen (Teile im Speicher: vorab bzw. beim ersten Gebrauch) und sie offline zeigen; je
 // Himmel ist er erst bereit (skyReady), wenn das Brett seiner Brett-Angabe bereit ist und ganz steht (__prisma.brett(),
 // auch Milchstrasse und Sonnensystem online).
-// Ausgeliefert wird der Build (dist/, vorher frisch gebaut über tools/spielserver.mjs; PRISMA_OHNE_BAU=1 nimmt das
-// vorhandene) samt dem dort erzeugten sw.js.
+// Ausgeliefert wird der Build (frisch gebaut über tools/spielserver.mjs in einen eigenen Ordner im Temp-Verzeichnis;
+// PRISMA_OHNE_BAU=1 nimmt das vorhandene dist/) samt dem dort erzeugten sw.js.
 // Aufruf: node tests/offline.mjs [--redirect]   (--redirect: Server leitet index.html auf ./ weiter, wie manche Hoster)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -17,7 +17,9 @@ import { tmpdir } from 'node:os';
 import { baue, DIST, TYPES } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue();
+// in einen eigenen Ordner gebaut, nicht nach dist/ (gleichzeitige leichte Läufe, Ticket 13 von .scratch/umbau/)
+const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue(mkdtempSync(join(tmpdir(), 'prisma-spiel-')));
+if (dist !== DIST) process.once('exit', () => rmSync(dist, { recursive: true, force: true }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redirect = process.argv.includes('--redirect');
 
@@ -50,9 +52,9 @@ const chrome = [
 if (!chrome) { stopServer(); throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).'); }
 
 const profile = mkdtempSync(join(tmpdir(), 'prisma-offline-'));
-const port = 9300 + Math.floor(Math.random() * 500);
+// Port 0: Chrome wählt einen freien (DevToolsActivePort im Profil), wie tools/chrome.mjs (Ticket 13)
 const proc = spawn(chrome, [
-  '--headless=new', `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  '--headless=new', '--remote-debugging-port=0', `--user-data-dir=${profile}`,
   '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist',
   '--no-first-run', '--no-default-browser-check', '--mute-audio', '--window-size=1000,700', 'about:blank',
 ], { stdio: 'ignore' });
@@ -67,15 +69,22 @@ async function cleanup() {
   try { rmSync(profile, { recursive: true, force: true }); } catch { /* Chrome hält noch Dateien offen */ }
 }
 // Notbremse: Hängt Chrome, endet der Test trotzdem (jede Skybox zweimal, in SwiftShader brauchte das bis über 300 s;
-// mit der sechsten aus Blender, der Eishöhle, und etwas Last auf dem Rechner reichten 600 s nicht mehr)
-setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 900000).unref();
+// mit der sechsten aus Blender, der Eishöhle, und etwas Last auf dem Rechner reichten 600 s nicht mehr; seit Ticket 13
+// des Umbaus läuft er als leichter Lauf neben anderen, darum 1800 s)
+setTimeout(async () => { console.log('  FAIL  Zeitüberschreitung des ganzen Tests'); await cleanup(); process.exit(1); }, 1800000).unref();
+// Versuche zu je 200 ms, bis ein Himmel bereit ist: Allein brauchte die Eishöhle bis 382 von früher 400 (Review Ticket 02
+// des Umbaus), neben einem anderen leichten Lauf reichte das für die Wüste nicht (Ticket 13). Nur ein Sicherheitsnetz.
+const WARTEN = 1200;
 
 let ok = true;
 const check = (cond, text) => { console.log(`  ${cond ? 'ok  ' : 'FAIL'}  ${text}`); ok &&= cond; };
 try {
   let wsUrl;
-  for (let i = 0; i < 50 && !wsUrl; i++) {
-    try { wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page')?.webSocketDebuggerUrl; }
+  for (let i = 0; i < 100 && !wsUrl; i++) {
+    try {
+      const port = +readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0];
+      wsUrl = (await (await fetch(`http://127.0.0.1:${port}/json/list`)).json()).find(t => t.type === 'page')?.webSocketDebuggerUrl;
+    }
     catch { /* Chrome startet noch */ }
     if (!wsUrl) await sleep(200);
   }
@@ -148,7 +157,7 @@ try {
     errors.length = warnings.length = 0;
     ws.addEventListener('message', onWarn);
     await send('Page.navigate', { url: base + `index.html?noadapt&nointro&sky=${sky.id}` });
-    await waitSky(sky.id, sky.board?.type ?? 'stone', 'online', 400);
+    await waitSky(sky.id, sky.board?.type ?? 'stone', 'online', WARTEN);
     ws.removeEventListener('message', onWarn);
     const files = sky.parts.map((p) => new URL(`backgrounds/${p.file}`, base).href);
     await waitFor(`caches.open('prisma-v1').then((c) => c.keys()).then((k) => ${JSON.stringify(files)}.every((f) => k.some((r) => r.url === f)))`,
@@ -179,7 +188,7 @@ try {
     errors.length = warnings.length = 0;
     ws.addEventListener('message', onWarn);
     await send('Page.navigate', { url: base + `index.html?noadapt&nointro&sky=${sky.id}` });
-    await waitSky(sky.id, sky.board?.type ?? 'stone', 'offline', 400);
+    await waitSky(sky.id, sky.board?.type ?? 'stone', 'offline', WARTEN);
     ws.removeEventListener('message', onWarn);
     const all = [...relevantErrors(), ...skyWarnings()];
     check(all.length === 0, `offline: Skybox ${sky.id} ganz geladen (mit Streifen), Konsole ohne Fehler` + (all.length ? '\n        ' + all.join('\n        ') : ''));
