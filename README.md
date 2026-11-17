@@ -20,6 +20,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `leistung`, `seite`). Das Spiel in `src/`:
   - `logik.js` (Strahlregel, Löser-Grundlagen, Level, Geschichte; auch für Node), `zufall.js`, `hall.js`,
     `hall-worker.ts` (Worker des Halls);
+  - `speicher.ts`, die Speicherschicht (Ticket 05 des Umbaus): Aller Zugriff auf den Spielstand läuft über ihre kleine
+    Schnittstelle `Speicher` (`lesen`, `schreiben`, `loeschen` je Schlüssel, Werte als Text; wirft nie). Die Umsetzung
+    wählt die Plattform beim Start (`speicherFuerPlattform`), heute überall `localStorage`; später etwa eine Datei für
+    Steam Cloud, ohne dass sich das Spiel ändert. Kein anderer Teil des Codes nennt `localStorage` (Test).
+    `spielstand.js` legt Schlüssel und Format fest (unverändert seit Noas Geschichte): `progress` (Stand je Grad unter
+    `prisma.noa.<grad>`, Bestwerte unter `prisma.noa.<grad>.bestwerte`, zuletzt gespielt unter `prisma.noa.zuletzt`)
+    und `einstellungen` (Ton aus unter `prisma.muted`);
   - `seite/` die Teile des Spiels, in der Reihenfolge, in der sie laden: `konfiguration.ts` (Fassung, Gerät,
     Schalter der Adresse, Qualität, Masse), `szene.js` (Renderer, Szene, Hauptschleife `sceneLoop`, Ruhe,
     Übersetzen der Programme), `texturen.js`, `himmel/` (`sterne.js` Umgebung und Sternenhimmel, `sonnensystem.js`,
@@ -46,7 +53,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
   mit Endung `.ts`); der übrige Code ist JavaScript (`allowJs`, nicht geprüft: `checkJs` aus) und wird es Stück für
   Stück. TypeScript sind heute `src/main.ts`, `src/hall-worker.ts`, `src/seite/konfiguration.ts`,
-  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts` und `src/seite/testschnittstelle.ts`; was die klassischen
+  `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was die klassischen
   Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
   (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module haben eine
   feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können (etwa die Logik mit weiteren Leveln,
@@ -56,7 +63,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `logik`, `PRISMA_LOGIK` in `vite.config.mjs`). Node 22.12 lädt TypeScript nicht ohne Weiteres:
   `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer Warnung `ExperimentalWarning`), ebenso ein
   Lade-Haken über `module.register`, der für `.ts` das Format `module-typescript` meldet (ohne Schalter; danach
-  `await import('…/x.ts')`). Ab Node 22.18 entfernt Node Typen von selbst.
+  `await import('…/x.ts')`; so `tools/ts-modul.mjs`, `tsModul('src/spielstand.js')`, seit Ticket 05). Ab Node 22.18
+  entfernt Node Typen von selbst.
 - **Auf dem Handy (gleiches WLAN):** `npm run build`, dann `npm run preview -- --host`; Vite nennt die Adresse im Netz
   (`Network: http://192.168.…:4173/`), diese im Browser des Handys öffnen. Der Rechner muss Verbindungen auf Port 4173
   zulassen (Windows-Firewall: beim ersten Mal «Zugriff zulassen» für Node). Über http ohne s gibt es dort keinen Service
@@ -143,6 +151,14 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten Berechnung beim ersten Klick
     (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32` mit festem Samen),
     unabhängig von der Stückgrösse, auch als Text ausgeführt, und die Seite importiert das Modul (unter 1 s).
+  - `node tests/speicher.test.mjs` prüft die Speicherschicht (Ticket 05 des Umbaus; wenige Sekunden): Kein Teil des
+    Spiels ausser `src/speicher.ts` nennt `localStorage` oder `sessionStorage` (`index.html`, `sw.js`, alle Module,
+    auch Kommentare; mit Gegenprobe); die Umsetzung für `localStorage` legt jeden Text unverändert unter seinem
+    Schlüssel ab; ein Spielstand von heute (Fortschritt in drei Graden samt Dorf, Bestwerte, zuletzt gespielt, Ton aus,
+    alte und fremde Schlüssel) wird ohne Umrechnung gelesen und, unverändert gespeichert, Byte für Byte gleich
+    geschrieben; scheitert der Speicher (gesperrt, voll, gar keiner), wirft nichts, und das Spiel beginnt von vorn.
+    Module in TypeScript lädt er wie `levelliste.test.mjs` über `tools/ts-modul.mjs` (`tsModul`, ein Lade-Haken für
+    `.ts`, nötig bis Node 22.18).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
