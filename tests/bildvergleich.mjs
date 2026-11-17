@@ -41,17 +41,20 @@
 // Laufzeit siehe README (Abschnitt Tests).
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
 import { requireQuiet } from '../tools/ki-tester/shots.mjs';
+import { spielServer } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
- * Die Adresse des Spiels, an dieser einen Stelle (Ticket 02 stellt auf den Dev-Server bzw. dist/ um). query: die
- * Parameter ohne «?».
+ * Die Adresse des Spiels kommt aus tools/spielserver.mjs (Ticket 02): dist/ frisch gebaut über http
+ * (PRISMA_OHNE_BAU=1: das vorhandene dist/, PRISMA_SPIEL=<url>: eine laufende Adresse). query: die Parameter ohne «?».
+ * Der Server startet nach dem Prüfen der Argumente (unten).
  */
-const seite = (query) => `${pathToFileURL(join(root, 'index.html')).href}?${query}`;
+let spiel = null;
+const seite = (query) => spiel.seite(query);
 
 const REFERENZ = join(root, 'tests', 'bildvergleich', 'referenz');
 const OUT = join(root, 'tests', 'output', 'bildvergleich');
@@ -89,6 +92,7 @@ if (nurGroessen?.some((g) => !GROESSEN.some((x) => x.name === g))) {
   process.exit(2);
 }
 requireQuiet();
+spiel = await spielServer();
 
 const D = '__prismaDebug';
 const T = 12; // ?t=: Zeit der Animationen
@@ -453,6 +457,7 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
   }
 }
 if (rechner) await rechner.chrome.close();
+await spiel.close();
 
 // jedes Element mindestens einmal im Bild (nur bei einem ganzen Lauf)
 if (!nurAnsichten) {

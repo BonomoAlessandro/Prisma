@@ -83,8 +83,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `tests/output/bildvergleich/`. Ab Ticket 02 muss er nach jedem Schritt des Umbaus grün sein. `--write` schreibt die
     Referenzen neu, aber nur bei einer bewussten Änderung des Aussehens (im Umbau nie; auch nach einer neuen Fassung von
     Chrome, wenn der Vergleich davon rot wird, und dann begründet). `--diag` gibt
-    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Die Adresse des Spiels steht
-    an einer Stelle (`seite`).
+    je Bild den Zustand aus (Kamera, Uhren, Ziele), wenn zwei Läufe voneinander abweichen. Das Spiel kommt seit Ticket
+    13 des Umbaus aus `dist/` über http (`tools/spielserver.mjs`, wie die Proben); die Referenzen stammen noch aus der
+    `index.html` über file:// und gelten unverändert (erster Lauf gegen `dist/`: alle 66 Bilder grün, grösste
+    Abweichung 3).
   - `node tests/hall.test.mjs` prüft die Impulsantwort des Halls (`hallImpulse`, Bereich HALL:BEGIN … HALL:END in
     `index.html`; Ticket 05 von `.scratch/leistung/`): Für 44,1, 48 und 96 kHz ist sie bitgleich mit der alten
     Berechnung beim ersten Klick (Prüfsumme und Stichproben aus dem Stand `963177d`; das Rauschen kommt aus `mulberry32`
