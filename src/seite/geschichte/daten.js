@@ -474,7 +474,7 @@ const STORY_EPILOG = [
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
 alsGlobal({
   BUEHNENWAGEN: () => BUEHNENWAGEN, STORY_CHAPTERS: () => STORY_CHAPTERS, STORY_DORF: () => STORY_DORF,
-  STORY_EPILOG: () => STORY_EPILOG, STORY_PROLOG: () => STORY_PROLOG,
+  STORY_EPILOG: () => STORY_EPILOG, STORY_PROLOG: () => STORY_PROLOG, wagen: () => wagen,
 });
 
 export {

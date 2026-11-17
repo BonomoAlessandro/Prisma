@@ -4,6 +4,7 @@ import './brett/brett.js';
 import { IS_MOBILE, LOOK, PLATE, QUALITY } from './konfiguration.ts';
 import { camera, discardDepth, HDR_SUPPORTED, HDR_TYPE, renderer, scene, SCENE_PREPASSES } from './szene.js';
 import { glf, glm3, glv } from './himmel/skybox.js';
+import { alsGlobal } from './testschnittstelle.ts';
 
 /* =====================================================================
    BELEUCHTUNG — Museumsspot als Hauptlicht
@@ -843,5 +844,10 @@ function createComposer() {
 const { comp: composer, bloom: bloomPass, finalPass, brush: brushPass } = createComposer();
 // Mit eigenem RenderTarget setzt der Composer sein Pixelverhältnis auf 1 – für HiDPI korrigieren.
 composer.setPixelRatio(renderer.getPixelRatio());
+
+// Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
+alsGlobal({
+  bloomPass: () => bloomPass, brushPass: () => brushPass, composer: () => composer, finalPass: () => finalPass,
+});
 
 export { bloomPass, BRUSH_DEFAULT, brushPass, composer, finalPass, hemi, keyLight };

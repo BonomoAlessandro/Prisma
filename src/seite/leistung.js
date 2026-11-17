@@ -546,7 +546,7 @@ document.addEventListener('visibilitychange', () => sceneLoop.wake());
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)
 alsGlobal({
   frameRate: () => frameRate, leistung: () => leistung, MESS_ABSCHNITTE: () => MESS_ABSCHNITTE,
-  perfHud: () => perfHud,
+  perfHud: () => perfHud, RUHE_NACH_MS: () => RUHE_NACH_MS,
 });
 
 export { frameRate, leistung, perfHud };
