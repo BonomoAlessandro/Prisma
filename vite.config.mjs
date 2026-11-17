@@ -8,7 +8,7 @@
 // Schrift daraus ebenso (unverkleinert, cssMinify: false). Was index.html direkt lädt (three.js r147 in vendor/, das
 // Register der Skyboxen, die Icons), trägt das Attribut vite-ignore: Vite lässt es stehen, wie es ist (und entfernt nur
 // das Attribut). Der Worker des Halls (src/hall-worker.ts) ist ein eigenes Modul: new Worker(new URL(…)) in
-// src/seite/spiel.js, Vite macht daraus im Build assets/hall-worker-<hash>.js.
+// src/seite/ton.js, Vite macht daraus im Build assets/hall-worker-<hash>.js.
 //
 // Beim Build kommen dazu (Plugin prisma):
 // - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest und aus

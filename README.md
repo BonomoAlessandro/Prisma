@@ -27,8 +27,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     `bildschritte.js` (Licht, Bloom, Pinsel, letzter Schritt), `kamera.js`, `brett/elemente.js` (3D-Modelle der
     Elemente), `brett/feld.js` (`game`: Logik und Darstellung verbunden, Laden, Drehen, Würfel), `brett/strahlen.js`,
     `eingabe.js` (Maus, Finger, Mausrad), `ton.js`, `levelfluss.js` (Lösungsmoment, Übergänge, Fortschritt),
-    `oberflaeche/` (`dom.ts`, `ui.js` Kopfzeile, Knöpfe, «Gelöst», Startbildschirm; `menue.js`; `uebersicht.js`),
-    `fuehrung.js` (Führung im Dorf), `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und
+    `oberflaeche/dom.ts`, `fuehrung.js` (Führung im Dorf), `oberflaeche/` (`ui.js` Kopfzeile, Knöpfe, «Gelöst»,
+    Startbildschirm; `menue.js`; `uebersicht.js`), `geschichte/` (`daten.js` Kapitel und Texte, `buehne.js` Bühne von Prolog und
     Epilog, `geschichte.js` Ablauf `story`), `aufloesung.js` (Grösse, Uhr, adaptive Auflösung, Spiegelung je Bild),
     `leistung.js` (Messwerkzeug, Leistungsanzeige `?perf`, Bildrate), `schleife.js` (Hauptschleife, Testschnittstelle
     `window.__prisma`/`__prismaDebug`, Seitenstart). Dazu `aufgabe.ts` (eine neue Aufgabe abwarten) und
