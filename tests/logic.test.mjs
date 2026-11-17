@@ -10,7 +10,7 @@
 // Aufruf: node tests/logic.test.mjs
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -1304,11 +1304,16 @@ console.log('Offline');
   const { swFiles, swLazy } = vm.runInContext('({ swFiles: FILES, swLazy: LAZY })', sw);
   const skies = loadSkies(root);
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).appVersion;
-  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url(),
-  // dazu die Icons aus dem Manifest
+  // alles, was die gebaute Seite lädt: <script src>, <link href> (auch das per Skript eingefügte Manifest), CSS url()
+  // in der Seite und in den Stilen (seit Ticket 04 eine Datei unter assets/, url() relativ zu ihr), dazu die Icons aus
+  // dem Manifest
+  const urls = (text, ordner = '') => [...text.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1])
+    .filter(u => !u.startsWith('#') && !u.startsWith('data:')).map((u) => posix.join(ordner, u));
+  const stile = [...distHtml.matchAll(/<link rel="stylesheet"[^>]*?\bhref="\.\/([^"]+\.css)"/g)].map(m => m[1]);
   const refs = new Set([
     ...[...distHtml.matchAll(/<(?:script|link)\b[^>]*?\b(?:src|href)="([^"]+)"/g)].map(m => m[1]),
-    ...[...distHtml.matchAll(/url\(\s*["']?([^"')]+)/g)].map(m => m[1]).filter(u => !u.startsWith('#') && !u.startsWith('data:')),
+    ...urls(distHtml),
+    ...stile.flatMap((s) => urls(readFileSync(join(aus, s), 'utf8'), posix.dirname(s))),
     ...JSON.parse(readFileSync(join(aus, 'manifest.webmanifest'), 'utf8')).icons.map(i => i.src),
   ].map((r) => r.replace(/^\.\//, '')));
   // existiert genau so geschrieben? (Windows ignoriert Gross-/Kleinschreibung, der Webserver nicht)
@@ -1349,18 +1354,31 @@ console.log('Offline');
       .filter((f) => !existsExactly(f, root) || !readFileSync(join(aus, f)).equals(readFileSync(join(root, f))));
     assert.deepEqual(anders, []);
   });
-  test('Build: index.html wie die Quelle mit den Modulen bis auf vite-ignore, die Schrift unter assets/, APP_VERSION '
-    + 'und den Pfad des Workers', () => {
+  test('Build: index.html wie die Quelle mit den Modulen bis auf vite-ignore, den Stil und die Schrift unter assets/, '
+    + 'APP_VERSION und den Pfad des Workers', () => {
     const schrift = [...refs].find((r) => /^assets\/jost-latin-[\w-]+\.woff2$/.test(r));
     assert.ok(schrift, 'Schrift Jost nicht unter assets/');
+    assert.equal(stile.length, 1, 'Stil nicht genau eine Datei');
+    assert.match(stile[0], /^assets\/index-[\w-]+\.css$/);
     const worker = imBau().filter((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
     assert.equal(worker.length, 1, 'Worker des Halls nicht genau einmal unter assets/');
-    const erwartet = html.replaceAll(' vite-ignore>', ' >').replace('url(vendor/jost/jost-latin.woff2)', `url(./${schrift})`)
+    // der Stil an seiner Stelle in der Quelle (vor dem Skript des Massstabs, vite.config.mjs: stilZurueck)
+    const erwartet = html.replaceAll(' vite-ignore>', ' >')
+      .replace('<link rel="stylesheet" href="src/stil/index.css">', `<link rel="stylesheet" crossorigin href="./${stile[0]}">`)
       .replace("const APP_VERSION = '__APP_VERSION__';", `const APP_VERSION = '${version}';`)
       .replace("new Worker('__HALL_WORKER__',", `new Worker('${worker[0]}',`);
     const zeilen = (t) => t.replaceAll('\r\n', '\n');
     assert.ok(zeilen(distHtml) === zeilen(erwartet), 'index.html im Build weicht ab');
     assert.ok(!/vite-ignore/.test(distHtml) && !/<script type="module"/.test(distHtml), 'Build: Module oder vite-ignore übrig');
+  });
+  test('Build: der Stil enthält die Teile aus src/stil/ in der Reihenfolge von index.css, sonst nichts', () => {
+    const quelleStil = readFileSync(join(root, 'src/stil/index.css'), 'utf8');
+    const teile = [...quelleStil.matchAll(/^@import "\.\/([\w-]+\.css)";/gm)].map((m) => m[1]);
+    assert.ok(teile.length >= 2, 'index.css ohne @import');
+    const norm = (t) => t.replace(/\/\*[\s\S]*?\*\//g, '').replace(/url\([^)]*jost[^)]*\)/g, 'url(JOST)')
+      .replace(/\s+/g, ' ').trim();
+    const zusammen = teile.map((t) => readFileSync(join(root, 'src/stil', t), 'utf8')).join('\n');
+    assert.equal(norm(readFileSync(join(aus, stile[0]), 'utf8')), norm(zusammen));
   });
   test('Build: der Worker des Halls, ein ES-Modul mit hallImpulse und mulberry32, unverkleinert, ohne import', () => {
     const datei = imBau().find((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));

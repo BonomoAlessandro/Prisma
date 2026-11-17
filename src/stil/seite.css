@@ -1,0 +1,7 @@
+/* Massstab der Seite (SEITE, im Skript im Kopf von index.html) (Ticket 04 von .scratch/umbau/: aus index.html) */
+/* Massstab der Seite (Ticket 18 von .scratch/leistung/, siehe SEITE): Die Seite rastert mit 2 Gerätepixeln je Pixel
+   des Layouts, alles ausser der Bühne wird um SEITE vergrössert und sieht aus wie vorher. Längen aus dem Viewport
+   (vw, vh, dvh) sind im vergrösserten Teil darum durch --seite geteilt. */
+:root { --seite: 1; }
+html.seite body { zoom: var(--seite); }
+html.seite #story .scene .world { zoom: calc(1 / var(--seite)); } /* die Bühne selbst: Massstab der Seite */

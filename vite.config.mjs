@@ -71,6 +71,22 @@ function mitWorker(html, pfad) {
   return html.replace(HALL_WORKER, pfad);
 }
 
+/**
+ * Der Stil (src/stil/index.css, Ticket 04): Vite fügt ihn als eine Datei unter assets/ ein, mit dem <link> am Ende des
+ * Kopfs. Das Skript des Massstabs im Kopf rechnet aber die Medienabfragen der Blätter um und muss sie darum schon
+ * sehen: den <link> an die Stelle zurück, an der er in der Quelle steht (nach der Zeile mit STIL_MARKE).
+ */
+const STIL_MARKE = '<!-- Stil des Spiels: src/stil/';
+function stilZurueck(html) {
+  const links = html.match(/^[ \t]*<link rel="stylesheet" crossorigin href="\.\/assets\/[\w-]+\.css">\r?\n/gm) ?? [];
+  if (links.length !== 1) throw new Error(`index.html: ${links.length} Stile von Vite statt einem`);
+  const marke = html.indexOf(STIL_MARKE);
+  if (marke < 0 || html.indexOf(STIL_MARKE, marke + 1) >= 0) throw new Error('index.html: Marke des Stils nicht genau einmal');
+  html = html.replace(links[0], '');
+  const ende = html.indexOf('\n', marke) + 1;
+  return html.slice(0, ende) + links[0].trimStart() + html.slice(ende);
+}
+
 function prisma() {
   let aus = null; // Ausgabeordner
   let bauen = false; // npm run build (sonst Dev-Server)
@@ -131,7 +147,7 @@ self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
         && f.facadeModuleId?.replaceAll('\\', '/').endsWith(`/${WORKER_QUELLE}`));
       if (worker.length !== 1) throw new Error(`${WORKER_QUELLE}: ${worker.length} Dateien im Build statt einer`);
       const seite = join(aus, 'index.html');
-      writeFileSync(seite, mitWorker(readFileSync(seite, 'utf8'), worker[0].fileName));
+      writeFileSync(seite, stilZurueck(mitWorker(readFileSync(seite, 'utf8'), worker[0].fileName)));
       const kopiere = (pfad) => {
         if (!existsSync(join(root, pfad))) throw new Error(`${pfad} fehlt`);
         if (!vonVite.has(pfad)) cpSync(join(root, pfad), join(aus, pfad));

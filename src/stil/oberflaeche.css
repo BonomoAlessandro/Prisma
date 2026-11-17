@@ -1,0 +1,244 @@
+/* Oberfläche im Spiel: Kopfzeile, Band und Bild der Führung, kleine Schaltflächen, «Level gelöst» (Ticket 04 von .scratch/umbau/: aus index.html) */
+/* ---------- Kopfzeile ---------- */
+#hud {
+  position: fixed;
+  top: max(24px, env(safe-area-inset-top));
+  left: 0;
+  right: 0;
+  text-align: center;
+  pointer-events: none;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+  padding: 0 16px;
+  transition: opacity 0.6s ease;
+}
+#hud.hidden { transition-duration: 0.3s; }
+#hud .title { font-size: 13px; font-weight: 300; }
+/* Schwierigkeitsgrad: Punkte 1–4 (●○○○ … ●●●●) und Text in der Kopfzeile (in der Geschichte hinter den Zielen; das
+   Menü zeichnet sie gleich, .menue-pips). Ohne eigene Farben, weil Rot, Grün und Blau Lichtfarben sind: Den Grad
+   trägt die Zahl der vollen Punkte, volle und leere unterscheiden sich in der Form. */
+.tier { font-size: 9px; letter-spacing: 0.3em; white-space: nowrap; color: var(--ink-dim); }
+.tier .pips { display: inline-flex; gap: 3px; vertical-align: 1px; }
+.tier .pips i { width: 5px; height: 5px; box-sizing: border-box; border: 1px solid currentColor; border-radius: 50%; }
+.tier .pips i.on { background: currentColor; border-color: transparent; } /* Rand und Fläche nicht doppelt deckend */
+#hud .tier { margin-left: 1.2em; vertical-align: 1px; }
+#hud .tier .pips { margin-right: 0.8em; }
+#hud .tier[hidden] { display: none; }
+@media (max-width: 520px) { /* Handy hochkant: Grad in eigener Zeile unter dem Namen, lange Namen füllen die Zeile */
+  #hud .title .tier:not([hidden]) { display: block; margin: 6px 0 0; padding-left: 0.3em; }
+}
+/* Noas Geschichte: der Grad hinter den Zielen («Ziele 0 / 3 · ●●○○ Mittel»); die Unterzeile nur im Dorf mit
+   «Übung 2 / 4» (der Satz des Schritts steht im Band unten, #band) */
+#hud .goal .tier { margin-left: 0; font-size: inherit; letter-spacing: inherit; vertical-align: 0; }
+#hud .goal .tier::before { content: " · "; }
+#hud .sub .teil { white-space: nowrap; }
+/* Übung im Dorf: der Satz ihres Schritts in einer eigenen Zeile. Er ist der Lehrinhalt des Kapitels: in
+   normaler Schreibung, grösser und heller als die Unterzeile darüber (Review Ticket 07) */
+#hud .sub .hinweis {
+  display: block; max-width: 40em; margin: 6px auto 0; font-size: 13.5px; line-height: 1.5; letter-spacing: 0.02em;
+  text-transform: none; color: rgba(232, 230, 240, 0.84);
+}
+@media (max-width: 520px) { #hud .sub .hinweis { font-size: 13px; } }
+/* Band der Führung (fuehrung.zeichneBand, Spec .scratch/tutorial-neu/ «Aussehen»): fest am unteren Rand, immer an
+   derselben Stelle, über der Szene und ihrem Abdunkeln. Darin Punkte für den Fortschritt der Übung, der Satz des
+   Schritts und an einer Erklärung «Weiter» rechts daneben, mittig zu seiner Höhe; Hinweise nebenbei klein darüber.
+   Es lässt die Knöpfe frei: über der Reihe der Knöpfe unten rechts (und «Dorf überspringen» unten links auf dem Handy
+   hochkant), auf einem breiten Bildschirm daneben; auf dem Handy quer am unteren Rand, links der Knöpfe rechts in der
+   Mitte. Nur «Weiter» nimmt Tippen an, der Rest geht an die Szene. Mit der Kopfzeile aus und ein (Menü, Übersicht) */
+#band {
+  position: fixed; left: 0; right: 0; bottom: calc(max(16px, env(safe-area-inset-bottom)) + 56px);
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0 16px;
+  letter-spacing: 0.02em; text-transform: none; text-align: left;
+  transition: opacity 0.45s ease, visibility 0s;
+}
+#band.aus { opacity: 0; visibility: hidden; transition: opacity 0.45s ease, visibility 0s 0.45s; }
+@media (min-width: 1100px) and (min-height: 501px) { #band { bottom: max(16px, env(safe-area-inset-bottom)); } }
+#band .band-kasten {
+  box-sizing: border-box; width: min(600px, 100%); padding: 10px 12px 12px 18px;
+  border: 1px solid rgba(255, 217, 138, 0.24); border-radius: 16px;
+  background: rgba(8, 8, 16, 0.8); box-shadow: 0 6px 26px rgba(0, 0, 0, 0.45);
+}
+#band .band-punkte { display: flex; gap: 6px; margin-bottom: 7px; }
+#band .band-punkte i {
+  width: 7px; height: 7px; box-sizing: border-box; border: 1px solid rgba(232, 230, 240, 0.45); border-radius: 50%;
+  transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+#band .band-punkte i.voll { background: #ffd98a; border-color: #ffd98a; }
+#band .band-punkte i.jetzt { border-color: #ffd98a; box-shadow: 0 0 0 2px rgba(255, 217, 138, 0.2); }
+/* der Satz blendet beim Wechsel aus und mit dem nächsten Schritt wieder ein (fuehrung.wechselt) */
+#band .band-zeile { display: flex; align-items: center; gap: 14px; min-height: 34px; transition: opacity 0.35s ease; }
+#band .band-zeile.wechsel { opacity: 0; transition-duration: 0.2s; }
+#band .band-satz { flex: 1 1 auto; min-width: 0; margin: 0; font-size: 15px; line-height: 1.45; color: rgba(242, 240, 248, 0.96); }
+#band .fuehrung-weiter {
+  pointer-events: auto; flex: none; padding: 9px 16px 9px calc(16px + 0.3em);
+  font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: #17130a;
+  border-radius: 999px; background: #ffd98a; transition: background-color 0.25s ease;
+}
+#band .fuehrung-weiter:hover { background: #ffe6b0; }
+#band .fuehrung-weiter[hidden] { display: none; }
+#hud.hidden #band .fuehrung-weiter, #band.aus .fuehrung-weiter, #band .wechsel .fuehrung-weiter { pointer-events: none; }
+#band .band-neben {
+  box-sizing: border-box; max-width: min(600px, 100%); padding: 4px 12px; border-radius: 10px;
+  background: rgba(8, 8, 16, 0.62); font-size: 12px; line-height: 1.4; text-align: center; color: rgba(232, 230, 240, 0.8);
+}
+#band .band-neben[hidden] { display: none; }
+@media (max-width: 520px) {
+  #band .band-kasten { padding: 9px 10px 10px 14px; }
+  #band .band-satz { font-size: 14px; }
+}
+@media (max-height: 500px) { /* Handy quer: am unteren Rand, die Knöpfe stehen rechts in der Mitte */
+  #band {
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 0 calc(max(16px, env(safe-area-inset-right)) + 56px) 0 calc(max(16px, env(safe-area-inset-left)) + 56px);
+    gap: 4px;
+  }
+  /* flach: die Punkte links in derselben Zeile wie der Satz, breiter (ein Satz meist in einer Zeile), damit das Band
+     so wenig wie möglich vom Brett deckt, das hier die ganze Höhe füllt */
+  #band .band-kasten { display: flex; align-items: center; gap: 12px; width: min(720px, 100%); padding: 6px 8px 6px 14px; }
+  #band .band-punkte { flex: none; gap: 5px; margin: 0; }
+  #band .band-zeile { flex: 1 1 auto; min-width: 0; min-height: 30px; }
+  #band .band-satz { font-size: 13.5px; line-height: 1.4; }
+  #band .band-neben { font-size: 11px; padding: 3px 10px; }
+}
+/* Abdunkeln, Lichtkegel und Hand über dem Brett (fuehrung.zeichneBild): an der Bildschirmlage der Elemente
+   (fuehrung.platziere), unter Kopfzeile und Band (im Dokument davor). Nur sichtbar, solange die Führung etwas zeigt;
+   die Bewegung rechnet CSS */
+#fuehrung { position: fixed; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+/* die Szene leicht abgedunkelt, je Lichtkegel ein weiches Loch (Maske); ein neuer Kegel wächst kurz auf */
+#fuehrung .fz-dunkel { fill: rgb(3, 3, 8); opacity: 0; transition: opacity 0.5s ease; }
+#fuehrung.dunkel .fz-dunkel { opacity: var(--fz-dunkel); }
+#fuehrung .fz-kegel { transform-origin: 0 0; animation: fz-kegel 0.45s ease-out both; }
+@keyframes fz-kegel { from { opacity: 0; transform: scale(0.35); } }
+#fuehrung .fz-hand { filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.55)); }
+#fuehrung .fz-hand > g { display: none; }
+#fuehrung .fz-hand[data-art="tippen"] .fz-tippen, #fuehrung .fz-hand[data-art="halten"] .fz-halten,
+#fuehrung .fz-hand[data-art="rechtsklick"] .fz-rechtsklick { display: inline; }
+/* gezeichnete Zeigehand (Ticket 06): die Kontur ist ein dicker Strich unter derselben Form, so bleibt sie aussen */
+#fuehrung .fz-kontur > * { fill: #1b1d24; stroke: #1b1d24; stroke-width: 3.2; stroke-linejoin: round; }
+#fuehrung .fz-flaeche > * { fill: #f7f4ee; }
+#fuehrung .fz-aermel { fill: #ffd98a; }
+#fuehrung .fz-falte { fill: none; stroke: #b8b2a6; stroke-width: 1.2; stroke-linecap: round; }
+#fuehrung .fz-tippen .fz-finger { animation: fz-tipp 1.3s ease-in-out infinite; }
+@keyframes fz-tipp { 0%, 100% { transform: translate(6px, 9px); } 40%, 55% { transform: scale(0.95); } }
+#fuehrung .fz-halten .fz-finger { animation: fz-halt 1.8s ease-in-out infinite; } /* drückt, solange der Ring läuft */
+@keyframes fz-halt { 0%, 100% { transform: translate(6px, 9px); } 12%, 70% { transform: scale(0.95); } }
+#fuehrung .fz-welle { fill: none; stroke: #fff; stroke-width: 2.5; opacity: 0; transform-box: fill-box; transform-origin: center; animation: fz-welle 1.3s ease-out infinite; }
+@keyframes fz-welle { 40% { opacity: 0; transform: scale(0.4); } 50% { opacity: 0.9; transform: scale(0.5); } 100% { opacity: 0; transform: scale(1.4); } }
+#fuehrung .fz-ring { fill: none; stroke: #fff; stroke-width: 3; stroke-dasharray: 100; animation: fz-halten 1.8s linear infinite; }
+@keyframes fz-halten { 0%, 15% { stroke-dashoffset: 100; opacity: 1; } 60% { stroke-dashoffset: 0; opacity: 1; } 75%, 100% { stroke-dashoffset: 0; opacity: 0; } }
+#fuehrung .fz-maus { fill: rgba(245, 245, 245, 0.92); stroke: #222; stroke-width: 1.3; }
+#fuehrung .fz-taste { fill: #ffd98a; stroke: #222; stroke-width: 1.3; animation: fz-druck 1.3s ease-in-out infinite; }
+@keyframes fz-druck { 0%, 30%, 100% { fill: rgba(245, 245, 245, 0.92); } 45%, 70% { fill: #ffb347; } }
+@media (prefers-reduced-motion: reduce) {
+  #fuehrung *, #band * { animation: none !important; }
+  #fuehrung .fz-welle { opacity: 0.6; }
+}
+#hud .goal { margin-top: 6px; font-size: 10px; letter-spacing: 0.3em; color: var(--ink-dim); transition: color 0.4s ease; }
+#hud .goal.done { color: var(--ink); }
+#hud .title, #hud .goal, #hud .sub { text-shadow: 0 0 10px rgba(3, 3, 8, 0.95), 0 0 3px rgba(3, 3, 8, 0.9); } /* lesbar über Strahlen */
+/* weicher dunkler Hof wie hinter der Meldung „gelöst“, breiter für die lange Unterzeile: lesbar vor hellen Hintergründen */
+#hud { isolation: isolate; } /* eigener Stapel: der Hof (z-index -1) bleibt vor der Szene */
+#hud::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: 50%; top: 50%; width: min(960px, 100vw / var(--seite) + 120px); height: calc(100% + 90px);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
+}
+@media (max-height: 500px) { /* Handy quer: alles an die Ränder, damit nichts das Feld verdeckt */
+  #hud { top: max(8px, env(safe-area-inset-top)); }
+  #hud .sub { display: none; }
+  #hud .goal { margin-top: 2px; font-size: 9px; }
+  #hud.tutorial .sub { display: block; margin-top: 4px; font-size: 9px; letter-spacing: 0.2em; } /* Tutorial: Hinweis bleibt */
+  /* Geschichte (nur im Dorf mit Inhalt): «Übung 2 / 4» klein in einer Zeile, darunter der Hinweis */
+  #hud.geschichte .sub { display: block; margin-top: 2px; font-size: 8.5px; line-height: 1.6; letter-spacing: 0.22em; }
+  #hud.geschichte .sub .hinweis { max-width: 64em; margin-top: 2px; font-size: 11.5px; line-height: 1.4; }
+}
+#hud .sub { margin-top: 8px; font-size: 10px; line-height: 1.8; color: var(--ink-dim); letter-spacing: 0.3em; }
+/* leer in der Geschichte ausserhalb des Dorfs: kein Abstand unter den Zielen (nach den Regeln oben, die sie zeigen) */
+#hud .sub:empty { display: none; }
+
+/* ---------- Kleine Schaltflächen ---------- */
+#controls {
+  position: fixed;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  gap: 6px;
+  z-index: 4;
+  transition: opacity 0.6s ease;
+}
+#controls button {
+  width: 44px; height: 44px; /* empfohlene Mindestgrösse für Touch */
+  display: grid; place-items: center;
+  border-radius: 50%;
+  color: var(--ink-dim);
+  transition: color 0.25s ease, background-color 0.25s ease;
+}
+#controls button:hover { color: var(--ink); background: rgba(255, 255, 255, 0.05); }
+#controls button[hidden] { display: none; } /* «Übersicht» nur in einem Level der Geschichte */
+#controls svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.2; stroke-linecap: round; stroke-linejoin: round; }
+#btn-sound .off { display: none; }
+#btn-sound.muted .on { display: none; }
+#btn-sound.muted .off { display: inline; }
+
+/* ---------- Level gelöst ---------- */
+#solved {
+  pointer-events: none; /* nur der Button fängt Klicks – darunter darf weiter gedreht werden */
+  position: fixed;
+  left: 0; right: 0;
+  bottom: max(72px, calc(env(safe-area-inset-bottom) + 64px));
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  z-index: 4;
+  transition: opacity 0.9s ease;
+}
+#solved .msg { font-size: 12px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); letter-spacing: 0.6em; text-transform: uppercase; padding-left: 0.6em; }
+/* weicher dunkler Hof hinter Meldung, Statistik und Button: lesbar auch vor hellen Hintergründen (Strand, Wald) */
+#solved::before {
+  content: ""; position: absolute; z-index: -1; pointer-events: none;
+  left: 50%; top: 50%; width: min(560px, 100vw / var(--seite)); height: calc(100% + 90px);
+  transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(3, 3, 8, 0.72), rgba(3, 3, 8, 0.5) 55%, rgba(3, 3, 8, 0));
+}
+/* Zahlen gross und hell, die Bezeichnung klein daneben */
+#solved .stats { display: flex; gap: 28px; align-items: baseline; margin-top: -4px; text-shadow: 0 0 12px rgba(3, 3, 8, 0.9); }
+#solved .stats:empty { display: none; }
+#solved .stats .num { font-size: 20px; letter-spacing: 0.08em; color: var(--ink); font-variant-numeric: tabular-nums; }
+#solved .stats .unit { margin-left: 0.35em; font-size: 10px; letter-spacing: 0.3em; text-transform: uppercase; color: rgba(232, 230, 240, 0.78); }
+#solved button { pointer-events: auto; }
+#solved button {
+  font-size: 10px; letter-spacing: 0.4em; text-transform: uppercase;
+  padding: 12px 26px 12px calc(26px + 0.4em);
+  border: 1px solid rgba(232, 230, 240, 0.3);
+  border-radius: 999px;
+  color: var(--ink);
+  background: rgba(3, 3, 8, 0.55); /* bleibt über hellen Strahlen lesbar */
+  transition: color 0.25s ease, border-color 0.25s ease, background-color 0.25s ease;
+}
+#solved button:hover { border-color: var(--ink-dim); background: rgba(40, 40, 60, 0.6); }
+/* neue Bestmarke (Entscheid 24, Ticket 06): hell unter der Meldung («Neue Bestzeit · Weniger Drehungen»), die Zahl
+   dazu leuchtet einmal auf. Nur, wenn es schon einen Wert gab (story.markSolved). «> .best»: nicht die Zahl .num.best
+   (sonst bekäme sie Einzug und Sperrung der Meldung) */
+#solved > .best {
+  margin-top: -8px; font-size: 10px; letter-spacing: 0.4em; padding-left: 0.4em; text-transform: uppercase;
+  color: #fff; text-shadow: 0 0 10px rgba(170, 180, 255, 0.9), 0 0 3px rgba(3, 3, 8, 0.9);
+}
+#solved > .best:empty { display: none; }
+#solved .stats .num.best {
+  text-shadow: 0 0 10px rgba(170, 180, 255, 0.75), 0 0 12px rgba(3, 3, 8, 0.9); animation: solved-best 1.8s ease-out;
+}
+@keyframes solved-best { from { color: #fff; text-shadow: 0 0 14px #fff, 0 0 30px rgba(170, 180, 255, 0.95); } }
+@media (prefers-reduced-motion: reduce) { #solved .stats .num.best { animation: none; } }
+
+@media (max-height: 500px) { /* Handy quer: Schaltflächen und Meldung an den Rand (nach den Grundregeln) */
+  #controls { flex-direction: column; bottom: auto; top: 50%; transform: translateY(-50%); }
+  /* Meldung ersetzt oben die Kopfzeile, in einer Zeile – dort ist der Platz ohnehin frei */
+  #solved { top: max(4px, env(safe-area-inset-top)); bottom: auto; flex-direction: row; justify-content: center; gap: 18px; }
+  #solved .msg { font-size: 11px; letter-spacing: 0.35em; padding-left: 0.35em; }
+  #solved > .best { margin-top: 0; font-size: 9px; letter-spacing: 0.25em; padding-left: 0.25em; } /* in der Zeile */
+  #solved .stats { margin-top: 0; gap: 18px; }
+  #solved .stats .num { font-size: 16px; }
+  #solved .stats .unit { letter-spacing: 0.2em; }
+  #solved::before { width: min(900px, 100vw / var(--seite)); height: calc(100% + 90px); }
+  #solved button { padding: 8px 16px 8px calc(16px + 0.4em); }
+  body.is-solved #hud { opacity: 0; }
+}

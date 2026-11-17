@@ -1,0 +1,15 @@
+/* Leistungsanzeige (?perf, perfHud) (Ticket 04 von .scratch/umbau/: aus index.html) */
+#perf {
+  /* z-index über Menü, Startbildschirm und Bühne: Die Bildrate ist überall abzulesen */
+  position: fixed; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 9;
+  font: 11px/1.5 ui-monospace, Consolas, monospace; letter-spacing: 0;
+  color: rgba(232, 230, 240, 0.8); background: rgba(0, 0, 0, 0.45);
+  padding: 8px 10px; border-radius: 4px; white-space: pre; pointer-events: none;
+  max-width: calc(100vw / var(--seite) - 24px); overflow: hidden;
+}
+/* Handy: knappe Fassung oben links (perfHud.schmal). Unten liegen Angebot, «Gelöst», Werkzeugleiste und die Karten
+   des Menüs, oben rechts «Überspringen»: Die bleiben frei */
+#perf.schmal {
+  top: max(6px, env(safe-area-inset-top)); bottom: auto; left: max(6px, env(safe-area-inset-left));
+  max-width: calc(100vw / var(--seite) - 172px); padding: 6px 8px; font-size: 10.5px; white-space: pre-wrap; background: rgba(0, 0, 0, 0.78);
+}
