@@ -5,15 +5,17 @@
 // ihn darum aus allen Modulen zusammen (spielQuelltext).
 //
 // Die Spiellogik (src/logik.js) hat eine feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können
-// (etwa mit weiteren Leveln): am Anfang höchstens Zeilen «import { a, b } from './x.js';», danach der Code, am Schluss
-// genau ein «export { … };» mit den Namen seiner obersten Ebene. Kein anderes import oder export (zerlege prüft das;
-// tests/logic.test.mjs prüft, dass der export-Block alle Deklarationen der obersten Ebene nennt). Ebenso src/zufall.js
-// und src/hall.js.
+// (etwa mit einer veränderten Strahlregel): am Anfang (nach Kommentaren) höchstens Zeilen «import { a, b } from
+// './x.js';» (auch './daten/x.js'), danach der Code, am Schluss genau ein «export { … };» mit den Namen seiner obersten
+// Ebene. Kein anderes import oder export (zerlege prüft das; tests/logic.test.mjs prüft, dass der export-Block alle
+// Deklarationen der obersten Ebene nennt). Ebenso src/zufall.js, src/hall.js und die Leveldaten src/daten/level.js
+// (seit Ticket 06, ohne import; etwa mit weiteren Leveln für die Seite der KI-Tester).
 //
 // - zerlege(text, datei): { importe: [{ namen, von }], code (der Text ohne import-Zeilen und export-Block), namen (der
 //   export-Block) }.
-// - ausText(text, datei, globale): die Exporte eines Moduls aus einem Text, etwa einer geänderten Spiellogik mit
-//   weiteren Leveln (die importierten Namen in globale), ausgeführt wie früher die Tests den Bereich LOGIC ausführten.
+// - ausText(text, datei, globale): die Exporte eines Moduls aus einem Text, etwa der Leveldaten mit weiteren Leveln
+//   (die importierten Namen in globale), ausgeführt wie früher die Tests den Bereich LOGIC ausführten.
+// - LOGIK, LEVELDATEN: die Pfade von src/logik.js und src/daten/level.js.
 // - spielQuelltext(): index.html und alle Module unter src/ (.js, .ts) als ein Text, je Datei mit einer Kopfzeile
 //   «// DATEI <pfad>».
 // - module(): die Pfade dieser Module (relativ zum Wurzelordner, mit „/“), sortiert.
@@ -22,7 +24,8 @@ import { join } from 'node:path';
 import { root } from './spielserver.mjs';
 
 export const LOGIK = join(root, 'src', 'logik.js');
-const IMPORT = /^import \{ ([\w$, ]+) \} from '\.\/([\w.-]+\.js)';\r?\n/;
+export const LEVELDATEN = join(root, 'src', 'daten', 'level.js');
+const IMPORT = /^import \{ ([\w$, ]+) \} from '\.\/((?:daten\/)?[\w.-]+\.js)';\r?\n/;
 const EXPORT = /\r?\nexport \{([\w$,\s]*)\};\r?\n?$/;
 
 /** Zerlegt den Text eines Moduls (siehe Kopf); wirft, wenn er nicht die erwartete Form hat. */
@@ -30,8 +33,8 @@ export function zerlege(text, datei) {
   const importe = [];
   let code = text, m;
   while (true) {
-    // vor einem import nur Kommentarzeilen und leere Zeilen
-    const kopf = code.match(/^(?:(?:\/\/[^\n]*)?\r?\n)*/)[0];
+    // vor einem import nur ein Kommentarblock «/* … */» (der Kopf von src/logik.js), Kommentarzeilen und leere Zeilen
+    const kopf = code.match(/^(?:\/\*[^]*?\*\/\r?\n)?(?:(?:\/\/[^\n]*)?\r?\n)*/)[0];
     m = code.slice(kopf.length).match(IMPORT);
     if (!m) break;
     importe.push({ namen: m[1].split(',').map(n => n.trim()).filter(Boolean), von: `src/${m[2]}` });

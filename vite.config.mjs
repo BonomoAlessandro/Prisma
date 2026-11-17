@@ -90,10 +90,10 @@ function prisma() {
     name: 'prisma',
     configResolved(config) { aus = resolve(config.root, config.build.outDir); },
     load(id) {
-      // PRISMA_LOGIK=<pfad>: eine andere Spiellogik statt src/logik.js (tools/spielserver.mjs, baue mit logik: die
-      // KI-Tester mit Kandidaten am Ende der Level)
-      const logik = process.env.PRISMA_LOGIK;
-      if (logik && resolve(id) === resolve(root, 'src', 'logik.js')) return readFileSync(logik, 'utf8');
+      // PRISMA_LEVELDATEN=<pfad>: andere Leveldaten statt src/daten/level.js (tools/spielserver.mjs, baue mit daten: die
+      // KI-Tester mit Kandidaten am Ende der Level; bis Ticket 06 von .scratch/umbau/ PRISMA_LOGIK)
+      const daten = process.env.PRISMA_LEVELDATEN;
+      if (daten && resolve(id) === resolve(root, 'src', 'daten', 'level.js')) return readFileSync(daten, 'utf8');
       return null;
     },
     transform(code, id) {

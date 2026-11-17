@@ -11,12 +11,13 @@
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
 //   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern), seiten (weitere
 //   Seiten nur im Speicher, { 'pfad.html': Text oder (ordner) => Text }; ordner ist der Ordner, aus dem der Server
-//   liefert, seit Ticket 13 meist der eigene Bau im Temp-Verzeichnis), logik (Pfad einer anderen Spiellogik statt
-//   src/logik.js: ein eigener Build damit in einem temporären Ordner, etwa das Spiel mit Kandidaten der KI-Tester).
+//   liefert, seit Ticket 13 meist der eigene Bau im Temp-Verzeichnis), daten (Pfad anderer Leveldaten statt
+//   src/daten/level.js: ein eigener Build damit in einem temporären Ordner, etwa das Spiel mit Kandidaten der
+//   KI-Tester; bis Ticket 06 von .scratch/umbau/ logik, eine andere Spiellogik mit den Leveln).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
 // - PRISMA_SPIEL=<url>: statt eines eigenen Servers diese Adresse, etwa der Dev-Server (npm run dev,
 //   http://localhost:5173/) oder npm run preview; ordner und bauen gelten dann nicht.
-// - baue(ausgabe, { logik }): Build in einen Ordner (Vorgabe dist/), still ausser bei einem Fehler.
+// - baue(ausgabe, { daten }): Build in einen Ordner (Vorgabe dist/), still ausser bei einem Fehler.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -33,14 +34,14 @@ export const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascr
   '.map': 'application/json' };
 
 /**
- * Baut das Spiel nach ausgabe (Vorgabe dist/); wirft mit der Ausgabe von Vite, wenn es scheitert. logik: wahlweise der
- * Pfad einer anderen Spiellogik statt src/logik.js (vite.config.mjs, PRISMA_LOGIK; die KI-Tester mit Kandidaten).
+ * Baut das Spiel nach ausgabe (Vorgabe dist/); wirft mit der Ausgabe von Vite, wenn es scheitert. daten: wahlweise der
+ * Pfad anderer Leveldaten statt src/daten/level.js (vite.config.mjs, PRISMA_LEVELDATEN; die KI-Tester mit Kandidaten).
  */
-export function baue(ausgabe = DIST, { logik = null } = {}) {
+export function baue(ausgabe = DIST, { daten = null } = {}) {
   const vite = join(root, 'node_modules', 'vite', 'bin', 'vite.js');
   if (!existsSync(vite)) throw new Error('Vite fehlt: zuerst npm install');
   const env = { ...process.env };
-  if (logik) env.PRISMA_LOGIK = resolve(logik); else delete env.PRISMA_LOGIK;
+  if (daten) env.PRISMA_LEVELDATEN = resolve(daten); else delete env.PRISMA_LEVELDATEN;
   const r = spawnSync(process.execPath, [vite, 'build', '--outDir', ausgabe, '--emptyOutDir', '--logLevel', 'warn'],
     { cwd: root, encoding: 'utf8', env });
   if (r.status !== 0) throw new Error(`Build gescheitert:\n${r.stdout}\n${r.stderr}`);
@@ -52,13 +53,13 @@ export const seiteAus = (pfad) => ({ ordner: dirname(resolve(pfad)), datei: base
 
 /** Liefert das Spiel über http (siehe Kopf). */
 export async function spielServer({ ordner = DIST, datei = 'index.html', bauen = ordner === DIST, sw = false,
-  seiten = {}, logik = null } = {}) {
+  seiten = {}, daten = null } = {}) {
   let aufraeumen = () => {};
-  if (logik) { // eigener Build mit dieser Spiellogik, in einem Ordner nur für diesen Server
-    if (process.env.PRISMA_SPIEL) throw new Error('PRISMA_SPIEL: ohne andere Spiellogik');
-    ordner = mkdtempSync(join(tmpdir(), 'prisma-logik-'));
+  if (daten) { // eigener Build mit diesen Leveldaten, in einem Ordner nur für diesen Server
+    if (process.env.PRISMA_SPIEL) throw new Error('PRISMA_SPIEL: ohne andere Leveldaten');
+    ordner = mkdtempSync(join(tmpdir(), 'prisma-daten-'));
     aufraeumen = () => rmSync(ordner, { recursive: true, force: true });
-    baue(ordner, { logik });
+    baue(ordner, { daten });
     bauen = false;
   }
   ordner = resolve(ordner);
