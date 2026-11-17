@@ -18,7 +18,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   als klassische Skripte, dann das Spiel als ES-Modul `src/main.ts`. Der Stil liegt in `src/stil/` (`index.css`
   bindet die Teile in ihrer Reihenfolge ein: `grund`, `oberflaeche`, `start`, `geschichte`, `menue`, `uebersicht`,
   `leistung`, `seite`). Das Spiel in `src/`:
-  - `logik.js` (Strahlregel, Löser-Grundlagen, Level, Geschichte; auch für Node), `zufall.js`, `hall.js`,
+  - `logik.js` (Strahlregel, Löser-Grundlagen, `LEVELS`, `LEVELS_3D` und `STORY_LEVELS` aus den Leveldaten; auch für
+    Node), `daten/level.js` (die Level und die Reise der Geschichte als Daten, seit Ticket 06; siehe «Levels»),
+    `zufall.js`, `hall.js`,
     `hall-worker.ts` (Worker des Halls); `himmelbild.js` (Farbbilder der Skyboxen dekodieren, `decode`) mit
     `himmelbild-worker.ts`, `brettdaten.js` (Texturen der Bretter rechnen, `BRETT_DATEN`) mit `brettdaten-worker.ts`
     (seit Ticket 05 eigene Module; bis dahin bekamen diese Worker den Text der Funktionen als Blob, und der Build
@@ -60,12 +62,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Stück. TypeScript sind heute `src/main.ts`, die Worker `src/*-worker.ts`, `src/seite/konfiguration.ts`,
   `src/seite/oberflaeche/dom.ts`, `src/seite/aufgabe.ts`, `src/seite/testschnittstelle.ts` und `src/speicher.ts`; was die klassischen
   Skripte global bereitstellen (`THREE`), deklariert `src/globale.d.ts`. Tests und Werkzeuge importieren die Spiellogik, den Zufall und den Hall
-  (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module haben eine
-  feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können (etwa die Logik mit weiteren Leveln,
-  `tools/seitenmodule.mjs`): am Anfang nur `import { … } from './x.js';`, am Schluss ein `export { … };` mit allen
+  (`tools/solver.mjs` liefert die Logik als `L`; `src/package.json`: `"type": "module"`). Diese drei Module und die
+  Leveldaten `src/daten/level.js` haben eine feste Form, damit Tests und Werkzeuge sie auch als Text ausführen können
+  (etwa die Leveldaten mit weiteren Leveln, `tools/seitenmodule.mjs`): am Anfang (nach Kommentaren) nur
+  `import { … } from './x.js';` (die Logik: `./daten/level.js`), am Schluss ein `export { … };` mit allen
   Namen der obersten Ebene. Tests, die Code der Seite als Text lesen, lesen `index.html` und alle Module zusammen
-  (`spielQuelltext`). Die KI-Tester bauen das Spiel für Kandidaten mit einer anderen Spiellogik (`spielServer` mit
-  `logik`, `PRISMA_LOGIK` in `vite.config.mjs`). Node 22.12 lädt TypeScript nicht ohne Weiteres:
+  (`spielQuelltext`). Die KI-Tester bauen das Spiel für Kandidaten mit anderen Leveldaten (`spielServer` mit
+  `daten`, `PRISMA_LEVELDATEN` in `vite.config.mjs`; bis Ticket 06 eine andere Spiellogik). Node 22.12 lädt TypeScript nicht ohne Weiteres:
   `node --experimental-strip-types` genügt (ohne Abhängigkeit, mit einer Warnung `ExperimentalWarning`), ebenso ein
   Lade-Haken über `module.register`, der für `.ts` das Format `module-typescript` meldet (ohne Schalter; danach
   `await import('…/x.ts')`; so `tools/ts-modul.mjs`, `tsModul('src/spielstand.js')`, seit Ticket 05). Ab Node 22.18
@@ -135,9 +138,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
     `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
     `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
-    importieren die Tests als Module aus `src/`; die markierten Bereiche `LEVELS`, `WUERFEL` und `GESCHICHTE` stehen in
-    `src/logik.js`, und dorthin schreiben die Werkzeuge (`ordne-level.mjs`, `ordne-wuerfel.mjs`, `geschichte.mjs`,
-    `vorrat.mjs`).
+    importieren die Tests als Module aus `src/`; die Level und die Reise stehen seit Ticket 06 in den Leveldaten
+    `src/daten/level.js` (bis dahin als markierte Bereiche `LEVELS`, `WUERFEL` und `GESCHICHTE` in `src/logik.js`), und
+    dorthin schreiben die Werkzeuge (`ordne-level.mjs`, `ordne-wuerfel.mjs`, `geschichte.mjs`, `vorrat.mjs`).
   - `node tests/logic.test.mjs` prüft die Strahllogik, im Block „Würfel (dim: 3)“ auch die Würfel-Level. Was er aus der
     Seite liest, liest er aus `index.html` und allen Modulen (`spielQuelltext`). Im Block „Module“ prüft er das Gerüst
     `index.html` (nur ein Modul, keine grossen Skripte), die Reihenfolge der Teile unter `src/seite/` und die Form von
@@ -299,7 +302,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     er rot. Dazu Kandidaten ohne Platz im Spiel: die Seite mit den Kandidaten für die Bilder und `prepare.mjs
     --kandidaten` (Name, Referenz, Feld als Text, Abweisung bei falschem Grad; ohne Bilder).
   - `node tests/vorrat.test.mjs` prüft den Vorrat und den gemeinsamen Lader (`.scratch/noa-geschichte/`, Ticket 02;
-    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`src/logik.js` und
+    wenige Sekunden, auf Kopien der Texte im Speicher): Ablegen und Zurückholen sind verlustfrei (`src/daten/level.js` und
     Vorrat byte-gleich, auch in Teilen, in anderer Gruppierung und Reihenfolge, über mehrere Schritte, für alle Level
     und mit CRLF), die Folge nach dem Zurückholen, das Format (Block wie im Spiel, Platz, Titel), Auswahl und Fehler;
     dazu der Lader auf dem Stand der Dateien (jedes Level genau einmal, wie nach dem Zurückholen aller) und seit dem
@@ -325,8 +328,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     gutem Urteil; `ausbauListe` für `ordne-level.mjs --ausbau`. Dazu Gegenproben an erfundenen Änderungen und Pools
     (auch zur Regel der 3 Plätze über die Weltgrenze, gegen alle Anordnungen eines kleinen Falls zur kleinsten
     Verschiebung und gegen alle Mengen kleiner Fälle zur Suche über den ganzen Grad). Die Wahl im Spiel (Ticket 04):
-    `src/logik.js` hat das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der Reihenfolge der Reihe,
-    keine Würfel-Level; der Datenblock der Geschichte (`STORY_LEVELS`) ist die Reise aus `wahl.json`;
+    das Spiel (`src/daten/level.js`) hat das Tutorial und genau die 240 mit dem Titel aus `wahl.json`, in der
+    Reihenfolge der Reihe, keine Würfel-Level; der Datenblock der Geschichte (`REISE`, in der Spiellogik
+    `STORY_LEVELS`) ist die Reise aus `wahl.json`;
     `geschichte.mjs spiel` ändert danach nichts und bringt an Kopien der Texte ein Level der Wahl aus dem Vorrat zurück
     und ein anderes hin (ohne Titel), byte-gleich.
   - `GPU=1 LEISE_CPU=50 sh tools/leise.sh timeout -k 30 900 node tests/geschichte-probe.mjs [--handy | --quer]
@@ -485,7 +489,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   kommt die Übersicht. Der Platz im Speicherstand fällt dabei nie zurück, und das Wiederholen eines geschafften Grads
   ändert den zuletzt gespielten Grad nicht. Eine neue Bestmarke meldet das Feld «Gelöst» («Neue Bestzeit», «Weniger
   Drehungen»), aber nur, wenn es schon einen Wert gab. Die Level je Grad und Welt stehen im Datenblock
-  `STORY_LEVELS` (`GESCHICHTE:BEGIN/END`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter
+  `STORY_LEVELS` (`REISE` in `src/daten/level.js`, geschrieben von `tools/geschichte.mjs spiel`). Speicherstand je Grad unter
   `prisma.noa.<grad>` (`sehr schwer` als `sehr-schwer`; Platz in der Reise, gelöste Level nach Namen, gesehene
   Momente, geschafft, `gespielt`: Zeit des letzten Speicherns für «Weiter»), die Bestwerte je Level unter
   `prisma.noa.<grad>.bestwerte` (Zeit in ganzen Sekunden, überleben «Von vorn», Entscheid 27) und der zuletzt
@@ -727,7 +731,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   der Häufungsregel, Schwellen und ihre Herleitung, die Duldungsliste nach Grund und Grad samt neuen Leveln darauf und
   die Regeln der Levelliste, darunter jedes korrigierte Level, das zu weit steht (Platz davor, nach den Korrekturen, am
   Ende). `--schreiben` trägt Reihenfolge und Grad in Spiel und Vorrat ein (seit Ticket 08 von Noas Geschichte über
-  `inGanzerFolge` in `vorrat.mjs`: die Level im Spiel zwischen `LEVELS:BEGIN/END`, die übrigen im Vorrat an ihrem
+  `inGanzerFolge` in `vorrat.mjs`: die Level im Spiel in `FLACH` in `src/daten/level.js`, die übrigen im Vorrat an ihrem
   Platz; was im Spiel steht, bleibt im Spiel, was im Vorrat liegt, im Vorrat, vorher zurückholen muss man nichts) und
   Duldungsliste, Prüfliste und `prueflisteErledigt` in `tools/levelliste.json`; die ursprüngliche Duldungsliste, die
   entfernten Namen, `prueflisteFormel` und die Gruppe `behalten` (Ticket 24, nur ohne Level, die es nicht mehr gibt)
@@ -761,7 +765,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `wuerfel.mjs bedarf` zeigt Bestand und Bedarf; `ordne-wuerfel.mjs [--kandidaten datei] [--json datei]
   [--schreiben]` ordnet die Würfel-Level nach den Regeln in `wuerfelliste.mjs` (eine eigene Reihenfolge ohne Bestand,
   Grade nach der Schwelle, Korrekturen der KI-Tester aus Läufen `wuerfel-…`) und schreibt sie in Spiel und Vorrat
-  (`src/logik.js` zwischen `WUERFEL:BEGIN` und `WUERFEL:END`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
+  (`WUERFEL` in `src/daten/level.js`, `tools/vorrat/wuerfel.js`; neue in den Vorrat, solange
   dort Würfel-Level liegen);
   `aehnlichkeit.mjs` misst, wie ähnlich zwei Level aufgebaut sind (Elemente mit Art, Farbe und Zelle, das Höchste über
   die acht Symmetrien des Felds, im Würfel über seine 48 mit der Drehachse von Spiegel, Prisma und Kombinator); ab 0,5
@@ -1037,7 +1041,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     der Vorschau aus `ordne-level.mjs --ausbau … --json`; einst Austausch, Läufe `ersatz-…`): eine JSON-Liste
     `{ formel, level }`; ohne Vorschau ist die Referenz der Platz nach der Formel mit dem Grad dort, im Protokoll heisst
     ein Kandidat „Kandidat <Abdruck>“, und seine Bilder kommen von einer Seite mit den Kandidaten am Ende
-    von `LEVELS` (ihre Spiellogik in `<lauf>/seite/logik.js`, ausserhalb von `eingabe/`; `shots.mjs` zeigt sie über
+    von `LEVELS` (ihre Leveldaten in `<lauf>/seite/level.js`, ausserhalb von `eingabe/`; `shots.mjs` zeigt sie über
     `tools/spielserver.mjs`, alle Bilder kommen über http aus `dist/`).
     Die Bilder der Anker kommen aus einem Zwischenspeicher (`tests/output/ki-tester/anker-bilder/`), solange sich nichts
     geändert hat, was sie beeinflusst: Fingerabdruck des Ablaufs, `index.html`, `src/`, `vendor/`, `backgrounds/`,
@@ -1096,15 +1100,16 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Kopfzeile eines Levels ausserhalb der Geschichte auf. Seit Ticket 04 zeigt es jedes Level nach dem Neuladen über die
     Testschnittstelle (`__prismaDebug.zeige`) vor der Milchstrasse (`?sky=milky`), wie zuvor ohne Speicherstand.
 - **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
-  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus `src/logik.js`
-  Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente, Lösung), darüber
-  `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und Vorrat.
+  stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus den Leveldaten
+  `src/daten/level.js` Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente,
+  Lösung), darüber `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und
+  Vorrat. Die Level stehen dort zwischen `const VORRAT_FLACH = [` (bzw. `VORRAT_WUERFEL`) und `];`.
   `node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]` nimmt Level aus
-  `src/logik.js` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren Platz
-  zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `src/logik.js` byte-gleich. Der gemeinsame Lader
-  (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen aller, die Level
-  im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()` (`src/logik.js` mit allen
-  Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
+  `src/daten/level.js` (das Tutorial bleibt), `zurueckholen` mit denselben Angaben oder `--alle` setzt sie an ihren
+  Platz zurück, `liste` zeigt den Vorrat je Art und Grad; hin und zurück ist `src/daten/level.js` byte-gleich. Der
+  gemeinsame Lader (`tools/lader.mjs`) liefert `ALLE` (`LEVELS`, `TUTORIAL_COUNT`, `LEVELS_3D` wie nach dem Zurückholen
+  aller, die Level im Spiel als dieselben Objekte wie in `solver.mjs`), `VORRAT`, `ort(name)` und `alleText()`
+  (`src/daten/level.js` mit allen Leveln). Wer alle Level braucht, liest über ihn; `ordne-level.mjs` und `ordne-wuerfel.mjs` rechnen mit ihm und
   schreiben seit Ticket 08 in Spiel und Vorrat (`inGanzerFolge` in `vorrat.mjs`: alle Level der Art zurückholen, ordnen,
   die vorher abgelegten und neue wieder ablegen; ohne Level der Art im Vorrat bleiben neue im Spiel). Seit Ticket 04
   liegen dort die flachen Level ausserhalb von Noas Geschichte (seit Ticket 09 298) und alle 300 Würfel-Level.
@@ -1124,10 +1129,10 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die noch nicht in Spiel oder Vorrat stehen, für `ordne-level.mjs --ausbau`. Die Titel stehen von Hand in
   `tools/geschichte/titel.json` (je Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
   neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
-  In `src/logik.js` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der Reihe
-  (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level legt es
-  in den Vorrat, Level der Wahl im Vorrat holt es zurück, und zwischen `GESCHICHTE:BEGIN` und `GESCHICHTE:END` schreibt
-  es den Datenblock der Reise (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
+  In `src/daten/level.js` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der
+  Reihe (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level
+  legt es in den Vorrat, Level der Wahl im Vorrat holt es zurück, und in `REISE` schreibt es den Datenblock der Reise
+  (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
   Neue Level kommen vorher über `ordne-level.mjs --ausbau` in die Reihe (so die 15 neuen sehr schweren in Ticket 04 und
   die 23 aus Ticket 09, damals mit allen flachen Leveln im Spiel, also erst `vorrat.mjs zurueckholen --flach`; seit
   Ticket 08 schreibt `ordne-level.mjs` in Spiel und Vorrat). Ein Ausbau sehr schwerer Level läuft heute so:
@@ -1136,7 +1141,23 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   `tools/geschichte/sehr-schwer-kandidaten.json`, `geschichte.mjs wahl`, `geschichte.mjs ausbau <datei>`,
   `ordne-level.mjs --ausbau <datei> --schreiben` (die neuen in den Vorrat), `tests/golden.mjs --write` (nur die neuen
   dazu), `geschichte.mjs spiel`.
-- **Levels:** in `LEVELS` (`src/logik.js`): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
+- **Wo die Level liegen** (seit Ticket 06 des Umbaus): in der Datendatei `src/daten/level.js`, einem JavaScript-Modul
+  nur mit Daten (kein JSON, damit jedes Level seine Kommentare zu Lösung und Herkunft behält). Darin `UEBUNGEN` (die
+  Übungen im Dorf, von Hand), `FLACH` (die Level der Reihe im Spiel), `WUERFEL` (die Würfel-Level im Spiel, heute
+  leer) und `REISE` (die Reise der Geschichte: je Grad 6 Welten mit den Namen ihrer 10 Level). Die Spiellogik
+  `src/logik.js` setzt daraus `LEVELS` (`UEBUNGEN`, dann `FLACH`), `LEVELS_3D` und `STORY_LEVELS` zusammen; Vite
+  bündelt die Datei beim Build ins Spiel (kein Nachladen, offline spielbar). Die übrigen Level liegen im Vorrat
+  (`tools/vorrat/`, siehe «Vorrat und Lader»). Die Werkzeuge schreiben je in einen Bereich: die Zeilen zwischen
+  `const FLACH = [` und der nächsten Zeile `];` (ebenso `WUERFEL`, und `REISE` bis `};`); darin steht jedes Level als
+  Block von `  {` bis `  },`, sonst nichts.
+  **Ein Level ändern:** Ein Level im Spiel direkt in seinem Block in `src/daten/level.js` ändern (liegt es im Vorrat,
+  zuerst `node tools/vorrat.mjs zurueckholen <name>` oder den Block in `tools/vorrat/` ändern), die Lösung im
+  Kommentar und in `solution` nachführen, dann `node tests/golden.mjs` (zeigt die Änderung; ist sie gewollt, mit
+  `--write` die Referenz neu schreiben), `node tests/logic.test.mjs` (Lösung stimmt und ist eindeutig) und die Tests
+  der Levelliste. Reihenfolge und Grad nicht von Hand ändern: Das schreibt `tools/ordne-level.mjs --schreiben` (bzw.
+  `ordne-wuerfel.mjs`), welche Level in die Geschichte kommen und ihre Titel `tools/geschichte.mjs spiel`. Den Namen
+  nie ändern (Schlüssel des Speicherstands). Die Übungen im Dorf schreibt kein Werkzeug; sie ändert man von Hand.
+- **Levels:** in `LEVELS` (Spiellogik, Daten in `src/daten/level.js`): zuerst das Tutorial (`tutorial: true`; seit PLAN 1a.3 «Tutorial neu» 4 Level
   mit je höchstens vier geführten Schritten `schritte` mit je einem oder zwei kurzen Sätzen im Band unten, Lichtkegel
   und Hand am Element, strikt: nur das markierte Element reagiert; dazu Hinweise nebenbei `nebenbei` zu Kamera und
   Neustart in «Brechung»; geführt nur im Dorf, siehe «Führung» in `CONTEXT.md`. Erstes Licht: Ziel, Spiegel, rund

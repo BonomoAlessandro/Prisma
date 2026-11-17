@@ -42,7 +42,8 @@ senkrecht dazu genau wie ein 2D-Element: `rot` bzw. `dir` zählen dort in 45°-S
 - Ebenenbasis `AXES` (u, a, v) ist rechtshändig. Die Darstellung dreht die vorhandenen 2D-Modelle mit
   `makeBasis(u, a, v)` in ihre Ebene (lokal y = Drehachse) – es gibt **keine neuen 3D-Modelle**.
 
-Level-Format (`LEVELS_3D` in `src/logik.js`, bis Ticket 03 des Umbaus der LOGIC-Block, direkt nach `LEVELS`):
+Level-Format (`LEVELS_3D` der Spiellogik `src/logik.js`; die Level selbst stehen seit Ticket 06 des Umbaus in
+`src/daten/level.js` unter `WUERFEL`, bis dahin in `src/logik.js`, bis Ticket 03 im LOGIC-Block):
 
 ```js
 { name, dim: 3, size: 7, hint,
