@@ -2,7 +2,7 @@
 
 **Spec:** ../spec.md
 
-**Status:** ready-for-agent (umgesetzt, Review bestanden, wartet auf Merge)
+**Status:** done (Review 17.11.2026 bestanden)
 
 **Blocked by:** 13 (in `feature/umbau`)
 
