@@ -47,7 +47,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Leistung). Neue Abhängigkeiten zwischen den Teilen sind gewöhnliche `import`/`export`. Proben lesen über
   Runtime.evaluate einige Namen der Seite als globale Namen (`game`, `camera`, `draw` …); die zeigt jedes Modul am
   Schluss mit `alsGlobal` (`src/seite/testschnittstelle.ts`) als Eigenschaften von `window`, `draw` und
-  `renderReflection` auch zum Ersetzen. Braucht eine Probe einen weiteren Namen, kommt er dort dazu.
+  `renderReflection` auch zum Ersetzen. Braucht eine Probe einen weiteren Namen, kommt er dort dazu;
+  `tests/testschnittstelle.test.mjs` (seit Ticket 05) meldet jeden Namen der obersten Ebene, den eine Probe im Code
+  der Seite nennt und `alsGlobal` nicht zeigt.
 - **Module und TypeScript (seit den Tickets 03 und 04 des Umbaus):** `npm run typecheck` (`tsc --noEmit` für
   `tsconfig.json` und, mit WebWorker statt DOM, `tsconfig.worker.json`) prüft die Typen; es gehört zu `npm test`.
   Übersetzt (Typen entfernt) wird nur von Vite. Neue und herausgelöste Module dürfen TypeScript sein (`.ts`, import
@@ -159,6 +161,13 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     geschrieben; scheitert der Speicher (gesperrt, voll, gar keiner), wirft nichts, und das Spiel beginnt von vorn.
     Module in TypeScript lädt er wie `levelliste.test.mjs` über `tools/ts-modul.mjs` (`tsModul`, ein Lade-Haken für
     `.ts`, nötig bis Node 22.18).
+  - `node tests/testschnittstelle.test.mjs` prüft die Testschnittstelle (Ticket 05 des Umbaus, aus Review 04; etwa
+    2 s): Jeder Name der obersten Ebene eines Moduls unter `src/`, den eine Probe im Code der Seite nennt, steht in
+    einer Liste `alsGlobal`. Proben sind `tests/*.js` (ganz Code der Seite) und jede Datei unter `tests/` und `tools/`,
+    die Chrome steuert; dort gilt jeder String und jedes Template als Code der Seite. Mit dem Parser von TypeScript
+    gezählt werden freie Namen (nicht als Eigenschaft, nicht im Code selbst deklariert, dazu `window.name`);
+    Wortlisten und einzelne Wörter sind Daten, ausser `ev('…')` wertet sie aus. Mit Gegenproben; der Stand vor
+    Review 04 fällt mit allen sechs fehlenden Namen auf.
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
