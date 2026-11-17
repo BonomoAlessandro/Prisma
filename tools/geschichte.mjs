@@ -72,10 +72,10 @@
 //   Platz k. Eindeutig über alle Titel und alle Namen in Spiel, Vorrat, der 15 neuen und der Kandidaten mit Schlüssel
 //   (Gross- und Kleinschreibung egal), keiner von der Liste entfernter Level, ein oder zwei Wörter, «ss» statt «ß»
 //   (titelFehler).
-// - Ins Spiel (Befehl spiel, Ticket 04): index.html enthält danach das Tutorial und genau die 240 Level aus wahl.json,
+// - Ins Spiel (Befehl spiel, Ticket 04): src/logik.js hat danach das Tutorial und genau die 240 Level aus wahl.json,
 //   jedes mit seinem Titel (Feld titel hinter dem Namen); die übrigen flachen Level und alle Würfel-Level legt es in
 //   den Vorrat (vorrat.mjs), ohne Titel. Level der Wahl, die im Vorrat liegen, holt es zurück. Zwischen
-//   GESCHICHTE:BEGIN und GESCHICHTE:END (STORY_LEVELS in index.html) schreibt es je Grad die 6 Welten mit den
+//   GESCHICHTE:BEGIN und GESCHICHTE:END (STORY_LEVELS in src/logik.js) schreibt es je Grad die 6 Welten mit den
 //   Schlüsseln ihrer 10 Level in der Reihenfolge der Reise; daraus liest das Spiel seine Kapitel (STORY_CHAPTERS). Die
 //   Level im Spiel ordnet es nicht um: So setzt der Lader die Reihe der flachen Level und die der Würfel-Level
 //   unverändert wieder zusammen. Ein Level der Wahl, das weder im Spiel noch im Vorrat steht, muss zuerst in die Reihe
@@ -95,7 +95,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { ALLE } from './lader.mjs';
-import { ARTEN, INDEX, ablegen, inhalt, lese, namenImSpiel, zurueckholen } from './vorrat.mjs';
+import { ARTEN, LOGIK, ablegen, inhalt, lese, namenImSpiel, zurueckholen } from './vorrat.mjs';
 import { GRADE } from './beurteilung/index.mjs';
 import { MINDEST_SPIELWERT } from './beurteilung/spielwert.mjs';
 import { abdruck, kandidatName } from './leveldaten.mjs';
@@ -1317,7 +1317,7 @@ export const mitTitel = (daten, titel) => ({ ...daten,
 // ---------------------------------------------------------------------------------------------------------------
 // Ins Spiel (Ticket 04, siehe Kopf)
 
-/** Die Markierungen des Datenblocks der Geschichte in index.html (in STORY_LEVELS). */
+/** Die Markierungen des Datenblocks der Geschichte in src/logik.js (in STORY_LEVELS). */
 export const BLOCK = { anfang: '/* GESCHICHTE:BEGIN */', ende: '/* GESCHICHTE:END */' };
 
 /**
@@ -1368,17 +1368,17 @@ export function blockZeilen(reise) {
 function zwischen(text, anfang, ende) {
   const nl = text.includes('\r\n') ? '\r\n' : '\n';
   const a = text.indexOf(anfang), e = text.indexOf(ende);
-  if (a < 0 || e < a) throw new Error(`index.html: Markierungen ${anfang} und ${ende} fehlen`);
+  if (a < 0 || e < a) throw new Error(`src/logik.js: Markierungen ${anfang} und ${ende} fehlen`);
   return { von: text.indexOf(nl, a) + nl.length, bis: text.lastIndexOf(nl, e) + nl.length, nl };
 }
 
-/** index.html mit dem Datenblock der Reise (reiseAus) zwischen GESCHICHTE:BEGIN und GESCHICHTE:END. */
+/** src/logik.js mit dem Datenblock der Reise (reiseAus) zwischen GESCHICHTE:BEGIN und GESCHICHTE:END. */
 export function mitBlock(html, reise) {
   const b = zwischen(html, BLOCK.anfang, BLOCK.ende);
   return html.slice(0, b.von) + blockZeilen(reise).map(z => z + b.nl).join('') + html.slice(b.bis);
 }
 
-/** Die Reise aus dem Datenblock in index.html (wie das Spiel ihn liest), oder null ohne Markierungen. */
+/** Die Reise aus dem Datenblock in src/logik.js (wie das Spiel ihn liest), oder null ohne Markierungen. */
 export function reiseImSpiel(html) {
   if (!html.includes(BLOCK.anfang)) return null;
   const b = zwischen(html, BLOCK.anfang, BLOCK.ende);
@@ -1393,7 +1393,7 @@ const NAMENSZEILE = new RegExp(String.raw`^( {4}name: '((?:[^'\\]|\\.)*)',(?: di
   + String.raw`( titel: '(?:[^'\\]|\\.)*',)?(.*)$`);
 
 /**
- * index.html mit den Titeln der Geschichte (titel: Map Name → Titel) in den Namenszeilen der Level zwischen den
+ * src/logik.js mit den Titeln der Geschichte (titel: Map Name → Titel) in den Namenszeilen der Level zwischen den
  * Markierungen (flach und Würfel); ein Level, das nicht in titel steht, hat danach keinen Titel. Der übrige Text
  * bleibt.
  */
@@ -1415,10 +1415,10 @@ export function mitTitelnImSpiel(html, titel) {
 
 /**
  * Bringt die Wahl ins Spiel (siehe Kopf). texte wie lese() in vorrat.mjs, daten: die gelesene wahl.json. Rückgabe:
- * { schritte: [{ was, texte }] } in der Reihenfolge, in der sie geschrieben werden (zurückholen: erst index.html, dann
- * der Vorrat; ablegen: erst der Vorrat, dann index.html; so steht ein Level bei einem Abbruch höchstens doppelt), dazu
- * holen, weg (Namen je Art), titel (Zahl) und reise. Wirft, wenn ein Level der Wahl weder im Spiel noch im Vorrat
- * steht.
+ * { schritte: [{ was, texte }] } in der Reihenfolge, in der sie geschrieben werden (zurückholen: erst src/logik.js,
+ * dann der Vorrat; ablegen: erst der Vorrat, dann src/logik.js; so steht ein Level bei einem Abbruch höchstens
+ * doppelt), dazu holen, weg (Namen je Art), titel (Zahl) und reise. Wirft, wenn ein Level der Wahl weder im Spiel noch
+ * im Vorrat steht.
  */
 export function insSpiel(texte, daten) {
   const reise = reiseAus(daten), titel = new Map(daten.level.map(l => [l.name, l.titel]));
@@ -1549,16 +1549,16 @@ function spielBefehl(trocken) {
   console.log(`Wahl ins Spiel: ${r.titel} Level mit Titel, Datenblock ${GRADE.length} × ${WELTEN.length} × ${JE_WELT}`);
   console.log(`  zurückholen: ${r.holen.length} (${kurz(r.holen)})`);
   console.log(`  ablegen: ${r.weg.flach.length} flache (${kurz(r.weg.flach)}), ${r.weg.wuerfel.length} Würfel-Level`);
-  if (!r.schritte.length) { console.log('index.html und Vorrat stimmen schon, nichts zu schreiben'); return; }
+  if (!r.schritte.length) { console.log('src/logik.js und Vorrat stimmen schon, nichts zu schreiben'); return; }
   if (trocken) { console.log('--trocken: nichts geschrieben'); return; }
   let vorher = lese();
   for (const s of r.schritte) {
-    const dateien = [[INDEX, 'spiel'], ...Object.entries(ARTEN).map(([art, a]) => [a.datei, art])]
+    const dateien = [[LOGIK, 'spiel'], ...Object.entries(ARTEN).map(([art, a]) => [a.datei, art])]
       .filter(([, k]) => s.texte[k] !== vorher[k]);
-    // zurückholen: erst index.html, dann der Vorrat; ablegen: erst der Vorrat (siehe insSpiel)
+    // zurückholen: erst src/logik.js, dann der Vorrat; ablegen: erst der Vorrat (siehe insSpiel)
     if (s.was !== 'zurückholen') dateien.reverse();
     for (const [datei, k] of dateien) writeFileSync(datei, s.texte[k]);
-    const namen = dateien.map(([, k]) => (k === 'spiel' ? 'index.html' : `tools/vorrat/${k}.js`));
+    const namen = dateien.map(([, k]) => (k === 'spiel' ? 'src/logik.js' : `tools/vorrat/${k}.js`));
     console.log(`  ${s.was}: geschrieben ${namen.join(', ')}`);
     vorher = s.texte;
   }

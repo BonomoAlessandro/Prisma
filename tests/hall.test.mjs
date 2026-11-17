@@ -1,22 +1,17 @@
-// Prüft die Impulsantwort des Halls aus index.html (Bereich HALL:BEGIN … HALL:END, dazu mulberry32), Ticket 05 von
-// .scratch/leistung/: Seit dem Umbau rechnet sie ein Worker vorab als Float32Arrays (hallImpulse), früher rechnete
-// audio._impulse sie beim ersten Klick direkt in den AudioBuffer. Das Rauschen kommt aus mulberry32 mit festem Samen 5,
-// die Kurve ist also bei jedem Laden dieselbe und lässt sich bitgenau vergleichen: Die Referenz (SHA-256 über die
-// Float32-Bytes links, dann rechts, und Stichproben) stammt aus der alten Berechnung im Stand 963177d, mit einem
-// nachgebauten AudioBuffer (getChannelData als Float32Array) gerechnet.
+// Prüft die Impulsantwort des Halls (das Modul src/hall.js mit mulberry32 aus src/zufall.js; bis Ticket 03 von
+// .scratch/umbau/ der Bereich HALL in index.html), Ticket 05 von .scratch/leistung/: Seit dem Umbau rechnet sie ein
+// Worker vorab als Float32Arrays (hallImpulse), früher rechnete audio._impulse sie beim ersten Klick direkt in den
+// AudioBuffer. Das Rauschen kommt aus mulberry32 mit festem Samen 5, die Kurve ist also bei jedem Laden dieselbe und
+// lässt sich bitgenau vergleichen: Die Referenz (SHA-256 über die Float32-Bytes links, dann rechts, und Stichproben)
+// stammt aus der alten Berechnung im Stand 963177d, mit einem nachgebauten AudioBuffer (getChannelData als
+// Float32Array) gerechnet. Den gebauten Worker (dist/assets/hall-worker-….js) rechnet tests/logic.test.mjs nach.
 // Aufruf: node tests/hall.test.mjs
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-
-const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
-const begin = html.indexOf('/* HALL:BEGIN'), end = html.indexOf('/* HALL:END');
-assert.ok(begin > 0 && end > begin, 'HALL-Marker nicht gefunden');
-const mulberry = html.match(/function mulberry32\(seed\) \{[\s\S]*?\n\}/)?.[0];
-assert.ok(mulberry, 'mulberry32 nicht gefunden');
-const seconds = +html.match(/const HALL_SECONDS = ([\d.]+);/)?.[1];
-const { hallImpulse } = new Function(`const HALL_SECONDS = ${seconds};\n${mulberry}\n${html.slice(begin, end)}
-return { hallImpulse };`)();
+import { HALL_SECONDS as seconds, hallImpulse } from '../src/hall.js';
+import { mulberry32 } from '../src/zufall.js';
+import { ausText, setzeEin } from '../tools/seitenmodule.mjs';
 
 // je Abtastrate: Länge, SHA-256 und Stichproben [links 0, links 1, rechts 0, rechts 1000, links letzter] der alten Kurve
 const REFERENZ = {
@@ -61,12 +56,23 @@ test('Stückgrösse ändert nichts, Stücke wie verlangt', () => {
   assert.equal(b.stuecke, 2 * Math.ceil(153600 / 1000));
   for (let ch = 0; ch < 2; ch++) assert.deepEqual(a.data[ch], b.data[ch]);
 });
-test('Worker: der Quelltext von hallImpulse und mulberry32 läuft für sich', () => {
-  // so baut hallData den Worker: ohne die Konstanten des Spiels, die Länge kommt als Argument
-  const f = new Function(`${mulberry}\n${hallImpulse}\nreturn hallImpulse;`)();
-  const steps = f(44100, seconds);
+test('Seite: die eingesetzten Module rechnen dasselbe (hallData ohne Worker, in Stücken)', () => {
+  // so, wie die Seite die Module einsetzt (zufall weiter oben, dann hall), als Skript ausgeführt
+  const text = (p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8');
+  const { mulberry32: m } = ausText(text('src/zufall.js'), 'src/zufall.js');
+  const seite = ausText(text('src/hall.js'), 'src/hall.js', { mulberry32: m });
+  assert.equal(seite.HALL_SECONDS, seconds);
+  const steps = seite.hallImpulse(44100, seite.HALL_SECONDS);
   let r;
   do r = steps.next(); while (!r.done);
   assert.equal(r.value[1][1000], REFERENZ[44100][2][3]);
+  assert.equal(m(5)(), mulberry32(5)());
+  assert.ok(setzeEin(text('index.html')).includes('function* hallImpulse('), 'hall nicht in der Seite');
+});
+test('Worker (src/hall-worker.ts): die Länge aus dem Modul, die Puffer übertragen', () => {
+  const w = readFileSync(new URL('../src/hall-worker.ts', import.meta.url), 'utf8');
+  assert.match(w, /^import \{ HALL_SECONDS, hallImpulse \} from '\.\/hall\.js';$/m);
+  assert.match(w, /hallImpulse\(rate, HALL_SECONDS\)/);
+  assert.match(w, /postMessage\(r\.value, r\.value\.map\(\(d\) => d\.buffer\)\)/);
 });
 console.log(`\n${passed} Tests bestanden${process.exitCode ? ', mit Fehlern' : ''}.`);

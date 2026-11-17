@@ -1,28 +1,28 @@
 // Vorrat der Level (Spec .scratch/noa-geschichte/, «Daten»; Ticket 02): Level, die nicht im Spiel stehen, aber
 // jederzeit zurückkommen können, versioniert unter tools/vorrat/, getrennt nach Fläche (flach.js) und Würfel
-// (wuerfel.js). Je Level steht dort sein Block aus index.html (zwischen LEVELS:BEGIN und LEVELS:END bzw. WUERFEL:BEGIN
-// und WUERFEL:END, von „  {“ bis „  },“) Zeile für Zeile unverändert: Lösung und Herkunft im Kommentar, Name, wahlweise
-// Titel, Grad, Elemente, Lösung, also das Format von levelCode in leveldaten.mjs. Darüber eine Zeile mit seinem Platz
-// beim Ablegen, „// Platz im Spiel: nach „<Name>““ oder „// Platz im Spiel: am Anfang“. So zeigt ein Diff, welche
-// Level gehen und kommen, und ein Level kommt mit denselben Bytes zurück.
+// (wuerfel.js). Je Level steht dort sein Block aus src/logik.js (zwischen LEVELS:BEGIN und LEVELS:END bzw.
+// WUERFEL:BEGIN und WUERFEL:END, von „  {“ bis „  },“) Zeile für Zeile unverändert: Lösung und Herkunft im Kommentar,
+// Name, wahlweise Titel, Grad, Elemente, Lösung, also das Format von levelCode in leveldaten.mjs. Darüber eine Zeile
+// mit seinem Platz beim Ablegen, „// Platz im Spiel: nach „<Name>““ oder „// Platz im Spiel: am Anfang“. So zeigt ein
+// Diff, welche Level gehen und kommen, und ein Level kommt mit denselben Bytes zurück.
 // - Die ganze Folge: die Level im Spiel mit denen des Vorrats an ihrem Platz, wie nach dem Zurückholen aller
 //   (einfuegen; der Lader liest sie so). Der Platz eines Levels im Vorrat ist das Level unmittelbar davor in dieser
 //   Folge, auch wenn das selbst im Vorrat liegt oder mit abgelegt wird. So zeigt jedes Level auf einen anderen
 //   Vorgänger, und die ganze Folge bleibt beim Ablegen und Zurückholen dieselbe. Hiesse der Platz das Level davor im
 //   Spiel, zeigten zwei Level auf denselben, sobald dazwischen schon eines im Vorrat liegt, und kämen sie einzeln
 //   zurück, wäre ihre Reihenfolge verloren.
-// - ablegen: nimmt Level aus index.html und hängt sie in ihrer Reihenfolge im Spiel an den Vorrat an. Das Tutorial (vor
+// - ablegen: nimmt Level aus src/logik.js, hängt sie in ihrer Reihenfolge im Spiel an den Vorrat an. Das Tutorial (vor
 //   LEVELS:BEGIN) bleibt im Spiel.
-// - zurueckholen: setzt Level aus dem Vorrat wieder in index.html ein, an ihren Platz in der ganzen Folge: Ablegen und
-//   Zurückholen derselben Level ergibt index.html und den Vorrat byte-gleich wie vorher, auch in Teilen, in anderer
+// - zurueckholen: setzt Level aus dem Vorrat wieder in src/logik.js an ihren Platz in der ganzen Folge: Ablegen und
+//   Zurückholen derselben Level ergibt src/logik.js und den Vorrat byte-gleich wie vorher, auch in Teilen, in anderer
 //   Gruppierung und Reihenfolge und über mehrere Schritte (tests/vorrat.test.mjs). Ordnet ein Werkzeug die Level im
 //   Spiel um, während andere im Vorrat liegen, kommt ein Level hinter seinen Vorgänger, wo der dann steht.
 // - liste: zeigt den Vorrat je Art und Grad.
 // - inGanzerFolge: für Werkzeuge, die die ganze Folge einer Art ordnen oder ergänzen (ordne-level.mjs,
 //   ordne-wuerfel.mjs; Ticket 08): Sie schreiben in Spiel und Vorrat, ohne dass vorher alles zurückgeholt werden muss.
 // Der gemeinsame Lader (lader.mjs) liest Spiel und Vorrat zusammen, in der Folge wie nach dem Zurückholen aller Level
-// (mitAllen). Die Funktionen rechnen auf Texten (index.html und die Dateien des Vorrats); geschrieben wird nur über die
-// Kommandozeile. Zeilenenden wie in der jeweiligen Datei (index.html LF, der Vorrat nach core.autocrlf auch CRLF).
+// (mitAllen). Die Funktionen rechnen auf Texten (src/logik.js, Dateien des Vorrats); geschrieben wird nur über die
+// Kommandozeile. Zeilenenden wie in der jeweiligen Datei (src/logik.js LF, der Vorrat nach core.autocrlf auch CRLF).
 // Aufruf: node tools/vorrat.mjs liste
 //         node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]
 //         node tools/vorrat.mjs zurueckholen <name …> [--flach] [--wuerfel] [--grad <grad>] [--alle] [--datei <datei>]
@@ -31,19 +31,19 @@
 //   --grad     ohne --flach und --wuerfel: die flachen und die Würfel-Level dieses Grads
 //   --alle     (zurueckholen) der ganze Vorrat
 //   --datei    Namen aus einer Datei: eine JSON-Liste oder ein Name je Zeile
-// Beim Ablegen wird zuerst der Vorrat geschrieben, dann index.html, beim Zurückholen umgekehrt: Bricht etwas dazwischen
+// Beim Ablegen wird erst der Vorrat geschrieben, dann src/logik.js, beim Zurückholen umgekehrt: Bricht etwas dazwischen
 // ab, steht ein Level doppelt (der Lader meldet das), aber nie nirgends.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
-/** Die Arten: wo ihre Level im Spiel stehen (Markierungen in index.html) und ihre Datei im Vorrat. */
+/** Die Arten: wo ihre Level im Spiel stehen (Markierungen in src/logik.js) und ihre Datei im Vorrat. */
 export const ARTEN = {
   flach: { anfang: '/* LEVELS:BEGIN */', ende: '/* LEVELS:END */', datei: new URL('./vorrat/flach.js', import.meta.url),
     text: 'flache Level' },
   wuerfel: { anfang: '/* WUERFEL:BEGIN */', ende: '/* WUERFEL:END */',
     datei: new URL('./vorrat/wuerfel.js', import.meta.url), text: 'Würfel-Level' },
 };
-export const INDEX = new URL('../index.html', import.meta.url);
+export const LOGIK = new URL('../src/logik.js', import.meta.url);
 /** Die Markierungen im Vorrat, zwischen denen seine Level stehen. */
 const VORRAT_ANFANG = '/* VORRAT:BEGIN */', VORRAT_ENDE = '/* VORRAT:END */';
 const NAME = /^ {4}name: '((?:[^'\\]|\\.)*)'/;
@@ -112,14 +112,14 @@ function bloecke(zeilen, wo, imVorrat) {
 }
 
 /**
- * Der Bereich der Level einer Art im Spiel (zwischen ihren Markierungen in index.html) bzw. in ihrer Datei im
+ * Der Bereich der Level einer Art im Spiel (zwischen ihren Markierungen in src/logik.js) bzw. in ihrer Datei im
  * Vorrat.
  */
-const spielBereich = (html, art) => bereich(html, ARTEN[art].anfang, ARTEN[art].ende, 'index.html');
+const spielBereich = (html, art) => bereich(html, ARTEN[art].anfang, ARTEN[art].ende, 'src/logik.js');
 const vorratBereich = (text, art) => bereich(text, VORRAT_ANFANG, VORRAT_ENDE, `tools/vorrat/${art}.js`);
 
 /** Die Namen der Level einer Art im Spiel (zwischen den Markierungen), in ihrer Reihenfolge; ohne das Tutorial. */
-export const namenImSpiel = (html, art) => bloecke(spielBereich(html, art).zeilen, 'index.html', false)
+export const namenImSpiel = (html, art) => bloecke(spielBereich(html, art).zeilen, 'src/logik.js', false)
   .map(b => b.name);
 
 /**
@@ -168,8 +168,8 @@ export function einfuegen(folge, holen, vorrat = holen) {
   return alle.filter(x => bleibt.has(x));
 }
 
-/** Die Texte: { spiel: index.html, flach, wuerfel: die Dateien des Vorrats }, aus den Dateien. */
-export const lese = () => ({ spiel: readFileSync(INDEX, 'utf8'),
+/** Die Texte: { spiel: src/logik.js, flach, wuerfel: die Dateien des Vorrats }, aus den Dateien. */
+export const lese = () => ({ spiel: readFileSync(LOGIK, 'utf8'),
   ...Object.fromEntries(Object.entries(ARTEN).map(([art, a]) => [art, readFileSync(a.datei, 'utf8')])) });
 
 /**
@@ -181,7 +181,7 @@ export function ablegen(texte, namen) {
   const offen = new Set(namen), neu = { ...texte }, abgelegt = {};
   for (const art of Object.keys(ARTEN)) {
     const s = spielBereich(neu.spiel, art), v = vorratBereich(neu[art], art);
-    const imSpiel = bloecke(s.zeilen, 'index.html', false), imVorrat = inhalt(neu[art], art);
+    const imSpiel = bloecke(s.zeilen, 'src/logik.js', false), imVorrat = inhalt(neu[art], art);
     const schon = imSpiel.filter(b => offen.has(b.name) && imVorrat.some(x => x.name === b.name)).map(b => b.name);
     if (schon.length) throw new Error(`Schon im Vorrat: ${schon.join(', ')}`);
     // der Vorgänger in der ganzen Folge, mit den Leveln, die schon im Vorrat liegen (siehe Kopf)
@@ -214,7 +214,7 @@ export function zurueckholen(texte, namen = null) {
   const offen = new Set(namen ?? []), neu = { ...texte }, zurueck = {};
   for (const art of Object.keys(ARTEN)) {
     const s = spielBereich(neu.spiel, art), v = vorratBereich(neu[art], art);
-    const imSpiel = bloecke(s.zeilen, 'index.html', false), imVorrat = inhalt(neu[art], art);
+    const imSpiel = bloecke(s.zeilen, 'src/logik.js', false), imVorrat = inhalt(neu[art], art);
     const holen = imVorrat.filter(b => namen === null || offen.has(b.name));
     const doppelt = holen.filter(b => imSpiel.some(x => x.name === b.name)).map(b => b.name);
     if (doppelt.length) throw new Error(`Im Spiel und im Vorrat: ${doppelt.join(', ')}`);
@@ -230,14 +230,14 @@ export function zurueckholen(texte, namen = null) {
 }
 
 /**
- * index.html mit allen Leveln des Vorrats an ihrem Platz (texte wie bei lese): so, wie zurueckholen --alle schriebe.
+ * src/logik.js mit allen Leveln des Vorrats an ihrem Platz (texte wie bei lese): so, wie zurueckholen --alle schriebe.
  */
 export const mitAllen = (texte) => zurueckholen(texte).spiel;
 
 /**
  * Ändert die ganze Folge einer Art (Spiel und Vorrat zusammen; Ticket 08), etwa wenn tools/ordne-level.mjs die Reihe
  * neu ordnet oder ein neues Level einreiht: Holt alle Level der Art aus dem Vorrat zurück, wendet aendere auf
- * index.html an (Text → Text, mit allen Leveln der Art zwischen ihren Markierungen) und legt danach die Level wieder ab,
+ * src/logik.js an (Text → Text, mit allen Leveln der Art zwischen ihren Markierungen), legt danach die Level wieder ab,
  * die vorher im Vorrat lagen. neu: Namen von Leveln, die aendere dazugebracht hat; sie kommen in den Vorrat, solange
  * dort Level ihrer Art liegen (das Spiel ist die Geschichte, in sie bringt sie erst tools/geschichte.mjs spiel), sonst
  * bleiben sie im Spiel wie die übrigen. Rückgabe: die neuen Texte (wie bei lese) und die abgelegten Namen je Art.
@@ -302,7 +302,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const hin = befehl === 'ablegen';
     // Die Level, unter denen die Gruppen wählen: beim Ablegen die im Spiel, beim Zurückholen die im Vorrat
     const levelJeArt = Object.fromEntries(Object.keys(ARTEN).map(art => [art, hin
-      ? bloecke(spielBereich(texte.spiel, art).zeilen, 'index.html', false) : inhalt(texte[art], art)]));
+      ? bloecke(spielBereich(texte.spiel, art).zeilen, 'src/logik.js', false) : inhalt(texte[art], art)]));
     const gewaehlt = auswahl(levelJeArt, { namen, arten, grad, alle: flags.has('--alle') });
     if (!gewaehlt.length && !hin && flags.has('--alle')) {
       console.log('Der Vorrat ist leer, nichts zurückzuholen.');
@@ -318,12 +318,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     const geaendert = Object.keys(ARTEN).filter(art => r[hin ? 'abgelegt' : 'zurueck'][art].length);
     const schreibeVorrat = () => { for (const art of geaendert) writeFileSync(ARTEN[art].datei, r[art]); };
     if (hin) schreibeVorrat();
-    writeFileSync(INDEX, r.spiel);
+    writeFileSync(LOGIK, r.spiel);
     if (!hin) schreibeVorrat();
     for (const art of geaendert) {
       const liste = r[hin ? 'abgelegt' : 'zurueck'][art];
       console.log(`${hin ? 'abgelegt' : 'zurückgeholt'}: ${liste.length} ${ARTEN[art].text}: ${kurz(liste)}`);
     }
-    console.log(`geschrieben: index.html, ${geaendert.map(art => `tools/vorrat/${art}.js`).join(', ')}`);
+    console.log(`geschrieben: src/logik.js, ${geaendert.map(art => `tools/vorrat/${art}.js`).join(', ')}`);
   }
 }

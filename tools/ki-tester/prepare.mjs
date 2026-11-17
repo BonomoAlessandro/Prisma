@@ -14,8 +14,8 @@
 //                  und der Grad dort sind seine Referenz, wie levelliste.mjs (reihenfolge) sie für ein neues Level
 //                  rechnet, und der Grad des Levels muss derselbe sein. Ein Kandidat heisst im Protokoll „Kandidat
 //                  <Abdruck>“ (kandidatName in leveldaten.mjs), bis sein Name genehmigt ist. Seine Bilder kommen von
-//                  einer Kopie von index.html mit den Kandidaten (<lauf>/seite/, ausserhalb von eingabe/, denn sie
-//                  enthält die Lösungen).
+//                  einer Seite mit den Kandidaten am Ende der Level (die Spiellogik dazu in <lauf>/seite/logik.js,
+//                  ausserhalb von eingabe/, denn sie enthält die Lösungen; shots.mjs zeigt sie über spielserver.mjs).
 //                  Ausbau auf 500 Level (.scratch/500-level/, Läufe ausbau-…): Steht in der Datei ein Eintrag mit
 //                  ausbau (die ganze Ausgabe von ordne-level.mjs --ausbau … --json), gilt ihre Reihenfolge als Vorschau
 //                  (nach platz, mit den Kandidaten unter ihrem Namen bei den KI-Testern): Plätze, Grade, Referenzen und
@@ -44,21 +44,21 @@
 // Platz nicht kennen. KI-Tester A beurteilt in einer gemischten Reihenfolge, KI-Tester B in der umgekehrten.
 // Zwischenspeicher der Anker-Bilder (tests/output/ki-tester/anker-bilder/, nicht versioniert): Die Bilder eines Ankers
 // werden nicht neu aufgenommen, wenn sich nichts geändert hat, was sie beeinflusst. Der Schlüssel umfasst den
-// Fingerabdruck des Ablaufs, den Inhalt von index.html, tools/vorrat/, vendor/ und backgrounds/ (was die Seite lädt),
+// Fingerabdruck des Ablaufs, den Inhalt von index.html, src/, tools/vorrat/, vendor/ und backgrounds/ (die Seite),
 // von shots.mjs und chrome.mjs, den Chrome selbst (Pfad, Grösse, Zeitstempel, Versionsordner), die Leveldaten und den
 // Platz des Ankers im Spiel und seine Kennung. Eine Aufnahme ist wiederholbar byte-gleich (Ticket 05), also auch das
 // gespeicherte Bild.
 // Spiel und Vorrat (Spec .scratch/noa-geschichte/, Ticket 02): Die Reihenfolge im Spiel kommt aus dem gemeinsamen
 // Lader (ALLE in lader.mjs, die Level des Vorrats an ihrem Platz; protocol.mjs). Liegen Level im Vorrat, kommen alle
-// Bilder von einer Kopie von index.html mit allen Leveln aus Spiel und Vorrat (alleText im Lader, <lauf>/seite/ wie bei
-// den Kandidaten).
+// Bilder von einer Seite mit allen Leveln aus Spiel und Vorrat (alleText im Lader, <lauf>/seite/logik.js wie bei den
+// Kandidaten).
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { ALLE, VORRAT, alleText } from '../lader.mjs';
 import { findChrome } from '../chrome.mjs';
-import { kandidatName, seiteMitLeveln, seiteMitWuerfeln } from '../leveldaten.mjs';
+import { kandidatName, logikMitLeveln, logikMitWuerfeln } from '../leveldaten.mjs';
 import {
   VERSION, FINGERPRINT, AGENT, TESTERS, answerPath, brief, fingerprint, gradeOf, loadAnchors, reference, today,
   WUERFEL_VERSION, WUERFEL_FINGERPRINT, WUERFEL_IM_SPIEL, WUERFEL_LAEUFE, WUERFEL_REFERENZ, fingerprintWuerfel,
@@ -67,7 +67,7 @@ import {
 import { fieldText } from './field.mjs';
 import { zaehlendeUrteile, zaehlendeWuerfelUrteile } from '../levelliste.mjs';
 import { WUERFEL_TEXT, istWuerfel } from '../wuerfelliste.mjs';
-import { CUBE_ANGLES, imageNames, seitenUrl, takeShots } from './shots.mjs';
+import { CUBE_ANGLES, imageNames, takeShots } from './shots.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
@@ -155,16 +155,17 @@ for (const l of all) writeFileSync(join(input, `${l.id}.md`), fieldText(daten.ge
 if (wuerfel) writeFileSync(join(input, 'answer.schema.json'), JSON.stringify(schemaOf(ABLAUF), null, 2) + '\n');
 else copyFileSync(join(here, 'answer.schema.json'), join(input, 'answer.schema.json'));
 // Die Kandidaten stehen für die Bilder am Ende von LEVELS (im Würfel von LEVELS_3D, unter ihrem Namen bei den
-// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Kopie von index.html (nicht in eingabe/), mit
-// allen Leveln aus Spiel und Vorrat (siehe Kopf); liegen Level im Vorrat, kommen auch die übrigen Bilder von dort
+// KI-Testern: Nach ihm findet das Spiel beim Neuladen das Level) in einer Spiellogik für die Seite (seite/logik.js,
+// nicht in eingabe/), mit allen Leveln aus Spiel und Vorrat (siehe Kopf); liegen Level im Vorrat, kommen auch die
+// übrigen Bilder von dort
 const imSpiel = all.filter(l => !l.kandidat), neu = all.filter(l => l.kandidat);
-const seite = join(dir, 'seite', 'index.html');
+const seite = join(dir, 'seite', 'logik.js');
 const mitVorrat = VORRAT.flach.length + VORRAT.wuerfel.length > 0;
 if (neu.length || mitVorrat) {
   mkdirSync(dirname(seite), { recursive: true });
-  const html = alleText(), basis = pathToFileURL(root).href + '/';
-  writeFileSync(seite, wuerfel ? seiteMitWuerfeln(html, neu.map(l => ({ ...daten.get(l.id), name: l.name })), basis)
-    : seiteMitLeveln(html, neu.map(l => daten.get(l.id)), basis));
+  const logik = alleText();
+  writeFileSync(seite, wuerfel ? logikMitWuerfeln(logik, neu.map(l => ({ ...daten.get(l.id), name: l.name })))
+    : logikMitLeveln(logik, neu.map(l => daten.get(l.id))));
 }
 // Im Würfel: Index in LEVELS der Seite ab CUBE_START (= Zahl der flachen Level), Bilder aus mehreren Blickwinkeln
 const angles = wuerfel ? CUBE_ANGLES : null, images = imageNames('', angles);
@@ -189,7 +190,7 @@ if (!flags.has('--ohne-bilder')) {
   const fresh = shots.filter(s => !fromCache.includes(s));
   if (fresh.length) {
     seconds = await takeShots(fresh.map(({ index, label, file }) => ({ index, label, file, angles })), console.log,
-      mitVorrat ? seitenUrl(seite) : undefined);
+      mitVorrat ? seite : null);
   }
   mkdirSync(cache, { recursive: true });
   for (const s of fresh.filter(x => x.l.anker)) {
@@ -199,7 +200,7 @@ if (!flags.has('--ohne-bilder')) {
   if (neu.length) {
     const first = wuerfel ? ALLE.LEVELS.length + IM_SPIEL.length : ALLE.LEVELS.length;
     const mehr = await takeShots(neu.map((l, j) => ({ index: first + j, label: l.id,
-      file: join(input, 'bilder', l.id), angles })), console.log, seitenUrl(seite));
+      file: join(input, 'bilder', l.id), angles })), console.log, seite);
     seconds = Object.fromEntries(Object.keys(mehr).map(v => [v, [...(seconds?.[v] ?? []), ...mehr[v]]]));
   }
 }
@@ -303,7 +304,7 @@ function ladeKandidaten(roh, datei) {
 function environmentHash() {
   const h = createHash('sha256');
   const walk = (p) => (statSync(p).isDirectory() ? readdirSync(p).sort().flatMap(f => walk(join(p, f))) : [p]);
-  for (const p of ['index.html', 'tools/vorrat', 'vendor', 'backgrounds', 'tools/ki-tester/shots.mjs',
+  for (const p of ['index.html', 'src', 'tools/vorrat', 'vendor', 'backgrounds', 'tools/ki-tester/shots.mjs',
     'tools/chrome.mjs']) {
     for (const f of walk(join(root, p))) h.update(slash(relative(root, f))).update(readFileSync(f));
   }
