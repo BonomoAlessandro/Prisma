@@ -5,6 +5,7 @@ import { flow } from './levelfluss.js';
 import { ui } from './oberflaeche/ui.js';
 import { wagen } from './geschichte/daten.js';
 import { HALL_SECONDS, hallImpulse } from '../hall.js';
+import { einstellungen } from '../spielstand.js';
 import { alsGlobal } from './testschnittstelle.ts';
 
 /* =====================================================================
@@ -79,7 +80,6 @@ const audio = {
   dry: null,     // direkter Weg
   wet: null,     // Hall
   muted: false,
-  storageKey: 'prisma.muted',
   _ctx: null,    // vorab angelegt (prepare)
   _shimmerOn: false, _shimmerTimer: 0, // Hintergrund-Glitzern läuft (ab unlock); sein Zeitgeber (0: ruht)
 
@@ -175,7 +175,7 @@ const audio = {
 
   setMuted(m) {
     this.muted = m;
-    try { localStorage.setItem(this.storageKey, m ? '1' : '0'); } catch { /* egal */ }
+    einstellungen.setStumm(m);
     if (!this.ctx) return;
     this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.ctx.currentTime, 0.08);
     this._sync();
@@ -281,7 +281,7 @@ const audio = {
     this._bell(110, { when, out, gain: g * 1.2, attack: 0.1, decay: 5, partials: [[1, 1], [2, 0.4]], wet: 0.6 });
   },
 };
-try { audio.muted = localStorage.getItem(audio.storageKey) === '1'; } catch { /* Standard: Ton an */ }
+audio.muted = einstellungen.stumm(); // Standard (kein Stand, nicht lesbar): Ton an
 document.addEventListener('visibilitychange', () => audio._sync());
 // Vorbereiten, sobald das erste Bild steht (ui und introCalm gibt es dann)
 requestAnimationFrame(() => setTimeout(() => audio._quiet(() => audio.prepare()), 0));

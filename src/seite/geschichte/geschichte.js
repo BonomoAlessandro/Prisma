@@ -13,7 +13,7 @@ import { game, prepareLevel, recomputeBeams } from '../brett/feld.js';
 import { WHITE } from '../brett/strahlen.js';
 import { setHovered } from '../eingabe.js';
 import { audio } from '../ton.js';
-import { CELEBRATE, celebration, changeLevel, enterLevel, flow, progress, restartLevel } from '../levelfluss.js';
+import { CELEBRATE, celebration, changeLevel, enterLevel, flow, restartLevel } from '../levelfluss.js';
 import { $, IS_TOUCH } from '../oberflaeche/dom.ts';
 import { introCalm, markIntroCalm, setShown, ui } from '../oberflaeche/ui.js';
 import { createMenu } from '../oberflaeche/menue.js';
@@ -27,6 +27,7 @@ import { adaptiveResolution, kameraSichtfeld } from '../aufloesung.js';
 import { leistung } from '../leistung.js';
 import { mulberry32 } from '../../zufall.js';
 import { LEVELS, STORY_LEVELS, TUTORIAL_COUNT } from '../../logik.js';
+import { progress } from '../../spielstand.js';
 import { alsGlobal } from '../testschnittstelle.ts';
 
 // wie der Rückflug der Kamera; die flachere Kurve aus leistung-11 ist zurückgenommen (Ursache der Ruckler war die

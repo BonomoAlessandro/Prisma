@@ -17,7 +17,7 @@ import {
 import { beamMaterial, beamShadeMaterial, beamView, buildBeamGeometry, floorGlowMaterial } from './brett/strahlen.js';
 import { makeInteractive } from './eingabe.js';
 import { audio } from './ton.js';
-import { celebration, changeLevel, enterLevel, flow, progress, updateFlow } from './levelfluss.js';
+import { celebration, changeLevel, enterLevel, flow, updateFlow } from './levelfluss.js';
 import { fuehrung } from './fuehrung.js';
 import { markSeitenstart, setShown, ui } from './oberflaeche/ui.js';
 import { himmelsWagen } from './geschichte/daten.js';
@@ -26,6 +26,7 @@ import { adaptiveResolution, renderReflection, sceneTime } from './aufloesung.js
 import {
   COLORS, createBoard, geraeteText, isRotatable, LEVELS, mod8, NEBENBEI, STORY_LEVELS, TUTORIAL_COUNT,
 } from '../logik.js';
+import { progress } from '../spielstand.js';
 import { neueAufgabe } from './aufgabe.ts';
 import { alsGlobal } from './testschnittstelle.ts';
 
@@ -148,7 +149,7 @@ window.__prisma.buehne = { modus: 'gl', bilder: (n) => story.scene?.gl?.bilder(n
 // Laden mit ?nointro (das Menü ist offen; es geht sofort weg, die Kamera schaut aufs Brett): ohne Speicherstand,
 // Kopfzeile mit Titel oder Name und Grad (Bilder der KI-Tester, Proben im Würfel). loese(): das laufende Level lösen,
 // Drehung für Drehung wie ein Spieler (Proben des Ablaufs; die Geschichte geht dann wie gewohnt weiter). Einen Grad
-// wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben über localStorage
+// wählt das Menü (menu, oder story.choose(grad), solange es offen ist), einen Stand setzen Proben im Speicher der Seite
 // (progress) und Neuladen. uebersicht: die Übersicht (offen, Daten aus story.overviewData). beamView, shockUniforms,
 // STORY_LEVELS, COLORS: für den Bildvergleich (tests/bildvergleich.mjs), der nur über dieses Objekt in die Seite greift.
 window.__prismaDebug = { beamView, shockUniforms, STORY_LEVELS, COLORS, arbeit, fuehrung, scene, camera, renderer, boardTheme, bloomPass, brushPass, finalPass, keyLight, hemi, game, rotateElement, flow, changeLevel, celebration, audio, ui, progress, skyTheme, cameraRig, cubeView, story, menu, uebersicht, adaptiveResolution, sceneLoop,

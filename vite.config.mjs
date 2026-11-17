@@ -7,8 +7,8 @@
 // die Module), im Dev-Server liefert es sie einzeln. Der Stil (src/stil/index.css) wird eine Datei unter assets/, die
 // Schrift daraus ebenso (unverkleinert, cssMinify: false). Was index.html direkt lädt (three.js r147 in vendor/, das
 // Register der Skyboxen, die Icons), trägt das Attribut vite-ignore: Vite lässt es stehen, wie es ist (und entfernt nur
-// das Attribut). Der Worker des Halls (src/hall-worker.ts) ist ein eigenes Modul: new Worker(new URL(…)) in
-// src/seite/ton.js, Vite macht daraus im Build assets/hall-worker-<hash>.js.
+// das Attribut). Die Worker sind eigene Module (src/*-worker.ts: Hall, Skyboxen, Bretter): new Worker(new URL(…)) in
+// src/seite/ton.js, himmel/skybox.js und texturen.js, Vite macht daraus im Build assets/<name>-worker-<hash>.js.
 //
 // Beim Build kommen dazu (Plugin prisma):
 // - die statischen Dateien unverändert nach dist/: vendor/, icons/, favicon.svg, manifest.webmanifest und aus
@@ -170,13 +170,12 @@ export default {
   // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers); ohne den Nachlader für modulepreload (das
   // Spiel ist ein einziges Modul). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
   // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation).
-  // Namen bleiben (mangle aus, Funktionsnamen behalten): Zwei Worker bekommen ihren Code als Text von Funktionen des
-  // Spiels (skyBitmaps: decode mit OPT, boardTextures: compute samt helpers und compute.name); umbenannt fänden sie die
-  // Namen darin nicht mehr, scheiterten und rechneten im Hauptthread (Lücken bis 700 ms, andere Bilder)
+  // Namen werden verkürzt (mangle, seit Ticket 05 wieder an): Kein Worker bekommt mehr seinen Code als Text von
+  // Funktionen des Spiels (bis dahin skyBitmaps und boardTextures; umbenannt scheiterten sie und rechneten im
+  // Hauptthread). Alle Worker sind eigene Module (src/*-worker.ts).
   build: {
     outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: true, modulePreload: { polyfill: false },
     chunkSizeWarningLimit: 1500,
-    rolldownOptions: { output: { minify: { mangle: false, compress: { keepNames: { function: true, class: true } } } } },
   },
   worker: { format: 'es' },
   // Proben, Werkzeuge und Notizen schreiben viel; der Dev-Server muss davon nichts wissen
