@@ -1399,14 +1399,17 @@ console.log('Offline');
     assert.ok(!js.includes('__APP_VERSION__'), 'Platzhalter der Version übrig');
     const groesse = module().reduce((s, p) => s + readFileSync(join(root, p)).length, 0);
     assert.ok(js.length < 0.75 * groesse, `nicht verkleinert (${js.length} Bytes, Module ${groesse})`);
-    // Namen bleiben (vite.config.mjs: mangle aus): zwei Worker bekommen ihren Code als Text von Funktionen des Spiels
-    assert.ok(js.includes('const OPT = ${JSON.stringify(OPT)};\\n${decode};') && /async function decode\(url,/.test(js),
-      'Worker der Skyboxen: decode oder OPT umbenannt');
+    // Namen bleiben (vite.config.mjs: mangle aus): ein Worker bekommt seinen Code als Text von Funktionen des Spiels
     assert.ok(/function boardTextures\(specs,compute,arg,helpers=\[\]\)/.test(js) && js.includes('${compute.name}(data)'),
       'Worker der Bretter: boardTextures umbenannt');
-    const worker = imBau().filter((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
-    assert.equal(worker.length, 1, 'Worker des Halls nicht genau einmal unter assets/');
-    assert.ok(js.includes(posix.basename(worker[0])), 'Pfad des Workers fehlt im Spiel');
+    // die Worker als eigene Module (Hall seit Ticket 03, Skyboxen seit Ticket 05): je eine Datei unter assets/, im
+    // Speicher des Service Workers, das Spiel nennt sie
+    for (const name of ['hall-worker', 'himmelbild-worker']) {
+      const worker = imBau().filter((f) => new RegExp(`^assets/${name}-[\\w-]+\\.js$`).test(f));
+      assert.equal(worker.length, 1, `${name} nicht genau einmal unter assets/`);
+      assert.ok(js.includes(posix.basename(worker[0])), `Pfad von ${name} fehlt im Spiel`);
+      assert.ok(swFiles.includes(worker[0]), `${name} nicht in FILES`);
+    }
     assert.ok(js.trimEnd().endsWith(`//# sourceMappingURL=${posix.basename(skripte[0])}.map`), 'Verweis auf die Source-Map');
     const karte = JSON.parse(readFileSync(join(aus, `${skripte[0]}.map`), 'utf8'));
     // Pfade relativ zum Ausgabeordner (hier ein temporärer Ordner); src/main.ts hat keinen eigenen Code
