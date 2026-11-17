@@ -127,3 +127,61 @@ verloren; ich brach ihn ab und startete nach dem Merge neu.
   `--dorf`, `buehne-messung`); das bleibt dem Reviewer.
 
 ## Comments
+
+### Review (unabhängiger Reviewer)
+
+17.11.2026, Stand `1134648`. Ergebnis: **bestanden**, keine eigenen Korrekturen nötig. Läufe über `tools/leise.sh`
+(`LEISE_MAX_CPU=100 LEISE_CPU=100 LEISE_VORRANG=2`), Browserläufe nacheinander. Zum Vergleich ein Worktree von
+`feature/umbau` (`36653cf`).
+
+**Läufe (Ticket / Basis)**
+
+- `npm test`: alle grün (golden, logic, hall, vorrat, geschichte, levelliste, wuerfelliste, ki-tester, beurteilung,
+  generator).
+- `golden.mjs --voll` ohne `--write`: «alle 842 Level (davon 300 Würfel) wie in golden.json, Löser für alle Level».
+- Bildvergleich ganz, ohne `--write`: **GRÜN**, 66 Bilder in 28 min 39 s, grösste Abweichung eines Pixels 3, Anteil
+  0,000 %, Konsole ohne Meldungen (auch «start» mit der 204 für `favicon.ico`).
+- `start-probe`: in Ordnung; «neu» `.go` 1,34 s, Knopf 4,24 s, ganz 10,19 s (Basis 1,45 / 4,35 / 10,11 s); «weiter»
+  ganz 11,01 s (Basis 11,14 s). Kein Unterschied in der Ladezeit.
+- `leerlauf-probe`: OK; Ruhe 28,4 Bilder/s, GPU 718 ms/s (Basis 28,4, 723 ms/s).
+- `ruhetakt-probe`: OK (Basis OK). `spiegel-probe pruefe`: OK (Basis OK).
+- `geschichte-probe --handy`, `--quer`, `--menue`, `--uebersicht`: alle bestanden, Konsole ohne Fehler. Die Basis
+  hatte in `--uebersicht` zwei Lücken über 100 ms (232 und 126 ms, bekannt rot, `.scratch/energie/spec.md`).
+- `buehne-messung`: gelaufen, Konsole leer (Basis ebenso).
+- `brett-probe` (GPU=1): im ersten Lauf ein Fehler «tidePool → clay (flach): Lücke 1 Pixel im Kernquader»; wiederholt
+  «Brett: in Ordnung». Die Basis war im einzigen Lauf grün. Eine Lücke von 1 Pixel im Übergang der Bretter hat mit
+  Logik, Hall oder Worker nichts zu tun; ich werte das als Ausreisser, nicht als Fund.
+- `offline.mjs`: bestanden (Basis ebenso).
+
+**Bewertung der Abweichungen**
+
+1. *Einsetzen statt Importieren:* sauber und eng gefasst. `zerlege` nimmt nur `import { … } from './x.js';` am Anfang
+   und genau einen `export { … };` am Schluss an, alles andere wirft; `setzeEin` prüft, dass Importiertes weiter oben
+   steht, und ersetzt über eine Funktion (keine `$`-Fallen). **Zeichengleich geprüft:** Basis und Ticket gebaut,
+   `dist/index.html` verglichen. Unterschiede nur in Kommentaren (Kopf der Logik, `LOGIC:BEGIN/END`, `HALL:BEGIN/END`,
+   zwei Verweise), die Zeile `HALL_WET` mit `HALL_SECONDS` aus dem Modul und der Start des Workers (Datei statt Blob);
+   der Code der Logik (Zeilen 1416–8404) ist Zeichen für Zeichen gleich. Strenger Modus: `src/logik.js` läuft in Node
+   als Modul strikt, in der Seite steht vor der Marke `'use strict';`, also gleich.
+   *Fehlerorte:* Ein Fehler in der Logik zeigt auf `index.html` (Build oder Dev-Server), nicht auf `src/logik.js`; ohne
+   Source-Map. Der Abstand ist fest (Zeile in der Seite − 1415 für `logik.js`), DevTools zeigen den Code in
+   `index.html`, Haltepunkte in `src/logik.js` gehen nicht. Für die Zwischenzeit bis Ticket 04 vertretbar.
+   *Werkzeuge:* `ordne-level`, `ordne-wuerfel`, `geschichte`, `vorrat` schreiben nur zwischen den Marken
+   `…:BEGIN/END` und erhalten Zeilenenden (CRLF); den `export`-Block berühren sie nicht. Käme ein neuer Name auf die
+   oberste Ebene, fiele das laut in `logic.test.mjs` auf (Block «Module»), nicht still.
+2. *`minify: false`:* wirkt praktisch nur auf den Worker. Die klassischen Skripte in `index.html` hat Vite schon auf der
+   Basis nie verkleinert. `dist/` 32 423 020 → 32 425 498 Bytes (+2,5 KB: Kommentare und Worker), `index.html` gzip
+   443,38 → 443,93 KB, Worker 1,36 KB (gzip 0,80). Ladezeit gleich (siehe `start-probe`). **Die Begründung stimmt nur
+   halb:** Verkleinert wird zwar `Math.pow(…, 3.2)` zu `** 3.2`, die Prüfsumme (48 kHz, `ba341507…`) bleibt in Node aber
+   gleich, auch mit `minify: true`; nach ECMAScript sind `**` und `Math.pow` dieselbe Operation
+   (`Number::exponentiate`). Rot würde nur die Textprüfung `Math.pow(1 - i / len, 3.2)` in `logic.test.mjs`. Engere
+   Wege, geprüft (Worker allein gebaut): `build.target: 'es2015'` oder `rolldownOptions.output.minify.compress: false`
+   behalten `Math.pow` und verkleinern (0,9 KB), Prüfsumme gleich. Heute lohnt das nicht. **Für Ticket 04** (dann geht
+   der Code der Seite durch den Bundler, 1,5 MB) verkleinern und die Bitgleichheit über die Prüfsumme statt über den Text
+   prüfen.
+3. *TypeScript nur im Worker:* vertretbar; die Begründung (das Entfernen der Typen druckt den Code neu, Marken und Format
+   gingen verloren) trägt. Hinweis: Es prüft nichts die Typen (kein `tsc`, Vite entfernt sie nur); mit Ticket 04 ein
+   `tsc --noEmit` erwägen.
+
+**Für das Zusammenführen:** `ticket/umbau-03` enthält `7fd7176` (sw.js nimmt unbekannte Dateien unter `assets/` in den
+Speicher, Review 02) noch nicht. `git merge-tree` mit `feature/umbau` ist konfliktfrei; nach dem Merge `logic` und
+`offline.mjs` laufen lassen (der Worker liegt unter `assets/`).
