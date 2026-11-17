@@ -15,8 +15,9 @@ Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/age
 ## Prüfläufe
 
 Schwere Läufe über `tools/leise.sh` mit Zeitgrenze. Läufe ohne Zeitmessung (Node-Tests, Golden, Bildvergleich,
-`brett-probe`, `offline`, `screenshot`, Werkzeuge) als leichte (`LEISE_ART=leicht`, bis zu vier gleichzeitig), Proben
-mit Bildzeiten oder Messungen allein (ohne `LEISE_ART`); Tabelle im README, Abschnitt Tests.
+`offline`, `screenshot`, Werkzeuge) als leichte (`LEISE_ART=leicht`, bis zu vier gleichzeitig), Proben
+mit Bildzeiten oder Messungen (auch `brett-probe` und `geschichte-probe`) allein (ohne `LEISE_ART`); Tabelle im README,
+Abschnitt Tests.
 - Umsetzer: nur die schnellen Prüfungen (Node-Tests, Golden, Bildvergleich auf der Grafikkarte mit `--gpu`) und die
   Proben, die ihr Ticket direkt betrifft. Der Reviewer lässt den ganzen Satz einmal laufen, den Bildvergleich in
   SwiftShader (ohne `--gpu`), die Proben mit Zeitmessung nur er.

@@ -64,8 +64,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
 
     | Art | Läufe |
     |---|---|
-    | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `brett-probe.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
-    | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `tools/bench.mjs`, alles mit `--fenster` |
+    | leicht | `npm test` und jeder Node-Test einzeln (`golden`, `logic`, `geschichte`, `generator` …), `bildvergleich.mjs`, `offline.mjs`, `screenshot.mjs`, `spiegel-probe.mjs bilder`, `buehne-messung.mjs bilder`, Werkzeuge (`generiere.mjs`, `ordne-level.mjs`, `geschichte.mjs`, KI-Tester `prepare.mjs` und `shots.mjs` …) |
+    | allein | `leerlauf-probe.mjs`, `ruhetakt-probe.mjs`, `start-probe.mjs`, `buehne-messung.mjs` (messen), `spiegel-probe.mjs` (`pruefe`, `messen`), `geschichte-probe.mjs` (misst in jedem Ablauf die Lücken im Bildtakt), `brett-probe.mjs` (scheitert an Lücken über 100 ms auf der Grafikkarte, `mechanik` und `reise`), `tools/bench.mjs`, alles mit `--fenster` |
 
     **Regeln für die Agenten** (Nutzer, 16. und 17.11.2026): Umsetzer lassen nur die schnellen Prüfungen laufen, als
     leichte Läufe: Node-Tests (`npm test` oder die betroffenen), Golden, den Bildvergleich **auf der Grafikkarte**
