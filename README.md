@@ -31,7 +31,21 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Steam Cloud, ohne dass sich das Spiel ändert. Kein anderer Teil des Codes nennt `localStorage` (Test).
     `spielstand.js` legt Schlüssel und Format fest (unverändert seit Noas Geschichte): `progress` (Stand je Grad unter
     `prisma.noa.<grad>`, Bestwerte unter `prisma.noa.<grad>.bestwerte`, zuletzt gespielt unter `prisma.noa.zuletzt`)
-    und `einstellungen` (Ton aus unter `prisma.muted`);
+    und `einstellungen` (Ton aus unter `prisma.muted`, seit Ticket 07 die gewählte Sprache unter `prisma.sprache`);
+  - `texte/`, die Übersetzungsschicht (Ticket 07 des Umbaus): Jeder Text, den der Spieler sieht, steht in einer
+    JSON-Datei je Sprache (`de.json`; eine neue Sprache ist nur eine neue Datei `<kürzel>.json`, das Spiel findet sie
+    mit `import.meta.glob`). Der Code nennt Schlüssel: `t('menue.aktion.weiter')`, mit Werten
+    `t('kopf.uebung', { n, N })` («Übung {n} / {N}»); ein Blatt kann je Gerät verschieden sein (`{ touch, maus }`,
+    «Tippen»/«Klicken»), und die Platzhalter `{Tippe}` und `{Drücke lang}` holen die Befehlsform je Gerät aus dem
+    Bereich `geraet`. Fehlt ein Schlüssel in einer Sprache, gilt der deutsche Text. Die Titel der Level stehen im
+    Bereich `titel` unter ihrem Namen (`levelTitel`; ohne Eintrag, etwa ein Kandidat der KI-Tester, der Name), die
+    Sätze der Führung unter `fuehrung` (die Leveldaten nennen nur den Schlüssel). Den Kern (Nachschlagen,
+    Platzhalter, Wahl der Sprache) hat `uebersetzung.js`, auch für Node; `sprache.js` lädt die Dateien, wählt die
+    Sprache (`?sprache=<kürzel>` zum Prüfen, sonst die im Menü gewählte, sonst die des Geräts: `de*` Deutsch, sonst
+    Englisch, solange es `en.json` gibt), setzt `lang` des Dokuments und die festen Texte in `index.html`
+    (`data-t`, `data-t-title`, `data-t-aria-label`, `data-t-content`). Der Schalter der Sprache steht oben rechts im
+    Menü (das Spiel hat keine eigenen Einstellungen); ein Wechsel speichert die Sprache und lädt die Seite neu.
+    Werkzeuge lesen und schreiben die Dateien über `tools/texte.mjs` (feste Form);
   - `seite/` die Teile des Spiels, in der Reihenfolge, in der sie laden: `konfiguration.ts` (Fassung, Gerät,
     Schalter der Adresse, Qualität, Masse), `szene.js` (Renderer, Szene, Hauptschleife `sceneLoop`, Ruhe,
     Übersetzen der Programme), `texturen.js`, `himmel/` (`sterne.js` Umgebung und Sternenhimmel, `sonnensystem.js`,
@@ -134,7 +148,9 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     (freier Port), mit einem leeren Service Worker statt `sw.js` (wie früher über file:// ohne Vorab-Speichern) und
     einer leeren Antwort auf `/favicon.ico` (Chrome fragt danach; eine 404 stünde als Fehler in der Konsole).
     `tools/chrome.mjs` lässt Chrome seinen Port selbst wählen (`--remote-debugging-port=0`), damit viele gleichzeitige
-    Chrome nie zusammenstossen. `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
+    Chrome nie zusammenstossen, und meldet Deutsch als Sprache des Geräts (`--lang=de`, Option `sprache`; seit Ticket
+    07 des Umbaus wählt das Spiel danach seine Sprache, Headless-Chrome meldete sonst die des Rechners). Der
+    Bildvergleich prüft, dass er das deutsche Spiel sieht (`navigator.language`, `lang` des Dokuments). `PRISMA_OHNE_BAU=1` nimmt das vorhandene `dist/`, `PRISMA_SPIEL=<url>` eine
     laufende Adresse (etwa den Dev-Server). `--seite`/`--vorher` der Messproben liefern eine Kopie einer früheren
     `index.html` ungebaut aus ihrem Ordner (eine Fassung ab Ticket 03 braucht den Build). Bei `npm test` prüft
     `tests/typecheck.mjs` auch die Typen (`npm run typecheck`). Spiellogik und Hall
@@ -222,6 +238,17 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     gezählt werden freie Namen (nicht als Eigenschaft, nicht im Code selbst deklariert, dazu `window.name`);
     Wortlisten und einzelne Wörter sind Daten, ausser `ev('…')` wertet sie aus. Mit Gegenproben; der Stand vor
     Review 04 fällt mit allen sechs fehlenden Namen auf.
+  - `node tests/texte.test.mjs` prüft die Übersetzungsschicht (Ticket 07 des Umbaus; etwa 3 s): Jede Sprachdatei hat
+    genau die Schlüssel von `de.json` (je Blatt dieselbe Art, Text oder Text je Gerät), jeder Platzhalter des
+    deutschen Texts steht auch in der Übersetzung; jeder Schlüssel, den der Code nennt (auch Muster wie
+    `` `welt.${id}` ``, `data-t` in `index.html`, die Schritte der Übungen, `NEBENBEI`), steht in `de.json`, und jeder
+    dort wird genannt; die Titel sind genau die Level im Spiel. Die Regeln der Führung je Sprache und Gerät (bis
+    Ticket 07 in `logic.test.mjs`): ein Schritt 3–18 Wörter, höchstens 105 Zeichen, ein oder zwei Sätze, ein Hinweis
+    nebenbei höchstens 16 Wörter. Kein deutscher Text im Code der Oberfläche (`index.html`, `src/main.ts`,
+    `src/seite/`, `src/texte/sprache.js`) ausser über `t()`: ein String mit Umlaut, einem grossgeschriebenen Wort der
+    deutschen Texte oder zwei Wörtern daraus hintereinander, in HTML Text und gelesene Attribute; ohne Kommentare,
+    Shader, Konsole, Fehler und Protokoll der Arbeit, mit einer Liste bewusster Ausnahmen (`AUSNAHMEN`, je mit Grund).
+    Dazu der Kern (Rückfall auf Deutsch, Platzhalter, Wahl der Sprache).
   - `node tests/beurteilung.test.mjs` prüft die Beurteilung (unter `leise.sh` etwa 40 s, auf einem Thread 90–130 s je
     nach Last): den Einstieg, die Feldform und je Regel eine Datei in `tests/beurteilung/` (einzeln aufrufbar, eine neue
     Datei läuft ohne Eintrag mit). Jede Regel wird an kleinen, von Hand gebauten Leveln geprüft und an den 150 heutigen
@@ -503,7 +530,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   und nicht, solange ein Satz auf Tippen wartet (am Ende des Dorfs lädt der Wald schon, während man liest).
   Nur Deckkraft und Transform in CSS, damit er auch läuft, während das Laden den Hauptthread anhält. Gewählt aus dem
   Prototyp mit sechs Varianten (Branch `prototyp/ladeindikator`, `.scratch/ladeindikator/prototyp.html`).
-  Kopfzeile: «Das Meer – Sandbank» (Welt und Titel des Levels, `titel ?? name`), darunter in einer Zeile die
+  Kopfzeile: «Das Meer – Sandbank» (Welt und Titel des Levels, `levelTitel`), darunter in einer Zeile die
   Ziele, die schon in ihrer Farbe leuchten, und der Grad («Ziele 1 / 3 · ●○○○ Leicht»; Kapitel, Level und Bedienung
   stehen seit dem 09.11.2026 nicht mehr da). Der Ring am Ziel hat einen festen Platz je Grundfarbe
   (Rot links, Grün rechts, Blau vorne) und zeigt, aus welchen die gesuchte Farbe besteht. Kommt eine gebrauchte
@@ -1101,7 +1128,7 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
     Testschnittstelle (`__prismaDebug.zeige`) vor der Milchstrasse (`?sky=milky`), wie zuvor ohne Speicherstand.
 - **Vorrat und Lader** (`.scratch/noa-geschichte/`, Ticket 02; nur für die Entwicklung): Level, die nicht im Spiel
   stehen, liegen versioniert in `tools/vorrat/` (`flach.js`, `wuerfel.js`): je Level sein Block aus den Leveldaten
-  `src/daten/level.js` Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, wahlweise `titel`, Grad, Elemente,
+  `src/daten/level.js` Zeile für Zeile (Lösung und Herkunft im Kommentar, Name, Grad, Elemente,
   Lösung), darüber `// Platz im Spiel: nach „<Name>“`, das Level unmittelbar davor in der ganzen Folge aus Spiel und
   Vorrat. Die Level stehen dort zwischen `const VORRAT_FLACH = [` (bzw. `VORRAT_WUERFEL`) und `];`.
   `node tools/vorrat.mjs ablegen <name …> [--flach] [--wuerfel] [--grad <grad>] [--datei <datei>]` nimmt Level aus
@@ -1129,7 +1156,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   die noch nicht in Spiel oder Vorrat stehen, für `ordne-level.mjs --ausbau`. Die Titel stehen von Hand in
   `tools/geschichte/titel.json` (je Welt und Grad 10 in der Reihenfolge der Plätze); nach einer Änderung ordnet `node tools/geschichte.mjs titel` sie
   neu zu und prüft sie. `node tools/geschichte.mjs spiel [--trocken]` bringt `wahl.json` ins Spiel (Ticket 04):
-  In `src/daten/level.js` stehen danach das Tutorial und genau die 240 Level mit ihrem Titel, in der Reihenfolge der
+  In `src/daten/level.js` stehen danach das Tutorial und genau die 240 Level (ihre Titel seit Ticket 07 des Umbaus in
+  `src/texte/de.json`, Bereich `titel`, zuerst die Übungen, dann in der Reihenfolge von `FLACH`), in der Reihenfolge der
   Reihe (nicht umgeordnet, damit der Lader sie unverändert zusammensetzt); die übrigen flachen und alle Würfel-Level
   legt es in den Vorrat, Level der Wahl im Vorrat holt es zurück, und in `REISE` schreibt es den Datenblock der Reise
   (je Grad 6 Welten mit den Schlüsseln ihrer 10 Level). Ein zweiter Lauf ändert nichts.
@@ -1163,7 +1191,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Neustart in «Brechung»; geführt nur im Dorf, siehe «Führung» in `CONTEXT.md`. Erstes Licht: Ziel, Spiegel, rund
   gegen eckig, Zurückdrehen; Brechung: Block und Prisma; Farbenlehre: Filter, farbige Lampe, Ring am Kristall;
   Mischung: Mischen am Kristall und Kombinator), danach seit Ticket 04
-  (Noas Geschichte) genau die 240 Level der Geschichte mit ihrem Titel (`titel`, die Reise in `STORY_LEVELS`), in der
+  (Noas Geschichte) genau die 240 Level der Geschichte (ihr Titel in der Übersetzungsschicht, die Reise in
+  `STORY_LEVELS`), in der
   Reihenfolge der Reihe; die übrigen der 538 flachen Level (500, die 15 neuen sehr schweren aus Ticket 01 und die 23
   aus Ticket 09, über `ordne-level.mjs --ausbau` in die Reihe eingefügt) liegen im Vorrat. Die Reihe: 150 Level, seit
   Ticket 15 nach der Schwierigkeit der Beurteilung geordnet (`tools/ordne-level.mjs`): Ohne die KI-Tester wandert kein
@@ -1194,7 +1223,8 @@ mit Prismen in Spektralfarben aufspalten und farbige Ziele treffen.
   Grad als Text. Die Punkte sind gezeichnet (CSS), nicht aus der Schrift. Die Levelauswahl (Seiten zu 10, Fläche und
   Würfel) ist mit Ticket 04 weggefallen; an ihrer Stelle steht seit Ticket 06 die Übersicht des Grads.
   Wichtig: Der Levelname (`name`) ist der stabile Schlüssel jedes Levels (Speicherstand, Werkzeuge, Protokoll der
-  KI-Tester, Golden-Test); angezeigt wird `titel ?? name`. Gelöste Level speichert das Spiel nach Namen (geprüft in
+  KI-Tester, Golden-Test); angezeigt wird der Titel aus der Übersetzungsschicht, ohne Titel der Name (`levelTitel`).
+  Gelöste Level speichert das Spiel nach Namen (geprüft in
   `tests/levelliste.test.mjs`). Die Namen der 150 wurden einst der Position nach vergeben (bis Ticket 21 in
   `tools/profiles.mjs`; als feste Liste in `tools/beurteilung/heutige-reihenfolge.json`) – nach dem Veröffentlichen
   nicht mehr umbenennen. Entfernte Namen kommen auf die Liste in `tools/levelliste.json` und werden nie wieder
