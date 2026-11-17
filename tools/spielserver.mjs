@@ -64,6 +64,9 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
       res.end('// leer (tools/spielserver.mjs): ohne Fetch-Handler fängt er nichts ab\n');
       return;
     }
+    // Chrome fragt danach, wenn eine Datei ohne eigenes Icon als Seite offen ist (der Bildvergleich setzt den
+    // Spielstand auf favicon.svg); eine 404 erschiene als Fehler in der Konsole
+    if (pfad === '/favicon.ico' && !existsSync(file)) { res.writeHead(204); res.end(); return; }
     if (!file.startsWith(ordner + sep) || !existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(404); res.end(); return;
     }
