@@ -96,6 +96,7 @@ ist (Ticket 10). Tickets 11 (Controller) und 12 (Steam) sind zurückgestellt. Da
 | 01 | Bildvergleich gegen die heutige `index.html` | |
 | 02 | Vite, npm und `dist/`; Prüfungen gegen den Build | (ausgelassen) |
 | 13 | Schnellere Prüfläufe (eingeschoben 16.11.2026, nach dem Review von 01 und 02) | |
+| 14 | Nachschliff der Sperre (eingeschoben 17.11.2026, Funde aus Review 13) | |
 | 03 | Spiellogik und markierte Bereiche als Module | |
 | 04 | Übriger Code in Module, TypeScript einführen | |
 | 05 | Speicherschicht | |

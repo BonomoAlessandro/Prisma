@@ -1,14 +1,17 @@
 // Die Adresse des Spiels für Proben, Tests und Werkzeuge an einer Stelle (Ticket 02 von .scratch/umbau/). Seit dem
 // Build mit Vite laufen sie über http gegen dist/, nicht mehr über file:// gegen index.html.
-// - spielServer(): baut dist/ (wie npm run build) und liefert es über einen kleinen Server auf 127.0.0.1 (freier Port).
+// - spielServer(): baut das Spiel (wie npm run build, seit Ticket 13 je Prozess in einen eigenen Ordner im
+//   Temp-Verzeichnis statt nach dist/, damit gleichzeitige Läufe einander nicht stören; weg nach close() bzw. am Ende
+//   des Prozesses) und liefert es über einen kleinen Server auf 127.0.0.1 (freier Port).
 //   Rückgabe { base, seite(query), url(pfad), close() }: seite('noadapt&nointro') ist die Adresse der Seite mit diesen
 //   Parametern, url('backgrounds/skies.js') die einer Datei daneben.
 //   Optionen: ordner (einen anderen Ordner ungebaut liefern, etwa für --seite: eine Kopie einer früheren index.html im
 //   Wurzelordner), datei (die Seite, Vorgabe index.html), bauen (Vorgabe true; mit PRISMA_OHNE_BAU=1 gilt das
-//   vorhandene dist/), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
+//   vorhandene dist/, ohne zu bauen), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
 //   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern), seiten (weitere
-//   Seiten nur im Speicher, { 'pfad.html': Text oder () => Text }), logik (Pfad einer anderen Spiellogik statt
+//   Seiten nur im Speicher, { 'pfad.html': Text oder (ordner) => Text }; ordner ist der Ordner, aus dem der Server
+//   liefert, seit Ticket 13 meist der eigene Bau im Temp-Verzeichnis), logik (Pfad einer anderen Spiellogik statt
 //   src/logik.js: ein eigener Build damit in einem temporären Ordner, etwa das Spiel mit Kandidaten der KI-Tester).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
 // - PRISMA_SPIEL=<url>: statt eines eigenen Servers diese Adresse, etwa der Dev-Server (npm run dev,
@@ -64,7 +67,16 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
     seite: (query = '') => new URL(datei, base).href + (query ? `?${query}` : '') });
   if (process.env.PRISMA_SPIEL && Object.keys(seiten).length) throw new Error('PRISMA_SPIEL: ohne weitere Seiten');
   if (process.env.PRISMA_SPIEL) return fertig(new URL('./', process.env.PRISMA_SPIEL).href, async () => {});
-  if (bauen && !process.env.PRISMA_OHNE_BAU) baue(ordner);
+  let eigen = null; // eigener Bau dieses Prozesses, beim Schliessen und am Ende des Prozesses weg
+  if (bauen && !process.env.PRISMA_OHNE_BAU) {
+    // statt nach dist/ in einen eigenen Ordner: Leichte Läufe laufen gleichzeitig (tools/leise.sh, Ticket 13), auch im
+    // selben Worktree, und ein Bau leert seinen Ordner, während ein anderer Lauf daraus liefert
+    if (ordner === DIST) {
+      eigen = ordner = mkdtempSync(join(tmpdir(), 'prisma-spiel-'));
+      process.once('exit', () => rmSync(eigen, { recursive: true, force: true }));
+    }
+    baue(ordner);
+  }
   if (!existsSync(join(ordner, datei))) throw new Error(`${join(ordner, datei)} fehlt (npm run build?)`);
   const server = createServer((req, res) => {
     let pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -72,7 +84,7 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
     const file = join(ordner, pfad), mehr = seiten[pfad.slice(1)];
     if (Object.hasOwn(seiten, pfad.slice(1))) {
       res.writeHead(200, { 'Content-Type': TYPES[extname(pfad)] || 'application/octet-stream' });
-      res.end(typeof mehr === 'function' ? mehr() : mehr);
+      res.end(typeof mehr === 'function' ? mehr(ordner) : mehr);
       return;
     }
     if (!sw && pfad === '/sw.js') {
@@ -80,8 +92,8 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
       res.end('// leer (tools/spielserver.mjs): ohne Fetch-Handler fängt er nichts ab\n');
       return;
     }
-    // Chrome fragt danach, wenn eine Datei ohne eigenes Icon als Seite offen ist (der Bildvergleich setzt den
-    // Spielstand auf favicon.svg); eine 404 erschiene als Fehler in der Konsole
+    // Chrome fragt danach, wenn eine Datei ohne eigenes Icon als Seite offen ist (der Bildvergleich und die Proben
+    // setzen den Spielstand auf favicon.svg); eine 404 erschiene als Fehler in der Konsole (Tickets 03 und 13)
     if (pfad === '/favicon.ico' && !existsSync(file)) { res.writeHead(204); res.end(); return; }
     if (!file.startsWith(ordner + sep) || !existsSync(file) || !statSync(file).isFile()) {
       res.writeHead(404); res.end(); return;
@@ -92,6 +104,6 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return fertig(`http://127.0.0.1:${server.address().port}/`, () => new Promise((r) => {
     server.closeAllConnections?.();
-    server.close(() => { aufraeumen(); r(); });
+    server.close(() => { aufraeumen(); if (eigen) rmSync(eigen, { recursive: true, force: true }); r(); });
   }));
 }
