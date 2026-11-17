@@ -191,3 +191,96 @@ bestätigt hat.
 
 **Offen:** Läuft der GPU-Weg neben einer Probe mit Zeitmessung auf der GPU, verfälscht er sie. Das verhindert die
 Sperre (alleinige warten auf leichte), aber nur, solange alle über `leise.sh` laufen.
+
+### Review (unabhängiger Reviewer, 17.11.2026)
+
+**Ergebnis:** bestanden, mit zwei kleinen Korrekturen und Funden für später (keiner blockiert den Merge).
+
+**Merge von `feature/umbau`** (`3c8ce0b`, Ticket 03) in `ticket/umbau-13` (`5f5ab3c`). Konflikte in
+`tools/spielserver.mjs` (nur der Kommentar zu `/favicon.ico`, beide Tickets hatten dieselbe 204; `seiten` aus 03 und der
+eigene Bau im Temp-Ordner aus 13 bleiben beide), `tests/bildvergleich.mjs` (Fassung von 13: Server nach dem Prüfen der
+Argumente, `--teil`) und README (Satz zum Bildvergleich über `dist/` aus 13, Hall-Absatz aus 03). `CLAUDE.md` und
+`vite.config.mjs` liefen ohne Konflikt.
+
+**Selbst behoben:**
+
+- `6e6bb15` (Fund aus dem Merge): `tools/ki-tester/shots.mjs` (Ticket 03) las für die Seite mit Kandidaten
+  `dist/index.html`, der Server liefert seit 13 aber aus dem eigenen Bau im Temp-Ordner. Mit einem alten `dist/`
+  zeigten die Kandidaten einen alten Bau (andere Namen der Assets), ohne `dist/` scheiterte es. Jetzt bekommt eine
+  Seite in `seiten` als Funktion den Ordner des Servers (`(ordner) => Text`). Geprüft: Server mit der Kandidatenseite,
+  alle Verweise der Seite 200.
+- `4a35a3e`: `brett-probe` zu den alleinigen (README-Tabelle, `CLAUDE.md`). Sie scheitert an Lücken über 100 ms auf der
+  Grafikkarte (`mechanik`, `reise`); neben einem leichten GPU-Bildvergleich wäre sie verfälscht.
+
+**Nebenläufigkeit in `leise.sh`** (eigene Proben, nur mit eigenen Pfaden über `LEISE_SPERRE`/`LEISE_WARTE`):
+
+- Sturm mit 16 leichten und 4 alleinigen in kurzen Wellen (Höchstzahl 4): alle gelaufen, kein alleiniger neben einem
+  anderen Lauf, höchstens 4 gleichzeitig, Sperre danach weg. Tote Gruppe, dazu 4 leichte und ein alleiniger
+  gleichzeitig: übernommen, der alleinige allein, Sperre weg. Ältere Kopie (`36653cf`, Pfade umgebogen): wartet auf
+  leichte, auch nach der Übergabe der `pid`; leichte warten auf sie. Halter der Gruppe hart getötet (`taskkill /F`),
+  zweiter leichter lebt: der neue alleinige wartet richtig.
+- **Fund (mittel): ältere Kopie nach hartem Tod des Halters.** Im selben Fall hält die **alte** Kopie die Sperre für
+  verwaist (sie kennt nur `pid`), löscht sie und läuft neben dem lebenden leichten Lauf (nachgestellt, rot). Heilen
+  würde es erst ein neuer leichter Lauf, der eintritt (`setze_halter`). Eintreten kann es, sobald ein Agent oder eine
+  Wache einen leichten Lauf hart abbricht, solange Worktrees mit der alten `leise.sh` arbeiten (alle von vor dem Merge
+  von 13). Vorschlag: nach dem Merge alle laufenden Worktrees `feature/umbau` hereinholen lassen; oder jeder leichte
+  Lauf prüft alle paar Sekunden, ob `pid` lebt, und trägt sich sonst ein.
+- **Fund (klein, nur beschrieben): Übernahme ohne Sperre der Gruppe.** `uebernehmen` des alleinigen Laufs nimmt
+  `$SPERRE.leicht` nicht. Tritt genau zwischen seiner zweiten Prüfung und `rm -rf` ein leichter in die tote Gruppe ein,
+  löscht der alleinige dessen Eintrag und läuft neben ihm. Nur nach einem harten Tod und mit einem Fenster von
+  Millisekunden; nicht nachgestellt. Behebung: `uebernehmen` auch unter `$SPERRE.leicht`.
+- **Fund (mittel): Vorrang gilt für leichte nicht gegen alleinige.** Wartende leichte tragen sich nirgends ein, also
+  sieht ein alleiniger sie nie. Reiht ein anderer Agent alleinige Läufe aneinander (hier das Review 04 mit
+  `geschichte-probe --handy`, `--quer` …), gewinnt er das Rennen um die freie Sperre jedes Mal; mein `npm test` mit
+  `LEISE_VORRANG=2` wartete so rund 43 min, Golden und der erste GPU-Bildvergleich ähnlich. Endlos ist es nicht (die
+  Kette endet), aber `LEISE_VORRANG` hilft einem leichten Lauf hier nicht. Gleiches Muster wie schon in den Comments
+  («Vorrang zwischen gleichrangigen alleinigen»).
+- Verwaiste Sperren: Gruppe ohne lebende Mitglieder, toter alleiniger Halter: übernommen (Test und eigene Proben). Ein
+  hart getöteter `sh` lässt seine Kinder (node, Chrome) weiterlaufen; das war schon vor 13 so.
+
+**GPU-Weg:** Die Bindung an die NVIDIA ist sicher genug: `--force_high_performance_gpu`, dazu je Sitzung
+`UNMASKED_RENDERER_WEBGL` gegen `NVIDIA` (in meinen GPU-Läufen jede Sitzung «NVIDIA Quadro T2000»). Fiele Chrome
+mitten in einer Sitzung auf SwiftShader zurück, sähe der Test das nicht, die Bilder wären dann aber weit über der
+Toleranz rot. `--write` schreibt nur in den Ordner des Wegs (`referenz-gpu/` bzw. `referenz/`); nach allen Läufen
+waren alle 154 Referenzen nach `md5sum` unverändert. Toleranz 0,03 %: In beiden Läufen war das einzige Bild mit
+Pixeln über 3 `quer-welt-5-nach` mit 47 Pixeln (0,014 %), genau wie beim Umsetzer; Faktor 2 Abstand ist knapp, aber
+das Rauschen war in allen bekannten Läufen gleich. **Gegenprobe:** `tint` des Vulkan-Bretts 1 % heller,
+`--gpu --groesse handy --nur welt-3-4`: rot in `handy-welt-4-vor` (0,765 %, bis 12) und `-nach` (0,621 %, bis 9), also
+20- bis 25-mal über der Grenze. Danach `git checkout`, `cmp` gegen die Kopie: gleich, `git status` sauber.
+
+**«Fast ruhig»:** Greift erst nach 7 Aufnahmen und vergleicht nur die letzten zwei miteinander, mit der Toleranz des
+Wegs. Eine Animation, die sich je Schritt um weniger als 0,01 % (GPU 0,03 %) der Pixel ändert, ginge so als ruhig
+durch; der Vergleich mit der Referenz fängt sie nur, wenn sie zur Zeit der Aufnahme anders steht. Der Lauf meldet jeden
+Fall («fast ruhig»), die Übersicht am Schluss aber nicht. Vertretbar; besser wäre, ihn auf die bekannten Ansichten
+(poco) zu beschränken oder die Fälle in der Übersicht zu zählen. In meinen Läufen: SwiftShader `poco-start` (21 Pixel)
+und `poco-dorf-uebung-2` (3 Pixel), GPU je `poco-welt-2-vor` (0 Pixel über 3).
+
+**Verträglichkeit:** Alle Proben liefen mit dem eigenen Bau je Prozess und dem Port von Chrome über
+`DevToolsActivePort`. Kein `prisma-spiel-*` blieb im Temp-Ordner (nach einem harten Abbruch bliebe er, rund 32 MB;
+`exit` läuft dann nicht).
+
+**Läufe** (alle über `leise.sh`, `LEISE_MAX_CPU=100 LEISE_CPU=100 LEISE_VORRANG=2`; Zeit des Laufs, Warten an der
+Sperre in Klammern, wo es lang war):
+
+| Lauf | Art | Ergebnis | Zeit |
+|---|---|---|---|
+| `npm test` | leicht | grün, alle 11 | rund 13 min (56 min mit Warten) |
+| Bildvergleich SwiftShader, ganz | leicht | grün, 77 Bilder, grösste Abweichung 2 | 36 min 6 s |
+| Bildvergleich `--gpu` (1) | leicht | grün, grösste 6, höchstens 0,014 % | 7 min 45 s |
+| Bildvergleich `--gpu` (2) | leicht | grün, gleich | 7 min 46 s |
+| `golden --voll` | leicht | grün, 842 Level | Löser 32 s (45 min mit Warten) |
+| `offline.mjs` | leicht | bestanden | 13 min 24 s |
+| `brett-probe` (GPU=1) | allein | in Ordnung | 5 min 53 s |
+| `start-probe` (GPU=1) | allein | in Ordnung | 31 s |
+| `ruhetakt-probe` (GPU=1) | allein | in Ordnung | 1 min 15 s |
+| `geschichte-probe --dorf` (GPU=1) | allein | 2 × rot an derselben Stelle | 4 min 37 s, 5 min 19 s |
+
+`geschichte-probe --dorf` scheiterte zweimal an einer einzelnen Lücke in «Sehr schwer: Übersicht → Übung 3
+wiederholen → Übung 4» (387 ms bzw. 420 ms, beim Hochladen der Vorschau des Dorfhimmels). Gegenprobe auf der Basis
+`3c8ce0b` (eigener Worktree, zwei Läufe): ebenfalls beide rot, einmal genau dort (367 ms), dazu beide an «Leicht:
+Angebot steht, der Wald lädt fertig» (112 und 106 ms). Kein Fehler dieses Tickets (13 ändert das Spiel nicht), aber die
+Lücke im Dorf kommt auf diesem Rechner jetzt häufig; für die nächsten Tickets im Auge behalten.
+
+**Nebenbei:** Meine erste Probe mit der alten Kopie lief ungewollt ein paar Minuten gegen die echte Warteschlange (die
+alte `leise.sh` kennt `LEISE_SPERRE` nicht): als wartender alleiniger mit Vorrang 500, ohne die Sperre je zu halten;
+abgebrochen, ihre Marke ist weg. Danach nur mit umgebogenen Pfaden.
