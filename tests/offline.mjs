@@ -4,8 +4,8 @@
 // jede Skybox aus Blender wählen (Teile im Speicher: vorab bzw. beim ersten Gebrauch) und sie offline zeigen; je
 // Himmel ist er erst bereit (skyReady), wenn das Brett seiner Brett-Angabe bereit ist und ganz steht (__prisma.brett(),
 // auch Milchstrasse und Sonnensystem online).
-// Ausgeliefert wird der Build (dist/, vorher frisch gebaut über tools/spielserver.mjs; PRISMA_OHNE_BAU=1 nimmt das
-// vorhandene) samt dem dort erzeugten sw.js.
+// Ausgeliefert wird der Build (frisch gebaut über tools/spielserver.mjs in einen eigenen Ordner im Temp-Verzeichnis;
+// PRISMA_OHNE_BAU=1 nimmt das vorhandene dist/) samt dem dort erzeugten sw.js.
 // Aufruf: node tests/offline.mjs [--redirect]   (--redirect: Server leitet index.html auf ./ weiter, wie manche Hoster)
 import { spawn } from 'node:child_process';
 import { createServer } from 'node:http';
@@ -17,7 +17,9 @@ import { tmpdir } from 'node:os';
 import { baue, DIST, TYPES } from '../tools/spielserver.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue();
+// in einen eigenen Ordner gebaut, nicht nach dist/ (gleichzeitige leichte Läufe, Ticket 13 von .scratch/umbau/)
+const dist = process.env.PRISMA_OHNE_BAU ? DIST : baue(mkdtempSync(join(tmpdir(), 'prisma-spiel-')));
+if (dist !== DIST) process.once('exit', () => rmSync(dist, { recursive: true, force: true }));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const redirect = process.argv.includes('--redirect');
 

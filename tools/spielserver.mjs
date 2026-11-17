@@ -1,11 +1,13 @@
 // Die Adresse des Spiels für Proben, Tests und Werkzeuge an einer Stelle (Ticket 02 von .scratch/umbau/). Seit dem
 // Build mit Vite laufen sie über http gegen dist/, nicht mehr über file:// gegen index.html.
-// - spielServer(): baut dist/ (wie npm run build) und liefert es über einen kleinen Server auf 127.0.0.1 (freier Port).
+// - spielServer(): baut das Spiel (wie npm run build, seit Ticket 13 je Prozess in einen eigenen Ordner im
+//   Temp-Verzeichnis statt nach dist/, damit gleichzeitige Läufe einander nicht stören; weg nach close() bzw. am Ende
+//   des Prozesses) und liefert es über einen kleinen Server auf 127.0.0.1 (freier Port).
 //   Rückgabe { base, seite(query), url(pfad), close() }: seite('noadapt&nointro') ist die Adresse der Seite mit diesen
 //   Parametern, url('backgrounds/skies.js') die einer Datei daneben.
 //   Optionen: ordner (einen anderen Ordner ungebaut liefern, etwa für --seite: eine Kopie einer früheren index.html im
 //   Wurzelordner), datei (die Seite, Vorgabe index.html), bauen (Vorgabe true; mit PRISMA_OHNE_BAU=1 gilt das
-//   vorhandene dist/), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
+//   vorhandene dist/, ohne zu bauen), sw (Vorgabe false: statt sw.js ein leerer Service Worker ohne Fetch-Handler, der nichts abfängt
 //   und nichts speichert; die Seite läuft so wie früher über file://, und die Messungen bleiben frei vom
 //   Vorab-Speichern. Eine 404 meldete Chrome als Fehler in der Konsole, an dem die Proben scheitern).
 // - seiteAus(pfad): Optionen für spielServer zu einer Datei (--seite, --vorher der Proben).
@@ -13,8 +15,9 @@
 //   http://localhost:5173/) oder npm run preview; ordner und bauen gelten dann nicht.
 // - baue(ausgabe): Build in einen Ordner (Vorgabe dist/), still ausser bei einem Fehler.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
+import { tmpdir } from 'node:os';
 import { basename, dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -45,7 +48,16 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
     url: (pfad) => new URL(pfad, base).href,
     seite: (query = '') => new URL(datei, base).href + (query ? `?${query}` : '') });
   if (process.env.PRISMA_SPIEL) return fertig(new URL('./', process.env.PRISMA_SPIEL).href, async () => {});
-  if (bauen && !process.env.PRISMA_OHNE_BAU) baue(ordner);
+  let eigen = null; // eigener Bau dieses Prozesses, beim Schliessen und am Ende des Prozesses weg
+  if (bauen && !process.env.PRISMA_OHNE_BAU) {
+    // statt nach dist/ in einen eigenen Ordner: Leichte Läufe laufen gleichzeitig (tools/leise.sh, Ticket 13), auch im
+    // selben Worktree, und ein Bau leert seinen Ordner, während ein anderer Lauf daraus liefert
+    if (ordner === DIST) {
+      eigen = ordner = mkdtempSync(join(tmpdir(), 'prisma-spiel-'));
+      process.once('exit', () => rmSync(eigen, { recursive: true, force: true }));
+    }
+    baue(ordner);
+  }
   if (!existsSync(join(ordner, datei))) throw new Error(`${join(ordner, datei)} fehlt (npm run build?)`);
   const server = createServer((req, res) => {
     let pfad = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -68,6 +80,6 @@ export async function spielServer({ ordner = DIST, datei = 'index.html', bauen =
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
   return fertig(`http://127.0.0.1:${server.address().port}/`, () => new Promise((r) => {
     server.closeAllConnections?.();
-    server.close(r);
+    server.close(() => { if (eigen) rmSync(eigen, { recursive: true, force: true }); r(); });
   }));
 }

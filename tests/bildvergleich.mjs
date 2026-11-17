@@ -30,16 +30,21 @@
 // nicht. Dekodiert und gerechnet wird in einem zweiten Chrome (keine Pakete in Node). Bei Rot liegen Bild, Referenz und
 // Differenzbild (abweichende Pixel rot über dem grau gedämpften Bild, Ausnahmen blau) unter tests/output/bildvergleich/.
 //
-// Aufruf: LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node tests/bildvergleich.mjs
-//           [--write] [--groesse desktop,handy,quer] [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6]
+// Aufruf: LEISE_ART=leicht LEISE_MAX_CPU=100 LEISE_CPU=100 sh tools/leise.sh timeout -k 30 3600 node
+//           tests/bildvergleich.mjs [--write] [--groesse desktop,handy,quer]
+//           [--nur start,dorf,welt-1-2,welt-3-4,welt-5-6] [--jobs n]
 //   --write: die Referenzen neu schreiben, nur bei einer bewussten Änderung des Aussehens (im Umbau nie). Mit --nur
 //   oder --groesse nur diese. Ohne --write: vergleichen; Rückgabe 1 bei einem roten Bild, einer fehlenden Referenz
 //   oder einem Fehler im Ablauf bzw. in der Konsole. --diag: je Bild den Zustand ausgeben (Kamera, Uhren, Ziele,
-//   Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht.
+//   Lichtkegel), um zu finden, was zwischen zwei Läufen abweicht. --jobs n: so viele Abläufe gleichzeitig, je in einem
+//   eigenen Prozess mit eigenem Chrome (Vorgabe JOBS; --jobs 1 alles nacheinander in einem Chrome je Grösse wie bis
+//   Ticket 13). Dasselbe Ergebnis wie nacheinander: Jeder Ablauf lädt die Seite ohnehin frisch mit seinem Stand.
 // Aus der Seite gelesen nur window.__prisma und __prismaDebug (darin auch beamView, STORY_LEVELS, COLORS, mit --diag
 // shockUniforms), keine globalen Namen: Wandert Code in Module (Tickets 03 und 04), muss nur __prismaDebug bleiben.
 // Laufzeit siehe README (Abschnitt Tests).
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startChrome, emulate, evaluate, sleep } from '../tools/chrome.mjs';
@@ -80,17 +85,29 @@ const GROESSEN = [
   { name: 'handy', width: 390, height: 844, dpr: 1, phone: true },
   { name: 'quer', width: 844, height: 390, dpr: 1, phone: true, mobile: true },
 ];
+const ANDROID = 'Mozilla/5.0 (Linux; Android 14; 22021211RG) AppleWebKit/537.36 (KHTML, like Gecko) '
+  + 'Chrome/130.0.0.0 Mobile Safari/537.36';
+/**
+ * Vorgabe für --jobs. Gemessen auf 12 Kernen (Ticket 13): nacheinander 27 min, mit 2 Prozessen 29 min, mit 4 29 min,
+ * mit 6 rot (Zeitüberschreitungen). SwiftShader rechnet schon in einem Chrome auf allen Kernen (im Mittel 74 % der
+ * Maschine, oft 100 %); mehr Prozesse teilen nur dieselben Kerne. Darum nacheinander.
+ */
+const JOBS = 1;
 
 const args = process.argv.slice(2);
-const liste = (k) => (args.includes(k) ? args[args.indexOf(k) + 1].split(',') : null);
+const wert = (k) => (args.includes(k) ? args[args.indexOf(k) + 1] : null);
+const liste = (k) => wert(k)?.split(',') ?? null;
 const schreiben = args.includes('--write');
 const diag = args.includes('--diag');
 const nurGroessen = liste('--groesse');
 const nurAnsichten = liste('--nur');
+const jobs = +(wert('--jobs') ?? JOBS);
+const teil = wert('--teil'); // Teilprozess von --jobs: hierhin das Ergebnis als JSON
 if (nurGroessen?.some((g) => !GROESSEN.some((x) => x.name === g))) {
-  console.error(`Unbekannte Grösse: ${nurGroessen.join(',')} (desktop, handy, quer)`);
+  console.error(`Unbekannte Grösse: ${nurGroessen.join(',')} (${GROESSEN.map((g) => g.name).join(', ')})`);
   process.exit(2);
 }
+if (!Number.isInteger(jobs) || jobs < 1) { console.error('--jobs braucht eine ganze Zahl ab 1'); process.exit(2); }
 requireQuiet();
 spiel = await spielServer();
 
@@ -109,6 +126,7 @@ async function sitzung(view) {
   const send = (m, p) => Promise.race([chrome.send(m, p),
     sleep(120000).then(() => { throw new Error(`keine Antwort auf ${m}`); })]);
   await emulate(send, view);
+  if (view.android) await send('Emulation.setUserAgentOverride', { userAgent: ANDROID });
   return { view, chrome, send, ev: (e) => evaluate(send, e), logs: chrome.logs };
 }
 /**
@@ -118,13 +136,18 @@ async function sitzung(view) {
  */
 const SPULEN = 0.5;
 async function until(expr, was, sekunden = 240, spulen = false) {
-  for (let i = 0; i < sekunden * 5; i++) {
+  for (let i = 0; i < sekunden * 5 * GEDULD; i++) {
     if (await s.ev(expr).catch(() => false)) return;
     if (spulen) await s.ev(`${D}.settle(${SPULEN})`);
     await sleep(200);
   }
   throw new Error(`Zeitüberschreitung: ${was}`);
 }
+/**
+ * Mehr Geduld in einem Teilprozess von --jobs: Neben anderen Chrome lädt ein Himmel in SwiftShader mehrmals so lange
+ * (Ticket 13: mit 6 Prozessen über 240 s für Menü und Wüste). Die Grenzen sind nur Sicherheitsnetze.
+ */
+const GEDULD = teil ? 3 : 1;
 
 /**
  * Die Seite frisch laden (query ohne BASIS), mit diesem Stand im localStorage (Schlüssel → Wert; Objekte als JSON).
@@ -187,6 +210,20 @@ async function bild(name, { vorspulen = 20, buehne = false } = {}) {
   // die Bühne (Prolog, Epilog) zeichnet nach ihrer eigenen Uhr (Zeit der Bühne) und funkelt nach der echten Zeit des
   // Bilds: beide fest (scene.einfrieren wie tests/buehne-messung.mjs, das Bild zur festen Zeit T s statt jetzt)
   if (buehne) {
+    // was die Bühne in der Einstellung bewegt (Noas Arm, Lampe, Blinken: scene.tweens und die Spuren dazu), ist fertig;
+    // sonst friert sie unter Last mitten darin ein (Ticket 13: quer-epilog mit sechs Prozessen rot an Noa)
+    await until(`${D}.story.scene.tweens.length === 0`, 'Bühne steht');
+    // … und ihre Texturen sind fertig gerastert: Im Ruhepunkt rastert sie Stück um Stück je Bild die feinere Textur der
+    // nächsten Fahrt und tauscht sie danach ein (unter Last war handy-prolog noch gröber, Ticket 13). Fertig ist, wenn
+    // die Liste ihrer Texturen 4 s lang gleich bleibt.
+    let liste = null;
+    for (let gleich = 0, k = 0; gleich < 4; k++) {
+      if (k > 180 * GEDULD) throw new Error(`${s.view.name}-${name}: Texturen der Bühne werden nicht fertig`);
+      await sleep(1000);
+      const jetzt = await s.ev(`JSON.stringify(${D}.story.scene.gl.liste())`);
+      gleich = jetzt === liste ? gleich + 1 : 0;
+      liste = jetzt;
+    }
     await s.ev(`(() => { const sc = ${D}.story.scene; sc.einfrieren(${T});
       sc.uhr = { t0: ${T * 1000}, s0: ${T}, tempo: sc.uhr.tempo }; sc.gl.einfrieren(${T * 1000}); sc.gl.zeichnen();
       return true; })()`);
@@ -398,13 +435,21 @@ const t0 = Date.now();
 const zeit = (was) => console.log(`  ${((Date.now() - t0) / 1000).toFixed(0).padStart(5)} s  ${was}`);
 const fehler = [];
 const ergebnisse = [];
-rmSync(OUT, { recursive: true, force: true });
+if (!teil) rmSync(OUT, { recursive: true, force: true }); // ein Teilprozess (--teil) räumt die Ausgabe nicht
 mkdirSync(OUT, { recursive: true });
 mkdirSync(REFERENZ, { recursive: true });
 setTimeout(() => { console.error('Zeitrahmen von 90 min überschritten: Abbruch'); process.exit(3); }, 90 * 60000).unref();
 
-for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name))) {
-  console.log(`${view.name} (${view.width} × ${view.height})`);
+const groessen = GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g.name));
+/** die Abläufe einer Grösse (--nur, und eine Grösse mit nur nimmt nur diese) */
+const ablaeufeVon = (view) => ABLAEUFE.filter((x) => (!nurAnsichten || nurAnsichten.includes(x.name))
+  && (!view.nur || view.nur.includes(x.name)));
+
+/** Eine Grösse in einer Sitzung: ihre Abläufe aufnehmen, dann vergleichen bzw. schreiben. */
+async function groesseAufnehmen(view) {
+  const ablaeufe = ablaeufeVon(view);
+  if (!ablaeufe.length) return;
+  console.log(`${view.name} (${view.width} × ${view.height}${view.dpr !== 1 ? `, Pixeldichte ${view.dpr}` : ''})`);
   s = await sitzung(view);
   s.bilder = [];
   try {
@@ -412,7 +457,7 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
     await s.send('Page.navigate', { url: seite(`${BASIS}&nointro`) });
     await until('window.__prisma?.ticks > 2', 'Spiel startet');
     s.reise = await s.ev(`${D}.STORY_LEVELS[${JSON.stringify(GRAD)}]`);
-    for (const a of ABLAEUFE.filter((x) => !nurAnsichten || nurAnsichten.includes(x.name))) {
+    for (const a of ablaeufe) {
       const vorher = s.logs.length;
       try {
         await a.ablauf();
@@ -456,8 +501,52 @@ for (const view of GROESSEN.filter((g) => !nurGroessen || nurGroessen.includes(g
     } else console.log(`  grün ${b.name}: ${text}`);
   }
 }
+
+/**
+ * --jobs n: je Grösse und Ablauf ein eigener Prozess (dieses Skript mit --groesse, --nur und --teil), bis zu n
+ * gleichzeitig, die längsten zuerst. Alle nehmen das Spiel von diesem Server (PRISMA_SPIEL), jeder mit eigenem Chrome und
+ * frischem Laden wie seriell (jeder Ablauf lädt die Seite ohnehin neu, mit eigenem Stand). Ihre Ausgabe erscheint am
+ * Stück, wenn sie fertig sind.
+ */
+async function parallel() {
+  const gewicht = (g, a) => ({ desktop: 3, poco: 2, quer: 1.2 }[g] ?? 1) * (a.startsWith('welt') ? 3 : a === 'dorf' ? 2 : 0.5);
+  const aufgaben = groessen.flatMap((v) => ablaeufeVon(v).map((a) => ({ g: v.name, a: a.name })))
+    .sort((x, y) => gewicht(y.g, y.a) - gewicht(x.g, x.a));
+  const tmp = mkdtempSync(join(tmpdir(), 'prisma-bildvergleich-'));
+  console.log(`${aufgaben.length} Abläufe in bis zu ${jobs} Prozessen`);
+  let naechste = 0;
+  const eine = async ({ g, a }) => {
+    const datei = join(tmp, `${g}-${a}.json`);
+    const p = spawn(process.execPath, [fileURLToPath(import.meta.url), '--groesse', g, '--nur', a, '--teil', datei,
+      ...(schreiben ? ['--write'] : []), ...(diag ? ['--diag'] : [])],
+    { env: { ...process.env, PRISMA_SPIEL: spiel.base }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let text = '';
+    p.stdout.on('data', (d) => { text += d; });
+    p.stderr.on('data', (d) => { text += d; });
+    const code = await new Promise((r) => p.on('exit', (c, sig) => r(c ?? sig)));
+    zeit(`${g}, ${a} fertig (Rückgabe ${code})`);
+    for (const z of text.split(/\r?\n/).filter(Boolean)) console.log(`        ${z}`);
+    if (!existsSync(datei)) { fehler.push(`${g}, ${a}: Prozess ohne Ergebnis (Rückgabe ${code})`); return; }
+    const r = JSON.parse(readFileSync(datei, 'utf8'));
+    fehler.push(...r.fehler);
+    ergebnisse.push(...r.ergebnisse);
+    for (const e of r.elemente) elementeImBild.add(e);
+  };
+  const arbeiter = async () => { while (naechste < aufgaben.length) await eine(aufgaben[naechste++]); };
+  try {
+    await Promise.all(Array.from({ length: Math.min(jobs, aufgaben.length) }, arbeiter));
+  } finally { rmSync(tmp, { recursive: true, force: true }); }
+}
+
+if (jobs > 1 && !teil) await parallel();
+else for (const view of groessen) await groesseAufnehmen(view);
 if (rechner) await rechner.chrome.close();
 await spiel.close();
+
+if (teil) { // Teilprozess von --jobs: das Ergebnis für den Hauptprozess
+  writeFileSync(teil, JSON.stringify({ fehler, ergebnisse, elemente: [...elementeImBild] }));
+  process.exit(fehler.length ? 1 : 0);
+}
 
 // jedes Element mindestens einmal im Bild (nur bei einem ganzen Lauf)
 if (!nurAnsichten) {

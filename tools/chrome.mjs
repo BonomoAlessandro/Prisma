@@ -1,7 +1,7 @@
 // Headless-Chrome über das DevTools-Protokoll, ohne weitere Pakete: für tests/screenshot.mjs und tools/ki-tester.
 // Jedes Mal mit frischem Profil (kein gespeicherter Fortschritt) und SwiftShader, mit gpu auf der Grafikkarte.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -27,7 +27,8 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
-  const port = 9300 + Math.floor(Math.random() * 500);
+  // Port 0: Chrome wählt einen freien und schreibt ihn in DevToolsActivePort im Profil (ein zufälliger Port stiess bei
+  // vielen gleichzeitigen Chrome zusammen, Ticket 13 von .scratch/umbau/)
   const profile = mkdtempSync(join(tmpdir(), 'prisma-chrome-'));
   const proc = spawn(chrome, [
     // im Fenster die schnellere Grafikkarte (Laptop mit zweien: sonst die eingebaute); auch zeichnen, wenn andere
@@ -36,7 +37,7 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
       '--disable-background-timer-throttling', '--force_high_performance_gpu', '--window-position=0,0',
       '--disable-features=CalculateNativeWinOcclusion']
       : ['--headless=new']),
-    `--remote-debugging-port=${port}`,
+    '--remote-debugging-port=0',
     `--user-data-dir=${profile}`,
     ...(gpu || fenster ? ['--use-angle=d3d11', '--enable-gpu'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader']),
     '--ignore-gpu-blocklist',
@@ -48,8 +49,9 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
   ], { stdio: 'ignore' });
 
   let target = null;
-  for (let i = 0; i < 50 && !target; i++) {
+  for (let i = 0; i < 100 && !target; i++) {
     try {
+      const port = +readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0];
       const list = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
       target = list.find(t => t.type === 'page')?.webSocketDebuggerUrl;
     } catch { /* Chrome startet noch */ }
