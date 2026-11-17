@@ -32,7 +32,7 @@ import { ablegen, lese, namenImSpiel, zurueckholen } from '../tools/vorrat.mjs';
 import {
   DATEIEN, GUT_AB, JE_GRAD, JE_WELT, UEBER_GRENZEN, VERTAUSCHUNG, WELTEN, ablehnung, alleNamen, alsDaten, anordnungen,
   ausbauListe, besteMengeUeberGrenzen, bewerte, bewertungen, blockZeilen, fensterVerstoesse, insSpiel,
-  kandidatenLevel, ladeTitel, mitTitel, nachBewertung, nachSchwierigkeit, namenFehler, neueLevel, ordneUeberGrenzen,
+  kandidatenLevel, ladeTitel, leseMitTexten, mitTitel, mitTitelnInTexten, nachBewertung, nachSchwierigkeit, namenFehler, neueLevel, ordneUeberGrenzen,
   poolLevel, pruefe, reiseAus, reiseImSpiel, schreibung, sechstel, titelFehler, waehle, waehleGrad, waehleWelt,
   wahlText, zuviel, zustandNach,
 } from '../tools/geschichte.mjs';
@@ -646,13 +646,20 @@ await test('waehleGrad über die Weltgrenzen mit mehr als 60 (Ticket 09): Gehen 
 
 console.log('Die Wahl im Spiel (Ticket 04)');
 const IM_SPIEL = L.LEVELS.slice(L.TUTORIAL_COUNT);
-await test('Das Spiel enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json, in '
-  + 'der Reihenfolge der Reihe; die übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
+// die Titel stehen seit Ticket 07 von .scratch/umbau/ in den deutschen Texten (src/texte/de.json, Bereich titel), nicht
+// mehr in den Leveldaten
+const TITEL_IM_SPIEL = JSON.parse(leseMitTexten().de).titel;
+await test('Das Spiel enthält das Tutorial und genau die 240 Level der Wahl, jedes mit dem Titel aus wahl.json (in '
+  + 'den deutschen Texten, zuerst die Übungen, dann in der Reihenfolge des Spiels), in der Reihenfolge der Reihe; die '
+  + 'übrigen flachen und alle Würfel-Level liegen im Vorrat, ohne Titel', () => {
   assert.equal(L.TUTORIAL_COUNT, 4); // seit Ticket 02 von .scratch/tutorial-neu/ vier Übungen
   assert.deepEqual(L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => !l.tutorial).map(l => l.name), []);
   assert.deepEqual(IM_SPIEL.map(l => l.name).sort(), LEVEL.map(l => l.name).sort());
   const titel = new Map(LEVEL.map(l => [l.name, l.titel]));
-  assert.deepEqual(IM_SPIEL.filter(l => l.titel !== titel.get(l.name)).map(l => `${l.name}: ${l.titel}`), []);
+  assert.deepEqual(IM_SPIEL.filter(l => TITEL_IM_SPIEL[l.name] !== titel.get(l.name))
+    .map(l => `${l.name}: ${TITEL_IM_SPIEL[l.name]}`), []);
+  assert.deepEqual(Object.keys(TITEL_IM_SPIEL), L.LEVELS.map(l => l.name));
+  assert.deepEqual(L.LEVELS.filter(l => 'titel' in l).map(l => l.name), [], 'kein Feld titel in den Leveldaten');
   // nicht umgeordnet: dieselbe Folge wie in der ganzen Reihe aus Spiel und Vorrat (Lader)
   const reihe = ALLE.LEVELS.slice(ALLE.TUTORIAL_COUNT).map(l => l.name).filter(x => titel.has(x));
   assert.deepEqual(IM_SPIEL.map(l => l.name), reihe);
@@ -678,10 +685,20 @@ await test('Der Datenblock der Geschichte (STORY_LEVELS) nennt je Grad die 6 Wel
   assert.throws(() => reiseAus(doppelt), /passt nicht in die Reise/);
 });
 await test('geschichte.mjs spiel: ein zweiter Lauf ändert nichts; an Kopien der Texte kommt ein Level der Wahl aus '
-  + 'dem Vorrat zurück, ein anderes geht hin (ohne Titel), danach wieder byte-gleich; ohne ein Level bricht es ab',
+  + 'dem Vorrat zurück, ein anderes geht hin (ohne Titel), danach wieder byte-gleich; ohne ein Level bricht es ab; '
+  + 'ein neuer Titel ändert nur seine Zeile in den deutschen Texten',
 () => {
-  const texte = lese();
+  const texte = leseMitTexten();
   assert.deepEqual(insSpiel(texte, DATEN).schritte, [], 'nichts zu tun');
+  // ein neuer Titel: nur in de.json, dort nur seine Zeile (Zeilenenden wie in der Datei)
+  const neu = structuredClone(DATEN), l17 = neu.level[17];
+  l17.titel = 'Irrlicht';
+  const titelSchritt = insSpiel(texte, neu).schritte;
+  assert.deepEqual(titelSchritt.map(s => s.was), ['Titel']);
+  const zeilen = (x) => x.split(/\r?\n/), vor = zeilen(texte.de), nach = zeilen(titelSchritt[0].texte.de);
+  assert.deepEqual(nach.filter((z, i) => z !== vor[i]), [`    ${JSON.stringify(l17.name)}: "Irrlicht",`]);
+  assert.equal(titelSchritt[0].texte.de.includes('\r\n'), texte.de.includes('\r\n'));
+  assert.equal(mitTitelnInTexten(texte.de, texte.spiel, new Map(LEVEL.map(l => [l.name, l.titel]))), texte.de);
   // ein Level der Wahl liegt im Vorrat, ein übriges flaches und ein Würfel-Level stehen im Spiel, eines mit Titel; je
   // das letzte im Vorrat, denn Ablegen hängt hinten an (so ist der Vorrat danach wieder byte-gleich)
   const story = LEVEL[17].name, uebrig = VORRAT.flach.at(-1).name, wuerfel = VORRAT.wuerfel.at(-1).name;
@@ -692,7 +709,7 @@ await test('geschichte.mjs spiel: ein zweiter Lauf ändert nichts; an Kopien der
   assert.deepEqual(r.schritte.map(s => s.was), ['zurückholen', 'ablegen']);
   assert.deepEqual([r.holen, r.weg], [[story], { flach: [uebrig], wuerfel: [wuerfel] }]);
   const ende = r.schritte.at(-1).texte;
-  for (const k of ['spiel', 'flach', 'wuerfel']) assert.ok(ende[k] === texte[k], `${k} byte-gleich`);
+  for (const k of ['spiel', 'flach', 'wuerfel', 'de']) assert.ok(ende[k] === texte[k], `${k} byte-gleich`);
   assert.ok(namenImSpiel(ende.spiel, 'flach').includes(story));
   // ein Level der Wahl, das es nicht gibt
   const fremd = structuredClone(DATEN);

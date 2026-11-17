@@ -21,6 +21,11 @@ import { baue } from '../tools/spielserver.mjs';
 import { module, spielQuelltext, zerlege } from '../tools/seitenmodule.mjs';
 import * as L from '../src/logik.js';
 import { REISE as REISE_DATEN, UEBUNGEN as UEBUNGEN_DATEN } from '../src/daten/level.js';
+import { sprachen } from '../tools/texte.mjs';
+import { uebersetzer } from '../src/texte/uebersetzung.js';
+
+/** Deutsche Texte der Übersetzungsschicht (Schritte der Führung sind seit Ticket 07 Schlüssel). */
+const deutsch = uebersetzer(sprachen(), 'de');
 
 const quelle = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'index.html'), 'utf8');
 const html = spielQuelltext(); // index.html und alle Module, der Code des Spiels
@@ -622,31 +627,24 @@ test('Tutorial: führt alle Elementarten ein', () => {
   for (const k of ['mirror', 'mirror:fest', 'blocker', 'prism', 'filter', 'combiner']) assert.ok(kinds.has(k), k);
   assert.ok(L.LEVELS.slice(0, L.TUTORIAL_COUNT).some(l => l.elements.some(e => e.type === 'source' && e.color && e.color !== 'white')), 'farbige Quelle');
 });
-test('Tutorial-Schritte: nur bekannte Platzhalter', () => {
-  // die Befehlsform aus SCHRITT_PLATZHALTER
-  const schritt = new RegExp(Object.keys(L.SCHRITT_PLATZHALTER).map(p => p.replace(/[{}]/g, '\\$&')).join('|'), 'g');
+// seit Ticket 07 von .scratch/umbau/ ist der Satz ein Schlüssel der Übersetzungsschicht; Platzhalter, Länge und Zahl
+// der Sätze prüft tests/texte.test.mjs je Sprache
+test('Tutorial-Schritte: jeder Satz ist ein Schlüssel der deutschen Texte', () => {
   for (const l of L.LEVELS.filter(q => q.tutorial)) {
-    for (const t of l.schritte.map(s => s.text.replace(schritt, ''))) assert.deepEqual(t.match(/[{}]/g), null, `${l.name}: «${t}»`);
+    for (const s of l.schritte) assert.ok(s.text.startsWith('fuehrung.schritt.') && deutsch(s.text) !== s.text, `${l.name}: ${s.text}`);
   }
 });
 
 console.log('Führung im Dorf (Schritte)');
 {
   const gefuehrt = L.LEVELS.slice(0, L.TUTORIAL_COUNT).filter(l => l.schritte);
-  const wort = (t) => t.split(/\s+/).filter(Boolean).length;
   const am = (l, z) => l.elements.find(e => `${e.x},${e.z}` === z);
   test('Schritte: alle Übungen geführt', () => assert.equal(gefuehrt.length, L.TUTORIAL_COUNT));
-  // seit 13.11.2026 (Wunsch des Nutzers, natürlichere Texte) ein oder zwei kurze Sätze statt genau einem
-  // seit .scratch/tutorial-neu/ höchstens vier (bisher drei)
-  test('Schritte: höchstens vier, je ein oder zwei kurze Sätze, auf beiden Geräten', () => {
+  // seit .scratch/tutorial-neu/ höchstens vier (bisher drei); Länge und Sätze je Sprache: tests/texte.test.mjs
+  test('Schritte: höchstens vier', () => {
     assert.equal(L.SCHRITTE_MAX, 4);
     for (const l of gefuehrt) {
       assert.ok(l.schritte.length >= 1 && l.schritte.length <= L.SCHRITTE_MAX, `${l.name}: ${l.schritte.length} Schritte`);
-      for (const s of l.schritte) for (const touch of [true, false]) {
-        const t = L.geraeteText(s.text, touch);
-        assert.ok(wort(t) >= 3 && wort(t) <= 18 && t.length <= 105, `${l.name}: «${t}» (${wort(t)} Wörter)`);
-        assert.ok(/[.!?]$/.test(t) && (t.match(/[.!?] \S/g) ?? []).length <= 1, `${l.name}: höchstens zwei Sätze «${t}»`);
-      }
     }
   });
   test('Schritte: was weiterschaltet ist bekannt, das Element dazu steht auf dem Brett', () => {
@@ -701,7 +699,7 @@ console.log('Führung im Dorf (Schritte)');
     assert.equal(am(e, es[0].bei).type, 'target');
     assert.ok(am(e, es[1].bei).type === 'mirror' && L.isRotatable(am(e, es[1].bei)) && es[1].trifft === es[2].bei);
     assert.ok(am(e, es[2].bei).type === 'mirror' && am(e, es[2].bei).fixed, 'fester Spiegel zum Antippen');
-    assert.ok(/eckig/.test(es[2].text) && /[Ee]ckige.*runde/.test(es[3].text), 'rund gegen eckig');
+    assert.ok(/eckig/.test(deutsch(es[2].text)) && /[Ee]ckige.*runde/.test(deutsch(es[3].text)), 'rund gegen eckig');
     assert.equal(L.mod8(am(e, es[3].bei).rot - 1) % 4, e.solution[es[3].bei] % 4, 'eine Stufe zu weit');
     assert.deepEqual(Object.keys(e.solution).sort(), [es[1].bei, es[3].bei].sort(), 'genau die beiden runden Spiegel');
     // Brechung: der Block (Erklärung, zu Beginn fällt das Licht auf ihn), den Spiegel drehen, bis das Licht das Prisma
@@ -870,15 +868,8 @@ console.log('Führung im Dorf (Schritte)');
       const n = l.nebenbei ?? [];
       assert.ok(n.every(k => k in L.NEBENBEI) && new Set(n).size === n.length, `${l.name}: ${n}`);
     }
-    for (const [k, { text }] of Object.entries(L.NEBENBEI)) {
-      for (const t of text) assert.ok(wort(t) <= 16 && !/[{}]/.test(t), `${k}: «${t}»`);
-    }
-  });
-  test('Text je Gerät: Befehlsform für Schritte', () => {
-    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', true), 'Tippe den Spiegel an.');
-    assert.equal(L.geraeteText('{Tippe} den Spiegel an.', false), 'Klicke den Spiegel an.');
-    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', true), 'Drücke lang auf den Spiegel.');
-    assert.equal(L.geraeteText('{Drücke lang} auf den Spiegel.', false), 'Rechtsklicke auf den Spiegel.');
+    // der Satz: ein Schlüssel der Übersetzungsschicht (Länge je Sprache: tests/texte.test.mjs)
+    for (const [k, { text }] of Object.entries(L.NEBENBEI)) assert.ok(deutsch(text) !== text, `${k}: ${text}`);
   });
   test('Was weiterschaltet: Erklärung nur «Weiter», antippen auch fest, drehen mit Richtung, Strahl', () => {
     const l = L.LEVELS.find(q => q.name === 'Erstes Licht'), b = L.createBoard(l);

@@ -15,9 +15,10 @@
 // Grössen: Desktop 1280 × 800, Handy hochkant 390 × 844 und Handy quer 844 × 390 (Pixeldichte 1, Handy mit Touch).
 //
 // Gleiche Bilder bei jedem Lauf: ?t=12 (Zeit der Animationen steht, Math.random fest), ?noadapt (feste Auflösung),
-// Rendern in Software (SwiftShader, tools/chrome.mjs ohne gpu). Was bei stehender Zeit nie fertig oder nie still würde,
-// hält die Prüfung nur in der Seite fest, ohne das Spiel zu ändern: Strahlen zählen ihre Geburt ab Zeit 0 (wie
-// __prismaDebug.zeige es tut; sie stehen danach ganz da), Herauswachsen, Feier und Kamera spult __prismaDebug.settle
+// Rendern in Software (SwiftShader, tools/chrome.mjs ohne gpu), auf Deutsch (Ticket 07: Chrome mit --lang=de, das Spiel
+// wählt die Sprache des Geräts; der Lauf prüft navigator.language und lang des Dokuments). Was bei stehender Zeit nie
+// fertig oder nie still würde, hält die Prüfung nur in der Seite fest, ohne das Spiel zu ändern: Strahlen zählen ihre
+// Geburt ab Zeit 0 (wie __prismaDebug.zeige es tut; sie stehen danach ganz da), Herauswachsen, Feier und Kamera spult __prismaDebug.settle
 // vor, CSS- und Web-Animationen werden angehalten (endliche am Ende, endlose am Anfang), die Bühne von Prolog und Epilog
 // friert ihre Uhr ein (scene.einfrieren, wie tests/buehne-messung.mjs), die Hand im Dorf bleibt (ihre Uhr angehalten),
 // die Glühwürmchen der Reise kreisen zu einer festen Zeit. Gültig ist ein Bild erst, wenn eine zweite Aufnahme nach
@@ -502,6 +503,10 @@ async function groesseAufnehmen(view) {
       const weg = await s.ev(`[document.documentElement.classList.contains('seite'), ${D}.renderer.getPixelRatio()]`);
       if (!weg[0] || weg[1] !== 2) throw new Error(`${view.name}: nicht der Weg der Handys (SEITE ${weg[0]}, Pixelverhältnis ${weg[1]})`);
     }
+    // die deutsche Fassung (Ticket 07): Chrome meldet Deutsch als Sprache des Geräts (startChrome, --lang), das Spiel
+    // wählt sie, kein gespeicherter Wechsel
+    const sprache = await s.ev('[navigator.language, document.documentElement.lang]');
+    if (!/^de\b/.test(sprache[0]) || sprache[1] !== 'de') throw new Error(`${view.name}: nicht Deutsch (${sprache.join(', ')})`);
     for (const a of ablaeufe) {
       const vorher = s.logs.length;
       try {

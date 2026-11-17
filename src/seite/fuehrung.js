@@ -7,9 +7,10 @@ import { audio } from './ton.js';
 import { flow } from './levelfluss.js';
 import { story } from './geschichte/geschichte.js';
 import {
-  geraeteText, LEVELS, NEBENBEI, schrittErfuellt, schrittErlaubt, schrittGeste, schrittZellen, zelleVon,
+  LEVELS, NEBENBEI, schrittErfuellt, schrittErlaubt, schrittGeste, schrittZellen, zelleVon,
 } from '../logik.js';
 import { alsGlobal } from './testschnittstelle.ts';
+import { t } from '../texte/sprache.js';
 
 /**
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, neu gestaltet mit .scratch/tutorial-neu/): zeigt die Schritte
@@ -235,11 +236,11 @@ const fuehrung = {
     if (!an) return;
     b.zeile.classList.toggle('wechsel', this.wechselt);
     if (!this.wechselt) {
-      const s = this.aktuell(), text = geraeteText(s.text, IS_TOUCH);
+      const s = this.aktuell(), text = t(s.text, { touch: IS_TOUCH });
       if (b.satz.textContent !== text) b.satz.textContent = text;
       b.knopf.hidden = s.weiter !== 'erklaerung';
     } else if (b.knopf.contains(document.activeElement)) b.knopf.blur();
-    const neben = this.nebenbei.map((n) => NEBENBEI[n].text[IS_TOUCH ? 0 : 1]).join(' ');
+    const neben = this.nebenbei.map((n) => t(NEBENBEI[n].text, { touch: IS_TOUCH })).join(' ');
     if (b.neben.textContent !== neben) b.neben.textContent = neben;
     b.neben.hidden = !neben;
   },

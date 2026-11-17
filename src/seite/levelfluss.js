@@ -16,6 +16,7 @@ import { story } from './geschichte/geschichte.js';
 import { adaptiveResolution } from './aufloesung.js';
 import { mulberry32 } from '../zufall.js';
 import { LEVELS, LEVELS_3D } from '../logik.js';
+import { t } from '../texte/sprache.js';
 import { alsGlobal } from './testschnittstelle.ts';
 
 /* =====================================================================
@@ -312,10 +313,10 @@ LEVELS.push(...LEVELS_3D);
  */
 const GRAD_PUNKTE = 4;
 const GRAD_ANZEIGE = {
-  'leicht': { label: 'Leicht', punkte: 1 },
-  'mittel': { label: 'Mittel', punkte: 2 },
-  'schwer': { label: 'Schwer', punkte: 3 },
-  'sehr schwer': { label: 'Sehr schwer', punkte: 4 },
+  'leicht': { label: t('grad.leicht'), punkte: 1 },
+  'mittel': { label: t('grad.mittel'), punkte: 2 },
+  'schwer': { label: t('grad.schwer'), punkte: 3 },
+  'sehr schwer': { label: t('grad.sehrSchwer'), punkte: 4 },
 };
 /** Füllt ein .tier-Element für ein Level mit Punkten und Text; ohne Grad (Tutorial) bleibt es leer und versteckt. */
 function fillTier(el, lvl) {

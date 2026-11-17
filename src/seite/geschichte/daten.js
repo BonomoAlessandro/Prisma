@@ -6,6 +6,7 @@ import { camera, LAYER_NO_REFLECT, renderer, scene, sceneLoop } from '../szene.j
 import { stars } from '../himmel/sterne.js';
 import { menu, uebersicht } from './geschichte.js';
 import { alsGlobal } from '../testschnittstelle.ts';
+import { t } from '../../texte/sprache.js';
 
 /* =====================================================================
    NOAS GESCHICHTE — «Ein Lichtsignal an die Sterne», der Ablauf des Spiels (Spec .scratch/noa-geschichte/).
@@ -35,9 +36,12 @@ const STORY_ICONS = {
   planeten: '<circle cx="12" cy="12" r="4.2"/><ellipse cx="12" cy="12" rx="9.5" ry="3" transform="rotate(-20 12 12)"/>',
   sterne: '<path d="M12 3l1.9 7.1L21 12l-7.1 1.9L12 21l-1.9-7.1L3 12l7.1-1.9z"/>',
 };
-/** Stationen des Wegs: das Dorf, dann je Kapitel eine (Station k ist Stern k des Kleinen Wagens). */
-const STORY_STATIONS = [['dorf', 'Dorf'], ['wald', 'Wald'], ['meer', 'Meer'], ['wueste', 'Wüste'], ['vulkan', 'Vulkan'],
-  ['planeten', 'Planeten'], ['sterne', 'Sterne']];
+/**
+ * Stationen des Wegs: das Dorf, dann je Kapitel eine (Station k ist Stern k des Kleinen Wagens), je [Kennung, Name];
+ * die Kennung nennt ihr Zeichen (STORY_ICONS), ihren Namen (welt.<kennung> der Sprachdatei) und die Welt im
+ * Speicherstand.
+ */
+const STORY_STATIONS = ['dorf', 'wald', 'meer', 'wueste', 'vulkan', 'planeten', 'sterne'].map((id) => [id, t(`welt.${id}`)]);
 /**
  * Leiste unter dem Untertitel der Ankunft (story.fillPath, Leiste C aus dem Skizzenkatalog von .scratch/kleiner-wagen/):
  * massstab: CSS-Pixel je Einheit von wagen.form (bei voller Breite, Desktop), rand: Platz um die Form [x, y] (px),
@@ -52,28 +56,19 @@ const STORY_LEISTE = { massstab: 2.1, rand: [22, 20], zeichen: 19 };
  * Angabe STORY_UP); der Aufstieg am Ende der Welt schaut zu ihrem Stern. finale: danach antwortet der Stern, und der
  * Epilog folgt.
  */
+const kapitel = (station, k) => {
+  const id = STORY_STATIONS[station][0], text = (was) => t(`geschichte.kapitel.${id}.${was}`);
+  return { station, title: text('titel'), ...k, travel: text('reise'), done: text('fertig'), next: text('weiter') };
+};
 const STORY_CHAPTERS = [
-  { station: 1, title: 'Der Bergwald', sky: 'forest',
-    travel: 'Die Glühwürmchen fliegen mit Noas Licht tief in den Bergwald. Irgendwo über den Tannen schläft der erste Stern.',
-    carrier: 'glow', done: 'Der Wald leuchtet', next: 'Weiter zum Meer' },
-  { station: 2, title: 'Das Meer', sky: 'beach',
-    travel: 'Über dem Wald ist der erste Stern aufgewacht. Er zeigt zum Meer, und die Glühwürmchen fliegen mit dem Licht über die Hügel bis an den Strand.',
-    carrier: 'spray', done: 'Das Meer leuchtet', next: 'Weiter in die Wüste' },
-  { station: 3, title: 'Die Wüste', sky: 'desert',
-    travel: 'Jetzt leuchtet auch der zweite Stern. Der Wind nimmt das Licht mit, weit übers Wasser bis dorthin, wo die Wüste anfängt.',
-    carrier: 'sand', done: 'Die Wüste leuchtet', next: 'Weiter zum Vulkan' },
-  { station: 4, title: 'Der Vulkan', sky: 'volcano',
-    travel: 'Über den Dünen funkelt der dritte Stern. Ein Sandwirbel trägt das Licht weiter bis an einen Krater, in dem Feuer brennt.',
-    carrier: 'embers', done: 'Der Vulkan glüht', next: 'Hinauf in den Himmel' },
-  { station: 5, title: 'Die Planeten', sky: 'solar',
-    travel: 'Mit dem vierten Stern ist die Schale des Wagens vollständig. Da bricht der Vulkan aus und schleudert das Licht hoch über die Wolken.',
-    carrier: 'comet', done: 'Die Planeten leuchten', next: 'Weiter zu den Sternen' },
-  { station: 6, title: 'Die Sterne', sky: 'milky', finale: true,
-    travel: 'Fünf Sterne leuchten schon, nur einer schläft noch. Ein Komet nimmt das Licht mit, weit hinaus zu den Sternen.',
-    done: 'Der Wagen ist wach', next: 'Hinaufschauen' },
+  kapitel(1, { sky: 'forest', carrier: 'glow' }),
+  kapitel(2, { sky: 'beach', carrier: 'spray' }),
+  kapitel(3, { sky: 'desert', carrier: 'sand' }),
+  kapitel(4, { sky: 'volcano', carrier: 'embers' }),
+  kapitel(5, { sky: 'solar', carrier: 'comet' }),
+  kapitel(6, { sky: 'milky', finale: true }),
 ];
-const STORY_FINALE = ['Der letzte Stern wacht auf. Jetzt leuchtet der ganze Kleine Wagen.',
-  'Das Licht wandert die Deichsel entlang bis zum Polarstern.', 'Der Polarstern hat Noas Zeichen gesehen.'];
+const STORY_FINALE = [1, 2, 3].map((n) => t(`geschichte.finale.${n}`));
 /** Kennung einer Welt im Speicherstand (gesehen): die ihrer Station auf dem Weg (STORY_STATIONS), etwa meer. */
 const storyChapterId = (ch) => STORY_STATIONS[ch.station][0];
 /**
@@ -331,13 +326,12 @@ const himmelsWagen = (() => {
  * «Überspringen», danach tragen die Glühwürmchen das Licht in den Bergwald. done/next: «Gelöst» nach der letzten Übung.
  * sky: der Hintergrund, die Skybox «Noas Dorf bei Nacht» (village; fehlt sie, nimmt setSky die Milchstrasse).
  */
-const STORY_DORF = { station: 0, title: 'Im Dorf', sky: 'village',
-  angebot: { kicker: 'Im Dorf', ueben: 'Üben', los: 'Gleich los',
-    text: 'Die Glühwürmchen wollen gleich los in den Wald. Möchtest du vorher mit Noa im Dorf üben?' },
-  einstieg: { kicker: 'Im Dorf · Erstes Licht', traeger: null, moment: 'dorf', path: 0,
-    text: 'Hinter dem Haus übt Noa mit der Taschenlampe. Mit einem alten Spiegel und einem Stück buntem Glas lässt sich das Licht überallhin schicken.' },
-  ende: 'Jetzt hat Noa den Dreh raus. Am Waldrand warten schon die Glühwürmchen.',
-  done: 'Das Dorf leuchtet', next: 'In den Bergwald' };
+const STORY_DORF = { station: 0, title: t('geschichte.dorf.titel'), sky: 'village',
+  angebot: { kicker: t('geschichte.dorf.titel'), ueben: t('geschichte.dorf.ueben'), los: t('geschichte.dorf.los'),
+    text: t('geschichte.dorf.angebot') },
+  einstieg: { kicker: t('geschichte.dorf.einstiegKicker'), traeger: null, moment: 'dorf', path: 0,
+    text: t('geschichte.dorf.einstieg') },
+  ende: t('geschichte.dorf.ende'), done: t('geschichte.dorf.fertig'), next: t('geschichte.dorf.weiter') };
 /** So lange (ms) bleibt «Überspringen» nach dem Ende eines Einstiegs weg, bevor es im Dorf das Kapitel meint. */
 const STORY_SKIP_RUHE = 2000;
 /**
@@ -449,26 +443,26 @@ const BUEHNENWAGEN = {
 const STORY_PROLOG = [
   { from: { x: 820, y: 160, z: 1.08 }, fromP: { x: 760, y: 120, z: 1.08 }, cam: { x: 800, y: 470, z: 1 },
     camP: { x: 760, y: 470, z: 1 }, move: 6,
-    text: 'Hoch in den Bergen liegt ein kleines Dorf. Aus den Kaminen steigt Rauch, und über den Dächern funkeln die Sterne.' },
+    text: t('geschichte.prolog.1') },
   { cam: { x: 520, y: 590, z: 2 }, move: 4.5,
-    text: 'Jeden Abend klettert Noa auf den Hügel hinter den Häusern und sucht den Polarstern. Er sitzt ganz vorn an der Deichsel des Kleinen Wagens.' },
+    text: t('geschichte.prolog.2') },
   { cam: { x: 560, y: 560, z: 2.2 }, move: 2.6, act: 'lamp',
-    text: 'Heute hat Noa die Taschenlampe mitgenommen. Klick. Der Polarstern soll ein Zeichen bekommen.' },
+    text: t('geschichte.prolog.3') },
   { cam: { x: 900, y: 300, z: 1.35 }, camP: { x: 760, y: 330, z: 1.3 }, move: 5, act: 'reach',
-    text: 'Aber das Licht kommt nicht weit. Die Sterne des Wagens schlafen, und ohne sie verliert es sich im Dunkeln.' },
+    text: t('geschichte.prolog.4') },
   { cam: { x: 760, y: 600, z: 1.55 }, camP: { x: 560, y: 600, z: 1.55 }, move: 4, act: 'gather',
-    text: 'Da blinkt etwas am Waldrand. Ein Schwarm Glühwürmchen fliegt heran und fängt das Licht ein.' },
+    text: t('geschichte.prolog.5') },
   { cam: { x: 1250, y: 560, z: 1.7 }, camP: { x: 1300, y: 590, z: 1.6 }, move: 5.5, act: 'carry',
-    text: 'Jeder Stern im Wagen gehört zu einem Ort und wacht erst auf, wenn dort Licht ankommt. Hilf den Glühwürmchen, das Licht von Ort zu Ort zu bringen, bis es beim Polarstern ankommt.' },
+    text: t('geschichte.prolog.6') },
 ];
 const STORY_EPILOG = [
   { from: { x: 900, y: 120, z: 1.12 }, fromP: { x: 980, y: 160, z: 1.08 }, cam: { x: 760, y: 420, z: 1.25 },
     camP: { x: 520, y: 470, z: 1.3 }, move: 6.5,
-    text: 'In dieser Nacht bleibt Noa noch lange auf dem Hügel sitzen und schaut hinauf.' },
+    text: t('geschichte.epilog.1') },
   { cam: { x: 790, y: 400, z: 1.2 }, camP: { x: 1000, y: 300, z: 1.1 }, move: 2.5, act: 'blink',
-    text: 'Da blinkt der Polarstern. Einmal, zweimal, dreimal.' },
+    text: t('geschichte.epilog.2') },
   { cam: { x: 720, y: 560, z: 1.4 }, camP: { x: 500, y: 560, z: 1.6 }, winkelWie: 'reach', move: 3, act: 'answer',
-    text: 'Noa lacht und blinkt mit der Taschenlampe zurück. Über dem Dorf leuchten jetzt alle sieben Sterne.' },
+    text: t('geschichte.epilog.3') },
 ];
 
 // Testschnittstelle: Diese Namen lesen Proben als globale Namen (src/seite/testschnittstelle.ts)

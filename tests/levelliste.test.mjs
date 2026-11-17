@@ -35,6 +35,8 @@ import { abdruck, kandidatName, levelCode } from '../tools/leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from '../tools/aehnlichkeit.mjs';
 import { spielQuelltext } from '../tools/seitenmodule.mjs';
 import { tsModul } from '../tools/ts-modul.mjs';
+import { sprachen } from '../tools/texte.mjs';
+import { uebersetzer } from '../src/texte/uebersetzung.js';
 import {
   GRADE_OBEN, GRUENDE, HAUPT_KERNIDEE_JE_10, HAUPT_KERNIDEE_JE_10_OBEN, MAX_ENTZERREN, MAX_ENTZERREN_AUSBAU,
   MIN_GEFUEHL_BEHALTEN, TOLERANZ_MITTEL, alleUrteile, alleWuerfelUrteile, zaehlendeWuerfelUrteile,
@@ -97,12 +99,13 @@ test('Entlang der Reihenfolge sinkt der Grad nie', () => {
 });
 // Die Daten der Anzeige aus dem Spielcode (GRAD_ANZEIGE, Ticket 17; seit Ticket 04 des Umbaus in den Modulen unter
 // src/); wie Kopfzeile und Menü aussehen, prüfen die Proben im Browser (tests/geschichte-probe.mjs). Die Seiten der
-// Levelauswahl gibt es seit Ticket 04 nicht mehr.
+// Levelauswahl gibt es seit Ticket 04 nicht mehr. Die Texte kommen seit Ticket 07 des Umbaus aus der
+// Übersetzungsschicht (t, hier Deutsch).
 const anzeige = () => {
   const html = spielQuelltext();
   const konstante = (k) => html.match(new RegExp(`^const ${k} = [^;]+;`, 'm'))[0];
   const code = ['GRAD_PUNKTE', 'GRAD_ANZEIGE'].map(konstante).join('\n') + '\nreturn { GRAD_PUNKTE, GRAD_ANZEIGE };';
-  return new Function(code)();
+  return new Function('t', code)(uebersetzer(sprachen(), 'de'));
 };
 test('Die Anzeige zeigt die vier Grade als 1–4 volle Punkte und als Text, das Tutorial ohne Grad', () => {
   const { GRAD_PUNKTE, GRAD_ANZEIGE } = anzeige();

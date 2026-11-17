@@ -28,6 +28,7 @@ import { leistung } from '../leistung.js';
 import { mulberry32 } from '../../zufall.js';
 import { LEVELS, STORY_LEVELS, TUTORIAL_COUNT } from '../../logik.js';
 import { progress } from '../../spielstand.js';
+import { levelTitel, t } from '../../texte/sprache.js';
 import { alsGlobal } from '../testschnittstelle.ts';
 
 // wie der Rückflug der Kamera; die flachere Kurve aus leistung-11 ist zurückgenommen (Ursache der Ruckler war die
@@ -550,12 +551,12 @@ const story = {
   overviewData(grade, imSpiel = false) {
     const s = grade === this.grade && this.stand ? this.stand
       : progress.load(grade, (STORY_LEVELS[grade] ?? []).flat().length);
-    const best = progress.best(grade), titel = new Map(LEVELS.map((l) => [l.name, l.titel]));
+    const best = progress.best(grade);
     const level = (name) => {
       const geloest = s.geloest.includes(name), b = geloest ? best[name] ?? {} : {};
-      return { name, titel: titel.get(name), geloest, bestzeit: b.zeit ?? null, drehungen: b.drehungen ?? null };
+      return { name, titel: levelTitel({ name }), geloest, bestzeit: b.zeit ?? null, drehungen: b.drehungen ?? null };
     };
-    const welten = STORY_CHAPTERS.map((ch, c) => ({ name: ch.title.replace(/^(Der|Die|Das) /, ''),
+    const welten = STORY_CHAPTERS.map((ch, c) => ({ name: STORY_STATIONS[ch.station][1],
       icon: storyChapterId(ch), level: (STORY_LEVELS[grade]?.[c] ?? []).map(level) }));
     const d = { grad: grade, welten, geschafft: s.geschafft }, dorf = storyDorfStand(s.dorf);
     if (dorf) {
@@ -863,7 +864,7 @@ const story = {
     const hoch = this.gazeTo(1, 1.8);
     await this.wait(0.6);
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: IS_TOUCH ? 'Tippen' : 'Klicken' }));
+      { kicker: STORY_DORF.title, text: STORY_DORF.ende, tap: t('geschichte.tippen') }));
     await hoch;
     const { index } = this.steps[this.step], sunk = this.sinkTo(index); // erst im Himmel: kein leeres Brett
     // der Himmel des Bergwalds kommt schon, während der Satz steht («Am Waldrand blinken schon …»): Nach dem Tippen
@@ -1034,7 +1035,7 @@ const story = {
     const P = STORY_PULS, fl = this.flare, sechster = this.steps[this.step].c + 1;
     // er erwacht schon im Blick auf den ganzen Wagen, wie ihn Satz 1 zeigt (Abnahme Ticket 11: kein Nachschieben),
     // und die Strahlen laufen aus, sobald er wach ist (Abnahme Ticket 12: in ihn hinein, nicht abrupt)
-    const oben = this.captionVorab({ text: STORY_FINALE[0], tap: IS_TOUCH ? 'Tippen' : 'Klicken' }).cap;
+    const oben = this.captionVorab({ text: STORY_FINALE[0], tap: t('geschichte.tippen') }).cap;
     await this.ascend(sechster, { ende: () => this.wagenBlick(oben / innerHeight), aus: true });
     // Satz 1: Das Licht geht im sechsten Stern auf, der Blick gleitet zum ganzen Wagen über dem Untertitel
     this.amStern = sechster;
@@ -1108,7 +1109,7 @@ const story = {
     this.stand.geschafft = true;
     this.save();
     this.himmelStand(); // der ganze Wagen (dahinter, für das Menü nach dem Epilog)
-    await this.playScene(STORY_EPILOG, { soft, actions: [['Zum Menü', () => this.afterEpilog()]] });
+    await this.playScene(STORY_EPILOG, { soft, actions: [[t('geschichte.zumMenue'), () => this.afterEpilog()]] });
   },
   /**
    * Prolog oder Epilog auf der Bühne: je Einstellung eine Kamerafahrt mit einem Satz, weiter mit Tippen. Tippen
@@ -1585,7 +1586,7 @@ const story = {
   async enter(index, ch, sunk, wie = {}) {
     prepareLevel(index); // nach «Üben» ein anderes als in begin
     const c = STORY_CHAPTERS.indexOf(ch), fl = this.flare, carrier = this.carrier;
-    const { kicker = `Kapitel ${c + 1} · ${ch.title}`, text = ch.travel, path = ch.station,
+    const { kicker = t('geschichte.kapitelKicker', { n: c + 1, titel: ch.title }), text = ch.travel, path = ch.station,
       traeger = c > 0 ? STORY_CHAPTERS[c - 1].carrier : 'glow', moment = storyChapterId(ch) } = wie;
     const e = this.entering = { skip: false };
     this.himmelStand(); // nach «Üben» das Dorf, nach dem Dorf der Bergwald
@@ -1626,7 +1627,7 @@ const story = {
     follow(0);
     this.gaze = 1;
     this.present('caption', this.el.querySelector('.caption'), (el) => this.fillCaption(el,
-      { kicker, text, path, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: true }));
+      { kicker, text, path, tap: t('geschichte.tippen'), warte: true }));
     let gezuckt = !stern;
     await this.tween(F.einstieg.dauer, (k) => {
       place(weg(k));
@@ -1816,7 +1817,7 @@ const story = {
   async caption(text, waehrend = null) {
     const cap = this.el.querySelector('.caption');
     const zeigen = this.present('caption', cap,
-      (el) => this.fillCaption(el, { text, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: !!waehrend }));
+      (el) => this.fillCaption(el, { text, tap: t('geschichte.tippen'), warte: !!waehrend }));
     await Promise.all([zeigen, waehrend?.(cap)]);
     cap.classList.remove('warte');
     await this.untilTap();
@@ -1838,8 +1839,8 @@ const story = {
   },
   /** Untertitel der Ankunft in der Welt ch auf der Reise (travel; fillCaption). */
   ankunft(ch) {
-    return { kicker: `Kapitel ${STORY_CHAPTERS.indexOf(ch) + 1} · ${ch.title}`, text: ch.travel, path: ch.station,
-      neu: true, tap: IS_TOUCH ? 'Tippen' : 'Klicken', warte: true };
+    return { kicker: t('geschichte.kapitelKicker', { n: STORY_CHAPTERS.indexOf(ch) + 1, titel: ch.title }),
+      text: ch.travel, path: ch.station, neu: true, tap: t('geschichte.tippen'), warte: true };
   },
   /**
    * Ankunft in einer Welt (Abnahme Ticket 11): Das Licht hält über dem Untertitel an, die Aufforderung zum Tippen
@@ -2008,10 +2009,10 @@ const story = {
    */
   hudText(index) {
     if (this.inDorf) {
-      return [`${STORY_DORF.title} – ${LEVELS[index].name}`, `Übung ${this.uebung + 1} / ${TUTORIAL_COUNT}`];
+      return [t('kopf.titel', { kapitel: STORY_DORF.title, titel: levelTitel(LEVELS[index]) }),
+        t('kopf.uebung', { n: this.uebung + 1, N: TUTORIAL_COUNT })];
     }
-    const lvl = LEVELS[index];
-    return [`${STORY_CHAPTERS[this.steps[this.step].c].title} – ${lvl.titel ?? lvl.name}`];
+    return [t('kopf.titel', { kapitel: STORY_CHAPTERS[this.steps[this.step].c].title, titel: levelTitel(LEVELS[index]) })];
   },
   /**
    * Meldung und Knopf nach dem Lösen: im Kapitel «Gelöst» / «Weiter», am Ende der Welt ihr Satz und wohin es geht
@@ -2020,12 +2021,12 @@ const story = {
    */
   solvedText() {
     if (this.inDorf) { // nach der letzten Übung in den Bergwald, beim Wiederholen nach dem Kapitel in die Übersicht
-      if (this.uebung + 1 < TUTORIAL_COUNT) return ['Gelöst', 'Weiter'];
-      return [STORY_DORF.done, this.replay && !this.dorfLaeuft() ? 'Zur Übersicht' : STORY_DORF.next];
+      if (this.uebung + 1 < TUTORIAL_COUNT) return [t('geloest.kurz'), t('geloest.weiter')];
+      return [STORY_DORF.done, this.replay && !this.dorfLaeuft() ? t('geloest.zurUebersicht') : STORY_DORF.next];
     }
     const cur = this.steps[this.step], next = this.steps[this.step + 1], ch = STORY_CHAPTERS[cur.c];
-    if (next && next.c === cur.c) return ['Gelöst', 'Weiter'];
-    return !next && this.replay && this.stand.geschafft ? [ch.done, 'Zur Übersicht'] : [ch.done, ch.next];
+    if (next && next.c === cur.c) return [t('geloest.kurz'), t('geloest.weiter')];
+    return !next && this.replay && this.stand.geschafft ? [ch.done, t('geloest.zurUebersicht')] : [ch.done, ch.next];
   },
 
   /* ---------- Zeitachse (läuft mit animate, Zeit der Szene) ---------- */
@@ -2052,7 +2053,7 @@ const story = {
     if (skip !== this.skipShown) {
       this.skipShown = skip;
       // im Dorf sagt der Knopf, was er überspringt (nur beim Einblenden: kein Wechsel vor den Augen)
-      if (skip) this.skipBtn.textContent = this.entering ? 'Überspringen' : 'Dorf überspringen';
+      if (skip) this.skipBtn.textContent = t(this.entering ? 'geschichte.ueberspringen' : 'geschichte.dorfUeberspringen');
       setShown(this.skipBtn, skip);
     }
     this.carrier?.update(dt * this.fast);

@@ -73,9 +73,11 @@
 //   (Gross- und Kleinschreibung egal), keiner von der Liste entfernter Level, ein oder zwei Wörter, «ss» statt «ß»
 //   (titelFehler).
 // - Ins Spiel (Befehl spiel, Ticket 04): Die Leveldaten (src/daten/level.js, seit Ticket 06 von .scratch/umbau/; bis
-//   dahin src/logik.js) haben danach das Tutorial und genau die 240 Level aus wahl.json in FLACH, jedes mit seinem
-//   Titel (Feld titel hinter dem Namen); die übrigen flachen Level und alle Würfel-Level legt es in den Vorrat
-//   (vorrat.mjs), ohne Titel. Level der Wahl, die im Vorrat liegen, holt es zurück. In den Datenblock REISE
+//   dahin src/logik.js) haben danach das Tutorial und genau die 240 Level aus wahl.json in FLACH; die übrigen flachen
+//   Level und alle Würfel-Level legt es in den Vorrat (vorrat.mjs). Die Titel stehen seit Ticket 07 von .scratch/umbau/
+//   in den deutschen Texten (src/texte/de.json, Bereich titel: Name → Titel, zuerst die Übungen, dann die Level in
+//   der Reihenfolge von FLACH; Übersetzungsschicht), nicht mehr als Feld titel in den Leveldaten (ein solches Feld
+//   entfernt es). Level der Wahl, die im Vorrat liegen, holt es zurück. In den Datenblock REISE
 //   (STORY_LEVELS der Spiellogik, die Zeilen zwischen «const REISE = {» und «};») schreibt es je Grad die 6 Welten mit
 //   den Schlüsseln ihrer 10 Level in der Reihenfolge der Reise; daraus liest das Spiel seine Kapitel (STORY_CHAPTERS). Die
 //   Level im Spiel ordnet es nicht um: So setzt der Lader die Reihe der flachen Level und die der Würfel-Level
@@ -105,6 +107,7 @@ import { abdruck, kandidatName } from './leveldaten.mjs';
 import { AEHNLICH_AB, aehnlichkeit } from './aehnlichkeit.mjs';
 import { HAUPT_KERNIDEE_JE_10, alleUrteile, ladeLevelliste } from './levelliste.mjs';
 import { TESTERS, merge } from './ki-tester/protocol.mjs';
+import { alsText, sprachDatei } from './texte.mjs';
 
 /** Die Welten der Geschichte in ihrer Reihenfolge (die Kapitel in STORY_CHAPTERS, index.html). */
 export const WELTEN = ['Bergwald', 'Meer', 'Wüste', 'Vulkan', 'Planeten', 'Sterne'];
@@ -1394,6 +1397,8 @@ const NAMENSZEILE = new RegExp(String.raw`^( {4}name: '((?:[^'\\]|\\.)*)',(?: di
 /**
  * src/daten/level.js mit den Titeln der Geschichte (titel: Map Name → Titel) in den Namenszeilen der Level in FLACH
  * und WUERFEL; ein Level, das nicht in titel steht, hat danach keinen Titel. Der übrige Text (auch UEBUNGEN) bleibt.
+ * Seit Ticket 07 von .scratch/umbau/ ruft insSpiel es mit einer leeren Map: Die Titel stehen in den deutschen Texten
+ * (mitTitelnInTexten), ein Feld titel in den Leveldaten fällt weg.
  */
 export function mitTitelnImSpiel(html, titel) {
   const unquote = (s) => s.replace(/\\(.)/g, '$1');
@@ -1412,10 +1417,27 @@ export function mitTitelnImSpiel(html, titel) {
 }
 
 /**
- * Bringt die Wahl ins Spiel (siehe Kopf). texte wie lese() in vorrat.mjs, daten: die gelesene wahl.json. Rückgabe:
- * { schritte: [{ was, texte }] } in der Reihenfolge, in der sie geschrieben werden (zurückholen: erst
- * src/daten/level.js, dann der Vorrat; ablegen: erst der Vorrat, dann src/daten/level.js; so steht ein Level bei einem Abbruch höchstens
- * doppelt), dazu holen, weg (Namen je Art), titel (Zahl) und reise. Wirft, wenn ein Level der Wahl weder im Spiel noch
+ * Die deutschen Texte (Text von src/texte/de.json) mit den Titeln der Geschichte (titel: Map Name → Titel) im Bereich
+ * titel (Ticket 07 von .scratch/umbau/): zuerst die Übungen von spiel (Text von src/daten/level.js; ihr Titel bleibt,
+ * wie er in den Texten steht), dann die Level in FLACH in ihrer Reihenfolge, die in titel stehen. Sonst ändert sich
+ * nichts (feste Form, tools/texte.mjs).
+ */
+export function mitTitelnInTexten(deText, spiel, titel) {
+  const unquote = (s) => s.replace(/\\(.)/g, '$1');
+  const de = JSON.parse(deText), alt = de.titel ?? {}, neu = {};
+  for (const m of spiel.matchAll(/^ {4}name: '((?:[^'\\]|\\.)*)', tutorial: true,/gm)) {
+    if (Object.hasOwn(alt, unquote(m[1]))) neu[unquote(m[1])] = alt[unquote(m[1])];
+  }
+  for (const n of namenImSpiel(spiel, 'flach')) if (titel.has(n)) neu[n] = titel.get(n);
+  return alsText({ ...de, titel: neu }, deText);
+}
+
+/**
+ * Bringt die Wahl ins Spiel (siehe Kopf). texte wie lese() in vorrat.mjs, dazu de: der Text von src/texte/de.json
+ * (leseMitTexten); daten: die gelesene wahl.json. Rückgabe: { schritte: [{ was, texte }] } in der Reihenfolge, in der
+ * sie geschrieben werden (zurückholen: erst src/daten/level.js, dann der Vorrat; ablegen: erst der Vorrat, dann
+ * src/daten/level.js; so steht ein Level bei einem Abbruch höchstens doppelt; die Titel in de.json mit dem letzten
+ * Schritt), dazu holen, weg (Namen je Art), titel (Zahl) und reise. Wirft, wenn ein Level der Wahl weder im Spiel noch
  * im Vorrat steht.
  */
 export function insSpiel(texte, daten) {
@@ -1435,14 +1457,20 @@ export function insSpiel(texte, daten) {
     t = zurueckholen(t, holen);
     schritte.push({ was: 'zurückholen', texte: t });
   }
-  const spiel = mitBlock(mitTitelnImSpiel(t.spiel, titel), reise);
+  const spiel = mitBlock(mitTitelnImSpiel(t.spiel, new Map()), reise);
   const weg = { flach: imSpiel(t, 'flach').filter(x => !titel.has(x)), wuerfel: imSpiel(t, 'wuerfel') };
   if (weg.flach.length || weg.wuerfel.length) {
     t = ablegen({ ...t, spiel }, [...weg.flach, ...weg.wuerfel]);
     schritte.push({ was: 'ablegen', texte: t });
   } else if (spiel !== t.spiel) {
     t = { ...t, spiel };
-    schritte.push({ was: 'Titel und Datenblock', texte: t });
+    schritte.push({ was: 'Datenblock', texte: t });
+  }
+  const de = mitTitelnInTexten(texte.de, t.spiel, titel);
+  if (de !== t.de) {
+    t = { ...t, de };
+    if (schritte.length) schritte.at(-1).texte = t;
+    else schritte.push({ was: 'Titel', texte: t });
   }
   return { schritte, holen, weg, titel: titel.size, reise };
 }
@@ -1534,12 +1562,15 @@ async function wahlBefehl(trocken) {
   console.log('\nwahl.json geschrieben');
 }
 
+/** Die Texte für insSpiel: wie lese() in vorrat.mjs, dazu de (src/texte/de.json). */
+export const leseMitTexten = () => ({ ...lese(), de: readFileSync(sprachDatei('de'), 'utf8') });
+
 /** Bringt wahl.json ins Spiel (siehe Kopf und insSpiel) und berichtet; trocken: ohne zu schreiben. */
 function spielBefehl(trocken) {
   const daten = JSON.parse(readFileSync(DATEIEN.wahl, 'utf8'));
   let r;
   try {
-    r = insSpiel(lese(), daten);
+    r = insSpiel(leseMitTexten(), daten);
   } catch (e) {
     fail(e.message);
   }
@@ -1547,16 +1578,21 @@ function spielBefehl(trocken) {
   console.log(`Wahl ins Spiel: ${r.titel} Level mit Titel, Datenblock ${GRADE.length} × ${WELTEN.length} × ${JE_WELT}`);
   console.log(`  zurückholen: ${r.holen.length} (${kurz(r.holen)})`);
   console.log(`  ablegen: ${r.weg.flach.length} flache (${kurz(r.weg.flach)}), ${r.weg.wuerfel.length} Würfel-Level`);
-  if (!r.schritte.length) { console.log('src/daten/level.js und Vorrat stimmen schon, nichts zu schreiben'); return; }
+  if (!r.schritte.length) {
+    console.log('src/daten/level.js, Vorrat und Titel in src/texte/de.json stimmen schon, nichts zu schreiben');
+    return;
+  }
   if (trocken) { console.log('--trocken: nichts geschrieben'); return; }
-  let vorher = lese();
+  let vorher = leseMitTexten();
   for (const s of r.schritte) {
     const dateien = [[DATEN, 'spiel'], ...Object.entries(ARTEN).map(([art, a]) => [a.datei, art])]
       .filter(([, k]) => s.texte[k] !== vorher[k]);
-    // zurückholen: erst src/daten/level.js, dann der Vorrat; ablegen: erst der Vorrat (siehe insSpiel)
+    // zurückholen: erst src/daten/level.js, dann der Vorrat; ablegen: erst der Vorrat (siehe insSpiel); die Titel zuletzt
     if (s.was !== 'zurückholen') dateien.reverse();
+    if (s.texte.de !== vorher.de) dateien.push([sprachDatei('de'), 'de']);
     for (const [datei, k] of dateien) writeFileSync(datei, s.texte[k]);
-    const namen = dateien.map(([, k]) => (k === 'spiel' ? 'src/daten/level.js' : `tools/vorrat/${k}.js`));
+    const namen = dateien.map(([, k]) => (k === 'spiel' ? 'src/daten/level.js' : k === 'de' ? 'src/texte/de.json'
+      : `tools/vorrat/${k}.js`));
     console.log(`  ${s.was}: geschrieben ${namen.join(', ')}`);
     vorher = s.texte;
   }

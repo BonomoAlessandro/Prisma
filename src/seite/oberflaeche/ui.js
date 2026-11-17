@@ -7,7 +7,8 @@ import { audio } from '../ton.js';
 import { CUBE_START, fillTier, flow, restartLevel } from '../levelfluss.js';
 import { $, IS_TOUCH } from './dom.ts';
 import { story, vorwaermenVorStart } from '../geschichte/geschichte.js';
-import { geraeteText, LEVELS, TUTORIAL_COUNT } from '../../logik.js';
+import { LEVELS, TUTORIAL_COUNT } from '../../logik.js';
+import { levelTitel, t } from '../../texte/sprache.js';
 
 /** Sekunden als m:ss bzw. h:mm:ss. */
 function formatDuration(seconds) {
@@ -55,7 +56,7 @@ const ui = {
     this.overview.addEventListener('click', () => story.toOverview());
     this.next.addEventListener('click', () => this.advance());
     this.intro.addEventListener('click', () => this.start());
-    this.intro.querySelector('.start span').textContent = IS_TOUCH ? 'Tippen zum Starten' : 'Klicken zum Starten';
+    this.intro.querySelector('.start span').textContent = t('start.tippen', { touch: IS_TOUCH });
     this.updateSound();
     // Enthüllung starten, sobald die Schrift geladen ist (spätestens nach 0,8 s), ohne auf die Szene zu warten (Ticket 03
     // der Leistung). Kein sichtbares Bild: Die Szene liegt hinter dem deckenden Startbildschirm und wird davor nur einmal
@@ -103,7 +104,7 @@ const ui = {
     fillTier(this.tier, lvl);
     this.grad.hidden = true;
     // eine Übung ausserhalb der Führung zeigt ihren ersten Schritt (Testschnittstelle zeige)
-    const hinweis = () => geraeteText(lvl.schritte?.[0].text ?? '', IS_TOUCH);
+    const hinweis = () => (lvl.schritte ? t(lvl.schritte[0].text, { touch: IS_TOUCH }) : '');
     if (story.drives(index)) {
       const [title, info] = story.hudText(index);
       this.title.textContent = title;
@@ -126,14 +127,14 @@ const ui = {
       }
       this.sub.replaceChildren(...zeile);
     } else if (lvl.dim === 3) {
-      this.title.textContent = `Würfel ${index - CUBE_START + 1} / ${LEVELS.length - CUBE_START} – `
-        + `${lvl.titel ?? lvl.name}`;
+      this.title.textContent = t('kopf.wuerfel', { n: index - CUBE_START + 1, N: LEVELS.length - CUBE_START,
+        titel: levelTitel(lvl) });
       this.sub.textContent = lvl.hint ?? '';
     } else if (lvl.tutorial) {
-      this.title.textContent = `Tutorial ${index + 1} / ${TUTORIAL_COUNT} – ${lvl.name}`;
+      this.title.textContent = t('kopf.tutorial', { n: index + 1, N: TUTORIAL_COUNT, titel: levelTitel(lvl) });
       this.sub.textContent = hinweis();
     } else {
-      this.title.textContent = lvl.titel ?? lvl.name;
+      this.title.textContent = levelTitel(lvl);
       this.sub.textContent = '';
     }
     this.showGoal(0, game.board.elements.filter(e => e.type === 'target').length);
@@ -143,7 +144,7 @@ const ui = {
   },
   /** Wie viele Ziele schon in ihrer Farbe leuchten – macht die Aufgabe in jedem Level sichtbar. */
   showGoal(lit, total) {
-    const text = `Ziele ${lit} / ${total}`;
+    const text = t('kopf.ziele', { n: lit, N: total });
     if (this.ziele.textContent !== text) this.ziele.textContent = text;
     this.goal.classList.toggle('done', lit === total); // hellt nur die Ziele auf, der Grad hat seine eigene Farbe
   },
@@ -165,14 +166,15 @@ const ui = {
       el.append(n, ' ', u); // Leerzeichen für Screenreader
       return el;
     };
-    this.solvedStats.replaceChildren(...(stats ? [stat(formatDuration(stats.seconds), 'Zeit', r?.neueBestzeit), ' ',
-      stat(stats.turns, stats.turns === 1 ? 'Drehung' : 'Drehungen', r?.wenigerDrehungen)] : []));
+    this.solvedStats.replaceChildren(...(stats ? [
+      stat(formatDuration(stats.seconds), t('geloest.zeit'), r?.neueBestzeit), ' ',
+      stat(stats.turns, t(stats.turns === 1 ? 'geloest.drehung' : 'geloest.drehungen'), r?.wenigerDrehungen)] : []));
     // in der Zeile oben (Handy quer: dort ohne Zeit und Drehungen) und für den Bildschirmleser (aria-live)
-    this.solvedBest.textContent = [r?.neueBestzeit && 'Neue Bestzeit', r?.wenigerDrehungen && 'Weniger Drehungen']
-      .filter(Boolean).join(' · ');
+    this.solvedBest.textContent = [r?.neueBestzeit && t('geloest.neueBestzeit'),
+      r?.wenigerDrehungen && t('geloest.wenigerDrehungen')].filter(Boolean).join(' · ');
     const inStory = story.drives(index);
     if (inStory) [this.solvedMsg.textContent, this.next.textContent] = story.solvedText();
-    else this.solvedMsg.textContent = 'Level gelöst';
+    else this.solvedMsg.textContent = t('geloest.level');
     this.next.hidden = !inStory;
     if (inStory) story.preloadNext();
     setShown(this.solved, true);
@@ -194,7 +196,7 @@ const ui = {
   updateSound() {
     this.sound.classList.toggle('muted', audio.muted);
     this.sound.setAttribute('aria-pressed', String(audio.muted));
-    this.sound.setAttribute('aria-label', audio.muted ? 'Ton an' : 'Ton aus');
+    this.sound.setAttribute('aria-label', t(audio.muted ? 'steuerung.ton.an' : 'steuerung.ton.aus'));
   },
 
   /** Startbildschirm verlassen: Ton freischalten, dann das Menü (story.start); die Knöpfe kommen mit dem Level. */

@@ -615,9 +615,10 @@ const TUTORIAL_COUNT = LEVELS.filter(l => l.tutorial).length;
 
 /*
  * Führung im Dorf (Spec .scratch/tutorial-fuehrung/, Richtung C «Vorzeigen»): Eine Übung hat statt des Hinweises
- * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: ein oder zwei kurze Sätze im
- * Du, Platzhalter je Gerät (SCHRITT_PLATZHALTER). bei: Zelle "x,z" des Elements (oder mehrere), auf dem der
- * Lichtkegel liegt; bei einem Handlungsschritt reagieren nur sie (Sperre, seit .scratch/tutorial-neu/). weiter: was
+ * höchstens SCHRITTE_MAX Schritte { text, bei, weiter, richtung?, trifft?, farbe? }. text: der Schlüssel seines Satzes
+ * in der Übersetzungsschicht (src/texte/, seit Ticket 07 von .scratch/umbau/): ein oder zwei kurze Sätze im Du, mit
+ * Platzhaltern je Gerät ({Tippe}, {Drücke lang}; Bereich geraet der Sprachdatei). bei: Zelle "x,z" des Elements
+ * (oder mehrere), auf dem der Lichtkegel liegt; bei einem Handlungsschritt reagieren nur sie (Sperre, seit .scratch/tutorial-neu/). weiter: was
  * den Schritt weiterschaltet (SCHRITT_WEITER); richtung: bei «drehen» nur diese Richtung (−1: zurück, langes Drücken
  * bzw. Rechtsklick). trifft: bei «strahl» die Zelle, die der Strahl treffen soll, wenn es nicht das Element bei ist; bei
  * ist dann das Element, das dafür zu drehen ist (Lichtkegel und Hand dort, die Geste nach richtung, die hier nichts
@@ -632,25 +633,16 @@ const SCHRITTE_MAX = 4;
  * Strahl trifft das Element bei bzw. trifft).
  */
 const SCHRITT_WEITER = ['erklaerung', 'antippen', 'drehen', 'strahl'];
-/** Platzhalter der Schritte in der Befehlsform: [Touch, Maus]. */
-const SCHRITT_PLATZHALTER = { '{Tippe}': ['Tippe', 'Klicke'], '{Drücke lang}': ['Drücke lang', 'Rechtsklicke'] };
-/** Text für das Gerät (touch: Finger, sonst Maus): Platzhalter der Schritte ersetzt. */
-function geraeteText(text, touch) {
-  let t = text;
-  for (const [p, [finger, maus]] of Object.entries(SCHRITT_PLATZHALTER)) t = t.replaceAll(p, touch ? finger : maus);
-  return t;
-}
 /**
  * Hinweise nebenbei: warten auf nichts, zählen nicht zu den Schritten, verschwinden bei der ersten Benutzung oder
- * spätestens mit dem Lösen und kommen beim Neustart derselben Übung nicht wieder. text: [Touch, Maus].
+ * spätestens mit dem Lösen und kommen beim Neustart derselben Übung nicht wieder. text: der Schlüssel des Satzes in
+ * der Übersetzungsschicht, je Gerät { touch, maus }. Den Satz zum neustart sagt sie ohne Ort: Der Knopf steht am
+ * Desktop unten rechts, auf dem Handy hochkant unten in der Reihe, quer rechts in der Mitte (Ticket 02 von
+ * .scratch/tutorial-neu/; bisher «rechts am Rand», das passte hochkant nicht).
  */
 const NEBENBEI = {
-  kamera: { text: ['Wisch mit einem Finger, dann dreht sich die Ansicht. Mit zwei Fingern zoomst du.',
-    'Zieh mit der Maus, dann dreht sich die Ansicht. Mit dem Mausrad zoomst du.'] },
-  // ohne Ort: Der Knopf steht am Desktop unten rechts, auf dem Handy hochkant unten in der Reihe, quer rechts in der
-  // Mitte (Ticket 02 von .scratch/tutorial-neu/; bisher «rechts am Rand», das passte hochkant nicht)
-  neustart: { text: ['Tippst du auf den Kreispfeil, fängt die Übung von vorn an.',
-    'Klickst du auf den Kreispfeil oder drückst R, fängt die Übung von vorn an.'] },
+  kamera: { text: 'fuehrung.nebenbei.kamera' },
+  neustart: { text: 'fuehrung.nebenbei.neustart' },
 };
 /** Zellen eines Schritts (bei als Zelle oder Liste). */
 const schrittZellen = (s) => (s.bei === undefined ? [] : [].concat(s.bei));
@@ -764,7 +756,7 @@ export {
   unit3, DIRS3, DIR_OF_CODE, dirOf, dirIndex, UNIT_DIRS3, BACK_DIRS, BACK_DIRS3, AXIS_NAMES, AXIS_IDS, PLANE_K,
   PLANE_A, FROM_PLANE, MIRROR_EDGE, planeDir, planeIndex, inPlane, reflect3, mirrorFrontNormal3, refractInPrism3,
   createBoard3, MIRROR_FRONT, MIRROR_FRONT3, PRISM_OUT, tracePass, LEVELS, TUTORIAL_COUNT, SCHRITTE_MAX,
-  SCHRITT_WEITER, SCHRITT_PLATZHALTER, geraeteText, NEBENBEI, schrittZellen, zelleVon, schrittGeste, strahlTrifft,
+  SCHRITT_WEITER, NEBENBEI, schrittZellen, zelleVon, schrittGeste, strahlTrifft,
   lichtBei, schrittErfuellt, schrittErlaubt, LEVELS_3D, STORY_LEVELS, RUHE_NACH_MS, RUHE_MIN_FPS, RUHE_FPS,
   ruhetaktAus, ruhtJetzt, bildrate, bildrateGrund,
 };

@@ -24,8 +24,13 @@ export const findChrome = () => [
  * Bildschirm (width und height gelten dann nicht). Verdeckt oder im Hintergrund drosselt Chrome es sonst.
  * hochleistung: mit gpu headless die schnellere Grafikkarte (--force_high_performance_gpu; Bildvergleich auf der GPU,
  * Ticket 13 von .scratch/umbau/); ohne nimmt headless Chrome auf einem Laptop mit zweien womöglich die eingebaute.
+ * sprache: die Sprache des Browsers (--lang, navigator.language; Ticket 07 von .scratch/umbau/): Das Spiel wählt beim
+ * ersten Start die Sprache des Geräts, Headless-Chrome meldet sonst die des Rechners oder Englisch. Vorgabe Deutsch,
+ * damit Proben und Bildvergleich überall das deutsche Spiel sehen (gemessen: --lang=en-US gibt en-US, --lang=de-CH
+ * auf diesem Rechner de-DE; Emulation.setLocaleOverride ändert navigator.language nicht).
  */
-export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false, hochleistung = false }) {
+export async function startChrome({ width, height, gpu = false, fenster = false, maximiert = false, hochleistung = false,
+  sprache = 'de' }) {
   const chrome = findChrome();
   if (!chrome) throw new Error('Kein Chrome/Edge gefunden (CHROME_PATH setzen).');
 
@@ -46,6 +51,7 @@ export async function startChrome({ width, height, gpu = false, fenster = false,
     '--no-first-run',
     '--no-default-browser-check',
     '--mute-audio', // Proben und Tests bleiben stumm (Nutzer, 04.11.2026: hörte die Töne des Spiels)
+    `--lang=${sprache}`,
     maximiert ? '--start-maximized' : `--window-size=${width},${height}`,
     'about:blank',
   ], { stdio: 'ignore' });

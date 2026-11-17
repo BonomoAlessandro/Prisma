@@ -883,7 +883,7 @@ async function kopfzeile(g, platz) {
   const z = await ev(`(() => { const grad = document.getElementById('hud-grad');
     return { ziele: document.getElementById('hud-ziele').textContent, grad: grad.hidden ? null : grad.textContent,
       sub: document.getElementById('hud-sub').textContent }; })()`);
-  const name = await ev(`(() => { const l = LEVELS[${D}.game.levelIndex]; return l.titel ?? l.name; })()`);
+  const name = await ev(`levelTitel(LEVELS[${D}.game.levelIndex])`);
   pruefe(titel === `${WELTEN[w]} – ${name}`, `${g} ${platz + 1}: Titel «${titel}»`);
   // der Grad hinter den Zielen, keine Unterzeile (Kapitel, Level und Bedienung seit dem 09.11.2026 nicht mehr); den
   // Platz prüft der Stand der Geschichte
@@ -1867,7 +1867,7 @@ async function gefuehrt(g) {
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level?.name === 'Erstes Licht'`, `${was}: Führung läuft`, 10);
   await sleep(300);
   const [ZIEL, VORN, FEST, HINTEN] = ['5,4', '2,4', '2,1', '5,1'];
-  const texte = await ev(`LEVELS[0].schritte.map((s) => geraeteText(s.text, ${view.phone}))`);
+  const texte = await ev(`LEVELS[0].schritte.map((s) => t(s.text, { touch: ${view.phone} }))`);
   const schritt1 = async (wann) => {
     const f = await fuehrungIn([ZIEL]);
     pruefe(f.schritt === 0 && f.satz === texte[0] && f.knopf && !f.hand && f.dunkel && f.kegel.length === 1
@@ -1895,7 +1895,7 @@ async function gefuehrt(g) {
   await ev(`LEVELS[0].nebenbei = ['kamera', 'neustart']`);
   try {
     await neustart('nach dem Neustart');
-    const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((t) => t[${view.phone ? 0 : 1}])`);
+    const [kamera, neu] = await ev(`[NEBENBEI.kamera.text, NEBENBEI.neustart.text].map((k) => t(k, { touch: ${view.phone} }))`);
     let n = await neben();
     pruefe(n === `${kamera} ${neu}`, `${was}: Hinweise nebenbei «${n}»`);
     const f = await fuehrungIn([]);
@@ -1989,7 +1989,7 @@ async function schrittIst(n, k, was) {
     `${was}: Führung läuft`, 15);
   await eingeblendet(k, `${was}: Schritt ${k + 1} eingeblendet`);
   await sleep(300);
-  const s = await ev(`(({ text, bei, weiter }) => ({ text: geraeteText(text, ${view.phone}),
+  const s = await ev(`(({ text, bei, weiter }) => ({ text: t(text, { touch: ${view.phone} }),
     zellen: [].concat(bei ?? []).length, erklaerung: weiter === 'erklaerung' }))(LEVELS[${n}].schritte[${k}])`);
   const f = await fuehrungIn([]);
   pruefe(f.schritt === k && !f.fertig && f.satz === s.text && f.knopf === s.erklaerung && f.kegel.length === s.zellen,
@@ -2024,8 +2024,8 @@ async function schritteSpielen(g, n) {
   await until(`${D}.fuehrung.los && ${D}.fuehrung.level === LEVELS[${n}] && ${D}.flow.state === 'play'`,
     `${was}: Führung läuft`, 10);
   const { schritte, nebenbei, drehbar, loesung } = await ev(`({ schritte: LEVELS[${n}].schritte.map((s) => ({ ...s,
-    text: geraeteText(s.text, ${view.phone}) })), nebenbei: (LEVELS[${n}].nebenbei ?? [])
-    .map((k) => NEBENBEI[k].text[${view.phone ? 0 : 1}]).join(' '), loesung: LEVELS[${n}].solution,
+    text: t(s.text, { touch: ${view.phone} }) })), nebenbei: (LEVELS[${n}].nebenbei ?? [])
+    .map((k) => t(NEBENBEI[k].text, { touch: ${view.phone} })).join(' '), loesung: LEVELS[${n}].solution,
     drehbar: ${D}.game.board.elements.filter((e) => isRotatable(e)).map((e) => e.x + ',' + e.z) })`);
   const handArt = (s) => (s.weiter === 'erklaerung' || (s.weiter === 'strahl' && !s.trifft) ? null
     : s.richtung === -1 ? (view.phone ? 'halten' : 'rechtsklick') : 'tippen');
@@ -2113,7 +2113,7 @@ async function uebung(g, n, { bilder = false, weiter = true, replay = false, fue
     sub: document.getElementById('hud-sub').textContent,
     grad: document.getElementById('hud-grad').hidden ? null : document.getElementById('hud-grad').textContent,
     hinweis: document.querySelector('#band:not(.aus) .band-satz')?.textContent ?? null,
-    erster: geraeteText(LEVELS[${n}].schritte[0].text, ${view.phone}), index: ${D}.game.levelIndex,
+    erster: t(LEVELS[${n}].schritte[0].text, { touch: ${view.phone} }), index: ${D}.game.levelIndex,
     uebersicht: !document.getElementById('btn-overview').hidden,
     skip: !document.getElementById('btn-skip').classList.contains('hidden') })`);
   pruefe(k.titel === `Im Dorf – ${uebungen[n]}` && k.index === n, `${g}, Übung ${n + 1}: Titel «${k.titel}»`);
