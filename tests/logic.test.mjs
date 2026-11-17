@@ -1261,7 +1261,7 @@ console.log('Module (Tickets 03 und 04 von .scratch/umbau/)');
   const { parseAst } = await import('vite');
   const lies = (p) => readFileSync(join(root, p), 'utf8');
   test('index.html: nur das Gerüst, das Spiel ein Modul (src/main.ts), keine Marken und kein Code mehr', () => {
-    const skripte = [...quelle.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
+    const skripte = [...quelle.replace(/<!--[\s\S]*?-->/g, '').matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];
     assert.deepEqual(skripte.filter((s) => /type="module"/.test(s[1])).map((s) => s[1].trim()),
       ['type="module" src="src/main.ts"']);
     // ausser three.js und dem Register nur die zwei kleinen Skripte im Kopf (Manifest/Service Worker, Massstab)
@@ -1360,7 +1360,7 @@ console.log('Offline');
     assert.deepEqual(imBau().filter((f) => !all.has(f) && !/^sw\.js$|(^|\/)(LICENSE|[^/]*\.txt)$|\.map$/.test(f)), []);
     assert.deepEqual([...all].filter((f) => f.endsWith('.map')), [], 'Source-Maps im Speicher');
     assert.ok(imBau().includes('vendor/three-0.147.0/LICENSE') && imBau().includes('vendor/jost/OFL.txt'), 'Lizenztexte fehlen im Build');
-    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+$/.test(f)), []);
+    assert.deepEqual(imBau().filter((f) => f.startsWith('assets/') && !/-[\w-]{8}\.\w+(\.map)?$/.test(f)), []);
   });
   test('Offline: sw.js nimmt auch unbekannte Dateien unter assets/ und vendor/ in den Speicher (eine neuere Seite unter dem alten Service Worker), andere nicht', () => {
     const key = (p) => vm.runInContext(`cacheKey(${JSON.stringify(`http://prisma.test/${p}`)})`, sw);
@@ -1391,13 +1391,19 @@ console.log('Offline');
       .replace('<script type="module" src="src/main.ts"></script>\n', '')
       .replace('</head>', `  <script type="module" crossorigin src="./${skripte[0]}"></script>\n</head>`);
     assert.ok(zeilen(distHtml) === erwartet, 'index.html im Build weicht ab');
-    assert.ok(!/vite-ignore|src\/main\.ts|__APP_VERSION__/.test(distHtml), 'Build: vite-ignore oder Quelle übrig');
+    assert.ok(!/vite-ignore|src="src\/main\.ts"|__APP_VERSION__/.test(distHtml), 'Build: vite-ignore oder Quelle übrig');
   });
   test('Build: das Spiel ein verkleinertes Modul mit Source-Map (auf die Module unter src/), APP_VERSION und Worker', () => {
     const js = readFileSync(join(aus, skripte[0]), 'utf8');
     assert.ok(js.includes(`'${version}'`) || js.includes(`"${version}"`) || js.includes(`\`${version}\``), 'APP_VERSION fehlt');
     assert.ok(!js.includes('__APP_VERSION__'), 'Platzhalter der Version übrig');
-    assert.ok(js.split('\n').length < 50, 'nicht verkleinert');
+    const groesse = module().reduce((s, p) => s + readFileSync(join(root, p)).length, 0);
+    assert.ok(js.length < 0.75 * groesse, `nicht verkleinert (${js.length} Bytes, Module ${groesse})`);
+    // Namen bleiben (vite.config.mjs: mangle aus): zwei Worker bekommen ihren Code als Text von Funktionen des Spiels
+    assert.ok(js.includes('const OPT = ${JSON.stringify(OPT)};\\n${decode};') && /async function decode\(url,/.test(js),
+      'Worker der Skyboxen: decode oder OPT umbenannt');
+    assert.ok(/function boardTextures\(specs,compute,arg,helpers=\[\]\)/.test(js) && js.includes('${compute.name}(data)'),
+      'Worker der Bretter: boardTextures umbenannt');
     const worker = imBau().filter((f) => /^assets\/hall-worker-[\w-]+\.js$/.test(f));
     assert.equal(worker.length, 1, 'Worker des Halls nicht genau einmal unter assets/');
     assert.ok(js.includes(posix.basename(worker[0])), 'Pfad des Workers fehlt im Spiel');

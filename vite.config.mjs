@@ -169,8 +169,15 @@ export default {
   plugins: [prisma()],
   // verkleinert, mit Source-Maps (nicht im Speicher des Service Workers); ohne den Nachlader für modulepreload (das
   // Spiel ist ein einziges Modul). Die Bitgleichheit des Halls prüft tests/logic.test.mjs an der Prüfsumme des
-  // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation)
-  build: { outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: true, modulePreload: { polyfill: false } },
+  // gebauten Workers (verkleinert wird etwa Math.pow zu **, nach ECMAScript dieselbe Operation).
+  // Namen bleiben (mangle aus, Funktionsnamen behalten): Zwei Worker bekommen ihren Code als Text von Funktionen des
+  // Spiels (skyBitmaps: decode mit OPT, boardTextures: compute samt helpers und compute.name); umbenannt fänden sie die
+  // Namen darin nicht mehr, scheiterten und rechneten im Hauptthread (Lücken bis 700 ms, andere Bilder)
+  build: {
+    outDir: 'dist', emptyOutDir: true, cssMinify: false, minify: true, sourcemap: true, modulePreload: { polyfill: false },
+    chunkSizeWarningLimit: 1500,
+    rolldownOptions: { output: { minify: { mangle: false, compress: { keepNames: { function: true, class: true } } } } },
+  },
   worker: { format: 'es' },
   // Proben, Werkzeuge und Notizen schreiben viel; der Dev-Server muss davon nichts wissen
   server: { watch: { ignored: ['**/tests/output/**', '**/.scratch/**', '**/tools/**', '**/dist/**'] } },
