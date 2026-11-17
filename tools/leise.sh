@@ -13,10 +13,12 @@
 #   Werkzeuge). Bis zu LEISE_LEICHT_MAX (Vorgabe 4) laufen gleichzeitig. Sie halten die Sperre gemeinsam: Der erste legt
 #   sie an (mit der Datei „art“), jeder trägt sich darin als „leicht.<pid>“ ein, in „pid“ steht immer ein lebender von
 #   ihnen, der letzte räumt sie weg. So wartet jeder alleinige Lauf auf sie, auch eine ältere Kopie dieses Skripts, die
-#   von leichten Läufen nichts weiss (ein Lauf der alten Kopie zählt als alleiniger). Ein leichter Lauf startet nicht,
-#   solange ein alleiniger wartet, dessen Vorrang gleich oder kleiner ist; einer mit grösserer Zahl wird höchstens
-#   LEISE_FRIST Minuten (Vorgabe 10) überholt, danach startet kein leichter mehr, bis er gelaufen ist. Wartende leichte
-#   Läufe tragen sich nirgends ein (ein alleiniger kommt vor ihnen dran, sobald die Sperre frei ist).
+#   von leichten Läufen nichts weiss (ein Lauf der alten Kopie zählt als alleiniger). Stirbt der Halter hart, trägt sich
+#   binnen 5 s ein anderer lebender leichter Lauf ein (Wache, Ticket 14). Ein leichter Lauf startet nicht, solange ein
+#   alleiniger wartet, dessen Vorrang gleich oder kleiner ist; einer mit grösserer Zahl, der schon vor ihm wartete, wird
+#   höchstens LEISE_FRIST Minuten (Vorgabe 10) überholt, danach lässt ihn jeder leichte vor. Wartende leichte Läufe
+#   tragen sich als „<vorrang>.leicht.<pid>“ in die Warteschlange ein (Ticket 14), so lässt ihnen jeder alleinige mit
+#   grösserer Zahl den Vortritt, auch eine Kette alleiniger Läufe und die Kopien aus Ticket 13.
 # Ein Aufruf innerhalb eines Laufs (LEISE_AKTIV) läuft direkt. Eine verwaiste Sperre (Halter tot und kein lebender
 # leichter Lauf darin, oder über eine Minute ohne pid-Datei) wird übernommen. Zum Prüfen dieses Skripts ohne die echte
 # Sperre: LEISE_SPERRE und LEISE_WARTE auf eigene Pfade (tests/leise.test.mjs).
@@ -82,8 +84,8 @@ mkdir -p "$WARTE"
 gemeldet=
 
 if [ "$ART" = allein ]; then
-  # wie bis Ticket 13: wer eine kleinere Zahl lebend vor sich sieht, lässt ihm die Sperre; Marken toter Wartender werden
-  # weggeräumt
+  # wie bis Ticket 13: wer eine kleinere Zahl lebend vor sich sieht, lässt ihm die Sperre (seit Ticket 14 auch einem
+  # wartenden leichten Lauf, „<vorrang>.leicht.<pid>“); Marken toter Wartender werden weggeräumt
   MARKE="$WARTE/$VORRANG.$$"
   echo "$$ $WP" > "$MARKE"
   trap 'rm -f "$MARKE"' EXIT

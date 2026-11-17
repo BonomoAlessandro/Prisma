@@ -1,5 +1,7 @@
 // Prüft die Sperre von tools/leise.sh (Ticket 13 von .scratch/umbau/): leichte Läufe gleichzeitig bis
-// LEISE_LEICHT_MAX, ein alleiniger nie neben einem anderen Lauf, Vorrang und Frist, verwaiste Sperren. Jeder Fall mit
+// LEISE_LEICHT_MAX, ein alleiniger nie neben einem anderen Lauf, Vorrang und Frist, verwaiste Sperren; seit Ticket 14
+// Vorrang wartender leichter gegen eine Kette alleiniger, kein gegenseitiger Vortritt, harter Tod des Halters (Wache);
+// jeder Fall mit Zeitrahmen (120 s), danach werden seine Läufe beendet. Jeder Fall mit
 // eigener Sperre und eigenem Warteordner (LEISE_SPERRE, LEISE_WARTE) im Temp-Verzeichnis, nie mit der echten unter /tmp;
 // die Fälle laufen darum gleichzeitig (etwa 40 s). Die Läufe sind kurze sh-Befehle, die Beginn und Ende mit der Uhr in
 // eine Datei schreiben; geprüft wird an diesen Zeiten. Nur unter Windows (leise.ps1).
