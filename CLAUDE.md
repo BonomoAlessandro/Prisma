@@ -12,6 +12,17 @@ The five default labels, recorded as a `Status:` line in each issue file: `needs
 
 Single-context: one `CONTEXT.md` and `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
+## Prüfläufe
+
+Schwere Läufe über `tools/leise.sh` mit Zeitgrenze. Läufe ohne Zeitmessung (Node-Tests, Golden, Bildvergleich,
+`brett-probe`, `offline`, `screenshot`, Werkzeuge) als leichte (`LEISE_ART=leicht`, bis zu vier gleichzeitig), Proben
+mit Bildzeiten oder Messungen allein (ohne `LEISE_ART`); Tabelle im README, Abschnitt Tests.
+- Umsetzer: nur die schnellen Prüfungen (Node-Tests, Golden, Bildvergleich) und die Proben, die ihr Ticket direkt
+  betrifft. Der Reviewer lässt den ganzen Satz einmal laufen, die Proben mit Zeitmessung nur er.
+- Wackelt ein paralleler Lauf (Zeitüberschreitung, Flake), als alleinigen wiederholen (Bildvergleich mit `--jobs 1`).
+- Proben mit Bildtakt: Eine einzelne Lücke über 100 ms kommt auf diesem Rechner schon auf der Basis vor. Dann
+  wiederholen bzw. mit der Basis vergleichen; es zählt nur ein Fehler, der auf der Basis nicht kommt.
+
 ## Laufendes Vorhaben
 
 PLAN 3a «Umbau für die Stores» (`feature/umbau`): Spec und Tickets in `.scratch/umbau/`, vor dem Weitermachen lesen.
