@@ -1,4 +1,5 @@
-// Hauptschleife (frame, draw, animate), Testschnittstelle (__prisma, __prismaDebug) und Seitenstart (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Hauptschleife (frame, draw, animate), Testschnittstelle (__prisma, __prismaDebug) und Seitenstart (Ticket 04 von
+// .scratch/umbau/, bis dahin in index.html).
 import { frameRate, leistung, perfHud } from './leistung.js';
 import { FIXED_TIME } from './konfiguration.ts';
 import {

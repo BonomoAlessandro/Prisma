@@ -1,4 +1,5 @@
-// Oberfläche: Kopfzeile, kleine Schaltflächen, «Level gelöst», Startbildschirm (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Oberfläche: Kopfzeile, kleine Schaltflächen, «Level gelöst», Startbildschirm (Ticket 04 von .scratch/umbau/, bis
+// dahin in index.html).
 import { fuehrung } from '../fuehrung.js';
 import { nextFrame, ruhe, sceneLoop } from '../szene.js';
 import { game } from '../brett/feld.js';

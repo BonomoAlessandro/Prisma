@@ -1,4 +1,5 @@
-// Beleuchtung und Bildschritte (Bloom, Pinsel, letzter Schritt) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Beleuchtung und Bildschritte (Bloom, Pinsel, letzter Schritt) (Ticket 04 von .scratch/umbau/, bis dahin in
+// index.html).
 import './brett/brett.js';
 import { IS_MOBILE, LOOK, PLATE, QUALITY } from './konfiguration.ts';
 import { camera, discardDepth, HDR_SUPPORTED, HDR_TYPE, renderer, scene, SCENE_PREPASSES } from './szene.js';

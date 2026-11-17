@@ -1,4 +1,5 @@
-// Szene und Renderer: WebGL, Szene, Kamera, Hauptschleife (sceneLoop), Ruhe, Übersetzen der Programme (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Szene und Renderer: WebGL, Szene, Kamera, Hauptschleife (sceneLoop), Ruhe, Übersetzen der Programme (Ticket 04 von
+// .scratch/umbau/, bis dahin in index.html).
 //
 // Seitenstart in Stücken (Ticket 10 der Leistung): Hier begann bis Ticket 04 des Umbaus ein eigenes klassisches Skript,
 // das der Browser in einer eigenen Aufgabe übersetzte und startete. Als Module laufen die Teile sonst am Stück; darum

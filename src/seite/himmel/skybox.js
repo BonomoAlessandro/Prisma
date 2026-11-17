@@ -1,4 +1,5 @@
-// Skyboxen aus Blender: Register, Laden, Ebenen, Himmel je Welt (skyTheme) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Skyboxen aus Blender: Register, Laden, Ebenen, Himmel je Welt (skyTheme) (Ticket 04 von .scratch/umbau/, bis dahin in
+// index.html).
 import { solar } from './sonnensystem.js';
 import { FIXED_TIME, IS_MOBILE, PLATE } from '../konfiguration.ts';
 import {

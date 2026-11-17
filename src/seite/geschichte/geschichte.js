@@ -1,4 +1,5 @@
-// Noas Geschichte: der Ablauf (story), Menü und Übersicht, Ladezeichen, Vorwärmen (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Noas Geschichte: der Ablauf (story), Menü und Übersicht, Ladezeichen, Vorwärmen (Ticket 04 von .scratch/umbau/, bis
+// dahin in index.html).
 import { createStoryScene } from './buehne.js';
 import { LOOK } from '../konfiguration.ts';
 import { camera, LAYER_NO_REFLECT, nextFrame, renderer, ruhe, RUHE_OHNE_START, scene, sceneLoop } from '../szene.js';

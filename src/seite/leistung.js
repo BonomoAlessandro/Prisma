@@ -1,4 +1,5 @@
-// Messwerkzeug und Leistungsanzeige (?perf, Taste F), Bildrate (frameRate) (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Messwerkzeug und Leistungsanzeige (?perf, Taste F), Bildrate (frameRate) (Ticket 04 von .scratch/umbau/, bis dahin in
+// index.html).
 import { adaptiveResolution } from './aufloesung.js';
 import { APP_VERSION, IS_MOBILE } from './konfiguration.ts';
 import { renderer, sceneLoop } from './szene.js';

@@ -1,4 +1,5 @@
-// Feld: verbindet Spiellogik und 3D-Darstellung (game), Würfel, Laden, Drehen, Weigern (Ticket 04 von .scratch/umbau/, bis dahin in index.html).
+// Feld: verbindet Spiellogik und 3D-Darstellung (game), Würfel, Laden, Drehen, Weigern (Ticket 04 von .scratch/umbau/,
+// bis dahin in index.html).
 import {
   COLOR_RGB, cubeToWorld, ELEMENT_FACTORIES, FIXED_EDGE, fixedBase, gridToWorld, MAT, placeInCube,
 } from './elemente.js';
