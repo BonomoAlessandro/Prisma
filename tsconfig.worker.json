@@ -1,0 +1,9 @@
+{
+  // Der Worker des Halls (src/hall-worker.ts) läuft ohne DOM: eigene Umgebung (WebWorker), sonst wie tsconfig.json
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "WebWorker"]
+  },
+  "include": ["src/hall-worker.ts"],
+  "exclude": []
+}

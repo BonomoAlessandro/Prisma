@@ -140,7 +140,8 @@ function checkRegistry(skies, pending = {}) {
 
 /**
  * Register backgrounds/skies.js schreiben und seinen Stand in sw.js nachführen: Ein geänderter Service Worker löst in
- * jedem Browser ein Update aus (ob ein nur per importScripts geändertes Register das auch tut, hängt vom Browser ab).
+ * jedem Browser ein Update aus (sw.js lädt das Register nicht selbst; ohne die Zeile SKIES bliebe sw.js gleich, und der
+ * Browser holte das neue Register erst, wenn sich sonst etwas am Service Worker ändert).
  * Rückgabe: der Stand des Registers
  */
 function writeRegistry(skies) {

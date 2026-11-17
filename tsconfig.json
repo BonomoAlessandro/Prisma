@@ -1,0 +1,22 @@
+{
+  // TypeScript (Ticket 04 von .scratch/umbau/): Prüfen ohne Ausgabe, npm run typecheck (tsc --noEmit). Übersetzt wird
+  // nur von Vite (Typen entfernen); tsc prüft. Neue und herausgelöste Module dürfen TypeScript sein, der übrige Code
+  // bleibt JavaScript (allowJs, nicht geprüft: checkJs aus). Der Worker des Halls hat seine eigene Umgebung (WebWorker
+  // statt DOM) und darum tsconfig.worker.json; typecheck prüft beide.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "allowJs": true,
+    "checkJs": false,
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts", "src/**/*.js"],
+  "exclude": ["src/hall-worker.ts"]
+}

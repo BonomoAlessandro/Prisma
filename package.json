@@ -8,9 +8,11 @@
     "build": "vite build",
     "preview": "vite preview",
     "test": "node tests/alle.mjs",
-    "test:bild": "node tests/bildvergleich.mjs"
+    "test:bild": "node tests/bildvergleich.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.worker.json"
   },
   "devDependencies": {
+    "typescript": "5.9.3",
     "vite": "8.3.8"
   }
 }
