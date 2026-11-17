@@ -71,7 +71,7 @@ hineingeholt (Ticket 13, `8a3e6ca`, ein Konflikt nur im Kopfkommentar von `tests
   unter `assets/`, in `FILES`, vom Spiel genannt; kein Worker aus einem Blob; Namen gekürzt.
 - `05f` (`9763592`) README (Aufbau, TypeScript, Tests), `CONTEXT.md`: Begriff «Speicherschicht».
 
-**Geprüft im Browser (eigenes Skript, nicht im Repo):** Build mit `?`-Stand `leicht`/Platz 25/Ton aus im
+**Geprüft im Browser (eigenes Skript, nicht im Repo):** Build mit einem Stand «leicht», Platz 25, Ton aus im
 `localStorage`: alle Worker als `type: 'module'` gestartet (`brettdaten-worker` zweimal: Stein, Lehm; `hall-worker`;
 `himmelbild-worker` mit 5 Antworten), jede mit Antwort, kein `error`; `__prismaDebug.audio.muted` true,
 `progress.last()` «leicht», Platz 25; Konsole leer. Einen Zähler «im Hauptthread gerechnet» gibt es darum nicht.
